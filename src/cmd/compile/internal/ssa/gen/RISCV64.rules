@@ -735,9 +735,9 @@
 (NEGW (MOVDconst [x])) => (MOVDconst [int64(int32(-x))])
 
 // Shift of a constant.
-(SLLI [x] (MOVDconst [y])) && is32Bit(y << x) => (MOVDconst [y << x])
-(SRLI [x] (MOVDconst [y])) => (MOVDconst [int64(uint64(y) >> x)])
-(SRAI [x] (MOVDconst [y])) => (MOVDconst [int64(y) >> x])
+(SLLI [x] (MOVDconst [y])) && is32Bit(y << uint32(x)) => (MOVDconst [y << uint32(x)])
+(SRLI [x] (MOVDconst [y])) => (MOVDconst [int64(uint64(y) >> uint32(x))])
+(SRAI [x] (MOVDconst [y])) => (MOVDconst [int64(y) >> uint32(x)])
 
 // SLTI/SLTIU with constants.
 (SLTI  [x] (MOVDconst [y])) => (MOVDconst [b2i(int64(y) < int64(x))])
