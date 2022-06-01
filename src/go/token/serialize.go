@@ -31,7 +31,6 @@ func (s *FileSet) Read(decode func(any) error) error {
 	for i := 0; i < len(ss.Files); i++ {
 		f := &ss.Files[i]
 		files[i] = &File{
-			set:   s,
 			name:  f.Name,
 			base:  f.Base,
 			size:  f.Size,
