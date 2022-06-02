@@ -37,6 +37,7 @@ import (
 	"golang.org/x/tools/go/callgraph/cha"
 	"golang.org/x/tools/go/callgraph/rta"
 	"golang.org/x/tools/go/callgraph/static"
+	"golang.org/x/tools/go/callgraph/vta"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
@@ -46,7 +47,7 @@ import (
 // flags
 var (
 	algoFlag = flag.String("algo", "rta",
-		`Call graph construction algorithm (static, cha, rta, pta)`)
+		`Call graph construction algorithm (static, cha, rta, vta, pta)`)
 
 	testFlag = flag.Bool("test", false,
 		"Loads test code (*_test.go) for imported packages")
@@ -67,7 +68,7 @@ const Usage = `callgraph: display the call graph of a Go program.
 
 Usage:
 
-  callgraph [-algo=static|cha|rta|pta] [-test] [-format=...] package...
+  callgraph [-algo=static|cha|rta|vta|pta] [-test] [-format=...] package...
 
 Flags:
 
@@ -76,6 +77,7 @@ Flags:
             static      static calls only (unsound)
             cha         Class Hierarchy Analysis
             rta         Rapid Type Analysis
+            vta         Variable Type Analysis
             pta         inclusion-based Points-To Analysis
 
            The algorithms are ordered by increasing precision in their
@@ -250,6 +252,9 @@ func doCallgraph(dir, gopath, algo, format string, tests bool, args []string) er
 		cg = rtares.CallGraph
 
 		// NB: RTA gives us Reachable and RuntimeTypes too.
+
+	case "vta":
+		cg = vta.CallGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
 
 	default:
 		return fmt.Errorf("unknown algorithm: %s", algo)
