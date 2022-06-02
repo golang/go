@@ -789,7 +789,7 @@ func (c *gcControllerState) enlistWorker() {
 
 // findRunnableGCWorker returns a background mark worker for _p_ if it
 // should be run. This must only be called when gcBlackenEnabled != 0.
-func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
+func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) (*g, int64) {
 	if gcBlackenEnabled == 0 {
 		throw("gcControllerState.findRunnable: blackening not enabled")
 	}
@@ -798,6 +798,9 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
 	// hasn't had an update in a while. This check is necessary in
 	// case the limiter is on but hasn't been checked in a while and
 	// so may have left sufficient headroom to turn off again.
+	if now == 0 {
+		now = nanotime()
+	}
 	if gcCPULimiter.needUpdate(now) {
 		gcCPULimiter.update(now)
 	}
@@ -807,7 +810,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
 		// the end of the mark phase when there are still
 		// assists tapering off. Don't bother running a worker
 		// now because it'll just return immediately.
-		return nil
+		return nil, now
 	}
 
 	// Grab a worker before we commit to running below.
@@ -824,7 +827,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
 		// it will always do so with queued global work. Thus, that P
 		// will be immediately eligible to re-run the worker G it was
 		// just using, ensuring work can complete.
-		return nil
+		return nil, now
 	}
 
 	decIfPositive := func(ptr *int64) bool {
@@ -847,7 +850,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
 	} else if c.fractionalUtilizationGoal == 0 {
 		// No need for fractional workers.
 		gcBgMarkWorkerPool.push(&node.node)
-		return nil
+		return nil, now
 	} else {
 		// Is this P behind on the fractional utilization
 		// goal?
@@ -857,7 +860,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
 		if delta > 0 && float64(_p_.gcFractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
 			// Nope. No need to run a fractional worker.
 			gcBgMarkWorkerPool.push(&node.node)
-			return nil
+			return nil, now
 		}
 		// Run a fractional worker.
 		_p_.gcMarkWorkerMode = gcMarkWorkerFractionalMode
@@ -869,7 +872,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
 	if trace.enabled {
 		traceGoUnpark(gp, 0)
 	}
-	return gp
+	return gp, now
 }
 
 // resetLive sets up the controller state for the next mark phase after the end

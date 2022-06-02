@@ -1205,8 +1205,9 @@ func stopTheWorldWithSema() {
 		}
 	}
 	// stop idle P's
+	now := nanotime()
 	for {
-		p := pidleget()
+		p, _ := pidleget(now)
 		if p == nil {
 			break
 		}
@@ -2277,7 +2278,7 @@ func startm(_p_ *p, spinning bool) {
 	mp := acquirem()
 	lock(&sched.lock)
 	if _p_ == nil {
-		_p_ = pidleget()
+		_p_, _ = pidleget(0)
 		if _p_ == nil {
 			unlock(&sched.lock)
 			if spinning {
@@ -2400,7 +2401,7 @@ func handoffp(_p_ *p) {
 	// The scheduler lock cannot be held when calling wakeNetPoller below
 	// because wakeNetPoller may call wakep which may call startm.
 	when := nobarrierWakeTime(_p_)
-	pidleput(_p_)
+	pidleput(_p_, 0)
 	unlock(&sched.lock)
 
 	if when != 0 {
@@ -2584,7 +2585,7 @@ top:
 
 	// Try to schedule a GC worker.
 	if gcBlackenEnabled != 0 {
-		gp = gcController.findRunnableGCWorker(_p_, now)
+		gp, now = gcController.findRunnableGCWorker(_p_, now)
 		if gp != nil {
 			return gp, false, true
 		}
@@ -2733,7 +2734,7 @@ top:
 	if releasep() != _p_ {
 		throw("findrunnable: wrong p")
 	}
-	pidleput(_p_)
+	now = pidleput(_p_, now)
 	unlock(&sched.lock)
 
 	// Delicate dance: thread transitions from spinning to non-spinning
@@ -2812,11 +2813,10 @@ top:
 		if _g_.m.spinning {
 			throw("findrunnable: netpoll with spinning")
 		}
+		// Refresh now.
+		now = nanotime()
 		delay := int64(-1)
 		if pollUntil != 0 {
-			if now == 0 {
-				now = nanotime()
-			}
 			delay = pollUntil - now
 			if delay < 0 {
 				delay = 0
@@ -2828,7 +2828,7 @@ top:
 		}
 		list := netpoll(delay) // block until new work is available
 		atomic.Store64(&sched.pollUntil, 0)
-		atomic.Store64(&sched.lastpoll, uint64(nanotime()))
+		atomic.Store64(&sched.lastpoll, uint64(now))
 		if faketime != 0 && list.empty() {
 			// Using fake time and nothing is ready; stop M.
 			// When all M's stop, checkdead will call timejump.
@@ -2836,7 +2836,7 @@ top:
 			goto top
 		}
 		lock(&sched.lock)
-		_p_ = pidleget()
+		_p_, _ = pidleget(now)
 		unlock(&sched.lock)
 		if _p_ == nil {
 			injectglist(&list)
@@ -2972,7 +2972,7 @@ func checkRunqsNoP(allpSnapshot []*p, idlepMaskSnapshot pMask) *p {
 	for id, p2 := range allpSnapshot {
 		if !idlepMaskSnapshot.read(uint32(id)) && !runqempty(p2) {
 			lock(&sched.lock)
-			pp := pidleget()
+			pp, _ := pidleget(0)
 			unlock(&sched.lock)
 			if pp != nil {
 				return pp
@@ -3038,7 +3038,7 @@ func checkIdleGCNoP() (*p, *g) {
 	// the assumption in gcControllerState.findRunnableGCWorker that an
 	// empty gcBgMarkWorkerPool is only possible if gcMarkDone is running.
 	lock(&sched.lock)
-	pp := pidleget()
+	pp, now := pidleget(0)
 	if pp == nil {
 		unlock(&sched.lock)
 		return nil, nil
@@ -3046,14 +3046,14 @@ func checkIdleGCNoP() (*p, *g) {
 
 	// Now that we own a P, gcBlackenEnabled can't change (as it requires STW).
 	if gcBlackenEnabled == 0 || !gcController.addIdleMarkWorker() {
-		pidleput(pp)
+		pidleput(pp, now)
 		unlock(&sched.lock)
 		return nil, nil
 	}
 
 	node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
 	if node == nil {
-		pidleput(pp)
+		pidleput(pp, now)
 		unlock(&sched.lock)
 		gcController.removeIdleMarkWorker()
 		return nil, nil
@@ -3910,7 +3910,7 @@ func exitsyscallfast_reacquired() {
 
 func exitsyscallfast_pidle() bool {
 	lock(&sched.lock)
-	_p_ := pidleget()
+	_p_, _ := pidleget(0)
 	if _p_ != nil && atomic.Load(&sched.sysmonwait) != 0 {
 		atomic.Store(&sched.sysmonwait, 0)
 		notewakeup(&sched.sysmonnote)
@@ -3935,7 +3935,7 @@ func exitsyscall0(gp *g) {
 	lock(&sched.lock)
 	var _p_ *p
 	if schedEnabled(gp) {
-		_p_ = pidleget()
+		_p_, _ = pidleget(0)
 	}
 	var locked bool
 	if _p_ == nil {
@@ -4910,7 +4910,7 @@ func procresize(nprocs int32) *p {
 		}
 		p.status = _Pidle
 		if runqempty(p) {
-			pidleput(p)
+			pidleput(p, now)
 		} else {
 			p.m.set(mget())
 			p.link.set(runnablePs)
@@ -5679,7 +5679,8 @@ func updateTimerPMask(pp *p) {
 	unlock(&pp.timersLock)
 }
 
-// pidleput puts p to on the _Pidle list.
+// pidleput puts p on the _Pidle list. now must be a relatively recent call
+// to nanotime or zero. Returns now or the current time if now was zero.
 //
 // This releases ownership of p. Once sched.lock is released it is no longer
 // safe to use p.
@@ -5689,17 +5690,24 @@ func updateTimerPMask(pp *p) {
 // May run during STW, so write barriers are not allowed.
 //
 //go:nowritebarrierrec
-func pidleput(_p_ *p) {
+func pidleput(_p_ *p, now int64) int64 {
 	assertLockHeld(&sched.lock)
 
 	if !runqempty(_p_) {
 		throw("pidleput: P has non-empty run queue")
 	}
+	if now == 0 {
+		now = nanotime()
+	}
 	updateTimerPMask(_p_) // clear if there are no timers.
 	idlepMask.set(_p_.id)
 	_p_.link = sched.pidle
 	sched.pidle.set(_p_)
-	atomic.Xadd(&sched.npidle, 1) // TODO: fast atomic
+	atomic.Xadd(&sched.npidle, 1)
+	if !_p_.limiterEvent.start(limiterEventIdle, now) {
+		throw("must be able to track idle limiter event")
+	}
+	return now
 }
 
 // pidleget tries to get a p from the _Pidle list, acquiring ownership.
@@ -5709,18 +5717,22 @@ func pidleput(_p_ *p) {
 // May run during STW, so write barriers are not allowed.
 //
 //go:nowritebarrierrec
-func pidleget() *p {
+func pidleget(now int64) (*p, int64) {
 	assertLockHeld(&sched.lock)
 
 	_p_ := sched.pidle.ptr()
 	if _p_ != nil {
 		// Timer may get added at any time now.
+		if now == 0 {
+			now = nanotime()
+		}
 		timerpMask.set(_p_.id)
 		idlepMask.clear(_p_.id)
 		sched.pidle = _p_.link
-		atomic.Xadd(&sched.npidle, -1) // TODO: fast atomic
+		atomic.Xadd(&sched.npidle, -1)
+		_p_.limiterEvent.stop(limiterEventIdle, now)
 	}
-	return _p_
+	return _p_, now
 }
 
 // runqempty reports whether _p_ has no Gs on its local run queue.
