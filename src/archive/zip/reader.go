@@ -133,7 +133,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 			if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
 				return err
 			}
-			buf = bufio.NewReader(rs)
+			buf.Reset(rs)
 			continue
 		}
 
