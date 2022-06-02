@@ -686,6 +686,9 @@ type p struct {
 	gcAssistTime         int64 // Nanoseconds in assistAlloc
 	gcFractionalMarkTime int64 // Nanoseconds in fractional mark worker (atomic)
 
+	// limiterEvent tracks events for the GC CPU limiter.
+	limiterEvent limiterEvent
+
 	// gcMarkWorkerMode is the mode for the next mark worker to run in.
 	// That is, this is used to communicate with the worker goroutine
 	// selected for immediate execution by

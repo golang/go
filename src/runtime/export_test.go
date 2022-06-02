@@ -1415,6 +1415,7 @@ func NewGCCPULimiter(now int64, gomaxprocs int32) *GCCPULimiter {
 	// on a 32-bit architecture, it may get allocated unaligned
 	// space.
 	l := Escape(new(GCCPULimiter))
+	l.limiter.test = true
 	l.limiter.resetCapacity(now, gomaxprocs)
 	return l
 }

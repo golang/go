@@ -1281,6 +1281,10 @@ func gcBgMarkWorker() {
 
 		startTime := nanotime()
 		pp.gcMarkWorkerStartTime = startTime
+		var trackLimiterEvent bool
+		if pp.gcMarkWorkerMode == gcMarkWorkerIdleMode {
+			trackLimiterEvent = pp.limiterEvent.start(limiterEventIdleMarkWork, startTime)
+		}
 
 		decnwait := atomic.Xadd(&work.nwait, -1)
 		if decnwait == work.nproc {
@@ -1329,9 +1333,8 @@ func gcBgMarkWorker() {
 		now := nanotime()
 		duration := now - startTime
 		gcController.markWorkerStop(pp.gcMarkWorkerMode, duration)
-		if pp.gcMarkWorkerMode == gcMarkWorkerIdleMode {
-			gcCPULimiter.addIdleMarkTime(duration)
-			gcCPULimiter.update(now)
+		if trackLimiterEvent {
+			pp.limiterEvent.stop(limiterEventIdleMarkWork, now)
 		}
 		if pp.gcMarkWorkerMode == gcMarkWorkerFractionalMode {
 			atomic.Xaddint64(&pp.gcFractionalMarkTime, duration)
