@@ -777,7 +777,8 @@ func printDebugLog() {
 			// Logged before runtimeInitTime was set.
 			pnano = 0
 		}
-		print(string(itoaDiv(tmpbuf[:], uint64(pnano), 9)))
+		pnanoBytes := itoaDiv(tmpbuf[:], uint64(pnano), 9)
+		print(slicebytetostringtmp((*byte)(noescape(unsafe.Pointer(&pnanoBytes[0]))), len(pnanoBytes)))
 		print(" P ", p, "] ")
 
 		for i := 0; s.begin < s.end; i++ {
