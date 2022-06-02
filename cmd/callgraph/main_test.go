@@ -59,6 +59,12 @@ func TestCallgraph(t *testing.T) {
 			`pkg.main2 --> (pkg.C).f`,
 			`pkg.main2 --> (pkg.D).f`,
 		}},
+		{"vta", false, []string{
+			// vta distinguishes main->C, main2->D.
+			"pkg.main --> (pkg.C).f",
+			"pkg.main --> pkg.main2",
+			"pkg.main2 --> (pkg.D).f",
+		}},
 		{"pta", false, []string{
 			// pta distinguishes main->C, main2->D.  Also has a root node.
 			`<root> --> pkg.init`,
@@ -70,6 +76,12 @@ func TestCallgraph(t *testing.T) {
 		// tests: both the package's main and the test's main are called.
 		// The callgraph includes all the guts of the "testing" package.
 		{"rta", true, []string{
+			`pkg.test.main --> testing.MainStart`,
+			`testing.runExample --> pkg.Example`,
+			`pkg.Example --> (pkg.C).f`,
+			`pkg.main --> (pkg.C).f`,
+		}},
+		{"vta", true, []string{
 			`pkg.test.main --> testing.MainStart`,
 			`testing.runExample --> pkg.Example`,
 			`pkg.Example --> (pkg.C).f`,
@@ -95,13 +107,15 @@ func TestCallgraph(t *testing.T) {
 		for _, line := range strings.Split(fmt.Sprint(stdout), "\n") {
 			edges[line] = true
 		}
+		ok := true
 		for _, edge := range test.want {
 			if !edges[edge] {
+				ok = false
 				t.Errorf("callgraph(%q, %t): missing edge: %s",
 					test.algo, test.tests, edge)
 			}
 		}
-		if t.Failed() {
+		if !ok {
 			t.Log("got:\n", stdout)
 		}
 	}
