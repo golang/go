@@ -84,9 +84,41 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: complete this section, or delete if not needed
 </p>
+
+<p><!-- https://go.dev/issue/18138 --><!-- CL 345889 -->
+  The runtime will now allocate initial goroutine stacks based on the historic
+  average stack usage of goroutines. This avoids some of the early stack growth
+  and copying needed in the average case in exchange for at most 2x wasted
+  space on below-average goroutines.
+</p>
+
+<p><!-- https://go.dev/issue/46279 --><!-- CL 393354 -->
+  On Unix operating systems, Go programs that import package
+  <a href="/pkg/os/">os</a> now automatically increase the open file limit
+  (<code>RLIMIT_NOFILE</code>) to the maximum allowed value. Programs that need
+  a lower limit (for compatibility with <code>select</code>, for example) can
+  set the limit back as needed, or lower the hard limit prior to starting the
+  Go program.
+</p>
+
+<p><!-- https://go.dev/issue/51485 --><!-- CL 390421 -->
+  Unrecoverable fatal errors (such as concurrent map writes, or unlock of
+  unlocked mutexes) now print a simpler traceback excluding runtime metadata
+  (equivalent to a fatal panic) unless <code>GOTRACEBACK=system</code> or
+  <code>crash</code>. Runtime-internal fatal error tracebacks always include
+  full metadata regardless of the value of <code>GOTRACEBACK</code>
+</p>
+
+<p><!-- https://go.dev/issue/50614 --><!-- CL 395754 -->
+  Support for debugger-injected function calls has been added on ARM64,
+  enabling users to call functions from their binary in an interactive
+  debugging session when using a debugger that is updated to make use of this
+  functionality.
+</p>
+
 <h2 id="compiler">Compiler</h2>
 
-<p><!-- https://go.dev/issue/5496 CL 357330, 395714, 403979 -->
+<p><!-- https://go.dev/issue/5496 --><!-- CL 357330, 395714, 403979 -->
   The compiler now uses
   a <a href="https://en.wikipedia.org/wiki/Branch_table">jump
   table</a> to implement large integer and string switch statements.
@@ -362,6 +394,44 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- runtime -->
 
+<dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/47216 --><!-- CL 404305 -->
+    The new <code>/sched/gomaxprocs:threads</code> metric reports the current
+    <code>runtime.GOMAXPROCS</code> value.
+    </p>
+
+    <p><!-- https://go.dev/issue/47216 --><!-- CL 404306 -->
+    The new <code>/cgo/go-to-c-calls:calls</code> metric reports the total
+    number of calls made from Go to C. This metric is identical to the <a
+      href="/pkg/runtime/#NumCgoCall"><code>runtime.NumCgoCall</code></a>
+    function.
+    </p>
+
+    <p><!-- https://go.dev/issue/48409 --><!-- CL 403614 -->
+    The new <code>/gc/limiter/last-enabled:gc-cycle</code> metric reports the
+    last GC cycle when the GC CPU limiter was enabled.
+    </p>
+  </dd>
+</dl><!-- runtime/metrics -->
+
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/33250 --><!-- CL 387415 -->
+      Stop-the-world pause times have been significantly reduced when
+      collecting goroutine profiles, reducing the overall latency impact to the
+      application.
+    </p>
+
+    <p><!-- CL 391434 -->
+      <code>MaxRSS</code> is now reported in heap profiles for all Unix
+      operating systems (it was previously only reported for
+      <code>GOOS=android</code>, <code>darwin</code>, <code>ios</code>, and
+      <code>linux</code>).
+    </p>
+  </dd>
+</dl><!-- runtime/pprof -->
+
 <dl id="runtime/race"><dt><a href="/pkg/runtime/race/">runtime/race</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/49761 --><!-- CL 333529 -->
@@ -378,6 +448,10 @@ Do not send CLs removing the interior tags from such phrases.
           Supports unlimited numbers of goroutines
         </li>
       </ul>
+    </p>
+
+    <p><!-- CL 336549 -->
+      The race detector is now supported on S390.
     </p>
   </dd>
 </dl><!-- runtime/race -->
