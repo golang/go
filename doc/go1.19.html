@@ -107,10 +107,34 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: complete this section, or delete if not needed
 </p>
+
 <h2 id="library">Core library</h2>
+
+<h3 id="atomic_types">New atomic types</h3>
+<p><!-- https://go.dev/issue/50860 --><!-- CL 381317 -->
+  The <a href="/pkg/sync/atomic/"><code>sync/atomic</code></a> package defines new atomic types
+  <a href="/pkg/sync/atomic/#Bool"><code>Bool</code></a>,
+  <a href="/pkg/sync/atomic/#Int32"><code>Int32</code></a>,
+  <a href="/pkg/sync/atomic/#Int64"><code>Int64</code></a>,
+  <a href="/pkg/sync/atomic/#Uint32"><code>Uint32</code></a>,
+  <a href="/pkg/sync/atomic/#Uint64"><code>Uint64</code></a>,
+  <a href="/pkg/sync/atomic/#Uintptr"><code>Uintptr</code></a>, and
+  <a href="/pkg/sync/atomic/#Pointer"><code>Pointer</code></a>.
+  These types hide the underlying values so that all accesses are forced to use
+  the atomic APIs.
+  <a href="/pkg/sync/atomic/#Pointer"><code>Pointer</code></a> also avoids
+  the need to convert to
+  <a href="/pkg/unsafe/#Pointer"><code>unsafe.Pointer</code></a> at call sites.
+  <a href="/pkg/sync/atomic/#Int64"><code>Int64</code></a> and
+  <a href="/pkg/sync/atomic/#Uint64"><code>Uint64</code></a> automatically
+  receive 64-bit alignment on ARM, 386, and 32-bit MIPS required for 64-bit
+  atomics on these systems.
+</p>
+
 <p>
   TODO: complete this section
 </p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 <p>
   As always, there are various minor changes and updates to the library,
