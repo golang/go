@@ -129,11 +129,23 @@ void (*(_cgo_get_context_function(void)))(struct context_arg*) {
 }
 
 void _cgo_beginthread(void (*func)(void*), void* arg) {
+	int tries;
 	uintptr_t thandle;
 
-	thandle = _beginthread(func, 0, arg);
-	if (thandle == -1) {
-		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
-		abort();
+	for (tries = 0; tries < 20; tries++) {
+		thandle = _beginthread(func, 0, arg);
+		if (thandle == -1 && errno == EACCES) {
+			// "Insufficient resources", try again in a bit.
+			//
+			// Note that the first Sleep(0) is a yield.
+			Sleep(tries); // milliseconds
+			continue;
+		} else if (thandle == -1) {
+			break;
+		}
+		return; // Success!
 	}
+
+	fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
+	abort();
 }
