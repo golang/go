@@ -9,20 +9,20 @@ package types2
 // (Cycles involving alias types, as in "type A = [10]A" are detected
 // earlier, via the objDecl cycle detection mechanism.)
 func (check *Checker) validType(typ *Named) {
-	check.validType0(typ, nil, nil, nil)
+	check.validType0(typ, nil, nil)
 }
 
 // validType0 checks if the given type is valid. If typ is a type parameter
-// its value is looked up in the provided environment. The environment is
-// nil if typ is not part of (the RHS of) an instantiated type, in that case
-// any type parameter encountered must be from an enclosing function and can
-// be ignored. The nest list describes the stack (the "nest in memory") of
-// types which contain (or embed in the case of interfaces) other types. For
-// instance, a struct named S which contains a field of named type F contains
-// (the memory of) F in S, leading to the nest S->F. If a type appears in its
-// own nest (say S->F->S) we have an invalid recursive type. The path list is
-// the full path of named types in a cycle, it is only needed for error reporting.
-func (check *Checker) validType0(typ Type, env *tparamEnv, nest, path []*Named) bool {
+// its value is looked up in the type argument list of the instantiated
+// (enclosing) type, if it exists. Otherwise the type parameter must be from
+// an enclosing function and can be ignored.
+// The nest list describes the stack (the "nest in memory") of types which
+// contain (or embed in the case of interfaces) other types. For instance, a
+// struct named S which contains a field of named type F contains (the memory
+// of) F in S, leading to the nest S->F. If a type appears in its own nest
+// (say S->F->S) we have an invalid recursive type. The path list is the full
+// path of named types in a cycle, it is only needed for error reporting.
+func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
 	switch t := typ.(type) {
 	case nil:
 		// We should never see a nil type but be conservative and panic
@@ -32,25 +32,25 @@ func (check *Checker) validType0(typ Type, env *tparamEnv, nest, path []*Named) 
 		}
 
 	case *Array:
-		return check.validType0(t.elem, env, nest, path)
+		return check.validType0(t.elem, nest, path)
 
 	case *Struct:
 		for _, f := range t.fields {
-			if !check.validType0(f.typ, env, nest, path) {
+			if !check.validType0(f.typ, nest, path) {
 				return false
 			}
 		}
 
 	case *Union:
 		for _, t := range t.terms {
-			if !check.validType0(t.typ, env, nest, path) {
+			if !check.validType0(t.typ, nest, path) {
 				return false
 			}
 		}
 
 	case *Interface:
 		for _, etyp := range t.embeddeds {
-			if !check.validType0(etyp, env, nest, path) {
+			if !check.validType0(etyp, nest, path) {
 				return false
 			}
 		}
@@ -100,7 +100,7 @@ func (check *Checker) validType0(typ Type, env *tparamEnv, nest, path []*Named) 
 		// Every type added to nest is also added to path; thus every type that is in nest
 		// must also be in path (invariant). But not every type in path is in nest, since
 		// nest may be pruned (see below, *TypeParam case).
-		if !check.validType0(t.Origin().fromRHS, env.push(t), append(nest, t), append(path, t)) {
+		if !check.validType0(t.Origin().fromRHS, append(nest, t), append(path, t)) {
 			return false
 		}
 
@@ -108,18 +108,25 @@ func (check *Checker) validType0(typ Type, env *tparamEnv, nest, path []*Named) 
 
 	case *TypeParam:
 		// A type parameter stands for the type (argument) it was instantiated with.
-		// Check the corresponding type argument for validity if we have one.
-		if env != nil {
-			if targ := env.tmap[t]; targ != nil {
-				// Type arguments found in targ must be looked
-				// up in the enclosing environment env.link. The
-				// type argument must be valid in the enclosing
-				// type (where the current type was instantiated),
-				// hence we must check targ's validity in the type
-				// nest excluding the current (instantiated) type
-				// (see the example at the end of this file).
-				// For error reporting we keep the full path.
-				return check.validType0(targ, env.link, nest[:len(nest)-1], path)
+		// Check the corresponding type argument for validity if we are in an
+		// instantiated type.
+		if len(nest) > 0 {
+			inst := nest[len(nest)-1] // the type instance
+			// Find the corresponding type argument for the type parameter
+			// and proceed with checking that type argument.
+			for i, tparam := range inst.TypeParams().list() {
+				// The type parameter and type argument lists should
+				// match in length but be careful in case of errors.
+				if t == tparam && i < inst.TypeArgs().Len() {
+					targ := inst.TypeArgs().At(i)
+					// The type argument must be valid in the enclosing
+					// type (where inst was instantiated), hence we must
+					// check targ's validity in the type nest excluding
+					// the current (instantiated) type (see the example
+					// at the end of this file).
+					// For error reporting we keep the full path.
+					return check.validType0(targ, nest[:len(nest)-1], path)
+				}
 			}
 		}
 	}
@@ -136,46 +143,6 @@ func makeObjList(tlist []*Named) []Object {
 	}
 	return olist
 }
-
-// A tparamEnv provides the environment for looking up the type arguments
-// with which type parameters for a given instance were instantiated.
-// If we don't have an instance, the corresponding tparamEnv is nil.
-type tparamEnv struct {
-	tmap substMap
-	link *tparamEnv
-}
-
-func (env *tparamEnv) push(typ *Named) *tparamEnv {
-	// If typ is not an instantiated type there are no typ-specific
-	// type parameters to look up and we don't need an environment.
-	targs := typ.TypeArgs()
-	if targs == nil {
-		return nil // no instance => nil environment
-	}
-
-	// Populate tmap: remember the type argument for each type parameter.
-	// We cannot use makeSubstMap because the number of type parameters
-	// and arguments may not match due to errors in the source (too many
-	// or too few type arguments). Populate tmap "manually".
-	tparams := typ.TypeParams()
-	n, m := targs.Len(), tparams.Len()
-	if n > m {
-		n = m // too many targs
-	}
-	tmap := make(substMap, n)
-	for i := 0; i < n; i++ {
-		tmap[tparams.At(i)] = targs.At(i)
-	}
-
-	return &tparamEnv{tmap: tmap, link: env}
-}
-
-// TODO(gri) Alternative implementation:
-// We may not need to build a stack of environments to
-// look up the type arguments for type parameters. The
-// same information should be available via the path:
-// We should be able to just walk the path backwards
-// and find the type arguments in the instance objects.
 
 // Here is an example illustrating why we need to exclude the
 // instantiated type from nest when evaluating the validity of
