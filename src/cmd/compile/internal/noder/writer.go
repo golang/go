@@ -1077,7 +1077,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 	} else {
 		w.pos(stmt)
 		w.stmt(stmt.Init)
-		w.expr(stmt.Cond)
+		w.optExpr(stmt.Cond)
 		w.stmt(stmt.Post)
 	}
 
@@ -1136,7 +1136,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		}
 		w.expr(guard.X)
 	} else {
-		w.expr(stmt.Tag)
+		w.optExpr(stmt.Tag)
 	}
 
 	w.Len(len(stmt.Body))
@@ -1201,6 +1201,8 @@ func (w *writer) optLabel(label *syntax.Name) {
 // @@@ Expressions
 
 func (w *writer) expr(expr syntax.Expr) {
+	base.Assertf(expr != nil, "missing expression")
+
 	expr = unparen(expr) // skip parens; unneeded after typecheck
 
 	obj, inst := lookupObj(w.p.info, expr)
@@ -1254,9 +1256,6 @@ func (w *writer) expr(expr syntax.Expr) {
 	default:
 		w.p.unexpected("expression", expr)
 
-	case nil: // absent slice index, for condition, or switch tag
-		w.Code(exprNone)
-
 	case *syntax.Name:
 		assert(expr.Value == "_")
 		w.Code(exprBlank)
@@ -1292,7 +1291,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.expr(expr.X)
 		w.pos(expr)
 		for _, n := range &expr.Index {
-			w.expr(n)
+			w.optExpr(n)
 		}
 
 	case *syntax.AssertExpr:
@@ -1353,6 +1352,12 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.pos(expr)
 		w.exprs(expr.ArgList)
 		w.Bool(expr.HasDots)
+	}
+}
+
+func (w *writer) optExpr(expr syntax.Expr) {
+	if w.Bool(expr != nil) {
+		w.expr(expr)
 	}
 }
 

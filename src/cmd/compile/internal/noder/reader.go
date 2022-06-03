@@ -1380,7 +1380,7 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 
 	pos := r.pos()
 	init := r.stmt()
-	cond := r.expr()
+	cond := r.optExpr()
 	post := r.stmt()
 	body := r.blockStmt()
 	r.closeAnotherScope()
@@ -1450,7 +1450,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 		iface = x.Type()
 		tag = ir.NewTypeSwitchGuard(pos, ident, x)
 	} else {
-		tag = r.expr()
+		tag = r.optExpr()
 	}
 
 	clauses := make([]*ir.CaseClause, r.Len())
@@ -1551,9 +1551,6 @@ func (r *reader) expr() (res ir.Node) {
 	default:
 		panic("unhandled expression")
 
-	case exprNone:
-		return nil
-
 	case exprBlank:
 		// blank only allowed in LHS of assignments
 		// TODO(mdempsky): Handle directly in assignList instead?
@@ -1622,7 +1619,7 @@ func (r *reader) expr() (res ir.Node) {
 		pos := r.pos()
 		var index [3]ir.Node
 		for i := range index {
-			index[i] = r.expr()
+			index[i] = r.optExpr()
 		}
 		op := ir.OSLICE
 		if index[2] != nil {
@@ -1699,6 +1696,13 @@ func (r *reader) expr() (res ir.Node) {
 
 		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, typ, x))
 	}
+}
+
+func (r *reader) optExpr() ir.Node {
+	if r.Bool() {
+		return r.expr()
+	}
+	return nil
 }
 
 func (r *reader) compLit() ir.Node {

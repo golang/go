@@ -38,11 +38,10 @@ func (c codeExpr) Value() int                 { return int(c) }
 
 // TODO(mdempsky): Split expr into addr, for lvalues.
 const (
-	exprNone codeExpr = iota
-	exprConst
-	exprType   // type expression
-	exprLocal  // local variable
-	exprGlobal // global variable or function
+	exprConst  codeExpr = iota
+	exprType            // type expression
+	exprLocal           // local variable
+	exprGlobal          // global variable or function
 	exprBlank
 	exprCompLit
 	exprFuncLit
