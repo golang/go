@@ -134,7 +134,6 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
 }
 
 // text prints the text sequence x to out.
-// TODO: Wrap lines.
 func (p *textPrinter) text(out *bytes.Buffer, indent string, x []Text) {
 	p.oneLongLine(&p.long, x)
 	words := strings.Fields(p.long.String())
