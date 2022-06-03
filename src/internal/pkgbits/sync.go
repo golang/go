@@ -90,6 +90,7 @@ const (
 	SyncExprs
 	SyncExpr
 	SyncExprType
+	SyncAssign
 	SyncOp
 	SyncFuncLit
 	SyncCompLit

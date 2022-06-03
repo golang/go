@@ -42,7 +42,6 @@ const (
 	exprType            // type expression
 	exprLocal           // local variable
 	exprGlobal          // global variable or function
-	exprBlank
 	exprCompLit
 	exprFuncLit
 	exprSelector
@@ -53,6 +52,17 @@ const (
 	exprBinaryOp
 	exprCall
 	exprConvert
+)
+
+type codeAssign int
+
+func (c codeAssign) Marker() pkgbits.SyncMarker { return pkgbits.SyncAssign }
+func (c codeAssign) Value() int                 { return int(c) }
+
+const (
+	assignBlank codeAssign = iota
+	assignDef
+	assignExpr
 )
 
 type codeDecl int

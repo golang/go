@@ -1023,25 +1023,36 @@ func (w *writer) assignList(expr syntax.Expr) {
 	w.Len(len(exprs))
 
 	for _, expr := range exprs {
-		if name, ok := expr.(*syntax.Name); ok && name.Value != "_" {
-			if obj, ok := w.p.info.Defs[name]; ok {
-				obj := obj.(*types2.Var)
+		w.assign(expr)
+	}
+}
 
-				w.Bool(true)
-				w.pos(obj)
-				w.localIdent(obj)
-				w.typ(obj.Type())
+func (w *writer) assign(expr syntax.Expr) {
+	expr = unparen(expr)
 
-				// TODO(mdempsky): Minimize locals index size by deferring
-				// this until the variables actually come into scope.
-				w.addLocal(obj)
-				continue
-			}
+	if name, ok := expr.(*syntax.Name); ok {
+		if name.Value == "_" {
+			w.Code(assignBlank)
+			return
 		}
 
-		w.Bool(false)
-		w.expr(expr)
+		if obj, ok := w.p.info.Defs[name]; ok {
+			obj := obj.(*types2.Var)
+
+			w.Code(assignDef)
+			w.pos(obj)
+			w.localIdent(obj)
+			w.typ(obj.Type())
+
+			// TODO(mdempsky): Minimize locals index size by deferring
+			// this until the variables actually come into scope.
+			w.addLocal(obj)
+			return
+		}
 	}
+
+	w.Code(assignExpr)
+	w.expr(expr)
 }
 
 func (w *writer) declStmt(decl syntax.Decl) {
@@ -1255,10 +1266,6 @@ func (w *writer) expr(expr syntax.Expr) {
 	switch expr := expr.(type) {
 	default:
 		w.p.unexpected("expression", expr)
-
-	case *syntax.Name:
-		assert(expr.Value == "_")
-		w.Code(exprBlank)
 
 	case *syntax.CompositeLit:
 		w.Code(exprCompLit)

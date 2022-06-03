@@ -1323,23 +1323,39 @@ func (r *reader) assignList() ([]*ir.Name, []ir.Node) {
 	var names []*ir.Name
 
 	for i := range lhs {
-		if r.Bool() {
-			pos := r.pos()
-			_, sym := r.localIdent()
-			typ := r.typ()
-
-			name := ir.NewNameAt(pos, sym)
-			lhs[i] = name
-			names = append(names, name)
-			setType(name, typ)
-			r.addLocal(name, ir.PAUTO)
-			continue
+		expr, def := r.assign()
+		lhs[i] = expr
+		if def {
+			names = append(names, expr.(*ir.Name))
 		}
-
-		lhs[i] = r.expr()
 	}
 
 	return names, lhs
+}
+
+// assign returns an assignee expression. It also reports whether the
+// returned expression is a newly declared variable.
+func (r *reader) assign() (ir.Node, bool) {
+	switch tag := codeAssign(r.Code(pkgbits.SyncAssign)); tag {
+	default:
+		panic("unhandled assignee expression")
+
+	case assignBlank:
+		return typecheck.AssignExpr(ir.BlankNode), false
+
+	case assignDef:
+		pos := r.pos()
+		_, sym := r.localIdent()
+		typ := r.typ()
+
+		name := ir.NewNameAt(pos, sym)
+		setType(name, typ)
+		r.addLocal(name, ir.PAUTO)
+		return name, true
+
+	case assignExpr:
+		return r.expr(), false
+	}
 }
 
 func (r *reader) blockStmt() []ir.Node {
@@ -1550,11 +1566,6 @@ func (r *reader) expr() (res ir.Node) {
 	switch tag := codeExpr(r.Code(pkgbits.SyncExpr)); tag {
 	default:
 		panic("unhandled expression")
-
-	case exprBlank:
-		// blank only allowed in LHS of assignments
-		// TODO(mdempsky): Handle directly in assignList instead?
-		return typecheck.AssignExpr(ir.BlankNode)
 
 	case exprLocal:
 		return typecheck.Expr(r.useLocal())
