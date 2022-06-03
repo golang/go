@@ -504,6 +504,24 @@ func BenchmarkDecodeString(b *testing.B) {
 	}
 }
 
+func BenchmarkDecodeMapInitialize(b *testing.B) {
+	b.Run("new", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			e := new(Encoding)
+			copy(e.decodeMap[:], decodeMapInitialize)
+		}
+	})
+
+	b.Run("linear", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			e := new(Encoding)
+			for i := 0; i < len(e.decodeMap); i++ {
+				e.decodeMap[i] = 0xFF
+			}
+		}
+	})
+}
+
 func TestDecoderRaw(t *testing.T) {
 	source := "AAAAAA"
 	want := []byte{0, 0, 0, 0}
