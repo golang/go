@@ -619,6 +619,8 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 }
 
 // typExpr writes the type represented by the given expression.
+//
+// TODO(mdempsky): Document how this differs from exprType.
 func (w *writer) typExpr(expr syntax.Expr) {
 	tv, ok := w.p.info.Types[expr]
 	assert(ok)
@@ -1228,9 +1230,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		}
 
 		if tv.IsType() {
-			w.Code(exprType)
-			w.exprType(nil, expr, false)
-			return
+			w.p.fatalf(expr, "unexpected type expression %v", syntax.String(expr))
 		}
 
 		if tv.Value != nil {
@@ -1280,7 +1280,11 @@ func (w *writer) expr(expr syntax.Expr) {
 		assert(ok)
 
 		w.Code(exprSelector)
-		w.expr(expr.X)
+		if w.Bool(sel.Kind() == types2.MethodExpr) {
+			w.exprType(nil, expr.X, false)
+		} else {
+			w.expr(expr.X)
+		}
 		w.pos(expr)
 		w.selector(sel.Obj())
 
@@ -1337,6 +1341,29 @@ func (w *writer) expr(expr syntax.Expr) {
 			w.pos(expr)
 			w.expr(expr.ArgList[0])
 			break
+		}
+
+		if name, ok := unparen(expr.Fun).(*syntax.Name); ok && tv.IsBuiltin() {
+			switch name.Value {
+			case "make":
+				assert(len(expr.ArgList) >= 1)
+				assert(!expr.HasDots)
+
+				w.Code(exprMake)
+				w.pos(expr)
+				w.exprType(nil, expr.ArgList[0], false)
+				w.exprs(expr.ArgList[1:])
+				return
+
+			case "new":
+				assert(len(expr.ArgList) == 1)
+				assert(!expr.HasDots)
+
+				w.Code(exprNew)
+				w.pos(expr)
+				w.exprType(nil, expr.ArgList[0], false)
+				return
+			}
 		}
 
 		writeFunExpr := func() {
@@ -1438,10 +1465,6 @@ func (w *writer) exprList(expr syntax.Expr) {
 }
 
 func (w *writer) exprs(exprs []syntax.Expr) {
-	if len(exprs) == 0 {
-		assert(exprs == nil)
-	}
-
 	w.Sync(pkgbits.SyncExprs)
 	w.Len(len(exprs))
 	for _, expr := range exprs {
