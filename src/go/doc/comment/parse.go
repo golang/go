@@ -840,6 +840,14 @@ func (d *parseDoc) parseText(out []Text, s string, autoLink bool) []Text {
 		}
 		switch {
 		case strings.HasPrefix(t, "``"):
+			if len(t) >= 3 && t[2] == '`' {
+				// Do not convert `` inside ```, in case people are mistakenly writing Markdown.
+				i += 3
+				for i < len(t) && t[i] == '`' {
+					i++
+				}
+				break
+			}
 			writeUntil(i)
 			w.WriteRune('“')
 			i += 2
