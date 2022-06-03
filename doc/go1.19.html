@@ -262,16 +262,14 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="crypto/rand"><dt><a href="/pkg/crypto/rand/">crypto/rand</a></dt>
   <dd>
-    <p><!-- CL 370894 -->
-      TODO: <a href="https://go.dev/cl/370894">https://go.dev/cl/370894</a>: batch and buffer calls to getrandom/getentropy
+    <p><!-- CL 370894 --><!-- CL 390038 -->
+      <a href="/pkg/crypto/rand/#Read"><code>Read</code></a> no longer buffers
+      random data obtained from the operating system between calls.
     </p>
 
     <p><!-- CL 375215 -->
-      TODO: <a href="https://go.dev/cl/375215">https://go.dev/cl/375215</a>: use fast key erasure RNG on plan9 instead of ANSI X9.31
-    </p>
-
-    <p><!-- CL 390038 -->
-      TODO: <a href="https://go.dev/cl/390038">https://go.dev/cl/390038</a>: remove all buffering
+      On Plan 9, <code>Read</code> has been reimplemented, replacing the ANSI
+      X9.31 algorithm with fast key erasure.
     </p>
   </dd>
 </dl><!-- crypto/rand -->
@@ -281,7 +279,13 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 400974 --><!-- https://go.dev/issue/45428 -->
       The <code>tls10default</code> <code>GODEBUG</code> option has been
       removed. It is still possible to enable TLS 1.0 client-side by setting
-      <code>Config.MinVersion</code>.
+      <a href="/pkg/crypto/tls#Config.MinVersion"><code>Config.MinVersion</code></a>.
+    </p>
+
+    <p><!-- CL 384894 -->
+      The TLS server and client now reject duplicate extensions in TLS
+      handshakes, as required by RFC 5246, Section 7.4.1.4 and RFC 8446, Section
+      4.2.
     </p>
   </dd>
 </dl><!-- crypto/tls -->
@@ -289,7 +293,51 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
     <p><!-- CL 285872 -->
-      TODO: <a href="https://go.dev/cl/285872">https://go.dev/cl/285872</a>: disable signing with MD5WithRSA
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a> 
+      no longer supports creating certificates with <code>SignatureAlgorithm</code> 
+      set to <code>MD5WithRSA</code>.
+    </p>
+
+    <p><!-- CL 400494 -->
+      <code>CreateCertificate</code> no longer accepts negative serial numbers.
+    </p>
+
+    <p><!-- CL 383215 -->
+      <a href="/pkg/crypto/x509/#ParseCertificate"><code>ParseCertificate</code></a>
+      and <a href="/pkg/crypto/x509/#ParseCertificateRequest"><code>ParseCertificateRequest</code></a>
+      now reject certificates and CSRs which contain duplicate extensions.
+    </p>
+
+    <p><!-- CL 400175 --><!-- CL 388915 -->
+      The new <a href="/pkg/crypto/x509/#CertPool.Clone"><code>CertPool.Clone</code></a>
+      and <a href="/pkg/crypto/x509/#CertPool.Equal"><code>CertPool.Equal</code></a>
+      methods allow cloning a <code>CertPool</code> and checking the equality of two
+      <code>CertPool</code>s respectively.
+    </p>
+
+    <p><!-- CL 390834 -->
+      The new function <a href="/pkg/crypto/x509/#ParseRevocationList"><code>ParseRevocationList</code></a>
+      provides a faster, safer to use CRL parser which returns a
+      <a href="/pkg/crypto/x509/#RevocationList"><code>RevocationList</code></a>.
+      To support this addition, <code>RevocationList</code> adds new fields
+      <code>RawIssuer</code>, <code>Signature</code>,
+      <code>AuthorityKeyId</code>, and <code>Extensions</code>.
+      
+      The new method <a href="/pkg/crypto/x509/#RevocationList.CheckSignatureFrom"><code>RevocationList.CheckSignatureFrom</a> 
+      checks that the signature on a CRL is a valid signature from a
+      <a href="/pkg/crypto/x509/#Certificate">Certificate</a>.
+
+      With the new CRL functionality, the existing functions
+      <a href="/pkg/crypto/x509/#ParseCRL"><code>ParseCRL</code></a> and
+      <a href="/pkg/crypto/x509/#ParseDERCRL"><code>ParseDERCRL</code></a> are deprecated.
+      Additionally the method <a href="/pkg/crypto/x509#Certificate.CheckCRLSignature"><code>Certificate.CheckCRLSignature</code></a>
+      is deprecated.
+    </p>
+
+    <p><!-- CL 389555 -->
+      When building paths, <a href="/pkg/crypto/x509/#Certificate.Verify"><code>Certificate.Verify</code></a>
+      now considers certificates to be equal when the subjects, public keys, and SANs 
+      are all equal. Before, it required byte-for-byte equality.
     </p>
 
     <p><!-- https://go.dev/issue/46057 --><!-- CL 398237 -->
@@ -310,6 +358,17 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
+
+<dl id="crypto/x509/pkix"><dt><a href="/pkg/crypto/x509/pkix">crypto/x509/pkix</a></dt>
+  <dd>
+    <p><!-- CL 390834 -->
+      The types <a href="/pkg/crypto/x509/pkix#CertificateList"><code>CertificateList</code></a> and
+      <a href="/pkg/crypto/x509/pkix#TBSCertificateList"><code>TBSCertificateList</code></a>
+      have been deprecated. The new <a href="#crypto/x509"><code>crypto/x509</code></code> CRL functionality</a>
+      should be used instead.
+    </p>
+  </dd>
+</dl><!-- crypto/x509/pkix -->
 
 <dl id="debug"><dt><a href="/pkg/debug/">debug</a></dt>
   <dd>
