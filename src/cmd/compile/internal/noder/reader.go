@@ -1562,7 +1562,7 @@ func (r *reader) expr() (res ir.Node) {
 	case exprLocal:
 		return typecheck.Expr(r.useLocal())
 
-	case exprName:
+	case exprGlobal:
 		// Callee instead of Expr allows builtins
 		// TODO(mdempsky): Handle builtins directly in exprCall, like method calls?
 		return typecheck.Callee(r.obj())

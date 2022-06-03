@@ -1236,7 +1236,7 @@ func (w *writer) expr(expr syntax.Expr) {
 
 	if obj != nil {
 		if isGlobal(obj) {
-			w.Code(exprName)
+			w.Code(exprGlobal)
 			w.obj(obj, targs)
 			return
 		}

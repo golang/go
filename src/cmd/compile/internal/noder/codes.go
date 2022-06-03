@@ -40,9 +40,9 @@ func (c codeExpr) Value() int                 { return int(c) }
 const (
 	exprNone codeExpr = iota
 	exprConst
-	exprType  // type expression
-	exprLocal // local variable
-	exprName  // global variable or function
+	exprType   // type expression
+	exprLocal  // local variable
+	exprGlobal // global variable or function
 	exprBlank
 	exprCompLit
 	exprFuncLit
