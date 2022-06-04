@@ -82,12 +82,37 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="runtime">Runtime</h2>
 
-<p><!-- https://go.dev/issue/48409 -->
-  TODO: soft memory limit
+<p><!-- https://go.dev/issue/48409 --><!-- CL 397018 -->
+  The runtime now includes support for a soft memory limit. This memory limit
+  includes all memory mapped and managed by the runtime, and excludes external
+  memory sources such as binary size, memory managed in other languages, and
+  memory held by the operating system on behalf of the Go program. This limit
+  may be managed via the <code>GOMEMLIMIT</code> environment variable or the
+  <code>SetMemoryLimit</code> function in the runtime/debug package. The limit
+  works in conjunction with <code>GOGC</code> and <code>SetGCPercent</code>,
+  and will be respected even if <code>GOGC=off</code>, allowing Go programs to
+  always make maximal use of their memory limit, improving resource efficiency
+  in some cases. Please note that small memory limits, on the order of tens of
+  megabytes or less, are less likely to be adhered to due to external latency
+  factors, such as OS scheduling. See https://go.dev/issue/52433 for more
+  details. Larger memory limits, on the order of hundreds of megabytes or more,
+  are stable and production-ready.
+</p>
+
+<p><!-- CL 353989 -->
+  In order to limit the effects of GC thrashing when the program's live heap
+  size approaches the soft memory limit, the Go runtime also attempts to limit
+  total GC CPU utilization to 50%, excluding idle time, choosing to use more
+  memory over preventing application progress. In practice, we expect this limit
+  to only play a role in exceptional cases, and the new runtime/metrics metric
+  <code>/gc/limiter/last-enabled:gc-cycle</code> reports when this last
+  occurred.
 </p>
 
 <p><!-- https://go.dev/issue/44163 -->
-  TODO: idle mark workers
+  The runtime now schedules many fewer GC worker goroutines on idle operating
+  system threads when the application is idle enough to force a periodic GC
+  cycle.
 </p>
 
 <p><!-- https://go.dev/issue/18138 --><!-- CL 345889 -->
@@ -494,7 +519,7 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 400795 -->
       When used together with the
       <a href="/pkg/runtime/pprof#StartCPUProfile">CPU profiler</a>, the
-      execution trace includes CPU profile samples.
+      execution trace includes CPU profile samples as instantaneous events.
     </p>
   </dd>
 </dl><!-- runtime/trace -->
