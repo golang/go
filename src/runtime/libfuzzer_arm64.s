@@ -22,7 +22,7 @@
 // Calls C function fn from libFuzzer and passes 2 arguments to it after
 // manipulating the return address so that libfuzzer's integer compare hooks
 // work.
-// The problem statment and solution are documented in detail in libfuzzer_amd64.s.
+// The problem statement and solution are documented in detail in libfuzzer_amd64.s.
 // See commentary there.
 TEXT	runtime·libfuzzerCallTraceIntCmp(SB), NOSPLIT, $8-32
 	MOVD	fn+0(FP), R9
