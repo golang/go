@@ -670,7 +670,8 @@ func atof64(s string) (f float64, n int, err error) {
 // When bitSize=32, the result still has type float64, but it will be
 // convertible to float32 without changing its value.
 //
-// ParseFloat accepts decimal and hexadecimal floating-point number syntax.
+// ParseFloat accepts decimal and hexadecimal floating-point numbers
+// as defined by the Go syntax for [floating-point literals].
 // If s is well-formed and near a valid floating-point number,
 // ParseFloat returns the nearest floating-point number rounded
 // using IEEE754 unbiased rounding.
@@ -689,6 +690,8 @@ func atof64(s string) (f float64, n int, err error) {
 //
 // ParseFloat recognizes the strings "NaN", and the (possibly signed) strings "Inf" and "Infinity"
 // as their respective special floating point values. It ignores case when matching.
+//
+// [floating-point literals]: https://go.dev/ref/spec#Floating-point_literals
 func ParseFloat(s string, bitSize int) (float64, error) {
 	f, n, err := parseFloatPrefix(s, bitSize)
 	if n != len(s) && (err == nil || err.(*NumError).Err != ErrSyntax) {
