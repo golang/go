@@ -18,18 +18,34 @@ Do not send CLs removing the interior tags from such phrases.
     release notes. Go 1.19 is expected to be released in August 2022.
   </strong>
 </p>
+
 <h2 id="language">Changes to the language</h2>
 <p>
   TODO: complete this section
 </p>
+
+<p><!-- https://go.dev/issue/52038 -->
+  TODO: <a href="https://go.dev/issue/52038">https://go.dev/issue/52038</a>: adjust scope of type parameters declared by method receivers
+</p>
+
 <h2 id="ports">Ports</h2>
 <p>
   TODO: complete this section, or delete if not needed
 </p>
+
 <h2 id="tools">Tools</h2>
 <p>
   TODO: complete this section, or delete if not needed
 </p>
+<p><!-- https://go.dev/issue/47528 -->:
+  TODO: https://go.dev/issue/47528 warn when errors.As target has type *error
+</p>
+
+<h3 id="go-doc">Doc Comments</h3>
+<p><!-- https://go.dev/issue/51082 -->
+  TODO: complete this section.
+</p>
+
 <h3 id="go-command">Go command</h3>
 <p>
   TODO: complete this section.
@@ -66,7 +82,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h4 id="go-unix">New <code>unix</code> build constraint</h4>
 
-<p><!-- CL 389934 -->
+<p><!-- CL 389934 --><!-- https://go.dev/issue/20322 --><!-- https://go.dev/issue/51572 -->
   The build constraint <code>unix</code> is now recognized
   in <code>//go:build</code> lines. The constraint is satisfied
   if the target operating system, also known as <code>GOOS</code>, is
@@ -146,6 +162,10 @@ Do not send CLs removing the interior tags from such phrases.
   functionality.
 </p>
 
+<p><!-- https://go.dev/issue/44853 -->
+  TODO: <a href="https://go.dev/issue/44853">https://go.dev/issue/44853</a>: enable address sanitizer in Go
+</p>
+
 <h2 id="compiler">Compiler</h2>
 
 <p><!-- https://go.dev/issue/5496 --><!-- CL 357330, 395714, 403979 -->
@@ -156,7 +176,7 @@ Do not send CLs removing the interior tags from such phrases.
   on the order of 20% faster.
   (<code>GOARCH=amd64</code> and <code>GOARCH=arm64</code> only)
 </p>
-<p>
+<p><!-- CL 402374 -->
   TODO: <a href="https://go.dev/cl/402374">https://go.dev/cl/402374</a>: enable regabi on riscv64 by default
 </p>
 <p><!-- CL 391014 -->
@@ -165,7 +185,7 @@ Do not send CLs removing the interior tags from such phrases.
   the <code>go</code> command and by Bazel. Any other build systems
   that invoke the Go compiler directly will need to make sure they
   pass this flag as well.
-</p>
+
 <p>
   TODO: complete this section, or delete if not needed
 </p>
@@ -175,6 +195,14 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <h2 id="library">Core library</h2>
+
+<p>
+  TODO: <a href="https://go.dev/issue/51940">https://go.dev/issue/51940</a>: all: move dev.boringcrypto into main branch behind GOEXPERIMENT
+</p>
+
+<p>
+  TODO: complete this section
+</p>
 
 <h3 id="atomic_types">New atomic types</h3>
 <p><!-- https://go.dev/issue/50860 --><!-- CL 381317 -->
@@ -197,13 +225,26 @@ Do not send CLs removing the interior tags from such phrases.
   atomics on these systems.
 </p>
 
-<p>
-  TODO: <a href="https://go.dev/issue/51940">https://go.dev/issue/51940</a>: all: move dev.boringcrypto into main branch behind GOEXPERIMENT
+<h3 id="go/doc/comment">Doc comment parsing</h3>
+
+<p><!-- CL 384265 --><!-- CL 397276 --><!-- CL 397278 --><!-- CL 397279 --><!-- CL 397281 --><!-- CL 397284 -->
+  TODO: <a href="https://go.dev/cl/384265">https://go.dev/cl/384265</a>: go/doc: use go/doc/comment; modified api/next/51082.txt
+  TODO: <a href="https://go.dev/cl/397276">https://go.dev/cl/397276</a>: go/doc/comment: add data structures; modified api/next/51082.txt
+  TODO: <a href="https://go.dev/cl/397278">https://go.dev/cl/397278</a>: go/doc/comment: add paragraph parsing and test framework; modified api/next/51082.txt
+  TODO: <a href="https://go.dev/cl/397279">https://go.dev/cl/397279</a>: go/doc/comment: add Printer and basic comment printing; modified api/next/51082.txt
+  TODO: <a href="https://go.dev/cl/397281">https://go.dev/cl/397281</a>: go/doc/comment: parse and print doc links; modified api/next/51082.txt
+  TODO: <a href="https://go.dev/cl/397284">https://go.dev/cl/397284</a>: go/doc/comment: parse and print headings; modified api/next/51082.txt
 </p>
 
-<p>
-  TODO: complete this section
+<h3 id="os-exec-path">PATH lookups</h3>
+
+<p><!-- https://go.dev/issue/43724 --><!-- CL 381374 --><!-- CL 403274 -->
+   TODO: <a href="https://go.dev/issue/43724">https://go.dev/issue/43724</a>: return error when PATH lookup would use current directory
 </p>
+<p><!-- https://go.dev/issue/43947 -->
+   TODO: <a href="https://go.dev/issue/43947">https://go.dev/issue/43947</a>: on Windows use NeedCurrentDirectoryForExePathW for LookPath behavior
+</p>
+
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 <p>
@@ -241,7 +282,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
-    <p><!-- CL 400974 -->
+    <p><!-- CL 400974 --><!-- https://go.dev/issue/45428 -->
       The <code>tls10default</code> <code>GODEBUG</code> option has been
       removed. It is still possible to enable TLS 1.0 client-side by setting
       <code>Config.MinVersion</code>.
@@ -254,28 +295,78 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 285872 -->
       TODO: <a href="https://go.dev/cl/285872">https://go.dev/cl/285872</a>: disable signing with MD5WithRSA
     </p>
+
+    <p><!-- https://go.dev/issue/46057 --><!-- CL 398237 -->
+      TODO: <a href="https://go.dev/issue/46057">https://go.dev/issue/46057</a>: add CertPool.Equal
+    </p>
+
+    <p><!-- https://go.dev/issue/50674 -->
+      TODO: <a href="https://go.dev/issue/50674">https://go.dev/issue/50674</a>: add ParseRevocationList, deprecate ParseCRL &amp; ParseDERCRL
+    </p>
+
+    <p><!-- CL 390834 -->
+      TODO: <a href="https://go.dev/cl/390834">https://go.dev/cl/390834</a>: crypto/x509: add new CRL parser, deprecate old one; modified api/next/50674.txt
+    </p>
+
+    <p><!-- https://go.dev/issue/35044 --><!-- CL 400175 -->
+      TODO: <a href="https://go.dev/cl/400175">https://go.dev/cl/400175</a>: crypto/x509: add CertPool.Clone; modified api/next/35044.txt
+      TODO: <a href="https://go.dev/issue/35044">https://go.dev/issue/35044</a>: add CertPool.Clone
+    </p>
   </dd>
 </dl><!-- crypto/x509 -->
 
+<dl id="debug"><dt><a href="/pkg/debug/">debug</a></dt>
+  <dd>
+    <p><!-- CL 396735 -->
+      TODO: <a href="https://go.dev/cl/396735">https://go.dev/cl/396735</a>: debug: define ELF relocation for loong64; modified api/next/46229.txt
+    </p>
+  </dd>
+</dl><!-- debug -->
+
+<dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/51868 -->
+      TODO: <a href="https://go.dev/issue/51868">https://go.dev/issue/51868</a>: add APIs to support reading COMDAT info for sections
+    </p>
+
+    <p><!-- CL 394534 -->
+      TODO: <a href="https://go.dev/cl/394534">https://go.dev/cl/394534</a>: debug/pe: add APIs for reading section def aux info; modified api/next/51868.txt
+    </p>
+  </dd>
+</dl><!-- debug/pe -->
+
 <dl id="encoding/binary"><dt><a href="/pkg/encoding/binary/">encoding/binary</a></dt>
   <dd>
-    <p><!-- CL 386017 -->
+    <p><!-- https://go.dev/issue/50601 --><!-- CL 386017 --><!-- CL 389636 -->
       TODO: <a href="https://go.dev/cl/386017">https://go.dev/cl/386017</a>: add AppendByteOrder
     </p>
+    <p><!-- https://go.dev/issue/51644 --><!-- CL 400176 -->
+      TODO: <a href="https://go.dev/issue/51644">https://go.dev/issue/51644</a>: add AppendUvarint and AppendVarint
+    </p>
+
   </dd>
 </dl><!-- encoding/binary -->
 
 <dl id="encoding/csv"><dt><a href="/pkg/encoding/csv/">encoding/csv</a></dt>
   <dd>
-    <p><!-- CL 405675 -->
+    <p><!-- https://go.dev/issue/43401 --><!-- CL 405675 -->
       TODO: <a href="https://go.dev/cl/405675">https://go.dev/cl/405675</a>: add Reader.InputOffset method
     </p>
   </dd>
 </dl><!-- encoding/csv -->
 
+<dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/45628 --><!-- CL 311270 -->
+      TODO: <a href="https://go.dev/issue/45628">https://go.dev/issue/45628</a>: add Decoder.InputPos
+      TODO: <a href="https://go.dev/cl/311270">https://go.dev/cl/311270</a>: encoding/xml: expose decoder line and column; modified api/next/45628.txt
+    </p>
+  </dd>
+</dl><!-- encoding/xml -->
+
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
-    <p><!-- CL 313329 -->
+    <p><!-- https://go.dev/issue/45754 --><!-- CL 313329 -->
       TODO: <a href="https://go.dev/cl/313329">https://go.dev/cl/313329</a>: add TextVar function
     </p>
   </dd>
@@ -283,7 +374,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
-    <p><!-- CL 406177 -->
+    <p><!-- https://go.dev/issue/47579 --><!-- CL 406177 -->
       TODO: <a href="https://go.dev/cl/406177">https://go.dev/cl/406177</a>: add Append, Appendln, Appendf
     </p>
   </dd>
@@ -299,7 +390,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
   <dd>
-    <p><!-- CL 395535 -->
+    <p><!-- https://go.dev/issue/51682 --><!-- CL 395535 -->
       TODO: <a href="https://go.dev/cl/395535">https://go.dev/cl/395535</a>: add Var.Origin and Func.Origin
     </p>
     <p><!-- CL 404885 -->
@@ -307,6 +398,25 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- go/types -->
+
+
+<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash/">hash/maphash</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/42710 --><!-- CL 392494 -->
+      TODO: <a href="https://go.dev/cl/392494">https://go.dev/cl/392494</a>: hash/maphash: add Bytes and String; modified api/next/42710.txt
+      TODO: <a href="https://go.dev/issue/42710">https://go.dev/issue/42710</a>: add Bytes and String
+    </p>
+  </dd>
+</dl><!-- hash/maphash -->
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/46121 --><!-- CL 389156 -->
+      TODO: <a href="https://go.dev/issue/46121">https://go.dev/issue/46121</a>: make FuncMap an alias for text/template.FuncMap
+      TODO: <a href="https://go.dev/cl/389156">https://go.dev/cl/389156</a>: html/template: make FuncMap a type alias of text/template.FuncMap; modified api/except.txt, api/next/46121.txt
+    </p>
+  </dd>
+</dl><!-- html/template -->
 
 <dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
   <dd>
@@ -322,8 +432,12 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="io"><dt><a href="/pkg/io/">io</a></dt>
   <dd>
-    <p><!-- CL 400236 -->
+    <p><!-- https://go.dev/issue/51566 --><!-- CL 400236 -->
       TODO: <a href="https://go.dev/cl/400236">https://go.dev/cl/400236</a>: NopCloser forward WriterTo implementations if the reader supports it
+    </p>
+
+    <p><!-- https://go.dev/issue/50842 -->
+      TODO: <a href="https://go.dev/issue/50842">https://go.dev/issue/50842</a>: implement WriterTo on result of MultiReader
     </p>
   </dd>
 </dl><!-- io -->
@@ -358,7 +472,7 @@ Do not send CLs removing the interior tags from such phrases.
       issue tracker</a>.
     </p>
 
-    <p><!-- CL 396877 -->
+    <p><!-- https://go.dev/issue/51428 --><!-- CL 396877 -->
       When a net package function or method returns an "I/O timeout"
       error, the error will now satisfy <code>errors.Is(err,
       context.DeadlineExceeded)</code>.  When a net package function
@@ -369,9 +483,7 @@ Do not send CLs removing the interior tags from such phrases.
       package function or method to return an error, while preserving
       backward compatibility for error messages.
     </p>
-  </dd>
-  <dd>
-    <p><!-- CL 400654 -->
+    <p><!-- https://go.dev/issue/33097 --><!-- CL 400654 -->
       <a href="/pkg/net/#Resolver.PreferGo"><code>Resolver.PreferGo</code></a>
       is now implemented on Windows and Plan 9. It previously only worked on Unix
       platforms. Combined with
@@ -395,14 +507,22 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 269997 -->
       TODO: <a href="https://go.dev/cl/269997">https://go.dev/cl/269997</a>: allow sending 1xx responses
     </p>
+    <p><!-- https://go.dev/issue/30715 --><!-- CL 361397 -->
+      TODO: <a href="https://go.dev/cl/361397">https://go.dev/cl/361397</a>: net/http: add MaxBytesError; modified api/next/30715.txt
+      TODO: <a href="https://go.dev/issue/30715">https://go.dev/issue/30715</a>: add MaxBytesError
+    </p>
   </dd>
 </dl><!-- net/http -->
 
 <dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
   <dd>
-    <p><!-- CL 374654 -->
+    <p><!-- https://go.dev/issue/47005 --><!-- CL 374654 -->
       TODO: <a href="https://go.dev/cl/374654">https://go.dev/cl/374654</a>: add JoinPath, URL.JoinPath
     </p>
+    <p><!-- https://go.dev/issue/46059 -->
+      TODO: <a href="https://go.dev/issue/46059">https://go.dev/issue/46059</a>: add OmitHost bool to URL
+    </p>
+
   </dd>
 </dl><!-- net/url -->
 
@@ -416,8 +536,8 @@ Do not send CLs removing the interior tags from such phrases.
 
 
 <dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
-  <dd><!-- https://go.dev/issue/50599 -->
-    <p>
+  <dd>
+    <p><!-- https://go.dev/issue/50599 --><!-- CL 401340 -->
       An <code>exec.Cmd</code> with a non-empty <code>Dir</code> and a
       nil <code>Env</code> now implicitly sets the <code>PWD</code> environment
       variable for the subprocess to match <code>Dir</code>.
@@ -432,7 +552,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
-    <p><!-- CL 357331 -->
+    <p><!-- https://go.dev/issue/47066 --><!-- CL 357331 -->
       The method <a href="/pkg/reflect/#Value.Bytes"><code>Value.Bytes</code></a> now accepts addressable arrays in addition to slices.
     </p>
     <p><!-- CL 400954 -->
@@ -440,6 +560,25 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- reflect -->
+
+<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/51684 --><!-- CL 401076 -->
+      TODO: <a href="https://go.dev/issue/51684">https://go.dev/issue/51684</a>: add ErrNestingDepth error
+      TODO: <a href="https://go.dev/cl/401076">https://go.dev/cl/401076</a>: regexp: change ErrInvalidDepth message to match proposal; modified api/next/51684.txt, api/next/regexpdepth.txt
+    </p>
+  </dd>
+</dl><!-- regexp -->
+
+<dl id="regexp/syntax"><dt><a href="/pkg/regexp/syntax/">regexp/syntax</a></dt>
+  <dd>
+    <p><!-- CL 384617 --><!-- CL 401854 -->
+      TODO: <a href="https://go.dev/cl/384617">https://go.dev/cl/384617</a>: regexp/syntax: add and use ErrInvalidDepth; modified api/next/regexpdepth.txt
+      TODO: <a href="https://go.dev/cl/401854">https://go.dev/cl/401854</a>: regexp/syntax: rename ErrInvalidDepth to ErrNestingDepth; modified api/next/51684.txt
+    </p>
+  </dd>
+</dl><!-- regexp/syntax -->
+
 
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
@@ -451,6 +590,14 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- runtime -->
+
+<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+  <dd>
+    <p><!-- CL 397018 -->
+      TODO: <a href="https://go.dev/cl/397018">https://go.dev/cl/397018</a>: runtime/debug: export SetMemoryLimit; modified api/next/48409.txt
+    </p>
+  </dd>
+</dl><!-- runtime/debug -->
 
 <dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
   <dd>
@@ -531,6 +678,11 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="https://arxiv.org/pdf/2106.05123.pdf">pattern-defeating quicksort</a>, which
       is faster for several common scenarios.
     </p>
+    <p><!-- https://go.dev/issue/50340 --><!-- CL 396514 -->
+      TODO: <a href="https://go.dev/issue/50340">https://go.dev/issue/50340</a>: add Find
+      TODO: <a href="https://go.dev/cl/396514">https://go.dev/cl/396514</a>: sort: add Find function; modified api/next/50340.txt
+    </p>
+  </dd>
   </dd>
 </dl><!-- sort -->
 
@@ -564,8 +716,34 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
-    <p><!-- CL 393515 -->
+    <p><!-- https://go.dev/issue/51414 --><!-- CL 393515 -->
       TODO: <a href="https://go.dev/cl/393515">https://go.dev/cl/393515</a>: add Duration.Abs
+      TODO: <a href="https://go.dev/issue/51414">https://go.dev/issue/51414</a>: add Duration.Abs
+    </p>
+    <p><!-- https://go.dev/issue/50062 --><!-- CL 405374 -->
+      TODO: <a href="https://go.dev/issue/50062">https://go.dev/issue/50062</a>: add Time.ZoneBounds
+      TODO: <a href="https://go.dev/cl/405374">https://go.dev/cl/405374</a>: time: add Time.ZoneBounds; modified api/next/50062.txt
     </p>
   </dd>
 </dl><!-- time -->
+
+<!-- Silence these false positives from x/build/cmd/relnote: -->
+<!-- CL 382460 -->
+<!-- CL 384154 -->
+<!-- CL 384554 -->
+<!-- CL 392134 -->
+<!-- CL 392414 -->
+<!-- CL 396215 -->
+<!-- CL 403058 -->
+<!-- CL 410133 -->
+<!-- https://go.dev/issue/27837 -->
+<!-- https://go.dev/issue/38340 -->
+<!-- https://go.dev/issue/42516 -->
+<!-- https://go.dev/issue/45713 -->
+<!-- https://go.dev/issue/46654 -->
+<!-- https://go.dev/issue/48257 -->
+<!-- https://go.dev/issue/50447 -->
+<!-- https://go.dev/issue/50720 -->
+<!-- https://go.dev/issue/50792 -->
+<!-- https://go.dev/issue/51115 -->
+<!-- https://go.dev/issue/51447 -->
