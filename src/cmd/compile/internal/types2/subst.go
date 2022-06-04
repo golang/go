@@ -48,9 +48,10 @@ func (m substMap) lookup(tpar *TypeParam) Type {
 // incoming type. If a substitution took place, the result type is different
 // from the incoming type.
 //
-// If the given context is non-nil, it is used in lieu of check.Config.Context.
-func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, local, global *Context) Type {
-	assert(local != nil || global != nil)
+// If expanding is non-nil, it is the instance type currently being expanded.
+// One of expanding or ctxt must be non-nil.
+func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, expanding *Named, ctxt *Context) Type {
+	assert(expanding != nil || ctxt != nil)
 
 	if smap.empty() {
 		return typ
@@ -66,20 +67,21 @@ func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, local, glob
 
 	// general case
 	subst := subster{
-		pos:    pos,
-		smap:   smap,
-		check:  check,
-		local:  local,
-		global: global,
+		pos:       pos,
+		smap:      smap,
+		check:     check,
+		expanding: expanding,
+		ctxt:      ctxt,
 	}
 	return subst.typ(typ)
 }
 
 type subster struct {
-	pos           syntax.Pos
-	smap          substMap
-	check         *Checker // nil if called via Instantiate
-	local, global *Context
+	pos       syntax.Pos
+	smap      substMap
+	check     *Checker // nil if called via Instantiate
+	expanding *Named   // if non-nil, the instance that is being expanded
+	ctxt      *Context
 }
 
 func (subst *subster) typ(typ Type) Type {
@@ -254,7 +256,7 @@ func (subst *subster) typ(typ Type) Type {
 		// recursion. The position used here is irrelevant because validation only
 		// occurs on t (we don't call validType on named), but we use subst.pos to
 		// help with debugging.
-		return subst.check.instance(subst.pos, orig, newTArgs, subst.local, subst.global)
+		return subst.check.instance(subst.pos, orig, newTArgs, subst.expanding, subst.ctxt)
 
 	case *TypeParam:
 		return subst.smap.lookup(t)

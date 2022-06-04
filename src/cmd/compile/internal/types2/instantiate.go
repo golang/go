@@ -63,28 +63,29 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 	return inst, nil
 }
 
-// instance resolves a type or function instance for the given original type
-// and type arguments. It looks for an existing identical instance in the given
-// contexts, creating a new instance if none is found.
+// instance instantiates the given original (generic) function or type with the
+// provided type arguments and returns the resulting instance. If an identical
+// instance exists already in the given contexts, it returns that instance,
+// otherwise it creates a new one.
 //
-// If local is non-nil, it is the context associated with a Named instance
-// type currently being expanded. If global is non-nil, it is the context
-// associated with the current type-checking pass or call to Instantiate. At
-// least one of local or global must be non-nil.
+// If expanding is non-nil, it is the Named instance type currently being
+// expanded. If ctxt is non-nil, it is the context associated with the current
+// type-checking pass or call to Instantiate. At least one of expanding or ctxt
+// must be non-nil.
 //
 // For Named types the resulting instance may be unexpanded.
-func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, local, global *Context) (res Type) {
-	// The order of the contexts below matters: we always prefer instances in
-	// local in order to preserve reference cycles.
+func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, expanding *Named, ctxt *Context) (res Type) {
+	// The order of the contexts below matters: we always prefer instances in the
+	// expanding instance context in order to preserve reference cycles.
 	//
-	// Invariant: if local != nil, the returned instance will be the instance
-	// recorded in local.
+	// Invariant: if expanding != nil, the returned instance will be the instance
+	// recorded in expanding.inst.ctxt.
 	var ctxts []*Context
-	if local != nil {
-		ctxts = append(ctxts, local)
+	if expanding != nil {
+		ctxts = append(ctxts, expanding.inst.ctxt)
 	}
-	if global != nil {
-		ctxts = append(ctxts, global)
+	if ctxt != nil {
+		ctxts = append(ctxts, ctxt)
 	}
 	assert(len(ctxts) > 0)
 
@@ -114,10 +115,10 @@ func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, local, g
 
 	switch orig := orig.(type) {
 	case *Named:
-		res = check.newNamedInstance(pos, orig, targs, local) // substituted lazily
+		res = check.newNamedInstance(pos, orig, targs, expanding) // substituted lazily
 
 	case *Signature:
-		assert(local == nil) // function instances cannot be reached from Named types
+		assert(expanding == nil) // function instances cannot be reached from Named types
 
 		tparams := orig.TypeParams()
 		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
@@ -126,7 +127,7 @@ func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, local, g
 		if tparams.Len() == 0 {
 			return orig // nothing to do (minor optimization)
 		}
-		sig := check.subst(pos, orig, makeSubstMap(tparams.list(), targs), nil, global).(*Signature)
+		sig := check.subst(pos, orig, makeSubstMap(tparams.list(), targs), nil, ctxt).(*Signature)
 		// If the signature doesn't use its type parameters, subst
 		// will not make a copy. In that case, make a copy now (so
 		// we can set tparams to nil w/o causing side-effects).
