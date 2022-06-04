@@ -343,7 +343,20 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
   <dd>
     <p><!-- CL 400654 -->
-      TODO: <a href="https://go.dev/cl/400654">https://go.dev/cl/400654</a>: permit use of Resolver.PreferGo, netgo on Windows and Plan 9
+      <a href="/pkg/net/#Resolver.PreferGo"><code>Resolver.PreferGo</code></a>
+      is now implemented on Windows and Plan 9. It previously only worked on Unix
+      platforms. Combined with
+      <a href="/pkg/net/#Dialer.Resolver"><code>Dialer.Resolver</code></a> and
+      <a href="/pkg/net/#Resolver.Dial"><code>Resolver.Dial</code></a>, it's now
+      possible to write portable programs and be in control of all DNS name lookups
+      when dialing.
+    </p>
+    <p>
+      The <code>net</code> package now has initial support for the <code>netgo</code>
+      build tag on Windows. When used, the package uses the Go DNS client (as used
+      by <code>Resolver.PreferGo</code>) instead of asking Windows for
+      DNS results. The upstream DNS server it discovers from Windows
+      may not yet be correct with complex system network configurations, however.
     </p>
   </dd>
 </dl><!-- net -->
