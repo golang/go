@@ -42,18 +42,18 @@ func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCP
 	return newTCPConn(fd), nil
 }
 
-func (ln *TCPListener) ok() bool { return ln != nil && ln.fd != nil && ln.fd.ctl != nil }
+func (l *TCPListener) ok() bool { return l != nil && l.fd != nil && l.fd.ctl != nil }
 
-func (ln *TCPListener) accept() (*TCPConn, error) {
-	fd, err := ln.fd.acceptPlan9()
+func (l *TCPListener) accept() (*TCPConn, error) {
+	fd, err := l.fd.acceptPlan9()
 	if err != nil {
 		return nil, err
 	}
 	tc := newTCPConn(fd)
-	if ln.lc.KeepAlive >= 0 {
+	if l.lc.KeepAlive >= 0 {
 		setKeepAlive(fd, true)
-		ka := ln.lc.KeepAlive
-		if ln.lc.KeepAlive == 0 {
+		ka := l.lc.KeepAlive
+		if l.lc.KeepAlive == 0 {
 			ka = defaultTCPKeepAlive
 		}
 		setKeepAlivePeriod(fd, ka)
@@ -61,22 +61,22 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
 	return tc, nil
 }
 
-func (ln *TCPListener) close() error {
-	if err := ln.fd.pfd.Close(); err != nil {
+func (l *TCPListener) close() error {
+	if err := l.fd.pfd.Close(); err != nil {
 		return err
 	}
-	if _, err := ln.fd.ctl.WriteString("hangup"); err != nil {
-		ln.fd.ctl.Close()
+	if _, err := l.fd.ctl.WriteString("hangup"); err != nil {
+		l.fd.ctl.Close()
 		return err
 	}
-	if err := ln.fd.ctl.Close(); err != nil {
+	if err := l.fd.ctl.Close(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (ln *TCPListener) file() (*os.File, error) {
-	f, err := ln.dup()
+func (l *TCPListener) file() (*os.File, error) {
+	f, err := l.dup()
 	if err != nil {
 		return nil, err
 	}

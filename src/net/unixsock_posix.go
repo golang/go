@@ -162,15 +162,15 @@ func (sd *sysDialer) dialUnix(ctx context.Context, laddr, raddr *UnixAddr) (*Uni
 	return newUnixConn(fd), nil
 }
 
-func (ln *UnixListener) accept() (*UnixConn, error) {
-	fd, err := ln.fd.accept()
+func (l *UnixListener) accept() (*UnixConn, error) {
+	fd, err := l.fd.accept()
 	if err != nil {
 		return nil, err
 	}
 	return newUnixConn(fd), nil
 }
 
-func (ln *UnixListener) close() error {
+func (l *UnixListener) close() error {
 	// The operating system doesn't clean up
 	// the file that announcing created, so
 	// we have to clean it up ourselves.
@@ -182,16 +182,16 @@ func (ln *UnixListener) close() error {
 	// sequence in ListenUnix. It's only non-Go
 	// programs that can mess us up.
 	// Even if there are racy calls to Close, we want to unlink only for the first one.
-	ln.unlinkOnce.Do(func() {
-		if ln.path[0] != '@' && ln.unlink {
-			syscall.Unlink(ln.path)
+	l.unlinkOnce.Do(func() {
+		if l.path[0] != '@' && l.unlink {
+			syscall.Unlink(l.path)
 		}
 	})
-	return ln.fd.Close()
+	return l.fd.Close()
 }
 
-func (ln *UnixListener) file() (*os.File, error) {
-	f, err := ln.fd.dup()
+func (l *UnixListener) file() (*os.File, error) {
+	f, err := l.fd.dup()
 	if err != nil {
 		return nil, err
 	}

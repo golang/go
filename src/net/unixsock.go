@@ -224,7 +224,7 @@ type UnixListener struct {
 	unlinkOnce sync.Once
 }
 
-func (ln *UnixListener) ok() bool { return ln != nil && ln.fd != nil }
+func (l *UnixListener) ok() bool { return l != nil && l.fd != nil }
 
 // SyscallConn returns a raw network connection.
 // This implements the syscall.Conn interface.

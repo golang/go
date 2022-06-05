@@ -30,15 +30,15 @@ func (sd *sysDialer) dialUnix(ctx context.Context, laddr, raddr *UnixAddr) (*Uni
 	return nil, syscall.EPLAN9
 }
 
-func (ln *UnixListener) accept() (*UnixConn, error) {
+func (l *UnixListener) accept() (*UnixConn, error) {
 	return nil, syscall.EPLAN9
 }
 
-func (ln *UnixListener) close() error {
+func (l *UnixListener) close() error {
 	return syscall.EPLAN9
 }
 
-func (ln *UnixListener) file() (*os.File, error) {
+func (l *UnixListener) file() (*os.File, error) {
 	return nil, syscall.EPLAN9
 }
 

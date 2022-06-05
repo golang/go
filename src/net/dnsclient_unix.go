@@ -474,7 +474,7 @@ func avoidDNS(name string) bool {
 }
 
 // nameList returns a list of names for sequential DNS queries.
-func (conf *dnsConfig) nameList(name string) []string {
+func (c *dnsConfig) nameList(name string) []string {
 	if avoidDNS(name) {
 		return nil
 	}
@@ -491,18 +491,18 @@ func (conf *dnsConfig) nameList(name string) []string {
 		return []string{name}
 	}
 
-	hasNdots := count(name, '.') >= conf.ndots
+	hasNdots := count(name, '.') >= c.ndots
 	name += "."
 	l++
 
 	// Build list of search choices.
-	names := make([]string, 0, 1+len(conf.search))
+	names := make([]string, 0, 1+len(c.search))
 	// If name has enough dots, try unsuffixed first.
 	if hasNdots {
 		names = append(names, name)
 	}
 	// Try suffixes that are not too long (see isDomainName).
-	for _, suffix := range conf.search {
+	for _, suffix := range c.search {
 		if l+len(suffix) <= 254 {
 			names = append(names, name+suffix)
 		}

@@ -26,5 +26,5 @@ func IPv4(a, b, c, d uint8) Addr { return AddrFrom4([4]byte{a, b, c, d}) }
 
 var TestAppendToMarshal = testAppendToMarshal
 
-func (a Addr) IsZero() bool   { return a.isZero() }
+func (ip Addr) IsZero() bool  { return ip.isZero() }
 func (p Prefix) IsZero() bool { return p.isZero() }

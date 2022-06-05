@@ -133,18 +133,18 @@ func spuriousENOTAVAIL(err error) bool {
 	return err == syscall.EADDRNOTAVAIL
 }
 
-func (ln *TCPListener) ok() bool { return ln != nil && ln.fd != nil }
+func (l *TCPListener) ok() bool { return l != nil && l.fd != nil }
 
-func (ln *TCPListener) accept() (*TCPConn, error) {
-	fd, err := ln.fd.accept()
+func (l *TCPListener) accept() (*TCPConn, error) {
+	fd, err := l.fd.accept()
 	if err != nil {
 		return nil, err
 	}
 	tc := newTCPConn(fd)
-	if ln.lc.KeepAlive >= 0 {
+	if l.lc.KeepAlive >= 0 {
 		setKeepAlive(fd, true)
-		ka := ln.lc.KeepAlive
-		if ln.lc.KeepAlive == 0 {
+		ka := l.lc.KeepAlive
+		if l.lc.KeepAlive == 0 {
 			ka = defaultTCPKeepAlive
 		}
 		setKeepAlivePeriod(fd, ka)
@@ -152,12 +152,12 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
 	return tc, nil
 }
 
-func (ln *TCPListener) close() error {
-	return ln.fd.Close()
+func (l *TCPListener) close() error {
+	return l.fd.Close()
 }
 
-func (ln *TCPListener) file() (*os.File, error) {
-	f, err := ln.fd.dup()
+func (l *TCPListener) file() (*os.File, error) {
+	f, err := l.fd.dup()
 	if err != nil {
 		return nil, err
 	}

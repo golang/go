@@ -1512,20 +1512,20 @@ func (t *Transport) decConnsPerHost(key connectMethodKey) {
 // Add TLS to a persistent connection, i.e. negotiate a TLS session. If pconn is already a TLS
 // tunnel, this function establishes a nested TLS session inside the encrypted channel.
 // The remote endpoint's name may be overridden by TLSClientConfig.ServerName.
-func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptrace.ClientTrace) error {
+func (pc *persistConn) addTLS(ctx context.Context, name string, trace *httptrace.ClientTrace) error {
 	// Initiate TLS and check remote host name against certificate.
-	cfg := cloneTLSConfig(pconn.t.TLSClientConfig)
+	cfg := cloneTLSConfig(pc.t.TLSClientConfig)
 	if cfg.ServerName == "" {
 		cfg.ServerName = name
 	}
-	if pconn.cacheKey.onlyH1 {
+	if pc.cacheKey.onlyH1 {
 		cfg.NextProtos = nil
 	}
-	plainConn := pconn.conn
+	plainConn := pc.conn
 	tlsConn := tls.Client(plainConn, cfg)
 	errc := make(chan error, 2)
 	var timer *time.Timer // for canceling TLS handshake
-	if d := pconn.t.TLSHandshakeTimeout; d != 0 {
+	if d := pc.t.TLSHandshakeTimeout; d != 0 {
 		timer = time.AfterFunc(d, func() {
 			errc <- tlsHandshakeTimeoutError{}
 		})
@@ -1551,8 +1551,8 @@ func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptr
 	if trace != nil && trace.TLSHandshakeDone != nil {
 		trace.TLSHandshakeDone(cs, nil)
 	}
-	pconn.tlsState = &cs
-	pconn.conn = tlsConn
+	pc.tlsState = &cs
+	pc.conn = tlsConn
 	return nil
 }
 

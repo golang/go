@@ -16,8 +16,8 @@ import (
 	"time"
 )
 
-func (ln *TCPListener) port() string {
-	_, port, err := SplitHostPort(ln.Addr().String())
+func (l *TCPListener) port() string {
+	_, port, err := SplitHostPort(l.Addr().String())
 	if err != nil {
 		return ""
 	}

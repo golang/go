@@ -165,39 +165,39 @@ func (s byPriorityWeight) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 // shuffleByWeight shuffles SRV records by weight using the algorithm
 // described in RFC 2782.
-func (addrs byPriorityWeight) shuffleByWeight() {
+func (s byPriorityWeight) shuffleByWeight() {
 	sum := 0
-	for _, addr := range addrs {
+	for _, addr := range s {
 		sum += int(addr.Weight)
 	}
-	for sum > 0 && len(addrs) > 1 {
-		s := 0
+	for sum > 0 && len(s) > 1 {
+		w := 0
 		n := randIntn(sum)
-		for i := range addrs {
-			s += int(addrs[i].Weight)
-			if s > n {
+		for i := range s {
+			w += int(s[i].Weight)
+			if w > n {
 				if i > 0 {
-					addrs[0], addrs[i] = addrs[i], addrs[0]
+					s[0], s[i] = s[i], s[0]
 				}
 				break
 			}
 		}
-		sum -= int(addrs[0].Weight)
-		addrs = addrs[1:]
+		sum -= int(s[0].Weight)
+		s = s[1:]
 	}
 }
 
 // sort reorders SRV records as specified in RFC 2782.
-func (addrs byPriorityWeight) sort() {
-	sort.Sort(addrs)
+func (s byPriorityWeight) sort() {
+	sort.Sort(s)
 	i := 0
-	for j := 1; j < len(addrs); j++ {
-		if addrs[i].Priority != addrs[j].Priority {
-			addrs[i:j].shuffleByWeight()
+	for j := 1; j < len(s); j++ {
+		if s[i].Priority != s[j].Priority {
+			s[i:j].shuffleByWeight()
 			i = j
 		}
 	}
-	addrs[i:].shuffleByWeight()
+	s[i:].shuffleByWeight()
 }
 
 // An MX represents a single DNS MX record.
