@@ -1053,6 +1053,11 @@ func issue51622(b []byte) int {
 	return 0
 }
 
+func issue45928(x int) {
+	combinedFrac := (x) / (x | (1 << 31)) // ERROR "Proved Neq64$"
+	useInt(combinedFrac)
+}
+
 //go:noinline
 func useInt(a int) {
 }
