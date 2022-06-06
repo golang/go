@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Hacked up copy of go/ast/import.go
+// Modified to use a single token.File in preference to a FileSet.
 
 package imports
 
@@ -16,7 +17,9 @@ import (
 
 // sortImports sorts runs of consecutive import lines in import blocks in f.
 // It also removes duplicate imports when it is possible to do so without data loss.
-func sortImports(localPrefix string, fset *token.FileSet, f *ast.File) {
+//
+// It may mutate the token.File.
+func sortImports(localPrefix string, tokFile *token.File, f *ast.File) {
 	for i, d := range f.Decls {
 		d, ok := d.(*ast.GenDecl)
 		if !ok || d.Tok != token.IMPORT {
@@ -39,21 +42,21 @@ func sortImports(localPrefix string, fset *token.FileSet, f *ast.File) {
 		i := 0
 		specs := d.Specs[:0]
 		for j, s := range d.Specs {
-			if j > i && fset.Position(s.Pos()).Line > 1+fset.Position(d.Specs[j-1].End()).Line {
+			if j > i && tokFile.Line(s.Pos()) > 1+tokFile.Line(d.Specs[j-1].End()) {
 				// j begins a new run.  End this one.
-				specs = append(specs, sortSpecs(localPrefix, fset, f, d.Specs[i:j])...)
+				specs = append(specs, sortSpecs(localPrefix, tokFile, f, d.Specs[i:j])...)
 				i = j
 			}
 		}
-		specs = append(specs, sortSpecs(localPrefix, fset, f, d.Specs[i:])...)
+		specs = append(specs, sortSpecs(localPrefix, tokFile, f, d.Specs[i:])...)
 		d.Specs = specs
 
 		// Deduping can leave a blank line before the rparen; clean that up.
 		if len(d.Specs) > 0 {
 			lastSpec := d.Specs[len(d.Specs)-1]
-			lastLine := fset.PositionFor(lastSpec.Pos(), false).Line
-			if rParenLine := fset.PositionFor(d.Rparen, false).Line; rParenLine > lastLine+1 {
-				fset.File(d.Rparen).MergeLine(rParenLine - 1)
+			lastLine := tokFile.PositionFor(lastSpec.Pos(), false).Line
+			if rParenLine := tokFile.PositionFor(d.Rparen, false).Line; rParenLine > lastLine+1 {
+				tokFile.MergeLine(rParenLine - 1) // has side effects!
 			}
 		}
 	}
@@ -62,7 +65,7 @@ func sortImports(localPrefix string, fset *token.FileSet, f *ast.File) {
 // mergeImports merges all the import declarations into the first one.
 // Taken from golang.org/x/tools/ast/astutil.
 // This does not adjust line numbers properly
-func mergeImports(fset *token.FileSet, f *ast.File) {
+func mergeImports(f *ast.File) {
 	if len(f.Decls) <= 1 {
 		return
 	}
@@ -144,7 +147,9 @@ type posSpan struct {
 	End   token.Pos
 }
 
-func sortSpecs(localPrefix string, fset *token.FileSet, f *ast.File, specs []ast.Spec) []ast.Spec {
+// sortSpecs sorts the import specs within each import decl.
+// It may mutate the token.File.
+func sortSpecs(localPrefix string, tokFile *token.File, f *ast.File, specs []ast.Spec) []ast.Spec {
 	// Can't short-circuit here even if specs are already sorted,
 	// since they might yet need deduplication.
 	// A lone import, however, may be safely ignored.
@@ -160,7 +165,7 @@ func sortSpecs(localPrefix string, fset *token.FileSet, f *ast.File, specs []ast
 
 	// Identify comments in this range.
 	// Any comment from pos[0].Start to the final line counts.
-	lastLine := fset.Position(pos[len(pos)-1].End).Line
+	lastLine := tokFile.Line(pos[len(pos)-1].End)
 	cstart := len(f.Comments)
 	cend := len(f.Comments)
 	for i, g := range f.Comments {
@@ -170,7 +175,7 @@ func sortSpecs(localPrefix string, fset *token.FileSet, f *ast.File, specs []ast
 		if i < cstart {
 			cstart = i
 		}
-		if fset.Position(g.End()).Line > lastLine {
+		if tokFile.Line(g.End()) > lastLine {
 			cend = i
 			break
 		}
@@ -203,7 +208,7 @@ func sortSpecs(localPrefix string, fset *token.FileSet, f *ast.File, specs []ast
 			deduped = append(deduped, s)
 		} else {
 			p := s.Pos()
-			fset.File(p).MergeLine(fset.Position(p).Line)
+			tokFile.MergeLine(tokFile.Line(p)) // has side effects!
 		}
 	}
 	specs = deduped
@@ -234,21 +239,21 @@ func sortSpecs(localPrefix string, fset *token.FileSet, f *ast.File, specs []ast
 
 	// Fixup comments can insert blank lines, because import specs are on different lines.
 	// We remove those blank lines here by merging import spec to the first import spec line.
-	firstSpecLine := fset.Position(specs[0].Pos()).Line
+	firstSpecLine := tokFile.Line(specs[0].Pos())
 	for _, s := range specs[1:] {
 		p := s.Pos()
-		line := fset.File(p).Line(p)
+		line := tokFile.Line(p)
 		for previousLine := line - 1; previousLine >= firstSpecLine; {
 			// MergeLine can panic. Avoid the panic at the cost of not removing the blank line
 			// golang/go#50329
-			if previousLine > 0 && previousLine < fset.File(p).LineCount() {
-				fset.File(p).MergeLine(previousLine)
+			if previousLine > 0 && previousLine < tokFile.LineCount() {
+				tokFile.MergeLine(previousLine) // has side effects!
 				previousLine--
 			} else {
 				// try to gather some data to diagnose how this could happen
 				req := "Please report what the imports section of your go file looked like."
 				log.Printf("panic avoided: first:%d line:%d previous:%d max:%d. %s",
-					firstSpecLine, line, previousLine, fset.File(p).LineCount(), req)
+					firstSpecLine, line, previousLine, tokFile.LineCount(), req)
 			}
 		}
 	}

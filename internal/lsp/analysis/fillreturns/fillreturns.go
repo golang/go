@@ -193,8 +193,7 @@ outer:
 				// generate a zero value.
 				value := analysisinternal.FindBestMatch(retTyp.String(), idents)
 				if value == nil {
-					value = analysisinternal.ZeroValue(
-						pass.Fset, file, pass.Pkg, retTyp)
+					value = analysisinternal.ZeroValue(file, pass.Pkg, retTyp)
 				}
 				if value == nil {
 					return nil, nil

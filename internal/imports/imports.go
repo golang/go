@@ -103,12 +103,17 @@ func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options, e
 	return formatFile(fileSet, file, src, nil, opt)
 }
 
-func formatFile(fileSet *token.FileSet, file *ast.File, src []byte, adjust func(orig []byte, src []byte) []byte, opt *Options) ([]byte, error) {
-	mergeImports(fileSet, file)
-	sortImports(opt.LocalPrefix, fileSet, file)
-	imps := astutil.Imports(fileSet, file)
+// formatFile formats the file syntax tree.
+// It may mutate the token.FileSet.
+//
+// If an adjust function is provided, it is called after formatting
+// with the original source (formatFile's src parameter) and the
+// formatted file, and returns the postpocessed result.
+func formatFile(fset *token.FileSet, file *ast.File, src []byte, adjust func(orig []byte, src []byte) []byte, opt *Options) ([]byte, error) {
+	mergeImports(file)
+	sortImports(opt.LocalPrefix, fset.File(file.Pos()), file)
 	var spacesBefore []string // import paths we need spaces before
-	for _, impSection := range imps {
+	for _, impSection := range astutil.Imports(fset, file) {
 		// Within each block of contiguous imports, see if any
 		// import lines are in different group numbers. If so,
 		// we'll need to put a space between them so it's
@@ -132,7 +137,7 @@ func formatFile(fileSet *token.FileSet, file *ast.File, src []byte, adjust func(
 	printConfig := &printer.Config{Mode: printerMode, Tabwidth: opt.TabWidth}
 
 	var buf bytes.Buffer
-	err := printConfig.Fprint(&buf, fileSet, file)
+	err := printConfig.Fprint(&buf, fset, file)
 	if err != nil {
 		return nil, err
 	}

@@ -330,7 +330,7 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 			// The blank identifier is always a local variable
 			continue
 		}
-		typ := analysisinternal.TypeExpr(fset, file, pkg, v.obj.Type())
+		typ := analysisinternal.TypeExpr(file, pkg, v.obj.Type())
 		if typ == nil {
 			return nil, fmt.Errorf("nil AST expression for type: %v", v.obj.Name())
 		}
@@ -1130,7 +1130,7 @@ func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.
 				return nil, nil, fmt.Errorf(
 					"failed type conversion, AST expression: %T", field.Type)
 			}
-			expr := analysisinternal.TypeExpr(fset, file, pkg, typ)
+			expr := analysisinternal.TypeExpr(file, pkg, typ)
 			if expr == nil {
 				return nil, nil, fmt.Errorf("nil AST expression")
 			}
@@ -1138,10 +1138,9 @@ func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.
 			name, idx = generateAvailableIdentifier(pos, file,
 				path, info, "returnValue", idx)
 			retVars = append(retVars, &returnVariable{
-				name: ast.NewIdent(name),
-				decl: &ast.Field{Type: expr},
-				zeroVal: analysisinternal.ZeroValue(
-					fset, file, pkg, typ),
+				name:    ast.NewIdent(name),
+				decl:    &ast.Field{Type: expr},
+				zeroVal: analysisinternal.ZeroValue(file, pkg, typ),
 			})
 		}
 	}
@@ -1170,7 +1169,7 @@ func adjustReturnStatements(returnTypes []*ast.Field, seenVars map[types.Object]
 			if typ != returnType.Type {
 				continue
 			}
-			val = analysisinternal.ZeroValue(fset, file, pkg, obj.Type())
+			val = analysisinternal.ZeroValue(file, pkg, obj.Type())
 			break
 		}
 		if val == nil {

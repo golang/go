@@ -268,7 +268,7 @@ func newFunctionDeclaration(path []ast.Node, file *ast.File, pkg *types.Package,
 			Names: []*ast.Ident{
 				ast.NewIdent(name),
 			},
-			Type: analysisinternal.TypeExpr(fset, file, pkg, paramTypes[i]),
+			Type: analysisinternal.TypeExpr(file, pkg, paramTypes[i]),
 		})
 	}
 

@@ -113,15 +113,11 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	if err != nil {
 		return false
 	}
-	tok := snapshot.FileSet().File(pgf.File.Pos())
-	if tok == nil {
-		return false
-	}
 	for _, commentGroup := range pgf.File.Comments {
 		for _, comment := range commentGroup.List {
 			if matched := generatedRx.MatchString(comment.Text); matched {
 				// Check if comment is at the beginning of the line in source.
-				if pos := tok.Position(comment.Slash); pos.Column == 1 {
+				if pgf.Tok.Position(comment.Slash).Column == 1 {
 					return true
 				}
 			}

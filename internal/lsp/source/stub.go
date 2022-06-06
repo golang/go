@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/lsp/analysis/stubmethods"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -57,8 +58,8 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 	if err != nil {
 		return nil, fmt.Errorf("error reading concrete file source: %w", err)
 	}
-	insertPos := snapshot.FileSet().Position(nodes[1].End()).Offset
-	if insertPos >= len(concreteSrc) {
+	insertPos, err := safetoken.Offset(parsedConcreteFile.Tok, nodes[1].End())
+	if err != nil || insertPos >= len(concreteSrc) {
 		return nil, fmt.Errorf("insertion position is past the end of the file")
 	}
 	var buf bytes.Buffer

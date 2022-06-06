@@ -11,9 +11,8 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strings"
+	"strconv"
 
-	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/lsp/fuzzy"
 )
 
@@ -37,7 +36,7 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
 	return end
 }
 
-func ZeroValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 	under := typ
 	if n, ok := typ.(*types.Named); ok {
 		under = n.Underlying()
@@ -57,7 +56,7 @@ func ZeroValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.T
 	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
 		return ast.NewIdent("nil")
 	case *types.Struct:
-		texpr := TypeExpr(fset, f, pkg, typ) // typ because we want the name here.
+		texpr := TypeExpr(f, pkg, typ) // typ because we want the name here.
 		if texpr == nil {
 			return nil
 		}
@@ -81,7 +80,7 @@ func IsZeroValue(expr ast.Expr) bool {
 	}
 }
 
-func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 	switch t := typ.(type) {
 	case *types.Basic:
 		switch t.Kind() {
@@ -91,7 +90,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			return ast.NewIdent(t.Name())
 		}
 	case *types.Pointer:
-		x := TypeExpr(fset, f, pkg, t.Elem())
+		x := TypeExpr(f, pkg, t.Elem())
 		if x == nil {
 			return nil
 		}
@@ -100,7 +99,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			X:  x,
 		}
 	case *types.Array:
-		elt := TypeExpr(fset, f, pkg, t.Elem())
+		elt := TypeExpr(f, pkg, t.Elem())
 		if elt == nil {
 			return nil
 		}
@@ -112,7 +111,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			Elt: elt,
 		}
 	case *types.Slice:
-		elt := TypeExpr(fset, f, pkg, t.Elem())
+		elt := TypeExpr(f, pkg, t.Elem())
 		if elt == nil {
 			return nil
 		}
@@ -120,8 +119,8 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			Elt: elt,
 		}
 	case *types.Map:
-		key := TypeExpr(fset, f, pkg, t.Key())
-		value := TypeExpr(fset, f, pkg, t.Elem())
+		key := TypeExpr(f, pkg, t.Key())
+		value := TypeExpr(f, pkg, t.Elem())
 		if key == nil || value == nil {
 			return nil
 		}
@@ -134,7 +133,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 		if t.Dir() == types.SendRecv {
 			dir = ast.SEND | ast.RECV
 		}
-		value := TypeExpr(fset, f, pkg, t.Elem())
+		value := TypeExpr(f, pkg, t.Elem())
 		if value == nil {
 			return nil
 		}
@@ -145,7 +144,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 	case *types.Signature:
 		var params []*ast.Field
 		for i := 0; i < t.Params().Len(); i++ {
-			p := TypeExpr(fset, f, pkg, t.Params().At(i).Type())
+			p := TypeExpr(f, pkg, t.Params().At(i).Type())
 			if p == nil {
 				return nil
 			}
@@ -160,7 +159,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 		}
 		var returns []*ast.Field
 		for i := 0; i < t.Results().Len(); i++ {
-			r := TypeExpr(fset, f, pkg, t.Results().At(i).Type())
+			r := TypeExpr(f, pkg, t.Results().At(i).Type())
 			if r == nil {
 				return nil
 			}
@@ -184,13 +183,12 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			return ast.NewIdent(t.Obj().Name())
 		}
 		pkgName := t.Obj().Pkg().Name()
+
 		// If the file already imports the package under another name, use that.
-		for _, group := range astutil.Imports(fset, f) {
-			for _, cand := range group {
-				if strings.Trim(cand.Path.Value, `"`) == t.Obj().Pkg().Path() {
-					if cand.Name != nil && cand.Name.Name != "" {
-						pkgName = cand.Name.Name
-					}
+		for _, cand := range f.Imports {
+			if path, _ := strconv.Unquote(cand.Path.Value); path == t.Obj().Pkg().Path() {
+				if cand.Name != nil && cand.Name.Name != "" {
+					pkgName = cand.Name.Name
 				}
 			}
 		}
