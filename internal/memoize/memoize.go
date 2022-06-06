@@ -241,11 +241,11 @@ func (g *Generation) Inherit(hs ...*Handle) {
 		}
 
 		h.mu.Lock()
-		defer h.mu.Unlock()
 		if h.state == stateDestroyed {
 			panic(fmt.Sprintf("inheriting destroyed handle %#v (type %T) into generation %v", h.key, h.key, g.name))
 		}
 		h.generations[g] = struct{}{}
+		h.mu.Unlock()
 	}
 }
 

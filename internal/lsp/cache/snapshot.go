@@ -1985,9 +1985,9 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	deleteInvalidMetadata := forceReloadMetadata || workspaceModeChanged
 	idsInSnapshot := map[PackageID]bool{} // track all known IDs
 	for uri, ids := range s.ids {
+		var resultIDs []PackageID
 		for _, id := range ids {
-			invalidateMetadata := idsToInvalidate[id]
-			if skipID[id] || (invalidateMetadata && deleteInvalidMetadata) {
+			if skipID[id] || deleteInvalidMetadata && idsToInvalidate[id] {
 				continue
 			}
 			// The ID is not reachable from any workspace package, so it should
@@ -1996,8 +1996,9 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 				continue
 			}
 			idsInSnapshot[id] = true
-			result.ids[uri] = append(result.ids[uri], id)
+			resultIDs = append(resultIDs, id)
 		}
+		result.ids[uri] = resultIDs
 	}
 
 	// Copy the package metadata. We only need to invalidate packages directly

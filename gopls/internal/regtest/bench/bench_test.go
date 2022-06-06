@@ -163,19 +163,22 @@ func TestBenchmarkDidChange(t *testing.T) {
 		env.Await(env.DoneWithOpen())
 		// Insert the text we'll be modifying at the top of the file.
 		env.EditBuffer(*benchFile, fake.Edit{Text: "// __REGTEST_PLACEHOLDER_0__\n"})
-		result := testing.Benchmark(func(b *testing.B) {
-			if *benchProfile != "" {
-				profile, err := os.Create(*benchProfile)
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer profile.Close()
-				if err := pprof.StartCPUProfile(profile); err != nil {
-					t.Fatal(err)
-				}
-				defer pprof.StopCPUProfile()
+
+		// Run the profiler after the initial load,
+		// across all benchmark iterations.
+		if *benchProfile != "" {
+			profile, err := os.Create(*benchProfile)
+			if err != nil {
+				t.Fatal(err)
 			}
-			b.ResetTimer()
+			defer profile.Close()
+			if err := pprof.StartCPUProfile(profile); err != nil {
+				t.Fatal(err)
+			}
+			defer pprof.StopCPUProfile()
+		}
+
+		result := testing.Benchmark(func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				env.EditBuffer(*benchFile, fake.Edit{
 					Start: fake.Pos{Line: 0, Column: 0},
@@ -185,7 +188,6 @@ func TestBenchmarkDidChange(t *testing.T) {
 				})
 				env.Await(StartedChange(uint64(i + 1)))
 			}
-			b.StopTimer()
 		})
 		printBenchmarkResults(result)
 	})
