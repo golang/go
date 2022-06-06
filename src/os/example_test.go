@@ -255,7 +255,7 @@ func ExampleMkdir() {
 
 func ExampleMkdirAll() {
 	err := os.MkdirAll("test/subdir", 0750)
-	if err != nil && !os.IsExist(err) {
+	if err != nil {
 		log.Fatal(err)
 	}
 	err = os.WriteFile("test/subdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
