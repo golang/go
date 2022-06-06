@@ -162,9 +162,9 @@ func (r *reader) doPkg() *types2.Package {
 	}
 
 	name := r.String()
-	height := r.Len()
+	_ = r.Len() // was package height, but not necessary anymore.
 
-	pkg := types2.NewPackageHeight(path, name, height)
+	pkg := types2.NewPackage(path, name)
 	r.p.imports[path] = pkg
 
 	// TODO(mdempsky): The list of imported packages is important for

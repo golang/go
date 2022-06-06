@@ -197,7 +197,6 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 // methods with receiver base type names.
 func (check *Checker) collectObjects() {
 	pkg := check.pkg
-	pkg.height = 0
 
 	// pkgImports is the set of packages already imported by any package file seen
 	// so far. Used to avoid duplicate entries in pkg.imports. Allocate and populate
@@ -253,15 +252,6 @@ func (check *Checker) collectObjects() {
 				imp := check.importPackage(s.Path.Pos(), path, fileDir)
 				if imp == nil {
 					continue
-				}
-
-				if imp == Unsafe {
-					// typecheck ignores imports of package unsafe for
-					// calculating height.
-					// TODO(mdempsky): Revisit this. This seems fine, but I
-					// don't remember explicitly considering this case.
-				} else if h := imp.height + 1; h > pkg.height {
-					pkg.height = h
 				}
 
 				// local name overrides imported package name

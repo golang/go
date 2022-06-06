@@ -14,7 +14,6 @@ type Package struct {
 	name     string
 	scope    *Scope
 	imports  []*Package
-	height   int
 	complete bool
 	fake     bool // scope lookup errors are silently dropped if package is fake (internal use only)
 	cgo      bool // uses of this package will be rewritten into uses of declarations from _cgo_gotypes.go
@@ -23,14 +22,8 @@ type Package struct {
 // NewPackage returns a new Package for the given package path and name.
 // The package is not complete and contains no explicit imports.
 func NewPackage(path, name string) *Package {
-	return NewPackageHeight(path, name, 0)
-}
-
-// NewPackageHeight is like NewPackage, but allows specifying the
-// package's height.
-func NewPackageHeight(path, name string, height int) *Package {
 	scope := NewScope(Universe, nopos, nopos, fmt.Sprintf("package %q", path))
-	return &Package{path: path, name: name, scope: scope, height: height}
+	return &Package{path: path, name: name, scope: scope}
 }
 
 // Path returns the package path.
@@ -38,9 +31,6 @@ func (pkg *Package) Path() string { return pkg.path }
 
 // Name returns the package name.
 func (pkg *Package) Name() string { return pkg.name }
-
-// Height returns the package height.
-func (pkg *Package) Height() int { return pkg.height }
 
 // SetName sets the package name.
 func (pkg *Package) SetName(name string) { pkg.name = name }
