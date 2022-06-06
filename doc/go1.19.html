@@ -134,8 +134,12 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: <a href="https://go.dev/cl/402374">https://go.dev/cl/402374</a>: enable regabi on riscv64 by default
 </p>
-<p>
-  TODO: <a href="https://go.dev/cl/391014">https://go.dev/cl/391014</a>: The Go compiler now requires the -p=importpath flag, which is already supplied by the go command and by Bazel. Any other build systems that invoke the Go compiler directly will need to make sure they pass this flag as well in order to use Go 1.19.: cmd/compile: require -p flag
+<p><!-- CL 391014 -->
+  The Go compiler now requires the <code>-p=importpath</code> flag to
+  build a linkable object file. This is already supplied by
+  the <code>go</code> command and by Bazel. Any other build systems
+  that invoke the Go compiler directly will need to make sure they
+  pass this flag as well.
 </p>
 <p>
   TODO: complete this section, or delete if not needed
