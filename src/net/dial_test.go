@@ -9,6 +9,8 @@ package net
 import (
 	"bufio"
 	"context"
+	"errors"
+	"fmt"
 	"internal/testenv"
 	"io"
 	"os"
@@ -175,30 +177,8 @@ func dialClosedPort(t *testing.T) (dialLatency time.Duration) {
 }
 
 func TestDialParallel(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-
-	if !supportsIPv4() || !supportsIPv6() {
-		t.Skip("both IPv4 and IPv6 are required")
-	}
-
-	closedPortDelay := dialClosedPort(t)
-
 	const instant time.Duration = 0
 	const fallbackDelay = 200 * time.Millisecond
-
-	// Some cases will run quickly when "connection refused" is fast,
-	// or trigger the fallbackDelay on Windows. This value holds the
-	// lesser of the two delays.
-	var closedPortOrFallbackDelay time.Duration
-	if closedPortDelay < fallbackDelay {
-		closedPortOrFallbackDelay = closedPortDelay
-	} else {
-		closedPortOrFallbackDelay = fallbackDelay
-	}
-
-	origTestHookDialTCP := testHookDialTCP
-	defer func() { testHookDialTCP = origTestHookDialTCP }()
-	testHookDialTCP = slowDialTCP
 
 	nCopies := func(s string, n int) []string {
 		out := make([]string, n)
@@ -223,29 +203,19 @@ func TestDialParallel(t *testing.T) {
 		// Primary is slow; fallback should kick in.
 		{[]string{slowDst4}, []string{"::1"}, "", true, fallbackDelay},
 		// Skip a "connection refused" in the primary thread.
-		{[]string{"127.0.0.1", "::1"}, []string{}, "tcp4", true, closedPortDelay},
-		{[]string{"::1", "127.0.0.1"}, []string{}, "tcp6", true, closedPortDelay},
+		{[]string{"127.0.0.1", "::1"}, []string{}, "tcp4", true, instant},
+		{[]string{"::1", "127.0.0.1"}, []string{}, "tcp6", true, instant},
 		// Skip a "connection refused" in the fallback thread.
-		{[]string{slowDst4, slowDst6}, []string{"::1", "127.0.0.1"}, "tcp6", true, fallbackDelay + closedPortDelay},
+		{[]string{slowDst4, slowDst6}, []string{"::1", "127.0.0.1"}, "tcp6", true, fallbackDelay},
 		// Primary refused, fallback without delay.
-		{[]string{"127.0.0.1"}, []string{"::1"}, "tcp4", true, closedPortOrFallbackDelay},
-		{[]string{"::1"}, []string{"127.0.0.1"}, "tcp6", true, closedPortOrFallbackDelay},
+		{[]string{"127.0.0.1"}, []string{"::1"}, "tcp4", true, instant},
+		{[]string{"::1"}, []string{"127.0.0.1"}, "tcp6", true, instant},
 		// Everything is refused.
-		{[]string{"127.0.0.1"}, []string{}, "tcp4", false, closedPortDelay},
+		{[]string{"127.0.0.1"}, []string{}, "tcp4", false, instant},
 		// Nothing to do; fail instantly.
 		{[]string{}, []string{}, "", false, instant},
 		// Connecting to tons of addresses should not trip the deadline.
 		{nCopies("::1", 1000), []string{}, "", true, instant},
-	}
-
-	handler := func(dss *dualStackServer, ln Listener) {
-		for {
-			c, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			c.Close()
-		}
 	}
 
 	// Convert a list of IP strings into TCPAddrs.
@@ -262,76 +232,74 @@ func TestDialParallel(t *testing.T) {
 	}
 
 	for i, tt := range testCases {
-		dss, err := newDualStackServer()
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer dss.teardown()
-		if err := dss.buildup(handler); err != nil {
-			t.Fatal(err)
-		}
-		if tt.teardownNetwork != "" {
-			// Destroy one of the listening sockets, creating an unreachable port.
-			dss.teardownNetwork(tt.teardownNetwork)
-		}
+		i, tt := i, tt
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			origTestHookDialTCP := testHookDialTCP
+			defer func() { testHookDialTCP = origTestHookDialTCP }()
+			testHookDialTCP = func(ctx context.Context, network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+				n := "tcp6"
+				if raddr.IP.To4() != nil {
+					n = "tcp4"
+				}
+				if n == tt.teardownNetwork {
+					return nil, errors.New("unreachable")
+				}
+				if r := raddr.IP.String(); r == slowDst4 || r == slowDst6 {
+					<-ctx.Done()
+					return nil, ctx.Err()
+				}
+				return &TCPConn{}, nil
+			}
 
-		primaries := makeAddrs(tt.primaries, dss.port)
-		fallbacks := makeAddrs(tt.fallbacks, dss.port)
-		d := Dialer{
-			FallbackDelay: fallbackDelay,
-		}
-		startTime := time.Now()
-		sd := &sysDialer{
-			Dialer:  d,
-			network: "tcp",
-			address: "?",
-		}
-		c, err := sd.dialParallel(context.Background(), primaries, fallbacks)
-		elapsed := time.Since(startTime)
+			primaries := makeAddrs(tt.primaries, "80")
+			fallbacks := makeAddrs(tt.fallbacks, "80")
+			d := Dialer{
+				FallbackDelay: fallbackDelay,
+			}
+			const forever = 60 * time.Minute
+			if tt.expectElapsed == instant {
+				d.FallbackDelay = forever
+			}
+			startTime := time.Now()
+			sd := &sysDialer{
+				Dialer:  d,
+				network: "tcp",
+				address: "?",
+			}
+			c, err := sd.dialParallel(context.Background(), primaries, fallbacks)
+			elapsed := time.Since(startTime)
 
-		if c != nil {
-			c.Close()
-		}
+			if c != nil {
+				c.Close()
+			}
 
-		if tt.expectOk && err != nil {
-			t.Errorf("#%d: got %v; want nil", i, err)
-		} else if !tt.expectOk && err == nil {
-			t.Errorf("#%d: got nil; want non-nil", i)
-		}
+			if tt.expectOk && err != nil {
+				t.Errorf("#%d: got %v; want nil", i, err)
+			} else if !tt.expectOk && err == nil {
+				t.Errorf("#%d: got nil; want non-nil", i)
+			}
 
-		// We used to always use 95 milliseconds as the slop,
-		// but that was flaky on Windows.  See issue 35616.
-		slop := 95 * time.Millisecond
-		if half := tt.expectElapsed / 2; half > slop {
-			slop = half
-		}
-		expectElapsedMin := tt.expectElapsed - slop
-		expectElapsedMax := tt.expectElapsed + slop
-		if elapsed < expectElapsedMin {
-			t.Errorf("#%d: got %v; want >= %v", i, elapsed, expectElapsedMin)
-		} else if elapsed > expectElapsedMax {
-			t.Errorf("#%d: got %v; want <= %v", i, elapsed, expectElapsedMax)
-		}
+			if elapsed < tt.expectElapsed || elapsed >= forever {
+				t.Errorf("#%d: got %v; want >= %v, < forever", i, elapsed, tt.expectElapsed)
+			}
 
-		// Repeat each case, ensuring that it can be canceled quickly.
-		ctx, cancel := context.WithCancel(context.Background())
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			time.Sleep(5 * time.Millisecond)
-			cancel()
-			wg.Done()
-		}()
-		startTime = time.Now()
-		c, err = sd.dialParallel(ctx, primaries, fallbacks)
-		if c != nil {
-			c.Close()
-		}
-		elapsed = time.Now().Sub(startTime)
-		if elapsed > 100*time.Millisecond {
-			t.Errorf("#%d (cancel): got %v; want <= 100ms", i, elapsed)
-		}
-		wg.Wait()
+			// Repeat each case, ensuring that it can be canceled.
+			ctx, cancel := context.WithCancel(context.Background())
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				time.Sleep(5 * time.Millisecond)
+				cancel()
+				wg.Done()
+			}()
+			// Ignore errors, since all we care about is that the
+			// call can be canceled.
+			c, _ = sd.dialParallel(ctx, primaries, fallbacks)
+			if c != nil {
+				c.Close()
+			}
+			wg.Wait()
+		})
 	}
 }
 
