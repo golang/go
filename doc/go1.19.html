@@ -103,19 +103,26 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p><!-- https://go.dev/issue/48409 --><!-- CL 397018 -->
   The runtime now includes support for a soft memory limit. This memory limit
-  includes all memory mapped and managed by the runtime, and excludes external
-  memory sources such as binary size, memory managed in other languages, and
-  memory held by the operating system on behalf of the Go program. This limit
-  may be managed via the <code>GOMEMLIMIT</code> environment variable or the
-  <code>SetMemoryLimit</code> function in the runtime/debug package. The limit
-  works in conjunction with <code>GOGC</code> and <code>SetGCPercent</code>,
+  includes the Go heap and all other memory managed by the runtime, and
+  excludes external memory sources such as mappings of the binary itself,
+  memory managed in other languages, and memory held by the operating system on
+  behalf of the Go program. This limit may be managed via
+  <a href="/pkg/runtime/debug/#SetMemoryLimit"><code>runtime/debug.SetMemoryLimit</code></a>
+  or the equivalent
+  <a href="/pkg/runtime/#hdr-Environment_Variables"><code>GOMEMLIMIT</code></a>
+  environment variable. The limit works in conjunction with
+  <a href="/pkg/runtime/debug/#SetGCPercent"><code>runtime/debug.SetGCPercent</code></a>
+  / <a href="/pkg/runtime/#hdr-Environment_Variables"><code>GOGC</code></a>,
   and will be respected even if <code>GOGC=off</code>, allowing Go programs to
   always make maximal use of their memory limit, improving resource efficiency
-  in some cases. Please note that small memory limits, on the order of tens of
-  megabytes or less, are less likely to be adhered to due to external latency
-  factors, such as OS scheduling. See https://go.dev/issue/52433 for more
-  details. Larger memory limits, on the order of hundreds of megabytes or more,
-  are stable and production-ready.
+  in some cases. See <a href="https://go.dev/doc/gc-guide">the GC guide</a> for
+  a detailed guide explaining the soft memory limit in more detail, as well as
+  a variety of common use-cases and scenarios. Please note that small memory
+  limits, on the order of tens of megabytes or less, are less likely to be
+  respected due to external latency factors, such as OS scheduling. See
+  <a href="https://go.dev/issue/52433">issue 52433</a> for more details. Larger
+  memory limits, on the order of hundreds of megabytes or more, are stable and
+  production-ready.
 </p>
 
 <p><!-- CL 353989 -->
@@ -123,7 +130,8 @@ Do not send CLs removing the interior tags from such phrases.
   size approaches the soft memory limit, the Go runtime also attempts to limit
   total GC CPU utilization to 50%, excluding idle time, choosing to use more
   memory over preventing application progress. In practice, we expect this limit
-  to only play a role in exceptional cases, and the new runtime/metrics metric
+  to only play a role in exceptional cases, and the new
+  <a href="/pkg/runtime/metrics/#hdr-Supported_metrics">runtime metric</a>
   <code>/gc/limiter/last-enabled:gc-cycle</code> reports when this last
   occurred.
 </p>
@@ -667,20 +675,27 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/47216 --><!-- CL 404305 -->
-    The new <code>/sched/gomaxprocs:threads</code> metric reports the current
-    <code>runtime.GOMAXPROCS</code> value.
+    The new <code>/sched/gomaxprocs:threads</code>
+    <a href="/pkg/runtime/metrics/#hdr-Supported_metrics">metric</a> reports
+    the current
+    <a href="/pkg/runtime/#GOMAXPROCS"><code>runtime.GOMAXPROCS</code></a>
+    value.
     </p>
 
     <p><!-- https://go.dev/issue/47216 --><!-- CL 404306 -->
-    The new <code>/cgo/go-to-c-calls:calls</code> metric reports the total
-    number of calls made from Go to C. This metric is identical to the <a
-      href="/pkg/runtime/#NumCgoCall"><code>runtime.NumCgoCall</code></a>
+    The new <code>/cgo/go-to-c-calls:calls</code>
+    <a href="/pkg/runtime/metrics/#hdr-Supported_metrics">metric</a>
+    reports the total number of calls made from Go to C. This metric is
+    identical to the
+    <a href="/pkg/runtime/#NumCgoCall"><code>runtime.NumCgoCall</code></a>
     function.
     </p>
 
     <p><!-- https://go.dev/issue/48409 --><!-- CL 403614 -->
-    The new <code>/gc/limiter/last-enabled:gc-cycle</code> metric reports the
-    last GC cycle when the GC CPU limiter was enabled.
+    The new <code>/gc/limiter/last-enabled:gc-cycle</code>
+    <a href="/pkg/runtime/metrics/#hdr-Supported_metrics">metric</a>
+    reports the last GC cycle when the GC CPU limiter was enabled. See the
+    <a href="#runtime">runtime notes</a> for details about the GC CPU limiter.
     </p>
   </dd>
 </dl><!-- runtime/metrics -->
