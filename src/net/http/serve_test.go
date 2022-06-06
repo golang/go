@@ -6165,7 +6165,7 @@ func testUnsupportedTransferEncodingsReturn501(t *testing.T, mode testMode) {
 		"fugazi",
 		"foo-bar",
 		"unknown",
-		"\rchunked",
+		`" chunked"`,
 	}
 
 	for _, badTE := range unsupportedTEs {
