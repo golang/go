@@ -688,7 +688,7 @@ func atof64(s string) (f float64, n int, err error) {
 // away from the largest floating point number of the given size,
 // ParseFloat returns f = ±Inf, err.Err = ErrRange.
 //
-// ParseFloat recognizes the strings "NaN", and the (possibly signed) strings "Inf" and "Infinity"
+// ParseFloat recognizes the string "NaN", and the (possibly signed) strings "Inf" and "Infinity"
 // as their respective special floating point values. It ignores case when matching.
 //
 // [floating-point literals]: https://go.dev/ref/spec#Floating-point_literals
