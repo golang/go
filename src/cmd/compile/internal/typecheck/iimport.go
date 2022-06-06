@@ -1489,7 +1489,9 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.OCONV, ir.OCONVIFACE, ir.OCONVIDATA, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR, ir.OSLICE2ARRPTR:
-		return ir.NewConvExpr(r.pos(), op, r.typ(), r.expr())
+		n := ir.NewConvExpr(r.pos(), op, r.typ(), r.expr())
+		n.SetImplicit(r.bool())
+		return n
 
 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN, ir.OUNSAFEADD, ir.OUNSAFESLICE:
 		pos := r.pos()

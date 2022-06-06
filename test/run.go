@@ -1998,7 +1998,6 @@ var unifiedFailures = setOf(
 	"inline.go",    // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
 	"linkname3.go", // unified IR is missing some linkname errors
 
-	"fixedbugs/issue42284.go",  // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
 	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
 	"typeparam/issue47631.go",  // unified IR can handle local type declarations
 	"fixedbugs/issue42058a.go", // unified IR doesn't report channel element too large
