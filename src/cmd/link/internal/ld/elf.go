@@ -1623,6 +1623,7 @@ func (ctxt *Link) doelf() {
 		// DT_JMPREL is emitted so we have to defer generation of elf.DT_PLTREL,
 		// DT_PLTRELSZ, and elf.DT_JMPREL dynamic entries until after we know the
 		// size of .rel(a).plt section.
+
 		Elfwritedynent(ctxt.Arch, dynamic, elf.DT_DEBUG, 0)
 	}
 
