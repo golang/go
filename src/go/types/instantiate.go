@@ -277,7 +277,7 @@ func (check *Checker) implements(V, T Type) error {
 		if alt != nil {
 			return errorf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
 		} else {
-			return errorf("%s does not implement %s", V, T)
+			return errorf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
 		}
 	}
 
