@@ -446,10 +446,19 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/51682 --><!-- CL 395535 -->
-      TODO: <a href="https://go.dev/cl/395535">https://go.dev/cl/395535</a>: add Var.Origin and Func.Origin
+      The new methods <a href="/pkg/go/types/#Func.Origin"><code>Func.Origin</code></a>
+      and <a href="/pkg/go/types/#Var.Origin"><code>Var.Origin</code></a> return the
+      corresponding <a href="/pkg/go/types/#Object"><code>Object</code></a> of the
+      generic type for synthetic <a href="/pkg/go/types/#Func"><code>Func</code></a>
+      and <a href="/pkg/go/types/#Var"><code>Var</code></a> objects created during type
+      instantiation.
     </p>
-    <p><!-- CL 404885 -->
-      TODO: <a href="https://go.dev/cl/404885">https://go.dev/cl/404885</a>: a finite number of types are reachable via Named.Underlying, Named.Method
+    <p><!-- https://go.dev/issue/52728 --><!-- CL 404885 -->
+      It is no longer possible to produce an infinite number of distinct-but-identical
+      <a href="/pkg/go/types/#Named"><code>Named</code></a> type instantiations via
+      recursive calls to
+      <a href="/pkg/go/types/#Named.Underlying"><code>Named.Underlying</code></a> or
+      <a href="/pkg/go/types/#Named.Method"><code>Named.Method</code></a>.
     </p>
   </dd>
 </dl><!-- go/types -->
