@@ -22,7 +22,6 @@ import (
 	"runtime"
 	"runtime/debug"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"unsafe"
@@ -40,7 +39,15 @@ import (
 // It will be removed before the release.
 // TODO(matloob): Remove enabled once we have more confidence on the
 // module index.
-var enabled, _ = strconv.ParseBool(os.Getenv("GOINDEX"))
+var enabled = func() bool {
+	debug := strings.Split(os.Getenv("GODEBUG"), ",")
+	for _, f := range debug {
+		if f == "goindex=0" {
+			return false
+		}
+	}
+	return true
+}()
 
 // ModuleIndex represents and encoded module index file. It is used to
 // do the equivalent of build.Import of packages in the module and answer other
@@ -125,7 +132,7 @@ func openIndex(modroot string, ismodcache bool) (*ModuleIndex, error) {
 		data, _, err := cache.Default().GetMmap(id)
 		if err != nil {
 			// Couldn't read from modindex. Assume we couldn't read from
-			// the index because the module has't been indexed yet.
+			// the index because the module hasn't been indexed yet.
 			data, err = indexModule(modroot)
 			if err != nil {
 				return result{nil, err}
