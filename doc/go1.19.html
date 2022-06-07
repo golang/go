@@ -198,6 +198,15 @@ Do not send CLs removing the interior tags from such phrases.
   pass this flag as well.
 </p>
 
+<h2 id="assembler">Assembler</h2>
+<p><!-- CL 404298 -->
+  Like the compiler, the assembler now requires the
+  <code>-p=importpath</code> flag to build a linkable object file.
+  This is already supplied by the <code>go</code> command. Any other
+  build systems that invoke the Go assembler directly will need to
+  make sure they pass this flag as well.
+</p>
+
 <h2 id="linker">Linker</h2>
 <p><!-- https://go.dev/issue/50796, CL 380755 -->
   On ELF platforms, the linker now emits compressed DWARF sections in
