@@ -242,31 +242,47 @@ func (mi *ModuleIndex) Import(bctxt build.Context, relpath string, mode build.Im
 		return p, fmt.Errorf("import %q: import of unknown directory", p.Dir)
 	}
 
-	// goroot
+	// goroot and gopath
 	inTestdata := func(sub string) bool {
 		return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || str.HasPathPrefix(sub, "testdata")
 	}
-	if ctxt.GOROOT != "" && str.HasFilePathPrefix(mi.modroot, cfg.GOROOTsrc) && !inTestdata(relpath) {
-		modprefix := str.TrimFilePathPrefix(mi.modroot, cfg.GOROOTsrc)
-		p.Goroot = true
-		p.ImportPath = relpath
-		if modprefix != "" {
-			p.ImportPath = filepath.Join(modprefix, p.ImportPath)
-		}
+	if !inTestdata(relpath) {
 		// In build.go, p.Root should only be set in the non-local-import case, or in
 		// GOROOT or GOPATH. Since module mode only calls Import with path set to "."
 		// and the module index doesn't apply outside modules, the GOROOT case is
 		// the only case where GOROOT needs to be set.
-		// TODO(#37015): p.Root actually might be set in the local-import case outside
-		// GOROOT, if the directory is contained in GOPATH/src, even in module
-		// mode, but that's a bug.
-		p.Root = ctxt.GOROOT
+		// But: p.Root is actually set in the local-import case outside GOROOT, if
+		// the directory is contained in GOPATH/src
+		// TODO(#37015): fix that behavior in go/build and remove the gopath case
+		// below.
+		if ctxt.GOROOT != "" && str.HasFilePathPrefix(p.Dir, cfg.GOROOTsrc) && p.Dir != cfg.GOROOTsrc {
+			p.Root = ctxt.GOROOT
+			p.Goroot = true
+			modprefix := str.TrimFilePathPrefix(mi.modroot, cfg.GOROOTsrc)
+			p.ImportPath = relpath
+			if modprefix != "" {
+				p.ImportPath = filepath.Join(modprefix, p.ImportPath)
+			}
+		}
+		for _, root := range ctxt.gopath() {
+			// TODO(matloob): do we need to reimplement the conflictdir logic?
 
-		// Set GOROOT-specific fields
+			// TODO(matloob): ctxt.hasSubdir evaluates symlinks, so it
+			// can be slower than we'd like. Find out if we can drop this
+			// logic before the release.
+			if sub, ok := ctxt.hasSubdir(filepath.Join(root, "src"), p.Dir); ok {
+				p.ImportPath = sub
+				p.Root = root
+			}
+		}
+	}
+	if p.Root != "" {
+		// Set GOROOT-specific fields (sometimes for modules in a GOPATH directory).
 		// The fields set below (SrcRoot, PkgRoot, BinDir, PkgTargetRoot, and PkgObj)
 		// are only set in build.Import if p.Root != "". As noted in the comment
 		// on setting p.Root above, p.Root should only be set in the GOROOT case for the
-		// set of packages we care about.
+		// set of packages we care about, but is also set for modules in a GOPATH src
+		// directory.
 		var pkgtargetroot string
 		var pkga string
 		suffix := ""
