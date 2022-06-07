@@ -1997,7 +1997,6 @@ var unifiedFailures = setOf(
 	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
 	"inline.go",   // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
 
-	"fixedbugs/issue7921.go",  // prints "… escapes to heap", but test expects "string(…) escapes to heap"
 	"typeparam/issue47631.go", // unified IR can handle local type declarations
 )
 

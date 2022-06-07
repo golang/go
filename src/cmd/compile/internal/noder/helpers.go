@@ -39,10 +39,6 @@ func typed(typ *types.Type, n ir.Node) ir.Node {
 
 // Values
 
-func Const(pos src.XPos, typ *types.Type, val constant.Value) ir.Node {
-	return typed(typ, ir.NewBasicLit(pos, val))
-}
-
 func OrigConst(pos src.XPos, typ *types.Type, val constant.Value, op ir.Op, raw string) ir.Node {
 	orig := ir.NewRawOrigExpr(pos, op, raw)
 	return ir.NewConstExpr(val, typed(typ, orig))
