@@ -163,9 +163,9 @@ func (check *Checker) validVarType(e ast.Expr, typ Type) {
 			tset := computeInterfaceTypeSet(check, e.Pos(), t) // TODO(gri) is this the correct position?
 			if !tset.IsMethodSet() {
 				if tset.comparable {
-					check.softErrorf(e, _MisplacedConstraintIface, "interface is (or embeds) comparable")
+					check.softErrorf(e, _MisplacedConstraintIface, "cannot use type %s outside a type constraint: interface is (or embeds) comparable", typ)
 				} else {
-					check.softErrorf(e, _MisplacedConstraintIface, "interface contains type constraints")
+					check.softErrorf(e, _MisplacedConstraintIface, "cannot use type %s outside a type constraint: interface contains type constraints", typ)
 				}
 			}
 		}
