@@ -1349,7 +1349,7 @@ func (g *genInst) dictPass(info *instInfo) {
 			mce := m.(*ir.ConvExpr)
 			// Note: x's argument is still typed as a type parameter.
 			// m's argument now has an instantiated type.
-			if mce.X.Type().HasShape() || m.Type().HasShape() {
+			if mce.X.Type().HasShape() || (m.Type().HasShape() && !m.Type().IsEmptyInterface()) {
 				m = convertUsingDictionary(info, info.dictParam, m.Pos(), mce.X, m, m.Type())
 			}
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
@@ -1446,7 +1446,7 @@ func findDictType(info *instInfo, t *types.Type) int {
 // instantiated node of the CONVIFACE node or XDOT node (for a bound method call) that is causing the
 // conversion.
 func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v ir.Node, in ir.Node, dst *types.Type) ir.Node {
-	assert(v.Type().HasShape() || in.Type().HasShape())
+	assert(v.Type().HasShape() || (in.Type().HasShape() && !in.Type().IsEmptyInterface()))
 	assert(dst.IsInterface())
 
 	if v.Type().IsInterface() {
