@@ -30,6 +30,21 @@ const (
 var fixedOnce sync.Once
 var fixedHuffmanDecoder huffmanDecoder
 
+var bitMask32 = [32]uint32{
+	0, 1, 3, 7, 0xF, 0x1F, 0x3F, 0x7F, 0xFF,
+	0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF,
+	0x1ffff, 0x3ffff, 0x7FFFF, 0xfFFFF, 0x1fFFFF, 0x3fFFFF, 0x7fFFFF, 0xffFFFF,
+	0x1ffFFFF, 0x3ffFFFF, 0x7ffFFFF, 0xfffFFFF, 0x1fffFFFF, 0x3fffFFFF, 0x7fffFFFF,
+} // up to 32 bits
+
+// Value of length - 3 and extra bits.
+type lengthExtra struct {
+	length, extra uint8
+}
+
+// decCodeToLen contains fast lookup of each length and the number of extra bits.
+var decCodeToLen = [32]lengthExtra{{length: 0x0, extra: 0x0}, {length: 0x1, extra: 0x0}, {length: 0x2, extra: 0x0}, {length: 0x3, extra: 0x0}, {length: 0x4, extra: 0x0}, {length: 0x5, extra: 0x0}, {length: 0x6, extra: 0x0}, {length: 0x7, extra: 0x0}, {length: 0x8, extra: 0x1}, {length: 0xa, extra: 0x1}, {length: 0xc, extra: 0x1}, {length: 0xe, extra: 0x1}, {length: 0x10, extra: 0x2}, {length: 0x14, extra: 0x2}, {length: 0x18, extra: 0x2}, {length: 0x1c, extra: 0x2}, {length: 0x20, extra: 0x3}, {length: 0x28, extra: 0x3}, {length: 0x30, extra: 0x3}, {length: 0x38, extra: 0x3}, {length: 0x40, extra: 0x4}, {length: 0x50, extra: 0x4}, {length: 0x60, extra: 0x4}, {length: 0x70, extra: 0x4}, {length: 0x80, extra: 0x5}, {length: 0xa0, extra: 0x5}, {length: 0xc0, extra: 0x5}, {length: 0xe0, extra: 0x5}, {length: 0xff, extra: 0x0}, {length: 0x0, extra: 0x0}, {length: 0x0, extra: 0x0}, {length: 0x0, extra: 0x0}}
+
 // A CorruptInputError reports the presence of corrupt input at a given offset.
 type CorruptInputError int64
 
@@ -497,195 +512,6 @@ func (f *decompressor) readHuffman() error {
 	}
 
 	return nil
-}
-
-// Decode a single Huffman block from f.
-// hl and hd are the Huffman states for the lit/length values
-// and the distance values, respectively. If hd == nil, using the
-// fixed distance encoding associated with fixed Huffman blocks.
-func (f *decompressor) huffmanBlockGeneric() {
-	const (
-		stateInit = iota // Zero value must be stateInit
-		stateDict
-	)
-
-	switch f.stepState {
-	case stateInit:
-		goto readLiteral
-	case stateDict:
-		goto copyHistory
-	}
-
-readLiteral:
-	// Read literal and/or (length, distance) according to RFC section 3.2.3.
-	{
-		var v int
-		{
-			// Inlined v, err := f.huffSym(f.hl)
-			// Since a huffmanDecoder can be empty or be composed of a degenerate tree
-			// with single element, huffSym must error on these two edge cases. In both
-			// cases, the chunks slice will be 0 for the invalid sequence, leading it
-			// satisfy the n == 0 check below.
-			n := uint(f.hl.maxRead)
-			// Optimization. Compiler isn't smart enough to keep f.b,f.nb in registers,
-			// but is smart enough to keep local variables in registers, so use nb and b,
-			// inline call to moreBits and reassign b,nb back to f on return.
-			nb, b := f.nb, f.b
-			for {
-				for nb < n {
-					c, err := f.r.ReadByte()
-					if err != nil {
-						f.b = b
-						f.nb = nb
-						f.err = noEOF(err)
-						return
-					}
-					f.roffset++
-					b |= uint32(c) << (nb & 31)
-					nb += 8
-				}
-				chunk := f.hl.chunks[b&(huffmanNumChunks-1)]
-				n = uint(chunk & huffmanCountMask)
-				if n > huffmanChunkBits {
-					chunk = f.hl.links[chunk>>huffmanValueShift][(b>>huffmanChunkBits)&f.hl.linkMask]
-					n = uint(chunk & huffmanCountMask)
-				}
-				if n <= nb {
-					if n == 0 {
-						f.b = b
-						f.nb = nb
-						f.err = CorruptInputError(f.roffset)
-						return
-					}
-					f.b = b >> (n & 31)
-					f.nb = nb - n
-					v = int(chunk >> huffmanValueShift)
-					break
-				}
-			}
-		}
-
-		var n uint // number of bits extra
-		var length int
-		var err error
-		switch {
-		case v < 256:
-			f.dict.writeByte(byte(v))
-			if f.dict.availWrite() == 0 {
-				f.toRead = f.dict.readFlush()
-				f.step = (*decompressor).huffmanBlockGeneric
-				f.stepState = stateInit
-				return
-			}
-			goto readLiteral
-		case v == 256:
-			f.finishBlock()
-			return
-		// otherwise, reference to older data
-		case v < 265:
-			length = v - (257 - 3)
-			n = 0
-		case v < 269:
-			length = v*2 - (265*2 - 11)
-			n = 1
-		case v < 273:
-			length = v*4 - (269*4 - 19)
-			n = 2
-		case v < 277:
-			length = v*8 - (273*8 - 35)
-			n = 3
-		case v < 281:
-			length = v*16 - (277*16 - 67)
-			n = 4
-		case v < 285:
-			length = v*32 - (281*32 - 131)
-			n = 5
-		case v < maxNumLit:
-			length = 258
-			n = 0
-		default:
-			f.err = CorruptInputError(f.roffset)
-			return
-		}
-		if n > 0 {
-			for f.nb < n {
-				if err = f.moreBits(); err != nil {
-					f.err = err
-					return
-				}
-			}
-			length += int(f.b & uint32(1<<n-1))
-			f.b >>= n
-			f.nb -= n
-		}
-
-		var dist int
-		if f.hd == nil {
-			for f.nb < 5 {
-				if err = f.moreBits(); err != nil {
-					f.err = err
-					return
-				}
-			}
-			dist = int(bits.Reverse8(uint8(f.b & 0x1F << 3)))
-			f.b >>= 5
-			f.nb -= 5
-		} else {
-			if dist, err = f.huffSym(f.hd); err != nil {
-				f.err = err
-				return
-			}
-		}
-
-		switch {
-		case dist < 4:
-			dist++
-		case dist < maxNumDist:
-			nb := uint(dist-2) >> 1
-			// have 1 bit in bottom of dist, need nb more.
-			extra := (dist & 1) << nb
-			for f.nb < nb {
-				if err = f.moreBits(); err != nil {
-					f.err = err
-					return
-				}
-			}
-			extra |= int(f.b & uint32(1<<nb-1))
-			f.b >>= nb
-			f.nb -= nb
-			dist = 1<<(nb+1) + 1 + extra
-		default:
-			f.err = CorruptInputError(f.roffset)
-			return
-		}
-
-		// No check on length; encoding can be prescient.
-		if dist > f.dict.histSize() {
-			f.err = CorruptInputError(f.roffset)
-			return
-		}
-
-		f.copyLen, f.copyDist = length, dist
-		goto copyHistory
-	}
-
-copyHistory:
-	// Perform a backwards copy according to RFC section 3.2.3.
-	{
-		cnt := f.dict.tryWriteCopy(f.copyDist, f.copyLen)
-		if cnt == 0 {
-			cnt = f.dict.writeCopy(f.copyDist, f.copyLen)
-		}
-		f.copyLen -= cnt
-
-		if f.dict.availWrite() == 0 || f.copyLen > 0 {
-			f.toRead = f.dict.readFlush()
-			f.step = (*decompressor).huffmanBlockGeneric // We need to continue this work
-			f.stepState = stateDict
-			return
-		}
-		goto readLiteral
-	}
 }
 
 // Copy a single uncompressed data block from input to output.
