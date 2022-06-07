@@ -199,8 +199,10 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <h2 id="linker">Linker</h2>
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- https://go.dev/issue/50796, CL 380755 -->
+  On ELF platforms, the linker now emits compressed DWARF sections in
+  the standard gABI format (<code>SHF_COMPRESSED</code>), instead of
+  the legacy <code>.zdebug</code> format.
 </p>
 
 <h2 id="library">Core library</h2>
