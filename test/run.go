@@ -1999,7 +1999,6 @@ var unifiedFailures = setOf(
 
 	"fixedbugs/issue7921.go",  // prints "… escapes to heap", but test expects "string(…) escapes to heap"
 	"typeparam/issue47631.go", // unified IR can handle local type declarations
-	"fixedbugs/issue49767.go", // unified IR reports channel element too large on different line than irgen
 )
 
 func setOf(keys ...string) map[string]bool {

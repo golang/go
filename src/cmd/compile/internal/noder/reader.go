@@ -1338,6 +1338,7 @@ func (r *reader) assign() (ir.Node, bool) {
 
 	case assignDef:
 		pos := r.pos()
+		setBasePos(pos)
 		_, sym := r.localIdent()
 		typ := r.typ()
 
