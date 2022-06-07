@@ -871,7 +871,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 			if !cfg.ModulesEnabled {
 				buildMode = build.ImportComment
 			}
-			if modroot := modload.PackageModRoot(ctx, r.dir); modroot != "" {
+			if modroot := modload.PackageModRoot(ctx, r.path); modroot != "" {
 				if mi, err := modindex.Get(modroot); err == nil {
 					data.p, data.err = mi.Import(cfg.BuildContext, mi.RelPath(r.dir), buildMode)
 					goto Happy
