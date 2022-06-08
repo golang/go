@@ -405,6 +405,16 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		// Workaround for https://go.dev/issue/37795.
+		// On arm64 macOS (current as of macOS 12.4),
+		// reading from a socket at the same time as the client
+		// is closing it occasionally hangs for 60 seconds before
+		// returning ECONNRESET. Sleep for a bit to give the
+		// socket time to close before trying to read from it.
+		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+			time.Sleep(10 * time.Millisecond)
+		}
+
 		// The client should close itself, without sending data.
 		c.SetReadDeadline(readDeadline)
 		var b [1]byte
