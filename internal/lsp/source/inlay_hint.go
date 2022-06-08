@@ -46,6 +46,8 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, _ protocol
 			hints = append(hints, rangeVariableTypes(n, tmap, info, &q)...)
 		case *ast.GenDecl:
 			hints = append(hints, constantValues(n, tmap, info)...)
+		case *ast.CompositeLit:
+			hints = append(hints, compositeLiterals(n, tmap, info)...)
 		}
 		return true
 	})
@@ -175,6 +177,37 @@ func constantValues(node *ast.GenDecl, tmap *lsppos.TokenMapper, info *types.Inf
 			Label:       buildLabel("= " + strings.Join(values, ", ")),
 			PaddingLeft: true,
 		})
+	}
+	return hints
+}
+
+func compositeLiterals(node *ast.CompositeLit, tmap *lsppos.TokenMapper, info *types.Info) []protocol.InlayHint {
+	typ := info.TypeOf(node)
+	if typ == nil {
+		return nil
+	}
+	strct, ok := typ.Underlying().(*types.Struct)
+	if !ok {
+		return nil
+	}
+
+	var hints []protocol.InlayHint
+	for i, v := range node.Elts {
+		if _, ok := v.(*ast.KeyValueExpr); !ok {
+			start, ok := tmap.Position(v.Pos())
+			if !ok {
+				continue
+			}
+			if i > strct.NumFields()-1 {
+				break
+			}
+			hints = append(hints, protocol.InlayHint{
+				Position:     &start,
+				Label:        buildLabel(strct.Field(i).Name() + ":"),
+				Kind:         protocol.Parameter,
+				PaddingRight: true,
+			})
+		}
 	}
 	return hints
 }
