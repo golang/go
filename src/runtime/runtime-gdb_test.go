@@ -435,6 +435,11 @@ func TestGdbBacktrace(t *testing.T) {
 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=9086
 			testenv.SkipFlaky(t, 50838)
 		}
+		if bytes.Contains(got, []byte(" exited normally]\n")) {
+			// GDB bug: Sometimes the inferior exits fine,
+			// but then GDB hangs.
+			testenv.SkipFlaky(t, 37405)
+		}
 		t.Fatalf("gdb exited with error: %v", err)
 	}
 
