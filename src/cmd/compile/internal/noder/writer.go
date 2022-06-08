@@ -328,7 +328,6 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
 		base.Assertf(path != "builtin" && path != "unsafe", "unexpected path for user-defined package: %q", path)
 		w.String(path)
 		w.String(pkg.Name())
-		w.Len(0) // was package height, but not necessary anymore.
 
 		w.Len(len(pkg.Imports()))
 		for _, imp := range pkg.Imports() {

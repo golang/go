@@ -292,7 +292,6 @@ func (r *reader) doPkg() *types.Pkg {
 	}
 
 	name := r.String()
-	_ = r.Len() // was package height, but not necessary anymore.
 
 	pkg := types.NewPkg(path, "")
 

@@ -198,10 +198,8 @@ func (r *reader) doPkg() *types.Package {
 	}
 
 	name := r.String()
-	height := r.Len()
 
-	// Was: "pkg := types.NewPackageHeight(path, name, height)"
-	pkg, _ := types.NewPackage(path, name), height
+	pkg := types.NewPackage(path, name)
 	r.p.imports[path] = pkg
 
 	imports := make([]*types.Package, r.Len())
