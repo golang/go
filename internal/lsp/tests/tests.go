@@ -544,8 +544,6 @@ func moveFile(oldpath, newpath string) (err error) {
 }
 
 func Run(t *testing.T, tests Tests, data *Data) {
-	t.Skip() // re-enable once CL 410955 has landed
-
 	t.Helper()
 	checkData(t, data)
 

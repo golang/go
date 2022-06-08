@@ -17,8 +17,6 @@ import (
 )
 
 func TestStructuralTerms(t *testing.T) {
-	t.Skip() // re-enable once CL 410955 has landed
-
 	if !Enabled {
 		t.Skip("typeparams are not enabled")
 	}
