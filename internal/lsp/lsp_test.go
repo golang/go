@@ -932,6 +932,48 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 	}
 }
 
+func (r *runner) InlayHints(t *testing.T, spn span.Span) {
+	uri := spn.URI()
+	filename := uri.Filename()
+
+	hints, err := r.server.InlayHint(r.ctx, &protocol.InlayHintParams{
+		TextDocument: protocol.TextDocumentIdentifier{
+			URI: protocol.URIFromSpanURI(uri),
+		},
+		// TODO: add ViewPort
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Map inlay hints to text edits.
+	edits := make([]protocol.TextEdit, len(hints))
+	for i, hint := range hints {
+		edits[i] = protocol.TextEdit{
+			Range:   protocol.Range{Start: *hint.Position, End: *hint.Position},
+			NewText: fmt.Sprintf("<%s>", hint.Label[0].Value),
+		}
+	}
+
+	m, err := r.data.Mapper(uri)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sedits, err := source.FromProtocolEdits(m, edits)
+	if err != nil {
+		t.Error(err)
+	}
+	got := diff.ApplyEdits(string(m.Content), sedits)
+
+	withinlayHints := string(r.data.Golden("inlayHint", filename, func() ([]byte, error) {
+		return []byte(got), nil
+	}))
+
+	if withinlayHints != got {
+		t.Errorf("format failed for %s, expected:\n%v\ngot:\n%v", filename, withinlayHints, got)
+	}
+}
+
 func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	tag := fmt.Sprintf("%s-rename", newText)
 

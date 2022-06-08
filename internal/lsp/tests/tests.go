@@ -81,6 +81,7 @@ type PrepareRenames map[span.Span]*source.PrepareItem
 type Symbols map[span.URI][]protocol.DocumentSymbol
 type SymbolsChildren map[string][]protocol.DocumentSymbol
 type SymbolInformation map[span.Span]protocol.SymbolInformation
+type InlayHints []span.Span
 type WorkspaceSymbols map[WorkspaceSymbolsTestType]map[span.URI][]string
 type Signatures map[span.Span]*protocol.SignatureHelp
 type Links map[span.URI][]Link
@@ -113,6 +114,7 @@ type Data struct {
 	Highlights               Highlights
 	References               References
 	Renames                  Renames
+	InlayHints               InlayHints
 	PrepareRenames           PrepareRenames
 	Symbols                  Symbols
 	symbolsChildren          SymbolsChildren
@@ -156,6 +158,7 @@ type Tests interface {
 	Definition(*testing.T, span.Span, Definition)
 	Implementation(*testing.T, span.Span, []span.Span)
 	Highlight(*testing.T, span.Span, []span.Span)
+	InlayHints(*testing.T, span.Span)
 	References(*testing.T, span.Span, []span.Span)
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
@@ -466,6 +469,7 @@ func load(t testing.TB, mode string, dir string) *Data {
 		"hoverdef":        datum.collectHoverDefinitions,
 		"hover":           datum.collectHovers,
 		"highlight":       datum.collectHighlights,
+		"inlayHint":       datum.collectInlayHints,
 		"refs":            datum.collectReferences,
 		"rename":          datum.collectRenames,
 		"prepare":         datum.collectPrepareRenames,
@@ -778,6 +782,17 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Run(SpanName(pos), func(t *testing.T) {
 				t.Helper()
 				tests.Hover(t, pos, info)
+			})
+		}
+	})
+
+	t.Run("InlayHints", func(t *testing.T) {
+		t.Skip("Inlay Hints not yet implemented")
+		t.Helper()
+		for _, src := range data.InlayHints {
+			t.Run(SpanName(src), func(t *testing.T) {
+				t.Helper()
+				tests.InlayHints(t, src)
 			})
 		}
 	})
@@ -1290,6 +1305,10 @@ func (data *Data) collectDefinitionNames(src span.Span, name string) {
 func (data *Data) collectHighlights(src span.Span, expected []span.Span) {
 	// Declaring a highlight in a test file: @highlight(src, expected1, expected2)
 	data.Highlights[src] = append(data.Highlights[src], expected...)
+}
+
+func (data *Data) collectInlayHints(src span.Span) {
+	data.InlayHints = append(data.InlayHints, src)
 }
 
 func (data *Data) collectReferences(src span.Span, expected []span.Span) {

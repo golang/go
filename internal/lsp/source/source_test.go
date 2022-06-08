@@ -685,6 +685,10 @@ func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {
 	}
 }
 
+func (r *runner) InlayHints(t *testing.T, src span.Span) {
+	// TODO(golang/go#53315): add source test
+}
+
 func (r *runner) Hover(t *testing.T, src span.Span, text string) {
 	ctx := r.ctx
 	_, srcRng, err := spanToRange(r.data, src)
