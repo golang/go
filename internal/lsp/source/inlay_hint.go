@@ -1,0 +1,90 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package source
+
+import (
+	"context"
+	"fmt"
+	"go/ast"
+	"go/types"
+
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/lsp/lsppos"
+	"golang.org/x/tools/internal/lsp/protocol"
+)
+
+const (
+	maxLabelLength = 28
+)
+
+func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, _ protocol.Range) ([]protocol.InlayHint, error) {
+	ctx, done := event.Start(ctx, "source.InlayHint")
+	defer done()
+
+	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
+	if err != nil {
+		return nil, fmt.Errorf("getting file for InlayHint: %w", err)
+	}
+
+	tmap := lsppos.NewTokenMapper(pgf.Src, pgf.Tok)
+	info := pkg.GetTypesInfo()
+
+	var hints []protocol.InlayHint
+	ast.Inspect(pgf.File, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.CallExpr:
+			hints = append(hints, parameterNames(n, tmap, info)...)
+		}
+		return true
+	})
+	return hints, nil
+}
+
+func parameterNames(node *ast.CallExpr, tmap *lsppos.TokenMapper, info *types.Info) []protocol.InlayHint {
+	signature, ok := info.TypeOf(node.Fun).(*types.Signature)
+	if !ok {
+		return nil
+	}
+
+	var hints []protocol.InlayHint
+	for i, v := range node.Args {
+		start, ok := tmap.Position(v.Pos())
+		if !ok {
+			continue
+		}
+		params := signature.Params()
+		// When a function has variadic params, we skip args after
+		// params.Len().
+		if i > params.Len()-1 {
+			break
+		}
+		value := params.At(i).Name()
+		// param.Name is empty for built-ins like append
+		if value == "" {
+			continue
+		}
+		if signature.Variadic() && i == params.Len()-1 {
+			value = value + "..."
+		}
+		hints = append(hints, protocol.InlayHint{
+			Position:     &start,
+			Label:        buildLabel(value + ":"),
+			Kind:         protocol.Parameter,
+			PaddingRight: true,
+		})
+	}
+	return hints
+}
+
+func buildLabel(s string) []protocol.InlayHintLabelPart {
+	label := protocol.InlayHintLabelPart{
+		Value: s,
+	}
+	if len(s) > maxLabelLength {
+		label.Value = s[:maxLabelLength] + "..."
+		label.Tooltip = s
+	}
+	return []protocol.InlayHintLabelPart{label}
+}

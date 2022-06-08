@@ -160,8 +160,8 @@ func (s *Server) Initialized(ctx context.Context, params *protocol.InitializedPa
 	return s.initialized(ctx, params)
 }
 
-func (s *Server) InlayHint(context.Context, *protocol.InlayHintParams) ([]protocol.InlayHint, error) {
-	return nil, notImplemented("InlayHint")
+func (s *Server) InlayHint(ctx context.Context, params *protocol.InlayHintParams) ([]protocol.InlayHint, error) {
+	return s.inlayHint(ctx, params)
 }
 
 func (s *Server) InlayHintRefresh(context.Context) error {
