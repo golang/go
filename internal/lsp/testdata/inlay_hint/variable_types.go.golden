@@ -1,0 +1,22 @@
+-- inlayHint --
+package inlayHint //@inlayHint("package")
+
+func assignTypes() {
+	i<int>, j<int> := 0, len([]string{})-1
+	println(i, j)
+}
+
+func rangeTypes() {
+	for k<int>, v<string> := range []string{} {
+		println(k, v)
+	}
+}
+
+func funcLitType() {
+	myFunc<func(a string) string> := func(a string) string { return "" }
+}
+
+func compositeLitType() {
+	foo<map[string]interface{}> := map[string]interface{}{"": ""}
+}
+

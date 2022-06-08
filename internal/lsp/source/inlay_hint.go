@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/internal/event"
@@ -30,12 +31,17 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, _ protocol
 
 	tmap := lsppos.NewTokenMapper(pgf.Src, pgf.Tok)
 	info := pkg.GetTypesInfo()
+	q := Qualifier(pgf.File, pkg.GetTypes(), info)
 
 	var hints []protocol.InlayHint
 	ast.Inspect(pgf.File, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.CallExpr:
 			hints = append(hints, parameterNames(n, tmap, info)...)
+		case *ast.AssignStmt:
+			hints = append(hints, assignVariableTypes(n, tmap, info, &q)...)
+		case *ast.RangeStmt:
+			hints = append(hints, rangeVariableTypes(n, tmap, info, &q)...)
 		}
 		return true
 	})
@@ -76,6 +82,47 @@ func parameterNames(node *ast.CallExpr, tmap *lsppos.TokenMapper, info *types.In
 		})
 	}
 	return hints
+}
+
+func assignVariableTypes(node *ast.AssignStmt, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+	if node.Tok != token.DEFINE {
+		return nil
+	}
+	var hints []protocol.InlayHint
+	for _, v := range node.Lhs {
+		if h := variableType(v, tmap, info, q); h != nil {
+			hints = append(hints, *h)
+		}
+	}
+	return hints
+}
+
+func rangeVariableTypes(node *ast.RangeStmt, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+	var hints []protocol.InlayHint
+	if h := variableType(node.Key, tmap, info, q); h != nil {
+		hints = append(hints, *h)
+	}
+	if h := variableType(node.Value, tmap, info, q); h != nil {
+		hints = append(hints, *h)
+	}
+	return hints
+}
+
+func variableType(e ast.Expr, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) *protocol.InlayHint {
+	typ := info.TypeOf(e)
+	if typ == nil {
+		return nil
+	}
+	end, ok := tmap.Position(e.End())
+	if !ok {
+		return nil
+	}
+	return &protocol.InlayHint{
+		Position:    &end,
+		Label:       buildLabel(types.TypeString(typ, *q)),
+		Kind:        protocol.Type,
+		PaddingLeft: true,
+	}
 }
 
 func buildLabel(s string) []protocol.InlayHintLabelPart {
