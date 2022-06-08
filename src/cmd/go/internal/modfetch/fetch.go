@@ -26,6 +26,7 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 	"cmd/go/internal/robustio"
+	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
@@ -832,6 +833,7 @@ Outer:
 		for _, m := range mods {
 			list := goSum.m[m]
 			sort.Strings(list)
+			str.Uniq(&list)
 			for _, h := range list {
 				st := goSum.status[modSum{m, h}]
 				if (!st.dirty || (st.used && keep[m])) && !sumInWorkspaceModulesLocked(m) {
