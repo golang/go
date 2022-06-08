@@ -44,8 +44,17 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
+<h3 id="loong64">Loongson 64-bit</h3>
 <p><!-- https://go.dev/issue/46229 -->
-  Go 1.19 supports the Loongson 64-bit architecture LoongArch on Linux (<code>GOOS=linux</code>, <code>GOARCH=loong64</code>).
+  Go 1.19 adds support for the Loongson 64-bit architecture LoongArch
+  on Linux (<code>GOOS=linux</code>, <code>GOARCH=loong64</code>).
+</p>
+
+<h3 id="riscv64">RISC-V</h3>
+<p><!-- CL 402374 -->
+  The <code>riscv64</code> port now supports passing function arguments
+  and result using registers. Benchmarking shows typical performance
+  improvements of 10% or more on <code>riscv64</code>.
 </p>
 
 <h2 id="tools">Tools</h2>
@@ -116,7 +125,7 @@ as well as support for rendering them to HTML, Markdown, and text.
 
 <h3 id="vet">Vet</h3>
 
-<p><!-- https://go.dev/issue/47528 -->:
+<p><!-- https://go.dev/issue/47528 -->
   The <code>vet</code> checker “errorsas” now reports when
   <a href="/pkg/errors/#As"><code>errors.As</code></a> is called
   with a second argument of type <code>*error</code>,
@@ -216,11 +225,6 @@ as well as support for rendering them to HTML, Markdown, and text.
   Performance improvements for the switch statement vary but can be
   on the order of 20% faster.
   (<code>GOARCH=amd64</code> and <code>GOARCH=arm64</code> only)
-</p>
-<p><!-- CL 402374 -->
-  The <code>riscv64</code> port now supports passing function arguments
-  and result using registers. Benchmarking shows typical performance
-  improvements of 10% or more on <code>riscv64</code>.
 </p>
 <p><!-- CL 391014 -->
   The Go compiler now requires the <code>-p=importpath</code> flag to
