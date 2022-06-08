@@ -385,7 +385,7 @@ sigtrampnog:
 	MOVQ	_cgo_callers(SB), AX
 	JMP	AX
 
-TEXT runtime·mmap(SB),NOSPLIT,$0
+TEXT runtime·sysMmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI		// arg 1 addr
 	MOVQ	n+8(FP), SI		// arg 2 len
 	MOVL	prot+16(FP), DX		// arg 3 prot
@@ -403,13 +403,44 @@ ok:
 	MOVQ	$0, err+40(FP)
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT,$0
+// Call the function stored in _cgo_mmap using the GCC calling convention.
+// This must be called on the system stack.
+TEXT runtime·callCgoMmap(SB),NOSPLIT,$16
+	MOVQ	addr+0(FP), DI
+	MOVQ	n+8(FP), SI
+	MOVL	prot+16(FP), DX
+	MOVL	flags+20(FP), CX
+	MOVL	fd+24(FP), R8
+	MOVL	off+28(FP), R9
+	MOVQ	_cgo_mmap(SB), AX
+	MOVQ	SP, BX
+	ANDQ	$~15, SP	// alignment as per amd64 psABI
+	MOVQ	BX, 0(SP)
+	CALL	AX
+	MOVQ	0(SP), SP
+	MOVQ	AX, ret+32(FP)
+	RET
+
+TEXT runtime·sysMunmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI		// arg 1 addr
 	MOVQ	n+8(FP), SI		// arg 2 len
 	MOVL	$SYS_munmap, AX
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
+	RET
+
+// Call the function stored in _cgo_munmap using the GCC calling convention.
+// This must be called on the system stack.
+TEXT runtime·callCgoMunmap(SB),NOSPLIT,$16-16
+	MOVQ	addr+0(FP), DI
+	MOVQ	n+8(FP), SI
+	MOVQ	_cgo_munmap(SB), AX
+	MOVQ	SP, BX
+	ANDQ	$~15, SP	// alignment as per amd64 psABI
+	MOVQ	BX, 0(SP)
+	CALL	AX
+	MOVQ	0(SP), SP
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
