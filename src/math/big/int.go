@@ -65,7 +65,20 @@ func (z *Int) SetUint64(x uint64) *Int {
 
 // NewInt allocates and returns a new Int set to x.
 func NewInt(x int64) *Int {
-	return new(Int).SetInt64(x)
+	// This code is arranged to be inlineable and produce
+	// zero allocations when inlined. See issue 29951.
+	u := uint64(x)
+	if x < 0 {
+		u = -u
+	}
+	var abs []Word
+	if x == 0 {
+	} else if _W == 32 && u>>32 != 0 {
+		abs = []Word{Word(u), Word(u >> 32)}
+	} else {
+		abs = []Word{Word(u)}
+	}
+	return &Int{neg: x < 0, abs: abs}
 }
 
 // Set sets z to x and returns z.

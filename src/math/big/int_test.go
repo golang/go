@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -92,7 +93,7 @@ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
 		t.Errorf("%s%v is not normalized", msg, z)
 	}
 	if (&z).Cmp(a.z) != 0 {
-		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z)
+		t.Errorf("%v %s %v\n\tgot z = %v; want %v", a.x, msg, a.y, &z, a.z)
 	}
 }
 
@@ -1892,5 +1893,28 @@ func TestFillBytes(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestNewIntMinInt64(t *testing.T) {
+	// Test for uint64 cast in NewInt.
+	want := int64(math.MinInt64)
+	if got := NewInt(want).Int64(); got != want {
+		t.Fatalf("wanted %d, got %d", want, got)
+	}
+}
+
+func TestNewIntAllocs(t *testing.T) {
+	for _, n := range []int64{0, 7, -7, 1 << 30, -1 << 30, 1 << 50, -1 << 50} {
+		x := NewInt(3)
+		got := testing.AllocsPerRun(100, func() {
+			// NewInt should inline, and all its allocations
+			// can happen on the stack. Passing the result of NewInt
+			// to Add should not cause any of those allocations to escape.
+			x.Add(x, NewInt(n))
+		})
+		if got != 0 {
+			t.Errorf("x.Add(x, NewInt(%d)), wanted 0 allocations, got %f", n, got)
+		}
 	}
 }
