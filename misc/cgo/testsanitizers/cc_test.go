@@ -540,6 +540,8 @@ func mSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
 		return goarch == "amd64" || goarch == "arm64"
+	case "freebsd":
+		return goarch == "amd64"
 	default:
 		return false
 	}

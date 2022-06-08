@@ -24,7 +24,11 @@ func TestMSAN(t *testing.T) {
 	}
 
 	t.Parallel()
-	requireOvercommit(t)
+	// Overcommit is enabled by default on FreeBSD (vm.overcommit=0, see tuning(7)).
+	// Do not skip tests with stricter overcommit settings unless testing shows that FreeBSD has similar issues.
+	if goos == "linux" {
+		requireOvercommit(t)
+	}
 	config := configure("memory")
 	config.skipIfCSanitizerBroken(t)
 

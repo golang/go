@@ -832,8 +832,9 @@ func (t *tester) registerTests() {
 		if gohostos == "linux" && (goarch == "amd64" || goarch == "ppc64le") {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
 		}
-		if goos == "linux" {
-			// because syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only built on linux.
+		if goos == "linux" || (goos == "freebsd" && goarch == "amd64") {
+			// because Pdeathsig of syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only
+			// supported on Linux and FreeBSD.
 			t.registerHostTest("testsanitizers", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
