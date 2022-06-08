@@ -112,6 +112,7 @@ func Get(modroot string) (*ModuleIndex, error) {
 	if modroot == "" {
 		panic("modindex.Get called with empty modroot")
 	}
+	modroot = filepath.Clean(modroot)
 	isModCache := str.HasFilePathPrefix(modroot, cfg.GOMODCACHE)
 	return openIndex(modroot, isModCache)
 }
@@ -217,7 +218,7 @@ func (mi *ModuleIndex) Packages() []string {
 
 // RelPath returns the path relative to the module's root.
 func (mi *ModuleIndex) RelPath(path string) string {
-	return str.TrimFilePathPrefix(path, mi.modroot)
+	return str.TrimFilePathPrefix(filepath.Clean(path), mi.modroot) // mi.modroot is already clean
 }
 
 // ImportPackage is the equivalent of build.Import given the information in ModuleIndex.
