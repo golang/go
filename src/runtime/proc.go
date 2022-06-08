@@ -5071,14 +5071,15 @@ func checkdead() {
 
 	// Maybe jump time forward for playground.
 	if faketime != 0 {
-		when, _p_ := timeSleepUntil()
-		if _p_ != nil {
+		if when := timeSleepUntil(); when < maxWhen {
 			faketime = when
-			for pp := &sched.pidle; *pp != 0; pp = &(*pp).ptr().link {
-				if (*pp).ptr() == _p_ {
-					*pp = _p_.link
-					break
-				}
+
+			// Start an M to steal the timer.
+			pp, _ := pidleget(faketime)
+			if pp == nil {
+				// There should always be a free P since
+				// nothing is running.
+				throw("checkdead: no p for timer")
 			}
 			mp := mget()
 			if mp == nil {
@@ -5086,7 +5087,12 @@ func checkdead() {
 				// nothing is running.
 				throw("checkdead: no m for timer")
 			}
-			mp.nextp.set(_p_)
+			// M must be spinning to steal. We set this to be
+			// explicit, but since this is the only M it would
+			// become spinning on its own anyways.
+			atomic.Xadd(&sched.nmspinning, 1)
+			mp.spinning = true
+			mp.nextp.set(pp)
 			notewakeup(&mp.park)
 			return
 		}
@@ -5158,7 +5164,7 @@ func sysmon() {
 			lock(&sched.lock)
 			if atomic.Load(&sched.gcwaiting) != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs) {
 				syscallWake := false
-				next, _ := timeSleepUntil()
+				next := timeSleepUntil()
 				if next > now {
 					atomic.Store(&sched.sysmonwait, 1)
 					unlock(&sched.lock)
@@ -5231,7 +5237,7 @@ func sysmon() {
 			//
 			// See issue 42515 and
 			// https://gnats.netbsd.org/cgi-bin/query-pr-single.pl?number=50094.
-			if next, _ := timeSleepUntil(); next < now {
+			if next := timeSleepUntil(); next < now {
 				startm(nil, false)
 			}
 		}
