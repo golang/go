@@ -8,8 +8,10 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/constant"
 	"go/token"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/lsppos"
@@ -42,6 +44,8 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, _ protocol
 			hints = append(hints, assignVariableTypes(n, tmap, info, &q)...)
 		case *ast.RangeStmt:
 			hints = append(hints, rangeVariableTypes(n, tmap, info, &q)...)
+		case *ast.GenDecl:
+			hints = append(hints, constantValues(n, tmap, info)...)
 		}
 		return true
 	})
@@ -123,6 +127,56 @@ func variableType(e ast.Expr, tmap *lsppos.TokenMapper, info *types.Info, q *typ
 		Kind:        protocol.Type,
 		PaddingLeft: true,
 	}
+}
+
+func constantValues(node *ast.GenDecl, tmap *lsppos.TokenMapper, info *types.Info) []protocol.InlayHint {
+	if node.Tok != token.CONST {
+		return nil
+	}
+
+	var hints []protocol.InlayHint
+	for _, v := range node.Specs {
+		spec, ok := v.(*ast.ValueSpec)
+		if !ok {
+			continue
+		}
+		end, ok := tmap.Position(v.End())
+		if !ok {
+			continue
+		}
+		// Show hints when values are missing or at least one value is not
+		// a basic literal.
+		showHints := len(spec.Values) == 0
+		checkValues := len(spec.Names) == len(spec.Values)
+		var values []string
+		for i, w := range spec.Names {
+			obj, ok := info.ObjectOf(w).(*types.Const)
+			if !ok || obj.Val().Kind() == constant.Unknown {
+				return nil
+			}
+			if checkValues {
+				switch spec.Values[i].(type) {
+				case *ast.BadExpr:
+					return nil
+				case *ast.BasicLit:
+				default:
+					if obj.Val().Kind() != constant.Bool {
+						showHints = true
+					}
+				}
+			}
+			values = append(values, fmt.Sprintf("%v", obj.Val()))
+		}
+		if !showHints || len(values) == 0 {
+			continue
+		}
+		hints = append(hints, protocol.InlayHint{
+			Position:    &end,
+			Label:       buildLabel("= " + strings.Join(values, ", ")),
+			PaddingLeft: true,
+		})
+	}
+	return hints
 }
 
 func buildLabel(s string) []protocol.InlayHintLabelPart {
