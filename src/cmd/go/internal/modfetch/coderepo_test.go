@@ -823,7 +823,7 @@ func TestCodeRepoVersions(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Versions(%q): %v", tt.prefix, err)
 				}
-				if !reflect.DeepEqual(list, tt.versions) {
+				if !reflect.DeepEqual(list.List, tt.versions) {
 					t.Fatalf("Versions(%q):\nhave %v\nwant %v", tt.prefix, list, tt.versions)
 				}
 			})
@@ -921,7 +921,13 @@ type fixedTagsRepo struct {
 	codehost.Repo
 }
 
-func (ch *fixedTagsRepo) Tags(string) ([]string, error) { return ch.tags, nil }
+func (ch *fixedTagsRepo) Tags(string) (*codehost.Tags, error) {
+	tags := &codehost.Tags{}
+	for _, t := range ch.tags {
+		tags.List = append(tags.List, codehost.Tag{Name: t})
+	}
+	return tags, nil
+}
 
 func TestNonCanonicalSemver(t *testing.T) {
 	root := "golang.org/x/issue24476"
@@ -945,7 +951,7 @@ func TestNonCanonicalSemver(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(v) != 1 || v[0] != "v1.0.1" {
+	if len(v.List) != 1 || v.List[0] != "v1.0.1" {
 		t.Fatal("unexpected versions returned:", v)
 	}
 }

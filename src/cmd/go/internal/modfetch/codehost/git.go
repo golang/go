@@ -6,6 +6,8 @@ package codehost
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -169,6 +171,53 @@ func (r *gitRepo) loadLocalTags() {
 	}
 }
 
+func (r *gitRepo) CheckReuse(old *Origin, subdir string) error {
+	if old == nil {
+		return fmt.Errorf("missing origin")
+	}
+	if old.VCS != "git" || old.URL != r.remoteURL {
+		return fmt.Errorf("origin moved from %v %q to %v %q", old.VCS, old.URL, "git", r.remoteURL)
+	}
+	if old.Subdir != subdir {
+		return fmt.Errorf("origin moved from %v %q %q to %v %q %q", old.VCS, old.URL, old.Subdir, "git", r.remoteURL, subdir)
+	}
+
+	// Note: Can have Hash with no Ref and no TagSum,
+	// meaning the Hash simply has to remain in the repo.
+	// In that case we assume it does in the absence of any real way to check.
+	// But if neither Hash nor TagSum is present, we have nothing to check,
+	// which we take to mean we didn't record enough information to be sure.
+	if old.Hash == "" && old.TagSum == "" {
+		return fmt.Errorf("non-specific origin")
+	}
+
+	r.loadRefs()
+	if r.refsErr != nil {
+		return r.refsErr
+	}
+
+	if old.Ref != "" {
+		hash, ok := r.refs[old.Ref]
+		if !ok {
+			return fmt.Errorf("ref %q deleted", old.Ref)
+		}
+		if hash != old.Hash {
+			return fmt.Errorf("ref %q moved from %s to %s", old.Ref, old.Hash, hash)
+		}
+	}
+	if old.TagSum != "" {
+		tags, err := r.Tags(old.TagPrefix)
+		if err != nil {
+			return err
+		}
+		if tags.Origin.TagSum != old.TagSum {
+			return fmt.Errorf("tags changed")
+		}
+	}
+
+	return nil
+}
+
 // loadRefs loads heads and tags references from the remote into the map r.refs.
 // The result is cached in memory.
 func (r *gitRepo) loadRefs() (map[string]string, error) {
@@ -219,14 +268,21 @@ func (r *gitRepo) loadRefs() (map[string]string, error) {
 	return r.refs, r.refsErr
 }
 
-func (r *gitRepo) Tags(prefix string) ([]string, error) {
+func (r *gitRepo) Tags(prefix string) (*Tags, error) {
 	refs, err := r.loadRefs()
 	if err != nil {
 		return nil, err
 	}
 
-	tags := []string{}
-	for ref := range refs {
+	tags := &Tags{
+		Origin: &Origin{
+			VCS:       "git",
+			URL:       r.remoteURL,
+			TagPrefix: prefix,
+		},
+		List: []Tag{},
+	}
+	for ref, hash := range refs {
 		if !strings.HasPrefix(ref, "refs/tags/") {
 			continue
 		}
@@ -234,9 +290,20 @@ func (r *gitRepo) Tags(prefix string) ([]string, error) {
 		if !strings.HasPrefix(tag, prefix) {
 			continue
 		}
-		tags = append(tags, tag)
+		tags.List = append(tags.List, Tag{tag, hash})
 	}
-	sort.Strings(tags)
+	sort.Slice(tags.List, func(i, j int) bool {
+		return tags.List[i].Name < tags.List[j].Name
+	})
+
+	dir := prefix[:strings.LastIndex(prefix, "/")+1]
+	h := sha256.New()
+	for _, tag := range tags.List {
+		if isOriginTag(strings.TrimPrefix(tag.Name, dir)) {
+			fmt.Fprintf(h, "%q %s\n", tag.Name, tag.Hash)
+		}
+	}
+	tags.Origin.TagSum = "t1:" + base64.StdEncoding.EncodeToString(h.Sum(nil))
 	return tags, nil
 }
 
@@ -248,7 +315,13 @@ func (r *gitRepo) Latest() (*RevInfo, error) {
 	if refs["HEAD"] == "" {
 		return nil, ErrNoCommits
 	}
-	return r.Stat(refs["HEAD"])
+	info, err := r.Stat(refs["HEAD"])
+	if err != nil {
+		return nil, err
+	}
+	info.Origin.Ref = "HEAD"
+	info.Origin.Hash = refs["HEAD"]
+	return info, nil
 }
 
 // findRef finds some ref name for the given hash,
@@ -278,7 +351,7 @@ const minHashDigits = 7
 
 // stat stats the given rev in the local repository,
 // or else it fetches more info from the remote repository and tries again.
-func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
 	if r.local {
 		return r.statLocal(rev, rev)
 	}
@@ -347,6 +420,13 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 	} else {
 		return nil, &UnknownRevisionError{Rev: rev}
 	}
+
+	defer func() {
+		if info != nil {
+			info.Origin.Ref = ref
+			info.Origin.Hash = info.Name
+		}
+	}()
 
 	// Protect r.fetchLevel and the "fetch more and more" sequence.
 	unlock, err := r.mu.Lock()
@@ -465,10 +545,18 @@ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
 	}
 
 	info := &RevInfo{
+		Origin: &Origin{
+			VCS:  "git",
+			URL:  r.remoteURL,
+			Hash: hash,
+		},
 		Name:    hash,
 		Short:   ShortenSHA1(hash),
 		Time:    time.Unix(t, 0).UTC(),
 		Version: hash,
+	}
+	if !strings.HasPrefix(hash, rev) {
+		info.Origin.Ref = rev
 	}
 
 	// Add tags. Output looks like:
@@ -580,7 +668,7 @@ func (r *gitRepo) RecentTag(rev, prefix string, allowed func(tag string) bool) (
 	if err != nil {
 		return "", err
 	}
-	if len(tags) == 0 {
+	if len(tags.List) == 0 {
 		return "", nil
 	}
 
@@ -634,7 +722,7 @@ func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if len(tags) == 0 {
+	if len(tags.List) == 0 {
 		return false, nil
 	}
 

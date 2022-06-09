@@ -149,7 +149,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 
 	downloadModule := func(m *moduleJSON) {
 		var err error
-		m.Info, err = modfetch.InfoFile(m.Path, m.Version)
+		_, m.Info, err = modfetch.InfoFile(m.Path, m.Version)
 		if err != nil {
 			m.Error = err.Error()
 			return

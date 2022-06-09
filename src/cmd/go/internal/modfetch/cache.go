@@ -164,7 +164,7 @@ func SideLock() (unlock func(), err error) {
 }
 
 // A cachingRepo is a cache around an underlying Repo,
-// avoiding redundant calls to ModulePath, Versions, Stat, Latest, and GoMod (but not Zip).
+// avoiding redundant calls to ModulePath, Versions, Stat, Latest, and GoMod (but not CheckReuse or Zip).
 // It is also safe for simultaneous use by multiple goroutines
 // (so that it can be returned from Lookup multiple times).
 // It serializes calls to the underlying Repo.
@@ -195,24 +195,32 @@ func (r *cachingRepo) repo() Repo {
 	return r.r
 }
 
+func (r *cachingRepo) CheckReuse(old *codehost.Origin) error {
+	return r.repo().CheckReuse(old)
+}
+
 func (r *cachingRepo) ModulePath() string {
 	return r.path
 }
 
-func (r *cachingRepo) Versions(prefix string) ([]string, error) {
+func (r *cachingRepo) Versions(prefix string) (*Versions, error) {
 	type cached struct {
-		list []string
-		err  error
+		v   *Versions
+		err error
 	}
 	c := r.cache.Do("versions:"+prefix, func() any {
-		list, err := r.repo().Versions(prefix)
-		return cached{list, err}
+		v, err := r.repo().Versions(prefix)
+		return cached{v, err}
 	}).(cached)
 
 	if c.err != nil {
 		return nil, c.err
 	}
-	return append([]string(nil), c.list...), nil
+	v := &Versions{
+		Origin: c.v.Origin,
+		List:   append([]string(nil), c.v.List...),
+	}
+	return v, nil
 }
 
 type cachedInfo struct {
@@ -310,31 +318,35 @@ func (r *cachingRepo) Zip(dst io.Writer, version string) error {
 	return r.repo().Zip(dst, version)
 }
 
-// InfoFile is like Lookup(path).Stat(version) but returns the name of the file
+// InfoFile is like Lookup(path).Stat(version) but also returns the name of the file
 // containing the cached information.
-func InfoFile(path, version string) (string, error) {
+func InfoFile(path, version string) (*RevInfo, string, error) {
 	if !semver.IsValid(version) {
-		return "", fmt.Errorf("invalid version %q", version)
+		return nil, "", fmt.Errorf("invalid version %q", version)
 	}
 
-	if file, _, err := readDiskStat(path, version); err == nil {
-		return file, nil
+	if file, info, err := readDiskStat(path, version); err == nil {
+		return info, file, nil
 	}
 
+	var info *RevInfo
 	err := TryProxies(func(proxy string) error {
-		_, err := Lookup(proxy, path).Stat(version)
+		i, err := Lookup(proxy, path).Stat(version)
+		if err == nil {
+			info = i
+		}
 		return err
 	})
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 
 	// Stat should have populated the disk cache for us.
 	file, err := CachePath(module.Version{Path: path, Version: version}, "info")
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
-	return file, nil
+	return info, file, nil
 }
 
 // GoMod is like Lookup(path).GoMod(rev) but avoids the

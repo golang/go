@@ -177,7 +177,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	if err != nil {
 		return nil, err
 	}
-	releases, prereleases, err := qm.filterVersions(ctx, versions)
+	releases, prereleases, err := qm.filterVersions(ctx, versions.List)
 	if err != nil {
 		return nil, err
 	}
@@ -991,7 +991,7 @@ func versionHasGoMod(_ context.Context, m module.Version) (bool, error) {
 // available versions, but cannot fetch specific source files.
 type versionRepo interface {
 	ModulePath() string
-	Versions(prefix string) ([]string, error)
+	Versions(prefix string) (*modfetch.Versions, error)
 	Stat(rev string) (*modfetch.RevInfo, error)
 	Latest() (*modfetch.RevInfo, error)
 }
@@ -1023,8 +1023,10 @@ type emptyRepo struct {
 
 var _ versionRepo = emptyRepo{}
 
-func (er emptyRepo) ModulePath() string                         { return er.path }
-func (er emptyRepo) Versions(prefix string) ([]string, error)   { return nil, nil }
+func (er emptyRepo) ModulePath() string { return er.path }
+func (er emptyRepo) Versions(prefix string) (*modfetch.Versions, error) {
+	return &modfetch.Versions{}, nil
+}
 func (er emptyRepo) Stat(rev string) (*modfetch.RevInfo, error) { return nil, er.err }
 func (er emptyRepo) Latest() (*modfetch.RevInfo, error)         { return nil, er.err }
 
@@ -1044,13 +1046,16 @@ func (rr *replacementRepo) ModulePath() string { return rr.repo.ModulePath() }
 
 // Versions returns the versions from rr.repo augmented with any matching
 // replacement versions.
-func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
+func (rr *replacementRepo) Versions(prefix string) (*modfetch.Versions, error) {
 	repoVersions, err := rr.repo.Versions(prefix)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, err
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+		repoVersions = new(modfetch.Versions)
 	}
 
-	versions := repoVersions
+	versions := repoVersions.List
 	for _, mm := range MainModules.Versions() {
 		if index := MainModules.Index(mm); index != nil && len(index.replace) > 0 {
 			path := rr.ModulePath()
@@ -1062,15 +1067,15 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
 		}
 	}
 
-	if len(versions) == len(repoVersions) { // No replacement versions added.
-		return versions, nil
+	if len(versions) == len(repoVersions.List) { // replacement versions added
+		return repoVersions, nil
 	}
 
 	sort.Slice(versions, func(i, j int) bool {
 		return semver.Compare(versions[i], versions[j]) < 0
 	})
 	str.Uniq(&versions)
-	return versions, nil
+	return &modfetch.Versions{List: versions}, nil
 }
 
 func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {

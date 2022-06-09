@@ -91,8 +91,8 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 		if err != nil {
 			return err
 		}
-		allowedVersions := make([]string, 0, len(allVersions))
-		for _, v := range allVersions {
+		allowedVersions := make([]string, 0, len(allVersions.List))
+		for _, v := range allVersions.List {
 			if err := allowed(ctx, module.Version{Path: path, Version: v}); err == nil {
 				allowedVersions = append(allowedVersions, v)
 			} else if !errors.Is(err, ErrDisallowed) {
