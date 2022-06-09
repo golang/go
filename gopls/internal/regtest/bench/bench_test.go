@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"testing"
 
@@ -66,6 +67,7 @@ func TestBenchmarkIWL(t *testing.T) {
 	results := testing.Benchmark(func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			WithOptions(opts...).Run(t, "", func(t *testing.T, env *Env) {})
+
 		}
 	})
 
@@ -190,5 +192,33 @@ func TestBenchmarkDidChange(t *testing.T) {
 			}
 		})
 		printBenchmarkResults(result)
+	})
+}
+
+// TestPrintMemStats measures the memory usage of loading a project.
+// It uses the same -didchange_dir flag as above.
+// Always run it in isolation since it measures global heap usage.
+//
+// Kubernetes example:
+//   $ go test -run=TestPrintMemStats -didchange_dir=$HOME/w/kubernetes
+//   TotalAlloc:      5766 MB
+//   HeapAlloc:       1984 MB
+//
+// Both figures exhibit variance of less than 1%.
+func TestPrintMemStats(t *testing.T) {
+	if *benchDir == "" {
+		t.Skip("-didchange_dir is not set")
+	}
+
+	// Load the program...
+	opts := benchmarkOptions(*benchDir)
+	WithOptions(opts...).Run(t, "", func(_ *testing.T, env *Env) {
+		// ...and print the memory usage.
+		runtime.GC()
+		runtime.GC()
+		var mem runtime.MemStats
+		runtime.ReadMemStats(&mem)
+		t.Logf("TotalAlloc:\t%d MB", mem.TotalAlloc/1e6)
+		t.Logf("HeapAlloc:\t%d MB", mem.HeapAlloc/1e6)
 	})
 }

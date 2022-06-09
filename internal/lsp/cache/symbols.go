@@ -33,7 +33,7 @@ type symbolData struct {
 	err     error
 }
 
-type symbolHandleKey string
+type symbolHandleKey source.Hash
 
 func (s *snapshot) buildSymbolHandle(ctx context.Context, fh source.FileHandle) *symbolHandle {
 	if h := s.getSymbolHandle(fh.URI()); h != nil {

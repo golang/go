@@ -44,7 +44,7 @@ type overlay struct {
 	session *Session
 	uri     span.URI
 	text    []byte
-	hash    string
+	hash    source.Hash
 	version int32
 	kind    source.FileKind
 
@@ -637,7 +637,7 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 		if c.OnDisk || c.Action == source.Save {
 			version = o.version
 		}
-		hash := hashContents(text)
+		hash := source.HashOf(text)
 		var sameContentOnDisk bool
 		switch c.Action {
 		case source.Delete:

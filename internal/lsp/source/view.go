@@ -7,6 +7,7 @@ package source
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -528,12 +529,32 @@ type FileHandle interface {
 	Saved() bool
 }
 
+// A Hash is a cryptographic digest of the contents of a file.
+// (Although at 32B it is larger than a 16B string header, it is smaller
+// and has better locality than the string header + 64B of hex digits.)
+type Hash [sha256.Size]byte
+
+// HashOf returns the hash of some data.
+func HashOf(data []byte) Hash {
+	return Hash(sha256.Sum256(data))
+}
+
+// Hashf returns the hash of a printf-formatted string.
+func Hashf(format string, args ...interface{}) Hash {
+	// Although this looks alloc-heavy, it is faster than using
+	// Fprintf on sha256.New() because the allocations don't escape.
+	return HashOf([]byte(fmt.Sprintf(format, args...)))
+}
+
+// String returns the digest as a string of hex digits.
+func (h Hash) String() string {
+	return fmt.Sprintf("%64x", [sha256.Size]byte(h))
+}
+
 // FileIdentity uniquely identifies a file at a version from a FileSystem.
 type FileIdentity struct {
-	URI span.URI
-
-	// Hash is a string of hex digits denoting the cryptographic digest of the file's content.
-	Hash string
+	URI  span.URI
+	Hash Hash // digest of file contents
 }
 
 func (id FileIdentity) String() string {

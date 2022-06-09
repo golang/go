@@ -27,7 +27,7 @@ type importsState struct {
 	cleanupProcessEnv    func()
 	cacheRefreshDuration time.Duration
 	cacheRefreshTimer    *time.Timer
-	cachedModFileHash    string
+	cachedModFileHash    source.Hash
 	cachedBuildFlags     []string
 }
 
@@ -38,7 +38,7 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 	// Find the hash of the active mod file, if any. Using the unsaved content
 	// is slightly wasteful, since we'll drop caches a little too often, but
 	// the mod file shouldn't be changing while people are autocompleting.
-	var modFileHash string
+	var modFileHash source.Hash
 	// If we are using 'legacyWorkspace' mode, we can just read the modfile from
 	// the snapshot. Otherwise, we need to get the synthetic workspace mod file.
 	//
@@ -61,7 +61,7 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 		if err != nil {
 			return err
 		}
-		modFileHash = hashContents(modBytes)
+		modFileHash = source.HashOf(modBytes)
 	}
 
 	// view.goEnv is immutable -- changes make a new view. Options can change.

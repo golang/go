@@ -466,7 +466,7 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 	return overlays
 }
 
-func hashUnsavedOverlays(files map[span.URI]source.VersionedFileHandle) string {
+func hashUnsavedOverlays(files map[span.URI]source.VersionedFileHandle) source.Hash {
 	var unsaved []string
 	for uri, fh := range files {
 		if overlay, ok := fh.(*overlay); ok && !overlay.saved {
@@ -474,7 +474,7 @@ func hashUnsavedOverlays(files map[span.URI]source.VersionedFileHandle) string {
 		}
 	}
 	sort.Strings(unsaved)
-	return hashContents([]byte(strings.Join(unsaved, "")))
+	return source.Hashf("%s", unsaved)
 }
 
 func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, includeTestVariants bool) ([]source.Package, error) {
@@ -2652,25 +2652,7 @@ func (m *goFileMap) forEachConcurrent(f func(parseKey, *parseGoHandle)) {
 // -- internal--
 
 // hash returns 8 bits from the key's file digest.
-func (m *goFileMap) hash(k parseKey) int {
-	h := k.file.Hash
-	if h == "" {
-		// Sadly the Hash isn't always a hash because cache.GetFile may
-		// successfully return a *fileHandle containing an error and no hash.
-		// Lump the duds together for now.
-		// TODO(adonovan): fix the underlying bug.
-		return 0
-	}
-	return unhex(h[0])<<4 | unhex(h[1])
-}
-
-// unhex returns the value of a valid hex digit.
-func unhex(b byte) int {
-	if '0' <= b && b <= '9' {
-		return int(b - '0')
-	}
-	return int(b) & ^0x20 - 'A' + 0xA // [a-fA-F]
-}
+func (*goFileMap) hash(k parseKey) byte { return k.file.Hash[0] }
 
 // unshare makes k's stripe exclusive, allocating a copy if needed, and returns it.
 func (m *goFileMap) unshare(k parseKey) map[parseKey]*parseGoHandle {

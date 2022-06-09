@@ -6,7 +6,6 @@ package cache
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -55,7 +54,7 @@ type fileHandle struct {
 	modTime time.Time
 	uri     span.URI
 	bytes   []byte
-	hash    string
+	hash    source.Hash
 	err     error
 
 	// size is the file length as reported by Stat, for the purpose of
@@ -139,7 +138,7 @@ func readFile(ctx context.Context, uri span.URI, fi os.FileInfo) (*fileHandle, e
 		size:    fi.Size(),
 		uri:     uri,
 		bytes:   data,
-		hash:    hashContents(data),
+		hash:    source.HashOf(data),
 	}, nil
 }
 
@@ -168,10 +167,6 @@ func (h *fileHandle) URI() span.URI {
 	return h.uri
 }
 
-func (h *fileHandle) Hash() string {
-	return h.hash
-}
-
 func (h *fileHandle) FileIdentity() source.FileIdentity {
 	return source.FileIdentity{
 		URI:  h.uri,
@@ -181,16 +176,6 @@ func (h *fileHandle) FileIdentity() source.FileIdentity {
 
 func (h *fileHandle) Read() ([]byte, error) {
 	return h.bytes, h.err
-}
-
-// hashContents returns a string of hex digits denoting the hash of contents.
-//
-// TODO(adonovan): opt: use [32]byte array as a value more widely and convert
-// to hex digits on demand (rare). The array is larger when it appears as a
-// struct field (32B vs 16B) but smaller overall (string data is 64B), has
-// better locality, and is more efficiently hashed by runtime maps.
-func hashContents(contents []byte) string {
-	return fmt.Sprintf("%64x", sha256.Sum256(contents))
 }
 
 var cacheIndex, sessionIndex, viewIndex int64

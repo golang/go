@@ -201,9 +201,11 @@ func sumFilename(modURI span.URI) string {
 // modKey is uniquely identifies cached data for `go mod why` or dependencies
 // to upgrade.
 type modKey struct {
-	sessionID, env, view string
-	mod                  source.FileIdentity
-	verb                 modAction
+	sessionID string
+	env       source.Hash
+	view      string
+	mod       source.FileIdentity
+	verb      modAction
 }
 
 type modAction int

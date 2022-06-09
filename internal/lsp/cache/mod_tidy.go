@@ -29,10 +29,10 @@ import (
 
 type modTidyKey struct {
 	sessionID       string
-	env             string
+	env             source.Hash
 	gomod           source.FileIdentity
-	imports         string
-	unsavedOverlays string
+	imports         source.Hash
+	unsavedOverlays source.Hash
 	view            string
 }
 
@@ -81,10 +81,6 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 	if err != nil {
 		return nil, err
 	}
-	importHash, err := s.hashImports(ctx, workspacePkgs)
-	if err != nil {
-		return nil, err
-	}
 
 	s.mu.Lock()
 	overlayHash := hashUnsavedOverlays(s.files)
@@ -93,7 +89,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 	key := modTidyKey{
 		sessionID:       s.view.session.id,
 		view:            s.view.folder.Filename(),
-		imports:         importHash,
+		imports:         s.hashImports(ctx, workspacePkgs),
 		unsavedOverlays: overlayHash,
 		gomod:           fh.FileIdentity(),
 		env:             hashEnv(s),
@@ -152,7 +148,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 	return mth.tidy(ctx, s)
 }
 
-func (s *snapshot) hashImports(ctx context.Context, wsPackages []*packageHandle) (string, error) {
+func (s *snapshot) hashImports(ctx context.Context, wsPackages []*packageHandle) source.Hash {
 	seen := map[string]struct{}{}
 	var imports []string
 	for _, ph := range wsPackages {
@@ -164,8 +160,7 @@ func (s *snapshot) hashImports(ctx context.Context, wsPackages []*packageHandle)
 		}
 	}
 	sort.Strings(imports)
-	hashed := strings.Join(imports, ",")
-	return hashContents([]byte(hashed)), nil
+	return source.Hashf("%s", imports)
 }
 
 // modTidyDiagnostics computes the differences between the original and tidied

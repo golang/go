@@ -54,7 +54,7 @@ func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.A
 	return results, nil
 }
 
-type actionHandleKey string
+type actionHandleKey source.Hash
 
 // An action represents one unit of analysis work: the application of
 // one analysis to one package. Actions form a DAG, both within a
@@ -170,7 +170,7 @@ func (act *actionHandle) analyze(ctx context.Context, snapshot *snapshot) ([]*so
 }
 
 func buildActionKey(a *analysis.Analyzer, ph *packageHandle) actionHandleKey {
-	return actionHandleKey(hashContents([]byte(fmt.Sprintf("%p %s", a, string(ph.key)))))
+	return actionHandleKey(source.Hashf("%p%s", a, ph.key[:]))
 }
 
 func (act *actionHandle) String() string {

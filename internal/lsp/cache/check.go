@@ -32,7 +32,7 @@ import (
 	"golang.org/x/tools/internal/typesinternal"
 )
 
-type packageHandleKey string
+type packageHandleKey source.Hash
 
 type packageHandle struct {
 	handle *memoize.Handle
@@ -187,7 +187,7 @@ func (s *snapshot) buildKey(ctx context.Context, id PackageID, mode source.Parse
 			}
 			// One bad dependency should not prevent us from checking the entire package.
 			// Add a special key to mark a bad dependency.
-			depKeys = append(depKeys, packageHandleKey(fmt.Sprintf("%s import not found", depID)))
+			depKeys = append(depKeys, packageHandleKey(source.Hashf("%s import not found", depID)))
 			continue
 		}
 		deps[depHandle.m.PkgPath] = depHandle
@@ -215,6 +215,8 @@ func (s *snapshot) workspaceParseMode(id PackageID) source.ParseMode {
 }
 
 func checkPackageKey(id PackageID, pghs []*parseGoHandle, m *KnownMetadata, deps []packageHandleKey, mode source.ParseMode, experimentalKey bool) packageHandleKey {
+	// TODO(adonovan): opt: no need to materalize the bytes; hash them directly.
+	// Also, use field separators to avoid spurious collisions.
 	b := bytes.NewBuffer(nil)
 	b.WriteString(string(id))
 	if m.Module != nil {
@@ -225,38 +227,37 @@ func checkPackageKey(id PackageID, pghs []*parseGoHandle, m *KnownMetadata, deps
 		// files, and deps). It should not otherwise affect the inputs to the type
 		// checker, so this experiment omits it. This should increase cache hits on
 		// the daemon as cfg contains the environment and working directory.
-		b.WriteString(hashConfig(m.Config))
+		hc := hashConfig(m.Config)
+		b.Write(hc[:])
 	}
 	b.WriteByte(byte(mode))
 	for _, dep := range deps {
-		b.WriteString(string(dep))
+		b.Write(dep[:])
 	}
 	for _, cgf := range pghs {
 		b.WriteString(cgf.file.FileIdentity().String())
 	}
-	return packageHandleKey(hashContents(b.Bytes()))
+	return packageHandleKey(source.HashOf(b.Bytes()))
 }
 
 // hashEnv returns a hash of the snapshot's configuration.
-func hashEnv(s *snapshot) string {
+func hashEnv(s *snapshot) source.Hash {
 	s.view.optionsMu.Lock()
 	env := s.view.options.EnvSlice()
 	s.view.optionsMu.Unlock()
 
-	b := &bytes.Buffer{}
-	for _, e := range env {
-		b.WriteString(e)
-	}
-	return hashContents(b.Bytes())
+	return source.Hashf("%s", env)
 }
 
 // hashConfig returns the hash for the *packages.Config.
-func hashConfig(config *packages.Config) string {
-	b := bytes.NewBuffer(nil)
+func hashConfig(config *packages.Config) source.Hash {
+	// TODO(adonovan): opt: don't materialize the bytes; hash them directly.
+	// Also, use sound field separators to avoid collisions.
+	var b bytes.Buffer
 
 	// Dir, Mode, Env, BuildFlags are the parts of the config that can change.
 	b.WriteString(config.Dir)
-	b.WriteString(string(rune(config.Mode)))
+	b.WriteRune(rune(config.Mode))
 
 	for _, e := range config.Env {
 		b.WriteString(e)
@@ -264,7 +265,7 @@ func hashConfig(config *packages.Config) string {
 	for _, f := range config.BuildFlags {
 		b.WriteString(f)
 	}
-	return hashContents(b.Bytes())
+	return source.HashOf(b.Bytes())
 }
 
 func (ph *packageHandle) Check(ctx context.Context, s source.Snapshot) (source.Package, error) {
