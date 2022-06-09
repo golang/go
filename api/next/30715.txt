@@ -1,3 +1,0 @@
-pkg net/http, type MaxBytesError struct #30715
-pkg net/http, type MaxBytesError struct, Limit int64 #30715
-pkg net/http, method (*MaxBytesError) Error() string #30715
