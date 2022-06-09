@@ -15,7 +15,7 @@
 				<a href="/{{$pkg_html}}">{{html .Package}}</a>.<a href="{{$doc_html}}">{{.Name}}</a>
 			{{end}}
 			{{if .Doc}}
-				<p>{{comment_html .Doc}}</p>
+				<p>{{comment_html $ .Doc}}</p>
 			{{else}}
 				<p><em>No documentation available</em></p>
 			{{end}}

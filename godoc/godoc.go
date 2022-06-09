@@ -345,11 +345,16 @@ func isDigit(ch rune) bool {
 	return '0' <= ch && ch <= '9' || ch >= utf8.RuneSelf && unicode.IsDigit(ch)
 }
 
-func comment_htmlFunc(comment string) string {
+func comment_htmlFunc(info *PageInfo, comment string) string {
 	var buf bytes.Buffer
 	// TODO(gri) Provide list of words (e.g. function parameters)
 	//           to be emphasized by ToHTML.
-	doc.ToHTML(&buf, comment, nil) // does html-escaping
+
+	// godocToHTML is:
+	// - buf.Write(info.PDoc.HTML(comment)) on go1.19
+	// - go/doc.ToHTML(&buf, comment, nil) on other versions
+	godocToHTML(&buf, info.PDoc, comment)
+
 	return buf.String()
 }
 

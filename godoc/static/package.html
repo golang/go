@@ -17,7 +17,7 @@
 
 	{{if $.IsMain}}
 		{{/* command documentation */}}
-		{{comment_html .Doc}}
+		{{comment_html $ .Doc}}
 	{{else}}
 		{{/* package documentation */}}
 		<div id="short-nav">
@@ -42,7 +42,7 @@
 			</div>
 			<div class="expanded">
 				<h2 class="toggleButton" title="Click to hide Overview section">Overview ▾</h2>
-				{{comment_html .Doc}}
+				{{comment_html $ .Doc}}
 				{{example_html $ ""}}
 			</div>
 		</div>
@@ -154,14 +154,14 @@
 		{{with .Consts}}
 			<h2 id="pkg-constants">Constants</h2>
 			{{range .}}
-				{{comment_html .Doc}}
+				{{comment_html $ .Doc}}
 				<pre>{{node_html $ .Decl true}}</pre>
 			{{end}}
 		{{end}}
 		{{with .Vars}}
 			<h2 id="pkg-variables">Variables</h2>
 			{{range .}}
-				{{comment_html .Doc}}
+				{{comment_html $ .Doc}}
 				<pre>{{node_html $ .Decl true}}</pre>
 			{{end}}
 		{{end}}
@@ -174,7 +174,7 @@
 				{{if $since}}<span title="Added in Go {{$since}}">{{$since}}</span>{{end}}
 			</h2>
 			<pre>{{node_html $ .Decl true}}</pre>
-			{{comment_html .Doc}}
+			{{comment_html $ .Doc}}
 			{{example_html $ .Name}}
 			{{callgraph_html $ "" .Name}}
 
@@ -187,16 +187,16 @@
 				{{$since := since "type" "" .Name $.PDoc.ImportPath}}
 				{{if $since}}<span title="Added in Go {{$since}}">{{$since}}</span>{{end}}
 			</h2>
-			{{comment_html .Doc}}
+			{{comment_html $ .Doc}}
 			<pre>{{node_html $ .Decl true}}</pre>
 
 			{{range .Consts}}
-				{{comment_html .Doc}}
+				{{comment_html $ .Doc}}
 				<pre>{{node_html $ .Decl true}}</pre>
 			{{end}}
 
 			{{range .Vars}}
-				{{comment_html .Doc}}
+				{{comment_html $ .Doc}}
 				<pre>{{node_html $ .Decl true}}</pre>
 			{{end}}
 
@@ -212,7 +212,7 @@
 					{{if $since}}<span title="Added in Go {{$since}}">{{$since}}</span>{{end}}
 				</h3>
 				<pre>{{node_html $ .Decl true}}</pre>
-				{{comment_html .Doc}}
+				{{comment_html $ .Doc}}
 				{{example_html $ .Name}}
 				{{callgraph_html $ "" .Name}}
 			{{end}}
@@ -225,7 +225,7 @@
 					{{if $since}}<span title="Added in Go {{$since}}">{{$since}}</span>{{end}}
 				</h3>
 				<pre>{{node_html $ .Decl true}}</pre>
-				{{comment_html .Doc}}
+				{{comment_html $ .Doc}}
 				{{$name := printf "%s_%s" $tname .Name}}
 				{{example_html $ $name}}
 				{{callgraph_html $ .Recv .Name}}
@@ -238,7 +238,7 @@
 			<h2 id="pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</h2>
 			<ul style="list-style: none; padding: 0;">
 			{{range .}}
-			<li><a href="{{posLink_url $ .}}" style="float: left;">&#x261e;</a> {{comment_html .Body}}</li>
+			<li><a href="{{posLink_url $ .}}" style="float: left;">&#x261e;</a> {{comment_html $ .Body}}</li>
 			{{end}}
 			</ul>
 		{{end}}
