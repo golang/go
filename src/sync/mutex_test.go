@@ -340,16 +340,25 @@ func TestMutexLinearOne(t *testing.T) {
 	testenv.CheckLinear(t, func(scale float64) func(*testing.B) {
 		n := int(1000 * scale)
 		return func(b *testing.B) {
-			ch := make(chan int)
+			ch := make(chan struct{})
 			locks := make([]RWMutex, runtimeSemaHashTableSize+1)
+
+			b.ResetTimer()
+
+			var wgStart, wgFinish WaitGroup
 			for i := 0; i < n; i++ {
+				wgStart.Add(1)
+				wgFinish.Add(1)
 				go func() {
+					wgStart.Done()
 					locks[0].Lock()
-					ch <- 1
+					ch <- struct{}{}
+					wgFinish.Done()
 				}()
 			}
-			time.Sleep(1 * time.Millisecond)
+			wgStart.Wait()
 
+			wgFinish.Add(1)
 			go func() {
 				for j := 0; j < n; j++ {
 					locks[1].Lock()
@@ -358,6 +367,7 @@ func TestMutexLinearOne(t *testing.T) {
 					runtime.Gosched()
 					locks[runtimeSemaHashTableSize].Unlock()
 				}
+				wgFinish.Done()
 			}()
 
 			for j := 0; j < n; j++ {
@@ -368,10 +378,14 @@ func TestMutexLinearOne(t *testing.T) {
 				locks[runtimeSemaHashTableSize].Unlock()
 			}
 
+			b.StopTimer()
+
 			for i := 0; i < n; i++ {
 				<-ch
 				locks[0].Unlock()
 			}
+
+			wgFinish.Wait()
 		}
 	})
 }
@@ -387,17 +401,21 @@ func TestMutexLinearMany(t *testing.T) {
 		return func(b *testing.B) {
 			locks := make([]RWMutex, n*runtimeSemaHashTableSize+1)
 
-			var wg WaitGroup
+			b.ResetTimer()
+
+			var wgStart, wgFinish WaitGroup
 			for i := 0; i < n; i++ {
-				wg.Add(1)
+				wgStart.Add(1)
+				wgFinish.Add(1)
 				go func(i int) {
 					locks[(i+1)*runtimeSemaHashTableSize].Lock()
-					wg.Done()
+					wgStart.Done()
 					locks[(i+1)*runtimeSemaHashTableSize].Lock()
 					locks[(i+1)*runtimeSemaHashTableSize].Unlock()
+					wgFinish.Done()
 				}(i)
 			}
-			wg.Wait()
+			wgStart.Wait()
 
 			go func() {
 				for j := 0; j < n; j++ {
@@ -417,9 +435,13 @@ func TestMutexLinearMany(t *testing.T) {
 				locks[0].Unlock()
 			}
 
+			b.StopTimer()
+
 			for i := 0; i < n; i++ {
 				locks[(i+1)*runtimeSemaHashTableSize].Unlock()
 			}
+
+			wgFinish.Wait()
 		}
 	})
 }
