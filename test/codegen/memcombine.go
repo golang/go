@@ -377,6 +377,11 @@ func store_le64_idx2(dst []byte, d, length, offset int) []byte {
 	return dst
 }
 
+func store_le64_idx_const(b []byte, idx int) {
+	// amd64:`MOVQ\s\$123, \(.*\)\(.*\*1\)$`
+	binary.LittleEndian.PutUint64(b[idx:], 123)
+}
+
 func store_le64_load(b []byte, x *[8]byte) {
 	_ = b[8]
 	// amd64:-`MOV[BWL]`
@@ -402,6 +407,11 @@ func store_le32_idx(b []byte, x uint32, idx int) {
 	binary.LittleEndian.PutUint32(b[idx:], x)
 }
 
+func store_le32_idx_const(b []byte, idx int) {
+	// amd64:`MOVL\s\$123, \(.*\)\(.*\*1\)$`
+	binary.LittleEndian.PutUint32(b[idx:], 123)
+}
+
 func store_le16(b []byte, x uint16) {
 	// amd64:`MOVW\s`
 	// arm64:`MOVH`,-`MOVB`
@@ -416,6 +426,11 @@ func store_le16_idx(b []byte, x uint16, idx int) {
 	// ppc64le:`MOVH\s`
 	// s390x:`MOVHBR\s.*\(.*\)\(.*\*1\)$`
 	binary.LittleEndian.PutUint16(b[idx:], x)
+}
+
+func store_le16_idx_const(b []byte, idx int) {
+	// amd64:`MOVW\s\$123, \(.*\)\(.*\*1\)$`
+	binary.LittleEndian.PutUint16(b[idx:], 123)
 }
 
 func store_be64(b []byte, x uint64) {

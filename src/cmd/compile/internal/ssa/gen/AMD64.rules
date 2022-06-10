@@ -1929,52 +1929,52 @@
   => (MOVQstore [i] {s} p0 (BSWAPQ <w.Type> w) mem)
 
 // Combine constant stores into larger (unaligned) stores.
-(MOVBstoreconst [c] {s} p x:(MOVBstoreconst [a] {s} p mem))
+(MOVBstoreconst [c] {s} p1 x:(MOVBstoreconst [a] {s} p0 mem))
   && x.Uses == 1
-  && a.Off() + 1 == c.Off()
+  && sequentialAddresses(p0, p1, int64(a.Off()+1-c.Off()))
   && clobber(x)
-  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p mem)
-(MOVBstoreconst [a] {s} p x:(MOVBstoreconst [c] {s} p mem))
+  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p0 mem)
+(MOVBstoreconst [a] {s} p0 x:(MOVBstoreconst [c] {s} p1 mem))
   && x.Uses == 1
-  && a.Off() + 1 == c.Off()
+  && sequentialAddresses(p0, p1, int64(a.Off()+1-c.Off()))
   && clobber(x)
-  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p mem)
-(MOVWstoreconst [c] {s} p x:(MOVWstoreconst [a] {s} p mem))
+  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p0 mem)
+(MOVWstoreconst [c] {s} p1 x:(MOVWstoreconst [a] {s} p0 mem))
   && x.Uses == 1
-  && a.Off() + 2 == c.Off()
+  && sequentialAddresses(p0, p1, int64(a.Off()+2-c.Off()))
   && clobber(x)
-  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p mem)
-(MOVWstoreconst [a] {s} p x:(MOVWstoreconst [c] {s} p mem))
+  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p0 mem)
+(MOVWstoreconst [a] {s} p0 x:(MOVWstoreconst [c] {s} p1 mem))
   && x.Uses == 1
-  && a.Off() + 2 == c.Off()
+  && sequentialAddresses(p0, p1, int64(a.Off()+2-c.Off()))
   && clobber(x)
-  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p mem)
-(MOVLstoreconst [c] {s} p x:(MOVLstoreconst [a] {s} p mem))
+  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p0 mem)
+(MOVLstoreconst [c] {s} p1 x:(MOVLstoreconst [a] {s} p0 mem))
   && x.Uses == 1
-  && a.Off() + 4 == c.Off()
+  && sequentialAddresses(p0, p1, int64(a.Off()+4-c.Off()))
   && clobber(x)
-  => (MOVQstore [a.Off()] {s} p (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
-(MOVLstoreconst [a] {s} p x:(MOVLstoreconst [c] {s} p mem))
+  => (MOVQstore [a.Off()] {s} p0 (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
+(MOVLstoreconst [a] {s} p0 x:(MOVLstoreconst [c] {s} p1 mem))
   && x.Uses == 1
-  && a.Off() + 4 == c.Off()
+  && sequentialAddresses(p0, p1, int64(a.Off()+4-c.Off()))
   && clobber(x)
-  => (MOVQstore [a.Off()] {s} p (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
-(MOVQstoreconst [c] {s} p x:(MOVQstoreconst [a] {s} p mem))
+  => (MOVQstore [a.Off()] {s} p0 (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
+(MOVQstoreconst [c] {s} p1 x:(MOVQstoreconst [a] {s} p0 mem))
   && config.useSSE
   && x.Uses == 1
-  && a.Off() + 8 == c.Off()
+  && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
   && a.Val() == 0
   && c.Val() == 0
   && clobber(x)
-  => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p mem)
-(MOVQstoreconst [a] {s} p x:(MOVQstoreconst [c] {s} p mem))
+  => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
+(MOVQstoreconst [a] {s} p0 x:(MOVQstoreconst [c] {s} p1 mem))
   && config.useSSE
   && x.Uses == 1
-  && a.Off() + 8 == c.Off()
+  && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
   && a.Val() == 0
   && c.Val() == 0
   && clobber(x)
-  => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p mem)
+  => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 
 // Combine stores into larger (unaligned) stores. Little endian.
 (MOVBstore [i] {s} p (SHR(W|L|Q)const [8] w) x:(MOVBstore [i-1] {s} p w mem))

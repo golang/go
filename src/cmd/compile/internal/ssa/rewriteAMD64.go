@@ -11402,13 +11402,13 @@ func rewriteValueAMD64_OpAMD64MOVBstoreconst(v *Value) bool {
 		v.AddArg2(ptr, mem)
 		return true
 	}
-	// match: (MOVBstoreconst [c] {s} p x:(MOVBstoreconst [a] {s} p mem))
-	// cond: x.Uses == 1 && a.Off() + 1 == c.Off() && clobber(x)
-	// result: (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p mem)
+	// match: (MOVBstoreconst [c] {s} p1 x:(MOVBstoreconst [a] {s} p0 mem))
+	// cond: x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+1-c.Off())) && clobber(x)
+	// result: (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p0 mem)
 	for {
 		c := auxIntToValAndOff(v.AuxInt)
 		s := auxToSym(v.Aux)
-		p := v_0
+		p1 := v_0
 		x := v_1
 		if x.Op != OpAMD64MOVBstoreconst {
 			break
@@ -11418,22 +11418,23 @@ func rewriteValueAMD64_OpAMD64MOVBstoreconst(v *Value) bool {
 			break
 		}
 		mem := x.Args[1]
-		if p != x.Args[0] || !(x.Uses == 1 && a.Off()+1 == c.Off() && clobber(x)) {
+		p0 := x.Args[0]
+		if !(x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+1-c.Off())) && clobber(x)) {
 			break
 		}
 		v.reset(OpAMD64MOVWstoreconst)
 		v.AuxInt = valAndOffToAuxInt(makeValAndOff(a.Val()&0xff|c.Val()<<8, a.Off()))
 		v.Aux = symToAux(s)
-		v.AddArg2(p, mem)
+		v.AddArg2(p0, mem)
 		return true
 	}
-	// match: (MOVBstoreconst [a] {s} p x:(MOVBstoreconst [c] {s} p mem))
-	// cond: x.Uses == 1 && a.Off() + 1 == c.Off() && clobber(x)
-	// result: (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p mem)
+	// match: (MOVBstoreconst [a] {s} p0 x:(MOVBstoreconst [c] {s} p1 mem))
+	// cond: x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+1-c.Off())) && clobber(x)
+	// result: (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p0 mem)
 	for {
 		a := auxIntToValAndOff(v.AuxInt)
 		s := auxToSym(v.Aux)
-		p := v_0
+		p0 := v_0
 		x := v_1
 		if x.Op != OpAMD64MOVBstoreconst {
 			break
@@ -11443,13 +11444,14 @@ func rewriteValueAMD64_OpAMD64MOVBstoreconst(v *Value) bool {
 			break
 		}
 		mem := x.Args[1]
-		if p != x.Args[0] || !(x.Uses == 1 && a.Off()+1 == c.Off() && clobber(x)) {
+		p1 := x.Args[0]
+		if !(x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+1-c.Off())) && clobber(x)) {
 			break
 		}
 		v.reset(OpAMD64MOVWstoreconst)
 		v.AuxInt = valAndOffToAuxInt(makeValAndOff(a.Val()&0xff|c.Val()<<8, a.Off()))
 		v.Aux = symToAux(s)
-		v.AddArg2(p, mem)
+		v.AddArg2(p0, mem)
 		return true
 	}
 	return false
@@ -12632,13 +12634,13 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconst(v *Value) bool {
 		v.AddArg2(ptr, mem)
 		return true
 	}
-	// match: (MOVLstoreconst [c] {s} p x:(MOVLstoreconst [a] {s} p mem))
-	// cond: x.Uses == 1 && a.Off() + 4 == c.Off() && clobber(x)
-	// result: (MOVQstore [a.Off()] {s} p (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
+	// match: (MOVLstoreconst [c] {s} p1 x:(MOVLstoreconst [a] {s} p0 mem))
+	// cond: x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+4-c.Off())) && clobber(x)
+	// result: (MOVQstore [a.Off()] {s} p0 (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
 	for {
 		c := auxIntToValAndOff(v.AuxInt)
 		s := auxToSym(v.Aux)
-		p := v_0
+		p1 := v_0
 		x := v_1
 		if x.Op != OpAMD64MOVLstoreconst {
 			break
@@ -12648,7 +12650,8 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconst(v *Value) bool {
 			break
 		}
 		mem := x.Args[1]
-		if p != x.Args[0] || !(x.Uses == 1 && a.Off()+4 == c.Off() && clobber(x)) {
+		p0 := x.Args[0]
+		if !(x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+4-c.Off())) && clobber(x)) {
 			break
 		}
 		v.reset(OpAMD64MOVQstore)
@@ -12656,16 +12659,16 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconst(v *Value) bool {
 		v.Aux = symToAux(s)
 		v0 := b.NewValue0(x.Pos, OpAMD64MOVQconst, typ.UInt64)
 		v0.AuxInt = int64ToAuxInt(a.Val64()&0xffffffff | c.Val64()<<32)
-		v.AddArg3(p, v0, mem)
+		v.AddArg3(p0, v0, mem)
 		return true
 	}
-	// match: (MOVLstoreconst [a] {s} p x:(MOVLstoreconst [c] {s} p mem))
-	// cond: x.Uses == 1 && a.Off() + 4 == c.Off() && clobber(x)
-	// result: (MOVQstore [a.Off()] {s} p (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
+	// match: (MOVLstoreconst [a] {s} p0 x:(MOVLstoreconst [c] {s} p1 mem))
+	// cond: x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+4-c.Off())) && clobber(x)
+	// result: (MOVQstore [a.Off()] {s} p0 (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
 	for {
 		a := auxIntToValAndOff(v.AuxInt)
 		s := auxToSym(v.Aux)
-		p := v_0
+		p0 := v_0
 		x := v_1
 		if x.Op != OpAMD64MOVLstoreconst {
 			break
@@ -12675,7 +12678,8 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconst(v *Value) bool {
 			break
 		}
 		mem := x.Args[1]
-		if p != x.Args[0] || !(x.Uses == 1 && a.Off()+4 == c.Off() && clobber(x)) {
+		p1 := x.Args[0]
+		if !(x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+4-c.Off())) && clobber(x)) {
 			break
 		}
 		v.reset(OpAMD64MOVQstore)
@@ -12683,7 +12687,7 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconst(v *Value) bool {
 		v.Aux = symToAux(s)
 		v0 := b.NewValue0(x.Pos, OpAMD64MOVQconst, typ.UInt64)
 		v0.AuxInt = int64ToAuxInt(a.Val64()&0xffffffff | c.Val64()<<32)
-		v.AddArg3(p, v0, mem)
+		v.AddArg3(p0, v0, mem)
 		return true
 	}
 	return false
@@ -13593,13 +13597,13 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
 		v.AddArg2(ptr, mem)
 		return true
 	}
-	// match: (MOVQstoreconst [c] {s} p x:(MOVQstoreconst [a] {s} p mem))
-	// cond: config.useSSE && x.Uses == 1 && a.Off() + 8 == c.Off() && a.Val() == 0 && c.Val() == 0 && clobber(x)
-	// result: (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p mem)
+	// match: (MOVQstoreconst [c] {s} p1 x:(MOVQstoreconst [a] {s} p0 mem))
+	// cond: config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)
+	// result: (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 	for {
 		c := auxIntToValAndOff(v.AuxInt)
 		s := auxToSym(v.Aux)
-		p := v_0
+		p1 := v_0
 		x := v_1
 		if x.Op != OpAMD64MOVQstoreconst {
 			break
@@ -13609,22 +13613,23 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
 			break
 		}
 		mem := x.Args[1]
-		if p != x.Args[0] || !(config.useSSE && x.Uses == 1 && a.Off()+8 == c.Off() && a.Val() == 0 && c.Val() == 0 && clobber(x)) {
+		p0 := x.Args[0]
+		if !(config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)) {
 			break
 		}
 		v.reset(OpAMD64MOVOstoreconst)
 		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, a.Off()))
 		v.Aux = symToAux(s)
-		v.AddArg2(p, mem)
+		v.AddArg2(p0, mem)
 		return true
 	}
-	// match: (MOVQstoreconst [a] {s} p x:(MOVQstoreconst [c] {s} p mem))
-	// cond: config.useSSE && x.Uses == 1 && a.Off() + 8 == c.Off() && a.Val() == 0 && c.Val() == 0 && clobber(x)
-	// result: (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p mem)
+	// match: (MOVQstoreconst [a] {s} p0 x:(MOVQstoreconst [c] {s} p1 mem))
+	// cond: config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)
+	// result: (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 	for {
 		a := auxIntToValAndOff(v.AuxInt)
 		s := auxToSym(v.Aux)
-		p := v_0
+		p0 := v_0
 		x := v_1
 		if x.Op != OpAMD64MOVQstoreconst {
 			break
@@ -13634,13 +13639,14 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
 			break
 		}
 		mem := x.Args[1]
-		if p != x.Args[0] || !(config.useSSE && x.Uses == 1 && a.Off()+8 == c.Off() && a.Val() == 0 && c.Val() == 0 && clobber(x)) {
+		p1 := x.Args[0]
+		if !(config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)) {
 			break
 		}
 		v.reset(OpAMD64MOVOstoreconst)
 		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, a.Off()))
 		v.Aux = symToAux(s)
-		v.AddArg2(p, mem)
+		v.AddArg2(p0, mem)
 		return true
 	}
 	return false
@@ -14724,13 +14730,13 @@ func rewriteValueAMD64_OpAMD64MOVWstoreconst(v *Value) bool {
 		v.AddArg2(ptr, mem)
 		return true
 	}
-	// match: (MOVWstoreconst [c] {s} p x:(MOVWstoreconst [a] {s} p mem))
-	// cond: x.Uses == 1 && a.Off() + 2 == c.Off() && clobber(x)
-	// result: (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p mem)
+	// match: (MOVWstoreconst [c] {s} p1 x:(MOVWstoreconst [a] {s} p0 mem))
+	// cond: x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+2-c.Off())) && clobber(x)
+	// result: (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p0 mem)
 	for {
 		c := auxIntToValAndOff(v.AuxInt)
 		s := auxToSym(v.Aux)
-		p := v_0
+		p1 := v_0
 		x := v_1
 		if x.Op != OpAMD64MOVWstoreconst {
 			break
@@ -14740,22 +14746,23 @@ func rewriteValueAMD64_OpAMD64MOVWstoreconst(v *Value) bool {
 			break
 		}
 		mem := x.Args[1]
-		if p != x.Args[0] || !(x.Uses == 1 && a.Off()+2 == c.Off() && clobber(x)) {
+		p0 := x.Args[0]
+		if !(x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+2-c.Off())) && clobber(x)) {
 			break
 		}
 		v.reset(OpAMD64MOVLstoreconst)
 		v.AuxInt = valAndOffToAuxInt(makeValAndOff(a.Val()&0xffff|c.Val()<<16, a.Off()))
 		v.Aux = symToAux(s)
-		v.AddArg2(p, mem)
+		v.AddArg2(p0, mem)
 		return true
 	}
-	// match: (MOVWstoreconst [a] {s} p x:(MOVWstoreconst [c] {s} p mem))
-	// cond: x.Uses == 1 && a.Off() + 2 == c.Off() && clobber(x)
-	// result: (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p mem)
+	// match: (MOVWstoreconst [a] {s} p0 x:(MOVWstoreconst [c] {s} p1 mem))
+	// cond: x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+2-c.Off())) && clobber(x)
+	// result: (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p0 mem)
 	for {
 		a := auxIntToValAndOff(v.AuxInt)
 		s := auxToSym(v.Aux)
-		p := v_0
+		p0 := v_0
 		x := v_1
 		if x.Op != OpAMD64MOVWstoreconst {
 			break
@@ -14765,13 +14772,14 @@ func rewriteValueAMD64_OpAMD64MOVWstoreconst(v *Value) bool {
 			break
 		}
 		mem := x.Args[1]
-		if p != x.Args[0] || !(x.Uses == 1 && a.Off()+2 == c.Off() && clobber(x)) {
+		p1 := x.Args[0]
+		if !(x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+2-c.Off())) && clobber(x)) {
 			break
 		}
 		v.reset(OpAMD64MOVLstoreconst)
 		v.AuxInt = valAndOffToAuxInt(makeValAndOff(a.Val()&0xffff|c.Val()<<16, a.Off()))
 		v.Aux = symToAux(s)
-		v.AddArg2(p, mem)
+		v.AddArg2(p0, mem)
 		return true
 	}
 	return false
