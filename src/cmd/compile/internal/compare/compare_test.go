@@ -25,7 +25,7 @@ func init() {
 		sym.Def = obj
 		return obj
 	})
-	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1}}}
+	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
 }
 
 func TestEqStructCost(t *testing.T) {
@@ -127,7 +127,7 @@ func TestEqStructCost(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			want := tc.cost
-			actual := EqStructCost(tc.tfn(), true)
+			actual := EqStructCost(tc.tfn())
 			if actual != want {
 				t.Errorf("EqStructCost(%v) = %d, want %d", tc.tfn, actual, want)
 			}

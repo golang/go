@@ -84,7 +84,7 @@ func EqCanPanic(t *types.Type) bool {
 // The cost is determined using an algorithm which takes into consideration
 // the size of the registers in the current architecture and the size of the
 // memory-only fields in the struct.
-func EqStructCost(t *types.Type, unalignedLoad bool) int64 {
+func EqStructCost(t *types.Type) int64 {
 	cost := int64(0)
 
 	for i, fields := 0, t.FieldSlice(); i < len(fields); {
@@ -96,7 +96,7 @@ func EqStructCost(t *types.Type, unalignedLoad bool) int64 {
 			continue
 		}
 
-		n, _, next := eqStructFieldCost(t, f, i, unalignedLoad)
+		n, _, next := eqStructFieldCost(t, f, i)
 
 		cost += n
 		i = next
@@ -105,14 +105,14 @@ func EqStructCost(t *types.Type, unalignedLoad bool) int64 {
 	return cost
 }
 
-func eqStructFieldCost(t *types.Type, f *types.Field, i int, unalignedLoad bool) (int64, int64, int) {
+func eqStructFieldCost(t *types.Type, f *types.Field, i int) (int64, int64, int) {
 	var (
 		cost       = int64(0)
 		regSize    = int64(types.RegSize)
 		size, next = Memrun(t, i)
 	)
 
-	if unalignedLoad && size%regSize == 0 {
+	if base.Ctxt.Arch.CanMergeLoads && size%regSize == 0 {
 		cost += size / int64(types.RegSize)
 	} else if next == i+1 {
 		cost++
@@ -170,7 +170,7 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 			continue
 		}
 
-		cost, size, next := eqStructFieldCost(t, f, i, true)
+		cost, size, next := eqStructFieldCost(t, f, i)
 		s := fields[i:next]
 		if cost <= 2 {
 			// Two or fewer fields: use plain field equality.
