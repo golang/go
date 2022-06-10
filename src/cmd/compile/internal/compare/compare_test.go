@@ -34,7 +34,7 @@ func TestEqStructCost(t *testing.T) {
 		f.Offset = offset
 		return f
 	}
-	newIntField := func(parent *types.Type, offset int64, kind types.Kind) *types.Field {
+	newField := func(parent *types.Type, offset int64, kind types.Kind) *types.Field {
 		f := types.NewField(src.XPos{}, parent.Sym(), types.Types[kind])
 		f.Offset = offset
 		return f
@@ -85,7 +85,7 @@ func TestEqStructCost(t *testing.T) {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := make([]*types.Field, 2)
 				for i := range fields {
-					fields[i] = newIntField(parent, int64(i*4), types.TINT32)
+					fields[i] = newField(parent, int64(i*4), types.TINT32)
 				}
 				parent.SetFields(fields)
 				return parent
@@ -95,9 +95,29 @@ func TestEqStructCost(t *testing.T) {
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := make([]*types.Field, 3)
-				fields[0] = newIntField(parent, int64(0), types.TINT32)
-				fields[1] = newIntField(parent, int64(4), types.TINT32)
-				fields[2] = newIntField(parent, int64(8), types.TINT64)
+				fields[0] = newField(parent, int64(0), types.TINT32)
+				fields[1] = newField(parent, int64(4), types.TINT32)
+				fields[2] = newField(parent, int64(8), types.TINT64)
+				parent.SetFields(fields)
+				return parent
+			},
+		},
+		{"struct with 1 int field and 1 string", 3,
+			func() *types.Type {
+				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				fields := make([]*types.Field, 2)
+				fields[0] = newField(parent, int64(0), types.TINT64)
+				fields[1] = newField(parent, int64(8), types.TSTRING)
+				parent.SetFields(fields)
+				return parent
+			},
+		},
+		{"struct with 2 strings", 4,
+			func() *types.Type {
+				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				fields := make([]*types.Field, 2)
+				fields[0] = newField(parent, int64(0), types.TSTRING)
+				fields[1] = newField(parent, int64(8), types.TSTRING)
 				parent.SetFields(fields)
 				return parent
 			},

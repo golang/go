@@ -85,10 +85,7 @@ func EqCanPanic(t *types.Type) bool {
 // the size of the registers in the current architecture and the size of the
 // memory-only fields in the struct.
 func EqStructCost(t *types.Type, unalignedLoad bool) int64 {
-	var (
-		cost    = int64(0)
-		regSize = int64(types.RegSize)
-	)
+	cost := int64(0)
 
 	for i, fields := 0, t.FieldSlice(); i < len(fields); {
 		f := fields[i]
@@ -99,18 +96,29 @@ func EqStructCost(t *types.Type, unalignedLoad bool) int64 {
 			continue
 		}
 
-		size, next := Memrun(t, i)
+		n, _, next := eqStructFieldCost(t, f, i, unalignedLoad)
 
-		if unalignedLoad && size%regSize == 0 {
-			cost += size / int64(types.RegSize)
-		} else if next == i+1 {
-			cost++
-		}
-
+		cost += n
 		i = next
 	}
 
 	return cost
+}
+
+func eqStructFieldCost(t *types.Type, f *types.Field, i int, unalignedLoad bool) (int64, int64, int) {
+	var (
+		cost       = int64(0)
+		regSize    = int64(types.RegSize)
+		size, next = Memrun(t, i)
+	)
+
+	if unalignedLoad && size%regSize == 0 {
+		cost += size / int64(types.RegSize)
+	} else if next == i+1 {
+		cost++
+	}
+
+	return cost, size, next
 }
 
 // EqStruct compares two structs np and nq for equality.
@@ -162,12 +170,9 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 			continue
 		}
 
-		// Find maximal length run of memory-only fields.
-		size, next := Memrun(t, i)
-
-		// TODO(rsc): All the calls to newname are wrong for
-		// cross-package unexported fields.
-		if s := fields[i:next]; len(s) <= 2 {
+		cost, size, next := eqStructFieldCost(t, f, i, true)
+		s := fields[i:next]
+		if cost <= 2 {
 			// Two or fewer fields: use plain field equality.
 			for _, f := range s {
 				and(eqfield(np, nq, ir.OEQ, f.Sym))
