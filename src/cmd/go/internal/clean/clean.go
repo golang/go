@@ -22,6 +22,7 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
 
@@ -141,7 +142,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			// The top cache directory may have been created with special permissions
 			// and not something that we want to remove. Also, we'd like to preserve
 			// the access log for future analysis, even if the cache is cleared.
-			subdirs, _ := filepath.Glob(filepath.Join(dir, "[0-9a-f][0-9a-f]"))
+			subdirs, _ := filepath.Glob(filepath.Join(str.QuoteGlob(dir), "[0-9a-f][0-9a-f]"))
 			printedErrors := false
 			if len(subdirs) > 0 {
 				if cfg.BuildN || cfg.BuildX {

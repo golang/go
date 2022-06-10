@@ -66,3 +66,21 @@ func TrimFilePathPrefix(s, prefix string) string {
 	}
 	return trimmed[1:]
 }
+
+// QuoteGlob returns s with all Glob metacharacters quoted.
+// We don't try to handle backslash here, as that can appear in a
+// file path on Windows.
+func QuoteGlob(s string) string {
+	if !strings.ContainsAny(s, `*?[]`) {
+		return s
+	}
+	var sb strings.Builder
+	for _, c := range s {
+		switch c {
+		case '*', '?', '[', ']':
+			sb.WriteByte('\\')
+		}
+		sb.WriteRune(c)
+	}
+	return sb.String()
+}

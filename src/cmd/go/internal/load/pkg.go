@@ -2063,7 +2063,7 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 		}
 
 		// Glob to find matches.
-		match, err := fsys.Glob(pkgdir + string(filepath.Separator) + filepath.FromSlash(glob))
+		match, err := fsys.Glob(str.QuoteGlob(pkgdir) + string(filepath.Separator) + filepath.FromSlash(glob))
 		if err != nil {
 			return nil, nil, err
 		}
