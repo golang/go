@@ -126,6 +126,10 @@ pkg debug/pe, const IMAGE_COMDAT_SELECT_NODUPLICATES = 1 #51868
 pkg debug/pe, const IMAGE_COMDAT_SELECT_NODUPLICATES ideal-int #51868
 pkg debug/pe, const IMAGE_COMDAT_SELECT_SAME_SIZE = 3 #51868
 pkg debug/pe, const IMAGE_COMDAT_SELECT_SAME_SIZE ideal-int #51868
+pkg debug/pe, const IMAGE_FILE_MACHINE_LOONGARCH32 = 25138 #46229
+pkg debug/pe, const IMAGE_FILE_MACHINE_LOONGARCH32 ideal-int #46229
+pkg debug/pe, const IMAGE_FILE_MACHINE_LOONGARCH64 = 25188 #46229
+pkg debug/pe, const IMAGE_FILE_MACHINE_LOONGARCH64 ideal-int #46229
 pkg debug/pe, const IMAGE_SCN_CNT_CODE = 32 #51868
 pkg debug/pe, const IMAGE_SCN_CNT_CODE ideal-int #51868
 pkg debug/pe, const IMAGE_SCN_CNT_INITIALIZED_DATA = 64 #51868
