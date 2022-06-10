@@ -23,7 +23,7 @@ func (f *decompressor) huffmanBytesBuffer() {
 
 	// Optimization. Compiler isn't smart enough to keep f.b, f.nb in registers,
 	// but is smart enough to keep local variables in registers, so use nb and b,
-	// inline call to moreBits and reassign b, nb back to f on return.
+	// dict reference and reassign b, nb back to f on return.
 	fnb, fb, dict := f.nb, f.b, &f.dict
 	switch f.stepState {
 	case stateInit:
@@ -92,6 +92,7 @@ readLiteral:
 			return
 		// otherwise, reference to older data
 		case v < 265:
+			// No extra bits
 			length = v - (257 - 3)
 		case v < maxNumLit:
 			val := decCodeToLen[(v - 257)]
@@ -138,9 +139,6 @@ readLiteral:
 			// cases, the chunks slice will be 0 for the invalid sequence, leading it
 			// satisfy the n == 0 check below.
 			n := uint(f.hd.maxRead)
-			// Optimization. Compiler isn't smart enough to keep f.b,f.nb in registers,
-			// but is smart enough to keep local variables in registers, so use nb and b,
-			// inline call to moreBits and reassign b,nb back to f on return.
 			for {
 				for fnb < n {
 					c, err := fr.ReadByte()
@@ -242,7 +240,7 @@ func (f *decompressor) huffmanBytesReader() {
 
 	// Optimization. Compiler isn't smart enough to keep f.b, f.nb in registers,
 	// but is smart enough to keep local variables in registers, so use nb and b,
-	// inline call to moreBits and reassign b, nb back to f on return.
+	// dict reference and reassign b, nb back to f on return.
 	fnb, fb, dict := f.nb, f.b, &f.dict
 	switch f.stepState {
 	case stateInit:
@@ -311,6 +309,7 @@ readLiteral:
 			return
 		// otherwise, reference to older data
 		case v < 265:
+			// No extra bits
 			length = v - (257 - 3)
 		case v < maxNumLit:
 			val := decCodeToLen[(v - 257)]
@@ -357,9 +356,6 @@ readLiteral:
 			// cases, the chunks slice will be 0 for the invalid sequence, leading it
 			// satisfy the n == 0 check below.
 			n := uint(f.hd.maxRead)
-			// Optimization. Compiler isn't smart enough to keep f.b,f.nb in registers,
-			// but is smart enough to keep local variables in registers, so use nb and b,
-			// inline call to moreBits and reassign b,nb back to f on return.
 			for {
 				for fnb < n {
 					c, err := fr.ReadByte()
@@ -461,7 +457,7 @@ func (f *decompressor) huffmanBufioReader() {
 
 	// Optimization. Compiler isn't smart enough to keep f.b, f.nb in registers,
 	// but is smart enough to keep local variables in registers, so use nb and b,
-	// inline call to moreBits and reassign b, nb back to f on return.
+	// dict reference and reassign b, nb back to f on return.
 	fnb, fb, dict := f.nb, f.b, &f.dict
 	switch f.stepState {
 	case stateInit:
@@ -530,6 +526,7 @@ readLiteral:
 			return
 		// otherwise, reference to older data
 		case v < 265:
+			// No extra bits
 			length = v - (257 - 3)
 		case v < maxNumLit:
 			val := decCodeToLen[(v - 257)]
@@ -576,9 +573,6 @@ readLiteral:
 			// cases, the chunks slice will be 0 for the invalid sequence, leading it
 			// satisfy the n == 0 check below.
 			n := uint(f.hd.maxRead)
-			// Optimization. Compiler isn't smart enough to keep f.b,f.nb in registers,
-			// but is smart enough to keep local variables in registers, so use nb and b,
-			// inline call to moreBits and reassign b,nb back to f on return.
 			for {
 				for fnb < n {
 					c, err := fr.ReadByte()
@@ -680,7 +674,7 @@ func (f *decompressor) huffmanStringsReader() {
 
 	// Optimization. Compiler isn't smart enough to keep f.b, f.nb in registers,
 	// but is smart enough to keep local variables in registers, so use nb and b,
-	// inline call to moreBits and reassign b, nb back to f on return.
+	// dict reference and reassign b, nb back to f on return.
 	fnb, fb, dict := f.nb, f.b, &f.dict
 	switch f.stepState {
 	case stateInit:
@@ -749,6 +743,7 @@ readLiteral:
 			return
 		// otherwise, reference to older data
 		case v < 265:
+			// No extra bits
 			length = v - (257 - 3)
 		case v < maxNumLit:
 			val := decCodeToLen[(v - 257)]
@@ -795,9 +790,6 @@ readLiteral:
 			// cases, the chunks slice will be 0 for the invalid sequence, leading it
 			// satisfy the n == 0 check below.
 			n := uint(f.hd.maxRead)
-			// Optimization. Compiler isn't smart enough to keep f.b,f.nb in registers,
-			// but is smart enough to keep local variables in registers, so use nb and b,
-			// inline call to moreBits and reassign b,nb back to f on return.
 			for {
 				for fnb < n {
 					c, err := fr.ReadByte()
@@ -899,7 +891,7 @@ func (f *decompressor) huffmanGenericReader() {
 
 	// Optimization. Compiler isn't smart enough to keep f.b, f.nb in registers,
 	// but is smart enough to keep local variables in registers, so use nb and b,
-	// inline call to moreBits and reassign b, nb back to f on return.
+	// dict reference and reassign b, nb back to f on return.
 	fnb, fb, dict := f.nb, f.b, &f.dict
 	switch f.stepState {
 	case stateInit:
@@ -968,6 +960,7 @@ readLiteral:
 			return
 		// otherwise, reference to older data
 		case v < 265:
+			// No extra bits
 			length = v - (257 - 3)
 		case v < maxNumLit:
 			val := decCodeToLen[(v - 257)]
@@ -1014,9 +1007,6 @@ readLiteral:
 			// cases, the chunks slice will be 0 for the invalid sequence, leading it
 			// satisfy the n == 0 check below.
 			n := uint(f.hd.maxRead)
-			// Optimization. Compiler isn't smart enough to keep f.b,f.nb in registers,
-			// but is smart enough to keep local variables in registers, so use nb and b,
-			// inline call to moreBits and reassign b,nb back to f on return.
 			for {
 				for fnb < n {
 					c, err := fr.ReadByte()
