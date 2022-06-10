@@ -35,6 +35,10 @@ func (uri URI) Filename() string {
 }
 
 func filename(uri URI) (string, error) {
+	// This function is frequently called and its cost is
+	// dominated by the allocation of a net.URL.
+	// TODO(adonovan): opt: replace by a bespoke parseFileURI
+	// function that doesn't allocate.
 	if uri == "" {
 		return "", nil
 	}
@@ -80,6 +84,10 @@ func URIFromURI(s string) URI {
 	return URI(u.String())
 }
 
+// CompareURI performs a three-valued comparison of two URIs.
+// Lexically unequal URIs may compare equal if they are "file:" URIs
+// that share the same base name (ignoring case) and denote the same
+// file device/inode, according to stat(2).
 func CompareURI(a, b URI) int {
 	if equalURI(a, b) {
 		return 0

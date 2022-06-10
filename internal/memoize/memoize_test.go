@@ -87,7 +87,8 @@ func TestCleanup(t *testing.T) {
 	expectGet(t, h1, g1, &v1)
 	expectGet(t, h2, g1, &v2)
 	g2 := s.Generation("g2")
-	g2.Inherit(h1, h2)
+	g2.Inherit(h1)
+	g2.Inherit(h2)
 
 	g1.Destroy("TestCleanup")
 	expectGet(t, h1, g2, &v1)

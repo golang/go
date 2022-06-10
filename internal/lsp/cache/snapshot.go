@@ -76,7 +76,7 @@ type snapshot struct {
 	files map[span.URI]source.VersionedFileHandle
 
 	// goFiles maps a parseKey to its parseGoHandle.
-	goFiles map[parseKey]*parseGoHandle
+	goFiles *goFileMap
 
 	// TODO(rfindley): consider merging this with files to reduce burden on clone.
 	symbols map[span.URI]*symbolHandle
@@ -663,16 +663,17 @@ func (s *snapshot) transitiveReverseDependencies(id PackageID, ids map[PackageID
 func (s *snapshot) getGoFile(key parseKey) *parseGoHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.goFiles[key]
+	return s.goFiles.get(key)
 }
 
 func (s *snapshot) addGoFile(key parseKey, pgh *parseGoHandle) *parseGoHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if existing, ok := s.goFiles[key]; ok {
-		return existing
+
+	if prev := s.goFiles.get(key); prev != nil {
+		return prev
 	}
-	s.goFiles[key] = pgh
+	s.goFiles.set(key, pgh)
 	return pgh
 }
 
@@ -811,6 +812,8 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 	patterns := map[string]struct{}{
 		fmt.Sprintf("**/*.{%s}", extensions): {},
 	}
+
+	// Add a pattern for each Go module in the workspace that is not within the view.
 	dirs := s.workspace.dirs(ctx, s)
 	for _, dir := range dirs {
 		dirName := dir.Filename()
@@ -830,14 +833,19 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 	// contain Go code (golang/go#42348). To handle this, explicitly watch all
 	// of the directories in the workspace. We find them by adding the
 	// directories of every file in the snapshot's workspace directories.
-	var dirNames []string
-	for _, uri := range s.getKnownSubdirs(dirs) {
-		dirNames = append(dirNames, uri.Filename())
-	}
-	sort.Strings(dirNames)
-	if len(dirNames) > 0 {
+	// There may be thousands.
+	knownSubdirs := s.getKnownSubdirs(dirs)
+	if n := len(knownSubdirs); n > 0 {
+		dirNames := make([]string, 0, n)
+		for _, uri := range knownSubdirs {
+			dirNames = append(dirNames, uri.Filename())
+		}
+		sort.Strings(dirNames)
+		// The double allocation of Sprintf(Join()) accounts for 8%
+		// of DidChange, but specializing doesn't appear to help. :(
 		patterns[fmt.Sprintf("{%s}", strings.Join(dirNames, ","))] = struct{}{}
 	}
+
 	return patterns
 }
 
@@ -874,7 +882,7 @@ func (s *snapshot) getKnownSubdirs(wsDirs []span.URI) []span.URI {
 	}
 	s.unprocessedSubdirChanges = nil
 
-	var result []span.URI
+	result := make([]span.URI, 0, len(s.knownSubdirs))
 	for uri := range s.knownSubdirs {
 		result = append(result, uri)
 	}
@@ -1719,7 +1727,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		packages:          make(map[packageKey]*packageHandle, len(s.packages)),
 		actions:           make(map[actionKey]*actionHandle, len(s.actions)),
 		files:             make(map[span.URI]source.VersionedFileHandle, len(s.files)),
-		goFiles:           make(map[parseKey]*parseGoHandle, len(s.goFiles)),
+		goFiles:           s.goFiles.clone(),
 		symbols:           make(map[span.URI]*symbolHandle, len(s.symbols)),
 		workspacePackages: make(map[PackageID]PackagePath, len(s.workspacePackages)),
 		unloadableFiles:   make(map[span.URI]struct{}, len(s.unloadableFiles)),
@@ -1764,12 +1772,27 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		result.parseWorkHandles[k] = v
 	}
 
-	for k, v := range s.goFiles {
-		if _, ok := changes[k.file.URI]; ok {
-			continue
+	// Copy the handles of all Go source files.
+	// There may be tens of thousands of files,
+	// but changes are typically few, so we
+	// use a striped map optimized for this case
+	// and visit its stripes in parallel.
+	var (
+		toDeleteMu sync.Mutex
+		toDelete   []parseKey
+	)
+	s.goFiles.forEachConcurrent(func(k parseKey, v *parseGoHandle) {
+		if changes[k.file.URI] == nil {
+			// no change (common case)
+			newGen.Inherit(v.handle)
+		} else {
+			toDeleteMu.Lock()
+			toDelete = append(toDelete, k)
+			toDeleteMu.Unlock()
 		}
-		newGen.Inherit(v.handle)
-		result.goFiles[k] = v
+	})
+	for _, k := range toDelete {
+		result.goFiles.delete(k)
 	}
 
 	// Copy all of the go.mod-related handles. They may be invalidated later,
@@ -1975,21 +1998,34 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	deleteInvalidMetadata := forceReloadMetadata || workspaceModeChanged
 	idsInSnapshot := map[PackageID]bool{} // track all known IDs
 	for uri, ids := range s.meta.ids {
-		var resultIDs []PackageID
-		for _, id := range ids {
+		// Optimization: ids slices are typically numerous, short (<3),
+		// and rarely modified by this loop, so don't allocate copies
+		// until necessary.
+		var resultIDs []PackageID // nil implies equal to ids[:i:i]
+		for i, id := range ids {
 			if skipID[id] || deleteInvalidMetadata && idsToInvalidate[id] {
+				resultIDs = ids[:i:i] // unshare
 				continue
 			}
 			// The ID is not reachable from any workspace package, so it should
 			// be deleted.
 			if !reachableID[id] {
+				resultIDs = ids[:i:i] // unshare
 				continue
 			}
 			idsInSnapshot[id] = true
-			resultIDs = append(resultIDs, id)
+			if resultIDs != nil {
+				resultIDs = append(resultIDs, id)
+			}
+		}
+		if resultIDs == nil {
+			resultIDs = ids
 		}
 		result.meta.ids[uri] = resultIDs
 	}
+	// TODO(adonovan): opt: represent PackageID as an index into a process-global
+	// dup-free list of all package names ever seen, then use a bitmap instead of
+	// a hash table for "PackageSet" (e.g. idsInSnapshot).
 
 	// Copy the package metadata. We only need to invalidate packages directly
 	// containing the affected file, and only if it changed in a relevant way.
@@ -2259,7 +2295,7 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 // lockedSnapshot must be locked.
 func peekOrParse(ctx context.Context, lockedSnapshot *snapshot, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
 	key := parseKey{file: fh.FileIdentity(), mode: mode}
-	if pgh := lockedSnapshot.goFiles[key]; pgh != nil {
+	if pgh := lockedSnapshot.goFiles.get(key); pgh != nil {
 		cached := pgh.handle.Cached(lockedSnapshot.generation)
 		if cached != nil {
 			cached := cached.(*parseGoData)
@@ -2546,4 +2582,108 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) error 
 		dst[mod] = append(dst[mod], f[2])
 	}
 	return nil
+}
+
+// -- goFileMap --
+
+// A goFileMap is conceptually a map[parseKey]*parseGoHandle,
+// optimized for cloning all or nearly all entries.
+type goFileMap struct {
+	// The map is represented as a map of 256 stripes, one per
+	// distinct value of the top 8 bits of key.file.Hash.
+	// Each stripe has an associated boolean indicating whether it
+	// is shared, and thus immutable, and thus must be copied before any update.
+	// (The bits could be packed but it hasn't been worth it yet.)
+	stripes   [256]map[parseKey]*parseGoHandle
+	exclusive [256]bool // exclusive[i] means stripe[i] is not shared and may be safely mutated
+}
+
+// newGoFileMap returns a new empty goFileMap.
+func newGoFileMap() *goFileMap {
+	return new(goFileMap) // all stripes are shared (non-exclusive) nil maps
+}
+
+// clone returns a copy of m.
+// For concurrency, it counts as an update to m.
+func (m *goFileMap) clone() *goFileMap {
+	m.exclusive = [256]bool{} // original and copy are now nonexclusive
+	copy := *m
+	return &copy
+}
+
+// get returns the value for key k.
+func (m *goFileMap) get(k parseKey) *parseGoHandle {
+	return m.stripes[m.hash(k)][k]
+}
+
+// set updates the value for key k to v.
+func (m *goFileMap) set(k parseKey, v *parseGoHandle) {
+	m.unshare(k)[k] = v
+}
+
+// delete deletes the value for key k, if any.
+func (m *goFileMap) delete(k parseKey) {
+	// TODO(adonovan): opt?: skip unshare if k isn't present.
+	delete(m.unshare(k), k)
+}
+
+// forEachConcurrent calls f for each entry in the map.
+// Calls may be concurrent.
+// f must not modify m.
+func (m *goFileMap) forEachConcurrent(f func(parseKey, *parseGoHandle)) {
+	// Visit stripes in parallel chunks.
+	const p = 16 // concurrency level
+	var wg sync.WaitGroup
+	wg.Add(p)
+	for i := 0; i < p; i++ {
+		chunk := m.stripes[i*p : (i+1)*p]
+		go func() {
+			for _, stripe := range chunk {
+				for k, v := range stripe {
+					f(k, v)
+				}
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
+// -- internal--
+
+// hash returns 8 bits from the key's file digest.
+func (m *goFileMap) hash(k parseKey) int {
+	h := k.file.Hash
+	if h == "" {
+		// Sadly the Hash isn't always a hash because cache.GetFile may
+		// successfully return a *fileHandle containing an error and no hash.
+		// Lump the duds together for now.
+		// TODO(adonovan): fix the underlying bug.
+		return 0
+	}
+	return unhex(h[0])<<4 | unhex(h[1])
+}
+
+// unhex returns the value of a valid hex digit.
+func unhex(b byte) int {
+	if '0' <= b && b <= '9' {
+		return int(b - '0')
+	}
+	return int(b) & ^0x20 - 'A' + 0xA // [a-fA-F]
+}
+
+// unshare makes k's stripe exclusive, allocating a copy if needed, and returns it.
+func (m *goFileMap) unshare(k parseKey) map[parseKey]*parseGoHandle {
+	i := m.hash(k)
+	if !m.exclusive[i] {
+		m.exclusive[i] = true
+
+		// Copy the map.
+		copy := make(map[parseKey]*parseGoHandle, len(m.stripes[i]))
+		for k, v := range m.stripes[i] {
+			copy[k] = v
+		}
+		m.stripes[i] = copy
+	}
+	return m.stripes[i]
 }

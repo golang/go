@@ -183,8 +183,14 @@ func (h *fileHandle) Read() ([]byte, error) {
 	return h.bytes, h.err
 }
 
+// hashContents returns a string of hex digits denoting the hash of contents.
+//
+// TODO(adonovan): opt: use [32]byte array as a value more widely and convert
+// to hex digits on demand (rare). The array is larger when it appears as a
+// struct field (32B vs 16B) but smaller overall (string data is 64B), has
+// better locality, and is more efficiently hashed by runtime maps.
 func hashContents(contents []byte) string {
-	return fmt.Sprintf("%x", sha256.Sum256(contents))
+	return fmt.Sprintf("%64x", sha256.Sum256(contents))
 }
 
 var cacheIndex, sessionIndex, viewIndex int64

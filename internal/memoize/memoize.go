@@ -234,19 +234,18 @@ func (s *Store) DebugOnlyIterate(f func(k, v interface{})) {
 	}
 }
 
-func (g *Generation) Inherit(hs ...*Handle) {
-	for _, h := range hs {
-		if atomic.LoadUint32(&g.destroyed) != 0 {
-			panic("inherit on generation " + g.name + " destroyed by " + g.destroyedBy)
-		}
-
-		h.mu.Lock()
-		if h.state == stateDestroyed {
-			panic(fmt.Sprintf("inheriting destroyed handle %#v (type %T) into generation %v", h.key, h.key, g.name))
-		}
-		h.generations[g] = struct{}{}
-		h.mu.Unlock()
+// Inherit makes h valid in generation g. It is concurrency-safe.
+func (g *Generation) Inherit(h *Handle) {
+	if atomic.LoadUint32(&g.destroyed) != 0 {
+		panic("inherit on generation " + g.name + " destroyed by " + g.destroyedBy)
 	}
+
+	h.mu.Lock()
+	if h.state == stateDestroyed {
+		panic(fmt.Sprintf("inheriting destroyed handle %#v (type %T) into generation %v", h.key, h.key, g.name))
+	}
+	h.generations[g] = struct{}{}
+	h.mu.Unlock()
 }
 
 // Cached returns the value associated with a handle.

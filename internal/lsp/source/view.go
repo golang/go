@@ -532,7 +532,7 @@ type FileHandle interface {
 type FileIdentity struct {
 	URI span.URI
 
-	// Identifier represents a unique identifier for the file's content.
+	// Hash is a string of hex digits denoting the cryptographic digest of the file's content.
 	Hash string
 }
 
