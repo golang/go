@@ -333,3 +333,93 @@ func BenchmarkMutexSpin(b *testing.B) {
 		}
 	})
 }
+
+const runtimeSemaHashTableSize = 251 // known size of runtime hash table
+
+func TestMutexLinearOne(t *testing.T) {
+	testenv.CheckLinear(t, func(scale float64) func(*testing.B) {
+		n := int(1000 * scale)
+		return func(b *testing.B) {
+			ch := make(chan int)
+			locks := make([]RWMutex, runtimeSemaHashTableSize+1)
+			for i := 0; i < n; i++ {
+				go func() {
+					locks[0].Lock()
+					ch <- 1
+				}()
+			}
+			time.Sleep(1 * time.Millisecond)
+
+			go func() {
+				for j := 0; j < n; j++ {
+					locks[1].Lock()
+					locks[runtimeSemaHashTableSize].Lock()
+					locks[1].Unlock()
+					runtime.Gosched()
+					locks[runtimeSemaHashTableSize].Unlock()
+				}
+			}()
+
+			for j := 0; j < n; j++ {
+				locks[1].Lock()
+				locks[runtimeSemaHashTableSize].Lock()
+				locks[1].Unlock()
+				runtime.Gosched()
+				locks[runtimeSemaHashTableSize].Unlock()
+			}
+
+			for i := 0; i < n; i++ {
+				<-ch
+				locks[0].Unlock()
+			}
+		}
+	})
+}
+
+func TestMutexLinearMany(t *testing.T) {
+	if runtime.GOARCH == "arm" && os.Getenv("GOARM") == "5" {
+		// stressLockMany reliably fails on the linux-arm-arm5spacemonkey
+		// builder. See https://golang.org/issue/24221.
+		return
+	}
+	testenv.CheckLinear(t, func(scale float64) func(*testing.B) {
+		n := int(1000 * scale)
+		return func(b *testing.B) {
+			locks := make([]RWMutex, n*runtimeSemaHashTableSize+1)
+
+			var wg WaitGroup
+			for i := 0; i < n; i++ {
+				wg.Add(1)
+				go func(i int) {
+					locks[(i+1)*runtimeSemaHashTableSize].Lock()
+					wg.Done()
+					locks[(i+1)*runtimeSemaHashTableSize].Lock()
+					locks[(i+1)*runtimeSemaHashTableSize].Unlock()
+				}(i)
+			}
+			wg.Wait()
+
+			go func() {
+				for j := 0; j < n; j++ {
+					locks[1].Lock()
+					locks[0].Lock()
+					locks[1].Unlock()
+					runtime.Gosched()
+					locks[0].Unlock()
+				}
+			}()
+
+			for j := 0; j < n; j++ {
+				locks[1].Lock()
+				locks[0].Lock()
+				locks[1].Unlock()
+				runtime.Gosched()
+				locks[0].Unlock()
+			}
+
+			for i := 0; i < n; i++ {
+				locks[(i+1)*runtimeSemaHashTableSize].Unlock()
+			}
+		}
+	})
+}
