@@ -1615,9 +1615,63 @@ func (v Value) IsZero() bool {
 		}
 		return true
 	default:
-		// This should never happens, but will act as a safeguard for
-		// later, as a default value doesn't makes sense here.
+		// This should never happen, but will act as a safeguard for later,
+		// as a default value doesn't makes sense here.
 		panic(&ValueError{"reflect.Value.IsZero", v.Kind()})
+	}
+}
+
+// SetZero sets v to be the zero value of v's type.
+// It panics if CanSet returns false.
+func (v Value) SetZero() {
+	v.mustBeAssignable()
+	switch v.kind() {
+	case Bool:
+		*(*bool)(v.ptr) = false
+	case Int:
+		*(*int)(v.ptr) = 0
+	case Int8:
+		*(*int8)(v.ptr) = 0
+	case Int16:
+		*(*int16)(v.ptr) = 0
+	case Int32:
+		*(*int32)(v.ptr) = 0
+	case Int64:
+		*(*int64)(v.ptr) = 0
+	case Uint:
+		*(*uint)(v.ptr) = 0
+	case Uint8:
+		*(*uint8)(v.ptr) = 0
+	case Uint16:
+		*(*uint16)(v.ptr) = 0
+	case Uint32:
+		*(*uint32)(v.ptr) = 0
+	case Uint64:
+		*(*uint64)(v.ptr) = 0
+	case Uintptr:
+		*(*uintptr)(v.ptr) = 0
+	case Float32:
+		*(*float32)(v.ptr) = 0
+	case Float64:
+		*(*float64)(v.ptr) = 0
+	case Complex64:
+		*(*complex64)(v.ptr) = 0
+	case Complex128:
+		*(*complex128)(v.ptr) = 0
+	case String:
+		*(*string)(v.ptr) = ""
+	case Slice:
+		*(*unsafeheader.Slice)(v.ptr) = unsafeheader.Slice{}
+	case Interface:
+		*(*[2]unsafe.Pointer)(v.ptr) = [2]unsafe.Pointer{}
+	case Chan, Func, Map, Pointer, UnsafePointer:
+		*(*unsafe.Pointer)(v.ptr) = nil
+	case Array, Struct:
+		typedmemclr(v.typ, v.ptr)
+	default:
+		// This should never happen, but will act as a safeguard for later,
+		// as a default value doesn't makes sense here.
+		panic(&ValueError{"reflect.Value.SetZero", v.Kind()})
 	}
 }
 

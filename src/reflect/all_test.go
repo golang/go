@@ -1374,6 +1374,8 @@ func TestIsZero(t *testing.T) {
 		{[3][]int{{1}}, false},                  // incomparable array
 		{[1 << 12]byte{}, true},
 		{[1 << 12]byte{1}, false},
+		{[3]Value{}, true},
+		{[3]Value{{}, ValueOf(0), {}}, false},
 		// Chan
 		{(chan string)(nil), true},
 		{make(chan string), false},
@@ -1406,6 +1408,8 @@ func TestIsZero(t *testing.T) {
 		{struct{ p *int }{new(int)}, false},   // direct pointer struct
 		{struct{ s []int }{}, true},           // incomparable struct
 		{struct{ s []int }{[]int{1}}, false},  // incomparable struct
+		{struct{ Value }{}, true},
+		{struct{ Value }{ValueOf(0)}, false},
 		// UnsafePointer
 		{(unsafe.Pointer)(nil), true},
 		{(unsafe.Pointer)(new(int)), false},
@@ -1424,6 +1428,13 @@ func TestIsZero(t *testing.T) {
 
 		if !Zero(TypeOf(tt.x)).IsZero() {
 			t.Errorf("%d: IsZero(Zero(TypeOf((%s)(%+v)))) is false", i, x.Kind(), tt.x)
+		}
+
+		p := New(x.Type()).Elem()
+		p.Set(x)
+		p.SetZero()
+		if !p.IsZero() {
+			t.Errorf("%d: IsZero((%s)(%+v)) is true after SetZero", i, p.Kind(), tt.x)
 		}
 	}
 
@@ -1451,6 +1462,46 @@ func BenchmarkIsZero(b *testing.B) {
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				sink = value.IsZero()
+			}
+		})
+	}
+}
+
+func BenchmarkSetZero(b *testing.B) {
+	source := ValueOf(new(struct {
+		Bool      bool
+		Int       int64
+		Uint      uint64
+		Float     float64
+		Complex   complex128
+		Array     [4]Value
+		Chan      chan Value
+		Func      func() Value
+		Interface interface{ String() string }
+		Map       map[string]Value
+		Pointer   *Value
+		Slice     []Value
+		String    string
+		Struct    Value
+	})).Elem()
+
+	for i := 0; i < source.NumField(); i++ {
+		name := source.Type().Field(i).Name
+		value := source.Field(i)
+		zero := Zero(value.Type())
+		b.Run(name+"/Direct", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				value.SetZero()
+			}
+		})
+		b.Run(name+"/CachedZero", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				value.Set(zero)
+			}
+		})
+		b.Run(name+"/NewZero", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				value.Set(Zero(value.Type()))
 			}
 		})
 	}
