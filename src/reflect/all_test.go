@@ -47,6 +47,8 @@ type T struct {
 	d *int
 }
 
+var _ = T{} == T{} // tests depend on T being comparable
+
 type pair struct {
 	i any
 	s string
@@ -1364,9 +1366,14 @@ func TestIsZero(t *testing.T) {
 		{uintptr(128), false},
 		// Array
 		{Zero(TypeOf([5]string{})).Interface(), true},
-		{[5]string{"", "", "", "", ""}, true},
-		{[5]string{}, true},
-		{[5]string{"", "", "", "a", ""}, false},
+		{[5]string{}, true},                     // comparable array
+		{[5]string{"", "", "", "a", ""}, false}, // comparable array
+		{[1]*int{}, true},                       // direct pointer array
+		{[1]*int{new(int)}, false},              // direct pointer array
+		{[3][]int{}, true},                      // incomparable array
+		{[3][]int{{1}}, false},                  // incomparable array
+		{[1 << 12]byte{}, true},
+		{[1 << 12]byte{1}, false},
 		// Chan
 		{(chan string)(nil), true},
 		{make(chan string), false},
@@ -1393,8 +1400,12 @@ func TestIsZero(t *testing.T) {
 		{"", true},
 		{"not-zero", false},
 		// Structs
-		{T{}, true},
-		{T{123, 456.75, "hello", &_i}, false},
+		{T{}, true},                           // comparable struct
+		{T{123, 456.75, "hello", &_i}, false}, // comparable struct
+		{struct{ p *int }{}, true},            // direct pointer struct
+		{struct{ p *int }{new(int)}, false},   // direct pointer struct
+		{struct{ s []int }{}, true},           // incomparable struct
+		{struct{ s []int }{[]int{1}}, false},  // incomparable struct
 		// UnsafePointer
 		{(unsafe.Pointer)(nil), true},
 		{(unsafe.Pointer)(new(int)), false},
@@ -1424,6 +1435,25 @@ func TestIsZero(t *testing.T) {
 		}()
 		(Value{}).IsZero()
 	}()
+}
+
+func BenchmarkIsZero(b *testing.B) {
+	source := ValueOf(struct {
+		ArrayComparable    [4]T
+		ArrayIncomparable  [4]_Complex
+		StructComparable   T
+		StructIncomparable _Complex
+	}{})
+
+	for i := 0; i < source.NumField(); i++ {
+		name := source.Type().Field(i).Name
+		value := source.Field(i)
+		b.Run(name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				sink = value.IsZero()
+			}
+		})
+	}
 }
 
 func TestInterfaceExtraction(t *testing.T) {

@@ -1579,7 +1579,16 @@ func (v Value) IsZero() bool {
 		c := v.Complex()
 		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
 	case Array:
-		for i := 0; i < v.Len(); i++ {
+		// If the type is comparable, then compare directly with zero.
+		if v.typ.equal != nil && v.typ.size <= maxZero {
+			if v.flag&flagIndir == 0 {
+				return v.ptr == nil
+			}
+			return v.typ.equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
+		}
+
+		n := v.Len()
+		for i := 0; i < n; i++ {
 			if !v.Index(i).IsZero() {
 				return false
 			}
@@ -1590,7 +1599,16 @@ func (v Value) IsZero() bool {
 	case String:
 		return v.Len() == 0
 	case Struct:
-		for i := 0; i < v.NumField(); i++ {
+		// If the type is comparable, then compare directly with zero.
+		if v.typ.equal != nil && v.typ.size <= maxZero {
+			if v.flag&flagIndir == 0 {
+				return v.ptr == nil
+			}
+			return v.typ.equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
+		}
+
+		n := v.NumField()
+		for i := 0; i < n; i++ {
 			if !v.Field(i).IsZero() {
 				return false
 			}
