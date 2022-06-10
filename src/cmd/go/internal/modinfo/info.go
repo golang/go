@@ -4,7 +4,11 @@
 
 package modinfo
 
-import "time"
+import (
+	"cmd/go/internal/modfetch/codehost"
+	"encoding/json"
+	"time"
+)
 
 // Note that these structs are publicly visible (part of go list's API)
 // and the fields are documented in the help text in ../list/list.go
@@ -12,6 +16,7 @@ import "time"
 type ModulePublic struct {
 	Path       string        `json:",omitempty"` // module path
 	Version    string        `json:",omitempty"` // module version
+	Query      string        `json:",omitempty"` // version query corresponding to this version
 	Versions   []string      `json:",omitempty"` // available module versions
 	Replace    *ModulePublic `json:",omitempty"` // replaced by this module
 	Time       *time.Time    `json:",omitempty"` // time version was created
@@ -24,10 +29,25 @@ type ModulePublic struct {
 	Retracted  []string      `json:",omitempty"` // retraction information, if any (with -retracted or -u)
 	Deprecated string        `json:",omitempty"` // deprecation message, if any (with -u)
 	Error      *ModuleError  `json:",omitempty"` // error loading module
+
+	Origin *codehost.Origin `json:",omitempty"` // provenance of module
+	Reuse  bool             `json:",omitempty"` // reuse of old module info is safe
 }
 
 type ModuleError struct {
 	Err string // error text
+}
+
+type moduleErrorNoMethods ModuleError
+
+// UnmarshalJSON accepts both {"Err":"text"} and "text",
+// so that the output of go mod download -json can still
+// be unmarshalled into a ModulePublic during -reuse processing.
+func (e *ModuleError) UnmarshalJSON(data []byte) error {
+	if len(data) > 0 && data[0] == '"' {
+		return json.Unmarshal(data, &e.Err)
+	}
+	return json.Unmarshal(data, (*moduleErrorNoMethods)(e))
 }
 
 func (m *ModulePublic) String() string {

@@ -573,6 +573,26 @@ func writeDiskStat(file string, info *RevInfo) error {
 	if file == "" {
 		return nil
 	}
+
+	if info.Origin != nil {
+		// Clean the origin information, which might have too many
+		// validation criteria, for example if we are saving the result of
+		// m@master as m@pseudo-version.
+		clean := *info
+		info = &clean
+		o := *info.Origin
+		info.Origin = &o
+
+		// Tags never matter if you are starting with a semver version,
+		// as we would be when finding this cache entry.
+		o.TagSum = ""
+		o.TagPrefix = ""
+		// Ref doesn't matter if you have a pseudoversion.
+		if module.IsPseudoVersion(info.Version) {
+			o.Ref = ""
+		}
+	}
+
 	js, err := json.Marshal(info)
 	if err != nil {
 		return err

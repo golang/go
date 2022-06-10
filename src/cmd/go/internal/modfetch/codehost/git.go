@@ -423,8 +423,11 @@ func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
 
 	defer func() {
 		if info != nil {
-			info.Origin.Ref = ref
 			info.Origin.Hash = info.Name
+			// There's a ref = hash below; don't write that hash down as Origin.Ref.
+			if ref != info.Origin.Hash {
+				info.Origin.Ref = ref
+			}
 		}
 	}()
 

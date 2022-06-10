@@ -113,20 +113,17 @@ type Origin struct {
 }
 
 // Checkable reports whether the Origin contains anything that can be checked.
-// If not, it's purely informational and should fail a CheckReuse call.
+// If not, the Origin is purely informational and should fail a CheckReuse call.
 func (o *Origin) Checkable() bool {
 	return o.TagSum != "" || o.Ref != "" || o.Hash != ""
 }
 
-func (o *Origin) Merge(other *Origin) {
-	if o.TagSum == "" {
-		o.TagPrefix = other.TagPrefix
-		o.TagSum = other.TagSum
-	}
-	if o.Ref == "" {
-		o.Ref = other.Ref
-		o.Hash = other.Hash
-	}
+// ClearCheckable clears the Origin enough to make Checkable return false.
+func (o *Origin) ClearCheckable() {
+	o.TagSum = ""
+	o.TagPrefix = ""
+	o.Ref = ""
+	o.Hash = ""
 }
 
 // A Tags describes the available tags in a code repository.

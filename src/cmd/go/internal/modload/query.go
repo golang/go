@@ -20,6 +20,8 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modfetch/codehost"
+	"cmd/go/internal/modinfo"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
@@ -72,16 +74,37 @@ import (
 //
 // If path is the path of the main module and the query is "latest",
 // Query returns Target.Version as the version.
+//
+// Query often returns a non-nil *RevInfo with a non-nil error,
+// to provide an info.Origin that can allow the error to be cached.
 func Query(ctx context.Context, path, query, current string, allowed AllowedFunc) (*modfetch.RevInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "modload.Query "+path)
 	defer span.Done()
 
+	return queryReuse(ctx, path, query, current, allowed, nil)
+}
+
+// queryReuse is like Query but also takes a map of module info that can be reused
+// if the validation criteria in Origin are met.
+func queryReuse(ctx context.Context, path, query, current string, allowed AllowedFunc, reuse map[module.Version]*modinfo.ModulePublic) (*modfetch.RevInfo, error) {
 	var info *modfetch.RevInfo
 	err := modfetch.TryProxies(func(proxy string) (err error) {
-		info, err = queryProxy(ctx, proxy, path, query, current, allowed)
+		info, err = queryProxy(ctx, proxy, path, query, current, allowed, reuse)
 		return err
 	})
 	return info, err
+}
+
+// checkReuse checks whether a revision of a given module or a version list
+// for a given module may be reused, according to the information in origin.
+func checkReuse(ctx context.Context, path string, old *codehost.Origin) error {
+	return modfetch.TryProxies(func(proxy string) error {
+		repo, err := lookupRepo(proxy, path)
+		if err != nil {
+			return err
+		}
+		return repo.CheckReuse(old)
+	})
 }
 
 // AllowedFunc is used by Query and other functions to filter out unsuitable
@@ -106,7 +129,7 @@ func (queryDisabledError) Error() string {
 	return fmt.Sprintf("cannot query module due to -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
 }
 
-func queryProxy(ctx context.Context, proxy, path, query, current string, allowed AllowedFunc) (*modfetch.RevInfo, error) {
+func queryProxy(ctx context.Context, proxy, path, query, current string, allowed AllowedFunc, reuse map[module.Version]*modinfo.ModulePublic) (*modfetch.RevInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "modload.queryProxy "+path+" "+query)
 	defer span.Done()
 
@@ -135,6 +158,19 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	repo, err := lookupRepo(proxy, path)
 	if err != nil {
 		return nil, err
+	}
+
+	if old := reuse[module.Version{Path: path, Version: query}]; old != nil {
+		if err := repo.CheckReuse(old.Origin); err == nil {
+			info := &modfetch.RevInfo{
+				Version: old.Version,
+				Origin:  old.Origin,
+			}
+			if old.Time != nil {
+				info.Time = *old.Time
+			}
+			return info, nil
+		}
 	}
 
 	// Parse query to detect parse errors (and possibly handle query)
@@ -177,15 +213,23 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	if err != nil {
 		return nil, err
 	}
+	revErr := &modfetch.RevInfo{Origin: versions.Origin} // RevInfo to return with error
+
 	releases, prereleases, err := qm.filterVersions(ctx, versions.List)
 	if err != nil {
-		return nil, err
+		return revErr, err
 	}
 
 	lookup := func(v string) (*modfetch.RevInfo, error) {
 		rev, err := repo.Stat(v)
+		// Stat can return a non-nil rev and a non-nil err,
+		// in order to provide origin information to make the error cacheable.
+		if rev == nil && err != nil {
+			return revErr, err
+		}
+		rev.Origin = mergeOrigin(rev.Origin, versions.Origin)
 		if err != nil {
-			return nil, err
+			return rev, err
 		}
 
 		if (query == "upgrade" || query == "patch") && module.IsPseudoVersion(current) && !rev.Time.IsZero() {
@@ -210,9 +254,14 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 			currentTime, err := module.PseudoVersionTime(current)
 			if err == nil && rev.Time.Before(currentTime) {
 				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
-					return nil, err
+					return revErr, err
 				}
-				return repo.Stat(current)
+				info, err := repo.Stat(current)
+				if info == nil && err != nil {
+					return revErr, err
+				}
+				info.Origin = mergeOrigin(info.Origin, versions.Origin)
+				return info, err
 			}
 		}
 
@@ -242,7 +291,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 				return lookup(latest.Version)
 			}
 		} else if !errors.Is(err, fs.ErrNotExist) {
-			return nil, err
+			return revErr, err
 		}
 	}
 
@@ -254,7 +303,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		return lookup(current)
 	}
 
-	return nil, &NoMatchingVersionError{query: query, current: current}
+	return revErr, &NoMatchingVersionError{query: query, current: current}
 }
 
 // IsRevisionQuery returns true if vers is a version query that may refer to
@@ -663,7 +712,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 
 			pathCurrent := current(path)
 			r.Mod.Path = path
-			r.Rev, err = queryProxy(ctx, proxy, path, query, pathCurrent, allowed)
+			r.Rev, err = queryProxy(ctx, proxy, path, query, pathCurrent, allowed, nil)
 			if err != nil {
 				return r, err
 			}
@@ -991,6 +1040,7 @@ func versionHasGoMod(_ context.Context, m module.Version) (bool, error) {
 // available versions, but cannot fetch specific source files.
 type versionRepo interface {
 	ModulePath() string
+	CheckReuse(*codehost.Origin) error
 	Versions(prefix string) (*modfetch.Versions, error)
 	Stat(rev string) (*modfetch.RevInfo, error)
 	Latest() (*modfetch.RevInfo, error)
@@ -1024,6 +1074,9 @@ type emptyRepo struct {
 var _ versionRepo = emptyRepo{}
 
 func (er emptyRepo) ModulePath() string { return er.path }
+func (er emptyRepo) CheckReuse(old *codehost.Origin) error {
+	return fmt.Errorf("empty repo")
+}
 func (er emptyRepo) Versions(prefix string) (*modfetch.Versions, error) {
 	return &modfetch.Versions{}, nil
 }
@@ -1043,6 +1096,10 @@ type replacementRepo struct {
 var _ versionRepo = (*replacementRepo)(nil)
 
 func (rr *replacementRepo) ModulePath() string { return rr.repo.ModulePath() }
+
+func (rr *replacementRepo) CheckReuse(old *codehost.Origin) error {
+	return fmt.Errorf("replacement repo")
+}
 
 // Versions returns the versions from rr.repo augmented with any matching
 // replacement versions.

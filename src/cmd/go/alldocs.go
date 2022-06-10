@@ -930,6 +930,7 @@
 //
 //	type Module struct {
 //	    Path       string        // module path
+//	    Query      string        // version query corresponding to this version
 //	    Version    string        // module version
 //	    Versions   []string      // available module versions
 //	    Replace    *Module       // replaced by this module
@@ -943,6 +944,8 @@
 //	    Retracted  []string      // retraction information, if any (with -retracted or -u)
 //	    Deprecated string        // deprecation message, if any (with -u)
 //	    Error      *ModuleError  // error loading module
+//	    Origin     any           // provenance of module
+//	    Reuse      bool          // reuse of old module info is safe
 //	}
 //
 //	type ModuleError struct {
@@ -1019,6 +1022,16 @@
 // module as a Module struct. If an error occurs, the result will
 // be a Module struct with a non-nil Error field.
 //
+// When using -m, the -reuse=old.json flag accepts the name of file containing
+// the JSON output of a previous 'go list -m -json' invocation with the
+// same set of modifier flags (such as -u, -retracted, and -versions).
+// The go command may use this file to determine that a module is unchanged
+// since the previous invocation and avoid redownloading information about it.
+// Modules that are not redownloaded will be marked in the new output by
+// setting the Reuse field to true. Normally the module cache provides this
+// kind of reuse automatically; the -reuse flag can be useful on systems that
+// do not preserve the module cache.
+//
 // For more about build flags, see 'go help build'.
 //
 // For more about specifying packages, see 'go help packages'.
@@ -1055,7 +1068,7 @@
 //
 // Usage:
 //
-//	go mod download [-x] [-json] [modules]
+//	go mod download [-x] [-json] [-reuse=old.json] [modules]
 //
 // Download downloads the named modules, which can be module patterns selecting
 // dependencies of the main module or module queries of the form path@version.
@@ -1078,6 +1091,7 @@
 //
 //	type Module struct {
 //	    Path     string // module path
+//	    Query    string // version query corresponding to this version
 //	    Version  string // module version
 //	    Error    string // error loading module
 //	    Info     string // absolute path to cached .info file
@@ -1086,7 +1100,17 @@
 //	    Dir      string // absolute path to cached source root directory
 //	    Sum      string // checksum for path, version (as in go.sum)
 //	    GoModSum string // checksum for go.mod (as in go.sum)
+//	    Origin   any    // provenance of module
+//	    Reuse    bool   // reuse of old module info is safe
 //	}
+//
+// The -reuse flag accepts the name of file containing the JSON output of a
+// previous 'go mod download -json' invocation. The go command may use this
+// file to determine that a module is unchanged since the previous invocation
+// and avoid redownloading it. Modules that are not redownloaded will be marked
+// in the new output by setting the Reuse field to true. Normally the module
+// cache provides this kind of reuse automatically; the -reuse flag can be
+// useful on systems that do not preserve the module cache.
 //
 // The -x flag causes download to print the commands download executes.
 //

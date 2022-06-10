@@ -13,6 +13,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modload"
 
 	"golang.org/x/mod/module"
@@ -20,7 +21,7 @@ import (
 )
 
 var cmdDownload = &base.Command{
-	UsageLine: "go mod download [-x] [-json] [modules]",
+	UsageLine: "go mod download [-x] [-json] [-reuse=old.json] [modules]",
 	Short:     "download modules to local cache",
 	Long: `
 Download downloads the named modules, which can be module patterns selecting
@@ -44,6 +45,7 @@ corresponding to this Go struct:
 
     type Module struct {
         Path     string // module path
+        Query    string // version query corresponding to this version
         Version  string // module version
         Error    string // error loading module
         Info     string // absolute path to cached .info file
@@ -52,7 +54,17 @@ corresponding to this Go struct:
         Dir      string // absolute path to cached source root directory
         Sum      string // checksum for path, version (as in go.sum)
         GoModSum string // checksum for go.mod (as in go.sum)
+        Origin   any    // provenance of module
+        Reuse    bool   // reuse of old module info is safe
     }
+
+The -reuse flag accepts the name of file containing the JSON output of a
+previous 'go mod download -json' invocation. The go command may use this
+file to determine that a module is unchanged since the previous invocation
+and avoid redownloading it. Modules that are not redownloaded will be marked
+in the new output by setting the Reuse field to true. Normally the module
+cache provides this kind of reuse automatically; the -reuse flag can be
+useful on systems that do not preserve the module cache.
 
 The -x flag causes download to print the commands download executes.
 
@@ -62,7 +74,10 @@ See https://golang.org/ref/mod#version-queries for more about version queries.
 	`,
 }
 
-var downloadJSON = cmdDownload.Flag.Bool("json", false, "")
+var (
+	downloadJSON  = cmdDownload.Flag.Bool("json", false, "")
+	downloadReuse = cmdDownload.Flag.String("reuse", "", "")
+)
 
 func init() {
 	cmdDownload.Run = runDownload // break init cycle
@@ -75,6 +90,7 @@ func init() {
 type moduleJSON struct {
 	Path     string `json:",omitempty"`
 	Version  string `json:",omitempty"`
+	Query    string `json:",omitempty"`
 	Error    string `json:",omitempty"`
 	Info     string `json:",omitempty"`
 	GoMod    string `json:",omitempty"`
@@ -82,6 +98,9 @@ type moduleJSON struct {
 	Dir      string `json:",omitempty"`
 	Sum      string `json:",omitempty"`
 	GoModSum string `json:",omitempty"`
+
+	Origin *codehost.Origin `json:",omitempty"`
+	Reuse  bool             `json:",omitempty"`
 }
 
 func runDownload(ctx context.Context, cmd *base.Command, args []string) {
@@ -148,12 +167,12 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	downloadModule := func(m *moduleJSON) {
-		var err error
-		_, m.Info, err = modfetch.InfoFile(m.Path, m.Version)
+		_, file, err := modfetch.InfoFile(m.Path, m.Version)
 		if err != nil {
 			m.Error = err.Error()
 			return
 		}
+		m.Info = file
 		m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
 		if err != nil {
 			m.Error = err.Error()
@@ -179,9 +198,14 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	var mods []*moduleJSON
+
+	if *downloadReuse != "" && modload.HasModRoot() {
+		base.Fatalf("go mod download -reuse cannot be used inside a module")
+	}
+
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
-	infos, infosErr := modload.ListModules(ctx, args, 0)
+	infos, infosErr := modload.ListModules(ctx, args, 0, *downloadReuse)
 	if !haveExplicitArgs {
 		// 'go mod download' is sometimes run without arguments to pre-populate the
 		// module cache. It may fetch modules that aren't needed to build packages
@@ -209,10 +233,16 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		m := &moduleJSON{
 			Path:    info.Path,
 			Version: info.Version,
+			Query:   info.Query,
+			Reuse:   info.Reuse,
+			Origin:  info.Origin,
 		}
 		mods = append(mods, m)
 		if info.Error != nil {
 			m.Error = info.Error.Err
+			continue
+		}
+		if m.Reuse {
 			continue
 		}
 		sem <- token{}

@@ -153,6 +153,9 @@ func (r *codeRepo) Versions(prefix string) (*Versions, error) {
 			Err:  err,
 		}
 	}
+	if tags.Origin != nil {
+		tags.Origin.Subdir = r.codeDir
+	}
 
 	var list, incompatible []string
 	for _, tag := range tags.List {
@@ -450,23 +453,26 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		}
 
 		origin := info.Origin
-		if module.IsPseudoVersion(v) {
-			// Add tags that are relevant to pseudo-version calculation to origin.
-			prefix := ""
-			if r.codeDir != "" {
-				prefix = r.codeDir + "/"
-			}
-			if r.pathMajor != "" { // "/v2" or "/.v2"
-				prefix += r.pathMajor[1:] + "." // += "v2."
-			}
-			tags, err := r.code.Tags(prefix)
-			if err != nil {
-				return nil, err
-			}
+		if origin != nil {
 			o := *origin
 			origin = &o
-			origin.TagPrefix = tags.Origin.TagPrefix
-			origin.TagSum = tags.Origin.TagSum
+			origin.Subdir = r.codeDir
+			if module.IsPseudoVersion(v) && (v != statVers || !strings.HasPrefix(v, "v0.0.0-")) {
+				// Add tags that are relevant to pseudo-version calculation to origin.
+				prefix := r.codeDir
+				if prefix != "" {
+					prefix += "/"
+				}
+				if r.pathMajor != "" { // "/v2" or "/.v2"
+					prefix += r.pathMajor[1:] + "." // += "v2."
+				}
+				tags, err := r.code.Tags(prefix)
+				if err != nil {
+					return nil, err
+				}
+				origin.TagPrefix = tags.Origin.TagPrefix
+				origin.TagSum = tags.Origin.TagSum
+			}
 		}
 
 		return &RevInfo{

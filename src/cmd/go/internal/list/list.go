@@ -223,6 +223,7 @@ applied to a Go struct, but now a Module struct:
 
     type Module struct {
         Path       string        // module path
+        Query      string        // version query corresponding to this version
         Version    string        // module version
         Versions   []string      // available module versions
         Replace    *Module       // replaced by this module
@@ -236,6 +237,8 @@ applied to a Go struct, but now a Module struct:
         Retracted  []string      // retraction information, if any (with -retracted or -u)
         Deprecated string        // deprecation message, if any (with -u)
         Error      *ModuleError  // error loading module
+        Origin     any           // provenance of module
+        Reuse      bool          // reuse of old module info is safe
     }
 
     type ModuleError struct {
@@ -312,6 +315,16 @@ that must be a module path or query and returns the specified
 module as a Module struct. If an error occurs, the result will
 be a Module struct with a non-nil Error field.
 
+When using -m, the -reuse=old.json flag accepts the name of file containing
+the JSON output of a previous 'go list -m -json' invocation with the
+same set of modifier flags (such as -u, -retracted, and -versions).
+The go command may use this file to determine that a module is unchanged
+since the previous invocation and avoid redownloading information about it.
+Modules that are not redownloaded will be marked in the new output by
+setting the Reuse field to true. Normally the module cache provides this
+kind of reuse automatically; the -reuse flag can be useful on systems that
+do not preserve the module cache.
+
 For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
@@ -337,6 +350,7 @@ var (
 	listJsonFields jsonFlag // If not empty, only output these fields.
 	listM          = CmdList.Flag.Bool("m", false, "")
 	listRetracted  = CmdList.Flag.Bool("retracted", false, "")
+	listReuse      = CmdList.Flag.String("reuse", "", "")
 	listTest       = CmdList.Flag.Bool("test", false, "")
 	listU          = CmdList.Flag.Bool("u", false, "")
 	listVersions   = CmdList.Flag.Bool("versions", false, "")
@@ -397,6 +411,12 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 	if *listFmt != "" && listJson == true {
 		base.Fatalf("go list -f cannot be used with -json")
+	}
+	if *listReuse != "" && !*listM {
+		base.Fatalf("go list -reuse cannot be used without -m")
+	}
+	if *listReuse != "" && modload.HasModRoot() {
+		base.Fatalf("go list -reuse cannot be used inside a module")
 	}
 
 	work.BuildInit()
@@ -532,7 +552,10 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				mode |= modload.ListRetractedVersions
 			}
 		}
-		mods, err := modload.ListModules(ctx, args, mode)
+		if *listReuse != "" && len(args) == 0 {
+			base.Fatalf("go: list -m -reuse only has an effect with module@version arguments")
+		}
+		mods, err := modload.ListModules(ctx, args, mode, *listReuse)
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
@@ -783,7 +806,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			if *listRetracted {
 				mode |= modload.ListRetracted
 			}
-			rmods, err := modload.ListModules(ctx, args, mode)
+			rmods, err := modload.ListModules(ctx, args, mode, *listReuse)
 			if err != nil && !*listE {
 				base.Errorf("go: %v", err)
 			}
