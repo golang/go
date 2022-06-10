@@ -6,24 +6,24 @@ const True = true
 type Kind int
 
 const (
-	KindNone Kind = iota<= 0>
-	KindPrint<= 1>
-	KindPrintf<= 2>
-	KindErrorf<= 3>
+	KindNone Kind = iota< = 0>
+	KindPrint< = 1>
+	KindPrintf< = 2>
+	KindErrorf< = 3>
 )
 
 const (
-	u         = iota * 4<= 0>
-	v float64 = iota * 42<= 42>
-	w         = iota * 42<= 84>
+	u         = iota * 4< = 0>
+	v float64 = iota * 42< = 42>
+	w         = iota * 42< = 84>
 )
 
 const (
 	a, b = 1, 2
-	c, d<= 1, 2>
-	e, f = 5 * 5, "hello" + "world"<= 25, "helloworld">
-	g, h<= 25, "helloworld">
-	i, j = true, f<= true, "helloworld">
+	c, d< = 1, 2>
+	e, f = 5 * 5, "hello" + "world"< = 25, "helloworld">
+	g, h< = 25, "helloworld">
+	i, j = true, f< = true, "helloworld">
 )
 
 // No hint

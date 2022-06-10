@@ -949,9 +949,16 @@ func (r *runner) InlayHints(t *testing.T, spn span.Span) {
 	// Map inlay hints to text edits.
 	edits := make([]protocol.TextEdit, len(hints))
 	for i, hint := range hints {
+		var paddingLeft, paddingRight string
+		if hint.PaddingLeft {
+			paddingLeft = " "
+		}
+		if hint.PaddingRight {
+			paddingRight = " "
+		}
 		edits[i] = protocol.TextEdit{
 			Range:   protocol.Range{Start: *hint.Position, End: *hint.Position},
-			NewText: fmt.Sprintf("<%s>", hint.Label[0].Value),
+			NewText: fmt.Sprintf("<%s%s%s>", paddingLeft, hint.Label[0].Value, paddingRight),
 		}
 	}
 

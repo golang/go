@@ -8,7 +8,7 @@ func hello(name string) string {
 }
 
 func helloWorld() string {
-	return hello(<name:>"World")
+	return hello(<name: >"World")
 }
 
 type foo struct{}
@@ -21,27 +21,27 @@ func (*foo) bar(baz string, qux int) int {
 }
 
 func kase(foo int, bar bool, baz ...string) {
-	fmt.Println(<a...:>foo, bar, baz)
+	fmt.Println(<a...: >foo, bar, baz)
 }
 
 func kipp(foo string, bar, baz string) {
-	fmt.Println(<a...:>foo, bar, baz)
+	fmt.Println(<a...: >foo, bar, baz)
 }
 
 func plex(foo, bar string, baz string) {
-	fmt.Println(<a...:>foo, bar, baz)
+	fmt.Println(<a...: >foo, bar, baz)
 }
 
 func tars(foo string, bar, baz string) {
-	fmt.Println(<a...:>foo, bar, baz)
+	fmt.Println(<a...: >foo, bar, baz)
 }
 
 func foobar() {
 	var x foo
-	x.bar(<baz:>"", <qux:>1)
-	kase(<foo:>0, <bar:>true, <baz...:>"c", "d", "e")
-	kipp(<foo:>"a", <bar:>"b", <baz:>"c")
-	plex(<foo:>"a", <bar:>"b", <baz:>"c")
-	tars(<foo:>"a", <bar:>"b", <baz:>"c")
+	x.bar(<baz: >"", <qux: >1)
+	kase(<foo: >0, <bar: >true, <baz...: >"c", "d", "e")
+	kipp(<foo: >"a", <bar: >"b", <baz: >"c")
+	plex(<foo: >"a", <bar: >"b", <baz: >"c")
+	tars(<foo: >"a", <bar: >"b", <baz: >"c")
 }
 

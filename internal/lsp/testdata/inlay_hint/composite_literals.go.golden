@@ -4,14 +4,14 @@ package inlayHint //@inlayHint("package")
 import "fmt"
 
 func fieldNames() {
-	for _<int>, c<struct{in string; want strin...> := range []struct {
+	for _< int>, c< struct{in string; want strin...> := range []struct {
 		in, want string
 	}{
-		{<in:>"Hello, world", <want:>"dlrow ,olleH"},
-		{<in:>"Hello, 世界", <want:>"界世 ,olleH"},
-		{<in:>"", <want:>""},
+		{<in: >"Hello, world", <want: >"dlrow ,olleH"},
+		{<in: >"Hello, 世界", <want: >"界世 ,olleH"},
+		{<in: >"", <want: >""},
 	} {
-		fmt.Println(<a...:>c.in == c.want)
+		fmt.Println(<a...: >c.in == c.want)
 	}
 }
 
