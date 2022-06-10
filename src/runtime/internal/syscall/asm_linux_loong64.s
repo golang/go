@@ -24,6 +24,6 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	RET
 ok:
 	MOVV	R4, r1+56(FP)
-	MOVV	R5, r2+64(FP)
+	MOVV	R0, r2+64(FP)	// r2 is not used. Always set to 0.
 	MOVV	R0, errno+72(FP)
 	RET
