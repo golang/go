@@ -523,8 +523,11 @@ func Map(mapping func(rune) rune, s string) string {
 // It panics if count is negative or if
 // the result of (len(s) * count) overflows.
 func Repeat(s string, count int) string {
-	if count == 0 {
+	switch count {
+	case 0:
 		return ""
+	case 1:
+		return s
 	}
 
 	// Since we cannot return an error on overflow,
