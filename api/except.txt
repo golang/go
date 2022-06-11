@@ -508,3 +508,69 @@ pkg unicode, const Version = "8.0.0"
 pkg unicode, const Version = "9.0.0"
 pkg html/template, method (*Template) Funcs(FuncMap) *Template
 pkg html/template, type FuncMap map[string]interface{}
+pkg syscall (freebsd-386), const SYS_FSTAT = 189
+pkg syscall (freebsd-386), const SYS_FSTATAT = 493
+pkg syscall (freebsd-386), const SYS_FSTATFS = 397
+pkg syscall (freebsd-386), const SYS_GETDIRENTRIES = 196
+pkg syscall (freebsd-386), const SYS_GETFSSTAT = 395
+pkg syscall (freebsd-386), const SYS_LSTAT = 190
+pkg syscall (freebsd-386), const SYS_LSTAT ideal-int
+pkg syscall (freebsd-386), const SYS_MKNODAT = 498
+pkg syscall (freebsd-386), const SYS_STAT = 188
+pkg syscall (freebsd-386), const SYS_STAT ideal-int
+pkg syscall (freebsd-386), const SYS_STATFS = 396
+pkg syscall (freebsd-386-cgo), const SYS_FSTAT = 189
+pkg syscall (freebsd-386-cgo), const SYS_FSTATAT = 493
+pkg syscall (freebsd-386-cgo), const SYS_FSTATFS = 397
+pkg syscall (freebsd-386-cgo), const SYS_GETDIRENTRIES = 196
+pkg syscall (freebsd-386-cgo), const SYS_GETFSSTAT = 395
+pkg syscall (freebsd-386-cgo), const SYS_LSTAT = 190
+pkg syscall (freebsd-386-cgo), const SYS_LSTAT ideal-int
+pkg syscall (freebsd-386-cgo), const SYS_MKNODAT = 498
+pkg syscall (freebsd-386-cgo), const SYS_STAT = 188
+pkg syscall (freebsd-386-cgo), const SYS_STAT ideal-int
+pkg syscall (freebsd-386-cgo), const SYS_STATFS = 396
+pkg syscall (freebsd-amd64), const SYS_FSTAT = 189
+pkg syscall (freebsd-amd64), const SYS_FSTATAT = 493
+pkg syscall (freebsd-amd64), const SYS_FSTATFS = 397
+pkg syscall (freebsd-amd64), const SYS_GETDIRENTRIES = 196
+pkg syscall (freebsd-amd64), const SYS_GETFSSTAT = 395
+pkg syscall (freebsd-amd64), const SYS_LSTAT = 190
+pkg syscall (freebsd-amd64), const SYS_LSTAT ideal-int
+pkg syscall (freebsd-amd64), const SYS_MKNODAT = 498
+pkg syscall (freebsd-amd64), const SYS_STAT = 188
+pkg syscall (freebsd-amd64), const SYS_STAT ideal-int
+pkg syscall (freebsd-amd64), const SYS_STATFS = 396
+pkg syscall (freebsd-amd64-cgo), const SYS_FSTAT = 189
+pkg syscall (freebsd-amd64-cgo), const SYS_FSTATAT = 493
+pkg syscall (freebsd-amd64-cgo), const SYS_FSTATFS = 397
+pkg syscall (freebsd-amd64-cgo), const SYS_GETDIRENTRIES = 196
+pkg syscall (freebsd-amd64-cgo), const SYS_GETFSSTAT = 395
+pkg syscall (freebsd-amd64-cgo), const SYS_LSTAT = 190
+pkg syscall (freebsd-amd64-cgo), const SYS_LSTAT ideal-int
+pkg syscall (freebsd-amd64-cgo), const SYS_MKNODAT = 498
+pkg syscall (freebsd-amd64-cgo), const SYS_STAT = 188
+pkg syscall (freebsd-amd64-cgo), const SYS_STAT ideal-int
+pkg syscall (freebsd-amd64-cgo), const SYS_STATFS = 396
+pkg syscall (freebsd-arm), const SYS_FSTAT = 189
+pkg syscall (freebsd-arm), const SYS_FSTATAT = 493
+pkg syscall (freebsd-arm), const SYS_FSTATFS = 397
+pkg syscall (freebsd-arm), const SYS_GETDIRENTRIES = 196
+pkg syscall (freebsd-arm), const SYS_GETFSSTAT = 395
+pkg syscall (freebsd-arm), const SYS_LSTAT = 190
+pkg syscall (freebsd-arm), const SYS_LSTAT ideal-int
+pkg syscall (freebsd-arm), const SYS_MKNODAT = 498
+pkg syscall (freebsd-arm), const SYS_STAT = 188
+pkg syscall (freebsd-arm), const SYS_STAT ideal-int
+pkg syscall (freebsd-arm), const SYS_STATFS = 396
+pkg syscall (freebsd-arm-cgo), const SYS_FSTAT = 189
+pkg syscall (freebsd-arm-cgo), const SYS_FSTATAT = 493
+pkg syscall (freebsd-arm-cgo), const SYS_FSTATFS = 397
+pkg syscall (freebsd-arm-cgo), const SYS_GETDIRENTRIES = 196
+pkg syscall (freebsd-arm-cgo), const SYS_GETFSSTAT = 395
+pkg syscall (freebsd-arm-cgo), const SYS_LSTAT = 190
+pkg syscall (freebsd-arm-cgo), const SYS_LSTAT ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_MKNODAT = 498
+pkg syscall (freebsd-arm-cgo), const SYS_STAT = 188
+pkg syscall (freebsd-arm-cgo), const SYS_STAT ideal-int
+pkg syscall (freebsd-arm-cgo), const SYS_STATFS = 396

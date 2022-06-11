@@ -120,14 +120,10 @@ const (
 	SYS_SETGID                   = 181 // { int setgid(gid_t gid); }
 	SYS_SETEGID                  = 182 // { int setegid(gid_t egid); }
 	SYS_SETEUID                  = 183 // { int seteuid(uid_t euid); }
-	SYS_STAT                     = 188 // { int stat(char *path, struct stat *ub); }
-	SYS_FSTAT                    = 189 // { int fstat(int fd, struct stat *sb); }
-	SYS_LSTAT                    = 190 // { int lstat(char *path, struct stat *ub); }
 	SYS_PATHCONF                 = 191 // { int pathconf(char *path, int name); }
 	SYS_FPATHCONF                = 192 // { int fpathconf(int fd, int name); }
 	SYS_GETRLIMIT                = 194 // { int getrlimit(u_int which, \
 	SYS_SETRLIMIT                = 195 // { int setrlimit(u_int which, \
-	SYS_GETDIRENTRIES            = 196 // { int getdirentries(int fd, char *buf, \
 	SYS_FREEBSD6_MMAP            = 197 // { caddr_t freebsd6_mmap(caddr_t addr, \
 	SYS_FREEBSD6_LSEEK           = 199 // { off_t freebsd6_lseek(int fd, int pad, \
 	SYS_FREEBSD6_TRUNCATE        = 200 // { int freebsd6_truncate(char *path, int pad, \
@@ -234,9 +230,6 @@ const (
 	SYS_UUIDGEN                  = 392 // { int uuidgen(struct uuid *store, \
 	SYS_SENDFILE                 = 393 // { int sendfile(int fd, int s, off_t offset, \
 	SYS_MAC_SYSCALL              = 394 // { int mac_syscall(const char *policy, \
-	SYS_GETFSSTAT                = 395 // { int getfsstat(struct statfs *buf, \
-	SYS_STATFS                   = 396 // { int statfs(char *path, \
-	SYS_FSTATFS                  = 397 // { int fstatfs(int fd, struct statfs *buf); }
 	SYS_FHSTATFS                 = 398 // { int fhstatfs(const struct fhandle *u_fhp, \
 	SYS___MAC_GET_PID            = 409 // { int __mac_get_pid(pid_t pid, \
 	SYS___MAC_GET_LINK           = 410 // { int __mac_get_link(const char *path_p, \
@@ -306,12 +299,10 @@ const (
 	SYS_FCHMODAT                 = 490 // { int fchmodat(int fd, char *path, mode_t mode, \
 	SYS_FCHOWNAT                 = 491 // { int fchownat(int fd, char *path, uid_t uid, \
 	SYS_FEXECVE                  = 492 // { int fexecve(int fd, char **argv, \
-	SYS_FSTATAT                  = 493 // { int fstatat(int fd, char *path, \
 	SYS_FUTIMESAT                = 494 // { int futimesat(int fd, char *path, \
 	SYS_LINKAT                   = 495 // { int linkat(int fd1, char *path1, int fd2, \
 	SYS_MKDIRAT                  = 496 // { int mkdirat(int fd, char *path, mode_t mode); }
 	SYS_MKFIFOAT                 = 497 // { int mkfifoat(int fd, char *path, mode_t mode); }
-	SYS_MKNODAT                  = 498 // { int mknodat(int fd, char *path, mode_t mode, \
 	SYS_OPENAT                   = 499 // { int openat(int fd, char *path, int flag, \
 	SYS_READLINKAT               = 500 // { int readlinkat(int fd, char *path, char *buf, \
 	SYS_RENAMEAT                 = 501 // { int renameat(int oldfd, char *old, int newfd, \
@@ -348,4 +339,11 @@ const (
 	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
 	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
 	SYS_UTIMENSAT                = 547 // { int utimensat(int fd, \
+	SYS_FSTAT                    = 551 // { int fstat(int fd, _Out_ struct stat *sb); }
+	SYS_FSTATAT                  = 552 // { int fstatat(int fd, _In_z_ char *path, \
+	SYS_GETDIRENTRIES            = 554 // { ssize_t getdirentries(int fd, \
+	SYS_STATFS                   = 555 // { int statfs(_In_z_ char *path, \
+	SYS_FSTATFS                  = 556 // { int fstatfs(int fd, \
+	SYS_GETFSSTAT                = 557 // { int getfsstat( \
+	SYS_MKNODAT                  = 559 // { int mknodat(int fd, _In_z_ char *path, \
 )
