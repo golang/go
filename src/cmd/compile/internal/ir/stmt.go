@@ -163,6 +163,15 @@ func NewBranchStmt(pos src.XPos, op Op, label *types.Sym) *BranchStmt {
 	return n
 }
 
+func (n *BranchStmt) SetOp(op Op) {
+	switch op {
+	default:
+		panic(n.no("SetOp " + op.String()))
+	case OBREAK, OCONTINUE, OFALL, OGOTO:
+		n.op = op
+	}
+}
+
 func (n *BranchStmt) Sym() *types.Sym { return n.Label }
 
 // A CaseClause is a case statement in a switch or select: case List: Body.

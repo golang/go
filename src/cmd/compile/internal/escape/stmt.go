@@ -64,7 +64,7 @@ func (e *escape) stmt(n ir.Node) {
 			}
 			e.loopDepth++
 		default:
-			base.Fatalf("label missing tag")
+			base.Fatalf("label %v missing tag", n.Label)
 		}
 		delete(e.labels, n.Label)
 

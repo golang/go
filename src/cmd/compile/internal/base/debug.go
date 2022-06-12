@@ -33,6 +33,8 @@ type DebugFlags struct {
 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
 	InterfaceCycles       int    `help:"allow anonymous interface cycles"`
 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
+	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
+	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
 	LocationLists         int    `help:"print information about DWARF location list creation"`
 	Nil                   int    `help:"print information about nil checks"`
 	NoOpenDefer           int    `help:"disable open-coded defers" concurrent:"ok"`

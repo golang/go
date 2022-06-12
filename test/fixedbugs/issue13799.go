@@ -45,8 +45,9 @@ func test1(iter int) {
 	// Heap -> stack pointer eventually causes badness when stack reallocation
 	// occurs.
 
-	var fn func()               // ERROR "moved to heap: fn$"
-	for i := 0; i < maxI; i++ { // ERROR "moved to heap: i$"
+	var fn func() // ERROR "moved to heap: fn$"
+	i := 0        // ERROR "moved to heap: i$"
+	for ; i < maxI; i++ {
 		// var fn func() // this makes it work, because fn stays off heap
 		j := 0        // ERROR "moved to heap: j$"
 		fn = func() { // ERROR "func literal escapes to heap$"

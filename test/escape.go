@@ -126,7 +126,8 @@ func range_escapes2(x, y int) (*int, *int) {
 	var p [2]*int
 	a[0] = x
 	a[1] = y
-	for k, v := range a {
+	var k, v int
+	for k, v = range a {
 		p[k] = &v
 	}
 	return p[0], p[1]
@@ -136,7 +137,8 @@ func range_escapes2(x, y int) (*int, *int) {
 func for_escapes2(x int, y int) (*int, *int) {
 	var p [2]*int
 	n := 0
-	for i := x; n < 2; i = y {
+	i := x
+	for ; n < 2; i = y {
 		p[n] = &i
 		n++
 	}

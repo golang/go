@@ -101,4 +101,8 @@ type Flags struct {
 	// When this experiment is enabled, cgo rule checks occur regardless
 	// of the GODEBUG=cgocheck setting provided at runtime.
 	CgoCheck2 bool
+
+	// LoopVar changes loop semantics so that each iteration gets its own
+	// copy of the iteration variable.
+	LoopVar bool
 }
