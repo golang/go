@@ -155,3 +155,54 @@ func (m parseKeysByURIMap) Set(key span.URI, value []parseKey) {
 func (m parseKeysByURIMap) Delete(key span.URI) {
 	m.impl.Delete(key)
 }
+
+type packagesMap struct {
+	impl *persistent.Map
+}
+
+func newPackagesMap() packagesMap {
+	return packagesMap{
+		impl: persistent.NewMap(func(a, b interface{}) bool {
+			left := a.(packageKey)
+			right := b.(packageKey)
+			if left.mode != right.mode {
+				return left.mode < right.mode
+			}
+			return left.id < right.id
+		}),
+	}
+}
+
+func (m packagesMap) Clone() packagesMap {
+	return packagesMap{
+		impl: m.impl.Clone(),
+	}
+}
+
+func (m packagesMap) Destroy() {
+	m.impl.Destroy()
+}
+
+func (m packagesMap) Get(key packageKey) (*packageHandle, bool) {
+	value, ok := m.impl.Get(key)
+	if !ok {
+		return nil, false
+	}
+	return value.(*packageHandle), true
+}
+
+func (m packagesMap) Range(do func(key packageKey, value *packageHandle)) {
+	m.impl.Range(func(key, value interface{}) {
+		do(key.(packageKey), value.(*packageHandle))
+	})
+}
+
+func (m packagesMap) Set(key packageKey, value *packageHandle, release func()) {
+	m.impl.Set(key, value, func(key, value interface{}) {
+		release()
+	})
+}
+
+func (m packagesMap) Delete(key packageKey) {
+	m.impl.Delete(key)
+}

@@ -108,7 +108,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	m := ph.m
 	key := ph.key
 
-	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+	h, release := s.generation.GetHandle(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 
 		// Begin loading the direct dependencies, in parallel.
@@ -128,14 +128,14 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 		wg.Wait()
 
 		return data
-	}, nil)
+	})
 	ph.handle = h
 
 	// Cache the handle in the snapshot. If a package handle has already
 	// been cached, addPackage will return the cached value. This is fine,
 	// since the original package handle above will have no references and be
 	// garbage collected.
-	ph = s.addPackageHandle(ph)
+	ph = s.addPackageHandle(ph, release)
 
 	return ph, nil
 }

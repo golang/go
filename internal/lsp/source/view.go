@@ -478,6 +478,10 @@ const (
 	ParseFull
 )
 
+// AllParseModes contains all possible values of ParseMode.
+// It is used for cache invalidation on a file content change.
+var AllParseModes = []ParseMode{ParseHeader, ParseExported, ParseFull}
+
 // TypecheckMode controls what kind of parsing should be done (see ParseMode)
 // while type checking a package.
 type TypecheckMode int

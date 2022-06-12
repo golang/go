@@ -228,9 +228,9 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	// TODO(rfindley): this should not be necessary, as we should have already
 	// invalidated in snapshot.clone.
 	for id := range invalidatedPackages {
-		for _, mode := range []source.ParseMode{source.ParseHeader, source.ParseExported, source.ParseFull} {
+		for _, mode := range source.AllParseModes {
 			key := packageKey{mode, id}
-			delete(s.packages, key)
+			s.packages.Delete(key)
 		}
 	}
 
