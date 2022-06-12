@@ -74,11 +74,11 @@ type snapshot struct {
 
 	// files maps file URIs to their corresponding FileHandles.
 	// It may invalidated when a file's content changes.
-	files map[span.URI]source.VersionedFileHandle
+	files filesMap
 
 	// goFiles maps a parseKey to its parseGoHandle.
-	goFiles        *goFilesMap
-	parseKeysByURI *parseKeysByURIMap
+	goFiles        goFilesMap
+	parseKeysByURI parseKeysByURIMap
 
 	// TODO(rfindley): consider merging this with files to reduce burden on clone.
 	symbols map[span.URI]*symbolHandle
@@ -136,6 +136,7 @@ type actionKey struct {
 
 func (s *snapshot) Destroy(destroyedBy string) {
 	s.generation.Destroy(destroyedBy)
+	s.files.Destroy()
 	s.goFiles.Destroy()
 	s.parseKeysByURI.Destroy()
 }
@@ -173,11 +174,11 @@ func (s *snapshot) Templates() map[span.URI]source.VersionedFileHandle {
 	defer s.mu.Unlock()
 
 	tmpls := map[span.URI]source.VersionedFileHandle{}
-	for k, fh := range s.files {
+	s.files.Range(func(k span.URI, fh source.VersionedFileHandle) {
 		if s.view.FileKind(fh) == source.Tmpl {
 			tmpls[k] = fh
 		}
-	}
+	})
 	return tmpls
 }
 
@@ -461,27 +462,27 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 	defer s.mu.Unlock()
 
 	overlays := make(map[string][]byte)
-	for uri, fh := range s.files {
+	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
 		overlay, ok := fh.(*overlay)
 		if !ok {
-			continue
+			return
 		}
 		if overlay.saved {
-			continue
+			return
 		}
 		// TODO(rstambler): Make sure not to send overlays outside of the current view.
 		overlays[uri.Filename()] = overlay.text
-	}
+	})
 	return overlays
 }
 
-func hashUnsavedOverlays(files map[span.URI]source.VersionedFileHandle) source.Hash {
+func hashUnsavedOverlays(files filesMap) source.Hash {
 	var unsaved []string
-	for uri, fh := range files {
+	files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
 		if overlay, ok := fh.(*overlay); ok && !overlay.saved {
 			unsaved = append(unsaved, uri.Filename())
 		}
-	}
+	})
 	sort.Strings(unsaved)
 	return source.Hashf("%s", unsaved)
 }
@@ -869,9 +870,9 @@ func (s *snapshot) collectAllKnownSubdirs(ctx context.Context) {
 
 	s.knownSubdirs = map[span.URI]struct{}{}
 	s.knownSubdirsPatternCache = ""
-	for uri := range s.files {
+	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
 		s.addKnownSubdirLocked(uri, dirs)
-	}
+	})
 }
 
 func (s *snapshot) getKnownSubdirs(wsDirs []span.URI) []span.URI {
@@ -957,11 +958,11 @@ func (s *snapshot) knownFilesInDir(ctx context.Context, dir span.URI) []span.URI
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for uri := range s.files {
+	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
 		if source.InDir(dir.Filename(), uri.Filename()) {
 			files = append(files, uri)
 		}
-	}
+	})
 	return files
 }
 
@@ -1020,8 +1021,7 @@ func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
 		resultMu sync.Mutex
 		result   = make(map[span.URI][]source.Symbol)
 	)
-	for uri, f := range s.files {
-		uri, f := uri, f
+	s.files.Range(func(uri span.URI, f source.VersionedFileHandle) {
 		// TODO(adonovan): upgrade errgroup and use group.SetLimit(nprocs).
 		iolimit <- struct{}{} // acquire token
 		group.Go(func() error {
@@ -1035,7 +1035,7 @@ func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
 			resultMu.Unlock()
 			return nil
 		})
-	}
+	})
 	// Keep going on errors, but log the first failure.
 	// Partial results are better than no symbol results.
 	if err := group.Wait(); err != nil {
@@ -1326,7 +1326,8 @@ func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.files[f.URI()]
+	result, _ := s.files.Load(f.URI())
+	return result
 }
 
 // GetVersionedFile returns a File for the given URI. If the file is unknown it
@@ -1348,7 +1349,7 @@ func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle
 }
 
 func (s *snapshot) getFileLocked(ctx context.Context, f *fileBase) (source.VersionedFileHandle, error) {
-	if fh, ok := s.files[f.URI()]; ok {
+	if fh, ok := s.files.Load(f.URI()); ok {
 		return fh, nil
 	}
 
@@ -1357,7 +1358,7 @@ func (s *snapshot) getFileLocked(ctx context.Context, f *fileBase) (source.Versi
 		return nil, err
 	}
 	closed := &closedFile{fh}
-	s.files[f.URI()] = closed
+	s.files.Store(f.URI(), closed)
 	return closed, nil
 }
 
@@ -1373,16 +1374,17 @@ func (s *snapshot) openFiles() []source.VersionedFileHandle {
 	defer s.mu.Unlock()
 
 	var open []source.VersionedFileHandle
-	for _, fh := range s.files {
+	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
 		if s.isOpenLocked(fh.URI()) {
 			open = append(open, fh)
 		}
-	}
+	})
 	return open
 }
 
 func (s *snapshot) isOpenLocked(uri span.URI) bool {
-	_, open := s.files[uri].(*overlay)
+	fh, _ := s.files.Load(uri)
+	_, open := fh.(*overlay)
 	return open
 }
 
@@ -1610,29 +1612,29 @@ func (s *snapshot) orphanedFiles() []source.VersionedFileHandle {
 	defer s.mu.Unlock()
 
 	var files []source.VersionedFileHandle
-	for uri, fh := range s.files {
+	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
 		// Don't try to reload metadata for go.mod files.
 		if s.view.FileKind(fh) != source.Go {
-			continue
+			return
 		}
 		// If the URI doesn't belong to this view, then it's not in a workspace
 		// package and should not be reloaded directly.
 		if !contains(s.view.session.viewsOf(uri), s.view) {
-			continue
+			return
 		}
 		// If the file is not open and is in a vendor directory, don't treat it
 		// like a workspace package.
 		if _, ok := fh.(*overlay); !ok && inVendor(uri) {
-			continue
+			return
 		}
 		// Don't reload metadata for files we've already deemed unloadable.
 		if _, ok := s.unloadableFiles[uri]; ok {
-			continue
+			return
 		}
 		if s.noValidMetadataForURILocked(uri) {
 			files = append(files, fh)
 		}
-	}
+	})
 	return files
 }
 
@@ -1701,7 +1703,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		initializedErr:    s.initializedErr,
 		packages:          make(map[packageKey]*packageHandle, len(s.packages)),
 		actions:           make(map[actionKey]*actionHandle, len(s.actions)),
-		files:             make(map[span.URI]source.VersionedFileHandle, len(s.files)),
+		files:             s.files.Clone(),
 		goFiles:           s.goFiles.Clone(),
 		parseKeysByURI:    s.parseKeysByURI.Clone(),
 		symbols:           make(map[span.URI]*symbolHandle, len(s.symbols)),
@@ -1721,9 +1723,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	}
 
 	// Copy all of the FileHandles.
-	for k, v := range s.files {
-		result.files[k] = v
-	}
 	for k, v := range s.symbols {
 		if change, ok := changes[k]; ok {
 			if change.exists {
@@ -1807,7 +1806,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 
 		// The original FileHandle for this URI is cached on the snapshot.
-		originalFH := s.files[uri]
+		originalFH, _ := s.files.Load(uri)
 		var originalOpen, newOpen bool
 		_, originalOpen = originalFH.(*overlay)
 		_, newOpen = change.fileHandle.(*overlay)
@@ -1852,9 +1851,9 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		delete(result.parseWorkHandles, uri)
 		// Handle the invalidated file; it may have new contents or not exist.
 		if !change.exists {
-			delete(result.files, uri)
+			result.files.Delete(uri)
 		} else {
-			result.files[uri] = change.fileHandle
+			result.files.Store(uri, change.fileHandle)
 		}
 
 		// Make sure to remove the changed file from the unloadable set.
