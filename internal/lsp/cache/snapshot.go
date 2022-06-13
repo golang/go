@@ -114,7 +114,8 @@ type snapshot struct {
 
 	// knownSubdirs is the set of subdirectories in the workspace, used to
 	// create glob patterns for file watching.
-	knownSubdirs map[span.URI]struct{}
+	knownSubdirs             map[span.URI]struct{}
+	knownSubdirsPatternCache string
 	// unprocessedSubdirChanges are any changes that might affect the set of
 	// subdirectories in the workspace. They are not reflected to knownSubdirs
 	// during the snapshot cloning step as it can slow down cloning.
@@ -834,19 +835,36 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 	// of the directories in the workspace. We find them by adding the
 	// directories of every file in the snapshot's workspace directories.
 	// There may be thousands.
-	knownSubdirs := s.getKnownSubdirs(dirs)
-	if n := len(knownSubdirs); n > 0 {
-		dirNames := make([]string, 0, n)
-		for _, uri := range knownSubdirs {
-			dirNames = append(dirNames, uri.Filename())
-		}
-		sort.Strings(dirNames)
-		// The double allocation of Sprintf(Join()) accounts for 8%
-		// of DidChange, but specializing doesn't appear to help. :(
-		patterns[fmt.Sprintf("{%s}", strings.Join(dirNames, ","))] = struct{}{}
+	if pattern := s.getKnownSubdirsPattern(dirs); pattern != "" {
+		patterns[pattern] = struct{}{}
 	}
 
 	return patterns
+}
+
+func (s *snapshot) getKnownSubdirsPattern(wsDirs []span.URI) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// First, process any pending changes and update the set of known
+	// subdirectories.
+	// It may change list of known subdirs and therefore invalidate the cache.
+	s.applyKnownSubdirsChangesLocked(wsDirs)
+
+	if len(s.knownSubdirs) == 0 {
+		return ""
+	}
+
+	if s.knownSubdirsPatternCache == "" {
+		dirNames := make([]string, 0, len(s.knownSubdirs))
+		for uri := range s.knownSubdirs {
+			dirNames = append(dirNames, uri.Filename())
+		}
+		sort.Strings(dirNames)
+		s.knownSubdirsPatternCache = fmt.Sprintf("{%s}", strings.Join(dirNames, ","))
+	}
+
+	return s.knownSubdirsPatternCache
 }
 
 // collectAllKnownSubdirs collects all of the subdirectories within the
@@ -859,6 +877,7 @@ func (s *snapshot) collectAllKnownSubdirs(ctx context.Context) {
 	defer s.mu.Unlock()
 
 	s.knownSubdirs = map[span.URI]struct{}{}
+	s.knownSubdirsPatternCache = ""
 	for uri := range s.files {
 		s.addKnownSubdirLocked(uri, dirs)
 	}
@@ -870,6 +889,16 @@ func (s *snapshot) getKnownSubdirs(wsDirs []span.URI) []span.URI {
 
 	// First, process any pending changes and update the set of known
 	// subdirectories.
+	s.applyKnownSubdirsChangesLocked(wsDirs)
+
+	result := make([]span.URI, 0, len(s.knownSubdirs))
+	for uri := range s.knownSubdirs {
+		result = append(result, uri)
+	}
+	return result
+}
+
+func (s *snapshot) applyKnownSubdirsChangesLocked(wsDirs []span.URI) {
 	for _, c := range s.unprocessedSubdirChanges {
 		if c.isUnchanged {
 			continue
@@ -881,12 +910,6 @@ func (s *snapshot) getKnownSubdirs(wsDirs []span.URI) []span.URI {
 		}
 	}
 	s.unprocessedSubdirChanges = nil
-
-	result := make([]span.URI, 0, len(s.knownSubdirs))
-	for uri := range s.knownSubdirs {
-		result = append(result, uri)
-	}
-	return result
 }
 
 func (s *snapshot) addKnownSubdirLocked(uri span.URI, dirs []span.URI) {
@@ -917,6 +940,7 @@ func (s *snapshot) addKnownSubdirLocked(uri span.URI, dirs []span.URI) {
 		}
 		s.knownSubdirs[uri] = struct{}{}
 		dir = filepath.Dir(dir)
+		s.knownSubdirsPatternCache = ""
 	}
 }
 
@@ -929,6 +953,7 @@ func (s *snapshot) removeKnownSubdirLocked(uri span.URI) {
 		}
 		if info, _ := os.Stat(dir); info == nil {
 			delete(s.knownSubdirs, uri)
+			s.knownSubdirsPatternCache = ""
 		}
 		dir = filepath.Dir(dir)
 	}
@@ -1816,6 +1841,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	for k, v := range s.knownSubdirs {
 		result.knownSubdirs[k] = v
 	}
+	result.knownSubdirsPatternCache = s.knownSubdirsPatternCache
 	for _, c := range changes {
 		result.unprocessedSubdirChanges = append(result.unprocessedSubdirChanges, c)
 	}
