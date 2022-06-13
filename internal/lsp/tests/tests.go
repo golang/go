@@ -787,7 +787,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	})
 
 	t.Run("InlayHints", func(t *testing.T) {
-		t.Skip("Inlay Hints not yet implemented")
 		t.Helper()
 		for _, src := range data.InlayHints {
 			t.Run(SpanName(src), func(t *testing.T) {
