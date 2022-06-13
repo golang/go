@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 12, 2022",
+	"Subtitle": "Version of June 13, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -1025,7 +1025,7 @@ be <a href="#Uniqueness_of_identifiers">unique</a>.
 <pre class="ebnf">
 StructType    = "struct" "{" { FieldDecl ";" } "}" .
 FieldDecl     = (IdentifierList Type | EmbeddedField) [ Tag ] .
-EmbeddedField = [ "*" ] TypeName .
+EmbeddedField = [ "*" ] TypeName [ TypeArgs ] .
 Tag           = string_lit .
 </pre>
 
@@ -3029,7 +3029,7 @@ Each element may optionally be preceded by a corresponding key.
 <pre class="ebnf">
 CompositeLit  = LiteralType LiteralValue .
 LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
-                SliceType | MapType | TypeName .
+                SliceType | MapType | TypeName [ TypeArgs ] .
 LiteralValue  = "{" [ ElementList [ "," ] ] "}" .
 ElementList   = KeyedElement { "," KeyedElement } .
 KeyedElement  = [ Key ":" ] Element .
