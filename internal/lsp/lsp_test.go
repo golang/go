@@ -977,7 +977,7 @@ func (r *runner) InlayHints(t *testing.T, spn span.Span) {
 	}))
 
 	if withinlayHints != got {
-		t.Errorf("format failed for %s, expected:\n%v\ngot:\n%v", filename, withinlayHints, got)
+		t.Errorf("inlay hints failed for %s, expected:\n%v\ngot:\n%v", filename, withinlayHints, got)
 	}
 }
 
