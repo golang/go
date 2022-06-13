@@ -8,19 +8,12 @@ import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
-	"cmd/internal/notsha256"
 	"cmd/internal/src"
 	"fmt"
-	"io"
 	"math"
 	"os"
 	"strings"
 )
-
-type writeSyncer interface {
-	io.Writer
-	Sync() error
-}
 
 // A Func represents a Go func declaration (or function literal) and its body.
 // This package compiles each Func independently.
@@ -38,11 +31,7 @@ type Func struct {
 	bid idAlloc // block ID allocator
 	vid idAlloc // value ID allocator
 
-	// Given an environment variable used for debug hash match,
-	// what file (if any) receives the yes/no logging?
-	logfiles       map[string]writeSyncer
 	HTMLWriter     *HTMLWriter    // html writer, for debugging
-	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.  There's an odd dependence on this in debug.go for method logf.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
 	ABI0           *abi.ABIConfig // A copy, for no-sync access
@@ -819,88 +808,18 @@ func (f *Func) invalidateCFG() {
 	f.cachedLoopnest = nil
 }
 
-// DebugHashMatch reports whether environment variable evname
-//  1. is empty (this is a special more-quickly implemented case of 3)
-//  2. is "y" or "Y"
-//  3. is a suffix of the sha1 hash of name
-//  4. is a suffix of the environment variable
-//     fmt.Sprintf("%s%d", evname, n)
-//     provided that all such variables are nonempty for 0 <= i <= n
-//
-// Otherwise it returns false.
-// When true is returned the message
-//
-//	"%s triggered %s\n", evname, name
-//
-// is printed on the file named in environment variable
-//
-//	GSHS_LOGFILE
-//
-// or standard out if that is empty or there is an error
-// opening the file.
-func (f *Func) DebugHashMatch(evname string) bool {
+// DebugHashMatch returns
+//   base.DebugHashMatch(this function's package.name)
+// for use in bug isolation.  The return value is true unless
+// environment variable GOSSAHASH is set, in which case "it depends".
+// See [base.DebugHashMatch] for more information.
+func (f *Func) DebugHashMatch() bool {
+	evhash := os.Getenv(base.GOSSAHASH)
+	if evhash == "" {
+		return true
+	}
 	name := f.fe.MyImportPath() + "." + f.Name
-	evhash := os.Getenv(evname)
-	switch evhash {
-	case "":
-		return true // default behavior with no EV is "on"
-	case "y", "Y":
-		f.logDebugHashMatch(evname, name)
-		return true
-	case "n", "N":
-		return false
-	}
-	// Check the hash of the name against a partial input hash.
-	// We use this feature to do a binary search to
-	// find a function that is incorrectly compiled.
-	hstr := ""
-	for _, b := range notsha256.Sum256([]byte(name)) {
-		hstr += fmt.Sprintf("%08b", b)
-	}
-
-	if strings.HasSuffix(hstr, evhash) {
-		f.logDebugHashMatch(evname, name)
-		return true
-	}
-
-	// Iteratively try additional hashes to allow tests for multi-point
-	// failure.
-	for i := 0; true; i++ {
-		ev := fmt.Sprintf("%s%d", evname, i)
-		evv := os.Getenv(ev)
-		if evv == "" {
-			break
-		}
-		if strings.HasSuffix(hstr, evv) {
-			f.logDebugHashMatch(ev, name)
-			return true
-		}
-	}
-	return false
-}
-
-func (f *Func) logDebugHashMatch(evname, name string) {
-	if f.logfiles == nil {
-		f.logfiles = make(map[string]writeSyncer)
-	}
-	file := f.logfiles[evname]
-	if file == nil {
-		file = os.Stdout
-		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
-			var err error
-			file, err = os.OpenFile(tmpfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-			if err != nil {
-				f.Fatalf("could not open hash-testing logfile %s", tmpfile)
-			}
-		}
-		f.logfiles[evname] = file
-	}
-	fmt.Fprintf(file, "%s triggered %s\n", evname, name)
-	file.Sync()
-}
-
-func DebugNameMatch(evname, name string) bool {
-	return os.Getenv(evname) == name
+	return base.DebugHashMatch(name)
 }
 
 func (f *Func) spSb() (sp, sb *Value) {
