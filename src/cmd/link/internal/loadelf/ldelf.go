@@ -1108,8 +1108,19 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		PPC64 | uint32(elf.R_PPC64_TOC16_LO_DS)<<16,
 		PPC64 | uint32(elf.R_PPC64_REL16_LO)<<16,
 		PPC64 | uint32(elf.R_PPC64_REL16_HI)<<16,
-		PPC64 | uint32(elf.R_PPC64_REL16_HA)<<16:
+		PPC64 | uint32(elf.R_PPC64_REL16_HA)<<16,
+		PPC64 | uint32(elf.R_PPC64_PLT16_HA)<<16,
+		PPC64 | uint32(elf.R_PPC64_PLT16_LO_DS)<<16:
 		return 2, 4, nil
+
+	// PPC64 inline PLT sequence hint relocations (-fno-plt)
+	// These are informational annotations to assist linker optimizations.
+	case PPC64 | uint32(elf.R_PPC64_PLTSEQ)<<16,
+		PPC64 | uint32(elf.R_PPC64_PLTCALL)<<16,
+		PPC64 | uint32(elf.R_PPC64_PLTCALL_NOTOC)<<16,
+		PPC64 | uint32(elf.R_PPC64_PLTSEQ_NOTOC)<<16:
+		return 0, 0, nil
+
 	}
 }
 

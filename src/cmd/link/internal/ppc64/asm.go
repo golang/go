@@ -476,6 +476,53 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 		ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_HA|sym.RV_CHECK_OVERFLOW)
 		su.SetRelocAdd(rIdx, r.Add()+2)
 		return true
+
+	// When compiling with gcc's -fno-plt option (no PLT), the following code and relocation
+	// sequences may be present to call an external function:
+	//
+	//   1. addis Rx,foo@R_PPC64_PLT16_HA
+	//   2. ld 12,foo@R_PPC64_PLT16_LO_DS(Rx)
+	//   3. mtctr 12 ; foo@R_PPC64_PLTSEQ
+	//   4. bctrl ; foo@R_PPC64_PLTCALL
+	//   5. ld r2,24(r1)
+	//
+	// Note, 5 is required to follow the R_PPC64_PLTCALL. Similarly, relocations targeting
+	// instructions 3 and 4 are zero sized informational relocations.
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_PLT16_HA),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_PLT16_LO_DS):
+		su := ldr.MakeSymbolUpdater(s)
+		isPLT16_LO_DS := r.Type() == objabi.ElfRelocOffset+objabi.RelocType(elf.R_PPC64_PLT16_LO_DS)
+		if isPLT16_LO_DS {
+			ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_DS)
+		} else {
+			ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_HA|sym.RV_CHECK_OVERFLOW)
+		}
+		su.SetRelocType(rIdx, objabi.R_POWER_TOC)
+		if targType == sym.SDYNIMPORT {
+			// This is an external symbol, make space in the GOT and retarget the reloc.
+			ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_PPC64_GLOB_DAT))
+			su.SetRelocSym(rIdx, syms.GOT)
+			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+		} else if targType == sym.STEXT {
+			// This is the half-way solution to transforming a PLT sequence into nops + bl targ
+			// We turn it into an indirect call by transforming step 2 into an addi.
+			// Fixing up the whole sequence is a bit more involved.
+			if isPLT16_LO_DS {
+				const MASK_OP_LD = 63<<26 | 0x3
+				const OP_LD = 58 << 26
+				const OP_ADDI = 14 << 26
+				op := target.Arch.ByteOrder.Uint32(su.Data()[r.Off():])
+				if op&MASK_OP_LD != OP_LD {
+					ldr.Errorf(s, "relocation R_PPC64_PLT16_LO_DS expected an ld opcode. Found non-ld opcode %08X.", op)
+				}
+				op = (op &^ MASK_OP_LD) | OP_ADDI
+				su.MakeWritable()
+				su.SetUint32(target.Arch, int64(r.Off()), op)
+			}
+		} else {
+			ldr.Errorf(s, "unexpected PLT relocation target symbol type %s", targType.String())
+		}
+		return true
 	}
 
 	// Handle references to ELF symbols from our own object files.
