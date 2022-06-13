@@ -153,6 +153,7 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 			HoverProvider:             true,
 			DocumentHighlightProvider: true,
 			DocumentLinkProvider:      protocol.DocumentLinkOptions{},
+			InlayHintProvider:         protocol.InlayHintOptions{},
 			ReferencesProvider:        true,
 			RenameProvider:            renameOpts,
 			SignatureHelpProvider: protocol.SignatureHelpOptions{

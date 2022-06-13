@@ -63,6 +63,9 @@ func doMain(baseDir string, write bool) (bool, error) {
 	if ok, err := rewriteFile(filepath.Join(baseDir, "gopls/doc/analyzers.md"), api, write, rewriteAnalyzers); !ok || err != nil {
 		return ok, err
 	}
+	if ok, err := rewriteFile(filepath.Join(baseDir, "gopls/doc/inlayHints.md"), api, write, rewriteInlayHints); !ok || err != nil {
+		return ok, err
+	}
 
 	return true, nil
 }
@@ -102,6 +105,7 @@ func loadAPI() (*source.APIJSON, error) {
 	} {
 		api.Analyzers = append(api.Analyzers, loadAnalyzers(m)...)
 	}
+	api.Hints = loadHints(source.AllInlayHints)
 	for _, category := range []reflect.Value{
 		reflect.ValueOf(defaults.UserOptions),
 	} {
@@ -144,6 +148,14 @@ func loadAPI() (*source.APIJSON, error) {
 						Name:    fmt.Sprintf("%q", l.Lens),
 						Doc:     l.Doc,
 						Default: def,
+					})
+				}
+			case "hints":
+				for _, a := range api.Hints {
+					opt.EnumKeys.Keys = append(opt.EnumKeys.Keys, source.EnumKey{
+						Name:    fmt.Sprintf("%q", a.Name),
+						Doc:     a.Doc,
+						Default: strconv.FormatBool(a.Default),
 					})
 				}
 			}
@@ -488,6 +500,23 @@ func loadAnalyzers(m map[string]*source.Analyzer) []*source.AnalyzerJSON {
 	return json
 }
 
+func loadHints(m map[string]*source.Hint) []*source.HintJSON {
+	var sorted []string
+	for _, h := range m {
+		sorted = append(sorted, h.Name)
+	}
+	sort.Strings(sorted)
+	var json []*source.HintJSON
+	for _, name := range sorted {
+		h := m[name]
+		json = append(json, &source.HintJSON{
+			Name: h.Name,
+			Doc:  h.Doc,
+		})
+	}
+	return json
+}
+
 func lowerFirst(x string) string {
 	if x == "" {
 		return x
@@ -697,6 +726,21 @@ func rewriteAnalyzers(doc []byte, api *source.APIJSON) ([]byte, error) {
 		}
 	}
 	return replaceSection(doc, "Analyzers", section.Bytes())
+}
+
+func rewriteInlayHints(doc []byte, api *source.APIJSON) ([]byte, error) {
+	section := bytes.NewBuffer(nil)
+	for _, hint := range api.Hints {
+		fmt.Fprintf(section, "## **%v**\n\n", hint.Name)
+		fmt.Fprintf(section, "%s\n\n", hint.Doc)
+		switch hint.Default {
+		case true:
+			fmt.Fprintf(section, "**Enabled by default.**\n\n")
+		case false:
+			fmt.Fprintf(section, "**Disabled by default. Enable it by setting `\"hints\": {\"%s\": true}`.**\n\n", hint.Name)
+		}
+	}
+	return replaceSection(doc, "Hints", section.Bytes())
 }
 
 func replaceSection(doc []byte, sectionName string, replacement []byte) ([]byte, error) {

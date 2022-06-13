@@ -130,6 +130,7 @@ func DefaultOptions() *Options {
 							Nil:    true,
 						},
 					},
+					InlayHintOptions: InlayHintOptions{},
 					DocumentationOptions: DocumentationOptions{
 						HoverKind:    FullDocumentation,
 						LinkTarget:   "pkg.go.dev",
@@ -289,6 +290,7 @@ type UIOptions struct {
 	CompletionOptions
 	NavigationOptions
 	DiagnosticOptions
+	InlayHintOptions
 
 	// Codelenses overrides the enabled/disabled state of code lenses. See the
 	// "Code Lenses" section of the
@@ -405,6 +407,13 @@ type DiagnosticOptions struct {
 	//
 	// This option must be set to a valid duration string, for example `"100ms"`.
 	ExperimentalWatchedFileDelay time.Duration `status:"experimental"`
+}
+
+type InlayHintOptions struct {
+	// Hints specify inlay hints that users want to see.
+	// A full list of hints that gopls uses can be found
+	// [here](https://github.com/golang/tools/blob/master/gopls/doc/inlayHints.md).
+	Hints map[string]bool `status:"experimental"`
 }
 
 type NavigationOptions struct {
@@ -915,6 +924,9 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 	case "analyses":
 		result.setBoolMap(&o.Analyses)
 
+	case "hints":
+		result.setBoolMap(&o.Hints)
+
 	case "annotations":
 		result.setAnnotationMap(&o.Annotations)
 
@@ -1351,6 +1363,7 @@ type APIJSON struct {
 	Commands  []*CommandJSON
 	Lenses    []*LensJSON
 	Analyzers []*AnalyzerJSON
+	Hints     []*HintJSON
 }
 
 type OptionJSON struct {
@@ -1416,12 +1429,8 @@ func collectEnums(opt *OptionJSON) string {
 }
 
 func shouldShowEnumKeysInSettings(name string) bool {
-	// Both of these fields have too many possible options to print.
-	return !hardcodedEnumKeys(name)
-}
-
-func hardcodedEnumKeys(name string) bool {
-	return name == "analyses" || name == "codelenses"
+	// These fields have too many possible options to print.
+	return !(name == "analyses" || name == "codelenses" || name == "hints")
 }
 
 type EnumKeys struct {
@@ -1488,4 +1497,18 @@ func (a *AnalyzerJSON) String() string {
 
 func (a *AnalyzerJSON) Write(w io.Writer) {
 	fmt.Fprintf(w, "%s (%s): %v", a.Name, a.Doc, a.Default)
+}
+
+type HintJSON struct {
+	Name    string
+	Doc     string
+	Default bool
+}
+
+func (h *HintJSON) String() string {
+	return h.Name
+}
+
+func (h *HintJSON) Write(w io.Writer) {
+	fmt.Fprintf(w, "%s (%s): %v", h.Name, h.Doc, h.Default)
 }

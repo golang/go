@@ -35,6 +35,7 @@ still be able to independently override specific experimental features.
   * [Completion](#completion)
   * [Diagnostic](#diagnostic)
   * [Documentation](#documentation)
+  * [Inlayhint](#inlayhint)
   * [Navigation](#navigation)
 
 ### Build
@@ -369,6 +370,18 @@ Default: `"pkg.go.dev"`.
 linksInHover toggles the presence of links to documentation in hover.
 
 Default: `true`.
+
+#### Inlayhint
+
+##### **hints** *map[string]bool*
+
+**This setting is experimental and may be deleted.**
+
+hints specify inlay hints that users want to see.
+A full list of hints that gopls uses can be found
+[here](https://github.com/golang/tools/blob/master/gopls/doc/inlayHints.md).
+
+Default: `{}`.
 
 #### Navigation
 

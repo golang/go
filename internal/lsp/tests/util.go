@@ -512,6 +512,15 @@ func EnableAllAnalyzers(view source.View, opts *source.Options) {
 	}
 }
 
+func EnableAllInlayHints(view source.View, opts *source.Options) {
+	if opts.Hints == nil {
+		opts.Hints = make(map[string]bool)
+	}
+	for name := range source.AllInlayHints {
+		opts.Hints[name] = true
+	}
+}
+
 func WorkspaceSymbolsString(ctx context.Context, data *Data, queryURI span.URI, symbols []protocol.SymbolInformation) (string, error) {
 	queryDir := filepath.Dir(queryURI.Filename())
 	var filtered []string

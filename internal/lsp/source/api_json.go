@@ -506,6 +506,51 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy: "ui.diagnostic",
 			},
 			{
+				Name: "hints",
+				Type: "map[string]bool",
+				Doc:  "hints specify inlay hints that users want to see.\nA full list of hints that gopls uses can be found\n[here](https://github.com/golang/tools/blob/master/gopls/doc/inlayHints.md).\n",
+				EnumKeys: EnumKeys{Keys: []EnumKey{
+					{
+						Name:    "\"assign_variable_types\"",
+						Doc:     "Enable/disable inlay hints for variable types in assign statements:\n\n\ti/* int/*, j/* int/* := 0, len(r)-1",
+						Default: "false",
+					},
+					{
+						Name:    "\"composite_literal_fields\"",
+						Doc:     "Enable/disable inlay hints for composite literal field names:\n\n\t{in: \"Hello, world\", want: \"dlrow ,olleH\"}",
+						Default: "false",
+					},
+					{
+						Name:    "\"composite_literal_types\"",
+						Doc:     "Enable/disable inlay hints for composite literal types:\n\n\tfor _, c := range []struct {\n\t\tin, want string\n\t}{\n\t\t/*struct{ in string; want string }*/{\"Hello, world\", \"dlrow ,olleH\"},\n\t}",
+						Default: "false",
+					},
+					{
+						Name:    "\"constant_values\"",
+						Doc:     "Enable/disable inlay hints for constant values:\n\n\tconst (\n\t\tKindNone   Kind = iota/* = 0*/\n\t\tKindPrint/*  = 1*/\n\t\tKindPrintf/* = 2*/\n\t\tKindErrorf/* = 3*/\n\t)",
+						Default: "false",
+					},
+					{
+						Name:    "\"function_type_parameters\"",
+						Doc:     "Enable/disable inlay hints for implicit type parameters on generic functions:\n\n\tmyFoo/*[int, string]*/(1, \"hello\")",
+						Default: "false",
+					},
+					{
+						Name:    "\"parameter_names\"",
+						Doc:     "Enable/disable inlay hints for parameter names:\n\n\tparseInt(/* str: */ \"123\", /* radix: */ 8)",
+						Default: "false",
+					},
+					{
+						Name:    "\"range_variable_types\"",
+						Doc:     "Enable/disable inlay hints for variable types in range statements:\n\n\tfor k/* int*/, v/* string/* := range []string{} {\n\t\tfmt.Println(k, v)\n\t}",
+						Default: "false",
+					},
+				}},
+				Default:   "{}",
+				Status:    "experimental",
+				Hierarchy: "ui.inlayhint",
+			},
+			{
 				Name: "codelenses",
 				Type: "map[string]bool",
 				Doc:  "codelenses overrides the enabled/disabled state of code lenses. See the\n\"Code Lenses\" section of the\n[Settings page](https://github.com/golang/tools/blob/master/gopls/doc/settings.md#code-lenses)\nfor the list of supported lenses.\n\nExample Usage:\n\n```json5\n\"gopls\": {\n...\n  \"codelenses\": {\n    \"generate\": false,  // Don't show the `go generate` lens.\n    \"gc_details\": true  // Show a code lens toggling the display of gc's choices.\n  }\n...\n}\n```\n",
@@ -977,6 +1022,36 @@ var GeneratedAPIJSON = &APIJSON{
 			Name:    "stubmethods",
 			Doc:     "stub methods analyzer\n\nThis analyzer generates method stubs for concrete types\nin order to implement a target interface",
 			Default: true,
+		},
+	},
+	Hints: []*HintJSON{
+		{
+			Name: "assign_variable_types",
+			Doc:  "Enable/disable inlay hints for variable types in assign statements:\n\n\ti/* int/*, j/* int/* := 0, len(r)-1",
+		},
+		{
+			Name: "composite_literal_fields",
+			Doc:  "Enable/disable inlay hints for composite literal field names:\n\n\t{in: \"Hello, world\", want: \"dlrow ,olleH\"}",
+		},
+		{
+			Name: "composite_literal_types",
+			Doc:  "Enable/disable inlay hints for composite literal types:\n\n\tfor _, c := range []struct {\n\t\tin, want string\n\t}{\n\t\t/*struct{ in string; want string }*/{\"Hello, world\", \"dlrow ,olleH\"},\n\t}",
+		},
+		{
+			Name: "constant_values",
+			Doc:  "Enable/disable inlay hints for constant values:\n\n\tconst (\n\t\tKindNone   Kind = iota/* = 0*/\n\t\tKindPrint/*  = 1*/\n\t\tKindPrintf/* = 2*/\n\t\tKindErrorf/* = 3*/\n\t)",
+		},
+		{
+			Name: "function_type_parameters",
+			Doc:  "Enable/disable inlay hints for implicit type parameters on generic functions:\n\n\tmyFoo/*[int, string]*/(1, \"hello\")",
+		},
+		{
+			Name: "parameter_names",
+			Doc:  "Enable/disable inlay hints for parameter names:\n\n\tparseInt(/* str: */ \"123\", /* radix: */ 8)",
+		},
+		{
+			Name: "range_variable_types",
+			Doc:  "Enable/disable inlay hints for variable types in range statements:\n\n\tfor k/* int*/, v/* string/* := range []string{} {\n\t\tfmt.Println(k, v)\n\t}",
 		},
 	},
 }

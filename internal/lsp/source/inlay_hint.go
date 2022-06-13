@@ -23,6 +23,87 @@ const (
 	maxLabelLength = 28
 )
 
+type InlayHintFunc func(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint
+
+type Hint struct {
+	Name string
+	Doc  string
+	Run  InlayHintFunc
+}
+
+const (
+	ParameterNames             = "parameter_names"
+	AssignVariableTypes        = "assign_variable_types"
+	ConstantValues             = "constant_values"
+	RangeVariableTypes         = "range_variable_types"
+	CompositeLiteralTypes      = "composite_literal_types"
+	CompositeLiteralFieldNames = "composite_literal_fields"
+	FunctionTypeParameters     = "function_type_parameters"
+)
+
+var AllInlayHints = map[string]*Hint{
+	AssignVariableTypes: {
+		Name: AssignVariableTypes,
+		Doc: `Enable/disable inlay hints for variable types in assign statements:
+
+	i/* int/*, j/* int/* := 0, len(r)-1`,
+		Run: assignVariableTypes,
+	},
+	ParameterNames: {
+		Name: ParameterNames,
+		Doc: `Enable/disable inlay hints for parameter names:
+
+	parseInt(/* str: */ "123", /* radix: */ 8)`,
+		Run: parameterNames,
+	},
+	ConstantValues: {
+		Name: ConstantValues,
+		Doc: `Enable/disable inlay hints for constant values:
+
+	const (
+		KindNone   Kind = iota/* = 0*/
+		KindPrint/*  = 1*/
+		KindPrintf/* = 2*/
+		KindErrorf/* = 3*/
+	)`,
+		Run: constantValues,
+	},
+	RangeVariableTypes: {
+		Name: RangeVariableTypes,
+		Doc: `Enable/disable inlay hints for variable types in range statements:
+
+	for k/* int*/, v/* string/* := range []string{} {
+		fmt.Println(k, v)
+	}`,
+		Run: rangeVariableTypes,
+	},
+	CompositeLiteralTypes: {
+		Name: CompositeLiteralTypes,
+		Doc: `Enable/disable inlay hints for composite literal types:
+
+	for _, c := range []struct {
+		in, want string
+	}{
+		/*struct{ in string; want string }*/{"Hello, world", "dlrow ,olleH"},
+	}`,
+		Run: compositeLiteralTypes,
+	},
+	CompositeLiteralFieldNames: {
+		Name: CompositeLiteralFieldNames,
+		Doc: `Enable/disable inlay hints for composite literal field names:
+
+	{in: "Hello, world", want: "dlrow ,olleH"}`,
+		Run: compositeLiteralFields,
+	},
+	FunctionTypeParameters: {
+		Name: FunctionTypeParameters,
+		Doc: `Enable/disable inlay hints for implicit type parameters on generic functions:
+
+	myFoo/*[int, string]*/(1, "hello")`,
+		Run: funcTypeParams,
+	},
+}
+
 func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, _ protocol.Range) ([]protocol.InlayHint, error) {
 	ctx, done := event.Start(ctx, "source.InlayHint")
 	defer done()
@@ -32,38 +113,47 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, _ protocol
 		return nil, fmt.Errorf("getting file for InlayHint: %w", err)
 	}
 
+	// Collect a list of the inlay hints that are enabled.
+	inlayHintOptions := snapshot.View().Options().InlayHintOptions
+	var enabledHints []InlayHintFunc
+	for hint, enabled := range inlayHintOptions.Hints {
+		if !enabled {
+			continue
+		}
+		if h, ok := AllInlayHints[hint]; ok {
+			enabledHints = append(enabledHints, h.Run)
+		}
+	}
+	if len(enabledHints) == 0 {
+		return nil, nil
+	}
+
 	tmap := lsppos.NewTokenMapper(pgf.Src, pgf.Tok)
 	info := pkg.GetTypesInfo()
 	q := Qualifier(pgf.File, pkg.GetTypes(), info)
 
 	var hints []protocol.InlayHint
 	ast.Inspect(pgf.File, func(node ast.Node) bool {
-		switch n := node.(type) {
-		case *ast.CallExpr:
-			hints = append(hints, parameterNames(n, tmap, info)...)
-			hints = append(hints, funcTypeParams(n, tmap, info)...)
-		case *ast.AssignStmt:
-			hints = append(hints, assignVariableTypes(n, tmap, info, &q)...)
-		case *ast.RangeStmt:
-			hints = append(hints, rangeVariableTypes(n, tmap, info, &q)...)
-		case *ast.GenDecl:
-			hints = append(hints, constantValues(n, tmap, info)...)
-		case *ast.CompositeLit:
-			hints = append(hints, compositeLiterals(n, tmap, info, &q)...)
+		for _, fn := range enabledHints {
+			hints = append(hints, fn(node, tmap, info, &q)...)
 		}
 		return true
 	})
 	return hints, nil
 }
 
-func parameterNames(node *ast.CallExpr, tmap *lsppos.TokenMapper, info *types.Info) []protocol.InlayHint {
-	signature, ok := info.TypeOf(node.Fun).(*types.Signature)
+func parameterNames(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
+	callExpr, ok := node.(*ast.CallExpr)
+	if !ok {
+		return nil
+	}
+	signature, ok := info.TypeOf(callExpr.Fun).(*types.Signature)
 	if !ok {
 		return nil
 	}
 
 	var hints []protocol.InlayHint
-	for i, v := range node.Args {
+	for i, v := range callExpr.Args {
 		start, ok := tmap.Position(v.Pos())
 		if !ok {
 			continue
@@ -92,8 +182,12 @@ func parameterNames(node *ast.CallExpr, tmap *lsppos.TokenMapper, info *types.In
 	return hints
 }
 
-func funcTypeParams(node *ast.CallExpr, tmap *lsppos.TokenMapper, info *types.Info) []protocol.InlayHint {
-	id, ok := node.Fun.(*ast.Ident)
+func funcTypeParams(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
+	ce, ok := node.(*ast.CallExpr)
+	if !ok {
+		return nil
+	}
+	id, ok := ce.Fun.(*ast.Ident)
 	if !ok {
 		return nil
 	}
@@ -119,12 +213,14 @@ func funcTypeParams(node *ast.CallExpr, tmap *lsppos.TokenMapper, info *types.In
 	}}
 }
 
-func assignVariableTypes(node *ast.AssignStmt, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
-	if node.Tok != token.DEFINE {
+func assignVariableTypes(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+	stmt, ok := node.(*ast.AssignStmt)
+	if !ok || stmt.Tok != token.DEFINE {
 		return nil
 	}
+
 	var hints []protocol.InlayHint
-	for _, v := range node.Lhs {
+	for _, v := range stmt.Lhs {
 		if h := variableType(v, tmap, info, q); h != nil {
 			hints = append(hints, *h)
 		}
@@ -132,12 +228,16 @@ func assignVariableTypes(node *ast.AssignStmt, tmap *lsppos.TokenMapper, info *t
 	return hints
 }
 
-func rangeVariableTypes(node *ast.RangeStmt, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+func rangeVariableTypes(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+	rStmt, ok := node.(*ast.RangeStmt)
+	if !ok {
+		return nil
+	}
 	var hints []protocol.InlayHint
-	if h := variableType(node.Key, tmap, info, q); h != nil {
+	if h := variableType(rStmt.Key, tmap, info, q); h != nil {
 		hints = append(hints, *h)
 	}
-	if h := variableType(node.Value, tmap, info, q); h != nil {
+	if h := variableType(rStmt.Value, tmap, info, q); h != nil {
 		hints = append(hints, *h)
 	}
 	return hints
@@ -160,13 +260,14 @@ func variableType(e ast.Expr, tmap *lsppos.TokenMapper, info *types.Info, q *typ
 	}
 }
 
-func constantValues(node *ast.GenDecl, tmap *lsppos.TokenMapper, info *types.Info) []protocol.InlayHint {
-	if node.Tok != token.CONST {
+func constantValues(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
+	genDecl, ok := node.(*ast.GenDecl)
+	if !ok || genDecl.Tok != token.CONST {
 		return nil
 	}
 
 	var hints []protocol.InlayHint
-	for _, v := range node.Specs {
+	for _, v := range genDecl.Specs {
 		spec, ok := v.(*ast.ValueSpec)
 		if !ok {
 			continue
@@ -210,36 +311,26 @@ func constantValues(node *ast.GenDecl, tmap *lsppos.TokenMapper, info *types.Inf
 	return hints
 }
 
-func compositeLiterals(node *ast.CompositeLit, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
-	typ := info.TypeOf(node)
+func compositeLiteralFields(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+	compLit, ok := node.(*ast.CompositeLit)
+	if !ok {
+		return nil
+	}
+	typ := info.TypeOf(compLit)
 	if typ == nil {
 		return nil
 	}
-
-	prefix := ""
 	if t, ok := typ.(*types.Pointer); ok {
 		typ = t.Elem()
-		prefix = "&"
 	}
-
 	strct, ok := typ.Underlying().(*types.Struct)
 	if !ok {
 		return nil
 	}
 
 	var hints []protocol.InlayHint
-	if node.Type == nil {
-		// The type for this struct is implicit, add an inlay hint.
-		if start, ok := tmap.Position(node.Lbrace); ok {
-			hints = append(hints, protocol.InlayHint{
-				Position: &start,
-				Label:    buildLabel(fmt.Sprintf("%s%s", prefix, types.TypeString(typ, *q))),
-				Kind:     protocol.Type,
-			})
-		}
-	}
 
-	for i, v := range node.Elts {
+	for i, v := range compLit.Elts {
 		if _, ok := v.(*ast.KeyValueExpr); !ok {
 			start, ok := tmap.Position(v.Pos())
 			if !ok {
@@ -257,6 +348,35 @@ func compositeLiterals(node *ast.CompositeLit, tmap *lsppos.TokenMapper, info *t
 		}
 	}
 	return hints
+}
+
+func compositeLiteralTypes(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+	compLit, ok := node.(*ast.CompositeLit)
+	if !ok {
+		return nil
+	}
+	typ := info.TypeOf(compLit)
+	if typ == nil {
+		return nil
+	}
+	if compLit.Type != nil {
+		return nil
+	}
+	prefix := ""
+	if t, ok := typ.(*types.Pointer); ok {
+		typ = t.Elem()
+		prefix = "&"
+	}
+	// The type for this composite literal is implicit, add an inlay hint.
+	start, ok := tmap.Position(compLit.Lbrace)
+	if !ok {
+		return nil
+	}
+	return []protocol.InlayHint{{
+		Position: &start,
+		Label:    buildLabel(fmt.Sprintf("%s%s", prefix, types.TypeString(typ, *q))),
+		Kind:     protocol.Type,
+	}}
 }
 
 func buildLabel(s string) []protocol.InlayHintLabelPart {
