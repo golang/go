@@ -139,7 +139,7 @@ as well as support for rendering them to HTML, Markdown, and text.
   / <a href="/pkg/runtime/#hdr-Environment_Variables"><code>GOGC</code></a>,
   and will be respected even if <code>GOGC=off</code>, allowing Go programs to
   always make maximal use of their memory limit, improving resource efficiency
-  in some cases. See <a href="https://go.dev/doc/gc-guide">the GC guide</a> for
+  in some cases. See <a href="/doc/gc-guide">the GC guide</a> for
   a detailed guide explaining the soft memory limit in more detail, as well as
   a variety of common use-cases and scenarios. Please note that small memory
   limits, on the order of tens of megabytes or less, are less likely to be
@@ -277,7 +277,7 @@ as well as support for rendering them to HTML, Markdown, and text.
   <a href="/pkg/os/exec/#Command"><code>Command</code></a> and
   <a href="/pkg/os/exec/#LookPath"><code>LookPath</code></a> no longer
   allow results from a PATH search to be found relative to the current directory.
-  This removes a <a href="https://go.dev/blog/path-security">common source of security problems</a>
+  This removes a <a href="/blog/path-security">common source of security problems</a>
   but may also break existing programs that depend on using, say, <code>exec.Command("prog")</code>
   to run a binary named <code>prog</code> (or, on Windows, <code>prog.exe</code>) in the current directory.
   See the <a href="/pkg/os/exec/"><code>os/exec</code></a> package documentation for
@@ -718,7 +718,7 @@ as well as support for rendering them to HTML, Markdown, and text.
       The methods <a href="/pkg/reflect/#Value.Len"><code>Value.Len</code></a>
       and <a href="/pkg/reflect/#Value.Cap"><code>Value.Cap</code></a>
       now successfully operate on a pointer to an array and return the length of that array,
-      to match what the <a href="https://go.dev/ref/spec#Length_and_capacity">builtin
+      to match what the <a href="/ref/spec#Length_and_capacity">builtin
       <code>len</code> and <code>cap</code> functions do</a>.
     </p>
   </dd>
