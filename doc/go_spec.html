@@ -7141,7 +7141,7 @@ A constant size argument must be non-negative and <a href="#Representability">re
 by a value of type <code>int</code>; if it is an untyped constant it is given type <code>int</code>.
 If both <code>n</code> and <code>m</code> are provided and are constant, then
 <code>n</code> must be no larger than <code>m</code>.
-If <code>n</code> is negative or larger than <code>m</code> at run time,
+For slices and channels, if <code>n</code> is negative or larger than <code>m</code> at run time,
 a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
 
