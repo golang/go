@@ -35,13 +35,29 @@ func (uri URI) Filename() string {
 }
 
 func filename(uri URI) (string, error) {
-	// This function is frequently called and its cost is
-	// dominated by the allocation of a net.URL.
-	// TODO(adonovan): opt: replace by a bespoke parseFileURI
-	// function that doesn't allocate.
 	if uri == "" {
 		return "", nil
 	}
+
+	// This conservative check for the common case
+	// of a simple non-empty absolute POSIX filename
+	// avoids the allocation of a net.URL.
+	if strings.HasPrefix(string(uri), "file:///") {
+		rest := string(uri)[len("file://"):] // leave one slash
+		for i := 0; i < len(rest); i++ {
+			b := rest[i]
+			// Reject these cases:
+			if b < ' ' || b == 0x7f || // control character
+				b == '%' || b == '+' || // URI escape
+				b == ':' || // Windows drive letter
+				b == '@' || b == '&' || b == '?' { // authority or query
+				goto slow
+			}
+		}
+		return rest, nil
+	}
+slow:
+
 	u, err := url.ParseRequestURI(string(uri))
 	if err != nil {
 		return "", err
@@ -54,6 +70,7 @@ func filename(uri URI) (string, error) {
 	if isWindowsDriveURIPath(u.Path) {
 		u.Path = strings.ToUpper(string(u.Path[1])) + u.Path[2:]
 	}
+
 	return u.Path, nil
 }
 
