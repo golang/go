@@ -4,12 +4,24 @@ package inlayHint //@inlayHint("package")
 import "fmt"
 
 func fieldNames() {
-	for _< int>, c< struct{in string; want strin...> := range []struct {
+	for _< int>, c< struct{in string; want string}> := range []struct {
 		in, want string
 	}{
-		{<in: >"Hello, world", <want: >"dlrow ,olleH"},
-		{<in: >"Hello, 世界", <want: >"界世 ,olleH"},
-		{<in: >"", <want: >""},
+		struct{ in, want string }{<in: >"Hello, world", <want: >"dlrow ,olleH"},
+		<struct{in string; want string}>{<in: >"Hello, 世界", <want: >"界世 ,olleH"},
+		<struct{in string; want string}>{<in: >"", <want: >""},
+	} {
+		fmt.Println(<a...: >c.in == c.want)
+	}
+}
+
+func fieldNamesPointers() {
+	for _< int>, c< *struct{in string; want string}> := range []*struct {
+		in, want string
+	}{
+		&struct{ in, want string }{<in: >"Hello, world", <want: >"dlrow ,olleH"},
+		<&struct{in string; want string}>{<in: >"Hello, 世界", <want: >"界世 ,olleH"},
+		<&struct{in string; want string}>{<in: >"", <want: >""},
 	} {
 		fmt.Println(<a...: >c.in == c.want)
 	}

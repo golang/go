@@ -47,7 +47,7 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, _ protocol
 		case *ast.GenDecl:
 			hints = append(hints, constantValues(n, tmap, info)...)
 		case *ast.CompositeLit:
-			hints = append(hints, compositeLiterals(n, tmap, info)...)
+			hints = append(hints, compositeLiterals(n, tmap, info, &q)...)
 		}
 		return true
 	})
@@ -181,17 +181,35 @@ func constantValues(node *ast.GenDecl, tmap *lsppos.TokenMapper, info *types.Inf
 	return hints
 }
 
-func compositeLiterals(node *ast.CompositeLit, tmap *lsppos.TokenMapper, info *types.Info) []protocol.InlayHint {
+func compositeLiterals(node *ast.CompositeLit, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
 	typ := info.TypeOf(node)
 	if typ == nil {
 		return nil
 	}
+
+	prefix := ""
+	if t, ok := typ.(*types.Pointer); ok {
+		typ = t.Elem()
+		prefix = "&"
+	}
+
 	strct, ok := typ.Underlying().(*types.Struct)
 	if !ok {
 		return nil
 	}
 
 	var hints []protocol.InlayHint
+	if node.Type == nil {
+		// The type for this struct is implicit, add an inlay hint.
+		if start, ok := tmap.Position(node.Lbrace); ok {
+			hints = append(hints, protocol.InlayHint{
+				Position: &start,
+				Label:    buildLabel(fmt.Sprintf("%s%s", prefix, types.TypeString(typ, *q))),
+				Kind:     protocol.Type,
+			})
+		}
+	}
+
 	for i, v := range node.Elts {
 		if _, ok := v.(*ast.KeyValueExpr); !ok {
 			start, ok := tmap.Position(v.Pos())
@@ -216,7 +234,7 @@ func buildLabel(s string) []protocol.InlayHintLabelPart {
 	label := protocol.InlayHintLabelPart{
 		Value: s,
 	}
-	if len(s) > maxLabelLength {
+	if len(s) > maxLabelLength+len("...") {
 		label.Value = s[:maxLabelLength] + "..."
 		label.Tooltip = s
 	}
