@@ -45,7 +45,11 @@ type SysProcAttr struct {
 	// number in the parent process.
 	Foreground   bool
 	Pgid         int            // Child's process group ID if Setpgid.
-	Pdeathsig    Signal         // Signal that the process will get when its parent dies (Linux and FreeBSD only)
+	// Pdeathsig, if non-zero, is a signal that the kernel will send to
+	// the child process when the creating thread dies. Note that the signal
+	// is sent on thread termination, which may happen before process termination.
+	// There are more details at https://go.dev/issue/27505.
+	Pdeathsig    Signal
 	Cloneflags   uintptr        // Flags for clone calls (Linux only)
 	Unshareflags uintptr        // Flags for unshare calls (Linux only)
 	UidMappings  []SysProcIDMap // User ID mappings for user namespaces.
