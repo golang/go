@@ -329,7 +329,7 @@ func (r *Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
 
 func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
 	if r.preferGoOverWindows() {
-		return r.lookupTXT(ctx, name)
+		return r.goLookupTXT(ctx, name)
 	}
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
