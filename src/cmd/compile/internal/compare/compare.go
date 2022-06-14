@@ -96,7 +96,7 @@ func EqStructCost(t *types.Type) int64 {
 			continue
 		}
 
-		n, _, next := eqStructFieldCost(t, f, i)
+		n, _, next := eqStructFieldCost(t, i)
 
 		cost += n
 		i = next
@@ -105,15 +105,16 @@ func EqStructCost(t *types.Type) int64 {
 	return cost
 }
 
-func eqStructFieldCost(t *types.Type, f *types.Field, i int) (int64, int64, int) {
+func eqStructFieldCost(t *types.Type, i int) (int64, int64, int) {
 	var (
-		cost       = int64(0)
-		regSize    = int64(types.RegSize)
-		size, next = Memrun(t, i)
+		cost    = int64(0)
+		regSize = int64(types.RegSize)
 	)
 
+	size, next := Memrun(t, i)
+
 	if base.Ctxt.Arch.CanMergeLoads && size%regSize == 0 {
-		cost += size / int64(types.RegSize)
+		cost += size / regSize
 	} else if next == i+1 {
 		cost++
 	}
