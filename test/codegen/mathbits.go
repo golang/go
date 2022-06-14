@@ -19,6 +19,8 @@ func LeadingZeros(n uint) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
+	// ppc64le:"CNTLZD"
+	// ppc64:"CNTLZD"
 	return bits.LeadingZeros(n)
 }
 
@@ -29,6 +31,8 @@ func LeadingZeros64(n uint64) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
+	// ppc64le:"CNTLZD"
+	// ppc64:"CNTLZD"
 	return bits.LeadingZeros64(n)
 }
 
@@ -39,6 +43,8 @@ func LeadingZeros32(n uint32) int {
 	// arm:"CLZ" arm64:"CLZW"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
+	// ppc64le:"CNTLZW"
+	// ppc64:"CNTLZW"
 	return bits.LeadingZeros32(n)
 }
 
@@ -49,6 +55,8 @@ func LeadingZeros16(n uint16) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
+	// ppc64le:"CNTLZD"
+	// ppc64:"CNTLZD"
 	return bits.LeadingZeros16(n)
 }
 
@@ -59,6 +67,8 @@ func LeadingZeros8(n uint8) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
+	// ppc64le:"CNTLZD"
+	// ppc64:"CNTLZD"
 	return bits.LeadingZeros8(n)
 }
 
@@ -73,6 +83,8 @@ func Len(n uint) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
+	// ppc64le:"SUBC","CNTLZD"
+	// ppc64:"SUBC","CNTLZD"
 	return bits.Len(n)
 }
 
@@ -113,6 +125,8 @@ func Len16(n uint16) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
+	// ppc64le:"SUBC","CNTLZD"
+	// ppc64:"SUBC","CNTLZD"
 	return bits.Len16(n)
 }
 
@@ -123,6 +137,8 @@ func Len8(n uint8) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
+	// ppc64le:"SUBC","CNTLZD"
+	// ppc64:"SUBC","CNTLZD"
 	return bits.Len8(n)
 }
 

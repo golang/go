@@ -12,46 +12,64 @@ package codegen
 
 func lshConst64x64(v int64) int64 {
 	// riscv64:"SLLI",-"AND",-"SLTIU"
+	// ppc64le:"SLD"
+	// ppc64:"SLD"
 	return v << uint64(33)
 }
 
 func rshConst64Ux64(v uint64) uint64 {
 	// riscv64:"SRLI",-"AND",-"SLTIU"
+	// ppc64le:"SRD"
+	// ppc64:"SRD"
 	return v >> uint64(33)
 }
 
 func rshConst64x64(v int64) int64 {
 	// riscv64:"SRAI",-"OR",-"SLTIU"
+	// ppc64le:"SRAD"
+	// ppc64:"SRAD"
 	return v >> uint64(33)
 }
 
 func lshConst32x64(v int32) int32 {
 	// riscv64:"SLLI",-"AND",-"SLTIU"
+	// ppc64le:"SLW"
+	// ppc64:"SLW"
 	return v << uint64(29)
 }
 
 func rshConst32Ux64(v uint32) uint32 {
 	// riscv64:"SRLI",-"AND",-"SLTIU"
+	// ppc64le:"SRW"
+	// ppc64:"SRW"
 	return v >> uint64(29)
 }
 
 func rshConst32x64(v int32) int32 {
 	// riscv64:"SRAI",-"OR",-"SLTIU"
+	// ppc64le:"SRAW"
+	// ppc64:"SRAW"
 	return v >> uint64(29)
 }
 
 func lshConst64x32(v int64) int64 {
 	// riscv64:"SLLI",-"AND",-"SLTIU"
+	// ppc64le:"SLD"
+	// ppc64:"SLD"
 	return v << uint32(33)
 }
 
 func rshConst64Ux32(v uint64) uint64 {
 	// riscv64:"SRLI",-"AND",-"SLTIU"
+	// ppc64le:"SRD"
+	// ppc64:"SRD"
 	return v >> uint32(33)
 }
 
 func rshConst64x32(v int64) int64 {
 	// riscv64:"SRAI",-"OR",-"SLTIU"
+	// ppc64le:"SRAD"
+	// ppc64:"SRAD"
 	return v >> uint32(33)
 }
 
