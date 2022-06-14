@@ -38,11 +38,7 @@ func cheapComputableIndex(width int64) bool {
 // the returned node.
 func walkRange(nrange *ir.RangeStmt) ir.Node {
 	if isMapClear(nrange) {
-		m := nrange.X
-		lno := ir.SetPos(m)
-		n := mapClear(m)
-		base.Pos = lno
-		return n
+		return mapClear(nrange)
 	}
 
 	nfor := ir.NewForStmt(nrange.Pos(), nil, nil, nil, nil)
@@ -360,7 +356,11 @@ func isMapClear(n *ir.RangeStmt) bool {
 }
 
 // mapClear constructs a call to runtime.mapclear for the map m.
-func mapClear(m ir.Node) ir.Node {
+func mapClear(nrange *ir.RangeStmt) ir.Node {
+	m := nrange.X
+	origPos := ir.SetPos(m)
+	defer func() { base.Pos = origPos }()
+
 	t := m.Type()
 
 	// instantiate mapclear(typ *type, hmap map[any]any)
