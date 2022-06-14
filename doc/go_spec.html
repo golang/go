@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 13, 2022",
+	"Subtitle": "Version of June 14, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -5245,7 +5245,7 @@ float32(0.49999999)      // 0.5 of type float32
 float64(-1e-1000)        // 0.0 of type float64
 string('x')              // "x" of type string
 string(0x266c)           // "♬" of type string
-MyString("foo" + "bar")  // "foobar" of type MyString
+myString("foo" + "bar")  // "foobar" of type myString
 string([]byte{'a'})      // not a constant: []byte{'a'} is not a constant
 (*int)(nil)              // not a constant: nil is not a constant, *int is not a boolean, numeric, or string type
 int(1.2)                 // illegal: 1.2 cannot be represented as an int
@@ -5428,8 +5428,9 @@ the range of valid Unicode code points are converted to <code>"\uFFFD"</code>.
 string('a')       // "a"
 string(-1)        // "\ufffd" == "\xef\xbf\xbd"
 string(0xf8)      // "\u00f8" == "ø" == "\xc3\xb8"
-type MyString string
-MyString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
+
+type myString string
+myString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
 </pre>
 </li>
 
@@ -5442,8 +5443,12 @@ string([]byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'})   // "hellø"
 string([]byte{})                                     // ""
 string([]byte(nil))                                  // ""
 
-type MyBytes []byte
-string(MyBytes{'h', 'e', 'l', 'l', '\xc3', '\xb8'})  // "hellø"
+type bytes []byte
+string(bytes{'h', 'e', 'l', 'l', '\xc3', '\xb8'})    // "hellø"
+
+type myByte byte
+string([]myByte{'w', 'o', 'r', 'l', 'd', '!'})       // "world!"
+myString([]myByte{'\xf0', '\x9f', '\x8c', '\x8d'})   // "🌍"
 </pre>
 </li>
 
@@ -5457,8 +5462,12 @@ string([]rune{0x767d, 0x9d6c, 0x7fd4})   // "\u767d\u9d6c\u7fd4" == "白鵬翔"
 string([]rune{})                         // ""
 string([]rune(nil))                      // ""
 
-type MyRunes []rune
-string(MyRunes{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+type runes []rune
+string(runes{0x767d, 0x9d6c, 0x7fd4})    // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+
+type myRune rune
+string([]myRune{0x266b, 0x266c})         // "\u266b\u266c" == "♫♬"
+myString([]myRune{0x1F30E})              // "\U0001f30e" == "🌎"
 </pre>
 </li>
 
@@ -5467,10 +5476,13 @@ Converting a value of a string type to a slice of bytes type
 yields a slice whose successive elements are the bytes of the string.
 
 <pre>
-[]byte("hellø")   // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
-[]byte("")        // []byte{}
+[]byte("hellø")             // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+[]byte("")                  // []byte{}
 
-MyBytes("hellø")  // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+bytes("hellø")              // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+
+[]myByte("world!")          // []myByte{'w', 'o', 'r', 'l', 'd', '!'}
+[]myByte(myString("🌏"))    // []myByte{'\xf0', '\x9f', '\x8c', '\x8f'}
 </pre>
 </li>
 
@@ -5479,10 +5491,13 @@ Converting a value of a string type to a slice of runes type
 yields a slice containing the individual Unicode code points of the string.
 
 <pre>
-[]rune(MyString("白鵬翔"))  // []rune{0x767d, 0x9d6c, 0x7fd4}
-[]rune("")                 // []rune{}
+[]rune(myString("白鵬翔"))   // []rune{0x767d, 0x9d6c, 0x7fd4}
+[]rune("")                  // []rune{}
 
-MyRunes("白鵬翔")           // []rune{0x767d, 0x9d6c, 0x7fd4}
+runes("白鵬翔")              // []rune{0x767d, 0x9d6c, 0x7fd4}
+
+[]myRune("♫♬")              // []myRune{0x266b, 0x266c}
+[]myRune(myString("🌐"))    // []myRune{0x1f310}
 </pre>
 </li>
 </ol>
