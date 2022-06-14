@@ -75,16 +75,21 @@ func BenchmarkEqArrayOfFloats1024(b *testing.B) {
 	}
 }
 
+const size = 32
+
 type T1 struct {
-	a [8]byte
+	a [size]byte
 }
 
 func BenchmarkEqStruct(b *testing.B) {
 	x, y := T1{}, T1{}
-	x.a = [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
-	y.a = [8]byte{2, 3, 4, 5, 6, 7, 8, 9}
+	x.a = [size]byte{1, 2, 3, 4, 5, 6, 7, 8}
+	y.a = [size]byte{2, 3, 4, 5, 6, 7, 8, 9}
 
 	for i := 0; i < b.N; i++ {
-		_ = x == y
+		f := x == y
+		if f {
+			println("hello")
+		}
 	}
 }
