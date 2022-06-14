@@ -125,7 +125,7 @@ func eqStructFieldCost(t *types.Type, i int) (int64, int64, int) {
 // EqStruct compares two structs np and nq for equality.
 // It works by building a list of boolean conditions to satisfy.
 // Conditions must be evaluated in the returned order and
-// properly short circuited by the caller.
+// properly short-circuited by the caller.
 func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 	// The conditions are a list-of-lists. Conditions are reorderable
 	// within each inner list. The outer lists must be evaluated in order.
@@ -171,10 +171,10 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 			continue
 		}
 
-		cost, size, next := eqStructFieldCost(t, f, i)
-		s := fields[i:next]
+		cost, size, next := eqStructFieldCost(t, i)
 		if cost <= 2 {
 			// Two or fewer fields: use plain field equality.
+			s := fields[i:next]
 			for _, f := range s {
 				and(eqfield(np, nq, ir.OEQ, f.Sym))
 			}
