@@ -33,6 +33,8 @@ var (
 type Store struct {
 	handlesMu sync.Mutex // lock ordering: Store.handlesMu before Handle.mu
 	handles   map[interface{}]*Handle
+	// handles which are bound to generations for GC purposes.
+	boundHandles map[*Handle]struct{}
 }
 
 // Generation creates a new Generation associated with s. Destroy must be
@@ -71,10 +73,7 @@ func (g *Generation) Destroy(destroyedBy string) {
 
 	g.store.handlesMu.Lock()
 	defer g.store.handlesMu.Unlock()
-	for _, h := range g.store.handles {
-		if !h.trackGenerations {
-			continue
-		}
+	for h := range g.store.boundHandles {
 		h.mu.Lock()
 		if _, ok := h.generations[g]; ok {
 			delete(h.generations, g) // delete even if it's dead, in case of dangling references to the entry.
@@ -237,7 +236,11 @@ func (g *Generation) getHandle(key interface{}, function Function, cleanup func(
 			trackGenerations: trackGenerations,
 		}
 		if trackGenerations {
+			if g.store.boundHandles == nil {
+				g.store.boundHandles = map[*Handle]struct{}{}
+			}
 			h.generations = make(map[*Generation]struct{}, 1)
+			g.store.boundHandles[h] = struct{}{}
 		}
 
 		if g.store.handles == nil {
@@ -302,6 +305,9 @@ func (h *Handle) destroy(store *Store) {
 		h.cleanup(h.value)
 	}
 	delete(store.handles, h.key)
+	if h.trackGenerations {
+		delete(store.boundHandles, h)
+	}
 }
 
 func (h *Handle) incrementRef(g *Generation) {
