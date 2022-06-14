@@ -7,6 +7,7 @@ package pe
 import (
 	"encoding/binary"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"strconv"
 )
@@ -97,12 +98,7 @@ type Section struct {
 
 // Data reads and returns the contents of the PE section s.
 func (s *Section) Data() ([]byte, error) {
-	dat := make([]byte, s.sr.Size())
-	n, err := s.sr.ReadAt(dat, 0)
-	if n == len(dat) {
-		err = nil
-	}
-	return dat[0:n], err
+	return saferio.ReadDataAt(s.sr, uint64(s.sr.Size()), 0)
 }
 
 // Open returns a new ReadSeeker reading the PE section s.

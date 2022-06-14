@@ -6,6 +6,7 @@ package saferio
 
 import (
 	"bytes"
+	"io"
 	"testing"
 )
 
@@ -34,6 +35,49 @@ func TestReadData(t *testing.T) {
 		_, err := ReadData(bytes.NewReader(input), 1<<62)
 		if err == nil {
 			t.Error("large read succeeded unexpectedly")
+		}
+	})
+}
+
+func TestReadDataAt(t *testing.T) {
+	const count = 100
+	input := bytes.Repeat([]byte{'a'}, count)
+
+	t.Run("small", func(t *testing.T) {
+		got, err := ReadDataAt(bytes.NewReader(input), count, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(got, input) {
+			t.Errorf("got %v, want %v", got, input)
+		}
+	})
+
+	t.Run("large", func(t *testing.T) {
+		_, err := ReadDataAt(bytes.NewReader(input), 10<<30, 0)
+		if err == nil {
+			t.Error("large read succeeded unexpectedly")
+		}
+	})
+
+	t.Run("maxint", func(t *testing.T) {
+		_, err := ReadDataAt(bytes.NewReader(input), 1<<62, 0)
+		if err == nil {
+			t.Error("large read succeeded unexpectedly")
+		}
+	})
+
+	t.Run("SectionReader", func(t *testing.T) {
+		// Reading 0 bytes from an io.SectionReader at the end
+		// of the section will return EOF, but ReadDataAt
+		// should succeed and return 0 bytes.
+		sr := io.NewSectionReader(bytes.NewReader(input), 0, 0)
+		got, err := ReadDataAt(sr, 0, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) > 0 {
+			t.Errorf("got %d bytes, expected 0", len(got))
 		}
 	})
 }
