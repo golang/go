@@ -19,7 +19,7 @@ func MustHaveDebugOptionsSupport(t *testing.T) {
 	}
 }
 
-func MustSupportFeatureDectection(t *testing.T) {
+func MustSupportFeatureDetection(t *testing.T) {
 	// TODO: add platforms that do not have CPU feature detection support.
 }
 
@@ -41,7 +41,7 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
 }
 
 func TestDisableAllCapabilities(t *testing.T) {
-	MustSupportFeatureDectection(t)
+	MustSupportFeatureDetection(t)
 	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "cpu.all=off")
 }
 
