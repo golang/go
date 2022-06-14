@@ -106,6 +106,26 @@ func CompareStruct2(s1, s2 T2) bool {
 	return s1 == s2
 }
 
+type T3 struct {
+	a [24]byte
+}
+
+func CompareStruct3(s1, s2 T3) bool {
+	// amd64:`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+	// amd64:-`CALL`
+	return s1 == s2
+}
+
+type T4 struct {
+	a [32]byte
+}
+
+func CompareStruct4(s1, s2 T4) bool {
+	// amd64:`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+	// amd64:-`CALL`
+	return s1 == s2
+}
+
 // -------------- //
 //    Ordering    //
 // -------------- //

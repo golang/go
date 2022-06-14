@@ -172,8 +172,8 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 		}
 
 		cost, size, next := eqStructFieldCost(t, i)
-		if cost <= 2 {
-			// Two or fewer fields: use plain field equality.
+		if cost <= 4 {
+			// Cost of 4 or less: use plain field equality.
 			s := fields[i:next]
 			for _, f := range s {
 				and(eqfield(np, nq, ir.OEQ, f.Sym))

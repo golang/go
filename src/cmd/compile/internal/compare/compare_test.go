@@ -80,6 +80,17 @@ func TestEqStructCost(t *testing.T) {
 				return parent
 			},
 		},
+		{"struct with 32 byte fields", 4,
+			func() *types.Type {
+				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				fields := make([]*types.Field, 32)
+				for i := range fields {
+					fields[i] = newByteField(parent, int64(i))
+				}
+				parent.SetFields(fields)
+				return parent
+			},
+		},
 		{"struct with 2 int32 fields", 1,
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
