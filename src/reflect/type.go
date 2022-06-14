@@ -2635,10 +2635,16 @@ func StructOf(fields []StructField) Type {
 		comparable = comparable && (ft.equal != nil)
 
 		offset := align(size, uintptr(ft.align))
+		if offset < size {
+			panic("reflect.StructOf: struct size would exceed virtual address space")
+		}
 		if ft.align > typalign {
 			typalign = ft.align
 		}
 		size = offset + ft.size
+		if size < offset {
+			panic("reflect.StructOf: struct size would exceed virtual address space")
+		}
 		f.offset = offset
 
 		if ft.size == 0 {
@@ -2655,6 +2661,9 @@ func StructOf(fields []StructField) Type {
 		// zero-sized field can't manufacture a pointer to the
 		// next object in the heap. See issue 9401.
 		size++
+		if size == 0 {
+			panic("reflect.StructOf: struct size would exceed virtual address space")
+		}
 	}
 
 	var typ *structType
@@ -2697,7 +2706,11 @@ func StructOf(fields []StructField) Type {
 	str := string(repr)
 
 	// Round the size up to be a multiple of the alignment.
-	size = align(size, uintptr(typalign))
+	s := align(size, uintptr(typalign))
+	if s < size {
+		panic("reflect.StructOf: struct size would exceed virtual address space")
+	}
+	size = s
 
 	// Make the struct type.
 	var istruct any = struct{}{}
