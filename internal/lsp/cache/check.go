@@ -97,14 +97,6 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 		return nil, err
 	}
 
-	// Do not close over the packageHandle or the snapshot in the Bind function.
-	// This creates a cycle, which causes the finalizers to never run on the handles.
-	// The possible cycles are:
-	//
-	//     packageHandle.h.function -> packageHandle
-	//     packageHandle.h.function -> snapshot -> packageHandle
-	//
-
 	m := ph.m
 	key := ph.key
 
@@ -120,6 +112,13 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 				wg.Done()
 			}(dep)
 		}
+
+		// TODO(adonovan): opt: consider moving the Wait here,
+		// so that dependencies complete before we start to
+		// read+parse+typecheck this package. Although the
+		// read+parse can proceed, typechecking will block
+		// almost immediately until the imports are done.
+		// The effect is to increase contention.
 
 		data := &packageData{}
 		data.pkg, data.err = typeCheck(ctx, snapshot, m.Metadata, mode, deps)
@@ -448,6 +447,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, m *Metadata, mode sour
 	}
 	typeparams.InitInstanceInfo(pkg.typesInfo)
 
+	// TODO(adonovan): opt: execute this loop in parallel.
 	for _, gf := range pkg.m.GoFiles {
 		// In the presence of line directives, we may need to report errors in
 		// non-compiled Go files, so we need to register them on the package.

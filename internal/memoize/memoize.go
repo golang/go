@@ -181,8 +181,9 @@ func (g *Generation) Bind(key interface{}, function Function, cleanup func(inter
 	if atomic.LoadUint32(&g.destroyed) != 0 {
 		panic("operation on generation " + g.name + " destroyed by " + g.destroyedBy)
 	}
+
+	// Avoid 'defer Unlock' to reduce critical section.
 	g.store.mu.Lock()
-	defer g.store.mu.Unlock()
 	h, ok := g.store.handles[key]
 	if !ok {
 		h := &Handle{
@@ -192,8 +193,11 @@ func (g *Generation) Bind(key interface{}, function Function, cleanup func(inter
 			cleanup:     cleanup,
 		}
 		g.store.handles[key] = h
+		g.store.mu.Unlock()
 		return h
 	}
+	g.store.mu.Unlock()
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if _, ok := h.generations[g]; !ok {
