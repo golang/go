@@ -842,9 +842,15 @@ func TypeLinksym(t *types.Type) *obj.LSym {
 	return TypeSym(t).Linksym()
 }
 
+// Deprecated: Use TypePtrAt instead.
 func TypePtr(t *types.Type) *ir.AddrExpr {
-	n := ir.NewLinksymExpr(base.Pos, TypeLinksym(t), types.Types[types.TUINT8])
-	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
+	return TypePtrAt(base.Pos, t)
+}
+
+// TypePtrAt returns an expression that evaluates to the
+// *runtime._type value for t.
+func TypePtrAt(pos src.XPos, t *types.Type) *ir.AddrExpr {
+	return typecheck.LinksymAddr(pos, TypeLinksym(t), types.Types[types.TUINT8])
 }
 
 // ITabLsym returns the LSym representing the itab for concrete type typ implementing
@@ -864,9 +870,15 @@ func ITabLsym(typ, iface *types.Type) *obj.LSym {
 	return lsym
 }
 
-// ITabAddr returns an expression representing a pointer to the itab
-// for concrete type typ implementing interface iface.
+// Deprecated: Use ITabAddrAt instead.
 func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
+	return ITabAddrAt(base.Pos, typ, iface)
+}
+
+// ITabAddrAt returns an expression that evaluates to the
+// *runtime.itab value for concrete type typ implementing interface
+// iface.
+func ITabAddrAt(pos src.XPos, typ, iface *types.Type) *ir.AddrExpr {
 	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
 	lsym := s.Linksym()
 
@@ -874,8 +886,7 @@ func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
 		writeITab(lsym, typ, iface, false)
 	}
 
-	n := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
-	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
+	return typecheck.LinksymAddr(pos, lsym, types.Types[types.TUINT8])
 }
 
 // needkeyupdate reports whether map updates with t as a key
