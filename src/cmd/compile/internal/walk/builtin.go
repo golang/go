@@ -87,7 +87,7 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 	fn := typecheck.LookupRuntime("growslice") //   growslice(<type>, old []T, mincap int) (ret []T)
 	fn = typecheck.SubstArgTypes(fn, ns.Type().Elem(), ns.Type().Elem())
 
-	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, ns, mkcall1(fn, ns.Type(), nif.PtrInit(), reflectdata.TypePtr(ns.Type().Elem()), ns,
+	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, ns, mkcall1(fn, ns.Type(), nif.PtrInit(), reflectdata.AppendElemRType(base.Pos, n), ns,
 		ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, ns), na)))}
 
 	l = append(l, nif)
@@ -141,7 +141,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 		ptrL, lenL := backingArrayPtrLen(n.X)
 		n.Y = cheapExpr(n.Y, init)
 		ptrR, lenR := backingArrayPtrLen(n.Y)
-		return mkcall1(fn, n.Type(), init, reflectdata.TypePtr(n.X.Type().Elem()), ptrL, lenL, ptrR, lenR)
+		return mkcall1(fn, n.Type(), init, reflectdata.CopyElemRType(base.Pos, n), ptrL, lenL, ptrR, lenR)
 	}
 
 	if runtimecall {
@@ -214,7 +214,7 @@ func walkDelete(init *ir.Nodes, n *ir.CallExpr) ir.Node {
 	t := map_.Type()
 	fast := mapfast(t)
 	key = mapKeyArg(fast, n, key, false)
-	return mkcall1(mapfndel(mapdelete[fast], t), nil, init, reflectdata.TypePtr(t), map_, key)
+	return mkcall1(mapfndel(mapdelete[fast], t), nil, init, reflectdata.DeleteMapRType(base.Pos, n), map_, key)
 }
 
 // walkLenCap walks an OLEN or OCAP node.
@@ -258,7 +258,7 @@ func walkMakeChan(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		argtype = types.Types[types.TINT]
 	}
 
-	return mkcall1(chanfn(fnname, 1, n.Type()), n.Type(), init, reflectdata.TypePtr(n.Type()), typecheck.Conv(size, argtype))
+	return mkcall1(chanfn(fnname, 1, n.Type()), n.Type(), init, reflectdata.MakeChanRType(base.Pos, n), typecheck.Conv(size, argtype))
 }
 
 // walkMakeMap walks an OMAKEMAP node.
@@ -356,7 +356,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 	fn := typecheck.LookupRuntime(fnname)
 	fn = typecheck.SubstArgTypes(fn, hmapType, t.Key(), t.Elem())
-	return mkcall1(fn, n.Type(), init, reflectdata.TypePtr(n.Type()), typecheck.Conv(hint, argtype), h)
+	return mkcall1(fn, n.Type(), init, reflectdata.MakeMapRType(base.Pos, n), typecheck.Conv(hint, argtype), h)
 }
 
 // walkMakeSlice walks an OMAKESLICE node.
@@ -421,7 +421,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		argtype = types.Types[types.TINT]
 	}
 	fn := typecheck.LookupRuntime(fnname)
-	ptr := mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), typecheck.Conv(len, argtype), typecheck.Conv(cap, argtype))
+	ptr := mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.MakeSliceElemRType(base.Pos, n), typecheck.Conv(len, argtype), typecheck.Conv(cap, argtype))
 	ptr.MarkNonNil()
 	len = typecheck.Conv(len, types.Types[types.TINT])
 	cap = typecheck.Conv(cap, types.Types[types.TINT])
@@ -475,7 +475,7 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	// Replace make+copy with runtime.makeslicecopy.
 	// instantiate makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
 	fn := typecheck.LookupRuntime("makeslicecopy")
-	ptr := mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), length, copylen, typecheck.Conv(copyptr, types.Types[types.TUNSAFEPTR]))
+	ptr := mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.MakeSliceElemRType(base.Pos, n), length, copylen, typecheck.Conv(copyptr, types.Types[types.TUNSAFEPTR]))
 	ptr.MarkNonNil()
 	sh := ir.NewSliceHeaderExpr(base.Pos, t, ptr, length, length)
 	return walkExpr(typecheck.Expr(sh), init)
@@ -658,7 +658,7 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	if ir.ShouldCheckPtr(ir.CurFunc, 1) {
 		fnname := "unsafeslicecheckptr"
 		fn := typecheck.LookupRuntime(fnname)
-		init.Append(mkcall1(fn, nil, init, reflectdata.TypePtr(sliceType.Elem()), unsafePtr, typecheck.Conv(len, lenType)))
+		init.Append(mkcall1(fn, nil, init, reflectdata.UnsafeSliceElemRType(base.Pos, n), unsafePtr, typecheck.Conv(len, lenType)))
 	} else {
 		// Otherwise, open code unsafe.Slice to prevent runtime call overhead.
 		// Keep this code in sync with runtime.unsafeslice{,64}

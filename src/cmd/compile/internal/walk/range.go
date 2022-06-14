@@ -168,7 +168,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		fn := typecheck.LookupRuntime("mapiterinit")
 
 		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), th)
-		init = append(init, mkcallstmt1(fn, reflectdata.TypePtr(t), ha, typecheck.NodAddr(hit)))
+		init = append(init, mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), ha, typecheck.NodAddr(hit)))
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), typecheck.NodNil())
 
 		fn = typecheck.LookupRuntime("mapiternext")
@@ -366,7 +366,7 @@ func mapClear(nrange *ir.RangeStmt) ir.Node {
 	// instantiate mapclear(typ *type, hmap map[any]any)
 	fn := typecheck.LookupRuntime("mapclear")
 	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
-	n := mkcallstmt1(fn, reflectdata.TypePtr(t), m)
+	n := mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), m)
 	return walkStmt(typecheck.Stmt(n))
 }
 

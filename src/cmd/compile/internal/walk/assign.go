@@ -99,10 +99,11 @@ func walkAssign(init *ir.Nodes, n ir.Node) ir.Node {
 		}
 		as.Y = r
 		if r.Op() == ir.OAPPEND {
+			r := r.(*ir.CallExpr)
 			// Left in place for back end.
 			// Do not add a new write barrier.
 			// Set up address of type for back end.
-			r.(*ir.CallExpr).X = reflectdata.TypePtr(r.Type().Elem())
+			r.X = reflectdata.AppendElemRType(base.Pos, r)
 			return as
 		}
 		// Otherwise, lowered for race detector.
@@ -169,11 +170,11 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	var call *ir.CallExpr
 	if w := t.Elem().Size(); w <= zeroValSize {
 		fn := mapfn(mapaccess2[fast], t, false)
-		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.TypePtr(t), r.X, key)
+		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key)
 	} else {
 		fn := mapfn("mapaccess2_fat", t, true)
 		z := reflectdata.ZeroAddr(w)
-		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.TypePtr(t), r.X, key, z)
+		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key, z)
 	}
 
 	// mapaccess2* returns a typed bool, but due to spec changes,
@@ -502,7 +503,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
 
 	// s = growslice(T, s, n)
-	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, mkcall1(fn, s.Type(), nif.PtrInit(), reflectdata.TypePtr(elemtype), s, nn))}
+	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, mkcall1(fn, s.Type(), nif.PtrInit(), reflectdata.AppendElemRType(base.Pos, n), s, nn))}
 	nodes.Append(nif)
 
 	// s = s[:n]
@@ -523,7 +524,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		fn = typecheck.SubstArgTypes(fn, l1.Type().Elem(), l2.Type().Elem())
 		ptr1, len1 := backingArrayPtrLen(cheapExpr(slice, &nodes))
 		ptr2, len2 := backingArrayPtrLen(l2)
-		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, reflectdata.TypePtr(elemtype), ptr1, len1, ptr2, len2)
+		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, reflectdata.AppendElemRType(base.Pos, n), ptr1, len1, ptr2, len2)
 	} else if base.Flag.Cfg.Instrumenting && !base.Flag.CompilingRuntime {
 		// rely on runtime to instrument:
 		//  copy(s[len(l1):], l2)
@@ -670,7 +671,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
 
 	// s = growslice(T, s, n)
-	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, mkcall1(fn, s.Type(), nif.PtrInit(), reflectdata.TypePtr(elemtype), s, nn))}
+	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, mkcall1(fn, s.Type(), nif.PtrInit(), reflectdata.AppendElemRType(base.Pos, n), s, nn))}
 	nodes = append(nodes, nif)
 
 	// s = s[:n]

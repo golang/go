@@ -14,7 +14,6 @@ import (
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 	"cmd/internal/sys"
 )
 
@@ -50,13 +49,8 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	}
 
 	if !fromType.IsInterface() {
-		var typeWord ir.Node
-		if toType.IsEmptyInterface() {
-			typeWord = reflectdata.TypePtr(fromType)
-		} else {
-			typeWord = reflectdata.ITabAddr(fromType, toType)
-		}
-		l := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeWord, dataWord(n.Pos(), n.X, init, n.Esc() != ir.EscNone))
+		typeWord := reflectdata.ConvIfaceTypeWord(base.Pos, n)
+		l := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeWord, dataWord(n, init))
 		l.SetType(toType)
 		l.SetTypecheck(n.Typecheck())
 		return l
@@ -95,7 +89,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		fn := typecheck.LookupRuntime("convI2I")
 		types.CalcSize(fn.Type())
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
-		call.Args = []ir.Node{reflectdata.TypePtr(toType), itab}
+		call.Args = []ir.Node{reflectdata.ConvIfaceTypeWord(base.Pos, n), itab}
 		typeWord = walkExpr(typecheck.Expr(call), init)
 	}
 
@@ -107,10 +101,10 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	return e
 }
 
-// Returns the data word (the second word) used to represent n in an interface.
-// n must not be of interface type.
-// esc describes whether the result escapes.
-func dataWord(pos src.XPos, n ir.Node, init *ir.Nodes, escapes bool) ir.Node {
+// Returns the data word (the second word) used to represent conv.X in
+// an interface.
+func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
+	pos, n := conv.Pos(), conv.X
 	fromType := n.Type()
 
 	// If it's a pointer, it is its own representation.
@@ -150,7 +144,7 @@ func dataWord(pos src.XPos, n ir.Node, init *ir.Nodes, escapes bool) ir.Node {
 	case n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PEXTERN && n.(*ir.Name).Readonly():
 		// n is a readonly global; use it directly.
 		value = n
-	case !escapes && fromType.Size() <= 1024:
+	case conv.Esc() == ir.EscNone && fromType.Size() <= 1024:
 		// n does not escape. Use a stack temporary initialized to n.
 		value = typecheck.Temp(fromType)
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, value, n)))
@@ -176,7 +170,7 @@ func dataWord(pos src.XPos, n ir.Node, init *ir.Nodes, escapes bool) ir.Node {
 			n = copyExpr(n, fromType, init)
 		}
 		fn = typecheck.SubstArgTypes(fn, fromType)
-		args = []ir.Node{reflectdata.TypePtr(fromType), typecheck.NodAddr(n)}
+		args = []ir.Node{reflectdata.ConvIfaceDataWordRType(base.Pos, conv), typecheck.NodAddr(n)}
 	} else {
 		// Use a specialized conversion routine that takes the type being
 		// converted by value, not by pointer.
@@ -211,7 +205,7 @@ func dataWord(pos src.XPos, n ir.Node, init *ir.Nodes, escapes bool) ir.Node {
 // walkConvIData walks an OCONVIDATA node.
 func walkConvIData(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
-	return dataWord(n.Pos(), n.X, init, n.Esc() != ir.EscNone)
+	return dataWord(n, init)
 }
 
 // walkBytesRunesToString walks an OBYTES2STR or ORUNES2STR node.

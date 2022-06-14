@@ -54,6 +54,10 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	// Given mixed interface/concrete comparison,
 	// rewrite into types-equal && data-equal.
 	// This is efficient, avoids allocations, and avoids runtime calls.
+	//
+	// TODO(mdempsky): It would be more general and probably overall
+	// simpler to just extend walkCompareInterface to optimize when one
+	// operand is an OCONVIFACE.
 	if n.X.Type().IsInterface() != n.Y.Type().IsInterface() {
 		// Preserve side-effects in case of short-circuiting; see #32187.
 		l := cheapExpr(n.X, init)
@@ -74,9 +78,12 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		//   l.tab == type(r)
 		// For non-empty interface, this is:
 		//   l.tab != nil && l.tab._type == type(r)
+		//
+		// TODO(mdempsky): For non-empty interface comparisons, just
+		// compare against the itab address directly?
 		var eqtype ir.Node
 		tab := ir.NewUnaryExpr(base.Pos, ir.OITAB, l)
-		rtyp := reflectdata.TypePtr(r.Type())
+		rtyp := reflectdata.CompareRType(base.Pos, n)
 		if l.Type().IsEmptyInterface() {
 			tab.SetType(types.NewPtr(types.Types[types.TUINT8]))
 			tab.SetTypecheck(1)
