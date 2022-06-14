@@ -1114,6 +1114,27 @@ func (e *Editor) Symbols(ctx context.Context, sym string) ([]protocol.SymbolInfo
 	return ans, err
 }
 
+// CodeLens executes a codelens request on the server.
+func (e *Editor) InlayHint(ctx context.Context, path string) ([]protocol.InlayHint, error) {
+	if e.Server == nil {
+		return nil, nil
+	}
+	e.mu.Lock()
+	_, ok := e.buffers[path]
+	e.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("buffer %q is not open", path)
+	}
+	params := &protocol.InlayHintParams{
+		TextDocument: e.textDocumentIdentifier(path),
+	}
+	hints, err := e.Server.InlayHint(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return hints, nil
+}
+
 // References executes a reference request on the server.
 func (e *Editor) References(ctx context.Context, path string, pos Pos) ([]protocol.Location, error) {
 	if e.Server == nil {

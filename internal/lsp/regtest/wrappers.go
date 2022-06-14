@@ -358,6 +358,17 @@ func (e *Env) ExecuteCommand(params *protocol.ExecuteCommandParams, result inter
 	}
 }
 
+// InlayHints calls textDocument/inlayHints for the given path, calling t.Fatal on
+// any error.
+func (e *Env) InlayHints(path string) []protocol.InlayHint {
+	e.T.Helper()
+	hints, err := e.Editor.InlayHint(e.Ctx, path)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return hints
+}
+
 // WorkspaceSymbol calls workspace/symbol
 func (e *Env) WorkspaceSymbol(sym string) []protocol.SymbolInformation {
 	e.T.Helper()
