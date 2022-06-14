@@ -174,7 +174,7 @@ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
 		st := (*structtype)(unsafe.Pointer(t))
 		for i := range st.fields {
 			f := &st.fields[i]
-			if !p.tryRegAssignArg(f.typ, offset+f.offset()) {
+			if !p.tryRegAssignArg(f.typ, offset+f.offset) {
 				return false
 			}
 		}

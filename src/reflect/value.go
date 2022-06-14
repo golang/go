@@ -1287,7 +1287,7 @@ func (v Value) Field(i int) Value {
 	// In the former case, we want v.ptr + offset.
 	// In the latter case, we must have field.offset = 0,
 	// so v.ptr + field.offset is still the correct address.
-	ptr := add(v.ptr, field.offset(), "same as non-reflect &v.field")
+	ptr := add(v.ptr, field.offset, "same as non-reflect &v.field")
 	return Value{typ, ptr, fl}
 }
 
