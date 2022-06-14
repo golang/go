@@ -75,7 +75,7 @@ func BenchmarkEqArrayOfFloats1024(b *testing.B) {
 	}
 }
 
-const size = 32
+const size = 16
 
 type T1 struct {
 	a [size]byte
