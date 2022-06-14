@@ -252,8 +252,8 @@ func modTidyDiagnostics(ctx context.Context, snapshot source.Snapshot, pm *sourc
 		if len(missingImports) == 0 {
 			continue
 		}
-		for _, pgh := range ph.compiledGoFiles {
-			pgf, err := snapshot.ParseGo(ctx, pgh.file, source.ParseHeader)
+		for _, goFile := range ph.compiledGoFiles {
+			pgf, err := snapshot.ParseGo(ctx, goFile, source.ParseHeader)
 			if err != nil {
 				continue
 			}

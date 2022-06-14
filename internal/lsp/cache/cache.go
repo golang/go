@@ -101,7 +101,7 @@ func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) 
 		return fh, nil
 	}
 
-	fh, err := readFile(ctx, uri, fi)
+	fh, err := readFile(ctx, uri, fi) // ~25us
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func readFile(ctx context.Context, uri span.URI, fi os.FileInfo) (*fileHandle, e
 	_ = ctx
 	defer done()
 
-	data, err := ioutil.ReadFile(uri.Filename())
+	data, err := ioutil.ReadFile(uri.Filename()) // ~20us
 	if err != nil {
 		return &fileHandle{
 			modTime: fi.ModTime(),

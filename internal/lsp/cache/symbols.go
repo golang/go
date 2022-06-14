@@ -29,7 +29,8 @@ type symbolData struct {
 	err     error
 }
 
-// buildSymbolHandle returns a handle to the result of symbolizing a file,
+// buildSymbolHandle returns a handle to the future result of
+// symbolizing the file identified by fh,
 // if necessary creating it and saving it in the snapshot.
 func (s *snapshot) buildSymbolHandle(ctx context.Context, fh source.FileHandle) *symbolHandle {
 	if h := s.getSymbolHandle(fh.URI()); h != nil {
