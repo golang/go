@@ -502,8 +502,9 @@ After a backslash, certain single-character escapes represent special values:
 </pre>
 
 <p>
-All other sequences starting with a backslash are illegal inside rune literals.
+An unrecognized character following a backslash in a rune literal is illegal.
 </p>
+
 <pre class="ebnf">
 rune_lit         = "'" ( unicode_value | byte_value ) "'" .
 unicode_value    = unicode_char | little_u_value | big_u_value | escaped_char .
@@ -530,6 +531,7 @@ escaped_char     = `\` ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | `\` | "'" | `
 '\U00101234'
 '\''         // rune literal containing single quote character
 'aa'         // illegal: too many characters
+'\k'         // illegal: k is not recognized after a backslash
 '\xa'        // illegal: too few hexadecimal digits
 '\0'         // illegal: too few octal digits
 '\400'       // illegal: octal value over 255
