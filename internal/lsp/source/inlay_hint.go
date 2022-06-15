@@ -104,7 +104,7 @@ var AllInlayHints = map[string]*Hint{
 	},
 }
 
-func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, _ protocol.Range) ([]protocol.InlayHint, error) {
+func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) ([]protocol.InlayHint, error) {
 	ctx, done := event.Start(ctx, "source.InlayHint")
 	defer done()
 
@@ -132,8 +132,23 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, _ protocol
 	info := pkg.GetTypesInfo()
 	q := Qualifier(pgf.File, pkg.GetTypes(), info)
 
+	// Set the range to the full file if the range is not valid.
+	start, end := pgf.File.Pos(), pgf.File.End()
+	if pRng.Start.Line < pRng.End.Line || pRng.Start.Character < pRng.End.Character {
+		// Adjust start and end for the specified range.
+		rng, err := pgf.Mapper.RangeToSpanRange(pRng)
+		if err != nil {
+			return nil, err
+		}
+		start, end = rng.Start, rng.End
+	}
+
 	var hints []protocol.InlayHint
 	ast.Inspect(pgf.File, func(node ast.Node) bool {
+		// If not in range, we can stop looking.
+		if node == nil || node.End() < start || node.Pos() > end {
+			return false
+		}
 		for _, fn := range enabledHints {
 			hints = append(hints, fn(node, tmap, info, &q)...)
 		}
