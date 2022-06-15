@@ -97,8 +97,11 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 	defer func() {
 		if e := recover(); e != nil {
 			// resume same panic if it's not a bailout
-			if _, ok := e.(bailout); !ok {
+			bail, ok := e.(bailout)
+			if !ok {
 				panic(e)
+			} else if bail.msg != "" {
+				p.errors.Add(p.file.Position(bail.pos), bail.msg)
 			}
 		}
 
@@ -203,8 +206,11 @@ func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode M
 	defer func() {
 		if e := recover(); e != nil {
 			// resume same panic if it's not a bailout
-			if _, ok := e.(bailout); !ok {
+			bail, ok := e.(bailout)
+			if !ok {
 				panic(e)
+			} else if bail.msg != "" {
+				p.errors.Add(p.file.Position(bail.pos), bail.msg)
 			}
 		}
 		p.errors.Sort()
