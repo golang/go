@@ -59,6 +59,10 @@ type parser struct {
 	inRhs   bool // if set, the parser is parsing a rhs expression
 
 	imports []*ast.ImportSpec // list of imports
+
+	// nestLev is used to track and limit the recursion depth
+	// during parsing.
+	nestLev int
 }
 
 func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mode) {
@@ -106,6 +110,24 @@ func trace(p *parser, msg string) *parser {
 func un(p *parser) {
 	p.indent--
 	p.printTrace(")")
+}
+
+// maxNestLev is the deepest we're willing to recurse during parsing
+const maxNestLev int = 1e5
+
+func incNestLev(p *parser) *parser {
+	p.nestLev++
+	if p.nestLev > maxNestLev {
+		p.error(p.pos, "exceeded max nesting depth")
+		panic(bailout{})
+	}
+	return p
+}
+
+// decNestLev is used to track nesting depth during parsing to prevent stack exhaustion.
+// It is used along with incNestLev in a similar fashion to how un and trace are used.
+func decNestLev(p *parser) {
+	p.nestLev--
 }
 
 // Advance to the next token.
@@ -218,8 +240,12 @@ func (p *parser) next() {
 	}
 }
 
-// A bailout panic is raised to indicate early termination.
-type bailout struct{}
+// A bailout panic is raised to indicate early termination. pos and msg are
+// only populated when bailing out of object resolution.
+type bailout struct {
+	pos token.Pos
+	msg string
+}
 
 func (p *parser) error(pos token.Pos, msg string) {
 	if p.trace {
@@ -1247,6 +1273,8 @@ func (p *parser) parseTypeInstance(typ ast.Expr) ast.Expr {
 }
 
 func (p *parser) tryIdentOrType() ast.Expr {
+	defer decNestLev(incNestLev(p))
+
 	switch p.tok {
 	case token.IDENT:
 		typ := p.parseTypeName(nil)
@@ -1657,7 +1685,13 @@ func (p *parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
 	if x == nil {
 		x = p.parseOperand()
 	}
-	for {
+	// We track the nesting here rather than at the entry for the function,
+	// since it can iteratively produce a nested output, and we want to
+	// limit how deep a structure we generate.
+	var n int
+	defer func() { p.nestLev -= n }()
+	for n = 1; ; n++ {
+		incNestLev(p)
 		switch p.tok {
 		case token.PERIOD:
 			p.next()
@@ -1717,6 +1751,8 @@ func (p *parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
 }
 
 func (p *parser) parseUnaryExpr() ast.Expr {
+	defer decNestLev(incNestLev(p))
+
 	if p.trace {
 		defer un(trace(p, "UnaryExpr"))
 	}
@@ -1806,7 +1842,13 @@ func (p *parser) parseBinaryExpr(x ast.Expr, prec1 int, check bool) ast.Expr {
 	if x == nil {
 		x = p.parseUnaryExpr()
 	}
-	for {
+	// We track the nesting here rather than at the entry for the function,
+	// since it can iteratively produce a nested output, and we want to
+	// limit how deep a structure we generate.
+	var n int
+	defer func() { p.nestLev -= n }()
+	for n = 1; ; n++ {
+		incNestLev(p)
 		op, oprec := p.tokPrec()
 		if oprec < prec1 {
 			return x
@@ -2099,6 +2141,8 @@ func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
 }
 
 func (p *parser) parseIfStmt() *ast.IfStmt {
+	defer decNestLev(incNestLev(p))
+
 	if p.trace {
 		defer un(trace(p, "IfStmt"))
 	}
@@ -2402,6 +2446,8 @@ func (p *parser) parseForStmt() ast.Stmt {
 }
 
 func (p *parser) parseStmt() (s ast.Stmt) {
+	defer decNestLev(incNestLev(p))
+
 	if p.trace {
 		defer un(trace(p, "Statement"))
 	}
