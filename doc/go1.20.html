@@ -47,6 +47,17 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: <a href="https://go.dev/issue/45454">https://go.dev/issue/45454</a>: provide build tags for architecture environment variables
 </p>
 
+<p><!-- https://go.dev/issue/37015 -->
+  When the main module is located within <code>GOPATH/src</code>,
+  <code>go</code> <code>install</code> no longer installs libraries for
+  non-<code>main</code> packages to <code>GOPATH/pkg</code>,
+  and <code>go</code> <code>list</code> no longer reports a <code>Target</code>
+  field for such packages. (In module mode, compiled packages are stored in the
+  <a href="https://pkg.go.dev/cmd/go#hdr-Build_and_test_caching">build cache</a>
+  only, but <a href="https://go.dev/issue/37015">a bug</a> had caused
+  the <code>GOPATH</code> install targets to unexpectedly remain in effect.)
+</p>
+
 <h3 id="vet">Vet</h3>
 
 <p><!-- https://go.dev/issue/48801, CL 354010 -->

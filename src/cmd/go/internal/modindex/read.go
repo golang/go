@@ -399,11 +399,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		// In build.go, p.Root should only be set in the non-local-import case, or in
 		// GOROOT or GOPATH. Since module mode only calls Import with path set to "."
 		// and the module index doesn't apply outside modules, the GOROOT case is
-		// the only case where GOROOT needs to be set.
-		// But: p.Root is actually set in the local-import case outside GOROOT, if
-		// the directory is contained in GOPATH/src
-		// TODO(#37015): fix that behavior in go/build and remove the gopath case
-		// below.
+		// the only case where p.Root needs to be set.
 		if ctxt.GOROOT != "" && str.HasFilePathPrefix(p.Dir, cfg.GOROOTsrc) && p.Dir != cfg.GOROOTsrc {
 			p.Root = ctxt.GOROOT
 			p.Goroot = true
@@ -412,47 +408,32 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			if modprefix != "" {
 				p.ImportPath = filepath.Join(modprefix, p.ImportPath)
 			}
-		}
-		for _, root := range ctxt.gopath() {
-			// TODO(matloob): do we need to reimplement the conflictdir logic?
 
-			// TODO(matloob): ctxt.hasSubdir evaluates symlinks, so it
-			// can be slower than we'd like. Find out if we can drop this
-			// logic before the release.
-			if sub, ok := ctxt.hasSubdir(filepath.Join(root, "src"), p.Dir); ok {
-				p.ImportPath = sub
-				p.Root = root
+			// Set GOROOT-specific fields (sometimes for modules in a GOPATH directory).
+			// The fields set below (SrcRoot, PkgRoot, BinDir, PkgTargetRoot, and PkgObj)
+			// are only set in build.Import if p.Root != "".
+			var pkgtargetroot string
+			var pkga string
+			suffix := ""
+			if ctxt.InstallSuffix != "" {
+				suffix = "_" + ctxt.InstallSuffix
 			}
-		}
-	}
-	if p.Root != "" {
-		// Set GOROOT-specific fields (sometimes for modules in a GOPATH directory).
-		// The fields set below (SrcRoot, PkgRoot, BinDir, PkgTargetRoot, and PkgObj)
-		// are only set in build.Import if p.Root != "". As noted in the comment
-		// on setting p.Root above, p.Root should only be set in the GOROOT case for the
-		// set of packages we care about, but is also set for modules in a GOPATH src
-		// directory.
-		var pkgtargetroot string
-		var pkga string
-		suffix := ""
-		if ctxt.InstallSuffix != "" {
-			suffix = "_" + ctxt.InstallSuffix
-		}
-		switch ctxt.Compiler {
-		case "gccgo":
-			pkgtargetroot = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
-			dir, elem := path.Split(p.ImportPath)
-			pkga = pkgtargetroot + "/" + dir + "lib" + elem + ".a"
-		case "gc":
-			pkgtargetroot = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
-			pkga = pkgtargetroot + "/" + p.ImportPath + ".a"
-		}
-		p.SrcRoot = ctxt.joinPath(p.Root, "src")
-		p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
-		p.BinDir = ctxt.joinPath(p.Root, "bin")
-		if pkga != "" {
-			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
-			p.PkgObj = ctxt.joinPath(p.Root, pkga)
+			switch ctxt.Compiler {
+			case "gccgo":
+				pkgtargetroot = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
+				dir, elem := path.Split(p.ImportPath)
+				pkga = pkgtargetroot + "/" + dir + "lib" + elem + ".a"
+			case "gc":
+				pkgtargetroot = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
+				pkga = pkgtargetroot + "/" + p.ImportPath + ".a"
+			}
+			p.SrcRoot = ctxt.joinPath(p.Root, "src")
+			p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
+			p.BinDir = ctxt.joinPath(p.Root, "bin")
+			if pkga != "" {
+				p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+				p.PkgObj = ctxt.joinPath(p.Root, pkga)
+			}
 		}
 	}
 
