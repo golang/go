@@ -886,6 +886,12 @@ func mayCombine(prev token.Token, next byte) (b bool) {
 	return
 }
 
+func (p *printer) printPos(pos token.Pos) {
+	if pos.IsValid() {
+		p.pos = p.posFor(pos) // accurate position of next item
+	}
+}
+
 // print prints a list of "items" (roughly corresponding to syntactic
 // tokens, but also including whitespace and formatting information).
 // It is the only print function that should be called directly from
@@ -981,12 +987,6 @@ func (p *printer) print(args ...any) {
 				impliedSemi = true
 			}
 			p.lastTok = x
-
-		case token.Pos:
-			if x.IsValid() {
-				p.pos = p.posFor(x) // accurate position of next item
-			}
-			continue
 
 		case string:
 			// incorrect AST - print error message
