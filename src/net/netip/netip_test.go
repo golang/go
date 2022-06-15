@@ -785,6 +785,16 @@ func TestAddrWellKnown(t *testing.T) {
 			std:  net.IPv6linklocalallnodes,
 		},
 		{
+			name: "IPv6 link-local all routers",
+			ip:   IPv6LinkLocalAllRouters(),
+			std:  net.IPv6linklocalallrouters,
+		},
+		{
+			name: "IPv6 loopback",
+			ip:   IPv6Loopback(),
+			std:  net.IPv6loopback,
+		},
+		{
 			name: "IPv6 unspecified",
 			ip:   IPv6Unspecified(),
 			std:  net.IPv6unspecified,
@@ -1867,6 +1877,8 @@ func TestNoAllocs(t *testing.T) {
 	test("ParseAddr/6", func() { sinkIP = panicIP(ParseAddr("::1")) })
 	test("MustParseAddr", func() { sinkIP = MustParseAddr("1.2.3.4") })
 	test("IPv6LinkLocalAllNodes", func() { sinkIP = IPv6LinkLocalAllNodes() })
+	test("IPv6LinkLocalAllRouters", func() { sinkIP = IPv6LinkLocalAllRouters() })
+	test("IPv6Loopback", func() { sinkIP = IPv6Loopback() })
 	test("IPv6Unspecified", func() { sinkIP = IPv6Unspecified() })
 
 	// IP methods
