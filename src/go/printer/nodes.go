@@ -9,7 +9,6 @@
 package printer
 
 import (
-	"bytes"
 	"go/ast"
 	"go/token"
 	"math"
@@ -1720,6 +1719,26 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 	}
 }
 
+// sizeCounter is an io.Writer which counts the number of bytes written,
+// as well as whether a newline character was seen.
+type sizeCounter struct {
+	hasNewline bool
+	size       int
+}
+
+func (c *sizeCounter) Write(p []byte) (int, error) {
+	if !c.hasNewline {
+		for _, b := range p {
+			if b == '\n' || b == '\f' {
+				c.hasNewline = true
+				break
+			}
+		}
+	}
+	c.size += len(p)
+	return len(p), nil
+}
+
 // nodeSize determines the size of n in chars after formatting.
 // The result is <= maxSize if the node fits on one line with at
 // most maxSize chars and the formatted output doesn't contain
@@ -1740,18 +1759,13 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 	// style so that we always get the same decision; print
 	// in RawFormat
 	cfg := Config{Mode: RawFormat}
-	var buf bytes.Buffer
-	if err := cfg.fprint(&buf, p.fset, n, p.nodeSizes); err != nil {
+	var counter sizeCounter
+	if err := cfg.fprint(&counter, p.fset, n, p.nodeSizes); err != nil {
 		return
 	}
-	if buf.Len() <= maxSize {
-		for _, ch := range buf.Bytes() {
-			switch ch {
-			case '\n', '\f':
-				return // does not fit in a single line
-			}
-		}
-		size = buf.Len() // n fits
+	if counter.size <= maxSize && !counter.hasNewline {
+		// n fits in a single line
+		size = counter.size
 		p.nodeSizes[n] = size
 	}
 	return
