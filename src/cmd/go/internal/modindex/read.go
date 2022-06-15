@@ -62,38 +62,56 @@ type ModuleIndex struct {
 var fcache par.Cache
 
 func moduleHash(modroot string, ismodcache bool) (cache.ActionID, error) {
+	// We expect modules stored within the module cache to be checksummed and
+	// immutable, and we expect released Go modules to change only infrequently
+	// (when the Go version changes).
+	if !ismodcache || !str.HasFilePathPrefix(modroot, cfg.GOROOT) {
+		return cache.ActionID{}, ErrNotIndexed
+	}
+
 	h := cache.NewHash("moduleIndex")
 	fmt.Fprintf(h, "module index %s %s %v\n", runtime.Version(), indexVersion, modroot)
-	if ismodcache || str.HasFilePathPrefix(modroot, cfg.GOROOT) {
-		return h.Sum(), nil
-	}
-	// walkdir happens in deterministic order.
-	err := fsys.Walk(modroot, func(path string, info fs.FileInfo, err error) error {
-		if modroot == path {
-			// Check for go.mod in root directory, and return ErrNotIndexed
-			// if it doesn't exist. Outside the module cache, it's not a module
-			// if it doesn't have a go.mod file.
-		}
-		if err := moduleWalkErr(modroot, path, info, err); err != nil {
-			return err
-		}
 
-		if info.IsDir() {
-			return nil
-		}
-		fmt.Fprintf(h, "file %v %v\n", info.Name(), info.ModTime())
-		if info.Mode()&fs.ModeSymlink != 0 {
-			targ, err := fsys.Stat(path)
-			if err != nil {
+	if strings.HasPrefix(runtime.Version(), "devel ") {
+		// This copy of the standard library is a development version, not a
+		// release. It could be based on a Git commit (like "devel go1.19-2a78e8afc0
+		// Wed Jun 15 00:06:24 2022 +0000") with or without changes on top of that
+		// commit, or it could be completly artificial due to lacking a `git` binary
+		// (like "devel gomote.XXXXX", as synthesized by "gomote push" as of
+		// 2022-06-15). Compute an inexpensive hash of its files using mtimes so
+		// that during development we can continue to exercise the logic for cached
+		// GOROOT indexes.
+		//
+		// mtimes may be granular, imprecise, and loosely updated (see
+		// https://apenwarr.ca/log/20181113), but we don't expect Go contributors to
+		// be mucking around with the import graphs in GOROOT often enough for mtime
+		// collisions to matter essentially ever.
+		//
+		// Note that fsys.Walk walks paths in deterministic order, so this hash
+		// should be completely deterministic if the files are unchanged.
+		err := fsys.Walk(modroot, func(path string, info fs.FileInfo, err error) error {
+			if err := moduleWalkErr(modroot, path, info, err); err != nil {
 				return err
 			}
-			fmt.Fprintf(h, "target %v %v\n", targ.Name(), targ.ModTime())
+
+			if info.IsDir() {
+				return nil
+			}
+			fmt.Fprintf(h, "file %v %v\n", info.Name(), info.ModTime())
+			if info.Mode()&fs.ModeSymlink != 0 {
+				targ, err := fsys.Stat(path)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintf(h, "target %v %v\n", targ.Name(), targ.ModTime())
+			}
+			return nil
+		})
+		if err != nil {
+			return cache.ActionID{}, err
 		}
-		return nil
-	})
-	if err != nil {
-		return cache.ActionID{}, err
 	}
+
 	return h.Sum(), nil
 }
 
