@@ -81,6 +81,15 @@ func TestCmd_Run(t *testing.T) {
 						"golang.org/bmod/bvuln.Vuln (bvuln.go:2)\n",
 				},
 			},
+			{
+				Vuln: Vuln{
+					ID:           "GO-2022-03",
+					Details:      "unaffecting vulnerability",
+					ModPath:      "golang.org/amod",
+					URL:          "https://pkg.go.dev/vuln/GO-2022-03",
+					FixedVersion: "v1.0.4",
+				},
+			},
 		}
 		// sort reports for stability before comparison.
 		for _, rpts := range [][]report{got, want} {
@@ -226,6 +235,21 @@ var testClient1 = &mockClient{
 					Package:           osv.Package{Name: "golang.org/amod/avuln"},
 					Ranges:            osv.Affects{{Type: osv.TypeSemver, Events: []osv.RangeEvent{{Introduced: "1.0.0"}, {Fixed: "1.0.4"}, {Introduced: "1.1.2"}}}},
 					EcosystemSpecific: osv.EcosystemSpecific{Symbols: []string{"VulnData.Vuln1", "VulnData.Vuln2"}},
+				}},
+			},
+			{
+				ID:      "GO-2022-03",
+				Details: "unaffecting vulnerability",
+				References: []osv.Reference{
+					{
+						Type: "href",
+						URL:  "pkg.go.dev/vuln/GO-2022-01",
+					},
+				},
+				Affected: []osv.Affected{{
+					Package:           osv.Package{Name: "golang.org/amod/avuln"},
+					Ranges:            osv.Affects{{Type: osv.TypeSemver, Events: []osv.RangeEvent{{Introduced: "1.0.0"}, {Fixed: "1.0.4"}, {Introduced: "1.1.2"}}}},
+					EcosystemSpecific: osv.EcosystemSpecific{Symbols: []string{"nonExisting"}},
 				}},
 			},
 		},

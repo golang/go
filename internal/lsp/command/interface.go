@@ -359,8 +359,10 @@ type Vuln struct {
 	Aliases []string `json:",omitempty"`
 
 	// Symbol is the name of the detected vulnerable function or method.
+	// Can be empty if the vulnerability exists in required modules, but no vulnerable symbols are used.
 	Symbol string `json:",omitempty"`
 	// PkgPath is the package path of the detected Symbol.
+	// Can be empty if the vulnerability exists in required modules, but no vulnerable packages are used.
 	PkgPath string `json:",omitempty"`
 	// ModPath is the module path corresponding to PkgPath.
 	// TODO: how do we specify standard library's vulnerability?

@@ -11,12 +11,15 @@ import (
 	"context"
 	"log"
 	"os"
+	"sort"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
 	gvc "golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/vuln/client"
+	"golang.org/x/vuln/osv"
+	"golang.org/x/vuln/vulncheck"
 )
 
 func init() {
@@ -79,29 +82,84 @@ func (c *cmd) Run(ctx context.Context, cfg *packages.Config, patterns ...string)
 	}
 	log.Printf("loaded %d packages\n", len(loadedPkgs))
 
-	r, err := gvc.Source(ctx, loadedPkgs, c.Client)
+	log.Printf("analyzing %d packages...\n", len(loadedPkgs))
+
+	r, err := vulncheck.Source(ctx, loadedPkgs, &vulncheck.Config{Client: c.Client})
 	if err != nil {
 		return nil, err
 	}
+	unaffectedMods := filterUnaffected(r.Vulns)
+	r.Vulns = filterCalled(r)
+
 	callInfo := gvc.GetCallInfo(r, loadedPkgs)
-	return toVulns(callInfo)
+	return toVulns(callInfo, unaffectedMods)
 	// TODO: add import graphs.
 }
 
-func toVulns(ci *gvc.CallInfo) ([]Vuln, error) {
+// filterCalled returns vulnerabilities where the symbols are actually called.
+func filterCalled(r *vulncheck.Result) []*vulncheck.Vuln {
+	var vulns []*vulncheck.Vuln
+	for _, v := range r.Vulns {
+		if v.CallSink != 0 {
+			vulns = append(vulns, v)
+		}
+	}
+	return vulns
+}
+
+// filterUnaffected returns vulnerabilities where no symbols are called,
+// grouped by module.
+func filterUnaffected(vulns []*vulncheck.Vuln) map[string][]*osv.Entry {
+	// It is possible that the same vuln.OSV.ID has vuln.CallSink != 0
+	// for one symbol, but vuln.CallSink == 0 for a different one, so
+	// we need to filter out ones that have been called.
+	called := map[string]bool{}
+	for _, vuln := range vulns {
+		if vuln.CallSink != 0 {
+			called[vuln.OSV.ID] = true
+		}
+	}
+
+	modToIDs := map[string]map[string]*osv.Entry{}
+	for _, vuln := range vulns {
+		if !called[vuln.OSV.ID] {
+			if _, ok := modToIDs[vuln.ModPath]; !ok {
+				modToIDs[vuln.ModPath] = map[string]*osv.Entry{}
+			}
+			// keep only one vuln.OSV instance for the same ID.
+			modToIDs[vuln.ModPath][vuln.OSV.ID] = vuln.OSV
+		}
+	}
+	output := map[string][]*osv.Entry{}
+	for m, vulnSet := range modToIDs {
+		var vulns []*osv.Entry
+		for _, vuln := range vulnSet {
+			vulns = append(vulns, vuln)
+		}
+		sort.Slice(vulns, func(i, j int) bool { return vulns[i].ID < vulns[j].ID })
+		output[m] = vulns
+	}
+	return output
+}
+
+func fixed(v *osv.Entry) string {
+	lf := gvc.LatestFixed(v.Affected)
+	if lf != "" && lf[0] != 'v' {
+		lf = "v" + lf
+	}
+	return lf
+}
+
+func toVulns(ci *gvc.CallInfo, unaffectedMods map[string][]*osv.Entry) ([]Vuln, error) {
 	var vulns []Vuln
 
 	for _, vg := range ci.VulnGroups {
 		v0 := vg[0]
-		lf := gvc.LatestFixed(v0.OSV.Affected)
-		if lf != "" && lf[0] != 'v' {
-			lf = "v" + lf
-		}
 		vuln := Vuln{
 			ID:             v0.OSV.ID,
 			PkgPath:        v0.PkgPath,
 			CurrentVersion: ci.ModuleVersions[v0.ModPath],
-			FixedVersion:   lf,
+			FixedVersion:   fixed(v0.OSV),
 			Details:        v0.OSV.Details,
 
 			Aliases: v0.OSV.Aliases,
@@ -118,6 +176,20 @@ func toVulns(ci *gvc.CallInfo) ([]Vuln, error) {
 			}
 		}
 		vulns = append(vulns, vuln)
+	}
+	for m, vg := range unaffectedMods {
+		for _, v0 := range vg {
+			vuln := Vuln{
+				ID:             v0.ID,
+				Details:        v0.Details,
+				Aliases:        v0.Aliases,
+				ModPath:        m,
+				URL:            href(v0),
+				CurrentVersion: "",
+				FixedVersion:   fixed(v0),
+			}
+			vulns = append(vulns, vuln)
+		}
 	}
 	return vulns, nil
 }
