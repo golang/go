@@ -98,10 +98,10 @@ type Statfs_t struct {
 	F_namemax     uint32
 	F_owner       uint32
 	F_ctime       uint64
-	F_fstypename  [16]int8
-	F_mntonname   [90]int8
-	F_mntfromname [90]int8
-	F_mntfromspec [90]int8
+	F_fstypename  [16]byte
+	F_mntonname   [90]byte
+	F_mntfromname [90]byte
+	F_mntfromspec [90]byte
 	_             [2]byte
 	Mount_info    [160]byte
 }
