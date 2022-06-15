@@ -123,7 +123,7 @@ type snapshot struct {
 
 	// knownSubdirs is the set of subdirectories in the workspace, used to
 	// create glob patterns for file watching.
-	knownSubdirs             map[span.URI]struct{}
+	knownSubdirs             knownDirsSet
 	knownSubdirsPatternCache string
 	// unprocessedSubdirChanges are any changes that might affect the set of
 	// subdirectories in the workspace. They are not reflected to knownSubdirs
@@ -147,6 +147,7 @@ func (s *snapshot) Destroy(destroyedBy string) {
 	s.files.Destroy()
 	s.goFiles.Destroy()
 	s.parseKeysByURI.Destroy()
+	s.knownSubdirs.Destroy()
 
 	if s.workspaceDir != "" {
 		if err := os.RemoveAll(s.workspaceDir); err != nil {
@@ -842,17 +843,20 @@ func (s *snapshot) getKnownSubdirsPattern(wsDirs []span.URI) string {
 	// It may change list of known subdirs and therefore invalidate the cache.
 	s.applyKnownSubdirsChangesLocked(wsDirs)
 
-	if len(s.knownSubdirs) == 0 {
-		return ""
-	}
-
 	if s.knownSubdirsPatternCache == "" {
-		dirNames := make([]string, 0, len(s.knownSubdirs))
-		for uri := range s.knownSubdirs {
-			dirNames = append(dirNames, uri.Filename())
+		var builder strings.Builder
+		s.knownSubdirs.Range(func(uri span.URI) {
+			if builder.Len() == 0 {
+				builder.WriteString("{")
+			} else {
+				builder.WriteString(",")
+			}
+			builder.WriteString(uri.Filename())
+		})
+		if builder.Len() > 0 {
+			builder.WriteString("}")
+			s.knownSubdirsPatternCache = builder.String()
 		}
-		sort.Strings(dirNames)
-		s.knownSubdirsPatternCache = fmt.Sprintf("{%s}", strings.Join(dirNames, ","))
 	}
 
 	return s.knownSubdirsPatternCache
@@ -867,14 +871,15 @@ func (s *snapshot) collectAllKnownSubdirs(ctx context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.knownSubdirs = map[span.URI]struct{}{}
+	s.knownSubdirs.Destroy()
+	s.knownSubdirs = newKnownDirsSet()
 	s.knownSubdirsPatternCache = ""
 	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
 		s.addKnownSubdirLocked(uri, dirs)
 	})
 }
 
-func (s *snapshot) getKnownSubdirs(wsDirs []span.URI) []span.URI {
+func (s *snapshot) getKnownSubdirs(wsDirs []span.URI) knownDirsSet {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -882,11 +887,7 @@ func (s *snapshot) getKnownSubdirs(wsDirs []span.URI) []span.URI {
 	// subdirectories.
 	s.applyKnownSubdirsChangesLocked(wsDirs)
 
-	result := make([]span.URI, 0, len(s.knownSubdirs))
-	for uri := range s.knownSubdirs {
-		result = append(result, uri)
-	}
-	return result
+	return s.knownSubdirs.Clone()
 }
 
 func (s *snapshot) applyKnownSubdirsChangesLocked(wsDirs []span.URI) {
@@ -907,7 +908,7 @@ func (s *snapshot) addKnownSubdirLocked(uri span.URI, dirs []span.URI) {
 	dir := filepath.Dir(uri.Filename())
 	// First check if the directory is already known, because then we can
 	// return early.
-	if _, ok := s.knownSubdirs[span.URIFromPath(dir)]; ok {
+	if s.knownSubdirs.Contains(span.URIFromPath(dir)) {
 		return
 	}
 	var matched span.URI
@@ -926,10 +927,10 @@ func (s *snapshot) addKnownSubdirLocked(uri span.URI, dirs []span.URI) {
 			break
 		}
 		uri := span.URIFromPath(dir)
-		if _, ok := s.knownSubdirs[uri]; ok {
+		if s.knownSubdirs.Contains(uri) {
 			break
 		}
-		s.knownSubdirs[uri] = struct{}{}
+		s.knownSubdirs.Insert(uri)
 		dir = filepath.Dir(dir)
 		s.knownSubdirsPatternCache = ""
 	}
@@ -939,11 +940,11 @@ func (s *snapshot) removeKnownSubdirLocked(uri span.URI) {
 	dir := filepath.Dir(uri.Filename())
 	for dir != "" {
 		uri := span.URIFromPath(dir)
-		if _, ok := s.knownSubdirs[uri]; !ok {
+		if !s.knownSubdirs.Contains(uri) {
 			break
 		}
 		if info, _ := os.Stat(dir); info == nil {
-			delete(s.knownSubdirs, uri)
+			s.knownSubdirs.Remove(uri)
 			s.knownSubdirsPatternCache = ""
 		}
 		dir = filepath.Dir(dir)
@@ -1714,7 +1715,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		parseWorkHandles:  make(map[span.URI]*parseWorkHandle, len(s.parseWorkHandles)),
 		modTidyHandles:    make(map[span.URI]*modTidyHandle, len(s.modTidyHandles)),
 		modWhyHandles:     make(map[span.URI]*modWhyHandle, len(s.modWhyHandles)),
-		knownSubdirs:      make(map[span.URI]struct{}, len(s.knownSubdirs)),
+		knownSubdirs:      s.knownSubdirs.Clone(),
 		workspace:         newWorkspace,
 	}
 
@@ -1771,9 +1772,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// Add all of the known subdirectories, but don't update them for the
 	// changed files. We need to rebuild the workspace module to know the
 	// true set of known subdirectories, but we don't want to do that in clone.
-	for k, v := range s.knownSubdirs {
-		result.knownSubdirs[k] = v
-	}
+	result.knownSubdirs = s.knownSubdirs.Clone()
 	result.knownSubdirsPatternCache = s.knownSubdirsPatternCache
 	for _, c := range changes {
 		result.unprocessedSubdirChanges = append(result.unprocessedSubdirChanges, c)

@@ -28,6 +28,8 @@ import (
 // client-provided function that implements a strict weak order.
 //
 // Maps can be Cloned in constant time.
+// Get, Store, and Delete operations are done on average in logarithmic time.
+// Maps can be Updated in O(m log(n/m)) time for maps of size n and m, where m < n.
 //
 // Values are reference counted, and a client-supplied release function
 // is called when a value is no longer referenced by a map or any clone.
@@ -154,6 +156,15 @@ func (pm *Map) Get(key interface{}) (interface{}, bool) {
 		}
 	}
 	return nil, false
+}
+
+// SetAll updates the map with key/value pairs from the other map, overwriting existing keys.
+// It is equivalent to calling Set for each entry in the other map but is more efficient.
+// Both maps must have the same comparison function, otherwise behavior is undefined.
+func (pm *Map) SetAll(other *Map) {
+	root := pm.root
+	pm.root = union(root, other.root, pm.less, true)
+	root.decref()
 }
 
 // Set updates the value associated with the specified key.

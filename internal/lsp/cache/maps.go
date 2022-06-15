@@ -206,3 +206,48 @@ func (m packagesMap) Set(key packageKey, value *packageHandle, release func()) {
 func (m packagesMap) Delete(key packageKey) {
 	m.impl.Delete(key)
 }
+
+type knownDirsSet struct {
+	impl *persistent.Map
+}
+
+func newKnownDirsSet() knownDirsSet {
+	return knownDirsSet{
+		impl: persistent.NewMap(func(a, b interface{}) bool {
+			return a.(span.URI) < b.(span.URI)
+		}),
+	}
+}
+
+func (s knownDirsSet) Clone() knownDirsSet {
+	return knownDirsSet{
+		impl: s.impl.Clone(),
+	}
+}
+
+func (s knownDirsSet) Destroy() {
+	s.impl.Destroy()
+}
+
+func (s knownDirsSet) Contains(key span.URI) bool {
+	_, ok := s.impl.Get(key)
+	return ok
+}
+
+func (s knownDirsSet) Range(do func(key span.URI)) {
+	s.impl.Range(func(key, value interface{}) {
+		do(key.(span.URI))
+	})
+}
+
+func (s knownDirsSet) SetAll(other knownDirsSet) {
+	s.impl.SetAll(other.impl)
+}
+
+func (s knownDirsSet) Insert(key span.URI) {
+	s.impl.Set(key, nil, nil)
+}
+
+func (s knownDirsSet) Remove(key span.URI) {
+	s.impl.Delete(key)
+}

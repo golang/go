@@ -151,6 +151,31 @@ func TestRandomMap(t *testing.T) {
 	assertSameMap(t, seenEntries, deletedEntries)
 }
 
+func TestUpdate(t *testing.T) {
+	deletedEntries := make(map[mapEntry]struct{})
+	seenEntries := make(map[mapEntry]struct{})
+
+	m1 := &validatedMap{
+		impl: NewMap(func(a, b interface{}) bool {
+			return a.(int) < b.(int)
+		}),
+		expected: make(map[int]int),
+		deleted:  deletedEntries,
+		seen:     seenEntries,
+	}
+	m2 := m1.clone()
+
+	m1.set(t, 1, 1)
+	m1.set(t, 2, 2)
+	m2.set(t, 2, 20)
+	m2.set(t, 3, 3)
+	m1.setAll(t, m2)
+
+	m1.destroy()
+	m2.destroy()
+	assertSameMap(t, seenEntries, deletedEntries)
+}
+
 func (vm *validatedMap) onDelete(t *testing.T, key, value int) {
 	entry := mapEntry{key: key, value: value}
 	if _, ok := vm.deleted[entry]; ok {
@@ -252,6 +277,14 @@ func validateNode(t *testing.T, node *mapNode, less func(a, b interface{}) bool)
 
 	validateNode(t, node.left, less)
 	validateNode(t, node.right, less)
+}
+
+func (vm *validatedMap) setAll(t *testing.T, other *validatedMap) {
+	vm.impl.SetAll(other.impl)
+	for key, value := range other.expected {
+		vm.expected[key] = value
+	}
+	vm.validate(t)
 }
 
 func (vm *validatedMap) set(t *testing.T, key, value int) {

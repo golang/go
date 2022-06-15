@@ -244,6 +244,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		parseWorkHandles:  make(map[span.URI]*parseWorkHandle),
 		modTidyHandles:    make(map[span.URI]*modTidyHandle),
 		modWhyHandles:     make(map[span.URI]*modWhyHandle),
+		knownSubdirs:      newKnownDirsSet(),
 		workspace:         workspace,
 	}
 
@@ -537,9 +538,11 @@ func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes 
 		snapshots = append(snapshots, snapshot)
 	}
 	knownDirs := knownDirectories(ctx, snapshots)
+	defer knownDirs.Destroy()
+
 	var result []source.FileModification
 	for _, c := range changes {
-		if _, ok := knownDirs[c.URI]; !ok {
+		if !knownDirs.Contains(c.URI) {
 			result = append(result, c)
 			continue
 		}
@@ -561,16 +564,17 @@ func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes 
 
 // knownDirectories returns all of the directories known to the given
 // snapshots, including workspace directories and their subdirectories.
-func knownDirectories(ctx context.Context, snapshots []*snapshot) map[span.URI]struct{} {
-	result := map[span.URI]struct{}{}
+// It is responsibility of the caller to destroy the returned set.
+func knownDirectories(ctx context.Context, snapshots []*snapshot) knownDirsSet {
+	result := newKnownDirsSet()
 	for _, snapshot := range snapshots {
 		dirs := snapshot.workspace.dirs(ctx, snapshot)
 		for _, dir := range dirs {
-			result[dir] = struct{}{}
+			result.Insert(dir)
 		}
-		for _, dir := range snapshot.getKnownSubdirs(dirs) {
-			result[dir] = struct{}{}
-		}
+		knownSubdirs := snapshot.getKnownSubdirs(dirs)
+		result.SetAll(knownSubdirs)
+		knownSubdirs.Destroy()
 	}
 	return result
 }
