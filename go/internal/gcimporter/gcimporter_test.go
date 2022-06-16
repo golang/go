@@ -45,6 +45,10 @@ func needsCompiler(t *testing.T, compiler string) {
 // compile runs the compiler on filename, with dirname as the working directory,
 // and writes the output file to outdirname.
 func compile(t *testing.T, dirname, filename, outdirname string) string {
+	return compilePkg(t, dirname, filename, outdirname, "p")
+}
+
+func compilePkg(t *testing.T, dirname, filename, outdirname, pkg string) string {
 	testenv.NeedsGoBuild(t)
 
 	// filename must end with ".go"
@@ -53,12 +57,12 @@ func compile(t *testing.T, dirname, filename, outdirname string) string {
 	}
 	basename := filepath.Base(filename)
 	outname := filepath.Join(outdirname, basename[:len(basename)-2]+"o")
-	cmd := exec.Command("go", "tool", "compile", "-p=p", "-o", outname, filename)
+	cmd := exec.Command("go", "tool", "compile", "-p="+pkg, "-o", outname, filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Logf("%s", out)
-		t.Fatalf("go tool compile %s failed: %s", filename, err)
+		t.Fatalf("(cd %v && %v) failed: %s", cmd.Dir, cmd, err)
 	}
 	return outname
 }
@@ -140,7 +144,11 @@ func TestImportTestdata(t *testing.T) {
 		// For now, we just test the presence of a few packages
 		// that we know are there for sure.
 		got := fmt.Sprint(pkg.Imports())
-		for _, want := range []string{"go/ast", "go/token"} {
+		wants := []string{"go/ast", "go/token"}
+		if unifiedIR {
+			wants = []string{"go/ast"}
+		}
+		for _, want := range wants {
 			if !strings.Contains(got, want) {
 				t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
 			}
@@ -364,6 +372,14 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 		return // not an interface
 	}
 
+	// The unified IR importer always sets interface method receiver
+	// parameters to point to the Interface type, rather than the Named.
+	// See #49906.
+	var want types.Type = named
+	if unifiedIR {
+		want = iface
+	}
+
 	// check explicitly declared methods
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
 		m := iface.ExplicitMethod(i)
@@ -372,8 +388,8 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 			t.Errorf("%s: missing receiver type", m)
 			continue
 		}
-		if recv.Type() != named {
-			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), named)
+		if recv.Type() != want {
+			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), want)
 		}
 	}
 
@@ -451,7 +467,7 @@ func TestIssue13566(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compile(t, "testdata", "a.go", testoutdir)
+	compilePkg(t, "testdata", "a.go", testoutdir, apkg(testoutdir))
 	compile(t, testoutdir, bpath, testoutdir)
 
 	// import must succeed (test for issue at hand)
@@ -611,11 +627,20 @@ func TestIssue51836(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compile(t, dir, "a.go", testoutdir)
+	compilePkg(t, dir, "a.go", testoutdir, apkg(testoutdir))
 	compile(t, testoutdir, bpath, testoutdir)
 
 	// import must succeed (test for issue at hand)
 	_ = importPkg(t, "./testdata/aa", tmpdir)
+}
+
+// apkg returns the package "a" prefixed by (as a package) testoutdir
+func apkg(testoutdir string) string {
+	apkg := testoutdir + "/a"
+	if os.PathSeparator != '/' {
+		apkg = strings.ReplaceAll(apkg, string(os.PathSeparator), "/")
+	}
+	return apkg
 }
 
 func importPkg(t *testing.T, path, srcDir string) *types.Package {

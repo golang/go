@@ -181,8 +181,9 @@ func Import(packages map[string]*types.Package, path, srcDir string, lookup func
 	defer rc.Close()
 
 	var hdr string
+	var size int64
 	buf := bufio.NewReader(rc)
-	if hdr, _, err = FindExportData(buf); err != nil {
+	if hdr, size, err = FindExportData(buf); err != nil {
 		return
 	}
 
@@ -210,10 +211,27 @@ func Import(packages map[string]*types.Package, path, srcDir string, lookup func
 		// The indexed export format starts with an 'i'; the older
 		// binary export format starts with a 'c', 'd', or 'v'
 		// (from "version"). Select appropriate importer.
-		if len(data) > 0 && data[0] == 'i' {
-			_, pkg, err = IImportData(fset, packages, data[1:], id)
-		} else {
-			_, pkg, err = BImportData(fset, packages, data, id)
+		if len(data) > 0 {
+			switch data[0] {
+			case 'i':
+				_, pkg, err := IImportData(fset, packages, data[1:], id)
+				return pkg, err
+
+			case 'v', 'c', 'd':
+				_, pkg, err := BImportData(fset, packages, data, id)
+				return pkg, err
+
+			case 'u':
+				_, pkg, err := UImportData(fset, packages, data[1:size], id)
+				return pkg, err
+
+			default:
+				l := len(data)
+				if l > 10 {
+					l = 10
+				}
+				return nil, fmt.Errorf("unexpected export data with prefix %q for path %s", string(data[:l]), id)
+			}
 		}
 
 	default:

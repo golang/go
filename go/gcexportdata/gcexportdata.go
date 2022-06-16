@@ -116,13 +116,29 @@ func Read(in io.Reader, fset *token.FileSet, imports map[string]*types.Package, 
 	// The indexed export format starts with an 'i'; the older
 	// binary export format starts with a 'c', 'd', or 'v'
 	// (from "version"). Select appropriate importer.
-	if len(data) > 0 && data[0] == 'i' {
-		_, pkg, err := gcimporter.IImportData(fset, imports, data[1:], path)
-		return pkg, err
-	}
+	if len(data) > 0 {
+		switch data[0] {
+		case 'i':
+			_, pkg, err := gcimporter.IImportData(fset, imports, data[1:], path)
+			return pkg, err
 
-	_, pkg, err := gcimporter.BImportData(fset, imports, data, path)
-	return pkg, err
+		case 'v', 'c', 'd':
+			_, pkg, err := gcimporter.BImportData(fset, imports, data, path)
+			return pkg, err
+
+		case 'u':
+			_, pkg, err := gcimporter.UImportData(fset, imports, data[1:], path)
+			return pkg, err
+
+		default:
+			l := len(data)
+			if l > 10 {
+				l = 10
+			}
+			return nil, fmt.Errorf("unexpected export data with prefix %q for path %s", string(data[:l]), path)
+		}
+	}
+	return nil, fmt.Errorf("empty export data for %s", path)
 }
 
 // Write writes encoded type information for the specified package to out.
