@@ -14,6 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
+	"runtime/trace"
 	"sync"
 	"sync/atomic"
 
@@ -316,40 +317,42 @@ func (h *Handle) run(ctx context.Context, g *Generation, arg Arg) (interface{}, 
 	// Make sure that the generation isn't destroyed while we're running in it.
 	release := g.Acquire()
 	go func() {
-		defer release()
-		// Just in case the function does something expensive without checking
-		// the context, double-check we're still alive.
-		if childCtx.Err() != nil {
-			return
-		}
-		v := function(childCtx, arg)
-		if childCtx.Err() != nil {
-			// It's possible that v was computed despite the context cancellation. In
-			// this case we should ensure that it is cleaned up.
-			if h.cleanup != nil && v != nil {
-				h.cleanup(v)
+		trace.WithRegion(childCtx, fmt.Sprintf("Handle.run %T", h.key), func() {
+			defer release()
+			// Just in case the function does something expensive without checking
+			// the context, double-check we're still alive.
+			if childCtx.Err() != nil {
+				return
 			}
-			return
-		}
+			v := function(childCtx, arg)
+			if childCtx.Err() != nil {
+				// It's possible that v was computed despite the context cancellation. In
+				// this case we should ensure that it is cleaned up.
+				if h.cleanup != nil && v != nil {
+					h.cleanup(v)
+				}
+				return
+			}
 
-		h.mu.Lock()
-		defer h.mu.Unlock()
-		// It's theoretically possible that the handle has been cancelled out
-		// of the run that started us, and then started running again since we
-		// checked childCtx above. Even so, that should be harmless, since each
-		// run should produce the same results.
-		if h.state != stateRunning {
-			// v will never be used, so ensure that it is cleaned up.
-			if h.cleanup != nil && v != nil {
-				h.cleanup(v)
+			h.mu.Lock()
+			defer h.mu.Unlock()
+			// It's theoretically possible that the handle has been cancelled out
+			// of the run that started us, and then started running again since we
+			// checked childCtx above. Even so, that should be harmless, since each
+			// run should produce the same results.
+			if h.state != stateRunning {
+				// v will never be used, so ensure that it is cleaned up.
+				if h.cleanup != nil && v != nil {
+					h.cleanup(v)
+				}
+				return
 			}
-			return
-		}
-		// At this point v will be cleaned up whenever h is destroyed.
-		h.value = v
-		h.function = nil
-		h.state = stateCompleted
-		close(h.done)
+			// At this point v will be cleaned up whenever h is destroyed.
+			h.value = v
+			h.function = nil
+			h.state = stateCompleted
+			close(h.done)
+		})
 	}()
 
 	return h.wait(ctx)
