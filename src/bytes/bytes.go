@@ -560,9 +560,7 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 	// In the worst case, the slice can grow when mapped, making
 	// things unpleasant. But it's so rare we barge in assuming it's
 	// fine. It could also shrink but that falls out naturally.
-	maxbytes := len(s) // length of b
-	nbytes := 0        // number of bytes encoded in b
-	b := make([]byte, maxbytes)
+	b := make([]byte, 0, len(s))
 	for i := 0; i < len(s); {
 		wid := 1
 		r := rune(s[i])
@@ -571,22 +569,11 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 		}
 		r = mapping(r)
 		if r >= 0 {
-			rl := utf8.RuneLen(r)
-			if rl < 0 {
-				rl = len(string(utf8.RuneError))
-			}
-			if nbytes+rl > maxbytes {
-				// Grow the buffer.
-				maxbytes = maxbytes*2 + utf8.UTFMax
-				nb := make([]byte, maxbytes)
-				copy(nb, b[0:nbytes])
-				b = nb
-			}
-			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], r)
+			b = utf8.AppendRune(b, r)
 		}
 		i += wid
 	}
-	return b[0:nbytes]
+	return b
 }
 
 // Repeat returns a new byte slice consisting of count copies of b.
