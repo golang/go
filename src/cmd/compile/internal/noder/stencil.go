@@ -208,9 +208,15 @@ func (g *genInst) scanForGenCalls(decl ir.Node) {
 
 			st := g.getInstantiation(gf, targs, true).fun
 			dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, gf, targs, true)
-			// We have to be using a subdictionary, since this is
-			// a generic method call.
-			assert(usingSubdict)
+			if hasShapeTypes(targs) {
+				// We have to be using a subdictionary, since this is
+				// a generic method call.
+				assert(usingSubdict)
+			} else {
+				// We should use main dictionary, because the receiver is
+				// an instantiation already, see issue #53406.
+				assert(!usingSubdict)
+			}
 
 			// Transform to a function call, by appending the
 			// dictionary and the receiver to the args.
