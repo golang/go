@@ -278,7 +278,7 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 
 	tok := fset.File(file.Pos())
 	if tok == nil {
-		// file.Pos is the location of the package declaration (issue #53202). If there was
+		// file.Pos is the location of the package declaration. If there was
 		// none, we can't find the token.File that ParseFile created, and we
 		// have no choice but to recreate it.
 		tok = fset.AddFile(fh.URI().Filename(), -1, len(src))
