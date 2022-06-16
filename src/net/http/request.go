@@ -317,14 +317,14 @@ type Request struct {
 	Response *Response
 
 	// ctx is either the client or server context. It should only
-	// be modified via copying the whole Request using WithContext.
+	// be modified via copying the whole Request using Clone or WithContext.
 	// It is unexported to prevent people from using Context wrong
 	// and mutating the contexts held by callers of the same request.
 	ctx context.Context
 }
 
 // Context returns the request's context. To change the context, use
-// WithContext.
+// Clone or WithContext.
 //
 // The returned context is always non-nil; it defaults to the
 // background context.
@@ -349,9 +349,7 @@ func (r *Request) Context() context.Context {
 // sending the request, and reading the response headers and body.
 //
 // To create a new request with a context, use NewRequestWithContext.
-// To change the context of a request, such as an incoming request you
-// want to modify before sending back out, use Request.Clone. Between
-// those two uses, it's rare to need WithContext.
+// To make a deep copy of a request with a new context, use Request.Clone.
 func (r *Request) WithContext(ctx context.Context) *Request {
 	if ctx == nil {
 		panic("nil context")
