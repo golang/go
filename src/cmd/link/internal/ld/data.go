@@ -1854,6 +1854,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	}
 	for _, symn := range sym.ReadOnly {
 		symnStartValue := state.datsize
+		if len(state.data[symn]) != 0 {
+			symnStartValue = aligndatsize(state, symnStartValue, state.data[symn][0])
+		}
 		state.assignToSection(sect, symn, sym.SRODATA)
 		setCarrierSize(symn, state.datsize-symnStartValue)
 		if ctxt.HeadType == objabi.Haix {
@@ -1935,6 +1938,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 
 			symn := sym.RelROMap[symnro]
 			symnStartValue := state.datsize
+			if len(state.data[symn]) != 0 {
+				symnStartValue = aligndatsize(state, symnStartValue, state.data[symn][0])
+			}
 
 			for _, s := range state.data[symn] {
 				outer := ldr.OuterSym(s)
