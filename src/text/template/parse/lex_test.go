@@ -359,8 +359,7 @@ var lexTests = []lexTest{
 	{"extra right paren", "{{3)}}", []item{
 		tLeft,
 		mkItem(itemNumber, "3"),
-		tRpar,
-		mkItem(itemError, `unexpected right paren U+0029 ')'`),
+		mkItem(itemError, "unexpected right paren"),
 	}},
 
 	// Fixed bugs
@@ -394,7 +393,12 @@ var lexTests = []lexTest{
 
 // collect gathers the emitted items into a slice.
 func collect(t *lexTest, left, right string) (items []item) {
-	l := lex(t.name, t.input, left, right, true, true, true)
+	l := lex(t.name, t.input, left, right)
+	l.options = lexOptions{
+		emitComment: true,
+		breakOK:     true,
+		continueOK:  true,
+	}
 	for {
 		item := l.nextItem()
 		items = append(items, item)
@@ -431,7 +435,9 @@ func TestLex(t *testing.T) {
 		items := collect(&test, "", "")
 		if !equal(items, test.items, false) {
 			t.Errorf("%s: got\n\t%+v\nexpected\n\t%v", test.name, items, test.items)
+			return // TODO
 		}
+		t.Log(test.name, "OK")
 	}
 }
 
@@ -543,22 +549,6 @@ func TestPos(t *testing.T) {
 				}
 			}
 		}
-	}
-}
-
-// Test that an error shuts down the lexing goroutine.
-func TestShutdown(t *testing.T) {
-	// We need to duplicate template.Parse here to hold on to the lexer.
-	const text = "erroneous{{define}}{{else}}1234"
-	lexer := lex("foo", text, "{{", "}}", false, true, true)
-	_, err := New("root").parseLexer(lexer)
-	if err == nil {
-		t.Fatalf("expected error")
-	}
-	// The error should have drained the input. Therefore, the lexer should be shut down.
-	token, ok := <-lexer.items
-	if ok {
-		t.Fatalf("input was not drained; got %v", token)
 	}
 }
 
