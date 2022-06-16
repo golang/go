@@ -1821,23 +1821,6 @@ func (p *parser) parseBinaryExpr(x ast.Expr, prec1 int, check bool) ast.Expr {
 	}
 }
 
-// checkBinaryExpr checks binary expressions that were not already checked by
-// parseBinaryExpr, because the latter was called with check=false.
-func (p *parser) checkBinaryExpr(x ast.Expr) {
-	bx, ok := x.(*ast.BinaryExpr)
-	if !ok {
-		return
-	}
-
-	bx.X = p.checkExpr(bx.X)
-	bx.Y = p.checkExpr(bx.Y)
-
-	// parseBinaryExpr checks x and y for each binary expr in a tree, so we
-	// traverse the tree of binary exprs starting from x.
-	p.checkBinaryExpr(bx.X)
-	p.checkBinaryExpr(bx.Y)
-}
-
 // The result may be a type or even a raw type ([...]int). Callers must
 // check the result (using checkExpr or checkExprOrType), depending on
 // context.
