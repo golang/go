@@ -18,13 +18,9 @@ import (
 	"golang.org/x/tools/internal/memoize"
 )
 
+// A symbolHandle contains a handle to the result of symbolizing a file.
 type symbolHandle struct {
 	handle *memoize.Handle
-
-	fh source.FileHandle
-
-	// key is the hashed key for the package.
-	key symbolHandleKey
 }
 
 // symbolData contains the data produced by extracting symbols from a file.
@@ -33,30 +29,30 @@ type symbolData struct {
 	err     error
 }
 
-type symbolHandleKey source.Hash
-
+// buildSymbolHandle returns a handle to the result of symbolizing a file,
+// if necessary creating it and saving it in the snapshot.
 func (s *snapshot) buildSymbolHandle(ctx context.Context, fh source.FileHandle) *symbolHandle {
 	if h := s.getSymbolHandle(fh.URI()); h != nil {
 		return h
 	}
+	type symbolHandleKey source.Hash
 	key := symbolHandleKey(fh.FileIdentity().Hash)
-	h := s.generation.Bind(key, func(_ context.Context, arg memoize.Arg) interface{} {
+	handle := s.generation.Bind(key, func(_ context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
-		data := &symbolData{}
-		data.symbols, data.err = symbolize(snapshot, fh)
-		return data
+		symbols, err := symbolize(snapshot, fh)
+		return &symbolData{symbols, err}
 	}, nil)
 
 	sh := &symbolHandle{
-		handle: h,
-		fh:     fh,
-		key:    key,
+		handle: handle,
 	}
-	return s.addSymbolHandle(sh)
+
+	return s.addSymbolHandle(fh.URI(), sh)
 }
 
-// symbolize extracts symbols from a file. It uses a parsed file already
-// present in the cache but otherwise does not populate the cache.
+// symbolize reads and parses a file and extracts symbols from it.
+// It may use a parsed file already present in the cache but
+// otherwise does not populate the cache.
 func symbolize(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, error) {
 	src, err := fh.Read()
 	if err != nil {

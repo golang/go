@@ -50,14 +50,26 @@ const maxSymbols = 100
 // with a different configured SymbolMatcher per View. Therefore we assume that
 // Session level configuration will define the SymbolMatcher to be used for the
 // WorkspaceSymbols method.
-func WorkspaceSymbols(ctx context.Context, matcherType SymbolMatcher, style SymbolStyle, views []View, query string) ([]protocol.SymbolInformation, error) {
+func WorkspaceSymbols(ctx context.Context, matcher SymbolMatcher, style SymbolStyle, views []View, query string) ([]protocol.SymbolInformation, error) {
 	ctx, done := event.Start(ctx, "source.WorkspaceSymbols")
 	defer done()
 	if query == "" {
 		return nil, nil
 	}
-	sc := newSymbolCollector(matcherType, style, query)
-	return sc.walk(ctx, views)
+
+	var s symbolizer
+	switch style {
+	case DynamicSymbols:
+		s = dynamicSymbolMatch
+	case FullyQualifiedSymbols:
+		s = fullyQualifiedSymbolMatch
+	case PackageQualifiedSymbols:
+		s = packageSymbolMatch
+	default:
+		panic(fmt.Errorf("unknown symbol style: %v", style))
+	}
+
+	return collectSymbols(ctx, views, matcher, s, query)
 }
 
 // A matcherFunc returns the index and score of a symbol match.
@@ -134,43 +146,6 @@ func packageSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]strin
 		return qualified, s
 	}
 	return nil, 0
-}
-
-// symbolCollector holds context as we walk Packages, gathering symbols that
-// match a given query.
-//
-// How we match symbols is parameterized by two interfaces:
-//   - A matcherFunc determines how well a string symbol matches a query. It
-//     returns a non-negative score indicating the quality of the match. A score
-//     of zero indicates no match.
-//   - A symbolizer determines how we extract the symbol for an object. This
-//     enables the 'symbolStyle' configuration option.
-type symbolCollector struct {
-	// These types parameterize the symbol-matching pass.
-	matchers   []matcherFunc
-	symbolizer symbolizer
-
-	symbolStore
-}
-
-func newSymbolCollector(matcher SymbolMatcher, style SymbolStyle, query string) *symbolCollector {
-	var s symbolizer
-	switch style {
-	case DynamicSymbols:
-		s = dynamicSymbolMatch
-	case FullyQualifiedSymbols:
-		s = fullyQualifiedSymbolMatch
-	case PackageQualifiedSymbols:
-		s = packageSymbolMatch
-	default:
-		panic(fmt.Errorf("unknown symbol style: %v", style))
-	}
-	sc := &symbolCollector{symbolizer: s}
-	sc.matchers = make([]matcherFunc, runtime.GOMAXPROCS(-1))
-	for i := range sc.matchers {
-		sc.matchers[i] = buildMatcher(matcher, query)
-	}
-	return sc
 }
 
 func buildMatcher(matcher SymbolMatcher, query string) matcherFunc {
@@ -302,36 +277,42 @@ func (c comboMatcher) match(chunks []string) (int, float64) {
 	return first, score
 }
 
-func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.SymbolInformation, error) {
-	// Use the root view URIs for determining (lexically) whether a uri is in any
-	// open workspace.
+// collectSymbols calls snapshot.Symbols to walk the syntax trees of
+// all files in the views' current snapshots, and returns a sorted,
+// scored list of symbols that best match the parameters.
+//
+// How it matches symbols is parameterized by two interfaces:
+//   - A matcherFunc determines how well a string symbol matches a query. It
+//     returns a non-negative score indicating the quality of the match. A score
+//     of zero indicates no match.
+//   - A symbolizer determines how we extract the symbol for an object. This
+//     enables the 'symbolStyle' configuration option.
+//
+func collectSymbols(ctx context.Context, views []View, matcherType SymbolMatcher, symbolizer symbolizer, query string) ([]protocol.SymbolInformation, error) {
+
+	// Extract symbols from all files.
+	var work []symbolFile
 	var roots []string
-	for _, v := range views {
-		roots = append(roots, strings.TrimRight(string(v.Folder()), "/"))
-	}
-
-	results := make(chan *symbolStore)
-	matcherlen := len(sc.matchers)
-	files := make(map[span.URI]symbolFile)
-
+	seen := make(map[span.URI]bool)
+	// TODO(adonovan): opt: parallelize this loop? How often is len > 1?
 	for _, v := range views {
 		snapshot, release := v.Snapshot(ctx)
 		defer release()
-		psyms, err := snapshot.Symbols(ctx)
-		if err != nil {
-			return nil, err
-		}
+
+		// Use the root view URIs for determining (lexically)
+		// whether a URI is in any open workspace.
+		roots = append(roots, strings.TrimRight(string(v.Folder()), "/"))
 
 		filters := v.Options().DirectoryFilters
 		folder := filepath.ToSlash(v.Folder().Filename())
-		for uri, syms := range psyms {
+		for uri, syms := range snapshot.Symbols(ctx) {
 			norm := filepath.ToSlash(uri.Filename())
 			nm := strings.TrimPrefix(norm, folder)
 			if FiltersDisallow(nm, filters) {
 				continue
 			}
 			// Only scan each file once.
-			if _, ok := files[uri]; ok {
+			if seen[uri] {
 				continue
 			}
 			mds, err := snapshot.MetadataForFile(ctx, uri)
@@ -343,39 +324,37 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 				// TODO: should use the bug reporting API
 				continue
 			}
-			files[uri] = symbolFile{uri, mds[0], syms}
+			seen[uri] = true
+			work = append(work, symbolFile{uri, mds[0], syms})
 		}
 	}
 
-	var work []symbolFile
-	for _, f := range files {
-		work = append(work, f)
-	}
-
-	// Compute matches concurrently. Each symbolWorker has its own symbolStore,
+	// Match symbols in parallel.
+	// Each worker has its own symbolStore,
 	// which we merge at the end.
-	for i, matcher := range sc.matchers {
-		go func(i int, matcher matcherFunc) {
-			w := &symbolWorker{
-				symbolizer: sc.symbolizer,
-				matcher:    matcher,
-				ss:         &symbolStore{},
-				roots:      roots,
+	nmatchers := runtime.GOMAXPROCS(-1) // matching is CPU bound
+	results := make(chan *symbolStore)
+	for i := 0; i < nmatchers; i++ {
+		go func(i int) {
+			matcher := buildMatcher(matcherType, query)
+			store := new(symbolStore)
+			// Assign files to workers in round-robin fashion.
+			for j := i; j < len(work); j += nmatchers {
+				matchFile(store, symbolizer, matcher, roots, work[j])
 			}
-			for j := i; j < len(work); j += matcherlen {
-				w.matchFile(work[j])
-			}
-			results <- w.ss
-		}(i, matcher)
+			results <- store
+		}(i)
 	}
 
-	for i := 0; i < matcherlen; i++ {
-		ss := <-results
-		for _, si := range ss.res {
-			sc.store(si)
+	// Gather and merge results as they arrive.
+	var unified symbolStore
+	for i := 0; i < nmatchers; i++ {
+		store := <-results
+		for _, syms := range store.res {
+			unified.store(syms)
 		}
 	}
-	return sc.results(), nil
+	return unified.results(), nil
 }
 
 // FilterDisallow is code from the body of cache.pathExcludedByFilter in cache/view.go
@@ -407,20 +386,13 @@ type symbolFile struct {
 	syms []Symbol
 }
 
-// symbolWorker matches symbols and captures the highest scoring results.
-type symbolWorker struct {
-	symbolizer symbolizer
-	matcher    matcherFunc
-	ss         *symbolStore
-	roots      []string
-}
-
-func (w *symbolWorker) matchFile(i symbolFile) {
+// matchFile scans a symbol file and adds matching symbols to the store.
+func matchFile(store *symbolStore, symbolizer symbolizer, matcher matcherFunc, roots []string, i symbolFile) {
 	for _, sym := range i.syms {
-		symbolParts, score := w.symbolizer(sym.Name, i.md, w.matcher)
+		symbolParts, score := symbolizer(sym.Name, i.md, matcher)
 
 		// Check if the score is too low before applying any downranking.
-		if w.ss.tooLow(score) {
+		if store.tooLow(score) {
 			continue
 		}
 
@@ -463,7 +435,7 @@ func (w *symbolWorker) matchFile(i symbolFile) {
 		}
 
 		inWorkspace := false
-		for _, root := range w.roots {
+		for _, root := range roots {
 			if strings.HasPrefix(string(i.uri), root) {
 				inWorkspace = true
 				break
@@ -484,7 +456,7 @@ func (w *symbolWorker) matchFile(i symbolFile) {
 		}
 		score *= 1.0 - depth*depthFactor
 
-		if w.ss.tooLow(score) {
+		if store.tooLow(score) {
 			continue
 		}
 
@@ -496,7 +468,7 @@ func (w *symbolWorker) matchFile(i symbolFile) {
 			rng:       sym.Range,
 			container: i.md.PackagePath(),
 		}
-		w.ss.store(si)
+		store.store(si)
 	}
 }
 

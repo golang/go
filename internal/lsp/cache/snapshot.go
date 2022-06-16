@@ -997,9 +997,7 @@ func (s *snapshot) activePackageHandles(ctx context.Context) ([]*packageHandle, 
 }
 
 // Symbols extracts and returns the symbols for each file in all the snapshot's views.
-func (s *snapshot) Symbols(ctx context.Context) (map[span.URI][]source.Symbol, error) {
-	// Keep going on errors, but log the first failure.
-	// Partial results are better than no symbol results.
+func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
 	var (
 		group    errgroup.Group
 		nprocs   = 2 * runtime.GOMAXPROCS(-1)  // symbolize is a mix of I/O and CPU
@@ -1023,10 +1021,12 @@ func (s *snapshot) Symbols(ctx context.Context) (map[span.URI][]source.Symbol, e
 			return nil
 		})
 	}
+	// Keep going on errors, but log the first failure.
+	// Partial results are better than no symbol results.
 	if err := group.Wait(); err != nil {
 		event.Error(ctx, "getting snapshot symbols", err)
 	}
-	return result, nil
+	return result
 }
 
 func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]source.Metadata, error) {
@@ -1137,11 +1137,10 @@ func (s *snapshot) getSymbolHandle(uri span.URI) *symbolHandle {
 	return s.symbols[uri]
 }
 
-func (s *snapshot) addSymbolHandle(sh *symbolHandle) *symbolHandle {
+func (s *snapshot) addSymbolHandle(uri span.URI, sh *symbolHandle) *symbolHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	uri := sh.fh.URI()
 	// If the package handle has already been cached,
 	// return the cached handle instead of overriding it.
 	if sh, ok := s.symbols[uri]; ok {
@@ -1338,7 +1337,7 @@ func (s *snapshot) getFileLocked(ctx context.Context, f *fileBase) (source.Versi
 		return fh, nil
 	}
 
-	fh, err := s.view.session.cache.getFile(ctx, f.URI())
+	fh, err := s.view.session.cache.getFile(ctx, f.URI()) // read the file
 	if err != nil {
 		return nil, err
 	}

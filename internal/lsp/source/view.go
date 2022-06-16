@@ -175,7 +175,7 @@ type Snapshot interface {
 	ActivePackages(ctx context.Context) ([]Package, error)
 
 	// Symbols returns all symbols in the snapshot.
-	Symbols(ctx context.Context) (map[span.URI][]Symbol, error)
+	Symbols(ctx context.Context) map[span.URI][]Symbol
 
 	// Metadata returns package metadata associated with the given file URI.
 	MetadataForFile(ctx context.Context, uri span.URI) ([]Metadata, error)

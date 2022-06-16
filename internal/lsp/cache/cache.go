@@ -68,6 +68,7 @@ func (h *fileHandle) Saved() bool {
 	return true
 }
 
+// GetFile stats and (maybe) reads the file, updates the cache, and returns it.
 func (c *Cache) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
 	return c.getFile(ctx, uri)
 }
