@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
@@ -994,26 +996,35 @@ func (s *snapshot) activePackageHandles(ctx context.Context) ([]*packageHandle, 
 	return phs, nil
 }
 
+// Symbols extracts and returns the symbols for each file in all the snapshot's views.
 func (s *snapshot) Symbols(ctx context.Context) (map[span.URI][]source.Symbol, error) {
-	result := make(map[span.URI][]source.Symbol)
-
-	// Keep going on errors, but log the first failure. Partial symbol results
-	// are better than no symbol results.
-	var firstErr error
+	// Keep going on errors, but log the first failure.
+	// Partial results are better than no symbol results.
+	var (
+		group    errgroup.Group
+		nprocs   = 2 * runtime.GOMAXPROCS(-1)  // symbolize is a mix of I/O and CPU
+		iolimit  = make(chan struct{}, nprocs) // I/O limiting counting semaphore
+		resultMu sync.Mutex
+		result   = make(map[span.URI][]source.Symbol)
+	)
 	for uri, f := range s.files {
-		sh := s.buildSymbolHandle(ctx, f)
-		v, err := sh.handle.Get(ctx, s.generation, s)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = err
+		uri, f := uri, f
+		// TODO(adonovan): upgrade errgroup and use group.SetLimit(nprocs).
+		iolimit <- struct{}{} // acquire token
+		group.Go(func() error {
+			defer func() { <-iolimit }() // release token
+			v, err := s.buildSymbolHandle(ctx, f).handle.Get(ctx, s.generation, s)
+			if err != nil {
+				return err
 			}
-			continue
-		}
-		data := v.(*symbolData)
-		result[uri] = data.symbols
+			resultMu.Lock()
+			result[uri] = v.(*symbolData).symbols
+			resultMu.Unlock()
+			return nil
+		})
 	}
-	if firstErr != nil {
-		event.Error(ctx, "getting snapshot symbols", firstErr)
+	if err := group.Wait(); err != nil {
+		event.Error(ctx, "getting snapshot symbols", err)
 	}
 	return result, nil
 }
