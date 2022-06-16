@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Memory Model",
-	"Subtitle": "Version of May 31, 2014",
+	"Subtitle": "Version of June 6, 2022",
 	"Path": "/ref/mem"
 }-->
 
@@ -8,12 +8,9 @@
 p.rule {
   font-style: italic;
 }
-span.event {
-  font-style: italic;
-}
 </style>
 
-<h2>Introduction</h2>
+<h2 id="introduction">Introduction</h2>
 
 <p>
 The Go memory model specifies the conditions under which
@@ -22,7 +19,7 @@ observe values produced by writes to the same variable in a different goroutine.
 </p>
 
 
-<h2>Advice</h2>
+<h3 id="advice">Advice</h3>
 
 <p>
 Programs that modify data being simultaneously accessed by multiple goroutines
@@ -44,90 +41,237 @@ you are being too clever.
 Don't be clever.
 </p>
 
-<h2>Happens Before</h2>
+<h3 id="overview">Informal Overview</h3>
 
 <p>
-Within a single goroutine, reads and writes must behave
-as if they executed in the order specified by the program.
-That is, compilers and processors may reorder the reads and writes
-executed within a single goroutine only when the reordering
-does not change the behavior within that goroutine
-as defined by the language specification.
-Because of this reordering, the execution order observed
-by one goroutine may differ from the order perceived
-by another.  For example, if one goroutine
-executes <code>a = 1; b = 2;</code>, another might observe
-the updated value of <code>b</code> before the updated value of <code>a</code>.
+Go approaches its memory model in much the same way as the rest of the language,
+aiming to keep the semantics simple, understandable, and useful.
+This section gives a general overview of the approach and should suffice for most programmers.
+The memory model is specified more formally in the next section.
 </p>
 
 <p>
-To specify the requirements of reads and writes, we define
-<i>happens before</i>, a partial order on the execution
-of memory operations in a Go program.  If event <span class="event">e<sub>1</sub></span> happens
-before event <span class="event">e<sub>2</sub></span>, then we say that <span class="event">e<sub>2</sub></span> happens after <span class="event">e<sub>1</sub></span>.
-Also, if <span class="event">e<sub>1</sub></span> does not happen before <span class="event">e<sub>2</sub></span> and does not happen
-after <span class="event">e<sub>2</sub></span>, then we say that <span class="event">e<sub>1</sub></span> and <span class="event">e<sub>2</sub></span> happen concurrently.
-</p>
-
-<p class="rule">
-Within a single goroutine, the happens-before order is the
-order expressed by the program.
+A <em>data race</em> is defined as
+a write to a memory location happening concurrently with another read or write to that same location,
+unless all the accesses involved are atomic data accesses as provided by the <code>sync/atomic</code> package.
+As noted already, programmers are strongly encouraged to use appropriate synchronization
+to avoid data races.
+In the absence of data races, Go programs behave as if all the goroutines
+were multiplexed onto a single processor.
+This property is sometimes referred to as DRF-SC: data-race-free programs
+execute in a sequentially consistent manner.
 </p>
 
 <p>
-A read <span class="event">r</span> of a variable <code>v</code> is <i>allowed</i> to observe a write <span class="event">w</span> to <code>v</code>
-if both of the following hold:
+While programmers should write Go programs without data races,
+there are limitations to what a Go implementation can do in response to a data race.
+An implementation may always react to a data race by reporting the race and terminating the program.
+Otherwise, each read of a single-word-sized or sub-word-sized memory location
+must observe a value actually written to that location (perhaps by a concurrent executing goroutine)
+and not yet overwritten.
+These implementation constraints make Go more like Java or JavaScript,
+in that most races have a limited number of outcomes,
+and less like C and C++, where the meaning of any program with a race
+is entirely undefined, and the compiler may do anything at all.
+Go's approach aims to make errant programs more reliable and easier to debug,
+while still insisting that races are errors and that tools can diagnose and report them.
 </p>
+
+<h2 id="model">Memory Model</h2>
+
+<p>
+The following formal definition of Go's memory model closely follows
+the approach presented by Hans-J. Boehm and Sarita V. Adve in
+“<a href="https://www.hpl.hp.com/techreports/2008/HPL-2008-56.pdf">Foundations of the C++ Concurrency Memory Model</a>”,
+published in PLDI 2008.
+The definition of data-race-free programs and the guarantee of sequential consistency
+for race-free programs are equivalent to the ones in that work.
+</p>
+
+<p>
+The memory model describes the requirements on program executions,
+which are made up of goroutine executions,
+which in turn are made up of memory operations.
+</p>
+
+<p>
+A <i>memory operation</i> is modeled by four details:
+</p>
+<ul>
+<li>its kind, indicating whether it is an ordinary data read, an ordinary data write,
+or a <i>synchronizing operation</i> such as an atomic data access,
+a mutex operation, or a channel operation,
+<li>its location in the program,
+<li>the memory location or variable being accessed, and
+<li>the values read or written by the operation.
+</ul>
+<p>
+Some memory operations are <i>read-like</i>, including read, atomic read, mutex lock, and channel receive.
+Other memory operations are <i>write-like</i>, including write, atomic write, mutex unlock, channel send, and channel close.
+Some, such as atomic compare-and-swap, are both read-like and write-like.
+</p>
+
+<p>
+A <i>goroutine execution</i> is modeled as a set of memory operations executed by a single goroutine.
+</p>
+
+<p>
+<b>Requirement 1</b>:
+The memory operations in each goroutine must correspond to a correct sequential execution of that goroutine,
+given the values read from and written to memory.
+That execution must be consistent with the <i>sequenced before</i> relation,
+defined as the partial order requirements set out by the <a href="/ref/spec">Go language specification</a>
+for Go's control flow constructs as well as the <a href="/ref/spec#Order_of_evaluation">order of evaluation for expressions</a>.
+</p>
+
+<p>
+A Go <i>program execution</i> is modeled as a set of goroutine executions,
+together with a mapping <i>W</i> that specifies the write-like operation that each read-like operation reads from.
+(Multiple executions of the same program can have different program executions.)
+</p>
+
+<p>
+<b>Requirement 2</b>:
+For a given program execution, the mapping <i>W</i>, when limited to synchronizing operations,
+must be explainable by some implicit total order of the synchronizing operations
+that is consistent with sequencing and the values read and written by those operations.
+</p>
+
+<p>
+The <i>synchronized before</i> relation is a partial order on synchronizing memory operations,
+derived from <i>W</i>.
+If a synchronizing read-like memory operation <i>r</i>
+observes a synchronizing write-like memory operation <i>w</i>
+(that is, if <i>W</i>(<i>r</i>) = <i>w</i>),
+then <i>w</i> is synchronized before <i>r</i>.
+Informally, the synchronized before relation is a subset of the implied total order
+mentioned in the previous paragraph,
+limited to the information that <i>W</i> directly observes.
+</p>
+
+<p>
+The <i>happens before</i> relation is defined as the transitive closure of the
+union of the sequenced before and synchronized before relations.
+</p>
+
+<p>
+<b>Requirement 3</b>:
+For an ordinary (non-synchronizing) data read <i>r</i> on a memory location <i>x</i>,
+<i>W</i>(<i>r</i>) must be a write <i>w</i> that is <i>visible</i> to <i>r</i>,
+where visible means that both of the following hold:
 
 <ol>
-<li><span class="event">r</span> does not happen before <span class="event">w</span>.</li>
-<li>There is no other write <span class="event">w'</span> to <code>v</code> that happens
-    after <span class="event">w</span> but before <span class="event">r</span>.</li>
+<li><i>w</i> happens before <i>r</i>.
+<li><i>w</i> does not happen before any other write <i>w'</i> (to <i>x</i>) that happens before <i>r</i>.
 </ol>
 
 <p>
-To guarantee that a read <span class="event">r</span> of a variable <code>v</code> observes a
-particular write <span class="event">w</span> to <code>v</code>, ensure that <span class="event">w</span> is the only
-write <span class="event">r</span> is allowed to observe.
-That is, <span class="event">r</span> is <i>guaranteed</i> to observe <span class="event">w</span> if both of the following hold:
-</p>
-
-<ol>
-<li><span class="event">w</span> happens before <span class="event">r</span>.</li>
-<li>Any other write to the shared variable <code>v</code>
-either happens before <span class="event">w</span> or after <span class="event">r</span>.</li>
-</ol>
-
-<p>
-This pair of conditions is stronger than the first pair;
-it requires that there are no other writes happening
-concurrently with <span class="event">w</span> or <span class="event">r</span>.
+A <i>read-write data race</i> on memory location <i>x</i>
+consists of a read-like memory operation <i>r</i> on <i>x</i>
+and a write-like memory operation <i>w</i> on <i>x</i>,
+at least one of which is non-synchronizing,
+which are unordered by happens before
+(that is, neither <i>r</i> happens before <i>w</i>
+nor <i>w</i> happens before <i>r</i>).
 </p>
 
 <p>
-Within a single goroutine,
-there is no concurrency, so the two definitions are equivalent:
-a read <span class="event">r</span> observes the value written by the most recent write <span class="event">w</span> to <code>v</code>.
-When multiple goroutines access a shared variable <code>v</code>,
-they must use synchronization events to establish
-happens-before conditions that ensure reads observe the
-desired writes.
+A <i>write-write data race</i> on memory location <i>x</i>
+consists of two write-like memory operations <i>w</i> and <i>w'</i> on <i>x</i>,
+at least one of which is non-synchronizing,
+which are unordered by happens before.
 </p>
 
 <p>
-The initialization of variable <code>v</code> with the zero value
-for <code>v</code>'s type behaves as a write in the memory model.
+Note that if there are no read-write or write-write data races on memory location <i>x</i>,
+then any read <i>r</i> on <i>x</i> has only one possible <i>W</i>(<i>r</i>):
+the single <i>w</i> that immediately precedes it in the happens before order.
 </p>
 
 <p>
-Reads and writes of values larger than a single machine word
-behave as multiple machine-word-sized operations in an
-unspecified order.
+More generally, it can be shown that any Go program that is data-race-free,
+meaning it has no program executions with read-write or write-write data races,
+can only have outcomes explained by some sequentially consistent interleaving
+of the goroutine executions.
+(The proof is the same as Section 7 of Boehm and Adve's paper cited above.)
+This property is called DRF-SC.
 </p>
 
-<h2>Synchronization</h2>
+<p>
+The intent of the formal definition is to match
+the DRF-SC guarantee provided to race-free programs
+by other languages, including C, C++, Java, JavaScript, Rust, and Swift.
+</p>
 
-<h3>Initialization</h3>
+<p>
+Certain Go language operations such as goroutine creation and memory allocation
+act as synchronization operations.
+The effect of these operations on the synchronized-before partial order
+is documented in the “Synchronization” section below.
+Individual packages are responsible for providing similar documentation
+for their own operations.
+</p>
+
+<h2 id="restrictions">Implementation Restrictions for Programs Containing Data Races</h2>
+
+<p>
+The preceding section gave a formal definition of data-race-free program execution.
+This section informally describes the semantics that implementations must provide
+for programs that do contain races.
+</p>
+
+<p>
+First, any implementation can, upon detecting a data race,
+report the race and halt execution of the program.
+Implementations using ThreadSanitizer
+(accessed with “<code>go</code> <code>build</code> <code>-race</code>”)
+do exactly this.
+</p>
+
+<p>
+Otherwise, a read <i>r</i> of a memory location <i>x</i>
+that is not larger than a machine word must observe
+some write <i>w</i> such that <i>r</i> does not happen before <i>w</i>
+and there is no write <i>w'</i> such that <i>w</i> happens before <i>w'</i>
+and <i>w'</i> happens before <i>r</i>.
+That is, each read must observe a value written by a preceding or concurrent write.
+</p>
+
+<p>
+Additionally, observation of acausal and “out of thin air” writes is disallowed.
+</p>
+
+<p>
+Reads of memory locations larger than a single machine word
+are encouraged but not required to meet the same semantics
+as word-sized memory locations,
+observing a single allowed write <i>w</i>.
+For performance reasons,
+implementations may instead treat larger operations
+as a set of individual machine-word-sized operations
+in an unspecified order.
+This means that races on multiword data structures
+can lead to inconsistent values not corresponding to a single write.
+When the values depend on the consistency
+of internal (pointer, length) or (pointer, type) pairs,
+as can be the case for interface values, maps,
+slices, and strings in most Go implementations,
+such races can in turn lead to arbitrary memory corruption.
+</p>
+
+<p>
+Examples of incorrect synchronization are given in the
+“Incorrect synchronization” section below.
+</p>
+
+<p>
+Examples of the limitations on implementations are given in the
+“Incorrect compilation” section below.
+</p>
+
+<h2 id="synchronization">Synchronization</h2>
+
+<h3 id="init">Initialization</h3>
 
 <p>
 Program initialization runs in a single goroutine,
@@ -141,15 +285,15 @@ If a package <code>p</code> imports package <code>q</code>, the completion of
 </p>
 
 <p class="rule">
-The start of the function <code>main.main</code> happens after
-all <code>init</code> functions have finished.
+The completion of all <code>init</code> functions is synchronized before
+the start of the function <code>main.main</code>.
 </p>
 
-<h3>Goroutine creation</h3>
+<h3 id="go">Goroutine creation</h3>
 
 <p class="rule">
 The <code>go</code> statement that starts a new goroutine
-happens before the goroutine's execution begins.
+is synchronized before the start of the goroutine's execution.
 </p>
 
 <p>
@@ -174,11 +318,12 @@ calling <code>hello</code> will print <code>"hello, world"</code>
 at some point in the future (perhaps after <code>hello</code> has returned).
 </p>
 
-<h3>Goroutine destruction</h3>
+<h3 id="goexit">Goroutine destruction</h3>
 
 <p>
-The exit of a goroutine is not guaranteed to happen before
-any event in the program.  For example, in this program:
+The exit of a goroutine is not guaranteed to be synchronized before
+any event in the program.
+For example, in this program:
 </p>
 
 <pre>
@@ -203,7 +348,7 @@ use a synchronization mechanism such as a lock or channel
 communication to establish a relative ordering.
 </p>
 
-<h3>Channel communication</h3>
+<h3 id="chan">Channel communication</h3>
 
 <p>
 Channel communication is the main method of synchronization
@@ -213,8 +358,8 @@ usually in a different goroutine.
 </p>
 
 <p class="rule">
-A send on a channel happens before the corresponding
-receive from that channel completes.
+A send on a channel is synchronized before the completion of the
+corresponding receive from that channel.
 </p>
 
 <p>
@@ -239,13 +384,13 @@ func main() {
 
 <p>
 is guaranteed to print <code>"hello, world"</code>.  The write to <code>a</code>
-happens before the send on <code>c</code>, which happens before
-the corresponding receive on <code>c</code> completes, which happens before
+is sequenced before the send on <code>c</code>, which is synchronized before
+the corresponding receive on <code>c</code> completes, which is sequenced before
 the <code>print</code>.
 </p>
 
 <p class="rule">
-The closing of a channel happens before a receive that returns a zero value
+The closing of a channel is synchronized before a receive that returns a zero value
 because the channel is closed.
 </p>
 
@@ -256,8 +401,8 @@ yields a program with the same guaranteed behavior.
 </p>
 
 <p class="rule">
-A receive from an unbuffered channel happens before
-the send on that channel completes.
+A receive from an unbuffered channel is synchronized before the completion of
+the corresponding send on that channel.
 </p>
 
 <p>
@@ -283,8 +428,8 @@ func main() {
 
 <p>
 is also guaranteed to print <code>"hello, world"</code>.  The write to <code>a</code>
-happens before the receive on <code>c</code>, which happens before
-the corresponding send on <code>c</code> completes, which happens
+is sequenced before the receive on <code>c</code>, which is synchronized before
+the corresponding send on <code>c</code> completes, which is sequenced
 before the <code>print</code>.
 </p>
 
@@ -296,7 +441,7 @@ crash, or do something else.)
 </p>
 
 <p class="rule">
-The <i>k</i>th receive on a channel with capacity <i>C</i> happens before the <i>k</i>+<i>C</i>th send from that channel completes.
+The <i>k</i>th receive on a channel with capacity <i>C</i> is synchronized before the completion of the <i>k</i>+<i>C</i>th send from that channel completes.
 </p>
 
 <p>
@@ -330,7 +475,7 @@ func main() {
 }
 </pre>
 
-<h3>Locks</h3>
+<h3 id="locks">Locks</h3>
 
 <p>
 The <code>sync</code> package implements two lock data types,
@@ -339,7 +484,7 @@ The <code>sync</code> package implements two lock data types,
 
 <p class="rule">
 For any <code>sync.Mutex</code> or <code>sync.RWMutex</code> variable <code>l</code> and <i>n</i> &lt; <i>m</i>,
-call <i>n</i> of <code>l.Unlock()</code> happens before call <i>m</i> of <code>l.Lock()</code> returns.
+call <i>n</i> of <code>l.Unlock()</code> is synchronized before call <i>m</i> of <code>l.Lock()</code> returns.
 </p>
 
 <p>
@@ -365,19 +510,29 @@ func main() {
 
 <p>
 is guaranteed to print <code>"hello, world"</code>.
-The first call to <code>l.Unlock()</code> (in <code>f</code>) happens
+The first call to <code>l.Unlock()</code> (in <code>f</code>) is synchronized
 before the second call to <code>l.Lock()</code> (in <code>main</code>) returns,
-which happens before the <code>print</code>.
+which is sequenced before the <code>print</code>.
 </p>
 
 <p class="rule">
 For any call to <code>l.RLock</code> on a <code>sync.RWMutex</code> variable <code>l</code>,
-there is an <i>n</i> such that the <code>l.RLock</code> happens (returns) after call <i>n</i> to
-<code>l.Unlock</code> and the matching <code>l.RUnlock</code> happens
-before call <i>n</i>+1 to <code>l.Lock</code>.
+there is an <i>n</i> such that the <i>n</i>th call to <code>l.Unlock</code>
+is synchronized before the return from <code>l.RLock</code>,
+and the matching call to <code>l.RUnlock</code> is synchronized before the return from call <i>n</i>+1 to <code>l.Lock</code>.
 </p>
 
-<h3>Once</h3>
+<p class="rule">
+A successful call to <code>l.TryLock</code> (or <code>l.TryRLock</code>)
+is equivalent to a call to <code>l.Lock</code> (or <code>l.RLock</code>).
+An unsuccessful call has no synchronizing effect at all.
+As far as the memory model is concerned,
+<code>l.TryLock</code> (or <code>l.TryRLock</code>)
+may be considered to be able to return false
+even when the mutex <i>l</i> is unlocked.
+</p>
+
+<h3 id="once">Once</h3>
 
 <p>
 The <code>sync</code> package provides a safe mechanism for
@@ -389,7 +544,8 @@ until <code>f()</code> has returned.
 </p>
 
 <p class="rule">
-A single call of <code>f()</code> from <code>once.Do(f)</code> happens (returns) before any call of <code>once.Do(f)</code> returns.
+The completion of a single call of <code>f()</code> from <code>once.Do(f)</code>
+is synchronized before the return of any call of <code>once.Do(f)</code>.
 </p>
 
 <p>
@@ -424,13 +580,60 @@ The result will be that <code>"hello, world"</code> will be printed
 twice.
 </p>
 
-<h2>Incorrect synchronization</h2>
+<h3 id="atomic">Atomic Values</h3>
 
 <p>
-Note that a read <span class="event">r</span> may observe the value written by a write <span class="event">w</span>
-that happens concurrently with <span class="event">r</span>.
-Even if this occurs, it does not imply that reads happening after <span class="event">r</span>
-will observe writes that happened before <span class="event">w</span>.
+The APIs in the <a href="/pkg/sync/atomic/"><code>sync/atomic</code></a>
+package are collectively “atomic operations”
+that can be used to synchronize the execution of different goroutines.
+If the effect of an atomic operation <i>A</i> is observed by atomic operation <i>B</i>,
+then <i>A</i> is synchronized before <i>B</i>.
+All the atomic operations executed in a program behave as though executed
+in some sequentially consistent order.
+</p>
+
+<p>
+The preceding definition has the same semantics as C++’s sequentially consistent atomics
+and Java’s <code>volatile</code> variables.
+</p>
+
+<h3 id="finalizer">Finalizers</h3>
+
+<p>
+The <a href="/pkg/runtime/"><code>runtime</code></a> package provides
+a <code>SetFinalizer</code> function that adds a finalizer to be called when
+a particular object is no longer reachable by the program.
+A call to <code>SetFinalizer(x, f)</code> is synchronized before the finalization call <code>f(x)</code>.
+</p>
+
+<h3 id="more">Additional Mechanisms</h3>
+
+<p>
+The <code>sync</code> package provides additional synchronization abstractions,
+including <a href="/pkg/sync/#Cond">condition variables</a>,
+<a href="/pkg/sync/#Map">lock-free maps</a>,
+<a href="/pkg/sync/#Pool">allocation pools</a>,
+and
+<a href="/pkg/sync/#WaitGroup">wait groups</a>.
+The documentation for each of these specifies the guarantees it
+makes concerning synchronization.
+</p>
+
+<p>
+Other packages that provide synchronization abstractions
+should document the guarantees they make too.
+</p>
+
+
+<h2 id="badsync">Incorrect synchronization</h2>
+
+<p>
+Programs with races are incorrect and
+can exhibit non-sequentially consistent executions.
+In particular, note that a read <i>r</i> may observe the value written by any write <i>w</i>
+that executes concurrently with <i>r</i>.
+Even if this occurs, it does not imply that reads happening after <i>r</i>
+will observe writes that happened before <i>w</i>.
 </p>
 
 <p>
@@ -565,4 +768,198 @@ value for <code>g.msg</code>.
 <p>
 In all these examples, the solution is the same:
 use explicit synchronization.
+</p>
+
+<h2 id="badcompiler">Incorrect compilation</h2>
+
+<p>
+The Go memory model restricts compiler optimizations as much as it does Go programs.
+Some compiler optimizations that would be valid in single-threaded programs are not valid in all Go programs.
+In particular, a compiler must not introduce writes that do not exist in the original program,
+it must not allow a single read to observe multiple values,
+and it must not allow a single write to write multiple values.
+</p>
+
+<p>
+All the following examples assume that `*p` and `*q` refer to
+memory locations accessible to multiple goroutines.
+</p>
+
+<p>
+Not introducing data races into race-free programs means not moving
+writes out of conditional statements in which they appear.
+For example, a compiler must not invert the conditional in this program:
+</p>
+
+<pre>
+*p = 1
+if cond {
+	*p = 2
+}
+</pre>
+
+<p>
+That is, the compiler must not rewrite the program into this one:
+</p>
+
+<pre>
+*p = 2
+if !cond {
+	*p = 1
+}
+</pre>
+
+<p>
+If <code>cond</code> is false and another goroutine is reading <code>*p</code>,
+then in the original program, the other goroutine can only observe any prior value of <code>*p</code> and <code>1</code>.
+In the rewritten program, the other goroutine can observe <code>2</code>, which was previously impossible.
+</p>
+
+<p>
+Not introducing data races also means not assuming that loops terminate.
+For example, a compiler must in general not move the accesses to <code>*p</code> or <code>*q</code>
+ahead of the loop in this program:
+</p>
+
+<pre>
+n := 0
+for e := list; e != nil; e = e.next {
+	n++
+}
+i := *p
+*q = 1
+</pre>
+
+<p>
+If <code>list</code> pointed to a cyclic list,
+then the original program would never access <code>*p</code> or <code>*q</code>,
+but the rewritten program would.
+(Moving `*p` ahead would be safe if the compiler can prove `*p` will not panic;
+moving `*q` ahead would also require the compiler proving that no other
+goroutine can access `*q`.)
+</p>
+
+<p>
+Not introducing data races also means not assuming that called functions
+always return or are free of synchronization operations.
+For example, a compiler must not move the accesses to <code>*p</code> or <code>*q</code>
+ahead of the function call in this program
+(at least not without direct knowledge of the precise behavior of <code>f</code>):
+</p>
+
+<pre>
+f()
+i := *p
+*q = 1
+</pre>
+
+<p>
+If the call never returned, then once again the original program
+would never access <code>*p</code> or <code>*q</code>, but the rewritten program would.
+And if the call contained synchronizing operations, then the original program
+could establish happens before edges preceding the accesses
+to <code>*p</code> and <code>*q</code>, but the rewritten program would not.
+</p>
+
+<p>
+Not allowing a single read to observe multiple values means
+not reloading local variables from shared memory.
+For example, a compiler must not discard <code>i</code> and reload it
+a second time from <code>*p</code> in this program:
+</p>
+
+<pre>
+i := *p
+if i &lt; 0 || i &gt;= len(funcs) {
+	panic("invalid function index")
+}
+... complex code ...
+// compiler must NOT reload i = *p here
+funcs[i]()
+</pre>
+
+<p>
+If the complex code needs many registers, a compiler for single-threaded programs
+could discard <code>i</code> without saving a copy and then reload
+<code>i = *p</code> just before
+<code>funcs[i]()</code>.
+A Go compiler must not, because the value of <code>*p</code> may have changed.
+(Instead, the compiler could spill <code>i</code> to the stack.)
+</p>
+
+<p>
+Not allowing a single write to write multiple values also means not using
+the memory where a local variable will be written as temporary storage before the write.
+For example, a compiler must not use <code>*p</code> as temporary storage in this program:
+</p>
+
+<pre>
+*p = i + *p/2
+</pre>
+
+<p>
+That is, it must not rewrite the program into this one:
+</p>
+
+<pre>
+*p /= 2
+*p += i
+</pre>
+
+<p>
+If <code>i</code> and <code>*p</code> start equal to 2,
+the original code does <code>*p = 3</code>,
+so a racing thread can read only 2 or 3 from <code>*p</code>.
+The rewritten code does <code>*p = 1</code> and then <code>*p = 3</code>,
+allowing a racing thread to read 1 as well.
+</p>
+
+<p>
+Note that all these optimizations are permitted in C/C++ compilers:
+a Go compiler sharing a back end with a C/C++ compiler must take care
+to disable optimizations that are invalid for Go.
+</p>
+
+<p>
+Note that the prohibition on introducing data races
+does not apply if the compiler can prove that the races
+do not affect correct execution on the target platform.
+For example, on essentially all CPUs, it is valid to rewrite
+</p>
+
+<pre>
+n := 0
+for i := 0; i < m; i++ {
+	n += *shared
+}
+</pre>
+
+into:
+
+<pre>
+n := 0
+local := *shared
+for i := 0; i < m; i++ {
+	n += local
+}
+</pre>
+
+<p>
+provided it can be proved that <code>*shared</code> will not fault on access,
+because the potential added read will not affect any existing concurrent reads or writes.
+On the other hand, the rewrite would not be valid in a source-to-source translator.
+</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>
+Go programmers writing data-race-free programs can rely on
+sequentially consistent execution of those programs,
+just as in essentially all other modern programming languages.
+</p>
+
+<p>
+When it comes to programs with races,
+both programmers and compilers should remember the advice:
+don't be clever.
 </p>

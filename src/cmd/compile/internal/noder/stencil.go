@@ -1330,10 +1330,10 @@ func (g *genInst) dictPass(info *instInfo) {
 				m = convertUsingDictionary(info, info.dictParam, m.Pos(), mce.X, m, m.Type())
 			}
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
-			if !m.Type().HasShape() {
+			dt := m.(*ir.TypeAssertExpr)
+			if !dt.Type().HasShape() && !dt.X.Type().HasShape() {
 				break
 			}
-			dt := m.(*ir.TypeAssertExpr)
 			var rtype, itab ir.Node
 			if dt.Type().IsInterface() || dt.X.Type().IsEmptyInterface() {
 				// TODO(mdempsky): Investigate executing this block unconditionally.

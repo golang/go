@@ -475,16 +475,19 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			s = ldr.CreateSymForUpdate("type.*", 0)
 			s.SetType(sym.STYPE)
 			s.SetSize(0)
+			s.SetAlign(int32(ctxt.Arch.PtrSize))
 			symtype = s.Sym()
 
 			s = ldr.CreateSymForUpdate("typerel.*", 0)
 			s.SetType(sym.STYPERELRO)
 			s.SetSize(0)
+			s.SetAlign(int32(ctxt.Arch.PtrSize))
 			symtyperel = s.Sym()
 		} else {
 			s = ldr.CreateSymForUpdate("type.*", 0)
 			s.SetType(sym.STYPE)
 			s.SetSize(0)
+			s.SetAlign(int32(ctxt.Arch.PtrSize))
 			symtype = s.Sym()
 			symtyperel = s.Sym()
 		}
@@ -496,6 +499,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		s := ldr.CreateSymForUpdate(name, 0)
 		s.SetType(t)
 		s.SetSize(0)
+		s.SetAlign(int32(ctxt.Arch.PtrSize))
 		s.SetLocal(true)
 		setCarrierSym(t, s.Sym())
 		return s.Sym()

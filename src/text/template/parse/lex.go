@@ -211,7 +211,7 @@ func (l *lexer) drain() {
 }
 
 // lex creates a new scanner for the input string.
-func lex(name, input, left, right string, emitComment bool) *lexer {
+func lex(name, input, left, right string, emitComment, breakOK, continueOK bool) *lexer {
 	if left == "" {
 		left = leftDelim
 	}
@@ -224,6 +224,8 @@ func lex(name, input, left, right string, emitComment bool) *lexer {
 		leftDelim:   left,
 		rightDelim:  right,
 		emitComment: emitComment,
+		breakOK:     breakOK,
+		continueOK:  continueOK,
 		items:       make(chan item),
 		line:        1,
 		startLine:   1,

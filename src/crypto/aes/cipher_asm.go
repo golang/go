@@ -8,12 +8,11 @@ package aes
 
 import (
 	"crypto/cipher"
+	"crypto/internal/boring"
 	"crypto/internal/subtle"
 	"internal/cpu"
 	"internal/goarch"
 )
-
-import "crypto/internal/boring"
 
 // defined in asm_*.s
 

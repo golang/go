@@ -285,9 +285,9 @@ func (w *typeWriter) typ(typ Type) {
 			w.string(strconv.Itoa(w.ctxt.getID(t)))
 		}
 		w.typeName(t.obj) // when hashing written for readability of the hash only
-		if t.targs != nil {
+		if t.inst != nil {
 			// instantiated type
-			w.typeList(t.targs.list())
+			w.typeList(t.inst.targs.list())
 		} else if w.ctxt == nil && t.TypeParams().Len() != 0 { // For type hashing, don't need to format the TypeParams
 			// parameterized type
 			w.tParamList(t.TypeParams().list())

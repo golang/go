@@ -11,45 +11,57 @@ import "unsafe"
 func libfuzzerCallWithTwoByteBuffers(fn, start, end *byte)
 func libfuzzerCallTraceIntCmp(fn *byte, arg0, arg1, fakePC uintptr)
 func libfuzzerCall4(fn *byte, fakePC uintptr, s1, s2 unsafe.Pointer, result uintptr)
+
 // Keep in sync with the definition of ret_sled in src/runtime/libfuzzer_amd64.s
 const retSledSize = 512
 
-
+// In libFuzzer mode, the compiler inserts calls to libfuzzerTraceCmpN and libfuzzerTraceConstCmpN
+// (where N can be 1, 2, 4, or 8) for encountered integer comparisons in the code to be instrumented.
+// This may result in these functions having callers that are nosplit. That is why they must be nosplit.
+//
+//go:nosplit
 func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC int) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp1, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
+//go:nosplit
 func libfuzzerTraceCmp2(arg0, arg1 uint16, fakePC int) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp2, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
+//go:nosplit
 func libfuzzerTraceCmp4(arg0, arg1 uint32, fakePC int) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp4, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
+//go:nosplit
 func libfuzzerTraceCmp8(arg0, arg1 uint64, fakePC int) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp8, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
+//go:nosplit
 func libfuzzerTraceConstCmp1(arg0, arg1 uint8, fakePC int) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp1, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
+//go:nosplit
 func libfuzzerTraceConstCmp2(arg0, arg1 uint16, fakePC int) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp2, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
+//go:nosplit
 func libfuzzerTraceConstCmp4(arg0, arg1 uint32, fakePC int) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp4, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
+//go:nosplit
 func libfuzzerTraceConstCmp8(arg0, arg1 uint64, fakePC int) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp8, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
@@ -71,15 +83,15 @@ func init() {
 	libfuzzerCallWithTwoByteBuffers(&__sanitizer_cov_pcs_init, &pcTables[0], &pcTables[size-1])
 }
 
-// We call libFuzzer's __sanitizer_weak_hook_strcmp function
-// which takes the following four arguments:
-//   1- caller_pc: location of string comparison call site
-//   2- s1: first string used in the comparison
-//   3- s2: second string used in the comparison
-//   4- result: an integer representing the comparison result. Libfuzzer only distinguishes between two cases:
-//      - 0 means that the strings are equal and the comparison will be ignored by libfuzzer.
-//      - Any other value means that strings are not equal and libfuzzer takes the comparison into consideration.
-//      Here, we pass 1 when the strings are not equal.
+// We call libFuzzer's __sanitizer_weak_hook_strcmp function which takes the
+// following four arguments:
+//
+//  1. caller_pc: location of string comparison call site
+//  2. s1: first string used in the comparison
+//  3. s2: second string used in the comparison
+//  4. result: an integer representing the comparison result. 0 indicates
+//     equality (comparison will ignored by libfuzzer), non-zero indicates a
+//     difference (comparison will be taken into consideration).
 func libfuzzerHookStrCmp(s1, s2 string, fakePC int) {
 	if s1 != s2 {
 		libfuzzerCall4(&__sanitizer_weak_hook_strcmp, uintptr(fakePC), cstring(s1), cstring(s2), uintptr(1))

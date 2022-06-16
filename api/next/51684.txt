@@ -1,2 +1,0 @@
-pkg regexp/syntax, const ErrNestingDepth = "expression nests too deeply" #51684
-pkg regexp/syntax, const ErrNestingDepth ErrorCode #51684

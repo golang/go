@@ -260,7 +260,8 @@ func (d *parseDoc) lookupPkg(pkg string) (importPath string, ok bool) {
 }
 
 func isStdPkg(path string) bool {
-	// TODO(rsc): Use sort.Find.
+	// TODO(rsc): Use sort.Find once we don't have to worry about
+	// copying this code into older Go environments.
 	i := sort.Search(len(stdPkgs), func(i int) bool { return stdPkgs[i] >= path })
 	return i < len(stdPkgs) && stdPkgs[i] == path
 }
@@ -297,44 +298,27 @@ func (p *Parser) Parse(text string) *Doc {
 
 	// First pass: break into block structure and collect known links.
 	// The text is all recorded as Plain for now.
-	// TODO: Break into actual block structure.
-	didHeading := false
-	all := lines
-	for len(lines) > 0 {
-		line := lines[0]
-		n := len(lines)
+	var prev span
+	for _, s := range parseSpans(lines) {
 		var b Block
-
-		switch {
-		case line == "":
-			// emit nothing
-
-		case isList(line):
-			prevWasBlank := len(lines) < len(all) && all[len(all)-len(lines)-1] == ""
-			b, lines = d.list(lines, prevWasBlank)
-
-		case isIndented(line):
-			b, lines = d.code(lines)
-
-		case (len(lines) == 1 || lines[1] == "") && !didHeading && isOldHeading(line, all, len(all)-n):
-			b = d.oldHeading(line)
-			didHeading = true
-
-		case (len(lines) == 1 || lines[1] == "") && isHeading(line):
-			b = d.heading(line)
-			didHeading = true
-
+		switch s.kind {
 		default:
-			b, lines = d.paragraph(lines)
-			didHeading = false
+			panic("go/doc/comment: internal error: unknown span kind")
+		case spanList:
+			b = d.list(lines[s.start:s.end], prev.end < s.start)
+		case spanCode:
+			b = d.code(lines[s.start:s.end])
+		case spanOldHeading:
+			b = d.oldHeading(lines[s.start])
+		case spanHeading:
+			b = d.heading(lines[s.start])
+		case spanPara:
+			b = d.paragraph(lines[s.start:s.end])
 		}
-
 		if b != nil {
 			d.Content = append(d.Content, b)
 		}
-		if len(lines) == n {
-			lines = lines[1:]
-		}
+		prev = s
 	}
 
 	// Second pass: interpret all the Plain text now that we know the links.
@@ -348,9 +332,172 @@ func (p *Parser) Parse(text string) *Doc {
 	return d.Doc
 }
 
+// A span represents a single span of comment lines (lines[start:end])
+// of an identified kind (code, heading, paragraph, and so on).
+type span struct {
+	start int
+	end   int
+	kind  spanKind
+}
+
+// A spanKind describes the kind of span.
+type spanKind int
+
+const (
+	_ spanKind = iota
+	spanCode
+	spanHeading
+	spanList
+	spanOldHeading
+	spanPara
+)
+
+func parseSpans(lines []string) []span {
+	var spans []span
+
+	// The loop may process a line twice: once as unindented
+	// and again forced indented. So the maximum expected
+	// number of iterations is 2*len(lines). The repeating logic
+	// can be subtle, though, and to protect against introduction
+	// of infinite loops in future changes, we watch to see that
+	// we are not looping too much. A panic is better than a
+	// quiet infinite loop.
+	watchdog := 2 * len(lines)
+
+	i := 0
+	forceIndent := 0
+Spans:
+	for {
+		// Skip blank lines.
+		for i < len(lines) && lines[i] == "" {
+			i++
+		}
+		if i >= len(lines) {
+			break
+		}
+		if watchdog--; watchdog < 0 {
+			panic("go/doc/comment: internal error: not making progress")
+		}
+
+		var kind spanKind
+		start := i
+		end := i
+		if i < forceIndent || indented(lines[i]) {
+			// Indented (or force indented).
+			// Ends before next unindented. (Blank lines are OK.)
+			// If this is an unindented list that we are heuristically treating as indented,
+			// then accept unindented list item lines up to the first blank lines.
+			// The heuristic is disabled at blank lines to contain its effect
+			// to non-gofmt'ed sections of the comment.
+			unindentedListOK := isList(lines[i]) && i < forceIndent
+			i++
+			for i < len(lines) && (lines[i] == "" || i < forceIndent || indented(lines[i]) || (unindentedListOK && isList(lines[i]))) {
+				if lines[i] == "" {
+					unindentedListOK = false
+				}
+				i++
+			}
+
+			// Drop trailing blank lines.
+			end = i
+			for end > start && lines[end-1] == "" {
+				end--
+			}
+
+			// If indented lines are followed (without a blank line)
+			// by an unindented line ending in a brace,
+			// take that one line too. This fixes the common mistake
+			// of pasting in something like
+			//
+			// func main() {
+			//	fmt.Println("hello, world")
+			// }
+			//
+			// and forgetting to indent it.
+			// The heuristic will never trigger on a gofmt'ed comment,
+			// because any gofmt'ed code block or list would be
+			// followed by a blank line or end of comment.
+			if end < len(lines) && strings.HasPrefix(lines[end], "}") {
+				end++
+			}
+
+			if isList(lines[start]) {
+				kind = spanList
+			} else {
+				kind = spanCode
+			}
+		} else {
+			// Unindented. Ends at next blank or indented line.
+			i++
+			for i < len(lines) && lines[i] != "" && !indented(lines[i]) {
+				i++
+			}
+			end = i
+
+			// If unindented lines are followed (without a blank line)
+			// by an indented line that would start a code block,
+			// check whether the final unindented lines
+			// should be left for the indented section.
+			// This can happen for the common mistakes of
+			// unindented code or unindented lists.
+			// The heuristic will never trigger on a gofmt'ed comment,
+			// because any gofmt'ed code block would have a blank line
+			// preceding it after the unindented lines.
+			if i < len(lines) && lines[i] != "" && !isList(lines[i]) {
+				switch {
+				case isList(lines[i-1]):
+					// If the final unindented line looks like a list item,
+					// this may be the first indented line wrap of
+					// a mistakenly unindented list.
+					// Leave all the unindented list items.
+					forceIndent = end
+					end--
+					for end > start && isList(lines[end-1]) {
+						end--
+					}
+
+				case strings.HasSuffix(lines[i-1], "{") || strings.HasSuffix(lines[i-1], `\`):
+					// If the final unindented line ended in { or \
+					// it is probably the start of a misindented code block.
+					// Give the user a single line fix.
+					// Often that's enough; if not, the user can fix the others themselves.
+					forceIndent = end
+					end--
+				}
+
+				if start == end && forceIndent > start {
+					i = start
+					continue Spans
+				}
+			}
+
+			// Span is either paragraph or heading.
+			if end-start == 1 && isHeading(lines[start]) {
+				kind = spanHeading
+			} else if end-start == 1 && isOldHeading(lines[start], lines, start) {
+				kind = spanOldHeading
+			} else {
+				kind = spanPara
+			}
+		}
+
+		spans = append(spans, span{start, end, kind})
+		i = end
+	}
+
+	return spans
+}
+
+// indented reports whether line is indented
+// (starts with a leading space or tab).
+func indented(line string) bool {
+	return line != "" && (line[0] == ' ' || line[0] == '\t')
+}
+
 // unindent removes any common space/tab prefix
 // from each line in lines, returning a copy of lines in which
 // those prefixes have been trimmed from each line.
+// It also replaces any lines containing only spaces with blank lines (empty strings).
 func unindent(lines []string) []string {
 	// Trim leading and trailing blank lines.
 	for len(lines) > 0 && isBlank(lines[0]) {
@@ -480,58 +627,16 @@ func (d *parseDoc) heading(line string) Block {
 	return &Heading{Text: []Text{Plain(strings.TrimSpace(line[1:]))}}
 }
 
-// code returns a code block built from the indented text
-// at the start of lines, along with the remainder of the lines.
-// If there is no indented text at the start, or if the indented
-// text consists only of empty lines, code returns a nil Block.
-func (d *parseDoc) code(lines []string) (b Block, rest []string) {
-	lines, rest = indented(lines)
+// code returns a code block built from the lines.
+func (d *parseDoc) code(lines []string) *Code {
 	body := unindent(lines)
-	if len(body) == 0 {
-		return nil, rest
-	}
 	body = append(body, "") // to get final \n from Join
-	return &Code{Text: strings.Join(body, "\n")}, rest
+	return &Code{Text: strings.Join(body, "\n")}
 }
 
-// isIndented reports whether the line is indented,
-// meaning it starts with a space or tab.
-func isIndented(line string) bool {
-	return line != "" && (line[0] == ' ' || line[0] == '\t')
-}
-
-// indented splits lines into an initial indented section
-// and the remaining lines, returning the two halves.
-func indented(lines []string) (indented, rest []string) {
-	// Blank lines mid-run are OK, but not at the end.
-	i := 0
-	for i < len(lines) && (isIndented(lines[i]) || lines[i] == "") {
-		i++
-	}
-	for i > 0 && lines[i-1] == "" {
-		i--
-	}
-	return lines[:i], lines[i:]
-}
-
-// paragraph returns a paragraph block built from the
-// unindented text at the start of lines, along with the remainder of the lines.
-// If there is no unindented text at the start of lines,
-// then paragraph returns a nil Block.
-func (d *parseDoc) paragraph(lines []string) (b Block, rest []string) {
-	// Paragraph is interrupted by any indented line,
-	// which is either a list or a code block,
-	// and of course by a blank line.
-	// It is not interrupted by a # line - headings must stand alone.
-	i := 0
-	for i < len(lines) && lines[i] != "" && !isIndented(lines[i]) {
-		i++
-	}
-	lines, rest = lines[:i], lines[i:]
-	if len(lines) == 0 {
-		return nil, rest
-	}
-
+// paragraph returns a paragraph block built from the lines.
+// If the lines are link definitions, paragraph adds them to d and returns nil.
+func (d *parseDoc) paragraph(lines []string) Block {
 	// Is this a block of known links? Handle.
 	var defs []*LinkDef
 	for _, line := range lines {
@@ -547,10 +652,10 @@ func (d *parseDoc) paragraph(lines []string) (b Block, rest []string) {
 			d.links[def.Text] = def
 		}
 	}
-	return nil, rest
+	return nil
 NoDefs:
 
-	return &Paragraph{Text: []Text{Plain(strings.Join(lines, "\n"))}}, rest
+	return &Paragraph{Text: []Text{Plain(strings.Join(lines, "\n"))}}
 }
 
 // parseLink parses a single link definition line:
@@ -581,14 +686,9 @@ func parseLink(line string) (*LinkDef, bool) {
 	return &LinkDef{Text: text, URL: url}, true
 }
 
-// list returns a list built from the indented text at the start of lines,
+// list returns a list built from the indented lines,
 // using forceBlankBefore as the value of the List's ForceBlankBefore field.
-// The caller is responsible for ensuring that the first line of lines
-// satisfies isList.
-// list returns the *List as a Block along with the remaining lines.
-func (d *parseDoc) list(lines []string, forceBlankBefore bool) (b Block, rest []string) {
-	lines, rest = indented(lines)
-
+func (d *parseDoc) list(lines []string, forceBlankBefore bool) *List {
 	num, _, _ := listMarker(lines[0])
 	var (
 		list *List = &List{ForceBlankBefore: forceBlankBefore}
@@ -597,7 +697,7 @@ func (d *parseDoc) list(lines []string, forceBlankBefore bool) (b Block, rest []
 	)
 	flush := func() {
 		if item != nil {
-			if para, _ := d.paragraph(text); para != nil {
+			if para := d.paragraph(text); para != nil {
 				item.Content = append(item.Content, para)
 			}
 		}
@@ -622,17 +722,14 @@ func (d *parseDoc) list(lines []string, forceBlankBefore bool) (b Block, rest []
 		text = append(text, strings.TrimSpace(line))
 	}
 	flush()
-	return list, rest
+	return list
 }
 
-// listMarker parses the line as an indented line beginning with a list marker.
+// listMarker parses the line as beginning with a list marker.
 // If it can do that, it returns the numeric marker ("" for a bullet list),
 // the rest of the line, and ok == true.
 // Otherwise, it returns "", "", false.
 func listMarker(line string) (num, rest string, ok bool) {
-	if !isIndented(line) {
-		return "", "", false
-	}
 	line = strings.TrimSpace(line)
 	if line == "" {
 		return "", "", false
@@ -654,7 +751,7 @@ func listMarker(line string) (num, rest string, ok bool) {
 		return "", "", false
 	}
 
-	if !isIndented(rest) || strings.TrimSpace(rest) == "" {
+	if !indented(rest) || strings.TrimSpace(rest) == "" {
 		return "", "", false
 	}
 
@@ -662,7 +759,8 @@ func listMarker(line string) (num, rest string, ok bool) {
 }
 
 // isList reports whether the line is the first line of a list,
-// meaning is indented and starts with a list marker.
+// meaning starts with a list marker after any indentation.
+// (The caller is responsible for checking the line is indented, as appropriate.)
 func isList(line string) bool {
 	_, _, ok := listMarker(line)
 	return ok
@@ -840,6 +938,14 @@ func (d *parseDoc) parseText(out []Text, s string, autoLink bool) []Text {
 		}
 		switch {
 		case strings.HasPrefix(t, "``"):
+			if len(t) >= 3 && t[2] == '`' {
+				// Do not convert `` inside ```, in case people are mistakenly writing Markdown.
+				i += 3
+				for i < len(t) && t[i] == '`' {
+					i++
+				}
+				break
+			}
 			writeUntil(i)
 			w.WriteRune('“')
 			i += 2

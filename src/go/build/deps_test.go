@@ -543,7 +543,10 @@ var depsRules = `
 	internal/fuzz, internal/testlog, runtime/pprof, regexp
 	< testing/internal/testdeps;
 
-	OS, flag, testing, internal/cfg
+	MATH, errors, testing
+	< internal/testmath;
+
+	OS, flag, testing, internal/cfg, internal/testmath
 	< internal/testenv;
 
 	OS, encoding/base64

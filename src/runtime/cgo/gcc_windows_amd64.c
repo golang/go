@@ -24,13 +24,7 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 void
 _cgo_sys_thread_start(ThreadStart *ts)
 {
-	uintptr_t thandle;
-
-	thandle = _beginthread(threadentry, 0, ts);
-	if(thandle == -1) {
-		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
-		abort();
-	}
+	_cgo_beginthread(threadentry, ts);
 }
 
 static void

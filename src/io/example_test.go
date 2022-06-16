@@ -6,7 +6,6 @@ package io_test
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -283,17 +282,4 @@ func ExampleReadAll() {
 
 	// Output:
 	// Go is a general-purpose language designed with systems programming in mind.
-}
-
-func ExampleLimitedReader() {
-	r := strings.NewReader("some io.Reader stream to be read\n")
-	sentinel := errors.New("reached read limit")
-	lr := &io.LimitedReader{R: r, N: 4, Err: sentinel}
-
-	if _, err := io.Copy(os.Stdout, lr); err != sentinel {
-		log.Fatal(err)
-	}
-
-	// Output:
-	// some
 }

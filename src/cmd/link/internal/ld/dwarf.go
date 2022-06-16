@@ -682,9 +682,9 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 			}
 			fld := d.newdie(die, dwarf.DW_ABRV_STRUCTFIELD, f)
 			d.newrefattr(fld, dwarf.DW_AT_type, d.defgotype(s))
-			offsetAnon := decodetypeStructFieldOffsAnon(d.ldr, d.arch, gotype, i)
-			newmemberoffsetattr(fld, int32(offsetAnon>>1))
-			if offsetAnon&1 != 0 { // is embedded field
+			offset := decodetypeStructFieldOffset(d.ldr, d.arch, gotype, i)
+			newmemberoffsetattr(fld, int32(offset))
+			if decodetypeStructFieldEmbedded(d.ldr, d.arch, gotype, i) {
 				newattr(fld, dwarf.DW_AT_go_embedded_field, dwarf.DW_CLS_FLAG, 1, 0)
 			}
 		}

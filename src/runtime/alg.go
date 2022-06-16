@@ -182,7 +182,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 			if f.name.isBlank() {
 				continue
 			}
-			h = typehash(f.typ, add(p, f.offset()), h)
+			h = typehash(f.typ, add(p, f.offset), h)
 		}
 		return h
 	default:

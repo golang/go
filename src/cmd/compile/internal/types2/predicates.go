@@ -102,7 +102,7 @@ func isTypeParam(t Type) bool {
 func isGeneric(t Type) bool {
 	// A parameterized type is only generic if it doesn't have an instantiation already.
 	named, _ := t.(*Named)
-	return named != nil && named.obj != nil && named.targs == nil && named.TypeParams() != nil
+	return named != nil && named.obj != nil && named.inst == nil && named.TypeParams().Len() > 0
 }
 
 // Comparable reports whether values of type T are comparable.
@@ -283,18 +283,19 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 			}
 			smap := makeSubstMap(ytparams, targs)
 
-			var check *Checker // ok to call subst on a nil *Checker
+			var check *Checker   // ok to call subst on a nil *Checker
+			ctxt := NewContext() // need a non-nil Context for the substitution below
 
 			// Constraints must be pair-wise identical, after substitution.
 			for i, xtparam := range xtparams {
-				ybound := check.subst(nopos, ytparams[i].bound, smap, nil)
+				ybound := check.subst(nopos, ytparams[i].bound, smap, nil, ctxt)
 				if !identical(xtparam.bound, ybound, cmpTags, p) {
 					return false
 				}
 			}
 
-			yparams = check.subst(nopos, y.params, smap, nil).(*Tuple)
-			yresults = check.subst(nopos, y.results, smap, nil).(*Tuple)
+			yparams = check.subst(nopos, y.params, smap, nil, ctxt).(*Tuple)
+			yresults = check.subst(nopos, y.results, smap, nil, ctxt).(*Tuple)
 		}
 
 		return x.variadic == y.variadic &&
@@ -401,7 +402,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 			if len(xargs) > 0 {
 				// Instances are identical if their original type and type arguments
 				// are identical.
-				if !Identical(x.orig, y.orig) {
+				if !Identical(x.Origin(), y.Origin()) {
 					return false
 				}
 				for i, xa := range xargs {

@@ -1,1 +1,0 @@
-pkg sort, func Find(int, func(int) int) (int, bool) #50340

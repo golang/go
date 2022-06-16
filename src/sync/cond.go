@@ -18,6 +18,10 @@ import (
 // when calling the Wait method.
 //
 // A Cond must not be copied after first use.
+//
+// In the terminology of the Go memory model, Cond arranges that
+// a call to Broadcast or Signal “synchronizes before” any Wait call
+// that it unblocks.
 type Cond struct {
 	noCopy noCopy
 
@@ -85,11 +89,13 @@ func (c *copyChecker) check() {
 	}
 }
 
-// noCopy may be embedded into structs which must not be copied
+// noCopy may be added to structs which must not be copied
 // after the first use.
 //
 // See https://golang.org/issues/8005#issuecomment-190753527
 // for details.
+//
+// Note that it must not be embedded, due to the Lock and Unlock methods.
 type noCopy struct{}
 
 // Lock is a no-op used by -copylocks checker from `go vet`.

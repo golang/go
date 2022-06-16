@@ -1016,12 +1016,11 @@ func updateTimerModifiedEarliest(pp *p, nextwhen int64) {
 	}
 }
 
-// timeSleepUntil returns the time when the next timer should fire,
-// and the P that holds the timer heap that that timer is on.
+// timeSleepUntil returns the time when the next timer should fire. Returns
+// maxWhen if there are no timers.
 // This is only called by sysmon and checkdead.
-func timeSleepUntil() (int64, *p) {
+func timeSleepUntil() int64 {
 	next := int64(maxWhen)
-	var pret *p
 
 	// Prevent allp slice changes. This is like retake.
 	lock(&allpLock)
@@ -1035,18 +1034,16 @@ func timeSleepUntil() (int64, *p) {
 		w := int64(atomic.Load64(&pp.timer0When))
 		if w != 0 && w < next {
 			next = w
-			pret = pp
 		}
 
 		w = int64(atomic.Load64(&pp.timerModifiedEarliest))
 		if w != 0 && w < next {
 			next = w
-			pret = pp
 		}
 	}
 	unlock(&allpLock)
 
-	return next, pret
+	return next
 }
 
 // Heap maintenance algorithms.

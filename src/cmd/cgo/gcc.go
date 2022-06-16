@@ -1831,6 +1831,23 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 		bo := f.ByteOrder
 		symtab, err := f.Symbols()
 		if err == nil {
+			// Check for use of -fsanitize=hwaddress (issue 53285).
+			removeTag := func(v uint64) uint64 { return v }
+			if goarch == "arm64" {
+				for i := range symtab {
+					if symtab[i].Name == "__hwasan_init" {
+						// -fsanitize=hwaddress on ARM
+						// uses the upper byte of a
+						// memory address as a hardware
+						// tag. Remove it so that
+						// we can find the associated
+						// data.
+						removeTag = func(v uint64) uint64 { return v &^ (0xff << (64 - 8)) }
+						break
+					}
+				}
+			}
+
 			for i := range symtab {
 				s := &symtab[i]
 				switch {
@@ -1838,9 +1855,10 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 					// Found it. Now find data section.
 					if i := int(s.Section); 0 <= i && i < len(f.Sections) {
 						sect := f.Sections[i]
-						if sect.Addr <= s.Value && s.Value < sect.Addr+sect.Size {
+						val := removeTag(s.Value)
+						if sect.Addr <= val && val < sect.Addr+sect.Size {
 							if sdat, err := sect.Data(); err == nil {
-								data := sdat[s.Value-sect.Addr:]
+								data := sdat[val-sect.Addr:]
 								ints = make([]int64, len(data)/8)
 								for i := range ints {
 									ints[i] = int64(bo.Uint64(data[i*8:]))
@@ -1852,9 +1870,10 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 					// Found it. Now find data section.
 					if i := int(s.Section); 0 <= i && i < len(f.Sections) {
 						sect := f.Sections[i]
-						if sect.Addr <= s.Value && s.Value < sect.Addr+sect.Size {
+						val := removeTag(s.Value)
+						if sect.Addr <= val && val < sect.Addr+sect.Size {
 							if sdat, err := sect.Data(); err == nil {
-								data := sdat[s.Value-sect.Addr:]
+								data := sdat[val-sect.Addr:]
 								floats = make([]float64, len(data)/8)
 								for i := range floats {
 									floats[i] = math.Float64frombits(bo.Uint64(data[i*8:]))
@@ -1867,9 +1886,10 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 						// Found it. Now find data section.
 						if i := int(s.Section); 0 <= i && i < len(f.Sections) {
 							sect := f.Sections[i]
-							if sect.Addr <= s.Value && s.Value < sect.Addr+sect.Size {
+							val := removeTag(s.Value)
+							if sect.Addr <= val && val < sect.Addr+sect.Size {
 								if sdat, err := sect.Data(); err == nil {
-									data := sdat[s.Value-sect.Addr:]
+									data := sdat[val-sect.Addr:]
 									strdata[n] = string(data)
 								}
 							}
@@ -1880,9 +1900,10 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 						// Found it. Now find data section.
 						if i := int(s.Section); 0 <= i && i < len(f.Sections) {
 							sect := f.Sections[i]
-							if sect.Addr <= s.Value && s.Value < sect.Addr+sect.Size {
+							val := removeTag(s.Value)
+							if sect.Addr <= val && val < sect.Addr+sect.Size {
 								if sdat, err := sect.Data(); err == nil {
-									data := sdat[s.Value-sect.Addr:]
+									data := sdat[val-sect.Addr:]
 									strlen := bo.Uint64(data[:8])
 									if strlen > (1<<(uint(p.IntSize*8)-1) - 1) { // greater than MaxInt?
 										fatalf("string literal too big")
@@ -2242,6 +2263,8 @@ var dwarfToName = map[string]string{
 	"long long unsigned int": "ulonglong",
 	"signed char":            "schar",
 	"unsigned char":          "uchar",
+	"unsigned long":          "ulong",     // Used by Clang 14; issue 53013.
+	"unsigned long long":     "ulonglong", // Used by Clang 14; issue 53013.
 }
 
 const signedDelta = 64

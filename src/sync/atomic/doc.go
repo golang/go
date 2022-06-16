@@ -36,6 +36,14 @@
 // The load and store operations, implemented by the LoadT and StoreT
 // functions, are the atomic equivalents of "return *addr" and
 // "*addr = val".
+//
+// In the terminology of the Go memory model, if the effect of
+// an atomic operation A is observed by atomic operation B,
+// then A “synchronizes before” B.
+// Additionally, all the atomic operations executed in a program
+// behave as though executed in some sequentially consistent order.
+// This definition provides the same semantics as
+// C++'s sequentially consistent atomics and Java's volatile variables.
 package atomic
 
 import (
@@ -49,8 +57,9 @@ import (
 // On ARM, 386, and 32-bit MIPS, it is the caller's responsibility to arrange
 // for 64-bit alignment of 64-bit words accessed atomically via the primitive
 // atomic functions (types Int64 and Uint64 are automatically aligned).
-// The first word in a variable or in an allocated struct, array, or slice can
-// be relied upon to be 64-bit aligned.
+// The first word in an allocated struct, array, or slice; in a global
+// variable; or in a local variable (because the subject of all atomic operations
+// will escape to the heap) can be relied upon to be 64-bit aligned.
 
 // SwapInt32 atomically stores new into *addr and returns the previous *addr value.
 func SwapInt32(addr *int32, new int32) (old int32)

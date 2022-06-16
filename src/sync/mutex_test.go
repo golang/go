@@ -333,3 +333,115 @@ func BenchmarkMutexSpin(b *testing.B) {
 		}
 	})
 }
+
+const runtimeSemaHashTableSize = 251 // known size of runtime hash table
+
+func TestMutexLinearOne(t *testing.T) {
+	testenv.CheckLinear(t, func(scale float64) func(*testing.B) {
+		n := int(1000 * scale)
+		return func(b *testing.B) {
+			ch := make(chan struct{})
+			locks := make([]RWMutex, runtimeSemaHashTableSize+1)
+
+			b.ResetTimer()
+
+			var wgStart, wgFinish WaitGroup
+			for i := 0; i < n; i++ {
+				wgStart.Add(1)
+				wgFinish.Add(1)
+				go func() {
+					wgStart.Done()
+					locks[0].Lock()
+					ch <- struct{}{}
+					wgFinish.Done()
+				}()
+			}
+			wgStart.Wait()
+
+			wgFinish.Add(1)
+			go func() {
+				for j := 0; j < n; j++ {
+					locks[1].Lock()
+					locks[runtimeSemaHashTableSize].Lock()
+					locks[1].Unlock()
+					runtime.Gosched()
+					locks[runtimeSemaHashTableSize].Unlock()
+				}
+				wgFinish.Done()
+			}()
+
+			for j := 0; j < n; j++ {
+				locks[1].Lock()
+				locks[runtimeSemaHashTableSize].Lock()
+				locks[1].Unlock()
+				runtime.Gosched()
+				locks[runtimeSemaHashTableSize].Unlock()
+			}
+
+			b.StopTimer()
+
+			for i := 0; i < n; i++ {
+				<-ch
+				locks[0].Unlock()
+			}
+
+			wgFinish.Wait()
+		}
+	})
+}
+
+func TestMutexLinearMany(t *testing.T) {
+	if runtime.GOARCH == "arm" && os.Getenv("GOARM") == "5" {
+		// stressLockMany reliably fails on the linux-arm-arm5spacemonkey
+		// builder. See https://golang.org/issue/24221.
+		return
+	}
+	testenv.CheckLinear(t, func(scale float64) func(*testing.B) {
+		n := int(1000 * scale)
+		return func(b *testing.B) {
+			locks := make([]RWMutex, n*runtimeSemaHashTableSize+1)
+
+			b.ResetTimer()
+
+			var wgStart, wgFinish WaitGroup
+			for i := 0; i < n; i++ {
+				wgStart.Add(1)
+				wgFinish.Add(1)
+				go func(i int) {
+					locks[(i+1)*runtimeSemaHashTableSize].Lock()
+					wgStart.Done()
+					locks[(i+1)*runtimeSemaHashTableSize].Lock()
+					locks[(i+1)*runtimeSemaHashTableSize].Unlock()
+					wgFinish.Done()
+				}(i)
+			}
+			wgStart.Wait()
+
+			go func() {
+				for j := 0; j < n; j++ {
+					locks[1].Lock()
+					locks[0].Lock()
+					locks[1].Unlock()
+					runtime.Gosched()
+					locks[0].Unlock()
+				}
+			}()
+
+			for j := 0; j < n; j++ {
+				locks[1].Lock()
+				locks[0].Lock()
+				locks[1].Unlock()
+				runtime.Gosched()
+				locks[0].Unlock()
+			}
+
+			b.StopTimer()
+
+			for i := 0; i < n; i++ {
+				locks[(i+1)*runtimeSemaHashTableSize].Unlock()
+			}
+
+			wgFinish.Wait()
+		}
+	})
+}

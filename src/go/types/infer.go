@@ -110,11 +110,11 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 
 			renameMap := makeRenameMap(tparams, tparams2)
 			for i, tparam := range tparams {
-				tparams2[i].bound = check.subst(posn.Pos(), tparam.bound, renameMap, nil)
+				tparams2[i].bound = check.subst(posn.Pos(), tparam.bound, renameMap, nil, check.context())
 			}
 
 			tparams = tparams2
-			params = check.subst(posn.Pos(), params, renameMap, nil).(*Tuple)
+			params = check.subst(posn.Pos(), params, renameMap, nil, check.context()).(*Tuple)
 		}
 	}
 
@@ -188,7 +188,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	//           but that doesn't impact the isParameterized check for now).
 	if params.Len() > 0 {
 		smap := makeSubstMap(tparams, targs)
-		params = check.subst(token.NoPos, params, smap, nil).(*Tuple)
+		params = check.subst(token.NoPos, params, smap, nil, check.context()).(*Tuple)
 	}
 
 	// Unify parameter and argument types for generic parameters with typed arguments
@@ -225,7 +225,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		}
 		smap := makeSubstMap(tparams, targs)
 		// TODO(rFindley): pass a positioner here, rather than arg.Pos().
-		inferred := check.subst(arg.Pos(), tpar, smap, nil)
+		inferred := check.subst(arg.Pos(), tpar, smap, nil, check.context())
 		// _CannotInferTypeArgs indicates a failure of inference, though the actual
 		// error may be better attributed to a user-provided type argument (hence
 		// _InvalidTypeArg). We can't differentiate these cases, so fall back on
@@ -434,7 +434,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		return w.isParameterized(t.elem)
 
 	case *Named:
-		return w.isParameterizedTypeList(t.targs.list())
+		return w.isParameterizedTypeList(t.TypeArgs().list())
 
 	case *TypeParam:
 		// t must be one of w.tparams
@@ -626,7 +626,7 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 		n := 0
 		for _, index := range dirty {
 			t0 := types[index]
-			if t1 := check.subst(token.NoPos, t0, smap, nil); t1 != t0 {
+			if t1 := check.subst(token.NoPos, t0, smap, nil, check.context()); t1 != t0 {
 				types[index] = t1
 				dirty[n] = index
 				n++
