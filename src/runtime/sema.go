@@ -35,7 +35,7 @@ import (
 // where n is the number of distinct addresses with goroutines blocked
 // on them that hash to the given semaRoot.
 // See golang.org/issue/17953 for a program that worked badly
-// before we introduced the second level of list, and test/locklinear.go
+// before we introduced the second level of list, and TestSemTableOneAddrCollisionLinear
 // for a test that exercises this.
 type semaRoot struct {
 	lock  mutex
@@ -43,12 +43,18 @@ type semaRoot struct {
 	nwait uint32 // Number of waiters. Read w/o the lock.
 }
 
+var semtable semTable
+
 // Prime to not correlate with any user patterns.
 const semTabSize = 251
 
-var semtable [semTabSize]struct {
+type semTable [semTabSize]struct {
 	root semaRoot
 	pad  [cpu.CacheLinePadSize - unsafe.Sizeof(semaRoot{})]byte
+}
+
+func (t *semTable) rootFor(addr *uint32) *semaRoot {
+	return &t[(uintptr(unsafe.Pointer(addr))>>3)%semTabSize].root
 }
 
 //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
@@ -113,7 +119,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes i
 	//	sleep
 	//	(waiter descriptor is dequeued by signaler)
 	s := acquireSudog()
-	root := semroot(addr)
+	root := semtable.rootFor(addr)
 	t0 := int64(0)
 	s.releasetime = 0
 	s.acquiretime = 0
@@ -157,7 +163,7 @@ func semrelease(addr *uint32) {
 }
 
 func semrelease1(addr *uint32, handoff bool, skipframes int) {
-	root := semroot(addr)
+	root := semtable.rootFor(addr)
 	atomic.Xadd(addr, 1)
 
 	// Easy case: no waiters?
@@ -212,10 +218,6 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 			goyield()
 		}
 	}
-}
-
-func semroot(addr *uint32) *semaRoot {
-	return &semtable[(uintptr(unsafe.Pointer(addr))>>3)%semTabSize].root
 }
 
 func cansemacquire(addr *uint32) bool {

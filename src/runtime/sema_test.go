@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"internal/testenv"
 	. "runtime"
 	"sync"
 	"sync/atomic"
@@ -100,4 +101,47 @@ func testSemaHandoff() bool {
 	wg.Wait() // wait for goroutines to finish to avoid data races
 
 	return res == 1 // did the waiter run first?
+}
+
+func TestSemTableOneAddrCollisionLinear(t *testing.T) {
+	testenv.CheckLinear(t, func(scale float64) func(*testing.B) {
+		n := int(1000 * scale)
+		return func(b *testing.B) {
+			tab := Escape(new(SemTable))
+			u := make([]uint32, SemTableSize+1)
+
+			b.ResetTimer()
+
+			// Simulate two locks colliding on the same semaRoot.
+			//
+			// Specifically enqueue all the waiters for the first lock,
+			// then all the waiters for the second lock.
+			//
+			// Then, dequeue all the waiters from the first lock, then
+			// the second.
+			//
+			// Each enqueue/dequeue operation should be O(1), because
+			// there are exactly 2 locks. This could be O(n) if all
+			// the waiters for both locks are on the same list, as it
+			// once was.
+			for i := 0; i < n; i++ {
+				if i < n/2 {
+					tab.Enqueue(&u[0])
+				} else {
+					tab.Enqueue(&u[SemTableSize])
+				}
+			}
+			for i := 0; i < n; i++ {
+				var ok bool
+				if i < n/2 {
+					ok = tab.Dequeue(&u[0])
+				} else {
+					ok = tab.Dequeue(&u[SemTableSize])
+				}
+				if !ok {
+					b.Fatal("failed to dequeue")
+				}
+			}
+		}
+	})
 }

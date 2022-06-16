@@ -1163,8 +1163,36 @@ var Semacquire = semacquire
 var Semrelease1 = semrelease1
 
 func SemNwait(addr *uint32) uint32 {
-	root := semroot(addr)
+	root := semtable.rootFor(addr)
 	return atomic.Load(&root.nwait)
+}
+
+const SemTableSize = semTabSize
+
+// SemTable is a wrapper around semTable exported for testing.
+type SemTable struct {
+	semTable
+}
+
+// Enqueue simulates enqueuing a waiter for a semaphore (or lock) at addr.
+func (t *SemTable) Enqueue(addr *uint32) {
+	s := acquireSudog()
+	s.releasetime = 0
+	s.acquiretime = 0
+	s.ticket = 0
+	t.semTable.rootFor(addr).queue(addr, s, false)
+}
+
+// Dequeue simulates dequeuing a waiter for a semaphore (or lock) at addr.
+//
+// Returns true if there actually was a waiter to be dequeued.
+func (t *SemTable) Dequeue(addr *uint32) bool {
+	s, _ := t.semTable.rootFor(addr).dequeue(addr)
+	if s != nil {
+		releaseSudog(s)
+		return true
+	}
+	return false
 }
 
 // mspan wrapper for testing.
