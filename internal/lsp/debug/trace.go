@@ -119,8 +119,6 @@ func formatEvent(ctx context.Context, ev core.Event, lm label.Map) string {
 }
 
 func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) context.Context {
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	span := export.GetSpan(ctx)
 	if span == nil {
 		return ctx
@@ -128,11 +126,8 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 
 	switch {
 	case event.IsStart(ev):
-		if t.sets == nil {
-			t.sets = make(map[string]*traceSet)
-			t.unfinished = make(map[export.SpanContext]*traceData)
-		}
-		// just starting, add it to the unfinished map
+		// Just starting: add it to the unfinished map.
+		// Allocate before the critical section.
 		td := &traceData{
 			TraceID:  span.ID.TraceID,
 			SpanID:   span.ID.SpanID,
@@ -140,6 +135,13 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 			Name:     span.Name,
 			Start:    span.Start().At(),
 			Tags:     renderLabels(span.Start()),
+		}
+
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		if t.sets == nil {
+			t.sets = make(map[string]*traceSet)
+			t.unfinished = make(map[export.SpanContext]*traceData)
 		}
 		t.unfinished[span.ID] = td
 		// and wire up parents if we have them
@@ -155,7 +157,19 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 		parent.Children = append(parent.Children, td)
 
 	case event.IsEnd(ev):
-		// finishing, must be already in the map
+		// Finishing: must be already in the map.
+		// Allocate events before the critical section.
+		events := span.Events()
+		tdEvents := make([]traceEvent, len(events))
+		for i, event := range events {
+			tdEvents[i] = traceEvent{
+				Time: event.At(),
+				Tags: renderLabels(event),
+			}
+		}
+
+		t.mu.Lock()
+		defer t.mu.Unlock()
 		td, found := t.unfinished[span.ID]
 		if !found {
 			return ctx // if this happens we are in a bad place
@@ -164,14 +178,7 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 
 		td.Finish = span.Finish().At()
 		td.Duration = span.Finish().At().Sub(span.Start().At())
-		events := span.Events()
-		td.Events = make([]traceEvent, len(events))
-		for i, event := range events {
-			td.Events[i] = traceEvent{
-				Time: event.At(),
-				Tags: renderLabels(event),
-			}
-		}
+		td.Events = tdEvents
 
 		set, ok := t.sets[span.Name]
 		if !ok {
