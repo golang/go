@@ -17,6 +17,12 @@ import (
 	"unicode"
 )
 
+type NullMarshal int
+
+func (NullMarshal) MarshalJSON() ([]byte, error) {
+	return []byte(`null`), nil
+}
+
 type Optionals struct {
 	Sr string `json:"sr"`
 	So string `json:"so,omitempty"`
@@ -42,6 +48,9 @@ type Optionals struct {
 
 	Str struct{} `json:"str"`
 	Sto struct{} `json:"sto,omitempty"`
+
+	Nur NullMarshal `json:"nur"`
+	Nuo NullMarshal `json:"nuo,omitempty"`
 }
 
 var optionalsExpected = `{
@@ -53,7 +62,8 @@ var optionalsExpected = `{
  "br": false,
  "ur": 0,
  "str": {},
- "sto": {}
+ "sto": {},
+ "nur": null
 }`
 
 func TestOmitEmpty(t *testing.T) {
@@ -1082,9 +1092,9 @@ func TestMarshalRawMessageValue(t *testing.T) {
 		{map[string]any{"M": &rawNil}, `{"M":null}`, true},
 		{&map[string]any{"M": &rawNil}, `{"M":null}`, true},
 		{T1{rawNil}, "{}", true},
-		{T2{&rawNil}, `{"M":null}`, true},
+		{T2{&rawNil}, "{}", true},
 		{&T1{rawNil}, "{}", true},
-		{&T2{&rawNil}, `{"M":null}`, true},
+		{&T2{&rawNil}, "{}", true},
 
 		// Test with empty, but non-nil, RawMessage.
 		{rawEmpty, "", false},

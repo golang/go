@@ -746,18 +746,45 @@ FieldLoop:
 			fv = fv.Field(i)
 		}
 
+		// fast path omitEmpty
 		if f.omitEmpty && isEmptyValue(fv) {
 			continue
 		}
+		omitEmptyResetLocation := e.Len()
+
 		e.WriteByte(next)
-		next = ','
 		if opts.escapeHTML {
 			e.WriteString(f.nameEscHTML)
 		} else {
 			e.WriteString(f.nameNonEsc)
 		}
 		opts.quoted = f.quoted
-		f.encoder(e, fv, opts)
+
+		if !f.omitEmpty {
+			f.encoder(e, fv, opts)
+			next = ','
+		} else {
+			startLen := e.Len()
+
+			f.encoder(e, fv, opts)
+
+			newLen := e.Len()
+			if writtenLen := newLen - startLen; writtenLen <= 5 {
+				// using `Next` and `bytes.NewBuffer` we can modify the end of the
+				// underlying slice efficiently (without doing any copying)
+				fullBuf := e.Next(newLen) // extract underlying slice from buffer
+				switch string(fullBuf[startLen:newLen]) {
+				case "false", "0", "\"\"", "null", "[]":
+					// reconstruct buffer without zero value
+					e.Buffer = *bytes.NewBuffer(fullBuf[:omitEmptyResetLocation])
+					continue
+				default:
+					// reconstruct original buffer
+					e.Buffer = *bytes.NewBuffer(fullBuf)
+				}
+			}
+			next = ','
+		}
 	}
 	if next == '{' {
 		e.WriteString("{}")
