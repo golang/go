@@ -35,8 +35,8 @@ import (
 // where n is the number of distinct addresses with goroutines blocked
 // on them that hash to the given semaRoot.
 // See golang.org/issue/17953 for a program that worked badly
-// before we introduced the second level of list, and TestSemTableOneAddrCollisionLinear
-// for a test that exercises this.
+// before we introduced the second level of list, and
+// BenchmarkSemTable/OneAddrCollision/* for a benchmark that exercises this.
 type semaRoot struct {
 	lock  mutex
 	treap *sudog // root of balanced tree of unique waiters.
