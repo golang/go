@@ -248,6 +248,11 @@ func TestCloneOrMakeHeader(t *testing.T) {
 			in:   Header{"foo": {"bar"}},
 			want: Header{"foo": {"bar"}},
 		},
+		{
+			name: "nil value",
+			in:   Header{"foo": nil},
+			want: Header{"foo": nil},
+		},
 	}
 
 	for _, tt := range tests {
