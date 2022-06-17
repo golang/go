@@ -167,6 +167,22 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VTBL	V14.B16, [V3.B16, V4.B16, V5.B16], V17.B16                              // 71400e4e
 	VTBL	V13.B16, [V29.B16, V30.B16, V31.B16, V0.B16], V28.B16                   // bc630d4e
 	VTBL	V3.B8, [V27.B16], V8.B8                                                 // 6803030e
+	VTBX	V22.B16, [V28.B16, V29.B16], V11.B16                                    // 8b33164e
+	VTBX	V18.B8, [V17.B16, V18.B16, V19.B16], V22.B8                             // 3652120e
+	VTBX	V31.B8, [V14.B16, V15.B16, V16.B16, V17.B16], V15.B8                    // cf711f0e
+	VTBX	V14.B16, [V16.B16], V11.B16                                             // 0b120e4e
+	VTBX	V28.B16, [V25.B16, V26.B16], V5.B16                                     // 25331c4e
+	VTBX	V16.B8, [V4.B16, V5.B16, V6.B16], V12.B8                                // 8c50100e
+	VTBX	V4.B8, [V16.B16, V17.B16, V18.B16, V19.B16], V4.B8                      // 0472040e
+	VTBX	V15.B8, [V1.B16], V20.B8                                                // 34100f0e
+	VTBX	V26.B16, [V2.B16, V3.B16], V26.B16                                      // 5a301a4e
+	VTBX	V15.B8, [V6.B16, V7.B16, V8.B16], V2.B8                                 // c2500f0e
+	VTBX	V2.B16, [V27.B16, V28.B16, V29.B16, V30.B16], V18.B16                   // 7273024e
+	VTBX	V11.B16, [V13.B16], V27.B16                                             // bb110b4e
+	VTBX	V3.B8, [V7.B16, V8.B16], V25.B8                                         // f930030e
+	VTBX	V14.B16, [V3.B16, V4.B16, V5.B16], V17.B16                              // 71500e4e
+	VTBX	V13.B16, [V29.B16, V30.B16, V31.B16, V0.B16], V28.B16                   // bc730d4e
+	VTBX	V3.B8, [V27.B16], V8.B8                                                 // 6813030e
 	VZIP1	V16.H8, V3.H8, V19.H8           // 7338504e
 	VZIP2	V22.D2, V25.D2, V21.D2          // 357bd64e
 	VZIP1	V6.D2, V9.D2, V11.D2            // 2b39c64e

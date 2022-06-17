@@ -3154,6 +3154,9 @@ func buildop(ctxt *obj.Link) {
 		case AVUADDW:
 			oprangeset(AVUADDW2, t)
 
+		case AVTBL:
+			oprangeset(AVTBX, t)
+
 		case ASHA1H,
 			AVCNT,
 			AVMOV,
@@ -3162,7 +3165,6 @@ func buildop(ctxt *obj.Link) {
 			AVST2,
 			AVST3,
 			AVST4,
-			AVTBL,
 			AVDUP,
 			AVMOVI,
 			APRFM,
@@ -5479,7 +5481,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rf := int(p.From.Reg)
 		o1 |= uint32(rf & 31)
 
-	case 100: /* VTBL Vn.<T>, [Vt1.<T>, Vt2.<T>, ...], Vd.<T> */
+	case 100: /* VTBL/VTBX Vn.<T>, [Vt1.<T>, Vt2.<T>, ...], Vd.<T> */
 		af := int((p.From.Reg >> 5) & 15)
 		at := int((p.To.Reg >> 5) & 15)
 		if af != at {
@@ -5510,7 +5512,14 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		default:
 			c.ctxt.Diag("invalid register numbers in ARM64 register list: %v", p)
 		}
-		o1 = q<<30 | 0xe<<24 | len<<13
+		var op uint32
+		switch p.As {
+		case AVTBL:
+			op = 0
+		case AVTBX:
+			op = 1
+		}
+		o1 = q<<30 | 0xe<<24 | len<<13 | op<<12
 		o1 |= (uint32(rf&31) << 16) | uint32(offset&31)<<5 | uint32(rt&31)
 
 	case 101: // VMOVQ $vcon1, $vcon2, Vd or VMOVD|VMOVS $vcon, Vd -> FMOVQ/FMOVD/FMOVS pool(PC), Vd: load from constant pool.
