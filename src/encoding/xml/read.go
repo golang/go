@@ -148,6 +148,10 @@ func (d *Decoder) DecodeElement(v any, start *StartElement) error {
 	if val.Kind() != reflect.Pointer {
 		return errors.New("non-pointer passed to Unmarshal")
 	}
+
+	if val.IsNil() {
+		return errors.New("nil pointer passed to Unmarshal")
+	}
 	return d.unmarshal(val.Elem(), start)
 }
 
