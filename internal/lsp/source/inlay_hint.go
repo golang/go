@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/lsppos"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 const (
@@ -40,6 +41,7 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, _ protocol
 		switch n := node.(type) {
 		case *ast.CallExpr:
 			hints = append(hints, parameterNames(n, tmap, info)...)
+			hints = append(hints, funcTypeParams(n, tmap, info)...)
 		case *ast.AssignStmt:
 			hints = append(hints, assignVariableTypes(n, tmap, info, &q)...)
 		case *ast.RangeStmt:
@@ -88,6 +90,33 @@ func parameterNames(node *ast.CallExpr, tmap *lsppos.TokenMapper, info *types.In
 		})
 	}
 	return hints
+}
+
+func funcTypeParams(node *ast.CallExpr, tmap *lsppos.TokenMapper, info *types.Info) []protocol.InlayHint {
+	id, ok := node.Fun.(*ast.Ident)
+	if !ok {
+		return nil
+	}
+	inst := typeparams.GetInstances(info)[id]
+	if inst.TypeArgs == nil {
+		return nil
+	}
+	start, ok := tmap.Position(id.End())
+	if !ok {
+		return nil
+	}
+	var args []string
+	for i := 0; i < inst.TypeArgs.Len(); i++ {
+		args = append(args, inst.TypeArgs.At(i).String())
+	}
+	if len(args) == 0 {
+		return nil
+	}
+	return []protocol.InlayHint{{
+		Position: &start,
+		Label:    buildLabel("[" + strings.Join(args, ", ") + "]"),
+		Kind:     protocol.Type,
+	}}
 }
 
 func assignVariableTypes(node *ast.AssignStmt, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
