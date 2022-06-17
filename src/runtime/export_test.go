@@ -229,6 +229,9 @@ func SetEnvs(e []string) { envs = e }
 // For benchmarking.
 
 func BenchSetType(n int, x any) {
+	// Escape x to ensure it is allocated on the heap, as we are
+	// working on the heap bits here.
+	Escape(x)
 	e := *efaceOf(&x)
 	t := e._type
 	var size uintptr
