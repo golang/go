@@ -452,6 +452,15 @@ func (b *Buffer) ReadString(delim byte) (line string, err error) {
 	return string(slice), err
 }
 
+// Init initializes the buffer using buf as its initial contents.
+// the buffer takes ownership of buf, and the caller should not use
+// buf after this call.
+func (b *Buffer) Init(buf []byte) {
+	b.buf = buf
+	b.off = 0
+	b.lastRead = opInvalid
+}
+
 // NewBuffer creates and initializes a new Buffer using buf as its
 // initial contents. The new Buffer takes ownership of buf, and the
 // caller should not use buf after this call. NewBuffer is intended to
