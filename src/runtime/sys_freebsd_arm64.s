@@ -38,7 +38,6 @@
 #define SYS_sched_yield		331
 #define SYS_sigprocmask		340
 #define SYS_kqueue		362
-#define SYS_kevent		363
 #define SYS_sigaction		416
 #define SYS_thr_exit		431
 #define SYS_thr_self		432
@@ -48,6 +47,7 @@
 #define SYS_mmap		477
 #define SYS_cpuset_getaffinity	487
 #define SYS_pipe2 		542
+#define SYS_kevent		560
 
 TEXT emptyfunc<>(SB),0,$0-0
 	RET

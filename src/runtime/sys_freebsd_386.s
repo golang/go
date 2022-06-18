@@ -34,7 +34,6 @@
 #define SYS_sched_yield		331
 #define SYS_sigprocmask		340
 #define SYS_kqueue		362
-#define SYS_kevent		363
 #define SYS_sigaction		416
 #define SYS_sigreturn		417
 #define SYS_thr_exit		431
@@ -45,6 +44,7 @@
 #define SYS_mmap		477
 #define SYS_cpuset_getaffinity	487
 #define SYS_pipe2 		542
+#define SYS_kevent		560
 
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
 	MOVL	$SYS__umtx_op, AX

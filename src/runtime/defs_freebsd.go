@@ -16,10 +16,11 @@ package runtime
 
 /*
 #include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <sys/time.h>
 #include <signal.h>
 #include <errno.h>
-#define _WANT_FREEBSD11_KEVENT 1
 #include <sys/event.h>
 #include <sys/mman.h>
 #include <sys/ucontext.h>
@@ -45,9 +46,10 @@ const (
 )
 
 const (
-	EINTR  = C.EINTR
-	EFAULT = C.EFAULT
-	EAGAIN = C.EAGAIN
+	EINTR     = C.EINTR
+	EFAULT    = C.EFAULT
+	EAGAIN    = C.EAGAIN
+	ETIMEDOUT = C.ETIMEDOUT
 
 	O_NONBLOCK = C.O_NONBLOCK
 	O_CLOEXEC  = C.O_CLOEXEC
@@ -155,7 +157,7 @@ type Itimerval C.struct_itimerval
 
 type Umtx_time C.struct__umtx_time
 
-type Kevent C.struct_kevent_freebsd11
+type KeventT C.struct_kevent
 
 type bintime C.struct_bintime
 type vdsoTimehands C.struct_vdso_timehands
