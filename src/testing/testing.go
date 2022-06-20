@@ -1271,6 +1271,10 @@ func (t *T) Parallel() {
 	<-t.parent.barrier // Wait for the parent test to complete.
 	t.context.waitParallel()
 
+	if shouldFailFast() {
+		t.SkipNow()
+	}
+
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
 	}

@@ -16,17 +16,26 @@ stdout -count=2 'FAIL - '
 
 # mix with parallel tests
 ! go test ./failfast_test.go -run='TestFailingB|TestParallelFailingA' -failfast=true
-stdout -count=2 'FAIL - '
+stdout -count=1 'FAIL - '
 ! go test ./failfast_test.go -run='TestFailingB|TestParallelFailingA' -failfast=false
 stdout -count=2 'FAIL - '
 ! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]' -failfast=true
-stdout -count=3 'FAIL - '
+stdout -count=1 'FAIL - '
 ! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]' -failfast=false
 stdout -count=3 'FAIL - '
 
+# parallel subtests with timeout
+# the timeouts are necessary to avoid race conditions in the test case
+! go test -parallel=2 ./failfast_test.go -run='TestWithFailingParallelSubtestsA' -failfast=false
+stdout -count=3 'FAIL - '
+! go test -parallel=2 ./failfast_test.go -run='TestWithFailingParallelSubtestsA' -failfast=true
+stdout -count=2 'FAIL - '
+! go test -parallel=1 ./failfast_test.go -run='TestWithFailingParallelSubtestsA' -failfast=true
+stdout -count=1 'FAIL - '
+
 # mix with parallel sub-tests
 ! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA' -failfast=true
-stdout -count=3 'FAIL - '
+stdout -count=1 'FAIL - '
 ! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA' -failfast=false
 stdout -count=5 'FAIL - '
 ! go test ./failfast_test.go -run='TestParallelFailingSubtestsA' -failfast=true
@@ -55,7 +64,10 @@ stdout -count=2 'FAIL - '
 
 package failfast
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestA(t *testing.T) {
 	// Edge-case testing, mixing unparallel tests too
@@ -79,6 +91,26 @@ func TestParallelFailingA(t *testing.T) {
 func TestParallelFailingB(t *testing.T) {
 	t.Parallel()
 	t.Errorf("FAIL - %s", t.Name())
+}
+
+func TestWithFailingParallelSubtestsA(t *testing.T) {
+	t.Run("SubtestsA1", func(t *testing.T) {
+		t.Parallel()
+		time.Sleep(100 * time.Millisecond)
+
+		t.Errorf("FAIL - %s", t.Name())
+	})
+	t.Run("SubtestsA2", func(t *testing.T) {
+		t.Parallel()
+		time.Sleep(100 * time.Millisecond)
+
+		t.Errorf("FAIL - %s", t.Name())
+	})
+	t.Run("SubtestsA3", func(t *testing.T) {
+		t.Parallel()
+
+		t.Errorf("FAIL - %s", t.Name())
+	})
 }
 
 func TestParallelFailingSubtestsA(t *testing.T) {
