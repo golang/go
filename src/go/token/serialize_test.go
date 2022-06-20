@@ -35,12 +35,6 @@ func equal(p, q *FileSet) error {
 
 	for i, f := range p.files {
 		g := q.files[i]
-		if f.set != p {
-			return fmt.Errorf("wrong fileset for %q", f.name)
-		}
-		if g.set != q {
-			return fmt.Errorf("wrong fileset for %q", g.name)
-		}
 		if f.name != g.name {
 			return fmt.Errorf("different filenames: %q != %q", f.name, g.name)
 		}

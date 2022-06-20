@@ -721,11 +721,12 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
 // Struct containing info needed for doing the substitution as we create the
 // instantiation of a generic function with specified type arguments.
 type subster struct {
-	g        *genInst
-	isMethod bool     // If a method is being instantiated
-	newf     *ir.Func // Func node for the new stenciled function
-	ts       typecheck.Tsubster
-	info     *instInfo // Place to put extra info in the instantiation
+	g           *genInst
+	isMethod    bool     // If a method is being instantiated
+	newf        *ir.Func // Func node for the new stenciled function
+	ts          typecheck.Tsubster
+	info        *instInfo // Place to put extra info in the instantiation
+	skipClosure bool      // Skip substituting closures
 
 	// Map from non-nil, non-ONAME node n to slice of all m, where m.Defn = n
 	defnMap map[ir.Node][]**ir.Name
@@ -978,7 +979,20 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			}
 		}
 
+		old := subst.skipClosure
+		// For unsafe.{Alignof,Offsetof,Sizeof}, subster will transform them to OLITERAL nodes,
+		// and discard their arguments. However, their children nodes were already process before,
+		// thus if they contain any closure, the closure was still be added to package declarations
+		// queue for processing later. Thus, genInst will fail to generate instantiation for the
+		// closure because of lacking dictionary information, see issue #53390.
+		if call, ok := m.(*ir.CallExpr); ok && call.X.Op() == ir.ONAME {
+			switch call.X.Name().BuiltinOp {
+			case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+				subst.skipClosure = true
+			}
+		}
 		ir.EditChildren(m, edit)
+		subst.skipClosure = old
 
 		m.SetTypecheck(1)
 
@@ -1123,6 +1137,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			}
 
 		case ir.OCLOSURE:
+			if subst.skipClosure {
+				break
+			}
 			// We're going to create a new closure from scratch, so clear m
 			// to avoid using the ir.Copy by accident until we reassign it.
 			m = nil
