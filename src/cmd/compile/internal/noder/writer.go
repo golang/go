@@ -1087,10 +1087,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 			w.implicitExpr(stmt, typ, stmt.Rhs)
 
 		default:
-			w.Code(stmtAssign)
-			w.pos(stmt)
-			w.assignList(stmt.Lhs)
-			w.exprList(stmt.Rhs) // TODO(mdempsky): Implicit conversions to Lhs types.
+			w.assignStmt(stmt, stmt.Lhs, stmt.Rhs)
 		}
 
 	case *syntax.BlockStmt:
@@ -1200,11 +1197,16 @@ func (w *writer) declStmt(decl syntax.Decl) {
 	case *syntax.ConstDecl, *syntax.TypeDecl:
 
 	case *syntax.VarDecl:
-		w.Code(stmtAssign)
-		w.pos(decl)
-		w.assignList(namesAsExpr(decl.NameList))
-		w.exprList(decl.Values) // TODO(mdempsky): Implicit conversions to Lhs types.
+		w.assignStmt(decl, namesAsExpr(decl.NameList), decl.Values)
 	}
+}
+
+// assignStmt writes out an assignment for "lhs = rhs".
+func (w *writer) assignStmt(pos poser, lhs, rhs syntax.Expr) {
+	w.Code(stmtAssign)
+	w.pos(pos)
+	w.assignList(lhs)
+	w.exprList(rhs) // TODO(mdempsky): Implicit conversions to Lhs types.
 }
 
 func (w *writer) blockStmt(stmt *syntax.BlockStmt) {
