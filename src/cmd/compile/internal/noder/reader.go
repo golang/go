@@ -1735,8 +1735,15 @@ func (r *reader) expr() (res ir.Node) {
 			fun = typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, fun, sym))
 		}
 		pos := r.pos()
-		args := r.exprs()
-		dots := r.Bool()
+		var args ir.Nodes
+		var dots bool
+		if r.Bool() { // f(g())
+			call := r.expr()
+			args = []ir.Node{call}
+		} else {
+			args = r.exprs()
+			dots = r.Bool()
+		}
 		n := typecheck.Call(pos, fun, args, dots)
 		switch n.Op() {
 		case ir.OAPPEND:

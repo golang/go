@@ -1505,8 +1505,14 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.Code(exprCall)
 		writeFunExpr()
 		w.pos(expr)
-		w.exprs(expr.ArgList)
-		w.Bool(expr.HasDots)
+		if w.Bool(len(expr.ArgList) == 1 && isMultiValueExpr(w.p.info, expr.ArgList[0])) {
+			// f(g()) call
+			assert(!expr.HasDots)
+			w.expr(expr.ArgList[0])
+		} else {
+			w.exprs(expr.ArgList)
+			w.Bool(expr.HasDots)
+		}
 	}
 }
 
@@ -1995,6 +2001,19 @@ func isPkgQual(info *types2.Info, sel *syntax.SelectorExpr) bool {
 	if name, ok := sel.X.(*syntax.Name); ok {
 		_, isPkgName := info.Uses[name].(*types2.PkgName)
 		return isPkgName
+	}
+	return false
+}
+
+// isMultiValueExpr reports whether expr is a function call expression
+// that yields multiple values.
+func isMultiValueExpr(info *types2.Info, expr syntax.Expr) bool {
+	tv, ok := info.Types[expr]
+	assert(ok)
+	assert(tv.IsValue())
+	if tuple, ok := tv.Type.(*types2.Tuple); ok {
+		assert(tuple.Len() > 1)
+		return true
 	}
 	return false
 }
