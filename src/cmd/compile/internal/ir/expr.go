@@ -119,8 +119,9 @@ func (n *BasicLit) SetVal(val constant.Value) { n.val = val }
 // or Op(X, Y) for builtin functions that do not become calls.
 type BinaryExpr struct {
 	miniExpr
-	X Node
-	Y Node
+	X     Node
+	Y     Node
+	RType Node `mknode:"-"` // see reflectdata/helpers.go
 }
 
 func NewBinaryExpr(pos src.XPos, op Op, x, y Node) *BinaryExpr {
@@ -148,6 +149,7 @@ type CallExpr struct {
 	origNode
 	X         Node
 	Args      Nodes
+	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
 	KeepAlive []*Name // vars to be kept alive until call returns
 	IsDDD     bool
 	NoInline  bool
@@ -247,6 +249,17 @@ type ConvExpr struct {
 	miniExpr
 	X Node
 
+	// For implementing OCONVIFACE expressions.
+	//
+	// TypeWord is an expression yielding a *runtime._type or
+	// *runtime.itab value to go in the type word of the iface/eface
+	// result. See reflectdata.ConvIfaceTypeWord for further details.
+	//
+	// SrcRType is an expression yielding a *runtime._type value for X,
+	// if it's not pointer-shaped and needs to be heap allocated.
+	TypeWord Node `mknode:"-"`
+	SrcRType Node `mknode:"-"`
+
 	// For -d=checkptr instrumentation of conversions from
 	// unsafe.Pointer to *Elem or *[Len]Elem.
 	//
@@ -285,6 +298,7 @@ type IndexExpr struct {
 	miniExpr
 	X        Node
 	Index    Node
+	RType    Node `mknode:"-"` // see reflectdata/helpers.go
 	Assigned bool
 }
 
@@ -395,8 +409,9 @@ func (n *LogicalExpr) SetOp(op Op) {
 // but *not* OMAKE (that's a pre-typechecking CallExpr).
 type MakeExpr struct {
 	miniExpr
-	Len Node
-	Cap Node
+	RType Node `mknode:"-"` // see reflectdata/helpers.go
+	Len   Node
+	Cap   Node
 }
 
 func NewMakeExpr(pos src.XPos, op Op, len, cap Node) *MakeExpr {
@@ -633,7 +648,7 @@ type TypeAssertExpr struct {
 
 	// Runtime type information provided by walkDotType for
 	// assertions from non-empty interface to concrete type.
-	ITab *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
+	ITab Node `mknode:"-"` // *runtime.itab for Type implementing X's type
 }
 
 func NewTypeAssertExpr(pos src.XPos, x Node, typ *types.Type) *TypeAssertExpr {

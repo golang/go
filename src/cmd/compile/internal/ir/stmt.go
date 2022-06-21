@@ -333,6 +333,7 @@ type RangeStmt struct {
 	Label    *types.Sym
 	Def      bool
 	X        Node
+	RType    Node `mknode:"-"` // see reflectdata/helpers.go
 	Key      Node
 	Value    Node
 	Body     Nodes

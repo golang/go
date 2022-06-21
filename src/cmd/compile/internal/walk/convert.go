@@ -170,7 +170,7 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 			n = copyExpr(n, fromType, init)
 		}
 		fn = typecheck.SubstArgTypes(fn, fromType)
-		args = []ir.Node{reflectdata.ConvIfaceDataWordRType(base.Pos, conv), typecheck.NodAddr(n)}
+		args = []ir.Node{reflectdata.ConvIfaceSrcRType(base.Pos, conv), typecheck.NodAddr(n)}
 	} else {
 		// Use a specialized conversion routine that takes the type being
 		// converted by value, not by pointer.
