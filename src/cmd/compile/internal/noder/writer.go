@@ -179,7 +179,7 @@ type writerDict struct {
 // A derivedInfo represents a reference to an encoded generic Go type.
 type derivedInfo struct {
 	idx    pkgbits.Index
-	needed bool
+	needed bool // TODO(mdempsky): Remove; will break x/tools importer
 }
 
 // A typeInfo represents a reference to an encoded Go type.
@@ -1362,13 +1362,6 @@ func (w *writer) expr(expr syntax.Expr) {
 	targs := inst.TypeArgs
 
 	if tv, ok := w.p.info.Types[expr]; ok {
-		// TODO(mdempsky): Be more judicious about which types are marked as "needed".
-		if inst.Type != nil {
-			w.needType(inst.Type)
-		} else {
-			w.needType(tv.Type)
-		}
-
 		if tv.IsType() {
 			w.p.fatalf(expr, "unexpected type expression %v", syntax.String(expr))
 		}
@@ -1712,20 +1705,6 @@ func (w *writer) op(op ir.Op) {
 	assert(op != 0)
 	w.Sync(pkgbits.SyncOp)
 	w.Len(int(op))
-}
-
-func (w *writer) needType(typ types2.Type) {
-	// Decompose tuple into component element types.
-	if typ, ok := typ.(*types2.Tuple); ok {
-		for i := 0; i < typ.Len(); i++ {
-			w.needType(typ.At(i).Type())
-		}
-		return
-	}
-
-	if info := w.p.typIdx(typ, w.dict); info.derived {
-		w.dict.derived[info.idx].needed = true
-	}
 }
 
 // @@@ Package initialization
