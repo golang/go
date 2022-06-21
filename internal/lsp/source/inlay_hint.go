@@ -265,7 +265,6 @@ func buildLabel(s string) []protocol.InlayHintLabelPart {
 	}
 	if len(s) > maxLabelLength+len("...") {
 		label.Value = s[:maxLabelLength] + "..."
-		label.Tooltip = s
 	}
 	return []protocol.InlayHintLabelPart{label}
 }
