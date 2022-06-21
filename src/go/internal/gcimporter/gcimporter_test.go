@@ -178,6 +178,7 @@ func TestImportTypeparamTests(t *testing.T) {
 		"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
 		"issue50417.go": "inconsistent interface member sorting",
 		"issue53419.go": "fails to compile",
+		"issue53477.go": "fails to compile",
 	}
 
 	for _, entry := range list {
