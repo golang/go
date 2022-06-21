@@ -1782,6 +1782,7 @@ func (r *reader) expr() (res ir.Node) {
 		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
 
 	case exprConvert:
+		implicit := r.Bool()
 		typ := r.typ()
 		pos := r.pos()
 		x := r.expr()
@@ -1799,7 +1800,11 @@ func (r *reader) expr() (res ir.Node) {
 			base.ErrorExit() // harsh, but prevents constructing invalid IR
 		}
 
-		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, typ, x))
+		n := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, typ, x))
+		if implicit && n.Op() != ir.OLITERAL {
+			n.(ImplicitNode).SetImplicit(true)
+		}
+		return n
 	}
 }
 

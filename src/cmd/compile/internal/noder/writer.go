@@ -1079,13 +1079,18 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 			w.op(binOps[stmt.Op])
 			w.expr(stmt.Lhs)
 			w.pos(stmt)
-			w.expr(stmt.Rhs)
+
+			var typ types2.Type
+			if stmt.Op != syntax.Shl && stmt.Op != syntax.Shr {
+				typ = w.p.typeOf(stmt.Lhs)
+			}
+			w.implicitExpr(stmt, typ, stmt.Rhs)
 
 		default:
 			w.Code(stmtAssign)
 			w.pos(stmt)
 			w.assignList(stmt.Lhs)
-			w.exprList(stmt.Rhs)
+			w.exprList(stmt.Rhs) // TODO(mdempsky): Implicit conversions to Lhs types.
 		}
 
 	case *syntax.BlockStmt:
@@ -1130,17 +1135,19 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 	case *syntax.ReturnStmt:
 		w.Code(stmtReturn)
 		w.pos(stmt)
-		w.exprList(stmt.Results)
+		w.exprList(stmt.Results) // TODO(mdempsky): Implicit conversions to result types.
 
 	case *syntax.SelectStmt:
 		w.Code(stmtSelect)
 		w.selectStmt(stmt)
 
 	case *syntax.SendStmt:
+		chanType := types2.CoreType(w.p.typeOf(stmt.Chan)).(*types2.Chan)
+
 		w.Code(stmtSend)
 		w.pos(stmt)
 		w.expr(stmt.Chan)
-		w.expr(stmt.Value)
+		w.implicitExpr(stmt, chanType.Elem(), stmt.Value)
 
 	case *syntax.SwitchStmt:
 		w.Code(stmtSwitch)
@@ -1196,7 +1203,7 @@ func (w *writer) declStmt(decl syntax.Decl) {
 		w.Code(stmtAssign)
 		w.pos(decl)
 		w.assignList(namesAsExpr(decl.NameList))
-		w.exprList(decl.Values)
+		w.exprList(decl.Values) // TODO(mdempsky): Implicit conversions to Lhs types.
 	}
 }
 
@@ -1213,6 +1220,11 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 
 	if rang, ok := stmt.Init.(*syntax.RangeClause); w.Bool(ok) {
 		w.pos(rang)
+		// TODO(mdempsky): For !rang.Def, we need to handle implicit
+		// conversions; e.g., see #53328.
+		//
+		// This is tricky, because the assignments aren't introduced until
+		// lowering in walk.
 		w.assignList(rang.Lhs)
 		w.expr(rang.X)
 	} else {
@@ -1294,6 +1306,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 				w.exprType(iface, cas, true)
 			}
 		} else {
+			// TODO(mdempsky): Implicit conversions to tagType, if appropriate.
 			w.exprList(clause.Cases)
 		}
 
@@ -1418,10 +1431,15 @@ func (w *writer) expr(expr syntax.Expr) {
 	case *syntax.IndexExpr:
 		_ = w.p.typeOf(expr.Index) // ensure this is an index expression, not an instantiation
 
+		var keyType types2.Type
+		if mapType, ok := types2.CoreType(w.p.typeOf(expr.X)).(*types2.Map); ok {
+			keyType = mapType.Key()
+		}
+
 		w.Code(exprIndex)
 		w.expr(expr.X)
 		w.pos(expr)
-		w.expr(expr.Index)
+		w.implicitExpr(expr, keyType, expr.Index)
 
 	case *syntax.SliceExpr:
 		w.Code(exprSlice)
@@ -1448,6 +1466,7 @@ func (w *writer) expr(expr syntax.Expr) {
 			break
 		}
 
+		// TODO(mdempsky): Implicit conversions to common type.
 		w.Code(exprBinaryOp)
 		w.op(binOps[expr.Op])
 		w.expr(expr.X)
@@ -1462,6 +1481,7 @@ func (w *writer) expr(expr syntax.Expr) {
 			assert(!expr.HasDots)
 
 			w.Code(exprConvert)
+			w.Bool(false) // explicit
 			w.typ(tv.Type)
 			w.pos(expr)
 			w.expr(expr.ArgList[0])
@@ -1512,9 +1532,9 @@ func (w *writer) expr(expr syntax.Expr) {
 		if w.Bool(len(expr.ArgList) == 1 && isMultiValueExpr(w.p.info, expr.ArgList[0])) {
 			// f(g()) call
 			assert(!expr.HasDots)
-			w.expr(expr.ArgList[0])
+			w.expr(expr.ArgList[0]) // TODO(mdempsky): Implicit conversions to parameter types.
 		} else {
-			w.exprs(expr.ArgList)
+			w.exprs(expr.ArgList) // TODO(mdempsky): Implicit conversions to parameter types.
 			w.Bool(expr.HasDots)
 		}
 	}
@@ -1524,6 +1544,24 @@ func (w *writer) optExpr(expr syntax.Expr) {
 	if w.Bool(expr != nil) {
 		w.expr(expr)
 	}
+}
+
+// implicitExpr is like expr, but if dst is non-nil and different from
+// expr's type, then an implicit conversion operation is inserted at
+// pos.
+func (w *writer) implicitExpr(pos poser, dst types2.Type, expr syntax.Expr) {
+	src := w.p.typeOf(expr)
+	if dst != nil && !types2.Identical(src, dst) {
+		if !types2.AssignableTo(src, dst) {
+			w.p.fatalf(pos, "%v is not assignable to %v", src, dst)
+		}
+		w.Code(exprConvert)
+		w.Bool(true) // implicit
+		w.typ(dst)
+		w.pos(pos)
+		// fallthrough
+	}
+	w.expr(expr)
 }
 
 func (w *writer) compLit(lit *syntax.CompositeLit) {
@@ -1554,12 +1592,12 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 			if kv, ok := elem.(*syntax.KeyValueExpr); w.Bool(ok) {
 				// use position of expr.Key rather than of elem (which has position of ':')
 				w.pos(kv.Key)
-				w.expr(kv.Key)
+				w.expr(kv.Key) // TODO(mdempsky): Implicit conversion to (map) key type.
 				elem = kv.Value
 			}
 		}
 		w.pos(elem)
-		w.expr(elem)
+		w.expr(elem) // TODO(mdempsky): Implicit conversion to element type.
 	}
 }
 
