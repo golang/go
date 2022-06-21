@@ -170,6 +170,17 @@ type CaseClause struct {
 	miniStmt
 	Var  *Name // declared variable for this case in type switch
 	List Nodes // list of expressions for switch, early select
+
+	// RTypes is a list of RType expressions, which are copied to the
+	// corresponding OEQ nodes that are emitted when switch statements
+	// are desugared. RTypes[i] must be non-nil if the emitted
+	// comparison for List[i] will be a mixed interface/concrete
+	// comparison; see reflectdata.CompareRType for details.
+	//
+	// Because mixed interface/concrete switch cases are rare, we allow
+	// len(RTypes) < len(List). Missing entries are implicitly nil.
+	RTypes Nodes
+
 	Body Nodes
 }
 

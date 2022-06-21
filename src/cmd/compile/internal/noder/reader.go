@@ -1487,7 +1487,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 		r.openScope()
 
 		pos := r.pos()
-		var cases []ir.Node
+		var cases, rtypes []ir.Node
 		if iface != nil {
 			cases = make([]ir.Node, r.Len())
 			if len(cases) == 0 {
@@ -1498,9 +1498,30 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 			}
 		} else {
 			cases = r.exprList()
+
+			tagType := types.Types[types.TBOOL]
+			if tag != nil {
+				tagType = tag.Type()
+			}
+			for i, cas := range cases {
+				if cas.Op() == ir.ONIL {
+					continue // never needs rtype
+				}
+				if tagType.IsInterface() != cas.Type().IsInterface() {
+					typ := tagType
+					if typ.IsInterface() {
+						typ = cas.Type()
+					}
+					for len(rtypes) < i {
+						rtypes = append(rtypes, nil)
+					}
+					rtypes = append(rtypes, reflectdata.TypePtr(typ))
+				}
+			}
 		}
 
 		clause := ir.NewCaseStmt(pos, cases, nil)
+		clause.RTypes = rtypes
 
 		if ident != nil {
 			pos := r.pos()

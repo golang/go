@@ -84,9 +84,7 @@ func AppendElemRType(pos src.XPos, n *ir.CallExpr) ir.Node {
 func CompareRType(pos src.XPos, n *ir.BinaryExpr) ir.Node {
 	assertOp2(n, ir.OEQ, ir.ONE)
 	base.AssertfAt(n.X.Type().IsInterface() != n.Y.Type().IsInterface(), n.Pos(), "expect mixed interface and non-interface, have %L and %L", n.X, n.Y)
-	// TODO(mdempsky): Need to propagate RType from OSWITCH/OCASE
-	// clauses to emitted OEQ nodes.
-	if haveRType(n, n.RType, "RType", false) {
+	if haveRType(n, n.RType, "RType", true) {
 		return n.RType
 	}
 	typ := n.X.Type()
