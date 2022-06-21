@@ -1202,11 +1202,53 @@ func (w *writer) declStmt(decl syntax.Decl) {
 }
 
 // assignStmt writes out an assignment for "lhs = rhs".
-func (w *writer) assignStmt(pos poser, lhs, rhs syntax.Expr) {
+func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
+	lhs := unpackListExpr(lhs0)
+	rhs := unpackListExpr(rhs0)
+
 	w.Code(stmtAssign)
 	w.pos(pos)
-	w.assignList(lhs)
-	w.exprList(rhs) // TODO(mdempsky): Implicit conversions to Lhs types.
+
+	// As if w.assignList(lhs0).
+	w.Len(len(lhs))
+	for _, expr := range lhs {
+		w.assign(expr)
+	}
+
+	// As if w.exprList(rhs0), but with implicit conversions.
+	w.Sync(pkgbits.SyncExprList)
+	w.Sync(pkgbits.SyncExprs)
+	w.Len(len(rhs))
+	if len(lhs) == len(rhs) {
+		for i, expr := range rhs {
+			dst := lhs[i]
+
+			// Finding dstType is somewhat involved, because for VarDecl
+			// statements, the Names are only added to the info.{Defs,Uses}
+			// maps, not to info.Types.
+			var dstType types2.Type
+			if name, ok := unparen(dst).(*syntax.Name); ok {
+				if name.Value == "_" {
+					// ok: no implicit conversion
+				} else if def, ok := w.p.info.Defs[name].(*types2.Var); ok {
+					dstType = def.Type()
+				} else if use, ok := w.p.info.Uses[name].(*types2.Var); ok {
+					dstType = use.Type()
+				} else {
+					w.p.fatalf(dst, "cannot find type of destination object: %v", dst)
+				}
+			} else {
+				dstType = w.p.typeOf(dst)
+			}
+
+			w.implicitExpr(pos, dstType, expr)
+		}
+	} else if len(rhs) == 0 {
+		// ok: variable declaration without values
+	} else {
+		assert(len(rhs) == 1)
+		w.expr(rhs[0]) // TODO(mdempsky): Implicit conversions to lhs types.
+	}
 }
 
 func (w *writer) blockStmt(stmt *syntax.BlockStmt) {
