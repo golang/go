@@ -664,7 +664,7 @@ func (s *state) paramsToHeap() {
 
 // newHeapaddr allocates heap memory for n and sets its heap address.
 func (s *state) newHeapaddr(n *ir.Name) {
-	s.setHeapaddr(n.Pos(), n, s.newObject(n.Type()))
+	s.setHeapaddr(n.Pos(), n, s.newObject(n.Type(), nil))
 }
 
 // setHeapaddr allocates a new PAUTO variable to store ptr (which must be non-nil)
@@ -692,23 +692,26 @@ func (s *state) setHeapaddr(pos src.XPos, n *ir.Name, ptr *ssa.Value) {
 }
 
 // newObject returns an SSA value denoting new(typ).
-func (s *state) newObject(typ *types.Type) *ssa.Value {
+func (s *state) newObject(typ *types.Type, rtype *ssa.Value) *ssa.Value {
 	if typ.Size() == 0 {
 		return s.newValue1A(ssa.OpAddr, types.NewPtr(typ), ir.Syms.Zerobase, s.sb)
 	}
-	return s.rtcall(ir.Syms.Newobject, true, []*types.Type{types.NewPtr(typ)}, s.reflectType(typ))[0]
+	if rtype == nil {
+		rtype = s.reflectType(typ)
+	}
+	return s.rtcall(ir.Syms.Newobject, true, []*types.Type{types.NewPtr(typ)}, rtype)[0]
 }
 
 func (s *state) checkPtrAlignment(n *ir.ConvExpr, v *ssa.Value, count *ssa.Value) {
 	if !n.Type().IsPtr() {
 		s.Fatalf("expected pointer type: %v", n.Type())
 	}
-	elem := n.Type().Elem()
+	elem, rtypeExpr := n.Type().Elem(), n.ElemRType
 	if count != nil {
 		if !elem.IsArray() {
 			s.Fatalf("expected array type: %v", elem)
 		}
-		elem = elem.Elem()
+		elem, rtypeExpr = elem.Elem(), n.ElemElemRType
 	}
 	size := elem.Size()
 	// Casting from larger type to smaller one is ok, so for smallest type, do nothing.
@@ -721,12 +724,20 @@ func (s *state) checkPtrAlignment(n *ir.ConvExpr, v *ssa.Value, count *ssa.Value
 	if count.Type.Size() != s.config.PtrSize {
 		s.Fatalf("expected count fit to an uintptr size, have: %d, want: %d", count.Type.Size(), s.config.PtrSize)
 	}
-	s.rtcall(ir.Syms.CheckPtrAlignment, true, nil, v, s.reflectType(elem), count)
+	var rtype *ssa.Value
+	if rtypeExpr != nil {
+		rtype = s.expr(rtypeExpr)
+	} else {
+		rtype = s.reflectType(elem)
+	}
+	s.rtcall(ir.Syms.CheckPtrAlignment, true, nil, v, rtype, count)
 }
 
 // reflectType returns an SSA value representing a pointer to typ's
 // reflection type descriptor.
 func (s *state) reflectType(typ *types.Type) *ssa.Value {
+	// TODO(mdempsky): Make this Fatalf under Unified IR; frontend needs
+	// to supply RType expressions.
 	lsym := reflectdata.TypeLinksym(typ)
 	return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(types.Types[types.TUINT8]), lsym, s.sb)
 }
@@ -3290,7 +3301,11 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 
 	case ir.ONEW:
 		n := n.(*ir.UnaryExpr)
-		return s.newObject(n.Type().Elem())
+		var rtype *ssa.Value
+		if x, ok := n.X.(*ir.DynamicType); ok && x.Op() == ir.ODYNAMICTYPE {
+			rtype = s.expr(x.RType)
+		}
+		return s.newObject(n.Type().Elem(), rtype)
 
 	case ir.OUNSAFEADD:
 		n := n.(*ir.BinaryExpr)
@@ -6222,12 +6237,15 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	if n.ITab != nil {
 		targetItab = s.expr(n.ITab)
 	}
-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, targetItab, commaok)
+	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, nil, target, targetItab, commaok)
 }
 
 func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
 	iface := s.expr(n.X)
-	var target, targetItab *ssa.Value
+	var source, target, targetItab *ssa.Value
+	if n.SrcRType != nil {
+		source = s.expr(n.SrcRType)
+	}
 	if !n.X.Type().IsEmptyInterface() && !n.Type().IsInterface() {
 		byteptr := s.f.Config.Types.BytePtr
 		targetItab = s.expr(n.ITab)
@@ -6237,15 +6255,16 @@ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, 
 	} else {
 		target = s.expr(n.RType)
 	}
-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, targetItab, commaok)
+	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, source, target, targetItab, commaok)
 }
 
 // dottype1 implements a x.(T) operation. iface is the argument (x), dst is the type we're asserting to (T)
 // and src is the type we're asserting from.
+// source is the *runtime._type of src
 // target is the *runtime._type of dst.
 // If src is a nonempty interface and dst is not an interface, targetItab is an itab representing (dst, src). Otherwise it is nil.
 // commaok is true if the caller wants a boolean success value. Otherwise, the generated code panics if the conversion fails.
-func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, target, targetItab *ssa.Value, commaok bool) (res, resok *ssa.Value) {
+func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, target, targetItab *ssa.Value, commaok bool) (res, resok *ssa.Value) {
 	byteptr := s.f.Config.Types.BytePtr
 	if dst.IsInterface() {
 		if dst.IsEmptyInterface() {
@@ -6381,7 +6400,10 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, target, targ
 	if !commaok {
 		// on failure, panic by calling panicdottype
 		s.startBlock(bFail)
-		taddr := s.reflectType(src)
+		taddr := source
+		if taddr == nil {
+			taddr = s.reflectType(src)
+		}
 		if src.IsEmptyInterface() {
 			s.rtcall(ir.Syms.PanicdottypeE, false, nil, itab, target, taddr)
 		} else {

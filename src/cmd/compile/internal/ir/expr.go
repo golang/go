@@ -246,6 +246,16 @@ func (n *ConstExpr) Val() constant.Value { return n.val }
 type ConvExpr struct {
 	miniExpr
 	X Node
+
+	// For -d=checkptr instrumentation of conversions from
+	// unsafe.Pointer to *Elem or *[Len]Elem.
+	//
+	// TODO(mdempsky): We only ever need one of these, but currently we
+	// don't decide which one until walk. Longer term, it probably makes
+	// sense to have a dedicated IR op for `(*[Len]Elem)(ptr)[:n:m]`
+	// expressions.
+	ElemRType     Node `mknode:"-"`
+	ElemElemRType Node `mknode:"-"`
 }
 
 func NewConvExpr(pos src.XPos, op Op, typ *types.Type, x Node) *ConvExpr {
@@ -649,6 +659,11 @@ func (n *TypeAssertExpr) SetOp(op Op) {
 type DynamicTypeAssertExpr struct {
 	miniExpr
 	X Node
+
+	// SrcRType is an expression that yields a *runtime._type value
+	// representing X's type. It's used in failed assertion panic
+	// messages.
+	SrcRType Node
 
 	// RType is an expression that yields a *runtime._type value
 	// representing the asserted type.
