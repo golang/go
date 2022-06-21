@@ -134,6 +134,9 @@ type writer struct {
 
 	pkgbits.Encoder
 
+	// sig holds the signature for the current function body, if any.
+	sig *types2.Signature
+
 	// TODO(mdempsky): We should be able to prune localsIdx whenever a
 	// scope closes, and then maybe we can just use the same map for
 	// storing the TypeParams too (as their TypeName instead).
@@ -957,6 +960,7 @@ func (w *writer) pragmaFlag(p ir.PragmaFlag) {
 // block), adding it to the export data
 func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dict *writerDict) (idx pkgbits.Index, closureVars []posVar) {
 	w := pw.newWriter(pkgbits.RelocBody, pkgbits.SyncFuncBody)
+	w.sig = sig
 	w.dict = dict
 
 	w.funcargs(sig)
@@ -1132,7 +1136,25 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 	case *syntax.ReturnStmt:
 		w.Code(stmtReturn)
 		w.pos(stmt)
-		w.exprList(stmt.Results) // TODO(mdempsky): Implicit conversions to result types.
+
+		// As if w.exprList(stmt.Results), but with implicit conversions to result types.
+		w.Sync(pkgbits.SyncExprList)
+		exprs := unpackListExpr(stmt.Results)
+		w.Sync(pkgbits.SyncExprs)
+		w.Len(len(exprs))
+
+		resultTypes := w.sig.Results()
+		if len(exprs) == resultTypes.Len() {
+			for i, expr := range exprs {
+				w.implicitExpr(stmt, resultTypes.At(i).Type(), expr)
+			}
+		} else if len(exprs) == 0 {
+			// ok: bare "return" with named result parameters
+		} else {
+			// TODO(mdempsky): Implicit conversions for "return g()", where g() is multi-valued.
+			assert(len(exprs) == 1)
+			w.expr(exprs[0])
+		}
 
 	case *syntax.SelectStmt:
 		w.Code(stmtSelect)
