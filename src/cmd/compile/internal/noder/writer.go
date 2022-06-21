@@ -120,6 +120,14 @@ func (pw *pkgWriter) unexpected(what string, p poser) {
 	pw.fatalf(p, "unexpected %s: %v (%T)", what, p, p)
 }
 
+// typeOf returns the Type of the given value expression.
+func (pw *pkgWriter) typeOf(expr syntax.Expr) types2.Type {
+	tv, ok := pw.info.Types[expr]
+	assert(ok)
+	assert(tv.IsValue())
+	return tv.Type
+}
+
 // A writer provides APIs for writing out an individual element.
 type writer struct {
 	p *pkgWriter
@@ -1258,9 +1266,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 
 	var iface types2.Type
 	if guard, ok := stmt.Tag.(*syntax.TypeSwitchGuard); w.Bool(ok) {
-		tv, ok := w.p.info.Types[guard.X]
-		assert(ok && tv.IsValue())
-		iface = tv.Type
+		iface = w.p.typeOf(guard.X)
 
 		w.pos(guard)
 		if tag := guard.Lhs; w.Bool(tag != nil) {
@@ -1410,8 +1416,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.selector(sel.Obj())
 
 	case *syntax.IndexExpr:
-		tv, ok := w.p.info.Types[expr.Index]
-		assert(ok && tv.IsValue())
+		_ = w.p.typeOf(expr.Index) // ensure this is an index expression, not an instantiation
 
 		w.Code(exprIndex)
 		w.expr(expr.X)
@@ -1427,13 +1432,12 @@ func (w *writer) expr(expr syntax.Expr) {
 		}
 
 	case *syntax.AssertExpr:
-		tv, ok := w.p.info.Types[expr.X]
-		assert(ok && tv.IsValue())
+		iface := w.p.typeOf(expr.X)
 
 		w.Code(exprAssert)
 		w.expr(expr.X)
 		w.pos(expr)
-		w.exprType(tv.Type, expr.Type, false)
+		w.exprType(iface, expr.Type, false)
 
 	case *syntax.Operation:
 		if expr.Y == nil {
@@ -1523,14 +1527,12 @@ func (w *writer) optExpr(expr syntax.Expr) {
 }
 
 func (w *writer) compLit(lit *syntax.CompositeLit) {
-	tv, ok := w.p.info.Types[lit]
-	assert(ok)
+	typ := w.p.typeOf(lit)
 
 	w.Sync(pkgbits.SyncCompLit)
 	w.pos(lit)
-	w.typ(tv.Type)
+	w.typ(typ)
 
-	typ := tv.Type
 	if ptr, ok := types2.CoreType(typ).(*types2.Pointer); ok {
 		typ = ptr.Elem()
 	}
@@ -1562,9 +1564,7 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 }
 
 func (w *writer) funcLit(expr *syntax.FuncLit) {
-	tv, ok := w.p.info.Types[expr]
-	assert(ok)
-	sig := tv.Type.(*types2.Signature)
+	sig := w.p.typeOf(expr).(*types2.Signature)
 
 	body, closureVars := w.p.bodyIdx(sig, expr.Body, w.dict)
 
