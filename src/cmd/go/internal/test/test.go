@@ -1857,18 +1857,24 @@ func (c *runCache) saveOutput(a *work.Action, coverprofileFile string) {
 	if err != nil {
 		return
 	}
-	saveCoverProfile := func(testID cache.ActionID) {
-		if coverprofileFile == "" {
-			return
+	var coverprof *os.File
+	if coverprofileFile != "" {
+		coverprof, err = os.Open(coverprofileFile)
+		if err != nil && cache.DebugTest {
+			fmt.Fprintf(os.Stderr, "testcache: %s: failed to open temporary coverprofile: %s", a.Package.ImportPath, err)
 		}
-		coverprof, err := os.Open(coverprofileFile)
-		if err != nil {
-			if cache.DebugTest {
-				fmt.Fprintf(os.Stderr, "testcache: %s: failed to open temporary coverprofile file: %s", a.Package.ImportPath, err)
+	}
+	if coverprof != nil {
+		defer func() {
+			if err := coverprof.Close(); err != nil && cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: %s: closing temporary coverprofile: %v", a.Package.ImportPath, err)
 			}
+		}()
+	}
+	saveCoverProfile := func(testID cache.ActionID) {
+		if coverprof == nil {
 			return
 		}
-		defer coverprof.Close()
 		cache.Default().Put(testCoverProfileKey(testID, testInputsID), coverprof)
 	}
 	if c.id1 != (cache.ActionID{}) {
