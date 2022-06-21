@@ -1343,13 +1343,13 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	}
 	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, fuzzArg, coverdirArg, testArgs)
 
-	var coverprofileFile string
+	var tempCoverProfile string
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.
-		coverprofileFile = a.Objdir + "_cover_.out"
+		tempCoverProfile = a.Objdir + "_cover_.out"
 		for i, arg := range args {
 			if strings.HasPrefix(arg, "-test.coverprofile=") {
-				args[i] = "-test.coverprofile=" + coverprofileFile
+				args[i] = "-test.coverprofile=" + tempCoverProfile
 			}
 		}
 	}
@@ -1429,7 +1429,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	a.TestOutput = &buf
 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
 
-	if coverErr := mergeCoverProfile(coverprofileFile); coverErr != nil {
+	if coverErr := mergeCoverProfile(tempCoverProfile); coverErr != nil {
 		fmt.Fprintf(cmd.Stdout, "error: %v\n", coverErr)
 	}
 
@@ -1453,7 +1453,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 			cmd.Stdout.Write([]byte("\n"))
 		}
 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
-		r.c.saveOutput(a, coverprofileFile)
+		r.c.saveOutput(a, tempCoverProfile)
 	} else {
 		base.SetExitStatus(1)
 		if cancelSignaled {
