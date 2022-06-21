@@ -1519,6 +1519,9 @@ func (w *writer) expr(expr syntax.Expr) {
 			w.Bool(false) // not a method call (i.e., normal function call)
 		}
 
+		sigType := types2.CoreType(tv.Type).(*types2.Signature)
+		paramTypes := sigType.Params()
+
 		w.Code(exprCall)
 		writeFunExpr()
 		w.pos(expr)
@@ -1527,7 +1530,20 @@ func (w *writer) expr(expr syntax.Expr) {
 			assert(!expr.HasDots)
 			w.expr(expr.ArgList[0]) // TODO(mdempsky): Implicit conversions to parameter types.
 		} else {
-			w.exprs(expr.ArgList) // TODO(mdempsky): Implicit conversions to parameter types.
+			// Like w.exprs(expr.ArgList), but with implicit conversions to parameter types.
+			args := expr.ArgList
+			w.Sync(pkgbits.SyncExprs)
+			w.Len(len(args))
+			for i, arg := range args {
+				var paramType types2.Type
+				if sigType.Variadic() && !expr.HasDots && i+1 >= paramTypes.Len() {
+					paramType = paramTypes.At(paramTypes.Len() - 1).Type().(*types2.Slice).Elem()
+				} else {
+					paramType = paramTypes.At(i).Type()
+				}
+				w.implicitExpr(expr, paramType, arg)
+			}
+
 			w.Bool(expr.HasDots)
 		}
 	}
