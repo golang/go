@@ -71,7 +71,7 @@ func concreteRType(pos src.XPos, typ *types.Type) ir.Node {
 // representing the result slice type's element type.
 func AppendElemRType(pos src.XPos, n *ir.CallExpr) ir.Node {
 	assertOp(n, ir.OAPPEND)
-	if haveRType(n, n.RType, "RType", false) {
+	if haveRType(n, n.RType, "RType", true) {
 		return n.RType
 	}
 	return sliceElemRType(pos, n.Type())
@@ -84,6 +84,8 @@ func AppendElemRType(pos src.XPos, n *ir.CallExpr) ir.Node {
 func CompareRType(pos src.XPos, n *ir.BinaryExpr) ir.Node {
 	assertOp2(n, ir.OEQ, ir.ONE)
 	base.AssertfAt(n.X.Type().IsInterface() != n.Y.Type().IsInterface(), n.Pos(), "expect mixed interface and non-interface, have %L and %L", n.X, n.Y)
+	// TODO(mdempsky): Need to propagate RType from OSWITCH/OCASE
+	// clauses to emitted OEQ nodes.
 	if haveRType(n, n.RType, "RType", false) {
 		return n.RType
 	}
@@ -105,6 +107,7 @@ func ConvIfaceTypeWord(pos src.XPos, n *ir.ConvExpr) ir.Node {
 	assertOp(n, ir.OCONVIFACE)
 	src, dst := n.X.Type(), n.Type()
 	base.AssertfAt(dst.IsInterface(), n.Pos(), "want interface type, have %L", n)
+	// TODO(mdempsky): Need to handle implicit interface conversions.
 	if haveRType(n, n.TypeWord, "TypeWord", false) {
 		return n.TypeWord
 	}
@@ -123,6 +126,7 @@ func ConvIfaceTypeWord(pos src.XPos, n *ir.ConvExpr) ir.Node {
 // the convertee value to the heap.
 func ConvIfaceSrcRType(pos src.XPos, n *ir.ConvExpr) ir.Node {
 	assertOp2(n, ir.OCONVIFACE, ir.OCONVIDATA)
+	// TODO(mdempsky): Need to handle implicit interface conversions.
 	if haveRType(n, n.SrcRType, "SrcRType", false) {
 		return n.SrcRType
 	}
@@ -134,7 +138,7 @@ func ConvIfaceSrcRType(pos src.XPos, n *ir.ConvExpr) ir.Node {
 // destination slice type's element type.
 func CopyElemRType(pos src.XPos, n *ir.BinaryExpr) ir.Node {
 	assertOp(n, ir.OCOPY)
-	if haveRType(n, n.RType, "RType", false) {
+	if haveRType(n, n.RType, "RType", true) {
 		return n.RType
 	}
 	return sliceElemRType(pos, n.X.Type())
@@ -145,7 +149,7 @@ func CopyElemRType(pos src.XPos, n *ir.BinaryExpr) ir.Node {
 // map type.
 func DeleteMapRType(pos src.XPos, n *ir.CallExpr) ir.Node {
 	assertOp(n, ir.ODELETE)
-	if haveRType(n, n.RType, "RType", false) {
+	if haveRType(n, n.RType, "RType", true) {
 		return n.RType
 	}
 	return mapRType(pos, n.Args[0].Type())
@@ -156,6 +160,8 @@ func DeleteMapRType(pos src.XPos, n *ir.CallExpr) ir.Node {
 // map type.
 func IndexMapRType(pos src.XPos, n *ir.IndexExpr) ir.Node {
 	assertOp(n, ir.OINDEXMAP)
+	// TODO(mdempsky): Need to propagate RType from OMAPLIT nodes to
+	// emitted OINDEXMAP nodes.
 	if haveRType(n, n.RType, "RType", false) {
 		return n.RType
 	}
@@ -167,7 +173,7 @@ func IndexMapRType(pos src.XPos, n *ir.IndexExpr) ir.Node {
 // value representing that channel type.
 func MakeChanRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
 	assertOp(n, ir.OMAKECHAN)
-	if haveRType(n, n.RType, "RType", false) {
+	if haveRType(n, n.RType, "RType", true) {
 		return n.RType
 	}
 	return chanRType(pos, n.Type())
@@ -178,6 +184,8 @@ func MakeChanRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
 // representing that map type.
 func MakeMapRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
 	assertOp(n, ir.OMAKEMAP)
+	// TODO(mdempsky): Need to propagate RType from OMAPLIT nodes to
+	// emitted OMAKEMAP nodes.
 	if haveRType(n, n.RType, "RType", false) {
 		return n.RType
 	}
@@ -189,7 +197,7 @@ func MakeMapRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
 // value representing that slice type's element type.
 func MakeSliceElemRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
 	assertOp2(n, ir.OMAKESLICE, ir.OMAKESLICECOPY)
-	if haveRType(n, n.RType, "RType", false) {
+	if haveRType(n, n.RType, "RType", true) {
 		return n.RType
 	}
 	return sliceElemRType(pos, n.Type())
@@ -200,7 +208,7 @@ func MakeSliceElemRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
 // representing that map type.
 func RangeMapRType(pos src.XPos, n *ir.RangeStmt) ir.Node {
 	assertOp(n, ir.ORANGE)
-	if haveRType(n, n.RType, "RType", false) {
+	if haveRType(n, n.RType, "RType", true) {
 		return n.RType
 	}
 	return mapRType(pos, n.X.Type())
@@ -211,7 +219,7 @@ func RangeMapRType(pos src.XPos, n *ir.RangeStmt) ir.Node {
 // representing the result slice type's element type.
 func UnsafeSliceElemRType(pos src.XPos, n *ir.BinaryExpr) ir.Node {
 	assertOp(n, ir.OUNSAFESLICE)
-	if haveRType(n, n.RType, "RType", false) {
+	if haveRType(n, n.RType, "RType", true) {
 		return n.RType
 	}
 	return sliceElemRType(pos, n.Type())

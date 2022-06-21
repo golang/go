@@ -1390,6 +1390,9 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 		r.closeAnotherScope()
 
 		rang := ir.NewRangeStmt(pos, nil, nil, x, body)
+		if x.Type().IsMap() {
+			rang.RType = reflectdata.TypePtrAt(pos, x.Type())
+		}
 		if len(lhs) >= 1 {
 			rang.Key = lhs[0]
 			if len(lhs) >= 2 {
@@ -1632,7 +1635,13 @@ func (r *reader) expr() (res ir.Node) {
 		x := r.expr()
 		pos := r.pos()
 		index := r.expr()
-		return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
+		n := typecheck.Expr(ir.NewIndexExpr(pos, x, index))
+		switch n.Op() {
+		case ir.OINDEXMAP:
+			n := n.(*ir.IndexExpr)
+			n.RType = reflectdata.TypePtrAt(pos, x.Type())
+		}
+		return n
 
 	case exprSlice:
 		x := r.expr()
@@ -1654,6 +1663,7 @@ func (r *reader) expr() (res ir.Node) {
 
 		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
 			assert := ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.RType)
+			assert.SrcRType = reflectdata.TypePtrAt(pos, x.Type())
 			assert.ITab = typ.ITab
 			return typed(typ.Type(), assert)
 		}
@@ -1682,7 +1692,19 @@ func (r *reader) expr() (res ir.Node) {
 		case ir.OANDAND, ir.OOROR:
 			return typecheck.Expr(ir.NewLogicalExpr(pos, op, x, y))
 		}
-		return typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
+		n := typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
+		switch n.Op() {
+		case ir.OEQ, ir.ONE:
+			n := n.(*ir.BinaryExpr)
+			if n.X.Type().IsInterface() != n.Y.Type().IsInterface() {
+				typ := n.X.Type()
+				if typ.IsInterface() {
+					typ = n.Y.Type()
+				}
+				n.RType = reflectdata.TypePtrAt(pos, typ)
+			}
+		}
+		return n
 
 	case exprCall:
 		fun := r.expr()
@@ -1694,13 +1716,37 @@ func (r *reader) expr() (res ir.Node) {
 		pos := r.pos()
 		args := r.exprs()
 		dots := r.Bool()
-		return typecheck.Call(pos, fun, args, dots)
+		n := typecheck.Call(pos, fun, args, dots)
+		switch n.Op() {
+		case ir.OAPPEND:
+			n := n.(*ir.CallExpr)
+			n.RType = reflectdata.TypePtrAt(pos, n.Type().Elem())
+		case ir.OCOPY:
+			n := n.(*ir.BinaryExpr)
+			n.RType = reflectdata.TypePtrAt(pos, n.X.Type().Elem())
+		case ir.ODELETE:
+			n := n.(*ir.CallExpr)
+			n.RType = reflectdata.TypePtrAt(pos, n.Args[0].Type())
+		case ir.OUNSAFESLICE:
+			n := n.(*ir.BinaryExpr)
+			n.RType = reflectdata.TypePtrAt(pos, n.Type().Elem())
+		}
+		return n
 
 	case exprMake:
 		pos := r.pos()
 		typ := r.exprType(false)
 		extra := r.exprs()
-		return typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{typ}, extra...)))
+		n := typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{typ}, extra...))).(*ir.MakeExpr)
+		switch n.Op() {
+		case ir.OMAKECHAN:
+			n.RType = reflectdata.TypePtrAt(pos, typ.Type())
+		case ir.OMAKEMAP:
+			n.RType = reflectdata.TypePtrAt(pos, typ.Type())
+		case ir.OMAKESLICE:
+			n.RType = reflectdata.TypePtrAt(pos, typ.Type().Elem())
+		}
+		return n
 
 	case exprNew:
 		pos := r.pos()
