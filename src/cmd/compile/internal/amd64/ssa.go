@@ -78,6 +78,8 @@ func storeByType(t *types.Type) obj.As {
 			return x86.AMOVL
 		case 8:
 			return x86.AMOVQ
+		case 16:
+			return x86.AMOVUPS
 		}
 	}
 	panic(fmt.Sprintf("bad store type %v", t))
