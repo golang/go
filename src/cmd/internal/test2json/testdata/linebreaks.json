@@ -1,0 +1,8 @@
+{"Action":"run","Test":"TestLinebreaks"}
+{"Action":"output","Test":"TestLinebreaks","Output":"=== RUN   TestLinebreaks\n"}
+{"Action":"output","Test":"TestLinebreaks","Output":"This is some output\n"}
+{"Action":"pass","Test":"TestLinebreaks"}
+{"Action":"output","Test":"TestLinebreaks","Output":"[example.go:--- PASS: TestLinebreaks\n"}
+{"Action":"output","Test":"TestLinebreaks","Output":"17] logged something at the same time as the pass message\n"}
+{"Action":"output","Output":"PASS\n"}
+{"Action":"pass"}

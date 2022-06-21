@@ -1,0 +1,5 @@
+=== RUN   TestLinebreaks
+This is some output
+[example.go:--- PASS: TestLinebreaks
+17] logged something at the same time as the pass message
+PASS
