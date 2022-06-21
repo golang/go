@@ -1574,30 +1574,45 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 	if ptr, ok := types2.CoreType(typ).(*types2.Pointer); ok {
 		typ = ptr.Elem()
 	}
-	str, isStruct := types2.CoreType(typ).(*types2.Struct)
+	var keyType, elemType types2.Type
+	var structType *types2.Struct
+	switch typ := types2.CoreType(typ).(type) {
+	default:
+		w.p.fatalf(lit, "unexpected composite literal type: %v", typ)
+	case *types2.Array:
+		elemType = typ.Elem()
+	case *types2.Map:
+		keyType, elemType = typ.Key(), typ.Elem()
+	case *types2.Slice:
+		elemType = typ.Elem()
+	case *types2.Struct:
+		structType = typ
+	}
 
 	w.Len(len(lit.ElemList))
 	for i, elem := range lit.ElemList {
-		if isStruct {
+		elemType := elemType
+		if structType != nil {
 			if kv, ok := elem.(*syntax.KeyValueExpr); ok {
 				// use position of expr.Key rather than of elem (which has position of ':')
 				w.pos(kv.Key)
-				w.Len(fieldIndex(w.p.info, str, kv.Key.(*syntax.Name)))
+				i = fieldIndex(w.p.info, structType, kv.Key.(*syntax.Name))
 				elem = kv.Value
 			} else {
 				w.pos(elem)
-				w.Len(i)
 			}
+			elemType = structType.Field(i).Type()
+			w.Len(i)
 		} else {
 			if kv, ok := elem.(*syntax.KeyValueExpr); w.Bool(ok) {
 				// use position of expr.Key rather than of elem (which has position of ':')
 				w.pos(kv.Key)
-				w.expr(kv.Key) // TODO(mdempsky): Implicit conversion to (map) key type.
+				w.implicitExpr(kv.Key, keyType, kv.Key)
 				elem = kv.Value
 			}
 		}
 		w.pos(elem)
-		w.expr(elem) // TODO(mdempsky): Implicit conversion to element type.
+		w.implicitExpr(elem, elemType, elem)
 	}
 }
 
