@@ -14,7 +14,7 @@ func _() {
 	var j func(F)
 
 	f(i, j)
-	// f(j, i) // disabled for now
+	f(j, i)
 }
 
 // example from issue
@@ -27,5 +27,5 @@ func _() {
 	var j interface{ Equal(I) bool }
 
 	g(i, j)
-	// g(j, i) // disabled for now
+	g(j, i)
 }
