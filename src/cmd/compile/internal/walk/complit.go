@@ -416,6 +416,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// make the map var
 	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
 	a := typecheck.Expr(ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)
+	a.RType = n.RType
 	a.SetEsc(n.Esc())
 	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, m, a))
 
@@ -471,6 +472,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		// typechecker rewrites OINDEX to OINDEXMAP
 		lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, kidx)).(*ir.IndexExpr)
 		base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
+		lhs.RType = n.RType
 
 		zero := ir.NewAssignStmt(base.Pos, i, ir.NewInt(0))
 		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(tk.NumElem()))
@@ -510,6 +512,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		// typechecker rewrites OINDEX to OINDEXMAP
 		lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, tmpkey)).(*ir.IndexExpr)
 		base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
+		lhs.RType = n.RType
 
 		var a ir.Node = ir.NewAssignStmt(base.Pos, lhs, tmpelem)
 		a = typecheck.Stmt(a)

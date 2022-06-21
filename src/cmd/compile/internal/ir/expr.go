@@ -194,6 +194,7 @@ type CompLitExpr struct {
 	miniExpr
 	origNode
 	List     Nodes // initialized values
+	RType    Node  `mknode:"-"` // *runtime._type for OMAPLIT map types
 	Prealloc *Name
 	// For OSLICELIT, Len is the backing array length.
 	// For OMAPLIT, Len is the number of entries that we've removed from List and

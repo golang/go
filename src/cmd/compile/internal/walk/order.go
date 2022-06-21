@@ -1452,6 +1452,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		for _, r := range dynamics {
 			lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, r.Key)).(*ir.IndexExpr)
 			base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
+			lhs.RType = n.RType
 
 			as := ir.NewAssignStmt(base.Pos, lhs, r.Value)
 			typecheck.Stmt(as)

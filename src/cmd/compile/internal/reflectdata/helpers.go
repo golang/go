@@ -160,9 +160,7 @@ func DeleteMapRType(pos src.XPos, n *ir.CallExpr) ir.Node {
 // map type.
 func IndexMapRType(pos src.XPos, n *ir.IndexExpr) ir.Node {
 	assertOp(n, ir.OINDEXMAP)
-	// TODO(mdempsky): Need to propagate RType from OMAPLIT nodes to
-	// emitted OINDEXMAP nodes.
-	if haveRType(n, n.RType, "RType", false) {
+	if haveRType(n, n.RType, "RType", true) {
 		return n.RType
 	}
 	return mapRType(pos, n.X.Type())
@@ -184,9 +182,7 @@ func MakeChanRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
 // representing that map type.
 func MakeMapRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
 	assertOp(n, ir.OMAKEMAP)
-	// TODO(mdempsky): Need to propagate RType from OMAPLIT nodes to
-	// emitted OMAKEMAP nodes.
-	if haveRType(n, n.RType, "RType", false) {
+	if haveRType(n, n.RType, "RType", true) {
 		return n.RType
 	}
 	return mapRType(pos, n.Type())

@@ -1812,6 +1812,11 @@ func (r *reader) compLit() ir.Node {
 	}
 
 	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, elems))
+	switch lit.Op() {
+	case ir.OMAPLIT:
+		lit := lit.(*ir.CompLitExpr)
+		lit.RType = reflectdata.TypePtrAt(pos, typ)
+	}
 	if typ0.IsPtr() {
 		lit = typecheck.Expr(typecheck.NodAddrAt(pos, lit))
 		lit.SetType(typ0)
