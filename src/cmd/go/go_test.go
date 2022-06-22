@@ -18,7 +18,6 @@ import (
 	"io"
 	"io/fs"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -128,19 +127,6 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	os.Setenv("CMDGO_TEST_RUN_MAIN", "true")
-
-	if strings.HasPrefix(runtime.Version(), "devel ") && godebug.Get("goindexsalt") == "" {
-		// We're going to execute a lot of cmd/go tests, so set a consistent salt
-		// via GODEBUG so that the modindex package can avoid walking an entire
-		// GOROOT module whenever it tries to use an index for that module.
-		indexSalt := rand.Int63()
-		v := os.Getenv("GODEBUG")
-		if v == "" {
-			os.Setenv("GODEBUG", fmt.Sprintf("goindexsalt=%d", indexSalt))
-		} else {
-			os.Setenv("GODEBUG", fmt.Sprintf("%s,goindexsalt=%d", v, indexSalt))
-		}
-	}
 
 	// $GO_GCFLAGS a compiler debug flag known to cmd/dist, make.bash, etc.
 	// It is not a standard go command flag; use os.Getenv, not cfg.Getenv.
