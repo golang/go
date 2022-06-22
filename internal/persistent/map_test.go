@@ -71,6 +71,15 @@ func TestSimpleMap(t *testing.T) {
 	m1.remove(t, 1)
 	validateRef(t, m1, m2)
 
+	gotAllocs := int(testing.AllocsPerRun(10, func() {
+		m1.impl.Delete(100)
+		m1.impl.Delete(1)
+	}))
+	wantAllocs := 0
+	if gotAllocs != wantAllocs {
+		t.Errorf("wanted %d allocs, got %d", wantAllocs, gotAllocs)
+	}
+
 	for i := 10; i < 14; i++ {
 		m1.set(t, i, i)
 		validateRef(t, m1, m2)
@@ -297,20 +306,4 @@ func assertSameMap(t *testing.T, map1, map2 interface{}) {
 	if !reflect.DeepEqual(map1, map2) {
 		t.Fatalf("different maps:\n%v\nvs\n%v", map1, map2)
 	}
-}
-
-func isSameMap(map1, map2 reflect.Value) bool {
-	if map1.Len() != map2.Len() {
-		return false
-	}
-	iter := map1.MapRange()
-	for iter.Next() {
-		key := iter.Key()
-		value1 := iter.Value()
-		value2 := map2.MapIndex(key)
-		if value2.IsZero() || !reflect.DeepEqual(value1.Interface(), value2.Interface()) {
-			return false
-		}
-	}
-	return true
 }

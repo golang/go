@@ -185,7 +185,7 @@ func union(first, second *mapNode, less func(a, b interface{}) bool, overwrite b
 		second, first, overwrite = first, second, !overwrite
 	}
 
-	left, mid, right := split(second, first.key, less)
+	left, mid, right := split(second, first.key, less, false)
 	var result *mapNode
 	if overwrite && mid != nil {
 		result = mid.shallowCloneWithRef()
@@ -205,23 +205,31 @@ func union(first, second *mapNode, less func(a, b interface{}) bool, overwrite b
 // Return three new trees: left with all nodes with smaller than key, mid with
 // the node matching the key, right with all nodes larger than key.
 // If there are no nodes in one of trees, return nil instead of it.
+// If requireMid is set (such as during deletion), then all return arguments
+// are nil if mid is not found.
 //
 // split(n:-0) (left:+1, mid:+1, right:+1)
 // Split borrows n without affecting its refcount, and returns three
 // new references that that caller is expected to call decref.
-func split(n *mapNode, key interface{}, less func(a, b interface{}) bool) (left, mid, right *mapNode) {
+func split(n *mapNode, key interface{}, less func(a, b interface{}) bool, requireMid bool) (left, mid, right *mapNode) {
 	if n == nil {
 		return nil, nil, nil
 	}
 
 	if less(n.key, key) {
-		left, mid, right := split(n.right, key, less)
+		left, mid, right := split(n.right, key, less, requireMid)
+		if requireMid && mid == nil {
+			return nil, nil, nil
+		}
 		newN := n.shallowCloneWithRef()
 		newN.left = n.left.incref()
 		newN.right = left
 		return newN, mid, right
 	} else if less(key, n.key) {
-		left, mid, right := split(n.left, key, less)
+		left, mid, right := split(n.left, key, less, requireMid)
+		if requireMid && mid == nil {
+			return nil, nil, nil
+		}
 		newN := n.shallowCloneWithRef()
 		newN.left = right
 		newN.right = n.right.incref()
@@ -234,7 +242,10 @@ func split(n *mapNode, key interface{}, less func(a, b interface{}) bool) (left,
 // Delete deletes the value for a key.
 func (pm *Map) Delete(key interface{}) {
 	root := pm.root
-	left, mid, right := split(root, key, pm.less)
+	left, mid, right := split(root, key, pm.less, true)
+	if mid == nil {
+		return
+	}
 	pm.root = merge(left, right)
 	left.decref()
 	mid.decref()
