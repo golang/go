@@ -753,6 +753,16 @@ presented to cmd/link as part of a larger program, contains:
 	_go_.o        # gc-compiled object for _cgo_gotypes.go, _cgo_import.go, *.cgo1.go
 	_all.o        # gcc-compiled object for _cgo_export.c, *.cgo2.c
 
+If there is an error generating the _cgo_import.go file, then, instead
+of adding _cgo_import.go to the package, the go tool adds an empty
+file named dynimportfail. The _cgo_import.go file is only needed when
+using internal linking mode, which is not the default when linking
+programs that use cgo (as described below). If the linker sees a file
+named dynimportfail it reports an error if it has been told to use
+internal linking mode. This approach is taken because generating
+_cgo_import.go requires doing a full C link of the package, which can
+fail for reasons that are irrelevant when using external linking mode.
+
 The final program will be a dynamic executable, so that cmd/link can avoid
 needing to process arbitrary .o files. It only needs to process the .o
 files generated from C files that cgo writes, and those are much more

@@ -2405,6 +2405,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files.
+// Any error output is only displayed for BuildN or BuildX.
 func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flags []string, objs []string) error {
 	var cmd []string
 	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
@@ -2450,11 +2451,8 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
 			save = append(save, line)
 		}
 		out = bytes.Join(save, nil)
-		if len(out) > 0 {
+		if len(out) > 0 && (cfg.BuildN || cfg.BuildX) {
 			b.showOutput(nil, dir, p.ImportPath, b.processOutput(out))
-			if err != nil {
-				err = errPrintedOutput
-			}
 		}
 	}
 	return err
@@ -2913,10 +2911,16 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	switch cfg.BuildToolchainName {
 	case "gc":
 		importGo := objdir + "_cgo_import.go"
-		if err := b.dynimport(a, p, objdir, importGo, cgoExe, cflags, cgoLDFLAGS, outObj); err != nil {
+		dynOutGo, dynOutObj, err := b.dynimport(a, p, objdir, importGo, cgoExe, cflags, cgoLDFLAGS, outObj)
+		if err != nil {
 			return nil, nil, err
 		}
-		outGo = append(outGo, importGo)
+		if dynOutGo != "" {
+			outGo = append(outGo, dynOutGo)
+		}
+		if dynOutObj != "" {
+			outObj = append(outObj, dynOutObj)
+		}
 
 	case "gccgo":
 		defunC := objdir + "_cgo_defun.c"
@@ -3011,11 +3015,13 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 // dynimport creates a Go source file named importGo containing
 // //go:cgo_import_dynamic directives for each symbol or library
 // dynamically imported by the object files outObj.
-func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe string, cflags, cgoLDFLAGS, outObj []string) error {
+// dynOutGo, if not empty, is a new Go file to build as part of the package.
+// dynOutObj, if not empty, is a new file to add to the generated archive.
+func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe string, cflags, cgoLDFLAGS, outObj []string) (dynOutGo, dynOutObj string, err error) {
 	cfile := objdir + "_cgo_main.c"
 	ofile := objdir + "_cgo_main.o"
 	if err := b.gcc(a, p, objdir, ofile, cflags, cfile); err != nil {
-		return err
+		return "", "", err
 	}
 
 	// Gather .syso files from this package and all (transitive) dependencies.
@@ -3060,7 +3066,22 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 		}
 	}
 	if err := b.gccld(a, p, objdir, dynobj, ldflags, linkobj); err != nil {
-		return err
+		// We only need this information for internal linking.
+		// If this link fails, mark the object as requiring
+		// external linking. This link can fail for things like
+		// syso files that have unexpected dependencies.
+		// cmd/link explicitly looks for the name "dynimportfail".
+		// See issue #52863.
+		fail := objdir + "dynimportfail"
+		if cfg.BuildN || cfg.BuildX {
+			b.Showcmd("", "echo > %s", fail)
+		}
+		if !cfg.BuildN {
+			if err := os.WriteFile(fail, nil, 0666); err != nil {
+				return "", "", err
+			}
+		}
+		return "", fail, nil
 	}
 
 	// cgo -dynimport
@@ -3068,7 +3089,11 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
 	}
-	return b.run(a, base.Cwd(), p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+	err = b.run(a, base.Cwd(), p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+	if err != nil {
+		return "", "", err
+	}
+	return importGo, "", nil
 }
 
 // Run SWIG on all SWIG input files.
