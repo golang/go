@@ -220,7 +220,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	// invalidate the reverse transitive closure of packages that have changed.
 	invalidatedPackages := s.meta.reverseTransitiveClosure(true, loadedIDs...)
 	s.meta = s.meta.Clone(updates)
-
+	s.resetIsActivePackageLocked()
 	// Invalidate any packages we may have associated with this metadata.
 	//
 	// TODO(rfindley): this should not be necessary, as we should have already

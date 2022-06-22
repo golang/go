@@ -91,6 +91,10 @@ type snapshot struct {
 	// It may be invalidated when a file's content changes.
 	packages packagesMap
 
+	// isActivePackageCache maps package ID to the cached value if it is active or not.
+	// It may be invalidated when metadata changes or a new file is opened or closed.
+	isActivePackageCache isActivePackageCacheMap
+
 	// actions maps an actionkey to its actionHandle.
 	actions map[actionKey]*actionHandle
 
@@ -144,6 +148,7 @@ type actionKey struct {
 func (s *snapshot) Destroy(destroyedBy string) {
 	s.generation.Destroy(destroyedBy)
 	s.packages.Destroy()
+	s.isActivePackageCache.Destroy()
 	s.files.Destroy()
 	s.goFiles.Destroy()
 	s.parseKeysByURI.Destroy()
@@ -754,24 +759,20 @@ func (s *snapshot) activePackageIDs() (ids []PackageID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	seen := make(map[PackageID]bool)
 	for id := range s.workspacePackages {
-		if s.isActiveLocked(id, seen) {
+		if s.isActiveLocked(id) {
 			ids = append(ids, id)
 		}
 	}
 	return ids
 }
 
-func (s *snapshot) isActiveLocked(id PackageID, seen map[PackageID]bool) (active bool) {
-	if seen == nil {
-		seen = make(map[PackageID]bool)
-	}
-	if seen, ok := seen[id]; ok {
+func (s *snapshot) isActiveLocked(id PackageID) (active bool) {
+	if seen, ok := s.isActivePackageCache.Get(id); ok {
 		return seen
 	}
 	defer func() {
-		seen[id] = active
+		s.isActivePackageCache.Set(id, active)
 	}()
 	m, ok := s.meta.metadata[id]
 	if !ok {
@@ -785,11 +786,16 @@ func (s *snapshot) isActiveLocked(id PackageID, seen map[PackageID]bool) (active
 	// TODO(rfindley): it looks incorrect that we don't also check GoFiles here.
 	// If a CGo file is open, we want to consider the package active.
 	for _, dep := range m.Deps {
-		if s.isActiveLocked(dep, seen) {
+		if s.isActiveLocked(dep) {
 			return true
 		}
 	}
 	return false
+}
+
+func (s *snapshot) resetIsActivePackageLocked() {
+	s.isActivePackageCache.Destroy()
+	s.isActivePackageCache = newIsActivePackageCacheMap()
 }
 
 const fileExtensions = "go,mod,sum,work"
@@ -1287,6 +1293,7 @@ func (s *snapshot) clearShouldLoad(scopes ...interface{}) {
 		}
 	}
 	s.meta = g.Clone(updates)
+	s.resetIsActivePackageLocked()
 }
 
 // noValidMetadataForURILocked reports whether there is any valid metadata for
@@ -1377,7 +1384,7 @@ func (s *snapshot) openFiles() []source.VersionedFileHandle {
 
 	var open []source.VersionedFileHandle
 	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
-		if s.isOpenLocked(fh.URI()) {
+		if isFileOpen(fh) {
 			open = append(open, fh)
 		}
 	})
@@ -1386,6 +1393,10 @@ func (s *snapshot) openFiles() []source.VersionedFileHandle {
 
 func (s *snapshot) isOpenLocked(uri span.URI) bool {
 	fh, _ := s.files.Get(uri)
+	return isFileOpen(fh)
+}
+
+func isFileOpen(fh source.VersionedFileHandle) bool {
 	_, open := fh.(*overlay)
 	return open
 }
@@ -1695,28 +1706,29 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	newGen := s.view.session.cache.store.Generation(generationName(s.view, s.id+1))
 	bgCtx, cancel := context.WithCancel(bgCtx)
 	result := &snapshot{
-		id:                s.id + 1,
-		generation:        newGen,
-		view:              s.view,
-		backgroundCtx:     bgCtx,
-		cancel:            cancel,
-		builtin:           s.builtin,
-		initializeOnce:    s.initializeOnce,
-		initializedErr:    s.initializedErr,
-		packages:          s.packages.Clone(),
-		actions:           make(map[actionKey]*actionHandle, len(s.actions)),
-		files:             s.files.Clone(),
-		goFiles:           s.goFiles.Clone(),
-		parseKeysByURI:    s.parseKeysByURI.Clone(),
-		symbols:           make(map[span.URI]*symbolHandle, len(s.symbols)),
-		workspacePackages: make(map[PackageID]PackagePath, len(s.workspacePackages)),
-		unloadableFiles:   make(map[span.URI]struct{}, len(s.unloadableFiles)),
-		parseModHandles:   make(map[span.URI]*parseModHandle, len(s.parseModHandles)),
-		parseWorkHandles:  make(map[span.URI]*parseWorkHandle, len(s.parseWorkHandles)),
-		modTidyHandles:    make(map[span.URI]*modTidyHandle, len(s.modTidyHandles)),
-		modWhyHandles:     make(map[span.URI]*modWhyHandle, len(s.modWhyHandles)),
-		knownSubdirs:      s.knownSubdirs.Clone(),
-		workspace:         newWorkspace,
+		id:                   s.id + 1,
+		generation:           newGen,
+		view:                 s.view,
+		backgroundCtx:        bgCtx,
+		cancel:               cancel,
+		builtin:              s.builtin,
+		initializeOnce:       s.initializeOnce,
+		initializedErr:       s.initializedErr,
+		packages:             s.packages.Clone(),
+		isActivePackageCache: s.isActivePackageCache.Clone(),
+		actions:              make(map[actionKey]*actionHandle, len(s.actions)),
+		files:                s.files.Clone(),
+		goFiles:              s.goFiles.Clone(),
+		parseKeysByURI:       s.parseKeysByURI.Clone(),
+		symbols:              make(map[span.URI]*symbolHandle, len(s.symbols)),
+		workspacePackages:    make(map[PackageID]PackagePath, len(s.workspacePackages)),
+		unloadableFiles:      make(map[span.URI]struct{}, len(s.unloadableFiles)),
+		parseModHandles:      make(map[span.URI]*parseModHandle, len(s.parseModHandles)),
+		parseWorkHandles:     make(map[span.URI]*parseWorkHandle, len(s.parseWorkHandles)),
+		modTidyHandles:       make(map[span.URI]*modTidyHandle, len(s.modTidyHandles)),
+		modWhyHandles:        make(map[span.URI]*modWhyHandle, len(s.modWhyHandles)),
+		knownSubdirs:         s.knownSubdirs.Clone(),
+		workspace:            newWorkspace,
 	}
 
 	// Copy all of the FileHandles.
@@ -1975,9 +1987,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		result.meta = s.meta
 	}
 
-	// Update workspace packages, if necessary.
+	// Update workspace and active packages, if necessary.
 	if result.meta != s.meta || anyFileOpenedOrClosed {
 		result.workspacePackages = computeWorkspacePackagesLocked(result, result.meta)
+		result.resetIsActivePackageLocked()
 	} else {
 		result.workspacePackages = s.workspacePackages
 	}

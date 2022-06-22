@@ -224,7 +224,7 @@ func (s *snapshot) workspaceParseMode(id PackageID) source.ParseMode {
 	if s.view.Options().MemoryMode == source.ModeNormal {
 		return source.ParseFull
 	}
-	if s.isActiveLocked(id, nil) {
+	if s.isActiveLocked(id) {
 		return source.ParseFull
 	}
 	return source.ParseExported

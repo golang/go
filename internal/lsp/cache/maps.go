@@ -112,6 +112,40 @@ func (m goFilesMap) Delete(key parseKey) {
 	m.impl.Delete(key)
 }
 
+type isActivePackageCacheMap struct {
+	impl *persistent.Map
+}
+
+func newIsActivePackageCacheMap() isActivePackageCacheMap {
+	return isActivePackageCacheMap{
+		impl: persistent.NewMap(func(a, b interface{}) bool {
+			return a.(PackageID) < b.(PackageID)
+		}),
+	}
+}
+
+func (m isActivePackageCacheMap) Clone() isActivePackageCacheMap {
+	return isActivePackageCacheMap{
+		impl: m.impl.Clone(),
+	}
+}
+
+func (m isActivePackageCacheMap) Destroy() {
+	m.impl.Destroy()
+}
+
+func (m isActivePackageCacheMap) Get(key PackageID) (bool, bool) {
+	value, ok := m.impl.Get(key)
+	if !ok {
+		return false, false
+	}
+	return value.(bool), true
+}
+
+func (m isActivePackageCacheMap) Set(key PackageID, value bool) {
+	m.impl.Set(key, value, nil)
+}
+
 type parseKeysByURIMap struct {
 	impl *persistent.Map
 }
