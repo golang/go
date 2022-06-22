@@ -551,6 +551,11 @@ func (h Hash) String() string {
 	return fmt.Sprintf("%64x", [sha256.Size]byte(h))
 }
 
+// Less returns true if the given hash is less than the other.
+func (h Hash) Less(other Hash) bool {
+	return bytes.Compare(h[:], other[:]) < 0
+}
+
 // FileIdentity uniquely identifies a file at a version from a FileSystem.
 type FileIdentity struct {
 	URI  span.URI

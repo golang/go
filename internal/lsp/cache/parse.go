@@ -58,7 +58,7 @@ func (s *snapshot) parseGoHandle(ctx context.Context, fh source.FileHandle, mode
 	if pgh := s.getGoFile(key); pgh != nil {
 		return pgh
 	}
-	parseHandle := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+	parseHandle, release := s.generation.GetHandle(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 		return parseGo(ctx, snapshot.FileSet(), fh, mode)
 	}, nil)
@@ -68,7 +68,7 @@ func (s *snapshot) parseGoHandle(ctx context.Context, fh source.FileHandle, mode
 		file:   fh,
 		mode:   mode,
 	}
-	return s.addGoFile(key, pgh)
+	return s.addGoFile(key, pgh, release)
 }
 
 func (pgh *parseGoHandle) String() string {

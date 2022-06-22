@@ -106,3 +106,58 @@ func TestCleanup(t *testing.T) {
 		t.Error("after destroying g2, v2 is not cleaned up")
 	}
 }
+
+func TestHandleRefCounting(t *testing.T) {
+	s := &memoize.Store{}
+	g1 := s.Generation("g1")
+	v1 := false
+	v2 := false
+	cleanup := func(v interface{}) {
+		*(v.(*bool)) = true
+	}
+	h1, release1 := g1.GetHandle("key1", func(context.Context, memoize.Arg) interface{} {
+		return &v1
+	}, nil)
+	h2, release2 := g1.GetHandle("key2", func(context.Context, memoize.Arg) interface{} {
+		return &v2
+	}, cleanup)
+	expectGet(t, h1, g1, &v1)
+	expectGet(t, h2, g1, &v2)
+
+	g2 := s.Generation("g2")
+	expectGet(t, h1, g2, &v1)
+	g1.Destroy("by test")
+	expectGet(t, h2, g2, &v2)
+
+	h2Copy, release2Copy := g2.GetHandle("key2", func(context.Context, memoize.Arg) interface{} {
+		return &v1
+	}, nil)
+	if h2 != h2Copy {
+		t.Error("NewHandle returned a new value while old is not destroyed yet")
+	}
+	expectGet(t, h2Copy, g2, &v2)
+	g2.Destroy("by test")
+
+	release2()
+	if got, want := v2, false; got != want {
+		t.Error("after destroying first v2 ref, v2 is cleaned up")
+	}
+	release2Copy()
+	if got, want := v2, true; got != want {
+		t.Error("after destroying second v2 ref, v2 is not cleaned up")
+	}
+	if got, want := v1, false; got != want {
+		t.Error("after destroying v2, v1 is cleaned up")
+	}
+	release1()
+
+	g3 := s.Generation("g3")
+	h2Copy, release2Copy = g3.GetHandle("key2", func(context.Context, memoize.Arg) interface{} {
+		return &v2
+	}, cleanup)
+	if h2 == h2Copy {
+		t.Error("NewHandle returned previously destroyed value")
+	}
+	release2Copy()
+	g3.Destroy("by test")
+}

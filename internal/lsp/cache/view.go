@@ -535,7 +535,7 @@ func (v *View) shutdown(ctx context.Context) {
 	v.mu.Unlock()
 	v.snapshotMu.Lock()
 	if v.snapshot != nil {
-		go v.snapshot.generation.Destroy("View.shutdown")
+		go v.snapshot.Destroy("View.shutdown")
 		v.snapshot = nil
 	}
 	v.snapshotMu.Unlock()
@@ -732,7 +732,7 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 	oldSnapshot := v.snapshot
 
 	v.snapshot = oldSnapshot.clone(ctx, v.baseCtx, changes, forceReloadMetadata)
-	go oldSnapshot.generation.Destroy("View.invalidateContent")
+	go oldSnapshot.Destroy("View.invalidateContent")
 
 	return v.snapshot, v.snapshot.generation.Acquire()
 }
