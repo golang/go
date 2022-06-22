@@ -358,6 +358,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.Spadj = autosize
 
 				q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+
+				// On Linux, in a cgo binary we may get a SIGSETXID signal early on
+				// before the signal stack is set, as glibc doesn't allow us to block
+				// SIGSETXID. So a signal may land on the current stack and clobber
+				// the content below the SP. We store the LR again after the SP is
+				// decremented.
+				q = obj.Appendp(q, c.newprog)
+				q.As = AMOVD
+				q.From.Type = obj.TYPE_REG
+				q.From.Reg = REG_LR
+				q.To.Type = obj.TYPE_MEM
+				q.To.Reg = REGSP
+				q.To.Offset = 0
 			} else if c.cursym.Func().Text.Mark&LEAF == 0 {
 				// A very few functions that do not return to their caller
 				// (e.g. gogo) are not identified as leaves but still have

@@ -410,6 +410,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		prologue.Spadj = int32(stacksize)
 
 		prologue = ctxt.EndUnsafePoint(prologue, newprog, -1)
+
+		// On Linux, in a cgo binary we may get a SIGSETXID signal early on
+		// before the signal stack is set, as glibc doesn't allow us to block
+		// SIGSETXID. So a signal may land on the current stack and clobber
+		// the content below the SP. We store the LR again after the SP is
+		// decremented.
+		prologue = obj.Appendp(prologue, newprog)
+		prologue.As = AMOV
+		prologue.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
+		prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 0}
 	}
 
 	if cursym.Func().Text.From.Sym.Wrapper() {
