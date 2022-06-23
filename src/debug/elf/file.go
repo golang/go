@@ -102,8 +102,35 @@ type Section struct {
 // Even if the section is stored compressed in the ELF file,
 // Data returns uncompressed data.
 func (s *Section) Data() ([]byte, error) {
+	section_reader := s.Open()
+
+	// For sections that have relatively significant size, check that they
+	// really can be read by trying to read last byte, if that read fails then
+	// it doen't make sense to allocate buffer for whole section's content.
+	// Doing this only for sections that have big size avoids performance
+	// impact on small sections that would not cause allocation failure anyway.
+	if (s.Size > 0x10000) {
+		edge_test_dat := make([]byte, 1)
+		// First check for obviously incorrect negative size
+		if (int64(s.Size) < 0) {
+			return edge_test_dat[0:0], errors.New("section has negative size")
+		}
+		saved_ofs, edge_test_err := section_reader.Seek(int64(s.Size - 1), io.SeekCurrent)
+		if edge_test_err != nil {
+			return edge_test_dat[0:0], edge_test_err
+		}
+		_, edge_test_err = section_reader.Read(edge_test_dat)
+		if edge_test_err != nil {
+			return edge_test_dat[0:0], edge_test_err
+		}
+		_, edge_test_err = section_reader.Seek(saved_ofs, io.SeekStart)
+		if edge_test_err != nil {
+			return edge_test_dat[0:0], edge_test_err
+		}
+	}
+
 	dat := make([]byte, s.Size)
-	n, err := io.ReadFull(s.Open(), dat)
+	n, err := io.ReadFull(section_reader, dat)
 	return dat[0:n], err
 }
 
