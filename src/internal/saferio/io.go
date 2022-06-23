@@ -9,7 +9,10 @@
 // untrustworthy attacker.
 package saferio
 
-import "io"
+import (
+	"io"
+	"reflect"
+)
 
 // chunk is an arbitrary limit on how much memory we are willing
 // to allocate without concern.
@@ -90,4 +93,28 @@ func ReadDataAt(r io.ReaderAt, n uint64, off int64) ([]byte, error) {
 		off += int64(next)
 	}
 	return buf, nil
+}
+
+// SliceCap returns the capacity to use when allocating a slice.
+// After the slice is allocated with the capacity, it should be
+// built using append. This will avoid allocating too much memory
+// if the capacity is large and incorrect.
+//
+// A negative result means that the value is always too big.
+//
+// The element type is described by passing a value of that type.
+// This would ideally use generics, but this code is built with
+// the bootstrap compiler which need not support generics.
+func SliceCap(v any, c uint64) int {
+	if int64(c) < 0 || c != uint64(int(c)) {
+		return -1
+	}
+	size := reflect.TypeOf(v).Size()
+	if uintptr(c)*size > chunk {
+		c = uint64(chunk / size)
+		if c == 0 {
+			c = 1
+		}
+	}
+	return int(c)
 }
