@@ -755,6 +755,8 @@ var splittests = []SplitTest{
 	{"123", "", 2, []string{"1", "23"}},
 	{"123", "", 17, []string{"1", "2", "3"}},
 	{"bT", "T", math.MaxInt / 4, []string{"b", ""}},
+	{"\xff-\xff", "", -1, []string{"\xff", "-", "\xff"}},
+	{"\xff-\xff", "-", -1, []string{"\xff", "\xff"}},
 }
 
 func TestSplit(t *testing.T) {
