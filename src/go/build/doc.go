@@ -67,7 +67,7 @@
 // operating system is windows).
 //
 // See 'go help buildconstraint'
-// (https://golang.org/cmd/go/#hdr-Build_constraints) for details.
+// (https://pkg.go.dev/cmd/go#hdr-Build_constraints) for details.
 //
 // # Binary-Only Packages
 //
