@@ -943,7 +943,7 @@ func (r *runner) InlayHints(t *testing.T, spn span.Span) {
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.URIFromSpanURI(uri),
 		},
-		// TODO: add ViewPort
+		// TODO: add Range
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -2866,7 +2866,7 @@ type InlayHintParams struct {
 	/**
 	 * The visible document range for which inlay hints should be computed.
 	 */
-	ViewPort Range `json:"viewPort"`
+	Range Range `json:"range"`
 }
 
 /**
@@ -2988,7 +2988,7 @@ type InlineValueParams struct {
 	/**
 	 * The visible document range for which inline values should be computed.
 	 */
-	ViewPort Range `json:"viewPort"`
+	Range Range `json:"range"`
 	/**
 	 * Additional information about the context in which inline values were
 	 * requested.

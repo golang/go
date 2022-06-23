@@ -17,5 +17,5 @@ func (s *Server) inlayHint(ctx context.Context, params *protocol.InlayHintParams
 	if !ok {
 		return nil, err
 	}
-	return source.InlayHint(ctx, snapshot, fh, params.ViewPort)
+	return source.InlayHint(ctx, snapshot, fh, params.Range)
 }
