@@ -9,6 +9,7 @@ import (
 	"debug/dwarf"
 	"encoding/binary"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"os"
 	"strings"
@@ -213,13 +214,11 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, err
 	}
 	if l > 4 {
-		if _, err := sr.Seek(int64(offset), io.SeekStart); err != nil {
+		st, err := saferio.ReadDataAt(sr, uint64(l), int64(offset))
+		if err != nil {
 			return nil, err
 		}
-		f.StringTable = make([]byte, l)
-		if _, err := io.ReadFull(sr, f.StringTable); err != nil {
-			return nil, err
-		}
+		f.StringTable = st
 	}
 
 	// Read section headers
