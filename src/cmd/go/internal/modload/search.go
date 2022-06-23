@@ -195,7 +195,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			}
 			modPrefix = mod.Path
 		}
-		if mi, err := modindex.Get(root); err == nil {
+		if mi, err := modindex.GetModule(root); err == nil {
 			walkFromIndex(mi, modPrefix, isMatch, treeCanMatch, tags, have, addPkg)
 			continue
 		} else if !errors.Is(err, modindex.ErrNotIndexed) {
@@ -213,9 +213,9 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 }
 
 // walkFromIndex matches packages in a module using the module index. modroot
-// is the module's root directory on disk, index is the ModuleIndex for the
+// is the module's root directory on disk, index is the modindex.Module for the
 // module, and importPathRoot is the module's path prefix.
-func walkFromIndex(index *modindex.ModuleIndex, importPathRoot string, isMatch, treeCanMatch func(string) bool, tags, have map[string]bool, addPkg func(string)) {
+func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeCanMatch func(string) bool, tags, have map[string]bool, addPkg func(string)) {
 loopPackages:
 	for _, reldir := range index.Packages() {
 		// Avoid .foo, _foo, and testdata subdirectory trees.
@@ -252,7 +252,7 @@ loopPackages:
 		if !have[name] {
 			have[name] = true
 			if isMatch(name) {
-				if _, _, err := index.ScanDir(reldir, tags); err != imports.ErrNoGo {
+				if _, _, err := index.Package(reldir).ScanDir(tags); err != imports.ErrNoGo {
 					addPkg(name)
 				}
 			}

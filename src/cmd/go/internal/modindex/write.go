@@ -11,9 +11,9 @@ import (
 
 const indexVersion = "go index v0"
 
-// encodeModule produces the encoded representation of the module index.
-// encodeModule may modify the packages slice.
-func encodeModule(packages []*rawPackage) []byte {
+// encodeModuleBytes produces the encoded representation of the module index.
+// encodeModuleBytes may modify the packages slice.
+func encodeModuleBytes(packages []*rawPackage) []byte {
 	e := newEncoder()
 	e.Bytes([]byte(indexVersion))
 	e.Bytes([]byte{'\n'})
@@ -34,6 +34,18 @@ func encodeModule(packages []*rawPackage) []byte {
 		e.IntAt(e.Pos(), packagesOffsetPos+4*i)
 		encodePackage(e, p)
 	}
+	e.IntAt(e.Pos(), stringTableOffsetPos)
+	e.Bytes(e.stringTable)
+	return e.b
+}
+
+func encodePackageBytes(p *rawPackage) []byte {
+	e := newEncoder()
+	e.Bytes([]byte(indexVersion))
+	e.Bytes([]byte{'\n'})
+	stringTableOffsetPos := e.Pos() // fill this at the end
+	e.Uint32(0)                     // string table offset
+	encodePackage(e, p)
 	e.IntAt(e.Pos(), stringTableOffsetPos)
 	e.Bytes(e.stringTable)
 	return e.b
