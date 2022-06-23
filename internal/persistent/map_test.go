@@ -39,7 +39,7 @@ func TestSimpleMap(t *testing.T) {
 
 	m3 := m1.clone()
 	validateRef(t, m1, m3)
-	m3.insert(t, 8, 8)
+	m3.set(t, 8, 8)
 	validateRef(t, m1, m3)
 	m3.destroy()
 
@@ -48,15 +48,15 @@ func TestSimpleMap(t *testing.T) {
 	})
 
 	validateRef(t, m1)
-	m1.insert(t, 1, 1)
+	m1.set(t, 1, 1)
 	validateRef(t, m1)
-	m1.insert(t, 2, 2)
+	m1.set(t, 2, 2)
 	validateRef(t, m1)
-	m1.insert(t, 3, 3)
+	m1.set(t, 3, 3)
 	validateRef(t, m1)
 	m1.remove(t, 2)
 	validateRef(t, m1)
-	m1.insert(t, 6, 6)
+	m1.set(t, 6, 6)
 	validateRef(t, m1)
 
 	assertSameMap(t, deletedEntries, map[mapEntry]struct{}{
@@ -66,25 +66,25 @@ func TestSimpleMap(t *testing.T) {
 
 	m2 := m1.clone()
 	validateRef(t, m1, m2)
-	m1.insert(t, 6, 60)
+	m1.set(t, 6, 60)
 	validateRef(t, m1, m2)
 	m1.remove(t, 1)
 	validateRef(t, m1, m2)
 
 	for i := 10; i < 14; i++ {
-		m1.insert(t, i, i)
+		m1.set(t, i, i)
 		validateRef(t, m1, m2)
 	}
 
-	m1.insert(t, 10, 100)
+	m1.set(t, 10, 100)
 	validateRef(t, m1, m2)
 
 	m1.remove(t, 12)
 	validateRef(t, m1, m2)
 
-	m2.insert(t, 4, 4)
+	m2.set(t, 4, 4)
 	validateRef(t, m1, m2)
-	m2.insert(t, 5, 5)
+	m2.set(t, 5, 5)
 	validateRef(t, m1, m2)
 
 	m1.destroy()
@@ -100,7 +100,7 @@ func TestSimpleMap(t *testing.T) {
 		{key: 13, value: 13}:  {},
 	})
 
-	m2.insert(t, 7, 7)
+	m2.set(t, 7, 7)
 	validateRef(t, m2)
 
 	m2.destroy()
@@ -124,7 +124,7 @@ func TestRandomMap(t *testing.T) {
 	keys := make([]int, 0, 1000)
 	for i := 0; i < 1000; i++ {
 		key := rand.Int()
-		m.insert(t, key, key)
+		m.set(t, key, key)
 		keys = append(keys, key)
 
 		if i%10 == 1 {
@@ -245,9 +245,9 @@ func validateNode(t *testing.T, node *mapNode, less func(a, b interface{}) bool)
 	validateNode(t, node.right, less)
 }
 
-func (vm *validatedMap) insert(t *testing.T, key, value int) {
+func (vm *validatedMap) set(t *testing.T, key, value int) {
 	vm.seen[mapEntry{key: key, value: value}] = struct{}{}
-	vm.impl.Store(key, value, func(deletedKey, deletedValue interface{}) {
+	vm.impl.Set(key, value, func(deletedKey, deletedValue interface{}) {
 		if deletedKey != key || deletedValue != value {
 			t.Fatalf("unexpected passed in deleted entry: %v/%v, expected: %v/%v", deletedKey, deletedValue, key, value)
 		}
@@ -256,9 +256,9 @@ func (vm *validatedMap) insert(t *testing.T, key, value int) {
 	vm.expected[key] = value
 	vm.validate(t)
 
-	loadValue, ok := vm.impl.Load(key)
-	if !ok || loadValue != value {
-		t.Fatalf("unexpected load result after insertion, key: %v, expected: %v, got: %v (%v)", key, value, loadValue, ok)
+	gotValue, ok := vm.impl.Get(key)
+	if !ok || gotValue != value {
+		t.Fatalf("unexpected get result after insertion, key: %v, expected: %v, got: %v (%v)", key, value, gotValue, ok)
 	}
 }
 
@@ -267,9 +267,9 @@ func (vm *validatedMap) remove(t *testing.T, key int) {
 	delete(vm.expected, key)
 	vm.validate(t)
 
-	loadValue, ok := vm.impl.Load(key)
+	gotValue, ok := vm.impl.Get(key)
 	if ok {
-		t.Fatalf("unexpected load result after removal, key: %v, got: %v", key, loadValue)
+		t.Fatalf("unexpected get result after removal, key: %v, got: %v", key, gotValue)
 	}
 }
 

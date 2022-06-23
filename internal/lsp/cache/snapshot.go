@@ -673,7 +673,7 @@ func (s *snapshot) transitiveReverseDependencies(id PackageID, ids map[PackageID
 func (s *snapshot) getGoFile(key parseKey) *parseGoHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if result, ok := s.goFiles.Load(key); ok {
+	if result, ok := s.goFiles.Get(key); ok {
 		return result
 	}
 	return nil
@@ -682,14 +682,14 @@ func (s *snapshot) getGoFile(key parseKey) *parseGoHandle {
 func (s *snapshot) addGoFile(key parseKey, pgh *parseGoHandle, release func()) *parseGoHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if result, ok := s.goFiles.Load(key); ok {
+	if result, ok := s.goFiles.Get(key); ok {
 		release()
 		return result
 	}
-	s.goFiles.Store(key, pgh, release)
-	keys, _ := s.parseKeysByURI.Load(key.file.URI)
+	s.goFiles.Set(key, pgh, release)
+	keys, _ := s.parseKeysByURI.Get(key.file.URI)
 	keys = append([]parseKey{key}, keys...)
-	s.parseKeysByURI.Store(key.file.URI, keys)
+	s.parseKeysByURI.Set(key.file.URI, keys)
 	return pgh
 }
 
@@ -1326,7 +1326,7 @@ func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	result, _ := s.files.Load(f.URI())
+	result, _ := s.files.Get(f.URI())
 	return result
 }
 
@@ -1349,7 +1349,7 @@ func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle
 }
 
 func (s *snapshot) getFileLocked(ctx context.Context, f *fileBase) (source.VersionedFileHandle, error) {
-	if fh, ok := s.files.Load(f.URI()); ok {
+	if fh, ok := s.files.Get(f.URI()); ok {
 		return fh, nil
 	}
 
@@ -1358,7 +1358,7 @@ func (s *snapshot) getFileLocked(ctx context.Context, f *fileBase) (source.Versi
 		return nil, err
 	}
 	closed := &closedFile{fh}
-	s.files.Store(f.URI(), closed)
+	s.files.Set(f.URI(), closed)
 	return closed, nil
 }
 
@@ -1383,7 +1383,7 @@ func (s *snapshot) openFiles() []source.VersionedFileHandle {
 }
 
 func (s *snapshot) isOpenLocked(uri span.URI) bool {
-	fh, _ := s.files.Load(uri)
+	fh, _ := s.files.Get(uri)
 	_, open := fh.(*overlay)
 	return open
 }
@@ -1748,7 +1748,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	}
 
 	for uri := range changes {
-		keys, ok := result.parseKeysByURI.Load(uri)
+		keys, ok := result.parseKeysByURI.Get(uri)
 		if ok {
 			for _, key := range keys {
 				result.goFiles.Delete(key)
@@ -1806,7 +1806,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 
 		// The original FileHandle for this URI is cached on the snapshot.
-		originalFH, _ := s.files.Load(uri)
+		originalFH, _ := s.files.Get(uri)
 		var originalOpen, newOpen bool
 		_, originalOpen = originalFH.(*overlay)
 		_, newOpen = change.fileHandle.(*overlay)
@@ -1853,7 +1853,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		if !change.exists {
 			result.files.Delete(uri)
 		} else {
-			result.files.Store(uri, change.fileHandle)
+			result.files.Set(uri, change.fileHandle)
 		}
 
 		// Make sure to remove the changed file from the unloadable set.
@@ -2197,7 +2197,7 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 // lockedSnapshot must be locked.
 func peekOrParse(ctx context.Context, lockedSnapshot *snapshot, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
 	key := parseKey{file: fh.FileIdentity(), mode: mode}
-	if pgh, ok := lockedSnapshot.goFiles.Load(key); ok {
+	if pgh, ok := lockedSnapshot.goFiles.Get(key); ok {
 		cached := pgh.handle.Cached(lockedSnapshot.generation)
 		if cached != nil {
 			cached := cached.(*parseGoData)

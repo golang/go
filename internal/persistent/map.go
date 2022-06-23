@@ -140,9 +140,9 @@ func (node *mapNode) forEach(f func(key, value interface{})) {
 	node.right.forEach(f)
 }
 
-// Load returns the value stored in the map for a key, or nil if no entry is
-// present. The ok result indicates whether an entry was found in the map.
-func (pm *Map) Load(key interface{}) (interface{}, bool) {
+// Get returns the map value associated with the specified key, or nil if no entry
+// is present. The ok result indicates whether an entry was found in the map.
+func (pm *Map) Get(key interface{}) (interface{}, bool) {
 	node := pm.root
 	for node != nil {
 		if pm.less(key, node.key) {
@@ -156,10 +156,10 @@ func (pm *Map) Load(key interface{}) (interface{}, bool) {
 	return nil, false
 }
 
-// Store sets the value for a key.
+// Set updates the value associated with the specified key.
 // If release is non-nil, it will be called with entry's key and value once the
 // key is no longer contained in the map or any clone.
-func (pm *Map) Store(key, value interface{}, release func(key, value interface{})) {
+func (pm *Map) Set(key, value interface{}, release func(key, value interface{})) {
 	first := pm.root
 	second := newNodeWithRef(key, value, release)
 	pm.root = union(first, second, pm.less, true)

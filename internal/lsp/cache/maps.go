@@ -34,8 +34,8 @@ func (m filesMap) Destroy() {
 	m.impl.Destroy()
 }
 
-func (m filesMap) Load(key span.URI) (source.VersionedFileHandle, bool) {
-	value, ok := m.impl.Load(key)
+func (m filesMap) Get(key span.URI) (source.VersionedFileHandle, bool) {
+	value, ok := m.impl.Get(key)
 	if !ok {
 		return nil, false
 	}
@@ -48,8 +48,8 @@ func (m filesMap) Range(do func(key span.URI, value source.VersionedFileHandle))
 	})
 }
 
-func (m filesMap) Store(key span.URI, value source.VersionedFileHandle) {
-	m.impl.Store(key, value, nil)
+func (m filesMap) Set(key span.URI, value source.VersionedFileHandle) {
+	m.impl.Set(key, value, nil)
 }
 
 func (m filesMap) Delete(key span.URI) {
@@ -88,8 +88,8 @@ func (m goFilesMap) Destroy() {
 	m.impl.Destroy()
 }
 
-func (m goFilesMap) Load(key parseKey) (*parseGoHandle, bool) {
-	value, ok := m.impl.Load(key)
+func (m goFilesMap) Get(key parseKey) (*parseGoHandle, bool) {
+	value, ok := m.impl.Get(key)
 	if !ok {
 		return nil, false
 	}
@@ -102,8 +102,8 @@ func (m goFilesMap) Range(do func(key parseKey, value *parseGoHandle)) {
 	})
 }
 
-func (m goFilesMap) Store(key parseKey, value *parseGoHandle, release func()) {
-	m.impl.Store(key, value, func(key, value interface{}) {
+func (m goFilesMap) Set(key parseKey, value *parseGoHandle, release func()) {
+	m.impl.Set(key, value, func(key, value interface{}) {
 		release()
 	})
 }
@@ -134,8 +134,8 @@ func (m parseKeysByURIMap) Destroy() {
 	m.impl.Destroy()
 }
 
-func (m parseKeysByURIMap) Load(key span.URI) ([]parseKey, bool) {
-	value, ok := m.impl.Load(key)
+func (m parseKeysByURIMap) Get(key span.URI) ([]parseKey, bool) {
+	value, ok := m.impl.Get(key)
 	if !ok {
 		return nil, false
 	}
@@ -148,8 +148,8 @@ func (m parseKeysByURIMap) Range(do func(key span.URI, value []parseKey)) {
 	})
 }
 
-func (m parseKeysByURIMap) Store(key span.URI, value []parseKey) {
-	m.impl.Store(key, value, nil)
+func (m parseKeysByURIMap) Set(key span.URI, value []parseKey) {
+	m.impl.Set(key, value, nil)
 }
 
 func (m parseKeysByURIMap) Delete(key span.URI) {
