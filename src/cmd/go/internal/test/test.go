@@ -1668,8 +1668,9 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 
 	// Write coverage data to profile.
 	if cfg.BuildCover {
-		// coverprofile cache expiration time should be coupled with the test data above, so
-		// the entry can be ignored.
+		// The cached coverprofile has the same expiration time as the
+		// test result it corresponds to. That time is already checked
+		// above, so we can ignore the entry returned by GetFile here.
 		f, _, err := cache.Default().GetFile(testCoverProfileKey(testID, testInputsID))
 		if err != nil {
 			if cache.DebugTest {
