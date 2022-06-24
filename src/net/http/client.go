@@ -603,6 +603,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			Err: errors.New("http: nil Request.URL"),
 		}
 	}
+	_ = *c // panic early if c is nil; see go.dev/issue/53521
 
 	var (
 		deadline      = c.deadline()
