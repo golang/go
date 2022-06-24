@@ -96,20 +96,43 @@ func LookPath(file string) (string, error) {
 	// have configured their environment this way!
 	// https://docs.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-needcurrentdirectoryforexepathw
 	// See also go.dev/issue/43947.
+	var (
+		dotf   string
+		dotErr error
+	)
 	if _, found := syscall.Getenv("NoDefaultCurrentDirectoryInExePath"); !found {
 		if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
-			return f, &Error{file, ErrDot}
+			dotf, dotErr = f, &Error{file, ErrDot}
 		}
 	}
 
 	path := os.Getenv("path")
 	for _, dir := range filepath.SplitList(path) {
 		if f, err := findExecutable(filepath.Join(dir, file), exts); err == nil {
+			if dotErr != nil {
+				// https://go.dev/issue/53536: if we resolved a relative path implicitly,
+				// and it is the same executable that would be resolved from the explicit %PATH%,
+				// prefer the explicit name for the executable (and, likely, no error) instead
+				// of the equivalent implicit name with ErrDot.
+				//
+				// Otherwise, return the ErrDot for the implicit path as soon as we find
+				// out that the explicit one doesn't match.
+				dotfi, dotfiErr := os.Lstat(dotf)
+				fi, fiErr := os.Lstat(f)
+				if dotfiErr != nil || fiErr != nil || !os.SameFile(dotfi, fi) {
+					return dotf, dotErr
+				}
+			}
+
 			if !filepath.IsAbs(f) {
 				return f, &Error{file, ErrDot}
 			}
 			return f, nil
 		}
+	}
+
+	if dotErr != nil {
+		return dotf, dotErr
 	}
 	return "", &Error{file, ErrNotFound}
 }
