@@ -462,8 +462,8 @@ func lookExtensions(path, dir string) (string, error) {
 //
 // If Start returns successfully, the c.Process field will be set.
 //
-// The Wait method will return the exit code and release associated resources
-// once the command exits.
+// After a successful call to Start the Wait method must be called in
+// order to release associated system resources.
 func (c *Cmd) Start() error {
 	if c.Path == "" && c.Err == nil && c.lookPathErr == nil {
 		c.Err = errors.New("exec: no command")
