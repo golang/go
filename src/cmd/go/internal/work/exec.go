@@ -39,6 +39,7 @@ import (
 	"cmd/go/internal/slices"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/buildid"
 	"cmd/internal/quoted"
 	"cmd/internal/sys"
 )
@@ -2542,6 +2543,12 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 			}
 			flags = append(slices.Clip(flags), "-fdebug-prefix-map="+from+"="+to)
 		}
+	}
+
+	// Tell gcc to not insert truly random numbers into the build process
+	// this ensures LTO won't create random numbers for symbols.
+	if b.gccSupportsFlag(compiler, "-frandom-seed=1") {
+		flags = append(flags, "-frandom-seed="+buildid.HashToString(a.actionID))
 	}
 
 	overlayPath := file
