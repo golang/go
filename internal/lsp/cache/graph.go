@@ -18,7 +18,6 @@ import (
 // TODO(rfindley): make this type immutable, so that it may be shared across
 // snapshots.
 type metadataGraph struct {
-
 	// metadata maps package IDs to their associated metadata.
 	metadata map[PackageID]*KnownMetadata
 

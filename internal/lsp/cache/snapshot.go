@@ -1304,11 +1304,8 @@ func (s *snapshot) noValidMetadataForURILocked(uri span.URI) bool {
 func (s *snapshot) noValidMetadataForID(id PackageID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return noValidMetadataForID(s.meta, id)
-}
 
-func noValidMetadataForID(g *metadataGraph, id PackageID) bool {
-	m := g.metadata[id]
+	m := s.meta.metadata[id]
 	return m == nil || !m.Valid
 }
 
