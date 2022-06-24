@@ -204,18 +204,28 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		}
 	}
 
+	var loadedIDs []PackageID
+	for id := range updates {
+		loadedIDs = append(loadedIDs, id)
+	}
+
 	s.mu.Lock()
+
+	// invalidate the reverse transitive closure of packages that have changed.
+	invalidatedPackages := s.meta.reverseTransitiveClosure(true, loadedIDs...)
 	s.meta = s.meta.Clone(updates)
+
 	// Invalidate any packages we may have associated with this metadata.
 	//
-	// TODO(rfindley): if we didn't already invalidate these in snapshot.clone,
-	// shouldn't we invalidate the reverse transitive closure?
-	for _, m := range updates {
+	// TODO(rfindley): this should not be necessary, as we should have already
+	// invalidated in snapshot.clone.
+	for id := range invalidatedPackages {
 		for _, mode := range []source.ParseMode{source.ParseHeader, source.ParseExported, source.ParseFull} {
-			key := packageKey{mode, m.ID}
+			key := packageKey{mode, id}
 			delete(s.packages, key)
 		}
 	}
+
 	s.workspacePackages = computeWorkspacePackagesLocked(s, s.meta)
 	s.dumpWorkspace("load")
 	s.mu.Unlock()

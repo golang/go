@@ -70,6 +70,10 @@ type snapshot struct {
 	builtin span.URI
 
 	// meta holds loaded metadata.
+	//
+	// meta is guarded by mu, but the metadataGraph itself is immutable.
+	// TODO(rfindley): in many places we hold mu while operating on meta, even
+	// though we only need to hold mu while reading the pointer.
 	meta *metadataGraph
 
 	// files maps file URIs to their corresponding FileHandles.
@@ -627,8 +631,10 @@ func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]sou
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
-	ids := make(map[PackageID]struct{})
-	s.transitiveReverseDependencies(PackageID(id), ids)
+	s.mu.Lock()
+	meta := s.meta
+	s.mu.Unlock()
+	ids := meta.reverseTransitiveClosure(s.useInvalidMetadata(), PackageID(id))
 
 	// Make sure to delete the original package ID from the map.
 	delete(ids, PackageID(id))
@@ -650,24 +656,6 @@ func (s *snapshot) checkedPackage(ctx context.Context, id PackageID, mode source
 		return nil, err
 	}
 	return ph.check(ctx, s)
-}
-
-// transitiveReverseDependencies populates the ids map with package IDs
-// belonging to the provided package and its transitive reverse dependencies.
-func (s *snapshot) transitiveReverseDependencies(id PackageID, ids map[PackageID]struct{}) {
-	if _, ok := ids[id]; ok {
-		return
-	}
-	m := s.getMetadata(id)
-	// Only use invalid metadata if we support it.
-	if m == nil || !(m.Valid || s.useInvalidMetadata()) {
-		return
-	}
-	ids[id] = struct{}{}
-	importedBy := s.getImportedBy(id)
-	for _, parentID := range importedBy {
-		s.transitiveReverseDependencies(parentID, ids)
-	}
 }
 
 func (s *snapshot) getGoFile(key parseKey) *parseGoHandle {
@@ -1879,7 +1867,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	}
 
 	// Invalidate reverse dependencies too.
-	// TODO(heschi): figure out the locking model and use transitiveReverseDeps?
 	// idsToInvalidate keeps track of transitive reverse dependencies.
 	// If an ID is present in the map, invalidate its types.
 	// If an ID's value is true, invalidate its metadata too.

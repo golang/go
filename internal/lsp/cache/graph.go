@@ -128,3 +128,44 @@ func (g *metadataGraph) build() {
 		}
 	}
 }
+
+// reverseTransitiveClosure calculates the set of packages that transitively
+// reach an id in ids via their Deps. The result also includes given ids.
+//
+// If includeInvalid is false, the algorithm ignores packages with invalid
+// metadata (including those in the given list of ids).
+func (g *metadataGraph) reverseTransitiveClosure(includeInvalid bool, ids ...PackageID) map[PackageID]struct{} {
+	seen := make(map[PackageID]struct{})
+	var visitAll func([]PackageID)
+	visitAll = func(ids []PackageID) {
+		for _, id := range ids {
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			m := g.metadata[id]
+			// Only use invalid metadata if we support it.
+			if m == nil || !(m.Valid || includeInvalid) {
+				continue
+			}
+			seen[id] = struct{}{}
+			visitAll(g.importedBy[id])
+		}
+	}
+	visitAll(ids)
+	return seen
+}
+
+func collectReverseTransitiveClosure(g *metadataGraph, includeInvalid bool, ids []PackageID, seen map[PackageID]struct{}) {
+	for _, id := range ids {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		m := g.metadata[id]
+		// Only use invalid metadata if we support it.
+		if m == nil || !(m.Valid || includeInvalid) {
+			continue
+		}
+		seen[id] = struct{}{}
+		collectReverseTransitiveClosure(g, includeInvalid, g.importedBy[id], seen)
+	}
+}
