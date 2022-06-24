@@ -3,23 +3,23 @@
 This document describes the inlay hints that `gopls` uses inside the editor.
 
 <!-- BEGIN Hints: DO NOT MANUALLY EDIT THIS SECTION -->
-## **assign_variable_types**
+## **assignVariableTypes**
 
 Enable/disable inlay hints for variable types in assign statements:
 
 	i/* int/*, j/* int/* := 0, len(r)-1
 
-**Disabled by default. Enable it by setting `"hints": {"assign_variable_types": true}`.**
+**Disabled by default. Enable it by setting `"hints": {"assignVariableTypes": true}`.**
 
-## **composite_literal_fields**
+## **compositeLiteralFields**
 
 Enable/disable inlay hints for composite literal field names:
 
 	{in: "Hello, world", want: "dlrow ,olleH"}
 
-**Disabled by default. Enable it by setting `"hints": {"composite_literal_fields": true}`.**
+**Disabled by default. Enable it by setting `"hints": {"compositeLiteralFields": true}`.**
 
-## **composite_literal_types**
+## **compositeLiteralTypes**
 
 Enable/disable inlay hints for composite literal types:
 
@@ -29,9 +29,9 @@ Enable/disable inlay hints for composite literal types:
 		/*struct{ in string; want string }*/{"Hello, world", "dlrow ,olleH"},
 	}
 
-**Disabled by default. Enable it by setting `"hints": {"composite_literal_types": true}`.**
+**Disabled by default. Enable it by setting `"hints": {"compositeLiteralTypes": true}`.**
 
-## **constant_values**
+## **constantValues**
 
 Enable/disable inlay hints for constant values:
 
@@ -42,25 +42,25 @@ Enable/disable inlay hints for constant values:
 		KindErrorf/* = 3*/
 	)
 
-**Disabled by default. Enable it by setting `"hints": {"constant_values": true}`.**
+**Disabled by default. Enable it by setting `"hints": {"constantValues": true}`.**
 
-## **function_type_parameters**
+## **functionTypeParameters**
 
 Enable/disable inlay hints for implicit type parameters on generic functions:
 
 	myFoo/*[int, string]*/(1, "hello")
 
-**Disabled by default. Enable it by setting `"hints": {"function_type_parameters": true}`.**
+**Disabled by default. Enable it by setting `"hints": {"functionTypeParameters": true}`.**
 
-## **parameter_names**
+## **parameterNames**
 
 Enable/disable inlay hints for parameter names:
 
 	parseInt(/* str: */ "123", /* radix: */ 8)
 
-**Disabled by default. Enable it by setting `"hints": {"parameter_names": true}`.**
+**Disabled by default. Enable it by setting `"hints": {"parameterNames": true}`.**
 
-## **range_variable_types**
+## **rangeVariableTypes**
 
 Enable/disable inlay hints for variable types in range statements:
 
@@ -68,6 +68,6 @@ Enable/disable inlay hints for variable types in range statements:
 		fmt.Println(k, v)
 	}
 
-**Disabled by default. Enable it by setting `"hints": {"range_variable_types": true}`.**
+**Disabled by default. Enable it by setting `"hints": {"rangeVariableTypes": true}`.**
 
 <!-- END Hints: DO NOT MANUALLY EDIT THIS SECTION -->

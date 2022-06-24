@@ -511,37 +511,37 @@ var GeneratedAPIJSON = &APIJSON{
 				Doc:  "hints specify inlay hints that users want to see.\nA full list of hints that gopls uses can be found\n[here](https://github.com/golang/tools/blob/master/gopls/doc/inlayHints.md).\n",
 				EnumKeys: EnumKeys{Keys: []EnumKey{
 					{
-						Name:    "\"assign_variable_types\"",
+						Name:    "\"assignVariableTypes\"",
 						Doc:     "Enable/disable inlay hints for variable types in assign statements:\n\n\ti/* int/*, j/* int/* := 0, len(r)-1",
 						Default: "false",
 					},
 					{
-						Name:    "\"composite_literal_fields\"",
+						Name:    "\"compositeLiteralFields\"",
 						Doc:     "Enable/disable inlay hints for composite literal field names:\n\n\t{in: \"Hello, world\", want: \"dlrow ,olleH\"}",
 						Default: "false",
 					},
 					{
-						Name:    "\"composite_literal_types\"",
+						Name:    "\"compositeLiteralTypes\"",
 						Doc:     "Enable/disable inlay hints for composite literal types:\n\n\tfor _, c := range []struct {\n\t\tin, want string\n\t}{\n\t\t/*struct{ in string; want string }*/{\"Hello, world\", \"dlrow ,olleH\"},\n\t}",
 						Default: "false",
 					},
 					{
-						Name:    "\"constant_values\"",
+						Name:    "\"constantValues\"",
 						Doc:     "Enable/disable inlay hints for constant values:\n\n\tconst (\n\t\tKindNone   Kind = iota/* = 0*/\n\t\tKindPrint/*  = 1*/\n\t\tKindPrintf/* = 2*/\n\t\tKindErrorf/* = 3*/\n\t)",
 						Default: "false",
 					},
 					{
-						Name:    "\"function_type_parameters\"",
+						Name:    "\"functionTypeParameters\"",
 						Doc:     "Enable/disable inlay hints for implicit type parameters on generic functions:\n\n\tmyFoo/*[int, string]*/(1, \"hello\")",
 						Default: "false",
 					},
 					{
-						Name:    "\"parameter_names\"",
+						Name:    "\"parameterNames\"",
 						Doc:     "Enable/disable inlay hints for parameter names:\n\n\tparseInt(/* str: */ \"123\", /* radix: */ 8)",
 						Default: "false",
 					},
 					{
-						Name:    "\"range_variable_types\"",
+						Name:    "\"rangeVariableTypes\"",
 						Doc:     "Enable/disable inlay hints for variable types in range statements:\n\n\tfor k/* int*/, v/* string/* := range []string{} {\n\t\tfmt.Println(k, v)\n\t}",
 						Default: "false",
 					},
@@ -1026,31 +1026,31 @@ var GeneratedAPIJSON = &APIJSON{
 	},
 	Hints: []*HintJSON{
 		{
-			Name: "assign_variable_types",
+			Name: "assignVariableTypes",
 			Doc:  "Enable/disable inlay hints for variable types in assign statements:\n\n\ti/* int/*, j/* int/* := 0, len(r)-1",
 		},
 		{
-			Name: "composite_literal_fields",
+			Name: "compositeLiteralFields",
 			Doc:  "Enable/disable inlay hints for composite literal field names:\n\n\t{in: \"Hello, world\", want: \"dlrow ,olleH\"}",
 		},
 		{
-			Name: "composite_literal_types",
+			Name: "compositeLiteralTypes",
 			Doc:  "Enable/disable inlay hints for composite literal types:\n\n\tfor _, c := range []struct {\n\t\tin, want string\n\t}{\n\t\t/*struct{ in string; want string }*/{\"Hello, world\", \"dlrow ,olleH\"},\n\t}",
 		},
 		{
-			Name: "constant_values",
+			Name: "constantValues",
 			Doc:  "Enable/disable inlay hints for constant values:\n\n\tconst (\n\t\tKindNone   Kind = iota/* = 0*/\n\t\tKindPrint/*  = 1*/\n\t\tKindPrintf/* = 2*/\n\t\tKindErrorf/* = 3*/\n\t)",
 		},
 		{
-			Name: "function_type_parameters",
+			Name: "functionTypeParameters",
 			Doc:  "Enable/disable inlay hints for implicit type parameters on generic functions:\n\n\tmyFoo/*[int, string]*/(1, \"hello\")",
 		},
 		{
-			Name: "parameter_names",
+			Name: "parameterNames",
 			Doc:  "Enable/disable inlay hints for parameter names:\n\n\tparseInt(/* str: */ \"123\", /* radix: */ 8)",
 		},
 		{
-			Name: "range_variable_types",
+			Name: "rangeVariableTypes",
 			Doc:  "Enable/disable inlay hints for variable types in range statements:\n\n\tfor k/* int*/, v/* string/* := range []string{} {\n\t\tfmt.Println(k, v)\n\t}",
 		},
 	},

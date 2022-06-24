@@ -32,13 +32,13 @@ type Hint struct {
 }
 
 const (
-	ParameterNames             = "parameter_names"
-	AssignVariableTypes        = "assign_variable_types"
-	ConstantValues             = "constant_values"
-	RangeVariableTypes         = "range_variable_types"
-	CompositeLiteralTypes      = "composite_literal_types"
-	CompositeLiteralFieldNames = "composite_literal_fields"
-	FunctionTypeParameters     = "function_type_parameters"
+	ParameterNames             = "parameterNames"
+	AssignVariableTypes        = "assignVariableTypes"
+	ConstantValues             = "constantValues"
+	RangeVariableTypes         = "rangeVariableTypes"
+	CompositeLiteralTypes      = "compositeLiteralTypes"
+	CompositeLiteralFieldNames = "compositeLiteralFields"
+	FunctionTypeParameters     = "functionTypeParameters"
 )
 
 var AllInlayHints = map[string]*Hint{
