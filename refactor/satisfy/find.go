@@ -10,10 +10,8 @@
 //
 // THIS PACKAGE IS EXPERIMENTAL AND MAY CHANGE AT ANY TIME.
 //
-// It is provided only for the gorename tool.  Ideally this
-// functionality will become part of the type-checker in due course,
-// since it is computing it anyway, and it is robust for ill-typed
-// inputs, which this package is not.
+// It is provided only for the gopls tool. It requires well-typed inputs.
+//
 package satisfy // import "golang.org/x/tools/refactor/satisfy"
 
 // NOTES:
@@ -24,9 +22,6 @@ package satisfy // import "golang.org/x/tools/refactor/satisfy"
 //   const x = len([1]func(){func() {
 //     ...
 //   }})
-//
-// TODO(adonovan): make this robust against ill-typed input.
-// Or move it into the type-checker.
 //
 // Assignability conversions are possible in the following places:
 // - in assignments y = x, y := x, var y = x.
@@ -51,11 +46,15 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // A Constraint records the fact that the RHS type does and must
 // satisfy the LHS type, which is an interface.
 // The names are suggestive of an assignment statement LHS = RHS.
+//
+// The constraint is implicitly universally quantified over any type
+// parameters appearing within the two types.
 type Constraint struct {
 	LHS, RHS types.Type
 }
@@ -129,13 +128,13 @@ func (f *Finder) exprN(e ast.Expr) types.Type {
 
 	case *ast.CallExpr:
 		// x, err := f(args)
-		sig := f.expr(e.Fun).Underlying().(*types.Signature)
+		sig := coreType(f.expr(e.Fun)).(*types.Signature)
 		f.call(sig, e.Args)
 
 	case *ast.IndexExpr:
 		// y, ok := x[i]
 		x := f.expr(e.X)
-		f.assign(f.expr(e.Index), x.Underlying().(*types.Map).Key())
+		f.assign(f.expr(e.Index), coreType(x).(*types.Map).Key())
 
 	case *ast.TypeAssertExpr:
 		// y, ok := x.(T)
@@ -215,7 +214,7 @@ func (f *Finder) builtin(obj *types.Builtin, sig *types.Signature, args []ast.Ex
 			f.expr(args[1])
 		} else {
 			// append(x, y, z)
-			tElem := s.Underlying().(*types.Slice).Elem()
+			tElem := coreType(s).(*types.Slice).Elem()
 			for _, arg := range args[1:] {
 				f.assign(tElem, f.expr(arg))
 			}
@@ -224,7 +223,7 @@ func (f *Finder) builtin(obj *types.Builtin, sig *types.Signature, args []ast.Ex
 	case "delete":
 		m := f.expr(args[0])
 		k := f.expr(args[1])
-		f.assign(m.Underlying().(*types.Map).Key(), k)
+		f.assign(coreType(m).(*types.Map).Key(), k)
 
 	default:
 		// ordinary call
@@ -358,6 +357,7 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 		f.sig = saved
 
 	case *ast.CompositeLit:
+		// No need for coreType here: go1.18 disallows P{...} for type param P.
 		switch T := deref(tv.Type).Underlying().(type) {
 		case *types.Struct:
 			for i, elem := range e.Elts {
@@ -403,11 +403,19 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 		}
 
 	case *ast.IndexExpr:
-		x := f.expr(e.X)
-		i := f.expr(e.Index)
-		if ux, ok := x.Underlying().(*types.Map); ok {
-			f.assign(ux.Key(), i)
+		if instance(f.info, e.X) {
+			// f[T] or C[T] -- generic instantiation
+		} else {
+			// x[i] or m[k] -- index or lookup operation
+			x := f.expr(e.X)
+			i := f.expr(e.Index)
+			if ux, ok := coreType(x).(*types.Map); ok {
+				f.assign(ux.Key(), i)
+			}
 		}
+
+	case *typeparams.IndexListExpr:
+		// f[X, Y] -- generic instantiation
 
 	case *ast.SliceExpr:
 		f.expr(e.X)
@@ -439,7 +447,7 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 				}
 			}
 			// ordinary call
-			f.call(f.expr(e.Fun).Underlying().(*types.Signature), e.Args)
+			f.call(coreType(f.expr(e.Fun)).(*types.Signature), e.Args)
 		}
 
 	case *ast.StarExpr:
@@ -499,7 +507,7 @@ func (f *Finder) stmt(s ast.Stmt) {
 	case *ast.SendStmt:
 		ch := f.expr(s.Chan)
 		val := f.expr(s.Value)
-		f.assign(ch.Underlying().(*types.Chan).Elem(), val)
+		f.assign(coreType(ch).(*types.Chan).Elem(), val)
 
 	case *ast.IncDecStmt:
 		f.expr(s.X)
@@ -647,35 +655,35 @@ func (f *Finder) stmt(s ast.Stmt) {
 			if s.Key != nil {
 				k := f.expr(s.Key)
 				var xelem types.Type
-				// keys of array, *array, slice, string aren't interesting
-				switch ux := x.Underlying().(type) {
+				// Keys of array, *array, slice, string aren't interesting
+				// since the RHS key type is just an int.
+				switch ux := coreType(x).(type) {
 				case *types.Chan:
 					xelem = ux.Elem()
 				case *types.Map:
 					xelem = ux.Key()
 				}
 				if xelem != nil {
-					f.assign(xelem, k)
+					f.assign(k, xelem)
 				}
 			}
 			if s.Value != nil {
 				val := f.expr(s.Value)
 				var xelem types.Type
-				// values of strings aren't interesting
-				switch ux := x.Underlying().(type) {
+				// Values of type strings aren't interesting because
+				// the RHS value type is just a rune.
+				switch ux := coreType(x).(type) {
 				case *types.Array:
-					xelem = ux.Elem()
-				case *types.Chan:
 					xelem = ux.Elem()
 				case *types.Map:
 					xelem = ux.Elem()
 				case *types.Pointer: // *array
-					xelem = deref(ux).(*types.Array).Elem()
+					xelem = coreType(deref(ux)).(*types.Array).Elem()
 				case *types.Slice:
 					xelem = ux.Elem()
 				}
 				if xelem != nil {
-					f.assign(xelem, val)
+					f.assign(val, xelem)
 				}
 			}
 		}
@@ -690,7 +698,7 @@ func (f *Finder) stmt(s ast.Stmt) {
 
 // deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {
-	if p, ok := typ.Underlying().(*types.Pointer); ok {
+	if p, ok := coreType(typ).(*types.Pointer); ok {
 		return p.Elem()
 	}
 	return typ
@@ -699,3 +707,19 @@ func deref(typ types.Type) types.Type {
 func unparen(e ast.Expr) ast.Expr { return astutil.Unparen(e) }
 
 func isInterface(T types.Type) bool { return types.IsInterface(T) }
+
+func coreType(T types.Type) types.Type { return typeparams.CoreType(T) }
+
+func instance(info *types.Info, expr ast.Expr) bool {
+	var id *ast.Ident
+	switch x := expr.(type) {
+	case *ast.Ident:
+		id = x
+	case *ast.SelectorExpr:
+		id = x.Sel
+	default:
+		return false
+	}
+	_, ok := typeparams.GetInstances(info)[id]
+	return ok
+}
