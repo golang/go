@@ -7,6 +7,7 @@
 package work
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -2508,6 +2509,38 @@ func (b *Builder) gfortran(a *Action, p *load.Package, workdir, out string, flag
 	return b.ccompile(a, p, out, flags, ffile, b.gfortranCmd(p.Dir, workdir))
 }
 
+// bareLineSymbols returns any C #line macros inserted by cmd/cgo with just a name and no path.
+func bareLineSymbols(file string) ([][]byte, error) {
+	var symbols [][]byte
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	bufr := bufio.NewReader(f)
+	for {
+		line, _, err := bufr.ReadLine()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("failed to read line macros from cgo2.c file: %v", err)
+		}
+		if !bytes.HasPrefix(line, []byte("#line")) {
+			continue
+		}
+		s := bytes.Split(line, []byte(` `))
+		if len(s) != 3 {
+			continue
+		}
+		symbol := bytes.Trim(s[2], `"`)
+		if !bytes.HasPrefix(symbol, []byte("cgo")) {
+			continue
+		}
+		symbols = append(symbols, symbol)
+	}
+	return symbols, nil
+}
+
 // ccompile runs the given C or C++ compiler and creates an object from a single source file.
 func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []string, file string, compiler []string) error {
 	file = mkAbs(p.Dir, file)
@@ -2548,6 +2581,22 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 	if p, ok := a.nonGoOverlay[overlayPath]; ok {
 		overlayPath = p
 	}
+
+	// GCC embeds the working directory to bare symbols in line macros
+	// when LTO is used on cgo2.c files.
+	// See go.dev/issue/53528
+	if strings.HasSuffix(file, "cgo2.c") && !cfg.BuildN {
+		lineSymbols, err := bareLineSymbols(overlayPath)
+		if err != nil {
+			return err
+		}
+		// The complexity of checking for duplicate symbols isn't worth it
+		// as duplicate prefix-maps doesn't affect the output.
+		for _, line := range lineSymbols {
+			flags = append(flags, fmt.Sprintf("-fdebug-prefix-map=%s=/tmp/go-build/%s", line, line))
+		}
+	}
+
 	output, err := b.runOut(a, filepath.Dir(overlayPath), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(overlayPath))
 	if len(output) > 0 {
 		// On FreeBSD 11, when we pass -g to clang 3.8 it

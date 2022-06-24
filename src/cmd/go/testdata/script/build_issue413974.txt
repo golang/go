@@ -1,0 +1,33 @@
+# Regression test for https://go.dev/issue/53528:
+# cgo build should reproduce binaries with LTO enable
+
+[!cgo] skip
+[short] skip 'links cgo binaries'
+
+env GOFLAGS=-ldflags=-linkmode=external
+env CGO_CFLAGS=-flto
+
+go build -o main.exe
+mv main.exe main1.exe
+
+env GOCACHE=$WORK${/}gocache
+mkdir $GOCACHE
+go build -o main.exe
+mv main.exe main2.exe
+
+cmp -q main2.exe main1.exe
+
+-- go.mod --
+module main
+
+go 1.18
+-- main.go --
+package main
+
+import "C"
+
+var _ C.int
+
+func main() {
+       println("Hello World")
+}
