@@ -34,7 +34,7 @@ The support commands are:
 	sccs
 		all strongly connected components (one per line)
 	scc <node>
-		the set of nodes nodes strongly connected to the specified one
+		the set of nodes strongly connected to the specified one
 	focus <node>
 		the subgraph containing all directed paths that pass through the specified node
 
