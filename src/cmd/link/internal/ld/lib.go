@@ -652,6 +652,11 @@ func loadWindowsHostArchives(ctxt *Link) {
 				hostObject(ctxt, "crt2", p)
 			}
 		}
+		if *flagRace {
+			if p := ctxt.findLibPath("libsynchronization.a"); p != "none" {
+				hostArchive(ctxt, p)
+			}
+		}
 		if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
 			hostArchive(ctxt, p)
 		}
@@ -1704,6 +1709,11 @@ func (ctxt *Link) hostlink() {
 		if !usingLLD {
 			p := writeGDBLinkerScript()
 			argv = append(argv, "-Wl,-T,"+p)
+		}
+		if *flagRace {
+			if p := ctxt.findLibPath("libsynchronization.a"); p != "libsynchronization.a" {
+				argv = append(argv, "-lsynchronization")
+			}
 		}
 		// libmingw32 and libmingwex have some inter-dependencies,
 		// so must use linker groups.
