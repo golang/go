@@ -7,6 +7,8 @@ Strings are written into the string table at the end of the file. Each string
 is null-terminated. String offsets are relative to the start of the string table.
 Bools are written as uint32s: 0 for false and 1 for true.
 
+The following is the format for a full module:
+
 “go index v0\n”
 str uint32 - offset of string table
 n uint32 - number of packages
@@ -40,7 +42,16 @@ for each RawPackage:
 			position - file, offset, line, column - uint32
 [string table]
 
-// parseError struct
+The following is the format for a single indexed package:
+
+“go index v0\n”
+str uint32 - offset of string table
+for the single RawPackage:
+    [same RawPackage format as above]
+[string table]
+
+The following is the definition of the json-serialized parseError struct:
+
 type parseError struct {
 	ErrorList *scanner.ErrorList // non-nil if the error was an ErrorList, nil otherwise
 	ErrorString string // non-empty for all other cases

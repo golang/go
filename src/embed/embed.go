@@ -91,6 +91,7 @@
 // It can only be used with variables at package scope, not with local variables.
 //
 // Patterns must not match files outside the package's module, such as ‘.git/*’ or symbolic links.
+// Patterns must not match files whose names include the special punctuation characters  " * < > ? ` ' | / \ and :.
 // Matches for empty directories are ignored. After that, each pattern in a //go:embed line
 // must match at least one file or non-empty directory.
 //

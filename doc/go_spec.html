@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 14, 2022",
+	"Subtitle": "Version of June 21, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -1810,6 +1810,31 @@ interface{ Celsius|float64 }              // no single underlying type
 interface{ chan int | chan&lt;- string }     // channels have different element types
 interface{ &lt;-chan int | chan&lt;- int }      // directional channels have different directions
 </pre>
+
+<p>
+Some operations (<a href="#Slice_expressions">slice expressions</a>,
+<a href="#Appending_and_copying_slices"><code>append</code> and <code>copy</code></a>)
+rely on a slightly more loose form of core types which accept byte slices and strings.
+Specifically, if there are exactly two types, <code>[]byte</code> and <code>string</code>,
+which are the underlying types of all types in the type set of interface <code>T</code>,
+the core type of <code>T</code> is called <code>bytestring</code>.
+</p>
+
+<p>
+Examples of interfaces with <code>bytestring</code> core types:
+</p>
+
+<pre>
+interface{ int }                          // int (same as ordinary core type)
+interface{ []byte | string }              // bytestring
+interface{ ~[]byte | myString }           // bytestring
+</pre>
+
+<p>
+Note that <code>bytestring</code> is not a real type; it cannot be used to declare
+variables are compose other types. It exists solely to describe the behavior of some
+operations that read from a sequence of bytes, which may be a byte slice or a string.
+</p>
 
 <h3 id="Type_identity">Type identity</h3>
 
@@ -3837,7 +3862,8 @@ a[low : high]
 
 <p>
 constructs a substring or slice. The <a href="#Core_types">core type</a> of
-<code>a</code> must be a string, array, pointer to array, or slice.
+<code>a</code> must be a string, array, pointer to array, slice, or a
+<a href="#Core_types"><code>bytestring</code></a>.
 The <i>indices</i> <code>low</code> and
 <code>high</code> select which elements of operand <code>a</code> appear
 in the result. The result has indices starting at 0 and length equal to
@@ -5469,7 +5495,7 @@ string(runes{0x767d, 0x9d6c, 0x7fd4})    // "\u767d\u9d6c\u7fd4" == "白鵬翔"
 
 type myRune rune
 string([]myRune{0x266b, 0x266c})         // "\u266b\u266c" == "♫♬"
-myString([]myRune{0x1F30E})              // "\U0001f30e" == "🌎"
+myString([]myRune{0x1f30e})              // "\U0001f30e" == "🌎"
 </pre>
 </li>
 
@@ -7197,8 +7223,9 @@ The values <code>x</code> are passed to a parameter of type <code>...E</code>
 and the respective <a href="#Passing_arguments_to_..._parameters">parameter
 passing rules</a> apply.
 As a special case, if the core type of <code>s</code> is <code>[]byte</code>,
-<code>append</code> also accepts a second argument with core type <code>string</code>
-followed by <code>...</code>. This form appends the bytes of the string.
+<code>append</code> also accepts a second argument with core type
+<a href="#Core_types"><code>bytestring</code></a> followed by <code>...</code>.
+This form appends the bytes of the byte slice or string.
 </p>
 
 <pre class="grammar">
@@ -7235,8 +7262,9 @@ with <a href="#Type_identity">identical</a> element type.
 The number of elements copied is the minimum of
 <code>len(src)</code> and <code>len(dst)</code>.
 As a special case, if the destination's core type is <code>[]byte</code>,
-<code>copy</code> also accepts a source argument with core type <code>string</code>.
-This form copies the bytes from the string into the byte slice.
+<code>copy</code> also accepts a source argument with core type
+</a> <a href="#Core_types"><code>bytestring</code></a>.
+This form copies the bytes from the byte slice or string into the byte slice.
 </p>
 
 <pre class="grammar">
@@ -7550,7 +7578,7 @@ and the Unicode replacement character U+FFFD.
 </p>
 
 <p>
-Assume we have compiled a package containing the package clause
+Consider a compiled a package containing the package clause
 <code>package math</code>, which exports function <code>Sin</code>, and
 installed the compiled package in the file identified by
 <code>"lib/math"</code>.

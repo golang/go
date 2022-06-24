@@ -1705,6 +1705,11 @@ var (
 	TypeResultMem = newResults([]*Type{TypeMem})
 )
 
+func init() {
+	TypeInt128.width = 16
+	TypeInt128.align = 8
+}
+
 // NewNamed returns a new named type for the given type name. obj should be an
 // ir.Name. The new type is incomplete (marked as TFORW kind), and the underlying
 // type should be set later via SetUnderlying(). References to the type are

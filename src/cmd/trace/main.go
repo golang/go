@@ -185,23 +185,195 @@ func httpMain(w http.ResponseWriter, r *http.Request) {
 
 var templMain = template.Must(template.New("").Parse(`
 <html>
+<style>
+/* See https://github.com/golang/pkgsite/blob/master/static/shared/typography/typography.css */
+body {
+  font-family:	-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  font-size:	1rem;
+  line-height:	normal;
+  max-width:	9in;
+  margin:	1em;
+}
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.375rem; }
+h1,h2 {
+  font-weight: 600;
+  line-height: 1.25em;
+  word-break: break-word;
+}
+p  { color: grey85; font-size:85%; }
+</style>
 <body>
+<h1>cmd/trace: the Go trace event viewer</h1>
+<p>
+  This web server provides various visualizations of an event log gathered during
+  the execution of a Go program that uses the <a href='https://pkg.go.dev/runtime/trace'>runtime/trace</a> package.
+</p>
+
+<h2>Event timelines for running goroutines</h2>
 {{if $}}
+<p>
+  Large traces are split into multiple sections of equal data size
+  (not duration) to avoid overwhelming the visualizer.
+</p>
+<ul>
 	{{range $e := $}}
-		<a href="{{$e.URL}}">View trace ({{$e.Name}})</a><br>
+		<li><a href="{{$e.URL}}">View trace ({{$e.Name}})</a></li>
 	{{end}}
-	<br>
+</ul>
 {{else}}
-	<a href="/trace">View trace</a><br>
+<ul>
+	<li><a href="/trace">View trace</a></li>
+</ul>
 {{end}}
-<a href="/goroutines">Goroutine analysis</a><br>
-<a href="/io">Network blocking profile</a> (<a href="/io?raw=1" download="io.profile">⬇</a>)<br>
-<a href="/block">Synchronization blocking profile</a> (<a href="/block?raw=1" download="block.profile">⬇</a>)<br>
-<a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)<br>
-<a href="/sched">Scheduler latency profile</a> (<a href="/sche?raw=1" download="sched.profile">⬇</a>)<br>
-<a href="/usertasks">User-defined tasks</a><br>
-<a href="/userregions">User-defined regions</a><br>
-<a href="/mmu">Minimum mutator utilization</a><br>
+<p>
+  This view displays a timeline for each of the GOMAXPROCS logical
+  processors, showing which goroutine (if any) was running on that
+  logical processor at each moment.
+
+  Each goroutine has an identifying number (e.g. G123), main function,
+  and color.
+
+  A colored bar represents an uninterrupted span of execution.
+
+  Execution of a goroutine may migrate from one logical processor to another,
+  causing a single colored bar to be horizontally continuous but
+  vertically displaced.
+</p>
+<p>
+  Clicking on a span reveals information about it, such as its
+  duration, its causal predecessors and successors, and the stack trace
+  at the final moment when it yielded the logical processor, for example
+  because it made a system call or tried to acquire a mutex.
+
+  Directly underneath each bar, a smaller bar or more commonly a fine
+  vertical line indicates an event occuring during its execution.
+  Some of these are related to garbage collection; most indicate that
+  a goroutine yielded its logical processor but then immediately resumed execution
+  on the same logical processor. Clicking on the event displays the stack trace
+  at the moment it occurred.
+</p>
+<p>
+  The causal relationships between spans of goroutine execution
+  can be displayed by clicking the Flow Events button at the top.
+</p>
+<p>
+  At the top ("STATS"), there are three additional timelines that
+  display statistical information.
+
+  "Goroutines" is a time series of the count of existing goroutines;
+  clicking on it displays their breakdown by state at that moment:
+  running, runnable, or waiting.
+
+  "Heap" is a time series of the amount of heap memory allocated (in orange)
+  and (in green) the allocation limit at which the next GC cycle will begin.
+
+  "Threads" shows the number of kernel threads in existence: there is
+  always one kernel thread per logical processor, and additional threads
+  are created for calls to non-Go code such as a system call or a
+  function written in C.
+</p>
+<p>
+  Above the event trace for the first logical processor are 
+  traces for various runtime-internal events.
+
+  The "GC" bar shows when the garbage collector is running, and in which stage.
+  Garbage collection may temporarily affect all the logical processors
+  and the other metrics.
+
+  The "Network", "Timers", and "Syscalls" traces indicate events in
+  the runtime that cause goroutines to wake up.
+</p>
+<p>
+  The visualization allows you to navigate events at scales ranging from several
+  seconds to a handful of nanoseconds.
+
+  Consult the documentation for the Chromium <a href='https://www.chromium.org/developers/how-tos/trace-event-profiling-tool/'>Trace Event Profiling Tool<a/>
+  for help navigating the view.
+</p>
+
+<ul>
+<li><a href="/goroutines">Goroutine analysis</a></li>
+</ul>
+<p>
+  This view displays information about each set of goroutines that
+  shares the same main function.
+
+  Clicking on a main function shows links to the four types of
+  blocking profile (see below) applied to that subset of goroutines.
+
+  It also shows a table of specific goroutine instances, with various
+  execution statistics and a link to the event timeline for each one.
+
+  The timeline displays only the selected goroutine and any others it
+  interacts with via block/unblock events. (The timeline is
+  goroutine-oriented rather than logical processor-oriented.)
+</p>
+
+<h2>Profiles</h2>
+<p>
+  Each link below displays a global profile in zoomable graph form as
+  produced by <a href='https://go.dev/blog/pprof'>pprof</a>'s "web" command.
+
+  In addition there is a link to download the profile for offline
+  analysis with pprof.
+
+  All four profiles represent causes of delay that prevent a goroutine
+  from running on a logical processor: because it was waiting for the network,
+  for a synchronization operation on a mutex or channel, for a system call,
+  or for a logical processor to become available.
+</p>
+<ul>
+<li><a href="/io">Network blocking profile</a> (<a href="/io?raw=1" download="io.profile">⬇</a>)</li>
+<li><a href="/block">Synchronization blocking profile</a> (<a href="/block?raw=1" download="block.profile">⬇</a>)</li>
+<li><a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)</li>
+<li><a href="/sched">Scheduler latency profile</a> (<a href="/sche?raw=1" download="sched.profile">⬇</a>)</li>
+</ul>
+
+<h2>User-defined tasks and regions</h2>
+<p>
+  The trace API allows a target program to annotate a <a
+  href='https://pkg.go.dev/runtime/trace#Region'>region</a> of code
+  within a goroutine, such as a key function, so that its performance
+  can be analyzed.
+
+  <a href='https://pkg.go.dev/runtime/trace#Log'>Log events</a> may be
+  associated with a region to record progress and relevant values.
+
+  The API also allows annotation of higher-level
+  <a href='https://pkg.go.dev/runtime/trace#Task'>tasks</a>,
+  which may involve work across many goroutines.
+</p>
+<p>
+  The links below display, for each region and task, a histogram of its execution times.
+
+  Each histogram bucket contains a sample trace that records the
+  sequence of events such as goroutine creations, log events, and
+  subregion start/end times.
+
+  For each task, you can click through to a logical-processor or
+  goroutine-oriented view showing the tasks and regions on the
+  timeline.
+
+  Such information may help uncover which steps in a region are
+  unexpectedly slow, or reveal relationships between the data values
+  logged in a request and its running time.
+</p>
+<ul>
+<li><a href="/usertasks">User-defined tasks</a></li>
+<li><a href="/userregions">User-defined regions</a></li>
+</ul>
+
+<h2>Garbage collection metrics</h2>
+<ul>
+<li><a href="/mmu">Minimum mutator utilization</a></li>
+</ul>
+<p>
+  This chart indicates the maximum GC pause time (the largest x value
+  for which y is zero), and more generally, the fraction of time that
+  the processors are available to application goroutines ("mutators"),
+  for any time window of a specified size, in the worst case.
+</p>
 </body>
 </html>
 `))

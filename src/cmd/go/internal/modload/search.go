@@ -23,6 +23,7 @@ import (
 	"cmd/go/internal/modindex"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
+	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
 )
@@ -38,6 +39,9 @@ const (
 // a global) for tags, can include or exclude packages in the standard library,
 // and is restricted to the given list of modules.
 func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, filter stdFilter, modules []module.Version) {
+	ctx, span := trace.StartSpan(ctx, "modload.matchPackages")
+	defer span.Done()
+
 	m.Pkgs = []string{}
 
 	isMatch := func(string) bool { return true }
@@ -69,6 +73,9 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	q := par.NewQueue(runtime.GOMAXPROCS(0))
 
 	walkPkgs := func(root, importPathRoot string, prune pruning) {
+		_, span := trace.StartSpan(ctx, "walkPkgs "+root)
+		defer span.Done()
+
 		root = filepath.Clean(root)
 		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
 			if err != nil {
@@ -188,7 +195,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			}
 			modPrefix = mod.Path
 		}
-		if mi, err := modindex.Get(root); err == nil {
+		if mi, err := modindex.GetModule(root); err == nil {
 			walkFromIndex(mi, modPrefix, isMatch, treeCanMatch, tags, have, addPkg)
 			continue
 		} else if !errors.Is(err, modindex.ErrNotIndexed) {
@@ -206,9 +213,9 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 }
 
 // walkFromIndex matches packages in a module using the module index. modroot
-// is the module's root directory on disk, index is the ModuleIndex for the
+// is the module's root directory on disk, index is the modindex.Module for the
 // module, and importPathRoot is the module's path prefix.
-func walkFromIndex(index *modindex.ModuleIndex, importPathRoot string, isMatch, treeCanMatch func(string) bool, tags, have map[string]bool, addPkg func(string)) {
+func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeCanMatch func(string) bool, tags, have map[string]bool, addPkg func(string)) {
 loopPackages:
 	for _, reldir := range index.Packages() {
 		// Avoid .foo, _foo, and testdata subdirectory trees.
@@ -245,7 +252,7 @@ loopPackages:
 		if !have[name] {
 			have[name] = true
 			if isMatch(name) {
-				if _, _, err := index.ScanDir(reldir, tags); err != imports.ErrNoGo {
+				if _, _, err := index.Package(reldir).ScanDir(tags); err != imports.ErrNoGo {
 					addPkg(name)
 				}
 			}

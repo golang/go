@@ -40,7 +40,7 @@ func _() {
 	_ = m /* ERROR map can only be compared to nil */ == m
 	_ = c == c
 
-	_ = b /* ERROR mismatched types */ == nil 
+	_ = b /* ERROR mismatched types */ == nil
 	_ = a /* ERROR mismatched types */ == nil
 	_ = l == nil
 	_ = s /* ERROR mismatched types */ == nil
@@ -73,7 +73,7 @@ func _[
 	J comparable,
 	M map[string]int,
 	C chan int,
-] (
+](
 	b B,
 	a A,
 	l L,
@@ -86,14 +86,14 @@ func _[
 	c C,
 ) {
 	_ = b == b
-	_ = a /* ERROR type parameter A is not comparable with == */ == a
-	_ = l /* ERROR type parameter L is not comparable with == */ == l
-	_ = s /* ERROR type parameter S is not comparable with == */ == s
+	_ = a /* ERROR incomparable types in type set */ == a
+	_ = l /* ERROR incomparable types in type set */ == l
+	_ = s /* ERROR incomparable types in type set */ == s
 	_ = p == p
-	_ = f /* ERROR type parameter F is not comparable with == */ == f
-	_ = i /* ERROR type parameter I is not comparable with == */ == i
+	_ = f /* ERROR incomparable types in type set */ == f
+	_ = i /* ERROR incomparable types in type set */ == i
 	_ = j == j
-	_ = m /* ERROR type parameter M is not comparable with == */ == m
+	_ = m /* ERROR incomparable types in type set */ == m
 	_ = c == c
 
 	_ = b /* ERROR mismatched types */ == nil

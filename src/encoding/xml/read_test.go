@@ -1079,3 +1079,18 @@ func TestUnmarshalWhitespaceAttrs(t *testing.T) {
 		t.Fatalf("whitespace attrs: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
 	}
 }
+
+// golang.org/issues/53350
+func TestUnmarshalIntoNil(t *testing.T) {
+	type T struct {
+		A int `xml:"A"`
+	}
+
+	var nilPointer *T
+	err := Unmarshal([]byte("<T><A>1</A></T>"), nilPointer)
+
+	if err == nil {
+		t.Fatalf("no error in unmarshalling")
+	}
+
+}

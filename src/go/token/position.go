@@ -92,7 +92,6 @@ func (p Pos) IsValid() bool {
 // A File is a handle for a file belonging to a FileSet.
 // A File has a name, size, and line offset table.
 type File struct {
-	set  *FileSet
 	name string // file name as provided to AddFile
 	base int    // Pos value range for this file is [base...base+size]
 	size int    // file size as provided to AddFile
@@ -418,7 +417,7 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 		panic(fmt.Sprintf("invalid size %d (should be >= 0)", size))
 	}
 	// base >= s.base && size >= 0
-	f := &File{set: s, name: filename, base: base, size: size, lines: []int{0}}
+	f := &File{name: filename, base: base, size: size, lines: []int{0}}
 	base += size + 1 // +1 because EOF also has a position
 	if base < 0 {
 		panic("token.Pos offset overflow (> 2G of source code in file set)")

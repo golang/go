@@ -16,7 +16,6 @@ import (
 	"flag"
 	"fmt"
 	"internal/cfg"
-	"internal/testmath"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -463,68 +462,4 @@ func RunWithTimeout(t testing.TB, cmd *exec.Cmd) ([]byte, error) {
 	close(done)
 
 	return b.Bytes(), err
-}
-
-// CheckLinear checks if the function produced by f scales linearly.
-//
-// f must accept a scale factor which causes the input to the function it
-// produces to scale by that factor.
-func CheckLinear(t *testing.T, f func(scale float64) func(*testing.B)) {
-	MustHaveExec(t)
-
-	if os.Getenv("GO_PERF_UNIT_TEST") == "" {
-		// Invoke the same test as a subprocess with the GO_PERF_UNIT_TEST environment variable set.
-		// We create a subprocess for two reasons:
-		//
-		//   1. There's no other way to set the benchmarking parameters of testing.Benchmark.
-		//   2. Since we're effectively running a performance test, running in a subprocess grants
-		//      us a little bit more isolation than using the same process.
-		//
-		// As an alternative, we could fairly easily reimplement the timing code in testing.Benchmark,
-		// but a subprocess is just as easy to create.
-
-		selfCmd := CleanCmdEnv(exec.Command(os.Args[0], "-test.v", fmt.Sprintf("-test.run=^%s$", t.Name()), "-test.benchtime=1x"))
-		selfCmd.Env = append(selfCmd.Env, "GO_PERF_UNIT_TEST=1")
-		output, err := RunWithTimeout(t, selfCmd)
-		if err != nil {
-			t.Error(err)
-			t.Logf("--- subprocess output ---\n%s", string(output))
-		}
-		if bytes.Contains(output, []byte("insignificant result")) {
-			t.Skip("insignificant result")
-		}
-		return
-	}
-
-	// Pick a reasonable sample count.
-	const count = 10
-
-	// Collect samples for scale factor 1.
-	x1 := make([]testing.BenchmarkResult, 0, count)
-	for i := 0; i < count; i++ {
-		x1 = append(x1, testing.Benchmark(f(1.0)))
-	}
-
-	// Collect samples for scale factor 2.
-	x2 := make([]testing.BenchmarkResult, 0, count)
-	for i := 0; i < count; i++ {
-		x2 = append(x2, testing.Benchmark(f(2.0)))
-	}
-
-	// Run a t-test on the results.
-	r1 := testmath.BenchmarkResults(x1)
-	r2 := testmath.BenchmarkResults(x2)
-	result, err := testmath.TwoSampleWelchTTest(r1, r2, testmath.LocationDiffers)
-	if err != nil {
-		t.Fatalf("failed to run t-test: %v", err)
-	}
-	if result.P > 0.005 {
-		// Insignificant result.
-		t.Skip("insignificant result")
-	}
-
-	// Let ourselves be within 3x; 2x is too strict.
-	if m1, m2 := r1.Mean(), r2.Mean(); 3.0*m1 < m2 {
-		t.Fatalf("failure to scale linearly: µ_1=%s µ_2=%s p=%f", time.Duration(m1), time.Duration(m2), result.P)
-	}
 }

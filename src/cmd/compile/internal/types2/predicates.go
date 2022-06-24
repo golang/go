@@ -147,7 +147,17 @@ func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, .
 		}
 		return true
 	case *Interface:
-		return dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen)
+		if dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen) {
+			return true
+		}
+		if reportf != nil {
+			if t.typeSet().IsEmpty() {
+				reportf("empty type set")
+			} else {
+				reportf("incomparable types in type set")
+			}
+		}
+		// fallthrough
 	}
 	return false
 }

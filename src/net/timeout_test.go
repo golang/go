@@ -243,8 +243,7 @@ func TestAcceptTimeoutMustNotReturn(t *testing.T) {
 	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
-	max := time.NewTimer(100 * time.Millisecond)
-	defer max.Stop()
+	maxch := make(chan *time.Timer)
 	ch := make(chan error)
 	go func() {
 		if err := ln.(*TCPListener).SetDeadline(time.Now().Add(-5 * time.Second)); err != nil {
@@ -253,9 +252,13 @@ func TestAcceptTimeoutMustNotReturn(t *testing.T) {
 		if err := ln.(*TCPListener).SetDeadline(noDeadline); err != nil {
 			t.Error(err)
 		}
+		maxch <- time.NewTimer(100 * time.Millisecond)
 		_, err := ln.Accept()
 		ch <- err
 	}()
+
+	max := <-maxch
+	defer max.Stop()
 
 	select {
 	case err := <-ch:
@@ -348,8 +351,7 @@ func TestReadTimeoutMustNotReturn(t *testing.T) {
 	}
 	defer c.Close()
 
-	max := time.NewTimer(100 * time.Millisecond)
-	defer max.Stop()
+	maxch := make(chan *time.Timer)
 	ch := make(chan error)
 	go func() {
 		if err := c.SetDeadline(time.Now().Add(-5 * time.Second)); err != nil {
@@ -361,10 +363,14 @@ func TestReadTimeoutMustNotReturn(t *testing.T) {
 		if err := c.SetReadDeadline(noDeadline); err != nil {
 			t.Error(err)
 		}
+		maxch <- time.NewTimer(100 * time.Millisecond)
 		var b [1]byte
 		_, err := c.Read(b[:])
 		ch <- err
 	}()
+
+	max := <-maxch
+	defer max.Stop()
 
 	select {
 	case err := <-ch:
@@ -517,8 +523,7 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 	}
 	defer c.Close()
 
-	max := time.NewTimer(100 * time.Millisecond)
-	defer max.Stop()
+	maxch := make(chan *time.Timer)
 	ch := make(chan error)
 	go func() {
 		if err := c.SetDeadline(time.Now().Add(-5 * time.Second)); err != nil {
@@ -530,6 +535,7 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 		if err := c.SetWriteDeadline(noDeadline); err != nil {
 			t.Error(err)
 		}
+		maxch <- time.NewTimer(100 * time.Millisecond)
 		var b [1]byte
 		for {
 			if _, err := c.Write(b[:]); err != nil {
@@ -538,6 +544,9 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 			}
 		}
 	}()
+
+	max := <-maxch
+	defer max.Stop()
 
 	select {
 	case err := <-ch:

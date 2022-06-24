@@ -128,11 +128,8 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// named and unnamed types are passed to parameters with identical type, different types
 	// (named vs underlying) may be inferred depending on the order of the arguments.
 	// By ensuring that named types are seen first, order dependence is avoided and unification
-	// succeeds where it can.
-	//
-	// This code is disabled for now pending decision whether we want to address cases like
-	// these and make the spec on type inference more complicated (see issue #43056).
-	const enableArgSorting = false
+	// succeeds where it can (issue #43056).
+	const enableArgSorting = true
 	if m := len(args); m >= 2 && enableArgSorting {
 		// Determine indices of arguments with named and unnamed types.
 		var named, unnamed []int

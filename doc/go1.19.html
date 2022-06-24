@@ -35,7 +35,7 @@ Do not send CLs removing the interior tags from such phrases.
   the memory model used by C, C++, Java, JavaScript, Rust, and Swift.
   Go only provides sequentially consistent atomics, not any of the more relaxed forms found in other languages.
   Along with the memory model update,
-  Go 1.19 introduces <a href="#sync/atomic">new types in the <code>sync/atomic</code> package</a>
+  Go 1.19 introduces <a href="#atomic_types">new types in the <code>sync/atomic</code> package</a>
   that make it easier to use atomic values, such as
   <a href="/pkg/sync/atomic/#Int64">atomic.Int64</a>
   and
@@ -741,7 +741,7 @@ as well as support for rendering them to HTML, Markdown, and text.
   </dd>
 </dl><!-- regexp -->
 
-<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+<dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/51461 -->
       The <a href="/pkg/runtime/#GOROOT"><code>GOROOT</code></a> function now returns the empty string
@@ -807,6 +807,7 @@ as well as support for rendering them to HTML, Markdown, and text.
       Compared to v2, it is now typically 1.5x to 2x faster, uses half
       as much memory, and it supports an unlimited number of
       goroutines.
+      On Linux, the race detector now requires at least glibc version 2.17.
     </p>
 
     <p><!-- CL 336549 -->
@@ -846,7 +847,6 @@ as well as support for rendering them to HTML, Markdown, and text.
       <a href="/pkg/sort/#Search">Search</a>
       but often easier to use: it returns an additional boolean reporting whether an equal value was found.
     </p>
-  </dd>
   </dd>
 </dl><!-- sort -->
 

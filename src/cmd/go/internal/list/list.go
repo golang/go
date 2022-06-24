@@ -222,19 +222,20 @@ When listing modules, the -f flag still specifies a format template
 applied to a Go struct, but now a Module struct:
 
     type Module struct {
-        Path      string       // module path
-        Version   string       // module version
-        Versions  []string     // available module versions (with -versions)
-        Replace   *Module      // replaced by this module
-        Time      *time.Time   // time version was created
-        Update    *Module      // available update, if any (with -u)
-        Main      bool         // is this the main module?
-        Indirect  bool         // is this module only an indirect dependency of main module?
-        Dir       string       // directory holding files for this module, if any
-        GoMod     string       // path to go.mod file used when loading this module, if any
-        GoVersion string       // go version used in module
-        Retracted string       // retraction information, if any (with -retracted or -u)
-        Error     *ModuleError // error loading module
+        Path       string        // module path
+        Version    string        // module version
+        Versions   []string      // available module versions
+        Replace    *Module       // replaced by this module
+        Time       *time.Time    // time version was created
+        Update     *Module       // available update (with -u)
+        Main       bool          // is this the main module?
+        Indirect   bool          // module is only indirectly needed by main module
+        Dir        string        // directory holding local copy of files, if any
+        GoMod      string        // path to go.mod file describing module, if any
+        GoVersion  string        // go version used in module
+        Retracted  []string      // retraction information, if any (with -retracted or -u)
+        Deprecated string        // deprecation message, if any (with -u)
+        Error      *ModuleError  // error loading module
     }
 
     type ModuleError struct {
