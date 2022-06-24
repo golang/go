@@ -232,6 +232,19 @@ as well as support for rendering them to HTML, Markdown, and text.
   the <code>go</code> command and by Bazel. Any other build systems
   that invoke the Go compiler directly will need to make sure they
   pass this flag as well.
+
+<p><!-- CL 387334 --><!-- CL 387335 --><!-- CL 387336 -->
+  Go 1.14 introduced the initial support for compiler-inserted coverage
+  instrumentation, which enables the use of libFuzzer as solid base
+  to fuzz Go code. <a href="https://google.github.io/oss-fuzz/">OSS-Fuzz</a>
+  supports libFuzzer compatible mode only, and it has already uncovered many bugs.
+
+  This release includes various improvements for the instrumentation
+  to make fuzzing more effective. More details can be found
+  <a href="https://www.code-intelligence.com/blog/fuzzing-golang-1.19">here</a>.
+
+<p>
+  TODO: complete this section, or delete if not needed
 </p>
 
 <h2 id="assembler">Assembler</h2>
