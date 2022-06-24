@@ -5,6 +5,7 @@
 package types2
 
 import (
+	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
@@ -303,11 +304,23 @@ loop:
 // cycleError reports a declaration cycle starting with
 // the object in cycle that is "first" in the source.
 func (check *Checker) cycleError(cycle []Object) {
+	// name returns the (possibly qualified) object name.
+	// This is needed because with generic types, cycles
+	// may refer to imported types. See issue #50788.
+	// TODO(gri) Thus functionality is used elsewhere. Factor it out.
+	name := func(obj Object) string {
+		var buf bytes.Buffer
+		writePackage(&buf, obj.Pkg(), check.qualifier)
+		buf.WriteString(obj.Name())
+		return buf.String()
+	}
+
 	// TODO(gri) Should we start with the last (rather than the first) object in the cycle
 	//           since that is the earliest point in the source where we start seeing the
 	//           cycle? That would be more consistent with other error messages.
 	i := firstInSrc(cycle)
 	obj := cycle[i]
+	objName := name(obj)
 	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
 	tname, _ := obj.(*TypeName)
 	if tname != nil && tname.IsAlias() {
@@ -315,19 +328,20 @@ func (check *Checker) cycleError(cycle []Object) {
 	}
 	var err error_
 	if tname != nil && check.conf.CompilerErrorMessages {
-		err.errorf(obj, "invalid recursive type %s", obj.Name())
+		err.errorf(obj, "invalid recursive type %s", objName)
 	} else {
-		err.errorf(obj, "illegal cycle in declaration of %s", obj.Name())
+		err.errorf(obj, "illegal cycle in declaration of %s", objName)
 	}
 	for range cycle {
-		err.errorf(obj, "%s refers to", obj.Name())
+		err.errorf(obj, "%s refers to", objName)
 		i++
 		if i >= len(cycle) {
 			i = 0
 		}
 		obj = cycle[i]
+		objName = name(obj)
 	}
-	err.errorf(obj, "%s", obj.Name())
+	err.errorf(obj, "%s", objName)
 	check.report(&err)
 }
 
