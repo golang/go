@@ -23,18 +23,18 @@ cmpenv go.mod $WORK/go.mod.edit2
 
 # -exclude and -retract reject invalid versions.
 ! go mod edit -exclude=example.com/m@bad
-stderr '^go mod: -exclude=example.com/m@bad: version "bad" invalid: must be of the form v1.2.3$'
+stderr '^go: -exclude=example.com/m@bad: version "bad" invalid: must be of the form v1.2.3$'
 ! go mod edit -retract=bad
-stderr '^go mod: -retract=bad: version "bad" invalid: must be of the form v1.2.3$'
+stderr '^go: -retract=bad: version "bad" invalid: must be of the form v1.2.3$'
 
 ! go mod edit -exclude=example.com/m@v2.0.0
-stderr '^go mod: -exclude=example.com/m@v2\.0\.0: version "v2\.0\.0" invalid: should be v2\.0\.0\+incompatible \(or module example\.com/m/v2\)$'
+stderr '^go: -exclude=example.com/m@v2\.0\.0: version "v2\.0\.0" invalid: should be v2\.0\.0\+incompatible \(or module example\.com/m/v2\)$'
 
 ! go mod edit -exclude=example.com/m/v2@v1.0.0
-stderr '^go mod: -exclude=example.com/m/v2@v1\.0\.0: version "v1\.0\.0" invalid: should be v2, not v1$'
+stderr '^go: -exclude=example.com/m/v2@v1\.0\.0: version "v1\.0\.0" invalid: should be v2, not v1$'
 
 ! go mod edit -exclude=gopkg.in/example.v1@v2.0.0
-stderr '^go mod: -exclude=gopkg\.in/example\.v1@v2\.0\.0: version "v2\.0\.0" invalid: should be v1, not v2$'
+stderr '^go: -exclude=gopkg\.in/example\.v1@v2\.0\.0: version "v2\.0\.0" invalid: should be v1, not v2$'
 
 cmpenv go.mod $WORK/go.mod.edit2
 

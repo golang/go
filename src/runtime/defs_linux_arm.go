@@ -4,12 +4,13 @@
 
 package runtime
 
+import "unsafe"
+
 // Constants
 const (
 	_EINTR  = 0x4
 	_ENOMEM = 0xc
 	_EAGAIN = 0xb
-	_ENOSYS = 0x26
 
 	_PROT_NONE  = 0
 	_PROT_READ  = 0x1
@@ -29,6 +30,8 @@ const (
 	_SA_ONSTACK     = 0x8000000
 	_SA_RESTORER    = 0 // unused on ARM
 	_SA_SIGINFO     = 0x4
+	_SI_KERNEL      = 0x80
+	_SI_TIMER       = -0x2
 	_SIGHUP         = 0x1
 	_SIGINT         = 0x2
 	_SIGQUIT        = 0x3
@@ -59,6 +62,7 @@ const (
 	_SIGIO          = 0x1d
 	_SIGPWR         = 0x1e
 	_SIGSYS         = 0x1f
+	_SIGRTMIN       = 0x20
 	_FPE_INTDIV     = 0x1
 	_FPE_INTOVF     = 0x2
 	_FPE_FLTDIV     = 0x3
@@ -78,6 +82,10 @@ const (
 	_O_RDONLY       = 0
 	_O_NONBLOCK     = 0x800
 	_O_CLOEXEC      = 0x80000
+
+	_CLOCK_THREAD_CPUTIME_ID = 0x3
+
+	_SIGEV_THREAD_ID = 0x4
 
 	_EPOLLIN       = 0x1
 	_EPOLLOUT      = 0x4
@@ -153,17 +161,44 @@ func (tv *timeval) set_usec(x int32) {
 	tv.tv_usec = x
 }
 
+type itimerspec struct {
+	it_interval timespec
+	it_value    timespec
+}
+
 type itimerval struct {
 	it_interval timeval
 	it_value    timeval
 }
 
-type siginfo struct {
+type sigeventFields struct {
+	value  uintptr
+	signo  int32
+	notify int32
+	// below here is a union; sigev_notify_thread_id is the only field we use
+	sigev_notify_thread_id int32
+}
+
+type sigevent struct {
+	sigeventFields
+
+	// Pad struct to the max size in the kernel.
+	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+}
+
+type siginfoFields struct {
 	si_signo int32
 	si_errno int32
 	si_code  int32
 	// below here is a union; si_addr is the only field we use
 	si_addr uint32
+}
+
+type siginfo struct {
+	siginfoFields
+
+	// Pad struct to the max size in the kernel.
+	_ [_si_max_size - unsafe.Sizeof(siginfoFields{})]byte
 }
 
 type sigactiont struct {

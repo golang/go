@@ -5,7 +5,6 @@
 // Package scanner implements a scanner for Go source text.
 // It takes a []byte as source which can then be tokenized
 // through repeated calls to the Scan method.
-//
 package scanner
 
 import (
@@ -22,13 +21,11 @@ import (
 // encountered and a handler was installed, the handler is called with a
 // position and an error message. The position points to the beginning of
 // the offending token.
-//
 type ErrorHandler func(pos token.Position, msg string)
 
 // A Scanner holds the scanner's internal state while processing
 // a given text. It can be allocated as part of another data
 // structure but must be initialized via Init before use.
-//
 type Scanner struct {
 	// immutable state
 	file *token.File  // source file handle
@@ -101,7 +98,6 @@ func (s *Scanner) peek() byte {
 
 // A mode value is a set of flags (or 0).
 // They control scanner behavior.
-//
 type Mode uint
 
 const (
@@ -123,7 +119,6 @@ const (
 //
 // Note that Init may call err if there is an error in the first character
 // of the file.
-//
 func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode) {
 	// Explicitly initialize all fields since a scanner may be reused.
 	if file.Size() != len(src) {
@@ -155,7 +150,7 @@ func (s *Scanner) error(offs int, msg string) {
 	s.ErrorCount++
 }
 
-func (s *Scanner) errorf(offs int, format string, args ...interface{}) {
+func (s *Scanner) errorf(offs int, format string, args ...any) {
 	s.error(offs, fmt.Sprintf(format, args...))
 }
 
@@ -825,7 +820,6 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 // Scan adds line information to the file added to the file
 // set with Init. Token positions are relative to that file
 // and thus relative to the file set.
-//
 func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 scanAgain:
 	s.skipWhitespace()
@@ -969,6 +963,8 @@ scanAgain:
 			}
 		case '|':
 			tok = s.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
+		case '~':
+			tok = token.TILDE
 		default:
 			// next reports unexpected BOMs - don't repeat
 			if ch != bom {

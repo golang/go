@@ -66,7 +66,7 @@ type Converter struct {
 // The input buffer needs to be able to hold any single test
 // directive line we want to recognize, like:
 //
-//     <many spaces> --- PASS: very/nested/s/u/b/t/e/s/t
+//	<many spaces> --- PASS: very/nested/s/u/b/t/e/s/t
 //
 // If anyone reports a test directive line > 4k not working, it will
 // be defensible to suggest they restructure their test or test names.

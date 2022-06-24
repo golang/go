@@ -11,6 +11,7 @@
 // Functions exported from Go.
 extern void G1(void);
 extern void G2(void);
+extern void TracebackContextPreemptionGoFunction(int);
 
 void C1() {
 	G1();
@@ -62,10 +63,17 @@ void tcContext(void* parg) {
 	}
 }
 
+void tcContextSimple(void* parg) {
+	struct cgoContextArg* arg = (struct cgoContextArg*)(parg);
+	if (arg->context == 0) {
+		arg->context = 1;
+	}
+}
+
 void tcTraceback(void* parg) {
 	int base, i;
 	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
-	if (arg->context == 0) {
+	if (arg->context == 0 && arg->sigContext == 0) {
 		// This shouldn't happen in this program.
 		abort();
 	}
@@ -88,4 +96,8 @@ void tcSymbolizer(void *parg) {
 	arg->file = "tracebackctxt.go";
 	arg->func = "cFunction";
 	arg->lineno = arg->pc + (arg->more << 16);
+}
+
+void TracebackContextPreemptionCallGo(int i) {
+	TracebackContextPreemptionGoFunction(i);
 }

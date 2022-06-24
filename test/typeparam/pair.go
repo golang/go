@@ -1,4 +1,4 @@
-// run -gcflags=-G=3
+// run
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -24,7 +24,11 @@ func main() {
 	if got, want := unsafe.Sizeof(p.f2), uintptr(8); got != want {
 		panic(fmt.Sprintf("unexpected f2 size == %d, want %d", got, want))
 	}
-	type mypair struct { f1 int32; f2 int64 }
+
+	type mypair struct {
+		f1 int32
+		f2 int64
+	}
 	mp := mypair(p)
 	if mp.f1 != 1 || mp.f2 != 2 {
 		panic(fmt.Sprintf("mp == %#v, want %#v", mp, mypair{1, 2}))

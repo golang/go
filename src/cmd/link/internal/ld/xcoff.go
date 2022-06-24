@@ -755,8 +755,8 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 }
 
 // Update values for the previous package.
-//  - Svalue of the C_FILE symbol: if it is the last one, this Svalue must be -1
-//  - Xsclen of the csect symbol.
+//   - Svalue of the C_FILE symbol: if it is the last one, this Svalue must be -1
+//   - Xsclen of the csect symbol.
 func (f *xcoffFile) updatePreviousFile(ctxt *Link, last bool) {
 	// first file
 	if currSymSrcFile.file == nil {
@@ -822,9 +822,12 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
 		}
 	}
 
+	name = ldr.SymExtname(x)
+	name = mangleABIName(ctxt, ldr, x, name)
+
 	s := &XcoffSymEnt64{
 		Nsclass: C_EXT,
-		Noffset: uint32(xfile.stringTable.add(ldr.SymExtname(x))),
+		Noffset: uint32(xfile.stringTable.add(name)),
 		Nvalue:  uint64(ldr.SymValue(x)),
 		Nscnum:  f.getXCOFFscnum(ldr.SymSect(x)),
 		Ntype:   SYM_TYPE_FUNC,
@@ -1114,7 +1117,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, TLSSym)
 			}
 
-		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_EXTRA_COUNTER:
+		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER:
 			if ldr.AttrReachable(s) {
 				data := ldr.Data(s)
 				if len(data) > 0 {
@@ -1238,7 +1241,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 		sym:  s,
 		roff: r.Off(),
 	}
-	targ := ldr.ResolveABIAlias(r.Sym())
+	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
 		targType = ldr.SymType(targ)
@@ -1287,10 +1290,6 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 }
 
 func (ctxt *Link) doxcoff() {
-	if *FlagD {
-		// All XCOFF files have dynamic symbols because of the syscalls.
-		Exitf("-d is not available on AIX")
-	}
 	ldr := ctxt.loader
 
 	// TOC
@@ -1333,7 +1332,7 @@ func (ctxt *Link) doxcoff() {
 				panic("cgo_export on static symbol")
 			}
 
-			if ldr.SymType(s) == sym.STEXT || ldr.SymType(s) == sym.SABIALIAS {
+			if ldr.SymType(s) == sym.STEXT {
 				// On AIX, a exported function must have two symbols:
 				// - a .text symbol which must start with a ".".
 				// - a .data symbol which is a function descriptor.

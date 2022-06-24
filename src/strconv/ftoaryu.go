@@ -291,7 +291,7 @@ func ryuFtoaShortest(d *decimalSlice, mant uint64, exp int, flt *floatInfo) {
 	// Is it allowed to use 'du' as a result?
 	// It is always allowed when it is truncated, but also
 	// if it is exact and the original binary mantissa is even
-	// When disallowed, we can substract 1.
+	// When disallowed, we can subtract 1.
 	uok := !du0 || fracu > 0
 	if du0 && fracu == 0 {
 		uok = mant&1 == 0
@@ -487,8 +487,9 @@ func ryuDigits32(d *decimalSlice, lower, central, upper uint32,
 // The returned boolean is true if all trimmed bits were zero.
 //
 // That is:
-//     m*2^e2 * round(10^q) = resM * 2^resE + ε
-//     exact = ε == 0
+//
+//	m*2^e2 * round(10^q) = resM * 2^resE + ε
+//	exact = ε == 0
 func mult64bitPow10(m uint32, e2, q int) (resM uint32, resE int, exact bool) {
 	if q == 0 {
 		// P == 1<<63
@@ -515,8 +516,9 @@ func mult64bitPow10(m uint32, e2, q int) (resM uint32, resE int, exact bool) {
 // The returned boolean is true is all trimmed bits were zero.
 //
 // That is:
-//     m*2^e2 * round(10^q) = resM * 2^resE + ε
-//     exact = ε == 0
+//
+//	m*2^e2 * round(10^q) = resM * 2^resE + ε
+//	exact = ε == 0
 func mult128bitPow10(m uint64, e2, q int) (resM uint64, resE int, exact bool) {
 	if q == 0 {
 		// P == 1<<127

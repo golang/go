@@ -10,6 +10,7 @@ import (
 	"crypto"
 	"crypto/hmac"
 	"crypto/rsa"
+	"encoding/binary"
 	"errors"
 	"hash"
 	"io"
@@ -43,6 +44,10 @@ type serverHandshakeStateTLS13 struct {
 
 func (hs *serverHandshakeStateTLS13) handshake() error {
 	c := hs.c
+
+	if needFIPS() {
+		return errors.New("tls: internal error: TLS 1.3 reached in FIPS mode")
+	}
 
 	// For an overview of the TLS 1.3 handshake, see RFC 8446, Section 2.
 	if err := hs.processClientHello(); err != nil {
@@ -110,7 +115,7 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 		if id == TLS_FALLBACK_SCSV {
 			// Use c.vers instead of max(supported_versions) because an attacker
 			// could defeat this by adding an arbitrary high version otherwise.
-			if c.vers < c.config.maxSupportedVersion() {
+			if c.vers < c.config.maxSupportedVersion(roleServer) {
 				c.sendAlert(alertInappropriateFallback)
 				return errors.New("tls: client using inappropriate protocol fallback")
 			}
@@ -583,7 +588,7 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 		certReq := new(certificateRequestMsgTLS13)
 		certReq.ocspStapling = true
 		certReq.scts = true
-		certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 		if c.config.ClientCAs != nil {
 			certReq.certificateAuthorities = c.config.ClientCAs.Subjects()
 		}
@@ -741,6 +746,19 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 	}
 	m.lifetime = uint32(maxSessionTicketLifetime / time.Second)
 
+	// ticket_age_add is a random 32-bit value. See RFC 8446, section 4.6.1
+	// The value is not stored anywhere; we never need to check the ticket age
+	// because 0-RTT is not supported.
+	ageAdd := make([]byte, 4)
+	_, err = hs.c.config.rand().Read(ageAdd)
+	if err != nil {
+		return err
+	}
+	m.ageAdd = binary.LittleEndian.Uint32(ageAdd)
+
+	// ticket_nonce, which must be unique per connection, is always left at
+	// zero because we only ever send one ticket per connection.
+
 	if _, err := c.writeRecord(recordTypeHandshake, m.marshal()); err != nil {
 		return err
 	}
@@ -802,7 +820,7 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 		}
 
 		// See RFC 8446, Section 4.4.3.
-		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms) {
+		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms()) {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: client certificate used with invalid signature algorithm")
 		}

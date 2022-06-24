@@ -8,8 +8,8 @@ import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmd/internal/notsha256"
 	"cmd/internal/src"
-	"crypto/sha1"
 	"fmt"
 	"io"
 	"math"
@@ -43,7 +43,7 @@ type Func struct {
 	logfiles       map[string]writeSyncer
 	HTMLWriter     *HTMLWriter    // html writer, for debugging
 	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
-	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
+	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.  There's an odd dependence on this in debug.go for method logf.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
 	ABI0           *abi.ABIConfig // A copy, for no-sync access
 	ABI1           *abi.ABIConfig // A copy, for no-sync access
@@ -820,17 +820,22 @@ func (f *Func) invalidateCFG() {
 }
 
 // DebugHashMatch reports whether environment variable evname
-// 1) is empty (this is a special more-quickly implemented case of 3)
-// 2) is "y" or "Y"
-// 3) is a suffix of the sha1 hash of name
-// 4) is a suffix of the environment variable
-//    fmt.Sprintf("%s%d", evname, n)
-//    provided that all such variables are nonempty for 0 <= i <= n
+//  1. is empty (this is a special more-quickly implemented case of 3)
+//  2. is "y" or "Y"
+//  3. is a suffix of the sha1 hash of name
+//  4. is a suffix of the environment variable
+//     fmt.Sprintf("%s%d", evname, n)
+//     provided that all such variables are nonempty for 0 <= i <= n
+//
 // Otherwise it returns false.
 // When true is returned the message
-//  "%s triggered %s\n", evname, name
+//
+//	"%s triggered %s\n", evname, name
+//
 // is printed on the file named in environment variable
-//  GSHS_LOGFILE
+//
+//	GSHS_LOGFILE
+//
 // or standard out if that is empty or there is an error
 // opening the file.
 func (f *Func) DebugHashMatch(evname string) bool {
@@ -849,7 +854,7 @@ func (f *Func) DebugHashMatch(evname string) bool {
 	// We use this feature to do a binary search to
 	// find a function that is incorrectly compiled.
 	hstr := ""
-	for _, b := range sha1.Sum([]byte(name)) {
+	for _, b := range notsha256.Sum256([]byte(name)) {
 		hstr += fmt.Sprintf("%08b", b)
 	}
 

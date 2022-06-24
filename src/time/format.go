@@ -8,12 +8,16 @@ import "errors"
 
 // These are predefined layouts for use in Time.Format and time.Parse.
 // The reference time used in these layouts is the specific time stamp:
+//
 //	01/02 03:04:05PM '06 -0700
+//
 // (January 2, 15:04:05, 2006, in time zone seven hours west of GMT).
 // That value is recorded as the constant named Layout, listed below. As a Unix
 // time, this is 1136239445. Since MST is GMT-0700, the reference would be
 // printed by the Unix date command as:
+//
 //	Mon Jan 2 15:04:05 MST 2006
+//
 // It is a regrettable historic error that the date uses the American convention
 // of putting the numerical month before the day.
 //
@@ -59,27 +63,34 @@ import "errors"
 //	AM/PM mark: "PM"
 //
 // Numeric time zone offsets format as follows:
-//	"-0700"  ±hhmm
-//	"-07:00" ±hh:mm
-//	"-07"    ±hh
+//
+//	"-0700"     ±hhmm
+//	"-07:00"    ±hh:mm
+//	"-07"       ±hh
+//	"-070000"   ±hhmmss
+//	"-07:00:00" ±hh:mm:ss
+//
 // Replacing the sign in the format with a Z triggers
 // the ISO 8601 behavior of printing Z instead of an
 // offset for the UTC zone. Thus:
-//	"Z0700"  Z or ±hhmm
-//	"Z07:00" Z or ±hh:mm
-//	"Z07"    Z or ±hh
+//
+//	"Z0700"      Z or ±hhmm
+//	"Z07:00"     Z or ±hh:mm
+//	"Z07"        Z or ±hh
+//	"Z070000"    Z or ±hhmmss
+//	"Z07:00:00"  Z or ±hh:mm:ss
 //
 // Within the format string, the underscores in "_2" and "__2" represent spaces
 // that may be replaced by digits if the following number has multiple digits,
 // for compatibility with fixed-width Unix time formats. A leading zero represents
 // a zero-padded value.
 //
-// The formats  and 002 are space-padded and zero-padded
+// The formats __2 and 002 are space-padded and zero-padded
 // three-character day of year; there is no unpadded day of year format.
 //
-// A decimal point followed by one or more zeros represents a fractional
-// second, printed to the given number of decimal places.
-// Either a comma or decimal point followed by one or more nines represents
+// A comma or decimal point followed by one or more zeros represents
+// a fractional second, printed to the given number of decimal places.
+// A comma or decimal point followed by one or more nines represents
 // a fractional second, printed to the given number of decimal places, with
 // trailing zeros removed.
 // For example "15:04:05,000" or "15:04:05.000" formats or parses with
@@ -87,7 +98,6 @@ import "errors"
 //
 // Some valid layouts are invalid time values for time.Parse, due to formats
 // such as _ for space padding and Z for zone information.
-//
 const (
 	Layout      = "01/02 03:04:05PM '06 -0700" // The reference time, in numerical order.
 	ANSIC       = "Mon Jan _2 15:04:05 2006"
@@ -146,10 +156,11 @@ const (
 	stdFracSecond0                                 // ".0", ".00", ... , trailing zeros included
 	stdFracSecond9                                 // ".9", ".99", ..., trailing zeros omitted
 
-	stdNeedDate  = 1 << 8             // need month, day, year
-	stdNeedClock = 2 << 8             // need hour, minute, second
-	stdArgShift  = 16                 // extra argument in high bits, above low stdArgShift
-	stdMask      = 1<<stdArgShift - 1 // mask out argument
+	stdNeedDate       = 1 << 8             // need month, day, year
+	stdNeedClock      = 2 << 8             // need hour, minute, second
+	stdArgShift       = 16                 // extra argument in high bits, above low stdArgShift
+	stdSeparatorShift = 28                 // extra argument in high 4 bits for fractional second separators
+	stdMask           = 1<<stdArgShift - 1 // mask out argument
 )
 
 // std0x records the std values for "01", "02", ..., "06".
@@ -289,11 +300,11 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 				}
 				// String of digits must end here - only fractional second is all digits.
 				if !isDigit(layout, j) {
-					std := stdFracSecond0
+					code := stdFracSecond0
 					if layout[i+1] == '9' {
-						std = stdFracSecond9
+						code = stdFracSecond9
 					}
-					std |= (j - (i + 1)) << stdArgShift
+					std := stdFracSecond(code, j-(i+1), c)
 					return layout[0:i], std, layout[j:]
 				}
 			}
@@ -430,9 +441,36 @@ func atoi(s string) (x int, err error) {
 	return x, nil
 }
 
+// The "std" value passed to formatNano contains two packed fields: the number of
+// digits after the decimal and the separator character (period or comma).
+// These functions pack and unpack that variable.
+func stdFracSecond(code, n, c int) int {
+	// Use 0xfff to make the failure case even more absurd.
+	if c == '.' {
+		return code | ((n & 0xfff) << stdArgShift)
+	}
+	return code | ((n & 0xfff) << stdArgShift) | 1<<stdSeparatorShift
+}
+
+func digitsLen(std int) int {
+	return (std >> stdArgShift) & 0xfff
+}
+
+func separator(std int) byte {
+	if (std >> stdSeparatorShift) == 0 {
+		return '.'
+	}
+	return ','
+}
+
 // formatNano appends a fractional second, as nanoseconds, to b
 // and returns the result.
-func formatNano(b []byte, nanosec uint, n int, trim bool) []byte {
+func formatNano(b []byte, nanosec uint, std int) []byte {
+	var (
+		n         = digitsLen(std)
+		separator = separator(std)
+		trim      = std&stdMask == stdFracSecond9
+	)
 	u := nanosec
 	var buf [9]byte
 	for start := len(buf); start > 0; {
@@ -452,11 +490,12 @@ func formatNano(b []byte, nanosec uint, n int, trim bool) []byte {
 			return b
 		}
 	}
-	b = append(b, '.')
+	b = append(b, separator)
 	return append(b, buf[:n]...)
 }
 
 // String returns the time formatted using the format string
+//
 //	"2006-01-02 15:04:05.999999999 -0700 MST"
 //
 // If the time has a monotonic clock reading, the returned string
@@ -479,7 +518,7 @@ func (t Time) String() string {
 		}
 		m1, m2 := m2/1e9, m2%1e9
 		m0, m1 := m1/1e9, m1%1e9
-		var buf []byte
+		buf := make([]byte, 0, 24)
 		buf = append(buf, " m="...)
 		buf = append(buf, sign)
 		wid := 0
@@ -498,7 +537,8 @@ func (t Time) String() string {
 // GoString implements fmt.GoStringer and formats t to be printed in Go source
 // code.
 func (t Time) GoString() string {
-	buf := []byte("time.Date(")
+	buf := make([]byte, 0, 70)
+	buf = append(buf, "time.Date("...)
 	buf = appendInt(buf, t.Year(), 0)
 	month := t.Month()
 	if January <= month && month <= December {
@@ -732,7 +772,7 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 			b = appendInt(b, zone/60, 2)
 			b = appendInt(b, zone%60, 2)
 		case stdFracSecond0, stdFracSecond9:
-			b = formatNano(b, uint(t.Nanosecond()), std>>stdArgShift, std&stdMask == stdFracSecond9)
+			b = formatNano(b, uint(t.Nanosecond()), std)
 		}
 	}
 	return b
@@ -885,6 +925,7 @@ func skip(value, prefix string) (string, error) {
 // field immediately after the seconds field, even if the layout does not
 // signify its presence. In that case either a comma or a decimal point
 // followed by a maximal series of digits is parsed as a fractional second.
+// Fractional seconds are truncated to nanosecond precision.
 //
 // Elements omitted from the layout are assumed to be zero or, when
 // zero is impossible, one, so parsing "3:04pm" returns the time
@@ -1164,7 +1205,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		case stdFracSecond0:
 			// stdFracSecond0 requires the exact number of digits as specified in
 			// the layout.
-			ndigit := 1 + (std >> stdArgShift)
+			ndigit := 1 + digitsLen(std)
 			if len(value) < ndigit {
 				err = errBad
 				break
@@ -1373,10 +1414,7 @@ func parseSignedOffset(value string) int {
 	if err != nil || value[1:] == rem {
 		return 0
 	}
-	if sign == '-' {
-		x = -x
-	}
-	if x < -23 || 23 < x {
+	if x > 23 {
 		return 0
 	}
 	return len(value) - len(rem)
@@ -1391,16 +1429,19 @@ func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, 
 		err = errBad
 		return
 	}
+	if nbytes > 10 {
+		value = value[:10]
+		nbytes = 10
+	}
 	if ns, err = atoi(value[1:nbytes]); err != nil {
 		return
 	}
-	if ns < 0 || 1e9 <= ns {
+	if ns < 0 {
 		rangeErrString = "fractional second"
 		return
 	}
 	// We need nanoseconds, which means scaling by the number
-	// of missing digits in the format, maximum length 10. If it's
-	// longer than 10, we won't scale.
+	// of missing digits in the format, maximum length 10.
 	scaleDigits := 10 - nbytes
 	for i := 0; i < scaleDigits; i++ {
 		ns *= 10
@@ -1411,19 +1452,19 @@ func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, 
 var errLeadingInt = errors.New("time: bad [0-9]*") // never printed
 
 // leadingInt consumes the leading [0-9]* from s.
-func leadingInt(s string) (x int64, rem string, err error) {
+func leadingInt(s string) (x uint64, rem string, err error) {
 	i := 0
 	for ; i < len(s); i++ {
 		c := s[i]
 		if c < '0' || c > '9' {
 			break
 		}
-		if x > (1<<63-1)/10 {
+		if x > 1<<63/10 {
 			// overflow
 			return 0, "", errLeadingInt
 		}
-		x = x*10 + int64(c) - '0'
-		if x < 0 {
+		x = x*10 + uint64(c) - '0'
+		if x > 1<<63 {
 			// overflow
 			return 0, "", errLeadingInt
 		}
@@ -1434,7 +1475,7 @@ func leadingInt(s string) (x int64, rem string, err error) {
 // leadingFraction consumes the leading [0-9]* from s.
 // It is used only for fractions, so does not return an error on overflow,
 // it just stops accumulating precision.
-func leadingFraction(s string) (x int64, scale float64, rem string) {
+func leadingFraction(s string) (x uint64, scale float64, rem string) {
 	i := 0
 	scale = 1
 	overflow := false
@@ -1451,8 +1492,8 @@ func leadingFraction(s string) (x int64, scale float64, rem string) {
 			overflow = true
 			continue
 		}
-		y := x*10 + int64(c) - '0'
-		if y < 0 {
+		y := x*10 + uint64(c) - '0'
+		if y > 1<<63 {
 			overflow = true
 			continue
 		}
@@ -1462,15 +1503,15 @@ func leadingFraction(s string) (x int64, scale float64, rem string) {
 	return x, scale, s[i:]
 }
 
-var unitMap = map[string]int64{
-	"ns": int64(Nanosecond),
-	"us": int64(Microsecond),
-	"µs": int64(Microsecond), // U+00B5 = micro symbol
-	"μs": int64(Microsecond), // U+03BC = Greek letter mu
-	"ms": int64(Millisecond),
-	"s":  int64(Second),
-	"m":  int64(Minute),
-	"h":  int64(Hour),
+var unitMap = map[string]uint64{
+	"ns": uint64(Nanosecond),
+	"us": uint64(Microsecond),
+	"µs": uint64(Microsecond), // U+00B5 = micro symbol
+	"μs": uint64(Microsecond), // U+03BC = Greek letter mu
+	"ms": uint64(Millisecond),
+	"s":  uint64(Second),
+	"m":  uint64(Minute),
+	"h":  uint64(Hour),
 }
 
 // ParseDuration parses a duration string.
@@ -1481,7 +1522,7 @@ var unitMap = map[string]int64{
 func ParseDuration(s string) (Duration, error) {
 	// [-+]?([0-9]*(\.[0-9]*)?[a-z]+)+
 	orig := s
-	var d int64
+	var d uint64
 	neg := false
 
 	// Consume [-+]?
@@ -1501,7 +1542,7 @@ func ParseDuration(s string) (Duration, error) {
 	}
 	for s != "" {
 		var (
-			v, f  int64       // integers before, after decimal point
+			v, f  uint64      // integers before, after decimal point
 			scale float64 = 1 // value = v + f/scale
 		)
 
@@ -1549,7 +1590,7 @@ func ParseDuration(s string) (Duration, error) {
 		if !ok {
 			return 0, errors.New("time: unknown unit " + quote(u) + " in duration " + quote(orig))
 		}
-		if v > (1<<63-1)/unit {
+		if v > 1<<63/unit {
 			// overflow
 			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
@@ -1557,21 +1598,22 @@ func ParseDuration(s string) (Duration, error) {
 		if f > 0 {
 			// float64 is needed to be nanosecond accurate for fractions of hours.
 			// v >= 0 && (f*unit/scale) <= 3.6e+12 (ns/h, h is the largest unit)
-			v += int64(float64(f) * (float64(unit) / scale))
-			if v < 0 {
+			v += uint64(float64(f) * (float64(unit) / scale))
+			if v > 1<<63 {
 				// overflow
 				return 0, errors.New("time: invalid duration " + quote(orig))
 			}
 		}
 		d += v
-		if d < 0 {
-			// overflow
+		if d > 1<<63 {
 			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 	}
-
 	if neg {
-		d = -d
+		return -Duration(d), nil
+	}
+	if d > 1<<63-1 {
+		return 0, errors.New("time: invalid duration " + quote(orig))
 	}
 	return Duration(d), nil
 }

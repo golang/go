@@ -23,6 +23,7 @@
 package parser
 
 import (
+	"flag"
 	"go/internal/typeparams"
 	"go/scanner"
 	"go/token"
@@ -32,6 +33,8 @@ import (
 	"strings"
 	"testing"
 )
+
+var traceErrs = flag.Bool("trace_errs", false, "whether to enable tracing for error tests")
 
 const testdata = "testdata"
 
@@ -61,12 +64,10 @@ func getPos(fset *token.FileSet, filename string, offset int) token.Pos {
 // The special form /* ERROR HERE "rx" */ must be used for error
 // messages that appear immediately after a token, rather than at
 // a token's position.
-//
 var errRx = regexp.MustCompile(`^/\* *ERROR *(HERE)? *"([^"]*)" *\*/$`)
 
 // expectedErrors collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
-//
 func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.Pos]string {
 	errors := make(map[token.Pos]string)
 
@@ -113,7 +114,6 @@ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.
 
 // compareErrors compares the map of expected error messages with the list
 // of found errors and reports discrepancies.
-//
 func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]string, found scanner.ErrorList) {
 	t.Helper()
 	for _, error := range found {
@@ -151,7 +151,7 @@ func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]str
 	}
 }
 
-func checkErrors(t *testing.T, filename string, input interface{}, mode Mode, expectErrors bool) {
+func checkErrors(t *testing.T, filename string, input any, mode Mode, expectErrors bool) {
 	t.Helper()
 	src, err := readSource(filename, input)
 	if err != nil {
@@ -186,16 +186,17 @@ func TestErrors(t *testing.T) {
 	}
 	for _, d := range list {
 		name := d.Name()
-		if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
-			mode := DeclarationErrors | AllErrors
-			if strings.HasSuffix(name, ".go2") {
-				if !typeparams.Enabled {
-					continue
+		t.Run(name, func(t *testing.T) {
+			if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
+				mode := DeclarationErrors | AllErrors
+				if !strings.HasSuffix(name, ".go2") {
+					mode |= typeparams.DisallowParsing
 				}
-			} else {
-				mode |= typeparams.DisallowParsing
+				if *traceErrs {
+					mode |= Trace
+				}
+				checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
 			}
-			checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
-		}
+		})
 	}
 }

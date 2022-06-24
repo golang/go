@@ -5,7 +5,7 @@
 // Package pprof writes runtime profiling data in the format expected
 // by the pprof visualization tool.
 //
-// Profiling a Go program
+// # Profiling a Go program
 //
 // The first step to profiling a Go program is to enable profiling.
 // Support for profiling benchmarks built with the standard testing
@@ -13,54 +13,54 @@
 // runs benchmarks in the current directory and writes the CPU and
 // memory profiles to cpu.prof and mem.prof:
 //
-//     go test -cpuprofile cpu.prof -memprofile mem.prof -bench .
+//	go test -cpuprofile cpu.prof -memprofile mem.prof -bench .
 //
 // To add equivalent profiling support to a standalone program, add
 // code like the following to your main function:
 //
-//    var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
-//    var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
+//	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
+//	var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 //
-//    func main() {
-//        flag.Parse()
-//        if *cpuprofile != "" {
-//            f, err := os.Create(*cpuprofile)
-//            if err != nil {
-//                log.Fatal("could not create CPU profile: ", err)
-//            }
-//            defer f.Close() // error handling omitted for example
-//            if err := pprof.StartCPUProfile(f); err != nil {
-//                log.Fatal("could not start CPU profile: ", err)
-//            }
-//            defer pprof.StopCPUProfile()
-//        }
+//	func main() {
+//	    flag.Parse()
+//	    if *cpuprofile != "" {
+//	        f, err := os.Create(*cpuprofile)
+//	        if err != nil {
+//	            log.Fatal("could not create CPU profile: ", err)
+//	        }
+//	        defer f.Close() // error handling omitted for example
+//	        if err := pprof.StartCPUProfile(f); err != nil {
+//	            log.Fatal("could not start CPU profile: ", err)
+//	        }
+//	        defer pprof.StopCPUProfile()
+//	    }
 //
-//        // ... rest of the program ...
+//	    // ... rest of the program ...
 //
-//        if *memprofile != "" {
-//            f, err := os.Create(*memprofile)
-//            if err != nil {
-//                log.Fatal("could not create memory profile: ", err)
-//            }
-//            defer f.Close() // error handling omitted for example
-//            runtime.GC() // get up-to-date statistics
-//            if err := pprof.WriteHeapProfile(f); err != nil {
-//                log.Fatal("could not write memory profile: ", err)
-//            }
-//        }
-//    }
+//	    if *memprofile != "" {
+//	        f, err := os.Create(*memprofile)
+//	        if err != nil {
+//	            log.Fatal("could not create memory profile: ", err)
+//	        }
+//	        defer f.Close() // error handling omitted for example
+//	        runtime.GC() // get up-to-date statistics
+//	        if err := pprof.WriteHeapProfile(f); err != nil {
+//	            log.Fatal("could not write memory profile: ", err)
+//	        }
+//	    }
+//	}
 //
 // There is also a standard HTTP interface to profiling data. Adding
 // the following line will install handlers under the /debug/pprof/
 // URL to download live profiles:
 //
-//    import _ "net/http/pprof"
+//	import _ "net/http/pprof"
 //
 // See the net/http/pprof package for more details.
 //
 // Profiles can then be visualized with the pprof tool:
 //
-//    go tool pprof cpu.prof
+//	go tool pprof cpu.prof
 //
 // There are many commands available from the pprof command line.
 // Commonly used commands include "top", which prints a summary of the
@@ -76,6 +76,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/abi"
 	"io"
 	"runtime"
 	"sort"
@@ -129,11 +130,10 @@ import (
 // The CPU profile is not available as a Profile. It has a special API,
 // the StartCPUProfile and StopCPUProfile functions, because it streams
 // output to a writer during profiling.
-//
 type Profile struct {
 	name  string
 	mu    sync.Mutex
-	m     map[interface{}][]uintptr
+	m     map[any][]uintptr
 	count func() int
 	write func(io.Writer, int) error
 }
@@ -216,7 +216,7 @@ func NewProfile(name string) *Profile {
 	}
 	p := &Profile{
 		name: name,
-		m:    map[interface{}][]uintptr{},
+		m:    map[any][]uintptr{},
 	}
 	profiles.m[name] = p
 	return p
@@ -275,8 +275,7 @@ func (p *Profile) Count() int {
 //
 // Passing skip=0 begins the stack trace at the call to Add inside rpc.NewClient.
 // Passing skip=1 begins the stack trace at the call to NewClient inside mypkg.Run.
-//
-func (p *Profile) Add(value interface{}, skip int) {
+func (p *Profile) Add(value any, skip int) {
 	if p.name == "" {
 		panic("pprof: use of uninitialized Profile")
 	}
@@ -289,7 +288,7 @@ func (p *Profile) Add(value interface{}, skip int) {
 	stk = stk[:n]
 	if len(stk) == 0 {
 		// The value for skip is too large, and there's no stack trace to record.
-		stk = []uintptr{funcPC(lostProfileEvent)}
+		stk = []uintptr{abi.FuncPCABIInternal(lostProfileEvent)}
 	}
 
 	p.mu.Lock()
@@ -302,7 +301,7 @@ func (p *Profile) Add(value interface{}, skip int) {
 
 // Remove removes the execution stack associated with value from the profile.
 // It is a no-op if the value is not in the profile.
-func (p *Profile) Remove(value interface{}) {
+func (p *Profile) Remove(value any) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	delete(p.m, value)

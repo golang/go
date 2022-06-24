@@ -3,11 +3,11 @@
 // license that can be found in the LICENSE file.
 
 /*
-Link, typically invoked as ``go tool link'', reads the Go archive or object
+Link, typically invoked as “go tool link”, reads the Go archive or object
 for a package main, along with its dependencies, and combines them
 into an executable binary.
 
-Command Line
+# Command Line
 
 Usage:
 
@@ -45,6 +45,8 @@ Flags:
 		Note that before Go 1.5 this option took two separate arguments.
 	-a
 		Disassemble output.
+	-asan
+		Link with C/C++ address sanitizer support.
 	-buildid id
 		Record id as Go toolchain build id.
 	-buildmode mode

@@ -45,7 +45,7 @@ func main() {
 // the testcase allows for a 10% margin of error, but only fails if it
 // consistently fails across three experiments, avoiding flakes.
 func testInterleavedAllocations() error {
-	const iters = 100000
+	const iters = 50000
 	// Sizes of the allocations performed by each experiment.
 	frames := []string{"main.allocInterleaved1", "main.allocInterleaved2", "main.allocInterleaved3"}
 
@@ -79,6 +79,9 @@ func allocInterleaved(n int) {
 		a16k = new([16 * 1024]byte)
 		a256 = new([256]byte)
 		// Test verification depends on these lines being contiguous.
+
+		// Slow down the allocation rate to avoid #52433.
+		runtime.Gosched()
 	}
 }
 
@@ -101,7 +104,7 @@ func allocInterleaved3(n int) {
 // the testcase allows for a 10% margin of error, but only fails if it
 // consistently fails across three experiments, avoiding flakes.
 func testSmallAllocations() error {
-	const iters = 100000
+	const iters = 50000
 	// Sizes of the allocations performed by each experiment.
 	sizes := []int64{1024, 512, 256}
 	frames := []string{"main.allocSmall1", "main.allocSmall2", "main.allocSmall3"}
@@ -130,6 +133,9 @@ func allocSmall(n int) {
 		a1k = new([1024]byte)
 		a512 = new([512]byte)
 		a256 = new([256]byte)
+
+		// Slow down the allocation rate to avoid #52433.
+		runtime.Gosched()
 	}
 }
 

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build amd64 || arm64
-// +build amd64 arm64
 
 package aes
 
@@ -39,13 +38,6 @@ const (
 )
 
 var errOpen = errors.New("cipher: message authentication failed")
-
-// aesCipherGCM implements crypto/cipher.gcmAble so that crypto/cipher.NewGCM
-// will use the optimised implementation in this file when possible. Instances
-// of this type only exist when hasGCMAsm returns true.
-type aesCipherGCM struct {
-	aesCipherAsm
-}
 
 // Assert that aesCipherGCM implements the gcmAble interface.
 var _ gcmAble = (*aesCipherGCM)(nil)

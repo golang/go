@@ -3,21 +3,15 @@
 // license that can be found in the LICENSE file.
 
 //go:build (!cgo && !windows && !plan9) || android || (osusergo && !windows && !plan9)
-// +build !cgo,!windows,!plan9 android osusergo,!windows,!plan9
 
 package user
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"runtime"
 	"strconv"
 )
-
-func init() {
-	groupImplemented = false
-}
 
 func current() (*User, error) {
 	uid := currentUID()
@@ -62,13 +56,6 @@ func current() (*User, error) {
 		missing += "$HOME"
 	}
 	return u, fmt.Errorf("user: Current requires cgo or %s set in environment", missing)
-}
-
-func listGroups(*User) ([]string, error) {
-	if runtime.GOOS == "android" || runtime.GOOS == "aix" {
-		return nil, fmt.Errorf("user: GroupIds not implemented on %s", runtime.GOOS)
-	}
-	return nil, errors.New("user: GroupIds requires cgo")
 }
 
 func currentUID() string {

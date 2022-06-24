@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || (solaris && !illumos)
-// +build aix solaris,!illumos
 
 // This code implements the filelock API using POSIX 'fcntl' locks, which attach
 // to an (inode, process) pair rather than a file descriptor. To avoid unlocking

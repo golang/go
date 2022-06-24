@@ -80,11 +80,11 @@ func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
 // when necessary (the condition above). It rewrites store ops to branches
 // and runtime calls, like
 //
-// if writeBarrier.enabled {
-//   gcWriteBarrier(ptr, val)	// Not a regular Go call
-// } else {
-//   *ptr = val
-// }
+//	if writeBarrier.enabled {
+//		gcWriteBarrier(ptr, val)	// Not a regular Go call
+//	} else {
+//		*ptr = val
+//	}
 //
 // A sequence of WB stores for many pointer fields of a single type will
 // be emitted together, with a single branch.
@@ -392,6 +392,14 @@ func (f *Func) computeZeroMap() map[ID]ZeroRegion {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if mem, ok := IsNewObject(v); ok {
+				// While compiling package runtime itself, we might see user
+				// calls to newobject, which will have result type
+				// unsafe.Pointer instead. We can't easily infer how large the
+				// allocated memory is, so just skip it.
+				if types.LocalPkg.Path == "runtime" && v.Type.IsUnsafePtr() {
+					continue
+				}
+
 				nptr := v.Type.Elem().Size() / ptrSize
 				if nptr > 64 {
 					nptr = 64
@@ -486,7 +494,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	inRegs := b.Func.ABIDefault == b.Func.ABI1 && len(config.intParamRegs) >= 3
 
 	// put arguments on stack
-	off := config.ctxt.FixedFrameSize()
+	off := config.ctxt.Arch.FixedFrameSize
 
 	var argTypes []*types.Type
 	if typ != nil { // for typedmemmove
@@ -529,7 +537,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	// issue call
 	call := b.NewValue0A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)))
 	call.AddArgs(wbargs...)
-	call.AuxInt = off - config.ctxt.FixedFrameSize()
+	call.AuxInt = off - config.ctxt.Arch.FixedFrameSize
 	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
 }
 
@@ -544,7 +552,7 @@ func IsStackAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP, OpLocalAddr, OpSelectNAddr:
+	case OpSP, OpLocalAddr, OpSelectNAddr, OpGetCallerSP:
 		return true
 	}
 	return false
@@ -552,6 +560,9 @@ func IsStackAddr(v *Value) bool {
 
 // IsGlobalAddr reports whether v is known to be an address of a global (or nil).
 func IsGlobalAddr(v *Value) bool {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
+		v = v.Args[0]
+	}
 	if v.Op == OpAddr && v.Args[0].Op == OpSB {
 		return true // address of a global
 	}
@@ -626,7 +637,7 @@ func IsNewObject(v *Value) (mem *Value, ok bool) {
 	if v.Args[0].Args[0].Op != OpSP {
 		return nil, false
 	}
-	if v.Args[0].AuxInt != c.ctxt.FixedFrameSize()+c.RegSize { // offset of return value
+	if v.Args[0].AuxInt != c.ctxt.Arch.FixedFrameSize+c.RegSize { // offset of return value
 		return nil, false
 	}
 	return mem, true
@@ -647,7 +658,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		// read-only once initialized.
 		return true
 	case OpAddr:
-		return v.Aux.(*obj.LSym).Type == objabi.SRODATA
+		return v.Aux.(*obj.LSym).Type == objabi.SRODATA || v.Aux.(*obj.LSym).Type == objabi.SLIBFUZZER_8BIT_COUNTER
 	}
 	return false
 }

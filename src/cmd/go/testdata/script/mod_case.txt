@@ -1,6 +1,6 @@
 env GO111MODULE=on
 
-go get -d
+go get
 go list -m all
 stdout '^rsc.io/quote v1.5.2'
 stdout '^rsc.io/QUOTE v1.5.2'
@@ -9,7 +9,7 @@ go list -f 'DIR {{.Dir}} DEPS {{.Deps}}' rsc.io/QUOTE/QUOTE
 stdout 'DEPS.*rsc.io/quote'
 stdout 'DIR.*!q!u!o!t!e'
 
-go get -d rsc.io/QUOTE@v1.5.3-PRE
+go get rsc.io/QUOTE@v1.5.3-PRE
 go list -m all
 stdout '^rsc.io/QUOTE v1.5.3-PRE'
 

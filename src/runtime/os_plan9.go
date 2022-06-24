@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -346,7 +347,7 @@ func getRandomData(r []byte) {
 
 func initsig(preinit bool) {
 	if !preinit {
-		notify(unsafe.Pointer(funcPC(sigtramp)))
+		notify(unsafe.Pointer(abi.FuncPCABI0(sigtramp)))
 	}
 }
 
@@ -436,13 +437,16 @@ func exit(e int32) {
 	} else {
 		// build error string
 		var tmp [32]byte
-		status = append(itoa(tmp[:len(tmp)-1], uint64(e)), 0)
+		sl := itoa(tmp[:len(tmp)-1], uint64(e))
+		// Don't append, rely on the existing data being zero.
+		status = tmp[:len(sl)+1]
 	}
 	goexitsall(&status[0])
 	exits(&status[0])
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	if false {
@@ -505,6 +509,7 @@ func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
 var _badsignal = []byte("runtime: signal received on thread not created by Go.\n")
 
 // This runs on a foreign stack, without an m or a g. No stack split.
+//
 //go:nosplit
 func badsignal2() {
 	pwrite(2, unsafe.Pointer(&_badsignal[0]), int32(len(_badsignal)), -1)

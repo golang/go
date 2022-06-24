@@ -70,7 +70,7 @@ func TestLookupStaticHost(t *testing.T) {
 }
 
 func testStaticHost(t *testing.T, hostsPath string, ent staticHostEntry) {
-	ins := []string{ent.in, absDomainName([]byte(ent.in)), strings.ToLower(ent.in), strings.ToUpper(ent.in)}
+	ins := []string{ent.in, absDomainName(ent.in), strings.ToLower(ent.in), strings.ToUpper(ent.in)}
 	for _, in := range ins {
 		addrs := lookupStaticHost(in)
 		if !reflect.DeepEqual(addrs, ent.out) {
@@ -141,7 +141,7 @@ func TestLookupStaticAddr(t *testing.T) {
 func testStaticAddr(t *testing.T, hostsPath string, ent staticHostEntry) {
 	hosts := lookupStaticAddr(ent.in)
 	for i := range ent.out {
-		ent.out[i] = absDomainName([]byte(ent.out[i]))
+		ent.out[i] = absDomainName(ent.out[i])
 	}
 	if !reflect.DeepEqual(hosts, ent.out) {
 		t.Errorf("%s, lookupStaticAddr(%s) = %v; want %v", hostsPath, ent.in, hosts, ent.out)

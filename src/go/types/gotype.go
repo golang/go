@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // Build this command explicitly: go build gotype.go
 
@@ -33,9 +32,11 @@ checking packages containing imports with relative import paths
 files to include for such packages.
 
 Usage:
+
 	gotype [flags] [path...]
 
 The flags are:
+
 	-t
 		include local test files in a directory (ignored if -x is provided)
 	-x
@@ -48,6 +49,7 @@ The flags are:
 		compiler used for installed packages (gc, gccgo, or source); default: source
 
 Flags controlling additional output:
+
 	-ast
 		print AST
 	-trace
@@ -75,7 +77,6 @@ cmd/compile:
 To verify the output of a pipe:
 
 	echo "package foo" | gotype
-
 */
 package main
 
@@ -180,7 +181,7 @@ func report(err error) {
 }
 
 // parse may be called concurrently
-func parse(filename string, src interface{}) (*ast.File, error) {
+func parse(filename string, src any) (*ast.File, error) {
 	if *verbose {
 		fmt.Println(filename)
 	}

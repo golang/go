@@ -195,6 +195,7 @@ func goenvs() {
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrierrec
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
@@ -292,6 +293,7 @@ var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 // Called to do synchronous initialization of Go code built with
 // -buildmode=c-archive or -buildmode=c-shared.
 // None of the Go runtime is initialized.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
@@ -324,6 +326,7 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	// iOS does not support alternate signal stack.
@@ -369,7 +372,7 @@ func setsig(i uint32, fn uintptr) {
 	var sa usigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = ^uint32(0)
-	if fn == funcPC(sighandler) { // funcPC(sighandler) matches the callers in signal_unix.go
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
 		if iscgo {
 			fn = abi.FuncPCABI0(cgoSigtramp)
 		} else {
@@ -410,6 +413,7 @@ func getsig(i uint32) uintptr {
 }
 
 // setSignaltstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
@@ -423,6 +427,19 @@ func sigaddset(mask *sigset, i int) {
 
 func sigdelset(mask *sigset, i int) {
 	*mask &^= 1 << (uint32(i) - 1)
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
 }
 
 //go:linkname executablePath os.executablePath
@@ -445,4 +462,13 @@ func sysargs(argc int32, argv **byte) {
 
 func signalM(mp *m, sig int) {
 	pthread_kill(pthread(mp.procid), uint32(sig))
+}
+
+// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+// number.
+const sigPerThreadSyscall = 1 << 31
+
+//go:nosplit
+func runPerThreadSyscall() {
+	throw("runPerThreadSyscall only valid on linux")
 }

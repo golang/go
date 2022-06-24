@@ -196,7 +196,7 @@ func Lookup(proxy, path string) Repo {
 	type cached struct {
 		r Repo
 	}
-	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() interface{} {
+	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() any {
 		r := newCachingRepo(path, func() (Repo, error) {
 			r, err := lookup(proxy, path)
 			if err == nil && traceRepo {
@@ -308,7 +308,7 @@ func newLoggingRepo(r Repo) *loggingRepo {
 //	defer logCall("hello %s", arg)()
 //
 // Note the final ().
-func logCall(format string, args ...interface{}) func() {
+func logCall(format string, args ...any) func() {
 	start := time.Now()
 	fmt.Fprintf(os.Stderr, "+++ %s\n", fmt.Sprintf(format, args...))
 	return func() {
@@ -371,7 +371,7 @@ type notExistError struct {
 	err error
 }
 
-func notExistErrorf(format string, args ...interface{}) error {
+func notExistErrorf(format string, args ...any) error {
 	return notExistError{fmt.Errorf(format, args...)}
 }
 

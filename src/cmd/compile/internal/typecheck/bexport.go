@@ -96,6 +96,12 @@ func predeclared() []*types.Type {
 
 			// any type, for builtin export data
 			types.Types[types.TANY],
+
+			// comparable
+			types.ComparableType,
+
+			// any
+			types.AnyType,
 		}
 	}
 	return predecl

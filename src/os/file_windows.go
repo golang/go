@@ -95,7 +95,7 @@ type dirInfo struct {
 func epipecheck(file *File, e error) {
 }
 
-// DevNull is the name of the operating system's ``null device.''
+// DevNull is the name of the operating system's “null device.”
 // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "NUL"
 
@@ -401,10 +401,11 @@ func openSymlink(path string) (syscall.Handle, error) {
 // normaliseLinkPath converts absolute paths returned by
 // DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, ...)
 // into paths acceptable by all Windows APIs.
-// For example, it coverts
-//  \??\C:\foo\bar into C:\foo\bar
-//  \??\UNC\foo\bar into \\foo\bar
-//  \??\Volume{abc}\ into C:\
+// For example, it converts
+//
+//	\??\C:\foo\bar into C:\foo\bar
+//	\??\UNC\foo\bar into \\foo\bar
+//	\??\Volume{abc}\ into C:\
 func normaliseLinkPath(path string) (string, error) {
 	if len(path) < 4 || path[:4] != `\??\` {
 		// unexpected path, return it as is

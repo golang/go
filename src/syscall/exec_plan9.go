@@ -19,6 +19,7 @@ var ForkLock sync.RWMutex
 // gstringb reads a non-empty string from b, prefixed with a 16-bit length in little-endian order.
 // It returns the string as a byte slice, or nil if b is too short to contain the length or
 // the full string.
+//
 //go:nosplit
 func gstringb(b []byte) []byte {
 	if len(b) < 2 {
@@ -37,6 +38,7 @@ const nameOffset = 39
 // gdirname returns the first filename from a buffer of directory entries,
 // and a slice containing the remaining directory entries.
 // If the buffer doesn't start with a valid directory entry, the returned name is nil.
+//
 //go:nosplit
 func gdirname(buf []byte) (name []byte, rest []byte) {
 	if len(buf) < 2 {
@@ -119,6 +121,7 @@ var dupdev, _ = BytePtrFromString("#d")
 // no rescheduling, no malloc calls, and no new stack segments.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
+//
 //go:norace
 func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, attr *ProcAttr, pipe int, rflag int) (pid int, err error) {
 	// Declare all variables at top in case any
@@ -302,6 +305,7 @@ childerror1:
 }
 
 // close the numbered file descriptor, unless it is fd1, fd2, or a member of fds.
+//
 //go:nosplit
 func closeFdExcept(n int, fd1 int, fd2 int, fds []int) {
 	if n == fd1 || n == fd2 {

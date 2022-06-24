@@ -17,6 +17,13 @@ import (
 	"unsafe"
 )
 
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
+var dupTrampoline = abi.FuncPCABI0(libc_dup2_trampoline)
+
 type SockaddrDatalink struct {
 	Len    uint8
 	Family uint8
@@ -72,22 +79,6 @@ func direntNamlen(buf []byte) (uint64, bool) {
 func PtraceAttach(pid int) (err error) { return ptrace(PT_ATTACH, pid, 0, 0) }
 func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
 
-const (
-	attrBitMapCount = 5
-	attrCmnModtime  = 0x00000400
-	attrCmnAcctime  = 0x00001000
-)
-
-type attrList struct {
-	bitmapCount uint16
-	_           uint16
-	CommonAttr  uint32
-	VolAttr     uint32
-	DirAttr     uint32
-	FileAttr    uint32
-	Forkattr    uint32
-}
-
 //sysnb pipe(p *[2]int32) (err error)
 
 func Pipe(p []int) (err error) {
@@ -96,8 +87,10 @@ func Pipe(p []int) (err error) {
 	}
 	var q [2]int32
 	err = pipe(&q)
-	p[0] = int(q[0])
-	p[1] = int(q[1])
+	if err == nil {
+		p[0] = int(q[0])
+		p[1] = int(q[1])
+	}
 	return
 }
 
@@ -120,42 +113,7 @@ func libc_getfsstat_trampoline()
 
 //go:cgo_import_dynamic libc_getfsstat getfsstat "/usr/lib/libSystem.B.dylib"
 
-func setattrlistTimes(path string, times []Timespec) error {
-	_p0, err := BytePtrFromString(path)
-	if err != nil {
-		return err
-	}
-
-	var attrList attrList
-	attrList.bitmapCount = attrBitMapCount
-	attrList.CommonAttr = attrCmnModtime | attrCmnAcctime
-
-	// order is mtime, atime: the opposite of Chtimes
-	attributes := [2]Timespec{times[1], times[0]}
-	const options = 0
-	_, _, e1 := syscall6(
-		abi.FuncPCABI0(libc_setattrlist_trampoline),
-		uintptr(unsafe.Pointer(_p0)),
-		uintptr(unsafe.Pointer(&attrList)),
-		uintptr(unsafe.Pointer(&attributes)),
-		uintptr(unsafe.Sizeof(attributes)),
-		uintptr(options),
-		0,
-	)
-	if e1 != 0 {
-		return e1
-	}
-	return nil
-}
-
-func libc_setattrlist_trampoline()
-
-//go:cgo_import_dynamic libc_setattrlist setattrlist "/usr/lib/libSystem.B.dylib"
-
-func utimensat(dirfd int, path string, times *[2]Timespec, flag int) error {
-	// Darwin doesn't support SYS_UTIMENSAT
-	return ENOSYS
-}
+//sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
 
 /*
  * Wrapped
@@ -217,8 +175,8 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Munlockall() (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno)
 //sys	Readlink(path string, buf []byte) (n int, err error)

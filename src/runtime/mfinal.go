@@ -8,8 +8,8 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -26,14 +26,14 @@ type finblock struct {
 	next    *finblock
 	cnt     uint32
 	_       int32
-	fin     [(_FinBlockSize - 2*sys.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
+	fin     [(_FinBlockSize - 2*goarch.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
 }
 
 var finlock mutex  // protects the following variables
 var fing *g        // goroutine that runs finalizers
 var finq *finblock // list of finalizers that are to be executed
 var finc *finblock // cache of free blocks
-var finptrmask [_FinBlockSize / sys.PtrSize / 8]byte
+var finptrmask [_FinBlockSize / goarch.PtrSize / 8]byte
 var fingwait bool
 var fingwake bool
 var allfin *finblock // list of all blocks
@@ -95,12 +95,12 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 			if finptrmask[0] == 0 {
 				// Build pointer mask for Finalizer array in block.
 				// Check assumptions made in finalizer1 array above.
-				if (unsafe.Sizeof(finalizer{}) != 5*sys.PtrSize ||
+				if (unsafe.Sizeof(finalizer{}) != 5*goarch.PtrSize ||
 					unsafe.Offsetof(finalizer{}.fn) != 0 ||
-					unsafe.Offsetof(finalizer{}.arg) != sys.PtrSize ||
-					unsafe.Offsetof(finalizer{}.nret) != 2*sys.PtrSize ||
-					unsafe.Offsetof(finalizer{}.fint) != 3*sys.PtrSize ||
-					unsafe.Offsetof(finalizer{}.ot) != 4*sys.PtrSize) {
+					unsafe.Offsetof(finalizer{}.arg) != goarch.PtrSize ||
+					unsafe.Offsetof(finalizer{}.nret) != 2*goarch.PtrSize ||
+					unsafe.Offsetof(finalizer{}.fint) != 3*goarch.PtrSize ||
+					unsafe.Offsetof(finalizer{}.ot) != 4*goarch.PtrSize) {
 					throw("finalizer out of sync")
 				}
 				for i := range finptrmask {
@@ -166,13 +166,16 @@ func runfinq() {
 		argRegs  int
 	)
 
+	gp := getg()
+	lock(&finlock)
+	fing = gp
+	unlock(&finlock)
+
 	for {
 		lock(&finlock)
 		fb := finq
 		finq = nil
 		if fb == nil {
-			gp := getg()
-			fing = gp
 			fingwait = true
 			goparkunlock(&finlock, waitReasonFinalizerWait, traceEvGoBlock, 1)
 			continue
@@ -187,21 +190,15 @@ func runfinq() {
 				f := &fb.fin[i-1]
 
 				var regs abi.RegArgs
-				var framesz uintptr
-				if argRegs > 0 {
-					// The args can always be passed in registers if they're
-					// available, because platforms we support always have no
-					// argument registers available, or more than 2.
-					//
-					// But unfortunately because we can have an arbitrary
-					// amount of returns and it would be complex to try and
-					// figure out how many of those can get passed in registers,
-					// just conservatively assume none of them do.
-					framesz = f.nret
-				} else {
-					// Need to pass arguments on the stack too.
-					framesz = unsafe.Sizeof((interface{})(nil)) + f.nret
-				}
+				// The args may be passed in registers or on stack. Even for
+				// the register case, we still need the spill slots.
+				// TODO: revisit if we remove spill slots.
+				//
+				// Unfortunately because we can have an arbitrary
+				// amount of returns and it would be complex to try and
+				// figure out how many of those can get passed in registers,
+				// just conservatively assume none of them do.
+				framesz := unsafe.Sizeof((any)(nil)) + f.nret
 				if framecap < framesz {
 					// The frame does not contain pointers interesting for GC,
 					// all not yet finalized objects are stored in finq.
@@ -324,12 +321,24 @@ func runfinq() {
 // closing p.d, causing syscall.Write to fail because it is writing to
 // a closed file descriptor (or, worse, to an entirely different
 // file descriptor opened by a different goroutine). To avoid this problem,
-// call runtime.KeepAlive(p) after the call to syscall.Write.
+// call KeepAlive(p) after the call to syscall.Write.
 //
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
 // a new goroutine.
-func SetFinalizer(obj interface{}, finalizer interface{}) {
+//
+// In the terminology of the Go memory model, a call
+// SetFinalizer(x, f) “synchronizes before” the finalization call f(x).
+// However, there is no guarantee that KeepAlive(x) or any other use of x
+// “synchronizes before” f(x), so in general a finalizer should use a mutex
+// or other synchronization mechanism if it needs to access mutable state in x.
+// For example, consider a finalizer that inspects a mutable field in x
+// that is modified from time to time in the main program before x
+// becomes unreachable and the finalizer is invoked.
+// The modifications in the main program and the inspection in the finalizer
+// need to use appropriate synchronization, such as mutexes or atomic updates,
+// to avoid read-write races.
+func SetFinalizer(obj any, finalizer any) {
 	if debug.sbrk != 0 {
 		// debug.sbrk never frees memory, so no finalizers run
 		// (and we don't have the data structures to record them).
@@ -432,7 +441,7 @@ okarg:
 	for _, t := range ft.out() {
 		nret = alignUp(nret, uintptr(t.align)) + uintptr(t.size)
 	}
-	nret = alignUp(nret, sys.PtrSize)
+	nret = alignUp(nret, goarch.PtrSize)
 
 	// make sure we have a finalizer goroutine
 	createfing()
@@ -445,6 +454,7 @@ okarg:
 }
 
 // Mark KeepAlive as noinline so that it is easily detectable as an intrinsic.
+//
 //go:noinline
 
 // KeepAlive marks its argument as currently reachable.
@@ -452,21 +462,26 @@ okarg:
 // before the point in the program where KeepAlive is called.
 //
 // A very simplified example showing where KeepAlive is required:
-// 	type File struct { d int }
-// 	d, err := syscall.Open("/file/path", syscall.O_RDONLY, 0)
-// 	// ... do something if err != nil ...
-// 	p := &File{d}
-// 	runtime.SetFinalizer(p, func(p *File) { syscall.Close(p.d) })
-// 	var buf [10]byte
-// 	n, err := syscall.Read(p.d, buf[:])
-// 	// Ensure p is not finalized until Read returns.
-// 	runtime.KeepAlive(p)
-// 	// No more uses of p after this point.
+//
+//	type File struct { d int }
+//	d, err := syscall.Open("/file/path", syscall.O_RDONLY, 0)
+//	// ... do something if err != nil ...
+//	p := &File{d}
+//	runtime.SetFinalizer(p, func(p *File) { syscall.Close(p.d) })
+//	var buf [10]byte
+//	n, err := syscall.Read(p.d, buf[:])
+//	// Ensure p is not finalized until Read returns.
+//	runtime.KeepAlive(p)
+//	// No more uses of p after this point.
 //
 // Without the KeepAlive call, the finalizer could run at the start of
 // syscall.Read, closing the file descriptor before syscall.Read makes
 // the actual system call.
-func KeepAlive(x interface{}) {
+//
+// Note: KeepAlive should only be used to prevent finalizers from
+// running prematurely. In particular, when used with unsafe.Pointer,
+// the rules for valid uses of unsafe.Pointer still apply.
+func KeepAlive(x any) {
 	// Introduce a use of x that the compiler can't eliminate.
 	// This makes sure x is alive on entry. We need x to be alive
 	// on entry for "defer runtime.KeepAlive(x)"; see issue 21402.

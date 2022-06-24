@@ -10,15 +10,6 @@
 // This file provides fast assembly versions for the elementary
 // arithmetic operations on vectors implemented in arith.go.
 
-TEXT ·mulWW(SB), NOSPLIT, $0
-	MOVD   x+0(FP), R3
-	MOVD   y+8(FP), R4
-	MULHDU R3, R4
-	MOVD   R10, z1+16(FP)
-	MOVD   R11, z0+24(FP)
-	RET
-
-
 // DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2, r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
 // func addVV(z, x, y []Word) (c Word)
 

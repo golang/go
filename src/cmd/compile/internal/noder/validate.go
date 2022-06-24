@@ -55,7 +55,15 @@ func (g *irgen) validate(n syntax.Node) {
 	case *syntax.CallExpr:
 		tv := g.info.Types[n.Fun]
 		if tv.IsBuiltin() {
-			switch builtin := n.Fun.(type) {
+			fun := n.Fun
+			for {
+				builtin, ok := fun.(*syntax.ParenExpr)
+				if !ok {
+					break
+				}
+				fun = builtin.X
+			}
+			switch builtin := fun.(type) {
 			case *syntax.Name:
 				g.validateBuiltin(builtin.Value, n)
 			case *syntax.SelectorExpr:
@@ -73,7 +81,16 @@ func (g *irgen) validateBuiltin(name string, call *syntax.CallExpr) {
 		// Check that types2+gcSizes calculates sizes the same
 		// as cmd/compile does.
 
-		got, ok := constant.Int64Val(g.info.Types[call].Value)
+		tv := g.info.Types[call]
+		if !tv.IsValue() {
+			base.FatalfAt(g.pos(call), "expected a value")
+		}
+
+		if tv.Value == nil {
+			break // unsafe op is not a constant, so no further validation
+		}
+
+		got, ok := constant.Int64Val(tv.Value)
 		if !ok {
 			base.FatalfAt(g.pos(call), "expected int64 constant value")
 		}

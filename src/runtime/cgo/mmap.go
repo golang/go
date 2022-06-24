@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (linux && amd64) || (linux && arm64)
-// +build linux,amd64 linux,arm64
 
 package cgo
 

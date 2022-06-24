@@ -53,10 +53,11 @@ func (e *TypeAssertionError) Error() string {
 		": missing method " + e.missingMethod
 }
 
-//go:nosplit
 // itoa converts val to a decimal representation. The result is
 // written somewhere within buf and the location of the result is returned.
 // buf must be at least 20 bytes.
+//
+//go:nosplit
 func itoa(buf []byte, val uint64) []byte {
 	i := len(buf) - 1
 	for val >= 10 {
@@ -210,7 +211,7 @@ type stringer interface {
 // printany prints an argument passed to panic.
 // If panic is called with a value that has a String or Error method,
 // it has already been converted into a string by preprintpanics.
-func printany(i interface{}) {
+func printany(i any) {
 	switch v := i.(type) {
 	case nil:
 		print("nil")
@@ -253,7 +254,7 @@ func printany(i interface{}) {
 	}
 }
 
-func printanycustomtype(i interface{}) {
+func printanycustomtype(i any) {
 	eface := efaceOf(&i)
 	typestring := eface._type.string()
 

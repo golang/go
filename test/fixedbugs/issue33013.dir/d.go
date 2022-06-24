@@ -5,8 +5,8 @@
 package d
 
 import (
-	"b"
-	"c"
+	"./b"
+	"./c"
 )
 
 var GA b.Service

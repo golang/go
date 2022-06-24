@@ -10,7 +10,7 @@ set GOBUILDFAIL=0
 
 go tool dist env -w -p >env.bat
 if errorlevel 1 goto fail
-call env.bat
+call .\env.bat
 del env.bat
 echo.
 

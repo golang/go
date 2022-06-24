@@ -54,7 +54,7 @@ includes_AIX='
 
 includes_Darwin='
 #define _DARWIN_C_SOURCE
-#define KERNEL
+#define KERNEL 1
 #define _DARWIN_USE_64_BIT_INODE
 #define __APPLE_USE_RFC_3542
 #include <stdint.h>
@@ -75,6 +75,7 @@ includes_Darwin='
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <sys/xattr.h>
+#include <sys/vsock.h>
 #include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_types.h>
@@ -82,6 +83,9 @@ includes_Darwin='
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <termios.h>
+
+// for backwards compatibility because moved TIOCREMOTE to Kernel.framework after MacOSX12.0.sdk.
+#define TIOCREMOTE 0x80047469
 '
 
 includes_DragonFly='
@@ -201,6 +205,7 @@ struct ltchars {
 #include <linux/bpf.h>
 #include <linux/can.h>
 #include <linux/can/error.h>
+#include <linux/can/netlink.h>
 #include <linux/can/raw.h>
 #include <linux/capability.h>
 #include <linux/cryptouser.h>
@@ -210,6 +215,7 @@ struct ltchars {
 #include <linux/ethtool_netlink.h>
 #include <linux/falloc.h>
 #include <linux/fanotify.h>
+#include <linux/fib_rules.h>
 #include <linux/filter.h>
 #include <linux/fs.h>
 #include <linux/fscrypt.h>
@@ -217,8 +223,6 @@ struct ltchars {
 #include <linux/genetlink.h>
 #include <linux/hdreg.h>
 #include <linux/hidraw.h>
-#include <linux/icmp.h>
-#include <linux/icmpv6.h>
 #include <linux/if.h>
 #include <linux/if_addr.h>
 #include <linux/if_alg.h>
@@ -229,16 +233,20 @@ struct ltchars {
 #include <linux/if_packet.h>
 #include <linux/if_xdp.h>
 #include <linux/input.h>
+#include <linux/kcm.h>
 #include <linux/kexec.h>
 #include <linux/keyctl.h>
+#include <linux/landlock.h>
 #include <linux/loop.h>
 #include <linux/lwtunnel.h>
 #include <linux/magic.h>
 #include <linux/memfd.h>
 #include <linux/module.h>
+#include <linux/mount.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netlink.h>
 #include <linux/net_namespace.h>
+#include <linux/nfc.h>
 #include <linux/nsfs.h>
 #include <linux/perf_event.h>
 #include <linux/pps.h>
@@ -256,8 +264,10 @@ struct ltchars {
 #include <linux/vm_sockets.h>
 #include <linux/wait.h>
 #include <linux/watchdog.h>
+#include <linux/wireguard.h>
 
 #include <mtd/ubi-user.h>
+#include <mtd/mtd-user.h>
 #include <net/route.h>
 
 #if defined(__sparc__)
@@ -465,7 +475,6 @@ ccflags="$@"
 		$2 !~ /^EQUIV_/ &&
 		$2 !~ /^EXPR_/ &&
 		$2 !~ /^EVIOC/ &&
-		$2 !~ /^EV_/ &&
 		$2 ~ /^E[A-Z0-9_]+$/ ||
 		$2 ~ /^B[0-9_]+$/ ||
 		$2 ~ /^(OLD|NEW)DEV$/ ||
@@ -497,10 +506,15 @@ ccflags="$@"
 		$2 ~ /^O?XTABS$/ ||
 		$2 ~ /^TC[IO](ON|OFF)$/ ||
 		$2 ~ /^IN_/ ||
+		$2 ~ /^KCM/ ||
+		$2 ~ /^LANDLOCK_/ ||
 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
 		$2 ~ /^LO_(KEY|NAME)_SIZE$/ ||
 		$2 ~ /^LOOP_(CLR|CTL|GET|SET)_/ ||
-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL)_/ ||
+		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT)_/ ||
+		$2 ~ /^NFC_(GENL|PROTO|COMM|RF|SE|DIRECTION|LLCP|SOCKPROTO)_/ ||
+		$2 ~ /^NFC_.*_(MAX)?SIZE$/ ||
+		$2 ~ /^RAW_PAYLOAD_/ ||
 		$2 ~ /^TP_STATUS_/ ||
 		$2 ~ /^FALLOC_/ ||
 		$2 ~ /^ICMPV?6?_(FILTER|SEC)/ ||
@@ -512,7 +526,7 @@ ccflags="$@"
 		$2 ~ /^HW_MACHINE$/ ||
 		$2 ~ /^SYSCTL_VERS/ ||
 		$2 !~ "MNT_BITS" &&
-		$2 ~ /^(MS|MNT|UMOUNT)_/ ||
+		$2 ~ /^(MS|MNT|MOUNT|UMOUNT)_/ ||
 		$2 ~ /^NS_GET_/ ||
 		$2 ~ /^TUN(SET|GET|ATTACH|DETACH)/ ||
 		$2 ~ /^(O|F|[ES]?FD|NAME|S|PTRACE|PT|TFD)_/ ||
@@ -558,6 +572,7 @@ ccflags="$@"
 		$2 ~ /^KEYCTL_/ ||
 		$2 ~ /^PERF_/ ||
 		$2 ~ /^SECCOMP_MODE_/ ||
+		$2 ~ /^SEEK_/ ||
 		$2 ~ /^SPLICE_/ ||
 		$2 ~ /^SYNC_FILE_RANGE_/ ||
 		$2 !~ /^AUDIT_RECORD_MAGIC/ &&
@@ -586,13 +601,20 @@ ccflags="$@"
 		$2 ~ /^DEVLINK_/ ||
 		$2 ~ /^ETHTOOL_/ ||
 		$2 ~ /^LWTUNNEL_IP/ ||
+		$2 ~ /^ITIMER_/ ||
 		$2 !~ "WMESGLEN" &&
 		$2 ~ /^W[A-Z0-9]+$/ ||
+		$2 ~ /^P_/ ||
 		$2 ~/^PPPIOC/ ||
 		$2 ~ /^FAN_|FANOTIFY_/ ||
 		$2 == "HID_MAX_DESCRIPTOR_SIZE" ||
 		$2 ~ /^_?HIDIOC/ ||
 		$2 ~ /^BUS_(USB|HIL|BLUETOOTH|VIRTUAL)$/ ||
+		$2 ~ /^MTD/ ||
+		$2 ~ /^OTP/ ||
+		$2 ~ /^MEM/ ||
+		$2 ~ /^WG/ ||
+		$2 ~ /^FIB_RULE_/ ||
 		$2 ~ /^BLK[A-Z]*(GET$|SET$|BUF$|PART$|SIZE)/ {printf("\t%s = C.%s\n", $2, $2)}
 		$2 ~ /^__WCOREFLAG$/ {next}
 		$2 ~ /^__W[A-Z0-9]+$/ {printf("\t%s = C.%s\n", substr($2,3), $2)}

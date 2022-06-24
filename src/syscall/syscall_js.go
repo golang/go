@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build js && wasm
-// +build js,wasm
 
 package syscall
 
@@ -42,6 +41,7 @@ const PathMax = 256
 // An Errno is an unsigned number describing an error condition.
 // It implements the error interface. The zero Errno is by convention
 // a non-error, so code to convert from Errno to error should use:
+//
 //	err = nil
 //	if errno != 0 {
 //		err = errno

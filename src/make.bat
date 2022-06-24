@@ -46,10 +46,7 @@ if x%4==x--no-local goto nolocal
 setlocal
 :nolocal
 
-set GOENV=off
 set GOBUILDFAIL=0
-set GOFLAGS=
-set GO111MODULE=
 
 if exist make.bat goto ok
 echo Must run make.bat from Go src directory.
@@ -83,6 +80,8 @@ for /f "tokens=*" %%g in ('where go 2^>nul') do (
 		)
 	)
 )
+if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\go1.17" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\go1.17
+if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go1.17" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\sdk\go1.17
 if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
 
 :bootstrapset
@@ -97,13 +96,16 @@ set GOROOT=%GOROOT_BOOTSTRAP%
 set GOOS=
 set GOARCH=
 set GOBIN=
+set GOEXPERIMENT=
 set GO111MODULE=off
+set GOENV=off
+set GOFLAGS=
 "%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
 endlocal
 if errorlevel 1 goto fail
 .\cmd\dist\dist.exe env -w -p >env.bat
 if errorlevel 1 goto fail
-call env.bat
+call .\env.bat
 del env.bat
 if x%vflag==x-v echo.
 
@@ -112,20 +114,20 @@ if x%2==x--dist-tool goto copydist
 if x%3==x--dist-tool goto copydist
 if x%4==x--dist-tool goto copydist
 
-set buildall=-a
-if x%1==x--no-clean set buildall=
-if x%2==x--no-clean set buildall=
-if x%3==x--no-clean set buildall=
-if x%4==x--no-clean set buildall=
-if x%1==x--no-banner set buildall=%buildall% --no-banner
-if x%2==x--no-banner set buildall=%buildall% --no-banner
-if x%3==x--no-banner set buildall=%buildall% --no-banner
-if x%4==x--no-banner set buildall=%buildall% --no-banner
+set bootstrapflags=
+if x%1==x--no-clean set bootstrapflags=--no-clean
+if x%2==x--no-clean set bootstrapflags=--no-clean
+if x%3==x--no-clean set bootstrapflags=--no-clean
+if x%4==x--no-clean set bootstrapflags=--no-clean
+if x%1==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
+if x%2==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
+if x%3==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
+if x%4==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
 
 :: Run dist bootstrap to complete make.bash.
 :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
 :: Throw ours, built with Go 1.4, away after bootstrap.
-.\cmd\dist\dist.exe bootstrap %vflag% %buildall%
+.\cmd\dist\dist.exe bootstrap -a %vflag% %bootstrapflags%
 if errorlevel 1 goto fail
 del .\cmd\dist\dist.exe
 goto end

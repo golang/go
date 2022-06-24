@@ -17,6 +17,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"log"
 	"net"
@@ -24,7 +25,6 @@ import (
 	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -42,10 +42,10 @@ import (
 // $no_proxy) environment variables.
 var DefaultTransport RoundTripper = &Transport{
 	Proxy: ProxyFromEnvironment,
-	DialContext: (&net.Dialer{
+	DialContext: defaultTransportDialContext(&net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
-	}).DialContext,
+	}),
 	ForceAttemptHTTP2:     true,
 	MaxIdleConns:          100,
 	IdleConnTimeout:       90 * time.Second,
@@ -360,7 +360,7 @@ func (t *Transport) hasCustomTLSDialer() bool {
 // It must be called via t.nextProtoOnce.Do.
 func (t *Transport) onceSetNextProtoDefaults() {
 	t.tlsNextProtoWasNil = (t.TLSNextProto == nil)
-	if strings.Contains(os.Getenv("GODEBUG"), "http2client=0") {
+	if godebug.Get("http2client") == "0" {
 		return
 	}
 
@@ -427,6 +427,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 //
 // The environment values may be either a complete URL or a
 // "host[:port]", in which case the "http" scheme is assumed.
+// The schemes "http", "https", and "socks5" are supported.
 // An error is returned if the value is a different form.
 //
 // A nil URL and nil error are returned if no proxy is defined in the
@@ -605,6 +606,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		} else if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
+			if e, ok := err.(nothingWrittenError); ok {
+				err = e.error
+			}
 			if e, ok := err.(transportReadFromServerError); ok {
 				err = e.err
 			}
@@ -1714,12 +1718,12 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			return nil, err
 		}
 		if resp.StatusCode != 200 {
-			f := strings.SplitN(resp.Status, " ", 2)
+			_, text, ok := strings.Cut(resp.Status, " ")
 			conn.Close()
-			if len(f) < 2 {
+			if !ok {
 				return nil, errors.New("unknown status code")
 			}
-			return nil, errors.New(f[1])
+			return nil, errors.New(text)
 		}
 	}
 
@@ -1791,7 +1795,6 @@ var _ io.ReaderFrom = (*persistConnWriter)(nil)
 //	socks5://proxy.com|https|foo.com  socks5 to proxy, then https to foo.com
 //	https://proxy.com|https|foo.com   https to proxy, then CONNECT to foo.com
 //	https://proxy.com|http            https to proxy, http to anywhere after that
-//
 type connectMethod struct {
 	_            incomparable
 	proxyURL     *url.URL // nil for no proxy, else full proxy URL
@@ -2031,6 +2034,9 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
 	}
 
 	if _, ok := err.(transportReadFromServerError); ok {
+		if pc.nwrite == startBytesWritten {
+			return nothingWrittenError{err}
+		}
 		// Don't decorate
 		return err
 	}
@@ -2480,7 +2486,7 @@ type requestAndChan struct {
 	callerGone <-chan struct{} // closed when roundTrip caller has returned
 }
 
-// A writeRequest is sent by the readLoop's goroutine to the
+// A writeRequest is sent by the caller's goroutine to the
 // writeLoop's goroutine to write a request while the read loop
 // concurrently waits on both the write response and the server's
 // reply.
@@ -2667,8 +2673,8 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 // a t.Logf func. See export_test.go's Request.WithT method.
 type tLogKey struct{}
 
-func (tr *transportRequest) logf(format string, args ...interface{}) {
-	if logf, ok := tr.Request.Context().Value(tLogKey{}).(func(string, ...interface{})); ok {
+func (tr *transportRequest) logf(format string, args ...any) {
+	if logf, ok := tr.Request.Context().Value(tLogKey{}).(func(string, ...any)); ok {
 		logf(time.Now().Format(time.RFC3339Nano)+": "+format, args...)
 	}
 }

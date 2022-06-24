@@ -16,7 +16,6 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 )
 
 func roundFloat(v constant.Value, sz int64) constant.Value {
@@ -99,10 +98,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		}
 		n = ir.Copy(n)
 		if t == nil {
-			base.Errorf("use of untyped nil")
-			n.SetDiag(true)
-			n.SetType(nil)
-			return n
+			base.Fatalf("use of untyped nil")
 		}
 
 		if !t.HasNil() {
@@ -199,18 +195,14 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		return n
 	}
 
-	if !n.Diag() {
-		if !t.Broke() {
-			if explicit {
-				base.Errorf("cannot convert %L to type %v", n, t)
-			} else if context != nil {
-				base.Errorf("cannot use %L as type %v in %s", n, t, context())
-			} else {
-				base.Errorf("cannot use %L as type %v", n, t)
-			}
-		}
-		n.SetDiag(true)
+	if explicit {
+		base.Fatalf("cannot convert %L to type %v", n, t)
+	} else if context != nil {
+		base.Fatalf("cannot use %L as type %v in %s", n, t, context())
+	} else {
+		base.Fatalf("cannot use %L as type %v", n, t)
 	}
+
 	n.SetType(nil)
 	return n
 }
@@ -628,7 +620,8 @@ func OrigInt(n ir.Node, v int64) ir.Node {
 // get the same type going out.
 // force means must assign concrete (non-ideal) type.
 // The results of defaultlit2 MUST be assigned back to l and r, e.g.
-// 	n.Left, n.Right = defaultlit2(n.Left, n.Right, force)
+//
+//	n.Left, n.Right = defaultlit2(n.Left, n.Right, force)
 func defaultlit2(l ir.Node, r ir.Node, force bool) (ir.Node, ir.Node) {
 	if l.Type() == nil || r.Type() == nil {
 		return l, r
@@ -741,124 +734,41 @@ func IndexConst(n ir.Node) int64 {
 	return ir.IntVal(types.Types[types.TINT], v)
 }
 
+// callOrChan reports whether n is a call or channel operation.
+func callOrChan(n ir.Node) bool {
+	switch n.Op() {
+	case ir.OAPPEND,
+		ir.OCALL,
+		ir.OCALLFUNC,
+		ir.OCALLINTER,
+		ir.OCALLMETH,
+		ir.OCAP,
+		ir.OCLOSE,
+		ir.OCOMPLEX,
+		ir.OCOPY,
+		ir.ODELETE,
+		ir.OIMAG,
+		ir.OLEN,
+		ir.OMAKE,
+		ir.ONEW,
+		ir.OPANIC,
+		ir.OPRINT,
+		ir.OPRINTN,
+		ir.OREAL,
+		ir.ORECOVER,
+		ir.ORECV,
+		ir.OUNSAFEADD,
+		ir.OUNSAFESLICE:
+		return true
+	}
+	return false
+}
+
 // anyCallOrChan reports whether n contains any calls or channel operations.
 func anyCallOrChan(n ir.Node) bool {
 	return ir.Any(n, func(n ir.Node) bool {
-		switch n.Op() {
-		case ir.OAPPEND,
-			ir.OCALL,
-			ir.OCALLFUNC,
-			ir.OCALLINTER,
-			ir.OCALLMETH,
-			ir.OCAP,
-			ir.OCLOSE,
-			ir.OCOMPLEX,
-			ir.OCOPY,
-			ir.ODELETE,
-			ir.OIMAG,
-			ir.OLEN,
-			ir.OMAKE,
-			ir.ONEW,
-			ir.OPANIC,
-			ir.OPRINT,
-			ir.OPRINTN,
-			ir.OREAL,
-			ir.ORECOVER,
-			ir.ORECV,
-			ir.OUNSAFEADD,
-			ir.OUNSAFESLICE:
-			return true
-		}
-		return false
+		return callOrChan(n)
 	})
-}
-
-// A constSet represents a set of Go constant expressions.
-type constSet struct {
-	m map[constSetKey]src.XPos
-}
-
-type constSetKey struct {
-	typ *types.Type
-	val interface{}
-}
-
-// add adds constant expression n to s. If a constant expression of
-// equal value and identical type has already been added, then add
-// reports an error about the duplicate value.
-//
-// pos provides position information for where expression n occurred
-// (in case n does not have its own position information). what and
-// where are used in the error message.
-//
-// n must not be an untyped constant.
-func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
-	if conv := n; conv.Op() == ir.OCONVIFACE {
-		conv := conv.(*ir.ConvExpr)
-		if conv.Implicit() {
-			n = conv.X
-		}
-	}
-
-	if !ir.IsConstNode(n) || n.Type() == nil {
-		return
-	}
-	if n.Type().IsUntyped() {
-		base.Fatalf("%v is untyped", n)
-	}
-
-	// Consts are only duplicates if they have the same value and
-	// identical types.
-	//
-	// In general, we have to use types.Identical to test type
-	// identity, because == gives false negatives for anonymous
-	// types and the byte/uint8 and rune/int32 builtin type
-	// aliases.  However, this is not a problem here, because
-	// constant expressions are always untyped or have a named
-	// type, and we explicitly handle the builtin type aliases
-	// below.
-	//
-	// This approach may need to be revisited though if we fix
-	// #21866 by treating all type aliases like byte/uint8 and
-	// rune/int32.
-
-	typ := n.Type()
-	switch typ {
-	case types.ByteType:
-		typ = types.Types[types.TUINT8]
-	case types.RuneType:
-		typ = types.Types[types.TINT32]
-	}
-	k := constSetKey{typ, ir.ConstValue(n)}
-
-	if ir.HasUniquePos(n) {
-		pos = n.Pos()
-	}
-
-	if s.m == nil {
-		s.m = make(map[constSetKey]src.XPos)
-	}
-
-	if prevPos, isDup := s.m[k]; isDup {
-		base.ErrorfAt(pos, "duplicate %s %s in %s\n\tprevious %s at %v",
-			what, nodeAndVal(n), where,
-			what, base.FmtPos(prevPos))
-	} else {
-		s.m[k] = pos
-	}
-}
-
-// nodeAndVal reports both an expression and its constant value, if
-// the latter is non-obvious.
-//
-// TODO(mdempsky): This could probably be a fmt.go flag.
-func nodeAndVal(n ir.Node) string {
-	show := fmt.Sprint(n)
-	val := ir.ConstValue(n)
-	if s := fmt.Sprintf("%#v", val); show != s {
-		show += " (value " + s + ")"
-	}
-	return show
 }
 
 // evalunsafe evaluates a package unsafe operation and returns the result.
@@ -874,14 +784,16 @@ func evalunsafe(n ir.Node) int64 {
 		}
 		types.CalcSize(tr)
 		if n.Op() == ir.OALIGNOF {
-			return int64(tr.Align)
+			return tr.Alignment()
 		}
-		return tr.Width
+		return tr.Size()
 
 	case ir.OOFFSETOF:
 		// must be a selector.
 		n := n.(*ir.UnaryExpr)
-		if n.X.Op() != ir.OXDOT {
+		// ODOT and ODOTPTR are allowed in case the OXDOT transformation has
+		// already happened (e.g. during -G=3 stenciling).
+		if n.X.Op() != ir.OXDOT && n.X.Op() != ir.ODOT && n.X.Op() != ir.ODOTPTR {
 			base.Errorf("invalid expression %v", n)
 			return 0
 		}
@@ -893,6 +805,18 @@ func evalunsafe(n ir.Node) int64 {
 		sel.X = Expr(sel.X)
 		sbase := sel.X
 
+		// Implicit dot may already be resolved for instantiating generic function. So we
+		// need to remove any implicit dot until we reach the first non-implicit one, it's
+		// the right base selector. See issue #53137.
+		var clobberBase func(n ir.Node) ir.Node
+		clobberBase = func(n ir.Node) ir.Node {
+			if sel, ok := n.(*ir.SelectorExpr); ok && sel.Implicit() {
+				return clobberBase(sel.X)
+			}
+			return n
+		}
+		sbase = clobberBase(sbase)
+
 		tsel := Expr(sel)
 		n.X = tsel
 		if tsel.Type() == nil {
@@ -901,7 +825,7 @@ func evalunsafe(n ir.Node) int64 {
 		switch tsel.Op() {
 		case ir.ODOT, ir.ODOTPTR:
 			break
-		case ir.OCALLPART:
+		case ir.OMETHVALUE:
 			base.Errorf("invalid expression %v: argument is a method value", n)
 			return 0
 		default:

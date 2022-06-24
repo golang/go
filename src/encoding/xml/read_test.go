@@ -270,7 +270,7 @@ type PathTestE struct {
 	Before, After string
 }
 
-var pathTests = []interface{}{
+var pathTests = []any{
 	&PathTestA{Items: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
 	&PathTestB{Other: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
 	&PathTestC{Values1: []string{"A", "C", "D"}, Values2: []string{"B"}, Before: "1", After: "2"},
@@ -321,7 +321,7 @@ type BadPathEmbeddedB struct {
 }
 
 var badPathTests = []struct {
-	v, e interface{}
+	v, e any
 }{
 	{&BadPathTestA{}, &TagPathError{reflect.TypeOf(BadPathTestA{}), "First", "items>item1", "Second", "items"}},
 	{&BadPathTestB{}, &TagPathError{reflect.TypeOf(BadPathTestB{}), "First", "items>item1", "Second", "items>item1>value"}},
@@ -691,7 +691,7 @@ type Pea struct {
 }
 
 type Pod struct {
-	Pea interface{} `xml:"Pea"`
+	Pea any `xml:"Pea"`
 }
 
 // https://golang.org/issue/6836
@@ -1078,4 +1078,19 @@ func TestUnmarshalWhitespaceAttrs(t *testing.T) {
 	if v != want {
 		t.Fatalf("whitespace attrs: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
 	}
+}
+
+// golang.org/issues/53350
+func TestUnmarshalIntoNil(t *testing.T) {
+	type T struct {
+		A int `xml:"A"`
+	}
+
+	var nilPointer *T
+	err := Unmarshal([]byte("<T><A>1</A></T>"), nilPointer)
+
+	if err == nil {
+		t.Fatalf("no error in unmarshalling")
+	}
+
 }

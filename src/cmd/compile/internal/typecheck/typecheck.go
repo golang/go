@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 // Function collecting autotmps generated during typechecking,
@@ -24,7 +25,6 @@ var inimport bool // set during import
 var TypecheckAllowed bool
 
 var (
-	NeedITab        = func(t, itype *types.Type) {}
 	NeedRuntimeType = func(*types.Type) {}
 )
 
@@ -35,33 +35,14 @@ func Stmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }
 func Exprs(exprs []ir.Node) { typecheckslice(exprs, ctxExpr) }
 func Stmts(stmts []ir.Node) { typecheckslice(stmts, ctxStmt) }
 
-func Call(call *ir.CallExpr) {
-	t := call.X.Type()
-	if t == nil {
-		panic("misuse of Call")
-	}
-	ctx := ctxStmt
-	if t.NumResults() > 0 {
-		ctx = ctxExpr | ctxMultiOK
-	}
-	if typecheck(call, ctx) != call {
-		panic("bad typecheck")
-	}
+func Call(pos src.XPos, callee ir.Node, args []ir.Node, dots bool) ir.Node {
+	call := ir.NewCallExpr(pos, ir.OCALL, callee, args)
+	call.IsDDD = dots
+	return typecheck(call, ctxStmt|ctxExpr)
 }
 
 func Callee(n ir.Node) ir.Node {
 	return typecheck(n, ctxExpr|ctxCallee)
-}
-
-func FuncBody(n *ir.Func) {
-	ir.CurFunc = n
-	errorsBefore := base.Errors()
-	Stmts(n.Body)
-	CheckUnused(n)
-	CheckReturn(n)
-	if base.Errors() > errorsBefore {
-		n.Body = nil // type errors; do not compile
-	}
 }
 
 var importlist []*ir.Func
@@ -135,9 +116,11 @@ const (
 // marks variables that escape the local frame.
 // rewrites n.Op to be more specific in some cases.
 
-var typecheckdefstack []*ir.Name
-
-// Resolve ONONAME to definition, if any.
+// Resolve resolves an ONONAME node to a definition, if any. If n is not an ONONAME node,
+// Resolve returns n unchanged. If n is an ONONAME node and not in the same package,
+// then n.Sym() is resolved using import data. Otherwise, Resolve returns
+// n.Sym().Def. An ONONAME node can be created using ir.NewIdent(), so an imported
+// symbol can be resolved via Resolve(ir.NewIdent(src.NoXPos, sym)).
 func Resolve(n ir.Node) (res ir.Node) {
 	if n == nil || n.Op() != ir.ONONAME {
 		return n
@@ -149,25 +132,11 @@ func Resolve(n ir.Node) (res ir.Node) {
 	}
 
 	if sym := n.Sym(); sym.Pkg != types.LocalPkg {
-		// We might have an ir.Ident from oldname or importDot.
-		if id, ok := n.(*ir.Ident); ok {
-			if pkgName := DotImportRefs[id]; pkgName != nil {
-				pkgName.Used = true
-			}
-		}
-
 		return expandDecl(n)
 	}
 
 	r := ir.AsNode(n.Sym().Def)
 	if r == nil {
-		return n
-	}
-
-	if r.Op() == ir.OIOTA {
-		if x := getIotaValue(); x >= 0 {
-			return ir.NewInt(x)
-		}
 		return n
 	}
 
@@ -265,13 +234,10 @@ func Func(fn *ir.Func) {
 	}
 }
 
-func typecheckNtype(n ir.Ntype) ir.Ntype {
-	return typecheck(n, ctxType).(ir.Ntype)
-}
-
 // typecheck type checks node n.
 // The result of typecheck MUST be assigned back to n, e.g.
-// 	n.Left = typecheck(n.Left, top)
+//
+//	n.Left = typecheck(n.Left, top)
 func typecheck(n ir.Node, top int) (res ir.Node) {
 	// cannot type check until all the source has been parsed
 	if !TypecheckAllowed {
@@ -301,7 +267,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
 	if n.Typecheck() == 1 || n.Typecheck() == 3 {
 		switch n.Op() {
-		case ir.ONAME, ir.OTYPE, ir.OLITERAL, ir.OPACK:
+		case ir.ONAME, ir.OTYPE, ir.OLITERAL:
 			break
 
 		default:
@@ -424,37 +390,16 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	// this code a bit, especially the final case.
 	switch {
 	case top&(ctxStmt|ctxExpr) == ctxExpr && !isExpr && n.Op() != ir.OTYPE && !isMulti:
-		if !n.Diag() {
-			base.Errorf("%v used as value", n)
-			n.SetDiag(true)
-		}
-		if t != nil {
-			n.SetType(nil)
-		}
+		base.Fatalf("%v used as value", n)
 
 	case top&ctxType == 0 && n.Op() == ir.OTYPE && t != nil:
-		if !n.Type().Broke() {
-			base.Errorf("type %v is not an expression", n.Type())
-			n.SetDiag(true)
-		}
+		base.Fatalf("type %v is not an expression", n.Type())
 
 	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
-		if !n.Diag() {
-			base.Errorf("%v evaluated but not used", n)
-			n.SetDiag(true)
-		}
-		n.SetType(nil)
+		base.Fatalf("%v evaluated but not used", n)
 
 	case top&(ctxType|ctxExpr) == ctxType && n.Op() != ir.OTYPE && n.Op() != ir.ONONAME && (t != nil || n.Op() == ir.ONAME):
-		base.Errorf("%v is not a type", n)
-		if t != nil {
-			if n.Op() == ir.ONAME {
-				t.SetBroke(true)
-			} else {
-				n.SetType(nil)
-			}
-		}
-
+		base.Fatalf("%v is not a type", n)
 	}
 
 	base.Pos = lno
@@ -466,7 +411,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 // but also accepts untyped numeric values representable as
 // value of type int (see also checkmake for comparison).
 // The result of indexlit MUST be assigned back to n, e.g.
-// 	n.Left = indexlit(n.Left)
+//
+//	n.Left = indexlit(n.Left)
 func indexlit(n ir.Node) ir.Node {
 	if n != nil && n.Type() != nil && n.Type().Kind() == types.TIDEAL {
 		return DefaultLit(n, types.Types[types.TINT])
@@ -476,10 +422,6 @@ func indexlit(n ir.Node) ir.Node {
 
 // typecheck1 should ONLY be called from typecheck.
 func typecheck1(n ir.Node, top int) ir.Node {
-	if n, ok := n.(*ir.Name); ok {
-		typecheckdef(n)
-	}
-
 	switch n.Op() {
 	default:
 		ir.Dump("typecheck", n)
@@ -488,9 +430,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OLITERAL:
 		if n.Sym() == nil && n.Type() == nil {
-			if !n.Diag() {
-				base.Fatalf("literal missing type: %v", n)
-			}
+			base.Fatalf("literal missing type: %v", n)
 		}
 		return n
 
@@ -499,14 +439,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	// names
 	case ir.ONONAME:
-		if !n.Diag() {
-			// Note: adderrorname looks for this string and
-			// adds context about the outer expression
-			base.ErrorfAt(n.Pos(), "undefined: %v", n.Sym())
-			n.SetDiag(true)
-		}
-		n.SetType(nil)
-		return n
+		// Note: adderrorname looks for this string and
+		// adds context about the outer expression
+		base.FatalfAt(n.Pos(), "undefined: %v", n.Sym())
+		panic("unreachable")
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
@@ -533,43 +469,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		// type already set
 		return n
 
-	case ir.OPACK:
-		n := n.(*ir.PkgName)
-		base.Errorf("use of package %v without selector", n.Sym())
-		n.SetDiag(true)
-		return n
-
 	// types (ODEREF is with exprs)
 	case ir.OTYPE:
 		return n
 
-	case ir.OTSLICE:
-		n := n.(*ir.SliceType)
-		return tcSliceType(n)
-
-	case ir.OTARRAY:
-		n := n.(*ir.ArrayType)
-		return tcArrayType(n)
-
-	case ir.OTMAP:
-		n := n.(*ir.MapType)
-		return tcMapType(n)
-
-	case ir.OTCHAN:
-		n := n.(*ir.ChanType)
-		return tcChanType(n)
-
-	case ir.OTSTRUCT:
-		n := n.(*ir.StructType)
-		return tcStructType(n)
-
-	case ir.OTINTER:
-		n := n.(*ir.InterfaceType)
-		return tcInterfaceType(n)
-
-	case ir.OTFUNC:
-		n := n.(*ir.FuncType)
-		return tcFuncType(n)
 	// type or expr
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
@@ -579,7 +482,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OASOP:
 		n := n.(*ir.AssignOpStmt)
 		n.X, n.Y = Expr(n.X), Expr(n.Y)
-		checkassign(n, n.X)
+		checkassign(n.X)
 		if n.IncDec && !okforarith[n.X.Type().Kind()] {
 			base.Errorf("invalid operation: %v (non-numeric type %v)", n, n.X.Type())
 			return n
@@ -777,6 +680,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.CallExpr)
 		return tcRecover(n)
 
+	case ir.ORECOVERFP:
+		n := n.(*ir.CallExpr)
+		return tcRecoverFP(n)
+
 	case ir.OUNSAFEADD:
 		n := n.(*ir.BinaryExpr)
 		return tcUnsafeAdd(n)
@@ -787,11 +694,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
-		tcClosure(n, top)
-		if n.Type() == nil {
-			return n
-		}
-		return n
+		return tcClosure(n, top)
 
 	case ir.OITAB:
 		n := n.(*ir.UnaryExpr)
@@ -811,6 +714,14 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OCFUNC:
 		n := n.(*ir.UnaryExpr)
 		n.X = Expr(n.X)
+		n.SetType(types.Types[types.TUINTPTR])
+		return n
+
+	case ir.OGETCALLERPC, ir.OGETCALLERSP:
+		n := n.(*ir.CallExpr)
+		if len(n.Args) != 0 {
+			base.FatalfAt(n.Pos(), "unexpected arguments: %v", n)
+		}
 		n.SetType(types.Types[types.TUINTPTR])
 		return n
 
@@ -860,9 +771,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.ODEFER, ir.OGO:
 		n := n.(*ir.GoDeferStmt)
 		n.Call = typecheck(n.Call, ctxStmt|ctxExpr)
-		if !n.Call.Diag() {
-			tcGoDefer(n)
-		}
+		tcGoDefer(n)
 		return n
 
 	case ir.OFOR, ir.OFORUNTIL:
@@ -879,7 +788,12 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
+		n.Call = typecheck(n.Call, ctxStmt|ctxExpr).(*ir.CallExpr)
 		return n
+
+	case ir.OCHECKNIL:
+		n := n.(*ir.UnaryExpr)
+		return tcCheckNil(n)
 
 	case ir.OSELECT:
 		tcSelect(n.(*ir.SelectStmt))
@@ -895,8 +809,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OTYPESW:
 		n := n.(*ir.TypeSwitchGuard)
-		base.Errorf("use of .(type) outside type switch")
-		n.SetDiag(true)
+		base.Fatalf("use of .(type) outside type switch")
 		return n
 
 	case ir.ODCLFUNC:
@@ -951,17 +864,53 @@ func typecheckargs(n ir.InitNode) {
 	}
 
 	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
-	rewriteMultiValueCall(n, list[0])
+	RewriteMultiValueCall(n, list[0])
 }
 
-// rewriteMultiValueCall rewrites multi-valued f() to use temporaries,
+// RewriteNonNameCall replaces non-Name call expressions with temps,
+// rewriting f()(...) to t0 := f(); t0(...).
+func RewriteNonNameCall(n *ir.CallExpr) {
+	np := &n.X
+	if inst, ok := (*np).(*ir.InstExpr); ok && inst.Op() == ir.OFUNCINST {
+		np = &inst.X
+	}
+	if dot, ok := (*np).(*ir.SelectorExpr); ok && (dot.Op() == ir.ODOTMETH || dot.Op() == ir.ODOTINTER || dot.Op() == ir.OMETHVALUE) {
+		np = &dot.X // peel away method selector
+	}
+
+	// Check for side effects in the callee expression.
+	// We explicitly special case new(T) though, because it doesn't have
+	// observable side effects, and keeping it in place allows better escape analysis.
+	if !ir.Any(*np, func(n ir.Node) bool { return n.Op() != ir.ONEW && callOrChan(n) }) {
+		return
+	}
+
+	// See comment (1) in RewriteMultiValueCall.
+	static := ir.CurFunc == nil
+	if static {
+		ir.CurFunc = InitTodoFunc
+	}
+
+	tmp := Temp((*np).Type())
+	as := ir.NewAssignStmt(base.Pos, tmp, *np)
+	as.Def = true
+	*np = tmp
+
+	if static {
+		ir.CurFunc = nil
+	}
+
+	n.PtrInit().Append(Stmt(as))
+}
+
+// RewriteMultiValueCall rewrites multi-valued f() to use temporaries,
 // so the backend wouldn't need to worry about tuple-valued expressions.
-func rewriteMultiValueCall(n ir.InitNode, call ir.Node) {
+func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 	// If we're outside of function context, then this call will
 	// be executed during the generated init function. However,
 	// init.go hasn't yet created it. Instead, associate the
 	// temporary variables with  InitTodoFunc for now, and init.go
-	// will reassociate them later when it's appropriate.
+	// will reassociate them later when it's appropriate. (1)
 	static := ir.CurFunc == nil
 	if static {
 		ir.CurFunc = InitTodoFunc
@@ -1042,7 +991,8 @@ func checksliceconst(lo ir.Node, hi ir.Node) bool {
 }
 
 // The result of implicitstar MUST be assigned back to n, e.g.
-// 	n.Left = implicitstar(n.Left)
+//
+//	n.Left = implicitstar(n.Left)
 func implicitstar(n ir.Node) ir.Node {
 	// insert implicit * if needed for fixed array
 	t := n.Type()
@@ -1216,7 +1166,7 @@ func Lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 	}
 
 	if f1 != nil {
-		if dostrcmp > 1 || f1.Broke() {
+		if dostrcmp > 1 {
 			// Already in the process of diagnosing an error.
 			return f1
 		}
@@ -1337,10 +1287,6 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 	lno := base.Pos
 	defer func() { base.Pos = lno }()
 
-	if tstruct.Broke() {
-		return
-	}
-
 	var n ir.Node
 	if len(nl) == 1 {
 		n = nl[0]
@@ -1429,7 +1375,7 @@ invalidddd:
 	return
 
 notenough:
-	if n == nil || (!n.Diag() && n.Type() != nil) {
+	if n == nil || n.Type() != nil {
 		details := errorDetails(nl, tstruct, isddd)
 		if call != nil {
 			// call is the expression being called, not the overall call.
@@ -1445,7 +1391,7 @@ notenough:
 			base.Errorf("not enough arguments to %v%s", op, details)
 		}
 		if n != nil {
-			n.SetDiag(true)
+			base.Fatalf("invalid call")
 		}
 	}
 	return
@@ -1460,15 +1406,22 @@ toomany:
 }
 
 func errorDetails(nl ir.Nodes, tstruct *types.Type, isddd bool) string {
-	// If we don't know any type at a call site, let's suppress any return
-	// message signatures. See Issue https://golang.org/issues/19012.
+	// Suppress any return message signatures if:
+	//
+	// (1) We don't know any type at a call site (see #19012).
+	// (2) Any node has an unknown type.
+	// (3) Invalid type for variadic parameter (see #46957).
 	if tstruct == nil {
-		return ""
+		return "" // case 1
 	}
-	// If any node has an unknown type, suppress it as well
+
+	if isddd && !nl[len(nl)-1].Type().IsSlice() {
+		return "" // case 3
+	}
+
 	for _, n := range nl {
 		if n.Type() == nil {
-			return ""
+			return "" // case 2
 		}
 	}
 	return fmt.Sprintf("\n\thave %s\n\twant %v", fmtSignature(nl, isddd), tstruct)
@@ -1526,43 +1479,6 @@ func fielddup(name string, hash map[string]bool) {
 	hash[name] = true
 }
 
-// iscomptype reports whether type t is a composite literal type.
-func iscomptype(t *types.Type) bool {
-	switch t.Kind() {
-	case types.TARRAY, types.TSLICE, types.TSTRUCT, types.TMAP:
-		return true
-	default:
-		return false
-	}
-}
-
-// pushtype adds elided type information for composite literals if
-// appropriate, and returns the resulting expression.
-func pushtype(nn ir.Node, t *types.Type) ir.Node {
-	if nn == nil || nn.Op() != ir.OCOMPLIT {
-		return nn
-	}
-	n := nn.(*ir.CompLitExpr)
-	if n.Ntype != nil {
-		return n
-	}
-
-	switch {
-	case iscomptype(t):
-		// For T, return T{...}.
-		n.Ntype = ir.TypeNode(t)
-
-	case t.IsPtr() && iscomptype(t.Elem()):
-		// For *T, return &T{...}.
-		n.Ntype = ir.TypeNode(t.Elem())
-
-		addr := NodAddrAt(n.Pos(), n)
-		addr.SetImplicit(true)
-		return addr
-	}
-	return n
-}
-
 // typecheckarraylit type-checks a sequence of slice/array literal elements.
 func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx string) int64 {
 	// If there are key/value pairs, create a map to keep seen
@@ -1585,21 +1501,12 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx st
 			elt.Key = Expr(elt.Key)
 			key = IndexConst(elt.Key)
 			if key < 0 {
-				if !elt.Key.Diag() {
-					if key == -2 {
-						base.Errorf("index too large")
-					} else {
-						base.Errorf("index must be non-negative integer constant")
-					}
-					elt.Key.SetDiag(true)
-				}
-				key = -(1 << 30) // stay negative for a while
+				base.Fatalf("invalid index: %v", elt.Key)
 			}
 			kv = elt
 			r = elt.Value
 		}
 
-		r = pushtype(r, elemType)
 		r = Expr(r)
 		r = AssignConv(r, elemType, ctx)
 		if kv != nil {
@@ -1648,7 +1555,7 @@ func checklvalue(n ir.Node, verb string) {
 	}
 }
 
-func checkassign(stmt ir.Node, n ir.Node) {
+func checkassign(n ir.Node) {
 	// have already complained about n being invalid
 	if n.Type() == nil {
 		if base.Errors() == 0 {
@@ -1667,9 +1574,7 @@ func checkassign(stmt ir.Node, n ir.Node) {
 	}
 
 	defer n.SetType(nil)
-	if n.Diag() {
-		return
-	}
+
 	switch {
 	case n.Op() == ir.ODOT && n.(*ir.SelectorExpr).X.Op() == ir.OINDEXMAP:
 		base.Errorf("cannot assign to struct field %v in map", n)
@@ -1695,7 +1600,8 @@ func checkassignto(src *types.Type, dst ir.Node) {
 }
 
 // The result of stringtoruneslit MUST be assigned back to n, e.g.
-// 	n.Left = stringtoruneslit(n.Left)
+//
+//	n.Left = stringtoruneslit(n.Left)
 func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 	if n.X.Op() != ir.OLITERAL || n.X.Val().Kind() != constant.String {
 		base.Fatalf("stringtoarraylit %v", n)
@@ -1708,230 +1614,7 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 		i++
 	}
 
-	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()), nil)
-	nn.List = l
-	return Expr(nn)
-}
-
-var mapqueue []*ir.MapType
-
-func CheckMapKeys() {
-	for _, n := range mapqueue {
-		k := n.Type().MapType().Key
-		if !k.Broke() && !types.IsComparable(k) {
-			base.ErrorfAt(n.Pos(), "invalid map key type %v", k)
-		}
-	}
-	mapqueue = nil
-}
-
-// TypeGen tracks the number of function-scoped defined types that
-// have been declared. It's used to generate unique linker symbols for
-// their runtime type descriptors.
-var TypeGen int32
-
-func typecheckdeftype(n *ir.Name) {
-	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("typecheckdeftype", n)(nil)
-	}
-
-	t := types.NewNamed(n)
-	if n.Curfn != nil {
-		TypeGen++
-		t.Vargen = TypeGen
-	}
-
-	if n.Pragma()&ir.NotInHeap != 0 {
-		t.SetNotInHeap(true)
-	}
-
-	n.SetType(t)
-	n.SetTypecheck(1)
-	n.SetWalkdef(1)
-
-	types.DeferCheckSize()
-	errorsBefore := base.Errors()
-	n.Ntype = typecheckNtype(n.Ntype)
-	if underlying := n.Ntype.Type(); underlying != nil {
-		t.SetUnderlying(underlying)
-	} else {
-		n.SetDiag(true)
-		n.SetType(nil)
-	}
-	if t.Kind() == types.TFORW && base.Errors() > errorsBefore {
-		// Something went wrong during type-checking,
-		// but it was reported. Silence future errors.
-		t.SetBroke(true)
-	}
-	types.ResumeCheckSize()
-}
-
-func typecheckdef(n *ir.Name) {
-	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("typecheckdef", n)(nil)
-	}
-
-	if n.Walkdef() == 1 {
-		return
-	}
-
-	if n.Type() != nil { // builtin
-		// Mark as Walkdef so that if n.SetType(nil) is called later, we
-		// won't try walking again.
-		if got := n.Walkdef(); got != 0 {
-			base.Fatalf("unexpected walkdef: %v", got)
-		}
-		n.SetWalkdef(1)
-		return
-	}
-
-	lno := ir.SetPos(n)
-	typecheckdefstack = append(typecheckdefstack, n)
-	if n.Walkdef() == 2 {
-		base.FlushErrors()
-		fmt.Printf("typecheckdef loop:")
-		for i := len(typecheckdefstack) - 1; i >= 0; i-- {
-			n := typecheckdefstack[i]
-			fmt.Printf(" %v", n.Sym())
-		}
-		fmt.Printf("\n")
-		base.Fatalf("typecheckdef loop")
-	}
-
-	n.SetWalkdef(2)
-
-	switch n.Op() {
-	default:
-		base.Fatalf("typecheckdef %v", n.Op())
-
-	case ir.OLITERAL:
-		if n.Ntype != nil {
-			n.Ntype = typecheckNtype(n.Ntype)
-			n.SetType(n.Ntype.Type())
-			n.Ntype = nil
-			if n.Type() == nil {
-				n.SetDiag(true)
-				goto ret
-			}
-		}
-
-		e := n.Defn
-		n.Defn = nil
-		if e == nil {
-			ir.Dump("typecheckdef nil defn", n)
-			base.ErrorfAt(n.Pos(), "xxx")
-		}
-
-		e = Expr(e)
-		if e.Type() == nil {
-			goto ret
-		}
-		if !ir.IsConstNode(e) {
-			if !e.Diag() {
-				if e.Op() == ir.ONIL {
-					base.ErrorfAt(n.Pos(), "const initializer cannot be nil")
-				} else {
-					base.ErrorfAt(n.Pos(), "const initializer %v is not a constant", e)
-				}
-				e.SetDiag(true)
-			}
-			goto ret
-		}
-
-		t := n.Type()
-		if t != nil {
-			if !ir.OKForConst[t.Kind()] {
-				base.ErrorfAt(n.Pos(), "invalid constant type %v", t)
-				goto ret
-			}
-
-			if !e.Type().IsUntyped() && !types.Identical(t, e.Type()) {
-				base.ErrorfAt(n.Pos(), "cannot use %L as type %v in const initializer", e, t)
-				goto ret
-			}
-
-			e = convlit(e, t)
-		}
-
-		n.SetType(e.Type())
-		if n.Type() != nil {
-			n.SetVal(e.Val())
-		}
-
-	case ir.ONAME:
-		if n.Ntype != nil {
-			n.Ntype = typecheckNtype(n.Ntype)
-			n.SetType(n.Ntype.Type())
-			if n.Type() == nil {
-				n.SetDiag(true)
-				goto ret
-			}
-		}
-
-		if n.Type() != nil {
-			break
-		}
-		if n.Defn == nil {
-			if n.BuiltinOp != 0 { // like OPRINTN
-				break
-			}
-			if base.Errors() > 0 {
-				// Can have undefined variables in x := foo
-				// that make x have an n.name.Defn == nil.
-				// If there are other errors anyway, don't
-				// bother adding to the noise.
-				break
-			}
-
-			base.Fatalf("var without type, init: %v", n.Sym())
-		}
-
-		if n.Defn.Op() == ir.ONAME {
-			n.Defn = Expr(n.Defn)
-			n.SetType(n.Defn.Type())
-			break
-		}
-
-		n.Defn = Stmt(n.Defn) // fills in n.Type
-
-	case ir.OTYPE:
-		if n.Alias() {
-			// Type alias declaration: Simply use the rhs type - no need
-			// to create a new type.
-			// If we have a syntax error, name.Ntype may be nil.
-			if n.Ntype != nil {
-				n.Ntype = typecheckNtype(n.Ntype)
-				n.SetType(n.Ntype.Type())
-				if n.Type() == nil {
-					n.SetDiag(true)
-					goto ret
-				}
-				// For package-level type aliases, set n.Sym.Def so we can identify
-				// it as a type alias during export. See also #31959.
-				if n.Curfn == nil {
-					n.Sym().Def = n.Ntype
-				}
-			}
-			break
-		}
-
-		// regular type declaration
-		typecheckdeftype(n)
-	}
-
-ret:
-	if n.Op() != ir.OLITERAL && n.Type() != nil && n.Type().IsUntyped() {
-		base.Fatalf("got %v for %v", n.Type(), n)
-	}
-	last := len(typecheckdefstack) - 1
-	if typecheckdefstack[last] != n {
-		base.Fatalf("typecheckdefstack mismatch")
-	}
-	typecheckdefstack[last] = nil
-	typecheckdefstack = typecheckdefstack[:last]
-
-	base.Pos = lno
-	n.SetWalkdef(1)
+	return Expr(ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, n.Type(), l))
 }
 
 func checkmake(t *types.Type, arg string, np *ir.Node) bool {
@@ -2047,22 +1730,6 @@ func markBreak(fn *ir.Func) {
 	mark(fn)
 }
 
-func controlLabel(n ir.Node) *types.Sym {
-	switch n := n.(type) {
-	default:
-		base.Fatalf("controlLabel %+v", n.Op())
-		return nil
-	case *ir.ForStmt:
-		return n.Label
-	case *ir.RangeStmt:
-		return n.Label
-	case *ir.SelectStmt:
-		return n.Label
-	case *ir.SwitchStmt:
-		return n.Label
-	}
-}
-
 func setHasBreak(n ir.Node) {
 	switch n := n.(type) {
 	default:
@@ -2150,75 +1817,6 @@ func isTermNode(n ir.Node) bool {
 	}
 
 	return false
-}
-
-// CheckUnused checks for any declared variables that weren't used.
-func CheckUnused(fn *ir.Func) {
-	// Only report unused variables if we haven't seen any type-checking
-	// errors yet.
-	if base.Errors() != 0 {
-		return
-	}
-
-	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
-	for _, ln := range fn.Dcl {
-		if ln.Op() == ir.ONAME && ln.Class == ir.PAUTO && ln.Used() {
-			if guard, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {
-				guard.Used = true
-			}
-		}
-	}
-
-	for _, ln := range fn.Dcl {
-		if ln.Op() != ir.ONAME || ln.Class != ir.PAUTO || ln.Used() {
-			continue
-		}
-		if defn, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {
-			if defn.Used {
-				continue
-			}
-			base.ErrorfAt(defn.Tag.Pos(), "%v declared but not used", ln.Sym())
-			defn.Used = true // suppress repeats
-		} else {
-			base.ErrorfAt(ln.Pos(), "%v declared but not used", ln.Sym())
-		}
-	}
-}
-
-// CheckReturn makes sure that fn terminates appropriately.
-func CheckReturn(fn *ir.Func) {
-	if fn.Type() != nil && fn.Type().NumResults() != 0 && len(fn.Body) != 0 {
-		markBreak(fn)
-		if !isTermNodes(fn.Body) {
-			base.ErrorfAt(fn.Endlineno, "missing return at end of function")
-		}
-	}
-}
-
-// getIotaValue returns the current value for "iota",
-// or -1 if not within a ConstSpec.
-func getIotaValue() int64 {
-	if i := len(typecheckdefstack); i > 0 {
-		if x := typecheckdefstack[i-1]; x.Op() == ir.OLITERAL {
-			return x.Iota()
-		}
-	}
-
-	if ir.CurFunc != nil && ir.CurFunc.Iota >= 0 {
-		return ir.CurFunc.Iota
-	}
-
-	return -1
-}
-
-// curpkg returns the current package, based on Curfn.
-func curpkg() *types.Pkg {
-	fn := ir.CurFunc
-	if fn == nil {
-		// Initialization expressions for package-scope variables.
-		return types.LocalPkg
-	}
-	return fnpkg(fn.Nname)
 }
 
 func Conv(n ir.Node, t *types.Type) ir.Node {

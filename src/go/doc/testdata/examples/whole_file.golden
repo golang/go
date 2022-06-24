@@ -1,0 +1,21 @@
+-- .Play --
+package main
+
+import "fmt"
+
+type X int
+
+func (X) Foo() {
+}
+
+func (X) TestBlah() {
+}
+
+func (X) BenchmarkFoo() {
+}
+
+func main() {
+	fmt.Println("Hello, world!")
+}
+-- .Output --
+Hello, world!

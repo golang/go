@@ -37,7 +37,6 @@
 // Note: The maximum number of concurrent operations on a File may be limited by
 // the OS or the system. The number should be high, but exceeding it may degrade
 // performance or cause other issues.
-//
 package os
 
 import (
@@ -109,7 +108,7 @@ func (e *LinkError) Unwrap() error {
 	return e.Err
 }
 
-// Read reads up to len(b) bytes from the File.
+// Read reads up to len(b) bytes from the File and stores them in b.
 // It returns the number of bytes read and any error encountered.
 // At end of file, Read returns 0, io.EOF.
 func (f *File) Read(b []byte) (n int, err error) {
@@ -166,7 +165,7 @@ type onlyWriter struct {
 	io.Writer
 }
 
-// Write writes len(b) bytes to the File.
+// Write writes len(b) bytes from b to the File.
 // It returns the number of bytes written and an error, if any.
 // Write returns a non-nil error when n != len(b).
 func (f *File) Write(b []byte) (n int, err error) {
@@ -621,8 +620,12 @@ func isWindowsNulName(name string) bool {
 // operating system will begin with "/prefix": DirFS("/prefix").Open("file") is the
 // same as os.Open("/prefix/file"). So if /prefix/file is a symbolic link pointing outside
 // the /prefix tree, then using DirFS does not stop the access any more than using
-// os.Open does. DirFS is therefore not a general substitute for a chroot-style security
-// mechanism when the directory tree contains arbitrary content.
+// os.Open does. Additionally, the root of the fs.FS returned for a relative path,
+// DirFS("prefix"), will be affected by later calls to Chdir. DirFS is therefore not
+// a general substitute for a chroot-style security mechanism when the directory tree
+// contains arbitrary content.
+//
+// The result implements fs.StatFS.
 func DirFS(dir string) fs.FS {
 	return dirFS(dir)
 }

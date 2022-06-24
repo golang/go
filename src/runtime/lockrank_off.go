@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !goexperiment.staticlockranking
-// +build !goexperiment.staticlockranking
 
 package runtime
 
@@ -24,6 +23,7 @@ func lockWithRank(l *mutex, rank lockRank) {
 }
 
 // This function may be called in nosplit context and thus must be nosplit.
+//
 //go:nosplit
 func acquireLockRank(rank lockRank) {
 }
@@ -33,6 +33,7 @@ func unlockWithRank(l *mutex) {
 }
 
 // This function may be called in nosplit context and thus must be nosplit.
+//
 //go:nosplit
 func releaseLockRank(rank lockRank) {
 }

@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -8,11 +7,17 @@
 package importer
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types2"
 	"fmt"
 	"go/token"
+	"internal/pkgbits"
 	"sync"
 )
+
+func assert(p bool) {
+	base.Assert(p)
+}
 
 func errorf(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
@@ -119,10 +124,29 @@ var predeclared = []types2.Type{
 	types2.Typ[types2.Invalid], // only appears in packages with errors
 
 	// used internally by gc; never used by this package or in .a files
+	// not to be confused with the universe any
 	anyType{},
+
+	// comparable
+	types2.Universe.Lookup("comparable").Type(),
+
+	// any
+	types2.Universe.Lookup("any").Type(),
 }
 
 type anyType struct{}
 
 func (t anyType) Underlying() types2.Type { return t }
 func (t anyType) String() string          { return "any" }
+
+// See cmd/compile/internal/noder.derivedInfo.
+type derivedInfo struct {
+	idx    pkgbits.Index
+	needed bool
+}
+
+// See cmd/compile/internal/noder.typeInfo.
+type typeInfo struct {
+	idx     pkgbits.Index
+	derived bool
+}

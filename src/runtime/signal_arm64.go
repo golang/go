@@ -3,11 +3,11 @@
 // license that can be found in the LICENSE file.
 
 //go:build darwin || freebsd || linux || netbsd || openbsd
-// +build darwin freebsd linux netbsd openbsd
 
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -53,8 +53,9 @@ func dumpregs(c *sigctxt) {
 //go:nowritebarrierrec
 func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
 
-func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
-func (c *sigctxt) siglr() uintptr { return uintptr(c.lr()) }
+func (c *sigctxt) setsigpc(x uint64) { c.set_pc(x) }
+func (c *sigctxt) sigsp() uintptr    { return uintptr(c.sp()) }
+func (c *sigctxt) siglr() uintptr    { return uintptr(c.lr()) }
 
 // preparePanic sets up the stack to look like a call to sigpanic.
 func (c *sigctxt) preparePanic(sig uint32, gp *g) {
@@ -77,7 +78,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 
 	// In case we are panicking from external C code
 	c.set_r28(uint64(uintptr(unsafe.Pointer(gp))))
-	c.set_pc(uint64(funcPC(sigpanic)))
+	c.set_pc(uint64(abi.FuncPCABIInternal(sigpanic)))
 }
 
 func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {

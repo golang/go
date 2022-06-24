@@ -27,7 +27,7 @@ stdout '^example.com/c v0.2.0 '
 
 # Downgrading c should also downgrade the b that requires it.
 
-go get -d example.com/c@v0.1.0
+go get example.com/c@v0.1.0
 go list -m all
 stdout '^example.com/a v0.1.0 '
 stdout '^example.com/b v0.2.0 '
@@ -35,7 +35,7 @@ stdout '^example.com/c v0.1.0 '
 
 # Removing c entirely should also remove the a and b that require it.
 
-go get -d example.com/c@none
+go get example.com/c@none
 go list -m all
 ! stdout '^example.com/a '
 ! stdout '^example.com/b '
@@ -53,7 +53,7 @@ stdout '^example.com/a v0.1.0 '
 stdout '^example.com/b v0.3.0 '
 stdout '^example.com/c v0.2.0 '
 
-go get -d example.com/c@v0.1.0
+go get example.com/c@v0.1.0
 go list -m all
 stdout '^example.com/a v0.1.0 '
 stdout '^example.com/b v0.2.0 '
@@ -63,7 +63,7 @@ stdout '^example.com/c v0.1.0 '
 # is still tracked, and it will still be downgraded away if we remove c.
 # ('go get' never makes a root into a non-root. Only 'go mod tidy' does that.)
 
-go get -d example.com/c@none
+go get example.com/c@none
 go list -m all
 ! stdout '^example.com/a '
 ! stdout '^example.com/b '
@@ -84,7 +84,7 @@ stdout '^example.com/a v0.1.0 '
 stdout '^example.com/b v0.3.0 '
 stdout '^example.com/c v0.2.0 '
 
-go get -d example.com/c@v0.1.0 example.com/b@v0.1.0
+go get example.com/c@v0.1.0 example.com/b@v0.1.0
 go list -m all
 stdout '^example.com/a v0.1.0 '
 stdout '^example.com/b v0.1.0 '
@@ -96,7 +96,7 @@ stdout '^example.com/a v0.1.0 '
 stdout '^example.com/b v0.1.0 '
 ! stdout '^example.com/c '
 
-go get -d example.com/c@none
+go get example.com/c@none
 go list -m all
 stdout '^example.com/a v0.1.0'
 stdout '^example.com/b v0.1.0'

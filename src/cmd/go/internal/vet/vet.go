@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package vet implements the ``go vet'' command.
+// Package vet implements the “go vet” command.
 package vet
 
 import (
@@ -13,6 +13,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
 )
@@ -54,6 +55,7 @@ See also: go fmt, go fix.
 
 func runVet(ctx context.Context, cmd *base.Command, args []string) {
 	vetFlags, pkgArgs := vetFlags(args)
+	modload.InitWorkfile() // The vet command does custom flag processing; initialize workspaces after that.
 
 	if cfg.DebugTrace != "" {
 		var close func() error
@@ -103,7 +105,7 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
 			continue
 		}
 		if len(ptest.GoFiles) == 0 && len(ptest.CgoFiles) == 0 && pxtest == nil {
-			base.Errorf("go vet %s: no Go files in %s", p.ImportPath, p.Dir)
+			base.Errorf("go: can't vet %s: no Go files in %s", p.ImportPath, p.Dir)
 			continue
 		}
 		if len(ptest.GoFiles) > 0 || len(ptest.CgoFiles) > 0 {

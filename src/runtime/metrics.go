@@ -65,6 +65,12 @@ func initMetrics() {
 
 	timeHistBuckets = timeHistogramMetricsBuckets()
 	metrics = map[string]metricData{
+		"/cgo/go-to-c-calls:calls": {
+			compute: func(_ *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(NumCgoCall())
+			},
+		},
 		"/gc/cycles/automatic:gc-cycles": {
 			deps: makeStatDepSet(sysStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
@@ -159,6 +165,12 @@ func initMetrics() {
 				out.scalar = uint64(in.heapStats.tinyAllocCount)
 			},
 		},
+		"/gc/limiter/last-enabled:gc-cycle": {
+			compute: func(_ *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(gcCPULimiter.lastEnabledCycle.Load())
+			},
+		},
 		"/gc/pauses:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(timeHistBuckets)
@@ -169,6 +181,12 @@ func initMetrics() {
 				for i := range memstats.gcPauseDist.counts {
 					hist.counts[i+1] = atomic.Load64(&memstats.gcPauseDist.counts[i])
 				}
+			},
+		},
+		"/gc/stack/starting-size:bytes": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(startingStackSize)
 			},
 		},
 		"/memory/classes/heap/free:bytes": {
@@ -272,6 +290,12 @@ func initMetrics() {
 					in.sysStats.stacksSys + in.sysStats.mSpanSys +
 					in.sysStats.mCacheSys + in.sysStats.buckHashSys +
 					in.sysStats.gcMiscSys + in.sysStats.otherSys
+			},
+		},
+		"/sched/gomaxprocs:threads": {
+			compute: func(_ *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(gomaxprocs)
 			},
 		},
 		"/sched/goroutines:goroutines": {
@@ -388,13 +412,13 @@ func (a *heapStatsAggregate) compute() {
 	memstats.heapStats.read(&a.heapStatsDelta)
 
 	// Calculate derived stats.
-	a.totalAllocs = uint64(a.largeAllocCount)
-	a.totalFrees = uint64(a.largeFreeCount)
-	a.totalAllocated = uint64(a.largeAlloc)
-	a.totalFreed = uint64(a.largeFree)
+	a.totalAllocs = a.largeAllocCount
+	a.totalFrees = a.largeFreeCount
+	a.totalAllocated = a.largeAlloc
+	a.totalFreed = a.largeFree
 	for i := range a.smallAllocCount {
-		na := uint64(a.smallAllocCount[i])
-		nf := uint64(a.smallFreeCount[i])
+		na := a.smallAllocCount[i]
+		nf := a.smallFreeCount[i]
 		a.totalAllocs += na
 		a.totalFrees += nf
 		a.totalAllocated += na * uint64(class_to_size[i])
@@ -431,7 +455,7 @@ func (a *sysStatsAggregate) compute() {
 	a.buckHashSys = memstats.buckhash_sys.load()
 	a.gcMiscSys = memstats.gcMiscSys.load()
 	a.otherSys = memstats.other_sys.load()
-	a.heapGoal = atomic.Load64(&gcController.heapGoal)
+	a.heapGoal = gcController.heapGoal()
 	a.gcCyclesDone = uint64(memstats.numgc)
 	a.gcCyclesForced = uint64(memstats.numforcedgc)
 

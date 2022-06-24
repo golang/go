@@ -4,9 +4,30 @@ package obj
 
 import "strconv"
 
-const _AddrType_name = "TYPE_NONETYPE_BRANCHTYPE_TEXTSIZETYPE_MEMTYPE_CONSTTYPE_FCONSTTYPE_SCONSTTYPE_REGTYPE_ADDRTYPE_SHIFTTYPE_REGREGTYPE_REGREG2TYPE_INDIRTYPE_REGLIST"
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[TYPE_NONE-0]
+	_ = x[TYPE_BRANCH-1]
+	_ = x[TYPE_TEXTSIZE-2]
+	_ = x[TYPE_MEM-3]
+	_ = x[TYPE_CONST-4]
+	_ = x[TYPE_FCONST-5]
+	_ = x[TYPE_SCONST-6]
+	_ = x[TYPE_REG-7]
+	_ = x[TYPE_ADDR-8]
+	_ = x[TYPE_SHIFT-9]
+	_ = x[TYPE_REGREG-10]
+	_ = x[TYPE_REGREG2-11]
+	_ = x[TYPE_INDIR-12]
+	_ = x[TYPE_REGLIST-13]
+	_ = x[TYPE_SPECIAL-14]
+}
 
-var _AddrType_index = [...]uint8{0, 9, 20, 33, 41, 51, 62, 73, 81, 90, 100, 111, 123, 133, 145}
+const _AddrType_name = "TYPE_NONETYPE_BRANCHTYPE_TEXTSIZETYPE_MEMTYPE_CONSTTYPE_FCONSTTYPE_SCONSTTYPE_REGTYPE_ADDRTYPE_SHIFTTYPE_REGREGTYPE_REGREG2TYPE_INDIRTYPE_REGLISTTYPE_SPECIAL"
+
+var _AddrType_index = [...]uint8{0, 9, 20, 33, 41, 51, 62, 73, 81, 90, 100, 111, 123, 133, 145, 157}
 
 func (i AddrType) String() string {
 	if i >= AddrType(len(_AddrType_index)-1) {

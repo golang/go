@@ -6,6 +6,7 @@ package net
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,109 +22,122 @@ import (
 var nslookupTestServers = []string{"mail.golang.com", "gmail.com"}
 var lookupTestIPs = []string{"8.8.8.8", "1.1.1.1"}
 
-func toJson(v interface{}) string {
+func toJson(v any) string {
 	data, _ := json.Marshal(v)
 	return string(data)
+}
+
+func testLookup(t *testing.T, fn func(*testing.T, *Resolver, string)) {
+	for _, def := range []bool{true, false} {
+		def := def
+		for _, server := range nslookupTestServers {
+			server := server
+			var name string
+			if def {
+				name = "default/"
+			} else {
+				name = "go/"
+			}
+			t.Run(name+server, func(t *testing.T) {
+				t.Parallel()
+				r := DefaultResolver
+				if !def {
+					r = &Resolver{PreferGo: true}
+				}
+				fn(t, r, server)
+			})
+		}
+	}
 }
 
 func TestNSLookupMX(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	for _, server := range nslookupTestServers {
-		mx, err := LookupMX(server)
+	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+		mx, err := r.LookupMX(context.Background(), server)
 		if err != nil {
-			t.Error(err)
-			continue
+			t.Fatal(err)
 		}
 		if len(mx) == 0 {
-			t.Errorf("no results")
-			continue
+			t.Fatal("no results")
 		}
 		expected, err := nslookupMX(server)
 		if err != nil {
-			t.Logf("skipping failed nslookup %s test: %s", server, err)
+			t.Skipf("skipping failed nslookup %s test: %s", server, err)
 		}
 		sort.Sort(byPrefAndHost(expected))
 		sort.Sort(byPrefAndHost(mx))
 		if !reflect.DeepEqual(expected, mx) {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", server, toJson(expected), toJson(mx))
 		}
-	}
+	})
 }
 
 func TestNSLookupCNAME(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	for _, server := range nslookupTestServers {
-		cname, err := LookupCNAME(server)
+	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+		cname, err := r.LookupCNAME(context.Background(), server)
 		if err != nil {
-			t.Errorf("failed %s: %s", server, err)
-			continue
+			t.Fatalf("failed %s: %s", server, err)
 		}
 		if cname == "" {
-			t.Errorf("no result %s", server)
+			t.Fatalf("no result %s", server)
 		}
 		expected, err := nslookupCNAME(server)
 		if err != nil {
-			t.Logf("skipping failed nslookup %s test: %s", server, err)
-			continue
+			t.Skipf("skipping failed nslookup %s test: %s", server, err)
 		}
 		if expected != cname {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", server, expected, cname)
 		}
-	}
+	})
 }
 
 func TestNSLookupNS(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	for _, server := range nslookupTestServers {
-		ns, err := LookupNS(server)
+	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+		ns, err := r.LookupNS(context.Background(), server)
 		if err != nil {
-			t.Errorf("failed %s: %s", server, err)
-			continue
+			t.Fatalf("failed %s: %s", server, err)
 		}
 		if len(ns) == 0 {
-			t.Errorf("no results")
-			continue
+			t.Fatal("no results")
 		}
 		expected, err := nslookupNS(server)
 		if err != nil {
-			t.Logf("skipping failed nslookup %s test: %s", server, err)
-			continue
+			t.Skipf("skipping failed nslookup %s test: %s", server, err)
 		}
 		sort.Sort(byHost(expected))
 		sort.Sort(byHost(ns))
 		if !reflect.DeepEqual(expected, ns) {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", toJson(server), toJson(expected), ns)
 		}
-	}
+	})
 }
 
 func TestNSLookupTXT(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	for _, server := range nslookupTestServers {
-		txt, err := LookupTXT(server)
+	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+		txt, err := r.LookupTXT(context.Background(), server)
 		if err != nil {
-			t.Errorf("failed %s: %s", server, err)
-			continue
+			t.Fatalf("failed %s: %s", server, err)
 		}
 		if len(txt) == 0 {
-			t.Errorf("no results")
-			continue
+			t.Fatalf("no results")
 		}
 		expected, err := nslookupTXT(server)
 		if err != nil {
-			t.Logf("skipping failed nslookup %s test: %s", server, err)
-			continue
+			t.Skipf("skipping failed nslookup %s test: %s", server, err)
 		}
 		sort.Strings(expected)
 		sort.Strings(txt)
 		if !reflect.DeepEqual(expected, txt) {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", server, toJson(expected), toJson(txt))
 		}
-	}
+	})
 }
 
 func TestLookupLocalPTR(t *testing.T) {
@@ -220,14 +234,14 @@ func nslookupMX(name string) (mx []*MX, err error) {
 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+mail exchanger\s*=\s*([0-9]+)\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
 		pref, _, _ := dtoi(ans[2])
-		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
+		mx = append(mx, &MX{absDomainName(ans[3]), uint16(pref)})
 	}
 	// windows nslookup syntax
 	// gmail.com       MX preference = 30, mail exchanger = alt3.gmail-smtp-in.l.google.com
 	rx = regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+MX preference\s*=\s*([0-9]+)\s*,\s*mail exchanger\s*=\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
 		pref, _, _ := dtoi(ans[2])
-		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
+		mx = append(mx, &MX{absDomainName(ans[3]), uint16(pref)})
 	}
 	return
 }
@@ -241,7 +255,7 @@ func nslookupNS(name string) (ns []*NS, err error) {
 	// golang.org      nameserver = ns1.google.com.
 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+nameserver\s*=\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
-		ns = append(ns, &NS{absDomainName([]byte(ans[2]))})
+		ns = append(ns, &NS{absDomainName(ans[2])})
 	}
 	return
 }
@@ -258,7 +272,7 @@ func nslookupCNAME(name string) (cname string, err error) {
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
 		last = ans[2]
 	}
-	return absDomainName([]byte(last)), nil
+	return absDomainName(last), nil
 }
 
 func nslookupTXT(name string) (txt []string, err error) {
@@ -299,7 +313,7 @@ func lookupPTR(name string) (ptr []string, err error) {
 	ptr = make([]string, 0, 10)
 	rx := regexp.MustCompile(`(?m)^Pinging\s+([a-zA-Z0-9.\-]+)\s+\[.*$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
-		ptr = append(ptr, absDomainName([]byte(ans[1])))
+		ptr = append(ptr, absDomainName(ans[1]))
 	}
 	return
 }

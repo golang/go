@@ -12,10 +12,10 @@ stderr '^module example\.net/cmd provides package example\.net/cmd/tool and is r
 go mod edit -droprequire example.net/tools
 
 
-# 'go get -d' makes a best effort to fetch those dependencies, but shouldn't
+# 'go get' makes a best effort to fetch those dependencies, but shouldn't
 # error out if dependencies of tag-guarded files are missing.
 
-go get -d example.net/tools@v0.1.0
+go get example.net/tools@v0.1.0
 ! stderr 'no Go source files'
 
 ! go list example.net/tools
@@ -48,27 +48,27 @@ stderr '^package example.net/tools: build constraints exclude all Go files in .*
 # 'go get' should fetch modules whose roots contain test-only packages, but
 # without the -t flag shouldn't error out if the test has missing dependencies.
 
-go get -d example.net/testonly@v0.1.0
+go get example.net/testonly@v0.1.0
 
 # With the -t flag, the test dependencies must resolve successfully.
-! go get -d -t example.net/testonly@v0.1.0
+! go get -t example.net/testonly@v0.1.0
 stderr '^example.net/testonly tested by\n\texample.net/testonly\.test imports\n\texample.net/missing: cannot find module providing package example.net/missing$'
 
 
-# 'go get -d' should succeed for a module path that does not contain a package,
+# 'go get' should succeed for a module path that does not contain a package,
 # but fail for a non-package subdirectory of a module.
 
-! go get -d example.net/missing/subdir@v0.1.0
-stderr '^go get: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
+! go get example.net/missing/subdir@v0.1.0
+stderr '^go: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
 
-go get -d example.net/missing@v0.1.0
+go get example.net/missing@v0.1.0
 
 
 # Getting the subdirectory should continue to fail even if the corresponding
 # module is already present in the build list.
 
-! go get -d example.net/missing/subdir@v0.1.0
-stderr '^go get: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
+! go get example.net/missing/subdir@v0.1.0
+stderr '^go: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
 
 
 -- go.mod --

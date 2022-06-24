@@ -42,13 +42,11 @@ func TestIntendedInlining(t *testing.T) {
 			"bucketMask",
 			"bucketShift",
 			"chanbuf",
-			"deferArgs",
-			"deferclass",
 			"evacuated",
 			"fastlog2",
 			"fastrand",
 			"float64bits",
-			"funcPC",
+			"funcspdelta",
 			"getArgInfoFast",
 			"getm",
 			"getMCache",
@@ -65,10 +63,10 @@ func TestIntendedInlining(t *testing.T) {
 			"subtract1",
 			"subtractb",
 			"tophash",
-			"totaldefersize",
 			"(*bmap).keys",
 			"(*bmap).overflow",
 			"(*waitq).enqueue",
+			"funcInfo.entry",
 
 			// GC-related ones
 			"cgoInRange",
@@ -126,13 +124,37 @@ func TestIntendedInlining(t *testing.T) {
 			"FullRune",
 			"FullRuneInString",
 			"RuneLen",
+			"AppendRune",
 			"ValidRune",
 		},
 		"reflect": {
+			"Value.Bool",
+			"Value.Bytes",
 			"Value.CanAddr",
-			"Value.CanSet",
+			"Value.CanComplex",
+			"Value.CanFloat",
+			"Value.CanInt",
 			"Value.CanInterface",
+			"Value.CanSet",
+			"Value.CanUint",
+			"Value.Cap",
+			"Value.Complex",
+			"Value.Float",
+			"Value.Int",
+			"Value.Interface",
+			"Value.IsNil",
 			"Value.IsValid",
+			"Value.Kind",
+			"Value.Len",
+			"Value.MapRange",
+			"Value.OverflowComplex",
+			"Value.OverflowFloat",
+			"Value.OverflowInt",
+			"Value.OverflowUint",
+			"Value.String",
+			"Value.Type",
+			"Value.Uint",
+			"Value.UnsafeAddr",
 			"Value.pointer",
 			"add",
 			"align",
@@ -158,12 +180,48 @@ func TestIntendedInlining(t *testing.T) {
 		"net": {
 			"(*UDPConn).ReadFromUDP",
 		},
+		"sync/atomic": {
+			// (*Bool).CompareAndSwap handled below.
+			"(*Bool).Load",
+			"(*Bool).Store",
+			"(*Bool).Swap",
+			"(*Int32).Add",
+			"(*Int32).CompareAndSwap",
+			"(*Int32).Load",
+			"(*Int32).Store",
+			"(*Int32).Swap",
+			"(*Int64).Add",
+			"(*Int64).CompareAndSwap",
+			"(*Int64).Load",
+			"(*Int64).Store",
+			"(*Int64).Swap",
+			"(*Uint32).Add",
+			"(*Uint32).CompareAndSwap",
+			"(*Uint32).Load",
+			"(*Uint32).Store",
+			"(*Uint32).Swap",
+			"(*Uint64).Add",
+			"(*Uint64).CompareAndSwap",
+			"(*Uint64).Load",
+			"(*Uint64).Store",
+			"(*Uint64).Swap",
+			"(*Uintptr).Add",
+			"(*Uintptr).CompareAndSwap",
+			"(*Uintptr).Load",
+			"(*Uintptr).Store",
+			"(*Uintptr).Swap",
+			// TODO(rsc): Why are these not reported as inlined?
+			// "(*Pointer[T]).CompareAndSwap",
+			// "(*Pointer[T]).Load",
+			// "(*Pointer[T]).Store",
+			// "(*Pointer[T]).Swap",
+		},
 	}
 
-	if runtime.GOARCH != "386" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
+	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
 		// nextFreeFast calls sys.Ctz64, which on 386 is implemented in asm and is not inlinable.
 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
-		// On mips64x and riscv64, Ctz64 is not intrinsified and causes nextFreeFast too expensive
+		// On loong64, mips64x and riscv64, Ctz64 is not intrinsified and causes nextFreeFast too expensive
 		// to inline (Issue 22239).
 		want["runtime"] = append(want["runtime"], "nextFreeFast")
 	}
@@ -177,6 +235,8 @@ func TestIntendedInlining(t *testing.T) {
 	if bits.UintSize == 64 {
 		// mix is only defined on 64-bit architectures
 		want["runtime"] = append(want["runtime"], "mix")
+		// (*Bool).CompareAndSwap is just over budget on 32-bit systems (386, arm).
+		want["sync/atomic"] = append(want["sync/atomic"], "(*Bool).CompareAndSwap")
 	}
 
 	switch runtime.GOARCH {
@@ -215,7 +275,7 @@ func TestIntendedInlining(t *testing.T) {
 		}
 	}
 
-	args := append([]string{"build", "-a", "-gcflags=all=-m -m", "-tags=math_big_pure_go"}, pkgs...)
+	args := append([]string{"build", "-gcflags=-m -m", "-tags=math_big_pure_go"}, pkgs...)
 	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), args...))
 	pr, pw := io.Pipe()
 	cmd.Stdout = pw

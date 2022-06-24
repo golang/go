@@ -423,68 +423,12 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 		}
 
 	case "replace":
-		arrow := 2
-		if len(args) >= 2 && args[1] == "=>" {
-			arrow = 1
-		}
-		if len(args) < arrow+2 || len(args) > arrow+3 || args[arrow] != "=>" {
-			errorf("usage: %s module/path [v1.2.3] => other/module v1.4\n\t or %s module/path [v1.2.3] => ../local/directory", verb, verb)
+		replace, wrappederr := parseReplace(f.Syntax.Name, line, verb, args, fix)
+		if wrappederr != nil {
+			*errs = append(*errs, *wrappederr)
 			return
 		}
-		s, err := parseString(&args[0])
-		if err != nil {
-			errorf("invalid quoted string: %v", err)
-			return
-		}
-		pathMajor, err := modulePathMajor(s)
-		if err != nil {
-			wrapModPathError(s, err)
-			return
-		}
-		var v string
-		if arrow == 2 {
-			v, err = parseVersion(verb, s, &args[1], fix)
-			if err != nil {
-				wrapError(err)
-				return
-			}
-			if err := module.CheckPathMajor(v, pathMajor); err != nil {
-				wrapModPathError(s, err)
-				return
-			}
-		}
-		ns, err := parseString(&args[arrow+1])
-		if err != nil {
-			errorf("invalid quoted string: %v", err)
-			return
-		}
-		nv := ""
-		if len(args) == arrow+2 {
-			if !IsDirectoryPath(ns) {
-				errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
-				return
-			}
-			if filepath.Separator == '/' && strings.Contains(ns, `\`) {
-				errorf("replacement directory appears to be Windows path (on a non-windows system)")
-				return
-			}
-		}
-		if len(args) == arrow+3 {
-			nv, err = parseVersion(verb, ns, &args[arrow+2], fix)
-			if err != nil {
-				wrapError(err)
-				return
-			}
-			if IsDirectoryPath(ns) {
-				errorf("replacement module directory path %q cannot have version", ns)
-				return
-			}
-		}
-		f.Replace = append(f.Replace, &Replace{
-			Old:    module.Version{Path: s, Version: v},
-			New:    module.Version{Path: ns, Version: nv},
-			Syntax: line,
-		})
+		f.Replace = append(f.Replace, replace)
 
 	case "retract":
 		rationale := parseDirectiveComment(block, line)
@@ -513,6 +457,83 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 		}
 		f.Retract = append(f.Retract, retract)
 	}
+}
+
+func parseReplace(filename string, line *Line, verb string, args []string, fix VersionFixer) (*Replace, *Error) {
+	wrapModPathError := func(modPath string, err error) *Error {
+		return &Error{
+			Filename: filename,
+			Pos:      line.Start,
+			ModPath:  modPath,
+			Verb:     verb,
+			Err:      err,
+		}
+	}
+	wrapError := func(err error) *Error {
+		return &Error{
+			Filename: filename,
+			Pos:      line.Start,
+			Err:      err,
+		}
+	}
+	errorf := func(format string, args ...interface{}) *Error {
+		return wrapError(fmt.Errorf(format, args...))
+	}
+
+	arrow := 2
+	if len(args) >= 2 && args[1] == "=>" {
+		arrow = 1
+	}
+	if len(args) < arrow+2 || len(args) > arrow+3 || args[arrow] != "=>" {
+		return nil, errorf("usage: %s module/path [v1.2.3] => other/module v1.4\n\t or %s module/path [v1.2.3] => ../local/directory", verb, verb)
+	}
+	s, err := parseString(&args[0])
+	if err != nil {
+		return nil, errorf("invalid quoted string: %v", err)
+	}
+	pathMajor, err := modulePathMajor(s)
+	if err != nil {
+		return nil, wrapModPathError(s, err)
+
+	}
+	var v string
+	if arrow == 2 {
+		v, err = parseVersion(verb, s, &args[1], fix)
+		if err != nil {
+			return nil, wrapError(err)
+		}
+		if err := module.CheckPathMajor(v, pathMajor); err != nil {
+			return nil, wrapModPathError(s, err)
+		}
+	}
+	ns, err := parseString(&args[arrow+1])
+	if err != nil {
+		return nil, errorf("invalid quoted string: %v", err)
+	}
+	nv := ""
+	if len(args) == arrow+2 {
+		if !IsDirectoryPath(ns) {
+			return nil, errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
+		}
+		if filepath.Separator == '/' && strings.Contains(ns, `\`) {
+			return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
+		}
+	}
+	if len(args) == arrow+3 {
+		nv, err = parseVersion(verb, ns, &args[arrow+2], fix)
+		if err != nil {
+			return nil, wrapError(err)
+		}
+		if IsDirectoryPath(ns) {
+			return nil, errorf("replacement module directory path %q cannot have version", ns)
+
+		}
+	}
+	return &Replace{
+		Old:    module.Version{Path: s, Version: v},
+		New:    module.Version{Path: ns, Version: nv},
+		Syntax: line,
+	}, nil
 }
 
 // fixRetract applies fix to each retract directive in f, appending any errors
@@ -553,6 +574,63 @@ func (f *File) fixRetract(fix VersionFixer, errs *ErrorList) {
 			wrapError(err)
 		}
 		r.VersionInterval = vi
+	}
+}
+
+func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string, fix VersionFixer) {
+	wrapError := func(err error) {
+		*errs = append(*errs, Error{
+			Filename: f.Syntax.Name,
+			Pos:      line.Start,
+			Err:      err,
+		})
+	}
+	errorf := func(format string, args ...interface{}) {
+		wrapError(fmt.Errorf(format, args...))
+	}
+
+	switch verb {
+	default:
+		errorf("unknown directive: %s", verb)
+
+	case "go":
+		if f.Go != nil {
+			errorf("repeated go statement")
+			return
+		}
+		if len(args) != 1 {
+			errorf("go directive expects exactly one argument")
+			return
+		} else if !GoVersionRE.MatchString(args[0]) {
+			errorf("invalid go version '%s': must match format 1.23", args[0])
+			return
+		}
+
+		f.Go = &Go{Syntax: line}
+		f.Go.Version = args[0]
+
+	case "use":
+		if len(args) != 1 {
+			errorf("usage: %s local/dir", verb)
+			return
+		}
+		s, err := parseString(&args[0])
+		if err != nil {
+			errorf("invalid quoted string: %v", err)
+			return
+		}
+		f.Use = append(f.Use, &Use{
+			Path:   s,
+			Syntax: line,
+		})
+
+	case "replace":
+		replace, wrappederr := parseReplace(f.Syntax.Name, line, verb, args, fix)
+		if wrappederr != nil {
+			*errs = append(*errs, *wrappederr)
+			return
+		}
+		f.Replace = append(f.Replace, replace)
 	}
 }
 
@@ -956,170 +1034,217 @@ func (f *File) SetRequire(req []*Require) {
 
 // SetRequireSeparateIndirect updates the requirements of f to contain the given
 // requirements. Comment contents (except for 'indirect' markings) are retained
-// from the first existing requirement for each module path, and block structure
-// is maintained as long as the indirect markings match.
+// from the first existing requirement for each module path. Like SetRequire,
+// SetRequireSeparateIndirect adds requirements for new paths in req,
+// updates the version and "// indirect" comment on existing requirements,
+// and deletes requirements on paths not in req. Existing duplicate requirements
+// are deleted.
 //
-// Any requirements on paths not already present in the file are added. Direct
-// requirements are added to the last block containing *any* other direct
-// requirement. Indirect requirements are added to the last block containing
-// *only* other indirect requirements. If no suitable block exists, a new one is
-// added, with the last block containing a direct dependency (if any)
-// immediately before the first block containing only indirect dependencies.
+// As its name suggests, SetRequireSeparateIndirect puts direct and indirect
+// requirements into two separate blocks, one containing only direct
+// requirements, and the other containing only indirect requirements.
+// SetRequireSeparateIndirect may move requirements between these two blocks
+// when their indirect markings change. However, SetRequireSeparateIndirect
+// won't move requirements from other blocks, especially blocks with comments.
 //
-// The Syntax field is ignored for requirements in the given blocks.
+// If the file initially has one uncommented block of requirements,
+// SetRequireSeparateIndirect will split it into a direct-only and indirect-only
+// block. This aids in the transition to separate blocks.
 func (f *File) SetRequireSeparateIndirect(req []*Require) {
-	type modKey struct {
-		path     string
-		indirect bool
-	}
-	need := make(map[modKey]string)
-	for _, r := range req {
-		need[modKey{r.Mod.Path, r.Indirect}] = r.Mod.Version
+	// hasComments returns whether a line or block has comments
+	// other than "indirect".
+	hasComments := func(c Comments) bool {
+		return len(c.Before) > 0 || len(c.After) > 0 || len(c.Suffix) > 1 ||
+			(len(c.Suffix) == 1 &&
+				strings.TrimSpace(strings.TrimPrefix(c.Suffix[0].Token, string(slashSlash))) != "indirect")
 	}
 
-	comments := make(map[string]Comments)
-	for _, r := range f.Require {
-		v, ok := need[modKey{r.Mod.Path, r.Indirect}]
-		if !ok {
-			if _, ok := need[modKey{r.Mod.Path, !r.Indirect}]; ok {
-				if _, dup := comments[r.Mod.Path]; !dup {
-					comments[r.Mod.Path] = r.Syntax.Comments
-				}
+	// moveReq adds r to block. If r was in another block, moveReq deletes
+	// it from that block and transfers its comments.
+	moveReq := func(r *Require, block *LineBlock) {
+		var line *Line
+		if r.Syntax == nil {
+			line = &Line{Token: []string{AutoQuote(r.Mod.Path), r.Mod.Version}}
+			r.Syntax = line
+			if r.Indirect {
+				r.setIndirect(true)
 			}
-			r.markRemoved()
-			continue
+		} else {
+			line = new(Line)
+			*line = *r.Syntax
+			if !line.InBlock && len(line.Token) > 0 && line.Token[0] == "require" {
+				line.Token = line.Token[1:]
+			}
+			r.Syntax.Token = nil // Cleanup will delete the old line.
+			r.Syntax = line
 		}
-		r.setVersion(v)
-		delete(need, modKey{r.Mod.Path, r.Indirect})
+		line.InBlock = true
+		block.Line = append(block.Line, line)
 	}
 
+	// Examine existing require lines and blocks.
 	var (
-		lastDirectOrMixedBlock Expr
-		firstIndirectOnlyBlock Expr
-		lastIndirectOnlyBlock  Expr
+		// We may insert new requirements into the last uncommented
+		// direct-only and indirect-only blocks. We may also move requirements
+		// to the opposite block if their indirect markings change.
+		lastDirectIndex   = -1
+		lastIndirectIndex = -1
+
+		// If there are no direct-only or indirect-only blocks, a new block may
+		// be inserted after the last require line or block.
+		lastRequireIndex = -1
+
+		// If there's only one require line or block, and it's uncommented,
+		// we'll move its requirements to the direct-only or indirect-only blocks.
+		requireLineOrBlockCount = 0
+
+		// Track the block each requirement belongs to (if any) so we can
+		// move them later.
+		lineToBlock = make(map[*Line]*LineBlock)
 	)
-	for _, stmt := range f.Syntax.Stmt {
+	for i, stmt := range f.Syntax.Stmt {
 		switch stmt := stmt.(type) {
 		case *Line:
 			if len(stmt.Token) == 0 || stmt.Token[0] != "require" {
 				continue
 			}
-			if isIndirect(stmt) {
-				lastIndirectOnlyBlock = stmt
-			} else {
-				lastDirectOrMixedBlock = stmt
+			lastRequireIndex = i
+			requireLineOrBlockCount++
+			if !hasComments(stmt.Comments) {
+				if isIndirect(stmt) {
+					lastIndirectIndex = i
+				} else {
+					lastDirectIndex = i
+				}
 			}
+
 		case *LineBlock:
 			if len(stmt.Token) == 0 || stmt.Token[0] != "require" {
 				continue
 			}
-			indirectOnly := true
+			lastRequireIndex = i
+			requireLineOrBlockCount++
+			allDirect := len(stmt.Line) > 0 && !hasComments(stmt.Comments)
+			allIndirect := len(stmt.Line) > 0 && !hasComments(stmt.Comments)
 			for _, line := range stmt.Line {
-				if len(line.Token) == 0 {
-					continue
-				}
-				if !isIndirect(line) {
-					indirectOnly = false
-					break
-				}
-			}
-			if indirectOnly {
-				lastIndirectOnlyBlock = stmt
-				if firstIndirectOnlyBlock == nil {
-					firstIndirectOnlyBlock = stmt
-				}
-			} else {
-				lastDirectOrMixedBlock = stmt
-			}
-		}
-	}
-
-	isOrContainsStmt := func(stmt Expr, target Expr) bool {
-		if stmt == target {
-			return true
-		}
-		if stmt, ok := stmt.(*LineBlock); ok {
-			if target, ok := target.(*Line); ok {
-				for _, line := range stmt.Line {
-					if line == target {
-						return true
-					}
-				}
-			}
-		}
-		return false
-	}
-
-	addRequire := func(path, vers string, indirect bool, comments Comments) {
-		var line *Line
-		if indirect {
-			if lastIndirectOnlyBlock != nil {
-				line = f.Syntax.addLine(lastIndirectOnlyBlock, "require", path, vers)
-			} else {
-				// Add a new require block after the last direct-only or mixed "require"
-				// block (if any).
-				//
-				// (f.Syntax.addLine would add the line to an existing "require" block if
-				// present, but here the existing "require" blocks are all direct-only, so
-				// we know we need to add a new block instead.)
-				line = &Line{Token: []string{"require", path, vers}}
-				lastIndirectOnlyBlock = line
-				firstIndirectOnlyBlock = line // only block implies first block
-				if lastDirectOrMixedBlock == nil {
-					f.Syntax.Stmt = append(f.Syntax.Stmt, line)
+				lineToBlock[line] = stmt
+				if hasComments(line.Comments) {
+					allDirect = false
+					allIndirect = false
+				} else if isIndirect(line) {
+					allDirect = false
 				} else {
-					for i, stmt := range f.Syntax.Stmt {
-						if isOrContainsStmt(stmt, lastDirectOrMixedBlock) {
-							f.Syntax.Stmt = append(f.Syntax.Stmt, nil)     // increase size
-							copy(f.Syntax.Stmt[i+2:], f.Syntax.Stmt[i+1:]) // shuffle elements up
-							f.Syntax.Stmt[i+1] = line
-							break
-						}
-					}
+					allIndirect = false
 				}
 			}
+			if allDirect {
+				lastDirectIndex = i
+			}
+			if allIndirect {
+				lastIndirectIndex = i
+			}
+		}
+	}
+
+	oneFlatUncommentedBlock := requireLineOrBlockCount == 1 &&
+		!hasComments(*f.Syntax.Stmt[lastRequireIndex].Comment())
+
+	// Create direct and indirect blocks if needed. Convert lines into blocks
+	// if needed. If we end up with an empty block or a one-line block,
+	// Cleanup will delete it or convert it to a line later.
+	insertBlock := func(i int) *LineBlock {
+		block := &LineBlock{Token: []string{"require"}}
+		f.Syntax.Stmt = append(f.Syntax.Stmt, nil)
+		copy(f.Syntax.Stmt[i+1:], f.Syntax.Stmt[i:])
+		f.Syntax.Stmt[i] = block
+		return block
+	}
+
+	ensureBlock := func(i int) *LineBlock {
+		switch stmt := f.Syntax.Stmt[i].(type) {
+		case *LineBlock:
+			return stmt
+		case *Line:
+			block := &LineBlock{
+				Token: []string{"require"},
+				Line:  []*Line{stmt},
+			}
+			stmt.Token = stmt.Token[1:] // remove "require"
+			stmt.InBlock = true
+			f.Syntax.Stmt[i] = block
+			return block
+		default:
+			panic(fmt.Sprintf("unexpected statement: %v", stmt))
+		}
+	}
+
+	var lastDirectBlock *LineBlock
+	if lastDirectIndex < 0 {
+		if lastIndirectIndex >= 0 {
+			lastDirectIndex = lastIndirectIndex
+			lastIndirectIndex++
+		} else if lastRequireIndex >= 0 {
+			lastDirectIndex = lastRequireIndex + 1
 		} else {
-			if lastDirectOrMixedBlock != nil {
-				line = f.Syntax.addLine(lastDirectOrMixedBlock, "require", path, vers)
+			lastDirectIndex = len(f.Syntax.Stmt)
+		}
+		lastDirectBlock = insertBlock(lastDirectIndex)
+	} else {
+		lastDirectBlock = ensureBlock(lastDirectIndex)
+	}
+
+	var lastIndirectBlock *LineBlock
+	if lastIndirectIndex < 0 {
+		lastIndirectIndex = lastDirectIndex + 1
+		lastIndirectBlock = insertBlock(lastIndirectIndex)
+	} else {
+		lastIndirectBlock = ensureBlock(lastIndirectIndex)
+	}
+
+	// Delete requirements we don't want anymore.
+	// Update versions and indirect comments on requirements we want to keep.
+	// If a requirement is in last{Direct,Indirect}Block with the wrong
+	// indirect marking after this, or if the requirement is in an single
+	// uncommented mixed block (oneFlatUncommentedBlock), move it to the
+	// correct block.
+	//
+	// Some blocks may be empty after this. Cleanup will remove them.
+	need := make(map[string]*Require)
+	for _, r := range req {
+		need[r.Mod.Path] = r
+	}
+	have := make(map[string]*Require)
+	for _, r := range f.Require {
+		path := r.Mod.Path
+		if need[path] == nil || have[path] != nil {
+			// Requirement not needed, or duplicate requirement. Delete.
+			r.markRemoved()
+			continue
+		}
+		have[r.Mod.Path] = r
+		r.setVersion(need[path].Mod.Version)
+		r.setIndirect(need[path].Indirect)
+		if need[path].Indirect &&
+			(oneFlatUncommentedBlock || lineToBlock[r.Syntax] == lastDirectBlock) {
+			moveReq(r, lastIndirectBlock)
+		} else if !need[path].Indirect &&
+			(oneFlatUncommentedBlock || lineToBlock[r.Syntax] == lastIndirectBlock) {
+			moveReq(r, lastDirectBlock)
+		}
+	}
+
+	// Add new requirements.
+	for path, r := range need {
+		if have[path] == nil {
+			if r.Indirect {
+				moveReq(r, lastIndirectBlock)
 			} else {
-				// Add a new require block before the first indirect block (if any).
-				//
-				// That way if the file initially contains only indirect lines,
-				// the direct lines still appear before it: we preserve existing
-				// structure, but only to the extent that that structure already
-				// reflects the direct/indirect split.
-				line = &Line{Token: []string{"require", path, vers}}
-				lastDirectOrMixedBlock = line
-				if firstIndirectOnlyBlock == nil {
-					f.Syntax.Stmt = append(f.Syntax.Stmt, line)
-				} else {
-					for i, stmt := range f.Syntax.Stmt {
-						if isOrContainsStmt(stmt, firstIndirectOnlyBlock) {
-							f.Syntax.Stmt = append(f.Syntax.Stmt, nil)   // increase size
-							copy(f.Syntax.Stmt[i+1:], f.Syntax.Stmt[i:]) // shuffle elements up
-							f.Syntax.Stmt[i] = line
-							break
-						}
-					}
-				}
+				moveReq(r, lastDirectBlock)
 			}
+			f.Require = append(f.Require, r)
 		}
-
-		line.Comments.Before = commentsAdd(line.Comments.Before, comments.Before)
-		line.Comments.Suffix = commentsAdd(line.Comments.Suffix, comments.Suffix)
-
-		r := &Require{
-			Mod:      module.Version{Path: path, Version: vers},
-			Indirect: indirect,
-			Syntax:   line,
-		}
-		r.setIndirect(indirect)
-		f.Require = append(f.Require, r)
 	}
 
-	for k, vers := range need {
-		addRequire(k.path, vers, k.indirect, comments[k.path])
-	}
 	f.SortBlocks()
 }
 
@@ -1165,6 +1290,10 @@ func (f *File) DropExclude(path, vers string) error {
 }
 
 func (f *File) AddReplace(oldPath, oldVers, newPath, newVers string) error {
+	return addReplace(f.Syntax, &f.Replace, oldPath, oldVers, newPath, newVers)
+}
+
+func addReplace(syntax *FileSyntax, replace *[]*Replace, oldPath, oldVers, newPath, newVers string) error {
 	need := true
 	old := module.Version{Path: oldPath, Version: oldVers}
 	new := module.Version{Path: newPath, Version: newVers}
@@ -1178,12 +1307,12 @@ func (f *File) AddReplace(oldPath, oldVers, newPath, newVers string) error {
 	}
 
 	var hint *Line
-	for _, r := range f.Replace {
+	for _, r := range *replace {
 		if r.Old.Path == oldPath && (oldVers == "" || r.Old.Version == oldVers) {
 			if need {
 				// Found replacement for old; update to use new.
 				r.New = new
-				f.Syntax.updateLine(r.Syntax, tokens...)
+				syntax.updateLine(r.Syntax, tokens...)
 				need = false
 				continue
 			}
@@ -1196,7 +1325,7 @@ func (f *File) AddReplace(oldPath, oldVers, newPath, newVers string) error {
 		}
 	}
 	if need {
-		f.Replace = append(f.Replace, &Replace{Old: old, New: new, Syntax: f.Syntax.addLine(hint, tokens...)})
+		*replace = append(*replace, &Replace{Old: old, New: new, Syntax: syntax.addLine(hint, tokens...)})
 	}
 	return nil
 }
@@ -1282,30 +1411,36 @@ func (f *File) SortBlocks() {
 // retract directives are not de-duplicated since comments are
 // meaningful, and versions may be retracted multiple times.
 func (f *File) removeDups() {
+	removeDups(f.Syntax, &f.Exclude, &f.Replace)
+}
+
+func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace) {
 	kill := make(map[*Line]bool)
 
 	// Remove duplicate excludes.
-	haveExclude := make(map[module.Version]bool)
-	for _, x := range f.Exclude {
-		if haveExclude[x.Mod] {
-			kill[x.Syntax] = true
-			continue
+	if exclude != nil {
+		haveExclude := make(map[module.Version]bool)
+		for _, x := range *exclude {
+			if haveExclude[x.Mod] {
+				kill[x.Syntax] = true
+				continue
+			}
+			haveExclude[x.Mod] = true
 		}
-		haveExclude[x.Mod] = true
-	}
-	var excl []*Exclude
-	for _, x := range f.Exclude {
-		if !kill[x.Syntax] {
-			excl = append(excl, x)
+		var excl []*Exclude
+		for _, x := range *exclude {
+			if !kill[x.Syntax] {
+				excl = append(excl, x)
+			}
 		}
+		*exclude = excl
 	}
-	f.Exclude = excl
 
 	// Remove duplicate replacements.
 	// Later replacements take priority over earlier ones.
 	haveReplace := make(map[module.Version]bool)
-	for i := len(f.Replace) - 1; i >= 0; i-- {
-		x := f.Replace[i]
+	for i := len(*replace) - 1; i >= 0; i-- {
+		x := (*replace)[i]
 		if haveReplace[x.Old] {
 			kill[x.Syntax] = true
 			continue
@@ -1313,18 +1448,18 @@ func (f *File) removeDups() {
 		haveReplace[x.Old] = true
 	}
 	var repl []*Replace
-	for _, x := range f.Replace {
+	for _, x := range *replace {
 		if !kill[x.Syntax] {
 			repl = append(repl, x)
 		}
 	}
-	f.Replace = repl
+	*replace = repl
 
 	// Duplicate require and retract directives are not removed.
 
 	// Drop killed statements from the syntax tree.
 	var stmts []Expr
-	for _, stmt := range f.Syntax.Stmt {
+	for _, stmt := range syntax.Stmt {
 		switch stmt := stmt.(type) {
 		case *Line:
 			if kill[stmt] {
@@ -1344,7 +1479,7 @@ func (f *File) removeDups() {
 		}
 		stmts = append(stmts, stmt)
 	}
-	f.Syntax.Stmt = stmts
+	syntax.Stmt = stmts
 }
 
 // lineLess returns whether li should be sorted before lj. It sorts

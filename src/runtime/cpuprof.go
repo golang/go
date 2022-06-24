@@ -13,12 +13,27 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
 
-const maxCPUProfStack = 64
+const (
+	maxCPUProfStack = 64
+
+	// profBufWordCount is the size of the CPU profile buffer's storage for the
+	// header and stack of each sample, measured in 64-bit words. Every sample
+	// has a required header of two words. With a small additional header (a
+	// word or two) and stacks at the profiler's maximum length of 64 frames,
+	// that capacity can support 1900 samples or 19 thread-seconds at a 100 Hz
+	// sample rate, at a cost of 1 MiB.
+	profBufWordCount = 1 << 17
+	// profBufTagCount is the size of the CPU profile buffer's storage for the
+	// goroutine tags associated with each sample. A capacity of 1<<14 means
+	// room for 16k samples, or 160 thread-seconds at a 100 Hz sample rate.
+	profBufTagCount = 1 << 14
+)
 
 type cpuProfile struct {
 	lock mutex
@@ -69,7 +84,7 @@ func SetCPUProfileRate(hz int) {
 		}
 
 		cpuprof.on = true
-		cpuprof.log = newProfBuf(1, 1<<17, 1<<14)
+		cpuprof.log = newProfBuf(1, profBufWordCount, profBufTagCount)
 		hdr := [1]uint64{uint64(hz)}
 		cpuprof.log.write(nil, nanotime(), hdr[:], nil)
 		setcpuprofilerate(int32(hz))
@@ -87,10 +102,12 @@ func SetCPUProfileRate(hz int) {
 // and cannot allocate memory or acquire locks that might be
 // held at the time of the signal, nor can it use substantial amounts
 // of stack.
+//
 //go:nowritebarrierrec
-func (p *cpuProfile) add(gp *g, stk []uintptr) {
+func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
 	// Simple cas-lock to coordinate with setcpuprofilerate.
 	for !atomic.Cas(&prof.signalLock, 0, 1) {
+		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
 		osyield()
 	}
 
@@ -103,15 +120,6 @@ func (p *cpuProfile) add(gp *g, stk []uintptr) {
 		// because otherwise its write barrier behavior may not
 		// be correct. See the long comment there before
 		// changing the argument here.
-		//
-		// Note: it can happen on Windows, where we are calling
-		// p.add with a gp that is not the current g, that gp is nil,
-		// meaning we interrupted a system thread with no g.
-		// Avoid faulting in that case.
-		var tagPtr *unsafe.Pointer
-		if gp != nil {
-			tagPtr = &gp.labels
-		}
 		cpuprof.log.write(tagPtr, nanotime(), hdr[:], stk)
 	}
 
@@ -125,14 +133,18 @@ func (p *cpuProfile) add(gp *g, stk []uintptr) {
 // Instead, we copy the stack into cpuprof.extra,
 // which will be drained the next time a Go thread
 // gets the signal handling event.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func (p *cpuProfile) addNonGo(stk []uintptr) {
 	// Simple cas-lock to coordinate with SetCPUProfileRate.
 	// (Other calls to add or addNonGo should be blocked out
 	// by the fact that only one SIGPROF can be handled by the
-	// process at a time. If not, this lock will serialize those too.)
+	// process at a time. If not, this lock will serialize those too.
+	// The use of timer_create(2) on Linux to request process-targeted
+	// signals may have changed this.)
 	for !atomic.Cas(&prof.signalLock, 0, 1) {
+		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
 		osyield()
 	}
 
@@ -166,8 +178,8 @@ func (p *cpuProfile) addExtra() {
 	if p.lostExtra > 0 {
 		hdr := [1]uint64{p.lostExtra}
 		lostStk := [2]uintptr{
-			funcPC(_LostExternalCode) + sys.PCQuantum,
-			funcPC(_ExternalCode) + sys.PCQuantum,
+			abi.FuncPCABIInternal(_LostExternalCode) + sys.PCQuantum,
+			abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum,
 		}
 		p.log.write(nil, 0, hdr[:], lostStk[:])
 		p.lostExtra = 0
@@ -176,8 +188,8 @@ func (p *cpuProfile) addExtra() {
 	if p.lostAtomic > 0 {
 		hdr := [1]uint64{p.lostAtomic}
 		lostStk := [2]uintptr{
-			funcPC(_LostSIGPROFDuringAtomic64) + sys.PCQuantum,
-			funcPC(_System) + sys.PCQuantum,
+			abi.FuncPCABIInternal(_LostSIGPROFDuringAtomic64) + sys.PCQuantum,
+			abi.FuncPCABIInternal(_System) + sys.PCQuantum,
 		}
 		p.log.write(nil, 0, hdr[:], lostStk[:])
 		p.lostAtomic = 0
@@ -208,6 +220,8 @@ func runtime_pprof_runtime_cyclesPerSecond() int64 {
 // If profiling is turned off and all the profile data accumulated while it was
 // on has been returned, readProfile returns eof=true.
 // The caller must save the returned data and tags before calling readProfile again.
+// The returned data contains a whole number of records, and tags contains
+// exactly one entry per record.
 //
 //go:linkname runtime_pprof_readProfile runtime/pprof.readProfile
 func runtime_pprof_readProfile() ([]uint64, []unsafe.Pointer, bool) {

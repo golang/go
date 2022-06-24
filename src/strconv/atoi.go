@@ -167,7 +167,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 // prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o",
 // 16 for "0x", and 10 otherwise. Also, for argument base 0 only,
 // underscore characters are permitted as defined by the Go syntax for
-// integer literals.
+// [integer literals].
 //
 // The bitSize argument specifies the integer type
 // that the result must fit into. Bit sizes 0, 8, 16, 32, and 64
@@ -181,6 +181,8 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 // signed integer of the given size, err.Err = ErrRange and the
 // returned value is the maximum magnitude integer of the
 // appropriate bitSize and sign.
+//
+// [integer literals]: https://go.dev/ref/spec#Integer_literals
 func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	const fnParseInt = "ParseInt"
 

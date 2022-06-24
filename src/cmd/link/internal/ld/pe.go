@@ -780,7 +780,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		if ldr.AttrNotInSymbolTable(s) {
 			return false
 		}
-		name := ldr.RawSymName(s) // TODO: try not to read the name
+		name := ldr.SymName(s) // TODO: try not to read the name
 		if name == "" || name[0] == '.' {
 			return false
 		}
@@ -1061,6 +1061,8 @@ func Peinit(ctxt *Link) {
 		// linker will honour that requirement.
 		PESECTALIGN = 32
 		PEFILEALIGN = 0
+		// We are creating an object file. The absolute address is irrelevant.
+		PEBASE = 0
 	}
 
 	var sh [16]pe.SectionHeader32
@@ -1512,7 +1514,6 @@ func addPEBaseRelocSym(ldr *loader.Loader, s loader.Sym, rt *peBaseRelocTable) {
 			continue
 		}
 		rs := r.Sym()
-		rs = ldr.ResolveABIAlias(rs)
 		if rs == 0 {
 			continue
 		}

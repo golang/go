@@ -432,6 +432,10 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 		}
 	}
 
+	if len(syms) == 0 {
+		return fmt.Errorf("no matches found for regexp: %s", o.Symbol)
+	}
+
 	// Correlate the symbols from the binary with the profile samples.
 	for _, s := range syms {
 		sns := symNodes[s]
@@ -522,7 +526,7 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
 			}
 		}
 
-		f, err := obj.Open(m.File, m.Start, m.Limit, m.Offset)
+		f, err := obj.Open(m.File, m.Start, m.Limit, m.Offset, m.KernelRelocationSymbol)
 		if err != nil {
 			fmt.Printf("%v\n", err)
 			continue
@@ -1054,6 +1058,7 @@ func printTree(w io.Writer, rpt *Report) error {
 	var flatSum int64
 
 	rx := rpt.options.Symbol
+	matched := 0
 	for _, n := range g.Nodes {
 		name, flat, cum := n.Info.PrintableName(), n.FlatValue(), n.CumValue()
 
@@ -1061,6 +1066,7 @@ func printTree(w io.Writer, rpt *Report) error {
 		if rx != nil && !rx.MatchString(name) {
 			continue
 		}
+		matched++
 
 		fmt.Fprintln(w, separator)
 		// Print incoming edges.
@@ -1097,6 +1103,9 @@ func printTree(w io.Writer, rpt *Report) error {
 	}
 	if len(g.Nodes) > 0 {
 		fmt.Fprintln(w, separator)
+	}
+	if rx != nil && matched == 0 {
+		return fmt.Errorf("no matches found for regexp: %s", rx)
 	}
 	return nil
 }

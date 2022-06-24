@@ -36,19 +36,18 @@ func (o *SortedMap) Swap(i, j int) {
 //
 // The ordering rules are more general than with Go's < operator:
 //
-//  - when applicable, nil compares low
-//  - ints, floats, and strings order by <
-//  - NaN compares less than non-NaN floats
-//  - bool compares false before true
-//  - complex compares real, then imag
-//  - pointers compare by machine address
-//  - channel values compare by machine address
-//  - structs compare each field in turn
-//  - arrays compare each element in turn.
-//    Otherwise identical arrays compare by length.
-//  - interface values compare first by reflect.Type describing the concrete type
-//    and then by concrete value as described in the previous rules.
-//
+//   - when applicable, nil compares low
+//   - ints, floats, and strings order by <
+//   - NaN compares less than non-NaN floats
+//   - bool compares false before true
+//   - complex compares real, then imag
+//   - pointers compare by machine address
+//   - channel values compare by machine address
+//   - structs compare each field in turn
+//   - arrays compare each element in turn.
+//     Otherwise identical arrays compare by length.
+//   - interface values compare first by reflect.Type describing the concrete type
+//     and then by concrete value as described in the previous rules.
 func Sort(mapValue reflect.Value) *SortedMap {
 	if mapValue.Type().Kind() != reflect.Map {
 		return nil
@@ -130,7 +129,7 @@ func compare(aVal, bVal reflect.Value) int {
 		default:
 			return -1
 		}
-	case reflect.Ptr, reflect.UnsafePointer:
+	case reflect.Pointer, reflect.UnsafePointer:
 		a, b := aVal.Pointer(), bVal.Pointer()
 		switch {
 		case a < b:

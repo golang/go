@@ -2,7 +2,6 @@
 // cgo -godefs types_netbsd.go
 
 //go:build arm && netbsd
-// +build arm,netbsd
 
 package syscall
 

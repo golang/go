@@ -15,5 +15,5 @@ func f() {
 func g2() ([]byte, []byte) { return nil, nil }
 
 func f2() {
-	g2()[:] // ERROR "multiple-value g2.. in single-value context|attempt to slice object that is not|2\-valued g"
+	g2()[:] // ERROR "multiple-value g2.* in single-value context|attempt to slice object that is not|2\-valued g"
 }

@@ -19,11 +19,11 @@ var ForkLock sync.RWMutex
 // in https://msdn.microsoft.com/en-us/library/ms880421.
 // This function returns "" (2 double quotes) if s is empty.
 // Alternatively, these transformations are done:
-// - every back slash (\) is doubled, but only if immediately
-//   followed by double quote (");
-// - every double quote (") is escaped by back slash (\);
-// - finally, s is wrapped with double quotes (arg -> "arg"),
-//   but only if there is space or tab inside s.
+//   - every back slash (\) is doubled, but only if immediately
+//     followed by double quote (");
+//   - every double quote (") is escaped by back slash (\);
+//   - finally, s is wrapped with double quotes (arg -> "arg"),
+//     but only if there is space or tab inside s.
 func EscapeArg(s string) string {
 	if len(s) == 0 {
 		return `""`
@@ -390,8 +390,10 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	}
 	fd = fd[:j]
 
+	willInheritHandles := len(fd) > 0 && !sys.NoInheritHandles
+
 	// Do not accidentally inherit more than these handles.
-	if len(fd) > 0 {
+	if willInheritHandles {
 		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]), nil, nil)
 		if err != nil {
 			return 0, 0, err
@@ -401,9 +403,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	pi := new(ProcessInformation)
 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT | _EXTENDED_STARTUPINFO_PRESENT
 	if sys.Token != 0 {
-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, len(fd) > 0 && !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
+		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
 	} else {
-		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, len(fd) > 0 && !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
+		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
 	}
 	if err != nil {
 		return 0, 0, err

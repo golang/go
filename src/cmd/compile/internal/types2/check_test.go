@@ -20,14 +20,13 @@
 //		_ = x /* ERROR "not declared" */ + 1
 //	}
 
-// TODO(gri) Also collect strict mode errors of the form /* STRICT ... */
-//           and test against strict mode.
-
 package types2_test
 
 import (
+	"bytes"
 	"cmd/compile/internal/syntax"
 	"flag"
+	"fmt"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -82,18 +81,45 @@ func delta(x, y uint) uint {
 	}
 }
 
-// goVersionRx matches a Go version string using '_', e.g. "go1_12".
-var goVersionRx = regexp.MustCompile(`^go[1-9][0-9]*_(0|[1-9][0-9]*)$`)
+// Note: parseFlags is identical to the version in go/types which is
+//       why it has a src argument even though here it is always nil.
 
-// asGoVersion returns a regular Go language version string
-// if s is a Go version string using '_' rather than '.' to
-// separate the major and minor version numbers (e.g. "go1_12").
-// Otherwise it returns the empty string.
-func asGoVersion(s string) string {
-	if goVersionRx.MatchString(s) {
-		return strings.Replace(s, "_", ".", 1)
+// parseFlags parses flags from the first line of the given source
+// (from src if present, or by reading from the file) if the line
+// starts with "//" (line comment) followed by "-" (possiby with
+// spaces between). Otherwise the line is ignored.
+func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
+	// If there is no src, read from the file.
+	const maxLen = 256
+	if len(src) == 0 {
+		f, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
+
+		var buf [maxLen]byte
+		n, err := f.Read(buf[:])
+		if err != nil {
+			return err
+		}
+		src = buf[:n]
 	}
-	return ""
+
+	// we must have a line comment that starts with a "-"
+	const prefix = "//"
+	if !bytes.HasPrefix(src, []byte(prefix)) {
+		return nil // first line is not a line comment
+	}
+	src = src[len(prefix):]
+	if i := bytes.Index(src, []byte("-")); i < 0 || len(bytes.TrimSpace(src[:i])) != 0 {
+		return nil // comment doesn't start with a "-"
+	}
+	end := bytes.Index(src, []byte("\n"))
+	if end < 0 || end > maxLen {
+		return fmt.Errorf("flags comment line too long")
+	}
+
+	return flags.Parse(strings.Fields(string(src[:end])))
 }
 
 func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
@@ -101,22 +127,19 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 		t.Fatal("no source files")
 	}
 
-	var mode syntax.Mode
-	if strings.HasSuffix(filenames[0], ".go2") {
-		mode |= syntax.AllowGenerics
+	var conf Config
+	flags := flag.NewFlagSet("", flag.PanicOnError)
+	flags.StringVar(&conf.GoVersion, "lang", "", "")
+	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+	if err := parseFlags(filenames[0], nil, flags); err != nil {
+		t.Fatal(err)
 	}
-	// parse files and collect parser errors
-	files, errlist := parseFiles(t, filenames, mode)
+
+	files, errlist := parseFiles(t, filenames, 0)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {
 		pkgName = files[0].PkgName.Value
-	}
-
-	// if no Go version is given, consider the package name
-	goVersion := *goVersion
-	if goVersion == "" {
-		goVersion = asGoVersion(pkgName)
 	}
 
 	listErrors := manual && !*verifyErrors
@@ -128,12 +151,6 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	}
 
 	// typecheck and collect typechecker errors
-	var conf Config
-	conf.GoVersion = goVersion
-	// special case for importC.src
-	if len(filenames) == 1 && strings.HasSuffix(filenames[0], "importC.src") {
-		conf.FakeImportC = true
-	}
 	conf.Trace = manual && testing.Verbose()
 	conf.Importer = defaultImporter()
 	conf.Error = func(err error) {
@@ -246,9 +263,9 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 // (and a separating "--"). For instance, to test the package made
 // of the files foo.go and bar.go, use:
 //
-// 	go test -run Manual -- foo.go bar.go
+//	go test -run Manual -- foo.go bar.go
 //
-// If no source arguments are provided, the file testdata/manual.go2
+// If no source arguments are provided, the file testdata/manual.go
 // is used instead.
 // Provide the -verify flag to verify errors against ERROR comments
 // in the input files rather than having a list of errors reported.
@@ -259,7 +276,7 @@ func TestManual(t *testing.T) {
 
 	filenames := flag.Args()
 	if len(filenames) == 0 {
-		filenames = []string{filepath.FromSlash("testdata/manual.go2")}
+		filenames = []string{filepath.FromSlash("testdata/manual.go")}
 	}
 
 	info, err := os.Stat(filenames[0])
@@ -280,7 +297,8 @@ func TestManual(t *testing.T) {
 
 // TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
 
-func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", 75, false) } // TODO(gri) narrow column tolerance
+func TestCheck(t *testing.T)     { testDirFiles(t, "testdata/check", 55, false) } // TODO(gri) narrow column tolerance
+func TestSpec(t *testing.T)      { testDirFiles(t, "testdata/spec", 0, false) }
 func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", 0, false) }
 func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 0, false) }
 

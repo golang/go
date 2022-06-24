@@ -34,6 +34,8 @@ func matchDecl(d *ast.GenDecl, f Filter) bool {
 			if f(v.Name.Name) {
 				return true
 			}
+			// We don't match ordinary parameters in filterFuncs, so by analogy don't
+			// match type parameters here.
 			switch t := v.Type.(type) {
 			case *ast.StructType:
 				if matchFields(t.Fields, f) {
@@ -95,7 +97,6 @@ func filterTypes(a []*Type, f Filter) []*Type {
 
 // Filter eliminates documentation for names that don't pass through the filter f.
 // TODO(gri): Recognize "Type.Method" as a name.
-//
 func (p *Package) Filter(f Filter) {
 	p.Consts = filterValues(p.Consts, f)
 	p.Vars = filterValues(p.Vars, f)

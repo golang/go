@@ -8,6 +8,7 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/bytealg"
 	"internal/itoa"
 	"internal/oserror"
 	"internal/race"
@@ -39,10 +40,8 @@ func StringToUTF16(s string) []uint16 {
 // s, with a terminating NUL added. If s contains a NUL byte at any
 // location, it returns (nil, EINVAL).
 func UTF16FromString(s string) ([]uint16, error) {
-	for i := 0; i < len(s); i++ {
-		if s[i] == 0 {
-			return nil, EINVAL
-		}
+	if bytealg.IndexByteString(s, 0) != -1 {
+		return nil, EINVAL
 	}
 	return utf16.Encode([]rune(s + "\x00")), nil
 }
@@ -169,7 +168,7 @@ func (e Errno) Timeout() bool {
 }
 
 // Implemented in runtime/syscall_windows.go.
-func compileCallback(fn interface{}, cleanstack bool) uintptr
+func compileCallback(fn any, cleanstack bool) uintptr
 
 // NewCallback converts a Go function to a function pointer conforming to the stdcall calling convention.
 // This is useful when interoperating with Windows code requiring callbacks.
@@ -177,7 +176,7 @@ func compileCallback(fn interface{}, cleanstack bool) uintptr
 // Only a limited number of callbacks may be created in a single Go process, and any memory allocated
 // for these callbacks is never released.
 // Between NewCallback and NewCallbackCDecl, at least 1024 callbacks can always be created.
-func NewCallback(fn interface{}) uintptr {
+func NewCallback(fn any) uintptr {
 	return compileCallback(fn, true)
 }
 
@@ -187,7 +186,7 @@ func NewCallback(fn interface{}) uintptr {
 // Only a limited number of callbacks may be created in a single Go process, and any memory allocated
 // for these callbacks is never released.
 // Between NewCallback and NewCallbackCDecl, at least 1024 callbacks can always be created.
-func NewCallbackCDecl(fn interface{}) uintptr {
+func NewCallbackCDecl(fn any) uintptr {
 	return compileCallback(fn, false)
 }
 
@@ -202,8 +201,8 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
 //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
-//sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
-//sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
+//sys	readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = ReadFile
+//sys	writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = WriteFile
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
 //sys	CloseHandle(handle Handle) (err error)
 //sys	GetStdHandle(stdhandle int) (handle Handle, err error) [failretval==InvalidHandle]
@@ -279,7 +278,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno error) = advapi32.RegOpenKeyExW
 //sys	RegCloseKey(key Handle) (regerrno error) = advapi32.RegCloseKey
 //sys	RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegQueryInfoKeyW
-//sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
+//sys	regEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
 //sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegQueryValueExW
 //sys	getCurrentProcessId() (pid uint32) = kernel32.GetCurrentProcessId
 //sys	GetConsoleMode(console Handle, mode *uint32) (err error) = kernel32.GetConsoleMode
@@ -385,34 +384,50 @@ func Read(fd Handle, p []byte) (n int, err error) {
 		}
 		return 0, e
 	}
-	if race.Enabled {
-		if done > 0 {
-			race.WriteRange(unsafe.Pointer(&p[0]), int(done))
-		}
-		race.Acquire(unsafe.Pointer(&ioSync))
-	}
-	if msanenabled && done > 0 {
-		msanWrite(unsafe.Pointer(&p[0]), int(done))
-	}
 	return int(done), nil
 }
 
 func Write(fd Handle, p []byte) (n int, err error) {
-	if race.Enabled {
-		race.ReleaseMerge(unsafe.Pointer(&ioSync))
-	}
 	var done uint32
 	e := WriteFile(fd, p, &done, nil)
 	if e != nil {
 		return 0, e
 	}
-	if race.Enabled && done > 0 {
-		race.ReadRange(unsafe.Pointer(&p[0]), int(done))
-	}
-	if msanenabled && done > 0 {
-		msanRead(unsafe.Pointer(&p[0]), int(done))
-	}
 	return int(done), nil
+}
+
+func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
+	err := readFile(fd, p, done, overlapped)
+	if race.Enabled {
+		if *done > 0 {
+			race.WriteRange(unsafe.Pointer(&p[0]), int(*done))
+		}
+		race.Acquire(unsafe.Pointer(&ioSync))
+	}
+	if msanenabled && *done > 0 {
+		msanWrite(unsafe.Pointer(&p[0]), int(*done))
+	}
+	if asanenabled && *done > 0 {
+		asanWrite(unsafe.Pointer(&p[0]), int(*done))
+	}
+	return err
+}
+
+func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	err := writeFile(fd, p, done, overlapped)
+	if race.Enabled && *done > 0 {
+		race.ReadRange(unsafe.Pointer(&p[0]), int(*done))
+	}
+	if msanenabled && *done > 0 {
+		msanRead(unsafe.Pointer(&p[0]), int(*done))
+	}
+	if asanenabled && *done > 0 {
+		asanRead(unsafe.Pointer(&p[0]), int(*done))
+	}
+	return err
 }
 
 var ioSync int64
@@ -433,12 +448,11 @@ func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, wh
 		default:
 			panic("unsupported 32-bit architecture")
 		case "386":
-			// distToMove is a LARGE_INTEGER:
-			// https://msdn.microsoft.com/en-us/library/windows/desktop/aa383713(v=vs.85).aspx
+			// distToMove is a LARGE_INTEGER, which is 64 bits.
 			_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
 		case "arm":
 			// distToMove must be 8-byte aligned per ARM calling convention
-			// https://msdn.microsoft.com/en-us/library/dn736986.aspx#Anchor_7
+			// https://docs.microsoft.com/en-us/cpp/build/overview-of-arm-abi-conventions#stage-c-assignment-of-arguments-to-registers-and-stack
 			_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 6, uintptr(handle), 0, uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
 		}
 	}
@@ -738,9 +752,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, int32, error) {
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
 }
 
@@ -760,9 +772,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, int32, error) {
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	sa.raw.Scope_id = sa.ZoneId
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
 }
 
@@ -835,9 +845,7 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
 		sa := new(SockaddrInet4)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_INET6:
@@ -846,9 +854,7 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
 		sa.ZoneId = pp.Scope_id
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 	}
 	return nil, EAFNOSUPPORT
@@ -909,6 +915,38 @@ func Shutdown(fd Handle, how int) (err error) {
 }
 
 func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to Sockaddr, overlapped *Overlapped, croutine *byte) (err error) {
+	rsa, len, err := to.sockaddr()
+	if err != nil {
+		return err
+	}
+	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	if r1 == socket_error {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return err
+}
+
+func wsaSendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *SockaddrInet4, overlapped *Overlapped, croutine *byte) (err error) {
+	rsa, len, err := to.sockaddr()
+	if err != nil {
+		return err
+	}
+	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	if r1 == socket_error {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return err
+}
+
+func wsaSendtoInet6(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *SockaddrInet6, overlapped *Overlapped, croutine *byte) (err error) {
 	rsa, len, err := to.sockaddr()
 	if err != nil {
 		return err
@@ -1270,4 +1308,32 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
 		return nil, err
 	}
 	return al, nil
+}
+
+// RegEnumKeyEx enumerates the subkeys of an open registry key.
+// Each call retrieves information about one subkey. name is
+// a buffer that should be large enough to hold the name of the
+// subkey plus a null terminating character. nameLen is its
+// length. On return, nameLen will contain the actual length of the
+// subkey.
+//
+// Should name not be large enough to hold the subkey, this function
+// will return ERROR_MORE_DATA, and must be called again with an
+// appropriately sized buffer.
+//
+// reserved must be nil. class and classLen behave like name and nameLen
+// but for the class of the subkey, except that they are optional.
+// lastWriteTime, if not nil, will be populated with the time the subkey
+// was last written.
+//
+// The caller must enumerate all subkeys in order. That is
+// RegEnumKeyEx must be called with index starting at 0, incrementing
+// the index until the function returns ERROR_NO_MORE_ITEMS, or with
+// the index of the last subkey (obtainable from RegQueryInfoKey),
+// decrementing until index 0 is enumerated.
+//
+// Successive calls to this API must happen on the same OS thread,
+// so call runtime.LockOSThread before calling this function.
+func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
+	return regEnumKeyEx(key, index, name, nameLen, reserved, class, classLen, lastWriteTime)
 }

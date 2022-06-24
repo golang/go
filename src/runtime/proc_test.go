@@ -119,6 +119,10 @@ func TestGoroutineParallelism(t *testing.T) {
 	// since the goroutines can't be stopped/preempted.
 	// Disable GC for this test (see issue #10958).
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
+	runtime.GC()
 	for try := 0; try < N; try++ {
 		done := make(chan bool)
 		x := uint32(0)
@@ -163,6 +167,10 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
 	// since the goroutines can't be stopped/preempted.
 	// Disable GC for this test (see issue #10958).
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
+	runtime.GC()
 	for try := 0; try < N; try++ {
 		if load {
 			// Create P goroutines and wait until they all run.
@@ -469,12 +477,13 @@ func TestPingPongHog(t *testing.T) {
 	<-lightChan
 
 	// Check that hogCount and lightCount are within a factor of
-	// 5, which indicates that both pairs of goroutines handed off
+	// 20, which indicates that both pairs of goroutines handed off
 	// the P within a time-slice to their buddy. We can use a
 	// fairly large factor here to make this robust: if the
-	// scheduler isn't working right, the gap should be ~1000X.
-	const factor = 5
-	if hogCount > lightCount*factor || lightCount > hogCount*factor {
+	// scheduler isn't working right, the gap should be ~1000X
+	// (was 5, increased to 20, see issue 52207).
+	const factor = 20
+	if hogCount/factor > lightCount || lightCount/factor > hogCount {
 		t.Fatalf("want hogCount/lightCount in [%v, %v]; got %d/%d = %g", 1.0/factor, factor, hogCount, lightCount, float64(hogCount)/float64(lightCount))
 	}
 }
@@ -623,6 +632,10 @@ func TestSchedLocalQueueEmpty(t *testing.T) {
 	// If runtime triggers a forced GC during this test then it will deadlock,
 	// since the goroutines can't be stopped/preempted during spin wait.
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
+	runtime.GC()
 
 	iters := int(1e5)
 	if testing.Short() {
@@ -1011,6 +1024,7 @@ func TestLockOSThreadTemplateThreadRace(t *testing.T) {
 }
 
 // fakeSyscall emulates a system call.
+//
 //go:nosplit
 func fakeSyscall(duration time.Duration) {
 	runtime.Entersyscall()
@@ -1032,7 +1046,7 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
 		interations = 1
 	}
 	const (
-		maxDuration = 3 * time.Second
+		maxDuration = 5 * time.Second
 		nroutines   = 8
 	)
 
@@ -1068,6 +1082,10 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
 }
 
 func TestPreemptionAfterSyscall(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		testenv.SkipFlaky(t, 41015)
+	}
+
 	for _, i := range []time.Duration{10, 100, 1000} {
 		d := i * time.Microsecond
 		t.Run(fmt.Sprint(d), func(t *testing.T) {

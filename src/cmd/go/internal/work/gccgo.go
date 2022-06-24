@@ -6,8 +6,8 @@ package work
 
 import (
 	"fmt"
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -605,7 +605,11 @@ var gccgoToSymbolFunc func(string) string
 
 func (tools gccgoToolchain) gccgoCleanPkgpath(b *Builder, p *load.Package) string {
 	gccgoToSymbolFuncOnce.Do(func() {
-		fn, err := pkgpath.ToSymbolFunc(tools.compiler(), b.WorkDir)
+		tmpdir := b.WorkDir
+		if cfg.BuildN {
+			tmpdir = os.TempDir()
+		}
+		fn, err := pkgpath.ToSymbolFunc(tools.compiler(), tmpdir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
 			base.SetExitStatus(2)

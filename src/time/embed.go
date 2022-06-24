@@ -6,7 +6,6 @@
 // the binary.
 
 //go:build timetzdata
-// +build timetzdata
 
 package time
 

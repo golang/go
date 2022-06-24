@@ -24,7 +24,6 @@ func Init(arch *ssagen.ArchInfo) {
 
 	arch.ZeroRange = zeroRange
 	arch.Ginsnop = ginsnop
-	arch.Ginsnopdefer = ginsnop
 
 	arch.SSAMarkMoves = ssaMarkMoves
 	arch.SSAGenValue = ssaGenValue
@@ -89,13 +88,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
 
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
-
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 
 	case ssa.BlockDefer:
 		p := s.Prog(wasm.AGet)
@@ -123,10 +116,14 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall:
+	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall, ssa.OpWasmLoweredTailCall:
 		s.PrepareCall(v)
 		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == ir.Syms.Deferreturn {
-			// add a resume point before call to deferreturn so it can be called again via jmpdefer
+			// The runtime needs to inject jumps to
+			// deferreturn calls using the address in
+			// _func.deferreturn. Hence, the call to
+			// deferreturn must itself be a resumption
+			// point so it gets a target PC.
 			s.Prog(wasm.ARESUMEPOINT)
 		}
 		if v.Op == ssa.OpWasmLoweredClosureCall {
@@ -138,6 +135,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p := s.Prog(obj.ACALL)
 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: sym}
 			p.Pos = v.Pos
+			if v.Op == ssa.OpWasmLoweredTailCall {
+				p.As = obj.ARET
+			}
 		} else {
 			getValue64(s, v.Args[0])
 			p := s.Prog(obj.ACALL)

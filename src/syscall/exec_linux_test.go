@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux
-// +build linux
 
 package syscall_test
 
@@ -111,14 +110,6 @@ func checkUserNS(t *testing.T) {
 			t.Skip("kernel doesn't support user namespaces")
 		}
 	}
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
-	}
 }
 
 func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
@@ -201,14 +192,6 @@ func TestUnshare(t *testing.T) {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
 	}
 
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
-	}
-
 	path := "/proc/net/dev"
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
@@ -275,12 +258,14 @@ func TestGroupCleanup(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
+	t.Logf("id: %s", strOut)
+
 	expected := "uid=0(root) gid=0(root)"
 	// Just check prefix because some distros reportedly output a
 	// context parameter; see https://golang.org/issue/16224.
 	// Alpine does not output groups; see https://golang.org/issue/19938.
 	if !strings.HasPrefix(strOut, expected) {
-		t.Errorf("id command output: %q, expected prefix: %q", strOut, expected)
+		t.Errorf("expected prefix: %q", expected)
 	}
 }
 
@@ -309,23 +294,14 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
+	t.Logf("id: %s", strOut)
 
-	// Strings we've seen in the wild.
-	expected := []string{
-		"uid=0(root) gid=0(root) groups=0(root)",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nobody)",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
-		"uid=0(root) gid=0(root) groups=0(root),65534",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody)", // Alpine; see https://golang.org/issue/19938
-		"uid=0(root) gid=0(root) groups=0(root) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",                                                                               // CentOS with SELinux context, see https://golang.org/issue/34547
-		"uid=0(root) gid=0(root) groups=0(root),65534(nobody) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",                                                                 // Fedora with SElinux context, see https://golang.org/issue/46752
+	// As in TestGroupCleanup, just check prefix.
+	// The actual groups and contexts seem to vary from one distro to the next.
+	expected := "uid=0(root) gid=0(root) groups=0(root)"
+	if !strings.HasPrefix(strOut, expected) {
+		t.Errorf("expected prefix: %q", expected)
 	}
-	for _, e := range expected {
-		if strOut == e {
-			return
-		}
-	}
-	t.Errorf("id command output: %q, expected one of %q", strOut, expected)
 }
 
 // TestUnshareHelperProcess isn't a real test. It's used as a helper process
@@ -526,9 +502,7 @@ func mustSupportAmbientCaps(t *testing.T) {
 		buf[i] = byte(b)
 	}
 	ver := string(buf[:])
-	if i := strings.Index(ver, "\x00"); i != -1 {
-		ver = ver[:i]
-	}
+	ver, _, _ = strings.Cut(ver, "\x00")
 	if strings.HasPrefix(ver, "2.") ||
 		strings.HasPrefix(ver, "3.") ||
 		strings.HasPrefix(ver, "4.1.") ||

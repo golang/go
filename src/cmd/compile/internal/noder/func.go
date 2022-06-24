@@ -37,8 +37,7 @@ func (g *irgen) funcBody(fn *ir.Func, recv *syntax.Field, sig *syntax.FuncType, 
 	// calculated its size, including parameter offsets. Now that we've
 	// created the parameter Names, force a recalculation to ensure
 	// their offsets are correct.
-	typ.Align = 0
-	types.CalcSize(typ)
+	types.RecalcSize(typ)
 
 	if block != nil {
 		typecheck.DeclContext = ir.PAUTO

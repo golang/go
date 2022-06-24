@@ -22,7 +22,7 @@ import (
 
 /*
 Derived from Plan 9 from User Space's src/libmach/elf.h, elf.c
-http://code.swtch.com/plan9port/src/tip/src/libmach/
+https://github.com/9fans/plan9port/tree/master/src/libmach/
 
 	Copyright © 2004 Russ Cox.
 	Portions Copyright © 2008-2010 Google Inc.
@@ -346,6 +346,10 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if mach != elf.EM_MIPS || class != elf.ELFCLASS64 {
 			return errorf("elf object but not mips64")
 		}
+	case sys.Loong64:
+		if mach != elf.EM_LOONGARCH || class != elf.ELFCLASS64 {
+			return errorf("elf object but not loong64")
+		}
 
 	case sys.ARM:
 		if e != binary.LittleEndian || mach != elf.EM_ARM || class != elf.ELFCLASS32 {
@@ -599,7 +603,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			if strings.HasPrefix(elfsym.name, ".LASF") { // gcc on s390x does this
 				continue
 			}
-			return errorf("%v: sym#%d: ignoring symbol in section %d (type %d)", elfsym.sym, i, elfsym.shndx, elfsym.type_)
+			return errorf("%v: sym#%d (%s): ignoring symbol in section %d (type %d)", elfsym.sym, i, elfsym.name, elfsym.shndx, elfsym.type_)
 		}
 
 		s := elfsym.sym
@@ -934,9 +938,7 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 		}
 	}
 
-	// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
-	// sense and should be removed when someone has thought about it properly.
-	if s != 0 && l.SymType(s) == 0 && !l.AttrVisibilityHidden(s) && elfsym.type_ != elf.STT_SECTION {
+	if s != 0 && l.SymType(s) == 0 && elfsym.type_ != elf.STT_SECTION {
 		sb := l.MakeSymbolUpdater(s)
 		sb.SetType(sym.SXREF)
 	}
@@ -958,6 +960,7 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		ARM     = uint32(sys.ARM)
 		ARM64   = uint32(sys.ARM64)
 		I386    = uint32(sys.I386)
+		LOONG64 = uint32(sys.Loong64)
 		MIPS    = uint32(sys.MIPS)
 		MIPS64  = uint32(sys.MIPS64)
 		PPC64   = uint32(sys.PPC64)
@@ -991,6 +994,15 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		MIPS64 | uint32(elf.R_MIPS_GPREL32)<<16,
 		MIPS64 | uint32(elf.R_MIPS_64)<<16,
 		MIPS64 | uint32(elf.R_MIPS_GOT_DISP)<<16:
+		return 4, 4, nil
+
+	case LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_PCREL)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_GPREL)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_ABSOLUTE)<<16,
+		LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2)<<16,
+		LOONG64 | uint32(elf.R_LARCH_64)<<16,
+		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16:
 		return 4, 4, nil
 
 	case S390X | uint32(elf.R_390_8)<<16:

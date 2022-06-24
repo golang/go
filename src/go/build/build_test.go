@@ -5,7 +5,6 @@
 package build
 
 import (
-	"flag"
 	"internal/testenv"
 	"io"
 	"os"
@@ -17,10 +16,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	flag.Parse()
-	if goTool, err := testenv.GoTool(); err == nil {
-		os.Setenv("PATH", filepath.Dir(goTool)+string(os.PathListSeparator)+os.Getenv("PATH"))
-	}
+	Default.GOROOT = testenv.GOROOT(nil)
 	os.Exit(m.Run())
 }
 
@@ -84,7 +80,7 @@ func TestDotSlashImport(t *testing.T) {
 }
 
 func TestEmptyImport(t *testing.T) {
-	p, err := Import("", Default.GOROOT, FindOnly)
+	p, err := Import("", testenv.GOROOT(t), FindOnly)
 	if err == nil {
 		t.Fatal(`Import("") returned nil error.`)
 	}
@@ -571,6 +567,27 @@ func TestImportVendor(t *testing.T) {
 	}
 }
 
+func BenchmarkImportVendor(b *testing.B) {
+	testenv.MustHaveGoBuild(b) // really must just have source
+
+	b.Setenv("GO111MODULE", "off")
+
+	ctxt := Default
+	wd, err := os.Getwd()
+	if err != nil {
+		b.Fatal(err)
+	}
+	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
+	dir := filepath.Join(ctxt.GOPATH, "src/a/b")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := ctxt.Import("c/d", dir, 0)
+		if err != nil {
+			b.Fatalf("cannot find vendored c/d from testdata src/a/b directory: %v", err)
+		}
+	}
+}
+
 func TestImportVendorFailure(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 
@@ -658,7 +675,7 @@ func TestImportDirTarget(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
 	ctxt.GOPATH = ""
-	p, err := ctxt.ImportDir(filepath.Join(ctxt.GOROOT, "src/path"), 0)
+	p, err := ctxt.ImportDir(filepath.Join(testenv.GOROOT(t), "src/path"), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -712,7 +729,7 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 	// Also don't count instances in suggested "go get" or similar commands
 	// (see https://golang.org/issue/41576). The suggested command typically
 	// follows a semicolon.
-	errStr = strings.SplitN(errStr, ";", 2)[0]
+	errStr, _, _ = strings.Cut(errStr, ";")
 
 	if n := strings.Count(errStr, pkgPath); n != 1 {
 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
@@ -733,5 +750,41 @@ func TestCgoImportsIgnored(t *testing.T) {
 		if path == "should/be/ignored" {
 			t.Errorf("found import %q in ignored cgo file", path)
 		}
+	}
+}
+
+// Issue #52053. Check that if there is a file x_GOOS_GOARCH.go that both
+// GOOS and GOARCH show up in the Package.AllTags field. We test both the
+// case where the file matches and where the file does not match.
+// The latter case used to fail, incorrectly omitting GOOS.
+func TestAllTags(t *testing.T) {
+	ctxt := Default
+	ctxt.GOARCH = "arm"
+	ctxt.GOOS = "netbsd"
+	p, err := ctxt.ImportDir("testdata/alltags", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"arm", "netbsd"}
+	if !reflect.DeepEqual(p.AllTags, want) {
+		t.Errorf("AllTags = %v, want %v", p.AllTags, want)
+	}
+	wantFiles := []string{"alltags.go", "x_netbsd_arm.go"}
+	if !reflect.DeepEqual(p.GoFiles, wantFiles) {
+		t.Errorf("GoFiles = %v, want %v", p.GoFiles, wantFiles)
+	}
+
+	ctxt.GOARCH = "amd64"
+	ctxt.GOOS = "linux"
+	p, err = ctxt.ImportDir("testdata/alltags", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(p.AllTags, want) {
+		t.Errorf("AllTags = %v, want %v", p.AllTags, want)
+	}
+	wantFiles = []string{"alltags.go"}
+	if !reflect.DeepEqual(p.GoFiles, wantFiles) {
+		t.Errorf("GoFiles = %v, want %v", p.GoFiles, wantFiles)
 	}
 }

@@ -68,3 +68,43 @@ func TestTimeHistogram(t *testing.T) {
 
 	dummyTimeHistogram = TimeHistogram{}
 }
+
+func TestTimeHistogramMetricsBuckets(t *testing.T) {
+	buckets := TimeHistogramMetricsBuckets()
+
+	nonInfBucketsLen := TimeHistNumSubBuckets * TimeHistNumSuperBuckets
+	expBucketsLen := nonInfBucketsLen + 2 // Count -Inf and +Inf.
+	if len(buckets) != expBucketsLen {
+		t.Fatalf("unexpected length of buckets: got %d, want %d", len(buckets), expBucketsLen)
+	}
+	// Check the first non-Inf 2*TimeHistNumSubBuckets buckets in order, skipping the
+	// first bucket which should be -Inf (checked later).
+	//
+	// Because of the way this scheme works, the bottom TimeHistNumSubBuckets
+	// buckets are fully populated, and then the next TimeHistNumSubBuckets
+	// have the TimeHistSubBucketBits'th bit set, while the bottom are once
+	// again fully populated.
+	for i := 1; i <= 2*TimeHistNumSubBuckets+1; i++ {
+		if got, want := buckets[i], float64(i-1)/1e9; got != want {
+			t.Errorf("expected bucket %d to have value %e, got %e", i, want, got)
+		}
+	}
+	// Check some values.
+	idxToBucket := map[int]float64{
+		0:                 math.Inf(-1),
+		33:                float64(0x10<<1) / 1e9,
+		34:                float64(0x11<<1) / 1e9,
+		49:                float64(0x10<<2) / 1e9,
+		58:                float64(0x19<<2) / 1e9,
+		65:                float64(0x10<<3) / 1e9,
+		513:               float64(0x10<<31) / 1e9,
+		519:               float64(0x16<<31) / 1e9,
+		expBucketsLen - 2: float64(0x1f<<43) / 1e9,
+		expBucketsLen - 1: math.Inf(1),
+	}
+	for idx, bucket := range idxToBucket {
+		if got, want := buckets[idx], bucket; got != want {
+			t.Errorf("expected bucket %d to have value %e, got %e", idx, want, got)
+		}
+	}
+}

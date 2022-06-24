@@ -3,13 +3,11 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && (ppc64 || ppc64le)
-// +build linux
-// +build ppc64 ppc64le
 
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -79,5 +77,5 @@ func (c *sigctxt) set_link(x uint64) { c.regs().link = x }
 
 func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
 func (c *sigctxt) set_sigaddr(x uint64) {
-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
+	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
 }

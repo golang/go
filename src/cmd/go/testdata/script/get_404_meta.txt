@@ -9,4 +9,10 @@ go get -d bazil.org/fuse/fs/fstestutil
 
 env GO111MODULE=on
 env GOPROXY=direct
-go get -d bazil.org/fuse/fs/fstestutil
+go get bazil.org/fuse/fs/fstestutil
+
+
+-- go.mod --
+module m
+
+go 1.18

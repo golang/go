@@ -9,7 +9,7 @@ cp go.mod go.mod.orig
 # would look like.
 
 ! go mod tidy
-stderr 'go mod tidy: go.mod file indicates go 2000.0, but maximum supported version is '$goversion'$'
+stderr 'go: go.mod file indicates go 2000.0, but maximum version supported by tidy is '$goversion'$'
 cmp go.mod go.mod.orig
 
 
@@ -18,7 +18,7 @@ cmp go.mod go.mod.orig
 
 cp go.mod.orig go.mod
 go mod tidy -e
-stderr 'go mod tidy: go.mod file indicates go 2000.0, but maximum supported version is '$goversion'$'
+stderr 'go: go.mod file indicates go 2000.0, but maximum version supported by tidy is '$goversion'$'
 cmp go.mod go.mod.tidy
 
 

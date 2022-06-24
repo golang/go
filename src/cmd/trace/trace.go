@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmd/internal/traceviewer"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"internal/trace"
@@ -13,8 +14,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -22,11 +21,13 @@ import (
 	"time"
 )
 
+//go:embed static/trace_viewer_full.html static/webcomponents.min.js
+var staticContent embed.FS
+
 func init() {
 	http.HandleFunc("/trace", httpTrace)
 	http.HandleFunc("/jsontrace", httpJsonTrace)
-	http.HandleFunc("/trace_viewer_html", httpTraceViewerHTML)
-	http.HandleFunc("/webcomponents.min.js", webcomponentsJS)
+	http.Handle("/static/", http.FileServer(http.FS(staticContent)))
 }
 
 // httpTrace serves either whole trace (goid==0) or trace for goid goroutine.
@@ -50,19 +51,19 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
 var templTrace = `
 <html>
 <head>
-<script src="/webcomponents.min.js"></script>
+<script src="/static/webcomponents.min.js"></script>
 <script>
 'use strict';
 
 function onTraceViewerImportFail() {
   document.addEventListener('DOMContentLoaded', function() {
     document.body.textContent =
-    '/trace_viewer_full.html is missing. File a bug in https://golang.org/issue';
+    '/static/trace_viewer_full.html is missing. File a bug in https://golang.org/issue';
   });
 }
 </script>
 
-<link rel="import" href="/trace_viewer_html"
+<link rel="import" href="/static/trace_viewer_full.html"
       onerror="onTraceViewerImportFail(event)">
 
 <style type="text/css">
@@ -172,16 +173,6 @@ function onTraceViewerImportFail() {
 </body>
 </html>
 `
-
-// httpTraceViewerHTML serves static part of trace-viewer.
-// This URL is queried from templTrace HTML.
-func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(runtime.GOROOT(), "misc", "trace", "trace_viewer_full.html"))
-}
-
-func webcomponentsJS(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(runtime.GOROOT(), "misc", "trace", "webcomponents.min.js"))
-}
 
 // httpJsonTrace serves json trace, requested from within templTrace HTML.
 func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
@@ -727,6 +718,11 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			ctx.emitInstant(ev, "task start", "user event")
 		case trace.EvUserTaskEnd:
 			ctx.emitInstant(ev, "task end", "user event")
+		case trace.EvCPUSample:
+			if ev.P >= 0 {
+				// only show in this UI when there's an associated P
+				ctx.emitInstant(ev, "CPU profile sample", "")
+			}
 		}
 		// Emit any counter updates.
 		ctx.emitThreadCounters(ev)
@@ -1054,7 +1050,7 @@ func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
 			cname = colorLightGrey
 		}
 	}
-	var arg interface{}
+	var arg any
 	if ev.Type == trace.EvProcStart {
 		type Arg struct {
 			ThreadID uint64

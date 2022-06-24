@@ -7,16 +7,21 @@
 package work
 
 import (
+	"bytes"
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
+	"cmd/internal/quoted"
 	"cmd/internal/sys"
-	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
+	"sync"
 )
 
 func BuildInit() {
@@ -32,27 +37,63 @@ func BuildInit() {
 	if cfg.BuildPkgdir != "" && !filepath.IsAbs(cfg.BuildPkgdir) {
 		p, err := filepath.Abs(cfg.BuildPkgdir)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "go %s: evaluating -pkgdir: %v\n", flag.Args()[0], err)
+			fmt.Fprintf(os.Stderr, "go: evaluating -pkgdir: %v\n", err)
 			base.SetExitStatus(2)
 			base.Exit()
 		}
 		cfg.BuildPkgdir = p
 	}
 
-	// Make sure CC and CXX are absolute paths
-	for _, key := range []string{"CC", "CXX"} {
-		if path := cfg.Getenv(key); !filepath.IsAbs(path) && path != "" && path != filepath.Base(path) {
-			base.Fatalf("go %s: %s environment variable is relative; must be absolute path: %s\n", flag.Args()[0], key, path)
+	if cfg.BuildP <= 0 {
+		base.Fatalf("go: -p must be a positive integer: %v\n", cfg.BuildP)
+	}
+
+	// Make sure CC, CXX, and FC are absolute paths.
+	for _, key := range []string{"CC", "CXX", "FC"} {
+		value := cfg.Getenv(key)
+		args, err := quoted.Split(value)
+		if err != nil {
+			base.Fatalf("go: %s environment variable could not be parsed: %v", key, err)
+		}
+		if len(args) == 0 {
+			continue
+		}
+		path := args[0]
+		if !filepath.IsAbs(path) && path != filepath.Base(path) {
+			base.Fatalf("go: %s environment variable is relative; must be absolute path: %s\n", key, path)
 		}
 	}
 }
 
+// fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
+// on supported platforms.
+//
+// On unsupported platforms, fuzzInstrumentFlags returns nil, meaning no
+// instrumentation is added. 'go test -fuzz' still works without coverage,
+// but it generates random inputs without guidance, so it's much less effective.
+func fuzzInstrumentFlags() []string {
+	if !sys.FuzzInstrumented(cfg.Goos, cfg.Goarch) {
+		return nil
+	}
+	return []string{"-d=libfuzzer"}
+}
+
 func instrumentInit() {
-	if !cfg.BuildRace && !cfg.BuildMSan {
+	if !cfg.BuildRace && !cfg.BuildMSan && !cfg.BuildASan {
 		return
 	}
 	if cfg.BuildRace && cfg.BuildMSan {
-		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
+		fmt.Fprintf(os.Stderr, "go: may not use -race and -msan simultaneously\n")
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if cfg.BuildRace && cfg.BuildASan {
+		fmt.Fprintf(os.Stderr, "go: may not use -race and -asan simultaneously\n")
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if cfg.BuildMSan && cfg.BuildASan {
+		fmt.Fprintf(os.Stderr, "go: may not use -msan and -asan simultaneously\n")
 		base.SetExitStatus(2)
 		base.Exit()
 	}
@@ -61,13 +102,29 @@ func instrumentInit() {
 		base.SetExitStatus(2)
 		base.Exit()
 	}
-	if cfg.BuildRace {
-		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
-			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, darwin/arm64, and windows/amd64\n", flag.Args()[0])
+	if cfg.BuildRace && !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+		fmt.Fprintf(os.Stderr, "-race is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if cfg.BuildASan && !sys.ASanSupported(cfg.Goos, cfg.Goarch) {
+		fmt.Fprintf(os.Stderr, "-asan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	// The current implementation is only compatible with the ASan library from version
+	// v7 to v9 (See the description in src/runtime/asan/asan.go). Therefore, using the
+	// -asan option must use a compatible version of ASan library, which requires that
+	// the gcc version is not less than 7 and the clang version is not less than 9,
+	// otherwise a segmentation fault will occur.
+	if cfg.BuildASan {
+		if err := compilerRequiredAsanVersion(); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 			base.SetExitStatus(2)
 			base.Exit()
 		}
 	}
+
 	mode := "race"
 	if cfg.BuildMSan {
 		mode = "msan"
@@ -77,13 +134,16 @@ func instrumentInit() {
 			cfg.BuildBuildmode = "pie"
 		}
 	}
+	if cfg.BuildASan {
+		mode = "asan"
+	}
 	modeFlag := "-" + mode
 
 	if !cfg.BuildContext.CgoEnabled {
 		if runtime.GOOS != cfg.Goos || runtime.GOARCH != cfg.Goarch {
-			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo\n", flag.Args()[0], modeFlag)
+			fmt.Fprintf(os.Stderr, "go: %s requires cgo\n", modeFlag)
 		} else {
-			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
+			fmt.Fprintf(os.Stderr, "go: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", modeFlag)
 		}
 
 		base.SetExitStatus(2)
@@ -96,7 +156,7 @@ func instrumentInit() {
 		cfg.BuildContext.InstallSuffix += "_"
 	}
 	cfg.BuildContext.InstallSuffix += mode
-	cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, mode)
+	cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, mode)
 }
 
 func buildModeInit() {
@@ -267,4 +327,86 @@ func buildModeInit() {
 			base.Fatalf("build flag -modfile only valid when using modules")
 		}
 	}
+}
+
+type version struct {
+	name         string
+	major, minor int
+}
+
+var compiler struct {
+	sync.Once
+	version
+	err error
+}
+
+// compilerVersion detects the version of $(go env CC).
+// It returns a non-nil error if the compiler matches a known version schema but
+// the version could not be parsed, or if $(go env CC) could not be determined.
+func compilerVersion() (version, error) {
+	compiler.Once.Do(func() {
+		compiler.err = func() error {
+			compiler.name = "unknown"
+			cc := os.Getenv("CC")
+			out, err := exec.Command(cc, "--version").Output()
+			if err != nil {
+				// Compiler does not support "--version" flag: not Clang or GCC.
+				return err
+			}
+
+			var match [][]byte
+			if bytes.HasPrefix(out, []byte("gcc")) {
+				compiler.name = "gcc"
+				out, err := exec.Command(cc, "-v").CombinedOutput()
+				if err != nil {
+					// gcc, but does not support gcc's "-v" flag?!
+					return err
+				}
+				gccRE := regexp.MustCompile(`gcc version (\d+)\.(\d+)`)
+				match = gccRE.FindSubmatch(out)
+			} else {
+				clangRE := regexp.MustCompile(`clang version (\d+)\.(\d+)`)
+				if match = clangRE.FindSubmatch(out); len(match) > 0 {
+					compiler.name = "clang"
+				}
+			}
+
+			if len(match) < 3 {
+				return nil // "unknown"
+			}
+			if compiler.major, err = strconv.Atoi(string(match[1])); err != nil {
+				return err
+			}
+			if compiler.minor, err = strconv.Atoi(string(match[2])); err != nil {
+				return err
+			}
+			return nil
+		}()
+	})
+	return compiler.version, compiler.err
+}
+
+// compilerRequiredAsanVersion is a copy of the function defined in
+// misc/cgo/testsanitizers/cc_test.go
+// compilerRequiredAsanVersion reports whether the compiler is the version
+// required by Asan.
+func compilerRequiredAsanVersion() error {
+	compiler, err := compilerVersion()
+	if err != nil {
+		return fmt.Errorf("-asan: the version of $(go env CC) could not be parsed")
+	}
+
+	switch compiler.name {
+	case "gcc":
+		if compiler.major < 7 {
+			return fmt.Errorf("-asan is not supported with C compiler %d.%d\n", compiler.major, compiler.minor)
+		}
+	case "clang":
+		if compiler.major < 9 {
+			return fmt.Errorf("-asan is not supported with C compiler %d.%d\n", compiler.major, compiler.minor)
+		}
+	default:
+		return fmt.Errorf("-asan: C compiler is not gcc or clang")
+	}
+	return nil
 }

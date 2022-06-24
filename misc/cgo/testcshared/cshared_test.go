@@ -5,6 +5,7 @@
 package cshared_test
 
 import (
+	"bufio"
 	"bytes"
 	"debug/elf"
 	"debug/pe"
@@ -117,6 +118,9 @@ func testMain(m *testing.M) int {
 	}
 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
 
+	// Force reallocation (and avoid aliasing bugs) for parallel tests that append to cc.
+	cc = cc[:len(cc):len(cc)]
+
 	if GOOS == "windows" {
 		exeSuffix = ".exe"
 	}
@@ -200,7 +204,7 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
 	args := append(adbCmd(), "exec-out")
 	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
 	for _, e := range env {
-		if strings.Index(e, "LD_LIBRARY_PATH=") != -1 {
+		if strings.Contains(e, "LD_LIBRARY_PATH=") {
 			adbargs = append([]string{e}, adbargs...)
 			break
 		}
@@ -326,7 +330,7 @@ func createHeaders() error {
 			base, name := filepath.Split(args[0])
 			args[0] = filepath.Join(base, "llvm-dlltool")
 			var machine string
-			switch strings.SplitN(name, "-", 2)[0] {
+			switch prefix, _, _ := strings.Cut(name, "-"); prefix {
 			case "i686":
 				machine = "i386"
 			case "x86_64":
@@ -781,10 +785,10 @@ func copyFile(t *testing.T, dst, src string) {
 
 func TestGo2C2Go(t *testing.T) {
 	switch GOOS {
-	case "darwin", "ios":
-		// Darwin shared libraries don't support the multiple
+	case "darwin", "ios", "windows":
+		// Non-ELF shared libraries don't support the multiple
 		// copies of the runtime package implied by this test.
-		t.Skip("linking c-shared into Go programs not supported on Darwin; issue 29061")
+		t.Skipf("linking c-shared into Go programs not supported on %s; issue 29061, 49457", GOOS)
 	case "android":
 		t.Skip("test fails on android; issue 29087")
 	}
@@ -834,4 +838,52 @@ func TestGo2C2Go(t *testing.T) {
 	bin = filepath.Join(tmpdir, "m2") + exeSuffix
 	run(t, goenv, "go", "build", "-o", bin, "./go2c2go/m2")
 	runExe(t, runenv, bin)
+}
+
+func TestIssue36233(t *testing.T) {
+	t.Parallel()
+
+	// Test that the export header uses GoComplex64 and GoComplex128
+	// for complex types.
+
+	tmpdir, err := os.MkdirTemp("", "cshared-TestIssue36233")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	const exportHeader = "issue36233.h"
+
+	run(t, nil, "go", "tool", "cgo", "-exportheader", exportHeader, "-objdir", tmpdir, "./issue36233/issue36233.go")
+	data, err := os.ReadFile(exportHeader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	funcs := []struct{ name, signature string }{
+		{"exportComplex64", "GoComplex64 exportComplex64(GoComplex64 v)"},
+		{"exportComplex128", "GoComplex128 exportComplex128(GoComplex128 v)"},
+		{"exportComplexfloat", "GoComplex64 exportComplexfloat(GoComplex64 v)"},
+		{"exportComplexdouble", "GoComplex128 exportComplexdouble(GoComplex128 v)"},
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	var found int
+	for scanner.Scan() {
+		b := scanner.Bytes()
+		for _, fn := range funcs {
+			if bytes.Contains(b, []byte(fn.name)) {
+				found++
+				if !bytes.Contains(b, []byte(fn.signature)) {
+					t.Errorf("function signature mismatch; got %q, want %q", b, fn.signature)
+				}
+			}
+		}
+	}
+	if err = scanner.Err(); err != nil {
+		t.Errorf("scanner encountered error: %v", err)
+	}
+	if found != len(funcs) {
+		t.Error("missing functions")
+	}
 }

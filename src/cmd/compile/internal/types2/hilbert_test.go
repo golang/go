@@ -29,8 +29,7 @@ func TestHilbert(t *testing.T) {
 	}
 
 	// parse source
-	// TODO(gri) get rid of []bytes to string conversion below
-	f, err := parseSrc("hilbert.go", string(src))
+	f, err := syntax.Parse(syntax.NewFileBase("hilbert.go"), bytes.NewReader(src), nil, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

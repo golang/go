@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !aix && !darwin && !js && !openbsd && !plan9 && !solaris && !windows
-// +build !aix,!darwin,!js,!openbsd,!plan9,!solaris,!windows
 
 package runtime
 
@@ -25,6 +24,7 @@ func usleep_no_g(usec uint32) {
 
 // write calls the write system call.
 // It returns a non-negative number of bytes written or a negative errno value.
+//
 //go:noescape
 func write1(fd uintptr, p unsafe.Pointer, n int32) int32
 

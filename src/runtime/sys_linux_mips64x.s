@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && (mips64 || mips64le)
-// +build linux
-// +build mips64 mips64le
 
 //
 // System calls and other sys.stuff for mips64, Linux
@@ -41,6 +39,9 @@
 #define SYS_exit_group		5205
 #define SYS_epoll_create	5207
 #define SYS_epoll_ctl		5208
+#define SYS_timer_create	5216
+#define SYS_timer_settime	5217
+#define SYS_timer_delete	5220
 #define SYS_tgkill		5225
 #define SYS_openat		5247
 #define SYS_epoll_pwait		5272
@@ -110,17 +111,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	BEQ	R7, 2(PC)
 	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOVV	$r+0(FP), R4
-	MOVV	R0, R5
-	MOVV	$SYS_pipe2, R2
-	SYSCALL
-	BEQ	R7, 2(PC)
-	SUBVU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -204,6 +194,32 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	SYSCALL
 	RET
 
+TEXT runtime·timer_create(SB),NOSPLIT,$0-28
+	MOVW	clockid+0(FP), R4
+	MOVV	sevp+8(FP), R5
+	MOVV	timerid+16(FP), R6
+	MOVV	$SYS_timer_create, R2
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
+	MOVW	timerid+0(FP), R4
+	MOVW	flags+4(FP), R5
+	MOVV	new+8(FP), R6
+	MOVV	old+16(FP), R7
+	MOVV	$SYS_timer_settime, R2
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
+	MOVW	timerid+0(FP), R4
+	MOVV	$SYS_timer_delete, R2
+	SYSCALL
+	MOVW	R2, ret+8(FP)
+	RET
+
 TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVV	addr+0(FP), R4
 	MOVV	n+8(FP), R5
@@ -229,8 +245,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	MOVV	R2, 8(R29)
 	MOVV	R3, 16(R29)
 
+	MOVV	$ret-8(FP), R2 // caller's SP
 	MOVV	R31, m_vdsoPC(R17)
-	MOVV	R29, m_vdsoSP(R17)
+	MOVV	R2, m_vdsoSP(R17)
 
 	MOVV	m_curg(R17), R4
 	MOVV	g, R5
@@ -298,8 +315,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	MOVV	R2, 8(R29)
 	MOVV	R3, 16(R29)
 
+	MOVV	$ret-8(FP), R2 // caller's SP
 	MOVV	R31, m_vdsoPC(R17)
-	MOVV	R29, m_vdsoSP(R17)
+	MOVV	R2, m_vdsoSP(R17)
 
 	MOVV	m_curg(R17), R4
 	MOVV	g, R5
@@ -387,7 +405,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	JAL	(R25)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
 	// initialize REGSB = PC&0xffffffff00000000
 	BGEZAL	R0, 1(PC)
 	SRLV	$32, R31, RSB
@@ -602,21 +620,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOVW    fd+0(FP), R4  // fd
 	MOVV    $2, R5  // F_SETFD
 	MOVV    $1, R6  // FD_CLOEXEC
-	MOVV	$SYS_fcntl, R2
-	SYSCALL
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), R4 // fd
-	MOVV	$3, R5	// F_GETFL
-	MOVV	$0, R6
-	MOVV	$SYS_fcntl, R2
-	SYSCALL
-	MOVW	$0x80, R6 // O_NONBLOCK
-	OR	R2, R6
-	MOVW	fd+0(FP), R4 // fd
-	MOVV	$4, R5	// F_SETFL
 	MOVV	$SYS_fcntl, R2
 	SYSCALL
 	RET

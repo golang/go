@@ -49,3 +49,38 @@ func HasFilePathPrefix(s, prefix string) bool {
 		return s[len(prefix)] == filepath.Separator && s[:len(prefix)] == prefix
 	}
 }
+
+// TrimFilePathPrefix returns s without the leading path elements in prefix.
+// If s does not start with prefix (HasFilePathPrefix with the same arguments
+// returns false), TrimFilePathPrefix returns s. If s equals prefix,
+// TrimFilePathPrefix returns "".
+func TrimFilePathPrefix(s, prefix string) string {
+	if !HasFilePathPrefix(s, prefix) {
+		return s
+	}
+	trimmed := s[len(prefix):]
+	if len(trimmed) == 0 || trimmed[0] != filepath.Separator {
+		// Prefix either is equal to s, or ends with a separator
+		// (for example, if it is exactly "/").
+		return trimmed
+	}
+	return trimmed[1:]
+}
+
+// QuoteGlob returns s with all Glob metacharacters quoted.
+// We don't try to handle backslash here, as that can appear in a
+// file path on Windows.
+func QuoteGlob(s string) string {
+	if !strings.ContainsAny(s, `*?[]`) {
+		return s
+	}
+	var sb strings.Builder
+	for _, c := range s {
+		switch c {
+		case '*', '?', '[', ']':
+			sb.WriteByte('\\')
+		}
+		sb.WriteRune(c)
+	}
+	return sb.String()
+}

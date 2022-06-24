@@ -78,6 +78,8 @@ func storeByType(t *types.Type) obj.As {
 			return x86.AMOVL
 		case 8:
 			return x86.AMOVQ
+		case 16:
+			return x86.AMOVUPS
 		}
 	}
 	panic(fmt.Sprintf("bad store type %v", t))
@@ -111,7 +113,9 @@ func moveByType(t *types.Type) obj.As {
 }
 
 // opregreg emits instructions for
-//     dest := dest(To) op src(From)
+//
+//	dest := dest(To) op src(From)
+//
 // and also returns the created obj.Prog so it
 // may be further adjusted (offset, scale, etc).
 func opregreg(s *ssagen.State, op obj.As, dest, src int16) *obj.Prog {
@@ -263,6 +267,49 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = lo
 		p.SetFrom3Reg(hi)
 
+	case ssa.OpAMD64BLSIQ, ssa.OpAMD64BLSIL,
+		ssa.OpAMD64BLSMSKQ, ssa.OpAMD64BLSMSKL,
+		ssa.OpAMD64BLSRQ, ssa.OpAMD64BLSRL:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
+	case ssa.OpAMD64ANDNQ, ssa.OpAMD64ANDNL:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+		p.SetFrom3Reg(v.Args[1].Reg())
+
+	case ssa.OpAMD64SARXL, ssa.OpAMD64SARXQ,
+		ssa.OpAMD64SHLXL, ssa.OpAMD64SHLXQ,
+		ssa.OpAMD64SHRXL, ssa.OpAMD64SHRXQ:
+		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
+		p.SetFrom3Reg(v.Args[0].Reg())
+
+	case ssa.OpAMD64SHLXLload, ssa.OpAMD64SHLXQload,
+		ssa.OpAMD64SHRXLload, ssa.OpAMD64SHRXQload,
+		ssa.OpAMD64SARXLload, ssa.OpAMD64SARXQload:
+		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
+		m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
+		ssagen.AddAux(&m, v)
+		p.SetFrom3(m)
+
+	case ssa.OpAMD64SHLXLloadidx1, ssa.OpAMD64SHLXLloadidx4, ssa.OpAMD64SHLXLloadidx8,
+		ssa.OpAMD64SHRXLloadidx1, ssa.OpAMD64SHRXLloadidx4, ssa.OpAMD64SHRXLloadidx8,
+		ssa.OpAMD64SARXLloadidx1, ssa.OpAMD64SARXLloadidx4, ssa.OpAMD64SARXLloadidx8,
+		ssa.OpAMD64SHLXQloadidx1, ssa.OpAMD64SHLXQloadidx8,
+		ssa.OpAMD64SHRXQloadidx1, ssa.OpAMD64SHRXQloadidx8,
+		ssa.OpAMD64SARXQloadidx1, ssa.OpAMD64SARXQloadidx8:
+		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[2].Reg())
+		m := obj.Addr{Type: obj.TYPE_MEM}
+		memIdx(&m, v)
+		ssagen.AddAux(&m, v)
+		p.SetFrom3(m)
+
 	case ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU:
 		// Arg[0] (the dividend) is in AX.
 		// Arg[1] (the divisor) can be in any other register.
@@ -271,11 +318,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		r := v.Args[1].Reg()
 
 		// Zero extend dividend.
-		c := s.Prog(x86.AXORL)
-		c.From.Type = obj.TYPE_REG
-		c.From.Reg = x86.REG_DX
-		c.To.Type = obj.TYPE_REG
-		c.To.Reg = x86.REG_DX
+		opregreg(s, x86.AXORL, x86.REG_DX, x86.REG_DX)
 
 		// Issue divide.
 		p := s.Prog(v.Op.Asm())
@@ -345,11 +388,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			n1.To.Reg = x86.REG_AX
 
 			// n % -1 == 0
-			n2 := s.Prog(x86.AXORL)
-			n2.From.Type = obj.TYPE_REG
-			n2.From.Reg = x86.REG_DX
-			n2.To.Type = obj.TYPE_REG
-			n2.To.Reg = x86.REG_DX
+			opregreg(s, x86.AXORL, x86.REG_DX, x86.REG_DX)
 
 			// TODO(khr): issue only the -1 fixup code we need.
 			// For instance, if only the quotient is used, no point in zeroing the remainder.
@@ -600,8 +639,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = r
 		p.SetFrom3Reg(v.Args[0].Reg())
 
+	case ssa.OpAMD64ANDQconst:
+		asm := v.Op.Asm()
+		// If the constant is positive and fits into 32 bits, use ANDL.
+		// This saves a few bytes of encoding.
+		if 0 <= v.AuxInt && v.AuxInt <= (1<<32-1) {
+			asm = x86.AANDL
+		}
+		p := s.Prog(asm)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst,
-		ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst,
+		ssa.OpAMD64ANDLconst,
 		ssa.OpAMD64ORQconst, ssa.OpAMD64ORLconst,
 		ssa.OpAMD64XORQconst, ssa.OpAMD64XORLconst,
 		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst,
@@ -714,11 +766,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// If flags aren't live (indicated by v.Aux == nil),
 		// then we can rewrite MOV $0, AX into XOR AX, AX.
 		if v.AuxInt == 0 && v.Aux == nil {
-			p := s.Prog(x86.AXORL)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = x
+			opregreg(s, x86.AXORL, x, x)
 			break
 		}
 
@@ -741,7 +789,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
-	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVLQSXload, ssa.OpAMD64MOVOload:
+	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVOload,
+		ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVLQSXload,
+		ssa.OpAMD64MOVBEQload, ssa.OpAMD64MOVBELload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
@@ -749,7 +799,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpAMD64MOVBloadidx1, ssa.OpAMD64MOVWloadidx1, ssa.OpAMD64MOVLloadidx1, ssa.OpAMD64MOVQloadidx1, ssa.OpAMD64MOVSSloadidx1, ssa.OpAMD64MOVSDloadidx1,
-		ssa.OpAMD64MOVQloadidx8, ssa.OpAMD64MOVSDloadidx8, ssa.OpAMD64MOVLloadidx8, ssa.OpAMD64MOVLloadidx4, ssa.OpAMD64MOVSSloadidx4, ssa.OpAMD64MOVWloadidx2:
+		ssa.OpAMD64MOVQloadidx8, ssa.OpAMD64MOVSDloadidx8, ssa.OpAMD64MOVLloadidx8, ssa.OpAMD64MOVLloadidx4, ssa.OpAMD64MOVSSloadidx4, ssa.OpAMD64MOVWloadidx2,
+		ssa.OpAMD64MOVBELloadidx1, ssa.OpAMD64MOVBELloadidx4, ssa.OpAMD64MOVBELloadidx8, ssa.OpAMD64MOVBEQloadidx1, ssa.OpAMD64MOVBEQloadidx8:
 		p := s.Prog(v.Op.Asm())
 		memIdx(&p.From, v)
 		ssagen.AddAux(&p.From, v)
@@ -757,7 +808,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore, ssa.OpAMD64MOVOstore,
 		ssa.OpAMD64ADDQmodify, ssa.OpAMD64SUBQmodify, ssa.OpAMD64ANDQmodify, ssa.OpAMD64ORQmodify, ssa.OpAMD64XORQmodify,
-		ssa.OpAMD64ADDLmodify, ssa.OpAMD64SUBLmodify, ssa.OpAMD64ANDLmodify, ssa.OpAMD64ORLmodify, ssa.OpAMD64XORLmodify:
+		ssa.OpAMD64ADDLmodify, ssa.OpAMD64SUBLmodify, ssa.OpAMD64ANDLmodify, ssa.OpAMD64ORLmodify, ssa.OpAMD64XORLmodify,
+		ssa.OpAMD64MOVBEQstore, ssa.OpAMD64MOVBELstore, ssa.OpAMD64MOVBEWstore:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
@@ -770,7 +822,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpAMD64SUBLmodifyidx1, ssa.OpAMD64SUBLmodifyidx4, ssa.OpAMD64SUBLmodifyidx8, ssa.OpAMD64SUBQmodifyidx1, ssa.OpAMD64SUBQmodifyidx8,
 		ssa.OpAMD64ANDLmodifyidx1, ssa.OpAMD64ANDLmodifyidx4, ssa.OpAMD64ANDLmodifyidx8, ssa.OpAMD64ANDQmodifyidx1, ssa.OpAMD64ANDQmodifyidx8,
 		ssa.OpAMD64ORLmodifyidx1, ssa.OpAMD64ORLmodifyidx4, ssa.OpAMD64ORLmodifyidx8, ssa.OpAMD64ORQmodifyidx1, ssa.OpAMD64ORQmodifyidx8,
-		ssa.OpAMD64XORLmodifyidx1, ssa.OpAMD64XORLmodifyidx4, ssa.OpAMD64XORLmodifyidx8, ssa.OpAMD64XORQmodifyidx1, ssa.OpAMD64XORQmodifyidx8:
+		ssa.OpAMD64XORLmodifyidx1, ssa.OpAMD64XORLmodifyidx4, ssa.OpAMD64XORLmodifyidx8, ssa.OpAMD64XORQmodifyidx1, ssa.OpAMD64XORQmodifyidx8,
+		ssa.OpAMD64MOVBEWstoreidx1, ssa.OpAMD64MOVBEWstoreidx2, ssa.OpAMD64MOVBELstoreidx1, ssa.OpAMD64MOVBELstoreidx4, ssa.OpAMD64MOVBELstoreidx8, ssa.OpAMD64MOVBEQstoreidx1, ssa.OpAMD64MOVBEQstoreidx8:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
@@ -822,8 +875,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux2(&p.To, v, sc.Off64())
-	case ssa.OpAMD64MOVOstorezero:
-		if !buildcfg.Experiment.RegabiG || s.ABI != obj.ABIInternal {
+	case ssa.OpAMD64MOVOstoreconst:
+		sc := v.AuxValAndOff()
+		if sc.Val() != 0 {
+			v.Fatalf("MOVO for non zero constants not implemented: %s", v.LongString())
+		}
+
+		if s.ABI != obj.ABIInternal {
 			// zero X15 manually
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 		}
@@ -832,7 +890,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = x86.REG_X15
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		ssagen.AddAux(&p.To, v)
+		ssagen.AddAux2(&p.To, v, sc.Off64())
+
 	case ssa.OpAMD64MOVQstoreconstidx1, ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx1, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx1, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1,
 		ssa.OpAMD64ADDLconstmodifyidx1, ssa.OpAMD64ADDLconstmodifyidx4, ssa.OpAMD64ADDLconstmodifyidx8, ssa.OpAMD64ADDQconstmodifyidx1, ssa.OpAMD64ADDQconstmodifyidx8,
 		ssa.OpAMD64ANDLconstmodifyidx1, ssa.OpAMD64ANDLconstmodifyidx4, ssa.OpAMD64ANDLconstmodifyidx8, ssa.OpAMD64ANDQconstmodifyidx1, ssa.OpAMD64ANDQconstmodifyidx8,
@@ -914,7 +973,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpAMD64DUFFZERO:
-		if !buildcfg.Experiment.RegabiG || s.ABI != obj.ABIInternal {
+		if s.ABI != obj.ABIInternal {
 			// zero X15 manually
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 		}
@@ -997,22 +1056,30 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// Closure pointer is DX.
 		ssagen.CheckLoweredGetClosurePtr(v)
 	case ssa.OpAMD64LoweredGetG:
-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABIInternal {
+		if s.ABI == obj.ABIInternal {
 			v.Fatalf("LoweredGetG should not appear in ABIInternal")
 		}
 		r := v.Reg()
 		getgFromTLS(s, r)
-	case ssa.OpAMD64CALLstatic:
-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
+	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLtail:
+		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
+				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			}
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
+		if v.Op == ssa.OpAMD64CALLtail {
+			s.TailCall(v)
+			break
+		}
 		s.Call(v)
-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
+		if s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
+				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			}
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
@@ -1035,7 +1102,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		p := s.Prog(mov)
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = -base.Ctxt.FixedFrameSize() // 0 on amd64, just to be consistent with other architectures
+		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize // 0 on amd64, just to be consistent with other architectures
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -1089,15 +1156,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.SetFrom3Reg(v.Args[0].Reg())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpAMD64POPCNTQ, ssa.OpAMD64POPCNTL:
+	case ssa.OpAMD64POPCNTQ, ssa.OpAMD64POPCNTL,
+		ssa.OpAMD64TZCNTQ, ssa.OpAMD64TZCNTL,
+		ssa.OpAMD64LZCNTQ, ssa.OpAMD64LZCNTL:
 		if v.Args[0].Reg() != v.Reg() {
-			// POPCNT on Intel has a false dependency on the destination register.
+			// POPCNT/TZCNT/LZCNT have a false dependency on the destination register on Intel cpus.
+			// TZCNT/LZCNT problem affects pre-Skylake models. See discussion at https://gcc.gnu.org/bugzilla/show_bug.cgi?id=62011#c7.
 			// Xor register with itself to break the dependency.
-			p := s.Prog(x86.AXORQ)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = v.Reg()
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = v.Reg()
+			opregreg(s, x86.AXORL, v.Reg(), v.Reg())
 		}
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -1221,6 +1287,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.To, v)
+	case ssa.OpAMD64PrefetchT0, ssa.OpAMD64PrefetchNTA:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
 	case ssa.OpClobber:
 		p := s.Prog(x86.AMOVL)
 		p.From.Type = obj.TYPE_CONST
@@ -1300,20 +1370,9 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockRetJmp:
-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
-			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
-			// set G register from TLS
-			getgFromTLS(s, x86.REG_R14)
-		}
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.BlockAMD64EQF:
 		s.CombJump(b, next, &eqfJumps)
@@ -1343,25 +1402,30 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			}
 		}
 
+	case ssa.BlockAMD64JUMPTABLE:
+		// JMP      *(TABLE)(INDEX*8)
+		p := s.Prog(obj.AJMP)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = b.Controls[1].Reg()
+		p.To.Index = b.Controls[0].Reg()
+		p.To.Scale = 8
+		// Save jump tables for later resolution of the target blocks.
+		s.JumpTables = append(s.JumpTables, b)
+
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
 	}
 }
 
-func loadRegResults(s *ssagen.State, f *ssa.Func) {
-	for _, o := range f.OwnAux.ABIInfo().OutParams() {
-		n := o.Name.(*ir.Name)
-		rts, offs := o.RegisterTypesAndOffsets()
-		for i := range o.Registers {
-			p := s.Prog(loadByType(rts[i]))
-			p.From.Type = obj.TYPE_MEM
-			p.From.Name = obj.NAME_AUTO
-			p.From.Sym = n.Linksym()
-			p.From.Offset = n.FrameOffset() + offs[i]
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = ssa.ObjRegForAbiReg(o.Registers[i], f.Config)
-		}
-	}
+func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+	p := s.Prog(loadByType(t))
+	p.From.Type = obj.TYPE_MEM
+	p.From.Name = obj.NAME_AUTO
+	p.From.Sym = n.Linksym()
+	p.From.Offset = n.FrameOffset() + off
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = reg
+	return p
 }
 
 func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {

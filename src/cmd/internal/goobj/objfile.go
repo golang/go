@@ -19,21 +19,18 @@
 package goobj
 
 import (
-	"bytes"
 	"cmd/internal/bio"
-	"crypto/sha1"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"internal/unsafeheader"
-	"io"
 	"unsafe"
 )
 
 // New object file format.
 //
 //    Header struct {
-//       Magic       [...]byte   // "\x00go117ld"
+//       Magic       [...]byte   // "\x00go118ld"
 //       Fingerprint [8]byte
 //       Flags       uint32
 //       Offsets     [...]uint32 // byte offset of each block below
@@ -100,7 +97,6 @@ import (
 //    }
 //
 //    Data   [...]byte
-//    Pcdata [...]byte
 //
 //    // blocks only used by tools (objdump, nm)
 //
@@ -181,6 +177,7 @@ const (
 	PkgIdxHashed                        // Hashed (content-addressable) symbols
 	PkgIdxBuiltin                       // Predefined runtime symbols (ex: runtime.newobject)
 	PkgIdxSelf                          // Symbols defined in the current package
+	PkgIdxSpecial  = PkgIdxSelf         // Indices above it has special meanings
 	PkgIdxInvalid  = 0
 	// The index of other referenced packages starts from 1.
 )
@@ -204,7 +201,6 @@ const (
 	BlkReloc
 	BlkAux
 	BlkData
-	BlkPcdata
 	BlkRefName
 	BlkEnd
 	NBlk
@@ -219,7 +215,7 @@ type Header struct {
 	Offsets     [NBlk]uint32
 }
 
-const Magic = "\x00go117ld"
+const Magic = "\x00go118ld"
 
 func (h *Header) Write(w *Writer) {
 	w.RawString(h.Magic)
@@ -268,15 +264,16 @@ func (p *ImportedPkg) Write(w *Writer) {
 // Symbol definition.
 //
 // Serialized format:
-// Sym struct {
-//    Name  string
-//    ABI   uint16
-//    Type  uint8
-//    Flag  uint8
-//    Flag2 uint8
-//    Siz   uint32
-//    Align uint32
-// }
+//
+//	Sym struct {
+//	   Name  string
+//	   ABI   uint16
+//	   Type  uint8
+//	   Flag  uint8
+//	   Flag2 uint8
+//	   Siz   uint32
+//	   Align uint32
+//	}
 type Sym [SymSize]byte
 
 const SymSize = stringRefSize + 2 + 1 + 1 + 1 + 4 + 4
@@ -284,9 +281,10 @@ const SymSize = stringRefSize + 2 + 1 + 1 + 1 + 4 + 4
 const SymABIstatic = ^uint16(0)
 
 const (
-	ObjFlagShared            = 1 << iota // this object is built with -shared
-	ObjFlagNeedNameExpansion             // the linker needs to expand `"".` to package path in symbol names
-	ObjFlagFromAssembly                  // object is from asm src, not go
+	ObjFlagShared       = 1 << iota // this object is built with -shared
+	_                               // was ObjFlagNeedNameExpansion
+	ObjFlagFromAssembly             // object is from asm src, not go
+	ObjFlagUnlinkable               // unlinkable package (linker will emit an error)
 )
 
 // Sym.Flag
@@ -304,6 +302,7 @@ const (
 const (
 	SymFlagUsedInIface = 1 << iota
 	SymFlagItab
+	SymFlagDict
 )
 
 // Returns the length of the name of the symbol.
@@ -333,6 +332,7 @@ func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
 func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
 func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
 func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
+func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
 
 func (s *Sym) SetName(x string, w *Writer) {
 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
@@ -357,6 +357,8 @@ type SymRef struct {
 	SymIdx uint32
 }
 
+func (s SymRef) IsZero() bool { return s == SymRef{} }
+
 // Hash64
 type Hash64Type [Hash64Size]byte
 
@@ -365,18 +367,19 @@ const Hash64Size = 8
 // Hash
 type HashType [HashSize]byte
 
-const HashSize = sha1.Size
+const HashSize = 16 // truncated SHA256
 
 // Relocation.
 //
 // Serialized format:
-// Reloc struct {
-//    Off  int32
-//    Siz  uint8
-//    Type uint16
-//    Add  int64
-//    Sym  SymRef
-// }
+//
+//	Reloc struct {
+//	   Off  int32
+//	   Siz  uint8
+//	   Type uint16
+//	   Add  int64
+//	   Sym  SymRef
+//	}
 type Reloc [RelocSize]byte
 
 const RelocSize = 4 + 1 + 2 + 8 + 8
@@ -414,10 +417,11 @@ func (r *Reloc) fromBytes(b []byte) { copy(r[:], b) }
 // Aux symbol info.
 //
 // Serialized format:
-// Aux struct {
-//    Type uint8
-//    Sym  SymRef
-// }
+//
+//	Aux struct {
+//	   Type uint8
+//	   Sym  SymRef
+//	}
 type Aux [AuxSize]byte
 
 const AuxSize = 1 + 8
@@ -457,11 +461,12 @@ func (a *Aux) fromBytes(b []byte) { copy(a[:], b) }
 // Referenced symbol flags.
 //
 // Serialized format:
-// RefFlags struct {
-//    Sym   symRef
-//    Flag  uint8
-//    Flag2 uint8
-// }
+//
+//	RefFlags struct {
+//	   Sym   symRef
+//	   Flag  uint8
+//	   Flag2 uint8
+//	}
 type RefFlags [RefFlagsSize]byte
 
 const RefFlagsSize = 8 + 1 + 1
@@ -489,10 +494,11 @@ const huge = (1<<31 - 1) / RelocSize
 // Referenced symbol name.
 //
 // Serialized format:
-// RefName struct {
-//    Sym  symRef
-//    Name string
-// }
+//
+//	RefName struct {
+//	   Sym  symRef
+//	   Name string
+//	}
 type RefName [RefNameSize]byte
 
 const RefNameSize = 8 + stringRefSize
@@ -592,13 +598,12 @@ type Reader struct {
 	b        []byte // mmapped bytes, if not nil
 	readonly bool   // whether b is backed with read-only memory
 
-	rd    io.ReaderAt
 	start uint32
 	h     Header // keep block offsets
 }
 
 func NewReaderFromBytes(b []byte, readonly bool) *Reader {
-	r := &Reader{b: b, readonly: readonly, rd: bytes.NewReader(b), start: 0}
+	r := &Reader{b: b, readonly: readonly, start: 0}
 	err := r.h.Read(r)
 	if err != nil {
 		return nil
@@ -867,6 +872,6 @@ func (r *Reader) Flags() uint32 {
 	return r.h.Flags
 }
 
-func (r *Reader) Shared() bool            { return r.Flags()&ObjFlagShared != 0 }
-func (r *Reader) NeedNameExpansion() bool { return r.Flags()&ObjFlagNeedNameExpansion != 0 }
-func (r *Reader) FromAssembly() bool      { return r.Flags()&ObjFlagFromAssembly != 0 }
+func (r *Reader) Shared() bool       { return r.Flags()&ObjFlagShared != 0 }
+func (r *Reader) FromAssembly() bool { return r.Flags()&ObjFlagFromAssembly != 0 }
+func (r *Reader) Unlinkable() bool   { return r.Flags()&ObjFlagUnlinkable != 0 }

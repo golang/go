@@ -221,9 +221,11 @@ func (s sparseEntry) endOffset() int64 { return s.Offset + s.Length }
 // that the file has no data in it, which is rather odd.
 //
 // As an example, if the underlying raw file contains the 10-byte data:
+//
 //	var compactFile = "abcdefgh"
 //
 // And the sparse map has the following entries:
+//
 //	var spd sparseDatas = []sparseEntry{
 //		{Offset: 2,  Length: 5},  // Data fragment for 2..6
 //		{Offset: 18, Length: 3},  // Data fragment for 18..20
@@ -235,6 +237,7 @@ func (s sparseEntry) endOffset() int64 { return s.Offset + s.Length }
 //	}
 //
 // Then the content of the resulting sparse file with a Header.Size of 25 is:
+//
 //	var sparseFile = "\x00"*2 + "abcde" + "\x00"*11 + "fgh" + "\x00"*4
 type (
 	sparseDatas []sparseEntry
@@ -293,9 +296,9 @@ func alignSparseEntries(src []sparseEntry, size int64) []sparseEntry {
 // The input must have been already validated.
 //
 // This function mutates src and returns a normalized map where:
-//	* adjacent fragments are coalesced together
-//	* only the last fragment may be empty
-//	* the endOffset of the last fragment is the total size
+//   - adjacent fragments are coalesced together
+//   - only the last fragment may be empty
+//   - the endOffset of the last fragment is the total size
 func invertSparseEntries(src []sparseEntry, size int64) []sparseEntry {
 	dst := src[:0]
 	var pre sparseEntry
@@ -316,10 +319,10 @@ func invertSparseEntries(src []sparseEntry, size int64) []sparseEntry {
 // fileState tracks the number of logical (includes sparse holes) and physical
 // (actual in tar archive) bytes remaining for the current file.
 //
-// Invariant: LogicalRemaining >= PhysicalRemaining
+// Invariant: logicalRemaining >= physicalRemaining
 type fileState interface {
-	LogicalRemaining() int64
-	PhysicalRemaining() int64
+	logicalRemaining() int64
+	physicalRemaining() int64
 }
 
 // allowedFormats determines which formats can be used.
@@ -413,22 +416,22 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err 
 
 	// Check basic fields.
 	var blk block
-	v7 := blk.V7()
-	ustar := blk.USTAR()
-	gnu := blk.GNU()
-	verifyString(h.Name, len(v7.Name()), "Name", paxPath)
-	verifyString(h.Linkname, len(v7.LinkName()), "Linkname", paxLinkpath)
-	verifyString(h.Uname, len(ustar.UserName()), "Uname", paxUname)
-	verifyString(h.Gname, len(ustar.GroupName()), "Gname", paxGname)
-	verifyNumeric(h.Mode, len(v7.Mode()), "Mode", paxNone)
-	verifyNumeric(int64(h.Uid), len(v7.UID()), "Uid", paxUid)
-	verifyNumeric(int64(h.Gid), len(v7.GID()), "Gid", paxGid)
-	verifyNumeric(h.Size, len(v7.Size()), "Size", paxSize)
-	verifyNumeric(h.Devmajor, len(ustar.DevMajor()), "Devmajor", paxNone)
-	verifyNumeric(h.Devminor, len(ustar.DevMinor()), "Devminor", paxNone)
-	verifyTime(h.ModTime, len(v7.ModTime()), "ModTime", paxMtime)
-	verifyTime(h.AccessTime, len(gnu.AccessTime()), "AccessTime", paxAtime)
-	verifyTime(h.ChangeTime, len(gnu.ChangeTime()), "ChangeTime", paxCtime)
+	v7 := blk.toV7()
+	ustar := blk.toUSTAR()
+	gnu := blk.toGNU()
+	verifyString(h.Name, len(v7.name()), "Name", paxPath)
+	verifyString(h.Linkname, len(v7.linkName()), "Linkname", paxLinkpath)
+	verifyString(h.Uname, len(ustar.userName()), "Uname", paxUname)
+	verifyString(h.Gname, len(ustar.groupName()), "Gname", paxGname)
+	verifyNumeric(h.Mode, len(v7.mode()), "Mode", paxNone)
+	verifyNumeric(int64(h.Uid), len(v7.uid()), "Uid", paxUid)
+	verifyNumeric(int64(h.Gid), len(v7.gid()), "Gid", paxGid)
+	verifyNumeric(h.Size, len(v7.size()), "Size", paxSize)
+	verifyNumeric(h.Devmajor, len(ustar.devMajor()), "Devmajor", paxNone)
+	verifyNumeric(h.Devminor, len(ustar.devMinor()), "Devminor", paxNone)
+	verifyTime(h.ModTime, len(v7.modTime()), "ModTime", paxMtime)
+	verifyTime(h.AccessTime, len(gnu.accessTime()), "AccessTime", paxAtime)
+	verifyTime(h.ChangeTime, len(gnu.changeTime()), "ChangeTime", paxCtime)
 
 	// Check for header-only types.
 	var whyOnlyPAX, whyOnlyGNU string
@@ -538,7 +541,7 @@ type headerFileInfo struct {
 func (fi headerFileInfo) Size() int64        { return fi.h.Size }
 func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
 func (fi headerFileInfo) ModTime() time.Time { return fi.h.ModTime }
-func (fi headerFileInfo) Sys() interface{}   { return fi.h }
+func (fi headerFileInfo) Sys() any           { return fi.h }
 
 // Name returns the base name of the file.
 func (fi headerFileInfo) Name() string {

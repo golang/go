@@ -5,6 +5,7 @@
 package flate
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -112,7 +113,6 @@ type compressor struct {
 	// deflate state
 	length         int
 	offset         int
-	hash           uint32
 	maxInsertIndex int
 	err            error
 
@@ -210,18 +210,15 @@ func (d *compressor) fillWindow(b []byte) {
 
 		dst := d.hashMatch[:dstSize]
 		d.bulkHasher(toCheck, dst)
-		var newH uint32
 		for i, val := range dst {
 			di := i + index
-			newH = val
-			hh := &d.hashHead[newH&hashMask]
+			hh := &d.hashHead[val&hashMask]
 			// Get previous value with the same hash.
 			// Our chain should point to the previous value.
 			d.hashPrev[di&windowMask] = *hh
 			// Set the head of the hash chain to us.
 			*hh = uint32(di + d.hashOffset)
 		}
-		d.hash = newH
 	}
 	// Update window information.
 	d.windowEnd = n
@@ -376,7 +373,6 @@ func (d *compressor) initDeflate() {
 	d.offset = 0
 	d.byteAvailable = false
 	d.index = 0
-	d.hash = 0
 	d.chainHead = -1
 	d.bulkHasher = bulkHash4
 }
@@ -387,9 +383,6 @@ func (d *compressor) deflate() {
 	}
 
 	d.maxInsertIndex = d.windowEnd - (minMatchLength - 1)
-	if d.index < d.maxInsertIndex {
-		d.hash = hash4(d.window[d.index : d.index+minMatchLength])
-	}
 
 Loop:
 	for {
@@ -422,8 +415,8 @@ Loop:
 		}
 		if d.index < d.maxInsertIndex {
 			// Update the hash
-			d.hash = hash4(d.window[d.index : d.index+minMatchLength])
-			hh := &d.hashHead[d.hash&hashMask]
+			hash := hash4(d.window[d.index : d.index+minMatchLength])
+			hh := &d.hashHead[hash&hashMask]
 			d.chainHead = int(*hh)
 			d.hashPrev[d.index&windowMask] = uint32(d.chainHead)
 			*hh = uint32(d.index + d.hashOffset)
@@ -468,10 +461,10 @@ Loop:
 				index := d.index
 				for index++; index < newIndex; index++ {
 					if index < d.maxInsertIndex {
-						d.hash = hash4(d.window[index : index+minMatchLength])
+						hash := hash4(d.window[index : index+minMatchLength])
 						// Get previous value with the same hash.
 						// Our chain should point to the previous value.
-						hh := &d.hashHead[d.hash&hashMask]
+						hh := &d.hashHead[hash&hashMask]
 						d.hashPrev[index&windowMask] = *hh
 						// Set the head of the hash chain to us.
 						*hh = uint32(index + d.hashOffset)
@@ -487,9 +480,6 @@ Loop:
 				// For matches this long, we don't bother inserting each individual
 				// item into the table.
 				d.index += d.length
-				if d.index < d.maxInsertIndex {
-					d.hash = hash4(d.window[d.index : d.index+minMatchLength])
-				}
 			}
 			if len(d.tokens) == maxFlateBlockTokens {
 				// The block includes the current character
@@ -633,12 +623,14 @@ func (d *compressor) reset(w io.Writer) {
 		d.tokens = d.tokens[:0]
 		d.length = minMatchLength - 1
 		d.offset = 0
-		d.hash = 0
 		d.maxInsertIndex = 0
 	}
 }
 
 func (d *compressor) close() error {
+	if d.err == errWriterClosed {
+		return nil
+	}
 	if d.err != nil {
 		return d.err
 	}
@@ -651,7 +643,11 @@ func (d *compressor) close() error {
 		return d.w.err
 	}
 	d.w.flush()
-	return d.w.err
+	if d.w.err != nil {
+		return d.w.err
+	}
+	d.err = errWriterClosed
+	return nil
 }
 
 // NewWriter returns a new Writer compressing data at the given level.
@@ -698,6 +694,8 @@ type dictWriter struct {
 func (w *dictWriter) Write(b []byte) (n int, err error) {
 	return w.w.Write(b)
 }
+
+var errWriterClosed = errors.New("flate: closed writer")
 
 // A Writer takes data written to it and writes the compressed
 // form of that data to an underlying writer (see NewWriter).

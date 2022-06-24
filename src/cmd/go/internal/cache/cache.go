@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"cmd/go/internal/lockedfile"
+	"cmd/go/internal/mmap"
 )
 
 // An ActionID is a cache action key, the hash of a complete description of a
@@ -47,7 +48,6 @@ type Cache struct {
 // to share a cache directory (for example, if the directory were stored
 // in a network file system). File locking is notoriously unreliable in
 // network file systems and may not suffice to protect the cache.
-//
 func Open(dir string) (*Cache, error) {
 	info, err := os.Stat(dir)
 	if err != nil {
@@ -243,6 +243,24 @@ func (c *Cache) GetBytes(id ActionID) ([]byte, Entry, error) {
 		return nil, entry, &entryNotFoundError{Err: errors.New("bad checksum")}
 	}
 	return data, entry, nil
+}
+
+// GetMmap looks up the action ID in the cache and returns
+// the corresponding output bytes.
+// GetMmap should only be used for data that can be expected to fit in memory.
+func (c *Cache) GetMmap(id ActionID) ([]byte, Entry, error) {
+	entry, err := c.Get(id)
+	if err != nil {
+		return nil, entry, err
+	}
+	md, err := mmap.Mmap(c.OutputFile(entry.OutputID))
+	if err != nil {
+		return nil, Entry{}, err
+	}
+	if int64(len(md.Data)) != entry.Size {
+		return nil, Entry{}, &entryNotFoundError{Err: errors.New("file incomplete")}
+	}
+	return md.Data, entry, nil
 }
 
 // OutputFile returns the name of the cache file storing output with the given OutputID.
@@ -532,4 +550,16 @@ func (c *Cache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
 	os.Chtimes(name, c.now(), c.now()) // mainly for tests
 
 	return nil
+}
+
+// FuzzDir returns a subdirectory within the cache for storing fuzzing data.
+// The subdirectory may not exist.
+//
+// This directory is managed by the internal/fuzz package. Files in this
+// directory aren't removed by the 'go clean -cache' command or by Trim.
+// They may be removed with 'go clean -fuzzcache'.
+//
+// TODO(#48526): make Trim remove unused files from this directory.
+func (c *Cache) FuzzDir() string {
+	return filepath.Join(c.dir, "fuzz")
 }

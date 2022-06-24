@@ -6,7 +6,7 @@ env oldGOPROXY=$GOPROXY
 # 'go get' should resolve it to the minimum valid pseudo-version.
 
 go mod edit -replace=example.com/x=./x
-go get -d example.com/x
+go get example.com/x
 
 go list -m example.com/x
 stdout '^example.com/x v0.0.0-00010101000000-000000000000 '
@@ -15,11 +15,11 @@ stdout '^example.com/x v0.0.0-00010101000000-000000000000 '
 go mod edit -replace=example.com/x@v0.1.0=./x
 go mod edit -replace=example.com/x@v0.2.0=./x
 
-go get -d example.com/x
+go get example.com/x
 go list -m example.com/x
 stdout '^example.com/x v0.2.0 '
 
-go get -d example.com/x@<v0.2.0
+go get example.com/x@<v0.2.0
 go list -m example.com/x
 stdout '^example.com/x v0.1.0 '
 
@@ -30,7 +30,7 @@ env GOPROXY=off
 cp go.mod.orig go.mod
 
 go mod edit -replace=example.com/x=./x
-go get -d example.com/x
+go get example.com/x
 
 go list -m example.com/x
 stdout '^example.com/x v0.0.0-00010101000000-000000000000 '
@@ -39,11 +39,11 @@ stdout '^example.com/x v0.0.0-00010101000000-000000000000 '
 go mod edit -replace=example.com/x@v0.1.0=./x
 go mod edit -replace=example.com/x@v0.2.0=./x
 
-go get -d example.com/x
+go get example.com/x
 go list -m example.com/x
 stdout '^example.com/x v0.2.0 '
 
-go get -d example.com/x@<v0.2.0
+go get example.com/x@<v0.2.0
 go list -m example.com/x
 stdout '^example.com/x v0.1.0 '
 
@@ -57,7 +57,7 @@ cp go.mod.orig go.mod
 go list -versions -m rsc.io/quote
 stdout 'v1.3.0 v1.4.0'
 
-go get -d rsc.io/quote@v1.3
+go get rsc.io/quote@v1.3
 go list -m rsc.io/quote
 stdout '^rsc.io/quote v1.3.0'
 
@@ -66,11 +66,11 @@ go mod edit -replace rsc.io/quote@v1.3.1=rsc.io/quote@v1.4.0
 go list -versions -m rsc.io/quote
 stdout 'v1.3.0 v1.3.1 v1.4.0'
 
-go get -d rsc.io/quote@v1.3
+go get rsc.io/quote@v1.3
 go list -m rsc.io/quote
 stdout '^rsc.io/quote v1.3.1 '
 
-go get -d rsc.io/quote@>v1.3.1
+go get rsc.io/quote@>v1.3.1
 go list -m rsc.io/quote
 stdout '^rsc.io/quote v1.4.0'
 
@@ -81,15 +81,15 @@ cp go.mod.orig go.mod
 
 ! go list example
 stderr '^package example is not in GOROOT \(.*\)$'
-! go get -d example
-stderr '^go get: malformed module path "example": missing dot in first path element$'
+! go get example
+stderr '^go: malformed module path "example": missing dot in first path element$'
 
 go mod edit -replace example@v0.1.0=./example
 
 ! go list example
 stderr '^module example provides package example and is replaced but not required; to add it:\n\tgo get example@v0.1.0$'
 
-go get -d example
+go get example
 go list -m example
 stdout '^example v0.1.0 '
 

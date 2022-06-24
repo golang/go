@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build race
-// +build race
 
 package race_test
 
@@ -148,7 +147,7 @@ exit status 66
 package main
 func main() {
 	done := make(chan bool)
-	x := 0
+	x := 0; _ = x
 	go func() {
 		x = 42
 		done <- true
@@ -162,7 +161,7 @@ func main() {
 package main
 func main() {
 	done := make(chan bool)
-	x := 0
+	x := 0; _ = x
 	go func() {
 		x = 42
 		done <- true
@@ -178,7 +177,7 @@ func main() {
 package main
 func main() {
 	done := make(chan bool)
-	x := 0
+	x := 0; _ = x
 	go func() {
 		x = 42
 		done <- true
@@ -208,7 +207,7 @@ func TestFail(t *testing.T) {
 }
 `, []string{`
 ==================
---- FAIL: TestFail \(0...s\)
+--- FAIL: TestFail \([0-9.]+s\)
 .*main_test.go:14: true
 .*testing.go:.*: race detected during execution of test
 FAIL`}},
@@ -364,7 +363,7 @@ func TestPass(t *testing.T) {
 }
 `, []string{`
 ==================
---- FAIL: TestFail \(0...s\)
+--- FAIL: TestFail \([0-9.]+s\)
 .*testing.go:.*: race detected during execution of test
 FAIL`}},
 	{"mutex", "run", "", "atexit_sleep_ms=0", `

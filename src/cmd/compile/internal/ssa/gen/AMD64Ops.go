@@ -141,11 +141,13 @@ func init() {
 		readflags = regInfo{inputs: nil, outputs: gponly}
 		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
 
-		gpload      = regInfo{inputs: []regMask{gpspsbg, 0}, outputs: gponly}
-		gp21load    = regInfo{inputs: []regMask{gp, gpspsbg, 0}, outputs: gponly}
-		gploadidx   = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}, outputs: gponly}
-		gp21loadidx = regInfo{inputs: []regMask{gp, gpspsbg, gpsp, 0}, outputs: gponly}
-		gp21pax     = regInfo{inputs: []regMask{gp &^ ax, gp}, outputs: []regMask{gp &^ ax}, clobbers: ax}
+		gpload         = regInfo{inputs: []regMask{gpspsbg, 0}, outputs: gponly}
+		gp21load       = regInfo{inputs: []regMask{gp, gpspsbg, 0}, outputs: gponly}
+		gploadidx      = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}, outputs: gponly}
+		gp21loadidx    = regInfo{inputs: []regMask{gp, gpspsbg, gpsp, 0}, outputs: gponly}
+		gp21pax        = regInfo{inputs: []regMask{gp &^ ax, gp}, outputs: []regMask{gp &^ ax}, clobbers: ax}
+		gp21shxload    = regInfo{inputs: []regMask{gpspsbg, gp, 0}, outputs: gponly}
+		gp21shxloadidx = regInfo{inputs: []regMask{gpspsbg, gpsp, gp, 0}, outputs: gponly}
 
 		gpstore         = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}}
 		gpstoreconst    = regInfo{inputs: []regMask{gpspsbg, 0}}
@@ -169,6 +171,8 @@ func init() {
 
 		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
 		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
+
+		prefreg = regInfo{inputs: []regMask{gpspsbg}}
 	)
 
 	var AMD64ops = []opData{
@@ -511,8 +515,8 @@ func init() {
 		{name: "NEGQ", argLength: 1, reg: gp11, asm: "NEGQ", resultInArg0: true, clobberFlags: true}, // -arg0
 		{name: "NEGL", argLength: 1, reg: gp11, asm: "NEGL", resultInArg0: true, clobberFlags: true}, // -arg0
 
-		{name: "NOTQ", argLength: 1, reg: gp11, asm: "NOTQ", resultInArg0: true, clobberFlags: true}, // ^arg0
-		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true, clobberFlags: true}, // ^arg0
+		{name: "NOTQ", argLength: 1, reg: gp11, asm: "NOTQ", resultInArg0: true}, // ^arg0
+		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true}, // ^arg0
 
 		// BS{F,R}Q returns a tuple [result, flags]
 		// result is undefined if the input is zero.
@@ -575,8 +579,8 @@ func init() {
 		{name: "CMOVWGTF", argLength: 3, reg: gp21, asm: "CMOVWHI", resultInArg0: true},
 		{name: "CMOVWGEF", argLength: 3, reg: gp21, asm: "CMOVWCC", resultInArg0: true},
 
-		{name: "BSWAPQ", argLength: 1, reg: gp11, asm: "BSWAPQ", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
-		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
+		{name: "BSWAPQ", argLength: 1, reg: gp11, asm: "BSWAPQ", resultInArg0: true}, // arg0 swap bytes
+		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true}, // arg0 swap bytes
 
 		// POPCNT instructions aren't guaranteed to be on the target platform (they are SSE4).
 		// Any use must be preceded by a successful check of runtime.x86HasPOPCNT.
@@ -679,20 +683,19 @@ func init() {
 		// Note: LEAx{1,2,4,8} must not have OpSB as either argument.
 
 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
-		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},                                   // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
-		{name: "MOVBQSXload", argLength: 2, reg: gpload, asm: "MOVBQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                                              // ditto, sign extend to int64
-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"},                                  // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
-		{name: "MOVWQSXload", argLength: 2, reg: gpload, asm: "MOVWQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                                              // ditto, sign extend to int64
-		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"},                                     // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
-		{name: "MOVLQSXload", argLength: 2, reg: gpload, asm: "MOVLQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                                              // ditto, sign extend to int64
-		{name: "MOVQload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},                                     // load 8 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store byte in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVQstore", argLength: 3, reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVOload", argLength: 2, reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128", faultOnNilArg0: true, symEffect: "Read"},                                   // load 16 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVOstore", argLength: 3, reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                   // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVOstorezero", argLength: 2, reg: regInfo{inputs: []regMask{gpspsb, 0}}, asm: "MOVUPS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 16 bytes of zero to arg0+auxint+aux. arg1=mem
+		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
+		{name: "MOVBQSXload", argLength: 2, reg: gpload, asm: "MOVBQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},             // ditto, sign extend to int64
+		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+		{name: "MOVWQSXload", argLength: 2, reg: gpload, asm: "MOVWQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},             // ditto, sign extend to int64
+		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"},    // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+		{name: "MOVLQSXload", argLength: 2, reg: gpload, asm: "MOVLQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},             // ditto, sign extend to int64
+		{name: "MOVQload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},    // load 8 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store byte in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVQstore", argLength: 3, reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVOload", argLength: 2, reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128", faultOnNilArg0: true, symEffect: "Read"},  // load 16 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVOstore", argLength: 3, reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
 
 		// indexed loads/stores
 		{name: "MOVBloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBLZX", scale: 1, aux: "SymOff", typ: "UInt8", symEffect: "Read"},  // load a byte from arg0+arg1+auxint+aux. arg2=mem
@@ -717,10 +720,11 @@ func init() {
 		// For storeconst ops, the AuxInt field encodes both
 		// the value to store and an address offset of the store.
 		// Cast AuxInt to a ValAndOff to extract Val and Off fields.
-		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
-		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store low 2 bytes of ...
-		{name: "MOVLstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store low 4 bytes of ...
-		{name: "MOVQstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of ...
+		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
+		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store low 2 bytes of ...
+		{name: "MOVLstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store low 4 bytes of ...
+		{name: "MOVQstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store 8 bytes of ...
+		{name: "MOVOstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVUPS", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 16 bytes of ...
 
 		{name: "MOVBstoreconstidx1", argLength: 3, reg: gpstoreconstidx, commutative: true, asm: "MOVB", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+1*arg1+ValAndOff(AuxInt).Off()+aux.  arg2=mem
 		{name: "MOVWstoreconstidx1", argLength: 3, reg: gpstoreconstidx, commutative: true, asm: "MOVW", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low 2 bytes of ... arg1 ...
@@ -763,6 +767,7 @@ func init() {
 
 		// With a register ABI, the actual register info for these instructions (i.e., what is used in regalloc) is augmented with per-call-site bindings of additional arguments to specific in and out registers.
 		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
 		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
@@ -900,6 +905,83 @@ func init() {
 		{name: "ANDLlock", argLength: 3, reg: gpstore, asm: "ANDL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"}, // *(arg0+auxint+aux) &= arg1
 		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},   // *(arg0+auxint+aux) |= arg1
 		{name: "ORLlock", argLength: 3, reg: gpstore, asm: "ORL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},   // *(arg0+auxint+aux) |= arg1
+
+		// Prefetch instructions
+		// Do prefetch arg0 address. arg0=addr, arg1=memory. Instruction variant selects locality hint
+		{name: "PrefetchT0", argLength: 2, reg: prefreg, asm: "PREFETCHT0", hasSideEffects: true},
+		{name: "PrefetchNTA", argLength: 2, reg: prefreg, asm: "PREFETCHNTA", hasSideEffects: true},
+
+		// CPUID feature: BMI1.
+		{name: "ANDNQ", argLength: 2, reg: gp21, asm: "ANDNQ", clobberFlags: true},     // arg0 &^ arg1
+		{name: "ANDNL", argLength: 2, reg: gp21, asm: "ANDNL", clobberFlags: true},     // arg0 &^ arg1
+		{name: "BLSIQ", argLength: 1, reg: gp11, asm: "BLSIQ", clobberFlags: true},     // arg0 & -arg0
+		{name: "BLSIL", argLength: 1, reg: gp11, asm: "BLSIL", clobberFlags: true},     // arg0 & -arg0
+		{name: "BLSMSKQ", argLength: 1, reg: gp11, asm: "BLSMSKQ", clobberFlags: true}, // arg0 ^ (arg0 - 1)
+		{name: "BLSMSKL", argLength: 1, reg: gp11, asm: "BLSMSKL", clobberFlags: true}, // arg0 ^ (arg0 - 1)
+		{name: "BLSRQ", argLength: 1, reg: gp11, asm: "BLSRQ", clobberFlags: true},     // arg0 & (arg0 - 1)
+		{name: "BLSRL", argLength: 1, reg: gp11, asm: "BLSRL", clobberFlags: true},     // arg0 & (arg0 - 1)
+		// count the number of trailing zero bits, prefer TZCNTQ over BSFQ, as TZCNTQ(0)==64
+		// and BSFQ(0) is undefined. Same for TZCNTL(0)==32
+		{name: "TZCNTQ", argLength: 1, reg: gp11, asm: "TZCNTQ", clobberFlags: true},
+		{name: "TZCNTL", argLength: 1, reg: gp11, asm: "TZCNTL", clobberFlags: true},
+
+		// CPUID feature: LZCNT.
+		// count the number of leading zero bits.
+		{name: "LZCNTQ", argLength: 1, reg: gp11, asm: "LZCNTQ", typ: "UInt64", clobberFlags: true},
+		{name: "LZCNTL", argLength: 1, reg: gp11, asm: "LZCNTL", typ: "UInt32", clobberFlags: true},
+
+		// CPUID feature: MOVBE
+		// MOVBEWload does not satisfy zero extended, so only use MOVBEWstore
+		{name: "MOVBEWstore", argLength: 3, reg: gpstore, asm: "MOVBEW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // swap and store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVBELload", argLength: 2, reg: gpload, asm: "MOVBEL", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"}, // load and swap 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+		{name: "MOVBELstore", argLength: 3, reg: gpstore, asm: "MOVBEL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // swap and store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVBEQload", argLength: 2, reg: gpload, asm: "MOVBEQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"}, // load and swap 8 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVBEQstore", argLength: 3, reg: gpstore, asm: "MOVBEQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // swap and store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		// indexed MOVBE loads
+		{name: "MOVBELloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBEL", scale: 1, aux: "SymOff", typ: "UInt32", symEffect: "Read"}, // load and swap 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Zero extend.
+		{name: "MOVBELloadidx4", argLength: 3, reg: gploadidx, asm: "MOVBEL", scale: 4, aux: "SymOff", typ: "UInt32", symEffect: "Read"},                    // load and swap 4 bytes from arg0+4*arg1+auxint+aux. arg2=mem. Zero extend.
+		{name: "MOVBELloadidx8", argLength: 3, reg: gploadidx, asm: "MOVBEL", scale: 8, aux: "SymOff", typ: "UInt32", symEffect: "Read"},                    // load and swap 4 bytes from arg0+8*arg1+auxint+aux. arg2=mem. Zero extend.
+		{name: "MOVBEQloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBEQ", scale: 1, aux: "SymOff", typ: "UInt64", symEffect: "Read"}, // load and swap 8 bytes from arg0+arg1+auxint+aux. arg2=mem
+		{name: "MOVBEQloadidx8", argLength: 3, reg: gploadidx, asm: "MOVBEQ", scale: 8, aux: "SymOff", typ: "UInt64", symEffect: "Read"},                    // load and swap 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
+		// indexed MOVBE stores
+		{name: "MOVBEWstoreidx1", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVBEW", scale: 1, aux: "SymOff", symEffect: "Write"}, // swap and store 2 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVBEWstoreidx2", argLength: 4, reg: gpstoreidx, asm: "MOVBEW", scale: 2, aux: "SymOff", symEffect: "Write"},                    // swap and store 2 bytes in arg2 to arg0+2*arg1+auxint+aux. arg3=mem
+		{name: "MOVBELstoreidx1", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVBEL", scale: 1, aux: "SymOff", symEffect: "Write"}, // swap and store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVBELstoreidx4", argLength: 4, reg: gpstoreidx, asm: "MOVBEL", scale: 4, aux: "SymOff", symEffect: "Write"},                    // swap and store 4 bytes in arg2 to arg0+4*arg1+auxint+aux. arg3=mem
+		{name: "MOVBELstoreidx8", argLength: 4, reg: gpstoreidx, asm: "MOVBEL", scale: 8, aux: "SymOff", symEffect: "Write"},                    // swap and store 4 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+		{name: "MOVBEQstoreidx1", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVBEQ", scale: 1, aux: "SymOff", symEffect: "Write"}, // swap and store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVBEQstoreidx8", argLength: 4, reg: gpstoreidx, asm: "MOVBEQ", scale: 8, aux: "SymOff", symEffect: "Write"},                    // swap and store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+
+		// CPUID feature: BMI2.
+		{name: "SARXQ", argLength: 2, reg: gp21, asm: "SARXQ"}, // signed arg0 >> arg1, shift amount is mod 64
+		{name: "SARXL", argLength: 2, reg: gp21, asm: "SARXL"}, // signed int32(arg0) >> arg1, shift amount is mod 32
+		{name: "SHLXQ", argLength: 2, reg: gp21, asm: "SHLXQ"}, // arg0 << arg1, shift amount is mod 64
+		{name: "SHLXL", argLength: 2, reg: gp21, asm: "SHLXL"}, // arg0 << arg1, shift amount is mod 32
+		{name: "SHRXQ", argLength: 2, reg: gp21, asm: "SHRXQ"}, // unsigned arg0 >> arg1, shift amount is mod 64
+		{name: "SHRXL", argLength: 2, reg: gp21, asm: "SHRXL"}, // unsigned uint32(arg0) >> arg1, shift amount is mod 32
+
+		{name: "SARXLload", argLength: 3, reg: gp21shxload, asm: "SARXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
+		{name: "SARXQload", argLength: 3, reg: gp21shxload, asm: "SARXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 64
+		{name: "SHLXLload", argLength: 3, reg: gp21shxload, asm: "SHLXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 32
+		{name: "SHLXQload", argLength: 3, reg: gp21shxload, asm: "SHLXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 64
+		{name: "SHRXLload", argLength: 3, reg: gp21shxload, asm: "SHRXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
+		{name: "SHRXQload", argLength: 3, reg: gp21shxload, asm: "SHRXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 64
+
+		{name: "SARXLloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 1, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SARXLloadidx4", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 4, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+4*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SARXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SARXQloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SARXQ", scale: 1, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
+		{name: "SARXQloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SARXQ", scale: 8, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
+		{name: "SHLXLloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 1, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+1*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
+		{name: "SHLXLloadidx4", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 4, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+4*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
+		{name: "SHLXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+8*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
+		{name: "SHLXQloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHLXQ", scale: 1, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+1*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 64
+		{name: "SHLXQloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHLXQ", scale: 8, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+8*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 64
+		{name: "SHRXLloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHRXL", scale: 1, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SHRXLloadidx4", argLength: 4, reg: gp21shxloadidx, asm: "SHRXL", scale: 4, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+4*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SHRXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHRXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
+		{name: "SHRXQloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHRXQ", scale: 1, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
+		{name: "SHRXQloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHRXQ", scale: 8, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
 	}
 
 	var AMD64blocks = []blockData{
@@ -919,6 +1001,12 @@ func init() {
 		{name: "NEF", controls: 1},
 		{name: "ORD", controls: 1}, // FP, ordered comparison (parity zero)
 		{name: "NAN", controls: 1}, // FP, unordered comparison (parity one)
+
+		// JUMPTABLE implements jump tables.
+		// Aux is the symbol (an *obj.LSym) for the jump table.
+		// control[0] is the index into the jump table.
+		// control[1] is the address of the jump table (the address of the symbol stored in Aux).
+		{name: "JUMPTABLE", controls: 2, aux: "Sym"},
 	}
 
 	archs = append(archs, arch{

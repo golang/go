@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build js && wasm
-// +build js,wasm
 
 package runtime
 
@@ -127,9 +126,10 @@ func initsig(preinit bool) {
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
-	panic("newosproc: not implemented")
+	throw("newosproc: not implemented")
 }
 
 func setProcessCPUProfiler(hz int32) {}

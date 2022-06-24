@@ -8,7 +8,7 @@
 #include "time_windows.h"
 
 // void runtime·asmstdcall(void *c);
-TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	MOVL	fn+0(FP), BX
 
 	// SetLastError(0).
@@ -147,21 +147,21 @@ done:
 	BYTE $0xC2; WORD $4
 	RET // unreached; make assembler happy
 
-TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
 	MOVL	$runtime·exceptionhandler(SB), AX
 	JMP	sigtramp<>(SB)
 
-TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT,$0-0
+TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
 	// is never called
 	INT	$3
 
-TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT,$0-0
+TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
 	MOVL	$runtime·lastcontinuehandler(SB), AX
 	JMP	sigtramp<>(SB)
 
 GLOBL runtime·cbctxts(SB), NOPTR, $4
 
-TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·callbackasm1(SB),NOSPLIT,$0
   	MOVL	0(SP), AX	// will use to find our callback context
 
 	// remove return address from stack, we are not returning to callbackasm, but to its caller.
@@ -180,7 +180,7 @@ TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$0
 	CLD
 
 	// determine index into runtime·cbs table
-	SUBL	$runtime·callbackasm<ABIInternal>(SB), AX
+	SUBL	$runtime·callbackasm(SB), AX
 	MOVL	$0, DX
 	MOVL	$5, BX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
 	DIVL	BX
@@ -250,7 +250,7 @@ TEXT tstart<>(SB),NOSPLIT,$0
 	RET
 
 // uint32 tstart_stdcall(M *newm);
-TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	MOVL	newm+0(FP), BX
 
 	PUSHL	BX

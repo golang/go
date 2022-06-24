@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build netcgo
-// +build netcgo
 
 package net
 

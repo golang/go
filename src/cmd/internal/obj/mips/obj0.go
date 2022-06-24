@@ -140,7 +140,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	p := c.cursym.Func().Text
 	textstksiz := p.To.Offset
-	if textstksiz == -ctxt.FixedFrameSize() {
+	if textstksiz == -ctxt.Arch.FixedFrameSize {
 		// Historical way to mark NOFRAME.
 		p.From.Sym.Set(obj.AttrNoFrame, true)
 		textstksiz = 0
@@ -282,7 +282,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if !p.From.Sym.NoFrame() {
 				// If there is a stack frame at all, it includes
 				// space to save the LR.
-				autosize += int32(c.ctxt.FixedFrameSize())
+				autosize += int32(c.ctxt.Arch.FixedFrameSize)
 			}
 
 			if autosize&4 != 0 && c.ctxt.Arch.Family == sys.MIPS64 {
@@ -299,7 +299,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-			p.To.Offset = int64(autosize) - ctxt.FixedFrameSize()
+			p.To.Offset = int64(autosize) - ctxt.Arch.FixedFrameSize
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				c.cursym.Set(obj.AttrLeaf, true)
@@ -392,7 +392,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, newprog)
 				q.As = add
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(autosize) + ctxt.FixedFrameSize()
+				q.From.Offset = int64(autosize) + ctxt.Arch.FixedFrameSize
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R3
@@ -409,7 +409,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, newprog)
 				q.As = add
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = ctxt.FixedFrameSize()
+				q.From.Offset = ctxt.Arch.FixedFrameSize
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R2
@@ -466,9 +466,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = c.newprog()
 				q.As = AJMP
 				q.Pos = p.Pos
-				q.To.Type = obj.TYPE_MEM
-				q.To.Offset = 0
-				q.To.Reg = REGLINK
+				if retSym != nil { // retjmp
+					q.To.Type = obj.TYPE_BRANCH
+					q.To.Name = obj.NAME_EXTERN
+					q.To.Sym = retSym
+				} else {
+					q.To.Type = obj.TYPE_MEM
+					q.To.Reg = REGLINK
+					q.To.Offset = 0
+				}
 				q.Mark |= BRANCH
 				q.Spadj = +autosize
 
@@ -658,6 +664,82 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		mov = AMOVW
 	}
 
+	if c.ctxt.Flag_maymorestack != "" {
+		// Save LR and REGCTXT.
+		frameSize := 2 * c.ctxt.Arch.PtrSize
+
+		p = c.ctxt.StartUnsafePoint(p, c.newprog)
+
+		// MOV	REGLINK, -8/-16(SP)
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGLINK
+		p.To.Type = obj.TYPE_MEM
+		p.To.Offset = int64(-frameSize)
+		p.To.Reg = REGSP
+
+		// MOV	REGCTXT, -4/-8(SP)
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGCTXT
+		p.To.Type = obj.TYPE_MEM
+		p.To.Offset = -int64(c.ctxt.Arch.PtrSize)
+		p.To.Reg = REGSP
+
+		// ADD	$-8/$-16, SP
+		p = obj.Appendp(p, c.newprog)
+		p.As = add
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(-frameSize)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGSP
+		p.Spadj = int32(frameSize)
+
+		// JAL	maymorestack
+		p = obj.Appendp(p, c.newprog)
+		p.As = AJAL
+		p.To.Type = obj.TYPE_BRANCH
+		// See ../x86/obj6.go
+		p.To.Sym = c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
+		p.Mark |= BRANCH
+
+		// Restore LR and REGCTXT.
+
+		// MOV	0(SP), REGLINK
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_MEM
+		p.From.Offset = 0
+		p.From.Reg = REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGLINK
+
+		// MOV	4/8(SP), REGCTXT
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_MEM
+		p.From.Offset = int64(c.ctxt.Arch.PtrSize)
+		p.From.Reg = REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGCTXT
+
+		// ADD	$8/$16, SP
+		p = obj.Appendp(p, c.newprog)
+		p.As = add
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(frameSize)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGSP
+		p.Spadj = int32(-frameSize)
+
+		p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+	}
+
+	// Jump back to here after morestack returns.
+	startPred := p
+
 	// MOV	g_stackguard(g), R1
 	p = obj.Appendp(p, c.newprog)
 
@@ -787,7 +869,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 	p.As = AJMP
 	p.To.Type = obj.TYPE_BRANCH
-	p.To.SetTarget(c.cursym.Func().Text.Link)
+	p.To.SetTarget(startPred.Link)
+	startPred.Link.Mark |= LABEL
 	p.Mark |= BRANCH
 
 	// placeholder for q1's jump target

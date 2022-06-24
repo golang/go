@@ -3,10 +3,11 @@
 // license that can be found in the LICENSE file.
 
 //go:build !amd64 && !386 && !arm && !ppc64le && !ppc64 && !s390x && !arm64
-// +build !amd64,!386,!arm,!ppc64le,!ppc64,!s390x,!arm64
 
 package md5
 
 const haveAsm = false
 
-var block = blockGeneric
+func block(dig *digest, p []byte) {
+	blockGeneric(dig, p)
+}

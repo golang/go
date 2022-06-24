@@ -9,7 +9,7 @@ cd $WORK/testdata
 go mod init testdata.tld/foo
 
 # Getting a package within that module should resolve its dependencies.
-go get -d
+go get
 grep 'rsc.io/quote' go.mod
 
 # Tidying the module should preserve those dependencies.

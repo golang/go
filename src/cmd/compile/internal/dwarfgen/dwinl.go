@@ -244,7 +244,7 @@ func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
 			DeclName: unversion(n.Sym().Name),
 			DeclFile: pos.RelFilename(),
 			DeclLine: pos.RelLine(),
-			DeclCol:  pos.Col(),
+			DeclCol:  pos.RelCol(),
 		}
 		if _, found := m[vp]; found {
 			// We can see collisions (variables with the same name/file/line/col) in obfuscated or machine-generated code -- see issue 44378 for an example. Skip duplicates in such cases, since it is unlikely that a human will be debugging such code.

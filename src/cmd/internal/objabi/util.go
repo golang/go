@@ -13,7 +13,8 @@ import (
 
 const (
 	ElfRelocOffset   = 256
-	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
+	MachoRelocOffset = 2048    // reserve enough space for ELF relocations
+	GlobalDictPrefix = ".dict" // prefix for names of global dictionaries
 )
 
 // HeaderString returns the toolchain configuration string written in
@@ -21,5 +22,5 @@ const (
 // or link object files that are incompatible with each other. This
 // string always starts with "go object ".
 func HeaderString() string {
-	return fmt.Sprintf("go object %s %s %s X:%s\n", buildcfg.GOOS, buildcfg.GOARCH, buildcfg.Version, strings.Join(buildcfg.EnabledExperiments(), ","))
+	return fmt.Sprintf("go object %s %s %s X:%s\n", buildcfg.GOOS, buildcfg.GOARCH, buildcfg.Version, strings.Join(buildcfg.Experiment.Enabled(), ","))
 }

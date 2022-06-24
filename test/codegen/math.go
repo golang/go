@@ -11,6 +11,8 @@ import "math"
 var sink64 [8]float64
 
 func approx(x float64) {
+	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
+	// amd64:"ROUNDSD\t[$]2"
 	// s390x:"FIDBR\t[$]6"
 	// arm64:"FRINTPD"
 	// ppc64:"FRIP"
@@ -18,6 +20,8 @@ func approx(x float64) {
 	// wasm:"F64Ceil"
 	sink64[0] = math.Ceil(x)
 
+	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
+	// amd64:"ROUNDSD\t[$]1"
 	// s390x:"FIDBR\t[$]7"
 	// arm64:"FRINTMD"
 	// ppc64:"FRIM"
@@ -31,6 +35,8 @@ func approx(x float64) {
 	// ppc64le:"FRIN"
 	sink64[2] = math.Round(x)
 
+	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
+	// amd64:"ROUNDSD\t[$]3"
 	// s390x:"FIDBR\t[$]5"
 	// arm64:"FRINTZD"
 	// ppc64:"FRIZ"
@@ -38,6 +44,8 @@ func approx(x float64) {
 	// wasm:"F64Trunc"
 	sink64[3] = math.Trunc(x)
 
+	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
+	// amd64:"ROUNDSD\t[$]0"
 	// s390x:"FIDBR\t[$]4"
 	// arm64:"FRINTND"
 	// wasm:"F64Nearest"
@@ -73,6 +81,7 @@ func abs(x, y float64) {
 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64:"FABS\t"
 	// ppc64le:"FABS\t"
+	// riscv64:"FABSD\t"
 	// wasm:"F64Abs"
 	// arm/6:"ABSD\t"
 	sink64[0] = math.Abs(x)
@@ -96,6 +105,7 @@ func copysign(a, b, c float64) {
 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
 	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
+	// riscv64:"FSGNJD"
 	// wasm:"F64Copysign"
 	sink64[0] = math.Copysign(a, b)
 
@@ -103,6 +113,7 @@ func copysign(a, b, c float64) {
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
+	// riscv64:"FSGNJD"
 	// arm64:"ORR", -"AND"
 	sink64[1] = math.Copysign(c, -1)
 
@@ -115,17 +126,35 @@ func copysign(a, b, c float64) {
 	// s390x:"CPSDR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
+	// riscv64:"FSGNJD"
 	sink64[3] = math.Copysign(-1, c)
 }
 
 func fma(x, y, z float64) float64 {
+	// amd64/v3:-".*x86HasFMA"
 	// amd64:"VFMADD231SD"
 	// arm/6:"FMULAD"
 	// arm64:"FMADDD"
 	// s390x:"FMADD"
 	// ppc64:"FMADD"
 	// ppc64le:"FMADD"
+	// riscv64:"FMADDD"
 	return math.FMA(x, y, z)
+}
+
+func fms(x, y, z float64) float64 {
+	// riscv64:"FMSUBD"
+	return math.FMA(x, y, -z)
+}
+
+func fnma(x, y, z float64) float64 {
+	// riscv64:"FNMADDD"
+	return math.FMA(-x, y, z)
+}
+
+func fnms(x, y, z float64) float64 {
+	// riscv64:"FNMSUBD"
+	return math.FMA(x, -y, -z)
 }
 
 func fromFloat64(f64 float64) uint64 {

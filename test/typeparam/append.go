@@ -1,4 +1,4 @@
-// run -gcflags=-G=3
+// run
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -9,7 +9,7 @@ package main
 type Recv <-chan int
 
 type sliceOf[E any] interface {
-	type []E
+	~[]E
 }
 
 func _Append[S sliceOf[T], T any](s S, t ...T) S {

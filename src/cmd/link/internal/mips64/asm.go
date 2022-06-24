@@ -120,7 +120,6 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	const isOk = true
 	const noExtReloc = 0
 	rs := r.Sym()
-	rs = ldr.ResolveABIAlias(rs)
 	switch r.Type() {
 	case objabi.R_ADDRMIPS,
 		objabi.R_ADDRMIPSU:

@@ -241,27 +241,27 @@ type Entry struct {
 // A value can be one of several "attribute classes" defined by DWARF.
 // The Go types corresponding to each class are:
 //
-//    DWARF class       Go type        Class
-//    -----------       -------        -----
-//    address           uint64         ClassAddress
-//    block             []byte         ClassBlock
-//    constant          int64          ClassConstant
-//    flag              bool           ClassFlag
-//    reference
-//      to info         dwarf.Offset   ClassReference
-//      to type unit    uint64         ClassReferenceSig
-//    string            string         ClassString
-//    exprloc           []byte         ClassExprLoc
-//    lineptr           int64          ClassLinePtr
-//    loclistptr        int64          ClassLocListPtr
-//    macptr            int64          ClassMacPtr
-//    rangelistptr      int64          ClassRangeListPtr
+//	DWARF class       Go type        Class
+//	-----------       -------        -----
+//	address           uint64         ClassAddress
+//	block             []byte         ClassBlock
+//	constant          int64          ClassConstant
+//	flag              bool           ClassFlag
+//	reference
+//	  to info         dwarf.Offset   ClassReference
+//	  to type unit    uint64         ClassReferenceSig
+//	string            string         ClassString
+//	exprloc           []byte         ClassExprLoc
+//	lineptr           int64          ClassLinePtr
+//	loclistptr        int64          ClassLocListPtr
+//	macptr            int64          ClassMacPtr
+//	rangelistptr      int64          ClassRangeListPtr
 //
 // For unrecognized or vendor-defined attributes, Class may be
 // ClassUnknown.
 type Field struct {
 	Attr  Attr
-	Val   interface{}
+	Val   any
 	Class Class
 }
 
@@ -380,9 +380,9 @@ func (i Class) GoString() string {
 //
 // A common idiom is to merge the check for nil return with
 // the check that the value has the expected dynamic type, as in:
-//	v, ok := e.Val(AttrSibling).(int64)
 //
-func (e *Entry) Val(a Attr) interface{} {
+//	v, ok := e.Val(AttrSibling).(int64)
+func (e *Entry) Val(a Attr) any {
 	if f := e.AttrField(a); f != nil {
 		return f.Val
 	}
@@ -501,7 +501,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 			fmt = format(b.uint())
 			e.Field[i].Class = formToClass(fmt, a.field[i].attr, vers, b)
 		}
-		var val interface{}
+		var val any
 		switch fmt {
 		default:
 			b.error("unknown entry attr format 0x" + strconv.FormatInt(int64(fmt), 16))
@@ -641,6 +641,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 			} else {
 				if len(b.dwarf.lineStr) == 0 {
 					b.error("DW_FORM_line_strp with no .debug_line_str section")
+					return nil
 				}
 				b1 = makeBuf(b.dwarf, b.format, "line_str", 0, b.dwarf.lineStr)
 			}
@@ -789,7 +790,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 	return e
 }
 
-// A Reader allows reading Entry structures from a DWARF ``info'' section.
+// A Reader allows reading Entry structures from a DWARF “info” section.
 // The Entry structures are arranged in a tree. The Reader's Next function
 // return successive entries from a pre-order traversal of the tree.
 // If an entry has children, its Children field will be true, and the children
@@ -806,7 +807,7 @@ type Reader struct {
 }
 
 // Reader returns a new Reader for Data.
-// The reader is positioned at byte offset 0 in the DWARF ``info'' section.
+// The reader is positioned at byte offset 0 in the DWARF “info” section.
 func (d *Data) Reader() *Reader {
 	r := &Reader{d: d}
 	r.Seek(0)
@@ -973,7 +974,7 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
 		u := &r.d.unit[unit]
 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
 		e, err := r.Next()
-		if err != nil {
+		if err != nil || e == nil || e.Tag == 0 {
 			return nil, err
 		}
 		ranges, err := r.d.Ranges(e)
@@ -1121,7 +1122,7 @@ func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64)
 	return ret, nil
 }
 
-// dwarf5Ranges interpets a debug_rnglists sequence, see DWARFv5 section
+// dwarf5Ranges interprets a debug_rnglists sequence, see DWARFv5 section
 // 2.17.3 (page 53).
 func (d *Data) dwarf5Ranges(u *unit, cu *Entry, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
 	var addrBase int64

@@ -5,17 +5,18 @@
 package ld
 
 import (
+	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
-	"crypto/sha1"
 	"debug/elf"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"internal/buildcfg"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -201,13 +202,13 @@ var nelfstr int
 var buildinfo []byte
 
 /*
- Initialize the global variable that describes the ELF header. It will be updated as
- we write section and prog headers.
+Initialize the global variable that describes the ELF header. It will be updated as
+we write section and prog headers.
 */
 func Elfinit(ctxt *Link) {
 	ctxt.IsELF = true
 
-	if ctxt.Arch.InFamily(sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X) {
+	if ctxt.Arch.InFamily(sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X) {
 		elfRelType = ".rela"
 	} else {
 		elfRelType = ".rel"
@@ -222,9 +223,12 @@ func Elfinit(ctxt *Link) {
 			ehdr.Flags = 2 /* Version 2 ABI */
 		}
 		fallthrough
-	case sys.AMD64, sys.ARM64, sys.MIPS64, sys.RISCV64:
+	case sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.RISCV64:
 		if ctxt.Arch.Family == sys.MIPS64 {
 			ehdr.Flags = 0x20000004 /* MIPS 3 CPIC */
+		}
+		if ctxt.Arch.Family == sys.Loong64 {
+			ehdr.Flags = 0x3 /* LoongArch lp64d */
 		}
 		if ctxt.Arch.Family == sys.RISCV64 {
 			ehdr.Flags = 0x4 /* RISCV Float ABI Double */
@@ -480,10 +484,6 @@ func Elfwritedynent(arch *sys.Arch, s *loader.SymbolBuilder, tag elf.DynTag, val
 	}
 }
 
-func elfwritedynentsym(ctxt *Link, s *loader.SymbolBuilder, tag elf.DynTag, t loader.Sym) {
-	Elfwritedynentsymplus(ctxt, s, tag, t, 0)
-}
-
 func Elfwritedynentsymplus(ctxt *Link, s *loader.SymbolBuilder, tag elf.DynTag, t loader.Sym, add int64) {
 	if elf64 {
 		s.AddUint64(ctxt.Arch, uint64(tag))
@@ -552,30 +552,32 @@ func elfMipsAbiFlags(sh *ElfShdr, startva uint64, resoff uint64) int {
 	return n
 }
 
-//typedef struct
-//{
-//  /* Version of flags structure.  */
-//  uint16_t version;
-//  /* The level of the ISA: 1-5, 32, 64.  */
-//  uint8_t isa_level;
-//  /* The revision of ISA: 0 for MIPS V and below, 1-n otherwise.  */
-//  uint8_t isa_rev;
-//  /* The size of general purpose registers.  */
-//  uint8_t gpr_size;
-//  /* The size of co-processor 1 registers.  */
-//  uint8_t cpr1_size;
-//  /* The size of co-processor 2 registers.  */
-//  uint8_t cpr2_size;
-//  /* The floating-point ABI.  */
-//  uint8_t fp_abi;
-//  /* Processor-specific extension.  */
-//  uint32_t isa_ext;
-//  /* Mask of ASEs used.  */
-//  uint32_t ases;
-//  /* Mask of general flags.  */
-//  uint32_t flags1;
-//  uint32_t flags2;
-//} Elf_Internal_ABIFlags_v0;
+// Layout is given by this C definition:
+//
+//	typedef struct
+//	{
+//	  /* Version of flags structure.  */
+//	  uint16_t version;
+//	  /* The level of the ISA: 1-5, 32, 64.  */
+//	  uint8_t isa_level;
+//	  /* The revision of ISA: 0 for MIPS V and below, 1-n otherwise.  */
+//	  uint8_t isa_rev;
+//	  /* The size of general purpose registers.  */
+//	  uint8_t gpr_size;
+//	  /* The size of co-processor 1 registers.  */
+//	  uint8_t cpr1_size;
+//	  /* The size of co-processor 2 registers.  */
+//	  uint8_t cpr2_size;
+//	  /* The floating-point ABI.  */
+//	  uint8_t fp_abi;
+//	  /* Processor-specific extension.  */
+//	  uint32_t isa_ext;
+//	  /* Mask of ASEs used.  */
+//	  uint32_t ases;
+//	  /* Mask of general flags.  */
+//	  uint32_t flags1;
+//	  uint32_t flags2;
+//	} Elf_Internal_ABIFlags_v0;
 func elfWriteMipsAbiFlags(ctxt *Link) int {
 	sh := elfshname(".MIPS.abiflags")
 	ctxt.Out.SeekSet(int64(sh.Off))
@@ -1083,7 +1085,12 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 	}
 
 	if sect.Vaddr < sect.Seg.Vaddr+sect.Seg.Filelen {
-		sh.Type = uint32(elf.SHT_PROGBITS)
+		switch sect.Name {
+		case ".init_array":
+			sh.Type = uint32(elf.SHT_INIT_ARRAY)
+		default:
+			sh.Type = uint32(elf.SHT_PROGBITS)
+		}
 	} else {
 		sh.Type = uint32(elf.SHT_NOBITS)
 	}
@@ -1098,13 +1105,18 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 		sh.Flags |= uint64(elf.SHF_TLS)
 		sh.Type = uint32(elf.SHT_NOBITS)
 	}
-	if strings.HasPrefix(sect.Name, ".debug") || strings.HasPrefix(sect.Name, ".zdebug") {
-		sh.Flags = 0
-	}
-
 	if linkmode != LinkExternal {
 		sh.Addr = sect.Vaddr
 	}
+
+	if strings.HasPrefix(sect.Name, ".debug") || strings.HasPrefix(sect.Name, ".zdebug") {
+		sh.Flags = 0
+		sh.Addr = 0
+		if sect.Compressed {
+			sh.Flags |= uint64(elf.SHF_COMPRESSED)
+		}
+	}
+
 	sh.Addralign = uint64(sect.Align)
 	sh.Size = sect.Length
 	if sect.Name != ".tbss" {
@@ -1292,7 +1304,7 @@ func (ctxt *Link) doelf() {
 	shstrtab.Addstring(".data")
 	shstrtab.Addstring(".bss")
 	shstrtab.Addstring(".noptrbss")
-	shstrtab.Addstring("__libfuzzer_extra_counters")
+	shstrtab.Addstring("__sancov_cntrs")
 	shstrtab.Addstring(".go.buildinfo")
 	if ctxt.IsMIPS() {
 		shstrtab.Addstring(".MIPS.abiflags")
@@ -1472,24 +1484,24 @@ func (ctxt *Link) doelf() {
 		/*
 		 * .dynamic table
 		 */
-		elfwritedynentsym(ctxt, dynamic, elf.DT_HASH, hash.Sym())
+		elfWriteDynEntSym(ctxt, dynamic, elf.DT_HASH, hash.Sym())
 
-		elfwritedynentsym(ctxt, dynamic, elf.DT_SYMTAB, dynsym.Sym())
+		elfWriteDynEntSym(ctxt, dynamic, elf.DT_SYMTAB, dynsym.Sym())
 		if elf64 {
 			Elfwritedynent(ctxt.Arch, dynamic, elf.DT_SYMENT, ELF64SYMSIZE)
 		} else {
 			Elfwritedynent(ctxt.Arch, dynamic, elf.DT_SYMENT, ELF32SYMSIZE)
 		}
-		elfwritedynentsym(ctxt, dynamic, elf.DT_STRTAB, dynstr.Sym())
+		elfWriteDynEntSym(ctxt, dynamic, elf.DT_STRTAB, dynstr.Sym())
 		elfwritedynentsymsize(ctxt, dynamic, elf.DT_STRSZ, dynstr.Sym())
 		if elfRelType == ".rela" {
 			rela := ldr.LookupOrCreateSym(".rela", 0)
-			elfwritedynentsym(ctxt, dynamic, elf.DT_RELA, rela)
+			elfWriteDynEntSym(ctxt, dynamic, elf.DT_RELA, rela)
 			elfwritedynentsymsize(ctxt, dynamic, elf.DT_RELASZ, rela)
 			Elfwritedynent(ctxt.Arch, dynamic, elf.DT_RELAENT, ELF64RELASIZE)
 		} else {
 			rel := ldr.LookupOrCreateSym(".rel", 0)
-			elfwritedynentsym(ctxt, dynamic, elf.DT_REL, rel)
+			elfWriteDynEntSym(ctxt, dynamic, elf.DT_REL, rel)
 			elfwritedynentsymsize(ctxt, dynamic, elf.DT_RELSZ, rel)
 			Elfwritedynent(ctxt.Arch, dynamic, elf.DT_RELENT, ELF32RELSIZE)
 		}
@@ -1499,9 +1511,9 @@ func (ctxt *Link) doelf() {
 		}
 
 		if ctxt.IsPPC64() {
-			elfwritedynentsym(ctxt, dynamic, elf.DT_PLTGOT, plt.Sym())
+			elfWriteDynEntSym(ctxt, dynamic, elf.DT_PLTGOT, plt.Sym())
 		} else {
-			elfwritedynentsym(ctxt, dynamic, elf.DT_PLTGOT, gotplt.Sym())
+			elfWriteDynEntSym(ctxt, dynamic, elf.DT_PLTGOT, gotplt.Sym())
 		}
 
 		if ctxt.IsPPC64() {
@@ -1524,10 +1536,10 @@ func (ctxt *Link) doelf() {
 		sb.SetType(sym.SRODATA)
 		ldr.SetAttrSpecial(s, true)
 		sb.SetReachable(true)
-		sb.SetSize(sha1.Size)
+		sb.SetSize(notsha256.Size)
 
 		sort.Sort(byPkg(ctxt.Library))
-		h := sha1.New()
+		h := notsha256.New()
 		for _, l := range ctxt.Library {
 			h.Write(l.Fingerprint[:])
 		}
@@ -1646,6 +1658,8 @@ func asmbElf(ctxt *Link) {
 		Exitf("unknown architecture in asmbelf: %v", ctxt.Arch.Family)
 	case sys.MIPS, sys.MIPS64:
 		eh.Machine = uint16(elf.EM_MIPS)
+	case sys.Loong64:
+		eh.Machine = uint16(elf.EM_LOONGARCH)
 	case sys.ARM:
 		eh.Machine = uint16(elf.EM_ARM)
 	case sys.AMD64:
@@ -1685,13 +1699,18 @@ func asmbElf(ctxt *Link) {
 
 	var pph *ElfPhdr
 	var pnote *ElfPhdr
+	getpnote := func() *ElfPhdr {
+		if pnote == nil {
+			pnote = newElfPhdr()
+			pnote.Type = elf.PT_NOTE
+			pnote.Flags = elf.PF_R
+		}
+		return pnote
+	}
 	if *flagRace && ctxt.IsNetbsd() {
 		sh := elfshname(".note.netbsd.pax")
 		resoff -= int64(elfnetbsdpax(sh, uint64(startva), uint64(resoff)))
-		pnote = newElfPhdr()
-		pnote.Type = elf.PT_NOTE
-		pnote.Flags = elf.PF_R
-		phsh(pnote, sh)
+		phsh(getpnote(), sh)
 	}
 	if ctxt.LinkMode == LinkExternal {
 		/* skip program headers */
@@ -1749,7 +1768,7 @@ func asmbElf(ctxt *Link) {
 		sh.Flags = uint64(elf.SHF_ALLOC)
 		sh.Addralign = 1
 
-		if interpreter == "" && buildcfg.GO_LDSO != "" {
+		if interpreter == "" && buildcfg.GOOS == runtime.GOOS && buildcfg.GOARCH == runtime.GOARCH && buildcfg.GO_LDSO != "" {
 			interpreter = buildcfg.GO_LDSO
 		}
 
@@ -1790,7 +1809,6 @@ func asmbElf(ctxt *Link) {
 		phsh(ph, sh)
 	}
 
-	pnote = nil
 	if ctxt.HeadType == objabi.Hnetbsd || ctxt.HeadType == objabi.Hopenbsd {
 		var sh *ElfShdr
 		switch ctxt.HeadType {
@@ -1802,34 +1820,23 @@ func asmbElf(ctxt *Link) {
 			sh = elfshname(".note.openbsd.ident")
 			resoff -= int64(elfopenbsdsig(sh, uint64(startva), uint64(resoff)))
 		}
-
-		pnote = newElfPhdr()
-		pnote.Type = elf.PT_NOTE
-		pnote.Flags = elf.PF_R
-		phsh(pnote, sh)
+		// netbsd and openbsd require ident in an independent segment.
+		pnotei := newElfPhdr()
+		pnotei.Type = elf.PT_NOTE
+		pnotei.Flags = elf.PF_R
+		phsh(pnotei, sh)
 	}
 
 	if len(buildinfo) > 0 {
 		sh := elfshname(".note.gnu.build-id")
 		resoff -= int64(elfbuildinfo(sh, uint64(startva), uint64(resoff)))
-
-		if pnote == nil {
-			pnote = newElfPhdr()
-			pnote.Type = elf.PT_NOTE
-			pnote.Flags = elf.PF_R
-		}
-
-		phsh(pnote, sh)
+		phsh(getpnote(), sh)
 	}
 
 	if *flagBuildid != "" {
 		sh := elfshname(".note.go.buildid")
 		resoff -= int64(elfgobuildid(sh, uint64(startva), uint64(resoff)))
-
-		pnote := newElfPhdr()
-		pnote.Type = elf.PT_NOTE
-		pnote.Flags = elf.PF_R
-		phsh(pnote, sh)
+		phsh(getpnote(), sh)
 	}
 
 	// Additions to the reserved area must be above this line.
@@ -2028,6 +2035,11 @@ func asmbElf(ctxt *Link) {
 		ph := newElfPhdr()
 		ph.Type = elf.PT_SUNWSTACK
 		ph.Flags = elf.PF_W + elf.PF_R
+	} else if ctxt.HeadType == objabi.Hfreebsd {
+		ph := newElfPhdr()
+		ph.Type = elf.PT_GNU_STACK
+		ph.Flags = elf.PF_W + elf.PF_R
+		ph.Align = uint64(ctxt.Arch.RegSize)
 	}
 
 elfobj:
@@ -2255,7 +2267,7 @@ func elfadddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.S
 
 		dil := ldr.SymDynimplib(s)
 
-		if target.Arch.Family == sys.AMD64 && !cgoeDynamic && dil != "" && !seenlib[dil] {
+		if !cgoeDynamic && dil != "" && !seenlib[dil] {
 			du := ldr.MakeSymbolUpdater(syms.Dynamic)
 			Elfwritedynent(target.Arch, du, elf.DT_NEEDED, uint64(dstru.Addstring(dil)))
 			seenlib[dil] = true

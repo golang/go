@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build !js
 
 // DNS client: see RFC 1035.
 // Has to be linked into package net for Dial.
@@ -21,6 +20,7 @@ import (
 	"internal/itoa"
 	"io"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -31,6 +31,10 @@ const (
 	// to be used as a useTCP parameter to exchange
 	useTCPOnly  = true
 	useUDPOrTCP = false
+
+	// Maximum DNS packet size.
+	// Value taken from https://dnsflagday.net/2020/.
+	maxDNSPacketSize = 1232
 )
 
 var (
@@ -57,12 +61,28 @@ func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err er
 	if err := b.Question(q); err != nil {
 		return 0, nil, nil, err
 	}
+
+	// Accept packets up to maxDNSPacketSize.  RFC 6891.
+	if err := b.StartAdditionals(); err != nil {
+		return 0, nil, nil, err
+	}
+	var rh dnsmessage.ResourceHeader
+	if err := rh.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false); err != nil {
+		return 0, nil, nil, err
+	}
+	if err := b.OPTResource(rh, dnsmessage.OPTResource{}); err != nil {
+		return 0, nil, nil, err
+	}
+
 	tcpReq, err = b.Finish()
+	if err != nil {
+		return 0, nil, nil, err
+	}
 	udpReq = tcpReq[2:]
 	l := len(tcpReq) - 2
 	tcpReq[0] = byte(l >> 8)
 	tcpReq[1] = byte(l)
-	return id, udpReq, tcpReq, err
+	return id, udpReq, tcpReq, nil
 }
 
 func checkResponse(reqID uint16, reqQues dnsmessage.Question, respHdr dnsmessage.Header, respQues dnsmessage.Question) bool {
@@ -83,7 +103,7 @@ func dnsPacketRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 		return dnsmessage.Parser{}, dnsmessage.Header{}, err
 	}
 
-	b = make([]byte, 512) // see RFC 1035
+	b = make([]byte, maxDNSPacketSize)
 	for {
 		n, err := c.Read(b)
 		if err != nil {
@@ -362,12 +382,21 @@ func (conf *resolverConfig) tryUpdate(name string) {
 	}
 	conf.lastChecked = now
 
-	var mtime time.Time
-	if fi, err := os.Stat(name); err == nil {
-		mtime = fi.ModTime()
-	}
-	if mtime.Equal(conf.dnsConfig.mtime) {
-		return
+	switch runtime.GOOS {
+	case "windows":
+		// There's no file on disk, so don't bother checking
+		// and failing.
+		//
+		// The Windows implementation of dnsReadConfig (called
+		// below) ignores the name.
+	default:
+		var mtime time.Time
+		if fi, err := os.Stat(name); err == nil {
+			mtime = fi.ModTime()
+		}
+		if mtime.Equal(conf.dnsConfig.mtime) {
+			return
+		}
 	}
 
 	dnsConf := dnsReadConfig(name)

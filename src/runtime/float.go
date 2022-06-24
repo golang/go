@@ -8,7 +8,7 @@ import "unsafe"
 
 var inf = float64frombits(0x7FF0000000000000)
 
-// isNaN reports whether f is an IEEE 754 ``not-a-number'' value.
+// isNaN reports whether f is an IEEE 754 “not-a-number” value.
 func isNaN(f float64) (is bool) {
 	// IEEE 754 says that only NaNs satisfy f != f.
 	return f != f
@@ -27,6 +27,7 @@ func isInf(f float64) bool {
 // Abs returns the absolute value of x.
 //
 // Special cases are:
+//
 //	Abs(±Inf) = +Inf
 //	Abs(NaN) = NaN
 func abs(x float64) float64 {

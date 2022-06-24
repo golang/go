@@ -185,10 +185,10 @@ program. You can also click on values and blocks to highlight them, to help
 follow the control flow and values.
 
 The value specified in GOSSAFUNC can also be a package-qualified function
-name, e.g. 
+name, e.g.
 
 	GOSSAFUNC=blah.Foo go build
-    
+
 This will match any function named "Foo" within a package whose final
 suffix is "blah" (e.g. something/blah.Foo, anotherthing/extra/blah.Foo).
 

@@ -7,8 +7,8 @@ package work
 import (
 	"bytes"
 	"fmt"
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -160,18 +160,20 @@ func (b *Builder) toolID(name string) string {
 
 	cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		base.Fatalf("%s: %v\n%s%s", desc, err, stdout.Bytes(), stderr.Bytes())
+		if stderr.Len() > 0 {
+			os.Stderr.Write(stderr.Bytes())
+		}
+		base.Fatalf("go: error obtaining buildID for %s: %v", desc, err)
 	}
 
 	line := stdout.String()
 	f := strings.Fields(line)
 	if len(f) < 3 || f[0] != name && path != VetTool || f[1] != "version" || f[2] == "devel" && !strings.HasPrefix(f[len(f)-1], "buildID=") {
-		base.Fatalf("%s -V=full: unexpected output:\n\t%s", desc, line)
+		base.Fatalf("go: parsing buildID from %s -V=full: unexpected output:\n\t%s", desc, line)
 	}
 	if f[2] == "devel" {
 		// On the development branch, use the content ID part of the build ID.
@@ -219,9 +221,8 @@ func (b *Builder) gccToolID(name, language string) (string, error) {
 	// compile an empty file on standard input.
 	cmdline := str.StringList(cfg.BuildToolexec, name, "-###", "-x", language, "-c", "-")
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
 	// Force untranslated output so that we see the string "version".
-	cmd.Env = append(cmd.Env, "LC_ALL=C")
+	cmd.Env = append(os.Environ(), "LC_ALL=C")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%s: %v; output: %q", name, err, out)
@@ -570,6 +571,8 @@ func showStdout(b *Builder, c *cache.Cache, actionID cache.ActionID, key string)
 			b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
 		}
 		if !cfg.BuildN {
+			b.output.Lock()
+			defer b.output.Unlock()
 			b.Print(string(stdout))
 		}
 	}
@@ -578,6 +581,8 @@ func showStdout(b *Builder, c *cache.Cache, actionID cache.ActionID, key string)
 
 // flushOutput flushes the output being queued in a.
 func (b *Builder) flushOutput(a *Action) {
+	b.output.Lock()
+	defer b.output.Unlock()
 	b.Print(string(a.output))
 	a.output = nil
 }

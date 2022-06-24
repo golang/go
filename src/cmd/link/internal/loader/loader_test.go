@@ -198,7 +198,7 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	}
 
 	// Nameless symbol should still be nameless.
-	es3name := ldr.RawSymName(es3)
+	es3name := ldr.SymName(es3)
 	if "" != es3name {
 		t.Errorf("expected es3 name of '', got '%s'", es3name)
 	}

@@ -168,14 +168,13 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
+	SUB	$8, R13
 	MOVW	$runtime·mainPC(SB), R0
-	MOVW.W	R0, -4(R13)
-	MOVW	$8, R0
-	MOVW.W	R0, -4(R13)
+	MOVW	R0, 4(R13)	// arg 1: fn
 	MOVW	$0, R0
-	MOVW.W	R0, -4(R13)	// push $0 as guard
+	MOVW	R0, 0(R13)	// dummy LR
 	BL	runtime·newproc(SB)
-	MOVW	$12(R13), R13	// pop args and LR
+	ADD	$8, R13	// pop args and LR
 
 	// start this M
 	BL	runtime·mstart(SB)
@@ -507,20 +506,6 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-// void jmpdefer(fn, sp);
-// called from deferreturn.
-// 1. grab stored LR for caller
-// 2. sub 4 bytes to get back to BL deferreturn
-// 3. B to fn
-TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
-	MOVW	0(R13), LR
-	MOVW	$-4(LR), LR	// BL deferreturn
-	MOVW	fv+0(FP), R7
-	MOVW	argp+4(FP), R13
-	MOVW	$-4(R13), R13	// SP is 4 below argp, due to saved LR
-	MOVW	0(R7), R1
-	B	(R1)
-
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.
 // Must only be called from functions with no locals ($0)
@@ -571,7 +556,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	MOVW	g_m(g), R8
 	MOVW	m_gsignal(R8), R3
 	CMP	R3, g

@@ -13,13 +13,12 @@ import (
 	"go/doc"
 	"go/token"
 	"internal/buildcfg"
-	exec "internal/execabs"
 	"internal/goroot"
 	"internal/goversion"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
+	"os/exec"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
@@ -35,7 +34,7 @@ type Context struct {
 	GOARCH string // target architecture
 	GOOS   string // target operating system
 	GOROOT string // Go root
-	GOPATH string // Go path
+	GOPATH string // Go paths
 
 	// Dir is the caller's working directory, or the empty string to use
 	// the current directory of the running process. In module mode, this is used
@@ -186,13 +185,21 @@ func hasSubdir(root, dir string) (rel string, ok bool) {
 	return filepath.ToSlash(dir[len(root):]), true
 }
 
-// readDir calls ctxt.ReadDir (if not nil) or else ioutil.ReadDir.
-func (ctxt *Context) readDir(path string) ([]fs.FileInfo, error) {
+// readDir calls ctxt.ReadDir (if not nil) or else os.ReadDir.
+func (ctxt *Context) readDir(path string) ([]fs.DirEntry, error) {
+	// TODO: add a fs.DirEntry version of Context.ReadDir
 	if f := ctxt.ReadDir; f != nil {
-		return f(path)
+		fis, err := f(path)
+		if err != nil {
+			return nil, err
+		}
+		des := make([]fs.DirEntry, len(fis))
+		for i, fi := range fis {
+			des[i] = fs.FileInfoToDirEntry(fi)
+		}
+		return des, nil
 	}
-	// TODO: use os.ReadDir
-	return ioutil.ReadDir(path)
+	return os.ReadDir(path)
 }
 
 // openFile calls ctxt.OpenFile (if not nil) or else os.Open.
@@ -302,7 +309,9 @@ func defaultContext() Context {
 
 	c.GOARCH = buildcfg.GOARCH
 	c.GOOS = buildcfg.GOOS
-	c.GOROOT = pathpkg.Clean(runtime.GOROOT())
+	if goroot := runtime.GOROOT(); goroot != "" {
+		c.GOROOT = filepath.Clean(goroot)
+	}
 	c.GOPATH = envOr("GOPATH", defaultGOPATH())
 	c.Compiler = runtime.Compiler
 
@@ -311,7 +320,7 @@ func defaultContext() Context {
 	// used for compiling alternative files for the experiment. This allows
 	// changes for the experiment, like extra struct fields in the runtime,
 	// without affecting the base non-experiment code at all.
-	for _, exp := range buildcfg.EnabledExperiments() {
+	for _, exp := range buildcfg.Experiment.Enabled() {
 		c.ToolTags = append(c.ToolTags, "goexperiment."+exp)
 	}
 	defaultToolTags = append([]string{}, c.ToolTags...) // our own private copy
@@ -526,13 +535,12 @@ func nameExt(name string) string {
 // In the directory containing the package, .go, .c, .h, and .s files are
 // considered part of the package except for:
 //
-//	- .go files in package documentation
-//	- files starting with _ or . (likely editor temporary files)
-//	- files with build constraints not satisfied by the context
+//   - .go files in package documentation
+//   - files starting with _ or . (likely editor temporary files)
+//   - files with build constraints not satisfied by the context
 //
 // If an error occurs, Import returns a non-nil error and a non-nil
 // *Package containing partial information.
-//
 func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Package, error) {
 	p := &Package{
 		ImportPath: path,
@@ -672,7 +680,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				}
 				return false
 			}
-			if ctxt.Compiler != "gccgo" && searchVendor(ctxt.GOROOT, true) {
+			if ctxt.Compiler != "gccgo" && ctxt.GOROOT != "" && searchVendor(ctxt.GOROOT, true) {
 				goto Found
 			}
 			for _, root := range gopath {
@@ -706,12 +714,12 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				}
 				tried.goroot = dir
 			}
-		}
-		if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
-			p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
-			p.Goroot = true
-			p.Root = ctxt.GOROOT
-			goto Found
+			if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
+				p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
+				p.Goroot = true
+				p.Root = ctxt.GOROOT
+				goto Found
+			}
 		}
 		for _, root := range gopath {
 			dir := ctxt.joinPath(root, "src", path)
@@ -789,7 +797,7 @@ Found:
 		}
 
 		// package was not found
-		return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
+		return p, fmt.Errorf("cannot find package %q in:\n\t%s", p.ImportPath, p.Dir)
 	}
 
 	if mode&FindOnly != 0 {
@@ -835,7 +843,7 @@ Found:
 		if d.IsDir() {
 			continue
 		}
-		if d.Mode()&fs.ModeSymlink != 0 {
+		if d.Type() == fs.ModeSymlink {
 			if ctxt.isDir(ctxt.joinPath(p.Dir, d.Name())) {
 				// Symlinks to directories are not source files.
 				continue
@@ -894,7 +902,7 @@ Found:
 
 		isTest := strings.HasSuffix(name, "_test.go")
 		isXTest := false
-		if isTest && strings.HasSuffix(pkg, "_test") {
+		if isTest && strings.HasSuffix(pkg, "_test") && p.Name != pkg {
 			isXTest = true
 			pkg = pkg[:len(pkg)-len("_test")]
 		}
@@ -1082,6 +1090,13 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 		return errNoModules
 	}
 
+	// If ctxt.GOROOT is not set, we don't know which go command to invoke,
+	// and even if we did we might return packages in GOROOT that we wouldn't otherwise find
+	// (because we don't know to search in 'go env GOROOT' otherwise).
+	if ctxt.GOROOT == "" {
+		return errNoModules
+	}
+
 	// Predict whether module aware mode is enabled by checking the value of
 	// GO111MODULE and looking for a go.mod file in the source directory or
 	// one of its parents. Running 'go env GOMOD' in the source directory would
@@ -1119,11 +1134,8 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	}
 
 	// For efficiency, if path is a standard library package, let the usual lookup code handle it.
-	if ctxt.GOROOT != "" {
-		dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
-		if ctxt.isDir(dir) {
-			return errNoModules
-		}
+	if dir := ctxt.joinPath(ctxt.GOROOT, "src", path); ctxt.isDir(dir) {
+		return errNoModules
 	}
 
 	// If GO111MODULE=auto, look to see if there is a go.mod.
@@ -1165,7 +1177,8 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 		}
 	}
 
-	cmd := exec.Command("go", "list", "-e", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n{{if .Error}}{{.Error}}{{end}}\n", "--", path)
+	goCmd := filepath.Join(ctxt.GOROOT, "bin", "go")
+	cmd := exec.Command(goCmd, "list", "-e", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n{{if .Error}}{{.Error}}{{end}}\n", "--", path)
 
 	if ctxt.Dir != "" {
 		cmd.Dir = ctxt.Dir
@@ -1179,7 +1192,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	if ctxt.CgoEnabled {
 		cgo = "1"
 	}
-	cmd.Env = append(os.Environ(),
+	cmd.Env = append(cmd.Environ(),
 		"GOOS="+ctxt.GOOS,
 		"GOARCH="+ctxt.GOARCH,
 		"GOROOT="+ctxt.GOROOT,
@@ -1258,19 +1271,14 @@ func findImportComment(data []byte) (s string, line int) {
 	var comment []byte
 	switch {
 	case bytes.HasPrefix(data, slashSlash):
-		i := bytes.Index(data, newline)
-		if i < 0 {
-			i = len(data)
-		}
-		comment = data[2:i]
+		comment, _, _ = bytes.Cut(data[2:], newline)
 	case bytes.HasPrefix(data, slashStar):
-		data = data[2:]
-		i := bytes.Index(data, starSlash)
-		if i < 0 {
+		var ok bool
+		comment, _, ok = bytes.Cut(data[2:], starSlash)
+		if !ok {
 			// malformed comment
 			return "", 0
 		}
-		comment = data[:i]
 		if bytes.Contains(comment, newline) {
 			return "", 0
 		}
@@ -1372,7 +1380,6 @@ type fileInfo struct {
 	parseErr error
 	imports  []fileImport
 	embeds   []fileEmbed
-	embedErr error
 }
 
 type fileImport struct {
@@ -1654,12 +1661,10 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		}
 
 		// Split at colon.
-		line = strings.TrimSpace(line[4:])
-		i := strings.Index(line, ":")
-		if i < 0 {
+		line, argstr, ok := strings.Cut(strings.TrimSpace(line[4:]), ":")
+		if !ok {
 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
 		}
-		line, argstr := line[:i], line[i+1:]
 
 		// Parse GOOS/GOARCH stuff.
 		f := strings.Fields(line)
@@ -1685,7 +1690,6 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		if err != nil {
 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
 		}
-		var ok bool
 		for i, arg := range args {
 			if arg, ok = expandSrcDir(arg, di.Dir); !ok {
 				return fmt.Errorf("%s: malformed #cgo argument: %s", filename, arg)
@@ -1802,12 +1806,11 @@ func safeCgoName(s string) bool {
 //
 // For example, the following string:
 //
-//     a b:"c d" 'e''f'  "g\""
+//	a b:"c d" 'e''f'  "g\""
 //
 // Would be parsed as:
 //
-//     []string{"a", "b:c d", "ef", `g"`}
-//
+//	[]string{"a", "b:c d", "ef", `g"`}
 func splitQuoted(s string) (r []string, err error) {
 	var args []string
 	arg := make([]rune, len(s))
@@ -1883,7 +1886,10 @@ func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
 //	ctxt.Compiler
 //	linux (if GOOS = android)
 //	solaris (if GOOS = illumos)
-//	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
+//	darwin (if GOOS = ios)
+//	unix (if this is a Unix GOOS)
+//	boringcrypto (if GOEXPERIMENT=boringcrypto is enabled)
+//	tag (if tag is listed in ctxt.BuildTags, ctxt.ToolTags, or ctxt.ReleaseTags)
 //
 // It records all consulted tags in allTags.
 func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
@@ -1906,6 +1912,12 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	}
 	if ctxt.GOOS == "ios" && name == "darwin" {
 		return true
+	}
+	if name == "unix" && unixOS[ctxt.GOOS] {
+		return true
+	}
+	if name == "boringcrypto" {
+		name = "goexperiment.boringcrypto" // boringcrypto is an old name for goexperiment.boringcrypto
 	}
 
 	// other tags
@@ -1932,21 +1944,19 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 // suffix which does not match the current system.
 // The recognized name formats are:
 //
-//     name_$(GOOS).*
-//     name_$(GOARCH).*
-//     name_$(GOOS)_$(GOARCH).*
-//     name_$(GOOS)_test.*
-//     name_$(GOARCH)_test.*
-//     name_$(GOOS)_$(GOARCH)_test.*
+//	name_$(GOOS).*
+//	name_$(GOARCH).*
+//	name_$(GOOS)_$(GOARCH).*
+//	name_$(GOOS)_test.*
+//	name_$(GOARCH)_test.*
+//	name_$(GOOS)_$(GOARCH)_test.*
 //
 // Exceptions:
 // if GOOS=android, then files with GOOS=linux are also matched.
 // if GOOS=illumos, then files with GOOS=solaris are also matched.
 // if GOOS=ios, then files with GOOS=darwin are also matched.
 func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
-	if dot := strings.Index(name, "."); dot != -1 {
-		name = name[:dot]
-	}
+	name, _, _ = strings.Cut(name, ".")
 
 	// Before Go 1.4, a file called "linux.go" would be equivalent to having a
 	// build tag "linux" in that file. For Go 1.4 and beyond, we require this
@@ -1967,24 +1977,16 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	}
 	n := len(l)
 	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
+		if allTags != nil {
+			// In case we short-circuit on l[n-1].
+			allTags[l[n-2]] = true
+		}
 		return ctxt.matchTag(l[n-1], allTags) && ctxt.matchTag(l[n-2], allTags)
 	}
 	if n >= 1 && (knownOS[l[n-1]] || knownArch[l[n-1]]) {
 		return ctxt.matchTag(l[n-1], allTags)
 	}
 	return true
-}
-
-var knownOS = make(map[string]bool)
-var knownArch = make(map[string]bool)
-
-func init() {
-	for _, v := range strings.Fields(goosList) {
-		knownOS[v] = true
-	}
-	for _, v := range strings.Fields(goarchList) {
-		knownArch[v] = true
-	}
 }
 
 // ToolDir is the directory containing build tools.

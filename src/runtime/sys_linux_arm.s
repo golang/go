@@ -23,7 +23,6 @@
 #define SYS_close (SYS_BASE + 6)
 #define SYS_getpid (SYS_BASE + 20)
 #define SYS_kill (SYS_BASE + 37)
-#define SYS_pipe (SYS_BASE + 42)
 #define SYS_clone (SYS_BASE + 120)
 #define SYS_rt_sigreturn (SYS_BASE + 173)
 #define SYS_rt_sigaction (SYS_BASE + 174)
@@ -45,6 +44,9 @@
 #define SYS_epoll_create (SYS_BASE + 250)
 #define SYS_epoll_ctl (SYS_BASE + 251)
 #define SYS_epoll_wait (SYS_BASE + 252)
+#define SYS_timer_create (SYS_BASE + 257)
+#define SYS_timer_settime (SYS_BASE + 258)
+#define SYS_timer_delete (SYS_BASE + 261)
 #define SYS_epoll_create1 (SYS_BASE + 357)
 #define SYS_pipe2 (SYS_BASE + 359)
 #define SYS_fcntl (SYS_BASE + 55)
@@ -93,14 +95,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	$SYS_read, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$0-12
-	MOVW	$r+0(FP), R0
-	MOVW	$SYS_pipe, R7
-	SWI	$0
-	MOVW	R0, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -233,6 +227,32 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SWI	$0
 	RET
 
+TEXT runtime·timer_create(SB),NOSPLIT,$0-16
+	MOVW	clockid+0(FP), R0
+	MOVW	sevp+4(FP), R1
+	MOVW	timerid+8(FP), R2
+	MOVW	$SYS_timer_create, R7
+	SWI	$0
+	MOVW	R0, ret+12(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
+	MOVW	timerid+0(FP), R0
+	MOVW	flags+4(FP), R1
+	MOVW	new+8(FP), R2
+	MOVW	old+12(FP), R3
+	MOVW	$SYS_timer_settime, R7
+	SWI	$0
+	MOVW	R0, ret+16(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-8
+	MOVW	timerid+0(FP), R0
+	MOVW	$SYS_timer_delete, R7
+	SWI	$0
+	MOVW	R0, ret+4(FP)
+	RET
+
 TEXT runtime·mincore(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0
 	MOVW	n+4(FP), R1
@@ -259,8 +279,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$8-12
 	MOVW	R1, 4(R13)
 	MOVW	R2, 8(R13)
 
+	MOVW	$ret-4(FP), R2 // caller's SP
 	MOVW	LR, m_vdsoPC(R5)
-	MOVW	R13, m_vdsoSP(R5)
+	MOVW	R2, m_vdsoSP(R5)
 
 	MOVW	m_curg(R5), R0
 
@@ -330,6 +351,7 @@ finish:
 	MOVW	R1, m_vdsoPC(R5)
 
 	MOVW	R0, sec_lo+0(FP)
+	MOVW	$0, R1
 	MOVW	R1, sec_hi+4(FP)
 	MOVW	R2, nsec+8(FP)
 	RET
@@ -351,8 +373,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$8-8
 	MOVW	R1, 4(R13)
 	MOVW	R2, 8(R13)
 
+	MOVW	$ret-4(FP), R2 // caller's SP
 	MOVW	LR, m_vdsoPC(R5)
-	MOVW	R13, m_vdsoSP(R5)
+	MOVW	R2, m_vdsoSP(R5)
 
 	MOVW	m_curg(R5), R0
 
@@ -424,7 +447,7 @@ finish:
 	MOVW	$1000000000, R3
 	MULLU	R0, R3, (R1, R0)
 	ADD.S	R2, R0
-	ADC	R4, R1
+	ADC	$0, R1	// Add carry bit to upper half.
 
 	MOVW	R0, ret_lo+0(FP)
 	MOVW	R1, ret_hi+4(FP)
@@ -543,7 +566,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	R4, R13
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
 	// Reserve space for callee-save registers and arguments.
 	MOVM.DB.W [R4-R11], (R13)
 	SUB	$16, R13
@@ -681,20 +704,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0	// fd
 	MOVW	$2, R1	// F_SETFD
 	MOVW	$1, R2	// FD_CLOEXEC
-	MOVW	$SYS_fcntl, R7
-	SWI	$0
-	RET
-
-// func runtime·setNonblock(fd int32)
-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
-	MOVW	fd+0(FP), R0	// fd
-	MOVW	$3, R1	// F_GETFL
-	MOVW	$0, R2
-	MOVW	$SYS_fcntl, R7
-	SWI	$0
-	ORR	$0x800, R0, R2	// O_NONBLOCK
-	MOVW	fd+0(FP), R0	// fd
-	MOVW	$4, R1	// F_SETFL
 	MOVW	$SYS_fcntl, R7
 	SWI	$0
 	RET

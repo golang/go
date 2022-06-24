@@ -18,6 +18,7 @@ package runtime
 //  c.qcount < c.dataqsiz implies that c.sendq is empty.
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"runtime/internal/math"
 	"unsafe"
@@ -138,6 +139,7 @@ func full(c *hchan) bool {
 }
 
 // entry point for c <- x from compiled code
+//
 //go:nosplit
 func chansend1(c *hchan, elem unsafe.Pointer) {
 	chansend(c, elem, true, getcallerpc())
@@ -169,7 +171,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	}
 
 	if raceenabled {
-		racereadpc(c.raceaddr(), callerpc, funcPC(chansend))
+		racereadpc(c.raceaddr(), callerpc, abi.FuncPCABIInternal(chansend))
 	}
 
 	// Fast path: check for failed non-blocking operation without acquiring the lock.
@@ -365,7 +367,7 @@ func closechan(c *hchan) {
 
 	if raceenabled {
 		callerpc := getcallerpc()
-		racewritepc(c.raceaddr(), callerpc, funcPC(closechan))
+		racewritepc(c.raceaddr(), callerpc, abi.FuncPCABIInternal(closechan))
 		racerelease(c.raceaddr())
 	}
 
@@ -434,6 +436,7 @@ func empty(c *hchan) bool {
 }
 
 // entry points for <- c from compiled code
+//
 //go:nosplit
 func chanrecv1(c *hchan, elem unsafe.Pointer) {
 	chanrecv(c, elem, true)
@@ -507,24 +510,28 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 
 	lock(&c.lock)
 
-	if c.closed != 0 && c.qcount == 0 {
-		if raceenabled {
-			raceacquire(c.raceaddr())
+	if c.closed != 0 {
+		if c.qcount == 0 {
+			if raceenabled {
+				raceacquire(c.raceaddr())
+			}
+			unlock(&c.lock)
+			if ep != nil {
+				typedmemclr(c.elemtype, ep)
+			}
+			return true, false
 		}
-		unlock(&c.lock)
-		if ep != nil {
-			typedmemclr(c.elemtype, ep)
+		// The channel has been closed, but the channel's buffer have data.
+	} else {
+		// Just found waiting sender with not closed.
+		if sg := c.sendq.dequeue(); sg != nil {
+			// Found a waiting sender. If buffer is size 0, receive value
+			// directly from sender. Otherwise, receive from head of queue
+			// and add sender's value to the tail of the queue (both map to
+			// the same buffer slot because the queue is full).
+			recv(c, sg, ep, func() { unlock(&c.lock) }, 3)
+			return true, true
 		}
-		return true, false
-	}
-
-	if sg := c.sendq.dequeue(); sg != nil {
-		// Found a waiting sender. If buffer is size 0, receive value
-		// directly from sender. Otherwise, receive from head of queue
-		// and add sender's value to the tail of the queue (both map to
-		// the same buffer slot because the queue is full).
-		recv(c, sg, ep, func() { unlock(&c.lock) }, 3)
-		return true, true
 	}
 
 	if c.qcount > 0 {
@@ -593,10 +600,11 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 
 // recv processes a receive operation on a full channel c.
 // There are 2 parts:
-// 1) The value sent by the sender sg is put into the channel
-//    and the sender is woken up to go on its merry way.
-// 2) The value received by the receiver (the current G) is
-//    written to ep.
+//  1. The value sent by the sender sg is put into the channel
+//     and the sender is woken up to go on its merry way.
+//  2. The value received by the receiver (the current G) is
+//     written to ep.
+//
 // For synchronous channels, both values are the same.
 // For asynchronous channels, the receiver gets its data from
 // the channel buffer and the sender's data is put in the
@@ -682,7 +690,6 @@ func chanparkcommit(gp *g, chanLock unsafe.Pointer) bool {
 //	} else {
 //		... bar
 //	}
-//
 func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
 	return chansend(c, elem, false, getcallerpc())
 }
@@ -703,7 +710,6 @@ func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
 //	} else {
 //		... bar
 //	}
-//
 func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected, received bool) {
 	return chanrecv(c, elem, false)
 }

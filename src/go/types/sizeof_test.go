@@ -14,9 +14,9 @@ func TestSizeof(t *testing.T) {
 	const _64bit = ^uint(0)>>32 != 0
 
 	var tests = []struct {
-		val    interface{} // type as a value
-		_32bit uintptr     // size on 32bit platforms
-		_64bit uintptr     // size on 64bit platforms
+		val    any     // type as a value
+		_32bit uintptr // size on 32bit platforms
+		_64bit uintptr // size on 64bit platforms
 	}{
 		// Types
 		{Basic{}, 16, 32},
@@ -25,30 +25,29 @@ func TestSizeof(t *testing.T) {
 		{Struct{}, 24, 48},
 		{Pointer{}, 8, 16},
 		{Tuple{}, 12, 24},
-		{Signature{}, 44, 88},
-		{_Sum{}, 12, 24},
-		{Interface{}, 60, 120},
+		{Signature{}, 28, 56},
+		{Union{}, 12, 24},
+		{Interface{}, 40, 80},
 		{Map{}, 16, 32},
 		{Chan{}, 12, 24},
-		{Named{}, 64, 128},
-		{_TypeParam{}, 28, 48},
-		{instance{}, 44, 88},
-		{bottom{}, 0, 0},
-		{top{}, 0, 0},
+		{Named{}, 60, 112},
+		{TypeParam{}, 28, 48},
+		{term{}, 12, 24},
 
 		// Objects
 		{PkgName{}, 48, 88},
 		{Const{}, 48, 88},
 		{TypeName{}, 40, 72},
-		{Var{}, 44, 80},
-		{Func{}, 44, 80},
+		{Var{}, 48, 88},
+		{Func{}, 48, 88},
 		{Label{}, 44, 80},
 		{Builtin{}, 44, 80},
 		{Nil{}, 40, 72},
 
 		// Misc
-		{Scope{}, 40, 80},
+		{Scope{}, 44, 88},
 		{Package{}, 40, 80},
+		{_TypeSet{}, 28, 56},
 	}
 	for _, test := range tests {
 		got := reflect.TypeOf(test.val).Size()

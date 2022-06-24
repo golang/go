@@ -13,6 +13,16 @@
 #include <errno.h>
 
 #include "libcgo.h"
+#include "libcgo_windows.h"
+
+// Ensure there's one symbol marked __declspec(dllexport).
+// If there are no exported symbols, the unfortunate behavior of
+// the binutils linker is to also strip the relocations table,
+// resulting in non-PIE binary. The other option is the
+// --export-all-symbols flag, but we don't need to export all symbols
+// and this may overflow the export table (#40795).
+// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
+__declspec(dllexport) int _cgo_dummy_export;
 
 static volatile LONG runtime_init_once_gate = 0;
 static volatile LONG runtime_init_once_done = 0;
@@ -53,13 +63,7 @@ _cgo_maybe_run_preinit() {
 
 void
 x_cgo_sys_thread_create(void (*func)(void*), void* arg) {
-	uintptr_t thandle;
-
-	thandle = _beginthread(func, 0, arg);
-	if(thandle == -1) {
-		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
-		abort();
-	}
+	_cgo_beginthread(func, arg);
 }
 
 int
@@ -122,4 +126,26 @@ void (*(_cgo_get_context_function(void)))(struct context_arg*) {
 	ret = cgo_context_function;
 	LeaveCriticalSection(&runtime_init_cs);
 	return ret;
+}
+
+void _cgo_beginthread(void (*func)(void*), void* arg) {
+	int tries;
+	uintptr_t thandle;
+
+	for (tries = 0; tries < 20; tries++) {
+		thandle = _beginthread(func, 0, arg);
+		if (thandle == -1 && errno == EACCES) {
+			// "Insufficient resources", try again in a bit.
+			//
+			// Note that the first Sleep(0) is a yield.
+			Sleep(tries); // milliseconds
+			continue;
+		} else if (thandle == -1) {
+			break;
+		}
+		return; // Success!
+	}
+
+	fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
+	abort();
 }

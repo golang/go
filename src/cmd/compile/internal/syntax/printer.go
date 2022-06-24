@@ -44,7 +44,7 @@ func Fprint(w io.Writer, x Node, form Form) (n int, err error) {
 	return
 }
 
-// String is a convenience functions that prints n in ShortForm
+// String is a convenience function that prints n in ShortForm
 // and returns the printed string.
 func String(n Node) string {
 	var buf bytes.Buffer
@@ -494,39 +494,16 @@ func (p *printer) printRawNode(n Node) {
 		p.printSignature(n)
 
 	case *InterfaceType:
-		// separate type list and method list
-		var types []Expr
-		var methods []*Field
-		for _, f := range n.MethodList {
-			if f.Name != nil && f.Name.Value == "type" {
-				types = append(types, f.Type)
-			} else {
-				// method or embedded interface
-				methods = append(methods, f)
-			}
-		}
-
-		multiLine := len(n.MethodList) > 0 && p.linebreaks
 		p.print(_Interface)
-		if multiLine {
+		if p.linebreaks && len(n.MethodList) > 1 {
 			p.print(blank)
-		}
-		p.print(_Lbrace)
-		if multiLine {
+			p.print(_Lbrace)
 			p.print(newline, indent)
-		}
-		if len(types) > 0 {
-			p.print(_Type, blank)
-			p.printExprList(types)
-			if len(methods) > 0 {
-				p.print(_Semi, blank)
-			}
-		}
-		if len(methods) > 0 {
-			p.printMethodList(methods)
-		}
-		if multiLine {
+			p.printMethodList(n.MethodList)
 			p.print(outdent, newline)
+		} else {
+			p.print(_Lbrace)
+			p.printMethodList(n.MethodList)
 		}
 		p.print(_Rbrace)
 
@@ -689,9 +666,7 @@ func (p *printer) printRawNode(n Node) {
 		}
 		p.print(n.Name)
 		if n.TParamList != nil {
-			p.print(_Lbrack)
-			p.printFieldList(n.TParamList, nil, _Comma)
-			p.print(_Rbrack)
+			p.printParameterList(n.TParamList, _Type)
 		}
 		p.print(blank)
 		if n.Alias {
@@ -723,9 +698,7 @@ func (p *printer) printRawNode(n Node) {
 		}
 		p.print(n.Name)
 		if n.TParamList != nil {
-			p.print(_Lbrack)
-			p.printFieldList(n.TParamList, nil, _Comma)
-			p.print(_Rbrack)
+			p.printParameterList(n.TParamList, _Func)
 		}
 		p.printSignature(n.Type)
 		if n.Body != nil {
@@ -910,38 +883,72 @@ func (p *printer) printDeclList(list []Decl) {
 }
 
 func (p *printer) printSignature(sig *FuncType) {
-	p.printParameterList(sig.ParamList)
+	p.printParameterList(sig.ParamList, 0)
 	if list := sig.ResultList; list != nil {
 		p.print(blank)
 		if len(list) == 1 && list[0].Name == nil {
 			p.printNode(list[0].Type)
 		} else {
-			p.printParameterList(list)
+			p.printParameterList(list, 0)
 		}
 	}
 }
 
-func (p *printer) printParameterList(list []*Field) {
-	p.print(_Lparen)
-	if len(list) > 0 {
-		for i, f := range list {
-			if i > 0 {
-				p.print(_Comma, blank)
-			}
-			if f.Name != nil {
-				p.printNode(f.Name)
-				if i+1 < len(list) {
-					f1 := list[i+1]
-					if f1.Name != nil && f1.Type == f.Type {
-						continue // no need to print type
-					}
-				}
-				p.print(blank)
-			}
-			p.printNode(f.Type)
-		}
+// If tok != 0 print a type parameter list: tok == _Type means
+// a type parameter list for a type, tok == _Func means a type
+// parameter list for a func.
+func (p *printer) printParameterList(list []*Field, tok token) {
+	open, close := _Lparen, _Rparen
+	if tok != 0 {
+		open, close = _Lbrack, _Rbrack
 	}
-	p.print(_Rparen)
+	p.print(open)
+	for i, f := range list {
+		if i > 0 {
+			p.print(_Comma, blank)
+		}
+		if f.Name != nil {
+			p.printNode(f.Name)
+			if i+1 < len(list) {
+				f1 := list[i+1]
+				if f1.Name != nil && f1.Type == f.Type {
+					continue // no need to print type
+				}
+			}
+			p.print(blank)
+		}
+		p.printNode(unparen(f.Type)) // no need for (extra) parentheses around parameter types
+	}
+	// A type parameter list [P T] where the name P and the type expression T syntactically
+	// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
+	// (or an enclosing interface as in [P interface(*T)]), so that the type parameter list
+	// is not parsed as an array length [P*T].
+	if tok == _Type && len(list) == 1 && combinesWithName(list[0].Type) {
+		p.print(_Comma)
+	}
+	p.print(close)
+}
+
+// combinesWithName reports whether a name followed by the expression x
+// syntactically combines to another valid (value) expression. For instance
+// using *T for x, "name *T" syntactically appears as the expression x*T.
+// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or name *P|~Q"
+// cannot be combined into a valid (value) expression.
+func combinesWithName(x Expr) bool {
+	switch x := x.(type) {
+	case *Operation:
+		if x.Y == nil {
+			// name *x.X combines to name*x.X if x.X is not a type element
+			return x.Op == Mul && !isTypeElem(x.X)
+		}
+		// binary expressions
+		return combinesWithName(x.X) && !isTypeElem(x.Y)
+	case *ParenExpr:
+		// name(x) combines but we are making sure at
+		// the call site that x is never parenthesized.
+		panic("unexpected parenthesized expression")
+	}
+	return false
 }
 
 func (p *printer) printStmtList(list []Stmt, braces bool) {

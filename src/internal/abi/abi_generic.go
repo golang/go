@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !goexperiment.regabireflect
-// +build !goexperiment.regabireflect
+//go:build !goexperiment.regabiargs && !amd64 && !arm64 && !ppc64 && !ppc64le
 
 package abi
 

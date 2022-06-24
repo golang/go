@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build arm64 || riscv64
-// +build arm64 riscv64
 
 package unix
 

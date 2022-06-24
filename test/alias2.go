@@ -46,8 +46,8 @@ var _ A0 = T0{}
 var _ T0 = A0{}
 
 // But aliases and original types cannot be used with new types based on them.
-var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
-var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
+var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use T0{} \(value of type T0\) as type N0 in variable declaration"
+var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use A0{} \(value of type T0\) as type N0 in variable declaration"
 
 var _ A5 = Value{}
 
@@ -82,10 +82,10 @@ func _() {
 	var _ A0 = T0{}
 	var _ T0 = A0{}
 
-	var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
-	var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
+	var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use T0{} \(value of type T0\) as type N0 in variable declaration"
+	var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use A0{} \(value of type T0\) as type N0 in variable declaration"
 
-	var _ A5 = Value{} // ERROR "cannot use reflect\.Value{} \(type reflect.Value\) as type A5 in assignment|incompatible type"
+	var _ A5 = Value{} // ERROR "cannot use reflect\.Value{} \(type reflect.Value\) as type A5 in assignment|cannot use Value{} \(value of type reflect.Value\) as type A5 in variable declaration"
 }
 
 // Invalid type alias declarations.

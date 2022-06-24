@@ -11,33 +11,36 @@ import (
 
 // Syms holds known symbols.
 var Syms struct {
-	AssertE2I       *obj.LSym
-	AssertE2I2      *obj.LSym
-	AssertI2I       *obj.LSym
-	AssertI2I2      *obj.LSym
-	Deferproc       *obj.LSym
-	DeferprocStack  *obj.LSym
-	Deferreturn     *obj.LSym
-	Duffcopy        *obj.LSym
-	Duffzero        *obj.LSym
-	GCWriteBarrier  *obj.LSym
-	Goschedguarded  *obj.LSym
-	Growslice       *obj.LSym
-	Msanread        *obj.LSym
-	Msanwrite       *obj.LSym
-	Msanmove        *obj.LSym
-	Newobject       *obj.LSym
-	Newproc         *obj.LSym
-	Panicdivide     *obj.LSym
-	Panicshift      *obj.LSym
-	PanicdottypeE   *obj.LSym
-	PanicdottypeI   *obj.LSym
-	Panicnildottype *obj.LSym
-	Panicoverflow   *obj.LSym
-	Raceread        *obj.LSym
-	Racereadrange   *obj.LSym
-	Racewrite       *obj.LSym
-	Racewriterange  *obj.LSym
+	AssertE2I         *obj.LSym
+	AssertE2I2        *obj.LSym
+	AssertI2I         *obj.LSym
+	AssertI2I2        *obj.LSym
+	Asanread          *obj.LSym
+	Asanwrite         *obj.LSym
+	CheckPtrAlignment *obj.LSym
+	Deferproc         *obj.LSym
+	DeferprocStack    *obj.LSym
+	Deferreturn       *obj.LSym
+	Duffcopy          *obj.LSym
+	Duffzero          *obj.LSym
+	GCWriteBarrier    *obj.LSym
+	Goschedguarded    *obj.LSym
+	Growslice         *obj.LSym
+	Msanread          *obj.LSym
+	Msanwrite         *obj.LSym
+	Msanmove          *obj.LSym
+	Newobject         *obj.LSym
+	Newproc           *obj.LSym
+	Panicdivide       *obj.LSym
+	Panicshift        *obj.LSym
+	PanicdottypeE     *obj.LSym
+	PanicdottypeI     *obj.LSym
+	Panicnildottype   *obj.LSym
+	Panicoverflow     *obj.LSym
+	Raceread          *obj.LSym
+	Racereadrange     *obj.LSym
+	Racewrite         *obj.LSym
+	Racewriterange    *obj.LSym
 	// Wasm
 	SigPanic        *obj.LSym
 	Staticuint64s   *obj.LSym
@@ -68,5 +71,4 @@ var Pkgs struct {
 	Go      *types.Pkg
 	Itab    *types.Pkg
 	Runtime *types.Pkg
-	Unsafe  *types.Pkg
 }

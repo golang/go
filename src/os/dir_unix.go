@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
-// +build aix dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package os
 
@@ -28,7 +27,7 @@ const (
 )
 
 var dirBufPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		// The buffer must be at least a block long.
 		buf := make([]byte, blockSize)
 		return &buf

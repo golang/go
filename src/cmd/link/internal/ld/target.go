@@ -112,6 +112,10 @@ func (t *Target) IsMIPS64() bool {
 	return t.Arch.Family == sys.MIPS64
 }
 
+func (t *Target) IsLOONG64() bool {
+	return t.Arch.Family == sys.Loong64
+}
+
 func (t *Target) IsPPC64() bool {
 	return t.Arch.Family == sys.PPC64
 }
@@ -184,4 +188,14 @@ func (t *Target) mustSetHeadType() {
 
 func (t *Target) IsBigEndian() bool {
 	return t.Arch.ByteOrder == binary.BigEndian
+}
+
+func (t *Target) UsesLibc() bool {
+	t.mustSetHeadType()
+	switch t.HeadType {
+	case objabi.Haix, objabi.Hdarwin, objabi.Hopenbsd, objabi.Hsolaris, objabi.Hwindows:
+		// platforms where we use libc for syscalls.
+		return true
+	}
+	return false
 }

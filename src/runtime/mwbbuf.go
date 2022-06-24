@@ -23,8 +23,8 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -116,11 +116,11 @@ func (b *wbBuf) empty() bool {
 // putFast adds old and new to the write barrier buffer and returns
 // false if a flush is necessary. Callers should use this as:
 //
-//     buf := &getg().m.p.ptr().wbBuf
-//     if !buf.putFast(old, new) {
-//         wbBufFlush(...)
-//     }
-//     ... actual memory write ...
+//	buf := &getg().m.p.ptr().wbBuf
+//	if !buf.putFast(old, new) {
+//	    wbBufFlush(...)
+//	}
+//	... actual memory write ...
 //
 // The arguments to wbBufFlush depend on whether the caller is doing
 // its own cgo pointer checks. If it is, then this can be
@@ -145,7 +145,7 @@ func (b *wbBuf) putFast(old, new uintptr) bool {
 	p := (*[2]uintptr)(unsafe.Pointer(b.next))
 	p[0] = old
 	p[1] = new
-	b.next += 2 * sys.PtrSize
+	b.next += 2 * goarch.PtrSize
 	return b.next != b.end
 }
 

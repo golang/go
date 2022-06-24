@@ -30,6 +30,10 @@ type config struct {
 	Normalize           bool    `json:"normalize,omitempty"`
 	Sort                string  `json:"sort,omitempty"`
 
+	// Label pseudo stack frame generation options
+	TagRoot string `json:"tagroot,omitempty"`
+	TagLeaf string `json:"tagleaf,omitempty"`
+
 	// Filtering options
 	DropNegative bool    `json:"drop_negative,omitempty"`
 	NodeCount    int     `json:"nodecount,omitempty"`

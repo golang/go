@@ -3,11 +3,13 @@
 // license that can be found in the LICENSE file.
 
 //go:build dragonfly || freebsd || linux || netbsd || openbsd
-// +build dragonfly freebsd linux netbsd openbsd
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 func dumpregs(c *sigctxt) {
 	print("trap    ", hex(c.trap()), "\n")
@@ -61,7 +63,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 
 	// In case we are panicking from external C code
 	c.set_r10(uint32(uintptr(unsafe.Pointer(gp))))
-	c.set_pc(uint32(funcPC(sigpanic)))
+	c.set_pc(uint32(abi.FuncPCABIInternal(sigpanic)))
 }
 
 func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {

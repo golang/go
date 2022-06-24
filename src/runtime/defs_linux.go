@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 /*
 Input to cgo -cdefs
@@ -38,7 +37,6 @@ const (
 	EINTR  = C.EINTR
 	EAGAIN = C.EAGAIN
 	ENOMEM = C.ENOMEM
-	ENOSYS = C.ENOSYS
 
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ
@@ -57,6 +55,9 @@ const (
 	SA_RESTART = C.SA_RESTART
 	SA_ONSTACK = C.SA_ONSTACK
 	SA_SIGINFO = C.SA_SIGINFO
+
+	SI_KERNEL = C.SI_KERNEL
+	SI_TIMER  = C.SI_TIMER
 
 	SIGHUP    = C.SIGHUP
 	SIGINT    = C.SIGINT
@@ -89,6 +90,8 @@ const (
 	SIGPWR    = C.SIGPWR
 	SIGSYS    = C.SIGSYS
 
+	SIGRTMIN = C.SIGRTMIN
+
 	FPE_INTDIV = C.FPE_INTDIV
 	FPE_INTOVF = C.FPE_INTOVF
 	FPE_FLTDIV = C.FPE_FLTDIV
@@ -109,6 +112,10 @@ const (
 	ITIMER_VIRTUAL = C.ITIMER_VIRTUAL
 	ITIMER_PROF    = C.ITIMER_PROF
 
+	CLOCK_THREAD_CPUTIME_ID = C.CLOCK_THREAD_CPUTIME_ID
+
+	SIGEV_THREAD_ID = C.SIGEV_THREAD_ID
+
 	EPOLLIN       = C.POLLIN
 	EPOLLOUT      = C.POLLOUT
 	EPOLLERR      = C.POLLERR
@@ -126,5 +133,7 @@ type Timespec C.struct_timespec
 type Timeval C.struct_timeval
 type Sigaction C.struct_sigaction
 type Siginfo C.siginfo_t
+type Itimerspec C.struct_itimerspec
 type Itimerval C.struct_itimerval
+type Sigevent C.struct_sigevent
 type EpollEvent C.struct_epoll_event

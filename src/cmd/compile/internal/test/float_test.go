@@ -170,6 +170,7 @@ func cvt8(a float32) int32 {
 }
 
 // make sure to cover int, uint cases (issue #16738)
+//
 //go:noinline
 func cvt9(a float64) int {
 	return int(a)

@@ -20,17 +20,14 @@
 //		_ = x /* ERROR "not declared" */ + 1
 //	}
 
-// TODO(gri) Also collect strict mode errors of the form /* STRICT ... */
-//           and test against strict mode.
-
 package types_test
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/importer"
-	"go/internal/typeparams"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -53,12 +50,11 @@ var (
 var fset = token.NewFileSet()
 
 // Positioned errors are of the form filename:line:column: message .
-var posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(.*)`)
+var posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(?s)(.*)`)
 
 // splitError splits an error's error message into a position string
 // and the actual error message. If there's no position information,
 // pos is the empty string, and msg is the entire error message.
-//
 func splitError(err error) (pos, msg string) {
 	msg = err.Error()
 	if m := posMsgRx.FindStringSubmatch(msg); len(m) == 3 {
@@ -95,7 +91,6 @@ func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode parser.Mod
 // Space around "rx" or rx is ignored. Use the form `ERROR HERE "rx"`
 // for error messages that are located immediately after rather than
 // at a token's position.
-//
 var errRx = regexp.MustCompile(`^ *ERROR *(HERE)? *"?([^"]*)"?`)
 
 // errMap collects the regular expressions of ERROR comments found
@@ -188,48 +183,74 @@ func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
 	}
 }
 
-// goVersionRx matches a Go version string using '_', e.g. "go1_12".
-var goVersionRx = regexp.MustCompile(`^go[1-9][0-9]*_(0|[1-9][0-9]*)$`)
+// parseFlags parses flags from the first line of the given source
+// (from src if present, or by reading from the file) if the line
+// starts with "//" (line comment) followed by "-" (possiby with
+// spaces between). Otherwise the line is ignored.
+func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
+	// If there is no src, read from the file.
+	const maxLen = 256
+	if len(src) == 0 {
+		f, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
 
-// asGoVersion returns a regular Go language version string
-// if s is a Go version string using '_' rather than '.' to
-// separate the major and minor version numbers (e.g. "go1_12").
-// Otherwise it returns the empty string.
-func asGoVersion(s string) string {
-	if goVersionRx.MatchString(s) {
-		return strings.Replace(s, "_", ".", 1)
+		var buf [maxLen]byte
+		n, err := f.Read(buf[:])
+		if err != nil {
+			return err
+		}
+		src = buf[:n]
 	}
-	return ""
+
+	// we must have a line comment that starts with a "-"
+	const prefix = "//"
+	if !bytes.HasPrefix(src, []byte(prefix)) {
+		return nil // first line is not a line comment
+	}
+	src = src[len(prefix):]
+	if i := bytes.Index(src, []byte("-")); i < 0 || len(bytes.TrimSpace(src[:i])) != 0 {
+		return nil // comment doesn't start with a "-"
+	}
+	end := bytes.Index(src, []byte("\n"))
+	if end < 0 || end > maxLen {
+		return fmt.Errorf("flags comment line too long")
+	}
+
+	return flags.Parse(strings.Fields(string(src[:end])))
 }
 
-func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string, srcs [][]byte, manual bool, imp Importer) {
+func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool, imp Importer) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
 
-	if strings.HasSuffix(filenames[0], ".go2") && !typeparams.Enabled {
-		t.Skip("type params are not enabled")
+	var conf Config
+	conf.Sizes = sizes
+	flags := flag.NewFlagSet("", flag.PanicOnError)
+	flags.StringVar(&conf.GoVersion, "lang", "", "")
+	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
+		t.Fatal(err)
 	}
-	if strings.HasSuffix(filenames[0], ".go1") && typeparams.Enabled {
+
+	if manual && *goVersion != "" {
+		// goVersion overrides -lang for manual tests.
+		conf.GoVersion = *goVersion
+	}
+
+	// TODO(gri) remove this or use flag mechanism to set mode if still needed
+	if strings.HasSuffix(filenames[0], ".go1") {
+		// TODO(rfindley): re-enable this test by using GoVersion.
 		t.Skip("type params are enabled")
 	}
 
-	mode := parser.AllErrors
-	if !strings.HasSuffix(filenames[0], ".go2") {
-		mode |= typeparams.DisallowParsing
-	}
-
-	// parse files and collect parser errors
-	files, errlist := parseFiles(t, filenames, srcs, mode)
+	files, errlist := parseFiles(t, filenames, srcs, parser.AllErrors)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {
 		pkgName = files[0].Name.Name
-	}
-
-	// if no Go version is given, consider the package name
-	if goVersion == "" {
-		goVersion = asGoVersion(pkgName)
 	}
 
 	listErrors := manual && !*verifyErrors
@@ -241,21 +262,10 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 	}
 
 	// typecheck and collect typechecker errors
-	var conf Config
-	conf.Sizes = sizes
-	SetGoVersion(&conf, goVersion)
-
-	// special case for importC.src
-	if len(filenames) == 1 {
-		if strings.HasSuffix(filenames[0], "importC.src") {
-			conf.FakeImportC = true
-		}
-	}
-
-	conf.Importer = imp
 	if imp == nil {
-		conf.Importer = importer.Default()
+		imp = importer.Default()
 	}
+	conf.Importer = imp
 	conf.Error = func(err error) {
 		if *haltOnError {
 			defer panic(err)
@@ -303,29 +313,48 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 	}
 }
 
-// TestManual is for manual testing of input files, provided as a list
-// of arguments after the test arguments (and a separating "--"). For
-// instance, to check the files foo.go and bar.go, use:
+// TestManual is for manual testing of a package - either provided
+// as a list of filenames belonging to the package, or a directory
+// name containing the package files - after the test arguments
+// (and a separating "--"). For instance, to test the package made
+// of the files foo.go and bar.go, use:
 //
-// 	go test -run Manual -- foo.go bar.go
+//	go test -run Manual -- foo.go bar.go
 //
-// Provide the -verify flag to verify errors against ERROR comments in
-// the input files rather than having a list of errors reported.
-// The accepted Go language version can be controlled with the -lang flag.
+// If no source arguments are provided, the file testdata/manual.go
+// is used instead.
+// Provide the -verify flag to verify errors against ERROR comments
+// in the input files rather than having a list of errors reported.
+// The accepted Go language version can be controlled with the -lang
+// flag.
 func TestManual(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
 	filenames := flag.Args()
 	if len(filenames) == 0 {
-		return
+		filenames = []string{filepath.FromSlash("testdata/manual.go")}
 	}
-	testenv.MustHaveGoBuild(t)
+
+	info, err := os.Stat(filenames[0])
+	if err != nil {
+		t.Fatalf("TestManual: %v", err)
+	}
+
 	DefPredeclaredTestFuncs()
-	testPkg(t, filenames, *goVersion, true)
+	if info.IsDir() {
+		if len(filenames) > 1 {
+			t.Fatal("TestManual: must have only one directory argument")
+		}
+		testDir(t, filenames[0], true)
+	} else {
+		testPkg(t, filenames, true)
+	}
 }
 
 func TestLongConstants(t *testing.T) {
 	format := "package longconst\n\nconst _ = %s\nconst _ = %s // ERROR excessively long constant"
 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
-	checkFiles(t, nil, "", []string{"longconst.go"}, [][]byte{[]byte(src)}, false, nil)
+	testFiles(t, nil, []string{"longconst.go"}, [][]byte{[]byte(src)}, false, nil)
 }
 
 // TestIndexRepresentability tests that constant index operands must
@@ -333,25 +362,25 @@ func TestLongConstants(t *testing.T) {
 // represent larger values.
 func TestIndexRepresentability(t *testing.T) {
 	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
-	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
+	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
 }
 
-func TestIssue46453(t *testing.T) {
-	if typeparams.Enabled {
-		t.Skip("type params are enabled")
-	}
-	const src = "package p\ntype _ comparable // ERROR \"undeclared name: comparable\""
-	checkFiles(t, nil, "", []string{"issue46453.go"}, [][]byte{[]byte(src)}, false, nil)
+func TestIssue47243_TypedRHS(t *testing.T) {
+	// The RHS of the shift expression below overflows uint on 32bit platforms,
+	// but this is OK as it is explicitly typed.
+	const src = "package issue47243\n\nvar a uint64; var _ = a << uint64(4294967296)" // uint64(1<<32)
+	testFiles(t, &StdSizes{4, 4}, []string{"p.go"}, [][]byte{[]byte(src)}, false, nil)
 }
 
-func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
-func TestExamples(t *testing.T)  { testDir(t, "examples") }
-func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
+func TestCheck(t *testing.T)     { testDirFiles(t, "testdata/check", false) }
+func TestSpec(t *testing.T)      { testDirFiles(t, "testdata/spec", false) }
+func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
+func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
 
-func testDir(t *testing.T, dir string) {
+func testDirFiles(t *testing.T, dir string, manual bool) {
 	testenv.MustHaveGoBuild(t)
+	dir = filepath.FromSlash(dir)
 
-	dir = filepath.Join("testdata", dir)
 	fis, err := os.ReadDir(dir)
 	if err != nil {
 		t.Error(err)
@@ -361,28 +390,38 @@ func testDir(t *testing.T, dir string) {
 	for _, fi := range fis {
 		path := filepath.Join(dir, fi.Name())
 
-		// if fi is a directory, its files make up a single package
-		var filenames []string
+		// If fi is a directory, its files make up a single package.
 		if fi.IsDir() {
-			fis, err := os.ReadDir(path)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			for _, fi := range fis {
-				filenames = append(filenames, filepath.Join(path, fi.Name()))
-			}
+			testDir(t, path, manual)
 		} else {
-			filenames = []string{path}
+			t.Run(filepath.Base(path), func(t *testing.T) {
+				testPkg(t, []string{path}, manual)
+			})
 		}
-		t.Run(filepath.Base(path), func(t *testing.T) {
-			testPkg(t, filenames, "", false)
-		})
 	}
 }
 
+func testDir(t *testing.T, dir string, manual bool) {
+	testenv.MustHaveGoBuild(t)
+
+	fis, err := os.ReadDir(dir)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var filenames []string
+	for _, fi := range fis {
+		filenames = append(filenames, filepath.Join(dir, fi.Name()))
+	}
+
+	t.Run(filepath.Base(dir), func(t *testing.T) {
+		testPkg(t, filenames, manual)
+	})
+}
+
 // TODO(rFindley) reconcile the different test setup in go/types with types2.
-func testPkg(t *testing.T, filenames []string, goVersion string, manual bool) {
+func testPkg(t *testing.T, filenames []string, manual bool) {
 	srcs := make([][]byte, len(filenames))
 	for i, filename := range filenames {
 		src, err := os.ReadFile(filename)
@@ -391,5 +430,5 @@ func testPkg(t *testing.T, filenames []string, goVersion string, manual bool) {
 		}
 		srcs[i] = src
 	}
-	checkFiles(t, nil, goVersion, filenames, srcs, manual, nil)
+	testFiles(t, nil, filenames, srcs, manual, nil)
 }

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !linux && !darwin && !dragonfly && !freebsd && !netbsd && !solaris
-// +build !linux,!darwin,!dragonfly,!freebsd,!netbsd,!solaris
 
 package runtime
 

@@ -3,12 +3,12 @@
 // license that can be found in the LICENSE file.
 
 //go:build darwin || (openbsd && !mips64)
-// +build darwin openbsd,!mips64
 
 package syscall
 
 import (
 	"internal/abi"
+	"runtime"
 	"unsafe"
 )
 
@@ -50,6 +50,7 @@ func runtime_AfterForkInChild()
 // For the same reason compiler does not race instrument it.
 // The calls to rawSyscall are okay because they are assembly
 // functions that do not grow the stack.
+//
 //go:norace
 func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
 	// Declare all variables at top in case any
@@ -117,14 +118,15 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	if sys.Foreground {
-		pgrp := sys.Pgid
+		// This should really be pid_t, however _C_int (aka int32) is
+		// generally equivalent.
+		pgrp := _C_int(sys.Pgid)
 		if pgrp == 0 {
 			r1, _, err1 = rawSyscall(abi.FuncPCABI0(libc_getpid_trampoline), 0, 0, 0)
 			if err1 != 0 {
 				goto childerror
 			}
-
-			pgrp = int(r1)
+			pgrp = _C_int(r1)
 		}
 
 		// Place process group in foreground.
@@ -180,11 +182,18 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Pass 1: look for fd[i] < i and move those up above len(fd)
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
-		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_dup2_trampoline), uintptr(pipe), uintptr(nextfd), 0)
+		if runtime.GOOS == "openbsd" {
+			_, _, err1 = rawSyscall(dupTrampoline, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
+		} else {
+			_, _, err1 = rawSyscall(dupTrampoline, uintptr(pipe), uintptr(nextfd), 0)
+			if err1 != 0 {
+				goto childerror
+			}
+			_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+		}
 		if err1 != 0 {
 			goto childerror
 		}
-		rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 		pipe = nextfd
 		nextfd++
 	}
@@ -193,11 +202,18 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 			if nextfd == pipe { // don't stomp on pipe
 				nextfd++
 			}
-			_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_dup2_trampoline), uintptr(fd[i]), uintptr(nextfd), 0)
+			if runtime.GOOS == "openbsd" {
+				_, _, err1 = rawSyscall(dupTrampoline, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
+			} else {
+				_, _, err1 = rawSyscall(dupTrampoline, uintptr(fd[i]), uintptr(nextfd), 0)
+				if err1 != 0 {
+					goto childerror
+				}
+				_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+			}
 			if err1 != 0 {
 				goto childerror
 			}
-			rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 			fd[i] = nextfd
 			nextfd++
 		}

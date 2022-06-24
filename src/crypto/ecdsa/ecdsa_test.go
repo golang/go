@@ -219,9 +219,9 @@ func TestVectors(t *testing.T) {
 
 		if line[0] == '[' {
 			line = line[1 : len(line)-1]
-			parts := strings.SplitN(line, ",", 2)
+			curve, hash, _ := strings.Cut(line, ",")
 
-			switch parts[0] {
+			switch curve {
 			case "P-224":
 				pub.Curve = elliptic.P224()
 			case "P-256":
@@ -234,7 +234,7 @@ func TestVectors(t *testing.T) {
 				pub.Curve = nil
 			}
 
-			switch parts[1] {
+			switch hash {
 			case "SHA-1":
 				h = sha1.New()
 			case "SHA-224":
@@ -327,7 +327,7 @@ func testZeroHashSignature(t *testing.T, curve elliptic.Curve) {
 	}
 }
 
-func benchmarkAllCurves(t *testing.B, f func(*testing.B, elliptic.Curve)) {
+func benchmarkAllCurves(b *testing.B, f func(*testing.B, elliptic.Curve)) {
 	tests := []struct {
 		name  string
 		curve elliptic.Curve
@@ -339,8 +339,8 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, elliptic.Curve)) {
 	}
 	for _, test := range tests {
 		curve := test.curve
-		t.Run(test.name, func(t *testing.B) {
-			f(t, curve)
+		b.Run(test.name, func(b *testing.B) {
+			f(b, curve)
 		})
 	}
 }

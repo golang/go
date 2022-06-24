@@ -56,7 +56,7 @@ func NewEncoding(encoder string) *Encoding {
 // RFC 4648.
 var StdEncoding = NewEncoding(encodeStd)
 
-// HexEncoding is the ``Extended Hex Alphabet'' defined in RFC 4648.
+// HexEncoding is the “Extended Hex Alphabet” defined in RFC 4648.
 // It is typically used in DNS.
 var HexEncoding = NewEncoding(encodeHex)
 
@@ -221,9 +221,7 @@ func (e *encoder) Write(p []byte) (n int, err error) {
 	}
 
 	// Trailing fringe.
-	for i := 0; i < len(p); i++ {
-		e.buf[i] = p[i]
-	}
+	copy(e.buf[:], p)
 	e.nbuf = len(p)
 	n += len(p)
 	return
@@ -446,6 +444,9 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	d.nbuf += nn
 	if d.nbuf < min {
 		return 0, d.err
+	}
+	if nn > 0 && d.end {
+		return 0, CorruptInputError(0)
 	}
 
 	// Decode chunk into p, or d.out and then p if p is too small.

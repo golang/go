@@ -94,6 +94,12 @@ import (
 //			type = TYPE_SCONST
 //			val = string
 //
+//	<symbolic constant name>
+//		Special symbolic constants for ARM64, such as conditional flags, tlbi_op and so on.
+//		Encoding:
+//			type = TYPE_SPECIAL
+//			offset = The constant value corresponding to this symbol
+//
 //	<register name>
 //		Any register: integer, floating point, control, segment, and so on.
 //		If looking for specific register kind, must check type and reg value range.
@@ -236,6 +242,7 @@ const (
 	TYPE_REGREG2
 	TYPE_INDIR
 	TYPE_REGLIST
+	TYPE_SPECIAL
 )
 
 func (a *Addr) Target() *Prog {
@@ -283,7 +290,7 @@ func (a *Addr) SetConst(v int64) {
 // Each Prog is charged to a specific source line in the debug information,
 // specified by Pos.Line().
 // Every Prog has a Ctxt field that defines its context.
-// For performance reasons, Progs usually are usually bulk allocated, cached, and reused;
+// For performance reasons, Progs are usually bulk allocated, cached, and reused;
 // those bulk allocators should always be used, rather than new(Prog).
 //
 // The other fields not yet mentioned are for use by the back ends and should
@@ -435,6 +442,7 @@ const (
 	ABasePPC64
 	ABaseARM64
 	ABaseMIPS
+	ABaseLoong64
 	ABaseRISCV
 	ABaseS390X
 	ABaseWasm
@@ -486,8 +494,20 @@ type FuncInfo struct {
 	StackObjects       *LSym
 	OpenCodedDeferInfo *LSym
 	ArgInfo            *LSym // argument info for traceback
+	ArgLiveInfo        *LSym // argument liveness info for traceback
+	WrapInfo           *LSym // for wrapper, info of wrapped function
+	JumpTables         []JumpTable
 
 	FuncInfoSym *LSym
+}
+
+// JumpTable represents a table used for implementing multi-way
+// computed branching, used typically for implementing switches.
+// Sym is the table itself, and Targets is a list of target
+// instructions to go to for the computed branch index.
+type JumpTable struct {
+	Sym     *LSym
+	Targets []*Prog
 }
 
 // NewFuncInfo allocates and returns a FuncInfo for LSym.
@@ -700,6 +720,9 @@ const (
 	// convert between ABI0 and ABIInternal calling conventions.
 	AttrABIWrapper
 
+	// IsPcdata indicates this is a pcdata symbol.
+	AttrPcdata
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -727,6 +750,7 @@ func (a *Attribute) Indexed() bool            { return a.load()&AttrIndexed != 0
 func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface != 0 }
 func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
 func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
+func (a *Attribute) IsPcdata() bool           { return a.load()&AttrPcdata != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	for {
@@ -826,15 +850,14 @@ func (*LSym) CanBeAnSSAAux() {}
 
 type Pcln struct {
 	// Aux symbols for pcln
-	Pcsp        *LSym
-	Pcfile      *LSym
-	Pcline      *LSym
-	Pcinline    *LSym
-	Pcdata      []*LSym
-	Funcdata    []*LSym
-	Funcdataoff []int64
-	UsedFiles   map[goobj.CUFileIndex]struct{} // file indices used while generating pcfile
-	InlTree     InlTree                        // per-function inlining tree extracted from the global tree
+	Pcsp      *LSym
+	Pcfile    *LSym
+	Pcline    *LSym
+	Pcinline  *LSym
+	Pcdata    []*LSym
+	Funcdata  []*LSym
+	UsedFiles map[goobj.CUFileIndex]struct{} // file indices used while generating pcfile
+	InlTree   InlTree                        // per-function inlining tree extracted from the global tree
 }
 
 type Reloc struct {
@@ -876,10 +899,12 @@ type Link struct {
 	Flag_linkshared    bool
 	Flag_optimize      bool
 	Flag_locationlists bool
-	Retpoline          bool // emit use of retpoline stubs for indirect jmp/call
+	Flag_noRefName     bool   // do not include referenced symbol names in object file
+	Retpoline          bool   // emit use of retpoline stubs for indirect jmp/call
+	Flag_maymorestack  string // If not "", call this function before stack checks
 	Bso                *bufio.Writer
 	Pathname           string
-	Pkgpath            string           // the current package's import path, "" if unknown
+	Pkgpath            string           // the current package's import path
 	hashmu             sync.Mutex       // protects hash, funchash
 	hash               map[string]*LSym // name -> sym mapping
 	funchash           map[string]*LSym // name -> sym mapping for ABIInternal syms
@@ -901,16 +926,6 @@ type Link struct {
 	// state for writing objects
 	Text []*LSym
 	Data []*LSym
-
-	// ABIAliases are text symbols that should be aliased to all
-	// ABIs. These symbols may only be referenced and not defined
-	// by this object, since the need for an alias may appear in a
-	// different object than the definition. Hence, this
-	// information can't be carried in the symbol definition.
-	//
-	// TODO(austin): Replace this with ABI wrappers once the ABIs
-	// actually diverge.
-	ABIAliases []*LSym
 
 	// Constant symbols (e.g. $i64.*) are data symbols created late
 	// in the concurrent phase. To ensure a deterministic order, we
@@ -969,23 +984,6 @@ func (fi *FuncInfo) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 		last = unspill
 	}
 	return last
-}
-
-// The smallest possible offset from the hardware stack pointer to a local
-// variable on the stack. Architectures that use a link register save its value
-// on the stack in the function prologue and so always have a pointer between
-// the hardware stack pointer and the local variable area.
-func (ctxt *Link) FixedFrameSize() int64 {
-	switch ctxt.Arch.Family {
-	case sys.AMD64, sys.I386, sys.Wasm:
-		return 0
-	case sys.PPC64:
-		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
-		// just use that much stack always on ppc64x.
-		return int64(4 * ctxt.Arch.PtrSize)
-	default:
-		return int64(ctxt.Arch.PtrSize)
-	}
 }
 
 // LinkArch is the definition of a single architecture.

@@ -18,7 +18,7 @@ func TestErrorCalls(t *testing.T) {
 	}
 
 	for _, file := range files {
-		syntax.Walk(file, func(n syntax.Node) bool {
+		syntax.Crawl(file, func(n syntax.Node) bool {
 			call, _ := n.(*syntax.CallExpr)
 			if call == nil {
 				return false

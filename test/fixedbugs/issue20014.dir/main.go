@@ -5,6 +5,7 @@
 package main
 
 import (
+	"sort"
 	"strings"
 
 	"issue20014.dir/a"
@@ -13,12 +14,17 @@ import (
 func main() {
 	samePackage()
 	crossPackage()
+
 	// Print fields registered with field tracking.
+	var fields []string
 	for _, line := range strings.Split(fieldTrackInfo, "\n") {
-		if line == "" {
-			continue
+		if line != "" {
+			fields = append(fields, strings.Split(line, "\t")[0])
 		}
-		println(strings.Split(line, "\t")[0])
+	}
+	sort.Strings(fields) // for stable output, regardless of optimizations
+	for _, field := range fields {
+		println(field)
 	}
 }
 

@@ -55,6 +55,7 @@ var quotetests = []quoteTest{
 	{"\x04", `"\x04"`, `"\x04"`, `"\x04"`},
 	// Some non-printable but graphic runes. Final column is double-quoted.
 	{"!\u00a0!\u2000!\u3000!", `"!\u00a0!\u2000!\u3000!"`, `"!\u00a0!\u2000!\u3000!"`, "\"!\u00a0!\u2000!\u3000!\""},
+	{"\x7f", `"\x7f"`, `"\x7f"`, `"\x7f"`},
 }
 
 func TestQuote(t *testing.T) {
@@ -131,6 +132,7 @@ var quoterunetests = []quoteRuneTest{
 	{'\\', `'\\'`, `'\\'`, `'\\'`},
 	{0xFF, `'ÿ'`, `'\u00ff'`, `'ÿ'`},
 	{0x263a, `'☺'`, `'\u263a'`, `'☺'`},
+	{0xdead, `'�'`, `'\ufffd'`, `'�'`},
 	{0xfffd, `'�'`, `'\ufffd'`, `'�'`},
 	{0x0010ffff, `'\U0010ffff'`, `'\U0010ffff'`, `'\U0010ffff'`},
 	{0x0010ffff + 1, `'�'`, `'\ufffd'`, `'�'`},
@@ -305,6 +307,8 @@ var misquoted = []string{
 	"\"\n\"",
 	"\"\\n\n\"",
 	"'\n'",
+	`"\udead"`,
+	`"\ud83d\ude4f"`,
 }
 
 func TestUnquote(t *testing.T) {

@@ -8,10 +8,7 @@
 
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 // Also called from assembly in sys_windows_arm64.s without g (but using Go stack convention).
-TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
-	MOVD	ptr+0(FP), R0
-	MOVD	n+8(FP), R1
-
+TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
 	CMP	$16, R1
 	// If n is equal to 16 bytes, use zero_exact_16 to zero
 	BEQ	zero_exact_16

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net"
 	"net/http"
 	"net/http/internal/ascii"
@@ -217,7 +218,18 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	ctx := req.Context()
-	if cn, ok := rw.(http.CloseNotifier); ok {
+	if ctx.Done() != nil {
+		// CloseNotifier predates context.Context, and has been
+		// entirely superseded by it. If the request contains
+		// a Context that carries a cancellation signal, don't
+		// bother spinning up a goroutine to watch the CloseNotify
+		// channel (if any).
+		//
+		// If the request Context has a nil Done channel (which
+		// means it is either context.Background, or a custom
+		// Context implementation with no cancellation signal),
+		// then consult the CloseNotifier if available.
+	} else if cn, ok := rw.(http.CloseNotifier); ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
@@ -234,6 +246,15 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	outreq := req.Clone(ctx)
 	if req.ContentLength == 0 {
 		outreq.Body = nil // Issue 16036: nil Body for http.Transport retries
+	}
+	if outreq.Body != nil {
+		// Reading from the request body after returning from a handler is not
+		// allowed, and the RoundTrip goroutine that reads the Body can outlive
+		// this handler. This can lead to a crash if the handler panics (see
+		// Issue 46866). Although calling Close doesn't guarantee there isn't
+		// any Read in flight after the handle returns, in practice it's safe to
+		// read after closing it.
+		defer outreq.Body.Close()
 	}
 	if outreq.Header == nil {
 		outreq.Header = make(http.Header) // Issue 33142: historical behavior was to always allocate
@@ -403,7 +424,7 @@ func (p *ReverseProxy) flushInterval(res *http.Response) time.Duration {
 
 	// For Server-Sent Events responses, flush immediately.
 	// The MIME type is defined in https://www.w3.org/TR/eventsource/#text-event-stream
-	if resCT == "text/event-stream" {
+	if baseCT, _, _ := mime.ParseMediaType(resCT); baseCT == "text/event-stream" {
 		return -1 // negative means immediately
 	}
 
@@ -474,7 +495,7 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 	}
 }
 
-func (p *ReverseProxy) logf(format string, args ...interface{}) {
+func (p *ReverseProxy) logf(format string, args ...any) {
 	if p.ErrorLog != nil {
 		p.ErrorLog.Printf(format, args...)
 	} else {
@@ -601,7 +622,6 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	go spc.copyToBackend(errc)
 	go spc.copyFromBackend(errc)
 	<-errc
-	return
 }
 
 // switchProtocolCopier exists so goroutines proxying data back and

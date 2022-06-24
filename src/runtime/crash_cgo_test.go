@@ -3,12 +3,10 @@
 // license that can be found in the LICENSE file.
 
 //go:build cgo
-// +build cgo
 
 package runtime_test
 
 import (
-	"bytes"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -65,6 +63,10 @@ func TestCgoCallbackGC(t *testing.T) {
 			t.Skip("too slow for mips64x builders")
 		}
 	}
+	if testenv.Builder() == "darwin-amd64-10_14" {
+		// TODO(#23011): When the 10.14 builders are gone, remove this skip.
+		t.Skip("skipping due to platform bug on macOS 10.14; see https://golang.org/issue/43926")
+	}
 	got := runTestProg(t, "testprogcgo", "CgoCallbackGC")
 	want := "OK\n"
 	if got != want {
@@ -91,23 +93,9 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
-	if runtime.GOARCH == "ppc64" && runtime.GOOS == "linux" {
-		// TODO(austin) External linking not implemented on
-		// linux/ppc64 (issue #8912)
-		t.Skipf("no external linking on ppc64")
-	}
 
-	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
-	if err != nil {
-		t.Fatalf("exit status: %v\n%s", err, got)
-	}
-
-	if want := "OK\n"; string(got) != want {
+	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSIGPROF", "GO_START_SIGPROF_THREAD=1")
+	if want := "OK\n"; got != want {
 		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }
@@ -120,18 +108,8 @@ func TestCgoExternalThreadSignal(t *testing.T) {
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
 
-	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
-	if err != nil {
-		t.Fatalf("exit status: %v\n%s", err, got)
-	}
-
-	want := []byte("OK\n")
-	if !bytes.Equal(got, want) {
+	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSignal")
+	if want := "OK\n"; got != want {
 		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }
@@ -238,11 +216,25 @@ func TestCgoCCodeSIGPROF(t *testing.T) {
 	}
 }
 
+func TestCgoPprofCallback(t *testing.T) {
+	t.Parallel()
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skipping cgo pprof callback test on %s", runtime.GOOS)
+	}
+	got := runTestProg(t, "testprogcgo", "CgoPprofCallback")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
 func TestCgoCrashTraceback(t *testing.T) {
 	t.Parallel()
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
 	case "darwin/amd64":
 	case "linux/amd64":
+	case "linux/arm64":
 	case "linux/ppc64le":
 	default:
 		t.Skipf("not yet supported on %s", platform)
@@ -260,6 +252,7 @@ func TestCgoCrashTracebackGo(t *testing.T) {
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
 	case "darwin/amd64":
 	case "linux/amd64":
+	case "linux/arm64":
 	case "linux/ppc64le":
 	default:
 		t.Skipf("not yet supported on %s", platform)
@@ -282,9 +275,18 @@ func TestCgoTracebackContext(t *testing.T) {
 	}
 }
 
+func TestCgoTracebackContextPreemption(t *testing.T) {
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "TracebackContextPreemption")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
 func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	t.Parallel()
-	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le") {
+	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le" && runtime.GOARCH != "arm64") {
 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	testenv.MustHaveGoRun(t)
@@ -294,12 +296,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 		t.Fatal(err)
 	}
 
-	// pprofCgoTraceback is called whenever CGO code is executing and a signal
-	// is received. Disable signal preemption to increase the likelihood at
-	// least one SIGPROF signal fired to capture a sample. See issue #37201.
 	cmd := testenv.CleanCmdEnv(exec.Command(exe, runArg))
-	cmd.Env = append(cmd.Env, "GODEBUG=asyncpreemptoff=1")
-
 	got, err := cmd.CombinedOutput()
 	if err != nil {
 		if testenv.Builder() == "linux-amd64-alpine" {
@@ -312,7 +309,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	defer os.Remove(fn)
 
 	for try := 0; try < 2; try++ {
-		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-traces"))
+		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-tagignore=ignore", "-traces"))
 		// Check that pprof works both with and without explicit executable on command line.
 		if try == 0 {
 			cmd.Args = append(cmd.Args, exe, fn)
@@ -517,13 +514,38 @@ func TestCgoTracebackSigpanic(t *testing.T) {
 	}
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "TracebackSigpanic")
+	t.Log(got)
 	want := "runtime.sigpanic"
 	if !strings.Contains(got, want) {
-		t.Fatalf("want failure containing %q. output:\n%s\n", want, got)
+		t.Errorf("did not see %q in output", want)
 	}
-	nowant := "unexpected return pc"
+	// No runtime errors like "runtime: unexpected return pc".
+	nowant := "runtime: "
 	if strings.Contains(got, nowant) {
-		t.Fatalf("failure incorrectly contains %q. output:\n%s\n", nowant, got)
+		t.Errorf("unexpectedly saw %q in output", nowant)
+	}
+}
+
+func TestCgoPanicCallback(t *testing.T) {
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "PanicCallback")
+	t.Log(got)
+	want := "panic: runtime error: invalid memory address or nil pointer dereference"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	want = "panic_callback"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	want = "PanicCallback"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	// No runtime errors like "runtime: unexpected return pc".
+	nowant := "runtime: "
+	if strings.Contains(got, nowant) {
+		t.Errorf("did not see %q in output", want)
 	}
 }
 
@@ -582,14 +604,62 @@ func TestSegv(t *testing.T) {
 	}
 
 	for _, test := range []string{"Segv", "SegvInCgo"} {
+		test := test
 		t.Run(test, func(t *testing.T) {
 			t.Parallel()
 			got := runTestProg(t, "testprogcgo", test)
 			t.Log(got)
-			if !strings.Contains(got, "SIGSEGV") {
-				t.Errorf("expected crash from signal")
+			want := "SIGSEGV"
+			if !strings.Contains(got, want) {
+				if runtime.GOOS == "darwin" && runtime.GOARCH == "amd64" && strings.Contains(got, "fatal: morestack on g0") {
+					testenv.SkipFlaky(t, 39457)
+				}
+				t.Errorf("did not see %q in output", want)
+			}
+
+			// No runtime errors like "runtime: unknown pc".
+			switch runtime.GOOS {
+			case "darwin", "illumos", "solaris":
+				// Runtime sometimes throws when generating the traceback.
+				testenv.SkipFlaky(t, 49182)
+			case "linux":
+				if runtime.GOARCH == "386" {
+					// Runtime throws when generating a traceback from
+					// a VDSO call via asmcgocall.
+					testenv.SkipFlaky(t, 50504)
+				}
+			}
+			if test == "SegvInCgo" && strings.Contains(got, "unknown pc") {
+				testenv.SkipFlaky(t, 50979)
+			}
+
+			nowant := "runtime: "
+			if strings.Contains(got, nowant) {
+				t.Errorf("unexpectedly saw %q in output", nowant)
 			}
 		})
+	}
+}
+
+func TestAbortInCgo(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		// N.B. On Windows, C abort() causes the program to exit
+		// without going through the runtime at all.
+		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "Abort")
+	t.Log(got)
+	want := "SIGABRT"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	// No runtime errors like "runtime: unknown pc".
+	nowant := "runtime: "
+	if strings.Contains(got, nowant) {
+		t.Errorf("did not see %q in output", want)
 	}
 }
 
@@ -627,6 +697,14 @@ func TestNeedmDeadlock(t *testing.T) {
 		t.Skipf("no signals on %s", runtime.GOOS)
 	}
 	output := runTestProg(t, "testprogcgo", "NeedmDeadlock")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+func TestCgoTracebackGoroutineProfile(t *testing.T) {
+	output := runTestProg(t, "testprogcgo", "GoroutineProfile")
 	want := "OK\n"
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)

@@ -6,6 +6,7 @@ package template
 
 import (
 	"fmt"
+	"text/template/parse"
 )
 
 // context describes the state an HTML parser must be in when it reaches the
@@ -22,6 +23,7 @@ type context struct {
 	jsCtx   jsCtx
 	attr    attr
 	element element
+	n       parse.Node // for range break/continue
 	err     *Error
 }
 
@@ -77,7 +79,9 @@ func (c context) mangle(templateName string) string {
 // HTML5 parsing algorithm because a single token production in the HTML
 // grammar may contain embedded actions in a template. For instance, the quoted
 // HTML attribute produced by
-//     <div title="Hello {{.World}}">
+//
+//	<div title="Hello {{.World}}">
+//
 // is a single token in HTML's grammar but in a template spans several nodes.
 type state uint8
 
@@ -141,6 +145,8 @@ const (
 	// stateError is an infectious error state outside any valid
 	// HTML/CSS/JS construct.
 	stateError
+	// stateDead marks unreachable code after a {{break}} or {{continue}}.
+	stateDead
 )
 
 // isComment is true for any state that contains content meant for template

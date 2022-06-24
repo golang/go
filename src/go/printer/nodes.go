@@ -11,7 +11,6 @@ package printer
 import (
 	"bytes"
 	"go/ast"
-	"go/internal/typeparams"
 	"go/token"
 	"math"
 	"strconv"
@@ -39,13 +38,12 @@ import (
 // printed.
 //
 // TODO(gri): linebreak may add too many lines if the next statement at "line"
-//            is preceded by comments because the computation of n assumes
-//            the current position before the comment and the target position
-//            after the comment. Thus, after interspersing such comments, the
-//            space taken up by them is not considered to reduce the number of
-//            linebreaks. At the moment there is no easy way to know about
-//            future (not yet interspersed) comments in this function.
-//
+// is preceded by comments because the computation of n assumes
+// the current position before the comment and the target position
+// after the comment. Thus, after interspersing such comments, the
+// space taken up by them is not considered to reduce the number of
+// linebreaks. At the moment there is no easy way to know about
+// future (not yet interspersed) comments in this function.
 func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (nbreaks int) {
 	n := nlimit(line - p.pos.Line)
 	if n < min {
@@ -126,8 +124,9 @@ const filteredMsg = "contains filtered or unexported fields"
 // expressions.
 //
 // TODO(gri) Consider rewriting this to be independent of []ast.Expr
-//           so that we can use the algorithm for any kind of list
-//           (e.g., pass list via a channel over which to range).
+// so that we can use the algorithm for any kind of list
+//
+//	(e.g., pass list via a channel over which to range).
 func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exprListMode, next0 token.Pos, isIncomplete bool) {
 	if len(list) == 0 {
 		if isIncomplete {
@@ -320,9 +319,17 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 	}
 }
 
-func (p *printer) parameters(fields *ast.FieldList, isTypeParam bool) {
+type paramMode int
+
+const (
+	funcParam paramMode = iota
+	funcTParam
+	typeTParam
+)
+
+func (p *printer) parameters(fields *ast.FieldList, mode paramMode) {
 	openTok, closeTok := token.LPAREN, token.RPAREN
-	if isTypeParam {
+	if mode != funcParam {
 		openTok, closeTok = token.LBRACK, token.RBRACK
 	}
 	p.print(fields.Opening, openTok)
@@ -368,26 +375,71 @@ func (p *printer) parameters(fields *ast.FieldList, isTypeParam bool) {
 			p.expr(stripParensAlways(par.Type))
 			prevLine = parLineEnd
 		}
+
 		// if the closing ")" is on a separate line from the last parameter,
 		// print an additional "," and line break
 		if closing := p.lineFor(fields.Closing); 0 < prevLine && prevLine < closing {
 			p.print(token.COMMA)
 			p.linebreak(closing, 0, ignore, true)
+		} else if mode == typeTParam && fields.NumFields() == 1 && combinesWithName(fields.List[0].Type) {
+			// A type parameter list [P T] where the name P and the type expression T syntactically
+			// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
+			// (or an enclosing interface as in [P interface(*T)]), so that the type parameter list
+			// is not parsed as an array length [P*T].
+			p.print(token.COMMA)
 		}
+
 		// unindent if we indented
 		if ws == ignore {
 			p.print(unindent)
 		}
 	}
+
 	p.print(fields.Closing, closeTok)
 }
 
+// combinesWithName reports whether a name followed by the expression x
+// syntactically combines to another valid (value) expression. For instance
+// using *T for x, "name *T" syntactically appears as the expression x*T.
+// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or name *P|~Q"
+// cannot be combined into a valid (value) expression.
+func combinesWithName(x ast.Expr) bool {
+	switch x := x.(type) {
+	case *ast.StarExpr:
+		// name *x.X combines to name*x.X if x.X is not a type element
+		return !isTypeElem(x.X)
+	case *ast.BinaryExpr:
+		return combinesWithName(x.X) && !isTypeElem(x.Y)
+	case *ast.ParenExpr:
+		// name(x) combines but we are making sure at
+		// the call site that x is never parenthesized.
+		panic("unexpected parenthesized expression")
+	}
+	return false
+}
+
+// isTypeElem reports whether x is a (possibly parenthesized) type element expression.
+// The result is false if x could be a type element OR an ordinary (value) expression.
+func isTypeElem(x ast.Expr) bool {
+	switch x := x.(type) {
+	case *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.ChanType:
+		return true
+	case *ast.UnaryExpr:
+		return x.Op == token.TILDE
+	case *ast.BinaryExpr:
+		return isTypeElem(x.X) || isTypeElem(x.Y)
+	case *ast.ParenExpr:
+		return isTypeElem(x.X)
+	}
+	return false
+}
+
 func (p *printer) signature(sig *ast.FuncType) {
-	if tparams := typeparams.Get(sig); tparams != nil {
-		p.parameters(tparams, true)
+	if sig.TypeParams != nil {
+		p.parameters(sig.TypeParams, funcTParam)
 	}
 	if sig.Params != nil {
-		p.parameters(sig.Params, false)
+		p.parameters(sig.Params, funcParam)
 	} else {
 		p.print(token.LPAREN, token.RPAREN)
 	}
@@ -401,7 +453,7 @@ func (p *printer) signature(sig *ast.FuncType) {
 			p.expr(stripParensAlways(res.List[0].Type))
 			return
 		}
-		p.parameters(res, false)
+		p.parameters(res, funcParam)
 	}
 }
 
@@ -472,17 +524,9 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 				p.expr(f.Type)
 			} else { // interface
 				if len(f.Names) > 0 {
-					// type list type or method
-					name := f.Names[0] // "type" or method name
+					name := f.Names[0] // method name
 					p.expr(name)
-					if name.Name == "type" {
-						// type list type
-						p.print(blank)
-						p.expr(f.Type)
-					} else {
-						// method
-						p.signature(f.Type.(*ast.FuncType)) // don't print "func"
-					}
+					p.signature(f.Type.(*ast.FuncType)) // don't print "func"
 				} else {
 					// embedded interface
 					p.expr(f.Type)
@@ -569,24 +613,10 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 			p.setComment(f.Doc)
 			p.recordLine(&line)
 			if name != nil {
-				// type list type or method
-				if name.Name == "type" {
-					// type list type
-					if name == prev {
-						// type is part of a list of types
-						p.print(token.COMMA, blank)
-					} else {
-						// type starts a new list of types
-						p.print(name, blank)
-					}
-					p.expr(f.Type)
-					prev = name
-				} else {
-					// method
-					p.expr(name)
-					p.signature(f.Type.(*ast.FuncType)) // don't print "func"
-					prev = nil
-				}
+				// method
+				p.expr(name)
+				p.signature(f.Type.(*ast.FuncType)) // don't print "func"
+				prev = nil
 			} else {
 				// embedded interface
 				p.expr(f.Type)
@@ -702,6 +732,7 @@ func reduceDepth(depth int) int {
 // (Algorithm suggestion by Russ Cox.)
 //
 // The precedences are:
+//
 //	5             *  /  %  <<  >>  &  &^
 //	4             +  -  |  ^
 //	3             ==  !=  <  <=  >  >=
@@ -714,25 +745,24 @@ func reduceDepth(depth int) int {
 // To choose the cutoff, look at the whole expression but excluding primary
 // expressions (function calls, parenthesized exprs), and apply these rules:
 //
-//	1) If there is a binary operator with a right side unary operand
-//	   that would clash without a space, the cutoff must be (in order):
+//  1. If there is a binary operator with a right side unary operand
+//     that would clash without a space, the cutoff must be (in order):
 //
-//		/*	6
-//		&&	6
-//		&^	6
-//		++	5
-//		--	5
+//     /*	6
+//     &&	6
+//     &^	6
+//     ++	5
+//     --	5
 //
-//         (Comparison operators always have spaces around them.)
+//     (Comparison operators always have spaces around them.)
 //
-//	2) If there is a mix of level 5 and level 4 operators, then the cutoff
-//	   is 5 (use spaces to distinguish precedence) in Normal mode
-//	   and 4 (never use spaces) in Compact mode.
+//  2. If there is a mix of level 5 and level 4 operators, then the cutoff
+//     is 5 (use spaces to distinguish precedence) in Normal mode
+//     and 4 (never use spaces) in Compact mode.
 //
-//	3) If there are no level 4 operators or no level 5 operators, then the
-//	   cutoff is 6 (always use spaces) in Normal mode
-//	   and 4 (never use spaces) in Compact mode.
-//
+//  3. If there are no level 4 operators or no level 5 operators, then the
+//     cutoff is 6 (always use spaces) in Normal mode
+//     and 4 (never use spaces) in Compact mode.
 func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int) {
 	prec := x.Op.Precedence()
 	if prec < prec1 {
@@ -871,17 +901,15 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
 		p.expr1(x.X, token.HighestPrec, 1)
 		p.print(x.Lbrack, token.LBRACK)
-		// Note: we're a bit defensive here to handle the case of a ListExpr of
-		// length 1.
-		if list := typeparams.UnpackExpr(x.Index); len(list) > 0 {
-			if len(list) > 1 {
-				p.exprList(x.Lbrack, list, depth+1, commaTerm, x.Rbrack, false)
-			} else {
-				p.expr0(list[0], depth+1)
-			}
-		} else {
-			p.expr0(x.Index, depth+1)
-		}
+		p.expr0(x.Index, depth+1)
+		p.print(x.Rbrack, token.RBRACK)
+
+	case *ast.IndexListExpr:
+		// TODO(gri): as for IndexExpr, should treat [] like parentheses and undo
+		// one level of depth
+		p.expr1(x.X, token.HighestPrec, 1)
+		p.print(x.Lbrack, token.LBRACK)
+		p.exprList(x.Lbrack, x.Indices, depth+1, commaTerm, x.Rbrack, false)
 		p.print(x.Rbrack, token.RBRACK)
 
 	case *ast.SliceExpr:
@@ -1052,7 +1080,7 @@ func normalizedNumber(lit *ast.BasicLit) *ast.BasicLit {
 			break
 		}
 		// remove leading 0's from integer (but not floating-point) imaginary literals
-		if x[len(x)-1] == 'i' && strings.IndexByte(x, '.') < 0 && strings.IndexByte(x, 'e') < 0 {
+		if x[len(x)-1] == 'i' && !strings.ContainsAny(x, ".e") {
 			x = strings.TrimLeft(x, "0_")
 			if x == "i" {
 				x = "0i"
@@ -1248,7 +1276,6 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 // indentList reports whether an expression list would look better if it
 // were indented wholesale (starting with the very first element, rather
 // than starting at the first line break).
-//
 func (p *printer) indentList(list []ast.Expr) bool {
 	// Heuristic: indentList reports whether there are more than one multi-
 	// line element in the list, or if there is any element that is not
@@ -1475,24 +1502,23 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 //
 // For example, the declaration:
 //
-//	const (
-//		foobar int = 42 // comment
-//		x          = 7  // comment
-//		foo
-//              bar = 991
-//	)
+//		const (
+//			foobar int = 42 // comment
+//			x          = 7  // comment
+//			foo
+//	             bar = 991
+//		)
 //
 // leads to the type/values matrix below. A run of value columns (V) can
 // be moved into the type column if there is no type for any of the values
 // in that column (we only move entire columns so that they align properly).
 //
-//	matrix        formatted     result
-//                    matrix
-//	T  V    ->    T  V     ->   true      there is a T and so the type
-//	-  V          -  V          true      column must be kept
-//	-  -          -  -          false
-//	-  V          V  -          false     V is moved into T column
-//
+//		matrix        formatted     result
+//	                   matrix
+//		T  V    ->    T  V     ->   true      there is a T and so the type
+//		-  V          -  V          true      column must be kept
+//		-  -          -  -          false
+//		-  V          V  -          false     V is moved into T column
 func keepTypeColumn(specs []ast.Spec) []bool {
 	m := make([]bool, len(specs))
 
@@ -1603,7 +1629,6 @@ func sanitizeImportPath(lit *ast.BasicLit) *ast.BasicLit {
 // The parameter n is the number of specs in the group. If doIndent is set,
 // multi-line identifier lists in the spec are indented when the first
 // linebreak is encountered.
-//
 func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
@@ -1635,8 +1660,8 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 	case *ast.TypeSpec:
 		p.setComment(s.Doc)
 		p.expr(s.Name)
-		if tparams := typeparams.Get(s); tparams != nil {
-			p.parameters(tparams, true)
+		if s.TypeParams != nil {
+			p.parameters(s.TypeParams, typeTParam)
 		}
 		if n == 1 {
 			p.print(blank)
@@ -1699,7 +1724,6 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 // The result is <= maxSize if the node fits on one line with at
 // most maxSize chars and the formatted output doesn't contain
 // any control chars. Otherwise, the result is > maxSize.
-//
 func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 	// nodeSize invokes the printer, which may invoke nodeSize
 	// recursively. For deep composite literal nests, this can
@@ -1722,8 +1746,9 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 	}
 	if buf.Len() <= maxSize {
 		for _, ch := range buf.Bytes() {
-			if ch < ' ' {
-				return
+			switch ch {
+			case '\n', '\f':
+				return // does not fit in a single line
 			}
 		}
 		size = buf.Len() // n fits
@@ -1773,7 +1798,6 @@ func (p *printer) bodySize(b *ast.BlockStmt, maxSize int) int {
 // the block is printed on the current line, without line breaks, spaced from the header
 // by sep. Otherwise the block's opening "{" is printed on the current line, followed by
 // lines for the block's statements and its closing "}".
-//
 func (p *printer) funcBody(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
 	if b == nil {
 		return
@@ -1826,7 +1850,7 @@ func (p *printer) funcDecl(d *ast.FuncDecl) {
 	// FUNC is emitted).
 	startCol := p.out.Column - len("func ")
 	if d.Recv != nil {
-		p.parameters(d.Recv, false) // method: print receiver
+		p.parameters(d.Recv, funcParam) // method: print receiver
 		p.print(blank)
 	}
 	p.expr(d.Name)

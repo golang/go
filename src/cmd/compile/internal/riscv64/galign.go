@@ -16,10 +16,11 @@ func Init(arch *ssagen.ArchInfo) {
 	arch.MAXWIDTH = 1 << 50
 
 	arch.Ginsnop = ginsnop
-	arch.Ginsnopdefer = ginsnop
 	arch.ZeroRange = zeroRange
 
 	arch.SSAMarkMoves = ssaMarkMoves
 	arch.SSAGenValue = ssaGenValue
 	arch.SSAGenBlock = ssaGenBlock
+	arch.LoadRegResult = loadRegResult
+	arch.SpillArgReg = spillArgReg
 }

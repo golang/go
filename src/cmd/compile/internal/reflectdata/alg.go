@@ -6,10 +6,9 @@ package reflectdata
 
 import (
 	"fmt"
-	"math/bits"
-	"sort"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/compare"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/typecheck"
@@ -17,43 +16,17 @@ import (
 	"cmd/internal/obj"
 )
 
-// isRegularMemory reports whether t can be compared/hashed as regular memory.
-func isRegularMemory(t *types.Type) bool {
-	a, _ := types.AlgType(t)
-	return a == types.AMEM
-}
-
-// eqCanPanic reports whether == on type t could panic (has an interface somewhere).
-// t must be comparable.
-func eqCanPanic(t *types.Type) bool {
-	switch t.Kind() {
-	default:
-		return false
-	case types.TINTER:
-		return true
-	case types.TARRAY:
-		return eqCanPanic(t.Elem())
-	case types.TSTRUCT:
-		for _, f := range t.FieldSlice() {
-			if !f.Sym.IsBlank() && eqCanPanic(f.Type) {
-				return true
-			}
-		}
-		return false
-	}
-}
-
 // AlgType returns the fixed-width AMEMxx variants instead of the general
 // AMEM kind when possible.
 func AlgType(t *types.Type) types.AlgKind {
 	a, _ := types.AlgType(t)
 	if a == types.AMEM {
-		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Width {
+		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Size() {
 			// For example, we can't treat [2]int16 as an int32 if int32s require
 			// 4-byte alignment. See issue 46283.
 			return a
 		}
-		switch t.Width {
+		switch t.Size() {
 		case 0:
 			return types.AMEM0
 		case 1:
@@ -110,7 +83,7 @@ func genhash(t *types.Type) *obj.LSym {
 		// For other sizes of plain memory, we build a closure
 		// that calls memhash_varlen. The size of the memory is
 		// encoded in the first slot of the closure.
-		closure := TypeLinksymLookup(fmt.Sprintf(".hashfunc%d", t.Width))
+		closure := TypeLinksymLookup(fmt.Sprintf(".hashfunc%d", t.Size()))
 		if len(closure.P) > 0 { // already generated
 			return closure
 		}
@@ -119,7 +92,7 @@ func genhash(t *types.Type) *obj.LSym {
 		}
 		ot := 0
 		ot = objw.SymPtr(closure, ot, memhashvarlen, 0)
-		ot = objw.Uintptr(closure, ot, uint64(t.Width)) // size encoded in closure
+		ot = objw.Uintptr(closure, ot, uint64(t.Size())) // size encoded in closure
 		objw.Global(closure, int32(ot), obj.DUPOK|obj.RODATA)
 		return closure
 	case types.ASPECIAL:
@@ -156,15 +129,14 @@ func genhash(t *types.Type) *obj.LSym {
 
 	// func sym(p *T, h uintptr) uintptr
 	args := []*ir.Field{
-		ir.NewField(base.Pos, typecheck.Lookup("p"), nil, types.NewPtr(t)),
-		ir.NewField(base.Pos, typecheck.Lookup("h"), nil, types.Types[types.TUINTPTR]),
+		ir.NewField(base.Pos, typecheck.Lookup("p"), types.NewPtr(t)),
+		ir.NewField(base.Pos, typecheck.Lookup("h"), types.Types[types.TUINTPTR]),
 	}
-	results := []*ir.Field{ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR])}
-	tfn := ir.NewFuncType(base.Pos, nil, args, results)
+	results := []*ir.Field{ir.NewField(base.Pos, nil, types.Types[types.TUINTPTR])}
 
-	fn := typecheck.DeclFunc(sym, tfn)
-	np := ir.AsNode(tfn.Type().Params().Field(0).Nname)
-	nh := ir.AsNode(tfn.Type().Params().Field(1).Nname)
+	fn := typecheck.DeclFunc(sym, nil, args, results)
+	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
+	nh := ir.AsNode(fn.Type().Params().Field(1).Nname)
 
 	switch t.Kind() {
 	case types.TARRAY:
@@ -206,7 +178,7 @@ func genhash(t *types.Type) *obj.LSym {
 			}
 
 			// Hash non-memory fields with appropriate hash function.
-			if !isRegularMemory(f.Type) {
+			if !compare.IsRegularMemory(f.Type) {
 				hashel := hashfor(f.Type)
 				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
 				nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
@@ -219,7 +191,7 @@ func genhash(t *types.Type) *obj.LSym {
 			}
 
 			// Otherwise, hash a maximal length run of raw memory.
-			size, next := memrun(t, i)
+			size, next := compare.Memrun(t, i)
 
 			// h = hashel(&p.first, size, h)
 			hashel := hashmem(f.Type)
@@ -354,7 +326,7 @@ func geneq(t *types.Type) *obj.LSym {
 	case types.AMEM:
 		// make equality closure. The size of the type
 		// is encoded in the closure.
-		closure := TypeLinksymLookup(fmt.Sprintf(".eqfunc%d", t.Width))
+		closure := TypeLinksymLookup(fmt.Sprintf(".eqfunc%d", t.Size()))
 		if len(closure.P) != 0 {
 			return closure
 		}
@@ -363,7 +335,7 @@ func geneq(t *types.Type) *obj.LSym {
 		}
 		ot := 0
 		ot = objw.SymPtr(closure, ot, memequalvarlen, 0)
-		ot = objw.Uintptr(closure, ot, uint64(t.Width))
+		ot = objw.Uintptr(closure, ot, uint64(t.Size()))
 		objw.Global(closure, int32(ot), obj.DUPOK|obj.RODATA)
 		return closure
 	case types.ASPECIAL:
@@ -385,14 +357,13 @@ func geneq(t *types.Type) *obj.LSym {
 	typecheck.DeclContext = ir.PEXTERN
 
 	// func sym(p, q *T) bool
-	tfn := ir.NewFuncType(base.Pos, nil,
-		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("p"), nil, types.NewPtr(t)), ir.NewField(base.Pos, typecheck.Lookup("q"), nil, types.NewPtr(t))},
-		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("r"), nil, types.Types[types.TBOOL])})
-
-	fn := typecheck.DeclFunc(sym, tfn)
-	np := ir.AsNode(tfn.Type().Params().Field(0).Nname)
-	nq := ir.AsNode(tfn.Type().Params().Field(1).Nname)
-	nr := ir.AsNode(tfn.Type().Results().Field(0).Nname)
+	fn := typecheck.DeclFunc(sym, nil,
+		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("p"), types.NewPtr(t)), ir.NewField(base.Pos, typecheck.Lookup("q"), types.NewPtr(t))},
+		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("r"), types.Types[types.TBOOL])},
+	)
+	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
+	nq := ir.AsNode(fn.Type().Params().Field(1).Nname)
+	nr := ir.AsNode(fn.Type().Results().Field(0).Nname)
 
 	// Label to jump to if an equality test fails.
 	neq := typecheck.AutoLabel(".neq")
@@ -412,22 +383,25 @@ func geneq(t *types.Type) *obj.LSym {
 		//
 		// if eq(p[0], q[0]) && eq(p[1], q[1]) && ... {
 		// } else {
-		//   return
+		//   goto neq
 		// }
 		//
 		// And so on.
 		//
 		// Otherwise it generates:
 		//
-		// for i := 0; i < nelem; i++ {
-		//   if eq(p[i], q[i]) {
+		// iterateTo := nelem/unroll*unroll
+		// for i := 0; i < iterateTo; i += unroll {
+		//   if eq(p[i+0], q[i+0]) && eq(p[i+1], q[i+1]) && ... && eq(p[i+unroll-1], q[i+unroll-1]) {
 		//   } else {
 		//     goto neq
 		//   }
 		// }
+		// if eq(p[iterateTo+0], q[iterateTo+0]) && eq(p[iterateTo+1], q[iterateTo+1]) && ... {
+		// } else {
+		//    goto neq
+		// }
 		//
-		// TODO(josharian): consider doing some loop unrolling
-		// for larger nelem as well, processing a few elements at a time in a loop.
 		checkAll := func(unroll int64, last bool, eq func(pi, qi ir.Node) ir.Node) {
 			// checkIdx generates a node to check for equality at index i.
 			checkIdx := func(i ir.Node) ir.Node {
@@ -442,38 +416,62 @@ func geneq(t *types.Type) *obj.LSym {
 				return eq(pi, qi)
 			}
 
-			if nelem <= unroll {
-				if last {
-					// Do last comparison in a different manner.
-					nelem--
-				}
-				// Generate a series of checks.
-				for i := int64(0); i < nelem; i++ {
-					// if check {} else { goto neq }
-					nif := ir.NewIfStmt(base.Pos, checkIdx(ir.NewInt(i)), nil, nil)
-					nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
-					fn.Body.Append(nif)
-				}
-				if last {
-					fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, checkIdx(ir.NewInt(nelem))))
-				}
-			} else {
-				// Generate a for loop.
-				// for i := 0; i < nelem; i++
+			iterations := nelem / unroll
+			iterateTo := iterations * unroll
+			// If a loop is iterated only once, there shouldn't be any loop at all.
+			if iterations == 1 {
+				iterateTo = 0
+			}
+
+			if iterateTo > 0 {
+				// Generate an unrolled for loop.
+				// for i := 0; i < nelem/unroll*unroll; i += unroll
 				i := typecheck.Temp(types.Types[types.TINT])
 				init := ir.NewAssignStmt(base.Pos, i, ir.NewInt(0))
-				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(nelem))
-				post := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(1)))
-				loop := ir.NewForStmt(base.Pos, nil, cond, post, nil)
+				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(iterateTo))
+				loop := ir.NewForStmt(base.Pos, nil, cond, nil, nil)
 				loop.PtrInit().Append(init)
-				// if eq(pi, qi) {} else { goto neq }
-				nif := ir.NewIfStmt(base.Pos, checkIdx(i), nil, nil)
-				nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
-				loop.Body.Append(nif)
-				fn.Body.Append(loop)
-				if last {
-					fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(true)))
+
+				// if eq(p[i+0], q[i+0]) && eq(p[i+1], q[i+1]) && ... && eq(p[i+unroll-1], q[i+unroll-1]) {
+				// } else {
+				//   goto neq
+				// }
+				for j := int64(0); j < unroll; j++ {
+					// if check {} else { goto neq }
+					nif := ir.NewIfStmt(base.Pos, checkIdx(i), nil, nil)
+					nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
+					loop.Body.Append(nif)
+					post := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(1)))
+					loop.Body.Append(post)
 				}
+
+				fn.Body.Append(loop)
+
+				if nelem == iterateTo {
+					if last {
+						fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(true)))
+					}
+					return
+				}
+			}
+
+			// Generate remaining checks, if nelem is not a multiple of unroll.
+			if last {
+				// Do last comparison in a different manner.
+				nelem--
+			}
+			// if eq(p[iterateTo+0], q[iterateTo+0]) && eq(p[iterateTo+1], q[iterateTo+1]) && ... {
+			// } else {
+			//    goto neq
+			// }
+			for j := iterateTo; j < nelem; j++ {
+				// if check {} else { goto neq }
+				nif := ir.NewIfStmt(base.Pos, checkIdx(ir.NewInt(j)), nil, nil)
+				nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
+				fn.Body.Append(nif)
+			}
+			if last {
+				fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, checkIdx(ir.NewInt(nelem))))
 			}
 		}
 
@@ -481,15 +479,14 @@ func geneq(t *types.Type) *obj.LSym {
 		case types.TSTRING:
 			// Do two loops. First, check that all the lengths match (cheap).
 			// Second, check that all the contents match (expensive).
-			// TODO: when the array size is small, unroll the length match checks.
 			checkAll(3, false, func(pi, qi ir.Node) ir.Node {
 				// Compare lengths.
-				eqlen, _ := EqString(pi, qi)
+				eqlen, _ := compare.EqString(pi, qi)
 				return eqlen
 			})
 			checkAll(1, true, func(pi, qi ir.Node) ir.Node {
 				// Compare contents.
-				_, eqmem := EqString(pi, qi)
+				_, eqmem := compare.EqString(pi, qi)
 				return eqmem
 			})
 		case types.TFLOAT32, types.TFLOAT64:
@@ -506,81 +503,7 @@ func geneq(t *types.Type) *obj.LSym {
 		}
 
 	case types.TSTRUCT:
-		// Build a list of conditions to satisfy.
-		// The conditions are a list-of-lists. Conditions are reorderable
-		// within each inner list. The outer lists must be evaluated in order.
-		var conds [][]ir.Node
-		conds = append(conds, []ir.Node{})
-		and := func(n ir.Node) {
-			i := len(conds) - 1
-			conds[i] = append(conds[i], n)
-		}
-
-		// Walk the struct using memequal for runs of AMEM
-		// and calling specific equality tests for the others.
-		for i, fields := 0, t.FieldSlice(); i < len(fields); {
-			f := fields[i]
-
-			// Skip blank-named fields.
-			if f.Sym.IsBlank() {
-				i++
-				continue
-			}
-
-			// Compare non-memory fields with field equality.
-			if !isRegularMemory(f.Type) {
-				if eqCanPanic(f.Type) {
-					// Enforce ordering by starting a new set of reorderable conditions.
-					conds = append(conds, []ir.Node{})
-				}
-				p := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym)
-				q := ir.NewSelectorExpr(base.Pos, ir.OXDOT, nq, f.Sym)
-				switch {
-				case f.Type.IsString():
-					eqlen, eqmem := EqString(p, q)
-					and(eqlen)
-					and(eqmem)
-				default:
-					and(ir.NewBinaryExpr(base.Pos, ir.OEQ, p, q))
-				}
-				if eqCanPanic(f.Type) {
-					// Also enforce ordering after something that can panic.
-					conds = append(conds, []ir.Node{})
-				}
-				i++
-				continue
-			}
-
-			// Find maximal length run of memory-only fields.
-			size, next := memrun(t, i)
-
-			// TODO(rsc): All the calls to newname are wrong for
-			// cross-package unexported fields.
-			if s := fields[i:next]; len(s) <= 2 {
-				// Two or fewer fields: use plain field equality.
-				for _, f := range s {
-					and(eqfield(np, nq, f.Sym))
-				}
-			} else {
-				// More than two fields: use memequal.
-				and(eqmem(np, nq, f.Sym, size))
-			}
-			i = next
-		}
-
-		// Sort conditions to put runtime calls last.
-		// Preserve the rest of the ordering.
-		var flatConds []ir.Node
-		for _, c := range conds {
-			isCall := func(n ir.Node) bool {
-				return n.Op() == ir.OCALL || n.Op() == ir.OCALLFUNC
-			}
-			sort.SliceStable(c, func(i, j int) bool {
-				return !isCall(c[i]) && isCall(c[j])
-			})
-			flatConds = append(flatConds, c...)
-		}
-
+		flatConds := compare.EqStruct(t, np, nq)
 		if len(flatConds) == 0 {
 			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(true)))
 		} else {
@@ -605,7 +528,7 @@ func geneq(t *types.Type) *obj.LSym {
 	//   return (or goto ret)
 	fn.Body.Append(ir.NewLabelStmt(base.Pos, neq))
 	fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(false)))
-	if eqCanPanic(t) || anyCall(fn) {
+	if compare.EqCanPanic(t) || anyCall(fn) {
 		// Epilogue is large, so share it with the equal case.
 		fn.Body.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, ret))
 	} else {
@@ -652,145 +575,6 @@ func anyCall(fn *ir.Func) bool {
 		op := n.Op()
 		return op == ir.OCALL || op == ir.OCALLFUNC
 	})
-}
-
-// eqfield returns the node
-// 	p.field == q.field
-func eqfield(p ir.Node, q ir.Node, field *types.Sym) ir.Node {
-	nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)
-	ny := ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)
-	ne := ir.NewBinaryExpr(base.Pos, ir.OEQ, nx, ny)
-	return ne
-}
-
-// EqString returns the nodes
-//   len(s) == len(t)
-// and
-//   memequal(s.ptr, t.ptr, len(s))
-// which can be used to construct string equality comparison.
-// eqlen must be evaluated before eqmem, and shortcircuiting is required.
-func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
-	s = typecheck.Conv(s, types.Types[types.TSTRING])
-	t = typecheck.Conv(t, types.Types[types.TSTRING])
-	sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, s)
-	tptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, t)
-	slen := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, s), types.Types[types.TUINTPTR])
-	tlen := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, t), types.Types[types.TUINTPTR])
-
-	fn := typecheck.LookupRuntime("memequal")
-	fn = typecheck.SubstArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{sptr, tptr, ir.Copy(slen)})
-	typecheck.Call(call)
-
-	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
-	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
-	cmp.SetType(types.Types[types.TBOOL])
-	return cmp, call
-}
-
-// EqInterface returns the nodes
-//   s.tab == t.tab (or s.typ == t.typ, as appropriate)
-// and
-//   ifaceeq(s.tab, s.data, t.data) (or efaceeq(s.typ, s.data, t.data), as appropriate)
-// which can be used to construct interface equality comparison.
-// eqtab must be evaluated before eqdata, and shortcircuiting is required.
-func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
-	if !types.Identical(s.Type(), t.Type()) {
-		base.Fatalf("EqInterface %v %v", s.Type(), t.Type())
-	}
-	// func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
-	// func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
-	var fn ir.Node
-	if s.Type().IsEmptyInterface() {
-		fn = typecheck.LookupRuntime("efaceeq")
-	} else {
-		fn = typecheck.LookupRuntime("ifaceeq")
-	}
-
-	stab := ir.NewUnaryExpr(base.Pos, ir.OITAB, s)
-	ttab := ir.NewUnaryExpr(base.Pos, ir.OITAB, t)
-	sdata := ir.NewUnaryExpr(base.Pos, ir.OIDATA, s)
-	tdata := ir.NewUnaryExpr(base.Pos, ir.OIDATA, t)
-	sdata.SetType(types.Types[types.TUNSAFEPTR])
-	tdata.SetType(types.Types[types.TUNSAFEPTR])
-	sdata.SetTypecheck(1)
-	tdata.SetTypecheck(1)
-
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{stab, sdata, tdata})
-	typecheck.Call(call)
-
-	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
-	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
-	cmp.SetType(types.Types[types.TBOOL])
-	return cmp, call
-}
-
-// eqmem returns the node
-// 	memequal(&p.field, &q.field [, size])
-func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
-	nx := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)))
-	ny := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)))
-
-	fn, needsize := eqmemfunc(size, nx.Type().Elem())
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
-	call.Args.Append(nx)
-	call.Args.Append(ny)
-	if needsize {
-		call.Args.Append(ir.NewInt(size))
-	}
-
-	return call
-}
-
-func eqmemfunc(size int64, t *types.Type) (fn *ir.Name, needsize bool) {
-	switch size {
-	default:
-		fn = typecheck.LookupRuntime("memequal")
-		needsize = true
-	case 1, 2, 4, 8, 16:
-		buf := fmt.Sprintf("memequal%d", int(size)*8)
-		fn = typecheck.LookupRuntime(buf)
-	}
-
-	fn = typecheck.SubstArgTypes(fn, t, t)
-	return fn, needsize
-}
-
-// memrun finds runs of struct fields for which memory-only algs are appropriate.
-// t is the parent struct type, and start is the field index at which to start the run.
-// size is the length in bytes of the memory included in the run.
-// next is the index just after the end of the memory run.
-func memrun(t *types.Type, start int) (size int64, next int) {
-	next = start
-	for {
-		next++
-		if next == t.NumFields() {
-			break
-		}
-		// Stop run after a padded field.
-		if types.IsPaddedField(t, next-1) {
-			break
-		}
-		// Also, stop before a blank or non-memory field.
-		if f := t.Field(next); f.Sym.IsBlank() || !isRegularMemory(f.Type) {
-			break
-		}
-		// For issue 46283, don't combine fields if the resulting load would
-		// require a larger alignment than the component fields.
-		if base.Ctxt.Arch.Alignment > 1 {
-			align := t.Alignment()
-			if off := t.Field(start).Offset; off&(align-1) != 0 {
-				// Offset is less aligned than the containing type.
-				// Use offset to determine alignment.
-				align = 1 << uint(bits.TrailingZeros64(uint64(off)))
-			}
-			size := t.Field(next).End() - t.Field(start).Offset
-			if size > align {
-				break
-			}
-		}
-	}
-	return t.Field(next-1).End() - t.Field(start).Offset, next
 }
 
 func hashmem(t *types.Type) ir.Node {

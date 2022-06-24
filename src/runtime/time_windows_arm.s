@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !faketime
-// +build !faketime
 
 #include "go_asm.h"
 #include "textflag.h"
@@ -17,7 +16,9 @@ TEXT time·now(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	$_INTERRUPT_TIME, R3
 loop:
 	MOVW	time_hi1(R3), R1
+	DMB	MB_ISH
 	MOVW	time_lo(R3), R0
+	DMB	MB_ISH
 	MOVW	time_hi2(R3), R2
 	CMP	R1, R2
 	BNE	loop
@@ -34,7 +35,9 @@ loop:
 	MOVW	$_SYSTEM_TIME, R3
 wall:
 	MOVW	time_hi1(R3), R1
+	DMB	MB_ISH
 	MOVW	time_lo(R3), R0
+	DMB	MB_ISH
 	MOVW	time_hi2(R3), R2
 	CMP	R1, R2
 	BNE	wall

@@ -321,11 +321,8 @@ var optab = []Optab{
 	{ACMP, C_VCON, C_REG, C_NONE, C_NONE, 13, 20, 0, 0, 0},
 	{AADD, C_SHIFT, C_REG, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AADD, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
-	{AADD, C_SHIFT, C_RSP, C_NONE, C_RSP, 26, 4, 0, 0, 0},
-	{AADD, C_SHIFT, C_NONE, C_NONE, C_RSP, 26, 4, 0, 0, 0},
 	{AMVN, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{ACMP, C_SHIFT, C_REG, C_NONE, C_NONE, 3, 4, 0, 0, 0},
-	{ACMP, C_SHIFT, C_RSP, C_NONE, C_NONE, 26, 4, 0, 0, 0},
 	{ANEG, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AADD, C_REG, C_RSP, C_NONE, C_RSP, 27, 4, 0, 0, 0},
 	{AADD, C_REG, C_NONE, C_NONE, C_RSP, 27, 4, 0, 0, 0},
@@ -361,12 +358,12 @@ var optab = []Optab{
 	{AANDS, C_REG, C_NONE, C_NONE, C_REG, 1, 4, 0, 0, 0},
 	{ATST, C_REG, C_REG, C_NONE, C_NONE, 1, 4, 0, 0, 0},
 	{AAND, C_MBCON, C_REG, C_NONE, C_RSP, 53, 4, 0, 0, 0},
-	{AAND, C_MBCON, C_NONE, C_NONE, C_REG, 53, 4, 0, 0, 0},
+	{AAND, C_MBCON, C_NONE, C_NONE, C_RSP, 53, 4, 0, 0, 0},
 	{AANDS, C_MBCON, C_REG, C_NONE, C_REG, 53, 4, 0, 0, 0},
 	{AANDS, C_MBCON, C_NONE, C_NONE, C_REG, 53, 4, 0, 0, 0},
 	{ATST, C_MBCON, C_REG, C_NONE, C_NONE, 53, 4, 0, 0, 0},
 	{AAND, C_BITCON, C_REG, C_NONE, C_RSP, 53, 4, 0, 0, 0},
-	{AAND, C_BITCON, C_NONE, C_NONE, C_REG, 53, 4, 0, 0, 0},
+	{AAND, C_BITCON, C_NONE, C_NONE, C_RSP, 53, 4, 0, 0, 0},
 	{AANDS, C_BITCON, C_REG, C_NONE, C_REG, 53, 4, 0, 0, 0},
 	{AANDS, C_BITCON, C_NONE, C_NONE, C_REG, 53, 4, 0, 0, 0},
 	{ATST, C_BITCON, C_REG, C_NONE, C_NONE, 53, 4, 0, 0, 0},
@@ -404,6 +401,8 @@ var optab = []Optab{
 	/* TODO: MVN C_SHIFT */
 
 	/* MOVs that become MOVK/MOVN/MOVZ/ADD/SUB/OR */
+	{AMOVW, C_MBCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
+	{AMOVD, C_MBCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVW, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVD, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVW, C_BITCON, C_NONE, C_NONE, C_RSP, 32, 4, 0, 0, 0},
@@ -415,7 +414,7 @@ var optab = []Optab{
 
 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
 	{AMOVD, C_AACON, C_NONE, C_NONE, C_RSP, 4, 4, REGFROM, 0, 0},
-	{AMOVD, C_AACON2, C_NONE, C_NONE, C_RSP, 4, 8, REGFROM, 0, 0},
+	{AMOVD, C_AACON2, C_NONE, C_NONE, C_RSP, 4, 8, REGFROM, NOTUSETMP, 0},
 
 	/* load long effective stack address (load int32 offset and add) */
 	{AMOVD, C_LACON, C_NONE, C_NONE, C_RSP, 34, 8, REGSP, LFROM, 0},
@@ -692,13 +691,12 @@ var optab = []Optab{
 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
 
 	/* pre/post-indexed/signed-offset load/store register pair
-	   (unscaled, signed 10-bit quad-aligned and long offset) */
+	   (unscaled, signed 10-bit quad-aligned and long offset).
+	The pre/post-indexed format only supports OREG cases because
+	the RSP and pseudo registers are not allowed to be modified
+	in this way. */
 	{AFLDPQ, C_NQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
-	{AFLDPQ, C_NQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
-	{AFLDPQ, C_NQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
 	{AFLDPQ, C_PQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
-	{AFLDPQ, C_PQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
-	{AFLDPQ, C_PQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
 	{AFLDPQ, C_UAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
 	{AFLDPQ, C_NAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
 	{AFLDPQ, C_LAUTO, C_NONE, C_NONE, C_PAIR, 75, 12, REGSP, LFROM, 0},
@@ -714,11 +712,7 @@ var optab = []Optab{
 	{AFLDPQ, C_ADDR, C_NONE, C_NONE, C_PAIR, 88, 12, 0, 0, 0},
 
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NQAUTO_16, 67, 4, REGSP, 0, 0},
-	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NQAUTO_16, 67, 4, REGSP, 0, C_XPRE},
-	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NQAUTO_16, 67, 4, REGSP, 0, C_XPOST},
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_PQAUTO_16, 67, 4, REGSP, 0, 0},
-	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_PQAUTO_16, 67, 4, REGSP, 0, C_XPRE},
-	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_PQAUTO_16, 67, 4, REGSP, 0, C_XPOST},
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 8, REGSP, 0, 0},
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, 0},
@@ -734,11 +728,7 @@ var optab = []Optab{
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_ADDR, 87, 12, 0, 0, 0},
 
 	{ALDP, C_NPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
-	{ALDP, C_NPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
-	{ALDP, C_NPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
 	{ALDP, C_PPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
-	{ALDP, C_PPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
-	{ALDP, C_PPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
 	{ALDP, C_UAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
 	{ALDP, C_NAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
 	{ALDP, C_LAUTO, C_NONE, C_NONE, C_PAIR, 75, 12, REGSP, LFROM, 0},
@@ -754,11 +744,7 @@ var optab = []Optab{
 	{ALDP, C_ADDR, C_NONE, C_NONE, C_PAIR, 88, 12, 0, 0, 0},
 
 	{ASTP, C_PAIR, C_NONE, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, 0},
-	{ASTP, C_PAIR, C_NONE, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, C_XPRE},
-	{ASTP, C_PAIR, C_NONE, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, C_XPOST},
 	{ASTP, C_PAIR, C_NONE, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, 0},
-	{ASTP, C_PAIR, C_NONE, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, C_XPRE},
-	{ASTP, C_PAIR, C_NONE, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, C_XPOST},
 	{ASTP, C_PAIR, C_NONE, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
 	{ASTP, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 8, REGSP, 0, 0},
 	{ASTP, C_PAIR, C_NONE, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, 0},
@@ -775,11 +761,7 @@ var optab = []Optab{
 
 	// differ from LDP/STP for C_NSAUTO_4/C_PSAUTO_4/C_NSOREG_4/C_PSOREG_4
 	{ALDPW, C_NSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
-	{ALDPW, C_NSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
-	{ALDPW, C_NSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
 	{ALDPW, C_PSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
-	{ALDPW, C_PSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
-	{ALDPW, C_PSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
 	{ALDPW, C_UAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
 	{ALDPW, C_NAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
 	{ALDPW, C_LAUTO, C_NONE, C_NONE, C_PAIR, 75, 12, REGSP, LFROM, 0},
@@ -795,11 +777,7 @@ var optab = []Optab{
 	{ALDPW, C_ADDR, C_NONE, C_NONE, C_PAIR, 88, 12, 0, 0, 0},
 
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NSAUTO_4, 67, 4, REGSP, 0, 0},
-	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NSAUTO_4, 67, 4, REGSP, 0, C_XPRE},
-	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NSAUTO_4, 67, 4, REGSP, 0, C_XPOST},
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_PSAUTO_4, 67, 4, REGSP, 0, 0},
-	{ASTPW, C_PAIR, C_NONE, C_NONE, C_PSAUTO_4, 67, 4, REGSP, 0, C_XPRE},
-	{ASTPW, C_PAIR, C_NONE, C_NONE, C_PSAUTO_4, 67, 4, REGSP, 0, C_XPOST},
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 8, REGSP, 0, 0},
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, 0},
@@ -860,13 +838,16 @@ var optab = []Optab{
 	{AMSR, C_REG, C_NONE, C_NONE, C_SPR, 36, 4, 0, 0, 0},
 	{AMOVD, C_VCON, C_NONE, C_NONE, C_SPR, 37, 4, 0, 0, 0},
 	{AMSR, C_VCON, C_NONE, C_NONE, C_SPR, 37, 4, 0, 0, 0},
-	{APRFM, C_UOREG32K, C_NONE, C_NONE, C_SPR, 91, 4, 0, 0, 0},
+	{AMSR, C_VCON, C_NONE, C_NONE, C_SPOP, 37, 4, 0, 0, 0},
+	{APRFM, C_UOREG32K, C_NONE, C_NONE, C_SPOP, 91, 4, 0, 0, 0},
 	{APRFM, C_UOREG32K, C_NONE, C_NONE, C_LCON, 91, 4, 0, 0, 0},
 	{ADMB, C_VCON, C_NONE, C_NONE, C_NONE, 51, 4, 0, 0, 0},
 	{AHINT, C_VCON, C_NONE, C_NONE, C_NONE, 52, 4, 0, 0, 0},
 	{ASYS, C_VCON, C_NONE, C_NONE, C_NONE, 50, 4, 0, 0, 0},
-	{ASYS, C_VCON, C_REG, C_NONE, C_NONE, 50, 4, 0, 0, 0},
+	{ASYS, C_VCON, C_NONE, C_NONE, C_REG, 50, 4, 0, 0, 0},
 	{ASYSL, C_VCON, C_NONE, C_NONE, C_REG, 50, 4, 0, 0, 0},
+	{ATLBI, C_SPOP, C_NONE, C_NONE, C_NONE, 107, 4, 0, 0, 0},
+	{ATLBI, C_SPOP, C_NONE, C_NONE, C_REG, 107, 4, 0, 0, 0},
 
 	/* encryption instructions */
 	{AAESD, C_VREG, C_NONE, C_NONE, C_VREG, 29, 4, 0, 0, 0}, // for compatibility with old code
@@ -895,40 +876,157 @@ var optab = []Optab{
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0},
 }
 
-/*
- * valid pstate field values, and value to use in instruction
- */
+// Valid pstate field values, and value to use in instruction.
+// Doesn't include special registers.
 var pstatefield = []struct {
-	reg int16
+	opd SpecialOperand
 	enc uint32
 }{
-	{REG_SPSel, 0<<16 | 4<<12 | 5<<5},
-	{REG_DAIFSet, 3<<16 | 4<<12 | 6<<5},
-	{REG_DAIFClr, 3<<16 | 4<<12 | 7<<5},
+	{SPOP_DAIFSet, 3<<16 | 4<<12 | 6<<5},
+	{SPOP_DAIFClr, 3<<16 | 4<<12 | 7<<5},
 }
 
-var prfopfield = []struct {
-	reg int16
-	enc uint32
+var prfopfield = map[SpecialOperand]uint32{
+	SPOP_PLDL1KEEP: 0,
+	SPOP_PLDL1STRM: 1,
+	SPOP_PLDL2KEEP: 2,
+	SPOP_PLDL2STRM: 3,
+	SPOP_PLDL3KEEP: 4,
+	SPOP_PLDL3STRM: 5,
+	SPOP_PLIL1KEEP: 8,
+	SPOP_PLIL1STRM: 9,
+	SPOP_PLIL2KEEP: 10,
+	SPOP_PLIL2STRM: 11,
+	SPOP_PLIL3KEEP: 12,
+	SPOP_PLIL3STRM: 13,
+	SPOP_PSTL1KEEP: 16,
+	SPOP_PSTL1STRM: 17,
+	SPOP_PSTL2KEEP: 18,
+	SPOP_PSTL2STRM: 19,
+	SPOP_PSTL3KEEP: 20,
+	SPOP_PSTL3STRM: 21,
+}
+
+// sysInstFields helps convert SYS alias instructions to SYS instructions.
+// For example, the format of TLBI is: TLBI <tlbi_op>{, <Xt>}.
+// It's equivalent to: SYS #<op1>, C8, <Cm>, #<op2>{, <Xt>}.
+// The field hasOperand2 indicates whether Xt is required. It helps to check
+// some combinations that may be undefined, such as TLBI VMALLE1IS, R0.
+var sysInstFields = map[SpecialOperand]struct {
+	op1         uint8
+	cn          uint8
+	cm          uint8
+	op2         uint8
+	hasOperand2 bool
 }{
-	{REG_PLDL1KEEP, 0},
-	{REG_PLDL1STRM, 1},
-	{REG_PLDL2KEEP, 2},
-	{REG_PLDL2STRM, 3},
-	{REG_PLDL3KEEP, 4},
-	{REG_PLDL3STRM, 5},
-	{REG_PLIL1KEEP, 8},
-	{REG_PLIL1STRM, 9},
-	{REG_PLIL2KEEP, 10},
-	{REG_PLIL2STRM, 11},
-	{REG_PLIL3KEEP, 12},
-	{REG_PLIL3STRM, 13},
-	{REG_PSTL1KEEP, 16},
-	{REG_PSTL1STRM, 17},
-	{REG_PSTL2KEEP, 18},
-	{REG_PSTL2STRM, 19},
-	{REG_PSTL3KEEP, 20},
-	{REG_PSTL3STRM, 21},
+	// TLBI
+	SPOP_VMALLE1IS:    {0, 8, 3, 0, false},
+	SPOP_VAE1IS:       {0, 8, 3, 1, true},
+	SPOP_ASIDE1IS:     {0, 8, 3, 2, true},
+	SPOP_VAAE1IS:      {0, 8, 3, 3, true},
+	SPOP_VALE1IS:      {0, 8, 3, 5, true},
+	SPOP_VAALE1IS:     {0, 8, 3, 7, true},
+	SPOP_VMALLE1:      {0, 8, 7, 0, false},
+	SPOP_VAE1:         {0, 8, 7, 1, true},
+	SPOP_ASIDE1:       {0, 8, 7, 2, true},
+	SPOP_VAAE1:        {0, 8, 7, 3, true},
+	SPOP_VALE1:        {0, 8, 7, 5, true},
+	SPOP_VAALE1:       {0, 8, 7, 7, true},
+	SPOP_IPAS2E1IS:    {4, 8, 0, 1, true},
+	SPOP_IPAS2LE1IS:   {4, 8, 0, 5, true},
+	SPOP_ALLE2IS:      {4, 8, 3, 0, false},
+	SPOP_VAE2IS:       {4, 8, 3, 1, true},
+	SPOP_ALLE1IS:      {4, 8, 3, 4, false},
+	SPOP_VALE2IS:      {4, 8, 3, 5, true},
+	SPOP_VMALLS12E1IS: {4, 8, 3, 6, false},
+	SPOP_IPAS2E1:      {4, 8, 4, 1, true},
+	SPOP_IPAS2LE1:     {4, 8, 4, 5, true},
+	SPOP_ALLE2:        {4, 8, 7, 0, false},
+	SPOP_VAE2:         {4, 8, 7, 1, true},
+	SPOP_ALLE1:        {4, 8, 7, 4, false},
+	SPOP_VALE2:        {4, 8, 7, 5, true},
+	SPOP_VMALLS12E1:   {4, 8, 7, 6, false},
+	SPOP_ALLE3IS:      {6, 8, 3, 0, false},
+	SPOP_VAE3IS:       {6, 8, 3, 1, true},
+	SPOP_VALE3IS:      {6, 8, 3, 5, true},
+	SPOP_ALLE3:        {6, 8, 7, 0, false},
+	SPOP_VAE3:         {6, 8, 7, 1, true},
+	SPOP_VALE3:        {6, 8, 7, 5, true},
+	SPOP_VMALLE1OS:    {0, 8, 1, 0, false},
+	SPOP_VAE1OS:       {0, 8, 1, 1, true},
+	SPOP_ASIDE1OS:     {0, 8, 1, 2, true},
+	SPOP_VAAE1OS:      {0, 8, 1, 3, true},
+	SPOP_VALE1OS:      {0, 8, 1, 5, true},
+	SPOP_VAALE1OS:     {0, 8, 1, 7, true},
+	SPOP_RVAE1IS:      {0, 8, 2, 1, true},
+	SPOP_RVAAE1IS:     {0, 8, 2, 3, true},
+	SPOP_RVALE1IS:     {0, 8, 2, 5, true},
+	SPOP_RVAALE1IS:    {0, 8, 2, 7, true},
+	SPOP_RVAE1OS:      {0, 8, 5, 1, true},
+	SPOP_RVAAE1OS:     {0, 8, 5, 3, true},
+	SPOP_RVALE1OS:     {0, 8, 5, 5, true},
+	SPOP_RVAALE1OS:    {0, 8, 5, 7, true},
+	SPOP_RVAE1:        {0, 8, 6, 1, true},
+	SPOP_RVAAE1:       {0, 8, 6, 3, true},
+	SPOP_RVALE1:       {0, 8, 6, 5, true},
+	SPOP_RVAALE1:      {0, 8, 6, 7, true},
+	SPOP_RIPAS2E1IS:   {4, 8, 0, 2, true},
+	SPOP_RIPAS2LE1IS:  {4, 8, 0, 6, true},
+	SPOP_ALLE2OS:      {4, 8, 1, 0, false},
+	SPOP_VAE2OS:       {4, 8, 1, 1, true},
+	SPOP_ALLE1OS:      {4, 8, 1, 4, false},
+	SPOP_VALE2OS:      {4, 8, 1, 5, true},
+	SPOP_VMALLS12E1OS: {4, 8, 1, 6, false},
+	SPOP_RVAE2IS:      {4, 8, 2, 1, true},
+	SPOP_RVALE2IS:     {4, 8, 2, 5, true},
+	SPOP_IPAS2E1OS:    {4, 8, 4, 0, true},
+	SPOP_RIPAS2E1:     {4, 8, 4, 2, true},
+	SPOP_RIPAS2E1OS:   {4, 8, 4, 3, true},
+	SPOP_IPAS2LE1OS:   {4, 8, 4, 4, true},
+	SPOP_RIPAS2LE1:    {4, 8, 4, 6, true},
+	SPOP_RIPAS2LE1OS:  {4, 8, 4, 7, true},
+	SPOP_RVAE2OS:      {4, 8, 5, 1, true},
+	SPOP_RVALE2OS:     {4, 8, 5, 5, true},
+	SPOP_RVAE2:        {4, 8, 6, 1, true},
+	SPOP_RVALE2:       {4, 8, 6, 5, true},
+	SPOP_ALLE3OS:      {6, 8, 1, 0, false},
+	SPOP_VAE3OS:       {6, 8, 1, 1, true},
+	SPOP_VALE3OS:      {6, 8, 1, 5, true},
+	SPOP_RVAE3IS:      {6, 8, 2, 1, true},
+	SPOP_RVALE3IS:     {6, 8, 2, 5, true},
+	SPOP_RVAE3OS:      {6, 8, 5, 1, true},
+	SPOP_RVALE3OS:     {6, 8, 5, 5, true},
+	SPOP_RVAE3:        {6, 8, 6, 1, true},
+	SPOP_RVALE3:       {6, 8, 6, 5, true},
+	// DC
+	SPOP_IVAC:    {0, 7, 6, 1, true},
+	SPOP_ISW:     {0, 7, 6, 2, true},
+	SPOP_CSW:     {0, 7, 10, 2, true},
+	SPOP_CISW:    {0, 7, 14, 2, true},
+	SPOP_ZVA:     {3, 7, 4, 1, true},
+	SPOP_CVAC:    {3, 7, 10, 1, true},
+	SPOP_CVAU:    {3, 7, 11, 1, true},
+	SPOP_CIVAC:   {3, 7, 14, 1, true},
+	SPOP_IGVAC:   {0, 7, 6, 3, true},
+	SPOP_IGSW:    {0, 7, 6, 4, true},
+	SPOP_IGDVAC:  {0, 7, 6, 5, true},
+	SPOP_IGDSW:   {0, 7, 6, 6, true},
+	SPOP_CGSW:    {0, 7, 10, 4, true},
+	SPOP_CGDSW:   {0, 7, 10, 6, true},
+	SPOP_CIGSW:   {0, 7, 14, 4, true},
+	SPOP_CIGDSW:  {0, 7, 14, 6, true},
+	SPOP_GVA:     {3, 7, 4, 3, true},
+	SPOP_GZVA:    {3, 7, 4, 4, true},
+	SPOP_CGVAC:   {3, 7, 10, 3, true},
+	SPOP_CGDVAC:  {3, 7, 10, 5, true},
+	SPOP_CGVAP:   {3, 7, 12, 3, true},
+	SPOP_CGDVAP:  {3, 7, 12, 5, true},
+	SPOP_CGVADP:  {3, 7, 13, 3, true},
+	SPOP_CGDVADP: {3, 7, 13, 5, true},
+	SPOP_CIGVAC:  {3, 7, 14, 3, true},
+	SPOP_CIGDVAC: {3, 7, 14, 5, true},
+	SPOP_CVAP:    {3, 7, 12, 1, true},
+	SPOP_CVADP:   {3, 7, 13, 1, true},
 }
 
 // Used for padinng NOOP instruction
@@ -1124,6 +1222,16 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
 	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
+
+	// Now that we know byte offsets, we can generate jump table entries.
+	for _, jt := range cursym.Func().JumpTables {
+		for i, p := range jt.Targets {
+			// The ith jumptable entry points to the p.Pc'th
+			// byte in the function symbol s.
+			// TODO: try using relative PCs.
+			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, cursym, p.Pc)
+		}
+	}
 }
 
 // isUnsafePoint returns whether p is an unsafe point.
@@ -1203,7 +1311,7 @@ func (c *ctxt7) addpool128(p *obj.Prog, al, ah *obj.Addr) {
 	q := c.newprog()
 	q.As = ADWORD
 	q.To.Type = obj.TYPE_CONST
-	q.To.Offset = al.Offset
+	q.To.Offset = al.Offset // q.Pc is lower than t.Pc, so al.Offset is stored in q.
 
 	t := c.newprog()
 	t.As = ADWORD
@@ -1698,15 +1806,14 @@ func rclass(r int16) int {
 		return C_FREG
 	case REG_V0 <= r && r <= REG_V31:
 		return C_VREG
-	case COND_EQ <= r && r <= COND_NV:
-		return C_COND
 	case r == REGSP:
 		return C_RSP
 	case r >= REG_ARNG && r < REG_ELEM:
 		return C_ARNG
 	case r >= REG_ELEM && r < REG_ELEM_END:
 		return C_ELEM
-	case r >= REG_UXTB && r < REG_SPECIAL:
+	case r >= REG_UXTB && r < REG_SPECIAL,
+		r >= REG_LSL && r < REG_ARNG:
 		return C_EXTREG
 	case r >= REG_SPECIAL:
 		return C_SPR
@@ -1974,8 +2081,14 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 
 	case obj.TYPE_BRANCH:
 		return C_SBRA
-	}
 
+	case obj.TYPE_SPECIAL:
+		opd := SpecialOperand(a.Offset)
+		if SPOP_EQ <= opd && opd <= SPOP_NV {
+			return C_COND
+		}
+		return C_SPOP
+	}
 	return C_GOK
 }
 
@@ -2089,13 +2202,18 @@ func cmp(a int, b int) bool {
 			return true
 		}
 
+	case C_MBCON:
+		if b == C_ABCON0 {
+			return true
+		}
+
 	case C_BITCON:
 		if b == C_ABCON0 || b == C_ABCON || b == C_MBCON {
 			return true
 		}
 
 	case C_MOVCON:
-		if b == C_MBCON || b == C_ZCON || b == C_ADDCON0 || b == C_AMCON {
+		if b == C_MBCON || b == C_ZCON || b == C_ADDCON0 || b == C_ABCON0 || b == C_AMCON {
 			return true
 		}
 
@@ -2884,9 +3002,10 @@ func buildop(ctxt *obj.Link) {
 
 		case ASYS:
 			oprangeset(AAT, t)
-			oprangeset(ADC, t)
 			oprangeset(AIC, t)
-			oprangeset(ATLBI, t)
+
+		case ATLBI:
+			oprangeset(ADC, t)
 
 		case ASYSL, AHINT:
 			break
@@ -3001,6 +3120,8 @@ func buildop(ctxt *obj.Link) {
 
 		case AVZIP1:
 			oprangeset(AVZIP2, t)
+			oprangeset(AVTRN1, t)
+			oprangeset(AVTRN2, t)
 
 		case AVUXTL:
 			oprangeset(AVUXTL2, t)
@@ -3299,8 +3420,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		if int(o.size) == 8 {
-			o1 = c.oaddi(p, op, v&0xfff000, r, REGTMP)
-			o2 = c.oaddi(p, op, v&0x000fff, REGTMP, rt)
+			// NOTE: this case does not use REGTMP. If it ever does,
+			// remove the NOTUSETMP flag in optab.
+			o1 = c.oaddi(p, op, v&0xfff000, r, rt)
+			o2 = c.oaddi(p, op, v&0x000fff, rt, rt)
 			break
 		}
 
@@ -3419,6 +3542,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o4 = os[3]
 
 	case 13: /* addop $vcon, [R], R (64 bit literal); cmp $lcon,R -> addop $lcon,R, ZR */
+		if p.Reg == REGTMP {
+			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
+		}
 		if p.To.Reg == REG_RSP && isADDSop(p.As) {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
@@ -3535,12 +3661,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 18: /* csel cond,Rn,Rm,Rd; cinc/cinv/cneg cond,Rn,Rd; cset cond,Rd */
 		o1 = c.oprrr(p, p.As)
 
-		cond := int(p.From.Reg)
-		// AL and NV are not allowed for CINC/CINV/CNEG/CSET/CSETM instructions
-		if cond < COND_EQ || cond > COND_NV || (cond == COND_AL || cond == COND_NV) && p.From3Type() == obj.TYPE_NONE {
+		cond := SpecialOperand(p.From.Offset)
+		if cond < SPOP_EQ || cond > SPOP_NV || (cond == SPOP_AL || cond == SPOP_NV) && p.From3Type() == obj.TYPE_NONE {
 			c.ctxt.Diag("invalid condition: %v", p)
 		} else {
-			cond -= COND_EQ
+			cond -= SPOP_EQ
 		}
 
 		r := int(p.Reg)
@@ -3563,11 +3688,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 19: /* CCMN cond, (Rm|uimm5),Rn, uimm4 -> ccmn Rn,Rm,uimm4,cond */
 		nzcv := int(p.To.Offset)
 
-		cond := int(p.From.Reg)
-		if cond < COND_EQ || cond > COND_NV {
+		cond := SpecialOperand(p.From.Offset)
+		if cond < SPOP_EQ || cond > SPOP_NV {
 			c.ctxt.Diag("invalid condition\n%v", p)
 		} else {
-			cond -= COND_EQ
+			cond -= SPOP_EQ
 		}
 		var rf int
 		if p.GetFrom3().Type == obj.TYPE_REG {
@@ -3675,52 +3800,18 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 		o1 |= (uint32(rf&31) << 16) | (REGZERO & 31 << 5) | uint32(rt&31)
 
-	case 26: // op R<<n, RSP, RSP (extended register)
-		// Refer to ARM reference manual, if "Rd" or "Rn" is RSP,
-		// it can be encoded as op(extended regster) instruction.
-		if !(p.To.Reg == REGSP || p.Reg == REGSP) {
-			c.ctxt.Diag("expected SP reference: %v", p)
-			break
-		}
-		if p.To.Reg == REGSP && (p.As == AADDS || p.As == AADDSW || p.As == ASUBS || p.As == ASUBSW) {
-			c.ctxt.Diag("unexpected SP reference: %v", p)
-			break
-		}
-		amount := (p.From.Offset >> 10) & 63
-		shift := (p.From.Offset >> 22) & 3
-		if shift != 0 {
-			c.ctxt.Diag("illegal combination: %v", p)
-			break
-		}
-
-		if amount > 4 {
-			c.ctxt.Diag("the left shift amount out of range 0 to 4: %v", p)
-			break
-		}
-		rf := (p.From.Offset >> 16) & 31
-		rt := int(p.To.Reg)
-		r := int(p.Reg)
-		if p.To.Type == obj.TYPE_NONE {
-			rt = REGZERO
-		}
-		if r == 0 {
-			r = rt
-		}
-
-		o1 = c.opxrrr(p, p.As, false)
-		o1 |= uint32(rf)<<16 | uint32(amount&7)<<10 | (uint32(r&31) << 5) | uint32(rt&31)
-
 	case 27: /* op Rm<<n[,Rn],Rd (extended register) */
 		if p.To.Reg == REG_RSP && isADDSop(p.As) {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
-		if (p.From.Reg-obj.RBaseARM64)&REG_EXT != 0 {
+		if (p.From.Reg-obj.RBaseARM64)&REG_EXT != 0 ||
+			(p.From.Reg >= REG_LSL && p.From.Reg < REG_ARNG) {
 			amount := (p.From.Reg >> 5) & 7
 			if amount > 4 {
 				c.ctxt.Diag("shift amount out of range 0 to 4: %v", p)
 			}
 			o1 = c.opxrrr(p, p.As, true)
-			o1 |= c.encRegShiftOrExt(&p.From, p.From.Reg) /* includes reg, op, etc */
+			o1 |= c.encRegShiftOrExt(p, &p.From, p.From.Reg) /* includes reg, op, etc */
 		} else {
 			o1 = c.opxrrr(p, p.As, false)
 			o1 |= uint32(p.From.Reg&31) << 16
@@ -3736,6 +3827,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(r&31) << 5) | uint32(rt&31)
 
 	case 28: /* logop $vcon, [R], R (64 bit literal) */
+		if p.Reg == REGTMP {
+			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
+		}
 		o := uint32(0)
 		num := uint8(0)
 		cls := oclass(&p.From)
@@ -3883,6 +3977,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.opirr(p, p.As)
 
 		d := p.From.Offset
+		if d == 0 {
+			c.ctxt.Diag("zero shifts cannot be handled correctly: %v", p)
+		}
 		s := movcon(d)
 		if s < 0 || s >= 4 {
 			c.ctxt.Diag("bad constant for MOVK: %#x\n%v", uint64(d), p)
@@ -3890,7 +3987,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if (o1&S64) == 0 && s >= 2 {
 			c.ctxt.Diag("illegal bit position\n%v", p)
 		}
-		if ((d >> uint(s*16)) >> 16) != 0 {
+		if ((uint64(d) >> uint(s*16)) >> 16) != 0 {
 			c.ctxt.Diag("requires uimm16\n%v", p)
 		}
 		rt := int(p.To.Reg)
@@ -3956,10 +4053,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.opirr(p, AMSR)
 		o1 |= uint32((p.From.Offset & 0xF) << 8) /* Crm */
 		v := uint32(0)
-		for i := 0; i < len(pstatefield); i++ {
-			if pstatefield[i].reg == p.To.Reg {
-				v = pstatefield[i].enc
-				break
+		// PSTATEfield can be special registers and special operands.
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SPSel {
+			v = 0<<16 | 4<<12 | 5<<5
+		} else if p.To.Type == obj.TYPE_SPECIAL {
+			opd := SpecialOperand(p.To.Offset)
+			for _, pf := range pstatefield {
+				if pf.opd == opd {
+					v = pf.enc
+					break
+				}
 			}
 		}
 
@@ -4170,8 +4273,6 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(p.From.Offset)
 		if p.To.Type == obj.TYPE_REG {
 			o1 |= uint32(p.To.Reg & 31)
-		} else if p.Reg != 0 {
-			o1 |= uint32(p.Reg & 31)
 		} else {
 			o1 |= 0x1F
 		}
@@ -4197,6 +4298,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		r := int(p.Reg)
 		if r == 0 {
 			r = rt
+		}
+		if r == REG_RSP {
+			c.ctxt.Diag("illegal source register: %v", p)
+			break
 		}
 		mode := 64
 		v := uint64(p.From.Offset)
@@ -4253,11 +4358,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 57: /* floating point conditional compare */
 		o1 = c.oprrr(p, p.As)
 
-		cond := int(p.From.Reg)
-		if cond < COND_EQ || cond > COND_NV {
+		cond := SpecialOperand(p.From.Offset)
+		if cond < SPOP_EQ || cond > SPOP_NV {
 			c.ctxt.Diag("invalid condition\n%v", p)
 		} else {
-			cond -= COND_EQ
+			cond -= SPOP_EQ
 		}
 
 		nzcv := int(p.To.Offset)
@@ -4333,8 +4438,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Reg == REG_RSP && isADDSop(p.As) {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
+		lsl0 := LSL0_64
 		if isADDWop(p.As) || isANDWop(p.As) {
 			o1 = c.omovconst(AMOVW, p, &p.From, REGTMP)
+			lsl0 = LSL0_32
 		} else {
 			o1 = c.omovconst(AMOVD, p, &p.From, REGTMP)
 		}
@@ -4350,7 +4457,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Reg == REGSP || r == REGSP {
 			o2 = c.opxrrr(p, p.As, false)
 			o2 |= REGTMP & 31 << 16
-			o2 |= LSL0_64
+			o2 |= uint32(lsl0)
 		} else {
 			o2 = c.oprrr(p, p.As)
 			o2 |= REGTMP & 31 << 16 /* shift is 0 */
@@ -4360,6 +4467,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		/* reloc ops */
 	case 64: /* movT R,addr -> adrp + add + movT R, (REGTMP) */
+		if p.From.Reg == REGTMP {
+			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
+		}
 		o1 = ADR(1, 0, REGTMP)
 		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
 		rel := obj.Addrel(c.cursym)
@@ -4591,6 +4701,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		//	add Rtmp, R, Rtmp
 		//	ldp (Rtmp), (R1, R2)
 		r := int(p.From.Reg)
+		if r == REGTMP {
+			c.ctxt.Diag("REGTMP used in large offset load: %v", p)
+		}
 		if r == obj.REG_NONE {
 			r = int(o.param)
 		}
@@ -4607,6 +4720,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 76:
 		//	add $O, R, Rtmp or sub $O, R, Rtmp
 		//	stp (R1, R2), (Rtmp)
+		if p.From.Reg == REGTMP || p.From.Offset == REGTMP {
+			c.ctxt.Diag("cannot use REGTMP as source: %v", p)
+		}
 		r := int(p.To.Reg)
 		if r == obj.REG_NONE {
 			r = int(o.param)
@@ -4634,6 +4750,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		//	add Rtmp, R, Rtmp
 		//	stp (R1, R2), (Rtmp)
 		r := int(p.To.Reg)
+		if r == REGTMP || p.From.Reg == REGTMP || p.From.Offset == REGTMP {
+			c.ctxt.Diag("REGTMP used in large offset store: %v", p)
+		}
 		if r == obj.REG_NONE {
 			r = int(o.param)
 		}
@@ -4939,6 +5058,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(Q&1) << 30) | (uint32((r>>5)&7) << 16) | (uint32(r&0x1f) << 5) | uint32(rt&31)
 
 	case 87: /* stp (r,r), addr(SB) -> adrp + add + stp */
+		if p.From.Reg == REGTMP || p.From.Offset == REGTMP {
+			c.ctxt.Diag("cannot use REGTMP as source: %v", p)
+		}
 		o1 = ADR(1, 0, REGTMP)
 		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
 		rel := obj.Addrel(c.cursym)
@@ -4992,22 +5114,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 91: /* prfm imm(Rn), <prfop | $imm5> */
 		imm := uint32(p.From.Offset)
 		r := p.From.Reg
-		v := uint32(0xff)
+		var v uint32
+		var ok bool
 		if p.To.Type == obj.TYPE_CONST {
 			v = uint32(p.To.Offset)
-			if v > 31 {
-				c.ctxt.Diag("illegal prefetch operation\n%v", p)
-			}
+			ok = v <= 31
 		} else {
-			for i := 0; i < len(prfopfield); i++ {
-				if prfopfield[i].reg == p.To.Reg {
-					v = prfopfield[i].enc
-					break
-				}
-			}
-			if v == 0xff {
-				c.ctxt.Diag("illegal prefetch operation:\n%v", p)
-			}
+			v, ok = prfopfield[SpecialOperand(p.To.Offset)]
+		}
+		if !ok {
+			c.ctxt.Diag("illegal prefetch operation:\n%v", p)
 		}
 
 		o1 = c.opirr(p, p.As)
@@ -5326,7 +5442,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.checkShiftAmount(p, &p.From)
 
 			o1 = c.opldrr(p, p.As, true)
-			o1 |= c.encRegShiftOrExt(&p.From, p.From.Index) /* includes reg, op, etc */
+			o1 |= c.encRegShiftOrExt(p, &p.From, p.From.Index) /* includes reg, op, etc */
 		} else {
 			// (Rn)(Rm), no extension or shift.
 			o1 = c.opldrr(p, p.As, false)
@@ -5342,7 +5458,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.checkShiftAmount(p, &p.To)
 
 			o1 = c.opstrr(p, p.As, true)
-			o1 |= c.encRegShiftOrExt(&p.To, p.To.Index) /* includes reg, op, etc */
+			o1 |= c.encRegShiftOrExt(p, &p.To, p.To.Index) /* includes reg, op, etc */
 		} else {
 			// (Rn)(Rm), no extension or shift.
 			o1 = c.opstrr(p, p.As, false)
@@ -5530,6 +5646,26 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
 		o1 |= enc | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
+
+	case 107: /* tlbi, dc */
+		op, ok := sysInstFields[SpecialOperand(p.From.Offset)]
+		if !ok || (p.As == ATLBI && op.cn != 8) || (p.As == ADC && op.cn != 7) {
+			c.ctxt.Diag("illegal argument: %v\n", p)
+			break
+		}
+		o1 = c.opirr(p, p.As)
+		if op.hasOperand2 {
+			if p.To.Reg == 0 {
+				c.ctxt.Diag("missing register at operand 2: %v\n", p)
+			}
+			o1 |= uint32(p.To.Reg & 0x1F)
+		} else {
+			if p.To.Reg != 0 || p.Reg != 0 {
+				c.ctxt.Diag("extraneous register at operand 2: %v\n", p)
+			}
+			o1 |= uint32(0x1F)
+		}
+		o1 |= uint32(SYSARG4(int(op.op1), int(op.cn), int(op.cm), int(op.op2)))
 	}
 	out[0] = o1
 	out[1] = o2
@@ -6197,6 +6333,12 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVUADDW, AVUADDW2:
 		return 0x17<<25 | 1<<21 | 1<<12
+
+	case AVTRN1:
+		return 7<<25 | 5<<11
+
+	case AVTRN2:
+		return 7<<25 | 1<<14 | 5<<11
 	}
 
 	c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)
@@ -6541,7 +6683,12 @@ func (c *ctxt7) opimm(p *obj.Prog, a obj.As) uint32 {
 func (c *ctxt7) brdist(p *obj.Prog, preshift int, flen int, shift int) int64 {
 	v := int64(0)
 	t := int64(0)
-	q := p.To.Target()
+	var q *obj.Prog
+	if p.To.Type == obj.TYPE_BRANCH {
+		q = p.To.Target()
+	} else if p.From.Type == obj.TYPE_BRANCH { // adr, adrp
+		q = p.From.Target()
+	}
 	if q == nil {
 		// TODO: don't use brdist for this case, as it isn't a branch.
 		// (Calls from omovlit, and maybe adr/adrp opcodes as well.)
@@ -7037,8 +7184,8 @@ func (c *ctxt7) omovlit(as obj.As, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 
 // load a constant (MOVCON or BITCON) in a into rt
 func (c *ctxt7) omovconst(as obj.As, p *obj.Prog, a *obj.Addr, rt int) (o1 uint32) {
-	if cls := oclass(a); cls == C_BITCON || cls == C_ABCON || cls == C_ABCON0 {
-		// or $bitcon, REGZERO, rt
+	if cls := oclass(a); (cls == C_BITCON || cls == C_ABCON || cls == C_ABCON0) && rt != REGZERO {
+		// or $bitcon, REGZERO, rt. rt can't be ZR.
 		mode := 64
 		var as1 obj.As
 		switch as {
@@ -7270,7 +7417,7 @@ func (c *ctxt7) opextr(p *obj.Prog, a obj.As, v int32, rn int, rm int, rt int) u
 	return o
 }
 
-/* genrate instruction encoding for ldp and stp series */
+/* generate instruction encoding for ldp and stp series */
 func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uint32) uint32 {
 	wback := false
 	if o.scond == C_XPOST || o.scond == C_XPRE {
@@ -7409,7 +7556,7 @@ func roff(rm int16, o uint32, amount int16) uint32 {
 }
 
 // encRegShiftOrExt returns the encoding of shifted/extended register, Rx<<n and Rx.UXTW<<n, etc.
-func (c *ctxt7) encRegShiftOrExt(a *obj.Addr, r int16) uint32 {
+func (c *ctxt7) encRegShiftOrExt(p *obj.Prog, a *obj.Addr, r int16) uint32 {
 	var num, rm int16
 	num = (r >> 5) & 7
 	rm = r & 31
@@ -7454,8 +7601,13 @@ func (c *ctxt7) encRegShiftOrExt(a *obj.Addr, r int16) uint32 {
 		} else {
 			return roff(rm, 7, num)
 		}
-	case REG_LSL <= r && r < (REG_LSL+1<<8):
-		return roff(rm, 3, 6)
+	case REG_LSL <= r && r < REG_ARNG:
+		if a.Type == obj.TYPE_MEM { // (R1)(R2<<1)
+			return roff(rm, 3, 6)
+		} else if isADDWop(p.As) {
+			return roff(rm, 2, num)
+		}
+		return roff(rm, 3, num)
 	default:
 		c.ctxt.Diag("unsupported register extension type.")
 	}

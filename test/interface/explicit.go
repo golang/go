@@ -38,7 +38,7 @@ var e E
 
 func main() {
 	e = t // ok
-	t = e // ERROR "need explicit|need type assertion|incompatible type"
+	t = e // ERROR "need explicit|need type assertion"
 
 	// neither of these can work,
 	// because i has an extra method
@@ -57,7 +57,7 @@ func main() {
 
 	// cannot type-assert non-interfaces
 	f := 2.0
-	_ = f.(int) // ERROR "non-interface type|only valid for interface types|not an interface type"
+	_ = f.(int) // ERROR "non-interface type|only valid for interface types|not an interface"
 
 }
 

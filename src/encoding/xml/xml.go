@@ -10,9 +10,6 @@ package xml
 //    Annotated XML spec: https://www.xml.com/axml/testaxml.htm
 //    XML name spaces: https://www.w3.org/TR/REC-xml-names/
 
-// TODO(rsc):
-//	Test error handling.
-
 import (
 	"bufio"
 	"bytes"
@@ -52,7 +49,7 @@ type Attr struct {
 
 // A Token is an interface holding one of the token types:
 // StartElement, EndElement, CharData, Comment, ProcInst, or Directive.
-type Token interface{}
+type Token any
 
 // A StartElement represents an XML start element.
 type StartElement struct {
@@ -219,6 +216,7 @@ type Decoder struct {
 	ns             map[string]string
 	err            error
 	line           int
+	linestart      int64
 	offset         int64
 	unmarshalDepth int
 }
@@ -499,7 +497,7 @@ func (d *Decoder) popElement(t *EndElement) bool {
 		return false
 	case s.name.Space != name.Space:
 		d.err = d.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
-			"closed by </" + name.Local + "> in space " + name.Space)
+			" closed by </" + name.Local + "> in space " + name.Space)
 		return false
 	}
 
@@ -523,12 +521,11 @@ func (d *Decoder) autoClose(t Token) (Token, bool) {
 	if d.stk == nil || d.stk.kind != stkStart {
 		return nil, false
 	}
-	name := strings.ToLower(d.stk.name.Local)
 	for _, s := range d.AutoClose {
-		if strings.ToLower(s) == name {
+		if strings.EqualFold(s, d.stk.name.Local) {
 			// This one should be auto closed if t doesn't close it.
 			et, ok := t.(EndElement)
-			if !ok || et.Name.Local != name {
+			if !ok || !strings.EqualFold(et.Name.Local, d.stk.name.Local) {
 				return EndElement{d.stk.name}, true
 			}
 			break
@@ -923,6 +920,7 @@ func (d *Decoder) getc() (b byte, ok bool) {
 	}
 	if b == '\n' {
 		d.line++
+		d.linestart = d.offset + 1
 	}
 	d.offset++
 	return b, true
@@ -933,6 +931,13 @@ func (d *Decoder) getc() (b byte, ok bool) {
 // and the beginning of the next token.
 func (d *Decoder) InputOffset() int64 {
 	return d.offset
+}
+
+// InputPos returns the line of the current decoder position and the 1 based
+// input position of the line. The position gives the location of the end of the
+// most recently returned token.
+func (d *Decoder) InputPos() (line, column int) {
+	return d.line, int(d.offset-d.linestart) + 1
 }
 
 // Return saved offset.
@@ -1164,11 +1169,11 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 	}
 	if strings.Count(s, ":") > 1 {
 		name.Local = s
-	} else if i := strings.Index(s, ":"); i < 1 || i > len(s)-2 {
+	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
 		name.Local = s
 	} else {
-		name.Space = s[0:i]
-		name.Local = s[i+1:]
+		name.Space = space
+		name.Local = local
 	}
 	return name, true
 }
@@ -2012,25 +2017,26 @@ func emitCDATA(w io.Writer, s []byte) error {
 	if _, err := w.Write(cdataStart); err != nil {
 		return err
 	}
+
 	for {
-		i := bytes.Index(s, cdataEnd)
-		if i >= 0 && i+len(cdataEnd) <= len(s) {
-			// Found a nested CDATA directive end.
-			if _, err := w.Write(s[:i]); err != nil {
-				return err
-			}
-			if _, err := w.Write(cdataEscape); err != nil {
-				return err
-			}
-			i += len(cdataEnd)
-		} else {
-			if _, err := w.Write(s); err != nil {
-				return err
-			}
+		before, after, ok := bytes.Cut(s, cdataEnd)
+		if !ok {
 			break
 		}
-		s = s[i:]
+		// Found a nested CDATA directive end.
+		if _, err := w.Write(before); err != nil {
+			return err
+		}
+		if _, err := w.Write(cdataEscape); err != nil {
+			return err
+		}
+		s = after
 	}
+
+	if _, err := w.Write(s); err != nil {
+		return err
+	}
+
 	_, err := w.Write(cdataEnd)
 	return err
 }
@@ -2041,20 +2047,16 @@ func procInst(param, s string) string {
 	// TODO: this parsing is somewhat lame and not exact.
 	// It works for all actual cases, though.
 	param = param + "="
-	idx := strings.Index(s, param)
-	if idx == -1 {
-		return ""
-	}
-	v := s[idx+len(param):]
+	_, v, _ := strings.Cut(s, param)
 	if v == "" {
 		return ""
 	}
 	if v[0] != '\'' && v[0] != '"' {
 		return ""
 	}
-	idx = strings.IndexRune(v[1:], rune(v[0]))
-	if idx == -1 {
+	unquote, _, ok := strings.Cut(v[1:], v[:1])
+	if !ok {
 		return ""
 	}
-	return v[1 : idx+1]
+	return unquote
 }

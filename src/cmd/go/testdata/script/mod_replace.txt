@@ -42,7 +42,7 @@ stdout 'Concurrency is not parallelism.'
 # indicate the replacement module.
 cp go.mod.orig go.mod
 go mod edit -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
-! go get -d rsc.io/quote/v3/missing-package
+! go get rsc.io/quote/v3/missing-package
 stderr 'module rsc.io/quote/v3@upgrade found \(v3.0.0, replaced by ./local/rsc.io/quote/v3\), but does not contain package'
 
 # The reported Dir and GoMod for a replaced module should be accurate.

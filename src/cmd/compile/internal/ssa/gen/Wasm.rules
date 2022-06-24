@@ -307,6 +307,7 @@
 (StaticCall ...) => (LoweredStaticCall ...)
 (ClosureCall ...) => (LoweredClosureCall ...)
 (InterCall ...) => (LoweredInterCall ...)
+(TailCall ...) => (LoweredTailCall ...)
 
 // Miscellaneous
 (Convert ...) => (LoweredConvert ...)

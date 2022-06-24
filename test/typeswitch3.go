@@ -42,7 +42,7 @@ func main() {
 
 func noninterface() {
 	var i int
-	switch i.(type) { // ERROR "cannot type switch on non-interface value|not an interface type"
+	switch i.(type) { // ERROR "cannot type switch on non-interface value|not an interface"
 	case string:
 	case int:
 	}
@@ -51,6 +51,6 @@ func noninterface() {
 		name string
 	}
 	var s S
-	switch s.(type) { // ERROR "cannot type switch on non-interface value|not an interface type"
+	switch s.(type) { // ERROR "cannot type switch on non-interface value|not an interface"
 	}
 }

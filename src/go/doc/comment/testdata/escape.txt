@@ -1,0 +1,55 @@
+-- input --
+What the ~!@#$%^&*()_+-=`{}|[]\:";',./<>?
+
++ Line
+
+- Line
+
+* Line
+
+999. Line
+
+## Line
+-- gofmt --
+What the ~!@#$%^&*()_+-=`{}|[]\:";',./<>?
+
++ Line
+
+- Line
+
+* Line
+
+999. Line
+
+## Line
+-- text --
+What the ~!@#$%^&*()_+-=`{}|[]\:";',./<>?
+
++ Line
+
+- Line
+
+* Line
+
+999. Line
+
+## Line
+-- markdown --
+What the ~!@#$%^&\*()\_+-=\`{}|\[]\\:";',./\<>?
+
+\+ Line
+
+\- Line
+
+\* Line
+
+999\. Line
+
+\## Line
+-- html --
+<p>What the ~!@#$%^&amp;*()_+-=`{}|[]\:&quot;;&apos;,./&lt;&gt;?
+<p>+ Line
+<p>- Line
+<p>* Line
+<p>999. Line
+<p>## Line

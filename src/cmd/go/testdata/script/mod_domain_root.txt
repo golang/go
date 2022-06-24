@@ -2,7 +2,7 @@
 # (example.com not example.com/something)
 
 env GO111MODULE=on
-go get -d
+go get
 
 -- go.mod --
 module x

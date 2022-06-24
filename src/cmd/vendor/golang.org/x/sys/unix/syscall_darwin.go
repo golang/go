@@ -13,6 +13,7 @@
 package unix
 
 import (
+	"fmt"
 	"runtime"
 	"syscall"
 	"unsafe"
@@ -47,6 +48,30 @@ func (sa *SockaddrCtl) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrCtl, nil
 }
 
+// SockaddrVM implements the Sockaddr interface for AF_VSOCK type sockets.
+// SockaddrVM provides access to Darwin VM sockets: a mechanism that enables
+// bidirectional communication between a hypervisor and its guest virtual
+// machines.
+type SockaddrVM struct {
+	// CID and Port specify a context ID and port address for a VM socket.
+	// Guests have a unique CID, and hosts may have a well-known CID of:
+	//  - VMADDR_CID_HYPERVISOR: refers to the hypervisor process.
+	//  - VMADDR_CID_LOCAL: refers to local communication (loopback).
+	//  - VMADDR_CID_HOST: refers to other processes on the host.
+	CID  uint32
+	Port uint32
+	raw  RawSockaddrVM
+}
+
+func (sa *SockaddrVM) sockaddr() (unsafe.Pointer, _Socklen, error) {
+	sa.raw.Len = SizeofSockaddrVM
+	sa.raw.Family = AF_VSOCK
+	sa.raw.Port = sa.Port
+	sa.raw.Cid = sa.CID
+
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrVM, nil
+}
+
 func anyToSockaddrGOOS(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 	switch rsa.Addr.Family {
 	case AF_SYSTEM:
@@ -57,6 +82,13 @@ func anyToSockaddrGOOS(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 			sa.Unit = pp.Sc_unit
 			return sa, nil
 		}
+	case AF_VSOCK:
+		pp := (*RawSockaddrVM)(unsafe.Pointer(rsa))
+		sa := &SockaddrVM{
+			CID:  pp.Cid,
+			Port: pp.Port,
+		}
+		return sa, nil
 	}
 	return nil, EAFNOSUPPORT
 }
@@ -109,16 +141,6 @@ func direntNamlen(buf []byte) (uint64, bool) {
 func PtraceAttach(pid int) (err error) { return ptrace(PT_ATTACH, pid, 0, 0) }
 func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
 
-type attrList struct {
-	bitmapCount uint16
-	_           uint16
-	CommonAttr  uint32
-	VolAttr     uint32
-	DirAttr     uint32
-	FileAttr    uint32
-	Forkattr    uint32
-}
-
 //sysnb	pipe(p *[2]int32) (err error)
 
 func Pipe(p []int) (err error) {
@@ -127,8 +149,10 @@ func Pipe(p []int) (err error) {
 	}
 	var x [2]int32
 	err = pipe(&x)
-	p[0] = int(x[0])
-	p[1] = int(x[1])
+	if err == nil {
+		p[0] = int(x[0])
+		p[1] = int(x[1])
+	}
 	return
 }
 
@@ -248,36 +272,7 @@ func Flistxattr(fd int, dest []byte) (sz int, err error) {
 	return flistxattr(fd, xattrPointer(dest), len(dest), 0)
 }
 
-func setattrlistTimes(path string, times []Timespec, flags int) error {
-	_p0, err := BytePtrFromString(path)
-	if err != nil {
-		return err
-	}
-
-	var attrList attrList
-	attrList.bitmapCount = ATTR_BIT_MAP_COUNT
-	attrList.CommonAttr = ATTR_CMN_MODTIME | ATTR_CMN_ACCTIME
-
-	// order is mtime, atime: the opposite of Chtimes
-	attributes := [2]Timespec{times[1], times[0]}
-	options := 0
-	if flags&AT_SYMLINK_NOFOLLOW != 0 {
-		options |= FSOPT_NOFOLLOW
-	}
-	return setattrlist(
-		_p0,
-		unsafe.Pointer(&attrList),
-		unsafe.Pointer(&attributes),
-		unsafe.Sizeof(attributes),
-		options)
-}
-
-//sys	setattrlist(path *byte, list unsafe.Pointer, buf unsafe.Pointer, size uintptr, options int) (err error)
-
-func utimensat(dirfd int, path string, times *[2]Timespec, flags int) error {
-	// Darwin doesn't support SYS_UTIMENSAT
-	return ENOSYS
-}
+//sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
 
 /*
  * Wrapped
@@ -398,7 +393,61 @@ func GetsockoptXucred(fd, level, opt int) (*Xucred, error) {
 	return x, err
 }
 
+func SysctlKinfoProc(name string, args ...int) (*KinfoProc, error) {
+	mib, err := sysctlmib(name, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var kinfo KinfoProc
+	n := uintptr(SizeofKinfoProc)
+	if err := sysctl(mib, (*byte)(unsafe.Pointer(&kinfo)), &n, nil, 0); err != nil {
+		return nil, err
+	}
+	if n != SizeofKinfoProc {
+		return nil, EIO
+	}
+	return &kinfo, nil
+}
+
+func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
+	mib, err := sysctlmib(name, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find size.
+	n := uintptr(0)
+	if err := sysctl(mib, nil, &n, nil, 0); err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, nil
+	}
+	if n%SizeofKinfoProc != 0 {
+		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+	}
+
+	// Read into buffer of that size.
+	buf := make([]KinfoProc, n/SizeofKinfoProc)
+	if err := sysctl(mib, (*byte)(unsafe.Pointer(&buf[0])), &n, nil, 0); err != nil {
+		return nil, err
+	}
+	if n%SizeofKinfoProc != 0 {
+		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+	}
+
+	// The actual call may return less than the original reported required
+	// size so ensure we deal with that.
+	return buf[:n/SizeofKinfoProc], nil
+}
+
 //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)
+
+//sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
+//sys	shmctl(id int, cmd int, buf *SysvShmDesc) (result int, err error)
+//sys	shmdt(addr uintptr) (err error)
+//sys	shmget(key int, size int, flag int) (id int, err error)
 
 /*
  * Exposed directly
@@ -455,11 +504,12 @@ func GetsockoptXucred(fd, level, opt int) (*Xucred, error) {
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
 //sys	Mkfifo(path string, mode uint32) (err error)
 //sys	Mknod(path string, mode uint32, dev int) (err error)
+//sys	Mount(fsType string, dir string, flags int, data unsafe.Pointer) (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Openat(dirfd int, path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Readlinkat(dirfd int, path string, buf []byte) (n int, err error)
@@ -523,7 +573,6 @@ func GetsockoptXucred(fd, level, opt int) (*Xucred, error) {
 // Nfssvc
 // Getfh
 // Quotactl
-// Mount
 // Csops
 // Waitid
 // Add_profil
@@ -557,10 +606,6 @@ func GetsockoptXucred(fd, level, opt int) (*Xucred, error) {
 // Msgget
 // Msgsnd
 // Msgrcv
-// Shmat
-// Shmctl
-// Shmdt
-// Shmget
 // Shm_open
 // Shm_unlink
 // Sem_open

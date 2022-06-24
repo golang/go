@@ -26,19 +26,19 @@ import (
 //
 // For race detector, expand append(src, a [, b]* ) to
 //
-//   init {
-//     s := src
-//     const argc = len(args) - 1
-//     if cap(s) - len(s) < argc {
-//	    s = growslice(s, len(s)+argc)
-//     }
-//     n := len(s)
-//     s = s[:n+argc]
-//     s[n] = a
-//     s[n+1] = b
-//     ...
-//   }
-//   s
+//	  init {
+//	    s := src
+//	    const argc = len(args) - 1
+//	    if cap(s) - len(s) < argc {
+//		    s = growslice(s, len(s)+argc)
+//	    }
+//	    n := len(s)
+//	    s = s[:n+argc]
+//	    s[n] = a
+//	    s[n+1] = b
+//	    ...
+//	  }
+//	  s
 func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 	if !ir.SameSafeExpr(dst, n.Args[0]) {
 		n.Args[0] = safeExpr(n.Args[0], init)
@@ -125,15 +125,14 @@ func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 
 // Lower copy(a, b) to a memmove call or a runtime call.
 //
-// init {
-//   n := len(a)
-//   if n > len(b) { n = len(b) }
-//   if a.ptr != b.ptr { memmove(a.ptr, b.ptr, n*sizeof(elem(a))) }
-// }
-// n;
+//	init {
+//	  n := len(a)
+//	  if n > len(b) { n = len(b) }
+//	  if a.ptr != b.ptr { memmove(a.ptr, b.ptr, n*sizeof(elem(a))) }
+//	}
+//	n;
 //
 // Also works if b is a string.
-//
 func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 	if n.X.Type().Elem().HasPointers() {
 		ir.CurFunc.SetWBPos(n.Pos())
@@ -158,7 +157,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 		fn := typecheck.LookupRuntime("slicecopy")
 		fn = typecheck.SubstArgTypes(fn, ptrL.Type().Elem(), ptrR.Type().Elem())
 
-		return mkcall1(fn, n.Type(), init, ptrL, lenL, ptrR, lenR, ir.NewInt(n.X.Type().Elem().Width))
+		return mkcall1(fn, n.Type(), init, ptrL, lenL, ptrR, lenR, ir.NewInt(n.X.Type().Elem().Size()))
 	}
 
 	n.X = walkExpr(n.X, init)
@@ -194,7 +193,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 	nwid := ir.Node(typecheck.Temp(types.Types[types.TUINTPTR]))
 	setwid := ir.NewAssignStmt(base.Pos, nwid, typecheck.Conv(nlen, types.Types[types.TUINTPTR]))
 	ne.Body.Append(setwid)
-	nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(nl.Type().Elem().Width))
+	nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(nl.Type().Elem().Size()))
 	call := mkcall1(fn, nil, init, nto, nfrm, nwid)
 	ne.Body.Append(call)
 
@@ -214,7 +213,7 @@ func walkDelete(init *ir.Nodes, n *ir.CallExpr) ir.Node {
 
 	t := map_.Type()
 	fast := mapfast(t)
-	key = mapKeyArg(fast, n, key)
+	key = mapKeyArg(fast, n, key, false)
 	return mkcall1(mapfndel(mapdelete[fast], t), nil, init, reflectdata.TypePtr(t), map_, key)
 }
 
@@ -452,7 +451,7 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// We do not check for overflow of len(to)*elem.Width here
 		// since len(from) is an existing checked slice capacity
 		// with same elem.Width for the from slice.
-		size := ir.NewBinaryExpr(base.Pos, ir.OMUL, typecheck.Conv(length, types.Types[types.TUINTPTR]), typecheck.Conv(ir.NewInt(t.Elem().Width), types.Types[types.TUINTPTR]))
+		size := ir.NewBinaryExpr(base.Pos, ir.OMUL, typecheck.Conv(length, types.Types[types.TUINTPTR]), typecheck.Conv(ir.NewInt(t.Elem().Size()), types.Types[types.TUINTPTR]))
 
 		// instantiate mallocgc(size uintptr, typ *byte, needszero bool) unsafe.Pointer
 		fn := typecheck.LookupRuntime("mallocgc")
@@ -489,7 +488,7 @@ func walkNew(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 		base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", n.Type().Elem())
 	}
 	if n.Esc() == ir.EscNone {
-		if t.Size() >= ir.MaxImplicitStackVarSize {
+		if t.Size() > ir.MaxImplicitStackVarSize {
 			base.Fatalf("large ONEW with EscNone: %v", n)
 		}
 		return stackTempAddr(init, t)
@@ -622,10 +621,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 		r := ir.NewCallExpr(base.Pos, ir.OCALL, on, nil)
 		if params := on.Type().Params().FieldSlice(); len(params) > 0 {
 			t := params[0].Type
-			if !types.Identical(t, n.Type()) {
-				n = ir.NewConvExpr(base.Pos, ir.OCONV, nil, n)
-				n.SetType(t)
-			}
+			n = typecheck.Conv(n, t)
 			r.Args.Append(n)
 		}
 		calls = append(calls, r)
@@ -641,51 +637,75 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	return walkStmt(typecheck.Stmt(r))
 }
 
-// walkRecover walks an ORECOVER node.
-func walkRecover(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
-	// Call gorecover with the FP of this frame.
-	// FP is equal to caller's SP plus FixedFrameSize().
-	var fp ir.Node = mkcall("getcallersp", types.Types[types.TUINTPTR], init)
-	if off := base.Ctxt.FixedFrameSize(); off != 0 {
-		fp = ir.NewBinaryExpr(fp.Pos(), ir.OADD, fp, ir.NewInt(off))
-	}
-	fp = ir.NewConvExpr(fp.Pos(), ir.OCONVNOP, types.NewPtr(types.Types[types.TINT32]), fp)
-	return mkcall("gorecover", nn.Type(), init, fp)
+// walkRecover walks an ORECOVERFP node.
+func walkRecoverFP(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+	return mkcall("gorecover", nn.Type(), init, walkExpr(nn.Args[0], init))
 }
 
 func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+	ptr := safeExpr(n.X, init)
 	len := safeExpr(n.Y, init)
+	sliceType := n.Type()
 
-	fnname := "unsafeslice64"
-	argtype := types.Types[types.TINT64]
+	lenType := types.Types[types.TINT64]
+	unsafePtr := typecheck.Conv(ptr, types.Types[types.TUNSAFEPTR])
 
+	// If checkptr enabled, call runtime.unsafeslicecheckptr to check ptr and len.
+	// for simplicity, unsafeslicecheckptr always uses int64.
 	// Type checking guarantees that TIDEAL len/cap are positive and fit in an int.
 	// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
 	// will be handled by the negative range checks in unsafeslice during runtime.
-	if len.Type().IsKind(types.TIDEAL) || len.Type().Size() <= types.Types[types.TUINT].Size() {
-		fnname = "unsafeslice"
-		argtype = types.Types[types.TINT]
+	if ir.ShouldCheckPtr(ir.CurFunc, 1) {
+		fnname := "unsafeslicecheckptr"
+		fn := typecheck.LookupRuntime(fnname)
+		init.Append(mkcall1(fn, nil, init, reflectdata.TypePtr(sliceType.Elem()), unsafePtr, typecheck.Conv(len, lenType)))
+	} else {
+		// Otherwise, open code unsafe.Slice to prevent runtime call overhead.
+		// Keep this code in sync with runtime.unsafeslice{,64}
+		if len.Type().IsKind(types.TIDEAL) || len.Type().Size() <= types.Types[types.TUINT].Size() {
+			lenType = types.Types[types.TINT]
+		} else {
+			// len64 := int64(len)
+			// if int64(int(len64)) != len64 {
+			//     panicunsafeslicelen()
+			// }
+			len64 := typecheck.Conv(len, lenType)
+			nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
+			nif.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, typecheck.Conv(typecheck.Conv(len64, types.Types[types.TINT]), lenType), len64)
+			nif.Body.Append(mkcall("panicunsafeslicelen", nil, &nif.Body))
+			appendWalkStmt(init, nif)
+		}
+
+		// if len < 0 { panicunsafeslicelen() }
+		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
+		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, typecheck.Conv(len, lenType), ir.NewInt(0))
+		nif.Body.Append(mkcall("panicunsafeslicelen", nil, &nif.Body))
+		appendWalkStmt(init, nif)
+
+		// mem, overflow := runtime.mulUintptr(et.size, len)
+		mem := typecheck.Temp(types.Types[types.TUINTPTR])
+		overflow := typecheck.Temp(types.Types[types.TBOOL])
+		fn := typecheck.LookupRuntime("mulUintptr")
+		call := mkcall1(fn, fn.Type().Results(), init, ir.NewInt(sliceType.Elem().Size()), typecheck.Conv(typecheck.Conv(len, lenType), types.Types[types.TUINTPTR]))
+		appendWalkStmt(init, ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{mem, overflow}, []ir.Node{call}))
+
+		// if overflow || mem > -uintptr(ptr) {
+		//     if ptr == nil {
+		//         panicunsafesliceptrnil()
+		//     }
+		//     panicunsafeslicelen()
+		// }
+		nif = ir.NewIfStmt(base.Pos, nil, nil, nil)
+		memCond := ir.NewBinaryExpr(base.Pos, ir.OGT, mem, ir.NewUnaryExpr(base.Pos, ir.ONEG, typecheck.Conv(unsafePtr, types.Types[types.TUINTPTR])))
+		nif.Cond = ir.NewLogicalExpr(base.Pos, ir.OOROR, overflow, memCond)
+		nifPtr := ir.NewIfStmt(base.Pos, nil, nil, nil)
+		nifPtr.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, unsafePtr, typecheck.NodNil())
+		nifPtr.Body.Append(mkcall("panicunsafeslicenilptr", nil, &nifPtr.Body))
+		nif.Body.Append(nifPtr, mkcall("panicunsafeslicelen", nil, &nif.Body))
+		appendWalkStmt(init, nif)
 	}
 
-	t := n.Type()
-
-	// Call runtime.unsafeslice[64] to check that the length argument is
-	// non-negative and smaller than the max length allowed for the
-	// element type.
-	fn := typecheck.LookupRuntime(fnname)
-	init.Append(mkcall1(fn, nil, init, reflectdata.TypePtr(t.Elem()), typecheck.Conv(len, argtype)))
-
-	ptr := walkExpr(n.X, init)
-
-	c := ir.NewUnaryExpr(n.Pos(), ir.OCHECKNIL, ptr)
-	c.SetTypecheck(1)
-	init.Append(c)
-
-	// TODO(mdempsky): checkptr instrumentation. Maybe merge into length
-	// check above, along with nil check? Need to be careful about
-	// notinheap pointers though: can't pass them as unsafe.Pointer.
-
-	h := ir.NewSliceHeaderExpr(n.Pos(), t,
+	h := ir.NewSliceHeaderExpr(n.Pos(), sliceType,
 		typecheck.Conv(ptr, types.Types[types.TUNSAFEPTR]),
 		typecheck.Conv(len, types.Types[types.TINT]),
 		typecheck.Conv(len, types.Types[types.TINT]))

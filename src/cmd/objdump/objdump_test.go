@@ -5,7 +5,7 @@
 package main
 
 import (
-	"crypto/md5"
+	"cmd/internal/notsha256"
 	"flag"
 	"fmt"
 	"go/build"
@@ -102,11 +102,13 @@ var ppcNeed = []string{
 var ppcGnuNeed = []string{
 	"mflr",
 	"lbz",
-	"cmpw",
+	"beq",
 }
 
 func mustHaveDisasm(t *testing.T) {
 	switch runtime.GOARCH {
+	case "loong64":
+		t.Skipf("skipping on %s", runtime.GOARCH)
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
 	case "riscv64":
@@ -142,7 +144,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 		goarch = f[1]
 	}
 
-	hash := md5.Sum([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
+	hash := notsha256.Sum256([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
 	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
 	args := []string{"build", "-o", hello}
 	args = append(args, flags...)
@@ -228,7 +230,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 		}
 	}
 
-	if !ok {
+	if !ok || testing.Verbose() {
 		t.Logf("full disassembly:\n%s", text)
 	}
 }
@@ -267,7 +269,7 @@ func TestDisasmGoobj(t *testing.T) {
 	mustHaveDisasm(t)
 
 	hello := filepath.Join(tmp, "hello.o")
-	args := []string{"tool", "compile", "-o", hello}
+	args := []string{"tool", "compile", "-p=main", "-o", hello}
 	args = append(args, "testdata/fmthello.go")
 	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
 	if err != nil {
@@ -354,7 +356,7 @@ func TestGoObjOtherVersion(t *testing.T) {
 	cmd := exec.Command(exe, obj)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
-		t.Fatalf("objdump go116.o succeeded unexpectly")
+		t.Fatalf("objdump go116.o succeeded unexpectedly")
 	}
 	if !strings.Contains(string(out), "go object of a different version") {
 		t.Errorf("unexpected error message:\n%s", out)

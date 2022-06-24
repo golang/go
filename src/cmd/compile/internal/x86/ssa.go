@@ -106,7 +106,9 @@ func moveByType(t *types.Type) obj.As {
 }
 
 // opregreg emits instructions for
-//     dest := dest(To) op src(From)
+//
+//	dest := dest(To) op src(From)
+//
 // and also returns the created obj.Prog so it
 // may be further adjusted (offset, scale, etc).
 func opregreg(s *ssagen.State, op obj.As, dest, src int16) *obj.Prog {
@@ -725,7 +727,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// caller's SP is the address of the first arg
 		p := s.Prog(x86.AMOVL)
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = -base.Ctxt.FixedFrameSize() // 0 on 386, just to be consistent with other architectures
+		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize // 0 on 386, just to be consistent with other architectures
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -752,6 +754,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
 		s.Call(v)
+	case ssa.Op386CALLtail:
+		s.TailCall(v)
 	case ssa.Op386NEGL,
 		ssa.Op386BSWAPL,
 		ssa.Op386NOTL:
@@ -892,14 +896,9 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.AJMP)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.Block386EQF:
 		s.CombJump(b, next, &eqfJumps)

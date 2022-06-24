@@ -1,24 +1,13 @@
 env GO111MODULE=on
 
-[short] skip
-
 # get should add modules needed to build packages, even if those
 # dependencies are in sources excluded by build tags.
 # All build tags are considered true except "ignore".
 go mod init m
-go get -d .
+go get .
 go list -m all
 stdout 'example.com/version v1.1.0'
 stdout 'rsc.io/quote v1.5.2'
-
-[short] skip
-
-# Packages that are only imported in excluded files should not be built.
-env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
-go get -n -x .
-stderr 'compile.* -p m '
-! stderr 'compile.* -p example.com/version '
-! stderr 'compile.* -p rsc.io/quote '
 
 -- empty.go --
 package m

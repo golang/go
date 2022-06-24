@@ -5,7 +5,6 @@
 package syscall
 
 import (
-	"internal/itoa"
 	"internal/syscall/windows/sysdll"
 	"sync"
 	"sync/atomic"
@@ -25,12 +24,25 @@ func (e *DLLError) Unwrap() error { return e.Err }
 
 // Implemented in ../runtime/syscall_windows.go.
 
+// Deprecated: Use SyscallN instead.
 func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+
+// Deprecated: Use SyscallN instead.
 func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
+// Deprecated: Use SyscallN instead.
 func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+
+// Deprecated: Use SyscallN instead.
 func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2 uintptr, err Errno)
+
+// Deprecated: Use SyscallN instead.
 func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2 uintptr, err Errno)
+
+// Deprecated: Use SyscallN instead.
 func Syscall18(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2 uintptr, err Errno)
+
+func SyscallN(trap uintptr, args ...uintptr) (r1, r2 uintptr, err Errno)
 func loadlibrary(filename *uint16) (handle uintptr, err Errno)
 func loadsystemlibrary(filename *uint16, absoluteFilepath *uint16) (handle uintptr, err Errno)
 func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err Errno)
@@ -160,8 +172,7 @@ func (p *Proc) Addr() uintptr {
 
 //go:uintptrescapes
 
-// Call executes procedure p with arguments a. It will panic if more than 18 arguments
-// are supplied.
+// Call executes procedure p with arguments a.
 //
 // The returned error is always non-nil, constructed from the result of GetLastError.
 // Callers must inspect the primary return value to decide whether an error occurred
@@ -175,49 +186,8 @@ func (p *Proc) Addr() uintptr {
 // values are returned in r2. The return value for C type "float" is
 // math.Float32frombits(uint32(r2)). For C type "double", it is
 // math.Float64frombits(uint64(r2)).
-func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
-	switch len(a) {
-	case 0:
-		return Syscall(p.Addr(), uintptr(len(a)), 0, 0, 0)
-	case 1:
-		return Syscall(p.Addr(), uintptr(len(a)), a[0], 0, 0)
-	case 2:
-		return Syscall(p.Addr(), uintptr(len(a)), a[0], a[1], 0)
-	case 3:
-		return Syscall(p.Addr(), uintptr(len(a)), a[0], a[1], a[2])
-	case 4:
-		return Syscall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], 0, 0)
-	case 5:
-		return Syscall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], 0)
-	case 6:
-		return Syscall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5])
-	case 7:
-		return Syscall9(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], 0, 0)
-	case 8:
-		return Syscall9(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], 0)
-	case 9:
-		return Syscall9(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
-	case 10:
-		return Syscall12(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], 0, 0)
-	case 11:
-		return Syscall12(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], 0)
-	case 12:
-		return Syscall12(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11])
-	case 13:
-		return Syscall15(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], 0, 0)
-	case 14:
-		return Syscall15(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], 0)
-	case 15:
-		return Syscall15(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14])
-	case 16:
-		return Syscall18(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15], 0, 0)
-	case 17:
-		return Syscall18(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15], a[16], 0)
-	case 18:
-		return Syscall18(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15], a[16], a[17])
-	default:
-		panic("Call " + p.Name + " with too many arguments " + itoa.Itoa(len(a)) + ".")
-	}
+func (p *Proc) Call(a ...uintptr) (uintptr, uintptr, error) {
+	return SyscallN(p.Addr(), a...)
 }
 
 // A LazyDLL implements access to a single DLL.

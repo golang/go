@@ -34,7 +34,7 @@ package ssa
 
 // TODO(matloob): Choose better names for Fun, Bloc, Goto, etc.
 // TODO(matloob): Write a parser for the Func disassembly. Maybe
-//                the parser can be used instead of Fun.
+// the parser can be used instead of Fun.
 
 import (
 	"cmd/compile/internal/types"

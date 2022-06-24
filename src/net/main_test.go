@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !js
-// +build !js
 
 package net
 
@@ -174,11 +173,8 @@ func runningGoroutines() []string {
 	b := make([]byte, 2<<20)
 	b = b[:runtime.Stack(b, true)]
 	for _, s := range strings.Split(string(b), "\n\n") {
-		ss := strings.SplitN(s, "\n", 2)
-		if len(ss) != 2 {
-			continue
-		}
-		stack := strings.TrimSpace(ss[1])
+		_, stack, _ := strings.Cut(s, "\n")
+		stack = strings.TrimSpace(stack)
 		if !strings.Contains(stack, "created by net") {
 			continue
 		}

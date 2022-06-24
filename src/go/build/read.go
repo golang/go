@@ -240,6 +240,27 @@ func (r *importReader) findEmbed(first bool) bool {
 				}
 			}
 
+		case '\'':
+			startLine = false
+			for r.err == nil {
+				if r.eof {
+					r.syntaxError()
+				}
+				c = r.readByteNoBuf()
+				if c == '\\' {
+					r.readByteNoBuf()
+					if r.err != nil {
+						r.syntaxError()
+						return false
+					}
+					continue
+				}
+				if c == '\'' {
+					c = r.readByteNoBuf()
+					goto Reswitch
+				}
+			}
+
 		case '/':
 			c = r.readByteNoBuf()
 			switch c {
@@ -369,7 +390,7 @@ func readComments(f io.Reader) ([]byte, error) {
 // readGoInfo expects a Go file as input and reads the file up to and including the import section.
 // It records what it learned in *info.
 // If info.fset is non-nil, readGoInfo parses the file and sets info.parsed, info.parseErr,
-// info.imports, info.embeds, and info.embedErr.
+// info.imports and info.embeds.
 //
 // It only returns an error if there are problems reading the file,
 // not for syntax errors in the file itself.
@@ -516,12 +537,12 @@ func parseGoEmbed(args string, pos token.Position) ([]fileEmbed, error) {
 			trimBytes(i)
 
 		case '`':
-			i := strings.Index(args[1:], "`")
-			if i < 0 {
+			var ok bool
+			path, _, ok = strings.Cut(args[1:], "`")
+			if !ok {
 				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
 			}
-			path = args[1 : 1+i]
-			trimBytes(1 + i + 1)
+			trimBytes(1 + len(path) + 1)
 
 		case '"':
 			i := 1

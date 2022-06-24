@@ -58,10 +58,6 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 		base.Errorf("invalid operation: %v (shift count type %v, must be integer)", n, r.Type())
 		return l, r, nil
 	}
-	if t.IsSigned() && !types.AllowsGoVersion(curpkg(), 1, 13) {
-		base.ErrorfVers("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type())
-		return l, r, nil
-	}
 	t = l.Type()
 	if t != nil && t.Kind() != types.TIDEAL && !t.IsInteger() {
 		base.Errorf("invalid operation: %v (shift of type %v)", n, t)
@@ -77,15 +73,12 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 	return l, r, t
 }
 
-func IsCmp(op ir.Op) bool {
-	return iscmp[op]
-}
-
 // tcArith typechecks operands of a binary arithmetic expression.
 // The result of tcArith MUST be assigned back to original operands,
 // t is the type of the expression, and should be set by the caller. e.g:
-//     n.X, n.Y, t = tcArith(n, op, n.X, n.Y)
-//     n.SetType(t)
+//
+//	n.X, n.Y, t = tcArith(n, op, n.X, n.Y)
+//	n.SetType(t)
 func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 	l, r = defaultlit2(l, r, false)
 	if l.Type() == nil || r.Type() == nil {
@@ -96,7 +89,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 		t = r.Type()
 	}
 	aop := ir.OXXX
-	if iscmp[n.Op()] && t.Kind() != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
+	if n.Op().IsCmp() && t.Kind() != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
 		// comparison is okay as long as one side is
 		// assignable to the other.  convert so they have
 		// the same type.
@@ -114,7 +107,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 				}
 
 				types.CalcSize(l.Type())
-				if r.Type().IsInterface() == l.Type().IsInterface() || l.Type().Width >= 1<<16 {
+				if r.Type().IsInterface() == l.Type().IsInterface() || l.Type().Size() >= 1<<16 {
 					l = ir.NewConvExpr(base.Pos, aop, r.Type(), l)
 					l.SetTypecheck(1)
 				}
@@ -133,7 +126,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 				}
 
 				types.CalcSize(r.Type())
-				if r.Type().IsInterface() == l.Type().IsInterface() || r.Type().Width >= 1<<16 {
+				if r.Type().IsInterface() == l.Type().IsInterface() || r.Type().Size() >= 1<<16 {
 					r = ir.NewConvExpr(base.Pos, aop, l.Type(), r)
 					r.SetTypecheck(1)
 				}
@@ -202,7 +195,8 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 }
 
 // The result of tcCompLit MUST be assigned back to n, e.g.
-// 	n.Left = tcCompLit(n.Left)
+//
+//	n.Left = tcCompLit(n.Left)
 func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("tcCompLit", n)(&res)
@@ -213,39 +207,13 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		base.Pos = lno
 	}()
 
-	if n.Ntype == nil {
-		base.ErrorfAt(n.Pos(), "missing type in composite literal")
-		n.SetType(nil)
-		return n
-	}
-
 	// Save original node (including n.Right)
 	n.SetOrig(ir.Copy(n))
 
-	ir.SetPos(n.Ntype)
+	ir.SetPos(n)
 
-	// Need to handle [...]T arrays specially.
-	if array, ok := n.Ntype.(*ir.ArrayType); ok && array.Elem != nil && array.Len == nil {
-		array.Elem = typecheckNtype(array.Elem)
-		elemType := array.Elem.Type()
-		if elemType == nil {
-			n.SetType(nil)
-			return n
-		}
-		length := typecheckarraylit(elemType, -1, n.List, "array literal")
-		n.SetOp(ir.OARRAYLIT)
-		n.SetType(types.NewArray(elemType, length))
-		n.Ntype = nil
-		return n
-	}
-
-	n.Ntype = typecheckNtype(n.Ntype)
-	t := n.Ntype.Type()
-	if t == nil {
-		n.SetType(nil)
-		return n
-	}
-	n.SetType(t)
+	t := n.Type()
+	base.AssertfAt(t != nil, n.Pos(), "missing type in composite literal")
 
 	switch t.Kind() {
 	default:
@@ -255,16 +223,13 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 	case types.TARRAY:
 		typecheckarraylit(t.Elem(), t.NumElem(), n.List, "array literal")
 		n.SetOp(ir.OARRAYLIT)
-		n.Ntype = nil
 
 	case types.TSLICE:
 		length := typecheckarraylit(t.Elem(), -1, n.List, "slice literal")
 		n.SetOp(ir.OSLICELIT)
-		n.Ntype = nil
 		n.Len = length
 
 	case types.TMAP:
-		var cs constSet
 		for i3, l := range n.List {
 			ir.SetPos(l)
 			if l.Op() != ir.OKEY {
@@ -275,19 +240,15 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 			l := l.(*ir.KeyExpr)
 
 			r := l.Key
-			r = pushtype(r, t.Key())
 			r = Expr(r)
 			l.Key = AssignConv(r, t.Key(), "map key")
-			cs.add(base.Pos, l.Key, "key", "map literal")
 
 			r = l.Value
-			r = pushtype(r, t.Elem())
 			r = Expr(r)
 			l.Value = AssignConv(r, t.Elem(), "map value")
 		}
 
 		n.SetOp(ir.OMAPLIT)
-		n.Ntype = nil
 
 	case types.TSTRUCT:
 		// Need valid field offsets for Xoffset below.
@@ -311,14 +272,23 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 
 				f := t.Field(i)
 				s := f.Sym
-				if s != nil && !types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
-					base.Errorf("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
+
+				// Do the test for assigning to unexported fields.
+				// But if this is an instantiated function, then
+				// the function has already been typechecked. In
+				// that case, don't do the test, since it can fail
+				// for the closure structs created in
+				// walkClosure(), because the instantiated
+				// function is compiled as if in the source
+				// package of the generic function.
+				if !(ir.CurFunc != nil && strings.Index(ir.CurFunc.Nname.Sym().Name, "[") >= 0) {
+					if s != nil && !types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
+						base.Errorf("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
+					}
 				}
 				// No pushtype allowed here. Must name fields for that.
 				n1 = AssignConv(n1, f.Type, "field value")
-				sk := ir.NewStructKeyExpr(base.Pos, f.Sym, n1)
-				sk.Offset = f.Offset
-				ls[i] = sk
+				ls[i] = ir.NewStructKeyExpr(base.Pos, f, n1)
 			}
 			if len(ls) < t.NumFields() {
 				base.Errorf("too few values in %v", n)
@@ -328,85 +298,88 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 
 			// keyed list
 			ls := n.List
-			for i, l := range ls {
-				ir.SetPos(l)
+			for i, n := range ls {
+				ir.SetPos(n)
 
-				if l.Op() == ir.OKEY {
-					kv := l.(*ir.KeyExpr)
-					key := kv.Key
-
-					// Sym might have resolved to name in other top-level
-					// package, because of import dot. Redirect to correct sym
-					// before we do the lookup.
-					s := key.Sym()
-					if id, ok := key.(*ir.Ident); ok && DotImportRefs[id] != nil {
-						s = Lookup(s.Name)
-					}
-
-					// An OXDOT uses the Sym field to hold
-					// the field to the right of the dot,
-					// so s will be non-nil, but an OXDOT
-					// is never a valid struct literal key.
-					if s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank() {
-						base.Errorf("invalid field name %v in struct initializer", key)
-						continue
-					}
-
-					l = ir.NewStructKeyExpr(l.Pos(), s, kv.Value)
-					ls[i] = l
-				}
-
-				if l.Op() != ir.OSTRUCTKEY {
-					if !errored {
-						base.Errorf("mixture of field:value and value initializers")
-						errored = true
-					}
-					ls[i] = Expr(ls[i])
-					continue
-				}
-				l := l.(*ir.StructKeyExpr)
-
-				f := Lookdot1(nil, l.Field, t, t.Fields(), 0)
-				if f == nil {
-					if ci := Lookdot1(nil, l.Field, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
-						if visible(ci.Sym) {
-							base.Errorf("unknown field '%v' in struct literal of type %v (but does have %v)", l.Field, t, ci.Sym)
-						} else if nonexported(l.Field) && l.Field.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
-							base.Errorf("cannot refer to unexported field '%v' in struct literal of type %v", l.Field, t)
-						} else {
-							base.Errorf("unknown field '%v' in struct literal of type %v", l.Field, t)
+				sk, ok := n.(*ir.StructKeyExpr)
+				if !ok {
+					kv, ok := n.(*ir.KeyExpr)
+					if !ok {
+						if !errored {
+							base.Errorf("mixture of field:value and value initializers")
+							errored = true
 						}
+						ls[i] = Expr(n)
 						continue
 					}
-					var f *types.Field
-					p, _ := dotpath(l.Field, t, &f, true)
-					if p == nil || f.IsMethod() {
-						base.Errorf("unknown field '%v' in struct literal of type %v", l.Field, t)
+
+					sk = tcStructLitKey(t, kv)
+					if sk == nil {
 						continue
 					}
-					// dotpath returns the parent embedded types in reverse order.
-					var ep []string
-					for ei := len(p) - 1; ei >= 0; ei-- {
-						ep = append(ep, p[ei].field.Sym.Name)
-					}
-					ep = append(ep, l.Field.Name)
-					base.Errorf("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), t)
-					continue
+
+					fielddup(sk.Sym().Name, hash)
 				}
-				fielddup(f.Sym.Name, hash)
-				l.Offset = f.Offset
 
 				// No pushtype allowed here. Tried and rejected.
-				l.Value = Expr(l.Value)
-				l.Value = AssignConv(l.Value, f.Type, "field value")
+				sk.Value = Expr(sk.Value)
+				sk.Value = AssignConv(sk.Value, sk.Field.Type, "field value")
+				ls[i] = sk
 			}
 		}
 
 		n.SetOp(ir.OSTRUCTLIT)
-		n.Ntype = nil
 	}
 
 	return n
+}
+
+// tcStructLitKey typechecks an OKEY node that appeared within a
+// struct literal.
+func tcStructLitKey(typ *types.Type, kv *ir.KeyExpr) *ir.StructKeyExpr {
+	key := kv.Key
+
+	sym := key.Sym()
+
+	// An OXDOT uses the Sym field to hold
+	// the field to the right of the dot,
+	// so s will be non-nil, but an OXDOT
+	// is never a valid struct literal key.
+	if sym == nil || sym.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || sym.IsBlank() {
+		base.Errorf("invalid field name %v in struct initializer", key)
+		return nil
+	}
+
+	if f := Lookdot1(nil, sym, typ, typ.Fields(), 0); f != nil {
+		return ir.NewStructKeyExpr(kv.Pos(), f, kv.Value)
+	}
+
+	if ci := Lookdot1(nil, sym, typ, typ.Fields(), 2); ci != nil { // Case-insensitive lookup.
+		if visible(ci.Sym) {
+			base.Errorf("unknown field '%v' in struct literal of type %v (but does have %v)", sym, typ, ci.Sym)
+		} else if nonexported(sym) && sym.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
+			base.Errorf("cannot refer to unexported field '%v' in struct literal of type %v", sym, typ)
+		} else {
+			base.Errorf("unknown field '%v' in struct literal of type %v", sym, typ)
+		}
+		return nil
+	}
+
+	var f *types.Field
+	p, _ := dotpath(sym, typ, &f, true)
+	if p == nil || f.IsMethod() {
+		base.Errorf("unknown field '%v' in struct literal of type %v", sym, typ)
+		return nil
+	}
+
+	// dotpath returns the parent embedded types in reverse order.
+	var ep []string
+	for ei := len(p) - 1; ei >= 0; ei-- {
+		ep = append(ep, p[ei].field.Sym.Name)
+	}
+	ep = append(ep, sym.Name)
+	base.Errorf("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), typ)
+	return nil
 }
 
 // tcConv typechecks an OCONV node.
@@ -421,13 +394,7 @@ func tcConv(n *ir.ConvExpr) ir.Node {
 	}
 	op, why := Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
 	if op == ir.OXXX {
-		if !n.Diag() && !n.Type().Broke() && !n.X.Diag() {
-			base.Errorf("cannot convert %L to type %v%s", n.X, n.Type(), why)
-			n.SetDiag(true)
-		}
-		n.SetOp(ir.OCONV)
-		n.SetType(nil)
-		return n
+		base.Fatalf("cannot convert %L to type %v%s", n.X, n.Type(), why)
 	}
 
 	n.SetOp(op)
@@ -451,6 +418,27 @@ func tcConv(n *ir.ConvExpr) ir.Node {
 		if n.X.Op() == ir.OLITERAL {
 			return stringtoruneslit(n)
 		}
+
+	case ir.OBYTES2STR:
+		if t.Elem() != types.ByteType && t.Elem() != types.Types[types.TUINT8] {
+			// If t is a slice of a user-defined byte type B (not uint8
+			// or byte), then add an extra CONVNOP from []B to []byte, so
+			// that the call to slicebytetostring() added in walk will
+			// typecheck correctly.
+			n.X = ir.NewConvExpr(n.X.Pos(), ir.OCONVNOP, types.NewSlice(types.ByteType), n.X)
+			n.X.SetTypecheck(1)
+		}
+
+	case ir.ORUNES2STR:
+		if t.Elem() != types.RuneType && t.Elem() != types.Types[types.TINT32] {
+			// If t is a slice of a user-defined rune type B (not uint32
+			// or rune), then add an extra CONVNOP from []B to []rune, so
+			// that the call to slicerunetostring() added in walk will
+			// typecheck correctly.
+			n.X = ir.NewConvExpr(n.X.Pos(), ir.OCONVNOP, types.NewSlice(types.RuneType), n.X)
+			n.X.SetTypecheck(1)
+		}
+
 	}
 	return n
 }
@@ -522,8 +510,8 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	}
 
 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && top&ctxCallee == 0 {
-		n.SetOp(ir.OCALLPART)
-		n.SetType(MethodValueWrapper(n).Type())
+		n.SetOp(ir.OMETHVALUE)
+		n.SetType(NewMethodType(n.Type(), nil))
 	}
 	return n
 }
@@ -544,14 +532,7 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
 		return n
 	}
 
-	if n.Ntype != nil {
-		n.Ntype = typecheckNtype(n.Ntype)
-		n.SetType(n.Ntype.Type())
-		n.Ntype = nil
-		if n.Type() == nil {
-			return n
-		}
-	}
+	base.AssertfAt(n.Type() != nil, n.Pos(), "missing type: %v", n)
 
 	if n.Type() != nil && !n.Type().IsInterface() {
 		var missing, have *types.Field
@@ -840,11 +821,11 @@ func tcStar(n *ir.StarExpr, top int) ir.Node {
 		n.SetType(nil)
 		return n
 	}
+
+	// TODO(mdempsky): Remove (along with ctxType above) once I'm
+	// confident this code path isn't needed any more.
 	if l.Op() == ir.OTYPE {
-		n.SetOTYPE(types.NewPtr(l.Type()))
-		// Ensure l.Type gets CalcSize'd for the backend. Issue 20174.
-		types.CheckSize(l.Type())
-		return n
+		base.Fatalf("unexpected type in deref expression: %v", l)
 	}
 
 	if !t.IsPtr() {

@@ -321,7 +321,7 @@ func TestIssue25627(t *testing.T) {
 			}
 		}
 
-		syntax.Walk(f, func(n syntax.Node) bool {
+		syntax.Crawl(f, func(n syntax.Node) bool {
 			if decl, _ := n.(*syntax.TypeDecl); decl != nil {
 				if tv, ok := info.Types[decl.Type]; ok && decl.Name.Value == "T" {
 					want := strings.Count(src, ";") + 1
@@ -402,8 +402,9 @@ func TestIssue28282(t *testing.T) {
 	// create type interface { error }
 	et := Universe.Lookup("error").Type()
 	it := NewInterfaceType(nil, []Type{et})
-	it.Complete()
 	// verify that after completing the interface, the embedded method remains unchanged
+	// (interfaces are "completed" lazily now, so the completion happens implicitly when
+	// accessing Method(0))
 	want := et.Underlying().(*Interface).Method(0)
 	got := it.Method(0)
 	if got != want {
@@ -608,5 +609,31 @@ func TestIssue43124(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "html/template") {
 		t.Errorf("type checking error for c does not disambiguate package template: %q", err)
+	}
+}
+
+func TestIssue50646(t *testing.T) {
+	anyType := Universe.Lookup("any").Type()
+	comparableType := Universe.Lookup("comparable").Type()
+
+	if !Comparable(anyType) {
+		t.Errorf("any is not a comparable type")
+	}
+	if !Comparable(comparableType) {
+		t.Errorf("comparable is not a comparable type")
+	}
+
+	if Implements(anyType, comparableType.Underlying().(*Interface)) {
+		t.Errorf("any implements comparable")
+	}
+	if !Implements(comparableType, anyType.(*Interface)) {
+		t.Errorf("comparable does not implement any")
+	}
+
+	if AssignableTo(anyType, comparableType) {
+		t.Errorf("any assignable to comparable")
+	}
+	if !AssignableTo(comparableType, anyType) {
+		t.Errorf("comparable not assignable to any")
 	}
 }

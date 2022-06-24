@@ -7,7 +7,7 @@
 // The calendrical calculations always assume a Gregorian calendar, with
 // no leap seconds.
 //
-// Monotonic Clocks
+// # Monotonic Clocks
 //
 // Operating systems provide both a “wall clock,” which is subject to
 // changes for clock synchronization, and a “monotonic clock,” which is
@@ -64,6 +64,10 @@
 // t.UnmarshalJSON, and t.UnmarshalText always create times with
 // no monotonic clock reading.
 //
+// The monotonic clock reading exists only in Time values. It is not
+// a part of Duration values or the Unix times returned by t.Unix and
+// friends.
+//
 // Note that the Go == operator compares not just the time instant but
 // also the Location and the monotonic clock reading. See the
 // documentation for the Time type for a discussion of equality
@@ -72,7 +76,6 @@
 // For debugging, the result of t.String does include the monotonic
 // clock reading if present. If t != u because of different monotonic clock readings,
 // that difference will be visible when printing t.String() and u.String().
-//
 package time
 
 import (
@@ -123,7 +126,6 @@ import (
 // to t == u, since t.Equal uses the most accurate comparison available and
 // correctly handles the case when only one of its arguments has a monotonic
 // clock reading.
-//
 type Time struct {
 	// wall and ext encode the wall time seconds, wall time nanoseconds,
 	// and optional monotonic clock reading in nanoseconds.
@@ -425,7 +427,6 @@ const (
 	internalToUnix int64 = -unixToInternal
 
 	wallToInternal int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
-	internalToWall int64 = -wallToInternal
 )
 
 // IsZero reports whether t represents the zero time instant,
@@ -598,13 +599,14 @@ const (
 // to avoid confusion across daylight savings time zone transitions.
 //
 // To count the number of units in a Duration, divide:
+//
 //	second := time.Second
 //	fmt.Print(int64(second/time.Millisecond)) // prints 1000
 //
 // To convert an integer number of units to a Duration, multiply:
+//
 //	seconds := 10
 //	fmt.Print(time.Duration(seconds)*time.Second) // prints 10s
-//
 const (
 	Nanosecond  Duration = 1
 	Microsecond          = 1000 * Nanosecond
@@ -814,6 +816,19 @@ func (d Duration) Round(m Duration) Duration {
 		return d1
 	}
 	return maxDuration // overflow
+}
+
+// Abs returns the absolute value of d.
+// As a special case, math.MinInt64 is converted to math.MaxInt64.
+func (d Duration) Abs() Duration {
+	switch {
+	case d >= 0:
+		return d
+	case d == minDuration:
+		return maxDuration
+	default:
+		return -d
+	}
 }
 
 // Add returns the time t+d.
@@ -1058,6 +1073,7 @@ func daysSinceEpoch(year int) uint64 {
 func now() (sec int64, nsec int32, mono int64)
 
 // runtimeNano returns the current value of the runtime clock in nanoseconds.
+//
 //go:linkname runtimeNano runtime.nanotime
 func runtimeNano() int64
 
@@ -1125,6 +1141,24 @@ func (t Time) Zone() (name string, offset int) {
 	return
 }
 
+// ZoneBounds returns the bounds of the time zone in effect at time t.
+// The zone begins at start and the next zone begins at end.
+// If the zone begins at the beginning of time, start will be returned as a zero Time.
+// If the zone goes on forever, end will be returned as a zero Time.
+// The Location of the returned times will be the same as t.
+func (t Time) ZoneBounds() (start, end Time) {
+	_, _, startSec, endSec, _ := t.loc.lookup(t.unixSec())
+	if startSec != alpha {
+		start = unixTime(startSec, 0)
+		start.setLoc(t.loc)
+	}
+	if endSec != omega {
+		end = unixTime(endSec, 0)
+		end.setLoc(t.loc)
+	}
+	return
+}
+
 // Unix returns t as a Unix time, the number of seconds elapsed
 // since January 1, 1970 UTC. The result does not depend on the
 // location associated with t.
@@ -1163,19 +1197,26 @@ func (t Time) UnixNano() int64 {
 	return (t.unixSec())*1e9 + int64(t.nsec())
 }
 
-const timeBinaryVersion byte = 1
+const (
+	timeBinaryVersionV1 byte = iota + 1 // For general situation
+	timeBinaryVersionV2                 // For LMT only
+)
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (t Time) MarshalBinary() ([]byte, error) {
 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
+	var offsetSec int8
+	version := timeBinaryVersionV1
 
 	if t.Location() == UTC {
 		offsetMin = -1
 	} else {
 		_, offset := t.Zone()
 		if offset%60 != 0 {
-			return nil, errors.New("Time.MarshalBinary: zone offset has fractional minute")
+			version = timeBinaryVersionV2
+			offsetSec = int8(offset % 60)
 		}
+
 		offset /= 60
 		if offset < -32768 || offset == -1 || offset > 32767 {
 			return nil, errors.New("Time.MarshalBinary: unexpected zone offset")
@@ -1186,8 +1227,8 @@ func (t Time) MarshalBinary() ([]byte, error) {
 	sec := t.sec()
 	nsec := t.nsec()
 	enc := []byte{
-		timeBinaryVersion, // byte 0 : version
-		byte(sec >> 56),   // bytes 1-8: seconds
+		version,         // byte 0 : version
+		byte(sec >> 56), // bytes 1-8: seconds
 		byte(sec >> 48),
 		byte(sec >> 40),
 		byte(sec >> 32),
@@ -1202,6 +1243,9 @@ func (t Time) MarshalBinary() ([]byte, error) {
 		byte(offsetMin >> 8), // bytes 13-14: zone offset in minutes
 		byte(offsetMin),
 	}
+	if version == timeBinaryVersionV2 {
+		enc = append(enc, byte(offsetSec))
+	}
 
 	return enc, nil
 }
@@ -1213,11 +1257,16 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 		return errors.New("Time.UnmarshalBinary: no data")
 	}
 
-	if buf[0] != timeBinaryVersion {
+	version := buf[0]
+	if version != timeBinaryVersionV1 && version != timeBinaryVersionV2 {
 		return errors.New("Time.UnmarshalBinary: unsupported version")
 	}
 
-	if len(buf) != /*version*/ 1+ /*sec*/ 8+ /*nsec*/ 4+ /*zone offset*/ 2 {
+	wantLen := /*version*/ 1 + /*sec*/ 8 + /*nsec*/ 4 + /*zone offset*/ 2
+	if version == timeBinaryVersionV2 {
+		wantLen++
+	}
+	if len(buf) != wantLen {
 		return errors.New("Time.UnmarshalBinary: invalid length")
 	}
 
@@ -1230,6 +1279,9 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 
 	buf = buf[4:]
 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
+	if version == timeBinaryVersionV2 {
+		offset += int(buf[2])
+	}
 
 	*t = Time{}
 	t.wall = uint64(nsec)
@@ -1334,7 +1386,7 @@ func UnixMilli(msec int64) Time {
 }
 
 // UnixMicro returns the local Time corresponding to the given Unix time,
-// usec milliseconds since January 1, 1970 UTC.
+// usec microseconds since January 1, 1970 UTC.
 func UnixMicro(usec int64) Time {
 	return Unix(usec/1e6, (usec%1e6)*1e3)
 }
@@ -1350,6 +1402,7 @@ func isLeap(year int) bool {
 }
 
 // norm returns nhi, nlo such that
+//
 //	hi * base + lo == nhi * base + nlo
 //	0 <= nlo < base
 func norm(hi, lo, base int) (nhi, nlo int) {
@@ -1367,7 +1420,9 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 }
 
 // Date returns the Time corresponding to
+//
 //	yyyy-mm-dd hh:mm:ss + nsec nanoseconds
+//
 // in the appropriate zone for that time in the given location.
 //
 // The month, day, hour, min, sec, and nsec values may be outside
@@ -1416,17 +1471,17 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 
 	unix := int64(abs) + (absoluteToInternal + internalToUnix)
 
-	// Look for zone offset for t, so we can adjust to UTC.
-	// The lookup function expects UTC, so we pass t in the
+	// Look for zone offset for expected time, so we can adjust to UTC.
+	// The lookup function expects UTC, so first we pass unix in the
 	// hope that it will not be too close to a zone transition,
 	// and then adjust if it is.
 	_, offset, start, end, _ := loc.lookup(unix)
 	if offset != 0 {
-		switch utc := unix - int64(offset); {
-		case utc < start:
-			_, offset, _, _, _ = loc.lookup(start - 1)
-		case utc >= end:
-			_, offset, _, _, _ = loc.lookup(end)
+		utc := unix - int64(offset)
+		// If utc is valid for the time zone we found, then we have the right offset.
+		// If not, we get the correct offset by looking up utc in the location.
+		if utc < start || utc >= end {
+			_, offset, _, _, _ = loc.lookup(utc)
 		}
 		unix -= int64(offset)
 	}

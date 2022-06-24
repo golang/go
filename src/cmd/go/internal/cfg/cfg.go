@@ -22,10 +22,31 @@ import (
 	"cmd/go/internal/fsys"
 )
 
+// Global build parameters (used during package load)
+var (
+	Goos   = envOr("GOOS", build.Default.GOOS)
+	Goarch = envOr("GOARCH", build.Default.GOARCH)
+
+	ExeSuffix = exeSuffix()
+
+	// ModulesEnabled specifies whether the go command is running
+	// in module-aware mode (as opposed to GOPATH mode).
+	// It is equal to modload.Enabled, but not all packages can import modload.
+	ModulesEnabled bool
+)
+
+func exeSuffix() string {
+	if Goos == "windows" {
+		return ".exe"
+	}
+	return ""
+}
+
 // These are general "build flags" used by build and other commands.
 var (
-	BuildA                 bool   // -a flag
-	BuildBuildmode         string // -buildmode flag
+	BuildA                 bool     // -a flag
+	BuildBuildmode         string   // -buildmode flag
+	BuildBuildvcs          = "auto" // -buildvcs flag: "true", "false", or "auto"
 	BuildContext           = defaultContext()
 	BuildMod               string                  // -mod flag
 	BuildModExplicit       bool                    // whether -mod was set explicitly
@@ -33,6 +54,7 @@ var (
 	BuildI                 bool                    // -i flag
 	BuildLinkshared        bool                    // -linkshared flag
 	BuildMSan              bool                    // -msan flag
+	BuildASan              bool                    // -asan flag
 	BuildN                 bool                    // -n flag
 	BuildO                 string                  // -o flag
 	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
@@ -54,36 +76,26 @@ var (
 
 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
 	DebugTrace       string // -debug-trace flag
+
+	// GoPathError is set when GOPATH is not set. it contains an
+	// explanation why GOPATH is unset.
+	GoPathError string
 )
 
 func defaultContext() build.Context {
 	ctxt := build.Default
+
 	ctxt.JoinPath = filepath.Join // back door to say "do not use go command"
-
-	ctxt.GOROOT = findGOROOT()
-	if runtime.Compiler != "gccgo" {
-		// Note that we must use runtime.GOOS and runtime.GOARCH here,
-		// as the tool directory does not move based on environment
-		// variables. This matches the initialization of ToolDir in
-		// go/build, except for using ctxt.GOROOT rather than
-		// runtime.GOROOT.
-		build.ToolDir = filepath.Join(ctxt.GOROOT, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
-	}
-
-	ctxt.GOPATH = envOr("GOPATH", ctxt.GOPATH)
 
 	// Override defaults computed in go/build with defaults
 	// from go environment configuration file, if known.
-	ctxt.GOOS = envOr("GOOS", ctxt.GOOS)
-	ctxt.GOARCH = envOr("GOARCH", ctxt.GOARCH)
+	ctxt.GOPATH = envOr("GOPATH", gopath(ctxt))
+	ctxt.GOOS = Goos
+	ctxt.GOARCH = Goarch
 
-	// The experiments flags are based on GOARCH, so they may
-	// need to change.  TODO: This should be cleaned up.
-	buildcfg.UpdateExperiments(ctxt.GOOS, ctxt.GOARCH, envOr("GOEXPERIMENT", buildcfg.DefaultGOEXPERIMENT))
+	// ToolTags are based on GOEXPERIMENT, which we will parse and
+	// initialize later.
 	ctxt.ToolTags = nil
-	for _, exp := range buildcfg.EnabledExperiments() {
-		ctxt.ToolTags = append(ctxt.ToolTags, "goexperiment."+exp)
-	}
 
 	// The go/build rule for whether cgo is enabled is:
 	//	1. If $CGO_ENABLED is set, respect it.
@@ -124,8 +136,61 @@ func defaultContext() build.Context {
 }
 
 func init() {
+	SetGOROOT(findGOROOT())
 	BuildToolchainCompiler = func() string { return "missing-compiler" }
 	BuildToolchainLinker = func() string { return "missing-linker" }
+}
+
+func SetGOROOT(goroot string) {
+	BuildContext.GOROOT = goroot
+
+	GOROOT = goroot
+	if goroot == "" {
+		GOROOTbin = ""
+		GOROOTpkg = ""
+		GOROOTsrc = ""
+	} else {
+		GOROOTbin = filepath.Join(goroot, "bin")
+		GOROOTpkg = filepath.Join(goroot, "pkg")
+		GOROOTsrc = filepath.Join(goroot, "src")
+	}
+	GOROOT_FINAL = findGOROOT_FINAL(goroot)
+
+	if runtime.Compiler != "gccgo" && goroot != "" {
+		// Note that we must use runtime.GOOS and runtime.GOARCH here,
+		// as the tool directory does not move based on environment
+		// variables. This matches the initialization of ToolDir in
+		// go/build, except for using BuildContext.GOROOT rather than
+		// runtime.GOROOT.
+		build.ToolDir = filepath.Join(goroot, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
+	}
+}
+
+// Experiment configuration.
+var (
+	// RawGOEXPERIMENT is the GOEXPERIMENT value set by the user.
+	RawGOEXPERIMENT = envOr("GOEXPERIMENT", buildcfg.DefaultGOEXPERIMENT)
+	// CleanGOEXPERIMENT is the minimal GOEXPERIMENT value needed to reproduce the
+	// experiments enabled by RawGOEXPERIMENT.
+	CleanGOEXPERIMENT = RawGOEXPERIMENT
+
+	Experiment    *buildcfg.ExperimentFlags
+	ExperimentErr error
+)
+
+func init() {
+	Experiment, ExperimentErr = buildcfg.ParseGOEXPERIMENT(Goos, Goarch, RawGOEXPERIMENT)
+	if ExperimentErr != nil {
+		return
+	}
+
+	// GOEXPERIMENT is valid, so convert it to canonical form.
+	CleanGOEXPERIMENT = Experiment.String()
+
+	// Add build tags based on the experiments in effect.
+	for _, exp := range Experiment.Enabled() {
+		BuildContext.ToolTags = append(BuildContext.ToolTags, "goexperiment."+exp)
+	}
 }
 
 // An EnvVar is an environment variable Name=Value.
@@ -141,26 +206,6 @@ var OrigEnv []string
 // User binaries (during go test or go run) are run with OrigEnv,
 // not CmdEnv.
 var CmdEnv []EnvVar
-
-// Global build parameters (used during package load)
-var (
-	Goarch = BuildContext.GOARCH
-	Goos   = BuildContext.GOOS
-
-	ExeSuffix = exeSuffix()
-
-	// ModulesEnabled specifies whether the go command is running
-	// in module-aware mode (as opposed to GOPATH mode).
-	// It is equal to modload.Enabled, but not all packages can import modload.
-	ModulesEnabled bool
-)
-
-func exeSuffix() string {
-	if Goos == "windows" {
-		return ".exe"
-	}
-	return ""
-}
 
 var envCache struct {
 	once sync.Once
@@ -250,17 +295,18 @@ func CanGetenv(key string) bool {
 }
 
 var (
-	GOROOT       = BuildContext.GOROOT
+	GOROOT       string
+	GOROOTbin    string
+	GOROOTpkg    string
+	GOROOTsrc    string
+	GOROOT_FINAL string
 	GOBIN        = Getenv("GOBIN")
-	GOROOTbin    = filepath.Join(GOROOT, "bin")
-	GOROOTpkg    = filepath.Join(GOROOT, "pkg")
-	GOROOTsrc    = filepath.Join(GOROOT, "src")
-	GOROOT_FINAL = findGOROOT_FINAL()
 	GOMODCACHE   = envOr("GOMODCACHE", gopathDir("pkg/mod"))
 
 	// Used in envcmd.MkEnv and build ID computations.
 	GOARM    = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
 	GO386    = envOr("GO386", buildcfg.GO386)
+	GOAMD64  = envOr("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
 	GOMIPS   = envOr("GOMIPS", buildcfg.GOMIPS)
 	GOMIPS64 = envOr("GOMIPS64", buildcfg.GOMIPS64)
 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
@@ -287,6 +333,8 @@ func GetArchEnv() (key, val string) {
 		return "GOARM", GOARM
 	case "386":
 		return "GO386", GO386
+	case "amd64":
+		return "GOAMD64", GOAMD64
 	case "mips", "mipsle":
 		return "GOMIPS", GOMIPS
 	case "mips64", "mips64le":
@@ -322,7 +370,10 @@ func findGOROOT() string {
 	if env := Getenv("GOROOT"); env != "" {
 		return filepath.Clean(env)
 	}
-	def := filepath.Clean(runtime.GOROOT())
+	def := ""
+	if r := runtime.GOROOT(); r != "" {
+		def = filepath.Clean(r)
+	}
 	if runtime.Compiler == "gccgo" {
 		// gccgo has no real GOROOT, and it certainly doesn't
 		// depend on the executable's location.
@@ -354,10 +405,10 @@ func findGOROOT() string {
 	return def
 }
 
-func findGOROOT_FINAL() string {
+func findGOROOT_FINAL(goroot string) string {
 	// $GOROOT_FINAL is only for use during make.bash
 	// so it is not settable using go/env, so we use os.Getenv here.
-	def := GOROOT
+	def := goroot
 	if env := os.Getenv("GOROOT_FINAL"); env != "" {
 		def = filepath.Clean(env)
 	}
@@ -395,4 +446,25 @@ func gopathDir(rel string) string {
 		return ""
 	}
 	return filepath.Join(list[0], rel)
+}
+
+func gopath(ctxt build.Context) string {
+	if len(ctxt.GOPATH) > 0 {
+		return ctxt.GOPATH
+	}
+	env := "HOME"
+	if runtime.GOOS == "windows" {
+		env = "USERPROFILE"
+	} else if runtime.GOOS == "plan9" {
+		env = "home"
+	}
+	if home := os.Getenv(env); home != "" {
+		def := filepath.Join(home, "go")
+		if filepath.Clean(def) == filepath.Clean(runtime.GOROOT()) {
+			GoPathError = "cannot set GOROOT as GOPATH"
+		}
+		return ""
+	}
+	GoPathError = fmt.Sprintf("%s is not set", env)
+	return ""
 }

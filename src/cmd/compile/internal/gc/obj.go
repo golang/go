@@ -7,7 +7,9 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/noder"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
@@ -18,6 +20,7 @@ import (
 	"cmd/internal/objabi"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // These modes say which kind of object file to generate.
@@ -103,20 +106,19 @@ func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
 
 func dumpCompilerObj(bout *bio.Writer) {
 	printObjHeader(bout)
-	dumpexport(bout)
+	noder.WriteExports(bout)
 }
 
 func dumpdata() {
 	numExterns := len(typecheck.Target.Externs)
 	numDecls := len(typecheck.Target.Decls)
-
 	dumpglobls(typecheck.Target.Externs)
 	reflectdata.CollectPTabs()
 	numExports := len(typecheck.Target.Exports)
 	addsignats(typecheck.Target.Externs)
 	reflectdata.WriteRuntimeTypes()
 	reflectdata.WriteTabs()
-	numPTabs, numITabs := reflectdata.CountTabs()
+	numPTabs := reflectdata.CountPTabs()
 	reflectdata.WriteImportStrings()
 	reflectdata.WriteBasicTypes()
 	dumpembeds()
@@ -148,7 +150,7 @@ func dumpdata() {
 	if reflectdata.ZeroSize > 0 {
 		zero := base.PkgLinksym("go.map", "zero", obj.ABI0)
 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
-		zero.Set(obj.AttrContentAddressable, true)
+		zero.Set(obj.AttrStatic, true)
 	}
 
 	staticdata.WriteFuncSyms()
@@ -157,12 +159,9 @@ func dumpdata() {
 	if numExports != len(typecheck.Target.Exports) {
 		base.Fatalf("Target.Exports changed after compile functions loop")
 	}
-	newNumPTabs, newNumITabs := reflectdata.CountTabs()
+	newNumPTabs := reflectdata.CountPTabs()
 	if newNumPTabs != numPTabs {
 		base.Fatalf("ptabs changed after compile functions loop")
-	}
-	if newNumITabs != numITabs {
-		base.Fatalf("itabs changed after compile functions loop")
 	}
 }
 
@@ -219,6 +218,10 @@ func dumpGlobalConst(n ir.Node) {
 		if ir.ConstOverflow(v, t) {
 			return
 		}
+	} else {
+		// If the type of the constant is an instantiated generic, we need to emit
+		// that type so the linker knows about it. See issue 51245.
+		_ = reflectdata.TypeLinksym(t)
 	}
 	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
 }
@@ -251,8 +254,7 @@ func addGCLocals() {
 			}
 		}
 		if x := fn.StackObjects; x != nil {
-			attr := int16(obj.RODATA)
-			objw.Global(x, int32(len(x.P)), attr)
+			objw.Global(x, int32(len(x.P)), obj.RODATA)
 			x.Set(obj.AttrStatic, true)
 		}
 		if x := fn.OpenCodedDeferInfo; x != nil {
@@ -261,13 +263,34 @@ func addGCLocals() {
 		if x := fn.ArgInfo; x != nil {
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 			x.Set(obj.AttrStatic, true)
-			x.Set(obj.AttrContentAddressable, true)
+		}
+		if x := fn.ArgLiveInfo; x != nil {
+			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+			x.Set(obj.AttrStatic, true)
+		}
+		if x := fn.WrapInfo; x != nil && !x.OnList() {
+			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+			x.Set(obj.AttrStatic, true)
+		}
+		for _, jt := range fn.JumpTables {
+			objw.Global(jt.Sym, int32(len(jt.Targets)*base.Ctxt.Arch.PtrSize), obj.RODATA)
 		}
 	}
 }
 
 func ggloblnod(nam *ir.Name) {
 	s := nam.Linksym()
+
+	// main_inittask and runtime_inittask in package runtime (and in
+	// test/initempty.go) aren't real variable declarations, but
+	// linknamed variables pointing to the compiler's generated
+	// .inittask symbol. The real symbol was already written out in
+	// pkginit.Task, so we need to avoid writing them out a second time
+	// here, otherwise base.Ctxt.Globl will fail.
+	if strings.HasSuffix(s.Name, "..inittask") && s.OnList() {
+		return
+	}
+
 	s.Gotype = reflectdata.TypeLinksym(nam.Type())
 	flags := 0
 	if nam.Readonly() {
@@ -276,9 +299,22 @@ func ggloblnod(nam *ir.Name) {
 	if nam.Type() != nil && !nam.Type().HasPointers() {
 		flags |= obj.NOPTR
 	}
-	base.Ctxt.Globl(s, nam.Type().Width, flags)
-	if nam.LibfuzzerExtraCounter() {
-		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
+	size := nam.Type().Size()
+	linkname := nam.Sym().Linkname
+	name := nam.Sym().Name
+
+	// We've skipped linkname'd globals's instrument, so we can skip them here as well.
+	if base.Flag.ASan && linkname == "" && pkginit.InstrumentGlobalsMap[name] != nil {
+		// Write the new size of instrumented global variables that have
+		// trailing redzones into object file.
+		rzSize := pkginit.GetRedzoneSizeForGlobal(size)
+		sizeWithRZ := rzSize + size
+		base.Ctxt.Globl(s, sizeWithRZ, flags)
+	} else {
+		base.Ctxt.Globl(s, size, flags)
+	}
+	if nam.Libfuzzer8BitCounter() {
+		s.Type = objabi.SLIBFUZZER_8BIT_COUNTER
 	}
 	if nam.Sym().Linkname != "" {
 		// Make sure linkname'd symbol is non-package. When a symbol is

@@ -67,7 +67,7 @@ func TestWriter(t *testing.T) {
 		testClose struct { // Close() == wantErr
 			wantErr error
 		}
-		testFnc interface{} // testHeader | testWrite | testReadFrom | testClose
+		testFnc any // testHeader | testWrite | testReadFrom | testClose
 	)
 
 	vectors := []struct {
@@ -987,11 +987,9 @@ func TestIssue12594(t *testing.T) {
 		// The prefix field should never appear in the GNU format.
 		var blk block
 		copy(blk[:], b.Bytes())
-		prefix := string(blk.USTAR().Prefix())
-		if i := strings.IndexByte(prefix, 0); i >= 0 {
-			prefix = prefix[:i] // Truncate at the NUL terminator
-		}
-		if blk.GetFormat() == FormatGNU && len(prefix) > 0 && strings.HasPrefix(name, prefix) {
+		prefix := string(blk.toUSTAR().prefix())
+		prefix, _, _ = strings.Cut(prefix, "\x00") // Truncate at the NUL terminator
+		if blk.getFormat() == FormatGNU && len(prefix) > 0 && strings.HasPrefix(name, prefix) {
 			t.Errorf("test %d, found prefix in GNU format: %s", i, prefix)
 		}
 
@@ -1029,11 +1027,11 @@ func TestFileWriter(t *testing.T) {
 			wantCnt int64
 			wantErr error
 		}
-		testRemaining struct { // LogicalRemaining() == wantLCnt, PhysicalRemaining() == wantPCnt
+		testRemaining struct { // logicalRemaining() == wantLCnt, physicalRemaining() == wantPCnt
 			wantLCnt int64
 			wantPCnt int64
 		}
-		testFnc interface{} // testWrite | testReadFrom | testRemaining
+		testFnc any // testWrite | testReadFrom | testRemaining
 	)
 
 	type (
@@ -1046,7 +1044,7 @@ func TestFileWriter(t *testing.T) {
 			sph     sparseHoles
 			size    int64
 		}
-		fileMaker interface{} // makeReg | makeSparse
+		fileMaker any // makeReg | makeSparse
 	)
 
 	vectors := []struct {
@@ -1292,11 +1290,11 @@ func TestFileWriter(t *testing.T) {
 					t.Errorf("test %d.%d, expected %d more operations", i, j, len(f.ops))
 				}
 			case testRemaining:
-				if got := fw.LogicalRemaining(); got != tf.wantLCnt {
-					t.Errorf("test %d.%d, LogicalRemaining() = %d, want %d", i, j, got, tf.wantLCnt)
+				if got := fw.logicalRemaining(); got != tf.wantLCnt {
+					t.Errorf("test %d.%d, logicalRemaining() = %d, want %d", i, j, got, tf.wantLCnt)
 				}
-				if got := fw.PhysicalRemaining(); got != tf.wantPCnt {
-					t.Errorf("test %d.%d, PhysicalRemaining() = %d, want %d", i, j, got, tf.wantPCnt)
+				if got := fw.physicalRemaining(); got != tf.wantPCnt {
+					t.Errorf("test %d.%d, physicalRemaining() = %d, want %d", i, j, got, tf.wantPCnt)
 				}
 			default:
 				t.Fatalf("test %d.%d, unknown test operation: %T", i, j, tf)

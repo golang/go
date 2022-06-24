@@ -50,7 +50,7 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
 	// Set macros for GOEXPERIMENTs so we can easily switch
 	// runtime assembly code based on them.
 	if *flags.CompilingRuntime {
-		for _, exp := range buildcfg.EnabledExperiments() {
+		for _, exp := range buildcfg.Experiment.Enabled() {
 			// Define macro.
 			name := "GOEXPERIMENT_" + exp
 			macros[name] = &Macro{

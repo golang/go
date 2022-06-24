@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 /*
 Input to cgo.
@@ -26,6 +25,7 @@ package runtime
 #include <sys/signal.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <signal.h>
 */
 import "C"
@@ -34,7 +34,6 @@ const (
 	EINTR  = C.EINTR
 	EFAULT = C.EFAULT
 	EAGAIN = C.EAGAIN
-	ENOSYS = C.ENOSYS
 
 	O_NONBLOCK = C.O_NONBLOCK
 	O_CLOEXEC  = C.O_CLOEXEC

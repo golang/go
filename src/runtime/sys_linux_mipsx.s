@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && (mips || mipsle)
-// +build linux
-// +build mips mipsle
 
 //
 // System calls and other sys.stuff for mips, Linux
@@ -21,7 +19,6 @@
 #define SYS_close		4006
 #define SYS_getpid		4020
 #define SYS_kill		4037
-#define SYS_pipe		4042
 #define SYS_brk			4045
 #define SYS_fcntl		4055
 #define SYS_mmap		4090
@@ -43,6 +40,9 @@
 #define SYS_epoll_create	4248
 #define SYS_epoll_ctl		4249
 #define SYS_epoll_wait		4250
+#define SYS_timer_create	4257
+#define SYS_timer_settime	4258
+#define SYS_timer_delete	4261
 #define SYS_clock_gettime	4263
 #define SYS_tgkill		4266
 #define SYS_epoll_create1	4326
@@ -109,23 +109,6 @@ TEXT runtime·read(SB),NOSPLIT,$0-16
 	BEQ	R7, 2(PC)
 	SUBU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+12(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$0-12
-	MOVW	$SYS_pipe, R2
-	SYSCALL
-	BEQ	R7, pipeok
-	MOVW	$-1, R1
-	MOVW	R1, r+0(FP)
-	MOVW	R1, w+4(FP)
-	SUBU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, errno+8(FP)
-	RET
-pipeok:
-	MOVW	R2, r+0(FP)
-	MOVW	R3, w+4(FP)
-	MOVW	R0, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -207,6 +190,32 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0-12
 	MOVW	old+8(FP), R6
 	MOVW	$SYS_setitimer, R2
 	SYSCALL
+	RET
+
+TEXT runtime·timer_create(SB),NOSPLIT,$0-16
+	MOVW	clockid+0(FP), R4
+	MOVW	sevp+4(FP), R5
+	MOVW	timerid+8(FP), R6
+	MOVW	$SYS_timer_create, R2
+	SYSCALL
+	MOVW	R2, ret+12(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
+	MOVW	timerid+0(FP), R4
+	MOVW	flags+4(FP), R5
+	MOVW	new+8(FP), R6
+	MOVW	old+12(FP), R7
+	MOVW	$SYS_timer_settime, R2
+	SYSCALL
+	MOVW	R2, ret+16(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-8
+	MOVW	timerid+0(FP), R4
+	MOVW	$SYS_timer_delete, R2
+	SYSCALL
+	MOVW	R2, ret+4(FP)
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT,$0-16
@@ -302,7 +311,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	R22, R29
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$12
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$12
 	// this might be called in external code context,
 	// where g is not set.
 	MOVB	runtime·iscgo(SB), R1
@@ -528,21 +537,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0-4
 	MOVW	fd+0(FP), R4	// fd
 	MOVW	$2, R5	// F_SETFD
 	MOVW	$1, R6	// FD_CLOEXEC
-	MOVW	$SYS_fcntl, R2
-	SYSCALL
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
-	MOVW	fd+0(FP), R4 // fd
-	MOVW	$3, R5	// F_GETFL
-	MOVW	$0, R6
-	MOVW	$SYS_fcntl, R2
-	SYSCALL
-	MOVW	$0x80, R6 // O_NONBLOCK
-	OR	R2, R6
-	MOVW	fd+0(FP), R4 // fd
-	MOVW	$4, R5	// F_SETFL
 	MOVW	$SYS_fcntl, R2
 	SYSCALL
 	RET

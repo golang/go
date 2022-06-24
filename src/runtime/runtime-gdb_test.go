@@ -49,7 +49,7 @@ func checkGdbEnvironment(t *testing.T) {
 	case "plan9":
 		t.Skip("there is no gdb on Plan 9")
 	}
-	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
+	if final := os.Getenv("GOROOT_FINAL"); final != "" && testenv.GOROOT(t) != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
 	}
 }
@@ -153,8 +153,8 @@ func TestGdbPython(t *testing.T) {
 }
 
 func TestGdbPythonCgo(t *testing.T) {
-	if runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" || runtime.GOARCH == "mips64" {
-		testenv.SkipFlaky(t, 18784)
+	if strings.HasPrefix(runtime.GOARCH, "mips") {
+		testenv.SkipFlaky(t, 37794)
 	}
 	testGdbPython(t, true)
 }
@@ -204,7 +204,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 	}
 
 	args := []string{"-nx", "-q", "--batch",
-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
 		"-ex", "set print thread-events off",
 	}
@@ -215,7 +215,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 		// Until gold and gdb can work together, temporarily load the
 		// python script directly.
 		args = append(args,
-			"-ex", "source "+filepath.Join(runtime.GOROOT(), "src", "runtime", "runtime-gdb.py"),
+			"-ex", "source "+filepath.Join(testenv.GOROOT(t), "src", "runtime", "runtime-gdb.py"),
 		)
 	} else {
 		args = append(args,
@@ -267,7 +267,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("gdb exited with error: %v", err)
 	}
 
-	firstLine := bytes.SplitN(got, []byte("\n"), 2)[0]
+	firstLine, _, _ := bytes.Cut(got, []byte("\n"))
 	if string(firstLine) != "Loading Go Runtime support." {
 		// This can happen when using all.bash with
 		// GOROOT_FINAL set, because the tests are run before
@@ -276,7 +276,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 		cmd.Env = []string{}
 		out, err := cmd.CombinedOutput()
 		if err != nil && bytes.Contains(out, []byte("cannot find GOROOT")) {
-			t.Skipf("skipping because GOROOT=%s does not exist", runtime.GOROOT())
+			t.Skipf("skipping because GOROOT=%s does not exist", testenv.GOROOT(t))
 		}
 
 		_, file, _, _ := runtime.Caller(1)
@@ -416,7 +416,7 @@ func TestGdbBacktrace(t *testing.T) {
 
 	// Execute gdb commands.
 	args := []string{"-nx", "-batch",
-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
 		"-ex", "break main.eee",
 		"-ex", "run",
@@ -424,9 +424,22 @@ func TestGdbBacktrace(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, err := exec.Command("gdb", args...).CombinedOutput()
+	got, err := testenv.RunWithTimeout(t, exec.Command("gdb", args...))
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
+		if bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")) {
+			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=28551
+			testenv.SkipFlaky(t, 43068)
+		}
+		if bytes.Contains(got, []byte("Couldn't get registers: No such process.")) {
+			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=9086
+			testenv.SkipFlaky(t, 50838)
+		}
+		if bytes.Contains(got, []byte(" exited normally]\n")) {
+			// GDB bug: Sometimes the inferior exits fine,
+			// but then GDB hangs.
+			testenv.SkipFlaky(t, 37405)
+		}
 		t.Fatalf("gdb exited with error: %v", err)
 	}
 
@@ -490,8 +503,12 @@ func TestGdbAutotmpTypes(t *testing.T) {
 
 	// Execute gdb commands.
 	args := []string{"-nx", "-batch",
-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
+		// Some gdb may set scheduling-locking as "step" by default. This prevents background tasks
+		// (e.g GC) from completing which may result in a hang when executing the step command.
+		// See #49852.
+		"-ex", "set scheduler-locking off",
 		"-ex", "break main.main",
 		"-ex", "run",
 		"-ex", "step",
@@ -555,7 +572,7 @@ func TestGdbConst(t *testing.T) {
 
 	// Execute gdb commands.
 	args := []string{"-nx", "-batch",
-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
 		"-ex", "break main.main",
 		"-ex", "run",
@@ -618,7 +635,7 @@ func TestGdbPanic(t *testing.T) {
 
 	// Execute gdb commands.
 	args := []string{"-nx", "-batch",
-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
 		"-ex", "run",
 		"-ex", "backtrace",
@@ -693,7 +710,7 @@ func TestGdbInfCallstack(t *testing.T) {
 	// Execute gdb commands.
 	// 'setg_gcc' is the first point where we can reproduce the issue with just one 'run' command.
 	args := []string{"-nx", "-batch",
-		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
 		"-ex", "break setg_gcc",
 		"-ex", "run",

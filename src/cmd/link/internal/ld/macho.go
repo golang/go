@@ -7,7 +7,6 @@ package ld
 import (
 	"bytes"
 	"cmd/internal/codesign"
-	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -561,7 +560,7 @@ func (ctxt *Link) domacho() {
 			ver := 0
 			// _cgo_panic is a Go function, so it uses ABIInternal.
 			if name == "_cgo_panic" {
-				ver = sym.ABIToVersion(obj.ABIInternal)
+				ver = abiInternalVer
 			}
 			s := ctxt.loader.Lookup(name, ver)
 			if s != 0 {
@@ -898,6 +897,14 @@ func collectmachosyms(ctxt *Link) {
 		if ldr.SymType(s) == sym.STEXT {
 			addsym(s)
 		}
+		for n := range Segtext.Sections[1:] {
+			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
+			if s != 0 {
+				addsym(s)
+			} else {
+				break
+			}
+		}
 		s = ldr.Lookup("runtime.etext", 0)
 		if ldr.SymType(s) == sym.STEXT {
 			addsym(s)
@@ -913,7 +920,7 @@ func collectmachosyms(ctxt *Link) {
 		if ldr.AttrNotInSymbolTable(s) {
 			return false
 		}
-		name := ldr.RawSymName(s) // TODO: try not to read the name
+		name := ldr.SymName(s) // TODO: try not to read the name
 		if name == "" || name[0] == '.' {
 			return false
 		}
@@ -1012,7 +1019,7 @@ func machoShouldExport(ctxt *Link, ldr *loader.Loader, s loader.Sym) bool {
 	if ctxt.BuildMode == BuildModePlugin && strings.HasPrefix(ldr.SymExtname(s), objabi.PathToPrefix(*flagPluginPath)) {
 		return true
 	}
-	name := ldr.RawSymName(s)
+	name := ldr.SymName(s)
 	if strings.HasPrefix(name, "go.itab.") {
 		return true
 	}

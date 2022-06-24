@@ -16,7 +16,7 @@ func zero() int { return 0 }
 var sink interface{}
 
 // in -> out
-func param0(p *int) *int { // ERROR "leaking param: p to result ~r1"
+func param0(p *int) *int { // ERROR "leaking param: p to result ~r0"
 	return p
 }
 
@@ -31,7 +31,7 @@ func caller0b() {
 }
 
 // in, in -> out, out
-func param1(p1, p2 *int) (*int, *int) { // ERROR "leaking param: p1 to result ~r2" "leaking param: p2 to result ~r3"
+func param1(p1, p2 *int) (*int, *int) { // ERROR "leaking param: p1 to result ~r0" "leaking param: p2 to result ~r1"
 	return p1, p2
 }
 
@@ -222,7 +222,7 @@ func caller8() {
 }
 
 // *in -> out
-func param9(p ***int) **int { // ERROR "leaking param: p to result ~r1 level=1"
+func param9(p ***int) **int { // ERROR "leaking param: p to result ~r0 level=1"
 	return *p
 }
 
@@ -241,7 +241,7 @@ func caller9b() {
 }
 
 // **in -> out
-func param10(p ***int) *int { // ERROR "leaking param: p to result ~r1 level=2"
+func param10(p ***int) *int { // ERROR "leaking param: p to result ~r0 level=2"
 	return **p
 }
 
@@ -436,6 +436,6 @@ func param14a(x [4]*int) interface{} { // ERROR "leaking param: x$"
 
 // Convert to a direct interface, does not need an allocation.
 // So x only leaks to result.
-func param14b(x *int) interface{} { // ERROR "leaking param: x to result ~r1 level=0"
+func param14b(x *int) interface{} { // ERROR "leaking param: x to result ~r0 level=0"
 	return x
 }

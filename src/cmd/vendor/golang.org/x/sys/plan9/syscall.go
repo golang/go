@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build plan9
 // +build plan9
 
 // Package plan9 contains an interface to the low-level operating system
@@ -112,5 +113,6 @@ func (tv *Timeval) Nano() int64 {
 
 // use is a no-op, but the compiler cannot see that it is.
 // Calling use(p) ensures that p is kept live until that point.
+//
 //go:noescape
 func use(p unsafe.Pointer)

@@ -10,23 +10,27 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
+	"fmt"
 	"math/big"
 	"testing"
 )
 
+import "crypto/internal/boring"
+
 func TestKeyGeneration(t *testing.T) {
-	size := 1024
-	if testing.Short() {
-		size = 128
+	for _, size := range []int{128, 1024, 2048, 3072} {
+		priv, err := GenerateKey(rand.Reader, size)
+		if err != nil {
+			t.Errorf("GenerateKey(%d): %v", size, err)
+		}
+		if bits := priv.N.BitLen(); bits != size {
+			t.Errorf("key too short (%d vs %d)", bits, size)
+		}
+		testKeyBasics(t, priv)
+		if testing.Short() {
+			break
+		}
 	}
-	priv, err := GenerateKey(rand.Reader, size)
-	if err != nil {
-		t.Errorf("failed to generate key")
-	}
-	if bits := priv.N.BitLen(); bits != size {
-		t.Errorf("key too short (%d vs %d)", bits, size)
-	}
-	testKeyBasics(t, priv)
 }
 
 func Test3PrimeKeyGeneration(t *testing.T) {
@@ -110,6 +114,25 @@ func testKeyBasics(t *testing.T, priv *PrivateKey) {
 		t.Errorf("private exponent too large")
 	}
 
+	if boring.Enabled {
+		// Cannot call encrypt/decrypt directly. Test via PKCS1v15.
+		msg := []byte("hi!")
+		enc, err := EncryptPKCS1v15(rand.Reader, &priv.PublicKey, msg)
+		if err != nil {
+			t.Errorf("EncryptPKCS1v15: %v", err)
+			return
+		}
+		dec, err := DecryptPKCS1v15(rand.Reader, priv, enc)
+		if err != nil {
+			t.Errorf("DecryptPKCS1v15: %v", err)
+			return
+		}
+		if !bytes.Equal(dec, msg) {
+			t.Errorf("got:%x want:%x (%+v)", dec, msg, priv)
+		}
+		return
+	}
+
 	pub := &priv.PublicKey
 	m := big.NewInt(42)
 	c := encrypt(new(big.Int), pub, m)
@@ -158,6 +181,10 @@ func init() {
 }
 
 func BenchmarkRSA2048Decrypt(b *testing.B) {
+	if boring.Enabled {
+		b.Skip("no raw decrypt in BoringCrypto")
+	}
+
 	b.StopTimer()
 
 	c := fromBase10("8472002792838218989464636159316973636630013835787202418124758118372358261975764365740026024610403138425986214991379012696600761514742817632790916315594342398720903716529235119816755589383377471752116975374952783629225022962092351886861518911824745188989071172097120352727368980275252089141512321893536744324822590480751098257559766328893767334861211872318961900897793874075248286439689249972315699410830094164386544311554704755110361048571142336148077772023880664786019636334369759624917224888206329520528064315309519262325023881707530002540634660750469137117568199824615333883758410040459705787022909848740188613313")
@@ -180,6 +207,10 @@ func BenchmarkRSA2048Sign(b *testing.B) {
 }
 
 func Benchmark3PrimeRSA2048Decrypt(b *testing.B) {
+	if boring.Enabled {
+		b.Skip("no raw decrypt in BoringCrypto")
+	}
+
 	b.StopTimer()
 	priv := &PrivateKey{
 		PublicKey: PublicKey{
@@ -222,7 +253,7 @@ func TestEncryptOAEP(t *testing.T) {
 	n := new(big.Int)
 	for i, test := range testEncryptOAEPData {
 		n.SetString(test.modulus, 16)
-		public := PublicKey{n, test.e}
+		public := PublicKey{N: n, E: test.e}
 
 		for j, message := range test.msgs {
 			randomSource := bytes.NewReader(message.seed)
@@ -247,7 +278,7 @@ func TestDecryptOAEP(t *testing.T) {
 		n.SetString(test.modulus, 16)
 		d.SetString(test.d, 16)
 		private := new(PrivateKey)
-		private.PublicKey = PublicKey{n, test.e}
+		private.PublicKey = PublicKey{N: n, E: test.e}
 		private.D = d
 
 		for j, message := range test.msgs {
@@ -268,6 +299,36 @@ func TestDecryptOAEP(t *testing.T) {
 		}
 		if testing.Short() {
 			break
+		}
+	}
+}
+
+func TestEncryptDecryptOAEP(t *testing.T) {
+	sha256 := sha256.New()
+	n := new(big.Int)
+	d := new(big.Int)
+	for i, test := range testEncryptOAEPData {
+		n.SetString(test.modulus, 16)
+		d.SetString(test.d, 16)
+		priv := new(PrivateKey)
+		priv.PublicKey = PublicKey{N: n, E: test.e}
+		priv.D = d
+
+		for j, message := range test.msgs {
+			label := []byte(fmt.Sprintf("hi#%d", j))
+			enc, err := EncryptOAEP(sha256, rand.Reader, &priv.PublicKey, message.in, label)
+			if err != nil {
+				t.Errorf("#%d,%d: EncryptOAEP: %v", i, j, err)
+				continue
+			}
+			dec, err := DecryptOAEP(sha256, rand.Reader, priv, enc, label)
+			if err != nil {
+				t.Errorf("#%d,%d: DecryptOAEP: %v", i, j, err)
+				continue
+			}
+			if !bytes.Equal(dec, message.in) {
+				t.Errorf("#%d,%d: round trip %q -> %q", i, j, message.in, dec)
+			}
 		}
 	}
 }

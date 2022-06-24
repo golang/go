@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.regabireflect
-// +build goexperiment.regabireflect
+//go:build goexperiment.regabiargs
 
 package reflect_test
 
 import (
 	"internal/abi"
+	"math"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -33,7 +33,7 @@ func TestMethodValueCallABI(t *testing.T) {
 	// for us, so there isn't a whole lot to do. Let's just
 	// make sure that we can pass register and stack arguments
 	// through. The exact combination is not super important.
-	makeMethodValue := func(method string) (*StructWithMethods, interface{}) {
+	makeMethodValue := func(method string) (*StructWithMethods, any) {
 		s := new(StructWithMethods)
 		v := reflect.ValueOf(s).MethodByName(method)
 		return s, v.Interface()
@@ -256,7 +256,7 @@ func TestReflectMakeFuncCallABI(t *testing.T) {
 	})
 }
 
-var abiCallTestCases = []interface{}{
+var abiCallTestCases = []any{
 	passNone,
 	passInt,
 	passInt8,
@@ -545,13 +545,14 @@ func passEmptyStruct(a int, b struct{}, c float64) (int, struct{}, float64) {
 
 // This test case forces a large argument to the stack followed by more
 // in-register arguments.
+//
 //go:registerparams
 //go:noinline
 func passStruct10AndSmall(a Struct10, b byte, c uint) (Struct10, byte, uint) {
 	return a, b, c
 }
 
-var abiMakeFuncTestCases = []interface{}{
+var abiMakeFuncTestCases = []any{
 	callArgsNone,
 	callArgsInt,
 	callArgsInt8,
@@ -961,4 +962,28 @@ func genValue(t *testing.T, typ reflect.Type, r *rand.Rand) reflect.Value {
 		t.Fatal("failed to generate value")
 	}
 	return v
+}
+
+func TestSignalingNaNArgument(t *testing.T) {
+	v := reflect.ValueOf(func(x float32) {
+		// make sure x is a signaling NaN.
+		u := math.Float32bits(x)
+		if u != snan {
+			t.Fatalf("signaling NaN not correct: %x\n", u)
+		}
+	})
+	v.Call([]reflect.Value{reflect.ValueOf(math.Float32frombits(snan))})
+}
+
+func TestSignalingNaNReturn(t *testing.T) {
+	v := reflect.ValueOf(func() float32 {
+		return math.Float32frombits(snan)
+	})
+	var x float32
+	reflect.ValueOf(&x).Elem().Set(v.Call(nil)[0])
+	// make sure x is a signaling NaN.
+	u := math.Float32bits(x)
+	if u != snan {
+		t.Fatalf("signaling NaN not correct: %x\n", u)
+	}
 }

@@ -78,7 +78,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 					base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t, nn, why)
 				}
 			}
-			checkassign(n, nn)
+			checkassign(nn)
 		}
 	}
 	do(n.Key, tk)
@@ -127,17 +127,14 @@ func assign(stmt ir.Node, lhs, rhs []ir.Node) {
 
 	checkLHS := func(i int, typ *types.Type) {
 		lhs[i] = Resolve(lhs[i])
-		if n := lhs[i]; typ != nil && ir.DeclaredBy(n, stmt) && n.Name().Ntype == nil {
-			if typ.Kind() != types.TNIL {
-				n.SetType(defaultType(typ))
-			} else {
-				base.Errorf("use of untyped nil")
-			}
+		if n := lhs[i]; typ != nil && ir.DeclaredBy(n, stmt) && n.Type() == nil {
+			base.Assertf(typ.Kind() == types.TNIL, "unexpected untyped nil")
+			n.SetType(defaultType(typ))
 		}
 		if lhs[i].Typecheck() == 0 {
 			lhs[i] = AssignExpr(lhs[i])
 		}
-		checkassign(stmt, lhs[i])
+		checkassign(lhs[i])
 	}
 
 	assignType := func(i int, typ *types.Type) {
@@ -172,6 +169,10 @@ assignOK:
 			r := r.(*ir.TypeAssertExpr)
 			stmt.SetOp(ir.OAS2DOTTYPE)
 			r.SetOp(ir.ODOTTYPE2)
+		case ir.ODYNAMICDOTTYPE:
+			r := r.(*ir.DynamicTypeAssertExpr)
+			stmt.SetOp(ir.OAS2DOTTYPE)
+			r.SetOp(ir.ODYNAMICDOTTYPE2)
 		default:
 			break assignOK
 		}
@@ -201,7 +202,6 @@ assignOK:
 		stmt := stmt.(*ir.AssignListStmt)
 		stmt.SetOp(ir.OAS2FUNC)
 		r := rhs[0].(*ir.CallExpr)
-		r.Use = ir.CallUseList
 		rtyp := r.Type()
 
 		mismatched := false
@@ -217,7 +217,7 @@ assignOK:
 			}
 		}
 		if mismatched && !failed {
-			rewriteMultiValueCall(stmt, r)
+			RewriteMultiValueCall(stmt, r)
 		}
 		return
 	}
@@ -235,6 +235,15 @@ func plural(n int) string {
 		return ""
 	}
 	return "s"
+}
+
+// tcCheckNil typechecks an OCHECKNIL node.
+func tcCheckNil(n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(n.X)
+	if !n.X.Type().IsPtrShaped() {
+		base.FatalfAt(n.Pos(), "%L is not pointer shaped", n.X)
+	}
+	return n
 }
 
 // tcFor typechecks an OFOR node.
@@ -297,16 +306,13 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 
 	// type is broken or missing, most likely a method call on a broken type
 	// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
-	if n.Call.Type() == nil || n.Call.Type().Broke() {
+	if n.Call.Type() == nil {
 		return
 	}
 
-	if !n.Diag() {
-		// The syntax made sure it was a call, so this must be
-		// a conversion.
-		n.SetDiag(true)
-		base.ErrorfAt(n.Pos(), "%s requires function call, not conversion", what)
-	}
+	// The syntax made sure it was a call, so this must be
+	// a conversion.
+	base.FatalfAt(n.Pos(), "%s requires function call, not conversion", what)
 }
 
 // tcIf typechecks an OIF node.
@@ -383,10 +389,11 @@ func tcSelect(sel *ir.SelectStmt) {
 			n := Stmt(ncase.Comm)
 			ncase.Comm = n
 			oselrecv2 := func(dst, recv ir.Node, def bool) {
-				n := ir.NewAssignListStmt(n.Pos(), ir.OSELRECV2, []ir.Node{dst, ir.BlankNode}, []ir.Node{recv})
-				n.Def = def
-				n.SetTypecheck(1)
-				ncase.Comm = n
+				selrecv := ir.NewAssignListStmt(n.Pos(), ir.OSELRECV2, []ir.Node{dst, ir.BlankNode}, []ir.Node{recv})
+				selrecv.Def = def
+				selrecv.SetTypecheck(1)
+				selrecv.SetInit(n.Init())
+				ncase.Comm = selrecv
 			}
 			switch n.Op() {
 			default:
@@ -506,7 +513,6 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
 	}
 
 	var defCase ir.Node
-	var cs constSet
 	for _, ncase := range n.Cases {
 		ls := ncase.List
 		if len(ls) == 0 { // default:
@@ -540,16 +546,6 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
 						base.ErrorfAt(ncase.Pos(), "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type())
 					}
 				}
-			}
-
-			// Don't check for duplicate bools. Although the spec allows it,
-			// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
-			// (2) it would disallow useful things like
-			//       case GOARCH == "arm" && GOARM == "5":
-			//       case GOARCH == "arm":
-			//     which would both evaluate to false for non-ARM compiles.
-			if !n1.Type().IsBoolean() {
-				cs.add(ncase.Pos(), n1, "case", "switch")
 			}
 		}
 
@@ -602,12 +598,15 @@ func tcSwitchType(n *ir.SwitchStmt) {
 				}
 				continue
 			}
+			if n1.Op() == ir.ODYNAMICTYPE {
+				continue
+			}
 			if n1.Op() != ir.OTYPE {
 				base.ErrorfAt(ncase.Pos(), "%L is not a type", n1)
 				continue
 			}
-			if !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) && !missing.Broke() {
-				if have != nil && !have.Broke() {
+			if !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) {
+				if have != nil {
 					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
 						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", guard.X, n1.Type(), missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 				} else if ptr != 0 {
@@ -627,7 +626,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			// Assign the clause variable's type.
 			vt := t
 			if len(ls) == 1 {
-				if ls[0].Op() == ir.OTYPE {
+				if ls[0].Op() == ir.OTYPE || ls[0].Op() == ir.ODYNAMICTYPE {
 					vt = ls[0].Type()
 				} else if !ir.IsNil(ls[0]) {
 					// Invalid single-type case;
@@ -643,7 +642,6 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			} else {
 				// Clause variable is broken; prevent typechecking.
 				nvar.SetTypecheck(1)
-				nvar.SetWalkdef(1)
 			}
 			ncase.Var = nvar
 		}
@@ -653,29 +651,18 @@ func tcSwitchType(n *ir.SwitchStmt) {
 }
 
 type typeSet struct {
-	m map[string][]typeSetEntry
-}
-
-type typeSetEntry struct {
-	pos src.XPos
-	typ *types.Type
+	m map[string]src.XPos
 }
 
 func (s *typeSet) add(pos src.XPos, typ *types.Type) {
 	if s.m == nil {
-		s.m = make(map[string][]typeSetEntry)
+		s.m = make(map[string]src.XPos)
 	}
 
-	// LongString does not uniquely identify types, so we need to
-	// disambiguate collisions with types.Identical.
-	// TODO(mdempsky): Add a method that *is* unique.
-	ls := typ.LongString()
-	prevs := s.m[ls]
-	for _, prev := range prevs {
-		if types.Identical(typ, prev.typ) {
-			base.ErrorfAt(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev.pos))
-			return
-		}
+	ls := typ.LinkString()
+	if prev, ok := s.m[ls]; ok {
+		base.ErrorfAt(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev))
+		return
 	}
-	s.m[ls] = append(prevs, typeSetEntry{pos, typ})
+	s.m[ls] = pos
 }

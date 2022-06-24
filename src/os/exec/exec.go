@@ -18,6 +18,71 @@
 // Note that the examples in this package assume a Unix system.
 // They may not run on Windows, and they do not run in the Go Playground
 // used by golang.org and godoc.org.
+//
+// # Executables in the current directory
+//
+// The functions Command and LookPath look for a program
+// in the directories listed in the current path, following the
+// conventions of the host operating system.
+// Operating systems have for decades included the current
+// directory in this search, sometimes implicitly and sometimes
+// configured explicitly that way by default.
+// Modern practice is that including the current directory
+// is usually unexpected and often leads to security problems.
+//
+// To avoid those security problems, as of Go 1.19, this package will not resolve a program
+// using an implicit or explicit path entry relative to the current directory.
+// That is, if you run exec.LookPath("go"), it will not successfully return
+// ./go on Unix nor .\go.exe on Windows, no matter how the path is configured.
+// Instead, if the usual path algorithms would result in that answer,
+// these functions return an error err satisfying errors.Is(err, ErrDot).
+//
+// For example, consider these two program snippets:
+//
+//	path, err := exec.LookPath("prog")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	use(path)
+//
+// and
+//
+//	cmd := exec.Command("prog")
+//	if err := cmd.Run(); err != nil {
+//		log.Fatal(err)
+//	}
+//
+// These will not find and run ./prog or .\prog.exe,
+// no matter how the current path is configured.
+//
+// Code that always wants to run a program from the current directory
+// can be rewritten to say "./prog" instead of "prog".
+//
+// Code that insists on including results from relative path entries
+// can instead override the error using an errors.Is check:
+//
+//	path, err := exec.LookPath("prog")
+//	if errors.Is(err, exec.ErrDot) {
+//		err = nil
+//	}
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	use(path)
+//
+// and
+//
+//	cmd := exec.Command("prog")
+//	if errors.Is(cmd.Err, exec.ErrDot) {
+//		cmd.Err = nil
+//	}
+//	if err := cmd.Run(); err != nil {
+//		log.Fatal(err)
+//	}
+//
+// Before adding such overrides, make sure you understand the
+// security implications of doing so.
+// See https://go.dev/blog/path-security for more information.
 package exec
 
 import (
@@ -49,6 +114,20 @@ func (e *Error) Error() string {
 }
 
 func (e *Error) Unwrap() error { return e.Err }
+
+// wrappedError wraps an error without relying on fmt.Errorf.
+type wrappedError struct {
+	prefix string
+	err    error
+}
+
+func (w wrappedError) Error() string {
+	return w.prefix + ": " + w.err.Error()
+}
+
+func (w wrappedError) Unwrap() error {
+	return w.err
+}
 
 // Cmd represents an external command being prepared or run.
 //
@@ -134,14 +213,32 @@ type Cmd struct {
 	ProcessState *os.ProcessState
 
 	ctx             context.Context // nil means none
-	lookPathErr     error           // LookPath error, if any.
-	finished        bool            // when Wait was called
+	Err             error           // LookPath error, if any.
 	childFiles      []*os.File
 	closeAfterStart []io.Closer
 	closeAfterWait  []io.Closer
 	goroutine       []func() error
-	errch           chan error // one send per goroutine
-	waitDone        chan struct{}
+	goroutineErrs   <-chan error // one receive per goroutine
+	ctxErr          <-chan error // if non nil, receives the error from watchCtx exactly once
+
+	// For a security release long ago, we created x/sys/execabs,
+	// which manipulated the unexported lookPathErr error field
+	// in this struct. For Go 1.19 we exported the field as Err error,
+	// above, but we have to keep lookPathErr around for use by
+	// old programs building against new toolchains.
+	// The String and Start methods look for an error in lookPathErr
+	// in preference to Err, to preserve the errors that execabs sets.
+	//
+	// In general we don't guarantee misuse of reflect like this,
+	// but the misuse of reflect was by us, the best of various bad
+	// options to fix the security problem, and people depend on
+	// those old copies of execabs continuing to work.
+	// The result is that we have to leave this variable around for the
+	// rest of time, a compatibility scar.
+	//
+	// See https://go.dev/blog/path-security
+	// and https://go.dev/issue/43724 for more context.
+	lookPathErr error
 }
 
 // Command returns the Cmd struct to execute the named program with
@@ -172,10 +269,15 @@ func Command(name string, arg ...string) *Cmd {
 		Args: append([]string{name}, arg...),
 	}
 	if filepath.Base(name) == name {
-		if lp, err := LookPath(name); err != nil {
-			cmd.lookPathErr = err
-		} else {
+		lp, err := LookPath(name)
+		if lp != "" {
+			// Update cmd.Path even if err is non-nil.
+			// If err is ErrDot (especially on Windows), lp may include a resolved
+			// extension (like .exe or .bat) that should be preserved.
 			cmd.Path = lp
+		}
+		if err != nil {
+			cmd.Err = err
 		}
 	}
 	return cmd
@@ -200,7 +302,7 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 // In particular, it is not suitable for use as input to a shell.
 // The output of String may vary across Go releases.
 func (c *Cmd) String() string {
-	if c.lookPathErr != nil {
+	if c.Err != nil || c.lookPathErr != nil {
 		// failed to resolve path; report the original requested path (plus args)
 		return strings.Join(c.Args, " ")
 	}
@@ -216,18 +318,11 @@ func (c *Cmd) String() string {
 
 // interfaceEqual protects against panics from doing equality tests on
 // two interfaces with non-comparable underlying types.
-func interfaceEqual(a, b interface{}) bool {
+func interfaceEqual(a, b any) bool {
 	defer func() {
 		recover()
 	}()
 	return a == b
-}
-
-func (c *Cmd) envv() ([]string, error) {
-	if c.Env != nil {
-		return c.Env, nil
-	}
-	return execenv.Default(c.SysProcAttr)
 }
 
 func (c *Cmd) argv() []string {
@@ -236,10 +331,6 @@ func (c *Cmd) argv() []string {
 	}
 	return []string{c.Path}
 }
-
-// skipStdinCopyError optionally specifies a function which reports
-// whether the provided stdin copy error should be ignored.
-var skipStdinCopyError func(error) bool
 
 func (c *Cmd) stdin() (f *os.File, err error) {
 	if c.Stdin == nil {
@@ -264,7 +355,7 @@ func (c *Cmd) stdin() (f *os.File, err error) {
 	c.closeAfterWait = append(c.closeAfterWait, pw)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(pw, c.Stdin)
-		if skip := skipStdinCopyError; skip != nil && skip(err) {
+		if skipStdinCopyError(err) {
 			err = nil
 		}
 		if err1 := pw.Close(); err == nil {
@@ -346,7 +437,7 @@ func (c *Cmd) Run() error {
 // lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
 func lookExtensions(path, dir string) (string, error) {
 	if filepath.Base(path) == path {
-		path = filepath.Join(".", path)
+		path = "." + string(filepath.Separator) + path
 	}
 	if dir == "" {
 		return LookPath(path)
@@ -374,10 +465,16 @@ func lookExtensions(path, dir string) (string, error) {
 // The Wait method will return the exit code and release associated resources
 // once the command exits.
 func (c *Cmd) Start() error {
-	if c.lookPathErr != nil {
+	if c.Path == "" && c.Err == nil && c.lookPathErr == nil {
+		c.Err = errors.New("exec: no command")
+	}
+	if c.Err != nil || c.lookPathErr != nil {
 		c.closeDescriptors(c.closeAfterStart)
 		c.closeDescriptors(c.closeAfterWait)
-		return c.lookPathErr
+		if c.lookPathErr != nil {
+			return c.lookPathErr
+		}
+		return c.Err
 	}
 	if runtime.GOOS == "windows" {
 		lp, err := lookExtensions(c.Path, c.Dir)
@@ -414,7 +511,7 @@ func (c *Cmd) Start() error {
 	}
 	c.childFiles = append(c.childFiles, c.ExtraFiles...)
 
-	envv, err := c.envv()
+	env, err := c.environ()
 	if err != nil {
 		return err
 	}
@@ -422,7 +519,7 @@ func (c *Cmd) Start() error {
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: c.childFiles,
-		Env:   addCriticalEnv(dedupEnv(envv)),
+		Env:   env,
 		Sys:   c.SysProcAttr,
 	})
 	if err != nil {
@@ -433,26 +530,18 @@ func (c *Cmd) Start() error {
 
 	c.closeDescriptors(c.closeAfterStart)
 
-	// Don't allocate the channel unless there are goroutines to fire.
+	// Don't allocate the goroutineErrs channel unless there are goroutines to fire.
 	if len(c.goroutine) > 0 {
-		c.errch = make(chan error, len(c.goroutine))
+		errc := make(chan error, len(c.goroutine))
+		c.goroutineErrs = errc
 		for _, fn := range c.goroutine {
 			go func(fn func() error) {
-				c.errch <- fn()
+				errc <- fn()
 			}(fn)
 		}
 	}
 
-	if c.ctx != nil {
-		c.waitDone = make(chan struct{})
-		go func() {
-			select {
-			case <-c.ctx.Done():
-				c.Process.Kill()
-			case <-c.waitDone:
-			}
-		}()
-	}
+	c.ctxErr = c.watchCtx()
 
 	return nil
 }
@@ -499,33 +588,79 @@ func (c *Cmd) Wait() error {
 	if c.Process == nil {
 		return errors.New("exec: not started")
 	}
-	if c.finished {
+	if c.ProcessState != nil {
 		return errors.New("exec: Wait was already called")
 	}
-	c.finished = true
-
 	state, err := c.Process.Wait()
-	if c.waitDone != nil {
-		close(c.waitDone)
+	if err == nil && !state.Success() {
+		err = &ExitError{ProcessState: state}
 	}
 	c.ProcessState = state
 
+	// Wait for the pipe-copying goroutines to complete.
 	var copyError error
 	for range c.goroutine {
-		if err := <-c.errch; err != nil && copyError == nil {
+		if err := <-c.goroutineErrs; err != nil && copyError == nil {
 			copyError = err
 		}
 	}
+	c.goroutine = nil // Allow the goroutines' closures to be GC'd.
 
-	c.closeDescriptors(c.closeAfterWait)
-
-	if err != nil {
-		return err
-	} else if !state.Success() {
-		return &ExitError{ProcessState: state}
+	if c.ctxErr != nil {
+		interruptErr := <-c.ctxErr
+		// If c.Process.Wait returned an error, prefer that.
+		// Otherwise, report any error from the interrupt goroutine.
+		if interruptErr != nil && err == nil {
+			err = interruptErr
+		}
+	}
+	// Report errors from the copying goroutines only if the program otherwise
+	// exited normally on its own. Otherwise, the copying error may be due to the
+	// abnormal termination.
+	if err == nil {
+		err = copyError
 	}
 
-	return copyError
+	c.closeDescriptors(c.closeAfterWait)
+	c.closeAfterWait = nil
+
+	return err
+}
+
+// watchCtx conditionally starts a goroutine that waits until either c.ctx is
+// done or c.Process.Wait has completed (called from Wait).
+// If c.ctx is done first, the goroutine terminates c.Process.
+//
+// If a goroutine was started, watchCtx returns a channel on which its result
+// must be received.
+func (c *Cmd) watchCtx() <-chan error {
+	if c.ctx == nil {
+		return nil
+	}
+
+	errc := make(chan error)
+	go func() {
+		select {
+		case errc <- nil:
+			return
+		case <-c.ctx.Done():
+		}
+
+		var err error
+		if killErr := c.Process.Kill(); killErr == nil {
+			// We appear to have successfully delivered a kill signal, so any
+			// program behavior from this point may be due to ctx.
+			err = c.ctx.Err()
+		} else if !errors.Is(killErr, os.ErrProcessDone) {
+			err = wrappedError{
+				prefix: "exec: error sending signal to Cmd",
+				err:    killErr,
+			}
+		}
+		errc <- err
+	}()
+
+	return errc
 }
 
 // Output runs the command and returns its standard output.
@@ -735,6 +870,54 @@ func minInt(a, b int) int {
 	return b
 }
 
+// environ returns a best-effort copy of the environment in which the command
+// would be run as it is currently configured. If an error occurs in computing
+// the environment, it is returned alongside the best-effort copy.
+func (c *Cmd) environ() ([]string, error) {
+	var err error
+
+	env := c.Env
+	if env == nil {
+		env, err = execenv.Default(c.SysProcAttr)
+		if err != nil {
+			env = os.Environ()
+			// Note that the non-nil err is preserved despite env being overridden.
+		}
+
+		if c.Dir != "" {
+			switch runtime.GOOS {
+			case "windows", "plan9":
+				// Windows and Plan 9 do not use the PWD variable, so we don't need to
+				// keep it accurate.
+			default:
+				// On POSIX platforms, PWD represents “an absolute pathname of the
+				// current working directory.” Since we are changing the working
+				// directory for the command, we should also update PWD to reflect that.
+				//
+				// Unfortunately, we didn't always do that, so (as proposed in
+				// https://go.dev/issue/50599) to avoid unintended collateral damage we
+				// only implicitly update PWD when Env is nil. That way, we're much
+				// less likely to override an intentional change to the variable.
+				if pwd, absErr := filepath.Abs(c.Dir); absErr == nil {
+					env = append(env, "PWD="+pwd)
+				} else if err == nil {
+					err = absErr
+				}
+			}
+		}
+	}
+
+	return addCriticalEnv(dedupEnv(env)), err
+}
+
+// Environ returns a copy of the environment in which the command would be run
+// as it is currently configured.
+func (c *Cmd) Environ() []string {
+	//  Intentionally ignore errors: environ returns a best-effort environment no matter what.
+	env, _ := c.environ()
+	return env
+}
+
 // dedupEnv returns a copy of env with any duplicates removed, in favor of
 // later values.
 // Items not of the normal environment "key=value" form are preserved unchanged.
@@ -745,25 +928,47 @@ func dedupEnv(env []string) []string {
 // dedupEnvCase is dedupEnv with a case option for testing.
 // If caseInsensitive is true, the case of keys is ignored.
 func dedupEnvCase(caseInsensitive bool, env []string) []string {
+	// Construct the output in reverse order, to preserve the
+	// last occurrence of each key.
 	out := make([]string, 0, len(env))
-	saw := make(map[string]int, len(env)) // key => index into out
-	for _, kv := range env {
-		eq := strings.Index(kv, "=")
-		if eq < 0 {
-			out = append(out, kv)
+	saw := make(map[string]bool, len(env))
+	for n := len(env); n > 0; n-- {
+		kv := env[n-1]
+
+		i := strings.Index(kv, "=")
+		if i == 0 {
+			// We observe in practice keys with a single leading "=" on Windows.
+			// TODO(#49886): Should we consume only the first leading "=" as part
+			// of the key, or parse through arbitrarily many of them until a non-"="?
+			i = strings.Index(kv[1:], "=") + 1
+		}
+		if i < 0 {
+			if kv != "" {
+				// The entry is not of the form "key=value" (as it is required to be).
+				// Leave it as-is for now.
+				// TODO(#52436): should we strip or reject these bogus entries?
+				out = append(out, kv)
+			}
 			continue
 		}
-		k := kv[:eq]
+		k := kv[:i]
 		if caseInsensitive {
 			k = strings.ToLower(k)
 		}
-		if dupIdx, isDup := saw[k]; isDup {
-			out[dupIdx] = kv
+		if saw[k] {
 			continue
 		}
-		saw[k] = len(out)
+
+		saw[k] = true
 		out = append(out, kv)
 	}
+
+	// Now reverse the slice to restore the original order.
+	for i := 0; i < len(out)/2; i++ {
+		j := len(out) - i - 1
+		out[i], out[j] = out[j], out[i]
+	}
+
 	return out
 }
 
@@ -775,11 +980,10 @@ func addCriticalEnv(env []string) []string {
 		return env
 	}
 	for _, kv := range env {
-		eq := strings.Index(kv, "=")
-		if eq < 0 {
+		k, _, ok := strings.Cut(kv, "=")
+		if !ok {
 			continue
 		}
-		k := kv[:eq]
 		if strings.EqualFold(k, "SYSTEMROOT") {
 			// We already have it.
 			return env
@@ -787,3 +991,12 @@ func addCriticalEnv(env []string) []string {
 	}
 	return append(env, "SYSTEMROOT="+os.Getenv("SYSTEMROOT"))
 }
+
+// ErrDot indicates that a path lookup resolved to an executable
+// in the current directory due to ‘.’ being in the path, either
+// implicitly or explicitly. See the package documentation for details.
+//
+// Note that functions in this package do not return ErrDot directly.
+// Code should use errors.Is(err, ErrDot), not err == ErrDot,
+// to test whether a returned error err is due to this condition.
+var ErrDot = errors.New("cannot run executable found relative to current directory")

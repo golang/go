@@ -5,20 +5,25 @@
 // Doc (usually run as go doc) accepts zero, one or two arguments.
 //
 // Zero arguments:
+//
 //	go doc
+//
 // Show the documentation for the package in the current directory.
 //
 // One argument:
+//
 //	go doc <pkg>
 //	go doc <sym>[.<methodOrField>]
 //	go doc [<pkg>.]<sym>[.<methodOrField>]
 //	go doc [<pkg>.][<sym>.]<methodOrField>
+//
 // The first item in this list that succeeds is the one whose documentation
 // is printed. If there is a symbol but no package, the package in the current
 // directory is chosen. However, if the argument begins with a capital
 // letter it is always assumed to be a symbol in the current directory.
 //
 // Two arguments:
+//
 //	go doc <pkg> <sym>[.<methodOrField>]
 //
 // Show the documentation for the package, symbol, and method or field. The
@@ -110,6 +115,13 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		if buildPackage == nil {
 			return fmt.Errorf("no such package: %s", userPath)
 		}
+
+		// The builtin package needs special treatment: its symbols are lower
+		// case but we want to see them, always.
+		if buildPackage.ImportPath == "builtin" {
+			unexported = true
+		}
+
 		symbol, method = parseSymbol(sym)
 		pkg := parsePackage(writer, buildPackage, userPath)
 		paths = append(paths, pkg.prettyPath())
@@ -127,12 +139,6 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 			}
 			panic(e)
 		}()
-
-		// The builtin package needs special treatment: its symbols are lower
-		// case but we want to see them, always.
-		if pkg.build.ImportPath == "builtin" {
-			unexported = true
-		}
 
 		// We have a package.
 		if showAll && symbol == "" {

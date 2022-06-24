@@ -66,7 +66,7 @@ stdout '^b v0.1.0 '
 ! stdout '^c '
 
 # After adding a new direct import of b/y,
-# the existing verison of b should be promoted to a root,
+# the existing version of b should be promoted to a root,
 # bringing the version of c required by b into the build list.
 
 cp m.go.new m.go

@@ -163,14 +163,15 @@ var urltests = []URLTest{
 		},
 		"http:%2f%2fwww.google.com/?q=go+language",
 	},
-	// non-authority with path
+	// non-authority with path; see golang.org/issue/46059
 	{
 		"mailto:/webmaster@golang.org",
 		&URL{
-			Scheme: "mailto",
-			Path:   "/webmaster@golang.org",
+			Scheme:   "mailto",
+			Path:     "/webmaster@golang.org",
+			OmitHost: true,
 		},
-		"mailto:///webmaster@golang.org", // unfortunate compromise
+		"",
 	},
 	// non-authority
 	{
@@ -618,15 +619,15 @@ var urltests = []URLTest{
 
 // more useful string for debugging than fmt's struct printer
 func ufmt(u *URL) string {
-	var user, pass interface{}
+	var user, pass any
 	if u.User != nil {
 		user = u.User.Username()
 		if p, ok := u.User.Password(); ok {
 			pass = p
 		}
 	}
-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, rawfrag=%q, forcequery=%v",
-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.RawFragment, u.ForceQuery)
+	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, rawfrag=%q, forcequery=%v, omithost=%t",
+		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.RawFragment, u.ForceQuery, u.OmitHost)
 }
 
 func BenchmarkString(b *testing.B) {
@@ -1172,7 +1173,7 @@ var resolveReferenceTests = []struct {
 	{"http://foo.com/bar/baz", "quux/./dotdot/../dotdot/../dot/./tail/..", "http://foo.com/bar/quux/dot/"},
 
 	// Remove any dot-segments prior to forming the target URI.
-	// http://tools.ietf.org/html/rfc3986#section-5.2.4
+	// https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.4
 	{"http://foo.com/dot/./dotdot/../foo/bar", "../baz", "http://foo.com/dot/baz"},
 
 	// Triple dot isn't special
@@ -1192,7 +1193,7 @@ var resolveReferenceTests = []struct {
 	{"http://foo.com/foo%2dbar/", "./baz-quux", "http://foo.com/foo%2dbar/baz-quux"},
 
 	// RFC 3986: Normal Examples
-	// http://tools.ietf.org/html/rfc3986#section-5.4.1
+	// https://datatracker.ietf.org/doc/html/rfc3986#section-5.4.1
 	{"http://a/b/c/d;p?q", "g:h", "g:h"},
 	{"http://a/b/c/d;p?q", "g", "http://a/b/c/g"},
 	{"http://a/b/c/d;p?q", "./g", "http://a/b/c/g"},
@@ -1218,7 +1219,7 @@ var resolveReferenceTests = []struct {
 	{"http://a/b/c/d;p?q", "../../g", "http://a/g"},
 
 	// RFC 3986: Abnormal Examples
-	// http://tools.ietf.org/html/rfc3986#section-5.4.2
+	// https://datatracker.ietf.org/doc/html/rfc3986#section-5.4.2
 	{"http://a/b/c/d;p?q", "../../../g", "http://a/g"},
 	{"http://a/b/c/d;p?q", "../../../../g", "http://a/g"},
 	{"http://a/b/c/d;p?q", "/./g", "http://a/g"},
@@ -1244,6 +1245,9 @@ var resolveReferenceTests = []struct {
 	{"https://a/b/c/d;p?q", "//g/d/e/f?y#s", "https://g/d/e/f?y#s"},
 	{"https://a/b/c/d;p#s", "?y", "https://a/b/c/d;p?y"},
 	{"https://a/b/c/d;p?q#s", "?y", "https://a/b/c/d;p?y"},
+
+	// Empty path and query but with ForceQuery (issue 46033).
+	{"https://a/b/c/d;p?q#s", "?", "https://a/b/c/d;p?"},
 }
 
 func TestResolveReference(t *testing.T) {
@@ -2060,11 +2064,83 @@ func BenchmarkPathUnescape(b *testing.B) {
 	}
 }
 
-var sink string
-
-func BenchmarkSplit(b *testing.B) {
-	url := "http://www.google.com/?q=go+language#foo%26bar"
-	for i := 0; i < b.N; i++ {
-		sink, sink = split(url, '#', true)
+func TestJoinPath(t *testing.T) {
+	tests := []struct {
+		base string
+		elem []string
+		out  string
+	}{
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com/a/b/c",
+			elem: []string{"../../../go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com/",
+			elem: []string{"./go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com//",
+			elem: []string{"/go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com//",
+			elem: []string{"/go", "a", "b", "c"},
+			out:  "https://go.googlesource.com/go/a/b/c",
+		},
+		{
+			base: "http://[fe80::1%en0]:8080/",
+			elem: []string{"/go"},
+		},
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"go/"},
+			out:  "https://go.googlesource.com/go/",
+		},
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"go//"},
+			out:  "https://go.googlesource.com/go/",
+		},
+		{
+			base: "https://go.googlesource.com",
+			elem: nil,
+			out:  "https://go.googlesource.com",
+		},
+		{
+			base: "https://go.googlesource.com/",
+			elem: nil,
+			out:  "https://go.googlesource.com/",
+		},
+		{
+			base: "/",
+			elem: nil,
+			out:  "/",
+		},
+	}
+	for _, tt := range tests {
+		wantErr := "nil"
+		if tt.out == "" {
+			wantErr = "non-nil error"
+		}
+		if out, err := JoinPath(tt.base, tt.elem...); out != tt.out || (err == nil) != (tt.out != "") {
+			t.Errorf("JoinPath(%q, %q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
+		}
+		var out string
+		u, err := Parse(tt.base)
+		if err == nil {
+			u = u.JoinPath(tt.elem...)
+			out = u.String()
+		}
+		if out != tt.out || (err == nil) != (tt.out != "") {
+			t.Errorf("Parse(%q).JoinPath(%q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
+		}
 	}
 }

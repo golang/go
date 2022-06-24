@@ -189,6 +189,14 @@ var configHelp = map[string]string{
 		"Drops functions above the highest matched frame.",
 		"If set, all frames above the highest match are dropped from every sample.",
 		"Matching includes the function name, filename or object name."),
+	"tagroot": helpText(
+		"Adds pseudo stack frames for labels key/value pairs at the callstack root.",
+		"A comma-separated list of label keys.",
+		"The first key creates frames at the new root."),
+	"tagleaf": helpText(
+		"Adds pseudo stack frames for labels key/value pairs at the callstack leaf.",
+		"A comma-separated list of label keys.",
+		"The last key creates frames at the new leaf."),
 	"tagfocus": helpText(
 		"Restricts to samples with tags in range or matched by regexp",
 		"Use name=value syntax to limit the matching to a specific tag.",

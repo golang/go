@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -30,7 +31,7 @@ func wasmExit(code int32)
 // and then stopped before the first instruction in fn.
 func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
 	sp := buf.sp
-	sp -= sys.PtrSize
+	sp -= goarch.PtrSize
 	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
 	buf.sp = sp
 	buf.pc = uintptr(fn)

@@ -175,6 +175,7 @@ func init() {
 		fpstore        = regInfo{inputs: []regMask{gpspsbg, fp}}
 		fpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
 		readflags      = regInfo{inputs: nil, outputs: []regMask{gp}}
+		prefreg        = regInfo{inputs: []regMask{gpspsbg}}
 	)
 	ops := []opData{
 		// binary ops
@@ -284,9 +285,9 @@ func init() {
 		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", aux: "Int64", typ: "Flags"},   // arg0 compare to auxInt
 		{name: "CMPW", argLength: 2, reg: gp2flags, asm: "CMPW", typ: "Flags"},                    // arg0 compare to arg1, 32 bit
 		{name: "CMPWconst", argLength: 1, reg: gp1flags, asm: "CMPW", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt, 32 bit
-		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags", commutative: true},   // arg0 compare to -arg1
+		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags", commutative: true},   // arg0 compare to -arg1, provided arg1 is not 1<<63
 		{name: "CMNconst", argLength: 1, reg: gp1flags, asm: "CMN", aux: "Int64", typ: "Flags"},   // arg0 compare to -auxInt
-		{name: "CMNW", argLength: 2, reg: gp2flags, asm: "CMNW", typ: "Flags", commutative: true}, // arg0 compare to -arg1, 32 bit
+		{name: "CMNW", argLength: 2, reg: gp2flags, asm: "CMNW", typ: "Flags", commutative: true}, // arg0 compare to -arg1, 32 bit, provided arg1 is not 1<<31
 		{name: "CMNWconst", argLength: 1, reg: gp1flags, asm: "CMNW", aux: "Int32", typ: "Flags"}, // arg0 compare to -auxInt, 32 bit
 		{name: "TST", argLength: 2, reg: gp2flags, asm: "TST", typ: "Flags", commutative: true},   // arg0 & arg1 compare to 0
 		{name: "TSTconst", argLength: 1, reg: gp1flags, asm: "TST", aux: "Int64", typ: "Flags"},   // arg0 & auxInt compare to 0
@@ -301,6 +302,7 @@ func init() {
 		{name: "MVNshiftLL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "MVNshiftRL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "MVNshiftRA", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "MVNshiftRO", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
 		{name: "NEGshiftLL", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "NEGshiftRL", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "NEGshiftRA", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0>>auxInt), signed shift, auxInt should be in the range 0 to 63.
@@ -313,21 +315,27 @@ func init() {
 		{name: "ANDshiftLL", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "ANDshiftRL", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "ANDshiftRA", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "ANDshiftRO", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
 		{name: "ORshiftLL", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1<<auxInt, auxInt should be in the range 0 to 63.
 		{name: "ORshiftRL", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "ORshiftRA", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
+		{name: "ORshiftRO", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1 ROR auxInt, signed shift, auxInt should be in the range 0 to 63.
 		{name: "XORshiftLL", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1<<auxInt, auxInt should be in the range 0 to 63.
 		{name: "XORshiftRL", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "XORshiftRA", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
+		{name: "XORshiftRO", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1 ROR auxInt, signed shift, auxInt should be in the range 0 to 63.
 		{name: "BICshiftLL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "BICshiftRL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "BICshiftRA", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "BICshiftRO", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
 		{name: "EONshiftLL", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "EONshiftRL", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "EONshiftRA", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "EONshiftRO", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
 		{name: "ORNshiftLL", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "ORNshiftRL", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "ORNshiftRA", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "ORNshiftRO", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
 		{name: "CMPshiftLL", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1<<auxInt, auxInt should be in the range 0 to 63.
 		{name: "CMPshiftRL", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "CMPshiftRA", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
@@ -337,6 +345,7 @@ func init() {
 		{name: "TSTshiftLL", argLength: 2, reg: gp2flags, asm: "TST", aux: "Int64", typ: "Flags"}, // (arg0 & arg1<<auxInt) compare to 0, auxInt should be in the range 0 to 63.
 		{name: "TSTshiftRL", argLength: 2, reg: gp2flags, asm: "TST", aux: "Int64", typ: "Flags"}, // (arg0 & arg1>>auxInt) compare to 0, unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "TSTshiftRA", argLength: 2, reg: gp2flags, asm: "TST", aux: "Int64", typ: "Flags"}, // (arg0 & arg1>>auxInt) compare to 0, signed shift, auxInt should be in the range 0 to 63.
+		{name: "TSTshiftRO", argLength: 2, reg: gp2flags, asm: "TST", aux: "Int64", typ: "Flags"}, // (arg0 & arg1 ROR auxInt) compare to 0, signed shift, auxInt should be in the range 0 to 63.
 
 		// bitfield ops
 		// for all bitfield ops lsb is auxInt>>8, width is auxInt&0xff
@@ -482,9 +491,10 @@ func init() {
 		{name: "CSETM", argLength: 1, reg: readflags, asm: "CSETM", aux: "CCop"}, // auxint(flags) ? -1 : 0
 
 		// function calls
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                 // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// pseudo-ops
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
@@ -729,6 +739,13 @@ func init() {
 		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+
+		// Prefetch instruction
+		// Do prefetch arg0 address with option aux. arg0=addr, arg1=memory, aux=option.
+		{name: "PRFM", argLength: 2, aux: "Int64", reg: prefreg, asm: "PRFM", hasSideEffects: true},
+
+		// Publication barrier
+		{name: "DMB", argLength: 1, aux: "Int64", asm: "DMB", hasSideEffects: true}, // Do data barrier. arg0=memory, aux=option.
 	}
 
 	blocks := []blockData{
@@ -756,18 +773,26 @@ func init() {
 		{name: "LEnoov", controls: 1}, // 'LE' but without honoring overflow
 		{name: "GTnoov", controls: 1}, // 'GT' but without honoring overflow
 		{name: "GEnoov", controls: 1}, // 'GE' but without honoring overflow
+
+		// JUMPTABLE implements jump tables.
+		// Aux is the symbol (an *obj.LSym) for the jump table.
+		// control[0] is the index into the jump table.
+		// control[1] is the address of the jump table (the address of the symbol stored in Aux).
+		{name: "JUMPTABLE", controls: 2, aux: "Sym"},
 	}
 
 	archs = append(archs, arch{
-		name:            "ARM64",
-		pkg:             "cmd/internal/obj/arm64",
-		genfile:         "../../arm64/ssa.go",
-		ops:             ops,
-		blocks:          blocks,
-		regnames:        regNamesARM64,
-		gpregmask:       gp,
-		fpregmask:       fp,
-		framepointerreg: -1, // not used
-		linkreg:         int8(num["R30"]),
+		name:               "ARM64",
+		pkg:                "cmd/internal/obj/arm64",
+		genfile:            "../../arm64/ssa.go",
+		ops:                ops,
+		blocks:             blocks,
+		regnames:           regNamesARM64,
+		ParamIntRegNames:   "R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15",
+		ParamFloatRegNames: "F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15",
+		gpregmask:          gp,
+		fpregmask:          fp,
+		framepointerreg:    -1, // not used
+		linkreg:            int8(num["R30"]),
 	})
 }

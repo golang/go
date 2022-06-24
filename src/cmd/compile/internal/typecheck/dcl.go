@@ -6,7 +6,7 @@ package typecheck
 
 import (
 	"fmt"
-	"strconv"
+	"sync"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -16,19 +16,24 @@ import (
 
 var DeclContext ir.Class = ir.PEXTERN // PEXTERN/PAUTO
 
-func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
-	if tfn.Op() != ir.OTFUNC {
-		base.Fatalf("expected OTFUNC node, got %v", tfn)
-	}
-
+func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.Func {
 	fn := ir.NewFunc(base.Pos)
 	fn.Nname = ir.NewNameAt(base.Pos, sym)
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
-	fn.Nname.Ntype = tfn
 	ir.MarkFunc(fn.Nname)
 	StartFuncBody(fn)
-	fn.Nname.Ntype = typecheckNtype(fn.Nname.Ntype)
+
+	var recv1 *types.Field
+	if recv != nil {
+		recv1 = declareParam(ir.PPARAM, -1, recv)
+	}
+
+	typ := types.NewSignature(types.LocalPkg, recv1, nil, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
+	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
+	fn.Nname.SetType(typ)
+	fn.Nname.SetTypecheck(1)
+
 	return fn
 }
 
@@ -70,16 +75,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		n.SetFrameOffset(0)
 	}
 
-	if s.Block == types.Block {
-		// functype will print errors about duplicate function arguments.
-		// Don't repeat the error here.
-		if ctxt != ir.PPARAM && ctxt != ir.PPARAMOUT {
-			Redeclared(n.Pos(), s, "in this block")
-		}
-	}
-
-	s.Block = types.Block
-	s.Lastlineno = base.Pos
 	s.Def = n
 	n.Class = ctxt
 	if ctxt == ir.PFUNC {
@@ -103,28 +98,6 @@ func Export(n *ir.Name) {
 	Target.Exports = append(Target.Exports, n)
 }
 
-// Redeclared emits a diagnostic about symbol s being redeclared at pos.
-func Redeclared(pos src.XPos, s *types.Sym, where string) {
-	if !s.Lastlineno.IsKnown() {
-		pkgName := DotImportRefs[s.Def.(*ir.Ident)]
-		base.ErrorfAt(pos, "%v redeclared %s\n"+
-			"\t%v: previous declaration during import %q", s, where, base.FmtPos(pkgName.Pos()), pkgName.Pkg.Path)
-	} else {
-		prevPos := s.Lastlineno
-
-		// When an import and a declaration collide in separate files,
-		// present the import as the "redeclared", because the declaration
-		// is visible where the import is, but not vice versa.
-		// See issue 4510.
-		if s.Def == nil {
-			pos, prevPos = prevPos, pos
-		}
-
-		base.ErrorfAt(pos, "%v redeclared %s\n"+
-			"\t%v: previous declaration", s, where, base.FmtPos(prevPos))
-	}
-}
-
 // declare the function proper
 // and declare the arguments.
 // called in extern-declaration context
@@ -136,12 +109,6 @@ func StartFuncBody(fn *ir.Func) {
 	DeclContext = ir.PAUTO
 
 	types.Markdcl()
-
-	if fn.Nname.Ntype != nil {
-		funcargs(fn.Nname.Ntype.(*ir.FuncType))
-	} else {
-		funcargs2(fn.Type())
-	}
 }
 
 // finish the body.
@@ -159,90 +126,6 @@ func CheckFuncStack() {
 	if len(funcStack) != 0 {
 		base.Fatalf("funcStack is non-empty: %v", len(funcStack))
 	}
-}
-
-// Add a method, declared as a function.
-// - msym is the method symbol
-// - t is function type (with receiver)
-// Returns a pointer to the existing or added Field; or nil if there's an error.
-func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bool) *types.Field {
-	if msym == nil {
-		base.Fatalf("no method symbol")
-	}
-
-	// get parent type sym
-	rf := t.Recv() // ptr to this structure
-	if rf == nil {
-		base.Errorf("missing receiver")
-		return nil
-	}
-
-	mt := types.ReceiverBaseType(rf.Type)
-	if mt == nil || mt.Sym() == nil {
-		pa := rf.Type
-		t := pa
-		if t != nil && t.IsPtr() {
-			if t.Sym() != nil {
-				base.Errorf("invalid receiver type %v (%v is a pointer type)", pa, t)
-				return nil
-			}
-			t = t.Elem()
-		}
-
-		switch {
-		case t == nil || t.Broke():
-			// rely on typecheck having complained before
-		case t.Sym() == nil:
-			base.Errorf("invalid receiver type %v (%v is not a defined type)", pa, t)
-		case t.IsPtr():
-			base.Errorf("invalid receiver type %v (%v is a pointer type)", pa, t)
-		case t.IsInterface():
-			base.Errorf("invalid receiver type %v (%v is an interface type)", pa, t)
-		default:
-			// Should have picked off all the reasons above,
-			// but just in case, fall back to generic error.
-			base.Errorf("invalid receiver type %v (%L / %L)", pa, pa, t)
-		}
-		return nil
-	}
-
-	if local && mt.Sym().Pkg != types.LocalPkg {
-		base.Errorf("cannot define new methods on non-local type %v", mt)
-		return nil
-	}
-
-	if msym.IsBlank() {
-		return nil
-	}
-
-	if mt.IsStruct() {
-		for _, f := range mt.Fields().Slice() {
-			if f.Sym == msym {
-				base.Errorf("type %v has both field and method named %v", mt, msym)
-				f.SetBroke(true)
-				return nil
-			}
-		}
-	}
-
-	for _, f := range mt.Methods().Slice() {
-		if msym.Name != f.Sym.Name {
-			continue
-		}
-		// types.Identical only checks that incoming and result parameters match,
-		// so explicitly check that the receiver parameters match too.
-		if !types.Identical(t, f.Type) || !types.Identical(t.Recv().Type, f.Type.Recv().Type) {
-			base.Errorf("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
-		}
-		return f
-	}
-
-	f := types.NewField(base.Pos, msym, t)
-	f.Nname = n.Nname
-	f.SetNointerface(nointerface)
-
-	mt.Methods().Append(f)
-	return f
 }
 
 func autoexport(n *ir.Name, ctxt ir.Class) {
@@ -304,13 +187,6 @@ func checkembeddedtype(t *types.Type) {
 	}
 }
 
-// TODO(mdempsky): Move to package types.
-func FakeRecv() *types.Field {
-	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
-}
-
-var fakeRecvField = FakeRecv
-
 var funcStack []funcStackEnt // stack of previous values of ir.CurFunc/DeclContext
 
 type funcStackEnt struct {
@@ -318,80 +194,44 @@ type funcStackEnt struct {
 	dclcontext ir.Class
 }
 
-func funcarg(n *ir.Field, ctxt ir.Class) {
-	if n.Sym == nil {
-		return
+func declareParams(ctxt ir.Class, l []*ir.Field) []*types.Field {
+	fields := make([]*types.Field, len(l))
+	for i, n := range l {
+		fields[i] = declareParam(ctxt, i, n)
 	}
-
-	name := ir.NewNameAt(n.Pos, n.Sym)
-	n.Decl = name
-	name.Ntype = n.Ntype
-	Declare(name, ctxt)
+	return fields
 }
 
-func funcarg2(f *types.Field, ctxt ir.Class) {
-	if f.Sym == nil {
-		return
-	}
-	n := ir.NewNameAt(f.Pos, f.Sym)
-	f.Nname = n
-	n.SetType(f.Type)
-	Declare(n, ctxt)
-}
+func declareParam(ctxt ir.Class, i int, param *ir.Field) *types.Field {
+	f := types.NewField(param.Pos, param.Sym, param.Type)
+	f.SetIsDDD(param.IsDDD)
 
-func funcargs(nt *ir.FuncType) {
-	if nt.Op() != ir.OTFUNC {
-		base.Fatalf("funcargs %v", nt.Op())
-	}
-
-	// declare the receiver and in arguments.
-	if nt.Recv != nil {
-		funcarg(nt.Recv, ir.PPARAM)
-	}
-	for _, n := range nt.Params {
-		funcarg(n, ir.PPARAM)
-	}
-
-	// declare the out arguments.
-	gen := len(nt.Params)
-	for _, n := range nt.Results {
-		if n.Sym == nil {
+	sym := param.Sym
+	if ctxt == ir.PPARAMOUT {
+		if sym == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
-			n.Sym = LookupNum("~r", gen)
-			gen++
-		}
-		if n.Sym.IsBlank() {
+			sym = LookupNum("~r", i)
+		} else if sym.IsBlank() {
 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
 			// The name must be different from ~r above because if you have
 			//	func f() (_ int)
 			//	func g() int
 			// f is allowed to use a plain 'return' with no arguments, while g is not.
 			// So the two cases must be distinguished.
-			n.Sym = LookupNum("~b", gen)
-			gen++
+			sym = LookupNum("~b", i)
 		}
-
-		funcarg(n, ir.PPARAMOUT)
-	}
-}
-
-// Same as funcargs, except run over an already constructed TFUNC.
-// This happens during import, where the hidden_fndcl rule has
-// used functype directly to parse the function's type.
-func funcargs2(t *types.Type) {
-	if t.Kind() != types.TFUNC {
-		base.Fatalf("funcargs2 %v", t)
 	}
 
-	for _, f := range t.Recvs().Fields().Slice() {
-		funcarg2(f, ir.PPARAM)
+	if sym != nil {
+		name := ir.NewNameAt(param.Pos, sym)
+		name.SetType(f.Type)
+		name.SetTypecheck(1)
+		Declare(name, ctxt)
+
+		f.Nname = name
 	}
-	for _, f := range t.Params().Fields().Slice() {
-		funcarg2(f, ir.PPARAM)
-	}
-	for _, f := range t.Results().Fields().Slice() {
-		funcarg2(f, ir.PPARAMOUT)
-	}
+
+	return f
 }
 
 func Temp(t *types.Type) *ir.Name {
@@ -421,6 +261,7 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	n := ir.NewNameAt(pos, s)
 	s.Def = n
 	n.SetType(t)
+	n.SetTypecheck(1)
 	n.Class = ir.PAUTO
 	n.SetEsc(ir.EscNever)
 	n.Curfn = curfn
@@ -433,20 +274,43 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	return n
 }
 
+var (
+	autotmpnamesmu sync.Mutex
+	autotmpnames   []string
+)
+
 // autotmpname returns the name for an autotmp variable numbered n.
 func autotmpname(n int) string {
-	// Give each tmp a different name so that they can be registerized.
-	// Add a preceding . to avoid clashing with legal names.
-	const prefix = ".autotmp_"
-	// Start with a buffer big enough to hold a large n.
-	b := []byte(prefix + "      ")[:len(prefix)]
-	b = strconv.AppendInt(b, int64(n), 10)
-	return types.InternString(b)
+	autotmpnamesmu.Lock()
+	defer autotmpnamesmu.Unlock()
+
+	// Grow autotmpnames, if needed.
+	if n >= len(autotmpnames) {
+		autotmpnames = append(autotmpnames, make([]string, n+1-len(autotmpnames))...)
+		autotmpnames = autotmpnames[:cap(autotmpnames)]
+	}
+
+	s := autotmpnames[n]
+	if s == "" {
+		// Give each tmp a different name so that they can be registerized.
+		// Add a preceding . to avoid clashing with legal names.
+		prefix := ".autotmp_%d"
+
+		s = fmt.Sprintf(prefix, n)
+		autotmpnames[n] = s
+	}
+	return s
 }
 
 // f is method type, with receiver.
 // return function type, receiver as first argument (or not).
 func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
+	if sig.HasTParam() {
+		base.Fatalf("NewMethodType with type parameters in signature %+v", sig)
+	}
+	if recv != nil && recv.HasTParam() {
+		base.Fatalf("NewMethodType with type parameters in receiver %+v", recv)
+	}
 	nrecvs := 0
 	if recv != nil {
 		nrecvs++

@@ -1,0 +1,32 @@
+go work use -r foo
+cmp go.work go.want_work_r
+
+go work use other
+cmp go.work go.want_work_other
+-- go.work --
+go 1.18
+
+use (
+	foo
+	foo/bar // doesn't exist
+)
+-- go.want_work_r --
+go 1.18
+
+use (
+	./foo
+	./foo/bar/baz
+)
+-- go.want_work_other --
+go 1.18
+
+use (
+	./foo
+	./foo/bar/baz
+	./other
+)
+-- foo/go.mod --
+module foo
+-- foo/bar/baz/go.mod --
+module baz
+-- other/go.mod --

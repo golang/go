@@ -36,7 +36,6 @@ module example.com/replace
 
 require rsc.io/quote/v3 v3.0.0
 replace rsc.io/quote/v3 => ./local/not-rsc.io/quote/v3
-
 -- imports.go --
 package replace
 
@@ -64,3 +63,7 @@ require (
 	not-rsc.io/quote/v3 v3.0.0
 )
 replace not-rsc.io/quote/v3 => rsc.io/quote/v3 v3.0.0
+-- multiple-paths/go.sum --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+rsc.io/quote/v3 v3.0.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=

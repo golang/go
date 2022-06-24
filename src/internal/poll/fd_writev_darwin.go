@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build darwin
-// +build darwin
 
 package poll
 
@@ -13,5 +12,6 @@ import (
 )
 
 // Implemented in syscall/syscall_darwin.go.
+//
 //go:linkname writev syscall.writev
 func writev(fd int, iovecs []syscall.Iovec) (uintptr, error)

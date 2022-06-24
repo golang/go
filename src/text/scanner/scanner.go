@@ -23,7 +23,7 @@ import (
 	"unicode/utf8"
 )
 
-// A source position is represented by a Position value.
+// Position is a value that represents a source position.
 // A position is valid if Line > 0.
 type Position struct {
 	Filename string // filename, if any
@@ -60,7 +60,6 @@ func (pos Position) String() string {
 //
 // Use GoTokens to configure the Scanner such that it accepts all Go
 // literal tokens including Go identifiers. Comments will be skipped.
-//
 const (
 	ScanIdents     = 1 << -Ident
 	ScanInts       = 1 << -Int
@@ -340,13 +339,13 @@ func (s *Scanner) error(msg string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", pos, msg)
 }
 
-func (s *Scanner) errorf(format string, args ...interface{}) {
+func (s *Scanner) errorf(format string, args ...any) {
 	s.error(fmt.Sprintf(format, args...))
 }
 
 func (s *Scanner) isIdentRune(ch rune, i int) bool {
 	if s.IsIdentRune != nil {
-		return s.IsIdentRune(ch, i)
+		return ch != EOF && s.IsIdentRune(ch, i)
 	}
 	return ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch) && i > 0
 }

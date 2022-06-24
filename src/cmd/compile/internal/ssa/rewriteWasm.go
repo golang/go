@@ -556,6 +556,9 @@ func rewriteValueWasm(v *Value) bool {
 	case OpSubPtr:
 		v.Op = OpWasmI64Sub
 		return true
+	case OpTailCall:
+		v.Op = OpWasmLoweredTailCall
+		return true
 	case OpTrunc:
 		v.Op = OpWasmF64Trunc
 		return true

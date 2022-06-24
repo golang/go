@@ -506,6 +506,8 @@ General-purpose environment variables:
 	GOENV
 		The location of the Go environment configuration file.
 		Cannot be set using 'go env -w'.
+		Setting GOENV=off in the environment disables the use of the
+		default configuration file.
 	GOFLAGS
 		A space-separated list of -flag=value settings to apply
 		to go commands by default, when the given flag is known by
@@ -543,6 +545,14 @@ General-purpose environment variables:
 	GOVCS
 		Lists version control commands that may be used with matching servers.
 		See 'go help vcs'.
+	GOWORK
+		In module aware mode, use the given go.work file as a workspace file.
+		By default or when GOWORK is "auto", the go command searches for a
+		file named go.work in the current directory and then containing directories
+		until one is found. If a valid go.work file is found, the modules
+		specified will collectively be used as the main modules. If GOWORK
+		is "off", or a go.work file is not found in "auto" mode, workspace
+		mode is disabled.
 
 Environment variables for use with cgo:
 
@@ -592,6 +602,10 @@ Architecture-specific environment variables:
 	GO386
 		For GOARCH=386, how to implement floating point instructions.
 		Valid values are sse2 (default), softfloat.
+	GOAMD64
+		For GOARCH=amd64, the microarchitecture level for which to compile.
+		Valid values are v1 (default), v2, v3, v4.
+		See https://golang.org/wiki/MinimumRequirements#amd64
 	GOMIPS
 		For GOARCH=mips{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.
@@ -610,6 +624,12 @@ Special-purpose environment variables:
 	GCCGOTOOLDIR
 		If set, where to find gccgo tools, such as cgo.
 		The default is based on how gccgo was configured.
+	GOEXPERIMENT
+		Comma-separated list of toolchain experiments to enable or disable.
+		The list of available experiments may change arbitrarily over time.
+		See src/internal/goexperiment/flags.go for currently valid values.
+		Warning: This variable is provided for the development and testing
+		of the Go toolchain itself. Use beyond that purpose is unsupported.
 	GOROOT_FINAL
 		The root of the installed Go tree, when it is
 		installed in a location other than where it is built.
@@ -765,6 +785,13 @@ The go command also caches successful package test results.
 See 'go help test' for details. Running 'go clean -testcache' removes
 all cached test results (but not cached build results).
 
+The go command also caches values used in fuzzing with 'go test -fuzz',
+specifically, values that expanded code coverage when passed to a
+fuzz function. These values are not used for regular building and
+testing, but they're stored in a subdirectory of the build cache.
+Running 'go clean -fuzzcache' removes all cached fuzzing values.
+This may make fuzzing less effective, temporarily.
+
 The GODEBUG environment variable can enable printing of debugging
 information about the state of the cache:
 
@@ -816,6 +843,7 @@ During a particular build, the following words are satisfied:
 	  GOOS environment variable.
 	- the target architecture, as spelled by runtime.GOARCH, set with the
 	  GOARCH environment variable.
+	- "unix", if GOOS is a Unix or Unix-like system.
 	- the compiler being used, either "gc" or "gccgo"
 	- "cgo", if the cgo command is supported (see CGO_ENABLED in
 	  'go help environment').

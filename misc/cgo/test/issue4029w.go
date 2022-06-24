@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build windows || static || (darwin && internal_pie) || (darwin && arm64)
 // +build windows static darwin,internal_pie darwin,arm64
 
 package cgotest

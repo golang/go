@@ -6,7 +6,11 @@
 
 package types2
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+	"strings"
+)
 
 // The unifier maintains two separate sets of type parameters x and y
 // which are used to resolve type parameters in the x and y arguments
@@ -23,21 +27,45 @@ import "bytes"
 // parameter P ("x" side), but the argument type P must be left alone so
 // that unification resolves the type parameter P to P.
 //
-// For bidirection unification, both sets are provided. This enables
+// For bidirectional unification, both sets are provided. This enables
 // unification to go from argument to parameter type and vice versa.
 // For constraint type inference, we use bidirectional unification
 // where both the x and y type parameters are identical. This is done
 // by setting up one of them (using init) and then assigning its value
 // to the other.
 
+const (
+	// Upper limit for recursion depth. Used to catch infinite recursions
+	// due to implementation issues (e.g., see issues #48619, #48656).
+	unificationDepthLimit = 50
+
+	// Whether to panic when unificationDepthLimit is reached.
+	// If disabled, a recursion depth overflow results in a (quiet)
+	// unification failure.
+	panicAtUnificationDepthLimit = true
+
+	// If enableCoreTypeUnification is set, unification will consider
+	// the core types, if any, of non-local (unbound) type parameters.
+	enableCoreTypeUnification = true
+
+	// If traceInference is set, unification will print a trace of its operation.
+	// Interpretation of trace:
+	//   x ≡ y    attempt to unify types x and y
+	//   p ➞ y    type parameter p is set to type y (p is inferred to be y)
+	//   p ⇄ q    type parameters p and q match (p is inferred to be q and vice versa)
+	//   x ≢ y    types x and y cannot be unified
+	//   [p, q, ...] ➞ [x, y, ...]    mapping from type parameters to types
+	traceInference = false
+)
+
 // A unifier maintains the current type parameters for x and y
 // and the respective types inferred for each type parameter.
 // A unifier is created by calling newUnifier.
 type unifier struct {
-	check *Checker
 	exact bool
 	x, y  tparamsList // x and y must initialized via tparamsList.init
 	types []Type      // inferred types, shared by x and y
+	depth int         // recursion depth during unification
 }
 
 // newUnifier returns a new unifier.
@@ -45,8 +73,9 @@ type unifier struct {
 // exactly. If exact is not set, a named type's underlying type
 // is considered if unification would fail otherwise, and the
 // direction of channels is ignored.
-func newUnifier(check *Checker, exact bool) *unifier {
-	u := &unifier{check: check, exact: exact}
+// TODO(gri) exact is not set anymore by a caller. Consider removing it.
+func newUnifier(exact bool) *unifier {
+	u := &unifier{exact: exact}
 	u.x.unifier = u
 	u.y.unifier = u
 	return u
@@ -57,10 +86,14 @@ func (u *unifier) unify(x, y Type) bool {
 	return u.nify(x, y, nil)
 }
 
+func (u *unifier) tracef(format string, args ...interface{}) {
+	fmt.Println(strings.Repeat(".  ", u.depth) + sprintf(nil, true, format, args...))
+}
+
 // A tparamsList describes a list of type parameters and the types inferred for them.
 type tparamsList struct {
 	unifier *unifier
-	tparams []*TypeName
+	tparams []*TypeParam
 	// For each tparams element, there is a corresponding type slot index in indices.
 	// index  < 0: unifier.types[-index-1] == nil
 	// index == 0: no type slot allocated yet
@@ -74,29 +107,30 @@ type tparamsList struct {
 // String returns a string representation for a tparamsList. For debugging.
 func (d *tparamsList) String() string {
 	var buf bytes.Buffer
-	buf.WriteByte('[')
-	for i, tname := range d.tparams {
+	w := newTypeWriter(&buf, nil)
+	w.byte('[')
+	for i, tpar := range d.tparams {
 		if i > 0 {
-			buf.WriteString(", ")
+			w.string(", ")
 		}
-		writeType(&buf, tname.typ, nil, nil)
-		buf.WriteString(": ")
-		writeType(&buf, d.at(i), nil, nil)
+		w.typ(tpar)
+		w.string(": ")
+		w.typ(d.at(i))
 	}
-	buf.WriteByte(']')
+	w.byte(']')
 	return buf.String()
 }
 
 // init initializes d with the given type parameters.
 // The type parameters must be in the order in which they appear in their declaration
 // (this ensures that the tparams indices match the respective type parameter index).
-func (d *tparamsList) init(tparams []*TypeName) {
+func (d *tparamsList) init(tparams []*TypeParam) {
 	if len(tparams) == 0 {
 		return
 	}
 	if debug {
 		for i, tpar := range tparams {
-			assert(i == tpar.typ.(*TypeParam).index)
+			assert(i == tpar.index)
 		}
 	}
 	d.tparams = tparams
@@ -105,8 +139,11 @@ func (d *tparamsList) init(tparams []*TypeName) {
 
 // join unifies the i'th type parameter of x with the j'th type parameter of y.
 // If both type parameters already have a type associated with them and they are
-// not joined, join fails and return false.
+// not joined, join fails and returns false.
 func (u *unifier) join(i, j int) bool {
+	if traceInference {
+		u.tracef("%s ⇄ %s", u.x.tparams[i], u.y.tparams[j])
+	}
 	ti := u.x.indices[i]
 	tj := u.y.indices[j]
 	switch {
@@ -129,6 +166,7 @@ func (u *unifier) join(i, j int) bool {
 		break
 	case ti > 0 && tj > 0:
 		// Both type parameters have (possibly different) inferred types. Cannot join.
+		// TODO(gri) Should we check if types are identical? Investigate.
 		return false
 	case ti > 0:
 		// Only the type parameter for x has an inferred type. Use x slot for y.
@@ -148,10 +186,23 @@ func (u *unifier) join(i, j int) bool {
 // If typ is a type parameter of d, index returns the type parameter index.
 // Otherwise, the result is < 0.
 func (d *tparamsList) index(typ Type) int {
-	if t, ok := typ.(*TypeParam); ok {
-		if i := t.index; i < len(d.tparams) && d.tparams[i].typ == t {
-			return i
-		}
+	if tpar, ok := typ.(*TypeParam); ok {
+		return tparamIndex(d.tparams, tpar)
+	}
+	return -1
+}
+
+// If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+// Otherwise, the result is < 0. tpar must not be nil.
+func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+	// Once a type parameter is bound its index is >= 0. However, there are some
+	// code paths (namely tracing and type hashing) by which it is possible to
+	// arrive here with a type parameter that has not been bound, hence the check
+	// for 0 <= i below.
+	// TODO(rfindley): investigate a better approach for guarding against using
+	// unbound type parameters.
+	if i := tpar.index; 0 <= i && i < len(list) && list[i] == tpar {
+		return i
 	}
 	return -1
 }
@@ -182,6 +233,9 @@ func (d *tparamsList) at(i int) Type {
 func (d *tparamsList) set(i int, typ Type) {
 	assert(typ != nil)
 	u := d.unifier
+	if traceInference {
+		u.tracef("%s ➞ %s", d.tparams[i], typ)
+	}
 	switch ti := d.indices[i]; {
 	case ti < 0:
 		u.types[-ti-1] = typ
@@ -192,6 +246,17 @@ func (d *tparamsList) set(i int, typ Type) {
 	default:
 		panic("type already set")
 	}
+}
+
+// unknowns returns the number of type parameters for which no type has been set yet.
+func (d *tparamsList) unknowns() int {
+	n := 0
+	for _, ti := range d.indices {
+		if ti <= 0 {
+			n++
+		}
+	}
+	return n
 }
 
 // types returns the list of inferred types (via unification) for the type parameters
@@ -216,26 +281,48 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
 }
 
 // nify implements the core unification algorithm which is an
-// adapted version of Checker.identical0. For changes to that
+// adapted version of Checker.identical. For changes to that
 // code the corresponding changes should be made here.
 // Must not be called directly from outside the unifier.
-func (u *unifier) nify(x, y Type, p *ifacePair) bool {
-	// types must be expanded for comparison
-	x = expand(x)
-	y = expand(y)
+func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+	if traceInference {
+		u.tracef("%s ≡ %s", x, y)
+	}
+
+	// Stop gap for cases where unification fails.
+	if u.depth >= unificationDepthLimit {
+		if traceInference {
+			u.tracef("depth %d >= %d", u.depth, unificationDepthLimit)
+		}
+		if panicAtUnificationDepthLimit {
+			panic("unification reached recursion depth limit")
+		}
+		return false
+	}
+	u.depth++
+	defer func() {
+		u.depth--
+		if traceInference && !result {
+			u.tracef("%s ≢ %s", x, y)
+		}
+	}()
 
 	if !u.exact {
 		// If exact unification is known to fail because we attempt to
 		// match a type name against an unnamed type literal, consider
 		// the underlying type of the named type.
-		// (Subtle: We use isNamed to include any type with a name (incl.
-		// basic types and type parameters. We use asNamed because we only
-		// want *Named types.)
-		switch {
-		case !isNamed(x) && y != nil && asNamed(y) != nil:
-			return u.nify(x, under(y), p)
-		case x != nil && asNamed(x) != nil && !isNamed(y):
-			return u.nify(under(x), y, p)
+		// (We use !hasName to exclude any type with a name, including
+		// basic types and type parameters; the rest are unamed types.)
+		if nx, _ := x.(*Named); nx != nil && !hasName(y) {
+			if traceInference {
+				u.tracef("under %s ≡ %s", nx, y)
+			}
+			return u.nify(nx.under(), y, p)
+		} else if ny, _ := y.(*Named); ny != nil && !hasName(x) {
+			if traceInference {
+				u.tracef("%s ≡ under %s", x, ny)
+			}
+			return u.nify(x, ny.under(), p)
 		}
 	}
 
@@ -266,6 +353,39 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// otherwise, infer type from x
 		u.y.set(j, x)
 		return true
+	}
+
+	// If we get here and x or y is a type parameter, they are type parameters
+	// from outside our declaration list. Try to unify their core types, if any
+	// (see issue #50755 for a test case).
+	if enableCoreTypeUnification && !u.exact {
+		if isTypeParam(x) && !hasName(y) {
+			// When considering the type parameter for unification
+			// we look at the adjusted core term (adjusted core type
+			// with tilde information).
+			// If the adjusted core type is a named type N; the
+			// corresponding core type is under(N). Since !u.exact
+			// and y doesn't have a name, unification will end up
+			// comparing under(N) to y, so we can just use the core
+			// type instead. And we can ignore the tilde because we
+			// already look at the underlying types on both sides
+			// and we have known types on both sides.
+			// Optimization.
+			if cx := coreType(x); cx != nil {
+				if traceInference {
+					u.tracef("core %s ≡ %s", x, y)
+				}
+				return u.nify(cx, y, p)
+			}
+		} else if isTypeParam(y) && !hasName(x) {
+			// see comment above
+			if cy := coreType(y); cy != nil {
+				if traceInference {
+					u.tracef("%s ≡ core %s", x, y)
+				}
+				return u.nify(x, cy, p)
+			}
+		}
 	}
 
 	// For type unification, do not shortcut (x == y) for identical
@@ -352,25 +472,21 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 				u.nify(x.results, y.results, p)
 		}
 
-	case *Sum:
-		// This should not happen with the current internal use of sum types.
-		panic("type inference across sum types not implemented")
-
 	case *Interface:
 		// Two interface types are identical if they have the same set of methods with
 		// the same names and identical function types. Lower-case method names from
 		// different packages are always different. The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
-			// If identical0 is called (indirectly) via an external API entry point
-			// (such as Identical, IdenticalIgnoreTags, etc.), check is nil. But in
-			// that case, interfaces are expected to be complete and lazy completion
-			// here is not needed.
-			if u.check != nil {
-				u.check.completeInterface(nopos, x)
-				u.check.completeInterface(nopos, y)
+			xset := x.typeSet()
+			yset := y.typeSet()
+			if xset.comparable != yset.comparable {
+				return false
 			}
-			a := x.allMethods
-			b := y.allMethods
+			if !xset.terms.equal(yset.terms) {
+				return false
+			}
+			a := xset.methods
+			b := yset.methods
 			if len(a) == len(b) {
 				// Interface types are the only types where cycles can occur
 				// that are not "terminated" via named types; and such cycles
@@ -428,19 +544,21 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		}
 
 	case *Named:
-		// Two named types are identical if their type names originate
-		// in the same type declaration.
-		// if y, ok := y.(*Named); ok {
-		// 	return x.obj == y.obj
-		// }
+		// TODO(gri) This code differs now from the parallel code in Checker.identical. Investigate.
 		if y, ok := y.(*Named); ok {
+			xargs := x.TypeArgs().list()
+			yargs := y.TypeArgs().list()
+
+			if len(xargs) != len(yargs) {
+				return false
+			}
+
 			// TODO(gri) This is not always correct: two types may have the same names
 			//           in the same package if one of them is nested in a function.
 			//           Extremely unlikely but we need an always correct solution.
 			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
-				assert(len(x.targs) == len(y.targs))
-				for i, x := range x.targs {
-					if !u.nify(x, y.targs[i], p) {
+				for i, x := range xargs {
+					if !u.nify(x, yargs[i], p) {
 						return false
 					}
 				}
@@ -454,15 +572,11 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// are identical if they originate in the same declaration.
 		return x == y
 
-	// case *instance:
-	//	unreachable since types are expanded
-
 	case nil:
 		// avoid a crash in case of nil type
 
 	default:
-		u.check.dump("### u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams)
-		unreachable()
+		panic(sprintf(nil, true, "u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams))
 	}
 
 	return false

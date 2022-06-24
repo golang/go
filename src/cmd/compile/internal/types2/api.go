@@ -21,7 +21,6 @@
 // Type inference computes the type (Type) of every expression (syntax.Expr)
 // and checks for compliance with the language specification.
 // Use Info.Types[expr].Type for the results of type inference.
-//
 package types2
 
 import (
@@ -54,6 +53,15 @@ func (err Error) Error() string {
 func (err Error) FullError() string {
 	return fmt.Sprintf("%s: %s", err.Pos, err.Full)
 }
+
+// An ArgumentError holds an error associated with an argument index.
+type ArgumentError struct {
+	Index int
+	Err   error
+}
+
+func (e *ArgumentError) Error() string { return e.Err.Error() }
+func (e *ArgumentError) Unwrap() error { return e.Err }
 
 // An Importer resolves import paths to Packages.
 //
@@ -96,6 +104,10 @@ type ImporterFrom interface {
 // A Config specifies the configuration for type checking.
 // The zero value for Config is a ready-to-use default configuration.
 type Config struct {
+	// Context is the context used for resolving global identifiers. If nil, the
+	// type checker will initialize this field with a newly created context.
+	Context *Context
+
 	// GoVersion describes the accepted Go language version. The string
 	// must follow the format "go%d.%d" (e.g. "go1.12") or ist must be
 	// empty; an empty string indicates the latest language version.
@@ -191,11 +203,19 @@ type Info struct {
 	// qualified identifiers are collected in the Uses map.
 	Types map[syntax.Expr]TypeAndValue
 
-	// Inferred maps calls of parameterized functions that use
-	// type inference to the inferred type arguments and signature
-	// of the function called. The recorded "call" expression may be
-	// an *ast.CallExpr (as in f(x)), or an *ast.IndexExpr (s in f[T]).
-	Inferred map[syntax.Expr]Inferred
+	// Instances maps identifiers denoting generic types or functions to their
+	// type arguments and instantiated type.
+	//
+	// For example, Instances will map the identifier for 'T' in the type
+	// instantiation T[int, string] to the type arguments [int, string] and
+	// resulting instantiated *Named type. Given a generic function
+	// func F[A any](A), Instances will map the identifier for 'F' in the call
+	// expression F(int(1)) to the inferred type arguments [int], and resulting
+	// instantiated *Signature.
+	//
+	// Invariant: Instantiating Uses[id].Type() with Instances[id].TypeArgs
+	// results in an equivalent of Instances[id].Type.
+	Instances map[*syntax.Name]Instance
 
 	// Defs maps identifiers to the objects they define (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).
@@ -244,6 +264,7 @@ type Info struct {
 	//
 	//     *syntax.File
 	//     *syntax.FuncType
+	//     *syntax.TypeDecl
 	//     *syntax.BlockStmt
 	//     *syntax.IfStmt
 	//     *syntax.SwitchStmt
@@ -263,7 +284,6 @@ type Info struct {
 
 // TypeOf returns the type of expression e, or nil if not found.
 // Precondition: the Types, Uses and Defs maps are populated.
-//
 func (info *Info) TypeOf(e syntax.Expr) Type {
 	if t, ok := info.Types[e]; ok {
 		return t.Type
@@ -283,7 +303,6 @@ func (info *Info) TypeOf(e syntax.Expr) Type {
 // it defines, not the type (*TypeName) it uses.
 //
 // Precondition: the Uses and Defs maps are populated.
-//
 func (info *Info) ObjectOf(id *syntax.Name) Object {
 	if obj := info.Defs[id]; obj != nil {
 		return obj
@@ -352,11 +371,13 @@ func (tv TypeAndValue) HasOk() bool {
 	return tv.mode == commaok || tv.mode == mapindex
 }
 
-// Inferred reports the inferred type arguments and signature
-// for a parameterized function call that uses type inference.
-type Inferred struct {
-	Targs []Type
-	Sig   *Signature
+// Instance reports the type arguments and instantiated type for type and
+// function instantiations. For type instantiations, Type will be of dynamic
+// type *Named. For function instantiations, Type will be of dynamic type
+// *Signature.
+type Instance struct {
+	TypeArgs *TypeList
+	Type     Type
 }
 
 // An Initializer describes a package-level variable, or a list of variables in case
@@ -397,38 +418,66 @@ func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Packa
 }
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
+//
+// The behavior of AssertableTo is undefined in two cases:
+//   - if V is a generalized interface; i.e., an interface that may only be used
+//     as a type constraint in Go code
+//   - if T is an uninstantiated generic type
 func AssertableTo(V *Interface, T Type) bool {
-	m, _ := (*Checker)(nil).assertableTo(V, T)
-	return m == nil
+	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
+	// handling here.
+	if T.Underlying() == Typ[Invalid] {
+		return false
+	}
+	return (*Checker)(nil).newAssertableTo(V, T) == nil
 }
 
-// AssignableTo reports whether a value of type V is assignable to a variable of type T.
+// AssignableTo reports whether a value of type V is assignable to a variable
+// of type T.
+//
+// The behavior of AssignableTo is undefined if V or T is an uninstantiated
+// generic type.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
 	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
 	return ok
 }
 
-// ConvertibleTo reports whether a value of type V is convertible to a value of type T.
+// ConvertibleTo reports whether a value of type V is convertible to a value of
+// type T.
+//
+// The behavior of ConvertibleTo is undefined if V or T is an uninstantiated
+// generic type.
 func ConvertibleTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.convertibleTo(nil, T) // check not needed for non-constant x
+	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
 }
 
 // Implements reports whether type V implements interface T.
+//
+// The behavior of Implements is undefined if V is an uninstantiated generic
+// type.
 func Implements(V Type, T *Interface) bool {
-	f, _ := MissingMethod(V, T, true)
-	return f == nil
+	if T.Empty() {
+		// All types (even Typ[Invalid]) implement the empty interface.
+		return true
+	}
+	// Checker.implements suppresses errors for invalid types, so we need special
+	// handling here.
+	if V.Underlying() == Typ[Invalid] {
+		return false
+	}
+	return (*Checker)(nil).implements(V, T) == nil
 }
 
 // Identical reports whether x and y are identical types.
 // Receivers of Signature types are ignored.
 func Identical(x, y Type) bool {
-	return (*Checker)(nil).identical(x, y)
+	return identical(x, y, true, nil)
 }
 
 // IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
 // Receivers of Signature types are ignored.
 func IdenticalIgnoreTags(x, y Type) bool {
-	return (*Checker)(nil).identicalIgnoreTags(x, y)
+	return identical(x, y, false, nil)
 }

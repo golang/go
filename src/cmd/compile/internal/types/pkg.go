@@ -9,6 +9,7 @@ import (
 	"cmd/internal/objabi"
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 )
 
@@ -48,7 +49,15 @@ func NewPkg(path, name string) *Pkg {
 	p := new(Pkg)
 	p.Path = path
 	p.Name = name
-	p.Prefix = objabi.PathToPrefix(path)
+	if path == "go.shape" {
+		// Don't escape "go.shape", since it's not needed (it's a builtin
+		// package), and we don't want escape codes showing up in shape type
+		// names, which also appear in names of function/method
+		// instantiations.
+		p.Prefix = path
+	} else {
+		p.Prefix = objabi.PathToPrefix(path)
+	}
 	p.Syms = make(map[string]*Sym)
 	pkgMap[path] = p
 
@@ -113,6 +122,15 @@ func (pkg *Pkg) LookupBytes(name []byte) *Sym {
 	return pkg.Lookup(str)
 }
 
+// LookupNum looks up the symbol starting with prefix and ending with
+// the decimal n. If prefix is too long, LookupNum panics.
+func (pkg *Pkg) LookupNum(prefix string, n int) *Sym {
+	var buf [20]byte // plenty long enough for all current users
+	copy(buf[:], prefix)
+	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
+	return pkg.LookupBytes(b)
+}
+
 var (
 	internedStringsmu sync.Mutex // protects internedStrings
 	internedStrings   = map[string]string{}
@@ -136,8 +154,4 @@ func CleanroomDo(f func()) {
 	pkgMap = make(map[string]*Pkg)
 	f()
 	pkgMap = saved
-}
-
-func IsDotAlias(sym *Sym) bool {
-	return sym.Def != nil && sym.Def.Sym() != sym
 }

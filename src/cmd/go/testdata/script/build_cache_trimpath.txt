@@ -16,10 +16,10 @@ stderr 'link( |\.exe)'
 # Two distinct versions of the same module with identical content should
 # still be cached separately.
 # Verifies golang.org/issue/35412.
-go get -d example.com/stack@v1.0.0
+go get example.com/stack@v1.0.0
 go run -trimpath printstack.go
 stdout '^example.com/stack@v1.0.0/stack.go$'
-go get -d example.com/stack@v1.0.1
+go get example.com/stack@v1.0.1
 go run -trimpath printstack.go
 stdout '^example.com/stack@v1.0.1/stack.go$'
 

@@ -968,3 +968,161 @@ func (r RegisterWithArrangementAndIndex) String() string {
 	}
 	return fmt.Sprintf("%s[%d]", result, r.index)
 }
+
+type sysOp struct {
+	op          sysInstFields
+	r           Reg
+	hasOperand2 bool
+}
+
+func (s sysOp) isArg() {}
+
+func (s sysOp) String() string {
+	result := s.op.String()
+	// If s.hasOperand2 is false, the value in the register
+	// specified by s.r is ignored.
+	if s.hasOperand2 {
+		result += ", " + s.r.String()
+	}
+	return result
+}
+
+type sysInstFields struct {
+	op1 uint8
+	cn  uint8
+	cm  uint8
+	op2 uint8
+}
+
+type sysInstAttrs struct {
+	typ         sys
+	name        string
+	hasOperand2 bool
+}
+
+func (s sysInstFields) isArg() {}
+
+func (s sysInstFields) getAttrs() sysInstAttrs {
+	attrs, ok := sysInstsAttrs[sysInstFields{s.op1, s.cn, s.cm, s.op2}]
+	if !ok {
+		return sysInstAttrs{typ: sys_SYS}
+	}
+	return attrs
+}
+
+func (s sysInstFields) String() string {
+	return s.getAttrs().name
+}
+
+func (s sysInstFields) getType() sys {
+	return s.getAttrs().typ
+}
+
+var sysInstsAttrs = map[sysInstFields]sysInstAttrs{
+	sysInstFields{0, 8, 3, 0}:  {sys_TLBI, "VMALLE1IS", false},
+	sysInstFields{0, 8, 3, 1}:  {sys_TLBI, "VAE1IS", true},
+	sysInstFields{0, 8, 3, 2}:  {sys_TLBI, "ASIDE1IS", true},
+	sysInstFields{0, 8, 3, 3}:  {sys_TLBI, "VAAE1IS", true},
+	sysInstFields{0, 8, 3, 5}:  {sys_TLBI, "VALE1IS", true},
+	sysInstFields{0, 8, 3, 7}:  {sys_TLBI, "VAALE1IS", true},
+	sysInstFields{0, 8, 7, 0}:  {sys_TLBI, "VMALLE1", false},
+	sysInstFields{0, 8, 7, 1}:  {sys_TLBI, "VAE1", true},
+	sysInstFields{0, 8, 7, 2}:  {sys_TLBI, "ASIDE1", true},
+	sysInstFields{0, 8, 7, 3}:  {sys_TLBI, "VAAE1", true},
+	sysInstFields{0, 8, 7, 5}:  {sys_TLBI, "VALE1", true},
+	sysInstFields{0, 8, 7, 7}:  {sys_TLBI, "VAALE1", true},
+	sysInstFields{4, 8, 0, 1}:  {sys_TLBI, "IPAS2E1IS", true},
+	sysInstFields{4, 8, 0, 5}:  {sys_TLBI, "IPAS2LE1IS", true},
+	sysInstFields{4, 8, 3, 0}:  {sys_TLBI, "ALLE2IS", false},
+	sysInstFields{4, 8, 3, 1}:  {sys_TLBI, "VAE2IS", true},
+	sysInstFields{4, 8, 3, 4}:  {sys_TLBI, "ALLE1IS", false},
+	sysInstFields{4, 8, 3, 5}:  {sys_TLBI, "VALE2IS", true},
+	sysInstFields{4, 8, 3, 6}:  {sys_TLBI, "VMALLS12E1IS", false},
+	sysInstFields{4, 8, 4, 1}:  {sys_TLBI, "IPAS2E1", true},
+	sysInstFields{4, 8, 4, 5}:  {sys_TLBI, "IPAS2LE1", true},
+	sysInstFields{4, 8, 7, 0}:  {sys_TLBI, "ALLE2", false},
+	sysInstFields{4, 8, 7, 1}:  {sys_TLBI, "VAE2", true},
+	sysInstFields{4, 8, 7, 4}:  {sys_TLBI, "ALLE1", false},
+	sysInstFields{4, 8, 7, 5}:  {sys_TLBI, "VALE2", true},
+	sysInstFields{4, 8, 7, 6}:  {sys_TLBI, "VMALLS12E1", false},
+	sysInstFields{6, 8, 3, 0}:  {sys_TLBI, "ALLE3IS", false},
+	sysInstFields{6, 8, 3, 1}:  {sys_TLBI, "VAE3IS", true},
+	sysInstFields{6, 8, 3, 5}:  {sys_TLBI, "VALE3IS", true},
+	sysInstFields{6, 8, 7, 0}:  {sys_TLBI, "ALLE3", false},
+	sysInstFields{6, 8, 7, 1}:  {sys_TLBI, "VAE3", true},
+	sysInstFields{6, 8, 7, 5}:  {sys_TLBI, "VALE3", true},
+	sysInstFields{0, 8, 1, 0}:  {sys_TLBI, "VMALLE1OS", false},
+	sysInstFields{0, 8, 1, 1}:  {sys_TLBI, "VAE1OS", true},
+	sysInstFields{0, 8, 1, 2}:  {sys_TLBI, "ASIDE1OS", true},
+	sysInstFields{0, 8, 1, 3}:  {sys_TLBI, "VAAE1OS", true},
+	sysInstFields{0, 8, 1, 5}:  {sys_TLBI, "VALE1OS", true},
+	sysInstFields{0, 8, 1, 7}:  {sys_TLBI, "VAALE1OS", true},
+	sysInstFields{0, 8, 2, 1}:  {sys_TLBI, "RVAE1IS", true},
+	sysInstFields{0, 8, 2, 3}:  {sys_TLBI, "RVAAE1IS", true},
+	sysInstFields{0, 8, 2, 5}:  {sys_TLBI, "RVALE1IS", true},
+	sysInstFields{0, 8, 2, 7}:  {sys_TLBI, "RVAALE1IS", true},
+	sysInstFields{0, 8, 5, 1}:  {sys_TLBI, "RVAE1OS", true},
+	sysInstFields{0, 8, 5, 3}:  {sys_TLBI, "RVAAE1OS", true},
+	sysInstFields{0, 8, 5, 5}:  {sys_TLBI, "RVALE1OS", true},
+	sysInstFields{0, 8, 5, 7}:  {sys_TLBI, "RVAALE1OS", true},
+	sysInstFields{0, 8, 6, 1}:  {sys_TLBI, "RVAE1", true},
+	sysInstFields{0, 8, 6, 3}:  {sys_TLBI, "RVAAE1", true},
+	sysInstFields{0, 8, 6, 5}:  {sys_TLBI, "RVALE1", true},
+	sysInstFields{0, 8, 6, 7}:  {sys_TLBI, "RVAALE1", true},
+	sysInstFields{4, 8, 0, 2}:  {sys_TLBI, "RIPAS2E1IS", true},
+	sysInstFields{4, 8, 0, 6}:  {sys_TLBI, "RIPAS2LE1IS", true},
+	sysInstFields{4, 8, 1, 0}:  {sys_TLBI, "ALLE2OS", false},
+	sysInstFields{4, 8, 1, 1}:  {sys_TLBI, "VAE2OS", true},
+	sysInstFields{4, 8, 1, 4}:  {sys_TLBI, "ALLE1OS", false},
+	sysInstFields{4, 8, 1, 5}:  {sys_TLBI, "VALE2OS", true},
+	sysInstFields{4, 8, 1, 6}:  {sys_TLBI, "VMALLS12E1OS", false},
+	sysInstFields{4, 8, 2, 1}:  {sys_TLBI, "RVAE2IS", true},
+	sysInstFields{4, 8, 2, 5}:  {sys_TLBI, "RVALE2IS", true},
+	sysInstFields{4, 8, 4, 0}:  {sys_TLBI, "IPAS2E1OS", true},
+	sysInstFields{4, 8, 4, 2}:  {sys_TLBI, "RIPAS2E1", true},
+	sysInstFields{4, 8, 4, 3}:  {sys_TLBI, "RIPAS2E1OS", true},
+	sysInstFields{4, 8, 4, 4}:  {sys_TLBI, "IPAS2LE1OS", true},
+	sysInstFields{4, 8, 4, 6}:  {sys_TLBI, "RIPAS2LE1", true},
+	sysInstFields{4, 8, 4, 7}:  {sys_TLBI, "RIPAS2LE1OS", true},
+	sysInstFields{4, 8, 5, 1}:  {sys_TLBI, "RVAE2OS", true},
+	sysInstFields{4, 8, 5, 5}:  {sys_TLBI, "RVALE2OS", true},
+	sysInstFields{4, 8, 6, 1}:  {sys_TLBI, "RVAE2", true},
+	sysInstFields{4, 8, 6, 5}:  {sys_TLBI, "RVALE2", true},
+	sysInstFields{6, 8, 1, 0}:  {sys_TLBI, "ALLE3OS", false},
+	sysInstFields{6, 8, 1, 1}:  {sys_TLBI, "VAE3OS", true},
+	sysInstFields{6, 8, 1, 5}:  {sys_TLBI, "VALE3OS", true},
+	sysInstFields{6, 8, 2, 1}:  {sys_TLBI, "RVAE3IS", true},
+	sysInstFields{6, 8, 2, 5}:  {sys_TLBI, "RVALE3IS", true},
+	sysInstFields{6, 8, 5, 1}:  {sys_TLBI, "RVAE3OS", true},
+	sysInstFields{6, 8, 5, 5}:  {sys_TLBI, "RVALE3OS", true},
+	sysInstFields{6, 8, 6, 1}:  {sys_TLBI, "RVAE3", true},
+	sysInstFields{6, 8, 6, 5}:  {sys_TLBI, "RVALE3", true},
+	sysInstFields{0, 7, 6, 1}:  {sys_DC, "IVAC", true},
+	sysInstFields{0, 7, 6, 2}:  {sys_DC, "ISW", true},
+	sysInstFields{0, 7, 10, 2}: {sys_DC, "CSW", true},
+	sysInstFields{0, 7, 14, 2}: {sys_DC, "CISW", true},
+	sysInstFields{3, 7, 4, 1}:  {sys_DC, "ZVA", true},
+	sysInstFields{3, 7, 10, 1}: {sys_DC, "CVAC", true},
+	sysInstFields{3, 7, 11, 1}: {sys_DC, "CVAU", true},
+	sysInstFields{3, 7, 14, 1}: {sys_DC, "CIVAC", true},
+	sysInstFields{0, 7, 6, 3}:  {sys_DC, "IGVAC", true},
+	sysInstFields{0, 7, 6, 4}:  {sys_DC, "IGSW", true},
+	sysInstFields{0, 7, 6, 5}:  {sys_DC, "IGDVAC", true},
+	sysInstFields{0, 7, 6, 6}:  {sys_DC, "IGDSW", true},
+	sysInstFields{0, 7, 10, 4}: {sys_DC, "CGSW", true},
+	sysInstFields{0, 7, 10, 6}: {sys_DC, "CGDSW", true},
+	sysInstFields{0, 7, 14, 4}: {sys_DC, "CIGSW", true},
+	sysInstFields{0, 7, 14, 6}: {sys_DC, "CIGDSW", true},
+	sysInstFields{3, 7, 4, 3}:  {sys_DC, "GVA", true},
+	sysInstFields{3, 7, 4, 4}:  {sys_DC, "GZVA", true},
+	sysInstFields{3, 7, 10, 3}: {sys_DC, "CGVAC", true},
+	sysInstFields{3, 7, 10, 5}: {sys_DC, "CGDVAC", true},
+	sysInstFields{3, 7, 12, 3}: {sys_DC, "CGVAP", true},
+	sysInstFields{3, 7, 12, 5}: {sys_DC, "CGDVAP", true},
+	sysInstFields{3, 7, 13, 3}: {sys_DC, "CGVADP", true},
+	sysInstFields{3, 7, 13, 5}: {sys_DC, "CGDVADP", true},
+	sysInstFields{3, 7, 14, 3}: {sys_DC, "CIGVAC", true},
+	sysInstFields{3, 7, 14, 5}: {sys_DC, "CIGDVAC", true},
+	sysInstFields{3, 7, 12, 1}: {sys_DC, "CVAP", true},
+	sysInstFields{3, 7, 13, 1}: {sys_DC, "CVADP", true},
+}

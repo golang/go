@@ -359,7 +359,6 @@ func (r *Request) WithContext(ctx context.Context) *Request {
 	r2 := new(Request)
 	*r2 = *r
 	r2.ctx = ctx
-	r2.URL = cloneURL(r.URL) // legacy behavior; TODO: try to remove. Issue 23544
 	return r2
 }
 
@@ -480,6 +479,9 @@ func (r *Request) multipartReader(allowMixed bool) (*multipart.Reader, error) {
 	if v == "" {
 		return nil, ErrNotMultipart
 	}
+	if r.Body == nil {
+		return nil, errors.New("missing form body")
+	}
 	d, params, err := mime.ParseMediaType(v)
 	if err != nil || !(d == "multipart/form-data" || allowMixed && d == "multipart/mixed") {
 		return nil, ErrNotMultipart
@@ -513,6 +515,7 @@ const defaultUserAgent = "Go-http-client/1.1"
 
 // Write writes an HTTP/1.1 request, which is the header and body, in wire format.
 // This method consults the following fields of the request:
+//
 //	Host
 //	URL
 //	Method (defaults to "GET")
@@ -736,9 +739,11 @@ func idnaASCII(v string) (string, error) {
 // into Punycode form, if necessary.
 //
 // Ideally we'd clean the Host header according to the spec:
-//   https://tools.ietf.org/html/rfc7230#section-5.4 (Host = uri-host [ ":" port ]")
-//   https://tools.ietf.org/html/rfc7230#section-2.7 (uri-host -> rfc3986's host)
-//   https://tools.ietf.org/html/rfc3986#section-3.2.2 (definition of host)
+//
+//	https://tools.ietf.org/html/rfc7230#section-5.4 (Host = uri-host [ ":" port ]")
+//	https://tools.ietf.org/html/rfc7230#section-2.7 (uri-host -> rfc3986's host)
+//	https://tools.ietf.org/html/rfc3986#section-3.2.2 (definition of host)
+//
 // But practically, what we are trying to avoid is the situation in
 // issue 11206, where a malformed Host header used in the proxy context
 // would create a bad request. So it is enough to just truncate at the
@@ -779,11 +784,10 @@ func removeZone(host string) string {
 	return host[:j] + host[i:]
 }
 
-// ParseHTTPVersion parses an HTTP version string.
+// ParseHTTPVersion parses an HTTP version string according to RFC 7230, section 2.6.
 // "HTTP/1.0" returns (1, 0, true). Note that strings without
 // a minor version, such as "HTTP/2", are not valid.
 func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
-	const Big = 1000000 // arbitrary upper bound
 	switch vers {
 	case "HTTP/1.1":
 		return 1, 1, true
@@ -793,19 +797,21 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 	if !strings.HasPrefix(vers, "HTTP/") {
 		return 0, 0, false
 	}
-	dot := strings.Index(vers, ".")
-	if dot < 0 {
+	if len(vers) != len("HTTP/X.Y") {
 		return 0, 0, false
 	}
-	major, err := strconv.Atoi(vers[5:dot])
-	if err != nil || major < 0 || major > Big {
+	if vers[6] != '.' {
 		return 0, 0, false
 	}
-	minor, err = strconv.Atoi(vers[dot+1:])
-	if err != nil || minor < 0 || minor > Big {
+	maj, err := strconv.ParseUint(vers[5:6], 10, 0)
+	if err != nil {
 		return 0, 0, false
 	}
-	return major, minor, true
+	min, err := strconv.ParseUint(vers[7:8], 10, 0)
+	if err != nil {
+		return 0, 0, false
+	}
+	return int(maj), int(min), true
 }
 
 func validMethod(method string) bool {
@@ -939,7 +945,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 func (r *Request) BasicAuth() (username, password string, ok bool) {
 	auth := r.Header.Get("Authorization")
 	if auth == "" {
-		return
+		return "", "", false
 	}
 	return parseBasicAuth(auth)
 }
@@ -950,42 +956,43 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 	const prefix = "Basic "
 	// Case insensitive prefix match. See Issue 22736.
 	if len(auth) < len(prefix) || !ascii.EqualFold(auth[:len(prefix)], prefix) {
-		return
+		return "", "", false
 	}
 	c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
 	if err != nil {
-		return
+		return "", "", false
 	}
 	cs := string(c)
-	s := strings.IndexByte(cs, ':')
-	if s < 0 {
-		return
+	username, password, ok = strings.Cut(cs, ":")
+	if !ok {
+		return "", "", false
 	}
-	return cs[:s], cs[s+1:], true
+	return username, password, true
 }
 
 // SetBasicAuth sets the request's Authorization header to use HTTP
 // Basic Authentication with the provided username and password.
 //
 // With HTTP Basic Authentication the provided username and password
-// are not encrypted.
+// are not encrypted. It should generally only be used in an HTTPS
+// request.
 //
-// Some protocols may impose additional requirements on pre-escaping the
-// username and password. For instance, when used with OAuth2, both arguments
-// must be URL encoded first with url.QueryEscape.
+// The username may not contain a colon. Some protocols may impose
+// additional requirements on pre-escaping the username and
+// password. For instance, when used with OAuth2, both arguments must
+// be URL encoded first with url.QueryEscape.
 func (r *Request) SetBasicAuth(username, password string) {
 	r.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 }
 
 // parseRequestLine parses "GET /foo HTTP/1.1" into its three parts.
 func parseRequestLine(line string) (method, requestURI, proto string, ok bool) {
-	s1 := strings.Index(line, " ")
-	s2 := strings.Index(line[s1+1:], " ")
-	if s1 < 0 || s2 < 0 {
-		return
+	method, rest, ok1 := strings.Cut(line, " ")
+	requestURI, proto, ok2 := strings.Cut(rest, " ")
+	if !ok1 || !ok2 {
+		return "", "", "", false
 	}
-	s2 += s1 + 1
-	return line[:s1], line[s1+1 : s2], line[s2+1:], true
+	return method, requestURI, proto, true
 }
 
 var textprotoReaderPool sync.Pool
@@ -1119,21 +1126,34 @@ func readRequest(b *bufio.Reader) (req *Request, err error) {
 // MaxBytesReader is similar to io.LimitReader but is intended for
 // limiting the size of incoming request bodies. In contrast to
 // io.LimitReader, MaxBytesReader's result is a ReadCloser, returns a
-// non-EOF error for a Read beyond the limit, and closes the
+// MaxBytesError for a Read beyond the limit, and closes the
 // underlying reader when its Close method is called.
 //
 // MaxBytesReader prevents clients from accidentally or maliciously
-// sending a large request and wasting server resources.
+// sending a large request and wasting server resources. If possible,
+// it tells the ResponseWriter to close the connection after the limit
+// has been reached.
 func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
 	if n < 0 { // Treat negative limits as equivalent to 0.
 		n = 0
 	}
-	return &maxBytesReader{w: w, r: r, n: n}
+	return &maxBytesReader{w: w, r: r, i: n, n: n}
+}
+
+// MaxBytesError is returned by MaxBytesReader when its read limit is exceeded.
+type MaxBytesError struct {
+	Limit int64
+}
+
+func (e *MaxBytesError) Error() string {
+	// Due to Hyrum's law, this text cannot be changed.
+	return "http: request body too large"
 }
 
 type maxBytesReader struct {
 	w   ResponseWriter
 	r   io.ReadCloser // underlying reader
+	i   int64         // max bytes initially, for MaxBytesError
 	n   int64         // max bytes remaining
 	err error         // sticky error
 }
@@ -1175,7 +1195,7 @@ func (l *maxBytesReader) Read(p []byte) (n int, err error) {
 	if res, ok := l.w.(requestTooLarger); ok {
 		res.requestTooLarge()
 	}
-	l.err = errors.New("http: request body too large")
+	l.err = &MaxBytesError{l.i}
 	return n, l.err
 }
 

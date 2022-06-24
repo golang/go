@@ -4,7 +4,7 @@
 
 package b
 
-import "a"
+import "./a"
 
 func Bfunc() {
 	a.Hook(101)

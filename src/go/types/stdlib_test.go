@@ -18,7 +18,6 @@ import (
 	"internal/testenv"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -40,7 +39,7 @@ func TestStdlib(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	pkgCount := 0
-	duration := walkPkgDirs(filepath.Join(runtime.GOROOT(), "src"), func(dir string, filenames []string) {
+	duration := walkPkgDirs(filepath.Join(testenv.GOROOT(t), "src"), func(dir string, filenames []string) {
 		typecheck(t, dir, filenames)
 		pkgCount++
 	}, t.Error)
@@ -140,8 +139,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		// parse and type-check file
 		file, err := parser.ParseFile(fset, filename, nil, 0)
 		if err == nil {
-			conf := Config{Importer: stdLibImporter}
-			SetGoVersion(&conf, goVersion)
+			conf := Config{GoVersion: goVersion, Importer: stdLibImporter}
 			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
 		}
 
@@ -164,12 +162,14 @@ func TestStdTest(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test"),
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
 		"directive.go",   // tests compiler rejection of bad directive placement - ignore
+		"directive2.go",  // tests compiler rejection of bad directive placement - ignore
 		"embedfunc.go",   // tests //go:embed
 		"embedvers.go",   // tests //go:embed
 		"linkname2.go",   // go/types doesn't check validity of //go:xxx directives
+		"linkname3.go",   // go/types doesn't check validity of //go:xxx directives
 	)
 }
 
@@ -180,7 +180,7 @@ func TestStdFixed(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
+	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"issue6889.go",   // gc-specific test
 		"issue11362.go",  // canonical import path check
@@ -195,13 +195,17 @@ func TestStdFixed(t *testing.T) {
 		"bug251.go",      // issue #34333 which was exposed with fix for #34151
 		"issue42058a.go", // go/types does not have constraints on channel element size
 		"issue42058b.go", // go/types does not have constraints on channel element size
+		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
+		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
+		"issue49767.go",  // go/types does not have constraints on channel element size
+		"issue49814.go",  // go/types does not have constraints on array size
 	)
 }
 
 func TestStdKen(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
+	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "ken"))
 }
 
 // Package paths of excluded packages.
@@ -209,7 +213,7 @@ var excluded = map[string]bool{
 	"builtin": true,
 
 	// See #46027: some imports are missing for this submodule.
-	"crypto/ed25519/internal/edwards25519/field/_asm": true,
+	"crypto/internal/edwards25519/field/_asm": true,
 }
 
 // typecheck typechecks the given package files.
@@ -244,7 +248,10 @@ func typecheck(t *testing.T, path string, filenames []string) {
 
 	// typecheck package files
 	conf := Config{
-		Error:    func(err error) { t.Error(err) },
+		Error: func(err error) {
+			t.Helper()
+			t.Error(err)
+		},
 		Importer: stdLibImporter,
 	}
 	info := Info{Uses: make(map[*ast.Ident]Object)}
@@ -291,7 +298,7 @@ func pkgFilenames(dir string) ([]string, error) {
 	return filenames, nil
 }
 
-func walkPkgDirs(dir string, pkgh func(dir string, filenames []string), errh func(args ...interface{})) time.Duration {
+func walkPkgDirs(dir string, pkgh func(dir string, filenames []string), errh func(args ...any)) time.Duration {
 	w := walker{time.Now(), 10 * time.Millisecond, pkgh, errh}
 	w.walk(dir)
 	return time.Since(w.start)
@@ -301,7 +308,7 @@ type walker struct {
 	start time.Time
 	dmax  time.Duration
 	pkgh  func(dir string, filenames []string)
-	errh  func(args ...interface{})
+	errh  func(args ...any)
 }
 
 func (w *walker) walk(dir string) {
@@ -317,16 +324,13 @@ func (w *walker) walk(dir string) {
 	}
 
 	// apply pkgh to the files in directory dir
-	// but ignore files directly under $GOROOT/src (might be temporary test files).
-	if dir != filepath.Join(runtime.GOROOT(), "src") {
-		files, err := pkgFilenames(dir)
-		if err != nil {
-			w.errh(err)
-			return
-		}
-		if files != nil {
-			w.pkgh(dir, files)
-		}
+	pkgFiles, err := pkgFilenames(dir)
+	if err != nil {
+		w.errh(err)
+		return
+	}
+	if pkgFiles != nil {
+		w.pkgh(dir, pkgFiles)
 	}
 
 	// traverse subdirectories, but don't walk into testdata

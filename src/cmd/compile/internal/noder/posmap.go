@@ -26,8 +26,9 @@ func (m *posMap) pos(p poser) src.XPos { return m.makeXPos(p.Pos()) }
 func (m *posMap) end(p ender) src.XPos { return m.makeXPos(p.End()) }
 
 func (m *posMap) makeXPos(pos syntax.Pos) src.XPos {
+	// Predeclared objects (e.g., the result parameter for error.Error)
+	// do not have a position.
 	if !pos.IsKnown() {
-		// TODO(mdempsky): Investigate restoring base.Fatalf.
 		return src.NoXPos
 	}
 
@@ -45,8 +46,10 @@ func (m *posMap) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
 	b1, ok := m.bases[b0]
 	if !ok {
 		fn := b0.Filename()
+		absfn := trimFilename(b0)
+
 		if b0.IsFileBase() {
-			b1 = src.NewFileBase(fn, absFilename(fn))
+			b1 = src.NewFileBase(fn, absfn)
 		} else {
 			// line directive base
 			p0 := b0.Pos()
@@ -55,7 +58,7 @@ func (m *posMap) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
 				panic("infinite recursion in makeSrcPosBase")
 			}
 			p1 := src.MakePos(m.makeSrcPosBase(p0b), p0.Line(), p0.Col())
-			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line(), b0.Col())
+			b1 = src.NewLinePragmaBase(p1, fn, absfn, b0.Line(), b0.Col())
 		}
 		if m.bases == nil {
 			m.bases = make(map[*syntax.PosBase]*src.PosBase)

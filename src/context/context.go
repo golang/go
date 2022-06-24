@@ -30,9 +30,9 @@
 // explicitly to each function that needs it. The Context should be the first
 // parameter, typically named ctx:
 //
-// 	func DoSomething(ctx context.Context, arg Arg) error {
-// 		// ... use ctx ...
-// 	}
+//	func DoSomething(ctx context.Context, arg Arg) error {
+//		// ... use ctx ...
+//	}
 //
 // Do not pass a nil Context, even if a function permits it. Pass context.TODO
 // if you are unsure about which Context to use.
@@ -150,7 +150,7 @@ type Context interface {
 	// 		u, ok := ctx.Value(userKey).(*User)
 	// 		return u, ok
 	// 	}
-	Value(key interface{}) interface{}
+	Value(key any) any
 }
 
 // Canceled is the error returned by Context.Err when the context is canceled.
@@ -182,7 +182,7 @@ func (*emptyCtx) Err() error {
 	return nil
 }
 
-func (*emptyCtx) Value(key interface{}) interface{} {
+func (*emptyCtx) Value(key any) any {
 	return nil
 }
 
@@ -348,11 +348,11 @@ type cancelCtx struct {
 	err      error                 // set to non-nil by the first cancel call
 }
 
-func (c *cancelCtx) Value(key interface{}) interface{} {
+func (c *cancelCtx) Value(key any) any {
 	if key == &cancelCtxKey {
 		return c
 	}
-	return c.Context.Value(key)
+	return value(c.Context, key)
 }
 
 func (c *cancelCtx) Done() <-chan struct{} {
@@ -498,11 +498,11 @@ func (c *timerCtx) cancel(removeFromParent bool, err error) {
 // Canceling this context releases resources associated with it, so code should
 // call cancel as soon as the operations running in this Context complete:
 //
-// 	func slowOperationWithTimeout(ctx context.Context) (Result, error) {
-// 		ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
-// 		defer cancel()  // releases resources if slowOperation completes before timeout elapses
-// 		return slowOperation(ctx)
-// 	}
+//	func slowOperationWithTimeout(ctx context.Context) (Result, error) {
+//		ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+//		defer cancel()  // releases resources if slowOperation completes before timeout elapses
+//		return slowOperation(ctx)
+//	}
 func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 	return WithDeadline(parent, time.Now().Add(timeout))
 }
@@ -520,7 +520,7 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 // interface{}, context keys often have concrete type
 // struct{}. Alternatively, exported context key variables' static
 // type should be a pointer or interface.
-func WithValue(parent Context, key, val interface{}) Context {
+func WithValue(parent Context, key, val any) Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
@@ -537,13 +537,13 @@ func WithValue(parent Context, key, val interface{}) Context {
 // delegates all other calls to the embedded Context.
 type valueCtx struct {
 	Context
-	key, val interface{}
+	key, val any
 }
 
 // stringify tries a bit to stringify v, without using fmt, since we don't
 // want context depending on the unicode tables. This is only used by
 // *valueCtx.String().
-func stringify(v interface{}) string {
+func stringify(v any) string {
 	switch s := v.(type) {
 	case stringer:
 		return s.String()
@@ -559,9 +559,35 @@ func (c *valueCtx) String() string {
 		", val " + stringify(c.val) + ")"
 }
 
-func (c *valueCtx) Value(key interface{}) interface{} {
+func (c *valueCtx) Value(key any) any {
 	if c.key == key {
 		return c.val
 	}
-	return c.Context.Value(key)
+	return value(c.Context, key)
+}
+
+func value(c Context, key any) any {
+	for {
+		switch ctx := c.(type) {
+		case *valueCtx:
+			if key == ctx.key {
+				return ctx.val
+			}
+			c = ctx.Context
+		case *cancelCtx:
+			if key == &cancelCtxKey {
+				return c
+			}
+			c = ctx.Context
+		case *timerCtx:
+			if key == &cancelCtxKey {
+				return &ctx.cancelCtx
+			}
+			c = ctx.Context
+		case *emptyCtx:
+			return nil
+		default:
+			return c.Value(key)
+		}
+	}
 }

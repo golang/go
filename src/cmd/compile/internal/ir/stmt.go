@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"go/constant"
 )
 
 // A Decl is a declaration of a const, type, or var. (A declared func is a Func.)
@@ -244,7 +245,7 @@ func NewGoDeferStmt(pos src.XPos, op Op, call Node) *GoDeferStmt {
 	return n
 }
 
-// A IfStmt is a return statement: if Init; Cond { Then } else { Else }.
+// An IfStmt is a return statement: if Init; Cond { Body } else { Else }.
 type IfStmt struct {
 	miniStmt
 	Cond   Node
@@ -259,6 +260,39 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
 	n.op = OIF
 	n.Body = body
 	n.Else = els
+	return n
+}
+
+// A JumpTableStmt is used to implement switches. Its semantics are:
+//
+//	tmp := jt.Idx
+//	if tmp == Cases[0] goto Targets[0]
+//	if tmp == Cases[1] goto Targets[1]
+//	...
+//	if tmp == Cases[n] goto Targets[n]
+//
+// Note that a JumpTableStmt is more like a multiway-goto than
+// a multiway-if. In particular, the case bodies are just
+// labels to jump to, not not full Nodes lists.
+type JumpTableStmt struct {
+	miniStmt
+
+	// Value used to index the jump table.
+	// We support only integer types that
+	// are at most the size of a uintptr.
+	Idx Node
+
+	// If Idx is equal to Cases[i], jump to Targets[i].
+	// Cases entries must be distinct and in increasing order.
+	// The length of Cases and Targets must be equal.
+	Cases   []constant.Value
+	Targets []*types.Sym
+}
+
+func NewJumpTableStmt(pos src.XPos, idx Node) *JumpTableStmt {
+	n := &JumpTableStmt{Idx: idx}
+	n.pos = pos
+	n.op = OJUMPTABLE
 	return n
 }
 
@@ -338,7 +372,7 @@ type SelectStmt struct {
 	HasBreak bool
 
 	// TODO(rsc): Instead of recording here, replace with a block?
-	Compiled Nodes // compiled form, after walkSwitch
+	Compiled Nodes // compiled form, after walkSelect
 }
 
 func NewSelectStmt(pos src.XPos, cases []*CommClause) *SelectStmt {
@@ -362,7 +396,7 @@ func NewSendStmt(pos src.XPos, ch, value Node) *SendStmt {
 	return n
 }
 
-// A SwitchStmt is a switch statement: switch Init; Expr { Cases }.
+// A SwitchStmt is a switch statement: switch Init; Tag { Cases }.
 type SwitchStmt struct {
 	miniStmt
 	Tag      Node
@@ -385,14 +419,11 @@ func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {
 // code generation to jump directly to another function entirely.
 type TailCallStmt struct {
 	miniStmt
-	Target *Name
+	Call *CallExpr // the underlying call
 }
 
-func NewTailCallStmt(pos src.XPos, target *Name) *TailCallStmt {
-	if target.Op() != ONAME || target.Class != PFUNC {
-		base.FatalfAt(pos, "tail call to non-func %v", target)
-	}
-	n := &TailCallStmt{Target: target}
+func NewTailCallStmt(pos src.XPos, call *CallExpr) *TailCallStmt {
+	n := &TailCallStmt{Call: call}
 	n.pos = pos
 	n.op = OTAILCALL
 	return n

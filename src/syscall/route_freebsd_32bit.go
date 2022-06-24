@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (freebsd && 386) || (freebsd && arm)
-// +build freebsd,386 freebsd,arm
 
 package syscall
 

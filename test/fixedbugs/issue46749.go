@@ -14,13 +14,13 @@ var iface interface{}
 var (
 	_ = "" + b   // ERROR "invalid operation.*mismatched types.*untyped string and bool"
 	_ = "" + i   // ERROR "invalid operation.*mismatched types.*untyped string and int"
-	_ = "" + nil // ERROR "invalid operation.*mismatched types.*untyped string and nil"
+	_ = "" + nil // ERROR "invalid operation.*mismatched types.*untyped string and nil|(untyped nil)"
 )
 
 var (
 	_ = s + false // ERROR "invalid operation.*mismatched types.*string and untyped bool"
 	_ = s + 1     // ERROR "invalid operation.*mismatched types.*string and untyped int"
-	_ = s + nil   // ERROR "invalid operation.*mismatched types.*string and nil"
+	_ = s + nil   // ERROR "invalid operation.*mismatched types.*string and nil|(untyped nil)"
 )
 
 var (
@@ -31,7 +31,7 @@ var (
 var (
 	_ = b + 1         // ERROR "invalid operation.*mismatched types.*bool and untyped int"
 	_ = i + false     // ERROR "invalid operation.*mismatched types.*int and untyped bool"
-	_ = iface + 1     // ERROR "invalid operation.*mismatched types.*interface {} and int"
-	_ = iface + 1.0   // ERROR "invalid operation.*mismatched types.*interface {} and float64"
-	_ = iface + false // ERROR "invalid operation.*mismatched types.*interface {} and bool"
+	_ = iface + 1     // ERROR "invalid operation.*mismatched types.*interface *{} and int"
+	_ = iface + 1.0   // ERROR "invalid operation.*mismatched types.*interface *{} and float64"
+	_ = iface + false // ERROR "invalid operation.*mismatched types.*interface *{} and bool"
 )

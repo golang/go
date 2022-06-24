@@ -18,8 +18,7 @@ TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME|TOPFRAME, $0
 	CALLNORESUME runtime·args(SB)
 	CALLNORESUME runtime·osinit(SB)
 	CALLNORESUME runtime·schedinit(SB)
-	MOVD $0, 0(SP)
-	MOVD $runtime·mainPC(SB), 8(SP)
+	MOVD $runtime·mainPC(SB), 0(SP)
 	CALLNORESUME runtime·newproc(SB)
 	CALL runtime·mstart(SB) // WebAssembly stack will unwind when switching to another goroutine
 	UNDEF
@@ -193,35 +192,6 @@ TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
 TEXT runtime·return0(SB), NOSPLIT, $0-0
 	MOVD $0, RET0
 	RET
-
-TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
-	MOVD fv+0(FP), CTXT
-
-	Get CTXT
-	I64Eqz
-	If
-		CALLNORESUME runtime·sigpanic<ABIInternal>(SB)
-	End
-
-	// caller sp after CALL
-	I64Load argp+8(FP)
-	I64Const $8
-	I64Sub
-	I32WrapI64
-	Set SP
-
-	// decrease PC_B by 1 to CALL again
-	Get SP
-	I32Load16U (SP)
-	I32Const $1
-	I32Sub
-	I32Store16 $0
-
-	// but first run the deferred function
-	Get CTXT
-	I32WrapI64
-	I64Load $0
-	JMP
 
 TEXT runtime·asminit(SB), NOSPLIT, $0-0
 	// No per-thread init.

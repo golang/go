@@ -13,9 +13,9 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	exec "internal/execabs"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -136,7 +136,7 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 			setUsesCgo(&conf)
 			file, err := p.cgo(bp)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error processing cgo for package %q: %w", bp.ImportPath, err)
 			}
 			files = append(files, file)
 		}
@@ -205,7 +205,11 @@ func (p *Importer) cgo(bp *build.Package) (*ast.File, error) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	args := []string{"go", "tool", "cgo", "-objdir", tmpdir}
+	goCmd := "go"
+	if p.ctxt.GOROOT != "" {
+		goCmd = filepath.Join(p.ctxt.GOROOT, "bin", "go")
+	}
+	args := []string{goCmd, "tool", "cgo", "-objdir", tmpdir}
 	if bp.Goroot {
 		switch bp.ImportPath {
 		case "runtime/cgo":
@@ -219,9 +223,9 @@ func (p *Importer) cgo(bp *build.Package) (*ast.File, error) {
 	args = append(args, bp.CgoCPPFLAGS...)
 	if len(bp.CgoPkgConfig) > 0 {
 		cmd := exec.Command("pkg-config", append([]string{"--cflags"}, bp.CgoPkgConfig...)...)
-		out, err := cmd.CombinedOutput()
+		out, err := cmd.Output()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("pkg-config --cflags: %w", err)
 		}
 		args = append(args, strings.Fields(string(out))...)
 	}
@@ -233,7 +237,7 @@ func (p *Importer) cgo(bp *build.Package) (*ast.File, error) {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = bp.Dir
 	if err := cmd.Run(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("go tool cgo: %w", err)
 	}
 
 	return parser.ParseFile(p.fset, filepath.Join(tmpdir, "_cgo_gotypes.go"), nil, 0)

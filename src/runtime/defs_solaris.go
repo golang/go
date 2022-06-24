@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 /*
 Input to cgo.
@@ -44,7 +43,6 @@ const (
 	ETIMEDOUT   = C.ETIMEDOUT
 	EWOULDBLOCK = C.EWOULDBLOCK
 	EINPROGRESS = C.EINPROGRESS
-	ENOSYS      = C.ENOSYS
 
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ

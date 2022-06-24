@@ -1,0 +1,105 @@
+# This test checks that VCS information is stamped into Go binaries even when
+# the current commit is signed and the use has configured git to display commit
+# signatures.
+
+[!exec:git] skip
+[!exec:gpg] skip
+[short] skip
+env GOBIN=$GOPATH/bin
+env GNUPGHOME=$WORK/.gpupg
+mkdir $GNUPGHOME
+chmod 0700 $GNUPGHOME
+
+# Create GPG key
+exec gpg --batch --passphrase '' --quick-generate-key gopher@golang.org
+exec gpg --list-secret-keys --with-colons gopher@golang.org
+cp stdout keyinfo.txt
+go run extract_key_id.go keyinfo.txt
+cp stdout keyid.txt
+
+# Initialize repo
+cd repo/
+exec git init
+exec git config user.email gopher@golang.org
+exec git config user.name 'J.R. Gopher'
+exec git config --add log.showSignature true
+go run ../configure_signing_key.go ../keyid.txt
+
+# Create signed commit
+cd a
+exec git add -A
+exec git commit -m 'initial commit' --gpg-sign
+exec git log
+
+# Verify commit signature does not interfere with versioning
+go install
+go version -m $GOBIN/a
+stdout '^\tbuild\tvcs\.revision='
+stdout '^\tbuild\tvcs\.time='
+stdout '^\tbuild\tvcs\.modified=false$'
+
+-- repo/README --
+Far out in the uncharted backwaters of the unfashionable end of the western
+spiral arm of the Galaxy lies a small, unregarded yellow sun.
+-- repo/a/go.mod --
+module example.com/a
+
+go 1.18
+-- repo/a/a.go --
+package main
+
+func main() {}
+
+-- extract_key_id.go --
+package main
+
+import "fmt"
+import "io/ioutil"
+import "os"
+import "strings"
+
+func main() {
+    err := run(os.Args[1])
+    if err != nil {
+        panic(err)
+    }
+}
+
+func run(keyInfoFilePath string) error {
+    contents, err := ioutil.ReadFile(keyInfoFilePath)
+    if err != nil {
+        return err
+    }
+    lines := strings.Split(string(contents), "\n")
+    for _, line := range lines {
+        fields := strings.Split(line, ":")
+        if fields[0] == "sec" {
+            fmt.Print(fields[4])
+            return nil
+        }
+    }
+    return fmt.Errorf("key ID not found in: %s", keyInfoFilePath)
+}
+
+-- configure_signing_key.go --
+package main
+
+import "io/ioutil"
+import "os"
+import "os/exec"
+
+func main() {
+    err := run(os.Args[1])
+    if err != nil {
+        panic(err)
+    }
+}
+
+func run(keyIdFilePath string) error {
+    keyId, err := ioutil.ReadFile(keyIdFilePath)
+    if err != nil {
+        return err
+    }
+    gitCmd := exec.Command("git", "config", "user.signingKey", string(keyId))
+    return gitCmd.Run()
+}

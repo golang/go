@@ -67,13 +67,13 @@ const (
 // by purely lexical processing. It applies the following rules
 // iteratively until no further processing can be done:
 //
-//	1. Replace multiple Separator elements with a single one.
-//	2. Eliminate each . path name element (the current directory).
-//	3. Eliminate each inner .. path name element (the parent directory)
-//	   along with the non-.. element that precedes it.
-//	4. Eliminate .. elements that begin a rooted path:
-//	   that is, replace "/.." by "/" at the beginning of a path,
-//	   assuming Separator is '/'.
+//  1. Replace multiple Separator elements with a single one.
+//  2. Eliminate each . path name element (the current directory).
+//  3. Eliminate each inner .. path name element (the parent directory)
+//     along with the non-.. element that precedes it.
+//  4. Eliminate .. elements that begin a rooted path:
+//     that is, replace "/.." by "/" at the beginning of a path,
+//     assuming Separator is '/'.
 //
 // The returned path ends in a slash only if it represents a root directory,
 // such as "/" on Unix or `C:\` on Windows.
@@ -83,8 +83,8 @@ const (
 // If the result of this process is an empty string, Clean
 // returns the string ".".
 //
-// See also Rob Pike, ``Lexical File Names in Plan 9 or
-// Getting Dot-Dot Right,''
+// See also Rob Pike, “Lexical File Names in Plan 9 or
+// Getting Dot-Dot Right,”
 // https://9p.io/sys/doc/lexnames.html
 func Clean(path string) string {
 	originalPath := path
@@ -117,9 +117,21 @@ func Clean(path string) string {
 		case os.IsPathSeparator(path[r]):
 			// empty path element
 			r++
-		case path[r] == '.' && (r+1 == n || os.IsPathSeparator(path[r+1])):
+		case path[r] == '.' && r+1 == n:
 			// . element
 			r++
+		case path[r] == '.' && os.IsPathSeparator(path[r+1]):
+			// ./ element
+			r++
+
+			for r < len(path) && os.IsPathSeparator(path[r]) {
+				r++
+			}
+			if out.w == 0 && volumeNameLen(path[r:]) > 0 {
+				// When joining prefix "." and an absolute path on Windows,
+				// the prefix should not be removed.
+				out.append('.')
+			}
 		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || os.IsPathSeparator(path[r+2])):
 			// .. element: remove to last separator
 			r += 2
@@ -396,6 +408,9 @@ func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
 		// Second call, to report ReadDir error.
 		err = walkDirFn(path, d, err)
 		if err != nil {
+			if err == SkipDir && d.IsDir() {
+				err = nil
+			}
 			return err
 		}
 	}

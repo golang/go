@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package envcmd implements the ``go env'' command.
+// Package envcmd implements the “go env” command.
 package envcmd
 
 import (
@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/build"
+	"internal/buildcfg"
 	"io"
 	"os"
 	"path/filepath"
@@ -25,6 +26,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
+	"cmd/internal/quoted"
 )
 
 var CmdEnv = &base.Command{
@@ -72,6 +74,14 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOCACHE", Value: cache.DefaultDir()},
 		{Name: "GOENV", Value: envFile},
 		{Name: "GOEXE", Value: cfg.ExeSuffix},
+
+		// List the raw value of GOEXPERIMENT, not the cleaned one.
+		// The set of default experiments may change from one release
+		// to the next, so a GOEXPERIMENT setting that is redundant
+		// with the current toolchain might actually be relevant with
+		// a different version (for example, when bisecting a regression).
+		{Name: "GOEXPERIMENT", Value: cfg.RawGOEXPERIMENT},
+
 		{Name: "GOFLAGS", Value: cfg.Getenv("GOFLAGS")},
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
@@ -102,13 +112,13 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: key, Value: val})
 	}
 
-	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
-	if env := strings.Fields(cfg.Getenv("CC")); len(env) > 0 {
-		cc = env[0]
+	cc := cfg.Getenv("CC")
+	if cc == "" {
+		cc = cfg.DefaultCC(cfg.Goos, cfg.Goarch)
 	}
-	cxx := cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
-	if env := strings.Fields(cfg.Getenv("CXX")); len(env) > 0 {
-		cxx = env[0]
+	cxx := cfg.Getenv("CXX")
+	if cxx == "" {
+		cxx = cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
 	}
 	env = append(env, cfg.EnvVar{Name: "AR", Value: envOr("AR", "ar")})
 	env = append(env, cfg.EnvVar{Name: "CC", Value: cc})
@@ -143,13 +153,21 @@ func findEnv(env []cfg.EnvVar, name string) string {
 // ExtraEnvVars returns environment variables that should not leak into child processes.
 func ExtraEnvVars() []cfg.EnvVar {
 	gomod := ""
+	modload.Init()
 	if modload.HasModRoot() {
-		gomod = filepath.Join(modload.ModRoot(), "go.mod")
+		gomod = modload.ModFilePath()
 	} else if modload.Enabled() {
 		gomod = os.DevNull
 	}
+	modload.InitWorkfile()
+	gowork := modload.WorkFilePath()
+	// As a special case, if a user set off explicitly, report that in GOWORK.
+	if cfg.Getenv("GOWORK") == "off" {
+		gowork = "off"
+	}
 	return []cfg.EnvVar{
 		{Name: "GOMOD", Value: gomod},
+		{Name: "GOWORK", Value: gowork},
 	}
 }
 
@@ -166,15 +184,23 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
 	}
 	cmd := b.GccCmd(".", "")
 
+	join := func(s []string) string {
+		q, err := quoted.Join(s)
+		if err != nil {
+			return strings.Join(s, " ")
+		}
+		return q
+	}
+
 	return []cfg.EnvVar{
 		// Note: Update the switch in runEnv below when adding to this list.
-		{Name: "CGO_CFLAGS", Value: strings.Join(cflags, " ")},
-		{Name: "CGO_CPPFLAGS", Value: strings.Join(cppflags, " ")},
-		{Name: "CGO_CXXFLAGS", Value: strings.Join(cxxflags, " ")},
-		{Name: "CGO_FFLAGS", Value: strings.Join(fflags, " ")},
-		{Name: "CGO_LDFLAGS", Value: strings.Join(ldflags, " ")},
+		{Name: "CGO_CFLAGS", Value: join(cflags)},
+		{Name: "CGO_CPPFLAGS", Value: join(cppflags)},
+		{Name: "CGO_CXXFLAGS", Value: join(cxxflags)},
+		{Name: "CGO_FFLAGS", Value: join(fflags)},
+		{Name: "CGO_LDFLAGS", Value: join(ldflags)},
 		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
-		{Name: "GOGCCFLAGS", Value: strings.Join(cmd[3:], " ")},
+		{Name: "GOGCCFLAGS", Value: join(cmd[3:])},
 	}
 }
 
@@ -189,14 +215,32 @@ func argKey(arg string) string {
 
 func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	if *envJson && *envU {
-		base.Fatalf("go env: cannot use -json with -u")
+		base.Fatalf("go: cannot use -json with -u")
 	}
 	if *envJson && *envW {
-		base.Fatalf("go env: cannot use -json with -w")
+		base.Fatalf("go: cannot use -json with -w")
 	}
 	if *envU && *envW {
-		base.Fatalf("go env: cannot use -u with -w")
+		base.Fatalf("go: cannot use -u with -w")
 	}
+
+	// Handle 'go env -w' and 'go env -u' before calling buildcfg.Check,
+	// so they can be used to recover from an invalid configuration.
+	if *envW {
+		runEnvW(args)
+		return
+	}
+
+	if *envU {
+		runEnvU(args)
+		return
+	}
+
+	buildcfg.Check()
+	if cfg.ExperimentErr != nil {
+		base.Fatalf("go: %v", cfg.ExperimentErr)
+	}
+
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
 
@@ -206,14 +250,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Do we need to call ExtraEnvVarsCostly, which is a bit expensive?
 	needCostly := false
-	if *envU || *envW {
-		// We're overwriting or removing default settings,
-		// so it doesn't really matter what the existing settings are.
-		//
-		// Moreover, we haven't validated the new settings yet, so it is
-		// important that we NOT perform any actions based on them,
-		// such as initializing the builder to compute other variables.
-	} else if len(args) == 0 {
+	if len(args) == 0 {
 		// We're listing all environment variables ("go env"),
 		// including the expensive ones.
 		needCostly = true
@@ -238,95 +275,6 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		env = append(env, ExtraEnvVarsCostly()...)
 	}
 
-	if *envW {
-		// Process and sanity-check command line.
-		if len(args) == 0 {
-			base.Fatalf("go env -w: no KEY=VALUE arguments given")
-		}
-		osEnv := make(map[string]string)
-		for _, e := range cfg.OrigEnv {
-			if i := strings.Index(e, "="); i >= 0 {
-				osEnv[e[:i]] = e[i+1:]
-			}
-		}
-		add := make(map[string]string)
-		for _, arg := range args {
-			i := strings.Index(arg, "=")
-			if i < 0 {
-				base.Fatalf("go env -w: arguments must be KEY=VALUE: invalid argument: %s", arg)
-			}
-			key, val := arg[:i], arg[i+1:]
-			if err := checkEnvWrite(key, val); err != nil {
-				base.Fatalf("go env -w: %v", err)
-			}
-			if _, ok := add[key]; ok {
-				base.Fatalf("go env -w: multiple values for key: %s", key)
-			}
-			add[key] = val
-			if osVal := osEnv[key]; osVal != "" && osVal != val {
-				fmt.Fprintf(os.Stderr, "warning: go env -w %s=... does not override conflicting OS environment variable\n", key)
-			}
-		}
-
-		goos, okGOOS := add["GOOS"]
-		goarch, okGOARCH := add["GOARCH"]
-		if okGOOS || okGOARCH {
-			if !okGOOS {
-				goos = cfg.Goos
-			}
-			if !okGOARCH {
-				goarch = cfg.Goarch
-			}
-			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
-				base.Fatalf("go env -w: %v", err)
-			}
-		}
-
-		gotmp, okGOTMP := add["GOTMPDIR"]
-		if okGOTMP {
-			if !filepath.IsAbs(gotmp) && gotmp != "" {
-				base.Fatalf("go env -w: GOTMPDIR must be an absolute path")
-			}
-		}
-
-		updateEnvFile(add, nil)
-		return
-	}
-
-	if *envU {
-		// Process and sanity-check command line.
-		if len(args) == 0 {
-			base.Fatalf("go env -u: no arguments given")
-		}
-		del := make(map[string]bool)
-		for _, arg := range args {
-			if err := checkEnvWrite(arg, ""); err != nil {
-				base.Fatalf("go env -u: %v", err)
-			}
-			del[arg] = true
-		}
-		if del["GOOS"] || del["GOARCH"] {
-			goos, goarch := cfg.Goos, cfg.Goarch
-			if del["GOOS"] {
-				goos = getOrigEnv("GOOS")
-				if goos == "" {
-					goos = build.Default.GOOS
-				}
-			}
-			if del["GOARCH"] {
-				goarch = getOrigEnv("GOARCH")
-				if goarch == "" {
-					goarch = build.Default.GOARCH
-				}
-			}
-			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
-				base.Fatalf("go env -u: %v", err)
-			}
-		}
-		updateEnvFile(nil, del)
-		return
-	}
-
 	if len(args) > 0 {
 		if *envJson {
 			var es []cfg.EnvVar
@@ -349,6 +297,109 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	PrintEnv(os.Stdout, env)
+}
+
+func runEnvW(args []string) {
+	// Process and sanity-check command line.
+	if len(args) == 0 {
+		base.Fatalf("go: no KEY=VALUE arguments given")
+	}
+	osEnv := make(map[string]string)
+	for _, e := range cfg.OrigEnv {
+		if i := strings.Index(e, "="); i >= 0 {
+			osEnv[e[:i]] = e[i+1:]
+		}
+	}
+	add := make(map[string]string)
+	for _, arg := range args {
+		i := strings.Index(arg, "=")
+		if i < 0 {
+			base.Fatalf("go: arguments must be KEY=VALUE: invalid argument: %s", arg)
+		}
+		key, val := arg[:i], arg[i+1:]
+		if err := checkEnvWrite(key, val); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+		if _, ok := add[key]; ok {
+			base.Fatalf("go: multiple values for key: %s", key)
+		}
+		add[key] = val
+		if osVal := osEnv[key]; osVal != "" && osVal != val {
+			fmt.Fprintf(os.Stderr, "warning: go env -w %s=... does not override conflicting OS environment variable\n", key)
+		}
+	}
+
+	if err := checkBuildConfig(add, nil); err != nil {
+		base.Fatalf("go: %v", err)
+	}
+
+	gotmp, okGOTMP := add["GOTMPDIR"]
+	if okGOTMP {
+		if !filepath.IsAbs(gotmp) && gotmp != "" {
+			base.Fatalf("go: GOTMPDIR must be an absolute path")
+		}
+	}
+
+	updateEnvFile(add, nil)
+}
+
+func runEnvU(args []string) {
+	// Process and sanity-check command line.
+	if len(args) == 0 {
+		base.Fatalf("go: 'go env -u' requires an argument")
+	}
+	del := make(map[string]bool)
+	for _, arg := range args {
+		if err := checkEnvWrite(arg, ""); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+		del[arg] = true
+	}
+
+	if err := checkBuildConfig(nil, del); err != nil {
+		base.Fatalf("go: %v", err)
+	}
+
+	updateEnvFile(nil, del)
+}
+
+// checkBuildConfig checks whether the build configuration is valid
+// after the specified configuration environment changes are applied.
+func checkBuildConfig(add map[string]string, del map[string]bool) error {
+	// get returns the value for key after applying add and del and
+	// reports whether it changed. cur should be the current value
+	// (i.e., before applying changes) and def should be the default
+	// value (i.e., when no environment variables are provided at all).
+	get := func(key, cur, def string) (string, bool) {
+		if val, ok := add[key]; ok {
+			return val, true
+		}
+		if del[key] {
+			val := getOrigEnv(key)
+			if val == "" {
+				val = def
+			}
+			return val, true
+		}
+		return cur, false
+	}
+
+	goos, okGOOS := get("GOOS", cfg.Goos, build.Default.GOOS)
+	goarch, okGOARCH := get("GOARCH", cfg.Goarch, build.Default.GOARCH)
+	if okGOOS || okGOARCH {
+		if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
+			return err
+		}
+	}
+
+	goexperiment, okGOEXPERIMENT := get("GOEXPERIMENT", cfg.RawGOEXPERIMENT, buildcfg.DefaultGOEXPERIMENT)
+	if okGOEXPERIMENT {
+		if _, err := buildcfg.ParseGOEXPERIMENT(goos, goarch, goexperiment); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // PrintEnv prints the environment variables to w.
@@ -390,7 +441,7 @@ func printEnvAsJSON(env []cfg.EnvVar) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "\t")
 	if err := enc.Encode(m); err != nil {
-		base.Fatalf("go env -json: %s", err)
+		base.Fatalf("go: %s", err)
 	}
 }
 
@@ -405,7 +456,7 @@ func getOrigEnv(key string) string {
 
 func checkEnvWrite(key, val string) error {
 	switch key {
-	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR", "GOVERSION":
+	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOWORK", "GOTOOLDIR", "GOVERSION":
 		return fmt.Errorf("%s cannot be modified", key)
 	case "GOENV":
 		return fmt.Errorf("%s can only be set using the OS environment", key)
@@ -433,10 +484,23 @@ func checkEnvWrite(key, val string) error {
 		if !filepath.IsAbs(val) && val != "" {
 			return fmt.Errorf("GOPATH entry is relative; must be absolute path: %q", val)
 		}
-	// Make sure CC and CXX are absolute paths
-	case "CC", "CXX", "GOMODCACHE":
-		if !filepath.IsAbs(val) && val != "" && val != filepath.Base(val) {
-			return fmt.Errorf("%s entry is relative; must be absolute path: %q", key, val)
+	case "GOMODCACHE":
+		if !filepath.IsAbs(val) && val != "" {
+			return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q", val)
+		}
+	case "CC", "CXX":
+		if val == "" {
+			break
+		}
+		args, err := quoted.Split(val)
+		if err != nil {
+			return fmt.Errorf("invalid %s: %v", key, err)
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("%s entry cannot contain only space", key)
+		}
+		if !filepath.IsAbs(args[0]) && args[0] != filepath.Base(args[0]) {
+			return fmt.Errorf("%s entry is relative; must be absolute path: %q", key, args[0])
 		}
 	}
 
@@ -455,11 +519,11 @@ func checkEnvWrite(key, val string) error {
 func updateEnvFile(add map[string]string, del map[string]bool) {
 	file, err := cfg.EnvFile()
 	if file == "" {
-		base.Fatalf("go env: cannot find go env config: %v", err)
+		base.Fatalf("go: cannot find go env config: %v", err)
 	}
 	data, err := os.ReadFile(file)
 	if err != nil && (!os.IsNotExist(err) || len(add) == 0) {
-		base.Fatalf("go env: reading go env config: %v", err)
+		base.Fatalf("go: reading go env config: %v", err)
 	}
 
 	lines := strings.SplitAfter(string(data), "\n")
@@ -517,7 +581,7 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
 		os.MkdirAll(filepath.Dir(file), 0777)
 		err = os.WriteFile(file, data, 0666)
 		if err != nil {
-			base.Fatalf("go env: writing go env config: %v", err)
+			base.Fatalf("go: writing go env config: %v", err)
 		}
 	}
 }

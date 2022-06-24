@@ -407,10 +407,7 @@ func (tasks allTasks) task(taskID uint64) *taskDesc {
 		return t
 	}
 
-	t = &taskDesc{
-		id:         taskID,
-		goroutines: make(map[uint64]struct{}),
-	}
+	t = newTaskDesc(taskID)
 	tasks[taskID] = t
 	return t
 }

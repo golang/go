@@ -1297,6 +1297,11 @@ const (
 	SCM_RIGHTS                     = 0x1
 	SCM_TIMESTAMP                  = 0x2
 	SCM_TIME_INFO                  = 0x7
+	SEEK_CUR                       = 0x1
+	SEEK_DATA                      = 0x3
+	SEEK_END                       = 0x2
+	SEEK_HOLE                      = 0x4
+	SEEK_SET                       = 0x0
 	SHUT_RD                        = 0x0
 	SHUT_RDWR                      = 0x2
 	SHUT_WR                        = 0x1

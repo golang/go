@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package list implements the ``go list'' command.
+// Package list implements the “go list” command.
 package list
 
 import (
@@ -13,7 +13,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -157,7 +159,10 @@ For more information about the meaning of these fields see the documentation
 for the go/build package's Context type.
 
 The -json flag causes the package data to be printed in JSON format
-instead of using the template format.
+instead of using the template format. The JSON flag can optionally be
+provided with a set of comma-separated required field names to be output.
+If so, those required fields will always appear in JSON output, but
+others may be omitted to save work in computing the JSON struct.
 
 The -compiled flag causes list to set CompiledGoFiles to the Go source
 files presented to the compiler. Typically this means that it repeats
@@ -182,7 +187,8 @@ a non-nil Error field; other information may or may not be missing
 (zeroed).
 
 The -export flag causes list to set the Export field to the name of a
-file containing up-to-date export information for the given package.
+file containing up-to-date export information for the given package,
+and the BuildID field to the build ID of the compiled package.
 
 The -find flag causes list to identify the named packages but not
 resolve their dependencies: the Imports and Deps lists will be empty.
@@ -316,27 +322,79 @@ For more about modules, see https://golang.org/ref/mod.
 func init() {
 	CmdList.Run = runList // break init cycle
 	work.AddBuildFlags(CmdList, work.DefaultBuildFlags)
+	CmdList.Flag.Var(&listJsonFields, "json", "")
 }
 
 var (
-	listCompiled  = CmdList.Flag.Bool("compiled", false, "")
-	listDeps      = CmdList.Flag.Bool("deps", false, "")
-	listE         = CmdList.Flag.Bool("e", false, "")
-	listExport    = CmdList.Flag.Bool("export", false, "")
-	listFmt       = CmdList.Flag.String("f", "", "")
-	listFind      = CmdList.Flag.Bool("find", false, "")
-	listJson      = CmdList.Flag.Bool("json", false, "")
-	listM         = CmdList.Flag.Bool("m", false, "")
-	listRetracted = CmdList.Flag.Bool("retracted", false, "")
-	listTest      = CmdList.Flag.Bool("test", false, "")
-	listU         = CmdList.Flag.Bool("u", false, "")
-	listVersions  = CmdList.Flag.Bool("versions", false, "")
+	listCompiled   = CmdList.Flag.Bool("compiled", false, "")
+	listDeps       = CmdList.Flag.Bool("deps", false, "")
+	listE          = CmdList.Flag.Bool("e", false, "")
+	listExport     = CmdList.Flag.Bool("export", false, "")
+	listFmt        = CmdList.Flag.String("f", "", "")
+	listFind       = CmdList.Flag.Bool("find", false, "")
+	listJson       bool
+	listJsonFields jsonFlag // If not empty, only output these fields.
+	listM          = CmdList.Flag.Bool("m", false, "")
+	listRetracted  = CmdList.Flag.Bool("retracted", false, "")
+	listTest       = CmdList.Flag.Bool("test", false, "")
+	listU          = CmdList.Flag.Bool("u", false, "")
+	listVersions   = CmdList.Flag.Bool("versions", false, "")
 )
+
+// A StringsFlag is a command-line flag that interprets its argument
+// as a space-separated list of possibly-quoted strings.
+type jsonFlag map[string]bool
+
+func (v *jsonFlag) Set(s string) error {
+	if v, err := strconv.ParseBool(s); err == nil {
+		listJson = v
+		return nil
+	}
+	listJson = true
+	if *v == nil {
+		*v = make(map[string]bool)
+	}
+	for _, f := range strings.Split(s, ",") {
+		(*v)[f] = true
+	}
+	return nil
+}
+
+func (v *jsonFlag) String() string {
+	var fields []string
+	for f := range *v {
+		fields = append(fields, f)
+	}
+	sort.Strings(fields)
+	return strings.Join(fields, ",")
+}
+
+func (v *jsonFlag) IsBoolFlag() bool {
+	return true
+}
+
+func (v *jsonFlag) needAll() bool {
+	return len(*v) == 0
+}
+
+func (v *jsonFlag) needAny(fields ...string) bool {
+	if v.needAll() {
+		return true
+	}
+	for _, f := range fields {
+		if (*v)[f] {
+			return true
+		}
+	}
+	return false
+}
 
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
-	if *listFmt != "" && *listJson == true {
+	modload.InitWorkfile()
+
+	if *listFmt != "" && listJson == true {
 		base.Fatalf("go list -f cannot be used with -json")
 	}
 
@@ -355,9 +413,18 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	var do func(interface{})
-	if *listJson {
-		do = func(x interface{}) {
+	var do func(x any)
+	if listJson {
+		do = func(x any) {
+			if !listJsonFields.needAll() {
+				v := reflect.ValueOf(x).Elem() // do is always called with a non-nil pointer.
+				// Clear all non-requested fields.
+				for i := 0; i < v.NumField(); i++ {
+					if !listJsonFields.needAny(v.Type().Field(i).Name) {
+						v.Field(i).Set(reflect.Zero(v.Type().Field(i).Type))
+					}
+				}
+			}
 			b, err := json.MarshalIndent(x, "", "\t")
 			if err != nil {
 				out.Flush()
@@ -383,7 +450,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if err != nil {
 			base.Fatalf("%s", err)
 		}
-		do = func(x interface{}) {
+		do = func(x any) {
 			if err := tmpl.Execute(out, x); err != nil {
 				out.Flush()
 				base.Fatalf("%s", err)
@@ -424,12 +491,12 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 
 		if modload.Init(); !modload.Enabled() {
-			base.Fatalf("go list -m: not using modules")
+			base.Fatalf("go: list -m cannot be used with GO111MODULE=off")
 		}
 
 		modload.LoadModFile(ctx) // Sets cfg.BuildMod as a side-effect.
 		if cfg.BuildMod == "vendor" {
-			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
+			const actionDisabledFormat = "go: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
 			if *listVersions {
 				base.Fatalf(actionDisabledFormat, "determine available versions")
@@ -468,11 +535,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
-					base.Errorf("go list -m: %v", m.Error.Err)
+					base.Errorf("go: %v", m.Error.Err)
 				}
 			}
 			if err != nil {
-				base.Errorf("go list -m: %v", err)
+				base.Errorf("go: %v", err)
 			}
 			base.ExitIfErrors()
 		}
@@ -501,6 +568,15 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	pkgOpts := load.PackageOpts{
 		IgnoreImports:   *listFind,
 		ModResolveTests: *listTest,
+		LoadVCS:         true,
+		// SuppressDeps is set if the user opts to explicitly ask for the json fields they
+		// need, don't ask for Deps or DepsErrors. It's not set when using a template string,
+		// even if *listFmt doesn't contain .Deps because Deps are used to find import cycles
+		// for test variants of packages and users who have been providing format strings
+		// might not expect those errors to stop showing up.
+		// See issue #52443.
+		SuppressDeps:      !listJsonFields.needAny("Deps", "DepsErrors"),
+		SuppressBuildInfo: !listJsonFields.needAny("Stale", "StaleReason"),
 	}
 	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
 	if !*listE {
@@ -587,7 +663,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	// Do we need to run a build to gather information?
-	needStale := *listJson || strings.Contains(*listFmt, ".Stale")
+	needStale := (listJson && listJsonFields.needAny("Stale", "StaleReason")) || strings.Contains(*listFmt, ".Stale")
 	if needStale || *listExport || *listCompiled {
 		var b work.Builder
 		b.Init()
@@ -708,7 +784,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			}
 			rmods, err := modload.ListModules(ctx, args, mode)
 			if err != nil && !*listE {
-				base.Errorf("go list -retracted: %v", err)
+				base.Errorf("go: %v", err)
 			}
 			for i, arg := range args {
 				rmod := rmods[i]

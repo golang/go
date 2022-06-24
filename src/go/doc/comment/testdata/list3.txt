@@ -1,0 +1,32 @@
+-- input --
+Text.
+
+ 1. Uno
+ 1. Dos
+ 1. Tres
+ 1. Quatro
+
+-- gofmt --
+Text.
+
+ 1. Uno
+ 1. Dos
+ 1. Tres
+ 1. Quatro
+
+-- markdown --
+Text.
+
+ 1. Uno
+ 1. Dos
+ 1. Tres
+ 1. Quatro
+
+-- html --
+<p>Text.
+<ol>
+<li>Uno
+<li value="1">Dos
+<li value="1">Tres
+<li value="1">Quatro
+</ol>

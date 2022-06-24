@@ -5,10 +5,9 @@
 package staticdata
 
 import (
-	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"go/constant"
-	"internal/buildcfg"
 	"io"
 	"io/ioutil"
 	"os"
@@ -21,6 +20,7 @@ import (
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/notsha256"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -62,8 +62,14 @@ func InitSliceBytes(nam *ir.Name, off int64, s string) {
 
 const (
 	stringSymPrefix  = "go.string."
-	stringSymPattern = ".gostring.%d.%x"
+	stringSymPattern = ".gostring.%d.%s"
 )
+
+// shortHashString converts the hash to a string for use with stringSymPattern.
+// We cut it to 16 bytes and then base64-encode to make it even smaller.
+func shortHashString(hash []byte) string {
+	return base64.StdEncoding.EncodeToString(hash[:16])
+}
 
 // StringSym returns a symbol containing the string s.
 // The symbol contains the string data, not a string header.
@@ -74,9 +80,9 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
 		// Indulge in some paranoia by writing the length of s, too,
 		// as protection against length extension attacks.
 		// Same pattern is known to fileStringSym below.
-		h := sha256.New()
+		h := notsha256.New()
 		io.WriteString(h, s)
-		symname = fmt.Sprintf(stringSymPattern, len(s), h.Sum(nil))
+		symname = fmt.Sprintf(stringSymPattern, len(s), shortHashString(h.Sum(nil)))
 	} else {
 		// Small strings get named directly by their contents.
 		symname = strconv.Quote(s)
@@ -91,6 +97,10 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
 
 	return symdata
 }
+
+// maxFileSize is the maximum file size permitted by the linker
+// (see issue #9862).
+const maxFileSize = int64(2e9)
 
 // fileStringSym returns a symbol for the contents and the size of file.
 // If readonly is true, the symbol shares storage with any literal string
@@ -128,24 +138,24 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 			sym = slicedata(pos, string(data)).Linksym()
 		}
 		if len(hash) > 0 {
-			sum := sha256.Sum256(data)
+			sum := notsha256.Sum256(data)
 			copy(hash, sum[:])
 		}
 		return sym, size, nil
 	}
-	if size > 2e9 {
+	if size > maxFileSize {
 		// ggloblsym takes an int32,
 		// and probably the rest of the toolchain
 		// can't handle such big symbols either.
 		// See golang.org/issue/9862.
-		return nil, 0, fmt.Errorf("file too large")
+		return nil, 0, fmt.Errorf("file too large (%d bytes > %d bytes)", size, maxFileSize)
 	}
 
 	// File is too big to read and keep in memory.
 	// Compute hash if needed for read-only content hashing or if the caller wants it.
 	var sum []byte
 	if readonly || len(hash) > 0 {
-		h := sha256.New()
+		h := notsha256.New()
 		n, err := io.Copy(h, f)
 		if err != nil {
 			return nil, 0, err
@@ -159,7 +169,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 
 	var symdata *obj.LSym
 	if readonly {
-		symname := fmt.Sprintf(stringSymPattern, size, sum)
+		symname := fmt.Sprintf(stringSymPattern, size, shortHashString(sum))
 		symdata = base.Ctxt.Lookup(stringSymPrefix + symname)
 		if !symdata.OnList() {
 			info := symdata.NewFileInfo()
@@ -232,15 +242,9 @@ func FuncLinksym(n *ir.Name) *obj.LSym {
 	// except for the types package, which is protected separately.
 	// Reusing funcsymsmu to also cover this package lookup
 	// avoids a general, broader, expensive package lookup mutex.
-	// Note NeedFuncSym also does package look-up of func sym names,
-	// but that it is only called serially, from the front end.
 	funcsymsmu.Lock()
 	sf, existed := s.Pkg.LookupOK(ir.FuncSymName(s))
-	// Don't export s·f when compiling for dynamic linking.
-	// When dynamically linking, the necessary function
-	// symbols will be created explicitly with NeedFuncSym.
-	// See the NeedFuncSym comment for details.
-	if !base.Ctxt.Flag_dynlink && !existed {
+	if !existed {
 		funcsyms = append(funcsyms, n)
 	}
 	funcsymsmu.Unlock()
@@ -255,48 +259,6 @@ func GlobalLinksym(n *ir.Name) *obj.LSym {
 	return n.Linksym()
 }
 
-// NeedFuncSym ensures that fn·f is exported, if needed.
-// It is only used with -dynlink.
-// When not compiling for dynamic linking,
-// the funcsyms are created as needed by
-// the packages that use them.
-// Normally we emit the fn·f stubs as DUPOK syms,
-// but DUPOK doesn't work across shared library boundaries.
-// So instead, when dynamic linking, we only create
-// the fn·f stubs in fn's package.
-func NeedFuncSym(fn *ir.Func) {
-	if base.Ctxt.InParallel {
-		// The append below probably just needs to lock
-		// funcsymsmu, like in FuncSym.
-		base.Fatalf("NeedFuncSym must be called in serial")
-	}
-	if fn.ABI != obj.ABIInternal && buildcfg.Experiment.RegabiWrappers {
-		// Function values must always reference ABIInternal
-		// entry points, so it doesn't make sense to create a
-		// funcsym for other ABIs.
-		//
-		// (If we're using ABI aliases, it doesn't matter.)
-		base.Fatalf("expected ABIInternal: %v has %v", fn.Nname, fn.ABI)
-	}
-	if ir.IsBlank(fn.Nname) {
-		// Blank functions aren't unique, so we can't make a
-		// funcsym for them.
-		base.Fatalf("NeedFuncSym called for _")
-	}
-	if !base.Ctxt.Flag_dynlink {
-		return
-	}
-	s := fn.Nname.Sym()
-	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") ||
-		(base.Ctxt.Pkgpath == "internal/abi" && (s.Name == "FuncPCABI0" || s.Name == "FuncPCABIInternal")) {
-		// runtime.getg(), getclosureptr(), getcallerpc(), getcallersp(),
-		// and internal/abi.FuncPCABIxxx() are not real functions and so
-		// do not get funcsyms.
-		return
-	}
-	funcsyms = append(funcsyms, fn.Nname)
-}
-
 func WriteFuncSyms() {
 	sort.Slice(funcsyms, func(i, j int) bool {
 		return funcsyms[i].Linksym().Name < funcsyms[j].Linksym().Name
@@ -304,6 +266,14 @@ func WriteFuncSyms() {
 	for _, nam := range funcsyms {
 		s := nam.Sym()
 		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()
+
+		// While compiling package runtime, we might try to create
+		// funcsyms for functions from both types.LocalPkg and
+		// ir.Pkgs.Runtime.
+		if base.Flag.CompilingRuntime && sf.OnList() {
+			continue
+		}
+
 		// Function values must always reference ABIInternal
 		// entry points.
 		target := s.Linksym()

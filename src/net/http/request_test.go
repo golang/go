@@ -639,10 +639,10 @@ var parseHTTPVersionTests = []struct {
 	major, minor int
 	ok           bool
 }{
+	{"HTTP/0.0", 0, 0, true},
 	{"HTTP/0.9", 0, 9, true},
 	{"HTTP/1.0", 1, 0, true},
 	{"HTTP/1.1", 1, 1, true},
-	{"HTTP/3.14", 3, 14, true},
 
 	{"HTTP", 0, 0, false},
 	{"HTTP/one.one", 0, 0, false},
@@ -651,6 +651,12 @@ var parseHTTPVersionTests = []struct {
 	{"HTTP/0,-1", 0, 0, false},
 	{"HTTP/", 0, 0, false},
 	{"HTTP/1,1", 0, 0, false},
+	{"HTTP/+1.1", 0, 0, false},
+	{"HTTP/1.+1", 0, 0, false},
+	{"HTTP/0000000001.1", 0, 0, false},
+	{"HTTP/1.0000000001", 0, 0, false},
+	{"HTTP/3.14", 0, 0, false},
+	{"HTTP/12.3", 0, 0, false},
 }
 
 func TestParseHTTPVersion(t *testing.T) {
@@ -992,23 +998,15 @@ func TestMaxBytesReaderDifferentLimits(t *testing.T) {
 	}
 }
 
-func TestWithContextDeepCopiesURL(t *testing.T) {
+func TestWithContextNilURL(t *testing.T) {
 	req, err := NewRequest("POST", "https://golang.org/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	reqCopy := req.WithContext(context.Background())
-	reqCopy.URL.Scheme = "http"
-
-	firstURL, secondURL := req.URL.String(), reqCopy.URL.String()
-	if firstURL == secondURL {
-		t.Errorf("unexpected change to original request's URL")
-	}
-
-	// And also check we don't crash on nil (Issue 20601)
+	// Issue 20601
 	req.URL = nil
-	reqCopy = req.WithContext(context.Background())
+	reqCopy := req.WithContext(context.Background())
 	if reqCopy.URL != nil {
 		t.Error("expected nil URL in cloned request")
 	}

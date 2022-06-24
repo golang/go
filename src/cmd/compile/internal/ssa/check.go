@@ -66,9 +66,6 @@ func checkFunc(f *Func) {
 			if !b.Controls[0].Type.IsMemory() {
 				f.Fatalf("retjmp block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
-			if b.Aux == nil {
-				f.Fatalf("retjmp block %s has nil Aux field", b)
-			}
 		case BlockPlain:
 			if len(b.Succs) != 1 {
 				f.Fatalf("plain block %s len(Succs)==%d, want 1", b, len(b.Succs))
@@ -102,6 +99,10 @@ func checkFunc(f *Func) {
 			}
 			if b.NumControls() != 0 {
 				f.Fatalf("plain/dead block %s has a control value", b)
+			}
+		case BlockJumpTable:
+			if b.NumControls() != 1 {
+				f.Fatalf("jumpTable block %s has no control value", b)
 			}
 		}
 		if len(b.Succs) != 2 && b.Likely != BranchUnknown {

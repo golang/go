@@ -11,6 +11,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"testing/iotest"
 )
 
 func TestChunk(t *testing.T) {
@@ -210,4 +211,31 @@ func TestChunkReadPartial(t *testing.T) {
 		t.Fatalf("second read = %v; want malformed error", err)
 	}
 
+}
+
+// Issue 48861: ChunkedReader should report incomplete chunks
+func TestIncompleteChunk(t *testing.T) {
+	const valid = "4\r\nabcd\r\n" + "5\r\nabc\r\n\r\n" + "0\r\n"
+
+	for i := 0; i < len(valid); i++ {
+		incomplete := valid[:i]
+		r := NewChunkedReader(strings.NewReader(incomplete))
+		if _, err := io.ReadAll(r); err != io.ErrUnexpectedEOF {
+			t.Errorf("expected io.ErrUnexpectedEOF for %q, got %v", incomplete, err)
+		}
+	}
+
+	r := NewChunkedReader(strings.NewReader(valid))
+	if _, err := io.ReadAll(r); err != nil {
+		t.Errorf("unexpected error for %q: %v", valid, err)
+	}
+}
+
+func TestChunkEndReadError(t *testing.T) {
+	readErr := fmt.Errorf("chunk end read error")
+
+	r := NewChunkedReader(io.MultiReader(strings.NewReader("4\r\nabcd"), iotest.ErrReader(readErr)))
+	if _, err := io.ReadAll(r); err != readErr {
+		t.Errorf("expected %v, got %v", readErr, err)
+	}
 }

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build race
-// +build race
 
 #include "go_asm.h"
 #include "go_tls.h"
@@ -43,8 +42,8 @@
 
 // func runtime·RaceRead(addr uintptr)
 // Called from instrumented Go code
-TEXT	runtime·raceread(SB), NOSPLIT, $0-8
-	MOVD	addr+0(FP), R4
+TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
+	MOVD	R3, R4 // addr
 	MOVD	LR, R5 // caller of this?
 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
 	MOVD	$__tsan_read(SB), R8
@@ -64,8 +63,8 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 
 // func runtime·RaceWrite(addr uintptr)
 // Called from instrumented Go code
-TEXT	runtime·racewrite(SB), NOSPLIT, $0-8
-	MOVD	addr+0(FP), R4
+TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
+	MOVD	R3, R4 // addr
 	MOVD	LR, R5 // caller has set LR via BL inst
 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
 	MOVD	$__tsan_write(SB), R8
@@ -85,9 +84,9 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 
 // func runtime·RaceReadRange(addr, size uintptr)
 // Called from instrumented Go code.
-TEXT	runtime·racereadrange(SB), NOSPLIT, $0-16
-	MOVD	addr+0(FP), R4
-	MOVD	size+8(FP), R5
+TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
+	MOVD	R4, R5 // size
+	MOVD	R3, R4 // addr
 	MOVD	LR, R6
 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVD	$__tsan_read_range(SB), R8
@@ -108,9 +107,9 @@ TEXT    runtime·RaceReadRange(SB), NOSPLIT, $0-16
 
 // func runtime·RaceWriteRange(addr, size uintptr)
 // Called from instrumented Go code.
-TEXT	runtime·racewriterange(SB), NOSPLIT, $0-16
-	MOVD	addr+0(FP), R4
-	MOVD	size+8(FP), R5
+TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
+	MOVD	R4, R5 // size
+	MOVD	R3, R4 // addr
 	MOVD	LR, R6
 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVD	$__tsan_write_range(SB), R8
@@ -411,7 +410,7 @@ racecallatomic_ignore:
 	BL	racecall<>(SB)
 	// Call __tsan_go_ignore_sync_end.
 	MOVD	$__tsan_go_ignore_sync_end(SB), R8
-	MOVD	g_racectx(g), R3	// goroutine context g should sitll be good?
+	MOVD	g_racectx(g), R3	// goroutine context g should still be good?
 	BL	racecall<>(SB)
 	RET
 
@@ -443,6 +442,9 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
 	BEQ	call			// already on g0
 	MOVD	(g_sched+gobuf_sp)(R10), R1 // switch R1
 call:
+	// prepare frame for C ABI
+	SUB	$32, R1			// create frame for callee saving LR, CR, R2 etc.
+	RLDCR   $0, R1, $~15, R1	// align SP to 16 bytes
 	MOVD	R8, CTR			// R8 = caller addr
 	MOVD	R8, R12			// expected by PPC64 ABI
 	BL	(CTR)

@@ -398,10 +398,10 @@ func checkForTimeoutError(t *testing.T, err error) {
 	t.Helper()
 	if nerr, ok := err.(net.Error); ok {
 		if !nerr.Timeout() {
-			t.Errorf("err.Timeout() = false, want true")
+			t.Errorf("got error: %v, want err.Timeout() = true", nerr)
 		}
 	} else {
-		t.Errorf("got %T, want net.Error", err)
+		t.Errorf("got %T: %v, want net.Error", err, err)
 	}
 }
 

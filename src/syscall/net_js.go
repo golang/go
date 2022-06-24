@@ -6,7 +6,6 @@
 // This file only exists to make the compiler happy.
 
 //go:build js && wasm
-// +build js,wasm
 
 package syscall
 
@@ -46,8 +45,7 @@ const (
 	SYS_FCNTL = 500 // unsupported
 )
 
-type Sockaddr interface {
-}
+type Sockaddr any
 
 type SockaddrInet4 struct {
 	Port int

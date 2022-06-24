@@ -1,5 +1,5 @@
 // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
-// +build !ppc64,!ppc64le,!goexperiment.regabi,!goexperiment.regabidefer
+// +build !ppc64,!ppc64le,!goexperiment.regabiargs
 
 // ppc64 needs a better tighten pass to make f18 pass
 // rescheduling checks need to be turned off because there are some live variables across the inserted check call
@@ -144,8 +144,8 @@ var i9 interface{}
 func f9() bool {
 	g8()
 	x := i9
-	y := interface{}(g18()) // ERROR "live at call to convT2E: x.data$" "live at call to g18: x.data$" "stack object .autotmp_[0-9]+ \[2\]string$"
-	i9 = y                  // make y escape so the line above has to call convT2E
+	y := interface{}(g18()) // ERROR "live at call to convT: x.data$" "live at call to g18: x.data$" "stack object .autotmp_[0-9]+ \[2\]string$"
+	i9 = y                  // make y escape so the line above has to call convT
 	return x != y
 }
 
@@ -424,7 +424,7 @@ func f27defer(b bool) {
 	}
 	defer call27(func() { x++ }) // ERROR "stack object .autotmp_[0-9]+ struct \{"
 	printnl()                    // ERROR "live at call to printnl: .autotmp_[0-9]+ .autotmp_[0-9]+"
-	return                       // ERROR "live at call to call27: .autotmp_[0-9]+"
+	return                       // ERROR "live at indirect call: .autotmp_[0-9]+"
 }
 
 // and newproc (go) escapes to the heap
@@ -432,9 +432,9 @@ func f27defer(b bool) {
 func f27go(b bool) {
 	x := 0
 	if b {
-		go call27(func() { x++ }) // ERROR "live at call to newobject: &x$" "live at call to newproc: &x$"
+		go call27(func() { x++ }) // ERROR "live at call to newobject: &x$" "live at call to newobject: &x .autotmp_[0-9]+$" "live at call to newproc: &x$" // allocate two closures, the func literal, and the wrapper for go
 	}
-	go call27(func() { x++ }) // ERROR "live at call to newobject: &x$"
+	go call27(func() { x++ }) // ERROR "live at call to newobject: &x$" "live at call to newobject: .autotmp_[0-9]+$" // allocate two closures, the func literal, and the wrapper for go
 	printnl()
 }
 
@@ -503,7 +503,7 @@ func f31(b1, b2, b3 bool) {
 		g31(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	if b2 {
-		h31(g18()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
+		h31(g18()) // ERROR "live at call to convT: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
 	}
 	if b3 {
 		panic(g18())
@@ -688,7 +688,7 @@ type T struct{}
 
 func (*T) Foo(ptr *int) {}
 
-type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "live at entry to R\.Foo: \.this ptr"
+type R struct{ *T }
 
 // issue 18860: output arguments must be live all the time if there is a defer.
 // In particular, at printint r must be live.

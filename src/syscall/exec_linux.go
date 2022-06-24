@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux
-// +build linux
 
 package syscall
 
@@ -46,7 +45,11 @@ type SysProcAttr struct {
 	// number in the parent process.
 	Foreground   bool
 	Pgid         int            // Child's process group ID if Setpgid.
-	Pdeathsig    Signal         // Signal that the process will get when its parent dies (Linux only)
+	// Pdeathsig, if non-zero, is a signal that the kernel will send to
+	// the child process when the creating thread dies. Note that the signal
+	// is sent on thread termination, which may happen before process termination.
+	// There are more details at https://go.dev/issue/27505.
+	Pdeathsig    Signal
 	Cloneflags   uintptr        // Flags for clone calls (Linux only)
 	Unshareflags uintptr        // Flags for unshare calls (Linux only)
 	UidMappings  []SysProcIDMap // User ID mappings for user namespaces.
@@ -78,6 +81,7 @@ func runtime_AfterForkInChild()
 // For the same reason compiler does not race instrument it.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
+//
 //go:norace
 func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
 	// Set up and fork. This returns immediately in the parent or
@@ -448,13 +452,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
 		_, _, err1 = RawSyscall(SYS_DUP3, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
-		if _SYS_dup != SYS_DUP3 && err1 == ENOSYS {
-			_, _, err1 = RawSyscall(_SYS_dup, uintptr(pipe), uintptr(nextfd), 0)
-			if err1 != 0 {
-				goto childerror
-			}
-			RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
-		} else if err1 != 0 {
+		if err1 != 0 {
 			goto childerror
 		}
 		pipe = nextfd
@@ -466,13 +464,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 				nextfd++
 			}
 			_, _, err1 = RawSyscall(SYS_DUP3, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
-			if _SYS_dup != SYS_DUP3 && err1 == ENOSYS {
-				_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(nextfd), 0)
-				if err1 != 0 {
-					goto childerror
-				}
-				RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
-			} else if err1 != 0 {
+			if err1 != 0 {
 				goto childerror
 			}
 			fd[i] = nextfd
@@ -497,7 +489,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 		// The new fd is created NOT close-on-exec,
 		// which is exactly what we want.
-		_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(i), 0)
+		_, _, err1 = RawSyscall(SYS_DUP3, uintptr(fd[i]), uintptr(i), 0)
 		if err1 != 0 {
 			goto childerror
 		}
@@ -553,19 +545,7 @@ childerror:
 
 // Try to open a pipe with O_CLOEXEC set on both file descriptors.
 func forkExecPipe(p []int) (err error) {
-	err = Pipe2(p, O_CLOEXEC)
-	// pipe2 was added in 2.6.27 and our minimum requirement is 2.6.23, so it
-	// might not be implemented.
-	if err == ENOSYS {
-		if err = Pipe(p); err != nil {
-			return
-		}
-		if _, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != nil {
-			return
-		}
-		_, err = fcntl(p[1], F_SETFD, FD_CLOEXEC)
-	}
-	return
+	return Pipe2(p, O_CLOEXEC)
 }
 
 func formatIDMappings(idMap []SysProcIDMap) []byte {

@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -30,7 +31,7 @@ import (
 )
 
 var cmdVendor = &base.Command{
-	UsageLine: "go mod vendor [-e] [-v]",
+	UsageLine: "go mod vendor [-e] [-v] [-o outdir]",
 	Short:     "make vendored copy of dependencies",
 	Long: `
 Vendor resets the main module's vendor directory to include all packages
@@ -43,22 +44,29 @@ modules and packages to standard error.
 The -e flag causes vendor to attempt to proceed despite errors
 encountered while loading packages.
 
+The -o flag causes vendor to create the vendor directory at the given
+path instead of "vendor". The go command can only use a vendor directory
+named "vendor" within the module root directory, so this flag is
+primarily useful for other tools.
+
 See https://golang.org/ref/mod#go-mod-vendor for more about 'go mod vendor'.
 	`,
 	Run: runVendor,
 }
 
-var vendorE bool // if true, report errors but proceed anyway
+var vendorE bool   // if true, report errors but proceed anyway
+var vendorO string // if set, overrides the default output directory
 
 func init() {
 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 	cmdVendor.Flag.BoolVar(&vendorE, "e", false, "")
+	cmdVendor.Flag.StringVar(&vendorO, "o", "", "")
 	base.AddModCommonFlags(&cmdVendor.Flag)
 }
 
 func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) != 0 {
-		base.Fatalf("go mod vendor: vendor takes no arguments")
+		base.Fatalf("go: 'go mod vendor' accepts no arguments")
 	}
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
@@ -73,15 +81,23 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 
-	vdir := filepath.Join(modload.ModRoot(), "vendor")
+	var vdir string
+	switch {
+	case filepath.IsAbs(vendorO):
+		vdir = vendorO
+	case vendorO != "":
+		vdir = filepath.Join(base.Cwd(), vendorO)
+	default:
+		vdir = filepath.Join(modload.VendorDir())
+	}
 	if err := os.RemoveAll(vdir); err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 
 	modpkgs := make(map[module.Version][]string)
 	for _, pkg := range pkgs {
 		m := modload.PackageModule(pkg)
-		if m.Path == "" || m == modload.Target {
+		if m.Path == "" || m.Version == "" && modload.MainModules.Contains(m.Path) {
 			continue
 		}
 		modpkgs[m] = append(modpkgs[m], pkg)
@@ -127,7 +143,8 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	for _, m := range vendorMods {
-		line := moduleLine(m, modload.Replacement(m))
+		replacement := modload.Replacement(m)
+		line := moduleLine(m, replacement)
 		io.WriteString(w, line)
 
 		goVersion := ""
@@ -176,11 +193,11 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if err := os.MkdirAll(vdir, 0777); err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 
 	if err := os.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 }
 
@@ -241,14 +258,14 @@ func vendorPkg(vdir, pkg string) {
 	if err != nil {
 		if errors.As(err, &noGoError) {
 			return // No source files in this package are built. Skip embeds in ignored files.
-		} else if !errors.As(err, &multiplePackageError) { // multiplePackgeErrors are okay, but others are not.
+		} else if !errors.As(err, &multiplePackageError) { // multiplePackageErrors are OK, but others are not.
 			base.Fatalf("internal error: failed to find embedded files of %s: %v\n", pkg, err)
 		}
 	}
 	embedPatterns := str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
 	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
 	if err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 	for _, embed := range embeds {
 		embedDst := filepath.Join(dst, embed)
@@ -259,21 +276,21 @@ func vendorPkg(vdir, pkg string) {
 		// Copy the file as is done by copyDir below.
 		r, err := os.Open(filepath.Join(src, embed))
 		if err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		if err := os.MkdirAll(filepath.Dir(embedDst), 0777); err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		w, err := os.Create(embedDst)
 		if err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		if _, err := io.Copy(w, r); err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		r.Close()
 		if err := w.Close(); err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 	}
 }
@@ -299,7 +316,7 @@ func copyMetadata(modPath, pkg, dst, src string, copiedFiles map[string]bool) {
 		if modPath == pkg {
 			break
 		}
-		pkg = filepath.Dir(pkg)
+		pkg = path.Dir(pkg)
 		dst = filepath.Dir(dst)
 		src = filepath.Dir(src)
 	}
@@ -352,7 +369,7 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
 	if strings.HasSuffix(info.Name(), ".go") {
 		f, err := fsys.Open(filepath.Join(dir, info.Name()))
 		if err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		defer f.Close()
 
@@ -374,10 +391,10 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
 func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, copiedFiles map[string]bool) {
 	files, err := os.ReadDir(src)
 	if err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 	if err := os.MkdirAll(dst, 0777); err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 	for _, file := range files {
 		if file.IsDir() || !file.Type().IsRegular() || !match(src, file) {
@@ -386,20 +403,20 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, cop
 		copiedFiles[file.Name()] = true
 		r, err := os.Open(filepath.Join(src, file.Name()))
 		if err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		dstPath := filepath.Join(dst, file.Name())
 		copiedFiles[dstPath] = true
 		w, err := os.Create(dstPath)
 		if err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		if _, err := io.Copy(w, r); err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		r.Close()
 		if err := w.Close(); err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 	}
 }

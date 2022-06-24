@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -81,7 +82,9 @@ var regNamesPPC64 = []string{
 	"F28",
 	"F29",
 	"F30",
-	"F31",
+	// "F31", the allocator is limited to 64 entries. We sacrifice this FPR to support XER.
+
+	"XER",
 
 	// If you add registers, update asyncPreempt in runtime.
 
@@ -95,7 +98,6 @@ var regNamesPPC64 = []string{
 	// "CR7",
 
 	// "CR",
-	// "XER",
 	// "LR",
 	// "CTR",
 }
@@ -122,11 +124,12 @@ func init() {
 	}
 
 	var (
-		gp = buildReg("R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29")
-		fp = buildReg("F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26")
-		sp = buildReg("SP")
-		sb = buildReg("SB")
-		gr = buildReg("g")
+		gp  = buildReg("R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29")
+		fp  = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30")
+		sp  = buildReg("SP")
+		sb  = buildReg("SB")
+		gr  = buildReg("g")
+		xer = buildReg("XER")
 		// cr  = buildReg("CR")
 		// ctr = buildReg("CTR")
 		// lr  = buildReg("LR")
@@ -136,11 +139,16 @@ func init() {
 		// tls = buildReg("R13")
 		gp01        = regInfo{inputs: nil, outputs: []regMask{gp}}
 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+		xergp       = regInfo{inputs: []regMask{xer}, outputs: []regMask{gp}, clobbers: xer}
+		gp11cxer    = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}, clobbers: xer}
+		gp11xer     = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp, xer}}
 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
 		gp21a0      = regInfo{inputs: []regMask{gp, gp | sp | sb}, outputs: []regMask{gp}}
+		gp21cxer    = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}, clobbers: xer}
+		gp21xer     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, xer}, clobbers: xer}
+		gp2xer1xer  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, xer}, outputs: []regMask{gp, xer}, clobbers: xer}
 		gp31        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
 		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
-		gp32        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
 		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}}
 		gp2cr       = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
 		crgp        = regInfo{inputs: nil, outputs: []regMask{gp}}
@@ -148,6 +156,7 @@ func init() {
 		crgp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
 		gploadidx   = regInfo{inputs: []regMask{gp | sp | sb, gp}, outputs: []regMask{gp}}
+		prefreg     = regInfo{inputs: []regMask{gp | sp | sb}}
 		gpstore     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
 		gpstoreidx  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}}
 		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb}} // ppc64.REGZERO is reserved zero value
@@ -164,21 +173,21 @@ func init() {
 		fploadidx   = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{fp}}
 		fpstore     = regInfo{inputs: []regMask{gp | sp | sb, fp}}
 		fpstoreidx  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, fp}}
-		callerSave  = regMask(gp | fp | gr)
+		callerSave  = regMask(gp | fp | gr | xer)
 		r3          = buildReg("R3")
 		r4          = buildReg("R4")
 		r5          = buildReg("R5")
 		r6          = buildReg("R6")
 	)
 	ops := []opData{
-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
-		{name: "ADDconst", argLength: 1, reg: gp11, asm: "ADD", aux: "Int64"},     // arg0 + auxInt
-		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},   // arg0+arg1
-		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true}, // arg0+arg1
-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0-arg1
-		{name: "SUBFCconst", argLength: 1, reg: gp11, asm: "SUBC", aux: "Int64"},  // auxInt - arg0 (with carry)
-		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                      // arg0-arg1
-		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                    // arg0-arg1
+		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},        // arg0 + arg1
+		{name: "ADDconst", argLength: 1, reg: gp11, asm: "ADD", aux: "Int64"},        // arg0 + auxInt
+		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},      // arg0+arg1
+		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},    // arg0+arg1
+		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                           // arg0-arg1
+		{name: "SUBFCconst", argLength: 1, reg: gp11cxer, asm: "SUBC", aux: "Int64"}, // auxInt - arg0 (carry is ignored)
+		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                         // arg0-arg1
+		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                       // arg0-arg1
 
 		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true}, // arg0*arg1 (signed 64-bit)
 		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true}, // arg0*arg1 (signed 32-bit)
@@ -200,12 +209,12 @@ func init() {
 		{name: "FMSUB", argLength: 3, reg: fp31, asm: "FMSUB"},   // arg0*arg1 - arg2
 		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS"}, // arg0*arg1 - arg2
 
-		{name: "SRAD", argLength: 2, reg: gp21, asm: "SRAD"}, // signed arg0 >> (arg1&127), 64 bit width (note: 127, not 63!)
-		{name: "SRAW", argLength: 2, reg: gp21, asm: "SRAW"}, // signed arg0 >> (arg1&63), 32 bit width
-		{name: "SRD", argLength: 2, reg: gp21, asm: "SRD"},   // unsigned arg0 >> (arg1&127), 64 bit width
-		{name: "SRW", argLength: 2, reg: gp21, asm: "SRW"},   // unsigned arg0 >> (arg1&63), 32 bit width
-		{name: "SLD", argLength: 2, reg: gp21, asm: "SLD"},   // arg0 << (arg1&127), 64 bit width
-		{name: "SLW", argLength: 2, reg: gp21, asm: "SLW"},   // arg0 << (arg1&63), 32 bit width
+		{name: "SRAD", argLength: 2, reg: gp21cxer, asm: "SRAD"}, // signed arg0 >> (arg1&127), 64 bit width (note: 127, not 63!)
+		{name: "SRAW", argLength: 2, reg: gp21cxer, asm: "SRAW"}, // signed arg0 >> (arg1&63), 32 bit width
+		{name: "SRD", argLength: 2, reg: gp21, asm: "SRD"},       // unsigned arg0 >> (arg1&127), 64 bit width
+		{name: "SRW", argLength: 2, reg: gp21, asm: "SRW"},       // unsigned arg0 >> (arg1&63), 32 bit width
+		{name: "SLD", argLength: 2, reg: gp21, asm: "SLD"},       // arg0 << (arg1&127), 64 bit width
+		{name: "SLW", argLength: 2, reg: gp21, asm: "SLW"},       // arg0 << (arg1&63), 32 bit width
 
 		{name: "ROTL", argLength: 2, reg: gp21, asm: "ROTL"},   // arg0 rotate left by arg1 mod 64
 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
@@ -215,14 +224,22 @@ func init() {
 		{name: "CLRLSLWI", argLength: 1, reg: gp11, asm: "CLRLSLWI", aux: "Int32"}, //
 		{name: "CLRLSLDI", argLength: 1, reg: gp11, asm: "CLRLSLDI", aux: "Int32"}, //
 
-		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true}, // arg0 + arg1 + carry, returns (sum, carry)
+		// Operations which consume or generate the CA (xer)
+		{name: "ADDC", argLength: 2, reg: gp21xer, asm: "ADDC", commutative: true, typ: "(UInt64, UInt64)"},    // arg0 + arg1 -> out, CA
+		{name: "SUBC", argLength: 2, reg: gp21xer, asm: "SUBC", typ: "(UInt64, UInt64)"},                       // arg0 - arg1 -> out, CA
+		{name: "ADDCconst", argLength: 1, reg: gp11xer, asm: "ADDC", typ: "(UInt64, UInt64)", aux: "Int64"},    // arg0 + imm16 -> out, CA
+		{name: "SUBCconst", argLength: 1, reg: gp11xer, asm: "SUBC", typ: "(UInt64, UInt64)", aux: "Int64"},    // imm16 - arg0 -> out, CA
+		{name: "ADDE", argLength: 3, reg: gp2xer1xer, asm: "ADDE", typ: "(UInt64, UInt64)", commutative: true}, // arg0 + arg1 + CA (arg2) -> out, CA
+		{name: "SUBE", argLength: 3, reg: gp2xer1xer, asm: "SUBE", typ: "(UInt64, UInt64)"},                    // arg0 - arg1 - CA (arg2) -> out, CA
+		{name: "ADDZEzero", argLength: 1, reg: xergp, asm: "ADDZE", typ: "UInt64"},                             // CA (arg0) + $0 -> out
+		{name: "SUBZEzero", argLength: 1, reg: xergp, asm: "SUBZE", typ: "UInt64"},                             // $0 - CA (arg0) -> out
 
-		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
-		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 32, 32 bit width
-		{name: "SRDconst", argLength: 1, reg: gp11, asm: "SRD", aux: "Int64"},   // unsigned arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
-		{name: "SRWconst", argLength: 1, reg: gp11, asm: "SRW", aux: "Int64"},   // unsigned arg0 >> auxInt, 0 <= auxInt < 32, 32 bit width
-		{name: "SLDconst", argLength: 1, reg: gp11, asm: "SLD", aux: "Int64"},   // arg0 << auxInt, 0 <= auxInt < 64, 64 bit width
-		{name: "SLWconst", argLength: 1, reg: gp11, asm: "SLW", aux: "Int64"},   // arg0 << auxInt, 0 <= auxInt < 32, 32 bit width
+		{name: "SRADconst", argLength: 1, reg: gp11cxer, asm: "SRAD", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
+		{name: "SRAWconst", argLength: 1, reg: gp11cxer, asm: "SRAW", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 32, 32 bit width
+		{name: "SRDconst", argLength: 1, reg: gp11, asm: "SRD", aux: "Int64"},       // unsigned arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
+		{name: "SRWconst", argLength: 1, reg: gp11, asm: "SRW", aux: "Int64"},       // unsigned arg0 >> auxInt, 0 <= auxInt < 32, 32 bit width
+		{name: "SLDconst", argLength: 1, reg: gp11, asm: "SLD", aux: "Int64"},       // arg0 << auxInt, 0 <= auxInt < 64, 64 bit width
+		{name: "SLWconst", argLength: 1, reg: gp11, asm: "SLW", aux: "Int64"},       // arg0 << auxInt, 0 <= auxInt < 32, 32 bit width
 
 		{name: "ROTLconst", argLength: 1, reg: gp11, asm: "ROTL", aux: "Int64"},   // arg0 rotate left by auxInt bits
 		{name: "ROTLWconst", argLength: 1, reg: gp11, asm: "ROTLW", aux: "Int64"}, // uint32(arg0) rotate left by auxInt bits
@@ -335,6 +352,10 @@ func init() {
 		{name: "FMOVDloadidx", argLength: 3, reg: fploadidx, asm: "FMOVD", typ: "Float64"},
 		{name: "FMOVSloadidx", argLength: 3, reg: fploadidx, asm: "FMOVS", typ: "Float32"},
 
+		// Prefetch instruction
+		// Do prefetch of address generated with arg0 and arg1 with option aux. arg0=addr,arg1=memory, aux=option.
+		{name: "DCBT", argLength: 2, aux: "Int64", reg: prefreg, asm: "DCBT", hasSideEffects: true},
+
 		// Store bytes in the reverse endian order of the arch into arg0.
 		// These are indexed stores with no offset field in the instruction so the auxint fields are not used.
 		{name: "MOVDBRstore", argLength: 3, reg: gpstore, asm: "MOVDBR", aux: "Sym", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes reverse order
@@ -390,7 +411,7 @@ func init() {
 		{name: "CMPWUconst", argLength: 1, reg: gp1cr, asm: "CMPWU", aux: "Int32", typ: "Flags"},
 
 		// ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
-		// ISEL auxInt values 4=GE 5=LE 6=NE   arg2 ? arg1 : arg0
+		// ISEL auxInt values 4=GE 5=LE 6=NE   !arg2 ? arg1 : arg0
 		// ISELB special case where arg0, arg1 values are 0, 1 for boolean result
 		{name: "ISEL", argLength: 3, reg: crgp21, asm: "ISEL", aux: "Int32", typ: "Int32"},  // see above
 		{name: "ISELB", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32", typ: "Int32"}, // see above
@@ -427,9 +448,10 @@ func init() {
 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                       // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},            // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                       // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                         // tail call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},            // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// large or unaligned zeroing
 		// arg0 = address of memory to zero (in R3, changed as side effect)
@@ -661,6 +683,7 @@ func init() {
 		// but may clobber anything else, including R31 (REGTMP).
 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ buildReg("R0 R3 R4 R5 R6 R7 R8 R9 R10 R14 R15 R16 R17 R20 R21 g")) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
 
+		{name: "LoweredPubBarrier", argLength: 1, asm: "LWSYNC", hasSideEffects: true}, // Do data barrier. arg0=memory
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
 		// default registers to match so we don't need to copy registers around unnecessarily.
@@ -703,15 +726,18 @@ func init() {
 	}
 
 	archs = append(archs, arch{
-		name:            "PPC64",
-		pkg:             "cmd/internal/obj/ppc64",
-		genfile:         "../../ppc64/ssa.go",
-		ops:             ops,
-		blocks:          blocks,
-		regnames:        regNamesPPC64,
-		gpregmask:       gp,
-		fpregmask:       fp,
-		framepointerreg: int8(num["SP"]),
-		linkreg:         -1, // not used
+		name:               "PPC64",
+		pkg:                "cmd/internal/obj/ppc64",
+		genfile:            "../../ppc64/ssa.go",
+		ops:                ops,
+		blocks:             blocks,
+		regnames:           regNamesPPC64,
+		ParamIntRegNames:   "R3 R4 R5 R6 R7 R8 R9 R10 R14 R15 R16 R17",
+		ParamFloatRegNames: "F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12",
+		gpregmask:          gp,
+		fpregmask:          fp,
+		specialregmask:     xer,
+		framepointerreg:    -1,
+		linkreg:            -1, // not used
 	})
 }

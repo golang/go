@@ -32,7 +32,8 @@ func (check *Checker) labels(body *syntax.BlockStmt) {
 	}
 
 	// spec: "It is illegal to define a label that is never used."
-	for _, obj := range all.elems {
+	for name, obj := range all.elems {
+		obj = resolve(name, obj)
 		if lbl := obj.(*Label); !lbl.used {
 			check.softErrorf(lbl.pos, "label %s declared but not used", lbl.name)
 		}

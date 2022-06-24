@@ -36,14 +36,13 @@ func check(t *testing.T, file string) {
 				continue
 			}
 
-			frags := bytes.SplitAfterN(line, []byte("ERROR HERE: "), 2)
-			if len(frags) == 1 {
+			_, frag, ok := bytes.Cut(line, []byte("ERROR HERE: "))
+			if !ok {
 				continue
 			}
-			frag := fmt.Sprintf(":%d:.*%s", i+1, frags[1])
-			re, err := regexp.Compile(frag)
+			re, err := regexp.Compile(fmt.Sprintf(":%d:.*%s", i+1, frag))
 			if err != nil {
-				t.Errorf("Invalid regexp after `ERROR HERE: `: %#q", frags[1])
+				t.Errorf("Invalid regexp after `ERROR HERE: `: %#q", frag)
 				continue
 			}
 			errors = append(errors, re)

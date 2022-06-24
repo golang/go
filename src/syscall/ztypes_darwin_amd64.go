@@ -2,7 +2,6 @@
 // cgo -godefs types_darwin.go
 
 //go:build amd64 && darwin
-// +build amd64,darwin
 
 package syscall
 

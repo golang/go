@@ -9,7 +9,7 @@ package p
 
 type List[E any /* ERROR "expected ']', found any" */ ] []E
 
-type Pair[L, /* ERROR "expected ']', found ','" */ R any] struct {
+type Pair[L, /* ERROR "unexpected comma" */ R any] struct {
 	Left L
 	Right R
 }

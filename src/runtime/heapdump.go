@@ -12,7 +12,7 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -247,7 +247,7 @@ func dumpbv(cbv *bitvector, offset uintptr) {
 	for i := uintptr(0); i < uintptr(cbv.n); i++ {
 		if cbv.ptrbit(i) == 1 {
 			dumpint(fieldKindPtr)
-			dumpint(uint64(offset + i*sys.PtrSize))
+			dumpint(uint64(offset + i*goarch.PtrSize))
 		}
 	}
 }
@@ -259,7 +259,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	// Figure out what we can about our stack map
 	pc := s.pc
 	pcdata := int32(-1) // Use the entry map at function entry
-	if pc != f.entry {
+	if pc != f.entry() {
 		pc--
 		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
 	}
@@ -284,7 +284,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	dumpint(uint64(child.depth))                       // # of frames deep on the stack
 	dumpint(uint64(uintptr(unsafe.Pointer(child.sp)))) // sp of child, or 0 if bottom of stack
 	dumpmemrange(unsafe.Pointer(s.sp), s.fp-s.sp)      // frame contents
-	dumpint(uint64(f.entry))
+	dumpint(uint64(f.entry()))
 	dumpint(uint64(s.pc))
 	dumpint(uint64(s.continpc))
 	name := funcname(f)
@@ -298,7 +298,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 		dumpbv(&child.args, child.argoff)
 	} else {
 		// conservative - everything might be a pointer
-		for off := child.argoff; off < child.argoff+child.arglen; off += sys.PtrSize {
+		for off := child.argoff; off < child.argoff+child.arglen; off += goarch.PtrSize {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(off))
 		}
@@ -307,21 +307,21 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	// Dump fields in the local vars section
 	if stkmap == nil {
 		// No locals information, dump everything.
-		for off := child.arglen; off < s.varp-s.sp; off += sys.PtrSize {
+		for off := child.arglen; off < s.varp-s.sp; off += goarch.PtrSize {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(off))
 		}
 	} else if stkmap.n < 0 {
 		// Locals size information, dump just the locals.
 		size := uintptr(-stkmap.n)
-		for off := s.varp - size - s.sp; off < s.varp-s.sp; off += sys.PtrSize {
+		for off := s.varp - size - s.sp; off < s.varp-s.sp; off += goarch.PtrSize {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(off))
 		}
 	} else if stkmap.n > 0 {
 		// Locals bitmap information, scan just the pointers in
 		// locals.
-		dumpbv(&bv, s.varp-uintptr(bv.n)*sys.PtrSize-s.sp)
+		dumpbv(&bv, s.varp-uintptr(bv.n)*goarch.PtrSize-s.sp)
 	}
 	dumpint(fieldKindEol)
 
@@ -381,12 +381,13 @@ func dumpgoroutine(gp *g) {
 		dumpint(uint64(uintptr(unsafe.Pointer(gp))))
 		dumpint(uint64(d.sp))
 		dumpint(uint64(d.pc))
-		dumpint(uint64(uintptr(unsafe.Pointer(d.fn))))
+		fn := *(**funcval)(unsafe.Pointer(&d.fn))
+		dumpint(uint64(uintptr(unsafe.Pointer(fn))))
 		if d.fn == nil {
 			// d.fn can be nil for open-coded defers
 			dumpint(uint64(0))
 		} else {
-			dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
+			dumpint(uint64(uintptr(unsafe.Pointer(fn.fn))))
 		}
 		dumpint(uint64(uintptr(unsafe.Pointer(d.link))))
 	}
@@ -510,7 +511,7 @@ func dumpparams() {
 	} else {
 		dumpbool(true) // big-endian ptrs
 	}
-	dumpint(sys.PtrSize)
+	dumpint(goarch.PtrSize)
 	var arenaStart, arenaEnd uintptr
 	for i1 := range mheap_.arenas {
 		if mheap_.arenas[i1] == nil {
@@ -531,7 +532,7 @@ func dumpparams() {
 	}
 	dumpint(uint64(arenaStart))
 	dumpint(uint64(arenaEnd))
-	dumpstr(sys.GOARCH)
+	dumpstr(goarch.GOARCH)
 	dumpstr(buildVersion)
 	dumpint(uint64(ncpu))
 }
@@ -630,7 +631,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 			dumpint(0)
 		} else {
 			dumpstr(funcname(f))
-			if i > 0 && pc > f.entry {
+			if i > 0 && pc > f.entry() {
 				pc--
 			}
 			file, line := funcline(f, pc)
@@ -696,11 +697,6 @@ func writeheapdump_m(fd uintptr, m *MemStats) {
 	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
 	_g_.waitreason = waitReasonDumpingHeap
 
-	// Update stats so we can dump them.
-	// As a side effect, flushes all the mcaches so the mspan.freelist
-	// lists contain all the free objects.
-	updatememstats()
-
 	// Set dump file.
 	dumpfd = fd
 
@@ -725,7 +721,7 @@ func dumpfields(bv bitvector) {
 
 func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	// Extend the temp buffer if necessary.
-	nptr := size / sys.PtrSize
+	nptr := size / goarch.PtrSize
 	if uintptr(len(tmpbuf)) < nptr/8+1 {
 		if tmpbuf != nil {
 			sysFree(unsafe.Pointer(&tmpbuf[0]), uintptr(len(tmpbuf)), &memstats.other_sys)

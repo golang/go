@@ -228,6 +228,7 @@ func (v *Value) auxString() string {
 
 // If/when midstack inlining is enabled (-l=4), the compiler gets both larger and slower.
 // Not-inlining this method is a help (*Value.reset and *Block.NewValue0 are similar).
+//
 //go:noinline
 func (v *Value) AddArg(w *Value) {
 	if v.Args == nil {
@@ -302,12 +303,6 @@ func (v *Value) SetArg(i int, w *Value) {
 	v.Args[i] = w
 	w.Uses++
 }
-func (v *Value) RemoveArg(i int) {
-	v.Args[i].Uses--
-	copy(v.Args[i:], v.Args[i+1:])
-	v.Args[len(v.Args)-1] = nil // aid GC
-	v.Args = v.Args[:len(v.Args)-1]
-}
 func (v *Value) SetArgs1(a *Value) {
 	v.resetArgs()
 	v.AddArg(a)
@@ -337,6 +332,7 @@ func (v *Value) resetArgs() {
 // reset is called from most rewrite rules.
 // Allowing it to be inlined increases the size
 // of cmd/compile by almost 10%, and slows it down.
+//
 //go:noinline
 func (v *Value) reset(op Op) {
 	if v.InCache {
@@ -351,11 +347,13 @@ func (v *Value) reset(op Op) {
 // invalidateRecursively marks a value as invalid (unused)
 // and after decrementing reference counts on its Args,
 // also recursively invalidates any of those whose use
-// count goes to zero.
+// count goes to zero.  It returns whether any of the
+// invalidated values was marked with IsStmt.
 //
 // BEWARE of doing this *before* you've applied intended
 // updates to SSA.
-func (v *Value) invalidateRecursively() {
+func (v *Value) invalidateRecursively() bool {
+	lostStmt := v.Pos.IsStmt() == src.PosIsStmt
 	if v.InCache {
 		v.Block.Func.unCache(v)
 	}
@@ -364,7 +362,8 @@ func (v *Value) invalidateRecursively() {
 	for _, a := range v.Args {
 		a.Uses--
 		if a.Uses == 0 {
-			a.invalidateRecursively()
+			lost := a.invalidateRecursively()
+			lostStmt = lost || lostStmt
 		}
 	}
 
@@ -375,10 +374,12 @@ func (v *Value) invalidateRecursively() {
 
 	v.AuxInt = 0
 	v.Aux = nil
+	return lostStmt
 }
 
 // copyOf is called from rewrite rules.
 // It modifies v to be (Copy a).
+//
 //go:noinline
 func (v *Value) copyOf(a *Value) {
 	if v == a {

@@ -2,12 +2,14 @@
 # cmd/cgo: undefined reference when linking a C-library using gccgo
 
 [!cgo] skip
-[!gccgo] skip
+[!exec:gccgo] skip
 
-go build -r -compiler gccgo cgoref
+go build -n -compiler gccgo
 stderr 'gccgo.*\-L [^ ]*alibpath \-lalib' # make sure that Go-inline "#cgo LDFLAGS:" ("-L alibpath -lalib") passed to gccgo linking stage
 
--- cgoref/cgoref.go --
+-- go.mod --
+module m
+-- cgoref.go --
 package main
 // #cgo LDFLAGS: -L alibpath -lalib
 // void f(void) {}

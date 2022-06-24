@@ -125,8 +125,8 @@ it is a distinct program, so there are some differences.
 One is in constant evaluation.
 Constant expressions in the assembler are parsed using Go's operator
 precedence, not the C-like precedence of the original.
-Thus <code>3&amp;1<<2</code> is 4, not 0—it parses as <code>(3&amp;1)<<2</code>
-not <code>3&amp;(1<<2)</code>.
+Thus <code>3&amp;1&lt;&lt;2</code> is 4, not 0—it parses as <code>(3&amp;1)&lt;&lt;2</code>
+not <code>3&amp;(1&lt;&lt;2)</code>.
 Also, constants are always evaluated as 64-bit unsigned integers.
 Thus <code>-2</code> is not the integer value minus two,
 but the unsigned 64-bit integer with the same bit pattern.
@@ -166,7 +166,7 @@ jumps and branches.
 </li>
 
 <li>
-<code>SP</code>: Stack pointer: top of stack.
+<code>SP</code>: Stack pointer: the highest address within the local stack frame.
 </li>
 
 </ul>
@@ -216,7 +216,7 @@ If a Go prototype does not name its result, the expected assembly name is <code>
 The <code>SP</code> pseudo-register is a virtual stack pointer
 used to refer to frame-local variables and the arguments being
 prepared for function calls.
-It points to the top of the local stack frame, so references should use negative offsets
+It points to the highest address within the local stack frame, so references should use negative offsets
 in the range [−framesize, 0):
 <code>x-8(SP)</code>, <code>y-4(SP)</code>, and so on.
 </p>
@@ -409,7 +409,7 @@ The linker will choose one of the duplicates to use.
 (For <code>TEXT</code> items.)
 Don't insert the preamble to check if the stack must be split.
 The frame for the routine, plus anything it calls, must fit in the
-spare space at the top of the stack segment.
+spare space remaining in the current stack segment.
 Used to protect routines such as the stack splitting code itself.
 </li>
 <li>
@@ -460,7 +460,7 @@ Only valid on functions that declare a frame size of 0.
 <code>TOPFRAME</code> = 2048
 <br>
 (For <code>TEXT</code> items.)
-Function is the top of the call stack. Traceback should stop at this function.
+Function is the outermost frame of the call stack. Traceback should stop at this function.
 </li>
 </ul>
 
@@ -828,10 +828,6 @@ The other codes are <code>-&gt;</code> (arithmetic right shift),
 <h3 id="arm64">ARM64</h3>
 
 <p>
-The ARM64 port is in an experimental state.
-</p>
-
-<p>
 <code>R18</code> is the "platform register", reserved on the Apple platform.
 To prevent accidental misuse, the register is named <code>R18_PLATFORM</code>.
 <code>R27</code> and <code>R28</code> are reserved by the compiler and linker.
@@ -917,8 +913,6 @@ This assembler is used by GOARCH values ppc64 and ppc64le.
 <p>
 Reference: <a href="/pkg/cmd/internal/obj/ppc64">Go PPC64 Assembly Instructions Reference Manual</a>
 </p>
-
-</ul>
 
 <h3 id="s390x">IBM z/Architecture, a.k.a. s390x</h3>
 

@@ -36,7 +36,7 @@ func Field(v Value, i int) Value {
 	// In the former case, we want v.ptr + offset.
 	// In the latter case, we must have field.offset = 0,
 	// so v.ptr + field.offset is still the correct address.
-	ptr := add(v.ptr, field.offset(), "same as non-reflect &v.field")
+	ptr := add(v.ptr, field.offset, "same as non-reflect &v.field")
 	return Value{typ, ptr, fl}
 }
 
@@ -78,10 +78,12 @@ func Zero(typ Type) Value {
 
 // ToInterface returns v's current value as an interface{}.
 // It is equivalent to:
+//
 //	var i interface{} = (v's underlying value)
+//
 // It panics if the Value was obtained by accessing
 // unexported struct fields.
-func ToInterface(v Value) (i interface{}) {
+func ToInterface(v Value) (i any) {
 	return valueInterface(v)
 }
 

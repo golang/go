@@ -4,16 +4,16 @@
 
 # 'go list' accepts package paths with pluses.
 cp go.mod.orig go.mod
-go get -d example.net/cmd
+go get example.net/cmd
 go list example.net/cmd/x++
 
 # 'go list -m' rejects module paths with pluses.
 ! go list -versions -m 'example.net/bad++'
-stderr '^go list -m: malformed module path "example.net/bad\+\+": invalid char ''\+''$'
+stderr '^go: malformed module path "example.net/bad\+\+": invalid char ''\+''$'
 
 # 'go get' accepts package paths with pluses.
 cp go.mod.orig go.mod
-go get -d example.net/cmd/x++
+go get example.net/cmd/x++
 go list -m example.net/cmd
 stdout '^example.net/cmd v0.0.0-00010101000000-000000000000 => ./cmd$'
 

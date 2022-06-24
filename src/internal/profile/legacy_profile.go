@@ -335,11 +335,12 @@ func addTracebackSample(l []*Location, s []string, p *Profile) {
 //
 // The general format for profilez samples is a sequence of words in
 // binary format. The first words are a header with the following data:
-//   1st word -- 0
-//   2nd word -- 3
-//   3rd word -- 0 if a c++ application, 1 if a java application.
-//   4th word -- Sampling period (in microseconds).
-//   5th word -- Padding.
+//
+//	1st word -- 0
+//	2nd word -- 3
+//	3rd word -- 0 if a c++ application, 1 if a java application.
+//	4th word -- Sampling period (in microseconds).
+//	5th word -- Padding.
 func parseCPU(b []byte) (*Profile, error) {
 	var parse func([]byte) (uint64, []byte)
 	var n1, n2, n3, n4, n5 uint64
@@ -410,15 +411,18 @@ func cpuProfile(b []byte, period int64, parse func(b []byte) (uint64, []byte)) (
 //
 // profilez samples are a repeated sequence of stack frames of the
 // form:
-//    1st word -- The number of times this stack was encountered.
-//    2nd word -- The size of the stack (StackSize).
-//    3rd word -- The first address on the stack.
-//    ...
-//    StackSize + 2 -- The last address on the stack
+//
+//	1st word -- The number of times this stack was encountered.
+//	2nd word -- The size of the stack (StackSize).
+//	3rd word -- The first address on the stack.
+//	...
+//	StackSize + 2 -- The last address on the stack
+//
 // The last stack trace is of the form:
-//   1st word -- 0
-//   2nd word -- 1
-//   3rd word -- 0
+//
+//	1st word -- 0
+//	2nd word -- 1
+//	3rd word -- 0
 //
 // Addresses from stack traces may point to the next instruction after
 // each call. Optionally adjust by -1 to land somewhere on the actual
@@ -750,11 +754,11 @@ func parseCppContention(r *bytes.Buffer) (*Profile, error) {
 			break
 		}
 
-		attr := strings.SplitN(l, delimiter, 2)
-		if len(attr) != 2 {
+		key, val, ok := strings.Cut(l, delimiter)
+		if !ok {
 			break
 		}
-		key, val := strings.TrimSpace(attr[0]), strings.TrimSpace(attr[1])
+		key, val = strings.TrimSpace(key), strings.TrimSpace(val)
 		var err error
 		switch key {
 		case "cycles/second":
@@ -1050,8 +1054,8 @@ func (p *Profile) ParseMemoryMap(rd io.Reader) error {
 			if err == errUnrecognized {
 				// Recognize assignments of the form: attr=value, and replace
 				// $attr with value on subsequent mappings.
-				if attr := strings.SplitN(l, delimiter, 2); len(attr) == 2 {
-					attrs = append(attrs, "$"+strings.TrimSpace(attr[0]), strings.TrimSpace(attr[1]))
+				if attr, value, ok := strings.Cut(l, delimiter); ok {
+					attrs = append(attrs, "$"+strings.TrimSpace(attr), strings.TrimSpace(value))
 					r = strings.NewReplacer(attrs...)
 				}
 				// Ignore any unrecognized entries

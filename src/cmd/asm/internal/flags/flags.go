@@ -6,6 +6,7 @@
 package flags
 
 import (
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"flag"
 	"fmt"
@@ -23,10 +24,15 @@ var (
 	Linkshared       = flag.Bool("linkshared", false, "generate code that will be linked against Go shared libraries")
 	AllErrors        = flag.Bool("e", false, "no limit on number of errors reported")
 	SymABIs          = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
-	Importpath       = flag.String("p", "", "set expected package import to path")
+	Importpath       = flag.String("p", obj.UnlinkablePkg, "set expected package import to path")
 	Spectre          = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
 	CompilingRuntime = flag.Bool("compiling-runtime", false, "source to be compiled is part of the Go runtime")
 )
+
+var DebugFlags struct {
+	MayMoreStack string `help:"call named function before all stack growth checks"`
+	PCTab        string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
+}
 
 var (
 	D        MultiFlag
@@ -39,6 +45,7 @@ func init() {
 	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifier=value; can be set multiple times")
 	flag.Var(&I, "I", "include directory; can be set multiple times")
 	flag.BoolVar(&DebugV, "v", false, "print debug output")
+	flag.Var(objabi.NewDebugFlag(&DebugFlags, nil), "d", "enable debugging settings; try -d help")
 	objabi.AddVersionFlag() // -V
 	objabi.Flagcount("S", "print assembly and machine code", &PrintOut)
 }

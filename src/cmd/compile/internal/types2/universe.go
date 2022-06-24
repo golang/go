@@ -20,11 +20,12 @@ var Universe *Scope
 var Unsafe *Package
 
 var (
-	universeIota  *Const
-	universeByte  *Basic // uint8 alias, but has name "byte"
-	universeRune  *Basic // int32 alias, but has name "rune"
-	universeAny   *Interface
-	universeError *Named
+	universeIota       Object
+	universeByte       Type // uint8 alias, but has name "byte"
+	universeRune       Type // int32 alias, but has name "rune"
+	universeAny        Object
+	universeError      Type
+	universeComparable Object
 )
 
 // Typ contains the predeclared *Basic types indexed by their
@@ -77,20 +78,43 @@ func defPredeclaredTypes() {
 		def(NewTypeName(nopos, nil, t.name, t))
 	}
 
-	// any
-	// (Predeclared and entered into universe scope so we do all the
-	// usual checks; but removed again from scope later since it's
-	// only visible as constraint in a type parameter list.)
-	def(NewTypeName(nopos, nil, "any", &emptyInterface))
+	// type any = interface{}
+	// Note: don't use &emptyInterface for the type of any. Using a unique
+	// pointer allows us to detect any and format it as "any" rather than
+	// interface{}, which clarifies user-facing error messages significantly.
+	def(NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
 
-	// Error has a nil package in its qualified name since it is in no package
+	// type error interface{ Error() string }
 	{
+		obj := NewTypeName(nopos, nil, "error", nil)
+		obj.setColor(black)
+		typ := NewNamed(obj, nil, nil)
+
+		// error.Error() string
+		recv := NewVar(nopos, nil, "", typ)
 		res := NewVar(nopos, nil, "", Typ[String])
-		sig := &Signature{results: NewTuple(res)}
+		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
 		err := NewFunc(nopos, nil, "Error", sig)
-		typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil).Complete()}
-		sig.recv = NewVar(nopos, nil, "", typ)
-		def(NewTypeName(nopos, nil, "error", typ))
+
+		// interface{ Error() string }
+		ityp := &Interface{methods: []*Func{err}, complete: true}
+		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
+
+		typ.SetUnderlying(ityp)
+		def(obj)
+	}
+
+	// type comparable interface{} // marked as comparable
+	{
+		obj := NewTypeName(nopos, nil, "comparable", nil)
+		obj.setColor(black)
+		typ := NewNamed(obj, nil, nil)
+
+		// interface{} // marked as comparable
+		ityp := &Interface{complete: true, tset: &_TypeSet{nil, allTermlist, true}}
+
+		typ.SetUnderlying(ityp)
+		def(obj)
 	}
 }
 
@@ -200,33 +224,6 @@ func DefPredeclaredTestFuncs() {
 	def(newBuiltin(_Trace))
 }
 
-func defPredeclaredComparable() {
-	// The "comparable" interface can be imagined as defined like
-	//
-	// type comparable interface {
-	//         == () untyped bool
-	//         != () untyped bool
-	// }
-	//
-	// == and != cannot be user-declared but we can declare
-	// a magic method == and check for its presence when needed.
-
-	// Define interface { == () }. We don't care about the signature
-	// for == so leave it empty except for the receiver, which is
-	// set up later to match the usual interface method assumptions.
-	sig := new(Signature)
-	eql := NewFunc(nopos, nil, "==", sig)
-	iface := NewInterfaceType([]*Func{eql}, nil).Complete()
-
-	// set up the defined type for the interface
-	obj := NewTypeName(nopos, nil, "comparable", nil)
-	named := NewNamed(obj, iface, nil)
-	obj.color_ = black
-	sig.recv = NewVar(nopos, nil, "", named) // complete == signature
-
-	def(obj)
-}
-
 func init() {
 	Universe = NewScope(nil, nopos, nopos, "universe")
 	Unsafe = NewPackage("unsafe", "unsafe")
@@ -236,22 +233,18 @@ func init() {
 	defPredeclaredConsts()
 	defPredeclaredNil()
 	defPredeclaredFuncs()
-	defPredeclaredComparable()
 
-	universeIota = Universe.Lookup("iota").(*Const)
-	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
-	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
-	universeAny = Universe.Lookup("any").(*TypeName).typ.(*Interface)
-	universeError = Universe.Lookup("error").(*TypeName).typ.(*Named)
-
-	// "any" is only visible as constraint in a type parameter list
-	delete(Universe.elems, "any")
+	universeIota = Universe.Lookup("iota")
+	universeByte = Universe.Lookup("byte").Type()
+	universeRune = Universe.Lookup("rune").Type()
+	universeAny = Universe.Lookup("any")
+	universeError = Universe.Lookup("error").Type()
+	universeComparable = Universe.Lookup("comparable")
 }
 
 // Objects with names containing blanks are internal and not entered into
 // a scope. Objects with exported names are inserted in the unsafe package
 // scope; other objects are inserted in the universe scope.
-//
 func def(obj Object) {
 	assert(obj.color() == black)
 	name := obj.Name()
@@ -259,7 +252,7 @@ func def(obj Object) {
 		return // nothing to do
 	}
 	// fix Obj link for named types
-	if typ := asNamed(obj.Type()); typ != nil {
+	if typ, _ := obj.Type().(*Named); typ != nil {
 		typ.obj = obj.(*TypeName)
 	}
 	// exported identifiers go into package unsafe
@@ -277,6 +270,6 @@ func def(obj Object) {
 		}
 	}
 	if scope.Insert(obj) != nil {
-		panic("internal error: double declaration")
+		panic("double declaration of predeclared identifier")
 	}
 }

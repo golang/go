@@ -7,6 +7,7 @@
 package unix
 
 const (
+	SYS_SYSCALL_MASK                 = 0
 	SYS_RESTART_SYSCALL              = 0
 	SYS_EXIT                         = 1
 	SYS_FORK                         = 2
@@ -403,4 +404,11 @@ const (
 	SYS_PROCESS_MADVISE              = 440
 	SYS_EPOLL_PWAIT2                 = 441
 	SYS_MOUNT_SETATTR                = 442
+	SYS_QUOTACTL_FD                  = 443
+	SYS_LANDLOCK_CREATE_RULESET      = 444
+	SYS_LANDLOCK_ADD_RULE            = 445
+	SYS_LANDLOCK_RESTRICT_SELF       = 446
+	SYS_PROCESS_MRELEASE             = 448
+	SYS_FUTEX_WAITV                  = 449
+	SYS_SET_MEMPOLICY_HOME_NODE      = 450
 )

@@ -420,9 +420,11 @@ var float32pow10 = []float32{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1
 // If possible to convert decimal representation to 64-bit float f exactly,
 // entirely in floating-point math, do so, avoiding the expense of decimalToFloatBits.
 // Three common cases:
+//
 //	value is exact integer
 //	value is exact integer * exact power of ten
 //	value is exact integer / exact power of ten
+//
 // These all produce potentially inexact but correctly rounded answers.
 func atof64exact(mantissa uint64, exp int, neg bool) (f float64, ok bool) {
 	if mantissa>>float64info.mantbits != 0 {
@@ -668,7 +670,8 @@ func atof64(s string) (f float64, n int, err error) {
 // When bitSize=32, the result still has type float64, but it will be
 // convertible to float32 without changing its value.
 //
-// ParseFloat accepts decimal and hexadecimal floating-point number syntax.
+// ParseFloat accepts decimal and hexadecimal floating-point numbers
+// as defined by the Go syntax for [floating-point literals].
 // If s is well-formed and near a valid floating-point number,
 // ParseFloat returns the nearest floating-point number rounded
 // using IEEE754 unbiased rounding.
@@ -685,8 +688,10 @@ func atof64(s string) (f float64, n int, err error) {
 // away from the largest floating point number of the given size,
 // ParseFloat returns f = ±Inf, err.Err = ErrRange.
 //
-// ParseFloat recognizes the strings "NaN", and the (possibly signed) strings "Inf" and "Infinity"
+// ParseFloat recognizes the string "NaN", and the (possibly signed) strings "Inf" and "Infinity"
 // as their respective special floating point values. It ignores case when matching.
+//
+// [floating-point literals]: https://go.dev/ref/spec#Floating-point_literals
 func ParseFloat(s string, bitSize int) (float64, error) {
 	f, n, err := parseFloatPrefix(s, bitSize)
 	if n != len(s) && (err == nil || err.(*NumError).Err != ErrSyntax) {

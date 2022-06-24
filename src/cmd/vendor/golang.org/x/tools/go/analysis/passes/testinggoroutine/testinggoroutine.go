@@ -11,6 +11,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 const Doc = `report calls to (*testing.T).Fatal from goroutines started by a test.
@@ -119,11 +120,44 @@ func typeIsTestingDotTOrB(expr ast.Expr) (string, bool) {
 	return varTypeName, ok
 }
 
+// goStmtFunc returns the ast.Node of a call expression
+// that was invoked as a go statement. Currently, only
+// function literals declared in the same function, and
+// static calls within the same package are supported.
+func goStmtFun(goStmt *ast.GoStmt) ast.Node {
+	switch fun := goStmt.Call.Fun.(type) {
+	case *ast.IndexExpr, *typeparams.IndexListExpr:
+		x, _, _, _ := typeparams.UnpackIndexExpr(fun)
+		id, _ := x.(*ast.Ident)
+		if id == nil {
+			break
+		}
+		if id.Obj == nil {
+			break
+		}
+		if funDecl, ok := id.Obj.Decl.(ast.Node); ok {
+			return funDecl
+		}
+	case *ast.Ident:
+		// TODO(cuonglm): improve this once golang/go#48141 resolved.
+		if fun.Obj == nil {
+			break
+		}
+		if funDecl, ok := fun.Obj.Decl.(ast.Node); ok {
+			return funDecl
+		}
+	case *ast.FuncLit:
+		return goStmt.Call.Fun
+	}
+	return goStmt.Call
+}
+
 // checkGoStmt traverses the goroutine and checks for the
 // use of the forbidden *testing.(B, T) methods.
 func checkGoStmt(pass *analysis.Pass, goStmt *ast.GoStmt) {
+	fn := goStmtFun(goStmt)
 	// Otherwise examine the goroutine to check for the forbidden methods.
-	ast.Inspect(goStmt, func(n ast.Node) bool {
+	ast.Inspect(fn, func(n ast.Node) bool {
 		selExpr, ok := n.(*ast.SelectorExpr)
 		if !ok {
 			return true
@@ -147,7 +181,11 @@ func checkGoStmt(pass *analysis.Pass, goStmt *ast.GoStmt) {
 			return true
 		}
 		if typeName, ok := typeIsTestingDotTOrB(field.Type); ok {
-			pass.ReportRangef(selExpr, "call to (*%s).%s from a non-test goroutine", typeName, selExpr.Sel)
+			var fnRange analysis.Range = goStmt
+			if _, ok := fn.(*ast.FuncLit); ok {
+				fnRange = selExpr
+			}
+			pass.ReportRangef(fnRange, "call to (*%s).%s from a non-test goroutine", typeName, selExpr.Sel)
 		}
 		return true
 	})

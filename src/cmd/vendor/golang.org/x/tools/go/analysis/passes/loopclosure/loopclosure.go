@@ -128,9 +128,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 // (but not awaited) in another goroutine as a consequence of the call.
 // For example, given the g.Go call below, it returns the function literal expression.
 //
-//   import "sync/errgroup"
-//   var g errgroup.Group
-//   g.Go(func() error { ... })
+//	import "sync/errgroup"
+//	var g errgroup.Group
+//	g.Go(func() error { ... })
 //
 // Currently only "golang.org/x/sync/errgroup.Group()" is considered.
 func goInvokes(info *types.Info, call *ast.CallExpr) ast.Expr {

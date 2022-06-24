@@ -5,8 +5,9 @@
 package runtime
 
 import (
+	"internal/abi"
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -77,10 +78,8 @@ func kqueue() int32
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
 
-func pipe() (r, w int32, errno int32)
 func pipe2(flags int32) (r, w int32, errno int32)
 func closeonexec(fd int32)
-func setNonblock(fd int32)
 
 const (
 	_ESRCH     = 3
@@ -100,6 +99,9 @@ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)
 
 // From NetBSD's <sys/sysctl.h>
 const (
+	_CTL_KERN   = 1
+	_KERN_OSREV = 3
+
 	_CTL_HW        = 6
 	_HW_NCPU       = 3
 	_HW_PAGESIZE   = 7
@@ -133,6 +135,13 @@ func getPageSize() uintptr {
 	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
 	if ret >= 0 {
 		return uintptr(out)
+	}
+	return 0
+}
+
+func getOSRev() int {
+	if osrev, ok := sysctlInt([]uint32{_CTL_KERN, _KERN_OSREV}); ok {
+		return int(osrev)
 	}
 	return 0
 }
@@ -192,6 +201,7 @@ func semawakeup(mp *m) {
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
@@ -215,7 +225,7 @@ func newosproc(mp *m) {
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 
-	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(netbsdMstart))
+	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, abi.FuncPCABI0(netbsdMstart))
 
 	ret := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
@@ -239,6 +249,7 @@ func netbsdMstart()
 // baroque to remove a signal stack here only to add one in minit, but
 // it's a simple change that keeps NetBSD working like other OS's.
 // At this point all signals are blocked, so there is no race.
+//
 //go:nosplit
 func netbsdMstart0() {
 	st := stackt{ss_flags: _SS_DISABLE}
@@ -251,6 +262,7 @@ func osinit() {
 	if physPageSize == 0 {
 		physPageSize = getPageSize()
 	}
+	needSysmonWorkaround = getOSRev() < 902000000 // NetBSD 9.2
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -294,6 +306,7 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	unminitSignals()
@@ -318,8 +331,8 @@ func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = sigset_all
-	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+		fn = abi.FuncPCABI0(sigtramp)
 	}
 	sa.sa_sigaction = fn
 	sigaction(i, &sa, nil)
@@ -340,6 +353,7 @@ func getsig(i uint32) uintptr {
 }
 
 // setSignaltstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	s.ss_sp = sp
@@ -359,6 +373,19 @@ func sigdelset(mask *sigset, i int) {
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
 
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
+}
+
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
@@ -371,7 +398,7 @@ func sysargs(argc int32, argv **byte) {
 	n++
 
 	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
 	sysauxv(auxv[:])
 }
 
@@ -402,4 +429,13 @@ func raise(sig uint32) {
 
 func signalM(mp *m, sig int) {
 	lwp_kill(int32(mp.procid), sig)
+}
+
+// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+// number.
+const sigPerThreadSyscall = 1 << 31
+
+//go:nosplit
+func runPerThreadSyscall() {
+	throw("runPerThreadSyscall only valid on linux")
 }

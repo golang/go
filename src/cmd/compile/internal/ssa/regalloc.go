@@ -559,7 +559,8 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 func isLeaf(f *Func) bool {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if opcodeTable[v.Op].call {
+			if v.Op.IsCall() && !v.Op.IsTailCall() {
+				// tail call is not counted as it does not save the return PC or need a frame
 				return false
 			}
 		}
@@ -620,20 +621,22 @@ func (s *regAllocState) init(f *Func) {
 	}
 	if s.f.Config.ctxt.Flag_dynlink {
 		switch s.f.Config.arch {
-		case "amd64":
-			s.allocatable &^= 1 << 15 // R15
-		case "arm":
-			s.allocatable &^= 1 << 9 // R9
-		case "ppc64le": // R2 already reserved.
-			// nothing to do
-		case "arm64":
-			// nothing to do?
 		case "386":
 			// nothing to do.
 			// Note that for Flag_shared (position independent code)
 			// we do need to be careful, but that carefulness is hidden
 			// in the rewrite rules so we always have a free register
 			// available for global load/stores. See gen/386.rules (search for Flag_shared).
+		case "amd64":
+			s.allocatable &^= 1 << 15 // R15
+		case "arm":
+			s.allocatable &^= 1 << 9 // R9
+		case "arm64":
+			// nothing to do
+		case "ppc64le": // R2 already reserved.
+			// nothing to do
+		case "riscv64": // X3 (aka GP) and X4 (aka TP) already reserved.
+			// nothing to do
 		case "s390x":
 			s.allocatable &^= 1 << 11 // R11
 		default:
@@ -1234,7 +1237,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				desired.clobber(j.regs)
 				desired.add(v.Args[j.idx].ID, pickReg(j.regs))
 			}
-			if opcodeTable[v.Op].resultInArg0 {
+			if opcodeTable[v.Op].resultInArg0 || v.Op == OpAMD64ADDQconst || v.Op == OpAMD64ADDLconst || v.Op == OpSelect0 {
 				if opcodeTable[v.Op].commutative {
 					desired.addList(v.Args[1].ID, prefs)
 				}
@@ -1595,11 +1598,13 @@ func (s *regAllocState) regalloc(f *Func) {
 							}
 						}
 					}
-					for _, r := range dinfo[idx].out {
-						if r != noRegister && (mask&^s.used)>>r&1 != 0 {
-							// Desired register is allowed and unused.
-							mask = regMask(1) << r
-							break
+					if out.idx == 0 { // desired registers only apply to the first element of a tuple result
+						for _, r := range dinfo[idx].out {
+							if r != noRegister && (mask&^s.used)>>r&1 != 0 {
+								// Desired register is allowed and unused.
+								mask = regMask(1) << r
+								break
+							}
 						}
 					}
 					// Avoid registers we're saving for other values.
@@ -1840,7 +1845,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				if s.f.pass.debug > regDebug {
 					fmt.Printf("delete copied value %s\n", c.LongString())
 				}
-				c.RemoveArg(0)
+				c.resetArgs()
 				f.freeValue(c)
 				delete(s.copies, c)
 				progress = true
@@ -1865,23 +1870,6 @@ func (s *regAllocState) regalloc(f *Func) {
 }
 
 func (s *regAllocState) placeSpills() {
-	f := s.f
-
-	// Precompute some useful info.
-	phiRegs := make([]regMask, f.NumBlocks())
-	for _, b := range s.visitOrder {
-		var m regMask
-		for _, v := range b.Values {
-			if v.Op != OpPhi {
-				break
-			}
-			if r, ok := f.getHome(v.ID).(*Register); ok {
-				m |= regMask(1) << uint(r.num)
-			}
-		}
-		phiRegs[b.ID] = m
-	}
-
 	mustBeFirst := func(op Op) bool {
 		return op.isLoweredGetClosurePtr() || op == OpPhi || op == OpArgIntReg || op == OpArgFloatReg
 	}
@@ -2595,7 +2583,12 @@ func (s *regAllocState) computeLive() {
 					desired.add(v.Args[j.idx].ID, pickReg(j.regs))
 				}
 				// Set desired register of input 0 if this is a 2-operand instruction.
-				if opcodeTable[v.Op].resultInArg0 {
+				if opcodeTable[v.Op].resultInArg0 || v.Op == OpAMD64ADDQconst || v.Op == OpAMD64ADDLconst || v.Op == OpSelect0 {
+					// ADDQconst is added here because we want to treat it as resultInArg0 for
+					// the purposes of desired registers, even though it is not an absolute requirement.
+					// This is because we'd rather implement it as ADDQ instead of LEAQ.
+					// Same for ADDLconst
+					// Select0 is added here to propagate the desired register to the tuple-generating instruction.
 					if opcodeTable[v.Op].commutative {
 						desired.addList(v.Args[1].ID, prefs)
 					}
@@ -2720,6 +2713,8 @@ type desiredStateEntry struct {
 	ID ID
 	// Registers it would like to be in, in priority order.
 	// Unused slots are filled with noRegister.
+	// For opcodes that return tuples, we track desired registers only
+	// for the first element of the tuple.
 	regs [4]register
 }
 

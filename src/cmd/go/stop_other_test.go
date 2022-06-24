@@ -2,16 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !(aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris)
-// +build !aix
-// +build !darwin
-// +build !dragonfly
-// +build !freebsd
-// +build !js !wasm
-// +build !linux
-// +build !netbsd
-// +build !openbsd
-// +build !solaris
+//go:build !(unix || (js && wasm))
 
 package main_test
 

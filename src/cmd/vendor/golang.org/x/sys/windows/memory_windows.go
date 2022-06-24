@@ -35,3 +35,14 @@ const (
 	QUOTA_LIMITS_HARDWS_MAX_DISABLE = 0x00000008
 	QUOTA_LIMITS_HARDWS_MAX_ENABLE  = 0x00000004
 )
+
+type MemoryBasicInformation struct {
+	BaseAddress       uintptr
+	AllocationBase    uintptr
+	AllocationProtect uint32
+	PartitionId       uint16
+	RegionSize        uintptr
+	State             uint32
+	Protect           uint32
+	Type              uint32
+}

@@ -4,7 +4,11 @@
 
 package facts
 
-import "go/types"
+import (
+	"go/types"
+
+	"golang.org/x/tools/internal/typeparams"
+)
 
 // importMap computes the import map for a package by traversing the
 // entire exported API each of its imports.
@@ -16,7 +20,6 @@ import "go/types"
 //
 // Packages in the map that are only indirectly imported may be
 // incomplete (!pkg.Complete()).
-//
 func importMap(imports []*types.Package) map[string]*types.Package {
 	objects := make(map[types.Object]bool)
 	packages := make(map[string]*types.Package)
@@ -42,8 +45,19 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 			// nop
 		case *types.Named:
 			if addObj(T.Obj()) {
+				// TODO(taking): Investigate why the Underlying type is not added here.
 				for i := 0; i < T.NumMethods(); i++ {
 					addObj(T.Method(i))
+				}
+				if tparams := typeparams.ForNamed(T); tparams != nil {
+					for i := 0; i < tparams.Len(); i++ {
+						addType(tparams.At(i))
+					}
+				}
+				if targs := typeparams.NamedTypeArgs(T); targs != nil {
+					for i := 0; i < targs.Len(); i++ {
+						addType(targs.At(i))
+					}
 				}
 			}
 		case *types.Pointer:
@@ -60,6 +74,11 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 		case *types.Signature:
 			addType(T.Params())
 			addType(T.Results())
+			if tparams := typeparams.ForSignature(T); tparams != nil {
+				for i := 0; i < tparams.Len(); i++ {
+					addType(tparams.At(i))
+				}
+			}
 		case *types.Struct:
 			for i := 0; i < T.NumFields(); i++ {
 				addObj(T.Field(i))
@@ -71,6 +90,17 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 		case *types.Interface:
 			for i := 0; i < T.NumMethods(); i++ {
 				addObj(T.Method(i))
+			}
+			for i := 0; i < T.NumEmbeddeds(); i++ {
+				addType(T.EmbeddedType(i)) // walk Embedded for implicits
+			}
+		case *typeparams.Union:
+			for i := 0; i < T.Len(); i++ {
+				addType(T.Term(i).Type())
+			}
+		case *typeparams.TypeParam:
+			if addObj(T.Obj()) {
+				addType(T.Constraint())
 			}
 		}
 	}

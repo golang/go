@@ -3,12 +3,11 @@
 // license that can be found in the LICENSE file.
 
 //go:build (aix || linux) && (ppc64 || ppc64le)
-// +build aix linux
-// +build ppc64 ppc64le
 
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -83,8 +82,8 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	// In case we are panicking from external C code
 	c.set_r0(0)
 	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
-	c.set_r12(uint64(funcPC(sigpanic)))
-	c.set_pc(uint64(funcPC(sigpanic)))
+	c.set_r12(uint64(abi.FuncPCABIInternal(sigpanic)))
+	c.set_pc(uint64(abi.FuncPCABIInternal(sigpanic)))
 }
 
 func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build dragonfly || freebsd || linux
-// +build dragonfly freebsd linux
 
 package runtime
 
@@ -39,6 +38,7 @@ const (
 // affect mutex's state.
 
 // We use the uintptr mutex.key and note.key as a uint32.
+//
 //go:nosplit
 func key32(p *uintptr) *uint32 {
 	return (*uint32)(unsafe.Pointer(p))

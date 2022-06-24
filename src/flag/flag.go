@@ -3,71 +3,86 @@
 // license that can be found in the LICENSE file.
 
 /*
-	Package flag implements command-line flag parsing.
+Package flag implements command-line flag parsing.
 
-	Usage
+# Usage
 
-	Define flags using flag.String(), Bool(), Int(), etc.
+Define flags using flag.String(), Bool(), Int(), etc.
 
-	This declares an integer flag, -n, stored in the pointer nFlag, with type *int:
-		import "flag"
-		var nFlag = flag.Int("n", 1234, "help message for flag n")
-	If you like, you can bind the flag to a variable using the Var() functions.
-		var flagvar int
-		func init() {
-			flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
-		}
-	Or you can create custom flags that satisfy the Value interface (with
-	pointer receivers) and couple them to flag parsing by
-		flag.Var(&flagVal, "name", "help message for flagname")
-	For such flags, the default value is just the initial value of the variable.
+This declares an integer flag, -n, stored in the pointer nFlag, with type *int:
 
-	After all flags are defined, call
-		flag.Parse()
-	to parse the command line into the defined flags.
+	import "flag"
+	var nFlag = flag.Int("n", 1234, "help message for flag n")
 
-	Flags may then be used directly. If you're using the flags themselves,
-	they are all pointers; if you bind to variables, they're values.
-		fmt.Println("ip has value ", *ip)
-		fmt.Println("flagvar has value ", flagvar)
+If you like, you can bind the flag to a variable using the Var() functions.
 
-	After parsing, the arguments following the flags are available as the
-	slice flag.Args() or individually as flag.Arg(i).
-	The arguments are indexed from 0 through flag.NArg()-1.
+	var flagvar int
+	func init() {
+		flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
+	}
 
-	Command line flag syntax
+Or you can create custom flags that satisfy the Value interface (with
+pointer receivers) and couple them to flag parsing by
 
-	The following forms are permitted:
+	flag.Var(&flagVal, "name", "help message for flagname")
 
-		-flag
-		-flag=x
-		-flag x  // non-boolean flags only
-	One or two minus signs may be used; they are equivalent.
-	The last form is not permitted for boolean flags because the
-	meaning of the command
-		cmd -x *
-	where * is a Unix shell wildcard, will change if there is a file
-	called 0, false, etc. You must use the -flag=false form to turn
-	off a boolean flag.
+For such flags, the default value is just the initial value of the variable.
 
-	Flag parsing stops just before the first non-flag argument
-	("-" is a non-flag argument) or after the terminator "--".
+After all flags are defined, call
 
-	Integer flags accept 1234, 0664, 0x1234 and may be negative.
-	Boolean flags may be:
-		1, 0, t, f, T, F, true, false, TRUE, FALSE, True, False
-	Duration flags accept any input valid for time.ParseDuration.
+	flag.Parse()
 
-	The default set of command-line flags is controlled by
-	top-level functions.  The FlagSet type allows one to define
-	independent sets of flags, such as to implement subcommands
-	in a command-line interface. The methods of FlagSet are
-	analogous to the top-level functions for the command-line
-	flag set.
+to parse the command line into the defined flags.
+
+Flags may then be used directly. If you're using the flags themselves,
+they are all pointers; if you bind to variables, they're values.
+
+	fmt.Println("ip has value ", *ip)
+	fmt.Println("flagvar has value ", flagvar)
+
+After parsing, the arguments following the flags are available as the
+slice flag.Args() or individually as flag.Arg(i).
+The arguments are indexed from 0 through flag.NArg()-1.
+
+# Command line flag syntax
+
+The following forms are permitted:
+
+	-flag
+	-flag=x
+	-flag x  // non-boolean flags only
+
+One or two minus signs may be used; they are equivalent.
+The last form is not permitted for boolean flags because the
+meaning of the command
+
+	cmd -x *
+
+where * is a Unix shell wildcard, will change if there is a file
+called 0, false, etc. You must use the -flag=false form to turn
+off a boolean flag.
+
+Flag parsing stops just before the first non-flag argument
+("-" is a non-flag argument) or after the terminator "--".
+
+Integer flags accept 1234, 0664, 0x1234 and may be negative.
+Boolean flags may be:
+
+	1, 0, t, f, T, F, true, false, TRUE, FALSE, True, False
+
+Duration flags accept any input valid for time.ParseDuration.
+
+The default set of command-line flags is controlled by
+top-level functions.  The FlagSet type allows one to define
+independent sets of flags, such as to implement subcommands
+in a command-line interface. The methods of FlagSet are
+analogous to the top-level functions for the command-line
+flag set.
 */
 package flag
 
 import (
+	"encoding"
 	"errors"
 	"fmt"
 	"io"
@@ -122,7 +137,7 @@ func (b *boolValue) Set(s string) error {
 	return err
 }
 
-func (b *boolValue) Get() interface{} { return bool(*b) }
+func (b *boolValue) Get() any { return bool(*b) }
 
 func (b *boolValue) String() string { return strconv.FormatBool(bool(*b)) }
 
@@ -152,7 +167,7 @@ func (i *intValue) Set(s string) error {
 	return err
 }
 
-func (i *intValue) Get() interface{} { return int(*i) }
+func (i *intValue) Get() any { return int(*i) }
 
 func (i *intValue) String() string { return strconv.Itoa(int(*i)) }
 
@@ -173,7 +188,7 @@ func (i *int64Value) Set(s string) error {
 	return err
 }
 
-func (i *int64Value) Get() interface{} { return int64(*i) }
+func (i *int64Value) Get() any { return int64(*i) }
 
 func (i *int64Value) String() string { return strconv.FormatInt(int64(*i), 10) }
 
@@ -194,7 +209,7 @@ func (i *uintValue) Set(s string) error {
 	return err
 }
 
-func (i *uintValue) Get() interface{} { return uint(*i) }
+func (i *uintValue) Get() any { return uint(*i) }
 
 func (i *uintValue) String() string { return strconv.FormatUint(uint64(*i), 10) }
 
@@ -215,7 +230,7 @@ func (i *uint64Value) Set(s string) error {
 	return err
 }
 
-func (i *uint64Value) Get() interface{} { return uint64(*i) }
+func (i *uint64Value) Get() any { return uint64(*i) }
 
 func (i *uint64Value) String() string { return strconv.FormatUint(uint64(*i), 10) }
 
@@ -232,7 +247,7 @@ func (s *stringValue) Set(val string) error {
 	return nil
 }
 
-func (s *stringValue) Get() interface{} { return string(*s) }
+func (s *stringValue) Get() any { return string(*s) }
 
 func (s *stringValue) String() string { return string(*s) }
 
@@ -253,7 +268,7 @@ func (f *float64Value) Set(s string) error {
 	return err
 }
 
-func (f *float64Value) Get() interface{} { return float64(*f) }
+func (f *float64Value) Get() any { return float64(*f) }
 
 func (f *float64Value) String() string { return strconv.FormatFloat(float64(*f), 'g', -1, 64) }
 
@@ -274,10 +289,47 @@ func (d *durationValue) Set(s string) error {
 	return err
 }
 
-func (d *durationValue) Get() interface{} { return time.Duration(*d) }
+func (d *durationValue) Get() any { return time.Duration(*d) }
 
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 
+// -- encoding.TextUnmarshaler Value
+type textValue struct{ p encoding.TextUnmarshaler }
+
+func newTextValue(val encoding.TextMarshaler, p encoding.TextUnmarshaler) textValue {
+	ptrVal := reflect.ValueOf(p)
+	if ptrVal.Kind() != reflect.Ptr {
+		panic("variable value type must be a pointer")
+	}
+	defVal := reflect.ValueOf(val)
+	if defVal.Kind() == reflect.Ptr {
+		defVal = defVal.Elem()
+	}
+	if defVal.Type() != ptrVal.Type().Elem() {
+		panic(fmt.Sprintf("default type does not match variable type: %v != %v", defVal.Type(), ptrVal.Type().Elem()))
+	}
+	ptrVal.Elem().Set(defVal)
+	return textValue{p}
+}
+
+func (v textValue) Set(s string) error {
+	return v.p.UnmarshalText([]byte(s))
+}
+
+func (v textValue) Get() interface{} {
+	return v.p
+}
+
+func (v textValue) String() string {
+	if m, ok := v.p.(encoding.TextMarshaler); ok {
+		if b, err := m.MarshalText(); err == nil {
+			return string(b)
+		}
+	}
+	return ""
+}
+
+// -- func Value
 type funcValue func(string) error
 
 func (f funcValue) Set(s string) error { return f(s) }
@@ -305,7 +357,7 @@ type Value interface {
 // by this package satisfy the Getter interface, except the type used by Func.
 type Getter interface {
 	Value
-	Get() interface{}
+	Get() any
 }
 
 // ErrorHandling defines how FlagSet.Parse behaves if the parse fails.
@@ -450,18 +502,29 @@ func Set(name, value string) error {
 
 // isZeroValue determines whether the string represents the zero
 // value for a flag.
-func isZeroValue(flag *Flag, value string) bool {
+func isZeroValue(flag *Flag, value string) (ok bool, err error) {
 	// Build a zero value of the flag's Value type, and see if the
 	// result of calling its String method equals the value passed in.
 	// This works unless the Value type is itself an interface type.
 	typ := reflect.TypeOf(flag.Value)
 	var z reflect.Value
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		z = reflect.New(typ.Elem())
 	} else {
 		z = reflect.Zero(typ)
 	}
-	return value == z.Interface().(Value).String()
+	// Catch panics calling the String method, which shouldn't prevent the
+	// usage message from being printed, but that we should report to the
+	// user so that they know to fix their code.
+	defer func() {
+		if e := recover(); e != nil {
+			if typ.Kind() == reflect.Pointer {
+				typ = typ.Elem()
+			}
+			err = fmt.Errorf("panic calling String method on zero %v for flag %s: %v", typ, flag.Name, e)
+		}
+	}()
+	return value == z.Interface().(Value).String(), nil
 }
 
 // UnquoteUsage extracts a back-quoted name from the usage
@@ -507,6 +570,7 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 // default values of all defined command-line flags in the set. See the
 // documentation for the global function PrintDefaults for more information.
 func (f *FlagSet) PrintDefaults() {
+	var isZeroValueErrs []error
 	f.VisitAll(func(flag *Flag) {
 		var b strings.Builder
 		fmt.Fprintf(&b, "  -%s", flag.Name) // Two spaces before -; see next two comments.
@@ -526,7 +590,11 @@ func (f *FlagSet) PrintDefaults() {
 		}
 		b.WriteString(strings.ReplaceAll(usage, "\n", "\n    \t"))
 
-		if !isZeroValue(flag, flag.DefValue) {
+		// Print the default value only if it differs to the zero value
+		// for this flag type.
+		if isZero, err := isZeroValue(flag, flag.DefValue); err != nil {
+			isZeroValueErrs = append(isZeroValueErrs, err)
+		} else if !isZero {
 			if _, ok := flag.Value.(*stringValue); ok {
 				// put quotes on the value
 				fmt.Fprintf(&b, " (default %q)", flag.DefValue)
@@ -536,14 +604,25 @@ func (f *FlagSet) PrintDefaults() {
 		}
 		fmt.Fprint(f.Output(), b.String(), "\n")
 	})
+	// If calling String on any zero flag.Values triggered a panic, print
+	// the messages after the full set of defaults so that the programmer
+	// knows to fix the panic.
+	if errs := isZeroValueErrs; len(errs) > 0 {
+		fmt.Fprintln(f.Output())
+		for _, err := range errs {
+			fmt.Fprintln(f.Output(), err)
+		}
+	}
 }
 
 // PrintDefaults prints, to standard error unless configured otherwise,
 // a usage message showing the default settings of all defined
 // command-line flags.
 // For an integer valued flag x, the default output has the form
+//
 //	-x int
 //		usage-message-for-x (default 7)
+//
 // The usage message will appear on a separate line for anything but
 // a bool flag with a one-byte name. For bool flags, the type is
 // omitted and if the flag name is one byte the usage message appears
@@ -553,8 +632,11 @@ func (f *FlagSet) PrintDefaults() {
 // string; the first such item in the message is taken to be a parameter
 // name to show in the message and the back quotes are stripped from
 // the message when displayed. For instance, given
+//
 //	flag.String("I", "", "search `directory` for include files")
+//
 // the output will be
+//
 //	-I directory
 //		search directory for include files.
 //
@@ -838,6 +920,24 @@ func Duration(name string, value time.Duration, usage string) *time.Duration {
 	return CommandLine.Duration(name, value, usage)
 }
 
+// TextVar defines a flag with a specified name, default value, and usage string.
+// The argument p must be a pointer to a variable that will hold the value
+// of the flag, and p must implement encoding.TextUnmarshaler.
+// If the flag is used, the flag value will be passed to p's UnmarshalText method.
+// The type of the default value must be the same as the type of p.
+func (f *FlagSet) TextVar(p encoding.TextUnmarshaler, name string, value encoding.TextMarshaler, usage string) {
+	f.Var(newTextValue(value, p), name, usage)
+}
+
+// TextVar defines a flag with a specified name, default value, and usage string.
+// The argument p must be a pointer to a variable that will hold the value
+// of the flag, and p must implement encoding.TextUnmarshaler.
+// If the flag is used, the flag value will be passed to p's UnmarshalText method.
+// The type of the default value must be the same as the type of p.
+func TextVar(p encoding.TextUnmarshaler, name string, value encoding.TextMarshaler, usage string) {
+	CommandLine.Var(newTextValue(value, p), name, usage)
+}
+
 // Func defines a flag with the specified name and usage string.
 // Each time the flag is seen, fn is called with the value of the flag.
 // If fn returns a non-nil error, it will be treated as a flag value parsing error.
@@ -895,7 +995,7 @@ func Var(value Value, name string, usage string) {
 }
 
 // sprintf formats the message, prints it to output, and returns it.
-func (f *FlagSet) sprintf(format string, a ...interface{}) string {
+func (f *FlagSet) sprintf(format string, a ...any) string {
 	msg := fmt.Sprintf(format, a...)
 	fmt.Fprintln(f.Output(), msg)
 	return msg
@@ -903,7 +1003,7 @@ func (f *FlagSet) sprintf(format string, a ...interface{}) string {
 
 // failf prints to standard error a formatted error and usage message and
 // returns the error.
-func (f *FlagSet) failf(format string, a ...interface{}) error {
+func (f *FlagSet) failf(format string, a ...any) error {
 	msg := f.sprintf(format, a...)
 	f.usage()
 	return errors.New(msg)

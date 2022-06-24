@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (!linux && !freebsd && !darwin) || !cgo
-// +build !linux,!freebsd,!darwin !cgo
 
 package plugin
 

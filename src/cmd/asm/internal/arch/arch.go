@@ -9,6 +9,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
 	"cmd/internal/obj/arm64"
+	"cmd/internal/obj/loong64"
 	"cmd/internal/obj/mips"
 	"cmd/internal/obj/ppc64"
 	"cmd/internal/obj/riscv"
@@ -50,7 +51,7 @@ func nilRegisterNumber(name string, n int16) (int16, bool) {
 
 // Set configures the architecture specified by GOARCH and returns its representation.
 // It returns nil if GOARCH is not recognized.
-func Set(GOARCH string) *Arch {
+func Set(GOARCH string, shared bool) *Arch {
 	switch GOARCH {
 	case "386":
 		return archX86(&x86.Link386)
@@ -60,6 +61,8 @@ func Set(GOARCH string) *Arch {
 		return archArm()
 	case "arm64":
 		return archArm64()
+	case "loong64":
+		return archLoong64(&loong64.Linkloong64)
 	case "mips":
 		return archMips(&mips.Linkmips)
 	case "mipsle":
@@ -73,7 +76,7 @@ func Set(GOARCH string) *Arch {
 	case "ppc64le":
 		return archPPC64(&ppc64.Linkppc64le)
 	case "riscv64":
-		return archRISCV64()
+		return archRISCV64(shared)
 	case "s390x":
 		return archS390x()
 	case "wasm":
@@ -178,6 +181,10 @@ func archX86(linkArch *obj.LinkArch) *Arch {
 	instructions["PSLLDQ"] = x86.APSLLO
 	instructions["PSRLDQ"] = x86.APSRLO
 	instructions["PADDD"] = x86.APADDL
+	// Spellings originally used in CL 97235.
+	instructions["MOVBELL"] = x86.AMOVBEL
+	instructions["MOVBEQQ"] = x86.AMOVBEQ
+	instructions["MOVBEWW"] = x86.AMOVBEW
 
 	return &Arch{
 		LinkArch:       linkArch,
@@ -274,46 +281,7 @@ func archArm64() *Arch {
 	}
 
 	register["LR"] = arm64.REGLINK
-	register["DAIFSet"] = arm64.REG_DAIFSet
-	register["DAIFClr"] = arm64.REG_DAIFClr
-	register["PLDL1KEEP"] = arm64.REG_PLDL1KEEP
-	register["PLDL1STRM"] = arm64.REG_PLDL1STRM
-	register["PLDL2KEEP"] = arm64.REG_PLDL2KEEP
-	register["PLDL2STRM"] = arm64.REG_PLDL2STRM
-	register["PLDL3KEEP"] = arm64.REG_PLDL3KEEP
-	register["PLDL3STRM"] = arm64.REG_PLDL3STRM
-	register["PLIL1KEEP"] = arm64.REG_PLIL1KEEP
-	register["PLIL1STRM"] = arm64.REG_PLIL1STRM
-	register["PLIL2KEEP"] = arm64.REG_PLIL2KEEP
-	register["PLIL2STRM"] = arm64.REG_PLIL2STRM
-	register["PLIL3KEEP"] = arm64.REG_PLIL3KEEP
-	register["PLIL3STRM"] = arm64.REG_PLIL3STRM
-	register["PSTL1KEEP"] = arm64.REG_PSTL1KEEP
-	register["PSTL1STRM"] = arm64.REG_PSTL1STRM
-	register["PSTL2KEEP"] = arm64.REG_PSTL2KEEP
-	register["PSTL2STRM"] = arm64.REG_PSTL2STRM
-	register["PSTL3KEEP"] = arm64.REG_PSTL3KEEP
-	register["PSTL3STRM"] = arm64.REG_PSTL3STRM
 
-	// Conditional operators, like EQ, NE, etc.
-	register["EQ"] = arm64.COND_EQ
-	register["NE"] = arm64.COND_NE
-	register["HS"] = arm64.COND_HS
-	register["CS"] = arm64.COND_HS
-	register["LO"] = arm64.COND_LO
-	register["CC"] = arm64.COND_LO
-	register["MI"] = arm64.COND_MI
-	register["PL"] = arm64.COND_PL
-	register["VS"] = arm64.COND_VS
-	register["VC"] = arm64.COND_VC
-	register["HI"] = arm64.COND_HI
-	register["LS"] = arm64.COND_LS
-	register["GE"] = arm64.COND_GE
-	register["LT"] = arm64.COND_LT
-	register["GT"] = arm64.COND_GT
-	register["LE"] = arm64.COND_LE
-	register["AL"] = arm64.COND_AL
-	register["NV"] = arm64.COND_NV
 	// Pseudo-registers.
 	register["SB"] = RSB
 	register["FP"] = RFP
@@ -372,6 +340,9 @@ func archPPC64(linkArch *obj.LinkArch) *Arch {
 		register[obj.Rconv(i)] = int16(i)
 	}
 	for i := ppc64.REG_MSR; i <= ppc64.REG_CR; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := ppc64.REG_CR0LT; i <= ppc64.REG_CR7SO; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
 	register["CR"] = ppc64.REG_CR
@@ -534,12 +505,71 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
 	}
 }
 
-func archRISCV64() *Arch {
+func archLoong64(linkArch *obj.LinkArch) *Arch {
+	register := make(map[string]int16)
+	// Create maps for easy lookup of instruction names etc.
+	// Note that there is no list of names as there is for x86.
+	for i := loong64.REG_R0; i <= loong64.REG_R31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := loong64.REG_F0; i <= loong64.REG_F31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := loong64.REG_FCSR0; i <= loong64.REG_FCSR31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := loong64.REG_FCC0; i <= loong64.REG_FCC31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	// Pseudo-registers.
+	register["SB"] = RSB
+	register["FP"] = RFP
+	register["PC"] = RPC
+	// Avoid unintentionally clobbering g using R22.
+	delete(register, "R22")
+	register["g"] = loong64.REG_R22
+	register["RSB"] = loong64.REG_R31
+	registerPrefix := map[string]bool{
+		"F":    true,
+		"FCSR": true,
+		"FCC":  true,
+		"R":    true,
+	}
+
+	instructions := make(map[string]obj.As)
+	for i, s := range obj.Anames {
+		instructions[s] = obj.As(i)
+	}
+	for i, s := range loong64.Anames {
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseLoong64
+		}
+	}
+	// Annoying alias.
+	instructions["JAL"] = loong64.AJAL
+
+	return &Arch{
+		LinkArch:       linkArch,
+		Instructions:   instructions,
+		Register:       register,
+		RegisterPrefix: registerPrefix,
+		RegisterNumber: loong64RegisterNumber,
+		IsJump:         jumpLoong64,
+	}
+}
+
+func archRISCV64(shared bool) *Arch {
 	register := make(map[string]int16)
 
 	// Standard register names.
 	for i := riscv.REG_X0; i <= riscv.REG_X31; i++ {
-		if i == riscv.REG_G {
+		// Disallow X3 in shared mode, as this will likely be used as the
+		// GP register, which could result in problems in non-Go code,
+		// including signal handlers.
+		if shared && i == riscv.REG_GP {
+			continue
+		}
+		if i == riscv.REG_TP || i == riscv.REG_G {
 			continue
 		}
 		name := fmt.Sprintf("X%d", i-riscv.REG_X0)

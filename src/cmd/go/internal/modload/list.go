@@ -72,14 +72,21 @@ func ListModules(ctx context.Context, args []string, mode ListMode) ([]*modinfo.
 	}
 
 	if err == nil {
-		commitRequirements(ctx, modFileGoVersion(), rs)
+		requirements = rs
+		if !ExplicitWriteGoMod {
+			err = commitRequirements(ctx)
+		}
 	}
 	return mods, err
 }
 
 func listModules(ctx context.Context, rs *Requirements, args []string, mode ListMode) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
 	if len(args) == 0 {
-		return rs, []*modinfo.ModulePublic{moduleInfo(ctx, rs, Target, mode)}, nil
+		var ms []*modinfo.ModulePublic
+		for _, m := range MainModules.Versions() {
+			ms = append(ms, moduleInfo(ctx, rs, m, mode))
+		}
+		return rs, ms, nil
 	}
 
 	needFullGraph := false
@@ -101,7 +108,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			path := arg[:i]
 			vers := arg[i+1:]
 			if vers == "upgrade" || vers == "patch" {
-				if _, ok := rs.rootSelected(path); !ok || rs.depth == eager {
+				if _, ok := rs.rootSelected(path); !ok || rs.pruning == unpruned {
 					needFullGraph = true
 					if !HasModRoot() {
 						base.Fatalf("go: cannot match %q: %v", arg, ErrNoModRoot)
@@ -110,7 +117,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			}
 			continue
 		}
-		if _, ok := rs.rootSelected(arg); !ok || rs.depth == eager {
+		if _, ok := rs.rootSelected(arg); !ok || rs.pruning == unpruned {
 			needFullGraph = true
 			if mode&ListVersions == 0 && !HasModRoot() {
 				base.Fatalf("go: cannot match %q without -versions or an explicit version: %v", arg, ErrNoModRoot)

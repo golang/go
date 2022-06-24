@@ -4,7 +4,6 @@
 
 // Package ast declares the types used to represent syntax trees for Go
 // packages.
-//
 package ast
 
 import (
@@ -72,7 +71,6 @@ func (c *Comment) End() token.Pos { return token.Pos(int(c.Slash) + len(c.Text))
 
 // A CommentGroup represents a sequence of comments
 // with no other tokens and no empty lines between.
-//
 type CommentGroup struct {
 	List []*Comment // len(List) > 0
 }
@@ -160,10 +158,13 @@ func (g *CommentGroup) Text() string {
 }
 
 // isDirective reports whether c is a comment directive.
+// This code is also in go/printer.
 func isDirective(c string) bool {
 	// "//line " is a line directive.
+	// "//extern " is for gccgo.
+	// "//export " is for cgo.
 	// (The // has been removed.)
-	if strings.HasPrefix(c, "line ") {
+	if strings.HasPrefix(c, "line ") || strings.HasPrefix(c, "extern ") || strings.HasPrefix(c, "export ") {
 		return true
 	}
 
@@ -193,14 +194,10 @@ func isDirective(c string) bool {
 // in a signature.
 // Field.Names is nil for unnamed parameters (parameter lists which only contain types)
 // and embedded struct fields. In the latter case, the field name is the type name.
-// Field.Names contains a single name "type" for elements of interface type lists.
-// Types belonging to the same type list share the same "type" identifier which also
-// records the position of that keyword.
-//
 type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
-	Names   []*Ident      // field/method/(type) parameter names, or type "type"; or nil
-	Type    Expr          // field/method/parameter type, type list type; or nil
+	Names   []*Ident      // field/method/(type) parameter names; or nil
+	Type    Expr          // field/method/parameter type; or nil
 	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil
 }
@@ -228,11 +225,12 @@ func (f *Field) End() token.Pos {
 	return token.NoPos
 }
 
-// A FieldList represents a list of Fields, enclosed by parentheses or braces.
+// A FieldList represents a list of Fields, enclosed by parentheses,
+// curly braces, or square brackets.
 type FieldList struct {
-	Opening token.Pos // position of opening parenthesis/brace, if any
+	Opening token.Pos // position of opening parenthesis/brace/bracket, if any
 	List    []*Field  // field list; or nil
-	Closing token.Pos // position of closing parenthesis/brace, if any
+	Closing token.Pos // position of closing parenthesis/brace/bracket, if any
 }
 
 func (f *FieldList) Pos() token.Pos {
@@ -276,7 +274,6 @@ func (f *FieldList) NumFields() int {
 
 // An expression is represented by a tree consisting of one
 // or more of the following concrete expression nodes.
-//
 type (
 	// A BadExpr node is a placeholder for an expression containing
 	// syntax errors for which a correct expression node cannot be
@@ -342,6 +339,15 @@ type (
 		Lbrack token.Pos // position of "["
 		Index  Expr      // index expression
 		Rbrack token.Pos // position of "]"
+	}
+
+	// An IndexListExpr node represents an expression followed by multiple
+	// indices.
+	IndexListExpr struct {
+		X       Expr      // expression
+		Lbrack  token.Pos // position of "["
+		Indices []Expr    // index expressions
+		Rbrack  token.Pos // position of "]"
 	}
 
 	// A SliceExpr node represents an expression followed by slice indices.
@@ -411,7 +417,6 @@ type (
 
 // The direction of a channel type is indicated by a bit
 // mask including one or both of the following constants.
-//
 type ChanDir int
 
 const (
@@ -422,7 +427,6 @@ const (
 // A type is represented by a tree consisting of one
 // or more of the following type-specific expression
 // nodes.
-//
 type (
 	// An ArrayType node represents an array or slice type.
 	ArrayType struct {
@@ -439,6 +443,14 @@ type (
 	}
 
 	// Pointer types are represented via StarExpr nodes.
+
+	// A FuncType node represents a function type.
+	FuncType struct {
+		Func       token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
+		TypeParams *FieldList // type parameters; or nil
+		Params     *FieldList // (incoming) parameters; non-nil
+		Results    *FieldList // (outgoing) results; or nil
+	}
 
 	// An InterfaceType node represents an interface type.
 	InterfaceType struct {
@@ -479,6 +491,7 @@ func (x *CompositeLit) Pos() token.Pos {
 func (x *ParenExpr) Pos() token.Pos      { return x.Lparen }
 func (x *SelectorExpr) Pos() token.Pos   { return x.X.Pos() }
 func (x *IndexExpr) Pos() token.Pos      { return x.X.Pos() }
+func (x *IndexListExpr) Pos() token.Pos  { return x.X.Pos() }
 func (x *SliceExpr) Pos() token.Pos      { return x.X.Pos() }
 func (x *TypeAssertExpr) Pos() token.Pos { return x.X.Pos() }
 func (x *CallExpr) Pos() token.Pos       { return x.Fun.Pos() }
@@ -512,6 +525,7 @@ func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
 func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
 func (x *SelectorExpr) End() token.Pos   { return x.Sel.End() }
 func (x *IndexExpr) End() token.Pos      { return x.Rbrack + 1 }
+func (x *IndexListExpr) End() token.Pos  { return x.Rbrack + 1 }
 func (x *SliceExpr) End() token.Pos      { return x.Rbrack + 1 }
 func (x *TypeAssertExpr) End() token.Pos { return x.Rparen + 1 }
 func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
@@ -533,7 +547,6 @@ func (x *ChanType) End() token.Pos      { return x.Value.End() }
 
 // exprNode() ensures that only expression/type nodes can be
 // assigned to an Expr.
-//
 func (*BadExpr) exprNode()        {}
 func (*Ident) exprNode()          {}
 func (*Ellipsis) exprNode()       {}
@@ -543,6 +556,7 @@ func (*CompositeLit) exprNode()   {}
 func (*ParenExpr) exprNode()      {}
 func (*SelectorExpr) exprNode()   {}
 func (*IndexExpr) exprNode()      {}
+func (*IndexListExpr) exprNode()  {}
 func (*SliceExpr) exprNode()      {}
 func (*TypeAssertExpr) exprNode() {}
 func (*CallExpr) exprNode()       {}
@@ -563,15 +577,12 @@ func (*ChanType) exprNode()      {}
 
 // NewIdent creates a new Ident without position.
 // Useful for ASTs generated by code other than the Go parser.
-//
 func NewIdent(name string) *Ident { return &Ident{token.NoPos, name, nil} }
 
 // IsExported reports whether name starts with an upper-case letter.
-//
 func IsExported(name string) bool { return token.IsExported(name) }
 
 // IsExported reports whether id starts with an upper-case letter.
-//
 func (id *Ident) IsExported() bool { return token.IsExported(id.Name) }
 
 func (id *Ident) String() string {
@@ -586,7 +597,6 @@ func (id *Ident) String() string {
 
 // A statement is represented by a tree consisting of one
 // or more of the following concrete statement nodes.
-//
 type (
 	// A BadStmt node is a placeholder for statements containing
 	// syntax errors for which no correct statement nodes can be
@@ -837,7 +847,6 @@ func (s *RangeStmt) End() token.Pos  { return s.Body.End() }
 
 // stmtNode() ensures that only statement nodes can be
 // assigned to a Stmt.
-//
 func (*BadStmt) stmtNode()        {}
 func (*DeclStmt) stmtNode()       {}
 func (*EmptyStmt) stmtNode()      {}
@@ -865,7 +874,6 @@ func (*RangeStmt) stmtNode()      {}
 
 // A Spec node represents a single (non-parenthesized) import,
 // constant, type, or variable declaration.
-//
 type (
 	// The Spec type stands for any of *ImportSpec, *ValueSpec, and *TypeSpec.
 	Spec interface {
@@ -891,6 +899,16 @@ type (
 		Type    Expr          // value type; or nil
 		Values  []Expr        // initial values; or nil
 		Comment *CommentGroup // line comments; or nil
+	}
+
+	// A TypeSpec node represents a type declaration (TypeSpec production).
+	TypeSpec struct {
+		Doc        *CommentGroup // associated documentation; or nil
+		Name       *Ident        // type name
+		TypeParams *FieldList    // type parameters; or nil
+		Assign     token.Pos     // position of '=', if any
+		Type       Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
+		Comment    *CommentGroup // line comments; or nil
 	}
 )
 
@@ -925,13 +943,11 @@ func (s *TypeSpec) End() token.Pos { return s.Type.End() }
 
 // specNode() ensures that only spec nodes can be
 // assigned to a Spec.
-//
 func (*ImportSpec) specNode() {}
 func (*ValueSpec) specNode()  {}
 func (*TypeSpec) specNode()   {}
 
 // A declaration is represented by one of the following declaration nodes.
-//
 type (
 	// A BadDecl node is a placeholder for a declaration containing
 	// syntax errors for which a correct declaration node cannot be
@@ -968,8 +984,6 @@ type (
 		Name *Ident        // function/method name
 		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
 		Body *BlockStmt    // function body; or nil for external (non-Go) function
-		// TODO(rFindley) consider storing TParams here, rather than FuncType, as
-		//                they are only valid for declared functions
 	}
 )
 
@@ -995,7 +1009,6 @@ func (d *FuncDecl) End() token.Pos {
 
 // declNode() ensures that only declaration nodes can be
 // assigned to a Decl.
-//
 func (*BadDecl) declNode()  {}
 func (*GenDecl) declNode()  {}
 func (*FuncDecl) declNode() {}
@@ -1021,7 +1034,6 @@ func (*FuncDecl) declNode() {}
 // interpretation of the syntax tree by the manipulating program: Except for Doc
 // and Comment comments directly associated with nodes, the remaining comments
 // are "free-floating" (see also issues #18593, #20744).
-//
 type File struct {
 	Doc        *CommentGroup   // associated documentation; or nil
 	Package    token.Pos       // position of "package" keyword
@@ -1043,7 +1055,6 @@ func (f *File) End() token.Pos {
 
 // A Package node represents a set of source files
 // collectively building a Go package.
-//
 type Package struct {
 	Name    string             // package name
 	Scope   *Scope             // package scope across all files

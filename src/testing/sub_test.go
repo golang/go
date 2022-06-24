@@ -480,9 +480,10 @@ func TestTRun(t *T) {
 			buf := &bytes.Buffer{}
 			root := &T{
 				common: common{
-					signal: make(chan bool),
-					name:   "Test",
-					w:      buf,
+					signal:  make(chan bool),
+					barrier: make(chan bool),
+					name:    "Test",
+					w:       buf,
 				},
 				context: ctx,
 			}
@@ -669,7 +670,7 @@ func TestBRun(t *T) {
 					w:      buf,
 				},
 				benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
-				benchTime: benchTimeFlag{d: 1 * time.Microsecond},
+				benchTime: durationOrCountFlag{d: 1 * time.Microsecond},
 			}
 			if tc.chatty {
 				root.chatty = newChattyPrinter(root.w)
@@ -723,7 +724,7 @@ func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
 	var first = true
 	Benchmark(func(b *B) {
 		if first && (b.startAllocs == 0 || b.startBytes == 0) {
-			panic(fmt.Sprintf("ReadMemStats not called before first run"))
+			panic("ReadMemStats not called before first run")
 		}
 		first = false
 	})

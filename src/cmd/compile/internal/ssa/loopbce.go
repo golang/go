@@ -31,9 +31,10 @@ type indVar struct {
 
 // parseIndVar checks whether the SSA value passed as argument is a valid induction
 // variable, and, if so, extracts:
-//   * the minimum bound
-//   * the increment value
-//   * the "next" value (SSA value that is Phi'd into the induction variable every loop)
+//   - the minimum bound
+//   - the increment value
+//   - the "next" value (SSA value that is Phi'd into the induction variable every loop)
+//
 // Currently, we detect induction variables that match (Phi min nxt),
 // with nxt being (Add inc ind).
 // If it can't parse the induction variable correctly, it returns (nil, nil, nil).
@@ -66,19 +67,18 @@ func parseIndVar(ind *Value) (min, inc, nxt *Value) {
 //
 // Look for variables and blocks that satisfy the following
 //
-// loop:
-//   ind = (Phi min nxt),
-//   if ind < max
-//     then goto enter_loop
-//     else goto exit_loop
+//	 loop:
+//	   ind = (Phi min nxt),
+//	   if ind < max
+//	     then goto enter_loop
+//	     else goto exit_loop
 //
-//   enter_loop:
-//	do something
-//      nxt = inc + ind
-//	goto loop
+//	   enter_loop:
+//		do something
+//	      nxt = inc + ind
+//		goto loop
 //
-// exit_loop:
-//
+//	 exit_loop:
 //
 // TODO: handle 32 bit operations
 func findIndVar(f *Func) []indVar {
@@ -161,7 +161,7 @@ func findIndVar(f *Func) []indVar {
 
 		// Up to now we extracted the induction variable (ind),
 		// the increment delta (inc), the temporary sum (nxt),
-		// the mininum value (min) and the maximum value (max).
+		// the minimum value (min) and the maximum value (max).
 		//
 		// We also know that ind has the form (Phi min nxt) where
 		// nxt is (Add inc nxt) which means: 1) inc dominates nxt

@@ -20,7 +20,7 @@ env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
 # + ---- example.net/lazy v0.1.0 ---- example.com/version v1.0.1
 #
 # Go 1.17 avoids loading the go.mod file for example.com/version v1.0.1
-# (because it is lower than the verison explicitly required by m,
+# (because it is lower than the version explicitly required by m,
 # and the module that requires it — m — specifies 'go 1.17').
 #
 # That go.mod file happens not to affect the final 1.16 module graph anyway,
@@ -50,7 +50,7 @@ cmp stdout m_all.txt
 
 go mod edit -go=1.16
 ! go list -m all
-stderr '^go list -m: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry; to add it:\n\tgo mod download example.com/version$'
+stderr '^go: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry; to add it:\n\tgo mod download example.com/version$'
 
 
 -- go.mod --

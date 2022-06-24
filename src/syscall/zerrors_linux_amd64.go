@@ -5,7 +5,6 @@
 // cgo -godefs -- -m64 _const.go
 
 //go:build amd64 && linux
-// +build amd64,linux
 
 package syscall
 

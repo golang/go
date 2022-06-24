@@ -2,10 +2,10 @@
 
 env GO111MODULE=on
 
-# 'go get' outside a module with an executable prints a deprecation message.
-go get example.com/cmd/a
-stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
-stderr 'Use ''go install pkg@version'' instead.'
+# 'go get' outside a module prints an error.
+! go get example.com/cmd/a
+stderr '^go: go.mod file not found in current directory or any parent directory.$'
+stderr '^\t''go get'' is no longer supported outside a module.$'
 
 cp go.mod.orig go.mod
 
@@ -13,13 +13,16 @@ cp go.mod.orig go.mod
 # This will stop building in the future, but it's the command we want to use.
 go get rsc.io/quote
 ! stderr deprecated
+! stderr 'no longer installs'
 cp go.mod.orig go.mod
 
-# 'go get' inside a module with an executable prints a different
-# deprecation message.
+# 'go get' inside a module with an executable does not print a message.
+# In 1.16 and 1.17, 'go get' did print a message in this case suggesting the
+# use of -d. In 1.18, -d is a no-op, and we'd like to begin discouraging
+# its use.
 go get example.com/cmd/a
-stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
-stderr 'To adjust and download dependencies of the current module, use ''go get -d'''
+! stderr deprecated
+! stderr 'no longer installs'
 cp go.mod.orig go.mod
 
 # 'go get' should not print a warning for a main package inside the main module.

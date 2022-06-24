@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && (ppc64 || ppc64le)
-// +build linux
-// +build ppc64 ppc64le
 
 //
 // System calls and other sys.stuff for ppc64, Linux
@@ -22,7 +20,6 @@
 #define SYS_close		  6
 #define SYS_getpid		 20
 #define SYS_kill		 37
-#define SYS_pipe		 42
 #define SYS_brk			 45
 #define SYS_fcntl		 55
 #define SYS_mmap		 90
@@ -44,6 +41,9 @@
 #define SYS_epoll_create	236
 #define SYS_epoll_ctl		237
 #define SYS_epoll_wait		238
+#define SYS_timer_create	240
+#define SYS_timer_settime	241
+#define SYS_timer_delete	244
 #define SYS_clock_gettime	246
 #define SYS_tgkill		250
 #define SYS_epoll_create1	315
@@ -101,13 +101,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	BVC	2(PC)
 	NEG	R3	// caller expects negative errno
 	MOVW	R3, ret+24(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	ADD	$FIXED_FRAME, R1, R3
-	SYSCALL	$SYS_pipe
-	MOVW	R3, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -176,6 +169,29 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	SYSCALL	$SYS_setitimer
 	RET
 
+TEXT runtime·timer_create(SB),NOSPLIT,$0-28
+	MOVW	clockid+0(FP), R3
+	MOVD	sevp+8(FP), R4
+	MOVD	timerid+16(FP), R5
+	SYSCALL	$SYS_timer_create
+	MOVW	R3, ret+24(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
+	MOVW	timerid+0(FP), R3
+	MOVW	flags+4(FP), R4
+	MOVD	new+8(FP), R5
+	MOVD	old+16(FP), R6
+	SYSCALL	$SYS_timer_settime
+	MOVW	R3, ret+24(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
+	MOVW	timerid+0(FP), R3
+	SYSCALL	$SYS_timer_delete
+	MOVW	R3, ret+8(FP)
+	RET
+
 TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	addr+0(FP), R3
 	MOVD	n+8(FP), R4
@@ -205,8 +221,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	MOVD	R5, 40(R1)
 
 	MOVD	LR, R14
+	MOVD	$ret-FIXED_FRAME(FP), R5 // caller's SP
 	MOVD	R14, m_vdsoPC(R21)
-	MOVD	R15, m_vdsoSP(R21)
+	MOVD	R5, m_vdsoSP(R21)
 
 	MOVD	m_curg(R21), R6
 	CMP	g, R6
@@ -297,9 +314,10 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	MOVD	R4, 32(R1)
 	MOVD	R5, 40(R1)
 
-	MOVD	LR, R14		// R14 is unchanged by C code
+	MOVD	LR, R14				// R14 is unchanged by C code
+	MOVD	$ret-FIXED_FRAME(FP), R5	// caller's SP
 	MOVD	R14, m_vdsoPC(R21)
-	MOVD	R15, m_vdsoSP(R21)
+	MOVD	R5, m_vdsoSP(R21)
 
 	MOVD	m_curg(R21), R6
 	CMP	g, R6
@@ -441,7 +459,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
 	DWORD	$sigtramp<>(SB)
 	DWORD	$0
 	DWORD	$0
-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
+TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 #endif
 	// Start with standard C stack frame layout and linkage.
 	MOVD    LR, R0
@@ -715,6 +733,9 @@ TEXT cgoSigtramp<>(SB),NOSPLIT,$0
 TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
 	// We're coming from C code, set up essential register, then call sigprofNonGo.
 	CALL	runtime·reginit(SB)
+	MOVW	R3, FIXED_FRAME+0(R1)	// sig
+	MOVD	R4, FIXED_FRAME+8(R1)	// info
+	MOVD	R5, FIXED_FRAME+16(R1)	// ctx
 	CALL	runtime·sigprofNonGo(SB)
 	RET
 
@@ -901,18 +922,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOVW    fd+0(FP), R3  // fd
 	MOVD    $2, R4  // F_SETFD
 	MOVD    $1, R5  // FD_CLOEXEC
-	SYSCALL	$SYS_fcntl
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), R3 // fd
-	MOVD	$3, R4	// F_GETFL
-	MOVD	$0, R5
-	SYSCALL	$SYS_fcntl
-	OR	$0x800, R3, R5 // O_NONBLOCK
-	MOVW	fd+0(FP), R3 // fd
-	MOVD	$4, R4	// F_SETFL
 	SYSCALL	$SYS_fcntl
 	RET
 

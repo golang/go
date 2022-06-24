@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build darwin || (openbsd && !mips64)
-// +build darwin openbsd,!mips64
 
 package runtime
 
@@ -13,6 +12,7 @@ import "unsafe"
 // fn is the raw pc value of the entry point of the desired function.
 // Switches to the system stack, if not already there.
 // Preserves the calling point as the location where a profiler traceback will begin.
+//
 //go:nosplit
 func libcCall(fn, arg unsafe.Pointer) int32 {
 	// Leave caller's PC/SP/G around for traceback.

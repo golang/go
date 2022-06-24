@@ -26,7 +26,7 @@ in text form. Each line in the output has two space-separated fields: a module
 and one of its requirements. Each module is identified as a string of the form
 path@version, except for the main module, which has no @version suffix.
 
-The -go flag causes graph to report the module graph as loaded by by the
+The -go flag causes graph to report the module graph as loaded by the
 given Go version, instead of the version indicated by the 'go' directive
 in the go.mod file.
 
@@ -45,8 +45,10 @@ func init() {
 }
 
 func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if len(args) > 0 {
-		base.Fatalf("go mod graph: graph takes no arguments")
+		base.Fatalf("go: 'go mod graph' accepts no arguments")
 	}
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot

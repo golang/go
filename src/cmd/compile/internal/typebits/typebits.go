@@ -14,8 +14,8 @@ import (
 // the first run and then simply copied into bv at the correct offset
 // on future calls with the same type t.
 func Set(t *types.Type, off int64, bv bitvec.BitVec) {
-	if t.Align > 0 && off&int64(t.Align-1) != 0 {
-		base.Fatalf("typebits.Set: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
+	if uint8(t.Alignment()) > 0 && off&int64(uint8(t.Alignment())-1) != 0 {
+		base.Fatalf("typebits.Set: invalid initial alignment: type %v has alignment %d, but offset is %v", t, uint8(t.Alignment()), off)
 	}
 	if !t.HasPointers() {
 		// Note: this case ensures that pointers to go:notinheap types
@@ -67,13 +67,13 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
 
 	case types.TARRAY:
 		elt := t.Elem()
-		if elt.Width == 0 {
+		if elt.Size() == 0 {
 			// Short-circuit for #20739.
 			break
 		}
 		for i := int64(0); i < t.NumElem(); i++ {
 			Set(elt, off, bv)
-			off += elt.Width
+			off += elt.Size()
 		}
 
 	case types.TSTRUCT:

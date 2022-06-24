@@ -130,11 +130,11 @@ func emptyBlock(b *Block) bool {
 
 // trimmableBlock reports whether the block can be trimmed from the CFG,
 // subject to the following criteria:
-//  - it should not be the first block
-//  - it should be BlockPlain
-//  - it should not loop back to itself
-//  - it either is the single predecessor of the successor block or
-//    contains no actual instructions
+//   - it should not be the first block
+//   - it should be BlockPlain
+//   - it should not loop back to itself
+//   - it either is the single predecessor of the successor block or
+//     contains no actual instructions
 func trimmableBlock(b *Block) bool {
 	if b.Kind != BlockPlain || b == b.Func.Entry {
 		return false

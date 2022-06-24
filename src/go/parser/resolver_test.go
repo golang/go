@@ -41,11 +41,7 @@ func TestResolution(t *testing.T) {
 			path := filepath.Join(dir, fi.Name())
 			src := readFile(path) // panics on failure
 			var mode Mode
-			if strings.HasSuffix(path, ".go2") {
-				if !typeparams.Enabled {
-					t.Skip("type params are not enabled")
-				}
-			} else {
+			if !strings.HasSuffix(path, ".go2") {
 				mode |= typeparams.DisallowParsing
 			}
 			file, err := ParseFile(fset, path, src, mode)

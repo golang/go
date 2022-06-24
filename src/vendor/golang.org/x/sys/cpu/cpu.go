@@ -56,6 +56,7 @@ var X86 struct {
 	HasAVX512BF16       bool // Advanced vector extension 512 BFloat16 Instructions
 	HasBMI1             bool // Bit manipulation instruction set 1
 	HasBMI2             bool // Bit manipulation instruction set 2
+	HasCX16             bool // Compare and exchange 16 Bytes
 	HasERMS             bool // Enhanced REP for MOVSB and STOSB
 	HasFMA              bool // Fused-multiply-add instructions
 	HasOSXSAVE          bool // OS supports XSAVE/XRESTOR for saving/restoring XMM registers.
@@ -105,8 +106,8 @@ var ARM64 struct {
 
 // ARM contains the supported CPU features of the current ARM (32-bit) platform.
 // All feature flags are false if:
-//   1. the current platform is not arm, or
-//   2. the current operating system is not Linux.
+//  1. the current platform is not arm, or
+//  2. the current operating system is not Linux.
 var ARM struct {
 	_           CacheLinePad
 	HasSWP      bool // SWP instruction support

@@ -107,14 +107,14 @@ func (r *Replacer) WriteString(w io.Writer, s string) (n int, err error) {
 // and values may be empty. For example, the trie containing keys "ax", "ay",
 // "bcbc", "x" and "xy" could have eight nodes:
 //
-//  n0  -
-//  n1  a-
-//  n2  .x+
-//  n3  .y+
-//  n4  b-
-//  n5  .cbc+
-//  n6  x+
-//  n7  .y+
+//	n0  -
+//	n1  a-
+//	n2  .x+
+//	n3  .y+
+//	n4  b-
+//	n5  .cbc+
+//	n6  x+
+//	n7  .y+
 //
 // n0 is the root node, and its children are n1, n4 and n6; n1's children are
 // n2 and n3; n4's child is n5; n6's child is n7. Nodes n0, n1 and n4 (marked
@@ -387,7 +387,7 @@ func makeSingleStringReplacer(pattern string, value string) *singleStringReplace
 }
 
 func (r *singleStringReplacer) Replace(s string) string {
-	var buf []byte
+	var buf Builder
 	i, matched := 0, false
 	for {
 		match := r.finder.next(s[i:])
@@ -395,15 +395,16 @@ func (r *singleStringReplacer) Replace(s string) string {
 			break
 		}
 		matched = true
-		buf = append(buf, s[i:i+match]...)
-		buf = append(buf, r.value...)
+		buf.Grow(match + len(r.value))
+		buf.WriteString(s[i : i+match])
+		buf.WriteString(r.value)
 		i += match + len(r.finder.pattern)
 	}
 	if !matched {
 		return s
 	}
-	buf = append(buf, s[i:]...)
-	return string(buf)
+	buf.WriteString(s[i:])
+	return buf.String()
 }
 
 func (r *singleStringReplacer) WriteString(w io.Writer, s string) (n int, err error) {

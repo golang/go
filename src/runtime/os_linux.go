@@ -5,11 +5,33 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
+	"runtime/internal/atomic"
+	"runtime/internal/syscall"
 	"unsafe"
 )
 
-type mOS struct{}
+// sigPerThreadSyscall is the same signal (SIGSETXID) used by glibc for
+// per-thread syscalls on Linux. We use it for the same purpose in non-cgo
+// binaries.
+const sigPerThreadSyscall = _SIGRTMIN + 1
+
+type mOS struct {
+	// profileTimer holds the ID of the POSIX interval timer for profiling CPU
+	// usage on this thread.
+	//
+	// It is valid when the profileTimerValid field is non-zero. A thread
+	// creates and manages its own timer, and these fields are read and written
+	// only by this thread. But because some of the reads on profileTimerValid
+	// are in signal handling code, access to that field uses atomic operations.
+	profileTimer      int32
+	profileTimerValid uint32
+
+	// needPerThreadSyscall indicates that a per-thread syscall is required
+	// for doAllThreadsSyscall.
+	needPerThreadSyscall atomic.Uint8
+}
 
 //go:noescape
 func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, val3 uint32) int32
@@ -30,9 +52,12 @@ const (
 )
 
 // Atomically,
+//
 //	if(*addr == val) sleep
+//
 // Might be woken up spuriously; that's allowed.
 // Don't sleep longer than ns; ns < 0 means forever.
+//
 //go:nosplit
 func futexsleep(addr *uint32, val uint32, ns int64) {
 	// Some Linux kernels have a bug where futex of
@@ -51,6 +76,7 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 }
 
 // If any procs are sleeping on addr, wake up at most cnt.
+//
 //go:nosplit
 func futexwakeup(addr *uint32, cnt uint32) {
 	ret := futex(unsafe.Pointer(addr), _FUTEX_WAKE_PRIVATE, cnt, nil, nil, 0)
@@ -135,6 +161,7 @@ const (
 func clone(flags int32, stk, mp, gp, fn unsafe.Pointer) int32
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
@@ -142,14 +169,14 @@ func newosproc(mp *m) {
 	 * note: strace gets confused if we use CLONE_PTRACE here.
 	 */
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", abi.FuncPCABI0(clone), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	// Disable signals during clone, so that the new thread starts
 	// with signals disabled. It will enable them in minit.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
+	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(abi.FuncPCABI0(mstart)))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 
 	if ret < 0 {
@@ -162,6 +189,7 @@ func newosproc(mp *m) {
 }
 
 // Version of newosproc that doesn't require a valid G.
+//
 //go:nosplit
 func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	stack := sysAlloc(stacksize, &memstats.stacks_sys)
@@ -205,7 +233,7 @@ func sysargs(argc int32, argv **byte) {
 	n++
 
 	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
 	if sysauxv(auxv[:]) != 0 {
 		return
 	}
@@ -343,6 +371,7 @@ func goenvs() {
 // Called to do synchronous initialization of Go code built with
 // -buildmode=c-archive or -buildmode=c-shared.
 // None of the Go runtime is initialized.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
@@ -370,6 +399,7 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	unminitSignals()
@@ -395,6 +425,15 @@ func sigaltstack(new, old *stackt)
 func setitimer(mode int32, new, old *itimerval)
 
 //go:noescape
+func timer_create(clockid int32, sevp *sigevent, timerid *int32) int32
+
+//go:noescape
+func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32
+
+//go:noescape
+func timer_delete(timerid int32) int32
+
+//go:noescape
 func rtsigprocmask(how int32, new, old *sigset, size int32)
 
 //go:nosplit
@@ -415,9 +454,12 @@ func osyield_no_g() {
 	osyield()
 }
 
-func pipe() (r, w int32, errno int32)
 func pipe2(flags int32) (r, w int32, errno int32)
-func setNonblock(fd int32)
+
+const (
+	_si_max_size    = 128
+	_sigev_max_size = 64
+)
 
 //go:nosplit
 //go:nowritebarrierrec
@@ -429,13 +471,13 @@ func setsig(i uint32, fn uintptr) {
 	// should not be used". x86_64 kernel requires it. Only use it on
 	// x86.
 	if GOARCH == "386" || GOARCH == "amd64" {
-		sa.sa_restorer = funcPC(sigreturn)
+		sa.sa_restorer = abi.FuncPCABI0(sigreturn)
 	}
-	if fn == funcPC(sighandler) {
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
 		if iscgo {
-			fn = funcPC(cgoSigtramp)
+			fn = abi.FuncPCABI0(cgoSigtramp)
 		} else {
-			fn = funcPC(sigtramp)
+			fn = abi.FuncPCABI0(sigtramp)
 		}
 	}
 	sa.sa_handler = fn
@@ -463,6 +505,7 @@ func getsig(i uint32) uintptr {
 }
 
 // setSignaltstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
@@ -473,6 +516,7 @@ func (c *sigctxt) fixsigcode(sig uint32) {
 }
 
 // sysSigaction calls the rt_sigaction system call.
+//
 //go:nosplit
 func sysSigaction(sig uint32, new, old *sigactiont) {
 	if rt_sigaction(uintptr(sig), new, old, unsafe.Sizeof(sigactiont{}.sa_mask)) != 0 {
@@ -497,6 +541,7 @@ func sysSigaction(sig uint32, new, old *sigactiont) {
 }
 
 // rt_sigaction is implemented in assembly.
+//
 //go:noescape
 func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
 
@@ -506,4 +551,338 @@ func tgkill(tgid, tid, sig int)
 // signalM sends a signal to mp.
 func signalM(mp *m, sig int) {
 	tgkill(getpid(), int(mp.procid), sig)
+}
+
+// go118UseTimerCreateProfiler enables the per-thread CPU profiler.
+const go118UseTimerCreateProfiler = true
+
+// validSIGPROF compares this signal delivery's code against the signal sources
+// that the profiler uses, returning whether the delivery should be processed.
+// To be processed, a signal delivery from a known profiling mechanism should
+// correspond to the best profiling mechanism available to this thread. Signals
+// from other sources are always considered valid.
+//
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	code := int32(c.sigcode())
+	setitimer := code == _SI_KERNEL
+	timer_create := code == _SI_TIMER
+
+	if !(setitimer || timer_create) {
+		// The signal doesn't correspond to a profiling mechanism that the
+		// runtime enables itself. There's no reason to process it, but there's
+		// no reason to ignore it either.
+		return true
+	}
+
+	if mp == nil {
+		// Since we don't have an M, we can't check if there's an active
+		// per-thread timer for this thread. We don't know how long this thread
+		// has been around, and if it happened to interact with the Go scheduler
+		// at a time when profiling was active (causing it to have a per-thread
+		// timer). But it may have never interacted with the Go scheduler, or
+		// never while profiling was active. To avoid double-counting, process
+		// only signals from setitimer.
+		//
+		// When a custom cgo traceback function has been registered (on
+		// platforms that support runtime.SetCgoTraceback), SIGPROF signals
+		// delivered to a thread that cannot find a matching M do this check in
+		// the assembly implementations of runtime.cgoSigtramp.
+		return setitimer
+	}
+
+	// Having an M means the thread interacts with the Go scheduler, and we can
+	// check whether there's an active per-thread timer for this thread.
+	if atomic.Load(&mp.profileTimerValid) != 0 {
+		// If this M has its own per-thread CPU profiling interval timer, we
+		// should track the SIGPROF signals that come from that timer (for
+		// accurate reporting of its CPU usage; see issue 35057) and ignore any
+		// that it gets from the process-wide setitimer (to not over-count its
+		// CPU consumption).
+		return timer_create
+	}
+
+	// No active per-thread timer means the only valid profiler is setitimer.
+	return setitimer
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	mp := getg().m
+	mp.profilehz = hz
+
+	if !go118UseTimerCreateProfiler {
+		return
+	}
+
+	// destroy any active timer
+	if atomic.Load(&mp.profileTimerValid) != 0 {
+		timerid := mp.profileTimer
+		atomic.Store(&mp.profileTimerValid, 0)
+		mp.profileTimer = 0
+
+		ret := timer_delete(timerid)
+		if ret != 0 {
+			print("runtime: failed to disable profiling timer; timer_delete(", timerid, ") errno=", -ret, "\n")
+			throw("timer_delete")
+		}
+	}
+
+	if hz == 0 {
+		// If the goal was to disable profiling for this thread, then the job's done.
+		return
+	}
+
+	// The period of the timer should be 1/Hz. For every "1/Hz" of additional
+	// work, the user should expect one additional sample in the profile.
+	//
+	// But to scale down to very small amounts of application work, to observe
+	// even CPU usage of "one tenth" of the requested period, set the initial
+	// timing delay in a different way: So that "one tenth" of a period of CPU
+	// spend shows up as a 10% chance of one sample (for an expected value of
+	// 0.1 samples), and so that "two and six tenths" periods of CPU spend show
+	// up as a 60% chance of 3 samples and a 40% chance of 2 samples (for an
+	// expected value of 2.6). Set the initial delay to a value in the unifom
+	// random distribution between 0 and the desired period. And because "0"
+	// means "disable timer", add 1 so the half-open interval [0,period) turns
+	// into (0,period].
+	//
+	// Otherwise, this would show up as a bias away from short-lived threads and
+	// from threads that are only occasionally active: for example, when the
+	// garbage collector runs on a mostly-idle system, the additional threads it
+	// activates may do a couple milliseconds of GC-related work and nothing
+	// else in the few seconds that the profiler observes.
+	spec := new(itimerspec)
+	spec.it_value.setNsec(1 + int64(fastrandn(uint32(1e9/hz))))
+	spec.it_interval.setNsec(1e9 / int64(hz))
+
+	var timerid int32
+	var sevp sigevent
+	sevp.notify = _SIGEV_THREAD_ID
+	sevp.signo = _SIGPROF
+	sevp.sigev_notify_thread_id = int32(mp.procid)
+	ret := timer_create(_CLOCK_THREAD_CPUTIME_ID, &sevp, &timerid)
+	if ret != 0 {
+		// If we cannot create a timer for this M, leave profileTimerValid false
+		// to fall back to the process-wide setitimer profiler.
+		return
+	}
+
+	ret = timer_settime(timerid, 0, spec, nil)
+	if ret != 0 {
+		print("runtime: failed to configure profiling timer; timer_settime(", timerid,
+			", 0, {interval: {",
+			spec.it_interval.tv_sec, "s + ", spec.it_interval.tv_nsec, "ns} value: {",
+			spec.it_value.tv_sec, "s + ", spec.it_value.tv_nsec, "ns}}, nil) errno=", -ret, "\n")
+		throw("timer_settime")
+	}
+
+	mp.profileTimer = timerid
+	atomic.Store(&mp.profileTimerValid, 1)
+}
+
+// perThreadSyscallArgs contains the system call number, arguments, and
+// expected return values for a system call to be executed on all threads.
+type perThreadSyscallArgs struct {
+	trap uintptr
+	a1   uintptr
+	a2   uintptr
+	a3   uintptr
+	a4   uintptr
+	a5   uintptr
+	a6   uintptr
+	r1   uintptr
+	r2   uintptr
+}
+
+// perThreadSyscall is the system call to execute for the ongoing
+// doAllThreadsSyscall.
+//
+// perThreadSyscall may only be written while mp.needPerThreadSyscall == 0 on
+// all Ms.
+var perThreadSyscall perThreadSyscallArgs
+
+// syscall_runtime_doAllThreadsSyscall and executes a specified system call on
+// all Ms.
+//
+// The system call is expected to succeed and return the same value on every
+// thread. If any threads do not match, the runtime throws.
+//
+//go:linkname syscall_runtime_doAllThreadsSyscall syscall.runtime_doAllThreadsSyscall
+//go:uintptrescapes
+func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	if iscgo {
+		// In cgo, we are not aware of threads created in C, so this approach will not work.
+		panic("doAllThreadsSyscall not supported with cgo enabled")
+	}
+
+	// STW to guarantee that user goroutines see an atomic change to thread
+	// state. Without STW, goroutines could migrate Ms while change is in
+	// progress and e.g., see state old -> new -> old -> new.
+	//
+	// N.B. Internally, this function does not depend on STW to
+	// successfully change every thread. It is only needed for user
+	// expectations, per above.
+	stopTheWorld("doAllThreadsSyscall")
+
+	// This function depends on several properties:
+	//
+	// 1. All OS threads that already exist are associated with an M in
+	//    allm. i.e., we won't miss any pre-existing threads.
+	// 2. All Ms listed in allm will eventually have an OS thread exist.
+	//    i.e., they will set procid and be able to receive signals.
+	// 3. OS threads created after we read allm will clone from a thread
+	//    that has executed the system call. i.e., they inherit the
+	//    modified state.
+	//
+	// We achieve these through different mechanisms:
+	//
+	// 1. Addition of new Ms to allm in allocm happens before clone of its
+	//    OS thread later in newm.
+	// 2. newm does acquirem to avoid being preempted, ensuring that new Ms
+	//    created in allocm will eventually reach OS thread clone later in
+	//    newm.
+	// 3. We take allocmLock for write here to prevent allocation of new Ms
+	//    while this function runs. Per (1), this prevents clone of OS
+	//    threads that are not yet in allm.
+	allocmLock.lock()
+
+	// Disable preemption, preventing us from changing Ms, as we handle
+	// this M specially.
+	//
+	// N.B. STW and lock() above do this as well, this is added for extra
+	// clarity.
+	acquirem()
+
+	// N.B. allocmLock also prevents concurrent execution of this function,
+	// serializing use of perThreadSyscall, mp.needPerThreadSyscall, and
+	// ensuring all threads execute system calls from multiple calls in the
+	// same order.
+
+	r1, r2, errno := syscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
+	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
+		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
+		r2 = 0
+	}
+	if errno != 0 {
+		releasem(getg().m)
+		allocmLock.unlock()
+		startTheWorld()
+		return r1, r2, errno
+	}
+
+	perThreadSyscall = perThreadSyscallArgs{
+		trap: trap,
+		a1:   a1,
+		a2:   a2,
+		a3:   a3,
+		a4:   a4,
+		a5:   a5,
+		a6:   a6,
+		r1:   r1,
+		r2:   r2,
+	}
+
+	// Wait for all threads to start.
+	//
+	// As described above, some Ms have been added to allm prior to
+	// allocmLock, but not yet completed OS clone and set procid.
+	//
+	// At minimum we must wait for a thread to set procid before we can
+	// send it a signal.
+	//
+	// We take this one step further and wait for all threads to start
+	// before sending any signals. This prevents system calls from getting
+	// applied twice: once in the parent and once in the child, like so:
+	//
+	//          A                     B                  C
+	//                         add C to allm
+	// doAllThreadsSyscall
+	//   allocmLock.lock()
+	//   signal B
+	//                         <receive signal>
+	//                         execute syscall
+	//                         <signal return>
+	//                         clone C
+	//                                             <thread start>
+	//                                             set procid
+	//   signal C
+	//                                             <receive signal>
+	//                                             execute syscall
+	//                                             <signal return>
+	//
+	// In this case, thread C inherited the syscall-modified state from
+	// thread B and did not need to execute the syscall, but did anyway
+	// because doAllThreadsSyscall could not be sure whether it was
+	// required.
+	//
+	// Some system calls may not be idempotent, so we ensure each thread
+	// executes the system call exactly once.
+	for mp := allm; mp != nil; mp = mp.alllink {
+		for atomic.Load64(&mp.procid) == 0 {
+			// Thread is starting.
+			osyield()
+		}
+	}
+
+	// Signal every other thread, where they will execute perThreadSyscall
+	// from the signal handler.
+	gp := getg()
+	tid := gp.m.procid
+	for mp := allm; mp != nil; mp = mp.alllink {
+		if atomic.Load64(&mp.procid) == tid {
+			// Our thread already performed the syscall.
+			continue
+		}
+		mp.needPerThreadSyscall.Store(1)
+		signalM(mp, sigPerThreadSyscall)
+	}
+
+	// Wait for all threads to complete.
+	for mp := allm; mp != nil; mp = mp.alllink {
+		if mp.procid == tid {
+			continue
+		}
+		for mp.needPerThreadSyscall.Load() != 0 {
+			osyield()
+		}
+	}
+
+	perThreadSyscall = perThreadSyscallArgs{}
+
+	releasem(getg().m)
+	allocmLock.unlock()
+	startTheWorld()
+
+	return r1, r2, errno
+}
+
+// runPerThreadSyscall runs perThreadSyscall for this M if required.
+//
+// This function throws if the system call returns with anything other than the
+// expected values.
+//
+//go:nosplit
+func runPerThreadSyscall() {
+	gp := getg()
+	if gp.m.needPerThreadSyscall.Load() == 0 {
+		return
+	}
+
+	args := perThreadSyscall
+	r1, r2, errno := syscall.Syscall6(args.trap, args.a1, args.a2, args.a3, args.a4, args.a5, args.a6)
+	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
+		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
+		r2 = 0
+	}
+	if errno != 0 || r1 != args.r1 || r2 != args.r2 {
+		print("trap:", args.trap, ", a123456=[", args.a1, ",", args.a2, ",", args.a3, ",", args.a4, ",", args.a5, ",", args.a6, "]\n")
+		print("results: got {r1=", r1, ",r2=", r2, ",errno=", errno, "}, want {r1=", args.r1, ",r2=", args.r2, ",errno=0\n")
+		fatal("AllThreadsSyscall6 results differ between threads; runtime corrupted")
+	}
+
+	gp.m.needPerThreadSyscall.Store(0)
 }

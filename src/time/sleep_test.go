@@ -7,6 +7,8 @@ package time_test
 import (
 	"errors"
 	"fmt"
+	"internal/testenv"
+	"math/rand"
 	"runtime"
 	"strings"
 	"sync"
@@ -523,6 +525,110 @@ func TestZeroTimer(t *testing.T) {
 		<-ti.C
 		if diff := Since(s); diff > 2*Second {
 			t.Errorf("Expected time to get value from Timer channel in less than 2 sec, took %v", diff)
+		}
+	}
+}
+
+// Test that rapidly moving a timer earlier doesn't cause it to get dropped.
+// Issue 47329.
+func TestTimerModifiedEarlier(t *testing.T) {
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "arm" {
+		testenv.SkipFlaky(t, 50470)
+	}
+
+	past := Until(Unix(0, 0))
+	count := 1000
+	fail := 0
+	for i := 0; i < count; i++ {
+		timer := NewTimer(Hour)
+		for j := 0; j < 10; j++ {
+			if !timer.Stop() {
+				<-timer.C
+			}
+			timer.Reset(past)
+		}
+
+		deadline := NewTimer(10 * Second)
+		defer deadline.Stop()
+		now := Now()
+		select {
+		case <-timer.C:
+			if since := Since(now); since > 8*Second {
+				t.Errorf("timer took too long (%v)", since)
+				fail++
+			}
+		case <-deadline.C:
+			t.Error("deadline expired")
+		}
+	}
+
+	if fail > 0 {
+		t.Errorf("%d failures", fail)
+	}
+}
+
+// Test that rapidly moving timers earlier and later doesn't cause
+// some of the sleep times to be lost.
+// Issue 47762
+func TestAdjustTimers(t *testing.T) {
+	var rnd = rand.New(rand.NewSource(Now().UnixNano()))
+
+	timers := make([]*Timer, 100)
+	states := make([]int, len(timers))
+	indices := rnd.Perm(len(timers))
+
+	for len(indices) != 0 {
+		var ii = rnd.Intn(len(indices))
+		var i = indices[ii]
+
+		var timer = timers[i]
+		var state = states[i]
+		states[i]++
+
+		switch state {
+		case 0:
+			timers[i] = NewTimer(0)
+		case 1:
+			<-timer.C // Timer is now idle.
+
+		// Reset to various long durations, which we'll cancel.
+		case 2:
+			if timer.Reset(1 * Minute) {
+				panic("shouldn't be active (1)")
+			}
+		case 4:
+			if timer.Reset(3 * Minute) {
+				panic("shouldn't be active (3)")
+			}
+		case 6:
+			if timer.Reset(2 * Minute) {
+				panic("shouldn't be active (2)")
+			}
+
+		// Stop and drain a long-duration timer.
+		case 3, 5, 7:
+			if !timer.Stop() {
+				t.Logf("timer %d state %d Stop returned false", i, state)
+				<-timer.C
+			}
+
+		// Start a short-duration timer we expect to select without blocking.
+		case 8:
+			if timer.Reset(0) {
+				t.Fatal("timer.Reset returned true")
+			}
+		case 9:
+			now := Now()
+			<-timer.C
+			dur := Since(now)
+			if dur > 750*Millisecond {
+				t.Errorf("timer %d took %v to complete", i, dur)
+			}
+
+		// Timer is done. Swap with tail and remove.
+		case 10:
+			indices[ii] = indices[len(indices)-1]
+			indices = indices[:len(indices)-1]
 		}
 	}
 }

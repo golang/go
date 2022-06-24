@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package generate implements the ``go generate'' command.
+// Package generate implements the “go generate” command.
 package generate
 
 import (
@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-	exec "internal/execabs"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -38,7 +38,7 @@ Generate runs commands described by directives within existing
 files. Those commands can run any process but the intent is to
 create or update Go source files.
 
-Go generate is never run automatically by go build, go get, go test,
+Go generate is never run automatically by go build, go test,
 and so on. It must be run explicitly.
 
 Go generate scans the file for directives, which are lines of
@@ -84,6 +84,9 @@ Go generate sets several variables when it runs the generator:
 		The line number of the directive in the source file.
 	$GOPACKAGE
 		The name of the package of the file containing the directive.
+	$GOROOT
+		The GOROOT directory for the 'go' command that invoked the
+		generator, containing the Go toolchain and standard library.
 	$DOLLAR
 		A dollar sign.
 
@@ -325,7 +328,8 @@ func isGoGenerate(buf []byte) bool {
 // setEnv sets the extra environment variables used when executing a
 // single go:generate command.
 func (g *Generator) setEnv() {
-	g.env = []string{
+	env := []string{
+		"GOROOT=" + cfg.GOROOT,
 		"GOARCH=" + cfg.BuildContext.GOARCH,
 		"GOOS=" + cfg.BuildContext.GOOS,
 		"GOFILE=" + g.file,
@@ -333,7 +337,9 @@ func (g *Generator) setEnv() {
 		"GOPACKAGE=" + g.pkg,
 		"DOLLAR=" + "$",
 	}
-	g.env = base.AppendPWD(g.env, g.dir)
+	env = base.AppendPATH(env)
+	env = base.AppendPWD(env, g.dir)
+	g.env = env
 }
 
 // split breaks the line into words, evaluating quoted
@@ -408,7 +414,7 @@ var stop = fmt.Errorf("error in generation")
 // errorf logs an error message prefixed with the file and line number.
 // It then exits the program (with exit status 1) because generation stops
 // at the first error.
-func (g *Generator) errorf(format string, args ...interface{}) {
+func (g *Generator) errorf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "%s:%d: %s\n", base.ShortPath(g.path), g.lineNum,
 		fmt.Sprintf(format, args...))
 	panic(stop)
@@ -442,7 +448,20 @@ func (g *Generator) setShorthand(words []string) {
 // exec runs the command specified by the argument. The first word is
 // the command name itself.
 func (g *Generator) exec(words []string) {
-	cmd := exec.Command(words[0], words[1:]...)
+	path := words[0]
+	if path != "" && !strings.Contains(path, string(os.PathSeparator)) {
+		// If a generator says '//go:generate go run <blah>' it almost certainly
+		// intends to use the same 'go' as 'go generate' itself.
+		// Prefer to resolve the binary from GOROOT/bin, and for consistency
+		// prefer to resolve any other commands there too.
+		gorootBinPath, err := exec.LookPath(filepath.Join(cfg.GOROOTbin, path))
+		if err == nil {
+			path = gorootBinPath
+		}
+	}
+	cmd := exec.Command(path, words[1:]...)
+	cmd.Args[0] = words[0] // Overwrite with the original in case it was rewritten above.
+
 	// Standard in and out of generator should be the usual.
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

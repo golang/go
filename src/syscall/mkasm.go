@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // mkasm.go generates assembly trampolines to call library routines from Go.
 // This program must be run after mksyscall.pl.

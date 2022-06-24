@@ -147,12 +147,11 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOVD	$runtime·mainPC(SB), R2		// entry
-	SUB     $24, R15
-	MOVD 	R2, 16(R15)
-	MOVD 	$0, 8(R15)
+	SUB     $16, R15
+	MOVD 	R2, 8(R15)
 	MOVD 	$0, 0(R15)
 	BL	runtime·newproc(SB)
-	ADD	$24, R15
+	ADD	$16, R15
 
 	// start this M
 	BL	runtime·mstart(SB)
@@ -481,21 +480,6 @@ TEXT callfnMVC<>(SB),NOSPLIT|NOFRAME,$0-0
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	RET
 
-// void jmpdefer(fv, sp);
-// called from deferreturn.
-// 1. grab stored LR for caller
-// 2. sub 6 bytes to get back to BL deferreturn (size of BRASL instruction)
-// 3. BR to fn
-TEXT runtime·jmpdefer(SB),NOSPLIT|NOFRAME,$0-16
-	MOVD	0(R15), R1
-	SUB	$6, R1, LR
-
-	MOVD	fv+0(FP), R12
-	MOVD	argp+8(FP), R15
-	SUB	$8, R15
-	MOVD	0(R12), R3
-	BR	(R3)
-
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.
 // Must only be called from functions with no locals ($0)
@@ -529,12 +513,15 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	MOVD	g_m(g), R6
-	MOVD	m_g0(R6), R6
-	CMPBEQ	R6, g, g0
+	MOVD	m_gsignal(R6), R7
+	CMPBEQ	R7, g, g0
+	MOVD	m_g0(R6), R7
+	CMPBEQ	R7, g, g0
 	BL	gosave_systemstack_switch<>(SB)
-	MOVD	R6, g
+	MOVD	R7, g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R15
 
@@ -790,13 +777,12 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
 // - R2 is the destination of the write
 // - R3 is the value being written at R2.
-// It clobbers R10 (the temp register).
+// It clobbers R10 (the temp register) and R1 (used by PLT stub).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$104
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$96
 	// Save the registers clobbered by the fast path.
-	MOVD	R1, 96(R15)
-	MOVD	R4, 104(R15)
+	MOVD	R4, 96(R15)
 	MOVD	g_m(g), R1
 	MOVD	m_p(R1), R1
 	// Increment wbBuf.next position.
@@ -811,8 +797,7 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$104
 	// Is the buffer full?
 	CMPBEQ	R4, R1, flush
 ret:
-	MOVD	96(R15), R1
-	MOVD	104(R15), R4
+	MOVD	96(R15), R4
 	// Do the write.
 	MOVD	R3, (R2)
 	RET

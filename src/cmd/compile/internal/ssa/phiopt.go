@@ -7,20 +7,22 @@ package ssa
 // phiopt eliminates boolean Phis based on the previous if.
 //
 // Main use case is to transform:
-//   x := false
-//   if b {
-//     x = true
-//   }
+//
+//	x := false
+//	if b {
+//	  x = true
+//	}
+//
 // into x = b.
 //
 // In SSA code this appears as
 //
-// b0
-//   If b -> b1 b2
-// b1
-//   Plain -> b2
-// b2
-//   x = (OpPhi (ConstBool [true]) (ConstBool [false]))
+//	b0
+//	  If b -> b1 b2
+//	b1
+//	  Plain -> b2
+//	b2
+//	  x = (OpPhi (ConstBool [true]) (ConstBool [false]))
 //
 // In this case we can replace x with a copy of b.
 func phiopt(f *Func) {

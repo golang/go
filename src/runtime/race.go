@@ -3,11 +3,11 @@
 // license that can be found in the LICENSE file.
 
 //go:build race
-// +build race
 
 package runtime
 
 import (
+	"internal/abi"
 	"unsafe"
 )
 
@@ -233,6 +233,7 @@ func raceSymbolizeData(ctx *symbolizeDataContext) {
 }
 
 // Race runtime functions called via runtime·racecall.
+//
 //go:linkname __tsan_init __tsan_init
 var __tsan_init byte
 
@@ -285,6 +286,7 @@ var __tsan_go_ignore_sync_end byte
 var __tsan_report_count byte
 
 // Mimic what cmd/cgo would do.
+//
 //go:cgo_import_static __tsan_init
 //go:cgo_import_static __tsan_fini
 //go:cgo_import_static __tsan_proc_create
@@ -304,6 +306,7 @@ var __tsan_report_count byte
 //go:cgo_import_static __tsan_report_count
 
 // These are called from race_amd64.s.
+//
 //go:cgo_import_static __tsan_read
 //go:cgo_import_static __tsan_read_pc
 //go:cgo_import_static __tsan_read_range
@@ -343,11 +346,12 @@ func racereadrangepc1(addr, size, pc uintptr)
 func racewriterangepc1(addr, size, pc uintptr)
 func racecallbackthunk(uintptr)
 
-// racecall allows calling an arbitrary function f from C race runtime
+// racecall allows calling an arbitrary function fn from C race runtime
 // with up to 4 uintptr arguments.
 func racecall(fn *byte, arg0, arg1, arg2, arg3 uintptr)
 
 // checks if the address has shadow (i.e. heap or data/bss)
+//
 //go:nosplit
 func isvalidaddr(addr unsafe.Pointer) bool {
 	return racearenastart <= uintptr(addr) && uintptr(addr) < racearenaend ||
@@ -361,7 +365,7 @@ func raceinit() (gctx, pctx uintptr) {
 		throw("raceinit: race build must use cgo")
 	}
 
-	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), funcPC(racecallbackthunk), 0)
+	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), abi.FuncPCABI0(racecallbackthunk), 0)
 
 	// Round data segment to page boundaries, because it's used in mmap().
 	start := ^uintptr(0)

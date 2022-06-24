@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || windows
-// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
+//go:build unix || (js && wasm) || windows
 
 package net
 
@@ -56,8 +55,11 @@ func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
 }
 
 func (sd *sysDialer) dialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
-	if testHookDialTCP != nil {
-		return testHookDialTCP(ctx, sd.network, laddr, raddr)
+	if h := sd.testHookDialTCP; h != nil {
+		return h(ctx, sd.network, laddr, raddr)
+	}
+	if h := testHookDialTCP; h != nil {
+		return h(ctx, sd.network, laddr, raddr)
 	}
 	return sd.doDialTCP(ctx, laddr, raddr)
 }

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 /*
 Input to cgo.
@@ -32,7 +31,6 @@ const (
 	EFAULT = C.EFAULT
 	EBUSY  = C.EBUSY
 	EAGAIN = C.EAGAIN
-	ENOSYS = C.ENOSYS
 
 	O_NONBLOCK = C.O_NONBLOCK
 	O_CLOEXEC  = C.O_CLOEXEC

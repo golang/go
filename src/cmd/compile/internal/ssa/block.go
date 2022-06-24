@@ -71,19 +71,25 @@ type Block struct {
 // Edge represents a CFG edge.
 // Example edges for b branching to either c or d.
 // (c and d have other predecessors.)
-//   b.Succs = [{c,3}, {d,1}]
-//   c.Preds = [?, ?, ?, {b,0}]
-//   d.Preds = [?, {b,1}, ?]
+//
+//	b.Succs = [{c,3}, {d,1}]
+//	c.Preds = [?, ?, ?, {b,0}]
+//	d.Preds = [?, {b,1}, ?]
+//
 // These indexes allow us to edit the CFG in constant time.
 // In addition, it informs phi ops in degenerate cases like:
-// b:
-//    if k then c else c
-// c:
-//    v = Phi(x, y)
+//
+//	b:
+//	   if k then c else c
+//	c:
+//	   v = Phi(x, y)
+//
 // Then the indexes tell you whether x is chosen from
 // the if or else branch from b.
-//   b.Succs = [{c,0},{c,1}]
-//   c.Preds = [{b,0},{b,1}]
+//
+//	b.Succs = [{c,0},{c,1}]
+//	c.Preds = [{b,0},{b,1}]
+//
 // means x is chosen if k is true.
 type Edge struct {
 	// block edge goes to (in a Succs list) or from (in a Preds list)
@@ -105,13 +111,15 @@ func (e Edge) String() string {
 	return fmt.Sprintf("{%v,%d}", e.b, e.i)
 }
 
-//     kind          controls        successors
-//   ------------------------------------------
-//     Exit      [return mem]                []
-//    Plain                []            [next]
-//       If   [boolean Value]      [then, else]
-//    Defer             [mem]  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
-type BlockKind int8
+// BlockKind is the kind of SSA block.
+//
+//	  kind          controls        successors
+//	------------------------------------------
+//	  Exit      [return mem]                []
+//	 Plain                []            [next]
+//	    If   [boolean Value]      [then, else]
+//	 Defer             [mem]  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
+type BlockKind int16
 
 // short form print
 func (b *Block) String() string {
@@ -279,7 +287,8 @@ func (b *Block) AddEdgeTo(c *Block) {
 
 // removePred removes the ith input edge from b.
 // It is the responsibility of the caller to remove
-// the corresponding successor edge.
+// the corresponding successor edge, and adjust any
+// phi values by calling b.removePhiArg(v, i).
 func (b *Block) removePred(i int) {
 	n := len(b.Preds) - 1
 	if i != n {
@@ -320,6 +329,30 @@ func (b *Block) swapSuccessors() {
 	e0.b.Preds[e0.i].i = 1
 	e1.b.Preds[e1.i].i = 0
 	b.Likely *= -1
+}
+
+// removePhiArg removes the ith arg from phi.
+// It must be called after calling b.removePred(i) to
+// adjust the corresponding phi value of the block:
+//
+// b.removePred(i)
+// for _, v := range b.Values {
+//
+//	if v.Op != OpPhi {
+//	    continue
+//	}
+//	b.removeArg(v, i)
+//
+// }
+func (b *Block) removePhiArg(phi *Value, i int) {
+	n := len(b.Preds)
+	if numPhiArgs := len(phi.Args); numPhiArgs-1 != n {
+		b.Fatalf("inconsistent state, num predecessors: %d, num phi args: %d", n, numPhiArgs)
+	}
+	phi.Args[i].Uses--
+	phi.Args[i] = phi.Args[n]
+	phi.Args[n] = nil
+	phi.Args = phi.Args[:n]
 }
 
 // LackingPos indicates whether b is a block whose position should be inherited

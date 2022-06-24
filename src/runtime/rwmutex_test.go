@@ -55,6 +55,11 @@ func TestParallelRWMutexReaders(t *testing.T) {
 	// since the goroutines can't be stopped/preempted.
 	// Disable GC for this test (see issue #10958).
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too.
+	GC()
+
 	doTestParallelReaders(1)
 	doTestParallelReaders(3)
 	doTestParallelReaders(4)

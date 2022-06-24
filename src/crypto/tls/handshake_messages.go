@@ -329,8 +329,7 @@ func (m *clientHelloMsg) updateBinders(pskBinders [][]byte) {
 	m.pskBinders = pskBinders
 	if m.raw != nil {
 		lenWithoutBinders := len(m.marshalWithoutBinders())
-		// TODO(filippo): replace with NewFixedBuilder once CL 148882 is imported.
-		b := cryptobyte.NewBuilder(m.raw[:lenWithoutBinders])
+		b := cryptobyte.NewFixedBuilder(m.raw[:lenWithoutBinders])
 		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 			for _, binder := range m.pskBinders {
 				b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
@@ -338,7 +337,7 @@ func (m *clientHelloMsg) updateBinders(pskBinders [][]byte) {
 				})
 			}
 		})
-		if len(b.BytesOrPanic()) != len(m.raw) {
+		if out, err := b.Bytes(); err != nil || len(out) != len(m.raw) {
 			panic("tls: internal error: failed to update binders")
 		}
 	}
@@ -385,6 +384,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 		return false
 	}
 
+	seenExts := make(map[uint16]bool)
 	for !extensions.Empty() {
 		var extension uint16
 		var extData cryptobyte.String
@@ -392,6 +392,11 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 			!extensions.ReadUint16LengthPrefixed(&extData) {
 			return false
 		}
+
+		if seenExts[extension] {
+			return false
+		}
+		seenExts[extension] = true
 
 		switch extension {
 		case extensionServerName:
@@ -751,6 +756,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 		return false
 	}
 
+	seenExts := make(map[uint16]bool)
 	for !extensions.Empty() {
 		var extension uint16
 		var extData cryptobyte.String
@@ -758,6 +764,11 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 			!extensions.ReadUint16LengthPrefixed(&extData) {
 			return false
 		}
+
+		if seenExts[extension] {
+			return false
+		}
+		seenExts[extension] = true
 
 		switch extension {
 		case extensionStatusRequest:

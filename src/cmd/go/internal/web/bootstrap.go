@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build cmd_go_bootstrap
-// +build cmd_go_bootstrap
 
 // This code is compiled only into the bootstrap 'go' binary.
 // These stubs avoid importing packages with large dependency

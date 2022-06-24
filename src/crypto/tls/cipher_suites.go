@@ -10,6 +10,7 @@ import (
 	"crypto/cipher"
 	"crypto/des"
 	"crypto/hmac"
+	"crypto/internal/boring"
 	"crypto/rc4"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -140,7 +141,7 @@ type cipherSuite struct {
 	ka     func(version uint16) keyAgreement
 	// flags is a bitmask of the suite* values, above.
 	flags  int
-	cipher func(key, iv []byte, isRead bool) interface{}
+	cipher func(key, iv []byte, isRead bool) any
 	mac    func(key []byte) hash.Hash
 	aead   func(key, fixedNonce []byte) aead
 }
@@ -217,57 +218,56 @@ var cipherSuitesTLS13 = []*cipherSuiteTLS13{ // TODO: replace with a map.
 //
 //   - Anything else comes before RC4
 //
-//       RC4 has practically exploitable biases. See https://www.rc4nomore.com.
+//     RC4 has practically exploitable biases. See https://www.rc4nomore.com.
 //
 //   - Anything else comes before CBC_SHA256
 //
-//       SHA-256 variants of the CBC ciphersuites don't implement any Lucky13
-//       countermeasures. See http://www.isg.rhul.ac.uk/tls/Lucky13.html and
-//       https://www.imperialviolet.org/2013/02/04/luckythirteen.html.
+//     SHA-256 variants of the CBC ciphersuites don't implement any Lucky13
+//     countermeasures. See http://www.isg.rhul.ac.uk/tls/Lucky13.html and
+//     https://www.imperialviolet.org/2013/02/04/luckythirteen.html.
 //
 //   - Anything else comes before 3DES
 //
-//       3DES has 64-bit blocks, which makes it fundamentally susceptible to
-//       birthday attacks. See https://sweet32.info.
+//     3DES has 64-bit blocks, which makes it fundamentally susceptible to
+//     birthday attacks. See https://sweet32.info.
 //
 //   - ECDHE comes before anything else
 //
-//       Once we got the broken stuff out of the way, the most important
-//       property a cipher suite can have is forward secrecy. We don't
-//       implement FFDHE, so that means ECDHE.
+//     Once we got the broken stuff out of the way, the most important
+//     property a cipher suite can have is forward secrecy. We don't
+//     implement FFDHE, so that means ECDHE.
 //
 //   - AEADs come before CBC ciphers
 //
-//       Even with Lucky13 countermeasures, MAC-then-Encrypt CBC cipher suites
-//       are fundamentally fragile, and suffered from an endless sequence of
-//       padding oracle attacks. See https://eprint.iacr.org/2015/1129,
-//       https://www.imperialviolet.org/2014/12/08/poodleagain.html, and
-//       https://blog.cloudflare.com/yet-another-padding-oracle-in-openssl-cbc-ciphersuites/.
+//     Even with Lucky13 countermeasures, MAC-then-Encrypt CBC cipher suites
+//     are fundamentally fragile, and suffered from an endless sequence of
+//     padding oracle attacks. See https://eprint.iacr.org/2015/1129,
+//     https://www.imperialviolet.org/2014/12/08/poodleagain.html, and
+//     https://blog.cloudflare.com/yet-another-padding-oracle-in-openssl-cbc-ciphersuites/.
 //
 //   - AES comes before ChaCha20
 //
-//       When AES hardware is available, AES-128-GCM and AES-256-GCM are faster
-//       than ChaCha20Poly1305.
+//     When AES hardware is available, AES-128-GCM and AES-256-GCM are faster
+//     than ChaCha20Poly1305.
 //
-//       When AES hardware is not available, AES-128-GCM is one or more of: much
-//       slower, way more complex, and less safe (because not constant time)
-//       than ChaCha20Poly1305.
+//     When AES hardware is not available, AES-128-GCM is one or more of: much
+//     slower, way more complex, and less safe (because not constant time)
+//     than ChaCha20Poly1305.
 //
-//       We use this list if we think both peers have AES hardware, and
-//       cipherSuitesPreferenceOrderNoAES otherwise.
+//     We use this list if we think both peers have AES hardware, and
+//     cipherSuitesPreferenceOrderNoAES otherwise.
 //
 //   - AES-128 comes before AES-256
 //
-//       The only potential advantages of AES-256 are better multi-target
-//       margins, and hypothetical post-quantum properties. Neither apply to
-//       TLS, and AES-256 is slower due to its four extra rounds (which don't
-//       contribute to the advantages above).
+//     The only potential advantages of AES-256 are better multi-target
+//     margins, and hypothetical post-quantum properties. Neither apply to
+//     TLS, and AES-256 is slower due to its four extra rounds (which don't
+//     contribute to the advantages above).
 //
 //   - ECDSA comes before RSA
 //
-//       The relative order of ECDSA and RSA cipher suites doesn't matter,
-//       as they depend on the certificate. Pick one to get a stable order.
-//
+//     The relative order of ECDSA and RSA cipher suites doesn't matter,
+//     as they depend on the certificate. Pick one to get a stable order.
 var cipherSuitesPreferenceOrder = []uint16{
 	// AEADs w/ ECDHE
 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
@@ -399,12 +399,12 @@ func aesgcmPreferred(ciphers []uint16) bool {
 	return false
 }
 
-func cipherRC4(key, iv []byte, isRead bool) interface{} {
+func cipherRC4(key, iv []byte, isRead bool) any {
 	cipher, _ := rc4.NewCipher(key)
 	return cipher
 }
 
-func cipher3DES(key, iv []byte, isRead bool) interface{} {
+func cipher3DES(key, iv []byte, isRead bool) any {
 	block, _ := des.NewTripleDESCipher(key)
 	if isRead {
 		return cipher.NewCBCDecrypter(block, iv)
@@ -412,7 +412,7 @@ func cipher3DES(key, iv []byte, isRead bool) interface{} {
 	return cipher.NewCBCEncrypter(block, iv)
 }
 
-func cipherAES(key, iv []byte, isRead bool) interface{} {
+func cipherAES(key, iv []byte, isRead bool) any {
 	block, _ := aes.NewCipher(key)
 	if isRead {
 		return cipher.NewCBCDecrypter(block, iv)
@@ -422,7 +422,13 @@ func cipherAES(key, iv []byte, isRead bool) interface{} {
 
 // macSHA1 returns a SHA-1 based constant time MAC.
 func macSHA1(key []byte) hash.Hash {
-	return hmac.New(newConstantTimeHash(sha1.New), key)
+	h := sha1.New
+	// The BoringCrypto SHA1 does not have a constant-time
+	// checksum function, so don't try to use it.
+	if !boring.Enabled {
+		h = newConstantTimeHash(h)
+	}
+	return hmac.New(h, key)
 }
 
 // macSHA256 returns a SHA-256 based MAC. This is only supported in TLS 1.2 and
@@ -510,7 +516,13 @@ func aeadAESGCM(key, noncePrefix []byte) aead {
 	if err != nil {
 		panic(err)
 	}
-	aead, err := cipher.NewGCM(aes)
+	var aead cipher.AEAD
+	if boring.Enabled {
+		aead, err = boring.NewGCMTLS(aes)
+	} else {
+		boring.Unreachable()
+		aead, err = cipher.NewGCM(aes)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -570,6 +582,7 @@ func (c *cthWrapper) Write(p []byte) (int, error) { return c.h.Write(p) }
 func (c *cthWrapper) Sum(b []byte) []byte         { return c.h.ConstantTimeSum(b) }
 
 func newConstantTimeHash(h func() hash.Hash) func() hash.Hash {
+	boring.Unreachable()
 	return func() hash.Hash {
 		return &cthWrapper{h().(constantTimeHash)}
 	}

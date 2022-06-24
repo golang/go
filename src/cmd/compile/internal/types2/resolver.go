@@ -179,8 +179,9 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 	// package should be complete or marked fake, but be cautious
 	if imp.complete || imp.fake {
 		check.impMap[key] = imp
-		// Once we've formatted an error message once, keep the pkgPathMap
-		// up-to-date on subsequent imports.
+		// Once we've formatted an error message, keep the pkgPathMap
+		// up-to-date on subsequent imports. It is used for package
+		// qualification in error messages.
 		if check.pkgPathMap != nil {
 			check.markImports(imp)
 		}
@@ -196,6 +197,7 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 // methods with receiver base type names.
 func (check *Checker) collectObjects() {
 	pkg := check.pkg
+	pkg.height = 0
 
 	// pkgImports is the set of packages already imported by any package file seen
 	// so far. Used to avoid duplicate entries in pkg.imports. Allocate and populate
@@ -253,19 +255,28 @@ func (check *Checker) collectObjects() {
 					continue
 				}
 
+				if imp == Unsafe {
+					// typecheck ignores imports of package unsafe for
+					// calculating height.
+					// TODO(mdempsky): Revisit this. This seems fine, but I
+					// don't remember explicitly considering this case.
+				} else if h := imp.height + 1; h > pkg.height {
+					pkg.height = h
+				}
+
 				// local name overrides imported package name
 				name := imp.name
 				if s.LocalPkgName != nil {
 					name = s.LocalPkgName.Value
 					if path == "C" {
-						// match cmd/compile (not prescribed by spec)
+						// match 1.17 cmd/compile (not prescribed by spec)
 						check.error(s.LocalPkgName, `cannot rename import "C"`)
 						continue
 					}
 				}
 
 				if name == "init" {
-					check.error(s.LocalPkgName, "cannot import package as init - init must be a func")
+					check.error(s, "cannot import package as init - init must be a func")
 					continue
 				}
 
@@ -285,8 +296,8 @@ func (check *Checker) collectObjects() {
 					check.recordImplicit(s, pkgName)
 				}
 
-				if path == "C" {
-					// match cmd/compile (not prescribed by spec)
+				if imp.fake {
+					// match 1.17 cmd/compile (not prescribed by spec)
 					pkgName.used = true
 				}
 
@@ -298,22 +309,26 @@ func (check *Checker) collectObjects() {
 						check.dotImportMap = make(map[dotImportKey]*PkgName)
 					}
 					// merge imported scope with file scope
-					for _, obj := range imp.scope.elems {
+					for name, obj := range imp.scope.elems {
+						// Note: Avoid eager resolve(name, obj) here, so we only
+						// resolve dot-imported objects as needed.
+
 						// A package scope may contain non-exported objects,
 						// do not import them!
-						if obj.Exported() {
+						if isExported(name) {
 							// declare dot-imported object
 							// (Do not use check.declare because it modifies the object
 							// via Object.setScopePos, which leads to a race condition;
 							// the object may be imported into more than one file scope
 							// concurrently. See issue #32154.)
-							if alt := fileScope.Insert(obj); alt != nil {
+							if alt := fileScope.Lookup(name); alt != nil {
 								var err error_
-								err.errorf(s.LocalPkgName, "%s redeclared in this block", obj.Name())
+								err.errorf(s.LocalPkgName, "%s redeclared in this block", alt.Name())
 								err.recordAltDecl(alt)
 								check.report(&err)
 							} else {
-								check.dotImportMap[dotImportKey{fileScope, obj}] = pkgName
+								fileScope.insert(name, obj)
+								check.dotImportMap[dotImportKey{fileScope, name}] = pkgName
 							}
 						}
 					}
@@ -325,7 +340,7 @@ func (check *Checker) collectObjects() {
 
 			case *syntax.ConstDecl:
 				// iota is the index of the current constDecl within the group
-				if first < 0 || file.DeclList[index-1].(*syntax.ConstDecl).Group != s.Group {
+				if first < 0 || s.Group == nil || file.DeclList[index-1].(*syntax.ConstDecl).Group != s.Group {
 					first = index
 					last = nil
 				}
@@ -398,52 +413,55 @@ func (check *Checker) collectObjects() {
 				}
 
 			case *syntax.TypeDecl:
+				if len(s.TParamList) != 0 && !check.allowVersion(pkg, 1, 18) {
+					check.versionErrorf(s.TParamList[0], "go1.18", "type parameter")
+				}
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
 				check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
 
 			case *syntax.FuncDecl:
-				d := s // TODO(gri) get rid of this
-				name := d.Name.Value
-				obj := NewFunc(d.Name.Pos(), pkg, name, nil)
-				if d.Recv == nil {
+				name := s.Name.Value
+				obj := NewFunc(s.Name.Pos(), pkg, name, nil)
+				hasTParamError := false // avoid duplicate type parameter errors
+				if s.Recv == nil {
 					// regular function
 					if name == "init" || name == "main" && pkg.name == "main" {
-						if d.TParamList != nil {
-							check.softErrorf(d, "func %s must have no type parameters", name)
+						if len(s.TParamList) != 0 {
+							check.softErrorf(s.TParamList[0], "func %s must have no type parameters", name)
+							hasTParamError = true
 						}
-						if t := d.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
-							check.softErrorf(d, "func %s must have no arguments and no return values", name)
+						if t := s.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
+							check.softErrorf(s, "func %s must have no arguments and no return values", name)
 						}
 					}
 					// don't declare init functions in the package scope - they are invisible
 					if name == "init" {
 						obj.parent = pkg.scope
-						check.recordDef(d.Name, obj)
+						check.recordDef(s.Name, obj)
 						// init functions must have a body
-						if d.Body == nil {
+						if s.Body == nil {
 							// TODO(gri) make this error message consistent with the others above
 							check.softErrorf(obj.pos, "missing function body")
 						}
 					} else {
-						check.declare(pkg.scope, d.Name, obj, nopos)
+						check.declare(pkg.scope, s.Name, obj, nopos)
 					}
 				} else {
 					// method
 					// d.Recv != nil
-					if !acceptMethodTypeParams && len(d.TParamList) != 0 {
-						//check.error(d.TParamList.Pos(), invalidAST + "method must have no type parameters")
-						check.error(d, invalidAST+"method must have no type parameters")
-					}
-					ptr, recv, _ := check.unpackRecv(d.Recv.Type, false)
-					// (Methods with invalid receiver cannot be associated to a type, and
+					ptr, recv, _ := check.unpackRecv(s.Recv.Type, false)
+					// Methods with invalid receiver cannot be associated to a type, and
 					// methods with blank _ names are never found; no need to collect any
-					// of them. They will still be type-checked with all the other functions.)
+					// of them. They will still be type-checked with all the other functions.
 					if recv != nil && name != "_" {
 						methods = append(methods, methodInfo{obj, ptr, recv})
 					}
-					check.recordDef(d.Name, obj)
+					check.recordDef(s.Name, obj)
 				}
-				info := &declInfo{file: fileScope, fdecl: d}
+				if len(s.TParamList) != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
+					check.versionErrorf(s.TParamList[0], "go1.18", "type parameter")
+				}
+				info := &declInfo{file: fileScope, fdecl: s}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the
 				// receiver is invalid); also we need their fdecl info when associating
@@ -459,8 +477,9 @@ func (check *Checker) collectObjects() {
 
 	// verify that objects in package and file scopes have different names
 	for _, scope := range fileScopes {
-		for _, obj := range scope.elems {
-			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
+		for name, obj := range scope.elems {
+			if alt := pkg.scope.Lookup(name); alt != nil {
+				obj = resolve(name, obj)
 				var err error_
 				if pkg, ok := obj.(*PkgName); ok {
 					err.errorf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
@@ -486,7 +505,7 @@ func (check *Checker) collectObjects() {
 			// Determine the receiver base type and associate m with it.
 			ptr, base := check.resolveBaseTypeName(m.ptr, m.recv)
 			if base != nil {
-				m.obj.hasPtrRecv = ptr
+				m.obj.hasPtrRecv_ = ptr
 				check.methods[base] = append(check.methods[base], m.obj)
 			}
 		}
@@ -638,25 +657,31 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	// We process non-alias declarations first, in order to avoid situations where
-	// the type of an alias declaration is needed before it is available. In general
-	// this is still not enough, as it is possible to create sufficiently convoluted
-	// recursive type definitions that will cause a type alias to be needed before it
-	// is available (see issue #25838 for examples).
-	// As an aside, the cmd/compiler suffers from the same problem (#25838).
+	// We process non-alias type declarations first, followed by alias declarations,
+	// and then everything else. This appears to avoid most situations where the type
+	// of an alias is needed before it is available.
+	// There may still be cases where this is not good enough (see also issue #25838).
+	// In those cases Checker.ident will report an error ("invalid use of type alias").
 	var aliasList []*TypeName
-	// phase 1
+	var othersList []Object // everything that's not a type
+	// phase 1: non-alias type declarations
 	for _, obj := range objList {
-		// If we have a type alias, collect it for the 2nd phase.
-		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].tdecl.Alias {
-			aliasList = append(aliasList, tname)
-			continue
+		if tname, _ := obj.(*TypeName); tname != nil {
+			if check.objMap[tname].tdecl.Alias {
+				aliasList = append(aliasList, tname)
+			} else {
+				check.objDecl(obj, nil)
+			}
+		} else {
+			othersList = append(othersList, obj)
 		}
-
+	}
+	// phase 2: alias type declarations
+	for _, obj := range aliasList {
 		check.objDecl(obj, nil)
 	}
-	// phase 2
-	for _, obj := range aliasList {
+	// phase 3: all other declarations
+	for _, obj := range othersList {
 		check.objDecl(obj, nil)
 	}
 
@@ -676,7 +701,7 @@ func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // unusedImports checks for unused imports.
 func (check *Checker) unusedImports() {
-	// if function bodies are not checked, packages' uses are likely missing - don't check
+	// If function bodies are not checked, packages' uses are likely missing - don't check.
 	if check.conf.IgnoreFuncBodies {
 		return
 	}
