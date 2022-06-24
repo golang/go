@@ -796,7 +796,7 @@ func GetPackageExports(ctx context.Context, wrapped func(PackageExport), searchP
 	return getCandidatePkgs(ctx, callback, filename, filePkg, env)
 }
 
-var RequiredGoEnvVars = []string{"GO111MODULE", "GOFLAGS", "GOINSECURE", "GOMOD", "GOMODCACHE", "GONOPROXY", "GONOSUMDB", "GOPATH", "GOPROXY", "GOROOT", "GOSUMDB"}
+var RequiredGoEnvVars = []string{"GO111MODULE", "GOFLAGS", "GOINSECURE", "GOMOD", "GOMODCACHE", "GONOPROXY", "GONOSUMDB", "GOPATH", "GOPROXY", "GOROOT", "GOSUMDB", "GOWORK"}
 
 // ProcessEnv contains environment variables and settings that affect the use of
 // the go command, the go/build package, etc.
@@ -906,7 +906,7 @@ func (e *ProcessEnv) GetResolver() (Resolver, error) {
 	if err := e.init(); err != nil {
 		return nil, err
 	}
-	if len(e.Env["GOMOD"]) == 0 {
+	if len(e.Env["GOMOD"]) == 0 && len(e.Env["GOWORK"]) == 0 {
 		e.resolver = newGopathResolver(e)
 		return e.resolver, nil
 	}

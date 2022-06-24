@@ -70,9 +70,17 @@ func (r *ModuleResolver) init() error {
 		Logf:       r.env.Logf,
 		WorkingDir: r.env.WorkingDir,
 	}
-	vendorEnabled, mainModVendor, err := gocommand.VendorEnabled(context.TODO(), inv, r.env.GocmdRunner)
-	if err != nil {
-		return err
+
+	vendorEnabled := false
+	var mainModVendor *gocommand.ModuleJSON
+
+	// Module vendor directories are ignored in workspace mode:
+	// https://go.googlesource.com/proposal/+/master/design/45713-workspace.md
+	if len(r.env.Env["GOWORK"]) == 0 {
+		vendorEnabled, mainModVendor, err = gocommand.VendorEnabled(context.TODO(), inv, r.env.GocmdRunner)
+		if err != nil {
+			return err
+		}
 	}
 
 	if mainModVendor != nil && vendorEnabled {

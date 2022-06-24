@@ -253,7 +253,7 @@ func (m *moduleErrorMap) Error() string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%d modules have errors:\n", len(paths))
 	for _, path := range paths {
-		fmt.Fprintf(&buf, "\t%s", m.errs[path][0].Msg)
+		fmt.Fprintf(&buf, "\t%s:%s\n", path, m.errs[path][0].Msg)
 	}
 
 	return buf.String()

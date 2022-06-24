@@ -214,3 +214,49 @@ func TestA(t *testing.T) {
 		)
 	})
 }
+
+// Test for golang/go#52784
+func TestGoWorkImports(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
+	const pkg = `
+-- go.work --
+go 1.19
+
+use (
+        ./caller
+        ./mod
+)
+-- caller/go.mod --
+module caller.com
+
+go 1.18
+
+require mod.com v0.0.0
+
+replace mod.com => ../mod
+-- caller/caller.go --
+package main
+
+func main() {
+        a.Test()
+}
+-- mod/go.mod --
+module mod.com
+
+go 1.18
+-- mod/a/a.go --
+package a
+
+func Test() {
+}
+`
+	Run(t, pkg, func(t *testing.T, env *Env) {
+		env.OpenFile("caller/caller.go")
+		env.Await(env.DiagnosticAtRegexp("caller/caller.go", "a.Test"))
+
+		// Saving caller.go should trigger goimports, which should find a.Test in
+		// the mod.com module, thanks to the go.work file.
+		env.SaveBuffer("caller/caller.go")
+		env.Await(EmptyDiagnostics("caller/caller.go"))
+	})
+}
