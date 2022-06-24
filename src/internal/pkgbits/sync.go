@@ -121,4 +121,6 @@ const (
 	SyncStmtsEnd
 	SyncLabel
 	SyncOptLabel
+
+	SyncMultiExpr
 )

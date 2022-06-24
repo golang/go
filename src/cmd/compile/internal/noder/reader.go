@@ -1240,7 +1240,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 		pos := r.pos()
 
 		names, lhs := r.assignList()
-		rhs := r.exprList()
+		rhs := r.multiExpr()
 
 		if len(rhs) == 0 {
 			for _, name := range names {
@@ -1308,7 +1308,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 
 	case stmtReturn:
 		pos := r.pos()
-		results := r.exprList()
+		results := r.multiExpr()
 		return ir.NewReturnStmt(pos, results)
 
 	case stmtSelect:
@@ -1734,15 +1734,8 @@ func (r *reader) expr() (res ir.Node) {
 			fun = typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, fun, sym))
 		}
 		pos := r.pos()
-		var args ir.Nodes
-		var dots bool
-		if r.Bool() { // f(g())
-			call := r.expr()
-			args = []ir.Node{call}
-		} else {
-			args = r.exprs()
-			dots = r.Bool()
-		}
+		args := r.multiExpr()
+		dots := r.Bool()
 		n := typecheck.Call(pos, fun, args, dots)
 		switch n.Op() {
 		case ir.OAPPEND:
@@ -1812,6 +1805,20 @@ func (r *reader) optExpr() ir.Node {
 		return r.expr()
 	}
 	return nil
+}
+
+func (r *reader) multiExpr() []ir.Node {
+	r.Sync(pkgbits.SyncMultiExpr)
+
+	exprs := make([]ir.Node, r.Len())
+	if len(exprs) == 0 {
+		return nil
+	}
+
+	for i := range exprs {
+		exprs[i] = r.expr()
+	}
+	return exprs
 }
 
 func (r *reader) compLit() ir.Node {

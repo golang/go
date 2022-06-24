@@ -1136,24 +1136,11 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		w.Code(stmtReturn)
 		w.pos(stmt)
 
-		// As if w.exprList(stmt.Results), but with implicit conversions to result types.
-		w.Sync(pkgbits.SyncExprList)
-		exprs := unpackListExpr(stmt.Results)
-		w.Sync(pkgbits.SyncExprs)
-		w.Len(len(exprs))
-
 		resultTypes := w.sig.Results()
-		if len(exprs) == resultTypes.Len() {
-			for i, expr := range exprs {
-				w.implicitConvExpr(stmt, resultTypes.At(i).Type(), expr)
-			}
-		} else if len(exprs) == 0 {
-			// ok: bare "return" with named result parameters
-		} else {
-			// TODO(mdempsky): Implicit conversions for "return g()", where g() is multi-valued.
-			assert(len(exprs) == 1)
-			w.expr(exprs[0])
+		dstType := func(i int) types2.Type {
+			return resultTypes.At(i).Type()
 		}
+		w.multiExpr(stmt, dstType, unpackListExpr(stmt.Results))
 
 	case *syntax.SelectStmt:
 		w.Code(stmtSelect)
@@ -1236,40 +1223,28 @@ func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
 		w.assign(expr)
 	}
 
-	// As if w.exprList(rhs0), but with implicit conversions.
-	w.Sync(pkgbits.SyncExprList)
-	w.Sync(pkgbits.SyncExprs)
-	w.Len(len(rhs))
-	if len(lhs) == len(rhs) {
-		for i, expr := range rhs {
-			dst := lhs[i]
+	dstType := func(i int) types2.Type {
+		dst := lhs[i]
 
-			// Finding dstType is somewhat involved, because for VarDecl
-			// statements, the Names are only added to the info.{Defs,Uses}
-			// maps, not to info.Types.
-			var dstType types2.Type
-			if name, ok := unparen(dst).(*syntax.Name); ok {
-				if name.Value == "_" {
-					// ok: no implicit conversion
-				} else if def, ok := w.p.info.Defs[name].(*types2.Var); ok {
-					dstType = def.Type()
-				} else if use, ok := w.p.info.Uses[name].(*types2.Var); ok {
-					dstType = use.Type()
-				} else {
-					w.p.fatalf(dst, "cannot find type of destination object: %v", dst)
-				}
+		// Finding dstType is somewhat involved, because for VarDecl
+		// statements, the Names are only added to the info.{Defs,Uses}
+		// maps, not to info.Types.
+		if name, ok := unparen(dst).(*syntax.Name); ok {
+			if name.Value == "_" {
+				return nil // ok: no implicit conversion
+			} else if def, ok := w.p.info.Defs[name].(*types2.Var); ok {
+				return def.Type()
+			} else if use, ok := w.p.info.Uses[name].(*types2.Var); ok {
+				return use.Type()
 			} else {
-				dstType = w.p.typeOf(dst)
+				w.p.fatalf(dst, "cannot find type of destination object: %v", dst)
 			}
-
-			w.implicitConvExpr(pos, dstType, expr)
 		}
-	} else if len(rhs) == 0 {
-		// ok: variable declaration without values
-	} else {
-		assert(len(rhs) == 1)
-		w.expr(rhs[0]) // TODO(mdempsky): Implicit conversions to lhs types.
+
+		return w.p.typeOf(dst)
 	}
+
+	w.multiExpr(pos, dstType, rhs)
 }
 
 func (w *writer) blockStmt(stmt *syntax.BlockStmt) {
@@ -1590,33 +1565,46 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.Code(exprCall)
 		writeFunExpr()
 		w.pos(expr)
-		if w.Bool(len(expr.ArgList) == 1 && isMultiValueExpr(w.p.info, expr.ArgList[0])) {
-			// f(g()) call
-			assert(!expr.HasDots)
-			w.expr(expr.ArgList[0]) // TODO(mdempsky): Implicit conversions to parameter types.
-		} else {
-			// Like w.exprs(expr.ArgList), but with implicit conversions to parameter types.
-			args := expr.ArgList
-			w.Sync(pkgbits.SyncExprs)
-			w.Len(len(args))
-			for i, arg := range args {
-				var paramType types2.Type
-				if sigType.Variadic() && !expr.HasDots && i+1 >= paramTypes.Len() {
-					paramType = paramTypes.At(paramTypes.Len() - 1).Type().(*types2.Slice).Elem()
-				} else {
-					paramType = paramTypes.At(i).Type()
-				}
-				w.implicitConvExpr(expr, paramType, arg)
-			}
 
-			w.Bool(expr.HasDots)
+		paramType := func(i int) types2.Type {
+			if sigType.Variadic() && !expr.HasDots && i >= paramTypes.Len()-1 {
+				return paramTypes.At(paramTypes.Len() - 1).Type().(*types2.Slice).Elem()
+			}
+			return paramTypes.At(i).Type()
 		}
+
+		w.multiExpr(expr, paramType, expr.ArgList)
+		w.Bool(expr.HasDots)
 	}
 }
 
 func (w *writer) optExpr(expr syntax.Expr) {
 	if w.Bool(expr != nil) {
 		w.expr(expr)
+	}
+}
+
+// multiExpr writes a sequence of expressions, where the i'th value is
+// implicitly converted to dstType(i). It also handles when exprs is a
+// single, multi-valued expression (e.g., the multi-valued argument in
+// an f(g()) call, or the RHS operand in a comma-ok assignment).
+func (w *writer) multiExpr(pos poser, dstType func(int) types2.Type, exprs []syntax.Expr) {
+	w.Sync(pkgbits.SyncMultiExpr)
+	w.Len(len(exprs))
+
+	if len(exprs) == 1 {
+		expr := exprs[0]
+		if tuple, ok := w.p.typeOf(expr).(*types2.Tuple); ok {
+			// N:1 assignment
+			assert(tuple.Len() > 1)
+			w.expr(expr) // TODO(mdempsky): Implicit conversions to dstTypes.
+			return
+		}
+	}
+
+	// N:N assignment
+	for i, expr := range exprs {
+		w.implicitConvExpr(pos, dstType(i), expr)
 	}
 }
 
@@ -2032,6 +2020,12 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		w.Code(declVar)
 		w.pos(decl)
 		w.pkgObjs(decl.NameList...)
+
+		// TODO(mdempsky): It would make sense to use multiExpr here, but
+		// that results in IR that confuses pkginit/initorder.go. So we
+		// continue using exprList, and let typecheck handle inserting any
+		// implicit conversions. That's okay though, because package-scope
+		// assignments never require dictionaries.
 		w.exprList(decl.Values)
 
 		var embeds []pragmaEmbed
