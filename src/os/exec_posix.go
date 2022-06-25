@@ -104,10 +104,10 @@ func (p *ProcessState) String() string {
 	switch {
 	case status.Exited():
 		code := status.ExitStatus()
+		// unix systems use small decimal integers
+		res = "exit status " + itoa.Itoa(code) // unix
 		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows uses large hex numbers
 			res = "exit status " + uitox(uint(code))
-		} else { // unix systems use small decimal integers
-			res = "exit status " + itoa.Itoa(code) // unix
 		}
 	case status.Signaled():
 		res = "signal: " + status.Signal().String()
