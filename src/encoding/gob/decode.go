@@ -57,17 +57,6 @@ func (d *decBuffer) Drop(n int) {
 	d.offset += n
 }
 
-// Size grows the buffer to exactly n bytes, so d.Bytes() will
-// return a slice of length n. Existing data is first discarded.
-func (d *decBuffer) Size(n int) {
-	d.Reset()
-	if cap(d.data) < n {
-		d.data = make([]byte, n)
-	} else {
-		d.data = d.data[0:n]
-	}
-}
-
 func (d *decBuffer) ReadByte() (byte, error) {
 	if d.offset >= len(d.data) {
 		return 0, io.EOF
@@ -83,6 +72,12 @@ func (d *decBuffer) Len() int {
 
 func (d *decBuffer) Bytes() []byte {
 	return d.data[d.offset:]
+}
+
+// SetBytes sets the buffer to the bytes, discarding any existing data.
+func (d *decBuffer) SetBytes(data []byte) {
+	d.data = data
+	d.offset = 0
 }
 
 func (d *decBuffer) Reset() {
