@@ -268,6 +268,27 @@ for k := range foo {
 `,
 		},
 		{
+			name: "channel_range",
+			before: `
+package foo
+
+func _() {
+	foo := make(chan int)
+	foo.range
+}
+`,
+			after: `
+package foo
+
+func _() {
+	foo := make(chan int)
+	for e := range foo {
+	$0
+}
+}
+`,
+		},
+		{
 			name: "var",
 			before: `
 package foo

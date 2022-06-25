@@ -150,6 +150,14 @@ for {{.VarName .KeyType "k"}}, {{.VarName .ElemType "v"}} := range {{.X}} {
 }
 {{end}}`,
 }, {
+	label:   "range",
+	details: "range over channel",
+	body: `{{if and (eq .Kind "chan") .StmtOK -}}
+for {{.VarName .ElemType "e"}} := range {{.X}} {
+	{{.Cursor}}
+}
+{{- end}}`,
+}, {
 	label:   "var",
 	details: "assign to variables",
 	body: `{{if and (eq .Kind "tuple") .StmtOK -}}
