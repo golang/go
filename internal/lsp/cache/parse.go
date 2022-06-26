@@ -61,7 +61,7 @@ func (s *snapshot) parseGoHandle(ctx context.Context, fh source.FileHandle, mode
 	parseHandle, release := s.generation.GetHandle(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 		return parseGo(ctx, snapshot.FileSet(), fh, mode)
-	}, nil)
+	})
 
 	pgh := &parseGoHandle{
 		handle: parseHandle,

@@ -7,7 +7,9 @@ package memoize_test
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"golang.org/x/tools/internal/memoize"
 )
@@ -112,15 +114,12 @@ func TestHandleRefCounting(t *testing.T) {
 	g1 := s.Generation("g1")
 	v1 := false
 	v2 := false
-	cleanup := func(v interface{}) {
-		*(v.(*bool)) = true
-	}
 	h1, release1 := g1.GetHandle("key1", func(context.Context, memoize.Arg) interface{} {
 		return &v1
-	}, nil)
+	})
 	h2, release2 := g1.GetHandle("key2", func(context.Context, memoize.Arg) interface{} {
 		return &v2
-	}, cleanup)
+	})
 	expectGet(t, h1, g1, &v1)
 	expectGet(t, h2, g1, &v2)
 
@@ -131,7 +130,7 @@ func TestHandleRefCounting(t *testing.T) {
 
 	h2Copy, release2Copy := g2.GetHandle("key2", func(context.Context, memoize.Arg) interface{} {
 		return &v1
-	}, nil)
+	})
 	if h2 != h2Copy {
 		t.Error("NewHandle returned a new value while old is not destroyed yet")
 	}
@@ -140,24 +139,65 @@ func TestHandleRefCounting(t *testing.T) {
 
 	release2()
 	if got, want := v2, false; got != want {
-		t.Error("after destroying first v2 ref, v2 is cleaned up")
+		t.Errorf("after destroying first v2 ref, got %v, want %v", got, want)
 	}
 	release2Copy()
-	if got, want := v2, true; got != want {
-		t.Error("after destroying second v2 ref, v2 is not cleaned up")
-	}
 	if got, want := v1, false; got != want {
-		t.Error("after destroying v2, v1 is cleaned up")
+		t.Errorf("after destroying v2, got %v, want %v", got, want)
 	}
 	release1()
 
 	g3 := s.Generation("g3")
 	h2Copy, release2Copy = g3.GetHandle("key2", func(context.Context, memoize.Arg) interface{} {
 		return &v2
-	}, cleanup)
+	})
 	if h2 == h2Copy {
 		t.Error("NewHandle returned previously destroyed value")
 	}
 	release2Copy()
 	g3.Destroy("by test")
+}
+
+func TestHandleDestroyedWhileRunning(t *testing.T) {
+	// Test that calls to Handle.Get return even if the handle is destroyed while
+	// running.
+
+	s := &memoize.Store{}
+	g := s.Generation("g")
+	c := make(chan int)
+
+	var v int
+	h, release := g.GetHandle("key", func(ctx context.Context, _ memoize.Arg) interface{} {
+		<-c
+		<-c
+		if err := ctx.Err(); err != nil {
+			t.Errorf("ctx.Err() = %v, want nil", err)
+		}
+		return &v
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // arbitrary timeout; may be removed if it causes flakes
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	var got interface{}
+	var err error
+	go func() {
+		got, err = h.Get(ctx, g, nil)
+		wg.Done()
+	}()
+
+	c <- 0    // send once to enter the handle function
+	release() // release before the handle function returns
+	c <- 0    // let the handle function proceed
+
+	wg.Wait()
+
+	if err != nil {
+		t.Errorf("Get() failed: %v", err)
+	}
+	if got != &v {
+		t.Errorf("Get() = %v, want %v", got, v)
+	}
 }

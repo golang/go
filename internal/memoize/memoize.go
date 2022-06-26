@@ -83,18 +83,18 @@ func (g *Generation) Destroy(destroyedBy string) {
 
 	g.store.mu.Lock()
 	defer g.store.mu.Unlock()
-	for _, e := range g.store.handles {
-		if !e.trackGenerations {
+	for _, h := range g.store.handles {
+		if !h.trackGenerations {
 			continue
 		}
-		e.mu.Lock()
-		if _, ok := e.generations[g]; ok {
-			delete(e.generations, g) // delete even if it's dead, in case of dangling references to the entry.
-			if len(e.generations) == 0 {
-				e.destroy(g.store)
+		h.mu.Lock()
+		if _, ok := h.generations[g]; ok {
+			delete(h.generations, g) // delete even if it's dead, in case of dangling references to the entry.
+			if len(h.generations) == 0 {
+				h.destroy(g.store)
 			}
 		}
-		e.mu.Unlock()
+		h.mu.Unlock()
 	}
 	delete(g.store.generations, g)
 }
@@ -120,6 +120,12 @@ type Function func(ctx context.Context, arg Arg) interface{}
 
 type state int
 
+// TODO(rfindley): remove stateDestroyed; Handles should not need to know
+// whether or not they have been destroyed.
+//
+// TODO(rfindley): also consider removing stateIdle. Why create a handle if you
+// aren't certain you're going to need its result? And if you know you need its
+// result, why wait to begin computing it?
 const (
 	stateIdle = iota
 	stateRunning
@@ -139,6 +145,12 @@ const (
 // they decrement waiters. If it drops to zero, the inner context is cancelled,
 // computation is abandoned, and state resets to idle to start the process over
 // again.
+//
+// Handles may be tracked by generations, or directly reference counted, as
+// determined by the trackGenerations field. See the field comments for more
+// information about the differences between these two forms.
+//
+// TODO(rfindley): eliminate generational handles.
 type Handle struct {
 	key interface{}
 	mu  sync.Mutex
@@ -159,6 +171,11 @@ type Handle struct {
 	value interface{}
 	// cleanup, if non-nil, is used to perform any necessary clean-up on values
 	// produced by function.
+	//
+	// cleanup is never set for reference counted handles.
+	//
+	// TODO(rfindley): remove this field once workspace folders no longer need to
+	// be tracked.
 	cleanup func(interface{})
 
 	// If trackGenerations is set, this handle tracks generations in which it
@@ -190,19 +207,27 @@ func (g *Generation) Bind(key interface{}, function Function, cleanup func(inter
 //
 // As in opposite to Bind it returns a release callback which has to be called
 // once this reference to handle is not needed anymore.
-func (g *Generation) GetHandle(key interface{}, function Function, cleanup func(interface{})) (*Handle, func()) {
-	handle := g.getHandle(key, function, cleanup, false)
+func (g *Generation) GetHandle(key interface{}, function Function) (*Handle, func()) {
+	h := g.getHandle(key, function, nil, false)
 	store := g.store
 	release := func() {
+		// Acquire store.mu before mutating refCounter
 		store.mu.Lock()
 		defer store.mu.Unlock()
 
-		handle.refCounter--
-		if handle.refCounter == 0 {
-			handle.destroy(store)
+		h.mu.Lock()
+		defer h.mu.Unlock()
+
+		h.refCounter--
+		if h.refCounter == 0 {
+			// Don't call h.destroy: for reference counted handles we can't know when
+			// they are no longer reachable from runnable goroutines. For example,
+			// gopls could have a current operation that is using a packageHandle.
+			// Destroying the handle here would cause that operation to hang.
+			delete(store.handles, h.key)
 		}
 	}
-	return handle, release
+	return h, release
 }
 
 func (g *Generation) getHandle(key interface{}, function Function, cleanup func(interface{}), trackGenerations bool) *Handle {
@@ -252,13 +277,13 @@ func (s *Store) DebugOnlyIterate(f func(k, v interface{})) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for k, e := range s.handles {
+	for k, h := range s.handles {
 		var v interface{}
-		e.mu.Lock()
-		if e.state == stateCompleted {
-			v = e.value
+		h.mu.Lock()
+		if h.state == stateCompleted {
+			v = h.value
 		}
-		e.mu.Unlock()
+		h.mu.Unlock()
 		if v == nil {
 			continue
 		}
@@ -278,6 +303,7 @@ func (g *Generation) Inherit(h *Handle) {
 	h.incrementRef(g)
 }
 
+// destroy marks h as destroyed. h.mu and store.mu must be held.
 func (h *Handle) destroy(store *Store) {
 	h.state = stateDestroyed
 	if h.cleanup != nil && h.value != nil {
@@ -409,6 +435,12 @@ func (h *Handle) run(ctx context.Context, g *Generation, arg Arg) (interface{}, 
 				}
 				return
 			}
+
+			if h.cleanup != nil && h.value != nil {
+				// Clean up before overwriting an existing value.
+				h.cleanup(h.value)
+			}
+
 			// At this point v will be cleaned up whenever h is destroyed.
 			h.value = v
 			h.function = nil
