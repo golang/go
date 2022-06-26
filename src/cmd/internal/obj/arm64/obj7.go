@@ -382,19 +382,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 	}
 
-	// For 32-bit instruction with constant, rewrite
-	// the high 32-bit to be a repetition of the low
-	// 32-bit, so that the BITCON test can be shared
-	// for both 32-bit and 64-bit. 32-bit ops will
-	// zero the high 32-bit of the destination register
-	// anyway.
-	// For MOVW, the destination register can't be ZR,
-	// so don't bother rewriting it in this situation.
-	if (isANDWop(p.As) || isADDWop(p.As) || p.As == AMOVW && p.To.Reg != REGZERO) && p.From.Type == obj.TYPE_CONST {
-		v := p.From.Offset & 0xffffffff
-		p.From.Offset = v | v<<32
-	}
-
 	if c.ctxt.Flag_dynlink {
 		c.rewriteToUseGot(p)
 	}
