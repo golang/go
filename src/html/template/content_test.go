@@ -280,7 +280,7 @@ func TestTypedContent(t *testing.T) {
 			[]string{
 				`#ZgotmplZ`,
 				`#ZgotmplZ`,
-				// Commas are not esacped
+				// Commas are not escaped.
 				`Hello,#ZgotmplZ`,
 				// Leading spaces are not percent escapes.
 				` dir=%22ltr%22`,
