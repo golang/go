@@ -53,7 +53,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 	//	a, v1, v2: not hidden aggregate, val 1, 2
 
 	a := nrange.X
-	t := typecheck.RangeExprType(a.Type())
+	t := a.Type()
 	lno := ir.SetPos(a)
 
 	v1, v2 := nrange.Key, nrange.Value
@@ -70,18 +70,25 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		base.Fatalf("walkRange: v2 != nil while v1 == nil")
 	}
 
-	var ifGuard *ir.IfStmt
-
 	var body []ir.Node
 	var init []ir.Node
 	switch t.Kind() {
 	default:
 		base.Fatalf("walkRange")
 
-	case types.TARRAY, types.TSLICE:
+	case types.TARRAY, types.TSLICE, types.TPTR: // TPTR is pointer-to-array
 		if nn := arrayClear(nrange, v1, v2, a); nn != nil {
 			base.Pos = lno
 			return nn
+		}
+
+		// Element type of the iteration
+		var elem *types.Type
+		switch t.Kind() {
+		case types.TSLICE, types.TARRAY:
+			elem = t.Elem()
+		case types.TPTR:
+			elem = t.Elem().Elem()
 		}
 
 		// order.stmt arranged for a copy of the array/slice variable if needed.
@@ -108,7 +115,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		}
 
 		// for v1, v2 := range ha { body }
-		if cheapComputableIndex(t.Elem().Size()) {
+		if cheapComputableIndex(elem.Size()) {
 			// v1, v2 = hv1, ha[hv1]
 			tmp := ir.NewIndexExpr(base.Pos, ha, hv1)
 			tmp.SetBounded(true)
@@ -128,25 +135,41 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// TODO(austin): OFORUNTIL inhibits bounds-check
 		// elimination on the index variable (see #20711).
 		// Enhance the prove pass to understand this.
-		ifGuard = ir.NewIfStmt(base.Pos, nil, nil, nil)
-		ifGuard.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn)
-		nfor.SetOp(ir.OFORUNTIL)
 
-		hp := typecheck.Temp(types.NewPtr(t.Elem()))
-		tmp := ir.NewIndexExpr(base.Pos, ha, ir.NewInt(0))
-		tmp.SetBounded(true)
-		init = append(init, ir.NewAssignStmt(base.Pos, hp, typecheck.NodAddr(tmp)))
+		// Slice to iterate over
+		var hs ir.Node
+		if t.IsSlice() {
+			hs = ha
+		} else {
+			var arr ir.Node
+			if t.IsPtr() {
+				arr = ha
+			} else {
+				arr = typecheck.NodAddr(ha)
+				arr.SetType(t.PtrTo())
+				arr.SetTypecheck(1)
+			}
+			hs = ir.NewSliceExpr(base.Pos, ir.OSLICEARR, arr, nil, nil, nil)
+			// old typechecker doesn't know OSLICEARR, so we set types explicitly
+			hs.SetType(types.NewSlice(elem))
+			hs.SetTypecheck(1)
+		}
+
+		// Pointer to current iteration position
+		hp := typecheck.Temp(types.NewPtr(elem))
+		init = append(init, ir.NewAssignStmt(base.Pos, hp, ir.NewUnaryExpr(base.Pos, ir.OSPTR, hs)))
 
 		a := rangeAssign2(nrange, hv1, ir.NewStarExpr(base.Pos, hp))
 		body = append(body, a)
 
-		// Advance pointer as part of the late increment.
-		//
-		// This runs *after* the condition check, so we know
-		// advancing the pointer is safe and won't go past the
-		// end of the allocation.
-		as := ir.NewAssignStmt(base.Pos, hp, addptr(hp, t.Elem().Size()))
-		nfor.Late = []ir.Node{typecheck.Stmt(as)}
+		// Advance pointer for next iteration of the loop.
+		// Note: this pointer is now potentially a past-the-end pointer, so
+		// we need to make sure this pointer is never seen by the GC except
+		// during a conservative scan. Fortunately, the next thing we're going
+		// to do is check the loop bounds and exit, so it doesn't live very long
+		// (in particular, it doesn't live across any function call).
+		as := ir.NewAssignStmt(base.Pos, hp, addptr(hp, elem.Size()))
+		nfor.Post = ir.NewBlockStmt(base.Pos, []ir.Node{nfor.Post, as})
 
 	case types.TMAP:
 		// order.stmt allocated the iterator for us.
@@ -275,12 +298,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 	typecheck.Stmts(init)
 
-	if ifGuard != nil {
-		ifGuard.PtrInit().Append(init...)
-		ifGuard = typecheck.Stmt(ifGuard).(*ir.IfStmt)
-	} else {
-		nfor.PtrInit().Append(init...)
-	}
+	nfor.PtrInit().Append(init...)
 
 	typecheck.Stmts(nfor.Cond.Init())
 
@@ -292,10 +310,6 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 	nfor.Body.Append(nrange.Body...)
 
 	var n ir.Node = nfor
-	if ifGuard != nil {
-		ifGuard.Body = []ir.Node{n}
-		n = ifGuard
-	}
 
 	n = walkStmt(n)
 
