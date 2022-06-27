@@ -97,6 +97,17 @@ func TestCloseWrite(t *testing.T) {
 					t.Error(err)
 					return
 				}
+
+				// Workaround for https://go.dev/issue/49352.
+				// On arm64 macOS (current as of macOS 12.4),
+				// reading from a socket at the same time as the client
+				// is closing it occasionally hangs for 60 seconds before
+				// returning ECONNRESET. Sleep for a bit to give the
+				// socket time to close before trying to read from it.
+				if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+					time.Sleep(10 * time.Millisecond)
+				}
+
 				if !deadline.IsZero() {
 					c.SetDeadline(deadline)
 				}
