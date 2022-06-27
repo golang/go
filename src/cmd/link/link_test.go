@@ -17,6 +17,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"cmd/internal/sys"
 )
 
 var AuthorPaidByTheColumnInch struct {
@@ -1148,5 +1150,48 @@ func TestUnlinkableObj(t *testing.T) {
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("link failed: %v. output:\n%s", err, out)
+	}
+}
+
+// TestResponseFile tests that creating a response file to pass to the
+// external linker works correctly.
+func TestResponseFile(t *testing.T) {
+	t.Parallel()
+
+	testenv.MustHaveGoBuild(t)
+
+	// This test requires -linkmode=external. Currently all
+	// systems that support cgo support -linkmode=external.
+	testenv.MustHaveCGO(t)
+
+	tmpdir := t.TempDir()
+
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(`package main; import "C"; func main() {}`), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "output", "x.go")
+	cmd.Dir = tmpdir
+
+	// Add enough arguments to push cmd/link into creating a response file.
+	var sb strings.Builder
+	sb.WriteString(`'-ldflags=all="-extldflags=`)
+	for i := 0; i < sys.ExecArgLengthLimit/len("-g"); i++ {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("-g")
+	}
+	sb.WriteString(`"'`)
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GOFLAGS="+sb.String())
+
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Error(err)
 	}
 }
