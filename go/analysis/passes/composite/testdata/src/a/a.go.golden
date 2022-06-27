@@ -75,10 +75,10 @@ var goodStructLiteral = flag.Flag{
 	Usage: "Usage",
 }
 var badStructLiteral = flag.Flag{ // want "unkeyed fields"
-	"Name",
-	"Usage",
-	nil, // Value
-	"DefValue",
+	Name:     "Name",
+	Usage:    "Usage",
+	Value:    nil, // Value
+	DefValue: "DefValue",
 }
 var tooManyFieldsStructLiteral = flag.Flag{ // want "unkeyed fields"
 	"Name",
@@ -101,8 +101,8 @@ var goodNamedSliceLiteral = unicode.SpecialCase{
 	unicode.CaseRange{Lo: 1, Hi: 2, Delta: delta},
 }
 var badNamedSliceLiteral = unicode.SpecialCase{
-	{1, 2, delta},                  // want "unkeyed fields"
-	unicode.CaseRange{1, 2, delta}, // want "unkeyed fields"
+	{Lo: 1, Hi: 2, Delta: delta},                  // want "unkeyed fields"
+	unicode.CaseRange{Lo: 1, Hi: 2, Delta: delta}, // want "unkeyed fields"
 }
 
 // ErrorList is a named slice, so no warnings should be emitted.
@@ -110,7 +110,7 @@ var goodScannerErrorList = scanner.ErrorList{
 	&scanner.Error{Msg: "foobar"},
 }
 var badScannerErrorList = scanner.ErrorList{
-	&scanner.Error{token.Position{}, "foobar"}, // want "unkeyed fields"
+	&scanner.Error{Pos: token.Position{}, Msg: "foobar"}, // want "unkeyed fields"
 }
 
 // sync.Mutex has unexported fields. We expect a diagnostic but no
@@ -133,8 +133,8 @@ var goodNamedPointerSliceLiteral = []*unicode.CaseRange{
 	&unicode.CaseRange{Lo: 1, Hi: 2},
 }
 var badNamedPointerSliceLiteral = []*unicode.CaseRange{
-	{1, 2, delta},                   // want "unkeyed fields"
-	&unicode.CaseRange{1, 2, delta}, // want "unkeyed fields"
+	{Lo: 1, Hi: 2, Delta: delta},                   // want "unkeyed fields"
+	&unicode.CaseRange{Lo: 1, Hi: 2, Delta: delta}, // want "unkeyed fields"
 }
 
 // unicode.Range16 is whitelisted, so there'll be no vet error

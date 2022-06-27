@@ -19,7 +19,7 @@ func F[
 ]() {
 	_ = T1{2}
 	_ = T2a{2}
-	_ = T2b{2} // want "unkeyed fields"
+	_ = T2b{F: 2} // want "unkeyed fields"
 	_ = T3{1, 2}
 	_ = T4{1, 2}
 	_ = T5{1: 2}

@@ -18,5 +18,5 @@ func Test(t *testing.T) {
 	if typeparams.Enabled {
 		pkgs = append(pkgs, "typeparams")
 	}
-	analysistest.Run(t, testdata, composite.Analyzer, pkgs...)
+	analysistest.RunWithSuggestedFixes(t, testdata, composite.Analyzer, pkgs...)
 }
