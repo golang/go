@@ -27,7 +27,12 @@ type Error struct {
 }
 
 func (e *Error) Unwrap() error { return e.Err }
-func (e *Error) Error() string { return fmt.Sprintf("%s %q: %s", e.Op, e.URL, e.Err) }
+func (e *Error) Error() string {
+	if e.Err == nil {
+		return fmt.Sprintf("%s %q: nil", e.Op, e.URL)
+	}
+	return fmt.Sprintf("%s %q: %s", e.Op, e.URL, e.Err)
+}
 
 func (e *Error) Timeout() bool {
 	t, ok := e.Err.(interface {
