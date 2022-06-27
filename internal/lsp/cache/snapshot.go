@@ -115,8 +115,11 @@ type snapshot struct {
 	modTidyHandles map[span.URI]*modTidyHandle
 	modWhyHandles  map[span.URI]*modWhyHandle
 
-	workspace          *workspace
-	workspaceDirHandle *memoize.Handle
+	workspace *workspace // (not guarded by mu)
+
+	// The cached result of makeWorkspaceDir, created on demand and deleted by Snapshot.Destroy.
+	workspaceDir    string
+	workspaceDirErr error
 
 	// knownSubdirs is the set of subdirectories in the workspace, used to
 	// create glob patterns for file watching.
@@ -144,6 +147,12 @@ func (s *snapshot) Destroy(destroyedBy string) {
 	s.files.Destroy()
 	s.goFiles.Destroy()
 	s.parseKeysByURI.Destroy()
+
+	if s.workspaceDir != "" {
+		if err := os.RemoveAll(s.workspaceDir); err != nil {
+			event.Error(context.Background(), "cleaning workspace dir", err)
+		}
+	}
 }
 
 func (s *snapshot) ID() uint64 {
@@ -1707,11 +1716,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		modWhyHandles:     make(map[span.URI]*modWhyHandle, len(s.modWhyHandles)),
 		knownSubdirs:      make(map[span.URI]struct{}, len(s.knownSubdirs)),
 		workspace:         newWorkspace,
-	}
-
-	if !workspaceChanged && s.workspaceDirHandle != nil {
-		result.workspaceDirHandle = s.workspaceDirHandle
-		newGen.Inherit(s.workspaceDirHandle)
 	}
 
 	// Copy all of the FileHandles.

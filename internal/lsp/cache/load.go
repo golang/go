@@ -7,7 +7,6 @@ package cache
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -24,7 +23,6 @@ import (
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 )
@@ -384,77 +382,53 @@ func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, fi
 	return srcDiags
 }
 
-type workspaceDirKey string
-
-type workspaceDirData struct {
-	dir string
-	err error
-}
-
-// getWorkspaceDir gets the URI for the workspace directory associated with
-// this snapshot. The workspace directory is a temp directory containing the
-// go.mod file computed from all active modules.
+// getWorkspaceDir returns the URI for the workspace directory
+// associated with this snapshot. The workspace directory is a
+// temporary directory containing the go.mod file computed from all
+// active modules.
 func (s *snapshot) getWorkspaceDir(ctx context.Context) (span.URI, error) {
 	s.mu.Lock()
-	h := s.workspaceDirHandle
+	dir, err := s.workspaceDir, s.workspaceDirErr
 	s.mu.Unlock()
-	if h != nil {
-		return getWorkspaceDir(ctx, h, s.generation)
+	if dir == "" && err == nil { // cache miss
+		dir, err = makeWorkspaceDir(ctx, s.workspace, s)
+		s.mu.Lock()
+		s.workspaceDir, s.workspaceDirErr = dir, err
+		s.mu.Unlock()
 	}
-	file, err := s.workspace.modFile(ctx, s)
+	return span.URIFromPath(dir), err
+}
+
+// makeWorkspaceDir creates a temporary directory containing a go.mod
+// and go.sum file for each module in the workspace.
+// Note: snapshot's mutex must be unlocked for it to satisfy FileSource.
+func makeWorkspaceDir(ctx context.Context, workspace *workspace, fs source.FileSource) (string, error) {
+	file, err := workspace.modFile(ctx, fs)
 	if err != nil {
 		return "", err
 	}
-	hash := sha256.New()
 	modContent, err := file.Format()
 	if err != nil {
 		return "", err
 	}
-	sumContent, err := s.workspace.sumFile(ctx, s)
+	sumContent, err := workspace.sumFile(ctx, fs)
 	if err != nil {
 		return "", err
 	}
-	hash.Write(modContent)
-	hash.Write(sumContent)
-	key := workspaceDirKey(hash.Sum(nil))
-	s.mu.Lock()
-	h = s.generation.Bind(key, func(context.Context, memoize.Arg) interface{} {
-		tmpdir, err := ioutil.TempDir("", "gopls-workspace-mod")
-		if err != nil {
-			return &workspaceDirData{err: err}
-		}
-
-		for name, content := range map[string][]byte{
-			"go.mod": modContent,
-			"go.sum": sumContent,
-		} {
-			filename := filepath.Join(tmpdir, name)
-			if err := ioutil.WriteFile(filename, content, 0644); err != nil {
-				os.RemoveAll(tmpdir)
-				return &workspaceDirData{err: err}
-			}
-		}
-
-		return &workspaceDirData{dir: tmpdir}
-	}, func(v interface{}) {
-		d := v.(*workspaceDirData)
-		if d.dir != "" {
-			if err := os.RemoveAll(d.dir); err != nil {
-				event.Error(context.Background(), "cleaning workspace dir", err)
-			}
-		}
-	})
-	s.workspaceDirHandle = h
-	s.mu.Unlock()
-	return getWorkspaceDir(ctx, h, s.generation)
-}
-
-func getWorkspaceDir(ctx context.Context, h *memoize.Handle, g *memoize.Generation) (span.URI, error) {
-	v, err := h.Get(ctx, g, nil)
+	tmpdir, err := ioutil.TempDir("", "gopls-workspace-mod")
 	if err != nil {
 		return "", err
 	}
-	return span.URIFromPath(v.(*workspaceDirData).dir), nil
+	for name, content := range map[string][]byte{
+		"go.mod": modContent,
+		"go.sum": sumContent,
+	} {
+		if err := ioutil.WriteFile(filepath.Join(tmpdir, name), content, 0644); err != nil {
+			os.RemoveAll(tmpdir) // ignore error
+			return "", err
+		}
+	}
+	return tmpdir, nil
 }
 
 // computeMetadataUpdates populates the updates map with metadata updates to
