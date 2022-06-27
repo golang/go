@@ -11,7 +11,6 @@
 // THIS PACKAGE IS EXPERIMENTAL AND MAY CHANGE AT ANY TIME.
 //
 // It is provided only for the gopls tool. It requires well-typed inputs.
-//
 package satisfy // import "golang.org/x/tools/refactor/satisfy"
 
 // NOTES:

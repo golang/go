@@ -287,7 +287,6 @@ func (c comboMatcher) match(chunks []string) (int, float64) {
 //     of zero indicates no match.
 //   - A symbolizer determines how we extract the symbol for an object. This
 //     enables the 'symbolStyle' configuration option.
-//
 func collectSymbols(ctx context.Context, views []View, matcherType SymbolMatcher, symbolizer symbolizer, query string) ([]protocol.SymbolInformation, error) {
 
 	// Extract symbols from all files.
