@@ -8,7 +8,9 @@ import (
 	"context"
 	"fmt"
 	"go/types"
+	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -305,11 +307,12 @@ func collectSymbols(ctx context.Context, views []View, matcherType SymbolMatcher
 		roots = append(roots, strings.TrimRight(string(v.Folder()), "/"))
 
 		filters := v.Options().DirectoryFilters
+		filterer := NewFilterer(filters)
 		folder := filepath.ToSlash(v.Folder().Filename())
 		for uri, syms := range snapshot.Symbols(ctx) {
 			norm := filepath.ToSlash(uri.Filename())
 			nm := strings.TrimPrefix(norm, folder)
-			if FiltersDisallow(nm, filters) {
+			if filterer.Disallow(nm) {
 				continue
 			}
 			// Only scan each file once.
@@ -358,26 +361,68 @@ func collectSymbols(ctx context.Context, views []View, matcherType SymbolMatcher
 	return unified.results(), nil
 }
 
-// FilterDisallow is code from the body of cache.pathExcludedByFilter in cache/view.go
-// Exporting and using that function would cause an import cycle.
-// Moving it here and exporting it would leave behind view_test.go.
-// (This code is exported and used in the body of cache.pathExcludedByFilter)
-func FiltersDisallow(path string, filters []string) bool {
+type Filterer struct {
+	// Whether a filter is excluded depends on the operator (first char of the raw filter).
+	// Slices filters and excluded then should have the same length.
+	filters  []*regexp.Regexp
+	excluded []bool
+}
+
+// NewFilterer computes regular expression form of all raw filters
+func NewFilterer(rawFilters []string) *Filterer {
+	var f Filterer
+	for _, filter := range rawFilters {
+		filter = path.Clean(filepath.ToSlash(filter))
+		op, prefix := filter[0], filter[1:]
+		// convertFilterToRegexp adds "/" at the end of prefix to handle cases where a filter is a prefix of another filter.
+		// For example, it prevents [+foobar, -foo] from excluding "foobar".
+		f.filters = append(f.filters, convertFilterToRegexp(filepath.ToSlash(prefix)))
+		f.excluded = append(f.excluded, op == '-')
+	}
+
+	return &f
+}
+
+// Disallow return true if the path is excluded from the filterer's filters.
+func (f *Filterer) Disallow(path string) bool {
 	path = strings.TrimPrefix(path, "/")
 	var excluded bool
-	for _, filter := range filters {
-		op, prefix := filter[0], filter[1:]
-		// Non-empty prefixes have to be precise directory matches.
-		if prefix != "" {
-			prefix = prefix + "/"
-			path = path + "/"
+
+	for i, filter := range f.filters {
+		path := path
+		if !strings.HasSuffix(path, "/") {
+			path += "/"
 		}
-		if !strings.HasPrefix(path, prefix) {
+		if !filter.MatchString(path) {
 			continue
 		}
-		excluded = op == '-'
+		excluded = f.excluded[i]
 	}
+
 	return excluded
+}
+
+// convertFilterToRegexp replaces glob-like operator substrings in a string file path to their equivalent regex forms.
+// Supporting glob-like operators:
+//   - **: match zero or more complete path segments
+func convertFilterToRegexp(filter string) *regexp.Regexp {
+	var ret strings.Builder
+	segs := strings.Split(filter, "/")
+	for i, seg := range segs {
+		if seg == "**" {
+			switch i {
+			case 0:
+				ret.WriteString("^.*")
+			default:
+				ret.WriteString(".*")
+			}
+		} else {
+			ret.WriteString(regexp.QuoteMeta(seg))
+		}
+		ret.WriteString("/")
+	}
+
+	return regexp.MustCompile(ret.String())
 }
 
 // symbolFile holds symbol information for a single file.

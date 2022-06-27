@@ -806,6 +806,30 @@ func (o *Options) enableAllExperimentMaps() {
 	}
 }
 
+// validateDirectoryFilter validates if the filter string
+// - is not empty
+// - start with either + or -
+// - doesn't contain currently unsupported glob operators: *, ?
+func validateDirectoryFilter(ifilter string) (string, error) {
+	filter := fmt.Sprint(ifilter)
+	if filter == "" || (filter[0] != '+' && filter[0] != '-') {
+		return "", fmt.Errorf("invalid filter %v, must start with + or -", filter)
+	}
+	segs := strings.Split(filter, "/")
+	unsupportedOps := [...]string{"?", "*"}
+	for _, seg := range segs {
+		if seg != "**" {
+			for _, op := range unsupportedOps {
+				if strings.Contains(seg, op) {
+					return "", fmt.Errorf("invalid filter %v, operator %v not supported. If you want to have this operator supported, consider filing an issue.", filter, op)
+				}
+			}
+		}
+	}
+
+	return strings.TrimRight(filepath.FromSlash(filter), "/"), nil
+}
+
 func (o *Options) set(name string, value interface{}, seen map[string]struct{}) OptionResult {
 	// Flatten the name in case we get options with a hierarchy.
 	split := strings.Split(name, ".")
@@ -850,9 +874,9 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		}
 		var filters []string
 		for _, ifilter := range ifilters {
-			filter := fmt.Sprint(ifilter)
-			if filter == "" || (filter[0] != '+' && filter[0] != '-') {
-				result.errorf("invalid filter %q, must start with + or -", filter)
+			filter, err := validateDirectoryFilter(fmt.Sprintf("%v", ifilter))
+			if err != nil {
+				result.errorf(err.Error())
 				return result
 			}
 			filters = append(filters, strings.TrimRight(filepath.FromSlash(filter), "/"))

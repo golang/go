@@ -156,6 +156,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	}
 
 	moduleErrs := make(map[string][]packages.Error) // module path -> errors
+	filterer := buildFilterer(s.view.rootURI.Filename(), s.view.gomodcache, s.view.options)
 	newMetadata := make(map[PackageID]*KnownMetadata)
 	for _, pkg := range pkgs {
 		// The Go command returns synthetic list results for module queries that
@@ -201,7 +202,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		//
 		// TODO(rfindley): why exclude metadata arbitrarily here? It should be safe
 		// to capture all metadata.
-		if s.view.allFilesExcluded(pkg) {
+		if s.view.allFilesExcluded(pkg, filterer) {
 			continue
 		}
 		if err := buildMetadata(ctx, PackagePath(pkg.PkgPath), pkg, cfg, query, newMetadata, nil); err != nil {
@@ -581,10 +582,11 @@ func containsPackageLocked(s *snapshot, m *Metadata) bool {
 			uris[uri] = struct{}{}
 		}
 
+		filterFunc := s.view.filterFunc()
 		for uri := range uris {
 			// Don't use view.contains here. go.work files may include modules
 			// outside of the workspace folder.
-			if !strings.Contains(string(uri), "/vendor/") && !s.view.filters(uri) {
+			if !strings.Contains(string(uri), "/vendor/") && !filterFunc(uri) {
 				return true
 			}
 		}

@@ -44,3 +44,88 @@ func TestParseQuery(t *testing.T) {
 		}
 	}
 }
+
+func TestFiltererDisallow(t *testing.T) {
+	tests := []struct {
+		filters  []string
+		included []string
+		excluded []string
+	}{
+		{
+			[]string{"+**/c.go"},
+			[]string{"a/c.go", "a/b/c.go"},
+			[]string{},
+		},
+		{
+			[]string{"+a/**/c.go"},
+			[]string{"a/b/c.go", "a/b/d/c.go", "a/c.go"},
+			[]string{},
+		},
+		{
+			[]string{"-a/c.go", "+a/**"},
+			[]string{"a/c.go"},
+			[]string{},
+		},
+		{
+			[]string{"+a/**/c.go", "-**/c.go"},
+			[]string{},
+			[]string{"a/b/c.go"},
+		},
+		{
+			[]string{"+a/**/c.go", "-a/**"},
+			[]string{},
+			[]string{"a/b/c.go"},
+		},
+		{
+			[]string{"+**/c.go", "-a/**/c.go"},
+			[]string{},
+			[]string{"a/b/c.go"},
+		},
+		{
+			[]string{"+foobar", "-foo"},
+			[]string{"foobar", "foobar/a"},
+			[]string{"foo", "foo/a"},
+		},
+		{
+			[]string{"+", "-"},
+			[]string{},
+			[]string{"foobar", "foobar/a", "foo", "foo/a"},
+		},
+		{
+			[]string{"-", "+"},
+			[]string{"foobar", "foobar/a", "foo", "foo/a"},
+			[]string{},
+		},
+		{
+			[]string{"-a/**/b/**/c.go"},
+			[]string{},
+			[]string{"a/x/y/z/b/f/g/h/c.go"},
+		},
+		// tests for unsupported glob operators
+		{
+			[]string{"+**/c.go", "-a/*/c.go"},
+			[]string{"a/b/c.go"},
+			[]string{},
+		},
+		{
+			[]string{"+**/c.go", "-a/?/c.go"},
+			[]string{"a/b/c.go"},
+			[]string{},
+		},
+	}
+
+	for _, test := range tests {
+		filterer := NewFilterer(test.filters)
+		for _, inc := range test.included {
+			if filterer.Disallow(inc) {
+				t.Errorf("Filters %v excluded %v, wanted included", test.filters, inc)
+			}
+		}
+
+		for _, exc := range test.excluded {
+			if !filterer.Disallow(exc) {
+				t.Errorf("Filters %v included %v, wanted excluded", test.filters, exc)
+			}
+		}
+	}
+}

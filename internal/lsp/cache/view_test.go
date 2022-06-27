@@ -161,15 +161,14 @@ func TestFilters(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		opts := &source.Options{}
-		opts.DirectoryFilters = tt.filters
+		filterer := source.NewFilterer(tt.filters)
 		for _, inc := range tt.included {
-			if pathExcludedByFilter(inc, "root", "root/gopath/pkg/mod", opts) {
+			if pathExcludedByFilter(inc, filterer) {
 				t.Errorf("filters %q excluded %v, wanted included", tt.filters, inc)
 			}
 		}
 		for _, exc := range tt.excluded {
-			if !pathExcludedByFilter(exc, "root", "root/gopath/pkg/mod", opts) {
+			if !pathExcludedByFilter(exc, filterer) {
 				t.Errorf("filters %q included %v, wanted excluded", tt.filters, exc)
 			}
 		}

@@ -385,13 +385,14 @@ func (s *snapshot) locateTemplateFiles(ctx context.Context) {
 	relativeTo := s.view.folder.Filename()
 
 	searched := 0
+	filterer := buildFilterer(dir, s.view.gomodcache, s.view.options)
 	// Change to WalkDir when we move up to 1.16
 	err := filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		relpath := strings.TrimPrefix(path, relativeTo)
-		excluded := pathExcludedByFilter(relpath, dir, s.view.gomodcache, s.view.options)
+		excluded := pathExcludedByFilter(relpath, filterer)
 		if fileHasExtension(path, suffixes) && !excluded && !fi.IsDir() {
 			k := span.URIFromPath(path)
 			_, err := s.GetVersionedFile(ctx, k)
@@ -421,17 +422,20 @@ func (v *View) contains(uri span.URI) bool {
 		return false
 	}
 
-	return !v.filters(uri)
+	return !v.filterFunc()(uri)
 }
 
-// filters reports whether uri is filtered by the currently configured
+// filterFunc returns a func that reports whether uri is filtered by the currently configured
 // directoryFilters.
-func (v *View) filters(uri span.URI) bool {
-	// Only filter relative to the configured root directory.
-	if source.InDirLex(v.folder.Filename(), uri.Filename()) {
-		return pathExcludedByFilter(strings.TrimPrefix(uri.Filename(), v.folder.Filename()), v.rootURI.Filename(), v.gomodcache, v.Options())
+func (v *View) filterFunc() func(span.URI) bool {
+	filterer := buildFilterer(v.rootURI.Filename(), v.gomodcache, v.Options())
+	return func(uri span.URI) bool {
+		// Only filter relative to the configured root directory.
+		if source.InDirLex(v.folder.Filename(), uri.Filename()) {
+			return pathExcludedByFilter(strings.TrimPrefix(uri.Filename(), v.folder.Filename()), filterer)
+		}
+		return false
 	}
-	return false
 }
 
 func (v *View) mapFile(uri span.URI, f *fileBase) {
@@ -1070,15 +1074,14 @@ func (s *snapshot) vendorEnabled(ctx context.Context, modURI span.URI, modConten
 	return vendorEnabled, nil
 }
 
-func (v *View) allFilesExcluded(pkg *packages.Package) bool {
-	opts := v.Options()
+func (v *View) allFilesExcluded(pkg *packages.Package, filterer *source.Filterer) bool {
 	folder := filepath.ToSlash(v.folder.Filename())
 	for _, f := range pkg.GoFiles {
 		f = filepath.ToSlash(f)
 		if !strings.HasPrefix(f, folder) {
 			return false
 		}
-		if !pathExcludedByFilter(strings.TrimPrefix(f, folder), v.rootURI.Filename(), v.gomodcache, opts) {
+		if !pathExcludedByFilter(strings.TrimPrefix(f, folder), filterer) {
 			return false
 		}
 	}
@@ -1086,8 +1089,9 @@ func (v *View) allFilesExcluded(pkg *packages.Package) bool {
 }
 
 func pathExcludedByFilterFunc(root, gomodcache string, opts *source.Options) func(string) bool {
+	filterer := buildFilterer(root, gomodcache, opts)
 	return func(path string) bool {
-		return pathExcludedByFilter(path, root, gomodcache, opts)
+		return pathExcludedByFilter(path, filterer)
 	}
 }
 
@@ -1097,12 +1101,16 @@ func pathExcludedByFilterFunc(root, gomodcache string, opts *source.Options) fun
 // TODO(rfindley): passing root and gomodcache here makes it confusing whether
 // path should be absolute or relative, and has already caused at least one
 // bug.
-func pathExcludedByFilter(path, root, gomodcache string, opts *source.Options) bool {
+func pathExcludedByFilter(path string, filterer *source.Filterer) bool {
 	path = strings.TrimPrefix(filepath.ToSlash(path), "/")
+	return filterer.Disallow(path)
+}
+
+func buildFilterer(root, gomodcache string, opts *source.Options) *source.Filterer {
 	gomodcache = strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(gomodcache, root)), "/")
 	filters := opts.DirectoryFilters
 	if gomodcache != "" {
 		filters = append(filters, "-"+gomodcache)
 	}
-	return source.FiltersDisallow(path, filters)
+	return source.NewFilterer(filters)
 }
