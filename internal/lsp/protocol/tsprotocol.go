@@ -2745,6 +2745,14 @@ type InlayHint = struct {
 	 */
 	Kind InlayHintKind `json:"kind,omitempty"`
 	/**
+	 * Optional text edits that are performed when accepting this inlay hint.
+	 *
+	 * *Note* that edits are expected to change the document so that the inlay
+	 * hint (or its nearest variant) is now part of the document and the inlay
+	 * hint itself is now obsolete.
+	 */
+	TextEdits []TextEdit `json:"textEdits,omitempty"`
+	/**
 	 * The tooltip text when you hover over this item.
 	 */
 	Tooltip string/*string | MarkupContent*/ `json:"tooltip,omitempty"`

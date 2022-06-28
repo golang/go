@@ -344,7 +344,7 @@ func compositeLiteralFields(node ast.Node, tmap *lsppos.TokenMapper, info *types
 	}
 
 	var hints []protocol.InlayHint
-
+	var allEdits []protocol.TextEdit
 	for i, v := range compLit.Elts {
 		if _, ok := v.(*ast.KeyValueExpr); !ok {
 			start, ok := tmap.Position(v.Pos())
@@ -360,7 +360,16 @@ func compositeLiteralFields(node ast.Node, tmap *lsppos.TokenMapper, info *types
 				Kind:         protocol.Parameter,
 				PaddingRight: true,
 			})
+			allEdits = append(allEdits, protocol.TextEdit{
+				Range:   protocol.Range{Start: start, End: start},
+				NewText: strct.Field(i).Name() + ": ",
+			})
 		}
+	}
+	// It is not allowed to have a mix of keyed and unkeyed fields, so
+	// have the text edits add keys to all fields.
+	for i := range hints {
+		hints[i].TextEdits = allEdits
 	}
 	return hints
 }
