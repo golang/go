@@ -22,26 +22,42 @@ package gcexportdata // import "golang.org/x/tools/go/gcexportdata"
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"go/token"
 	"go/types"
 	"io"
 	"io/ioutil"
+	"os/exec"
 
 	"golang.org/x/tools/go/internal/gcimporter"
 )
 
 // Find returns the name of an object (.o) or archive (.a) file
 // containing type information for the specified import path,
-// using the workspace layout conventions of go/build.
+// using the go command.
 // If no file was found, an empty filename is returned.
 //
 // A relative srcDir is interpreted relative to the current working directory.
 //
 // Find also returns the package's resolved (canonical) import path,
 // reflecting the effects of srcDir and vendoring on importPath.
+//
+// Deprecated: Use the higher-level API in golang.org/x/tools/go/packages,
+// which is more efficient.
 func Find(importPath, srcDir string) (filename, path string) {
-	return gcimporter.FindPkg(importPath, srcDir)
+	cmd := exec.Command("go", "list", "-json", "-export", "--", importPath)
+	cmd.Dir = srcDir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", ""
+	}
+	var data struct {
+		ImportPath string
+		Export     string
+	}
+	json.Unmarshal(out, &data)
+	return data.Export, data.ImportPath
 }
 
 // NewReader returns a reader for the export data section of an object

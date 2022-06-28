@@ -30,7 +30,6 @@ func ExampleRead() {
 		log.Fatalf("can't find export data for fmt")
 	}
 	fmt.Printf("Package path:       %s\n", path)
-	fmt.Printf("Export data:        %s\n", filepath.Base(filename))
 
 	// Open and read the file.
 	f, err := os.Open(filename)
@@ -80,7 +79,6 @@ func ExampleRead() {
 	// Output:
 	//
 	// Package path:       fmt
-	// Export data:        fmt.a
 	// Package members:    Println found
 	// Println type:       func(a ...any) (n int, err error)
 	// Println location:   $GOROOT/src/fmt/print.go:123:1
