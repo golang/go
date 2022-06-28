@@ -1238,7 +1238,6 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 
 	case stmtAssign:
 		pos := r.pos()
-
 		names, lhs := r.assignList()
 		rhs := r.multiExpr()
 
@@ -1443,6 +1442,18 @@ func (r *reader) selectStmt(label *types.Sym) ir.Node {
 		pos := r.pos()
 		comm := r.stmt()
 		body := r.stmts()
+
+		// multiExpr will have desugared a comma-ok receive expression
+		// into a separate statement. However, the rest of the compiler
+		// expects comm to be the OAS2RECV statement itself, so we need to
+		// shuffle things around to fit that pattern.
+		if as2, ok := comm.(*ir.AssignListStmt); ok && as2.Op() == ir.OAS2 {
+			init := ir.TakeInit(as2.Rhs[0])
+			base.AssertfAt(len(init) == 1 && init[0].Op() == ir.OAS2RECV, as2.Pos(), "unexpected assignment: %+v", as2)
+
+			comm = init[0]
+			body = append([]ir.Node{as2}, body...)
+		}
 
 		clauses[i] = ir.NewCommStmt(pos, comm, body)
 	}
@@ -1810,11 +1821,41 @@ func (r *reader) optExpr() ir.Node {
 func (r *reader) multiExpr() []ir.Node {
 	r.Sync(pkgbits.SyncMultiExpr)
 
+	if r.Bool() { // N:1
+		pos := r.pos()
+		expr := r.expr()
+
+		// See typecheck.typecheckargs.
+		curfn := r.curfn
+		if curfn == nil {
+			curfn = typecheck.InitTodoFunc
+		}
+
+		results := make([]ir.Node, r.Len())
+		as := ir.NewAssignListStmt(pos, ir.OAS2, nil, []ir.Node{expr})
+		as.Def = true
+		for i := range results {
+			tmp := typecheck.TempAt(pos, curfn, r.typ())
+			as.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, tmp))
+			as.Lhs.Append(tmp)
+
+			res := ir.Node(tmp)
+			if r.Bool() {
+				res = typecheck.Expr(Implicit(ir.NewConvExpr(pos, ir.OCONV, r.typ(), res)))
+			}
+			results[i] = res
+		}
+
+		// TODO(mdempsky): Could use ir.InlinedCallExpr instead?
+		results[0] = ir.InitExpr([]ir.Node{typecheck.Stmt(as)}, results[0])
+		return results
+	}
+
+	// N:N
 	exprs := make([]ir.Node, r.Len())
 	if len(exprs) == 0 {
 		return nil
 	}
-
 	for i := range exprs {
 		exprs[i] = r.expr()
 	}

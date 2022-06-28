@@ -1590,19 +1590,37 @@ func (w *writer) optExpr(expr syntax.Expr) {
 // an f(g()) call, or the RHS operand in a comma-ok assignment).
 func (w *writer) multiExpr(pos poser, dstType func(int) types2.Type, exprs []syntax.Expr) {
 	w.Sync(pkgbits.SyncMultiExpr)
-	w.Len(len(exprs))
 
 	if len(exprs) == 1 {
 		expr := exprs[0]
 		if tuple, ok := w.p.typeOf(expr).(*types2.Tuple); ok {
-			// N:1 assignment
 			assert(tuple.Len() > 1)
-			w.expr(expr) // TODO(mdempsky): Implicit conversions to dstTypes.
+			w.Bool(true) // N:1 assignment
+			w.pos(pos)
+			w.expr(expr)
+
+			w.Len(tuple.Len())
+			for i := 0; i < tuple.Len(); i++ {
+				src := tuple.At(i).Type()
+				// TODO(mdempsky): Investigate not writing src here. I think
+				// the reader should be able to infer it from expr anyway.
+				w.typ(src)
+				if dst := dstType(i); w.Bool(dst != nil && !types2.Identical(src, dst)) {
+					if src == nil || dst == nil {
+						w.p.fatalf(pos, "src is %v, dst is %v", src, dst)
+					}
+					if !types2.AssignableTo(src, dst) {
+						w.p.fatalf(pos, "%v is not assignable to %v", src, dst)
+					}
+					w.typ(dst)
+				}
+			}
 			return
 		}
 	}
 
-	// N:N assignment
+	w.Bool(false) // N:N assignment
+	w.Len(len(exprs))
 	for i, expr := range exprs {
 		w.implicitConvExpr(pos, dstType(i), expr)
 	}

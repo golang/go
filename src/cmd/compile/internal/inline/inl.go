@@ -430,6 +430,36 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 
 	case ir.OMETHEXPR:
 		v.budget++ // Hack for toolstash -cmp.
+
+	case ir.OAS2:
+		n := n.(*ir.AssignListStmt)
+
+		// Unified IR unconditionally rewrites:
+		//
+		//	a, b = f()
+		//
+		// into:
+		//
+		//	DCL tmp1
+		//	DCL tmp2
+		//	tmp1, tmp2 = f()
+		//	a, b = tmp1, tmp2
+		//
+		// so that it can insert implicit conversions as necessary. To
+		// minimize impact to the existing inlining heuristics (in
+		// particular, to avoid breaking the existing inlinability regress
+		// tests), we need to compensate for this here.
+		if base.Debug.Unified != 0 {
+			if init := n.Rhs[0].Init(); len(init) == 1 {
+				if _, ok := init[0].(*ir.AssignListStmt); ok {
+					// 4 for each value, because each temporary variable now
+					// appears 3 times (DCL, LHS, RHS), plus an extra DCL node.
+					//
+					// 1 for the extra "tmp1, tmp2 = f()" assignment statement.
+					v.budget += 4*int32(len(n.Lhs)) + 1
+				}
+			}
+		}
 	}
 
 	v.budget--
