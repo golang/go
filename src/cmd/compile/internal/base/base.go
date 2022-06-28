@@ -70,7 +70,6 @@ var NoInstrumentPkgs = []string{
 	"runtime/msan",
 	"runtime/asan",
 	"internal/cpu",
-	"buildcfg",
 }
 
 // Don't insert racefuncenter/racefuncexit into the following packages.
