@@ -12,9 +12,12 @@ import (
 )
 
 var (
-	// metrics is a map of runtime/metrics keys to
-	// data used by the runtime to sample each metric's
-	// value.
+	// metrics is a map of runtime/metrics keys to data used by the runtime
+	// to sample each metric's value. metricsInit indicates it has been
+	// initialized.
+	//
+	// These fields are protected by metricsSema which should be
+	// locked/unlocked with metricsLock() / metricsUnlock().
 	metricsSema uint32 = 1
 	metricsInit bool
 	metrics     map[string]metricData
@@ -32,6 +35,23 @@ type metricData struct {
 	// compute is a function that populates a metricValue
 	// given a populated statAggregate structure.
 	compute func(in *statAggregate, out *metricValue)
+}
+
+func metricsLock() {
+	// Acquire the metricsSema but with handoff. Operations are typically
+	// expensive enough that queueing up goroutines and handing off between
+	// them will be noticeably better-behaved.
+	semacquire1(&metricsSema, true, 0, 0)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&metricsSema))
+	}
+}
+
+func metricsUnlock() {
+	if raceenabled {
+		racerelease(unsafe.Pointer(&metricsSema))
+	}
+	semrelease(&metricsSema)
 }
 
 // initMetrics initializes the metrics map if it hasn't been yet.
@@ -570,10 +590,7 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
 	sl := slice{samplesp, len, cap}
 	samples := *(*[]metricSample)(unsafe.Pointer(&sl))
 
-	// Acquire the metricsSema but with handoff. This operation
-	// is expensive enough that queueing up goroutines and handing
-	// off between them will be noticeably better-behaved.
-	semacquire1(&metricsSema, true, 0, 0)
+	metricsLock()
 
 	// Ensure the map is initialized.
 	initMetrics()
@@ -597,5 +614,5 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
 		data.compute(&agg, &sample.value)
 	}
 
-	semrelease(&metricsSema)
+	metricsUnlock()
 }
