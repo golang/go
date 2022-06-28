@@ -1967,7 +1967,6 @@ var go118Failures = setOf(
 	"typeparam/nested.go",     // 1.18 compiler doesn't support function-local types with generics
 	"typeparam/issue51521.go", // 1.18 compiler produces bad panic message and link error
 	"typeparam/issue53419.go", // 1.18 compiler mishandles generic selector resolution
-	"typeparam/issue53477.go", // 1.18 compiler mishandles generic interface-interface comparisons from value switch statements
 )
 
 // In all of these cases, the 1.17 compiler reports reasonable errors, but either the
