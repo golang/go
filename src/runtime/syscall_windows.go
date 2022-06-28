@@ -12,10 +12,28 @@ import (
 
 // cbs stores all registered Go callbacks.
 var cbs struct {
-	lock  mutex
+	lock  mutex // use cbsLock / cbsUnlock for race instrumentation.
 	ctxt  [cb_max]winCallback
 	index map[winCallbackKey]int
 	n     int
+}
+
+func cbsLock() {
+	lock(&cbs.lock)
+	// compileCallback is used by goenvs prior to completion of schedinit.
+	// raceacquire involves a racecallback to get the proc, which is not
+	// safe prior to scheduler initialization. Thus avoid instrumentation
+	// until then.
+	if raceenabled && mainStarted {
+		raceacquire(unsafe.Pointer(&cbs.lock))
+	}
+}
+
+func cbsUnlock() {
+	if raceenabled && mainStarted {
+		racerelease(unsafe.Pointer(&cbs.lock))
+	}
+	unlock(&cbs.lock)
 }
 
 // winCallback records information about a registered Go callback.
@@ -302,11 +320,11 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 
 	key := winCallbackKey{(*funcval)(fn.data), cdecl}
 
-	lock(&cbs.lock) // We don't unlock this in a defer because this is used from the system stack.
+	cbsLock()
 
 	// Check if this callback is already registered.
 	if n, ok := cbs.index[key]; ok {
-		unlock(&cbs.lock)
+		cbsUnlock()
 		return callbackasmAddr(n)
 	}
 
@@ -316,7 +334,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 	}
 	n := cbs.n
 	if n >= len(cbs.ctxt) {
-		unlock(&cbs.lock)
+		cbsUnlock()
 		throw("too many callback functions")
 	}
 	c := winCallback{key.fn, retPop, abiMap}
@@ -324,7 +342,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 	cbs.index[key] = n
 	cbs.n++
 
-	unlock(&cbs.lock)
+	cbsUnlock()
 	return callbackasmAddr(n)
 }
 
