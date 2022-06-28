@@ -67,7 +67,7 @@ var ARM64 struct {
 	HasATOMICS   bool
 	HasCPUID     bool
 	IsNeoverseN1 bool
-	IsZeus       bool
+	IsNeoverseV1 bool
 	_            CacheLinePad
 }
 

@@ -11,7 +11,7 @@ import (
 var arm64UseAlignedLoads bool
 
 func init() {
-	if cpu.ARM64.IsNeoverseN1 || cpu.ARM64.IsZeus {
+	if cpu.ARM64.IsNeoverseN1 || cpu.ARM64.IsNeoverseV1 {
 		arm64UseAlignedLoads = true
 	}
 }
