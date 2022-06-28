@@ -441,7 +441,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		items, surrounding, innerErr := packageClauseCompletions(ctx, snapshot, fh, protoPos)
 		if innerErr != nil {
 			// return the error for GetParsedFile since it's more relevant in this situation.
-			return nil, nil, fmt.Errorf("getting file for Completion: %w (package completions: %v)", err, innerErr)
+			return nil, nil, fmt.Errorf("getting file %s for Completion: %w (package completions: %v)", fh.URI(), err, innerErr)
 		}
 		return items, surrounding, nil
 	}

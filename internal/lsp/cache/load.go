@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/tools/go/packages"
@@ -28,12 +29,17 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
+var loadID uint64 // atomic identifier for loads
+
 // load calls packages.Load for the given scopes, updating package metadata,
 // import graph, and mapped files with the result.
 //
 // The resulting error may wrap the moduleErrorMap error type, representing
 // errors associated with specific modules.
 func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interface{}) (err error) {
+	id := atomic.AddUint64(&loadID, 1)
+	eventName := fmt.Sprintf("go/packages.Load #%d", id) // unique name for logging
+
 	var query []string
 	var containsDir bool // for logging
 
@@ -138,9 +144,9 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		return ctx.Err()
 	}
 	if err != nil {
-		event.Error(ctx, "go/packages.Load", err, tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
+		event.Error(ctx, eventName, err, tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	} else {
-		event.Log(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
+		event.Log(ctx, eventName, tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	}
 	if len(pkgs) == 0 {
 		if err == nil {
@@ -168,7 +174,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		}
 
 		if !containsDir || s.view.Options().VerboseOutput {
-			event.Log(ctx, "go/packages.Load",
+			event.Log(ctx, eventName,
 				tag.Snapshot.Of(s.ID()),
 				tag.Package.Of(pkg.ID),
 				tag.Files.Of(pkg.CompiledGoFiles))
@@ -208,6 +214,8 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	for id := range updates {
 		loadedIDs = append(loadedIDs, id)
 	}
+
+	event.Log(ctx, fmt.Sprintf("%s: updating metadata for %d packages", eventName, len(updates)))
 
 	s.mu.Lock()
 
