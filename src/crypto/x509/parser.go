@@ -1106,13 +1106,10 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 			}
 			var extensions cryptobyte.String
 			var present bool
-			if !tbs.ReadOptionalASN1(&extensions, &present, cryptobyte_asn1.SEQUENCE) {
+			if !certSeq.ReadOptionalASN1(&extensions, &present, cryptobyte_asn1.SEQUENCE) {
 				return nil, errors.New("x509: malformed extensions")
 			}
 			if present {
-				if !extensions.ReadASN1(&extensions, cryptobyte_asn1.SEQUENCE) {
-					return nil, errors.New("x509: malformed extensions")
-				}
 				for !extensions.Empty() {
 					var extension cryptobyte.String
 					if !extensions.ReadASN1(&extension, cryptobyte_asn1.SEQUENCE) {
