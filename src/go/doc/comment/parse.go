@@ -326,6 +326,13 @@ func (p *Parser) Parse(text string) *Doc {
 		switch b := b.(type) {
 		case *Paragraph:
 			b.Text = d.parseLinkedText(string(b.Text[0].(Plain)))
+		case *List:
+			for _, i := range b.Items {
+				for _, c := range i.Content {
+					p := c.(*Paragraph)
+					p.Text = d.parseLinkedText(string(p.Text[0].(Plain)))
+				}
+			}
 		}
 	}
 
