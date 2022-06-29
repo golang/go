@@ -2479,6 +2479,40 @@ func TestCreateRevocationList(t *testing.T) {
 			expectedError: "x509: template contains nil Number field",
 		},
 		{
+			name: "long Number",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+				Number:     big.NewInt(0).SetBytes(append([]byte{1}, make([]byte, 20)...)),
+			},
+			expectedError: "x509: CRL number exceeds 20 octets",
+		},
+		{
+			name: "long Number (20 bytes, MSB set)",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+				Number:     big.NewInt(0).SetBytes(append([]byte{255}, make([]byte, 19)...)),
+			},
+			expectedError: "x509: CRL number exceeds 20 octets",
+		},
+		{
 			name: "invalid signature algorithm",
 			key:  ec256Priv,
 			issuer: &Certificate{
