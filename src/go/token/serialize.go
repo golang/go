@@ -39,7 +39,7 @@ func (s *FileSet) Read(decode func(any) error) error {
 		}
 	}
 	s.files = files
-	s.last = nil
+	s.last.Store(nil)
 	s.mutex.Unlock()
 
 	return nil
