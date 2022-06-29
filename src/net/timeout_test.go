@@ -283,6 +283,7 @@ var readTimeoutTests = []struct {
 	{50 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestReadTimeout(t *testing.T) {
 	handler := func(ls *localServer, ln Listener) {
 		c, err := ln.Accept()
@@ -334,6 +335,7 @@ func TestReadTimeout(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestReadTimeoutMustNotReturn(t *testing.T) {
 	t.Parallel()
 
@@ -466,6 +468,7 @@ var writeTimeoutTests = []struct {
 	{10 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestWriteTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -506,6 +509,7 @@ func TestWriteTimeout(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestWriteTimeoutMustNotReturn(t *testing.T) {
 	t.Parallel()
 
@@ -685,6 +689,7 @@ func nextTimeout(actual time.Duration) (next time.Duration, ok bool) {
 	return next, true
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestReadTimeoutFluctuation(t *testing.T) {
 	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
@@ -741,6 +746,7 @@ func TestReadTimeoutFluctuation(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestReadFromTimeoutFluctuation(t *testing.T) {
 	c1 := newLocalPacketListener(t, "udp")
 	defer c1.Close()
@@ -876,11 +882,13 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestVariousDeadlines(t *testing.T) {
 	t.Parallel()
 	testVariousDeadlines(t)
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestVariousDeadlines1Proc(t *testing.T) {
 	// Cannot use t.Parallel - modifies global GOMAXPROCS.
 	if testing.Short() {
@@ -890,6 +898,7 @@ func TestVariousDeadlines1Proc(t *testing.T) {
 	testVariousDeadlines(t)
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestVariousDeadlines4Proc(t *testing.T) {
 	// Cannot use t.Parallel - modifies global GOMAXPROCS.
 	if testing.Short() {
@@ -1067,6 +1076,7 @@ func TestReadWriteProlongedTimeout(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestReadWriteDeadlineRace(t *testing.T) {
 	t.Parallel()
 
