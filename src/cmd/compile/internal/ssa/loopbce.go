@@ -159,6 +159,13 @@ func findIndVar(f *Func) []indVar {
 			step = -step
 		}
 
+		if flags&indVarMaxInc != 0 && max.Op == OpConst64 && max.AuxInt+step < max.AuxInt {
+			// For a <= comparison, we need to make sure that a value equal to
+			// max can be incremented without overflowing.
+			// (For a < comparison, the %step check below ensures no overflow.)
+			continue
+		}
+
 		// Up to now we extracted the induction variable (ind),
 		// the increment delta (inc), the temporary sum (nxt),
 		// the minimum value (min) and the maximum value (max).
