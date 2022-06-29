@@ -23,7 +23,7 @@ import (
 const Doc = `find structs that would use less memory if their fields were sorted
 
 This analyzer find structs that can be rearranged to use less memory, and provides
-a suggested edit with the optimal order.
+a suggested edit with the most compact order.
 
 Note that there are two different diagnostics reported. One checks struct size,
 and the other reports "pointer bytes" used. Pointer bytes is how many bytes of the
@@ -41,6 +41,11 @@ has 24 pointer bytes because it has to scan further through the *uint32.
 	struct { string; uint32 }
 
 has 8 because it can stop immediately after the string pointer.
+
+Be aware that the most compact order is not always the most efficient.
+In rare cases it may cause two variables each updated by its own goroutine
+to occupy the same CPU cache line, inducing a form of memory contention
+known as "false sharing" that slows down both goroutines.
 `
 
 var Analyzer = &analysis.Analyzer{
