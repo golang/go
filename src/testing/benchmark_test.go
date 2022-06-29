@@ -6,6 +6,7 @@ package testing_test
 
 import (
 	"bytes"
+	"fmt"
 	"runtime"
 	"sort"
 	"strings"
@@ -175,6 +176,30 @@ func ExampleB_ReportMetric() {
 		}
 		// This metric is per-operation, so divide by b.N and
 		// report it as a "/op" unit.
+		b.ReportMetric(float64(compares)/float64(b.N), "compares/op")
+	})
+}
+
+func ExampleB_ReportMetric_parallel() {
+	// This reports a custom benchmark metric recorded during a
+	// parallel benchmark.
+	testing.Benchmark(func(b *testing.B) {
+		var compares int64
+		fmt.Printf("Running the benchmark %d times...\n", b.N)
+		b.RunParallel(func(pb *testing.PB) {
+			// Use pb.Next to determine whether there is another scheduled goroutine.
+			for pb.Next() {
+				s := []int{5, 4, 3, 2, 1}
+				sort.Slice(s, func(i, j int) bool {
+					// Use the atomic package to avoid a race condition as
+					// the body of the for loop will be executed concurrently.
+					atomic.AddInt64(&compares, 1)
+					return s[i] < s[j]
+				})
+			}
+		})
+		// b.N is safe to use as the total number of iterations outside
+		// the benchmark for loop, either for the setup or teardown.
 		b.ReportMetric(float64(compares)/float64(b.N), "compares/op")
 	})
 }
