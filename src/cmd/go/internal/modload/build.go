@@ -131,9 +131,14 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 
 	info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed)
 	var noVersionErr *NoMatchingVersionError
-	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+	if errors.Is(err, ErrDisallowed) ||
+		errors.Is(err, fs.ErrNotExist) ||
+		errors.As(err, &noVersionErr) {
 		// Ignore "not found" and "no matching version" errors.
 		// This means the proxy has no matching version or no versions at all.
+		//
+		// Ignore "disallowed" errors. This means the current version is
+		// excluded or retracted and there are no higher allowed versions.
 		//
 		// We should report other errors though. An attacker that controls the
 		// network shouldn't be able to hide versions by interfering with
