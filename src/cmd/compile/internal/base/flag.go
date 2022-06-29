@@ -100,7 +100,6 @@ type CmdFlags struct {
 	GenDwarfInl        int          "help:\"generate DWARF inline info records\"" // 0=disabled, 1=funcs, 2=funcs+formals/locals
 	GoVersion          string       "help:\"required version of the runtime\""
 	ImportCfg          func(string) "help:\"read import configuration from `file`\""
-	InstallSuffix      string       "help:\"set pkg directory `suffix`\""
 	JSON               string       "help:\"version,file for JSON compiler/optimizer detail output\""
 	Lang               string       "help:\"Go language version source code expects\""
 	LinkObj            string       "help:\"write linker-specific object to `file`\""

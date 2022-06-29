@@ -128,9 +128,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if extFiles == 0 {
 		defaultGcFlags = append(defaultGcFlags, "-complete")
 	}
-	if cfg.BuildContext.InstallSuffix != "" {
-		defaultGcFlags = append(defaultGcFlags, "-installsuffix", cfg.BuildContext.InstallSuffix)
-	}
 	if a.buildID != "" {
 		defaultGcFlags = append(defaultGcFlags, "-buildid", a.buildID)
 	}

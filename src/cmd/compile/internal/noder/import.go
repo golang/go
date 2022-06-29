@@ -102,9 +102,7 @@ func openPackage(path string) (*os.File, error) {
 
 	if buildcfg.GOROOT != "" {
 		suffix := ""
-		if base.Flag.InstallSuffix != "" {
-			suffix = "_" + base.Flag.InstallSuffix
-		} else if base.Flag.Race {
+		if base.Flag.Race {
 			suffix = "_race"
 		} else if base.Flag.MSan {
 			suffix = "_msan"
