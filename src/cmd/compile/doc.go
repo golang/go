@@ -68,9 +68,6 @@ Flags:
 	-importcfg file
 		Read import configuration from file.
 		In the file, set importmap, packagefile to specify import resolution.
-	-importmap old=new
-		Interpret import "old" as import "new" during compilation.
-		The option may be repeated to add multiple mappings.
 	-installsuffix suffix
 		Look for packages in $GOROOT/pkg/$GOOS_$GOARCH_suffix
 		instead of $GOROOT/pkg/$GOOS_$GOARCH.
