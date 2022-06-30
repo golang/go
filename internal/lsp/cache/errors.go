@@ -123,6 +123,10 @@ func typeErrorDiagnostics(snapshot *snapshot, pkg *pkg, e extendedError) ([]*sou
 		diag.Code = code.String()
 		diag.CodeHref = typesCodeHref(snapshot, code)
 	}
+	switch code {
+	case typesinternal.UnusedVar, typesinternal.UnusedImport:
+		diag.Tags = append(diag.Tags, protocol.Unnecessary)
+	}
 
 	for _, secondary := range e.secondaries {
 		_, secondarySpan, err := typeErrorData(snapshot.FileSet(), pkg, secondary)
