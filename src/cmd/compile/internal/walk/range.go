@@ -305,7 +305,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 // rangeAssign returns "n.Key = key".
 func rangeAssign(n *ir.RangeStmt, key ir.Node) ir.Node {
-	// TODO(mdempsky): Implicit conversions for test/typeparam/mdempsky/17.go.
+	key = rangeConvert(n, n.Key.Type(), key, n.KeyTypeWord, n.KeySrcRType)
 	return ir.NewAssignStmt(n.Pos(), n.Key, key)
 }
 
@@ -313,8 +313,24 @@ func rangeAssign(n *ir.RangeStmt, key ir.Node) ir.Node {
 func rangeAssign2(n *ir.RangeStmt, key, value ir.Node) ir.Node {
 	// Use OAS2 to correctly handle assignments
 	// of the form "v1, a[v1] = range".
-	// TODO(mdempsky): Implicit conversions for test/typeparam/mdempsky/17.go.
+	key = rangeConvert(n, n.Key.Type(), key, n.KeyTypeWord, n.KeySrcRType)
+	value = rangeConvert(n, n.Value.Type(), value, n.ValueTypeWord, n.ValueSrcRType)
 	return ir.NewAssignListStmt(n.Pos(), ir.OAS2, []ir.Node{n.Key, n.Value}, []ir.Node{key, value})
+}
+
+// rangeConvert returns src, converted to dst if necessary. If a
+// conversion is necessary, then typeWord and srcRType are copied to
+// their respective ConvExpr fields.
+func rangeConvert(nrange *ir.RangeStmt, dst *types.Type, src, typeWord, srcRType ir.Node) ir.Node {
+	src = typecheck.Expr(src)
+	if dst.Kind() == types.TBLANK || types.Identical(dst, src.Type()) {
+		return src
+	}
+
+	n := ir.NewConvExpr(nrange.Pos(), ir.OCONV, dst, src)
+	n.TypeWord = typeWord
+	n.SrcRType = srcRType
+	return typecheck.Expr(n)
 }
 
 // isMapClear checks if n is of the form:

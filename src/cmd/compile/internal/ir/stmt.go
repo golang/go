@@ -350,6 +350,14 @@ type RangeStmt struct {
 	Body     Nodes
 	HasBreak bool
 	Prealloc *Name
+
+	// When desugaring the RangeStmt during walk, the assignments to Key
+	// and Value may require OCONVIFACE operations. If so, these fields
+	// will be copied to their respective ConvExpr fields.
+	KeyTypeWord   Node `mknode:"-"`
+	KeySrcRType   Node `mknode:"-"`
+	ValueTypeWord Node `mknode:"-"`
+	ValueSrcRType Node `mknode:"-"`
 }
 
 func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
