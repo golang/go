@@ -56,7 +56,7 @@ func indexModule(modroot string) ([]byte, error) {
 			return nil
 		}
 		if !str.HasFilePathPrefix(path, modroot) {
-			panic(fmt.Errorf("path %v in walk doesn't have modroot %v as prefix:", path, modroot))
+			panic(fmt.Errorf("path %v in walk doesn't have modroot %v as prefix", path, modroot))
 		}
 		rel := str.TrimFilePathPrefix(path, modroot)
 		packages = append(packages, importRaw(modroot, rel))

@@ -856,11 +856,11 @@ func (sf *sourceFile) error() string {
 func (sf *sourceFile) parseError() string {
 	return sf.od.stringAt(sourceFileParseError)
 }
-func (sf *sourceFile) name() string {
-	return sf.od.stringAt(sourceFileName)
-}
 func (sf *sourceFile) synopsis() string {
 	return sf.od.stringAt(sourceFileSynopsis)
+}
+func (sf *sourceFile) name() string {
+	return sf.od.stringAt(sourceFileName)
 }
 func (sf *sourceFile) pkgName() string {
 	return sf.od.stringAt(sourceFilePkgName)

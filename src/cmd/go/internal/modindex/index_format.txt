@@ -16,15 +16,14 @@ dirnames [n]uint32 - offsets to package names in string table; names sorted by r
 packages [n]uint32 - offset where package begins
 for each RawPackage:
 	error uint32 - string offset // error is produced by fsys.ReadDir or fmt.Errorf
-	path uint32 - string offset
 	dir uint32 - string offset (directory path relative to module root)
 	len(sourceFiles) uint32
 	sourceFiles [n]uint32 - offset to source file (relative to start of index file)
 	for each sourceFile:
 		error - string offset // error is either produced by fmt.Errorf,errors.New or is io.EOF
 		parseError - string offset // if non-empty, a json-encoded parseError struct (see below). Is either produced by io.ReadAll,os.ReadFile,errors.New or is scanner.Error,scanner.ErrorList
-		name - string offset
 		synopsis - string offset
+		name - string offset
 		pkgName - string offset
 		ignoreFile - int32 bool // report the file in Ignored(Go|Other)Files because there was an error reading it or parsing its build constraints.
 		binaryOnly uint32 bool
@@ -47,7 +46,7 @@ The following is the format for a single indexed package:
 “go index v0\n”
 str uint32 - offset of string table
 for the single RawPackage:
-    [same RawPackage format as above]
+	[same RawPackage format as above]
 [string table]
 
 The following is the definition of the json-serialized parseError struct:
