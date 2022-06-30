@@ -80,7 +80,6 @@ func (c *cmd) Run(ctx context.Context, cfg *packages.Config, patterns ...string)
 		log.Printf("package load failed: %v", err)
 		return nil, err
 	}
-	log.Printf("loaded %d packages\n", len(loadedPkgs))
 
 	log.Printf("analyzing %d packages...\n", len(loadedPkgs))
 
@@ -88,9 +87,12 @@ func (c *cmd) Run(ctx context.Context, cfg *packages.Config, patterns ...string)
 	if err != nil {
 		return nil, err
 	}
+
+	log.Printf("selecting affecting vulnerabilities from %d findings...\n", len(r.Vulns))
 	unaffectedMods := filterUnaffected(r.Vulns)
 	r.Vulns = filterCalled(r)
 
+	log.Printf("found %d vulnerabilities.\n", len(r.Vulns))
 	callInfo := gvc.GetCallInfo(r, loadedPkgs)
 	return toVulns(callInfo, unaffectedMods)
 	// TODO: add import graphs.
