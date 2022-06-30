@@ -987,7 +987,7 @@ func (o *orderState) stmt(n ir.Node) {
 				do(0, recv.X.Type().Elem())
 				do(1, types.Types[types.TBOOL])
 				if len(init) != 0 {
-					ir.DumpList("ninit", r.Init())
+					ir.DumpList("ninit", init)
 					base.Fatalf("ninit on select recv")
 				}
 				orderBlock(ncas.PtrInit(), o.free)
