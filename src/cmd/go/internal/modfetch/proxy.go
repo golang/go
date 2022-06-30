@@ -187,6 +187,10 @@ type proxyRepo struct {
 	url         *url.URL
 	path        string
 	redactedURL string
+
+	listLatestOnce sync.Once
+	listLatest     *RevInfo
+	listLatestErr  error
 }
 
 func newProxyRepo(baseURL, path string) (Repo, error) {
@@ -214,7 +218,7 @@ func newProxyRepo(baseURL, path string) (Repo, error) {
 	redactedURL := base.Redacted()
 	base.Path = strings.TrimSuffix(base.Path, "/") + "/" + enc
 	base.RawPath = strings.TrimSuffix(base.RawPath, "/") + "/" + pathEscape(enc)
-	return &proxyRepo{base, path, redactedURL}, nil
+	return &proxyRepo{base, path, redactedURL, sync.Once{}, nil, nil}, nil
 }
 
 func (p *proxyRepo) ModulePath() string {
@@ -278,32 +282,46 @@ func (p *proxyRepo) getBody(path string) (r io.ReadCloser, err error) {
 func (p *proxyRepo) Versions(prefix string) ([]string, error) {
 	data, err := p.getBytes("@v/list")
 	if err != nil {
+		p.listLatestOnce.Do(func() {
+			p.listLatest, p.listLatestErr = nil, p.versionError("", err)
+		})
 		return nil, p.versionError("", err)
 	}
 	var list []string
-	for _, line := range strings.Split(string(data), "\n") {
+	allLine := strings.Split(string(data), "\n")
+	for _, line := range allLine {
 		f := strings.Fields(line)
 		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) && !module.IsPseudoVersion(f[0]) {
 			list = append(list, f[0])
 		}
 	}
+	p.listLatestOnce.Do(func() {
+		p.listLatest, p.listLatestErr = p.latestFromList(allLine)
+	})
 	semver.Sort(list)
 	return list, nil
 }
 
 func (p *proxyRepo) latest() (*RevInfo, error) {
-	data, err := p.getBytes("@v/list")
-	if err != nil {
-		return nil, p.versionError("", err)
-	}
+	p.listLatestOnce.Do(func() {
+		data, err := p.getBytes("@v/list")
+		if err != nil {
+			p.listLatestErr = p.versionError("", err)
+			return
+		}
+		list := strings.Split(string(data), "\n")
+		p.listLatest, p.listLatestErr = p.latestFromList(list)
+	})
+	return p.listLatest, p.listLatestErr
+}
 
+func (p *proxyRepo) latestFromList(allLine []string) (*RevInfo, error) {
 	var (
 		bestTime             time.Time
 		bestTimeIsFromPseudo bool
 		bestVersion          string
 	)
-
-	for _, line := range strings.Split(string(data), "\n") {
+	for _, line := range allLine {
 		f := strings.Fields(line)
 		if len(f) >= 1 && semver.IsValid(f[0]) {
 			// If the proxy includes timestamps, prefer the timestamp it reports.

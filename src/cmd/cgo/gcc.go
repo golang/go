@@ -488,7 +488,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		// Check if compiling the preamble by itself causes any errors,
 		// because the messages we've printed out so far aren't helpful
 		// to users debugging preamble mistakes. See issue 8442.
-		preambleErrors := p.gccErrors([]byte(f.Preamble))
+		preambleErrors := p.gccErrors([]byte(builtinProlog + f.Preamble))
 		if len(preambleErrors) > 0 {
 			error_(token.NoPos, "\n%s errors for preamble:\n%s", gccBaseCmd[0], preambleErrors)
 		}

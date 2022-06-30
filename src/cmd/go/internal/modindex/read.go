@@ -73,6 +73,10 @@ func moduleHash(modroot string, ismodcache bool) (cache.ActionID, error) {
 	}
 
 	h := cache.NewHash("moduleIndex")
+	// TODO(bcmills): Since modules in the index are checksummed, we could
+	// probably improve the cache hit rate by keying off of the module
+	// path@version (perhaps including the checksum?) instead of the module root
+	// directory.
 	fmt.Fprintf(h, "module index %s %s %v\n", runtime.Version(), indexVersion, modroot)
 	return h.Sum(), nil
 }
@@ -81,8 +85,9 @@ const modTimeCutoff = 2 * time.Second
 
 // dirHash returns an ActionID corresponding to the state of the package
 // located at filesystem path pkgdir.
-func dirHash(pkgdir string) (cache.ActionID, error) {
+func dirHash(modroot, pkgdir string) (cache.ActionID, error) {
 	h := cache.NewHash("moduleIndex")
+	fmt.Fprintf(h, "modroot %s\n", modroot)
 	fmt.Fprintf(h, "package %s %s %v\n", runtime.Version(), indexVersion, pkgdir)
 	entries, err := fsys.ReadDir(pkgdir)
 	if err != nil {
@@ -206,8 +211,8 @@ func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
 		pkg *IndexPackage
 		err error
 	}
-	r := pcache.Do(pkgdir, func() any {
-		id, err := dirHash(pkgdir)
+	r := pcache.Do([2]string{modroot, pkgdir}, func() any {
+		id, err := dirHash(modroot, pkgdir)
 		if err != nil {
 			return result{nil, err}
 		}
@@ -851,11 +856,11 @@ func (sf *sourceFile) error() string {
 func (sf *sourceFile) parseError() string {
 	return sf.od.stringAt(sourceFileParseError)
 }
-func (sf *sourceFile) name() string {
-	return sf.od.stringAt(sourceFileName)
-}
 func (sf *sourceFile) synopsis() string {
 	return sf.od.stringAt(sourceFileSynopsis)
+}
+func (sf *sourceFile) name() string {
+	return sf.od.stringAt(sourceFileName)
 }
 func (sf *sourceFile) pkgName() string {
 	return sf.od.stringAt(sourceFilePkgName)

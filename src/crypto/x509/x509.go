@@ -2097,11 +2097,19 @@ func (c *CertificateRequest) CheckSignature() error {
 // RevocationList contains the fields used to create an X.509 v2 Certificate
 // Revocation list with CreateRevocationList.
 type RevocationList struct {
-	Raw                  []byte
+	// Raw contains the complete ASN.1 DER content of the CRL (tbsCertList,
+	// signatureAlgorithm, and signatureValue.)
+	Raw []byte
+	// RawTBSRevocationList contains just the tbsCertList portion of the ASN.1
+	// DER.
 	RawTBSRevocationList []byte
-	RawIssuer            []byte
+	// RawIssuer contains the DER encoded Issuer.
+	RawIssuer []byte
 
-	Issuer         pkix.Name
+	// Issuer contains the DN of the issuing certificate.
+	Issuer pkix.Name
+	// AuthorityKeyId is used to identify the public key associated with the
+	// issuing certificate.
 	AuthorityKeyId []byte
 
 	Signature []byte

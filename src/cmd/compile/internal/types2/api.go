@@ -128,9 +128,8 @@ type Config struct {
 	//          Do not use casually!
 	FakeImportC bool
 
-	// If IgnoreLabels is set, correct label use is not checked.
-	// TODO(gri) Consolidate label checking and remove this flag.
-	IgnoreLabels bool
+	// If IgnoreBranchErrors is set, branch/label errors are ignored.
+	IgnoreBranchErrors bool
 
 	// If CompilerErrorMessages is set, errors are reported using
 	// cmd/compile error strings to match $GOROOT/test errors.

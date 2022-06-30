@@ -92,6 +92,8 @@ func init() {
 //  4. result: an integer representing the comparison result. 0 indicates
 //     equality (comparison will ignored by libfuzzer), non-zero indicates a
 //     difference (comparison will be taken into consideration).
+//
+//go:nosplit
 func libfuzzerHookStrCmp(s1, s2 string, fakePC int) {
 	if s1 != s2 {
 		libfuzzerCall4(&__sanitizer_weak_hook_strcmp, uintptr(fakePC), cstring(s1), cstring(s2), uintptr(1))
@@ -102,6 +104,8 @@ func libfuzzerHookStrCmp(s1, s2 string, fakePC int) {
 
 // This function has now the same implementation as libfuzzerHookStrCmp because we lack better checks
 // for case-insensitive string equality in the runtime package.
+//
+//go:nosplit
 func libfuzzerHookEqualFold(s1, s2 string, fakePC int) {
 	if s1 != s2 {
 		libfuzzerCall4(&__sanitizer_weak_hook_strcmp, uintptr(fakePC), cstring(s1), cstring(s2), uintptr(1))

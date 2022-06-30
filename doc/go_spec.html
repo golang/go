@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 21, 2022",
+	"Subtitle": "Version of June 29, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -263,7 +263,7 @@ continue     for          import       return       var
 
 <p>
 The following character sequences represent <a href="#Operators">operators</a>
-(including <a href="#Assignments">assignment operators</a>) and punctuation:
+(including <a href="#Assignment_statements">assignment operators</a>) and punctuation:
 </p>
 <pre class="grammar">
 +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
@@ -676,7 +676,7 @@ containing only untyped constant operands are untyped.
 A constant may be given a type explicitly by a <a href="#Constant_declarations">constant declaration</a>
 or <a href="#Conversions">conversion</a>, or implicitly when used in a
 <a href="#Variable_declarations">variable declaration</a> or an
-<a href="#Assignments">assignment</a> or as an
+<a href="#Assignment_statements">assignment statement</a> or as an
 operand in an <a href="#Expressions">expression</a>.
 It is an error if the constant value
 cannot be <a href="#Representability">represented</a> as a value of the respective type.
@@ -780,7 +780,7 @@ x = v              // x has value (*T)(nil) and dynamic type *T
 <p>
 A variable's value is retrieved by referring to the variable in an
 <a href="#Expressions">expression</a>; it is the most recent value
-<a href="#Assignments">assigned</a> to the variable.
+<a href="#Assignment_statements">assigned</a> to the variable.
 If a variable has not yet been assigned a value, its value is the
 <a href="#The_zero_value">zero value</a> for its type.
 </p>
@@ -1591,7 +1591,7 @@ The number of map elements is called its length.
 For a map <code>m</code>, it can be discovered using the
 built-in function <a href="#Length_and_capacity"><code>len</code></a>
 and may change during execution. Elements may be added during execution
-using <a href="#Assignments">assignments</a> and retrieved with
+using <a href="#Assignment_statements">assignments</a> and retrieved with
 <a href="#Index_expressions">index expressions</a>; they may be removed with the
 <a href="#Deletion_of_map_elements"><code>delete</code></a> built-in function.
 </p>
@@ -1634,7 +1634,7 @@ The optional <code>&lt;-</code> operator specifies the channel <i>direction</i>,
 <i>send</i> or <i>receive</i>. If a direction is given, the channel is <i>directional</i>,
 otherwise it is <i>bidirectional</i>.
 A channel may be constrained only to send or only to receive by
-<a href="#Assignments">assignment</a> or
+<a href="#Assignment_statements">assignment</a> or
 explicit <a href="#Conversions">conversion</a>.
 </p>
 
@@ -2241,7 +2241,7 @@ the body of any nested function.
 The <i>blank identifier</i> is represented by the underscore character <code>_</code>.
 It serves as an anonymous placeholder instead of a regular (non-blank)
 identifier and has special meaning in <a href="#Declarations_and_scope">declarations</a>,
-as an <a href="#Operands">operand</a>, and in <a href="#Assignments">assignments</a>.
+as an <a href="#Operands">operand</a>, and in <a href="#Assignment_statements">assignment statements</a>.
 </p>
 
 
@@ -2748,7 +2748,7 @@ var _, found = entries[name]  // map lookup; only interested in "found"
 
 <p>
 If a list of expressions is given, the variables are initialized
-with the expressions following the rules for <a href="#Assignments">assignments</a>.
+with the expressions following the rules for <a href="#Assignment_statements">assignment statements</a>.
 Otherwise, each variable is initialized to its <a href="#The_zero_value">zero value</a>.
 </p>
 
@@ -3011,7 +3011,7 @@ resulting operand is an <a href="#Instantiations">instantiated</a> function.
 
 <p>
 The <a href="#Blank_identifier">blank identifier</a> may appear as an
-operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
+operand only on the left-hand side of an <a href="#Assignment_statements">assignment statement</a>.
 </p>
 
 <p>
@@ -3821,7 +3821,7 @@ Otherwise <code>a[x]</code> is illegal.
 
 <p>
 An index expression on a map <code>a</code> of type <code>map[K]V</code>
-used in an <a href="#Assignments">assignment</a> or initialization of the special form
+used in an <a href="#Assignment_statements">assignment statement</a> or initialization of the special form
 </p>
 
 <pre>
@@ -4037,7 +4037,7 @@ func f(y I) {
 </pre>
 
 <p>
-A type assertion used in an <a href="#Assignments">assignment</a> or initialization of the special form
+A type assertion used in an <a href="#Assignment_statements">assignment statement</a> or initialization of the special form
 </p>
 
 <pre>
@@ -5194,7 +5194,7 @@ f(&lt;-ch)
 </pre>
 
 <p>
-A receive expression used in an <a href="#Assignments">assignment</a> or initialization of the special form
+A receive expression used in an <a href="#Assignment_statements">assignment statement</a> or initialization of the special form
 </p>
 
 <pre>
@@ -5942,7 +5942,7 @@ IncDecStmt = Expression ( "++" | "--" ) .
 </pre>
 
 <p>
-The following <a href="#Assignments">assignment statements</a> are semantically
+The following <a href="#Assignment_statements">assignment statements</a> are semantically
 equivalent:
 </p>
 
@@ -5953,7 +5953,14 @@ x--                 x -= 1
 </pre>
 
 
-<h3 id="Assignments">Assignments</h3>
+<h3 id="Assignment_statements">Assignment statements</h3>
+
+<p>
+An <i>assignment</i> replaces the current value stored in a <a href="#Variables">variable</a>
+with a new value specified by an <a href="#Expressions">expression</a>.
+An assignment statement may assign a single value to a single variable, or multiple values to a
+matching number of variables.
+</p>
 
 <pre class="ebnf">
 Assignment = ExpressionList assign_op ExpressionList .
@@ -6522,7 +6529,7 @@ is <code>nil</code>, the range expression blocks forever.
 
 <p>
 The iteration values are assigned to the respective
-iteration variables as in an <a href="#Assignments">assignment statement</a>.
+iteration variables as in an <a href="#Assignment_statements">assignment statement</a>.
 </p>
 
 <p>

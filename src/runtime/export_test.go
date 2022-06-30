@@ -312,9 +312,9 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) 
 
 	// Initialize the metrics beforehand because this could
 	// allocate and skew the stats.
-	semacquire(&metricsSema)
+	metricsLock()
 	initMetrics()
-	semrelease(&metricsSema)
+	metricsUnlock()
 
 	systemstack(func() {
 		// Read memstats first. It's going to flush

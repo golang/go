@@ -17,7 +17,10 @@ import (
 	"testing"
 )
 
-var testfile *ast.File
+var (
+	testfile *ast.File
+	testsize int64
+)
 
 func testprint(out io.Writer, file *ast.File) {
 	if err := (&Config{TabIndent | UseSpaces | normalizeNumbers, 8, 0}).Fprint(out, fset, file); err != nil {
@@ -46,12 +49,15 @@ func initialize() {
 	}
 
 	testfile = file
+	testsize = int64(len(src))
 }
 
 func BenchmarkPrint(b *testing.B) {
 	if testfile == nil {
 		initialize()
 	}
+	b.ReportAllocs()
+	b.SetBytes(testsize)
 	for i := 0; i < b.N; i++ {
 		testprint(io.Discard, testfile)
 	}

@@ -393,7 +393,7 @@ var depsRules = `
 	< net/mail;
 
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
-	sync/atomic < crypto/internal/boring/fipstls;
+	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
@@ -410,7 +410,10 @@ var depsRules = `
 	< crypto/internal/nistec
 	< crypto/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
 	< crypto/internal/edwards25519
-	< crypto/cipher
+	< crypto/cipher;
+
+	crypto/cipher,
+	crypto/internal/boring/bcache
 	< crypto/internal/boring
 	< crypto/boring
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,

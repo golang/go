@@ -382,19 +382,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 	}
 
-	// For 32-bit instruction with constant, rewrite
-	// the high 32-bit to be a repetition of the low
-	// 32-bit, so that the BITCON test can be shared
-	// for both 32-bit and 64-bit. 32-bit ops will
-	// zero the high 32-bit of the destination register
-	// anyway.
-	// For MOVW, the destination register can't be ZR,
-	// so don't bother rewriting it in this situation.
-	if (isANDWop(p.As) || isADDWop(p.As) || p.As == AMOVW && p.To.Reg != REGZERO) && p.From.Type == obj.TYPE_CONST {
-		v := p.From.Offset & 0xffffffff
-		p.From.Offset = v | v<<32
-	}
-
 	if c.ctxt.Flag_dynlink {
 		c.rewriteToUseGot(p)
 	}
@@ -622,17 +609,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			var prologueEnd *obj.Prog
 
 			aoffset := c.autosize
-			if aoffset > 0x1f0 {
-				// LDP offset variant range is -512 to 504, SP should be 16-byte aligned,
-				// so the maximum aoffset value is 496.
-				aoffset = 0x1f0
+			if aoffset > 0xf0 {
+				// MOVD.W offset variant range is -0x100 to 0xf8, SP should be 16-byte aligned.
+				// so the maximum aoffset value is 0xf0.
+				aoffset = 0xf0
 			}
 
 			// Frame is non-empty. Make sure to save link register, even if
 			// it is a leaf function, so that traceback works.
 			q = p
 			if c.autosize > aoffset {
-				// Frame size is too large for a STP instruction. Store the frame pointer
+				// Frame size is too large for a MOVD.W instruction. Store the frame pointer
 				// register and link register before decrementing SP, so if a signal comes
 				// during the execution of the function prologue, the traceback code will
 				// not see a half-updated stack frame.
@@ -692,50 +679,37 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q1.To.Offset = -8
 				}
 			} else {
-				// small frame, save FP and LR with one STP instruction, then update SP.
-				// Store first, so if a signal comes during the execution of the function
-				// prologue, the traceback code will not see a half-updated stack frame.
-				// STP (R29, R30), -aoffset-8(RSP)
+				// small frame, update SP and save LR in a single MOVD.W instruction.
+				// So if a signal comes during the execution of the function prologue,
+				// the traceback code will not see a half-updated stack frame.
+				// Also, on Linux, in a cgo binary we may get a SIGSETXID signal
+				// early on before the signal stack is set, as glibc doesn't allow
+				// us to block SIGSETXID. So it is important that we don't write below
+				// the SP until the signal stack is set.
+				// Luckily, all the functions from thread entry to setting the signal
+				// stack have small frames.
 				q1 = obj.Appendp(q, c.newprog)
-				q1.As = ASTP
+				q1.As = AMOVD
 				q1.Pos = p.Pos
-				q1.From.Type = obj.TYPE_REGREG
-				q1.From.Reg = REGFP
-				q1.From.Offset = REGLINK
+				q1.From.Type = obj.TYPE_REG
+				q1.From.Reg = REGLINK
 				q1.To.Type = obj.TYPE_MEM
-				q1.To.Offset = int64(-aoffset - 8)
-				q1.To.Reg = REGSP
-
-				prologueEnd = q1
-
-				q1 = c.ctxt.StartUnsafePoint(q1, c.newprog)
-				// This instruction is not async preemptible, see the above comment.
-				// SUB $aoffset, RSP, RSP
-				q1 = obj.Appendp(q1, c.newprog)
-				q1.Pos = p.Pos
-				q1.As = ASUB
-				q1.From.Type = obj.TYPE_CONST
-				q1.From.Offset = int64(aoffset)
-				q1.Reg = REGSP
-				q1.To.Type = obj.TYPE_REG
+				q1.Scond = C_XPRE
+				q1.To.Offset = int64(-aoffset)
 				q1.To.Reg = REGSP
 				q1.Spadj = aoffset
 
-				q1 = c.ctxt.EndUnsafePoint(q1, c.newprog, -1)
+				prologueEnd = q1
 
-				if buildcfg.GOOS == "ios" {
-					// See the above comment.
-					// STP (R29, R30), -8(RSP)
-					q1 = obj.Appendp(q1, c.newprog)
-					q1.As = ASTP
-					q1.Pos = p.Pos
-					q1.From.Type = obj.TYPE_REGREG
-					q1.From.Reg = REGFP
-					q1.From.Offset = REGLINK
-					q1.To.Type = obj.TYPE_MEM
-					q1.To.Offset = int64(-8)
-					q1.To.Reg = REGSP
-				}
+				// Frame pointer.
+				q1 = obj.Appendp(q1, c.newprog)
+				q1.Pos = p.Pos
+				q1.As = AMOVD
+				q1.From.Type = obj.TYPE_REG
+				q1.From.Reg = REGFP
+				q1.To.Type = obj.TYPE_MEM
+				q1.To.Reg = REGSP
+				q1.To.Offset = -8
 			}
 
 			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)

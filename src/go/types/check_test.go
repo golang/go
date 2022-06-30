@@ -372,7 +372,7 @@ func TestIssue47243_TypedRHS(t *testing.T) {
 	testFiles(t, &StdSizes{4, 4}, []string{"p.go"}, [][]byte{[]byte(src)}, false, nil)
 }
 
-func TestCheck(t *testing.T)     { testDirFiles(t, "testdata/check", false) }
+func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
 func TestSpec(t *testing.T)      { testDirFiles(t, "testdata/spec", false) }
 func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
 func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }

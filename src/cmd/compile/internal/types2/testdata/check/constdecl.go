@@ -135,4 +135,26 @@ const (
 	f // ERROR invalid array length
 )
 
+// Test that identifiers in implicit (omitted) RHS
+// expressions of constant declarations are resolved
+// in the correct context; see issues #49157, #53585.
+const X = 2
+
+func _() {
+	const (
+		A    = iota // 0
+		iota = iota // 1
+		B           // 1 (iota is declared locally on prev. line)
+		C           // 1
+	)
+	assert(A == 0 && B == 1 && C == 1)
+
+	const (
+		X = X + X
+		Y
+		Z = iota
+	)
+	assert(X == 4 && Y == 8 && Z == 1)
+}
+
 // TODO(gri) move extra tests from testdata/const0.src into here

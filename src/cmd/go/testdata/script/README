@@ -176,6 +176,11 @@ The commands are:
 - skip [message]
   Mark the test skipped, including the message if given.
 
+- sleep duration
+  Sleep for the given duration (a time.Duration string).
+  (Tests should generally poll instead of sleeping, but sleeping may sometimes
+  be necessary, for example, to ensure that modified files have unique mtimes.)
+
 - [!] stale path...
   The packages named by the path arguments must (or must not)
   be reported as "stale" by the go command.

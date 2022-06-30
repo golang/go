@@ -51,18 +51,33 @@ go build
 go version -m m$GOEXE
 stdout '^\tbuild\tCGO_ENABLED=0$'
 ! stdout CGO_CPPFLAGS|CGO_CFLAGS|CGO_CXXFLAGS|CGO_LDFLAGS
+
 [cgo] env CGO_ENABLED=1
 [cgo] env CGO_CPPFLAGS=-DFROM_CPPFLAGS=1
 [cgo] env CGO_CFLAGS=-DFROM_CFLAGS=1
 [cgo] env CGO_CXXFLAGS=-DFROM_CXXFLAGS=1
 [cgo] env CGO_LDFLAGS=-L/extra/dir/does/not/exist
-[cgo] go build
+[cgo] go build '-ldflags=all=-linkmode=external -extldflags=-L/bonus/dir/does/not/exist'
 [cgo] go version -m m$GOEXE
+[cgo] stdout '^\tbuild\t-ldflags="all=-linkmode=external -extldflags=-L/bonus/dir/does/not/exist"$'
 [cgo] stdout '^\tbuild\tCGO_ENABLED=1$'
 [cgo] stdout '^\tbuild\tCGO_CPPFLAGS=-DFROM_CPPFLAGS=1$'
 [cgo] stdout '^\tbuild\tCGO_CFLAGS=-DFROM_CFLAGS=1$'
 [cgo] stdout '^\tbuild\tCGO_CXXFLAGS=-DFROM_CXXFLAGS=1$'
 [cgo] stdout '^\tbuild\tCGO_LDFLAGS=-L/extra/dir/does/not/exist$'
+
+# https://go.dev/issue/52372: a cgo-enabled binary should not be stamped with
+# CGO_ flags that contain paths.
+[cgo] env CGO_ENABLED=1
+[cgo] env CGO_CPPFLAGS=-DFROM_CPPFLAGS=1
+[cgo] env CGO_CFLAGS=-DFROM_CFLAGS=1
+[cgo] env CGO_CXXFLAGS=-DFROM_CXXFLAGS=1
+[cgo] env CGO_LDFLAGS=-L/extra/dir/does/not/exist
+[cgo] go build -trimpath '-ldflags=all=-linkmode=external -extldflags=-L/bonus/dir/does/not/exist'
+[cgo] go version -m m$GOEXE
+[cgo] ! stdout '/extra/dir/does/not/exist'
+[cgo] ! stdout '/bonus/dir/does/not/exist'
+[cgo] stdout '^\tbuild\tCGO_ENABLED=1$'
 
 -- go.mod --
 module example.com/m

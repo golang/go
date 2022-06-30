@@ -2347,7 +2347,17 @@ func (p *Package) setBuildInfo(includeVCS bool) {
 		appendSetting("-gcflags", gcflags)
 	}
 	if ldflags := BuildLdflags.String(); ldflags != "" {
-		appendSetting("-ldflags", ldflags)
+		// https://go.dev/issue/52372: only include ldflags if -trimpath is not set,
+		// since it can include system paths through various linker flags (notably
+		// -extar, -extld, and -extldflags).
+		//
+		// TODO: since we control cmd/link, in theory we can parse ldflags to
+		// determine whether they may refer to system paths. If we do that, we can
+		// redact only those paths from the recorded -ldflags setting and still
+		// record the system-independent parts of the flags.
+		if !cfg.BuildTrimpath {
+			appendSetting("-ldflags", ldflags)
+		}
 	}
 	if cfg.BuildMSan {
 		appendSetting("-msan", "true")
@@ -2366,7 +2376,14 @@ func (p *Package) setBuildInfo(includeVCS bool) {
 		cgo = "1"
 	}
 	appendSetting("CGO_ENABLED", cgo)
-	if cfg.BuildContext.CgoEnabled {
+	// https://go.dev/issue/52372: only include CGO flags if -trimpath is not set.
+	// (If -trimpath is set, it is possible that these flags include system paths.)
+	// If cgo is involved, reproducibility is already pretty well ruined anyway,
+	// given that we aren't stamping header or library versions.
+	//
+	// TODO(bcmills): perhaps we could at least parse the flags and stamp the
+	// subset of flags that are known not to be paths?
+	if cfg.BuildContext.CgoEnabled && !cfg.BuildTrimpath {
 		for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
 			appendSetting(name, cfg.Getenv(name))
 		}

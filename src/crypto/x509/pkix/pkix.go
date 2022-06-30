@@ -283,6 +283,8 @@ func oidInAttributeTypeAndValue(oid asn1.ObjectIdentifier, atv []AttributeTypeAn
 // CertificateList represents the ASN.1 structure of the same name. See RFC
 // 5280, section 5.1. Use Certificate.CheckCRLSignature to verify the
 // signature.
+//
+// Deprecated: x509.RevocationList should be used instead.
 type CertificateList struct {
 	TBSCertList        TBSCertificateList
 	SignatureAlgorithm AlgorithmIdentifier
@@ -311,8 +313,6 @@ type TBSCertificateList struct {
 
 // RevokedCertificate represents the ASN.1 structure of the same name. See RFC
 // 5280, section 5.1.
-//
-// Deprecated: x509.RevocationList should be used instead.
 type RevokedCertificate struct {
 	SerialNumber   *big.Int
 	RevocationTime time.Time

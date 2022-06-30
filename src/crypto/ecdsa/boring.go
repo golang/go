@@ -9,6 +9,7 @@ package ecdsa
 import (
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
+	"crypto/internal/boring/bcache"
 	"math/big"
 	"unsafe"
 )
@@ -26,8 +27,8 @@ import (
 // still matches before using the cached key. The theory is that the real
 // operations are significantly more expensive than the comparison.
 
-var pubCache boring.Cache
-var privCache boring.Cache
+var pubCache bcache.Cache
+var privCache bcache.Cache
 
 func init() {
 	pubCache.Register()
