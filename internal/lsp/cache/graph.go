@@ -32,6 +32,10 @@ type metadataGraph struct {
 // Clone creates a new metadataGraph, applying the given updates to the
 // receiver.
 func (g *metadataGraph) Clone(updates map[PackageID]*KnownMetadata) *metadataGraph {
+	if len(updates) == 0 {
+		// Optimization: since the graph is immutable, we can return the receiver.
+		return g
+	}
 	result := &metadataGraph{metadata: make(map[PackageID]*KnownMetadata, len(g.metadata))}
 	// Copy metadata.
 	for id, m := range g.metadata {
