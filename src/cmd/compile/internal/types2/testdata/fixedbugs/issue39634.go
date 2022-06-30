@@ -31,10 +31,8 @@ type x7[A any] struct{ foo7 }
 func main7() { var _ foo7 = x7[int]{} }
 
 // crash 8
-// Embedding stand-alone type parameters is not permitted for now. Disabled.
-// type foo8[A any] interface { ~A }
-// func bar8[A foo8[A]](a A) {}
-// func main8() {}
+type foo8[A any] interface { ~A /* ERROR cannot be a type parameter */ }
+func bar8[A foo8[A]](a A) {}
 
 // crash 9
 type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
@@ -74,10 +72,9 @@ func F20[t Z20]() { F20(t /* ERROR invalid composite literal type */ {}) }
 type Z21 /* ERROR illegal cycle */ interface{ Z21 }
 func F21[T Z21]() { ( /* ERROR not used */ F21[Z21]) }
 
-// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
-// // crash 24
-// type T24[P any] P
-// func (r T24[P]) m() { T24 /* ERROR without instantiation */ .m() }
+// crash 24
+type T24[P any] P // ERROR cannot use a type parameter as RHS in type declaration
+func (r T24[P]) m() { T24 /* ERROR without instantiation */ .m() }
 
 // crash 25
 type T25[A any] int
