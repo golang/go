@@ -8,5 +8,5 @@ type unsafeStruct struct {
 }
 
 func fill() {
-	_ := unsafeStruct{} //@suggestedfix("}", "refactor.rewrite")
+	_ := unsafeStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }

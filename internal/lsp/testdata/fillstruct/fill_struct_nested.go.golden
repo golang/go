@@ -13,7 +13,7 @@ func nested() {
 	c := StructB{
 		StructC: StructC{
 			unexportedInt: 0,
-		}, //@suggestedfix("}", "refactor.rewrite")
+		}, //@suggestedfix("}", "refactor.rewrite", "Fill")
 	}
 }
 

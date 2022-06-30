@@ -18,7 +18,7 @@ type Bar struct {
 var _ = Bar{
 	X: &Foo{},
 	Y: &Foo{},
-} //@suggestedfix("}", "refactor.rewrite")
+} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type importedStruct struct {
 	m  map[*ast.CompositeLit]ast.Field
@@ -29,7 +29,7 @@ type importedStruct struct {
 	st ast.CompositeLit
 }
 
-var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type pointerBuiltinStruct struct {
 	b *bool
@@ -37,13 +37,13 @@ type pointerBuiltinStruct struct {
 	i *int
 }
 
-var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 var _ = []ast.BasicLit{
-	{}, //@suggestedfix("}", "refactor.rewrite")
+	{}, //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 
-var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 -- suggestedfix_a3_28_24 --
 package fillstruct
@@ -62,7 +62,7 @@ type Bar struct {
 	Y *Foo
 }
 
-var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type importedStruct struct {
 	m  map[*ast.CompositeLit]ast.Field
@@ -81,7 +81,7 @@ var _ = importedStruct{
 	fn: func(ast_decl ast.DeclStmt) ast.Ellipsis {
 	},
 	st: ast.CompositeLit{},
-} //@suggestedfix("}", "refactor.rewrite")
+} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type pointerBuiltinStruct struct {
 	b *bool
@@ -89,13 +89,13 @@ type pointerBuiltinStruct struct {
 	i *int
 }
 
-var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 var _ = []ast.BasicLit{
-	{}, //@suggestedfix("}", "refactor.rewrite")
+	{}, //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 
-var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 -- suggestedfix_a3_36_30 --
 package fillstruct
@@ -114,7 +114,7 @@ type Bar struct {
 	Y *Foo
 }
 
-var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type importedStruct struct {
 	m  map[*ast.CompositeLit]ast.Field
@@ -125,7 +125,7 @@ type importedStruct struct {
 	st ast.CompositeLit
 }
 
-var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type pointerBuiltinStruct struct {
 	b *bool
@@ -137,13 +137,13 @@ var _ = pointerBuiltinStruct{
 	b: new(bool),
 	s: new(string),
 	i: new(int),
-} //@suggestedfix("}", "refactor.rewrite")
+} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 var _ = []ast.BasicLit{
-	{}, //@suggestedfix("}", "refactor.rewrite")
+	{}, //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 
-var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 -- suggestedfix_a3_39_3 --
 package fillstruct
@@ -162,7 +162,7 @@ type Bar struct {
 	Y *Foo
 }
 
-var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type importedStruct struct {
 	m  map[*ast.CompositeLit]ast.Field
@@ -173,7 +173,7 @@ type importedStruct struct {
 	st ast.CompositeLit
 }
 
-var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type pointerBuiltinStruct struct {
 	b *bool
@@ -181,17 +181,17 @@ type pointerBuiltinStruct struct {
 	i *int
 }
 
-var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 var _ = []ast.BasicLit{
 	{
 		ValuePos: 0,
 		Kind:     0,
 		Value:    "",
-	}, //@suggestedfix("}", "refactor.rewrite")
+	}, //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 
-var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 -- suggestedfix_a3_42_25 --
 package fillstruct
@@ -210,7 +210,7 @@ type Bar struct {
 	Y *Foo
 }
 
-var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type importedStruct struct {
 	m  map[*ast.CompositeLit]ast.Field
@@ -221,7 +221,7 @@ type importedStruct struct {
 	st ast.CompositeLit
 }
 
-var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type pointerBuiltinStruct struct {
 	b *bool
@@ -229,15 +229,15 @@ type pointerBuiltinStruct struct {
 	i *int
 }
 
-var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 var _ = []ast.BasicLit{
-	{}, //@suggestedfix("}", "refactor.rewrite")
+	{}, //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 
 var _ = []ast.BasicLit{{
 	ValuePos: 0,
 	Kind:     0,
 	Value:    "",
-}} //@suggestedfix("}", "refactor.rewrite")
+}} //@suggestedfix("}", "refactor.rewrite", "Fill")
 

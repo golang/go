@@ -12,18 +12,16 @@ type basicStruct[T any] struct {
 	foo T
 }
 
-var _ = basicStruct[int]{}
-
-type fooType[T any] T
+var _ = basicStruct[int]{} // want ""
 
 type twoArgStruct[F, B any] struct {
-	foo fooType[F]
-	bar fooType[B]
+	foo F
+	bar B
 }
 
-var _ = twoArgStruct[string, int]{}
+var _ = twoArgStruct[string, int]{} // want ""
 
-var _ = twoArgStruct[int, string]{
+var _ = twoArgStruct[int, string]{ // want ""
 	bar: "bar",
 }
 

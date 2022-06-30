@@ -22,18 +22,18 @@ type assignStruct struct {
 
 func fill() {
 	var x int
-	var _ = iStruct{} //@suggestedfix("}", "refactor.rewrite")
+	var _ = iStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 	var s string
-	var _ = sStruct{} //@suggestedfix("}", "refactor.rewrite")
+	var _ = sStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 	var n int
 	_ = []int{}
 	if true {
 		arr := []int{1, 2}
 	}
-	var _ = multiFill{} //@suggestedfix("}", "refactor.rewrite")
+	var _ = multiFill{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 	var node *ast.CompositeLit
-	var _ = assignStruct{} //@suggestedfix("}", "refactor.rewrite")
+	var _ = assignStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }

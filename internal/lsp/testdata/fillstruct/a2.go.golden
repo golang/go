@@ -15,25 +15,25 @@ var _ = typedStruct{
 	c:  make(chan int),
 	c1: make(<-chan int),
 	a:  [2]string{},
-} //@suggestedfix("}", "refactor.rewrite")
+} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStruct struct {
 	fn func(i int) int
 }
 
-var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStructCompex struct {
 	fn func(i int, s string) (string, int)
 }
 
-var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStructEmpty struct {
 	fn func()
 }
 
-var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 -- suggestedfix_a2_17_19 --
 package fillstruct
@@ -46,7 +46,7 @@ type typedStruct struct {
 	a  [2]string
 }
 
-var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStruct struct {
 	fn func(i int) int
@@ -55,19 +55,19 @@ type funStruct struct {
 var _ = funStruct{
 	fn: func(i int) int {
 	},
-} //@suggestedfix("}", "refactor.rewrite")
+} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStructCompex struct {
 	fn func(i int, s string) (string, int)
 }
 
-var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStructEmpty struct {
 	fn func()
 }
 
-var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 -- suggestedfix_a2_23_25 --
 package fillstruct
@@ -80,13 +80,13 @@ type typedStruct struct {
 	a  [2]string
 }
 
-var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStruct struct {
 	fn func(i int) int
 }
 
-var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStructCompex struct {
 	fn func(i int, s string) (string, int)
@@ -95,13 +95,13 @@ type funStructCompex struct {
 var _ = funStructCompex{
 	fn: func(i int, s string) (string, int) {
 	},
-} //@suggestedfix("}", "refactor.rewrite")
+} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStructEmpty struct {
 	fn func()
 }
 
-var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 -- suggestedfix_a2_29_24 --
 package fillstruct
@@ -114,19 +114,19 @@ type typedStruct struct {
 	a  [2]string
 }
 
-var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStruct struct {
 	fn func(i int) int
 }
 
-var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStructCompex struct {
 	fn func(i int, s string) (string, int)
 }
 
-var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type funStructEmpty struct {
 	fn func()
@@ -135,5 +135,5 @@ type funStructEmpty struct {
 var _ = funStructEmpty{
 	fn: func() {
 	},
-} //@suggestedfix("}", "refactor.rewrite")
+} //@suggestedfix("}", "refactor.rewrite", "Fill")
 

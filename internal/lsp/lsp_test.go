@@ -487,7 +487,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	}
 }
 
-func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string, expectedActions int) {
+func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []tests.SuggestedFix, expectedActions int) {
 	uri := spn.URI()
 	view, err := r.server.session.ViewOf(uri)
 	if err != nil {
@@ -516,9 +516,9 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string,
 	}
 	codeActionKinds := []protocol.CodeActionKind{}
 	for _, k := range actionKinds {
-		codeActionKinds = append(codeActionKinds, protocol.CodeActionKind(k))
+		codeActionKinds = append(codeActionKinds, protocol.CodeActionKind(k.ActionKind))
 	}
-	actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
+	allActions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.URIFromSpanURI(uri),
 		},
@@ -530,6 +530,16 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string,
 	})
 	if err != nil {
 		t.Fatalf("CodeAction %s failed: %v", spn, err)
+	}
+	var actions []protocol.CodeAction
+	for _, action := range allActions {
+		for _, fix := range actionKinds {
+			if strings.Contains(action.Title, fix.Title) {
+				actions = append(actions, action)
+				break
+			}
+		}
+
 	}
 	if len(actions) != expectedActions {
 		// Hack: We assume that we only get one code action per range.

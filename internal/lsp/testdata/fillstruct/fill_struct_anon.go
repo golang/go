@@ -10,5 +10,5 @@ type StructAnon struct {
 }
 
 func fill() {
-	_ := StructAnon{} //@suggestedfix("}", "refactor.rewrite")
+	_ := StructAnon{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }

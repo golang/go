@@ -17,10 +17,10 @@ type StructA3 struct {
 }
 
 func fill() {
-	a := StructA{}  //@suggestedfix("}", "refactor.rewrite")
-	b := StructA2{} //@suggestedfix("}", "refactor.rewrite")
-	c := StructA3{} //@suggestedfix("}", "refactor.rewrite")
+	a := StructA{}  //@suggestedfix("}", "refactor.rewrite", "Fill")
+	b := StructA2{} //@suggestedfix("}", "refactor.rewrite", "Fill")
+	c := StructA3{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 	if true {
-		_ = StructA3{} //@suggestedfix("}", "refactor.rewrite")
+		_ = StructA3{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 	}
 }

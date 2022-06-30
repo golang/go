@@ -8,6 +8,6 @@ type StructD struct {
 func spaces() {
 	d := StructD{
 		ExportedIntField: 0,
-	} //@suggestedfix("}", "refactor.rewrite")
+	} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 

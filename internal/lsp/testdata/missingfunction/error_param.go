@@ -2,5 +2,5 @@ package missingfunction
 
 func errorParam() {
 	var err error
-	undefinedErrorParam(err) //@suggestedfix("undefinedErrorParam", "quickfix")
+	undefinedErrorParam(err) //@suggestedfix("undefinedErrorParam", "quickfix", "")
 }

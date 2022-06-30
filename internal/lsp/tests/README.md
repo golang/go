@@ -11,7 +11,7 @@ file, like `internal/lsp/testdata/foo/bar.go.golden`. The former is the "input"
 and the latter is the expected output.
 
 Each input file contains annotations like
-`//@suggestedfix("}", "refactor.rewrite")`. These annotations are interpreted by
+`//@suggestedfix("}", "refactor.rewrite", "Fill anonymous struct")`. These annotations are interpreted by
 test runners to perform certain actions. The expected output after those actions
 is encoded in the golden file.
 

@@ -2,7 +2,7 @@
 package missingfunction
 
 func tuple() {
-	undefinedTuple(b()) //@suggestedfix("undefinedTuple", "quickfix")
+	undefinedTuple(b()) //@suggestedfix("undefinedTuple", "quickfix", "")
 }
 
 func undefinedTuple(s string, err error) {

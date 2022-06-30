@@ -17,13 +17,13 @@ func fill() {
 		PrefilledInt:   5,
 		UnfilledInt:    0,
 		StructPartialB: StructPartialB{},
-	} //@suggestedfix("}", "refactor.rewrite")
+	} //@suggestedfix("}", "refactor.rewrite", "Fill")
 	b := StructPartialB{
 		/* this comment should disappear */
 		PrefilledInt: 7, // This comment should be blown away.
 		/* As should
 		this one */
-	} //@suggestedfix("}", "refactor.rewrite")
+	} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 
 -- suggestedfix_fill_struct_partial_23_2 --
@@ -43,10 +43,10 @@ type StructPartialB struct {
 func fill() {
 	a := StructPartialA{
 		PrefilledInt: 5,
-	} //@suggestedfix("}", "refactor.rewrite")
+	} //@suggestedfix("}", "refactor.rewrite", "Fill")
 	b := StructPartialB{
 		PrefilledInt: 7,
 		UnfilledInt:  0,
-	} //@suggestedfix("}", "refactor.rewrite")
+	} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 

@@ -5,5 +5,5 @@ type StructD struct {
 }
 
 func spaces() {
-	d := StructD{} //@suggestedfix("}", "refactor.rewrite")
+	d := StructD{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }

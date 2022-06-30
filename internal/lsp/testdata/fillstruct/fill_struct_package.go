@@ -7,6 +7,6 @@ import (
 )
 
 func unexported() {
-	a := data.B{}   //@suggestedfix("}", "refactor.rewrite")
-	_ = h2.Client{} //@suggestedfix("}", "refactor.rewrite")
+	a := data.B{}   //@suggestedfix("}", "refactor.rewrite", "Fill")
+	_ = h2.Client{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }

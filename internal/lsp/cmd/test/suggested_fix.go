@@ -12,14 +12,16 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string, expectedActions int) {
+func (r *runner) SuggestedFix(t *testing.T, spn span.Span, suggestedFixes []tests.SuggestedFix, expectedActions int) {
 	uri := spn.URI()
 	filename := uri.Filename()
 	args := []string{"fix", "-a", fmt.Sprintf("%s", spn)}
-	for _, kind := range actionKinds {
-		if kind == "refactor.rewrite" {
+	var actionKinds []string
+	for _, sf := range suggestedFixes {
+		if sf.ActionKind == "refactor.rewrite" {
 			t.Skip("refactor.rewrite is not yet supported on the command line")
 		}
+		actionKinds = append(actionKinds, sf.ActionKind)
 	}
 	args = append(args, actionKinds...)
 	got, stderr := r.NormalizeGoplsCmd(t, args...)

@@ -69,7 +69,7 @@ type FoldingRanges []span.Span
 type Formats []span.Span
 type Imports []span.Span
 type SemanticTokens []span.Span
-type SuggestedFixes map[span.Span][]string
+type SuggestedFixes map[span.Span][]SuggestedFix
 type FunctionExtractions map[span.Span]span.Span
 type MethodExtractions map[span.Span]span.Span
 type Definitions map[span.Span]Definition
@@ -152,7 +152,7 @@ type Tests interface {
 	Format(*testing.T, span.Span)
 	Import(*testing.T, span.Span)
 	SemanticTokens(*testing.T, span.Span)
-	SuggestedFix(*testing.T, span.Span, []string, int)
+	SuggestedFix(*testing.T, span.Span, []SuggestedFix, int)
 	FunctionExtraction(*testing.T, span.Span, span.Span)
 	MethodExtraction(*testing.T, span.Span, span.Span)
 	Definition(*testing.T, span.Span, Definition)
@@ -230,6 +230,10 @@ type Link struct {
 	Src          span.Span
 	Target       string
 	NotePosition token.Position
+}
+
+type SuggestedFix struct {
+	ActionKind, Title string
 }
 
 type Golden struct {
@@ -1198,11 +1202,8 @@ func (data *Data) collectSemanticTokens(spn span.Span) {
 	data.SemanticTokens = append(data.SemanticTokens, spn)
 }
 
-func (data *Data) collectSuggestedFixes(spn span.Span, actionKind string) {
-	if _, ok := data.SuggestedFixes[spn]; !ok {
-		data.SuggestedFixes[spn] = []string{}
-	}
-	data.SuggestedFixes[spn] = append(data.SuggestedFixes[spn], actionKind)
+func (data *Data) collectSuggestedFixes(spn span.Span, actionKind, fix string) {
+	data.SuggestedFixes[spn] = append(data.SuggestedFixes[spn], SuggestedFix{actionKind, fix})
 }
 
 func (data *Data) collectFunctionExtractions(start span.Span, end span.Span) {

@@ -68,14 +68,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
-		// Ignore types that have type parameters for now.
-		// TODO: support type params.
-		if typ, ok := typ.(*types.Named); ok {
-			if tparams := typeparams.ForNamed(typ); tparams != nil && tparams.Len() > 0 {
-				return
-			}
-		}
-
 		// Find reference to the type declaration of the struct being initialized.
 		for {
 			p, ok := typ.Underlying().(*types.Pointer)

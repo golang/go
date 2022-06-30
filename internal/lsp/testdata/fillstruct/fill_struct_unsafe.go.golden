@@ -12,6 +12,6 @@ func fill() {
 	_ := unsafeStruct{
 		x: 0,
 		p: nil,
-	} //@suggestedfix("}", "refactor.rewrite")
+	} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 

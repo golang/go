@@ -14,11 +14,11 @@ type StructPartialB struct {
 func fill() {
 	a := StructPartialA{
 		PrefilledInt: 5,
-	} //@suggestedfix("}", "refactor.rewrite")
+	} //@suggestedfix("}", "refactor.rewrite", "Fill")
 	b := StructPartialB{
 		/* this comment should disappear */
 		PrefilledInt: 7, // This comment should be blown away.
 		/* As should
 		this one */
-	} //@suggestedfix("}", "refactor.rewrite")
+	} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }

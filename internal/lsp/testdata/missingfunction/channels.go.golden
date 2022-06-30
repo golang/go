@@ -2,7 +2,7 @@
 package missingfunction
 
 func channels(s string) {
-	undefinedChannels(c()) //@suggestedfix("undefinedChannels", "quickfix")
+	undefinedChannels(c()) //@suggestedfix("undefinedChannels", "quickfix", "")
 }
 
 func undefinedChannels(ch1 <-chan string, ch2 chan string) {

@@ -14,7 +14,7 @@ type Bar struct {
 	Y *Foo
 }
 
-var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type importedStruct struct {
 	m  map[*ast.CompositeLit]ast.Field
@@ -25,7 +25,7 @@ type importedStruct struct {
 	st ast.CompositeLit
 }
 
-var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 type pointerBuiltinStruct struct {
 	b *bool
@@ -33,10 +33,10 @@ type pointerBuiltinStruct struct {
 	i *int
 }
 
-var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 var _ = []ast.BasicLit{
-	{}, //@suggestedfix("}", "refactor.rewrite")
+	{}, //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 
-var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite", "Fill")

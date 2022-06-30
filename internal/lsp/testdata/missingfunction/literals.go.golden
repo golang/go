@@ -8,7 +8,7 @@ package missingfunction
 type T struct{}
 
 func literals() {
-	undefinedLiterals("hey compiler", T{}, &T{}) //@suggestedfix("undefinedLiterals", "quickfix")
+	undefinedLiterals("hey compiler", T{}, &T{}) //@suggestedfix("undefinedLiterals", "quickfix", "")
 }
 
 func undefinedLiterals(s string, t1 T, t2 *T) {
@@ -20,7 +20,7 @@ package missingfunction
 type T struct{}
 
 func literals() {
-	undefinedLiterals("hey compiler", T{}, &T{}) //@suggestedfix("undefinedLiterals", "quickfix")
+	undefinedLiterals("hey compiler", T{}, &T{}) //@suggestedfix("undefinedLiterals", "quickfix", "")
 }
 
 func undefinedLiterals(s string, t1 T, t2 *T) {
