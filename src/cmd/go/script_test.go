@@ -521,6 +521,7 @@ var scriptCmds = map[string]func(*testScript, simpleStatus, []string){
 	"mv":      (*testScript).cmdMv,
 	"rm":      (*testScript).cmdRm,
 	"skip":    (*testScript).cmdSkip,
+	"sleep":   (*testScript).cmdSleep,
 	"stale":   (*testScript).cmdStale,
 	"stderr":  (*testScript).cmdStderr,
 	"stdout":  (*testScript).cmdStdout,
@@ -919,6 +920,21 @@ func (ts *testScript) cmdSkip(want simpleStatus, args []string) {
 		ts.t.Skip(args[0])
 	}
 	ts.t.Skip()
+}
+
+// sleep sleeps for the given duration
+func (ts *testScript) cmdSleep(want simpleStatus, args []string) {
+	if len(args) != 1 {
+		ts.fatalf("usage: sleep duration")
+	}
+	d, err := time.ParseDuration(args[0])
+	if err != nil {
+		ts.fatalf("sleep: %v", err)
+	}
+	if want != success {
+		ts.fatalf("unsupported: %v sleep", want)
+	}
+	time.Sleep(d)
 }
 
 // stale checks that the named build targets are stale.
