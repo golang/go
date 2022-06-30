@@ -320,7 +320,9 @@ func (zeroSource) Read(b []byte) (n int, err error) {
 func allCipherSuites() []uint16 {
 	ids := make([]uint16, len(cipherSuites))
 	for i, suite := range cipherSuites {
-		ids[i] = suite.id
+		if suite.flags&suiteNoCerts == 0 {
+			ids[i] = suite.id
+		}
 	}
 
 	return ids

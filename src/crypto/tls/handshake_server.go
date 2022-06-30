@@ -370,12 +370,14 @@ func (hs *serverHandshakeState) cipherSuiteOk(c *cipherSuite) bool {
 		if !hs.ecdheOk {
 			return false
 		}
-		if c.flags&suiteECSign != 0 {
-			if !hs.ecSignOk {
+		if c.flags&suiteNoCerts == 0 {
+			if c.flags&suiteECSign != 0 {
+				if !hs.ecSignOk {
+					return false
+				}
+			} else if !hs.rsaSignOk {
 				return false
 			}
-		} else if !hs.rsaSignOk {
-			return false
 		}
 	} else if !hs.rsaDecryptOk {
 		return false
@@ -502,19 +504,21 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		return err
 	}
 
-	certMsg := new(certificateMsg)
-	certMsg.certificates = hs.cert.Certificate
-	hs.finishedHash.Write(certMsg.marshal())
-	if _, err := c.writeRecord(recordTypeHandshake, certMsg.marshal()); err != nil {
-		return err
-	}
-
-	if hs.hello.ocspStapling {
-		certStatus := new(certificateStatusMsg)
-		certStatus.response = hs.cert.OCSPStaple
-		hs.finishedHash.Write(certStatus.marshal())
-		if _, err := c.writeRecord(recordTypeHandshake, certStatus.marshal()); err != nil {
+	if hs.suite.flags&suiteNoCerts == 0 { // this suite requires certificate handshake
+		certMsg := new(certificateMsg)
+		certMsg.certificates = hs.cert.Certificate
+		hs.finishedHash.Write(certMsg.marshal())
+		if _, err := c.writeRecord(recordTypeHandshake, certMsg.marshal()); err != nil {
 			return err
+		}
+
+		if hs.hello.ocspStapling {
+			certStatus := new(certificateStatusMsg)
+			certStatus.response = hs.cert.OCSPStaple
+			hs.finishedHash.Write(certStatus.marshal())
+			if _, err := c.writeRecord(recordTypeHandshake, certStatus.marshal()); err != nil {
+				return err
+			}
 		}
 	}
 

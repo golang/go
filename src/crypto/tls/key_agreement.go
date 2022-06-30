@@ -355,3 +355,219 @@ func (ka *ecdheKeyAgreement) generateClientKeyExchange(config *Config, clientHel
 
 	return ka.preMasterSecret, ka.ckx, nil
 }
+
+// ecdhePskKeyAgreement implements a TLS key agreement where the server
+// generates an ephemeral EC public/private key pair and signs it. The
+// pre-master secret is then calculated using ECDH with Pre-shared key.
+type ecdhePskKeyAgreement struct {
+	version uint16
+	params  ecdheParameters
+
+	// ckx and otherSecret are generated in processServerKeyExchange
+	// and returned in generateClientKeyExchange.
+	ckx         *clientKeyExchangeMsg
+	otherSecret []byte
+	pskIdentity string
+}
+
+func (ka *ecdhePskKeyAgreement) generateServerKeyExchange(config *Config, cert *Certificate, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
+	var curveID CurveID
+	for _, c := range clientHello.supportedCurves {
+		if config.supportsCurve(c) {
+			curveID = c
+			break
+		}
+	}
+
+	if curveID == 0 {
+		return nil, errors.New("tls: no supported elliptic curves offered")
+	}
+	if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
+		return nil, errors.New("tls: CurvePreferences includes unsupported curve")
+	}
+
+	params, err := generateECDHEParameters(config.rand(), curveID)
+	if err != nil {
+		return nil, err
+	}
+	ka.params = params
+
+	ecdhePublic := params.PublicKey()
+
+	serverECDHEParamsSize := 1 + 2 + 1 + len(ecdhePublic)
+	skx := new(serverKeyExchangeMsg)
+	skx.key = make([]byte, 2+serverECDHEParamsSize)
+
+	// See RFC 4492, Section 5.4.
+	serverECDHEParams := skx.key[2:]
+	serverECDHEParams[0] = 3 // named curve
+	serverECDHEParams[1] = byte(curveID >> 8)
+	serverECDHEParams[2] = byte(curveID)
+	serverECDHEParams[3] = byte(len(ecdhePublic))
+	copy(serverECDHEParams[4:], ecdhePublic)
+
+	return skx, nil
+}
+
+func (ka *ecdhePskKeyAgreement) processClientKeyExchange(config *Config, cert *Certificate, ckx *clientKeyExchangeMsg, version uint16) ([]byte, error) {
+	pskConfig, ok := config.Extra.(PSKConfig)
+	if !ok {
+		return nil, errors.New("bad Config - Extra not of type PSKConfig")
+	}
+
+	if pskConfig.GetKey == nil {
+		return nil, errors.New("bad Config - GetKey required for PSK")
+	}
+
+	if len(ckx.ciphertext) < 2 {
+		return nil, errors.New("bad ClientKeyExchange")
+	}
+
+	ciphertext := ckx.ciphertext
+	pskIdentityLen := int(ciphertext[0])<<8 | int(ciphertext[1])
+	if len(ciphertext) < (pskIdentityLen + 2) {
+		return nil, errors.New("bad ClientKeyExchange")
+	}
+	pskIdentity := string(ciphertext[2 : 2+pskIdentityLen])
+	ciphertext = ciphertext[2+pskIdentityLen:]
+
+	// ciphertext is actually the pskIdentity here
+	psk, err := pskConfig.GetKey(pskIdentity)
+	if err != nil {
+		return nil, err
+	}
+	pskLen := len(psk)
+
+	if len(ciphertext) < 1 {
+		return nil, errors.New("bad ClientKeyExchange")
+	}
+
+	publicKeyLen := int(ciphertext[0])
+	if len(ciphertext) < (publicKeyLen + 1) {
+		return nil, errors.New("bad ClientKeyExchange")
+	}
+	publicKey := ciphertext[1 : 1+publicKeyLen]
+
+	otherSecret := ka.params.SharedKey(publicKey)
+	if otherSecret == nil {
+		return nil, errClientKeyExchange
+	}
+	otherSecretLen := len(otherSecret)
+
+	preMasterSecret := make([]byte, 4+pskLen+otherSecretLen)
+	preMasterSecret[0] = byte(otherSecretLen >> 8)
+	preMasterSecret[1] = byte(otherSecretLen)
+	copy(preMasterSecret[2:], otherSecret)
+	preMasterSecret[2+otherSecretLen] = byte(pskLen >> 8)
+	preMasterSecret[3+otherSecretLen] = byte(pskLen)
+	copy(preMasterSecret[4+otherSecretLen:], psk)
+
+	return preMasterSecret, nil
+}
+
+func (ka *ecdhePskKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) error {
+	pskConfig, ok := config.Extra.(PSKConfig)
+	if !ok {
+		return errors.New("bad Config - Extra not of type PSKConfig")
+	}
+
+	if pskConfig.GetIdentity == nil {
+		return errors.New("bad PSKConfig - GetIdentity required for PSK")
+	}
+
+	if pskConfig.GetKey == nil {
+		return errors.New("bad Config - GetKey required for PSK")
+	}
+
+	key := skx.key
+
+	if len(key) < 2 {
+		return errServerKeyExchange
+	}
+	pskIdentityFromServerLen := int(key[0])<<8 | int(key[1])
+	if len(key) < (pskIdentityFromServerLen + 2) {
+		return errServerKeyExchange
+	}
+	pskIdentityFromServer := string(key[2 : 2+pskIdentityFromServerLen])
+	key = key[2:]
+	_ = pskIdentityFromServer
+
+	pskIdentity := pskConfig.GetIdentity()
+	bPskIdentity := []byte(pskIdentity)
+	pskIdentityLen := len(bPskIdentity)
+	ka.pskIdentity = pskIdentity
+
+	if len(key) < 3 {
+		return errServerKeyExchange
+	}
+
+	if key[0] != 3 { // named curve
+		return errors.New("tls: server selected unsupported curve")
+	}
+	curveID := CurveID(key[1])<<8 | CurveID(key[2])
+
+	publicLen := int(key[3])
+	if publicLen+4 > len(key) {
+		return errServerKeyExchange
+	}
+	serverECDHEParams := key[:4+publicLen]
+	publicKey := serverECDHEParams[4:]
+
+	if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
+		return errors.New("tls: server selected unsupported curve")
+	}
+
+	params, err := generateECDHEParameters(config.rand(), curveID)
+	if err != nil {
+		return err
+	}
+	ka.params = params
+
+	ka.otherSecret = params.SharedKey(publicKey)
+	if ka.otherSecret == nil {
+		return errServerKeyExchange
+	}
+
+	ourPublicKey := params.PublicKey()
+	ka.ckx = new(clientKeyExchangeMsg)
+	ka.ckx.ciphertext = make([]byte, 2+pskIdentityLen+1+len(ourPublicKey))
+	ka.ckx.ciphertext[0] = byte(pskIdentityLen >> 8)
+	ka.ckx.ciphertext[1] = byte(pskIdentityLen)
+	copy(ka.ckx.ciphertext[2:], bPskIdentity)
+	ka.ckx.ciphertext[2+pskIdentityLen] = byte(len(ourPublicKey))
+	copy(ka.ckx.ciphertext[3+pskIdentityLen:], ourPublicKey)
+
+	return nil
+}
+
+func (ka *ecdhePskKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error) {
+	pskConfig, ok := config.Extra.(PSKConfig)
+	if !ok {
+		return nil, nil, errors.New("bad Config - Extra not of type PSKConfig")
+	}
+
+	if pskConfig.GetKey == nil {
+		return nil, nil, errors.New("bad Config - GetKey required for PSK")
+	}
+
+	if ka.ckx == nil {
+		return nil, nil, errors.New("tls: missing ServerKeyExchange message")
+	}
+
+	psk, err := pskConfig.GetKey(ka.pskIdentity)
+	if err != nil {
+		return nil, nil, err
+	}
+	pskLen := len(psk)
+
+	otherSecretLen := len(ka.otherSecret)
+	preMasterSecret := make([]byte, 4+pskLen+otherSecretLen)
+	preMasterSecret[0] = byte(otherSecretLen >> 8)
+	preMasterSecret[1] = byte(otherSecretLen)
+	copy(preMasterSecret[2:], ka.otherSecret)
+	preMasterSecret[2+otherSecretLen] = byte(pskLen >> 8)
+	preMasterSecret[3+otherSecretLen] = byte(pskLen)
+	copy(preMasterSecret[4+otherSecretLen:], psk)
+
+	return preMasterSecret, ka.ckx, nil
+}
