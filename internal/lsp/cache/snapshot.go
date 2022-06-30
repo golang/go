@@ -1010,6 +1010,10 @@ func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
 		result   = make(map[span.URI][]source.Symbol)
 	)
 	s.files.Range(func(uri span.URI, f source.VersionedFileHandle) {
+		if s.View().FileKind(f) != source.Go {
+			return // workspace symbols currently supports only Go files.
+		}
+
 		// TODO(adonovan): upgrade errgroup and use group.SetLimit(nprocs).
 		iolimit <- struct{}{} // acquire token
 		group.Go(func() error {
