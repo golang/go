@@ -103,7 +103,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 		// for v1 := range ha { body }
 		if v2 == nil {
-			body = []ir.Node{ir.NewAssignStmt(base.Pos, v1, hv1)}
+			body = []ir.Node{rangeAssign(nrange, hv1)}
 			break
 		}
 
@@ -112,10 +112,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 			// v1, v2 = hv1, ha[hv1]
 			tmp := ir.NewIndexExpr(base.Pos, ha, hv1)
 			tmp.SetBounded(true)
-			// Use OAS2 to correctly handle assignments
-			// of the form "v1, a[v1] := range".
-			a := ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{v1, v2}, []ir.Node{hv1, tmp})
-			body = []ir.Node{a}
+			body = []ir.Node{rangeAssign2(nrange, hv1, tmp)}
 			break
 		}
 
@@ -140,9 +137,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		tmp.SetBounded(true)
 		init = append(init, ir.NewAssignStmt(base.Pos, hp, typecheck.NodAddr(tmp)))
 
-		// Use OAS2 to correctly handle assignments
-		// of the form "v1, a[v1] := range".
-		a := ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{v1, v2}, []ir.Node{hv1, ir.NewStarExpr(base.Pos, hp)})
+		a := rangeAssign2(nrange, hv1, ir.NewStarExpr(base.Pos, hp))
 		body = append(body, a)
 
 		// Advance pointer as part of the late increment.
@@ -179,11 +174,10 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
-			body = []ir.Node{ir.NewAssignStmt(base.Pos, v1, key)}
+			body = []ir.Node{rangeAssign(nrange, key)}
 		} else {
 			elem := ir.NewStarExpr(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, elemsym))
-			a := ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{v1, v2}, []ir.Node{key, elem})
-			body = []ir.Node{a}
+			body = []ir.Node{rangeAssign2(nrange, key, elem)}
 		}
 
 	case types.TCHAN:
@@ -206,7 +200,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		if v1 == nil {
 			body = nil
 		} else {
-			body = []ir.Node{ir.NewAssignStmt(base.Pos, v1, hv1)}
+			body = []ir.Node{rangeAssign(nrange, hv1)}
 		}
 		// Zero hv1. This prevents hv1 from being the sole, inaccessible
 		// reference to an otherwise GC-able value during the next channel receive.
@@ -271,11 +265,10 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		if v1 != nil {
 			if v2 != nil {
 				// v1, v2 = hv1t, hv2
-				a := ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{v1, v2}, []ir.Node{hv1t, hv2})
-				body = append(body, a)
+				body = append(body, rangeAssign2(nrange, hv1t, hv2))
 			} else {
 				// v1 = hv1t
-				body = append(body, ir.NewAssignStmt(base.Pos, v1, hv1t))
+				body = append(body, rangeAssign(nrange, hv1t))
 			}
 		}
 	}
@@ -308,6 +301,20 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 	base.Pos = lno
 	return n
+}
+
+// rangeAssign returns "n.Key = key".
+func rangeAssign(n *ir.RangeStmt, key ir.Node) ir.Node {
+	// TODO(mdempsky): Implicit conversions for test/typeparam/mdempsky/17.go.
+	return ir.NewAssignStmt(n.Pos(), n.Key, key)
+}
+
+// rangeAssign2 returns "n.Key, n.Value = key, value".
+func rangeAssign2(n *ir.RangeStmt, key, value ir.Node) ir.Node {
+	// Use OAS2 to correctly handle assignments
+	// of the form "v1, a[v1] = range".
+	// TODO(mdempsky): Implicit conversions for test/typeparam/mdempsky/17.go.
+	return ir.NewAssignListStmt(n.Pos(), ir.OAS2, []ir.Node{n.Key, n.Value}, []ir.Node{key, value})
 }
 
 // isMapClear checks if n is of the form:
