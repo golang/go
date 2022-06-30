@@ -6,7 +6,10 @@ package syscall
 
 import "unsafe"
 
-const _SYS_setgroups = SYS_SETGROUPS
+const (
+	_SYS_setgroups  = SYS_SETGROUPS
+	_SYS_faccessat2 = 439
+)
 
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
 //sys	Fchown(fd int, uid int, gid int) (err error)
