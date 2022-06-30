@@ -11,7 +11,7 @@ require (
 	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
 	golang.org/x/tools v0.1.11-0.20220523181440-ccb10502d1a5
 	golang.org/x/vuln v0.0.0-20220613164644-4eb5ba49563c
-	honnef.co/go/tools v0.3.0
+	honnef.co/go/tools v0.3.2
 	mvdan.cc/gofumpt v0.3.0
 	mvdan.cc/xurls/v2 v2.4.0
 )
