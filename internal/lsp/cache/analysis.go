@@ -10,7 +10,6 @@ import (
 	"go/ast"
 	"go/types"
 	"reflect"
-	"sort"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
@@ -122,13 +121,8 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 		// An analysis that consumes/produces facts
 		// must run on the package's dependencies too.
 		if len(a.FactTypes) > 0 {
-			importIDs := make([]string, 0, len(ph.m.Deps))
 			for _, importID := range ph.m.Deps {
-				importIDs = append(importIDs, string(importID))
-			}
-			sort.Strings(importIDs) // for determinism
-			for _, importID := range importIDs {
-				depActionHandle, err := s.actionHandle(ctx, PackageID(importID), a)
+				depActionHandle, err := s.actionHandle(ctx, importID, a)
 				if err != nil {
 					return nil, err
 				}

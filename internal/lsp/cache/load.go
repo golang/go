@@ -539,6 +539,7 @@ func computeMetadataUpdates(ctx context.Context, g *metadataGraph, pkgPath Packa
 			event.Error(ctx, "error in dependency", err)
 		}
 	}
+	sort.Slice(m.Deps, func(i, j int) bool { return m.Deps[i] < m.Deps[j] }) // for determinism
 
 	return nil
 }

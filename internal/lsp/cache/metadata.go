@@ -32,7 +32,7 @@ type Metadata struct {
 	ForTest         PackagePath
 	TypesSizes      types.Sizes
 	Errors          []packages.Error
-	Deps            []PackageID
+	Deps            []PackageID // direct dependencies, in string order
 	MissingDeps     map[PackagePath]struct{}
 	Module          *packages.Module
 	depsErrors      []*packagesinternal.PackageError

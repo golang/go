@@ -102,13 +102,6 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 		return nil, fmt.Errorf("no metadata for %s", id)
 	}
 
-	// For key stability, sort depList.
-	// TODO(adonovan): make m.Deps have a well defined order.
-	depList := append([]PackageID{}, m.Deps...)
-	sort.Slice(depList, func(i, j int) bool {
-		return depList[i] < depList[j]
-	})
-
 	// Begin computing the key by getting the depKeys for all dependencies.
 	// This requires reading the transitive closure of dependencies' source files.
 	//
@@ -122,8 +115,8 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	// for each package is computed by at most one thread, then do
 	// the recursive key building of dependencies in parallel.
 	deps := make(map[PackagePath]*packageHandle)
-	depKeys := make([]packageHandleKey, len(depList))
-	for i, depID := range depList {
+	depKeys := make([]packageHandleKey, len(m.Deps))
+	for i, depID := range m.Deps {
 		depHandle, err := s.buildPackageHandle(ctx, depID, s.workspaceParseMode(depID))
 		// Don't use invalid metadata for dependencies if the top-level
 		// metadata is valid. We only load top-level packages, so if the
