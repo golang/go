@@ -17,6 +17,7 @@
 package lsppos
 
 import (
+	"bytes"
 	"errors"
 	"sort"
 	"unicode/utf8"
@@ -36,9 +37,10 @@ type Mapper struct {
 
 // NewMapper creates a new Mapper for the given content.
 func NewMapper(content []byte) *Mapper {
+	nlines := bytes.Count(content, []byte("\n"))
 	m := &Mapper{
 		content: content,
-		lines:   []int{0},
+		lines:   make([]int, 1, nlines+1), // initially []int{0}
 	}
 	for offset, b := range content {
 		if b == '\n' {
