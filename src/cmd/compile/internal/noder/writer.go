@@ -1499,12 +1499,28 @@ func (w *writer) expr(expr syntax.Expr) {
 			break
 		}
 
-		// TODO(mdempsky): Implicit conversions to common type.
+		var commonType types2.Type
+		switch expr.Op {
+		case syntax.Shl, syntax.Shr:
+			// ok: operands are allowed to have different types
+		default:
+			xtyp := w.p.typeOf(expr.X)
+			ytyp := w.p.typeOf(expr.Y)
+			switch {
+			case types2.AssignableTo(xtyp, ytyp):
+				commonType = ytyp
+			case types2.AssignableTo(ytyp, xtyp):
+				commonType = xtyp
+			default:
+				w.p.fatalf(expr, "failed to find common type between %v and %v", xtyp, ytyp)
+			}
+		}
+
 		w.Code(exprBinaryOp)
 		w.op(binOps[expr.Op])
-		w.expr(expr.X)
+		w.implicitConvExpr(expr, commonType, expr.X)
 		w.pos(expr)
-		w.expr(expr.Y)
+		w.implicitConvExpr(expr, commonType, expr.Y)
 
 	case *syntax.CallExpr:
 		tv, ok := w.p.info.Types[expr.Fun]
