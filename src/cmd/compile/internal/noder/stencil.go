@@ -1214,6 +1214,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			if m.Tag != nil && m.Tag.Op() == ir.OTYPESW {
 				break // Nothing to do here for type switches.
 			}
+			if m.Tag != nil && !types.IsComparable(m.Tag.Type()) {
+				break // Nothing to do here for un-comparable types.
+			}
 			if m.Tag != nil && !m.Tag.Type().IsEmptyInterface() && m.Tag.Type().HasShape() {
 				// To implement a switch on a value that is or has a type parameter, we first convert
 				// that thing we're switching on to an interface{}.
