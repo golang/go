@@ -116,7 +116,6 @@ func dnsPacketRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 		if err != nil {
 			continue
 		}
-
 		q, err := p.Question()
 		if err != nil || !checkResponse(id, query, h, q) {
 			continue
