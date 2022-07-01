@@ -83,17 +83,19 @@ type matcherFunc func(chunks []string) (int, float64)
 // []string{"myType.field"} or []string{"myType.", "field"}.
 //
 // See the comment for symbolCollector for more information.
-type symbolizer func(name string, pkg Metadata, m matcherFunc) ([]string, float64)
+//
+// The space argument is an empty slice with spare capacity that may be used
+// to allocate the result.
+type symbolizer func(space []string, name string, pkg Metadata, m matcherFunc) ([]string, float64)
 
-func fullyQualifiedSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
-	_, score := dynamicSymbolMatch(name, pkg, matcher)
-	if score > 0 {
-		return []string{pkg.PackagePath(), ".", name}, score
+func fullyQualifiedSymbolMatch(space []string, name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
+	if _, score := dynamicSymbolMatch(space, name, pkg, matcher); score > 0 {
+		return append(space, pkg.PackagePath(), ".", name), score
 	}
 	return nil, 0
 }
 
-func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
+func dynamicSymbolMatch(space []string, name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
 	var score float64
 
 	endsInPkgName := strings.HasSuffix(pkg.PackagePath(), pkg.PackageName())
@@ -101,14 +103,14 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]strin
 	// If the package path does not end in the package name, we need to check the
 	// package-qualified symbol as an extra pass first.
 	if !endsInPkgName {
-		pkgQualified := []string{pkg.PackageName(), ".", name}
+		pkgQualified := append(space, pkg.PackageName(), ".", name)
 		idx, score := matcher(pkgQualified)
 		nameStart := len(pkg.PackageName()) + 1
 		if score > 0 {
 			// If our match is contained entirely within the unqualified portion,
 			// just return that.
 			if idx >= nameStart {
-				return []string{name}, score
+				return append(space, name), score
 			}
 			// Lower the score for matches that include the package name.
 			return pkgQualified, score * 0.8
@@ -116,13 +118,13 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]strin
 	}
 
 	// Now try matching the fully qualified symbol.
-	fullyQualified := []string{pkg.PackagePath(), ".", name}
+	fullyQualified := append(space, pkg.PackagePath(), ".", name)
 	idx, score := matcher(fullyQualified)
 
 	// As above, check if we matched just the unqualified symbol name.
 	nameStart := len(pkg.PackagePath()) + 1
 	if idx >= nameStart {
-		return []string{name}, score
+		return append(space, name), score
 	}
 
 	// If our package path ends in the package name, we'll have skipped the
@@ -131,7 +133,7 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]strin
 	if endsInPkgName && idx >= 0 {
 		pkgStart := len(pkg.PackagePath()) - len(pkg.PackageName())
 		if idx >= pkgStart {
-			return []string{pkg.PackageName(), ".", name}, score
+			return append(space, pkg.PackageName(), ".", name), score
 		}
 	}
 
@@ -140,8 +142,8 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]strin
 	return fullyQualified, score * 0.6
 }
 
-func packageSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
-	qualified := []string{pkg.PackageName(), ".", name}
+func packageSymbolMatch(space []string, name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
+	qualified := append(space, pkg.PackageName(), ".", name)
 	if _, s := matcher(qualified); s > 0 {
 		return qualified, s
 	}
@@ -387,8 +389,9 @@ type symbolFile struct {
 
 // matchFile scans a symbol file and adds matching symbols to the store.
 func matchFile(store *symbolStore, symbolizer symbolizer, matcher matcherFunc, roots []string, i symbolFile) {
+	space := make([]string, 0, 3)
 	for _, sym := range i.syms {
-		symbolParts, score := symbolizer(sym.Name, i.md, matcher)
+		symbolParts, score := symbolizer(space, sym.Name, i.md, matcher)
 
 		// Check if the score is too low before applying any downranking.
 		if store.tooLow(score) {
