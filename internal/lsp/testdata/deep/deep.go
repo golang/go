@@ -29,6 +29,13 @@ func _() {
 }
 
 func _() {
+	var cork struct{ err error }
+	cork.err         //@item(deepCorkErr, "cork.err", "error", "field")
+	context          //@item(deepContextPkg, "context", "\"context\"", "package")
+	var _ error = co //@rank(" //", deepCorkErr, deepContextPkg)
+}
+
+func _() {
 	// deepCircle is circular.
 	type deepCircle struct {
 		*deepCircle

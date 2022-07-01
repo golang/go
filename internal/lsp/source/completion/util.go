@@ -321,3 +321,23 @@ func (c *completer) editText(from, to token.Pos, newText string) ([]protocol.Tex
 		NewText: newText,
 	}})
 }
+
+// assignableTo is like types.AssignableTo, but returns false if
+// either type is invalid.
+func assignableTo(x, to types.Type) bool {
+	if x == types.Typ[types.Invalid] || to == types.Typ[types.Invalid] {
+		return false
+	}
+
+	return types.AssignableTo(x, to)
+}
+
+// convertibleTo is like types.ConvertibleTo, but returns false if
+// either type is invalid.
+func convertibleTo(x, to types.Type) bool {
+	if x == types.Typ[types.Invalid] || to == types.Typ[types.Invalid] {
+		return false
+	}
+
+	return types.ConvertibleTo(x, to)
+}

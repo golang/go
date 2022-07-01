@@ -2314,7 +2314,7 @@ func (ci candidateInference) applyTypeNameModifiers(typ types.Type) types.Type {
 // matchesVariadic returns true if we are completing a variadic
 // parameter and candType is a compatible slice type.
 func (ci candidateInference) matchesVariadic(candType types.Type) bool {
-	return ci.variadic && ci.objType != nil && types.AssignableTo(candType, types.NewSlice(ci.objType))
+	return ci.variadic && ci.objType != nil && assignableTo(candType, types.NewSlice(ci.objType))
 }
 
 // findSwitchStmt returns an *ast.CaseClause's corresponding *ast.SwitchStmt or
@@ -2640,7 +2640,7 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 			return false
 		}
 
-		if ci.convertibleTo != nil && types.ConvertibleTo(candType, ci.convertibleTo) {
+		if ci.convertibleTo != nil && convertibleTo(candType, ci.convertibleTo) {
 			return true
 		}
 
@@ -2728,7 +2728,7 @@ func considerTypeConversion(from, to types.Type, path []types.Object) bool {
 		return false
 	}
 
-	if !types.ConvertibleTo(from, to) {
+	if !convertibleTo(from, to) {
 		return false
 	}
 
@@ -2777,7 +2777,7 @@ func (ci *candidateInference) typeMatches(expType, candType types.Type) bool {
 
 	// AssignableTo covers the case where the types are equal, but also handles
 	// cases like assigning a concrete type to an interface type.
-	return types.AssignableTo(candType, expType)
+	return assignableTo(candType, expType)
 }
 
 // kindMatches reports whether candType's kind matches our expected
@@ -2840,7 +2840,7 @@ func (ci *candidateInference) assigneesMatch(cand *candidate, sig *types.Signatu
 			assignee = ci.assignees[i]
 		}
 
-		if assignee == nil {
+		if assignee == nil || assignee == types.Typ[types.Invalid] {
 			continue
 		}
 
@@ -2894,7 +2894,7 @@ func (c *completer) matchingTypeName(cand *candidate) bool {
 		//
 		// Where our expected type is "[]int", and we expect a type name.
 		if c.inference.objType != nil {
-			return types.AssignableTo(candType, c.inference.objType)
+			return assignableTo(candType, c.inference.objType)
 		}
 
 		// Default to saying any type name is a match.
