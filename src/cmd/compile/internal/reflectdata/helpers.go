@@ -113,7 +113,7 @@ func ConvIfaceTypeWord(pos src.XPos, n *ir.ConvExpr) ir.Node {
 		return concreteRType(pos, src) // direct eface construction
 	}
 	if !src.IsInterface() {
-		return ITabAddr(src, dst) // direct iface construction
+		return ITabAddrAt(pos, src, dst) // direct iface construction
 	}
 	return TypePtrAt(pos, dst) // convI2I
 }
