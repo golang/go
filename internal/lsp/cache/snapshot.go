@@ -36,6 +36,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/packagesinternal"
+	"golang.org/x/tools/internal/persistent"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typesinternal"
 )
@@ -87,7 +88,7 @@ type snapshot struct {
 	// TODO(rfindley): consider merging this with files to reduce burden on clone.
 	symbols map[span.URI]*symbolHandle
 
-	// packages maps a packageKey to a set of packageHandles to which that file belongs.
+	// packages maps a packageKey to a *packageHandle.
 	// It may be invalidated when a file's content changes.
 	packages packagesMap
 
@@ -95,8 +96,9 @@ type snapshot struct {
 	// It may be invalidated when metadata changes or a new file is opened or closed.
 	isActivePackageCache isActivePackageCacheMap
 
-	// actions maps an actionkey to its actionHandle.
-	actions map[actionKey]*actionHandle
+	// actions maps an actionKey to the handle for the future
+	// result of execution an analysis pass on a package.
+	actions *persistent.Map // from actionKey to *actionHandle
 
 	// workspacePackages contains the workspace's packages, which are loaded
 	// when the view is created.
@@ -149,6 +151,7 @@ func (s *snapshot) Destroy(destroyedBy string) {
 	s.generation.Destroy(destroyedBy)
 	s.packages.Destroy()
 	s.isActivePackageCache.Destroy()
+	s.actions.Destroy()
 	s.files.Destroy()
 	s.goFiles.Destroy()
 	s.parseKeysByURI.Destroy()
@@ -1177,9 +1180,6 @@ func (s *snapshot) addSymbolHandle(uri span.URI, sh *symbolHandle) *symbolHandle
 }
 
 func (s *snapshot) getActionHandle(id PackageID, m source.ParseMode, a *analysis.Analyzer) *actionHandle {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	key := actionKey{
 		pkg: packageKey{
 			id:   id,
@@ -1187,13 +1187,18 @@ func (s *snapshot) getActionHandle(id PackageID, m source.ParseMode, a *analysis
 		},
 		analyzer: a,
 	}
-	return s.actions[key]
-}
 
-func (s *snapshot) addActionHandle(ah *actionHandle) *actionHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	ah, ok := s.actions.Get(key)
+	if !ok {
+		return nil
+	}
+	return ah.(*actionHandle)
+}
+
+func (s *snapshot) addActionHandle(ah *actionHandle, release func()) *actionHandle {
 	key := actionKey{
 		analyzer: ah.analyzer,
 		pkg: packageKey{
@@ -1201,10 +1206,17 @@ func (s *snapshot) addActionHandle(ah *actionHandle) *actionHandle {
 			mode: ah.pkg.mode,
 		},
 	}
-	if ah, ok := s.actions[key]; ok {
-		return ah
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// If another thread since cached a different handle,
+	// return it instead of overriding it.
+	if result, ok := s.actions.Get(key); ok {
+		release()
+		return result.(*actionHandle)
 	}
-	s.actions[key] = ah
+	s.actions.Set(key, ah, func(_, _ interface{}) { release() })
 	return ah
 }
 
@@ -1716,7 +1728,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		initializedErr:       s.initializedErr,
 		packages:             s.packages.Clone(),
 		isActivePackageCache: s.isActivePackageCache.Clone(),
-		actions:              make(map[actionKey]*actionHandle, len(s.actions)),
+		actions:              s.actions.Clone(),
 		files:                s.files.Clone(),
 		goFiles:              s.goFiles.Clone(),
 		parseKeysByURI:       s.parseKeysByURI.Clone(),
@@ -1920,13 +1932,17 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 	}
 
-	// Copy the package analysis information.
-	for k, v := range s.actions {
-		if _, ok := idsToInvalidate[k.pkg.id]; ok {
-			continue
+	// Copy actions.
+	// TODO(adonovan): opt: avoid iteration over s.actions.
+	var actionsToDelete []actionKey
+	s.actions.Range(func(k, _ interface{}) {
+		key := k.(actionKey)
+		if _, ok := idsToInvalidate[key.pkg.id]; ok {
+			actionsToDelete = append(actionsToDelete, key)
 		}
-		newGen.Inherit(v.handle)
-		result.actions[k] = v
+	})
+	for _, key := range actionsToDelete {
+		result.actions.Delete(key)
 	}
 
 	// If the workspace mode has changed, we must delete all metadata, as it

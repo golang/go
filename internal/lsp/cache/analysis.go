@@ -85,12 +85,21 @@ type packageFactKey struct {
 }
 
 func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.Analyzer) (*actionHandle, error) {
+	// TODO(adonovan): opt: this block of code sequentially loads a package
+	// (and all its dependencies), then sequentially creates action handles
+	// for the direct dependencies (whose packages have by then been loaded
+	// as a consequence of ph.check) which does a sequential recursion
+	// down the action graph. Only once all that work is complete do we
+	// put a handle in the cache. As with buildPackageHandle, this does
+	// not exploit the natural parallelism in the problem, and the naive
+	// use of concurrency would lead to an exponential amount of duplicated
+	// work. We should instead use an atomically updated future cache
+	// and a parallel graph traversal.
 	ph, err := s.buildPackageHandle(ctx, id, source.ParseFull)
 	if err != nil {
 		return nil, err
 	}
-	act := s.getActionHandle(id, ph.mode, a)
-	if act != nil {
+	if act := s.getActionHandle(id, ph.mode, a); act != nil {
 		return act, nil
 	}
 	if len(ph.key) == 0 {
@@ -100,12 +109,9 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	if err != nil {
 		return nil, err
 	}
-	act = &actionHandle{
-		analyzer: a,
-		pkg:      pkg,
-	}
+
+	// Add a dependency on each required analyzer.
 	var deps []*actionHandle
-	// Add a dependency on each required analyzers.
 	for _, req := range a.Requires {
 		reqActionHandle, err := s.actionHandle(ctx, id, req)
 		if err != nil {
@@ -131,7 +137,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 		}
 	}
 
-	h := s.generation.Bind(buildActionKey(a, ph), func(ctx context.Context, arg memoize.Arg) interface{} {
+	handle, release := s.generation.GetHandle(buildActionKey(a, ph), func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 		// Analyze dependencies first.
 		results, err := execAll(ctx, snapshot, deps)
@@ -142,9 +148,13 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 		}
 		return runAnalysis(ctx, snapshot, a, pkg, results)
 	})
-	act.handle = h
 
-	act = s.addActionHandle(act)
+	act := &actionHandle{
+		analyzer: a,
+		pkg:      pkg,
+		handle:   handle,
+	}
+	act = s.addActionHandle(act, release)
 	return act, nil
 }
 

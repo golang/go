@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/progress"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/persistent"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 )
@@ -238,7 +239,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		goFiles:              newGoFilesMap(),
 		parseKeysByURI:       newParseKeysByURIMap(),
 		symbols:              make(map[span.URI]*symbolHandle),
-		actions:              make(map[actionKey]*actionHandle),
+		actions:              persistent.NewMap(actionKeyLessInterface),
 		workspacePackages:    make(map[PackageID]PackagePath),
 		unloadableFiles:      make(map[span.URI]struct{}),
 		parseModHandles:      make(map[span.URI]*parseModHandle),

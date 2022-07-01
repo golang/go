@@ -197,14 +197,16 @@ type packagesMap struct {
 func newPackagesMap() packagesMap {
 	return packagesMap{
 		impl: persistent.NewMap(func(a, b interface{}) bool {
-			left := a.(packageKey)
-			right := b.(packageKey)
-			if left.mode != right.mode {
-				return left.mode < right.mode
-			}
-			return left.id < right.id
+			return packageKeyLess(a.(packageKey), b.(packageKey))
 		}),
 	}
+}
+
+func packageKeyLess(x, y packageKey) bool {
+	if x.mode != y.mode {
+		return x.mode < y.mode
+	}
+	return x.id < y.id
 }
 
 func (m packagesMap) Clone() packagesMap {
@@ -284,4 +286,14 @@ func (s knownDirsSet) Insert(key span.URI) {
 
 func (s knownDirsSet) Remove(key span.URI) {
 	s.impl.Delete(key)
+}
+
+// actionKeyLessInterface is the less-than relation for actionKey
+// values wrapped in an interface.
+func actionKeyLessInterface(a, b interface{}) bool {
+	x, y := a.(actionKey), b.(actionKey)
+	if x.analyzer.Name != y.analyzer.Name {
+		return x.analyzer.Name < y.analyzer.Name
+	}
+	return packageKeyLess(x.pkg, y.pkg)
 }
