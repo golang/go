@@ -41,7 +41,7 @@ func (s *snapshot) buildSymbolHandle(ctx context.Context, fh source.FileHandle) 
 		snapshot := arg.(*snapshot)
 		symbols, err := symbolize(snapshot, fh)
 		return &symbolData{symbols, err}
-	}, nil)
+	})
 
 	sh := &symbolHandle{
 		handle: handle,

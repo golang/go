@@ -130,7 +130,7 @@ func (s *snapshot) astCacheData(ctx context.Context, spkg source.Package, pos to
 	}
 	astHandle := s.generation.Bind(astCacheKey{pkgHandle.key, pgf.URI}, func(ctx context.Context, arg memoize.Arg) interface{} {
 		return buildASTCache(pgf)
-	}, nil)
+	})
 
 	d, err := astHandle.Get(ctx, s.generation, s)
 	if err != nil {

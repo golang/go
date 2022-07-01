@@ -34,6 +34,7 @@ type Store struct {
 	handlesMu sync.Mutex // lock ordering: Store.handlesMu before Handle.mu
 	handles   map[interface{}]*Handle
 	// handles which are bound to generations for GC purposes.
+	// (It is the subset of values of 'handles' with trackGenerations enabled.)
 	boundHandles map[*Handle]struct{}
 }
 
@@ -78,7 +79,11 @@ func (g *Generation) Destroy(destroyedBy string) {
 		if _, ok := h.generations[g]; ok {
 			delete(h.generations, g) // delete even if it's dead, in case of dangling references to the entry.
 			if len(h.generations) == 0 {
-				h.destroy(g.store)
+				h.state = stateDestroyed
+				delete(g.store.handles, h.key)
+				if h.trackGenerations {
+					delete(g.store.boundHandles, h)
+				}
 			}
 		}
 		h.mu.Unlock()
@@ -155,14 +160,6 @@ type Handle struct {
 	function Function
 	// value is set in completed state.
 	value interface{}
-	// cleanup, if non-nil, is used to perform any necessary clean-up on values
-	// produced by function.
-	//
-	// cleanup is never set for reference counted handles.
-	//
-	// TODO(rfindley): remove this field once workspace folders no longer need to
-	// be tracked.
-	cleanup func(interface{})
 
 	// If trackGenerations is set, this handle tracks generations in which it
 	// is valid, via the generations field. Otherwise, it is explicitly reference
@@ -171,7 +168,7 @@ type Handle struct {
 	refCounter       int32
 }
 
-// Bind returns a handle for the given key and function.
+// Bind returns a "generational" handle for the given key and function.
 //
 // Each call to bind will return the same handle if it is already bound. Bind
 // will always return a valid handle, creating one if needed. Each key can
@@ -179,22 +176,18 @@ type Handle struct {
 // until the associated generation is destroyed. Bind does not cause the value
 // to be generated.
 //
-// If cleanup is non-nil, it will be called on any non-nil values produced by
-// function when they are no longer referenced.
-//
 // It is responsibility of the caller to call Inherit on the handler whenever
 // it should still be accessible by a next generation.
-func (g *Generation) Bind(key interface{}, function Function, cleanup func(interface{})) *Handle {
-	return g.getHandle(key, function, cleanup, true)
+func (g *Generation) Bind(key interface{}, function Function) *Handle {
+	return g.getHandle(key, function, true)
 }
 
-// GetHandle returns a handle for the given key and function with similar
-// properties and behavior as Bind.
-//
-// As in opposite to Bind it returns a release callback which has to be called
-// once this reference to handle is not needed anymore.
+// GetHandle returns a "reference-counted" handle for the given key
+// and function with similar properties and behavior as Bind. Unlike
+// Bind, it returns a release callback which must be called once the
+// handle is no longer needed.
 func (g *Generation) GetHandle(key interface{}, function Function) (*Handle, func()) {
-	h := g.getHandle(key, function, nil, false)
+	h := g.getHandle(key, function, false)
 	store := g.store
 	release := func() {
 		// Acquire store.handlesMu before mutating refCounter
@@ -206,7 +199,7 @@ func (g *Generation) GetHandle(key interface{}, function Function) (*Handle, fun
 
 		h.refCounter--
 		if h.refCounter == 0 {
-			// Don't call h.destroy: for reference counted handles we can't know when
+			// Don't mark destroyed: for reference counted handles we can't know when
 			// they are no longer reachable from runnable goroutines. For example,
 			// gopls could have a current operation that is using a packageHandle.
 			// Destroying the handle here would cause that operation to hang.
@@ -216,7 +209,7 @@ func (g *Generation) GetHandle(key interface{}, function Function) (*Handle, fun
 	return h, release
 }
 
-func (g *Generation) getHandle(key interface{}, function Function, cleanup func(interface{}), trackGenerations bool) *Handle {
+func (g *Generation) getHandle(key interface{}, function Function, trackGenerations bool) *Handle {
 	// panic early if the function is nil
 	// it would panic later anyway, but in a way that was much harder to debug
 	if function == nil {
@@ -232,7 +225,6 @@ func (g *Generation) getHandle(key interface{}, function Function, cleanup func(
 		h = &Handle{
 			key:              key,
 			function:         function,
-			cleanup:          cleanup,
 			trackGenerations: trackGenerations,
 		}
 		if trackGenerations {
@@ -296,18 +288,6 @@ func (g *Generation) Inherit(h *Handle) {
 	}
 
 	h.incrementRef(g)
-}
-
-// destroy marks h as destroyed. h.mu and store.handlesMu must be held.
-func (h *Handle) destroy(store *Store) {
-	h.state = stateDestroyed
-	if h.cleanup != nil && h.value != nil {
-		h.cleanup(h.value)
-	}
-	delete(store.handles, h.key)
-	if h.trackGenerations {
-		delete(store.boundHandles, h)
-	}
 }
 
 func (h *Handle) incrementRef(g *Generation) {
@@ -412,11 +392,6 @@ func (h *Handle) run(ctx context.Context, g *Generation, arg Arg) (interface{}, 
 			}
 			v := function(childCtx, arg)
 			if childCtx.Err() != nil {
-				// It's possible that v was computed despite the context cancellation. In
-				// this case we should ensure that it is cleaned up.
-				if h.cleanup != nil && v != nil {
-					h.cleanup(v)
-				}
 				return
 			}
 
@@ -427,19 +402,9 @@ func (h *Handle) run(ctx context.Context, g *Generation, arg Arg) (interface{}, 
 			// checked childCtx above. Even so, that should be harmless, since each
 			// run should produce the same results.
 			if h.state != stateRunning {
-				// v will never be used, so ensure that it is cleaned up.
-				if h.cleanup != nil && v != nil {
-					h.cleanup(v)
-				}
 				return
 			}
 
-			if h.cleanup != nil && h.value != nil {
-				// Clean up before overwriting an existing value.
-				h.cleanup(h.value)
-			}
-
-			// At this point v will be cleaned up whenever h is destroyed.
 			h.value = v
 			h.function = nil
 			h.state = stateCompleted
