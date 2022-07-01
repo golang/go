@@ -197,7 +197,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 				}
 			}
 			if err != nil {
-				return nil, queryErr
+				return info, queryErr
 			}
 		}
 		if err := allowed(ctx, module.Version{Path: path, Version: info.Version}); errors.Is(err, ErrDisallowed) {

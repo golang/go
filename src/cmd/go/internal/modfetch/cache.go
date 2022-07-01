@@ -253,11 +253,12 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 		return cachedInfo{info, err}
 	}).(cachedInfo)
 
-	if c.err != nil {
-		return nil, c.err
+	info := c.info
+	if info != nil {
+		copy := *info
+		info = &copy
 	}
-	info := *c.info
-	return &info, nil
+	return info, c.err
 }
 
 func (r *cachingRepo) Latest() (*RevInfo, error) {
@@ -277,11 +278,12 @@ func (r *cachingRepo) Latest() (*RevInfo, error) {
 		return cachedInfo{info, err}
 	}).(cachedInfo)
 
-	if c.err != nil {
-		return nil, c.err
+	info := c.info
+	if info != nil {
+		copy := *info
+		info = &copy
 	}
-	info := *c.info
-	return &info, nil
+	return info, c.err
 }
 
 func (r *cachingRepo) GoMod(version string) ([]byte, error) {
@@ -330,15 +332,21 @@ func InfoFile(path, version string) (*RevInfo, string, error) {
 	}
 
 	var info *RevInfo
+	var err2info map[error]*RevInfo
 	err := TryProxies(func(proxy string) error {
 		i, err := Lookup(proxy, path).Stat(version)
 		if err == nil {
 			info = i
+		} else {
+			if err2info == nil {
+				err2info = make(map[error]*RevInfo)
+			}
+			err2info[err] = info
 		}
 		return err
 	})
 	if err != nil {
-		return nil, "", err
+		return err2info[err], "", err
 	}
 
 	// Stat should have populated the disk cache for us.

@@ -182,12 +182,12 @@ func (r *gitRepo) CheckReuse(old *Origin, subdir string) error {
 		return fmt.Errorf("origin moved from %v %q %q to %v %q %q", old.VCS, old.URL, old.Subdir, "git", r.remoteURL, subdir)
 	}
 
-	// Note: Can have Hash with no Ref and no TagSum,
+	// Note: Can have Hash with no Ref and no TagSum and no RepoSum,
 	// meaning the Hash simply has to remain in the repo.
 	// In that case we assume it does in the absence of any real way to check.
 	// But if neither Hash nor TagSum is present, we have nothing to check,
 	// which we take to mean we didn't record enough information to be sure.
-	if old.Hash == "" && old.TagSum == "" {
+	if old.Hash == "" && old.TagSum == "" && old.RepoSum == "" {
 		return fmt.Errorf("non-specific origin")
 	}
 
@@ -214,7 +214,11 @@ func (r *gitRepo) CheckReuse(old *Origin, subdir string) error {
 			return fmt.Errorf("tags changed")
 		}
 	}
-
+	if old.RepoSum != "" {
+		if r.repoSum(r.refs) != old.RepoSum {
+			return fmt.Errorf("refs changed")
+		}
+	}
 	return nil
 }
 
@@ -305,6 +309,35 @@ func (r *gitRepo) Tags(prefix string) (*Tags, error) {
 	}
 	tags.Origin.TagSum = "t1:" + base64.StdEncoding.EncodeToString(h.Sum(nil))
 	return tags, nil
+}
+
+// repoSum returns a checksum of the entire repo state,
+// which can be checked (as Origin.RepoSum) to cache
+// the absence of a specific module version.
+// The caller must supply refs, the result of a successful r.loadRefs.
+func (r *gitRepo) repoSum(refs map[string]string) string {
+	var list []string
+	for ref := range refs {
+		list = append(list, ref)
+	}
+	sort.Strings(list)
+	h := sha256.New()
+	for _, ref := range list {
+		fmt.Fprintf(h, "%q %s\n", ref, refs[ref])
+	}
+	return "r1:" + base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
+// unknownRevisionInfo returns a RevInfo containing an Origin containing a RepoSum of refs,
+// for use when returning an UnknownRevisionError.
+func (r *gitRepo) unknownRevisionInfo(refs map[string]string) *RevInfo {
+	return &RevInfo{
+		Origin: &Origin{
+			VCS:     "git",
+			URL:     r.remoteURL,
+			RepoSum: r.repoSum(refs),
+		},
+	}
 }
 
 func (r *gitRepo) Latest() (*RevInfo, error) {
@@ -418,7 +451,7 @@ func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
 			hash = rev
 		}
 	} else {
-		return nil, &UnknownRevisionError{Rev: rev}
+		return r.unknownRevisionInfo(refs), &UnknownRevisionError{Rev: rev}
 	}
 
 	defer func() {
@@ -532,7 +565,12 @@ func (r *gitRepo) fetchRefsLocked() error {
 func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
 	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
 	if err != nil {
-		return nil, &UnknownRevisionError{Rev: rev}
+		// Return info with Origin.RepoSum if possible to allow caching of negative lookup.
+		var info *RevInfo
+		if refs, err := r.loadRefs(); err == nil {
+			info = r.unknownRevisionInfo(refs)
+		}
+		return info, &UnknownRevisionError{Rev: rev}
 	}
 	f := strings.Fields(string(out))
 	if len(f) < 2 {

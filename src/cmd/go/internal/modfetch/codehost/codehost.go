@@ -110,12 +110,18 @@ type Origin struct {
 	// with a mutable meaning while Hash is a name with an immutable meaning.
 	Ref  string `json:",omitempty"`
 	Hash string `json:",omitempty"`
+
+	// If RepoSum is non-empty, then the resolution of this module version
+	// failed due to the repo being available but the version not being present.
+	// This depends on the entire state of the repo, which RepoSum summarizes.
+	// For Git, this is a hash of all the refs and their hashes.
+	RepoSum string `json:",omitempty"`
 }
 
 // Checkable reports whether the Origin contains anything that can be checked.
 // If not, the Origin is purely informational and should fail a CheckReuse call.
 func (o *Origin) Checkable() bool {
-	return o.TagSum != "" || o.Ref != "" || o.Hash != ""
+	return o.TagSum != "" || o.Ref != "" || o.Hash != "" || o.RepoSum != ""
 }
 
 // ClearCheckable clears the Origin enough to make Checkable return false.
@@ -124,6 +130,7 @@ func (o *Origin) ClearCheckable() {
 	o.TagPrefix = ""
 	o.Ref = ""
 	o.Hash = ""
+	o.RepoSum = ""
 }
 
 // A Tags describes the available tags in a code repository.
