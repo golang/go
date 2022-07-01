@@ -1399,6 +1399,18 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 		}
 		rang.Def = r.initDefn(rang, names)
 		rang.Label = label
+
+		{
+			keyType, valueType := rangeTypes(pos, x.Type())
+
+			if rang.Key != nil {
+				rang.KeyTypeWord, rang.KeySrcRType = convRTTI(pos, rang.Key.Type(), keyType)
+			}
+			if rang.Value != nil {
+				rang.ValueTypeWord, rang.ValueSrcRType = convRTTI(pos, rang.Value.Type(), valueType)
+			}
+		}
+
 		return rang
 	}
 
@@ -1412,6 +1424,28 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 	stmt := ir.NewForStmt(pos, init, cond, post, body)
 	stmt.Label = label
 	return stmt
+}
+
+// rangeTypes returns the types of values produced by ranging over a
+// value of type typ.
+func rangeTypes(pos src.XPos, typ *types.Type) (key, value *types.Type) {
+	switch typ.Kind() {
+	default:
+		base.FatalfAt(pos, "unexpected range type: %v", typ)
+		panic("unreachable")
+	case types.TPTR: // must be pointer to array
+		typ = typ.Elem()
+		base.AssertfAt(typ.Kind() == types.TARRAY, pos, "want array type, have %v", typ)
+		fallthrough
+	case types.TARRAY, types.TSLICE:
+		return types.Types[types.TINT], typ.Elem()
+	case types.TSTRING:
+		return types.Types[types.TINT], types.RuneType
+	case types.TMAP:
+		return typ.Key(), typ.Elem()
+	case types.TCHAN:
+		return typ.Elem(), nil
+	}
 }
 
 func (r *reader) ifStmt() ir.Node {
@@ -1803,12 +1837,40 @@ func (r *reader) expr() (res ir.Node) {
 			base.ErrorExit() // harsh, but prevents constructing invalid IR
 		}
 
-		n := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, typ, x))
-		if implicit && n.Op() != ir.OLITERAL {
-			n.(ImplicitNode).SetImplicit(true)
+		n := ir.NewConvExpr(pos, ir.OCONV, typ, x)
+		n.TypeWord, n.SrcRType = convRTTI(pos, typ, x.Type())
+		if implicit {
+			n.SetImplicit(true)
 		}
-		return n
+		return typecheck.Expr(n)
 	}
+}
+
+// convRTTI returns the TypeWord and SrcRType expressions appropriate
+// for a conversion from src to dst.
+func convRTTI(pos src.XPos, dst, src *types.Type) (typeWord, srcRType ir.Node) {
+	if !dst.IsInterface() {
+		return
+	}
+
+	// See reflectdata.ConvIfaceTypeWord.
+	switch {
+	case dst.IsEmptyInterface():
+		if !src.IsInterface() {
+			typeWord = reflectdata.TypePtrAt(pos, src) // direct eface construction
+		}
+	case !src.IsInterface():
+		typeWord = reflectdata.ITabAddrAt(pos, src, dst) // direct iface construction
+	default:
+		typeWord = reflectdata.TypePtrAt(pos, dst) // convI2I
+	}
+
+	// See reflectdata.ConvIfaceSrcRType.
+	if !src.IsInterface() {
+		srcRType = reflectdata.TypePtrAt(pos, src)
+	}
+
+	return
 }
 
 func (r *reader) optExpr() ir.Node {
@@ -1841,7 +1903,10 @@ func (r *reader) multiExpr() []ir.Node {
 
 			res := ir.Node(tmp)
 			if r.Bool() {
-				res = typecheck.Expr(Implicit(ir.NewConvExpr(pos, ir.OCONV, r.typ(), res)))
+				n := ir.NewConvExpr(pos, ir.OCONV, r.typ(), res)
+				n.TypeWord, n.SrcRType = convRTTI(pos, n.Type(), n.X.Type())
+				n.SetImplicit(true)
+				res = typecheck.Expr(n)
 			}
 			results[i] = res
 		}

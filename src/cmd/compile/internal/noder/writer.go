@@ -1260,11 +1260,6 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 
 	if rang, ok := stmt.Init.(*syntax.RangeClause); w.Bool(ok) {
 		w.pos(rang)
-		// TODO(mdempsky): For !rang.Def, we need to handle implicit
-		// conversions; e.g., see #53328.
-		//
-		// This is tricky, because the assignments aren't introduced until
-		// lowering in walk.
 		w.assignList(rang.Lhs)
 		w.expr(rang.X)
 	} else {
