@@ -149,7 +149,7 @@ type Exported struct {
 }
 var Var = Exported{foo:1}
 `,
-			kept: []string{"Exported", "Var"},
+			kept: []string{"Exported", "Var", "x"},
 		},
 		{
 			name: "drop_function_literals",

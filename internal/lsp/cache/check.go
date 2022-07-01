@@ -590,20 +590,24 @@ func parseCompiledGoFiles(ctx context.Context, compiledGoFiles []source.FileHand
 		// errors, as they may be completely nonsensical.
 		pkg.hasFixedFiles = pkg.hasFixedFiles || pgf.Fixed
 	}
-	if mode != source.ParseExported {
-		return nil
-	}
-	if astFilter != nil {
-		var files []*ast.File
-		for _, cgf := range pkg.compiledGoFiles {
-			files = append(files, cgf.File)
+
+	// Optionally remove parts that don't affect the exported API.
+	if mode == source.ParseExported {
+		if astFilter != nil {
+			// aggressive pruning based on reachability
+			var files []*ast.File
+			for _, cgf := range pkg.compiledGoFiles {
+				files = append(files, cgf.File)
+			}
+			astFilter.Filter(files)
+		} else {
+			// simple trimming of function bodies
+			for _, cgf := range pkg.compiledGoFiles {
+				trimAST(cgf.File)
+			}
 		}
-		astFilter.Filter(files)
-	} else {
-		for _, cgf := range pkg.compiledGoFiles {
-			trimAST(cgf.File)
-		}
 	}
+
 	return nil
 }
 

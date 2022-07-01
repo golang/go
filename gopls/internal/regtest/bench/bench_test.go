@@ -201,7 +201,7 @@ func TestBenchmarkDidChange(t *testing.T) {
 //
 // Kubernetes example:
 //
-//	$ go test -run=TestPrintMemStats -didchange_dir=$HOME/w/kubernetes
+//	$ go test -v -run=TestPrintMemStats -didchange_dir=$HOME/w/kubernetes
 //	TotalAlloc:      5766 MB
 //	HeapAlloc:       1984 MB
 //

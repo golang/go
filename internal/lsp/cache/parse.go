@@ -279,6 +279,8 @@ func (f *unexportedFilter) filterSpec(spec ast.Spec) bool {
 		}
 		switch typ := spec.Type.(type) {
 		case *ast.StructType:
+			// In practice this no longer filters anything;
+			// see comment at StructType case in recordUses.
 			f.filterFieldList(typ.Fields)
 		case *ast.InterfaceType:
 			f.filterFieldList(typ.Methods)
@@ -334,9 +336,19 @@ func (f *unexportedFilter) recordUses(file *ast.File) {
 				case *ast.TypeSpec:
 					switch typ := spec.Type.(type) {
 					case *ast.StructType:
-						f.recordFieldUses(false, typ.Fields)
+						// We used to trim unexported fields but this
+						// had observable consequences. For example,
+						// the 'fieldalignment' analyzer would compute
+						// incorrect diagnostics from the size and
+						// offsets, and the UI hover information for
+						// types was inaccurate. So now we keep them.
+						if typ.Fields != nil {
+							for _, field := range typ.Fields.List {
+								f.recordIdents(field.Type)
+							}
+						}
 					case *ast.InterfaceType:
-						f.recordFieldUses(false, typ.Methods)
+						f.recordInterfaceMethodUses(typ.Methods)
 					}
 				}
 			}
@@ -385,37 +397,32 @@ func (f *unexportedFilter) recordIdents(x ast.Expr) {
 }
 
 // recordFuncType records the types mentioned by a function type.
-func (f *unexportedFilter) recordFuncType(x *ast.FuncType) {
-	f.recordFieldUses(true, x.Params)
-	f.recordFieldUses(true, x.Results)
+func (f *unexportedFilter) recordFuncType(fn *ast.FuncType) {
+	// Parameter and result types of retained functions need to be retained.
+	if fn.Params != nil {
+		for _, field := range fn.Params.List {
+			f.recordIdents(field.Type)
+		}
+	}
+	if fn.Results != nil {
+		for _, field := range fn.Results.List {
+			f.recordIdents(field.Type)
+		}
+	}
 }
 
-// recordFieldUses records unexported identifiers used in fields, which may be
-// struct members, interface members, or function parameter/results.
-func (f *unexportedFilter) recordFieldUses(isParams bool, fields *ast.FieldList) {
-	if fields == nil {
-		return
-	}
-	for _, field := range fields.List {
-		if isParams {
-			// Parameter types of retained functions need to be retained.
-			f.recordIdents(field.Type)
-			continue
-		}
-		if ft, ok := field.Type.(*ast.FuncType); ok {
-			// Function declarations in interfaces need all their types retained.
-			f.recordFuncType(ft)
-			continue
-		}
-		if len(field.Names) == 0 {
-			// Embedded fields might contribute exported names.
-			f.recordIdents(field.Type)
-		}
-		for _, name := range field.Names {
-			// We only need normal fields if they're exported.
-			if ast.IsExported(name.Name) {
-				f.recordIdents(field.Type)
-				break
+// recordInterfaceMethodUses records unexported identifiers used in interface methods.
+func (f *unexportedFilter) recordInterfaceMethodUses(methods *ast.FieldList) {
+	if methods != nil {
+		for _, method := range methods.List {
+			if len(method.Names) == 0 {
+				// I, pkg.I, I[T] -- embedded interface:
+				// may contribute exported names.
+				f.recordIdents(method.Type)
+			} else if ft, ok := method.Type.(*ast.FuncType); ok {
+				// f(T) -- ordinary interface method:
+				// needs all its types retained.
+				f.recordFuncType(ft)
 			}
 		}
 	}
@@ -442,32 +449,35 @@ func (f *unexportedFilter) ProcessErrors(errors []types.Error) (map[string]bool,
 }
 
 // trimAST clears any part of the AST not relevant to type checking
-// expressions at pos.
+// the package-level declarations.
 func trimAST(file *ast.File) {
-	ast.Inspect(file, func(n ast.Node) bool {
-		if n == nil {
-			return false
+	// Eliminate bodies of top-level functions, methods, inits.
+	for _, decl := range file.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok {
+			fn.Body = nil
 		}
+	}
+
+	// Simplify remaining declarations.
+	ast.Inspect(file, func(n ast.Node) bool {
 		switch n := n.(type) {
-		case *ast.FuncDecl:
-			n.Body = nil
-		case *ast.BlockStmt:
-			n.List = nil
-		case *ast.CaseClause:
-			n.Body = nil
-		case *ast.CommClause:
-			n.Body = nil
+		case *ast.FuncLit:
+			// Eliminate bodies of literal functions.
+			// func() { ... } => func() {}
+			n.Body.List = nil
 		case *ast.CompositeLit:
 			// types.Info.Types for long slice/array literals are particularly
-			// expensive. Try to clear them out.
+			// expensive. Try to clear them out: T{e, ..., e} => T{}
 			at, ok := n.Type.(*ast.ArrayType)
 			if !ok {
-				// Composite literal. No harm removing all its fields.
+				// Map or struct literal: no harm removing all its fields.
 				n.Elts = nil
 				break
 			}
+
 			// Removing the elements from an ellipsis array changes its type.
 			// Try to set the length explicitly so we can continue.
+			//  [...]T{e, ..., e} => [3]T[]{}
 			if _, ok := at.Len.(*ast.Ellipsis); ok {
 				length, ok := arrayLength(n)
 				if !ok {
