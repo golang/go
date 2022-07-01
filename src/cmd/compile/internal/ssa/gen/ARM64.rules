@@ -138,65 +138,87 @@
 // we compare to 64 to ensure Go semantics for large shifts
 // Rules about rotates with non-const shift are based on the following rules,
 // if the following rules change, please also modify the rules based on them.
-(Lsh64x64 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
-(Lsh64x32 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Lsh64x16 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Lsh64x8  <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Lsh32x64 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
-(Lsh32x32 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Lsh32x16 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Lsh32x8  <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+// check shiftIsBounded first, if shift value is proved to be valid then we
+// can do the shift directly.
+// left shift
+(Lsh(64|32|16|8)x64 <t> x y) && shiftIsBounded(v) => (SLL <t> x y)
+(Lsh(64|32|16|8)x32 <t> x y) && shiftIsBounded(v) => (SLL <t> x y)
+(Lsh(64|32|16|8)x16 <t> x y) && shiftIsBounded(v) => (SLL <t> x y)
+(Lsh(64|32|16|8)x8 <t> x y) && shiftIsBounded(v) => (SLL <t> x y)
 
-(Lsh16x64 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
-(Lsh16x32 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Lsh16x16 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Lsh16x8  <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+// signed right shift
+(Rsh64x(64|32|16|8) <t> x y) && shiftIsBounded(v) => (SRA <t> x y)
+(Rsh32x(64|32|16|8) <t> x y) && shiftIsBounded(v) => (SRA <t> (SignExt32to64 x) y)
+(Rsh16x(64|32|16|8) <t> x y) && shiftIsBounded(v) => (SRA <t> (SignExt16to64 x) y)
+(Rsh8x(64|32|16|8)  <t> x y) && shiftIsBounded(v) => (SRA <t> (SignExt8to64 x) y)
 
-(Lsh8x64 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
-(Lsh8x32 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Lsh8x16 <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Lsh8x8  <t> x y) => (CSEL [OpARM64LessThanU] (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+// unsigned right shift
+(Rsh64Ux(64|32|16|8) <t> x y) && shiftIsBounded(v) => (SRL <t> x y)
+(Rsh32Ux(64|32|16|8) <t> x y) && shiftIsBounded(v) => (SRL <t> (ZeroExt32to64 x) y)
+(Rsh16Ux(64|32|16|8) <t> x y) && shiftIsBounded(v) => (SRL <t> (ZeroExt16to64 x) y)
+(Rsh8Ux(64|32|16|8)  <t> x y) && shiftIsBounded(v) => (SRL <t> (ZeroExt8to64 x) y)
 
-(Rsh64Ux64 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
-(Rsh64Ux32 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Rsh64Ux16 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Rsh64Ux8  <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+// shift value may be out of range, use CMP + CSEL instead
+(Lsh64x64 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
+(Lsh64x32 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Lsh64x16 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Lsh64x8  <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh32Ux64 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt32to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
-(Rsh32Ux32 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt32to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Rsh32Ux16 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt32to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Rsh32Ux8  <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt32to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+(Lsh32x64 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
+(Lsh32x32 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Lsh32x16 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Lsh32x8  <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh16Ux64 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt16to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
-(Rsh16Ux32 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt16to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Rsh16Ux16 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt16to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Rsh16Ux8  <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt16to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+(Lsh16x64 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
+(Lsh16x32 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Lsh16x16 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Lsh16x8  <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh8Ux64 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt8to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
-(Rsh8Ux32 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt8to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
-(Rsh8Ux16 <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt8to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
-(Rsh8Ux8  <t> x y) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt8to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+(Lsh8x64 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
+(Lsh8x32 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Lsh8x16 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Lsh8x8  <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh64x64 x y) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
-(Rsh64x32 x y) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
-(Rsh64x16 x y) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
-(Rsh64x8  x y) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+(Rsh64Ux64 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
+(Rsh64Ux32 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Rsh64Ux16 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Rsh64Ux8  <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh32x64 x y) => (SRA (SignExt32to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
-(Rsh32x32 x y) => (SRA (SignExt32to64 x) (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
-(Rsh32x16 x y) => (SRA (SignExt32to64 x) (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
-(Rsh32x8  x y) => (SRA (SignExt32to64 x) (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+(Rsh32Ux64 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt32to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
+(Rsh32Ux32 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt32to64 x) y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Rsh32Ux16 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt32to64 x) y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Rsh32Ux8  <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt32to64 x) y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh16x64 x y) => (SRA (SignExt16to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
-(Rsh16x32 x y) => (SRA (SignExt16to64 x) (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
-(Rsh16x16 x y) => (SRA (SignExt16to64 x) (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
-(Rsh16x8  x y) => (SRA (SignExt16to64 x) (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+(Rsh16Ux64 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt16to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
+(Rsh16Ux32 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt16to64 x) y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Rsh16Ux16 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt16to64 x) y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Rsh16Ux8  <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt16to64 x) y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
 
-(Rsh8x64 x y) => (SRA (SignExt8to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
-(Rsh8x32 x y) => (SRA (SignExt8to64 x) (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
-(Rsh8x16 x y) => (SRA (SignExt8to64 x) (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
-(Rsh8x8  x y) => (SRA (SignExt8to64 x) (CSEL [OpARM64LessThanU] <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+(Rsh8Ux64 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt8to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
+(Rsh8Ux32 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt8to64 x) y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+(Rsh8Ux16 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt8to64 x) y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+(Rsh8Ux8  <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> (ZeroExt8to64 x) y) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+
+(Rsh64x64 x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+(Rsh64x32 x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+(Rsh64x16 x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+(Rsh64x8  x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+
+(Rsh32x64 x y) && !shiftIsBounded(v) => (SRA (SignExt32to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+(Rsh32x32 x y) && !shiftIsBounded(v) => (SRA (SignExt32to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+(Rsh32x16 x y) && !shiftIsBounded(v) => (SRA (SignExt32to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+(Rsh32x8  x y) && !shiftIsBounded(v) => (SRA (SignExt32to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+
+(Rsh16x64 x y) && !shiftIsBounded(v) => (SRA (SignExt16to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+(Rsh16x32 x y) && !shiftIsBounded(v) => (SRA (SignExt16to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+(Rsh16x16 x y) && !shiftIsBounded(v) => (SRA (SignExt16to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+(Rsh16x8  x y) && !shiftIsBounded(v) => (SRA (SignExt16to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+
+(Rsh8x64 x y) && !shiftIsBounded(v) => (SRA (SignExt8to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+(Rsh8x32 x y) && !shiftIsBounded(v) => (SRA (SignExt8to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+(Rsh8x16 x y) && !shiftIsBounded(v) => (SRA (SignExt8to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+(Rsh8x8  x y) && !shiftIsBounded(v) => (SRA (SignExt8to64 x) (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
 
 // constants
 (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])

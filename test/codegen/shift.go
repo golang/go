@@ -91,7 +91,7 @@ func rshMask64Ux64(v uint64, s uint64) uint64 {
 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
 	// riscv64:"SRL",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// arm64:"LSR",-"AND"
+	// arm64:"LSR",-"AND",-"CSEL"
 	return v >> (s & 63)
 }
 
@@ -100,7 +100,7 @@ func rshMask64x64(v int64, s uint64) int64 {
 	// ppc64le:"ANDCC",-ORN",-"ISEL"
 	// riscv64:"SRA",-"OR",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// arm64:"ASR",-"AND"
+	// arm64:"ASR",-"AND",-"CSEL"
 	return v >> (s & 63)
 }
 
@@ -145,7 +145,7 @@ func rshMask64Ux32(v uint64, s uint32) uint64 {
 	// ppc64le:"ANDCC",-"ORN"
 	// riscv64:"SRL",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// arm64:"LSR",-"AND"
+	// arm64:"LSR",-"AND",-"CSEL"
 	return v >> (s & 63)
 }
 
@@ -154,7 +154,7 @@ func rshMask64x32(v int64, s uint32) int64 {
 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
 	// riscv64:"SRA",-"OR",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// arm64:"ASR",-"AND"
+	// arm64:"ASR",-"AND",-"CSEL"
 	return v >> (s & 63)
 }
 
@@ -219,6 +219,7 @@ func lshGuarded64(v int64, s uint) int64 {
 		// riscv64:"SLL",-"AND",-"SLTIU"
 		// s390x:-"RISBGZ",-"AND",-"LOCGR"
 		// wasm:-"Select",-".*LtU"
+		// arm64:"LSL",-"CSEL"
 		return v << s
 	}
 	panic("shift too large")
@@ -229,6 +230,7 @@ func rshGuarded64U(v uint64, s uint) uint64 {
 		// riscv64:"SRL",-"AND",-"SLTIU"
 		// s390x:-"RISBGZ",-"AND",-"LOCGR"
 		// wasm:-"Select",-".*LtU"
+		// arm64:"LSR",-"CSEL"
 		return v >> s
 	}
 	panic("shift too large")
@@ -239,9 +241,90 @@ func rshGuarded64(v int64, s uint) int64 {
 		// riscv64:"SRA",-"OR",-"SLTIU"
 		// s390x:-"RISBGZ",-"AND",-"LOCGR"
 		// wasm:-"Select",-".*LtU"
+		// arm64:"ASR",-"CSEL"
 		return v >> s
 	}
 	panic("shift too large")
+}
+
+func provedUnsignedShiftLeft(val64 uint64, val32 uint32, val16 uint16, val8 uint8, shift int) (r1 uint64, r2 uint32, r3 uint16, r4 uint8) {
+	if shift >= 0 && shift < 64 {
+		// arm64:"LSL",-"CSEL"
+		r1 = val64 << shift
+	}
+	if shift >= 0 && shift < 32 {
+		// arm64:"LSL",-"CSEL"
+		r2 = val32 << shift
+	}
+	if shift >= 0 && shift < 16 {
+		// arm64:"LSL",-"CSEL"
+		r3 = val16 << shift
+	}
+	if shift >= 0 && shift < 8 {
+		// arm64:"LSL",-"CSEL"
+		r4 = val8 << shift
+	}
+	return r1, r2, r3, r4
+}
+
+func provedSignedShiftLeft(val64 int64, val32 int32, val16 int16, val8 int8, shift int) (r1 int64, r2 int32, r3 int16, r4 int8) {
+	if shift >= 0 && shift < 64 {
+		// arm64:"LSL",-"CSEL"
+		r1 = val64 << shift
+	}
+	if shift >= 0 && shift < 32 {
+		// arm64:"LSL",-"CSEL"
+		r2 = val32 << shift
+	}
+	if shift >= 0 && shift < 16 {
+		// arm64:"LSL",-"CSEL"
+		r3 = val16 << shift
+	}
+	if shift >= 0 && shift < 8 {
+		// arm64:"LSL",-"CSEL"
+		r4 = val8 << shift
+	}
+	return r1, r2, r3, r4
+}
+
+func provedUnsignedShiftRight(val64 uint64, val32 uint32, val16 uint16, val8 uint8, shift int) (r1 uint64, r2 uint32, r3 uint16, r4 uint8) {
+	if shift >= 0 && shift < 64 {
+		// arm64:"LSR",-"CSEL"
+		r1 = val64 >> shift
+	}
+	if shift >= 0 && shift < 32 {
+		// arm64:"LSR",-"CSEL"
+		r2 = val32 >> shift
+	}
+	if shift >= 0 && shift < 16 {
+		// arm64:"LSR",-"CSEL"
+		r3 = val16 >> shift
+	}
+	if shift >= 0 && shift < 8 {
+		// arm64:"LSR",-"CSEL"
+		r4 = val8 >> shift
+	}
+	return r1, r2, r3, r4
+}
+
+func provedSignedShiftRight(val64 int64, val32 int32, val16 int16, val8 int8, shift int) (r1 int64, r2 int32, r3 int16, r4 int8) {
+	if shift >= 0 && shift < 64 {
+		// arm64:"ASR",-"CSEL"
+		r1 = val64 >> shift
+	}
+	if shift >= 0 && shift < 32 {
+		// arm64:"ASR",-"CSEL"
+		r2 = val32 >> shift
+	}
+	if shift >= 0 && shift < 16 {
+		// arm64:"ASR",-"CSEL"
+		r3 = val16 >> shift
+	}
+	if shift >= 0 && shift < 8 {
+		// arm64:"ASR",-"CSEL"
+		r4 = val8 >> shift
+	}
+	return r1, r2, r3, r4
 }
 
 func checkUnneededTrunc(tab *[100000]uint32, d uint64, v uint32, h uint16, b byte) (uint32, uint64) {
