@@ -337,12 +337,3 @@ func cgoSockaddr(ip IP, zone string) (*C.struct_sockaddr, C.socklen_t) {
 	}
 	return nil, 0
 }
-
-func copyIP(x IP) IP {
-	if len(x) < 16 {
-		return x.To16()
-	}
-	y := make(IP, len(x))
-	copy(y, x)
-	return y
-}
