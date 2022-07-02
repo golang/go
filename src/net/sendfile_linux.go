@@ -49,5 +49,5 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	if lr != nil {
 		lr.N = remain - written
 	}
-	return written, wrapSyscallError("sendfile", err), written > 0
+	return written, wrapSyscallError("sendfile", err), err == nil
 }
