@@ -12,6 +12,7 @@ func main() {
 	f()
 	g()
 	h()
+	j(math.MinInt64)
 }
 func f() {
 	for i := int64(math.MaxInt64); i <= math.MaxInt64; i++ {
@@ -38,5 +39,15 @@ func h() {
 			return
 		}
 		println(i, i < 0)
+	}
+}
+
+//go:noinline
+func j(i int64) {
+	for j := int64(math.MaxInt64); j <= i-1; j++ {
+		if j < 0 {
+			break
+		}
+		println(j)
 	}
 }

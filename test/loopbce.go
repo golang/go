@@ -3,6 +3,8 @@
 
 package main
 
+import "math"
+
 func f0a(a []int) int {
 	x := 0
 	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
@@ -281,8 +283,8 @@ func d2(a [100]int) [100]int {
 
 func d3(a [100]int) [100]int {
 	for i := 0; i <= 99; i++ { // ERROR "Induction variable: limits \[0,99\], increment 1$"
-		for j := 0; j <= i-1; j++ { // ERROR "Induction variable: limits \[0,\?\], increment 1$"
-			a[j] = 0   // ERROR "Proved IsInBounds$"
+		for j := 0; j <= i-1; j++ {
+			a[j] = 0
 			a[j+1] = 0 // ERROR "Proved IsInBounds$"
 			a[j+2] = 0
 		}
@@ -290,7 +292,61 @@ func d3(a [100]int) [100]int {
 	return a
 }
 
-func nobce1() {
+func d4() {
+	for i := int64(math.MaxInt64 - 9); i < math.MaxInt64-2; i += 4 { // ERROR "Induction variable: limits \[9223372036854775798,9223372036854775805\), increment 4$"
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 8); i < math.MaxInt64-2; i += 4 { // ERROR "Induction variable: limits \[9223372036854775799,9223372036854775805\), increment 4$"
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 7); i < math.MaxInt64-2; i += 4 {
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 6); i < math.MaxInt64-2; i += 4 { // ERROR "Induction variable: limits \[9223372036854775801,9223372036854775805\), increment 4$"
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 9); i <= math.MaxInt64-2; i += 4 { // ERROR "Induction variable: limits \[9223372036854775798,9223372036854775805\], increment 4$"
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 8); i <= math.MaxInt64-2; i += 4 { // ERROR "Induction variable: limits \[9223372036854775799,9223372036854775805\], increment 4$"
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 7); i <= math.MaxInt64-2; i += 4 {
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 6); i <= math.MaxInt64-2; i += 4 {
+		useString("foo")
+	}
+}
+
+func d5() {
+	for i := int64(math.MinInt64 + 9); i > math.MinInt64+2; i -= 4 { // ERROR "Induction variable: limits \(-9223372036854775806,-9223372036854775799\], increment 4"
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 8); i > math.MinInt64+2; i -= 4 { // ERROR "Induction variable: limits \(-9223372036854775806,-9223372036854775800\], increment 4"
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 7); i > math.MinInt64+2; i -= 4 {
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 6); i > math.MinInt64+2; i -= 4 { // ERROR "Induction variable: limits \(-9223372036854775806,-9223372036854775802\], increment 4"
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 9); i >= math.MinInt64+2; i -= 4 { // ERROR "Induction variable: limits \[-9223372036854775806,-9223372036854775799\], increment 4"
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 8); i >= math.MinInt64+2; i -= 4 { // ERROR "Induction variable: limits \[-9223372036854775806,-9223372036854775800\], increment 4"
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 7); i >= math.MinInt64+2; i -= 4 {
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 6); i >= math.MinInt64+2; i -= 4 {
+		useString("foo")
+	}
+}
+
+func bce1() {
 	// tests overflow of max-min
 	a := int64(9223372036854774057)
 	b := int64(-1547)
@@ -300,8 +356,7 @@ func nobce1() {
 		panic("invalid test: modulos should differ")
 	}
 
-	for i := b; i < a; i += z {
-		// No induction variable is possible because i will overflow a first iteration.
+	for i := b; i < a; i += z { // ERROR "Induction variable: limits \[-1547,9223372036854774057\), increment 1337"
 		useString("foobar")
 	}
 }
