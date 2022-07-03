@@ -15,12 +15,16 @@ void
 x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
 	pthread_attr_t attr;
-	size_t size;
+	size_t size, cur;
 
 	setg_gcc = setg;
 
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
+	cur = pthread_get_stacksize_np(pthread_self());
+	if (cur > size) {
+		size = cur;
+	}
 	g->stacklo = (uintptr)&attr - size + 4096;
 	pthread_attr_destroy(&attr);
 }
@@ -32,7 +36,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	pthread_attr_t attr;
 	sigset_t ign, oset;
 	pthread_t p;
-	size_t size;
+	size_t size, cur;
 	int err;
 
 	sigfillset(&ign);
@@ -40,6 +44,11 @@ _cgo_sys_thread_start(ThreadStart *ts)
 
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
+	cur = pthread_get_stacksize_np(pthread_self());
+	if (cur > size) {
+		size = cur;
+		pthread_attr_setstacksize(&attr, size);
+	}
 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
 	ts->g->stackhi = size;
 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
