@@ -204,6 +204,8 @@ func bootstrapBuildTools() {
 	// https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
 	// Use the math_big_pure_go build tag to disable the assembly in math/big
 	// which may contain unsupported instructions.
+	// Use the purego build tag to disable other assembly code,
+	// such as in cmd/internal/notsha256.
 	// Note that if we are using Go 1.10 or later as bootstrap, the -gcflags=-l
 	// only applies to the final cmd/go binary, but that's OK: if this is Go 1.10
 	// or later we don't need to disable inlining to work around bugs in the Go 1.4 compiler.
@@ -211,7 +213,7 @@ func bootstrapBuildTools() {
 		pathf("%s/bin/go", goroot_bootstrap),
 		"install",
 		"-gcflags=-l",
-		"-tags=math_big_pure_go compiler_bootstrap",
+		"-tags=math_big_pure_go compiler_bootstrap purego",
 	}
 	if vflag > 0 {
 		cmd = append(cmd, "-v")
