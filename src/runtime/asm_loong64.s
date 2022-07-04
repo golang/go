@@ -186,10 +186,6 @@ switch:
 	MOVV	R5, g
 	JAL	runtime·save_g(SB)
 	MOVV	(g_sched+gobuf_sp)(g), R19
-	// make it look like mstart called systemstack on g0, to stop traceback
-	ADDV	$-8, R19
-	MOVV	$runtime·mstart(SB), R6
-	MOVV	R6, 0(R19)
 	MOVV	R19, R3
 
 	// call target function
