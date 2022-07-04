@@ -24,8 +24,8 @@ type metadataGraph struct {
 	// importedBy maps package IDs to the list of packages that import them.
 	importedBy map[PackageID][]PackageID
 
-	// ids maps file URIs to package IDs. A single file may belong to multiple
-	// packages due to tests packages.
+	// ids maps file URIs to package IDs, sorted by (!valid, cli, packageID).
+	// A single file may belong to multiple packages due to tests packages.
 	ids map[span.URI][]PackageID
 }
 
@@ -89,21 +89,21 @@ func (g *metadataGraph) build() {
 	// 4: an invalid command-line-arguments package
 	for uri, ids := range g.ids {
 		sort.Slice(ids, func(i, j int) bool {
-			// Sort valid packages first.
+			// 1. valid packages appear earlier.
 			validi := g.metadata[ids[i]].Valid
 			validj := g.metadata[ids[j]].Valid
 			if validi != validj {
 				return validi
 			}
 
+			// 2. command-line-args packages appear later.
 			cli := source.IsCommandLineArguments(string(ids[i]))
 			clj := source.IsCommandLineArguments(string(ids[j]))
-			if cli && !clj {
-				return false
+			if cli != clj {
+				return clj
 			}
-			if !cli && clj {
-				return true
-			}
+
+			// 3. packages appear in name order.
 			return ids[i] < ids[j]
 		})
 

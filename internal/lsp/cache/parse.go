@@ -128,19 +128,37 @@ func (s *snapshot) astCacheData(ctx context.Context, spkg source.Package, pos to
 	if err != nil {
 		return nil, err
 	}
-	astHandle := s.generation.Bind(astCacheKey{pkgHandle.key, pgf.URI}, func(ctx context.Context, arg memoize.Arg) interface{} {
+
+	// TODO(adonovan): opt: is it necessary to cache this operation?
+	//
+	// I expect the main benefit of CL 221021, which introduced it,
+	// was the replacement of PathEnclosingInterval, whose
+	// traversal is allocation-intensive, by buildASTCache.
+	//
+	// When run on the largest file in k8s, buildASTCache took
+	// ~6ms, but I expect most of that cost could be eliminated by
+	// using a stripped-down version of PathEnclosingInterval that
+	// cares only about syntax trees and not tokens. A stateless
+	// utility function that is cheap enough to call for each Pos
+	// would be a nice simplification.
+	//
+	// (The basic approach would be to use ast.Inspect, compare
+	// each node with the search Pos, and bail out as soon
+	// as a match is found. The pre-order hook would return false
+	// to avoid descending into any tree whose End is before
+	// the search Pos.)
+	//
+	// A representative benchmark would help.
+	astHandle, release := s.generation.GetHandle(astCacheKey{pkgHandle.key, pgf.URI}, func(ctx context.Context, arg memoize.Arg) interface{} {
 		return buildASTCache(pgf)
 	})
+	defer release()
 
 	d, err := astHandle.Get(ctx, s.generation, s)
 	if err != nil {
 		return nil, err
 	}
-	data := d.(*astCacheData)
-	if data.err != nil {
-		return nil, data.err
-	}
-	return data, nil
+	return d.(*astCacheData), nil
 }
 
 func (s *snapshot) PosToDecl(ctx context.Context, spkg source.Package, pos token.Pos) (ast.Decl, error) {
@@ -159,10 +177,15 @@ func (s *snapshot) PosToField(ctx context.Context, spkg source.Package, pos toke
 	return data.posToField[pos], nil
 }
 
+// An astCacheData maps object positions to syntax nodes for a single Go file.
 type astCacheData struct {
-	err error
+	// Maps the position of each name declared by a func/var/const/type
+	// Decl to the Decl node.  Also maps the name and type of each field
+	// (broadly defined) to its innermost enclosing Decl.
+	posToDecl map[token.Pos]ast.Decl
 
-	posToDecl  map[token.Pos]ast.Decl
+	// Maps the position of the Name and Type of each field
+	// (broadly defined) to the Field node.
 	posToField map[token.Pos]*ast.Field
 }
 

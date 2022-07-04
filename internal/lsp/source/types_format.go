@@ -259,10 +259,11 @@ func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, obj *
 		return types.TypeString(obj.Type(), qf)
 	}
 
-	expr, err := varType(ctx, snapshot, pkg, obj)
-	if err != nil {
+	field, err := snapshot.PosToField(ctx, pkg, obj.Pos())
+	if err != nil || field == nil {
 		return types.TypeString(obj.Type(), qf)
 	}
+	expr := field.Type
 
 	// If the given expr refers to a type parameter, then use the
 	// object's Type instead of the type parameter declaration. This helps
@@ -284,18 +285,6 @@ func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, obj *
 	qualified = qualifyExpr(qualified, srcpkg, pkg, clonedInfo, qf)
 	fmted := FormatNode(snapshot.FileSet(), qualified)
 	return fmted
-}
-
-// varType returns the type expression for a *types.Var.
-func varType(ctx context.Context, snapshot Snapshot, pkg Package, obj *types.Var) (ast.Expr, error) {
-	field, err := snapshot.PosToField(ctx, pkg, obj.Pos())
-	if err != nil {
-		return nil, err
-	}
-	if field == nil {
-		return nil, fmt.Errorf("no declaration for object %s", obj.Name())
-	}
-	return field.Type, nil
 }
 
 // qualifyExpr applies the "pkgName." prefix to any *ast.Ident in the expr.

@@ -311,15 +311,15 @@ func FindPackageFromPos(ctx context.Context, snapshot Snapshot, pos token.Pos) (
 	for _, pkg := range pkgs {
 		parsed, err := pkg.File(uri)
 		if err != nil {
+			// TODO(adonovan): should this be a bug.Report or log.Fatal?
+			// The logic in Identifier seems to think so.
+			// Should it be a postcondition of PackagesForFile?
+			// And perhaps PackagesForFile should return the PGFs too.
 			return nil, err
 		}
-		if parsed == nil {
-			continue
+		if parsed != nil && parsed.Tok.Base() == tok.Base() {
+			return pkg, nil
 		}
-		if parsed.Tok.Base() != tok.Base() {
-			continue
-		}
-		return pkg, nil
 	}
 	return nil, fmt.Errorf("no package for given file position")
 }

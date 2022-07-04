@@ -83,11 +83,15 @@ type Snapshot interface {
 	// to quickly find corresponding *ast.Field node given a *types.Var.
 	// We must refer to the AST to render type aliases properly when
 	// formatting signatures and other types.
+	// May return (nil, nil) if the file didn't declare an object at that position.
+	// TODO(adonovan): seems like a bug?
 	PosToField(ctx context.Context, pkg Package, pos token.Pos) (*ast.Field, error)
 
 	// PosToDecl maps certain objects' positions to their surrounding
 	// ast.Decl. This mapping is used when building the documentation
 	// string for the objects.
+	// May return (nil, nil) if the file didn't declare an object at that position.
+	// TODO(adonovan): seems like a bug?
 	PosToDecl(ctx context.Context, pkg Package, pos token.Pos) (ast.Decl, error)
 
 	// DiagnosePackage returns basic diagnostics, including list, parse, and type errors
@@ -147,8 +151,8 @@ type Snapshot interface {
 	// IsBuiltin reports whether uri is part of the builtin package.
 	IsBuiltin(ctx context.Context, uri span.URI) bool
 
-	// PackagesForFile returns the packages that this file belongs to, checked
-	// in mode.
+	// PackagesForFile returns an unordered list of packages that contain
+	// the file denoted by uri, type checked in the specified mode.
 	PackagesForFile(ctx context.Context, uri span.URI, mode TypecheckMode, includeTestVariants bool) ([]Package, error)
 
 	// PackageForFile returns a single package that this file belongs to,
