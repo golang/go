@@ -16,11 +16,14 @@ type filesMap struct {
 	impl *persistent.Map
 }
 
+// uriLessInterface is the < relation for "any" values containing span.URIs.
+func uriLessInterface(a, b interface{}) bool {
+	return a.(span.URI) < b.(span.URI)
+}
+
 func newFilesMap() filesMap {
 	return filesMap{
-		impl: persistent.NewMap(func(a, b interface{}) bool {
-			return a.(span.URI) < b.(span.URI)
-		}),
+		impl: persistent.NewMap(uriLessInterface),
 	}
 }
 
@@ -152,9 +155,7 @@ type parseKeysByURIMap struct {
 
 func newParseKeysByURIMap() parseKeysByURIMap {
 	return parseKeysByURIMap{
-		impl: persistent.NewMap(func(a, b interface{}) bool {
-			return a.(span.URI) < b.(span.URI)
-		}),
+		impl: persistent.NewMap(uriLessInterface),
 	}
 }
 

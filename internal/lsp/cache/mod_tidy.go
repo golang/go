@@ -28,125 +28,139 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-type modTidyKey struct {
-	sessionID       string
-	env             source.Hash
-	gomod           source.FileIdentity
-	imports         source.Hash
-	unsavedOverlays source.Hash
-	view            string
-}
-
-type modTidyHandle struct {
-	handle *memoize.Handle
-}
-
-type modTidyData struct {
-	tidied *source.TidiedModule
-	err    error
-}
-
-func (mth *modTidyHandle) tidy(ctx context.Context, snapshot *snapshot) (*source.TidiedModule, error) {
-	v, err := mth.handle.Get(ctx, snapshot.generation, snapshot)
-	if err != nil {
-		return nil, err
-	}
-	data := v.(*modTidyData)
-	return data.tidied, data.err
-}
-
+// modTidyImpl runs "go mod tidy" on a go.mod file, using a cache.
+//
+// REVIEWERS: what does it mean to cache an operation that has side effects?
+// Or are we de-duplicating operations in flight on the same file?
 func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*source.TidiedModule, error) {
+	uri := pm.URI
 	if pm.File == nil {
-		return nil, fmt.Errorf("cannot tidy unparseable go.mod file: %v", pm.URI)
-	}
-	if handle := s.getModTidyHandle(pm.URI); handle != nil {
-		return handle.tidy(ctx, s)
-	}
-	fh, err := s.GetFile(ctx, pm.URI)
-	if err != nil {
-		return nil, err
-	}
-	// If the file handle is an overlay, it may not be written to disk.
-	// The go.mod file has to be on disk for `go mod tidy` to work.
-	if _, ok := fh.(*overlay); ok {
-		if info, _ := os.Stat(fh.URI().Filename()); info == nil {
-			return nil, source.ErrNoModOnDisk
-		}
-	}
-	if criticalErr := s.GetCriticalError(ctx); criticalErr != nil {
-		return &source.TidiedModule{
-			Diagnostics: criticalErr.DiagList,
-		}, nil
-	}
-	workspacePkgs, err := s.workspacePackageHandles(ctx)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot tidy unparseable go.mod file: %v", uri)
 	}
 
 	s.mu.Lock()
-	overlayHash := hashUnsavedOverlays(s.files)
+	entry, hit := s.modTidyHandles.Get(uri)
 	s.mu.Unlock()
 
-	key := modTidyKey{
-		sessionID:       s.view.session.id,
-		view:            s.view.folder.Filename(),
-		imports:         s.hashImports(ctx, workspacePkgs),
-		unsavedOverlays: overlayHash,
-		gomod:           fh.FileIdentity(),
-		env:             hashEnv(s),
+	type modTidyResult struct {
+		tidied *source.TidiedModule
+		err    error
 	}
-	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
-		ctx, done := event.Start(ctx, "cache.ModTidyHandle", tag.URI.Of(fh.URI()))
-		defer done()
 
-		snapshot := arg.(*snapshot)
-		inv := &gocommand.Invocation{
-			Verb:       "mod",
-			Args:       []string{"tidy"},
-			WorkingDir: filepath.Dir(fh.URI().Filename()),
-		}
-		tmpURI, inv, cleanup, err := snapshot.goCommandInvocation(ctx, source.WriteTemporaryModFile, inv)
+	// Cache miss?
+	if !hit {
+		fh, err := s.GetFile(ctx, pm.URI)
 		if err != nil {
-			return &modTidyData{err: err}
+			return nil, err
 		}
-		// Keep the temporary go.mod file around long enough to parse it.
-		defer cleanup()
+		// If the file handle is an overlay, it may not be written to disk.
+		// The go.mod file has to be on disk for `go mod tidy` to work.
+		// TODO(rfindley): is this still true with Go 1.16 overlay support?
+		if _, ok := fh.(*overlay); ok {
+			if info, _ := os.Stat(fh.URI().Filename()); info == nil {
+				return nil, source.ErrNoModOnDisk
+			}
+		}
+		if criticalErr := s.GetCriticalError(ctx); criticalErr != nil {
+			return &source.TidiedModule{
+				Diagnostics: criticalErr.DiagList,
+			}, nil
+		}
+		workspacePkgs, err := s.workspacePackageHandles(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-		if _, err := s.view.session.gocmdRunner.Run(ctx, *inv); err != nil {
-			return &modTidyData{err: err}
-		}
-		// Go directly to disk to get the temporary mod file, since it is
-		// always on disk.
-		tempContents, err := ioutil.ReadFile(tmpURI.Filename())
-		if err != nil {
-			return &modTidyData{err: err}
-		}
-		ideal, err := modfile.Parse(tmpURI.Filename(), tempContents, nil)
-		if err != nil {
-			// We do not need to worry about the temporary file's parse errors
-			// since it has been "tidied".
-			return &modTidyData{err: err}
-		}
-		// Compare the original and tidied go.mod files to compute errors and
-		// suggested fixes.
-		diagnostics, err := modTidyDiagnostics(ctx, snapshot, pm, ideal, workspacePkgs)
-		if err != nil {
-			return &modTidyData{err: err}
-		}
-		return &modTidyData{
-			tidied: &source.TidiedModule{
-				Diagnostics:   diagnostics,
-				TidiedContent: tempContents,
-			},
-		}
-	})
+		s.mu.Lock()
+		overlayHash := hashUnsavedOverlays(s.files)
+		s.mu.Unlock()
 
-	mth := &modTidyHandle{handle: h}
-	s.mu.Lock()
-	s.modTidyHandles[fh.URI()] = mth
-	s.mu.Unlock()
+		// There's little reason at to use the shared cache for mod
+		// tidy (and mod why) as their key includes the view and session.
+		// TODO(adonovan): use a simpler cache of promises that
+		// is shared across snapshots.
+		type modTidyKey struct {
+			// TODO(rfindley): this key is also suspicious (see modWhyKey).
+			sessionID       string
+			env             source.Hash
+			gomod           source.FileIdentity
+			imports         source.Hash
+			unsavedOverlays source.Hash
+			view            string
+		}
+		key := modTidyKey{
+			sessionID:       s.view.session.id,
+			view:            s.view.folder.Filename(),
+			imports:         s.hashImports(ctx, workspacePkgs),
+			unsavedOverlays: overlayHash,
+			gomod:           fh.FileIdentity(),
+			env:             hashEnv(s),
+		}
+		handle, release := s.generation.GetHandle(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+			tidied, err := modTidyImpl(ctx, arg.(*snapshot), fh, pm, workspacePkgs)
+			return modTidyResult{tidied, err}
+		})
 
-	return mth.tidy(ctx, s)
+		entry = handle
+		s.mu.Lock()
+		s.modTidyHandles.Set(uri, entry, func(_, _ interface{}) { release() })
+		s.mu.Unlock()
+	}
+
+	// Await result.
+	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
+	if err != nil {
+		return nil, err
+	}
+	res := v.(modTidyResult)
+	return res.tidied, res.err
+}
+
+// modTidyImpl runs "go mod tidy" on a go.mod file.
+func modTidyImpl(ctx context.Context, snapshot *snapshot, fh source.FileHandle, pm *source.ParsedModule, workspacePkgs []*packageHandle) (*source.TidiedModule, error) {
+	ctx, done := event.Start(ctx, "cache.ModTidy", tag.URI.Of(fh.URI()))
+	defer done()
+
+	inv := &gocommand.Invocation{
+		Verb:       "mod",
+		Args:       []string{"tidy"},
+		WorkingDir: filepath.Dir(fh.URI().Filename()),
+	}
+	tmpURI, inv, cleanup, err := snapshot.goCommandInvocation(ctx, source.WriteTemporaryModFile, inv)
+	if err != nil {
+		return nil, err
+	}
+	// Keep the temporary go.mod file around long enough to parse it.
+	defer cleanup()
+
+	if _, err := snapshot.view.session.gocmdRunner.Run(ctx, *inv); err != nil {
+		return nil, err
+	}
+
+	// Go directly to disk to get the temporary mod file,
+	// since it is always on disk.
+	tempContents, err := ioutil.ReadFile(tmpURI.Filename())
+	if err != nil {
+		return nil, err
+	}
+	ideal, err := modfile.Parse(tmpURI.Filename(), tempContents, nil)
+	if err != nil {
+		// We do not need to worry about the temporary file's parse errors
+		// since it has been "tidied".
+		return nil, err
+	}
+
+	// Compare the original and tidied go.mod files to compute errors and
+	// suggested fixes.
+	diagnostics, err := modTidyDiagnostics(ctx, snapshot, pm, ideal, workspacePkgs)
+	if err != nil {
+		return nil, err
+	}
+
+	return &source.TidiedModule{
+		Diagnostics:   diagnostics,
+		TidiedContent: tempContents,
+	}, nil
 }
 
 func (s *snapshot) hashImports(ctx context.Context, wsPackages []*packageHandle) source.Hash {

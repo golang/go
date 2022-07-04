@@ -24,152 +24,156 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-type parseModHandle struct {
-	handle *memoize.Handle
-}
+// ParseMod parses a go.mod file, using a cache. It may return partial results and an error.
+func (s *snapshot) ParseMod(ctx context.Context, fh source.FileHandle) (*source.ParsedModule, error) {
+	uri := fh.URI()
 
-type parseModData struct {
-	parsed *source.ParsedModule
+	s.mu.Lock()
+	entry, hit := s.parseModHandles.Get(uri)
+	s.mu.Unlock()
 
-	// err is any error encountered while parsing the file.
-	err error
-}
+	type parseModResult struct {
+		parsed *source.ParsedModule
+		err    error
+	}
 
-func (mh *parseModHandle) parse(ctx context.Context, snapshot *snapshot) (*source.ParsedModule, error) {
-	v, err := mh.handle.Get(ctx, snapshot.generation, snapshot)
+	// cache miss?
+	if !hit {
+		handle, release := s.generation.GetHandle(fh.FileIdentity(), func(ctx context.Context, _ memoize.Arg) interface{} {
+			parsed, err := parseModImpl(ctx, fh)
+			return parseModResult{parsed, err}
+		})
+
+		entry = handle
+		s.mu.Lock()
+		s.parseModHandles.Set(uri, entry, func(_, _ interface{}) { release() })
+		s.mu.Unlock()
+	}
+
+	// Await result.
+	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
 	if err != nil {
 		return nil, err
 	}
-	data := v.(*parseModData)
-	return data.parsed, data.err
+	res := v.(parseModResult)
+	return res.parsed, res.err
 }
 
-func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*source.ParsedModule, error) {
-	if handle := s.getParseModHandle(modFH.URI()); handle != nil {
-		return handle.parse(ctx, s)
-	}
-	h := s.generation.Bind(modFH.FileIdentity(), func(ctx context.Context, _ memoize.Arg) interface{} {
-		_, done := event.Start(ctx, "cache.ParseModHandle", tag.URI.Of(modFH.URI()))
-		defer done()
+// parseModImpl parses the go.mod file whose name and contents are in fh.
+// It may return partial results and an error.
+func parseModImpl(ctx context.Context, fh source.FileHandle) (*source.ParsedModule, error) {
+	_, done := event.Start(ctx, "cache.ParseMod", tag.URI.Of(fh.URI()))
+	defer done()
 
-		contents, err := modFH.Read()
-		if err != nil {
-			return &parseModData{err: err}
-		}
-		m := protocol.NewColumnMapper(modFH.URI(), contents)
-		file, parseErr := modfile.Parse(modFH.URI().Filename(), contents, nil)
-		// Attempt to convert the error to a standardized parse error.
-		var parseErrors []*source.Diagnostic
-		if parseErr != nil {
-			mfErrList, ok := parseErr.(modfile.ErrorList)
-			if !ok {
-				return &parseModData{err: fmt.Errorf("unexpected parse error type %v", parseErr)}
-			}
-			for _, mfErr := range mfErrList {
-				rng, err := rangeFromPositions(m, mfErr.Pos, mfErr.Pos)
-				if err != nil {
-					return &parseModData{err: err}
-				}
-				parseErrors = append(parseErrors, &source.Diagnostic{
-					URI:      modFH.URI(),
-					Range:    rng,
-					Severity: protocol.SeverityError,
-					Source:   source.ParseError,
-					Message:  mfErr.Err.Error(),
-				})
-			}
-		}
-		return &parseModData{
-			parsed: &source.ParsedModule{
-				URI:         modFH.URI(),
-				Mapper:      m,
-				File:        file,
-				ParseErrors: parseErrors,
-			},
-			err: parseErr,
-		}
-	})
-
-	pmh := &parseModHandle{handle: h}
-	s.mu.Lock()
-	s.parseModHandles[modFH.URI()] = pmh
-	s.mu.Unlock()
-
-	return pmh.parse(ctx, s)
-}
-
-type parseWorkHandle struct {
-	handle *memoize.Handle
-}
-
-type parseWorkData struct {
-	parsed *source.ParsedWorkFile
-
-	// err is any error encountered while parsing the file.
-	err error
-}
-
-func (mh *parseWorkHandle) parse(ctx context.Context, snapshot *snapshot) (*source.ParsedWorkFile, error) {
-	v, err := mh.handle.Get(ctx, snapshot.generation, snapshot)
+	contents, err := fh.Read()
 	if err != nil {
 		return nil, err
 	}
-	data := v.(*parseWorkData)
-	return data.parsed, data.err
+	m := protocol.NewColumnMapper(fh.URI(), contents)
+	file, parseErr := modfile.Parse(fh.URI().Filename(), contents, nil)
+	// Attempt to convert the error to a standardized parse error.
+	var parseErrors []*source.Diagnostic
+	if parseErr != nil {
+		mfErrList, ok := parseErr.(modfile.ErrorList)
+		if !ok {
+			return nil, fmt.Errorf("unexpected parse error type %v", parseErr)
+		}
+		for _, mfErr := range mfErrList {
+			rng, err := rangeFromPositions(m, mfErr.Pos, mfErr.Pos)
+			if err != nil {
+				return nil, err
+			}
+			parseErrors = append(parseErrors, &source.Diagnostic{
+				URI:      fh.URI(),
+				Range:    rng,
+				Severity: protocol.SeverityError,
+				Source:   source.ParseError,
+				Message:  mfErr.Err.Error(),
+			})
+		}
+	}
+	return &source.ParsedModule{
+		URI:         fh.URI(),
+		Mapper:      m,
+		File:        file,
+		ParseErrors: parseErrors,
+	}, parseErr
 }
 
-func (s *snapshot) ParseWork(ctx context.Context, modFH source.FileHandle) (*source.ParsedWorkFile, error) {
-	if handle := s.getParseWorkHandle(modFH.URI()); handle != nil {
-		return handle.parse(ctx, s)
-	}
-	h := s.generation.Bind(modFH.FileIdentity(), func(ctx context.Context, _ memoize.Arg) interface{} {
-		_, done := event.Start(ctx, "cache.ParseModHandle", tag.URI.Of(modFH.URI()))
-		defer done()
+// ParseWork parses a go.work file, using a cache. It may return partial results and an error.
+// TODO(adonovan): move to new work.go file.
+func (s *snapshot) ParseWork(ctx context.Context, fh source.FileHandle) (*source.ParsedWorkFile, error) {
+	uri := fh.URI()
 
-		contents, err := modFH.Read()
-		if err != nil {
-			return &parseWorkData{err: err}
-		}
-		m := protocol.NewColumnMapper(modFH.URI(), contents)
-		file, parseErr := modfile.ParseWork(modFH.URI().Filename(), contents, nil)
-		// Attempt to convert the error to a standardized parse error.
-		var parseErrors []*source.Diagnostic
-		if parseErr != nil {
-			mfErrList, ok := parseErr.(modfile.ErrorList)
-			if !ok {
-				return &parseWorkData{err: fmt.Errorf("unexpected parse error type %v", parseErr)}
-			}
-			for _, mfErr := range mfErrList {
-				rng, err := rangeFromPositions(m, mfErr.Pos, mfErr.Pos)
-				if err != nil {
-					return &parseWorkData{err: err}
-				}
-				parseErrors = append(parseErrors, &source.Diagnostic{
-					URI:      modFH.URI(),
-					Range:    rng,
-					Severity: protocol.SeverityError,
-					Source:   source.ParseError,
-					Message:  mfErr.Err.Error(),
-				})
-			}
-		}
-		return &parseWorkData{
-			parsed: &source.ParsedWorkFile{
-				URI:         modFH.URI(),
-				Mapper:      m,
-				File:        file,
-				ParseErrors: parseErrors,
-			},
-			err: parseErr,
-		}
-	})
-
-	pwh := &parseWorkHandle{handle: h}
 	s.mu.Lock()
-	s.parseWorkHandles[modFH.URI()] = pwh
+	entry, hit := s.parseWorkHandles.Get(uri)
 	s.mu.Unlock()
 
-	return pwh.parse(ctx, s)
+	type parseWorkResult struct {
+		parsed *source.ParsedWorkFile
+		err    error
+	}
+
+	// cache miss?
+	if !hit {
+		handle, release := s.generation.GetHandle(fh.FileIdentity(), func(ctx context.Context, _ memoize.Arg) interface{} {
+			parsed, err := parseWorkImpl(ctx, fh)
+			return parseWorkResult{parsed, err}
+		})
+
+		entry = handle
+		s.mu.Lock()
+		s.parseWorkHandles.Set(uri, entry, func(_, _ interface{}) { release() })
+		s.mu.Unlock()
+	}
+
+	// Await result.
+	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
+	if err != nil {
+		return nil, err
+	}
+	res := v.(parseWorkResult)
+	return res.parsed, res.err
+}
+
+// parseWorkImpl parses a go.work file. It may return partial results and an error.
+func parseWorkImpl(ctx context.Context, fh source.FileHandle) (*source.ParsedWorkFile, error) {
+	_, done := event.Start(ctx, "cache.ParseWork", tag.URI.Of(fh.URI()))
+	defer done()
+
+	contents, err := fh.Read()
+	if err != nil {
+		return nil, err
+	}
+	m := protocol.NewColumnMapper(fh.URI(), contents)
+	file, parseErr := modfile.ParseWork(fh.URI().Filename(), contents, nil)
+	// Attempt to convert the error to a standardized parse error.
+	var parseErrors []*source.Diagnostic
+	if parseErr != nil {
+		mfErrList, ok := parseErr.(modfile.ErrorList)
+		if !ok {
+			return nil, fmt.Errorf("unexpected parse error type %v", parseErr)
+		}
+		for _, mfErr := range mfErrList {
+			rng, err := rangeFromPositions(m, mfErr.Pos, mfErr.Pos)
+			if err != nil {
+				return nil, err
+			}
+			parseErrors = append(parseErrors, &source.Diagnostic{
+				URI:      fh.URI(),
+				Range:    rng,
+				Severity: protocol.SeverityError,
+				Source:   source.ParseError,
+				Message:  mfErr.Err.Error(),
+			})
+		}
+	}
+	return &source.ParsedWorkFile{
+		URI:         fh.URI(),
+		Mapper:      m,
+		File:        file,
+		ParseErrors: parseErrors,
+	}, parseErr
 }
 
 // goSum reads the go.sum file for the go.mod file at modURI, if it exists. If
@@ -198,104 +202,100 @@ func sumFilename(modURI span.URI) string {
 	return strings.TrimSuffix(modURI.Filename(), ".mod") + ".sum"
 }
 
-// modKey is uniquely identifies cached data for `go mod why` or dependencies
-// to upgrade.
-type modKey struct {
-	sessionID string
-	env       source.Hash
-	view      string
-	mod       source.FileIdentity
-	verb      modAction
-}
+// ModWhy returns the "go mod why" result for each module named in a
+// require statement in the go.mod file.
+// TODO(adonovan): move to new mod_why.go file.
+func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string]string, error) {
+	uri := fh.URI()
 
-type modAction int
+	if s.View().FileKind(fh) != source.Mod {
+		return nil, fmt.Errorf("%s is not a go.mod file", uri)
+	}
 
-const (
-	why modAction = iota
-	upgrade
-)
+	s.mu.Lock()
+	entry, hit := s.modWhyHandles.Get(uri)
+	s.mu.Unlock()
 
-type modWhyHandle struct {
-	handle *memoize.Handle
-}
+	type modWhyResult struct {
+		why map[string]string
+		err error
+	}
 
-type modWhyData struct {
-	// why keeps track of the `go mod why` results for each require statement
-	// in the go.mod file.
-	why map[string]string
+	// cache miss?
+	if !hit {
+		// TODO(adonovan): use a simpler cache of promises that
+		// is shared across snapshots. See comment at modTidyKey.
+		type modWhyKey struct {
+			// TODO(rfindley): is sessionID used to identify overlays because modWhy
+			// looks at overlay state? In that case, I am not sure that this key
+			// is actually correct. The key should probably just be URI, and
+			// invalidated in clone when any import changes.
+			sessionID string
+			env       source.Hash
+			view      string
+			mod       source.FileIdentity
+		}
+		key := modWhyKey{
+			sessionID: s.view.session.id,
+			env:       hashEnv(s),
+			mod:       fh.FileIdentity(),
+			view:      s.view.rootURI.Filename(),
+		}
+		handle, release := s.generation.GetHandle(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+			why, err := modWhyImpl(ctx, arg.(*snapshot), fh)
+			return modWhyResult{why, err}
+		})
 
-	err error
-}
+		entry = handle
+		s.mu.Lock()
+		s.modWhyHandles.Set(uri, entry, func(_, _ interface{}) { release() })
+		s.mu.Unlock()
+	}
 
-func (mwh *modWhyHandle) why(ctx context.Context, snapshot *snapshot) (map[string]string, error) {
-	v, err := mwh.handle.Get(ctx, snapshot.generation, snapshot)
+	// Await result.
+	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
 	if err != nil {
 		return nil, err
 	}
-	data := v.(*modWhyData)
-	return data.why, data.err
+	res := v.(modWhyResult)
+	return res.why, res.err
 }
 
-func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string]string, error) {
-	if s.View().FileKind(fh) != source.Mod {
-		return nil, fmt.Errorf("%s is not a go.mod file", fh.URI())
+// modWhyImpl returns the result of "go mod why -m" on the specified go.mod file.
+func modWhyImpl(ctx context.Context, snapshot *snapshot, fh source.FileHandle) (map[string]string, error) {
+	ctx, done := event.Start(ctx, "cache.ModWhy", tag.URI.Of(fh.URI()))
+	defer done()
+
+	pm, err := snapshot.ParseMod(ctx, fh)
+	if err != nil {
+		return nil, err
 	}
-	if handle := s.getModWhyHandle(fh.URI()); handle != nil {
-		return handle.why(ctx, s)
+	// No requires to explain.
+	if len(pm.File.Require) == 0 {
+		return nil, nil // empty result
 	}
-	key := modKey{
-		sessionID: s.view.session.id,
-		env:       hashEnv(s),
-		mod:       fh.FileIdentity(),
-		view:      s.view.rootURI.Filename(),
-		verb:      why,
+	// Run `go mod why` on all the dependencies.
+	inv := &gocommand.Invocation{
+		Verb:       "mod",
+		Args:       []string{"why", "-m"},
+		WorkingDir: filepath.Dir(fh.URI().Filename()),
 	}
-	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
-		ctx, done := event.Start(ctx, "cache.ModWhyHandle", tag.URI.Of(fh.URI()))
-		defer done()
-
-		snapshot := arg.(*snapshot)
-
-		pm, err := snapshot.ParseMod(ctx, fh)
-		if err != nil {
-			return &modWhyData{err: err}
-		}
-		// No requires to explain.
-		if len(pm.File.Require) == 0 {
-			return &modWhyData{}
-		}
-		// Run `go mod why` on all the dependencies.
-		inv := &gocommand.Invocation{
-			Verb:       "mod",
-			Args:       []string{"why", "-m"},
-			WorkingDir: filepath.Dir(fh.URI().Filename()),
-		}
-		for _, req := range pm.File.Require {
-			inv.Args = append(inv.Args, req.Mod.Path)
-		}
-		stdout, err := snapshot.RunGoCommandDirect(ctx, source.Normal, inv)
-		if err != nil {
-			return &modWhyData{err: err}
-		}
-		whyList := strings.Split(stdout.String(), "\n\n")
-		if len(whyList) != len(pm.File.Require) {
-			return &modWhyData{
-				err: fmt.Errorf("mismatched number of results: got %v, want %v", len(whyList), len(pm.File.Require)),
-			}
-		}
-		why := make(map[string]string, len(pm.File.Require))
-		for i, req := range pm.File.Require {
-			why[req.Mod.Path] = whyList[i]
-		}
-		return &modWhyData{why: why}
-	})
-
-	mwh := &modWhyHandle{handle: h}
-	s.mu.Lock()
-	s.modWhyHandles[fh.URI()] = mwh
-	s.mu.Unlock()
-
-	return mwh.why(ctx, s)
+	for _, req := range pm.File.Require {
+		inv.Args = append(inv.Args, req.Mod.Path)
+	}
+	stdout, err := snapshot.RunGoCommandDirect(ctx, source.Normal, inv)
+	if err != nil {
+		return nil, err
+	}
+	whyList := strings.Split(stdout.String(), "\n\n")
+	if len(whyList) != len(pm.File.Require) {
+		return nil, fmt.Errorf("mismatched number of results: got %v, want %v", len(whyList), len(pm.File.Require))
+	}
+	why := make(map[string]string, len(pm.File.Require))
+	for i, req := range pm.File.Require {
+		why[req.Mod.Path] = whyList[i]
+	}
+	return why, nil
 }
 
 // extractGoCommandError tries to parse errors that come from the go command

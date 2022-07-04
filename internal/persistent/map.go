@@ -120,10 +120,17 @@ func (pm *Map) Clone() *Map {
 	}
 }
 
-// Destroy the persistent map.
+// Destroy destroys the map.
 //
 // After Destroy, the Map should not be used again.
 func (pm *Map) Destroy() {
+	// The implementation of these two functions is the same,
+	// but their intent is different.
+	pm.Clear()
+}
+
+// Clear removes all entries from the map.
+func (pm *Map) Clear() {
 	pm.root.decref()
 	pm.root = nil
 }

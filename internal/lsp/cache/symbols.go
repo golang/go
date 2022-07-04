@@ -18,43 +18,48 @@ import (
 	"golang.org/x/tools/internal/memoize"
 )
 
-// A symbolHandle contains a handle to the result of symbolizing a file.
-type symbolHandle struct {
-	handle *memoize.Handle
-}
+// symbolize returns the result of symbolizing the file identified by fh, using a cache.
+func (s *snapshot) symbolize(ctx context.Context, fh source.FileHandle) ([]source.Symbol, error) {
+	uri := fh.URI()
 
-// symbolData contains the data produced by extracting symbols from a file.
-type symbolData struct {
-	symbols []source.Symbol
-	err     error
-}
+	s.mu.Lock()
+	entry, hit := s.symbolizeHandles.Get(uri)
+	s.mu.Unlock()
 
-// buildSymbolHandle returns a handle to the future result of
-// symbolizing the file identified by fh,
-// if necessary creating it and saving it in the snapshot.
-func (s *snapshot) buildSymbolHandle(ctx context.Context, fh source.FileHandle) *symbolHandle {
-	if h := s.getSymbolHandle(fh.URI()); h != nil {
-		return h
-	}
-	type symbolHandleKey source.Hash
-	key := symbolHandleKey(fh.FileIdentity().Hash)
-	handle := s.generation.Bind(key, func(_ context.Context, arg memoize.Arg) interface{} {
-		snapshot := arg.(*snapshot)
-		symbols, err := symbolize(snapshot, fh)
-		return &symbolData{symbols, err}
-	})
-
-	sh := &symbolHandle{
-		handle: handle,
+	type symbolizeResult struct {
+		symbols []source.Symbol
+		err     error
 	}
 
-	return s.addSymbolHandle(fh.URI(), sh)
+	// Cache miss?
+	if !hit {
+		type symbolHandleKey source.Hash
+		key := symbolHandleKey(fh.FileIdentity().Hash)
+		handle, release := s.generation.GetHandle(key, func(_ context.Context, arg memoize.Arg) interface{} {
+			symbols, err := symbolizeImpl(arg.(*snapshot), fh)
+			return symbolizeResult{symbols, err}
+		})
+
+		entry = handle
+
+		s.mu.Lock()
+		s.symbolizeHandles.Set(uri, entry, func(_, _ interface{}) { release() })
+		s.mu.Unlock()
+	}
+
+	// Await result.
+	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
+	if err != nil {
+		return nil, err
+	}
+	res := v.(symbolizeResult)
+	return res.symbols, res.err
 }
 
-// symbolize reads and parses a file and extracts symbols from it.
+// symbolizeImpl reads and parses a file and extracts symbols from it.
 // It may use a parsed file already present in the cache but
 // otherwise does not populate the cache.
-func symbolize(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, error) {
+func symbolizeImpl(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, error) {
 	src, err := fh.Read()
 	if err != nil {
 		return nil, err
