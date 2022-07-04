@@ -456,7 +456,7 @@ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
 		} else {
 			err = walk(filename, fileInfo, walkFn)
 			if err != nil {
-				if !fileInfo.IsDir() || err != SkipDir {
+				if err != SkipDir {
 					return err
 				}
 			}
