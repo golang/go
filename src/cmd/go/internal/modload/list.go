@@ -136,43 +136,66 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			path := arg[:i]
 			vers := arg[i+1:]
 
-			var current string
-			if mg == nil {
-				current, _ = rs.rootSelected(path)
-			} else {
-				current = mg.Selected(path)
-			}
-			if current == "none" && mgErr != nil {
-				if vers == "upgrade" || vers == "patch" {
-					// The module graph is incomplete, so we don't know what version we're
-					// actually upgrading from.
-					// mgErr is already set, so just skip this module.
-					continue
-				}
-			}
-
 			allowed := CheckAllowed
 			if IsRevisionQuery(vers) || mode&ListRetracted != 0 {
 				// Allow excluded and retracted versions if the user asked for a
 				// specific revision or used 'go list -retracted'.
 				allowed = nil
 			}
-			info, err := Query(ctx, path, vers, current, allowed)
-			if err != nil {
-				mods = append(mods, &modinfo.ModulePublic{
-					Path:    path,
-					Version: vers,
-					Error:   modinfoError(path, vers, err),
-				})
-				continue
+
+			var matches []string
+			if j := strings.Index(path, "..."); j >= 0 {
+				match := search.MatchPattern(path)
+				for _, m := range mg.BuildList() {
+					if match(m.Path) {
+						matches = append(matches, m.Path)
+					}
+				}
+
+				if len(matches) == 0 {
+					fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
+					continue
+				}
+			} else {
+				matches = append(matches, path)
 			}
 
-			// Indicate that m was resolved from outside of rs by passing a nil
-			// *Requirements instead.
-			var noRS *Requirements
+			for _, mPath := range matches {
+				var current string
+				if mg == nil {
+					current, _ = rs.rootSelected(mPath)
+				} else {
+					current = mg.Selected(mPath)
+				}
 
-			mod := moduleInfo(ctx, noRS, module.Version{Path: path, Version: info.Version}, mode)
-			mods = append(mods, mod)
+				if current == "none" && mgErr != nil {
+					if vers == "upgrade" || vers == "patch" {
+						// The module graph is incomplete, so we don't know what version we're
+						// actually upgrading from.
+						// mgErr is already set, so just skip this module.
+						continue
+					}
+				}
+
+				info, err := Query(ctx, mPath, vers, current, allowed)
+					if err != nil {
+					mods = append(mods, &modinfo.ModulePublic{
+						Path:    mPath,
+						Version: vers,
+						Error:   modinfoError(mPath, vers, err),
+					})
+					continue
+				}
+
+				// Indicate that m was resolved from outside of rs by passing a nil
+				// *Requirements instead thereby marking the module as "not indirect".
+				var noRS *Requirements
+				version := module.Version{Path: mPath, Version: info.Version}
+				if !matchedModule[version] {
+					matchedModule[version] = true
+					mods = append(mods, moduleInfo(ctx, noRS, version, mode))
+				}
+			}
 			continue
 		}
 
@@ -200,7 +223,11 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 				continue
 			}
 			if v != "none" {
-				mods = append(mods, moduleInfo(ctx, rs, module.Version{Path: arg, Version: v}, mode))
+				m := module.Version{Path: arg, Version: v}
+				if !matchedModule[m] {
+					matchedModule[m] = true
+					mods = append(mods, moduleInfo(ctx, rs, m, mode))
+				}
 			} else if cfg.BuildMod == "vendor" {
 				// In vendor mode, we can't determine whether a missing module is “a
 				// known dependency” because the module graph is incomplete.
