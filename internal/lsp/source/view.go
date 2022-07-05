@@ -260,10 +260,14 @@ type View interface {
 	// original one will be.
 	SetOptions(context.Context, *Options) (View, error)
 
-	// Snapshot returns the current snapshot for the view.
+	// Snapshot returns the current snapshot for the view, and a
+	// release function that must be called when the Snapshot is
+	// no longer needed.
 	Snapshot(ctx context.Context) (Snapshot, func())
 
-	// Rebuild rebuilds the current view, replacing the original view in its session.
+	// Rebuild rebuilds the current view, replacing the original
+	// view in its session.  It returns a Snapshot and a release
+	// function that must be called when the Snapshot is no longer needed.
 	Rebuild(ctx context.Context) (Snapshot, func(), error)
 
 	// IsGoPrivatePath reports whether target is a private import path, as identified
@@ -348,7 +352,8 @@ type Session interface {
 	// NewView creates a new View, returning it and its first snapshot. If a
 	// non-empty tempWorkspace directory is provided, the View will record a copy
 	// of its gopls workspace module in that directory, so that client tooling
-	// can execute in the same main module.
+	// can execute in the same main module.  It returns a release
+	// function that must be called when the Snapshot is no longer needed.
 	NewView(ctx context.Context, name string, folder span.URI, options *Options) (View, Snapshot, func(), error)
 
 	// Cache returns the cache that created this session, for debugging only.
@@ -372,6 +377,8 @@ type Session interface {
 	// DidModifyFile reports a file modification to the session. It returns
 	// the new snapshots after the modifications have been applied, paired with
 	// the affected file URIs for those snapshots.
+	// On success, it returns a list of release functions that
+	// must be called when the snapshots are no longer needed.
 	DidModifyFiles(ctx context.Context, changes []FileModification) (map[Snapshot][]span.URI, []func(), error)
 
 	// ExpandModificationsToDirectories returns the set of changes with the

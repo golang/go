@@ -137,7 +137,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 		}
 	}
 
-	handle, release := s.generation.GetHandle(buildActionKey(a, ph), func(ctx context.Context, arg memoize.Arg) interface{} {
+	handle, release := s.store.Handle(buildActionKey(a, ph), func(ctx context.Context, arg interface{}) interface{} {
 		snapshot := arg.(*snapshot)
 		// Analyze dependencies first.
 		results, err := execAll(ctx, snapshot, deps)
@@ -159,7 +159,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 }
 
 func (act *actionHandle) analyze(ctx context.Context, snapshot *snapshot) ([]*source.Diagnostic, interface{}, error) {
-	d, err := act.handle.Get(ctx, snapshot.generation, snapshot)
+	d, err := snapshot.awaitHandle(ctx, act.handle)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -189,7 +189,7 @@ func execAll(ctx context.Context, snapshot *snapshot, actions []*actionHandle) (
 	for _, act := range actions {
 		act := act
 		g.Go(func() error {
-			v, err := act.handle.Get(ctx, snapshot.generation, snapshot)
+			v, err := snapshot.awaitHandle(ctx, act.handle)
 			if err != nil {
 				return err
 			}

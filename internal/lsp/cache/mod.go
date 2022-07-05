@@ -39,7 +39,7 @@ func (s *snapshot) ParseMod(ctx context.Context, fh source.FileHandle) (*source.
 
 	// cache miss?
 	if !hit {
-		handle, release := s.generation.GetHandle(fh.FileIdentity(), func(ctx context.Context, _ memoize.Arg) interface{} {
+		handle, release := s.store.Handle(fh.FileIdentity(), func(ctx context.Context, _ interface{}) interface{} {
 			parsed, err := parseModImpl(ctx, fh)
 			return parseModResult{parsed, err}
 		})
@@ -51,7 +51,7 @@ func (s *snapshot) ParseMod(ctx context.Context, fh source.FileHandle) (*source.
 	}
 
 	// Await result.
-	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
+	v, err := s.awaitHandle(ctx, entry.(*memoize.Handle))
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (s *snapshot) ParseWork(ctx context.Context, fh source.FileHandle) (*source
 
 	// cache miss?
 	if !hit {
-		handle, release := s.generation.GetHandle(fh.FileIdentity(), func(ctx context.Context, _ memoize.Arg) interface{} {
+		handle, release := s.store.Handle(fh.FileIdentity(), func(ctx context.Context, _ interface{}) interface{} {
 			parsed, err := parseWorkImpl(ctx, fh)
 			return parseWorkResult{parsed, err}
 		})
@@ -128,7 +128,7 @@ func (s *snapshot) ParseWork(ctx context.Context, fh source.FileHandle) (*source
 	}
 
 	// Await result.
-	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
+	v, err := s.awaitHandle(ctx, entry.(*memoize.Handle))
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,7 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 			mod:       fh.FileIdentity(),
 			view:      s.view.rootURI.Filename(),
 		}
-		handle, release := s.generation.GetHandle(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+		handle, release := s.store.Handle(key, func(ctx context.Context, arg interface{}) interface{} {
 			why, err := modWhyImpl(ctx, arg.(*snapshot), fh)
 			return modWhyResult{why, err}
 		})
@@ -253,7 +253,7 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 	}
 
 	// Await result.
-	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
+	v, err := s.awaitHandle(ctx, entry.(*memoize.Handle))
 	if err != nil {
 		return nil, err
 	}

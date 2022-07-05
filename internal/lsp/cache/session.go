@@ -231,7 +231,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		backgroundCtx:        backgroundCtx,
 		cancel:               cancel,
 		initializeOnce:       &sync.Once{},
-		generation:           s.cache.store.Generation(generationName(v, 0)),
+		store:                &s.cache.store,
 		packages:             newPackagesMap(),
 		meta:                 &metadataGraph{},
 		files:                newFilesMap(),
@@ -254,12 +254,28 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	initCtx, initCancel := context.WithCancel(xcontext.Detach(ctx))
 	v.initCancelFirstAttempt = initCancel
 	snapshot := v.snapshot
-	release := snapshot.generation.Acquire()
+
+	// Acquire both references before the possibility
+	// of releasing either one, to avoid premature
+	// destruction if initialize returns quickly.
+	//
+	// TODO(adonovan): our reference counting discipline is not sound:
+	// the count is initially zero and incremented/decremented by
+	// acquire/release, but there is a race between object birth
+	// and the first call to acquire during which the snapshot may be
+	// destroyed.
+	//
+	// In most systems, an object is born with a count of 1 and
+	// destroyed by any decref that brings the count to zero.
+	// We should do that too.
+	release1 := snapshot.Acquire()
+	release2 := snapshot.Acquire()
 	go func() {
-		defer release()
+		defer release2()
 		snapshot.initialize(initCtx, true)
 	}()
-	return v, snapshot, snapshot.generation.Acquire(), nil
+
+	return v, snapshot, release1, nil
 }
 
 // View returns the view by name.
@@ -539,6 +555,8 @@ func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes 
 		defer release()
 		snapshots = append(snapshots, snapshot)
 	}
+	// TODO(adonovan): opt: release lock here.
+
 	knownDirs := knownDirectories(ctx, snapshots)
 	defer knownDirs.Destroy()
 

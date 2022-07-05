@@ -143,11 +143,12 @@ func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapsho
 
 	// Take an extra reference to the snapshot so that its workspace directory
 	// (if any) isn't destroyed while we're using it.
-	release := snapshot.generation.Acquire()
+	release := snapshot.Acquire()
 	_, inv, cleanupInvocation, err := snapshot.goCommandInvocation(ctx, source.LoadWorkspace, &gocommand.Invocation{
 		WorkingDir: snapshot.view.rootURI.Filename(),
 	})
 	if err != nil {
+		release()
 		return nil, err
 	}
 	pe.WorkingDir = inv.WorkingDir

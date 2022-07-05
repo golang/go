@@ -14,6 +14,7 @@ import (
 	"go/types"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -22,6 +23,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"unsafe"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -42,16 +45,16 @@ import (
 )
 
 type snapshot struct {
-	memoize.Arg // allow as a memoize.Function arg
-
 	id   uint64
 	view *View
 
 	cancel        func()
 	backgroundCtx context.Context
 
-	// the cache generation that contains the data for this snapshot.
-	generation *memoize.Generation
+	store *memoize.Store // cache of handles shared by all snapshots
+
+	refcount    sync.WaitGroup // number of references
+	destroyedBy *string        // atomically set to non-nil in Destroy once refcount = 0
 
 	// The snapshot's initialization state is controlled by the fields below.
 	//
@@ -148,6 +151,22 @@ type snapshot struct {
 	unprocessedSubdirChanges []*fileChange
 }
 
+var _ memoize.RefCounted = (*snapshot)(nil) // snapshots are reference-counted
+
+// Acquire prevents the snapshot from being destroyed until the returned function is called.
+func (s *snapshot) Acquire() func() {
+	type uP = unsafe.Pointer
+	if destroyedBy := atomic.LoadPointer((*uP)(uP(&s.destroyedBy))); destroyedBy != nil {
+		log.Panicf("%d: acquire() after Destroy(%q)", s.id, *(*string)(destroyedBy))
+	}
+	s.refcount.Add(1)
+	return s.refcount.Done
+}
+
+func (s *snapshot) awaitHandle(ctx context.Context, h *memoize.Handle) (interface{}, error) {
+	return h.Get(ctx, s)
+}
+
 type packageKey struct {
 	mode source.ParseMode
 	id   PackageID
@@ -159,7 +178,16 @@ type actionKey struct {
 }
 
 func (s *snapshot) Destroy(destroyedBy string) {
-	s.generation.Destroy(destroyedBy)
+	// Wait for all leases to end before commencing destruction.
+	s.refcount.Wait()
+
+	// Report bad state as a debugging aid.
+	// Not foolproof: another thread could acquire() at this moment.
+	type uP = unsafe.Pointer // looking forward to generics...
+	if old := atomic.SwapPointer((*uP)(uP(&s.destroyedBy)), uP(&destroyedBy)); old != nil {
+		log.Panicf("%d: Destroy(%q) after Destroy(%q)", s.id, destroyedBy, *(*string)(old))
+	}
+
 	s.packages.Destroy()
 	s.isActivePackageCache.Destroy()
 	s.actions.Destroy()
@@ -355,6 +383,7 @@ func (s *snapshot) RunGoCommands(ctx context.Context, allowNetwork bool, wd stri
 	return true, modBytes, sumBytes, nil
 }
 
+// TODO(adonovan): remove unused cleanup mechanism.
 func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.InvocationFlags, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
 	s.view.optionsMu.Lock()
 	allowModfileModificationOption := s.view.options.AllowModfileModifications
@@ -1092,7 +1121,7 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 
 	results := map[string]source.Package{}
 	s.packages.Range(func(key packageKey, ph *packageHandle) {
-		cachedPkg, err := ph.cached(s.generation)
+		cachedPkg, err := ph.cached()
 		if err != nil {
 			return
 		}
@@ -1645,10 +1674,6 @@ func inVendor(uri span.URI) bool {
 	return strings.Contains(split[1], "/")
 }
 
-func generationName(v *View, snapshotID uint64) string {
-	return fmt.Sprintf("v%v/%v", v.id, snapshotID)
-}
-
 // unappliedChanges is a file source that handles an uncloned snapshot.
 type unappliedChanges struct {
 	originalSnapshot *snapshot
@@ -1675,11 +1700,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	newGen := s.view.session.cache.store.Generation(generationName(s.view, s.id+1))
 	bgCtx, cancel := context.WithCancel(bgCtx)
 	result := &snapshot{
 		id:                   s.id + 1,
-		generation:           newGen,
+		store:                s.store,
 		view:                 s.view,
 		backgroundCtx:        bgCtx,
 		cancel:               cancel,

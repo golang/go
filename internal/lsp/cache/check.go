@@ -167,7 +167,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	// Create a handle for the result of type checking.
 	experimentalKey := s.View().Options().ExperimentalPackageCacheKey
 	key := computePackageKey(m.ID, compiledGoFiles, m, depKeys, mode, experimentalKey)
-	handle, release := s.generation.GetHandle(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+	handle, release := s.store.Handle(key, func(ctx context.Context, arg interface{}) interface{} {
 		// TODO(adonovan): eliminate use of arg with this handle.
 		// (In all cases snapshot is equal to the enclosing s.)
 		snapshot := arg.(*snapshot)
@@ -286,7 +286,7 @@ func hashConfig(config *packages.Config) source.Hash {
 }
 
 func (ph *packageHandle) check(ctx context.Context, s *snapshot) (*pkg, error) {
-	v, err := ph.handle.Get(ctx, s.generation, s)
+	v, err := s.awaitHandle(ctx, ph.handle)
 	if err != nil {
 		return nil, err
 	}
@@ -302,8 +302,8 @@ func (ph *packageHandle) ID() string {
 	return string(ph.m.ID)
 }
 
-func (ph *packageHandle) cached(g *memoize.Generation) (*pkg, error) {
-	v := ph.handle.Cached(g)
+func (ph *packageHandle) cached() (*pkg, error) {
+	v := ph.handle.Cached()
 	if v == nil {
 		return nil, fmt.Errorf("no cached type information for %s", ph.m.PkgPath)
 	}

@@ -5,13 +5,14 @@
 // Package memoize supports memoizing the return values of functions with
 // idempotent results that are expensive to compute.
 //
-// To use this package, build a store and use it to acquire handles with the
-// Bind method.
+// To use this package, create a Store, call its Handle method to
+// acquire a handle to (aka a "promise" of) the future result of a
+// function, and call Handle.Get to obtain the result. Get may block
+// if the function has not finished (or started).
 package memoize
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"reflect"
 	"runtime/trace"
@@ -21,107 +22,44 @@ import (
 	"golang.org/x/tools/internal/xcontext"
 )
 
-var (
-	panicOnDestroyed = flag.Bool("memoize_panic_on_destroyed", false,
-		"Panic when a destroyed generation is read rather than returning an error. "+
-			"Panicking may make it easier to debug lifetime errors, especially when "+
-			"used with GOTRACEBACK=crash to see all running goroutines.")
-)
-
 // Store binds keys to functions, returning handles that can be used to access
 // the functions results.
 type Store struct {
 	handlesMu sync.Mutex // lock ordering: Store.handlesMu before Handle.mu
 	handles   map[interface{}]*Handle
-	// handles which are bound to generations for GC purposes.
-	// (It is the subset of values of 'handles' with trackGenerations enabled.)
-	boundHandles map[*Handle]struct{}
 }
 
-// Generation creates a new Generation associated with s. Destroy must be
-// called on the returned Generation once it is no longer in use. name is
-// for debugging purposes only.
-func (s *Store) Generation(name string) *Generation {
-	return &Generation{store: s, name: name}
+// A RefCounted is a value whose functional lifetime is determined by
+// reference counting.
+//
+// Its Acquire method is called before the Function is invoked, and
+// the corresponding release is called when the Function returns.
+// Usually both events happen within a single call to Get, so Get
+// would be fine with a "borrowed" reference, but if the context is
+// cancelled, Get may return before the Function is complete, causing
+// the argument to escape, and potential premature destruction of the
+// value. For a reference-counted type, this requires a pair of
+// increment/decrement operations to extend its life.
+type RefCounted interface {
+	// Acquire prevents the value from being destroyed until the
+	// returned function is called.
+	Acquire() func()
 }
-
-// A Generation is a logical point in time of the cache life-cycle. Cache
-// entries associated with a Generation will not be removed until the
-// Generation is destroyed.
-type Generation struct {
-	// destroyed is 1 after the generation is destroyed. Atomic.
-	destroyed uint32
-	store     *Store
-	name      string
-	// destroyedBy describes the caller that togged destroyed from 0 to 1.
-	destroyedBy string
-	// wg tracks the reference count of this generation.
-	wg sync.WaitGroup
-}
-
-// Destroy waits for all operations referencing g to complete, then removes
-// all references to g from cache entries. Cache entries that no longer
-// reference any non-destroyed generation are removed. Destroy must be called
-// exactly once for each generation, and destroyedBy describes the caller.
-func (g *Generation) Destroy(destroyedBy string) {
-	g.wg.Wait()
-
-	prevDestroyedBy := g.destroyedBy
-	g.destroyedBy = destroyedBy
-	if ok := atomic.CompareAndSwapUint32(&g.destroyed, 0, 1); !ok {
-		panic("Destroy on generation " + g.name + " already destroyed by " + prevDestroyedBy)
-	}
-
-	g.store.handlesMu.Lock()
-	defer g.store.handlesMu.Unlock()
-	for h := range g.store.boundHandles {
-		h.mu.Lock()
-		if _, ok := h.generations[g]; ok {
-			delete(h.generations, g) // delete even if it's dead, in case of dangling references to the entry.
-			if len(h.generations) == 0 {
-				h.state = stateDestroyed
-				delete(g.store.handles, h.key)
-				if h.trackGenerations {
-					delete(g.store.boundHandles, h)
-				}
-			}
-		}
-		h.mu.Unlock()
-	}
-}
-
-// Acquire creates a new reference to g, and returns a func to release that
-// reference.
-func (g *Generation) Acquire() func() {
-	destroyed := atomic.LoadUint32(&g.destroyed)
-	if destroyed != 0 {
-		panic("acquire on generation " + g.name + " destroyed by " + g.destroyedBy)
-	}
-	g.wg.Add(1)
-	return g.wg.Done
-}
-
-// Arg is a marker interface that can be embedded to indicate a type is
-// intended for use as a Function argument.
-type Arg interface{ memoizeArg() }
 
 // Function is the type for functions that can be memoized.
-// The result must be a pointer.
-type Function func(ctx context.Context, arg Arg) interface{}
+//
+// If the arg is a RefCounted, its Acquire/Release operations are called.
+type Function func(ctx context.Context, arg interface{}) interface{}
 
 type state int
 
-// TODO(rfindley): remove stateDestroyed; Handles should not need to know
-// whether or not they have been destroyed.
-//
-// TODO(rfindley): also consider removing stateIdle. Why create a handle if you
+// TODO(rfindley): consider removing stateIdle. Why create a handle if you
 // aren't certain you're going to need its result? And if you know you need its
 // result, why wait to begin computing it?
 const (
 	stateIdle = iota
 	stateRunning
 	stateCompleted
-	stateDestroyed
 )
 
 // Handle is returned from a store when a key is bound to a function.
@@ -136,18 +74,9 @@ const (
 // they decrement waiters. If it drops to zero, the inner context is cancelled,
 // computation is abandoned, and state resets to idle to start the process over
 // again.
-//
-// Handles may be tracked by generations, or directly reference counted, as
-// determined by the trackGenerations field. See the field comments for more
-// information about the differences between these two forms.
-//
-// TODO(rfindley): eliminate generational handles.
 type Handle struct {
 	key interface{}
 	mu  sync.Mutex // lock ordering: Store.handlesMu before Handle.mu
-
-	// generations is the set of generations in which this handle is valid.
-	generations map[*Generation]struct{}
 
 	state state
 	// done is set in running state, and closed when exiting it.
@@ -161,88 +90,49 @@ type Handle struct {
 	// value is set in completed state.
 	value interface{}
 
-	// If trackGenerations is set, this handle tracks generations in which it
-	// is valid, via the generations field. Otherwise, it is explicitly reference
-	// counted via the refCounter field.
-	trackGenerations bool
-	refCounter       int32
+	refcount int32 // accessed using atomic load/store
 }
 
-// Bind returns a "generational" handle for the given key and function.
+// Handle returns a reference-counted handle for the future result of
+// calling the specified function. Calls to Handle with the same key
+// return the same handle, and all calls to Handle.Get on a given
+// handle return the same result but the function is called at most once.
 //
-// Each call to bind will return the same handle if it is already bound. Bind
-// will always return a valid handle, creating one if needed. Each key can
-// only have one handle at any given time. The value will be held at least
-// until the associated generation is destroyed. Bind does not cause the value
-// to be generated.
-//
-// It is responsibility of the caller to call Inherit on the handler whenever
-// it should still be accessible by a next generation.
-func (g *Generation) Bind(key interface{}, function Function) *Handle {
-	return g.getHandle(key, function, true)
-}
+// The caller must call the returned function to decrement the
+// handle's reference count when it is no longer needed.
+func (store *Store) Handle(key interface{}, function Function) (*Handle, func()) {
+	if function == nil {
+		panic("nil function")
+	}
 
-// GetHandle returns a "reference-counted" handle for the given key
-// and function with similar properties and behavior as Bind. Unlike
-// Bind, it returns a release callback which must be called once the
-// handle is no longer needed.
-func (g *Generation) GetHandle(key interface{}, function Function) (*Handle, func()) {
-	h := g.getHandle(key, function, false)
-	store := g.store
+	store.handlesMu.Lock()
+	h, ok := store.handles[key]
+	if !ok {
+		// new handle
+		h = &Handle{
+			key:      key,
+			function: function,
+			refcount: 1,
+		}
+
+		if store.handles == nil {
+			store.handles = map[interface{}]*Handle{}
+		}
+		store.handles[key] = h
+	} else {
+		// existing handle
+		atomic.AddInt32(&h.refcount, 1)
+	}
+	store.handlesMu.Unlock()
+
 	release := func() {
-		// Acquire store.handlesMu before mutating refCounter
-		store.handlesMu.Lock()
-		defer store.handlesMu.Unlock()
-
-		h.mu.Lock()
-		defer h.mu.Unlock()
-
-		h.refCounter--
-		if h.refCounter == 0 {
-			// Don't mark destroyed: for reference counted handles we can't know when
-			// they are no longer reachable from runnable goroutines. For example,
-			// gopls could have a current operation that is using a packageHandle.
-			// Destroying the handle here would cause that operation to hang.
+		if atomic.AddInt32(&h.refcount, -1) == 0 {
+			store.handlesMu.Lock()
 			delete(store.handles, h.key)
+			store.handlesMu.Unlock()
 		}
 	}
 	return h, release
-}
-
-func (g *Generation) getHandle(key interface{}, function Function, trackGenerations bool) *Handle {
-	// panic early if the function is nil
-	// it would panic later anyway, but in a way that was much harder to debug
-	if function == nil {
-		panic("the function passed to bind must not be nil")
-	}
-	if atomic.LoadUint32(&g.destroyed) != 0 {
-		panic("operation on generation " + g.name + " destroyed by " + g.destroyedBy)
-	}
-	g.store.handlesMu.Lock()
-	defer g.store.handlesMu.Unlock()
-	h, ok := g.store.handles[key]
-	if !ok {
-		h = &Handle{
-			key:              key,
-			function:         function,
-			trackGenerations: trackGenerations,
-		}
-		if trackGenerations {
-			if g.store.boundHandles == nil {
-				g.store.boundHandles = map[*Handle]struct{}{}
-			}
-			h.generations = make(map[*Generation]struct{}, 1)
-			g.store.boundHandles[h] = struct{}{}
-		}
-
-		if g.store.handles == nil {
-			g.store.handles = map[interface{}]*Handle{}
-		}
-		g.store.handles[key] = h
-	}
-
-	h.incrementRef(g)
-	return h
 }
 
 // Stats returns the number of each type of value in the store.
@@ -278,53 +168,13 @@ func (s *Store) DebugOnlyIterate(f func(k, v interface{})) {
 	}
 }
 
-// Inherit makes h valid in generation g. It is concurrency-safe.
-func (g *Generation) Inherit(h *Handle) {
-	if atomic.LoadUint32(&g.destroyed) != 0 {
-		panic("inherit on generation " + g.name + " destroyed by " + g.destroyedBy)
-	}
-	if !h.trackGenerations {
-		panic("called Inherit on handle not created by Generation.Bind")
-	}
-
-	h.incrementRef(g)
-}
-
-func (h *Handle) incrementRef(g *Generation) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.state == stateDestroyed {
-		panic(fmt.Sprintf("inheriting destroyed handle %#v (type %T) into generation %v", h.key, h.key, g.name))
-	}
-
-	if h.trackGenerations {
-		h.generations[g] = struct{}{}
-	} else {
-		h.refCounter++
-	}
-}
-
-// hasRefLocked reports whether h is valid in generation g. h.mu must be held.
-func (h *Handle) hasRefLocked(g *Generation) bool {
-	if !h.trackGenerations {
-		return true
-	}
-
-	_, ok := h.generations[g]
-	return ok
-}
-
 // Cached returns the value associated with a handle.
 //
 // It will never cause the value to be generated.
 // It will return the cached value, if present.
-func (h *Handle) Cached(g *Generation) interface{} {
+func (h *Handle) Cached() interface{} {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if !h.hasRefLocked(g) {
-		return nil
-	}
 	if h.state == stateCompleted {
 		return h.value
 	}
@@ -334,54 +184,39 @@ func (h *Handle) Cached(g *Generation) interface{} {
 // Get returns the value associated with a handle.
 //
 // If the value is not yet ready, the underlying function will be invoked.
-// If ctx is cancelled, Get returns nil.
-func (h *Handle) Get(ctx context.Context, g *Generation, arg Arg) (interface{}, error) {
-	release := g.Acquire()
-	defer release()
-
+// If ctx is cancelled, Get returns (nil, Canceled).
+func (h *Handle) Get(ctx context.Context, arg interface{}) (interface{}, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 	h.mu.Lock()
-	if !h.hasRefLocked(g) {
-		h.mu.Unlock()
-
-		err := fmt.Errorf("reading key %#v: generation %v is not known", h.key, g.name)
-		if *panicOnDestroyed && ctx.Err() != nil {
-			panic(err)
-		}
-		return nil, err
-	}
 	switch h.state {
 	case stateIdle:
-		return h.run(ctx, g, arg)
+		return h.run(ctx, arg)
 	case stateRunning:
 		return h.wait(ctx)
 	case stateCompleted:
 		defer h.mu.Unlock()
 		return h.value, nil
-	case stateDestroyed:
-		h.mu.Unlock()
-		err := fmt.Errorf("Get on destroyed entry %#v (type %T) in generation %v", h.key, h.key, g.name)
-		if *panicOnDestroyed {
-			panic(err)
-		}
-		return nil, err
 	default:
 		panic("unknown state")
 	}
 }
 
 // run starts h.function and returns the result. h.mu must be locked.
-func (h *Handle) run(ctx context.Context, g *Generation, arg Arg) (interface{}, error) {
+func (h *Handle) run(ctx context.Context, arg interface{}) (interface{}, error) {
 	childCtx, cancel := context.WithCancel(xcontext.Detach(ctx))
 	h.cancel = cancel
 	h.state = stateRunning
 	h.done = make(chan struct{})
 	function := h.function // Read under the lock
 
-	// Make sure that the generation isn't destroyed while we're running in it.
-	release := g.Acquire()
+	// Make sure that the argument isn't destroyed while we're running in it.
+	release := func() {}
+	if rc, ok := arg.(RefCounted); ok {
+		release = rc.Acquire()
+	}
+
 	go func() {
 		trace.WithRegion(childCtx, fmt.Sprintf("Handle.run %T", h.key), func() {
 			defer release()

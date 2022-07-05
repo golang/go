@@ -59,7 +59,7 @@ func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode sourc
 
 	// cache miss?
 	if !hit {
-		handle, release := s.generation.GetHandle(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+		handle, release := s.store.Handle(key, func(ctx context.Context, arg interface{}) interface{} {
 			parsed, err := parseGoImpl(ctx, arg.(*snapshot).FileSet(), fh, mode)
 			return parseGoResult{parsed, err}
 		})
@@ -77,7 +77,7 @@ func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode sourc
 	}
 
 	// Await result.
-	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
+	v, err := s.awaitHandle(ctx, entry.(*memoize.Handle))
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (s *snapshot) peekParseGoLocked(fh source.FileHandle, mode source.ParseMode
 	if !hit {
 		return nil, nil // no-one has requested this file
 	}
-	v := entry.(*memoize.Handle).Cached(s.generation)
+	v := entry.(*memoize.Handle).Cached()
 	if v == nil {
 		return nil, nil // parsing is still in progress
 	}
@@ -147,12 +147,12 @@ func (s *snapshot) astCacheData(ctx context.Context, spkg source.Package, pos to
 	// the search Pos.)
 	//
 	// A representative benchmark would help.
-	astHandle, release := s.generation.GetHandle(astCacheKey{pkgHandle.key, pgf.URI}, func(ctx context.Context, arg memoize.Arg) interface{} {
+	astHandle, release := s.store.Handle(astCacheKey{pkgHandle.key, pgf.URI}, func(ctx context.Context, arg interface{}) interface{} {
 		return buildASTCache(pgf)
 	})
 	defer release()
 
-	d, err := astHandle.Get(ctx, s.generation, s)
+	d, err := s.awaitHandle(ctx, astHandle)
 	if err != nil {
 		return nil, err
 	}

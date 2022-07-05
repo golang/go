@@ -594,7 +594,7 @@ func (v *View) getSnapshot() (*snapshot, func()) {
 	if v.snapshot == nil {
 		panic("getSnapshot called after shutdown")
 	}
-	return v.snapshot, v.snapshot.generation.Acquire()
+	return v.snapshot, v.snapshot.Acquire()
 }
 
 func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
@@ -734,7 +734,7 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 	v.snapshot = oldSnapshot.clone(ctx, v.baseCtx, changes, forceReloadMetadata)
 	go oldSnapshot.Destroy("View.invalidateContent")
 
-	return v.snapshot, v.snapshot.generation.Acquire()
+	return v.snapshot, v.snapshot.Acquire()
 }
 
 func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, options *source.Options) (*workspaceInformation, error) {

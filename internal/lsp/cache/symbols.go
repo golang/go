@@ -35,7 +35,7 @@ func (s *snapshot) symbolize(ctx context.Context, fh source.FileHandle) ([]sourc
 	if !hit {
 		type symbolHandleKey source.Hash
 		key := symbolHandleKey(fh.FileIdentity().Hash)
-		handle, release := s.generation.GetHandle(key, func(_ context.Context, arg memoize.Arg) interface{} {
+		handle, release := s.store.Handle(key, func(_ context.Context, arg interface{}) interface{} {
 			symbols, err := symbolizeImpl(arg.(*snapshot), fh)
 			return symbolizeResult{symbols, err}
 		})
@@ -48,7 +48,7 @@ func (s *snapshot) symbolize(ctx context.Context, fh source.FileHandle) ([]sourc
 	}
 
 	// Await result.
-	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
+	v, err := s.awaitHandle(ctx, entry.(*memoize.Handle))
 	if err != nil {
 		return nil, err
 	}

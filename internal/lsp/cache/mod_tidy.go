@@ -29,9 +29,6 @@ import (
 )
 
 // modTidyImpl runs "go mod tidy" on a go.mod file, using a cache.
-//
-// REVIEWERS: what does it mean to cache an operation that has side effects?
-// Or are we de-duplicating operations in flight on the same file?
 func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*source.TidiedModule, error) {
 	uri := pm.URI
 	if pm.File == nil {
@@ -77,6 +74,8 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 
 		// There's little reason at to use the shared cache for mod
 		// tidy (and mod why) as their key includes the view and session.
+		// Its only real value is to de-dup requests in flight, for
+		// which a singleflight in the View would suffice.
 		// TODO(adonovan): use a simpler cache of promises that
 		// is shared across snapshots.
 		type modTidyKey struct {
@@ -96,7 +95,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 			gomod:           fh.FileIdentity(),
 			env:             hashEnv(s),
 		}
-		handle, release := s.generation.GetHandle(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+		handle, release := s.store.Handle(key, func(ctx context.Context, arg interface{}) interface{} {
 			tidied, err := modTidyImpl(ctx, arg.(*snapshot), fh, pm, workspacePkgs)
 			return modTidyResult{tidied, err}
 		})
@@ -108,7 +107,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 	}
 
 	// Await result.
-	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
+	v, err := s.awaitHandle(ctx, entry.(*memoize.Handle))
 	if err != nil {
 		return nil, err
 	}

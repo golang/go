@@ -691,7 +691,7 @@ func (c *commandHandler) GenerateGoplsMod(ctx context.Context, args command.URIA
 		if err != nil {
 			return fmt.Errorf("formatting mod file: %w", err)
 		}
-		filename := filepath.Join(snapshot.View().Folder().Filename(), "gopls.mod")
+		filename := filepath.Join(v.Folder().Filename(), "gopls.mod")
 		if err := ioutil.WriteFile(filename, content, 0644); err != nil {
 			return fmt.Errorf("writing mod file: %w", err)
 		}

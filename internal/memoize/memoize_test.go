@@ -6,7 +6,6 @@ package memoize_test
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,90 +14,53 @@ import (
 )
 
 func TestGet(t *testing.T) {
-	s := &memoize.Store{}
-	g := s.Generation("x")
+	var store memoize.Store
 
 	evaled := 0
 
-	h := g.Bind("key", func(context.Context, memoize.Arg) interface{} {
+	h, release := store.Handle("key", func(context.Context, interface{}) interface{} {
 		evaled++
 		return "res"
 	})
-	expectGet(t, h, g, "res")
-	expectGet(t, h, g, "res")
+	defer release()
+	expectGet(t, h, "res")
+	expectGet(t, h, "res")
 	if evaled != 1 {
 		t.Errorf("got %v calls to function, wanted 1", evaled)
 	}
 }
 
-func expectGet(t *testing.T, h *memoize.Handle, g *memoize.Generation, wantV interface{}) {
+func expectGet(t *testing.T, h *memoize.Handle, wantV interface{}) {
 	t.Helper()
-	gotV, gotErr := h.Get(context.Background(), g, nil)
+	gotV, gotErr := h.Get(context.Background(), nil)
 	if gotV != wantV || gotErr != nil {
 		t.Fatalf("Get() = %v, %v, wanted %v, nil", gotV, gotErr, wantV)
 	}
 }
 
-func expectGetError(t *testing.T, h *memoize.Handle, g *memoize.Generation, substr string) {
-	gotV, gotErr := h.Get(context.Background(), g, nil)
-	if gotErr == nil || !strings.Contains(gotErr.Error(), substr) {
-		t.Fatalf("Get() = %v, %v, wanted err %q", gotV, gotErr, substr)
-	}
-}
-
-func TestGenerations(t *testing.T) {
-	s := &memoize.Store{}
-	// Evaluate key in g1.
-	g1 := s.Generation("g1")
-	h1 := g1.Bind("key", func(context.Context, memoize.Arg) interface{} { return "res" })
-	expectGet(t, h1, g1, "res")
-
-	// Get key in g2. It should inherit the value from g1.
-	g2 := s.Generation("g2")
-	h2 := g2.Bind("key", func(context.Context, memoize.Arg) interface{} {
-		t.Fatal("h2 should not need evaluation")
-		return "error"
-	})
-	expectGet(t, h2, g2, "res")
-
-	// With g1 destroyed, g2 should still work.
-	g1.Destroy("TestGenerations")
-	expectGet(t, h2, g2, "res")
-
-	// With all generations destroyed, key should be re-evaluated.
-	g2.Destroy("TestGenerations")
-	g3 := s.Generation("g3")
-	h3 := g3.Bind("key", func(context.Context, memoize.Arg) interface{} { return "new res" })
-	expectGet(t, h3, g3, "new res")
-}
-
 func TestHandleRefCounting(t *testing.T) {
-	s := &memoize.Store{}
-	g1 := s.Generation("g1")
+	var store memoize.Store
 	v1 := false
 	v2 := false
-	h1, release1 := g1.GetHandle("key1", func(context.Context, memoize.Arg) interface{} {
+	h1, release1 := store.Handle("key1", func(context.Context, interface{}) interface{} {
 		return &v1
 	})
-	h2, release2 := g1.GetHandle("key2", func(context.Context, memoize.Arg) interface{} {
+	h2, release2 := store.Handle("key2", func(context.Context, interface{}) interface{} {
 		return &v2
 	})
-	expectGet(t, h1, g1, &v1)
-	expectGet(t, h2, g1, &v2)
+	expectGet(t, h1, &v1)
+	expectGet(t, h2, &v2)
 
-	g2 := s.Generation("g2")
-	expectGet(t, h1, g2, &v1)
-	g1.Destroy("by test")
-	expectGet(t, h2, g2, &v2)
+	expectGet(t, h1, &v1)
+	expectGet(t, h2, &v2)
 
-	h2Copy, release2Copy := g2.GetHandle("key2", func(context.Context, memoize.Arg) interface{} {
+	h2Copy, release2Copy := store.Handle("key2", func(context.Context, interface{}) interface{} {
 		return &v1
 	})
 	if h2 != h2Copy {
 		t.Error("NewHandle returned a new value while old is not destroyed yet")
 	}
-	expectGet(t, h2Copy, g2, &v2)
-	g2.Destroy("by test")
+	expectGet(t, h2Copy, &v2)
 
 	release2()
 	if got, want := v2, false; got != want {
@@ -110,27 +72,23 @@ func TestHandleRefCounting(t *testing.T) {
 	}
 	release1()
 
-	g3 := s.Generation("g3")
-	h2Copy, release2Copy = g3.GetHandle("key2", func(context.Context, memoize.Arg) interface{} {
+	h2Copy, release2Copy = store.Handle("key2", func(context.Context, interface{}) interface{} {
 		return &v2
 	})
 	if h2 == h2Copy {
 		t.Error("NewHandle returned previously destroyed value")
 	}
 	release2Copy()
-	g3.Destroy("by test")
 }
 
 func TestHandleDestroyedWhileRunning(t *testing.T) {
-	// Test that calls to Handle.Get return even if the handle is destroyed while
-	// running.
+	// Test that calls to Handle.Get return even if the handle is destroyed while running.
 
-	s := &memoize.Store{}
-	g := s.Generation("g")
+	var store memoize.Store
 	c := make(chan int)
 
 	var v int
-	h, release := g.GetHandle("key", func(ctx context.Context, _ memoize.Arg) interface{} {
+	h, release := store.Handle("key", func(ctx context.Context, _ interface{}) interface{} {
 		<-c
 		<-c
 		if err := ctx.Err(); err != nil {
@@ -147,7 +105,7 @@ func TestHandleDestroyedWhileRunning(t *testing.T) {
 	var got interface{}
 	var err error
 	go func() {
-		got, err = h.Get(ctx, g, nil)
+		got, err = h.Get(ctx, nil)
 		wg.Done()
 	}()
 
