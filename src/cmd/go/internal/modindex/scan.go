@@ -46,6 +46,7 @@ func moduleWalkErr(modroot string, path string, info fs.FileInfo, err error) err
 // encoded representation. It returns ErrNotIndexed if the module can't
 // be indexed because it contains symlinks.
 func indexModule(modroot string) ([]byte, error) {
+	fsys.Trace("indexModule", modroot)
 	var packages []*rawPackage
 	err := fsys.Walk(modroot, func(path string, info fs.FileInfo, err error) error {
 		if err := moduleWalkErr(modroot, path, info, err); err != nil {
@@ -72,6 +73,7 @@ func indexModule(modroot string) ([]byte, error) {
 // encoded representation. It returns ErrNotIndexed if the package can't
 // be indexed.
 func indexPackage(modroot, pkgdir string) []byte {
+	fsys.Trace("indexPackage", pkgdir)
 	p := importRaw(modroot, relPath(pkgdir, modroot))
 	return encodePackageBytes(p)
 }

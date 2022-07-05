@@ -179,6 +179,7 @@ func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
 		err error
 	}
 	r := mcache.Do(modroot, func() any {
+		fsys.Trace("openIndexModule", modroot)
 		id, err := moduleHash(modroot, ismodcache)
 		if err != nil {
 			return result{nil, err}
@@ -212,6 +213,7 @@ func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
 		err error
 	}
 	r := pcache.Do([2]string{modroot, pkgdir}, func() any {
+		fsys.Trace("openIndexPackage", pkgdir)
 		id, err := dirHash(modroot, pkgdir)
 		if err != nil {
 			return result{nil, err}
