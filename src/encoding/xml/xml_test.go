@@ -1059,6 +1059,56 @@ func TestIssue12417(t *testing.T) {
 	}
 }
 
+func TestIssue7113(t *testing.T) {
+	type C struct {
+		XMLName Name `xml:""` // Sets empty namespace
+	}
+
+	type A struct {
+		XMLName Name `xml:""`
+		C       C    `xml:""`
+	}
+
+	var a A
+	structSpace := "b"
+	xmlTest := `<A xmlns="` + structSpace + `"><C xmlns=""></C></A>`
+	t.Log(xmlTest)
+	err := Unmarshal([]byte(xmlTest), &a)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if a.XMLName.Space != structSpace {
+		t.Errorf("overidding with empty namespace: unmarshalling, got %s, want %s\n", a.XMLName.Space, structSpace)
+	}
+	if len(a.C.XMLName.Space) != 0 {
+		t.Fatalf("overidding with empty namespace: unmarshalling, got %s, want empty\n", a.C.XMLName.Space)
+	}
+
+	var b []byte
+	b, err = Marshal(&a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(a.C.XMLName.Space) != 0 {
+		t.Errorf("overidding with empty namespace: marshaling, got %s in C tag which should be empty\n", a.C.XMLName.Space)
+	}
+	if string(b) != xmlTest {
+		t.Fatalf("overidding with empty namespace: marshalling, got %s, want %s\n", b, xmlTest)
+	}
+	var c A
+	err = Unmarshal(b, &c)
+	if err != nil {
+		t.Fatalf("second Unmarshal failed: %s", err)
+	}
+	if c.XMLName.Space != "b" {
+		t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, XML name space: got %s, want %s\n", a.XMLName.Space, structSpace)
+	}
+	if len(c.C.XMLName.Space) != 0 {
+		t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, got %s, want empty\n", a.C.XMLName.Space)
+	}
+}
+
 func TestIssue20396(t *testing.T) {
 
 	var attrError = UnmarshalError("XML syntax error on line 1: expected attribute name in element")
