@@ -167,9 +167,9 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	// Create a handle for the result of type checking.
 	experimentalKey := s.View().Options().ExperimentalPackageCacheKey
 	key := computePackageKey(m.ID, compiledGoFiles, m, depKeys, mode, experimentalKey)
+	// TODO(adonovan): extract lambda into a standalone function to
+	// avoid implicit lexical dependencies.
 	handle, release := s.store.Handle(key, func(ctx context.Context, arg interface{}) interface{} {
-		// TODO(adonovan): eliminate use of arg with this handle.
-		// (In all cases snapshot is equal to the enclosing s.)
 		snapshot := arg.(*snapshot)
 
 		// Start type checking of direct dependencies,

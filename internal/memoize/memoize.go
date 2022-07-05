@@ -29,6 +29,21 @@ type Store struct {
 	handles   map[interface{}]*Handle
 }
 
+// Function is the type of a function that can be memoized.
+//
+// If the arg is a RefCounted, its Acquire/Release operations are called.
+//
+// The argument must not materially affect the result of the function
+// in ways that are not captured by the handle's key, since if
+// Handle.Get is called twice concurrently, with the same (implicit)
+// key but different arguments, the Function is called only once but
+// its result must be suitable for both callers.
+//
+// The main purpose of the argument is to avoid the Function closure
+// needing to retain large objects (in practice: the snapshot) in
+// memory that can be supplied at call time by any caller.
+type Function func(ctx context.Context, arg interface{}) interface{}
+
 // A RefCounted is a value whose functional lifetime is determined by
 // reference counting.
 //
@@ -46,38 +61,32 @@ type RefCounted interface {
 	Acquire() func()
 }
 
-// Function is the type for functions that can be memoized.
-//
-// If the arg is a RefCounted, its Acquire/Release operations are called.
-type Function func(ctx context.Context, arg interface{}) interface{}
-
 type state int
 
-// TODO(rfindley): consider removing stateIdle. Why create a handle if you
-// aren't certain you're going to need its result? And if you know you need its
-// result, why wait to begin computing it?
 const (
-	stateIdle = iota
-	stateRunning
-	stateCompleted
+	stateIdle      = iota // newly constructed, or last waiter was cancelled
+	stateRunning          // start was called and not cancelled
+	stateCompleted        // function call ran to completion
 )
 
-// Handle is returned from a store when a key is bound to a function.
-// It is then used to access the results of that function.
-//
-// A Handle starts out in idle state, waiting for something to demand its
-// evaluation. It then transitions into running state. While it's running,
-// waiters tracks the number of Get calls waiting for a result, and the done
-// channel is used to notify waiters of the next state transition. Once the
-// evaluation finishes, value is set, state changes to completed, and done
-// is closed, unblocking waiters. Alternatively, as Get calls are cancelled,
-// they decrement waiters. If it drops to zero, the inner context is cancelled,
-// computation is abandoned, and state resets to idle to start the process over
-// again.
+// A Handle represents the future result of a call to a function.
 type Handle struct {
 	key interface{}
 	mu  sync.Mutex // lock ordering: Store.handlesMu before Handle.mu
 
+	// A Handle starts out IDLE, waiting for something to demand
+	// its evaluation. It then transitions into RUNNING state.
+	//
+	// While RUNNING, waiters tracks the number of Get calls
+	// waiting for a result, and the done channel is used to
+	// notify waiters of the next state transition. Once
+	// evaluation finishes, value is set, state changes to
+	// COMPLETED, and done is closed, unblocking waiters.
+	//
+	// Alternatively, as Get calls are cancelled, they decrement
+	// waiters. If it drops to zero, the inner context is
+	// cancelled, computation is abandoned, and state resets to
+	// IDLE to start the process over again.
 	state state
 	// done is set in running state, and closed when exiting it.
 	done chan struct{}
@@ -155,16 +164,9 @@ func (s *Store) DebugOnlyIterate(f func(k, v interface{})) {
 	defer s.handlesMu.Unlock()
 
 	for k, h := range s.handles {
-		var v interface{}
-		h.mu.Lock()
-		if h.state == stateCompleted {
-			v = h.value
+		if v := h.Cached(); v != nil {
+			f(k, v)
 		}
-		h.mu.Unlock()
-		if v == nil {
-			continue
-		}
-		f(k, v)
 	}
 }
 
@@ -241,7 +243,7 @@ func (h *Handle) run(ctx context.Context, arg interface{}) (interface{}, error) 
 			}
 
 			h.value = v
-			h.function = nil
+			h.function = nil // aid GC
 			h.state = stateCompleted
 			close(h.done)
 		})
