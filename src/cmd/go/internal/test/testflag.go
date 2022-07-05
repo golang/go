@@ -6,7 +6,6 @@ package test
 
 import (
 	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/cmdflag"
 	"cmd/go/internal/work"
 	"errors"
@@ -31,7 +30,6 @@ func init() {
 
 	cf := CmdTest.Flag
 	cf.BoolVar(&testC, "c", false, "")
-	cf.BoolVar(&cfg.BuildI, "i", false, "")
 	cf.StringVar(&testO, "o", "", "")
 	work.AddCoverFlags(CmdTest, &testCoverProfile)
 	cf.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
@@ -337,12 +335,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 
 		args = remainingArgs
 	}
-	if firstUnknownFlag != "" && (testC || cfg.BuildI) {
-		buildFlag := "-c"
-		if !testC {
-			buildFlag = "-i"
-		}
-		fmt.Fprintf(os.Stderr, "go: unknown flag %s cannot be used with %s\n", firstUnknownFlag, buildFlag)
+	if firstUnknownFlag != "" && testC {
+		fmt.Fprintf(os.Stderr, "go: unknown flag %s cannot be used with -c\n", firstUnknownFlag)
 		exitWithUsage()
 	}
 

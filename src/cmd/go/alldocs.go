@@ -97,9 +97,6 @@
 // ends with a slash or backslash, then any resulting executables
 // will be written to that directory.
 //
-// The -i flag installs the packages that are dependencies of the target.
-// The -i flag is deprecated. Compiled packages are cached automatically.
-//
 // The build flags are shared by the build, clean, get, install, list, run,
 // and test commands:
 //
@@ -743,9 +740,6 @@
 // When module-aware mode is disabled, other packages are installed in the
 // directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
 // other packages are built and cached but not installed.
-//
-// The -i flag installs the dependencies of the named packages as well.
-// The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // For more about the build flags, see 'go help build'.
 // For more about specifying packages, see 'go help packages'.
@@ -1743,11 +1737,6 @@
 //	-exec xprog
 //	    Run the test binary using xprog. The behavior is the same as
 //	    in 'go run'. See 'go help run' for details.
-//
-//	-i
-//	    Install packages that are dependencies of the test.
-//	    Do not run the test.
-//	    The -i flag is deprecated. Compiled packages are cached automatically.
 //
 //	-json
 //	    Convert test output to JSON suitable for automated processing.

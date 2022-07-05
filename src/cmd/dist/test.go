@@ -136,7 +136,7 @@ func (t *tester) run() {
 	if t.rebuild {
 		t.out("Building packages and commands.")
 		// Force rebuild the whole toolchain.
-		goInstall("go", append([]string{"-a", "-i"}, toolchain...)...)
+		goInstall("go", append([]string{"-a"}, toolchain...)...)
 	}
 
 	if !t.listMode {
@@ -153,8 +153,8 @@ func (t *tester) run() {
 			// to break if we don't automatically refresh things here.
 			// Rebuilding is a shortened bootstrap.
 			// See cmdbootstrap for a description of the overall process.
-			goInstall("go", append([]string{"-i"}, toolchain...)...)
-			goInstall("go", append([]string{"-i"}, toolchain...)...)
+			goInstall("go", toolchain...)
+			goInstall("go", toolchain...)
 			goInstall("go", "std", "cmd")
 		} else {
 			// The Go builder infrastructure should always begin running tests from a

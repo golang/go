@@ -1359,7 +1359,7 @@ func cmdbootstrap() {
 	os.Setenv("CC", compilerEnvLookup(defaultcc, goos, goarch))
 	// Now that cmd/go is in charge of the build process, enable GOEXPERIMENT.
 	os.Setenv("GOEXPERIMENT", goexperiment)
-	goInstall(goBootstrap, append([]string{"-i"}, toolchain...)...)
+	goInstall(goBootstrap, toolchain...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))
@@ -1387,13 +1387,12 @@ func cmdbootstrap() {
 		xprintf("\n")
 	}
 	xprintf("Building Go toolchain3 using go_bootstrap and Go toolchain2.\n")
-	goInstall(goBootstrap, append([]string{"-a", "-i"}, toolchain...)...)
+	goInstall(goBootstrap, append([]string{"-a"}, toolchain...)...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))
 		copyfile(pathf("%s/compile3", tooldir), pathf("%s/compile", tooldir), writeExec)
 	}
-	checkNotStale(goBootstrap, append(toolchain, "runtime/internal/sys")...)
 
 	if goos == oldgoos && goarch == oldgoarch {
 		// Common case - not setting up for cross-compilation.
@@ -1428,6 +1427,7 @@ func cmdbootstrap() {
 	}
 	targets := []string{"std", "cmd"}
 	goInstall(goBootstrap, targets...)
+	checkNotStale(goBootstrap, append(toolchain, "runtime/internal/sys")...)
 	checkNotStale(goBootstrap, targets...)
 	checkNotStale(cmdGo, targets...)
 	if debug {

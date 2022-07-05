@@ -947,7 +947,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	tg.tempFile("d1/src/p1/p1.go", `package main; func main(){}`)
 	tg.setenv("GOPATH", tg.path("d1"))
 	// Pass -i flag to rebuild everything outdated.
-	tg.run("install", "-i", "p1")
+	tg.run("install", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, before any changes")
 
 	// Changing mtime of runtime/internal/sys/sys.go
@@ -969,13 +969,13 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
 	addVar(sys, 2)
 	tg.wantStale("p1", "stale dependency: runtime", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go again")
-	tg.run("install", "-i", "p1")
+	tg.run("install", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with new release")
 
 	// Restore to "old" release.
 	restore()
 	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after restoring sys.go")
-	tg.run("install", "-i", "p1")
+	tg.run("install", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
 }
 
@@ -1459,22 +1459,6 @@ func TestGoTestDashOWritesBinary(t *testing.T) {
 	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -o myerrors.test did not create myerrors.test")
 }
 
-func TestGoTestDashIDashOWritesBinary(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no standard packages")
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.makeTempdir()
-
-	// don't let test -i overwrite runtime
-	tg.wantNotStale("runtime", "", "must be non-stale before test -i")
-
-	tg.run("test", "-v", "-i", "-o", tg.path("myerrors.test"+exeSuffix), "errors")
-	tg.grepBothNot("PASS|FAIL", "test should not have run")
-	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -o myerrors.test did not create myerrors.test")
-}
-
 // Issue 4515.
 func TestInstallWithTags(t *testing.T) {
 	tooSlow(t)
@@ -1811,9 +1795,6 @@ func TestGoInstallPkgdir(t *testing.T) {
 	tg.run("install", "-pkgdir", pkg, "sync")
 	tg.mustExist(filepath.Join(pkg, "sync.a"))
 	tg.mustNotExist(filepath.Join(pkg, "sync/atomic.a"))
-	tg.run("install", "-i", "-pkgdir", pkg, "sync")
-	tg.mustExist(filepath.Join(pkg, "sync.a"))
-	tg.mustExist(filepath.Join(pkg, "sync/atomic.a"))
 }
 
 // For issue 14337.
@@ -2626,16 +2607,6 @@ func TestInstallDeps(t *testing.T) {
 	tg.run("install", "p2")
 	tg.mustExist(p2)
 	tg.mustNotExist(p1)
-
-	// don't let install -i overwrite runtime
-	tg.wantNotStale("runtime", "", "must be non-stale before install -i")
-
-	tg.run("install", "-i", "main1")
-	tg.mustExist(p1)
-	tg.must(os.Remove(p1))
-
-	tg.run("install", "-i", "p2")
-	tg.mustExist(p1)
 }
 
 // Issue 22986.

@@ -54,9 +54,6 @@ in the last two paragraphs. If the named output is an existing directory or
 ends with a slash or backslash, then any resulting executables
 will be written to that directory.
 
-The -i flag installs the packages that are dependencies of the target.
-The -i flag is deprecated. Compiled packages are cached automatically.
-
 The build flags are shared by the build, clean, get, install, list, run,
 and test commands:
 
@@ -216,10 +213,7 @@ func init() {
 	CmdBuild.Run = runBuild
 	CmdInstall.Run = runInstall
 
-	CmdBuild.Flag.BoolVar(&cfg.BuildI, "i", false, "")
 	CmdBuild.Flag.StringVar(&cfg.BuildO, "o", "", "output file or directory")
-
-	CmdInstall.Flag.BoolVar(&cfg.BuildI, "i", false, "")
 
 	AddBuildFlags(CmdBuild, DefaultBuildFlags)
 	AddBuildFlags(CmdInstall, DefaultBuildFlags)
@@ -475,10 +469,6 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	depMode := ModeBuild
-	if cfg.BuildI {
-		depMode = ModeInstall
-		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
-	}
 
 	pkgs = omitTestOnly(pkgsFilter(pkgs))
 
@@ -593,9 +583,6 @@ When module-aware mode is disabled, other packages are installed in the
 directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
 other packages are built and cached but not installed.
 
-The -i flag installs the dependencies of the named packages as well.
-The -i flag is deprecated. Compiled packages are cached automatically.
-
 For more about the build flags, see 'go help build'.
 For more about specifying packages, see 'go help packages'.
 
@@ -666,16 +653,8 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
 }
 
 func runInstall(ctx context.Context, cmd *base.Command, args []string) {
-	// TODO(golang.org/issue/41696): print a deprecation message for the -i flag
-	// whenever it's set (or just remove it). For now, we don't print a message
-	// if all named packages are in GOROOT. cmd/dist (run by make.bash) uses
-	// 'go install -i' when bootstrapping, and we don't want to show deprecation
-	// messages in that case.
 	for _, arg := range args {
 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
-			if cfg.BuildI {
-				fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
-			}
 			installOutsideModule(ctx, args)
 			return
 		}
@@ -707,18 +686,6 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 	load.CheckPackageErrors(pkgs)
-	if cfg.BuildI {
-		allGoroot := true
-		for _, pkg := range pkgs {
-			if !pkg.Goroot {
-				allGoroot = false
-				break
-			}
-		}
-		if !allGoroot {
-			fmt.Fprintf(os.Stderr, "go: -i flag is deprecated\n")
-		}
-	}
 
 	if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
 		load.PrepareForCoverageBuild(pkgs)
@@ -787,9 +754,6 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 	}()
 
 	depMode := ModeBuild
-	if cfg.BuildI {
-		depMode = ModeInstall
-	}
 	a := &Action{Mode: "go install"}
 	var tools []*Action
 	for _, p := range pkgs {
