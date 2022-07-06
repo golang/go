@@ -211,7 +211,11 @@ func buildModeInit() {
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
 		case "windows":
-			ldBuildmode = "pie"
+			if cfg.BuildRace {
+				ldBuildmode = "exe"
+			} else {
+				ldBuildmode = "pie"
+			}
 		case "ios":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
