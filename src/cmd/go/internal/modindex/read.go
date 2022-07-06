@@ -15,7 +15,6 @@ import (
 	"internal/godebug"
 	"internal/goroot"
 	"internal/unsafeheader"
-	"math"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -45,10 +44,9 @@ var enabled bool = godebug.Get("goindex") != "0"
 // do the equivalent of build.Import of packages in the module and answer other
 // questions based on the index file's data.
 type Module struct {
-	modroot      string
-	od           offsetDecoder
-	packages     map[string]int // offsets of each package
-	packagePaths []string       // paths to package directories relative to modroot; these are the keys of packages
+	modroot string
+	d       *decoder
+	n       int // number of packages
 }
 
 // moduleHash returns an ActionID corresponding to the state of the module
@@ -236,110 +234,131 @@ func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
 	return r.pkg, r.err
 }
 
+var errCorrupt = errors.New("corrupt index")
+
+// protect marks the start of a large section of code that accesses the index.
+// It should be used as:
+//
+//	defer unprotect(protect, &err)
+//
+// It should not be used for trivial accesses which would be
+// dwarfed by the overhead of the defer.
+func protect() bool {
+	return debug.SetPanicOnFault(true)
+}
+
+var isTest = false
+
+// unprotect marks the end of a large section of code that accesses the index.
+// It should be used as:
+//
+//	defer unprotect(protect, &err)
+//
+// end looks for panics due to errCorrupt or bad mmap accesses.
+// When it finds them, it adds explanatory text, consumes the panic, and sets *errp instead.
+// If errp is nil, end adds the explanatory text but then calls base.Fatalf.
+func unprotect(old bool, errp *error) {
+	// SetPanicOnFault's errors _may_ satisfy this interface. Even though it's not guaranteed
+	// that all its errors satisfy this interface, we'll only check for these errors so that
+	// we don't suppress panics that could have been produced from other sources.
+	type addrer interface {
+		Addr() uintptr
+	}
+
+	debug.SetPanicOnFault(old)
+
+	if e := recover(); e != nil {
+		if _, ok := e.(addrer); ok || e == errCorrupt {
+			// This panic was almost certainly caused by SetPanicOnFault or our panic(errCorrupt).
+			err := fmt.Errorf("error reading module index: %v", e)
+			if errp != nil {
+				*errp = err
+				return
+			}
+			if isTest {
+				panic(err)
+			}
+			base.Fatalf("%v", err)
+		}
+		// The panic was likely not caused by SetPanicOnFault.
+		panic(e)
+	}
+}
+
 // fromBytes returns a *Module given the encoded representation.
-func fromBytes(moddir string, data []byte) (mi *Module, err error) {
+func fromBytes(moddir string, data []byte) (m *Module, err error) {
 	if !enabled {
 		panic("use of index")
 	}
 
-	// SetPanicOnFault's errors _may_ satisfy this interface. Even though it's not guaranteed
-	// that all its errors satisfy this interface, we'll only check for these errors so that
-	// we don't suppress panics that could have been produced from other sources.
-	type addrer interface {
-		Addr() uintptr
+	defer unprotect(protect(), &err)
+
+	if !bytes.HasPrefix(data, []byte(indexVersion+"\n")) {
+		return nil, errCorrupt
 	}
 
-	// set PanicOnFault to true so that we can catch errors on the initial reads of the slice,
-	// in case it's mmapped (the common case).
-	old := debug.SetPanicOnFault(true)
-	defer func() {
-		debug.SetPanicOnFault(old)
-		if e := recover(); e != nil {
-			if _, ok := e.(addrer); ok {
-				// This panic was almost certainly caused by SetPanicOnFault.
-				err = fmt.Errorf("error reading module index: %v", e)
-				return
-			}
-			// The panic was likely not caused by SetPanicOnFault.
-			panic(e)
-		}
-	}()
-
-	gotVersion, unread, _ := bytes.Cut(data, []byte{'\n'})
-	if string(gotVersion) != indexVersion {
-		return nil, fmt.Errorf("bad index version string: %q", gotVersion)
+	const hdr = len(indexVersion + "\n")
+	d := &decoder{data: data}
+	str := d.intAt(hdr)
+	if str < hdr+8 || len(d.data) < str {
+		return nil, errCorrupt
 	}
-	stringTableOffset, unread := binary.LittleEndian.Uint32(unread[:4]), unread[4:]
-	st := newStringTable(data[stringTableOffset:])
-	d := decoder{unread, st}
-	numPackages := d.int()
-
-	packagePaths := make([]string, numPackages)
-	for i := range packagePaths {
-		packagePaths[i] = d.string()
-	}
-	packageOffsets := make([]int, numPackages)
-	for i := range packageOffsets {
-		packageOffsets[i] = d.int()
-	}
-	packages := make(map[string]int, numPackages)
-	for i := range packagePaths {
-		packages[packagePaths[i]] = packageOffsets[i]
+	d.data, d.str = data[:str], d.data[str:]
+	// Check that string table looks valid.
+	// First string is empty string (length 0),
+	// and we leave a marker byte 0xFF at the end
+	// just to make sure that the file is not truncated.
+	if len(d.str) == 0 || d.str[0] != 0 || d.str[len(d.str)-1] != 0xFF {
+		return nil, errCorrupt
 	}
 
-	return &Module{
+	n := d.intAt(hdr + 4)
+	if n < 0 || n > (len(d.data)-8)/8 {
+		return nil, errCorrupt
+	}
+
+	m = &Module{
 		moddir,
-		offsetDecoder{data, st},
-		packages,
-		packagePaths,
-	}, nil
+		d,
+		n,
+	}
+	return m, nil
 }
 
 // packageFromBytes returns a *IndexPackage given the encoded representation.
 func packageFromBytes(modroot string, data []byte) (p *IndexPackage, err error) {
-	if !enabled {
-		panic("use of package index when not enabled")
+	m, err := fromBytes(modroot, data)
+	if err != nil {
+		return nil, err
 	}
-
-	// SetPanicOnFault's errors _may_ satisfy this interface. Even though it's not guaranteed
-	// that all its errors satisfy this interface, we'll only check for these errors so that
-	// we don't suppress panics that could have been produced from other sources.
-	type addrer interface {
-		Addr() uintptr
+	if m.n != 1 {
+		return nil, fmt.Errorf("corrupt single-package index")
 	}
-
-	// set PanicOnFault to true so that we can catch errors on the initial reads of the slice,
-	// in case it's mmapped (the common case).
-	old := debug.SetPanicOnFault(true)
-	defer func() {
-		debug.SetPanicOnFault(old)
-		if e := recover(); e != nil {
-			if _, ok := e.(addrer); ok {
-				// This panic was almost certainly caused by SetPanicOnFault.
-				err = fmt.Errorf("error reading module index: %v", e)
-				return
-			}
-			// The panic was likely not caused by SetPanicOnFault.
-			panic(e)
-		}
-	}()
-
-	gotVersion, unread, _ := bytes.Cut(data, []byte{'\n'})
-	if string(gotVersion) != indexVersion {
-		return nil, fmt.Errorf("bad index version string: %q", gotVersion)
-	}
-	stringTableOffset, unread := binary.LittleEndian.Uint32(unread[:4]), unread[4:]
-	st := newStringTable(data[stringTableOffset:])
-	d := &decoder{unread, st}
-	p = decodePackage(d, offsetDecoder{data, st})
-	p.modroot = modroot
-	return p, nil
+	return m.pkg(0), nil
 }
 
-// Returns a list of directory paths, relative to the modroot, for
-// packages contained in the module index.
-func (mi *Module) Packages() []string {
-	return mi.packagePaths
+// pkgDir returns the dir string of the i'th package in the index.
+func (m *Module) pkgDir(i int) string {
+	if i < 0 || i >= m.n {
+		panic(errCorrupt)
+	}
+	return m.d.stringAt(12 + 8 + 8*i)
+}
+
+// pkgOff returns the offset of the data for the i'th package in the index.
+func (m *Module) pkgOff(i int) int {
+	if i < 0 || i >= m.n {
+		panic(errCorrupt)
+	}
+	return m.d.intAt(12 + 8 + 8*i + 4)
+}
+
+// Walk calls f for each package in the index, passing the path to that package relative to the module root.
+func (m *Module) Walk(f func(path string)) {
+	defer unprotect(protect(), nil)
+	for i := 0; i < m.n; i++ {
+		f(m.pkgDir(i))
+	}
 }
 
 // relPath returns the path relative to the module's root.
@@ -349,11 +368,7 @@ func relPath(path, modroot string) string {
 
 // Import is the equivalent of build.Import given the information in Module.
 func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *build.Package, err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			err = fmt.Errorf("error reading module index: %v", e)
-		}
-	}()
+	defer unprotect(protect(), &err)
 
 	ctxt := (*Context)(&bctxt)
 
@@ -794,46 +809,44 @@ type IndexPackage struct {
 
 var errCannotFindPackage = errors.New("cannot find package")
 
-// Package returns an IndexPackage constructed using the information in the Module.
-func (mi *Module) Package(path string) *IndexPackage {
-	defer func() {
-		if e := recover(); e != nil {
-			base.Fatalf("error reading module index: %v", e)
-		}
-	}()
-	offset, ok := mi.packages[path]
-	if !ok {
-		return &IndexPackage{error: fmt.Errorf("%w %q in:\n\t%s", errCannotFindPackage, path, filepath.Join(mi.modroot, path))}
-	}
+// Package and returns finds the package with the given path (relative to the module root).
+// If the package does not exist, Package returns an IndexPackage that will return an
+// appropriate error from its methods.
+func (m *Module) Package(path string) *IndexPackage {
+	defer unprotect(protect(), nil)
 
-	// TODO(matloob): do we want to lock on the module index?
-	d := mi.od.decoderAt(offset)
-	p := decodePackage(d, mi.od)
-	p.modroot = mi.modroot
-	return p
+	i, ok := sort.Find(m.n, func(i int) int {
+		return strings.Compare(path, m.pkgDir(i))
+	})
+	if !ok {
+		return &IndexPackage{error: fmt.Errorf("%w %q in:\n\t%s", errCannotFindPackage, path, filepath.Join(m.modroot, path))}
+	}
+	return m.pkg(i)
 }
 
-func decodePackage(d *decoder, od offsetDecoder) *IndexPackage {
-	rp := new(IndexPackage)
-	if errstr := d.string(); errstr != "" {
-		rp.error = errors.New(errstr)
+// pkgAt returns the i'th IndexPackage in m.
+func (m *Module) pkg(i int) *IndexPackage {
+	r := m.d.readAt(m.pkgOff(i))
+	p := new(IndexPackage)
+	if errstr := r.string(); errstr != "" {
+		p.error = errors.New(errstr)
 	}
-	rp.dir = d.string()
-	numSourceFiles := d.uint32()
-	rp.sourceFiles = make([]*sourceFile, numSourceFiles)
-	for i := uint32(0); i < numSourceFiles; i++ {
-		offset := d.uint32()
-		rp.sourceFiles[i] = &sourceFile{
-			od: od.offsetDecoderAt(offset),
+	p.dir = r.string()
+	p.sourceFiles = make([]*sourceFile, r.int())
+	for i := range p.sourceFiles {
+		p.sourceFiles[i] = &sourceFile{
+			d:   m.d,
+			pos: r.int(),
 		}
 	}
-	return rp
+	p.modroot = m.modroot
+	return p
 }
 
 // sourceFile represents the information of a given source file in the module index.
 type sourceFile struct {
-	od offsetDecoder // od interprets all offsets relative to the start of the source file's data
-
+	d               *decoder // encoding of this source file
+	pos             int      // start of sourceFile encoding in d
 	onceReadImports sync.Once
 	savedImports    []rawImport // saved imports so that they're only read once
 }
@@ -853,73 +866,67 @@ const (
 )
 
 func (sf *sourceFile) error() string {
-	return sf.od.stringAt(sourceFileError)
+	return sf.d.stringAt(sf.pos + sourceFileError)
 }
 func (sf *sourceFile) parseError() string {
-	return sf.od.stringAt(sourceFileParseError)
+	return sf.d.stringAt(sf.pos + sourceFileParseError)
 }
 func (sf *sourceFile) synopsis() string {
-	return sf.od.stringAt(sourceFileSynopsis)
+	return sf.d.stringAt(sf.pos + sourceFileSynopsis)
 }
 func (sf *sourceFile) name() string {
-	return sf.od.stringAt(sourceFileName)
+	return sf.d.stringAt(sf.pos + sourceFileName)
 }
 func (sf *sourceFile) pkgName() string {
-	return sf.od.stringAt(sourceFilePkgName)
+	return sf.d.stringAt(sf.pos + sourceFilePkgName)
 }
 func (sf *sourceFile) ignoreFile() bool {
-	return sf.od.boolAt(sourceFileIgnoreFile)
+	return sf.d.boolAt(sf.pos + sourceFileIgnoreFile)
 }
 func (sf *sourceFile) binaryOnly() bool {
-	return sf.od.boolAt(sourceFileBinaryOnly)
+	return sf.d.boolAt(sf.pos + sourceFileBinaryOnly)
 }
 func (sf *sourceFile) cgoDirectives() string {
-	return sf.od.stringAt(sourceFileCgoDirectives)
+	return sf.d.stringAt(sf.pos + sourceFileCgoDirectives)
 }
 func (sf *sourceFile) goBuildConstraint() string {
-	return sf.od.stringAt(sourceFileGoBuildConstraint)
+	return sf.d.stringAt(sf.pos + sourceFileGoBuildConstraint)
 }
 
 func (sf *sourceFile) plusBuildConstraints() []string {
-	d := sf.od.decoderAt(sourceFileNumPlusBuildConstraints)
-	n := d.int()
+	pos := sf.pos + sourceFileNumPlusBuildConstraints
+	n := sf.d.intAt(pos)
+	pos += 4
 	ret := make([]string, n)
 	for i := 0; i < n; i++ {
-		ret[i] = d.string()
+		ret[i] = sf.d.stringAt(pos)
+		pos += 4
 	}
 	return ret
 }
 
-func importsOffset(numPlusBuildConstraints int) int {
-	// 4 bytes per uin32, add one to advance past numPlusBuildConstraints itself
-	return sourceFileNumPlusBuildConstraints + 4*(numPlusBuildConstraints+1)
-}
-
 func (sf *sourceFile) importsOffset() int {
-	numPlusBuildConstraints := sf.od.intAt(sourceFileNumPlusBuildConstraints)
-	return importsOffset(numPlusBuildConstraints)
-}
-
-func embedsOffset(importsOffset, numImports int) int {
-	// 4 bytes per uint32; 1 to advance past numImports itself, and 5 uint32s per import
-	return importsOffset + 4*(1+(5*numImports))
+	pos := sf.pos + sourceFileNumPlusBuildConstraints
+	n := sf.d.intAt(pos)
+	// each build constraint is 1 uint32
+	return pos + 4 + n*4
 }
 
 func (sf *sourceFile) embedsOffset() int {
-	importsOffset := sf.importsOffset()
-	numImports := sf.od.intAt(importsOffset)
-	return embedsOffset(importsOffset, numImports)
+	pos := sf.importsOffset()
+	n := sf.d.intAt(pos)
+	// each import is 5 uint32s (string + tokpos)
+	return pos + 4 + n*(4*5)
 }
 
 func (sf *sourceFile) imports() []rawImport {
 	sf.onceReadImports.Do(func() {
 		importsOffset := sf.importsOffset()
-		d := sf.od.decoderAt(importsOffset)
-		numImports := d.int()
+		r := sf.d.readAt(importsOffset)
+		numImports := r.int()
 		ret := make([]rawImport, numImports)
 		for i := 0; i < numImports; i++ {
-			ret[i].path = d.string()
-			ret[i].position = d.tokpos()
+			ret[i] = rawImport{r.string(), r.tokpos()}
 		}
 		sf.savedImports = ret
 	})
@@ -928,123 +935,13 @@ func (sf *sourceFile) imports() []rawImport {
 
 func (sf *sourceFile) embeds() []embed {
 	embedsOffset := sf.embedsOffset()
-	d := sf.od.decoderAt(embedsOffset)
-	numEmbeds := d.int()
+	r := sf.d.readAt(embedsOffset)
+	numEmbeds := r.int()
 	ret := make([]embed, numEmbeds)
 	for i := range ret {
-		pattern := d.string()
-		pos := d.tokpos()
-		ret[i] = embed{pattern, pos}
+		ret[i] = embed{r.string(), r.tokpos()}
 	}
 	return ret
-}
-
-// A decoder reads from the current position of the file and advances its position as it
-// reads.
-type decoder struct {
-	b  []byte
-	st *stringTable
-}
-
-func (d *decoder) uint32() uint32 {
-	n := binary.LittleEndian.Uint32(d.b[:4])
-	d.b = d.b[4:]
-	return n
-}
-
-func (d *decoder) int() int {
-	n := d.uint32()
-	if int64(n) > math.MaxInt {
-		base.Fatalf("go: attempting to read a uint32 from the index that overflows int")
-	}
-	return int(n)
-}
-
-func (d *decoder) tokpos() token.Position {
-	file := d.string()
-	offset := d.int()
-	line := d.int()
-	column := d.int()
-	return token.Position{
-		Filename: file,
-		Offset:   offset,
-		Line:     line,
-		Column:   column,
-	}
-}
-
-func (d *decoder) string() string {
-	return d.st.string(d.int())
-}
-
-// And offset decoder reads information offset from its position in the file.
-// It's either offset from the beginning of the index, or the beginning of a sourceFile's data.
-type offsetDecoder struct {
-	b  []byte
-	st *stringTable
-}
-
-func (od *offsetDecoder) uint32At(offset int) uint32 {
-	if offset > len(od.b) {
-		base.Fatalf("go: trying to read from index file at offset higher than file length. This indicates a corrupt offset file in the cache.")
-	}
-	return binary.LittleEndian.Uint32(od.b[offset:])
-}
-
-func (od *offsetDecoder) intAt(offset int) int {
-	n := od.uint32At(offset)
-	if int64(n) > math.MaxInt {
-		base.Fatalf("go: attempting to read a uint32 from the index that overflows int")
-	}
-	return int(n)
-}
-
-func (od *offsetDecoder) boolAt(offset int) bool {
-	switch v := od.uint32At(offset); v {
-	case 0:
-		return false
-	case 1:
-		return true
-	default:
-		base.Fatalf("go: invalid bool value in index file encoding: %v", v)
-	}
-	panic("unreachable")
-}
-
-func (od *offsetDecoder) stringAt(offset int) string {
-	return od.st.string(od.intAt(offset))
-}
-
-func (od *offsetDecoder) decoderAt(offset int) *decoder {
-	return &decoder{od.b[offset:], od.st}
-}
-
-func (od *offsetDecoder) offsetDecoderAt(offset uint32) offsetDecoder {
-	return offsetDecoder{od.b[offset:], od.st}
-}
-
-type stringTable struct {
-	b []byte
-}
-
-func newStringTable(b []byte) *stringTable {
-	return &stringTable{b: b}
-}
-
-func (st *stringTable) string(pos int) string {
-	if pos == 0 {
-		return ""
-	}
-
-	bb := st.b[pos:]
-	i := bytes.IndexByte(bb, 0)
-
-	if i == -1 {
-		panic("reached end of string table trying to read string")
-	}
-	s := asString(bb[:i])
-
-	return s
 }
 
 func asString(b []byte) string {
@@ -1056,4 +953,83 @@ func asString(b []byte) string {
 	hdr.Len = len(b)
 
 	return s
+}
+
+// A decoder helps decode the index format.
+type decoder struct {
+	data []byte // data after header
+	str  []byte // string table
+}
+
+// intAt returns the int at the given offset in d.data.
+func (d *decoder) intAt(off int) int {
+	if off < 0 || len(d.data)-off < 4 {
+		panic(errCorrupt)
+	}
+	i := binary.LittleEndian.Uint32(d.data[off : off+4])
+	if int32(i)>>31 != 0 {
+		panic(errCorrupt)
+	}
+	return int(i)
+}
+
+// boolAt returns the bool at the given offset in d.data.
+func (d *decoder) boolAt(off int) bool {
+	return d.intAt(off) != 0
+}
+
+// stringTableAt returns the string pointed at by the int at the given offset in d.data.
+func (d *decoder) stringAt(off int) string {
+	return d.stringTableAt(d.intAt(off))
+}
+
+// stringTableAt returns the string at the given offset in the string table d.str.
+func (d *decoder) stringTableAt(off int) string {
+	if off < 0 || off >= len(d.str) {
+		panic(errCorrupt)
+	}
+	s := d.str[off:]
+	v, n := binary.Uvarint(s)
+	if n <= 0 || v > uint64(len(s[n:])) {
+		panic(errCorrupt)
+	}
+	return asString(s[n : n+int(v)])
+}
+
+// A reader reads sequential fields from a section of the index format.
+type reader struct {
+	d   *decoder
+	pos int
+}
+
+// readAt returns a reader starting at the given position in d.
+func (d *decoder) readAt(pos int) *reader {
+	return &reader{d, pos}
+}
+
+// int reads the next int.
+func (r *reader) int() int {
+	i := r.d.intAt(r.pos)
+	r.pos += 4
+	return i
+}
+
+// string reads the next string.
+func (r *reader) string() string {
+	return r.d.stringTableAt(r.int())
+}
+
+// bool reads the next bool.
+func (r *reader) bool() bool {
+	return r.int() != 0
+}
+
+// tokpos reads the next token.Position.
+func (r *reader) tokpos() token.Position {
+	return token.Position{
+		Filename: r.string(),
+		Offset:   r.int(),
+		Line:     r.int(),
+		Column:   r.int(),
+	}
 }
