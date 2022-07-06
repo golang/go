@@ -464,28 +464,20 @@ func IsDirWithGoFiles(dir string) (bool, error) {
 // walk recursively descends path, calling walkFn. Copied, with some
 // modifications from path/filepath.walk.
 func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
-	if !info.IsDir() {
-		return walkFn(path, info, nil)
+	if err := walkFn(path, info, nil); err != nil || !info.IsDir() {
+		return err
 	}
 
-	fis, readErr := ReadDir(path)
-	walkErr := walkFn(path, info, readErr)
-	// If readErr != nil, walk can't walk into this directory.
-	// walkErr != nil means walkFn want walk to skip this directory or stop walking.
-	// Therefore, if one of readErr and walkErr isn't nil, walk will return.
-	if readErr != nil || walkErr != nil {
-		// The caller's behavior is controlled by the return value, which is decided
-		// by walkFn. walkFn may ignore readErr and return nil.
-		// If walkFn returns SkipDir, it will be handled by the caller.
-		// So walk should return whatever walkFn returns.
-		return walkErr
+	fis, err := ReadDir(path)
+	if err != nil {
+		return walkFn(path, info, err)
 	}
 
 	for _, fi := range fis {
 		filename := filepath.Join(path, fi.Name())
-		if walkErr = walk(filename, fi, walkFn); walkErr != nil {
-			if !fi.IsDir() || walkErr != filepath.SkipDir {
-				return walkErr
+		if err := walk(filename, fi, walkFn); err != nil {
+			if !fi.IsDir() || err != filepath.SkipDir {
+				return err
 			}
 		}
 	}
