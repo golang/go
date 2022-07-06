@@ -2681,6 +2681,19 @@ func TestCreateRevocationList(t *testing.T) {
 				t.Fatalf("Extensions mismatch: got %v; want %v.",
 					parsedCRL.Extensions[2:], tc.template.ExtraExtensions)
 			}
+
+			if tc.template.Number != nil && parsedCRL.Number == nil {
+				t.Fatalf("Generated CRL missing Number: got nil, want %s",
+					tc.template.Number.String())
+			}
+			if tc.template.Number != nil && tc.template.Number.Cmp(parsedCRL.Number) != 0 {
+				t.Fatalf("Generated CRL has wrong Number: got %s, want %s",
+					parsedCRL.Number.String(), tc.template.Number.String())
+			}
+			if !bytes.Equal(parsedCRL.AuthorityKeyId, expectedAKI) {
+				t.Fatalf("Generated CRL has wrong Number: got %x, want %x",
+					parsedCRL.AuthorityKeyId, expectedAKI)
+			}
 		})
 	}
 }
