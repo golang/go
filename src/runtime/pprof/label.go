@@ -83,7 +83,9 @@ func Labels(args ...string) LabelSet {
 	}
 	list := make([]label, 0, len(args)/2)
 	for i := 0; i+1 < len(args); i += 2 {
-		list = append(list, label{key: args[i], value: args[i+1]})
+		key := strings.ReplaceAll(args[i], `"`, `\"`)
+		value := strings.ReplaceAll(args[i+1], `"`, `\"`)
+		list = append(list, label{key: key, value: value})
 	}
 	return LabelSet{list: list}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -78,6 +79,20 @@ func TestContextLabels(t *testing.T) {
 	wantLabels = []label{{"key", "value3"}, {"key2", "value2"}, {"key4", "value4b"}}
 	if !reflect.DeepEqual(gotLabels, wantLabels) {
 		t.Errorf("(sorted) labels on context: got %v, want %v", gotLabels, wantLabels)
+	}
+}
+
+func TestQuoteLabels(t *testing.T) {
+	key := `a "quote" key`
+	value := `a "quote" value`
+	quoteKey := strings.ReplaceAll(key, `"`, `\"`)
+	quoteValue := strings.ReplaceAll(value, `"`, `\"`)
+	l := Labels(key, value)
+	if l.list[0].key != quoteKey {
+		t.Errorf("labels: got %s, want %s", l.list[0].key, quoteKey)
+	}
+	if l.list[0].value != quoteValue {
+		t.Errorf("labels: got %s, want %s", l.list[0].value, quoteValue)
 	}
 }
 
