@@ -91,6 +91,11 @@ type snapshot struct {
 
 	// packages maps a packageKey to a *packageHandle.
 	// It may be invalidated when a file's content changes.
+	//
+	// Invariants to preserve:
+	//  - packages.Get(id).m.Metadata == meta.metadata[id].Metadata for all ids
+	//  - if a package is in packages, then all of its dependencies should also
+	//    be in packages, unless there is a missing import
 	packages packagesMap
 
 	// isActivePackageCache maps package ID to the cached value if it is active or not.
@@ -712,18 +717,29 @@ func (s *snapshot) getImportedBy(id PackageID) []PackageID {
 	return s.meta.importedBy[id]
 }
 
-func (s *snapshot) addPackageHandle(ph *packageHandle, release func()) *packageHandle {
+// addPackageHandle stores ph in the snapshot, or returns a pre-existing handle
+// for the given package key, if it exists.
+//
+// An error is returned if the metadata used to build ph is no longer relevant.
+func (s *snapshot) addPackageHandle(ph *packageHandle, release func()) (*packageHandle, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.meta.metadata[ph.m.ID].Metadata != ph.m.Metadata {
+		return nil, fmt.Errorf("stale metadata for %s", ph.m.ID)
+	}
 
 	// If the package handle has already been cached,
 	// return the cached handle instead of overriding it.
 	if result, ok := s.packages.Get(ph.packageKey()); ok {
 		release()
-		return result
+		if result.m.Metadata != ph.m.Metadata {
+			return nil, bug.Errorf("existing package handle does not match for %s", ph.m.ID)
+		}
+		return result, nil
 	}
 	s.packages.Set(ph.packageKey(), ph, release)
-	return ph
+	return ph, nil
 }
 
 func (s *snapshot) workspacePackageIDs() (ids []PackageID) {

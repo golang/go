@@ -209,9 +209,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	// been cached, addPackage will return the cached value. This is fine,
 	// since the original package handle above will have no references and be
 	// garbage collected.
-	ph = s.addPackageHandle(ph, release)
-
-	return ph, nil
+	return s.addPackageHandle(ph, release)
 }
 
 func (s *snapshot) workspaceParseMode(id PackageID) source.ParseMode {
