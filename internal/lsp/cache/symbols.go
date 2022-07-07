@@ -70,9 +70,13 @@ func symbolizeImpl(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, e
 		fileDesc *token.File
 	)
 
-	// If the file has already been fully parsed through the cache, we can just
-	// use the result.
-	if pgf := snapshot.cachedPGF(fh, source.ParseFull); pgf != nil {
+	// If the file has already been fully parsed through the
+	// cache, we can just use the result. But we don't want to
+	// populate the cache after a miss.
+	snapshot.mu.Lock()
+	pgf, _ := snapshot.peekParseGoLocked(fh, source.ParseFull)
+	snapshot.mu.Unlock()
+	if pgf != nil {
 		file = pgf.File
 		fileDesc = pgf.Tok
 	}

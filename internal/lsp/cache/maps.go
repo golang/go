@@ -59,16 +59,8 @@ func (m filesMap) Delete(key span.URI) {
 	m.impl.Delete(key)
 }
 
-type goFilesMap struct {
-	impl *persistent.Map
-}
-
-func newGoFilesMap() goFilesMap {
-	return goFilesMap{
-		impl: persistent.NewMap(func(a, b interface{}) bool {
-			return parseKeyLess(a.(parseKey), b.(parseKey))
-		}),
-	}
+func parseKeyLessInterface(a, b interface{}) bool {
+	return parseKeyLess(a.(parseKey), b.(parseKey))
 }
 
 func parseKeyLess(a, b parseKey) bool {
@@ -79,40 +71,6 @@ func parseKeyLess(a, b parseKey) bool {
 		return a.file.Hash.Less(b.file.Hash)
 	}
 	return a.file.URI < b.file.URI
-}
-
-func (m goFilesMap) Clone() goFilesMap {
-	return goFilesMap{
-		impl: m.impl.Clone(),
-	}
-}
-
-func (m goFilesMap) Destroy() {
-	m.impl.Destroy()
-}
-
-func (m goFilesMap) Get(key parseKey) (*parseGoHandle, bool) {
-	value, ok := m.impl.Get(key)
-	if !ok {
-		return nil, false
-	}
-	return value.(*parseGoHandle), true
-}
-
-func (m goFilesMap) Range(do func(key parseKey, value *parseGoHandle)) {
-	m.impl.Range(func(key, value interface{}) {
-		do(key.(parseKey), value.(*parseGoHandle))
-	})
-}
-
-func (m goFilesMap) Set(key parseKey, value *parseGoHandle, release func()) {
-	m.impl.Set(key, value, func(key, value interface{}) {
-		release()
-	})
-}
-
-func (m goFilesMap) Delete(key parseKey) {
-	m.impl.Delete(key)
 }
 
 type isActivePackageCacheMap struct {

@@ -35,78 +35,76 @@ type parseKey struct {
 	mode source.ParseMode
 }
 
-type parseGoHandle struct {
-	handle *memoize.Handle
-	file   source.FileHandle
-	mode   source.ParseMode
-}
+// ParseGo parses the file whose contents are provided by fh, using a cache.
+// The resulting tree may have be fixed up.
+//
+// The parser mode must not be ParseExported: that mode is used during
+// type checking to destructively trim the tree to reduce work,
+// which is not safe for values from a shared cache.
+// TODO(adonovan): opt: shouldn't parseGoImpl do the trimming?
+// Then we can cache the result since it would never change.
+func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
+	if mode == source.ParseExported {
+		panic("only type checking should use Exported")
+	}
 
-type parseGoData struct {
-	parsed *source.ParsedGoFile
-
-	// If true, we adjusted the AST to make it type check better, and
-	// it may not match the source code.
-	fixed bool
-	err   error // any other errors
-}
-
-func (s *snapshot) parseGoHandle(ctx context.Context, fh source.FileHandle, mode source.ParseMode) *parseGoHandle {
 	key := parseKey{
 		file: fh.FileIdentity(),
 		mode: mode,
 	}
-	if pgh := s.getGoFile(key); pgh != nil {
-		return pgh
-	}
-	parseHandle, release := s.generation.GetHandle(key, func(ctx context.Context, arg memoize.Arg) interface{} {
-		snapshot := arg.(*snapshot)
-		return parseGo(ctx, snapshot.FileSet(), fh, mode)
-	})
 
-	pgh := &parseGoHandle{
-		handle: parseHandle,
-		file:   fh,
-		mode:   mode,
-	}
-	return s.addGoFile(key, pgh, release)
-}
+	s.mu.Lock()
+	entry, hit := s.parsedGoFiles.Get(key)
+	s.mu.Unlock()
 
-func (pgh *parseGoHandle) String() string {
-	return pgh.file.URI().Filename()
-}
+	// cache miss?
+	if !hit {
+		handle, release := s.generation.GetHandle(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+			parsed, err := parseGoImpl(ctx, arg.(*snapshot).FileSet(), fh, mode)
+			return parseGoResult{parsed, err}
+		})
 
-func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
-	pgf, _, err := s.parseGo(ctx, fh, mode)
-	return pgf, err
-}
-
-func (s *snapshot) parseGo(ctx context.Context, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, bool, error) {
-	if mode == source.ParseExported {
-		panic("only type checking should use Exported")
-	}
-	pgh := s.parseGoHandle(ctx, fh, mode)
-	d, err := pgh.handle.Get(ctx, s.generation, s)
-	if err != nil {
-		return nil, false, err
-	}
-	data := d.(*parseGoData)
-	return data.parsed, data.fixed, data.err
-}
-
-// cachedPGF returns the cached ParsedGoFile for the given ParseMode, if it
-// has already been computed. Otherwise, it returns nil.
-func (s *snapshot) cachedPGF(fh source.FileHandle, mode source.ParseMode) *source.ParsedGoFile {
-	key := parseKey{file: fh.FileIdentity(), mode: mode}
-	if pgh := s.getGoFile(key); pgh != nil {
-		cached := pgh.handle.Cached(s.generation)
-		if cached != nil {
-			cached := cached.(*parseGoData)
-			if cached.parsed != nil {
-				return cached.parsed
-			}
+		s.mu.Lock()
+		// Check cache again in case another thread got there first.
+		if prev, ok := s.parsedGoFiles.Get(key); ok {
+			entry = prev
+			release()
+		} else {
+			entry = handle
+			s.parsedGoFiles.Set(key, entry, func(_, _ interface{}) { release() })
 		}
+		s.mu.Unlock()
 	}
-	return nil
+
+	// Await result.
+	v, err := entry.(*memoize.Handle).Get(ctx, s.generation, s)
+	if err != nil {
+		return nil, err
+	}
+	res := v.(parseGoResult)
+	return res.parsed, res.err
+}
+
+// peekParseGoLocked peeks at the cache used by ParseGo but does not
+// populate it or wait for other threads to do so. On cache hit, it returns
+// the cache result of parseGoImpl; otherwise it returns (nil, nil).
+func (s *snapshot) peekParseGoLocked(fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
+	entry, hit := s.parsedGoFiles.Get(parseKey{fh.FileIdentity(), mode})
+	if !hit {
+		return nil, nil // no-one has requested this file
+	}
+	v := entry.(*memoize.Handle).Cached(s.generation)
+	if v == nil {
+		return nil, nil // parsing is still in progress
+	}
+	res := v.(parseGoResult)
+	return res.parsed, res.err
+}
+
+// parseGoResult holds the result of a call to parseGoImpl.
+type parseGoResult struct {
+	parsed *source.ParsedGoFile
+	err    error
 }
 
 type astCacheKey struct {
@@ -274,17 +272,18 @@ func buildASTCache(pgf *source.ParsedGoFile) *astCacheData {
 	return data
 }
 
-func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mode source.ParseMode) *parseGoData {
+// parseGoImpl parses the Go source file whose content is provided by fh.
+func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
 	ctx, done := event.Start(ctx, "cache.parseGo", tag.File.Of(fh.URI().Filename()))
 	defer done()
 
 	ext := filepath.Ext(fh.URI().Filename())
 	if ext != ".go" && ext != "" { // files generated by cgo have no extension
-		return &parseGoData{err: fmt.Errorf("cannot parse non-Go file %s", fh.URI())}
+		return nil, fmt.Errorf("cannot parse non-Go file %s", fh.URI())
 	}
 	src, err := fh.Read()
 	if err != nil {
-		return &parseGoData{err: err}
+		return nil, err
 	}
 
 	parserMode := parser.AllErrors | parser.ParseComments
@@ -346,22 +345,20 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		}
 	}
 
-	return &parseGoData{
-		parsed: &source.ParsedGoFile{
-			URI:  fh.URI(),
-			Mode: mode,
-			Src:  src,
-			File: file,
-			Tok:  tok,
-			Mapper: &protocol.ColumnMapper{
-				URI:     fh.URI(),
-				TokFile: tok,
-				Content: src,
-			},
-			ParseErr: parseErr,
+	return &source.ParsedGoFile{
+		URI:   fh.URI(),
+		Mode:  mode,
+		Src:   src,
+		Fixed: fixed,
+		File:  file,
+		Tok:   tok,
+		Mapper: &protocol.ColumnMapper{
+			URI:     fh.URI(),
+			TokFile: tok,
+			Content: src,
 		},
-		fixed: fixed,
-	}
+		ParseErr: parseErr,
+	}, nil
 }
 
 // An unexportedFilter removes as much unexported AST from a set of Files as possible.

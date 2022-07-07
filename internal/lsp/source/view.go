@@ -297,6 +297,7 @@ type ParsedGoFile struct {
 	// Source code used to build the AST. It may be different from the
 	// actual content of the file if we have fixed the AST.
 	Src      []byte
+	Fixed    bool
 	Mapper   *protocol.ColumnMapper
 	ParseErr scanner.ErrorList
 }

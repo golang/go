@@ -568,15 +568,13 @@ func parseCompiledGoFiles(ctx context.Context, compiledGoFiles []source.FileHand
 	// TODO(adonovan): opt: parallelize this loop, which takes 1-25ms.
 	for _, fh := range compiledGoFiles {
 		var pgf *source.ParsedGoFile
-		var fixed bool
 		var err error
 		// Only parse Full through the cache -- we need to own Exported ASTs
 		// to prune them.
 		if mode == source.ParseFull {
-			pgf, fixed, err = snapshot.parseGo(ctx, fh, mode)
+			pgf, err = snapshot.ParseGo(ctx, fh, mode)
 		} else {
-			d := parseGo(ctx, snapshot.FileSet(), fh, mode) // ~20us/KB
-			pgf, fixed, err = d.parsed, d.fixed, d.err
+			pgf, err = parseGoImpl(ctx, snapshot.FileSet(), fh, mode) // ~20us/KB
 		}
 		if err != nil {
 			return err
@@ -587,7 +585,7 @@ func parseCompiledGoFiles(ctx context.Context, compiledGoFiles []source.FileHand
 		}
 		// If we have fixed parse errors in any of the files, we should hide type
 		// errors, as they may be completely nonsensical.
-		pkg.hasFixedFiles = pkg.hasFixedFiles || fixed
+		pkg.hasFixedFiles = pkg.hasFixedFiles || pgf.Fixed
 	}
 	if mode != source.ParseExported {
 		return nil
