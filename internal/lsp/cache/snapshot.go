@@ -187,11 +187,25 @@ type actionKey struct {
 
 // destroy waits for all leases on the snapshot to expire then releases
 // any resources (reference counts and files) associated with it.
+// Snapshots being destroyed can be awaited using v.destroyWG.
 //
 // TODO(adonovan): move this logic into the release function returned
 // by Acquire when the reference count becomes zero. (This would cost
 // us the destroyedBy debug info, unless we add it to the signature of
 // memoize.RefCounted.Acquire.)
+//
+// The destroyedBy argument is used for debugging.
+//
+// v.snapshotMu must be held while calling this function, in order to preserve
+// the invariants described by the the docstring for v.snapshot.
+func (v *View) destroy(s *snapshot, destroyedBy string) {
+	v.snapshotWG.Add(1)
+	go func() {
+		defer v.snapshotWG.Done()
+		s.destroy(destroyedBy)
+	}()
+}
+
 func (s *snapshot) destroy(destroyedBy string) {
 	// Wait for all leases to end before commencing destruction.
 	s.refcount.Wait()
@@ -1678,7 +1692,7 @@ func (s *snapshot) orphanedFiles() []source.VersionedFileHandle {
 		}
 		// If the URI doesn't belong to this view, then it's not in a workspace
 		// package and should not be reloaded directly.
-		if !contains(s.view.session.viewsOf(uri), s.view) {
+		if !source.InDir(s.view.folder.Filename(), uri.Filename()) {
 			return
 		}
 		// If the file is not open and is in a vendor directory, don't treat it

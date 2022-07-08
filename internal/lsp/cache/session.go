@@ -301,19 +301,6 @@ func (s *Session) viewOf(uri span.URI) (*View, error) {
 	return s.viewMap[uri], nil
 }
 
-func (s *Session) viewsOf(uri span.URI) []*View {
-	s.viewMu.RLock()
-	defer s.viewMu.RUnlock()
-
-	var views []*View
-	for _, view := range s.views {
-		if source.InDir(view.folder.Filename(), uri.Filename()) {
-			views = append(views, view)
-		}
-	}
-	return views
-}
-
 func (s *Session) Views() []source.View {
 	s.viewMu.RLock()
 	defer s.viewMu.RUnlock()

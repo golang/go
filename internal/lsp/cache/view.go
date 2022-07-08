@@ -67,9 +67,18 @@ type View struct {
 	// attempt at initialization.
 	initCancelFirstAttempt context.CancelFunc
 
+	// Track the latest snapshot via the snapshot field, guarded by snapshotMu.
+	//
+	// Invariant: whenever the snapshot field is overwritten, destroy(snapshot)
+	// is called on the previous (overwritten) snapshot while snapshotMu is held,
+	// incrementing snapshotWG. During shutdown the final snapshot is
+	// overwritten with nil and destroyed, guaranteeing that all observed
+	// snapshots have been destroyed via the destroy method, and snapshotWG may
+	// be waited upon to let these destroy operations complete.
 	snapshotMu      sync.Mutex
-	snapshot        *snapshot // nil after shutdown has been called
-	releaseSnapshot func()    // called when snapshot is no longer needed
+	snapshot        *snapshot      // latest snapshot
+	releaseSnapshot func()         // called when snapshot is no longer needed
+	snapshotWG      sync.WaitGroup // refcount for pending destroy operations
 
 	// initialWorkspaceLoad is closed when the first workspace initialization has
 	// completed. If we failed to load, we only retry if the go.mod file changes,
@@ -125,6 +134,11 @@ type environmentVariables struct {
 	gocache, gopath, goroot, goprivate, gomodcache, go111module string
 }
 
+// workspaceMode holds various flags defining how the gopls workspace should
+// behave. They may be derived from the environment, user configuration, or
+// depend on the Go version.
+//
+// TODO(rfindley): remove workspace mode, in favor of explicit checks.
 type workspaceMode int
 
 const (
@@ -521,6 +535,9 @@ func (v *View) Shutdown(ctx context.Context) {
 	v.session.removeView(ctx, v)
 }
 
+// shutdown releases resources associated with the view, and waits for ongoing
+// work to complete.
+//
 // TODO(rFindley): probably some of this should also be one in View.Shutdown
 // above?
 func (v *View) shutdown(ctx context.Context) {
@@ -530,13 +547,14 @@ func (v *View) shutdown(ctx context.Context) {
 	v.snapshotMu.Lock()
 	if v.snapshot != nil {
 		v.releaseSnapshot()
-		go v.snapshot.destroy("View.shutdown")
+		v.destroy(v.snapshot, "View.shutdown")
 		v.snapshot = nil
 		v.releaseSnapshot = nil
 	}
 	v.snapshotMu.Unlock()
 
 	v.importsState.destroy()
+	v.snapshotWG.Wait()
 }
 
 func (v *View) Session() *Session {
@@ -732,7 +750,7 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 	v.snapshot, v.releaseSnapshot = prevSnapshot.clone(ctx, v.baseCtx, changes, forceReloadMetadata)
 
 	prevReleaseSnapshot()
-	go prevSnapshot.destroy("View.invalidateContent")
+	v.destroy(prevSnapshot, "View.invalidateContent")
 
 	// Return a second lease to the caller.
 	return v.snapshot, v.snapshot.Acquire()

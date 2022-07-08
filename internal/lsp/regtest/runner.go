@@ -66,9 +66,6 @@ type Runner struct {
 	mu        sync.Mutex
 	ts        *servertest.TCPServer
 	socketDir string
-	// closers is a queue of clean-up functions to run at the end of the entire
-	// test suite.
-	closers []io.Closer
 }
 
 type runConfig struct {
@@ -228,6 +225,8 @@ type TestFunc func(t *testing.T, env *Env)
 // modes. For each a test run, a new workspace is created containing the
 // un-txtared files specified by filedata.
 func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOption) {
+	// TODO(rfindley): this function has gotten overly complicated, and warrants
+	// refactoring.
 	t.Helper()
 	checkBuilder(t)
 
@@ -259,6 +258,10 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 		}
 
 		t.Run(tc.name, func(t *testing.T) {
+			// TODO(rfindley): once jsonrpc2 shutdown is fixed, we should not leak
+			// goroutines in this test function.
+			// stacktest.NoLeak(t)
+
 			ctx := context.Background()
 			if r.Timeout != 0 && !config.noDefaultTimeout {
 				var cancel context.CancelFunc
@@ -282,6 +285,7 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 			if err := os.MkdirAll(rootDir, 0755); err != nil {
 				t.Fatal(err)
 			}
+
 			files := fake.UnpackTxt(files)
 			if config.editor.WindowsLineEndings {
 				for name, data := range files {
@@ -294,13 +298,14 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 			if err != nil {
 				t.Fatal(err)
 			}
-			// Deferring the closure of ws until the end of the entire test suite
-			// has, in testing, given the LSP server time to properly shutdown and
-			// release any file locks held in workspace, which is a problem on
-			// Windows. This may still be flaky however, and in the future we need a
-			// better solution to ensure that all Go processes started by gopls have
-			// exited before we clean up.
-			r.AddCloser(sandbox)
+			defer func() {
+				if !r.SkipCleanup {
+					if err := sandbox.Close(); err != nil {
+						pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
+						t.Errorf("closing the sandbox: %v", err)
+					}
+				}
+			}()
 			ss := tc.getServer(t, config.optionsHook)
 			framer := jsonrpc2.NewRawStream
 			ls := &loggingFramer{}
@@ -322,6 +327,7 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 				closeCtx, cancel := context.WithTimeout(xcontext.Detach(ctx), 5*time.Second)
 				defer cancel()
 				if err := env.Editor.Close(closeCtx); err != nil {
+					pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
 					t.Errorf("closing editor: %v", err)
 				}
 			}()
@@ -493,14 +499,6 @@ func (r *Runner) getRemoteSocket(t *testing.T) string {
 	return socket
 }
 
-// AddCloser schedules a closer to be closed at the end of the test run. This
-// is useful for Windows in particular, as
-func (r *Runner) AddCloser(closer io.Closer) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.closers = append(r.closers, closer)
-}
-
 // Close cleans up resource that have been allocated to this workspace.
 func (r *Runner) Close() error {
 	r.mu.Lock()
@@ -518,11 +516,6 @@ func (r *Runner) Close() error {
 		}
 	}
 	if !r.SkipCleanup {
-		for _, closer := range r.closers {
-			if err := closer.Close(); err != nil {
-				errmsgs = append(errmsgs, err.Error())
-			}
-		}
 		if err := os.RemoveAll(r.TempDir); err != nil {
 			errmsgs = append(errmsgs, err.Error())
 		}

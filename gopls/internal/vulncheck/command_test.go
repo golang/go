@@ -309,8 +309,13 @@ func runTest(t *testing.T, workspaceData, proxyData string, test func(context.Co
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer release()
-	defer view.Shutdown(ctx)
+
+	defer func() {
+		// The snapshot must be released before calling view.Shutdown, to avoid a
+		// deadlock.
+		release()
+		view.Shutdown(ctx)
+	}()
 
 	test(ctx, snapshot)
 }

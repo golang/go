@@ -487,6 +487,8 @@ func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI
 	return snapshot, fh, true, release, nil
 }
 
+// shutdown implements the 'shutdown' LSP handler. It releases resources
+// associated with the server and waits for all ongoing work to complete.
 func (s *Server) shutdown(ctx context.Context) error {
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()

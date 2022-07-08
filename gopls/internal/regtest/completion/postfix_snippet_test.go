@@ -13,8 +13,6 @@ import (
 )
 
 func TestPostfixSnippetCompletion(t *testing.T) {
-	t.Skipf("skipping test due to suspected synchronization bug; see https://go.dev/issue/50707")
-
 	const mod = `
 -- go.mod --
 module mod.com
@@ -400,7 +398,7 @@ func _() {
 			before: `
 package foo
 
-func foo() []string { 
+func foo() []string {
 	x := "test"
 	return x.split
 }`,
@@ -409,7 +407,7 @@ package foo
 
 import "strings"
 
-func foo() []string { 
+func foo() []string {
 	x := "test"
 	return strings.Split(x, "$0")
 }`,
