@@ -586,14 +586,14 @@ func addArgumentFlows(b *builder, c ssa.CallInstruction, f *ssa.Function) {
 		return
 	}
 	cc := c.Common()
-	// When c is an unresolved method call (cc.Method != nil), cc.Value contains
-	// the receiver object rather than cc.Args[0].
-	if cc.Method != nil {
-		b.addInFlowAliasEdges(b.nodeFromVal(f.Params[0]), b.nodeFromVal(cc.Value))
-	}
 
 	offset := 0
 	if cc.Method != nil {
+		// We don't add interprocedural flows for receiver objects.
+		// At a call site, the receiver object is interface while the
+		// callee object is concrete. The flow from interface to
+		// concrete type does not make sense. The flow other way around
+		// would bake in information from the initial call graph.
 		offset = 1
 	}
 	for i, v := range cc.Args {
