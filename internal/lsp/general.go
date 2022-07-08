@@ -249,17 +249,21 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		}
 		work := s.progress.Start(ctx, "Setting up workspace", "Loading packages...", nil, nil)
 		snapshot, release, err := s.addView(ctx, folder.Name, uri)
-		if err == source.ErrViewExists {
-			continue
-		}
 		if err != nil {
+			if err == source.ErrViewExists {
+				continue
+			}
 			viewErrors[uri] = err
 			work.End(ctx, fmt.Sprintf("Error loading packages: %s", err))
 			continue
 		}
+		// Inv: release() must be called once.
+
 		var swg sync.WaitGroup
 		swg.Add(1)
 		allFoldersWg.Add(1)
+		// TODO(adonovan): this looks fishy. Is AwaitInitialized
+		// supposed to be called once per folder?
 		go func() {
 			defer swg.Done()
 			defer allFoldersWg.Done()
@@ -271,6 +275,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		buf := &bytes.Buffer{}
 		if err := snapshot.WriteEnv(ctx, buf); err != nil {
 			viewErrors[uri] = err
+			release()
 			continue
 		}
 		event.Log(ctx, buf.String())

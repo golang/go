@@ -55,10 +55,10 @@ func testSource(t *testing.T, datum *tests.Data) {
 	tests.DefaultOptions(options)
 	options.SetEnvSlice(datum.Config.Env)
 	view, _, release, err := session.NewView(ctx, "source_test", span.URIFromPath(datum.Config.Dir), options)
-	release()
 	if err != nil {
 		t.Fatal(err)
 	}
+	release()
 	defer view.Shutdown(ctx)
 
 	// Enable type error analyses for tests.

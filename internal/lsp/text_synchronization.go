@@ -290,7 +290,7 @@ func (s *Server) processModifications(ctx context.Context, modifications []sourc
 	// to their files.
 	modifications = s.session.ExpandModificationsToDirectories(ctx, modifications)
 
-	snapshots, releases, err := s.session.DidModifyFiles(ctx, modifications)
+	snapshots, release, err := s.session.DidModifyFiles(ctx, modifications)
 	if err != nil {
 		close(diagnoseDone)
 		return err
@@ -298,9 +298,7 @@ func (s *Server) processModifications(ctx context.Context, modifications []sourc
 
 	go func() {
 		s.diagnoseSnapshots(snapshots, onDisk)
-		for _, release := range releases {
-			release()
-		}
+		release()
 		close(diagnoseDone)
 	}()
 

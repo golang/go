@@ -47,10 +47,6 @@ type View struct {
 	// background contexts created for this view.
 	baseCtx context.Context
 
-	// cancel is called when all action being performed by the current view
-	// should be stopped.
-	cancel context.CancelFunc
-
 	// name is the user visible name of this view.
 	name string
 
@@ -71,8 +67,9 @@ type View struct {
 	// attempt at initialization.
 	initCancelFirstAttempt context.CancelFunc
 
-	snapshotMu sync.Mutex
-	snapshot   *snapshot // nil after shutdown has been called
+	snapshotMu      sync.Mutex
+	snapshot        *snapshot // nil after shutdown has been called
+	releaseSnapshot func()    // called when snapshot is no longer needed
 
 	// initialWorkspaceLoad is closed when the first workspace initialization has
 	// completed. If we failed to load, we only retry if the go.mod file changes,
@@ -161,9 +158,10 @@ func (f *fileBase) addURI(uri span.URI) int {
 
 func (v *View) ID() string { return v.id }
 
-// tempModFile creates a temporary go.mod file based on the contents of the
-// given go.mod file. It is the caller's responsibility to clean up the files
-// when they are done using them.
+// tempModFile creates a temporary go.mod file based on the contents
+// of the given go.mod file. On success, it is the caller's
+// responsibility to call the cleanup function when the file is no
+// longer needed.
 func tempModFile(modFh source.FileHandle, gosum []byte) (tmpURI span.URI, cleanup func(), err error) {
 	filenameHash := source.Hashf("%s", modFh.URI().Filename())
 	tmpMod, err := ioutil.TempFile("", fmt.Sprintf("go.%s.*.mod", filenameHash))
@@ -184,7 +182,9 @@ func tempModFile(modFh source.FileHandle, gosum []byte) (tmpURI span.URI, cleanu
 		return "", nil, err
 	}
 
-	cleanup = func() {
+	// We use a distinct name here to avoid subtlety around the fact
+	// that both 'return' and 'defer' update the "cleanup" variable.
+	doCleanup := func() {
 		_ = os.Remove(tmpSumName)
 		_ = os.Remove(tmpURI.Filename())
 	}
@@ -192,7 +192,7 @@ func tempModFile(modFh source.FileHandle, gosum []byte) (tmpURI span.URI, cleanu
 	// Be careful to clean up if we return an error from this function.
 	defer func() {
 		if err != nil {
-			cleanup()
+			doCleanup()
 			cleanup = nil
 		}
 	}()
@@ -200,11 +200,11 @@ func tempModFile(modFh source.FileHandle, gosum []byte) (tmpURI span.URI, cleanu
 	// Create an analogous go.sum, if one exists.
 	if gosum != nil {
 		if err := ioutil.WriteFile(tmpSumName, gosum, 0655); err != nil {
-			return "", cleanup, err
+			return "", nil, err
 		}
 	}
 
-	return tmpURI, cleanup, nil
+	return tmpURI, doCleanup, nil
 }
 
 // Name returns the user visible name of this view.
@@ -527,18 +527,15 @@ func (v *View) shutdown(ctx context.Context) {
 	// Cancel the initial workspace load if it is still running.
 	v.initCancelFirstAttempt()
 
-	v.mu.Lock()
-	if v.cancel != nil {
-		v.cancel()
-		v.cancel = nil
-	}
-	v.mu.Unlock()
 	v.snapshotMu.Lock()
 	if v.snapshot != nil {
-		go v.snapshot.Destroy("View.shutdown")
+		v.releaseSnapshot()
+		go v.snapshot.destroy("View.shutdown")
 		v.snapshot = nil
+		v.releaseSnapshot = nil
 	}
 	v.snapshotMu.Unlock()
+
 	v.importsState.destroy()
 }
 
@@ -718,22 +715,26 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
-	if v.snapshot == nil {
+	prevSnapshot, prevReleaseSnapshot := v.snapshot, v.releaseSnapshot
+
+	if prevSnapshot == nil {
 		panic("invalidateContent called after shutdown")
 	}
 
 	// Cancel all still-running previous requests, since they would be
 	// operating on stale data.
-	v.snapshot.cancel()
+	prevSnapshot.cancel()
 
 	// Do not clone a snapshot until its view has finished initializing.
-	v.snapshot.AwaitInitialized(ctx)
+	prevSnapshot.AwaitInitialized(ctx)
 
-	oldSnapshot := v.snapshot
+	// Save one lease of the cloned snapshot in the view.
+	v.snapshot, v.releaseSnapshot = prevSnapshot.clone(ctx, v.baseCtx, changes, forceReloadMetadata)
 
-	v.snapshot = oldSnapshot.clone(ctx, v.baseCtx, changes, forceReloadMetadata)
-	go oldSnapshot.Destroy("View.invalidateContent")
+	prevReleaseSnapshot()
+	go prevSnapshot.destroy("View.invalidateContent")
 
+	// Return a second lease to the caller.
 	return v.snapshot, v.snapshot.Acquire()
 }
 

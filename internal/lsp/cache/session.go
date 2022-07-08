@@ -165,7 +165,7 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 	}
 	view, snapshot, release, err := s.createView(ctx, name, folder, options, 0)
 	if err != nil {
-		return nil, nil, func() {}, err
+		return nil, nil, nil, err
 	}
 	s.views = append(s.views, view)
 	// we always need to drop the view map
@@ -249,33 +249,23 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		knownSubdirs:         newKnownDirsSet(),
 		workspace:            workspace,
 	}
+	// Save one reference in the view.
+	v.releaseSnapshot = v.snapshot.Acquire()
 
 	// Initialize the view without blocking.
 	initCtx, initCancel := context.WithCancel(xcontext.Detach(ctx))
 	v.initCancelFirstAttempt = initCancel
 	snapshot := v.snapshot
 
-	// Acquire both references before the possibility
-	// of releasing either one, to avoid premature
-	// destruction if initialize returns quickly.
-	//
-	// TODO(adonovan): our reference counting discipline is not sound:
-	// the count is initially zero and incremented/decremented by
-	// acquire/release, but there is a race between object birth
-	// and the first call to acquire during which the snapshot may be
-	// destroyed.
-	//
-	// In most systems, an object is born with a count of 1 and
-	// destroyed by any decref that brings the count to zero.
-	// We should do that too.
-	release1 := snapshot.Acquire()
-	release2 := snapshot.Acquire()
+	// Pass a second reference to the background goroutine.
+	bgRelease := snapshot.Acquire()
 	go func() {
-		defer release2()
+		defer bgRelease()
 		snapshot.initialize(initCtx, true)
 	}()
 
-	return v, snapshot, release1, nil
+	// Return a third reference to the caller.
+	return v, snapshot, snapshot.Acquire(), nil
 }
 
 // View returns the view by name.
@@ -427,10 +417,8 @@ func (s *Session) dropView(ctx context.Context, v *View) (int, error) {
 }
 
 func (s *Session) ModifyFiles(ctx context.Context, changes []source.FileModification) error {
-	_, releases, err := s.DidModifyFiles(ctx, changes)
-	for _, release := range releases {
-		release()
-	}
+	_, release, err := s.DidModifyFiles(ctx, changes)
+	release()
 	return err
 }
 
@@ -445,7 +433,7 @@ type fileChange struct {
 	isUnchanged bool
 }
 
-func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) (map[source.Snapshot][]span.URI, []func(), error) {
+func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) (map[source.Snapshot][]span.URI, func(), error) {
 	s.viewMu.RLock()
 	defer s.viewMu.RUnlock()
 	views := make(map[*View]map[span.URI]*fileChange)
@@ -526,6 +514,14 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		viewToSnapshot[view] = snapshot
 	}
 
+	// The release function is called when the
+	// returned URIs no longer need to be valid.
+	release := func() {
+		for _, release := range releases {
+			release()
+		}
+	}
+
 	// We only want to diagnose each changed file once, in the view to which
 	// it "most" belongs. We do this by picking the best view for each URI,
 	// and then aggregating the set of snapshots and their URIs (to avoid
@@ -543,7 +539,8 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		}
 		snapshotURIs[snapshot] = append(snapshotURIs[snapshot], mod.URI)
 	}
-	return snapshotURIs, releases, nil
+
+	return snapshotURIs, release, nil
 }
 
 func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes []source.FileModification) []source.FileModification {

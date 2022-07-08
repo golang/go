@@ -352,7 +352,7 @@ type Session interface {
 	// NewView creates a new View, returning it and its first snapshot. If a
 	// non-empty tempWorkspace directory is provided, the View will record a copy
 	// of its gopls workspace module in that directory, so that client tooling
-	// can execute in the same main module.  It returns a release
+	// can execute in the same main module.  On success it also returns a release
 	// function that must be called when the Snapshot is no longer needed.
 	NewView(ctx context.Context, name string, folder span.URI, options *Options) (View, Snapshot, func(), error)
 
@@ -377,9 +377,9 @@ type Session interface {
 	// DidModifyFile reports a file modification to the session. It returns
 	// the new snapshots after the modifications have been applied, paired with
 	// the affected file URIs for those snapshots.
-	// On success, it returns a list of release functions that
+	// On success, it returns a release function that
 	// must be called when the snapshots are no longer needed.
-	DidModifyFiles(ctx context.Context, changes []FileModification) (map[Snapshot][]span.URI, []func(), error)
+	DidModifyFiles(ctx context.Context, changes []FileModification) (map[Snapshot][]span.URI, func(), error)
 
 	// ExpandModificationsToDirectories returns the set of changes with the
 	// directory changes removed and expanded to include all of the files in

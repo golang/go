@@ -154,6 +154,14 @@ type snapshot struct {
 var _ memoize.RefCounted = (*snapshot)(nil) // snapshots are reference-counted
 
 // Acquire prevents the snapshot from being destroyed until the returned function is called.
+//
+// (s.Acquire().release() could instead be expressed as a pair of
+// method calls s.IncRef(); s.DecRef(). The latter has the advantage
+// that the DecRefs are fungible and don't require holding anything in
+// addition to the refcounted object s, but paradoxically that is also
+// an advantage of the current approach, which forces the caller to
+// consider the release function at every stage, making a reference
+// leak more obvious.)
 func (s *snapshot) Acquire() func() {
 	type uP = unsafe.Pointer
 	if destroyedBy := atomic.LoadPointer((*uP)(uP(&s.destroyedBy))); destroyedBy != nil {
@@ -177,7 +185,14 @@ type actionKey struct {
 	analyzer *analysis.Analyzer
 }
 
-func (s *snapshot) Destroy(destroyedBy string) {
+// destroy waits for all leases on the snapshot to expire then releases
+// any resources (reference counts and files) associated with it.
+//
+// TODO(adonovan): move this logic into the release function returned
+// by Acquire when the reference count becomes zero. (This would cost
+// us the destroyedBy debug info, unless we add it to the signature of
+// memoize.RefCounted.Acquire.)
+func (s *snapshot) destroy(destroyedBy string) {
 	// Wait for all leases to end before commencing destruction.
 	s.refcount.Wait()
 
@@ -388,7 +403,9 @@ func (s *snapshot) RunGoCommands(ctx context.Context, allowNetwork bool, wd stri
 // TODO(rfindley): refactor this function to compose the required configuration
 // explicitly, rather than implicitly deriving it from flags and inv.
 //
-// TODO(adonovan): remove unused cleanup mechanism.
+// TODO(adonovan): simplify cleanup mechanism. It's hard to see, but
+// it used only after call to tempModFile. Clarify that it is only
+// non-nil on success.
 func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.InvocationFlags, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
 	s.view.optionsMu.Lock()
 	allowModfileModificationOption := s.view.options.AllowModfileModifications
@@ -1715,7 +1732,7 @@ func (ac *unappliedChanges) GetFile(ctx context.Context, uri span.URI) (source.F
 	return ac.originalSnapshot.GetFile(ctx, uri)
 }
 
-func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) *snapshot {
+func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, func()) {
 	ctx, done := event.Start(ctx, "snapshot.clone")
 	defer done()
 
@@ -1754,6 +1771,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		knownSubdirs:         s.knownSubdirs.Clone(),
 		workspace:            newWorkspace,
 	}
+	// Create a lease on the new snapshot.
+	// (Best to do this early in case the code below hides an
+	// incref/decref operation that might destroy it prematurely.)
+	release := result.Acquire()
 
 	// Copy the set of unloadable files.
 	for k, v := range s.unloadableFiles {
@@ -2011,7 +2032,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 	}
 	result.dumpWorkspace("clone")
-	return result
+	return result, release
 }
 
 // invalidatedPackageIDs returns all packages invalidated by a change to uri.

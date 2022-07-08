@@ -26,16 +26,18 @@ func (s *Server) didChangeWorkspaceFolders(ctx context.Context, params *protocol
 	return s.addFolders(ctx, event.Added)
 }
 
+// addView returns a Snapshot and a release function that must be
+// called when it is no longer needed.
 func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source.Snapshot, func(), error) {
 	s.stateMu.Lock()
 	state := s.state
 	s.stateMu.Unlock()
 	if state < serverInitialized {
-		return nil, func() {}, fmt.Errorf("addView called before server initialized")
+		return nil, nil, fmt.Errorf("addView called before server initialized")
 	}
 	options := s.session.Options().Clone()
 	if err := s.fetchConfig(ctx, name, uri, options); err != nil {
-		return nil, func() {}, err
+		return nil, nil, err
 	}
 	_, snapshot, release, err := s.session.NewView(ctx, name, uri, options)
 	return snapshot, release, err
