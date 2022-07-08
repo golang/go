@@ -39,3 +39,19 @@ func ExampleFunc() {
 	//     	IP address to parse
 	// {ip: <nil>, loopback: false}
 }
+
+func ExampleFuncNoArg() {
+	fs := flag.NewFlagSet("ExampleFuncNoArg", flag.ContinueOnError)
+	fs.SetOutput(os.Stdout)
+
+	fs.FuncNoArg("log", "logs a dummy message", func(s string) error {
+		fmt.Println("dummy message")
+		return nil
+	})
+	fs.Parse([]string{"-log"})
+	fs.Parse([]string{"-log", "1"})
+
+	// Output:
+	// dummy message
+	// dummy message
+}

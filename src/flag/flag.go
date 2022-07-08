@@ -331,11 +331,16 @@ func (v textValue) String() string {
 }
 
 // -- func Value
-type funcValue func(string) error
+type funcValue struct {
+	Function      func(string) error
+	NeedsArgument bool
+}
 
-func (f funcValue) Set(s string) error { return f(s) }
+func (f funcValue) Set(s string) error { return f.Function(s) }
 
 func (f funcValue) String() string { return "" }
+
+func (f funcValue) IsBoolFlag() bool { return !f.NeedsArgument }
 
 // Value is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
@@ -943,7 +948,14 @@ func TextVar(p encoding.TextUnmarshaler, name string, value encoding.TextMarshal
 // Each time the flag is seen, fn is called with the value of the flag.
 // If fn returns a non-nil error, it will be treated as a flag value parsing error.
 func (f *FlagSet) Func(name, usage string, fn func(string) error) {
-	f.Var(funcValue(fn), name, usage)
+	f.Var(funcValue{fn, true}, name, usage)
+}
+
+// FuncNoArg defines a flag with the specified name and usage string without requiring values.
+// Each time the flag is seen, fn is called with the value of the flag.
+// If fn returns a non-nil error, it will be treated as a flag value parsing error.
+func (f *FlagSet) FuncNoArg(name, usage string, fn func(string) error) {
+	f.Var(funcValue{fn, false}, name, usage)
 }
 
 // Func defines a flag with the specified name and usage string.
@@ -951,6 +963,13 @@ func (f *FlagSet) Func(name, usage string, fn func(string) error) {
 // If fn returns a non-nil error, it will be treated as a flag value parsing error.
 func Func(name, usage string, fn func(string) error) {
 	CommandLine.Func(name, usage, fn)
+}
+
+// Func defines a flag with the specified name and usage string without requiring values.
+// Each time the flag is seen, fn is called with the value of the flag.
+// If fn returns a non-nil error, it will be treated as a flag value parsing error.
+func FuncNoArg(name, usage string, fn func(string) error) {
+	CommandLine.FuncNoArg(name, usage, fn)
 }
 
 // Var defines a flag with the specified name and usage string. The type and
