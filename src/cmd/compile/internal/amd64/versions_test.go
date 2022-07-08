@@ -242,12 +242,31 @@ var featureToOpcodes = map[string][]string{
 	// go tool objdump doesn't include a [QL] on popcnt instructions, until CL 351889
 	// native objdump doesn't include [QL] on linux.
 	"popcnt": {"popcntq", "popcntl", "popcnt"},
-	"bmi1":   {"andnq", "andnl", "andn", "blsiq", "blsil", "blsi", "blsmskq", "blsmskl", "blsmsk", "blsrq", "blsrl", "blsr", "tzcntq", "tzcntl", "tzcnt"},
-	"bmi2":   {"sarxq", "sarxl", "sarx", "shlxq", "shlxl", "shlx", "shrxq", "shrxl", "shrx"},
-	"sse41":  {"roundsd"},
-	"fma":    {"vfmadd231sd"},
-	"movbe":  {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
-	"lzcnt":  {"lzcntq", "lzcntl", "lzcnt"},
+	"bmi1": {
+		"andnq", "andnl", "andn",
+		"blsiq", "blsil", "blsi",
+		"blsmskq", "blsmskl", "blsmsk",
+		"blsrq", "blsrl", "blsr",
+		"tzcntq", "tzcntl", "tzcnt",
+	},
+	"bmi2": {
+		"sarxq", "sarxl", "sarx",
+		"shlxq", "shlxl", "shlx",
+		"shrxq", "shrxl", "shrx",
+	},
+	"sse41": {
+		"roundsd",
+		"pinsrq", "pinsrl", "pinsrd", "pinsrb", "pinsr",
+		"pextrq", "pextrl", "pextrd", "pextrb", "pextr",
+		"pminsb", "pminsd", "pminuw", "pminud", // Note: ub and sw are ok.
+		"pmaxsb", "pmaxsd", "pmaxuw", "pmaxud",
+		"pmovzxbw", "pmovzxbd", "pmovzxbq", "pmovzxwd", "pmovzxwq", "pmovzxdq",
+		"pmovsxbw", "pmovsxbd", "pmovsxbq", "pmovsxwd", "pmovsxwq", "pmovsxdq",
+		"pblendvb",
+	},
+	"fma":   {"vfmadd231sd"},
+	"movbe": {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
+	"lzcnt": {"lzcntq", "lzcntl", "lzcnt"},
 }
 
 // Test to use POPCNT instruction, if available
