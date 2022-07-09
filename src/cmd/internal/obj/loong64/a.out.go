@@ -351,6 +351,9 @@ const (
 
 	AXOR
 
+	AMASKEQZ
+	AMASKNEZ
+
 	// 64-bit
 	AMOVV
 	AMOVVL

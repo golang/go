@@ -99,6 +99,8 @@ var Anames = []string{
 	"TNE",
 	"WORD",
 	"XOR",
+	"MASKEQZ",
+	"MASKNEZ",
 	"MOVV",
 	"MOVVL",
 	"MOVVR",

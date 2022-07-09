@@ -68,6 +68,7 @@ var optab = []Optab{
 	{AAND, C_REG, C_NONE, C_REG, 2, 4, 0, 0, 0},
 	{ANEGW, C_REG, C_NONE, C_REG, 2, 4, 0, 0, 0},
 	{ANEGV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.Loong64, 0},
+	{AMASKEQZ, C_REG, C_REG, C_REG, 2, 4, 0, 0, 0},
 
 	{ASLL, C_REG, C_NONE, C_REG, 9, 4, 0, 0, 0},
 	{ASLL, C_REG, C_REG, C_REG, 9, 4, 0, 0, 0},
@@ -1041,6 +1042,9 @@ func buildop(ctxt *obj.Link) {
 
 		case ATEQ:
 			opset(ATNE, r0)
+
+		case AMASKEQZ:
+			opset(AMASKNEZ, r0)
 		}
 	}
 }
@@ -1627,6 +1631,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x24 << 15 // SLT
 	case ASGTU:
 		return 0x25 << 15 // SLTU
+	case AMASKEQZ:
+		return 0x26 << 15
+	case AMASKNEZ:
+		return 0x27 << 15
 	case AAND:
 		return 0x29 << 15
 	case AOR:
