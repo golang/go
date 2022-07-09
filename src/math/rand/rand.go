@@ -299,7 +299,7 @@ var _ *rngSource = globalRand.src.(*lockedSource).src
 // deterministic state. If Seed is not called, the generator behaves as
 // if seeded by Seed(1). Seed values that have the same remainder when
 // divided by 2³¹-1 generate the same pseudo-random sequence.
-// Seed, unlike the Rand.Seed method, is safe for concurrent use.
+// Seed, unlike the Rand. Seed method, is safe for concurrent use.
 func Seed(seed int64) { globalRand.Seed(seed) }
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64
