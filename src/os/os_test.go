@@ -3114,6 +3114,23 @@ func TestReadFileProc(t *testing.T) {
 	}
 }
 
+func TestDirFSReadFileProc(t *testing.T) {
+	t.Parallel()
+
+	fsys := DirFS("/")
+	name := "proc/sys/fs/pipe-max-size"
+	if _, err := fs.Stat(fsys, name); err != nil {
+		t.Skip()
+	}
+	data, err := fs.ReadFile(fsys, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) == 0 || data[len(data)-1] != '\n' {
+		t.Fatalf("read %s: not newline-terminated: %q", name, data)
+	}
+}
+
 func TestWriteStringAlloc(t *testing.T) {
 	if runtime.GOOS == "js" {
 		t.Skip("js allocates a lot during File.WriteString")
