@@ -100,6 +100,8 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpCom64(v)
 	case OpCom8:
 		return rewriteValueLOONG64_OpCom8(v)
+	case OpCondSelect:
+		return rewriteValueLOONG64_OpCondSelect(v)
 	case OpConst16:
 		return rewriteValueLOONG64_OpConst16(v)
 	case OpConst32:
@@ -229,6 +231,10 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpLOONG64LoweredAtomicStore32(v)
 	case OpLOONG64LoweredAtomicStore64:
 		return rewriteValueLOONG64_OpLOONG64LoweredAtomicStore64(v)
+	case OpLOONG64MASKEQZ:
+		return rewriteValueLOONG64_OpLOONG64MASKEQZ(v)
+	case OpLOONG64MASKNEZ:
+		return rewriteValueLOONG64_OpLOONG64MASKNEZ(v)
 	case OpLOONG64MOVBUload:
 		return rewriteValueLOONG64_OpLOONG64MOVBUload(v)
 	case OpLOONG64MOVBUreg:
@@ -776,6 +782,27 @@ func rewriteValueLOONG64_OpCom8(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
 		v0.AuxInt = int64ToAuxInt(0)
 		v.AddArg2(v0, x)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpCondSelect(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (CondSelect <t> x y cond)
+	// result: (OR (MASKEQZ <t> x cond) (MASKNEZ <t> y cond))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		cond := v_2
+		v.reset(OpLOONG64OR)
+		v0 := b.NewValue0(v.Pos, OpLOONG64MASKEQZ, t)
+		v0.AddArg2(x, cond)
+		v1 := b.NewValue0(v.Pos, OpLOONG64MASKNEZ, t)
+		v1.AddArg2(y, cond)
+		v.AddArg2(v0, v1)
 		return true
 	}
 }
@@ -1592,6 +1619,34 @@ func rewriteValueLOONG64_OpLOONG64LoweredAtomicStore64(v *Value) bool {
 		mem := v_2
 		v.reset(OpLOONG64LoweredAtomicStorezero64)
 		v.AddArg2(ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueLOONG64_OpLOONG64MASKEQZ(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MASKEQZ (MOVVconst [0]) cond)
+	// result: (MOVVconst [0])
+	for {
+		if v_0.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpLOONG64MOVVconst)
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
+	return false
+}
+func rewriteValueLOONG64_OpLOONG64MASKNEZ(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MASKNEZ (MOVVconst [0]) cond)
+	// result: (MOVVconst [0])
+	for {
+		if v_0.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpLOONG64MOVVconst)
+		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
 	return false

@@ -422,3 +422,21 @@ func cmovFcmp1(s, t float64, a, b int) {
 	// arm64:"CSINC\tEQ", -"CSEL"
 	r5 = x5
 }
+
+func cmovzero1(c bool) int {
+	var x int
+	if c {
+		x = 182
+	}
+	// loong64:"MASKEQZ", -"MASKNEZ"
+	return x
+}
+
+func cmovzero2(c bool) int {
+	var x int
+	if !c {
+		x = 182
+	}
+	// loong64:"MASKNEZ", -"MASKEQZ"
+	return x
+}
