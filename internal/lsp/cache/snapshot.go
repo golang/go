@@ -383,6 +383,11 @@ func (s *snapshot) RunGoCommands(ctx context.Context, allowNetwork bool, wd stri
 	return true, modBytes, sumBytes, nil
 }
 
+// goCommandInvocation populates inv with configuration for running go commands on the snapshot.
+//
+// TODO(rfindley): refactor this function to compose the required configuration
+// explicitly, rather than implicitly deriving it from flags and inv.
+//
 // TODO(adonovan): remove unused cleanup mechanism.
 func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.InvocationFlags, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
 	s.view.optionsMu.Lock()
@@ -412,7 +417,6 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	//  - the working directory.
 	//  - the -mod flag
 	//  - the -modfile flag
-	//  - the -workfile flag
 	//
 	// These are dependent on a number of factors: whether we need to run in a
 	// synthetic workspace, whether flags are supported at the current go
@@ -463,6 +467,9 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 		}
 	}
 
+	// TODO(rfindley): in the case of go.work mode, modURI is empty and we fall
+	// back on the default behavior of vendorEnabled with an empty modURI. Figure
+	// out what is correct here and implement it explicitly.
 	vendorEnabled, err := s.vendorEnabled(ctx, modURI, modContent)
 	if err != nil {
 		return "", nil, cleanup, err
@@ -498,13 +505,15 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 		return "", nil, cleanup, source.ErrTmpModfileUnsupported
 	}
 
-	// We should use -workfile if:
-	//  1. We're not actively trying to mutate a modfile.
-	//  2. We have an active go.work file.
-	//  3. We're using at least Go 1.18.
+	// We should use -modfile if:
+	//  - the workspace mode supports it
+	//  - we're using a go.work file on go1.18+, or we need a temp mod file (for
+	//    example, if running go mod tidy in a go.work workspace)
+	//
+	// TODO(rfindley): this is very hard to follow. Refactor.
 	useWorkFile := !needTempMod && s.workspace.moduleSource == goWorkWorkspace && s.view.goversion >= 18
 	if useWorkFile {
-		// TODO(#51215): build a temp workfile and set GOWORK in the environment.
+		// Since we're running in the workspace root, the go command will resolve GOWORK automatically.
 	} else if useTempMod {
 		if modURI == "" {
 			return "", nil, cleanup, fmt.Errorf("no go.mod file found in %s", inv.WorkingDir)
@@ -523,6 +532,25 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	}
 
 	return tmpURI, inv, cleanup, nil
+}
+
+// usesWorkspaceDir reports whether the snapshot should use a synthetic
+// workspace directory for running workspace go commands such as go list.
+//
+// TODO(rfindley): this logic is duplicated with goCommandInvocation. Clean up
+// the latter, and deduplicate.
+func (s *snapshot) usesWorkspaceDir() bool {
+	switch s.workspace.moduleSource {
+	case legacyWorkspace:
+		return false
+	case goWorkWorkspace:
+		if s.view.goversion >= 18 {
+			return false
+		}
+		// Before go 1.18, the Go command did not natively support go.work files,
+		// so we 'fake' them with a workspace module.
+	}
+	return true
 }
 
 func (s *snapshot) buildOverlay() map[string][]byte {
