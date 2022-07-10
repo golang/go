@@ -606,8 +606,9 @@ func testServeFileNotModified(t *testing.T, h2 bool) {
 	if g, e := resp.StatusCode, StatusNotModified; g != e {
 		t.Errorf("status mismatch: got %d, want %d", g, e)
 	}
-	if g, e := resp.ContentLength, int64(-1); g != e {
-		t.Errorf("Content-Length mismatch: got %d, want %d", g, e)
+	// HTTP1 transport sets ContentLength to 0.
+	if g, e1, e2 := resp.ContentLength, int64(-1), int64(0); g != e1 && g != e2 {
+		t.Errorf("Content-Length mismatch: got %d, want %d or %d", g, e1, e2)
 	}
 	if resp.Header.Get("Content-Type") != "" {
 		t.Errorf("Content-Type present, but it should not be")
