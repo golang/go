@@ -571,7 +571,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 
 			fname := stk[0].Fn
 			info.name = fmt.Sprintf("G%v %s", newG, fname)
-			info.isSystemG = isSystemGoroutine(fname)
+			info.isSystemG = trace.IsSystemGoroutine(fname)
 
 			ctx.gcount++
 			setGState(ev, newG, gDead, gRunnable)
@@ -1127,12 +1127,6 @@ func (ctx *traceContext) buildBranch(parent frameNode, stk []*trace.Frame) int {
 		ctx.consumer.consumeViewerFrame(strconv.Itoa(node.id), traceviewer.Frame{Name: fmt.Sprintf("%v:%v", frame.Fn, frame.Line), Parent: parent.id})
 	}
 	return ctx.buildBranch(node, stk)
-}
-
-func isSystemGoroutine(entryFn string) bool {
-	// This mimics runtime.isSystemGoroutine as closely as
-	// possible.
-	return entryFn != "runtime.main" && strings.HasPrefix(entryFn, "runtime.")
 }
 
 // firstTimestamp returns the timestamp of the first event record.

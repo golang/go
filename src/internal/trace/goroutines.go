@@ -4,7 +4,10 @@
 
 package trace
 
-import "sort"
+import (
+	"sort"
+	"strings"
+)
 
 // GDesc contains statistics and execution details of a single goroutine.
 type GDesc struct {
@@ -126,10 +129,17 @@ func (g *GDesc) finalize(lastTs, activeGCStartTime int64, trigger *Event) {
 	finalStat := g.snapshotStat(lastTs, activeGCStartTime)
 
 	g.GExecutionStat = finalStat
-	for _, s := range g.activeRegions {
-		s.End = trigger
-		s.GExecutionStat = finalStat.sub(s.GExecutionStat)
-		g.Regions = append(g.Regions, s)
+
+	// System goroutines are never part of regions, even though they
+	// "inherit" a task due to creation (EvGoCreate) from within a region.
+	// This may happen e.g. if the first GC is triggered within a region,
+	// starting the GC worker goroutines.
+	if !IsSystemGoroutine(g.Name) {
+		for _, s := range g.activeRegions {
+			s.End = trigger
+			s.GExecutionStat = finalStat.sub(s.GExecutionStat)
+			g.Regions = append(g.Regions, s)
+		}
 	}
 	*(g.gdesc) = gdesc{}
 }
@@ -158,10 +168,13 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 		case EvGoCreate:
 			g := &GDesc{ID: ev.Args[0], CreationTime: ev.Ts, gdesc: new(gdesc)}
 			g.blockSchedTime = ev.Ts
-			// When a goroutine is newly created, inherit the
-			// task of the active region. For ease handling of
-			// this case, we create a fake region description with
-			// the task id.
+			// When a goroutine is newly created, inherit the task
+			// of the active region. For ease handling of this
+			// case, we create a fake region description with the
+			// task id. This isn't strictly necessary as this
+			// goroutine may not be assosciated with the task, but
+			// it can be convenient to see all children created
+			// during a region.
 			if creatorG := gs[ev.G]; creatorG != nil && len(creatorG.gdesc.activeRegions) > 0 {
 				regions := creatorG.gdesc.activeRegions
 				s := regions[len(regions)-1]
@@ -335,4 +348,10 @@ func RelatedGoroutines(events []*Event, goid uint64) map[uint64]bool {
 	}
 	gmap[0] = true // for GC events
 	return gmap
+}
+
+func IsSystemGoroutine(entryFn string) bool {
+	// This mimics runtime.isSystemGoroutine as closely as
+	// possible.
+	return entryFn != "runtime.main" && strings.HasPrefix(entryFn, "runtime.")
 }
