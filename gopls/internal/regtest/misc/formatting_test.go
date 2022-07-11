@@ -352,10 +352,8 @@ const Bar = 42
 `
 
 	WithOptions(
-		EditorConfig{
-			Settings: map[string]interface{}{
-				"gofumpt": true,
-			},
+		Settings{
+			"gofumpt": true,
 		},
 	).Run(t, input, func(t *testing.T, env *Env) {
 		env.OpenFile("foo.go")

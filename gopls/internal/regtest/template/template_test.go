@@ -35,11 +35,9 @@ go 1.17
 {{end}}
 `
 	WithOptions(
-		EditorConfig{
-			Settings: map[string]interface{}{
-				"templateExtensions": []string{"tmpl"},
-				"semanticTokens":     true,
-			},
+		Settings{
+			"templateExtensions": []string{"tmpl"},
+			"semanticTokens":     true,
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		var p protocol.SemanticTokensParams
@@ -66,11 +64,9 @@ Hello {{}} <-- missing body
 {{end}}
 `
 	WithOptions(
-		EditorConfig{
-			Settings: map[string]interface{}{
-				"templateExtensions": []string{"tmpl"},
-				"semanticTokens":     true,
-			},
+		Settings{
+			"templateExtensions": []string{"tmpl"},
+			"semanticTokens":     true,
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		// TODO: can we move this diagnostic onto {{}}?
@@ -112,11 +108,9 @@ B {{}} <-- missing body
 `
 
 	WithOptions(
-		EditorConfig{
-			Settings: map[string]interface{}{
-				"templateExtensions": []string{"tmpl"},
-			},
-			DirectoryFilters: []string{"-b"},
+		Settings{
+			"directoryFilters":   []string{"-b"},
+			"templateExtensions": []string{"tmpl"},
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.Await(
@@ -184,10 +178,8 @@ go 1.12
 `
 
 	WithOptions(
-		EditorConfig{
-			Settings: map[string]interface{}{
-				"templateExtensions": []string{"tmpl", "gotmpl"},
-			},
+		Settings{
+			"templateExtensions": []string{"tmpl", "gotmpl"},
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a.tmpl")

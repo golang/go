@@ -389,9 +389,9 @@ func _() {
 package a
 `
 	t.Run("close then delete", func(t *testing.T) {
-		WithOptions(EditorConfig{
-			VerboseOutput: true,
-		}).Run(t, pkg, func(t *testing.T, env *Env) {
+		WithOptions(
+			Settings{"verboseOutput": true},
+		).Run(t, pkg, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
 			env.OpenFile("a/a_unneeded.go")
 			env.Await(
@@ -424,7 +424,7 @@ package a
 
 	t.Run("delete then close", func(t *testing.T) {
 		WithOptions(
-			EditorConfig{VerboseOutput: true},
+			Settings{"verboseOutput": true},
 		).Run(t, pkg, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
 			env.OpenFile("a/a_unneeded.go")
@@ -620,11 +620,7 @@ func main() {
 `
 	WithOptions(
 		InGOPATH(),
-		EditorConfig{
-			Env: map[string]string{
-				"GO111MODULE": "auto",
-			},
-		},
+		EnvVars{"GO111MODULE": "auto"},
 		Modes(Experimental), // module is in a subdirectory
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo/main.go")
@@ -663,11 +659,7 @@ func main() {
 `
 	WithOptions(
 		InGOPATH(),
-		EditorConfig{
-			Env: map[string]string{
-				"GO111MODULE": "auto",
-			},
-		},
+		EnvVars{"GO111MODULE": "auto"},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo/main.go")
 		env.RemoveWorkspaceFile("foo/go.mod")

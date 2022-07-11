@@ -56,10 +56,8 @@ const (
 	for _, test := range tests {
 		t.Run(test.label, func(t *testing.T) {
 			WithOptions(
-				EditorConfig{
-					Settings: map[string]interface{}{
-						"hints": test.enabled,
-					},
+				Settings{
+					"hints": test.enabled,
 				},
 			).Run(t, workspace, func(t *testing.T, env *Env) {
 				env.OpenFile("lib.go")

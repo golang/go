@@ -1036,10 +1036,10 @@ package exclude
 
 const _ = Nonexistant
 `
-	cfg := EditorConfig{
-		DirectoryFilters: []string{"-exclude"},
-	}
-	WithOptions(cfg).Run(t, files, func(t *testing.T, env *Env) {
+
+	WithOptions(
+		Settings{"directoryFilters": []string{"-exclude"}},
+	).Run(t, files, func(t *testing.T, env *Env) {
 		env.Await(NoDiagnostics("exclude/x.go"))
 	})
 }
@@ -1064,10 +1064,9 @@ const _ = Nonexistant // should be ignored, since this is a non-workspace packag
 const X = 1
 `
 
-	cfg := EditorConfig{
-		DirectoryFilters: []string{"-exclude"},
-	}
-	WithOptions(cfg).Run(t, files, func(t *testing.T, env *Env) {
+	WithOptions(
+		Settings{"directoryFilters": []string{"-exclude"}},
+	).Run(t, files, func(t *testing.T, env *Env) {
 		env.Await(
 			NoDiagnostics("exclude/exclude.go"), // filtered out
 			NoDiagnostics("include/include.go"), // successfully builds
@@ -1114,10 +1113,11 @@ go 1.12
 -- exclude.com@v1.0.0/exclude.go --
 package exclude
 `
-	cfg := EditorConfig{
-		DirectoryFilters: []string{"-exclude"},
-	}
-	WithOptions(cfg, Modes(Experimental), ProxyFiles(proxy)).Run(t, files, func(t *testing.T, env *Env) {
+	WithOptions(
+		Modes(Experimental),
+		ProxyFiles(proxy),
+		Settings{"directoryFilters": []string{"-exclude"}},
+	).Run(t, files, func(t *testing.T, env *Env) {
 		env.Await(env.DiagnosticAtRegexp("include/include.go", `exclude.(X)`))
 	})
 }
@@ -1204,9 +1204,7 @@ go 1.12
 package main
 `
 	WithOptions(
-		EditorConfig{Env: map[string]string{
-			"GOPATH": filepath.FromSlash("$SANDBOX_WORKDIR/gopath"),
-		}},
+		EnvVars{"GOPATH": filepath.FromSlash("$SANDBOX_WORKDIR/gopath")},
 		Modes(Singleton),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(

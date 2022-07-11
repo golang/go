@@ -7,7 +7,6 @@ package regtest
 import (
 	"encoding/json"
 	"path"
-	"testing"
 
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/fake"
@@ -427,31 +426,10 @@ func (e *Env) CodeAction(path string, diagnostics []protocol.Diagnostic) []proto
 	return actions
 }
 
-func (e *Env) ChangeConfiguration(t *testing.T, config *fake.EditorConfig) {
-	e.Editor.Config = *config
-	if err := e.Editor.Server.DidChangeConfiguration(e.Ctx, &protocol.DidChangeConfigurationParams{
-		// gopls currently ignores the Settings field
-	}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// ChangeEnv modifies the editor environment and reconfigures the LSP client.
-// TODO: extend this to "ChangeConfiguration", once we refactor the way editor
-// configuration is defined.
-func (e *Env) ChangeEnv(overlay map[string]string) {
+// ChangeConfiguration updates the editor config, calling t.Fatal on any error.
+func (e *Env) ChangeConfiguration(newConfig fake.EditorConfig) {
 	e.T.Helper()
-	// TODO: to be correct, this should probably be synchronized, but right now
-	// configuration is only ever modified synchronously in a regtest, so this
-	// correctness can wait for the previously mentioned refactoring.
-	if e.Editor.Config.Env == nil {
-		e.Editor.Config.Env = make(map[string]string)
-	}
-	for k, v := range overlay {
-		e.Editor.Config.Env[k] = v
-	}
-	var params protocol.DidChangeConfigurationParams
-	if err := e.Editor.Server.DidChangeConfiguration(e.Ctx, &params); err != nil {
+	if err := e.Editor.ChangeConfiguration(e.Ctx, newConfig); err != nil {
 		e.T.Fatal(err)
 	}
 }

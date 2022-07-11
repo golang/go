@@ -24,11 +24,7 @@ func main() {
 `
 
 	WithOptions(
-		EditorConfig{
-			Settings: map[string]interface{}{
-				"directoryFilters": []string{""},
-			},
-		},
+		Settings{"directoryFilters": []string{""}},
 	).Run(t, src, func(t *testing.T, env *Env) {
 		// No need to do anything. Issue golang/go#51843 is triggered by the empty
 		// directory filter above.

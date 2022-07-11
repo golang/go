@@ -60,11 +60,9 @@ func testGenerics[P *T, T any](p P) {
 var FooErr error = errors.New("foo")
 `
 
-	WithOptions(EditorConfig{
-		Settings: map[string]interface{}{
-			"staticcheck": true,
-		},
-	}).Run(t, files, func(t *testing.T, env *Env) {
+	WithOptions(
+		Settings{"staticcheck": true},
+	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
 		env.Await(
 			env.DiagnosticAtRegexpFromSource("a/a.go", "sort.Slice", "sortslice"),

@@ -72,9 +72,7 @@ const (
 
 	var symbolMatcher = string(source.SymbolFastFuzzy)
 	WithOptions(
-		EditorConfig{
-			SymbolMatcher: &symbolMatcher,
-		},
+		Settings{"symbolMatcher": symbolMatcher},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		want := []string{
 			"Foo",    // prefer exact segment matches first
@@ -105,9 +103,7 @@ const (
 
 	var symbolMatcher = string(source.SymbolFastFuzzy)
 	WithOptions(
-		EditorConfig{
-			SymbolMatcher: &symbolMatcher,
-		},
+		Settings{"symbolMatcher": symbolMatcher},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		compareSymbols(t, env.WorkspaceSymbol("ABC"), []string{"ABC", "AxxBxxCxx"})
 		compareSymbols(t, env.WorkspaceSymbol("'ABC"), []string{"ABC"})

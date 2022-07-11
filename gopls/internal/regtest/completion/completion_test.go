@@ -529,7 +529,7 @@ func main() {
 }
 `
 	WithOptions(
-		EditorConfig{WindowsLineEndings: true},
+		WindowsLineEndings(),
 	).Run(t, src, func(t *testing.T, env *Env) {
 		// Trigger unimported completions for the example.com/blah package.
 		env.OpenFile("main.go")

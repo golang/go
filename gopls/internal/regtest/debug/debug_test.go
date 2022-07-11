@@ -21,11 +21,7 @@ func TestBugNotification(t *testing.T) {
 	// server.
 	WithOptions(
 		Modes(Singleton), // must be in-process to receive the bug report below
-		EditorConfig{
-			Settings: map[string]interface{}{
-				"showBugReports": true,
-			},
-		},
+		Settings{"showBugReports": true},
 	).Run(t, "", func(t *testing.T, env *Env) {
 		const desc = "got a bug"
 		bug.Report(desc, nil)

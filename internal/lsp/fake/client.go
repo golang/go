@@ -77,7 +77,7 @@ func (c *Client) Configuration(_ context.Context, p *protocol.ParamConfiguration
 		if item.Section != "gopls" {
 			continue
 		}
-		results[i] = c.editor.configuration()
+		results[i] = c.editor.settings()
 	}
 	return results, nil
 }

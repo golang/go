@@ -133,17 +133,27 @@ func Options(hook func(*source.Options)) RunOption {
 	})
 }
 
-func SendPID() RunOption {
+// WindowsLineEndings configures the editor to use windows line endings.
+func WindowsLineEndings() RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.editor.SendPID = true
+		opts.editor.WindowsLineEndings = true
 	})
 }
 
-// EditorConfig is a RunOption option that configured the regtest editor.
-type EditorConfig fake.EditorConfig
+// Settings is a RunOption that sets user-provided configuration for the LSP
+// server.
+//
+// As a special case, the env setting must not be provided via Settings: use
+// EnvVars instead.
+type Settings map[string]interface{}
 
-func (c EditorConfig) set(opts *runConfig) {
-	opts.editor = fake.EditorConfig(c)
+func (s Settings) set(opts *runConfig) {
+	if opts.editor.Settings == nil {
+		opts.editor.Settings = make(map[string]interface{})
+	}
+	for k, v := range s {
+		opts.editor.Settings[k] = v
+	}
 }
 
 // WorkspaceFolders configures the workdir-relative workspace folders to send
@@ -158,6 +168,20 @@ func WorkspaceFolders(relFolders ...string) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.editor.WorkspaceFolders = relFolders
 	})
+}
+
+// EnvVars sets environment variables for the LSP session. When applying these
+// variables to the session, the special string $SANDBOX_WORKDIR is replaced by
+// the absolute path to the sandbox working directory.
+type EnvVars map[string]string
+
+func (e EnvVars) set(opts *runConfig) {
+	if opts.editor.Env == nil {
+		opts.editor.Env = make(map[string]string)
+	}
+	for k, v := range e {
+		opts.editor.Env[k] = v
+	}
 }
 
 // InGOPATH configures the workspace working directory to be GOPATH, rather
@@ -209,13 +233,6 @@ func SkipHooks(skip bool) RunOption {
 func GOPROXY(goproxy string) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.sandbox.GOPROXY = goproxy
-	})
-}
-
-// LimitWorkspaceScope sets the LimitWorkspaceScope configuration.
-func LimitWorkspaceScope() RunOption {
-	return optionSetter(func(opts *runConfig) {
-		opts.editor.LimitWorkspaceScope = true
 	})
 }
 

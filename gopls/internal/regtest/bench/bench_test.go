@@ -93,14 +93,14 @@ func TestBenchmarkSymbols(t *testing.T) {
 	}
 
 	opts := benchmarkOptions(symbolOptions.workdir)
-	conf := EditorConfig{}
+	settings := make(Settings)
 	if symbolOptions.matcher != "" {
-		conf.SymbolMatcher = &symbolOptions.matcher
+		settings["symbolMatcher"] = symbolOptions.matcher
 	}
 	if symbolOptions.style != "" {
-		conf.SymbolStyle = &symbolOptions.style
+		settings["symbolStyle"] = symbolOptions.style
 	}
-	opts = append(opts, conf)
+	opts = append(opts, settings)
 
 	WithOptions(opts...).Run(t, "", func(t *testing.T, env *Env) {
 		// We can't Await in this test, since we have disabled hooks. Instead, run
@@ -200,9 +200,10 @@ func TestBenchmarkDidChange(t *testing.T) {
 // Always run it in isolation since it measures global heap usage.
 //
 // Kubernetes example:
-//   $ go test -run=TestPrintMemStats -didchange_dir=$HOME/w/kubernetes
-//   TotalAlloc:      5766 MB
-//   HeapAlloc:       1984 MB
+//
+//	$ go test -run=TestPrintMemStats -didchange_dir=$HOME/w/kubernetes
+//	TotalAlloc:      5766 MB
+//	HeapAlloc:       1984 MB
 //
 // Both figures exhibit variance of less than 1%.
 func TestPrintMemStats(t *testing.T) {

@@ -740,11 +740,7 @@ func main() {
 }
 `
 	WithOptions(
-		EditorConfig{
-			Env: map[string]string{
-				"GOFLAGS": "-mod=readonly",
-			},
-		},
+		EnvVars{"GOFLAGS": "-mod=readonly"},
 		ProxyFiles(proxy),
 		Modes(Singleton),
 	).Run(t, mod, func(t *testing.T, env *Env) {
@@ -830,9 +826,7 @@ func main() {
 `
 	WithOptions(
 		ProxyFiles(workspaceProxy),
-		EditorConfig{
-			BuildFlags: []string{"-tags", "bob"},
-		},
+		Settings{"buildFlags": []string{"-tags", "bob"}},
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),

@@ -111,7 +111,11 @@ type condition struct {
 // NewEnv creates a new test environment using the given scratch environment
 // and gopls server.
 //
-// The resulting func must be called to close the jsonrpc2 connection.
+// The resulting cleanup func must be called to close the jsonrpc2 connection.
+//
+// TODO(rfindley): this function provides questionable value. Consider
+// refactoring to move things like creating the server outside of this
+// constructor.
 func NewEnv(ctx context.Context, tb testing.TB, sandbox *fake.Sandbox, ts servertest.Connector, editorConfig fake.EditorConfig, withHooks bool) (_ *Env, cleanup func()) {
 	tb.Helper()
 

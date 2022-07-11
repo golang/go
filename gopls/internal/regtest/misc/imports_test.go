@@ -153,9 +153,8 @@ var _, _ = x.X, y.Y
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(modcache)
-	editorConfig := EditorConfig{Env: map[string]string{"GOMODCACHE": modcache}}
 	WithOptions(
-		editorConfig,
+		EnvVars{"GOMODCACHE": modcache},
 		ProxyFiles(proxy),
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")

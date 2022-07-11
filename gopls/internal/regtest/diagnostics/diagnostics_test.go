@@ -471,12 +471,11 @@ func _() {
 }
 `
 	WithOptions(
-		EditorConfig{
-			Env: map[string]string{
-				"GOPATH":      "",
-				"GO111MODULE": "off",
-			},
-		}).Run(t, files, func(t *testing.T, env *Env) {
+		EnvVars{
+			"GOPATH":      "",
+			"GO111MODULE": "off",
+		},
+	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(env.DiagnosticAtRegexp("main.go", "fmt"))
 		env.SaveBuffer("main.go")
@@ -500,8 +499,9 @@ package x
 
 var X = 0
 `
-	editorConfig := EditorConfig{Env: map[string]string{"GOFLAGS": "-tags=foo"}}
-	WithOptions(editorConfig).Run(t, files, func(t *testing.T, env *Env) {
+	WithOptions(
+		EnvVars{"GOFLAGS": "-tags=foo"},
+	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OrganizeImports("main.go")
 		env.Await(EmptyDiagnostics("main.go"))
@@ -573,9 +573,9 @@ hi mom
 `
 	for _, go111module := range []string{"on", "off", ""} {
 		t.Run(fmt.Sprintf("GO111MODULE_%v", go111module), func(t *testing.T) {
-			WithOptions(EditorConfig{
-				Env: map[string]string{"GO111MODULE": go111module},
-			}).Run(t, files, func(t *testing.T, env *Env) {
+			WithOptions(
+				EnvVars{"GO111MODULE": go111module},
+			).Run(t, files, func(t *testing.T, env *Env) {
 				env.Await(
 					NoOutstandingWork(),
 				)
@@ -605,11 +605,7 @@ func main() {
 `
 	WithOptions(
 		InGOPATH(),
-		EditorConfig{
-			Env: map[string]string{
-				"GO111MODULE": "off",
-			},
-		},
+		EnvVars{"GO111MODULE": "off"},
 	).Run(t, collision, func(t *testing.T, env *Env) {
 		env.OpenFile("x/x.go")
 		env.Await(
@@ -1236,7 +1232,7 @@ func main() {
 	})
 	WithOptions(
 		WorkspaceFolders("a"),
-		LimitWorkspaceScope(),
+		Settings{"expandWorkspaceToModule": false},
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.Await(
@@ -1267,11 +1263,7 @@ func main() {
 `
 
 	WithOptions(
-		EditorConfig{
-			Settings: map[string]interface{}{
-				"staticcheck": true,
-			},
-		},
+		Settings{"staticcheck": true},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		var d protocol.PublishDiagnosticsParams
@@ -1381,9 +1373,7 @@ func b(c bytes.Buffer) {
 }
 `
 	WithOptions(
-		EditorConfig{
-			AllExperiments: true,
-		},
+		Settings{"allExperiments": true},
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		// Confirm that the setting doesn't cause any warnings.
 		env.Await(NoShowMessage())
@@ -1495,11 +1485,7 @@ package foo_
 	WithOptions(
 		ProxyFiles(proxy),
 		InGOPATH(),
-		EditorConfig{
-			Env: map[string]string{
-				"GO111MODULE": "off",
-			},
-		},
+		EnvVars{"GO111MODULE": "off"},
 	).Run(t, contents, func(t *testing.T, env *Env) {
 		// Simulate typing character by character.
 		env.OpenFile("foo/foo_test.go")
@@ -1698,9 +1684,7 @@ import (
 	t.Run("GOPATH", func(t *testing.T) {
 		WithOptions(
 			InGOPATH(),
-			EditorConfig{
-				Env: map[string]string{"GO111MODULE": "off"},
-			},
+			EnvVars{"GO111MODULE": "off"},
 			Modes(Singleton),
 		).Run(t, mod, func(t *testing.T, env *Env) {
 			env.Await(
@@ -1729,11 +1713,7 @@ package b
 		t.Run("GO111MODULE="+go111module, func(t *testing.T) {
 			WithOptions(
 				Modes(Singleton),
-				EditorConfig{
-					Env: map[string]string{
-						"GO111MODULE": go111module,
-					},
-				},
+				EnvVars{"GO111MODULE": go111module},
 			).Run(t, modules, func(t *testing.T, env *Env) {
 				env.OpenFile("a/a.go")
 				env.OpenFile("b/go.mod")
@@ -1750,11 +1730,7 @@ package b
 	t.Run("GOPATH_GO111MODULE_auto", func(t *testing.T) {
 		WithOptions(
 			Modes(Singleton),
-			EditorConfig{
-				Env: map[string]string{
-					"GO111MODULE": "auto",
-				},
-			},
+			EnvVars{"GO111MODULE": "auto"},
 			InGOPATH(),
 		).Run(t, modules, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
@@ -2026,9 +2002,7 @@ package a
 func Hello() {}
 `
 	WithOptions(
-		EditorConfig{
-			ExperimentalUseInvalidMetadata: true,
-		},
+		Settings{"experimentalUseInvalidMetadata": true},
 		Modes(Singleton),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
@@ -2082,9 +2056,7 @@ package main
 func _() {}
 `
 	WithOptions(
-		EditorConfig{
-			ExperimentalUseInvalidMetadata: true,
-		},
+		Settings{"experimentalUseInvalidMetadata": true},
 		// ExperimentalWorkspaceModule has a different failure mode for this
 		// case.
 		Modes(Singleton),

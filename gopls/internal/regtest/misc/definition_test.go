@@ -162,9 +162,7 @@ func main() {}
 	} {
 		t.Run(tt.importShortcut, func(t *testing.T) {
 			WithOptions(
-				EditorConfig{
-					ImportShortcut: tt.importShortcut,
-				},
+				Settings{"importShortcut": tt.importShortcut},
 			).Run(t, mod, func(t *testing.T, env *Env) {
 				env.OpenFile("main.go")
 				file, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `"fmt"`))
