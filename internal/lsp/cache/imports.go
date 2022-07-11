@@ -156,6 +156,7 @@ func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapsho
 	}
 
 	pe.BuildFlags = inv.BuildFlags
+	pe.ModFlag = "readonly" // processEnv operations should not mutate the modfile
 	pe.Env = map[string]string{}
 	for _, kv := range inv.Env {
 		split := strings.SplitN(kv, "=", 2)
