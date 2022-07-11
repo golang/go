@@ -610,11 +610,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 				break
 			}
 
-			field, err := s.PosToField(ctx, pkg, obj.Pos())
-			if err != nil {
-				return nil, err
-			}
-
+			_, field := FindDeclAndField(pkg.GetSyntax(), obj.Pos())
 			if field != nil {
 				comment := field.Doc
 				if comment.Text() == "" {
@@ -875,4 +871,100 @@ func anyNonEmpty(x []string) bool {
 		}
 	}
 	return false
+}
+
+// FindDeclAndField returns the var/func/type/const Decl that declares
+// the identifier at pos, searching the given list of file syntax
+// trees. If pos is the position of an ast.Field or one of its Names
+// or Ellipsis.Elt, the field is returned, along with the innermost
+// enclosing Decl, which could be only loosely related---consider:
+//
+//    var decl = f(  func(field int) {}  )
+//
+// It returns (nil, nil) if no Field or Decl is found at pos.
+func FindDeclAndField(files []*ast.File, pos token.Pos) (decl ast.Decl, field *ast.Field) {
+	// panic(nil) breaks off the traversal and
+	// causes the function to return normally.
+	defer func() {
+		if x := recover(); x != nil {
+			panic(x)
+		}
+	}()
+
+	// Visit the files in search of the node at pos.
+	var stack []ast.Node
+	for _, file := range files {
+		ast.Inspect(file, func(n ast.Node) bool {
+			if n != nil {
+				stack = append(stack, n) // push
+			} else {
+				stack = stack[:len(stack)-1] // pop
+				return false
+			}
+
+			// Skip subtrees (incl. files) that don't contain the search point.
+			if !(n.Pos() <= pos && pos < n.End()) {
+				return false
+			}
+
+			switch n := n.(type) {
+			case *ast.Field:
+				checkField := func(f ast.Node) {
+					if f.Pos() == pos {
+						field = n
+						for i := len(stack) - 1; i >= 0; i-- {
+							if d, ok := stack[i].(ast.Decl); ok {
+								decl = d // innermost enclosing decl
+								break
+							}
+						}
+						panic(nil) // found
+					}
+				}
+
+				// Check *ast.Field itself. This handles embedded
+				// fields which have no associated *ast.Ident name.
+				checkField(n)
+
+				// Check each field name since you can have
+				// multiple names for the same type expression.
+				for _, name := range n.Names {
+					checkField(name)
+				}
+
+				// Also check "X" in "...X". This makes it easy
+				// to format variadic signature params properly.
+				if ell, ok := n.Type.(*ast.Ellipsis); ok && ell.Elt != nil {
+					checkField(ell.Elt)
+				}
+
+			case *ast.FuncDecl:
+				if n.Name.Pos() == pos {
+					decl = n
+					panic(nil) // found
+				}
+
+			case *ast.GenDecl:
+				for _, spec := range n.Specs {
+					switch spec := spec.(type) {
+					case *ast.TypeSpec:
+						if spec.Name.Pos() == pos {
+							decl = n
+							panic(nil) // found
+						}
+					case *ast.ValueSpec:
+						for _, id := range spec.Names {
+							if id.Pos() == pos {
+								decl = n
+								panic(nil) // found
+							}
+						}
+					}
+				}
+			}
+			return true
+		})
+	}
+
+	return nil, nil
 }

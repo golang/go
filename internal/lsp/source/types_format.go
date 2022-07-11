@@ -259,8 +259,8 @@ func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, obj *
 		return types.TypeString(obj.Type(), qf)
 	}
 
-	field, err := snapshot.PosToField(ctx, pkg, obj.Pos())
-	if err != nil || field == nil {
+	_, field := FindDeclAndField(pkg.GetSyntax(), obj.Pos())
+	if field == nil {
 		return types.TypeString(obj.Type(), qf)
 	}
 	expr := field.Type

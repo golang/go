@@ -292,9 +292,8 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	if err != nil {
 		return nil, err
 	}
-	if result.Declaration.node, err = snapshot.PosToDecl(ctx, declPkg, result.Declaration.obj.Pos()); err != nil {
-		return nil, err
-	}
+	result.Declaration.node, _ = FindDeclAndField(declPkg.GetSyntax(), result.Declaration.obj.Pos()) // may be nil
+
 	// Ensure that we have the full declaration, in case the declaration was
 	// parsed in ParseExported and therefore could be missing information.
 	if result.Declaration.fullDecl, err = fullNode(snapshot, result.Declaration.obj, declPkg); err != nil {

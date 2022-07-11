@@ -79,21 +79,6 @@ type Snapshot interface {
 	// If the file is not available, returns nil and an error.
 	ParseGo(ctx context.Context, fh FileHandle, mode ParseMode) (*ParsedGoFile, error)
 
-	// PosToField is a cache of *ast.Fields by token.Pos. This allows us
-	// to quickly find corresponding *ast.Field node given a *types.Var.
-	// We must refer to the AST to render type aliases properly when
-	// formatting signatures and other types.
-	// May return (nil, nil) if the file didn't declare an object at that position.
-	// TODO(adonovan): seems like a bug?
-	PosToField(ctx context.Context, pkg Package, pos token.Pos) (*ast.Field, error)
-
-	// PosToDecl maps certain objects' positions to their surrounding
-	// ast.Decl. This mapping is used when building the documentation
-	// string for the objects.
-	// May return (nil, nil) if the file didn't declare an object at that position.
-	// TODO(adonovan): seems like a bug?
-	PosToDecl(ctx context.Context, pkg Package, pos token.Pos) (ast.Decl, error)
-
 	// DiagnosePackage returns basic diagnostics, including list, parse, and type errors
 	// for pkg, grouped by file.
 	DiagnosePackage(ctx context.Context, pkg Package) (map[span.URI][]*Diagnostic, error)
