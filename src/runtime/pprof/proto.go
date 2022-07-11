@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"internal/abi"
 	"io"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -46,10 +45,11 @@ type profileBuilder struct {
 
 type memMap struct {
 	// initialized as reading mapping
-	start         uintptr
-	end           uintptr
-	offset        uint64
-	file, buildID string
+	start   uintptr // Address at which the binary (or DLL) is loaded into memory.
+	end     uintptr // The limit of the address range occupied by this mapping.
+	offset  uint64  // Offset in the binary that corresponds to the first mapped address.
+	file    string  // The object this entry is loaded from.
+	buildID string  // A string that uniquely identifies a particular program version with high probability.
 
 	funcs symbolizeFlag
 	fake  bool // map entry was faked; /proc/self/maps wasn't available
@@ -638,20 +638,6 @@ func (b *profileBuilder) emitLocation() uint64 {
 
 	b.flush()
 	return id
-}
-
-// readMapping reads /proc/self/maps and writes mappings to b.pb.
-// It saves the address ranges of the mappings in b.mem for use
-// when emitting locations.
-func (b *profileBuilder) readMapping() {
-	data, _ := os.ReadFile("/proc/self/maps")
-	parseProcSelfMaps(data, b.addMapping)
-	if len(b.mem) == 0 { // pprof expects a map entry, so fake one.
-		b.addMappingEntry(0, 0, 0, "", "", true)
-		// TODO(hyangah): make addMapping return *memMap or
-		// take a memMap struct, and get rid of addMappingEntry
-		// that takes a bunch of positional arguments.
-	}
 }
 
 var space = []byte(" ")
