@@ -1038,6 +1038,25 @@ func divShiftClean32(n int32) int32 {
 	return n / int32(16) // ERROR "Proved Rsh32x64 shifts to zero"
 }
 
+// Bounds check elimination
+
+func sliceBCE1(p []string, h uint) string {
+	if len(p) == 0 {
+		return ""
+	}
+
+	i := h & uint(len(p)-1)
+	return p[i] // ERROR "Proved IsInBounds$"
+}
+
+func sliceBCE2(p []string, h int) string {
+	if len(p) == 0 {
+		return ""
+	}
+	i := h & (len(p) - 1)
+	return p[i] // ERROR "Proved IsInBounds$"
+}
+
 func and(p []byte) ([]byte, []byte) { // issue #52563
 	const blocksize = 16
 	fullBlocks := len(p) &^ (blocksize - 1)

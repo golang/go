@@ -802,6 +802,7 @@ func prove(f *Func) {
 	ft.checkpoint()
 
 	var lensVars map[*Block][]*Value
+	var logicVars map[*Block][]*Value
 
 	// Find length and capacity ops.
 	for _, b := range f.Blocks {
@@ -856,6 +857,16 @@ func prove(f *Func) {
 			case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 				ft.update(b, v, v.Args[1], unsigned, lt|eq)
 				ft.update(b, v, v.Args[0], unsigned, lt|eq)
+				for i := 0; i < 2; i++ {
+					if isNonNegative(v.Args[i]) {
+						ft.update(b, v, v.Args[i], signed, lt|eq)
+						ft.update(b, v, ft.zero, signed, gt|eq)
+					}
+				}
+				if logicVars == nil {
+					logicVars = make(map[*Block][]*Value)
+				}
+				logicVars[b] = append(logicVars[b], v)
 			case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
 				OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
 				OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
@@ -982,6 +993,21 @@ func prove(f *Func) {
 
 			if branch != unknown {
 				addBranchRestrictions(ft, parent, branch)
+				// After we add the branch restriction, re-check the logic operations in the parent block,
+				// it may give us more info to omit some branches
+				if logic, ok := logicVars[parent]; ok {
+					for _, v := range logic {
+						// we only have OpAnd for now
+						ft.update(parent, v, v.Args[1], unsigned, lt|eq)
+						ft.update(parent, v, v.Args[0], unsigned, lt|eq)
+						for i := 0; i < 2; i++ {
+							if isNonNegative(v.Args[i]) {
+								ft.update(parent, v, v.Args[i], signed, lt|eq)
+								ft.update(parent, v, ft.zero, signed, gt|eq)
+							}
+						}
+					}
+				}
 				if ft.unsat {
 					// node.block is unreachable.
 					// Remove it and don't visit

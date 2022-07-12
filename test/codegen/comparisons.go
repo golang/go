@@ -235,7 +235,7 @@ func CmpToZero(a, b, d int32, e, f int64, deOptC0, deOptC1 bool) int32 {
 	// arm64:`CMN\sR[0-9]+<<3,\sR[0-9]+`
 	c8 := e+(f<<3) < 0
 	// arm64:`TST\sR[0-9],\sR[0-9]+`
-	c9 := e&17 < 0
+	c9 := e&(-19) < 0
 	if c0 {
 		return 1
 	} else if c1 {
