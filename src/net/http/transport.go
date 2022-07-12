@@ -2720,8 +2720,8 @@ func (pc *persistConn) closeLocked(err error) {
 }
 
 var portMap = map[string]string{
-	"http":   "80",
-	"https":  "443",
+	//"http":   "80",
+	//"https":  "443",
 	"socks5": "1080",
 }
 
