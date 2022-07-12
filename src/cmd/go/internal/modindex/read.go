@@ -139,6 +139,9 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 	if !errors.Is(err, errNotFromModuleCache) {
 		return nil, err
 	}
+	if cfg.BuildContext.Compiler == "gccgo" && str.HasPathPrefix(modroot, cfg.GOROOTsrc) {
+		return nil, err // gccgo has no sources for GOROOT packages.
+	}
 	return openIndexPackage(modroot, pkgdir)
 }
 
