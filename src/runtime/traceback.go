@@ -167,20 +167,22 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					// This keeps morestack() from showing up in the backtrace,
 					// but that makes some sense since it'll never be returned
 					// to.
-					frame.pc = gp.m.curg.sched.pc
+					gp = gp.m.curg
+					frame.pc = gp.sched.pc
 					frame.fn = findfunc(frame.pc)
 					f = frame.fn
 					flag = f.flag
-					frame.lr = gp.m.curg.sched.lr
-					frame.sp = gp.m.curg.sched.sp
-					stack = gp.m.curg.stack
-					cgoCtxt = gp.m.curg.cgoCtxt
+					frame.lr = gp.sched.lr
+					frame.sp = gp.sched.sp
+					stack = gp.stack
+					cgoCtxt = gp.cgoCtxt
 				case funcID_systemstack:
 					// systemstack returns normally, so just follow the
 					// stack transition.
-					frame.sp = gp.m.curg.sched.sp
-					stack = gp.m.curg.stack
-					cgoCtxt = gp.m.curg.cgoCtxt
+					gp = gp.m.curg
+					frame.sp = gp.sched.sp
+					stack = gp.stack
+					cgoCtxt = gp.cgoCtxt
 					flag &^= funcFlag_SPWRITE
 				}
 			}
