@@ -235,17 +235,23 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, p
 	if err != nil {
 		return nil, err
 	}
-	return qualifiedObjsAtLocation(ctx, s, objSearchKey{uri, offset}, map[objSearchKey]bool{})
+	return qualifiedObjsAtLocation(ctx, s, positionKey{uri, offset}, map[positionKey]bool{})
 }
 
-type objSearchKey struct {
+// A positionKey identifies a byte offset within a file (URI).
+//
+// When a file has been parsed multiple times in the same FileSet,
+// there may be multiple token.Pos values denoting the same logical
+// position. In such situations, a positionKey may be used for
+// de-duplication.
+type positionKey struct {
 	uri    span.URI
 	offset int
 }
 
 // qualifiedObjsAtLocation finds all objects referenced at offset in uri, across
 // all packages in the snapshot.
-func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key objSearchKey, seen map[objSearchKey]bool) ([]qualifiedObject, error) {
+func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key positionKey, seen map[positionKey]bool) ([]qualifiedObject, error) {
 	if seen[key] {
 		return nil, nil
 	}
@@ -343,21 +349,8 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key objSearchKey, 
 			// is in another package, but this should be good enough to find all
 			// uses.
 
-			pos := obj.Pos()
-			var uri span.URI
-			offset := -1
-			for _, pgf := range pkg.CompiledGoFiles() {
-				if pgf.Tok.Base() <= int(pos) && int(pos) <= pgf.Tok.Base()+pgf.Tok.Size() {
-					var err error
-					offset, err = safetoken.Offset(pgf.Tok, pos)
-					if err != nil {
-						return nil, err
-					}
-					uri = pgf.URI
-				}
-			}
-			if offset >= 0 {
-				otherObjs, err := qualifiedObjsAtLocation(ctx, s, objSearchKey{uri, offset}, seen)
+			if key, found := packagePositionKey(pkg, obj.Pos()); found {
+				otherObjs, err := qualifiedObjsAtLocation(ctx, s, key, seen)
 				if err != nil {
 					return nil, err
 				}
@@ -378,6 +371,19 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key objSearchKey, 
 		return nil, errNoObjectFound
 	}
 	return qualifiedObjs, nil
+}
+
+// packagePositionKey finds the positionKey for the given pos.
+//
+// The second result reports whether the position was found.
+func packagePositionKey(pkg Package, pos token.Pos) (positionKey, bool) {
+	for _, pgf := range pkg.CompiledGoFiles() {
+		offset, err := safetoken.Offset(pgf.Tok, pos)
+		if err == nil {
+			return positionKey{pgf.URI, offset}, true
+		}
+	}
+	return positionKey{}, false
 }
 
 // pathEnclosingObjNode returns the AST path to the object-defining

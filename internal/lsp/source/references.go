@@ -16,6 +16,7 @@ import (
 	"strconv"
 
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/span"
@@ -127,7 +128,7 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, includeDeclaration, includeInterfaceRefs, includeEmbeddedRefs bool) ([]*ReferenceInfo, error) {
 	var (
 		references []*ReferenceInfo
-		seen       = make(map[token.Pos]bool)
+		seen       = make(map[positionKey]bool)
 	)
 
 	pos := qos[0].obj.Pos()
@@ -189,10 +190,15 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 						continue
 					}
 				}
-				if seen[ident.Pos()] {
+				key, found := packagePositionKey(pkg, ident.Pos())
+				if !found {
+					bug.Reportf("ident %v (pos: %v) not found in package %v", ident.Name, ident.Pos(), pkg.Name())
 					continue
 				}
-				seen[ident.Pos()] = true
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
 				rng, err := posToMappedRange(snapshot, pkg, ident.Pos(), ident.End())
 				if err != nil {
 					return nil, err
