@@ -9,9 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/testenv"
@@ -266,9 +268,36 @@ func (sb *Sandbox) Close() error {
 	if sb.gopath != "" {
 		goCleanErr = sb.RunGoCommand(context.Background(), "", "clean", []string{"-modcache"}, false)
 	}
-	err := os.RemoveAll(sb.rootdir)
+	err := removeAll(sb.rootdir)
 	if err != nil || goCleanErr != nil {
 		return fmt.Errorf("error(s) cleaning sandbox: cleaning modcache: %v; removing files: %v", goCleanErr, err)
 	}
 	return nil
+}
+
+// removeAll is copied from GOROOT/src/testing/testing.go
+//
+// removeAll is like os.RemoveAll, but retries Windows "Access is denied."
+// errors up to an arbitrary timeout.
+//
+// See https://go.dev/issue/50051 for additional context.
+func removeAll(path string) error {
+	const arbitraryTimeout = 2 * time.Second
+	var (
+		start     time.Time
+		nextSleep = 1 * time.Millisecond
+	)
+	for {
+		err := os.RemoveAll(path)
+		if !isWindowsRetryable(err) {
+			return err
+		}
+		if start.IsZero() {
+			start = time.Now()
+		} else if d := time.Since(start) + nextSleep; d >= arbitraryTimeout {
+			return err
+		}
+		time.Sleep(nextSleep)
+		nextSleep += time.Duration(rand.Int63n(int64(nextSleep)))
+	}
 }

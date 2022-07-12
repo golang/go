@@ -10,10 +10,31 @@ import (
 )
 
 func init() {
-	// from https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-
-	const ERROR_LOCK_VIOLATION syscall.Errno = 33
+	// constants copied from GOROOT/src/internal/syscall/windows/syscall_windows.go
+	const (
+		ERROR_SHARING_VIOLATION syscall.Errno = 32
+		ERROR_LOCK_VIOLATION    syscall.Errno = 33
+	)
 
 	isWindowsErrLockViolation = func(err error) bool {
 		return errors.Is(err, ERROR_LOCK_VIOLATION)
+	}
+
+	// Copied from GOROOT/src/testing/testing_windows.go
+	isWindowsRetryable = func(err error) bool {
+		for {
+			unwrapped := errors.Unwrap(err)
+			if unwrapped == nil {
+				break
+			}
+			err = unwrapped
+		}
+		if err == syscall.ERROR_ACCESS_DENIED {
+			return true // Observed in https://go.dev/issue/50051.
+		}
+		if err == ERROR_SHARING_VIOLATION {
+			return true // Observed in https://go.dev/issue/51442.
+		}
+		return false
 	}
 }

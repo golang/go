@@ -77,6 +77,10 @@ func WriteFileData(path string, content []byte, rel RelativeTo) error {
 // on Windows.
 var isWindowsErrLockViolation = func(err error) bool { return false }
 
+// isWindowsRetryable reports whether err is a Windows error code
+// that may be fixed by retrying a failed filesystem operation.
+var isWindowsRetryable = func(err error) bool { return false }
+
 // Workdir is a temporary working directory for tests. It exposes file
 // operations in terms of relative paths, and fakes file watching by triggering
 // events on file operations.
