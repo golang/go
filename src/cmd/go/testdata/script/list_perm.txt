@@ -11,12 +11,11 @@ stdout '^example.com/noread$'
 go list ./empty/...
 stderr 'matched no packages'
 
-[root] stop # Root typically ignores file permissions.
-
 # Make the directory ./noread unreadable, and verify that 'go list' reports an
 # explicit error for a pattern that should match it (rather than treating it as
 # equivalent to an empty directory).
 
+[root] stop # Root typically ignores file permissions.
 [windows] skip # Does not have Unix-style directory permissions.
 [plan9] skip   # Might not have Unix-style directory permissions.
 

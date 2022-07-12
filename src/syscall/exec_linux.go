@@ -43,8 +43,8 @@ type SysProcAttr struct {
 	// the descriptor of the controlling TTY.
 	// Unlike Setctty, in this case Ctty must be a descriptor
 	// number in the parent process.
-	Foreground   bool
-	Pgid         int            // Child's process group ID if Setpgid.
+	Foreground bool
+	Pgid       int // Child's process group ID if Setpgid.
 	// Pdeathsig, if non-zero, is a signal that the kernel will send to
 	// the child process when the creating thread dies. Note that the signal
 	// is sent on thread termination, which may happen before process termination.

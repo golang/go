@@ -63,7 +63,7 @@ func order(fn *ir.Func) {
 		s := fmt.Sprintf("\nbefore order %v", fn.Sym())
 		ir.DumpList(s, fn.Body)
 	}
-
+	ir.SetPos(fn) // Set reasonable position for instrumenting code. See issue 53688.
 	orderBlock(&fn.Body, map[string][]*ir.Name{})
 }
 
@@ -477,6 +477,12 @@ func (o *orderState) edge() {
 // and then replaces the old slice in n with the new slice.
 // free is a map that can be used to obtain temporary variables by type.
 func orderBlock(n *ir.Nodes, free map[string][]*ir.Name) {
+	if len(*n) != 0 {
+		// Set reasonable position for instrumenting code. See issue 53688.
+		// It would be nice if ir.Nodes had a position (the opening {, probably),
+		// but it doesn't. So we use the first statement's position instead.
+		ir.SetPos((*n)[0])
+	}
 	var order orderState
 	order.free = free
 	mark := order.markTemp()

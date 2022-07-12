@@ -1193,7 +1193,7 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 func (u *URL) JoinPath(elem ...string) *URL {
 	url := *u
 	if len(elem) > 0 {
-		elem = append([]string{u.Path}, elem...)
+		elem = append([]string{u.EscapedPath()}, elem...)
 		p := path.Join(elem...)
 		// path.Join will remove any trailing slashes.
 		// Preserve at least one.

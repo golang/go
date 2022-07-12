@@ -1,54 +1,46 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package modindex
 
 import (
 	"cmd/go/internal/base"
 	"encoding/binary"
 	"go/token"
-	"math"
 	"sort"
-	"strings"
 )
 
-const indexVersion = "go index v0"
+const indexVersion = "go index v1" // 11 bytes (plus \n), to align uint32s in index
 
 // encodeModuleBytes produces the encoded representation of the module index.
 // encodeModuleBytes may modify the packages slice.
 func encodeModuleBytes(packages []*rawPackage) []byte {
 	e := newEncoder()
-	e.Bytes([]byte(indexVersion))
-	e.Bytes([]byte{'\n'})
+	e.Bytes([]byte(indexVersion + "\n"))
 	stringTableOffsetPos := e.Pos() // fill this at the end
 	e.Uint32(0)                     // string table offset
-	e.Int(len(packages))
 	sort.Slice(packages, func(i, j int) bool {
 		return packages[i].dir < packages[j].dir
 	})
+	e.Int(len(packages))
+	packagesPos := e.Pos()
 	for _, p := range packages {
 		e.String(p.dir)
-	}
-	packagesOffsetPos := e.Pos()
-	for range packages {
 		e.Int(0)
 	}
 	for i, p := range packages {
-		e.IntAt(e.Pos(), packagesOffsetPos+4*i)
+		e.IntAt(e.Pos(), packagesPos+8*i+4)
 		encodePackage(e, p)
 	}
 	e.IntAt(e.Pos(), stringTableOffsetPos)
 	e.Bytes(e.stringTable)
+	e.Bytes([]byte{0xFF}) // end of string table marker
 	return e.b
 }
 
 func encodePackageBytes(p *rawPackage) []byte {
-	e := newEncoder()
-	e.Bytes([]byte(indexVersion))
-	e.Bytes([]byte{'\n'})
-	stringTableOffsetPos := e.Pos() // fill this at the end
-	e.Uint32(0)                     // string table offset
-	encodePackage(e, p)
-	e.IntAt(e.Pos(), stringTableOffsetPos)
-	e.Bytes(e.stringTable)
-	return e.b
+	return encodeModuleBytes([]*rawPackage{p})
 }
 
 func encodePackage(e *encoder, p *rawPackage) {
@@ -126,9 +118,6 @@ func (e *encoder) Bytes(b []byte) {
 }
 
 func (e *encoder) String(s string) {
-	if strings.IndexByte(s, 0) >= 0 {
-		base.Fatalf("go: attempting to encode a string containing a null byte")
-	}
 	if n, ok := e.strings[s]; ok {
 		e.Int(n)
 		return
@@ -136,8 +125,8 @@ func (e *encoder) String(s string) {
 	pos := len(e.stringTable)
 	e.strings[s] = pos
 	e.Int(pos)
+	e.stringTable = binary.AppendUvarint(e.stringTable, uint64(len(s)))
 	e.stringTable = append(e.stringTable, []byte(s)...)
-	e.stringTable = append(e.stringTable, 0)
 }
 
 func (e *encoder) Bool(b bool) {
@@ -152,17 +141,18 @@ func (e *encoder) Uint32(n uint32) {
 	e.b = binary.LittleEndian.AppendUint32(e.b, n)
 }
 
-// Int encodes n. Note that all ints are written to the index as uint32s.
+// Int encodes n. Note that all ints are written to the index as uint32s,
+// and to avoid problems on 32-bit systems we require fitting into a 32-bit int.
 func (e *encoder) Int(n int) {
-	if n < 0 || int64(n) > math.MaxUint32 {
-		base.Fatalf("go: attempting to write an int to the index that overflows uint32")
+	if n < 0 || int(int32(n)) != n {
+		base.Fatalf("go: attempting to write an int to the index that overflows int32")
 	}
 	e.Uint32(uint32(n))
 }
 
 func (e *encoder) IntAt(n int, at int) {
-	if n < 0 || int64(n) > math.MaxUint32 {
-		base.Fatalf("go: attempting to write an int to the index that overflows uint32")
+	if n < 0 || int(int32(n)) != n {
+		base.Fatalf("go: attempting to write an int to the index that overflows int32")
 	}
 	binary.LittleEndian.PutUint32(e.b[at:], uint32(n))
 }

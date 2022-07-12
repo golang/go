@@ -877,7 +877,14 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 			if !cfg.ModulesEnabled {
 				buildMode = build.ImportComment
 			}
-			if modroot := modload.PackageModRoot(ctx, r.path); modroot != "" {
+			modroot := modload.PackageModRoot(ctx, r.path)
+			if modroot == "" && str.HasPathPrefix(r.dir, cfg.GOROOTsrc) {
+				modroot = cfg.GOROOTsrc
+				if str.HasPathPrefix(r.dir, cfg.GOROOTsrc+string(filepath.Separator)+"cmd") {
+					modroot += string(filepath.Separator) + "cmd"
+				}
+			}
+			if modroot != "" {
 				if rp, err := modindex.GetPackage(modroot, r.dir); err == nil {
 					data.p, data.err = rp.Import(cfg.BuildContext, buildMode)
 					goto Happy

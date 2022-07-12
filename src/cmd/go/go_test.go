@@ -1363,6 +1363,15 @@ func tempEnvName() string {
 	}
 }
 
+func pathEnvName() string {
+	switch runtime.GOOS {
+	case "plan9":
+		return "path"
+	default:
+		return "PATH"
+	}
+}
+
 func TestDefaultGOPATH(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

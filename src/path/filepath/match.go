@@ -240,6 +240,16 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
 // The only possible returned error is ErrBadPattern, when pattern
 // is malformed.
 func Glob(pattern string) (matches []string, err error) {
+	return globWithLimit(pattern, 0)
+}
+
+func globWithLimit(pattern string, depth int) (matches []string, err error) {
+	// This limit is used prevent stack exhaustion issues. See CVE-2022-30632.
+	const pathSeparatorsLimit = 10000
+	if depth == pathSeparatorsLimit {
+		return nil, ErrBadPattern
+	}
+
 	// Check pattern is well-formed.
 	if _, err := Match(pattern, ""); err != nil {
 		return nil, err
@@ -269,7 +279,7 @@ func Glob(pattern string) (matches []string, err error) {
 	}
 
 	var m []string
-	m, err = Glob(dir)
+	m, err = globWithLimit(dir, depth+1)
 	if err != nil {
 		return
 	}

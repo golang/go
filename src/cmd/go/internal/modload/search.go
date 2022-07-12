@@ -216,21 +216,20 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 // is the module's root directory on disk, index is the modindex.Module for the
 // module, and importPathRoot is the module's path prefix.
 func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeCanMatch func(string) bool, tags, have map[string]bool, addPkg func(string)) {
-loopPackages:
-	for _, reldir := range index.Packages() {
+	index.Walk(func(reldir string) {
 		// Avoid .foo, _foo, and testdata subdirectory trees.
 		p := reldir
 		for {
 			elem, rest, found := strings.Cut(p, string(filepath.Separator))
 			if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
-				continue loopPackages
+				return
 			}
 			if found && elem == "vendor" {
 				// Ignore this path if it contains the element "vendor" anywhere
 				// except for the last element (packages named vendor are allowed
 				// for historical reasons). Note that found is true when this
 				// isn't the last path element.
-				continue loopPackages
+				return
 			}
 			if !found {
 				// Didn't find the separator, so we're considering the last element.
@@ -241,12 +240,12 @@ loopPackages:
 
 		// Don't use GOROOT/src.
 		if reldir == "" && importPathRoot == "" {
-			continue
+			return
 		}
 
 		name := path.Join(importPathRoot, filepath.ToSlash(reldir))
 		if !treeCanMatch(name) {
-			continue
+			return
 		}
 
 		if !have[name] {
@@ -257,7 +256,7 @@ loopPackages:
 				}
 			}
 		}
-	}
+	})
 }
 
 // MatchInModule identifies the packages matching the given pattern within the
