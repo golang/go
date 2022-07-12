@@ -18,6 +18,12 @@ import (
 // A PkgDecoder provides methods for decoding a package's Unified IR
 // export data.
 type PkgDecoder struct {
+	// version is the file format version.
+	version uint32
+
+	// sync indicates whether the file uses sync markers.
+	sync bool
+
 	// pkgPath is the package path for the package to be decoded.
 	//
 	// TODO(mdempsky): Remove; unneeded since CL 391014.
@@ -52,6 +58,9 @@ type PkgDecoder struct {
 // TODO(mdempsky): Remove; unneeded since CL 391014.
 func (pr *PkgDecoder) PkgPath() string { return pr.pkgPath }
 
+// SyncMarkers reports whether pr uses sync markers.
+func (pr *PkgDecoder) SyncMarkers() bool { return pr.sync }
+
 // NewPkgDecoder returns a PkgDecoder initialized to read the Unified
 // IR export data from input. pkgPath is the package path for the
 // compilation unit that produced the export data.
@@ -67,9 +76,18 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
 
 	r := strings.NewReader(input)
 
-	var version uint32
-	assert(binary.Read(r, binary.LittleEndian, &version) == nil)
-	assert(version == 0)
+	assert(binary.Read(r, binary.LittleEndian, &pr.version) == nil)
+
+	switch pr.version {
+	default:
+		panic(fmt.Errorf("unsupported version: %v", pr.version))
+	case 0:
+		// no flags
+	case 1:
+		var flags uint32
+		assert(binary.Read(r, binary.LittleEndian, &flags) == nil)
+		pr.sync = flags&flagSyncMarkers != 0
+	}
 
 	assert(binary.Read(r, binary.LittleEndian, pr.elemEndsEnds[:]) == nil)
 
@@ -215,7 +233,7 @@ func (r *Decoder) rawReloc(k RelocKind, idx int) Index {
 //
 // If EnableSync is false, then Sync is a no-op.
 func (r *Decoder) Sync(mWant SyncMarker) {
-	if !EnableSync {
+	if !r.common.sync {
 		return
 	}
 

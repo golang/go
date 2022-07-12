@@ -9,17 +9,6 @@ import (
 	"strings"
 )
 
-// EnableSync controls whether sync markers are written into unified
-// IR's export data format and also whether they're expected when
-// reading them back in. They're inessential to the correct
-// functioning of unified IR, but are helpful during development to
-// detect mistakes.
-//
-// When sync is enabled, writer stack frames will also be included in
-// the export data. Currently, a fixed number of frames are included,
-// controlled by -d=syncframes (default 0).
-const EnableSync = true
-
 // fmtFrames formats a backtrace for reporting reader/writer desyncs.
 func fmtFrames(pcs ...uintptr) []string {
 	res := make([]string, 0, len(pcs))

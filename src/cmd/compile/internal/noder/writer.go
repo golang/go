@@ -995,7 +995,7 @@ func (w *writer) funcarg(param *types2.Var, result bool) {
 func (w *writer) addLocal(obj *types2.Var) {
 	w.Sync(pkgbits.SyncAddLocal)
 	idx := len(w.localsIdx)
-	if pkgbits.EnableSync {
+	if w.p.SyncMarkers() {
 		w.Int(idx)
 	}
 	if w.localsIdx == nil {
