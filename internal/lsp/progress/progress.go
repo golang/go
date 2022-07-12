@@ -260,8 +260,8 @@ type WorkDoneWriter struct {
 	wd  *WorkDone
 }
 
-func NewWorkDoneWriter(wd *WorkDone) *WorkDoneWriter {
-	return &WorkDoneWriter{wd: wd}
+func NewWorkDoneWriter(ctx context.Context, wd *WorkDone) *WorkDoneWriter {
+	return &WorkDoneWriter{ctx: ctx, wd: wd}
 }
 
 func (wdw *WorkDoneWriter) Write(p []byte) (n int, err error) {

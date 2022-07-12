@@ -16,8 +16,6 @@ import (
 )
 
 func TestGenerateProgress(t *testing.T) {
-	t.Skipf("skipping flaky test: https://golang.org/issue/49901")
-
 	const generatedWorkspace = `
 -- go.mod --
 module fake.test

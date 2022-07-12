@@ -404,7 +404,7 @@ func (c *commandHandler) runTests(ctx context.Context, snapshot source.Snapshot,
 	// create output
 	buf := &bytes.Buffer{}
 	ew := progress.NewEventWriter(ctx, "test")
-	out := io.MultiWriter(ew, progress.NewWorkDoneWriter(work), buf)
+	out := io.MultiWriter(ew, progress.NewWorkDoneWriter(ctx, work), buf)
 
 	// Run `go test -run Func` on each test.
 	var failedTests int
@@ -487,7 +487,7 @@ func (c *commandHandler) Generate(ctx context.Context, args command.GenerateArgs
 			Args:       []string{"-x", pattern},
 			WorkingDir: args.Dir.SpanURI().Filename(),
 		}
-		stderr := io.MultiWriter(er, progress.NewWorkDoneWriter(deps.work))
+		stderr := io.MultiWriter(er, progress.NewWorkDoneWriter(ctx, deps.work))
 		if err := deps.snapshot.RunGoCommandPiped(ctx, source.Normal, inv, er, stderr); err != nil {
 			return err
 		}
