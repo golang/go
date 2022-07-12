@@ -225,6 +225,7 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 	if !hit {
 		// TODO(adonovan): use a simpler cache of promises that
 		// is shared across snapshots. See comment at modTidyKey.
+		// We can then delete hashEnv too.
 		type modWhyKey struct {
 			// TODO(rfindley): is sessionID used to identify overlays because modWhy
 			// looks at overlay state? In that case, I am not sure that this key

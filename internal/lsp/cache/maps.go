@@ -149,16 +149,8 @@ func (m parseKeysByURIMap) Delete(key span.URI) {
 	m.impl.Delete(key)
 }
 
-type packagesMap struct {
-	impl *persistent.Map
-}
-
-func newPackagesMap() packagesMap {
-	return packagesMap{
-		impl: persistent.NewMap(func(a, b interface{}) bool {
-			return packageKeyLess(a.(packageKey), b.(packageKey))
-		}),
-	}
+func packageKeyLessInterface(x, y interface{}) bool {
+	return packageKeyLess(x.(packageKey), y.(packageKey))
 }
 
 func packageKeyLess(x, y packageKey) bool {
@@ -166,40 +158,6 @@ func packageKeyLess(x, y packageKey) bool {
 		return x.mode < y.mode
 	}
 	return x.id < y.id
-}
-
-func (m packagesMap) Clone() packagesMap {
-	return packagesMap{
-		impl: m.impl.Clone(),
-	}
-}
-
-func (m packagesMap) Destroy() {
-	m.impl.Destroy()
-}
-
-func (m packagesMap) Get(key packageKey) (*packageHandle, bool) {
-	value, ok := m.impl.Get(key)
-	if !ok {
-		return nil, false
-	}
-	return value.(*packageHandle), true
-}
-
-func (m packagesMap) Range(do func(key packageKey, value *packageHandle)) {
-	m.impl.Range(func(key, value interface{}) {
-		do(key.(packageKey), value.(*packageHandle))
-	})
-}
-
-func (m packagesMap) Set(key packageKey, value *packageHandle, release func()) {
-	m.impl.Set(key, value, func(key, value interface{}) {
-		release()
-	})
-}
-
-func (m packagesMap) Delete(key packageKey) {
-	m.impl.Delete(key)
 }
 
 type knownDirsSet struct {

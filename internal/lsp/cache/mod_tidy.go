@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -28,7 +27,8 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-// modTidyImpl runs "go mod tidy" on a go.mod file, using a cache.
+// ModTidy returns the go.mod file that would be obtained by running
+// "go mod tidy". Concurrent requests are combined into a single command.
 func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*source.TidiedModule, error) {
 	uri := pm.URI
 	if pm.File == nil {
@@ -46,63 +46,38 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 
 	// Cache miss?
 	if !hit {
+		// If the file handle is an overlay, it may not be written to disk.
+		// The go.mod file has to be on disk for `go mod tidy` to work.
+		// TODO(rfindley): is this still true with Go 1.16 overlay support?
 		fh, err := s.GetFile(ctx, pm.URI)
 		if err != nil {
 			return nil, err
 		}
-		// If the file handle is an overlay, it may not be written to disk.
-		// The go.mod file has to be on disk for `go mod tidy` to work.
-		// TODO(rfindley): is this still true with Go 1.16 overlay support?
 		if _, ok := fh.(*overlay); ok {
-			if info, _ := os.Stat(fh.URI().Filename()); info == nil {
+			if info, _ := os.Stat(uri.Filename()); info == nil {
 				return nil, source.ErrNoModOnDisk
 			}
 		}
+
 		if criticalErr := s.GetCriticalError(ctx); criticalErr != nil {
 			return &source.TidiedModule{
 				Diagnostics: criticalErr.DiagList,
 			}, nil
 		}
-		workspacePkgs, err := s.workspacePackageHandles(ctx)
-		if err != nil {
+
+		if err := s.awaitLoaded(ctx); err != nil {
 			return nil, err
 		}
 
-		s.mu.Lock()
-		overlayHash := hashUnsavedOverlays(s.files)
-		s.mu.Unlock()
+		handle := memoize.NewHandle("modTidy", func(ctx context.Context, arg interface{}) interface{} {
 
-		// There's little reason at to use the shared cache for mod
-		// tidy (and mod why) as their key includes the view and session.
-		// Its only real value is to de-dup requests in flight, for
-		// which a singleflight in the View would suffice.
-		// TODO(adonovan): use a simpler cache of promises that
-		// is shared across snapshots.
-		type modTidyKey struct {
-			// TODO(rfindley): this key is also suspicious (see modWhyKey).
-			sessionID       string
-			env             source.Hash
-			gomod           source.FileIdentity
-			imports         source.Hash
-			unsavedOverlays source.Hash
-			view            string
-		}
-		key := modTidyKey{
-			sessionID:       s.view.session.id,
-			view:            s.view.folder.Filename(),
-			imports:         s.hashImports(ctx, workspacePkgs),
-			unsavedOverlays: overlayHash,
-			gomod:           fh.FileIdentity(),
-			env:             hashEnv(s),
-		}
-		handle, release := s.store.Handle(key, func(ctx context.Context, arg interface{}) interface{} {
-			tidied, err := modTidyImpl(ctx, arg.(*snapshot), fh, pm, workspacePkgs)
+			tidied, err := modTidyImpl(ctx, arg.(*snapshot), uri.Filename(), pm)
 			return modTidyResult{tidied, err}
 		})
 
 		entry = handle
 		s.mu.Lock()
-		s.modTidyHandles.Set(uri, entry, func(_, _ interface{}) { release() })
+		s.modTidyHandles.Set(uri, entry, nil)
 		s.mu.Unlock()
 	}
 
@@ -116,15 +91,16 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 }
 
 // modTidyImpl runs "go mod tidy" on a go.mod file.
-func modTidyImpl(ctx context.Context, snapshot *snapshot, fh source.FileHandle, pm *source.ParsedModule, workspacePkgs []*packageHandle) (*source.TidiedModule, error) {
-	ctx, done := event.Start(ctx, "cache.ModTidy", tag.URI.Of(fh.URI()))
+func modTidyImpl(ctx context.Context, snapshot *snapshot, filename string, pm *source.ParsedModule) (*source.TidiedModule, error) {
+	ctx, done := event.Start(ctx, "cache.ModTidy", tag.URI.Of(filename))
 	defer done()
 
 	inv := &gocommand.Invocation{
 		Verb:       "mod",
 		Args:       []string{"tidy"},
-		WorkingDir: filepath.Dir(fh.URI().Filename()),
+		WorkingDir: filepath.Dir(filename),
 	}
+	// TODO(adonovan): ensure that unsaved overlays are passed through to 'go'.
 	tmpURI, inv, cleanup, err := snapshot.goCommandInvocation(ctx, source.WriteTemporaryModFile, inv)
 	if err != nil {
 		return nil, err
@@ -151,7 +127,7 @@ func modTidyImpl(ctx context.Context, snapshot *snapshot, fh source.FileHandle, 
 
 	// Compare the original and tidied go.mod files to compute errors and
 	// suggested fixes.
-	diagnostics, err := modTidyDiagnostics(ctx, snapshot, pm, ideal, workspacePkgs)
+	diagnostics, err := modTidyDiagnostics(ctx, snapshot, pm, ideal)
 	if err != nil {
 		return nil, err
 	}
@@ -162,25 +138,10 @@ func modTidyImpl(ctx context.Context, snapshot *snapshot, fh source.FileHandle, 
 	}, nil
 }
 
-func (s *snapshot) hashImports(ctx context.Context, wsPackages []*packageHandle) source.Hash {
-	seen := map[string]struct{}{}
-	var imports []string
-	for _, ph := range wsPackages {
-		for _, imp := range ph.imports(ctx, s) {
-			if _, ok := seen[imp]; !ok {
-				imports = append(imports, imp)
-				seen[imp] = struct{}{}
-			}
-		}
-	}
-	sort.Strings(imports)
-	return source.Hashf("%s", imports)
-}
-
 // modTidyDiagnostics computes the differences between the original and tidied
 // go.mod files to produce diagnostic and suggested fixes. Some diagnostics
 // may appear on the Go files that import packages from missing modules.
-func modTidyDiagnostics(ctx context.Context, snapshot source.Snapshot, pm *source.ParsedModule, ideal *modfile.File, workspacePkgs []*packageHandle) (diagnostics []*source.Diagnostic, err error) {
+func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.ParsedModule, ideal *modfile.File) (diagnostics []*source.Diagnostic, err error) {
 	// First, determine which modules are unused and which are missing from the
 	// original go.mod file.
 	var (
@@ -229,15 +190,25 @@ func modTidyDiagnostics(ctx context.Context, snapshot source.Snapshot, pm *sourc
 	}
 	// Add diagnostics for missing modules anywhere they are imported in the
 	// workspace.
-	for _, ph := range workspacePkgs {
+	// TODO(adonovan): opt: opportunities for parallelism abound.
+	for _, id := range snapshot.workspacePackageIDs() {
+		m := snapshot.getMetadata(id)
+		if m == nil {
+			return nil, fmt.Errorf("no metadata for %s", id)
+		}
+
+		// Read both lists of files of this package, in parallel.
+		goFiles, compiledGoFiles, err := readGoFiles(ctx, snapshot, m.Metadata)
+		if err != nil {
+			return nil, err
+		}
+
 		missingImports := map[string]*modfile.Require{}
 
 		// If -mod=readonly is not set we may have successfully imported
 		// packages from missing modules. Otherwise they'll be in
 		// MissingDependencies. Combine both.
-		importedPkgs := ph.imports(ctx, snapshot)
-
-		for _, imp := range importedPkgs {
+		for imp := range parseImports(ctx, snapshot, goFiles) {
 			if req, ok := missing[imp]; ok {
 				missingImports[imp] = req
 				break
@@ -266,7 +237,7 @@ func modTidyDiagnostics(ctx context.Context, snapshot source.Snapshot, pm *sourc
 		if len(missingImports) == 0 {
 			continue
 		}
-		for _, goFile := range ph.compiledGoFiles {
+		for _, goFile := range compiledGoFiles {
 			pgf, err := snapshot.ParseGo(ctx, goFile, source.ParseHeader)
 			if err != nil {
 				continue
@@ -506,4 +477,28 @@ func spanFromPositions(m *protocol.ColumnMapper, s, e modfile.Position) (span.Sp
 		return span.Span{}, err
 	}
 	return span.New(m.URI, start, end), nil
+}
+
+// parseImports parses the headers of the specified files and returns
+// the set of strings that appear in import declarations within
+// GoFiles. Errors are ignored.
+//
+// (We can't simply use ph.m.Metadata.Deps because it contains
+// PackageIDs--not import paths--and is based on CompiledGoFiles,
+// after cgo processing.)
+func parseImports(ctx context.Context, s *snapshot, files []source.FileHandle) map[string]bool {
+	s.mu.Lock() // peekOrParse requires a locked snapshot (!)
+	defer s.mu.Unlock()
+	seen := make(map[string]bool)
+	for _, file := range files {
+		f, err := peekOrParse(ctx, s, file, source.ParseHeader)
+		if err != nil {
+			continue
+		}
+		for _, spec := range f.File.Imports {
+			path, _ := strconv.Unquote(spec.Path.Value)
+			seen[path] = true
+		}
+	}
+	return seen
 }

@@ -14,8 +14,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -34,23 +32,32 @@ import (
 	"golang.org/x/tools/internal/typesinternal"
 )
 
+// A packageKey identifies a packageHandle in the snapshot.packages map.
+type packageKey struct {
+	mode source.ParseMode
+	id   PackageID
+}
+
 type packageHandleKey source.Hash
 
+// A packageHandle is a handle to the future result of type-checking a package.
+// The resulting package is obtained from the check() method.
 type packageHandle struct {
 	handle *memoize.Handle
 
-	// goFiles and compiledGoFiles are the lists of files in the package.
-	// The latter is the list of files seen by the type checker (in which
-	// those that import "C" have been replaced by generated code).
-	goFiles, compiledGoFiles []source.FileHandle
-
-	// mode is the mode the files were parsed in.
+	// mode is the mode the files will be parsed in.
 	mode source.ParseMode
 
 	// m is the metadata associated with the package.
 	m *KnownMetadata
 
 	// key is the hashed key for the package.
+	//
+	// It includes the all bits of the transitive closure of
+	// dependencies's sources. This is more than type checking
+	// really depends on: export data of direct deps should be
+	// enough. (The key for analysis actions could similarly
+	// hash only Facts of direct dependencies.)
 	key packageHandleKey
 }
 
@@ -59,26 +66,6 @@ func (ph *packageHandle) packageKey() packageKey {
 		id:   ph.m.ID,
 		mode: ph.mode,
 	}
-}
-
-func (ph *packageHandle) imports(ctx context.Context, s source.Snapshot) (result []string) {
-	for _, goFile := range ph.goFiles {
-		f, err := s.ParseGo(ctx, goFile, source.ParseHeader)
-		if err != nil {
-			continue
-		}
-		seen := map[string]struct{}{}
-		for _, impSpec := range f.File.Imports {
-			imp, _ := strconv.Unquote(impSpec.Path.Value)
-			if _, ok := seen[imp]; !ok {
-				seen[imp] = struct{}{}
-				result = append(result, imp)
-			}
-		}
-	}
-
-	sort.Strings(result)
-	return result
 }
 
 // packageData contains the data produced by type-checking a package.
@@ -145,21 +132,8 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	}
 
 	// Read both lists of files of this package, in parallel.
-	var group errgroup.Group
-	getFileHandles := func(files []span.URI) []source.FileHandle {
-		fhs := make([]source.FileHandle, len(files))
-		for i, uri := range files {
-			i, uri := i, uri
-			group.Go(func() (err error) {
-				fhs[i], err = s.GetFile(ctx, uri) // ~25us
-				return
-			})
-		}
-		return fhs
-	}
-	goFiles := getFileHandles(m.GoFiles)
-	compiledGoFiles := getFileHandles(m.CompiledGoFiles)
-	if err := group.Wait(); err != nil {
+	goFiles, compiledGoFiles, err := readGoFiles(ctx, s, m.Metadata)
+	if err != nil {
 		return nil, err
 	}
 
@@ -197,12 +171,10 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	})
 
 	ph := &packageHandle{
-		handle:          handle,
-		goFiles:         goFiles,
-		compiledGoFiles: compiledGoFiles,
-		mode:            mode,
-		m:               m,
-		key:             key,
+		handle: handle,
+		mode:   mode,
+		m:      m,
+		key:    key,
 	}
 
 	// Cache the handle in the snapshot. If a package handle has already
@@ -210,6 +182,26 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	// since the original package handle above will have no references and be
 	// garbage collected.
 	return s.addPackageHandle(ph, release)
+}
+
+// readGoFiles reads the content of Metadata.GoFiles and
+// Metadata.CompiledGoFiles, in parallel.
+func readGoFiles(ctx context.Context, s *snapshot, m *Metadata) (goFiles, compiledGoFiles []source.FileHandle, err error) {
+	var group errgroup.Group
+	getFileHandles := func(files []span.URI) []source.FileHandle {
+		fhs := make([]source.FileHandle, len(files))
+		for i, uri := range files {
+			i, uri := i, uri
+			group.Go(func() (err error) {
+				fhs[i], err = s.GetFile(ctx, uri) // ~25us
+				return
+			})
+		}
+		return fhs
+	}
+	return getFileHandles(m.GoFiles),
+		getFileHandles(m.CompiledGoFiles),
+		group.Wait()
 }
 
 func (s *snapshot) workspaceParseMode(id PackageID) source.ParseMode {

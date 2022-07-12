@@ -22,10 +22,12 @@ import (
 	"golang.org/x/tools/internal/xcontext"
 )
 
+// TODO(adonovan): rename Handle to Promise, and present it before Store.
+
 // Store binds keys to functions, returning handles that can be used to access
-// the functions results.
+// the function's result.
 type Store struct {
-	handlesMu sync.Mutex // lock ordering: Store.handlesMu before Handle.mu
+	handlesMu sync.Mutex
 	handles   map[interface{}]*Handle
 }
 
@@ -71,8 +73,9 @@ const (
 
 // A Handle represents the future result of a call to a function.
 type Handle struct {
-	key interface{}
-	mu  sync.Mutex // lock ordering: Store.handlesMu before Handle.mu
+	debug string // for observability
+
+	mu sync.Mutex // lock ordering: Store.handlesMu before Handle.mu
 
 	// A Handle starts out IDLE, waiting for something to demand
 	// its evaluation. It then transitions into RUNNING state.
@@ -119,9 +122,9 @@ func (store *Store) Handle(key interface{}, function Function) (*Handle, func())
 	if !ok {
 		// new handle
 		h = &Handle{
-			key:      key,
 			function: function,
 			refcount: 1,
+			debug:    reflect.TypeOf(key).String(),
 		}
 
 		if store.handles == nil {
@@ -137,7 +140,7 @@ func (store *Store) Handle(key interface{}, function Function) (*Handle, func())
 	release := func() {
 		if atomic.AddInt32(&h.refcount, -1) == 0 {
 			store.handlesMu.Lock()
-			delete(store.handles, h.key)
+			delete(store.handles, key)
 			store.handlesMu.Unlock()
 		}
 	}
@@ -167,6 +170,18 @@ func (s *Store) DebugOnlyIterate(f func(k, v interface{})) {
 		if v := h.Cached(); v != nil {
 			f(k, v)
 		}
+	}
+}
+
+// NewHandle returns a handle for the future result of calling the
+// specified function.
+//
+// The debug string is used to classify handles in logs and metrics.
+// It should be drawn from a small set.
+func NewHandle(debug string, function Function) *Handle {
+	return &Handle{
+		debug:    debug,
+		function: function,
 	}
 }
 
@@ -220,7 +235,7 @@ func (h *Handle) run(ctx context.Context, arg interface{}) (interface{}, error) 
 	}
 
 	go func() {
-		trace.WithRegion(childCtx, fmt.Sprintf("Handle.run %T", h.key), func() {
+		trace.WithRegion(childCtx, fmt.Sprintf("Handle.run %s", h.debug), func() {
 			defer release()
 			// Just in case the function does something expensive without checking
 			// the context, double-check we're still alive.

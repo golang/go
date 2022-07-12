@@ -23,6 +23,11 @@ import (
 )
 
 func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {
+	// TODO(adonovan): merge these two loops. There's no need to
+	// construct all the root action handles before beginning
+	// analysis. Operations should be concurrent (though that first
+	// requires buildPackageHandle not to be inefficient when
+	// called in parallel.)
 	var roots []*actionHandle
 	for _, a := range analyzers {
 		if !a.IsEnabled(s.view) {
@@ -95,15 +100,18 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	// use of concurrency would lead to an exponential amount of duplicated
 	// work. We should instead use an atomically updated future cache
 	// and a parallel graph traversal.
-	ph, err := s.buildPackageHandle(ctx, id, source.ParseFull)
-	if err != nil {
-		return nil, err
-	}
-	if act := s.getActionHandle(id, ph.mode, a); act != nil {
+
+	// TODO(adonovan): in the code below, follow the structure of
+	// the other handle-map accessors.
+
+	const mode = source.ParseFull
+	if act := s.getActionHandle(id, mode, a); act != nil {
 		return act, nil
 	}
-	if len(ph.key) == 0 {
-		return nil, fmt.Errorf("actionHandle: no key for package %s", id)
+
+	ph, err := s.buildPackageHandle(ctx, id, mode)
+	if err != nil {
+		return nil, err
 	}
 	pkg, err := ph.check(ctx, s)
 	if err != nil {

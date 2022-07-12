@@ -85,7 +85,7 @@ type snapshot struct {
 	files filesMap
 
 	// parsedGoFiles maps a parseKey to the handle of the future result of parsing it.
-	parsedGoFiles *persistent.Map // from parseKey to *memoize.Handle
+	parsedGoFiles *persistent.Map // from parseKey to *memoize.Handle[parseGoResult]
 
 	// parseKeysByURI records the set of keys of parsedGoFiles that
 	// need to be invalidated for each URI.
@@ -95,7 +95,7 @@ type snapshot struct {
 
 	// symbolizeHandles maps each file URI to a handle for the future
 	// result of computing the symbols declared in that file.
-	symbolizeHandles *persistent.Map // from span.URI to *memoize.Handle
+	symbolizeHandles *persistent.Map // from span.URI to *memoize.Handle[symbolizeResult]
 
 	// packages maps a packageKey to a *packageHandle.
 	// It may be invalidated when a file's content changes.
@@ -104,7 +104,7 @@ type snapshot struct {
 	//  - packages.Get(id).m.Metadata == meta.metadata[id].Metadata for all ids
 	//  - if a package is in packages, then all of its dependencies should also
 	//    be in packages, unless there is a missing import
-	packages packagesMap
+	packages *persistent.Map // from packageKey to *memoize.Handle[*packageHandle]
 
 	// isActivePackageCache maps package ID to the cached value if it is active or not.
 	// It may be invalidated when metadata changes or a new file is opened or closed.
@@ -123,17 +123,17 @@ type snapshot struct {
 
 	// parseModHandles keeps track of any parseModHandles for the snapshot.
 	// The handles need not refer to only the view's go.mod file.
-	parseModHandles *persistent.Map // from span.URI to *memoize.Handle
+	parseModHandles *persistent.Map // from span.URI to *memoize.Handle[parseModResult]
 
 	// parseWorkHandles keeps track of any parseWorkHandles for the snapshot.
 	// The handles need not refer to only the view's go.work file.
-	parseWorkHandles *persistent.Map // from span.URI to *memoize.Handle
+	parseWorkHandles *persistent.Map // from span.URI to *memoize.Handle[parseWorkResult]
 
 	// Preserve go.mod-related handles to avoid garbage-collecting the results
 	// of various calls to the go command. The handles need not refer to only
 	// the view's go.mod file.
-	modTidyHandles *persistent.Map // from span.URI to *memoize.Handle
-	modWhyHandles  *persistent.Map // from span.URI to *memoize.Handle
+	modTidyHandles *persistent.Map // from span.URI to *memoize.Handle[modTidyResult]
+	modWhyHandles  *persistent.Map // from span.URI to *memoize.Handle[modWhyResult]
 
 	workspace *workspace // (not guarded by mu)
 
@@ -173,11 +173,6 @@ func (s *snapshot) Acquire() func() {
 
 func (s *snapshot) awaitHandle(ctx context.Context, h *memoize.Handle) (interface{}, error) {
 	return h.Get(ctx, s)
-}
-
-type packageKey struct {
-	mode source.ParseMode
-	id   PackageID
 }
 
 type actionKey struct {
@@ -603,17 +598,6 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 	return overlays
 }
 
-func hashUnsavedOverlays(files filesMap) source.Hash {
-	var unsaved []string
-	files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
-		if overlay, ok := fh.(*overlay); ok && !overlay.saved {
-			unsaved = append(unsaved, uri.Filename())
-		}
-	})
-	sort.Strings(unsaved)
-	return source.Hashf("%s", unsaved)
-}
-
 func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, includeTestVariants bool) ([]source.Package, error) {
 	ctx = event.Label(ctx, tag.URI.Of(uri))
 
@@ -791,6 +775,8 @@ func (s *snapshot) getImportedBy(id PackageID) []PackageID {
 // for the given package key, if it exists.
 //
 // An error is returned if the metadata used to build ph is no longer relevant.
+//
+// TODO(adonovan): inline sole use in buildPackageHandle.
 func (s *snapshot) addPackageHandle(ph *packageHandle, release func()) (*packageHandle, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -801,14 +787,15 @@ func (s *snapshot) addPackageHandle(ph *packageHandle, release func()) (*package
 
 	// If the package handle has already been cached,
 	// return the cached handle instead of overriding it.
-	if result, ok := s.packages.Get(ph.packageKey()); ok {
+	if v, ok := s.packages.Get(ph.packageKey()); ok {
+		result := v.(*packageHandle)
 		release()
 		if result.m.Metadata != ph.m.Metadata {
 			return nil, bug.Errorf("existing package handle does not match for %s", ph.m.ID)
 		}
 		return result, nil
 	}
-	s.packages.Set(ph.packageKey(), ph, release)
+	s.packages.Set(ph.packageKey(), ph, func(_, _ interface{}) { release() })
 	return ph, nil
 }
 
@@ -1179,8 +1166,8 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 	defer s.mu.Unlock()
 
 	results := map[string]source.Package{}
-	s.packages.Range(func(key packageKey, ph *packageHandle) {
-		cachedPkg, err := ph.cached()
+	s.packages.Range(func(_, v interface{}) {
+		cachedPkg, err := v.(*packageHandle).cached()
 		if err != nil {
 			return
 		}
@@ -1215,6 +1202,7 @@ func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
 	return match
 }
 
+// TODO(adonovan): inline sole use in buildPackageHandle.
 func (s *snapshot) getPackage(id PackageID, mode source.ParseMode) *packageHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1223,8 +1211,11 @@ func (s *snapshot) getPackage(id PackageID, mode source.ParseMode) *packageHandl
 		id:   id,
 		mode: mode,
 	}
-	ph, _ := s.packages.Get(key)
-	return ph
+	v, ok := s.packages.Get(key)
+	if !ok {
+		return nil
+	}
+	return v.(*packageHandle)
 }
 
 func (s *snapshot) getActionHandle(id PackageID, m source.ParseMode, a *analysis.Analyzer) *actionHandle {

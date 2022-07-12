@@ -76,7 +76,7 @@ type View struct {
 	// snapshots have been destroyed via the destroy method, and snapshotWG may
 	// be waited upon to let these destroy operations complete.
 	snapshotMu      sync.Mutex
-	snapshot        *snapshot      // latest snapshot
+	snapshot        *snapshot      // latest snapshot; nil after shutdown has been called
 	releaseSnapshot func()         // called when snapshot is no longer needed
 	snapshotWG      sync.WaitGroup // refcount for pending destroy operations
 
