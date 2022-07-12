@@ -78,7 +78,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	}
 	waspanic := false
 	cgoCtxt := gp.cgoCtxt
-	stack := gp.stack
 	printing := pcbuf == nil && callback == nil
 
 	// If the PC is zero, it's likely a nil function call.
@@ -111,7 +110,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	if !f.valid() {
 		if callback != nil || printing {
 			print("runtime: g ", gp.goid, ": unknown pc ", hex(frame.pc), "\n")
-			tracebackHexdump(stack, &frame, 0)
+			tracebackHexdump(gp.stack, &frame, 0)
 		}
 		if callback != nil {
 			throw("unknown pc")
@@ -177,7 +176,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					flag = f.flag
 					frame.lr = gp.sched.lr
 					frame.sp = gp.sched.sp
-					stack = gp.stack
 					cgoCtxt = gp.cgoCtxt
 				case funcID_systemstack:
 					// systemstack returns normally, so just follow the
@@ -195,7 +193,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					}
 					gp = gp.m.curg
 					frame.sp = gp.sched.sp
-					stack = gp.stack
 					cgoCtxt = gp.cgoCtxt
 					flag &^= funcFlag_SPWRITE
 				}
@@ -264,7 +261,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 				if callback != nil || doPrint {
 					print("runtime: g ", gp.goid, ": unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
-					tracebackHexdump(stack, &frame, lrPtr)
+					tracebackHexdump(gp.stack, &frame, lrPtr)
 				}
 				if callback != nil {
 					throw("unknown caller pc")
@@ -483,7 +480,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		if frame.pc == frame.lr && frame.sp == frame.fp {
 			// If the next frame is identical to the current frame, we cannot make progress.
 			print("runtime: traceback stuck. pc=", hex(frame.pc), " sp=", hex(frame.sp), "\n")
-			tracebackHexdump(stack, &frame, frame.sp)
+			tracebackHexdump(gp.stack, &frame, frame.sp)
 			throw("traceback stuck")
 		}
 
