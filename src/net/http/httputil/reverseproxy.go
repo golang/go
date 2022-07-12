@@ -460,7 +460,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			rw.WriteHeader(code)
 
 			// Clear headers, it's not automatically done by ResponseWriter.WriteHeader() for 1xx responses
-			for k, _ := range h {
+			for k := range h {
 				delete(h, k)
 			}
 
@@ -489,6 +489,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if !p.modifyResponse(rw, res, outreq) {
 		return
 	}
+
 	copyHeader(rw.Header(), res.Header)
 
 	// The "Trailer" header isn't included in the Transport's response,
