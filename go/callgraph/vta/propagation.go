@@ -175,6 +175,18 @@ func nodeTypes(nodes []node, builder *trie.Builder, propTypeId func(p propType) 
 	return &typeSet
 }
 
+// hasInitialTypes check if a node can have initial types.
+// Returns true iff `n` is not a panic, recover, nestedPtr*
+// node, nor a node whose type is an interface.
+func hasInitialTypes(n node) bool {
+	switch n.(type) {
+	case panicArg, recoverReturn, nestedPtrFunction, nestedPtrInterface:
+		return false
+	default:
+		return !isInterface(n.Type())
+	}
+}
+
 // getPropType creates a propType for `node` based on its type.
 // propType.typ is always node.Type(). If node is function, then
 // propType.val is the underlying function; nil otherwise.

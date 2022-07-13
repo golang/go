@@ -687,7 +687,9 @@ func (b *builder) nodeFromVal(val ssa.Value) node {
 // semantically equivalent types can have different implementations,
 // this method guarantees the same implementation is always used.
 func (b *builder) representative(n node) node {
-	if !hasInitialTypes(n) {
+	if n.Type() == nil {
+		// panicArg and recoverReturn do not have
+		// types and are unique by definition.
 		return n
 	}
 	t := canonicalize(n.Type(), &b.canon)
