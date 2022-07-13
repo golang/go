@@ -252,6 +252,13 @@ as well as support for rendering them to HTML, Markdown, and text.
   that invoke the Go compiler directly will need to make sure they
   pass this flag as well.
 </p>
+<p><!-- CL 415235 --><!-- CL 415236 -->
+  The Go compiler no longer accepts the <code>-importmap</code>
+  or <code>-installsuffix</code> flags. Build systems that invoke the
+  Go compiler directly must use the <code>-importcfg</code> flag
+  instead. (The <code>go</code> command's <code>-installsuffix</code>
+  build flag is still supported and unaffected by this change.)
+</p>
 
 <h2 id="assembler">Assembler</h2>
 <p><!-- CL 404298 -->
