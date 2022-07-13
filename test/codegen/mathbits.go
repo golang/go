@@ -258,14 +258,16 @@ func RotateLeft32(n uint32) uint32 {
 	return bits.RotateLeft32(n, 9)
 }
 
-func RotateLeft16(n uint16) uint16 {
+func RotateLeft16(n uint16, s int) uint16 {
 	// amd64:"ROLW" 386:"ROLW"
-	return bits.RotateLeft16(n, 5)
+	// arm64:"RORW",-"CSEL"
+	return bits.RotateLeft16(n, s)
 }
 
-func RotateLeft8(n uint8) uint8 {
+func RotateLeft8(n uint8, s int) uint8 {
 	// amd64:"ROLB" 386:"ROLB"
-	return bits.RotateLeft8(n, 5)
+	// arm64:"LSL","LSR",-"CSEL"
+	return bits.RotateLeft8(n, s)
 }
 
 func RotateLeftVariable(n uint, m int) uint {

@@ -25610,7 +25610,24 @@ func rewriteValueARM64_OpRotateLeft16(v *Value) bool {
 		v.AddArg2(v0, v2)
 		return true
 	}
-	return false
+	// match: (RotateLeft16 <t> x y)
+	// result: (RORW <t> (ORshiftLL <typ.UInt32> (ZeroExt16to32 x) (ZeroExt16to32 x) [16]) (NEG <typ.Int64> y))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		v.reset(OpARM64RORW)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpARM64ORshiftLL, typ.UInt32)
+		v0.AuxInt = int64ToAuxInt(16)
+		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
+		v1.AddArg(x)
+		v0.AddArg2(v1, v1)
+		v2 := b.NewValue0(v.Pos, OpARM64NEG, typ.Int64)
+		v2.AddArg(y)
+		v.AddArg2(v0, v2)
+		return true
+	}
 }
 func rewriteValueARM64_OpRotateLeft32(v *Value) bool {
 	v_1 := v.Args[1]
@@ -25670,7 +25687,31 @@ func rewriteValueARM64_OpRotateLeft8(v *Value) bool {
 		v.AddArg2(v0, v2)
 		return true
 	}
-	return false
+	// match: (RotateLeft8 <t> x y)
+	// result: (OR <t> (SLL <t> x (ANDconst <typ.Int64> [7] y)) (SRL <t> (ZeroExt8to64 x) (ANDconst <typ.Int64> [7] (NEG <typ.Int64> y))))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		v.reset(OpARM64OR)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+		v1 := b.NewValue0(v.Pos, OpARM64ANDconst, typ.Int64)
+		v1.AuxInt = int64ToAuxInt(7)
+		v1.AddArg(y)
+		v0.AddArg2(x, v1)
+		v2 := b.NewValue0(v.Pos, OpARM64SRL, t)
+		v3 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+		v3.AddArg(x)
+		v4 := b.NewValue0(v.Pos, OpARM64ANDconst, typ.Int64)
+		v4.AuxInt = int64ToAuxInt(7)
+		v5 := b.NewValue0(v.Pos, OpARM64NEG, typ.Int64)
+		v5.AddArg(y)
+		v4.AddArg(v5)
+		v2.AddArg2(v3, v4)
+		v.AddArg2(v0, v2)
+		return true
+	}
 }
 func rewriteValueARM64_OpRsh16Ux16(v *Value) bool {
 	v_1 := v.Args[1]

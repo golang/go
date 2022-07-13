@@ -64,8 +64,11 @@
 (Sqrt32 ...) => (FSQRTS ...)
 
 // lowering rotates
+// we do rotate detection in generic rules, if the following rules need to be changed, chcek generic rules first.
 (RotateLeft8 <t> x (MOVDconst [c])) => (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
+(RotateLeft8 <t> x y) => (OR <t> (SLL <t> x (ANDconst <typ.Int64> [7] y)) (SRL <t> (ZeroExt8to64 x) (ANDconst <typ.Int64> [7] (NEG <typ.Int64> y))))
 (RotateLeft16 <t> x (MOVDconst [c])) => (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
+(RotateLeft16 <t> x y) => (RORW <t> (ORshiftLL <typ.UInt32> (ZeroExt16to32 x) (ZeroExt16to32 x) [16]) (NEG <typ.Int64> y))
 (RotateLeft32 x y) => (RORW x (NEG <y.Type> y))
 (RotateLeft64 x y) => (ROR x (NEG <y.Type> y))
 
