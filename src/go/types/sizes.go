@@ -53,6 +53,17 @@ func (s *StdSizes) Alignof(T Type) int64 {
 		// is the same as unsafe.Alignof(x[0]), but at least 1."
 		return s.Alignof(t.elem)
 	case *Struct:
+		if len(t.fields) == 0 && isSyncAtomicAlign64(T) {
+			// Special case: sync/atomic.align64 is an
+			// empty struct we recognize as a signal that
+			// the struct it contains must be
+			// 64-bit-aligned.
+			//
+			// This logic is equivalent to the logic in
+			// cmd/compile/internal/types/size.go:calcStructOffset
+			return 8
+		}
+
 		// spec: "For a variable x of struct type: unsafe.Alignof(x)
 		// is the largest of the values unsafe.Alignof(x.f) for each
 		// field f of x, but at least 1."
@@ -91,6 +102,18 @@ func (s *StdSizes) Alignof(T Type) int64 {
 		return s.MaxAlign
 	}
 	return a
+}
+
+func isSyncAtomicAlign64(T Type) bool {
+	named, ok := T.(*Named)
+	if !ok {
+		return false
+	}
+	obj := named.Obj()
+	return obj.Name() == "align64" &&
+		obj.Pkg() != nil &&
+		(obj.Pkg().Path() == "sync/atomic" ||
+			obj.Pkg().Path() == "runtime/internal/atomic")
 }
 
 func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
