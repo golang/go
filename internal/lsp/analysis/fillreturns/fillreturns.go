@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -191,7 +192,7 @@ outer:
 				// Find the identifier whose name is most similar to the return type.
 				// If we do not find any identifier that matches the pattern,
 				// generate a zero value.
-				value := analysisinternal.FindBestMatch(retTyp.String(), idents)
+				value := fuzzy.FindBestMatch(retTyp.String(), idents)
 				if value == nil {
 					value = analysisinternal.ZeroValue(file, pass.Pkg, retTyp)
 				}

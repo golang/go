@@ -12,8 +12,6 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
-
-	"golang.org/x/tools/internal/lsp/fuzzy"
 )
 
 // Flag to gate diagnostics for fuzz tests in 1.18.
@@ -396,31 +394,4 @@ func equivalentTypes(want, got types.Type) bool {
 		}
 	}
 	return types.AssignableTo(want, got)
-}
-
-// FindBestMatch employs fuzzy matching to evaluate the similarity of each given identifier to the
-// given pattern. We return the identifier whose name is most similar to the pattern.
-func FindBestMatch(pattern string, idents []*ast.Ident) ast.Expr {
-	fuzz := fuzzy.NewMatcher(pattern)
-	var bestFuzz ast.Expr
-	highScore := float32(0) // minimum score is 0 (no match)
-	for _, ident := range idents {
-		// TODO: Improve scoring algorithm.
-		score := fuzz.Score(ident.Name)
-		if score > highScore {
-			highScore = score
-			bestFuzz = ident
-		} else if score == 0 {
-			// Order matters in the fuzzy matching algorithm. If we find no match
-			// when matching the target to the identifier, try matching the identifier
-			// to the target.
-			revFuzz := fuzzy.NewMatcher(ident.Name)
-			revScore := revFuzz.Score(pattern)
-			if revScore > highScore {
-				highScore = revScore
-				bestFuzz = ident
-			}
-		}
-	}
-	return bestFuzz
 }

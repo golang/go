@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -254,7 +255,7 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 			// Find the identifier whose name is most similar to the name of the field's key.
 			// If we do not find any identifier that matches the pattern, generate a new value.
 			// NOTE: We currently match on the name of the field key rather than the field type.
-			value := analysisinternal.FindBestMatch(obj.Field(i).Name(), idents)
+			value := fuzzy.FindBestMatch(obj.Field(i).Name(), idents)
 			if value == nil {
 				value = populateValue(file, pkg, fieldTyp)
 			}
