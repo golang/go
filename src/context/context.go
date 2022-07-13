@@ -34,7 +34,7 @@
 //		// ... use ctx ...
 //	}
 //
-// Do not pass a nil Context, even if a function permits it. Pass context.TODO
+// Do not pass a nil Context, even if a function permits it. Pass context.TODO()
 // if you are unsure about which Context to use.
 //
 // Use context Values only for request-scoped data that transits processes and
