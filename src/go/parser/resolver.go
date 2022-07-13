@@ -25,6 +25,7 @@ func resolveFile(file *ast.File, handle *token.File, declErr func(token.Pos, str
 		declErr:  declErr,
 		topScope: pkgScope,
 		pkgScope: pkgScope,
+		depth:    1,
 	}
 
 	for _, decl := range file.Decls {
@@ -53,6 +54,8 @@ func resolveFile(file *ast.File, handle *token.File, declErr func(token.Pos, str
 	file.Unresolved = r.unresolved[0:i]
 }
 
+const maxScopeDepth int = 1e3
+
 type resolver struct {
 	handle  *token.File
 	declErr func(token.Pos, string)
@@ -61,6 +64,7 @@ type resolver struct {
 	pkgScope   *ast.Scope   // pkgScope.Outer == nil
 	topScope   *ast.Scope   // top-most scope; may be pkgScope
 	unresolved []*ast.Ident // unresolved identifiers
+	depth      int          // scope depth
 
 	// Label scopes
 	// (maintained by open/close LabelScope)
@@ -83,6 +87,10 @@ func (r *resolver) sprintf(format string, args ...interface{}) string {
 }
 
 func (r *resolver) openScope(pos token.Pos) {
+	r.depth++
+	if r.depth > maxScopeDepth {
+		panic(bailout{pos: pos, msg: "exceeded max scope depth during object resolution"})
+	}
 	if debugResolve {
 		r.dump("opening scope @%v", pos)
 	}
@@ -90,6 +98,7 @@ func (r *resolver) openScope(pos token.Pos) {
 }
 
 func (r *resolver) closeScope() {
+	r.depth--
 	if debugResolve {
 		r.dump("closing scope")
 	}

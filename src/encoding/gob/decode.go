@@ -871,8 +871,13 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 	return &op
 }
 
+var maxIgnoreNestingDepth = 10000
+
 // decIgnoreOpFor returns the decoding op for a field that has no destination.
-func (dec *Decoder) decIgnoreOpFor(wireId typeId, inProgress map[typeId]*decOp) *decOp {
+func (dec *Decoder) decIgnoreOpFor(wireId typeId, inProgress map[typeId]*decOp, depth int) *decOp {
+	if depth > maxIgnoreNestingDepth {
+		error_(errors.New("invalid nesting depth"))
+	}
 	// If this type is already in progress, it's a recursive type (e.g. map[string]*T).
 	// Return the pointer to the op we're already building.
 	if opPtr := inProgress[wireId]; opPtr != nil {
@@ -896,7 +901,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId, inProgress map[typeId]*decOp) 
 			errorf("bad data: undefined type %s", wireId.string())
 		case wire.ArrayT != nil:
 			elemId := wire.ArrayT.Elem
-			elemOp := dec.decIgnoreOpFor(elemId, inProgress)
+			elemOp := dec.decIgnoreOpFor(elemId, inProgress, depth+1)
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
 				state.dec.ignoreArray(state, *elemOp, wire.ArrayT.Len)
 			}
@@ -904,15 +909,15 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId, inProgress map[typeId]*decOp) 
 		case wire.MapT != nil:
 			keyId := dec.wireType[wireId].MapT.Key
 			elemId := dec.wireType[wireId].MapT.Elem
-			keyOp := dec.decIgnoreOpFor(keyId, inProgress)
-			elemOp := dec.decIgnoreOpFor(elemId, inProgress)
+			keyOp := dec.decIgnoreOpFor(keyId, inProgress, depth+1)
+			elemOp := dec.decIgnoreOpFor(elemId, inProgress, depth+1)
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
 				state.dec.ignoreMap(state, *keyOp, *elemOp)
 			}
 
 		case wire.SliceT != nil:
 			elemId := wire.SliceT.Elem
-			elemOp := dec.decIgnoreOpFor(elemId, inProgress)
+			elemOp := dec.decIgnoreOpFor(elemId, inProgress, depth+1)
 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
 				state.dec.ignoreSlice(state, *elemOp)
 			}
@@ -1073,7 +1078,7 @@ func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *de
 func (dec *Decoder) compileIgnoreSingle(remoteId typeId) *decEngine {
 	engine := new(decEngine)
 	engine.instr = make([]decInstr, 1) // one item
-	op := dec.decIgnoreOpFor(remoteId, make(map[typeId]*decOp))
+	op := dec.decIgnoreOpFor(remoteId, make(map[typeId]*decOp), 0)
 	ovfl := overflow(dec.typeString(remoteId))
 	engine.instr[0] = decInstr{*op, 0, nil, ovfl}
 	engine.numInstr = 1
@@ -1118,7 +1123,7 @@ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEn
 		localField, present := srt.FieldByName(wireField.Name)
 		// TODO(r): anonymous names
 		if !present || !isExported(wireField.Name) {
-			op := dec.decIgnoreOpFor(wireField.Id, make(map[typeId]*decOp))
+			op := dec.decIgnoreOpFor(wireField.Id, make(map[typeId]*decOp), 0)
 			engine.instr[fieldnum] = decInstr{*op, fieldnum, nil, ovfl}
 			continue
 		}
