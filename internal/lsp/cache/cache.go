@@ -199,7 +199,7 @@ func (c *Cache) PackageStats(withNames bool) template.HTML {
 	c.store.DebugOnlyIterate(func(k, v interface{}) {
 		switch k.(type) {
 		case packageHandleKey:
-			v := v.(*packageData)
+			v := v.(typeCheckResult)
 			if v.pkg == nil {
 				break
 			}

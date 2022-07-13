@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -43,10 +44,7 @@ type packageHandleKey source.Hash
 // A packageHandle is a handle to the future result of type-checking a package.
 // The resulting package is obtained from the check() method.
 type packageHandle struct {
-	handle *memoize.Handle
-
-	// mode is the mode the files will be parsed in.
-	mode source.ParseMode
+	handle *memoize.Handle // [typeCheckResult]
 
 	// m is the metadata associated with the package.
 	m *KnownMetadata
@@ -61,15 +59,9 @@ type packageHandle struct {
 	key packageHandleKey
 }
 
-func (ph *packageHandle) packageKey() packageKey {
-	return packageKey{
-		id:   ph.m.ID,
-		mode: ph.mode,
-	}
-}
-
-// packageData contains the data produced by type-checking a package.
-type packageData struct {
+// typeCheckResult contains the result of a call to
+// typeCheck, which type-checks a package.
+type typeCheckResult struct {
 	pkg *pkg
 	err error
 }
@@ -80,13 +72,19 @@ type packageData struct {
 // attempt to reload missing or invalid metadata. The caller must reload
 // metadata if needed.
 func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode source.ParseMode) (*packageHandle, error) {
-	if ph := s.getPackage(id, mode); ph != nil {
-		return ph, nil
-	}
+	packageKey := packageKey{id: id, mode: mode}
 
-	m := s.getMetadata(id)
+	s.mu.Lock()
+	entry, hit := s.packages.Get(packageKey)
+	m := s.meta.metadata[id]
+	s.mu.Unlock()
+
 	if m == nil {
 		return nil, fmt.Errorf("no metadata for %s", id)
+	}
+
+	if hit {
+		return entry.(*packageHandle), nil
 	}
 
 	// Begin computing the key by getting the depKeys for all dependencies.
@@ -140,10 +138,10 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	// All the file reading has now been done.
 	// Create a handle for the result of type checking.
 	experimentalKey := s.View().Options().ExperimentalPackageCacheKey
-	key := computePackageKey(m.ID, compiledGoFiles, m, depKeys, mode, experimentalKey)
+	phKey := computePackageKey(m.ID, compiledGoFiles, m, depKeys, mode, experimentalKey)
 	// TODO(adonovan): extract lambda into a standalone function to
 	// avoid implicit lexical dependencies.
-	handle, release := s.store.Handle(key, func(ctx context.Context, arg interface{}) interface{} {
+	handle, release := s.store.Handle(phKey, func(ctx context.Context, arg interface{}) interface{} {
 		snapshot := arg.(*snapshot)
 
 		// Start type checking of direct dependencies,
@@ -167,21 +165,43 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 		defer wg.Wait()
 
 		pkg, err := typeCheck(ctx, snapshot, goFiles, compiledGoFiles, m.Metadata, mode, deps)
-		return &packageData{pkg, err}
+		return typeCheckResult{pkg, err}
 	})
 
 	ph := &packageHandle{
 		handle: handle,
-		mode:   mode,
 		m:      m,
-		key:    key,
+		key:    phKey,
 	}
 
-	// Cache the handle in the snapshot. If a package handle has already
-	// been cached, addPackage will return the cached value. This is fine,
-	// since the original package handle above will have no references and be
-	// garbage collected.
-	return s.addPackageHandle(ph, release)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Check that the metadata has not changed
+	// (which should invalidate this handle).
+	//
+	// (In future, handles should form a graph with edges from a
+	// packageHandle to the handles for parsing its files and the
+	// handles for type-checking its immediate deps, at which
+	// point there will be no need to even access s.meta.)
+	if s.meta.metadata[ph.m.ID].Metadata != ph.m.Metadata {
+		return nil, fmt.Errorf("stale metadata for %s", ph.m.ID)
+	}
+
+	// Check cache again in case another thread got there first.
+	if prev, ok := s.packages.Get(packageKey); ok {
+		prevPH := prev.(*packageHandle)
+		release()
+		if prevPH.m.Metadata != ph.m.Metadata {
+			return nil, bug.Errorf("existing package handle does not match for %s", ph.m.ID)
+		}
+		return prevPH, nil
+	}
+
+	// Update the map.
+	s.packages.Set(packageKey, ph, func(_, _ interface{}) { release() })
+
+	return ph, nil
 }
 
 // readGoFiles reads the content of Metadata.GoFiles and
@@ -273,7 +293,7 @@ func (ph *packageHandle) check(ctx context.Context, s *snapshot) (*pkg, error) {
 	if err != nil {
 		return nil, err
 	}
-	data := v.(*packageData)
+	data := v.(typeCheckResult)
 	return data.pkg, data.err
 }
 
@@ -290,7 +310,7 @@ func (ph *packageHandle) cached() (*pkg, error) {
 	if v == nil {
 		return nil, fmt.Errorf("no cached type information for %s", ph.m.PkgPath)
 	}
-	data := v.(*packageData)
+	data := v.(typeCheckResult)
 	return data.pkg, data.err
 }
 

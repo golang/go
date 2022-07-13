@@ -58,6 +58,11 @@ func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.A
 	return results, nil
 }
 
+type actionKey struct {
+	pkg      packageKey
+	analyzer *analysis.Analyzer
+}
+
 type actionHandleKey source.Hash
 
 // An action represents one unit of analysis work: the application of
@@ -90,6 +95,20 @@ type packageFactKey struct {
 }
 
 func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.Analyzer) (*actionHandle, error) {
+	const mode = source.ParseFull
+	key := actionKey{
+		pkg:      packageKey{id: id, mode: mode},
+		analyzer: a,
+	}
+
+	s.mu.Lock()
+	entry, hit := s.actions.Get(key)
+	s.mu.Unlock()
+
+	if hit {
+		return entry.(*actionHandle), nil
+	}
+
 	// TODO(adonovan): opt: this block of code sequentially loads a package
 	// (and all its dependencies), then sequentially creates action handles
 	// for the direct dependencies (whose packages have by then been loaded
@@ -100,15 +119,6 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	// use of concurrency would lead to an exponential amount of duplicated
 	// work. We should instead use an atomically updated future cache
 	// and a parallel graph traversal.
-
-	// TODO(adonovan): in the code below, follow the structure of
-	// the other handle-map accessors.
-
-	const mode = source.ParseFull
-	if act := s.getActionHandle(id, mode, a); act != nil {
-		return act, nil
-	}
-
 	ph, err := s.buildPackageHandle(ctx, id, mode)
 	if err != nil {
 		return nil, err
@@ -157,13 +167,24 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 		return runAnalysis(ctx, snapshot, a, pkg, results)
 	})
 
-	act := &actionHandle{
+	ah := &actionHandle{
 		analyzer: a,
 		pkg:      pkg,
 		handle:   handle,
 	}
-	act = s.addActionHandle(act, release)
-	return act, nil
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Check cache again in case another thread got there first.
+	if result, ok := s.actions.Get(key); ok {
+		release()
+		return result.(*actionHandle), nil
+	}
+
+	s.actions.Set(key, ah, func(_, _ interface{}) { release() })
+
+	return ah, nil
 }
 
 func (act *actionHandle) analyze(ctx context.Context, snapshot *snapshot) ([]*source.Diagnostic, interface{}, error) {

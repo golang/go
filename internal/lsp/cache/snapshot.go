@@ -30,7 +30,6 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
@@ -173,11 +172,6 @@ func (s *snapshot) Acquire() func() {
 
 func (s *snapshot) awaitHandle(ctx context.Context, h *memoize.Handle) (interface{}, error) {
 	return h.Get(ctx, s)
-}
-
-type actionKey struct {
-	pkg      packageKey
-	analyzer *analysis.Analyzer
 }
 
 // destroy waits for all leases on the snapshot to expire then releases
@@ -771,34 +765,6 @@ func (s *snapshot) getImportedBy(id PackageID) []PackageID {
 	return s.meta.importedBy[id]
 }
 
-// addPackageHandle stores ph in the snapshot, or returns a pre-existing handle
-// for the given package key, if it exists.
-//
-// An error is returned if the metadata used to build ph is no longer relevant.
-//
-// TODO(adonovan): inline sole use in buildPackageHandle.
-func (s *snapshot) addPackageHandle(ph *packageHandle, release func()) (*packageHandle, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.meta.metadata[ph.m.ID].Metadata != ph.m.Metadata {
-		return nil, fmt.Errorf("stale metadata for %s", ph.m.ID)
-	}
-
-	// If the package handle has already been cached,
-	// return the cached handle instead of overriding it.
-	if v, ok := s.packages.Get(ph.packageKey()); ok {
-		result := v.(*packageHandle)
-		release()
-		if result.m.Metadata != ph.m.Metadata {
-			return nil, bug.Errorf("existing package handle does not match for %s", ph.m.ID)
-		}
-		return result, nil
-	}
-	s.packages.Set(ph.packageKey(), ph, func(_, _ interface{}) { release() })
-	return ph, nil
-}
-
 func (s *snapshot) workspacePackageIDs() (ids []PackageID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1200,63 +1166,6 @@ func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
 		}
 	}
 	return match
-}
-
-// TODO(adonovan): inline sole use in buildPackageHandle.
-func (s *snapshot) getPackage(id PackageID, mode source.ParseMode) *packageHandle {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	key := packageKey{
-		id:   id,
-		mode: mode,
-	}
-	v, ok := s.packages.Get(key)
-	if !ok {
-		return nil
-	}
-	return v.(*packageHandle)
-}
-
-func (s *snapshot) getActionHandle(id PackageID, m source.ParseMode, a *analysis.Analyzer) *actionHandle {
-	key := actionKey{
-		pkg: packageKey{
-			id:   id,
-			mode: m,
-		},
-		analyzer: a,
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	ah, ok := s.actions.Get(key)
-	if !ok {
-		return nil
-	}
-	return ah.(*actionHandle)
-}
-
-func (s *snapshot) addActionHandle(ah *actionHandle, release func()) *actionHandle {
-	key := actionKey{
-		analyzer: ah.analyzer,
-		pkg: packageKey{
-			id:   ah.pkg.m.ID,
-			mode: ah.pkg.mode,
-		},
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// If another thread since cached a different handle,
-	// return it instead of overriding it.
-	if result, ok := s.actions.Get(key); ok {
-		release()
-		return result.(*actionHandle)
-	}
-	s.actions.Set(key, ah, func(_, _ interface{}) { release() })
-	return ah
 }
 
 func (s *snapshot) getIDsForURI(uri span.URI) []PackageID {
