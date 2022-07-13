@@ -249,15 +249,6 @@ func computePackageKey(id PackageID, files []source.FileHandle, m *KnownMetadata
 	return packageHandleKey(source.HashOf(b.Bytes()))
 }
 
-// hashEnv returns a hash of the snapshot's configuration.
-func hashEnv(s *snapshot) source.Hash {
-	s.view.optionsMu.Lock()
-	env := s.view.options.EnvSlice()
-	s.view.optionsMu.Unlock()
-
-	return source.Hashf("%s", env)
-}
-
 // hashConfig returns the hash for the *packages.Config.
 func hashConfig(config *packages.Config) source.Hash {
 	// TODO(adonovan): opt: don't materialize the bytes; hash them directly.
