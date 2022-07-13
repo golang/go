@@ -947,7 +947,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 	goroutineProfile.active = true
 	goroutineProfile.records = p
 	goroutineProfile.labels = labels
-	// The finializer goroutine needs special handling because it can vary over
+	// The finalizer goroutine needs special handling because it can vary over
 	// time between being a user goroutine (eligible for this profile) and a
 	// system goroutine (to be excluded). Pick one before restarting the world.
 	if fing != nil {
@@ -995,7 +995,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 		// were collecting the profile. But probably better to return a
 		// truncated profile than to crash the whole process.
 		//
-		// For instance, needm moves a goroutine out of the _Gdead state and so
+		// For instance, need m moves a goroutine out of the _Gdead state and so
 		// might be able to change the goroutine count without interacting with
 		// the scheduler. For code like that, the race windows are small and the
 		// combination of features is uncommon, so it's hard to be (and remain)
