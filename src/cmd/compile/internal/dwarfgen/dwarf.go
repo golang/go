@@ -91,6 +91,11 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 				continue
 			}
 			apdecls = append(apdecls, n)
+			if n.Type().Kind() == types.TSSA {
+				// Can happen for TypeInt128 types. This only happens for
+				// spill locations, so not a huge deal.
+				continue
+			}
 			fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
 		}
 	}

@@ -175,11 +175,11 @@ func (c *mcache) refill(spc spanClass) {
 	// Assume all objects from this span will be allocated in the
 	// mcache. If it gets uncached, we'll adjust this.
 	stats := memstats.heapStats.acquire()
-	atomic.Xadduintptr(&stats.smallAllocCount[spc.sizeclass()], uintptr(s.nelems)-uintptr(s.allocCount))
+	atomic.Xadd64(&stats.smallAllocCount[spc.sizeclass()], int64(s.nelems)-int64(s.allocCount))
 
 	// Flush tinyAllocs.
 	if spc == tinySpanClass {
-		atomic.Xadduintptr(&stats.tinyAllocCount, c.tinyAllocs)
+		atomic.Xadd64(&stats.tinyAllocCount, int64(c.tinyAllocs))
 		c.tinyAllocs = 0
 	}
 	memstats.heapStats.release()
@@ -215,8 +215,8 @@ func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
 		throw("out of memory")
 	}
 	stats := memstats.heapStats.acquire()
-	atomic.Xadduintptr(&stats.largeAlloc, npages*pageSize)
-	atomic.Xadduintptr(&stats.largeAllocCount, 1)
+	atomic.Xadd64(&stats.largeAlloc, int64(npages*pageSize))
+	atomic.Xadd64(&stats.largeAllocCount, 1)
 	memstats.heapStats.release()
 
 	// Update heapLive.
@@ -241,9 +241,9 @@ func (c *mcache) releaseAll() {
 		s := c.alloc[i]
 		if s != &emptymspan {
 			// Adjust nsmallalloc in case the span wasn't fully allocated.
-			n := uintptr(s.nelems) - uintptr(s.allocCount)
+			n := int64(s.nelems) - int64(s.allocCount)
 			stats := memstats.heapStats.acquire()
-			atomic.Xadduintptr(&stats.smallAllocCount[spanClass(i).sizeclass()], -n)
+			atomic.Xadd64(&stats.smallAllocCount[spanClass(i).sizeclass()], -n)
 			memstats.heapStats.release()
 			if s.sweepgen != sg+1 {
 				// refill conservatively counted unallocated slots in gcController.heapLive.
@@ -253,7 +253,7 @@ func (c *mcache) releaseAll() {
 				// gcController.heapLive was totally recomputed since
 				// caching this span, so we don't do this for
 				// stale spans.
-				dHeapLive -= int64(n) * int64(s.elemsize)
+				dHeapLive -= n * int64(s.elemsize)
 			}
 			// Release the span to the mcentral.
 			mheap_.central[i].mcentral.uncacheSpan(s)
@@ -266,7 +266,7 @@ func (c *mcache) releaseAll() {
 
 	// Flush tinyAllocs.
 	stats := memstats.heapStats.acquire()
-	atomic.Xadduintptr(&stats.tinyAllocCount, c.tinyAllocs)
+	atomic.Xadd64(&stats.tinyAllocCount, int64(c.tinyAllocs))
 	c.tinyAllocs = 0
 	memstats.heapStats.release()
 
