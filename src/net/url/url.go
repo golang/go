@@ -673,7 +673,30 @@ func (u *URL) setPath(p string) error {
 		return err
 	}
 	u.Path = path
-	if escp := escape(path, encodePath); p == escp {
+	escp := escape(path, encodePath)
+	// p may contain lowercase hexadecimal letters.
+	// So, before comparing p with escp, we need to convert all lowercase
+	// hexadecimal digits to uppercase  (since escp has uppercase hex)
+	var p_upper strings.Builder
+	p_upper.Grow(len(p))
+	for i := 0; i < len(p); i++ {
+		p_upper.WriteByte(p[i])
+		if p[i] != '%' {
+			continue
+		}
+		if p[i+1] > 'a' {
+			p_upper.WriteByte(p[i+1] + 'A' - 'a')
+		} else {
+			p_upper.WriteByte(p[i+1])
+		}
+		if p[i+2] > 'a' {
+			p_upper.WriteByte(p[i+2] + 'A' - 'a')
+		} else {
+			p_upper.WriteByte(p[i+2])
+		}
+		i += 2
+	}
+	if p_upper.String() == escp {
 		// Default encoding is fine.
 		u.RawPath = ""
 	} else {
