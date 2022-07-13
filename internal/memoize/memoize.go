@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package memoize supports memoizing the return values of functions with
-// idempotent results that are expensive to compute.
+// Package memoize defines a "promise" abstraction that enables
+// memoization of the result of calling an expensive but idempotent
+// function.
 //
-// To use this package, create a Store, call its Handle method to
-// acquire a handle to (aka a "promise" of) the future result of a
-// function, and call Handle.Get to obtain the result. Get may block
-// if the function has not finished (or started).
+// Call p = NewPromise(f) to obtain a promise for the future result of
+// calling f(), and call p.Get() to obtain that result. All calls to
+// p.Get return the result of a single call of f().
+// Get blocks if the function has not finished (or started).
+//
+// A Store is a map of arbitrary keys to promises. Use Store.Promise
+// to create a promise in the store. All calls to Handle(k) return the
+// same promise as long as it is in the store. These promises are
+// reference-counted and must be explicitly released. Once the last
+// reference is released, the promise is removed from the store.
 package memoize
 
 import (
@@ -22,22 +29,13 @@ import (
 	"golang.org/x/tools/internal/xcontext"
 )
 
-// TODO(adonovan): rename Handle to Promise, and present it before Store.
-
-// Store binds keys to functions, returning handles that can be used to access
-// the function's result.
-type Store struct {
-	handlesMu sync.Mutex
-	handles   map[interface{}]*Handle
-}
-
 // Function is the type of a function that can be memoized.
 //
 // If the arg is a RefCounted, its Acquire/Release operations are called.
 //
 // The argument must not materially affect the result of the function
-// in ways that are not captured by the handle's key, since if
-// Handle.Get is called twice concurrently, with the same (implicit)
+// in ways that are not captured by the promise's key, since if
+// Promise.Get is called twice concurrently, with the same (implicit)
 // key but different arguments, the Function is called only once but
 // its result must be suitable for both callers.
 //
@@ -63,21 +61,13 @@ type RefCounted interface {
 	Acquire() func()
 }
 
-type state int
-
-const (
-	stateIdle      = iota // newly constructed, or last waiter was cancelled
-	stateRunning          // start was called and not cancelled
-	stateCompleted        // function call ran to completion
-)
-
-// A Handle represents the future result of a call to a function.
-type Handle struct {
+// A Promise represents the future result of a call to a function.
+type Promise struct {
 	debug string // for observability
 
-	mu sync.Mutex // lock ordering: Store.handlesMu before Handle.mu
+	mu sync.Mutex
 
-	// A Handle starts out IDLE, waiting for something to demand
+	// A Promise starts out IDLE, waiting for something to demand
 	// its evaluation. It then transitions into RUNNING state.
 	//
 	// While RUNNING, waiters tracks the number of Get calls
@@ -105,128 +95,78 @@ type Handle struct {
 	refcount int32 // accessed using atomic load/store
 }
 
-// Handle returns a reference-counted handle for the future result of
-// calling the specified function. Calls to Handle with the same key
-// return the same handle, and all calls to Handle.Get on a given
-// handle return the same result but the function is called at most once.
+// NewPromise returns a promise for the future result of calling the
+// specified function.
 //
-// The caller must call the returned function to decrement the
-// handle's reference count when it is no longer needed.
-func (store *Store) Handle(key interface{}, function Function) (*Handle, func()) {
+// The debug string is used to classify promises in logs and metrics.
+// It should be drawn from a small set.
+func NewPromise(debug string, function Function) *Promise {
 	if function == nil {
 		panic("nil function")
 	}
-
-	store.handlesMu.Lock()
-	h, ok := store.handles[key]
-	if !ok {
-		// new handle
-		h = &Handle{
-			function: function,
-			refcount: 1,
-			debug:    reflect.TypeOf(key).String(),
-		}
-
-		if store.handles == nil {
-			store.handles = map[interface{}]*Handle{}
-		}
-		store.handles[key] = h
-	} else {
-		// existing handle
-		atomic.AddInt32(&h.refcount, 1)
-	}
-	store.handlesMu.Unlock()
-
-	release := func() {
-		if atomic.AddInt32(&h.refcount, -1) == 0 {
-			store.handlesMu.Lock()
-			delete(store.handles, key)
-			store.handlesMu.Unlock()
-		}
-	}
-	return h, release
-}
-
-// Stats returns the number of each type of value in the store.
-func (s *Store) Stats() map[reflect.Type]int {
-	result := map[reflect.Type]int{}
-
-	s.handlesMu.Lock()
-	defer s.handlesMu.Unlock()
-
-	for k := range s.handles {
-		result[reflect.TypeOf(k)]++
-	}
-	return result
-}
-
-// DebugOnlyIterate iterates through all live cache entries and calls f on them.
-// It should only be used for debugging purposes.
-func (s *Store) DebugOnlyIterate(f func(k, v interface{})) {
-	s.handlesMu.Lock()
-	defer s.handlesMu.Unlock()
-
-	for k, h := range s.handles {
-		if v := h.Cached(); v != nil {
-			f(k, v)
-		}
-	}
-}
-
-// NewHandle returns a handle for the future result of calling the
-// specified function.
-//
-// The debug string is used to classify handles in logs and metrics.
-// It should be drawn from a small set.
-func NewHandle(debug string, function Function) *Handle {
-	return &Handle{
+	return &Promise{
 		debug:    debug,
 		function: function,
 	}
 }
 
-// Cached returns the value associated with a handle.
+type state int
+
+const (
+	stateIdle      = iota // newly constructed, or last waiter was cancelled
+	stateRunning          // start was called and not cancelled
+	stateCompleted        // function call ran to completion
+)
+
+// Cached returns the value associated with a promise.
 //
 // It will never cause the value to be generated.
 // It will return the cached value, if present.
-func (h *Handle) Cached() interface{} {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.state == stateCompleted {
-		return h.value
+func (p *Promise) Cached() interface{} {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.state == stateCompleted {
+		return p.value
 	}
 	return nil
 }
 
-// Get returns the value associated with a handle.
+// Get returns the value associated with a promise.
+//
+// All calls to Promise.Get on a given promise return the
+// same result but the function is called (to completion) at most once.
 //
 // If the value is not yet ready, the underlying function will be invoked.
+//
 // If ctx is cancelled, Get returns (nil, Canceled).
-func (h *Handle) Get(ctx context.Context, arg interface{}) (interface{}, error) {
+// If all concurrent calls to Get are cancelled, the context provided
+// to the function is cancelled. A later call to Get may attempt to
+// call the function again.
+func (p *Promise) Get(ctx context.Context, arg interface{}) (interface{}, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	h.mu.Lock()
-	switch h.state {
+	p.mu.Lock()
+	switch p.state {
 	case stateIdle:
-		return h.run(ctx, arg)
+		return p.run(ctx, arg)
 	case stateRunning:
-		return h.wait(ctx)
+		return p.wait(ctx)
 	case stateCompleted:
-		defer h.mu.Unlock()
-		return h.value, nil
+		defer p.mu.Unlock()
+		return p.value, nil
 	default:
 		panic("unknown state")
 	}
 }
 
-// run starts h.function and returns the result. h.mu must be locked.
-func (h *Handle) run(ctx context.Context, arg interface{}) (interface{}, error) {
+// run starts p.function and returns the result. p.mu must be locked.
+func (p *Promise) run(ctx context.Context, arg interface{}) (interface{}, error) {
 	childCtx, cancel := context.WithCancel(xcontext.Detach(ctx))
-	h.cancel = cancel
-	h.state = stateRunning
-	h.done = make(chan struct{})
-	function := h.function // Read under the lock
+	p.cancel = cancel
+	p.state = stateRunning
+	p.done = make(chan struct{})
+	function := p.function // Read under the lock
 
 	// Make sure that the argument isn't destroyed while we're running in it.
 	release := func() {}
@@ -235,7 +175,7 @@ func (h *Handle) run(ctx context.Context, arg interface{}) (interface{}, error) 
 	}
 
 	go func() {
-		trace.WithRegion(childCtx, fmt.Sprintf("Handle.run %s", h.debug), func() {
+		trace.WithRegion(childCtx, fmt.Sprintf("Promise.run %s", p.debug), func() {
 			defer release()
 			// Just in case the function does something expensive without checking
 			// the context, double-check we're still alive.
@@ -247,51 +187,115 @@ func (h *Handle) run(ctx context.Context, arg interface{}) (interface{}, error) 
 				return
 			}
 
-			h.mu.Lock()
-			defer h.mu.Unlock()
-			// It's theoretically possible that the handle has been cancelled out
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			// It's theoretically possible that the promise has been cancelled out
 			// of the run that started us, and then started running again since we
 			// checked childCtx above. Even so, that should be harmless, since each
 			// run should produce the same results.
-			if h.state != stateRunning {
+			if p.state != stateRunning {
 				return
 			}
 
-			h.value = v
-			h.function = nil // aid GC
-			h.state = stateCompleted
-			close(h.done)
+			p.value = v
+			p.function = nil // aid GC
+			p.state = stateCompleted
+			close(p.done)
 		})
 	}()
 
-	return h.wait(ctx)
+	return p.wait(ctx)
 }
 
-// wait waits for the value to be computed, or ctx to be cancelled. h.mu must be locked.
-func (h *Handle) wait(ctx context.Context) (interface{}, error) {
-	h.waiters++
-	done := h.done
-	h.mu.Unlock()
+// wait waits for the value to be computed, or ctx to be cancelled. p.mu must be locked.
+func (p *Promise) wait(ctx context.Context) (interface{}, error) {
+	p.waiters++
+	done := p.done
+	p.mu.Unlock()
 
 	select {
 	case <-done:
-		h.mu.Lock()
-		defer h.mu.Unlock()
-		if h.state == stateCompleted {
-			return h.value, nil
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if p.state == stateCompleted {
+			return p.value, nil
 		}
 		return nil, nil
 	case <-ctx.Done():
-		h.mu.Lock()
-		defer h.mu.Unlock()
-		h.waiters--
-		if h.waiters == 0 && h.state == stateRunning {
-			h.cancel()
-			close(h.done)
-			h.state = stateIdle
-			h.done = nil
-			h.cancel = nil
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		p.waiters--
+		if p.waiters == 0 && p.state == stateRunning {
+			p.cancel()
+			close(p.done)
+			p.state = stateIdle
+			p.done = nil
+			p.cancel = nil
 		}
 		return nil, ctx.Err()
+	}
+}
+
+// A Store maps arbitrary keys to reference-counted promises.
+type Store struct {
+	promisesMu sync.Mutex
+	promises   map[interface{}]*Promise
+}
+
+// Promise returns a reference-counted promise for the future result of
+// calling the specified function.
+//
+// Calls to Promise with the same key return the same promise,
+// incrementing its reference count.  The caller must call the
+// returned function to decrement the promise's reference count when
+// it is no longer needed. Once the last reference has been released,
+// the promise is removed from the store.
+func (store *Store) Promise(key interface{}, function Function) (*Promise, func()) {
+	store.promisesMu.Lock()
+	p, ok := store.promises[key]
+	if !ok {
+		p = NewPromise(reflect.TypeOf(key).String(), function)
+		if store.promises == nil {
+			store.promises = map[interface{}]*Promise{}
+		}
+		store.promises[key] = p
+	}
+	atomic.AddInt32(&p.refcount, 1)
+	store.promisesMu.Unlock()
+
+	release := func() {
+		if atomic.AddInt32(&p.refcount, -1) == 0 {
+			store.promisesMu.Lock()
+			delete(store.promises, key)
+			store.promisesMu.Unlock()
+		}
+	}
+	return p, release
+}
+
+// Stats returns the number of each type of key in the store.
+func (s *Store) Stats() map[reflect.Type]int {
+	result := map[reflect.Type]int{}
+
+	s.promisesMu.Lock()
+	defer s.promisesMu.Unlock()
+
+	for k := range s.promises {
+		result[reflect.TypeOf(k)]++
+	}
+	return result
+}
+
+// DebugOnlyIterate iterates through the store and, for each completed
+// promise, calls f(k, v) for the map key k and function result v.  It
+// should only be used for debugging purposes.
+func (s *Store) DebugOnlyIterate(f func(k, v interface{})) {
+	s.promisesMu.Lock()
+	defer s.promisesMu.Unlock()
+
+	for k, p := range s.promises {
+		if v := p.Cached(); v != nil {
+			f(k, v)
+		}
 	}
 }

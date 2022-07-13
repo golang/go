@@ -69,7 +69,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 			return nil, err
 		}
 
-		handle := memoize.NewHandle("modTidy", func(ctx context.Context, arg interface{}) interface{} {
+		handle := memoize.NewPromise("modTidy", func(ctx context.Context, arg interface{}) interface{} {
 
 			tidied, err := modTidyImpl(ctx, arg.(*snapshot), uri.Filename(), pm)
 			return modTidyResult{tidied, err}
@@ -82,7 +82,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 	}
 
 	// Await result.
-	v, err := s.awaitHandle(ctx, entry.(*memoize.Handle))
+	v, err := s.awaitPromise(ctx, entry.(*memoize.Promise))
 	if err != nil {
 		return nil, err
 	}

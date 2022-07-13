@@ -18,7 +18,7 @@ func TestGet(t *testing.T) {
 
 	evaled := 0
 
-	h, release := store.Handle("key", func(context.Context, interface{}) interface{} {
+	h, release := store.Promise("key", func(context.Context, interface{}) interface{} {
 		evaled++
 		return "res"
 	})
@@ -30,7 +30,7 @@ func TestGet(t *testing.T) {
 	}
 }
 
-func expectGet(t *testing.T, h *memoize.Handle, wantV interface{}) {
+func expectGet(t *testing.T, h *memoize.Promise, wantV interface{}) {
 	t.Helper()
 	gotV, gotErr := h.Get(context.Background(), nil)
 	if gotV != wantV || gotErr != nil {
@@ -38,29 +38,50 @@ func expectGet(t *testing.T, h *memoize.Handle, wantV interface{}) {
 	}
 }
 
-func TestHandleRefCounting(t *testing.T) {
+func TestNewPromise(t *testing.T) {
+	calls := 0
+	f := func(context.Context, interface{}) interface{} {
+		calls++
+		return calls
+	}
+
+	// All calls to Get on the same promise return the same result.
+	p1 := memoize.NewPromise("debug", f)
+	expectGet(t, p1, 1)
+	expectGet(t, p1, 1)
+
+	// A new promise calls the function again.
+	p2 := memoize.NewPromise("debug", f)
+	expectGet(t, p2, 2)
+	expectGet(t, p2, 2)
+
+	// The original promise is unchanged.
+	expectGet(t, p1, 1)
+}
+
+func TestStoredPromiseRefCounting(t *testing.T) {
 	var store memoize.Store
 	v1 := false
 	v2 := false
-	h1, release1 := store.Handle("key1", func(context.Context, interface{}) interface{} {
+	p1, release1 := store.Promise("key1", func(context.Context, interface{}) interface{} {
 		return &v1
 	})
-	h2, release2 := store.Handle("key2", func(context.Context, interface{}) interface{} {
+	p2, release2 := store.Promise("key2", func(context.Context, interface{}) interface{} {
 		return &v2
 	})
-	expectGet(t, h1, &v1)
-	expectGet(t, h2, &v2)
+	expectGet(t, p1, &v1)
+	expectGet(t, p2, &v2)
 
-	expectGet(t, h1, &v1)
-	expectGet(t, h2, &v2)
+	expectGet(t, p1, &v1)
+	expectGet(t, p2, &v2)
 
-	h2Copy, release2Copy := store.Handle("key2", func(context.Context, interface{}) interface{} {
+	p2Copy, release2Copy := store.Promise("key2", func(context.Context, interface{}) interface{} {
 		return &v1
 	})
-	if h2 != h2Copy {
-		t.Error("NewHandle returned a new value while old is not destroyed yet")
+	if p2 != p2Copy {
+		t.Error("Promise returned a new value while old is not destroyed yet")
 	}
-	expectGet(t, h2Copy, &v2)
+	expectGet(t, p2Copy, &v2)
 
 	release2()
 	if got, want := v2, false; got != want {
@@ -72,23 +93,23 @@ func TestHandleRefCounting(t *testing.T) {
 	}
 	release1()
 
-	h2Copy, release2Copy = store.Handle("key2", func(context.Context, interface{}) interface{} {
+	p2Copy, release2Copy = store.Promise("key2", func(context.Context, interface{}) interface{} {
 		return &v2
 	})
-	if h2 == h2Copy {
-		t.Error("NewHandle returned previously destroyed value")
+	if p2 == p2Copy {
+		t.Error("Promise returned previously destroyed value")
 	}
 	release2Copy()
 }
 
-func TestHandleDestroyedWhileRunning(t *testing.T) {
-	// Test that calls to Handle.Get return even if the handle is destroyed while running.
+func TestPromiseDestroyedWhileRunning(t *testing.T) {
+	// Test that calls to Promise.Get return even if the promise is destroyed while running.
 
 	var store memoize.Store
 	c := make(chan int)
 
 	var v int
-	h, release := store.Handle("key", func(ctx context.Context, _ interface{}) interface{} {
+	h, release := store.Promise("key", func(ctx context.Context, _ interface{}) interface{} {
 		<-c
 		<-c
 		if err := ctx.Err(); err != nil {
@@ -109,9 +130,9 @@ func TestHandleDestroyedWhileRunning(t *testing.T) {
 		wg.Done()
 	}()
 
-	c <- 0    // send once to enter the handle function
-	release() // release before the handle function returns
-	c <- 0    // let the handle function proceed
+	c <- 0    // send once to enter the promise function
+	release() // release before the promise function returns
+	c <- 0    // let the promise function proceed
 
 	wg.Wait()
 

@@ -84,7 +84,7 @@ type snapshot struct {
 	files filesMap
 
 	// parsedGoFiles maps a parseKey to the handle of the future result of parsing it.
-	parsedGoFiles *persistent.Map // from parseKey to *memoize.Handle[parseGoResult]
+	parsedGoFiles *persistent.Map // from parseKey to *memoize.Promise[parseGoResult]
 
 	// parseKeysByURI records the set of keys of parsedGoFiles that
 	// need to be invalidated for each URI.
@@ -94,7 +94,7 @@ type snapshot struct {
 
 	// symbolizeHandles maps each file URI to a handle for the future
 	// result of computing the symbols declared in that file.
-	symbolizeHandles *persistent.Map // from span.URI to *memoize.Handle[symbolizeResult]
+	symbolizeHandles *persistent.Map // from span.URI to *memoize.Promise[symbolizeResult]
 
 	// packages maps a packageKey to a *packageHandle.
 	// It may be invalidated when a file's content changes.
@@ -103,7 +103,7 @@ type snapshot struct {
 	//  - packages.Get(id).m.Metadata == meta.metadata[id].Metadata for all ids
 	//  - if a package is in packages, then all of its dependencies should also
 	//    be in packages, unless there is a missing import
-	packages *persistent.Map // from packageKey to *memoize.Handle[*packageHandle]
+	packages *persistent.Map // from packageKey to *memoize.Promise[*packageHandle]
 
 	// isActivePackageCache maps package ID to the cached value if it is active or not.
 	// It may be invalidated when metadata changes or a new file is opened or closed.
@@ -122,17 +122,17 @@ type snapshot struct {
 
 	// parseModHandles keeps track of any parseModHandles for the snapshot.
 	// The handles need not refer to only the view's go.mod file.
-	parseModHandles *persistent.Map // from span.URI to *memoize.Handle[parseModResult]
+	parseModHandles *persistent.Map // from span.URI to *memoize.Promise[parseModResult]
 
 	// parseWorkHandles keeps track of any parseWorkHandles for the snapshot.
 	// The handles need not refer to only the view's go.work file.
-	parseWorkHandles *persistent.Map // from span.URI to *memoize.Handle[parseWorkResult]
+	parseWorkHandles *persistent.Map // from span.URI to *memoize.Promise[parseWorkResult]
 
 	// Preserve go.mod-related handles to avoid garbage-collecting the results
 	// of various calls to the go command. The handles need not refer to only
 	// the view's go.mod file.
-	modTidyHandles *persistent.Map // from span.URI to *memoize.Handle[modTidyResult]
-	modWhyHandles  *persistent.Map // from span.URI to *memoize.Handle[modWhyResult]
+	modTidyHandles *persistent.Map // from span.URI to *memoize.Promise[modTidyResult]
+	modWhyHandles  *persistent.Map // from span.URI to *memoize.Promise[modWhyResult]
 
 	workspace *workspace // (not guarded by mu)
 
@@ -170,8 +170,8 @@ func (s *snapshot) Acquire() func() {
 	return s.refcount.Done
 }
 
-func (s *snapshot) awaitHandle(ctx context.Context, h *memoize.Handle) (interface{}, error) {
-	return h.Get(ctx, s)
+func (s *snapshot) awaitPromise(ctx context.Context, p *memoize.Promise) (interface{}, error) {
+	return p.Get(ctx, s)
 }
 
 // destroy waits for all leases on the snapshot to expire then releases

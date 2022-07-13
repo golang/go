@@ -70,7 +70,7 @@ type actionHandleKey source.Hash
 // package (as different analyzers are applied, either in sequence or
 // parallel), and across packages (as dependencies are analyzed).
 type actionHandle struct {
-	handle *memoize.Handle
+	promise *memoize.Promise
 
 	analyzer *analysis.Analyzer
 	pkg      *pkg
@@ -155,7 +155,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 		}
 	}
 
-	handle, release := s.store.Handle(buildActionKey(a, ph), func(ctx context.Context, arg interface{}) interface{} {
+	promise, release := s.store.Promise(buildActionKey(a, ph), func(ctx context.Context, arg interface{}) interface{} {
 		snapshot := arg.(*snapshot)
 		// Analyze dependencies first.
 		results, err := execAll(ctx, snapshot, deps)
@@ -170,7 +170,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	ah := &actionHandle{
 		analyzer: a,
 		pkg:      pkg,
-		handle:   handle,
+		promise:  promise,
 	}
 
 	s.mu.Lock()
@@ -188,7 +188,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 }
 
 func (act *actionHandle) analyze(ctx context.Context, snapshot *snapshot) ([]*source.Diagnostic, interface{}, error) {
-	d, err := snapshot.awaitHandle(ctx, act.handle)
+	d, err := snapshot.awaitPromise(ctx, act.promise)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -218,7 +218,7 @@ func execAll(ctx context.Context, snapshot *snapshot, actions []*actionHandle) (
 	for _, act := range actions {
 		act := act
 		g.Go(func() error {
-			v, err := snapshot.awaitHandle(ctx, act.handle)
+			v, err := snapshot.awaitPromise(ctx, act.promise)
 			if err != nil {
 				return err
 			}

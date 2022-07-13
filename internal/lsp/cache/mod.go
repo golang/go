@@ -39,19 +39,19 @@ func (s *snapshot) ParseMod(ctx context.Context, fh source.FileHandle) (*source.
 
 	// cache miss?
 	if !hit {
-		handle, release := s.store.Handle(fh.FileIdentity(), func(ctx context.Context, _ interface{}) interface{} {
+		promise, release := s.store.Promise(fh.FileIdentity(), func(ctx context.Context, _ interface{}) interface{} {
 			parsed, err := parseModImpl(ctx, fh)
 			return parseModResult{parsed, err}
 		})
 
-		entry = handle
+		entry = promise
 		s.mu.Lock()
 		s.parseModHandles.Set(uri, entry, func(_, _ interface{}) { release() })
 		s.mu.Unlock()
 	}
 
 	// Await result.
-	v, err := s.awaitHandle(ctx, entry.(*memoize.Handle))
+	v, err := s.awaitPromise(ctx, entry.(*memoize.Promise))
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (s *snapshot) ParseWork(ctx context.Context, fh source.FileHandle) (*source
 
 	// cache miss?
 	if !hit {
-		handle, release := s.store.Handle(fh.FileIdentity(), func(ctx context.Context, _ interface{}) interface{} {
+		handle, release := s.store.Promise(fh.FileIdentity(), func(ctx context.Context, _ interface{}) interface{} {
 			parsed, err := parseWorkImpl(ctx, fh)
 			return parseWorkResult{parsed, err}
 		})
@@ -128,7 +128,7 @@ func (s *snapshot) ParseWork(ctx context.Context, fh source.FileHandle) (*source
 	}
 
 	// Await result.
-	v, err := s.awaitHandle(ctx, entry.(*memoize.Handle))
+	v, err := s.awaitPromise(ctx, entry.(*memoize.Promise))
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 
 	// cache miss?
 	if !hit {
-		handle := memoize.NewHandle("modWhy", func(ctx context.Context, arg interface{}) interface{} {
+		handle := memoize.NewPromise("modWhy", func(ctx context.Context, arg interface{}) interface{} {
 			why, err := modWhyImpl(ctx, arg.(*snapshot), fh)
 			return modWhyResult{why, err}
 		})
@@ -235,7 +235,7 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 	}
 
 	// Await result.
-	v, err := s.awaitHandle(ctx, entry.(*memoize.Handle))
+	v, err := s.awaitPromise(ctx, entry.(*memoize.Promise))
 	if err != nil {
 		return nil, err
 	}

@@ -58,7 +58,7 @@ func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode sourc
 
 	// cache miss?
 	if !hit {
-		handle, release := s.store.Handle(key, func(ctx context.Context, arg interface{}) interface{} {
+		handle, release := s.store.Promise(key, func(ctx context.Context, arg interface{}) interface{} {
 			parsed, err := parseGoImpl(ctx, arg.(*snapshot).FileSet(), fh, mode)
 			return parseGoResult{parsed, err}
 		})
@@ -76,7 +76,7 @@ func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode sourc
 	}
 
 	// Await result.
-	v, err := s.awaitHandle(ctx, entry.(*memoize.Handle))
+	v, err := s.awaitPromise(ctx, entry.(*memoize.Promise))
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (s *snapshot) peekParseGoLocked(fh source.FileHandle, mode source.ParseMode
 	if !hit {
 		return nil, nil // no-one has requested this file
 	}
-	v := entry.(*memoize.Handle).Cached()
+	v := entry.(*memoize.Promise).Cached()
 	if v == nil {
 		return nil, nil // parsing is still in progress
 	}

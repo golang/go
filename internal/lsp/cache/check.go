@@ -44,7 +44,7 @@ type packageHandleKey source.Hash
 // A packageHandle is a handle to the future result of type-checking a package.
 // The resulting package is obtained from the check() method.
 type packageHandle struct {
-	handle *memoize.Handle // [typeCheckResult]
+	promise *memoize.Promise // [typeCheckResult]
 
 	// m is the metadata associated with the package.
 	m *KnownMetadata
@@ -141,7 +141,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	phKey := computePackageKey(m.ID, compiledGoFiles, m, depKeys, mode, experimentalKey)
 	// TODO(adonovan): extract lambda into a standalone function to
 	// avoid implicit lexical dependencies.
-	handle, release := s.store.Handle(phKey, func(ctx context.Context, arg interface{}) interface{} {
+	promise, release := s.store.Promise(phKey, func(ctx context.Context, arg interface{}) interface{} {
 		snapshot := arg.(*snapshot)
 
 		// Start type checking of direct dependencies,
@@ -169,9 +169,9 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	})
 
 	ph := &packageHandle{
-		handle: handle,
-		m:      m,
-		key:    phKey,
+		promise: promise,
+		m:       m,
+		key:     phKey,
 	}
 
 	s.mu.Lock()
@@ -289,7 +289,7 @@ func hashConfig(config *packages.Config) source.Hash {
 }
 
 func (ph *packageHandle) check(ctx context.Context, s *snapshot) (*pkg, error) {
-	v, err := s.awaitHandle(ctx, ph.handle)
+	v, err := s.awaitPromise(ctx, ph.promise)
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +306,7 @@ func (ph *packageHandle) ID() string {
 }
 
 func (ph *packageHandle) cached() (*pkg, error) {
-	v := ph.handle.Cached()
+	v := ph.promise.Cached()
 	if v == nil {
 		return nil, fmt.Errorf("no cached type information for %s", ph.m.PkgPath)
 	}
