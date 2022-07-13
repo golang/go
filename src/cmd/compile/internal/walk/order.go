@@ -261,7 +261,13 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 
 // mapKeyTemp prepares n to be a key in a map runtime call and returns n.
 // It should only be used for map runtime calls which have *_fast* versions.
-func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
+// The first parameter is the position of n's containing node, for use in case
+// that n's position is not unique (e.g., if n is an ONAME).
+func (o *orderState) mapKeyTemp(outerPos src.XPos, t *types.Type, n ir.Node) ir.Node {
+	pos := outerPos
+	if ir.HasUniquePos(n) {
+		pos = n.Pos()
+	}
 	// Most map calls need to take the address of the key.
 	// Exception: map*_fast* calls. See golang.org/issue/19015.
 	alg := mapfast(t)
@@ -285,7 +291,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 		return n
 	case nt.Kind() == kt.Kind(), nt.IsPtrShaped() && kt.IsPtrShaped():
 		// can directly convert (e.g. named type to underlying type, or one pointer to another)
-		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, kt, n))
+		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, kt, n))
 	case nt.IsInteger() && kt.IsInteger():
 		// can directly convert (e.g. int32 to uint32)
 		if n.Op() == ir.OLITERAL && nt.IsSigned() {
@@ -294,7 +300,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 			n.SetType(kt)
 			return n
 		}
-		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONV, kt, n))
+		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, kt, n))
 	default:
 		// Unsafe cast through memory.
 		// We'll need to do a load with type kt. Create a temporary of type kt to
@@ -305,9 +311,9 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 		tmp := o.newTemp(kt, true)
 		// *(*nt)(&tmp) = n
 		var e ir.Node = typecheck.NodAddr(tmp)
-		e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, nt.PtrTo(), e)
-		e = ir.NewStarExpr(n.Pos(), e)
-		o.append(ir.NewAssignStmt(base.Pos, e, n))
+		e = ir.NewConvExpr(pos, ir.OCONVNOP, nt.PtrTo(), e)
+		e = ir.NewStarExpr(pos, e)
+		o.append(ir.NewAssignStmt(pos, e, n))
 		return tmp
 	}
 }
@@ -733,7 +739,7 @@ func (o *orderState) stmt(n ir.Node) {
 			r.Index = o.expr(r.Index, nil)
 			// See similar conversion for OINDEXMAP below.
 			_ = mapKeyReplaceStrConv(r.Index)
-			r.Index = o.mapKeyTemp(r.X.Type(), r.Index)
+			r.Index = o.mapKeyTemp(r.Pos(), r.X.Type(), r.Index)
 		default:
 			base.Fatalf("order.stmt: %v", r.Op())
 		}
@@ -813,7 +819,7 @@ func (o *orderState) stmt(n ir.Node) {
 		t := o.markTemp()
 		n.Args[0] = o.expr(n.Args[0], nil)
 		n.Args[1] = o.expr(n.Args[1], nil)
-		n.Args[1] = o.mapKeyTemp(n.Args[0].Type(), n.Args[1])
+		n.Args[1] = o.mapKeyTemp(n.Pos(), n.Args[0].Type(), n.Args[1])
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
@@ -1193,7 +1199,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		}
 
 		// key must be addressable
-		n.Index = o.mapKeyTemp(n.X.Type(), n.Index)
+		n.Index = o.mapKeyTemp(n.Pos(), n.X.Type(), n.Index)
 		if needCopy {
 			return o.copyExpr(n)
 		}

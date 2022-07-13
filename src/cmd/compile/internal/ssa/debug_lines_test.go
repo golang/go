@@ -45,28 +45,40 @@ func testGoArch() string {
 	return *testGoArchFlag
 }
 
+func hasRegisterAbi() bool {
+	switch testGoArch() {
+	case "amd64", "arm64", "ppc64le", "riscv":
+		return true
+	}
+	return false
+}
+
+func unixOnly(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
+		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
+	}
+}
+
+// testDebugLinesDefault removes the first wanted statement on architectures that are not (yet) register ABI.
+func testDebugLinesDefault(t *testing.T, gcflags, file, function string, wantStmts []int, ignoreRepeats bool) {
+	unixOnly(t)
+	if !hasRegisterAbi() {
+		wantStmts = wantStmts[1:]
+	}
+	testDebugLines(t, gcflags, file, function, wantStmts, ignoreRepeats)
+}
+
 func TestDebugLinesSayHi(t *testing.T) {
 	// This test is potentially fragile, the goal is that debugging should step properly through "sayhi"
 	// If the blocks are reordered in a way that changes the statement order but execution flows correctly,
 	// then rearrange the expected numbers.  Register abi and not-register-abi also have different sequences,
 	// at least for now.
 
-	switch testGoArch() {
-	case "arm64", "amd64": // register ABI
-		testDebugLines(t, "-N -l", "sayhi.go", "sayhi", []int{8, 9, 10, 11}, false)
-
-	case "arm", "386": // probably not register ABI for a while
-		testDebugLines(t, "-N -l", "sayhi.go", "sayhi", []int{9, 10, 11}, false)
-
-	default: // expect ppc64le and riscv will pick up register ABI soonish, not sure about others
-		t.Skip("skipped for many architectures, also changes w/ register ABI")
-	}
+	testDebugLinesDefault(t, "-N -l", "sayhi.go", "sayhi", []int{8, 9, 10, 11}, false)
 }
 
 func TestDebugLinesPushback(t *testing.T) {
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
-		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
-	}
+	unixOnly(t)
 
 	switch testGoArch() {
 	default:
@@ -83,9 +95,7 @@ func TestDebugLinesPushback(t *testing.T) {
 }
 
 func TestDebugLinesConvert(t *testing.T) {
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
-		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
-	}
+	unixOnly(t)
 
 	switch testGoArch() {
 	default:
@@ -109,6 +119,10 @@ func TestInlineLines(t *testing.T) {
 
 	want := [][]int{{3}, {4, 10}, {4, 10, 16}, {4, 10}, {4, 11, 16}, {4, 11}, {4}, {5, 10}, {5, 10, 16}, {5, 10}, {5, 11, 16}, {5, 11}, {5}}
 	testInlineStack(t, "inline-dump.go", "f", want)
+}
+
+func TestDebugLines_53456(t *testing.T) {
+	testDebugLinesDefault(t, "-N -l", "b53456.go", "(*T).Inc", []int{15, 16, 17, 18}, true)
 }
 
 func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
