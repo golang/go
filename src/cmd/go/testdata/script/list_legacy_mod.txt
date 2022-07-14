@@ -1,0 +1,48 @@
+# In GOPATH mode, module legacy support does path rewriting very similar to vendoring.
+
+env GO111MODULE=off
+
+go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' old/p1
+stdout ^new/p1$
+
+go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' new/p1
+stdout ^new/p2$           # not new/v2/p2
+! stdout ^new/v2
+stdout ^new/sub/x/v1/y$   # not new/sub/v2/x/v1/y
+! stdout ^new/sub/v2
+stdout ^new/sub/inner/x # not new/sub/v2/inner/x
+
+go build old/p1 new/p1
+
+-- new/go.mod --
+module "new/v2"
+-- new/new.go --
+package new
+
+import _ "new/v2/p2"
+-- new/p1/p1.go --
+package p1
+
+import _ "old/p2"
+import _ "new/v2"
+import _ "new/v2/p2"
+import _ "new/sub/v2/x/v1/y" // v2 is module, v1 is directory in module
+import _ "new/sub/inner/x"   // new/sub/inner/go.mod overrides new/sub/go.mod
+-- new/p2/p2.go --
+package p2
+-- new/sub/go.mod --
+module new/sub/v2
+-- new/sub/inner/go.mod --
+module new/sub/inner
+-- new/sub/inner/x/x.go --
+package x
+-- new/sub/x/v1/y/y.go --
+package y
+-- old/p1/p1.go --
+package p1
+
+import _ "old/p2"
+import _ "new/p1"
+import _ "new"
+-- old/p2/p2.go --
+package p2
