@@ -265,7 +265,7 @@ func main() {
 			Gosched()
 		}
 	}
-	if atomic.Load(&panicking) != 0 {
+	if panicking.Load() != 0 {
 		gopark(nil, nil, waitReasonPanicWait, traceEvGoStop, 1)
 	}
 
@@ -5016,7 +5016,7 @@ func checkdead() {
 	// freezetheworld will cause all running threads to block.
 	// And runtime will essentially enter into deadlock state,
 	// except that there is a thread that will call exit soon.
-	if panicking > 0 {
+	if panicking.Load() > 0 {
 		return
 	}
 

@@ -546,7 +546,7 @@ const (
 // that the exit condition for the _GCoff phase has been met. The exit
 // condition should be tested when allocating.
 func (t gcTrigger) test() bool {
-	if !memstats.enablegc || panicking != 0 || gcphase != _GCoff {
+	if !memstats.enablegc || panicking.Load() != 0 || gcphase != _GCoff {
 		return false
 	}
 	switch t.kind {

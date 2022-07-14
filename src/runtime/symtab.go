@@ -902,7 +902,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 	}
 
 	if !f.valid() {
-		if strict && panicking == 0 {
+		if strict && panicking.Load() == 0 {
 			println("runtime: no module data for", hex(f.entry()))
 			throw("no module data")
 		}
@@ -945,7 +945,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 
 	// If there was a table, it should have covered all program counters.
 	// If not, something is wrong.
-	if panicking != 0 || !strict {
+	if panicking.Load() != 0 || !strict {
 		return -1, 0
 	}
 

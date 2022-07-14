@@ -1071,8 +1071,7 @@ func fatal(s string) {
 var runningPanicDefers atomic.Uint32
 
 // panicking is non-zero when crashing the program for an unrecovered panic.
-// panicking is incremented and decremented atomically.
-var panicking uint32
+var panicking atomic.Uint32
 
 // paniclk is held while printing the panic information and stack trace,
 // so that two concurrent panics don't overlap their output.
@@ -1209,7 +1208,7 @@ func startpanic_m() bool {
 	case 0:
 		// Setting dying >0 has the side-effect of disabling this G's writebuf.
 		gp.m.dying = 1
-		atomic.Xadd(&panicking, 1)
+		panicking.Add(1)
 		lock(&paniclk)
 		if debug.schedtrace > 0 || debug.scheddetail > 0 {
 			schedtrace(true)
@@ -1272,7 +1271,7 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
 	}
 	unlock(&paniclk)
 
-	if atomic.Xadd(&panicking, -1) != 0 {
+	if panicking.Add(-1) != 0 {
 		// Some other m is panicking too.
 		// Let it print what it needs to print.
 		// Wait forever without chewing up cpu.

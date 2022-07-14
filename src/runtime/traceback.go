@@ -1407,7 +1407,7 @@ func printOneCgoTraceback(pc uintptr, max int, arg *cgoSymbolizerArg) int {
 // callCgoSymbolizer calls the cgoSymbolizer function.
 func callCgoSymbolizer(arg *cgoSymbolizerArg) {
 	call := cgocall
-	if panicking > 0 || getg().m.curg != getg() {
+	if panicking.Load() > 0 || getg().m.curg != getg() {
 		// We do not want to call into the scheduler when panicking
 		// or when on the system stack.
 		call = asmcgocall
@@ -1427,7 +1427,7 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
 		return
 	}
 	call := cgocall
-	if panicking > 0 || getg().m.curg != getg() {
+	if panicking.Load() > 0 || getg().m.curg != getg() {
 		// We do not want to call into the scheduler when panicking
 		// or when on the system stack.
 		call = asmcgocall
