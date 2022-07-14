@@ -118,6 +118,15 @@ as well as support for rendering them to HTML, Markdown, and text.
   and <code>GOGCCFLAGS</code> variables it reports.
 </p>
 
+<p><!-- https://go.dev/issue/29666 -->
+  <code>go</code> <code>list</code> <code>-json</code> now accepts a
+  comma-separated list of JSON fields to populate. If a list is specified,
+  the JSON output will include only those fields, and
+  <code>go</code> <code>list</code> may avoid work to compute fields that are
+  not included. In some cases, this may suppress errors that would otherwise
+  be reported.
+</p>
+
 <p><!-- CL 410821 -->
   The <code>go</code> command now caches information necessary to load some modules,
   which should result in a speed-up of some <code>go</code> <code>list</code> invocations.
