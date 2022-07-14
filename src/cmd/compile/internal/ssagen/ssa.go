@@ -951,7 +951,6 @@ var (
 	// marker nodes for temporary variables
 	ptrVar       = ssaMarker("ptr")
 	lenVar       = ssaMarker("len")
-	newlenVar    = ssaMarker("newlen")
 	capVar       = ssaMarker("cap")
 	typVar       = ssaMarker("typ")
 	okVar        = ssaMarker("ok")
@@ -3385,46 +3384,46 @@ func (s *state) resultAddrOfCall(c *ssa.Value, which int64, t *types.Type) *ssa.
 // If inplace is true, it writes the result of the OAPPEND expression n
 // back to the slice being appended to, and returns nil.
 // inplace MUST be set to false if the slice can be SSA'd.
+// Note: this code only handles fixed-count appends. Dotdotdot appends
+// have already been rewritten at this point (by walk).
 func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	// If inplace is false, process as expression "append(s, e1, e2, e3)":
 	//
 	// ptr, len, cap := s
-	// newlen := len + 3
-	// if newlen > cap {
-	//     ptr, len, cap = growslice(s, newlen)
-	//     newlen = len + 3 // recalculate to avoid a spill
+	// len += 3
+	// if uint(len) > uint(cap) {
+	//     ptr, len, cap = growslice(ptr, len, cap, 3, typ)
+	//     Note that len is unmodified by growslice.
 	// }
 	// // with write barriers, if needed:
-	// *(ptr+len) = e1
-	// *(ptr+len+1) = e2
-	// *(ptr+len+2) = e3
-	// return makeslice(ptr, newlen, cap)
+	// *(ptr+(len-3)) = e1
+	// *(ptr+(len-2)) = e2
+	// *(ptr+(len-1)) = e3
+	// return makeslice(ptr, len, cap)
 	//
 	//
 	// If inplace is true, process as statement "s = append(s, e1, e2, e3)":
 	//
 	// a := &s
 	// ptr, len, cap := s
-	// newlen := len + 3
-	// if uint(newlen) > uint(cap) {
-	//    newptr, len, newcap = growslice(ptr, len, cap, newlen)
-	//    vardef(a)       // if necessary, advise liveness we are writing a new a
-	//    *a.cap = newcap // write before ptr to avoid a spill
-	//    *a.ptr = newptr // with write barrier
+	// len += 3
+	// if uint(len) > uint(cap) {
+	//    ptr, len, cap = growslice(ptr, len, cap, 3, typ)
+	//    vardef(a)    // if necessary, advise liveness we are writing a new a
+	//    *a.cap = cap // write before ptr to avoid a spill
+	//    *a.ptr = ptr // with write barrier
 	// }
-	// newlen = len + 3 // recalculate to avoid a spill
-	// *a.len = newlen
+	// *a.len = len
 	// // with write barriers, if needed:
-	// *(ptr+len) = e1
-	// *(ptr+len+1) = e2
-	// *(ptr+len+2) = e3
+	// *(ptr+(len-3)) = e1
+	// *(ptr+(len-2)) = e2
+	// *(ptr+(len-1)) = e3
 
 	et := n.Type().Elem()
 	pt := types.NewPtr(et)
 
 	// Evaluate slice
 	sn := n.Args[0] // the slice node is the first in the list
-
 	var slice, addr *ssa.Value
 	if inplace {
 		addr = s.addr(sn)
@@ -3437,21 +3436,23 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	grow := s.f.NewBlock(ssa.BlockPlain)
 	assign := s.f.NewBlock(ssa.BlockPlain)
 
-	// Decide if we need to grow
-	nargs := int64(len(n.Args) - 1)
+	// Decomposse input slice.
 	p := s.newValue1(ssa.OpSlicePtr, pt, slice)
 	l := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], slice)
 	c := s.newValue1(ssa.OpSliceCap, types.Types[types.TINT], slice)
-	nl := s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, s.constInt(types.Types[types.TINT], nargs))
 
-	cmp := s.newValue2(s.ssaOp(ir.OLT, types.Types[types.TUINT]), types.Types[types.TBOOL], c, nl)
+	// Add number of new elements to length.
+	nargs := s.constInt(types.Types[types.TINT], int64(len(n.Args)-1))
+	l = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
+
+	// Decide if we need to grow
+	cmp := s.newValue2(s.ssaOp(ir.OLT, types.Types[types.TUINT]), types.Types[types.TBOOL], c, l)
+
+	// Record values of ptr/len/cap before branch.
 	s.vars[ptrVar] = p
-
+	s.vars[lenVar] = l
 	if !inplace {
-		s.vars[newlenVar] = nl
 		s.vars[capVar] = c
-	} else {
-		s.vars[lenVar] = l
 	}
 
 	b := s.endBlock()
@@ -3464,8 +3465,16 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	// Call growslice
 	s.startBlock(grow)
 	taddr := s.expr(n.X)
-	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{pt, types.Types[types.TINT], types.Types[types.TINT]}, taddr, p, l, c, nl)
+	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr)
 
+	// Decompose output slice
+	p = s.newValue1(ssa.OpSlicePtr, pt, r[0])
+	l = s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], r[0])
+	c = s.newValue1(ssa.OpSliceCap, types.Types[types.TINT], r[0])
+
+	s.vars[ptrVar] = p
+	s.vars[lenVar] = l
+	s.vars[capVar] = c
 	if inplace {
 		if sn.Op() == ir.ONAME {
 			sn := sn.(*ir.Name)
@@ -3475,15 +3484,8 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 			}
 		}
 		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, types.SliceCapOffset, addr)
-		s.store(types.Types[types.TINT], capaddr, r[2])
-		s.store(pt, addr, r[0])
-		// load the value we just stored to avoid having to spill it
-		s.vars[ptrVar] = s.load(pt, addr)
-		s.vars[lenVar] = r[1] // avoid a spill in the fast path
-	} else {
-		s.vars[ptrVar] = r[0]
-		s.vars[newlenVar] = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], r[1], s.constInt(types.Types[types.TINT], nargs))
-		s.vars[capVar] = r[2]
+		s.store(types.Types[types.TINT], capaddr, c)
+		s.store(pt, addr, p)
 	}
 
 	b = s.endBlock()
@@ -3491,12 +3493,17 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 
 	// assign new elements to slots
 	s.startBlock(assign)
+	p = s.variable(ptrVar, pt)                      // generates phi for ptr
+	l = s.variable(lenVar, types.Types[types.TINT]) // generates phi for len
+	if !inplace {
+		c = s.variable(capVar, types.Types[types.TINT]) // generates phi for cap
+	}
 
 	if inplace {
-		l = s.variable(lenVar, types.Types[types.TINT]) // generates phi for len
-		nl = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, s.constInt(types.Types[types.TINT], nargs))
+		// Update length in place.
+		// We have to wait until here to make sure growslice succeeded.
 		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, types.SliceLenOffset, addr)
-		s.store(types.Types[types.TINT], lenaddr, nl)
+		s.store(types.Types[types.TINT], lenaddr, l)
 	}
 
 	// Evaluate args
@@ -3506,7 +3513,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		v     *ssa.Value
 		store bool
 	}
-	args := make([]argRec, 0, nargs)
+	args := make([]argRec, 0, len(n.Args[1:]))
 	for _, n := range n.Args[1:] {
 		if TypeOK(n.Type()) {
 			args = append(args, argRec{v: s.expr(n), store: true})
@@ -3516,12 +3523,9 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		}
 	}
 
-	p = s.variable(ptrVar, pt) // generates phi for ptr
-	if !inplace {
-		nl = s.variable(newlenVar, types.Types[types.TINT]) // generates phi for nl
-		c = s.variable(capVar, types.Types[types.TINT])     // generates phi for cap
-	}
-	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
+	// Write args into slice.
+	oldLen := s.newValue2(s.ssaOp(ir.OSUB, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
+	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, oldLen)
 	for i, arg := range args {
 		addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(types.Types[types.TINT], int64(i)))
 		if arg.store {
@@ -3532,14 +3536,16 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	}
 
 	delete(s.vars, ptrVar)
+	delete(s.vars, lenVar)
+	if !inplace {
+		delete(s.vars, capVar)
+	}
+
+	// make result
 	if inplace {
-		delete(s.vars, lenVar)
 		return nil
 	}
-	delete(s.vars, newlenVar)
-	delete(s.vars, capVar)
-	// make result
-	return s.newValue3(ssa.OpSliceMake, n.Type(), p, nl, c)
+	return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
 }
 
 // condBranch evaluates the boolean expression cond and branches to yes

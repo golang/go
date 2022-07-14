@@ -22,20 +22,21 @@ import (
 // x, y, z (including runtime panics) are evaluated in
 // initialization statements before the append.
 // For normal code generation, stop there and leave the
-// rest to cgen_append.
+// rest to ssagen.
 //
 // For race detector, expand append(src, a [, b]* ) to
 //
 //	  init {
 //	    s := src
 //	    const argc = len(args) - 1
-//	    if cap(s) - len(s) < argc {
-//		    s = growslice(s, len(s)+argc)
+//	    newLen := s.len + argc
+//	    if uint(newLen) <= uint(s.cap) {
+//	      s = s[:newLen]
+//	    } else {
+//	      s = growslice(s.ptr, newLen, s.cap, argc, elemType)
 //	    }
-//	    n := len(s)
-//	    s = s[:n+argc]
-//	    s[n] = a
-//	    s[n+1] = b
+//	    s[s.len - argc] = a
+//	    s[s.len - argc + 1] = b
 //	    ...
 //	  }
 //	  s
@@ -70,49 +71,63 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 	}
 
 	// General case, with no function calls left as arguments.
-	// Leave for gen, except that instrumentation requires old form.
+	// Leave for ssagen, except that instrumentation requires the old form.
 	if !base.Flag.Cfg.Instrumenting || base.Flag.CompilingRuntime {
 		return n
 	}
 
 	var l []ir.Node
 
-	ns := typecheck.Temp(nsrc.Type())
-	l = append(l, ir.NewAssignStmt(base.Pos, ns, nsrc)) // s = src
+	// s = slice to append to
+	s := typecheck.Temp(nsrc.Type())
+	l = append(l, ir.NewAssignStmt(base.Pos, s, nsrc))
 
-	na := ir.NewInt(int64(argc))                 // const argc
-	nif := ir.NewIfStmt(base.Pos, nil, nil, nil) // if cap(s) - len(s) < argc
-	nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OCAP, ns), ir.NewUnaryExpr(base.Pos, ir.OLEN, ns)), na)
+	// num = number of things to append
+	num := ir.NewInt(int64(argc))
 
-	fn := typecheck.LookupRuntime("growslice") //   growslice(<type>, old []T, mincap int) (ret []T)
-	fn = typecheck.SubstArgTypes(fn, ns.Type().Elem(), ns.Type().Elem())
+	// newLen := s.len + num
+	newLen := typecheck.Temp(types.Types[types.TINT])
+	l = append(l, ir.NewAssignStmt(base.Pos, newLen, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), num)))
 
-	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, ns, mkcall1(fn, ns.Type(), nif.PtrInit(), reflectdata.AppendElemRType(base.Pos, n), ns,
-		ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, ns), na)))}
+	// if uint(newLen) <= uint(s.cap)
+	nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
+	nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLE, typecheck.Conv(newLen, types.Types[types.TUINT]), typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OCAP, s), types.Types[types.TUINT]))
+	nif.Likely = true
+
+	// then { s = s[:n] }
+	slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, nil, newLen, nil)
+	slice.SetBounded(true)
+	nif.Body = []ir.Node{
+		ir.NewAssignStmt(base.Pos, s, slice),
+	}
+
+	fn := typecheck.LookupRuntime("growslice") //   growslice(ptr *T, newLen, oldCap, num int, <type>) (ret []T)
+	fn = typecheck.SubstArgTypes(fn, s.Type().Elem(), s.Type().Elem())
+
+	// else { s = growslice(s.ptr, n, s.cap, a, T) }
+	nif.Else = []ir.Node{
+		ir.NewAssignStmt(base.Pos, s, mkcall1(fn, s.Type(), nif.PtrInit(),
+			ir.NewUnaryExpr(base.Pos, ir.OSPTR, s),
+			newLen,
+			ir.NewUnaryExpr(base.Pos, ir.OCAP, s),
+			num,
+			reflectdata.TypePtr(s.Type().Elem()))),
+	}
 
 	l = append(l, nif)
 
-	nn := typecheck.Temp(types.Types[types.TINT])
-	l = append(l, ir.NewAssignStmt(base.Pos, nn, ir.NewUnaryExpr(base.Pos, ir.OLEN, ns))) // n = len(s)
-
-	slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, ns, nil, ir.NewBinaryExpr(base.Pos, ir.OADD, nn, na), nil) // ...s[:n+argc]
-	slice.SetBounded(true)
-	l = append(l, ir.NewAssignStmt(base.Pos, ns, slice)) // s = s[:n+argc]
-
 	ls = n.Args[1:]
 	for i, n := range ls {
-		ix := ir.NewIndexExpr(base.Pos, ns, nn) // s[n] ...
+		// s[s.len-argc+i] = arg
+		ix := ir.NewIndexExpr(base.Pos, s, ir.NewBinaryExpr(base.Pos, ir.OSUB, newLen, ir.NewInt(int64(argc-i))))
 		ix.SetBounded(true)
-		l = append(l, ir.NewAssignStmt(base.Pos, ix, n)) // s[n] = arg
-		if i+1 < len(ls) {
-			l = append(l, ir.NewAssignStmt(base.Pos, nn, ir.NewBinaryExpr(base.Pos, ir.OADD, nn, ir.NewInt(1)))) // n = n + 1
-		}
+		l = append(l, ir.NewAssignStmt(base.Pos, ix, n))
 	}
 
 	typecheck.Stmts(l)
 	walkStmtList(l)
 	init.Append(l...)
-	return ns
+	return s
 }
 
 // walkClose walks an OCLOSE node.
