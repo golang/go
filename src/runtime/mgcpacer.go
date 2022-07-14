@@ -92,8 +92,6 @@ type gcControllerState struct {
 	// Initialized from GOGC. GOGC=off means no GC.
 	gcPercent atomic.Int32
 
-	_ uint32 // padding so following 64-bit values are 8-byte aligned
-
 	// memoryLimit is the soft memory limit in bytes.
 	//
 	// Initialized from GOMEMLIMIT. GOMEMLIMIT=off is equivalent to MaxInt64
@@ -144,8 +142,6 @@ type gcControllerState struct {
 	// Its purpose is to smooth out noisiness in the computation of
 	// consMark; see consMark for details.
 	consMarkController piController
-
-	_ uint32 // Padding for atomics on 32-bit platforms.
 
 	// gcPercentHeapGoal is the goal heapLive for when next GC ends derived
 	// from gcPercent.
@@ -289,11 +285,10 @@ type gcControllerState struct {
 	// that assists and background mark workers started.
 	markStartTime int64
 
-	// dedicatedMarkWorkersNeeded is the number of dedicated mark
-	// workers that need to be started. This is computed at the
-	// beginning of each cycle and decremented atomically as
-	// dedicated mark workers get started.
-	dedicatedMarkWorkersNeeded int64
+	// dedicatedMarkWorkersNeeded is the number of dedicated mark workers
+	// that need to be started. This is computed at the beginning of each
+	// cycle and decremented as dedicated mark workers get started.
+	dedicatedMarkWorkersNeeded atomic.Int64
 
 	// idleMarkWorkers is two packed int32 values in a single uint64.
 	// These two values are always updated simultaneously.
@@ -448,26 +443,26 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	// 25%. For small GOMAXPROCS, this would introduce too much
 	// error, so we add fractional workers in that case.
 	totalUtilizationGoal := float64(procs) * gcBackgroundUtilization
-	c.dedicatedMarkWorkersNeeded = int64(totalUtilizationGoal + 0.5)
-	utilError := float64(c.dedicatedMarkWorkersNeeded)/totalUtilizationGoal - 1
+	dedicatedMarkWorkersNeeded := int64(totalUtilizationGoal + 0.5)
+	utilError := float64(dedicatedMarkWorkersNeeded)/totalUtilizationGoal - 1
 	const maxUtilError = 0.3
 	if utilError < -maxUtilError || utilError > maxUtilError {
 		// Rounding put us more than 30% off our goal. With
 		// gcBackgroundUtilization of 25%, this happens for
 		// GOMAXPROCS<=3 or GOMAXPROCS=6. Enable fractional
 		// workers to compensate.
-		if float64(c.dedicatedMarkWorkersNeeded) > totalUtilizationGoal {
+		if float64(dedicatedMarkWorkersNeeded) > totalUtilizationGoal {
 			// Too many dedicated workers.
-			c.dedicatedMarkWorkersNeeded--
+			dedicatedMarkWorkersNeeded--
 		}
-		c.fractionalUtilizationGoal = (totalUtilizationGoal - float64(c.dedicatedMarkWorkersNeeded)) / float64(procs)
+		c.fractionalUtilizationGoal = (totalUtilizationGoal - float64(dedicatedMarkWorkersNeeded)) / float64(procs)
 	} else {
 		c.fractionalUtilizationGoal = 0
 	}
 
 	// In STW mode, we just want dedicated workers.
 	if debug.gcstoptheworld > 0 {
-		c.dedicatedMarkWorkersNeeded = int64(procs)
+		dedicatedMarkWorkersNeeded = int64(procs)
 		c.fractionalUtilizationGoal = 0
 	}
 
@@ -482,7 +477,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 		// required. However, we need at least one dedicated mark worker or
 		// idle GC worker to ensure GC progress in some scenarios (see comment
 		// on maxIdleMarkWorkers).
-		if c.dedicatedMarkWorkersNeeded > 0 {
+		if dedicatedMarkWorkersNeeded > 0 {
 			c.setMaxIdleMarkWorkers(0)
 		} else {
 			// TODO(mknyszek): The fundamental reason why we need this is because
@@ -492,13 +487,14 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 			c.setMaxIdleMarkWorkers(1)
 		}
 	} else {
-		// N.B. gomaxprocs and dedicatedMarkWorkersNeeded is guaranteed not to
+		// N.B. gomaxprocs and dedicatedMarkWorkersNeeded are guaranteed not to
 		// change during a GC cycle.
-		c.setMaxIdleMarkWorkers(int32(procs) - int32(c.dedicatedMarkWorkersNeeded))
+		c.setMaxIdleMarkWorkers(int32(procs) - int32(dedicatedMarkWorkersNeeded))
 	}
 
 	// Compute initial values for controls that are updated
 	// throughout the cycle.
+	c.dedicatedMarkWorkersNeeded.Store(dedicatedMarkWorkersNeeded)
 	c.revise()
 
 	if debug.gcpacertrace > 0 {
@@ -507,7 +503,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 			" (scan ", gcController.heapScan.Load()>>20, " MB in ",
 			work.initialHeapLive>>20, "->",
 			heapGoal>>20, " MB)",
-			" workers=", c.dedicatedMarkWorkersNeeded,
+			" workers=", dedicatedMarkWorkersNeeded,
 			"+", c.fractionalUtilizationGoal, "\n")
 	}
 }
@@ -761,7 +757,7 @@ func (c *gcControllerState) enlistWorker() {
 
 	// There are no idle Ps. If we need more dedicated workers,
 	// try to preempt a running P so it will switch to a worker.
-	if c.dedicatedMarkWorkersNeeded <= 0 {
+	if c.dedicatedMarkWorkersNeeded.Load() <= 0 {
 		return
 	}
 	// Pick a random other P to preempt.
@@ -831,14 +827,14 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 		return nil, now
 	}
 
-	decIfPositive := func(ptr *int64) bool {
+	decIfPositive := func(val *atomic.Int64) bool {
 		for {
-			v := atomic.Loadint64(ptr)
+			v := val.Load()
 			if v <= 0 {
 				return false
 			}
 
-			if atomic.Casint64(ptr, v, v-1) {
+			if val.CompareAndSwap(v, v-1) {
 				return true
 			}
 		}
@@ -905,7 +901,7 @@ func (c *gcControllerState) markWorkerStop(mode gcMarkWorkerMode, duration int64
 	switch mode {
 	case gcMarkWorkerDedicatedMode:
 		c.dedicatedMarkTime.Add(duration)
-		atomic.Xaddint64(&c.dedicatedMarkWorkersNeeded, 1)
+		c.dedicatedMarkWorkersNeeded.Add(1)
 	case gcMarkWorkerFractionalMode:
 		c.fractionalMarkTime.Add(duration)
 	case gcMarkWorkerIdleMode:
