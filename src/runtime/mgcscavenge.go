@@ -1114,3 +1114,71 @@ func (s *scavengeIndex) mark(base, limit uintptr) {
 func (s *scavengeIndex) clear(ci chunkIdx) {
 	s.chunks[ci/8].And(^uint8(1 << (ci % 8)))
 }
+
+type piController struct {
+	kp float64 // Proportional constant.
+	ti float64 // Integral time constant.
+	tt float64 // Reset time.
+
+	min, max float64 // Output boundaries.
+
+	// PI controller state.
+
+	errIntegral float64 // Integral of the error from t=0 to now.
+
+	// Error flags.
+	errOverflow   bool // Set if errIntegral ever overflowed.
+	inputOverflow bool // Set if an operation with the input overflowed.
+}
+
+// next provides a new sample to the controller.
+//
+// input is the sample, setpoint is the desired point, and period is how much
+// time (in whatever unit makes the most sense) has passed since the last sample.
+//
+// Returns a new value for the variable it's controlling, and whether the operation
+// completed successfully. One reason this might fail is if error has been growing
+// in an unbounded manner, to the point of overflow.
+//
+// In the specific case of an error overflow occurs, the errOverflow field will be
+// set and the rest of the controller's internal state will be fully reset.
+func (c *piController) next(input, setpoint, period float64) (float64, bool) {
+	// Compute the raw output value.
+	prop := c.kp * (setpoint - input)
+	rawOutput := prop + c.errIntegral
+
+	// Clamp rawOutput into output.
+	output := rawOutput
+	if isInf(output) || isNaN(output) {
+		// The input had a large enough magnitude that either it was already
+		// overflowed, or some operation with it overflowed.
+		// Set a flag and reset. That's the safest thing to do.
+		c.reset()
+		c.inputOverflow = true
+		return c.min, false
+	}
+	if output < c.min {
+		output = c.min
+	} else if output > c.max {
+		output = c.max
+	}
+
+	// Update the controller's state.
+	if c.ti != 0 && c.tt != 0 {
+		c.errIntegral += (c.kp*period/c.ti)*(setpoint-input) + (period/c.tt)*(output-rawOutput)
+		if isInf(c.errIntegral) || isNaN(c.errIntegral) {
+			// So much error has accumulated that we managed to overflow.
+			// The assumptions around the controller have likely broken down.
+			// Set a flag and reset. That's the safest thing to do.
+			c.reset()
+			c.errOverflow = true
+			return c.min, false
+		}
+	}
+	return output, true
+}
+
+// reset resets the controller state, except for controller error flags.
+func (c *piController) reset() {
+	c.errIntegral = 0
+}
