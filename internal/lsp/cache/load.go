@@ -7,7 +7,6 @@ package cache
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -41,24 +40,10 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	var query []string
 	var containsDir bool // for logging
 
-	// Unless the context was canceled, set "shouldLoad" to false for all
-	// of the metadata we attempted to load.
-	defer func() {
-		if errors.Is(err, context.Canceled) {
-			return
-		}
-		// TODO(rfindley): merge these metadata updates with the updates below, to
-		// avoid updating the graph twice.
-		s.clearShouldLoad(scopes...)
-	}()
-
 	// Keep track of module query -> module path so that we can later correlate query
 	// errors with errors.
 	moduleQueries := make(map[string]string)
 	for _, scope := range scopes {
-		if !s.shouldLoad(scope) {
-			continue
-		}
 		switch scope := scope.(type) {
 		case PackagePath:
 			if source.IsCommandLineArguments(string(scope)) {

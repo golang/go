@@ -29,7 +29,7 @@ type Metadata struct {
 	Name            PackageName
 	GoFiles         []span.URI
 	CompiledGoFiles []span.URI
-	ForTest         PackagePath
+	ForTest         PackagePath // package path under test, or ""
 	TypesSizes      types.Sizes
 	Errors          []packages.Error
 	Deps            []PackageID // direct dependencies, in string order
@@ -94,12 +94,8 @@ type KnownMetadata struct {
 
 	// PkgFilesChanged reports whether the file set of this metadata has
 	// potentially changed.
-	PkgFilesChanged bool
-
-	// ShouldLoad is true if the given metadata should be reloaded.
 	//
-	// Note that ShouldLoad is different from !Valid: when we try to load a
-	// package, we mark ShouldLoad = false regardless of whether the load
-	// succeeded, to prevent endless loads.
-	ShouldLoad bool
+	// TODO(rfindley): this is used for WorkspacePackages, and looks fishy: we
+	// should probably only consider valid packages to be workspace packages.
+	PkgFilesChanged bool
 }

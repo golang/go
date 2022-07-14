@@ -117,6 +117,13 @@ type snapshot struct {
 	// when the view is created.
 	workspacePackages map[PackageID]PackagePath
 
+	// shouldLoad tracks packages that need to be reloaded, mapping a PackageID
+	// to the package paths that should be used to reload it
+	//
+	// When we try to load a package, we clear it from the shouldLoad map
+	// regardless of whether the load succeeded, to prevent endless loads.
+	shouldLoad map[PackageID][]PackagePath
+
 	// unloadableFiles keeps track of files that we've failed to load.
 	unloadableFiles map[span.URI]struct{}
 
@@ -643,6 +650,10 @@ func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source
 }
 
 func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, includeTestVariants bool) ([]*packageHandle, error) {
+	// TODO(rfindley): why can't/shouldn't we awaitLoaded here? It seems that if
+	// we ask for package handles for a file, we should wait for pending loads.
+	// Else we will reload orphaned files before the initial load completes.
+
 	// Check if we should reload metadata for the file. We don't invalidate IDs
 	// (though we should), so the IDs will be a better source of truth than the
 	// metadata. If there are no IDs for the file, then we should also reload.
@@ -691,13 +702,13 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 }
 
 func (s *snapshot) getOrLoadIDsForURI(ctx context.Context, uri span.URI) ([]PackageID, error) {
-	knownIDs := s.getIDsForURI(uri)
-	reload := len(knownIDs) == 0
-	for _, id := range knownIDs {
-		// Reload package metadata if any of the metadata has missing
-		// dependencies, in case something has changed since the last time we
-		// reloaded it.
-		if s.noValidMetadataForID(id) {
+	s.mu.Lock()
+	ids := s.meta.ids[uri]
+	reload := len(ids) == 0
+	for _, id := range ids {
+		// If the file is part of a package that needs reloading, reload it now to
+		// improve our responsiveness.
+		if len(s.shouldLoad[id]) > 0 {
 			reload = true
 			break
 		}
@@ -705,20 +716,38 @@ func (s *snapshot) getOrLoadIDsForURI(ctx context.Context, uri span.URI) ([]Pack
 		// missing dependencies. This is expensive and results in too many
 		// calls to packages.Load. Determine what we should do instead.
 	}
-	if reload {
-		err := s.load(ctx, false, fileURI(uri))
+	s.mu.Unlock()
 
+	if reload {
+		scope := fileURI(uri)
+		err := s.load(ctx, false, scope)
+
+		// As in reloadWorkspace, we must clear scopes after loading.
+		//
+		// TODO(rfindley): simply call reloadWorkspace here, first, to avoid this
+		// duplication.
+		if !errors.Is(err, context.Canceled) {
+			s.clearShouldLoad(scope)
+		}
+
+		// TODO(rfindley): this doesn't look right. If we don't reload, we use
+		// invalid metadata anyway, but if we DO reload and it fails, we don't?
 		if !s.useInvalidMetadata() && err != nil {
 			return nil, err
 		}
+
+		s.mu.Lock()
+		ids = s.meta.ids[uri]
+		s.mu.Unlock()
+
 		// We've tried to reload and there are still no known IDs for the URI.
 		// Return the load error, if there was one.
-		knownIDs = s.getIDsForURI(uri)
-		if len(knownIDs) == 0 {
+		if len(ids) == 0 {
 			return nil, err
 		}
 	}
-	return knownIDs, nil
+
+	return ids, nil
 }
 
 // Only use invalid metadata for Go versions >= 1.13. Go 1.12 and below has
@@ -1153,13 +1182,6 @@ func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
 	return match
 }
 
-func (s *snapshot) getIDsForURI(uri span.URI) []PackageID {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.meta.ids[uri]
-}
-
 func (s *snapshot) getMetadata(id PackageID) *KnownMetadata {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1167,78 +1189,34 @@ func (s *snapshot) getMetadata(id PackageID) *KnownMetadata {
 	return s.meta.metadata[id]
 }
 
-func (s *snapshot) shouldLoad(scope interface{}) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	g := s.meta
-
-	switch scope := scope.(type) {
-	case PackagePath:
-		var meta *KnownMetadata
-		for _, m := range g.metadata {
-			if m.PkgPath != scope {
-				continue
-			}
-			meta = m
-		}
-		if meta == nil || meta.ShouldLoad {
-			return true
-		}
-		return false
-	case fileURI:
-		uri := span.URI(scope)
-		ids := g.ids[uri]
-		if len(ids) == 0 {
-			return true
-		}
-		for _, id := range ids {
-			m, ok := g.metadata[id]
-			if !ok || m.ShouldLoad {
-				return true
-			}
-		}
-		return false
-	default:
-		return true
-	}
-}
-
+// clearShouldLoad clears package IDs that no longer need to be reloaded after
+// scopes has been loaded.
 func (s *snapshot) clearShouldLoad(scopes ...interface{}) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	g := s.meta
-
-	var updates map[PackageID]*KnownMetadata
-	markLoaded := func(m *KnownMetadata) {
-		if updates == nil {
-			updates = make(map[PackageID]*KnownMetadata)
-		}
-		next := *m
-		next.ShouldLoad = false
-		updates[next.ID] = &next
-	}
 	for _, scope := range scopes {
 		switch scope := scope.(type) {
 		case PackagePath:
-			for _, m := range g.metadata {
-				if m.PkgPath == scope {
-					markLoaded(m)
+			var toDelete []PackageID
+			for id, pkgPaths := range s.shouldLoad {
+				for _, pkgPath := range pkgPaths {
+					if pkgPath == scope {
+						toDelete = append(toDelete, id)
+					}
 				}
+			}
+			for _, id := range toDelete {
+				delete(s.shouldLoad, id)
 			}
 		case fileURI:
 			uri := span.URI(scope)
-			ids := g.ids[uri]
+			ids := s.meta.ids[uri]
 			for _, id := range ids {
-				if m, ok := g.metadata[id]; ok {
-					markLoaded(m)
-				}
+				delete(s.shouldLoad, id)
 			}
 		}
 	}
-	s.meta = g.Clone(updates)
-	s.resetIsActivePackageLocked()
 }
 
 // noValidMetadataForURILocked reports whether there is any valid metadata for
@@ -1254,16 +1232,6 @@ func (s *snapshot) noValidMetadataForURILocked(uri span.URI) bool {
 		}
 	}
 	return true
-}
-
-// noValidMetadataForID reports whether there is no valid metadata for the
-// given ID.
-func (s *snapshot) noValidMetadataForID(id PackageID) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	m := s.meta.metadata[id]
-	return m == nil || !m.Valid
 }
 
 func (s *snapshot) isWorkspacePackage(id PackageID) bool {
@@ -1479,39 +1447,42 @@ func (s *snapshot) AwaitInitialized(ctx context.Context) {
 
 // reloadWorkspace reloads the metadata for all invalidated workspace packages.
 func (s *snapshot) reloadWorkspace(ctx context.Context) error {
-	// See which of the workspace packages are missing metadata.
+	var scopes []interface{}
+	var seen map[PackagePath]bool
 	s.mu.Lock()
-	missingMetadata := len(s.workspacePackages) == 0 || len(s.meta.metadata) == 0
-	pkgPathSet := map[PackagePath]struct{}{}
-	for id, pkgPath := range s.workspacePackages {
-		if m, ok := s.meta.metadata[id]; ok && m.Valid {
-			continue
+	for _, pkgPaths := range s.shouldLoad {
+		for _, pkgPath := range pkgPaths {
+			if seen == nil {
+				seen = make(map[PackagePath]bool)
+			}
+			if seen[pkgPath] {
+				continue
+			}
+			seen[pkgPath] = true
+			scopes = append(scopes, pkgPath)
 		}
-		missingMetadata = true
-
-		// Don't try to reload "command-line-arguments" directly.
-		if source.IsCommandLineArguments(string(pkgPath)) {
-			continue
-		}
-		pkgPathSet[pkgPath] = struct{}{}
 	}
 	s.mu.Unlock()
 
-	// If the view's build configuration is invalid, we cannot reload by
-	// package path. Just reload the directory instead.
-	if missingMetadata && !s.ValidBuildConfiguration() {
-		return s.load(ctx, false, viewLoadScope("LOAD_INVALID_VIEW"))
-	}
-
-	if len(pkgPathSet) == 0 {
+	if len(scopes) == 0 {
 		return nil
 	}
 
-	var pkgPaths []interface{}
-	for pkgPath := range pkgPathSet {
-		pkgPaths = append(pkgPaths, pkgPath)
+	// If the view's build configuration is invalid, we cannot reload by
+	// package path. Just reload the directory instead.
+	if !s.ValidBuildConfiguration() {
+		scopes = []interface{}{viewLoadScope("LOAD_INVALID_VIEW")}
 	}
-	return s.load(ctx, false, pkgPaths...)
+
+	err := s.load(ctx, false, scopes...)
+
+	// Unless the context was canceled, set "shouldLoad" to false for all
+	// of the metadata we attempted to load.
+	if !errors.Is(err, context.Canceled) {
+		s.clearShouldLoad(scopes...)
+	}
+
+	return err
 }
 
 func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
@@ -1676,6 +1647,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	release := result.Acquire()
 
 	// Copy the set of unloadable files.
+	//
+	// TODO(rfindley): this looks wrong. Shouldn't we clear unloadableFiles on
+	// changes to environment or workspace layout, or more generally on any
+	// metadata change?
 	for k, v := range s.unloadableFiles {
 		result.unloadableFiles[k] = v
 	}
@@ -1873,6 +1848,15 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 	}
 
+	// Any packages that need loading in s still need loading in the new
+	// snapshot.
+	for k, v := range s.shouldLoad {
+		if result.shouldLoad == nil {
+			result.shouldLoad = make(map[PackageID][]PackagePath)
+		}
+		result.shouldLoad[k] = v
+	}
+
 	// Compute which metadata updates are required. We only need to invalidate
 	// packages directly containing the affected file, and only if it changed in
 	// a relevant way.
@@ -1880,20 +1864,41 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	deleteInvalidMetadata := forceReloadMetadata || workspaceModeChanged
 	for k, v := range s.meta.metadata {
 		invalidateMetadata := idsToInvalidate[k]
+
+		// For metadata that has been newly invalidated, capture package paths
+		// requiring reloading in the shouldLoad map.
+		if invalidateMetadata && !source.IsCommandLineArguments(string(v.ID)) {
+			if result.shouldLoad == nil {
+				result.shouldLoad = make(map[PackageID][]PackagePath)
+			}
+			needsReload := []PackagePath{v.PkgPath}
+			if v.ForTest != "" && v.ForTest != v.PkgPath {
+				// When reloading test variants, always reload their ForTest package as
+				// well. Otherwise, we may miss test variants in the resulting load.
+				//
+				// TODO(rfindley): is this actually sufficient? Is it possible that
+				// other test variants may be invalidated? Either way, we should
+				// determine exactly what needs to be reloaded here.
+				needsReload = append(needsReload, v.ForTest)
+			}
+			result.shouldLoad[k] = needsReload
+		}
+
+		// Check whether the metadata should be deleted.
 		if skipID[k] || (invalidateMetadata && deleteInvalidMetadata) {
 			metadataUpdates[k] = nil
 			continue
 		}
+
+		// Check if the metadata has changed.
 		valid := v.Valid && !invalidateMetadata
 		pkgFilesChanged := v.PkgFilesChanged || changedPkgFiles[k]
-		shouldLoad := v.ShouldLoad || invalidateMetadata
-		if valid != v.Valid || pkgFilesChanged != v.PkgFilesChanged || shouldLoad != v.ShouldLoad {
+		if valid != v.Valid || pkgFilesChanged != v.PkgFilesChanged {
 			// Mark invalidated metadata rather than deleting it outright.
 			metadataUpdates[k] = &KnownMetadata{
 				Metadata:        v.Metadata,
 				Valid:           valid,
 				PkgFilesChanged: pkgFilesChanged,
-				ShouldLoad:      shouldLoad,
 			}
 		}
 	}

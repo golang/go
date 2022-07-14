@@ -550,6 +550,8 @@ func IsValidImport(pkgPath, importPkgPath string) bool {
 	if i == -1 {
 		return true
 	}
+	// TODO(rfindley): this looks wrong: IsCommandLineArguments is meant to
+	// operate on package IDs, not package paths.
 	if IsCommandLineArguments(string(pkgPath)) {
 		return true
 	}
@@ -560,6 +562,8 @@ func IsValidImport(pkgPath, importPkgPath string) bool {
 // "command-line-arguments" package, which is a package with an unknown ID
 // created by the go command. It can have a test variant, which is why callers
 // should not check that a value equals "command-line-arguments" directly.
+//
+// TODO(rfindley): this should accept a PackageID.
 func IsCommandLineArguments(s string) bool {
 	return strings.Contains(s, "command-line-arguments")
 }
