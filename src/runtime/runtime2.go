@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/goarch"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -268,6 +269,11 @@ func (gp *guintptr) set(g *g) { *gp = guintptr(unsafe.Pointer(g)) }
 //go:nosplit
 func (gp *guintptr) cas(old, new guintptr) bool {
 	return atomic.Casuintptr((*uintptr)(unsafe.Pointer(gp)), uintptr(old), uintptr(new))
+}
+
+//go:nosplit
+func (gp *g) guintptr() guintptr {
+	return guintptr(unsafe.Pointer(gp))
 }
 
 // setGNoWB performs *gp = new without a write barrier.
@@ -881,6 +887,8 @@ const (
 // Keep in sync with linker (../cmd/link/internal/ld/pcln.go:/pclntab)
 // and with package debug/gosym and with symtab.go in package runtime.
 type _func struct {
+	sys.NotInHeap // Only in static data
+
 	entryOff uint32 // start pc, as offset from moduledata.text/pcHeader.textStart
 	nameOff  int32  // function name, as index into moduledata.funcnametab.
 

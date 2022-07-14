@@ -414,6 +414,8 @@ type pcHeader struct {
 // moduledata is stored in statically allocated non-pointer memory;
 // none of the pointers here are visible to the garbage collector.
 type moduledata struct {
+	sys.NotInHeap // Only in static data
+
 	pcHeader     *pcHeader
 	funcnametab  []byte
 	cutab        []uint32
