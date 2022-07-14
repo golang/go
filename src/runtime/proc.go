@@ -256,10 +256,10 @@ func main() {
 	// another goroutine at the same time as main returns,
 	// let the other goroutine finish printing the panic trace.
 	// Once it does, it will exit. See issues 3934 and 20018.
-	if atomic.Load(&runningPanicDefers) != 0 {
+	if runningPanicDefers.Load() != 0 {
 		// Running deferred functions should not take long.
 		for c := 0; c < 1000; c++ {
-			if atomic.Load(&runningPanicDefers) == 0 {
+			if runningPanicDefers.Load() == 0 {
 				break
 			}
 			Gosched()

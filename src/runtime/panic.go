@@ -837,7 +837,7 @@ func gopanic(e any) {
 	p.link = gp._panic
 	gp._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
 
-	atomic.Xadd(&runningPanicDefers, 1)
+	runningPanicDefers.Add(1)
 
 	// By calculating getcallerpc/getcallersp here, we avoid scanning the
 	// gopanic frame (stack scanning is slow...)
@@ -917,7 +917,7 @@ func gopanic(e any) {
 				mcall(recovery)
 				throw("bypassed recovery failed") // mcall should not return
 			}
-			atomic.Xadd(&runningPanicDefers, -1)
+			runningPanicDefers.Add(-1)
 
 			// After a recover, remove any remaining non-started,
 			// open-coded defer entries, since the corresponding defers
@@ -1067,9 +1067,8 @@ func fatal(s string) {
 }
 
 // runningPanicDefers is non-zero while running deferred functions for panic.
-// runningPanicDefers is incremented and decremented atomically.
 // This is used to try hard to get a panic stack trace out when exiting.
-var runningPanicDefers uint32
+var runningPanicDefers atomic.Uint32
 
 // panicking is non-zero when crashing the program for an unrecovered panic.
 // panicking is incremented and decremented atomically.
@@ -1155,7 +1154,7 @@ func fatalpanic(msgs *_panic) {
 			// startpanic_m set panicking, which will
 			// block main from exiting, so now OK to
 			// decrement runningPanicDefers.
-			atomic.Xadd(&runningPanicDefers, -1)
+			runningPanicDefers.Add(-1)
 
 			printpanics(msgs)
 		}
