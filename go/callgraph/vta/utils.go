@@ -56,12 +56,7 @@ func hasInFlow(n node) bool {
 		return true
 	}
 
-	return isInterface(t) || isFunction(t)
-}
-
-func isInterface(t types.Type) bool {
-	_, ok := t.Underlying().(*types.Interface)
-	return ok
+	return types.IsInterface(t) || isFunction(t)
 }
 
 func isFunction(t types.Type) bool {
@@ -86,7 +81,7 @@ func interfaceUnderPtr(t types.Type) types.Type {
 			return nil
 		}
 
-		if isInterface(p.Elem()) {
+		if types.IsInterface(p.Elem()) {
 			return p.Elem()
 		}
 

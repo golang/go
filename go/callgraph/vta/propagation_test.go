@@ -58,7 +58,7 @@ func newLocal(name string, t types.Type) local {
 
 // newNamedType creates a bogus type named `name`.
 func newNamedType(name string) *types.Named {
-	return types.NewNamed(types.NewTypeName(token.NoPos, nil, name, nil), nil, nil)
+	return types.NewNamed(types.NewTypeName(token.NoPos, nil, name, nil), types.Universe.Lookup("int").Type(), nil)
 }
 
 // sccString is a utility for stringifying `nodeToScc`. Every

@@ -183,7 +183,7 @@ func hasInitialTypes(n node) bool {
 	case panicArg, recoverReturn, nestedPtrFunction, nestedPtrInterface:
 		return false
 	default:
-		return !isInterface(n.Type())
+		return !types.IsInterface(n.Type())
 	}
 }
 
