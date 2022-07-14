@@ -667,40 +667,52 @@ func parseHost(host string) (string, error) {
 // - setPath("/foo%2fbar") will set Path="/foo/bar" and RawPath="/foo%2fbar"
 // setPath will return an error only if the provided path contains an invalid
 // escaping.
-func (u *URL) setPath(p string) error {
-	path, err := unescape(p, encodePath)
+func (u *URL) setPath(path string) error {
+	decodedPath, err := unescape(path, encodePath)
 	if err != nil {
 		return err
 	}
-	u.Path = path
-	escp := escape(path, encodePath)
-	// p may contain lowercase hexadecimal letters.
-	// So, before comparing p with escp, we need to convert all lowercase
-	// hexadecimal digits to uppercase  (since escp has uppercase hex)
-	var p_upper strings.Builder
-	p_upper.Grow(len(p))
-	for i := 0; i < len(p); i++ {
-		p_upper.WriteByte(p[i])
-		if p[i] != '%' {
+	u.Path = decodedPath
+	escp := escape(decodedPath, encodePath)
+	needRawPath := true
+	if len(path) != len(escp) {
+		goto setRawPath
+	}
+	if path == escp {
+		needRawPath = false
+		goto setRawPath
+	}
+	// `path` might have contained lowercase hexadecimal characters which
+	// did't pass the equality test (e.g. "%3f" == "%3F" is false)
+	if strings.IndexByte(path, '%') == -1 {
+		// `path` doesn't have any hexadecimal at all
+		goto setRawPath
+	}
+	for i := 0; i < len(path); i++ {
+		if path[i] != escp[i] {
+			goto setRawPath
+		}
+		if path[i] == '%' {
+			if path[i+1] == escp[i+1] && path[i+2] == escp[i+2] {
+				i += 2
+				continue
+			}
+			if path[i+1] >= 'a' && path[i+1]-'a'+'A' != escp[i+1] {
+				goto setRawPath
+			}
+			if path[i+2] >= 'a' && path[i+2]-'a'+'A' != escp[i+2] {
+				goto setRawPath
+			}
+			i += 2
 			continue
 		}
-		if p[i+1] > 'a' {
-			p_upper.WriteByte(p[i+1] + 'A' - 'a')
-		} else {
-			p_upper.WriteByte(p[i+1])
-		}
-		if p[i+2] > 'a' {
-			p_upper.WriteByte(p[i+2] + 'A' - 'a')
-		} else {
-			p_upper.WriteByte(p[i+2])
-		}
-		i += 2
 	}
-	if p_upper.String() == escp {
-		// Default encoding is fine.
-		u.RawPath = ""
-	} else {
-		u.RawPath = p
+	// If we reach here, that means we have completed the loop.
+	// i.e. `path` and `escp` are equal
+	needRawPath = false
+setRawPath:
+	if needRawPath {
+		u.RawPath = path
 	}
 	return nil
 }
