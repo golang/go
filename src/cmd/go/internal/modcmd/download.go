@@ -206,12 +206,13 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 	infos, infosErr := modload.ListModules(ctx, args, 0, *downloadReuse)
-	if !haveExplicitArgs {
+	if !haveExplicitArgs && modload.WorkFilePath() == "" {
 		// 'go mod download' is sometimes run without arguments to pre-populate the
-		// module cache. It may fetch modules that aren't needed to build packages
-		// in the main module. This is usually not intended, so don't save sums for
-		// downloaded modules (golang.org/issue/45332). We do still fix
-		// inconsistencies in go.mod though.
+		// module cache. In modules that aren't at go 1.17 or higher, it may fetch
+		// modules that aren't needed to build packages in the main module. This is
+		// usually not intended, so don't save sums for downloaded modules
+		// (golang.org/issue/45332). We do still fix inconsistencies in go.mod
+		// though.
 		//
 		// TODO(#45551): In the future, report an error if go.mod or go.sum need to
 		// be updated after loading the build list. This may require setting
@@ -282,8 +283,19 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// 'go get mod@version', which may have other side effects. We print this in
 	// some error message hints.
 	//
-	// Don't save sums for 'go mod download' without arguments; see comment above.
-	if haveExplicitArgs {
+	// If we're in workspace mode, update go.work.sum with checksums for all of
+	// the modules we downloaded that aren't already recorded. Since a requirement
+	// in one module may upgrade a dependency of another, we can't be sure that
+	// the import graph matches the import graph of any given module in isolation,
+	// so we may end up needing to load packages from modules that wouldn't
+	// otherwise be relevant.
+	//
+	// TODO(#44435): If we adjust the set of modules downloaded in workspace mode,
+	// we may also need to adjust the logic for saving checksums here.
+	//
+	// Don't save sums for 'go mod download' without arguments unless we're in
+	// workspace mode; see comment above.
+	if haveExplicitArgs || modload.WorkFilePath() != "" {
 		if err := modload.WriteGoMod(ctx); err != nil {
 			base.Errorf("go: %v", err)
 		}
