@@ -270,10 +270,10 @@ type gcControllerState struct {
 	// written and read throughout the cycle.
 	assistTime atomic.Int64
 
-	// dedicatedMarkTime is the nanoseconds spent in dedicated
-	// mark workers during this cycle. This is updated atomically
-	// at the end of the concurrent mark phase.
-	dedicatedMarkTime int64
+	// dedicatedMarkTime is the nanoseconds spent in dedicated mark workers
+	// during this cycle. This is updated at the end of the concurrent mark
+	// phase.
+	dedicatedMarkTime atomic.Int64
 
 	// fractionalMarkTime is the nanoseconds spent in the
 	// fractional mark worker during this cycle. This is updated
@@ -418,7 +418,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	c.globalsScanWork.Store(0)
 	c.bgScanCredit.Store(0)
 	c.assistTime.Store(0)
-	c.dedicatedMarkTime = 0
+	c.dedicatedMarkTime.Store(0)
 	c.fractionalMarkTime = 0
 	c.idleMarkTime = 0
 	c.markStartTime = markStartTime
@@ -905,7 +905,7 @@ func (c *gcControllerState) resetLive(bytesMarked uint64) {
 func (c *gcControllerState) markWorkerStop(mode gcMarkWorkerMode, duration int64) {
 	switch mode {
 	case gcMarkWorkerDedicatedMode:
-		atomic.Xaddint64(&c.dedicatedMarkTime, duration)
+		c.dedicatedMarkTime.Add(duration)
 		atomic.Xaddint64(&c.dedicatedMarkWorkersNeeded, 1)
 	case gcMarkWorkerFractionalMode:
 		atomic.Xaddint64(&c.fractionalMarkTime, duration)
