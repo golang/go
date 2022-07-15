@@ -1887,14 +1887,6 @@ func checkShouldTest() {
 	assert(shouldTest("// +build !windows !plan9", "windows", "amd64"))
 }
 
-func getenv(key, def string) string {
-	value := os.Getenv(key)
-	if value != "" {
-		return value
-	}
-	return def
-}
-
 // overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
 func overlayDir(dstRoot, srcRoot string) error {
 	dstRoot = filepath.Clean(dstRoot)
