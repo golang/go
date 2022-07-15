@@ -1325,7 +1325,7 @@ func (c *GCController) StartCycle(stackSize, globalsSize uint64, scannableFrac f
 	c.maxStackScan = stackSize
 	c.globalsScan = globalsSize
 	c.heapLive.Store(trigger)
-	c.heapScan += uint64(float64(trigger-c.heapMarked) * scannableFrac)
+	c.heapScan.Add(int64(float64(trigger-c.heapMarked) * scannableFrac))
 	c.startCycle(0, gomaxprocs, gcTrigger{kind: gcTriggerHeap})
 }
 
@@ -1359,7 +1359,7 @@ type GCControllerReviseDelta struct {
 
 func (c *GCController) Revise(d GCControllerReviseDelta) {
 	c.heapLive.Add(d.HeapLive)
-	c.heapScan += uint64(d.HeapScan)
+	c.heapScan.Add(d.HeapScan)
 	c.heapScanWork.Add(d.HeapScanWork)
 	c.stackScanWork.Add(d.StackScanWork)
 	c.globalsScanWork.Add(d.GlobalsScanWork)

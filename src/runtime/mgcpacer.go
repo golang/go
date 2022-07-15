@@ -200,14 +200,13 @@ type gcControllerState struct {
 	// this gcControllerState's revise() method.
 	heapLive atomic.Uint64
 
-	// heapScan is the number of bytes of "scannable" heap. This
-	// is the live heap (as counted by heapLive), but omitting
-	// no-scan objects and no-scan tails of objects.
+	// heapScan is the number of bytes of "scannable" heap. This is the
+	// live heap (as counted by heapLive), but omitting no-scan objects and
+	// no-scan tails of objects.
 	//
-	// This value is fixed at the start of a GC cycle, so during a
-	// GC cycle it is safe to read without atomics, and it represents
-	// the maximum scannable heap.
-	heapScan uint64
+	// This value is fixed at the start of a GC cycle. It represents the
+	// maximum scannable heap.
+	heapScan atomic.Uint64
 
 	// lastHeapScan is the number of bytes of heap that were scanned
 	// last GC cycle. It is the same as heapMarked, but only
@@ -511,7 +510,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	if debug.gcpacertrace > 0 {
 		assistRatio := c.assistWorkPerByte.Load()
 		print("pacer: assist ratio=", assistRatio,
-			" (scan ", gcController.heapScan>>20, " MB in ",
+			" (scan ", gcController.heapScan.Load()>>20, " MB in ",
 			work.initialHeapLive>>20, "->",
 			heapGoal>>20, " MB)",
 			" workers=", c.dedicatedMarkWorkersNeeded,
@@ -549,7 +548,7 @@ func (c *gcControllerState) revise() {
 		gcPercent = 100000
 	}
 	live := c.heapLive.Load()
-	scan := atomic.Load64(&c.heapScan)
+	scan := c.heapScan.Load()
 	work := c.heapScanWork.Load() + c.stackScanWork.Load() + c.globalsScanWork.Load()
 
 	// Assume we're under the soft goal. Pace GC to complete at
@@ -891,7 +890,7 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 func (c *gcControllerState) resetLive(bytesMarked uint64) {
 	c.heapMarked = bytesMarked
 	c.heapLive.Store(bytesMarked)
-	c.heapScan = uint64(c.heapScanWork.Load())
+	c.heapScan.Store(uint64(c.heapScanWork.Load()))
 	c.lastHeapScan = uint64(c.heapScanWork.Load())
 	c.lastStackScan = uint64(c.stackScanWork.Load())
 	c.triggered = ^uint64(0) // Reset triggered.
@@ -935,7 +934,7 @@ func (c *gcControllerState) update(dHeapLive, dHeapScan int64) {
 		// Update heapScan when we're not in a current GC. It is fixed
 		// at the beginning of a cycle.
 		if dHeapScan != 0 {
-			atomic.Xadd64(&gcController.heapScan, dHeapScan)
+			gcController.heapScan.Add(dHeapScan)
 		}
 	} else {
 		// gcController.heapLive changed.
