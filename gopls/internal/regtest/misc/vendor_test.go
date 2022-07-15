@@ -49,7 +49,7 @@ func _() {
 }
 `
 	WithOptions(
-		Modes(Singleton),
+		Modes(Default),
 		ProxyFiles(basicProxy),
 	).Run(t, pkgThatUsesVendoring, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a1.go")

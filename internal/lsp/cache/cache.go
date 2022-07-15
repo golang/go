@@ -28,23 +28,46 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func New(options func(*source.Options)) *Cache {
+// New Creates a new cache for gopls operation results, using the given file
+// set, shared store, and session options.
+//
+// All of the fset, store and options may be nil, but if store is non-nil so
+// must be fset (and they must always be used together), otherwise it may be
+// possible to get cached data referencing token.Pos values not mapped by the
+// FileSet.
+func New(fset *token.FileSet, store *memoize.Store, options func(*source.Options)) *Cache {
 	index := atomic.AddInt64(&cacheIndex, 1)
+
+	if store != nil && fset == nil {
+		panic("non-nil store with nil fset")
+	}
+	if fset == nil {
+		fset = token.NewFileSet()
+	}
+	if store == nil {
+		store = &memoize.Store{}
+	}
+
 	c := &Cache{
 		id:          strconv.FormatInt(index, 10),
-		fset:        token.NewFileSet(),
+		fset:        fset,
 		options:     options,
+		store:       store,
 		fileContent: map[span.URI]*fileHandle{},
 	}
 	return c
 }
 
 type Cache struct {
-	id      string
-	fset    *token.FileSet
+	id   string
+	fset *token.FileSet
+
+	// TODO(rfindley): it doesn't make sense that cache accepts LSP options, just
+	// so that it can create a session: the cache does not (and should not)
+	// depend on options. Invert this relationship to remove options from Cache.
 	options func(*source.Options)
 
-	store memoize.Store
+	store *memoize.Store
 
 	fileMu      sync.Mutex
 	fileContent map[span.URI]*fileHandle

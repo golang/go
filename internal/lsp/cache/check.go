@@ -249,6 +249,16 @@ func computePackageKey(id PackageID, files []source.FileHandle, m *KnownMetadata
 	for _, file := range files {
 		b.WriteString(file.FileIdentity().String())
 	}
+	// Metadata errors are interpreted and memoized on the computed package, so
+	// we must hash them into the key here.
+	//
+	// TODO(rfindley): handle metadata diagnostics independently from
+	// type-checking diagnostics.
+	for _, err := range m.Errors {
+		b.WriteString(err.Msg)
+		b.WriteString(err.Pos)
+		b.WriteRune(rune(err.Kind))
+	}
 	return packageHandleKey(source.HashOf(b.Bytes()))
 }
 

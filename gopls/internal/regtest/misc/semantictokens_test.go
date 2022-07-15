@@ -25,7 +25,7 @@ func main() {}
 
 `
 	WithOptions(
-		Modes(Singleton),
+		Modes(Default),
 		Settings{"allExperiments": true},
 	).Run(t, src, func(t *testing.T, env *Env) {
 		params := &protocol.SemanticTokensParams{}

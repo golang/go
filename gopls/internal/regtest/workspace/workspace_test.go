@@ -1205,7 +1205,7 @@ package main
 `
 	WithOptions(
 		EnvVars{"GOPATH": filepath.FromSlash("$SANDBOX_WORKDIR/gopath")},
-		Modes(Singleton),
+		Modes(Default),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
 			// Confirm that the build configuration is seen as valid,
@@ -1236,7 +1236,7 @@ package main
 func main() {}
 `
 	WithOptions(
-		Modes(Singleton),
+		Modes(Default),
 	).Run(t, nomod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.OpenFile("b/main.go")

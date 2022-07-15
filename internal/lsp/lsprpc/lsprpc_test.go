@@ -58,7 +58,7 @@ func TestClientLogging(t *testing.T) {
 	client := FakeClient{Logs: make(chan string, 10)}
 
 	ctx = debug.WithInstance(ctx, "", "")
-	ss := NewStreamServer(cache.New(nil), false)
+	ss := NewStreamServer(cache.New(nil, nil, nil), false)
 	ss.serverForTest = server
 	ts := servertest.NewPipeServer(ss, nil)
 	defer checkClose(t, ts.Close)
@@ -121,7 +121,7 @@ func checkClose(t *testing.T, closer func() error) {
 func setupForwarding(ctx context.Context, t *testing.T, s protocol.Server) (direct, forwarded servertest.Connector, cleanup func()) {
 	t.Helper()
 	serveCtx := debug.WithInstance(ctx, "", "")
-	ss := NewStreamServer(cache.New(nil), false)
+	ss := NewStreamServer(cache.New(nil, nil, nil), false)
 	ss.serverForTest = s
 	tsDirect := servertest.NewTCPServer(serveCtx, ss, nil)
 
@@ -216,7 +216,7 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	clientCtx := debug.WithInstance(baseCtx, "", "")
 	serverCtx := debug.WithInstance(baseCtx, "", "")
 
-	cache := cache.New(nil)
+	cache := cache.New(nil, nil, nil)
 	ss := NewStreamServer(cache, false)
 	tsBackend := servertest.NewTCPServer(serverCtx, ss, nil)
 

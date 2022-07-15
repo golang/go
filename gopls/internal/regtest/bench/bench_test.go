@@ -33,7 +33,7 @@ func benchmarkOptions(dir string) []RunOption {
 		// Skip logs as they buffer up memory unnaturally.
 		SkipLogs(),
 		// The Debug server only makes sense if running in singleton mode.
-		Modes(Singleton),
+		Modes(Default),
 		// Remove the default timeout. Individual tests should control their
 		// own graceful termination.
 		NoDefaultTimeout(),

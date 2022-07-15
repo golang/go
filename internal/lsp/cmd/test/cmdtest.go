@@ -50,7 +50,7 @@ func TestCommandLine(t *testing.T, testdata string, options func(*source.Options
 
 func NewTestServer(ctx context.Context, options func(*source.Options)) *servertest.TCPServer {
 	ctx = debug.WithInstance(ctx, "", "")
-	cache := cache.New(options)
+	cache := cache.New(nil, nil, options)
 	ss := lsprpc.NewStreamServer(cache, false)
 	return servertest.NewTCPServer(ctx, ss, nil)
 }

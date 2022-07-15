@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"go/token"
 	"io"
 	"io/ioutil"
 	"net"
@@ -29,24 +30,58 @@ import (
 	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/xcontext"
 )
 
 // Mode is a bitmask that defines for which execution modes a test should run.
+//
+// Each mode controls several aspects of gopls' configuration:
+//   - Which server options to use for gopls sessions
+//   - Whether to use a shared cache
+//   - Whether to use a shared server
+//   - Whether to run the server in-process or in a separate process
+//
+// The behavior of each mode with respect to these aspects is summarized below.
+// TODO(rfindley, cleanup): rather than using arbitrary names for these modes,
+// we can compose them explicitly out of the features described here, allowing
+// individual tests more freedom in constructing problematic execution modes.
+// For example, a test could assert on a certain behavior when running with
+// experimental options on a separate process. Moreover, we could unify 'Modes'
+// with 'Options', and use RunMultiple rather than a hard-coded loop through
+// modes.
+//
+// Mode            | Options      | Shared Cache? | Shared Server? | In-process?
+// ---------------------------------------------------------------------------
+// Default         | Default      | Y             | N              | Y
+// Forwarded       | Default      | Y             | Y              | Y
+// SeparateProcess | Default      | Y             | Y              | N
+// Experimental    | Experimental | N             | N              | Y
 type Mode int
 
 const (
-	// Singleton mode uses a separate in-process gopls instance for each test,
-	// and communicates over pipes to mimic the gopls sidecar execution mode,
-	// which communicates over stdin/stderr.
-	Singleton Mode = 1 << iota
-	// Forwarded forwards connections to a shared in-process gopls instance.
+	// Default mode runs gopls with the default options, communicating over pipes
+	// to emulate the lsp sidecar execution mode, which communicates over
+	// stdin/stdout.
+	//
+	// It uses separate servers for each test, but a shared cache, to avoid
+	// duplicating work when processing GOROOT.
+	Default Mode = 1 << iota
+
+	// Forwarded uses the default options, but forwards connections to a shared
+	// in-process gopls server.
 	Forwarded
-	// SeparateProcess forwards connection to a shared separate gopls process.
+
+	// SeparateProcess uses the default options, but forwards connection to an
+	// external gopls daemon.
 	SeparateProcess
+
 	// Experimental enables all of the experimental configurations that are
-	// being developed.
+	// being developed, and runs gopls in sidecar mode.
+	//
+	// It uses a separate cache for each test, to exercise races that may only
+	// appear with cache misses.
 	Experimental
 )
 
@@ -55,14 +90,20 @@ const (
 // remote), any tests that execute on the same Runner will share the same
 // state.
 type Runner struct {
-	DefaultModes             Mode
-	Timeout                  time.Duration
-	GoplsPath                string
-	PrintGoroutinesOnFailure bool
-	TempDir                  string
-	SkipCleanup              bool
-	OptionsHook              func(*source.Options)
+	// Configuration
+	DefaultModes             Mode                  // modes to run for each test
+	Timeout                  time.Duration         // per-test timeout, if set
+	PrintGoroutinesOnFailure bool                  // whether to dump goroutines on test failure
+	SkipCleanup              bool                  // if set, don't delete test data directories when the test exits
+	OptionsHook              func(*source.Options) // if set, use these options when creating gopls sessions
 
+	// Immutable state shared across test invocations
+	goplsPath string         // path to the gopls executable (for SeparateProcess mode)
+	tempDir   string         // shared parent temp directory
+	fset      *token.FileSet // shared FileSet
+	store     *memoize.Store // shared store
+
+	// Lazily allocated resources
 	mu        sync.Mutex
 	ts        *servertest.TCPServer
 	socketDir string
@@ -193,7 +234,7 @@ func InGOPATH() RunOption {
 }
 
 // DebugAddress configures a debug server bound to addr. This option is
-// currently only supported when executing in Singleton mode. It is intended to
+// currently only supported when executing in Default mode. It is intended to
 // be used for long-running stress tests.
 func DebugAddress(addr string) RunOption {
 	return optionSetter(func(opts *runConfig) {
@@ -252,10 +293,10 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 		mode      Mode
 		getServer func(*testing.T, func(*source.Options)) jsonrpc2.StreamServer
 	}{
-		{"singleton", Singleton, singletonServer},
+		{"default", Default, r.defaultServer},
 		{"forwarded", Forwarded, r.forwardedServer},
 		{"separate_process", SeparateProcess, r.separateProcessServer},
-		{"experimental", Experimental, experimentalServer},
+		{"experimental", Experimental, r.experimentalServer},
 	}
 
 	for _, tc := range tests {
@@ -267,10 +308,10 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 		if config.modes&tc.mode == 0 {
 			continue
 		}
-		if config.debugAddr != "" && tc.mode != Singleton {
+		if config.debugAddr != "" && tc.mode != Default {
 			// Debugging is useful for running stress tests, but since the daemon has
 			// likely already been started, it would be too late to debug.
-			t.Fatalf("debugging regtest servers only works in Singleton mode, "+
+			t.Fatalf("debugging regtest servers only works in Default mode, "+
 				"got debug addr %q and mode %v", config.debugAddr, tc.mode)
 		}
 
@@ -298,7 +339,7 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 				di.MonitorMemory(ctx)
 			}
 
-			rootDir := filepath.Join(r.TempDir, filepath.FromSlash(t.Name()))
+			rootDir := filepath.Join(r.tempDir, filepath.FromSlash(t.Name()))
 			if err := os.MkdirAll(rootDir, 0755); err != nil {
 				t.Fatal(err)
 			}
@@ -434,11 +475,13 @@ func (s *loggingFramer) printBuffers(testname string, w io.Writer) {
 	fmt.Fprintf(os.Stderr, "#### End Gopls Test Logs for %q\n", testname)
 }
 
-func singletonServer(t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
-	return lsprpc.NewStreamServer(cache.New(optsHook), false)
+// defaultServer handles the Default execution mode.
+func (r *Runner) defaultServer(t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
+	return lsprpc.NewStreamServer(cache.New(r.fset, r.store, optsHook), false)
 }
 
-func experimentalServer(t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
+// experimentalServer handles the Experimental execution mode.
+func (r *Runner) experimentalServer(t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	options := func(o *source.Options) {
 		optsHook(o)
 		o.EnableAllExperiments()
@@ -446,28 +489,23 @@ func experimentalServer(t *testing.T, optsHook func(*source.Options)) jsonrpc2.S
 		// source.Options.EnableAllExperiments, but we want to test it.
 		o.ExperimentalWorkspaceModule = true
 	}
-	return lsprpc.NewStreamServer(cache.New(options), false)
+	return lsprpc.NewStreamServer(cache.New(nil, nil, options), false)
 }
 
-func (r *Runner) forwardedServer(t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
-	ts := r.getTestServer(optsHook)
-	return newForwarder("tcp", ts.Addr)
-}
-
-// getTestServer gets the shared test server instance to connect to, or creates
-// one if it doesn't exist.
-func (r *Runner) getTestServer(optsHook func(*source.Options)) *servertest.TCPServer {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+// forwardedServer handles the Forwarded execution mode.
+func (r *Runner) forwardedServer(_ *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	if r.ts == nil {
+		r.mu.Lock()
 		ctx := context.Background()
 		ctx = debug.WithInstance(ctx, "", "off")
-		ss := lsprpc.NewStreamServer(cache.New(optsHook), false)
+		ss := lsprpc.NewStreamServer(cache.New(nil, nil, optsHook), false)
 		r.ts = servertest.NewTCPServer(ctx, ss, nil)
+		r.mu.Unlock()
 	}
-	return r.ts
+	return newForwarder("tcp", r.ts.Addr)
 }
 
+// separateProcessServer handles the SeparateProcess execution mode.
 func (r *Runner) separateProcessServer(t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	// TODO(rfindley): can we use the autostart behavior here, instead of
 	// pre-starting the remote?
@@ -498,21 +536,22 @@ func (r *Runner) getRemoteSocket(t *testing.T) string {
 		return filepath.Join(r.socketDir, daemonFile)
 	}
 
-	if r.GoplsPath == "" {
+	if r.goplsPath == "" {
 		t.Fatal("cannot run tests with a separate process unless a path to a gopls binary is configured")
 	}
 	var err error
-	r.socketDir, err = ioutil.TempDir(r.TempDir, "gopls-regtest-socket")
+	r.socketDir, err = ioutil.TempDir(r.tempDir, "gopls-regtest-socket")
 	if err != nil {
 		t.Fatalf("creating tempdir: %v", err)
 	}
 	socket := filepath.Join(r.socketDir, daemonFile)
 	args := []string{"serve", "-listen", "unix;" + socket, "-listen.timeout", "10s"}
-	cmd := exec.Command(r.GoplsPath, args...)
+	cmd := exec.Command(r.goplsPath, args...)
 	cmd.Env = append(os.Environ(), runTestAsGoplsEnvvar+"=true")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	go func() {
+		// TODO(rfindley): this is racy; we're returning before we know that the command is running.
 		if err := cmd.Run(); err != nil {
 			panic(fmt.Sprintf("error running external gopls: %v\nstderr:\n%s", err, stderr.String()))
 		}
@@ -537,7 +576,7 @@ func (r *Runner) Close() error {
 		}
 	}
 	if !r.SkipCleanup {
-		if err := os.RemoveAll(r.TempDir); err != nil {
+		if err := os.RemoveAll(r.tempDir); err != nil {
 			errmsgs = append(errmsgs, err.Error())
 		}
 	}

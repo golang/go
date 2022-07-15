@@ -298,7 +298,7 @@ func Hello() {
 
 	t.Run("without workspace module", func(t *testing.T) {
 		WithOptions(
-			Modes(Singleton),
+			Modes(Default),
 		).Run(t, noMod, func(t *testing.T, env *Env) {
 			env.Await(
 				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
@@ -1678,7 +1678,7 @@ import (
 		WithOptions(
 			InGOPATH(),
 			EnvVars{"GO111MODULE": "off"},
-			Modes(Singleton),
+			Modes(Default),
 		).Run(t, mod, func(t *testing.T, env *Env) {
 			env.Await(
 				env.DiagnosticAtRegexpWithMessage("main.go", `"nosuchpkg"`, `cannot find package "nosuchpkg" in any of`),
@@ -1705,7 +1705,7 @@ package b
 	for _, go111module := range []string{"on", "auto"} {
 		t.Run("GO111MODULE="+go111module, func(t *testing.T) {
 			WithOptions(
-				Modes(Singleton),
+				Modes(Default),
 				EnvVars{"GO111MODULE": go111module},
 			).Run(t, modules, func(t *testing.T, env *Env) {
 				env.OpenFile("a/a.go")
@@ -1722,7 +1722,7 @@ package b
 	// Expect no warning if GO111MODULE=auto in a directory in GOPATH.
 	t.Run("GOPATH_GO111MODULE_auto", func(t *testing.T) {
 		WithOptions(
-			Modes(Singleton),
+			Modes(Default),
 			EnvVars{"GO111MODULE": "auto"},
 			InGOPATH(),
 		).Run(t, modules, func(t *testing.T, env *Env) {
@@ -1784,7 +1784,7 @@ func helloHelper() {}
 `
 	WithOptions(
 		ProxyFiles(proxy),
-		Modes(Singleton),
+		Modes(Default),
 	).Run(t, nested, func(t *testing.T, env *Env) {
 		// Expect a diagnostic in a nested module.
 		env.OpenFile("nested/hello/hello.go")
@@ -1996,7 +1996,7 @@ func Hello() {}
 `
 	WithOptions(
 		Settings{"experimentalUseInvalidMetadata": true},
-		Modes(Singleton),
+		Modes(Default),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.RegexpReplace("go.mod", "module mod.com", "modul mod.com") // break the go.mod file
@@ -2052,7 +2052,7 @@ func _() {}
 		Settings{"experimentalUseInvalidMetadata": true},
 		// ExperimentalWorkspaceModule has a different failure mode for this
 		// case.
-		Modes(Singleton),
+		Modes(Default),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
 			OnceMet(

@@ -236,10 +236,32 @@ func (p *Promise) wait(ctx context.Context) (interface{}, error) {
 	}
 }
 
+// An EvictionPolicy controls the eviction behavior of keys in a Store when
+// they no longer have any references.
+type EvictionPolicy int
+
+const (
+	// ImmediatelyEvict evicts keys as soon as they no longer have references.
+	ImmediatelyEvict EvictionPolicy = iota
+
+	// NeverEvict does not evict keys.
+	NeverEvict
+)
+
 // A Store maps arbitrary keys to reference-counted promises.
+//
+// The zero value is a valid Store, though a store may also be created via
+// NewStore if a custom EvictionPolicy is required.
 type Store struct {
+	evictionPolicy EvictionPolicy
+
 	promisesMu sync.Mutex
 	promises   map[interface{}]*Promise
+}
+
+// NewStore creates a new store with the given eviction policy.
+func NewStore(policy EvictionPolicy) *Store {
+	return &Store{evictionPolicy: policy}
 }
 
 // Promise returns a reference-counted promise for the future result of
@@ -264,7 +286,9 @@ func (store *Store) Promise(key interface{}, function Function) (*Promise, func(
 	store.promisesMu.Unlock()
 
 	release := func() {
-		if atomic.AddInt32(&p.refcount, -1) == 0 {
+		// TODO(rfindley): this looks racy: it's possible that the refcount is
+		// incremented before we grab the lock.
+		if atomic.AddInt32(&p.refcount, -1) == 0 && store.evictionPolicy != NeverEvict {
 			store.promisesMu.Lock()
 			delete(store.promises, key)
 			store.promisesMu.Unlock()

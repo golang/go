@@ -20,7 +20,7 @@ func TestBugNotification(t *testing.T) {
 	// Verify that a properly configured session gets notified of a bug on the
 	// server.
 	WithOptions(
-		Modes(Singleton), // must be in-process to receive the bug report below
+		Modes(Default), // must be in-process to receive the bug report below
 		Settings{"showBugReports": true},
 	).Run(t, "", func(t *testing.T, env *Env) {
 		const desc = "got a bug"

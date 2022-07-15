@@ -8,6 +8,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/token"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -16,6 +17,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/cmd"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/tool"
 )
@@ -87,9 +89,11 @@ var slowGOOS = map[string]bool{
 }
 
 func DefaultModes() Mode {
-	normal := Singleton | Experimental
+	// TODO(rfindley): these modes should *not* depend on GOOS. Depending on
+	// testing.Short() should be sufficient.
+	normal := Default | Experimental
 	if slowGOOS[runtime.GOOS] && testing.Short() {
-		normal = Singleton
+		normal = Default
 	}
 	if *runSubprocessTests {
 		return normal | SeparateProcess
@@ -116,6 +120,8 @@ func Main(m *testing.M, hook func(*source.Options)) {
 		PrintGoroutinesOnFailure: *printGoroutinesOnFailure,
 		SkipCleanup:              *skipCleanup,
 		OptionsHook:              hook,
+		fset:                     token.NewFileSet(),
+		store:                    memoize.NewStore(memoize.NeverEvict),
 	}
 	if *runSubprocessTests {
 		goplsPath := *goplsBinaryPath
@@ -126,13 +132,13 @@ func Main(m *testing.M, hook func(*source.Options)) {
 				panic(fmt.Sprintf("finding test binary path: %v", err))
 			}
 		}
-		runner.GoplsPath = goplsPath
+		runner.goplsPath = goplsPath
 	}
 	dir, err := ioutil.TempDir("", "gopls-regtest-")
 	if err != nil {
 		panic(fmt.Errorf("creating regtest temp directory: %v", err))
 	}
-	runner.TempDir = dir
+	runner.tempDir = dir
 
 	code := m.Run()
 	if err := runner.Close(); err != nil {

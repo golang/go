@@ -742,7 +742,7 @@ func main() {
 	WithOptions(
 		EnvVars{"GOFLAGS": "-mod=readonly"},
 		ProxyFiles(proxy),
-		Modes(Singleton),
+		Modes(Default),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		original := env.ReadWorkspaceFile("go.mod")
@@ -922,7 +922,7 @@ func hello() {}
 		// TODO(rFindley) this doesn't work in multi-module workspace mode, because
 		// it keeps around the last parsing modfile. Update this test to also
 		// exercise the workspace module.
-		Modes(Singleton),
+		Modes(Default),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.Await(env.DoneWithOpen())
@@ -1090,7 +1090,7 @@ func main() {
 `
 	WithOptions(
 		ProxyFiles(workspaceProxy),
-		Modes(Singleton),
+		Modes(Default),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		params := &protocol.PublishDiagnosticsParams{}
@@ -1159,7 +1159,7 @@ func main() {
 `
 	WithOptions(
 		ProxyFiles(proxy),
-		Modes(Singleton),
+		Modes(Default),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		d := &protocol.PublishDiagnosticsParams{}

@@ -293,7 +293,7 @@ func runTest(t *testing.T, workspaceData, proxyData string, test func(context.Co
 		t.Fatal(err)
 	}
 
-	cache := cache.New(nil)
+	cache := cache.New(nil, nil, nil)
 	session := cache.NewSession(ctx)
 	options := source.DefaultOptions().Clone()
 	tests.DefaultOptions(options)
