@@ -136,8 +136,8 @@ func TestMinimizeInput(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ws := &workerServer{
-				fuzzFn: func(e CorpusEntry) (time.Duration, error) {
-					return time.Second, tc.fn(e)
+				fuzzFn: func(e CorpusEntry) (time.Duration, bool, error) {
+					return time.Second, false, tc.fn(e)
 				},
 			}
 			mem := &sharedMem{region: make([]byte, 100)} // big enough to hold value and header
@@ -159,24 +159,42 @@ func TestMinimizeInput(t *testing.T) {
 	}
 }
 
-// TestMinimizeFlaky checks that if we're minimizing an interesting
-// input and a flaky failure occurs, that minimization was not indicated
-// to be successful, and the error isn't returned (since it's flaky).
-func TestMinimizeFlaky(t *testing.T) {
-	ws := &workerServer{fuzzFn: func(e CorpusEntry) (time.Duration, error) {
-		return time.Second, errors.New("ohno")
-	}}
-	mem := &sharedMem{region: make([]byte, 100)} // big enough to hold value and header
-	vals := []any{[]byte(nil)}
-	args := minimizeArgs{KeepCoverage: make([]byte, len(coverageSnapshot))}
-	success, err := ws.minimizeInput(context.Background(), vals, mem, args)
-	if success {
-		t.Error("unexpected success")
+func TestMinimizeFail(t *testing.T) {
+	tests := []struct {
+		testName string
+		skipped  bool
+		err      error
+	}{
+		{
+			testName: "flaky input",
+			skipped:  false,
+			err:      errors.New("ohno"),
+		},
+		{
+			testName: "skipped input",
+			skipped:  true,
+			err:      nil,
+		},
 	}
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if count := mem.header().count; count != 1 {
-		t.Errorf("count: got %d, want 1", count)
+
+	for _, tt := range tests {
+		t.Run(tt.testName, func(t *testing.T) {
+			ws := &workerServer{fuzzFn: func(e CorpusEntry) (time.Duration, bool, error) {
+				return time.Second, tt.skipped, tt.err
+			}}
+			mem := &sharedMem{region: make([]byte, 100)} // big enough to hold value and header
+			vals := []any{[]byte(nil)}
+			args := minimizeArgs{KeepCoverage: make([]byte, len(coverageSnapshot))}
+			success, err := ws.minimizeInput(context.Background(), vals, mem, args)
+			if success {
+				t.Error("unexpected success")
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if count := mem.header().count; count != 1 {
+				t.Errorf("count: got %d, want 1", count)
+			}
+		})
 	}
 }

@@ -1619,7 +1619,7 @@ func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
 func (f matchStringOnly) CoordinateFuzzing(time.Duration, int64, time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error {
 	return errMain
 }
-func (f matchStringOnly) RunFuzzWorker(func(corpusEntry) error) error { return errMain }
+func (f matchStringOnly) RunFuzzWorker(func(corpusEntry) (bool, error)) error { return errMain }
 func (f matchStringOnly) ReadCorpus(string, []reflect.Type) ([]corpusEntry, error) {
 	return nil, errMain
 }
@@ -1669,7 +1669,7 @@ type testDeps interface {
 	StopTestLog() error
 	WriteProfileTo(string, io.Writer, int) error
 	CoordinateFuzzing(time.Duration, int64, time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
-	RunFuzzWorker(func(corpusEntry) error) error
+	RunFuzzWorker(func(corpusEntry) (bool, error)) error
 	ReadCorpus(string, []reflect.Type) ([]corpusEntry, error)
 	CheckCorpus([]any, []reflect.Type) error
 	ResetCoverage()

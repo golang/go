@@ -166,7 +166,7 @@ func (TestDeps) CoordinateFuzzing(
 	return err
 }
 
-func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
+func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) (bool, error)) error {
 	// Worker processes may or may not receive a signal when the user presses ^C
 	// On POSIX operating systems, a signal sent to a process group is delivered
 	// to all processes in that group. This is not the case on Windows.
