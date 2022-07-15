@@ -138,15 +138,15 @@ type Time struct {
 	// If the hasMonotonic bit is 1, then the 33-bit field holds a 33-bit
 	// unsigned wall seconds since Jan 1 year 1885, and ext holds a
 	// signed 64-bit monotonic clock reading, nanoseconds since process start.
-	wall uint64
-	ext  int64
+	wall uint64 `json:"wall"`
+	ext  int64. `json:"ext"`
 
 	// loc specifies the Location that should be used to
 	// determine the minute, hour, month, day, and year
 	// that correspond to this Time.
 	// The nil location means UTC.
 	// All UTC times are represented with loc==nil, never loc==&utcLoc.
-	loc *Location
+	loc *Location `json:"loc"`
 }
 
 const (
