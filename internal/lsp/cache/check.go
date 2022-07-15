@@ -42,7 +42,7 @@ type packageKey struct {
 type packageHandleKey source.Hash
 
 // A packageHandle is a handle to the future result of type-checking a package.
-// The resulting package is obtained from the check() method.
+// The resulting package is obtained from the await() method.
 type packageHandle struct {
 	promise *memoize.Promise // [typeCheckResult]
 
@@ -60,7 +60,7 @@ type packageHandle struct {
 }
 
 // typeCheckResult contains the result of a call to
-// typeCheck, which type-checks a package.
+// typeCheckImpl, which type-checks a package.
 type typeCheckResult struct {
 	pkg *pkg
 	err error
@@ -130,6 +130,12 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	}
 
 	// Read both lists of files of this package, in parallel.
+	//
+	// goFiles aren't presented to the type checker--nor
+	// are they included in the key, unsoundly--but their
+	// syntax trees are available from (*pkg).File(URI).
+	// TODO(adonovan): consider parsing them on demand?
+	// The need should be rare.
 	goFiles, compiledGoFiles, err := readGoFiles(ctx, s, m.Metadata)
 	if err != nil {
 		return nil, err
@@ -139,32 +145,9 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	// Create a handle for the result of type checking.
 	experimentalKey := s.View().Options().ExperimentalPackageCacheKey
 	phKey := computePackageKey(m.ID, compiledGoFiles, m, depKeys, mode, experimentalKey)
-	// TODO(adonovan): extract lambda into a standalone function to
-	// avoid implicit lexical dependencies.
 	promise, release := s.store.Promise(phKey, func(ctx context.Context, arg interface{}) interface{} {
-		snapshot := arg.(*snapshot)
 
-		// Start type checking of direct dependencies,
-		// in parallel and asynchronously.
-		// As the type checker imports each of these
-		// packages, it will wait for its completion.
-		var wg sync.WaitGroup
-		for _, dep := range deps {
-			wg.Add(1)
-			go func(dep *packageHandle) {
-				dep.check(ctx, snapshot) // ignore result
-				wg.Done()
-			}(dep)
-		}
-		// The 'defer' below is unusual but intentional:
-		// it is not necessary that each call to dep.check
-		// complete before type checking begins, as the type
-		// checker will wait for those it needs. But they do
-		// need to complete before this function returns and
-		// the snapshot is possibly destroyed.
-		defer wg.Wait()
-
-		pkg, err := typeCheck(ctx, snapshot, goFiles, compiledGoFiles, m.Metadata, mode, deps)
+		pkg, err := typeCheckImpl(ctx, arg.(*snapshot), goFiles, compiledGoFiles, m.Metadata, mode, deps)
 		return typeCheckResult{pkg, err}
 	})
 
@@ -288,7 +271,8 @@ func hashConfig(config *packages.Config) source.Hash {
 	return source.HashOf(b.Bytes())
 }
 
-func (ph *packageHandle) check(ctx context.Context, s *snapshot) (*pkg, error) {
+// await waits for typeCheckImpl to complete and returns its result.
+func (ph *packageHandle) await(ctx context.Context, s *snapshot) (*pkg, error) {
 	v, err := s.awaitPromise(ctx, ph.promise)
 	if err != nil {
 		return nil, err
@@ -314,10 +298,30 @@ func (ph *packageHandle) cached() (*pkg, error) {
 	return data.pkg, data.err
 }
 
-// typeCheck type checks the parsed source files in compiledGoFiles.
+// typeCheckImpl type checks the parsed source files in compiledGoFiles.
 // (The resulting pkg also holds the parsed but not type-checked goFiles.)
 // deps holds the future results of type-checking the direct dependencies.
-func typeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFiles []source.FileHandle, m *Metadata, mode source.ParseMode, deps map[PackagePath]*packageHandle) (*pkg, error) {
+func typeCheckImpl(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFiles []source.FileHandle, m *Metadata, mode source.ParseMode, deps map[PackagePath]*packageHandle) (*pkg, error) {
+	// Start type checking of direct dependencies,
+	// in parallel and asynchronously.
+	// As the type checker imports each of these
+	// packages, it will wait for its completion.
+	var wg sync.WaitGroup
+	for _, dep := range deps {
+		wg.Add(1)
+		go func(dep *packageHandle) {
+			dep.await(ctx, snapshot) // ignore result
+			wg.Done()
+		}(dep)
+	}
+	// The 'defer' below is unusual but intentional:
+	// it is not necessary that each call to dep.check
+	// complete before type checking begins, as the type
+	// checker will wait for those it needs. But they do
+	// need to complete before this function returns and
+	// the snapshot is possibly destroyed.
+	defer wg.Wait()
+
 	var filter *unexportedFilter
 	if mode == source.ParseExported {
 		filter = &unexportedFilter{uses: map[string]bool{}}
@@ -522,7 +526,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 			if !source.IsValidImport(string(m.PkgPath), string(dep.m.PkgPath)) {
 				return nil, fmt.Errorf("invalid use of internal package %s", pkgPath)
 			}
-			depPkg, err := dep.check(ctx, snapshot)
+			depPkg, err := dep.await(ctx, snapshot)
 			if err != nil {
 				return nil, err
 			}

@@ -601,7 +601,7 @@ func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode sourc
 	}
 	var pkgs []source.Package
 	for _, ph := range phs {
-		pkg, err := ph.check(ctx, s)
+		pkg, err := ph.await(ctx, s)
 		if err != nil {
 			return nil, err
 		}
@@ -639,7 +639,7 @@ func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source
 		return nil, fmt.Errorf("no packages in input")
 	}
 
-	return ph.check(ctx, s)
+	return ph.await(ctx, s)
 }
 
 func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, includeTestVariants bool) ([]*packageHandle, error) {
@@ -756,7 +756,7 @@ func (s *snapshot) checkedPackage(ctx context.Context, id PackageID, mode source
 	if err != nil {
 		return nil, err
 	}
-	return ph.check(ctx, s)
+	return ph.await(ctx, s)
 }
 
 func (s *snapshot) getImportedBy(id PackageID) []PackageID {
@@ -996,21 +996,6 @@ func (s *snapshot) knownFilesInDir(ctx context.Context, dir span.URI) []span.URI
 	return files
 }
 
-func (s *snapshot) workspacePackageHandles(ctx context.Context) ([]*packageHandle, error) {
-	if err := s.awaitLoaded(ctx); err != nil {
-		return nil, err
-	}
-	var phs []*packageHandle
-	for _, pkgID := range s.workspacePackageIDs() {
-		ph, err := s.buildPackageHandle(ctx, pkgID, s.workspaceParseMode(pkgID))
-		if err != nil {
-			return nil, err
-		}
-		phs = append(phs, ph)
-	}
-	return phs, nil
-}
-
 func (s *snapshot) ActivePackages(ctx context.Context) ([]source.Package, error) {
 	phs, err := s.activePackageHandles(ctx)
 	if err != nil {
@@ -1018,7 +1003,7 @@ func (s *snapshot) ActivePackages(ctx context.Context) ([]source.Package, error)
 	}
 	var pkgs []source.Package
 	for _, ph := range phs {
-		pkg, err := ph.check(ctx, s)
+		pkg, err := ph.await(ctx, s)
 		if err != nil {
 			return nil, err
 		}

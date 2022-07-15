@@ -123,7 +123,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	if err != nil {
 		return nil, err
 	}
-	pkg, err := ph.check(ctx, s)
+	pkg, err := ph.await(ctx, s)
 	if err != nil {
 		return nil, err
 	}
