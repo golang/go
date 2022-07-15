@@ -79,26 +79,17 @@ func (r RunMultiple) Run(t *testing.T, files string, f TestFunc) {
 	}
 }
 
-// The regtests run significantly slower on these operating systems, due to (we
-// believe) kernel locking behavior. Only run in singleton mode on these
-// operating system when using -short.
-var slowGOOS = map[string]bool{
-	"darwin":  true,
-	"openbsd": true,
-	"plan9":   true,
-}
-
+// DefaultModes returns the default modes to run for each regression test (they
+// may be reconfigured by the tests themselves).
 func DefaultModes() Mode {
-	// TODO(rfindley): these modes should *not* depend on GOOS. Depending on
-	// testing.Short() should be sufficient.
-	normal := Default | Experimental
-	if slowGOOS[runtime.GOOS] && testing.Short() {
-		normal = Default
+	modes := Default
+	if !testing.Short() {
+		modes |= Experimental | Forwarded
 	}
 	if *runSubprocessTests {
-		return normal | SeparateProcess
+		modes |= SeparateProcess
 	}
-	return normal
+	return modes
 }
 
 // Main sets up and tears down the shared regtest state.

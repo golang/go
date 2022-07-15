@@ -24,7 +24,10 @@ func main() {
 	fmt.Println("Hello World.")
 }`
 
-func runShared(t *testing.T, testFunc func(env1 *Env, env2 *Env)) {
+// runShared is a helper to run a test in the same directory using both the
+// original env, and an additional other environment connected to the same
+// server.
+func runShared(t *testing.T, testFunc func(origEnv *Env, otherEnv *Env)) {
 	// Only run these tests in forwarded modes.
 	modes := DefaultModes() & (Forwarded | SeparateProcess)
 	WithOptions(Modes(modes)).Run(t, sharedProgram, func(t *testing.T, env1 *Env) {
@@ -38,28 +41,32 @@ func runShared(t *testing.T, testFunc func(env1 *Env, env2 *Env)) {
 }
 
 func TestSimultaneousEdits(t *testing.T) {
-	runShared(t, func(env1 *Env, env2 *Env) {
+	runShared(t, func(origEnv *Env, otherEnv *Env) {
 		// In editor #1, break fmt.Println as before.
-		env1.OpenFile("main.go")
-		env1.RegexpReplace("main.go", "Printl(n)", "")
+		origEnv.OpenFile("main.go")
+		origEnv.RegexpReplace("main.go", "Printl(n)", "")
 		// In editor #2 remove the closing brace.
-		env2.OpenFile("main.go")
-		env2.RegexpReplace("main.go", "\\)\n(})", "")
+		otherEnv.OpenFile("main.go")
+		otherEnv.RegexpReplace("main.go", "\\)\n(})", "")
 
 		// Now check that we got different diagnostics in each environment.
-		env1.Await(env1.DiagnosticAtRegexp("main.go", "Printl"))
-		env2.Await(env2.DiagnosticAtRegexp("main.go", "$"))
+		origEnv.Await(origEnv.DiagnosticAtRegexp("main.go", "Printl"))
+		otherEnv.Await(otherEnv.DiagnosticAtRegexp("main.go", "$"))
 	})
 }
 
 func TestShutdown(t *testing.T) {
-	runShared(t, func(env1 *Env, env2 *Env) {
-		if err := env1.Editor.Close(env1.Ctx); err != nil {
+	runShared(t, func(origEnv *Env, otherEnv *Env) {
+		// Close otherEnv, and verify that operation in the original environment is
+		// unaffected. Note: 'otherEnv' must be the environment being closed here.
+		// If we were to instead close 'env' here, we'd run into a duplicate
+		// shutdown when the test runner closes the original env.
+		if err := otherEnv.Editor.Close(otherEnv.Ctx); err != nil {
 			t.Errorf("closing first editor: %v", err)
 		}
 		// Now make an edit in editor #2 to trigger diagnostics.
-		env2.OpenFile("main.go")
-		env2.RegexpReplace("main.go", "\\)\n(})", "")
-		env2.Await(env2.DiagnosticAtRegexp("main.go", "$"))
+		origEnv.OpenFile("main.go")
+		origEnv.RegexpReplace("main.go", "\\)\n(})", "")
+		origEnv.Await(origEnv.DiagnosticAtRegexp("main.go", "$"))
 	})
 }

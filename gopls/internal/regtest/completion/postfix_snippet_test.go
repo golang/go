@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	. "golang.org/x/tools/internal/lsp/regtest"
-	"golang.org/x/tools/internal/lsp/source"
 )
 
 func TestPostfixSnippetCompletion(t *testing.T) {
@@ -433,9 +432,11 @@ func foo() string {
 		},
 	}
 
-	r := WithOptions(Options(func(o *source.Options) {
-		o.ExperimentalPostfixCompletions = true
-	}))
+	r := WithOptions(
+		Settings{
+			"experimentalPostfixCompletions": true,
+		},
+	)
 	r.Run(t, mod, func(t *testing.T, env *Env) {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {

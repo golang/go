@@ -85,6 +85,21 @@ const (
 	Experimental
 )
 
+func (m Mode) String() string {
+	switch m {
+	case Default:
+		return "default"
+	case Forwarded:
+		return "forwarded"
+	case SeparateProcess:
+		return "separate process"
+	case Experimental:
+		return "experimental"
+	default:
+		return "unknown mode"
+	}
+}
+
 // A Runner runs tests in gopls execution environments, as specified by its
 // modes. For modes that share state (for example, a shared cache or common
 // remote), any tests that execute on the same Runner will share the same
@@ -117,14 +132,6 @@ type runConfig struct {
 	debugAddr        string
 	skipLogs         bool
 	skipHooks        bool
-	optionsHook      func(*source.Options)
-}
-
-func (r *Runner) defaultConfig() *runConfig {
-	return &runConfig{
-		modes:       r.DefaultModes,
-		optionsHook: r.OptionsHook,
-	}
 }
 
 // A RunOption augments the behavior of the test runner.
@@ -155,22 +162,16 @@ func ProxyFiles(txt string) RunOption {
 }
 
 // Modes configures the execution modes that the test should run in.
+//
+// By default, modes are configured by the test runner. If this option is set,
+// it overrides the set of default modes and the test runs in exactly these
+// modes.
 func Modes(modes Mode) RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.modes = modes
-	})
-}
-
-// Options configures the various server and user options.
-func Options(hook func(*source.Options)) RunOption {
-	return optionSetter(func(opts *runConfig) {
-		old := opts.optionsHook
-		opts.optionsHook = func(o *source.Options) {
-			if old != nil {
-				old(o)
-			}
-			hook(o)
+		if opts.modes != 0 {
+			panic("modes set more than once")
 		}
+		opts.modes = modes
 	})
 }
 
@@ -301,13 +302,18 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 
 	for _, tc := range tests {
 		tc := tc
-		config := r.defaultConfig()
+		var config runConfig
 		for _, opt := range opts {
-			opt.set(config)
+			opt.set(&config)
 		}
-		if config.modes&tc.mode == 0 {
+		modes := r.DefaultModes
+		if config.modes != 0 {
+			modes = config.modes
+		}
+		if modes&tc.mode == 0 {
 			continue
 		}
+
 		if config.debugAddr != "" && tc.mode != Default {
 			// Debugging is useful for running stress tests, but since the daemon has
 			// likely already been started, it would be too late to debug.
@@ -364,7 +370,9 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 					}
 				}
 			}()
-			ss := tc.getServer(t, config.optionsHook)
+
+			ss := tc.getServer(t, r.OptionsHook)
+
 			framer := jsonrpc2.NewRawStream
 			ls := &loggingFramer{}
 			if !config.skipLogs {

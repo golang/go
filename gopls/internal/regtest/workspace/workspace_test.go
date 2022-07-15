@@ -15,7 +15,6 @@ import (
 	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/testenv"
 
 	. "golang.org/x/tools/internal/lsp/regtest"
@@ -138,36 +137,22 @@ func TestReferences(t *testing.T) {
 	}
 }
 
-// make sure that directory filters work
-func TestFilters(t *testing.T) {
-	for _, tt := range []struct {
-		name, rootPath string
-	}{
-		{
-			name:     "module root",
-			rootPath: "pkg",
+func TestDirectoryFilters(t *testing.T) {
+	WithOptions(
+		ProxyFiles(workspaceProxy),
+		WorkspaceFolders("pkg"),
+		Settings{
+			"directoryFilters": []string{"-inner"},
 		},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			opts := []RunOption{ProxyFiles(workspaceProxy)}
-			if tt.rootPath != "" {
-				opts = append(opts, WorkspaceFolders(tt.rootPath))
+	).Run(t, workspaceModule, func(t *testing.T, env *Env) {
+		syms := env.WorkspaceSymbol("Hi")
+		sort.Slice(syms, func(i, j int) bool { return syms[i].ContainerName < syms[j].ContainerName })
+		for _, s := range syms {
+			if strings.Contains(s.ContainerName, "inner") {
+				t.Errorf("WorkspaceSymbol: found symbol %q with container %q, want \"inner\" excluded", s.Name, s.ContainerName)
 			}
-			f := func(o *source.Options) {
-				o.DirectoryFilters = append(o.DirectoryFilters, "-inner")
-			}
-			opts = append(opts, Options(f))
-			WithOptions(opts...).Run(t, workspaceModule, func(t *testing.T, env *Env) {
-				syms := env.WorkspaceSymbol("Hi")
-				sort.Slice(syms, func(i, j int) bool { return syms[i].ContainerName < syms[j].ContainerName })
-				for i, s := range syms {
-					if strings.Contains(s.ContainerName, "/inner") {
-						t.Errorf("%s %v %s %s %d\n", s.Name, s.Kind, s.ContainerName, tt.name, i)
-					}
-				}
-			})
-		})
-	}
+		}
+	})
 }
 
 // Make sure that analysis diagnostics are cleared for the whole package when
