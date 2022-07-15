@@ -281,10 +281,9 @@ type gcControllerState struct {
 	// running.
 	fractionalMarkTime atomic.Int64
 
-	// idleMarkTime is the nanoseconds spent in idle marking
-	// during this cycle. This is updated atomically throughout
-	// the cycle.
-	idleMarkTime int64
+	// idleMarkTime is the nanoseconds spent in idle marking during this
+	// cycle. This is updated throughout the cycle.
+	idleMarkTime atomic.Int64
 
 	// markStartTime is the absolute start time in nanoseconds
 	// that assists and background mark workers started.
@@ -420,7 +419,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	c.assistTime.Store(0)
 	c.dedicatedMarkTime.Store(0)
 	c.fractionalMarkTime.Store(0)
-	c.idleMarkTime = 0
+	c.idleMarkTime.Store(0)
 	c.markStartTime = markStartTime
 
 	// TODO(mknyszek): This is supposed to be the actual trigger point for the heap, but
@@ -671,7 +670,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 	}
 	idleUtilization := 0.0
 	if assistDuration > 0 {
-		idleUtilization = float64(c.idleMarkTime) / float64(assistDuration*int64(procs))
+		idleUtilization = float64(c.idleMarkTime.Load()) / float64(assistDuration*int64(procs))
 	}
 	// Determine the cons/mark ratio.
 	//
@@ -910,7 +909,7 @@ func (c *gcControllerState) markWorkerStop(mode gcMarkWorkerMode, duration int64
 	case gcMarkWorkerFractionalMode:
 		c.fractionalMarkTime.Add(duration)
 	case gcMarkWorkerIdleMode:
-		atomic.Xaddint64(&c.idleMarkTime, duration)
+		c.idleMarkTime.Add(duration)
 		c.removeIdleMarkWorker()
 	default:
 		throw("markWorkerStop: unknown mark worker mode")

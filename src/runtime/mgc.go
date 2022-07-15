@@ -1106,7 +1106,7 @@ func gcMarkTermination() {
 			sweepTermCpu,
 			gcController.assistTime.Load(),
 			gcController.dedicatedMarkTime.Load() + gcController.fractionalMarkTime.Load(),
-			gcController.idleMarkTime,
+			gcController.idleMarkTime.Load(),
 			markTermCpu,
 		} {
 			if i == 2 || i == 3 {
