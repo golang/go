@@ -3494,7 +3494,7 @@ func goexit0(gp *g) {
 		// rapidly creating an exiting goroutines.
 		assistWorkPerByte := gcController.assistWorkPerByte.Load()
 		scanCredit := int64(assistWorkPerByte * float64(gp.gcAssistBytes))
-		atomic.Xaddint64(&gcController.bgScanCredit, scanCredit)
+		gcController.bgScanCredit.Add(scanCredit)
 		gp.gcAssistBytes = 0
 	}
 

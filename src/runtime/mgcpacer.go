@@ -257,12 +257,11 @@ type gcControllerState struct {
 	stackScanWork   atomic.Int64
 	globalsScanWork atomic.Int64
 
-	// bgScanCredit is the scan work credit accumulated by the
-	// concurrent background scan. This credit is accumulated by
-	// the background scan and stolen by mutator assists. This is
-	// updated atomically. Updates occur in bounded batches, since
-	// it is both written and read throughout the cycle.
-	bgScanCredit int64
+	// bgScanCredit is the scan work credit accumulated by the concurrent
+	// background scan. This credit is accumulated by the background scan
+	// and stolen by mutator assists.  Updates occur in bounded batches,
+	// since it is both written and read throughout the cycle.
+	bgScanCredit atomic.Int64
 
 	// assistTime is the nanoseconds spent in mutator assists
 	// during this cycle. This is updated atomically, and must also
@@ -417,7 +416,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	c.heapScanWork.Store(0)
 	c.stackScanWork.Store(0)
 	c.globalsScanWork.Store(0)
-	c.bgScanCredit = 0
+	c.bgScanCredit.Store(0)
 	c.assistTime.Store(0)
 	c.dedicatedMarkTime = 0
 	c.fractionalMarkTime = 0
