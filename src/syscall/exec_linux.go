@@ -99,6 +99,8 @@ type SysProcAttr struct {
 	// users this should be set to false for mappings work.
 	GidMappingsEnableSetgroups bool
 	AmbientCaps                []uintptr // Ambient capabilities (Linux only)
+	UseCgroupFD                bool      // Whether to make use of the CgroupFD field.
+	CgroupFD                   int       // File descriptor of a cgroup to put the new process into.
 }
 
 var (
@@ -176,6 +178,21 @@ func capToIndex(cap uintptr) uintptr { return cap >> 5 }
 // See CAP_TO_MASK in linux/capability.h:
 func capToMask(cap uintptr) uint32 { return 1 << uint(cap&31) }
 
+// cloneArgs holds arguments for clone3 Linux syscall.
+type cloneArgs struct {
+	flags      uint64 // Flags bit mask
+	pidFD      uint64 // Where to store PID file descriptor (int *)
+	childTID   uint64 // Where to store child TID, in child's memory (pid_t *)
+	parentTID  uint64 // Where to store child TID, in parent's memory (pid_t *)
+	exitSignal uint64 // Signal to deliver to parent on child termination
+	stack      uint64 // Pointer to lowest byte of stack
+	stackSize  uint64 // Size of stack
+	tls        uint64 // Location of new TLS
+	setTID     uint64 // Pointer to a pid_t array (since Linux 5.5)
+	setTIDSize uint64 // Number of elements in set_tid (since Linux 5.5)
+	cgroup     uint64 // File descriptor for target cgroup of child (since Linux 5.7)
+}
+
 // forkAndExecInChild1 implements the body of forkAndExecInChild up to
 // the parent's post-fork path. This is a separate function so we can
 // separate the child's and parent's stack frames if we're using
@@ -205,9 +222,10 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		nextfd                    int
 		i                         int
 		caps                      caps
-		fd1                       uintptr
+		fd1, flags                uintptr
 		puid, psetgroups, pgid    []byte
 		uidmap, setgroups, gidmap []byte
+		clone3                    *cloneArgs
 	)
 
 	if sys.UidMappings != nil {
@@ -252,17 +270,33 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 	}
 
+	flags = sys.Cloneflags
+	if sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0 {
+		flags |= CLONE_VFORK | CLONE_VM
+	}
+	// Whether to use clone3.
+	if sys.UseCgroupFD {
+		clone3 = &cloneArgs{
+			flags:      uint64(flags) | CLONE_INTO_CGROUP,
+			exitSignal: uint64(SIGCHLD),
+			cgroup:     uint64(sys.CgroupFD),
+		}
+	}
+
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
 	runtime_BeforeFork()
 	locked = true
-	switch {
-	case sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0:
-		r1, err1 = rawVforkSyscall(SYS_CLONE, uintptr(SIGCHLD|CLONE_VFORK|CLONE_VM)|sys.Cloneflags)
-	case runtime.GOARCH == "s390x":
-		r1, _, err1 = RawSyscall6(SYS_CLONE, 0, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0)
-	default:
-		r1, _, err1 = RawSyscall6(SYS_CLONE, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0, 0)
+	if clone3 != nil {
+		r1, err1 = rawVforkSyscall(_SYS_clone3, uintptr(unsafe.Pointer(clone3)), unsafe.Sizeof(*clone3))
+	} else {
+		flags |= uintptr(SIGCHLD)
+		if runtime.GOARCH == "s390x" {
+			// On Linux/s390, the first two arguments of clone(2) are swapped.
+			r1, err1 = rawVforkSyscall(SYS_CLONE, 0, flags)
+		} else {
+			r1, err1 = rawVforkSyscall(SYS_CLONE, flags, 0)
+		}
 	}
 	if err1 != 0 || r1 != 0 {
 		// If we're in the parent, we must return immediately

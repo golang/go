@@ -7,6 +7,7 @@
 package syscall_test
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"internal/testenv"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -459,6 +461,96 @@ func TestUnshareUidGidMapping(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
+}
+
+func prepareCgroupFD(t *testing.T) (int, string) {
+	t.Helper()
+
+	const O_PATH = 0x200000 // Same for all architectures, but for some reason not defined in syscall for 386||amd64.
+
+	// Requires cgroup v2.
+	const prefix = "/sys/fs/cgroup"
+	selfCg, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		if os.IsNotExist(err) || os.IsPermission(err) {
+			t.Skip(err)
+		}
+		t.Fatal(err)
+	}
+
+	// Expect a single line like this:
+	// 0::/user.slice/user-1000.slice/user@1000.service/app.slice/vte-spawn-891992a2-efbb-4f28-aedb-b24f9e706770.scope
+	// Otherwise it's either cgroup v1 or a hybrid hierarchy.
+	if bytes.Count(selfCg, []byte("\n")) > 1 {
+		t.Skip("cgroup v2 not available")
+	}
+	cg := bytes.TrimPrefix(selfCg, []byte("0::"))
+	if len(cg) == len(selfCg) { // No prefix found.
+		t.Skipf("cgroup v2 not available (/proc/self/cgroup contents: %q)", selfCg)
+	}
+
+	// Need clone3 with CLONE_INTO_CGROUP support.
+	_, err = syscall.ForkExec("non-existent binary", nil, &syscall.ProcAttr{
+		Sys: &syscall.SysProcAttr{
+			UseCgroupFD: true,
+			CgroupFD:    -1,
+		},
+	})
+	// // EPERM can be returned if clone3 is not enabled by seccomp.
+	if err == syscall.ENOSYS || err == syscall.EPERM {
+		t.Skipf("clone3 with CLONE_INTO_CGROUP not available: %v", err)
+	}
+
+	// Need an ability to create a sub-cgroup.
+	subCgroup, err := os.MkdirTemp(prefix+string(bytes.TrimSpace(cg)), "subcg-")
+	if err != nil {
+		if os.IsPermission(err) {
+			t.Skip(err)
+		}
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { syscall.Rmdir(subCgroup) })
+
+	cgroupFD, err := syscall.Open(subCgroup, O_PATH, 0)
+	if err != nil {
+		t.Fatal(&os.PathError{Op: "open", Path: subCgroup, Err: err})
+	}
+	t.Cleanup(func() { syscall.Close(cgroupFD) })
+
+	return cgroupFD, "/" + path.Base(subCgroup)
+}
+
+func TestUseCgroupFD(t *testing.T) {
+	fd, suffix := prepareCgroupFD(t)
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestUseCgroupFDHelper")
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		UseCgroupFD: true,
+		CgroupFD:    fd,
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+	// NB: this wouldn't work with cgroupns.
+	if !bytes.HasSuffix(bytes.TrimSpace(out), []byte(suffix)) {
+		t.Fatalf("got: %q, want: a line that ends with %q", out, suffix)
+	}
+}
+
+func TestUseCgroupFDHelper(*testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	defer os.Exit(0)
+	// Read and print own cgroup path.
+	selfCg, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	fmt.Print(string(selfCg))
 }
 
 type capHeader struct {

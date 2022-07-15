@@ -8,6 +8,7 @@ import "unsafe"
 
 const (
 	_SYS_setgroups  = SYS_SETGROUPS
+	_SYS_clone3     = 435
 	_SYS_faccessat2 = 439
 )
 
@@ -217,5 +218,3 @@ func Pause() error {
 	_, err := ppoll(nil, 0, nil, nil)
 	return err
 }
-
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

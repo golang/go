@@ -8,6 +8,8 @@ pkg syscall (linux-386), const CLONE_NEWTIME = 128 #51246
 pkg syscall (linux-386), const CLONE_NEWTIME ideal-int #51246
 pkg syscall (linux-386), const CLONE_PIDFD = 4096 #51246
 pkg syscall (linux-386), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-386), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-386), type SysProcAttr struct, UseCgroupFD bool #51246
 pkg syscall (linux-386-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
 pkg syscall (linux-386-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
 pkg syscall (linux-386-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
@@ -18,6 +20,8 @@ pkg syscall (linux-386-cgo), const CLONE_NEWTIME = 128 #51246
 pkg syscall (linux-386-cgo), const CLONE_NEWTIME ideal-int #51246
 pkg syscall (linux-386-cgo), const CLONE_PIDFD = 4096 #51246
 pkg syscall (linux-386-cgo), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-386-cgo), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-386-cgo), type SysProcAttr struct, UseCgroupFD bool #51246
 pkg syscall (linux-amd64), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
 pkg syscall (linux-amd64), const CLONE_CLEAR_SIGHAND ideal-int #51246
 pkg syscall (linux-amd64), const CLONE_INTO_CGROUP = 8589934592 #51246
@@ -28,6 +32,8 @@ pkg syscall (linux-amd64), const CLONE_NEWTIME = 128 #51246
 pkg syscall (linux-amd64), const CLONE_NEWTIME ideal-int #51246
 pkg syscall (linux-amd64), const CLONE_PIDFD = 4096 #51246
 pkg syscall (linux-amd64), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-amd64), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-amd64), type SysProcAttr struct, UseCgroupFD bool #51246
 pkg syscall (linux-amd64-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
 pkg syscall (linux-amd64-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
 pkg syscall (linux-amd64-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
@@ -38,6 +44,8 @@ pkg syscall (linux-amd64-cgo), const CLONE_NEWTIME = 128 #51246
 pkg syscall (linux-amd64-cgo), const CLONE_NEWTIME ideal-int #51246
 pkg syscall (linux-amd64-cgo), const CLONE_PIDFD = 4096 #51246
 pkg syscall (linux-amd64-cgo), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, UseCgroupFD bool #51246
 pkg syscall (linux-arm), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
 pkg syscall (linux-arm), const CLONE_CLEAR_SIGHAND ideal-int #51246
 pkg syscall (linux-arm), const CLONE_INTO_CGROUP = 8589934592 #51246
@@ -48,6 +56,8 @@ pkg syscall (linux-arm), const CLONE_NEWTIME = 128 #51246
 pkg syscall (linux-arm), const CLONE_NEWTIME ideal-int #51246
 pkg syscall (linux-arm), const CLONE_PIDFD = 4096 #51246
 pkg syscall (linux-arm), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-arm), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-arm), type SysProcAttr struct, UseCgroupFD bool #51246
 pkg syscall (linux-arm-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
 pkg syscall (linux-arm-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
 pkg syscall (linux-arm-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
@@ -58,3 +68,5 @@ pkg syscall (linux-arm-cgo), const CLONE_NEWTIME = 128 #51246
 pkg syscall (linux-arm-cgo), const CLONE_NEWTIME ideal-int #51246
 pkg syscall (linux-arm-cgo), const CLONE_PIDFD = 4096 #51246
 pkg syscall (linux-arm-cgo), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, UseCgroupFD bool #51246

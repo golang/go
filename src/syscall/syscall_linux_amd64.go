@@ -6,6 +6,7 @@ package syscall
 
 const (
 	_SYS_setgroups  = SYS_SETGROUPS
+	_SYS_clone3     = 435
 	_SYS_faccessat2 = 439
 )
 
@@ -120,5 +121,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint64(length)
 }
-
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

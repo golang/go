@@ -8,10 +8,10 @@
 // System calls for loong64, Linux
 //
 
-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
-TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
+// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-40
 	MOVV	a1+8(FP), R4
-	MOVV	$0, R5
+	MOVV	a2+16(FP), R5
 	MOVV	$0, R6
 	MOVV	$0, R7
 	MOVV	$0, R8
@@ -21,13 +21,13 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
 	MOVW	$-4096, R12
 	BGEU	R12, R4, ok
 	MOVV	$-1, R12
-	MOVV	R12, r1+16(FP)		// r1
+	MOVV	R12, r1+24(FP)		// r1
 	SUBVU	R4, R0, R4
-	MOVV	R4, err+24(FP)		// errno
+	MOVV	R4, err+32(FP)		// errno
 	RET
 ok:
-	MOVV	R4, r1+16(FP)	// r1
-	MOVV	R0, err+24(FP)	// errno
+	MOVV	R4, r1+24(FP)	// r1
+	MOVV	R0, err+32(FP)	// errno
 	RET
 
 TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48

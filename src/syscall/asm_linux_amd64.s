@@ -11,10 +11,10 @@
 
 #define SYS_gettimeofday 96
 
-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-40
 	MOVQ	a1+8(FP), DI
-	MOVQ	$0, SI
+	MOVQ	a2+16(FP), SI
 	MOVQ	$0, DX
 	MOVQ	$0, R10
 	MOVQ	$0, R8
@@ -25,13 +25,13 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
 	PUSHQ	R12
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	ok2
-	MOVQ	$-1, r1+16(FP)
+	MOVQ	$-1, r1+24(FP)
 	NEGQ	AX
-	MOVQ	AX, err+24(FP)
+	MOVQ	AX, err+32(FP)
 	RET
 ok2:
-	MOVQ	AX, r1+16(FP)
-	MOVQ	$0, err+24(FP)
+	MOVQ	AX, r1+24(FP)
+	MOVQ	$0, err+32(FP)
 	RET
 
 // func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
