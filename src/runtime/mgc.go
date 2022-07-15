@@ -1121,7 +1121,7 @@ func gcMarkTermination() {
 			work.heap0>>20, "->", work.heap1>>20, "->", work.heap2>>20, " MB, ",
 			gcController.lastHeapGoal>>20, " MB goal, ",
 			gcController.maxStackScan.Load()>>20, " MB stacks, ",
-			gcController.globalsScan>>20, " MB globals, ",
+			gcController.globalsScan.Load()>>20, " MB globals, ",
 			work.maxprocs, " P")
 		if work.userForced {
 			print(" (forced)")
