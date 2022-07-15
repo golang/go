@@ -177,7 +177,8 @@ func (a *activeSweep) end(sl sweepLocker) {
 				return
 			}
 			if debug.gcpacertrace > 0 {
-				print("pacer: sweep done at heap size ", gcController.heapLive>>20, "MB; allocated ", (gcController.heapLive-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept.Load(), " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
+				live := gcController.heapLive.Load()
+				print("pacer: sweep done at heap size ", live>>20, "MB; allocated ", (live-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept.Load(), " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
 			}
 			return
 		}
@@ -818,7 +819,7 @@ retry:
 	sweptBasis := mheap_.pagesSweptBasis.Load()
 
 	// Fix debt if necessary.
-	newHeapLive := uintptr(atomic.Load64(&gcController.heapLive)-mheap_.sweepHeapLiveBasis) + spanBytes
+	newHeapLive := uintptr(gcController.heapLive.Load()-mheap_.sweepHeapLiveBasis) + spanBytes
 	pagesTarget := int64(mheap_.sweepPagesPerByte*float64(newHeapLive)) - int64(callerSweepPages)
 	for pagesTarget > int64(mheap_.pagesSwept.Load()-sweptBasis) {
 		if sweepone() == ^uintptr(0) {
@@ -862,7 +863,7 @@ func gcPaceSweeper(trigger uint64) {
 		// trigger. Compute the ratio of in-use pages to sweep
 		// per byte allocated, accounting for the fact that
 		// some might already be swept.
-		heapLiveBasis := atomic.Load64(&gcController.heapLive)
+		heapLiveBasis := gcController.heapLive.Load()
 		heapDistance := int64(trigger) - int64(heapLiveBasis)
 		// Add a little margin so rounding errors and
 		// concurrent sweep are less likely to leave pages

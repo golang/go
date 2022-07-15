@@ -23,7 +23,6 @@ var AtomicFields = []uintptr{
 	unsafe.Offsetof(schedt{}.timeToRun),
 	unsafe.Offsetof(gcControllerState{}.bgScanCredit),
 	unsafe.Offsetof(gcControllerState{}.maxStackScan),
-	unsafe.Offsetof(gcControllerState{}.heapLive),
 	unsafe.Offsetof(gcControllerState{}.heapScan),
 	unsafe.Offsetof(gcControllerState{}.dedicatedMarkTime),
 	unsafe.Offsetof(gcControllerState{}.dedicatedMarkWorkersNeeded),

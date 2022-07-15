@@ -8,7 +8,7 @@ import (
 	"internal/cpu"
 	"internal/goexperiment"
 	"runtime/internal/atomic"
-	"unsafe"
+	_ "unsafe" // for go:linkname
 )
 
 // go119MemoryLimitSupport is a feature flag for a number of changes
@@ -73,13 +73,6 @@ const (
 	// calculation.
 	memoryLimitHeapGoalHeadroom = 1 << 20
 )
-
-func init() {
-	if offset := unsafe.Offsetof(gcController.heapLive); offset%8 != 0 {
-		println(offset)
-		throw("gcController.heapLive not aligned to 8 bytes")
-	}
-}
 
 // gcController implements the GC pacing controller that determines
 // when to trigger concurrent garbage collection and how much marking
@@ -193,23 +186,19 @@ type gcControllerState struct {
 	// hence goes up as we allocate and down as we sweep) while heapLive
 	// excludes these objects (and hence only goes up between GCs).
 	//
-	// This is updated atomically without locking. To reduce
-	// contention, this is updated only when obtaining a span from
-	// an mcentral and at this point it counts all of the
-	// unallocated slots in that span (which will be allocated
-	// before that mcache obtains another span from that
-	// mcentral). Hence, it slightly overestimates the "true" live
-	// heap size. It's better to overestimate than to
-	// underestimate because 1) this triggers the GC earlier than
-	// necessary rather than potentially too late and 2) this
-	// leads to a conservative GC rate rather than a GC rate that
-	// is potentially too low.
-	//
-	// Reads should likewise be atomic (or during STW).
+	// To reduce contention, this is updated only when obtaining a span
+	// from an mcentral and at this point it counts all of the unallocated
+	// slots in that span (which will be allocated before that mcache
+	// obtains another span from that mcentral). Hence, it slightly
+	// overestimates the "true" live heap size. It's better to overestimate
+	// than to underestimate because 1) this triggers the GC earlier than
+	// necessary rather than potentially too late and 2) this leads to a
+	// conservative GC rate rather than a GC rate that is potentially too
+	// low.
 	//
 	// Whenever this is updated, call traceHeapAlloc() and
 	// this gcControllerState's revise() method.
-	heapLive uint64
+	heapLive atomic.Uint64
 
 	// heapScan is the number of bytes of "scannable" heap. This
 	// is the live heap (as counted by heapLive), but omitting
@@ -559,7 +548,7 @@ func (c *gcControllerState) revise() {
 		// act like GOGC is huge for the below calculations.
 		gcPercent = 100000
 	}
-	live := atomic.Load64(&c.heapLive)
+	live := c.heapLive.Load()
 	scan := atomic.Load64(&c.heapScan)
 	work := c.heapScanWork.Load() + c.stackScanWork.Load() + c.globalsScanWork.Load()
 
@@ -675,7 +664,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 		utilization += float64(c.assistTime.Load()) / float64(assistDuration*int64(procs))
 	}
 
-	if c.heapLive <= c.triggered {
+	if c.heapLive.Load() <= c.triggered {
 		// Shouldn't happen, but let's be very safe about this in case the
 		// GC is somehow extremely short.
 		//
@@ -719,7 +708,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 	//
 	// Note that because we only care about the ratio, assistDuration and procs cancel out.
 	scanWork := c.heapScanWork.Load() + c.stackScanWork.Load() + c.globalsScanWork.Load()
-	currentConsMark := (float64(c.heapLive-c.triggered) * (utilization + idleUtilization)) /
+	currentConsMark := (float64(c.heapLive.Load()-c.triggered) * (utilization + idleUtilization)) /
 		(float64(scanWork) * (1 - utilization))
 
 	// Update cons/mark controller. The time period for this is 1 GC cycle.
@@ -753,7 +742,8 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 		goal := gcGoalUtilization * 100
 		print("pacer: ", int(utilization*100), "% CPU (", int(goal), " exp.) for ")
 		print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.lastStackScan+c.globalsScan, " B exp.) ")
-		print("in ", c.triggered, " B -> ", c.heapLive, " B (∆goal ", int64(c.heapLive)-int64(c.lastHeapGoal), ", cons/mark ", oldConsMark, ")")
+		live := c.heapLive.Load()
+		print("in ", c.triggered, " B -> ", live, " B (∆goal ", int64(live)-int64(c.lastHeapGoal), ", cons/mark ", oldConsMark, ")")
 		if !ok {
 			print("[controller reset]")
 		}
@@ -900,7 +890,7 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 // The world must be stopped.
 func (c *gcControllerState) resetLive(bytesMarked uint64) {
 	c.heapMarked = bytesMarked
-	c.heapLive = bytesMarked
+	c.heapLive.Store(bytesMarked)
 	c.heapScan = uint64(c.heapScanWork.Load())
 	c.lastHeapScan = uint64(c.heapScanWork.Load())
 	c.lastStackScan = uint64(c.stackScanWork.Load())
@@ -908,7 +898,7 @@ func (c *gcControllerState) resetLive(bytesMarked uint64) {
 
 	// heapLive was updated, so emit a trace event.
 	if trace.enabled {
-		traceHeapAlloc()
+		traceHeapAlloc(bytesMarked)
 	}
 }
 
@@ -935,10 +925,10 @@ func (c *gcControllerState) markWorkerStop(mode gcMarkWorkerMode, duration int64
 
 func (c *gcControllerState) update(dHeapLive, dHeapScan int64) {
 	if dHeapLive != 0 {
-		atomic.Xadd64(&gcController.heapLive, dHeapLive)
+		live := gcController.heapLive.Add(dHeapLive)
 		if trace.enabled {
 			// gcController.heapLive changed.
-			traceHeapAlloc()
+			traceHeapAlloc(live)
 		}
 	}
 	if gcBlackenEnabled == 0 {
@@ -1260,7 +1250,7 @@ func (c *gcControllerState) commit(isSweepDone bool) {
 		// Concurrent sweep happens in the heap growth
 		// from gcController.heapLive to trigger. Make sure we
 		// give the sweeper some runway if it doesn't have enough.
-		c.sweepDistMinTrigger.Store(atomic.Load64(&c.heapLive) + sweepMinHeapDistance)
+		c.sweepDistMinTrigger.Store(c.heapLive.Load() + sweepMinHeapDistance)
 	}
 
 	// Compute the next GC goal, which is when the allocated heap

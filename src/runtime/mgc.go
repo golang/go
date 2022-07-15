@@ -556,7 +556,7 @@ func (t gcTrigger) test() bool {
 		// atomically wrote gcController.heapLive anyway and we'll see our
 		// own write.
 		trigger, _ := gcController.trigger()
-		return atomic.Load64(&gcController.heapLive) >= trigger
+		return gcController.heapLive.Load() >= trigger
 	case gcTriggerTime:
 		if gcController.gcPercent.Load() < 0 {
 			return false
@@ -652,7 +652,7 @@ func gcStart(trigger gcTrigger) {
 		// so it can't be more than ncpu, even if GOMAXPROCS is.
 		work.stwprocs = ncpu
 	}
-	work.heap0 = atomic.Load64(&gcController.heapLive)
+	work.heap0 = gcController.heapLive.Load()
 	work.pauseNS = 0
 	work.mode = mode
 
@@ -924,7 +924,7 @@ func gcMarkTermination() {
 	// Start marktermination (write barrier remains enabled for now).
 	setGCPhase(_GCmarktermination)
 
-	work.heap1 = gcController.heapLive
+	work.heap1 = gcController.heapLive.Load()
 	startTime := nanotime()
 
 	mp := acquirem()
@@ -1565,7 +1565,7 @@ func gcResetMarkState() {
 	}
 
 	work.bytesMarked = 0
-	work.initialHeapLive = atomic.Load64(&gcController.heapLive)
+	work.initialHeapLive = gcController.heapLive.Load()
 }
 
 // Hooks for other packages
