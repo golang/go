@@ -217,7 +217,7 @@ type gcControllerState struct {
 
 	// lastStackScan is the number of bytes of stack that were scanned
 	// last GC cycle.
-	lastStackScan uint64
+	lastStackScan atomic.Uint64
 
 	// maxStackScan is the amount of allocated goroutine stack space in
 	// use by goroutines.
@@ -557,7 +557,7 @@ func (c *gcControllerState) revise() {
 
 	// The expected scan work is computed as the amount of bytes scanned last
 	// GC cycle (both heap and stack), plus our estimate of globals work for this cycle.
-	scanWorkExpected := int64(c.lastHeapScan + c.lastStackScan + c.globalsScan)
+	scanWorkExpected := int64(c.lastHeapScan + c.lastStackScan.Load() + c.globalsScan)
 
 	// maxScanWork is a worst-case estimate of the amount of scan work that
 	// needs to be performed in this GC cycle. Specifically, it represents
@@ -740,7 +740,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 		printlock()
 		goal := gcGoalUtilization * 100
 		print("pacer: ", int(utilization*100), "% CPU (", int(goal), " exp.) for ")
-		print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.lastStackScan+c.globalsScan, " B exp.) ")
+		print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.lastStackScan.Load()+c.globalsScan, " B exp.) ")
 		live := c.heapLive.Load()
 		print("in ", c.triggered, " B -> ", live, " B (∆goal ", int64(live)-int64(c.lastHeapGoal), ", cons/mark ", oldConsMark, ")")
 		if !ok {
@@ -892,7 +892,7 @@ func (c *gcControllerState) resetLive(bytesMarked uint64) {
 	c.heapLive.Store(bytesMarked)
 	c.heapScan.Store(uint64(c.heapScanWork.Load()))
 	c.lastHeapScan = uint64(c.heapScanWork.Load())
-	c.lastStackScan = uint64(c.stackScanWork.Load())
+	c.lastStackScan.Store(uint64(c.stackScanWork.Load()))
 	c.triggered = ^uint64(0) // Reset triggered.
 
 	// heapLive was updated, so emit a trace event.
@@ -1257,7 +1257,7 @@ func (c *gcControllerState) commit(isSweepDone bool) {
 	// plus additional runway for non-heap sources of GC work.
 	gcPercentHeapGoal := ^uint64(0)
 	if gcPercent := c.gcPercent.Load(); gcPercent >= 0 {
-		gcPercentHeapGoal = c.heapMarked + (c.heapMarked+atomic.Load64(&c.lastStackScan)+atomic.Load64(&c.globalsScan))*uint64(gcPercent)/100
+		gcPercentHeapGoal = c.heapMarked + (c.heapMarked+c.lastStackScan.Load()+atomic.Load64(&c.globalsScan))*uint64(gcPercent)/100
 	}
 	// Apply the minimum heap size here. It's defined in terms of gcPercent
 	// and is only updated by functions that call commit.
@@ -1289,7 +1289,7 @@ func (c *gcControllerState) commit(isSweepDone bool) {
 	// Furthermore, by setting the runway so that CPU resources are divided
 	// this way, assuming that the cons/mark ratio is correct, we make that
 	// division a reality.
-	c.runway.Store(uint64((c.consMark * (1 - gcGoalUtilization) / (gcGoalUtilization)) * float64(c.lastHeapScan+c.lastStackScan+c.globalsScan)))
+	c.runway.Store(uint64((c.consMark * (1 - gcGoalUtilization) / (gcGoalUtilization)) * float64(c.lastHeapScan+c.lastStackScan.Load()+c.globalsScan)))
 }
 
 // setGCPercent updates gcPercent. commit must be called after.

@@ -28,7 +28,6 @@ var AtomicFields = []uintptr{
 	unsafe.Offsetof(gcControllerState{}.fractionalMarkTime),
 	unsafe.Offsetof(gcControllerState{}.idleMarkTime),
 	unsafe.Offsetof(gcControllerState{}.globalsScan),
-	unsafe.Offsetof(gcControllerState{}.lastStackScan),
 	unsafe.Offsetof(timeHistogram{}.underflow),
 	unsafe.Offsetof(profBuf{}.overflow),
 	unsafe.Offsetof(profBuf{}.overflowTime),
