@@ -1322,7 +1322,7 @@ func (c *GCController) StartCycle(stackSize, globalsSize uint64, scannableFrac f
 	if c.heapMarked > trigger {
 		trigger = c.heapMarked
 	}
-	c.maxStackScan = stackSize
+	c.maxStackScan.Store(stackSize)
 	c.globalsScan = globalsSize
 	c.heapLive.Store(trigger)
 	c.heapScan.Add(int64(float64(trigger-c.heapMarked) * scannableFrac))

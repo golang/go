@@ -227,9 +227,7 @@ type gcControllerState struct {
 	// goroutine stack space is much harder to measure cheaply. By using
 	// allocated space, we make an overestimate; this is OK, it's better
 	// to conservatively overcount than undercount.
-	//
-	// Read and updated atomically.
-	maxStackScan uint64
+	maxStackScan atomic.Uint64
 
 	// globalsScan is the total amount of global variable space
 	// that is scannable.
@@ -563,7 +561,7 @@ func (c *gcControllerState) revise() {
 	// needs to be performed in this GC cycle. Specifically, it represents
 	// the case where *all* scannable memory turns out to be live, and
 	// *all* allocated stack space is scannable.
-	maxStackScan := atomic.Load64(&c.maxStackScan)
+	maxStackScan := c.maxStackScan.Load()
 	maxScanWork := int64(scan + maxStackScan + c.globalsScan)
 	if work > scanWorkExpected {
 		// We've already done more scan work than expected. Because our expectation
@@ -944,12 +942,12 @@ func (c *gcControllerState) update(dHeapLive, dHeapScan int64) {
 
 func (c *gcControllerState) addScannableStack(pp *p, amount int64) {
 	if pp == nil {
-		atomic.Xadd64(&c.maxStackScan, amount)
+		c.maxStackScan.Add(amount)
 		return
 	}
 	pp.maxStackScanDelta += amount
 	if pp.maxStackScanDelta >= maxStackScanSlack || pp.maxStackScanDelta <= -maxStackScanSlack {
-		atomic.Xadd64(&c.maxStackScan, pp.maxStackScanDelta)
+		c.maxStackScan.Add(pp.maxStackScanDelta)
 		pp.maxStackScanDelta = 0
 	}
 }
