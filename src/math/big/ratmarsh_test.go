@@ -123,3 +123,15 @@ func TestRatXMLEncoding(t *testing.T) {
 		}
 	}
 }
+
+func TestRatGobDecodeShortBuffer(t *testing.T) {
+	for _, tc := range [][]byte{
+		[]byte{0x2},
+		[]byte{0x2, 0x0, 0x0, 0x0, 0xff},
+	} {
+		err := NewRat(1, 2).GobDecode(tc)
+		if err == nil {
+			t.Error("expected GobDecode to return error for malformed input")
+		}
+	}
+}
