@@ -22,7 +22,6 @@ var AtomicFields = []uintptr{
 	unsafe.Offsetof(schedt{}.pollUntil),
 	unsafe.Offsetof(schedt{}.timeToRun),
 	unsafe.Offsetof(gcControllerState{}.dedicatedMarkWorkersNeeded),
-	unsafe.Offsetof(gcControllerState{}.fractionalMarkTime),
 	unsafe.Offsetof(gcControllerState{}.idleMarkTime),
 	unsafe.Offsetof(timeHistogram{}.underflow),
 	unsafe.Offsetof(profBuf{}.overflow),
