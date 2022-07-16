@@ -894,7 +894,7 @@ func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
 	}
 }
 
-// Issue xxxx
+// Issue 53919
 func TestParseInLocationSecondsAdjusted(t *testing.T) {
 	t.Parallel()
 
@@ -917,6 +917,8 @@ func TestParseInLocationSecondsAdjusted(t *testing.T) {
 
 	if got := ts.Location().String(); zName != got {
 		t.Errorf("ParseInLocation returns wrong location; got %q, want %q", got, zName)
+
+		ts = ts.In(z)
 	}
 
 	if got := ts.Format(RFC3339Nano); s != got {
