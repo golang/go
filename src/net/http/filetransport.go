@@ -28,7 +28,7 @@ type fileTransport struct {
 //   res, err := c.Get("file:///etc/passwd")
 //   ...
 func NewFileTransport(fs FileSystem) RoundTripper {
-	return fileTransport{fileHandler{fs}}
+	return fileTransport{fileHandler{fs, true}}
 }
 
 func (t fileTransport) RoundTrip(req *Request) (resp *Response, err error) {

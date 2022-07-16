@@ -589,7 +589,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	// redirect .../index.html to .../
 	// can't use Redirect() because that would make the path absolute,
 	// which would be a problem running under StripPrefix
-	if strings.HasSuffix(r.URL.Path, indexPage) {
+	if redirect && strings.HasSuffix(r.URL.Path, indexPage) {
 		localRedirect(w, r, "./")
 		return
 	}
@@ -740,8 +740,10 @@ func containsDotDot(v string) bool {
 func isSlashRune(r rune) bool { return r == '/' || r == '\\' }
 
 type fileHandler struct {
-	root FileSystem
+	root              FileSystem
+	permanentRedirect bool
 }
+type FileHandler = fileHandler
 
 type ioFS struct {
 	fsys fs.FS
@@ -838,7 +840,7 @@ func FS(fsys fs.FS) FileSystem {
 //	http.Handle("/", http.FileServer(http.FS(fsys)))
 //
 func FileServer(root FileSystem) Handler {
-	return &fileHandler{root}
+	return &fileHandler{root, true}
 }
 
 func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
@@ -847,7 +849,17 @@ func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		upath = "/" + upath
 		r.URL.Path = upath
 	}
-	serveFile(w, r, f.root, path.Clean(upath), true)
+	serveFile(w, r, f.root, path.Clean(upath), f.permanentRedirect)
+}
+
+// By default, fileHandler will redirect ``.../index.html`` to `.../` with 301 redirect (Refer to https://github.com/golang/go/issues/53870)
+// If you don't want to redirect it, call this method.
+func SkipPermanentRedirect(f *fileHandler) {
+	f.permanentRedirect = false
+}
+func (f *fileHandler) SkipPermanentRedirect() *fileHandler {
+	f.permanentRedirect = false
+	return f
 }
 
 // httpRange specifies the byte range to be sent to the client.
