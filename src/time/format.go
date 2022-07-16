@@ -973,6 +973,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 	rangeErrString := "" // set if a value is out of range
 	amSet := false       // do we need to subtract 12 from the hour for midnight?
 	pmSet := false       // do we need to add 12 to the hour?
+	secsSet := false     // are seconds explictly set?
 
 	// Time being constructed.
 	var (
@@ -1159,12 +1160,14 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 					break
 				}
 				sign, hour, min, seconds, value = value[0:1], value[1:3], value[4:6], value[7:9], value[9:]
+				secsSet = true
 			} else if std == stdISO8601SecondsTZ || std == stdNumSecondsTz {
 				if len(value) < 7 {
 					err = errBad
 					break
 				}
 				sign, hour, min, seconds, value = value[0:1], value[1:3], value[3:5], value[5:7], value[7:]
+				secsSet = true
 			} else {
 				if len(value) < 5 {
 					err = errBad
@@ -1297,6 +1300,15 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
 		name, offset, _, _, _ := local.lookup(t.unixSec())
+
+		if !secsSet {
+			if diff := offset - zoneOffset; -60 < diff && diff < 60 {
+				// The difference of local offset and the zone offset is mere seconds and seconds weren't explictly set.
+				t.addSec(-int64(diff))
+				zoneOffset += diff
+			}
+		}
+
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
 			t.setLoc(local)
 			return t, nil
