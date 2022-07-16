@@ -893,3 +893,35 @@ func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
 		}
 	}
 }
+
+// Issue 53919
+func TestParseInLocationSecondsAdjusted(t *testing.T) {
+	t.Parallel()
+
+	zName := "Asia/Shanghai"
+
+	z, err := LoadLocation(zName)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+		return
+	}
+
+	ts := Date(1900, 1, 1, 0, 0, 0, 0, z)
+	s := ts.Format(RFC3339Nano)
+
+	ts, err = ParseInLocation(RFC3339, s, z)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+		return
+	}
+
+	if got := ts.Location().String(); zName != got {
+		t.Errorf("ParseInLocation returns wrong location; got %q, want %q", got, zName)
+
+		ts = ts.In(z)
+	}
+
+	if got := ts.Format(RFC3339Nano); s != got {
+		t.Errorf("seconds were not adjusted; got %q, want %q", got, s)
+	}
+}
