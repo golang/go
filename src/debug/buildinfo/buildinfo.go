@@ -15,6 +15,7 @@ import (
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
+	"debug/plan9obj"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -130,6 +131,12 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 			return "", "", errUnrecognizedFormat
 		}
 		x = &xcoffExe{f}
+	case hasPlan9Magic(ident):
+		f, err := plan9obj.NewFile(r)
+		if err != nil {
+			return "", "", errUnrecognizedFormat
+		}
+		x = &plan9objExe{f}
 	default:
 		return "", "", errUnrecognizedFormat
 	}
@@ -203,6 +210,17 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 	}
 
 	return vers, mod, nil
+}
+
+func hasPlan9Magic(magic []byte) bool {
+	if len(magic) >= 4 {
+		m := binary.BigEndian.Uint32(magic)
+		switch m {
+		case plan9obj.Magic386, plan9obj.MagicAMD64, plan9obj.MagicARM:
+			return true
+		}
+	}
+	return false
 }
 
 func decodeString(data []byte) (s string, rest []byte) {
@@ -389,7 +407,7 @@ func (x *xcoffExe) ReadData(addr, size uint64) ([]byte, error) {
 			return data, nil
 		}
 	}
-	return nil, fmt.Errorf("address not mapped")
+	return nil, errors.New("address not mapped")
 }
 
 func (x *xcoffExe) DataStart() uint64 {
@@ -397,4 +415,35 @@ func (x *xcoffExe) DataStart() uint64 {
 		return s.VirtualAddress
 	}
 	return 0
+}
+
+// plan9objExe is the Plan 9 a.out implementation of the exe interface.
+type plan9objExe struct {
+	f *plan9obj.File
+}
+
+func (x *plan9objExe) DataStart() uint64 {
+	if s := x.f.Section("data"); s != nil {
+		return uint64(s.Offset)
+	}
+	return 0
+}
+
+func (x *plan9objExe) ReadData(addr, size uint64) ([]byte, error) {
+	for _, sect := range x.f.Sections {
+		if uint64(sect.Offset) <= addr && addr <= uint64(sect.Offset+sect.Size-1) {
+			n := uint64(sect.Offset+sect.Size) - addr
+			if n > size {
+				n = size
+			}
+			data := make([]byte, n)
+			_, err := sect.ReadAt(data, int64(addr-uint64(sect.Offset)))
+			if err != nil {
+				return nil, err
+			}
+			return data, nil
+		}
+	}
+	return nil, errors.New("address not mapped")
+
 }
