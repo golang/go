@@ -202,11 +202,10 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				frame.fp += goarch.PtrSize
 			}
 		}
-		var flr funcInfo
+		var lrPtr uintptr
 		if flag&funcFlag_TOPFRAME != 0 {
 			// This function marks the top of the stack. Stop the traceback.
 			frame.lr = 0
-			flr = funcInfo{}
 		} else if flag&funcFlag_SPWRITE != 0 && (callback == nil || n > 0) {
 			// The function we are in does a write to SP that we don't know
 			// how to encode in the spdelta table. Examples include context
@@ -230,9 +229,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				throw("traceback")
 			}
 			frame.lr = 0
-			flr = funcInfo{}
 		} else {
-			var lrPtr uintptr
 			if usesLR {
 				if n == 0 && frame.sp < frame.fp || frame.lr == 0 {
 					lrPtr = frame.sp
@@ -242,28 +239,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				if frame.lr == 0 {
 					lrPtr = frame.fp - goarch.PtrSize
 					frame.lr = uintptr(*(*uintptr)(unsafe.Pointer(lrPtr)))
-				}
-			}
-			flr = findfunc(frame.lr)
-			if !flr.valid() {
-				// This happens if you get a profiling interrupt at just the wrong time.
-				// In that context it is okay to stop early.
-				// But if callback is set, we're doing a garbage collection and must
-				// get everything, so crash loudly.
-				doPrint := printing
-				if doPrint && gp.m.incgo && f.funcID == funcID_sigpanic {
-					// We can inject sigpanic
-					// calls directly into C code,
-					// in which case we'll see a C
-					// return PC. Don't complain.
-					doPrint = false
-				}
-				if callback != nil || doPrint {
-					print("runtime: g ", gp.goid, ": unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
-					tracebackHexdump(gp.stack, &frame, lrPtr)
-				}
-				if callback != nil {
-					throw("unknown caller pc")
 				}
 			}
 		}
@@ -469,7 +444,30 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		injectedCall := f.funcID == funcID_sigpanic || f.funcID == funcID_asyncPreempt || f.funcID == funcID_debugCallV2
 
 		// Do not unwind past the bottom of the stack.
+		if frame.lr == 0 {
+			break
+		}
+		flr := findfunc(frame.lr)
 		if !flr.valid() {
+			// This happens if you get a profiling interrupt at just the wrong time.
+			// In that context it is okay to stop early.
+			// But if callback is set, we're doing a garbage collection and must
+			// get everything, so crash loudly.
+			doPrint := printing
+			if doPrint && gp.m.incgo && f.funcID == funcID_sigpanic {
+				// We can inject sigpanic
+				// calls directly into C code,
+				// in which case we'll see a C
+				// return PC. Don't complain.
+				doPrint = false
+			}
+			if callback != nil || doPrint {
+				print("runtime: g ", gp.goid, ": unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
+				tracebackHexdump(gp.stack, &frame, lrPtr)
+			}
+			if callback != nil {
+				throw("unknown caller pc")
+			}
 			break
 		}
 
