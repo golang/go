@@ -76,7 +76,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	if usesLR {
 		frame.lr = lr0
 	}
-	waspanic := false
 	cgoCtxt := gp.cgoCtxt
 	printing := pcbuf == nil && callback == nil
 
@@ -121,7 +120,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 
 	var cache pcvalueCache
 
-	lastFuncID := funcID_normal
+	calleeFuncID := funcID_normal
 	n := 0
 	for n < max {
 		// Typically:
@@ -308,7 +307,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// deferproc a second time (if the corresponding deferred func recovers).
 		// In the latter case, use a deferreturn call site as the continuation pc.
 		frame.continpc = frame.pc
-		if waspanic {
+		if calleeFuncID == funcID_sigpanic {
 			if frame.fn.deferreturn != 0 {
 				frame.continpc = frame.fn.entry() + uintptr(frame.fn.deferreturn) + 1
 				// Note: this may perhaps keep return variables alive longer than
@@ -346,7 +345,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// See issue 34123.
 			// The pc can be at function entry when the frame is initialized without
 			// actually running code, like runtime.mstart.
-			if (n == 0 && flags&_TraceTrap != 0) || waspanic || pc == f.entry() {
+			if (n == 0 && flags&_TraceTrap != 0) || calleeFuncID == funcID_sigpanic || pc == f.entry() {
 				pc++
 			} else {
 				tracepc--
@@ -360,7 +359,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					if ix < 0 {
 						break
 					}
-					if inltree[ix].funcID == funcID_wrapper && elideWrapperCalling(lastFuncID) {
+					if inltree[ix].funcID == funcID_wrapper && elideWrapperCalling(calleeFuncID) {
 						// ignore wrappers
 					} else if skip > 0 {
 						skip--
@@ -368,14 +367,14 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
 						n++
 					}
-					lastFuncID = inltree[ix].funcID
+					calleeFuncID = inltree[ix].funcID
 					// Back up to an instruction in the "caller".
 					tracepc = frame.fn.entry() + uintptr(inltree[ix].parentPc)
 					pc = tracepc + 1
 				}
 			}
 			// Record the main frame.
-			if f.funcID == funcID_wrapper && elideWrapperCalling(lastFuncID) {
+			if f.funcID == funcID_wrapper && elideWrapperCalling(calleeFuncID) {
 				// Ignore wrapper functions (except when they trigger panics).
 			} else if skip > 0 {
 				skip--
@@ -383,7 +382,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
 				n++
 			}
-			lastFuncID = f.funcID
 			n-- // offset n++ below
 		}
 
@@ -397,7 +395,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 
 			// backup to CALL instruction to read inlining info (same logic as below)
 			tracepc := frame.pc
-			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry() && !waspanic {
+			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry() && calleeFuncID != funcID_sigpanic {
 				tracepc--
 			}
 			// If there is inlining info, print the inner frames.
@@ -417,19 +415,19 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					inlFunc.funcID = inltree[ix].funcID
 					inlFunc.startLine = inltree[ix].startLine
 
-					if (flags&_TraceRuntimeFrames) != 0 || showframe(inlFuncInfo, gp, nprint == 0, inlFuncInfo.funcID, lastFuncID) {
+					if (flags&_TraceRuntimeFrames) != 0 || showframe(inlFuncInfo, gp, nprint == 0, inlFuncInfo.funcID, calleeFuncID) {
 						name := funcname(inlFuncInfo)
 						file, line := funcline(f, tracepc)
 						print(name, "(...)\n")
 						print("\t", file, ":", line, "\n")
 						nprint++
 					}
-					lastFuncID = inltree[ix].funcID
+					calleeFuncID = inltree[ix].funcID
 					// Back up to an instruction in the "caller".
 					tracepc = frame.fn.entry() + uintptr(inltree[ix].parentPc)
 				}
 			}
-			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, f.funcID, lastFuncID) {
+			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, f.funcID, calleeFuncID) {
 				// Print during crash.
 				//	main(0x1, 0x2, 0x3)
 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
@@ -453,7 +451,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				print("\n")
 				nprint++
 			}
-			lastFuncID = f.funcID
 		}
 		n++
 
@@ -469,8 +466,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			}
 		}
 
-		waspanic = f.funcID == funcID_sigpanic
-		injectedCall := waspanic || f.funcID == funcID_asyncPreempt || f.funcID == funcID_debugCallV2
+		injectedCall := f.funcID == funcID_sigpanic || f.funcID == funcID_asyncPreempt || f.funcID == funcID_debugCallV2
 
 		// Do not unwind past the bottom of the stack.
 		if !flr.valid() {
@@ -485,6 +481,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 
 		// Unwind to next frame.
+		calleeFuncID = f.funcID
 		frame.fn = flr
 		frame.pc = frame.lr
 		frame.lr = 0
