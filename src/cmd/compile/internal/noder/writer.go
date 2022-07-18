@@ -1311,7 +1311,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 	w.pos(stmt)
 	w.stmt(stmt.Init)
 
-	var iface types2.Type
+	var iface, tagType types2.Type
 	if guard, ok := stmt.Tag.(*syntax.TypeSwitchGuard); w.Bool(ok) {
 		iface = w.p.typeOf(guard.X)
 
@@ -1322,7 +1322,32 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		}
 		w.expr(guard.X)
 	} else {
-		w.optExpr(stmt.Tag)
+		tag := stmt.Tag
+
+		if tag != nil {
+			tagType = w.p.typeOf(tag)
+		} else {
+			tagType = types2.Typ[types2.Bool]
+		}
+
+		// Walk is going to emit comparisons between the tag value and
+		// each case expression, and we want these comparisons to always
+		// have the same type. If there are any case values that can't be
+		// converted to the tag value's type, then convert everything to
+		// `any` instead.
+	Outer:
+		for _, clause := range stmt.Body {
+			for _, cas := range unpackListExpr(clause.Cases) {
+				if casType := w.p.typeOf(cas); !types2.AssignableTo(casType, tagType) {
+					tagType = types2.NewInterfaceType(nil, nil)
+					break Outer
+				}
+			}
+		}
+
+		if w.Bool(tag != nil) {
+			w.implicitConvExpr(tag, tagType, tag)
+		}
 	}
 
 	w.Len(len(stmt.Body))
@@ -1334,15 +1359,22 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 
 		w.pos(clause)
 
+		cases := unpackListExpr(clause.Cases)
 		if iface != nil {
-			cases := unpackListExpr(clause.Cases)
 			w.Len(len(cases))
 			for _, cas := range cases {
 				w.exprType(iface, cas, true)
 			}
 		} else {
-			// TODO(mdempsky): Implicit conversions to tagType, if appropriate.
-			w.exprList(clause.Cases)
+			// As if w.exprList(clause.Cases),
+			// but with implicit conversions to tagType.
+
+			w.Sync(pkgbits.SyncExprList)
+			w.Sync(pkgbits.SyncExprs)
+			w.Len(len(cases))
+			for _, cas := range cases {
+				w.implicitConvExpr(cas, tagType, cas)
+			}
 		}
 
 		if obj, ok := w.p.info.Implicits[clause]; ok {
