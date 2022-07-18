@@ -351,11 +351,14 @@ func escape(s string, mode encoding) string {
 // Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
 // A consequence is that it is impossible to tell which slashes in the Path were
 // slashes in the raw URL and which were %2f. This distinction is rarely important,
-// but when it is, the code should use RawPath, an optional field which only gets
-// set if the default encoding is different from Path.
+// but when it is, the code should use the EscapedPath method, which preserves
+// the original encoding of Path.
 //
-// URL's String method uses the EscapedPath method to obtain the path. See the
-// EscapedPath method for more details.
+// The RawPath field is an optional field which is only set when the default
+// encoding of Path is different from the escaped path. See the EscapedPath method
+// for more details.
+//
+// URL's String method uses the EscapedPath method to obtain the path.
 type URL struct {
 	Scheme      string
 	Opaque      string    // encoded opaque data
