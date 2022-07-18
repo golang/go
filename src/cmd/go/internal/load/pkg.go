@@ -2915,7 +2915,7 @@ func mainPackagesOnly(pkgs []*Package, matches []*search.Match) []*Package {
 
 	var mains []*Package
 	for _, pkg := range pkgs {
-		if pkg.Name == "main" {
+		if pkg.Name == "main" || (pkg.Name == "" && pkg.Error != nil) {
 			treatAsMain[pkg.ImportPath] = true
 			mains = append(mains, pkg)
 			continue
