@@ -1042,29 +1042,6 @@ func TestGetGitDefaultBranch(t *testing.T) {
 	tg.grepStdout(`\* another-branch`, "not on correct default branch")
 }
 
-// Security issue. Don't disable. See golang.org/issue/22125.
-func TestAccidentalGitCheckout(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-	testenv.MustHaveExecPath(t, "svn")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src")
-
-	tg.setenv("GOPATH", tg.path("."))
-
-	tg.runFail("get", "-u", "vcs-test.golang.org/go/test1-svn-git")
-	tg.grepStderr("src[\\\\/]vcs-test.* uses git, but parent .*src[\\\\/]vcs-test.* uses svn", "get did not fail for right reason")
-
-	if _, err := os.Stat(tg.path("SrC")); err == nil {
-		// This case only triggers on a case-insensitive file system.
-		tg.runFail("get", "-u", "vcs-test.golang.org/go/test2-svn-git/test2main")
-		tg.grepStderr("src[\\\\/]vcs-test.* uses git, but parent .*src[\\\\/]vcs-test.* uses svn", "get did not fail for right reason")
-	}
-}
-
 func TestPackageMainTestCompilerFlags(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
