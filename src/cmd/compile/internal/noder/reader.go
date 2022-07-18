@@ -1477,6 +1477,32 @@ func (r *reader) selectStmt(label *types.Sym) ir.Node {
 		comm := r.stmt()
 		body := r.stmts()
 
+		// "case i = <-c: ..." may require an implicit conversion (e.g.,
+		// see fixedbugs/bug312.go). Currently, typecheck throws away the
+		// implicit conversion and relies on it being reinserted later,
+		// but that would lose any explicit RTTI operands too. To preserve
+		// RTTI, we rewrite this as "case tmp := <-c: i = tmp; ...".
+		if as, ok := comm.(*ir.AssignStmt); ok && as.Op() == ir.OAS && !as.Def {
+			if conv, ok := as.Y.(*ir.ConvExpr); ok && conv.Op() == ir.OCONVIFACE {
+				base.AssertfAt(conv.Implicit(), conv.Pos(), "expected implicit conversion: %v", conv)
+
+				recv := conv.X
+				base.AssertfAt(recv.Op() == ir.ORECV, recv.Pos(), "expected receive expression: %v", recv)
+
+				tmp := r.temp(pos, recv.Type())
+
+				// Replace comm with `tmp := <-c`.
+				tmpAs := ir.NewAssignStmt(pos, tmp, recv)
+				tmpAs.Def = true
+				tmpAs.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, tmp))
+				comm = tmpAs
+
+				// Change original assignment to `i = tmp`, and prepend to body.
+				conv.X = tmp
+				body = append([]ir.Node{as}, body...)
+			}
+		}
+
 		// multiExpr will have desugared a comma-ok receive expression
 		// into a separate statement. However, the rest of the compiler
 		// expects comm to be the OAS2RECV statement itself, so we need to
@@ -1887,17 +1913,11 @@ func (r *reader) multiExpr() []ir.Node {
 		pos := r.pos()
 		expr := r.expr()
 
-		// See typecheck.typecheckargs.
-		curfn := r.curfn
-		if curfn == nil {
-			curfn = typecheck.InitTodoFunc
-		}
-
 		results := make([]ir.Node, r.Len())
 		as := ir.NewAssignListStmt(pos, ir.OAS2, nil, []ir.Node{expr})
 		as.Def = true
 		for i := range results {
-			tmp := typecheck.TempAt(pos, curfn, r.typ())
+			tmp := r.temp(pos, r.typ())
 			as.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, tmp))
 			as.Lhs.Append(tmp)
 
@@ -1925,6 +1945,17 @@ func (r *reader) multiExpr() []ir.Node {
 		exprs[i] = r.expr()
 	}
 	return exprs
+}
+
+// temp returns a new autotemp of the specified type.
+func (r *reader) temp(pos src.XPos, typ *types.Type) *ir.Name {
+	// See typecheck.typecheckargs.
+	curfn := r.curfn
+	if curfn == nil {
+		curfn = typecheck.InitTodoFunc
+	}
+
+	return typecheck.TempAt(pos, curfn, typ)
 }
 
 func (r *reader) compLit() ir.Node {
