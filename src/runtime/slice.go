@@ -194,7 +194,7 @@ func growslice(et *_type, old slice, cap int) slice {
 	}
 
 	if cap < old.cap {
-		panic(errorString("growslice: cap out of range"))
+		panic(errorString("growslice: len out of range"))
 	}
 
 	if et.size == 0 {
@@ -284,7 +284,7 @@ func growslice(et *_type, old slice, cap int) slice {
 	//   print(len(s), "\n")
 	// }
 	if overflow || capmem > maxAlloc {
-		panic(errorString("growslice: cap out of range"))
+		panic(errorString("growslice: len out of range"))
 	}
 
 	var p unsafe.Pointer

@@ -730,11 +730,11 @@ func transformAppend(n *ir.CallExpr) ir.Node {
 	assert(t.IsSlice())
 
 	if n.IsDDD {
-		if t.Elem().IsKind(types.TUINT8) && args[1].Type().IsString() {
-			return n
-		}
-
-		args[1] = assignconvfn(args[1], t.Underlying())
+		// assignconvfn is of args[1] not required here, as the
+		// types of args[0] and args[1] don't need to match
+		// (They will both have an underlying type which are
+		// slices of indentical base types, or be []byte and string.)
+		// See issue 53888.
 		return n
 	}
 
