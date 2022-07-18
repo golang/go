@@ -1413,6 +1413,13 @@ func (w *writer) expr(expr syntax.Expr) {
 			w.String(syntax.String(expr))
 			return
 		}
+
+		if _, isNil := obj.(*types2.Nil); isNil {
+			w.Code(exprNil)
+			w.pos(expr)
+			w.typ(tv.Type)
+			return
+		}
 	}
 
 	if obj != nil {

@@ -53,6 +53,7 @@ const (
 	exprConvert
 	exprNew
 	exprMake
+	exprNil
 )
 
 type codeAssign int
