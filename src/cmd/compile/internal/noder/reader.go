@@ -1525,7 +1525,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 					for len(rtypes) < i {
 						rtypes = append(rtypes, nil)
 					}
-					rtypes = append(rtypes, reflectdata.TypePtr(typ))
+					rtypes = append(rtypes, reflectdata.TypePtrAt(cas.Pos(), typ))
 				}
 			}
 		}
@@ -1976,7 +1976,7 @@ func (r *reader) exprType(nilOK bool) ir.Node {
 	setBasePos(pos)
 
 	lsymPtr := func(lsym *obj.LSym) ir.Node {
-		return typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
+		return typecheck.Expr(typecheck.NodAddrAt(pos, ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
 	}
 
 	var typ *types.Type
