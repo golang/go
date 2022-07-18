@@ -43,13 +43,52 @@ package dag
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
-// Parse returns a map m such that m[p][d] == true when there is a
-// path from p to d.
-func Parse(dag string) (map[string]map[string]bool, error) {
-	allowed := map[string]map[string]bool{"NONE": {}}
+type Graph struct {
+	Nodes   []string
+	byLabel map[string]int
+	edges   map[string]map[string]bool
+}
+
+func newGraph() *Graph {
+	return &Graph{byLabel: map[string]int{}, edges: map[string]map[string]bool{}}
+}
+
+func (g *Graph) addNode(label string) bool {
+	if _, ok := g.byLabel[label]; ok {
+		return false
+	}
+	g.byLabel[label] = len(g.Nodes)
+	g.Nodes = append(g.Nodes, label)
+	g.edges[label] = map[string]bool{}
+	return true
+}
+
+func (g *Graph) AddEdge(from, to string) {
+	g.edges[from][to] = true
+}
+
+func (g *Graph) HasEdge(from, to string) bool {
+	return g.edges[from] != nil && g.edges[from][to]
+}
+
+func (g *Graph) Edges(from string) []string {
+	edges := make([]string, 0, 16)
+	for k := range g.edges[from] {
+		edges = append(edges, k)
+	}
+	sort.Slice(edges, func(i, j int) bool { return g.byLabel[edges[i]] < g.byLabel[edges[j]] })
+	return edges
+}
+
+// Parse parses the DAG language and returns the transitive closure of
+// the described graph. In the returned graph, there is an edge from "b"
+// to "a" if b < a (or a > b) in the partial order.
+func Parse(dag string) (*Graph, error) {
+	g := newGraph()
 	disallowed := []rule{}
 
 	rules, err := parseRules(dag)
@@ -68,40 +107,47 @@ func Parse(dag string) (map[string]map[string]bool, error) {
 			continue
 		}
 		for _, def := range r.def {
-			if allowed[def] != nil {
+			if def == "NONE" {
+				errorf("NONE cannot be a predecessor")
+				continue
+			}
+			if !g.addNode(def) {
 				errorf("multiple definitions for %s", def)
 			}
-			allowed[def] = make(map[string]bool)
 			for _, less := range r.less {
-				if allowed[less] == nil {
-					errorf("use of %s before its definition", less)
+				if less == "NONE" {
+					continue
 				}
-				allowed[def][less] = true
+				if _, ok := g.byLabel[less]; !ok {
+					errorf("use of %s before its definition", less)
+				} else {
+					g.AddEdge(def, less)
+				}
 			}
 		}
 	}
 
 	// Check for missing definition.
-	for _, tos := range allowed {
+	for _, tos := range g.edges {
 		for to := range tos {
-			if allowed[to] == nil {
+			if g.edges[to] == nil {
 				errorf("missing definition for %s", to)
 			}
 		}
 	}
 
 	// Complete transitive closure.
-	for k := range allowed {
-		for i := range allowed {
-			for j := range allowed {
-				if i != k && k != j && allowed[i][k] && allowed[k][j] {
+	for _, k := range g.Nodes {
+		for _, i := range g.Nodes {
+			for _, j := range g.Nodes {
+				if i != k && k != j && g.HasEdge(i, k) && g.HasEdge(k, j) {
 					if i == j {
 						// Can only happen along with a "use of X before deps" error above,
 						// but this error is more specific - it makes clear that reordering the
 						// rules will not be enough to fix the problem.
 						errorf("graph cycle: %s < %s < %s", j, k, i)
 					}
-					allowed[i][j] = true
+					g.AddEdge(i, j)
 				}
 			}
 		}
@@ -111,7 +157,7 @@ func Parse(dag string) (map[string]map[string]bool, error) {
 	for _, bad := range disallowed {
 		for _, less := range bad.less {
 			for _, def := range bad.def {
-				if allowed[def][less] {
+				if g.HasEdge(def, less) {
 					errorf("graph edge assertion failed: %s !< %s", less, def)
 				}
 			}
@@ -122,7 +168,7 @@ func Parse(dag string) (map[string]map[string]bool, error) {
 		return nil, fmt.Errorf("%s", strings.Join(errors, "\n"))
 	}
 
-	return allowed, nil
+	return g, nil
 }
 
 // A rule is a line in the DAG language where "less < def" or "less !< def".

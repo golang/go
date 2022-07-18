@@ -597,11 +597,10 @@ func TestDependencies(t *testing.T) {
 		if sawImport[pkg] == nil {
 			sawImport[pkg] = map[string]bool{}
 		}
-		ok := policy[pkg]
 		var bad []string
 		for _, imp := range imports {
 			sawImport[pkg][imp] = true
-			if !ok[imp] {
+			if !policy.HasEdge(pkg, imp) {
 				bad = append(bad, imp)
 			}
 		}
@@ -670,7 +669,7 @@ func findImports(pkg string) ([]string, error) {
 }
 
 // depsPolicy returns a map m such that m[p][d] == true when p can import d.
-func depsPolicy(t *testing.T) map[string]map[string]bool {
+func depsPolicy(t *testing.T) *dag.Graph {
 	g, err := dag.Parse(depsRules)
 	if err != nil {
 		t.Fatal(err)
