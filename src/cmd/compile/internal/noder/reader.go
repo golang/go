@@ -1569,23 +1569,21 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 		} else {
 			cases = r.exprList()
 
-			tagType := types.Types[types.TBOOL]
-			if tag != nil {
-				tagType = tag.Type()
-			}
-			for i, cas := range cases {
-				if cas.Op() == ir.ONIL {
-					continue // never needs rtype
-				}
-				if tagType.IsInterface() != cas.Type().IsInterface() {
-					typ := tagType
-					if typ.IsInterface() {
-						typ = cas.Type()
+			// For `switch { case any(true): }` (e.g., issue 3980 in
+			// test/switch.go), the backend still creates a mixed bool/any
+			// comparison, and we need to explicitly supply the RTTI for the
+			// comparison.
+			//
+			// TODO(mdempsky): Change writer.go to desugar "switch {" into
+			// "switch true {", which we already handle correctly.
+			if tag == nil {
+				for i, cas := range cases {
+					if cas.Type().IsEmptyInterface() {
+						for len(rtypes) < i {
+							rtypes = append(rtypes, nil)
+						}
+						rtypes = append(rtypes, reflectdata.TypePtrAt(cas.Pos(), types.Types[types.TBOOL]))
 					}
-					for len(rtypes) < i {
-						rtypes = append(rtypes, nil)
-					}
-					rtypes = append(rtypes, reflectdata.TypePtrAt(cas.Pos(), typ))
 				}
 			}
 		}
