@@ -262,16 +262,16 @@ func StartTrace() error {
 			gp.tracelastp = getg().m.p
 			// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
 			id := trace.stackTab.put([]uintptr{startPCforTrace(gp.startpc) + sys.PCQuantum})
-			traceEvent(traceEvGoCreate, -1, uint64(gp.goid), uint64(id), stackID)
+			traceEvent(traceEvGoCreate, -1, gp.goid, uint64(id), stackID)
 		}
 		if status == _Gwaiting {
 			// traceEvGoWaiting is implied to have seq=1.
 			gp.traceseq++
-			traceEvent(traceEvGoWaiting, -1, uint64(gp.goid))
+			traceEvent(traceEvGoWaiting, -1, gp.goid)
 		}
 		if status == _Gsyscall {
 			gp.traceseq++
-			traceEvent(traceEvGoInSyscall, -1, uint64(gp.goid))
+			traceEvent(traceEvGoInSyscall, -1, gp.goid)
 		} else {
 			gp.sysblocktraced = false
 		}
@@ -780,7 +780,7 @@ func traceCPUSample(gp *g, pp *p, stk []uintptr) {
 		hdr[0] = 0b10
 	}
 	if gp != nil {
-		hdr[1] = uint64(gp.goid)
+		hdr[1] = gp.goid
 	}
 
 	// Allow only one writer at a time
@@ -1376,7 +1376,7 @@ func traceGoCreate(newg *g, pc uintptr) {
 	newg.tracelastp = getg().m.p
 	// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
 	id := trace.stackTab.put([]uintptr{startPCforTrace(pc) + sys.PCQuantum})
-	traceEvent(traceEvGoCreate, 2, uint64(newg.goid), uint64(id))
+	traceEvent(traceEvGoCreate, 2, newg.goid, uint64(id))
 }
 
 func traceGoStart() {
@@ -1384,12 +1384,12 @@ func traceGoStart() {
 	pp := gp.m.p
 	gp.traceseq++
 	if pp.ptr().gcMarkWorkerMode != gcMarkWorkerNotWorker {
-		traceEvent(traceEvGoStartLabel, -1, uint64(gp.goid), gp.traceseq, trace.markWorkerLabels[pp.ptr().gcMarkWorkerMode])
+		traceEvent(traceEvGoStartLabel, -1, gp.goid, gp.traceseq, trace.markWorkerLabels[pp.ptr().gcMarkWorkerMode])
 	} else if gp.tracelastp == pp {
-		traceEvent(traceEvGoStartLocal, -1, uint64(gp.goid))
+		traceEvent(traceEvGoStartLocal, -1, gp.goid)
 	} else {
 		gp.tracelastp = pp
-		traceEvent(traceEvGoStart, -1, uint64(gp.goid), gp.traceseq)
+		traceEvent(traceEvGoStart, -1, gp.goid, gp.traceseq)
 	}
 }
 
@@ -1420,10 +1420,10 @@ func traceGoUnpark(gp *g, skip int) {
 	pp := getg().m.p
 	gp.traceseq++
 	if gp.tracelastp == pp {
-		traceEvent(traceEvGoUnblockLocal, skip, uint64(gp.goid))
+		traceEvent(traceEvGoUnblockLocal, skip, gp.goid)
 	} else {
 		gp.tracelastp = pp
-		traceEvent(traceEvGoUnblock, skip, uint64(gp.goid), gp.traceseq)
+		traceEvent(traceEvGoUnblock, skip, gp.goid, gp.traceseq)
 	}
 }
 
@@ -1447,7 +1447,7 @@ func traceGoSysExit(ts int64) {
 	gp := getg().m.curg
 	gp.traceseq++
 	gp.tracelastp = gp.m.p
-	traceEvent(traceEvGoSysExit, -1, uint64(gp.goid), gp.traceseq, uint64(ts)/traceTickDiv)
+	traceEvent(traceEvGoSysExit, -1, gp.goid, gp.traceseq, uint64(ts)/traceTickDiv)
 }
 
 func traceGoSysBlock(pp *p) {

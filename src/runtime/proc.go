@@ -1919,7 +1919,7 @@ func oneNewExtraM() {
 	mp.lockedInt++
 	mp.lockedg.set(gp)
 	gp.lockedm.set(mp)
-	gp.goid = int64(sched.goidgen.Add(1))
+	gp.goid = sched.goidgen.Add(1)
 	if raceenabled {
 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
 	}
@@ -4172,7 +4172,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 		pp.goidcache -= _GoidCacheBatch - 1
 		pp.goidcacheend = pp.goidcache + _GoidCacheBatch
 	}
-	newg.goid = int64(pp.goidcache)
+	newg.goid = pp.goidcache
 	pp.goidcache++
 	if raceenabled {
 		newg.racectx = racegostart(callerpc)
@@ -5455,11 +5455,11 @@ func schedtrace(detailed bool) {
 		}
 		id2 := int64(-1)
 		if gp != nil {
-			id2 = gp.goid
+			id2 = int64(gp.goid)
 		}
 		id3 := int64(-1)
 		if lockedg != nil {
-			id3 = lockedg.goid
+			id3 = int64(lockedg.goid)
 		}
 		print("  M", mp.id, ": p=", id1, " curg=", id2, " mallocing=", mp.mallocing, " throwing=", mp.throwing, " preemptoff=", mp.preemptoff, " locks=", mp.locks, " dying=", mp.dying, " spinning=", mp.spinning, " blocked=", mp.blocked, " lockedg=", id3, "\n")
 	}
@@ -6274,7 +6274,7 @@ var inittrace tracestat
 
 type tracestat struct {
 	active bool   // init tracing activation status
-	id     int64  // init goroutine id
+	id     uint64 // init goroutine id
 	allocs uint64 // heap allocations
 	bytes  uint64 // heap allocated bytes
 }
