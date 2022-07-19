@@ -101,7 +101,7 @@ func TestScript(t *testing.T) {
 
 // A testScript holds execution state for a single test script.
 type testScript struct {
-	t           *testing.T
+	t           testing.TB
 	ctx         context.Context
 	cancel      context.CancelFunc
 	gracePeriod time.Duration
@@ -161,6 +161,10 @@ func (ts *testScript) setup() {
 	ts.check(os.MkdirAll(filepath.Join(ts.workdir, "tmp"), 0777))
 	ts.check(os.MkdirAll(filepath.Join(ts.workdir, "gopath/src"), 0777))
 	ts.cd = filepath.Join(ts.workdir, "gopath/src")
+	version, err := goVersion()
+	if err != nil {
+		ts.t.Fatal(err)
+	}
 	ts.env = []string{
 		"WORK=" + ts.workdir, // must be first for ts.abbrev
 		pathEnvName() + "=" + testBin + string(filepath.ListSeparator) + os.Getenv(pathEnvName()),
@@ -188,7 +192,7 @@ func (ts *testScript) setup() {
 		"PWD=" + ts.cd,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
-		"goversion=" + goVersion(ts),
+		"goversion=" + version,
 		"CMDGO_TEST_RUN_MAIN=true",
 	}
 	if testenv.Builder() != "" || os.Getenv("GIT_TRACE_CURL") == "1" {
@@ -231,13 +235,13 @@ func (ts *testScript) setup() {
 }
 
 // goVersion returns the current Go version.
-func goVersion(ts *testScript) string {
+func goVersion() (string, error) {
 	tags := build.Default.ReleaseTags
 	version := tags[len(tags)-1]
 	if !regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`).MatchString(version) {
-		ts.fatalf("invalid go version %q", version)
+		return "", fmt.Errorf("invalid go version %q", version)
 	}
-	return version[2:]
+	return version[2:], nil
 }
 
 var execCache par.Cache
@@ -393,7 +397,10 @@ Script:
 			case "symlink":
 				ok = testenv.HasSymlink()
 			case "case-sensitive":
-				ok = isCaseSensitive(ts.t)
+				ok, err = isCaseSensitive()
+				if err != nil {
+					ts.fatalf("%v", err)
+				}
 			case "trimpath":
 				if info, _ := debug.ReadBuildInfo(); info == nil {
 					ts.fatalf("missing build info")
@@ -476,19 +483,22 @@ Script:
 var (
 	onceCaseSensitive sync.Once
 	caseSensitive     bool
+	caseSensitiveErr  error
 )
 
-func isCaseSensitive(t *testing.T) bool {
+func isCaseSensitive() (bool, error) {
 	onceCaseSensitive.Do(func() {
 		tmpdir, err := os.MkdirTemp("", "case-sensitive")
 		if err != nil {
-			t.Fatal("failed to create directory to determine case-sensitivity:", err)
+			caseSensitiveErr = fmt.Errorf("failed to create directory to determine case-sensitivity: %w", err)
+			return
 		}
 		defer os.RemoveAll(tmpdir)
 
 		fcap := filepath.Join(tmpdir, "FILE")
 		if err := os.WriteFile(fcap, []byte{}, 0644); err != nil {
-			t.Fatal("error writing file to determine case-sensitivity:", err)
+			caseSensitiveErr = fmt.Errorf("error writing file to determine case-sensitivity: %w", err)
+			return
 		}
 
 		flow := filepath.Join(tmpdir, "file")
@@ -501,11 +511,11 @@ func isCaseSensitive(t *testing.T) bool {
 			caseSensitive = true
 			return
 		default:
-			t.Fatal("unexpected error reading file when determining case-sensitivity:", err)
+			caseSensitiveErr = fmt.Errorf("unexpected error reading file when determining case-sensitivity: %w", err)
 		}
 	})
 
-	return caseSensitive
+	return caseSensitive, caseSensitiveErr
 }
 
 // scriptCmds are the script command implementations.
