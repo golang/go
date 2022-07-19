@@ -113,7 +113,7 @@ outer:
 				break
 			}
 		}
-		if enclosingFunc == nil {
+		if enclosingFunc == nil || enclosingFunc.Results == nil {
 			continue
 		}
 
