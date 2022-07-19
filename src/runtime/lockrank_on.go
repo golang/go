@@ -24,6 +24,9 @@ type lockRankStruct struct {
 	pad int
 }
 
+// lockInit(l *mutex, rank int) sets the rank of lock before it is used.
+// If there is no clear place to initialize a lock, then the rank of a lock can be
+// specified during the lock call itself via lockWithRank(l *mutex, rank int).
 func lockInit(l *mutex, rank lockRank) {
 	l.rank = rank
 }

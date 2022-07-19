@@ -71,6 +71,10 @@ func (g *Graph) AddEdge(from, to string) {
 	g.edges[from][to] = true
 }
 
+func (g *Graph) DelEdge(from, to string) {
+	delete(g.edges[from], to)
+}
+
 func (g *Graph) HasEdge(from, to string) bool {
 	return g.edges[from] != nil && g.edges[from][to]
 }
