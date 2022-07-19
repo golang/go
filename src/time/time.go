@@ -1112,6 +1112,9 @@ func Now() Time {
 	mono -= startNano
 	sec += unixToInternal - minWall
 	if uint64(sec)>>33 != 0 {
+		// Seconds field overflowed the 33 bits available when
+		// storing a monotonic time. This will be true after
+		// March 16, 2157.
 		return Time{uint64(nsec), sec + minWall, Local}
 	}
 	return Time{hasMonotonic | uint64(sec)<<nsecShift | uint64(nsec), mono, Local}
