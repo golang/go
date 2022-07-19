@@ -5421,11 +5421,13 @@ func schedtrace(detailed bool) {
 		h := atomic.Load(&pp.runqhead)
 		t := atomic.Load(&pp.runqtail)
 		if detailed {
-			id := int64(-1)
+			print("  P", i, ": status=", pp.status, " schedtick=", pp.schedtick, " syscalltick=", pp.syscalltick, " m=")
 			if mp != nil {
-				id = mp.id
+				print(mp.id)
+			} else {
+				print("nil")
 			}
-			print("  P", i, ": status=", pp.status, " schedtick=", pp.schedtick, " syscalltick=", pp.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", pp.gFree.n, " timerslen=", len(pp.timers), "\n")
+			print(" runqsize=", t-h, " gfreecnt=", pp.gFree.n, " timerslen=", len(pp.timers), "\n")
 		} else {
 			// In non-detailed mode format lengths of per-P run queues as:
 			// [len1 len2 len3 len4]
@@ -5447,35 +5449,41 @@ func schedtrace(detailed bool) {
 
 	for mp := allm; mp != nil; mp = mp.alllink {
 		pp := mp.p.ptr()
-		gp := mp.curg
-		lockedg := mp.lockedg.ptr()
-		id1 := int32(-1)
+		print("  M", mp.id, ": p=")
 		if pp != nil {
-			id1 = pp.id
+			print(pp.id)
+		} else {
+			print("nil")
 		}
-		id2 := int64(-1)
-		if gp != nil {
-			id2 = int64(gp.goid)
+		print(" curg=")
+		if mp.curg != nil {
+			print(mp.curg.goid)
+		} else {
+			print("nil")
 		}
-		id3 := int64(-1)
-		if lockedg != nil {
-			id3 = int64(lockedg.goid)
+		print(" mallocing=", mp.mallocing, " throwing=", mp.throwing, " preemptoff=", mp.preemptoff, " locks=", mp.locks, " dying=", mp.dying, " spinning=", mp.spinning, " blocked=", mp.blocked, " lockedg=")
+		if lockedg := mp.lockedg.ptr(); lockedg != nil {
+			print(lockedg.goid)
+		} else {
+			print("nil")
 		}
-		print("  M", mp.id, ": p=", id1, " curg=", id2, " mallocing=", mp.mallocing, " throwing=", mp.throwing, " preemptoff=", mp.preemptoff, " locks=", mp.locks, " dying=", mp.dying, " spinning=", mp.spinning, " blocked=", mp.blocked, " lockedg=", id3, "\n")
+		print("\n")
 	}
 
 	forEachG(func(gp *g) {
-		mp := gp.m
-		lockedm := gp.lockedm.ptr()
-		id1 := int64(-1)
-		if mp != nil {
-			id1 = mp.id
+		print("  G", gp.goid, ": status=", readgstatus(gp), "(", gp.waitreason.String(), ") m=")
+		if gp.m != nil {
+			print(gp.m.id)
+		} else {
+			print("nil")
 		}
-		id2 := int64(-1)
-		if lockedm != nil {
-			id2 = lockedm.id
+		print(" lockedm=")
+		if lockedm := gp.lockedm.ptr(); lockedm != nil {
+			print(lockedm.id)
+		} else {
+			print("nil")
 		}
-		print("  G", gp.goid, ": status=", readgstatus(gp), "(", gp.waitreason.String(), ") m=", id1, " lockedm=", id2, "\n")
+		print("\n")
 	})
 	unlock(&sched.lock)
 }
