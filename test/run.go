@@ -58,7 +58,7 @@ type envVars struct {
 }
 
 var env = func() (res envVars) {
-	cmd := exec.Command("go", "env", "-json")
+	cmd := exec.Command(goTool(), "env", "-json")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Fatal("StdoutPipe:", err)
@@ -710,6 +710,22 @@ func (t *test) run() {
 		if tempDirIsGOPATH {
 			cmd.Env = append(cmd.Env, "GOPATH="+t.tempDir)
 		}
+		// Put the bin directory of the GOROOT that built this program
+		// first in the path. This ensures that tests that use the "go"
+		// tool use the same one that built this program. This ensures
+		// that if you do "../bin/go run run.go" in this directory, all
+		// the tests that start subprocesses that "go tool compile" or
+		// whatever, use ../bin/go as their go tool, not whatever happens
+		// to be first in the user's path.
+		path := os.Getenv("PATH")
+		newdir := filepath.Join(runtime.GOROOT(), "bin")
+		if path != "" {
+			path = newdir + string(filepath.ListSeparator) + path
+		} else {
+			path = newdir
+		}
+		cmd.Env = append(cmd.Env, "PATH="+path)
+
 		cmd.Env = append(cmd.Env, runenv...)
 
 		var err error
