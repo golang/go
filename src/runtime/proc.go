@@ -1919,7 +1919,7 @@ func oneNewExtraM() {
 	mp.lockedInt++
 	mp.lockedg.set(gp)
 	gp.lockedm.set(mp)
-	gp.goid = int64(atomic.Xadd64(&sched.goidgen, 1))
+	gp.goid = int64(sched.goidgen.Add(1))
 	if raceenabled {
 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
 	}
@@ -4168,7 +4168,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 		// Sched.goidgen is the last allocated id,
 		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
 		// At startup sched.goidgen=0, so main goroutine receives goid=1.
-		pp.goidcache = atomic.Xadd64(&sched.goidgen, _GoidCacheBatch)
+		pp.goidcache = sched.goidgen.Add(_GoidCacheBatch)
 		pp.goidcache -= _GoidCacheBatch - 1
 		pp.goidcacheend = pp.goidcache + _GoidCacheBatch
 	}

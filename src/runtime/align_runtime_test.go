@@ -17,7 +17,6 @@ var AtomicFields = []uintptr{
 	unsafe.Offsetof(p{}.timer0When),
 	unsafe.Offsetof(p{}.timerModifiedEarliest),
 	unsafe.Offsetof(p{}.gcFractionalMarkTime),
-	unsafe.Offsetof(schedt{}.goidgen),
 	unsafe.Offsetof(schedt{}.lastpoll),
 	unsafe.Offsetof(schedt{}.pollUntil),
 	unsafe.Offsetof(schedt{}.timeToRun),
