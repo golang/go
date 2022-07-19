@@ -1099,8 +1099,7 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 // addLocalInductiveFacts adds inductive facts when visiting b, where
 // b is a join point in a loop. In contrast with findIndVar, this
 // depends on facts established for b, which is why it happens when
-// visiting b. addLocalInductiveFacts specifically targets the pattern
-// created by OFORUNTIL, which isn't detected by findIndVar.
+// visiting b.
 //
 // TODO: It would be nice to combine this with findIndVar.
 func addLocalInductiveFacts(ft *factsTable, b *Block) {

@@ -123,19 +123,6 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 			break
 		}
 
-		// TODO(austin): OFORUNTIL is a strange beast, but is
-		// necessary for expressing the control flow we need
-		// while also making "break" and "continue" work. It
-		// would be nice to just lower ORANGE during SSA, but
-		// racewalk needs to see many of the operations
-		// involved in ORANGE's implementation. If racewalk
-		// moves into SSA, consider moving ORANGE into SSA and
-		// eliminating OFORUNTIL.
-
-		// TODO(austin): OFORUNTIL inhibits bounds-check
-		// elimination on the index variable (see #20711).
-		// Enhance the prove pass to understand this.
-
 		// Slice to iterate over
 		var hs ir.Node
 		if t.IsSlice() {

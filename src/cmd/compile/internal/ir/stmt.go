@@ -205,12 +205,10 @@ func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommClause {
 }
 
 // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
-// Op can be OFOR or OFORUNTIL (!Cond).
 type ForStmt struct {
 	miniStmt
 	Label    *types.Sym
 	Cond     Node
-	Late     Nodes
 	Post     Node
 	Body     Nodes
 	HasBreak bool
@@ -225,13 +223,6 @@ func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt 
 	}
 	n.Body = body
 	return n
-}
-
-func (n *ForStmt) SetOp(op Op) {
-	if op != OFOR && op != OFORUNTIL {
-		panic(n.no("SetOp " + op.String()))
-	}
-	n.op = op
 }
 
 // A GoDeferStmt is a go or defer statement: go Call / defer Call.

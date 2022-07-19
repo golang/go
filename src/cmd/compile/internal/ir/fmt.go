@@ -50,7 +50,6 @@ var OpNames = []string{
 	OEQ:          "==",
 	OFALL:        "fallthrough",
 	OFOR:         "for",
-	OFORUNTIL:    "foruntil", // not actual syntax; used to avoid off-end pointer live on backedge.892
 	OGE:          ">=",
 	OGOTO:        "goto",
 	OGT:          ">",
@@ -274,7 +273,6 @@ var OpPrec = []int{
 	ODEFER:      -1,
 	OFALL:       -1,
 	OFOR:        -1,
-	OFORUNTIL:   -1,
 	OGOTO:       -1,
 	OIF:         -1,
 	OLABEL:      -1,
@@ -290,7 +288,7 @@ var OpPrec = []int{
 // StmtWithInit reports whether op is a statement with an explicit init list.
 func StmtWithInit(op Op) bool {
 	switch op {
-	case OIF, OFOR, OFORUNTIL, OSWITCH:
+	case OIF, OFOR, OSWITCH:
 		return true
 	}
 	return false
@@ -401,18 +399,14 @@ func stmtFmt(n Node, s fmt.State) {
 			fmt.Fprintf(s, " else { %v }", n.Else)
 		}
 
-	case OFOR, OFORUNTIL:
+	case OFOR:
 		n := n.(*ForStmt)
-		opname := "for"
-		if n.Op() == OFORUNTIL {
-			opname = "foruntil"
-		}
 		if !exportFormat { // TODO maybe only if FmtShort, same below
-			fmt.Fprintf(s, "%s loop", opname)
+			fmt.Fprintf(s, "for loop")
 			break
 		}
 
-		fmt.Fprint(s, opname)
+		fmt.Fprint(s, "for")
 		if simpleinit {
 			fmt.Fprintf(s, " %v;", n.Init()[0])
 		} else if n.Post != nil {
@@ -427,10 +421,6 @@ func stmtFmt(n Node, s fmt.State) {
 			fmt.Fprintf(s, "; %v", n.Post)
 		} else if simpleinit {
 			fmt.Fprint(s, ";")
-		}
-
-		if n.Op() == OFORUNTIL && len(n.Late) != 0 {
-			fmt.Fprintf(s, "; %v", n.Late)
 		}
 
 		fmt.Fprintf(s, " { %v }", n.Body)

@@ -774,7 +774,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		tcGoDefer(n)
 		return n
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OFOR:
 		n := n.(*ir.ForStmt)
 		return tcFor(n)
 
@@ -1697,7 +1697,7 @@ func markBreak(fn *ir.Func) {
 				setHasBreak(labels[n.Label])
 			}
 
-		case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OSELECT, ir.ORANGE:
+		case ir.OFOR, ir.OSWITCH, ir.OSELECT, ir.ORANGE:
 			old := implicit
 			implicit = n
 			var sym *types.Sym
@@ -1773,7 +1773,7 @@ func isTermNode(n ir.Node) bool {
 	case ir.OGOTO, ir.ORETURN, ir.OTAILCALL, ir.OPANIC, ir.OFALL:
 		return true
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OFOR:
 		n := n.(*ir.ForStmt)
 		if n.Cond != nil {
 			return false

@@ -78,7 +78,7 @@ func (e *escape) stmt(n ir.Node) {
 		n := n.(*ir.UnaryExpr)
 		e.discard(n.X)
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OFOR:
 		n := n.(*ir.ForStmt)
 		e.loopDepth++
 		e.discard(n.Cond)

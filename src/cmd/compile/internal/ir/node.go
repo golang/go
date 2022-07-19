@@ -263,24 +263,14 @@ const (
 	ODEFER    // defer Call
 	OFALL     // fallthrough
 	OFOR      // for Init; Cond; Post { Body }
-	// OFORUNTIL is like OFOR, but the test (Cond) is applied after the body:
-	// 	Init
-	// 	top: { Body }   // Execute the body at least once
-	// 	cont: Post
-	// 	if Cond {        // And then test the loop condition
-	// 		List     // Before looping to top, execute List
-	// 		goto top
-	// 	}
-	// OFORUNTIL is created by walk. There's no way to write this in Go code.
-	OFORUNTIL
-	OGOTO   // goto Label
-	OIF     // if Init; Cond { Then } else { Else }
-	OLABEL  // Label:
-	OGO     // go Call
-	ORANGE  // for Key, Value = range X { Body }
-	ORETURN // return Results
-	OSELECT // select { Cases }
-	OSWITCH // switch Init; Expr { Cases }
+	OGOTO     // goto Label
+	OIF       // if Init; Cond { Then } else { Else }
+	OLABEL    // Label:
+	OGO       // go Call
+	ORANGE    // for Key, Value = range X { Body }
+	ORETURN   // return Results
+	OSELECT   // select { Cases }
+	OSWITCH   // switch Init; Expr { Cases }
 	// OTYPESW:  X := Y.(type) (appears as .Tag of OSWITCH)
 	//   X is nil if there is no type-switch variable
 	OTYPESW

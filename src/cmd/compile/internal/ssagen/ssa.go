@@ -1738,12 +1738,9 @@ func (s *state) stmt(n ir.Node) {
 		b.Pos = s.lastPos.WithIsStmt() // Do this even if b is an empty block.
 		b.AddEdgeTo(to)
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OFOR:
 		// OFOR: for Ninit; Left; Right { Nbody }
 		// cond (Left); body (Nbody); incr (Right)
-		//
-		// OFORUNTIL: for Ninit; Left; Right; List { Nbody }
-		// => body: { Nbody }; incr: Right; if Left { lateincr: List; goto body }; end:
 		n := n.(*ir.ForStmt)
 		bCond := s.f.NewBlock(ssa.BlockPlain)
 		bBody := s.f.NewBlock(ssa.BlockPlain)
@@ -1753,21 +1750,17 @@ func (s *state) stmt(n ir.Node) {
 		// ensure empty for loops have correct position; issue #30167
 		bBody.Pos = n.Pos()
 
-		// first, jump to condition test (OFOR) or body (OFORUNTIL)
+		// first, jump to condition test
 		b := s.endBlock()
-		if n.Op() == ir.OFOR {
-			b.AddEdgeTo(bCond)
-			// generate code to test condition
-			s.startBlock(bCond)
-			if n.Cond != nil {
-				s.condBranch(n.Cond, bBody, bEnd, 1)
-			} else {
-				b := s.endBlock()
-				b.Kind = ssa.BlockPlain
-				b.AddEdgeTo(bBody)
-			}
+		b.AddEdgeTo(bCond)
 
+		// generate code to test condition
+		s.startBlock(bCond)
+		if n.Cond != nil {
+			s.condBranch(n.Cond, bBody, bEnd, 1)
 		} else {
+			b := s.endBlock()
+			b.Kind = ssa.BlockPlain
 			b.AddEdgeTo(bBody)
 		}
 
@@ -1801,29 +1794,18 @@ func (s *state) stmt(n ir.Node) {
 			b.AddEdgeTo(bIncr)
 		}
 
-		// generate incr (and, for OFORUNTIL, condition)
+		// generate incr
 		s.startBlock(bIncr)
 		if n.Post != nil {
 			s.stmt(n.Post)
 		}
-		if n.Op() == ir.OFOR {
-			if b := s.endBlock(); b != nil {
-				b.AddEdgeTo(bCond)
-				// It can happen that bIncr ends in a block containing only VARKILL,
-				// and that muddles the debugging experience.
-				if b.Pos == src.NoXPos {
-					b.Pos = bCond.Pos
-				}
+		if b := s.endBlock(); b != nil {
+			b.AddEdgeTo(bCond)
+			// It can happen that bIncr ends in a block containing only VARKILL,
+			// and that muddles the debugging experience.
+			if b.Pos == src.NoXPos {
+				b.Pos = bCond.Pos
 			}
-		} else {
-			// bCond is unused in OFORUNTIL, so repurpose it.
-			bLateIncr := bCond
-			// test condition
-			s.condBranch(n.Cond, bLateIncr, bEnd, 1)
-			// generate late increment
-			s.startBlock(bLateIncr)
-			s.stmtList(n.Late)
-			s.endBlock().AddEdgeTo(bBody)
 		}
 
 		s.startBlock(bEnd)
