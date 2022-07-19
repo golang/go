@@ -151,11 +151,10 @@ and test commands:
 		For example, when building with a non-standard configuration,
 		use -pkgdir to keep generated packages in a separate location.
 	-tags tag,list
-		a comma-separated list of build tags to consider satisfied during the
-		build. For more information about build tags, see the description of
-		build constraints in the documentation for the go/build package.
-		(Earlier versions of Go used a space-separated list, and that form
-		is deprecated but still recognized.)
+		a comma-separated list of additional build tags to consider satisfied
+		during the build. For more information about build tags, see
+		'go help buildconstraint'. (Earlier versions of Go used a
+		space-separated list, and that form is deprecated but still recognized.)
 	-trimpath
 		remove all file system paths from the resulting executable.
 		Instead of absolute file system paths, the recorded file names

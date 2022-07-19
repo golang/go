@@ -5,6 +5,12 @@
 //go:build ignore
 // +build ignore
 
+// Note: this program must be run with the GOROOT
+// environment variable set to the root of this tree.
+//   GOROOT=...
+//   cd $GOROOT/src/cmd/compile/internal/ir
+//   ../../../../../bin/go run -mod=mod mknode.go
+
 package main
 
 import (
@@ -154,6 +160,9 @@ func forNodeFields(named *types.Named, prologue, singleTmpl, sliceTmpl, epilogue
 		}
 
 		tmpl, what := singleTmpl, types.TypeString(typ, types.RelativeTo(irPkg))
+		if what == "go/constant.Value" {
+			return false
+		}
 		if implementsNode(typ) {
 			if slice != nil {
 				helper := strings.TrimPrefix(what, "*") + "s"

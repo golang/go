@@ -2120,6 +2120,16 @@ func TestJoinPath(t *testing.T) {
 			out:  "https://go.googlesource.com/",
 		},
 		{
+			base: "https://go.googlesource.com/a%2fb",
+			elem: []string{"c"},
+			out:  "https://go.googlesource.com/a%2fb/c",
+		},
+		{
+			base: "https://go.googlesource.com/a%2fb",
+			elem: []string{"c%2fd"},
+			out:  "https://go.googlesource.com/a%2fb/c%2fd",
+		},
+		{
 			base: "/",
 			elem: nil,
 			out:  "/",

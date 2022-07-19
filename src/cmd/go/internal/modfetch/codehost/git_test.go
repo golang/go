@@ -43,7 +43,7 @@ var altRepos = []string{
 // For now, at least the hgrepo1 tests check the general vcs.go logic.
 
 // localGitRepo is like gitrepo1 but allows archive access.
-var localGitRepo string
+var localGitRepo, localGitURL string
 
 func testMain(m *testing.M) int {
 	dir, err := os.MkdirTemp("", "gitrepo-test-")
@@ -65,6 +65,15 @@ func testMain(m *testing.M) int {
 			if _, err := Run(localGitRepo, "git", "config", "daemon.uploadarch", "true"); err != nil {
 				log.Fatal(err)
 			}
+
+			// Convert absolute path to file URL. LocalGitRepo will not accept
+			// Windows absolute paths because they look like a host:path remote.
+			// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
+			if strings.HasPrefix(localGitRepo, "/") {
+				localGitURL = "file://" + localGitRepo
+			} else {
+				localGitURL = "file:///" + filepath.ToSlash(localGitRepo)
+			}
 		}
 	}
 
@@ -73,17 +82,8 @@ func testMain(m *testing.M) int {
 
 func testRepo(t *testing.T, remote string) (Repo, error) {
 	if remote == "localGitRepo" {
-		// Convert absolute path to file URL. LocalGitRepo will not accept
-		// Windows absolute paths because they look like a host:path remote.
-		// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
-		var url string
-		if strings.HasPrefix(localGitRepo, "/") {
-			url = "file://" + localGitRepo
-		} else {
-			url = "file:///" + filepath.ToSlash(localGitRepo)
-		}
 		testenv.MustHaveExecPath(t, "git")
-		return LocalGitRepo(url)
+		return LocalGitRepo(localGitURL)
 	}
 	vcs := "git"
 	for _, k := range []string{"hg"} {
@@ -98,13 +98,28 @@ func testRepo(t *testing.T, remote string) (Repo, error) {
 var tagsTests = []struct {
 	repo   string
 	prefix string
-	tags   []string
+	tags   []Tag
 }{
-	{gitrepo1, "xxx", []string{}},
-	{gitrepo1, "", []string{"v1.2.3", "v1.2.4-annotated", "v2.0.1", "v2.0.2", "v2.3"}},
-	{gitrepo1, "v", []string{"v1.2.3", "v1.2.4-annotated", "v2.0.1", "v2.0.2", "v2.3"}},
-	{gitrepo1, "v1", []string{"v1.2.3", "v1.2.4-annotated"}},
-	{gitrepo1, "2", []string{}},
+	{gitrepo1, "xxx", []Tag{}},
+	{gitrepo1, "", []Tag{
+		{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+		{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+		{"v2.0.1", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
+		{"v2.0.2", "9d02800338b8a55be062c838d1f02e0c5780b9eb"},
+		{"v2.3", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
+	}},
+	{gitrepo1, "v", []Tag{
+		{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+		{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+		{"v2.0.1", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
+		{"v2.0.2", "9d02800338b8a55be062c838d1f02e0c5780b9eb"},
+		{"v2.3", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
+	}},
+	{gitrepo1, "v1", []Tag{
+		{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+		{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+	}},
+	{gitrepo1, "2", []Tag{}},
 }
 
 func TestTags(t *testing.T) {
@@ -121,13 +136,24 @@ func TestTags(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(tags, tt.tags) {
-				t.Errorf("Tags: incorrect tags\nhave %v\nwant %v", tags, tt.tags)
+			if tags == nil || !reflect.DeepEqual(tags.List, tt.tags) {
+				t.Errorf("Tags(%q): incorrect tags\nhave %v\nwant %v", tt.prefix, tags, tt.tags)
 			}
 		}
 		t.Run(path.Base(tt.repo)+"/"+tt.prefix, f)
 		if tt.repo == gitrepo1 {
+			// Clear hashes.
+			clearTags := []Tag{}
+			for _, tag := range tt.tags {
+				clearTags = append(clearTags, Tag{tag.Name, ""})
+			}
+			tags := tt.tags
 			for _, tt.repo = range altRepos {
+				if strings.Contains(tt.repo, "Git") {
+					tt.tags = tags
+				} else {
+					tt.tags = clearTags
+				}
 				t.Run(path.Base(tt.repo)+"/"+tt.prefix, f)
 			}
 		}
@@ -141,6 +167,12 @@ var latestTests = []struct {
 	{
 		gitrepo1,
 		&RevInfo{
+			Origin: &Origin{
+				VCS:  "git",
+				URL:  "https://vcs-test.golang.org/git/gitrepo1",
+				Ref:  "HEAD",
+				Hash: "ede458df7cd0fdca520df19a33158086a8a68e81",
+			},
 			Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
 			Short:   "ede458df7cd0",
 			Version: "ede458df7cd0fdca520df19a33158086a8a68e81",
@@ -151,6 +183,11 @@ var latestTests = []struct {
 	{
 		hgrepo1,
 		&RevInfo{
+			Origin: &Origin{
+				VCS:  "hg",
+				URL:  "https://vcs-test.golang.org/hg/hgrepo1",
+				Hash: "18518c07eb8ed5c80221e997e518cccaa8c0c287",
+			},
 			Name:    "18518c07eb8ed5c80221e997e518cccaa8c0c287",
 			Short:   "18518c07eb8e",
 			Version: "18518c07eb8ed5c80221e997e518cccaa8c0c287",
@@ -174,12 +211,17 @@ func TestLatest(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !reflect.DeepEqual(info, tt.info) {
-				t.Errorf("Latest: incorrect info\nhave %+v\nwant %+v", *info, *tt.info)
+				t.Errorf("Latest: incorrect info\nhave %+v (origin %+v)\nwant %+v (origin %+v)", info, info.Origin, tt.info, tt.info.Origin)
 			}
 		}
 		t.Run(path.Base(tt.repo), f)
 		if tt.repo == gitrepo1 {
 			tt.repo = "localGitRepo"
+			info := *tt.info
+			tt.info = &info
+			o := *info.Origin
+			info.Origin = &o
+			o.URL = localGitURL
 			t.Run(path.Base(tt.repo), f)
 		}
 	}
@@ -590,11 +632,12 @@ func TestStat(t *testing.T) {
 				if !strings.Contains(err.Error(), tt.err) {
 					t.Fatalf("Stat: wrong error %q, want %q", err, tt.err)
 				}
-				if info != nil {
-					t.Errorf("Stat: non-nil info with error %q", err)
+				if info != nil && info.Origin == nil {
+					t.Errorf("Stat: non-nil info with nil Origin with error %q", err)
 				}
 				return
 			}
+			info.Origin = nil // TestLatest and ../../../testdata/script/reuse_git.txt test Origin well enough
 			if !reflect.DeepEqual(info, tt.info) {
 				t.Errorf("Stat: incorrect info\nhave %+v\nwant %+v", *info, *tt.info)
 			}

@@ -163,7 +163,7 @@ func (ts *testScript) setup() {
 	ts.cd = filepath.Join(ts.workdir, "gopath/src")
 	ts.env = []string{
 		"WORK=" + ts.workdir, // must be first for ts.abbrev
-		"PATH=" + testBin + string(filepath.ListSeparator) + os.Getenv("PATH"),
+		pathEnvName() + "=" + testBin + string(filepath.ListSeparator) + os.Getenv(pathEnvName()),
 		homeEnvName() + "=/no-home",
 		"CCACHE_DISABLE=1", // ccache breaks with non-existent HOME
 		"GOARCH=" + runtime.GOARCH,
@@ -187,8 +187,6 @@ func (ts *testScript) setup() {
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
 		"goversion=" + goVersion(ts),
-		":=" + string(os.PathListSeparator),
-		"/=" + string(os.PathSeparator),
 		"CMDGO_TEST_RUN_MAIN=true",
 	}
 	if testenv.Builder() != "" || os.Getenv("GIT_TRACE_CURL") == "1" {
@@ -203,10 +201,6 @@ func (ts *testScript) setup() {
 		ts.env = append(ts.env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
 	}
 
-	if runtime.GOOS == "plan9" {
-		ts.env = append(ts.env, "path="+testBin+string(filepath.ListSeparator)+os.Getenv("path"))
-	}
-
 	for _, key := range extraEnvKeys {
 		if val := os.Getenv(key); val != "" {
 			ts.env = append(ts.env, key+"="+val)
@@ -219,6 +213,10 @@ func (ts *testScript) setup() {
 			ts.envMap[kv[:i]] = kv[i+1:]
 		}
 	}
+	// Add entries for ${:} and ${/} to make it easier to write platform-independent
+	// environment variables.
+	ts.envMap["/"] = string(os.PathSeparator)
+	ts.envMap[":"] = string(os.PathListSeparator)
 
 	fmt.Fprintf(&ts.log, "# (%s)\n", time.Now().UTC().Format(time.RFC3339))
 	ts.mark = ts.log.Len()
@@ -1264,12 +1262,7 @@ func (ts *testScript) lookPath(command string) (string, error) {
 		}
 	}
 
-	pathName := "PATH"
-	if runtime.GOOS == "plan9" {
-		pathName = "path"
-	}
-
-	for _, dir := range strings.Split(ts.envMap[pathName], string(filepath.ListSeparator)) {
+	for _, dir := range strings.Split(ts.envMap[pathEnvName()], string(filepath.ListSeparator)) {
 		if searchExt {
 			ents, err := os.ReadDir(dir)
 			if err != nil {

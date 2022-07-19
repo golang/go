@@ -397,7 +397,6 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 		seen := map[module.Version]bool{}
 		for _, m := range roots {
 			hasDepsInAll[m.Path] = true
-			seen[m] = true
 		}
 		// This loop will terminate because it will call enqueue on each version of
 		// each dependency of the modules in hasDepsInAll at most once (and only
@@ -406,11 +405,11 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 			needsEnqueueing := map[module.Version]bool{}
 			for p := range hasDepsInAll {
 				m := module.Version{Path: p, Version: mg.g.Selected(p)}
-				reqs, ok := mg.g.RequiredBy(m)
-				if !ok {
+				if !seen[m] {
 					needsEnqueueing[m] = true
 					continue
 				}
+				reqs, _ := mg.g.RequiredBy(m)
 				for _, r := range reqs {
 					s := module.Version{Path: r.Path, Version: mg.g.Selected(r.Path)}
 					if cmpVersion(s.Version, r.Version) > 0 && !seen[s] {

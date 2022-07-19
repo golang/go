@@ -564,6 +564,60 @@ func testServeFileWithContentEncoding(t *testing.T, h2 bool) {
 	}
 }
 
+// Tests that ServeFile does not generate representation metadata when
+// file has not been modified, as per RFC 7232 section 4.1.
+func TestServeFileNotModified_h1(t *testing.T) { testServeFileNotModified(t, h1Mode) }
+func TestServeFileNotModified_h2(t *testing.T) { testServeFileNotModified(t, h2Mode) }
+func testServeFileNotModified(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Encoding", "foo")
+		w.Header().Set("Etag", `"123"`)
+		ServeFile(w, r, "testdata/file")
+
+		// Because the testdata is so small, it would fit in
+		// both the h1 and h2 Server's write buffers. For h1,
+		// sendfile is used, though, forcing a header flush at
+		// the io.Copy. http2 doesn't do a header flush so
+		// buffers all 11 bytes and then adds its own
+		// Content-Length. To prevent the Server's
+		// Content-Length and test ServeFile only, flush here.
+		w.(Flusher).Flush()
+	}))
+	defer cst.close()
+	req, err := NewRequest("GET", cst.ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("If-None-Match", `"123"`)
+	resp, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		t.Fatal("reading Body:", err)
+	}
+	if len(b) != 0 {
+		t.Errorf("non-empty body")
+	}
+	if g, e := resp.StatusCode, StatusNotModified; g != e {
+		t.Errorf("status mismatch: got %d, want %d", g, e)
+	}
+	// HTTP1 transport sets ContentLength to 0.
+	if g, e1, e2 := resp.ContentLength, int64(-1), int64(0); g != e1 && g != e2 {
+		t.Errorf("Content-Length mismatch: got %d, want %d or %d", g, e1, e2)
+	}
+	if resp.Header.Get("Content-Type") != "" {
+		t.Errorf("Content-Type present, but it should not be")
+	}
+	if resp.Header.Get("Content-Encoding") != "" {
+		t.Errorf("Content-Encoding present, but it should not be")
+	}
+}
+
 func TestServeIndexHtml(t *testing.T) {
 	defer afterTest(t)
 

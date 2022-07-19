@@ -812,11 +812,12 @@ var HelpBuildConstraint = &base.Command{
 	UsageLine: "buildconstraint",
 	Short:     "build constraints",
 	Long: `
-A build constraint, also known as a build tag, is a line comment that begins
+A build constraint, also known as a build tag, is a condition under which a
+file should be included in the package. Build constraints are given by a
+line comment that begins
 
 	//go:build
 
-that lists the conditions under which a file should be included in the package.
 Constraints may appear in any kind of source file (not just Go), but
 they must appear near the top of the file, preceded
 only by blank lines and other line comments. These rules mean that in Go
@@ -825,9 +826,9 @@ files a build constraint must appear before the package clause.
 To distinguish build constraints from package documentation,
 a build constraint should be followed by a blank line.
 
-A build constraint is evaluated as an expression containing options
-combined by ||, &&, and ! operators and parentheses. Operators have
-the same meaning as in Go.
+A build constraint comment is evaluated as an expression containing
+build tags combined by ||, &&, and ! operators and parentheses.
+Operators have the same meaning as in Go.
 
 For example, the following build constraint constrains a file to
 build when the "linux" and "386" constraints are satisfied, or when
@@ -837,7 +838,7 @@ build when the "linux" and "386" constraints are satisfied, or when
 
 It is an error for a file to have more than one //go:build line.
 
-During a particular build, the following words are satisfied:
+During a particular build, the following build tags are satisfied:
 
 	- the target operating system, as spelled by runtime.GOOS, set with the
 	  GOOS environment variable.

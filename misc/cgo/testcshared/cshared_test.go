@@ -151,16 +151,22 @@ func testMain(m *testing.M) int {
 	// The installation directory format varies depending on the platform.
 	output, err := exec.Command("go", "list",
 		"-buildmode=c-shared",
-		"-installsuffix", "testcshared",
 		"-f", "{{.Target}}",
-		"./libgo").CombinedOutput()
+		"runtime/cgo").CombinedOutput()
 	if err != nil {
 		log.Panicf("go list failed: %v\n%s", err, output)
 	}
-	target := string(bytes.TrimSpace(output))
-	libgoname = filepath.Base(target)
-	installdir = filepath.Dir(target)
-	libSuffix = strings.TrimPrefix(filepath.Ext(target), ".")
+	runtimeCgoTarget := string(bytes.TrimSpace(output))
+	libSuffix = strings.TrimPrefix(filepath.Ext(runtimeCgoTarget), ".")
+
+	defer func() {
+		if installdir != "" {
+			err := os.RemoveAll(installdir)
+			if err != nil {
+				log.Panic(err)
+			}
+		}
+	}()
 
 	return m.Run()
 }
@@ -284,8 +290,13 @@ func createHeaders() error {
 	}
 
 	// Generate a C header file for libgo itself.
-	args = []string{"go", "install", "-buildmode=c-shared",
-		"-installsuffix", "testcshared", "./libgo"}
+	installdir, err = os.MkdirTemp("", "testcshared")
+	if err != nil {
+		return err
+	}
+	libgoname = "libgo." + libSuffix
+
+	args = []string{"go", "build", "-buildmode=c-shared", "-o", filepath.Join(installdir, libgoname), "./libgo"}
 	cmd = exec.Command(args[0], args[1:]...)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -373,6 +384,7 @@ func createHeadersOnce(t *testing.T) {
 		headersErr = createHeaders()
 	})
 	if headersErr != nil {
+		t.Helper()
 		t.Fatal(headersErr)
 	}
 }
@@ -705,12 +717,15 @@ func TestCachedInstall(t *testing.T) {
 	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "libgo", "libgo.go"), filepath.Join("libgo", "libgo.go"))
 	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "p", "p.go"), filepath.Join("p", "p.go"))
 
-	env := append(os.Environ(), "GOPATH="+tmpdir, "GOBIN="+filepath.Join(tmpdir, "bin"))
-
 	buildcmd := []string{"go", "install", "-x", "-buildmode=c-shared", "-installsuffix", "testcshared", "./libgo"}
 
 	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
 	cmd.Dir = filepath.Join(tmpdir, "src", "testcshared")
+	env := append(cmd.Environ(),
+		"GOPATH="+tmpdir,
+		"GOBIN="+filepath.Join(tmpdir, "bin"),
+		"GO111MODULE=off", // 'go install' only works in GOPATH mode
+	)
 	cmd.Env = env
 	t.Log(buildcmd)
 	out, err := cmd.CombinedOutput()

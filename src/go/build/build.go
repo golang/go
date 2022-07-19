@@ -715,6 +715,9 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				tried.goroot = dir
 			}
 			if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
+				// TODO(bcmills): Setting p.Dir here is misleading, because gccgo
+				// doesn't actually load its standard-library packages from this
+				// directory. See if we can leave it unset.
 				p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
 				p.Goroot = true
 				p.Root = ctxt.GOROOT

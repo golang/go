@@ -5,6 +5,8 @@
 package xml
 
 import (
+	"bytes"
+	"errors"
 	"io"
 	"reflect"
 	"strings"
@@ -1093,4 +1095,33 @@ func TestUnmarshalIntoNil(t *testing.T) {
 		t.Fatalf("no error in unmarshalling")
 	}
 
+}
+
+func TestCVE202228131(t *testing.T) {
+	type nested struct {
+		Parent *nested `xml:",any"`
+	}
+	var n nested
+	err := Unmarshal(bytes.Repeat([]byte("<a>"), maxUnmarshalDepth+1), &n)
+	if err == nil {
+		t.Fatal("Unmarshal did not fail")
+	} else if !errors.Is(err, errExeceededMaxUnmarshalDepth) {
+		t.Fatalf("Unmarshal unexpected error: got %q, want %q", err, errExeceededMaxUnmarshalDepth)
+	}
+}
+
+func TestCVE202230633(t *testing.T) {
+	if testing.Short() {
+		t.Skip("test requires significant memory")
+	}
+	defer func() {
+		p := recover()
+		if p != nil {
+			t.Fatal("Unmarshal panicked")
+		}
+	}()
+	var example struct {
+		Things []string
+	}
+	Unmarshal(bytes.Repeat([]byte("<a>"), 17_000_000), &example)
 }

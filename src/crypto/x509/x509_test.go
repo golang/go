@@ -2479,6 +2479,40 @@ func TestCreateRevocationList(t *testing.T) {
 			expectedError: "x509: template contains nil Number field",
 		},
 		{
+			name: "long Number",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+				Number:     big.NewInt(0).SetBytes(append([]byte{1}, make([]byte, 20)...)),
+			},
+			expectedError: "x509: CRL number exceeds 20 octets",
+		},
+		{
+			name: "long Number (20 bytes, MSB set)",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+				Number:     big.NewInt(0).SetBytes(append([]byte{255}, make([]byte, 19)...)),
+			},
+			expectedError: "x509: CRL number exceeds 20 octets",
+		},
+		{
 			name: "invalid signature algorithm",
 			key:  ec256Priv,
 			issuer: &Certificate{
@@ -2517,6 +2551,34 @@ func TestCreateRevocationList(t *testing.T) {
 					{
 						SerialNumber:   big.NewInt(2),
 						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name: "valid, extra entry extension",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificates: []pkix.RevokedCertificate{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+						Extensions: []pkix.Extension{
+							{
+								Id:    []int{2, 5, 29, 99},
+								Value: []byte{5, 0},
+							},
+						},
 					},
 				},
 				Number:     big.NewInt(5),
@@ -2680,6 +2742,19 @@ func TestCreateRevocationList(t *testing.T) {
 			if !reflect.DeepEqual(parsedCRL.Extensions[2:], tc.template.ExtraExtensions) {
 				t.Fatalf("Extensions mismatch: got %v; want %v.",
 					parsedCRL.Extensions[2:], tc.template.ExtraExtensions)
+			}
+
+			if tc.template.Number != nil && parsedCRL.Number == nil {
+				t.Fatalf("Generated CRL missing Number: got nil, want %s",
+					tc.template.Number.String())
+			}
+			if tc.template.Number != nil && tc.template.Number.Cmp(parsedCRL.Number) != 0 {
+				t.Fatalf("Generated CRL has wrong Number: got %s, want %s",
+					parsedCRL.Number.String(), tc.template.Number.String())
+			}
+			if !bytes.Equal(parsedCRL.AuthorityKeyId, expectedAKI) {
+				t.Fatalf("Generated CRL has wrong Number: got %x, want %x",
+					parsedCRL.AuthorityKeyId, expectedAKI)
 			}
 		})
 	}

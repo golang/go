@@ -13,6 +13,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -247,18 +248,16 @@ func TestLargeImageWithShortData(t *testing.T) {
 		"\x20\x36\x9f\x78\x64\x75\xe6\xab\x7d\xb2\xde\x29\x70\xd3\x20\x27" +
 		"\xde\xaf\xa4\xf0\xca\x9f\x24\xa8\xdf\x46\xa8\x24\x84\x96\xe3\x77" +
 		"\xf9\x2e\xe0\x0a\x62\x7f\xdf\xd9"
-	c := make(chan error, 1)
-	go func() {
-		_, err := Decode(strings.NewReader(input))
-		c <- err
-	}()
-	select {
-	case err := <-c:
-		if err == nil {
-			t.Fatalf("got nil error, want non-nil")
-		}
-	case <-time.After(3 * time.Second):
-		t.Fatalf("timed out")
+
+	timer := time.AfterFunc(30*time.Second, func() {
+		debug.SetTraceback("all")
+		panic("TestLargeImageWithShortData stuck in Decode")
+	})
+	defer timer.Stop()
+
+	_, err := Decode(strings.NewReader(input))
+	if err == nil {
+		t.Fatalf("got nil error, want non-nil")
 	}
 }
 
