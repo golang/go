@@ -108,6 +108,19 @@ go version -m example$GOEXE
 stdout '\s+mod\s+example\s+v1.0.3-0.20220719150703-2e239bf29c13\s+'
 rm example$GOEXE
 
+# Create +incompatible module
+exec git checkout v1.0.4
+exec git rm go.mod
+exec git commit -m 'commit 6'
+exec git tag v2.0.0
+exec git checkout HEAD^ go.mod
+# And make the tree +dirty
+mv README4 README5
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example\s+v2.0.0\+incompatible.dirty\s+'
+rm example$GOEXE
+
 -- $WORK/repo/go.mod --
 module example
 

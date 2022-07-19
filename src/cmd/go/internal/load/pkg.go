@@ -2571,7 +2571,12 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		vers := revInfo.Version
 		if vers != "" {
 			if st.Uncommitted {
-				vers += "+dirty"
+				// SemVer build metadata is dot-separated https://semver.org/#spec-item-10
+				if strings.HasSuffix(vers, "+incompatible") {
+					vers += ".dirty"
+				} else {
+					vers += "+dirty"
+				}
 			}
 			info.Main.Version = vers
 		}
