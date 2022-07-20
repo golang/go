@@ -225,6 +225,45 @@ func TestReadMIMEHeaderTrimContinued(t *testing.T) {
 	}
 }
 
+type autoRewind struct {
+	buf string
+	r   io.Reader
+}
+
+func (r *autoRewind) Read(p []byte) (int, error) {
+	// Initialize r's io.Reader.
+	if r.r == nil {
+		r.r = strings.NewReader(r.buf)
+	}
+
+	// Use r's io.Reader to read p.
+	n, err := r.r.Read(p)
+	if err == io.EOF {
+		// rewind
+		r.r = strings.NewReader(r.buf)
+	}
+
+	return n, err
+}
+
+// Test method can be applied on rewind readers. Issue #
+func TestReadRewindReader(t *testing.T) {
+	msg1 := "From: Gopher <from@example.com>\r\n" +
+		"To: Another Gopher <to@example.com>\r\n" +
+		"Subject: Gophers at Gophercon\r\n"
+
+	r := &autoRewind{
+		buf: msg1,
+	}
+
+	tp := NewReader(bufio.NewReader(r))
+	_, err := tp.ReadMIMEHeader()
+
+	if err != io.EOF {
+		t.Fatal(err)
+	}
+}
+
 type readResponseTest struct {
 	in       string
 	inCode   int

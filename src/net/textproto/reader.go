@@ -17,9 +17,10 @@ import (
 // A Reader implements convenience methods for reading requests
 // or responses from a text protocol network connection.
 type Reader struct {
-	R   *bufio.Reader
-	dot *dotReader
-	buf []byte // a re-usable buffer for readContinuedLineSlice
+	R        *bufio.Reader
+	dot      *dotReader
+	buf      []byte // a re-usable buffer for readContinuedLineSlice
+	reachEnd bool
 }
 
 // NewReader returns a new Reader reading from r.
@@ -174,7 +175,10 @@ func (r *Reader) skipSpace() int {
 	for {
 		c, err := r.R.ReadByte()
 		if err != nil {
-			// Bufio will keep err until next read.
+			// Bufio may not keep err until next read.
+			if err == io.EOF {
+				r.reachEnd = true
+			}
 			break
 		}
 		if c != ' ' && c != '\t' {
@@ -501,7 +505,7 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 		return m, ProtocolError("malformed MIME header initial line: " + string(line))
 	}
 
-	for {
+	for !r.reachEnd {
 		kv, err := r.readContinuedLineSlice(mustHaveFieldNameColon)
 		if len(kv) == 0 {
 			return m, err
@@ -541,6 +545,8 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 			return m, err
 		}
 	}
+
+	return m, io.EOF
 }
 
 // noValidation is a no-op validation func for readContinuedLineSlice
