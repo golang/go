@@ -693,9 +693,9 @@ func mdump(m *MemStats) {
 func writeheapdump_m(fd uintptr, m *MemStats) {
 	assertWorldStopped()
 
-	_g_ := getg()
-	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
-	_g_.waitreason = waitReasonDumpingHeap
+	gp := getg()
+	casgstatus(gp.m.curg, _Grunning, _Gwaiting)
+	gp.waitreason = waitReasonDumpingHeap
 
 	// Set dump file.
 	dumpfd = fd
@@ -710,7 +710,7 @@ func writeheapdump_m(fd uintptr, m *MemStats) {
 		tmpbuf = nil
 	}
 
-	casgstatus(_g_.m.curg, _Gwaiting, _Grunning)
+	casgstatus(gp.m.curg, _Gwaiting, _Grunning)
 }
 
 // dumpint() the kind & offset of each field in an object.

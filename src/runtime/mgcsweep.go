@@ -431,8 +431,8 @@ func (s *mspan) ensureSwept() {
 	// Caller must disable preemption.
 	// Otherwise when this function returns the span can become unswept again
 	// (if GC is triggered on another goroutine).
-	_g_ := getg()
-	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
+	gp := getg()
+	if gp.m.locks == 0 && gp.m.mallocing == 0 && gp != gp.m.g0 {
 		throw("mspan.ensureSwept: m is not locked")
 	}
 
@@ -470,8 +470,8 @@ func (s *mspan) ensureSwept() {
 func (sl *sweepLocked) sweep(preserve bool) bool {
 	// It's critical that we enter this function with preemption disabled,
 	// GC must not start while we are in the middle of this function.
-	_g_ := getg()
-	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
+	gp := getg()
+	if gp.m.locks == 0 && gp.m.mallocing == 0 && gp != gp.m.g0 {
 		throw("mspan.sweep: m is not locked")
 	}
 

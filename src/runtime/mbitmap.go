@@ -2028,11 +2028,10 @@ func getgcmask(ep any) (mask []byte) {
 	}
 
 	// stack
-	if _g_ := getg(); _g_.m.curg.stack.lo <= uintptr(p) && uintptr(p) < _g_.m.curg.stack.hi {
+	if gp := getg(); gp.m.curg.stack.lo <= uintptr(p) && uintptr(p) < gp.m.curg.stack.hi {
 		var frame stkframe
 		frame.sp = uintptr(p)
-		_g_ := getg()
-		gentraceback(_g_.m.curg.sched.pc, _g_.m.curg.sched.sp, 0, _g_.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
+		gentraceback(gp.m.curg.sched.pc, gp.m.curg.sched.sp, 0, gp.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
 		if frame.fn.valid() {
 			locals, _, _ := getStackMap(&frame, nil, false)
 			if locals.n == 0 {
