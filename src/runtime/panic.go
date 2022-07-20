@@ -1240,6 +1240,8 @@ func startpanic_m() bool {
 var didothers bool
 var deadlock mutex
 
+// gp is the crashing g running on this M, but may be a user G, while getg() is
+// always g0.
 func dopanic_m(gp *g, pc, sp uintptr) bool {
 	if gp.sig != 0 {
 		signame := signame(gp.sig)
@@ -1252,7 +1254,6 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
 	}
 
 	level, all, docrash := gotraceback()
-	_g_ := getg()
 	if level > 0 {
 		if gp != gp.m.curg {
 			all = true
@@ -1261,7 +1262,7 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
 			print("\n")
 			goroutineheader(gp)
 			traceback(pc, sp, 0, gp)
-		} else if level >= 2 || _g_.m.throwing >= throwTypeRuntime {
+		} else if level >= 2 || gp.m.throwing >= throwTypeRuntime {
 			print("\nruntime stack:\n")
 			traceback(pc, sp, 0, gp)
 		}
