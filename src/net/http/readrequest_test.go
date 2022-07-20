@@ -450,9 +450,12 @@ Content-Length: 3
 Content-Length: 4
 
 abc`)},
-	{"smuggle_content_len_head", reqBytes(`HEAD / HTTP/1.1
+	{"smuggle_two_content_len_head", reqBytes(`HEAD / HTTP/1.1
 Host: foo
-Content-Length: 5`)},
+Content-Length: 4
+Content-Length: 5
+
+1234`)},
 
 	// golang.org/issue/22464
 	{"leading_space_in_header", reqBytes(`GET / HTTP/1.1
