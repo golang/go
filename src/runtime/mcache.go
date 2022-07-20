@@ -173,10 +173,6 @@ func (c *mcache) refill(spc spanClass) {
 		bytesAllocated := slotsUsed * int64(s.elemsize)
 		gcController.totalAlloc.Add(bytesAllocated)
 
-		// Update heapLive and flush scanAlloc.
-		gcController.update(bytesAllocated, int64(c.scanAlloc))
-		c.scanAlloc = 0
-
 		// Clear the second allocCount just to be safe.
 		s.allocCountBeforeCache = 0
 	}
@@ -197,6 +193,23 @@ func (c *mcache) refill(spc spanClass) {
 
 	// Store the current alloc count for accounting later.
 	s.allocCountBeforeCache = s.allocCount
+
+	// Update heapLive and flush scanAlloc.
+	//
+	// We have not yet allocated anything new into the span, but we
+	// assume that all of its slots will get used, so this makes
+	// heapLive an overestimate.
+	//
+	// When the span gets uncached, we'll fix up this overestimate
+	// if necessary (see releaseAll).
+	//
+	// We pick an overestimate here because an underestimate leads
+	// the pacer to believe that it's in better shape than it is,
+	// which appears to lead to more memory used. See #53738 for
+	// more details.
+	usedBytes := uintptr(s.allocCount) * s.elemsize
+	gcController.update(int64(s.npages*pageSize)-int64(usedBytes), int64(c.scanAlloc))
+	c.scanAlloc = 0
 
 	c.alloc[spc] = s
 }
@@ -247,6 +260,8 @@ func (c *mcache) releaseAll() {
 	scanAlloc := int64(c.scanAlloc)
 	c.scanAlloc = 0
 
+	sg := mheap_.sweepgen
+	dHeapLive := int64(0)
 	for i := range c.alloc {
 		s := c.alloc[i]
 		if s != &emptymspan {
@@ -261,6 +276,15 @@ func (c *mcache) releaseAll() {
 			// Adjust the actual allocs in inconsistent, internal stats.
 			// We assumed earlier that the full span gets allocated.
 			gcController.totalAlloc.Add(slotsUsed * int64(s.elemsize))
+
+			if s.sweepgen != sg+1 {
+				// refill conservatively counted unallocated slots in gcController.heapLive.
+				// Undo this.
+				//
+				// If this span was cached before sweep, then gcController.heapLive was totally
+				// recomputed since caching this span, so we don't do this for stale spans.
+				dHeapLive -= int64(uintptr(s.nelems)-uintptr(s.allocCount)) * int64(s.elemsize)
+			}
 
 			// Release the span to the mcentral.
 			mheap_.central[i].mcentral.uncacheSpan(s)
@@ -277,8 +301,8 @@ func (c *mcache) releaseAll() {
 	c.tinyAllocs = 0
 	memstats.heapStats.release()
 
-	// Updated heapScan.
-	gcController.update(0, scanAlloc)
+	// Update heapLive and heapScan.
+	gcController.update(dHeapLive, scanAlloc)
 }
 
 // prepareForSweep flushes c if the system has entered a new sweep phase

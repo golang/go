@@ -247,7 +247,7 @@ p  { color: grey85; font-size:85%; }
   because it made a system call or tried to acquire a mutex.
 
   Directly underneath each bar, a smaller bar or more commonly a fine
-  vertical line indicates an event occuring during its execution.
+  vertical line indicates an event occurring during its execution.
   Some of these are related to garbage collection; most indicate that
   a goroutine yielded its logical processor but then immediately resumed execution
   on the same logical processor. Clicking on the event displays the stack trace
@@ -274,7 +274,7 @@ p  { color: grey85; font-size:85%; }
   function written in C.
 </p>
 <p>
-  Above the event trace for the first logical processor are 
+  Above the event trace for the first logical processor are
   traces for various runtime-internal events.
 
   The "GC" bar shows when the garbage collector is running, and in which stage.

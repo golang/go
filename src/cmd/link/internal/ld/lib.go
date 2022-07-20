@@ -1426,10 +1426,23 @@ func (ctxt *Link) hostlink() {
 				argv = append(argv, "-Wl,-pagezero_size,4000000")
 			}
 		}
+		if *flagRace && ctxt.HeadType == objabi.Hwindows {
+			// Current windows/amd64 race detector tsan support
+			// library can't handle PIE mode (see #53539 for more details).
+			// For now, explicitly disable PIE (since some compilers
+			// default to it) if -race is in effect.
+			argv = addASLRargs(argv, false)
+		}
 	case BuildModePIE:
 		switch ctxt.HeadType {
 		case objabi.Hdarwin, objabi.Haix:
 		case objabi.Hwindows:
+			if *flagAslr && *flagRace {
+				// Current windows/amd64 race detector tsan support
+				// library can't handle PIE mode (see #53539 for more details).
+				// Disable alsr if -race in effect.
+				*flagAslr = false
+			}
 			argv = addASLRargs(argv, *flagAslr)
 		default:
 			// ELF.

@@ -1120,7 +1120,7 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 // system (that is, the finalizer goroutine) is considered a user
 // goroutine.
 func isSystemGoroutine(gp *g, fixed bool) bool {
-	// Keep this in sync with cmd/trace/trace.go:isSystemGoroutine.
+	// Keep this in sync with internal/trace.IsSystemGoroutine.
 	f := findfunc(gp.startpc)
 	if !f.valid() {
 		return false

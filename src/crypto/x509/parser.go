@@ -1008,22 +1008,22 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 	// we can populate RevocationList.Raw, before unwrapping the
 	// SEQUENCE so it can be operated on
 	if !input.ReadASN1Element(&input, cryptobyte_asn1.SEQUENCE) {
-		return nil, errors.New("x509: malformed certificate")
+		return nil, errors.New("x509: malformed crl")
 	}
 	rl.Raw = input
 	if !input.ReadASN1(&input, cryptobyte_asn1.SEQUENCE) {
-		return nil, errors.New("x509: malformed certificate")
+		return nil, errors.New("x509: malformed crl")
 	}
 
 	var tbs cryptobyte.String
 	// do the same trick again as above to extract the raw
 	// bytes for Certificate.RawTBSCertificate
 	if !input.ReadASN1Element(&tbs, cryptobyte_asn1.SEQUENCE) {
-		return nil, errors.New("x509: malformed tbs certificate")
+		return nil, errors.New("x509: malformed tbs crl")
 	}
 	rl.RawTBSRevocationList = tbs
 	if !tbs.ReadASN1(&tbs, cryptobyte_asn1.SEQUENCE) {
-		return nil, errors.New("x509: malformed tbs certificate")
+		return nil, errors.New("x509: malformed tbs crl")
 	}
 
 	var version int
@@ -1106,13 +1106,10 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 			}
 			var extensions cryptobyte.String
 			var present bool
-			if !tbs.ReadOptionalASN1(&extensions, &present, cryptobyte_asn1.SEQUENCE) {
+			if !certSeq.ReadOptionalASN1(&extensions, &present, cryptobyte_asn1.SEQUENCE) {
 				return nil, errors.New("x509: malformed extensions")
 			}
 			if present {
-				if !extensions.ReadASN1(&extensions, cryptobyte_asn1.SEQUENCE) {
-					return nil, errors.New("x509: malformed extensions")
-				}
 				for !extensions.Empty() {
 					var extension cryptobyte.String
 					if !extensions.ReadASN1(&extension, cryptobyte_asn1.SEQUENCE) {
@@ -1147,6 +1144,15 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 			ext, err := parseExtension(extension)
 			if err != nil {
 				return nil, err
+			}
+			if ext.Id.Equal(oidExtensionAuthorityKeyId) {
+				rl.AuthorityKeyId = ext.Value
+			} else if ext.Id.Equal(oidExtensionCRLNumber) {
+				value := cryptobyte.String(ext.Value)
+				rl.Number = new(big.Int)
+				if !value.ReadASN1Integer(rl.Number) {
+					return nil, errors.New("x509: malformed crl number")
+				}
 			}
 			rl.Extensions = append(rl.Extensions, ext)
 		}

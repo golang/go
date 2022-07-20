@@ -205,6 +205,7 @@ func genHeader(t *testing.T, header, dir string) {
 func testInstall(t *testing.T, exe, libgoa, libgoh string, buildcmd ...string) {
 	t.Helper()
 	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Env = append(cmd.Environ(), "GO111MODULE=off") // 'go install' only works in GOPATH mode
 	t.Log(buildcmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
@@ -238,7 +239,7 @@ func testInstall(t *testing.T, exe, libgoa, libgoh string, buildcmd ...string) {
 	binArgs := append(cmdToRun(exe), "arg1", "arg2")
 	cmd = exec.Command(binArgs[0], binArgs[1:]...)
 	if runtime.Compiler == "gccgo" {
-		cmd.Env = append(os.Environ(), "GCCGO=1")
+		cmd.Env = append(cmd.Environ(), "GCCGO=1")
 	}
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
@@ -822,9 +823,15 @@ func TestPIE(t *testing.T) {
 		t.Skipf("skipping PIE test on %s", GOOS)
 	}
 
+	libgoa := "libgo.a"
+	if runtime.Compiler == "gccgo" {
+		libgoa = "liblibgo.a"
+	}
+
 	if !testWork {
 		defer func() {
 			os.Remove("testp" + exeSuffix)
+			os.Remove(libgoa)
 			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
 		}()
 	}
@@ -837,18 +844,13 @@ func TestPIE(t *testing.T) {
 	// be running this test in a GOROOT owned by root.)
 	genHeader(t, "p.h", "./p")
 
-	cmd := exec.Command("go", "install", "-buildmode=c-archive", "./libgo")
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "./libgo")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
 	}
 
-	libgoa := "libgo.a"
-	if runtime.Compiler == "gccgo" {
-		libgoa = "liblibgo.a"
-	}
-
-	ccArgs := append(cc, "-fPIE", "-pie", "-o", "testp"+exeSuffix, "main.c", "main_unix.c", filepath.Join(libgodir, libgoa))
+	ccArgs := append(cc, "-fPIE", "-pie", "-o", "testp"+exeSuffix, "main.c", "main_unix.c", libgoa)
 	if runtime.Compiler == "gccgo" {
 		ccArgs = append(ccArgs, "-lgo")
 	}
@@ -1035,6 +1037,7 @@ func TestCachedInstall(t *testing.T) {
 	buildcmd := []string{"go", "install", "-buildmode=c-archive", "./libgo"}
 
 	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Env = append(cmd.Environ(), "GO111MODULE=off") // 'go install' only works in GOPATH mode
 	t.Log(buildcmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
@@ -1050,6 +1053,7 @@ func TestCachedInstall(t *testing.T) {
 	}
 
 	cmd = exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Env = append(cmd.Environ(), "GO111MODULE=off")
 	t.Log(buildcmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)

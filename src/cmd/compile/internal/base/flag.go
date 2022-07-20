@@ -100,7 +100,6 @@ type CmdFlags struct {
 	GenDwarfInl        int          "help:\"generate DWARF inline info records\"" // 0=disabled, 1=funcs, 2=funcs+formals/locals
 	GoVersion          string       "help:\"required version of the runtime\""
 	ImportCfg          func(string) "help:\"read import configuration from `file`\""
-	ImportMap          func(string) "help:\"add `definition` of the form source=actual to import map\""
 	InstallSuffix      string       "help:\"set pkg directory `suffix`\""
 	JSON               string       "help:\"version,file for JSON compiler/optimizer detail output\""
 	Lang               string       "help:\"Go language version source code expects\""
@@ -130,7 +129,7 @@ type CmdFlags struct {
 			Files    map[string]string
 		}
 		ImportDirs   []string          // appended to by -I
-		ImportMap    map[string]string // set by -importmap OR -importcfg
+		ImportMap    map[string]string // set by -importcfg
 		PackageFile  map[string]string // set by -importcfg; nil means not in use
 		SpectreIndex bool              // set by -spectre=index or -spectre=all
 		// Whether we are adding any sort of code instrumentation, such as
@@ -156,7 +155,6 @@ func ParseFlags() {
 	Flag.EmbedCfg = readEmbedCfg
 	Flag.GenDwarfInl = 2
 	Flag.ImportCfg = readImportCfg
-	Flag.ImportMap = addImportMap
 	Flag.LinkShared = &Ctxt.Flag_linkshared
 	Flag.Shared = &Ctxt.Flag_shared
 	Flag.WB = true
@@ -387,21 +385,6 @@ func addImportDir(dir string) {
 	if dir != "" {
 		Flag.Cfg.ImportDirs = append(Flag.Cfg.ImportDirs, dir)
 	}
-}
-
-func addImportMap(s string) {
-	if Flag.Cfg.ImportMap == nil {
-		Flag.Cfg.ImportMap = make(map[string]string)
-	}
-	if strings.Count(s, "=") != 1 {
-		log.Fatal("-importmap argument must be of the form source=actual")
-	}
-	i := strings.Index(s, "=")
-	source, actual := s[:i], s[i+1:]
-	if source == "" || actual == "" {
-		log.Fatal("-importmap argument must be of the form source=actual; source and actual must be non-empty")
-	}
-	Flag.Cfg.ImportMap[source] = actual
 }
 
 func readImportCfg(file string) {

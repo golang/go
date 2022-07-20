@@ -569,3 +569,19 @@ func TestTruncatedStreams(t *testing.T) {
 		}
 	}
 }
+
+func TestCVE202230631(t *testing.T) {
+	var empty = []byte{0x1f, 0x8b, 0x08, 0x00, 0xa7, 0x8f, 0x43, 0x62, 0x00,
+		0x03, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	r := bytes.NewReader(bytes.Repeat(empty, 4e6))
+	z, err := NewReader(r)
+	if err != nil {
+		t.Fatalf("NewReader: got %v, want nil", err)
+	}
+	// Prior to CVE-2022-30631 fix, this would cause an unrecoverable panic due
+	// to stack exhaustion.
+	_, err = z.Read(make([]byte, 10))
+	if err != io.EOF {
+		t.Errorf("Reader.Read: got %v, want %v", err, io.EOF)
+	}
+}

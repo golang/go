@@ -47,19 +47,23 @@ go build -overlay overlay.json -o main_call_asm$GOEXE ./call_asm
 exec ./main_call_asm$GOEXE
 ! stdout .
 
-# Change the contents of a file in the overlay and ensure that makes the target stale
-go install -overlay overlay.json ./test_cache
-go list -overlay overlay.json -f '{{.Stale}}' ./test_cache
-stdout '^false$'
-cp overlay/test_cache_different.go overlay/test_cache.go
-go list -overlay overlay.json -f '{{.Stale}}' ./test_cache
-stdout '^true$'
-
 [cgo] go list -compiled -overlay overlay.json -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
 [cgo] cp stdout compiled_cgo_sources.txt
 [cgo] go run ../print_line_comments.go compiled_cgo_sources.txt
 [cgo] stdout $GOPATH[/\\]src[/\\]m[/\\]cgo_hello_replace[/\\]cgo_hello_replace.go
 [cgo] ! stdout $GOPATH[/\\]src[/\\]m[/\\]overlay[/\\]hello.c
+
+# Change the contents of a file in the overlay and ensure that makes the target stale
+env OLD_GOCACHE=$GOCACHE
+env GOCACHE=$WORK/cache  # use a fresh cache so that multiple runs of the test don't interfere
+go build -x -overlay overlay.json ./test_cache
+stderr '(compile|gccgo)( |\.exe).*test_cache.go'
+go build -x -overlay overlay.json ./test_cache
+! stderr '(compile|gccgo)( |\.exe).*test_cache.go'  # cached
+cp overlay/test_cache_different.go overlay/test_cache.go
+go build -x -overlay overlay.json ./test_cache
+stderr '(compile|gccgo)( |\.exe).*test_cache.go'  # not cached
+env CACHE=$OLD_GOCACHE
 
 # Run same tests but with gccgo.
 env GO111MODULE=off

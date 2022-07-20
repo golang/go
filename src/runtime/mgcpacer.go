@@ -439,7 +439,26 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	c.fractionalMarkTime = 0
 	c.idleMarkTime = 0
 	c.markStartTime = markStartTime
-	c.triggered = c.heapLive
+
+	// TODO(mknyszek): This is supposed to be the actual trigger point for the heap, but
+	// causes regressions in memory use. The cause is that the PI controller used to smooth
+	// the cons/mark ratio measurements tends to flail when using the less accurate precomputed
+	// trigger for the cons/mark calculation, and this results in the controller being more
+	// conservative about steady-states it tries to find in the future.
+	//
+	// This conservatism is transient, but these transient states tend to matter for short-lived
+	// programs, especially because the PI controller is overdamped, partially because it is
+	// configured with a relatively large time constant.
+	//
+	// Ultimately, I think this is just two mistakes piled on one another: the choice of a swingy
+	// smoothing function that recalls a fairly long history (due to its overdamped time constant)
+	// coupled with an inaccurate cons/mark calculation. It just so happens this works better
+	// today, and it makes it harder to change things in the future.
+	//
+	// This is described in #53738. Fix this for #53892 by changing back to the actual trigger
+	// point and simplifying the smoothing function.
+	heapTrigger, heapGoal := c.trigger()
+	c.triggered = heapTrigger
 
 	// Compute the background mark utilization goal. In general,
 	// this may not come out exactly. We round the number of
@@ -501,7 +520,6 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	c.revise()
 
 	if debug.gcpacertrace > 0 {
-		heapGoal := c.heapGoal()
 		assistRatio := c.assistWorkPerByte.Load()
 		print("pacer: assist ratio=", assistRatio,
 			" (scan ", gcController.heapScan>>20, " MB in ",

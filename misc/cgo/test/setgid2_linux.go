@@ -20,7 +20,10 @@ import (
 )
 
 func testSetgidStress(t *testing.T) {
-	const N = 1000
+	var N = 1000
+	if testing.Short() {
+		N = 50
+	}
 	ch := make(chan int, N)
 	for i := 0; i < N; i++ {
 		go func() {

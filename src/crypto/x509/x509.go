@@ -2109,7 +2109,9 @@ type RevocationList struct {
 	// Issuer contains the DN of the issuing certificate.
 	Issuer pkix.Name
 	// AuthorityKeyId is used to identify the public key associated with the
-	// issuing certificate.
+	// issuing certificate. It is populated from the authorityKeyIdentifier
+	// extension when parsing a CRL. It is ignored when creating a CRL; the
+	// extension is populated from the issuing certificate itself.
 	AuthorityKeyId []byte
 
 	Signature []byte
@@ -2125,7 +2127,8 @@ type RevocationList struct {
 
 	// Number is used to populate the X.509 v2 cRLNumber extension in the CRL,
 	// which should be a monotonically increasing sequence number for a given
-	// CRL scope and CRL issuer.
+	// CRL scope and CRL issuer. It is also populated from the cRLNumber
+	// extension when parsing a CRL.
 	Number *big.Int
 
 	// ThisUpdate is used to populate the thisUpdate field in the CRL, which
@@ -2192,6 +2195,10 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
 	aki, err := asn1.Marshal(authKeyId{Id: issuer.SubjectKeyId})
 	if err != nil {
 		return nil, err
+	}
+
+	if numBytes := template.Number.Bytes(); len(numBytes) > 20 || (len(numBytes) == 20 && numBytes[0]&0x80 != 0) {
+		return nil, errors.New("x509: CRL number exceeds 20 octets")
 	}
 	crlNum, err := asn1.Marshal(template.Number)
 	if err != nil {
