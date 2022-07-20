@@ -59,8 +59,8 @@ const (
 	lockRankWbufSpans
 	lockRankMheap
 	lockRankGlobalAlloc
-	lockRankDeadlock
 	lockRankPanic
+	lockRankDeadlock
 )
 
 // lockRankLeafRank is the rank of lock that does not have a declared rank,
@@ -111,8 +111,8 @@ var lockNames = []string{
 	lockRankWbufSpans:     "wbufSpans",
 	lockRankMheap:         "mheap",
 	lockRankGlobalAlloc:   "globalAlloc",
-	lockRankDeadlock:      "deadlock",
 	lockRankPanic:         "panic",
+	lockRankDeadlock:      "deadlock",
 }
 
 func (rank lockRank) String() string {
@@ -176,6 +176,6 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankWbufSpans:     {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankNetpollInit, lockRankHchan, lockRankNotifyList, lockRankSudog, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankGcBitsArenas, lockRankMspanSpecial, lockRankSpanSetSpine, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankTrace, lockRankTraceStackTab, lockRankGscan},
 	lockRankMheap:         {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankNetpollInit, lockRankHchan, lockRankNotifyList, lockRankSudog, lockRankRwmutexW, lockRankRwmutexR, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankGcBitsArenas, lockRankMspanSpecial, lockRankSpanSetSpine, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankTrace, lockRankTraceStackTab, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans},
 	lockRankGlobalAlloc:   {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankNetpollInit, lockRankHchan, lockRankNotifyList, lockRankSudog, lockRankRwmutexW, lockRankRwmutexR, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankGcBitsArenas, lockRankMheapSpecial, lockRankMspanSpecial, lockRankSpanSetSpine, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankTrace, lockRankTraceStackTab, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
-	lockRankDeadlock:      {},
-	lockRankPanic:         {lockRankDeadlock},
+	lockRankPanic:         {},
+	lockRankDeadlock:      {lockRankPanic, lockRankDeadlock},
 }

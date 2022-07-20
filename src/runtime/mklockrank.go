@@ -169,8 +169,10 @@ stackLarge,
 mheap, mheapSpecial < globalAlloc;
 
 # panic is handled specially. It is implicitly below all other locks.
-NONE < deadlock;
-deadlock < panic;
+NONE < panic;
+# deadlock is not acquired while holding panic, but it also needs to be
+# below all other locks.
+panic < deadlock;
 `
 
 // cyclicRanks lists lock ranks that allow multiple locks of the same
@@ -185,6 +187,8 @@ var cyclicRanks = map[string]bool{
 	// Multiple hchanLeafs are acquired in hchan.sortkey() order in
 	// syncadjustsudogs().
 	"hchanLeaf": true,
+	// The point of the deadlock lock is to deadlock.
+	"deadlock": true,
 }
 
 func main() {
