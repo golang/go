@@ -1868,7 +1868,7 @@ func needm() {
 
 	// mp.curg is now a real goroutine.
 	casgstatus(mp.curg, _Gdead, _Gsyscall)
-	atomic.Xadd(&sched.ngsys, -1)
+	sched.ngsys.Add(-1)
 }
 
 var earlycgocallback = []byte("fatal error: cgo callback before cgo call\n")
@@ -1930,7 +1930,7 @@ func oneNewExtraM() {
 	// counted by gcount. It would be more "proper" to increment
 	// sched.ngfree, but that requires locking. Incrementing ngsys
 	// has the same effect.
-	atomic.Xadd(&sched.ngsys, +1)
+	sched.ngsys.Add(1)
 
 	// Add m to the extra list.
 	mnext := lockextra(true)
@@ -1971,7 +1971,7 @@ func dropm() {
 	// Return mp.curg to dead state.
 	casgstatus(mp.curg, _Gsyscall, _Gdead)
 	mp.curg.preemptStop = false
-	atomic.Xadd(&sched.ngsys, +1)
+	sched.ngsys.Add(1)
 
 	// Block signals before unminit.
 	// Unminit unregisters the signal handling stack (but needs g on some systems).
@@ -3474,7 +3474,7 @@ func goexit0(gp *g) {
 	casgstatus(gp, _Grunning, _Gdead)
 	gcController.addScannableStack(pp, -int64(gp.stack.hi-gp.stack.lo))
 	if isSystemGoroutine(gp, false) {
-		atomic.Xadd(&sched.ngsys, -1)
+		sched.ngsys.Add(-1)
 	}
 	gp.m = nil
 	locked := gp.lockedm != 0
@@ -4141,7 +4141,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	newg.ancestors = saveAncestors(callergp)
 	newg.startpc = fn.fn
 	if isSystemGoroutine(newg, false) {
-		atomic.Xadd(&sched.ngsys, +1)
+		sched.ngsys.Add(1)
 	} else {
 		// Only user goroutines inherit pprof labels.
 		if mp.curg != nil {
@@ -4462,7 +4462,7 @@ func badunlockosthread() {
 }
 
 func gcount() int32 {
-	n := int32(atomic.Loaduintptr(&allglen)) - sched.gFree.n - int32(atomic.Load(&sched.ngsys))
+	n := int32(atomic.Loaduintptr(&allglen)) - sched.gFree.n - sched.ngsys.Load()
 	for _, pp := range allp {
 		n -= pp.gFree.n
 	}
