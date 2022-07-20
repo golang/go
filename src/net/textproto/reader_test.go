@@ -246,7 +246,7 @@ func (r *autoRewind) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// Test method can be applied on rewind readers. Issue #
+// Test method can be applied on rewind readers. Issue #53858
 func TestReadRewindReader(t *testing.T) {
 	msg1 := "From: Gopher <from@example.com>\r\n" +
 		"To: Another Gopher <to@example.com>\r\n" +
