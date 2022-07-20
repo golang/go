@@ -32,42 +32,144 @@ import (
 // lock, which means no other lock can be acquired while it is held.
 // Therefore, leaf locks do not need to be given an explicit rank.
 //
+// Ranks in all caps are pseudo-nodes that help define order, but do
+// not actually define a rank.
+//
 // TODO: It's often hard to correlate rank names to locks. Change
 // these to be more consistent with the locks they label.
 const ranks = `
-NONE < sysmon, sweepWaiters, assistQueue, cpuprof, sweep, pollDesc, deadlock, itab, notifyList, root, rwmutexW, defer;
-sysmon < scavenge, forcegc;
-assistQueue, cpuprof, forcegc, pollDesc, scavenge, sweep, sweepWaiters < sched;
+# Sysmon
+NONE
+< sysmon
+< scavenge, forcegc;
+
+# Defer
+NONE < defer;
+
+# GC
+NONE <
+  sweepWaiters,
+  assistQueue,
+  sweep;
+
+# Scheduler, timers, netpoll
+NONE < pollDesc, cpuprof;
+assistQueue,
+  cpuprof,
+  forcegc,
+  pollDesc, # pollDesc can interact with timers, which can lock sched.
+  scavenge,
+  sweep,
+  sweepWaiters
+< sched;
 sched < allg, allp;
 allp < timers;
-itab < reflectOffs;
-scavenge, sweep < hchan;
-scavenge < traceBuf;
-traceBuf < traceStrings;
-allg, hchan, notifyList, reflectOffs, timers, traceStrings < mspanSpecial, profInsert, profBlock, profMemActive, gcBitsArenas, spanSetSpine, mheapSpecial, fin;
-profMemActive < profMemFuture;
-hchan, root, sched, traceStrings, notifyList, fin < trace;
-trace < traceStackTab;
 timers < netpollInit;
+
+# Channels
+scavenge, sweep < hchan;
+NONE < notifyList;
+hchan, notifyList < sudog;
+
+# RWMutex
+NONE < rwmutexW;
 rwmutexW, sysmon < rwmutexR;
-gcBitsArenas, netpollInit, profBlock, profInsert, profMemFuture, spanSetSpine, traceStackTab < gscan;
+
+# Semaphores
+NONE < root;
+
+# Itabs
+NONE
+< itab
+< reflectOffs;
+
+# Tracing without a P uses a global trace buffer.
+scavenge
+# Above TRACEGLOBAL can emit a trace event without a P.
+< TRACEGLOBAL
+# Below TRACEGLOBAL manages the global tracing buffer.
+# Note that traceBuf eventually chains to MALLOC, but we never get that far
+# in the situation where there's no P.
+< traceBuf;
+# Starting/stopping tracing traces strings.
+traceBuf < traceStrings;
+
+# Malloc
+allg,
+  hchan,
+  notifyList,
+  reflectOffs,
+  timers,
+  traceStrings
+# Above MALLOC are things that can allocate memory.
+< MALLOC
+# Below MALLOC is the malloc implementation.
+< fin,
+  gcBitsArenas,
+  mheapSpecial,
+  mspanSpecial,
+  spanSetSpine,
+  MPROF;
+
+# Memory profiling
+MPROF < profInsert, profBlock, profMemActive;
+profMemActive < profMemFuture;
+
+# Execution tracer events (with a P)
+hchan,
+  root,
+  sched,
+  traceStrings,
+  notifyList,
+  fin
+# Above TRACE is anything that can create a trace event
+< TRACE
+< trace
+< traceStackTab;
+
+# Stack allocation and copying
+gcBitsArenas,
+  netpollInit,
+  profBlock,
+  profInsert,
+  profMemFuture,
+  spanSetSpine,
+  traceStackTab
+# Anything that can grow the stack can acquire STACKGROW.
+# (Most higher layers imply STACKGROW, like MALLOC.)
+< STACKGROW
+# Below STACKGROW is the stack allocator/copying implementation.
+< gscan;
 gscan, rwmutexR < stackpool;
 gscan < stackLarge;
-
-# Generally, hchan must be acquired before gscan. But in one specific
-# case (in syncadjustsudogs from markroot after the g has been suspended
-# by suspendG), we allow gscan to be acquired, and then an hchan lock. To
-# allow this case, we use this hchanLeaf rank in syncadjustsudogs(),
-# rather than hchan. By using this special rank, we don't allow any further
-# locks to be acquired other than more hchan locks.
+# Generally, hchan must be acquired before gscan. But in one case,
+# where we suspend a G and then shrink its stack, syncadjustsudogs
+# can acquire hchan locks while holding gscan. To allow this case,
+# we use hchanLeaf instead of hchan.
 gscan < hchanLeaf;
 
-hchan, notifyList < sudog;
-defer, gscan, mspanSpecial, sudog < wbufSpans;
-stackLarge, stackpool, wbufSpans < mheap;
+# Write barrier
+defer,
+  gscan,
+  mspanSpecial,
+  sudog
+# Anything that can have write barriers can acquire WB.
+# Above WB, we can have write barriers.
+< WB
+# Below WB is the write barrier implementation.
+< wbufSpans;
+
+# Span allocator
+stackLarge,
+  stackpool,
+  wbufSpans
+# Above mheap is anything that can call the span allocator.
+< mheap;
+# Below mheap is the span allocator implementation.
 mheap, mheapSpecial < globalAlloc;
 
 # panic is handled specially. It is implicitly below all other locks.
+NONE < deadlock;
 deadlock < panic;
 `
 
@@ -158,7 +260,11 @@ const (
 
 `)
 	for _, rank := range topo {
-		fmt.Fprintf(w, "\t%s\n", cname(rank))
+		if isPseudo(rank) {
+			fmt.Fprintf(w, "\t// %s\n", rank)
+		} else {
+			fmt.Fprintf(w, "\t%s\n", cname(rank))
+		}
 	}
 	fmt.Fprintf(w, `)
 
@@ -173,7 +279,9 @@ const lockRankLeafRank lockRank = 1000
 var lockNames = []string{
 `)
 	for _, rank := range topo {
-		fmt.Fprintf(w, "\t%s: %q,\n", cname(rank), rank)
+		if !isPseudo(rank) {
+			fmt.Fprintf(w, "\t%s: %q,\n", cname(rank), rank)
+		}
 	}
 	fmt.Fprintf(w, `}
 
@@ -201,9 +309,14 @@ func (rank lockRank) String() string {
 var lockPartialOrder [][]lockRank = [][]lockRank{
 `)
 	for _, rank := range topo {
+		if isPseudo(rank) {
+			continue
+		}
 		list := []string{}
 		for _, before := range g.Edges(rank) {
-			list = append(list, cname(before))
+			if !isPseudo(before) {
+				list = append(list, cname(before))
+			}
 		}
 		if cyclicRanks[rank] {
 			list = append(list, cname(rank))
@@ -217,6 +330,10 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 // cname returns the Go const name for the given lock rank label.
 func cname(label string) string {
 	return "lockRank" + strings.ToUpper(label[:1]) + label[1:]
+}
+
+func isPseudo(label string) bool {
+	return strings.ToUpper(label) == label
 }
 
 // generateDot emits a Graphviz dot representation of g to w.
