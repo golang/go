@@ -778,7 +778,7 @@ type schedt struct {
 	ngsys atomic.Int32 // number of system goroutines
 
 	pidle      puintptr // idle p's
-	npidle     uint32
+	npidle     atomic.Int32
 	nmspinning uint32 // See "Worker thread parking/unparking" comment in proc.go.
 
 	// Global runnable queue.

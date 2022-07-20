@@ -2362,7 +2362,7 @@ func handoffp(pp *p) {
 	}
 	// no local work, check that there are no spinning/idle M's,
 	// otherwise our help is not required
-	if atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) == 0 && atomic.Cas(&sched.nmspinning, 0, 1) { // TODO: fast atomic
+	if int32(atomic.Load(&sched.nmspinning))+sched.npidle.Load() == 0 && atomic.Cas(&sched.nmspinning, 0, 1) { // TODO: fast atomic
 		startm(pp, true)
 		return
 	}
@@ -2390,7 +2390,7 @@ func handoffp(pp *p) {
 	}
 	// If this is the last running P and nobody is polling network,
 	// need to wakeup another M to poll network.
-	if sched.npidle == uint32(gomaxprocs-1) && sched.lastpoll.Load() != 0 {
+	if sched.npidle.Load() == gomaxprocs-1 && sched.lastpoll.Load() != 0 {
 		unlock(&sched.lock)
 		startm(pp, false)
 		return
@@ -2410,7 +2410,7 @@ func handoffp(pp *p) {
 // Tries to add one more P to execute G's.
 // Called when a G is made runnable (newproc, ready).
 func wakep() {
-	if atomic.Load(&sched.npidle) == 0 {
+	if sched.npidle.Load() == 0 {
 		return
 	}
 	// be conservative about spinning threads
@@ -2649,8 +2649,7 @@ top:
 	// Limit the number of spinning Ms to half the number of busy Ps.
 	// This is necessary to prevent excessive CPU consumption when
 	// GOMAXPROCS>>1 but the program parallelism is low.
-	procs := uint32(gomaxprocs)
-	if mp.spinning || 2*atomic.Load(&sched.nmspinning) < procs-atomic.Load(&sched.npidle) {
+	if mp.spinning || int32(2*atomic.Load(&sched.nmspinning)) < gomaxprocs-sched.npidle.Load() {
 		if !mp.spinning {
 			mp.spinning = true
 			atomic.Xadd(&sched.nmspinning, 1)
@@ -3136,7 +3135,7 @@ func injectglist(glist *gList) {
 	*glist = gList{}
 
 	startIdle := func(n int) {
-		for ; n != 0 && sched.npidle != 0; n-- {
+		for ; n != 0 && sched.npidle.Load() != 0; n-- {
 			startm(nil, false)
 		}
 	}
@@ -3150,7 +3149,7 @@ func injectglist(glist *gList) {
 		return
 	}
 
-	npidle := int(atomic.Load(&sched.npidle))
+	npidle := int(sched.npidle.Load())
 	var globq gQueue
 	var n int
 	for n = 0; n < npidle && !q.empty(); n++ {
@@ -5156,9 +5155,9 @@ func sysmon() {
 		// from a timer to avoid adding system load to applications that spend
 		// most of their time sleeping.
 		now := nanotime()
-		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs)) {
+		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || sched.npidle.Load() == gomaxprocs) {
 			lock(&sched.lock)
-			if atomic.Load(&sched.gcwaiting) != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs) {
+			if atomic.Load(&sched.gcwaiting) != 0 || sched.npidle.Load() == gomaxprocs {
 				syscallWake := false
 				next := timeSleepUntil()
 				if next > now {
@@ -5318,7 +5317,7 @@ func retake(now int64) uint32 {
 			// On the one hand we don't want to retake Ps if there is no other work to do,
 			// but on the other hand we want to retake them eventually
 			// because they can prevent the sysmon thread from deep sleep.
-			if runqempty(pp) && atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
+			if runqempty(pp) && atomic.Load(&sched.nmspinning)+uint32(sched.npidle.Load()) > 0 && pd.syscallwhen+10*1000*1000 > now {
 				continue
 			}
 			// Drop allpLock so we can take sched.lock.
@@ -5409,7 +5408,7 @@ func schedtrace(detailed bool) {
 	}
 
 	lock(&sched.lock)
-	print("SCHED ", (now-starttime)/1e6, "ms: gomaxprocs=", gomaxprocs, " idleprocs=", sched.npidle, " threads=", mcount(), " spinningthreads=", sched.nmspinning, " idlethreads=", sched.nmidle, " runqueue=", sched.runqsize)
+	print("SCHED ", (now-starttime)/1e6, "ms: gomaxprocs=", gomaxprocs, " idleprocs=", sched.npidle.Load(), " threads=", mcount(), " spinningthreads=", sched.nmspinning, " idlethreads=", sched.nmidle, " runqueue=", sched.runqsize)
 	if detailed {
 		print(" gcwaiting=", sched.gcwaiting, " nmidlelocked=", sched.nmidlelocked, " stopwait=", sched.stopwait, " sysmonwait=", sched.sysmonwait, "\n")
 	}
@@ -5505,7 +5504,7 @@ func schedEnableUser(enable bool) {
 		sched.disable.n = 0
 		globrunqputbatch(&sched.disable.runnable, n)
 		unlock(&sched.lock)
-		for ; n != 0 && sched.npidle != 0; n-- {
+		for ; n != 0 && sched.npidle.Load() != 0; n-- {
 			startm(nil, false)
 		}
 	} else {
@@ -5713,7 +5712,7 @@ func pidleput(pp *p, now int64) int64 {
 	idlepMask.set(pp.id)
 	pp.link = sched.pidle
 	sched.pidle.set(pp)
-	atomic.Xadd(&sched.npidle, 1)
+	sched.npidle.Add(1)
 	if !pp.limiterEvent.start(limiterEventIdle, now) {
 		throw("must be able to track idle limiter event")
 	}
@@ -5739,7 +5738,7 @@ func pidleget(now int64) (*p, int64) {
 		timerpMask.set(pp.id)
 		idlepMask.clear(pp.id)
 		sched.pidle = pp.link
-		atomic.Xadd(&sched.npidle, -1)
+		sched.npidle.Add(-1)
 		pp.limiterEvent.stop(limiterEventIdle, now)
 	}
 	return pp, now
@@ -6194,7 +6193,7 @@ func sync_runtime_canSpin(i int) bool {
 	// GOMAXPROCS>1 and there is at least one other running P and local runq is empty.
 	// As opposed to runtime mutex we don't do passive spinning here,
 	// because there can be work on global runq or on other Ps.
-	if i >= active_spin || ncpu <= 1 || gomaxprocs <= int32(sched.npidle+sched.nmspinning)+1 {
+	if i >= active_spin || ncpu <= 1 || gomaxprocs <= sched.npidle.Load()+int32(sched.nmspinning)+1 {
 		return false
 	}
 	if p := getg().m.p.ptr(); !runqempty(p) {
