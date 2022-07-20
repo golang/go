@@ -923,8 +923,8 @@ func gcallers(gp *g, skip int, pcbuf []uintptr) int {
 // showframe reports whether the frame with the given characteristics should
 // be printed during a traceback.
 func showframe(f funcInfo, gp *g, firstFrame bool, funcID, childID funcID) bool {
-	g := getg()
-	if g.m.throwing >= throwTypeRuntime && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
+	mp := getg().m
+	if mp.throwing >= throwTypeRuntime && gp != nil && (gp == mp.curg || gp == mp.caughtsig.ptr()) {
 		return true
 	}
 	return showfuncinfo(f, firstFrame, funcID, childID)
