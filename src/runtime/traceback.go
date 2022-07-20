@@ -1051,10 +1051,10 @@ func tracebackothers(me *g) {
 		}
 		print("\n")
 		goroutineheader(gp)
-		// Note: gp.m == g.m occurs when tracebackothers is
-		// called from a signal handler initiated during a
-		// systemstack call. The original G is still in the
-		// running state, and we want to print its stack.
+		// Note: gp.m == getg().m occurs when tracebackothers is called
+		// from a signal handler initiated during a systemstack call.
+		// The original G is still in the running state, and we want to
+		// print its stack.
 		if gp.m != getg().m && readgstatus(gp)&^_Gscan == _Grunning {
 			print("\tgoroutine running on other thread; stack unavailable\n")
 			printcreatedby(gp)
