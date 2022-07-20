@@ -48,12 +48,10 @@ func init() {
 }
 
 var (
-	canRace          = false // whether we can run the race detector
-	canCgo           = false // whether we can use cgo
-	canMSan          = false // whether we can run the memory sanitizer
-	canASan          = false // whether we can run the address sanitizer
-	canFuzz          = false // whether we can search for new fuzz failures
-	fuzzInstrumented = false // whether fuzzing uses instrumentation
+	canRace = false // whether we can run the race detector
+	canCgo  = false // whether we can use cgo
+	canMSan = false // whether we can run the memory sanitizer
+	canASan = false // whether we can run the address sanitizer
 )
 
 var (
@@ -270,8 +268,6 @@ func TestMain(m *testing.M) {
 		if isAlpineLinux() || runtime.Compiler == "gccgo" {
 			canRace = false
 		}
-		canFuzz = platform.FuzzSupported(runtime.GOOS, runtime.GOARCH)
-		fuzzInstrumented = platform.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
 	}
 
 	// Don't let these environment variables confuse the test.

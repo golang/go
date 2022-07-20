@@ -21,7 +21,7 @@ go clean -cache
 env GOROOT_FINAL=$WORK${/}goroot2
 go build -o main.exe
 mv main.exe main2.exe
-! cmp main2.exe main1.exe
+! cmp -q main2.exe main1.exe
 
 # Set GOROOT_FINAL back to the first value.
 # If the build is properly reproducible, the two binaries should match.
