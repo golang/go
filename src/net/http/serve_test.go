@@ -6758,3 +6758,73 @@ func TestProcessing(t *testing.T) {
 		t.Errorf("unexpected response; got %q; should start by %q", got, expected)
 	}
 }
+
+func TestHeadBody(t *testing.T) {
+	const identityMode = false
+	const chunkedMode = true
+	t.Run("h1", func(t *testing.T) {
+		t.Run("identity", func(t *testing.T) { testHeadBody(t, h1Mode, identityMode, "HEAD") })
+		t.Run("chunked", func(t *testing.T) { testHeadBody(t, h1Mode, chunkedMode, "HEAD") })
+	})
+	t.Run("h2", func(t *testing.T) {
+		t.Run("identity", func(t *testing.T) { testHeadBody(t, h2Mode, identityMode, "HEAD") })
+		t.Run("chunked", func(t *testing.T) { testHeadBody(t, h2Mode, chunkedMode, "HEAD") })
+	})
+}
+
+func TestGetBody(t *testing.T) {
+	const identityMode = false
+	const chunkedMode = true
+	t.Run("h1", func(t *testing.T) {
+		t.Run("identity", func(t *testing.T) { testHeadBody(t, h1Mode, identityMode, "GET") })
+		t.Run("chunked", func(t *testing.T) { testHeadBody(t, h1Mode, chunkedMode, "GET") })
+	})
+	t.Run("h2", func(t *testing.T) {
+		t.Run("identity", func(t *testing.T) { testHeadBody(t, h2Mode, identityMode, "GET") })
+		t.Run("chunked", func(t *testing.T) { testHeadBody(t, h2Mode, chunkedMode, "GET") })
+	})
+}
+
+func testHeadBody(t *testing.T, h2, chunked bool, method string) {
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("server reading body: %v", err)
+			return
+		}
+		w.Header().Set("X-Request-Body", string(b))
+		w.Header().Set("Content-Length", "0")
+	}))
+	defer cst.close()
+	for _, reqBody := range []string{
+		"",
+		"",
+		"request_body",
+		"",
+	} {
+		var bodyReader io.Reader
+		if reqBody != "" {
+			bodyReader = strings.NewReader(reqBody)
+			if chunked {
+				bodyReader = bufio.NewReader(bodyReader)
+			}
+		}
+		req, err := NewRequest(method, cst.ts.URL, bodyReader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := cst.c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if got, want := res.StatusCode, 200; got != want {
+			t.Errorf("%v request with %d-byte body: StatusCode = %v, want %v", method, len(reqBody), got, want)
+		}
+		if got, want := res.Header.Get("X-Request-Body"), reqBody; got != want {
+			t.Errorf("%v request with %d-byte body: handler read body %q, want %q", method, len(reqBody), got, want)
+		}
+	}
+}

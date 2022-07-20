@@ -485,10 +485,6 @@ var readRequestErrorTests = []struct {
 	1: {"GET / HTTP/1.1\r\nheader:foo\r\n", io.ErrUnexpectedEOF.Error(), nil},
 	2: {"", io.EOF.Error(), nil},
 	3: {
-		in:  "HEAD / HTTP/1.1\r\nContent-Length:4\r\n\r\n",
-		err: "http: method cannot contain a Content-Length",
-	},
-	4: {
 		in:     "HEAD / HTTP/1.1\r\n\r\n",
 		header: Header{},
 	},
@@ -496,32 +492,32 @@ var readRequestErrorTests = []struct {
 	// Multiple Content-Length values should either be
 	// deduplicated if same or reject otherwise
 	// See Issue 16490.
-	5: {
+	4: {
 		in:  "POST / HTTP/1.1\r\nContent-Length: 10\r\nContent-Length: 0\r\n\r\nGopher hey\r\n",
 		err: "cannot contain multiple Content-Length headers",
 	},
-	6: {
+	5: {
 		in:  "POST / HTTP/1.1\r\nContent-Length: 10\r\nContent-Length: 6\r\n\r\nGopher\r\n",
 		err: "cannot contain multiple Content-Length headers",
 	},
-	7: {
+	6: {
 		in:     "PUT / HTTP/1.1\r\nContent-Length: 6 \r\nContent-Length: 6\r\nContent-Length:6\r\n\r\nGopher\r\n",
 		err:    "",
 		header: Header{"Content-Length": {"6"}},
 	},
-	8: {
+	7: {
 		in:  "PUT / HTTP/1.1\r\nContent-Length: 1\r\nContent-Length: 6 \r\n\r\n",
 		err: "cannot contain multiple Content-Length headers",
 	},
-	9: {
+	8: {
 		in:  "POST / HTTP/1.1\r\nContent-Length:\r\nContent-Length: 3\r\n\r\n",
 		err: "cannot contain multiple Content-Length headers",
 	},
-	10: {
+	9: {
 		in:     "HEAD / HTTP/1.1\r\nContent-Length:0\r\nContent-Length: 0\r\n\r\n",
 		header: Header{"Content-Length": {"0"}},
 	},
-	11: {
+	10: {
 		in:  "HEAD / HTTP/1.1\r\nHost: foo\r\nHost: bar\r\n\r\n\r\n\r\n",
 		err: "too many Host headers",
 	},
