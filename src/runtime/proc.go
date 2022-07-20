@@ -2804,7 +2804,7 @@ top:
 
 	// Poll network until next timer.
 	if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && sched.lastpoll.Swap(0) != 0 {
-		atomic.Store64(&sched.pollUntil, uint64(pollUntil))
+		sched.pollUntil.Store(pollUntil)
 		if mp.p != 0 {
 			throw("findrunnable: netpoll with p")
 		}
@@ -2825,7 +2825,7 @@ top:
 			delay = 0
 		}
 		list := netpoll(delay) // block until new work is available
-		atomic.Store64(&sched.pollUntil, 0)
+		sched.pollUntil.Store(0)
 		sched.lastpoll.Store(now)
 		if faketime != 0 && list.empty() {
 			// Using fake time and nothing is ready; stop M.
@@ -2856,7 +2856,7 @@ top:
 			goto top
 		}
 	} else if pollUntil != 0 && netpollinited() {
-		pollerPollUntil := int64(atomic.Load64(&sched.pollUntil))
+		pollerPollUntil := sched.pollUntil.Load()
 		if pollerPollUntil == 0 || pollerPollUntil > pollUntil {
 			netpollBreak()
 		}
@@ -3071,7 +3071,7 @@ func wakeNetPoller(when int64) {
 		// field is either zero or the time to which the current
 		// poll is expected to run. This can have a spurious wakeup
 		// but should never miss a wakeup.
-		pollerPollUntil := int64(atomic.Load64(&sched.pollUntil))
+		pollerPollUntil := sched.pollUntil.Load()
 		if pollerPollUntil == 0 || pollerPollUntil > when {
 			netpollBreak()
 		}

@@ -758,10 +758,9 @@ type p struct {
 }
 
 type schedt struct {
-	// accessed atomically. keep at top to ensure alignment on 32-bit systems.
 	goidgen   atomic.Uint64
 	lastpoll  atomic.Int64 // time of last network poll, 0 if currently polling
-	pollUntil uint64 // time to which current poll is sleeping
+	pollUntil atomic.Int64 // time to which current poll is sleeping
 
 	lock mutex
 
