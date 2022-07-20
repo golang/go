@@ -143,11 +143,11 @@ var initSigmask sigset
 
 // The main goroutine.
 func main() {
-	g := getg()
+	mp := getg().m
 
 	// Racectx of m0->g0 is used only as the parent of the main goroutine.
 	// It must not be used for anything else.
-	g.m.g0.racectx = 0
+	mp.g0.racectx = 0
 
 	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
 	// Using decimal instead of binary GB and MB because
@@ -180,7 +180,7 @@ func main() {
 	// to preserve the lock.
 	lockOSThread()
 
-	if g.m != &m0 {
+	if mp != &m0 {
 		throw("runtime.main not on m0")
 	}
 
@@ -1468,10 +1468,9 @@ func mPark() {
 //
 //go:yeswritebarrierrec
 func mexit(osStack bool) {
-	g := getg()
-	m := g.m
+	mp := getg().m
 
-	if m == &m0 {
+	if mp == &m0 {
 		// This is the main thread. Just wedge it.
 		//
 		// On Linux, exiting the main thread puts the process
@@ -1496,20 +1495,20 @@ func mexit(osStack bool) {
 	unminit()
 
 	// Free the gsignal stack.
-	if m.gsignal != nil {
-		stackfree(m.gsignal.stack)
+	if mp.gsignal != nil {
+		stackfree(mp.gsignal.stack)
 		// On some platforms, when calling into VDSO (e.g. nanotime)
 		// we store our g on the gsignal stack, if there is one.
 		// Now the stack is freed, unlink it from the m, so we
 		// won't write to it when calling VDSO code.
-		m.gsignal = nil
+		mp.gsignal = nil
 	}
 
 	// Remove m from allm.
 	lock(&sched.lock)
 	for pprev := &allm; *pprev != nil; pprev = &(*pprev).alllink {
-		if *pprev == m {
-			*pprev = m.alllink
+		if *pprev == mp {
+			*pprev = mp.alllink
 			goto found
 		}
 	}
@@ -1520,17 +1519,17 @@ found:
 		//
 		// If this is using an OS stack, the OS will free it
 		// so there's no need for reaping.
-		atomic.Store(&m.freeWait, 1)
+		atomic.Store(&mp.freeWait, 1)
 		// Put m on the free list, though it will not be reaped until
 		// freeWait is 0. Note that the free list must not be linked
 		// through alllink because some functions walk allm without
 		// locking, so may be using alllink.
-		m.freelink = sched.freem
-		sched.freem = m
+		mp.freelink = sched.freem
+		sched.freem = mp
 	}
 	unlock(&sched.lock)
 
-	atomic.Xadd64(&ncgocall, int64(m.ncgocall))
+	atomic.Xadd64(&ncgocall, int64(mp.ncgocall))
 
 	// Release the P.
 	handoffp(releasep())
@@ -1547,14 +1546,14 @@ found:
 	if GOOS == "darwin" || GOOS == "ios" {
 		// Make sure pendingPreemptSignals is correct when an M exits.
 		// For #41702.
-		if atomic.Load(&m.signalPending) != 0 {
+		if atomic.Load(&mp.signalPending) != 0 {
 			atomic.Xadd(&pendingPreemptSignals, -1)
 		}
 	}
 
 	// Destroy all allocated resources. After this is called, we may no
 	// longer take any locks.
-	mdestroy(m)
+	mdestroy(mp)
 
 	if osStack {
 		// Return from mstart and let the system thread
@@ -1566,7 +1565,7 @@ found:
 	// return to. Exit the thread directly. exitThread will clear
 	// m.freeWait when it's done with the stack and the m can be
 	// reaped.
-	exitThread(&m.freeWait)
+	exitThread(&mp.freeWait)
 }
 
 // forEachP calls fn(p) for every P p when p reaches a GC safe point.
