@@ -308,18 +308,17 @@ func semacreate(mp *m) {
 	}
 
 	var sem *semt
-	_g_ := getg()
 
 	// Call libc's malloc rather than malloc. This will
 	// allocate space on the C heap. We can't call malloc
 	// here because it could cause a deadlock.
-	_g_.m.libcall.fn = uintptr(unsafe.Pointer(&libc_malloc))
-	_g_.m.libcall.n = 1
-	_g_.m.scratch = mscratch{}
-	_g_.m.scratch.v[0] = unsafe.Sizeof(*sem)
-	_g_.m.libcall.args = uintptr(unsafe.Pointer(&_g_.m.scratch))
-	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&_g_.m.libcall))
-	sem = (*semt)(unsafe.Pointer(_g_.m.libcall.r1))
+	mp.libcall.fn = uintptr(unsafe.Pointer(&libc_malloc))
+	mp.libcall.n = 1
+	mp.scratch = mscratch{}
+	mp.scratch.v[0] = unsafe.Sizeof(*sem)
+	mp.libcall.args = uintptr(unsafe.Pointer(&mp.scratch))
+	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&mp.libcall))
+	sem = (*semt)(unsafe.Pointer(mp.libcall.r1))
 	if sem_init(sem, 0, 0) != 0 {
 		throw("sem_init")
 	}
