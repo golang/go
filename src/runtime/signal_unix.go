@@ -433,9 +433,9 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 		return
 	}
 	c := &sigctxt{info, ctx}
-	g := sigFetchG(c)
-	setg(g)
-	if g == nil {
+	gp := sigFetchG(c)
+	setg(gp)
+	if gp == nil {
 		if sig == _SIGPROF {
 			// Some platforms (Linux) have per-thread timers, which we use in
 			// combination with the process-wide timer. Avoid double-counting.
@@ -462,22 +462,22 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 		return
 	}
 
-	setg(g.m.gsignal)
+	setg(gp.m.gsignal)
 
 	// If some non-Go code called sigaltstack, adjust.
 	var gsignalStack gsignalStack
-	setStack := adjustSignalStack(sig, g.m, &gsignalStack)
+	setStack := adjustSignalStack(sig, gp.m, &gsignalStack)
 	if setStack {
-		g.m.gsignal.stktopsp = getcallersp()
+		gp.m.gsignal.stktopsp = getcallersp()
 	}
 
-	if g.stackguard0 == stackFork {
+	if gp.stackguard0 == stackFork {
 		signalDuringFork(sig)
 	}
 
 	c.fixsigcode(sig)
-	sighandler(sig, info, ctx, g)
-	setg(g)
+	sighandler(sig, info, ctx, gp)
+	setg(gp)
 	if setStack {
 		restoreGsignalStack(&gsignalStack)
 	}
@@ -816,34 +816,34 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 //
 //go:linkname sigpanic
 func sigpanic() {
-	g := getg()
+	gp := getg()
 	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 
-	switch g.sig {
+	switch gp.sig {
 	case _SIGBUS:
-		if g.sigcode0 == _BUS_ADRERR && g.sigcode1 < 0x1000 {
+		if gp.sigcode0 == _BUS_ADRERR && gp.sigcode1 < 0x1000 {
 			panicmem()
 		}
 		// Support runtime/debug.SetPanicOnFault.
-		if g.paniconfault {
-			panicmemAddr(g.sigcode1)
+		if gp.paniconfault {
+			panicmemAddr(gp.sigcode1)
 		}
-		print("unexpected fault address ", hex(g.sigcode1), "\n")
+		print("unexpected fault address ", hex(gp.sigcode1), "\n")
 		throw("fault")
 	case _SIGSEGV:
-		if (g.sigcode0 == 0 || g.sigcode0 == _SEGV_MAPERR || g.sigcode0 == _SEGV_ACCERR) && g.sigcode1 < 0x1000 {
+		if (gp.sigcode0 == 0 || gp.sigcode0 == _SEGV_MAPERR || gp.sigcode0 == _SEGV_ACCERR) && gp.sigcode1 < 0x1000 {
 			panicmem()
 		}
 		// Support runtime/debug.SetPanicOnFault.
-		if g.paniconfault {
-			panicmemAddr(g.sigcode1)
+		if gp.paniconfault {
+			panicmemAddr(gp.sigcode1)
 		}
-		print("unexpected fault address ", hex(g.sigcode1), "\n")
+		print("unexpected fault address ", hex(gp.sigcode1), "\n")
 		throw("fault")
 	case _SIGFPE:
-		switch g.sigcode0 {
+		switch gp.sigcode0 {
 		case _FPE_INTDIV:
 			panicdivide()
 		case _FPE_INTOVF:
@@ -852,11 +852,11 @@ func sigpanic() {
 		panicfloat()
 	}
 
-	if g.sig >= uint32(len(sigtable)) {
-		// can't happen: we looked up g.sig in sigtable to decide to call sigpanic
+	if gp.sig >= uint32(len(sigtable)) {
+		// can't happen: we looked up gp.sig in sigtable to decide to call sigpanic
 		throw("unexpected signal value")
 	}
-	panic(errorString(sigtable[g.sig].name))
+	panic(errorString(sigtable[gp.sig].name))
 }
 
 // dieFromSignal kills the program with a signal.
@@ -1117,8 +1117,8 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	//   (1) we weren't in VDSO page,
 	//   (2) we were in a goroutine (i.e., m.curg != nil), and
 	//   (3) we weren't in CGO.
-	g := sigFetchG(c)
-	if g != nil && g.m != nil && g.m.curg != nil && !g.m.incgo {
+	gp := sigFetchG(c)
+	if gp != nil && gp.m != nil && gp.m.curg != nil && !gp.m.incgo {
 		return false
 	}
 
@@ -1299,18 +1299,18 @@ type gsignalStack struct {
 //go:nosplit
 //go:nowritebarrierrec
 func setGsignalStack(st *stackt, old *gsignalStack) {
-	g := getg()
+	gp := getg()
 	if old != nil {
-		old.stack = g.m.gsignal.stack
-		old.stackguard0 = g.m.gsignal.stackguard0
-		old.stackguard1 = g.m.gsignal.stackguard1
-		old.stktopsp = g.m.gsignal.stktopsp
+		old.stack = gp.m.gsignal.stack
+		old.stackguard0 = gp.m.gsignal.stackguard0
+		old.stackguard1 = gp.m.gsignal.stackguard1
+		old.stktopsp = gp.m.gsignal.stktopsp
 	}
 	stsp := uintptr(unsafe.Pointer(st.ss_sp))
-	g.m.gsignal.stack.lo = stsp
-	g.m.gsignal.stack.hi = stsp + st.ss_size
-	g.m.gsignal.stackguard0 = stsp + _StackGuard
-	g.m.gsignal.stackguard1 = stsp + _StackGuard
+	gp.m.gsignal.stack.lo = stsp
+	gp.m.gsignal.stack.hi = stsp + st.ss_size
+	gp.m.gsignal.stackguard0 = stsp + _StackGuard
+	gp.m.gsignal.stackguard1 = stsp + _StackGuard
 }
 
 // restoreGsignalStack restores the gsignal stack to the value it had
@@ -1342,9 +1342,9 @@ func signalstack(s *stack) {
 //go:nosplit
 //go:linkname setsigsegv
 func setsigsegv(pc uintptr) {
-	g := getg()
-	g.sig = _SIGSEGV
-	g.sigpc = pc
-	g.sigcode0 = _SEGV_MAPERR
-	g.sigcode1 = 0 // TODO: emulate si_addr
+	gp := getg()
+	gp.sig = _SIGSEGV
+	gp.sigpc = pc
+	gp.sigcode0 = _SEGV_MAPERR
+	gp.sigcode1 = 0 // TODO: emulate si_addr
 }
