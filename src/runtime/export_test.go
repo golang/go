@@ -460,17 +460,17 @@ func MapBucketsPointerIsNil(m map[int]int) bool {
 }
 
 func LockOSCounts() (external, internal uint32) {
-	g := getg()
-	if g.m.lockedExt+g.m.lockedInt == 0 {
-		if g.lockedm != 0 {
+	gp := getg()
+	if gp.m.lockedExt+gp.m.lockedInt == 0 {
+		if gp.lockedm != 0 {
 			panic("lockedm on non-locked goroutine")
 		}
 	} else {
-		if g.lockedm == 0 {
+		if gp.lockedm == 0 {
 			panic("nil lockedm on locked goroutine")
 		}
 	}
-	return g.m.lockedExt, g.m.lockedInt
+	return gp.m.lockedExt, gp.m.lockedInt
 }
 
 //go:noinline

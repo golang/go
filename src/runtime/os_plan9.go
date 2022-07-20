@@ -75,13 +75,13 @@ func os_sigpipe() {
 }
 
 func sigpanic() {
-	g := getg()
+	gp := getg()
 	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 
-	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
-	switch g.sig {
+	note := gostringnocopy((*byte)(unsafe.Pointer(gp.m.notesig)))
+	switch gp.sig {
 	case _SIGRFAULT, _SIGWFAULT:
 		i := indexNoFloat(note, "addr=")
 		if i >= 0 {
@@ -92,17 +92,17 @@ func sigpanic() {
 			panicmem()
 		}
 		addr := note[i:]
-		g.sigcode1 = uintptr(atolwhex(addr))
-		if g.sigcode1 < 0x1000 {
+		gp.sigcode1 = uintptr(atolwhex(addr))
+		if gp.sigcode1 < 0x1000 {
 			panicmem()
 		}
-		if g.paniconfault {
-			panicmemAddr(g.sigcode1)
+		if gp.paniconfault {
+			panicmemAddr(gp.sigcode1)
 		}
-		print("unexpected fault address ", hex(g.sigcode1), "\n")
+		print("unexpected fault address ", hex(gp.sigcode1), "\n")
 		throw("fault")
 	case _SIGTRAP:
-		if g.paniconfault {
+		if gp.paniconfault {
 			panicmem()
 		}
 		throw(note)

@@ -49,13 +49,13 @@ func osyield_no_g() {
 const _SIGSEGV = 0xb
 
 func sigpanic() {
-	g := getg()
+	gp := getg()
 	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 
 	// js only invokes the exception handler for memory faults.
-	g.sig = _SIGSEGV
+	gp.sig = _SIGSEGV
 	panicmem()
 }
 

@@ -245,20 +245,20 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
 }
 
 func sigpanic() {
-	g := getg()
+	gp := getg()
 	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 
-	switch g.sig {
+	switch gp.sig {
 	case _EXCEPTION_ACCESS_VIOLATION:
-		if g.sigcode1 < 0x1000 {
+		if gp.sigcode1 < 0x1000 {
 			panicmem()
 		}
-		if g.paniconfault {
-			panicmemAddr(g.sigcode1)
+		if gp.paniconfault {
+			panicmemAddr(gp.sigcode1)
 		}
-		print("unexpected fault address ", hex(g.sigcode1), "\n")
+		print("unexpected fault address ", hex(gp.sigcode1), "\n")
 		throw("fault")
 	case _EXCEPTION_INT_DIVIDE_BY_ZERO:
 		panicdivide()
