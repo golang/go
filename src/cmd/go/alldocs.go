@@ -1708,7 +1708,7 @@
 // the package's source root (usually $GOPATH) or that consult environment
 // variables only match future runs in which the files and environment
 // variables are unchanged. A cached test result is treated as executing
-// in no time at all,so a successful package test result will be cached and
+// in no time at all, so a successful package test result will be cached and
 // reused regardless of -timeout setting.
 //
 // In addition to the build flags, the flags handled by 'go test' itself are:
