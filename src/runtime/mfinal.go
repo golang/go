@@ -75,6 +75,12 @@ var finalizer1 = [...]byte{
 	0<<0 | 1<<1 | 1<<2 | 1<<3 | 1<<4 | 0<<5 | 1<<6 | 1<<7,
 }
 
+// lockRankMayQueueFinalizer records the lock ranking effects of a
+// function that may call queuefinalizer.
+func lockRankMayQueueFinalizer() {
+	lockWithRankMayAcquire(&finlock, getLockRank(&finlock))
+}
+
 func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot *ptrtype) {
 	if gcphase != _GCoff {
 		// Currently we assume that the finalizer queue won't

@@ -847,6 +847,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
 	}
+
+	// It's possible for any malloc to trigger sweeping, which may in
+	// turn queue finalizers. Record this dynamic lock edge.
+	lockRankMayQueueFinalizer()
+
 	userSize := size
 	if asanenabled {
 		// Refer to ASAN runtime library, the malloc() function allocates extra memory,
