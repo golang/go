@@ -883,6 +883,11 @@ func traceStackID(mp *m, buf []uintptr, skip int) uint64 {
 
 // traceAcquireBuffer returns trace buffer to use and, if necessary, locks it.
 func traceAcquireBuffer() (mp *m, pid int32, bufp *traceBufPtr) {
+	// Any time we acquire a buffer, we may end up flushing it,
+	// but flushes are rare. Record the lock edge even if it
+	// doesn't happen this time.
+	lockRankMayTraceFlush()
+
 	mp = acquirem()
 	if p := mp.p.ptr(); p != nil {
 		return mp, p.id, &p.tracebuf
@@ -897,6 +902,16 @@ func traceReleaseBuffer(pid int32) {
 		unlock(&trace.bufLock)
 	}
 	releasem(getg().m)
+}
+
+// lockRankMayTraceFlush records the lock ranking effects of a
+// potential call to traceFlush.
+func lockRankMayTraceFlush() {
+	owner := trace.lockOwner
+	dolock := owner == nil || owner != getg().m.curg
+	if dolock {
+		lockWithRankMayAcquire(&trace.lock, getLockRank(&trace.lock))
+	}
 }
 
 // traceFlush puts buf onto stack of full buffers and returns an empty buffer.
