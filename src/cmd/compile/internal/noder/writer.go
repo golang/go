@@ -1436,7 +1436,9 @@ func (w *writer) expr(expr syntax.Expr) {
 		if tv.Value != nil {
 			w.Code(exprConst)
 			w.pos(expr)
-			w.typ(tv.Type)
+			typ := idealType(tv)
+			assert(typ != nil)
+			w.typ(typ)
 			w.Value(tv.Value)
 
 			// TODO(mdempsky): These details are only important for backend
