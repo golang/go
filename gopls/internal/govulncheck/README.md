@@ -15,3 +15,5 @@ The `copy.sh` does the copying, after removing all .go files here. To use it:
 2. cd to this directory.
 
 3. Run `copy.sh`.
+
+4. Re-add build tags for go1.18

@@ -8,13 +8,11 @@
 package govulncheck
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/vuln/client"
 	"golang.org/x/vuln/vulncheck"
 )
 
@@ -55,26 +53,6 @@ func LoadPackages(cfg *packages.Config, patterns ...string) ([]*vulncheck.Packag
 		err = &PackageError{perrs}
 	}
 	return vpkgs, err
-}
-
-// Source calls vulncheck.Source on the Go source in pkgs. It returns the result
-// with Vulns trimmed to those that are actually called.
-//
-// This function is being used by the Go IDE team.
-func Source(ctx context.Context, pkgs []*vulncheck.Package, c client.Client) (*vulncheck.Result, error) {
-	r, err := vulncheck.Source(ctx, pkgs, &vulncheck.Config{Client: c})
-	if err != nil {
-		return nil, err
-	}
-	// Keep only the vulns that are called.
-	var vulns []*vulncheck.Vuln
-	for _, v := range r.Vulns {
-		if v.CallSink != 0 {
-			vulns = append(vulns, v)
-		}
-	}
-	r.Vulns = vulns
-	return r, nil
 }
 
 // CallInfo is information about calls to vulnerable functions.
