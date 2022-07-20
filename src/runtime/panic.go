@@ -1290,29 +1290,32 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
 // panicking.
 //
 //go:nosplit
-func canpanic(gp *g) bool {
-	// Note that g is m->gsignal, different from gp.
-	// Note also that g->m can change at preemption, so m can go stale
-	// if this function ever makes a function call.
-	_g_ := getg()
-	mp := _g_.m
+func canpanic() bool {
+	gp := getg()
+	mp := acquirem()
 
 	// Is it okay for gp to panic instead of crashing the program?
 	// Yes, as long as it is running Go code, not runtime code,
 	// and not stuck in a system call.
-	if gp == nil || gp != mp.curg {
+	if gp != mp.curg {
+		releasem(mp)
 		return false
 	}
-	if mp.locks != 0 || mp.mallocing != 0 || mp.throwing != throwTypeNone || mp.preemptoff != "" || mp.dying != 0 {
+	// N.B. mp.locks != 1 instead of 0 to account for acquirem.
+	if mp.locks != 1 || mp.mallocing != 0 || mp.throwing != throwTypeNone || mp.preemptoff != "" || mp.dying != 0 {
+		releasem(mp)
 		return false
 	}
 	status := readgstatus(gp)
 	if status&^_Gscan != _Grunning || gp.syscallsp != 0 {
+		releasem(mp)
 		return false
 	}
 	if GOOS == "windows" && mp.libcallsp != 0 {
+		releasem(mp)
 		return false
 	}
+	releasem(mp)
 	return true
 }
 

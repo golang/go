@@ -76,7 +76,7 @@ func os_sigpipe() {
 
 func sigpanic() {
 	g := getg()
-	if !canpanic(g) {
+	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 

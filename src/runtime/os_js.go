@@ -50,7 +50,7 @@ const _SIGSEGV = 0xb
 
 func sigpanic() {
 	g := getg()
-	if !canpanic(g) {
+	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 

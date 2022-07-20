@@ -245,7 +245,7 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
 
 func sigpanic() {
 	g := getg()
-	if !canpanic(g) {
+	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 

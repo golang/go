@@ -815,7 +815,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 //go:linkname sigpanic
 func sigpanic() {
 	g := getg()
-	if !canpanic(g) {
+	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 
