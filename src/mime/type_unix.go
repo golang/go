@@ -8,6 +8,7 @@ package mime
 
 import (
 	"bufio"
+	"bytes"
 	"os"
 	"strings"
 )
@@ -49,7 +50,8 @@ func loadMimeGlobsFile(filename string) error {
 		}
 
 		extension := fields[2][1:]
-		if strings.ContainsAny(extension, "?*[") {
+		switch {
+		case strings.ContainsAny(extension, "?*"):
 			// Not a bare extension, but a glob. Ignore for now:
 			// - we do not have an implementation for this glob
 			//   syntax (translation to path/filepath.Match could
@@ -60,7 +62,15 @@ func loadMimeGlobsFile(filename string) error {
 			// - trying to match glob metacharacters literally is
 			//   not useful
 			continue
+		case strings.Contains(extension, "["):
+			if extensions, ok := expand(extension); ok {
+				for i := range extensions {
+					setExtensionType(extensions[i], fields[1])
+				}
+			}
+			continue
 		}
+
 		if _, ok := mimeTypes.Load(extension); ok {
 			// We've already seen this extension.
 			// The file is in weight order, so we keep
@@ -123,4 +133,79 @@ func initMimeForTests() map[string]string {
 		".t2":  "text/test; charset=utf-8",
 		".png": "image/png",
 	}
+}
+
+func expand(glob string) ([]string, bool) {
+	runes := []rune(glob)
+	resultSize := 1
+	stringSize := 0
+
+countLoop:
+	for i := 0; i < len(runes); i++ {
+		switch runes[i] {
+		case '[':
+			for j := i + 1; j < len(runes); j++ {
+				if runes[j] == ']' {
+					i = j
+					continue countLoop
+				}
+				if runes[j+1] == '-' {
+					if j+2 >= len(runes) {
+						return nil, false
+					}
+					resultSize *= int(runes[j+2]-runes[j]) + 1
+					stringSize++
+					j += 2
+					continue
+				}
+				resultSize++
+				stringSize++
+			}
+		default:
+			stringSize++
+		}
+	}
+
+	buffers := make([]bytes.Buffer, resultSize, resultSize)
+	for i := range buffers {
+		buffers[i].Grow(stringSize)
+	}
+
+	for i := 0; i < len(runes); i++ {
+		switch runes[i] {
+		case '[':
+			var expanded []rune
+			for j := i + 1; j < len(runes); j++ {
+				if runes[j] == ']' {
+					i = j
+					break
+				}
+				if runes[j+1] == '-' {
+					for k := runes[j]; k <= runes[j+2]; k++ {
+						expanded = append(expanded, k)
+					}
+					j += 2
+					continue
+				}
+				expanded = append(expanded, runes[j])
+			}
+
+			for j, k := 0, 0; j < resultSize; j, k = j+1, (k+1)%len(expanded) {
+				buffers[j].WriteRune(expanded[k])
+			}
+
+		default:
+			for j := 0; j < resultSize; j++ {
+				buffers[j].WriteRune(runes[i])
+			}
+		}
+	}
+
+	result := make([]string, 0, resultSize)
+	for i := 0; i < resultSize; i++ {
+		result = append(result, buffers[i].String())
+	}
+
+	return result, true
+
 }

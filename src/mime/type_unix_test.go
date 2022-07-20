@@ -32,12 +32,27 @@ func TestTypeByExtensionUNIX(t *testing.T) {
 		".foo?ar":   "",
 		".foo*r":    "",
 		".foo[1-3]": "",
+		".foo1":     "example/glob-range",
+		".foo2":     "example/glob-range",
+		".foo3":     "example/glob-range",
 	}
 
 	for ext, want := range typeTests {
 		val := TypeByExtension(ext)
 		if val != want {
 			t.Errorf("TypeByExtension(%q) = %q, want %q", ext, val, want)
+		}
+	}
+}
+
+func TestMimeExtension(t *testing.T) {
+	initMimeUnixTest(t)
+	exts, _ := ExtensionsByType("example/glob-range")
+	expected := []string{".foo1", ".foo2", ".foo3"}
+
+	for i := range exts {
+		if exts[i] != expected[i] {
+			t.Errorf("Want %q, got %q", expected[i], exts[i])
 		}
 	}
 }
