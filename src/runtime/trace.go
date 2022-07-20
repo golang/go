@@ -1254,16 +1254,16 @@ func traceGoCreate(newg *g, pc uintptr) {
 }
 
 func traceGoStart() {
-	_g_ := getg().m.curg
-	pp := _g_.m.p
-	_g_.traceseq++
+	gp := getg().m.curg
+	pp := gp.m.p
+	gp.traceseq++
 	if pp.ptr().gcMarkWorkerMode != gcMarkWorkerNotWorker {
-		traceEvent(traceEvGoStartLabel, -1, uint64(_g_.goid), _g_.traceseq, trace.markWorkerLabels[pp.ptr().gcMarkWorkerMode])
-	} else if _g_.tracelastp == pp {
-		traceEvent(traceEvGoStartLocal, -1, uint64(_g_.goid))
+		traceEvent(traceEvGoStartLabel, -1, uint64(gp.goid), gp.traceseq, trace.markWorkerLabels[pp.ptr().gcMarkWorkerMode])
+	} else if gp.tracelastp == pp {
+		traceEvent(traceEvGoStartLocal, -1, uint64(gp.goid))
 	} else {
-		_g_.tracelastp = pp
-		traceEvent(traceEvGoStart, -1, uint64(_g_.goid), _g_.traceseq)
+		gp.tracelastp = pp
+		traceEvent(traceEvGoStart, -1, uint64(gp.goid), gp.traceseq)
 	}
 }
 
@@ -1272,14 +1272,14 @@ func traceGoEnd() {
 }
 
 func traceGoSched() {
-	_g_ := getg()
-	_g_.tracelastp = _g_.m.p
+	gp := getg()
+	gp.tracelastp = gp.m.p
 	traceEvent(traceEvGoSched, 1)
 }
 
 func traceGoPreempt() {
-	_g_ := getg()
-	_g_.tracelastp = _g_.m.p
+	gp := getg()
+	gp.tracelastp = gp.m.p
 	traceEvent(traceEvGoPreempt, 1)
 }
 
@@ -1318,10 +1318,10 @@ func traceGoSysExit(ts int64) {
 		// aka right now), and assign a fresh time stamp to keep the log consistent.
 		ts = 0
 	}
-	_g_ := getg().m.curg
-	_g_.traceseq++
-	_g_.tracelastp = _g_.m.p
-	traceEvent(traceEvGoSysExit, -1, uint64(_g_.goid), _g_.traceseq, uint64(ts)/traceTickDiv)
+	gp := getg().m.curg
+	gp.traceseq++
+	gp.tracelastp = gp.m.p
+	traceEvent(traceEvGoSysExit, -1, uint64(gp.goid), gp.traceseq, uint64(ts)/traceTickDiv)
 }
 
 func traceGoSysBlock(pp *p) {

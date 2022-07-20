@@ -1190,7 +1190,7 @@ func fatalpanic(msgs *_panic) {
 //
 //go:nowritebarrierrec
 func startpanic_m() bool {
-	_g_ := getg()
+	gp := getg()
 	if mheap_.cachealloc.size == 0 { // very early
 		print("runtime: panic before malloc heap initialized\n")
 	}
@@ -1198,18 +1198,18 @@ func startpanic_m() bool {
 	// could happen in a signal handler, or in a throw, or inside
 	// malloc itself. We want to catch if an allocation ever does
 	// happen (even if we're not in one of these situations).
-	_g_.m.mallocing++
+	gp.m.mallocing++
 
 	// If we're dying because of a bad lock count, set it to a
 	// good lock count so we don't recursively panic below.
-	if _g_.m.locks < 0 {
-		_g_.m.locks = 1
+	if gp.m.locks < 0 {
+		gp.m.locks = 1
 	}
 
-	switch _g_.m.dying {
+	switch gp.m.dying {
 	case 0:
 		// Setting dying >0 has the side-effect of disabling this G's writebuf.
-		_g_.m.dying = 1
+		gp.m.dying = 1
 		atomic.Xadd(&panicking, 1)
 		lock(&paniclk)
 		if debug.schedtrace > 0 || debug.scheddetail > 0 {
@@ -1220,13 +1220,13 @@ func startpanic_m() bool {
 	case 1:
 		// Something failed while panicking.
 		// Just print a stack trace and exit.
-		_g_.m.dying = 2
+		gp.m.dying = 2
 		print("panic during panic\n")
 		return false
 	case 2:
 		// This is a genuine bug in the runtime, we couldn't even
 		// print the stack trace successfully.
-		_g_.m.dying = 3
+		gp.m.dying = 3
 		print("stack trace unavailable\n")
 		exit(4)
 		fallthrough
