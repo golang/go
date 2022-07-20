@@ -473,19 +473,19 @@ func semacreate(mp *m) {
 
 //go:nosplit
 func semasleep(ns int64) int {
-	_g_ := getg()
+	gp := getg()
 	if ns >= 0 {
 		ms := timediv(ns, 1000000, nil)
 		if ms == 0 {
 			ms = 1
 		}
-		ret := plan9_tsemacquire(&_g_.m.waitsemacount, ms)
+		ret := plan9_tsemacquire(&gp.m.waitsemacount, ms)
 		if ret == 1 {
 			return 0 // success
 		}
 		return -1 // timeout or interrupted
 	}
-	for plan9_semacquire(&_g_.m.waitsemacount, 1) < 0 {
+	for plan9_semacquire(&gp.m.waitsemacount, 1) < 0 {
 		// interrupted; try again (c.f. lock_sema.go)
 	}
 	return 0 // success

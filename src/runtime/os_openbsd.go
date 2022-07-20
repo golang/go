@@ -84,7 +84,7 @@ func semacreate(mp *m) {
 
 //go:nosplit
 func semasleep(ns int64) int32 {
-	_g_ := getg()
+	gp := getg()
 
 	// Compute sleep deadline.
 	var tsp *timespec
@@ -95,9 +95,9 @@ func semasleep(ns int64) int32 {
 	}
 
 	for {
-		v := atomic.Load(&_g_.m.waitsemacount)
+		v := atomic.Load(&gp.m.waitsemacount)
 		if v > 0 {
-			if atomic.Cas(&_g_.m.waitsemacount, v, v-1) {
+			if atomic.Cas(&gp.m.waitsemacount, v, v-1) {
 				return 0 // semaphore acquired
 			}
 			continue
@@ -110,7 +110,7 @@ func semasleep(ns int64) int32 {
 		// be examined [...] immediately before blocking. If that int
 		// is non-zero then __thrsleep() will immediately return EINTR
 		// without blocking."
-		ret := thrsleep(uintptr(unsafe.Pointer(&_g_.m.waitsemacount)), _CLOCK_MONOTONIC, tsp, 0, &_g_.m.waitsemacount)
+		ret := thrsleep(uintptr(unsafe.Pointer(&gp.m.waitsemacount)), _CLOCK_MONOTONIC, tsp, 0, &gp.m.waitsemacount)
 		if ret == _EWOULDBLOCK {
 			return -1
 		}
