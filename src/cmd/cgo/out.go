@@ -1669,6 +1669,9 @@ const cBytesDef = `
 // freed, such as by calling C.free (be sure to include stdlib.h
 // if C.free is needed).
 func _Cfunc_CBytes(b []byte) unsafe.Pointer {
+	if len(b) > (1<<30) {
+		panic("length of []byte is larger than 1<<30")
+	}
 	p := _cgo_cmalloc(uint64(len(b)))
 	pp := (*[1<<30]byte)(p)
 	copy(pp[:], b)
