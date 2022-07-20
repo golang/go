@@ -8,8 +8,11 @@
 package vulncheck
 
 import (
+	"bytes"
 	"fmt"
 	"go/token"
+	"os"
+	"os/exec"
 
 	gvc "golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -79,4 +82,17 @@ func posToPosition(pos *token.Position) (p protocol.Position) {
 		// but somthing that does not require file contents.
 	}
 	return p
+}
+
+func goVersion() string {
+	if v := os.Getenv("GOVERSION"); v != "" {
+		// Unlikely to happen in practice, mostly used for testing.
+		return v
+	}
+	out, err := exec.Command("go", "env", "GOVERSION").Output()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to determine go version; skipping stdlib scanning: %v\n", err)
+		return ""
+	}
+	return string(bytes.TrimSpace(out))
 }

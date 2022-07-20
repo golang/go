@@ -84,7 +84,7 @@ func (c *cmd) Run(ctx context.Context, cfg *packages.Config, patterns ...string)
 
 	log.Printf("analyzing %d packages...\n", len(loadedPkgs))
 
-	r, err := vulncheck.Source(ctx, loadedPkgs, &vulncheck.Config{Client: c.Client})
+	r, err := vulncheck.Source(ctx, loadedPkgs, &vulncheck.Config{Client: c.Client, SourceGoVersion: goVersion()})
 	if err != nil {
 		return nil, err
 	}
