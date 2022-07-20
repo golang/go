@@ -929,11 +929,10 @@ func gcMarkTermination() {
 
 	mp := acquirem()
 	mp.preemptoff = "gcing"
-	_g_ := getg()
-	_g_.m.traceback = 2
-	gp := _g_.m.curg
-	casgstatus(gp, _Grunning, _Gwaiting)
-	gp.waitreason = waitReasonGarbageCollection
+	mp.traceback = 2
+	curgp := mp.curg
+	casgstatus(curgp, _Grunning, _Gwaiting)
+	curgp.waitreason = waitReasonGarbageCollection
 
 	// Run gc on the g0 stack. We do this so that the g stack
 	// we're currently running on will no longer change. Cuts
@@ -972,8 +971,8 @@ func gcMarkTermination() {
 		gcSweep(work.mode)
 	})
 
-	_g_.m.traceback = 0
-	casgstatus(gp, _Gwaiting, _Grunning)
+	mp.traceback = 0
+	casgstatus(curgp, _Gwaiting, _Grunning)
 
 	if trace.enabled {
 		traceGCDone()
