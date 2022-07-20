@@ -714,7 +714,7 @@ func schedinit() {
 	gcinit()
 
 	lock(&sched.lock)
-	sched.lastpoll = uint64(nanotime())
+	sched.lastpoll.Store(nanotime())
 	procs := ncpu
 	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
 		procs = n
@@ -2390,7 +2390,7 @@ func handoffp(pp *p) {
 	}
 	// If this is the last running P and nobody is polling network,
 	// need to wakeup another M to poll network.
-	if sched.npidle == uint32(gomaxprocs-1) && atomic.Load64(&sched.lastpoll) != 0 {
+	if sched.npidle == uint32(gomaxprocs-1) && sched.lastpoll.Load() != 0 {
 		unlock(&sched.lock)
 		startm(pp, false)
 		return
@@ -2632,7 +2632,7 @@ top:
 	// blocked thread (e.g. it has already returned from netpoll, but does
 	// not set lastpoll yet), this thread will do blocking netpoll below
 	// anyway.
-	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && atomic.Load64(&sched.lastpoll) != 0 {
+	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && sched.lastpoll.Load() != 0 {
 		if list := netpoll(0); !list.empty() { // non-blocking
 			gp := list.pop()
 			injectglist(&list)
@@ -2803,7 +2803,7 @@ top:
 	}
 
 	// Poll network until next timer.
-	if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && atomic.Xchg64(&sched.lastpoll, 0) != 0 {
+	if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && sched.lastpoll.Swap(0) != 0 {
 		atomic.Store64(&sched.pollUntil, uint64(pollUntil))
 		if mp.p != 0 {
 			throw("findrunnable: netpoll with p")
@@ -2826,7 +2826,7 @@ top:
 		}
 		list := netpoll(delay) // block until new work is available
 		atomic.Store64(&sched.pollUntil, 0)
-		atomic.Store64(&sched.lastpoll, uint64(now))
+		sched.lastpoll.Store(now)
 		if faketime != 0 && list.empty() {
 			// Using fake time and nothing is ready; stop M.
 			// When all M's stop, checkdead will call timejump.
@@ -2877,7 +2877,7 @@ func pollWork() bool {
 	if !runqempty(p) {
 		return true
 	}
-	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && sched.lastpoll != 0 {
+	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && sched.lastpoll.Load() != 0 {
 		if list := netpoll(0); !list.empty() {
 			injectglist(&list)
 			return true
@@ -3066,7 +3066,7 @@ func checkIdleGCNoP() (*p, *g) {
 // going to wake up before the when argument; or it wakes an idle P to service
 // timers and the network poller if there isn't one already.
 func wakeNetPoller(when int64) {
-	if atomic.Load64(&sched.lastpoll) == 0 {
+	if sched.lastpoll.Load() == 0 {
 		// In findrunnable we ensure that when polling the pollUntil
 		// field is either zero or the time to which the current
 		// poll is expected to run. This can have a spurious wakeup
@@ -5200,9 +5200,9 @@ func sysmon() {
 			asmcgocall(*cgo_yield, nil)
 		}
 		// poll network if not polled for more than 10ms
-		lastpoll := int64(atomic.Load64(&sched.lastpoll))
+		lastpoll := sched.lastpoll.Load()
 		if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
-			atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
+			sched.lastpoll.CompareAndSwap(lastpoll, now)
 			list := netpoll(0) // non-blocking - returns list of goroutines
 			if !list.empty() {
 				// Need to decrement number of idle locked M's
