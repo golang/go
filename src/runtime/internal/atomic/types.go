@@ -414,6 +414,40 @@ func (u *UnsafePointer) CompareAndSwapNoWB(old, new unsafe.Pointer) bool {
 	return Casp1(&u.value, old, new)
 }
 
+// Pointer is an atomic pointer of type *T.
+type Pointer[T any] struct {
+	u UnsafePointer
+}
+
+// Load accesses and returns the value atomically.
+func (p *Pointer[T]) Load() *T {
+	return (*T)(p.u.Load())
+}
+
+// StoreNoWB updates the value atomically.
+//
+// WARNING: As the name implies this operation does *not*
+// perform a write barrier on value, and so this operation may
+// hide pointers from the GC. Use with care and sparingly.
+// It is safe to use with values not found in the Go heap.
+func (p *Pointer[T]) StoreNoWB(value *T) {
+	p.u.StoreNoWB(unsafe.Pointer(value))
+}
+
+// CompareAndSwapNoWB atomically (with respect to other methods)
+// compares u's value with old, and if they're equal,
+// swaps u's value with new.
+//
+// Returns true if the operation succeeded.
+//
+// WARNING: As the name implies this operation does *not*
+// perform a write barrier on value, and so this operation may
+// hide pointers from the GC. Use with care and sparingly.
+// It is safe to use with values not found in the Go heap.
+func (p *Pointer[T]) CompareAndSwapNoWB(old, new *T) bool {
+	return p.u.CompareAndSwapNoWB(unsafe.Pointer(old), unsafe.Pointer(new))
+}
+
 // noCopy may be embedded into structs which must not be copied
 // after the first use.
 //
