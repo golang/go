@@ -68,6 +68,11 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 type OAEPOptions struct {
 	// Hash is the hash function that will be used when generating the mask.
 	Hash crypto.Hash
+
+	// MGFHash is the hash function used for MGF1.
+	// If zero, Hash is used instead.
+	MGFHash crypto.Hash
+
 	// Label is an arbitrary byte string that must be equal to the value
 	// used when encrypting.
 	Label []byte
@@ -160,7 +165,11 @@ func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.D
 
 	switch opts := opts.(type) {
 	case *OAEPOptions:
-		return DecryptOAEP(opts.Hash.New(), rand, priv, ciphertext, opts.Label)
+		if opts.MGFHash == 0 {
+			return decryptOAEP(opts.Hash.New(), opts.Hash.New(), rand, priv, ciphertext, opts.Label)
+		} else {
+			return decryptOAEP(opts.Hash.New(), opts.MGFHash.New(), rand, priv, ciphertext, opts.Label)
+		}
 
 	case *PKCS1v15DecryptOptions:
 		if l := opts.SessionKeyLen; l > 0 {
@@ -458,7 +467,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 		if err != nil {
 			return nil, err
 		}
-		return boring.EncryptRSAOAEP(hash, bkey, msg, label)
+		return boring.EncryptRSAOAEP(hash, hash, bkey, msg, label)
 	}
 	boring.UnreachableExceptTests()
 
@@ -651,6 +660,10 @@ func decryptAndCheck(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int
 // The label parameter must match the value given when encrypting. See
 // EncryptOAEP for details.
 func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
+	return decryptOAEP(hash, hash, random, priv, ciphertext, label)
+}
+
+func decryptOAEP(hash, mgfHash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
 	if err := checkPub(&priv.PublicKey); err != nil {
 		return nil, err
 	}
@@ -665,7 +678,7 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 		if err != nil {
 			return nil, err
 		}
-		out, err := boring.DecryptRSAOAEP(hash, bkey, ciphertext, label)
+		out, err := boring.DecryptRSAOAEP(hash, mgfHash, bkey, ciphertext, label)
 		if err != nil {
 			return nil, ErrDecryption
 		}
@@ -691,8 +704,8 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	seed := em[1 : hash.Size()+1]
 	db := em[hash.Size()+1:]
 
-	mgf1XOR(seed, hash, db)
-	mgf1XOR(db, hash, seed)
+	mgf1XOR(seed, mgfHash, db)
+	mgf1XOR(db, mgfHash, seed)
 
 	lHash2 := db[0:hash.Size()]
 
