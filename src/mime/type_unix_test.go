@@ -7,6 +7,7 @@
 package mime
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -47,12 +48,22 @@ func TestTypeByExtensionUNIX(t *testing.T) {
 
 func TestMimeExtension(t *testing.T) {
 	initMimeUnixTest(t)
-	exts, _ := ExtensionsByType("example/glob-range")
-	expected := []string{".foo1", ".foo2", ".foo3"}
 
-	for i := range exts {
-		if exts[i] != expected[i] {
-			t.Errorf("Want %q, got %q", expected[i], exts[i])
+	tests := []struct {
+		typ  string
+		want []string
+	}{
+		{typ: "example/glob-range", want: []string{".foo1", ".foo2", ".foo3"}},
+	}
+
+	for _, tt := range tests {
+		got, err := ExtensionsByType(tt.typ)
+		if err != nil {
+			t.Errorf("ExtensionsByType(%q): %v", tt.typ, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("ExtensionsByType(%q) = %q; want %q", tt.typ, got, tt.want)
 		}
 	}
 }
