@@ -18,7 +18,6 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -30,6 +29,18 @@ type ReferenceInfo struct {
 	obj           types.Object
 	pkg           Package
 	isDeclaration bool
+}
+
+// isInPackageName reports whether the file's package name surrounds the
+// given position pp (e.g. "foo" surrounds the cursor in "package foo").
+func isInPackageName(ctx context.Context, s Snapshot, f FileHandle, pgf *ParsedGoFile, pp protocol.Position) (bool, error) {
+	// Find position of the package name declaration
+	cursorPos, err := pgf.Mapper.Pos(pp)
+	if err != nil {
+		return false, err
+	}
+
+	return pgf.File.Name.Pos() <= cursorPos && cursorPos <= pgf.File.Name.End(), nil
 }
 
 // References returns a list of references for a given identifier within the packages
@@ -44,23 +55,13 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		return nil, err
 	}
 
-	cursorOffset, err := pgf.Mapper.Offset(pp)
-	if err != nil {
-		return nil, err
-	}
-
 	packageName := pgf.File.Name.Name // from package decl
-	packageNameStart, err := safetoken.Offset(pgf.Tok, pgf.File.Name.Pos())
+	inPackageName, err := isInPackageName(ctx, s, f, pgf, pp)
 	if err != nil {
 		return nil, err
 	}
 
-	packageNameEnd, err := safetoken.Offset(pgf.Tok, pgf.File.Name.End())
-	if err != nil {
-		return nil, err
-	}
-
-	if packageNameStart <= cursorOffset && cursorOffset < packageNameEnd {
+	if inPackageName {
 		renamingPkg, err := s.PackageForFile(ctx, f.URI(), TypecheckAll, NarrowestPackage)
 		if err != nil {
 			return nil, err
