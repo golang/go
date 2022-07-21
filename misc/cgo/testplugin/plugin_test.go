@@ -307,6 +307,12 @@ func TestIssue52937(t *testing.T) {
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue52937.so", "./issue52937/main.go")
 }
 
+func TestIssue53989(t *testing.T) {
+	goCmd(t, "build", "-buildmode=plugin", "-o", "issue53989.so", "./issue53989/plugin.go")
+	goCmd(t, "build", "-o", "issue53989.exe", "./issue53989/main.go")
+	run(t, "./issue53989.exe")
+}
+
 func TestForkExec(t *testing.T) {
 	// Issue 38824: importing the plugin package causes it hang in forkExec on darwin.
 
