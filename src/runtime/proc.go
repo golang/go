@@ -2351,7 +2351,7 @@ func handoffp(pp *p) {
 		return
 	}
 	// if there's trace work to do, start it straight away
-	if (trace.enabled || trace.shutdown) && traceReaderAvailable() {
+	if (trace.enabled || trace.shutdown) && traceReaderAvailable() != nil {
 		startm(pp, false)
 		return
 	}

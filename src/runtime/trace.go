@@ -126,7 +126,6 @@ var trace struct {
 	empty         traceBufPtr // stack of empty buffers
 	fullHead      traceBufPtr // queue of full buffers
 	fullTail      traceBufPtr
-	reader        guintptr        // goroutine that called ReadTrace, or nil
 	stackTab      traceStackTable // maps stack traces to unique ids
 	// cpuLogRead accepts CPU profile samples from the signal handler where
 	// they're generated. It uses a two-word header to hold the IDs of the P and
@@ -143,6 +142,8 @@ var trace struct {
 	// samples, which arrive out of band and not directly connected to a
 	// specific P.
 	cpuLogBuf traceBufPtr
+
+	reader atomic.Pointer[g] // goroutine that called ReadTrace, or nil
 
 	signalLock  atomic.Uint32 // protects use of the following member, only usable in signal handlers
 	cpuLogWrite *profBuf      // copy of cpuLogRead for use in signal handlers, set without signalLock
@@ -397,7 +398,7 @@ func StopTrace() {
 	if trace.fullHead != 0 || trace.fullTail != 0 {
 		throw("trace: non-empty full trace buffer")
 	}
-	if trace.reading != 0 || trace.reader != 0 {
+	if trace.reading != 0 || trace.reader.Load() != nil {
 		throw("trace: reading after shutdown")
 	}
 	for trace.empty != 0 {
@@ -417,6 +418,7 @@ func StopTrace() {
 // returned data before calling ReadTrace again.
 // ReadTrace must be called from one goroutine at a time.
 func ReadTrace() []byte {
+top:
 	// This function may need to lock trace.lock recursively
 	// (goparkunlock -> traceGoPark -> traceEvent -> traceFlush).
 	// To allow this we use trace.lockOwner.
@@ -426,7 +428,7 @@ func ReadTrace() []byte {
 	lock(&trace.lock)
 	trace.lockOwner = getg()
 
-	if trace.reader != 0 {
+	if trace.reader.Load() != nil {
 		// More than one goroutine reads trace. This is bad.
 		// But we rather do not crash the program because of tracing,
 		// because tracing can be enabled at runtime on prod servers.
@@ -455,9 +457,31 @@ func ReadTrace() []byte {
 	}
 	// Wait for new data.
 	if trace.fullHead == 0 && !trace.shutdown {
-		trace.reader.set(getg())
-		goparkunlock(&trace.lock, waitReasonTraceReaderBlocked, traceEvGoBlock, 2)
-		lock(&trace.lock)
+		// We don't simply use a note because the scheduler
+		// executes this goroutine directly when it wakes up
+		// (also a note would consume an M).
+		unlock(&trace.lock)
+		gopark(func(gp *g, _ unsafe.Pointer) bool {
+			if !trace.reader.CompareAndSwapNoWB(nil, gp) {
+				// We're racing with another reader.
+				// Wake up and handle this case.
+				return false
+			}
+
+			if g2 := traceReader(); gp == g2 {
+				// New data arrived between unlocking
+				// and the CAS and we won the wake-up
+				// race, so wake up directly.
+				return false
+			} else if g2 != nil {
+				printlock()
+				println("runtime: got trace reader", g2, g2.goid)
+				throw("unexpected trace reader")
+			}
+
+			return true
+		}, nil, waitReasonTraceReaderBlocked, traceEvGoBlock, 2)
+		goto top
 	}
 
 newFull:
@@ -522,25 +546,28 @@ newFull:
 // traceReader returns the trace reader that should be woken up, if any.
 // Callers should first check that trace.enabled or trace.shutdown is set.
 func traceReader() *g {
-	if !traceReaderAvailable() {
+	// Optimistic check first
+	if traceReaderAvailable() == nil {
 		return nil
 	}
 	lock(&trace.lock)
-	if !traceReaderAvailable() {
+	gp := traceReaderAvailable()
+	if gp == nil || !trace.reader.CompareAndSwapNoWB(gp, nil) {
 		unlock(&trace.lock)
 		return nil
 	}
-	gp := trace.reader.ptr()
-	trace.reader.set(nil)
 	unlock(&trace.lock)
 	return gp
 }
 
-// traceReaderAvailable returns true if the trace reader is not currently
+// traceReaderAvailable returns the trace reader if it is not currently
 // scheduled and should be. Callers should first check that trace.enabled
 // or trace.shutdown is set.
-func traceReaderAvailable() bool {
-	return trace.reader != 0 && (trace.fullHead != 0 || trace.shutdown)
+func traceReaderAvailable() *g {
+	if trace.fullHead != 0 || trace.shutdown {
+		return trace.reader.Load()
+	}
+	return nil
 }
 
 // traceProcFree frees trace buffer associated with pp.
