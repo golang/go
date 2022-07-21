@@ -115,18 +115,6 @@ allg,
 MPROF < profInsert, profBlock, profMemActive;
 profMemActive < profMemFuture;
 
-# Execution tracer events (with a P)
-hchan,
-  root,
-  sched,
-  traceStrings,
-  notifyList,
-  fin
-# Above TRACE is anything that can create a trace event
-< TRACE
-< trace
-< traceStackTab;
-
 # Stack allocation and copying
 gcBitsArenas,
   netpollInit,
@@ -134,7 +122,8 @@ gcBitsArenas,
   profInsert,
   profMemFuture,
   spanSetSpine,
-  traceStackTab
+  fin,
+  root
 # Anything that can grow the stack can acquire STACKGROW.
 # (Most higher layers imply STACKGROW, like MALLOC.)
 < STACKGROW
@@ -167,6 +156,18 @@ stackLarge,
 < mheap;
 # Below mheap is the span allocator implementation.
 mheap, mheapSpecial < globalAlloc;
+
+# Execution tracer events (with a P)
+hchan,
+  root,
+  sched,
+  traceStrings,
+  notifyList,
+  fin
+# Above TRACE is anything that can create a trace event
+< TRACE
+< trace
+< traceStackTab;
 
 # panic is handled specially. It is implicitly below all other locks.
 NONE < panic;
