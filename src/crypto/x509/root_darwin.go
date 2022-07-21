@@ -55,7 +55,7 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 	// using TLS or OCSP for that.
 
 	if err := macOS.SecTrustEvaluateWithError(trustObj); err != nil {
-		return nil, err
+		return nil, CertificateInvalidError{Reason: NotTrusted, Detail: err.Error()}
 	}
 
 	chain := [][]*Certificate{{}}

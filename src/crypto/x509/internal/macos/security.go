@@ -201,7 +201,7 @@ func SecTrustEvaluateWithError(trustObj CFRef) error {
 	ret := syscall(abi.FuncPCABI0(x509_SecTrustEvaluateWithError_trampoline), uintptr(trustObj), uintptr(unsafe.Pointer(&errRef)), 0, 0, 0, 0)
 	if int32(ret) != 1 {
 		errStr := CFErrorCopyDescription(errRef)
-		err := fmt.Errorf("x509: %s", CFStringToString(errStr))
+		err := fmt.Errorf("%s", CFStringToString(errStr))
 		CFRelease(errRef)
 		CFRelease(errStr)
 		return err

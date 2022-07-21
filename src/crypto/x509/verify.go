@@ -56,6 +56,10 @@ const (
 	// CANotAuthorizedForExtKeyUsage results when an intermediate or root
 	// certificate does not permit a requested extended key usage.
 	CANotAuthorizedForExtKeyUsage
+	// NotTrusted results on Macs when a certificate is not trusted. This
+	// is needed to ensure we can properly catch this condition, otherwise
+	// it simply results in an `*error.ErrorString` type.
+	NotTrusted
 )
 
 // CertificateInvalidError results when an odd error occurs. Users of this
@@ -86,6 +90,8 @@ func (e CertificateInvalidError) Error() string {
 		return "x509: issuer has name constraints but leaf doesn't have a SAN extension"
 	case UnconstrainedName:
 		return "x509: issuer has name constraints but leaf contains unknown or unconstrained name: " + e.Detail
+	case NotTrusted:
+		return "x509: " + e.Detail
 	}
 	return "x509: unknown error"
 }
