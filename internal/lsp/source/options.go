@@ -204,6 +204,7 @@ type ClientOptions struct {
 	RelatedInformationSupported                bool
 	CompletionTags                             bool
 	CompletionDeprecated                       bool
+	SupportedResourceOperations                []protocol.ResourceOperationKind
 }
 
 // ServerOptions holds LSP-specific configuration that is provided by the
@@ -701,6 +702,9 @@ func SetOptions(options *Options, opts interface{}) OptionResults {
 
 func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 	// Check if the client supports snippets in completion items.
+	if caps.Workspace.WorkspaceEdit != nil {
+		o.SupportedResourceOperations = caps.Workspace.WorkspaceEdit.ResourceOperations
+	}
 	if c := caps.TextDocument.Completion; c.CompletionItem.SnippetSupport {
 		o.InsertTextFormat = protocol.SnippetTextFormat
 	}

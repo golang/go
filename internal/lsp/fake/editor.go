@@ -428,7 +428,7 @@ func (e *Editor) CloseBuffer(ctx context.Context, path string) error {
 
 	if e.Server != nil {
 		if err := e.Server.DidClose(ctx, &protocol.DidCloseTextDocumentParams{
-			TextDocument: e.textDocumentIdentifier(path),
+			TextDocument: e.TextDocumentIdentifier(path),
 		}); err != nil {
 			return fmt.Errorf("DidClose: %w", err)
 		}
@@ -439,7 +439,7 @@ func (e *Editor) CloseBuffer(ctx context.Context, path string) error {
 	return nil
 }
 
-func (e *Editor) textDocumentIdentifier(path string) protocol.TextDocumentIdentifier {
+func (e *Editor) TextDocumentIdentifier(path string) protocol.TextDocumentIdentifier {
 	return protocol.TextDocumentIdentifier{
 		URI: e.sandbox.Workdir.URI(path),
 	}
@@ -471,7 +471,7 @@ func (e *Editor) SaveBufferWithoutActions(ctx context.Context, path string) erro
 		includeText = syncOptions.Save.IncludeText
 	}
 
-	docID := e.textDocumentIdentifier(buf.path)
+	docID := e.TextDocumentIdentifier(buf.path)
 	if e.Server != nil {
 		if err := e.Server.WillSave(ctx, &protocol.WillSaveTextDocumentParams{
 			TextDocument: docID,
@@ -693,7 +693,7 @@ func (e *Editor) setBufferContentLocked(ctx context.Context, path string, dirty 
 	params := &protocol.DidChangeTextDocumentParams{
 		TextDocument: protocol.VersionedTextDocumentIdentifier{
 			Version:                int32(buf.version),
-			TextDocumentIdentifier: e.textDocumentIdentifier(buf.path),
+			TextDocumentIdentifier: e.TextDocumentIdentifier(buf.path),
 		},
 		ContentChanges: evts,
 	}
@@ -1008,7 +1008,7 @@ func (e *Editor) CodeLens(ctx context.Context, path string) ([]protocol.CodeLens
 		return nil, fmt.Errorf("buffer %q is not open", path)
 	}
 	params := &protocol.CodeLensParams{
-		TextDocument: e.textDocumentIdentifier(path),
+		TextDocument: e.TextDocumentIdentifier(path),
 	}
 	lens, err := e.Server.CodeLens(ctx, params)
 	if err != nil {
@@ -1030,7 +1030,7 @@ func (e *Editor) Completion(ctx context.Context, path string, pos Pos) (*protoco
 	}
 	params := &protocol.CompletionParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: e.textDocumentIdentifier(path),
+			TextDocument: e.TextDocumentIdentifier(path),
 			Position:     pos.ToProtocolPosition(),
 		},
 	}
@@ -1080,7 +1080,7 @@ func (e *Editor) InlayHint(ctx context.Context, path string) ([]protocol.InlayHi
 		return nil, fmt.Errorf("buffer %q is not open", path)
 	}
 	params := &protocol.InlayHintParams{
-		TextDocument: e.textDocumentIdentifier(path),
+		TextDocument: e.TextDocumentIdentifier(path),
 	}
 	hints, err := e.Server.InlayHint(ctx, params)
 	if err != nil {
@@ -1102,7 +1102,7 @@ func (e *Editor) References(ctx context.Context, path string, pos Pos) ([]protoc
 	}
 	params := &protocol.ReferenceParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: e.textDocumentIdentifier(path),
+			TextDocument: e.TextDocumentIdentifier(path),
 			Position:     pos.ToProtocolPosition(),
 		},
 		Context: protocol.ReferenceContext{
@@ -1121,7 +1121,7 @@ func (e *Editor) Rename(ctx context.Context, path string, pos Pos, newName strin
 		return nil
 	}
 	params := &protocol.RenameParams{
-		TextDocument: e.textDocumentIdentifier(path),
+		TextDocument: e.TextDocumentIdentifier(path),
 		Position:     pos.ToProtocolPosition(),
 		NewName:      newName,
 	}
@@ -1195,7 +1195,7 @@ func (e *Editor) CodeAction(ctx context.Context, path string, rng *protocol.Rang
 		return nil, fmt.Errorf("buffer %q is not open", path)
 	}
 	params := &protocol.CodeActionParams{
-		TextDocument: e.textDocumentIdentifier(path),
+		TextDocument: e.TextDocumentIdentifier(path),
 		Context: protocol.CodeActionContext{
 			Diagnostics: diagnostics,
 		},

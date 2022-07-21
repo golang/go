@@ -49,6 +49,29 @@ type PrepareItem struct {
 // the prepare fails. Probably we could eliminate the redundancy in returning
 // two errors, but for now this is done defensively.
 func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position) (_ *PrepareItem, usererr, err error) {
+	fileRenameSupported := false
+	for _, op := range snapshot.View().Options().SupportedResourceOperations {
+		if op == protocol.Rename {
+			fileRenameSupported = true
+			break
+		}
+	}
+
+	// Find position of the package name declaration
+	pgf, err := snapshot.ParseGo(ctx, f, ParseFull)
+	if err != nil {
+		return nil, err, err
+	}
+	inPackageName, err := isInPackageName(ctx, snapshot, f, pgf, pp)
+	if err != nil {
+		return nil, err, err
+	}
+
+	if inPackageName && !fileRenameSupported {
+		err := errors.New("can't rename packages: LSP client does not support file renaming")
+		return nil, err, err
+	}
+
 	ctx, done := event.Start(ctx, "source.PrepareRename")
 	defer done()
 
