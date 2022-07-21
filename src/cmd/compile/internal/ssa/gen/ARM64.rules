@@ -2977,3 +2977,8 @@
 	=> (Move [sz] dst src mem)
 
 ((REV|REVW) ((REV|REVW) p)) => p
+
+// runtime/internal/math.MulUintptr intrinsics
+
+(Select0 (Mul64uover x y)) => (MUL x y)
+(Select1 (Mul64uover x y)) => (NotEqual (CMPconst (UMULH <typ.UInt64> x y) [0]))

@@ -27362,6 +27362,18 @@ func rewriteValueARM64_OpSelect0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (Select0 (Mul64uover x y))
+	// result: (MUL x y)
+	for {
+		if v_0.Op != OpMul64uover {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpARM64MUL)
+		v.AddArg2(x, y)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpSelect1(v *Value) bool {
@@ -27411,6 +27423,23 @@ func rewriteValueARM64_OpSelect1(v *Value) bool {
 		v3.AddArg(v4)
 		v2.AddArg3(x, y, v3)
 		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Select1 (Mul64uover x y))
+	// result: (NotEqual (CMPconst (UMULH <typ.UInt64> x y) [0]))
+	for {
+		if v_0.Op != OpMul64uover {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpARM64NotEqual)
+		v0 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+		v0.AuxInt = int64ToAuxInt(0)
+		v1 := b.NewValue0(v.Pos, OpARM64UMULH, typ.UInt64)
+		v1.AddArg2(x, y)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
