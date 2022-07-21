@@ -896,7 +896,7 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
 //	307 (Temporary Redirect)
 //	308 (Permanent Redirect)
 //
-// # Head is a wrapper around DefaultClient.Head
+// Head is a wrapper around DefaultClient.Head.
 //
 // To make a request with a specified context.Context, use NewRequestWithContext
 // and DefaultClient.Do.
