@@ -1470,9 +1470,6 @@ func (s *state) stmt(n ir.Node) {
 				s.Fatalf("dottype of non-load")
 			}
 			mem := s.mem()
-			if mem.Op == ssa.OpVarKill {
-				mem = mem.Args[0]
-			}
 			if res.Args[1] != mem {
 				s.Fatalf("memory no longer live from 2-result dottype load")
 			}
@@ -6947,7 +6944,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			case ssa.OpGetG:
 				// nothing to do when there's a g register,
 				// and checkLower complains if there's not
-			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive, ssa.OpVarKill:
+			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
 				// nothing to do; already used by liveness
 			case ssa.OpPhi:
 				CheckLoweredPhi(v)

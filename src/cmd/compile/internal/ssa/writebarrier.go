@@ -163,7 +163,7 @@ func writebarrier(f *Func) {
 					last = w
 					end = i + 1
 				}
-			case OpVarDef, OpVarLive, OpVarKill:
+			case OpVarDef, OpVarLive:
 				continue
 			default:
 				if last == nil {
@@ -279,7 +279,7 @@ func writebarrier(f *Func) {
 				fn = typedmemclr
 				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
 				nWBops--
-			case OpVarDef, OpVarLive, OpVarKill:
+			case OpVarDef, OpVarLive:
 			}
 
 			// then block: emit write barrier call
@@ -301,7 +301,7 @@ func writebarrier(f *Func) {
 				}
 				// Note that we set up a writebarrier function call.
 				f.fe.SetWBPos(pos)
-			case OpVarDef, OpVarLive, OpVarKill:
+			case OpVarDef, OpVarLive:
 				memThen = bThen.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memThen)
 			}
 
@@ -315,7 +315,7 @@ func writebarrier(f *Func) {
 			case OpZeroWB:
 				memElse = bElse.NewValue2I(pos, OpZero, types.TypeMem, w.AuxInt, ptr, memElse)
 				memElse.Aux = w.Aux
-			case OpVarDef, OpVarLive, OpVarKill:
+			case OpVarDef, OpVarLive:
 				memElse = bElse.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memElse)
 			}
 		}
