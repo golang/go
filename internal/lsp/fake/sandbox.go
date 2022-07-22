@@ -70,6 +70,10 @@ type SandboxConfig struct {
 // If rootDir is non-empty, it will be used as the root of temporary
 // directories created for the sandbox. Otherwise, a new temporary directory
 // will be used as root.
+//
+// TODO(rfindley): the sandbox abstraction doesn't seem to carry its weight.
+// Sandboxes should be composed out of their building-blocks, rather than via a
+// monolithic configuration.
 func NewSandbox(config *SandboxConfig) (_ *Sandbox, err error) {
 	if config == nil {
 		config = new(SandboxConfig)

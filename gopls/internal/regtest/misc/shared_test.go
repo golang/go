@@ -7,6 +7,7 @@ package misc
 import (
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/fake"
 	. "golang.org/x/tools/internal/lsp/regtest"
 )
 
@@ -33,8 +34,19 @@ func runShared(t *testing.T, testFunc func(origEnv *Env, otherEnv *Env)) {
 	WithOptions(Modes(modes)).Run(t, sharedProgram, func(t *testing.T, env1 *Env) {
 		// Create a second test session connected to the same workspace and server
 		// as the first.
-		env2, cleanup := NewEnv(env1.Ctx, t, env1.Sandbox, env1.Server, env1.Editor.Config(), true)
-		defer cleanup()
+		awaiter := NewAwaiter(env1.Sandbox.Workdir)
+		editor, err := fake.NewEditor(env1.Sandbox, env1.Editor.Config()).Connect(env1.Ctx, env1.Server, awaiter.Hooks())
+		if err != nil {
+			t.Fatal(err)
+		}
+		env2 := &Env{
+			T:       t,
+			Ctx:     env1.Ctx,
+			Sandbox: env1.Sandbox,
+			Server:  env1.Server,
+			Editor:  editor,
+			Awaiter: awaiter,
+		}
 		env2.Await(InitialWorkspaceLoad)
 		testFunc(env1, env2)
 	})

@@ -45,7 +45,7 @@ func _() int {
 		// 'x' is undeclared, but still necessary.
 		env.OpenFile("a/a.go")
 		env.Await(env.DiagnosticAtRegexp("a/a.go", "x"))
-		diags := env.DiagnosticsFor("a/a.go")
+		diags := env.Awaiter.DiagnosticsFor("a/a.go")
 		if got := len(diags.Diagnostics); got != 1 {
 			t.Errorf("len(Diagnostics) = %d, want 1", got)
 		}
@@ -56,7 +56,7 @@ func _() int {
 		// 'y = y' is pointless, and should be detected as unnecessary.
 		env.OpenFile("b/b.go")
 		env.Await(env.DiagnosticAtRegexp("b/b.go", "y = y"))
-		diags = env.DiagnosticsFor("b/b.go")
+		diags = env.Awaiter.DiagnosticsFor("b/b.go")
 		if got := len(diags.Diagnostics); got != 1 {
 			t.Errorf("len(Diagnostics) = %d, want 1", got)
 		}

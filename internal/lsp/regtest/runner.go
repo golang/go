@@ -132,13 +132,10 @@ type Runner struct {
 }
 
 type runConfig struct {
-	editor           fake.EditorConfig
-	sandbox          fake.SandboxConfig
-	modes            Mode
-	noDefaultTimeout bool
-	debugAddr        string
-	skipLogs         bool
-	skipHooks        bool
+	editor    fake.EditorConfig
+	sandbox   fake.SandboxConfig
+	modes     Mode
+	skipHooks bool
 }
 
 // A RunOption augments the behavior of the test runner.
@@ -150,15 +147,6 @@ type optionSetter func(*runConfig)
 
 func (f optionSetter) set(opts *runConfig) {
 	f(opts)
-}
-
-// NoDefaultTimeout removes the timeout set by the -regtest_timeout flag, for
-// individual tests that are expected to run longer than is reasonable for
-// ordinary regression tests.
-func NoDefaultTimeout() RunOption {
-	return optionSetter(func(opts *runConfig) {
-		opts.noDefaultTimeout = true
-	})
 }
 
 // ProxyFiles configures a file proxy using the given txtar-encoded string.
@@ -241,50 +229,6 @@ func InGOPATH() RunOption {
 	})
 }
 
-// DebugAddress configures a debug server bound to addr. This option is
-// currently only supported when executing in Default mode. It is intended to
-// be used for long-running stress tests.
-func DebugAddress(addr string) RunOption {
-	return optionSetter(func(opts *runConfig) {
-		opts.debugAddr = addr
-	})
-}
-
-// SkipLogs skips the buffering of logs during test execution. It is intended
-// for long-running stress tests.
-func SkipLogs() RunOption {
-	return optionSetter(func(opts *runConfig) {
-		opts.skipLogs = true
-	})
-}
-
-// InExistingDir runs the test in a pre-existing directory. If set, no initial
-// files may be passed to the runner. It is intended for long-running stress
-// tests.
-func InExistingDir(dir string) RunOption {
-	return optionSetter(func(opts *runConfig) {
-		opts.sandbox.Workdir = dir
-	})
-}
-
-// SkipHooks allows for disabling the test runner's client hooks that are used
-// for instrumenting expectations (tracking diagnostics, logs, work done,
-// etc.). It is intended for performance-sensitive stress tests or benchmarks.
-func SkipHooks(skip bool) RunOption {
-	return optionSetter(func(opts *runConfig) {
-		opts.skipHooks = skip
-	})
-}
-
-// GOPROXY configures the test environment to have an explicit proxy value.
-// This is intended for stress tests -- to ensure their isolation, regtests
-// should instead use WithProxyFiles.
-func GOPROXY(goproxy string) RunOption {
-	return optionSetter(func(opts *runConfig) {
-		opts.sandbox.GOPROXY = goproxy
-	})
-}
-
 type TestFunc func(t *testing.T, env *Env)
 
 // Run executes the test function in the default configured gopls execution
@@ -321,20 +265,13 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 			continue
 		}
 
-		if config.debugAddr != "" && tc.mode != Default {
-			// Debugging is useful for running stress tests, but since the daemon has
-			// likely already been started, it would be too late to debug.
-			t.Fatalf("debugging regtest servers only works in Default mode, "+
-				"got debug addr %q and mode %v", config.debugAddr, tc.mode)
-		}
-
 		t.Run(tc.name, func(t *testing.T) {
 			// TODO(rfindley): once jsonrpc2 shutdown is fixed, we should not leak
 			// goroutines in this test function.
 			// stacktest.NoLeak(t)
 
 			ctx := context.Background()
-			if r.Timeout != 0 && !config.noDefaultTimeout {
+			if r.Timeout != 0 {
 				var cancel context.CancelFunc
 				ctx, cancel = context.WithTimeout(ctx, r.Timeout)
 				defer cancel()
@@ -345,12 +282,8 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 				defer cancel()
 			}
 
+			// TODO(rfindley): do we need an instance at all? Can it be removed?
 			ctx = debug.WithInstance(ctx, "", "off")
-			if config.debugAddr != "" {
-				di := debug.GetInstance(ctx)
-				di.Serve(ctx, config.debugAddr)
-				di.MonitorMemory(ctx)
-			}
 
 			rootDir := filepath.Join(r.tempDir, filepath.FromSlash(t.Name()))
 			if err := os.MkdirAll(rootDir, 0755); err != nil {
@@ -382,12 +315,22 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 
 			framer := jsonrpc2.NewRawStream
 			ls := &loggingFramer{}
-			if !config.skipLogs {
-				framer = ls.framer(jsonrpc2.NewRawStream)
-			}
+			framer = ls.framer(jsonrpc2.NewRawStream)
 			ts := servertest.NewPipeServer(ss, framer)
-			env, cleanup := NewEnv(ctx, t, sandbox, ts, config.editor, !config.skipHooks)
-			defer cleanup()
+
+			awaiter := NewAwaiter(sandbox.Workdir)
+			editor, err := fake.NewEditor(sandbox, config.editor).Connect(ctx, ts, awaiter.Hooks())
+			if err != nil {
+				t.Fatal(err)
+			}
+			env := &Env{
+				T:       t,
+				Ctx:     ctx,
+				Sandbox: sandbox,
+				Editor:  editor,
+				Server:  ts,
+				Awaiter: awaiter,
+			}
 			defer func() {
 				if t.Failed() && r.PrintGoroutinesOnFailure {
 					pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
@@ -402,7 +345,7 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 				// the editor: in general we want to clean up before proceeding to the
 				// next test, and if there is a deadlock preventing closing it will
 				// eventually be handled by the `go test` timeout.
-				if err := env.Editor.Close(xcontext.Detach(ctx)); err != nil {
+				if err := editor.Close(xcontext.Detach(ctx)); err != nil {
 					t.Errorf("closing editor: %v", err)
 				}
 			}()

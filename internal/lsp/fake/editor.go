@@ -17,9 +17,11 @@ import (
 	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/xcontext"
 )
 
 // Editor is a fake editor client.  It keeps track of client state and can be
@@ -29,6 +31,7 @@ type Editor struct {
 	// Server, client, and sandbox are concurrency safe and written only
 	// at construction time, so do not require synchronization.
 	Server     protocol.Server
+	cancelConn func()
 	serverConn jsonrpc2.Conn
 	client     *Client
 	sandbox    *Sandbox
@@ -119,14 +122,19 @@ func NewEditor(sandbox *Sandbox, config EditorConfig) *Editor {
 // It returns the editor, so that it may be called as follows:
 //
 //	editor, err := NewEditor(s).Connect(ctx, conn)
-func (e *Editor) Connect(ctx context.Context, conn jsonrpc2.Conn, hooks ClientHooks) (*Editor, error) {
+func (e *Editor) Connect(ctx context.Context, connector servertest.Connector, hooks ClientHooks) (*Editor, error) {
+	bgCtx, cancelConn := context.WithCancel(xcontext.Detach(ctx))
+	conn := connector.Connect(bgCtx)
+	e.cancelConn = cancelConn
+
 	e.serverConn = conn
 	e.Server = protocol.ServerDispatcher(conn)
 	e.client = &Client{editor: e, hooks: hooks}
-	conn.Go(ctx,
+	conn.Go(bgCtx,
 		protocol.Handlers(
 			protocol.ClientHandler(e.client,
 				jsonrpc2.MethodNotFound)))
+
 	if err := e.initialize(ctx, e.config.WorkspaceFolders); err != nil {
 		return nil, err
 	}
@@ -170,6 +178,10 @@ func (e *Editor) Close(ctx context.Context) error {
 	if err := e.Exit(ctx); err != nil {
 		return err
 	}
+	defer func() {
+		e.cancelConn()
+	}()
+
 	// called close on the editor should result in the connection closing
 	select {
 	case <-e.serverConn.Done():

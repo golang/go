@@ -50,7 +50,7 @@ func NewTCPServer(ctx context.Context, server jsonrpc2.StreamServer, framer json
 
 // Connect dials the test server and returns a jsonrpc2 Connection that is
 // ready for use.
-func (s *TCPServer) Connect(ctx context.Context) jsonrpc2.Conn {
+func (s *TCPServer) Connect(_ context.Context) jsonrpc2.Conn {
 	netConn, err := net.Dial("tcp", s.Addr)
 	if err != nil {
 		panic(fmt.Sprintf("servertest: failed to connect to test instance: %v", err))

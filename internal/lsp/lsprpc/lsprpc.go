@@ -56,7 +56,9 @@ func (s *StreamServer) Binder() *ServerBinder {
 		server := s.serverForTest
 		if server == nil {
 			server = lsp.NewServer(session, client)
-			debug.GetInstance(ctx).AddService(server, session)
+			if instance := debug.GetInstance(ctx); instance != nil {
+				instance.AddService(server, session)
+			}
 		}
 		return server
 	}
@@ -71,7 +73,9 @@ func (s *StreamServer) ServeStream(ctx context.Context, conn jsonrpc2.Conn) erro
 	server := s.serverForTest
 	if server == nil {
 		server = lsp.NewServer(session, client)
-		debug.GetInstance(ctx).AddService(server, session)
+		if instance := debug.GetInstance(ctx); instance != nil {
+			instance.AddService(server, session)
+		}
 	}
 	// Clients may or may not send a shutdown message. Make sure the server is
 	// shut down.

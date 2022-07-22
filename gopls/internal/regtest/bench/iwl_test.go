@@ -5,35 +5,31 @@
 package bench
 
 import (
-	"flag"
+	"context"
 	"testing"
 
 	. "golang.org/x/tools/internal/lsp/regtest"
 )
 
-var iwlOptions struct {
-	workdir string
-}
+// BenchmarkIWL benchmarks the initial workspace load time for a new editing
+// session.
+func BenchmarkIWL(b *testing.B) {
+	dir := benchmarkDir()
+	b.ResetTimer()
 
-func init() {
-	flag.StringVar(&iwlOptions.workdir, "iwl_workdir", "", "if set, run IWL benchmark in this directory")
-}
-
-func TestBenchmarkIWL(t *testing.T) {
-	if iwlOptions.workdir == "" {
-		t.Skip("-iwl_workdir not configured")
-	}
-
-	opts := stressTestOptions(iwlOptions.workdir)
-	// Don't skip hooks, so that we can wait for IWL.
-	opts = append(opts, SkipHooks(false))
-
-	results := testing.Benchmark(func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			WithOptions(opts...).Run(t, "", func(t *testing.T, env *Env) {})
-
+	ctx := context.Background()
+	for i := 0; i < b.N; i++ {
+		_, editor, awaiter, err := connectEditor(dir)
+		if err != nil {
+			b.Fatal(err)
 		}
-	})
-
-	printBenchmarkResults(results)
+		if err := awaiter.Await(ctx, InitialWorkspaceLoad); err != nil {
+			b.Fatal(err)
+		}
+		b.StopTimer()
+		if err := editor.Close(ctx); err != nil {
+			b.Fatal(err)
+		}
+		b.StartTimer()
+	}
 }

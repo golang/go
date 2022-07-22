@@ -29,7 +29,7 @@ func main() {
 	var err error
 	err.Error()
 }`
-	WithOptions(SkipLogs()).Run(t, mod, func(t *testing.T, env *Env) {
+	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		content, _ := env.Hover("main.go", env.RegexpSearch("main.go", "Error"))
 		// without the //line comment content would be non-nil

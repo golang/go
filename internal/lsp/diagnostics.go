@@ -545,6 +545,7 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 	s.diagnosticsMu.Lock()
 	defer s.diagnosticsMu.Unlock()
 
+	// TODO(rfindley): remove this noisy (and not useful) logging.
 	published := 0
 	defer func() {
 		log.Trace.Logf(ctx, "published %d diagnostics", published)

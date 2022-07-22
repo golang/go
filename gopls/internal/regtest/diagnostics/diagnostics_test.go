@@ -1296,7 +1296,7 @@ func main() {}
 	Run(t, dir, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OpenFile("other.go")
-		x := env.DiagnosticsFor("main.go")
+		x := env.Awaiter.DiagnosticsFor("main.go")
 		if x == nil {
 			t.Fatalf("expected 1 diagnostic, got none")
 		}
@@ -1304,7 +1304,7 @@ func main() {}
 			t.Fatalf("main.go, got %d diagnostics, expected 1", len(x.Diagnostics))
 		}
 		keep := x.Diagnostics[0]
-		y := env.DiagnosticsFor("other.go")
+		y := env.Awaiter.DiagnosticsFor("other.go")
 		if len(y.Diagnostics) != 1 {
 			t.Fatalf("other.go: got %d diagnostics, expected 1", len(y.Diagnostics))
 		}

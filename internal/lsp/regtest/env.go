@@ -14,30 +14,67 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/xcontext"
 )
 
-// Env holds an initialized fake Editor, Workspace, and Server, which may be
-// used for writing tests. It also provides adapter methods that call t.Fatal
-// on any error, so that tests for the happy path may be written without
-// checking errors.
+// Env holds the building blocks of an editor testing environment, providing
+// wrapper methods that hide the boilerplate of plumbing contexts and checking
+// errors.
 type Env struct {
-	T   testing.TB
+	T   testing.TB // TODO(rfindley): rename to TB
 	Ctx context.Context
 
 	// Most tests should not need to access the scratch area, editor, server, or
 	// connection, but they are available if needed.
 	Sandbox *fake.Sandbox
-	Editor  *fake.Editor
 	Server  servertest.Connector
 
-	// mu guards the fields below, for the purpose of checking conditions on
-	// every change to diagnostics.
+	// Editor is owned by the Env, and shut down
+	Editor *fake.Editor
+
+	Awaiter *Awaiter
+}
+
+// An Awaiter keeps track of relevant LSP state, so that it may be asserted
+// upon with Expectations.
+//
+// Wire it into a fake.Editor using Awaiter.Hooks().
+//
+// TODO(rfindley): consider simply merging Awaiter with the fake.Editor. It
+// probably is not worth its own abstraction.
+type Awaiter struct {
+	workdir *fake.Workdir
+
 	mu sync.Mutex
 	// For simplicity, each waiter gets a unique ID.
 	nextWaiterID int
 	state        State
 	waiters      map[int]*condition
+}
+
+func NewAwaiter(workdir *fake.Workdir) *Awaiter {
+	return &Awaiter{
+		workdir: workdir,
+		state: State{
+			diagnostics:     make(map[string]*protocol.PublishDiagnosticsParams),
+			outstandingWork: make(map[protocol.ProgressToken]*workProgress),
+			startedWork:     make(map[string]uint64),
+			completedWork:   make(map[string]uint64),
+		},
+		waiters: make(map[int]*condition),
+	}
+}
+
+func (a *Awaiter) Hooks() fake.ClientHooks {
+	return fake.ClientHooks{
+		OnDiagnostics:            a.onDiagnostics,
+		OnLogMessage:             a.onLogMessage,
+		OnWorkDoneProgressCreate: a.onWorkDoneProgressCreate,
+		OnProgress:               a.onProgress,
+		OnShowMessage:            a.onShowMessage,
+		OnShowMessageRequest:     a.onShowMessageRequest,
+		OnRegistration:           a.onRegistration,
+		OnUnregistration:         a.onUnregistration,
+	}
 }
 
 // State encapsulates the server state TODO: explain more
@@ -108,103 +145,55 @@ type condition struct {
 	verdict      chan Verdict
 }
 
-// NewEnv creates a new test environment using the given scratch environment
-// and gopls server.
-//
-// The resulting cleanup func must be called to close the jsonrpc2 connection.
-//
-// TODO(rfindley): this function provides questionable value. Consider
-// refactoring to move things like creating the server outside of this
-// constructor.
-func NewEnv(ctx context.Context, tb testing.TB, sandbox *fake.Sandbox, ts servertest.Connector, editorConfig fake.EditorConfig, withHooks bool) (_ *Env, cleanup func()) {
-	tb.Helper()
+func (a *Awaiter) onDiagnostics(_ context.Context, d *protocol.PublishDiagnosticsParams) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	bgCtx, cleanupConn := context.WithCancel(xcontext.Detach(ctx))
-	conn := ts.Connect(bgCtx)
-
-	env := &Env{
-		T:       tb,
-		Ctx:     ctx,
-		Sandbox: sandbox,
-		Server:  ts,
-		state: State{
-			diagnostics:     make(map[string]*protocol.PublishDiagnosticsParams),
-			outstandingWork: make(map[protocol.ProgressToken]*workProgress),
-			startedWork:     make(map[string]uint64),
-			completedWork:   make(map[string]uint64),
-		},
-		waiters: make(map[int]*condition),
-	}
-	var hooks fake.ClientHooks
-	if withHooks {
-		hooks = fake.ClientHooks{
-			OnDiagnostics:            env.onDiagnostics,
-			OnLogMessage:             env.onLogMessage,
-			OnWorkDoneProgressCreate: env.onWorkDoneProgressCreate,
-			OnProgress:               env.onProgress,
-			OnShowMessage:            env.onShowMessage,
-			OnShowMessageRequest:     env.onShowMessageRequest,
-			OnRegistration:           env.onRegistration,
-			OnUnregistration:         env.onUnregistration,
-		}
-	}
-	editor, err := fake.NewEditor(sandbox, editorConfig).Connect(bgCtx, conn, hooks)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	env.Editor = editor
-	return env, cleanupConn
-}
-
-func (e *Env) onDiagnostics(_ context.Context, d *protocol.PublishDiagnosticsParams) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	pth := e.Sandbox.Workdir.URIToPath(d.URI)
-	e.state.diagnostics[pth] = d
-	e.checkConditionsLocked()
+	pth := a.workdir.URIToPath(d.URI)
+	a.state.diagnostics[pth] = d
+	a.checkConditionsLocked()
 	return nil
 }
 
-func (e *Env) onShowMessage(_ context.Context, m *protocol.ShowMessageParams) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (a *Awaiter) onShowMessage(_ context.Context, m *protocol.ShowMessageParams) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	e.state.showMessage = append(e.state.showMessage, m)
-	e.checkConditionsLocked()
+	a.state.showMessage = append(a.state.showMessage, m)
+	a.checkConditionsLocked()
 	return nil
 }
 
-func (e *Env) onShowMessageRequest(_ context.Context, m *protocol.ShowMessageRequestParams) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (a *Awaiter) onShowMessageRequest(_ context.Context, m *protocol.ShowMessageRequestParams) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	e.state.showMessageRequest = append(e.state.showMessageRequest, m)
-	e.checkConditionsLocked()
+	a.state.showMessageRequest = append(a.state.showMessageRequest, m)
+	a.checkConditionsLocked()
 	return nil
 }
 
-func (e *Env) onLogMessage(_ context.Context, m *protocol.LogMessageParams) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (a *Awaiter) onLogMessage(_ context.Context, m *protocol.LogMessageParams) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	e.state.logs = append(e.state.logs, m)
-	e.checkConditionsLocked()
+	a.state.logs = append(a.state.logs, m)
+	a.checkConditionsLocked()
 	return nil
 }
 
-func (e *Env) onWorkDoneProgressCreate(_ context.Context, m *protocol.WorkDoneProgressCreateParams) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (a *Awaiter) onWorkDoneProgressCreate(_ context.Context, m *protocol.WorkDoneProgressCreateParams) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	e.state.outstandingWork[m.Token] = &workProgress{}
+	a.state.outstandingWork[m.Token] = &workProgress{}
 	return nil
 }
 
-func (e *Env) onProgress(_ context.Context, m *protocol.ProgressParams) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	work, ok := e.state.outstandingWork[m.Token]
+func (a *Awaiter) onProgress(_ context.Context, m *protocol.ProgressParams) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	work, ok := a.state.outstandingWork[m.Token]
 	if !ok {
 		panic(fmt.Sprintf("got progress report for unknown report %v: %v", m.Token, m))
 	}
@@ -212,7 +201,7 @@ func (e *Env) onProgress(_ context.Context, m *protocol.ProgressParams) error {
 	switch kind := v["kind"]; kind {
 	case "begin":
 		work.title = v["title"].(string)
-		e.state.startedWork[work.title] = e.state.startedWork[work.title] + 1
+		a.state.startedWork[work.title] = a.state.startedWork[work.title] + 1
 		if msg, ok := v["message"]; ok {
 			work.msg = msg.(string)
 		}
@@ -224,36 +213,36 @@ func (e *Env) onProgress(_ context.Context, m *protocol.ProgressParams) error {
 			work.msg = msg.(string)
 		}
 	case "end":
-		title := e.state.outstandingWork[m.Token].title
-		e.state.completedWork[title] = e.state.completedWork[title] + 1
-		delete(e.state.outstandingWork, m.Token)
+		title := a.state.outstandingWork[m.Token].title
+		a.state.completedWork[title] = a.state.completedWork[title] + 1
+		delete(a.state.outstandingWork, m.Token)
 	}
-	e.checkConditionsLocked()
+	a.checkConditionsLocked()
 	return nil
 }
 
-func (e *Env) onRegistration(_ context.Context, m *protocol.RegistrationParams) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (a *Awaiter) onRegistration(_ context.Context, m *protocol.RegistrationParams) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	e.state.registrations = append(e.state.registrations, m)
-	e.checkConditionsLocked()
+	a.state.registrations = append(a.state.registrations, m)
+	a.checkConditionsLocked()
 	return nil
 }
 
-func (e *Env) onUnregistration(_ context.Context, m *protocol.UnregistrationParams) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (a *Awaiter) onUnregistration(_ context.Context, m *protocol.UnregistrationParams) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	e.state.unregistrations = append(e.state.unregistrations, m)
-	e.checkConditionsLocked()
+	a.state.unregistrations = append(a.state.unregistrations, m)
+	a.checkConditionsLocked()
 	return nil
 }
 
-func (e *Env) checkConditionsLocked() {
-	for id, condition := range e.waiters {
-		if v, _ := checkExpectations(e.state, condition.expectations); v != Unmet {
-			delete(e.waiters, id)
+func (a *Awaiter) checkConditionsLocked() {
+	for id, condition := range a.waiters {
+		if v, _ := checkExpectations(a.state, condition.expectations); v != Unmet {
+			delete(a.waiters, id)
 			condition.verdict <- v
 		}
 	}
@@ -276,53 +265,62 @@ func checkExpectations(s State, expectations []Expectation) (Verdict, string) {
 // DiagnosticsFor returns the current diagnostics for the file. It is useful
 // after waiting on AnyDiagnosticAtCurrentVersion, when the desired diagnostic
 // is not simply described by DiagnosticAt.
-func (e *Env) DiagnosticsFor(name string) *protocol.PublishDiagnosticsParams {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return e.state.diagnostics[name]
+//
+// TODO(rfindley): this method is inherently racy. Replace usages of this
+// method with the atomic OnceMet(..., ReadDiagnostics) pattern.
+func (a *Awaiter) DiagnosticsFor(name string) *protocol.PublishDiagnosticsParams {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.state.diagnostics[name]
+}
+
+func (e *Env) Await(expectations ...Expectation) {
+	if err := e.Awaiter.Await(e.Ctx, expectations...); err != nil {
+		e.T.Fatal(err)
+	}
 }
 
 // Await waits for all expectations to simultaneously be met. It should only be
 // called from the main test goroutine.
-func (e *Env) Await(expectations ...Expectation) {
-	e.T.Helper()
-	e.mu.Lock()
+func (a *Awaiter) Await(ctx context.Context, expectations ...Expectation) error {
+	a.mu.Lock()
 	// Before adding the waiter, we check if the condition is currently met or
 	// failed to avoid a race where the condition was realized before Await was
 	// called.
-	switch verdict, summary := checkExpectations(e.state, expectations); verdict {
+	switch verdict, summary := checkExpectations(a.state, expectations); verdict {
 	case Met:
-		e.mu.Unlock()
-		return
+		a.mu.Unlock()
+		return nil
 	case Unmeetable:
-		failure := fmt.Sprintf("unmeetable expectations:\n%s\nstate:\n%v", summary, e.state)
-		e.mu.Unlock()
-		e.T.Fatal(failure)
+		err := fmt.Errorf("unmeetable expectations:\n%s\nstate:\n%v", summary, a.state)
+		a.mu.Unlock()
+		return err
 	}
 	cond := &condition{
 		expectations: expectations,
 		verdict:      make(chan Verdict),
 	}
-	e.waiters[e.nextWaiterID] = cond
-	e.nextWaiterID++
-	e.mu.Unlock()
+	a.waiters[a.nextWaiterID] = cond
+	a.nextWaiterID++
+	a.mu.Unlock()
 
 	var err error
 	select {
-	case <-e.Ctx.Done():
-		err = e.Ctx.Err()
+	case <-ctx.Done():
+		err = ctx.Err()
 	case v := <-cond.verdict:
 		if v != Met {
 			err = fmt.Errorf("condition has final verdict %v", v)
 		}
 	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	_, summary := checkExpectations(e.state, expectations)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	_, summary := checkExpectations(a.state, expectations)
 
 	// Debugging an unmet expectation can be tricky, so we put some effort into
 	// nicely formatting the failure.
 	if err != nil {
-		e.T.Fatalf("waiting on:\n%s\nerr:%v\n\nstate:\n%v", summary, err, e.state)
+		return fmt.Errorf("waiting on:\n%s\nerr:%v\n\nstate:\n%v", summary, err, a.state)
 	}
+	return nil
 }

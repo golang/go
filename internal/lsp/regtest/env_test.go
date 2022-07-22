@@ -13,7 +13,7 @@ import (
 )
 
 func TestProgressUpdating(t *testing.T) {
-	e := &Env{
+	a := &Awaiter{
 		state: State{
 			outstandingWork: make(map[protocol.ProgressToken]*workProgress),
 			startedWork:     make(map[string]uint64),
@@ -21,12 +21,12 @@ func TestProgressUpdating(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	if err := e.onWorkDoneProgressCreate(ctx, &protocol.WorkDoneProgressCreateParams{
+	if err := a.onWorkDoneProgressCreate(ctx, &protocol.WorkDoneProgressCreateParams{
 		Token: "foo",
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.onWorkDoneProgressCreate(ctx, &protocol.WorkDoneProgressCreateParams{
+	if err := a.onWorkDoneProgressCreate(ctx, &protocol.WorkDoneProgressCreateParams{
 		Token: "bar",
 	}); err != nil {
 		t.Fatal(err)
@@ -53,14 +53,14 @@ func TestProgressUpdating(t *testing.T) {
 		if err := json.Unmarshal(data, &unmarshaled); err != nil {
 			t.Fatal(err)
 		}
-		if err := e.onProgress(ctx, &unmarshaled); err != nil {
+		if err := a.onProgress(ctx, &unmarshaled); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, ok := e.state.outstandingWork["foo"]; ok {
+	if _, ok := a.state.outstandingWork["foo"]; ok {
 		t.Error("got work entry for \"foo\", want none")
 	}
-	got := *e.state.outstandingWork["bar"]
+	got := *a.state.outstandingWork["bar"]
 	want := workProgress{title: "bar work", percent: 42}
 	if got != want {
 		t.Errorf("work progress for \"bar\": %v, want %v", got, want)
