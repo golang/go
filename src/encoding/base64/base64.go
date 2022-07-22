@@ -477,6 +477,13 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 	_ = enc.decodeMap
 
 	si := 0
+	decodeQuantum := func() (err error) {
+		var ninc int
+		si, ninc, err = enc.decodeQuantum(dst[n:], src, si)
+		n += ninc
+		return err
+	}
+
 	for strconv.IntSize >= 64 && len(src)-si >= 8 && len(dst)-n >= 8 {
 		src2 := src[si : si+8]
 		if dn, ok := assemble64(
@@ -493,9 +500,7 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 			n += 6
 			si += 8
 		} else {
-			var ninc int
-			si, ninc, err = enc.decodeQuantum(dst[n:], src, si)
-			n += ninc
+			err = decodeQuantum()
 			if err != nil {
 				return n, err
 			}
@@ -514,9 +519,7 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 			n += 3
 			si += 4
 		} else {
-			var ninc int
-			si, ninc, err = enc.decodeQuantum(dst[n:], src, si)
-			n += ninc
+			err = decodeQuantum()
 			if err != nil {
 				return n, err
 			}
@@ -524,9 +527,7 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 	}
 
 	for si < len(src) {
-		var ninc int
-		si, ninc, err = enc.decodeQuantum(dst[n:], src, si)
-		n += ninc
+		err = decodeQuantum()
 		if err != nil {
 			return n, err
 		}
