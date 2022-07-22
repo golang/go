@@ -359,7 +359,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	case ir.OAPPEND:
 		// Must be used (and not BinaryExpr/UnaryExpr).
 		isStmt = false
-	case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.OVARKILL, ir.OVARLIVE:
+	case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.OVARLIVE:
 		// Must not be used.
 		isExpr = false
 		isStmt = true
@@ -750,7 +750,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		ir.ODCL,
 		ir.OGOTO,
 		ir.OFALL,
-		ir.OVARKILL,
 		ir.OVARLIVE:
 		return n
 

@@ -289,7 +289,6 @@ const (
 	OCFUNC         // reference to c function pointer (not go func value)
 	OCHECKNIL      // emit code to ensure pointer/interface not nil
 	OVARDEF        // variable is about to be fully initialized
-	OVARKILL       // variable is dead
 	OVARLIVE       // variable is alive
 	ORESULT        // result of a function call; Xoffset is stack offset
 	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.

@@ -91,7 +91,6 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.ODCLTYPE,
 		ir.OCHECKNIL,
 		ir.OVARDEF,
-		ir.OVARKILL,
 		ir.OVARLIVE:
 		return n
 

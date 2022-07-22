@@ -1384,8 +1384,8 @@ func (s *state) stmtList(l ir.Nodes) {
 
 // stmt converts the statement n to SSA and adds it to s.
 func (s *state) stmt(n ir.Node) {
-	if !(n.Op() == ir.OVARKILL || n.Op() == ir.OVARLIVE || n.Op() == ir.OVARDEF) {
-		// OVARKILL, OVARLIVE, and OVARDEF are invisible to the programmer, so we don't use their line numbers to avoid confusion in debugging.
+	if !(n.Op() == ir.OVARLIVE || n.Op() == ir.OVARDEF) {
+		// OVARLIVE and OVARDEF are invisible to the programmer, so we don't use their line numbers to avoid confusion in debugging.
 		s.pushLine(n.Pos())
 		defer s.popLine()
 	}

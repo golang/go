@@ -597,7 +597,7 @@ func (o *orderState) stmt(n ir.Node) {
 	default:
 		base.Fatalf("order.stmt %v", n.Op())
 
-	case ir.OVARKILL, ir.OVARLIVE, ir.OINLMARK:
+	case ir.OVARLIVE, ir.OINLMARK:
 		o.out = append(o.out, n)
 
 	case ir.OAS:
