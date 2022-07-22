@@ -320,12 +320,6 @@ func writebarrier(f *Func) {
 			}
 		}
 
-		// mark volatile temps dead
-		for _, c := range volatiles {
-			tmpNode := c.tmp.Aux
-			memThen = bThen.NewValue1A(memThen.Pos, OpVarKill, types.TypeMem, tmpNode, memThen)
-		}
-
 		// merge memory
 		// Splice memory Phi into the last memory of the original sequence,
 		// which may be used in subsequent blocks. Other memories in the

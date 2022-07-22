@@ -36,18 +36,6 @@ import (
 // Arrange that receive expressions only appear in direct assignments
 // x = <-c or as standalone statements <-c, never in larger expressions.
 
-// TODO(rsc): The temporary introduction during multiple assignments
-// should be moved into this file, so that the temporaries can be cleaned
-// and so that conversions implicit in the OAS2FUNC and OAS2RECV
-// nodes can be made explicit and then have their temporaries cleaned.
-
-// TODO(rsc): Goto and multilevel break/continue can jump over
-// inserted VARKILL annotations. Work out a way to handle these.
-// The current implementation is safe, in that it will execute correctly.
-// But it won't reuse temporaries as aggressively as it might, and
-// it can result in unnecessary zeroing of those variables in the function
-// prologue.
-
 // orderState holds state during the ordering process.
 type orderState struct {
 	out  []ir.Node             // list of generated statements
@@ -223,16 +211,6 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 	}
 }
 
-// isaddrokay reports whether it is okay to pass n's address to runtime routines.
-// Taking the address of a variable makes the liveness and optimization analyses
-// lose track of where the variable's lifetime ends. To avoid hurting the analyses
-// of ordinary stack variables, those are not 'isaddrokay'. Temporaries are okay,
-// because we emit explicit VARKILL instructions marking the end of those
-// temporaries' lifetimes.
-func isaddrokay(n ir.Node) bool {
-	return ir.IsAddressable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class == ir.PEXTERN || ir.IsAutoTmp(n))
-}
-
 // addrTemp ensures that n is okay to pass by address to runtime routines.
 // If the original argument n is not okay, addrTemp creates a tmp, emits
 // tmp = n, and then returns tmp.
@@ -253,7 +231,7 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 		vstat = typecheck.Expr(vstat).(*ir.Name)
 		return vstat
 	}
-	if isaddrokay(n) {
+	if ir.IsAddressable(n) {
 		return n
 	}
 	return o.copyExpr(n)
@@ -380,25 +358,6 @@ func (o *orderState) popTemp(mark ordermarker) {
 	o.temp = o.temp[:mark]
 }
 
-// cleanTempNoPop emits VARKILL instructions to *out
-// for each temporary above the mark on the temporary stack.
-// It does not pop the temporaries from the stack.
-func (o *orderState) cleanTempNoPop(mark ordermarker) []ir.Node {
-	var out []ir.Node
-	for i := len(o.temp) - 1; i >= int(mark); i-- {
-		n := o.temp[i]
-		out = append(out, typecheck.Stmt(ir.NewUnaryExpr(base.Pos, ir.OVARKILL, n)))
-	}
-	return out
-}
-
-// cleanTemp emits VARKILL instructions for each temporary above the
-// mark on the temporary stack and removes them from the stack.
-func (o *orderState) cleanTemp(top ordermarker) {
-	o.out = append(o.out, o.cleanTempNoPop(top)...)
-	o.popTemp(top)
-}
-
 // stmtList orders each of the statements in the list.
 func (o *orderState) stmtList(l ir.Nodes) {
 	s := l
@@ -494,7 +453,7 @@ func orderBlock(n *ir.Nodes, free map[string][]*ir.Name) {
 	mark := order.markTemp()
 	order.edge()
 	order.stmtList(*n)
-	order.cleanTemp(mark)
+	order.popTemp(mark)
 	*n = order.out
 }
 
@@ -527,7 +486,7 @@ func orderStmtInPlace(n ir.Node, free map[string][]*ir.Name) ir.Node {
 	order.free = free
 	mark := order.markTemp()
 	order.stmt(n)
-	order.cleanTemp(mark)
+	order.popTemp(mark)
 	return ir.NewBlockStmt(src.NoXPos, order.out)
 }
 
@@ -626,8 +585,6 @@ func (o *orderState) safeMapRHS(r ir.Node) ir.Node {
 }
 
 // stmt orders the statement n, appending to o.out.
-// Temporaries created during the statement are cleaned
-// up using VARKILL instructions as possible.
 func (o *orderState) stmt(n ir.Node) {
 	if n == nil {
 		return
@@ -649,7 +606,7 @@ func (o *orderState) stmt(n ir.Node) {
 		n.X = o.expr(n.X, nil)
 		n.Y = o.expr(n.Y, n.X)
 		o.mapAssign(n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.OASOP:
 		n := n.(*ir.AssignOpStmt)
@@ -674,12 +631,12 @@ func (o *orderState) stmt(n ir.Node) {
 			r := o.expr(typecheck.Expr(ir.NewBinaryExpr(n.Pos(), n.AsOp, l2, n.Y)), nil)
 			as := typecheck.Stmt(ir.NewAssignStmt(n.Pos(), l1, r))
 			o.mapAssign(as)
-			o.cleanTemp(t)
+			o.popTemp(t)
 			return
 		}
 
 		o.mapAssign(n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.OAS2:
 		n := n.(*ir.AssignListStmt)
@@ -687,7 +644,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.exprList(n.Lhs)
 		o.exprList(n.Rhs)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Special: avoid copy of func call n.Right
 	case ir.OAS2FUNC:
@@ -708,7 +665,7 @@ func (o *orderState) stmt(n ir.Node) {
 			o.call(call)
 			o.as2func(n)
 		}
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Special: use temporary variables to hold result,
 	// so that runtime can take address of temporary.
@@ -745,7 +702,7 @@ func (o *orderState) stmt(n ir.Node) {
 		}
 
 		o.as2ok(n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Special: does not save n onto out.
 	case ir.OBLOCK:
@@ -770,7 +727,7 @@ func (o *orderState) stmt(n ir.Node) {
 		t := o.markTemp()
 		o.call(n)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.OINLCALL:
 		n := n.(*ir.InlinedCallExpr)
@@ -788,7 +745,7 @@ func (o *orderState) stmt(n ir.Node) {
 		t := o.markTemp()
 		n.X = o.expr(n.X, nil)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.OCOPY:
 		n := n.(*ir.BinaryExpr)
@@ -796,14 +753,14 @@ func (o *orderState) stmt(n ir.Node) {
 		n.X = o.expr(n.X, nil)
 		n.Y = o.expr(n.Y, nil)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
 		o.call(n)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Special: order arguments to inner call but not call itself.
 	case ir.ODEFER, ir.OGO:
@@ -812,7 +769,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.init(n.Call)
 		o.call(n.Call)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.ODELETE:
 		n := n.(*ir.CallExpr)
@@ -821,7 +778,7 @@ func (o *orderState) stmt(n ir.Node) {
 		n.Args[1] = o.expr(n.Args[1], nil)
 		n.Args[1] = o.mapKeyTemp(n.Pos(), n.Args[0].Type(), n.Args[1])
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Clean temporaries from condition evaluation at
 	// beginning of loop body and after for statement.
@@ -829,11 +786,10 @@ func (o *orderState) stmt(n ir.Node) {
 		n := n.(*ir.ForStmt)
 		t := o.markTemp()
 		n.Cond = o.exprInPlace(n.Cond)
-		n.Body.Prepend(o.cleanTempNoPop(t)...)
 		orderBlock(&n.Body, o.free)
 		n.Post = orderStmtInPlace(n.Post, o.free)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Clean temporaries from condition at
 	// beginning of both branches.
@@ -841,8 +797,6 @@ func (o *orderState) stmt(n ir.Node) {
 		n := n.(*ir.IfStmt)
 		t := o.markTemp()
 		n.Cond = o.exprInPlace(n.Cond)
-		n.Body.Prepend(o.cleanTempNoPop(t)...)
-		n.Else.Prepend(o.cleanTempNoPop(t)...)
 		o.popTemp(t)
 		orderBlock(&n.Body, o.free)
 		orderBlock(&n.Else, o.free)
@@ -922,7 +876,7 @@ func (o *orderState) stmt(n ir.Node) {
 			orderBlock(&n.Body, o.free)
 		}
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
@@ -1029,7 +983,6 @@ func (o *orderState) stmt(n ir.Node) {
 		// (The temporary cleaning must follow that ninit work.)
 		for _, cas := range n.Cases {
 			orderBlock(&cas.Body, o.free)
-			cas.Body.Prepend(o.cleanTempNoPop(t)...)
 
 			// TODO(mdempsky): Is this actually necessary?
 			// walkSelect appears to walk Ninit.
@@ -1053,7 +1006,7 @@ func (o *orderState) stmt(n ir.Node) {
 			n.Value = o.addrTemp(n.Value)
 		}
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// TODO(rsc): Clean temporaries more aggressively.
 	// Note that because walkSwitch will rewrite some of the
@@ -1077,7 +1030,7 @@ func (o *orderState) stmt(n ir.Node) {
 		}
 
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 	}
 
 	base.Pos = lno
@@ -1265,7 +1218,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		o.edge()
 		rhs := o.expr(n.Y, nil)
 		o.out = append(o.out, typecheck.Stmt(ir.NewAssignStmt(base.Pos, r, rhs)))
-		o.cleanTemp(t)
+		o.popTemp(t)
 		gen := o.out
 		o.out = saveout
 

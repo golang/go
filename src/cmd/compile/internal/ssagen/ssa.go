@@ -1958,15 +1958,6 @@ func (s *state) stmt(n ir.Node) {
 		if !s.canSSA(n.X) {
 			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, n.X.(*ir.Name), s.mem(), false)
 		}
-	case ir.OVARKILL:
-		// Insert a varkill op to record that a variable is no longer live.
-		// We only care about liveness info at call sites, so putting the
-		// varkill in the store chain is enough to keep it correctly ordered
-		// with respect to call ops.
-		n := n.(*ir.UnaryExpr)
-		if !s.canSSA(n.X) {
-			s.vars[memVar] = s.newValue1Apos(ssa.OpVarKill, types.TypeMem, n.X.(*ir.Name), s.mem(), false)
-		}
 
 	case ir.OVARLIVE:
 		// Insert a varlive op to record that a variable is still live.
@@ -6464,7 +6455,6 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 		delete(s.vars, valVar)
 	} else {
 		res = s.load(dst, addr)
-		s.vars[memVar] = s.newValue1A(ssa.OpVarKill, types.TypeMem, tmp.(*ir.Name), s.mem())
 	}
 	resok = s.variable(okVar, types.Types[types.TBOOL])
 	delete(s.vars, okVar)
