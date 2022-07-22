@@ -95,7 +95,10 @@ func main() {
 			goModContent := env.ReadWorkspaceFile("a/go.mod")
 			env.OpenFile("a/main.go")
 			env.Await(
-				env.DiagnosticAtRegexp("a/main.go", "\"example.com/blah\""),
+				OnceMet(
+					env.DoneWithOpen(),
+					env.DiagnosticAtRegexp("a/main.go", "\"example.com/blah\""),
+				),
 			)
 			if got := env.ReadWorkspaceFile("a/go.mod"); got != goModContent {
 				t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(t, goModContent, got))
@@ -114,26 +117,43 @@ func main() {
 
 	// Reproduce golang/go#40269 by deleting and recreating main.go.
 	t.Run("delete main.go", func(t *testing.T) {
-		t.Skip("This test will be flaky until golang/go#40269 is resolved.")
-
 		runner.Run(t, untidyModule, func(t *testing.T, env *Env) {
 			goModContent := env.ReadWorkspaceFile("a/go.mod")
 			mainContent := env.ReadWorkspaceFile("a/main.go")
 			env.OpenFile("a/main.go")
 			env.SaveBuffer("a/main.go")
 
+			// Ensure that we're done processing all the changes caused by opening
+			// and saving above. If not, we may run into a file locking issue on
+			// windows.
+			//
+			// If this proves insufficient, env.RemoveWorkspaceFile can be updated to
+			// retry file lock errors on windows.
+			env.Await(
+				env.DoneWithOpen(),
+				env.DoneWithSave(),
+				env.DoneWithChangeWatchedFiles(),
+			)
 			env.RemoveWorkspaceFile("a/main.go")
+
+			// TODO(rfindley): awaiting here shouldn't really be necessary. We should
+			// be consistent eventually.
+			//
+			// Probably this was meant to exercise a race with the change below.
 			env.Await(
 				env.DoneWithOpen(),
 				env.DoneWithSave(),
 				env.DoneWithChangeWatchedFiles(),
 			)
 
-			env.WriteWorkspaceFile("main.go", mainContent)
+			env.WriteWorkspaceFile("a/main.go", mainContent)
 			env.Await(
-				env.DiagnosticAtRegexp("main.go", "\"example.com/blah\""),
+				OnceMet(
+					env.DoneWithChangeWatchedFiles(),
+					env.DiagnosticAtRegexp("a/main.go", "\"example.com/blah\""),
+				),
 			)
-			if got := env.ReadWorkspaceFile("go.mod"); got != goModContent {
+			if got := env.ReadWorkspaceFile("a/go.mod"); got != goModContent {
 				t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(t, goModContent, got))
 			}
 		})
