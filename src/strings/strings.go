@@ -520,8 +520,8 @@ func Map(mapping func(rune) rune, s string) string {
 
 // Repeat returns a new string consisting of count copies of the string s.
 //
-// It panics if count is negative or if
-// the result of (len(s) * count) overflows.
+// It panics if count is negative or if the result of (len(s) * count)
+// overflows.
 func Repeat(s string, count int) string {
 	switch count {
 	case 0:
@@ -533,24 +533,50 @@ func Repeat(s string, count int) string {
 	// Since we cannot return an error on overflow,
 	// we should panic if the repeat will generate
 	// an overflow.
-	// See Issue golang.org/issue/16237
+	// See golang.org/issue/16237.
 	if count < 0 {
 		panic("strings: negative Repeat count")
 	} else if len(s)*count/count != len(s) {
 		panic("strings: Repeat count causes overflow")
 	}
 
+	if len(s) == 0 {
+		return ""
+	}
+
 	n := len(s) * count
+
+	// Past a certain chunk size it is counterproductive to use
+	// larger chunks as the source of the write, as when the source
+	// is too large we are basically just thrashing the CPU D-cache.
+	// So if the result length is larger than an empirically-found
+	// limit (8KB), we stop growing the source string once the limit
+	// is reached and keep reusing the same source string - that
+	// should therefore be always resident in the L1 cache - until we
+	// have completed the construction of the result.
+	// This yields significant speedups (up to +100%) in cases where
+	// the result length is large (roughly, over L2 cache size).
+	const chunkLimit = 8 * 1024
+	chunkMax := n
+	if n > chunkLimit {
+		chunkMax = chunkLimit / len(s) * len(s)
+		if chunkMax == 0 {
+			chunkMax = len(s)
+		}
+	}
+
 	var b Builder
 	b.Grow(n)
 	b.WriteString(s)
 	for b.Len() < n {
-		if b.Len() <= n/2 {
-			b.WriteString(b.String())
-		} else {
-			b.WriteString(b.String()[:n-b.Len()])
-			break
+		chunk := n - b.Len()
+		if chunk > b.Len() {
+			chunk = b.Len()
 		}
+		if chunk > chunkMax {
+			chunk = chunkMax
+		}
+		b.WriteString(b.String()[:chunk])
 	}
 	return b.String()
 }

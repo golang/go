@@ -578,8 +578,8 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 
 // Repeat returns a new byte slice consisting of count copies of b.
 //
-// It panics if count is negative or if
-// the result of (len(b) * count) overflows.
+// It panics if count is negative or if the result of (len(b) * count)
+// overflows.
 func Repeat(b []byte, count int) []byte {
 	if count == 0 {
 		return []byte{}
@@ -587,18 +587,45 @@ func Repeat(b []byte, count int) []byte {
 	// Since we cannot return an error on overflow,
 	// we should panic if the repeat will generate
 	// an overflow.
-	// See Issue golang.org/issue/16237.
+	// See golang.org/issue/16237.
 	if count < 0 {
 		panic("bytes: negative Repeat count")
 	} else if len(b)*count/count != len(b) {
 		panic("bytes: Repeat count causes overflow")
 	}
 
-	nb := make([]byte, len(b)*count)
+	if len(b) == 0 {
+		return []byte{}
+	}
+
+	n := len(b) * count
+
+	// Past a certain chunk size it is counterproductive to use
+	// larger chunks as the source of the write, as when the source
+	// is too large we are basically just thrashing the CPU D-cache.
+	// So if the result length is larger than an empirically-found
+	// limit (8KB), we stop growing the source string once the limit
+	// is reached and keep reusing the same source string - that
+	// should therefore be always resident in the L1 cache - until we
+	// have completed the construction of the result.
+	// This yields significant speedups (up to +100%) in cases where
+	// the result length is large (roughly, over L2 cache size).
+	const chunkLimit = 8 * 1024
+	chunkMax := n
+	if chunkMax > chunkLimit {
+		chunkMax = chunkLimit / len(b) * len(b)
+		if chunkMax == 0 {
+			chunkMax = len(b)
+		}
+	}
+	nb := make([]byte, n)
 	bp := copy(nb, b)
 	for bp < len(nb) {
-		copy(nb[bp:], nb[:bp])
-		bp *= 2
+		chunk := bp
+		if chunk > chunkMax {
+			chunk = chunkMax
+		}
+		bp += copy(nb[bp:], nb[:chunk])
 	}
 	return nb
 }
