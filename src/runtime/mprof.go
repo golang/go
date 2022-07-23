@@ -846,6 +846,15 @@ func runtime_goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer
 	return goroutineProfileWithLabels(p, labels)
 }
 
+//go:linkname runtime_realgcount runtime/pprof.runtime_realgcount
+func runtime_realgcount() int {
+	n := int(gcount())
+	if fingRunning {
+		n++
+	}
+	return n
+}
+
 const go119ConcurrentGoroutineProfile = true
 
 // labels may be nil. If labels is non-nil, it must have the same length as p.
@@ -916,10 +925,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 	// goroutines that can vary between user and system to ensure that the count
 	// doesn't change during the collection. So, check the finalizer goroutine
 	// in particular.
-	n = int(gcount())
-	if fingRunning {
-		n++
-	}
+	n = runtime_realgcount()
 
 	if n > len(p) {
 		// There's not enough space in p to store the whole profile, so (per the

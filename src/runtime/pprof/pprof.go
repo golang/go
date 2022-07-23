@@ -675,6 +675,9 @@ func countGoroutine() int {
 // runtime_goroutineProfileWithLabels is defined in runtime/mprof.go
 func runtime_goroutineProfileWithLabels(p []runtime.StackRecord, labels []unsafe.Pointer) (n int, ok bool)
 
+// runtime_realgcount is defined in runtime/mprof.go
+func runtime_realgcount() (n int)
+
 // writeGoroutine writes the current runtime GoroutineProfile to w.
 func writeGoroutine(w io.Writer, debug int) error {
 	if debug >= 2 {
@@ -713,7 +716,14 @@ func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runti
 	// The loop should only execute one iteration in the common case.
 	var p []runtime.StackRecord
 	var labels []unsafe.Pointer
-	n, ok := fetch(nil, nil)
+	var n, ok = 0, false
+
+	if name == "goroutine" {
+		n = runtime_realgcount()
+	} else {
+		n, ok = fetch(nil, nil)
+	}
+
 	for {
 		// Allocate room for a slightly bigger profile,
 		// in case a few more entries have been added
