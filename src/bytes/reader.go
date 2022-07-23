@@ -32,8 +32,7 @@ func (r *Reader) Len() int {
 
 // Size returns the original length of the underlying byte slice. 
 // Size is the number of bytes available for reading via ReadAt. 
-// The returned value will not change between calls 
-// unless the byte slice is changed by Reset.
+// The result is unaffected by any method calls except Reset.
 func (r *Reader) Size() int64 { return int64(len(r.s)) }
 
 // Read implements the io.Reader interface.
