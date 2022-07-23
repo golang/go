@@ -1088,6 +1088,40 @@ func TestIssue12417(t *testing.T) {
 	}
 }
 
+func TestIssue20396(t *testing.T) {
+
+	var attrError = UnmarshalError("XML syntax error on line 1: expected attribute name in element")
+
+	testCases := []struct {
+		s       string
+		wantErr error
+	}{
+		{`<a:te:st xmlns:a="abcd"/>`, // Issue 20396
+			UnmarshalError("XML syntax error on line 1: expected element name after <")},
+		{`<a:te=st xmlns:a="abcd"/>`, attrError},
+		{`<a:te&st xmlns:a="abcd"/>`, attrError},
+		{`<a:test xmlns:a="abcd"/>`, nil},
+		{`<a:te:st xmlns:a="abcd">1</a:te:st>`,
+			UnmarshalError("XML syntax error on line 1: expected element name after <")},
+		{`<a:te=st xmlns:a="abcd">1</a:te=st>`, attrError},
+		{`<a:te&st xmlns:a="abcd">1</a:te&st>`, attrError},
+		{`<a:test xmlns:a="abcd">1</a:test>`, nil},
+	}
+
+	var dest string
+	for _, tc := range testCases {
+		if got, want := Unmarshal([]byte(tc.s), &dest), tc.wantErr; got != want {
+			if got == nil {
+				t.Errorf("%s: Unexpected success, want %v", tc.s, want)
+			} else if want == nil {
+				t.Errorf("%s: Unexpected error, got %v", tc.s, got)
+			} else if got.Error() != want.Error() {
+				t.Errorf("%s: got %v, want %v", tc.s, got, want)
+			}
+		}
+	}
+}
+
 func TestIssue20685(t *testing.T) {
 	testCases := []struct {
 		s  string
@@ -1257,9 +1291,7 @@ func testRoundTrip(t *testing.T, input string) {
 
 func TestRoundTrip(t *testing.T) {
 	tests := map[string]string{
-		"leading colon":          `<::Test ::foo="bar"><:::Hello></:::Hello><Hello></Hello></::Test>`,
 		"trailing colon":         `<foo abc:="x"></foo>`,
-		"double colon":           `<x:y:foo></x:y:foo>`,
 		"comments in directives": `<!ENTITY x<!<!-- c1 [ " -->--x --> > <e></e> <!DOCTYPE xxx [ x<!-- c2 " -->--x ]>`,
 	}
 	for name, input := range tests {

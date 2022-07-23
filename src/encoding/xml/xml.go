@@ -1167,7 +1167,7 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 		return
 	}
 	if strings.Count(s, ":") > 1 {
-		name.Local = s
+		return name, false
 	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
 		name.Local = s
 	} else {
