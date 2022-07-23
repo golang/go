@@ -1406,15 +1406,11 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 		if rang.X.Type().IsMap() {
 			rang.RType = r.rtype(pos)
 		}
-		{
-			keyType, valueType := rangeTypes(pos, rang.X.Type())
-
-			if rang.Key != nil {
-				rang.KeyTypeWord, rang.KeySrcRType = convRTTI(pos, rang.Key.Type(), keyType)
-			}
-			if rang.Value != nil {
-				rang.ValueTypeWord, rang.ValueSrcRType = convRTTI(pos, rang.Value.Type(), valueType)
-			}
+		if rang.Key != nil && !ir.IsBlank(rang.Key) {
+			rang.KeyTypeWord, rang.KeySrcRType = r.convRTTI(pos)
+		}
+		if rang.Value != nil && !ir.IsBlank(rang.Value) {
+			rang.ValueTypeWord, rang.ValueSrcRType = r.convRTTI(pos)
 		}
 
 		rang.Body = r.blockStmt()
@@ -1433,28 +1429,6 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 	stmt := ir.NewForStmt(pos, init, cond, post, body)
 	stmt.Label = label
 	return stmt
-}
-
-// rangeTypes returns the types of values produced by ranging over a
-// value of type typ.
-func rangeTypes(pos src.XPos, typ *types.Type) (key, value *types.Type) {
-	switch typ.Kind() {
-	default:
-		base.FatalfAt(pos, "unexpected range type: %v", typ)
-		panic("unreachable")
-	case types.TPTR: // must be pointer to array
-		typ = typ.Elem()
-		base.AssertfAt(typ.Kind() == types.TARRAY, pos, "want array type, have %v", typ)
-		fallthrough
-	case types.TARRAY, types.TSLICE:
-		return types.Types[types.TINT], typ.Elem()
-	case types.TSTRING:
-		return types.Types[types.TINT], types.RuneType
-	case types.TMAP:
-		return typ.Key(), typ.Elem()
-	case types.TCHAN:
-		return typ.Elem(), nil
-	}
 }
 
 func (r *reader) ifStmt() ir.Node {
@@ -1841,6 +1815,7 @@ func (r *reader) expr() (res ir.Node) {
 		implicit := r.Bool()
 		typ := r.typ()
 		pos := r.pos()
+		typeWord, srcRType := r.convRTTI(pos)
 		x := r.expr()
 
 		// TODO(mdempsky): Stop constructing expressions of untyped type.
@@ -1857,39 +1832,12 @@ func (r *reader) expr() (res ir.Node) {
 		}
 
 		n := ir.NewConvExpr(pos, ir.OCONV, typ, x)
-		n.TypeWord, n.SrcRType = convRTTI(pos, typ, x.Type())
+		n.TypeWord, n.SrcRType = typeWord, srcRType
 		if implicit {
 			n.SetImplicit(true)
 		}
 		return typecheck.Expr(n)
 	}
-}
-
-// convRTTI returns the TypeWord and SrcRType expressions appropriate
-// for a conversion from src to dst.
-func convRTTI(pos src.XPos, dst, src *types.Type) (typeWord, srcRType ir.Node) {
-	if !dst.IsInterface() {
-		return
-	}
-
-	// See reflectdata.ConvIfaceTypeWord.
-	switch {
-	case dst.IsEmptyInterface():
-		if !src.IsInterface() {
-			typeWord = reflectdata.TypePtrAt(pos, src) // direct eface construction
-		}
-	case !src.IsInterface():
-		typeWord = reflectdata.ITabAddrAt(pos, src, dst) // direct iface construction
-	default:
-		typeWord = reflectdata.TypePtrAt(pos, dst) // convI2I
-	}
-
-	// See reflectdata.ConvIfaceSrcRType.
-	if !src.IsInterface() {
-		srcRType = reflectdata.TypePtrAt(pos, src)
-	}
-
-	return
 }
 
 func (r *reader) optExpr() ir.Node {
@@ -1917,7 +1865,7 @@ func (r *reader) multiExpr() []ir.Node {
 			res := ir.Node(tmp)
 			if r.Bool() {
 				n := ir.NewConvExpr(pos, ir.OCONV, r.typ(), res)
-				n.TypeWord, n.SrcRType = convRTTI(pos, n.Type(), n.X.Type())
+				n.TypeWord, n.SrcRType = r.convRTTI(pos)
 				n.SetImplicit(true)
 				res = typecheck.Expr(n)
 			}
@@ -2057,10 +2005,42 @@ func (r *reader) exprs() []ir.Node {
 	return nodes
 }
 
+// rtype returns an expression of type *runtime._type.
 func (r *reader) rtype(pos src.XPos) ir.Node {
 	r.Sync(pkgbits.SyncRType)
 	// TODO(mdempsky): For derived types, use dictionary instead.
 	return reflectdata.TypePtrAt(pos, r.typ())
+}
+
+// convRTTI returns expressions appropriate for populating an
+// ir.ConvExpr's TypeWord and SrcRType fields, respectively.
+func (r *reader) convRTTI(pos src.XPos) (typeWord, srcRType ir.Node) {
+	r.Sync(pkgbits.SyncConvRTTI)
+	src := r.typ()
+	dst := r.typ()
+
+	if !dst.IsInterface() {
+		return
+	}
+
+	// See reflectdata.ConvIfaceTypeWord.
+	switch {
+	case dst.IsEmptyInterface():
+		if !src.IsInterface() {
+			typeWord = reflectdata.TypePtrAt(pos, src) // direct eface construction
+		}
+	case !src.IsInterface():
+		typeWord = reflectdata.ITabAddrAt(pos, src, dst) // direct iface construction
+	default:
+		typeWord = reflectdata.TypePtrAt(pos, dst) // convI2I
+	}
+
+	// See reflectdata.ConvIfaceSrcRType.
+	if !src.IsInterface() {
+		srcRType = reflectdata.TypePtrAt(pos, src)
+	}
+
+	return
 }
 
 func (r *reader) exprType(nilOK bool) ir.Node {

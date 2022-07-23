@@ -113,4 +113,5 @@ const (
 
 	SyncMultiExpr
 	SyncRType
+	SyncConvRTTI
 )

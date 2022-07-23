@@ -123,8 +123,12 @@ func (pw *pkgWriter) unexpected(what string, p poser) {
 // typeOf returns the Type of the given value expression.
 func (pw *pkgWriter) typeOf(expr syntax.Expr) types2.Type {
 	tv, ok := pw.info.Types[expr]
-	assert(ok)
-	assert(tv.IsValue())
+	if !ok {
+		pw.fatalf(expr, "missing Types entry: %v", syntax.String(expr))
+	}
+	if !tv.IsValue() {
+		pw.fatalf(expr, "expected value: %v", syntax.String(expr))
+	}
 	return tv.Type
 }
 
@@ -361,7 +365,10 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
 
 // @@@ Types
 
-var anyTypeName = types2.Universe.Lookup("any").(*types2.TypeName)
+var (
+	anyTypeName  = types2.Universe.Lookup("any").(*types2.TypeName)
+	runeTypeName = types2.Universe.Lookup("rune").(*types2.TypeName)
+)
 
 // typ writes a use of the given type into the bitstream.
 func (w *writer) typ(typ types2.Type) {
@@ -1304,6 +1311,34 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 		if _, isMap := types2.CoreType(xtyp).(*types2.Map); isMap {
 			w.rtype(xtyp)
 		}
+		{
+			lhs := unpackListExpr(rang.Lhs)
+			assign := func(i int, src types2.Type) {
+				if i >= len(lhs) {
+					return
+				}
+				dst := unparen(lhs[i])
+				if name, ok := dst.(*syntax.Name); ok && name.Value == "_" {
+					return
+				}
+
+				var dstType types2.Type
+				if rang.Def {
+					// For `:=` assignments, the LHS names only appear in Defs,
+					// not Types (as used by typeOf).
+					dstType = w.p.info.Defs[dst.(*syntax.Name)].(*types2.Var).Type()
+				} else {
+					dstType = w.p.typeOf(dst)
+				}
+
+				w.convRTTI(src, dstType)
+			}
+
+			keyType, valueType := w.p.rangeTypes(rang.X)
+			assign(0, keyType)
+			assign(1, valueType)
+		}
+
 	} else {
 		w.pos(stmt)
 		w.stmt(stmt.Init)
@@ -1313,6 +1348,30 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 
 	w.blockStmt(stmt.Body)
 	w.closeAnotherScope()
+}
+
+// rangeTypes returns the types of values produced by ranging over
+// expr.
+func (pw *pkgWriter) rangeTypes(expr syntax.Expr) (key, value types2.Type) {
+	typ := pw.typeOf(expr)
+	switch typ := types2.CoreType(typ).(type) {
+	case *types2.Pointer: // must be pointer to array
+		return types2.Typ[types2.Int], types2.CoreType(typ.Elem()).(*types2.Array).Elem()
+	case *types2.Array:
+		return types2.Typ[types2.Int], typ.Elem()
+	case *types2.Slice:
+		return types2.Typ[types2.Int], typ.Elem()
+	case *types2.Basic:
+		if typ.Info()&types2.IsString != 0 {
+			return types2.Typ[types2.Int], runeTypeName.Type()
+		}
+	case *types2.Map:
+		return typ.Key(), typ.Elem()
+	case *types2.Chan:
+		return typ.Elem(), nil
+	}
+	pw.fatalf(expr, "unexpected range type: %v", typ)
+	panic("unreachable")
 }
 
 func (w *writer) ifStmt(stmt *syntax.IfStmt) {
@@ -1629,6 +1688,7 @@ func (w *writer) expr(expr syntax.Expr) {
 			w.Bool(false) // explicit
 			w.typ(tv.Type)
 			w.pos(expr)
+			w.convRTTI(w.p.typeOf(expr.ArgList[0]), tv.Type)
 			w.expr(expr.ArgList[0])
 			break
 		}
@@ -1763,6 +1823,7 @@ func (w *writer) multiExpr(pos poser, dstType func(int) types2.Type, exprs []syn
 						w.p.fatalf(pos, "%v is not assignable to %v", src, dst)
 					}
 					w.typ(dst)
+					w.convRTTI(src, dst)
 				}
 			}
 			return
@@ -1789,6 +1850,7 @@ func (w *writer) implicitConvExpr(pos poser, dst types2.Type, expr syntax.Expr) 
 		w.Bool(true) // implicit
 		w.typ(dst)
 		w.pos(pos)
+		w.convRTTI(src, dst)
 		// fallthrough
 	}
 	w.expr(expr)
@@ -1883,9 +1945,19 @@ func (w *writer) exprs(exprs []syntax.Expr) {
 	}
 }
 
+// rtype writes information so that the reader can construct an
+// expression of type *runtime._type representing typ.
 func (w *writer) rtype(typ types2.Type) {
 	w.Sync(pkgbits.SyncRType)
 	w.typ(typ)
+}
+
+// convRTTI writes information so that the reader can construct
+// expressions for converting from src to dst.
+func (w *writer) convRTTI(src, dst types2.Type) {
+	w.Sync(pkgbits.SyncConvRTTI)
+	w.typ(src)
+	w.typ(dst)
 }
 
 func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
