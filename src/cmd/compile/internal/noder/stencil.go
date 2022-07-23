@@ -334,10 +334,6 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	} else { // ir.OMETHEXPR or ir.METHVALUE
 		// Method expression T.M where T is a generic type.
 		se := x.(*ir.SelectorExpr)
-		targs := deref(se.X.Type()).RParams()
-		if len(targs) == 0 {
-			panic("bad")
-		}
 		if x.Op() == ir.OMETHVALUE {
 			rcvrValue = se.X
 		}
@@ -348,7 +344,8 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 		// of se.Selection, since that will be the type that actually has
 		// the method.
 		recv := deref(se.Selection.Type.Recv().Type)
-		if len(recv.RParams()) == 0 {
+		targs := recv.RParams()
+		if len(targs) == 0 {
 			// The embedded type that actually has the method is not
 			// actually generic, so no need to build a closure.
 			return x
