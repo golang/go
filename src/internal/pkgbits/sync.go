@@ -112,4 +112,5 @@ const (
 	SyncOptLabel
 
 	SyncMultiExpr
+	SyncRType
 )

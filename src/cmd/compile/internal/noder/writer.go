@@ -1299,6 +1299,11 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 		w.pos(rang)
 		w.assignList(rang.Lhs)
 		w.expr(rang.X)
+
+		xtyp := w.p.typeOf(rang.X)
+		if _, isMap := types2.CoreType(xtyp).(*types2.Map); isMap {
+			w.rtype(xtyp)
+		}
 	} else {
 		w.pos(stmt)
 		w.stmt(stmt.Init)
@@ -1549,8 +1554,10 @@ func (w *writer) expr(expr syntax.Expr) {
 	case *syntax.IndexExpr:
 		_ = w.p.typeOf(expr.Index) // ensure this is an index expression, not an instantiation
 
+		xtyp := w.p.typeOf(expr.X)
+
 		var keyType types2.Type
-		if mapType, ok := types2.CoreType(w.p.typeOf(expr.X)).(*types2.Map); ok {
+		if mapType, ok := types2.CoreType(xtyp).(*types2.Map); ok {
 			keyType = mapType.Key()
 		}
 
@@ -1558,6 +1565,9 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.expr(expr.X)
 		w.pos(expr)
 		w.implicitConvExpr(expr, keyType, expr.Index)
+		if keyType != nil {
+			w.rtype(xtyp)
+		}
 
 	case *syntax.SliceExpr:
 		w.Code(exprSlice)
@@ -1574,6 +1584,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.expr(expr.X)
 		w.pos(expr)
 		w.exprType(iface, expr.Type, false)
+		w.rtype(iface)
 
 	case *syntax.Operation:
 		if expr.Y == nil {
@@ -1622,8 +1633,9 @@ func (w *writer) expr(expr syntax.Expr) {
 			break
 		}
 
-		if name, ok := unparen(expr.Fun).(*syntax.Name); ok && tv.IsBuiltin() {
-			switch name.Value {
+		var rtype types2.Type
+		if tv.IsBuiltin() {
+			switch obj, _ := lookupObj(w.p.info, expr.Fun); obj.Name() {
 			case "make":
 				assert(len(expr.ArgList) >= 1)
 				assert(!expr.HasDots)
@@ -1632,6 +1644,19 @@ func (w *writer) expr(expr syntax.Expr) {
 				w.pos(expr)
 				w.exprType(nil, expr.ArgList[0], false)
 				w.exprs(expr.ArgList[1:])
+
+				typ := w.p.typeOf(expr)
+				switch coreType := types2.CoreType(typ).(type) {
+				default:
+					w.p.fatalf(expr, "unexpected core type: %v", coreType)
+				case *types2.Chan:
+					w.rtype(typ)
+				case *types2.Map:
+					w.rtype(typ)
+				case *types2.Slice:
+					w.rtype(sliceElem(typ))
+				}
+
 				return
 
 			case "new":
@@ -1642,6 +1667,23 @@ func (w *writer) expr(expr syntax.Expr) {
 				w.pos(expr)
 				w.exprType(nil, expr.ArgList[0], false)
 				return
+
+			case "append":
+				rtype = sliceElem(w.p.typeOf(expr))
+			case "copy":
+				typ := w.p.typeOf(expr.ArgList[0])
+				if tuple, ok := typ.(*types2.Tuple); ok { // "copy(g())"
+					typ = tuple.At(0).Type()
+				}
+				rtype = sliceElem(typ)
+			case "delete":
+				typ := w.p.typeOf(expr.ArgList[0])
+				if tuple, ok := typ.(*types2.Tuple); ok { // "delete(g())"
+					typ = tuple.At(0).Type()
+				}
+				rtype = typ
+			case "Slice":
+				rtype = sliceElem(w.p.typeOf(expr))
 			}
 		}
 
@@ -1676,7 +1718,14 @@ func (w *writer) expr(expr syntax.Expr) {
 
 		w.multiExpr(expr, paramType, expr.ArgList)
 		w.Bool(expr.HasDots)
+		if rtype != nil {
+			w.rtype(rtype)
+		}
 	}
+}
+
+func sliceElem(typ types2.Type) types2.Type {
+	return types2.CoreType(typ).(*types2.Slice).Elem()
 }
 
 func (w *writer) optExpr(expr syntax.Expr) {
@@ -1757,12 +1806,13 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 	}
 	var keyType, elemType types2.Type
 	var structType *types2.Struct
-	switch typ := types2.CoreType(typ).(type) {
+	switch typ0 := typ; typ := types2.CoreType(typ).(type) {
 	default:
 		w.p.fatalf(lit, "unexpected composite literal type: %v", typ)
 	case *types2.Array:
 		elemType = typ.Elem()
 	case *types2.Map:
+		w.rtype(typ0)
 		keyType, elemType = typ.Key(), typ.Elem()
 	case *types2.Slice:
 		elemType = typ.Elem()
@@ -1831,6 +1881,11 @@ func (w *writer) exprs(exprs []syntax.Expr) {
 	for _, expr := range exprs {
 		w.expr(expr)
 	}
+}
+
+func (w *writer) rtype(typ types2.Type) {
+	w.Sync(pkgbits.SyncRType)
+	w.typ(typ)
 }
 
 func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {

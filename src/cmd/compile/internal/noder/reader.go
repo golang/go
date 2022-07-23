@@ -1390,17 +1390,10 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 
 	if r.Bool() {
 		pos := r.pos()
+		rang := ir.NewRangeStmt(pos, nil, nil, nil, nil)
+		rang.Label = label
 
 		names, lhs := r.assignList()
-		x := r.expr()
-
-		body := r.blockStmt()
-		r.closeAnotherScope()
-
-		rang := ir.NewRangeStmt(pos, nil, nil, x, body)
-		if x.Type().IsMap() {
-			rang.RType = reflectdata.TypePtrAt(pos, x.Type())
-		}
 		if len(lhs) >= 1 {
 			rang.Key = lhs[0]
 			if len(lhs) >= 2 {
@@ -1408,10 +1401,13 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 			}
 		}
 		rang.Def = r.initDefn(rang, names)
-		rang.Label = label
 
+		rang.X = r.expr()
+		if rang.X.Type().IsMap() {
+			rang.RType = r.rtype(pos)
+		}
 		{
-			keyType, valueType := rangeTypes(pos, x.Type())
+			keyType, valueType := rangeTypes(pos, rang.X.Type())
 
 			if rang.Key != nil {
 				rang.KeyTypeWord, rang.KeySrcRType = convRTTI(pos, rang.Key.Type(), keyType)
@@ -1420,6 +1416,9 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 				rang.ValueTypeWord, rang.ValueSrcRType = convRTTI(pos, rang.Value.Type(), valueType)
 			}
 		}
+
+		rang.Body = r.blockStmt()
+		r.closeAnotherScope()
 
 		return rang
 	}
@@ -1741,7 +1740,7 @@ func (r *reader) expr() (res ir.Node) {
 		switch n.Op() {
 		case ir.OINDEXMAP:
 			n := n.(*ir.IndexExpr)
-			n.RType = reflectdata.TypePtrAt(pos, x.Type())
+			n.RType = r.rtype(pos)
 		}
 		return n
 
@@ -1762,10 +1761,12 @@ func (r *reader) expr() (res ir.Node) {
 		x := r.expr()
 		pos := r.pos()
 		typ := r.exprType(false)
+		srcRType := r.rtype(pos)
 
+		// TODO(mdempsky): Always emit ODYNAMICDOTTYPE for uniformity?
 		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
 			assert := ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.RType)
-			assert.SrcRType = reflectdata.TypePtrAt(pos, x.Type())
+			assert.SrcRType = srcRType
 			assert.ITab = typ.ITab
 			return typed(typ.Type(), assert)
 		}
@@ -1810,16 +1811,16 @@ func (r *reader) expr() (res ir.Node) {
 		switch n.Op() {
 		case ir.OAPPEND:
 			n := n.(*ir.CallExpr)
-			n.RType = reflectdata.TypePtrAt(pos, n.Type().Elem())
+			n.RType = r.rtype(pos)
 		case ir.OCOPY:
 			n := n.(*ir.BinaryExpr)
-			n.RType = reflectdata.TypePtrAt(pos, n.X.Type().Elem())
+			n.RType = r.rtype(pos)
 		case ir.ODELETE:
 			n := n.(*ir.CallExpr)
-			n.RType = reflectdata.TypePtrAt(pos, n.Args[0].Type())
+			n.RType = r.rtype(pos)
 		case ir.OUNSAFESLICE:
 			n := n.(*ir.BinaryExpr)
-			n.RType = reflectdata.TypePtrAt(pos, n.Type().Elem())
+			n.RType = r.rtype(pos)
 		}
 		return n
 
@@ -1828,14 +1829,7 @@ func (r *reader) expr() (res ir.Node) {
 		typ := r.exprType(false)
 		extra := r.exprs()
 		n := typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{typ}, extra...))).(*ir.MakeExpr)
-		switch n.Op() {
-		case ir.OMAKECHAN:
-			n.RType = reflectdata.TypePtrAt(pos, typ.Type())
-		case ir.OMAKEMAP:
-			n.RType = reflectdata.TypePtrAt(pos, typ.Type())
-		case ir.OMAKESLICE:
-			n.RType = reflectdata.TypePtrAt(pos, typ.Type().Elem())
-		}
+		n.RType = r.rtype(pos)
 		return n
 
 	case exprNew:
@@ -1969,6 +1963,10 @@ func (r *reader) compLit() ir.Node {
 	if typ.Kind() == types.TFORW {
 		base.FatalfAt(pos, "unresolved composite literal type: %v", typ)
 	}
+	var rtype ir.Node
+	if typ.IsMap() {
+		rtype = r.rtype(pos)
+	}
 	isStruct := typ.Kind() == types.TSTRUCT
 
 	elems := make([]ir.Node, r.Len())
@@ -1987,10 +1985,9 @@ func (r *reader) compLit() ir.Node {
 	}
 
 	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, elems))
-	switch lit.Op() {
-	case ir.OMAPLIT:
+	if rtype != nil {
 		lit := lit.(*ir.CompLitExpr)
-		lit.RType = reflectdata.TypePtrAt(pos, typ)
+		lit.RType = rtype
 	}
 	if typ0.IsPtr() {
 		lit = typecheck.Expr(typecheck.NodAddrAt(pos, lit))
@@ -2058,6 +2055,12 @@ func (r *reader) exprs() []ir.Node {
 		nodes[i] = r.expr()
 	}
 	return nodes
+}
+
+func (r *reader) rtype(pos src.XPos) ir.Node {
+	r.Sync(pkgbits.SyncRType)
+	// TODO(mdempsky): For derived types, use dictionary instead.
+	return reflectdata.TypePtrAt(pos, r.typ())
 }
 
 func (r *reader) exprType(nilOK bool) ir.Node {
