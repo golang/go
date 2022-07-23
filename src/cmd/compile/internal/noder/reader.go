@@ -1786,19 +1786,7 @@ func (r *reader) expr() (res ir.Node) {
 		case ir.OANDAND, ir.OOROR:
 			return typecheck.Expr(ir.NewLogicalExpr(pos, op, x, y))
 		}
-		n := typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
-		switch n.Op() {
-		case ir.OEQ, ir.ONE:
-			n := n.(*ir.BinaryExpr)
-			if n.X.Type().IsInterface() != n.Y.Type().IsInterface() {
-				typ := n.X.Type()
-				if typ.IsInterface() {
-					typ = n.Y.Type()
-				}
-				n.RType = reflectdata.TypePtrAt(pos, typ)
-			}
-		}
-		return n
+		return typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
 
 	case exprCall:
 		fun := r.expr()
