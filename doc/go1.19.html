@@ -322,16 +322,58 @@ as well as support for rendering them to HTML, Markdown, and text.
   </dd>
 </dl><!-- archive/zip -->
 
+<dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
+  <dd>
+    <p><!-- CL 382995 -->
+      Operating on invalid curve points (those for which the
+      <code>IsOnCurve</code> method returns false, and which are never returned
+      by <code>Unmarshal</code> or by a <code>Curve</code> method operating on a
+      valid point) has always been undefined behavior and can lead to key
+      recovery attacks. If an invalid point is supplied to
+      <a href="/pkg/crypto/elliptic/#Marshal"><code>Marshal</code></a>,
+      <a href="/pkg/crypto/elliptic/#MarshalCompressed"><code>MarshalCompressed</code></a>,
+      <a href="/pkg/crypto/elliptic/#Curve.Add"><code>Add</code></a>,
+      <a href="/pkg/crypto/elliptic/#Curve.Double"><code>Double</code></a>, or
+      <a href="/pkg/crypto/elliptic/#Curve.ScalarMult"><code>ScalarMult</code></a>,
+      they will now panic.
+    </p>
+
+    <p><!-- golang.org/issue/52182 -->
+      <code>ScalarBaseMult</code> operations on the <code>P224</code>,
+      <code>P384</code>, and <code>P521</code> curves are now up to three
+      times faster, leading to similar speedups in some ECDSA operations. The
+      generic (not platform optimized) <code>P256</code> implementation was
+      replaced with one derived from a formally verified model; this might
+      lead to significant slowdowns on 32-bit platforms.
+    </p>
+  </dd>
+</dl><!-- crypto/elliptic -->
+
 <dl id="crypto/rand"><dt><a href="/pkg/crypto/rand/">crypto/rand</a></dt>
   <dd>
     <p><!-- CL 370894 --><!-- CL 390038 -->
       <a href="/pkg/crypto/rand/#Read"><code>Read</code></a> no longer buffers
-      random data obtained from the operating system between calls.
+      random data obtained from the operating system between calls. Applications
+      that perform many small reads at high frequency might choose to wrap
+      <a href="/pkg/crypto/rand/#Reader"><code>Reader</code></a> in a
+      <a href="/pkg/bufio/#Reader"><code>bufio.Reader</code></a> for performance
+      reasons, taking care to use
+      <a href="/pkg/io/#ReadFull"><code>io.ReadFull</code></a>
+      to ensure no partial reads occur.
     </p>
 
     <p><!-- CL 375215 -->
       On Plan 9, <code>Read</code> has been reimplemented, replacing the ANSI
-      X9.31 algorithm with fast key erasure.
+      X9.31 algorithm with a fast key erasure generator.
+    </p>
+
+    <p><!-- CL 391554 --><!-- CL 387554 -->
+      The <a href="/pkg/crypto/rand/#Prime"><code>Prime</code></a>
+      implementation was simplified. This will lead to different outputs for the
+      same random stream compared to the previous implementation. The internals
+      of <code>Prime</code> are not stable, should not be relied upon not to
+      change, and the output is now intentionally non-deterministic with respect
+      to the input stream.
     </p>
   </dd>
 </dl><!-- crypto/rand -->
@@ -364,6 +406,19 @@ as well as support for rendering them to HTML, Markdown, and text.
       <code>CreateCertificate</code> no longer accepts negative serial numbers.
     </p>
 
+    <p><!-- CL 399827 -->
+      <code>CreateCertificate</code> will not emit an empty SEQUENCE anymore
+      when the produced certificate has no extensions.
+    </p>
+
+    <p><!-- CL 396774 -->
+      Removal of the <code>x509sha1=1</code> <code>GODEBUG</code> option,
+      originally planned for Go 1.19, has been rescheduled to a future release.
+      Applications using it should work on migrating. Practical attacks against
+      SHA-1 have been demonstrated since 2017 and publicly trusted Certificate
+      Authorities have not issued SHA-1 certificates since 2015.
+    </p>
+
     <p><!-- CL 383215 -->
       <a href="/pkg/crypto/x509/#ParseCertificate"><code>ParseCertificate</code></a>
       and <a href="/pkg/crypto/x509/#ParseCertificateRequest"><code>ParseCertificateRequest</code></a>
@@ -373,7 +428,7 @@ as well as support for rendering them to HTML, Markdown, and text.
     <p><!-- https://go.dev/issue/46057 --><!-- https://go.dev/issue/35044 --><!-- CL 398237 --><!-- CL 400175 --><!-- CL 388915 -->
       The new <a href="/pkg/crypto/x509/#CertPool.Clone"><code>CertPool.Clone</code></a>
       and <a href="/pkg/crypto/x509/#CertPool.Equal"><code>CertPool.Equal</code></a>
-      methods allow cloning a <code>CertPool</code> and checking the equality of two
+      methods allow cloning a <code>CertPool</code> and checking the equivalence of two
       <code>CertPool</code>s respectively.
     </p>
 
@@ -381,25 +436,26 @@ as well as support for rendering them to HTML, Markdown, and text.
       The new function <a href="/pkg/crypto/x509/#ParseRevocationList"><code>ParseRevocationList</code></a>
       provides a faster, safer to use CRL parser which returns a
       <a href="/pkg/crypto/x509/#RevocationList"><code>RevocationList</code></a>.
-      To support this addition, <code>RevocationList</code> adds new fields
+      Parsing a CRL also populates the new <code>RevocationList</code> fields
       <code>RawIssuer</code>, <code>Signature</code>,
-      <code>AuthorityKeyId</code>, and <code>Extensions</code>.
-
+      <code>AuthorityKeyId</code>, and <code>Extensions</code>, which are ignored by
+      <a href="/pkg/crypto/x509/#CreateRevocationList"><code>CreateRevocationList</code></a>.
+    </p><p>
       The new method <a href="/pkg/crypto/x509/#RevocationList.CheckSignatureFrom"><code>RevocationList.CheckSignatureFrom</code></a>
       checks that the signature on a CRL is a valid signature from a
       <a href="/pkg/crypto/x509/#Certificate"><code>Certificate</code></a>.
-
-      With the new CRL functionality, the existing functions
-      <a href="/pkg/crypto/x509/#ParseCRL"><code>ParseCRL</code></a> and
-      <a href="/pkg/crypto/x509/#ParseDERCRL"><code>ParseDERCRL</code></a> are deprecated.
-      Additionally the method <a href="/pkg/crypto/x509#Certificate.CheckCRLSignature"><code>Certificate.CheckCRLSignature</code></a>
-      is deprecated.
+    </p><p>
+      The <a href="/pkg/crypto/x509/#ParseCRL"><code>ParseCRL</code></a> and
+      <a href="/pkg/crypto/x509/#ParseDERCRL"><code>ParseDERCRL</code></a> functions
+      are now deprecated in favor of <code>ParseRevocationList</code>.
+      The <a href="/pkg/crypto/x509#Certificate.CheckCRLSignature"><code>Certificate.CheckCRLSignature</code></a>
+      method is deprecated in favor of <code>RevocationList.CheckSignatureFrom</code>.
     </p>
 
-    <p><!-- CL 389555 -->
-      When building paths, <a href="/pkg/crypto/x509/#Certificate.Verify"><code>Certificate.Verify</code></a>
-      now considers certificates to be equal when the subjects, public keys, and SANs
-      are all equal. Before, it required byte-for-byte equality.
+    <p><!-- CL 389555, CL 401115, CL 403554 -->
+      The path builder of <a href="/pkg/crypto/x509/#Certificate.Verify"><code>Certificate.Verify</code></a>
+      was overhauled and should now produce better chains and/or be more efficient in complicated scenarios.
+      Name constraints are now also enforced on non-leaf certificates.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
