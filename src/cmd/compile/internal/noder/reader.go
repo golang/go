@@ -154,6 +154,8 @@ type readerDict struct {
 	funcsObj []ir.Node
 
 	itabs []itabInfo2
+
+	methodExprs []ir.Node
 }
 
 type itabInfo2 struct {
@@ -774,6 +776,14 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
 		}
 
 		dict.itabs[i] = itabInfo2{typ: typ, lsym: lsym}
+	}
+
+	dict.methodExprs = make([]ir.Node, r.Len())
+	for i := range dict.methodExprs {
+		recv := pr.typIdx(typeInfo{idx: pkgbits.Index(r.Len()), derived: true}, &dict, true)
+		_, sym := r.selector()
+
+		dict.methodExprs[i] = typecheck.Expr(ir.NewSelectorExpr(src.NoXPos, ir.OXDOT, ir.TypeNode(recv), sym))
 	}
 
 	return &dict
@@ -1696,15 +1706,13 @@ func (r *reader) expr() (res ir.Node) {
 	case exprSelector:
 		var x ir.Node
 		if r.Bool() { // MethodExpr
-			x = r.exprType(false)
-
-			// Method expression with derived receiver type.
-			if x.Op() == ir.ODYNAMICTYPE {
-				// TODO(mdempsky): Handle with runtime dictionary lookup.
-				n := ir.TypeNode(x.Type())
-				n.SetTypecheck(1)
-				x = n
+			if r.Bool() {
+				return r.dict.methodExprs[r.Len()]
 			}
+
+			n := ir.TypeNode(r.typ())
+			n.SetTypecheck(1)
+			x = n
 		} else { // FieldVal, MethodVal
 			x = r.expr()
 		}

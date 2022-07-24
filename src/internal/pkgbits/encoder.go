@@ -316,8 +316,14 @@ func (w *Encoder) Code(c Code) {
 // section (if not already present), and then writing a relocation
 // into the element bitstream.
 func (w *Encoder) String(s string) {
+	w.StringRef(w.p.StringIdx(s))
+}
+
+// StringRef writes a reference to the given index, which must be a
+// previously encoded string value.
+func (w *Encoder) StringRef(idx Index) {
 	w.Sync(SyncString)
-	w.Reloc(RelocString, w.p.StringIdx(s))
+	w.Reloc(RelocString, idx)
 }
 
 // Strings encodes and writes a variable-length slice of strings into

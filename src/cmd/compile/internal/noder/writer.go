@@ -177,6 +177,10 @@ type writerDict struct {
 	// itabs lists itabs that are needed for dynamic type assertions
 	// (including type switches).
 	itabs []itabInfo
+
+	// methodsExprs lists method expressions with derived-type receiver
+	// parameters.
+	methodExprs []methodExprInfo
 }
 
 // A derivedInfo represents a reference to an encoded generic Go type.
@@ -208,11 +212,24 @@ type objInfo struct {
 // An itabInfo represents a reference to an encoded itab entry (i.e.,
 // a non-empty interface type along with a concrete type that
 // implements that interface).
-//
-// itabInfo is only used for
 type itabInfo struct {
 	typIdx pkgbits.Index // always a derived type index
 	iface  typeInfo      // always a non-empty interface type
+}
+
+// A methodExprInfo represents a reference to an encoded method
+// expression, whose receiver parameter is a derived type.
+type methodExprInfo struct {
+	recvIdx    pkgbits.Index // always a derived type index
+	methodInfo selectorInfo
+}
+
+// A selectorInfo represents a reference to an encoded field or method
+// name (i.e., objects that can only be accessed using selector
+// expressions).
+type selectorInfo struct {
+	pkgIdx  pkgbits.Index
+	nameIdx pkgbits.Index
 }
 
 // anyDerived reports whether any of info's explicit type arguments
@@ -296,8 +313,12 @@ func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) pkgbits.Index {
 
 // pkg writes a use of the given Package into the element bitstream.
 func (w *writer) pkg(pkg *types2.Package) {
+	w.pkgRef(w.p.pkgIdx(pkg))
+}
+
+func (w *writer) pkgRef(idx pkgbits.Index) {
 	w.Sync(pkgbits.SyncPkg)
-	w.Reloc(pkgbits.RelocPkg, w.p.pkgIdx(pkg))
+	w.Reloc(pkgbits.RelocPkg, idx)
 }
 
 // pkgIdx returns the index for the given package, adding it to the
@@ -793,6 +814,12 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 		w.typInfo(itab.iface)
 	}
 
+	w.Len(len(dict.methodExprs))
+	for _, methodExpr := range dict.methodExprs {
+		w.Len(int(methodExpr.recvIdx))
+		w.selectorInfo(methodExpr.methodInfo)
+	}
+
 	assert(len(dict.derived) == nderived)
 	assert(len(dict.funcs) == nfuncs)
 }
@@ -862,9 +889,19 @@ func (w *writer) localIdent(obj types2.Object) {
 // selector writes the name of a field or method (i.e., objects that
 // can only be accessed using selector expressions).
 func (w *writer) selector(obj types2.Object) {
+	w.selectorInfo(w.p.selectorIdx(obj))
+}
+
+func (w *writer) selectorInfo(info selectorInfo) {
 	w.Sync(pkgbits.SyncSelector)
-	w.pkg(obj.Pkg())
-	w.String(obj.Name())
+	w.pkgRef(info.pkgIdx)
+	w.StringRef(info.nameIdx)
+}
+
+func (pw *pkgWriter) selectorIdx(obj types2.Object) selectorInfo {
+	pkgIdx := pw.pkgIdx(obj.Pkg())
+	nameIdx := pw.StringIdx(obj.Name())
+	return selectorInfo{pkgIdx: pkgIdx, nameIdx: nameIdx}
 }
 
 // @@@ Compiler extensions
@@ -1490,7 +1527,19 @@ func (w *writer) expr(expr syntax.Expr) {
 
 		w.Code(exprSelector)
 		if w.Bool(sel.Kind() == types2.MethodExpr) {
-			w.exprType(nil, expr.X, false)
+			tv, ok := w.p.info.Types[expr.X]
+			assert(ok)
+			assert(tv.IsType())
+
+			typInfo := w.p.typIdx(tv.Type, w.dict)
+			if w.Bool(typInfo.derived) {
+				methodInfo := w.p.selectorIdx(sel.Obj())
+				idx := w.dict.methodExprIdx(typInfo, methodInfo)
+				w.Len(idx)
+				break
+			}
+
+			w.typInfo(typInfo)
 		} else {
 			w.expr(expr.X)
 		}
@@ -1819,6 +1868,21 @@ func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
 	}
 
 	w.typInfo(info)
+}
+
+func (dict *writerDict) methodExprIdx(recvInfo typeInfo, methodInfo selectorInfo) int {
+	assert(recvInfo.derived)
+	newInfo := methodExprInfo{recvIdx: recvInfo.idx, methodInfo: methodInfo}
+
+	for idx, oldInfo := range dict.methodExprs {
+		if oldInfo == newInfo {
+			return idx
+		}
+	}
+
+	idx := len(dict.methodExprs)
+	dict.methodExprs = append(dict.methodExprs, newInfo)
+	return idx
 }
 
 // isInterface reports whether typ is known to be an interface type.
