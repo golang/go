@@ -6,7 +6,10 @@
 
 package net
 
-import "sort"
+import (
+	"net/netip"
+	"sort"
+)
 
 func sortByRFC6724(addrs []IPAddr) {
 	if len(addrs) < 2 {
@@ -15,14 +18,15 @@ func sortByRFC6724(addrs []IPAddr) {
 	sortByRFC6724withSrcs(addrs, srcAddrs(addrs))
 }
 
-func sortByRFC6724withSrcs(addrs []IPAddr, srcs []IP) {
+func sortByRFC6724withSrcs(addrs []IPAddr, srcs []netip.Addr) {
 	if len(addrs) != len(srcs) {
 		panic("internal error")
 	}
 	addrAttr := make([]ipAttr, len(addrs))
 	srcAttr := make([]ipAttr, len(srcs))
 	for i, v := range addrs {
-		addrAttr[i] = ipAttrOf(v.IP)
+		addrAttrIP, _ := netip.AddrFromSlice(v.IP)
+		addrAttr[i] = ipAttrOf(addrAttrIP)
 		srcAttr[i] = ipAttrOf(srcs[i])
 	}
 	sort.Stable(&byRFC6724{
@@ -36,8 +40,8 @@ func sortByRFC6724withSrcs(addrs []IPAddr, srcs []IP) {
 // srcsAddrs tries to UDP-connect to each address to see if it has a
 // route. (This doesn't send any packets). The destination port
 // number is irrelevant.
-func srcAddrs(addrs []IPAddr) []IP {
-	srcs := make([]IP, len(addrs))
+func srcAddrs(addrs []IPAddr) []netip.Addr {
+	srcs := make([]netip.Addr, len(addrs))
 	dst := UDPAddr{Port: 9}
 	for i := range addrs {
 		dst.IP = addrs[i].IP
@@ -45,7 +49,7 @@ func srcAddrs(addrs []IPAddr) []IP {
 		c, err := DialUDP("udp", nil, &dst)
 		if err == nil {
 			if src, ok := c.LocalAddr().(*UDPAddr); ok {
-				srcs[i] = src.IP
+				srcs[i], _ = netip.AddrFromSlice(src.IP)
 			}
 			c.Close()
 		}
@@ -59,8 +63,8 @@ type ipAttr struct {
 	Label      uint8
 }
 
-func ipAttrOf(ip IP) ipAttr {
-	if ip == nil {
+func ipAttrOf(ip netip.Addr) ipAttr {
+	if !ip.IsValid() {
 		return ipAttr{}
 	}
 	match := rfc6724policyTable.Classify(ip)
@@ -74,7 +78,7 @@ func ipAttrOf(ip IP) ipAttr {
 type byRFC6724 struct {
 	addrs    []IPAddr // addrs to sort
 	addrAttr []ipAttr
-	srcs     []IP // or nil if unreachable
+	srcs     []netip.Addr // or not valid addr if unreachable
 	srcAttr  []ipAttr
 }
 
@@ -108,13 +112,13 @@ func (s *byRFC6724) Less(i, j int) bool {
 	// If DB is known to be unreachable or if Source(DB) is undefined, then
 	// prefer DA.  Similarly, if DA is known to be unreachable or if
 	// Source(DA) is undefined, then prefer DB.
-	if SourceDA == nil && SourceDB == nil {
+	if !SourceDA.IsValid() && !SourceDB.IsValid() {
 		return false // "equal"
 	}
-	if SourceDB == nil {
+	if !SourceDB.IsValid() {
 		return preferDA
 	}
-	if SourceDA == nil {
+	if !SourceDA.IsValid() {
 		return preferDB
 	}
 
@@ -184,7 +188,7 @@ func (s *byRFC6724) Less(i, j int) bool {
 		return preferDB
 	}
 
-	// Rule 9: Use longest matching prefix.
+	// Rule 9: Use the longest matching prefix.
 	// When DA and DB belong to the same address family (both are IPv6 or
 	// both are IPv4 [but see below]): If CommonPrefixLen(Source(DA), DA) >
 	// CommonPrefixLen(Source(DB), DB), then prefer DA.  Similarly, if
@@ -212,7 +216,7 @@ func (s *byRFC6724) Less(i, j int) bool {
 }
 
 type policyTableEntry struct {
-	Prefix     *IPNet
+	Prefix     netip.Prefix
 	Precedence uint8
 	Label      uint8
 }
@@ -220,90 +224,75 @@ type policyTableEntry struct {
 type policyTable []policyTableEntry
 
 // RFC 6724 section 2.1.
+// Items are sorted by the size of their Prefix.Mask.Size,
 var rfc6724policyTable = policyTable{
 	{
-		Prefix:     mustCIDR("::1/128"),
+		// "::1/128"
+		Prefix:     netip.PrefixFrom(netip.AddrFrom16([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01}), 128),
 		Precedence: 50,
 		Label:      0,
 	},
 	{
-		Prefix:     mustCIDR("::/0"),
-		Precedence: 40,
-		Label:      1,
-	},
-	{
+		// "::ffff:0:0/96"
 		// IPv4-compatible, etc.
-		Prefix:     mustCIDR("::ffff:0:0/96"),
+		Prefix:     netip.PrefixFrom(netip.AddrFrom16([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff}), 96),
 		Precedence: 35,
 		Label:      4,
 	},
 	{
-		// 6to4
-		Prefix:     mustCIDR("2002::/16"),
-		Precedence: 30,
-		Label:      2,
-	},
-	{
-		// Teredo
-		Prefix:     mustCIDR("2001::/32"),
-		Precedence: 5,
-		Label:      5,
-	},
-	{
-		Prefix:     mustCIDR("fc00::/7"),
-		Precedence: 3,
-		Label:      13,
-	},
-	{
-		Prefix:     mustCIDR("::/96"),
+		// "::/96"
+		Prefix:     netip.PrefixFrom(netip.AddrFrom16([16]byte{}), 96),
 		Precedence: 1,
 		Label:      3,
 	},
 	{
-		Prefix:     mustCIDR("fec0::/10"),
+		// "2001::/32"
+		// Teredo
+		Prefix:     netip.PrefixFrom(netip.AddrFrom16([16]byte{0x20, 0x01}), 32),
+		Precedence: 5,
+		Label:      5,
+	},
+	{
+		// "2002::/16"
+		// 6to4
+		Prefix:     netip.PrefixFrom(netip.AddrFrom16([16]byte{0x20, 0x02}), 16),
+		Precedence: 30,
+		Label:      2,
+	},
+	{
+		// "3ffe::/16"
+		Prefix:     netip.PrefixFrom(netip.AddrFrom16([16]byte{0x3f, 0xfe}), 16),
+		Precedence: 1,
+		Label:      12,
+	},
+	{
+		// "fec0::/10"
+		Prefix:     netip.PrefixFrom(netip.AddrFrom16([16]byte{0xfe, 0xc0}), 10),
 		Precedence: 1,
 		Label:      11,
 	},
 	{
-		Prefix:     mustCIDR("3ffe::/16"),
-		Precedence: 1,
-		Label:      12,
+		// "fc00::/7"
+		Prefix:     netip.PrefixFrom(netip.AddrFrom16([16]byte{0xfc}), 7),
+		Precedence: 3,
+		Label:      13,
 	},
-}
-
-func init() {
-	sort.Sort(sort.Reverse(byMaskLength(rfc6724policyTable)))
-}
-
-// byMaskLength sorts policyTableEntry by the size of their Prefix.Mask.Size,
-// from smallest mask, to largest.
-type byMaskLength []policyTableEntry
-
-func (s byMaskLength) Len() int      { return len(s) }
-func (s byMaskLength) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s byMaskLength) Less(i, j int) bool {
-	isize, _ := s[i].Prefix.Mask.Size()
-	jsize, _ := s[j].Prefix.Mask.Size()
-	return isize < jsize
-}
-
-// mustCIDR calls ParseCIDR and panics on any error, or if the network
-// is not IPv6.
-func mustCIDR(s string) *IPNet {
-	ip, ipNet, err := ParseCIDR(s)
-	if err != nil {
-		panic(err.Error())
-	}
-	if len(ip) != IPv6len {
-		panic("unexpected IP length")
-	}
-	return ipNet
+	{
+		// "::/0"
+		Prefix:     netip.PrefixFrom(netip.AddrFrom16([16]byte{}), 0),
+		Precedence: 40,
+		Label:      1,
+	},
 }
 
 // Classify returns the policyTableEntry of the entry with the longest
 // matching prefix that contains ip.
 // The table t must be sorted from largest mask size to smallest.
-func (t policyTable) Classify(ip IP) policyTableEntry {
+func (t policyTable) Classify(ip netip.Addr) policyTableEntry {
+	// Prefix.Contains() will not match an IPv6 prefix for an IPv4 address.
+	if ip.Is4() {
+		ip = netip.AddrFrom16(ip.As16())
+	}
 	for _, ent := range t {
 		if ent.Prefix.Contains(ip) {
 			return ent
@@ -324,17 +313,18 @@ const (
 	scopeGlobal         scope = 0xe
 )
 
-func classifyScope(ip IP) scope {
+func classifyScope(ip netip.Addr) scope {
 	if ip.IsLoopback() || ip.IsLinkLocalUnicast() {
 		return scopeLinkLocal
 	}
-	ipv6 := len(ip) == IPv6len && ip.To4() == nil
+	ipv6 := ip.Is6() && !ip.Is4In6()
+	ipv6AsBytes := ip.As16()
 	if ipv6 && ip.IsMulticast() {
-		return scope(ip[1] & 0xf)
+		return scope(ipv6AsBytes[1] & 0xf)
 	}
 	// Site-local addresses are defined in RFC 3513 section 2.5.6
 	// (and deprecated in RFC 3879).
-	if ipv6 && ip[0] == 0xfe && ip[1]&0xc0 == 0xc0 {
+	if ipv6 && ipv6AsBytes[0] == 0xfe && ipv6AsBytes[1]&0xc0 == 0xc0 {
 		return scopeSiteLocal
 	}
 	return scopeGlobal
@@ -350,30 +340,28 @@ func classifyScope(ip IP) scope {
 // If a and b are different IP versions, 0 is returned.
 //
 // See https://tools.ietf.org/html/rfc6724#section-2.2
-func commonPrefixLen(a, b IP) (cpl int) {
-	if a4 := a.To4(); a4 != nil {
-		a = a4
-	}
+func commonPrefixLen(a netip.Addr, b IP) (cpl int) {
 	if b4 := b.To4(); b4 != nil {
 		b = b4
 	}
-	if len(a) != len(b) {
+	aAsSlice := a.AsSlice()
+	if len(aAsSlice) != len(b) {
 		return 0
 	}
 	// If IPv6, only up to the prefix (first 64 bits)
-	if len(a) > 8 {
-		a = a[:8]
+	if len(aAsSlice) > 8 {
+		aAsSlice = aAsSlice[:8]
 		b = b[:8]
 	}
-	for len(a) > 0 {
-		if a[0] == b[0] {
+	for len(aAsSlice) > 0 {
+		if aAsSlice[0] == b[0] {
 			cpl += 8
-			a = a[1:]
+			aAsSlice = aAsSlice[1:]
 			b = b[1:]
 			continue
 		}
 		bits := 8
-		ab, bb := a[0], b[0]
+		ab, bb := aAsSlice[0], b[0]
 		for {
 			ab >>= 1
 			bb >>= 1
