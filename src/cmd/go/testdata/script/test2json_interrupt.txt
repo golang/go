@@ -1,0 +1,55 @@
+[short] skip 'links and runs a test binary'
+[!fuzz] skip 'tests SIGINT behavior for interrupting fuzz tests'
+[windows] skip 'windows does not support os.Interrupt'
+
+? go test -json -fuzz FuzzInterrupt -run '^$' -parallel 1
+stdout -count=1 '"Action":"pass","Package":"example","Test":"FuzzInterrupt"'
+stdout -count=1 '"Action":"pass","Package":"example","Elapsed":'
+
+mkdir $WORK/fuzzcache
+go test -c . -fuzz=. -o test2json_interrupt_obj
+? go tool test2json -p example -t ./test2json_interrupt_obj -test.v -test.paniconexit0 -test.fuzzcachedir $WORK/fuzzcache -test.fuzz FuzzInterrupt -test.run '^$' -test.parallel 1
+stdout -count=1 '"Action":"pass","Package":"example","Test":"FuzzInterrupt"'
+stdout -count=1 '"Action":"pass","Package":"example","Elapsed":'
+
+-- go.mod --
+module example
+go 1.20
+-- example_test.go --
+package example_test
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"testing"
+	"strings"
+	"time"
+)
+
+func FuzzInterrupt(f *testing.F) {
+	pids := os.Getenv("GO_TEST_INTERRUPT_PIDS")
+	if pids == "" {
+		// This is the main test process.
+		// Set the environment variable for fuzz workers.
+		pid := os.Getpid()
+		ppid := os.Getppid()
+		os.Setenv("GO_TEST_INTERRUPT_PIDS", fmt.Sprintf("%d,%d", ppid, pid))
+	}
+
+	f.Fuzz(func(t *testing.T, orig string) {
+		// Simulate a ctrl-C on the keyboard by sending SIGINT
+		// to the main test process and its parent.
+		for _, pid := range strings.Split(pids, ",") {
+			i, err := strconv.Atoi(pid)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if p, err := os.FindProcess(i); err == nil {
+				p.Signal(os.Interrupt)
+				time.Sleep(10 * time.Millisecond)
+				pids = ""  // Only interrupt once.
+			}
+		}
+	})
+}
