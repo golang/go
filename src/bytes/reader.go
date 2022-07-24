@@ -30,8 +30,8 @@ func (r *Reader) Len() int {
 	return int(int64(len(r.s)) - r.i)
 }
 
-// Size returns the original length of the underlying byte slice. 
-// Size is the number of bytes available for reading via ReadAt. 
+// Size returns the original length of the underlying byte slice.
+// Size is the number of bytes available for reading via ReadAt.
 // The result is unaffected by any method calls except Reset.
 func (r *Reader) Size() int64 { return int64(len(r.s)) }
 
