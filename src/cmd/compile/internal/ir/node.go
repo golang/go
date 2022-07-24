@@ -152,7 +152,7 @@ const (
 	// Prior to walk, they are: X(Args), where Args is all regular arguments.
 	// After walk, if any argument whose evaluation might requires temporary variable,
 	// that temporary variable will be pushed to Init, Args will contains an updated
-	// set of arguments. KeepAlive is all OVARLIVE nodes that are attached to OCALLxxx.
+	// set of arguments.
 	OCALLFUNC  // X(Args) (function call f(args))
 	OCALLMETH  // X(Args) (direct method call x.Method(args))
 	OCALLINTER // X(Args) (interface method call x.Method(args))
@@ -288,8 +288,6 @@ const (
 	OSPTR          // base pointer of a slice or string.
 	OCFUNC         // reference to c function pointer (not go func value)
 	OCHECKNIL      // emit code to ensure pointer/interface not nil
-	OVARDEF        // variable is about to be fully initialized
-	OVARLIVE       // variable is alive
 	ORESULT        // result of a function call; Xoffset is stack offset
 	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
 	OLINKSYMOFFSET // offset within a name

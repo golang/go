@@ -1384,11 +1384,8 @@ func (s *state) stmtList(l ir.Nodes) {
 
 // stmt converts the statement n to SSA and adds it to s.
 func (s *state) stmt(n ir.Node) {
-	if !(n.Op() == ir.OVARLIVE || n.Op() == ir.OVARDEF) {
-		// OVARLIVE and OVARDEF are invisible to the programmer, so we don't use their line numbers to avoid confusion in debugging.
-		s.pushLine(n.Pos())
-		defer s.popLine()
-	}
+	s.pushLine(n.Pos())
+	defer s.popLine()
 
 	// If s.curBlock is nil, and n isn't a label (which might have an associated goto somewhere),
 	// then this code is dead. Stop here.
@@ -1931,26 +1928,6 @@ func (s *state) stmt(n ir.Node) {
 		s.endBlock()
 
 		s.startBlock(bEnd)
-
-	case ir.OVARDEF:
-		n := n.(*ir.UnaryExpr)
-		if !s.canSSA(n.X) {
-			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, n.X.(*ir.Name), s.mem(), false)
-		}
-
-	case ir.OVARLIVE:
-		// Insert a varlive op to record that a variable is still live.
-		n := n.(*ir.UnaryExpr)
-		v := n.X.(*ir.Name)
-		if !v.Addrtaken() {
-			s.Fatalf("VARLIVE variable %v must have Addrtaken set", v)
-		}
-		switch v.Class {
-		case ir.PAUTO, ir.PPARAM, ir.PPARAMOUT:
-		default:
-			s.Fatalf("VARLIVE variable %v must be Auto or Arg", v)
-		}
-		s.vars[memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, v, s.mem())
 
 	case ir.OCHECKNIL:
 		n := n.(*ir.UnaryExpr)
@@ -5160,9 +5137,17 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	}
 	s.prevCall = call
 	s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
-	// Insert OVARLIVE nodes
-	for _, name := range n.KeepAlive {
-		s.stmt(ir.NewUnaryExpr(n.Pos(), ir.OVARLIVE, name))
+	// Insert VarLive opcodes.
+	for _, v := range n.KeepAlive {
+		if !v.Addrtaken() {
+			s.Fatalf("KeepAlive variable %v must have Addrtaken set", v)
+		}
+		switch v.Class {
+		case ir.PAUTO, ir.PPARAM, ir.PPARAMOUT:
+		default:
+			s.Fatalf("KeepAlive variable %v must be Auto or Arg", v)
+		}
+		s.vars[memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, v, s.mem())
 	}
 
 	// Finish block for defers
