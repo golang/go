@@ -103,7 +103,7 @@ import (
 //	goroutine    - stack traces of all current goroutines
 //	heap         - a sampling of memory allocations of live objects
 //	allocs       - a sampling of all past memory allocations
-//	threadcreate - stack traces that led to the creation of new OS threads
+//	threadcreate - number of OS threads
 //	block        - stack traces that led to blocking on synchronization primitives
 //	mutex        - stack traces of holders of contended mutexes
 //

@@ -820,8 +820,7 @@ func MutexProfile(p []BlockProfileRecord) (n int, ok bool) {
 }
 
 // ThreadCreateProfile returns n, the number of records in the thread creation profile.
-// If len(p) >= n, ThreadCreateProfile copies the profile into p and returns n, true.
-// If len(p) < n, ThreadCreateProfile does not change p and returns n, false.
+// stack traces are not recorded and p is not modified.
 //
 // Most clients should use the runtime/pprof package instead
 // of calling ThreadCreateProfile directly.

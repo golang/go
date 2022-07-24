@@ -349,7 +349,7 @@ var profileDescriptions = map[string]string{
 	"heap":         "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
 	"mutex":        "Stack traces of holders of contended mutexes",
 	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
-	"threadcreate": "Stack traces that led to the creation of new OS threads",
+	"threadcreate": "Number of OS threads",
 	"trace":        "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
 }
 
