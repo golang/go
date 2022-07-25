@@ -1271,8 +1271,8 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 	}
 	p1 := procresize(procs)
 	sched.gcwaiting.Store(false)
-	if sched.sysmonwait != 0 {
-		sched.sysmonwait = 0
+	if sched.sysmonwait.Load() {
+		sched.sysmonwait.Store(false)
 		notewakeup(&sched.sysmonnote)
 	}
 	unlock(&sched.lock)
@@ -3632,7 +3632,7 @@ func reentersyscall(pc, sp uintptr) {
 		save(pc, sp)
 	}
 
-	if atomic.Load(&sched.sysmonwait) != 0 {
+	if sched.sysmonwait.Load() {
 		systemstack(entersyscall_sysmon)
 		save(pc, sp)
 	}
@@ -3670,8 +3670,8 @@ func entersyscall() {
 
 func entersyscall_sysmon() {
 	lock(&sched.lock)
-	if atomic.Load(&sched.sysmonwait) != 0 {
-		atomic.Store(&sched.sysmonwait, 0)
+	if sched.sysmonwait.Load() {
+		sched.sysmonwait.Store(false)
 		notewakeup(&sched.sysmonnote)
 	}
 	unlock(&sched.lock)
@@ -3908,8 +3908,8 @@ func exitsyscallfast_reacquired() {
 func exitsyscallfast_pidle() bool {
 	lock(&sched.lock)
 	pp, _ := pidleget(0)
-	if pp != nil && atomic.Load(&sched.sysmonwait) != 0 {
-		atomic.Store(&sched.sysmonwait, 0)
+	if pp != nil && sched.sysmonwait.Load() {
+		sched.sysmonwait.Store(false)
 		notewakeup(&sched.sysmonnote)
 	}
 	unlock(&sched.lock)
@@ -3944,8 +3944,8 @@ func exitsyscall0(gp *g) {
 		// could race with another M transitioning gp from unlocked to
 		// locked.
 		locked = gp.lockedm != 0
-	} else if atomic.Load(&sched.sysmonwait) != 0 {
-		atomic.Store(&sched.sysmonwait, 0)
+	} else if sched.sysmonwait.Load() {
+		sched.sysmonwait.Store(false)
 		notewakeup(&sched.sysmonnote)
 	}
 	unlock(&sched.lock)
@@ -5161,7 +5161,7 @@ func sysmon() {
 				syscallWake := false
 				next := timeSleepUntil()
 				if next > now {
-					atomic.Store(&sched.sysmonwait, 1)
+					sched.sysmonwait.Store(true)
 					unlock(&sched.lock)
 					// Make wake-up period small enough
 					// for the sampling to be correct.
@@ -5178,7 +5178,7 @@ func sysmon() {
 						osRelax(false)
 					}
 					lock(&sched.lock)
-					atomic.Store(&sched.sysmonwait, 0)
+					sched.sysmonwait.Store(false)
 					noteclear(&sched.sysmonnote)
 				}
 				if syscallWake {
@@ -5410,7 +5410,7 @@ func schedtrace(detailed bool) {
 	lock(&sched.lock)
 	print("SCHED ", (now-starttime)/1e6, "ms: gomaxprocs=", gomaxprocs, " idleprocs=", sched.npidle.Load(), " threads=", mcount(), " spinningthreads=", sched.nmspinning.Load(), " idlethreads=", sched.nmidle, " runqueue=", sched.runqsize)
 	if detailed {
-		print(" gcwaiting=", sched.gcwaiting.Load(), " nmidlelocked=", sched.nmidlelocked, " stopwait=", sched.stopwait, " sysmonwait=", sched.sysmonwait, "\n")
+		print(" gcwaiting=", sched.gcwaiting.Load(), " nmidlelocked=", sched.nmidlelocked, " stopwait=", sched.stopwait, " sysmonwait=", sched.sysmonwait.Load(), "\n")
 	}
 	// We must be careful while reading data from P's, M's and G's.
 	// Even if we hold schedlock, most data can be changed concurrently.

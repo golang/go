@@ -820,7 +820,7 @@ type schedt struct {
 	gcwaiting  atomic.Bool // gc is waiting to run
 	stopwait   int32
 	stopnote   note
-	sysmonwait uint32
+	sysmonwait atomic.Bool
 	sysmonnote note
 
 	// safepointFn should be called on each P at the next GC
