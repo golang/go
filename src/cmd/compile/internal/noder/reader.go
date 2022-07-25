@@ -1547,7 +1547,11 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 				cases = nil // TODO(mdempsky): Unclear if this matters.
 			}
 			for i := range cases {
-				cases[i] = r.exprType(true)
+				if r.Bool() { // case nil
+					cases[i] = typecheck.Expr(types.BuiltinPkg.Lookup("nil").Def.(*ir.NilExpr))
+				} else {
+					cases[i] = r.exprType()
+				}
 			}
 		} else {
 			cases = r.exprList()
@@ -1734,7 +1738,7 @@ func (r *reader) expr() (res ir.Node) {
 	case exprAssert:
 		x := r.expr()
 		pos := r.pos()
-		typ := r.exprType(false)
+		typ := r.exprType()
 		srcRType := r.rtype(pos)
 
 		// TODO(mdempsky): Always emit ODYNAMICDOTTYPE for uniformity?
@@ -1800,7 +1804,7 @@ func (r *reader) expr() (res ir.Node) {
 
 	case exprMake:
 		pos := r.pos()
-		typ := r.exprType(false)
+		typ := r.exprType()
 		extra := r.exprs()
 		n := typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{typ}, extra...))).(*ir.MakeExpr)
 		n.RType = r.rtype(pos)
@@ -1808,7 +1812,7 @@ func (r *reader) expr() (res ir.Node) {
 
 	case exprNew:
 		pos := r.pos()
-		typ := r.exprType(false)
+		typ := r.exprType()
 		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
 
 	case exprConvert:
@@ -2043,12 +2047,8 @@ func (r *reader) convRTTI(pos src.XPos) (typeWord, srcRType ir.Node) {
 	return
 }
 
-func (r *reader) exprType(nilOK bool) ir.Node {
+func (r *reader) exprType() ir.Node {
 	r.Sync(pkgbits.SyncExprType)
-
-	if nilOK && r.Bool() {
-		return typecheck.Expr(types.BuiltinPkg.Lookup("nil").Def.(*ir.NilExpr))
-	}
 
 	pos := r.pos()
 	setBasePos(pos)

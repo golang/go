@@ -1464,7 +1464,10 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		if iface != nil {
 			w.Len(len(cases))
 			for _, cas := range cases {
-				w.exprType(iface, cas, true)
+				if w.Bool(isNil(w.p.info, cas)) {
+					continue
+				}
+				w.exprType(iface, cas)
 			}
 		} else {
 			// As if w.exprList(clause.Cases),
@@ -1642,7 +1645,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.Code(exprAssert)
 		w.expr(expr.X)
 		w.pos(expr)
-		w.exprType(iface, expr.Type, false)
+		w.exprType(iface, expr.Type)
 		w.rtype(iface)
 
 	case *syntax.Operation:
@@ -1702,7 +1705,7 @@ func (w *writer) expr(expr syntax.Expr) {
 
 				w.Code(exprMake)
 				w.pos(expr)
-				w.exprType(nil, expr.ArgList[0], false)
+				w.exprType(nil, expr.ArgList[0])
 				w.exprs(expr.ArgList[1:])
 
 				typ := w.p.typeOf(expr)
@@ -1725,7 +1728,7 @@ func (w *writer) expr(expr syntax.Expr) {
 
 				w.Code(exprNew)
 				w.pos(expr)
-				w.exprType(nil, expr.ArgList[0], false)
+				w.exprType(nil, expr.ArgList[0])
 				return
 
 			case "append":
@@ -1960,21 +1963,15 @@ func (w *writer) convRTTI(src, dst types2.Type) {
 	w.typ(dst)
 }
 
-func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
+func (w *writer) exprType(iface types2.Type, typ syntax.Expr) {
 	base.Assertf(iface == nil || isInterface(iface), "%v must be nil or an interface type", iface)
 
 	tv, ok := w.p.info.Types[typ]
 	assert(ok)
-
-	w.Sync(pkgbits.SyncExprType)
-
-	if nilOK && w.Bool(tv.IsNil()) {
-		return
-	}
-
 	assert(tv.IsType())
 	info := w.p.typIdx(tv.Type, w.dict)
 
+	w.Sync(pkgbits.SyncExprType)
 	w.pos(typ)
 
 	if w.Bool(info.derived && iface != nil && !iface.Underlying().(*types2.Interface).Empty()) {
@@ -2384,6 +2381,14 @@ func isMultiValueExpr(info *types2.Info, expr syntax.Expr) bool {
 		return true
 	}
 	return false
+}
+
+// isNil reports whether expr is a (possibly parenthesized) reference
+// to the predeclared nil value.
+func isNil(info *types2.Info, expr syntax.Expr) bool {
+	tv, ok := info.Types[expr]
+	assert(ok)
+	return tv.IsNil()
 }
 
 // recvBase returns the base type for the given receiver parameter.
