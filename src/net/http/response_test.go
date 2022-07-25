@@ -972,19 +972,6 @@ func matchErr(err error, wantErr any) error {
 	return fmt.Errorf("%v; want %v", err, wantErr)
 }
 
-func TestNeedsSniff(t *testing.T) {
-	// needsSniff returns true with an empty response.
-	r := &response{}
-	if got, want := r.needsSniff(), true; got != want {
-		t.Errorf("needsSniff = %t; want %t", got, want)
-	}
-	// needsSniff returns false when Content-Type = nil.
-	r.handlerHeader = Header{"Content-Type": nil}
-	if got, want := r.needsSniff(), false; got != want {
-		t.Errorf("needsSniff empty Content-Type = %t; want %t", got, want)
-	}
-}
-
 // A response should only write out single Connection: close header. Tests #19499.
 func TestResponseWritesOnlySingleConnectionClose(t *testing.T) {
 	const connectionCloseHeader = "Connection: close"
