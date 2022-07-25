@@ -334,10 +334,6 @@ func init() {
 		println(offset)
 		throw("memstats.heapStats not aligned to 8 bytes")
 	}
-	if offset := unsafe.Offsetof(memstats.gcPauseDist); offset%8 != 0 {
-		println(offset)
-		throw("memstats.gcPauseDist not aligned to 8 bytes")
-	}
 	// Ensure the size of heapStatsDelta causes adjacent fields/slots (e.g.
 	// [3]heapStatsDelta) to be 8-byte aligned.
 	if size := unsafe.Sizeof(heapStatsDelta{}); size%8 != 0 {

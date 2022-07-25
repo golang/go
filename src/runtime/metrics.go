@@ -7,7 +7,6 @@ package runtime
 // Metrics implementation exported to runtime/metrics.
 
 import (
-	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -197,9 +196,9 @@ func initMetrics() {
 				// The bottom-most bucket, containing negative values, is tracked
 				// as a separately as underflow, so fill that in manually and then
 				// iterate over the rest.
-				hist.counts[0] = atomic.Load64(&memstats.gcPauseDist.underflow)
+				hist.counts[0] = memstats.gcPauseDist.underflow.Load()
 				for i := range memstats.gcPauseDist.counts {
-					hist.counts[i+1] = atomic.Load64(&memstats.gcPauseDist.counts[i])
+					hist.counts[i+1] = memstats.gcPauseDist.counts[i].Load()
 				}
 			},
 		},
@@ -327,9 +326,9 @@ func initMetrics() {
 		"/sched/latencies:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(timeHistBuckets)
-				hist.counts[0] = atomic.Load64(&sched.timeToRun.underflow)
+				hist.counts[0] = sched.timeToRun.underflow.Load()
 				for i := range sched.timeToRun.counts {
-					hist.counts[i+1] = atomic.Load64(&sched.timeToRun.counts[i])
+					hist.counts[i+1] = sched.timeToRun.counts[i].Load()
 				}
 			},
 		},

@@ -17,8 +17,6 @@ var AtomicFields = []uintptr{
 	unsafe.Offsetof(p{}.timer0When),
 	unsafe.Offsetof(p{}.timerModifiedEarliest),
 	unsafe.Offsetof(p{}.gcFractionalMarkTime),
-	unsafe.Offsetof(schedt{}.timeToRun),
-	unsafe.Offsetof(timeHistogram{}.underflow),
 	unsafe.Offsetof(profBuf{}.overflow),
 	unsafe.Offsetof(profBuf{}.overflowTime),
 	unsafe.Offsetof(heapStatsDelta{}.tinyAllocCount),
@@ -37,10 +35,8 @@ var AtomicFields = []uintptr{
 	unsafe.Offsetof(lfnode{}.next),
 	unsafe.Offsetof(mstats{}.last_gc_nanotime),
 	unsafe.Offsetof(mstats{}.last_gc_unix),
-	unsafe.Offsetof(mstats{}.gcPauseDist),
 	unsafe.Offsetof(ticksType{}.val),
 	unsafe.Offsetof(workType{}.bytesMarked),
-	unsafe.Offsetof(timeHistogram{}.counts),
 }
 
 // AtomicVariables is the set of global variables on which we perform

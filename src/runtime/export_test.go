@@ -1244,9 +1244,9 @@ func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
 	t := (*timeHistogram)(th)
 	i := bucket*TimeHistNumSubBuckets + subBucket
 	if i >= uint(len(t.counts)) {
-		return t.underflow, false
+		return t.underflow.Load(), false
 	}
-	return t.counts[i], true
+	return t.counts[i].Load(), true
 }
 
 func (th *TimeHistogram) Record(duration int64) {

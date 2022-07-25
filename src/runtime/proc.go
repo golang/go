@@ -703,11 +703,6 @@ func schedinit() {
 	sigsave(&gp.m.sigmask)
 	initSigmask = gp.m.sigmask
 
-	if offset := unsafe.Offsetof(sched.timeToRun); offset%8 != 0 {
-		println(offset)
-		throw("sched.timeToRun not aligned to 8 bytes")
-	}
-
 	goargs()
 	goenvs()
 	parsedebugvars()
