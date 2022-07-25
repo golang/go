@@ -191,17 +191,20 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // netpollBreak interrupts a port_getn wait.
 func netpollBreak() {
-	if atomic.Cas(&netpollWakeSig, 0, 1) {
-		// Use port_alert to put portfd into alert mode.
-		// This will wake up all threads sleeping in port_getn on portfd,
-		// and cause their calls to port_getn to return immediately.
-		// Further, until portfd is taken out of alert mode,
-		// all calls to port_getn will return immediately.
-		if port_alert(portfd, _PORT_ALERT_UPDATE, _POLLHUP, uintptr(unsafe.Pointer(&portfd))) < 0 {
-			if e := errno(); e != _EBUSY {
-				println("runtime: port_alert failed with", e)
-				throw("runtime: netpoll: port_alert failed")
-			}
+	// Failing to cas indicates there is an in-flight wakeup, so we're done here.
+	if !atomic.Cas(&netpollWakeSig, 0, 1) {
+		return
+	}
+
+	// Use port_alert to put portfd into alert mode.
+	// This will wake up all threads sleeping in port_getn on portfd,
+	// and cause their calls to port_getn to return immediately.
+	// Further, until portfd is taken out of alert mode,
+	// all calls to port_getn will return immediately.
+	if port_alert(portfd, _PORT_ALERT_UPDATE, _POLLHUP, uintptr(unsafe.Pointer(&portfd))) < 0 {
+		if e := errno(); e != _EBUSY {
+			println("runtime: port_alert failed with", e)
+			throw("runtime: netpoll: port_alert failed")
 		}
 	}
 }

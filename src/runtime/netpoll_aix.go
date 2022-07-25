@@ -135,10 +135,13 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // netpollBreak interrupts a poll.
 func netpollBreak() {
-	if atomic.Cas(&netpollWakeSig, 0, 1) {
-		b := [1]byte{0}
-		write(uintptr(wrwake), unsafe.Pointer(&b[0]), 1)
+	// Failing to cas indicates there is an in-flight wakeup, so we're done here.
+	if !atomic.Cas(&netpollWakeSig, 0, 1) {
+		return
 	}
+
+	b := [1]byte{0}
+	write(uintptr(wrwake), unsafe.Pointer(&b[0]), 1)
 }
 
 // netpoll checks for ready network connections.

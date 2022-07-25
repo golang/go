@@ -79,22 +79,25 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // netpollBreak interrupts an epollwait.
 func netpollBreak() {
-	if atomic.Cas(&netpollWakeSig, 0, 1) {
-		for {
-			var b byte
-			n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
-			if n == 1 {
-				break
-			}
-			if n == -_EINTR {
-				continue
-			}
-			if n == -_EAGAIN {
-				return
-			}
-			println("runtime: netpollBreak write failed with", -n)
-			throw("runtime: netpollBreak write failed")
+	// Failing to cas indicates there is an in-flight wakeup, so we're done here.
+	if !atomic.Cas(&netpollWakeSig, 0, 1) {
+		return
+	}
+
+	for {
+		var b byte
+		n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
+		if n == 1 {
+			break
 		}
+		if n == -_EINTR {
+			continue
+		}
+		if n == -_EAGAIN {
+			return
+		}
+		println("runtime: netpollBreak write failed with", -n)
+		throw("runtime: netpollBreak write failed")
 	}
 }
 

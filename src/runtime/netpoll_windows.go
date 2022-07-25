@@ -67,11 +67,14 @@ func netpollarm(pd *pollDesc, mode int) {
 }
 
 func netpollBreak() {
-	if atomic.Cas(&netpollWakeSig, 0, 1) {
-		if stdcall4(_PostQueuedCompletionStatus, iocphandle, 0, 0, 0) == 0 {
-			println("runtime: netpoll: PostQueuedCompletionStatus failed (errno=", getlasterror(), ")")
-			throw("runtime: netpoll: PostQueuedCompletionStatus failed")
-		}
+	// Failing to cas indicates there is an in-flight wakeup, so we're done here.
+	if !atomic.Cas(&netpollWakeSig, 0, 1) {
+		return
+	}
+
+	if stdcall4(_PostQueuedCompletionStatus, iocphandle, 0, 0, 0) == 0 {
+		println("runtime: netpoll: PostQueuedCompletionStatus failed (errno=", getlasterror(), ")")
+		throw("runtime: netpoll: PostQueuedCompletionStatus failed")
 	}
 }
 
