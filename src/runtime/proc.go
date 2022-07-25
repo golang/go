@@ -880,7 +880,7 @@ func freezetheworld() {
 	for i := 0; i < 5; i++ {
 		// this should tell the scheduler to not start any new goroutines
 		sched.stopwait = freezeStopWait
-		atomic.Store(&sched.gcwaiting, 1)
+		sched.gcwaiting.Store(true)
 		// this should stop running goroutines
 		if !preemptall() {
 			break // no running goroutines
@@ -1186,7 +1186,7 @@ func stopTheWorldWithSema() {
 
 	lock(&sched.lock)
 	sched.stopwait = gomaxprocs
-	atomic.Store(&sched.gcwaiting, 1)
+	sched.gcwaiting.Store(true)
 	preemptall()
 	// stop current P
 	gp.m.p.ptr().status = _Pgcstop // Pgcstop is only diagnostic.
@@ -1270,7 +1270,7 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 		newprocs = 0
 	}
 	p1 := procresize(procs)
-	sched.gcwaiting = 0
+	sched.gcwaiting.Store(false)
 	if sched.sysmonwait != 0 {
 		sched.sysmonwait = 0
 		notewakeup(&sched.sysmonnote)
@@ -2367,7 +2367,7 @@ func handoffp(pp *p) {
 		return
 	}
 	lock(&sched.lock)
-	if sched.gcwaiting != 0 {
+	if sched.gcwaiting.Load() {
 		pp.status = _Pgcstop
 		sched.stopwait--
 		if sched.stopwait == 0 {
@@ -2471,7 +2471,7 @@ func startlockedm(gp *g) {
 func gcstopm() {
 	gp := getg()
 
-	if sched.gcwaiting == 0 {
+	if !sched.gcwaiting.Load() {
 		throw("gcstopm: not waiting for gc")
 	}
 	if gp.m.spinning {
@@ -2555,7 +2555,7 @@ func findRunnable() (gp *g, inheritTime, tryWakeP bool) {
 
 top:
 	pp := mp.p.ptr()
-	if sched.gcwaiting != 0 {
+	if sched.gcwaiting.Load() {
 		gcstopm()
 		goto top
 	}
@@ -2719,7 +2719,7 @@ top:
 
 	// return P and block
 	lock(&sched.lock)
-	if sched.gcwaiting != 0 || pp.runSafePointFn != 0 {
+	if sched.gcwaiting.Load() || pp.runSafePointFn != 0 {
 		unlock(&sched.lock)
 		goto top
 	}
@@ -2901,7 +2901,7 @@ func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWo
 		stealTimersOrRunNextG := i == stealTries-1
 
 		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
-			if sched.gcwaiting != 0 {
+			if sched.gcwaiting.Load() {
 				// GC work may be available.
 				return nil, false, now, pollUntil, true
 			}
@@ -3650,7 +3650,7 @@ func reentersyscall(pc, sp uintptr) {
 	gp.m.oldp.set(pp)
 	gp.m.p = 0
 	atomic.Store(&pp.status, _Psyscall)
-	if sched.gcwaiting != 0 {
+	if sched.gcwaiting.Load() {
 		systemstack(entersyscall_gcwait)
 		save(pc, sp)
 	}
@@ -5155,9 +5155,9 @@ func sysmon() {
 		// from a timer to avoid adding system load to applications that spend
 		// most of their time sleeping.
 		now := nanotime()
-		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || sched.npidle.Load() == gomaxprocs) {
+		if debug.schedtrace <= 0 && (sched.gcwaiting.Load() || sched.npidle.Load() == gomaxprocs) {
 			lock(&sched.lock)
-			if atomic.Load(&sched.gcwaiting) != 0 || sched.npidle.Load() == gomaxprocs {
+			if sched.gcwaiting.Load() || sched.npidle.Load() == gomaxprocs {
 				syscallWake := false
 				next := timeSleepUntil()
 				if next > now {
@@ -5410,7 +5410,7 @@ func schedtrace(detailed bool) {
 	lock(&sched.lock)
 	print("SCHED ", (now-starttime)/1e6, "ms: gomaxprocs=", gomaxprocs, " idleprocs=", sched.npidle.Load(), " threads=", mcount(), " spinningthreads=", sched.nmspinning.Load(), " idlethreads=", sched.nmidle, " runqueue=", sched.runqsize)
 	if detailed {
-		print(" gcwaiting=", sched.gcwaiting, " nmidlelocked=", sched.nmidlelocked, " stopwait=", sched.stopwait, " sysmonwait=", sched.sysmonwait, "\n")
+		print(" gcwaiting=", sched.gcwaiting.Load(), " nmidlelocked=", sched.nmidlelocked, " stopwait=", sched.stopwait, " sysmonwait=", sched.sysmonwait, "\n")
 	}
 	// We must be careful while reading data from P's, M's and G's.
 	// Even if we hold schedlock, most data can be changed concurrently.

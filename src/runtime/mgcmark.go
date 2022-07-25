@@ -1063,7 +1063,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	// Drain root marking jobs.
 	if work.markrootNext < work.markrootJobs {
 		// Stop if we're preemptible or if someone wants to STW.
-		for !(gp.preempt && (preemptible || atomic.Load(&sched.gcwaiting) != 0)) {
+		for !(gp.preempt && (preemptible || sched.gcwaiting.Load())) {
 			job := atomic.Xadd(&work.markrootNext, +1) - 1
 			if job >= work.markrootJobs {
 				break
@@ -1077,7 +1077,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 
 	// Drain heap marking jobs.
 	// Stop if we're preemptible or if someone wants to STW.
-	for !(gp.preempt && (preemptible || atomic.Load(&sched.gcwaiting) != 0)) {
+	for !(gp.preempt && (preemptible || sched.gcwaiting.Load())) {
 		// Try to keep work available on the global queue. We used to
 		// check if there were waiting workers, but it's better to
 		// just keep work available than to make workers wait. In the
