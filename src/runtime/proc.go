@@ -2282,7 +2282,7 @@ func startm(pp *p, spinning bool) {
 			if spinning {
 				// The caller incremented nmspinning, but there are no idle Ps,
 				// so it's okay to just undo the increment and give up.
-				if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
+				if sched.nmspinning.Add(-1) < 0 {
 					throw("startm: negative nmspinning")
 				}
 			}
@@ -2362,7 +2362,7 @@ func handoffp(pp *p) {
 	}
 	// no local work, check that there are no spinning/idle M's,
 	// otherwise our help is not required
-	if int32(atomic.Load(&sched.nmspinning))+sched.npidle.Load() == 0 && atomic.Cas(&sched.nmspinning, 0, 1) { // TODO: fast atomic
+	if sched.nmspinning.Load()+sched.npidle.Load() == 0 && sched.nmspinning.CompareAndSwap(0, 1) { // TODO: fast atomic
 		startm(pp, true)
 		return
 	}
@@ -2414,7 +2414,7 @@ func wakep() {
 		return
 	}
 	// be conservative about spinning threads
-	if atomic.Load(&sched.nmspinning) != 0 || !atomic.Cas(&sched.nmspinning, 0, 1) {
+	if sched.nmspinning.Load() != 0 || !sched.nmspinning.CompareAndSwap(0, 1) {
 		return
 	}
 	startm(nil, true)
@@ -2478,7 +2478,7 @@ func gcstopm() {
 		gp.m.spinning = false
 		// OK to just drop nmspinning here,
 		// startTheWorld will unpark threads as necessary.
-		if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
+		if sched.nmspinning.Add(-1) < 0 {
 			throw("gcstopm: negative nmspinning")
 		}
 	}
@@ -2649,10 +2649,10 @@ top:
 	// Limit the number of spinning Ms to half the number of busy Ps.
 	// This is necessary to prevent excessive CPU consumption when
 	// GOMAXPROCS>>1 but the program parallelism is low.
-	if mp.spinning || int32(2*atomic.Load(&sched.nmspinning)) < gomaxprocs-sched.npidle.Load() {
+	if mp.spinning || 2*sched.nmspinning.Load() < gomaxprocs-sched.npidle.Load() {
 		if !mp.spinning {
 			mp.spinning = true
-			atomic.Xadd(&sched.nmspinning, 1)
+			sched.nmspinning.Add(1)
 		}
 
 		gp, inheritTime, tnow, w, newWork := stealWork(now)
@@ -2757,7 +2757,7 @@ top:
 	wasSpinning := mp.spinning
 	if mp.spinning {
 		mp.spinning = false
-		if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
+		if sched.nmspinning.Add(-1) < 0 {
 			throw("findrunnable: negative nmspinning")
 		}
 
@@ -2772,7 +2772,7 @@ top:
 		if pp != nil {
 			acquirep(pp)
 			mp.spinning = true
-			atomic.Xadd(&sched.nmspinning, 1)
+			sched.nmspinning.Add(1)
 			goto top
 		}
 
@@ -2781,7 +2781,7 @@ top:
 		if pp != nil {
 			acquirep(pp)
 			mp.spinning = true
-			atomic.Xadd(&sched.nmspinning, 1)
+			sched.nmspinning.Add(1)
 
 			// Run the idle worker.
 			pp.gcMarkWorkerMode = gcMarkWorkerIdleMode
@@ -2850,7 +2850,7 @@ top:
 			}
 			if wasSpinning {
 				mp.spinning = true
-				atomic.Xadd(&sched.nmspinning, 1)
+				sched.nmspinning.Add(1)
 			}
 			goto top
 		}
@@ -3089,8 +3089,8 @@ func resetspinning() {
 		throw("resetspinning: not a spinning m")
 	}
 	gp.m.spinning = false
-	nmspinning := atomic.Xadd(&sched.nmspinning, -1)
-	if int32(nmspinning) < 0 {
+	nmspinning := sched.nmspinning.Add(-1)
+	if nmspinning < 0 {
 		throw("findrunnable: negative nmspinning")
 	}
 	// M wakeup policy is deliberately somewhat conservative, so check if we
@@ -5085,7 +5085,7 @@ func checkdead() {
 			// M must be spinning to steal. We set this to be
 			// explicit, but since this is the only M it would
 			// become spinning on its own anyways.
-			atomic.Xadd(&sched.nmspinning, 1)
+			sched.nmspinning.Add(1)
 			mp.spinning = true
 			mp.nextp.set(pp)
 			notewakeup(&mp.park)
@@ -5317,7 +5317,7 @@ func retake(now int64) uint32 {
 			// On the one hand we don't want to retake Ps if there is no other work to do,
 			// but on the other hand we want to retake them eventually
 			// because they can prevent the sysmon thread from deep sleep.
-			if runqempty(pp) && atomic.Load(&sched.nmspinning)+uint32(sched.npidle.Load()) > 0 && pd.syscallwhen+10*1000*1000 > now {
+			if runqempty(pp) && sched.nmspinning.Load()+sched.npidle.Load() > 0 && pd.syscallwhen+10*1000*1000 > now {
 				continue
 			}
 			// Drop allpLock so we can take sched.lock.
@@ -5408,7 +5408,7 @@ func schedtrace(detailed bool) {
 	}
 
 	lock(&sched.lock)
-	print("SCHED ", (now-starttime)/1e6, "ms: gomaxprocs=", gomaxprocs, " idleprocs=", sched.npidle.Load(), " threads=", mcount(), " spinningthreads=", sched.nmspinning, " idlethreads=", sched.nmidle, " runqueue=", sched.runqsize)
+	print("SCHED ", (now-starttime)/1e6, "ms: gomaxprocs=", gomaxprocs, " idleprocs=", sched.npidle.Load(), " threads=", mcount(), " spinningthreads=", sched.nmspinning.Load(), " idlethreads=", sched.nmidle, " runqueue=", sched.runqsize)
 	if detailed {
 		print(" gcwaiting=", sched.gcwaiting, " nmidlelocked=", sched.nmidlelocked, " stopwait=", sched.stopwait, " sysmonwait=", sched.sysmonwait, "\n")
 	}
@@ -6193,7 +6193,7 @@ func sync_runtime_canSpin(i int) bool {
 	// GOMAXPROCS>1 and there is at least one other running P and local runq is empty.
 	// As opposed to runtime mutex we don't do passive spinning here,
 	// because there can be work on global runq or on other Ps.
-	if i >= active_spin || ncpu <= 1 || gomaxprocs <= sched.npidle.Load()+int32(sched.nmspinning)+1 {
+	if i >= active_spin || ncpu <= 1 || gomaxprocs <= sched.npidle.Load()+sched.nmspinning.Load()+1 {
 		return false
 	}
 	if p := getg().m.p.ptr(); !runqempty(p) {

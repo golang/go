@@ -750,7 +750,7 @@ func (c *gcControllerState) enlistWorker() {
 	// If there are idle Ps, wake one so it will run an idle worker.
 	// NOTE: This is suspected of causing deadlocks. See golang.org/issue/19112.
 	//
-	//	if sched.npidle.Load() != 0 && atomic.Load(&sched.nmspinning) == 0 {
+	//	if sched.npidle.Load() != 0 && sched.nmspinning.Load() == 0 {
 	//		wakep()
 	//		return
 	//	}

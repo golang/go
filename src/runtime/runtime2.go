@@ -779,7 +779,7 @@ type schedt struct {
 
 	pidle      puintptr // idle p's
 	npidle     atomic.Int32
-	nmspinning uint32 // See "Worker thread parking/unparking" comment in proc.go.
+	nmspinning atomic.Int32 // See "Worker thread parking/unparking" comment in proc.go.
 
 	// Global runnable queue.
 	runq     gQueue
