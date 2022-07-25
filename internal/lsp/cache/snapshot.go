@@ -1337,6 +1337,10 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 }
 
 func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
+	if wsErr := s.workspace.criticalError(ctx, s); wsErr != nil {
+		return wsErr
+	}
+
 	loadErr := s.awaitLoadedAllErrors(ctx)
 	if loadErr != nil && errors.Is(loadErr.MainError, context.Canceled) {
 		return nil
@@ -1396,32 +1400,45 @@ func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) *source.CriticalErr
 	// Do not return results until the snapshot's view has been initialized.
 	s.AwaitInitialized(ctx)
 
-	// TODO(rstambler): Should we be more careful about returning the
+	// TODO(rfindley): Should we be more careful about returning the
 	// initialization error? Is it possible for the initialization error to be
 	// corrected without a successful reinitialization?
 	s.mu.Lock()
 	initializedErr := s.initializedErr
 	s.mu.Unlock()
+
 	if initializedErr != nil {
 		return initializedErr
 	}
 
+	// TODO(rfindley): revisit this handling. Calling reloadWorkspace with a
+	// cancelled context should have the same effect, so this preemptive handling
+	// should not be necessary.
+	//
+	// Also: GetCriticalError ignores context cancellation errors. Should we be
+	// returning nil here?
 	if ctx.Err() != nil {
 		return &source.CriticalError{MainError: ctx.Err()}
 	}
 
+	// TODO(rfindley): reloading is not idempotent: if we try to reload or load
+	// orphaned files below and fail, we won't try again. For that reason, we
+	// could get different results from subsequent calls to this function, which
+	// may cause critical errors to be suppressed.
+
 	if err := s.reloadWorkspace(ctx); err != nil {
 		diags := s.extractGoCommandErrors(ctx, err)
 		return &source.CriticalError{
-			MainError: err,
-			DiagList:  diags,
+			MainError:   err,
+			Diagnostics: diags,
 		}
 	}
+
 	if err := s.reloadOrphanedFiles(ctx); err != nil {
 		diags := s.extractGoCommandErrors(ctx, err)
 		return &source.CriticalError{
-			MainError: err,
-			DiagList:  diags,
+			MainError:   err,
+			Diagnostics: diags,
 		}
 	}
 	return nil
@@ -1607,7 +1624,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	defer done()
 
 	var vendorChanged bool
-	newWorkspace, workspaceChanged, workspaceReload := s.workspace.invalidate(ctx, changes, &unappliedChanges{
+	newWorkspace, workspaceChanged, workspaceReload := s.workspace.Clone(ctx, changes, &unappliedChanges{
 		originalSnapshot: s,
 		changes:          changes,
 	})
@@ -2235,7 +2252,7 @@ func (s *snapshot) BuildGoplsMod(ctx context.Context) (*modfile.File, error) {
 	return buildWorkspaceModFile(ctx, allModules, s)
 }
 
-// TODO(rfindley): move this to workspacemodule.go
+// TODO(rfindley): move this to workspace.go
 func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, fs source.FileSource) (*modfile.File, error) {
 	file := &modfile.File{}
 	file.AddModuleStmt("gopls-workspace")
@@ -2273,8 +2290,8 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 			goVersion = parsed.Go.Version
 		}
 		path := parsed.Module.Mod.Path
-		if _, ok := paths[path]; ok {
-			return nil, fmt.Errorf("found module %q twice in the workspace", path)
+		if seen, ok := paths[path]; ok {
+			return nil, fmt.Errorf("found module %q multiple times in the workspace, at:\n\t%q\n\t%q", path, seen, modURI)
 		}
 		paths[path] = modURI
 		// If the module's path includes a major version, we expect it to have

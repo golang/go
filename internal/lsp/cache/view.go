@@ -112,6 +112,9 @@ type workspaceInformation struct {
 	environmentVariables
 
 	// userGo111Module is the user's value of GO111MODULE.
+	//
+	// TODO(rfindley): is there really value in memoizing this variable? It seems
+	// simpler to make this a function/method.
 	userGo111Module go111module
 
 	// The value of GO111MODULE we want to run with.
@@ -703,18 +706,18 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 		event.Error(ctx, "initial workspace load failed", err)
 		extractedDiags := s.extractGoCommandErrors(ctx, err)
 		criticalErr = &source.CriticalError{
-			MainError: err,
-			DiagList:  append(modDiagnostics, extractedDiags...),
+			MainError:   err,
+			Diagnostics: append(modDiagnostics, extractedDiags...),
 		}
 	case len(modDiagnostics) == 1:
 		criticalErr = &source.CriticalError{
-			MainError: fmt.Errorf(modDiagnostics[0].Message),
-			DiagList:  modDiagnostics,
+			MainError:   fmt.Errorf(modDiagnostics[0].Message),
+			Diagnostics: modDiagnostics,
 		}
 	case len(modDiagnostics) > 1:
 		criticalErr = &source.CriticalError{
-			MainError: fmt.Errorf("error loading module names"),
-			DiagList:  modDiagnostics,
+			MainError:   fmt.Errorf("error loading module names"),
+			Diagnostics: modDiagnostics,
 		}
 	}
 
@@ -941,6 +944,12 @@ func (s *Session) getGoEnv(ctx context.Context, folder string, goversion int, go
 	for k := range vars {
 		args = append(args, k)
 	}
+	// TODO(rfindley): GOWORK is not a property of the session. It may change
+	// when a workfile is added or removed.
+	//
+	// We need to distinguish between GOWORK values that are set by the GOWORK
+	// environment variable, and GOWORK values that are computed based on the
+	// location of a go.work file in the directory hierarchy.
 	args = append(args, "GOWORK")
 
 	inv := gocommand.Invocation{

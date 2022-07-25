@@ -159,6 +159,9 @@ func UnpackTxt(txt string) map[string][]byte {
 	dataMap := make(map[string][]byte)
 	archive := txtar.Parse([]byte(txt))
 	for _, f := range archive.Files {
+		if _, ok := dataMap[f.Name]; ok {
+			panic(fmt.Sprintf("found file %q twice", f.Name))
+		}
 		dataMap[f.Name] = f.Data
 	}
 	return dataMap

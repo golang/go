@@ -290,10 +290,6 @@ func Hello() {}
 module b.com
 
 go 1.12
--- b.com@v1.2.4/b/b.go --
-package b
-
-func Hello() {}
 `
 	const multiModule = `
 -- go.mod --

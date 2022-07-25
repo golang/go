@@ -648,11 +648,15 @@ type Package interface {
 	ParseMode() ParseMode
 }
 
+// A CriticalError is a workspace-wide error that generally prevents gopls from
+// functioning correctly. In the presence of critical errors, other diagnostics
+// in the workspace may not make sense.
 type CriticalError struct {
 	// MainError is the primary error. Must be non-nil.
 	MainError error
-	// DiagList contains any supplemental (structured) diagnostics.
-	DiagList []*Diagnostic
+
+	// Diagnostics contains any supplemental (structured) diagnostics.
+	Diagnostics []*Diagnostic
 }
 
 // An Diagnostic corresponds to an LSP Diagnostic.

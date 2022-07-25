@@ -28,7 +28,7 @@ const (
 	legacyWorkspace     = iota // non-module or single module mode
 	goplsModWorkspace          // modules provided by a gopls.mod file
 	goWorkWorkspace            // modules provided by a go.work file
-	fileSystemWorkspace        // modules scanned from the filesystem
+	fileSystemWorkspace        // modules found by walking the filesystem
 )
 
 func (s workspaceSource) String() string {
@@ -95,7 +95,12 @@ type workspace struct {
 //
 // If there is no active workspace file (a gopls.mod or go.work), newWorkspace
 // scans the filesystem to find modules.
-func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, excludePath func(string) bool, go111moduleOff bool, useWsModule bool) (*workspace, error) {
+//
+// TODO(rfindley): newWorkspace should perhaps never fail, relying instead on
+// the criticalError method to surface problems in the workspace.
+// TODO(rfindley): this function should accept the GOWORK value, if specified
+// by the user.
+func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, excludePath func(string) bool, go111moduleOff, useWsModule bool) (*workspace, error) {
 	ws := &workspace{
 		root:        root,
 		excludePath: excludePath,
@@ -178,6 +183,28 @@ func (w *workspace) getActiveModFiles() map[span.URI]struct{} {
 	return w.activeModFiles
 }
 
+// criticalError returns a critical error related to the workspace setup.
+func (w *workspace) criticalError(ctx context.Context, fs source.FileSource) (res *source.CriticalError) {
+	// For now, we narrowly report errors related to `go.work` files.
+	//
+	// TODO(rfindley): investigate whether other workspace validation errors
+	// can be consolidated here.
+	if w.moduleSource == goWorkWorkspace {
+		// We should have already built the modfile, but build here to be
+		// consistent about accessing w.mod after w.build.
+		//
+		// TODO(rfindley): build eagerly. Building lazily is a premature
+		// optimization that poses a significant burden on the code.
+		w.build(ctx, fs)
+		if w.buildErr != nil {
+			return &source.CriticalError{
+				MainError: w.buildErr,
+			}
+		}
+	}
+	return nil
+}
+
 // modFile gets the workspace modfile associated with this workspace,
 // computing it if it doesn't exist.
 //
@@ -207,9 +234,10 @@ func (w *workspace) build(ctx context.Context, fs source.FileSource) {
 	// would not be obvious to the user how to recover.
 	ctx = xcontext.Detach(ctx)
 
-	// If our module source is not gopls.mod, try to build the workspace module
-	// from modules. Fall back on the pre-existing mod file if parsing fails.
-	if w.moduleSource != goplsModWorkspace {
+	// If the module source is from the filesystem, try to build the workspace
+	// module from active modules discovered by scanning the filesystem. Fall
+	// back on the pre-existing mod file if parsing fails.
+	if w.moduleSource == fileSystemWorkspace {
 		file, err := buildWorkspaceModFile(ctx, w.activeModFiles, fs)
 		switch {
 		case err == nil:
@@ -222,6 +250,7 @@ func (w *workspace) build(ctx context.Context, fs source.FileSource) {
 			w.buildErr = err
 		}
 	}
+
 	if w.mod != nil {
 		w.wsDirs = map[span.URI]struct{}{
 			w.root: {},
@@ -235,18 +264,21 @@ func (w *workspace) build(ctx context.Context, fs source.FileSource) {
 			w.wsDirs[span.URIFromPath(r.New.Path)] = struct{}{}
 		}
 	}
+
 	// Ensure that there is always at least the root dir.
 	if len(w.wsDirs) == 0 {
 		w.wsDirs = map[span.URI]struct{}{
 			w.root: {},
 		}
 	}
+
 	sum, err := buildWorkspaceSumFile(ctx, w.activeModFiles, fs)
 	if err == nil {
 		w.sum = sum
 	} else {
 		event.Error(ctx, "building workspace sum file", err)
 	}
+
 	w.built = true
 }
 
@@ -263,7 +295,7 @@ func (w *workspace) dirs(ctx context.Context, fs source.FileSource) []span.URI {
 	return dirs
 }
 
-// invalidate returns a (possibly) new workspace after invalidating the changed
+// Clone returns a (possibly) new workspace after invalidating the changed
 // files. If w is still valid in the presence of changedURIs, it returns itself
 // unmodified.
 //
@@ -271,7 +303,10 @@ func (w *workspace) dirs(ctx context.Context, fs source.FileSource) []span.URI {
 // Some workspace changes may affect workspace contents without requiring a
 // reload of metadata (for example, unsaved changes to a go.mod or go.sum
 // file).
-func (w *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileChange, fs source.FileSource) (_ *workspace, changed, reload bool) {
+//
+// TODO(rfindley): it looks wrong that we return 'reload' here. The caller
+// should determine whether to reload.
+func (w *workspace) Clone(ctx context.Context, changes map[span.URI]*fileChange, fs source.FileSource) (_ *workspace, changed, reload bool) {
 	// Prevent races to w.modFile or w.wsDirs below, if w has not yet been built.
 	w.buildMu.Lock()
 	defer w.buildMu.Unlock()
@@ -501,6 +536,10 @@ func parseGoWork(ctx context.Context, root, uri span.URI, contents []byte, fs so
 		modURI := span.URIFromPath(filepath.Join(dir.Path, "go.mod"))
 		modFiles[modURI] = struct{}{}
 	}
+
+	// TODO(rfindley): we should either not build the workspace modfile here, or
+	// not fail so hard. A failure in building the workspace modfile should not
+	// invalidate the active module paths extracted above.
 	modFile, err := buildWorkspaceModFile(ctx, modFiles, fs)
 	if err != nil {
 		return nil, nil, err

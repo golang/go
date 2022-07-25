@@ -543,7 +543,7 @@ func _() {
 
 // Expect a module/GOPATH error if there is an error in the file at startup.
 // Tests golang/go#37279.
-func TestShowCriticalError_Issue37279(t *testing.T) {
+func TestBrokenWorkspace_OutsideModule(t *testing.T) {
 	const noModule = `
 -- a.go --
 package foo

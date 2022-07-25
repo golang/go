@@ -61,7 +61,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 
 		if criticalErr := s.GetCriticalError(ctx); criticalErr != nil {
 			return &source.TidiedModule{
-				Diagnostics: criticalErr.DiagList,
+				Diagnostics: criticalErr.Diagnostics,
 			}, nil
 		}
 
@@ -70,7 +70,6 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 		}
 
 		handle := memoize.NewPromise("modTidy", func(ctx context.Context, arg interface{}) interface{} {
-
 			tidied, err := modTidyImpl(ctx, arg.(*snapshot), uri.Filename(), pm)
 			return modTidyResult{tidied, err}
 		})

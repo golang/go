@@ -308,7 +308,7 @@ func OutstandingWork(title, msg string) SimpleExpectation {
 	}
 	return SimpleExpectation{
 		check:       check,
-		description: fmt.Sprintf("outstanding work: %s", title),
+		description: fmt.Sprintf("outstanding work: %q containing %q", title, msg),
 	}
 }
 

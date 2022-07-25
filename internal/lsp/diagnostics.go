@@ -414,7 +414,7 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 	var errMsg string
 	if err != nil {
 		event.Error(ctx, "errors loading workspace", err.MainError, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
-		for _, d := range err.DiagList {
+		for _, d := range err.Diagnostics {
 			s.storeDiagnostics(snapshot, d.URI, modSource, []*source.Diagnostic{d})
 		}
 		errMsg = strings.ReplaceAll(err.MainError.Error(), "\n", " ")

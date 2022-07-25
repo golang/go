@@ -310,8 +310,8 @@ You can work with multiple modules by opening each one as a workspace folder.
 Improvements to this workflow will be coming soon, and you can learn more here:
 https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
 		return &source.CriticalError{
-			MainError: fmt.Errorf(msg),
-			DiagList:  s.applyCriticalErrorToFiles(ctx, msg, openFiles),
+			MainError:   fmt.Errorf(msg),
+			Diagnostics: s.applyCriticalErrorToFiles(ctx, msg, openFiles),
 		}
 	}
 
@@ -349,7 +349,7 @@ You can learn more here: https://github.com/golang/tools/blob/master/gopls/doc/w
 				MainError: fmt.Errorf(`You are working in a nested module.
 Please open it as a separate workspace folder. Learn more:
 https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`),
-				DiagList: srcDiags,
+				Diagnostics: srcDiags,
 			}
 		}
 	}
