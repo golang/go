@@ -847,7 +847,7 @@ func (db *DB) PingContext(ctx context.Context) error {
 	var dc *driverConn
 	var err error
 
-	db.retry(func(strategy connReuseStrategy) error {
+	err = db.retry(func(strategy connReuseStrategy) error {
 		dc, err = db.conn(ctx, strategy)
 		return err
 	})
@@ -1561,7 +1561,7 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var stmt *Stmt
 	var err error
 
-	db.retry(func(strategy connReuseStrategy) error {
+	err = db.retry(func(strategy connReuseStrategy) error {
 		stmt, err = db.prepare(ctx, query, strategy)
 		return err
 	})
@@ -1633,7 +1633,8 @@ func (db *DB) prepareDC(ctx context.Context, dc *driverConn, release func(error)
 func (db *DB) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
 	var res Result
 	var err error
-	db.retry(func(strategy connReuseStrategy) error {
+
+	err = db.retry(func(strategy connReuseStrategy) error {
 		res, err = db.exec(ctx, query, args, strategy)
 		return err
 	})
@@ -1703,7 +1704,7 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*Row
 	var rows *Rows
 	var err error
 
-	db.retry(func(strategy connReuseStrategy) error {
+	err = db.retry(func(strategy connReuseStrategy) error {
 		rows, err = db.query(ctx, query, args, strategy)
 		return err
 	})
@@ -1835,7 +1836,7 @@ func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 	var tx *Tx
 	var err error
 
-	db.retry(func(strategy connReuseStrategy) error {
+	err = db.retry(func(strategy connReuseStrategy) error {
 		tx, err = db.begin(ctx, opts, strategy)
 		return err
 	})
@@ -1911,7 +1912,7 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 	var dc *driverConn
 	var err error
 
-	db.retry(func(strategy connReuseStrategy) error {
+	err = db.retry(func(strategy connReuseStrategy) error {
 		dc, err = db.conn(ctx, strategy)
 		return err
 	})
