@@ -17,10 +17,9 @@ import (
 // A Reader implements convenience methods for reading requests
 // or responses from a text protocol network connection.
 type Reader struct {
-	R        *bufio.Reader
-	dot      *dotReader
-	buf      []byte // a re-usable buffer for readContinuedLineSlice
-	reachEnd bool
+	R   *bufio.Reader
+	dot *dotReader
+	buf []byte // a re-usable buffer for readContinuedLineSlice
 }
 
 // NewReader returns a new Reader reading from r.
@@ -158,7 +157,15 @@ func (r *Reader) readContinuedLineSlice(validateFirstLine func([]byte) error) ([
 	r.buf = append(r.buf[:0], trim(line)...)
 
 	// Read continuation lines.
-	for r.skipSpace() > 0 {
+	for {
+		n, err := r.skipSpace()
+		if n == 0 || err != nil {
+			// Return nil instead of EOF if have non-empty line to return
+			if err == io.EOF && len(r.buf) > 0 {
+				err = nil
+			}
+			return r.buf, err
+		}
 		line, err := r.readLineSlice()
 		if err != nil {
 			break
@@ -170,16 +177,13 @@ func (r *Reader) readContinuedLineSlice(validateFirstLine func([]byte) error) ([
 }
 
 // skipSpace skips R over all spaces and returns the number of bytes skipped.
-func (r *Reader) skipSpace() int {
+func (r *Reader) skipSpace() (int, error) {
 	n := 0
 	for {
 		c, err := r.R.ReadByte()
 		if err != nil {
-			// Bufio may not keep err until next read.
-			if err == io.EOF {
-				r.reachEnd = true
-			}
-			break
+			// Bufio will keep err until next read.
+			return n, err
 		}
 		if c != ' ' && c != '\t' {
 			r.R.UnreadByte()
@@ -187,7 +191,7 @@ func (r *Reader) skipSpace() int {
 		}
 		n++
 	}
-	return n
+	return n, nil
 }
 
 func (r *Reader) readCodeLine(expectCode int) (code int, continued bool, message string, err error) {
@@ -505,7 +509,7 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 		return m, ProtocolError("malformed MIME header initial line: " + string(line))
 	}
 
-	for !r.reachEnd {
+	for {
 		kv, err := r.readContinuedLineSlice(mustHaveFieldNameColon)
 		if len(kv) == 0 {
 			return m, err
@@ -545,8 +549,6 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 			return m, err
 		}
 	}
-
-	return m, io.EOF
 }
 
 // noValidation is a no-op validation func for readContinuedLineSlice

@@ -248,9 +248,10 @@ func (r *autoRewind) Read(p []byte) (int, error) {
 
 // Test method can be applied on rewind readers. Issue #53858
 func TestReadRewindReader(t *testing.T) {
+	// Sample MIMEHeader string ending with new line
 	msg1 := "From: Gopher <from@example.com>\r\n" +
 		"To: Another Gopher <to@example.com>\r\n" +
-		"Subject: Gophers at Gophercon\r\n"
+		"Subject: Gophers at Gophercon\r\n\r\n"
 
 	r := &autoRewind{
 		buf: msg1,
@@ -259,7 +260,7 @@ func TestReadRewindReader(t *testing.T) {
 	tp := NewReader(bufio.NewReader(r))
 	_, err := tp.ReadMIMEHeader()
 
-	if err != io.EOF {
+	if err != nil {
 		t.Fatal(err)
 	}
 }
