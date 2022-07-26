@@ -298,12 +298,13 @@ replace gopls.test => ../../gopls.test2`, false},
 						t.Fatal(err)
 					}
 				}
-				got, gotChanged, gotReload := w.Clone(ctx, changes, fs)
+				got, gotReinit := w.Clone(ctx, changes, fs)
+				gotChanged := got != w
 				if gotChanged != test.wantChanged {
 					t.Errorf("w.invalidate(): got changed %t, want %t", gotChanged, test.wantChanged)
 				}
-				if gotReload != test.wantReload {
-					t.Errorf("w.invalidate(): got reload %t, want %t", gotReload, test.wantReload)
+				if gotReinit != test.wantReload {
+					t.Errorf("w.invalidate(): got reload %t, want %t", gotReinit, test.wantReload)
 				}
 				checkState(ctx, t, fs, rel, got, test.finalState)
 			}

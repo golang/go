@@ -299,19 +299,19 @@ func (w *workspace) dirs(ctx context.Context, fs source.FileSource) []span.URI {
 // files. If w is still valid in the presence of changedURIs, it returns itself
 // unmodified.
 //
-// The returned changed and reload flags control the level of invalidation.
-// Some workspace changes may affect workspace contents without requiring a
-// reload of metadata (for example, unsaved changes to a go.mod or go.sum
-// file).
+// The returned needReinit flag indicates to the caller that the workspace
+// needs to be reinitialized (because a relevant go.mod or go.work file has
+// been changed).
 //
-// TODO(rfindley): it looks wrong that we return 'reload' here. The caller
-// should determine whether to reload.
-func (w *workspace) Clone(ctx context.Context, changes map[span.URI]*fileChange, fs source.FileSource) (_ *workspace, changed, reload bool) {
+// TODO(rfindley): it looks wrong that we return 'needReinit' here. The caller
+// should determine whether to re-initialize..
+func (w *workspace) Clone(ctx context.Context, changes map[span.URI]*fileChange, fs source.FileSource) (_ *workspace, needReinit bool) {
 	// Prevent races to w.modFile or w.wsDirs below, if w has not yet been built.
 	w.buildMu.Lock()
 	defer w.buildMu.Unlock()
 
 	// Clone the workspace. This may be discarded if nothing changed.
+	changed := false
 	result := &workspace{
 		root:           w.root,
 		moduleSource:   w.moduleSource,
@@ -335,7 +335,7 @@ func (w *workspace) Clone(ctx context.Context, changes map[span.URI]*fileChange,
 	// determine which modules we care about. If go.work/gopls.mod has changed
 	// we need to either re-read it if it exists or walk the filesystem if it
 	// has been deleted. go.work should override the gopls.mod if both exist.
-	changed, reload = handleWorkspaceFileChanges(ctx, result, changes, fs)
+	changed, needReinit = handleWorkspaceFileChanges(ctx, result, changes, fs)
 	// Next, handle go.mod changes that could affect our workspace.
 	for uri, change := range changes {
 		// Otherwise, we only care about go.mod files in the workspace directory.
@@ -344,7 +344,7 @@ func (w *workspace) Clone(ctx context.Context, changes map[span.URI]*fileChange,
 		}
 		changed = true
 		active := result.moduleSource != legacyWorkspace || source.CompareURI(modURI(w.root), uri) == 0
-		reload = reload || (active && change.fileHandle.Saved())
+		needReinit = needReinit || (active && change.fileHandle.Saved())
 		// Don't mess with the list of mod files if using go.work or gopls.mod.
 		if result.moduleSource == goplsModWorkspace || result.moduleSource == goWorkWorkspace {
 			continue
@@ -374,14 +374,14 @@ func (w *workspace) Clone(ctx context.Context, changes map[span.URI]*fileChange,
 		// Only changes to active go.sum files actually cause the workspace to
 		// change.
 		changed = true
-		reload = reload || change.fileHandle.Saved()
+		needReinit = needReinit || change.fileHandle.Saved()
 	}
 
 	if !changed {
-		return w, false, false
+		return w, false
 	}
 
-	return result, changed, reload
+	return result, needReinit
 }
 
 // handleWorkspaceFileChanges handles changes related to a go.work or gopls.mod
@@ -416,6 +416,11 @@ func handleWorkspaceFileChanges(ctx context.Context, ws *workspace, changes map[
 				// An unparseable file should not invalidate the workspace:
 				// nothing good could come from changing the workspace in
 				// this case.
+				//
+				// TODO(rfindley): well actually, it could potentially lead to a better
+				// critical error. Evaluate whether we can unify this case with the
+				// error returned by newWorkspace, without needlessly invalidating
+				// metadata.
 				event.Error(ctx, fmt.Sprintf("parsing %s", filepath.Base(uri.Filename())), err)
 			} else {
 				// only update the modfile if it parsed.
