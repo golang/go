@@ -154,17 +154,24 @@ func parameterNames(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _
 		if i > params.Len()-1 {
 			break
 		}
-		value := params.At(i).Name()
+		param := params.At(i)
 		// param.Name is empty for built-ins like append
-		if value == "" {
+		if param.Name() == "" {
 			continue
 		}
+		// Skip the parameter name hint if the arg matches the
+		// the parameter name.
+		if i, ok := v.(*ast.Ident); ok && i.Name == param.Name() {
+			continue
+		}
+
+		label := param.Name()
 		if signature.Variadic() && i == params.Len()-1 {
-			value = value + "..."
+			label = label + "..."
 		}
 		hints = append(hints, protocol.InlayHint{
 			Position:     &start,
-			Label:        buildLabel(value + ":"),
+			Label:        buildLabel(label + ":"),
 			Kind:         protocol.Parameter,
 			PaddingRight: true,
 		})

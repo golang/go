@@ -42,4 +42,9 @@ func foobar() {
 	kipp("a", "b", "c")
 	plex("a", "b", "c")
 	tars("a", "b", "c")
+	foo, bar, baz := "a", "b", "c"
+	kipp(foo, bar, baz)
+	plex("a", bar, baz)
+	tars(foo+foo, (bar), "c")
+
 }

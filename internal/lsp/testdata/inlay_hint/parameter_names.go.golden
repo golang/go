@@ -43,5 +43,10 @@ func foobar() {
 	kipp(<foo: >"a", <bar: >"b", <baz: >"c")
 	plex(<foo: >"a", <bar: >"b", <baz: >"c")
 	tars(<foo: >"a", <bar: >"b", <baz: >"c")
+	foo< string>, bar< string>, baz< string> := "a", "b", "c"
+	kipp(foo, bar, baz)
+	plex(<foo: >"a", bar, baz)
+	tars(<foo: >foo+foo, <bar: >(bar), <baz: >"c")
+
 }
 
