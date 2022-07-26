@@ -2227,7 +2227,12 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 
 	pri, ok := bodyReader[fn]
 	if !ok {
-		base.FatalfAt(call.Pos(), "missing function body for call to %v", fn)
+		// TODO(mdempsky): Reconsider this diagnostic's wording, if it's
+		// to be included in Go 1.20.
+		if base.Flag.LowerM != 0 {
+			base.WarnfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
+		}
+		return nil
 	}
 
 	if fn.Inl.Body == nil {

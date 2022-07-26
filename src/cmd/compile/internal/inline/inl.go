@@ -685,9 +685,8 @@ var inlgen int
 var SSADumpInline = func(*ir.Func) {}
 
 // NewInline allows the inliner implementation to be overridden.
-// If it returns nil, the legacy inliner will handle this call
-// instead.
-var NewInline = func(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr { return nil }
+// If it returns nil, the function will not be inlined.
+var NewInline = oldInline
 
 // If n is a OCALLFUNC node, and fn is an ONAME node for a
 // function with an inlinable body, return an OINLCALL node that can replace n.
@@ -807,7 +806,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 
 	res := NewInline(n, fn, inlIndex)
 	if res == nil {
-		res = oldInline(n, fn, inlIndex)
+		return n
 	}
 
 	// transitive inlining
