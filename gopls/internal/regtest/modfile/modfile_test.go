@@ -576,7 +576,9 @@ func TestUnknownRevision(t *testing.T) {
 		t.Skipf("skipping test that fails for unknown reasons on plan9; see https://go.dev/issue/50477")
 	}
 
-	testenv.NeedsGo1Point(t, 14)
+	// This test fails at go1.14 and go1.15 due to differing Go command behavior.
+	// This was not significantly investigated.
+	testenv.NeedsGo1Point(t, 16)
 
 	const unknown = `
 -- a/go.mod --

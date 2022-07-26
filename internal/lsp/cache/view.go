@@ -700,7 +700,7 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 	if len(scopes) > 0 {
 		scopes = append(scopes, PackagePath("builtin"))
 	}
-	err := s.load(ctx, firstAttempt, scopes...)
+	err := s.load(ctx, true, scopes...)
 
 	// If the context is canceled on the first attempt, loading has failed
 	// because the go command has timed out--that should be a critical error.

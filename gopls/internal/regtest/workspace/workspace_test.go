@@ -576,21 +576,16 @@ require (
 replace a.com => %s/moda/a
 replace b.com => %s/modb
 `, workdir, workdir))
-		env.Await(env.DoneWithChangeWatchedFiles())
-		// Check that go.mod diagnostics picked up the newly active mod file.
-		// The local version of modb has an extra dependency we need to download.
-		env.OpenFile("modb/go.mod")
-		env.Await(env.DoneWithOpen())
 
-		var d protocol.PublishDiagnosticsParams
+		// As of golang/go#54069, writing a gopls.mod to the workspace triggers a
+		// workspace reload.
 		env.Await(
 			OnceMet(
-				env.DiagnosticAtRegexpWithMessage("modb/go.mod", `require example.com v1.2.3`, "has not been downloaded"),
-				ReadDiagnostics("modb/go.mod", &d),
+				env.DoneWithChangeWatchedFiles(),
+				env.DiagnosticAtRegexp("modb/b/b.go", "x"),
 			),
 		)
-		env.ApplyQuickFixes("modb/go.mod", d.Diagnostics)
-		env.Await(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
+
 		// Jumping to definition should now go to b.com in the workspace.
 		if err := checkHelloLocation("modb/b/b.go"); err != nil {
 			t.Fatal(err)
@@ -717,21 +712,15 @@ use (
 	./modb
 )
 `)
-		env.Await(env.DoneWithChangeWatchedFiles())
-		// Check that go.mod diagnostics picked up the newly active mod file.
-		// The local version of modb has an extra dependency we need to download.
-		env.OpenFile("modb/go.mod")
-		env.Await(env.DoneWithOpen())
 
-		var d protocol.PublishDiagnosticsParams
+		// As of golang/go#54069, writing go.work to the workspace triggers a
+		// workspace reload.
 		env.Await(
 			OnceMet(
-				env.DiagnosticAtRegexpWithMessage("modb/go.mod", `require example.com v1.2.3`, "has not been downloaded"),
-				ReadDiagnostics("modb/go.mod", &d),
+				env.DoneWithChangeWatchedFiles(),
+				env.DiagnosticAtRegexp("modb/b/b.go", "x"),
 			),
 		)
-		env.ApplyQuickFixes("modb/go.mod", d.Diagnostics)
-		env.Await(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
 
 		// Jumping to definition should now go to b.com in the workspace.
 		if err := checkHelloLocation("modb/b/b.go"); err != nil {

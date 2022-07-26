@@ -5,6 +5,7 @@
 package workspace
 
 import (
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp"
@@ -96,25 +97,21 @@ const CompleteMe = 222
 			OutstandingWork(lsp.WorkspaceLoadFailure, `found module "example.com/foo" multiple times in the workspace`),
 		)
 
-		/* TODO(golang/go#54069): once we allow network when reinitializing the
-				* workspace, we should be able to fix the error here.
-
-				// Remove the redundant vendored copy of example.com.
-				env.WriteWorkspaceFile("go.work", `go 1.18
+		// Remove the redundant vendored copy of example.com.
+		env.WriteWorkspaceFile("go.work", `go 1.18
 		use (
 			./package1
 			./package2
 			./package2/vendor/example.com/foo
 		)
 		`)
-				env.Await(NoOutstandingWork())
+		env.Await(NoOutstandingWork())
 
-				// Check that definitions in package1 go to the copy vendored in package2.
-				location, _ := env.GoToDefinition("package1/main.go", env.RegexpSearch("package1/main.go", "CompleteMe"))
-				const wantLocation = "package2/vendor/example.com/foo/foo.go"
-				if !strings.HasSuffix(location, wantLocation) {
-					t.Errorf("got definition of CompleteMe at %q, want %q", location, wantLocation)
-				}
-		*/
+		// Check that definitions in package1 go to the copy vendored in package2.
+		location, _ := env.GoToDefinition("package1/main.go", env.RegexpSearch("package1/main.go", "CompleteMe"))
+		const wantLocation = "package2/vendor/example.com/foo/foo.go"
+		if !strings.HasSuffix(location, wantLocation) {
+			t.Errorf("got definition of CompleteMe at %q, want %q", location, wantLocation)
+		}
 	})
 }
