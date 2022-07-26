@@ -27,7 +27,7 @@
 )
 
 /*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/A /*⇒6,keyword,[]*/struct {
-	/*⇒1,variable,[definition]*/X /*⇒3,type,[defaultLibrary]*/int /*⇒6,comment,[]*/`foof`
+	/*⇒1,variable,[definition]*/X /*⇒3,type,[defaultLibrary]*/int /*⇒6,string,[]*/`foof`
 }
 /*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/B /*⇒9,keyword,[]*/interface {
 	/*⇒1,type,[]*/A

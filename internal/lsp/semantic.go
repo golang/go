@@ -299,11 +299,6 @@ func (e *encoded) inspector(n ast.Node) bool {
 		what := tokNumber
 		if x.Kind == token.STRING {
 			what = tokString
-			if _, ok := e.stack[len(e.stack)-2].(*ast.Field); ok {
-				// struct tags (this is probably pointless, as the
-				// TextMate grammar will treat all the other comments the same)
-				what = tokComment
-			}
 		}
 		e.token(x.Pos(), ln, what, nil)
 	case *ast.BinaryExpr:
