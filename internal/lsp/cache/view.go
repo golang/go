@@ -656,9 +656,14 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 		}
 	}()
 
-	// If we have multiple modules, we need to load them by paths.
-	var scopes []interface{}
-	var modDiagnostics []*source.Diagnostic
+	// TODO(rFindley): we should only locate template files on the first attempt,
+	// or guard it via a different mechanism.
+	s.locateTemplateFiles(ctx)
+
+	// Collect module paths to load by parsing go.mod files. If a module fails to
+	// parse, capture the parsing failure as a critical diagnostic.
+	var scopes []interface{}                // scopes to load
+	var modDiagnostics []*source.Diagnostic // diagnostics for broken go.mod files
 	addError := func(uri span.URI, err error) {
 		modDiagnostics = append(modDiagnostics, &source.Diagnostic{
 			URI:      uri,
@@ -668,20 +673,22 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 		})
 	}
 
-	// TODO(rFindley): we should only locate template files on the first attempt,
-	// or guard it via a different mechanism.
-	s.locateTemplateFiles(ctx)
-
 	if len(s.workspace.getActiveModFiles()) > 0 {
 		for modURI := range s.workspace.getActiveModFiles() {
+			// Be careful not to add context cancellation errors as critical module
+			// errors.
 			fh, err := s.GetFile(ctx, modURI)
 			if err != nil {
-				addError(modURI, err)
+				if ctx.Err() == nil {
+					addError(modURI, err)
+				}
 				continue
 			}
 			parsed, err := s.ParseMod(ctx, fh)
 			if err != nil {
-				addError(modURI, err)
+				if ctx.Err() == nil {
+					addError(modURI, err)
+				}
 				continue
 			}
 			if parsed.File == nil || parsed.File.Module == nil {
