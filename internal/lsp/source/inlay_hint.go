@@ -44,63 +44,38 @@ const (
 var AllInlayHints = map[string]*Hint{
 	AssignVariableTypes: {
 		Name: AssignVariableTypes,
-		Doc: `Enable/disable inlay hints for variable types in assign statements:
-
-	i/* int/*, j/* int/* := 0, len(r)-1`,
-		Run: assignVariableTypes,
+		Doc:  "Enable/disable inlay hints for variable types in assign statements:\n```go\n\ti/* int*/, j/* int*/ := 0, len(r)-1\n```",
+		Run:  assignVariableTypes,
 	},
 	ParameterNames: {
 		Name: ParameterNames,
-		Doc: `Enable/disable inlay hints for parameter names:
-
-	parseInt(/* str: */ "123", /* radix: */ 8)`,
-		Run: parameterNames,
+		Doc:  "Enable/disable inlay hints for parameter names:\n```go\n\tparseInt(/* str: */ \"123\", /* radix: */ 8)\n```",
+		Run:  parameterNames,
 	},
 	ConstantValues: {
 		Name: ConstantValues,
-		Doc: `Enable/disable inlay hints for constant values:
-
-	const (
-		KindNone   Kind = iota/* = 0*/
-		KindPrint/*  = 1*/
-		KindPrintf/* = 2*/
-		KindErrorf/* = 3*/
-	)`,
-		Run: constantValues,
+		Doc:  "Enable/disable inlay hints for constant values:\n```go\n\tconst (\n\t\tKindNone   Kind = iota/* = 0*/\n\t\tKindPrint/*  = 1*/\n\t\tKindPrintf/* = 2*/\n\t\tKindErrorf/* = 3*/\n\t)\n```",
+		Run:  constantValues,
 	},
 	RangeVariableTypes: {
 		Name: RangeVariableTypes,
-		Doc: `Enable/disable inlay hints for variable types in range statements:
-
-	for k/* int*/, v/* string/* := range []string{} {
-		fmt.Println(k, v)
-	}`,
-		Run: rangeVariableTypes,
+		Doc:  "Enable/disable inlay hints for variable types in range statements:\n```go\n\tfor k/* int*/, v/* string*/ := range []string{} {\n\t\tfmt.Println(k, v)\n\t}\n```",
+		Run:  rangeVariableTypes,
 	},
 	CompositeLiteralTypes: {
 		Name: CompositeLiteralTypes,
-		Doc: `Enable/disable inlay hints for composite literal types:
-
-	for _, c := range []struct {
-		in, want string
-	}{
-		/*struct{ in string; want string }*/{"Hello, world", "dlrow ,olleH"},
-	}`,
-		Run: compositeLiteralTypes,
+		Doc:  "Enable/disable inlay hints for composite literal types:\n```go\n\tfor _, c := range []struct {\n\t\tin, want string\n\t}{\n\t\t/*struct{ in string; want string }*/{\"Hello, world\", \"dlrow ,olleH\"},\n\t}\n```",
+		Run:  compositeLiteralTypes,
 	},
 	CompositeLiteralFieldNames: {
 		Name: CompositeLiteralFieldNames,
-		Doc: `Enable/disable inlay hints for composite literal field names:
-
-	{in: "Hello, world", want: "dlrow ,olleH"}`,
-		Run: compositeLiteralFields,
+		Doc:  "Enable/disable inlay hints for composite literal field names:\n```go\n\t{/*in: */\"Hello, world\", /*want: */\"dlrow ,olleH\"}\n```",
+		Run:  compositeLiteralFields,
 	},
 	FunctionTypeParameters: {
 		Name: FunctionTypeParameters,
-		Doc: `Enable/disable inlay hints for implicit type parameters on generic functions:
-
-	myFoo/*[int, string]*/(1, "hello")`,
-		Run: funcTypeParams,
+		Doc:  "Enable/disable inlay hints for implicit type parameters on generic functions:\n```go\n\tmyFoo/*[int, string]*/(1, \"hello\")\n```",
+		Run:  funcTypeParams,
 	},
 }
 
