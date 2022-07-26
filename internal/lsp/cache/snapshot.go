@@ -1695,8 +1695,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 	// Compute invalidations based on file changes.
 	changedPkgFiles := map[PackageID]bool{} // packages whose file set may have changed
-	anyImportDeleted := false
-	anyFileOpenedOrClosed := false
+	anyImportDeleted := false               // import deletions can resolve cycles
+	anyFileOpenedOrClosed := false          // opened files affect workspace packages
+	anyFileAdded := false                   // adding a file can resolve missing dependencies
+
 	for uri, change := range changes {
 		// Maybe reinitialize the view if we see a change in the vendor
 		// directory.
@@ -1709,7 +1711,8 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		var originalOpen, newOpen bool
 		_, originalOpen = originalFH.(*overlay)
 		_, newOpen = change.fileHandle.(*overlay)
-		anyFileOpenedOrClosed = originalOpen != newOpen
+		anyFileOpenedOrClosed = anyFileOpenedOrClosed || (originalOpen != newOpen)
+		anyFileAdded = anyFileAdded || (originalFH == nil && change.fileHandle != nil)
 
 		// If uri is a Go file, check if it has changed in a way that would
 		// invalidate metadata. Note that we can't use s.view.FileKind here,
@@ -1774,6 +1777,19 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	if anyImportDeleted {
 		for id, metadata := range s.meta.metadata {
 			if len(metadata.Errors) > 0 {
+				directIDs[id] = true
+			}
+		}
+	}
+
+	// Adding a file can resolve missing dependencies from existing packages.
+	//
+	// We could be smart here and try to guess which packages may have been
+	// fixed, but until that proves necessary, just invalidate metadata for any
+	// package with missing dependencies.
+	if anyFileAdded {
+		for id, metadata := range s.meta.metadata {
+			if len(metadata.MissingDeps) > 0 {
 				directIDs[id] = true
 			}
 		}

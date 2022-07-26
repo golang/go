@@ -199,14 +199,12 @@ func _() {
 }
 `
 	Run(t, missing, func(t *testing.T, env *Env) {
-		t.Skip("the initial workspace load fails and never retries")
-
 		env.Await(
 			env.DiagnosticAtRegexp("a/a.go", "\"mod.com/c\""),
 		)
 		env.WriteWorkspaceFile("c/c.go", `package c; func C() {};`)
 		env.Await(
-			EmptyDiagnostics("c/c.go"),
+			EmptyDiagnostics("a/a.go"),
 		)
 	})
 }
