@@ -89,14 +89,16 @@ if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
 set GOROOT=%GOROOT_TEMP%
 set GOROOT_TEMP=
 
-echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%
-if x%vflag==x-v echo cmd/dist
 setlocal
-set GOROOT=%GOROOT_BOOTSTRAP%
 set GOOS=
 set GOARCH=
-set GOBIN=
 set GOEXPERIMENT=
+for /f "tokens=*" %%g IN ('%GOROOT_BOOTSTRAP%\bin\go version') do (set GOROOT_BOOTSTRAP_VERSION=%%g)
+set GOROOT_BOOTSTRAP_VERSION=%GOROOT_BOOTSTRAP_VERSION:go version =%
+echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%. (%GOROOT_BOOTSTRAP_VERSION%)
+if x%vflag==x-v echo cmd/dist
+set GOROOT=%GOROOT_BOOTSTRAP%
+set GOBIN=
 set GO111MODULE=off
 set GOENV=off
 set GOFLAGS=

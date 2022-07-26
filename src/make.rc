@@ -81,7 +81,11 @@ if(~ $GOROOT_BOOTSTRAP $GOROOT){
 	exit bootstrap
 }
 
-echo 'Building Go cmd/dist using '^$GOROOT_BOOTSTRAP
+# Get the exact bootstrap toolchain version to help with debugging.
+# We clear GOOS and GOARCH to avoid an ominous but harmless warning if
+# the bootstrap doesn't support them.
+GOROOT_BOOTSTRAP_VERSION=`{GOOS='' GOARCH='' GOEXPERIMENT='' $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //'}
+echo 'Building Go cmd/dist using '$GOROOT_BOOTSTRAP'. ('$"GOROOT_BOOTSTRAP_VERSION')'
 if(~ $#vflag 1)
 	echo cmd/dist
 GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' GOEXPERIMENT='' GO111MODULE=off GOENV=off GOFLAGS='' $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
