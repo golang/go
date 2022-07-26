@@ -170,7 +170,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		mode |= load.GetTestDeps
 	}
 	for _, pkg := range downloadPaths(args) {
-		download(pkg, nil, &stk, mode)
+		download(ctx, pkg, nil, &stk, mode)
 	}
 	base.ExitIfErrors()
 
@@ -250,7 +250,7 @@ var downloadRootCache = map[string]bool{}
 
 // download runs the download half of the get command
 // for the package or pattern named by the argument.
-func download(arg string, parent *load.Package, stk *load.ImportStack, mode int) {
+func download(ctx context.Context, arg string, parent *load.Package, stk *load.ImportStack, mode int) {
 	if mode&load.ResolveImport != 0 {
 		// Caller is responsible for expanding vendor paths.
 		panic("internal error: download mode has useVendor set")
@@ -258,9 +258,9 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	load1 := func(path string, mode int) *load.Package {
 		if parent == nil {
 			mode := 0 // don't do module or vendor resolution
-			return load.LoadImport(context.TODO(), load.PackageOpts{}, path, base.Cwd(), nil, stk, nil, mode)
+			return load.LoadImport(ctx, load.PackageOpts{}, path, base.Cwd(), nil, stk, nil, mode)
 		}
-		return load.LoadImport(context.TODO(), load.PackageOpts{}, path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
+		return load.LoadImport(ctx, load.PackageOpts{}, path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
 	}
 
 	p := load1(arg, mode)
@@ -403,7 +403,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 			if i >= len(p.Imports) {
 				path = load.ResolveImportPath(p, path)
 			}
-			download(path, p, stk, 0)
+			download(ctx, path, p, stk, 0)
 		}
 
 		if isWildcard {
