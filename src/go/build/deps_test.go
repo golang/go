@@ -177,7 +177,11 @@ var depsRules = `
 
 	os/signal, STR
 	< path/filepath
-	< io/ioutil, os/exec;
+	< io/ioutil;
+
+	os < internal/godebug;
+
+	path/filepath, internal/godebug < os/exec;
 
 	io/ioutil, os/exec, os/signal
 	< OS;
@@ -186,8 +190,6 @@ var depsRules = `
 
 	OS
 	< golang.org/x/sys/cpu;
-
-	os < internal/godebug;
 
 	# FMT is OS (which includes string routines) plus reflect and fmt.
 	# It does not include package log, which should be avoided in core packages.
