@@ -178,7 +178,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		if n > 1e6 {
 			return nil, false // avoid excessively large exponents
 		}
-		pow5 := z.b.abs.expNN(natFive, nat(nil).setWord(Word(n)), nil) // use underlying array of z.b.abs
+		pow5 := z.b.abs.expNN(natFive, nat(nil).setWord(Word(n)), nil, false) // use underlying array of z.b.abs
 		if exp5 > 0 {
 			z.a.abs = z.a.abs.mul(z.a.abs, pow5)
 			z.b.abs = z.b.abs.setWord(1)
@@ -346,7 +346,7 @@ func (x *Rat) FloatString(prec int) string {
 
 	p := natOne
 	if prec > 0 {
-		p = nat(nil).expNN(natTen, nat(nil).setUint64(uint64(prec)), nil)
+		p = nat(nil).expNN(natTen, nat(nil).setUint64(uint64(prec)), nil, false)
 	}
 
 	r = r.mul(r, p)

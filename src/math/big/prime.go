@@ -103,7 +103,7 @@ NextRandom:
 			x = x.random(rand, nm3, nm3Len)
 			x = x.add(x, natTwo)
 		}
-		y = y.expNN(x, q, n)
+		y = y.expNN(x, q, n, false)
 		if y.cmp(natOne) == 0 || y.cmp(nm1) == 0 {
 			continue
 		}
