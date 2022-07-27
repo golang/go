@@ -38,8 +38,9 @@ import (
 type linker struct {
 	pw pkgbits.PkgEncoder
 
-	pkgs  map[string]pkgbits.Index
-	decls map[*types.Sym]pkgbits.Index
+	pkgs   map[string]pkgbits.Index
+	decls  map[*types.Sym]pkgbits.Index
+	bodies map[*types.Sym]pkgbits.Index
 }
 
 // relocAll ensures that all elements specified by pr and relocs are
@@ -170,21 +171,12 @@ func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 	l.relocCommon(pr, &wname, pkgbits.RelocName, idx)
 	l.relocCommon(pr, &wdict, pkgbits.RelocObjDict, idx)
 
-	var obj *ir.Name
-	if sym.Pkg == types.LocalPkg {
-		var ok bool
-		obj, ok = sym.Def.(*ir.Name)
+	// Generic types and functions won't have definitions, and imported
+	// objects may not either.
+	obj, _ := sym.Def.(*ir.Name)
+	local := sym.Pkg == types.LocalPkg
 
-		// Generic types and functions and declared constraint types won't
-		// have definitions.
-		// For now, just generically copy their extension data.
-		// TODO(mdempsky): Restore assertion.
-		if !ok && false {
-			base.Fatalf("missing definition for %v", sym)
-		}
-	}
-
-	if obj != nil {
+	if local && obj != nil {
 		wext.Sync(pkgbits.SyncObject1)
 		switch tag {
 		case pkgbits.ObjFunc:
@@ -199,7 +191,62 @@ func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 		l.relocCommon(pr, &wext, pkgbits.RelocObjExt, idx)
 	}
 
+	// Check if we need to export the inline bodies for functions and
+	// methods.
+	if obj != nil {
+		if obj.Op() == ir.ONAME && obj.Class == ir.PFUNC {
+			l.exportBody(obj, local)
+		}
+
+		if obj.Op() == ir.OTYPE {
+			if typ := obj.Type(); !typ.IsInterface() {
+				for _, method := range typ.Methods().Slice() {
+					l.exportBody(method.Nname.(*ir.Name), local)
+				}
+			}
+		}
+	}
+
 	return w.Idx
+}
+
+// exportBody exports the given function or method's body, if
+// appropriate. local indicates whether it's a local function or
+// method available on a locally declared type. (Due to cross-package
+// type aliases, a method may be imported, but still available on a
+// locally declared type.)
+func (l *linker) exportBody(obj *ir.Name, local bool) {
+	assert(obj.Op() == ir.ONAME && obj.Class == ir.PFUNC)
+
+	fn := obj.Func
+	if fn.Inl == nil {
+		return // not inlinable anyway
+	}
+
+	// As a simple heuristic, if the function was declared in this
+	// package or we inlined it somewhere in this package, then we'll
+	// (re)export the function body. This isn't perfect, but seems
+	// reasonable in practice. In particular, it has the nice property
+	// that in the worst case, adding a blank import ensures the
+	// function body is available for inlining.
+	//
+	// TODO(mdempsky): Reimplement the reachable method crawling logic
+	// from typecheck/crawler.go.
+	exportBody := local || fn.Inl.Body != nil
+	if !exportBody {
+		return
+	}
+
+	sym := obj.Sym()
+	if _, ok := l.bodies[sym]; ok {
+		// Due to type aliases, we might visit methods multiple times.
+		base.AssertfAt(obj.Type().Recv() != nil, obj.Pos(), "expected method: %v", obj)
+		return
+	}
+
+	pri, ok := bodyReaderFor(fn)
+	assert(ok)
+	l.bodies[sym] = l.relocIdx(pri.pr, pkgbits.RelocBody, pri.idx)
 }
 
 // relocCommon copies the specified element from pr into w,
@@ -240,10 +287,6 @@ func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
 	if inl := name.Func.Inl; w.Bool(inl != nil) {
 		w.Len(int(inl.Cost))
 		w.Bool(inl.CanDelayResults)
-
-		pri, ok := bodyReader[name.Func]
-		assert(ok)
-		w.Reloc(pkgbits.RelocBody, l.relocIdx(pri.pr, pkgbits.RelocBody, pri.idx))
 	}
 
 	w.Sync(pkgbits.SyncEOF)

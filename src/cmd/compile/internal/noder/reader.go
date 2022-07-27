@@ -897,6 +897,8 @@ func (r *reader) funcExt(name *ir.Name) {
 	typecheck.Func(fn)
 
 	if r.Bool() {
+		assert(name.Defn == nil)
+
 		fn.ABI = obj.ABI(r.Uint64())
 
 		// Escape analysis.
@@ -911,7 +913,6 @@ func (r *reader) funcExt(name *ir.Name) {
 				Cost:            int32(r.Len()),
 				CanDelayResults: r.Bool(),
 			}
-			r.addBody(name.Func)
 		}
 	} else {
 		r.addBody(name.Func)
@@ -967,9 +968,25 @@ func (r *reader) pragmaFlag() ir.PragmaFlag {
 
 // @@@ Function bodies
 
-// bodyReader tracks where the serialized IR for a function's body can
-// be found.
+// bodyReader tracks where the serialized IR for a local or imported,
+// generic function's body can be found.
 var bodyReader = map[*ir.Func]pkgReaderIndex{}
+
+// importBodyReader tracks where the serialized IR for an imported,
+// static (i.e., non-generic) function body can be read.
+var importBodyReader = map[*types.Sym]pkgReaderIndex{}
+
+// bodyReaderFor returns the pkgReaderIndex for reading fn's
+// serialized IR, and whether one was found.
+func bodyReaderFor(fn *ir.Func) (pri pkgReaderIndex, ok bool) {
+	if fn.Nname.Defn != nil {
+		pri, ok = bodyReader[fn]
+		assert(ok) // must always be available
+	} else {
+		pri, ok = importBodyReader[fn.Sym()]
+	}
+	return
+}
 
 // todoBodies holds the list of function bodies that still need to be
 // constructed.
@@ -978,14 +995,12 @@ var todoBodies []*ir.Func
 // addBody reads a function body reference from the element bitstream,
 // and associates it with fn.
 func (r *reader) addBody(fn *ir.Func) {
+	// addBody should only be called for local functions or imported
+	// generic functions; see comment in funcExt.
+	assert(fn.Nname.Defn != nil)
+
 	pri := pkgReaderIndex{r.p, r.Reloc(pkgbits.RelocBody), r.dict}
 	bodyReader[fn] = pri
-
-	if fn.Nname.Defn == nil {
-		// Don't read in function body for imported functions.
-		// See comment in funcExt.
-		return
-	}
 
 	if r.curfn == nil {
 		todoBodies = append(todoBodies, fn)
@@ -2225,7 +2240,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 	// TODO(mdempsky): Turn callerfn into an explicit parameter.
 	callerfn := ir.CurFunc
 
-	pri, ok := bodyReader[fn]
+	pri, ok := bodyReaderFor(fn)
 	if !ok {
 		// TODO(mdempsky): Reconsider this diagnostic's wording, if it's
 		// to be included in Go 1.20.

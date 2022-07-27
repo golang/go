@@ -241,7 +241,7 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
 		pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
 
 		// Read package descriptors for both types2 and compiler backend.
-		readPackage(newPkgReader(pr), pkg1)
+		readPackage(newPkgReader(pr), pkg1, false)
 		pkg2 = importer.ReadPackage(env, packages, pr)
 
 	case 'i':

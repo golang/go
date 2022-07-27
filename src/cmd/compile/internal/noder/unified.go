@@ -85,7 +85,7 @@ func unified(noders []*noder) {
 	typecheck.TypecheckAllowed = true
 
 	localPkgReader = newPkgReader(pkgbits.NewPkgDecoder(types.LocalPkg.Path, data))
-	readPackage(localPkgReader, types.LocalPkg)
+	readPackage(localPkgReader, types.LocalPkg, true)
 
 	r := localPkgReader.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 	r.pkgInit(types.LocalPkg, target)
@@ -226,29 +226,54 @@ func freePackage(pkg *types2.Package) {
 
 // readPackage reads package export data from pr to populate
 // importpkg.
-func readPackage(pr *pkgReader, importpkg *types.Pkg) {
-	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+//
+// localStub indicates whether pr is reading the stub export data for
+// the local package, as opposed to relocated export data for an
+// import.
+func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
+	{
+		r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 
-	pkg := r.pkg()
-	base.Assertf(pkg == importpkg, "have package %q (%p), want package %q (%p)", pkg.Path, pkg, importpkg.Path, importpkg)
+		pkg := r.pkg()
+		base.Assertf(pkg == importpkg, "have package %q (%p), want package %q (%p)", pkg.Path, pkg, importpkg.Path, importpkg)
 
-	if r.Bool() {
-		sym := pkg.Lookup(".inittask")
-		task := ir.NewNameAt(src.NoXPos, sym)
-		task.Class = ir.PEXTERN
-		sym.Def = task
+		if r.Bool() {
+			sym := pkg.Lookup(".inittask")
+			task := ir.NewNameAt(src.NoXPos, sym)
+			task.Class = ir.PEXTERN
+			sym.Def = task
+		}
+
+		for i, n := 0, r.Len(); i < n; i++ {
+			r.Sync(pkgbits.SyncObject)
+			assert(!r.Bool())
+			idx := r.Reloc(pkgbits.RelocObj)
+			assert(r.Len() == 0)
+
+			path, name, code := r.p.PeekObj(idx)
+			if code != pkgbits.ObjStub {
+				objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil}
+			}
+		}
+
+		r.Sync(pkgbits.SyncEOF)
 	}
 
-	for i, n := 0, r.Len(); i < n; i++ {
-		r.Sync(pkgbits.SyncObject)
-		assert(!r.Bool())
-		idx := r.Reloc(pkgbits.RelocObj)
-		assert(r.Len() == 0)
+	if !localStub {
+		r := pr.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 
-		path, name, code := r.p.PeekObj(idx)
-		if code != pkgbits.ObjStub {
-			objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil}
+		for i, n := 0, r.Len(); i < n; i++ {
+			path := r.String()
+			name := r.String()
+			idx := r.Reloc(pkgbits.RelocBody)
+
+			sym := types.NewPkg(path, "").Lookup(name)
+			if _, ok := importBodyReader[sym]; !ok {
+				importBodyReader[sym] = pkgReaderIndex{pr, idx, nil}
+			}
 		}
+
+		r.Sync(pkgbits.SyncEOF)
 	}
 }
 
@@ -258,12 +283,15 @@ func writeUnifiedExport(out io.Writer) {
 	l := linker{
 		pw: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
 
-		pkgs:  make(map[string]pkgbits.Index),
-		decls: make(map[*types.Sym]pkgbits.Index),
+		pkgs:   make(map[string]pkgbits.Index),
+		decls:  make(map[*types.Sym]pkgbits.Index),
+		bodies: make(map[*types.Sym]pkgbits.Index),
 	}
 
 	publicRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
+	privateRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPrivate)
 	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
+	assert(privateRootWriter.Idx == pkgbits.PrivateRootIdx)
 
 	var selfPkgIdx pkgbits.Index
 
@@ -314,6 +342,30 @@ func writeUnifiedExport(out io.Writer) {
 			w.Bool(false)
 			w.Reloc(pkgbits.RelocObj, idx)
 			w.Len(0)
+		}
+
+		w.Sync(pkgbits.SyncEOF)
+		w.Flush()
+	}
+
+	{
+		type symIdx struct {
+			sym *types.Sym
+			idx pkgbits.Index
+		}
+		var bodies []symIdx
+		for sym, idx := range l.bodies {
+			bodies = append(bodies, symIdx{sym, idx})
+		}
+		sort.Slice(bodies, func(i, j int) bool { return bodies[i].idx < bodies[j].idx })
+
+		w := privateRootWriter
+
+		w.Len(len(bodies))
+		for _, body := range bodies {
+			w.String(body.sym.Pkg.Path)
+			w.String(body.sym.Name)
+			w.Reloc(pkgbits.RelocBody, body.idx)
 		}
 
 		w.Sync(pkgbits.SyncEOF)
