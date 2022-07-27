@@ -77,7 +77,7 @@ As part of this change, <a href="/cmd/gofmt"><code>gofmt</code></a>
 now reformats doc comments to make their rendered meaning clearer.
 See “<a href="/doc/comment">Go Doc Comments</a>”
 for syntax details and descriptions of common mistakes now highlighted by <code>gofmt</code>.
-As another part of this change, the new package <a href="/pkg/go/doc/comment">go/doc/comment</a>
+As another part of this change, the new package <a href="/pkg/go/doc/comment/">go/doc/comment</a>
 provides parsing and reformatting of doc comments
 as well as support for rendering them to HTML, Markdown, and text.
 </p>
@@ -399,7 +399,7 @@ as well as support for rendering them to HTML, Markdown, and text.
     <p><!-- CL 400974 --><!-- https://go.dev/issue/45428 -->
       The <code>GODEBUG</code> option <code>tls10default=1</code> has been
       removed. It is still possible to enable TLS 1.0 client-side by setting
-      <a href="/pkg/crypto/tls#Config.MinVersion"><code>Config.MinVersion</code></a>.
+      <a href="/pkg/crypto/tls/#Config.MinVersion"><code>Config.MinVersion</code></a>.
     </p>
 
     <p><!-- CL 384894 -->
@@ -464,7 +464,7 @@ as well as support for rendering them to HTML, Markdown, and text.
       The <a href="/pkg/crypto/x509/#ParseCRL"><code>ParseCRL</code></a> and
       <a href="/pkg/crypto/x509/#ParseDERCRL"><code>ParseDERCRL</code></a> functions
       are now deprecated in favor of <code>ParseRevocationList</code>.
-      The <a href="/pkg/crypto/x509#Certificate.CheckCRLSignature"><code>Certificate.CheckCRLSignature</code></a>
+      The <a href="/pkg/crypto/x509/#Certificate.CheckCRLSignature"><code>Certificate.CheckCRLSignature</code></a>
       method is deprecated in favor of <code>RevocationList.CheckSignatureFrom</code>.
     </p>
 
@@ -476,18 +476,18 @@ as well as support for rendering them to HTML, Markdown, and text.
   </dd>
 </dl><!-- crypto/x509 -->
 
-<dl id="crypto/x509/pkix"><dt><a href="/pkg/crypto/x509/pkix">crypto/x509/pkix</a></dt>
+<dl id="crypto/x509/pkix"><dt><a href="/pkg/crypto/x509/pkix/">crypto/x509/pkix</a></dt>
   <dd>
     <p><!-- CL 390834 -->
-      The types <a href="/pkg/crypto/x509/pkix#CertificateList"><code>CertificateList</code></a> and
-      <a href="/pkg/crypto/x509/pkix#TBSCertificateList"><code>TBSCertificateList</code></a>
+      The types <a href="/pkg/crypto/x509/pkix/#CertificateList"><code>CertificateList</code></a> and
+      <a href="/pkg/crypto/x509/pkix/#TBSCertificateList"><code>TBSCertificateList</code></a>
       have been deprecated. The new <a href="#crypto/x509"><code>crypto/x509</code> CRL functionality</a>
       should be used instead.
     </p>
   </dd>
 </dl><!-- crypto/x509/pkix -->
 
-<dl id="debug/elf"><dt><a href="/pkg/debug/elf">debug/elf</a></dt>
+<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
   <dd>
     <p><!-- CL 396735 -->
       The new <code>EM_LONGARCH</code> and <code>R_LARCH_*</code> constants
@@ -583,7 +583,7 @@ as well as support for rendering them to HTML, Markdown, and text.
   <dd>
     <p><!-- CL 403696 -->
       The parser now recognizes <code>~x</code> as a unary expression with operator
-      <a href="/pkg/go/token#TILDE">token.TILDE</a>,
+      <a href="/pkg/go/token/#TILDE">token.TILDE</a>,
       allowing better error recovery when a type constraint such as <code>~int</code> is used in an incorrect context.
     </p>
   </dd>
@@ -908,7 +908,7 @@ as well as support for rendering them to HTML, Markdown, and text.
   <dd>
     <p><!-- CL 400795 -->
       When tracing and the
-      <a href="/pkg/runtime/pprof#StartCPUProfile">CPU profiler</a> are
+      <a href="/pkg/runtime/pprof/#StartCPUProfile">CPU profiler</a> are
       enabled simultaneously, the execution trace includes CPU profile
       samples as instantaneous events.
     </p>
