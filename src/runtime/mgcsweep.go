@@ -33,10 +33,9 @@ var sweep sweepdata
 
 // State of background sweep.
 type sweepdata struct {
-	lock    mutex
-	g       *g
-	parked  bool
-	started bool
+	lock   mutex
+	g      *g
+	parked bool
 
 	nbgsweep    uint32
 	npausesweep uint32
