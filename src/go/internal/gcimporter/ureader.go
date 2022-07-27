@@ -206,9 +206,39 @@ func (r *reader) doPkg() *types.Package {
 	for i := range imports {
 		imports[i] = r.pkg()
 	}
-	pkg.SetImports(imports)
+
+	// The documentation for (*types.Package).Imports requires
+	// flattening the import graph when reading from export data, as
+	// obviously incorrect as that is.
+	//
+	// TODO(mdempsky): Remove this if go.dev/issue/54096 is accepted.
+	pkg.SetImports(flattenImports(imports))
 
 	return pkg
+}
+
+// flattenImports returns the transitive closure of all imported
+// packages rooted from pkgs.
+func flattenImports(pkgs []*types.Package) []*types.Package {
+	var res []*types.Package
+
+	seen := make(map[*types.Package]bool)
+	var add func(pkg *types.Package)
+	add = func(pkg *types.Package) {
+		if seen[pkg] {
+			return
+		}
+		seen[pkg] = true
+		res = append(res, pkg)
+		for _, imp := range pkg.Imports() {
+			add(imp)
+		}
+	}
+
+	for _, pkg := range pkgs {
+		add(pkg)
+	}
+	return res
 }
 
 // @@@ Types
