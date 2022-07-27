@@ -391,13 +391,11 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 				// For tests that failed due to a timeout, don't fail to shutdown
 				// because ctx is done.
 				//
-				// golang/go#53820: now that we await the completion of ongoing work in
-				// shutdown, we must allow a significant amount of time for ongoing go
-				// command invocations to exit.
-				ctx, cancel := context.WithTimeout(xcontext.Detach(ctx), 30*time.Second)
-				defer cancel()
-				if err := env.Editor.Close(ctx); err != nil {
-					pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
+				// There is little point to setting an arbitrary timeout for closing
+				// the editor: in general we want to clean up before proceeding to the
+				// next test, and if there is a deadlock preventing closing it will
+				// eventually be handled by the `go test` timeout.
+				if err := env.Editor.Close(xcontext.Detach(ctx)); err != nil {
 					t.Errorf("closing editor: %v", err)
 				}
 			}()
