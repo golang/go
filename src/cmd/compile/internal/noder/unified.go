@@ -161,7 +161,7 @@ func writePkgStub(noders []*noder) string {
 	{
 		w := publicRootWriter
 		w.pkg(pkg)
-		w.Bool(false) // has init; XXX
+		w.Bool(false) // TODO(mdempsky): Remove; was "has init"
 
 		scope := pkg.Scope()
 		names := scope.Names()
@@ -237,12 +237,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 		pkg := r.pkg()
 		base.Assertf(pkg == importpkg, "have package %q (%p), want package %q (%p)", pkg.Path, pkg, importpkg.Path, importpkg)
 
-		if r.Bool() {
-			sym := pkg.Lookup(".inittask")
-			task := ir.NewNameAt(src.NoXPos, sym)
-			task.Class = ir.PEXTERN
-			sym.Def = task
-		}
+		r.Bool() // TODO(mdempsky): Remove; was "has init"
 
 		for i, n := 0, r.Len(); i < n; i++ {
 			r.Sync(pkgbits.SyncObject)
@@ -261,6 +256,13 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 
 	if !localStub {
 		r := pr.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
+
+		if r.Bool() {
+			sym := importpkg.Lookup(".inittask")
+			task := ir.NewNameAt(src.NoXPos, sym)
+			task.Class = ir.PEXTERN
+			sym.Def = task
+		}
 
 		for i, n := 0, r.Len(); i < n; i++ {
 			path := r.String()
@@ -302,7 +304,7 @@ func writeUnifiedExport(out io.Writer) {
 		r.Sync(pkgbits.SyncPkg)
 		selfPkgIdx = l.relocIdx(pr, pkgbits.RelocPkg, r.Reloc(pkgbits.RelocPkg))
 
-		r.Bool() // has init
+		r.Bool() // TODO(mdempsky): Remove; was "has init"
 
 		for i, n := 0, r.Len(); i < n; i++ {
 			r.Sync(pkgbits.SyncObject)
@@ -333,8 +335,7 @@ func writeUnifiedExport(out io.Writer) {
 
 		w.Sync(pkgbits.SyncPkg)
 		w.Reloc(pkgbits.RelocPkg, selfPkgIdx)
-
-		w.Bool(typecheck.Lookup(".inittask").Def != nil)
+		w.Bool(false) // TODO(mdempsky): Remove; was "has init"
 
 		w.Len(len(idxs))
 		for _, idx := range idxs {
@@ -360,6 +361,8 @@ func writeUnifiedExport(out io.Writer) {
 		sort.Slice(bodies, func(i, j int) bool { return bodies[i].idx < bodies[j].idx })
 
 		w := privateRootWriter
+
+		w.Bool(typecheck.Lookup(".inittask").Def != nil)
 
 		w.Len(len(bodies))
 		for _, body := range bodies {
