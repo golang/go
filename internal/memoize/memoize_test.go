@@ -143,3 +143,24 @@ func TestPromiseDestroyedWhileRunning(t *testing.T) {
 		t.Errorf("Get() = %v, want %v", got, v)
 	}
 }
+
+func TestDoubleReleasePanics(t *testing.T) {
+	var store memoize.Store
+	_, release := store.Promise("key", func(ctx context.Context, _ interface{}) interface{} { return 0 })
+
+	panicked := false
+
+	func() {
+		defer func() {
+			if recover() != nil {
+				panicked = true
+			}
+		}()
+		release()
+		release()
+	}()
+
+	if !panicked {
+		t.Errorf("calling release() twice did not panic")
+	}
+}

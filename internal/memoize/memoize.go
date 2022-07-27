@@ -65,6 +65,10 @@ type RefCounted interface {
 type Promise struct {
 	debug string // for observability
 
+	// refcount is the reference count in the containing Store, used by
+	// Store.Promise. It is guarded by Store.promisesMu on the containing Store.
+	refcount int32
+
 	mu sync.Mutex
 
 	// A Promise starts out IDLE, waiting for something to demand
@@ -91,8 +95,6 @@ type Promise struct {
 	function Function
 	// value is set in completed state.
 	value interface{}
-
-	refcount int32 // accessed using atomic load/store
 }
 
 // NewPromise returns a promise for the future result of calling the
@@ -267,11 +269,13 @@ func NewStore(policy EvictionPolicy) *Store {
 // Promise returns a reference-counted promise for the future result of
 // calling the specified function.
 //
-// Calls to Promise with the same key return the same promise,
-// incrementing its reference count.  The caller must call the
-// returned function to decrement the promise's reference count when
-// it is no longer needed. Once the last reference has been released,
-// the promise is removed from the store.
+// Calls to Promise with the same key return the same promise, incrementing its
+// reference count.  The caller must call the returned function to decrement
+// the promise's reference count when it is no longer needed. The returned
+// function must not be called more than once.
+//
+// Once the last reference has been released, the promise is removed from the
+// store.
 func (store *Store) Promise(key interface{}, function Function) (*Promise, func()) {
 	store.promisesMu.Lock()
 	p, ok := store.promises[key]
@@ -282,18 +286,24 @@ func (store *Store) Promise(key interface{}, function Function) (*Promise, func(
 		}
 		store.promises[key] = p
 	}
-	atomic.AddInt32(&p.refcount, 1)
+	p.refcount++
 	store.promisesMu.Unlock()
 
+	var released int32
 	release := func() {
-		// TODO(rfindley): this looks racy: it's possible that the refcount is
-		// incremented before we grab the lock.
-		if atomic.AddInt32(&p.refcount, -1) == 0 && store.evictionPolicy != NeverEvict {
-			store.promisesMu.Lock()
-			delete(store.promises, key)
-			store.promisesMu.Unlock()
+		if !atomic.CompareAndSwapInt32(&released, 0, 1) {
+			panic("release called more than once")
 		}
+		store.promisesMu.Lock()
+
+		p.refcount--
+		if p.refcount == 0 && store.evictionPolicy != NeverEvict {
+			// Inv: if p.refcount > 0, then store.promises[key] == p.
+			delete(store.promises, key)
+		}
+		store.promisesMu.Unlock()
 	}
+
 	return p, release
 }
 
