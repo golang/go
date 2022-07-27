@@ -8,9 +8,9 @@ package mime
 
 import (
 	"bufio"
-	"bytes"
 	"os"
 	"strings"
+	"unicode"
 )
 
 func init() {
@@ -136,76 +136,102 @@ func initMimeForTests() map[string]string {
 }
 
 func expand(glob string) ([]string, bool) {
-	runes := []rune(glob)
-	resultSize := 1
-	stringSize := 0
+	openingBracketIndex := -1
+	closingBracketIndex := -1
 
-countLoop:
-	for i := 0; i < len(runes); i++ {
-		switch runes[i] {
+	var prefix []byte
+	var suffix []byte
+	var mux *[]byte = &prefix
+
+	for i, c := range glob {
+		if c > unicode.MaxASCII {
+			return nil, false
+		}
+		switch c {
 		case '[':
-			for j := i + 1; j < len(runes); j++ {
-				if runes[j] == ']' {
-					i = j
-					continue countLoop
-				}
-				if runes[j+1] == '-' {
-					if j+2 >= len(runes) {
-						return nil, false
-					}
-					resultSize *= int(runes[j+2]-runes[j]) + 1
-					stringSize++
-					j += 2
-					continue
-				}
-				resultSize++
-				stringSize++
+			if len(*mux) > 0 && (*mux)[len(*mux)-1] == '\\' {
+				(*mux)[len(*mux)-1] = glob[i]
+				continue
 			}
+			if openingBracketIndex != -1 {
+				if closingBracketIndex != -1 {
+					return nil, false
+				}
+				continue
+			}
+			openingBracketIndex = i
+			mux = &suffix
+		case ']':
+			if openingBracketIndex == -1 {
+				*mux = append(*mux, ']')
+				continue
+			}
+			if i == openingBracketIndex+1 {
+				continue
+			}
+			closingBracketIndex = i
 		default:
-			stringSize++
+			if openingBracketIndex > -1 && closingBracketIndex == -1 {
+				continue
+			}
+			*mux = append(*mux, glob[i])
 		}
 	}
 
-	buffers := make([]bytes.Buffer, resultSize, resultSize)
-	for i := range buffers {
-		buffers[i].Grow(stringSize)
+	switch {
+	case openingBracketIndex == -1 && closingBracketIndex == -1:
+		return []string{string(prefix)}, true
+
+	case openingBracketIndex != -1 && closingBracketIndex == -1:
+		return []string{string(prefix) + glob[openingBracketIndex:]}, true
+
+	case openingBracketIndex != -1 && openingBracketIndex+1 == '!':
+		return nil, false
 	}
 
-	for i := 0; i < len(runes); i++ {
-		switch runes[i] {
-		case '[':
-			var expanded []rune
-			for j := i + 1; j < len(runes); j++ {
-				if runes[j] == ']' {
-					i = j
-					break
-				}
-				if runes[j+1] == '-' {
-					for k := runes[j]; k <= runes[j+2]; k++ {
-						expanded = append(expanded, k)
-					}
-					j += 2
-					continue
-				}
-				expanded = append(expanded, runes[j])
-			}
+	expansion := expandRangeWithoutNegation(glob[openingBracketIndex+1 : closingBracketIndex])
+	if expansion == nil {
+		return nil, false
+	}
 
-			for j, k := 0, 0; j < resultSize; j, k = j+1, (k+1)%len(expanded) {
-				buffers[j].WriteRune(expanded[k])
-			}
+	results := make([]string, len(expansion))
+	for i := 0; i < len(expansion); i++ {
+		results[i] = string(prefix) + string(expansion[i]) + string(suffix)
+	}
 
-		default:
-			for j := 0; j < resultSize; j++ {
-				buffers[j].WriteRune(runes[i])
-			}
+	return results, true
+}
+
+func expandRangeWithoutNegation(r string) []byte {
+	var expansion []byte
+	for i := 0; i < len(r); i++ {
+		if r[i] == '!' && i == 0 {
+			// no negations of range expression
+			return nil
 		}
+
+		if r[i] != '-' {
+			expansion = append(expansion, r[i])
+			continue
+		}
+
+		if i == 0 || i == len(r)-1 {
+			expansion = append(expansion, '-')
+			continue
+		}
+		if r[i+1] < r[i-1] {
+			// invalid character range
+			return nil
+		}
+
+		for c := r[i-1] + 1; c <= r[i+1]; c++ {
+			if c == '/' {
+				// '/' cannot be matched: https://man7.org/linux/man-pages/man7/glob.7.html
+				continue
+			}
+			expansion = append(expansion, c)
+		}
+		i++
 	}
-
-	result := make([]string, 0, resultSize)
-	for i := 0; i < resultSize; i++ {
-		result = append(result, buffers[i].String())
-	}
-
-	return result, true
-
+	return expansion
 }
