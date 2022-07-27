@@ -1543,10 +1543,7 @@ func (db *DB) retry(fn func(strategy connReuseStrategy) error) error {
 		}
 	}
 
-	if maxBadConnRetries > 0 {
-		return fn(alwaysNewConn)
-	}
-	return fn(cachedOrNewConn)
+	return fn(alwaysNewConn)
 }
 
 // PrepareContext creates a prepared statement for later queries or executions.
