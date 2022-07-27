@@ -452,7 +452,7 @@ var cacheBase10 struct {
 
 // expWW computes x**y
 func (z nat) expWW(x, y Word) nat {
-	return z.expNN(nat(nil).setWord(x), nat(nil).setWord(y), nil)
+	return z.expNN(nat(nil).setWord(x), nat(nil).setWord(y), nil, false)
 }
 
 // construct table of powers of bb*leafSize to use in subdivisions
