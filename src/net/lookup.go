@@ -224,10 +224,15 @@ func (r *Resolver) LookupIP(ctx context.Context, network, host string) ([]IP, er
 	default:
 		return nil, UnknownNetworkError(network)
 	}
+
+	if host == "" {
+		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
+	}
 	addrs, err := r.internetAddrList(ctx, afnet, host)
 	if err != nil {
 		return nil, err
 	}
+
 	ips := make([]IP, 0, len(addrs))
 	for _, addr := range addrs {
 		ips = append(ips, addr.(*IPAddr).IP)

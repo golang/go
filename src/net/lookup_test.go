@@ -1208,6 +1208,17 @@ func TestLookupIPAddrConcurrentCallsForNetworks(t *testing.T) {
 	wg.Wait()
 }
 
+// Issue 53995: Resolver.LookupIP should return error for empty host name.
+func TestResolverLookupIPWithEmptyHost(t *testing.T) {
+	_, err := DefaultResolver.LookupIP(context.Background(), "ip", "")
+	if err == nil {
+		t.Fatal("DefaultResolver.LookupIP for empty host success, want no host error")
+	}
+	if !strings.HasSuffix(err.Error(), errNoSuchHost.Error()) {
+		t.Fatalf("lookup error = %v, want %v", err, errNoSuchHost)
+	}
+}
+
 func TestWithUnexpiredValuesPreserved(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
