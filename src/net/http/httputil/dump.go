@@ -77,22 +77,60 @@ func outgoingLength(req *http.Request) int64 {
 // memory allocations.
 type noBodyWriter struct {
 	io.Writer
-	bodyStarted bool
+	state noBodyWriterState
 }
 
+type noBodyWriterState int
+
+const (
+	noBodyWriterStart noBodyWriterState = iota
+	noBodyWriterCR
+	noBodyWriterNL
+	noBodyWriterEndCR
+	noBodyWriterEndNL
+)
+
 func (b *noBodyWriter) Write(p []byte) (n int, err error) {
-	if b.bodyStarted {
+	if b.state == noBodyWriterEndNL {
 		return len(p), nil
 	}
-	if i := bytes.Index(p, []byte("\r\n\r\n")); i >= 0 {
-		b.bodyStarted = true
-		nn, err := b.Writer.Write(p[:i+4])
-		if err != nil {
-			return nn, err
+
+	var end int
+
+loop:
+	for i, pb := range p {
+		end = i
+		switch b.state {
+		case noBodyWriterStart:
+			if pb == '\r' {
+				b.state = noBodyWriterCR
+			}
+		case noBodyWriterCR:
+			if pb == '\n' {
+				b.state = noBodyWriterNL
+				continue
+			}
+			b.state = noBodyWriterStart
+		case noBodyWriterNL:
+			if pb == '\r' {
+				b.state = noBodyWriterEndCR
+				continue
+			}
+			b.state = noBodyWriterStart
+		case noBodyWriterEndCR:
+			if pb == '\n' {
+				b.state = noBodyWriterEndNL
+				break loop
+			}
+			b.state = noBodyWriterStart
+		default:
+			return 0, fmt.Errorf("missing state case for noBodyWriterState")
 		}
-		return len(p), nil
 	}
-	return b.Writer.Write(p)
+
+	_, err = io.Copy(b.Writer, bytes.NewReader(p[:end+1]))
+
+	return len(p), err
 }
 
 // DumpRequestOut is like DumpRequest but for outgoing client requests. It
