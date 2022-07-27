@@ -165,6 +165,8 @@
 
 // Convert x * 1 to x.
 (Mul(8|16|32|64)  (Const(8|16|32|64)  [1]) x) => x
+(Select0 (Mul(32|64)uover (Const(32|64) [1]) x)) => x
+(Select1 (Mul(32|64)uover (Const(32|64) [1]) x)) => (ConstBool [false])
 
 // Convert x * -1 to -x.
 (Mul(8|16|32|64)  (Const(8|16|32|64)  [-1]) x) => (Neg(8|16|32|64)  x)
@@ -531,6 +533,8 @@
 (Add(64|32|16|8) (Const(64|32|16|8) [0]) x) => x
 (Sub(64|32|16|8) x x) => (Const(64|32|16|8) [0])
 (Mul(64|32|16|8) (Const(64|32|16|8) [0]) _) => (Const(64|32|16|8) [0])
+(Select0 (Mul(64|32)uover (Const(64|32) [0]) x)) => (Const(64|32) [0])
+(Select1 (Mul(64|32)uover (Const(64|32) [0]) x)) => (ConstBool [false])
 
 (Com(64|32|16|8) (Com(64|32|16|8)  x)) => x
 (Com(64|32|16|8) (Const(64|32|16|8) [c])) => (Const(64|32|16|8) [^c])

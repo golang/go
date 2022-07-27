@@ -21260,6 +21260,82 @@ func rewriteValuegeneric_OpSelect0(v *Value) bool {
 		v.AddArg2(lo, y)
 		return true
 	}
+	// match: (Select0 (Mul32uover (Const32 [1]) x))
+	// result: x
+	for {
+		if v_0.Op != OpMul32uover {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			if v_0_0.Op != OpConst32 || auxIntToInt32(v_0_0.AuxInt) != 1 {
+				continue
+			}
+			x := v_0_1
+			v.copyOf(x)
+			return true
+		}
+		break
+	}
+	// match: (Select0 (Mul64uover (Const64 [1]) x))
+	// result: x
+	for {
+		if v_0.Op != OpMul64uover {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			if v_0_0.Op != OpConst64 || auxIntToInt64(v_0_0.AuxInt) != 1 {
+				continue
+			}
+			x := v_0_1
+			v.copyOf(x)
+			return true
+		}
+		break
+	}
+	// match: (Select0 (Mul64uover (Const64 [0]) x))
+	// result: (Const64 [0])
+	for {
+		if v_0.Op != OpMul64uover {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			if v_0_0.Op != OpConst64 || auxIntToInt64(v_0_0.AuxInt) != 0 {
+				continue
+			}
+			v.reset(OpConst64)
+			v.AuxInt = int64ToAuxInt(0)
+			return true
+		}
+		break
+	}
+	// match: (Select0 (Mul32uover (Const32 [0]) x))
+	// result: (Const32 [0])
+	for {
+		if v_0.Op != OpMul32uover {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			if v_0_0.Op != OpConst32 || auxIntToInt32(v_0_0.AuxInt) != 0 {
+				continue
+			}
+			v.reset(OpConst32)
+			v.AuxInt = int32ToAuxInt(0)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValuegeneric_OpSelect1(v *Value) bool {
@@ -21279,6 +21355,82 @@ func rewriteValuegeneric_OpSelect1(v *Value) bool {
 		v.reset(OpMod64u)
 		v.AddArg2(lo, y)
 		return true
+	}
+	// match: (Select1 (Mul32uover (Const32 [1]) x))
+	// result: (ConstBool [false])
+	for {
+		if v_0.Op != OpMul32uover {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			if v_0_0.Op != OpConst32 || auxIntToInt32(v_0_0.AuxInt) != 1 {
+				continue
+			}
+			v.reset(OpConstBool)
+			v.AuxInt = boolToAuxInt(false)
+			return true
+		}
+		break
+	}
+	// match: (Select1 (Mul64uover (Const64 [1]) x))
+	// result: (ConstBool [false])
+	for {
+		if v_0.Op != OpMul64uover {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			if v_0_0.Op != OpConst64 || auxIntToInt64(v_0_0.AuxInt) != 1 {
+				continue
+			}
+			v.reset(OpConstBool)
+			v.AuxInt = boolToAuxInt(false)
+			return true
+		}
+		break
+	}
+	// match: (Select1 (Mul64uover (Const64 [0]) x))
+	// result: (ConstBool [false])
+	for {
+		if v_0.Op != OpMul64uover {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			if v_0_0.Op != OpConst64 || auxIntToInt64(v_0_0.AuxInt) != 0 {
+				continue
+			}
+			v.reset(OpConstBool)
+			v.AuxInt = boolToAuxInt(false)
+			return true
+		}
+		break
+	}
+	// match: (Select1 (Mul32uover (Const32 [0]) x))
+	// result: (ConstBool [false])
+	for {
+		if v_0.Op != OpMul32uover {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			if v_0_0.Op != OpConst32 || auxIntToInt32(v_0_0.AuxInt) != 0 {
+				continue
+			}
+			v.reset(OpConstBool)
+			v.AuxInt = boolToAuxInt(false)
+			return true
+		}
+		break
 	}
 	return false
 }

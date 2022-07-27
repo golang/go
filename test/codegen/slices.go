@@ -6,6 +6,8 @@
 
 package codegen
 
+import "unsafe"
+
 // This file contains code generation tests related to the handling of
 // slice types.
 
@@ -367,4 +369,17 @@ func SliceWithSubtractBound(a []int, b int) []int {
 	// ppc64le:"SUBC",-"NEG"
 	// ppc64:"SUBC",-"NEG"
 	return a[(3 - b):]
+}
+
+// --------------------------------------- //
+//   Code generation for unsafe.Slice      //
+// --------------------------------------- //
+
+func Slice1(p *byte, i int) []byte {
+	// amd64:-"MULQ"
+	return unsafe.Slice(p, i)
+}
+func Slice0(p *struct{}, i int) []struct{} {
+	// amd64:-"MULQ"
+	return unsafe.Slice(p, i)
 }
