@@ -1285,17 +1285,19 @@ func (db *DB) nextRequestKeyLocked() uint64 {
 
 // conn returns a newly-opened or cached *driverConn.
 func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn, error) {
+
+	// Check if the context is expired.
+	// Check before lock
+	select {
+	default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
 	db.mu.Lock()
 	if db.closed {
 		db.mu.Unlock()
 		return nil, errDBClosed
-	}
-	// Check if the context is expired.
-	select {
-	default:
-	case <-ctx.Done():
-		db.mu.Unlock()
-		return nil, ctx.Err()
 	}
 	lifetime := db.maxLifetime
 
