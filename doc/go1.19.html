@@ -31,7 +31,8 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="mem">Memory Model</h2>
 
 <p><!-- https://go.dev/issue/50859 -->
-  The <a href="/ref/mem">Go memory model</a> has been revised to align Go with
+  The <a href="/ref/mem">Go memory model</a> has been
+  <a href="https://research.swtch.com/gomm">revised</a> to align Go with
   the memory model used by C, C++, Java, JavaScript, Rust, and Swift.
   Go only provides sequentially consistent atomics, not any of the more relaxed forms found in other languages.
   Along with the memory model update,
@@ -378,11 +379,17 @@ as well as support for rendering them to HTML, Markdown, and text.
 
     <p><!-- CL 391554 --><!-- CL 387554 -->
       The <a href="/pkg/crypto/rand/#Prime"><code>Prime</code></a>
-      implementation was simplified. This will lead to different outputs for the
-      same random stream compared to the previous implementation. The internals
-      of <code>Prime</code> are not stable, should not be relied upon not to
-      change, and the output is now intentionally non-deterministic with respect
-      to the input stream.
+      implementation was changed to use only rejection sampling,
+      which removes a bias when generating small primes in non-cryptographic contexts,
+      removes one possible minor timing leak,
+      and better aligns the behavior with BoringSSL,
+      all while simplifying the implementation.
+      The change does produce different outputs for a given random source
+      stream compared to the previous implementation,
+      which can break tests written expecting specific results from
+      specific deterministic random sources.
+      To help prevent such problems in the future,
+      the implementation is now intentionally non-deterministic with respect to the input stream.
     </p>
   </dd>
 </dl><!-- crypto/rand -->
@@ -390,7 +397,7 @@ as well as support for rendering them to HTML, Markdown, and text.
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
     <p><!-- CL 400974 --><!-- https://go.dev/issue/45428 -->
-      The <code>tls10default</code> <code>GODEBUG</code> option has been
+      The <code>GODEBUG</code> option <code>tls10default=1</code> has been
       removed. It is still possible to enable TLS 1.0 client-side by setting
       <a href="/pkg/crypto/tls#Config.MinVersion"><code>Config.MinVersion</code></a>.
     </p>
@@ -421,7 +428,7 @@ as well as support for rendering them to HTML, Markdown, and text.
     </p>
 
     <p><!-- CL 396774 -->
-      Removal of the <code>x509sha1=1</code> <code>GODEBUG</code> option,
+      Removal of the <code>GODEBUG</code> option<code>x509sha1=1</code>,
       originally planned for Go 1.19, has been rescheduled to a future release.
       Applications using it should work on migrating. Practical attacks against
       SHA-1 have been demonstrated since 2017 and publicly trusted Certificate
