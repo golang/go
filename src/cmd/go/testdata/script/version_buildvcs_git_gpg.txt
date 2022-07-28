@@ -2,7 +2,7 @@
 # the current commit is signed and the use has configured git to display commit
 # signatures.
 
-[!exec:git] skip
+[!git] skip
 [!exec:gpg] skip
 [short] skip
 env GOBIN=$GOPATH/bin

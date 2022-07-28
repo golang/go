@@ -8,7 +8,7 @@ cp go.mod.empty go.mod
 go list
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 
 skip  # TODO(#54503): redirect gopkg.in requests to a local server and re-enable.
 

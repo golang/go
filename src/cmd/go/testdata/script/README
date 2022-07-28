@@ -410,6 +410,8 @@ The available conditions are:
 	runtime.Compiler == "gc"
 [gccgo]
 	runtime.Compiler == "gccgo"
+[git]
+	the 'git' executable exists and provides the standard CLI
 [hurd]
 	host GOOS=hurd
 [illumos]

@@ -2,7 +2,7 @@ env GO111MODULE=on
 
 # Testing git->module converter's generation of +incompatible tags; turn off proxy.
 [!net] skip
-[!exec:git] skip
+[!git] skip
 env GOPROXY=direct
 env GOSUMDB=off
 

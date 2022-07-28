@@ -1,5 +1,5 @@
 [short] skip
-[!exec:git] skip
+[!git] skip
 [!net] skip
 [!linux] skip  # Uses XDG_CONFIG_HOME
 

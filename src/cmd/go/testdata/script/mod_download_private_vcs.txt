@@ -2,7 +2,7 @@ env GO111MODULE=on
 
 # Testing stderr for git ls-remote; turn off proxy.
 [!net] skip
-[!exec:git] skip
+[!git] skip
 env GOPROXY=direct
 
 ! go mod download github.com/golang/nonexist@latest

@@ -1,7 +1,7 @@
 # TODO(matloob): Split this test into two? It's one of the slowest tests we have.
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 
 env PATH=$WORK/tmp/bin${:}$PATH
 go build -o $WORK/tmp/bin/ssh ssh.go
