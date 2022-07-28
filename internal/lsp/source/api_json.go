@@ -116,7 +116,7 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name:      "linkTarget",
 				Type:      "string",
-				Doc:       "linkTarget controls where documentation links go.\nIt might be one of:\n\n* `\"godoc.org\"`\n* `\"pkg.go.dev\"`\n\nIf company chooses to use its own `godoc.org`, its address can be used as well.\n",
+				Doc:       "linkTarget controls where documentation links go.\nIt might be one of:\n\n* `\"godoc.org\"`\n* `\"pkg.go.dev\"`\n\nIf company chooses to use its own `godoc.org`, its address can be used as well.\n\nModules matching the GOPRIVATE environment variable will not have\ndocumentation links in hover.\n",
 				Default:   "\"pkg.go.dev\"",
 				Hierarchy: "ui.documentation",
 			},

@@ -350,6 +350,9 @@ type DocumentationOptions struct {
 	// * `"pkg.go.dev"`
 	//
 	// If company chooses to use its own `godoc.org`, its address can be used as well.
+	//
+	// Modules matching the GOPRIVATE environment variable will not have
+	// documentation links in hover.
 	LinkTarget string
 
 	// LinksInHover toggles the presence of links to documentation in hover.
