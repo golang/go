@@ -802,10 +802,9 @@ func (o *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer, enabled bool, sev
 // should be enabled in enableAllExperimentMaps.
 func (o *Options) EnableAllExperiments() {
 	o.SemanticTokens = true
-	o.ExperimentalPostfixCompletions = true
 	o.ExperimentalUseInvalidMetadata = true
 	o.ExperimentalWatchedFileDelay = 50 * time.Millisecond
-	o.SymbolMatcher = SymbolFastFuzzy
+	o.NewDiff = "checked"
 }
 
 func (o *Options) enableAllExperimentMaps() {
