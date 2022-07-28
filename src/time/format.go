@@ -53,10 +53,10 @@ import "errors"
 // verbatim in the input to Parse.
 //
 //	Year: "2006" "06"
-//	Month: "Jan" "January"
-//	Textual day of the week: "Mon" "Monday"
-//	Numeric day of the month: "2" "_2" "02"
-//	Numeric day of the year: "__2" "002"
+//	Month: "Jan" "January" "01" "1"
+//	Day of the week: "Mon" "Monday"
+//	Day of the month: "2" "_2" "02"
+//	Day of the year: "__2" "002"
 //	Hour: "15" "3" "03" (PM or AM)
 //	Minute: "4" "04"
 //	Second: "5" "05"

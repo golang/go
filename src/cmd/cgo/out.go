@@ -1653,10 +1653,18 @@ const cStringDef = `
 // freed, such as by calling C.free (be sure to include stdlib.h
 // if C.free is needed).
 func _Cfunc_CString(s string) *_Ctype_char {
+	if len(s)+1 <= 0 {
+		panic("string too large")
+	}
 	p := _cgo_cmalloc(uint64(len(s)+1))
-	pp := (*[1<<30]byte)(p)
-	copy(pp[:], s)
-	pp[len(s)] = 0
+	sliceHeader := struct {
+		p   unsafe.Pointer
+		len int
+		cap int
+	}{p, len(s)+1, len(s)+1}
+	b := *(*[]byte)(unsafe.Pointer(&sliceHeader))
+	copy(b, s)
+	b[len(s)] = 0
 	return (*_Ctype_char)(p)
 }
 `
@@ -1670,8 +1678,13 @@ const cBytesDef = `
 // if C.free is needed).
 func _Cfunc_CBytes(b []byte) unsafe.Pointer {
 	p := _cgo_cmalloc(uint64(len(b)))
-	pp := (*[1<<30]byte)(p)
-	copy(pp[:], b)
+	sliceHeader := struct {
+		p   unsafe.Pointer
+		len int
+		cap int
+	}{p, len(b), len(b)}
+	s := *(*[]byte)(unsafe.Pointer(&sliceHeader))
+	copy(s, b)
 	return p
 }
 `

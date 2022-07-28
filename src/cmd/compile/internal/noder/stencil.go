@@ -623,7 +623,7 @@ func checkFetchBody(nameNode *ir.Name) {
 	}
 }
 
-// getInstantiation gets the instantiantion and dictionary of the function or method nameNode
+// getInstantiation gets the instantiation and dictionary of the function or method nameNode
 // with the type arguments shapes. If the instantiated function is not already
 // cached, then it calls genericSubst to create the new instantiation.
 func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth bool) *instInfo {

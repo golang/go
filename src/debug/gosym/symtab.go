@@ -86,7 +86,7 @@ func (s *Sym) ReceiverName() string {
 	// Find the first dot after pathend (or from the beginning, if there was
 	// no slash in name).
 	l := strings.Index(name[pathend:], ".")
-	// Find the last dot after pathend (or the beginnng).
+	// Find the last dot after pathend (or the beginning).
 	r := strings.LastIndex(name[pathend:], ".")
 	if l == -1 || r == -1 || l == r {
 		// There is no receiver if we didn't find two distinct dots after pathend.

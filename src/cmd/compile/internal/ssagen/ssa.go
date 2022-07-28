@@ -1507,6 +1507,10 @@ func (s *state) stmt(n ir.Node) {
 	case ir.OLABEL:
 		n := n.(*ir.LabelStmt)
 		sym := n.Label
+		if sym.IsBlank() {
+			// Nothing to do because the label isn't targetable. See issue 52278.
+			break
+		}
 		lab := s.label(sym)
 
 		// The label might already have a target block via a goto.
