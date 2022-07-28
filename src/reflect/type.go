@@ -1433,6 +1433,12 @@ func TypeOf(i any) Type {
 	return toType(eface.typ)
 }
 
+// rtypeOf directly extracts the *rtype of the provided value.
+func rtypeOf(i any) *rtype {
+	eface := *(*emptyInterface)(unsafe.Pointer(&i))
+	return eface.typ
+}
+
 // ptrMap is the cache for PointerTo.
 var ptrMap sync.Map // map[*rtype]*ptrType
 

@@ -290,7 +290,7 @@ func (v Value) panicNotBool() {
 	v.mustBe(Bool)
 }
 
-var bytesType = TypeOf(([]byte)(nil)).(*rtype)
+var bytesType = rtypeOf(([]byte)(nil))
 
 // Bytes returns v's underlying value.
 // It panics if v's underlying value is not a slice of bytes or
@@ -1381,7 +1381,7 @@ func (v Value) Float() float64 {
 	panic(&ValueError{"reflect.Value.Float", v.kind()})
 }
 
-var uint8Type = TypeOf(uint8(0)).(*rtype)
+var uint8Type = rtypeOf(uint8(0))
 
 // Index returns v's i'th element.
 // It panics if v's Kind is not Array, Slice, or String or i is out of range.
@@ -1640,7 +1640,7 @@ func (v Value) lenNonSlice() int {
 	panic(&ValueError{"reflect.Value.Len", v.kind()})
 }
 
-var stringType = TypeOf("").(*rtype)
+var stringType = rtypeOf("")
 
 // MapIndex returns the value associated with key in the map v.
 // It panics if v's Kind is not Map.
