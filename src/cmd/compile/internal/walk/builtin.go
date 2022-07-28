@@ -682,6 +682,25 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		nif.Body.Append(mkcall("panicunsafeslicelen", nil, &nif.Body))
 		appendWalkStmt(init, nif)
 
+		if sliceType.Elem().Size() == 0 {
+			// if ptr == nil && len > 0  {
+			//      panicunsafesliceptrnil()
+			// }
+			nifPtr := ir.NewIfStmt(base.Pos, nil, nil, nil)
+			isNil := ir.NewBinaryExpr(base.Pos, ir.OEQ, unsafePtr, typecheck.NodNil())
+			gtZero := ir.NewBinaryExpr(base.Pos, ir.OGT, typecheck.Conv(len, lenType), ir.NewInt(0))
+			nifPtr.Cond =
+				ir.NewLogicalExpr(base.Pos, ir.OANDAND, isNil, gtZero)
+			nifPtr.Body.Append(mkcall("panicunsafeslicenilptr", nil, &nifPtr.Body))
+			appendWalkStmt(init, nifPtr)
+
+			h := ir.NewSliceHeaderExpr(n.Pos(), sliceType,
+				typecheck.Conv(ptr, types.Types[types.TUNSAFEPTR]),
+				typecheck.Conv(len, types.Types[types.TINT]),
+				typecheck.Conv(len, types.Types[types.TINT]))
+			return walkExpr(typecheck.Expr(h), init)
+		}
+
 		// mem, overflow := runtime.mulUintptr(et.size, len)
 		mem := typecheck.Temp(types.Types[types.TUINTPTR])
 		overflow := typecheck.Temp(types.Types[types.TBOOL])
