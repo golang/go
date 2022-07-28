@@ -6,6 +6,7 @@ package script
 
 import (
 	"cmd/go/internal/imports"
+	"fmt"
 	"os"
 	"runtime"
 	"sync"
@@ -18,18 +19,43 @@ import (
 func DefaultConds() map[string]Cond {
 	conds := make(map[string]Cond)
 
-	// TODO(bcmills): switch these conditions to use suffixes, like '[GOOS:windows]'
-	// instead of just '[windows]'.
+	conds["GOOS"] = PrefixCondition(
+		"runtime.GOOS == <suffix>",
+		func(_ *State, suffix string) (bool, error) {
+			if suffix == runtime.GOOS {
+				return true, nil
+			}
+			if _, ok := imports.KnownOS[suffix]; !ok {
+				return false, fmt.Errorf("unrecognized GOOS %q", suffix)
+			}
+			return false, nil
+		})
 
-	for os := range imports.KnownOS {
-		conds[os] = BoolCondition("host GOOS="+os, false)
-	}
-	conds[runtime.GOOS] = BoolCondition("host GOOS="+runtime.GOOS, true)
+	conds["GOARCH"] = PrefixCondition(
+		"runtime.GOARCH == <suffix>",
+		func(_ *State, suffix string) (bool, error) {
+			if suffix == runtime.GOARCH {
+				return true, nil
+			}
+			if _, ok := imports.KnownArch[suffix]; !ok {
+				return false, fmt.Errorf("unrecognized GOOS %q", suffix)
+			}
+			return false, nil
+		})
 
-	for arch := range imports.KnownArch {
-		conds[arch] = BoolCondition("host GOARCH="+arch, false)
-	}
-	conds[runtime.GOARCH] = BoolCondition("host GOARCH="+runtime.GOARCH, true)
+	conds["compiler"] = PrefixCondition(
+		"runtime.Compiler == <suffix>",
+		func(_ *State, suffix string) (bool, error) {
+			if suffix == runtime.Compiler {
+				return true, nil
+			}
+			switch suffix {
+			case "gc", "gccgo":
+				return false, nil
+			default:
+				return false, fmt.Errorf("unrecognized compiler %q", suffix)
+			}
+		})
 
 	conds["root"] = BoolCondition("os.Geteuid() == 0", os.Geteuid() == 0)
 

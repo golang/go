@@ -362,28 +362,14 @@ wait
 
 
 The available conditions are:
-[386]
-	host GOARCH=386
+[GOARCH:*]
+	runtime.GOARCH == <suffix>
 [GODEBUG:*]
 	GODEBUG contains <suffix>
 [GOEXPERIMENT:*]
 	GOEXPERIMENT <suffix> is enabled
-[aix]
-	host GOOS=aix
-[amd64]
-	host GOARCH=amd64
-[amd64p32]
-	host GOARCH=amd64p32
-[android]
-	host GOOS=android
-[arm]
-	host GOARCH=arm
-[arm64]
-	host GOARCH=arm64
-[arm64be]
-	host GOARCH=arm64be
-[armbe]
-	host GOARCH=armbe
+[GOOS:*]
+	runtime.GOOS == <suffix>
 [asan]
 	GOOS/GOARCH supports -asan
 [buildmode:*]
@@ -392,102 +378,36 @@ The available conditions are:
 	$WORK filesystem is case-sensitive
 [cgo]
 	host CGO_ENABLED
+[compiler:*]
+	runtime.Compiler == <suffix>
 [cross]
 	cmd/go GOOS/GOARCH != GOHOSTOS/GOHOSTARCH
-[darwin]
-	host GOOS=darwin
-[dragonfly]
-	host GOOS=dragonfly
 [exec:*]
 	<suffix> names an executable in the test binary's PATH
-[freebsd]
-	host GOOS=freebsd
 [fuzz]
 	GOOS/GOARCH supports -fuzz
 [fuzz-instrumented]
 	GOOS/GOARCH supports -fuzz with instrumentation
-[gc]
-	runtime.Compiler == "gc"
-[gccgo]
-	runtime.Compiler == "gccgo"
 [git]
 	the 'git' executable exists and provides the standard CLI
-[hurd]
-	host GOOS=hurd
-[illumos]
-	host GOOS=illumos
-[ios]
-	host GOOS=ios
-[js]
-	host GOOS=js
 [link]
 	testenv.HasLink()
-[linux]
-	host GOOS=linux
-[loong64]
-	host GOARCH=loong64
-[mips]
-	host GOARCH=mips
-[mips64]
-	host GOARCH=mips64
-[mips64le]
-	host GOARCH=mips64le
-[mips64p32]
-	host GOARCH=mips64p32
-[mips64p32le]
-	host GOARCH=mips64p32le
-[mipsle]
-	host GOARCH=mipsle
 [mismatched-goroot]
 	test's GOROOT_FINAL does not match the real GOROOT
 [msan]
 	GOOS/GOARCH supports -msan
-[nacl]
-	host GOOS=nacl
 [net]
 	testenv.HasExternalNetwork()
-[netbsd]
-	host GOOS=netbsd
-[openbsd]
-	host GOOS=openbsd
-[plan9]
-	host GOOS=plan9
-[ppc]
-	host GOARCH=ppc
-[ppc64]
-	host GOARCH=ppc64
-[ppc64le]
-	host GOARCH=ppc64le
 [race]
 	GOOS/GOARCH supports -race
-[riscv]
-	host GOARCH=riscv
-[riscv64]
-	host GOARCH=riscv64
 [root]
 	os.Geteuid() == 0
-[s390]
-	host GOARCH=s390
-[s390x]
-	host GOARCH=s390x
 [short]
 	testing.Short()
-[solaris]
-	host GOOS=solaris
-[sparc]
-	host GOARCH=sparc
-[sparc64]
-	host GOARCH=sparc64
 [symlink]
 	testenv.HasSymlink()
 [trimpath]
 	test binary was built with -trimpath
 [verbose]
 	testing.Verbose()
-[wasm]
-	host GOARCH=wasm
-[windows]
-	host GOOS=windows
-[zos]
-	host GOOS=zos
 

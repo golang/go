@@ -1,4 +1,4 @@
-[gccgo] skip # gccgo does not have standard packages
+[compiler:gccgo] skip # gccgo does not have standard packages
 [short] skip
 
 env GOCACHE=$WORK/tmp

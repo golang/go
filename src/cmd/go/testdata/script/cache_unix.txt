@@ -2,9 +2,9 @@ env GO111MODULE=off
 
 # Integration test for cache directory calculation (cmd/go/internal/cache).
 
-[windows] skip
-[darwin] skip
-[plan9] skip
+[GOOS:windows] skip
+[GOOS:darwin] skip
+[GOOS:plan9] skip
 
 mkdir $WORK/gocache
 mkdir $WORK/xdg

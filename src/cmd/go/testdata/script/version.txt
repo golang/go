@@ -69,8 +69,8 @@ stdout '^\tmod\trsc.io/fortune\tv1.0.0'
 
 # Also test PIE with internal linking.
 # currently only supported on linux/amd64, linux/arm64 and windows/amd64.
-[!linux] [!windows] stop
-[!amd64] [!arm64] stop
+[!GOOS:linux] [!GOOS:windows] stop
+[!GOARCH:amd64] [!GOARCH:arm64] stop
 go build -buildmode=pie -ldflags=-linkmode=internal -o internal.exe rsc.io/fortune
 go version internal.exe
 stdout '^internal.exe: .+'

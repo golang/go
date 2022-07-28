@@ -1,6 +1,6 @@
 [short] skip 'links and runs a test binary'
 [!fuzz] skip 'tests SIGINT behavior for interrupting fuzz tests'
-[windows] skip 'windows does not support os.Interrupt'
+[GOOS:windows] skip 'windows does not support os.Interrupt'
 
 ? go test -json -fuzz FuzzInterrupt -run '^$' -parallel 1
 stdout -count=1 '"Action":"pass","Package":"example","Test":"FuzzInterrupt"'

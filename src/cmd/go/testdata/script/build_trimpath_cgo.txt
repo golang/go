@@ -14,7 +14,7 @@ go run ./list-dwarf hello.exe
 stdout gopath[/\\]src
 
 # Check that the source path does not appear when -trimpath is used.
-[aix] stop # can't inspect XCOFF binaries
+[GOOS:aix] stop # can't inspect XCOFF binaries
 go build -trimpath -o hello.exe .
 ! grep -q gopath[/\\]src hello.exe
 go run ./list-dwarf hello.exe

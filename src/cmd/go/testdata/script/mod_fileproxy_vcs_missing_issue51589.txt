@@ -9,8 +9,8 @@ cd $WORK/x
 go mod tidy
 
 # Use download cache as file:/// proxy.
-[windows] env GOPROXY=file:///$WORK/gopath/pkg/mod/cache/download
-[!windows] env GOPROXY=file://$WORK/gopath/pkg/mod/cache/download
+[GOOS:windows] env GOPROXY=file:///$WORK/gopath/pkg/mod/cache/download
+[!GOOS:windows] env GOPROXY=file://$WORK/gopath/pkg/mod/cache/download
 rm $WORK/gopath/pkg/mod/cache/download/golang.org/x/text/
 go mod tidy -e
 stderr '^go: rsc.io/sampler@v1.3.0 requires\n\tgolang.org/x/text@.*: reading file://.*/pkg/mod/cache/download/golang.org/x/text/.*'
