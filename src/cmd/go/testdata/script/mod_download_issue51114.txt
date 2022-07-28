@@ -1,7 +1,7 @@
 [short] skip
 [!git] skip
 [!net] skip
-[!linux] skip  # Uses XDG_CONFIG_HOME
+[!GOOS:linux] skip  # Uses XDG_CONFIG_HOME
 
 env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
 env GOPROXY=direct

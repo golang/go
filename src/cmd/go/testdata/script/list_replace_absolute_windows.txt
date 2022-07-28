@@ -3,7 +3,7 @@
 # whether the modindex logic cleans the modroot path before using
 # it.
 
-[!windows] skip
+[!GOOS:windows] skip
 [short] skip
 
 go run print_go_mod.go # use this program to write a go.mod with an absolute path

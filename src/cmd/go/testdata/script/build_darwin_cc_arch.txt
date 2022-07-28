@@ -1,6 +1,6 @@
 # Test that we pass -arch flag to C compiler on Darwin (issue 43692).
 
-[!darwin] skip
+[!GOOS:darwin] skip
 [!cgo] skip
 
 # clear CC, in case user sets it

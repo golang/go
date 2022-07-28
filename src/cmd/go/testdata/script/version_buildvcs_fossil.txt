@@ -3,15 +3,15 @@
 # The Git test covers common functionality.
 
 # "fossil" is the Fossil file server on Plan 9.
-[plan9] skip
+[GOOS:plan9] skip
 [!exec:fossil] skip
 [short] skip
 env GOBIN=$WORK/gopath/bin
 env oldpath=$PATH
 env HOME=$WORK
 env USER=gopher
-[!windows] env fslckout=.fslckout
-[windows] env fslckout=_FOSSIL_
+[!GOOS:windows] env fslckout=.fslckout
+[GOOS:windows] env fslckout=_FOSSIL_
 exec pwd
 exec fossil init repo.fossil
 cd repo/a

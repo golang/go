@@ -1,5 +1,5 @@
 # issue 53314
-[windows] skip
+[GOOS:windows] skip
 cd [pkg]
 go build
 

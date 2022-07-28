@@ -8,9 +8,9 @@
 #
 # Note, older gcc/clang may accept this option, but
 # ignore it if binutils does not support the relocs.
-[!gc] skip
+[!compiler:gc] skip
 [!cgo] skip
-[!ppc64le] skip
+[!GOARCH:ppc64le] skip
 
 env CGO_CFLAGS='-fno-plt -O2 -g'
 
