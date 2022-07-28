@@ -34,7 +34,7 @@ stderr '^go: github.com/russross/blackfriday@patch: can''t query version "patch"
 # order to determine whether it contains a go.mod file, and part of the point of
 # the proxy is to avoid fetching unnecessary data.)
 
-[!exec:git] stop
+[!git] stop
 env GOPROXY=direct
 
 go list -versions -m github.com/russross/blackfriday github.com/russross/blackfriday

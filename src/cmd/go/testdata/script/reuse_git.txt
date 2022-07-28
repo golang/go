@@ -1,5 +1,5 @@
 [short] skip
-[!exec:git] skip
+[!git] skip
 [!net] skip
 
 env GO111MODULE=on

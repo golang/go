@@ -4,7 +4,7 @@
 
 [short] skip
 [!net] skip
-[!exec:git] skip
+[!git] skip
 
 env GO111MODULE=on
 env GOPROXY=direct

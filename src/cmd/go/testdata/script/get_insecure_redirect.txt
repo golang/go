@@ -2,7 +2,7 @@
 # golang.org/issue/34049: 'go get' would panic in case of an insecure redirect in GOPATH mode
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 
 env GO111MODULE=off
 

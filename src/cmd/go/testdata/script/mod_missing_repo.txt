@@ -3,7 +3,7 @@
 # tags for prefixes of the module path.
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 
 env GO111MODULE=on
 env GOPROXY=direct

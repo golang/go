@@ -23,23 +23,6 @@ import (
 func scriptConditions() map[string]script.Cond {
 	conds := scripttest.DefaultConds()
 
-	// Our "exec" has a special case for plan9 git, which does not
-	// behave like git on other platforms.
-	//
-	// TODO(bcmills): replace this special-case "exec" with a more tailored "git"
-	// condition.
-	conds["exec"] = script.CachedCondition(
-		conds["exec"].Usage().Summary,
-		func(name string) (bool, error) {
-			if runtime.GOOS == "plan9" && name == "git" {
-				// The Git command is usually not the real Git on Plan 9.
-				// See https://golang.org/issues/29640.
-				return false, nil
-			}
-			_, err := exec.LookPath(name)
-			return err == nil, nil
-		})
-
 	add := func(name string, cond script.Cond) {
 		if _, ok := conds[name]; ok {
 			panic(fmt.Sprintf("condition %q is already registered", name))
@@ -60,6 +43,7 @@ func scriptConditions() map[string]script.Cond {
 	add("fuzz-instrumented", sysCondition("-fuzz with instrumentation", platform.FuzzInstrumented))
 	add("gc", script.BoolCondition(`runtime.Compiler == "gc"`, runtime.Compiler == "gc"))
 	add("gccgo", script.BoolCondition(`runtime.Compiler == "gccgo"`, runtime.Compiler == "gccgo"))
+	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
 	add("GODEBUG", script.PrefixCondition("GODEBUG contains <suffix>", hasGodebug))
 	add("GOEXPERIMENT", script.PrefixCondition("GOEXPERIMENT <suffix> is enabled", hasGoexperiment))
 	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
@@ -162,4 +146,14 @@ func isTrimpath() (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func hasWorkingGit() bool {
+	if runtime.GOOS == "plan9" {
+		// The Git command is usually not the real Git on Plan 9.
+		// See https://golang.org/issues/29640.
+		return false
+	}
+	_, err := exec.LookPath("git")
+	return err == nil
 }
