@@ -56,6 +56,10 @@
 (Select1 (Add64carry x y c)) =>
 	(OR (SLTU <typ.UInt64> s:(ADD <typ.UInt64> x y) x) (SLTU <typ.UInt64> (ADD <typ.UInt64> s c) s))
 
+(Select0 (Sub64borrow x y c)) => (SUB (SUB <typ.UInt64> x y) c)
+(Select1 (Sub64borrow x y c)) =>
+	(OR (SLTU <typ.UInt64> x s:(SUB <typ.UInt64> x y)) (SLTU <typ.UInt64> s (SUB <typ.UInt64> s c)))
+
 // (x + y) / 2 => (x / 2) + (y / 2) + (x & y & 1)
 (Avg64u <t> x y) => (ADD (ADD <t> (SRLI <t> [1] x) (SRLI <t> [1] y)) (ANDI <t> [1] (AND <t> x y)))
 

@@ -621,6 +621,7 @@ func Sub(x, y, ci uint) (r, co uint) {
 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// riscv64: "SUB","SLTU"
 	return bits.Sub(x, y, ci)
 }
 
@@ -630,6 +631,7 @@ func SubC(x, ci uint) (r, co uint) {
 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// riscv64: "SUB","SLTU"
 	return bits.Sub(x, 7, ci)
 }
 
@@ -639,6 +641,7 @@ func SubZ(x, y uint) (r, co uint) {
 	// ppc64:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// s390x:"SUBC"
+	// riscv64: "SUB","SLTU"
 	return bits.Sub(x, y, 0)
 }
 
@@ -648,6 +651,7 @@ func SubR(x, y, ci uint) uint {
 	// ppc64:"SUBC", "SUBE", -"SUBZE", -"NEG"
 	// ppc64le:"SUBC", "SUBE", -"SUBZE", -"NEG"
 	// s390x:"SUBE"
+	// riscv64: "SUB",-"SLTU"
 	r, _ := bits.Sub(x, y, ci)
 	return r
 }
@@ -669,6 +673,7 @@ func Sub64(x, y, ci uint64) (r, co uint64) {
 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// riscv64: "SUB","SLTU"
 	return bits.Sub64(x, y, ci)
 }
 
@@ -678,6 +683,7 @@ func Sub64C(x, ci uint64) (r, co uint64) {
 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// riscv64: "SUB","SLTU"
 	return bits.Sub64(x, 7, ci)
 }
 
@@ -687,6 +693,7 @@ func Sub64Z(x, y uint64) (r, co uint64) {
 	// ppc64:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// s390x:"SUBC"
+	// riscv64: "SUB","SLTU"
 	return bits.Sub64(x, y, 0)
 }
 
@@ -696,6 +703,7 @@ func Sub64R(x, y, ci uint64) uint64 {
 	// ppc64:"SUBC", "SUBE", -"SUBZE", -"NEG"
 	// ppc64le:"SUBC", "SUBE", -"SUBZE", -"NEG"
 	// s390x:"SUBE"
+	// riscv64: "SUB",-"SLTU"
 	r, _ := bits.Sub64(x, y, ci)
 	return r
 }
