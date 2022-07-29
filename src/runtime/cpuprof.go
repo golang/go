@@ -110,7 +110,7 @@ func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
 		osyield()
 	}
 
-	if prof.hz != 0 { // implies cpuprof.log != nil
+	if prof.hz.Load() != 0 { // implies cpuprof.log != nil
 		if p.numExtra > 0 || p.lostExtra > 0 || p.lostAtomic > 0 {
 			p.addExtra()
 		}

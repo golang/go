@@ -4475,7 +4475,10 @@ func mcount() int32 {
 
 var prof struct {
 	signalLock atomic.Uint32
-	hz         int32
+
+	// Must hold signalLock to write. Reads may be lock-free, but
+	// signalLock should be taken to synchronize with changes.
+	hz atomic.Int32
 }
 
 func _System()                    { _System() }
@@ -4490,7 +4493,7 @@ func _VDSO()                      { _VDSO() }
 //
 //go:nowritebarrierrec
 func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
-	if prof.hz == 0 {
+	if prof.hz.Load() == 0 {
 		return
 	}
 
@@ -4587,7 +4590,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		}
 	}
 
-	if prof.hz != 0 {
+	if prof.hz.Load() != 0 {
 		// Note: it can happen on Windows that we interrupted a system thread
 		// with no g, so gp could nil. The other nil checks are done out of
 		// caution, but not expected to be nil in practice.
@@ -4631,9 +4634,9 @@ func setcpuprofilerate(hz int32) {
 	for !prof.signalLock.CompareAndSwap(0, 1) {
 		osyield()
 	}
-	if prof.hz != hz {
+	if prof.hz.Load() != hz {
 		setProcessCPUProfiler(hz)
-		prof.hz = hz
+		prof.hz.Store(hz)
 	}
 	prof.signalLock.Store(0)
 
