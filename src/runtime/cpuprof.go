@@ -14,7 +14,6 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -106,7 +105,7 @@ func SetCPUProfileRate(hz int) {
 //go:nowritebarrierrec
 func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
 	// Simple cas-lock to coordinate with setcpuprofilerate.
-	for !atomic.Cas(&prof.signalLock, 0, 1) {
+	for !prof.signalLock.CompareAndSwap(0, 1) {
 		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
 		osyield()
 	}
@@ -123,7 +122,7 @@ func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
 		cpuprof.log.write(tagPtr, nanotime(), hdr[:], stk)
 	}
 
-	atomic.Store(&prof.signalLock, 0)
+	prof.signalLock.Store(0)
 }
 
 // addNonGo adds the non-Go stack trace to the profile.
@@ -143,7 +142,7 @@ func (p *cpuProfile) addNonGo(stk []uintptr) {
 	// process at a time. If not, this lock will serialize those too.
 	// The use of timer_create(2) on Linux to request process-targeted
 	// signals may have changed this.)
-	for !atomic.Cas(&prof.signalLock, 0, 1) {
+	for !prof.signalLock.CompareAndSwap(0, 1) {
 		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
 		osyield()
 	}
@@ -157,7 +156,7 @@ func (p *cpuProfile) addNonGo(stk []uintptr) {
 		cpuprof.lostExtra++
 	}
 
-	atomic.Store(&prof.signalLock, 0)
+	prof.signalLock.Store(0)
 }
 
 // addExtra adds the "extra" profiling events,

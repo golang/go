@@ -4474,7 +4474,7 @@ func mcount() int32 {
 }
 
 var prof struct {
-	signalLock uint32
+	signalLock atomic.Uint32
 	hz         int32
 }
 
@@ -4628,14 +4628,14 @@ func setcpuprofilerate(hz int32) {
 	// it would deadlock.
 	setThreadCPUProfiler(0)
 
-	for !atomic.Cas(&prof.signalLock, 0, 1) {
+	for !prof.signalLock.CompareAndSwap(0, 1) {
 		osyield()
 	}
 	if prof.hz != hz {
 		setProcessCPUProfiler(hz)
 		prof.hz = hz
 	}
-	atomic.Store(&prof.signalLock, 0)
+	prof.signalLock.Store(0)
 
 	lock(&sched.lock)
 	sched.profilehz = hz
