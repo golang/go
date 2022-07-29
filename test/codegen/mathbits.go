@@ -442,6 +442,7 @@ func Add(x, y, ci uint) (r, co uint) {
 	// ppc64: "ADDC", "ADDE", "ADDZE"
 	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// riscv64: "ADD","SLTU"
 	return bits.Add(x, y, ci)
 }
 
@@ -451,6 +452,7 @@ func AddC(x, ci uint) (r, co uint) {
 	// ppc64: "ADDC", "ADDE", "ADDZE"
 	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// riscv64: "ADD","SLTU"
 	return bits.Add(x, 7, ci)
 }
 
@@ -460,6 +462,7 @@ func AddZ(x, y uint) (r, co uint) {
 	// ppc64: "ADDC", -"ADDE", "ADDZE"
 	// ppc64le: "ADDC", -"ADDE", "ADDZE"
 	// s390x:"ADDC",-"ADDC\t[$]-1,"
+	// riscv64: "ADD","SLTU"
 	return bits.Add(x, y, 0)
 }
 
@@ -469,6 +472,7 @@ func AddR(x, y, ci uint) uint {
 	// ppc64: "ADDC", "ADDE", -"ADDZE"
 	// ppc64le: "ADDC", "ADDE", -"ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// riscv64: "ADD",-"SLTU"
 	r, _ := bits.Add(x, y, ci)
 	return r
 }
@@ -489,6 +493,7 @@ func Add64(x, y, ci uint64) (r, co uint64) {
 	// ppc64: "ADDC", "ADDE", "ADDZE"
 	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// riscv64: "ADD","SLTU"
 	return bits.Add64(x, y, ci)
 }
 
@@ -498,6 +503,7 @@ func Add64C(x, ci uint64) (r, co uint64) {
 	// ppc64: "ADDC", "ADDE", "ADDZE"
 	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// riscv64: "ADD","SLTU"
 	return bits.Add64(x, 7, ci)
 }
 
@@ -507,6 +513,7 @@ func Add64Z(x, y uint64) (r, co uint64) {
 	// ppc64: "ADDC", -"ADDE", "ADDZE"
 	// ppc64le: "ADDC", -"ADDE", "ADDZE"
 	// s390x:"ADDC",-"ADDC\t[$]-1,"
+	// riscv64: "ADD","SLTU"
 	return bits.Add64(x, y, 0)
 }
 
@@ -516,6 +523,7 @@ func Add64R(x, y, ci uint64) uint64 {
 	// ppc64: "ADDC", "ADDE", -"ADDZE"
 	// ppc64le: "ADDC", "ADDE", -"ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// riscv64: "ADD",-"SLTU"
 	r, _ := bits.Add64(x, y, ci)
 	return r
 }

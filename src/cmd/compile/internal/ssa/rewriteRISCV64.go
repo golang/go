@@ -509,10 +509,14 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpRISCV64SLL(v)
 	case OpRISCV64SLLI:
 		return rewriteValueRISCV64_OpRISCV64SLLI(v)
+	case OpRISCV64SLT:
+		return rewriteValueRISCV64_OpRISCV64SLT(v)
 	case OpRISCV64SLTI:
 		return rewriteValueRISCV64_OpRISCV64SLTI(v)
 	case OpRISCV64SLTIU:
 		return rewriteValueRISCV64_OpRISCV64SLTIU(v)
+	case OpRISCV64SLTU:
+		return rewriteValueRISCV64_OpRISCV64SLTU(v)
 	case OpRISCV64SRA:
 		return rewriteValueRISCV64_OpRISCV64SRA(v)
 	case OpRISCV64SRAI:
@@ -4864,6 +4868,22 @@ func rewriteValueRISCV64_OpRISCV64SLLI(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueRISCV64_OpRISCV64SLT(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (SLT x x)
+	// result: (MOVDconst [0])
+	for {
+		x := v_0
+		if x != v_1 {
+			break
+		}
+		v.reset(OpRISCV64MOVDconst)
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
+	return false
+}
 func rewriteValueRISCV64_OpRISCV64SLTI(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (SLTI [x] (MOVDconst [y]))
@@ -4892,6 +4912,22 @@ func rewriteValueRISCV64_OpRISCV64SLTIU(v *Value) bool {
 		y := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpRISCV64MOVDconst)
 		v.AuxInt = int64ToAuxInt(b2i(uint64(y) < uint64(x)))
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64SLTU(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (SLTU x x)
+	// result: (MOVDconst [0])
+	for {
+		x := v_0
+		if x != v_1 {
+			break
+		}
+		v.reset(OpRISCV64MOVDconst)
+		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
 	return false
@@ -6036,6 +6072,23 @@ func rewriteValueRISCV64_OpRsh8x8(v *Value) bool {
 }
 func rewriteValueRISCV64_OpSelect0(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Select0 (Add64carry x y c))
+	// result: (ADD (ADD <typ.UInt64> x y) c)
+	for {
+		if v_0.Op != OpAdd64carry {
+			break
+		}
+		c := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpRISCV64ADD)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ADD, typ.UInt64)
+		v0.AddArg2(x, y)
+		v.AddArg2(v0, c)
+		return true
+	}
 	// match: (Select0 m:(LoweredMuluhilo x y))
 	// cond: m.Uses == 1
 	// result: (MULHU x y)
@@ -6057,6 +6110,29 @@ func rewriteValueRISCV64_OpSelect0(v *Value) bool {
 }
 func rewriteValueRISCV64_OpSelect1(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Select1 (Add64carry x y c))
+	// result: (OR (SLTU <typ.UInt64> s:(ADD <typ.UInt64> x y) x) (SLTU <typ.UInt64> (ADD <typ.UInt64> s c) s))
+	for {
+		if v_0.Op != OpAdd64carry {
+			break
+		}
+		c := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpRISCV64OR)
+		v0 := b.NewValue0(v.Pos, OpRISCV64SLTU, typ.UInt64)
+		s := b.NewValue0(v.Pos, OpRISCV64ADD, typ.UInt64)
+		s.AddArg2(x, y)
+		v0.AddArg2(s, x)
+		v2 := b.NewValue0(v.Pos, OpRISCV64SLTU, typ.UInt64)
+		v3 := b.NewValue0(v.Pos, OpRISCV64ADD, typ.UInt64)
+		v3.AddArg2(s, c)
+		v2.AddArg2(v3, s)
+		v.AddArg2(v0, v2)
+		return true
+	}
 	// match: (Select1 m:(LoweredMuluhilo x y))
 	// cond: m.Uses == 1
 	// result: (MUL x y)

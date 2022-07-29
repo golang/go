@@ -52,6 +52,10 @@
 (Hmul32 x y)  => (SRAI [32] (MUL  (SignExt32to64 x) (SignExt32to64 y)))
 (Hmul32u x y) => (SRLI [32] (MUL  (ZeroExt32to64 x) (ZeroExt32to64 y)))
 
+(Select0 (Add64carry x y c)) => (ADD (ADD <typ.UInt64> x y) c)
+(Select1 (Add64carry x y c)) =>
+	(OR (SLTU <typ.UInt64> s:(ADD <typ.UInt64> x y) x) (SLTU <typ.UInt64> (ADD <typ.UInt64> s c) s))
+
 // (x + y) / 2 => (x / 2) + (y / 2) + (x & y & 1)
 (Avg64u <t> x y) => (ADD (ADD <t> (SRLI <t> [1] x) (SRLI <t> [1] y)) (ANDI <t> [1] (AND <t> x y)))
 
@@ -742,6 +746,9 @@
 // SLTI/SLTIU with constants.
 (SLTI  [x] (MOVDconst [y])) => (MOVDconst [b2i(int64(y) < int64(x))])
 (SLTIU [x] (MOVDconst [y])) => (MOVDconst [b2i(uint64(y) < uint64(x))])
+
+(SLT x x)  => (MOVDconst [0])
+(SLTU x x) => (MOVDconst [0])
 
 // deadcode for LoweredMuluhilo
 (Select0 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MULHU x y)
