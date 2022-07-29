@@ -118,6 +118,41 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	ctx, done := event.Start(ctx, "source.Rename")
 	defer done()
 
+	pgf, err := s.ParseGo(ctx, f, ParseFull)
+	if err != nil {
+		return nil, err
+	}
+	inPackageName, err := isInPackageName(ctx, s, f, pgf, pp)
+	if err != nil {
+		return nil, err
+	}
+
+	if inPackageName {
+		renamingPkg, err := s.PackageForFile(ctx, f.URI(), TypecheckAll, NarrowestPackage)
+		if err != nil {
+			return nil, err
+		}
+
+		result := make(map[span.URI][]protocol.TextEdit)
+		// Rename internal references to the package in the renaming package
+		// Todo(dle): need more investigation on case when pkg.GoFiles != pkg.CompiledGoFiles if using cgo.
+		for _, f := range renamingPkg.CompiledGoFiles() {
+			pkgNameMappedRange := NewMappedRange(f.Tok, f.Mapper, f.File.Name.Pos(), f.File.Name.End())
+			rng, err := pkgNameMappedRange.Range()
+			if err != nil {
+				return nil, err
+			}
+			result[f.URI] = []protocol.TextEdit{
+				{
+					Range:   rng,
+					NewText: newName,
+				},
+			}
+		}
+
+		return result, nil
+	}
+
 	qos, err := qualifiedObjsAtProtocolPos(ctx, s, f.URI(), pp)
 	if err != nil {
 		return nil, err
@@ -182,6 +217,7 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	if err != nil {
 		return nil, err
 	}
+
 	result := make(map[span.URI][]protocol.TextEdit)
 	for uri, edits := range changes {
 		// These edits should really be associated with FileHandles for maximal correctness.

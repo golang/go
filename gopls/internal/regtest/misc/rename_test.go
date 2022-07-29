@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	. "golang.org/x/tools/internal/lsp/regtest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestPrepareRenamePackage(t *testing.T) {
@@ -48,6 +49,41 @@ func main() {
 		if err.Error() != wantErr {
 			t.Errorf("got %v, want %v", err.Error(), wantErr)
 		}
+	})
+}
+
+func TestRenamePackageInRenamedPackage(t *testing.T) {
+	// Failed at Go 1.13; not investigated
+	testenv.NeedsGo1Point(t, 14)
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.18
+-- main.go --
+package main
+
+import (
+	"fmt"
+	"a.go"
+)
+
+func main() {
+	fmt.Println(a.C)
+}
+-- a.go --
+package main
+
+const C = 1
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		pos := env.RegexpSearch("main.go", "main")
+		env.Rename("main.go", pos, "pkg")
+
+		// Check if the new package name exists.
+		env.RegexpSearch("main.go", "package pkg")
+		env.RegexpSearch("a.go", "package pkg")
 	})
 }
 
