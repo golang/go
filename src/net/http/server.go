@@ -395,11 +395,11 @@ func (cw *chunkWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func (cw *chunkWriter) flush() {
+func (cw *chunkWriter) flush() error {
 	if !cw.wroteHeader {
 		cw.writeHeader(nil)
 	}
-	cw.res.conn.bufw.Flush()
+	return cw.res.conn.bufw.Flush()
 }
 
 func (cw *chunkWriter) close() {
@@ -486,7 +486,15 @@ type response struct {
 	// TODO(bradfitz): this is currently (for Go 1.8) always
 	// non-nil. Make this lazily-created again as it used to be?
 	closeNotifyCh  chan bool
-	didCloseNotify int32 // atomic (only 0->1 winner should send)
+	didCloseNotify atomic.Bool // atomic (only false->true winner should send)
+}
+
+func (c *response) SetReadDeadline(deadline time.Time) error {
+	return c.conn.rwc.SetReadDeadline(deadline)
+}
+
+func (c *response) SetWriteDeadline(deadline time.Time) error {
+	return c.conn.rwc.SetWriteDeadline(deadline)
 }
 
 // TrailerPrefix is a magic prefix for ResponseWriter.Header map keys
@@ -738,7 +746,7 @@ func (cr *connReader) handleReadError(_ error) {
 // may be called from multiple goroutines.
 func (cr *connReader) closeNotify() {
 	res := cr.conn.curReq.Load()
-	if res != nil && atomic.CompareAndSwapInt32(&res.didCloseNotify, 0, 1) {
+	if res != nil && !res.didCloseNotify.Swap(true) {
 		res.closeNotifyCh <- true
 	}
 }
@@ -1688,11 +1696,19 @@ func (w *response) closedRequestBodyEarly() bool {
 }
 
 func (w *response) Flush() {
+	w.FlushError()
+}
+
+func (w *response) FlushError() error {
 	if !w.wroteHeader {
 		w.WriteHeader(StatusOK)
 	}
-	w.w.Flush()
-	w.cw.flush()
+	err := w.w.Flush()
+	e2 := w.cw.flush()
+	if err == nil {
+		err = e2
+	}
+	return err
 }
 
 func (c *conn) finalFlush() {
@@ -1983,6 +1999,7 @@ func (c *conn) serve(ctx context.Context) {
 			return
 		}
 		w.finishRequest()
+		c.rwc.SetWriteDeadline(time.Time{})
 		if !w.shouldReuseConnection() {
 			if w.requestBodyLimitHit || w.closedRequestBodyEarly() {
 				c.closeWriteAndWait()
