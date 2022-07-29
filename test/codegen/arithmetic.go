@@ -176,7 +176,7 @@ func MergeMuls2(n int) int {
 	// amd64:"IMUL3Q\t[$]23","(ADDQ\t[$]29)|(LEAQ\t29)"
 	// 386:"IMUL3L\t[$]23","ADDL\t[$]29"
 	// ppc64le/power9:"MADDLD",-"MULLD\t[$]23",-"ADD\t[$]29"
-        // ppc64le/power8:"MULLD\t[$]23","ADD\t[$]29"
+	// ppc64le/power8:"MULLD\t[$]23","ADD\t[$]29"
 	return 5*n + 7*(n+1) + 11*(n+2) // 23n + 29
 }
 
@@ -282,7 +282,7 @@ func Pow2DivisibleSigned(n1, n2 int) (bool, bool) {
 	// 386:"TESTL\t[$]63",-"DIVL",-"SHRL"
 	// amd64:"TESTQ\t[$]63",-"DIVQ",-"SHRQ"
 	// arm:"AND\t[$]63",-".*udiv",-"SRA"
-	// arm64:"AND\t[$]63",-"UDIV",-"ASR"
+	// arm64:"TST\t[$]63",-"UDIV",-"ASR",-"AND"
 	// ppc64:"ANDCC\t[$]63",-"SRAD"
 	// ppc64le:"ANDCC\t[$]63",-"SRAD"
 	a := n1%64 == 0 // signed divisible
@@ -290,7 +290,7 @@ func Pow2DivisibleSigned(n1, n2 int) (bool, bool) {
 	// 386:"TESTL\t[$]63",-"DIVL",-"SHRL"
 	// amd64:"TESTQ\t[$]63",-"DIVQ",-"SHRQ"
 	// arm:"AND\t[$]63",-".*udiv",-"SRA"
-	// arm64:"AND\t[$]63",-"UDIV",-"ASR"
+	// arm64:"TST\t[$]63",-"UDIV",-"ASR",-"AND"
 	// ppc64:"ANDCC\t[$]63",-"SRAD"
 	// ppc64le:"ANDCC\t[$]63",-"SRAD"
 	b := n2%64 != 0 // signed indivisible
@@ -572,16 +572,16 @@ func divInt(v int64) int64 {
 // "(z + C) -x -> C + (z - x)" can optimize the following cases.
 func constantFold1(i0, j0, i1, j1, i2, j2, i3, j3 int) (int, int, int, int) {
 	// arm64:"SUB","ADD\t[$]2"
-        // ppc64:"SUB","ADD\t[$]2"
-        // ppc64le:"SUB","ADD\t[$]2"
+	// ppc64:"SUB","ADD\t[$]2"
+	// ppc64le:"SUB","ADD\t[$]2"
 	r0 := (i0 + 3) - (j0 + 1)
 	// arm64:"SUB","SUB\t[$]4"
-        // ppc64:"SUB","ADD\t[$]-4"
-        // ppc64le:"SUB","ADD\t[$]-4"
+	// ppc64:"SUB","ADD\t[$]-4"
+	// ppc64le:"SUB","ADD\t[$]-4"
 	r1 := (i1 - 3) - (j1 + 1)
 	// arm64:"SUB","ADD\t[$]4"
-        // ppc64:"SUB","ADD\t[$]4"
-        // ppc64le:"SUB","ADD\t[$]4"
+	// ppc64:"SUB","ADD\t[$]4"
+	// ppc64le:"SUB","ADD\t[$]4"
 	r2 := (i2 + 3) - (j2 - 1)
 	// arm64:"SUB","SUB\t[$]2"
 	// ppc64:"SUB","ADD\t[$]-2"
@@ -606,8 +606,8 @@ func constantFold2(i0, j0, i1, j1 int) (int, int) {
 
 func constantFold3(i, j int) int {
 	// arm64: "MOVD\t[$]30","MUL",-"ADD",-"LSL"
-        // ppc64:"MULLD\t[$]30","MULLD"
-        // ppc64le:"MULLD\t[$]30","MULLD"
+	// ppc64:"MULLD\t[$]30","MULLD"
+	// ppc64le:"MULLD\t[$]30","MULLD"
 	r := (5 * i) * (6 * j)
 	return r
 }
