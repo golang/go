@@ -8,6 +8,7 @@ import (
 	"context"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/fake"
 	. "golang.org/x/tools/internal/lsp/regtest"
 )
 
@@ -19,7 +20,7 @@ func BenchmarkIWL(b *testing.B) {
 
 	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
-		_, editor, awaiter, err := connectEditor(dir)
+		_, editor, awaiter, err := connectEditor(dir, fake.EditorConfig{})
 		if err != nil {
 			b.Fatal(err)
 		}

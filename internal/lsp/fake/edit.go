@@ -108,6 +108,8 @@ func inText(p Pos, content []string) bool {
 // editContent implements a simplistic, inefficient algorithm for applying text
 // edits to our buffer representation. It returns an error if the edit is
 // invalid for the current content.
+//
+// TODO(rfindley): this function does not handle non-ascii text correctly.
 func editContent(content []string, edits []Edit) ([]string, error) {
 	newEdits := make([]Edit, len(edits))
 	copy(newEdits, edits)

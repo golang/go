@@ -18,8 +18,9 @@ import (
 type completionBenchOptions struct {
 	file, locationRegexp string
 
-	// hook to run edits before initial completion
-	preCompletionEdits func(*Env)
+	// Hooks to run edits before initial completion
+	setup            func(*Env) // run before the benchmark starts
+	beforeCompletion func(*Env) // run before each completion
 }
 
 func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
@@ -27,7 +28,11 @@ func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 
 	// Use a new environment for each test, to avoid any existing state from the
 	// previous session.
-	sandbox, editor, awaiter, err := connectEditor(dir)
+	sandbox, editor, awaiter, err := connectEditor(dir, fake.EditorConfig{
+		Settings: map[string]interface{}{
+			"completionBudget": "1m", // arbitrary long completion budget
+		},
+	})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -45,11 +50,10 @@ func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 		Sandbox: sandbox,
 		Awaiter: awaiter,
 	}
-	env.OpenFile(options.file)
 
 	// Run edits required for this completion.
-	if options.preCompletionEdits != nil {
-		options.preCompletionEdits(env)
+	if options.setup != nil {
+		options.setup(env)
 	}
 
 	// Run a completion to make sure the system is warm.
@@ -70,6 +74,9 @@ func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 	// initialization).
 	b.Run("completion", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
+			if options.beforeCompletion != nil {
+				options.beforeCompletion(env)
+			}
 			env.Completion(options.file, pos)
 		}
 	})
@@ -92,7 +99,7 @@ func endPosInBuffer(env *Env, name string) fake.Pos {
 func BenchmarkStructCompletion(b *testing.B) {
 	file := "internal/lsp/cache/session.go"
 
-	preCompletionEdits := func(env *Env) {
+	setup := func(env *Env) {
 		env.OpenFile(file)
 		originalBuffer := env.Editor.BufferText(file)
 		env.EditBuffer(file, fake.Edit{
@@ -102,17 +109,19 @@ func BenchmarkStructCompletion(b *testing.B) {
 	}
 
 	benchmarkCompletion(completionBenchOptions{
-		file:               file,
-		locationRegexp:     `var testVariable map\[string\]bool = Session{}(\.)`,
-		preCompletionEdits: preCompletionEdits,
+		file:           file,
+		locationRegexp: `var testVariable map\[string\]bool = Session{}(\.)`,
+		setup:          setup,
 	}, b)
 }
 
 // Benchmark import completion in tools codebase.
 func BenchmarkImportCompletion(b *testing.B) {
+	const file = "internal/lsp/source/completion/completion.go"
 	benchmarkCompletion(completionBenchOptions{
-		file:           "internal/lsp/source/completion/completion.go",
+		file:           file,
 		locationRegexp: `go\/()`,
+		setup:          func(env *Env) { env.OpenFile(file) },
 	}, b)
 }
 
@@ -120,7 +129,7 @@ func BenchmarkImportCompletion(b *testing.B) {
 func BenchmarkSliceCompletion(b *testing.B) {
 	file := "internal/lsp/cache/session.go"
 
-	preCompletionEdits := func(env *Env) {
+	setup := func(env *Env) {
 		env.OpenFile(file)
 		originalBuffer := env.Editor.BufferText(file)
 		env.EditBuffer(file, fake.Edit{
@@ -130,9 +139,9 @@ func BenchmarkSliceCompletion(b *testing.B) {
 	}
 
 	benchmarkCompletion(completionBenchOptions{
-		file:               file,
-		locationRegexp:     `var testVariable \[\]byte (=)`,
-		preCompletionEdits: preCompletionEdits,
+		file:           file,
+		locationRegexp: `var testVariable \[\]byte (=)`,
+		setup:          setup,
 	}, b)
 }
 
@@ -144,7 +153,7 @@ func (c *completer) _() {
 	c.inference.kindMatches(c.)
 }
 `
-	preCompletionEdits := func(env *Env) {
+	setup := func(env *Env) {
 		env.OpenFile(file)
 		originalBuffer := env.Editor.BufferText(file)
 		env.EditBuffer(file, fake.Edit{
@@ -154,8 +163,42 @@ func (c *completer) _() {
 	}
 
 	benchmarkCompletion(completionBenchOptions{
-		file:               file,
-		locationRegexp:     `func \(c \*completer\) _\(\) {\n\tc\.inference\.kindMatches\((c)`,
-		preCompletionEdits: preCompletionEdits,
+		file:           file,
+		locationRegexp: `func \(c \*completer\) _\(\) {\n\tc\.inference\.kindMatches\((c)`,
+		setup:          setup,
+	}, b)
+}
+
+// Benchmark completion following an arbitrary edit.
+//
+// Edits force type-checked packages to be invalidated, so we want to measure
+// how long it takes before completion results are available.
+func BenchmarkCompletionFollowingEdit(b *testing.B) {
+	file := "internal/lsp/source/completion/completion2.go"
+	fileContent := `
+package completion
+
+func (c *completer) _() {
+	c.inference.kindMatches(c.)
+	// __MAGIC_STRING_1
+}
+`
+	setup := func(env *Env) {
+		env.CreateBuffer(file, fileContent)
+	}
+
+	n := 1
+	beforeCompletion := func(env *Env) {
+		old := fmt.Sprintf("__MAGIC_STRING_%d", n)
+		new := fmt.Sprintf("__MAGIC_STRING_%d", n+1)
+		n++
+		env.RegexpReplace(file, old, new)
+	}
+
+	benchmarkCompletion(completionBenchOptions{
+		file:             file,
+		locationRegexp:   `func \(c \*completer\) _\(\) {\n\tc\.inference\.kindMatches\((c)`,
+		setup:            setup,
+		beforeCompletion: beforeCompletion,
 	}, b)
 }

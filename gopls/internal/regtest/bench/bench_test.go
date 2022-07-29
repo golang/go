@@ -133,7 +133,7 @@ func benchmarkEnv(tb testing.TB) *Env {
 		dir := benchmarkDir()
 
 		var err error
-		sandbox, editor, awaiter, err = connectEditor(dir)
+		sandbox, editor, awaiter, err = connectEditor(dir, fake.EditorConfig{})
 		if err != nil {
 			log.Fatalf("connecting editor: %v", err)
 		}
@@ -154,7 +154,7 @@ func benchmarkEnv(tb testing.TB) *Env {
 
 // connectEditor connects a fake editor session in the given dir, using the
 // given editor config.
-func connectEditor(dir string) (*fake.Sandbox, *fake.Editor, *regtest.Awaiter, error) {
+func connectEditor(dir string, config fake.EditorConfig) (*fake.Sandbox, *fake.Editor, *regtest.Awaiter, error) {
 	s, err := fake.NewSandbox(&fake.SandboxConfig{
 		Workdir: dir,
 		GOPROXY: "https://proxy.golang.org",
@@ -165,7 +165,7 @@ func connectEditor(dir string) (*fake.Sandbox, *fake.Editor, *regtest.Awaiter, e
 
 	a := regtest.NewAwaiter(s.Workdir)
 	ts := getServer()
-	e, err := fake.NewEditor(s, fake.EditorConfig{}).Connect(context.Background(), ts, a.Hooks())
+	e, err := fake.NewEditor(s, config).Connect(context.Background(), ts, a.Hooks())
 	if err != nil {
 		return nil, nil, nil, err
 	}
