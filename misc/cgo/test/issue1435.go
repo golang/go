@@ -10,6 +10,7 @@ package cgotest
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -144,6 +145,11 @@ func compareStatus(filter, expect string) error {
 func test1435(t *testing.T) {
 	if syscall.Getuid() != 0 {
 		t.Skip("skipping root only test")
+	}
+	if runtime.GOOS == "linux" {
+		if _, err := os.Stat("/etc/alpine-release"); err == nil {
+			t.Skip("skipping failing test on alpine - go.dev/issue/19938")
+		}
 	}
 
 	// Launch some threads in C.

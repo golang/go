@@ -44,6 +44,12 @@ func testMain(m *testing.M) int {
 		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
 		os.Exit(0)
 	}
+	if runtime.GOOS == "linux" {
+		if _, err := os.Stat("/etc/alpine-release"); err == nil {
+			fmt.Printf("SKIP - skipping failing test on alpine - go.dev/issue/19938\n")
+			os.Exit(0)
+		}
+	}
 
 	GOOS = goEnv("GOOS")
 	GOARCH = goEnv("GOARCH")
