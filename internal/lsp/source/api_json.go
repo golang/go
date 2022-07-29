@@ -379,6 +379,11 @@ var GeneratedAPIJSON = &APIJSON{
 							Default: "true",
 						},
 						{
+							Name:    "\"timeformat\"",
+							Doc:     "check for calls of (time.Time).Format or time.Parse with 2006-02-01\n\nThe timeformat checker looks for time formats with the 2006-02-01 (yyyy-dd-mm)\nformat. Internationally, \"yyyy-dd-mm\" does not occur in common calendar date\nstandards, and so it is more likely that 2006-01-02 (yyyy-mm-dd) was intended.\n",
+							Default: "true",
+						},
+						{
 							Name:    "\"unmarshal\"",
 							Doc:     "report passing non-pointer or non-interface values to unmarshal\n\nThe unmarshal analysis reports calls to functions such as json.Unmarshal\nin which the argument type is not a pointer or an interface.",
 							Default: "true",
@@ -964,6 +969,11 @@ var GeneratedAPIJSON = &APIJSON{
 		{
 			Name:    "tests",
 			Doc:     "check for common mistaken usages of tests and examples\n\nThe tests checker walks Test, Benchmark and Example functions checking\nmalformed names, wrong signatures and examples documenting non-existent\nidentifiers.\n\nPlease see the documentation for package testing in golang.org/pkg/testing\nfor the conventions that are enforced for Tests, Benchmarks, and Examples.",
+			Default: true,
+		},
+		{
+			Name:    "timeformat",
+			Doc:     "check for calls of (time.Time).Format or time.Parse with 2006-02-01\n\nThe timeformat checker looks for time formats with the 2006-02-01 (yyyy-dd-mm)\nformat. Internationally, \"yyyy-dd-mm\" does not occur in common calendar date\nstandards, and so it is more likely that 2006-01-02 (yyyy-mm-dd) was intended.\n",
 			Default: true,
 		},
 		{

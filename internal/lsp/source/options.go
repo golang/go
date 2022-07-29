@@ -43,6 +43,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/structtag"
 	"golang.org/x/tools/go/analysis/passes/testinggoroutine"
 	"golang.org/x/tools/go/analysis/passes/tests"
+	"golang.org/x/tools/go/analysis/passes/timeformat"
 	"golang.org/x/tools/go/analysis/passes/unmarshal"
 	"golang.org/x/tools/go/analysis/passes/unreachable"
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
@@ -1393,6 +1394,7 @@ func defaultAnalyzers() map[string]*Analyzer {
 		useany.Analyzer.Name:           {Analyzer: useany.Analyzer, Enabled: false},
 		infertypeargs.Analyzer.Name:    {Analyzer: infertypeargs.Analyzer, Enabled: true},
 		embeddirective.Analyzer.Name:   {Analyzer: embeddirective.Analyzer, Enabled: true},
+		timeformat.Analyzer.Name:       {Analyzer: timeformat.Analyzer, Enabled: true},
 
 		// gofmt -s suite:
 		simplifycompositelit.Analyzer.Name: {
