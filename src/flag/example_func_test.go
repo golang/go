@@ -40,11 +40,11 @@ func ExampleFunc() {
 	// {ip: <nil>, loopback: false}
 }
 
-func ExampleFuncNoArg() {
-	fs := flag.NewFlagSet("ExampleFuncNoArg", flag.ContinueOnError)
+func ExampleBoolFunc() {
+	fs := flag.NewFlagSet("ExampleBoolFunc", flag.ContinueOnError)
 	fs.SetOutput(os.Stdout)
 
-	fs.FuncNoArg("log", "logs a dummy message", func(s string) error {
+	fs.BoolFunc("log", "logs a dummy message", func(s string) error {
 		fmt.Println("dummy message")
 		return nil
 	})

@@ -555,9 +555,11 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 	}
 	// No explicit name, so use type if we can find one.
 	name = "value"
-	switch flag.Value.(type) {
+	switch t := flag.Value.(type) {
 	case boolFlag:
-		name = ""
+		if t.IsBoolFlag() {
+			name = ""
+		}
 	case *durationValue:
 		name = "duration"
 	case *float64Value:
@@ -951,10 +953,10 @@ func (f *FlagSet) Func(name, usage string, fn func(string) error) {
 	f.Var(funcValue{fn, true}, name, usage)
 }
 
-// FuncNoArg defines a flag with the specified name and usage string without requiring values.
+// BoolFunc defines a flag with the specified name and usage string without requiring values.
 // Each time the flag is seen, fn is called with the value of the flag.
 // If fn returns a non-nil error, it will be treated as a flag value parsing error.
-func (f *FlagSet) FuncNoArg(name, usage string, fn func(string) error) {
+func (f *FlagSet) BoolFunc(name, usage string, fn func(string) error) {
 	f.Var(funcValue{fn, false}, name, usage)
 }
 
@@ -968,8 +970,8 @@ func Func(name, usage string, fn func(string) error) {
 // Func defines a flag with the specified name and usage string without requiring values.
 // Each time the flag is seen, fn is called with the value of the flag.
 // If fn returns a non-nil error, it will be treated as a flag value parsing error.
-func FuncNoArg(name, usage string, fn func(string) error) {
-	CommandLine.FuncNoArg(name, usage, fn)
+func BoolFunc(name, usage string, fn func(string) error) {
+	CommandLine.BoolFunc(name, usage, fn)
 }
 
 // Var defines a flag with the specified name and usage string. The type and

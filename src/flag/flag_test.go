@@ -38,7 +38,7 @@ func TestEverything(t *testing.T) {
 	Float64("test_float64", 0, "float64 value")
 	Duration("test_duration", 0, "time.Duration value")
 	Func("test_func", "func value", func(string) error { return nil })
-	FuncNoArg("test_func_noarg", "func", func(string) error { return nil })
+	BoolFunc("test_boolfunc", "func", func(string) error { return nil })
 
 	m := make(map[string]*Flag)
 	desired := "0"
@@ -55,7 +55,7 @@ func TestEverything(t *testing.T) {
 				ok = true
 			case f.Name == "test_func" && f.Value.String() == "":
 				ok = true
-			case f.Name == "test_func_noarg" && f.Value.String() == "":
+			case f.Name == "test_boolfunc" && f.Value.String() == "":
 				ok = true
 			}
 			if !ok {
@@ -88,7 +88,7 @@ func TestEverything(t *testing.T) {
 	Set("test_float64", "1")
 	Set("test_duration", "1s")
 	Set("test_func", "1")
-	Set("test_func_noarg", "")
+	Set("test_boolfunc", "")
 	desired = "1"
 	Visit(visitor)
 	if len(m) != 10 {
@@ -308,11 +308,11 @@ func TestUserDefinedFunc(t *testing.T) {
 	}
 }
 
-func TestUserDefinedFuncNoArg(t *testing.T) {
+func TestUserDefinedBoolFunc(t *testing.T) {
 	flags := NewFlagSet("test", ContinueOnError)
 	flags.SetOutput(io.Discard)
 	var ss []string
-	flags.FuncNoArg("v", "usage", func(s string) error {
+	flags.BoolFunc("v", "usage", func(s string) error {
 		ss = append(ss, s)
 		return nil
 	})
@@ -333,10 +333,10 @@ func TestUserDefinedFuncNoArg(t *testing.T) {
 	if usage := buf.String(); !strings.Contains(usage, "usage") {
 		t.Errorf("usage string not included: %q", usage)
 	}
-	// test FuncNoArg error
+	// test BoolFunc error
 	flags = NewFlagSet("test", ContinueOnError)
 	flags.SetOutput(io.Discard)
-	flags.FuncNoArg("v", "usage", func(s string) error {
+	flags.BoolFunc("v", "usage", func(s string) error {
 		return fmt.Errorf("test error")
 	})
 	// flag not set, so no error
