@@ -33,6 +33,8 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/search"
+	"cmd/go/internal/vcs"
+	"cmd/go/internal/vcweb/vcstest"
 	"cmd/go/internal/work"
 	"cmd/internal/sys"
 
@@ -129,6 +131,12 @@ func TestMain(m *testing.M) {
 				return fmt.Errorf("%stestgo must not write to GOROOT (installing to %s)", callerPos, filepath.Join("GOROOT", rel))
 			}
 		}
+
+		if vcsTest := os.Getenv("TESTGO_VCSTEST_URL"); vcsTest != "" {
+			vcs.VCSTestRepoURL = vcsTest
+			vcs.VCSTestHosts = vcstest.Hosts
+		}
+
 		cmdgo.Main()
 		os.Exit(0)
 	}

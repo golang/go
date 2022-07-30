@@ -29,6 +29,8 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/script"
 	"cmd/go/internal/script/scripttest"
+	"cmd/go/internal/vcs"
+	"cmd/go/internal/vcweb/vcstest"
 )
 
 var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set, TestScript generates a go.sum file at the beginning of each test and updates test files if they pass.`)
@@ -37,6 +39,16 @@ var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set
 func TestScript(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.SkipIfShortAndSlow(t)
+
+	srv, err := vcstest.NewServer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := srv.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
 	StartProxy()
 
@@ -187,6 +199,7 @@ func scriptEnv() ([]string, error) {
 		"GOROOT_FINAL=" + testGOROOT_FINAL, // causes spurious rebuilds and breaks the "stale" built-in if not propagated
 		"GOTRACEBACK=system",
 		"TESTGO_GOROOT=" + testGOROOT,
+		"TESTGO_VCSTEST_URL=" + vcs.VCSTestRepoURL,
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",
 		"GONOSUMDB=",

@@ -495,21 +495,21 @@ func downloadPackage(p *load.Package) error {
 		vcsCmd, repo, rootPath = rr.VCS, rr.Repo, rr.Root
 	}
 	if !blindRepo && !vcsCmd.IsSecure(repo) && security != web.Insecure {
-		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
+		return fmt.Errorf("cannot download: %v uses insecure protocol", repo)
 	}
 
 	if p.Internal.Build.SrcRoot == "" {
 		// Package not found. Put in first directory of $GOPATH.
 		list := filepath.SplitList(cfg.BuildContext.GOPATH)
 		if len(list) == 0 {
-			return fmt.Errorf("cannot download, $GOPATH not set. For more details see: 'go help gopath'")
+			return fmt.Errorf("cannot download: $GOPATH not set. For more details see: 'go help gopath'")
 		}
 		// Guard against people setting GOPATH=$GOROOT.
 		if filepath.Clean(list[0]) == filepath.Clean(cfg.GOROOT) {
-			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: 'go help gopath'")
+			return fmt.Errorf("cannot download: $GOPATH must not be set to $GOROOT. For more details see: 'go help gopath'")
 		}
 		if _, err := os.Stat(filepath.Join(list[0], "src/cmd/go/alldocs.go")); err == nil {
-			return fmt.Errorf("cannot download, %s is a GOROOT, not a GOPATH. For more details see: 'go help gopath'", list[0])
+			return fmt.Errorf("cannot download: %s is a GOROOT, not a GOPATH. For more details see: 'go help gopath'", list[0])
 		}
 		p.Internal.Build.Root = list[0]
 		p.Internal.Build.SrcRoot = filepath.Join(list[0], "src")
