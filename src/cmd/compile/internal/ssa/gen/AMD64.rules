@@ -2043,15 +2043,18 @@
   && clobber(x)
   => (MOVQstore [i] {s} p0 w0 mem)
 
-(MOVBstore [7] {s} p1 (SHRQconst [56] w)
-  x1:(MOVWstore [5] {s} p1 (SHRQconst [40] w)
-  x2:(MOVLstore [1] {s} p1 (SHRQconst [8] w)
-  x3:(MOVBstore [0] {s} p1 w mem))))
+(MOVBstore  [c3] {s}  p3 (SHRQconst [56]  w)
+  x1:(MOVWstore [c2]  {s} p2  (SHRQconst [40] w)
+  x2:(MOVLstore [c1] {s} p1  (SHRQconst [8] w)
+  x3:(MOVBstore [c0] {s} p0  w mem))))
   && x1.Uses == 1
   && x2.Uses == 1
   && x3.Uses == 1
+  && sequentialAddresses(p0, p1, int64(1 + c0 - c1))
+  && sequentialAddresses(p0, p2, int64(5 + c0 - c2))
+  && sequentialAddresses(p0, p3, int64(7 + c0 - c3))
   && clobber(x1, x2, x3)
-  => (MOVQstore {s} p1 w mem)
+  => (MOVQstore [c0] {s} p0 w mem)
 
 (MOVBstore [i] {s} p
   x1:(MOVBload [j] {s2} p2 mem)

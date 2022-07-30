@@ -1764,6 +1764,9 @@ func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
 
 // sequentialAddresses reports true if it can prove that x + n == y
 func sequentialAddresses(x, y *Value, n int64) bool {
+	if x == y && n == 0 {
+		return true
+	}
 	if x.Op == Op386ADDL && y.Op == Op386LEAL1 && y.AuxInt == n && y.Aux == nil &&
 		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
 			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {

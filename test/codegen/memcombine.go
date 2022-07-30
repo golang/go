@@ -369,6 +369,14 @@ func store_le64_idx(b []byte, x uint64, idx int) {
 	binary.LittleEndian.PutUint64(b[idx:], x)
 }
 
+func store_le64_idx2(dst []byte, d, length, offset int) []byte {
+	a := dst[d : d+length]
+	b := dst[d-offset:]
+	// amd64:`MOVQ\s.*\(.*\)\(.*\*1\)$`,-`SHR.`
+	binary.LittleEndian.PutUint64(a, binary.LittleEndian.Uint64(b))
+	return dst
+}
+
 func store_le64_load(b []byte, x *[8]byte) {
 	_ = b[8]
 	// amd64:-`MOV[BWL]`
