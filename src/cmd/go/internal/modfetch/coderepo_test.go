@@ -8,11 +8,13 @@ import (
 	"archive/zip"
 	"crypto/sha256"
 	"encoding/hex"
+	"flag"
 	"hash"
 	"internal/testenv"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -20,15 +22,20 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch/codehost"
+	"cmd/go/internal/vcweb/vcstest"
 
 	"golang.org/x/mod/sumdb/dirhash"
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
+	flag.Parse()
+	if err := testMain(m); err != nil {
+		log.Fatal(err)
+	}
 }
 
-func testMain(m *testing.M) int {
+func testMain(m *testing.M) (err error) {
+
 	cfg.GOPROXY = "direct"
 
 	// The sum database is populated using a released version of the go command,
@@ -39,12 +46,31 @@ func testMain(m *testing.M) int {
 
 	dir, err := os.MkdirTemp("", "gitrepo-test-")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	defer os.RemoveAll(dir)
+	defer func() {
+		if rmErr := os.RemoveAll(dir); err == nil {
+			err = rmErr
+		}
+	}()
 
-	cfg.GOMODCACHE = dir
-	return m.Run()
+	cfg.GOMODCACHE = filepath.Join(dir, "modcache")
+	if err := os.Mkdir(cfg.GOMODCACHE, 0755); err != nil {
+		return err
+	}
+
+	srv, err := vcstest.NewServer()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := srv.Close(); err == nil {
+			err = closeErr
+		}
+	}()
+
+	m.Run()
+	return nil
 }
 
 const (
