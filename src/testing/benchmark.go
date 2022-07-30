@@ -337,6 +337,17 @@ func (b *B) launch() {
 	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.extra}
 }
 
+// Elapsed returns the measured elapsed time of the benchmark.
+// The duration reported by Elapsed matches the one measured by
+// StartTimer, StopTimer, and ResetTimer.
+func (b *B) Elapsed() time.Duration {
+	d := b.duration
+	if b.timerOn {
+		d += time.Since(b.start)
+	}
+	return d
+}
+
 // ReportMetric adds "n unit" to the reported benchmark results.
 // If the metric is per-iteration, the caller should divide by b.N,
 // and by convention units should end in "/op".
