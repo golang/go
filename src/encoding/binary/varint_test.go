@@ -128,7 +128,11 @@ func TestBufferTooSmall(t *testing.T) {
 		}
 
 		x, err := ReadUvarint(bytes.NewReader(buf))
-		if x != 0 || err != io.EOF {
+		wantErr := io.EOF
+		if i > 0 {
+			wantErr = io.ErrUnexpectedEOF
+		}
+		if x != 0 || err != wantErr {
 			t.Errorf("ReadUvarint(%v): got x = %d, err = %s", buf, x, err)
 		}
 	}
