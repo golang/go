@@ -1288,10 +1288,8 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 
 	// Check if the context is expired.
 	// Check before lock
-	select {
-	default:
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	db.mu.Lock()
