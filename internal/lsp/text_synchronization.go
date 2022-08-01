@@ -286,14 +286,33 @@ func (s *Server) processModifications(ctx context.Context, modifications []sourc
 		return errors.New("server is shut down")
 	}
 	s.stateMu.Unlock()
+
 	// If the set of changes included directories, expand those directories
 	// to their files.
 	modifications = s.session.ExpandModificationsToDirectories(ctx, modifications)
+
+	// Build a lookup map for file modifications, so that we can later join
+	// with the snapshot file associations.
+	modMap := make(map[span.URI]source.FileModification)
+	for _, mod := range modifications {
+		modMap[mod.URI] = mod
+	}
 
 	snapshots, release, err := s.session.DidModifyFiles(ctx, modifications)
 	if err != nil {
 		close(diagnoseDone)
 		return err
+	}
+
+	// golang/go#50267: diagnostics should be re-sent after an open or close. For
+	// some clients, it may be helpful to re-send after each change.
+	for snapshot, uris := range snapshots {
+		for _, uri := range uris {
+			mod := modMap[uri]
+			if snapshot.View().Options().ChattyDiagnostics || mod.Action == source.Open || mod.Action == source.Close {
+				s.mustPublishDiagnostics(uri)
+			}
+		}
 	}
 
 	go func() {

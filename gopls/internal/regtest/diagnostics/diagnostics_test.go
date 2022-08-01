@@ -384,7 +384,7 @@ func main() {}
 			// completed.
 			OnceMet(
 				env.DoneWithChange(),
-				NoDiagnostics("a.go"),
+				EmptyDiagnostics("a.go"),
 			),
 		)
 	})
@@ -757,15 +757,20 @@ func _() {
 		env.OpenFile("a/a1.go")
 		env.CreateBuffer("a/a2.go", ``)
 		env.SaveBufferWithoutActions("a/a2.go")
+		// We can't use OnceMet here (at least, not easily) because the didSave
+		// races with the didChangeWatchedFiles.
+		//
+		// TODO(rfindley): add an AllOf expectation combinator, or an expectation
+		// that all notifications have been processed.
 		env.Await(
-			OnceMet(
-				env.DoneWithSave(),
-				NoDiagnostics("a/a1.go"),
-			),
+			EmptyDiagnostics("a/a1.go"),
 		)
 		env.EditBuffer("a/a2.go", fake.NewEdit(0, 0, 0, 0, `package a`))
 		env.Await(
-			OnceMet(env.DoneWithChange(), NoDiagnostics("a/a1.go")),
+			OnceMet(
+				env.DoneWithChange(),
+				EmptyDiagnostics("a/a1.go"),
+			),
 		)
 	})
 }
@@ -914,7 +919,7 @@ var _ = foo.Bar
 		env.Await(
 			OnceMet(
 				env.DoneWithOpen(),
-				NoDiagnostics("_foo/x.go"),
+				EmptyDiagnostics("_foo/x.go"),
 			))
 	})
 }
@@ -1730,7 +1735,7 @@ package b
 			env.Await(
 				OnceMet(
 					env.DoneWithOpen(),
-					NoDiagnostics("a/a.go"),
+					EmptyDiagnostics("a/a.go"),
 				),
 				NoOutstandingWork(),
 			)

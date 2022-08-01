@@ -573,6 +573,16 @@ type InternalOptions struct {
 	// that the new algorithm has worked, and write some summary
 	// statistics to a file in os.TmpDir()
 	NewDiff string
+
+	// ChattyDiagnostics controls whether to report file diagnostics for each
+	// file change. If unset, gopls only reports diagnostics when they change, or
+	// when a file is opened or closed.
+	//
+	// TODO(rfindley): is seems that for many clients this should be true by
+	// default. For example, coc.nvim seems to get confused if diagnostics are
+	// not re-published. Switch the default to true after some period of internal
+	// testing.
+	ChattyDiagnostics bool
 }
 
 type ImportShortcut string
@@ -805,6 +815,7 @@ func (o *Options) EnableAllExperiments() {
 	o.ExperimentalUseInvalidMetadata = true
 	o.ExperimentalWatchedFileDelay = 50 * time.Millisecond
 	o.NewDiff = "checked"
+	o.ChattyDiagnostics = true
 }
 
 func (o *Options) enableAllExperimentMaps() {
@@ -1074,6 +1085,9 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 	case "newDiff":
 		result.setString(&o.NewDiff)
+
+	case "chattyDiagnostics":
+		result.setBool(&o.ChattyDiagnostics)
 
 	// Replaced settings.
 	case "experimentalDisabledAnalyses":

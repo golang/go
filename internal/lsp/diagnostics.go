@@ -41,17 +41,42 @@ const (
 
 // A diagnosticReport holds results for a single diagnostic source.
 type diagnosticReport struct {
-	snapshotID    uint64
-	publishedHash string
+	snapshotID    uint64 // snapshot ID on which the report was computed
+	publishedHash string // last published hash for this (URI, source)
 	diags         map[string]*source.Diagnostic
 }
 
 // fileReports holds a collection of diagnostic reports for a single file, as
 // well as the hash of the last published set of diagnostics.
 type fileReports struct {
-	snapshotID    uint64
+	// publishedSnapshotID is the last snapshot ID for which we have "published"
+	// diagnostics (though the publishDiagnostics notification may not have
+	// actually been sent, if nothing changed).
+	//
+	// Specifically, publishedSnapshotID is updated to a later snapshot ID when
+	// we either:
+	//  (1) publish diagnostics for the file for a snapshot, or
+	//  (2) determine that published diagnostics are valid for a new snapshot.
+	//
+	// Notably publishedSnapshotID may not match the snapshot id on individual reports in
+	// the reports map:
+	// - we may have published partial diagnostics from only a subset of
+	//   diagnostic sources for which new results have been computed, or
+	// - we may have started computing reports for an even new snapshot, but not
+	//   yet published.
+	//
+	// This prevents gopls from publishing stale diagnostics.
+	publishedSnapshotID uint64
+
+	// publishedHash is a hash of the latest diagnostics published for the file.
 	publishedHash string
-	reports       map[diagnosticSource]diagnosticReport
+
+	// If set, mustPublish marks diagnostics as needing publication, independent
+	// of whether their publishedHash has changed.
+	mustPublish bool
+
+	// The last stored diagnostics for each diagnostic source.
+	reports map[diagnosticSource]diagnosticReport
 }
 
 func (d diagnosticSource) String() string {
@@ -358,6 +383,24 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 	}
 }
 
+// mustPublishDiagnostics marks the uri as needing publication, independent of
+// whether the published contents have changed.
+//
+// This can be used for ensuring gopls publishes diagnostics after certain file
+// events.
+func (s *Server) mustPublishDiagnostics(uri span.URI) {
+	s.diagnosticsMu.Lock()
+	defer s.diagnosticsMu.Unlock()
+
+	if s.diagnostics[uri] == nil {
+		s.diagnostics[uri] = &fileReports{
+			publishedHash: hashDiagnostics(), // Hash for 0 diagnostics.
+			reports:       map[diagnosticSource]diagnosticReport{},
+		}
+	}
+	s.diagnostics[uri].mustPublish = true
+}
+
 // storeDiagnostics stores results from a single diagnostic source. If merge is
 // true, it merges results into any existing results for this snapshot.
 func (s *Server) storeDiagnostics(snapshot source.Snapshot, uri span.URI, dsource diagnosticSource, diags []*source.Diagnostic) {
@@ -367,6 +410,7 @@ func (s *Server) storeDiagnostics(snapshot source.Snapshot, uri span.URI, dsourc
 	if fh == nil {
 		return
 	}
+
 	s.diagnosticsMu.Lock()
 	defer s.diagnosticsMu.Unlock()
 	if s.diagnostics[uri] == nil {
@@ -512,7 +556,7 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 
 		// If we've already delivered diagnostics for a future snapshot for this
 		// file, do not deliver them.
-		if r.snapshotID > snapshot.ID() {
+		if r.publishedSnapshotID > snapshot.ID() {
 			continue
 		}
 		anyReportsChanged := false
@@ -541,10 +585,10 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 		}
 		source.SortDiagnostics(diags)
 		hash := hashDiagnostics(diags...)
-		if hash == r.publishedHash {
+		if hash == r.publishedHash && !r.mustPublish {
 			// Update snapshotID to be the latest snapshot for which this diagnostic
 			// hash is valid.
-			r.snapshotID = snapshot.ID()
+			r.publishedSnapshotID = snapshot.ID()
 			continue
 		}
 		var version int32
@@ -558,7 +602,8 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 		}); err == nil {
 			published++
 			r.publishedHash = hash
-			r.snapshotID = snapshot.ID()
+			r.mustPublish = false // diagnostics have been successfully published
+			r.publishedSnapshotID = snapshot.ID()
 			for dsource, hash := range reportHashes {
 				report := r.reports[dsource]
 				report.publishedHash = hash

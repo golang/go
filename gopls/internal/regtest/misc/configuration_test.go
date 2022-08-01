@@ -37,7 +37,7 @@ var FooErr = errors.New("foo")
 		env.OpenFile("a/a.go")
 		env.Await(
 			env.DoneWithOpen(),
-			NoDiagnostics("a/a.go"),
+			EmptyDiagnostics("a/a.go"),
 		)
 		cfg := env.Editor.Config()
 		cfg.Settings = map[string]interface{}{

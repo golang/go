@@ -139,7 +139,7 @@ func _() {
 		})
 		env.Await(
 			EmptyDiagnostics("a/a.go"),
-			NoDiagnostics("b/b.go"),
+			EmptyOrNoDiagnostics("b/b.go"),
 		)
 	})
 }
@@ -341,12 +341,12 @@ func _() {
 			env.Await(
 				OnceMet(
 					env.DoneWithChangeWatchedFiles(),
-					NoDiagnostics("a/a.go"),
+					EmptyOrNoDiagnostics("a/a.go"),
 				),
 			)
 			env.WriteWorkspaceFile("b/b.go", newMethod)
 			env.Await(
-				NoDiagnostics("a/a.go"),
+				EmptyOrNoDiagnostics("a/a.go"),
 			)
 		})
 	})
@@ -360,9 +360,9 @@ func _() {
 			env.Await(
 				OnceMet(
 					env.DoneWithChangeWatchedFiles(),
-					NoDiagnostics("a/a.go"),
+					EmptyOrNoDiagnostics("a/a.go"),
 				),
-				NoDiagnostics("b/b.go"),
+				EmptyOrNoDiagnostics("b/b.go"),
 			)
 		})
 	})
@@ -715,11 +715,11 @@ func TestAll(t *testing.T) {
 		env.Await(
 			OnceMet(
 				env.DoneWithChangeWatchedFiles(),
-				NoDiagnostics("a/a.go"),
+				EmptyOrNoDiagnostics("a/a.go"),
 			),
 			OnceMet(
 				env.DoneWithChangeWatchedFiles(),
-				NoDiagnostics("a/a_test.go"),
+				EmptyOrNoDiagnostics("a/a_test.go"),
 			),
 		)
 		// Now, add a new file to the test variant and use its symbol in the
@@ -747,11 +747,11 @@ func TestSomething(t *testing.T) {}
 		env.Await(
 			OnceMet(
 				env.DoneWithChangeWatchedFiles(),
-				NoDiagnostics("a/a_test.go"),
+				EmptyOrNoDiagnostics("a/a_test.go"),
 			),
 			OnceMet(
 				env.DoneWithChangeWatchedFiles(),
-				NoDiagnostics("a/a2_test.go"),
+				EmptyOrNoDiagnostics("a/a2_test.go"),
 			),
 		)
 	})

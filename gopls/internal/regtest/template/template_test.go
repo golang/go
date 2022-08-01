@@ -133,7 +133,7 @@ go 1.12
 		env.Await(
 			OnceMet(
 				env.DoneWithOpen(),
-				NoDiagnostics("hello.tmpl"), // Don't get spurious errors for empty templates.
+				EmptyDiagnostics("hello.tmpl"), // Don't get spurious errors for empty templates.
 			),
 		)
 		env.SetBufferContent("hello.tmpl", "{{range .Planets}}\nHello {{}}\n{{end}}")

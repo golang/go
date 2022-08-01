@@ -413,6 +413,8 @@ func (s *Session) ModifyFiles(ctx context.Context, changes []source.FileModifica
 	return err
 }
 
+// TODO(rfindley): fileChange seems redundant with source.FileModification.
+// De-dupe into a common representation for changes.
 type fileChange struct {
 	content    []byte
 	exists     bool
