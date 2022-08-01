@@ -18,7 +18,12 @@ import (
 	"unsafe"
 )
 
-var flagQuick = flag.Bool("quick", false, "skip slow tests, for second run in all.bash")
+// flagQuick is set by the -quick option to skip some relatively slow tests.
+// This is used by the cmd/dist test runtime:cpu124.
+// The cmd/dist test passes both -test.short and -quick;
+// there are tests that only check testing.Short, and those tests will
+// not be skipped if only -quick is used.
+var flagQuick = flag.Bool("quick", false, "skip slow tests, for cmd/dist test runtime:cpu124")
 
 func init() {
 	// We're testing the runtime, so make tracebacks show things

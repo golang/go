@@ -1,4 +1,4 @@
-// compile -d=ssa/check/on
+// compile
 
 // Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,7 +6,13 @@
 
 package main
 
+type Value[T any] interface {
+}
+
+func use[T any](v Value[T]) {
+	_, _ = v.(int)
+}
+
 func main() {
-_:
-_:
+	use(Value[int](1))
 }

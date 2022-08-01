@@ -623,7 +623,7 @@ func checkFetchBody(nameNode *ir.Name) {
 	}
 }
 
-// getInstantiation gets the instantiantion and dictionary of the function or method nameNode
+// getInstantiation gets the instantiation and dictionary of the function or method nameNode
 // with the type arguments shapes. If the instantiated function is not already
 // cached, then it calls genericSubst to create the new instantiation.
 func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth bool) *instInfo {
@@ -1357,7 +1357,7 @@ func (g *genInst) dictPass(info *instInfo) {
 			}
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
 			dt := m.(*ir.TypeAssertExpr)
-			if !dt.Type().HasShape() && !dt.X.Type().HasShape() {
+			if !dt.Type().HasShape() && !(dt.X.Type().HasShape() && !dt.X.Type().IsEmptyInterface()) {
 				break
 			}
 			var rtype, itab ir.Node

@@ -798,7 +798,7 @@ func TestNetIP(t *testing.T) {
 	}
 }
 
-func TestIngoreDepthLimit(t *testing.T) {
+func TestIgnoreDepthLimit(t *testing.T) {
 	// We don't test the actual depth limit because it requires building an
 	// extremely large message, which takes quite a while.
 	oldNestingDepth := maxIgnoreNestingDepth

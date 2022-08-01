@@ -10,7 +10,6 @@ import (
 	"go/ast"
 	"go/token"
 	"io/fs"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -653,8 +652,8 @@ func split(x string) (pre, mid, post string) {
 }
 
 func TestParseDepthLimit(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
-		t.Skip("causes call stack exhaustion on js/wasm")
+	if testing.Short() {
+		t.Skip("test requires significant memory")
 	}
 	for _, tt := range parseDepthTests {
 		for _, size := range []string{"small", "big"} {
@@ -699,9 +698,6 @@ func TestParseDepthLimit(t *testing.T) {
 }
 
 func TestScopeDepthLimit(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
-		t.Skip("causes call stack exhaustion on js/wasm")
-	}
 	for _, tt := range parseDepthTests {
 		if !tt.scope {
 			continue

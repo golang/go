@@ -56,40 +56,58 @@ func TestLookPath(t *testing.T) {
 
 	// Add "." to PATH so that exec.LookPath looks in the current directory on all systems.
 	// And try to trick it with "../testdir" too.
-	for _, dir := range []string{".", "../testdir"} {
-		t.Run(pathVar+"="+dir, func(t *testing.T) {
-			t.Setenv(pathVar, dir+string(filepath.ListSeparator)+origPath)
-			good := dir + "/execabs-test"
-			if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
-				t.Fatalf(`LookPath(%#q) = %#q, %v, want "%s...", nil`, good, found, err, good)
-			}
-			if runtime.GOOS == "windows" {
-				good = dir + `\execabs-test`
-				if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
-					t.Fatalf(`LookPath(%#q) = %#q, %v, want "%s...", nil`, good, found, err, good)
-				}
-			}
+	for _, errdot := range []string{"1", "0"} {
+		t.Run("GODEBUG=execerrdot="+errdot, func(t *testing.T) {
+			t.Setenv("GODEBUG", "execerrdot="+errdot)
+			for _, dir := range []string{".", "../testdir"} {
+				t.Run(pathVar+"="+dir, func(t *testing.T) {
+					t.Setenv(pathVar, dir+string(filepath.ListSeparator)+origPath)
+					good := dir + "/execabs-test"
+					if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
+						t.Fatalf(`LookPath(%#q) = %#q, %v, want "%s...", nil`, good, found, err, good)
+					}
+					if runtime.GOOS == "windows" {
+						good = dir + `\execabs-test`
+						if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
+							t.Fatalf(`LookPath(%#q) = %#q, %v, want "%s...", nil`, good, found, err, good)
+						}
+					}
 
-			if _, err := LookPath("execabs-test"); err == nil {
-				t.Fatalf("LookPath didn't fail when finding a non-relative path")
-			} else if !errors.Is(err, ErrDot) {
-				t.Fatalf("LookPath returned unexpected error: want Is ErrDot, got %q", err)
-			}
+					_, err := LookPath("execabs-test")
+					if errdot == "1" {
+						if err == nil {
+							t.Fatalf("LookPath didn't fail when finding a non-relative path")
+						} else if !errors.Is(err, ErrDot) {
+							t.Fatalf("LookPath returned unexpected error: want Is ErrDot, got %q", err)
+						}
+					} else {
+						if err != nil {
+							t.Fatalf("LookPath failed unexpectedly: %v", err)
+						}
+					}
 
-			cmd := Command("execabs-test")
-			if cmd.Err == nil {
-				t.Fatalf("Command didn't fail when finding a non-relative path")
-			} else if !errors.Is(cmd.Err, ErrDot) {
-				t.Fatalf("Command returned unexpected error: want Is ErrDot, got %q", cmd.Err)
-			}
-			cmd.Err = nil
+					cmd := Command("execabs-test")
+					if errdot == "1" {
+						if cmd.Err == nil {
+							t.Fatalf("Command didn't fail when finding a non-relative path")
+						} else if !errors.Is(cmd.Err, ErrDot) {
+							t.Fatalf("Command returned unexpected error: want Is ErrDot, got %q", cmd.Err)
+						}
+						cmd.Err = nil
+					} else {
+						if cmd.Err != nil {
+							t.Fatalf("Command failed unexpectedly: %v", err)
+						}
+					}
 
-			// Clearing cmd.Err should let the execution proceed,
-			// and it should fail because it's not a valid binary.
-			if err := cmd.Run(); err == nil {
-				t.Fatalf("Run did not fail: expected exec error")
-			} else if errors.Is(err, ErrDot) {
-				t.Fatalf("Run returned unexpected error ErrDot: want error like ENOEXEC: %q", err)
+					// Clearing cmd.Err should let the execution proceed,
+					// and it should fail because it's not a valid binary.
+					if err := cmd.Run(); err == nil {
+						t.Fatalf("Run did not fail: expected exec error")
+					} else if errors.Is(err, ErrDot) {
+						t.Fatalf("Run returned unexpected error ErrDot: want error like ENOEXEC: %q", err)
+					}
+				})
 			}
 		})
 	}

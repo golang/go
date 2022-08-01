@@ -137,3 +137,15 @@ func TestFloatJSONEncoding(t *testing.T) {
 		}
 	}
 }
+
+func TestFloatGobDecodeShortBuffer(t *testing.T) {
+	for _, tc := range [][]byte{
+		[]byte{0x1, 0x0, 0x0, 0x0},
+		[]byte{0x1, 0xfa, 0x0, 0x0, 0x0, 0x0},
+	} {
+		err := NewFloat(0).GobDecode(tc)
+		if err == nil {
+			t.Error("expected GobDecode to return error for malformed input")
+		}
+	}
+}

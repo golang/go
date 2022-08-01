@@ -50,7 +50,7 @@ type sharedMemHeader struct {
 	// rawInMem is true if the region holds raw bytes, which occurs during
 	// minimization. If true after the worker fails during minimization, this
 	// indicates that an unrecoverable error occurred, and the region can be
-	// used to retrive the raw bytes that caused the error.
+	// used to retrieve the raw bytes that caused the error.
 	rawInMem bool
 }
 

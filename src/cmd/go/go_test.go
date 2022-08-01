@@ -991,21 +991,6 @@ func TestIssue10952(t *testing.T) {
 	tg.run("get", "-d", "-u", importPath)
 }
 
-func TestIssue16471(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.must(os.MkdirAll(tg.path("src/rsc.io/go-get-issue-10952"), 0755))
-	tg.runGit(tg.path("src/rsc.io"), "clone", "https://github.com/zombiezen/go-get-issue-10952")
-	tg.runFail("get", "-u", "rsc.io/go-get-issue-10952")
-	tg.grepStderr("rsc.io/go-get-issue-10952 is a custom import path for https://github.com/rsc/go-get-issue-10952, but .* is checked out from https://github.com/zombiezen/go-get-issue-10952", "did not detect updated import path")
-}
-
 // Test git clone URL that uses SCP-like syntax and custom import path checking.
 func TestIssue11457(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)

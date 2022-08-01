@@ -19,7 +19,7 @@ var p224MinusOne = new(fiat.P224Element).Sub(
 func p224SqrtCandidate(r, x *fiat.P224Element) {
 	// Since p = 1 mod 4, we can't use the exponentiation by (p + 1) / 4 like
 	// for the other primes. Instead, implement a variation of Tonelli–Shanks.
-	// The contant-time implementation is adapted from Thomas Pornin's ecGFp5.
+	// The constant-time implementation is adapted from Thomas Pornin's ecGFp5.
 	//
 	// https://github.com/pornin/ecgfp5/blob/82325b965/rust/src/field.rs#L337-L385
 

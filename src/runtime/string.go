@@ -432,7 +432,7 @@ func atoi32(s string) (int32, bool) {
 // - KiB, MiB, GiB, TiB which represent binary IEC/ISO 80000 units, or
 // - B, which just represents bytes.
 //
-// Returns an int64 because that's what its callers want and recieve,
+// Returns an int64 because that's what its callers want and receive,
 // but the result is always non-negative.
 func parseByteCount(s string) (int64, bool) {
 	// The empty string is not valid.

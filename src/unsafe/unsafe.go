@@ -189,13 +189,18 @@ type Pointer *ArbitraryType
 // For instance, if x is a slice, Sizeof returns the size of the slice
 // descriptor, not the size of the memory referenced by the slice.
 // For a struct, the size includes any padding introduced by field alignment.
-// The return value of Sizeof is a Go constant.
+// The return value of Sizeof is a Go constant if the type of the argument x
+// does not have variable size.
+// (A type has variable size if it is a type parameter or if it is an array
+// or struct type with elements of variable size).
 func Sizeof(x ArbitraryType) uintptr
 
 // Offsetof returns the offset within the struct of the field represented by x,
 // which must be of the form structValue.field. In other words, it returns the
 // number of bytes between the start of the struct and the start of the field.
-// The return value of Offsetof is a Go constant.
+// The return value of Offsetof is a Go constant if the type of the argument x
+// does not have variable size.
+// (See the description of [Sizeof] for a definition of variable sized types.)
 func Offsetof(x ArbitraryType) uintptr
 
 // Alignof takes an expression x of any type and returns the required alignment
@@ -206,7 +211,9 @@ func Offsetof(x ArbitraryType) uintptr
 // within that struct, then Alignof(s.f) will return the required alignment
 // of a field of that type within a struct. This case is the same as the
 // value returned by reflect.TypeOf(s.f).FieldAlign().
-// The return value of Alignof is a Go constant.
+// The return value of Alignof is a Go constant if the type of the argument
+// does not have variable size.
+// (See the description of [Sizeof] for a definition of variable sized types.)
 func Alignof(x ArbitraryType) uintptr
 
 // The function Add adds len to ptr and returns the updated pointer

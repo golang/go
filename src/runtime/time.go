@@ -397,7 +397,11 @@ func dodeltimer(pp *p, i int) int {
 	if i == 0 {
 		updateTimer0When(pp)
 	}
-	atomic.Xadd(&pp.numTimers, -1)
+	n := atomic.Xadd(&pp.numTimers, -1)
+	if n == 0 {
+		// If there are no timers, then clearly none are modified.
+		atomic.Store64(&pp.timerModifiedEarliest, 0)
+	}
 	return smallestChanged
 }
 
@@ -421,7 +425,11 @@ func dodeltimer0(pp *p) {
 		siftdownTimer(pp.timers, 0)
 	}
 	updateTimer0When(pp)
-	atomic.Xadd(&pp.numTimers, -1)
+	n := atomic.Xadd(&pp.numTimers, -1)
+	if n == 0 {
+		// If there are no timers, then clearly none are modified.
+		atomic.Store64(&pp.timerModifiedEarliest, 0)
+	}
 }
 
 // modtimer modifies an existing timer.

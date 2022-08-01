@@ -169,6 +169,8 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 	}
 	// Special case: sync/atomic.align64 is an empty struct we recognize
 	// as a signal that the struct it contains must be 64-bit-aligned.
+	//
+	// This logic is duplicated in go/types and cmd/compile/internal/types2.
 	if isStruct && t.NumFields() == 0 && t.Sym() != nil && t.Sym().Name == "align64" && isAtomicStdPkg(t.Sym().Pkg) {
 		maxalign = 8
 	}
