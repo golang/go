@@ -1228,9 +1228,14 @@ func (dec *Decoder) decodeIgnoredValue(wireId typeId) {
 	}
 }
 
+const (
+	intBits     = 32 << (^uint(0) >> 63)
+	uintptrBits = 32 << (^uintptr(0) >> 63)
+)
+
 func init() {
 	var iop, uop decOp
-	switch reflect.TypeOf(int(0)).Bits() {
+	switch intBits {
 	case 32:
 		iop = decInt32
 		uop = decUint32
@@ -1244,7 +1249,7 @@ func init() {
 	decOpTable[reflect.Uint] = uop
 
 	// Finally uintptr
-	switch reflect.TypeOf(uintptr(0)).Bits() {
+	switch uintptrBits {
 	case 32:
 		uop = decUint32
 	case 64:
