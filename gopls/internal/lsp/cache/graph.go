@@ -134,12 +134,12 @@ func (g *metadataGraph) build() {
 //
 // If includeInvalid is false, the algorithm ignores packages with invalid
 // metadata (including those in the given list of ids).
-func (g *metadataGraph) reverseTransitiveClosure(includeInvalid bool, ids ...PackageID) map[PackageID]struct{} {
-	seen := make(map[PackageID]struct{})
+func (g *metadataGraph) reverseTransitiveClosure(includeInvalid bool, ids ...PackageID) map[PackageID]bool {
+	seen := make(map[PackageID]bool)
 	var visitAll func([]PackageID)
 	visitAll = func(ids []PackageID) {
 		for _, id := range ids {
-			if _, ok := seen[id]; ok {
+			if seen[id] {
 				continue
 			}
 			m := g.metadata[id]
@@ -147,7 +147,7 @@ func (g *metadataGraph) reverseTransitiveClosure(includeInvalid bool, ids ...Pac
 			if m == nil || !(m.Valid || includeInvalid) {
 				continue
 			}
-			seen[id] = struct{}{}
+			seen[id] = true
 			visitAll(g.importedBy[id])
 		}
 	}

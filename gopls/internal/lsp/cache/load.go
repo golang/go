@@ -228,16 +228,17 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	s.meta = s.meta.Clone(updates)
 	s.resetIsActivePackageLocked()
 
-	// Invalidate any packages we may have associated with this metadata.
+	// Invalidate any packages and analysis results we may have associated with
+	// this metadata.
 	//
-	// TODO(rfindley): this should not be necessary, as we should have already
-	// invalidated in snapshot.clone.
-	for id := range invalidatedPackages {
-		for _, mode := range source.AllParseModes {
-			key := packageKey{mode, id}
-			s.packages.Delete(key)
-		}
-	}
+	// Generally speaking we should have already invalidated these results in
+	// snapshot.clone, but with experimentalUseInvalidMetadata is may be possible
+	// that we have re-computed stale results before the reload completes. In
+	// this case, we must re-invalidate here.
+	//
+	// TODO(golang/go#54180): if we decide to make experimentalUseInvalidMetadata
+	// obsolete, we should avoid this invalidation.
+	s.invalidatePackagesLocked(invalidatedPackages)
 
 	s.workspacePackages = computeWorkspacePackagesLocked(s, s.meta)
 	s.dumpWorkspace("load")

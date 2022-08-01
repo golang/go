@@ -1856,26 +1856,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		addRevDeps(id, invalidateMetadata)
 	}
 
-	// Delete invalidated package type information.
-	for id := range idsToInvalidate {
-		for _, mode := range source.AllParseModes {
-			key := packageKey{mode, id}
-			result.packages.Delete(key)
-		}
-	}
-
-	// Copy actions.
-	// TODO(adonovan): opt: avoid iteration over s.actions.
-	var actionsToDelete []actionKey
-	s.actions.Range(func(k, _ interface{}) {
-		key := k.(actionKey)
-		if _, ok := idsToInvalidate[key.pkgid]; ok {
-			actionsToDelete = append(actionsToDelete, key)
-		}
-	})
-	for _, key := range actionsToDelete {
-		result.actions.Delete(key)
-	}
+	result.invalidatePackagesLocked(idsToInvalidate)
 
 	// If a file has been deleted, we must delete metadata for all packages
 	// containing that file.
@@ -2048,6 +2029,35 @@ func invalidatedPackageIDs(uri span.URI, known map[span.URI][]PackageID, package
 		}
 	}
 	return invalidated
+}
+
+// invalidatePackagesLocked deletes data associated with the given package IDs.
+//
+// Note: all keys in the ids map are invalidated, regardless of the
+// corresponding value.
+//
+// s.mu must be held while calling this function.
+func (s *snapshot) invalidatePackagesLocked(ids map[PackageID]bool) {
+	// Delete invalidated package type information.
+	for id := range ids {
+		for _, mode := range source.AllParseModes {
+			key := packageKey{mode, id}
+			s.packages.Delete(key)
+		}
+	}
+
+	// Copy actions.
+	// TODO(adonovan): opt: avoid iteration over s.actions.
+	var actionsToDelete []actionKey
+	s.actions.Range(func(k, _ interface{}) {
+		key := k.(actionKey)
+		if _, ok := ids[key.pkgid]; ok {
+			actionsToDelete = append(actionsToDelete, key)
+		}
+	})
+	for _, key := range actionsToDelete {
+		s.actions.Delete(key)
+	}
 }
 
 // fileWasSaved reports whether the FileHandle passed in has been saved. It

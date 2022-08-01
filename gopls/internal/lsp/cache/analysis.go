@@ -365,10 +365,10 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 			if r := recover(); r != nil {
 				// An Analyzer crashed. This is often merely a symptom
 				// of a problem in package loading.
-				// Now that we have a theory of these crashes,
-				// we disable the check to stop flakes from being a nuisance.
-				// TODO(adonovan): re-enable it when plausibly fixed.
-				const strict = false
+				//
+				// We believe that CL 420538 may have fixed these crashes, so enable
+				// strict checks in tests.
+				const strict = true
 				if strict && bug.PanicOnBugs && analyzer.Name != "fact_purity" {
 					// During testing, crash. See issues 54762, 56035.
 					// But ignore analyzers with known crash bugs:
