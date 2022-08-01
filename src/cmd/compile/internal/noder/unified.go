@@ -247,7 +247,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 
 			path, name, code := r.p.PeekObj(idx)
 			if code != pkgbits.ObjStub {
-				objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil}
+				objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil, nil}
 			}
 		}
 
@@ -271,7 +271,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 
 			sym := types.NewPkg(path, "").Lookup(name)
 			if _, ok := importBodyReader[sym]; !ok {
-				importBodyReader[sym] = pkgReaderIndex{pr, idx, nil}
+				importBodyReader[sym] = pkgReaderIndex{pr, idx, nil, nil}
 			}
 		}
 

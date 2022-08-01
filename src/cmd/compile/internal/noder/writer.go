@@ -190,7 +190,7 @@ type writerDict struct {
 // A derivedInfo represents a reference to an encoded generic Go type.
 type derivedInfo struct {
 	idx    pkgbits.Index
-	needed bool // TODO(mdempsky): Remove; will break x/tools importer
+	needed bool
 }
 
 // A typeInfo represents a reference to an encoded Go type.
@@ -1952,15 +1952,26 @@ func (w *writer) exprs(exprs []syntax.Expr) {
 // expression of type *runtime._type representing typ.
 func (w *writer) rtype(typ types2.Type) {
 	w.Sync(pkgbits.SyncRType)
-	w.typ(typ)
+	w.typNeeded(typ)
+}
+
+// typNeeded writes a reference to typ, and records that its
+// *runtime._type is needed.
+func (w *writer) typNeeded(typ types2.Type) {
+	info := w.p.typIdx(typ, w.dict)
+	w.typInfo(info)
+
+	if info.derived {
+		w.dict.derived[info.idx].needed = true
+	}
 }
 
 // convRTTI writes information so that the reader can construct
 // expressions for converting from src to dst.
 func (w *writer) convRTTI(src, dst types2.Type) {
 	w.Sync(pkgbits.SyncConvRTTI)
-	w.typ(src)
-	w.typ(dst)
+	w.typNeeded(src)
+	w.typNeeded(dst)
 }
 
 func (w *writer) exprType(iface types2.Type, typ syntax.Expr) {
@@ -1992,6 +2003,9 @@ func (w *writer) exprType(iface types2.Type, typ syntax.Expr) {
 	}
 
 	w.typInfo(info)
+	if info.derived {
+		w.dict.derived[info.idx].needed = true
+	}
 }
 
 func (dict *writerDict) methodExprIdx(recvInfo typeInfo, methodInfo selectorInfo) int {

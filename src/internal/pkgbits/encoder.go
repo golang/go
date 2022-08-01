@@ -21,7 +21,6 @@ import (
 //   - v1: adds the flags uint32 word
 //
 // TODO(mdempsky): For the next version bump:
-//   - remove the unused dict.derived.needed bool
 //   - remove the legacy "has init" bool from the public root
 const currentVersion uint32 = 1
 
