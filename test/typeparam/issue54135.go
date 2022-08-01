@@ -1,4 +1,4 @@
-// compile
+// run
 
 // Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -19,8 +19,12 @@ type Baz interface {
 }
 
 func check[T comparable](p Bar[T]) {
-	_, _ = p.(any)
-	_, _ = p.(Baz)
+	if x, ok := p.(any); !ok || x != p {
+		panic("FAIL")
+	}
+	if _, ok := p.(Baz); ok {
+		panic("FAIL")
+	}
 }
 
 func main() {
