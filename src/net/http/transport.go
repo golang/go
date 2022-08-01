@@ -625,7 +625,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	}
 }
 
-var errCannotRewind = errors.New("net/http: cannot rewind body after connection loss")
+var ErrCannotRewind = errors.New("net/http: cannot rewind body after connection loss")
 
 type readTrackingBody struct {
 	io.ReadCloser
@@ -668,7 +668,7 @@ func rewindBody(req *Request) (rewound *Request, err error) {
 		req.closeBody()
 	}
 	if req.GetBody == nil {
-		return nil, errCannotRewind
+		return nil, ErrCannotRewind
 	}
 	body, err := req.GetBody()
 	if err != nil {
