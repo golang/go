@@ -1122,7 +1122,7 @@ func removeAll(path string) error {
 	)
 	for {
 		err := os.RemoveAll(path)
-		if !isWindowsAccessDenied(err) {
+		if !isWindowsRetryable(err) {
 			return err
 		}
 		if start.IsZero() {

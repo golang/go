@@ -6,8 +6,8 @@
 
 package testing
 
-// isWindowsAccessDenied reports whether err is ERROR_ACCESS_DENIED,
-// which is defined only on Windows.
-func isWindowsAccessDenied(err error) bool {
+// isWindowsRetryable reports whether err is a Windows error code
+// that may be fixed by retrying a failed filesystem operation.
+func isWindowsRetryable(err error) bool {
 	return false
 }
