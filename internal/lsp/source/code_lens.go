@@ -231,6 +231,10 @@ func toggleDetailsCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle
 	if err != nil {
 		return nil, err
 	}
+	if !pgf.File.Package.IsValid() {
+		// Without a package name we have nowhere to put the codelens, so give up.
+		return nil, nil
+	}
 	rng, err := NewMappedRange(pgf.Tok, pgf.Mapper, pgf.File.Package, pgf.File.Package).Range()
 	if err != nil {
 		return nil, err
