@@ -1,0 +1,1 @@
+[{"id":"STD","affected":[{"package":{"name":"archive/zip"},"ranges":[{"type":"SEMVER","events":[{"introduced":"1.18.0"}]}],"ecosystem_specific":{"symbols":["OpenReader"]}}]}]

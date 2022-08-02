@@ -147,7 +147,7 @@ type Interface interface {
 	// RunVulncheckExp: Run vulncheck (experimental)
 	//
 	// Run vulnerability check (`govulncheck`).
-	RunVulncheckExp(context.Context, VulncheckArgs) (VulncheckResult, error)
+	RunVulncheckExp(context.Context, VulncheckArgs) error
 }
 
 type RunTestsArgs struct {
@@ -320,8 +320,7 @@ type VulncheckArgs struct {
 	// Package pattern. E.g. "", ".", "./...".
 	Pattern string
 
-	// TODO: Flag []string (flags accepted by govulncheck, e.g., -tests)
-	// TODO: Format string (json, text)
+	// TODO: -tests
 }
 
 type VulncheckResult struct {

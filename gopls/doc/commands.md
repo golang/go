@@ -281,26 +281,6 @@ Args:
 }
 ```
 
-Result:
-
-```
-{
-	"Vuln": []{
-		"ID": string,
-		"Details": string,
-		"Aliases": []string,
-		"Symbol": string,
-		"PkgPath": string,
-		"ModPath": string,
-		"URL": string,
-		"CurrentVersion": string,
-		"FixedVersion": string,
-		"CallStacks": [][]golang.org/x/tools/internal/lsp/command.StackEntry,
-		"CallStackSummaries": []string,
-	},
-}
-```
-
 ### **Start the gopls debug server**
 Identifier: `gopls.start_debugging`
 
