@@ -1285,7 +1285,6 @@ func (db *DB) nextRequestKeyLocked() uint64 {
 
 // conn returns a newly-opened or cached *driverConn.
 func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn, error) {
-
 	// Check if the context is expired.
 	// Check before lock
 	if err := ctx.Err(); err != nil {
