@@ -357,18 +357,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpPPC64LoweredAtomicCas64,
 		ssa.OpPPC64LoweredAtomicCas32:
+		// MOVD        $0, Rout
 		// LWSYNC
 		// loop:
 		// LDAR        (Rarg0), MutexHint, Rtmp
 		// CMP         Rarg1, Rtmp
-		// BNE         fail
+		// BNE         end
 		// STDCCC      Rarg2, (Rarg0)
 		// BNE         loop
 		// LWSYNC      // Only for sequential consistency; not required in CasRel.
 		// MOVD        $1, Rout
-		// BR          end
-		// fail:
-		// MOVD        $0, Rout
 		// end:
 		ld := ppc64.ALDAR
 		st := ppc64.ASTDCCC
@@ -382,20 +380,26 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		r1 := v.Args[1].Reg()
 		r2 := v.Args[2].Reg()
 		out := v.Reg0()
+		// Initialize return value to false
+		p := s.Prog(ppc64.AMOVD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = out
 		// LWSYNC - Assuming shared data not write-through-required nor
 		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
 		plwsync1 := s.Prog(ppc64.ALWSYNC)
 		plwsync1.To.Type = obj.TYPE_NONE
 		// LDAR or LWAR
-		p := s.Prog(ld)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = r0
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = ppc64.REGTMP
+		p0 := s.Prog(ld)
+		p0.From.Type = obj.TYPE_MEM
+		p0.From.Reg = r0
+		p0.To.Type = obj.TYPE_REG
+		p0.To.Reg = ppc64.REGTMP
 		// If it is a Compare-and-Swap-Release operation, set the EH field with
 		// the release hint.
 		if v.AuxInt == 0 {
-			p.SetFrom3Const(0)
+			p0.SetFrom3Const(0)
 		}
 		// CMP reg1,reg2
 		p1 := s.Prog(cmp)
@@ -403,7 +407,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p1.From.Reg = r1
 		p1.To.Reg = ppc64.REGTMP
 		p1.To.Type = obj.TYPE_REG
-		// BNE cas_fail
+		// BNE done with return value = false
 		p2 := s.Prog(ppc64.ABNE)
 		p2.To.Type = obj.TYPE_BRANCH
 		// STDCCC or STWCCC
@@ -415,7 +419,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// BNE retry
 		p4 := s.Prog(ppc64.ABNE)
 		p4.To.Type = obj.TYPE_BRANCH
-		p4.To.SetTarget(p)
+		p4.To.SetTarget(p0)
 		// LWSYNC - Assuming shared data not write-through-required nor
 		// caching-inhibited. See Appendix B.2.1.1 in the ISA 2.07b.
 		// If the operation is a CAS-Release, then synchronization is not necessary.
@@ -423,25 +427,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			plwsync2 := s.Prog(ppc64.ALWSYNC)
 			plwsync2.To.Type = obj.TYPE_NONE
 		}
-		// return true
+		// return value true
 		p5 := s.Prog(ppc64.AMOVD)
 		p5.From.Type = obj.TYPE_CONST
 		p5.From.Offset = 1
 		p5.To.Type = obj.TYPE_REG
 		p5.To.Reg = out
-		// BR done
-		p6 := s.Prog(obj.AJMP)
-		p6.To.Type = obj.TYPE_BRANCH
-		// return false
-		p7 := s.Prog(ppc64.AMOVD)
-		p7.From.Type = obj.TYPE_CONST
-		p7.From.Offset = 0
-		p7.To.Type = obj.TYPE_REG
-		p7.To.Reg = out
-		p2.To.SetTarget(p7)
 		// done (label)
-		p8 := s.Prog(obj.ANOP)
-		p6.To.SetTarget(p8)
+		p6 := s.Prog(obj.ANOP)
+		p2.To.SetTarget(p6)
 
 	case ssa.OpPPC64LoweredPubBarrier:
 		// LWSYNC
