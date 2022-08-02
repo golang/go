@@ -62,8 +62,9 @@ func Init() (*sys.Arch, ld.Arch) {
 		PEreloc1:         pereloc1,
 		Trampoline:       trampoline,
 
-		Androiddynld: "/system/bin/linker64",
-		Linuxdynld:   "/lib/ld-linux-aarch64.so.1",
+		Androiddynld:   "/system/bin/linker64",
+		Linuxdynld:     "/lib/ld-linux-aarch64.so.1",
+		LinuxdynldMusl: "/lib/ld-musl-aarch64.so.1",
 
 		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
 		Openbsddynld:   "/usr/libexec/ld.so",

@@ -133,15 +133,6 @@ if [ "$(uname -s)" = "GNU/kFreeBSD" ]; then
 	export CGO_ENABLED=0
 fi
 
-# Test which linker/loader our system is using, if GO_LDSO is not set.
-if [ -z "$GO_LDSO" ] && type readelf >/dev/null 2>&1; then
-	if echo "int main() { return 0; }" | ${CC:-cc} -o ./test-musl-ldso -x c - >/dev/null 2>&1; then
-		LDSO=$(readelf -l ./test-musl-ldso | grep 'interpreter:' | sed -e 's/^.*interpreter: \(.*\)[]]/\1/') >/dev/null 2>&1
-		[ -z "$LDSO" ] || export GO_LDSO="$LDSO"
-		rm -f ./test-musl-ldso
-	fi
-fi
-
 # Clean old generated file that will cause problems in the build.
 rm -f ./runtime/runtime_defs.go
 

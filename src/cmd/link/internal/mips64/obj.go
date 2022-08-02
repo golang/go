@@ -39,8 +39,10 @@ import (
 
 func Init() (*sys.Arch, ld.Arch) {
 	arch := sys.ArchMIPS64
+	musl := "/lib/ld-musl-mips64.so.1"
 	if buildcfg.GOARCH == "mips64le" {
 		arch = sys.ArchMIPS64LE
+		musl = "/lib/ld-musl-mips64el.so.1"
 	}
 
 	theArch := ld.Arch{
@@ -60,6 +62,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Machoreloc1:      machoreloc1,
 
 		Linuxdynld:     "/lib64/ld64.so.1",
+		LinuxdynldMusl: musl,
 		Freebsddynld:   "XXX",
 		Openbsddynld:   "/usr/libexec/ld.so",
 		Netbsddynld:    "XXX",

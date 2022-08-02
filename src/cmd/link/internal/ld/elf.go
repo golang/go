@@ -15,6 +15,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"internal/buildcfg"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -1782,6 +1783,16 @@ func asmbElf(ctxt *Link) {
 					}
 				} else {
 					interpreter = thearch.Linuxdynld
+					// If interpreter does not exist, try musl instead.
+					// This lets the same cmd/link binary work on
+					// both glibc-based and musl-based systems.
+					if _, err := os.Stat(interpreter); err != nil {
+						if musl := thearch.LinuxdynldMusl; musl != "" {
+							if _, err := os.Stat(musl); err == nil {
+								interpreter = musl
+							}
+						}
+					}
 				}
 
 			case objabi.Hfreebsd:
