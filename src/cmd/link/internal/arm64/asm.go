@@ -539,7 +539,8 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		v |= ld.MACHO_ARM64_RELOC_UNSIGNED << 28
 	case objabi.R_CALLARM64:
 		if xadd != 0 {
-			ldr.Errorf(s, "ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", ldr.SymName(rs), xadd)
+			out.Write32(uint32(sectoff))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(xadd&0xffffff))
 		}
 
 		v |= 1 << 24 // pc-relative bit
@@ -719,13 +720,20 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			}
 
 			return val, nExtReloc, isOk
-		case objabi.R_CALLARM64,
-			objabi.R_ARM64_TLS_LE,
-			objabi.R_ARM64_TLS_IE:
+
+		case objabi.R_CALLARM64:
 			nExtReloc = 1
-			if rt == objabi.R_ARM64_TLS_IE {
-				nExtReloc = 2 // need two ELF relocations. see elfreloc1
+			if target.IsDarwin() && r.Add() != 0 {
+				nExtReloc = 2 // need another relocation for addend
 			}
+			return val, nExtReloc, isOk
+
+		case objabi.R_ARM64_TLS_LE:
+			nExtReloc = 1
+			return val, nExtReloc, isOk
+
+		case objabi.R_ARM64_TLS_IE:
+			nExtReloc = 2 // need two ELF relocations. see elfreloc1
 			return val, nExtReloc, isOk
 
 		case objabi.R_ADDR:
@@ -946,20 +954,6 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 	case objabi.R_ARM64_GOTPCREL,
 		objabi.R_ADDRARM64:
 		rr := ld.ExtrelocViaOuterSym(ldr, r, s)
-
-		// Note: ld64 currently has a bug that any non-zero addend for BR26 relocation
-		// will make the linking fail because it thinks the code is not PIC even though
-		// the BR26 relocation should be fully resolved at link time.
-		// That is the reason why the next if block is disabled. When the bug in ld64
-		// is fixed, we can enable this block and also enable duff's device in cmd/7g.
-		if false && target.IsDarwin() {
-			// Mach-O wants the addend to be encoded in the instruction
-			// Note that although Mach-O supports ARM64_RELOC_ADDEND, it
-			// can only encode 24-bit of signed addend, but the instructions
-			// supports 33-bit of signed addend, so we always encode the
-			// addend in place.
-			rr.Xadd = 0
-		}
 		return rr, true
 	case objabi.R_CALLARM64,
 		objabi.R_ARM64_TLS_LE,
