@@ -27,12 +27,12 @@ func recover2() {
 
 func Baz(a A) {
 	defer recover1()
+	defer recover()
 	panic(a)
 }
 
 // Relevant SSA:
 // func recover1():
-// 	0:
 //   t0 = print("only this recover...":string)
 //   t1 = recover()
 //   t2 = typeassert,ok t1.(I)
@@ -53,6 +53,7 @@ func Baz(a A) {
 //   t0 = local A (a)
 //   *t0 = a
 //   defer recover1()
+//   defer recover()
 //   t1 = *t0
 //   t2 = make interface{} <- A (t1)
 //   panic t2

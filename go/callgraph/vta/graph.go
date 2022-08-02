@@ -568,7 +568,9 @@ func (b *builder) panic(p *ssa.Panic) {
 func (b *builder) call(c ssa.CallInstruction) {
 	// When c is r := recover() call register instruction, we add Recover -> r.
 	if bf, ok := c.Common().Value.(*ssa.Builtin); ok && bf.Name() == "recover" {
-		b.addInFlowEdge(recoverReturn{}, b.nodeFromVal(c.(*ssa.Call)))
+		if v, ok := c.(ssa.Value); ok {
+			b.addInFlowEdge(recoverReturn{}, b.nodeFromVal(v))
+		}
 		return
 	}
 
