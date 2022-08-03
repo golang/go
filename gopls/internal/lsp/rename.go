@@ -6,9 +6,11 @@ package lsp
 
 import (
 	"context"
+	"path/filepath"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
 func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*protocol.WorkspaceEdit, error) {
@@ -17,7 +19,10 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	if !ok {
 		return nil, err
 	}
-	edits, err := source.Rename(ctx, snapshot, fh, params.Position, params.NewName)
+	// Because we don't handle directory renaming within source.Rename, source.Rename returns
+	// boolean value isPkgRenaming to determine whether an DocumentChanges of type RenameFile should
+	// be added to the return protocol.WorkspaceEdit value.
+	edits, isPkgRenaming, err := source.Rename(ctx, snapshot, fh, params.Position, params.NewName)
 	if err != nil {
 		return nil, err
 	}
@@ -29,6 +34,18 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 			return nil, err
 		}
 		docChanges = append(docChanges, documentChanges(fh, e)...)
+	}
+	if isPkgRenaming {
+		uri := params.TextDocument.URI.SpanURI()
+		oldBase := filepath.Dir(span.URI.Filename(uri))
+		newURI := filepath.Join(filepath.Dir(oldBase), params.NewName)
+		docChanges = append(docChanges, protocol.DocumentChanges{
+			RenameFile: &protocol.RenameFile{
+				Kind:   "rename",
+				OldURI: protocol.URIFromPath(oldBase),
+				NewURI: protocol.URIFromPath(newURI),
+			},
+		})
 	}
 	return &protocol.WorkspaceEdit{
 		DocumentChanges: docChanges,

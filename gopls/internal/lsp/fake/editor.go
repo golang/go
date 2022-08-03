@@ -271,6 +271,11 @@ func (e *Editor) initialize(ctx context.Context) error {
 	// editor does send didChangeWatchedFiles notifications, so set this to
 	// true.
 	params.Capabilities.Workspace.DidChangeWatchedFiles.DynamicRegistration = true
+	params.Capabilities.Workspace.WorkspaceEdit = &protocol.WorkspaceEditClientCapabilities{
+		ResourceOperations: []protocol.ResourceOperationKind{
+			"rename",
+		},
+	}
 
 	params.Trace = "messages"
 	// TODO: support workspace folders.

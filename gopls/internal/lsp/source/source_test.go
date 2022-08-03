@@ -764,7 +764,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	changes, err := source.Rename(r.ctx, r.snapshot, fh, srcRng.Start, newText)
+	changes, _, err := source.Rename(r.ctx, r.snapshot, fh, srcRng.Start, newText)
 	if err != nil {
 		renamed := string(r.data.Golden(t, tag, spn.URI().Filename(), func() ([]byte, error) {
 			return []byte(err.Error()), nil

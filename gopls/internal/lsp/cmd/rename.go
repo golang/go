@@ -13,9 +13,9 @@ import (
 	"path/filepath"
 	"sort"
 
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
 )
@@ -81,7 +81,6 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 	var orderedURIs []string
 	edits := map[span.URI][]protocol.TextEdit{}
 	for _, c := range edit.DocumentChanges {
-		// Todo: Add handler for RenameFile edits
 		if c.TextDocumentEdit != nil {
 			uri := fileURI(c.TextDocumentEdit.TextDocument.URI)
 			edits[uri] = append(edits[uri], c.TextDocumentEdit.Edits...)

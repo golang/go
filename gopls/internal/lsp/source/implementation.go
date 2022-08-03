@@ -213,27 +213,31 @@ var (
 // every package that the file belongs to, in every typechecking mode
 // applicable.
 func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, pp protocol.Position) ([]qualifiedObject, error) {
-	pkgs, err := s.PackagesForFile(ctx, uri, TypecheckAll, false)
-	if err != nil {
-		return nil, err
-	}
-	if len(pkgs) == 0 {
-		return nil, errNoObjectFound
-	}
-	pkg := pkgs[0]
-	pgf, err := pkg.File(uri)
-	if err != nil {
-		return nil, err
-	}
-	pos, err := pgf.Mapper.Pos(pp)
-	if err != nil {
-		return nil, err
-	}
-	offset, err := safetoken.Offset(pgf.Tok, pos)
+	offset, err := protocolPositionToOffset(ctx, s, uri, pp)
 	if err != nil {
 		return nil, err
 	}
 	return qualifiedObjsAtLocation(ctx, s, positionKey{uri, offset}, map[positionKey]bool{})
+}
+
+func protocolPositionToOffset(ctx context.Context, s Snapshot, uri span.URI, pp protocol.Position) (int, error) {
+	pkgs, err := s.PackagesForFile(ctx, uri, TypecheckAll, false)
+	if err != nil {
+		return 0, err
+	}
+	if len(pkgs) == 0 {
+		return 0, errNoObjectFound
+	}
+	pkg := pkgs[0]
+	pgf, err := pkg.File(uri)
+	if err != nil {
+		return 0, err
+	}
+	pos, err := pgf.Mapper.Pos(pp)
+	if err != nil {
+		return 0, err
+	}
+	return safetoken.Offset(pgf.Tok, pos)
 }
 
 // A positionKey identifies a byte offset within a file (URI).
