@@ -112,6 +112,11 @@ func TestFiltererDisallow(t *testing.T) {
 			[]string{"a/b/c.go"},
 			[]string{},
 		},
+		{
+			[]string{"-b"}, // should only filter paths prefixed with the "b" directory
+			[]string{"a/b/c.go", "bb"},
+			[]string{"b/c/d.go", "b"},
+		},
 	}
 
 	for _, test := range tests {

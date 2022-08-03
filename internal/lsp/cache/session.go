@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -228,6 +229,17 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		ctx: backgroundCtx,
 		processEnv: &imports.ProcessEnv{
 			GocmdRunner: s.gocmdRunner,
+			SkipPathInScan: func(dir string) bool {
+				prefix := strings.TrimSuffix(string(v.folder), "/") + "/"
+				uri := strings.TrimSuffix(string(span.URIFromPath(dir)), "/")
+				if !strings.HasPrefix(uri+"/", prefix) {
+					return false
+				}
+				filterer := source.NewFilterer(options.DirectoryFilters)
+				rel := strings.TrimPrefix(uri, prefix)
+				disallow := filterer.Disallow(rel)
+				return disallow
+			},
 		},
 	}
 	v.snapshot = &snapshot{

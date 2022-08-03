@@ -807,6 +807,11 @@ type ProcessEnv struct {
 	ModFlag    string
 	ModFile    string
 
+	// SkipPathInScan returns true if the path should be skipped from scans of
+	// the RootCurrentModule root type. The function argument is a clean,
+	// absolute path.
+	SkipPathInScan func(string) bool
+
 	// Env overrides the OS environment, and can be used to specify
 	// GOPROXY, GO111MODULE, etc. PATH cannot be set here, because
 	// exec.Command will not honor it.

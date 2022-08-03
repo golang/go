@@ -406,16 +406,15 @@ func (f *Filterer) Disallow(path string) bool {
 // Supporting glob-like operators:
 //   - **: match zero or more complete path segments
 func convertFilterToRegexp(filter string) *regexp.Regexp {
+	if filter == "" {
+		return regexp.MustCompile(".*")
+	}
 	var ret strings.Builder
+	ret.WriteString("^")
 	segs := strings.Split(filter, "/")
-	for i, seg := range segs {
+	for _, seg := range segs {
 		if seg == "**" {
-			switch i {
-			case 0:
-				ret.WriteString("^.*")
-			default:
-				ret.WriteString(".*")
-			}
+			ret.WriteString(".*")
 		} else {
 			ret.WriteString(regexp.QuoteMeta(seg))
 		}

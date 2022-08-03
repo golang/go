@@ -1136,6 +1136,8 @@ func pathExcludedByFilter(path string, filterer *source.Filterer) bool {
 }
 
 func buildFilterer(root, gomodcache string, opts *source.Options) *source.Filterer {
+	// TODO(rfindley): this looks wrong. If gomodcache isn't actually nested
+	// under root, this will do the wrong thing.
 	gomodcache = strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(gomodcache, root)), "/")
 	filters := opts.DirectoryFilters
 	if gomodcache != "" {

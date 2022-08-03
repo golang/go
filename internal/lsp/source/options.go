@@ -840,7 +840,7 @@ func validateDirectoryFilter(ifilter string) (string, error) {
 	if filter == "" || (filter[0] != '+' && filter[0] != '-') {
 		return "", fmt.Errorf("invalid filter %v, must start with + or -", filter)
 	}
-	segs := strings.Split(filter, "/")
+	segs := strings.Split(filter[1:], "/")
 	unsupportedOps := [...]string{"?", "*"}
 	for _, seg := range segs {
 		if seg != "**" {

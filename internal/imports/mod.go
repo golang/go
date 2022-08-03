@@ -466,6 +466,16 @@ func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback) error
 	// We assume cached directories are fully cached, including all their
 	// children, and have not changed. We can skip them.
 	skip := func(root gopathwalk.Root, dir string) bool {
+		if r.env.SkipPathInScan != nil && root.Type == gopathwalk.RootCurrentModule {
+			if root.Path == dir {
+				return false
+			}
+
+			if r.env.SkipPathInScan(filepath.Clean(dir)) {
+				return true
+			}
+		}
+
 		info, ok := r.cacheLoad(dir)
 		if !ok {
 			return false
