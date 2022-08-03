@@ -2152,7 +2152,7 @@ var rmipsStrings = []intName{
 func (i R_MIPS) String() string   { return stringName(uint32(i), rmipsStrings, false) }
 func (i R_MIPS) GoString() string { return stringName(uint32(i), rmipsStrings, true) }
 
-// Relocation types for LARCH.
+// Relocation types for LoongArch.
 type R_LARCH int
 
 const (
@@ -2206,6 +2206,45 @@ const (
 	R_LARCH_SUB24                      R_LARCH = 54
 	R_LARCH_SUB32                      R_LARCH = 55
 	R_LARCH_SUB64                      R_LARCH = 56
+	R_LARCH_GNU_VTINHERIT              R_LARCH = 57
+	R_LARCH_GNU_VTENTRY                R_LARCH = 58
+	R_LARCH_B16                        R_LARCH = 64
+	R_LARCH_B21                        R_LARCH = 65
+	R_LARCH_B26                        R_LARCH = 66
+	R_LARCH_ABS_HI20                   R_LARCH = 67
+	R_LARCH_ABS_LO12                   R_LARCH = 68
+	R_LARCH_ABS64_LO20                 R_LARCH = 69
+	R_LARCH_ABS64_HI12                 R_LARCH = 70
+	R_LARCH_PCALA_HI20                 R_LARCH = 71
+	R_LARCH_PCALA_LO12                 R_LARCH = 72
+	R_LARCH_PCALA64_LO20               R_LARCH = 73
+	R_LARCH_PCALA64_HI12               R_LARCH = 74
+	R_LARCH_GOT_PC_HI20                R_LARCH = 75
+	R_LARCH_GOT_PC_LO12                R_LARCH = 76
+	R_LARCH_GOT64_PC_LO20              R_LARCH = 77
+	R_LARCH_GOT64_PC_HI12              R_LARCH = 78
+	R_LARCH_GOT_HI20                   R_LARCH = 79
+	R_LARCH_GOT_LO12                   R_LARCH = 80
+	R_LARCH_GOT64_LO20                 R_LARCH = 81
+	R_LARCH_GOT64_HI12                 R_LARCH = 82
+	R_LARCH_TLS_LE_HI20                R_LARCH = 83
+	R_LARCH_TLS_LE_LO12                R_LARCH = 84
+	R_LARCH_TLS_LE64_LO20              R_LARCH = 85
+	R_LARCH_TLS_LE64_HI12              R_LARCH = 86
+	R_LARCH_TLS_IE_PC_HI20             R_LARCH = 87
+	R_LARCH_TLS_IE_PC_LO12             R_LARCH = 88
+	R_LARCH_TLS_IE64_PC_LO20           R_LARCH = 89
+	R_LARCH_TLS_IE64_PC_HI12           R_LARCH = 90
+	R_LARCH_TLS_IE_HI20                R_LARCH = 91
+	R_LARCH_TLS_IE_LO12                R_LARCH = 92
+	R_LARCH_TLS_IE64_LO20              R_LARCH = 93
+	R_LARCH_TLS_IE64_HI12              R_LARCH = 94
+	R_LARCH_TLS_LD_PC_HI20             R_LARCH = 95
+	R_LARCH_TLS_LD_HI20                R_LARCH = 96
+	R_LARCH_TLS_GD_PC_HI20             R_LARCH = 97
+	R_LARCH_TLS_GD_HI20                R_LARCH = 98
+	R_LARCH_32_PCREL                   R_LARCH = 99
+	R_LARCH_RELAX                      R_LARCH = 100
 )
 
 var rlarchStrings = []intName{
@@ -2259,6 +2298,45 @@ var rlarchStrings = []intName{
 	{54, "R_LARCH_SUB24"},
 	{55, "R_LARCH_SUB32"},
 	{56, "R_LARCH_SUB64"},
+	{57, "R_LARCH_GNU_VTINHERIT"},
+	{58, "R_LARCH_GNU_VTENTRY"},
+	{64, "R_LARCH_B16"},
+	{65, "R_LARCH_B21"},
+	{66, "R_LARCH_B26"},
+	{67, "R_LARCH_ABS_HI20"},
+	{68, "R_LARCH_ABS_LO12"},
+	{69, "R_LARCH_ABS64_LO20"},
+	{70, "R_LARCH_ABS64_HI12"},
+	{71, "R_LARCH_PCALA_HI20"},
+	{72, "R_LARCH_PCALA_LO12"},
+	{73, "R_LARCH_PCALA64_LO20"},
+	{74, "R_LARCH_PCALA64_HI12"},
+	{75, "R_LARCH_GOT_PC_HI20"},
+	{76, "R_LARCH_GOT_PC_LO12"},
+	{77, "R_LARCH_GOT64_PC_LO20"},
+	{78, "R_LARCH_GOT64_PC_HI12"},
+	{79, "R_LARCH_GOT_HI20"},
+	{80, "R_LARCH_GOT_LO12"},
+	{81, "R_LARCH_GOT64_LO20"},
+	{82, "R_LARCH_GOT64_HI12"},
+	{83, "R_LARCH_TLS_LE_HI20"},
+	{84, "R_LARCH_TLS_LE_LO12"},
+	{85, "R_LARCH_TLS_LE64_LO20"},
+	{86, "R_LARCH_TLS_LE64_HI12"},
+	{87, "R_LARCH_TLS_IE_PC_HI20"},
+	{88, "R_LARCH_TLS_IE_PC_LO12"},
+	{89, "R_LARCH_TLS_IE64_PC_LO20"},
+	{90, "R_LARCH_TLS_IE64_PC_HI12"},
+	{91, "R_LARCH_TLS_IE_HI20"},
+	{92, "R_LARCH_TLS_IE_LO12"},
+	{93, "R_LARCH_TLS_IE64_LO20"},
+	{94, "R_LARCH_TLS_IE64_HI12"},
+	{95, "R_LARCH_TLS_LD_PC_HI20"},
+	{96, "R_LARCH_TLS_LD_HI20"},
+	{97, "R_LARCH_TLS_GD_PC_HI20"},
+	{98, "R_LARCH_TLS_GD_HI20"},
+	{99, "R_LARCH_32_PCREL"},
+	{100, "R_LARCH_RELAX"},
 }
 
 func (i R_LARCH) String() string   { return stringName(uint32(i), rlarchStrings, false) }
