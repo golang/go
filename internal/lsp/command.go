@@ -797,11 +797,6 @@ type pkgLoadConfig struct {
 	// the build system's query tool.
 	BuildFlags []string
 
-	// Env is the environment to use when invoking the build system's query tool.
-	// If Env is nil, the current environment is used.
-	// TODO: This seems unnecessary. Delete.
-	Env []string
-
 	// If Tests is set, the loader includes related test packages.
 	Tests bool
 }

@@ -27,10 +27,6 @@ type pkgLoadConfig struct {
 	// the build system's query tool.
 	BuildFlags []string
 
-	// Env is the environment to use when invoking the build system's query tool.
-	// If Env is nil, the current environment is used.
-	Env []string
-
 	// If Tests is set, the loader includes related test packages.
 	Tests bool
 }
@@ -65,11 +61,6 @@ func (v *vulncheck) Run(ctx context.Context, args ...string) error {
 	if len(args) == 1 {
 		pattern = args[0]
 	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		return tool.CommandLineErrorf("failed to get current directory: %v", err)
-	}
 	var cfg pkgLoadConfig
 	if v.Config {
 		if err := json.NewDecoder(os.Stdin).Decode(&cfg); err != nil {
@@ -87,8 +78,7 @@ func (v *vulncheck) Run(ctx context.Context, args ...string) error {
 		Context:    ctx,
 		Tests:      cfg.Tests,
 		BuildFlags: cfg.BuildFlags,
-		Env:        cfg.Env,
-		Dir:        cwd,
+		// inherit the current process's cwd and env.
 	}
 
 	res, err := opts.Hooks.Govulncheck(ctx, loadCfg, pattern)
