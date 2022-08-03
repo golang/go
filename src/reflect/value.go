@@ -2030,9 +2030,9 @@ func (v Value) OverflowUint(x uint64) bool {
 // and make an exception.
 
 // Pointer returns v's value as a uintptr.
-// It returns uintptr instead of unsafe.Pointer so that
-// code using reflect cannot obtain unsafe.Pointers
-// without importing the unsafe package explicitly.
+// It returns uintptr instead of [unsafe.Pointer] so that
+// code using reflect cannot obtain [unsafe.Pointer]s
+// without importing the [unsafe] package explicitly.
 // It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
 //
 // If v's Kind is Func, the returned pointer is an underlying
@@ -2347,7 +2347,7 @@ func (v Value) SetUint(x uint64) {
 	}
 }
 
-// SetPointer sets the unsafe.Pointer value v to x.
+// SetPointer sets the [unsafe.Pointer] value v to x.
 // It panics if v's Kind is not UnsafePointer.
 func (v Value) SetPointer(x unsafe.Pointer) {
 	v.mustBeAssignable()
@@ -2596,7 +2596,7 @@ func (v Value) Uint() uint64 {
 // and make an exception.
 
 // UnsafeAddr returns a pointer to v's data, as a uintptr.
-// It is for advanced clients that also import the "unsafe" package.
+// It is for advanced clients that also import the [unsafe] package.
 // It panics if v is not addressable.
 //
 // It's preferred to use uintptr(Value.Addr().UnsafePointer()) to get the equivalent result.
@@ -2610,7 +2610,7 @@ func (v Value) UnsafeAddr() uintptr {
 	return uintptr(v.ptr)
 }
 
-// UnsafePointer returns v's value as a unsafe.Pointer.
+// UnsafePointer returns v's value as a [unsafe.Pointer].
 // It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
 //
 // If v's Kind is Func, the returned pointer is an underlying
