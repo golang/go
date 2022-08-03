@@ -435,9 +435,6 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.Pos = p.Pos
 					q.To.Type = obj.TYPE_BRANCH
 					q.To.SetTarget(q.Link.Link)
-
-					c.addnop(p.Link)
-					c.addnop(p)
 					bflag = 1
 				}
 			}
