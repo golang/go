@@ -1002,7 +1002,8 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
 		LOONG64 | uint32(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2)<<16,
 		LOONG64 | uint32(elf.R_LARCH_64)<<16,
-		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16:
+		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16,
+		LOONG64 | uint32(elf.R_LARCH_32_PCREL)<<16:
 		return 4, 4, nil
 
 	case S390X | uint32(elf.R_390_8)<<16:
