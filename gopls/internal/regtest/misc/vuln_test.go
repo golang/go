@@ -61,7 +61,7 @@ import (
 )
 
 func main() {
-        _, err := zip.OpenReader("file.zip")  // vulnerable.
+        _, err := zip.OpenReader("file.zip")  // vulnerability GO-0000-001
         fmt.Println(err)
 }
 `
@@ -79,22 +79,39 @@ func main() {
 			"GOVERSION":                       "go1.18",
 			"_GOPLS_TEST_BINARY_RUN_AS_GOPLS": "true",
 		},
+		Settings{
+			"codelenses": map[string]bool{
+				"run_vulncheck_exp": true,
+			},
+		},
 	).Run(t, files, func(t *testing.T, env *Env) {
-		cmd, err := command.NewRunVulncheckExpCommand("Run Vulncheck Exp", command.VulncheckArgs{
-			URI:     protocol.URIFromPath(env.Sandbox.Workdir.AbsPath("go.mod")),
-			Pattern: "./...",
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		env.OpenFile("go.mod")
 
+		// Test CodeLens is present.
+		lenses := env.CodeLens("go.mod")
+
+		const wantCommand = "gopls." + string(command.RunVulncheckExp)
+		var gotCodelens = false
+		var lens protocol.CodeLens
+		for _, l := range lenses {
+			if l.Command.Command == wantCommand {
+				gotCodelens = true
+				lens = l
+				break
+			}
+		}
+		if !gotCodelens {
+			t.Fatal("got no vulncheck codelens")
+		}
+		// Run Command included in the codelens.
 		env.ExecuteCommand(&protocol.ExecuteCommandParams{
-			Command:   command.RunVulncheckExp.ID(),
-			Arguments: cmd.Arguments,
+			Command:   lens.Command.Command,
+			Arguments: lens.Command.Arguments,
 		}, nil)
 		env.Await(
 			CompletedWork("Checking vulnerability", 1, true),
 			// TODO(hyangah): once the diagnostics are published, wait for diagnostics.
+			ShownMessage("Found GO-0000-001"),
 		)
 	})
 }

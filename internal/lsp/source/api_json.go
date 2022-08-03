@@ -583,6 +583,11 @@ var GeneratedAPIJSON = &APIJSON{
 							Default: "true",
 						},
 						{
+							Name:    "\"run_vulncheck_exp\"",
+							Doc:     "Run vulnerability check (`govulncheck`).",
+							Default: "false",
+						},
+						{
 							Name:    "\"test\"",
 							Doc:     "Runs `go test` for a specific set of test or benchmark functions.",
 							Default: "false",
@@ -806,6 +811,11 @@ var GeneratedAPIJSON = &APIJSON{
 			Lens:  "regenerate_cgo",
 			Title: "Regenerate cgo",
 			Doc:   "Regenerates cgo definitions.",
+		},
+		{
+			Lens:  "run_vulncheck_exp",
+			Title: "Run vulncheck (experimental)",
+			Doc:   "Run vulnerability check (`govulncheck`).",
 		},
 		{
 			Lens:  "test",

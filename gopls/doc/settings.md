@@ -503,6 +503,11 @@ Runs `go generate` for a given directory.
 Identifier: `regenerate_cgo`
 
 Regenerates cgo definitions.
+### **Run vulncheck (experimental)**
+
+Identifier: `run_vulncheck_exp`
+
+Run vulnerability check (`govulncheck`).
 ### **Run test(s) (legacy)**
 
 Identifier: `test`

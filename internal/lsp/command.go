@@ -823,8 +823,6 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 		}
 
 		cmd := exec.Command(os.Args[0], "vulncheck", "-config", args.Pattern)
-		// TODO(hyangah): if args.URI is not go.mod file, we need to
-		// adjust the directory accordingly.
 		cmd.Dir = filepath.Dir(args.URI.SpanURI().Filename())
 
 		var viewEnv []string
@@ -860,8 +858,32 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 			return fmt.Errorf("failed to parse govulncheck output: %v", err)
 		}
 
-		// TODO(hyangah): convert the results to diagnostics & code actions.
-		return nil
+		// TODO(jamalc,suzmue): convert the results to diagnostics & code actions.
+		// Or should we just write to a file (*.vulncheck.json) or text format
+		// and send "Show Document" request? If *.vulncheck.json is open,
+		// VSCode Go extension will open its custom editor.
+		set := make(map[string]bool)
+		for _, v := range vulns.Vuln {
+			if len(v.CallStackSummaries) > 0 {
+				set[v.ID] = true
+			}
+		}
+		if len(set) == 0 {
+			return c.s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Info,
+				Message: "No vulnerabilities found",
+			})
+		}
+
+		list := make([]string, 0, len(set))
+		for k := range set {
+			list = append(list, k)
+		}
+		sort.Strings(list)
+		return c.s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			Type:    protocol.Warning,
+			Message: fmt.Sprintf("Found %v", strings.Join(list, ", ")),
+		})
 	})
 	return err
 }

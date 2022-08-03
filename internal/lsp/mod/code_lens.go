@@ -22,6 +22,7 @@ func LensFuncs() map[command.Command]source.LensFunc {
 		command.UpgradeDependency: upgradeLenses,
 		command.Tidy:              tidyLens,
 		command.Vendor:            vendorLens,
+		command.RunVulncheckExp:   vulncheckLenses,
 	}
 }
 
@@ -150,4 +151,30 @@ func firstRequireRange(fh source.FileHandle, pm *source.ParsedModule) (protocol.
 		start, end = firstRequire.Start, firstRequire.End
 	}
 	return source.LineToRange(pm.Mapper, fh.URI(), start, end)
+}
+
+func vulncheckLenses(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.CodeLens, error) {
+	pm, err := snapshot.ParseMod(ctx, fh)
+	if err != nil || pm.File == nil {
+		return nil, err
+	}
+	// Place the codelenses near the module statement.
+	// A module may not have the require block,
+	// but vulnerabilities can exist in standard libraries.
+	uri := protocol.URIFromSpanURI(fh.URI())
+	rng, err := moduleStmtRange(fh, pm)
+	if err != nil {
+		return nil, err
+	}
+
+	vulncheck, err := command.NewRunVulncheckExpCommand("Run govulncheck", command.VulncheckArgs{
+		URI:     uri,
+		Pattern: "./...",
+	})
+	if err != nil {
+		return nil, err
+	}
+	return []protocol.CodeLens{
+		{Range: rng, Command: vulncheck},
+	}, nil
 }
