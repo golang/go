@@ -807,7 +807,7 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 	}
 	err := c.run(ctx, commandConfig{
 		async:       true, // need to be async to be cancellable
-		progress:    "Checking vulnerability",
+		progress:    "govulncheck",
 		requireSave: true,
 		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {

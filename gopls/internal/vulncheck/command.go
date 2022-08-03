@@ -70,29 +70,30 @@ type cmd struct {
 
 // Run runs the govulncheck after loading packages using the provided packages.Config.
 func (c *cmd) Run(ctx context.Context, cfg *packages.Config, patterns ...string) (_ []Vuln, err error) {
+	logger := log.New(log.Default().Writer(), "", 0)
 	cfg.Mode |= packages.NeedModule | packages.NeedName | packages.NeedFiles |
 		packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedTypes |
 		packages.NeedTypesSizes | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedDeps
 
-	log.Println("loading packages...")
+	logger.Println("loading packages...")
 	loadedPkgs, err := gvc.LoadPackages(cfg, patterns...)
 	if err != nil {
-		log.Printf("package load failed: %v", err)
+		logger.Printf("package load failed: %v", err)
 		return nil, err
 	}
 
-	log.Printf("analyzing %d packages...\n", len(loadedPkgs))
+	logger.Printf("analyzing %d packages...\n", len(loadedPkgs))
 
 	r, err := vulncheck.Source(ctx, loadedPkgs, &vulncheck.Config{Client: c.Client, SourceGoVersion: goVersion()})
 	if err != nil {
 		return nil, err
 	}
 
-	log.Printf("selecting affecting vulnerabilities from %d findings...\n", len(r.Vulns))
+	logger.Printf("selecting affecting vulnerabilities from %d findings...\n", len(r.Vulns))
 	unaffectedMods := filterUnaffected(r.Vulns)
 	r.Vulns = filterCalled(r)
 
-	log.Printf("found %d vulnerabilities.\n", len(r.Vulns))
+	logger.Printf("found %d vulnerabilities.\n", len(r.Vulns))
 	callInfo := gvc.GetCallInfo(r, loadedPkgs)
 	return toVulns(callInfo, unaffectedMods)
 	// TODO: add import graphs.

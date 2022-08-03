@@ -109,7 +109,7 @@ func main() {
 			Arguments: lens.Command.Arguments,
 		}, nil)
 		env.Await(
-			CompletedWork("Checking vulnerability", 1, true),
+			CompletedWork("govulncheck", 1, true),
 			// TODO(hyangah): once the diagnostics are published, wait for diagnostics.
 			ShownMessage("Found GO-0000-001"),
 		)
