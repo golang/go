@@ -293,9 +293,9 @@ type conn struct {
 	// on this connection, if any.
 	lastMethod string
 
-	curReq atomic.Value // of *response (which has a Request in it)
+	curReq atomic.Pointer[response] // (which has a Request in it)
 
-	curState struct{ atomic uint64 } // packed (unixtime<<8|uint8(ConnState))
+	curState atomic.Uint64 // packed (unixtime<<8|uint8(ConnState))
 
 	// mu guards hijackedv
 	mu sync.Mutex
@@ -749,7 +749,7 @@ func (cr *connReader) handleReadError(_ error) {
 
 // may be called from multiple goroutines.
 func (cr *connReader) closeNotify() {
-	res, _ := cr.conn.curReq.Load().(*response)
+	res := cr.conn.curReq.Load()
 	if res != nil && atomic.CompareAndSwapInt32(&res.didCloseNotify, 0, 1) {
 		res.closeNotifyCh <- true
 	}
@@ -1787,7 +1787,7 @@ func (c *conn) setState(nc net.Conn, state ConnState, runHook bool) {
 		panic("internal error")
 	}
 	packedState := uint64(time.Now().Unix()<<8) | uint64(state)
-	atomic.StoreUint64(&c.curState.atomic, packedState)
+	c.curState.Store(packedState)
 	if !runHook {
 		return
 	}
@@ -1797,7 +1797,7 @@ func (c *conn) setState(nc net.Conn, state ConnState, runHook bool) {
 }
 
 func (c *conn) getState() (state ConnState, unixSec int64) {
-	packedState := atomic.LoadUint64(&c.curState.atomic)
+	packedState := c.curState.Load()
 	return ConnState(packedState & 0xff), int64(packedState >> 8)
 }
 
@@ -2002,7 +2002,7 @@ func (c *conn) serve(ctx context.Context) {
 			return
 		}
 		c.setState(c.rwc, StateIdle, runHooks)
-		c.curReq.Store((*response)(nil))
+		c.curReq.Store(nil)
 
 		if !w.conn.server.doKeepAlives() {
 			// We're in shutdown mode. We might've replied
