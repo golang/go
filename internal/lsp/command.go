@@ -817,7 +817,7 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 			return errors.New("vulncheck feature is not available")
 		}
 
-		cmd := exec.Command(os.Args[0], "vulncheck", "-config", args.Pattern)
+		cmd := exec.CommandContext(ctx, os.Args[0], "vulncheck", "-config", args.Pattern)
 		cmd.Dir = filepath.Dir(args.URI.SpanURI().Filename())
 
 		var viewEnv []string
