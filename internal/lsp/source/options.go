@@ -514,7 +514,7 @@ type Hooks struct {
 	StaticcheckAnalyzers map[string]*Analyzer
 
 	// Govulncheck is the implementation of the Govulncheck gopls command.
-	Govulncheck func(context.Context, *packages.Config, command.VulncheckArgs) (command.VulncheckResult, error)
+	Govulncheck func(context.Context, *packages.Config, string) (command.VulncheckResult, error)
 }
 
 // InternalOptions contains settings that are not intended for use by the

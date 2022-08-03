@@ -314,8 +314,8 @@ type DebuggingResult struct {
 }
 
 type VulncheckArgs struct {
-	// Dir is the directory from which vulncheck will run from.
-	Dir protocol.DocumentURI
+	// Any document in the directory from which govulncheck will run.
+	URI protocol.DocumentURI
 
 	// Package pattern. E.g. "", ".", "./...".
 	Pattern string

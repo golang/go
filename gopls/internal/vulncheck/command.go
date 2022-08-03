@@ -26,9 +26,9 @@ func init() {
 	Govulncheck = govulncheck
 }
 
-func govulncheck(ctx context.Context, cfg *packages.Config, args command.VulncheckArgs) (res command.VulncheckResult, _ error) {
-	if args.Pattern == "" {
-		args.Pattern = "."
+func govulncheck(ctx context.Context, cfg *packages.Config, patterns string) (res command.VulncheckResult, _ error) {
+	if patterns == "" {
+		patterns = "."
 	}
 
 	dbClient, err := client.NewClient(findGOVULNDB(cfg), client.Options{HTTPCache: gvc.DefaultCache()})
@@ -37,7 +37,7 @@ func govulncheck(ctx context.Context, cfg *packages.Config, args command.Vulnche
 	}
 
 	c := cmd{Client: dbClient}
-	vulns, err := c.Run(ctx, cfg, args.Pattern)
+	vulns, err := c.Run(ctx, cfg, patterns)
 	if err != nil {
 		return res, err
 	}

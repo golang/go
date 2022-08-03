@@ -274,8 +274,8 @@ Args:
 
 ```
 {
-	// Dir is the directory from which vulncheck will run from.
-	"Dir": string,
+	// Any document in the directory from which govulncheck will run.
+	"URI": string,
 	// Package pattern. E.g. "", ".", "./...".
 	"Pattern": string,
 }

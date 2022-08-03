@@ -12,8 +12,6 @@ import (
 	"os"
 
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/lsp/command"
-	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/tool"
 )
@@ -90,12 +88,10 @@ func (v *vulncheck) Run(ctx context.Context, args ...string) error {
 		Tests:      cfg.Tests,
 		BuildFlags: cfg.BuildFlags,
 		Env:        cfg.Env,
+		Dir:        cwd,
 	}
 
-	res, err := opts.Hooks.Govulncheck(ctx, loadCfg, command.VulncheckArgs{
-		Dir:     protocol.URIFromPath(cwd),
-		Pattern: pattern,
-	})
+	res, err := opts.Hooks.Govulncheck(ctx, loadCfg, pattern)
 	if err != nil {
 		return tool.CommandLineErrorf("govulncheck failed: %v", err)
 	}

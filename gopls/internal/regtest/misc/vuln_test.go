@@ -26,7 +26,7 @@ package foo
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		cmd, err := command.NewRunVulncheckExpCommand("Run Vulncheck Exp", command.VulncheckArgs{
-			Dir: "/invalid/file/url", // invalid arg
+			URI: "/invalid/file/url", // invalid arg
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -81,7 +81,8 @@ func main() {
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		cmd, err := command.NewRunVulncheckExpCommand("Run Vulncheck Exp", command.VulncheckArgs{
-			Dir: env.Sandbox.Workdir.RootURI(),
+			URI:     protocol.URIFromPath(env.Sandbox.Workdir.AbsPath("go.mod")),
+			Pattern: "./...",
 		})
 		if err != nil {
 			t.Fatal(err)

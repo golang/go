@@ -807,14 +807,14 @@ type pkgLoadConfig struct {
 }
 
 func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.VulncheckArgs) error {
-	if args.Dir == "" {
-		return errors.New("VulncheckArgs is missing Dir field")
+	if args.URI == "" {
+		return errors.New("VulncheckArgs is missing URI field")
 	}
 	err := c.run(ctx, commandConfig{
 		async:       true, // need to be async to be cancellable
 		progress:    "Checking vulnerability",
 		requireSave: true,
-		forURI:      args.Dir, // Will dir work?
+		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
 		view := deps.snapshot.View()
 		opts := view.Options()
@@ -823,7 +823,9 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 		}
 
 		cmd := exec.Command(os.Args[0], "vulncheck", "-config", args.Pattern)
-		cmd.Dir = args.Dir.SpanURI().Filename()
+		// TODO(hyangah): if args.URI is not go.mod file, we need to
+		// adjust the directory accordingly.
+		cmd.Dir = filepath.Dir(args.URI.SpanURI().Filename())
 
 		var viewEnv []string
 		if e := opts.EnvSlice(); e != nil {

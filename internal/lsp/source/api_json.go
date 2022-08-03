@@ -745,7 +745,7 @@ var GeneratedAPIJSON = &APIJSON{
 			Command: "gopls.run_vulncheck_exp",
 			Title:   "Run vulncheck (experimental)",
 			Doc:     "Run vulnerability check (`govulncheck`).",
-			ArgDoc:  "{\n\t// Dir is the directory from which vulncheck will run from.\n\t\"Dir\": string,\n\t// Package pattern. E.g. \"\", \".\", \"./...\".\n\t\"Pattern\": string,\n}",
+			ArgDoc:  "{\n\t// Any document in the directory from which govulncheck will run.\n\t\"URI\": string,\n\t// Package pattern. E.g. \"\", \".\", \"./...\".\n\t\"Pattern\": string,\n}",
 		},
 		{
 			Command:   "gopls.start_debugging",
