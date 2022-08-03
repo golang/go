@@ -635,6 +635,12 @@ func containsFileInWorkspaceLocked(s *snapshot, m *Metadata) bool {
 func computeWorkspacePackagesLocked(s *snapshot, meta *metadataGraph) map[PackageID]PackagePath {
 	workspacePackages := make(map[PackageID]PackagePath)
 	for _, m := range meta.metadata {
+		// Don't consider invalid packages to be workspace packages. Doing so can
+		// result in type-checking and diagnosing packages that no longer exist,
+		// which can lead to memory leaks and confusing errors.
+		if !m.Valid {
+			continue
+		}
 		if !containsPackageLocked(s, m.Metadata) {
 			continue
 		}

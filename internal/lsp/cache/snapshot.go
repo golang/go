@@ -1874,13 +1874,8 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		result.actions.Delete(key)
 	}
 
-	// If the workspace mode has changed, we must delete all metadata, as it
-	// is unusable and may produce confusing or incorrect diagnostics.
 	// If a file has been deleted, we must delete metadata for all packages
 	// containing that file.
-	workspaceModeChanged := s.workspaceMode() != result.workspaceMode()
-
-	// Don't keep package metadata for packages that have lost files.
 	//
 	// TODO(rfindley): why not keep invalid metadata in this case? If we
 	// otherwise allow operate on invalid metadata, why not continue to do so,
@@ -1907,11 +1902,27 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		result.shouldLoad[k] = v
 	}
 
+	// TODO(rfindley): consolidate the this workspace mode detection with
+	// workspace invalidation.
+	workspaceModeChanged := s.workspaceMode() != result.workspaceMode()
+
+	// We delete invalid metadata in the following cases:
+	// - If we are forcing a reload of metadata.
+	// - If the workspace mode has changed, as stale metadata may produce
+	//   confusing or incorrect diagnostics.
+	//
+	// TODO(rfindley): we should probably also clear metadata if we are
+	// reinitializing the workspace, as otherwise we could leave around a bunch
+	// of irrelevant and duplicate metadata (for example, if the module path
+	// changed). However, this breaks the "experimentalUseInvalidMetadata"
+	// feature, which relies on stale metadata when, for example, a go.mod file
+	// is broken via invalid syntax.
+	deleteInvalidMetadata := forceReloadMetadata || workspaceModeChanged
+
 	// Compute which metadata updates are required. We only need to invalidate
 	// packages directly containing the affected file, and only if it changed in
 	// a relevant way.
 	metadataUpdates := make(map[PackageID]*KnownMetadata)
-	deleteInvalidMetadata := forceReloadMetadata || workspaceModeChanged
 	for k, v := range s.meta.metadata {
 		invalidateMetadata := idsToInvalidate[k]
 

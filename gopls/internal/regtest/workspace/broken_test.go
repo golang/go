@@ -115,3 +115,55 @@ const CompleteMe = 222
 		}
 	})
 }
+
+// Test for golang/go#43186: correcting the module path should fix errors
+// without restarting gopls.
+func TestBrokenWorkspace_WrongModulePath(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.testx
+
+go 1.18
+-- p/internal/foo/foo.go --
+package foo
+
+const C = 1
+-- p/internal/bar/bar.go --
+package bar
+
+import "mod.test/p/internal/foo"
+
+const D = foo.C + 1
+-- p/internal/bar/bar_test.go --
+package bar_test
+
+import (
+	"mod.test/p/internal/foo"
+	. "mod.test/p/internal/bar"
+)
+
+const E = D + foo.C
+-- p/internal/baz/baz_test.go --
+package baz_test
+
+import (
+	named "mod.test/p/internal/bar"
+)
+
+const F = named.D - 3
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("p/internal/bar/bar.go")
+		env.Await(
+			OnceMet(
+				env.DoneWithOpen(),
+				env.DiagnosticAtRegexp("p/internal/bar/bar.go", "\"mod.test/p/internal/foo\""),
+			),
+		)
+		env.OpenFile("go.mod")
+		env.RegexpReplace("go.mod", "mod.testx", "mod.test")
+		env.SaveBuffer("go.mod") // saving triggers a reload
+		env.Await(NoOutstandingDiagnostics())
+	})
+}

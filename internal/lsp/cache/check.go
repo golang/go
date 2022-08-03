@@ -355,6 +355,7 @@ func typeCheckImpl(ctx context.Context, snapshot *snapshot, goFiles, compiledGoF
 			missing, unexpected = filter.ProcessErrors(pkg.typeErrors)
 		}
 		if len(unexpected) != 0 || len(missing) != 0 {
+			// TODO(rfindley): remove this distracting log
 			event.Log(ctx, fmt.Sprintf("falling back to safe trimming due to type errors: %v or still-missing identifiers: %v", unexpected, missing), tag.Package.Of(string(m.ID)))
 			pkg, err = doTypeCheck(ctx, snapshot, goFiles, compiledGoFiles, m, mode, deps, nil)
 			if err != nil {

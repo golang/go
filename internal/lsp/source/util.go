@@ -555,6 +555,8 @@ func IsValidImport(pkgPath, importPkgPath string) bool {
 	if IsCommandLineArguments(string(pkgPath)) {
 		return true
 	}
+	// TODO(rfindley): this is wrong. mod.testx/p should not be able to
+	// import mod.test/internal: https://go.dev/play/p/-Ca6P-E4V4q
 	return strings.HasPrefix(string(pkgPath), string(importPkgPath[:i]))
 }
 
