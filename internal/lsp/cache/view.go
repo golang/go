@@ -392,7 +392,7 @@ func (s *snapshot) locateTemplateFiles(ctx context.Context) {
 	relativeTo := s.view.folder.Filename()
 
 	searched := 0
-	filterer := buildFilterer(dir, s.view.gomodcache, s.view.options)
+	filterer := buildFilterer(dir, s.view.gomodcache, s.view.Options())
 	// Change to WalkDir when we move up to 1.16
 	err := filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
 		if err != nil {

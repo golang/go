@@ -141,7 +141,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	}
 
 	moduleErrs := make(map[string][]packages.Error) // module path -> errors
-	filterer := buildFilterer(s.view.rootURI.Filename(), s.view.gomodcache, s.view.options)
+	filterer := buildFilterer(s.view.rootURI.Filename(), s.view.gomodcache, s.view.Options())
 	newMetadata := make(map[PackageID]*KnownMetadata)
 	for _, pkg := range pkgs {
 		// The Go command returns synthetic list results for module queries that
