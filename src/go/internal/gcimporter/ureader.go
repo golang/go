@@ -493,10 +493,6 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 
 			named.SetTypeParams(r.typeParamNames())
 
-			// TODO(mdempsky): Rewrite receiver types to underlying is an
-			// Interface? The go/types importer does this (I think because
-			// unit tests expected that), but cmd/compile doesn't care
-			// about it, so maybe we can avoid worrying about that here.
 			rhs := r.typ()
 			pk := r.p
 			pk.laterFor(named, func() {
@@ -508,6 +504,28 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 					f()                        // initialize RHS
 				}
 				underlying := rhs.Underlying()
+
+				// If the underlying type is an interface, we need to
+				// duplicate its methods so we can replace the receiver
+				// parameter's type (#49906).
+				if iface, ok := underlying.(*types.Interface); ok && iface.NumExplicitMethods() != 0 {
+					methods := make([]*types.Func, iface.NumExplicitMethods())
+					for i := range methods {
+						fn := iface.ExplicitMethod(i)
+						sig := fn.Type().(*types.Signature)
+
+						recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
+						methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
+					}
+
+					embeds := make([]types.Type, iface.NumEmbeddeds())
+					for i := range embeds {
+						embeds[i] = iface.EmbeddedType(i)
+					}
+
+					underlying = types.NewInterfaceType(methods, embeds)
+				}
+
 				named.SetUnderlying(underlying)
 			})
 
