@@ -4302,7 +4302,7 @@ func InitTables() {
 	alias("runtime/internal/atomic", "CasRel", "runtime/internal/atomic", "Cas", lwatomics...)
 
 	/******** math ********/
-	addF("math", "Sqrt",
+	addF("math", "sqrt",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpSqrt, types.Types[types.TFLOAT64], args[0])
 		},
