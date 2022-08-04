@@ -1100,7 +1100,7 @@ Input:
 
 			if haveText {
 				d.buf.Truncate(before)
-				d.buf.Write([]byte(text))
+				d.buf.WriteString(text)
 				b0, b1 = 0, 0
 				continue Input
 			}
