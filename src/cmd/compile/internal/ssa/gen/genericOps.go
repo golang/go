@@ -249,14 +249,19 @@ var genericOps = []opData{
 	{name: "BitRev32", argLength: 1}, // Reverse the bits in arg[0]
 	{name: "BitRev64", argLength: 1}, // Reverse the bits in arg[0]
 
-	{name: "PopCount8", argLength: 1},    // Count bits in arg[0]
-	{name: "PopCount16", argLength: 1},   // Count bits in arg[0]
-	{name: "PopCount32", argLength: 1},   // Count bits in arg[0]
-	{name: "PopCount64", argLength: 1},   // Count bits in arg[0]
-	{name: "RotateLeft8", argLength: 2},  // Rotate bits in arg[0] left by arg[1]
-	{name: "RotateLeft16", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
-	{name: "RotateLeft32", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
-	{name: "RotateLeft64", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+	{name: "PopCount8", argLength: 1},  // Count bits in arg[0]
+	{name: "PopCount16", argLength: 1}, // Count bits in arg[0]
+	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
+	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
+
+	// RotateLeftX instructions rotate the X bits of arg[0] to the left
+	// by the low lg_2(X) bits of arg[1], interpreted as an unsigned value.
+	// Note that this works out regardless of the bit width or signedness of
+	// arg[1]. In particular, RotateLeft by x is the same as RotateRight by -x.
+	{name: "RotateLeft64", argLength: 2},
+	{name: "RotateLeft32", argLength: 2},
+	{name: "RotateLeft16", argLength: 2},
+	{name: "RotateLeft8", argLength: 2},
 
 	// Square root.
 	// Special cases:

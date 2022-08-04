@@ -2551,3 +2551,83 @@
 // Elide self-moves. This only happens rarely (e.g test/fixedbugs/bug277.go).
 // However, this rule is needed to prevent the previous rule from looping forever in such cases.
 (Move dst src mem) && isSamePtr(dst, src) => mem
+
+// Constant rotate detection.
+((Add64|Or64|Xor64) (Lsh64x64 x z:(Const64 <t> [c])) (Rsh64Ux64 x (Const64 [d]))) && c < 64 && d == 64-c && canRotate(config, 64) => (RotateLeft64 x z)
+((Add32|Or32|Xor32) (Lsh32x64 x z:(Const64 <t> [c])) (Rsh32Ux64 x (Const64 [d]))) && c < 32 && d == 32-c && canRotate(config, 32) => (RotateLeft32 x z)
+((Add16|Or16|Xor16) (Lsh16x64 x z:(Const64 <t> [c])) (Rsh16Ux64 x (Const64 [d]))) && c < 16 && d == 16-c && canRotate(config, 16) => (RotateLeft16 x z)
+((Add8|Or8|Xor8) (Lsh8x64 x z:(Const64 <t> [c])) (Rsh8Ux64 x (Const64 [d]))) && c < 8 && d == 8-c && canRotate(config, 8) => (RotateLeft8 x z)
+
+// Non-constant rotate detection.
+// We use shiftIsBounded to make sure that neither of the shifts are >64.
+// Note: these rules are subtle when the shift amounts are 0/64, as Go shifts
+// are different from most native shifts. But it works out.
+((Add64|Or64|Xor64) left:(Lsh64x64 x y) right:(Rsh64Ux64 x (Sub64 (Const64 [64]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 64) => (RotateLeft64 x y)
+((Add64|Or64|Xor64) left:(Lsh64x32 x y) right:(Rsh64Ux32 x (Sub32 (Const32 [64]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 64) => (RotateLeft64 x y)
+((Add64|Or64|Xor64) left:(Lsh64x16 x y) right:(Rsh64Ux16 x (Sub16 (Const16 [64]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 64) => (RotateLeft64 x y)
+((Add64|Or64|Xor64) left:(Lsh64x8  x y) right:(Rsh64Ux8  x (Sub8  (Const8  [64]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 64) => (RotateLeft64 x y)
+
+((Add64|Or64|Xor64) right:(Rsh64Ux64 x y) left:(Lsh64x64 x z:(Sub64 (Const64 [64]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 64) => (RotateLeft64 x z)
+((Add64|Or64|Xor64) right:(Rsh64Ux32 x y) left:(Lsh64x32 x z:(Sub32 (Const32 [64]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 64) => (RotateLeft64 x z)
+((Add64|Or64|Xor64) right:(Rsh64Ux16 x y) left:(Lsh64x16 x z:(Sub16 (Const16 [64]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 64) => (RotateLeft64 x z)
+((Add64|Or64|Xor64) right:(Rsh64Ux8  x y) left:(Lsh64x8  x z:(Sub8  (Const8  [64]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 64) => (RotateLeft64 x z)
+
+((Add32|Or32|Xor32) left:(Lsh32x64 x y) right:(Rsh32Ux64 x (Sub64 (Const64 [32]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 32) => (RotateLeft32 x y)
+((Add32|Or32|Xor32) left:(Lsh32x32 x y) right:(Rsh32Ux32 x (Sub32 (Const32 [32]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 32) => (RotateLeft32 x y)
+((Add32|Or32|Xor32) left:(Lsh32x16 x y) right:(Rsh32Ux16 x (Sub16 (Const16 [32]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 32) => (RotateLeft32 x y)
+((Add32|Or32|Xor32) left:(Lsh32x8  x y) right:(Rsh32Ux8  x (Sub8  (Const8  [32]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 32) => (RotateLeft32 x y)
+
+((Add32|Or32|Xor32) right:(Rsh32Ux64 x y) left:(Lsh32x64 x z:(Sub64 (Const64 [32]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 32) => (RotateLeft32 x z)
+((Add32|Or32|Xor32) right:(Rsh32Ux32 x y) left:(Lsh32x32 x z:(Sub32 (Const32 [32]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 32) => (RotateLeft32 x z)
+((Add32|Or32|Xor32) right:(Rsh32Ux16 x y) left:(Lsh32x16 x z:(Sub16 (Const16 [32]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 32) => (RotateLeft32 x z)
+((Add32|Or32|Xor32) right:(Rsh32Ux8  x y) left:(Lsh32x8  x z:(Sub8  (Const8  [32]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 32) => (RotateLeft32 x z)
+
+((Add16|Or16|Xor16) left:(Lsh16x64 x y) right:(Rsh16Ux64 x (Sub64 (Const64 [16]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 16) => (RotateLeft16 x y)
+((Add16|Or16|Xor16) left:(Lsh16x32 x y) right:(Rsh16Ux32 x (Sub32 (Const32 [16]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 16) => (RotateLeft16 x y)
+((Add16|Or16|Xor16) left:(Lsh16x16 x y) right:(Rsh16Ux16 x (Sub16 (Const16 [16]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 16) => (RotateLeft16 x y)
+((Add16|Or16|Xor16) left:(Lsh16x8  x y) right:(Rsh16Ux8  x (Sub8  (Const8  [16]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 16) => (RotateLeft16 x y)
+
+((Add16|Or16|Xor16) right:(Rsh16Ux64 x y) left:(Lsh16x64 x z:(Sub64 (Const64 [16]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 16) => (RotateLeft16 x z)
+((Add16|Or16|Xor16) right:(Rsh16Ux32 x y) left:(Lsh16x32 x z:(Sub32 (Const32 [16]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 16) => (RotateLeft16 x z)
+((Add16|Or16|Xor16) right:(Rsh16Ux16 x y) left:(Lsh16x16 x z:(Sub16 (Const16 [16]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 16) => (RotateLeft16 x z)
+((Add16|Or16|Xor16) right:(Rsh16Ux8  x y) left:(Lsh16x8  x z:(Sub8  (Const8  [16]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 16) => (RotateLeft16 x z)
+
+((Add8|Or8|Xor8) left:(Lsh8x64 x y) right:(Rsh8Ux64 x (Sub64 (Const64 [8]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 8) => (RotateLeft8 x y)
+((Add8|Or8|Xor8) left:(Lsh8x32 x y) right:(Rsh8Ux32 x (Sub32 (Const32 [8]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 8) => (RotateLeft8 x y)
+((Add8|Or8|Xor8) left:(Lsh8x16 x y) right:(Rsh8Ux16 x (Sub16 (Const16 [8]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 8) => (RotateLeft8 x y)
+((Add8|Or8|Xor8) left:(Lsh8x8  x y) right:(Rsh8Ux8  x (Sub8  (Const8  [8]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 8) => (RotateLeft8 x y)
+
+((Add8|Or8|Xor8) right:(Rsh8Ux64 x y) left:(Lsh8x64 x z:(Sub64 (Const64 [8]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 8) => (RotateLeft8 x z)
+((Add8|Or8|Xor8) right:(Rsh8Ux32 x y) left:(Lsh8x32 x z:(Sub32 (Const32 [8]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 8) => (RotateLeft8 x z)
+((Add8|Or8|Xor8) right:(Rsh8Ux16 x y) left:(Lsh8x16 x z:(Sub16 (Const16 [8]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 8) => (RotateLeft8 x z)
+((Add8|Or8|Xor8) right:(Rsh8Ux8  x y) left:(Lsh8x8  x z:(Sub8  (Const8  [8]) y))) && (shiftIsBounded(left) || shiftIsBounded(right)) && canRotate(config, 8) => (RotateLeft8 x z)
+
+// Rotating by y&c, with c a mask that doesn't change the bottom bits, is the same as rotating by y.
+(RotateLeft64 x (And(64|32|16|8) y (Const(64|32|16|8) [c]))) && c&63 == 63 => (RotateLeft64 x y)
+(RotateLeft32 x (And(64|32|16|8) y (Const(64|32|16|8) [c]))) && c&31 == 31 => (RotateLeft32 x y)
+(RotateLeft16 x (And(64|32|16|8) y (Const(64|32|16|8) [c]))) && c&15 == 15 => (RotateLeft16 x y)
+(RotateLeft8  x (And(64|32|16|8) y (Const(64|32|16|8) [c]))) && c&7  == 7  => (RotateLeft8  x y)
+
+// Rotating by -(y&c), with c a mask that doesn't change the bottom bits, is the same as rotating by -y.
+(RotateLeft64 x (Neg(64|32|16|8) (And(64|32|16|8) y (Const(64|32|16|8) [c])))) && c&63 == 63 => (RotateLeft64 x (Neg(64|32|16|8) <y.Type> y))
+(RotateLeft32 x (Neg(64|32|16|8) (And(64|32|16|8) y (Const(64|32|16|8) [c])))) && c&31 == 31 => (RotateLeft32 x (Neg(64|32|16|8) <y.Type> y))
+(RotateLeft16 x (Neg(64|32|16|8) (And(64|32|16|8) y (Const(64|32|16|8) [c])))) && c&15 == 15 => (RotateLeft16 x (Neg(64|32|16|8) <y.Type> y))
+(RotateLeft8  x (Neg(64|32|16|8) (And(64|32|16|8) y (Const(64|32|16|8) [c])))) && c&7  == 7  => (RotateLeft8  x (Neg(64|32|16|8) <y.Type> y))
+
+// Rotating by y+c, with c a multiple of the value width, is the same as rotating by y.
+(RotateLeft64 x (Add(64|32|16|8) y (Const(64|32|16|8) [c]))) && c&63 == 0 => (RotateLeft64 x y)
+(RotateLeft32 x (Add(64|32|16|8) y (Const(64|32|16|8) [c]))) && c&31 == 0 => (RotateLeft32 x y)
+(RotateLeft16 x (Add(64|32|16|8) y (Const(64|32|16|8) [c]))) && c&15 == 0 => (RotateLeft16 x y)
+(RotateLeft8  x (Add(64|32|16|8) y (Const(64|32|16|8) [c]))) && c&7  == 0 => (RotateLeft8  x y)
+
+// Rotating by c-y, with c a multiple of the value width, is the same as rotating by -y.
+(RotateLeft64 x (Sub(64|32|16|8) (Const(64|32|16|8) [c]) y)) && c&63 == 0 => (RotateLeft64 x (Neg(64|32|16|8) <y.Type> y))
+(RotateLeft32 x (Sub(64|32|16|8) (Const(64|32|16|8) [c]) y)) && c&31 == 0 => (RotateLeft32 x (Neg(64|32|16|8) <y.Type> y))
+(RotateLeft16 x (Sub(64|32|16|8) (Const(64|32|16|8) [c]) y)) && c&15 == 0 => (RotateLeft16 x (Neg(64|32|16|8) <y.Type> y))
+(RotateLeft8  x (Sub(64|32|16|8) (Const(64|32|16|8) [c]) y)) && c&7  == 0 => (RotateLeft8  x (Neg(64|32|16|8) <y.Type> y))
+
+// Ensure we don't do Const64 rotates in a 32-bit system.
+(RotateLeft64 x (Const64 <t> [c])) && config.PtrSize == 4 => (RotateLeft64 x (Const32 <t> [int32(c)]))
+(RotateLeft32 x (Const64 <t> [c])) && config.PtrSize == 4 => (RotateLeft32 x (Const32 <t> [int32(c)]))
+(RotateLeft16 x (Const64 <t> [c])) && config.PtrSize == 4 => (RotateLeft16 x (Const32 <t> [int32(c)]))
+(RotateLeft8  x (Const64 <t> [c])) && config.PtrSize == 4 => (RotateLeft8  x (Const32 <t> [int32(c)]))

@@ -39,8 +39,8 @@ func rot64(x uint64) uint64 {
 	// s390x:"RISBGZ\t[$]0, [$]63, [$]10, "
 	// ppc64:"ROTL\t[$]10"
 	// ppc64le:"ROTL\t[$]10"
-	// arm64:"ROR\t[$]57" // TODO this is not great line numbering, but then again, the instruction did appear
-	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, " // TODO ditto
+	// arm64:"ROR\t[$]54"
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]10, "
 	a += bits.RotateLeft64(x, 10)
 
 	return a
@@ -77,8 +77,8 @@ func rot32(x uint32) uint32 {
 	// s390x:"RLL\t[$]10"
 	// ppc64:"ROTLW\t[$]10"
 	// ppc64le:"ROTLW\t[$]10"
-	// arm64:"RORW\t[$]25" // TODO this is not great line numbering, but then again, the instruction did appear
-	// s390x:"RLL\t[$]7" // TODO ditto
+	// arm64:"RORW\t[$]22"
+	// s390x:"RLL\t[$]10"
 	a += bits.RotateLeft32(x, 10)
 
 	return a
@@ -123,12 +123,16 @@ func rot64nc(x uint64, z uint) uint64 {
 
 	z &= 63
 
-	// amd64:"ROLQ"
-	// ppc64:"ROTL"
-	// ppc64le:"ROTL"
+	// amd64:"ROLQ",-"AND"
+	// arm64:"ROR","NEG",-"AND"
+	// ppc64:"ROTL",-"NEG",-"AND"
+	// ppc64le:"ROTL",-"NEG",-"AND"
 	a += x<<z | x>>(64-z)
 
-	// amd64:"RORQ"
+	// amd64:"RORQ",-"AND"
+	// arm64:"ROR",-"NEG",-"AND"
+	// ppc64:"ROTL","NEG",-"AND"
+	// ppc64le:"ROTL","NEG",-"AND"
 	a += x>>z | x<<(64-z)
 
 	return a
@@ -139,12 +143,16 @@ func rot32nc(x uint32, z uint) uint32 {
 
 	z &= 31
 
-	// amd64:"ROLL"
-	// ppc64:"ROTLW"
-	// ppc64le:"ROTLW"
+	// amd64:"ROLL",-"AND"
+	// arm64:"ROR","NEG",-"AND"
+	// ppc64:"ROTLW",-"NEG",-"AND"
+	// ppc64le:"ROTLW",-"NEG",-"AND"
 	a += x<<z | x>>(32-z)
 
-	// amd64:"RORL"
+	// amd64:"RORL",-"AND"
+	// arm64:"ROR",-"NEG",-"AND"
+	// ppc64:"ROTLW","NEG",-"AND"
+	// ppc64le:"ROTLW","NEG",-"AND"
 	a += x>>z | x<<(32-z)
 
 	return a
@@ -155,10 +163,10 @@ func rot16nc(x uint16, z uint) uint16 {
 
 	z &= 15
 
-	// amd64:"ROLW"
+	// amd64:"ROLW",-"ANDQ"
 	a += x<<z | x>>(16-z)
 
-	// amd64:"RORW"
+	// amd64:"RORW",-"ANDQ"
 	a += x>>z | x<<(16-z)
 
 	return a
@@ -169,10 +177,10 @@ func rot8nc(x uint8, z uint) uint8 {
 
 	z &= 7
 
-	// amd64:"ROLB"
+	// amd64:"ROLB",-"ANDQ"
 	a += x<<z | x>>(8-z)
 
-	// amd64:"RORB"
+	// amd64:"RORB",-"ANDQ"
 	a += x>>z | x<<(8-z)
 
 	return a

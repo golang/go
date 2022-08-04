@@ -146,10 +146,16 @@ func rewriteValue386(v *Value) bool {
 		return rewriteValue386_Op386ORLload(v)
 	case Op386ORLmodify:
 		return rewriteValue386_Op386ORLmodify(v)
+	case Op386ROLB:
+		return rewriteValue386_Op386ROLB(v)
 	case Op386ROLBconst:
 		return rewriteValue386_Op386ROLBconst(v)
+	case Op386ROLL:
+		return rewriteValue386_Op386ROLL(v)
 	case Op386ROLLconst:
 		return rewriteValue386_Op386ROLLconst(v)
+	case Op386ROLW:
+		return rewriteValue386_Op386ROLW(v)
 	case Op386ROLWconst:
 		return rewriteValue386_Op386ROLWconst(v)
 	case Op386SARB:
@@ -541,11 +547,14 @@ func rewriteValue386(v *Value) bool {
 	case OpPanicExtend:
 		return rewriteValue386_OpPanicExtend(v)
 	case OpRotateLeft16:
-		return rewriteValue386_OpRotateLeft16(v)
+		v.Op = Op386ROLW
+		return true
 	case OpRotateLeft32:
-		return rewriteValue386_OpRotateLeft32(v)
+		v.Op = Op386ROLL
+		return true
 	case OpRotateLeft8:
-		return rewriteValue386_OpRotateLeft8(v)
+		v.Op = Op386ROLB
+		return true
 	case OpRound32F:
 		v.Op = OpCopy
 		return true
@@ -729,80 +738,6 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 			c := auxIntToInt32(v_1.AuxInt)
 			v.reset(Op386ADDLconst)
 			v.AuxInt = int32ToAuxInt(c)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (ADDL (SHLLconst [c] x) (SHRLconst [d] x))
-	// cond: d == 32-c
-	// result: (ROLLconst [c] x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386SHLLconst {
-				continue
-			}
-			c := auxIntToInt32(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != Op386SHRLconst {
-				continue
-			}
-			d := auxIntToInt32(v_1.AuxInt)
-			if x != v_1.Args[0] || !(d == 32-c) {
-				continue
-			}
-			v.reset(Op386ROLLconst)
-			v.AuxInt = int32ToAuxInt(c)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (ADDL <t> (SHLLconst x [c]) (SHRWconst x [d]))
-	// cond: c < 16 && d == int16(16-c) && t.Size() == 2
-	// result: (ROLWconst x [int16(c)])
-	for {
-		t := v.Type
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386SHLLconst {
-				continue
-			}
-			c := auxIntToInt32(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != Op386SHRWconst {
-				continue
-			}
-			d := auxIntToInt16(v_1.AuxInt)
-			if x != v_1.Args[0] || !(c < 16 && d == int16(16-c) && t.Size() == 2) {
-				continue
-			}
-			v.reset(Op386ROLWconst)
-			v.AuxInt = int16ToAuxInt(int16(c))
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (ADDL <t> (SHLLconst x [c]) (SHRBconst x [d]))
-	// cond: c < 8 && d == int8(8-c) && t.Size() == 1
-	// result: (ROLBconst x [int8(c)])
-	for {
-		t := v.Type
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386SHLLconst {
-				continue
-			}
-			c := auxIntToInt32(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != Op386SHRBconst {
-				continue
-			}
-			d := auxIntToInt8(v_1.AuxInt)
-			if x != v_1.Args[0] || !(c < 8 && d == int8(8-c) && t.Size() == 1) {
-				continue
-			}
-			v.reset(Op386ROLBconst)
-			v.AuxInt = int8ToAuxInt(int8(c))
 			v.AddArg(x)
 			return true
 		}
@@ -6305,80 +6240,6 @@ func rewriteValue386_Op386ORL(v *Value) bool {
 		}
 		break
 	}
-	// match: ( ORL (SHLLconst [c] x) (SHRLconst [d] x))
-	// cond: d == 32-c
-	// result: (ROLLconst [c] x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386SHLLconst {
-				continue
-			}
-			c := auxIntToInt32(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != Op386SHRLconst {
-				continue
-			}
-			d := auxIntToInt32(v_1.AuxInt)
-			if x != v_1.Args[0] || !(d == 32-c) {
-				continue
-			}
-			v.reset(Op386ROLLconst)
-			v.AuxInt = int32ToAuxInt(c)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: ( ORL <t> (SHLLconst x [c]) (SHRWconst x [d]))
-	// cond: c < 16 && d == int16(16-c) && t.Size() == 2
-	// result: (ROLWconst x [int16(c)])
-	for {
-		t := v.Type
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386SHLLconst {
-				continue
-			}
-			c := auxIntToInt32(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != Op386SHRWconst {
-				continue
-			}
-			d := auxIntToInt16(v_1.AuxInt)
-			if x != v_1.Args[0] || !(c < 16 && d == int16(16-c) && t.Size() == 2) {
-				continue
-			}
-			v.reset(Op386ROLWconst)
-			v.AuxInt = int16ToAuxInt(int16(c))
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: ( ORL <t> (SHLLconst x [c]) (SHRBconst x [d]))
-	// cond: c < 8 && d == int8(8-c) && t.Size() == 1
-	// result: (ROLBconst x [int8(c)])
-	for {
-		t := v.Type
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386SHLLconst {
-				continue
-			}
-			c := auxIntToInt32(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != Op386SHRBconst {
-				continue
-			}
-			d := auxIntToInt8(v_1.AuxInt)
-			if x != v_1.Args[0] || !(c < 8 && d == int8(8-c) && t.Size() == 1) {
-				continue
-			}
-			v.reset(Op386ROLBconst)
-			v.AuxInt = int8ToAuxInt(int8(c))
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
 	// match: (ORL x l:(MOVLload [off] {sym} ptr mem))
 	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
 	// result: (ORLload x [off] {sym} ptr mem)
@@ -6809,6 +6670,24 @@ func rewriteValue386_Op386ORLmodify(v *Value) bool {
 	}
 	return false
 }
+func rewriteValue386_Op386ROLB(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ROLB x (MOVLconst [c]))
+	// result: (ROLBconst [int8(c&7)] x)
+	for {
+		x := v_0
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		v.reset(Op386ROLBconst)
+		v.AuxInt = int8ToAuxInt(int8(c & 7))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValue386_Op386ROLBconst(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (ROLBconst [c] (ROLBconst [d] x))
@@ -6837,6 +6716,24 @@ func rewriteValue386_Op386ROLBconst(v *Value) bool {
 	}
 	return false
 }
+func rewriteValue386_Op386ROLL(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ROLL x (MOVLconst [c]))
+	// result: (ROLLconst [c&31] x)
+	for {
+		x := v_0
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		v.reset(Op386ROLLconst)
+		v.AuxInt = int32ToAuxInt(c & 31)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValue386_Op386ROLLconst(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (ROLLconst [c] (ROLLconst [d] x))
@@ -6861,6 +6758,24 @@ func rewriteValue386_Op386ROLLconst(v *Value) bool {
 		}
 		x := v_0
 		v.copyOf(x)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386ROLW(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ROLW x (MOVLconst [c]))
+	// result: (ROLWconst [int16(c&15)] x)
+	for {
+		x := v_0
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		v.reset(Op386ROLWconst)
+		v.AuxInt = int16ToAuxInt(int16(c & 15))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -8341,80 +8256,6 @@ func rewriteValue386_Op386XORL(v *Value) bool {
 			c := auxIntToInt32(v_1.AuxInt)
 			v.reset(Op386XORLconst)
 			v.AuxInt = int32ToAuxInt(c)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (XORL (SHLLconst [c] x) (SHRLconst [d] x))
-	// cond: d == 32-c
-	// result: (ROLLconst [c] x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386SHLLconst {
-				continue
-			}
-			c := auxIntToInt32(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != Op386SHRLconst {
-				continue
-			}
-			d := auxIntToInt32(v_1.AuxInt)
-			if x != v_1.Args[0] || !(d == 32-c) {
-				continue
-			}
-			v.reset(Op386ROLLconst)
-			v.AuxInt = int32ToAuxInt(c)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (XORL <t> (SHLLconst x [c]) (SHRWconst x [d]))
-	// cond: c < 16 && d == int16(16-c) && t.Size() == 2
-	// result: (ROLWconst x [int16(c)])
-	for {
-		t := v.Type
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386SHLLconst {
-				continue
-			}
-			c := auxIntToInt32(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != Op386SHRWconst {
-				continue
-			}
-			d := auxIntToInt16(v_1.AuxInt)
-			if x != v_1.Args[0] || !(c < 16 && d == int16(16-c) && t.Size() == 2) {
-				continue
-			}
-			v.reset(Op386ROLWconst)
-			v.AuxInt = int16ToAuxInt(int16(c))
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (XORL <t> (SHLLconst x [c]) (SHRBconst x [d]))
-	// cond: c < 8 && d == int8(8-c) && t.Size() == 1
-	// result: (ROLBconst x [int8(c)])
-	for {
-		t := v.Type
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386SHLLconst {
-				continue
-			}
-			c := auxIntToInt32(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != Op386SHRBconst {
-				continue
-			}
-			d := auxIntToInt8(v_1.AuxInt)
-			if x != v_1.Args[0] || !(c < 8 && d == int8(8-c) && t.Size() == 1) {
-				continue
-			}
-			v.reset(Op386ROLBconst)
-			v.AuxInt = int8ToAuxInt(int8(c))
 			v.AddArg(x)
 			return true
 		}
@@ -10294,60 +10135,6 @@ func rewriteValue386_OpPanicExtend(v *Value) bool {
 		v.reset(Op386LoweredPanicExtendC)
 		v.AuxInt = int64ToAuxInt(kind)
 		v.AddArg4(hi, lo, y, mem)
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpRotateLeft16(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (RotateLeft16 x (MOVLconst [c]))
-	// result: (ROLWconst [int16(c&15)] x)
-	for {
-		x := v_0
-		if v_1.Op != Op386MOVLconst {
-			break
-		}
-		c := auxIntToInt32(v_1.AuxInt)
-		v.reset(Op386ROLWconst)
-		v.AuxInt = int16ToAuxInt(int16(c & 15))
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpRotateLeft32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (RotateLeft32 x (MOVLconst [c]))
-	// result: (ROLLconst [c&31] x)
-	for {
-		x := v_0
-		if v_1.Op != Op386MOVLconst {
-			break
-		}
-		c := auxIntToInt32(v_1.AuxInt)
-		v.reset(Op386ROLLconst)
-		v.AuxInt = int32ToAuxInt(c & 31)
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpRotateLeft8(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (RotateLeft8 x (MOVLconst [c]))
-	// result: (ROLBconst [int8(c&7)] x)
-	for {
-		x := v_0
-		if v_1.Op != Op386MOVLconst {
-			break
-		}
-		c := auxIntToInt32(v_1.AuxInt)
-		v.reset(Op386ROLBconst)
-		v.AuxInt = int8ToAuxInt(int8(c & 7))
-		v.AddArg(x)
 		return true
 	}
 	return false

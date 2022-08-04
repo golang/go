@@ -128,39 +128,8 @@
 // Rotates
 (RotateLeft8 <t> x (MOVDconst [c])) => (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
 (RotateLeft16 <t> x (MOVDconst [c])) => (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
-(RotateLeft32 x (MOVDconst [c])) => (ROTLWconst [c&31] x)
-(RotateLeft64 x (MOVDconst [c])) => (ROTLconst [c&63] x)
-
-// Rotate generation with const shift
-(ADD (SLDconst x [c]) (SRDconst x [d])) && d == 64-c => (ROTLconst [c] x)
-( OR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c => (ROTLconst [c] x)
-(XOR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c => (ROTLconst [c] x)
-
-(ADD (SLWconst x [c]) (SRWconst x [d])) && d == 32-c => (ROTLWconst [c] x)
-( OR (SLWconst x [c]) (SRWconst x [d])) && d == 32-c => (ROTLWconst [c] x)
-(XOR (SLWconst x [c]) (SRWconst x [d])) && d == 32-c => (ROTLWconst [c] x)
-
-// Rotate generation with non-const shift
-// these match patterns from math/bits/RotateLeft[32|64], but there could be others
-(ADD (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (Select0 <typ.UInt> (ANDCCconst [63] y))))) => (ROTL x y)
-(ADD (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUBFCconst <typ.UInt> [64] (Select0 <typ.UInt> (ANDCCconst [63] y))))) => (ROTL x y)
-( OR (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (Select0 <typ.UInt> (ANDCCconst [63] y)))))=> (ROTL x y)
-( OR (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUBFCconst <typ.UInt> [64] (Select0 <typ.UInt> (ANDCCconst [63] y))))) => (ROTL x y)
-(XOR (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (Select0 <typ.UInt> (ANDCCconst [63] y))))) => (ROTL x y)
-(XOR (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUBFCconst <typ.UInt> [64] (Select0 <typ.UInt> (ANDCCconst [63] y))))) => (ROTL x y)
-
-
-(ADD (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUBFCconst <typ.UInt> [32] (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
-(ADD (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
-( OR (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUBFCconst <typ.UInt> [32] (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
-( OR (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
-(XOR (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUBFCconst <typ.UInt> [32] (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
-(XOR (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
-
-
-// Lowering rotates
-(RotateLeft32 x y) => (ROTLW x y)
-(RotateLeft64 x y) => (ROTL x y)
+(RotateLeft32 ...) => (ROTLW ...)
+(RotateLeft64 ...) => (ROTL ...)
 
 // Constant rotate generation
 (ROTLW  x (MOVDconst [c])) => (ROTLWconst  x [c&31])

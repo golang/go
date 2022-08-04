@@ -148,10 +148,14 @@
 (Rsh16x64 x (Const64 [c])) && uint64(c) >= 16 => (SARWconst x [15])
 (Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 => (SARBconst x [7])
 
+// rotates
+(RotateLeft32 ...) => (ROLL ...)
+(RotateLeft16 ...) => (ROLW ...)
+(RotateLeft8  ...) => (ROLB ...)
 // constant rotates
-(RotateLeft32 x (MOVLconst [c])) => (ROLLconst [c&31] x)
-(RotateLeft16 x (MOVLconst [c])) => (ROLWconst [int16(c&15)] x)
-(RotateLeft8 x (MOVLconst [c]))  => (ROLBconst [int8(c&7)] x)
+(ROLL x (MOVLconst [c])) => (ROLLconst [c&31] x)
+(ROLW x (MOVLconst [c])) => (ROLWconst [int16(c&15)] x)
+(ROLB x (MOVLconst [c])) => (ROLBconst [int8(c&7)] x)
 
 // Lowering comparisons
 (Less32  x y) => (SETL (CMPL x y))
@@ -425,28 +429,9 @@
 
 // Rotate instructions
 
-(ADDL (SHLLconst [c] x) (SHRLconst [d] x)) && d == 32-c => (ROLLconst [c] x)
-( ORL (SHLLconst [c] x) (SHRLconst [d] x)) && d == 32-c => (ROLLconst [c] x)
-(XORL (SHLLconst [c] x) (SHRLconst [d] x)) && d == 32-c => (ROLLconst [c] x)
-
-(ADDL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == int16(16-c) && t.Size() == 2
-  => (ROLWconst x [int16(c)])
-( ORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == int16(16-c) && t.Size() == 2
-  => (ROLWconst x [int16(c)])
-(XORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == int16(16-c) && t.Size() == 2
-  => (ROLWconst x [int16(c)])
-
-(ADDL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == int8(8-c) && t.Size() == 1
-  => (ROLBconst x [int8(c)])
-( ORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == int8(8-c) && t.Size() == 1
-  => (ROLBconst x [int8(c)])
-(XORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == int8(8-c) && t.Size() == 1
-  => (ROLBconst x [int8(c)])
-
 (ROLLconst [c] (ROLLconst [d] x)) => (ROLLconst [(c+d)&31] x)
 (ROLWconst [c] (ROLWconst [d] x)) => (ROLWconst [(c+d)&15] x)
 (ROLBconst [c] (ROLBconst [d] x)) => (ROLBconst [(c+d)& 7] x)
-
 
 // Constant shift simplifications
 

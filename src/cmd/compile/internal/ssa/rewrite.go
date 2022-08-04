@@ -1977,3 +1977,20 @@ func makeJumpTableSym(b *Block) *obj.LSym {
 	s.Set(obj.AttrLocal, true)
 	return s
 }
+
+// canRotate reports whether the architecture supports
+// rotates of integer registers with the given number of bits.
+func canRotate(c *Config, bits int64) bool {
+	if bits > c.PtrSize*8 {
+		// Don't rewrite to rotates bigger than the machine word.
+		return false
+	}
+	switch c.arch {
+	case "386", "amd64":
+		return true
+	case "arm", "arm64", "s390x", "ppc64", "ppc64le", "wasm":
+		return bits >= 32
+	default:
+		return false
+	}
+}

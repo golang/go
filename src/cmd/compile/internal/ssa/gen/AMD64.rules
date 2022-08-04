@@ -853,85 +853,10 @@
 ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (ANDLconst [c] y)) && c & 31 == 31 => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x y)
 ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGL <t> (ANDLconst [c] y))) && c & 31 == 31 => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGL <t> y))
 
-// Constant rotate instructions
-((ADDQ|ORQ|XORQ) (SHLQconst x [c]) (SHRQconst x [d])) && d==64-c => (ROLQconst x [c])
-((ADDL|ORL|XORL) (SHLLconst x [c]) (SHRLconst x [d])) && d==32-c => (ROLLconst x [c])
-
-((ADDL|ORL|XORL) <t> (SHLLconst x [c]) (SHRWconst x [d])) && d==16-c && c < 16 && t.Size() == 2 => (ROLWconst x [c])
-((ADDL|ORL|XORL) <t> (SHLLconst x [c]) (SHRBconst x [d])) && d==8-c  && c < 8  && t.Size() == 1 => (ROLBconst x [c])
-
-(ROLQconst [c] (ROLQconst [d] x)) => (ROLQconst [(c+d)&63] x)
-(ROLLconst [c] (ROLLconst [d] x)) => (ROLLconst [(c+d)&31] x)
-(ROLWconst [c] (ROLWconst [d] x)) => (ROLWconst [(c+d)&15] x)
-(ROLBconst [c] (ROLBconst [d] x)) => (ROLBconst [(c+d)& 7] x)
-
 (RotateLeft8  ...) => (ROLB ...)
 (RotateLeft16 ...) => (ROLW ...)
 (RotateLeft32 ...) => (ROLL ...)
 (RotateLeft64 ...) => (ROLQ ...)
-
-// Non-constant rotates.
-// We want to issue a rotate when the Go source contains code like
-//     y &= 63
-//     x << y | x >> (64-y)
-// The shift rules above convert << to SHLx and >> to SHRx.
-// SHRx converts its shift argument from 64-y to -y.
-// A tricky situation occurs when y==0. Then the original code would be:
-//     x << 0 | x >> 64
-// But x >> 64 is 0, not x. So there's an additional mask that is ANDed in
-// to force the second term to 0. We don't need that mask, but we must match
-// it in order to strip it out.
-(ORQ (SHLQ x y) (ANDQ (SHRQ x (NEG(Q|L) y)) (SBBQcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [63]) [-64])) [64])))) => (ROLQ x y)
-(ORQ (SHRQ x y) (ANDQ (SHLQ x (NEG(Q|L) y)) (SBBQcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [63]) [-64])) [64])))) => (RORQ x y)
-(ORQ (SHLXQ x y) (ANDQ (SHRXQ x (NEG(Q|L) y)) (SBBQcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [63]) [-64])) [64])))) => (ROLQ x y)
-(ORQ (SHRXQ x y) (ANDQ (SHLXQ x (NEG(Q|L) y)) (SBBQcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [63]) [-64])) [64])))) => (RORQ x y)
-
-(ORL (SHLL x y) (ANDL (SHRL x (NEG(Q|L) y)) (SBBLcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [31]) [-32])) [32])))) => (ROLL x y)
-(ORL (SHRL x y) (ANDL (SHLL x (NEG(Q|L) y)) (SBBLcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [31]) [-32])) [32])))) => (RORL x y)
-(ORL (SHLXL x y) (ANDL (SHRXL x (NEG(Q|L) y)) (SBBLcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [31]) [-32])) [32])))) => (ROLL x y)
-(ORL (SHRXL x y) (ANDL (SHLXL x (NEG(Q|L) y)) (SBBLcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [31]) [-32])) [32])))) => (RORL x y)
-
-// Help with rotate detection
-(CMPQconst (NEGQ (ADDQconst [-16] (ANDQconst [15] _))) [32]) => (FlagLT_ULT)
-(CMPQconst (NEGQ (ADDQconst [ -8] (ANDQconst  [7] _))) [32]) => (FlagLT_ULT)
-
-(ORL (SHLL x (AND(Q|L)const y [15]))
-     (ANDL (SHRW x (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [15]) [-16])))
-           (SBBLcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [15]) [-16])) [16]))))
-  && v.Type.Size() == 2
-  => (ROLW x y)
-(ORL (SHRW x (AND(Q|L)const y [15]))
-     (SHLL x (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [15]) [-16]))))
-  && v.Type.Size() == 2
-  => (RORW x y)
-(ORL (SHLXL x (AND(Q|L)const y [15]))
-     (ANDL (SHRW x (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [15]) [-16])))
-           (SBBLcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [15]) [-16])) [16]))))
-  && v.Type.Size() == 2
-  => (ROLW x y)
-(ORL (SHRW x (AND(Q|L)const y [15]))
-     (SHLXL x (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [15]) [-16]))))
-  && v.Type.Size() == 2
-  => (RORW x y)
-
-(ORL (SHLL x (AND(Q|L)const y [ 7]))
-     (ANDL (SHRB x (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [ 7]) [ -8])))
-           (SBBLcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [ 7]) [ -8])) [ 8]))))
-  && v.Type.Size() == 1
-  => (ROLB x y)
-(ORL (SHRB x (AND(Q|L)const y [ 7]))
-     (SHLL x (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [ 7]) [ -8]))))
-  && v.Type.Size() == 1
-  => (RORB x y)
-(ORL (SHLXL x (AND(Q|L)const y [ 7]))
-     (ANDL (SHRB x (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [ 7]) [ -8])))
-           (SBBLcarrymask (CMP(Q|L)const (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [ 7]) [ -8])) [ 8]))))
-  && v.Type.Size() == 1
-  => (ROLB x y)
-(ORL (SHRB x (AND(Q|L)const y [ 7]))
-     (SHLXL x (NEG(Q|L) (ADD(Q|L)const (AND(Q|L)const y [ 7]) [ -8]))))
-  && v.Type.Size() == 1
-  => (RORB x y)
 
 // rotate left negative = rotate right
 (ROLQ x (NEG(Q|L) y)) => (RORQ x y)

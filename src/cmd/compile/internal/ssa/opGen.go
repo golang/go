@@ -434,6 +434,9 @@ const (
 	Op386SARLconst
 	Op386SARWconst
 	Op386SARBconst
+	Op386ROLL
+	Op386ROLW
+	Op386ROLB
 	Op386ROLLconst
 	Op386ROLWconst
 	Op386ROLBconst
@@ -2963,10 +2966,10 @@ const (
 	OpPopCount16
 	OpPopCount32
 	OpPopCount64
-	OpRotateLeft8
-	OpRotateLeft16
-	OpRotateLeft32
 	OpRotateLeft64
+	OpRotateLeft32
+	OpRotateLeft16
+	OpRotateLeft8
 	OpSqrt
 	OpSqrt32
 	OpFloor
@@ -4629,6 +4632,54 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASARB,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+		},
+	},
+	{
+		name:         "ROLL",
+		argLen:       2,
+		resultInArg0: true,
+		clobberFlags: true,
+		asm:          x86.AROLL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2},   // CX
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+		},
+	},
+	{
+		name:         "ROLW",
+		argLen:       2,
+		resultInArg0: true,
+		clobberFlags: true,
+		asm:          x86.AROLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2},   // CX
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+		},
+	},
+	{
+		name:         "ROLB",
+		argLen:       2,
+		resultInArg0: true,
+		clobberFlags: true,
+		asm:          x86.AROLB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2},   // CX
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
@@ -38457,12 +38508,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RotateLeft8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateLeft16",
+		name:    "RotateLeft64",
 		argLen:  2,
 		generic: true,
 	},
@@ -38472,7 +38518,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RotateLeft64",
+		name:    "RotateLeft16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RotateLeft8",
 		argLen:  2,
 		generic: true,
 	},

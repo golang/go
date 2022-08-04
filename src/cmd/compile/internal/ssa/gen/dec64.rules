@@ -217,6 +217,11 @@
 (Rsh8x64 x y)   => (Rsh8x32   x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
 (Rsh8Ux64 x y)  => (Rsh8Ux32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
 
+(RotateLeft64 x (Int64Make hi lo)) => (RotateLeft64 x lo)
+(RotateLeft32 x (Int64Make hi lo)) => (RotateLeft32 x lo)
+(RotateLeft16 x (Int64Make hi lo)) => (RotateLeft16 x lo)
+(RotateLeft8  x (Int64Make hi lo)) => (RotateLeft8  x lo)
+
 // Clean up constants a little
 (Or32 <typ.UInt32> (Zeromask (Const32 [c])) y) && c == 0 => y
 (Or32 <typ.UInt32> (Zeromask (Const32 [c])) y) && c != 0 => (Const32 <typ.UInt32> [-1])
