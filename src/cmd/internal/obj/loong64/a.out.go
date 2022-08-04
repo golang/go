@@ -391,6 +391,11 @@ const (
 	AMOVVF
 	AMOVVD
 
+	// 2.2.10. Other Miscellaneous Instructions
+	ARDTIMELW
+	ARDTIMEHW
+	ARDTIMED
+
 	ALAST
 
 	// aliases
