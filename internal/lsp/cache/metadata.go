@@ -91,11 +91,4 @@ type KnownMetadata struct {
 	// Valid is true if the given metadata is Valid.
 	// Invalid metadata can still be used if a metadata reload fails.
 	Valid bool
-
-	// PkgFilesChanged reports whether the file set of this metadata has
-	// potentially changed.
-	//
-	// TODO(rfindley): this is used for WorkspacePackages, and looks fishy: we
-	// should probably only consider valid packages to be workspace packages.
-	PkgFilesChanged bool
 }

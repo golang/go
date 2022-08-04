@@ -1734,10 +1734,9 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	}
 
 	// Compute invalidations based on file changes.
-	changedPkgFiles := map[PackageID]bool{} // packages whose file set may have changed
-	anyImportDeleted := false               // import deletions can resolve cycles
-	anyFileOpenedOrClosed := false          // opened files affect workspace packages
-	anyFileAdded := false                   // adding a file can resolve missing dependencies
+	anyImportDeleted := false      // import deletions can resolve cycles
+	anyFileOpenedOrClosed := false // opened files affect workspace packages
+	anyFileAdded := false          // adding a file can resolve missing dependencies
 
 	for uri, change := range changes {
 		// The original FileHandle for this URI is cached on the snapshot.
@@ -1762,11 +1761,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 		// Mark all of the package IDs containing the given file.
 		filePackageIDs := invalidatedPackageIDs(uri, s.meta.ids, pkgFileChanged)
-		if pkgFileChanged {
-			for id := range filePackageIDs {
-				changedPkgFiles[id] = true
-			}
-		}
 		for id := range filePackageIDs {
 			directIDs[id] = directIDs[id] || invalidateMetadata
 		}
@@ -1953,13 +1947,11 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 		// Check if the metadata has changed.
 		valid := v.Valid && !invalidateMetadata
-		pkgFilesChanged := v.PkgFilesChanged || changedPkgFiles[k]
-		if valid != v.Valid || pkgFilesChanged != v.PkgFilesChanged {
+		if valid != v.Valid {
 			// Mark invalidated metadata rather than deleting it outright.
 			metadataUpdates[k] = &KnownMetadata{
-				Metadata:        v.Metadata,
-				Valid:           valid,
-				PkgFilesChanged: pkgFilesChanged,
+				Metadata: v.Metadata,
+				Valid:    valid,
 			}
 		}
 	}

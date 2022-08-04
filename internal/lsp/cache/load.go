@@ -644,16 +644,6 @@ func computeWorkspacePackagesLocked(s *snapshot, meta *metadataGraph) map[Packag
 		if !containsPackageLocked(s, m.Metadata) {
 			continue
 		}
-		if m.PkgFilesChanged {
-			// If a package name has changed, it's possible that the package no
-			// longer exists. Leaving it as a workspace package can result in
-			// persistent stale diagnostics.
-			//
-			// If there are still valid files in the package, it will be reloaded.
-			//
-			// There may be more precise heuristics.
-			continue
-		}
 
 		if source.IsCommandLineArguments(string(m.ID)) {
 			// If all the files contained in m have a real package, we don't need to
