@@ -76,7 +76,7 @@ func TestDebugLinesPushback(t *testing.T) {
 		fn := "(*List[go.shape.int_0]).PushBack"
 		if buildcfg.Experiment.Unified {
 			// Unified mangles differently
-			fn = "(*List[int]).PushBack"
+			fn = "(*List[int]).PushBack-shaped"
 		}
 		testDebugLines(t, "-N -l", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
 	}
@@ -95,7 +95,7 @@ func TestDebugLinesConvert(t *testing.T) {
 		fn := "G[go.shape.int_0]"
 		if buildcfg.Experiment.Unified {
 			// Unified mangles differently
-			fn = "G[int]"
+			fn = "G[int]-shaped"
 		}
 		testDebugLines(t, "-N -l", "convertline.go", fn, []int{9, 10, 11}, true)
 	}

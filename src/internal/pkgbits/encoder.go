@@ -14,6 +14,16 @@ import (
 	"runtime"
 )
 
+// currentVersion is the current version number.
+//
+//   - v0: initial prototype
+//
+//   - v1: adds the flags uint32 word
+//
+// TODO(mdempsky): For the next version bump:
+//   - remove the legacy "has init" bool from the public root
+const currentVersion uint32 = 1
+
 // A PkgEncoder provides methods for encoding a package's Unified IR
 // export data.
 type PkgEncoder struct {
@@ -25,15 +35,21 @@ type PkgEncoder struct {
 	// elems[RelocString][stringsIdx[s]] == s (if present).
 	stringsIdx map[string]Index
 
+	// syncFrames is the number of frames to write at each sync
+	// marker. A negative value means sync markers are omitted.
 	syncFrames int
 }
+
+// SyncMarkers reports whether pw uses sync markers.
+func (pw *PkgEncoder) SyncMarkers() bool { return pw.syncFrames >= 0 }
 
 // NewPkgEncoder returns an initialized PkgEncoder.
 //
 // syncFrames is the number of caller frames that should be serialized
 // at Sync points. Serializing additional frames results in larger
 // export data files, but can help diagnosing desync errors in
-// higher-level Unified IR reader/writer code.
+// higher-level Unified IR reader/writer code. If syncFrames is
+// negative, then sync markers are omitted entirely.
 func NewPkgEncoder(syncFrames int) PkgEncoder {
 	return PkgEncoder{
 		stringsIdx: make(map[string]Index),
@@ -51,7 +67,13 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 		assert(binary.Write(out, binary.LittleEndian, x) == nil)
 	}
 
-	writeUint32(0) // version
+	writeUint32(currentVersion)
+
+	var flags uint32
+	if pw.SyncMarkers() {
+		flags |= flagSyncMarkers
+	}
+	writeUint32(flags)
 
 	// Write elemEndsEnds.
 	var sum uint32
@@ -204,7 +226,7 @@ func (w *Encoder) rawReloc(r RelocKind, idx Index) int {
 }
 
 func (w *Encoder) Sync(m SyncMarker) {
-	if !EnableSync {
+	if !w.p.SyncMarkers() {
 		return
 	}
 
@@ -297,8 +319,14 @@ func (w *Encoder) Code(c Code) {
 // section (if not already present), and then writing a relocation
 // into the element bitstream.
 func (w *Encoder) String(s string) {
+	w.StringRef(w.p.StringIdx(s))
+}
+
+// StringRef writes a reference to the given index, which must be a
+// previously encoded string value.
+func (w *Encoder) StringRef(idx Index) {
 	w.Sync(SyncString)
-	w.Reloc(RelocString, w.p.StringIdx(s))
+	w.Reloc(RelocString, idx)
 }
 
 // Strings encodes and writes a variable-length slice of strings into

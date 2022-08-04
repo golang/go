@@ -39,7 +39,7 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
 
 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 	pkg := r.pkg()
-	r.Bool() // has init
+	r.Bool() // TODO(mdempsky): Remove; was "has init"
 
 	for i, n := 0, r.Len(); i < n; i++ {
 		// As if r.obj(), but avoiding the Scope.Lookup call,
@@ -162,9 +162,7 @@ func (r *reader) doPkg() *types2.Package {
 	}
 
 	name := r.String()
-	height := r.Len()
-
-	pkg := types2.NewPackageHeight(path, name, height)
+	pkg := types2.NewPackage(path, name)
 	r.p.imports[path] = pkg
 
 	// TODO(mdempsky): The list of imported packages is important for

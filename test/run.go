@@ -1980,8 +1980,11 @@ var types2Failures32Bit = setOf(
 )
 
 var go118Failures = setOf(
-	"typeparam/nested.go",     // 1.18 compiler doesn't support function-local types with generics
-	"typeparam/issue51521.go", // 1.18 compiler produces bad panic message and link error
+	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
+	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
+	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions
+	"typeparam/mdempsky/17.go", // 1.18 compiler mishandles implicit conversions from range loops
+	"typeparam/mdempsky/18.go", // 1.18 compiler mishandles implicit conversions in select statements
 )
 
 // In all of these cases, the 1.17 compiler reports reasonable errors, but either the
@@ -2009,18 +2012,10 @@ var _ = setOf(
 )
 
 var unifiedFailures = setOf(
-	"closure3.go",  // unified IR numbers closures differently than -d=inlfuncswithclosures
-	"escape4.go",   // unified IR can inline f5 and f6; test doesn't expect this
-	"inline.go",    // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
-	"linkname3.go", // unified IR is missing some linkname errors
+	"closure3.go", // unified IR numbers closures differently than -d=inlfuncswithclosures
+	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
 
-	"fixedbugs/issue42284.go",  // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
-	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
-	"typeparam/issue47631.go",  // unified IR can handle local type declarations
-	"fixedbugs/issue42058a.go", // unified IR doesn't report channel element too large
-	"fixedbugs/issue42058b.go", // unified IR doesn't report channel element too large
-	"fixedbugs/issue49767.go",  // unified IR doesn't report channel element too large
-	"fixedbugs/issue49814.go",  // unified IR doesn't report array type too large
+	"typeparam/issue47631.go", // unified IR can handle local type declarations
 )
 
 func setOf(keys ...string) map[string]bool {

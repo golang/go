@@ -75,11 +75,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	types.LocalPkg = types.NewPkg(base.Ctxt.Pkgpath, "")
 
-	// We won't know localpkg's height until after import
-	// processing. In the mean time, set to MaxPkgHeight to ensure
-	// height comparisons at least work until then.
-	types.LocalPkg.Height = types.MaxPkgHeight
-
 	// pseudo-package, for scoping
 	types.BuiltinPkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
 	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin

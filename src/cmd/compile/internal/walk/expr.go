@@ -782,7 +782,7 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	t := map_.Type()
 	fast := mapfast(t)
 	key := mapKeyArg(fast, n, n.Index, n.Assigned)
-	args := []ir.Node{reflectdata.TypePtr(t), map_, key}
+	args := []ir.Node{reflectdata.IndexMapRType(base.Pos, n), map_, key}
 
 	var mapFn ir.Node
 	switch {

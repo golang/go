@@ -189,7 +189,7 @@ func (obj *object) sameId(pkg *Package, name string) bool {
 //
 // Objects are ordered nil before non-nil, exported before
 // non-exported, then by name, and finally (for non-exported
-// functions) by package height and path.
+// functions) by package path.
 func (a *object) less(b *object) bool {
 	if a == b {
 		return false
@@ -215,9 +215,6 @@ func (a *object) less(b *object) bool {
 		return a.name < b.name
 	}
 	if !ea {
-		if a.pkg.height != b.pkg.height {
-			return a.pkg.height < b.pkg.height
-		}
 		return a.pkg.path < b.pkg.path
 	}
 

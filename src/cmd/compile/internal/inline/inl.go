@@ -430,6 +430,36 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 
 	case ir.OMETHEXPR:
 		v.budget++ // Hack for toolstash -cmp.
+
+	case ir.OAS2:
+		n := n.(*ir.AssignListStmt)
+
+		// Unified IR unconditionally rewrites:
+		//
+		//	a, b = f()
+		//
+		// into:
+		//
+		//	DCL tmp1
+		//	DCL tmp2
+		//	tmp1, tmp2 = f()
+		//	a, b = tmp1, tmp2
+		//
+		// so that it can insert implicit conversions as necessary. To
+		// minimize impact to the existing inlining heuristics (in
+		// particular, to avoid breaking the existing inlinability regress
+		// tests), we need to compensate for this here.
+		if base.Debug.Unified != 0 {
+			if init := n.Rhs[0].Init(); len(init) == 1 {
+				if _, ok := init[0].(*ir.AssignListStmt); ok {
+					// 4 for each value, because each temporary variable now
+					// appears 3 times (DCL, LHS, RHS), plus an extra DCL node.
+					//
+					// 1 for the extra "tmp1, tmp2 = f()" assignment statement.
+					v.budget += 4*int32(len(n.Lhs)) + 1
+				}
+			}
+		}
 	}
 
 	v.budget--
@@ -655,9 +685,8 @@ var inlgen int
 var SSADumpInline = func(*ir.Func) {}
 
 // NewInline allows the inliner implementation to be overridden.
-// If it returns nil, the legacy inliner will handle this call
-// instead.
-var NewInline = func(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr { return nil }
+// If it returns nil, the function will not be inlined.
+var NewInline = oldInline
 
 // If n is a OCALLFUNC node, and fn is an ONAME node for a
 // function with an inlinable body, return an OINLCALL node that can replace n.
@@ -777,7 +806,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 
 	res := NewInline(n, fn, inlIndex)
 	if res == nil {
-		res = oldInline(n, fn, inlIndex)
+		return n
 	}
 
 	// transitive inlining

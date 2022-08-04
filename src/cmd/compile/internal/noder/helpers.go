@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/compile/internal/types2"
 	"cmd/internal/src"
 )
 
@@ -38,10 +39,6 @@ func typed(typ *types.Type, n ir.Node) ir.Node {
 }
 
 // Values
-
-func Const(pos src.XPos, typ *types.Type, val constant.Value) ir.Node {
-	return typed(typ, ir.NewBasicLit(pos, val))
-}
 
 func OrigConst(pos src.XPos, typ *types.Type, val constant.Value, op ir.Op, raw string) ir.Node {
 	orig := ir.NewRawOrigExpr(pos, op, raw)
@@ -223,4 +220,34 @@ func IncDec(pos src.XPos, op ir.Op, x ir.Node) *ir.AssignOpStmt {
 		bl = typecheck.DefaultLit(bl, x.Type())
 	}
 	return ir.NewAssignOpStmt(pos, op, x, bl)
+}
+
+func idealType(tv types2.TypeAndValue) types2.Type {
+	// The gc backend expects all expressions to have a concrete type, and
+	// types2 mostly satisfies this expectation already. But there are a few
+	// cases where the Go spec doesn't require converting to concrete type,
+	// and so types2 leaves them untyped. So we need to fix those up here.
+	typ := tv.Type
+	if basic, ok := typ.(*types2.Basic); ok && basic.Info()&types2.IsUntyped != 0 {
+		switch basic.Kind() {
+		case types2.UntypedNil:
+			// ok; can appear in type switch case clauses
+			// TODO(mdempsky): Handle as part of type switches instead?
+		case types2.UntypedInt, types2.UntypedFloat, types2.UntypedComplex:
+			// Untyped rhs of non-constant shift, e.g. x << 1.0.
+			// If we have a constant value, it must be an int >= 0.
+			if tv.Value != nil {
+				s := constant.ToInt(tv.Value)
+				assert(s.Kind() == constant.Int && constant.Sign(s) >= 0)
+			}
+			typ = types2.Typ[types2.Uint]
+		case types2.UntypedBool:
+			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
+		case types2.UntypedString:
+			typ = types2.Typ[types2.String] // argument to "append" or "copy" calls
+		default:
+			return nil
+		}
+	}
+	return typ
 }

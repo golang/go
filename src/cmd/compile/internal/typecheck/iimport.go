@@ -175,10 +175,9 @@ func ReadImports(pkg *types.Pkg, data string) {
 	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
 		pkg := p.pkgAt(ird.uint64())
 		pkgName := p.stringAt(ird.uint64())
-		pkgHeight := int(ird.uint64())
+		_ = int(ird.uint64()) // was package height, but not necessary anymore.
 		if pkg.Name == "" {
 			pkg.Name = pkgName
-			pkg.Height = pkgHeight
 			types.NumImport[pkgName]++
 
 			// TODO(mdempsky): This belongs somewhere else.
@@ -186,9 +185,6 @@ func ReadImports(pkg *types.Pkg, data string) {
 		} else {
 			if pkg.Name != pkgName {
 				base.Fatalf("conflicting package names %v and %v for path %q", pkg.Name, pkgName, pkg.Path)
-			}
-			if pkg.Height != pkgHeight {
-				base.Fatalf("conflicting package heights %v and %v for path %q", pkg.Height, pkgHeight, pkg.Path)
 			}
 		}
 
@@ -1493,7 +1489,9 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.OCONV, ir.OCONVIFACE, ir.OCONVIDATA, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR, ir.OSLICE2ARRPTR:
-		return ir.NewConvExpr(r.pos(), op, r.typ(), r.expr())
+		n := ir.NewConvExpr(r.pos(), op, r.typ(), r.expr())
+		n.SetImplicit(r.bool())
+		return n
 
 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN, ir.OUNSAFEADD, ir.OUNSAFESLICE:
 		pos := r.pos()

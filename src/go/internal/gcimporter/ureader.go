@@ -31,10 +31,21 @@ type pkgReader struct {
 	// laterFns holds functions that need to be invoked at the end of
 	// import reading.
 	laterFns []func()
+	// laterFors is used in case of 'type A B' to ensure that B is processed before A.
+	laterFors map[types.Type]int
 }
 
 // later adds a function to be invoked at the end of import reading.
 func (pr *pkgReader) later(fn func()) {
+	pr.laterFns = append(pr.laterFns, fn)
+}
+
+// laterFor adds a function to be invoked at the end of import reading, and records the type that function is finishing.
+func (pr *pkgReader) laterFor(t types.Type, fn func()) {
+	if pr.laterFors == nil {
+		pr.laterFors = make(map[types.Type]int)
+	}
+	pr.laterFors[t] = len(pr.laterFns)
 	pr.laterFns = append(pr.laterFns, fn)
 }
 
@@ -60,7 +71,7 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
 
 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 	pkg := r.pkg()
-	r.Bool() // has init
+	r.Bool() // TODO(mdempsky): Remove; was "has init"
 
 	for i, n := 0, r.Len(); i < n; i++ {
 		// As if r.obj(), but avoiding the Scope.Lookup call,
@@ -198,19 +209,47 @@ func (r *reader) doPkg() *types.Package {
 	}
 
 	name := r.String()
-	height := r.Len()
 
-	// Was: "pkg := types.NewPackageHeight(path, name, height)"
-	pkg, _ := types.NewPackage(path, name), height
+	pkg := types.NewPackage(path, name)
 	r.p.imports[path] = pkg
 
 	imports := make([]*types.Package, r.Len())
 	for i := range imports {
 		imports[i] = r.pkg()
 	}
-	pkg.SetImports(imports)
+
+	// The documentation for (*types.Package).Imports requires
+	// flattening the import graph when reading from export data, as
+	// obviously incorrect as that is.
+	//
+	// TODO(mdempsky): Remove this if go.dev/issue/54096 is accepted.
+	pkg.SetImports(flattenImports(imports))
 
 	return pkg
+}
+
+// flattenImports returns the transitive closure of all imported
+// packages rooted from pkgs.
+func flattenImports(pkgs []*types.Package) []*types.Package {
+	var res []*types.Package
+
+	seen := make(map[*types.Package]bool)
+	var add func(pkg *types.Package)
+	add = func(pkg *types.Package) {
+		if seen[pkg] {
+			return
+		}
+		seen[pkg] = true
+		res = append(res, pkg)
+		for _, imp := range pkg.Imports() {
+			add(imp)
+		}
+	}
+
+	for _, pkg := range pkgs {
+		add(pkg)
+	}
+	return res
 }
 
 // @@@ Types
@@ -459,7 +498,15 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 			// unit tests expected that), but cmd/compile doesn't care
 			// about it, so maybe we can avoid worrying about that here.
 			rhs := r.typ()
-			r.p.later(func() {
+			pk := r.p
+			pk.laterFor(named, func() {
+				// First be sure that the rhs is initialized, if it needs to be initialized.
+				delete(pk.laterFors, named) // prevent cycles
+				if i, ok := pk.laterFors[rhs]; ok {
+					f := pk.laterFns[i]
+					pk.laterFns[i] = func() {} // function is running now, so replace it with a no-op
+					f()                        // initialize RHS
+				}
 				underlying := rhs.Underlying()
 				named.SetUnderlying(underlying)
 			})

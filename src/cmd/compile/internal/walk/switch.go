@@ -85,8 +85,12 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 			defaultGoto = jmp
 		}
 
-		for _, n1 := range ncase.List {
-			s.Add(ncase.Pos(), n1, jmp)
+		for i, n1 := range ncase.List {
+			var rtype ir.Node
+			if i < len(ncase.RTypes) {
+				rtype = ncase.RTypes[i]
+			}
+			s.Add(ncase.Pos(), n1, rtype, jmp)
 		}
 
 		// Process body.
@@ -124,11 +128,12 @@ type exprSwitch struct {
 type exprClause struct {
 	pos    src.XPos
 	lo, hi ir.Node
+	rtype  ir.Node // *runtime._type for OEQ node
 	jmp    ir.Node
 }
 
-func (s *exprSwitch) Add(pos src.XPos, expr, jmp ir.Node) {
-	c := exprClause{pos: pos, lo: expr, hi: expr, jmp: jmp}
+func (s *exprSwitch) Add(pos src.XPos, expr, rtype, jmp ir.Node) {
+	c := exprClause{pos: pos, lo: expr, hi: expr, rtype: rtype, jmp: jmp}
 	if types.IsOrdered[s.exprname.Type().Kind()] && expr.Op() == ir.OLITERAL {
 		s.clauses = append(s.clauses, c)
 		return
@@ -233,7 +238,7 @@ func (s *exprSwitch) flush() {
 			// Add length case to outer switch.
 			cas := ir.NewBasicLit(pos, constant.MakeInt64(runLen(run)))
 			jmp := ir.NewBranchStmt(pos, ir.OGOTO, label)
-			outer.Add(pos, cas, jmp)
+			outer.Add(pos, cas, nil, jmp)
 		}
 		s.done.Append(ir.NewLabelStmt(s.pos, outerLabel))
 		outer.Emit(&s.done)
@@ -342,7 +347,9 @@ func (c *exprClause) test(exprname ir.Node) ir.Node {
 		}
 	}
 
-	return ir.NewBinaryExpr(c.pos, ir.OEQ, exprname, c.lo)
+	n := ir.NewBinaryExpr(c.pos, ir.OEQ, exprname, c.lo)
+	n.RType = c.rtype
+	return n
 }
 
 func allCaseExprsAreSideEffectFree(sw *ir.SwitchStmt) bool {

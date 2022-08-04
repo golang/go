@@ -1,5 +1,3 @@
-// UNREVIEWED
-
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -19,6 +17,7 @@ import (
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -26,15 +25,25 @@ import (
 	"cmd/internal/src"
 )
 
+// This file implements cmd/compile backend's reader for the Unified
+// IR export data.
+
+// A pkgReader reads Unified IR export data.
 type pkgReader struct {
 	pkgbits.PkgDecoder
+
+	// Indices for encoded things; lazily populated as needed.
+	//
+	// Note: Objects (i.e., ir.Names) are lazily instantiated by
+	// populating their types.Sym.Def; see objReader below.
 
 	posBases []*src.PosBase
 	pkgs     []*types.Pkg
 	typs     []*types.Type
 
-	// offset for rewriting the given index into the output,
-	// but bitwise inverted so we can detect if we're missing the entry or not.
+	// offset for rewriting the given (absolute!) index into the output,
+	// but bitwise inverted so we can detect if we're missing the entry
+	// or not.
 	newindex []pkgbits.Index
 }
 
@@ -50,15 +59,19 @@ func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
 	}
 }
 
+// A pkgReaderIndex compactly identifies an index (and its
+// corresponding dictionary) within a package's export data.
 type pkgReaderIndex struct {
-	pr   *pkgReader
-	idx  pkgbits.Index
-	dict *readerDict
+	pr       *pkgReader
+	idx      pkgbits.Index
+	dict     *readerDict
+	shapedFn *ir.Func
 }
 
 func (pri pkgReaderIndex) asReader(k pkgbits.RelocKind, marker pkgbits.SyncMarker) *reader {
 	r := pri.pr.newReader(k, pri.idx, marker)
 	r.dict = pri.dict
+	r.shapedFn = pri.shapedFn
 	return r
 }
 
@@ -69,6 +82,7 @@ func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pk
 	}
 }
 
+// A writer provides APIs for reading an individual element.
 type reader struct {
 	pkgbits.Decoder
 
@@ -86,6 +100,12 @@ type reader struct {
 	closureVars []*ir.Name
 
 	funarghack bool
+
+	// shapedFn is the shape-typed version of curfn, if any.
+	shapedFn *ir.Func
+
+	// dictParam is the .dict param, if any.
+	dictParam *ir.Name
 
 	// scopeVars is a stack tracking the number of variables declared in
 	// the current function at the moment each open scope was opened.
@@ -108,7 +128,13 @@ type reader struct {
 	// Label to return to.
 	retlabel *types.Sym
 
-	inlvars, retvars ir.Nodes
+	// inlvars is the list of variables that the inlinee's arguments are
+	// assigned to, one for each receiver and normal parameter, in order.
+	inlvars ir.Nodes
+
+	// retvars is the list of variables that the inlinee's results are
+	// assigned to, one for each result parameter, in order.
+	retvars ir.Nodes
 }
 
 type readerDict struct {
@@ -143,6 +169,8 @@ type readerDict struct {
 	funcsObj []ir.Node
 
 	itabs []itabInfo2
+
+	methodExprs []ir.Node
 }
 
 type itabInfo2 struct {
@@ -162,6 +190,7 @@ func setValue(name *ir.Name, val constant.Value) {
 
 // @@@ Positions
 
+// pos reads a position from the bitstream.
 func (r *reader) pos() src.XPos {
 	return base.Ctxt.PosTable.XPos(r.pos0())
 }
@@ -178,10 +207,13 @@ func (r *reader) pos0() src.Pos {
 	return src.MakePos(posBase, line, col)
 }
 
+// posBase reads a position base from the bitstream.
 func (r *reader) posBase() *src.PosBase {
 	return r.inlPosBase(r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase)))
 }
 
+// posBaseIdx returns the specified position base, reading it first if
+// needed.
 func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *src.PosBase {
 	if b := pr.posBases[idx]; b != nil {
 		return b
@@ -222,6 +254,7 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *src.PosBase {
 	return b
 }
 
+// TODO(mdempsky): Document this.
 func (r *reader) inlPosBase(oldBase *src.PosBase) *src.PosBase {
 	if r.inlCall == nil {
 		return oldBase
@@ -236,36 +269,23 @@ func (r *reader) inlPosBase(oldBase *src.PosBase) *src.PosBase {
 	return newBase
 }
 
+// TODO(mdempsky): Document this.
 func (r *reader) updatePos(xpos src.XPos) src.XPos {
 	pos := base.Ctxt.PosTable.Pos(xpos)
 	pos.SetBase(r.inlPosBase(pos.Base()))
 	return base.Ctxt.PosTable.XPos(pos)
 }
 
-func (r *reader) origPos(xpos src.XPos) src.XPos {
-	if r.inlCall == nil {
-		return xpos
-	}
-
-	pos := base.Ctxt.PosTable.Pos(xpos)
-	for old, new := range r.inlPosBases {
-		if pos.Base() == new {
-			pos.SetBase(old)
-			return base.Ctxt.PosTable.XPos(pos)
-		}
-	}
-
-	base.FatalfAt(xpos, "pos base missing from inlPosBases")
-	panic("unreachable")
-}
-
 // @@@ Packages
 
+// pkg reads a package reference from the bitstream.
 func (r *reader) pkg() *types.Pkg {
 	r.Sync(pkgbits.SyncPkg)
 	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
 }
 
+// pkgIdx returns the specified package from the export data, reading
+// it first if needed.
 func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Pkg {
 	if pkg := pr.pkgs[idx]; pkg != nil {
 		return pkg
@@ -276,6 +296,7 @@ func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Pkg {
 	return pkg
 }
 
+// doPkg reads a package definition from the bitstream.
 func (r *reader) doPkg() *types.Pkg {
 	path := r.String()
 	switch path {
@@ -288,7 +309,6 @@ func (r *reader) doPkg() *types.Pkg {
 	}
 
 	name := r.String()
-	height := r.Len()
 
 	pkg := types.NewPkg(path, "")
 
@@ -296,12 +316,6 @@ func (r *reader) doPkg() *types.Pkg {
 		pkg.Name = name
 	} else {
 		base.Assertf(pkg.Name == name, "package %q has name %q, but want %q", pkg.Path, pkg.Name, name)
-	}
-
-	if pkg.Height == 0 {
-		pkg.Height = height
-	} else {
-		base.Assertf(pkg.Height == height, "package %q has height %v, but want %v", pkg.Path, pkg.Height, height)
 	}
 
 	return pkg
@@ -536,8 +550,12 @@ func (r *reader) param() (*types.Pkg, *types.Field) {
 
 // @@@ Objects
 
+// objReader maps qualified identifiers (represented as *types.Sym) to
+// a pkgReader and corresponding index that can be used for reading
+// that object's definition.
 var objReader = map[*types.Sym]pkgReaderIndex{}
 
+// obj reads an instantiated object reference from the bitstream.
 func (r *reader) obj() ir.Node {
 	r.Sync(pkgbits.SyncObject)
 
@@ -573,6 +591,8 @@ func (r *reader) obj() ir.Node {
 	return r.p.objIdx(idx, implicits, explicits)
 }
 
+// objIdx returns the specified object from the bitstream,
+// instantiated with the given type arguments, if any.
 func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Type) ir.Node {
 	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 	_, sym := rname.qualifiedIdent()
@@ -605,6 +625,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 
 	do := func(op ir.Op, hasTParams bool) *ir.Name {
 		pos := r.pos()
+		setBasePos(pos)
 		if hasTParams {
 			r.typeParamNames()
 		}
@@ -712,6 +733,7 @@ func (r *reader) mangle(sym *types.Sym) *types.Sym {
 	return sym.Pkg.Lookup(buf.String())
 }
 
+// objDictIdx reads and returns the specified object dictionary.
 func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, explicits []*types.Type) *readerDict {
 	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
 
@@ -730,12 +752,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
 	// For stenciling, we can just skip over the type parameters.
 	for range dict.targs[dict.implicits:] {
 		// Skip past bounds without actually evaluating them.
-		r.Sync(pkgbits.SyncType)
-		if r.Bool() {
-			r.Len()
-		} else {
-			r.Reloc(pkgbits.RelocType)
-		}
+		r.typInfo()
 	}
 
 	dict.derived = make([]derivedInfo, r.Len())
@@ -771,6 +788,14 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
 		dict.itabs[i] = itabInfo2{typ: typ, lsym: lsym}
 	}
 
+	dict.methodExprs = make([]ir.Node, r.Len())
+	for i := range dict.methodExprs {
+		recv := pr.typIdx(typeInfo{idx: pkgbits.Index(r.Len()), derived: true}, &dict, true)
+		_, sym := r.selector()
+
+		dict.methodExprs[i] = typecheck.Expr(ir.NewSelectorExpr(src.NoXPos, ir.OXDOT, ir.TypeNode(recv), sym))
+	}
+
 	return &dict
 }
 
@@ -791,9 +816,7 @@ func (r *reader) method(rext *reader) *types.Field {
 	_, recv := r.param()
 	typ := r.signature(pkg, recv)
 
-	fnsym := sym
-	fnsym = ir.MethodSym(recv.Type, fnsym)
-	name := ir.NewNameAt(pos, fnsym)
+	name := ir.NewNameAt(pos, ir.MethodSym(recv.Type, sym))
 	setType(name, typ)
 
 	name.Func = ir.NewFunc(r.pos())
@@ -882,6 +905,8 @@ func (r *reader) funcExt(name *ir.Name) {
 	typecheck.Func(fn)
 
 	if r.Bool() {
+		assert(name.Defn == nil)
+
 		fn.ABI = obj.ABI(r.Uint64())
 
 		// Escape analysis.
@@ -896,7 +921,6 @@ func (r *reader) funcExt(name *ir.Name) {
 				Cost:            int32(r.Len()),
 				CanDelayResults: r.Bool(),
 			}
-			r.addBody(name.Func)
 		}
 	} else {
 		r.addBody(name.Func)
@@ -952,23 +976,70 @@ func (r *reader) pragmaFlag() ir.PragmaFlag {
 
 // @@@ Function bodies
 
-// bodyReader tracks where the serialized IR for a function's body can
-// be found.
+// bodyReader tracks where the serialized IR for a local or imported,
+// generic function's body can be found.
 var bodyReader = map[*ir.Func]pkgReaderIndex{}
+
+// importBodyReader tracks where the serialized IR for an imported,
+// static (i.e., non-generic) function body can be read.
+var importBodyReader = map[*types.Sym]pkgReaderIndex{}
+
+// bodyReaderFor returns the pkgReaderIndex for reading fn's
+// serialized IR, and whether one was found.
+func bodyReaderFor(fn *ir.Func) (pri pkgReaderIndex, ok bool) {
+	if fn.Nname.Defn != nil {
+		pri, ok = bodyReader[fn]
+		base.AssertfAt(ok, base.Pos, "must have bodyReader for %v", fn) // must always be available
+	} else {
+		pri, ok = importBodyReader[fn.Sym()]
+	}
+	return
+}
 
 // todoBodies holds the list of function bodies that still need to be
 // constructed.
 var todoBodies []*ir.Func
 
+// addBody reads a function body reference from the element bitstream,
+// and associates it with fn.
 func (r *reader) addBody(fn *ir.Func) {
-	pri := pkgReaderIndex{r.p, r.Reloc(pkgbits.RelocBody), r.dict}
-	bodyReader[fn] = pri
+	// addBody should only be called for local functions or imported
+	// generic functions; see comment in funcExt.
+	assert(fn.Nname.Defn != nil)
 
-	if fn.Nname.Defn == nil {
-		// Don't read in function body for imported functions.
-		// See comment in funcExt.
-		return
+	idx := r.Reloc(pkgbits.RelocBody)
+
+	var shapedFn *ir.Func
+	if r.hasTypeParams() && fn.OClosure == nil {
+		name := fn.Nname
+		sym := name.Sym()
+
+		shapedSym := sym.Pkg.Lookup(sym.Name + "-shaped")
+
+		// TODO(mdempsky): Once we actually start shaping functions, we'll
+		// need to deduplicate them.
+		shaped := ir.NewDeclNameAt(name.Pos(), ir.ONAME, shapedSym)
+		setType(shaped, shapeSig(fn, r.dict)) // TODO(mdempsky): Use shape types.
+
+		shapedFn = ir.NewFunc(fn.Pos())
+		shaped.Func = shapedFn
+		shapedFn.Nname = shaped
+		shapedFn.SetDupok(true)
+
+		shaped.Class = 0 // so MarkFunc doesn't complain
+		ir.MarkFunc(shaped)
+
+		shaped.Defn = shapedFn
+
+		shapedFn.Pragma = fn.Pragma // TODO(mdempsky): How does stencil.go handle pragmas?
+		typecheck.Func(shapedFn)
+
+		bodyReader[shapedFn] = pkgReaderIndex{r.p, idx, r.dict, nil}
+		todoBodies = append(todoBodies, shapedFn)
 	}
+
+	pri := pkgReaderIndex{r.p, idx, r.dict, shapedFn}
+	bodyReader[fn] = pri
 
 	if r.curfn == nil {
 		todoBodies = append(todoBodies, fn)
@@ -983,14 +1054,24 @@ func (pri pkgReaderIndex) funcBody(fn *ir.Func) {
 	r.funcBody(fn)
 }
 
+// funcBody reads a function body definition from the element
+// bitstream, and populates fn with it.
 func (r *reader) funcBody(fn *ir.Func) {
 	r.curfn = fn
 	r.closureVars = fn.ClosureVars
+	if len(r.closureVars) != 0 && r.hasTypeParams() {
+		r.dictParam = r.closureVars[len(r.closureVars)-1] // dictParam is last; see reader.funcLit
+	}
 
 	ir.WithFunc(fn, func() {
 		r.funcargs(fn)
 
 		if !r.Bool() {
+			return
+		}
+
+		if r.shapedFn != nil {
+			r.callShaped(fn.Pos())
 			return
 		}
 
@@ -1003,6 +1084,139 @@ func (r *reader) funcBody(fn *ir.Func) {
 	})
 
 	r.marker.WriteTo(fn)
+}
+
+// callShaped emits a tail call to r.shapedFn, passing along the
+// arguments to the current function.
+func (r *reader) callShaped(pos src.XPos) {
+	sig := r.curfn.Nname.Type()
+
+	var args ir.Nodes
+
+	// First argument is a pointer to the -dict global variable.
+	args.Append(r.dictPtr())
+
+	// Collect the arguments to the current function, so we can pass
+	// them along to the shaped function. (This is unfortunately quite
+	// hairy.)
+	for _, params := range &types.RecvsParams {
+		for _, param := range params(sig).FieldSlice() {
+			var arg ir.Node
+			if param.Nname != nil {
+				name := param.Nname.(*ir.Name)
+				if !ir.IsBlank(name) {
+					if r.inlCall != nil {
+						// During inlining, we want the respective inlvar where we
+						// assigned the callee's arguments.
+						arg = r.inlvars[len(args)-1]
+					} else {
+						// Otherwise, we can use the parameter itself directly.
+						base.AssertfAt(name.Curfn == r.curfn, name.Pos(), "%v has curfn %v, but want %v", name, name.Curfn, r.curfn)
+						arg = name
+					}
+				}
+			}
+
+			// For anonymous and blank parameters, we don't have an *ir.Name
+			// to use as the argument. However, since we know the shaped
+			// function won't use the value either, we can just pass the
+			// zero value. (Also unfortunately, we don't have an easy
+			// zero-value IR node; so we use a default-initialized temporary
+			// variable.)
+			if arg == nil {
+				tmp := typecheck.TempAt(pos, r.curfn, param.Type)
+				r.curfn.Body.Append(
+					typecheck.Stmt(ir.NewDecl(pos, ir.ODCL, tmp)),
+					typecheck.Stmt(ir.NewAssignStmt(pos, tmp, nil)),
+				)
+				arg = tmp
+			}
+
+			args.Append(arg)
+		}
+	}
+
+	// Mark the function as a wrapper so it doesn't show up in stack
+	// traces.
+	r.curfn.SetWrapper(true)
+
+	call := typecheck.Call(pos, r.shapedFn.Nname, args, sig.IsVariadic()).(*ir.CallExpr)
+
+	var stmt ir.Node
+	if sig.NumResults() != 0 {
+		stmt = typecheck.Stmt(ir.NewReturnStmt(pos, []ir.Node{call}))
+	} else {
+		stmt = call
+	}
+	r.curfn.Body.Append(stmt)
+}
+
+// dictPtr returns a pointer to the runtime dictionary variable needed
+// for the current function to call its shaped variant.
+func (r *reader) dictPtr() ir.Node {
+	var fn *ir.Func
+	if r.inlCall != nil {
+		// During inlining, r.curfn is named after the caller (not the
+		// callee), because it's relevant to closure naming, sigh.
+		fn = r.inlFunc
+	} else {
+		fn = r.curfn
+	}
+
+	var baseSym *types.Sym
+	if recv := fn.Nname.Type().Recv(); recv != nil {
+		// All methods of a given instantiated receiver type share the
+		// same dictionary.
+		baseSym = deref(recv.Type).Sym()
+	} else {
+		baseSym = fn.Nname.Sym()
+	}
+
+	sym := baseSym.Pkg.Lookup(baseSym.Name + "-dict")
+
+	if sym.Def == nil {
+		dict := ir.NewNameAt(r.curfn.Pos(), sym)
+		dict.Class = ir.PEXTERN
+
+		lsym := dict.Linksym()
+		ot := 0
+
+		for idx, info := range r.dict.derived {
+			if info.needed {
+				typ := r.p.typIdx(typeInfo{idx: pkgbits.Index(idx), derived: true}, r.dict, false)
+				rtype := reflectdata.TypeLinksym(typ)
+				ot = objw.SymPtr(lsym, ot, rtype, 0)
+			} else {
+				// TODO(mdempsky): Compact unused runtime dictionary space.
+				ot = objw.Uintptr(lsym, ot, 0)
+			}
+		}
+
+		// TODO(mdempsky): Write out more dictionary information.
+
+		objw.Global(lsym, int32(ot), obj.DUPOK|obj.RODATA)
+
+		dict.SetType(r.dict.varType())
+		dict.SetTypecheck(1)
+
+		sym.Def = dict
+	}
+
+	return typecheck.Expr(ir.NewAddrExpr(r.curfn.Pos(), sym.Def.(*ir.Name)))
+}
+
+// numWords returns the number of words that dict's runtime dictionary
+// variable requires.
+func (dict *readerDict) numWords() int64 {
+	var num int
+	num += len(dict.derivedTypes)
+	// TODO(mdempsky): Add space for more dictionary information.
+	return int64(num)
+}
+
+// varType returns the type of dict's runtime dictionary variable.
+func (dict *readerDict) varType() *types.Type {
+	return types.NewArray(types.Types[types.TUINTPTR], dict.numWords())
 }
 
 func (r *reader) funcargs(fn *ir.Func) {
@@ -1062,16 +1276,20 @@ func (r *reader) funcarg(param *types.Field, sym *types.Sym, ctxt ir.Class) {
 func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
 	assert(ctxt == ir.PAUTO || ctxt == ir.PPARAM || ctxt == ir.PPARAMOUT)
 
-	r.Sync(pkgbits.SyncAddLocal)
-	if pkgbits.EnableSync {
-		want := r.Int()
-		if have := len(r.locals); have != want {
-			base.FatalfAt(name.Pos(), "locals table has desynced")
+	if name.Sym().Name == dictParamName {
+		r.dictParam = name
+	} else {
+		r.Sync(pkgbits.SyncAddLocal)
+		if r.p.SyncMarkers() {
+			want := r.Int()
+			if have := len(r.locals); have != want {
+				base.FatalfAt(name.Pos(), "locals table has desynced")
+			}
 		}
+		r.locals = append(r.locals, name)
 	}
 
 	name.SetUsed(true)
-	r.locals = append(r.locals, name)
 
 	// TODO(mdempsky): Move earlier.
 	if ir.IsBlank(name) {
@@ -1229,11 +1447,8 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 
 	case stmtAssign:
 		pos := r.pos()
-
-		// TODO(mdempsky): After quirks mode is gone, swap these
-		// statements so we visit LHS before RHS again.
-		rhs := r.exprList()
 		names, lhs := r.assignList()
+		rhs := r.multiExpr()
 
 		if len(rhs) == 0 {
 			for _, name := range names {
@@ -1301,7 +1516,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 
 	case stmtReturn:
 		pos := r.pos()
-		results := r.exprList()
+		results := r.multiExpr()
 		return ir.NewReturnStmt(pos, results)
 
 	case stmtSelect:
@@ -1323,23 +1538,40 @@ func (r *reader) assignList() ([]*ir.Name, []ir.Node) {
 	var names []*ir.Name
 
 	for i := range lhs {
-		if r.Bool() {
-			pos := r.pos()
-			_, sym := r.localIdent()
-			typ := r.typ()
-
-			name := ir.NewNameAt(pos, sym)
-			lhs[i] = name
-			names = append(names, name)
-			setType(name, typ)
-			r.addLocal(name, ir.PAUTO)
-			continue
+		expr, def := r.assign()
+		lhs[i] = expr
+		if def {
+			names = append(names, expr.(*ir.Name))
 		}
-
-		lhs[i] = r.expr()
 	}
 
 	return names, lhs
+}
+
+// assign returns an assignee expression. It also reports whether the
+// returned expression is a newly declared variable.
+func (r *reader) assign() (ir.Node, bool) {
+	switch tag := codeAssign(r.Code(pkgbits.SyncAssign)); tag {
+	default:
+		panic("unhandled assignee expression")
+
+	case assignBlank:
+		return typecheck.AssignExpr(ir.BlankNode), false
+
+	case assignDef:
+		pos := r.pos()
+		setBasePos(pos)
+		_, sym := r.localIdent()
+		typ := r.typ()
+
+		name := ir.NewNameAt(pos, sym)
+		setType(name, typ)
+		r.addLocal(name, ir.PAUTO)
+		return name, true
+
+	case assignExpr:
+		return r.expr(), false
+	}
 }
 
 func (r *reader) blockStmt() []ir.Node {
@@ -1357,16 +1589,10 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 
 	if r.Bool() {
 		pos := r.pos()
+		rang := ir.NewRangeStmt(pos, nil, nil, nil, nil)
+		rang.Label = label
 
-		// TODO(mdempsky): After quirks mode is gone, swap these
-		// statements so we read LHS before X again.
-		x := r.expr()
 		names, lhs := r.assignList()
-
-		body := r.blockStmt()
-		r.closeAnotherScope()
-
-		rang := ir.NewRangeStmt(pos, nil, nil, x, body)
 		if len(lhs) >= 1 {
 			rang.Key = lhs[0]
 			if len(lhs) >= 2 {
@@ -1374,13 +1600,27 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 			}
 		}
 		rang.Def = r.initDefn(rang, names)
-		rang.Label = label
+
+		rang.X = r.expr()
+		if rang.X.Type().IsMap() {
+			rang.RType = r.rtype(pos)
+		}
+		if rang.Key != nil && !ir.IsBlank(rang.Key) {
+			rang.KeyTypeWord, rang.KeySrcRType = r.convRTTI(pos)
+		}
+		if rang.Value != nil && !ir.IsBlank(rang.Value) {
+			rang.ValueTypeWord, rang.ValueSrcRType = r.convRTTI(pos)
+		}
+
+		rang.Body = r.blockStmt()
+		r.closeAnotherScope()
+
 		return rang
 	}
 
 	pos := r.pos()
 	init := r.stmt()
-	cond := r.expr()
+	cond := r.optExpr()
 	post := r.stmt()
 	body := r.blockStmt()
 	r.closeAnotherScope()
@@ -1419,6 +1659,44 @@ func (r *reader) selectStmt(label *types.Sym) ir.Node {
 		comm := r.stmt()
 		body := r.stmts()
 
+		// "case i = <-c: ..." may require an implicit conversion (e.g.,
+		// see fixedbugs/bug312.go). Currently, typecheck throws away the
+		// implicit conversion and relies on it being reinserted later,
+		// but that would lose any explicit RTTI operands too. To preserve
+		// RTTI, we rewrite this as "case tmp := <-c: i = tmp; ...".
+		if as, ok := comm.(*ir.AssignStmt); ok && as.Op() == ir.OAS && !as.Def {
+			if conv, ok := as.Y.(*ir.ConvExpr); ok && conv.Op() == ir.OCONVIFACE {
+				base.AssertfAt(conv.Implicit(), conv.Pos(), "expected implicit conversion: %v", conv)
+
+				recv := conv.X
+				base.AssertfAt(recv.Op() == ir.ORECV, recv.Pos(), "expected receive expression: %v", recv)
+
+				tmp := r.temp(pos, recv.Type())
+
+				// Replace comm with `tmp := <-c`.
+				tmpAs := ir.NewAssignStmt(pos, tmp, recv)
+				tmpAs.Def = true
+				tmpAs.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, tmp))
+				comm = tmpAs
+
+				// Change original assignment to `i = tmp`, and prepend to body.
+				conv.X = tmp
+				body = append([]ir.Node{as}, body...)
+			}
+		}
+
+		// multiExpr will have desugared a comma-ok receive expression
+		// into a separate statement. However, the rest of the compiler
+		// expects comm to be the OAS2RECV statement itself, so we need to
+		// shuffle things around to fit that pattern.
+		if as2, ok := comm.(*ir.AssignListStmt); ok && as2.Op() == ir.OAS2 {
+			init := ir.TakeInit(as2.Rhs[0])
+			base.AssertfAt(len(init) == 1 && init[0].Op() == ir.OAS2RECV, as2.Pos(), "unexpected assignment: %+v", as2)
+
+			comm = init[0]
+			body = append([]ir.Node{as2}, body...)
+		}
+
 		clauses[i] = ir.NewCommStmt(pos, comm, body)
 	}
 	if len(clauses) > 0 {
@@ -1450,7 +1728,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 		iface = x.Type()
 		tag = ir.NewTypeSwitchGuard(pos, ident, x)
 	} else {
-		tag = r.expr()
+		tag = r.optExpr()
 	}
 
 	clauses := make([]*ir.CaseClause, r.Len())
@@ -1461,20 +1739,43 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 		r.openScope()
 
 		pos := r.pos()
-		var cases []ir.Node
+		var cases, rtypes []ir.Node
 		if iface != nil {
 			cases = make([]ir.Node, r.Len())
 			if len(cases) == 0 {
 				cases = nil // TODO(mdempsky): Unclear if this matters.
 			}
 			for i := range cases {
-				cases[i] = r.exprType(true)
+				if r.Bool() { // case nil
+					cases[i] = typecheck.Expr(types.BuiltinPkg.Lookup("nil").Def.(*ir.NilExpr))
+				} else {
+					cases[i] = r.exprType()
+				}
 			}
 		} else {
 			cases = r.exprList()
+
+			// For `switch { case any(true): }` (e.g., issue 3980 in
+			// test/switch.go), the backend still creates a mixed bool/any
+			// comparison, and we need to explicitly supply the RTTI for the
+			// comparison.
+			//
+			// TODO(mdempsky): Change writer.go to desugar "switch {" into
+			// "switch true {", which we already handle correctly.
+			if tag == nil {
+				for i, cas := range cases {
+					if cas.Type().IsEmptyInterface() {
+						for len(rtypes) < i {
+							rtypes = append(rtypes, nil)
+						}
+						rtypes = append(rtypes, reflectdata.TypePtrAt(cas.Pos(), types.Types[types.TBOOL]))
+					}
+				}
+			}
 		}
 
 		clause := ir.NewCaseStmt(pos, cases, nil)
+		clause.RTypes = rtypes
 
 		if ident != nil {
 			pos := r.pos()
@@ -1551,24 +1852,13 @@ func (r *reader) expr() (res ir.Node) {
 	default:
 		panic("unhandled expression")
 
-	case exprNone:
-		return nil
-
-	case exprBlank:
-		// blank only allowed in LHS of assignments
-		// TODO(mdempsky): Handle directly in assignList instead?
-		return typecheck.AssignExpr(ir.BlankNode)
-
 	case exprLocal:
 		return typecheck.Expr(r.useLocal())
 
-	case exprName:
+	case exprGlobal:
 		// Callee instead of Expr allows builtins
 		// TODO(mdempsky): Handle builtins directly in exprCall, like method calls?
 		return typecheck.Callee(r.obj())
-
-	case exprType:
-		return r.exprType(false)
 
 	case exprConst:
 		pos := r.pos()
@@ -1578,6 +1868,11 @@ func (r *reader) expr() (res ir.Node) {
 		orig := r.String()
 		return typecheck.Expr(OrigConst(pos, typ, val, op, orig))
 
+	case exprNil:
+		pos := r.pos()
+		typ := r.typ()
+		return Nil(pos, typ)
+
 	case exprCompLit:
 		return r.compLit()
 
@@ -1585,17 +1880,20 @@ func (r *reader) expr() (res ir.Node) {
 		return r.funcLit()
 
 	case exprSelector:
-		x := r.expr()
-		pos := r.pos()
-		_, sym := r.selector()
+		var x ir.Node
+		if r.Bool() { // MethodExpr
+			if r.Bool() {
+				return r.dict.methodExprs[r.Len()]
+			}
 
-		// Method expression with derived receiver type.
-		if x.Op() == ir.ODYNAMICTYPE {
-			// TODO(mdempsky): Handle with runtime dictionary lookup.
-			n := ir.TypeNode(x.Type())
+			n := ir.TypeNode(r.typ())
 			n.SetTypecheck(1)
 			x = n
+		} else { // FieldVal, MethodVal
+			x = r.expr()
 		}
+		pos := r.pos()
+		_, sym := r.selector()
 
 		n := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
 		if n.Op() == ir.OMETHVALUE {
@@ -1615,14 +1913,20 @@ func (r *reader) expr() (res ir.Node) {
 		x := r.expr()
 		pos := r.pos()
 		index := r.expr()
-		return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
+		n := typecheck.Expr(ir.NewIndexExpr(pos, x, index))
+		switch n.Op() {
+		case ir.OINDEXMAP:
+			n := n.(*ir.IndexExpr)
+			n.RType = r.rtype(pos)
+		}
+		return n
 
 	case exprSlice:
 		x := r.expr()
 		pos := r.pos()
 		var index [3]ir.Node
 		for i := range index {
-			index[i] = r.expr()
+			index[i] = r.optExpr()
 		}
 		op := ir.OSLICE
 		if index[2] != nil {
@@ -1633,10 +1937,13 @@ func (r *reader) expr() (res ir.Node) {
 	case exprAssert:
 		x := r.expr()
 		pos := r.pos()
-		typ := r.exprType(false)
+		typ := r.exprType()
+		srcRType := r.rtype(pos)
 
+		// TODO(mdempsky): Always emit ODYNAMICDOTTYPE for uniformity?
 		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
 			assert := ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.RType)
+			assert.SrcRType = srcRType
 			assert.ITab = typ.ITab
 			return typed(typ.Type(), assert)
 		}
@@ -1675,13 +1982,43 @@ func (r *reader) expr() (res ir.Node) {
 			fun = typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, fun, sym))
 		}
 		pos := r.pos()
-		args := r.exprs()
+		args := r.multiExpr()
 		dots := r.Bool()
-		return typecheck.Call(pos, fun, args, dots)
+		n := typecheck.Call(pos, fun, args, dots)
+		switch n.Op() {
+		case ir.OAPPEND:
+			n := n.(*ir.CallExpr)
+			n.RType = r.rtype(pos)
+		case ir.OCOPY:
+			n := n.(*ir.BinaryExpr)
+			n.RType = r.rtype(pos)
+		case ir.ODELETE:
+			n := n.(*ir.CallExpr)
+			n.RType = r.rtype(pos)
+		case ir.OUNSAFESLICE:
+			n := n.(*ir.BinaryExpr)
+			n.RType = r.rtype(pos)
+		}
+		return n
+
+	case exprMake:
+		pos := r.pos()
+		typ := r.exprType()
+		extra := r.exprs()
+		n := typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{typ}, extra...))).(*ir.MakeExpr)
+		n.RType = r.rtype(pos)
+		return n
+
+	case exprNew:
+		pos := r.pos()
+		typ := r.exprType()
+		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
 
 	case exprConvert:
+		implicit := r.Bool()
 		typ := r.typ()
 		pos := r.pos()
+		typeWord, srcRType := r.convRTTI(pos)
 		x := r.expr()
 
 		// TODO(mdempsky): Stop constructing expressions of untyped type.
@@ -1697,8 +2034,72 @@ func (r *reader) expr() (res ir.Node) {
 			base.ErrorExit() // harsh, but prevents constructing invalid IR
 		}
 
-		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, typ, x))
+		n := ir.NewConvExpr(pos, ir.OCONV, typ, x)
+		n.TypeWord, n.SrcRType = typeWord, srcRType
+		if implicit {
+			n.SetImplicit(true)
+		}
+		return typecheck.Expr(n)
 	}
+}
+
+func (r *reader) optExpr() ir.Node {
+	if r.Bool() {
+		return r.expr()
+	}
+	return nil
+}
+
+func (r *reader) multiExpr() []ir.Node {
+	r.Sync(pkgbits.SyncMultiExpr)
+
+	if r.Bool() { // N:1
+		pos := r.pos()
+		expr := r.expr()
+
+		results := make([]ir.Node, r.Len())
+		as := ir.NewAssignListStmt(pos, ir.OAS2, nil, []ir.Node{expr})
+		as.Def = true
+		for i := range results {
+			tmp := r.temp(pos, r.typ())
+			as.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, tmp))
+			as.Lhs.Append(tmp)
+
+			res := ir.Node(tmp)
+			if r.Bool() {
+				n := ir.NewConvExpr(pos, ir.OCONV, r.typ(), res)
+				n.TypeWord, n.SrcRType = r.convRTTI(pos)
+				n.SetImplicit(true)
+				res = typecheck.Expr(n)
+			}
+			results[i] = res
+		}
+
+		// TODO(mdempsky): Could use ir.InlinedCallExpr instead?
+		results[0] = ir.InitExpr([]ir.Node{typecheck.Stmt(as)}, results[0])
+		return results
+	}
+
+	// N:N
+	exprs := make([]ir.Node, r.Len())
+	if len(exprs) == 0 {
+		return nil
+	}
+	for i := range exprs {
+		exprs[i] = r.expr()
+	}
+	return exprs
+}
+
+// temp returns a new autotemp of the specified type.
+func (r *reader) temp(pos src.XPos, typ *types.Type) *ir.Name {
+	// See typecheck.typecheckargs.
+	curfn := r.curfn
+	if curfn == nil {
+		curfn = typecheck.InitTodoFunc
+	}
+
+	return typecheck.TempAt(pos, curfn, typ)
 }
 
 func (r *reader) compLit() ir.Node {
@@ -1712,6 +2113,10 @@ func (r *reader) compLit() ir.Node {
 	}
 	if typ.Kind() == types.TFORW {
 		base.FatalfAt(pos, "unresolved composite literal type: %v", typ)
+	}
+	var rtype ir.Node
+	if typ.IsMap() {
+		rtype = r.rtype(pos)
 	}
 	isStruct := typ.Kind() == types.TSTRUCT
 
@@ -1731,6 +2136,10 @@ func (r *reader) compLit() ir.Node {
 	}
 
 	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, elems))
+	if rtype != nil {
+		lit := lit.(*ir.CompLitExpr)
+		lit.RType = rtype
+	}
 	if typ0.IsPtr() {
 		lit = typecheck.Expr(typecheck.NodAddrAt(pos, lit))
 		lit.SetType(typ0)
@@ -1775,6 +2184,11 @@ func (r *reader) funcLit() ir.Node {
 	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
 		ir.NewClosureVar(r.pos(), fn, r.useLocal())
 	}
+	if param := r.dictParam; param != nil {
+		// If we have a dictionary parameter, capture it too. For
+		// simplicity, we capture it last and unconditionally.
+		ir.NewClosureVar(param.Pos(), fn, param)
+	}
 
 	r.addBody(fn)
 
@@ -1799,17 +2213,73 @@ func (r *reader) exprs() []ir.Node {
 	return nodes
 }
 
-func (r *reader) exprType(nilOK bool) ir.Node {
-	r.Sync(pkgbits.SyncExprType)
+// dictWord returns an expression to return the specified
+// uintptr-typed word from the dictionary parameter.
+func (r *reader) dictWord(pos src.XPos, idx int64) ir.Node {
+	base.AssertfAt(r.dictParam != nil, pos, "expected dictParam in %v", r.curfn)
+	return typecheck.Expr(ir.NewIndexExpr(pos, r.dictParam, ir.NewBasicLit(pos, constant.MakeInt64(idx))))
+}
 
-	if nilOK && r.Bool() {
-		return typecheck.Expr(types.BuiltinPkg.Lookup("nil").Def.(*ir.NilExpr))
+// rtype reads a type reference from the element bitstream, and
+// returns an expression of type *runtime._type representing that
+// type.
+func (r *reader) rtype(pos src.XPos) ir.Node {
+	r.Sync(pkgbits.SyncRType)
+	return r.rtypeInfo(pos, r.typInfo())
+}
+
+// rtypeInfo returns an expression of type *runtime._type representing
+// the given decoded type reference.
+func (r *reader) rtypeInfo(pos src.XPos, info typeInfo) ir.Node {
+	if !info.derived {
+		typ := r.p.typIdx(info, r.dict, true)
+		return reflectdata.TypePtrAt(pos, typ)
+	}
+	return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, types.NewPtr(types.Types[types.TUINT8]), r.dictWord(pos, int64(info.idx))))
+}
+
+// convRTTI returns expressions appropriate for populating an
+// ir.ConvExpr's TypeWord and SrcRType fields, respectively.
+func (r *reader) convRTTI(pos src.XPos) (typeWord, srcRType ir.Node) {
+	r.Sync(pkgbits.SyncConvRTTI)
+	srcInfo := r.typInfo()
+	dstInfo := r.typInfo()
+
+	dst := r.p.typIdx(dstInfo, r.dict, true)
+	if !dst.IsInterface() {
+		return
 	}
 
+	src := r.p.typIdx(srcInfo, r.dict, true)
+
+	// See reflectdata.ConvIfaceTypeWord.
+	switch {
+	case dst.IsEmptyInterface():
+		if !src.IsInterface() {
+			typeWord = r.rtypeInfo(pos, srcInfo) // direct eface construction
+		}
+	case !src.IsInterface():
+		typeWord = reflectdata.ITabAddrAt(pos, src, dst) // direct iface construction
+	default:
+		typeWord = r.rtypeInfo(pos, dstInfo) // convI2I
+	}
+
+	// See reflectdata.ConvIfaceSrcRType.
+	if !src.IsInterface() {
+		srcRType = r.rtypeInfo(pos, srcInfo)
+	}
+
+	return
+}
+
+func (r *reader) exprType() ir.Node {
+	r.Sync(pkgbits.SyncExprType)
+
 	pos := r.pos()
+	setBasePos(pos)
 
 	lsymPtr := func(lsym *obj.LSym) ir.Node {
-		return typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
+		return typecheck.Expr(typecheck.NodAddrAt(pos, ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
 	}
 
 	var typ *types.Type
@@ -1836,7 +2306,7 @@ func (r *reader) exprType(nilOK bool) ir.Node {
 			return n
 		}
 
-		rtype = lsymPtr(reflectdata.TypeLinksym(typ))
+		rtype = r.rtypeInfo(pos, info)
 	}
 
 	dt := ir.NewDynamicType(pos, rtype)
@@ -1974,13 +2444,20 @@ func (r *reader) pkgObjs(target *ir.Package) []*ir.Name {
 
 var inlgen = 0
 
+// InlineCall implements inline.NewInline by re-reading the function
+// body from its Unified IR export data.
 func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
 	// TODO(mdempsky): Turn callerfn into an explicit parameter.
 	callerfn := ir.CurFunc
 
-	pri, ok := bodyReader[fn]
+	pri, ok := bodyReaderFor(fn)
 	if !ok {
-		base.FatalfAt(call.Pos(), "missing function body for call to %v", fn)
+		// TODO(mdempsky): Reconsider this diagnostic's wording, if it's
+		// to be included in Go 1.20.
+		if base.Flag.LowerM != 0 {
+			base.WarnfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
+		}
+		return nil
 	}
 
 	if fn.Inl.Body == nil {
@@ -2007,6 +2484,9 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 	r.closureVars = make([]*ir.Name, len(r.inlFunc.ClosureVars))
 	for i, cv := range r.inlFunc.ClosureVars {
 		r.closureVars[i] = cv.Outer
+	}
+	if len(r.closureVars) != 0 && r.hasTypeParams() {
+		r.dictParam = r.closureVars[len(r.closureVars)-1] // dictParam is last; see reader.funcLit
 	}
 
 	r.funcargs(fn)
@@ -2070,8 +2550,12 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 	nparams := len(r.curfn.Dcl)
 
 	ir.WithFunc(r.curfn, func() {
-		r.curfn.Body = r.stmts()
-		r.curfn.Endlineno = r.pos()
+		if r.shapedFn != nil {
+			r.callShaped(call.Pos())
+		} else {
+			r.curfn.Body = r.stmts()
+			r.curfn.Endlineno = r.pos()
+		}
 
 		// TODO(mdempsky): This shouldn't be necessary. Inlining might
 		// read in new function/method declarations, which could
@@ -2260,18 +2744,21 @@ func (r *reader) needWrapper(typ *types.Type) {
 	}
 }
 
+// importedDef reports whether r is reading from an imported and
+// non-generic element.
+//
+// If a type was found in an imported package, then we can assume that
+// package (or one of its transitive dependencies) already generated
+// method wrappers for it.
+//
+// Exception: If we're instantiating an imported generic type or
+// function, we might be instantiating it with type arguments not
+// previously seen before.
+//
+// TODO(mdempsky): Distinguish when a generic function or type was
+// instantiated in an imported package so that we can add types to
+// haveWrapperTypes instead.
 func (r *reader) importedDef() bool {
-	// If a type was found in an imported package, then we can assume
-	// that package (or one of its transitive dependencies) already
-	// generated method wrappers for it.
-	//
-	// Exception: If we're instantiating an imported generic type or
-	// function, we might be instantiating it with type arguments not
-	// previously seen before.
-	//
-	// TODO(mdempsky): Distinguish when a generic function or type was
-	// instantiated in an imported package so that we can add types to
-	// haveWrapperTypes instead.
 	return r.p != localPkgReader && !r.hasTypeParams()
 }
 
@@ -2459,6 +2946,15 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
 	// so we're responsible for applying inlining ourselves here.
 	inline.InlineCalls(fn)
 
+	// The body of wrapper function after inlining may reveal new ir.OMETHVALUE node,
+	// we don't know whether wrapper function has been generated for it or not, so
+	// generate one immediately here.
+	ir.VisitList(fn.Body, func(n ir.Node) {
+		if n, ok := n.(*ir.SelectorExpr); ok && n.Op() == ir.OMETHVALUE {
+			wrapMethodValue(n.X.Type(), n.Selection, target, true)
+		}
+	})
+
 	target.Decls = append(target.Decls, fn)
 }
 
@@ -2515,4 +3011,46 @@ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
 	ret := ir.NewReturnStmt(pos, nil)
 	ret.Results = []ir.Node{call}
 	fn.Body.Append(ret)
+}
+
+func setBasePos(pos src.XPos) {
+	// Set the position for any error messages we might print (e.g. too large types).
+	base.Pos = pos
+}
+
+// dictParamName is the name of the synthetic dictionary parameter
+// added to shaped functions.
+const dictParamName = ".dict"
+
+// shapeSig returns a copy of fn's signature, except adding a
+// dictionary parameter and promoting the receiver parameter (if any)
+// to a normal parameter.
+//
+// The parameter types.Fields are all copied too, so their Nname
+// fields can be initialized for use by the shape function.
+func shapeSig(fn *ir.Func, dict *readerDict) *types.Type {
+	sig := fn.Nname.Type()
+	recv := sig.Recv()
+	nrecvs := 0
+	if recv != nil {
+		nrecvs++
+	}
+
+	params := make([]*types.Field, 1+nrecvs+sig.Params().Fields().Len())
+	params[0] = types.NewField(fn.Pos(), fn.Sym().Pkg.Lookup(dictParamName), types.NewPtr(dict.varType()))
+	if recv != nil {
+		params[1] = types.NewField(recv.Pos, recv.Sym, recv.Type)
+	}
+	for i, param := range sig.Params().Fields().Slice() {
+		d := types.NewField(param.Pos, param.Sym, param.Type)
+		d.SetIsDDD(param.IsDDD())
+		params[1+nrecvs+i] = d
+	}
+
+	results := make([]*types.Field, sig.Results().Fields().Len())
+	for i, result := range sig.Results().Fields().Slice() {
+		results[i] = types.NewField(result.Pos, result.Sym, result.Type)
+	}
+
+	return types.NewSignature(types.LocalPkg, nil, nil, params, results)
 }

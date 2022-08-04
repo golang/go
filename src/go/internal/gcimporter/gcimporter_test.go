@@ -583,6 +583,30 @@ func TestIssue13566(t *testing.T) {
 	}
 }
 
+func TestTypeNamingOrder(t *testing.T) {
+	skipSpecialPlatforms(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+	}
+
+	// On windows, we have to set the -D option for the compiler to avoid having a drive
+	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+	if runtime.GOOS == "windows" {
+		t.Skip("avoid dealing with relative paths/drive letters on windows")
+	}
+
+	tmpdir := mktmpdir(t)
+	defer os.RemoveAll(tmpdir)
+	testoutdir := filepath.Join(tmpdir, "testdata")
+
+	compile(t, "testdata", "g.go", testoutdir)
+
+	// import must succeed (test for issue at hand)
+	_ = importPkg(t, "./testdata/g", tmpdir)
+}
+
 func TestIssue13898(t *testing.T) {
 	skipSpecialPlatforms(t)
 

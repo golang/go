@@ -993,7 +993,7 @@ func (o *orderState) stmt(n ir.Node) {
 				do(0, recv.X.Type().Elem())
 				do(1, types.Types[types.TBOOL])
 				if len(init) != 0 {
-					ir.DumpList("ninit", r.Init())
+					ir.DumpList("ninit", init)
 					base.Fatalf("ninit on select recv")
 				}
 				orderBlock(ncas.PtrInit(), o.free)
@@ -1456,8 +1456,12 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 
 		// Emit eval+insert of dynamic entries, one at a time.
 		for _, r := range dynamics {
-			as := ir.NewAssignStmt(base.Pos, ir.NewIndexExpr(base.Pos, m, r.Key), r.Value)
-			typecheck.Stmt(as) // Note: this converts the OINDEX to an OINDEXMAP
+			lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, r.Key)).(*ir.IndexExpr)
+			base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
+			lhs.RType = n.RType
+
+			as := ir.NewAssignStmt(base.Pos, lhs, r.Value)
+			typecheck.Stmt(as)
 			o.stmt(as)
 		}
 
