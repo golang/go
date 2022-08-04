@@ -86,26 +86,6 @@ type Stat_t struct {
 	Spare   [10]uint64
 }
 
-type stat_freebsd11_t struct {
-	Dev     uint32
-	Ino     uint32
-	Mode    uint16
-	Nlink   uint16
-	Uid     uint32
-	Gid     uint32
-	Rdev    uint32
-	Atim    Timespec
-	Mtim    Timespec
-	Ctim    Timespec
-	Size    int64
-	Blocks  int64
-	Blksize int32
-	Flags   uint32
-	Gen     uint32
-	Lspare  int32
-	Btim    Timespec
-}
-
 type Statfs_t struct {
 	Version     uint32
 	Type        uint32
@@ -131,31 +111,6 @@ type Statfs_t struct {
 	Mntonname   [1024]byte
 }
 
-type statfs_freebsd11_t struct {
-	Version     uint32
-	Type        uint32
-	Flags       uint64
-	Bsize       uint64
-	Iosize      uint64
-	Blocks      uint64
-	Bfree       uint64
-	Bavail      int64
-	Files       uint64
-	Ffree       int64
-	Syncwrites  uint64
-	Asyncwrites uint64
-	Syncreads   uint64
-	Asyncreads  uint64
-	Spare       [10]uint64
-	Namemax     uint32
-	Owner       uint32
-	Fsid        Fsid
-	Charspare   [80]int8
-	Fstypename  [16]byte
-	Mntfromname [88]byte
-	Mntonname   [88]byte
-}
-
 type Flock_t struct {
 	Start  int64
 	Len    int64
@@ -174,14 +129,6 @@ type Dirent struct {
 	Pad0   uint8
 	Namlen uint16
 	Pad1   uint16
-	Name   [256]int8
-}
-
-type dirent_freebsd11 struct {
-	Fileno uint32
-	Reclen uint16
-	Type   uint8
-	Namlen uint8
 	Name   [256]int8
 }
 
@@ -333,41 +280,9 @@ const (
 )
 
 const (
-	PTRACE_ATTACH     = 0xa
-	PTRACE_CONT       = 0x7
-	PTRACE_DETACH     = 0xb
-	PTRACE_GETFPREGS  = 0x23
-	PTRACE_GETFSBASE  = 0x47
-	PTRACE_GETLWPLIST = 0xf
-	PTRACE_GETNUMLWPS = 0xe
-	PTRACE_GETREGS    = 0x21
-	PTRACE_GETXSTATE  = 0x45
-	PTRACE_IO         = 0xc
-	PTRACE_KILL       = 0x8
-	PTRACE_LWPEVENTS  = 0x18
-	PTRACE_LWPINFO    = 0xd
-	PTRACE_SETFPREGS  = 0x24
-	PTRACE_SETREGS    = 0x22
-	PTRACE_SINGLESTEP = 0x9
-	PTRACE_TRACEME    = 0x0
-)
-
-const (
-	PIOD_READ_D  = 0x1
-	PIOD_WRITE_D = 0x2
-	PIOD_READ_I  = 0x3
-	PIOD_WRITE_I = 0x4
-)
-
-const (
-	PL_FLAG_BORN   = 0x100
-	PL_FLAG_EXITED = 0x200
-	PL_FLAG_SI     = 0x20
-)
-
-const (
-	TRAP_BRKPT = 0x1
-	TRAP_TRACE = 0x2
+	PTRACE_TRACEME = 0x0
+	PTRACE_CONT    = 0x7
+	PTRACE_KILL    = 0x8
 )
 
 type PtraceLwpInfoStruct struct {
@@ -435,6 +350,8 @@ type FpReg struct {
 	Spare [12]uint64
 }
 
+type FpExtendedPrecision struct{}
+
 type PtraceIoDesc struct {
 	Op   int32
 	Offs *byte
@@ -449,6 +366,7 @@ type Kevent_t struct {
 	Fflags uint32
 	Data   int64
 	Udata  *byte
+	Ext    [4]uint64
 }
 
 type FdSet struct {

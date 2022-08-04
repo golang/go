@@ -326,6 +326,7 @@ const (
 	SO_RCVBUF                        = 0x1002
 	SO_RCVBUFFORCE                   = 0x21
 	SO_RCVLOWAT                      = 0x1004
+	SO_RCVMARK                       = 0x4b
 	SO_RCVTIMEO                      = 0x1006
 	SO_RCVTIMEO_NEW                  = 0x42
 	SO_RCVTIMEO_OLD                  = 0x1006
@@ -351,6 +352,7 @@ const (
 	SO_TIMESTAMPNS_NEW               = 0x40
 	SO_TIMESTAMPNS_OLD               = 0x23
 	SO_TIMESTAMP_NEW                 = 0x3f
+	SO_TXREHASH                      = 0x4a
 	SO_TXTIME                        = 0x3d
 	SO_TYPE                          = 0x1008
 	SO_WIFI_STATUS                   = 0x29

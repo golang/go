@@ -475,10 +475,12 @@ func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
 	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
 		// Note: cmd/go/internal/load also errors about TestXXX and BenchmarkXXX functions with type parameters.
 		// We have currently decided to also warn before compilation/package loading. This can help users in IDEs.
+		// TODO(adonovan): use ReportRangef(tparams).
 		pass.Reportf(fn.Pos(), "%s has type parameters: it will not be run by go test as a %sXXX function", fn.Name.Name, prefix)
 	}
 
 	if !isTestSuffix(fn.Name.Name[len(prefix):]) {
+		// TODO(adonovan): use ReportRangef(fn.Name).
 		pass.Reportf(fn.Pos(), "%s has malformed name: first letter after '%s' must not be lowercase", fn.Name.Name, prefix)
 	}
 }

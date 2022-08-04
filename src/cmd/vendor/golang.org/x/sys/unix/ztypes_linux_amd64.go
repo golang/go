@@ -338,6 +338,12 @@ type Taskstats struct {
 	Ac_btime64                uint64
 	Compact_count             uint64
 	Compact_delay_total       uint64
+	Ac_tgid                   uint32
+	Ac_tgetime                uint64
+	Ac_exe_dev                uint64
+	Ac_exe_inode              uint64
+	Wpcopy_count              uint64
+	Wpcopy_delay_total        uint64
 }
 
 type cpuMask uint64
