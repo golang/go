@@ -215,6 +215,22 @@ semantic tokens to the client.
 
 Default: `false`.
 
+#### **noSemanticString** *bool*
+
+**This setting is experimental and may be deleted.**
+
+noSemanticString turns off the sending of the semantic token 'string'
+
+Default: `false`.
+
+#### **noSemanticNumber** *bool*
+
+**This setting is experimental and may be deleted.**
+
+noSemanticNumber  turns off the sending of the semantic token 'number'
+
+Default: `false`.
+
 #### Completion
 
 ##### **usePlaceholders** *bool*

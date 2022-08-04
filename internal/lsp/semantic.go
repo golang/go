@@ -107,14 +107,16 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		return nil, err
 	}
 	e := &encoded{
-		ctx:      ctx,
-		pgf:      pgf,
-		rng:      rng,
-		ti:       pkg.GetTypesInfo(),
-		pkg:      pkg,
-		fset:     snapshot.FileSet(),
-		tokTypes: s.session.Options().SemanticTypes,
-		tokMods:  s.session.Options().SemanticMods,
+		ctx:       ctx,
+		pgf:       pgf,
+		rng:       rng,
+		ti:        pkg.GetTypesInfo(),
+		pkg:       pkg,
+		fset:      snapshot.FileSet(),
+		tokTypes:  s.session.Options().SemanticTypes,
+		tokMods:   s.session.Options().SemanticMods,
+		noStrings: vv.Options().NoSemanticString,
+		noNumbers: vv.Options().NoSemanticNumber,
 	}
 	if err := e.init(); err != nil {
 		// e.init should never return an error, unless there's some
@@ -222,6 +224,9 @@ type semItem struct {
 type encoded struct {
 	// the generated data
 	items []semItem
+
+	noStrings bool
+	noNumbers bool
 
 	ctx               context.Context
 	tokTypes, tokMods []string
@@ -827,29 +832,36 @@ func (e *encoded) Data() []uint32 {
 	var j int
 	var last semItem
 	for i := 0; i < len(e.items); i++ {
-		typ, ok := typeMap[e.items[i].typeStr]
+		item := e.items[i]
+		typ, ok := typeMap[item.typeStr]
 		if !ok {
 			continue // client doesn't want typeStr
+		}
+		if item.typeStr == tokString && e.noStrings {
+			continue
+		}
+		if item.typeStr == tokNumber && e.noNumbers {
+			continue
 		}
 		if j == 0 {
 			x[0] = e.items[0].line
 		} else {
-			x[j] = e.items[i].line - last.line
+			x[j] = item.line - last.line
 		}
-		x[j+1] = e.items[i].start
+		x[j+1] = item.start
 		if j > 0 && x[j] == 0 {
-			x[j+1] = e.items[i].start - last.start
+			x[j+1] = item.start - last.start
 		}
-		x[j+2] = e.items[i].len
+		x[j+2] = item.len
 		x[j+3] = uint32(typ)
 		mask := 0
-		for _, s := range e.items[i].mods {
+		for _, s := range item.mods {
 			// modMap[s] is 0 if the client doesn't want this modifier
 			mask |= modMap[s]
 		}
 		x[j+4] = uint32(mask)
 		j += 5
-		last = e.items[i]
+		last = item
 	}
 	return x[:j]
 }

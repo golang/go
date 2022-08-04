@@ -317,6 +317,12 @@ type UIOptions struct {
 	// SemanticTokens controls whether the LSP server will send
 	// semantic tokens to the client.
 	SemanticTokens bool `status:"experimental"`
+
+	// NoSemanticString turns off the sending of the semantic token 'string'
+	NoSemanticString bool `status:"experimental"`
+
+	// NoSemanticNumber  turns off the sending of the semantic token 'number'
+	NoSemanticNumber bool `status:"experimental"`
 }
 
 type CompletionOptions struct {
@@ -1032,6 +1038,12 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 	case "semanticTokens":
 		result.setBool(&o.SemanticTokens)
+
+	case "noSemanticString":
+		result.setBool(&o.NoSemanticString)
+
+	case "noSemanticNumber":
+		result.setBool(&o.NoSemanticNumber)
 
 	case "expandWorkspaceToModule":
 		result.setBool(&o.ExpandWorkspaceToModule)

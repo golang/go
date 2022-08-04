@@ -616,6 +616,22 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy: "ui",
 			},
 			{
+				Name:      "noSemanticString",
+				Type:      "bool",
+				Doc:       "noSemanticString turns off the sending of the semantic token 'string'\n",
+				Default:   "false",
+				Status:    "experimental",
+				Hierarchy: "ui",
+			},
+			{
+				Name:      "noSemanticNumber",
+				Type:      "bool",
+				Doc:       "noSemanticNumber  turns off the sending of the semantic token 'number'\n",
+				Default:   "false",
+				Status:    "experimental",
+				Hierarchy: "ui",
+			},
+			{
 				Name:      "local",
 				Type:      "string",
 				Doc:       "local is the equivalent of the `goimports -local` flag, which puts\nimports beginning with this string after third-party packages. It should\nbe the prefix of the import path whose imports should be grouped\nseparately.\n",
