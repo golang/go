@@ -314,15 +314,8 @@ func defaultContext() Context {
 	}
 	c.GOPATH = envOr("GOPATH", defaultGOPATH())
 	c.Compiler = runtime.Compiler
+	c.ToolTags = append(c.ToolTags, buildcfg.ToolTags...)
 
-	// For each experiment that has been enabled in the toolchain, define a
-	// build tag with the same name but prefixed by "goexperiment." which can be
-	// used for compiling alternative files for the experiment. This allows
-	// changes for the experiment, like extra struct fields in the runtime,
-	// without affecting the base non-experiment code at all.
-	for _, exp := range buildcfg.Experiment.Enabled() {
-		c.ToolTags = append(c.ToolTags, "goexperiment."+exp)
-	}
 	defaultToolTags = append([]string{}, c.ToolTags...) // our own private copy
 
 	// Each major Go release in the Go 1.x series adds a new

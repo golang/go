@@ -30,6 +30,7 @@ var (
 	GOMIPS64 = gomips64()
 	GOPPC64  = goppc64()
 	GOWASM   = gowasm()
+	ToolTags = toolTags()
 	GO_LDSO  = defaultGO_LDSO
 	Version  = version
 )
@@ -115,8 +116,8 @@ func goppc64() int {
 }
 
 type gowasmFeatures struct {
-	SignExt bool
 	SatConv bool
+	SignExt bool
 }
 
 func (f gowasmFeatures) String() string {
@@ -148,4 +149,62 @@ func gowasm() (f gowasmFeatures) {
 
 func Getgoextlinkenabled() string {
 	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
+}
+
+func toolTags() []string {
+	tags := experimentTags()
+	tags = append(tags, gogoarchTags()...)
+	return tags
+}
+
+func experimentTags() []string {
+	var list []string
+	// For each experiment that has been enabled in the toolchain, define a
+	// build tag with the same name but prefixed by "goexperiment." which can be
+	// used for compiling alternative files for the experiment. This allows
+	// changes for the experiment, like extra struct fields in the runtime,
+	// without affecting the base non-experiment code at all.
+	for _, exp := range Experiment.Enabled() {
+		list = append(list, "goexperiment."+exp)
+	}
+	return list
+}
+
+func gogoarchTags() []string {
+	switch GOARCH {
+	case "386":
+		return []string{GOARCH + "." + GO386}
+	case "amd64":
+		var list []string
+		for i := 1; i <= GOAMD64; i++ {
+			list = append(list, fmt.Sprintf("%s.v%d", GOARCH, i))
+		}
+		return list
+	case "arm":
+		var list []string
+		for i := 5; i <= GOARM; i++ {
+			list = append(list, fmt.Sprintf("%s.%d", GOARCH, i))
+		}
+		return list
+	case "mips", "mipsle":
+		return []string{GOARCH + "." + GOMIPS}
+	case "mips64", "mips64le":
+		return []string{GOARCH + "." + GOMIPS64}
+	case "ppc64", "ppc64le":
+		var list []string
+		for i := 8; i <= GOPPC64; i++ {
+			list = append(list, fmt.Sprintf("%s.power%d", GOARCH, i))
+		}
+		return list
+	case "wasm":
+		var list []string
+		if GOWASM.SatConv {
+			list = append(list, GOARCH+".satconv")
+		}
+		if GOWASM.SignExt {
+			list = append(list, GOARCH+".signext")
+		}
+		return list
+	}
+	return nil
 }

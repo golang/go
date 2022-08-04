@@ -93,9 +93,14 @@ func defaultContext() build.Context {
 	ctxt.GOOS = Goos
 	ctxt.GOARCH = Goarch
 
-	// ToolTags are based on GOEXPERIMENT, which we will parse and
-	// initialize later.
-	ctxt.ToolTags = nil
+	// Clear the GOEXPERIMENT-based tool tags, which we will recompute later.
+	var save []string
+	for _, tag := range ctxt.ToolTags {
+		if !strings.HasPrefix(tag, "goexperiment.") {
+			save = append(save, tag)
+		}
+	}
+	ctxt.ToolTags = save
 
 	// The go/build rule for whether cgo is enabled is:
 	//	1. If $CGO_ENABLED is set, respect it.
