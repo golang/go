@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"go/constant"
+	"io"
 	"math/big"
 	"os"
 	"strings"
@@ -148,9 +149,7 @@ func ReadImports(pkg *types.Pkg, data string) {
 	sLen := int64(ird.uint64())
 	dLen := int64(ird.uint64())
 
-	// TODO(mdempsky): Replace os.SEEK_CUR with io.SeekCurrent after
-	// #44505 is fixed.
-	whence, _ := ird.Seek(0, os.SEEK_CUR)
+	whence, _ := ird.Seek(0, io.SeekCurrent)
 	stringData := data[whence : whence+sLen]
 	declData := data[whence+sLen : whence+sLen+dLen]
 	ird.Seek(sLen+dLen, os.SEEK_CUR)

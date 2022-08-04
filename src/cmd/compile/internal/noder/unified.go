@@ -5,13 +5,13 @@
 package noder
 
 import (
-	"bytes"
 	"fmt"
 	"internal/goversion"
 	"internal/pkgbits"
 	"io"
 	"runtime"
 	"sort"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/inline"
@@ -180,7 +180,7 @@ func writePkgStub(noders []*noder) string {
 		w.Flush()
 	}
 
-	var sb bytes.Buffer // TODO(mdempsky): strings.Builder after #44505 is resolved
+	var sb strings.Builder
 	pw.DumpTo(&sb)
 
 	// At this point, we're done with types2. Make sure the package is

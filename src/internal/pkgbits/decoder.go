@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"io"
 	"math/big"
 	"os"
 	"runtime"
@@ -174,9 +175,7 @@ func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx Index) Decoder {
 		Idx:    idx,
 	}
 
-	// TODO(mdempsky) r.data.Reset(...) after #44505 is resolved.
-	r.Data = *strings.NewReader(pr.DataIdx(k, idx))
-
+	r.Data.Reset(pr.DataIdx(k, idx))
 	r.Sync(SyncRelocs)
 	r.Relocs = make([]RelocEnt, r.Len())
 	for i := range r.Relocs {
@@ -237,7 +236,7 @@ func (r *Decoder) Sync(mWant SyncMarker) {
 		return
 	}
 
-	pos, _ := r.Data.Seek(0, os.SEEK_CUR) // TODO(mdempsky): io.SeekCurrent after #44505 is resolved
+	pos, _ := r.Data.Seek(0, io.SeekCurrent)
 	mHave := SyncMarker(r.rawUvarint())
 	writerPCs := make([]int, r.rawUvarint())
 	for i := range writerPCs {

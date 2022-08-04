@@ -12,6 +12,7 @@ import (
 	"io"
 	"math/big"
 	"runtime"
+	"strings"
 )
 
 // currentVersion is the current version number.
@@ -161,7 +162,7 @@ type Encoder struct {
 
 // Flush finalizes the element's bitstream and returns its Index.
 func (w *Encoder) Flush() Index {
-	var sb bytes.Buffer // TODO(mdempsky): strings.Builder after #44505 is resolved
+	var sb strings.Builder
 
 	// Backup the data so we write the relocations at the front.
 	var tmp bytes.Buffer
