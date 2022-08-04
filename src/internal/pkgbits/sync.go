@@ -6,6 +6,7 @@ package pkgbits
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 )
 
@@ -33,6 +34,24 @@ func fmtFrames(pcs ...uintptr) []string {
 }
 
 type frameVisitor func(file string, line int, name string, offset uintptr)
+
+// walkFrames calls visit for each call frame represented by pcs.
+//
+// pcs should be a slice of PCs, as returned by runtime.Callers.
+func walkFrames(pcs []uintptr, visit frameVisitor) {
+	if len(pcs) == 0 {
+		return
+	}
+
+	frames := runtime.CallersFrames(pcs)
+	for {
+		frame, more := frames.Next()
+		visit(frame.File, frame.Line, frame.Function, frame.PC-frame.Entry)
+		if !more {
+			return
+		}
+	}
+}
 
 // SyncMarker is an enum type that represents markers that may be
 // written to export data to ensure the reader and writer stay
