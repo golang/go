@@ -36,11 +36,20 @@ const (
 	// We use one bit to distinguish between the two ranges.
 	aixAddrBits = 57
 	aixCntBits  = 64 - aixAddrBits + 3
+
+	// riscv64 SV57 mode gives 56 bits of userspace VA.
+	// lfstack code supports it, but broader support for SV57 mode is incomplete,
+	// and there may be other issues (see #54104).
+	riscv64AddrBits = 56
+	riscv64CntBits  = 64 - riscv64AddrBits + 3
 )
 
 func lfstackPack(node *lfnode, cnt uintptr) uint64 {
 	if GOARCH == "ppc64" && GOOS == "aix" {
 		return uint64(uintptr(unsafe.Pointer(node)))<<(64-aixAddrBits) | uint64(cnt&(1<<aixCntBits-1))
+	}
+	if GOARCH == "riscv64" {
+		return uint64(uintptr(unsafe.Pointer(node)))<<(64-riscv64AddrBits) | uint64(cnt&(1<<riscv64CntBits-1))
 	}
 	return uint64(uintptr(unsafe.Pointer(node)))<<(64-addrBits) | uint64(cnt&(1<<cntBits-1))
 }
@@ -53,6 +62,9 @@ func lfstackUnpack(val uint64) *lfnode {
 	}
 	if GOARCH == "ppc64" && GOOS == "aix" {
 		return (*lfnode)(unsafe.Pointer(uintptr((val >> aixCntBits << 3) | 0xa<<56)))
+	}
+	if GOARCH == "riscv64" {
+		return (*lfnode)(unsafe.Pointer(uintptr(val >> riscv64CntBits << 3)))
 	}
 	return (*lfnode)(unsafe.Pointer(uintptr(val >> cntBits << 3)))
 }

@@ -376,7 +376,7 @@ func writerForLSP(subdirpath, file string) io.WriteCloser {
 	if lastdot != -1 {
 		basename = basename[:lastdot]
 	}
-	basename = pathEscape(basename)
+	basename = url.PathEscape(basename)
 
 	// Assume a directory, make a file
 	p := filepath.Join(subdirpath, basename+".json")
@@ -428,7 +428,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 		if slashPkgPath == "" {
 			slashPkgPath = "\000"
 		}
-		subdirpath := filepath.Join(dest, pathEscape(slashPkgPath))
+		subdirpath := filepath.Join(dest, url.PathEscape(slashPkgPath))
 		err := os.MkdirAll(subdirpath, 0755)
 		if err != nil {
 			log.Fatalf("Could not create directory %s for logging optimizer actions, %v", subdirpath, err)

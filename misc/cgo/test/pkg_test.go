@@ -34,6 +34,10 @@ func TestCrossPackageTests(t *testing.T) {
 		case "arm64":
 			t.Skip("Can't exec cmd/go subprocess on iOS.")
 		}
+	case "linux":
+		if _, err := os.Stat("/etc/alpine-release"); err == nil {
+			t.Skip("skipping failing test on alpine - go.dev/issue/39857")
+		}
 	}
 
 	GOPATH, err := os.MkdirTemp("", "cgotest")

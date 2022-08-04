@@ -12,6 +12,7 @@ import (
 //go:generate go run wincallback.go
 //go:generate go run mkduff.go
 //go:generate go run mkfastlog2table.go
+//go:generate go run mklockrank.go -o lockrank.go
 
 var ticks ticksType
 

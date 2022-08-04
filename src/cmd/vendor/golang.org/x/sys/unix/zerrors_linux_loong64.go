@@ -109,8 +109,6 @@ const (
 	IUCLC                            = 0x200
 	IXOFF                            = 0x1000
 	IXON                             = 0x400
-	LASX_CTX_MAGIC                   = 0x41535801
-	LSX_CTX_MAGIC                    = 0x53580001
 	MAP_ANON                         = 0x20
 	MAP_ANONYMOUS                    = 0x20
 	MAP_DENYWRITE                    = 0x800
@@ -319,6 +317,7 @@ const (
 	SO_RCVBUF                        = 0x8
 	SO_RCVBUFFORCE                   = 0x21
 	SO_RCVLOWAT                      = 0x12
+	SO_RCVMARK                       = 0x4b
 	SO_RCVTIMEO                      = 0x14
 	SO_RCVTIMEO_NEW                  = 0x42
 	SO_RCVTIMEO_OLD                  = 0x14
@@ -343,6 +342,7 @@ const (
 	SO_TIMESTAMPNS_NEW               = 0x40
 	SO_TIMESTAMPNS_OLD               = 0x23
 	SO_TIMESTAMP_NEW                 = 0x3f
+	SO_TXREHASH                      = 0x4a
 	SO_TXTIME                        = 0x3d
 	SO_TYPE                          = 0x3
 	SO_WIFI_STATUS                   = 0x29

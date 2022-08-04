@@ -80,6 +80,11 @@
 //		log.Fatal(err)
 //	}
 //
+// Setting the environment variable GODEBUG=execerrdot=0
+// disables generation of ErrDot entirely, temporarily restoring the pre-Go 1.19
+// behavior for programs that are unable to apply more targeted fixes.
+// A future version of Go may remove support for this variable.
+//
 // Before adding such overrides, make sure you understand the
 // security implications of doing so.
 // See https://go.dev/blog/path-security for more information.

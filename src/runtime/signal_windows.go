@@ -199,9 +199,10 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 	return 0 // not reached
 }
 
+// Always called on g0. gp is the G where the exception occurred.
 //go:nosplit
 func winthrow(info *exceptionrecord, r *context, gp *g) {
-	_g_ := getg()
+	g0 := getg()
 
 	if panicking != 0 { // traceback already printed
 		exit(2)
@@ -211,23 +212,23 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
 	// In case we're handling a g0 stack overflow, blow away the
 	// g0 stack bounds so we have room to print the traceback. If
 	// this somehow overflows the stack, the OS will trap it.
-	_g_.stack.lo = 0
-	_g_.stackguard0 = _g_.stack.lo + _StackGuard
-	_g_.stackguard1 = _g_.stackguard0
+	g0.stack.lo = 0
+	g0.stackguard0 = g0.stack.lo + _StackGuard
+	g0.stackguard1 = g0.stackguard0
 
 	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.ip()), "\n")
 
 	print("PC=", hex(r.ip()), "\n")
-	if _g_.m.incgo && gp == _g_.m.g0 && _g_.m.curg != nil {
+	if g0.m.incgo && gp == g0.m.g0 && g0.m.curg != nil {
 		if iscgo {
 			print("signal arrived during external code execution\n")
 		}
-		gp = _g_.m.curg
+		gp = g0.m.curg
 	}
 	print("\n")
 
-	_g_.m.throwing = throwTypeRuntime
-	_g_.m.caughtsig.set(gp)
+	g0.m.throwing = throwTypeRuntime
+	g0.m.caughtsig.set(gp)
 
 	level, _, docrash := gotraceback()
 	if level > 0 {
@@ -244,20 +245,20 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
 }
 
 func sigpanic() {
-	g := getg()
-	if !canpanic(g) {
+	gp := getg()
+	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 
-	switch g.sig {
+	switch gp.sig {
 	case _EXCEPTION_ACCESS_VIOLATION:
-		if g.sigcode1 < 0x1000 {
+		if gp.sigcode1 < 0x1000 {
 			panicmem()
 		}
-		if g.paniconfault {
-			panicmemAddr(g.sigcode1)
+		if gp.paniconfault {
+			panicmemAddr(gp.sigcode1)
 		}
-		print("unexpected fault address ", hex(g.sigcode1), "\n")
+		print("unexpected fault address ", hex(gp.sigcode1), "\n")
 		throw("fault")
 	case _EXCEPTION_INT_DIVIDE_BY_ZERO:
 		panicdivide()

@@ -805,9 +805,9 @@ func (c *gcControllerState) enlistWorker() {
 	}
 }
 
-// findRunnableGCWorker returns a background mark worker for _p_ if it
+// findRunnableGCWorker returns a background mark worker for pp if it
 // should be run. This must only be called when gcBlackenEnabled != 0.
-func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) (*g, int64) {
+func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 	if gcBlackenEnabled == 0 {
 		throw("gcControllerState.findRunnable: blackening not enabled")
 	}
@@ -823,7 +823,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) (*g, int64) 
 		gcCPULimiter.update(now)
 	}
 
-	if !gcMarkWorkAvailable(_p_) {
+	if !gcMarkWorkAvailable(pp) {
 		// No work to be done right now. This can happen at
 		// the end of the mark phase when there are still
 		// assists tapering off. Don't bother running a worker
@@ -864,7 +864,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) (*g, int64) 
 	if decIfPositive(&c.dedicatedMarkWorkersNeeded) {
 		// This P is now dedicated to marking until the end of
 		// the concurrent mark phase.
-		_p_.gcMarkWorkerMode = gcMarkWorkerDedicatedMode
+		pp.gcMarkWorkerMode = gcMarkWorkerDedicatedMode
 	} else if c.fractionalUtilizationGoal == 0 {
 		// No need for fractional workers.
 		gcBgMarkWorkerPool.push(&node.node)
@@ -875,13 +875,13 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) (*g, int64) 
 		//
 		// This should be kept in sync with pollFractionalWorkerExit.
 		delta := now - c.markStartTime
-		if delta > 0 && float64(_p_.gcFractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
+		if delta > 0 && float64(pp.gcFractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
 			// Nope. No need to run a fractional worker.
 			gcBgMarkWorkerPool.push(&node.node)
 			return nil, now
 		}
 		// Run a fractional worker.
-		_p_.gcMarkWorkerMode = gcMarkWorkerFractionalMode
+		pp.gcMarkWorkerMode = gcMarkWorkerFractionalMode
 	}
 
 	// Run the background mark worker.

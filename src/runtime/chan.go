@@ -780,7 +780,7 @@ func (q *waitq) dequeue() *sudog {
 		} else {
 			y.prev = nil
 			q.first = y
-			sgp.next = nil // mark as removed (see dequeueSudog)
+			sgp.next = nil // mark as removed (see dequeueSudoG)
 		}
 
 		// if a goroutine was put on this queue because of a

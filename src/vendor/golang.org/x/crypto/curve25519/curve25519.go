@@ -9,7 +9,8 @@ package curve25519 // import "golang.org/x/crypto/curve25519"
 
 import (
 	"crypto/subtle"
-	"fmt"
+	"errors"
+	"strconv"
 
 	"golang.org/x/crypto/curve25519/internal/field"
 )
@@ -124,10 +125,10 @@ func X25519(scalar, point []byte) ([]byte, error) {
 func x25519(dst *[32]byte, scalar, point []byte) ([]byte, error) {
 	var in [32]byte
 	if l := len(scalar); l != 32 {
-		return nil, fmt.Errorf("bad scalar length: %d, expected %d", l, 32)
+		return nil, errors.New("bad scalar length: " + strconv.Itoa(l) + ", expected 32")
 	}
 	if l := len(point); l != 32 {
-		return nil, fmt.Errorf("bad point length: %d, expected %d", l, 32)
+		return nil, errors.New("bad point length: " + strconv.Itoa(l) + ", expected 32")
 	}
 	copy(in[:], scalar)
 	if &point[0] == &Basepoint[0] {
@@ -138,7 +139,7 @@ func x25519(dst *[32]byte, scalar, point []byte) ([]byte, error) {
 		copy(base[:], point)
 		ScalarMult(dst, &in, &base)
 		if subtle.ConstantTimeCompare(dst[:], zero[:]) == 1 {
-			return nil, fmt.Errorf("bad input point: low order point")
+			return nil, errors.New("bad input point: low order point")
 		}
 	}
 	return dst[:], nil

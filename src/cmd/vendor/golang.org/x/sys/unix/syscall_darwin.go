@@ -393,6 +393,13 @@ func GetsockoptXucred(fd, level, opt int) (*Xucred, error) {
 	return x, err
 }
 
+func GetsockoptTCPConnectionInfo(fd, level, opt int) (*TCPConnectionInfo, error) {
+	var value TCPConnectionInfo
+	vallen := _Socklen(SizeofTCPConnectionInfo)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
+	return &value, err
+}
+
 func SysctlKinfoProc(name string, args ...int) (*KinfoProc, error) {
 	mib, err := sysctlmib(name, args...)
 	if err != nil {
