@@ -167,3 +167,54 @@ const F = named.D - 3
 		env.Await(NoOutstandingDiagnostics())
 	})
 }
+
+func TestMultipleModules_Warning(t *testing.T) {
+	const modules = `
+-- a/go.mod --
+module a.com
+
+go 1.12
+-- a/a.go --
+package a
+-- b/go.mod --
+module b.com
+
+go 1.12
+-- b/b.go --
+package b
+`
+	for _, go111module := range []string{"on", "auto"} {
+		t.Run("GO111MODULE="+go111module, func(t *testing.T) {
+			WithOptions(
+				Modes(Default),
+				EnvVars{"GO111MODULE": go111module},
+			).Run(t, modules, func(t *testing.T, env *Env) {
+				env.OpenFile("a/a.go")
+				env.OpenFile("b/go.mod")
+				env.Await(
+					env.DiagnosticAtRegexp("a/a.go", "package a"),
+					env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
+					OutstandingWork(lsp.WorkspaceLoadFailure, "gopls requires a module at the root of your workspace."),
+				)
+			})
+		})
+	}
+
+	// Expect no warning if GO111MODULE=auto in a directory in GOPATH.
+	t.Run("GOPATH_GO111MODULE_auto", func(t *testing.T) {
+		WithOptions(
+			Modes(Default),
+			EnvVars{"GO111MODULE": "auto"},
+			InGOPATH(),
+		).Run(t, modules, func(t *testing.T, env *Env) {
+			env.OpenFile("a/a.go")
+			env.Await(
+				OnceMet(
+					env.DoneWithOpen(),
+					EmptyDiagnostics("a/a.go"),
+				),
+				NoOutstandingWork(),
+			)
+		})
+	})
+}
