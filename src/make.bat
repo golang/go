@@ -93,7 +93,7 @@ setlocal
 set GOOS=
 set GOARCH=
 set GOEXPERIMENT=
-for /f "tokens=*" %%g IN ('%GOROOT_BOOTSTRAP%\bin\go version') do (set GOROOT_BOOTSTRAP_VERSION=%%g)
+for /f "tokens=*" %%g IN ('"%GOROOT_BOOTSTRAP%\bin\go" version') do (set GOROOT_BOOTSTRAP_VERSION=%%g)
 set GOROOT_BOOTSTRAP_VERSION=%GOROOT_BOOTSTRAP_VERSION:go version =%
 echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%. (%GOROOT_BOOTSTRAP_VERSION%)
 if x%vflag==x-v echo cmd/dist
