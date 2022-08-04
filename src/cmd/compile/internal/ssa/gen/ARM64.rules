@@ -352,8 +352,6 @@
 (Zero [1] ptr mem) => (MOVBstore ptr (MOVDconst [0]) mem)
 (Zero [2] ptr mem) => (MOVHstore ptr (MOVDconst [0]) mem)
 (Zero [4] ptr mem) => (MOVWstore ptr (MOVDconst [0]) mem)
-(Zero [8] ptr mem) => (MOVDstore ptr (MOVDconst [0]) mem)
-
 (Zero [3] ptr mem) =>
 	(MOVBstore [2] ptr (MOVDconst [0])
 		(MOVHstore ptr (MOVDconst [0]) mem))
@@ -364,9 +362,9 @@
 	(MOVHstore [4] ptr (MOVDconst [0])
 		(MOVWstore ptr (MOVDconst [0]) mem))
 (Zero [7] ptr mem) =>
-	(MOVBstore [6] ptr (MOVDconst [0])
-		(MOVHstore [4] ptr (MOVDconst [0])
-			(MOVWstore ptr (MOVDconst [0]) mem)))
+	(MOVWstore [3] ptr (MOVDconst [0])
+		(MOVWstore ptr (MOVDconst [0]) mem))
+(Zero [8] ptr mem) => (MOVDstore ptr (MOVDconst [0]) mem)
 (Zero [9] ptr mem) =>
 	(MOVBstore [8] ptr (MOVDconst [0])
 		(MOVDstore ptr (MOVDconst [0]) mem))
@@ -374,25 +372,20 @@
 	(MOVHstore [8] ptr (MOVDconst [0])
 		(MOVDstore ptr (MOVDconst [0]) mem))
 (Zero [11] ptr mem) =>
-	(MOVBstore [10] ptr (MOVDconst [0])
-		(MOVHstore [8] ptr (MOVDconst [0])
-			(MOVDstore ptr (MOVDconst [0]) mem)))
+	(MOVDstore [3] ptr (MOVDconst [0])
+		(MOVDstore ptr (MOVDconst [0]) mem))
 (Zero [12] ptr mem) =>
 	(MOVWstore [8] ptr (MOVDconst [0])
 		(MOVDstore ptr (MOVDconst [0]) mem))
 (Zero [13] ptr mem) =>
-	(MOVBstore [12] ptr (MOVDconst [0])
-		(MOVWstore [8] ptr (MOVDconst [0])
-			(MOVDstore ptr (MOVDconst [0]) mem)))
+	(MOVDstore [5] ptr (MOVDconst [0])
+		(MOVDstore ptr (MOVDconst [0]) mem))
 (Zero [14] ptr mem) =>
-	(MOVHstore [12] ptr (MOVDconst [0])
-		(MOVWstore [8] ptr (MOVDconst [0])
-			(MOVDstore ptr (MOVDconst [0]) mem)))
+	(MOVDstore [6] ptr (MOVDconst [0])
+		(MOVDstore ptr (MOVDconst [0]) mem))
 (Zero [15] ptr mem) =>
-	(MOVBstore [14] ptr (MOVDconst [0])
-		(MOVHstore [12] ptr (MOVDconst [0])
-			(MOVWstore [8] ptr (MOVDconst [0])
-				(MOVDstore ptr (MOVDconst [0]) mem))))
+	(MOVDstore [7] ptr (MOVDconst [0])
+		(MOVDstore ptr (MOVDconst [0]) mem))
 (Zero [16] ptr mem) =>
 	(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem)
 
@@ -440,12 +433,10 @@
 (Move [0] _ _ mem) => mem
 (Move [1] dst src mem) => (MOVBstore dst (MOVBUload src mem) mem)
 (Move [2] dst src mem) => (MOVHstore dst (MOVHUload src mem) mem)
-(Move [4] dst src mem) => (MOVWstore dst (MOVWUload src mem) mem)
-(Move [8] dst src mem) => (MOVDstore dst (MOVDload src mem) mem)
-
 (Move [3] dst src mem) =>
 	(MOVBstore [2] dst (MOVBUload [2] src mem)
 		(MOVHstore dst (MOVHUload src mem) mem))
+(Move [4] dst src mem) => (MOVWstore dst (MOVWUload src mem) mem)
 (Move [5] dst src mem) =>
 	(MOVBstore [4] dst (MOVBUload [4] src mem)
 		(MOVWstore dst (MOVWUload src mem) mem))
@@ -453,35 +444,60 @@
 	(MOVHstore [4] dst (MOVHUload [4] src mem)
 		(MOVWstore dst (MOVWUload src mem) mem))
 (Move [7] dst src mem) =>
-	(MOVBstore [6] dst (MOVBUload [6] src mem)
-		(MOVHstore [4] dst (MOVHUload [4] src mem)
-			(MOVWstore dst (MOVWUload src mem) mem)))
+	(MOVWstore [3] dst (MOVWUload [3] src mem)
+		(MOVWstore dst (MOVWUload src mem) mem))
+(Move [8] dst src mem) => (MOVDstore dst (MOVDload src mem) mem)
+(Move [9] dst src mem) =>
+	(MOVBstore [8] dst (MOVBUload [8] src mem)
+		(MOVDstore dst (MOVDload src mem) mem))
+(Move [10] dst src mem) =>
+	(MOVHstore [8] dst (MOVHUload [8] src mem)
+		(MOVDstore dst (MOVDload src mem) mem))
+(Move [11] dst src mem) =>
+	(MOVDstore [3] dst (MOVDload [3] src mem)
+		(MOVDstore dst (MOVDload src mem) mem))
 (Move [12] dst src mem) =>
 	(MOVWstore [8] dst (MOVWUload [8] src mem)
 		(MOVDstore dst (MOVDload src mem) mem))
-(Move [16] dst src mem) =>
-	(MOVDstore [8] dst (MOVDload [8] src mem)
+(Move [13] dst src mem) =>
+	(MOVDstore [5] dst (MOVDload [5] src mem)
 		(MOVDstore dst (MOVDload src mem) mem))
-(Move [24] dst src mem) =>
-	(MOVDstore [16] dst (MOVDload [16] src mem)
-		(MOVDstore [8] dst (MOVDload [8] src mem)
-			(MOVDstore dst (MOVDload src mem) mem)))
+(Move [14] dst src mem) =>
+	(MOVDstore [6] dst (MOVDload [6] src mem)
+		(MOVDstore dst (MOVDload src mem) mem))
+(Move [15] dst src mem) =>
+	(MOVDstore [7] dst (MOVDload [7] src mem)
+		(MOVDstore dst (MOVDload src mem) mem))
+(Move [16] dst src mem) =>
+	(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)
+(Move [32] dst src mem) =>
+	(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
+		(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
+(Move [48] dst src mem) =>
+	(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
+		(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
+			(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
+(Move [64] dst src mem) =>
+	(STP [48] dst (Select0 <typ.UInt64> (LDP [48] src mem)) (Select1 <typ.UInt64> (LDP [48] src mem))
+		(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
+			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
+				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
 
 // strip off fractional word move
-(Move [s] dst src mem) && s%8 != 0 && s > 8 =>
-	(Move [s%8]
-		(OffPtr <dst.Type> dst [s-s%8])
-		(OffPtr <src.Type> src [s-s%8])
-		(Move [s-s%8] dst src mem))
+(Move [s] dst src mem) && s%16 != 0 && s%16 <= 8 && s > 16 =>
+	(Move [8]
+		(OffPtr <dst.Type> dst [s-8])
+		(OffPtr <src.Type> src [s-8])
+		(Move [s-s%16] dst src mem))
+(Move [s] dst src mem) && s%16 != 0 && s%16 > 8 && s > 16 =>
+	(Move [16]
+		(OffPtr <dst.Type> dst [s-16])
+		(OffPtr <src.Type> src [s-16])
+		(Move [s-s%16] dst src mem))
 
 // medium move uses a duff device
 (Move [s] dst src mem)
-	&& s > 32 && s <= 16*64 && s%16 == 8
-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
-	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
-		(DUFFCOPY <types.TypeMem> [8*(64-(s-8)/16)] dst src mem))
-(Move [s] dst src mem)
-	&& s > 32 && s <= 16*64 && s%16 == 0
+	&& s > 64 && s <= 16*64 && s%16 == 0
 	&& !config.noDuffDevice && logLargeCopy(v, s) =>
 	(DUFFCOPY [8 * (64 - s/16)] dst src mem)
 // 8 is the number of bytes to encode:
@@ -493,11 +509,12 @@
 
 // large move uses a loop
 (Move [s] dst src mem)
-	&& s > 24 && s%8 == 0 && logLargeCopy(v, s) =>
+	&& s%16 == 0 && (s > 16*64 || config.noDuffDevice)
+	&& logLargeCopy(v, s) =>
 	(LoweredMove
 		dst
 		src
-		(ADDconst <src.Type> src [s-8])
+		(ADDconst <src.Type> src [s-16])
 		mem)
 
 // calls
@@ -779,6 +796,9 @@
 (MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
 	(MOVDload [off1+int32(off2)] {sym} ptr mem)
+(LDP [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	(LDP [off1+int32(off2)] {sym} ptr mem)
 (FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
 	(FMOVSload [off1+int32(off2)] {sym} ptr mem)
@@ -958,6 +978,10 @@
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
 	(MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(LDP [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	(LDP [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
@@ -1069,6 +1093,7 @@
 //(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWreg x)
 //(MOVWUload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWUreg x)
 //(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+//(LDP [off] {sym} ptr (STP [off2] {sym2} ptr2 x y _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x y
 //(FMOVSload [off] {sym} ptr (FMOVSstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
 //(FMOVDload [off] {sym} ptr (FMOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
 

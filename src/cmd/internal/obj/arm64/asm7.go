@@ -1238,7 +1238,9 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 func (c *ctxt7) isUnsafePoint(p *obj.Prog) bool {
 	// If p explicitly uses REGTMP, it's unsafe to preempt, because the
 	// preemption sequence clobbers REGTMP.
-	return p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP
+	return p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP ||
+		p.From.Type == obj.TYPE_REGREG && p.From.Offset == REGTMP ||
+		p.To.Type == obj.TYPE_REGREG && p.To.Offset == REGTMP
 }
 
 // isRestartable returns whether p is a multi-instruction sequence that,

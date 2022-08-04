@@ -449,6 +449,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpARM64LDP:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REGREG
+		p.To.Reg = v.Reg0()
+		p.To.Offset = int64(v.Reg1())
 	case ssa.OpARM64MOVBloadidx,
 		ssa.OpARM64MOVBUloadidx,
 		ssa.OpARM64MOVHloadidx,
@@ -1021,25 +1029,27 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Sym = ir.Syms.Duffcopy
 		p.To.Offset = v.AuxInt
 	case ssa.OpARM64LoweredMove:
-		// MOVD.P	8(R16), Rtmp
-		// MOVD.P	Rtmp, 8(R17)
+		// LDP.P	16(R16), (R25, Rtmp)
+		// STP.P	(R25, Rtmp), 16(R17)
 		// CMP	Rarg2, R16
 		// BLE	-3(PC)
 		// arg2 is the address of the last element of src
-		p := s.Prog(arm64.AMOVD)
+		p := s.Prog(arm64.ALDP)
 		p.Scond = arm64.C_XPOST
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = arm64.REG_R16
-		p.From.Offset = 8
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = arm64.REGTMP
-		p2 := s.Prog(arm64.AMOVD)
+		p.From.Offset = 16
+		p.To.Type = obj.TYPE_REGREG
+		p.To.Reg = arm64.REG_R25
+		p.To.Offset = int64(arm64.REGTMP)
+		p2 := s.Prog(arm64.ASTP)
 		p2.Scond = arm64.C_XPOST
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = arm64.REGTMP
+		p2.From.Type = obj.TYPE_REGREG
+		p2.From.Reg = arm64.REG_R25
+		p2.From.Offset = int64(arm64.REGTMP)
 		p2.To.Type = obj.TYPE_MEM
 		p2.To.Reg = arm64.REG_R17
-		p2.To.Offset = 8
+		p2.To.Offset = 16
 		p3 := s.Prog(arm64.ACMP)
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = v.Args[2].Reg()

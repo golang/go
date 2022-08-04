@@ -468,160 +468,382 @@ func BenchmarkMemclrRange(b *testing.B) {
 	}
 }
 
+func BenchmarkClearFat7(b *testing.B) {
+	p := new([7]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [7]byte{}
+	}
+}
+
 func BenchmarkClearFat8(b *testing.B) {
+	p := new([8 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [8 / 4]uint32
-		_ = x
+		*p = [8 / 4]uint32{}
 	}
 }
+
+func BenchmarkClearFat11(b *testing.B) {
+	p := new([11]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [11]byte{}
+	}
+}
+
 func BenchmarkClearFat12(b *testing.B) {
+	p := new([12 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [12 / 4]uint32
-		_ = x
+		*p = [12 / 4]uint32{}
 	}
 }
+
+func BenchmarkClearFat13(b *testing.B) {
+	p := new([13]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [13]byte{}
+	}
+}
+
+func BenchmarkClearFat14(b *testing.B) {
+	p := new([14]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [14]byte{}
+	}
+}
+
+func BenchmarkClearFat15(b *testing.B) {
+	p := new([15]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [15]byte{}
+	}
+}
+
 func BenchmarkClearFat16(b *testing.B) {
+	p := new([16 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [16 / 4]uint32
-		_ = x
+		*p = [16 / 4]uint32{}
 	}
 }
+
 func BenchmarkClearFat24(b *testing.B) {
+	p := new([24 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [24 / 4]uint32
-		_ = x
+		*p = [24 / 4]uint32{}
 	}
 }
+
 func BenchmarkClearFat32(b *testing.B) {
+	p := new([32 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [32 / 4]uint32
-		_ = x
+		*p = [32 / 4]uint32{}
 	}
 }
+
 func BenchmarkClearFat40(b *testing.B) {
+	p := new([40 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [40 / 4]uint32
-		_ = x
+		*p = [40 / 4]uint32{}
 	}
 }
+
 func BenchmarkClearFat48(b *testing.B) {
+	p := new([48 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [48 / 4]uint32
-		_ = x
+		*p = [48 / 4]uint32{}
 	}
 }
+
 func BenchmarkClearFat56(b *testing.B) {
+	p := new([56 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [56 / 4]uint32
-		_ = x
+		*p = [56 / 4]uint32{}
 	}
 }
+
 func BenchmarkClearFat64(b *testing.B) {
+	p := new([64 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [64 / 4]uint32
-		_ = x
+		*p = [64 / 4]uint32{}
 	}
 }
+
+func BenchmarkClearFat72(b *testing.B) {
+	p := new([72 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [72 / 4]uint32{}
+	}
+}
+
 func BenchmarkClearFat128(b *testing.B) {
+	p := new([128 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [128 / 4]uint32
-		_ = x
+		*p = [128 / 4]uint32{}
 	}
 }
+
 func BenchmarkClearFat256(b *testing.B) {
+	p := new([256 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [256 / 4]uint32
-		_ = x
+		*p = [256 / 4]uint32{}
 	}
 }
+
 func BenchmarkClearFat512(b *testing.B) {
+	p := new([512 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [512 / 4]uint32
-		_ = x
+		*p = [512 / 4]uint32{}
 	}
 }
+
 func BenchmarkClearFat1024(b *testing.B) {
+	p := new([1024 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var x [1024 / 4]uint32
-		_ = x
+		*p = [1024 / 4]uint32{}
+	}
+}
+
+func BenchmarkClearFat1032(b *testing.B) {
+	p := new([1032 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [1032 / 4]uint32{}
+	}
+}
+
+func BenchmarkClearFat1040(b *testing.B) {
+	p := new([1040 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [1040 / 4]uint32{}
+	}
+}
+
+func BenchmarkCopyFat7(b *testing.B) {
+	var x [7]byte
+	p := new([7]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
 	}
 }
 
 func BenchmarkCopyFat8(b *testing.B) {
 	var x [8 / 4]uint32
+	p := new([8 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		y := x
-		_ = y
+		*p = x
 	}
 }
+
+func BenchmarkCopyFat11(b *testing.B) {
+	var x [11]byte
+	p := new([11]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
 func BenchmarkCopyFat12(b *testing.B) {
 	var x [12 / 4]uint32
+	p := new([12 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		y := x
-		_ = y
+		*p = x
 	}
 }
+
+func BenchmarkCopyFat13(b *testing.B) {
+	var x [13]byte
+	p := new([13]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
+func BenchmarkCopyFat14(b *testing.B) {
+	var x [14]byte
+	p := new([14]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
+func BenchmarkCopyFat15(b *testing.B) {
+	var x [15]byte
+	p := new([15]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
 func BenchmarkCopyFat16(b *testing.B) {
 	var x [16 / 4]uint32
+	p := new([16 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		y := x
-		_ = y
+		*p = x
 	}
 }
+
 func BenchmarkCopyFat24(b *testing.B) {
 	var x [24 / 4]uint32
+	p := new([24 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		y := x
-		_ = y
+		*p = x
 	}
 }
+
 func BenchmarkCopyFat32(b *testing.B) {
 	var x [32 / 4]uint32
+	p := new([32 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		y := x
-		_ = y
+		*p = x
 	}
 }
+
 func BenchmarkCopyFat64(b *testing.B) {
 	var x [64 / 4]uint32
+	p := new([64 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		y := x
-		_ = y
+		*p = x
 	}
 }
+
+func BenchmarkCopyFat72(b *testing.B) {
+	var x [72 / 4]uint32
+	p := new([72 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
 func BenchmarkCopyFat128(b *testing.B) {
 	var x [128 / 4]uint32
+	p := new([128 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		y := x
-		_ = y
+		*p = x
 	}
 }
+
 func BenchmarkCopyFat256(b *testing.B) {
 	var x [256 / 4]uint32
+	p := new([256 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		y := x
-		_ = y
+		*p = x
 	}
 }
+
 func BenchmarkCopyFat512(b *testing.B) {
 	var x [512 / 4]uint32
+	p := new([512 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		y := x
-		_ = y
+		*p = x
 	}
 }
+
 func BenchmarkCopyFat520(b *testing.B) {
 	var x [520 / 4]uint32
+	p := new([520 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		y := x
-		_ = y
+		*p = x
 	}
 }
+
 func BenchmarkCopyFat1024(b *testing.B) {
 	var x [1024 / 4]uint32
+	p := new([1024 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		y := x
-		_ = y
+		*p = x
+	}
+}
+
+func BenchmarkCopyFat1032(b *testing.B) {
+	var x [1032 / 4]uint32
+	p := new([1032 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
+func BenchmarkCopyFat1040(b *testing.B) {
+	var x [1040 / 4]uint32
+	p := new([1040 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
 	}
 }
 
