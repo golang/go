@@ -43,6 +43,7 @@ var useR = cmdUse.Flag.Bool("r", false, "")
 func init() {
 	cmdUse.Run = runUse // break init cycle
 
+	base.AddChdirFlag(&cmdUse.Flag)
 	base.AddModCommonFlags(&cmdUse.Flag)
 }
 

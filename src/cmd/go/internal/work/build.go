@@ -58,6 +58,10 @@ will be written to that directory.
 The build flags are shared by the build, clean, get, install, list, run,
 and test commands:
 
+	-C dir
+		Change to dir before running the command.
+		Any files named on the command line are interpreted after
+		changing directories.
 	-a
 		force rebuilding of packages that are already up-to-date.
 	-n
@@ -282,6 +286,7 @@ const (
 // install, list, run, and test commands.
 func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	base.AddBuildFlagsNX(&cmd.Flag)
+	base.AddChdirFlag(&cmd.Flag)
 	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
 	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "")
 	if mask&OmitVFlag == 0 {

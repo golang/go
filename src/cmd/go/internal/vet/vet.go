@@ -25,7 +25,7 @@ func init() {
 
 var CmdVet = &base.Command{
 	CustomFlags: true,
-	UsageLine:   "go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]",
+	UsageLine:   "go vet [-C dir] [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]",
 	Short:       "report likely mistakes in packages",
 	Long: `
 Vet runs the Go vet command on the packages named by the import paths.
@@ -35,6 +35,7 @@ For more about specifying packages, see 'go help packages'.
 For a list of checkers and their flags, see 'go tool vet help'.
 For details of a specific checker such as 'printf', see 'go tool vet help printf'.
 
+The -C flag changes to dir before running the 'go vet' command.
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
 

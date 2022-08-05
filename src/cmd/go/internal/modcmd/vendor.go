@@ -61,6 +61,7 @@ func init() {
 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 	cmdVendor.Flag.BoolVar(&vendorE, "e", false, "")
 	cmdVendor.Flag.StringVar(&vendorO, "o", "", "")
+	base.AddChdirFlag(&cmdVendor.Flag)
 	base.AddModCommonFlags(&cmdVendor.Flag)
 }
 

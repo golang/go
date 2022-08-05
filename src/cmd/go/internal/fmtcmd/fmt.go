@@ -21,6 +21,7 @@ import (
 
 func init() {
 	base.AddBuildFlagsNX(&CmdFmt.Flag)
+	base.AddChdirFlag(&CmdFmt.Flag)
 	base.AddModFlag(&CmdFmt.Flag)
 	base.AddModCommonFlags(&CmdFmt.Flag)
 }

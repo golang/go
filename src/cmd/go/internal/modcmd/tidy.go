@@ -64,6 +64,7 @@ func init() {
 	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
 	cmdTidy.Flag.Var(&tidyGo, "go", "")
 	cmdTidy.Flag.Var(&tidyCompat, "compat", "")
+	base.AddChdirFlag(&cmdTidy.Flag)
 	base.AddModCommonFlags(&cmdTidy.Flag)
 }
 

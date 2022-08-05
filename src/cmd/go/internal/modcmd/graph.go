@@ -41,6 +41,7 @@ var (
 
 func init() {
 	cmdGraph.Flag.Var(&graphGo, "go", "")
+	base.AddChdirFlag(&cmdGraph.Flag)
 	base.AddModCommonFlags(&cmdGraph.Flag)
 }
 
