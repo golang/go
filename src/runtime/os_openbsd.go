@@ -51,6 +51,21 @@ func sysctlInt(mib []uint32) (int32, bool) {
 	return out, true
 }
 
+func sysctlUint64(mib []uint32) (uint64, bool) {
+	var out uint64
+	nout := unsafe.Sizeof(out)
+	ret := sysctl(&mib[0], uint32(len(mib)), (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+	if ret < 0 {
+		return 0, false
+	}
+	return out, true
+}
+
+//go:linkname internal_cpu_sysctlUint64 internal/cpu.sysctlUint64
+func internal_cpu_sysctlUint64(mib []uint32) (uint64, bool) {
+	return sysctlUint64(mib)
+}
+
 func getncpu() int32 {
 	// Try hw.ncpuonline first because hw.ncpu would report a number twice as
 	// high as the actual CPUs running on OpenBSD 6.4 with hyperthreading
