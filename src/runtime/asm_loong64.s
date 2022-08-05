@@ -86,6 +86,12 @@ TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
         JAL     runtime·mstart0(SB)
         RET // not reached
 
+// func cputicks() int64
+TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+	RDTIMED	R0, R4
+	MOVV	R4, ret+0(FP)
+	RET
+
 /*
  *  go-routine
  */
