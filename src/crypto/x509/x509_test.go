@@ -3746,3 +3746,9 @@ func TestDuplicateExtensionsCSR(t *testing.T) {
 		t.Fatal("ParseCertificate should fail when parsing certificate with duplicate extensions")
 	}
 }
+
+//see issue 54288
+func TestMarshalPublicKey(t *testing.T) {
+	key := &ecdsa.PublicKey{}
+	marshalPublicKey(key)
+}
