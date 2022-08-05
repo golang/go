@@ -4,9 +4,11 @@
 
 package route
 
+import "syscall"
+
 func (w *wireFormat) parseInterfaceMessage(typ RIBType, b []byte) (Message, error) {
 	var extOff, bodyOff int
-	if typ == sysNET_RT_IFLISTL {
+	if typ == syscall.NET_RT_IFLISTL {
 		if len(b) < 20 {
 			return nil, errMessageTooShort
 		}
@@ -24,7 +26,7 @@ func (w *wireFormat) parseInterfaceMessage(typ RIBType, b []byte) (Message, erro
 		return nil, errInvalidMessage
 	}
 	attrs := uint(nativeEndian.Uint32(b[4:8]))
-	if attrs&sysRTA_IFP == 0 {
+	if attrs&syscall.RTA_IFP == 0 {
 		return nil, nil
 	}
 	m := &InterfaceMessage{
@@ -32,7 +34,7 @@ func (w *wireFormat) parseInterfaceMessage(typ RIBType, b []byte) (Message, erro
 		Type:    int(b[3]),
 		Flags:   int(nativeEndian.Uint32(b[8:12])),
 		Index:   int(nativeEndian.Uint16(b[12:14])),
-		Addrs:   make([]Addr, sysRTAX_MAX),
+		Addrs:   make([]Addr, syscall.RTAX_MAX),
 		extOff:  extOff,
 		raw:     b[:l],
 	}
@@ -40,14 +42,14 @@ func (w *wireFormat) parseInterfaceMessage(typ RIBType, b []byte) (Message, erro
 	if err != nil {
 		return nil, err
 	}
-	m.Addrs[sysRTAX_IFP] = a
+	m.Addrs[syscall.RTAX_IFP] = a
 	m.Name = a.(*LinkAddr).Name
 	return m, nil
 }
 
 func (w *wireFormat) parseInterfaceAddrMessage(typ RIBType, b []byte) (Message, error) {
 	var bodyOff int
-	if typ == sysNET_RT_IFLISTL {
+	if typ == syscall.NET_RT_IFLISTL {
 		if len(b) < 24 {
 			return nil, errMessageTooShort
 		}

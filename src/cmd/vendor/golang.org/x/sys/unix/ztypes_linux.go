@@ -1466,6 +1466,11 @@ const (
 	IFLA_ALT_IFNAME                            = 0x35
 	IFLA_PERM_ADDRESS                          = 0x36
 	IFLA_PROTO_DOWN_REASON                     = 0x37
+	IFLA_PARENT_DEV_NAME                       = 0x38
+	IFLA_PARENT_DEV_BUS_NAME                   = 0x39
+	IFLA_GRO_MAX_SIZE                          = 0x3a
+	IFLA_TSO_MAX_SIZE                          = 0x3b
+	IFLA_TSO_MAX_SEGS                          = 0x3c
 	IFLA_PROTO_DOWN_REASON_UNSPEC              = 0x0
 	IFLA_PROTO_DOWN_REASON_MASK                = 0x1
 	IFLA_PROTO_DOWN_REASON_VALUE               = 0x2
