@@ -46,6 +46,19 @@ func (s workspaceSource) String() string {
 	}
 }
 
+// workspaceCommon holds immutable information about the workspace setup.
+//
+// TODO(rfindley): there is some redundancy here with workspaceInformation.
+// Reconcile these two types.
+type workspaceCommon struct {
+	root        span.URI
+	excludePath func(string) bool
+
+	// explicitGowork is, if non-empty, the URI for the explicit go.work file
+	// provided via the user's environment.
+	explicitGowork span.URI
+}
+
 // workspace tracks go.mod files in the workspace, along with the
 // gopls.mod file, to provide support for multi-module workspaces.
 //
@@ -58,8 +71,8 @@ func (s workspaceSource) String() string {
 // This type is immutable (or rather, idempotent), so that it may be shared
 // across multiple snapshots.
 type workspace struct {
-	root         span.URI
-	excludePath  func(string) bool
+	workspaceCommon
+
 	moduleSource workspaceSource
 
 	// activeModFiles holds the active go.mod files.
@@ -98,17 +111,21 @@ type workspace struct {
 //
 // TODO(rfindley): newWorkspace should perhaps never fail, relying instead on
 // the criticalError method to surface problems in the workspace.
-// TODO(rfindley): this function should accept the GOWORK value, if specified
-// by the user.
-func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, excludePath func(string) bool, go111moduleOff, useWsModule bool) (*workspace, error) {
+func newWorkspace(ctx context.Context, root, explicitGowork span.URI, fs source.FileSource, excludePath func(string) bool, go111moduleOff, useWsModule bool) (*workspace, error) {
 	ws := &workspace{
-		root:        root,
-		excludePath: excludePath,
+		workspaceCommon: workspaceCommon{
+			root:           root,
+			explicitGowork: explicitGowork,
+			excludePath:    excludePath,
+		},
 	}
 
 	// The user may have a gopls.mod or go.work file that defines their
 	// workspace.
-	if err := loadExplicitWorkspaceFile(ctx, ws, fs); err == nil {
+	//
+	// TODO(rfindley): if GO111MODULE=off, this looks wrong, though there are
+	// probably other problems.
+	if err := ws.loadExplicitWorkspaceFile(ctx, fs); err == nil {
 		return ws, nil
 	}
 
@@ -140,15 +157,15 @@ func newWorkspace(ctx context.Context, root span.URI, fs source.FileSource, excl
 // loadExplicitWorkspaceFile loads workspace information from go.work or
 // gopls.mod files, setting the active modules, mod file, and module source
 // accordingly.
-func loadExplicitWorkspaceFile(ctx context.Context, ws *workspace, fs source.FileSource) error {
+func (ws *workspace) loadExplicitWorkspaceFile(ctx context.Context, fs source.FileSource) error {
 	for _, src := range []workspaceSource{goWorkWorkspace, goplsModWorkspace} {
-		fh, err := fs.GetFile(ctx, uriForSource(ws.root, src))
+		fh, err := fs.GetFile(ctx, uriForSource(ws.root, ws.explicitGowork, src))
 		if err != nil {
 			return err
 		}
 		contents, err := fh.Read()
 		if err != nil {
-			continue
+			continue // TODO(rfindley): is it correct to proceed here?
 		}
 		var file *modfile.File
 		var activeModFiles map[span.URI]struct{}
@@ -313,15 +330,14 @@ func (w *workspace) Clone(ctx context.Context, changes map[span.URI]*fileChange,
 	// Clone the workspace. This may be discarded if nothing changed.
 	changed := false
 	result := &workspace{
-		root:           w.root,
-		moduleSource:   w.moduleSource,
-		knownModFiles:  make(map[span.URI]struct{}),
-		activeModFiles: make(map[span.URI]struct{}),
-		workFile:       w.workFile,
-		mod:            w.mod,
-		sum:            w.sum,
-		wsDirs:         w.wsDirs,
-		excludePath:    w.excludePath,
+		workspaceCommon: w.workspaceCommon,
+		moduleSource:    w.moduleSource,
+		knownModFiles:   make(map[span.URI]struct{}),
+		activeModFiles:  make(map[span.URI]struct{}),
+		workFile:        w.workFile,
+		mod:             w.mod,
+		sum:             w.sum,
+		wsDirs:          w.wsDirs,
 	}
 	for k, v := range w.knownModFiles {
 		result.knownModFiles[k] = v
@@ -391,7 +407,7 @@ func handleWorkspaceFileChanges(ctx context.Context, ws *workspace, changes map[
 	// exists or walk the filesystem if it has been deleted.
 	// go.work should override the gopls.mod if both exist.
 	for _, src := range []workspaceSource{goWorkWorkspace, goplsModWorkspace} {
-		uri := uriForSource(ws.root, src)
+		uri := uriForSource(ws.root, ws.explicitGowork, src)
 		// File opens/closes are just no-ops.
 		change, ok := changes[uri]
 		if !ok {
@@ -460,12 +476,15 @@ func handleWorkspaceFileChanges(ctx context.Context, ws *workspace, changes map[
 }
 
 // goplsModURI returns the URI for the gopls.mod file contained in root.
-func uriForSource(root span.URI, src workspaceSource) span.URI {
+func uriForSource(root, explicitGowork span.URI, src workspaceSource) span.URI {
 	var basename string
 	switch src {
 	case goplsModWorkspace:
 		basename = "gopls.mod"
 	case goWorkWorkspace:
+		if explicitGowork != "" {
+			return explicitGowork
+		}
 		basename = "go.work"
 	default:
 		return ""

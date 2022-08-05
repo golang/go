@@ -436,6 +436,12 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	s.view.optionsMu.Lock()
 	allowModfileModificationOption := s.view.options.AllowModfileModifications
 	allowNetworkOption := s.view.options.AllowImplicitNetworkAccess
+
+	// TODO(rfindley): this is very hard to follow, and may not even be doing the
+	// right thing: should inv.Env really trample view.options? Do we ever invoke
+	// this with a non-empty inv.Env?
+	//
+	// We should refactor to make it clearer that the correct env is being used.
 	inv.Env = append(append(append(os.Environ(), s.view.options.EnvSlice()...), inv.Env...), "GO111MODULE="+s.view.effectiveGo111Module)
 	inv.BuildFlags = append([]string{}, s.view.options.BuildFlags...)
 	s.view.optionsMu.Unlock()

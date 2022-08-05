@@ -16,6 +16,10 @@ import (
 // This file holds various tests for UX with respect to broken workspaces.
 //
 // TODO: consolidate other tests here.
+//
+// TODO: write more tests:
+//  - an explicit GOWORK value that doesn't exist
+//  - using modules and/or GOWORK inside of GOPATH?
 
 // Test for golang/go#53933
 func TestBrokenWorkspace_DuplicateModules(t *testing.T) {
@@ -28,8 +32,6 @@ func TestBrokenWorkspace_DuplicateModules(t *testing.T) {
 module example.com/foo
 
 go 1.12
--- example.com/foo@v1.2.3/foo.go --
-package foo
 `
 
 	const src = `

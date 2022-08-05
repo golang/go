@@ -280,7 +280,7 @@ replace gopls.test => ../../gopls.test2`, false},
 
 			fs := &osFileSource{}
 			excludeNothing := func(string) bool { return false }
-			w, err := newWorkspace(ctx, root, fs, excludeNothing, false, !test.legacyMode)
+			w, err := newWorkspace(ctx, root, "", fs, excludeNothing, false, !test.legacyMode)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -325,7 +325,7 @@ func workspaceFromTxtar(t *testing.T, files string) (*workspace, func(), error) 
 
 	fs := &osFileSource{}
 	excludeNothing := func(string) bool { return false }
-	workspace, err := newWorkspace(ctx, root, fs, excludeNothing, false, false)
+	workspace, err := newWorkspace(ctx, root, "", fs, excludeNothing, false, false)
 	return workspace, cleanup, err
 }
 

@@ -27,6 +27,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -97,6 +98,13 @@ type View struct {
 	// rootURI is the rootURI directory of this view. If we are in GOPATH mode, this
 	// is just the folder. If we are in module mode, this is the module rootURI.
 	rootURI span.URI
+
+	// explicitGowork is, if non-empty, the URI for the explicit go.work file
+	// provided via the users environment.
+	//
+	// TODO(rfindley): this is duplicated in the workspace type. Refactor to
+	// eliminate this duplication.
+	explicitGowork span.URI
 
 	// workspaceInformation tracks various details about this view's
 	// environment variables, go version, and use of modules.
@@ -469,7 +477,7 @@ func (v *View) relevantChange(c source.FileModification) bool {
 	// TODO(rstambler): Make sure the go.work/gopls.mod files are always known
 	// to the view.
 	for _, src := range []workspaceSource{goWorkWorkspace, goplsModWorkspace} {
-		if c.URI == uriForSource(v.rootURI, src) {
+		if c.URI == uriForSource(v.rootURI, v.explicitGowork, src) {
 			return true
 		}
 	}
@@ -813,9 +821,13 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 	}
 	// The value of GOPACKAGESDRIVER is not returned through the go command.
 	gopackagesdriver := os.Getenv("GOPACKAGESDRIVER")
+	// TODO(rfindley): this looks wrong, or at least overly defensive. If the
+	// value of GOPACKAGESDRIVER is not returned from the go command... why do we
+	// look it up here?
 	for _, s := range env {
 		split := strings.SplitN(s, "=", 2)
 		if split[0] == "GOPACKAGESDRIVER" {
+			bug.Reportf("found GOPACKAGESDRIVER from the go command") // see note above
 			gopackagesdriver = split[1]
 		}
 	}
