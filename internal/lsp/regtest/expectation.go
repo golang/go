@@ -394,32 +394,66 @@ func NoLogMatching(typ protocol.MessageType, re string) LogExpectation {
 	}
 }
 
-// RegistrationExpectation is an expectation on the capability registrations
-// received by the editor from gopls.
-type RegistrationExpectation struct {
-	check       func([]*protocol.RegistrationParams) Verdict
-	description string
+// FileWatchMatching expects that a file registration matches re.
+func FileWatchMatching(re string) SimpleExpectation {
+	return SimpleExpectation{
+		check:       checkFileWatch(re, Met, Unmet),
+		description: fmt.Sprintf("file watch matching %q", re),
+	}
 }
 
-// Check implements the Expectation interface.
-func (e RegistrationExpectation) Check(s State) Verdict {
-	return e.check(s.registrations)
+// NoFileWatchMatching expects that no file registration matches re.
+func NoFileWatchMatching(re string) SimpleExpectation {
+	return SimpleExpectation{
+		check:       checkFileWatch(re, Unmet, Met),
+		description: fmt.Sprintf("no file watch matching %q", re),
+	}
 }
 
-// Description implements the Expectation interface.
-func (e RegistrationExpectation) Description() string {
-	return e.description
+func checkFileWatch(re string, onMatch, onNoMatch Verdict) func(State) Verdict {
+	rec := regexp.MustCompile(re)
+	return func(s State) Verdict {
+		r := s.registeredCapabilities["workspace/didChangeWatchedFiles"]
+		watchers := jsonProperty(r.RegisterOptions, "watchers").([]interface{})
+		for _, watcher := range watchers {
+			pattern := jsonProperty(watcher, "globPattern").(string)
+			if rec.MatchString(pattern) {
+				return onMatch
+			}
+		}
+		return onNoMatch
+	}
+}
+
+// jsonProperty extracts a value from a path of JSON property names, assuming
+// the default encoding/json unmarshaling to the empty interface (i.e.: that
+// JSON objects are unmarshalled as map[string]interface{})
+//
+// For example, if obj is unmarshalled from the following json:
+//
+//	{
+//		"foo": { "bar": 3 }
+//	}
+//
+// Then jsonProperty(obj, "foo", "bar") will be 3.
+func jsonProperty(obj interface{}, path ...string) interface{} {
+	if len(path) == 0 || obj == nil {
+		return obj
+	}
+	m := obj.(map[string]interface{})
+	return jsonProperty(m[path[0]], path[1:]...)
 }
 
 // RegistrationMatching asserts that the client has received a capability
 // registration matching the given regexp.
-func RegistrationMatching(re string) RegistrationExpectation {
-	rec, err := regexp.Compile(re)
-	if err != nil {
-		panic(err)
-	}
-	check := func(params []*protocol.RegistrationParams) Verdict {
-		for _, p := range params {
+//
+// TODO(rfindley): remove this once TestWatchReplaceTargets has been revisited.
+//
+// Deprecated: use (No)FileWatchMatching
+func RegistrationMatching(re string) SimpleExpectation {
+	rec := regexp.MustCompile(re)
+	check := func(s State) Verdict {
+		for _, p := range s.registrations {
 			for _, r := range p.Registrations {
 				if rec.Match([]byte(r.Method)) {
 					return Met
@@ -428,38 +462,18 @@ func RegistrationMatching(re string) RegistrationExpectation {
 		}
 		return Unmet
 	}
-	return RegistrationExpectation{
+	return SimpleExpectation{
 		check:       check,
 		description: fmt.Sprintf("registration matching %q", re),
 	}
 }
 
-// UnregistrationExpectation is an expectation on the capability
-// unregistrations received by the editor from gopls.
-type UnregistrationExpectation struct {
-	check       func([]*protocol.UnregistrationParams) Verdict
-	description string
-}
-
-// Check implements the Expectation interface.
-func (e UnregistrationExpectation) Check(s State) Verdict {
-	return e.check(s.unregistrations)
-}
-
-// Description implements the Expectation interface.
-func (e UnregistrationExpectation) Description() string {
-	return e.description
-}
-
 // UnregistrationMatching asserts that the client has received an
 // unregistration whose ID matches the given regexp.
-func UnregistrationMatching(re string) UnregistrationExpectation {
-	rec, err := regexp.Compile(re)
-	if err != nil {
-		panic(err)
-	}
-	check := func(params []*protocol.UnregistrationParams) Verdict {
-		for _, p := range params {
+func UnregistrationMatching(re string) SimpleExpectation {
+	rec := regexp.MustCompile(re)
+	check := func(s State) Verdict {
+		for _, p := range s.unregistrations {
 			for _, r := range p.Unregisterations {
 				if rec.Match([]byte(r.Method)) {
 					return Met
@@ -468,7 +482,7 @@ func UnregistrationMatching(re string) UnregistrationExpectation {
 		}
 		return Unmet
 	}
-	return UnregistrationExpectation{
+	return SimpleExpectation{
 		check:       check,
 		description: fmt.Sprintf("unregistration matching %q", re),
 	}

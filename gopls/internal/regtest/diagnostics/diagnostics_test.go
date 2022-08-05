@@ -1548,7 +1548,7 @@ func Hello() {
 }
 -- go.mod --
 module mod.com
--- main.go --
+-- cmd/main.go --
 package main
 
 import "mod.com/bob"
@@ -1558,11 +1558,12 @@ func main() {
 }
 `
 	Run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(FileWatchMatching("bob"))
 		env.RemoveWorkspaceFile("bob")
 		env.Await(
-			env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
+			env.DiagnosticAtRegexp("cmd/main.go", `"mod.com/bob"`),
 			EmptyDiagnostics("bob/bob.go"),
-			RegistrationMatching("didChangeWatchedFiles"),
+			NoFileWatchMatching("bob"),
 		)
 	})
 }

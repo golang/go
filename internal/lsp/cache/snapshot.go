@@ -887,6 +887,10 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 		fmt.Sprintf("**/*.{%s}", extensions): {},
 	}
 
+	if s.view.explicitGowork != "" {
+		patterns[s.view.explicitGowork.Filename()] = struct{}{}
+	}
+
 	// Add a pattern for each Go module in the workspace that is not within the view.
 	dirs := s.workspace.dirs(ctx, s)
 	for _, dir := range dirs {

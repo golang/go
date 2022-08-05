@@ -85,8 +85,9 @@ type State struct {
 	showMessage        []*protocol.ShowMessageParams
 	showMessageRequest []*protocol.ShowMessageRequestParams
 
-	registrations   []*protocol.RegistrationParams
-	unregistrations []*protocol.UnregistrationParams
+	registrations          []*protocol.RegistrationParams
+	registeredCapabilities map[string]protocol.Registration
+	unregistrations        []*protocol.UnregistrationParams
 
 	// outstandingWork is a map of token->work summary. All tokens are assumed to
 	// be string, though the spec allows for numeric tokens as well.  When work
@@ -226,6 +227,12 @@ func (a *Awaiter) onRegistration(_ context.Context, m *protocol.RegistrationPara
 	defer a.mu.Unlock()
 
 	a.state.registrations = append(a.state.registrations, m)
+	if a.state.registeredCapabilities == nil {
+		a.state.registeredCapabilities = make(map[string]protocol.Registration)
+	}
+	for _, reg := range m.Registrations {
+		a.state.registeredCapabilities[reg.Method] = reg
+	}
 	a.checkConditionsLocked()
 	return nil
 }
