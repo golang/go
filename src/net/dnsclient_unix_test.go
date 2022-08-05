@@ -2216,3 +2216,70 @@ func TestDNSPacketSize(t *testing.T) {
 		t.Errorf("lookup failed: %v", err)
 	}
 }
+
+func TestLongDnsNames(t *testing.T) {
+	const longDNSsuffix = ".go.dev."
+	const longDNSsuffixNoEndingDot = ".go.dev"
+
+	var longDNSPrefix = strings.Repeat("verylongdomainlabel.", 20)
+
+	var longDNSNamesTests = []struct {
+		req  string
+		fail bool
+	}{
+		{req: longDNSPrefix[:255-len(longDNSsuffix)] + longDNSsuffix, fail: true},
+		{req: longDNSPrefix[:254-len(longDNSsuffix)] + longDNSsuffix},
+		{req: longDNSPrefix[:253-len(longDNSsuffix)] + longDNSsuffix},
+
+		{req: longDNSPrefix[:253-len(longDNSsuffixNoEndingDot)] + longDNSsuffixNoEndingDot},
+		{req: longDNSPrefix[:254-len(longDNSsuffixNoEndingDot)] + longDNSsuffixNoEndingDot, fail: true},
+	}
+
+	fake := fakeDNSServer{
+		rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeSuccess,
+				},
+				Questions: q.Questions,
+				Answers: []dnsmessage.Resource{
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:  q.Questions[0].Name,
+							Type:  dnsmessage.TypeTXT,
+							Class: dnsmessage.ClassINET,
+						},
+						Body: &dnsmessage.TXTResource{
+							TXT: []string{"."},
+						},
+					},
+				},
+			}
+
+			return r, nil
+		},
+	}
+
+	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
+	for i, v := range longDNSNamesTests {
+		_, err := r.LookupTXT(context.Background(), v.req)
+		if v.fail {
+			if err == nil {
+				t.Errorf("%v: unexpected success", i)
+				break
+			}
+
+			var dnsErr *DNSError
+			errors.As(err, &dnsErr)
+			if dnsErr == nil || dnsErr.Err != errNoSuchHost.Error() {
+				t.Errorf("%v: unexpected error: %v", i, err)
+				break
+			}
+		}
+		if !v.fail && err != nil {
+			t.Errorf("%v: unexpected error: %v", i, err)
+		}
+	}
+}

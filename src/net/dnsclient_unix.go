@@ -482,7 +482,7 @@ func (conf *dnsConfig) nameList(name string) []string {
 	// Check name length (see isDomainName).
 	l := len(name)
 	rooted := l > 0 && name[l-1] == '.'
-	if l > 254 || l == 254 && rooted {
+	if l > 254 || l == 254 && !rooted {
 		return nil
 	}
 
@@ -644,6 +644,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 			return <-lane
 		}
 	}
+
 	var lastErr error
 	for _, fqdn := range conf.nameList(name) {
 		for _, qtype := range qtypes {
