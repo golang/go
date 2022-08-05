@@ -55,11 +55,6 @@ type ctxt9 struct {
 // Instruction layout.
 
 const (
-	funcAlign     = 16
-	funcAlignMask = funcAlign - 1
-)
-
-const (
 	r0iszero = 1
 )
 
