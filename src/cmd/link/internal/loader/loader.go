@@ -14,6 +14,7 @@ import (
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
+	"io"
 	"log"
 	"math/bits"
 	"os"
@@ -2081,7 +2082,7 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
 	l.addObj(lib.Pkg, or)
 
 	// The caller expects us consuming all the data
-	f.MustSeek(length, os.SEEK_CUR)
+	f.MustSeek(length, io.SeekCurrent)
 
 	return r.Fingerprint()
 }

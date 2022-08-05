@@ -124,9 +124,9 @@ type objReader struct {
 
 func (r *objReader) init(f *os.File) {
 	r.a = &Archive{f, nil}
-	r.offset, _ = f.Seek(0, os.SEEK_CUR)
-	r.limit, _ = f.Seek(0, os.SEEK_END)
-	f.Seek(r.offset, os.SEEK_SET)
+	r.offset, _ = f.Seek(0, io.SeekCurrent)
+	r.limit, _ = f.Seek(0, io.SeekEnd)
+	f.Seek(r.offset, io.SeekStart)
 	r.b = bio.NewReader(f)
 }
 
@@ -227,7 +227,7 @@ func (r *objReader) skip(n int64) {
 		r.readFull(r.tmp[:n])
 	} else {
 		// Seek, giving up buffered data.
-		r.b.MustSeek(r.offset+n, os.SEEK_SET)
+		r.b.MustSeek(r.offset+n, io.SeekStart)
 		r.offset += n
 	}
 }
@@ -435,7 +435,7 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
 
 // AddEntry adds an entry to the end of a, with the content from r.
 func (a *Archive) AddEntry(typ EntryType, name string, mtime int64, uid, gid int, mode os.FileMode, size int64, r io.Reader) {
-	off, err := a.f.Seek(0, os.SEEK_END)
+	off, err := a.f.Seek(0, io.SeekEnd)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -13,7 +13,6 @@ import (
 	"go/constant"
 	"io"
 	"math/big"
-	"os"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -152,7 +151,7 @@ func ReadImports(pkg *types.Pkg, data string) {
 	whence, _ := ird.Seek(0, io.SeekCurrent)
 	stringData := data[whence : whence+sLen]
 	declData := data[whence+sLen : whence+sLen+dLen]
-	ird.Seek(sLen+dLen, os.SEEK_CUR)
+	ird.Seek(sLen+dLen, io.SeekCurrent)
 
 	p := &iimporter{
 		exportVersion: version,
