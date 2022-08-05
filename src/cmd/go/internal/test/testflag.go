@@ -66,6 +66,7 @@ func init() {
 	cf.Int("parallel", 0, "")
 	cf.String("run", "", "")
 	cf.Bool("short", false, "")
+	cf.String("skip", "", "")
 	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "")
 	cf.String("fuzztime", "", "")
 	cf.String("fuzzminimizetime", "", "")

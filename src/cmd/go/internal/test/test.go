@@ -306,6 +306,7 @@ control the execution of any test:
 	    run too, so that -run=X/Y matches and runs and reports the result
 	    of all tests matching X, even those without sub-tests matching Y,
 	    because it must run them to look for those sub-tests.
+	    See also -skip.
 
 	-short
 	    Tell long-running tests to shorten their run time.
@@ -319,6 +320,14 @@ control the execution of any test:
 	    the randomizer using the system clock. If -shuffle is set to an
 	    integer N, then N will be used as the seed value. In both cases,
 	    the seed will be reported for reproducibility.
+
+	-skip regexp
+	    Run only those tests, examples, fuzz tests, and benchmarks that
+	    do not match the regular expression. Like for -run and -bench,
+	    for tests and benchmarks, the regular expression is split by unbracketed
+	    slash (/) characters into a sequence of regular expressions, and each
+	    part of a test's identifier must match the corresponding element in
+	    the sequence, if any.
 
 	-timeout d
 	    If a test binary runs longer than duration d, panic.

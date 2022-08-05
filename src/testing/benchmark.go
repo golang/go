@@ -536,7 +536,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 		}
 	}
 	ctx := &benchContext{
-		match:  newMatcher(matchString, *matchBenchmarks, "-test.bench"),
+		match:  newMatcher(matchString, *matchBenchmarks, "-test.bench", *skip),
 		extLen: len(benchmarkName("", maxprocs)),
 	}
 	var bs []InternalBenchmark

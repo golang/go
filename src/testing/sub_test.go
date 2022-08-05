@@ -476,7 +476,7 @@ func TestTRun(t *T) {
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
-			ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
+			ctx := newTestContext(tc.maxPar, allMatcher())
 			buf := &strings.Builder{}
 			root := &T{
 				common: common{
@@ -775,7 +775,7 @@ func TestRacyOutput(t *T) {
 	var wg sync.WaitGroup
 	root := &T{
 		common:  common{w: &funcWriter{raceDetector}},
-		context: newTestContext(1, newMatcher(regexp.MatchString, "", "")),
+		context: newTestContext(1, allMatcher()),
 	}
 	root.chatty = newChattyPrinter(root.w)
 	root.Run("", func(t *T) {
@@ -798,7 +798,7 @@ func TestRacyOutput(t *T) {
 
 // The late log message did not include the test name.  Issue 29388.
 func TestLogAfterComplete(t *T) {
-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
+	ctx := newTestContext(1, allMatcher())
 	var buf bytes.Buffer
 	t1 := &T{
 		common: common{

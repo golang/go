@@ -422,6 +422,7 @@ func Init() {
 	coverProfile = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
 	matchList = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
 	match = flag.String("test.run", "", "run only tests and examples matching `regexp`")
+	skip = flag.String("test.skip", "", "do not list or run tests matching `regexp`")
 	memProfile = flag.String("test.memprofile", "", "write an allocation profile to `file`")
 	memProfileRate = flag.Int("test.memprofilerate", 0, "set memory allocation profiling `rate` (see runtime.MemProfileRate)")
 	cpuProfile = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
@@ -451,6 +452,7 @@ var (
 	coverProfile         *string
 	matchList            *string
 	match                *string
+	skip                 *string
 	memProfile           *string
 	memProfileRate       *int
 	cpuProfile           *string
@@ -1690,6 +1692,8 @@ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchma
 	}
 }
 
+var testingTesting bool
+
 // Run runs the tests. It returns an exit code to pass to os.Exit.
 func (m *M) Run() (code int) {
 	defer func() {
@@ -1720,7 +1724,7 @@ func (m *M) Run() (code int) {
 		return
 	}
 
-	if len(*matchList) != 0 {
+	if *matchList != "" {
 		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.fuzzTargets, m.examples)
 		m.exitCode = 0
 		return
@@ -1762,6 +1766,15 @@ func (m *M) Run() (code int) {
 		m.stopAlarm()
 		if !testRan && !exampleRan && !fuzzTargetsRan && *matchBenchmarks == "" && *matchFuzz == "" {
 			fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+			if testingTesting {
+				// If this happens during testing of package testing it could be that
+				// package testing's own logic for when to run a test is broken,
+				// in which case every test will run nothing and succeed,
+				// with no obvious way to detect this problem (since no tests are running).
+				// So make 'no tests to run' a hard failure when testing package testing itself.
+				fmt.Println("FAIL: package testing must run tests")
+				testOk = false
+			}
 		}
 		if !testOk || !exampleOk || !fuzzTargetsOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
 			fmt.Println("FAIL")
@@ -1861,7 +1874,7 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				// to keep trying.
 				break
 			}
-			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
+			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
 			ctx.deadline = deadline
 			t := &T{
 				common: common{

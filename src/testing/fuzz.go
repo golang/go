@@ -471,12 +471,12 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 	if len(fuzzTests) == 0 || *isFuzzWorker {
 		return ran, ok
 	}
-	m := newMatcher(deps.MatchString, *match, "-test.run")
+	m := newMatcher(deps.MatchString, *match, "-test.run", *skip)
 	tctx := newTestContext(*parallel, m)
 	tctx.deadline = deadline
 	var mFuzz *matcher
 	if *matchFuzz != "" {
-		mFuzz = newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
+		mFuzz = newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz", *skip)
 	}
 	fctx := &fuzzContext{deps: deps, mode: seedCorpusOnly}
 	root := common{w: os.Stdout} // gather output in one place
@@ -532,7 +532,7 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 	if len(fuzzTests) == 0 || *matchFuzz == "" {
 		return true
 	}
-	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
+	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz", *skip)
 	tctx := newTestContext(1, m)
 	tctx.isFuzzing = true
 	fctx := &fuzzContext{
