@@ -9,6 +9,7 @@ package bytes
 import (
 	"errors"
 	"io"
+	"math"
 	"unicode/utf8"
 )
 
@@ -44,7 +45,6 @@ const (
 var ErrTooLarge = errors.New("bytes.Buffer: too large")
 var errNegativeRead = errors.New("bytes.Buffer: reader returned negative count from Read")
 
-const maxInt = int(^uint(0) >> 1)
 
 // Bytes returns a slice of length b.Len() holding the unread portion of the buffer.
 // The slice is valid for use only until the next buffer modification (that is,
@@ -135,7 +135,7 @@ func (b *Buffer) grow(n int) int {
 		// we instead let capacity get twice as large so we
 		// don't spend all our time copying.
 		copy(b.buf, b.buf[b.off:])
-	} else if c > maxInt-c-n {
+	} else if c > math.MaxInt -c-n {
 		panic(ErrTooLarge)
 	} else {
 		// Add b.off to account for b.buf[:b.off] being sliced off the front.

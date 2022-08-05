@@ -124,7 +124,7 @@ var depsRules = `
 	unicode !< strconv;
 
 	# STR is basic string and buffer manipulation.
-	RUNTIME, io, unicode/utf8, unicode/utf16, unicode
+	RUNTIME, io, unicode/utf8, unicode/utf16, unicode, math
 	< bytes, strings
 	< bufio;
 
