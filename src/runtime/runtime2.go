@@ -670,17 +670,7 @@ type p struct {
 
 	_ uint32 // Alignment for atomic fields below
 
-	// The when field of the first entry on the timer heap.
-	// This is updated using atomic functions.
-	// This is 0 if the timer heap is empty.
-	timer0When uint64
-
-	// The earliest known nextwhen field of a timer with
-	// timerModifiedEarlier status. Because the timer may have been
-	// modified again, there need not be any timer with this value.
-	// This is updated using atomic functions.
-	// This is 0 if there are no timerModifiedEarlier timers.
-	timerModifiedEarliest uint64
+	timing timing
 
 	// Per-P GC state
 	gcAssistTime         int64 // Nanoseconds in assistAlloc
@@ -714,26 +704,6 @@ type p struct {
 	// statsSeq is a counter indicating whether this P is currently
 	// writing any stats. Its value is even when not, odd when it is.
 	statsSeq uint32
-
-	// Lock for timers. We normally access the timers while running
-	// on this P, but the scheduler can also do it from a different P.
-	timersLock mutex
-
-	// Actions to take at some time. This is used to implement the
-	// standard library's time package.
-	// Must hold timersLock to access.
-	timers []*timer
-
-	// Number of timers in P's heap.
-	// Modified using atomic instructions.
-	numTimers uint32
-
-	// Number of timerDeleted timers in P's heap.
-	// Modified using atomic instructions.
-	deletedTimers uint32
-
-	// Race context used while executing timer functions.
-	timerRaceCtx uintptr
 
 	// maxStackScanDelta accumulates the amount of stack space held by
 	// live goroutines (i.e. those eligible for stack scanning).

@@ -2398,7 +2398,7 @@ func handoffp(pp *p) {
 
 	// The scheduler lock cannot be held when calling wakeNetPoller below
 	// because wakeNetPoller may call wakep which may call startm.
-	when := nobarrierWakeTime(pp)
+	when := pp.timing.noBarrierWakeTime()
 	pidleput(pp, 0)
 	unlock(&sched.lock)
 
@@ -2567,7 +2567,7 @@ top:
 	// which may steal timers. It's important that between now
 	// and then, nothing blocks, so these numbers remain mostly
 	// relevant.
-	now, pollUntil, _ := checkTimers(pp, 0)
+	now, pollUntil, _ := pp.timing.checkTimers(0)
 
 	// Try to schedule the trace reader.
 	if trace.enabled || trace.shutdown {
@@ -2795,7 +2795,7 @@ top:
 		// transitioning from spinning to non-spinning.
 		//
 		// Note that we cannot use checkTimers here because it calls
-		// adjusttimers which may need to allocate memory, and that isn't
+		// adjustTimers which may need to allocate memory, and that isn't
 		// allowed when we don't have an active P.
 		pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
 	}
@@ -2923,7 +2923,7 @@ func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWo
 			// timerpMask tells us whether the P may have timers at all. If it
 			// can't, no need to check at all.
 			if stealTimersOrRunNextG && timerpMask.read(enum.position()) {
-				tnow, w, ran := checkTimers(p2, now)
+				tnow, w, ran := p2.timing.checkTimers(now)
 				now = tnow
 				if w != 0 && (pollUntil == 0 || w < pollUntil) {
 					pollUntil = w
@@ -2980,22 +2980,6 @@ func checkRunqsNoP(allpSnapshot []*p, idlepMaskSnapshot pMask) *p {
 	}
 
 	return nil
-}
-
-// Check all Ps for a timer expiring sooner than pollUntil.
-//
-// Returns updated pollUntil value.
-func checkTimersNoP(allpSnapshot []*p, timerpMaskSnapshot pMask, pollUntil int64) int64 {
-	for id, p2 := range allpSnapshot {
-		if timerpMaskSnapshot.read(uint32(id)) {
-			w := nobarrierWakeTime(p2)
-			if w != 0 && (pollUntil == 0 || w < pollUntil) {
-				pollUntil = w
-			}
-		}
-	}
-
-	return pollUntil
 }
 
 // Check for idle-priority GC, without a P on entry.
@@ -3252,72 +3236,6 @@ func dropg() {
 
 	setMNoWB(&gp.m.curg.m, nil)
 	setGNoWB(&gp.m.curg, nil)
-}
-
-// checkTimers runs any timers for the P that are ready.
-// If now is not 0 it is the current time.
-// It returns the passed time or the current time if now was passed as 0.
-// and the time when the next timer should run or 0 if there is no next timer,
-// and reports whether it ran any timers.
-// If the time when the next timer should run is not 0,
-// it is always larger than the returned time.
-// We pass now in and out to avoid extra calls of nanotime.
-//
-//go:yeswritebarrierrec
-func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
-	// If it's not yet time for the first timer, or the first adjusted
-	// timer, then there is nothing to do.
-	next := int64(atomic.Load64(&pp.timer0When))
-	nextAdj := int64(atomic.Load64(&pp.timerModifiedEarliest))
-	if next == 0 || (nextAdj != 0 && nextAdj < next) {
-		next = nextAdj
-	}
-
-	if next == 0 {
-		// No timers to run or adjust.
-		return now, 0, false
-	}
-
-	if now == 0 {
-		now = nanotime()
-	}
-	if now < next {
-		// Next timer is not ready to run, but keep going
-		// if we would clear deleted timers.
-		// This corresponds to the condition below where
-		// we decide whether to call clearDeletedTimers.
-		if pp != getg().m.p.ptr() || int(atomic.Load(&pp.deletedTimers)) <= int(atomic.Load(&pp.numTimers)/4) {
-			return now, next, false
-		}
-	}
-
-	lock(&pp.timersLock)
-
-	if len(pp.timers) > 0 {
-		adjusttimers(pp, now)
-		for len(pp.timers) > 0 {
-			// Note that runtimer may temporarily unlock
-			// pp.timersLock.
-			if tw := runtimer(pp, now); tw != 0 {
-				if tw > 0 {
-					pollUntil = tw
-				}
-				break
-			}
-			ran = true
-		}
-	}
-
-	// If this is the local P, and there are a lot of deleted timers,
-	// clear them out. We only do this for the local P to reduce
-	// lock contention on timersLock.
-	if pp == getg().m.p.ptr() && int(atomic.Load(&pp.deletedTimers)) > len(pp.timers)/4 {
-		clearDeletedTimers(pp)
-	}
-
-	unlock(&pp.timersLock)
-
-	return now, pollUntil, ran
 }
 
 func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
@@ -4680,8 +4598,8 @@ func (pp *p) init(id int32) {
 			pp.raceprocctx = raceproccreate()
 		}
 	}
-	lockInit(&pp.timersLock, lockRankTimers)
 
+	pp.timing.init(pp)
 	// This P may get timers when it starts running. Set the mask here
 	// since the P may not go through pidleget (notably P 0 on startup).
 	timerpMask.set(id)
@@ -4710,22 +4628,9 @@ func (pp *p) destroy() {
 		globrunqputhead(pp.runnext.ptr())
 		pp.runnext = 0
 	}
-	if len(pp.timers) > 0 {
-		plocal := getg().m.p.ptr()
-		// The world is stopped, but we acquire timersLock to
-		// protect against sysmon calling timeSleepUntil.
-		// This is the only case where we hold the timersLock of
-		// more than one P, so there are no deadlock concerns.
-		lock(&plocal.timersLock)
-		lock(&pp.timersLock)
-		moveTimers(plocal, pp.timers)
-		pp.timers = nil
-		pp.numTimers = 0
-		pp.deletedTimers = 0
-		atomic.Store64(&pp.timer0When, 0)
-		unlock(&pp.timersLock)
-		unlock(&plocal.timersLock)
-	}
+
+	pp.timing.destroy()
+
 	// Flush p's write barrier buffer.
 	if gcphase != _GCoff {
 		wbBufFlush1(pp)
@@ -4754,21 +4659,6 @@ func (pp *p) destroy() {
 	gfpurge(pp)
 	traceProcFree(pp)
 	if raceenabled {
-		if pp.timerRaceCtx != 0 {
-			// The race detector code uses a callback to fetch
-			// the proc context, so arrange for that callback
-			// to see the right thing.
-			// This hack only works because we are the only
-			// thread running.
-			mp := getg().m
-			phold := mp.p.ptr()
-			mp.p.set(pp)
-
-			racectxend(pp.timerRaceCtx)
-			pp.timerRaceCtx = 0
-
-			mp.p.set(phold)
-		}
 		raceprocdestroy(pp.raceprocctx)
 		pp.raceprocctx = 0
 	}
@@ -5094,7 +4984,7 @@ func checkdead() {
 
 	// There are no goroutines running, so we can look at the P's.
 	for _, pp := range allp {
-		if len(pp.timers) > 0 {
+		if len(pp.timing.timers) > 0 {
 			return
 		}
 	}
@@ -5423,7 +5313,7 @@ func schedtrace(detailed bool) {
 			if mp != nil {
 				id = mp.id
 			}
-			print("  P", i, ": status=", pp.status, " schedtick=", pp.schedtick, " syscalltick=", pp.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", pp.gFree.n, " timerslen=", len(pp.timers), "\n")
+			print("  P", i, ": status=", pp.status, " schedtick=", pp.schedtick, " syscalltick=", pp.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", pp.gFree.n, " timerslen=", len(pp.timing.timers), "\n")
 		} else {
 			// In non-detailed mode format lengths of per-P run queues as:
 			// [len1 len2 len3 len4]
@@ -5639,46 +5529,6 @@ func (p pMask) clear(id int32) {
 	atomic.And(&p[word], ^mask)
 }
 
-// updateTimerPMask clears pp's timer mask if it has no timers on its heap.
-//
-// Ideally, the timer mask would be kept immediately consistent on any timer
-// operations. Unfortunately, updating a shared global data structure in the
-// timer hot path adds too much overhead in applications frequently switching
-// between no timers and some timers.
-//
-// As a compromise, the timer mask is updated only on pidleget / pidleput. A
-// running P (returned by pidleget) may add a timer at any time, so its mask
-// must be set. An idle P (passed to pidleput) cannot add new timers while
-// idle, so if it has no timers at that time, its mask may be cleared.
-//
-// Thus, we get the following effects on timer-stealing in findrunnable:
-//
-//   - Idle Ps with no timers when they go idle are never checked in findrunnable
-//     (for work- or timer-stealing; this is the ideal case).
-//   - Running Ps must always be checked.
-//   - Idle Ps whose timers are stolen must continue to be checked until they run
-//     again, even after timer expiration.
-//
-// When the P starts running again, the mask should be set, as a timer may be
-// added at any time.
-//
-// TODO(prattmic): Additional targeted updates may improve the above cases.
-// e.g., updating the mask when stealing a timer.
-func updateTimerPMask(pp *p) {
-	if atomic.Load(&pp.numTimers) > 0 {
-		return
-	}
-
-	// Looks like there are no timers, however another P may transiently
-	// decrement numTimers when handling a timerModified timer in
-	// checkTimers. We must take timersLock to serialize with these changes.
-	lock(&pp.timersLock)
-	if atomic.Load(&pp.numTimers) == 0 {
-		timerpMask.clear(pp.id)
-	}
-	unlock(&pp.timersLock)
-}
-
 // pidleput puts p on the _Pidle list. now must be a relatively recent call
 // to nanotime or zero. Returns now or the current time if now was zero.
 //
@@ -5699,7 +5549,7 @@ func pidleput(pp *p, now int64) int64 {
 	if now == 0 {
 		now = nanotime()
 	}
-	updateTimerPMask(pp) // clear if there are no timers.
+	pp.timing.updateTimerPMask() // clear if there are no timers.
 	idlepMask.set(pp.id)
 	pp.link = sched.pidle
 	sched.pidle.set(pp)
