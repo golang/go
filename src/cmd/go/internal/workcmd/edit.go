@@ -109,6 +109,7 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagEditworkDropUse), "dropuse", "")
 	cmdEdit.Flag.Var(flagFunc(flagEditworkReplace), "replace", "")
 	cmdEdit.Flag.Var(flagFunc(flagEditworkDropReplace), "dropreplace", "")
+	base.AddChdirFlag(&cmdEdit.Flag)
 }
 
 func runEditwork(ctx context.Context, cmd *base.Command, args []string) {

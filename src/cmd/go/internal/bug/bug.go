@@ -37,6 +37,7 @@ The report includes useful system information.
 
 func init() {
 	CmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	base.AddChdirFlag(&CmdBug.Flag)
 }
 
 func runBug(ctx context.Context, cmd *base.Command, args []string) {

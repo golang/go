@@ -127,6 +127,8 @@ Note that this only describes the go.mod file itself, not other modules
 referred to indirectly. For the full set of modules available to a build,
 use 'go list -m -json all'.
 
+Edit also provides the -C, -n, and -x build flags.
+
 See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
 	`,
 }
@@ -157,8 +159,9 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagRetract), "retract", "")
 	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "")
 
-	base.AddModCommonFlags(&cmdEdit.Flag)
 	base.AddBuildFlagsNX(&cmdEdit.Flag)
+	base.AddChdirFlag(&cmdEdit.Flag)
+	base.AddModCommonFlags(&cmdEdit.Flag)
 }
 
 func runEdit(ctx context.Context, cmd *base.Command, args []string) {

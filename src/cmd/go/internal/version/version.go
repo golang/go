@@ -44,6 +44,7 @@ See also: go doc runtime/debug.BuildInfo.
 }
 
 func init() {
+	base.AddChdirFlag(&CmdVersion.Flag)
 	CmdVersion.Run = runVersion // break init cycle
 }
 
