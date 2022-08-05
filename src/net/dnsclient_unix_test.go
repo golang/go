@@ -2323,7 +2323,6 @@ func TestLongDnsNames(t *testing.T) {
 
 	for i, v := range longDNSNamesTests {
 		for _, testName := range methodTests {
-			//_, err := r.LookupHost(context.Background(), v.req)
 			err := query(testName, v.req)
 			if v.fail {
 				if err == nil {
