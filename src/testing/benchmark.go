@@ -615,6 +615,11 @@ func (ctx *benchContext) processBench(b *B) {
 	}
 }
 
+// If hideStdoutForTesting is true, Run does not print the benchName.
+// This avoids a spurious print during 'go test' on package testing itself,
+// which invokes b.Run in its own tests (see sub_test.go).
+var hideStdoutForTesting = false
+
 // Run benchmarks f as a subbenchmark with the given name. It reports
 // whether there were any failures.
 //
@@ -670,7 +675,9 @@ func (b *B) Run(name string, f func(b *B)) bool {
 			}
 		})
 
-		fmt.Println(benchName)
+		if !hideStdoutForTesting {
+			fmt.Println(benchName)
+		}
 	}
 
 	if sub.run1() {

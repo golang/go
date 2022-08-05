@@ -657,6 +657,10 @@ func TestBRun(t *T) {
 			}
 		},
 	}}
+	hideStdoutForTesting = true
+	defer func() {
+		hideStdoutForTesting = false
+	}()
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
 			var ok bool
