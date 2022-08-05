@@ -644,7 +644,6 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 			return <-lane
 		}
 	}
-
 	var lastErr error
 	for _, fqdn := range conf.nameList(name) {
 		for _, qtype := range qtypes {
