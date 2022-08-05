@@ -133,13 +133,20 @@ all further processing for that package.
 
 The generator is run in the package's source directory.
 
-Go generate accepts one specific flag:
+Go generate accepts two specific flags:
 
 	-run=""
 		if non-empty, specifies a regular expression to select
 		directives whose full original source text (excluding
 		any trailing spaces and final newline) matches the
 		expression.
+
+	-skip=""
+		if non-empty, specifies a regular expression to suppress
+		directives whose full original source text (excluding
+		any trailing spaces and final newline) matches the
+		expression. If a directive matches both the -run and
+		the -skip arguments, it is skipped.
 
 It also accepts the standard build flags including -v, -n, and -x.
 The -v flag prints the names of packages and files as they are
@@ -156,17 +163,28 @@ For more about specifying packages, see 'go help packages'.
 var (
 	generateRunFlag string         // generate -run flag
 	generateRunRE   *regexp.Regexp // compiled expression for -run
+
+	generateSkipFlag string         // generate -skip flag
+	generateSkipRE   *regexp.Regexp // compiled expression for -skip
 )
 
 func init() {
 	work.AddBuildFlags(CmdGenerate, work.DefaultBuildFlags)
 	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
+	CmdGenerate.Flag.StringVar(&generateSkipFlag, "skip", "", "")
 }
 
 func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 	if generateRunFlag != "" {
 		var err error
 		generateRunRE, err = regexp.Compile(generateRunFlag)
+		if err != nil {
+			log.Fatalf("generate: %s", err)
+		}
+	}
+	if generateSkipFlag != "" {
+		var err error
+		generateSkipRE, err = regexp.Compile(generateSkipFlag)
 		if err != nil {
 			log.Fatalf("generate: %s", err)
 		}
@@ -291,10 +309,11 @@ func (g *Generator) run() (ok bool) {
 		if !isGoGenerate(buf) {
 			continue
 		}
-		if generateRunFlag != "" {
-			if !generateRunRE.Match(bytes.TrimSpace(buf)) {
-				continue
-			}
+		if generateRunFlag != "" && !generateRunRE.Match(bytes.TrimSpace(buf)) {
+			continue
+		}
+		if generateSkipFlag != "" && generateSkipRE.Match(bytes.TrimSpace(buf)) {
+			continue
 		}
 
 		g.setEnv()

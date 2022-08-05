@@ -594,13 +594,20 @@
 //
 // The generator is run in the package's source directory.
 //
-// Go generate accepts one specific flag:
+// Go generate accepts two specific flags:
 //
 //	-run=""
 //		if non-empty, specifies a regular expression to select
 //		directives whose full original source text (excluding
 //		any trailing spaces and final newline) matches the
 //		expression.
+//
+//	-skip=""
+//		if non-empty, specifies a regular expression to suppress
+//		directives whose full original source text (excluding
+//		any trailing spaces and final newline) matches the
+//		expression. If a directive matches both the -run and
+//		the -skip arguments, it is skipped.
 //
 // It also accepts the standard build flags including -v, -n, and -x.
 // The -v flag prints the names of packages and files as they are
