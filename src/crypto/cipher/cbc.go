@@ -11,7 +11,10 @@
 
 package cipher
 
-import "crypto/internal/alias"
+import (
+	"crypto/internal/alias"
+	"crypto/subtle"
+)
 
 type cbc struct {
 	b         Block
@@ -80,7 +83,7 @@ func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
 
 	for len(src) > 0 {
 		// Write the xor to dst, then encrypt in place.
-		xorBytes(dst[:x.blockSize], src[:x.blockSize], iv)
+		subtle.XORBytes(dst[:x.blockSize], src[:x.blockSize], iv)
 		x.b.Encrypt(dst[:x.blockSize], dst[:x.blockSize])
 
 		// Move to the next block with this block as the next iv.
@@ -162,7 +165,7 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
 	// Loop over all but the first block.
 	for start > 0 {
 		x.b.Decrypt(dst[start:end], src[start:end])
-		xorBytes(dst[start:end], dst[start:end], src[prev:start])
+		subtle.XORBytes(dst[start:end], dst[start:end], src[prev:start])
 
 		end = start
 		start = prev
@@ -171,7 +174,7 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
 
 	// The first block is special because it uses the saved iv.
 	x.b.Decrypt(dst[start:end], src[start:end])
-	xorBytes(dst[start:end], dst[start:end], x.iv)
+	subtle.XORBytes(dst[start:end], dst[start:end], x.iv)
 
 	// Set the new iv to the first block we copied earlier.
 	x.iv, x.tmp = x.tmp, x.iv

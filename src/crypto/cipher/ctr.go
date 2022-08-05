@@ -12,7 +12,10 @@
 
 package cipher
 
-import "crypto/internal/alias"
+import (
+	"crypto/internal/alias"
+	"crypto/subtle"
+)
 
 type ctr struct {
 	b       Block
@@ -83,7 +86,7 @@ func (x *ctr) XORKeyStream(dst, src []byte) {
 		if x.outUsed >= len(x.out)-x.b.BlockSize() {
 			x.refill()
 		}
-		n := xorBytes(dst, src, x.out[x.outUsed:])
+		n := subtle.XORBytes(dst, src, x.out[x.outUsed:])
 		dst = dst[n:]
 		src = src[n:]
 		x.outUsed += n

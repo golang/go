@@ -6,7 +6,10 @@
 
 package cipher
 
-import "crypto/internal/alias"
+import (
+	"crypto/internal/alias"
+	"crypto/subtle"
+)
 
 type cfb struct {
 	b       Block
@@ -37,7 +40,7 @@ func (x *cfb) XORKeyStream(dst, src []byte) {
 			// able to match CTR/OFB performance.
 			copy(x.next[x.outUsed:], src)
 		}
-		n := xorBytes(dst, src, x.out[x.outUsed:])
+		n := subtle.XORBytes(dst, src, x.out[x.outUsed:])
 		if !x.decrypt {
 			copy(x.next[x.outUsed:], dst)
 		}

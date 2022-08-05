@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ppc64 || ppc64le
+//go:build (ppc64 || ppc64le) && !purego
 
 #include "textflag.h"
 
-// func xorBytesVSX(dst, a, b *byte, n int)
-TEXT ·xorBytesVSX(SB), NOSPLIT, $0
+// func xorBytes(dst, a, b *byte, n int)
+TEXT ·xorBytes(SB), NOSPLIT, $0
 	MOVD	dst+0(FP), R3	// R3 = dst
 	MOVD	a+8(FP), R4	// R4 = a
 	MOVD	b+16(FP), R5	// R5 = b

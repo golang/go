@@ -373,7 +373,7 @@ func (g *gcm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
 		g.cipher.Encrypt(mask[:], counter[:])
 		gcmInc32(counter)
 
-		xorWords(out, in, mask[:])
+		subtle.XORBytes(out, in, mask[:])
 		out = out[gcmBlockSize:]
 		in = in[gcmBlockSize:]
 	}
@@ -381,7 +381,7 @@ func (g *gcm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
 	if len(in) > 0 {
 		g.cipher.Encrypt(mask[:], counter[:])
 		gcmInc32(counter)
-		xorBytes(out, in, mask[:])
+		subtle.XORBytes(out, in, mask[:])
 	}
 }
 
@@ -423,5 +423,5 @@ func (g *gcm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]
 	binary.BigEndian.PutUint64(out, y.low)
 	binary.BigEndian.PutUint64(out[8:], y.high)
 
-	xorWords(out, out, tagMask[:])
+	subtle.XORBytes(out, out, tagMask[:])
 }
