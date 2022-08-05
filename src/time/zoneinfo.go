@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-//go:generate env ZONEINFO=$GOROOT/lib/time/zoneinfo.zip go run genzabbrs.go -output zoneinfo_abbrs_windows.go
+//go:generate env ZONEINFO=$GOROOT/src/time/tzdata/zoneinfo.zip go run genzabbrs.go -output zoneinfo_abbrs_windows.go
 
 // A Location maps time instants to the zone in use at that time.
 // Typically, the Location represents the collection of time offsets
@@ -636,7 +636,7 @@ var zoneinfoOnce sync.Once
 //
 // - the directory or uncompressed zip file named by the ZONEINFO environment variable
 // - on a Unix system, the system standard installation location
-// - $GOROOT/lib/time/zoneinfo.zip
+// - $GOROOT/src/time/tzdata/zoneinfo.zip
 // - the time/tzdata package, if it was imported
 func LoadLocation(name string) (*Location, error) {
 	if name == "" || name == "UTC" {

@@ -33,7 +33,7 @@ func gorootZoneSource(goroot string) (string, bool) {
 	if goroot == "" || !allowGorootSource {
 		return "", false
 	}
-	return goroot + "/lib/time/zoneinfo.zip", true
+	return goroot + "/src/time/tzdata/zoneinfo.zip", true
 }
 
 func androidLoadTzinfoFromTzdata(file, name string) ([]byte, error) {

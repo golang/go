@@ -19,7 +19,7 @@ func gorootZoneSource(goroot string) (string, bool) {
 	// For self-hosted iOS builds, the zoneinfo.zip is in GOROOT.
 	var roots []string
 	if goroot != "" {
-		roots = append(roots, goroot+"/lib/time")
+		roots = append(roots, goroot+"/src/time/tzdata")
 	}
 	wd, err := syscall.Getwd()
 	if err == nil {
