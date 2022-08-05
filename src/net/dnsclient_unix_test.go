@@ -2271,9 +2271,10 @@ func TestLongDnsNames(t *testing.T) {
 				break
 			}
 
+			expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: v.req, IsNotFound: true}
 			var dnsErr *DNSError
 			errors.As(err, &dnsErr)
-			if dnsErr == nil || dnsErr.Err != errNoSuchHost.Error() {
+			if dnsErr == nil || *dnsErr != expectedErr {
 				t.Errorf("%v: unexpected error: %v", i, err)
 			}
 			break
