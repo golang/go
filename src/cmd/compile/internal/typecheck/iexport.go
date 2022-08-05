@@ -1928,7 +1928,9 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
-		w.expr(n.RType)
+		if w.bool(n.RType != nil) {
+			w.expr(n.RType)
+		}
 		if w.bool(n.ITab != nil) {
 			w.expr(n.ITab)
 		}
