@@ -866,12 +866,12 @@ func (t *tester) registerTests() {
 			})
 		}
 	}
-	// Only run the API check on fast development platforms. Android, iOS, and JS
-	// are always cross-compiled, and the filesystems on our only plan9 builders
-	// are too slow to complete in a reasonable timeframe. Every platform checks
-	// the API on every GOOS/GOARCH/CGO_ENABLED combination anyway, so we really
-	// only need to run this check once anywhere to get adequate coverage.
-	if goos != "android" && !t.iOS() && goos != "js" && goos != "plan9" {
+	// Only run the API check on fast development platforms.
+	// Every platform checks the API on every GOOS/GOARCH/CGO_ENABLED combination anyway,
+	// so we really only need to run this check once anywhere to get adequate coverage.
+	// To help developers avoid trybot-only failures, we try to run on typical developer machines
+	// which is darwin/linux/windows and amd64/arm64.
+	if (goos == "darwin" || goos == "linux" || goos == "windows") && (goarch == "amd64" || goarch == "arm64") {
 		t.tests = append(t.tests, distTest{
 			name:    "api",
 			heading: "API check",
