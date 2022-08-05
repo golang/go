@@ -283,15 +283,20 @@ func (m *moduleErrorMap) Error() string {
 // workspaceLayoutErrors returns a diagnostic for every open file, as well as
 // an error message if there are no open files.
 func (s *snapshot) workspaceLayoutError(ctx context.Context) *source.CriticalError {
+	// TODO(rfindley): do we really not want to show a critical error if the user
+	// has no go.mod files?
 	if len(s.workspace.getKnownModFiles()) == 0 {
 		return nil
 	}
+
+	// TODO(rfindley): both of the checks below should be delegated to the workspace.
 	if s.view.userGo111Module == off {
 		return nil
 	}
 	if s.workspace.moduleSource != legacyWorkspace {
 		return nil
 	}
+
 	// If the user has one module per view, there is nothing to warn about.
 	if s.ValidBuildConfiguration() && len(s.workspace.getKnownModFiles()) == 1 {
 		return nil
@@ -305,10 +310,21 @@ func (s *snapshot) workspaceLayoutError(ctx context.Context) *source.CriticalErr
 	// that the user has opened a directory that contains multiple modules.
 	// Check for that an warn about it.
 	if !s.ValidBuildConfiguration() {
-		msg := `gopls requires a module at the root of your workspace.
-You can work with multiple modules by opening each one as a workspace folder.
-Improvements to this workflow will be coming soon, and you can learn more here:
+		var msg string
+		if s.view.goversion >= 18 {
+			msg = `gopls was not able to find modules in your workspace.
+When outside of GOPATH, gopls needs to know which modules you are working on.
+You can fix this by opening your workspace to a folder inside a Go module, or
+by using a go.work file to specify multiple modules.
+See the documentation for more information on setting up your workspace:
 https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
+		} else {
+			msg = `gopls requires a module at the root of your workspace.
+You can work with multiple modules by upgrading to Go 1.18 or later, and using
+go workspaces (go.work files).
+See the documentation for more information on setting up your workspace:
+https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
+		}
 		return &source.CriticalError{
 			MainError:   fmt.Errorf(msg),
 			Diagnostics: s.applyCriticalErrorToFiles(ctx, msg, openFiles),

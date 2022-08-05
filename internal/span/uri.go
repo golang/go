@@ -144,7 +144,9 @@ func equalURI(a, b URI) bool {
 }
 
 // URIFromPath returns a span URI for the supplied file path.
-// It will always have the file scheme.
+//
+// For empty paths, URIFromPath returns the empty URI "".
+// For non-empty paths, URIFromPath returns a uri with the file:// scheme.
 func URIFromPath(path string) URI {
 	if path == "" {
 		return ""

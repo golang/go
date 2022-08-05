@@ -23,10 +23,11 @@ import (
 // Sandbox holds a collection of temporary resources to use for working with Go
 // code in tests.
 type Sandbox struct {
-	gopath  string
-	rootdir string
-	goproxy string
-	Workdir *Workdir
+	gopath          string
+	rootdir         string
+	goproxy         string
+	Workdir         *Workdir
+	goCommandRunner gocommand.Runner
 }
 
 // SandboxConfig controls the behavior of a test sandbox. The zero value
@@ -229,30 +230,36 @@ func (sb *Sandbox) GoEnv() map[string]string {
 	return vars
 }
 
-// RunGoCommand executes a go command in the sandbox. If checkForFileChanges is
-// true, the sandbox scans the working directory and emits file change events
-// for any file changes it finds.
-func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []string, checkForFileChanges bool) error {
+// goCommandInvocation returns a new gocommand.Invocation initialized with the
+// sandbox environment variables and working directory.
+func (sb *Sandbox) goCommandInvocation() gocommand.Invocation {
 	var vars []string
 	for k, v := range sb.GoEnv() {
 		vars = append(vars, fmt.Sprintf("%s=%s", k, v))
 	}
 	inv := gocommand.Invocation{
-		Verb: verb,
-		Args: args,
-		Env:  vars,
+		Env: vars,
 	}
-	// Use the provided directory for the working directory, if available.
 	// sb.Workdir may be nil if we exited the constructor with errors (we call
 	// Close to clean up any partial state from the constructor, which calls
 	// RunGoCommand).
-	if dir != "" {
-		inv.WorkingDir = sb.Workdir.AbsPath(dir)
-	} else if sb.Workdir != nil {
+	if sb.Workdir != nil {
 		inv.WorkingDir = string(sb.Workdir.RelativeTo)
 	}
-	gocmdRunner := &gocommand.Runner{}
-	stdout, stderr, _, err := gocmdRunner.RunRaw(ctx, inv)
+	return inv
+}
+
+// RunGoCommand executes a go command in the sandbox. If checkForFileChanges is
+// true, the sandbox scans the working directory and emits file change events
+// for any file changes it finds.
+func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []string, checkForFileChanges bool) error {
+	inv := sb.goCommandInvocation()
+	inv.Verb = verb
+	inv.Args = args
+	if dir != "" {
+		inv.WorkingDir = sb.Workdir.AbsPath(dir)
+	}
+	stdout, stderr, _, err := sb.goCommandRunner.RunRaw(ctx, inv)
 	if err != nil {
 		return fmt.Errorf("go command failed (stdout: %s) (stderr: %s): %v", stdout.String(), stderr.String(), err)
 	}
@@ -267,6 +274,13 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []st
 		}
 	}
 	return nil
+}
+
+// GoVersion checks the version of the go command.
+// It returns the X in Go 1.X.
+func (sb *Sandbox) GoVersion(ctx context.Context) (int, error) {
+	inv := sb.goCommandInvocation()
+	return gocommand.GoVersion(ctx, inv, &sb.goCommandRunner)
 }
 
 // Close removes all state associated with the sandbox.

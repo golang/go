@@ -74,10 +74,11 @@ func (c *Client) WorkspaceFolders(context.Context) ([]protocol.WorkspaceFolder, 
 func (c *Client) Configuration(_ context.Context, p *protocol.ParamConfiguration) ([]interface{}, error) {
 	results := make([]interface{}, len(p.Items))
 	for i, item := range p.Items {
-		if item.Section != "gopls" {
-			continue
+		if item.Section == "gopls" {
+			c.editor.mu.Lock()
+			results[i] = c.editor.settingsLocked()
+			c.editor.mu.Unlock()
 		}
-		results[i] = c.editor.settings()
 	}
 	return results, nil
 }

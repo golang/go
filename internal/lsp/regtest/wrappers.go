@@ -277,6 +277,17 @@ func (e *Env) RunGoCommandInDir(dir, verb string, args ...string) {
 	}
 }
 
+// GoVersion checks the version of the go command.
+// It returns the X in Go 1.X.
+func (e *Env) GoVersion() int {
+	e.T.Helper()
+	v, err := e.Sandbox.GoVersion(e.Ctx)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return v
+}
+
 // DumpGoSum prints the correct go.sum contents for dir in txtar format,
 // for use in creating regtests.
 func (e *Env) DumpGoSum(dir string) {
@@ -430,6 +441,15 @@ func (e *Env) CodeAction(path string, diagnostics []protocol.Diagnostic) []proto
 func (e *Env) ChangeConfiguration(newConfig fake.EditorConfig) {
 	e.T.Helper()
 	if err := e.Editor.ChangeConfiguration(e.Ctx, newConfig); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
+// ChangeWorkspaceFolders updates the editor workspace folders, calling t.Fatal
+// on any error.
+func (e *Env) ChangeWorkspaceFolders(newFolders ...string) {
+	e.T.Helper()
+	if err := e.Editor.ChangeWorkspaceFolders(e.Ctx, newFolders); err != nil {
 		e.T.Fatal(err)
 	}
 }

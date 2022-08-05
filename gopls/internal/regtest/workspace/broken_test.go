@@ -169,6 +169,14 @@ const F = named.D - 3
 }
 
 func TestMultipleModules_Warning(t *testing.T) {
+	msgForVersion := func(ver int) string {
+		if ver >= 18 {
+			return `gopls was not able to find modules in your workspace.`
+		} else {
+			return `gopls requires a module at the root of your workspace.`
+		}
+	}
+
 	const modules = `
 -- a/go.mod --
 module a.com
@@ -189,13 +197,34 @@ package b
 				Modes(Default),
 				EnvVars{"GO111MODULE": go111module},
 			).Run(t, modules, func(t *testing.T, env *Env) {
+				ver := env.GoVersion()
+				msg := msgForVersion(ver)
 				env.OpenFile("a/a.go")
 				env.OpenFile("b/go.mod")
 				env.Await(
 					env.DiagnosticAtRegexp("a/a.go", "package a"),
 					env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
-					OutstandingWork(lsp.WorkspaceLoadFailure, "gopls requires a module at the root of your workspace."),
+					OutstandingWork(lsp.WorkspaceLoadFailure, msg),
 				)
+
+				// Changing the workspace folders to the valid modules should resolve
+				// the workspace error.
+				env.ChangeWorkspaceFolders("a", "b")
+				env.Await(NoOutstandingWork())
+
+				env.ChangeWorkspaceFolders(".")
+
+				// TODO(rfindley): when GO111MODULE=auto, we need to open or change a
+				// file here in order to detect a critical error. This is because gopls
+				// has forgotten about a/a.go, and therefor doesn't hit the heuristic
+				// "all packages are command-line-arguments".
+				//
+				// This is broken, and could be fixed by adjusting the heuristic to
+				// account for the scenario where there are *no* workspace packages, or
+				// (better) trying to get workspace packages for each open file. See
+				// also golang/go#54261.
+				env.OpenFile("b/b.go")
+				env.Await(OutstandingWork(lsp.WorkspaceLoadFailure, msg))
 			})
 		})
 	}

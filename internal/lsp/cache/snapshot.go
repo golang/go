@@ -274,7 +274,24 @@ func (s *snapshot) Templates() map[span.URI]source.VersionedFileHandle {
 }
 
 func (s *snapshot) ValidBuildConfiguration() bool {
-	return validBuildConfiguration(s.view.rootURI, &s.view.workspaceInformation, s.workspace.getActiveModFiles())
+	// Since we only really understand the `go` command, if the user has a
+	// different GOPACKAGESDRIVER, assume that their configuration is valid.
+	if s.view.hasGopackagesDriver {
+		return true
+	}
+	// Check if the user is working within a module or if we have found
+	// multiple modules in the workspace.
+	if len(s.workspace.getActiveModFiles()) > 0 {
+		return true
+	}
+	// The user may have a multiple directories in their GOPATH.
+	// Check if the workspace is within any of them.
+	for _, gp := range filepath.SplitList(s.view.gopath) {
+		if source.InDir(filepath.Join(gp, "src"), s.view.rootURI.Filename()) {
+			return true
+		}
+	}
+	return false
 }
 
 // workspaceMode describes the way in which the snapshot's workspace should
@@ -1358,6 +1375,8 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 		// with the user's workspace layout. Workspace packages that only have the
 		// ID "command-line-arguments" are usually a symptom of a bad workspace
 		// configuration.
+		//
+		// TODO(rfindley): re-evaluate this heuristic.
 		if containsCommandLineArguments(wsPkgs) {
 			return s.workspaceLayoutError(ctx)
 		}

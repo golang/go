@@ -926,27 +926,6 @@ func defaultCheckPathCase(path string) error {
 	return nil
 }
 
-func validBuildConfiguration(folder span.URI, ws *workspaceInformation, modFiles map[span.URI]struct{}) bool {
-	// Since we only really understand the `go` command, if the user has a
-	// different GOPACKAGESDRIVER, assume that their configuration is valid.
-	if ws.hasGopackagesDriver {
-		return true
-	}
-	// Check if the user is working within a module or if we have found
-	// multiple modules in the workspace.
-	if len(modFiles) > 0 {
-		return true
-	}
-	// The user may have a multiple directories in their GOPATH.
-	// Check if the workspace is within any of them.
-	for _, gp := range filepath.SplitList(ws.gopath) {
-		if source.InDir(filepath.Join(gp, "src"), folder.Filename()) {
-			return true
-		}
-	}
-	return false
-}
-
 // getGoEnv gets the view's various GO* values.
 func (s *Session) getGoEnv(ctx context.Context, folder string, goversion int, go111module string, configEnv []string) (environmentVariables, map[string]string, error) {
 	envVars := environmentVariables{}

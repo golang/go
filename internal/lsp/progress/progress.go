@@ -118,7 +118,7 @@ func (t *Tracker) Start(ctx context.Context, title, message string, token protoc
 		},
 	})
 	if err != nil {
-		event.Error(ctx, "generate progress begin", err)
+		event.Error(ctx, "progress begin", err)
 	}
 	return wd
 }
