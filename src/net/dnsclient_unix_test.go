@@ -2248,14 +2248,34 @@ func TestLongDnsNames(t *testing.T) {
 					{
 						Header: dnsmessage.ResourceHeader{
 							Name:  q.Questions[0].Name,
-							Type:  dnsmessage.TypeTXT,
+							Type:  q.Questions[0].Type,
 							Class: dnsmessage.ClassINET,
-						},
-						Body: &dnsmessage.TXTResource{
-							TXT: []string{"."},
 						},
 					},
 				},
+			}
+
+			switch q.Questions[0].Type {
+			case dnsmessage.TypeA:
+				r.Answers[0].Body = &dnsmessage.AResource{A: TestAddr}
+			case dnsmessage.TypeAAAA:
+				r.Answers[0].Body = &dnsmessage.AAAAResource{AAAA: TestAddr6}
+			case dnsmessage.TypeTXT:
+				r.Answers[0].Body = &dnsmessage.TXTResource{TXT: []string{"."}}
+			case dnsmessage.TypeMX:
+				r.Answers[0].Body = &dnsmessage.MXResource{
+					MX: dnsmessage.MustNewName("go.dev."),
+				}
+			case dnsmessage.TypeNS:
+				r.Answers[0].Body = &dnsmessage.NSResource{
+					NS: dnsmessage.MustNewName("go.dev."),
+				}
+			case dnsmessage.TypeSRV:
+				r.Answers[0].Body = &dnsmessage.SRVResource{
+					Target: dnsmessage.MustNewName("go.dev."),
+				}
+			default:
+				panic("unknown dnsmessage type")
 			}
 
 			return r, nil
@@ -2263,24 +2283,65 @@ func TestLongDnsNames(t *testing.T) {
 	}
 
 	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
+
+	methodTests := []string{"CNAME", "Host", "IP", "IPAddr", "MX", "NS", "NetIP", "SRV", "TXT"}
+	query := func(t string, req string) error {
+		switch t {
+		case "CNAME":
+			_, err := r.LookupCNAME(context.Background(), req)
+			return err
+		case "Host":
+			_, err := r.LookupHost(context.Background(), req)
+			return err
+		case "IP":
+			_, err := r.LookupIP(context.Background(), "ip", req)
+			return err
+		case "IPAddr":
+			_, err := r.LookupIPAddr(context.Background(), req)
+			return err
+		case "MX":
+			_, err := r.LookupMX(context.Background(), req)
+			return err
+		case "NS":
+			_, err := r.LookupNS(context.Background(), req)
+			return err
+		case "NetIP":
+			_, err := r.LookupNetIP(context.Background(), "ip", req)
+			return err
+		case "SRV":
+			const service = "service"
+			const proto = "proto"
+			req = req[len(service)+len(proto)+4:]
+			_, _, err := r.LookupSRV(context.Background(), service, proto, req)
+			return err
+		case "TXT":
+			_, err := r.LookupTXT(context.Background(), req)
+			return err
+		}
+		panic("unknown query method")
+	}
+
 	for i, v := range longDNSNamesTests {
-		_, err := r.LookupTXT(context.Background(), v.req)
-		if v.fail {
-			if err == nil {
-				t.Errorf("%v: unexpected success", i)
+		for _, testName := range methodTests {
+			//_, err := r.LookupHost(context.Background(), v.req)
+			err := query(testName, v.req)
+			if v.fail {
+				if err == nil {
+					t.Errorf("%v: Lookup%v: unexpected success", i, testName)
+					break
+				}
+
+				expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: v.req, IsNotFound: true}
+				var dnsErr *DNSError
+				errors.As(err, &dnsErr)
+				if dnsErr == nil || *dnsErr != expectedErr {
+					t.Errorf("%v: Lookup%v: unexpected error: %v", i, testName, err)
+				}
 				break
 			}
-
-			expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: v.req, IsNotFound: true}
-			var dnsErr *DNSError
-			errors.As(err, &dnsErr)
-			if dnsErr == nil || *dnsErr != expectedErr {
-				t.Errorf("%v: unexpected error: %v", i, err)
+			if err != nil {
+				t.Errorf("%v: Lookup%v: unexpected error: %v", i, testName, err)
 			}
-			break
-		}
-		if err != nil {
-			t.Errorf("%v: unexpected error: %v", i, err)
 		}
 	}
 }
