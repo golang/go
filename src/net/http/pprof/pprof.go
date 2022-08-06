@@ -21,10 +21,15 @@
 //		log.Println(http.ListenAndServe("localhost:6060", nil))
 //	}()
 //
+// By default, all the profiles listed in [runtime/pprof.Profile] are
+// available (via [Handler]), in addition to the [Cmdline], [Profile], [Symbol],
+// and [Trace] profiles defined in this package.
 // If you are not using DefaultServeMux, you will have to register handlers
 // with the mux you are using.
 //
-// Then use the pprof tool to look at the heap profile:
+// # Usage examples
+//
+// Use the pprof tool to look at the heap profile:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/heap
 //
@@ -222,6 +227,7 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
 }
 
 // Handler returns an HTTP handler that serves the named profile.
+// Available profiles can be found in [runtime/pprof.Profile].
 func Handler(name string) http.Handler {
 	return handler(name)
 }
@@ -345,7 +351,7 @@ var profileDescriptions = map[string]string{
 	"allocs":       "A sampling of all past memory allocations",
 	"block":        "Stack traces that led to blocking on synchronization primitives",
 	"cmdline":      "The command line invocation of the current program",
-	"goroutine":    "Stack traces of all current goroutines",
+	"goroutine":    "Stack traces of all current goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic.",
 	"heap":         "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
 	"mutex":        "Stack traces of holders of contended mutexes",
 	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
@@ -417,7 +423,9 @@ func indexTmplExecute(w io.Writer, profiles []profileEntry) error {
 </style>
 </head>
 <body>
-/debug/pprof/<br>
+/debug/pprof/
+<br>
+<p>Set debug=1 as a query parameter to export in legacy text format</p>
 <br>
 Types of profiles available:
 <table>
