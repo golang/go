@@ -43,7 +43,7 @@ func runtime_AfterForkInChild()
 
 func chdir(path uintptr) (err Errno)
 func chroot1(path uintptr) (err Errno)
-func close(fd uintptr) (err Errno)
+func closeFD(fd uintptr) (err Errno)
 func dup2child(old uintptr, new uintptr) (val uintptr, err Errno)
 func execve(path uintptr, argv uintptr, envp uintptr) (err Errno)
 func exit(code uintptr)
@@ -240,7 +240,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Pass 2: dup fd[i] down onto i.
 	for i = 0; i < len(fd); i++ {
 		if fd[i] == -1 {
-			close(uintptr(i))
+			closeFD(uintptr(i))
 			continue
 		}
 		if fd[i] == int(i) {
@@ -265,7 +265,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Programs that know they inherit fds >= 3 will need
 	// to set them close-on-exec.
 	for i = len(fd); i < 3; i++ {
-		close(uintptr(i))
+		closeFD(uintptr(i))
 	}
 
 	// Detach fd 0 from tty
