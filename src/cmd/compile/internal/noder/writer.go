@@ -428,16 +428,16 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		}
 
 	case *types2.Named:
-		assert(typ.TypeParams().Len() == typ.TypeArgs().Len())
+		obj, targs := splitNamed(typ)
 
-		// TODO(mdempsky): Why do we need to loop here?
-		orig := typ
-		for orig.TypeArgs() != nil {
-			orig = orig.Origin()
+		// Defined types that are declared within a generic function (and
+		// thus have implicit type parameters) are always derived types.
+		if w.p.hasImplicitTypeParams(obj) {
+			w.derived = true
 		}
 
 		w.Code(pkgbits.TypeNamed)
-		w.obj(orig.Obj(), typ.TypeArgs())
+		w.obj(obj, targs)
 
 	case *types2.TypeParam:
 		index := func() int {
@@ -615,16 +615,6 @@ func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
 		w.Bool(true)
 		w.Len(idx)
 		return
-	}
-
-	// TODO(mdempsky): Push up into typIdx; this shouldn't be needed
-	// except while writing out types.
-	if isDefinedType(obj) && obj.Pkg() == w.p.curpkg {
-		decl, ok := w.p.typDecls[obj.(*types2.TypeName)]
-		assert(ok)
-		if len(decl.implicits) != 0 {
-			w.derived = true
-		}
 	}
 
 	w.Sync(pkgbits.SyncObject)
@@ -2329,6 +2319,20 @@ func (w *writer) pkgObjs(names ...*syntax.Name) {
 
 // @@@ Helpers
 
+// hasImplicitTypeParams reports whether obj is a defined type with
+// implicit type parameters (e.g., declared within a generic function
+// or method).
+func (p *pkgWriter) hasImplicitTypeParams(obj *types2.TypeName) bool {
+	if obj.Pkg() == p.curpkg {
+		decl, ok := p.typDecls[obj]
+		assert(ok)
+		if len(decl.implicits) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // isDefinedType reports whether obj is a defined type.
 func isDefinedType(obj types2.Object) bool {
 	if obj, ok := obj.(*types2.TypeName); ok {
@@ -2457,6 +2461,18 @@ func objTypeParams(obj types2.Object) *types2.TypeParamList {
 		}
 	}
 	return nil
+}
+
+// splitNamed decomposes a use of a defined type into its original
+// type definition and the type arguments used to instantiate it.
+func splitNamed(typ *types2.Named) (*types2.TypeName, *types2.TypeList) {
+	base.Assertf(typ.TypeParams().Len() == typ.TypeArgs().Len(), "use of uninstantiated type: %v", typ)
+
+	orig := typ.Origin()
+	base.Assertf(orig.TypeArgs() == nil, "origin %v of %v has type arguments", orig, typ)
+	base.Assertf(typ.Obj() == orig.Obj(), "%v has object %v, but %v has object %v", typ, typ.Obj(), orig, orig.Obj())
+
+	return typ.Obj(), typ.TypeArgs()
 }
 
 func asPragmaFlag(p syntax.Pragma) ir.PragmaFlag {
