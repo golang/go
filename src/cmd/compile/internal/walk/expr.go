@@ -727,22 +727,10 @@ func walkIndex(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 		if base.Flag.LowerM != 0 && n.Bounded() && !ir.IsConst(n.Index, constant.Int) {
 			base.Warn("index bounds check elided")
 		}
-		if ir.IsSmallIntConst(n.Index) && !n.Bounded() {
-			base.Errorf("index out of bounds")
-		}
 	} else if ir.IsConst(n.X, constant.String) {
 		n.SetBounded(bounded(r, int64(len(ir.StringVal(n.X)))))
 		if base.Flag.LowerM != 0 && n.Bounded() && !ir.IsConst(n.Index, constant.Int) {
 			base.Warn("index bounds check elided")
-		}
-		if ir.IsSmallIntConst(n.Index) && !n.Bounded() {
-			base.Errorf("index out of bounds")
-		}
-	}
-
-	if ir.IsConst(n.Index, constant.Int) {
-		if v := n.Index.Val(); constant.Sign(v) < 0 || ir.ConstOverflow(v, types.Types[types.TINT]) {
-			base.Errorf("index out of bounds")
 		}
 	}
 	return n
