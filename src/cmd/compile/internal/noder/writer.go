@@ -1585,8 +1585,25 @@ func (w *writer) expr(expr syntax.Expr) {
 		sel, ok := w.p.info.Selections[expr]
 		assert(ok)
 
-		w.Code(exprSelector)
-		if w.Bool(sel.Kind() == types2.MethodExpr) {
+		switch sel.Kind() {
+		default:
+			w.p.fatalf(expr, "unexpected selection kind: %v", sel.Kind())
+
+		case types2.FieldVal:
+			w.Code(exprFieldVal)
+			w.expr(expr.X)
+			w.pos(expr)
+			w.selector(sel.Obj())
+
+		case types2.MethodVal:
+			w.Code(exprMethodVal)
+			w.expr(expr.X)
+			w.pos(expr)
+			w.selector(sel.Obj())
+
+		case types2.MethodExpr:
+			w.Code(exprMethodExpr)
+
 			tv, ok := w.p.info.Types[expr.X]
 			assert(ok)
 			assert(tv.IsType())
@@ -1600,11 +1617,9 @@ func (w *writer) expr(expr syntax.Expr) {
 			}
 
 			w.typInfo(typInfo)
-		} else {
-			w.expr(expr.X)
+			w.pos(expr)
+			w.selector(sel.Obj())
 		}
-		w.pos(expr)
-		w.selector(sel.Obj())
 
 	case *syntax.IndexExpr:
 		_ = w.p.typeOf(expr.Index) // ensure this is an index expression, not an instantiation

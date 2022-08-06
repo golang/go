@@ -43,7 +43,9 @@ const (
 	exprGlobal          // global variable or function
 	exprCompLit
 	exprFuncLit
-	exprSelector
+	exprFieldVal
+	exprMethodVal
+	exprMethodExpr
 	exprIndex
 	exprSlice
 	exprAssert

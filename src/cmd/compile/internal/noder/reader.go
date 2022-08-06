@@ -1881,35 +1881,40 @@ func (r *reader) expr() (res ir.Node) {
 	case exprFuncLit:
 		return r.funcLit()
 
-	case exprSelector:
-		var x ir.Node
-		if r.Bool() { // MethodExpr
-			if r.Bool() {
-				return r.dict.methodExprs[r.Len()]
-			}
+	case exprFieldVal:
+		x := r.expr()
+		pos := r.pos()
+		_, sym := r.selector()
 
-			n := ir.TypeNode(r.typ())
-			n.SetTypecheck(1)
-			x = n
-		} else { // FieldVal, MethodVal
-			x = r.expr()
-		}
+		return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
+
+	case exprMethodVal:
+		x := r.expr()
 		pos := r.pos()
 		_, sym := r.selector()
 
 		n := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
-		if n.Op() == ir.OMETHVALUE {
-			wrapper := methodValueWrapper{
-				rcvr:   n.X.Type(),
-				method: n.Selection,
-			}
-			if r.importedDef() {
-				haveMethodValueWrappers = append(haveMethodValueWrappers, wrapper)
-			} else {
-				needMethodValueWrappers = append(needMethodValueWrappers, wrapper)
-			}
+		wrapper := methodValueWrapper{
+			rcvr:   n.X.Type(),
+			method: n.Selection,
+		}
+		if r.importedDef() {
+			haveMethodValueWrappers = append(haveMethodValueWrappers, wrapper)
+		} else {
+			needMethodValueWrappers = append(needMethodValueWrappers, wrapper)
 		}
 		return n
+
+	case exprMethodExpr:
+		if r.Bool() {
+			return r.dict.methodExprs[r.Len()]
+		}
+
+		typ := r.typ()
+		pos := r.pos()
+		_, sym := r.selector()
+
+		return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, ir.TypeNode(typ), sym)).(*ir.SelectorExpr)
 
 	case exprIndex:
 		x := r.expr()
