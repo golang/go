@@ -54,6 +54,7 @@ const (
 	exprNew
 	exprMake
 	exprNil
+	exprFuncInst
 )
 
 type codeAssign int

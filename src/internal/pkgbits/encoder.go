@@ -23,6 +23,7 @@ import (
 //
 // TODO(mdempsky): For the next version bump:
 //   - remove the legacy "has init" bool from the public root
+//   - remove obj's "derived func instance" bool
 const currentVersion uint32 = 1
 
 // A PkgEncoder provides methods for encoding a package's Unified IR

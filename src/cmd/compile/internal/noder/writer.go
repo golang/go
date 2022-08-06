@@ -591,40 +591,31 @@ func (w *writer) param(param *types2.Var) {
 // arguments used to instantiate it (i.e., used to substitute the
 // object's own declared type parameters).
 func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
-	explicitInfos := make([]typeInfo, explicits.Len())
-	for i := range explicitInfos {
-		explicitInfos[i] = w.p.typIdx(explicits.At(i), w.dict)
-	}
-	info := objInfo{idx: w.p.objIdx(obj), explicits: explicitInfos}
+	w.objInfo(w.p.objInstIdx(obj, explicits, w.dict))
+}
 
-	if _, ok := obj.(*types2.Func); ok && info.anyDerived() {
-		idx := -1
-		for i, prev := range w.dict.funcs {
-			if prev.equals(info) {
-				idx = i
-			}
-		}
-		if idx < 0 {
-			idx = len(w.dict.funcs)
-			w.dict.funcs = append(w.dict.funcs, info)
-		}
-
-		// TODO(mdempsky): Push up into expr; this shouldn't appear
-		// outside of expression context.
-		w.Sync(pkgbits.SyncObject)
-		w.Bool(true)
-		w.Len(idx)
-		return
-	}
-
+// objInfo writes a use of the given encoded object into the
+// bitstream.
+func (w *writer) objInfo(info objInfo) {
 	w.Sync(pkgbits.SyncObject)
-	w.Bool(false)
+	w.Bool(false) // TODO(mdempsky): Remove; was derived func inst.
 	w.Reloc(pkgbits.RelocObj, info.idx)
 
 	w.Len(len(info.explicits))
 	for _, info := range info.explicits {
 		w.typInfo(info)
 	}
+}
+
+// objInstIdx returns the indices for an object and a corresponding
+// list of type arguments used to instantiate it, adding them to the
+// export data as needed.
+func (pw *pkgWriter) objInstIdx(obj types2.Object, explicits *types2.TypeList, dict *writerDict) objInfo {
+	explicitInfos := make([]typeInfo, explicits.Len())
+	for i := range explicitInfos {
+		explicitInfos[i] = pw.typIdx(explicits.At(i), dict)
+	}
+	return objInfo{idx: pw.objIdx(obj), explicits: explicitInfos}
 }
 
 // objIdx returns the index for the given Object, adding it to the
@@ -1551,15 +1542,27 @@ func (w *writer) expr(expr syntax.Expr) {
 	}
 
 	if obj != nil {
+		if targs.Len() != 0 {
+			obj := obj.(*types2.Func)
+			info := w.p.objInstIdx(obj, targs, w.dict)
+
+			w.Code(exprFuncInst)
+			if w.Bool(info.anyDerived()) {
+				w.Len(w.dict.funcIdx(info))
+				return
+			}
+			w.objInfo(info)
+			return
+		}
+
 		if isGlobal(obj) {
 			w.Code(exprGlobal)
-			w.obj(obj, targs)
+			w.obj(obj, nil)
 			return
 		}
 
 		obj := obj.(*types2.Var)
 		assert(!obj.IsField())
-		assert(targs.Len() == 0)
 
 		w.Code(exprLocal)
 		w.useLocal(expr.Pos(), obj)
@@ -1780,6 +1783,20 @@ func (w *writer) expr(expr syntax.Expr) {
 
 func sliceElem(typ types2.Type) types2.Type {
 	return types2.CoreType(typ).(*types2.Slice).Elem()
+}
+
+// funcIdx returns the index of a given encoded function instantiation
+// within the dictionary, adding it if not already present.
+func (dict *writerDict) funcIdx(newInfo objInfo) int {
+	for idx, oldInfo := range dict.funcs {
+		if oldInfo.equals(newInfo) {
+			return idx
+		}
+	}
+
+	idx := len(dict.funcs)
+	dict.funcs = append(dict.funcs, newInfo)
+	return idx
 }
 
 func (w *writer) optExpr(expr syntax.Expr) {

@@ -558,24 +558,7 @@ var objReader = map[*types.Sym]pkgReaderIndex{}
 // obj reads an instantiated object reference from the bitstream.
 func (r *reader) obj() ir.Node {
 	r.Sync(pkgbits.SyncObject)
-
-	if r.Bool() {
-		idx := r.Len()
-		obj := r.dict.funcsObj[idx]
-		if obj == nil {
-			fn := r.dict.funcs[idx]
-			targs := make([]*types.Type, len(fn.explicits))
-			for i, targ := range fn.explicits {
-				targs[i] = r.p.typIdx(targ, r.dict, true)
-			}
-
-			obj = r.p.objIdx(fn.idx, nil, targs)
-			assert(r.dict.funcsObj[idx] == nil)
-			r.dict.funcsObj[idx] = obj
-		}
-		return obj
-	}
-
+	assert(!r.Bool()) // TODO(mdempsky): Remove; was derived func inst.
 	idx := r.Reloc(pkgbits.RelocObj)
 
 	explicits := make([]*types.Type, r.Len())
@@ -1859,6 +1842,25 @@ func (r *reader) expr() (res ir.Node) {
 		// Callee instead of Expr allows builtins
 		// TODO(mdempsky): Handle builtins directly in exprCall, like method calls?
 		return typecheck.Callee(r.obj())
+
+	case exprFuncInst:
+		if r.Bool() {
+			idx := r.Len()
+			obj := r.dict.funcsObj[idx]
+			if obj == nil {
+				fn := r.dict.funcs[idx]
+				targs := make([]*types.Type, len(fn.explicits))
+				for i, targ := range fn.explicits {
+					targs[i] = r.p.typIdx(targ, r.dict, true)
+				}
+
+				obj = r.p.objIdx(fn.idx, nil, targs)
+				assert(r.dict.funcsObj[idx] == nil)
+				r.dict.funcsObj[idx] = obj
+			}
+			return obj
+		}
+		return r.obj()
 
 	case exprConst:
 		pos := r.pos()
