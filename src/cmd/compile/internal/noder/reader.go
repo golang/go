@@ -1914,6 +1914,19 @@ func (r *reader) expr() (res ir.Node) {
 		}
 		return typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
 
+	case exprRecv:
+		x := r.expr()
+		pos := r.pos()
+		for i, n := 0, r.Len(); i < n; i++ {
+			x = Implicit(DotField(pos, x, r.Len()))
+		}
+		if r.Bool() { // needs deref
+			x = Implicit(Deref(pos, x.Type().Elem(), x))
+		} else if r.Bool() { // needs addr
+			x = Implicit(Addr(pos, x))
+		}
+		return x
+
 	case exprCall:
 		fun := r.expr()
 		if r.Bool() { // method call

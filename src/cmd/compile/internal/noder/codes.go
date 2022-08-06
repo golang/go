@@ -57,6 +57,7 @@ const (
 	exprMake
 	exprNil
 	exprFuncInst
+	exprRecv
 )
 
 type codeAssign int

@@ -1540,7 +1540,7 @@ func (w *writer) expr(expr syntax.Expr) {
 
 		case types2.MethodVal:
 			w.Code(exprMethodVal)
-			w.expr(expr.X)
+			w.recvExpr(expr, sel)
 			w.pos(expr)
 			w.selector(sel.Obj())
 
@@ -1697,7 +1697,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		writeFunExpr := func() {
 			if selector, ok := unparen(expr.Fun).(*syntax.SelectorExpr); ok {
 				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
-					w.expr(selector.X)
+					w.recvExpr(selector, sel)
 					w.Bool(true) // method call
 					w.pos(selector)
 					w.selector(sel.Obj())
@@ -1739,6 +1739,40 @@ func (w *writer) optExpr(expr syntax.Expr) {
 	if w.Bool(expr != nil) {
 		w.expr(expr)
 	}
+}
+
+// recvExpr writes out expr.X, but handles any implicit addressing,
+// dereferencing, and field selections.
+func (w *writer) recvExpr(expr *syntax.SelectorExpr, sel *types2.Selection) types2.Type {
+	index := sel.Index()
+	implicits := index[:len(index)-1]
+
+	w.Code(exprRecv)
+	w.expr(expr.X)
+	w.pos(expr)
+	w.Len(len(implicits))
+
+	typ := w.p.typeOf(expr.X)
+	for _, ix := range implicits {
+		typ = deref2(typ).Underlying().(*types2.Struct).Field(ix).Type()
+		w.Len(ix)
+	}
+
+	isPtrTo := func(from, to types2.Type) bool {
+		if from, ok := from.(*types2.Pointer); ok {
+			return types2.Identical(from.Elem(), to)
+		}
+		return false
+	}
+
+	recv := sel.Obj().(*types2.Func).Type().(*types2.Signature).Recv().Type()
+	if w.Bool(isPtrTo(typ, recv)) { // needs deref
+		typ = recv
+	} else if w.Bool(isPtrTo(recv, typ)) { // needs addr
+		typ = recv
+	}
+
+	return typ
 }
 
 // multiExpr writes a sequence of expressions, where the i'th value is
