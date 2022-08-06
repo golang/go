@@ -251,3 +251,8 @@ func idealType(tv types2.TypeAndValue) types2.Type {
 	}
 	return typ
 }
+
+func isTypeParam(t types2.Type) bool {
+	_, ok := t.(*types2.TypeParam)
+	return ok
+}

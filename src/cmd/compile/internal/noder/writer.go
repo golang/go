@@ -1692,6 +1692,7 @@ func (w *writer) expr(expr syntax.Expr) {
 			w.typ(tv.Type)
 			w.pos(expr)
 			w.convRTTI(w.p.typeOf(expr.ArgList[0]), tv.Type)
+			w.Bool(isTypeParam(tv.Type))
 			w.expr(expr.ArgList[0])
 			break
 		}
@@ -1854,6 +1855,7 @@ func (w *writer) implicitConvExpr(pos poser, dst types2.Type, expr syntax.Expr) 
 		w.typ(dst)
 		w.pos(pos)
 		w.convRTTI(src, dst)
+		w.Bool(isTypeParam(dst))
 		// fallthrough
 	}
 	w.expr(expr)
