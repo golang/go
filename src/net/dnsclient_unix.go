@@ -482,7 +482,7 @@ func (conf *dnsConfig) nameList(name string) []string {
 	// Check name length (see isDomainName).
 	l := len(name)
 	rooted := l > 0 && name[l-1] == '.'
-	if l > 254 || l == 254 && rooted {
+	if l > 254 || l == 254 && !rooted {
 		return nil
 	}
 
