@@ -41,6 +41,41 @@ func Call(call *ir.CallExpr) {
 		return
 	}
 
+	if base.Debug.Unified != 0 {
+		// N.B., stencil.go converts shape-typed values to interface type
+		// using OEFACE instead of OCONVIFACE, so devirtualization fails
+		// above instead. That's why this code is specific to unified IR.
+
+		// If typ is a shape type, then it was a type argument originally
+		// and we'd need an indirect call through the dictionary anyway.
+		// We're unable to devirtualize this call.
+		if typ.IsShape() {
+			return
+		}
+
+		// If typ *has* a shape type, then it's an shaped, instantiated
+		// type like T[go.shape.int], and its methods (may) have an extra
+		// dictionary parameter. We could devirtualize this call if we
+		// could derive an appropriate dictionary argument.
+		//
+		// TODO(mdempsky): If typ has has a promoted non-generic method,
+		// then that method won't require a dictionary argument. We could
+		// still devirtualize those calls.
+		//
+		// TODO(mdempsky): We have the *runtime.itab in recv.TypeWord. It
+		// should be possible to compute the represented type's runtime
+		// dictionary from this (e.g., by adding a pointer from T[int]'s
+		// *runtime._type to .dict.T[int]; or by recognizing static
+		// references to go:itab.T[int],iface and constructing a direct
+		// reference to .dict.T[int]).
+		if typ.HasShape() {
+			if base.Flag.LowerM != 0 {
+				base.WarnfAt(call.Pos(), "cannot devirtualize %v: shaped receiver %v", call, typ)
+			}
+			return
+		}
+	}
+
 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, nil)
 	dt.SetType(typ)
 	x := typecheck.Callee(ir.NewSelectorExpr(sel.Pos(), ir.OXDOT, dt, sel.Sel))
