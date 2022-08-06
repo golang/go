@@ -2217,7 +2217,7 @@ func TestDNSPacketSize(t *testing.T) {
 	}
 }
 
-func TestLongDnsNames(t *testing.T) {
+func TestLongDNSNames(t *testing.T) {
 	const longDNSsuffix = ".go.dev."
 	const longDNSsuffixNoEndingDot = ".go.dev"
 
