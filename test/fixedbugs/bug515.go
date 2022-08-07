@@ -6,16 +6,18 @@
 
 // Caused a gofrontend crash.
 
+//go:build gccgo
+
 package p
 
 //go:notinheap
 type S1 struct{}
 
 type S2 struct {
-	r interface { Read([]byte) (int, error) }
+	r      interface{ Read([]byte) (int, error) }
 	s1, s2 []byte
-	p *S1
-	n uintptr
+	p      *S1
+	n      uintptr
 }
 
 var V any = S2{}

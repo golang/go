@@ -344,6 +344,9 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 		if flag == 0 && !allowedStdPragmas[verb] && base.Flag.Std {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
 		}
+		if flag == ir.NotInHeap && *base.Flag.LowerP != "runtime/internal/sys" {
+			p.error(syntax.Error{Pos: pos, Msg: "//go:notinheap only allowed in runtime/internal/sys"})
+		}
 		pragma.Flag |= flag
 		pragma.Pos = append(pragma.Pos, pragmaPos{flag, pos})
 	}

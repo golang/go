@@ -4,12 +4,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test walk errors for go:notinheap.
+// Test walk errors for not-in-heap.
+
+//go:build cgo
 
 package p
 
-//go:notinheap
+import "runtime/cgo"
+
 type nih struct {
+	_    cgo.Incomplete
 	next *nih
 }
 

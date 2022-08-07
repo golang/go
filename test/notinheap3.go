@@ -6,7 +6,11 @@
 
 // Test write barrier elimination for notinheap.
 
+//go:build cgo
+
 package p
+
+import "runtime/cgo"
 
 type t1 struct {
 	x *nih
@@ -20,8 +24,8 @@ type t2 struct {
 	y [1024]byte
 }
 
-//go:notinheap
 type nih struct {
+	_ cgo.Incomplete
 	x uintptr
 }
 
