@@ -160,10 +160,6 @@ func (r *Reader) readContinuedLineSlice(validateFirstLine func([]byte) error) ([
 	for {
 		n, err := r.skipSpace()
 		if n == 0 || err != nil {
-			// If function reads something, it ignores io.EOF.
-			if err == io.EOF && len(r.buf) > 0 {
-				err = nil
-			}
 			return r.buf, err
 		}
 		line, err := r.readLineSlice()

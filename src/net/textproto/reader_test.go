@@ -46,7 +46,7 @@ func TestReadContinuedLine(t *testing.T) {
 		t.Fatalf("Line 2: %s, %v", s, err)
 	}
 	s, err = r.ReadContinuedLine()
-	if s != "line3" || err != nil {
+	if s != "line3" {
 		t.Fatalf("Line 3: %s, %v", s, err)
 	}
 	s, err = r.ReadContinuedLine()
@@ -222,6 +222,51 @@ func TestReadMIMEHeaderTrimContinued(t *testing.T) {
 	}
 	if !reflect.DeepEqual(m, want) {
 		t.Fatalf("ReadMIMEHeader mismatch.\n got: %q\nwant: %q", m, want)
+	}
+}
+
+type autoRewind struct {
+	buf string
+	r   io.Reader
+}
+
+func (r *autoRewind) Read(p []byte) (int, error) {
+	if r.r == nil {
+		r.r = strings.NewReader(r.buf)
+	}
+
+	n, err := r.r.Read(p)
+	if err == io.EOF {
+		// rewind
+		r.r = strings.NewReader(r.buf)
+	}
+
+	return n, err
+}
+
+func TestReadMimeHeaderRewind(t *testing.T) {
+	// Improper message, expect EOF as error
+	r := &autoRewind{
+		buf: "From: Gopher <from@example.com>\n" +
+			"To: Another Gopher <to@example.com>\n",
+	}
+
+	tp := NewReader(bufio.NewReader(r))
+	_, err := tp.ReadMIMEHeader()
+	if err != io.EOF {
+		t.Fatalf("ReadMIMEHeaderRewind mismatch.\n got: %v\nwant: EOF", err)
+	}
+
+	// Proper message, expect nil as err
+	r = &autoRewind{
+		buf: "From: Gopher <from@example.com>\r\n" +
+			"To: Another Gopher <to@example.com>\r\n" +
+			"\r\n",
+	}
+	tp = NewReader(bufio.NewReader(r))
+	_, err = tp.ReadMIMEHeader()
+	if err != nil {
+		t.Fatalf("ReadMIMEHeaderRewind mismatch.\n got: %v\nwant: nil", err)
 	}
 }
 
