@@ -4,15 +4,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build cgo
+
 package main
 
 import (
 	"log"
+	"runtime/cgo"
 	"unsafe"
 )
 
-//go:notinheap
-type S struct{}
+type S struct{ _ cgo.Incomplete }
 
 func main() {
 	p := (*S)(unsafe.Pointer(uintptr(0x8000)))

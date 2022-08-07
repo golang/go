@@ -1,6 +1,6 @@
 // run
-//go:build goexperiment.unified
-// +build goexperiment.unified
+//go:build goexperiment.unified && cgo
+// +build goexperiment.unified,cgo
 
 // TODO(mdempsky): Enable test unconditionally. This test should pass
 // for non-unified mode too.
@@ -11,8 +11,12 @@
 
 package main
 
-//go:notinheap
-type A struct{ B }
+import "runtime/cgo"
+
+type A struct {
+	B
+	_ cgo.Incomplete
+}
 type B struct{ x byte }
 type I interface{ M() *B }
 

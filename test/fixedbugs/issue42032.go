@@ -4,10 +4,14 @@
 // source code is governed by a BSD-style license that can be found in
 // the LICENSE file.
 
+//go:build cgo
+
 package main
 
-//go:notinheap
+import "runtime/cgo"
+
 type NIH struct {
+	_ cgo.Incomplete
 }
 
 type T struct {
