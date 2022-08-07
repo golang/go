@@ -18,7 +18,7 @@ type slice struct {
 	cap   int
 }
 
-// A notInHeapSlice is a slice backed by go:notinheap memory.
+// A notInHeapSlice is a slice backed by runtime/internal/sys.NotInHeap memory.
 type notInHeapSlice struct {
 	array *notInHeap
 	len   int

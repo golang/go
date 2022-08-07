@@ -233,7 +233,7 @@ func (s *mspan) markBitsForIndex(objIndex uintptr) markBits {
 }
 
 func (s *mspan) markBitsForBase() markBits {
-	return markBits{(*uint8)(s.gcmarkBits), uint8(1), 0}
+	return markBits{&s.gcmarkBits.x, uint8(1), 0}
 }
 
 // isMarked reports whether mark bit m is set.

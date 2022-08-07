@@ -1330,7 +1330,8 @@ var persistentChunks *notInHeap
 // The returned memory will be zeroed.
 // sysStat must be non-nil.
 //
-// Consider marking persistentalloc'd types go:notinheap.
+// Consider marking persistentalloc'd types not in heap by embedding
+// runtime/internal/sys.NotInHeap.
 func persistentalloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
 	var p *notInHeap
 	systemstack(func() {
@@ -1471,14 +1472,12 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Poi
 // notInHeap is off-heap memory allocated by a lower-level allocator
 // like sysAlloc or persistentAlloc.
 //
-// In general, it's better to use real types marked as go:notinheap,
-// but this serves as a generic type for situations where that isn't
-// possible (like in the allocators).
+// In general, it's better to use real types which embed
+// runtime/internal/sys.NotInHeap, but this serves as a generic type
+// for situations where that isn't possible (like in the allocators).
 //
 // TODO: Use this as the return type of sysAlloc, persistentAlloc, etc?
-//
-//go:notinheap
-type notInHeap struct{}
+type notInHeap struct{ _ sys.NotInHeap }
 
 func (p *notInHeap) add(bytes uintptr) *notInHeap {
 	return (*notInHeap)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + bytes))

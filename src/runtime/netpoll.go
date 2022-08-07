@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -68,9 +69,8 @@ const pollBlockSize = 4 * 1024
 // Network poller descriptor.
 //
 // No heap pointers.
-//
-//go:notinheap
 type pollDesc struct {
+	_    sys.NotInHeap
 	link *pollDesc // in pollcache, protected by pollcache.lock
 	fd   uintptr   // constant for pollDesc usage lifetime
 
@@ -641,8 +641,8 @@ func (c *pollCache) alloc() *pollDesc {
 // makeArg converts pd to an interface{}.
 // makeArg does not do any allocation. Normally, such
 // a conversion requires an allocation because pointers to
-// go:notinheap types (which pollDesc is) must be stored
-// in interfaces indirectly. See issue 42076.
+// types which embed runtime/internal/sys.NotInHeap (which pollDesc is)
+// must be stored in interfaces indirectly. See issue 42076.
 func (pd *pollDesc) makeArg() (i any) {
 	x := (*eface)(unsafe.Pointer(&i))
 	x._type = pdType

@@ -160,8 +160,8 @@ var stackpool [_NumStackOrders]struct {
 	_    [cpu.CacheLinePadSize - unsafe.Sizeof(stackpoolItem{})%cpu.CacheLinePadSize]byte
 }
 
-//go:notinheap
 type stackpoolItem struct {
+	_    sys.NotInHeap
 	mu   mutex
 	span mSpanList
 }

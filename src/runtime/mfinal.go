@@ -10,6 +10,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -19,9 +20,8 @@ import (
 // finblock is allocated from non-GC'd memory, so any heap pointers
 // must be specially handled. GC currently assumes that the finalizer
 // queue does not grow during marking (but it can shrink).
-//
-//go:notinheap
 type finblock struct {
+	_       sys.NotInHeap
 	alllink *finblock
 	next    *finblock
 	cnt     uint32

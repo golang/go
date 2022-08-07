@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -15,9 +16,9 @@ import (
 //
 // mcaches are allocated from non-GC'd memory, so any heap pointers
 // must be specially handled.
-//
-//go:notinheap
 type mcache struct {
+	_ sys.NotInHeap
+
 	// The following members are accessed on every malloc,
 	// so they are grouped here for better caching.
 	nextSample uintptr // trigger heap sample after allocating this many bytes

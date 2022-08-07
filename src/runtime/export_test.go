@@ -1196,8 +1196,6 @@ func (t *SemTable) Dequeue(addr *uint32) bool {
 }
 
 // mspan wrapper for testing.
-//
-//go:notinheap
 type MSpan mspan
 
 // Allocate an mspan for testing.

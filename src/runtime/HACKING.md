@@ -235,7 +235,7 @@ There are three mechanisms for allocating unmanaged memory:
   objects of the same type.
 
 In general, types that are allocated using any of these should be
-marked `//go:notinheap` (see below).
+marked as not in heap by embedding `runtime/internal/sys.NotInHeap`.
 
 Objects that are allocated in unmanaged memory **must not** contain
 heap pointers unless the following rules are also obeyed:
@@ -330,37 +330,3 @@ transitive calls) to prevent stack growth.
 The conversion from pointer to uintptr must appear in the argument list of any
 call to this function. This directive is used for some low-level system call
 implementations.
-
-go:notinheap
-------------
-
-`go:notinheap` applies to type declarations. It indicates that a type
-must never be allocated from the GC'd heap or on the stack.
-Specifically, pointers to this type must always fail the
-`runtime.inheap` check. The type may be used for global variables, or
-for objects in unmanaged memory (e.g., allocated with `sysAlloc`,
-`persistentalloc`, `fixalloc`, or from a manually-managed span).
-Specifically:
-
-1. `new(T)`, `make([]T)`, `append([]T, ...)` and implicit heap
-   allocation of T are disallowed. (Though implicit allocations are
-   disallowed in the runtime anyway.)
-
-2. A pointer to a regular type (other than `unsafe.Pointer`) cannot be
-   converted to a pointer to a `go:notinheap` type, even if they have
-   the same underlying type.
-
-3. Any type that contains a `go:notinheap` type is itself
-   `go:notinheap`. Structs and arrays are `go:notinheap` if their
-   elements are. Maps and channels of `go:notinheap` types are
-   disallowed. To keep things explicit, any type declaration where the
-   type is implicitly `go:notinheap` must be explicitly marked
-   `go:notinheap` as well.
-
-4. Write barriers on pointers to `go:notinheap` types can be omitted.
-
-The last point is the real benefit of `go:notinheap`. The runtime uses
-it for low-level internal structures to avoid memory barriers in the
-scheduler and the memory allocator where they are illegal or simply
-inefficient. This mechanism is reasonably safe and does not compromise
-the readability of the runtime.

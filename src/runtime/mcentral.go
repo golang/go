@@ -12,12 +12,14 @@
 
 package runtime
 
-import "runtime/internal/atomic"
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+)
 
 // Central list of free objects of a given size.
-//
-//go:notinheap
 type mcentral struct {
+	_         sys.NotInHeap
 	spanclass spanClass
 
 	// partial and full contain two mspan sets: one of swept in-use

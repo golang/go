@@ -17,6 +17,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -121,9 +122,8 @@ func dlog() *dlogger {
 //
 // To obtain a dlogger, call dlog(). When done with the dlogger, call
 // end().
-//
-//go:notinheap
 type dlogger struct {
+	_ sys.NotInHeap
 	w debugLogWriter
 
 	// allLink is the next dlogger in the allDloggers list.
@@ -356,9 +356,8 @@ func (l *dlogger) traceback(x []uintptr) *dlogger {
 // overwrite old records. Hence, it maintains a reader that consumes
 // the log as it gets overwritten. That reader state is where an
 // actual log reader would start.
-//
-//go:notinheap
 type debugLogWriter struct {
+	_     sys.NotInHeap
 	write uint64
 	data  debugLogBuf
 
@@ -376,8 +375,10 @@ type debugLogWriter struct {
 	buf [10]byte
 }
 
-//go:notinheap
-type debugLogBuf [debugLogBytes]byte
+type debugLogBuf struct {
+	_ sys.NotInHeap
+	b [debugLogBytes]byte
+}
 
 const (
 	// debugLogHeaderSize is the number of bytes in the framing
@@ -390,7 +391,7 @@ const (
 
 //go:nosplit
 func (l *debugLogWriter) ensure(n uint64) {
-	for l.write+n >= l.r.begin+uint64(len(l.data)) {
+	for l.write+n >= l.r.begin+uint64(len(l.data.b)) {
 		// Consume record at begin.
 		if l.r.skip() == ^uint64(0) {
 			// Wrapped around within a record.
@@ -406,8 +407,8 @@ func (l *debugLogWriter) ensure(n uint64) {
 
 //go:nosplit
 func (l *debugLogWriter) writeFrameAt(pos, size uint64) bool {
-	l.data[pos%uint64(len(l.data))] = uint8(size)
-	l.data[(pos+1)%uint64(len(l.data))] = uint8(size >> 8)
+	l.data.b[pos%uint64(len(l.data.b))] = uint8(size)
+	l.data.b[(pos+1)%uint64(len(l.data.b))] = uint8(size >> 8)
 	return size <= 0xFFFF
 }
 
@@ -441,7 +442,7 @@ func (l *debugLogWriter) byte(x byte) {
 	l.ensure(1)
 	pos := l.write
 	l.write++
-	l.data[pos%uint64(len(l.data))] = x
+	l.data.b[pos%uint64(len(l.data.b))] = x
 }
 
 //go:nosplit
@@ -450,7 +451,7 @@ func (l *debugLogWriter) bytes(x []byte) {
 	pos := l.write
 	l.write += uint64(len(x))
 	for len(x) > 0 {
-		n := copy(l.data[pos%uint64(len(l.data)):], x)
+		n := copy(l.data.b[pos%uint64(len(l.data.b)):], x)
 		pos += uint64(n)
 		x = x[n:]
 	}
@@ -513,15 +514,15 @@ func (r *debugLogReader) skip() uint64 {
 
 //go:nosplit
 func (r *debugLogReader) readUint16LEAt(pos uint64) uint16 {
-	return uint16(r.data[pos%uint64(len(r.data))]) |
-		uint16(r.data[(pos+1)%uint64(len(r.data))])<<8
+	return uint16(r.data.b[pos%uint64(len(r.data.b))]) |
+		uint16(r.data.b[(pos+1)%uint64(len(r.data.b))])<<8
 }
 
 //go:nosplit
 func (r *debugLogReader) readUint64LEAt(pos uint64) uint64 {
 	var b [8]byte
 	for i := range b {
-		b[i] = r.data[pos%uint64(len(r.data))]
+		b[i] = r.data.b[pos%uint64(len(r.data.b))]
 		pos++
 	}
 	return uint64(b[0]) | uint64(b[1])<<8 |
@@ -557,7 +558,7 @@ func (r *debugLogReader) peek() (tick uint64) {
 	pos := r.begin + debugLogHeaderSize
 	var u uint64
 	for i := uint(0); ; i += 7 {
-		b := r.data[pos%uint64(len(r.data))]
+		b := r.data.b[pos%uint64(len(r.data.b))]
 		pos++
 		u |= uint64(b&^0x80) << i
 		if b&0x80 == 0 {
@@ -588,7 +589,7 @@ func (r *debugLogReader) header() (end, tick, nano uint64, p int) {
 func (r *debugLogReader) uvarint() uint64 {
 	var u uint64
 	for i := uint(0); ; i += 7 {
-		b := r.data[r.begin%uint64(len(r.data))]
+		b := r.data.b[r.begin%uint64(len(r.data.b))]
 		r.begin++
 		u |= uint64(b&^0x80) << i
 		if b&0x80 == 0 {
@@ -610,7 +611,7 @@ func (r *debugLogReader) varint() int64 {
 }
 
 func (r *debugLogReader) printVal() bool {
-	typ := r.data[r.begin%uint64(len(r.data))]
+	typ := r.data.b[r.begin%uint64(len(r.data.b))]
 	r.begin++
 
 	switch typ {
@@ -644,7 +645,7 @@ func (r *debugLogReader) printVal() bool {
 			break
 		}
 		for sl > 0 {
-			b := r.data[r.begin%uint64(len(r.data)):]
+			b := r.data.b[r.begin%uint64(len(r.data.b)):]
 			if uint64(len(b)) > sl {
 				b = b[:sl]
 			}
