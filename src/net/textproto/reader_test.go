@@ -244,6 +244,7 @@ func (r *autoRewind) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// Special io reader that does not hold errors. Issue 53858
 func TestReadMimeHeaderRewind(t *testing.T) {
 	// Improper message, expect EOF as error
 	r := &autoRewind{
