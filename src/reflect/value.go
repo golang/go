@@ -92,7 +92,7 @@ func (f flag) ro() flag {
 
 // pointer returns the underlying pointer represented by v.
 // v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
-// if v.Kind() == Pointer, the base type must not be go:notinheap.
+// if v.Kind() == Pointer, the base type must not be not-in-heap.
 func (v Value) pointer() unsafe.Pointer {
 	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
@@ -3156,7 +3156,7 @@ func New(typ Type) Value {
 	t := typ.(*rtype)
 	pt := t.ptrTo()
 	if ifaceIndir(pt) {
-		// This is a pointer to a go:notinheap type.
+		// This is a pointer to a not-in-heap type.
 		panic("reflect: New of type that may not be allocated in heap (possibly undefined cgo C type)")
 	}
 	ptr := unsafe_New(t)

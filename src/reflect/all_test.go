@@ -8003,28 +8003,6 @@ func TestSetIter(t *testing.T) {
 	}
 }
 
-//go:notinheap
-type nih struct{ x int }
-
-var global_nih = nih{x: 7}
-
-func TestNotInHeapDeref(t *testing.T) {
-	// See issue 48399.
-	v := ValueOf((*nih)(nil))
-	v.Elem()
-	shouldPanic("reflect: call of reflect.Value.Field on zero Value", func() { v.Elem().Field(0) })
-
-	v = ValueOf(&global_nih)
-	if got := v.Elem().Field(0).Int(); got != 7 {
-		t.Fatalf("got %d, want 7", got)
-	}
-
-	v = ValueOf((*nih)(unsafe.Pointer(new(int))))
-	shouldPanic("reflect: reflect.Value.Elem on an invalid notinheap pointer", func() { v.Elem() })
-	shouldPanic("reflect: reflect.Value.Pointer on an invalid notinheap pointer", func() { v.Pointer() })
-	shouldPanic("reflect: reflect.Value.UnsafePointer on an invalid notinheap pointer", func() { v.UnsafePointer() })
-}
-
 func TestMethodCallValueCodePtr(t *testing.T) {
 	m := ValueOf(Point{}).Method(1)
 	want := MethodValueCallCodePtr()
