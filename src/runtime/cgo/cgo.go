@@ -31,3 +31,10 @@ package cgo
 
 */
 import "C"
+
+import "runtime/internal/sys"
+
+// Incomplete is used specifically for the semantics of incomplete C types.
+type Incomplete struct {
+	_ sys.NotInHeap
+}
