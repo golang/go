@@ -1402,6 +1402,20 @@ func BenchmarkFormat(b *testing.B) {
 	}
 }
 
+func BenchmarkFormatRFC3339(b *testing.B) {
+	t := Unix(1265346057, 0)
+	for i := 0; i < b.N; i++ {
+		t.Format("2006-01-02T15:04:05Z07:00")
+	}
+}
+
+func BenchmarkFormatRFC3339Nano(b *testing.B) {
+	t := Unix(1265346057, 0)
+	for i := 0; i < b.N; i++ {
+		t.Format("2006-01-02T15:04:05.999999999Z07:00")
+	}
+}
+
 func BenchmarkFormatNow(b *testing.B) {
 	// Like BenchmarkFormat, but easier, because the time zone
 	// lookup cache is optimized for the present.

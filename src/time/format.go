@@ -626,6 +626,15 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		min   int
 		sec   int
 	)
+
+	// Handle most frequent layouts separately.
+	switch layout {
+	case RFC3339:
+		return t.appendFormatRFC3339(b, abs, offset, false)
+	case RFC3339Nano:
+		return t.appendFormatRFC3339(b, abs, offset, true)
+	}
+
 	// Each iteration generates one std value.
 	for layout != "" {
 		prefix, std, suffix := nextStdChunk(layout)
@@ -778,6 +787,48 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 			b = formatNano(b, uint(t.Nanosecond()), std)
 		}
 	}
+	return b
+}
+
+func (t Time) appendFormatRFC3339(b []byte, abs uint64, offset int, nanos bool) []byte {
+	// Format date.
+	year, month, day, _ := absDate(abs, true)
+	b = appendInt(b, year, 4)
+	b = append(b, '-')
+	b = appendInt(b, int(month), 2)
+	b = append(b, '-')
+	b = appendInt(b, day, 2)
+
+	b = append(b, 'T')
+
+	// Format time.
+	hour, min, sec := absClock(abs)
+	b = appendInt(b, hour, 2)
+	b = append(b, ':')
+	b = appendInt(b, min, 2)
+	b = append(b, ':')
+	b = appendInt(b, sec, 2)
+
+	if nanos {
+		std := stdFracSecond(stdFracSecond9, 9, '.')
+		b = formatNano(b, uint(t.Nanosecond()), std)
+	}
+
+	if offset == 0 {
+		return append(b, 'Z')
+	}
+
+	// Format zone.
+	zone := offset / 60 // convert to minutes
+	if zone < 0 {
+		b = append(b, '-')
+		zone = -zone
+	} else {
+		b = append(b, '+')
+	}
+	b = appendInt(b, zone/60, 2)
+	b = append(b, ':')
+	b = appendInt(b, zone%60, 2)
 	return b
 }
 
