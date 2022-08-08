@@ -142,20 +142,20 @@
 
 // Rotate generation with non-const shift
 // these match patterns from math/bits/RotateLeft[32|64], but there could be others
-(ADD (SLD x (ANDconst [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
-(ADD (SLD x (ANDconst [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
-( OR (SLD x (ANDconst [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
-( OR (SLD x (ANDconst [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
-(XOR (SLD x (ANDconst [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
-(XOR (SLD x (ANDconst [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
+(ADD (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (Select0 <typ.UInt> (ANDCCconst [63] y))))) => (ROTL x y)
+(ADD (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUBFCconst <typ.UInt> [64] (Select0 <typ.UInt> (ANDCCconst [63] y))))) => (ROTL x y)
+( OR (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (Select0 <typ.UInt> (ANDCCconst [63] y)))))=> (ROTL x y)
+( OR (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUBFCconst <typ.UInt> [64] (Select0 <typ.UInt> (ANDCCconst [63] y))))) => (ROTL x y)
+(XOR (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (Select0 <typ.UInt> (ANDCCconst [63] y))))) => (ROTL x y)
+(XOR (SLD x (Select0 (ANDCCconst [63] y))) (SRD x (SUBFCconst <typ.UInt> [64] (Select0 <typ.UInt> (ANDCCconst [63] y))))) => (ROTL x y)
 
 
-(ADD (SLW x (ANDconst [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
-(ADD (SLW x (ANDconst [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
-( OR (SLW x (ANDconst [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
-( OR (SLW x (ANDconst [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
-(XOR (SLW x (ANDconst [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
-(XOR (SLW x (ANDconst [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
+(ADD (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUBFCconst <typ.UInt> [32] (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
+(ADD (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
+( OR (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUBFCconst <typ.UInt> [32] (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
+( OR (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
+(XOR (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUBFCconst <typ.UInt> [32] (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
+(XOR (SLW x (Select0 (ANDCCconst [31] y))) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (Select0 <typ.UInt> (ANDCCconst [31] y))))) => (ROTLW x y)
 
 
 // Lowering rotates
@@ -167,22 +167,22 @@
 (ROTL   x (MOVDconst [c])) => (ROTLconst   x [c&63])
 
 // Combine rotate and mask operations
-(ANDconst [m] (ROTLWconst [r] x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,m,32)] x)
+(Select0 (ANDCCconst [m] (ROTLWconst [r] x))) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,m,32)] x)
 (AND (MOVDconst [m]) (ROTLWconst [r] x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,m,32)] x)
-(ANDconst [m] (ROTLW x r)) && isPPC64WordRotateMask(m) => (RLWNM [encodePPC64RotateMask(0,m,32)] x r)
+(Select0 (ANDCCconst [m] (ROTLW x r))) && isPPC64WordRotateMask(m) => (RLWNM [encodePPC64RotateMask(0,m,32)] x r)
 (AND (MOVDconst [m]) (ROTLW x r)) && isPPC64WordRotateMask(m) => (RLWNM [encodePPC64RotateMask(0,m,32)] x r)
 
 // Note, any rotated word bitmask is still a valid word bitmask.
 (ROTLWconst [r] (AND (MOVDconst [m]) x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,rotateLeft32(m,r),32)] x)
-(ROTLWconst [r] (ANDconst [m] x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,rotateLeft32(m,r),32)] x)
+(ROTLWconst [r] (Select0 (ANDCCconst [m] x))) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,rotateLeft32(m,r),32)] x)
 
-(ANDconst [m] (SRWconst x [s])) && mergePPC64RShiftMask(m,s,32) == 0 => (MOVDconst [0])
-(ANDconst [m] (SRWconst x [s])) && mergePPC64AndSrwi(m,s) != 0 => (RLWINM [mergePPC64AndSrwi(m,s)] x)
+(Select0 (ANDCCconst [m] (SRWconst x [s]))) && mergePPC64RShiftMask(m,s,32) == 0 => (MOVDconst [0])
+(Select0 (ANDCCconst [m] (SRWconst x [s]))) && mergePPC64AndSrwi(m,s) != 0 => (RLWINM [mergePPC64AndSrwi(m,s)] x)
 (AND (MOVDconst [m]) (SRWconst x [s])) && mergePPC64RShiftMask(m,s,32) == 0 => (MOVDconst [0])
 (AND (MOVDconst [m]) (SRWconst x [s])) && mergePPC64AndSrwi(m,s) != 0 => (RLWINM [mergePPC64AndSrwi(m,s)] x)
 
-(SRWconst (ANDconst [m] x) [s]) && mergePPC64RShiftMask(m>>uint(s),s,32) == 0 => (MOVDconst [0])
-(SRWconst (ANDconst [m] x) [s]) && mergePPC64AndSrwi(m>>uint(s),s) != 0 => (RLWINM [mergePPC64AndSrwi(m>>uint(s),s)] x)
+(SRWconst (Select0 (ANDCCconst [m] x)) [s]) && mergePPC64RShiftMask(m>>uint(s),s,32) == 0 => (MOVDconst [0])
+(SRWconst (Select0 (ANDCCconst [m] x)) [s]) && mergePPC64AndSrwi(m>>uint(s),s) != 0 => (RLWINM [mergePPC64AndSrwi(m>>uint(s),s)] x)
 (SRWconst (AND (MOVDconst [m]) x) [s]) && mergePPC64RShiftMask(m>>uint(s),s,32) == 0 => (MOVDconst [0])
 (SRWconst (AND (MOVDconst [m]) x) [s]) && mergePPC64AndSrwi(m>>uint(s),s) != 0 => (RLWINM [mergePPC64AndSrwi(m>>uint(s),s)] x)
 
@@ -253,41 +253,41 @@
 // These are subexpressions found in statements that can become rotates
 // In these cases the shift count is known to be < 64 so the more complicated expressions
 // with Mask & Carry is not needed
-(Lsh64x64 x (AND y (MOVDconst [63]))) => (SLD x (ANDconst <typ.Int64> [63] y))
-(Lsh64x64 x (ANDconst <typ.Int64> [63] y)) => (SLD x (ANDconst <typ.Int64> [63] y))
-(Rsh64Ux64 x (AND y (MOVDconst [63]))) => (SRD x (ANDconst <typ.Int64> [63] y))
-(Rsh64Ux64 x (ANDconst <typ.UInt> [63] y)) => (SRD x (ANDconst <typ.UInt> [63] y))
-(Rsh64Ux64 x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y))) => (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))
-(Rsh64Ux64 x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y))) => (SRD x (SUBFCconst <typ.UInt> [64]  (ANDconst <typ.UInt> [63] y)))
-(Rsh64Ux64 x (SUB <typ.UInt> (MOVDconst [64]) (AND <typ.UInt> y (MOVDconst [63])))) => (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))
-(Rsh64Ux64 x (SUBFCconst <typ.UInt> [64] (AND <typ.UInt> y (MOVDconst [63])))) => (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))
-(Rsh64x64 x (AND y (MOVDconst [63]))) => (SRAD x (ANDconst <typ.Int64> [63] y))
-(Rsh64x64 x (ANDconst <typ.UInt> [63] y)) => (SRAD x (ANDconst <typ.UInt> [63] y))
-(Rsh64x64 x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y))) => (SRAD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))
-(Rsh64x64 x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y))) => (SRAD x (SUBFCconst <typ.UInt> [64]  (ANDconst <typ.UInt> [63] y)))
-(Rsh64x64 x (SUB <typ.UInt> (MOVDconst [64]) (AND <typ.UInt> y (MOVDconst [63])))) => (SRAD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))
-(Rsh64x64 x (SUBFCconst <typ.UInt> [64] (AND <typ.UInt> y (MOVDconst [63])))) => (SRAD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))
+(Lsh64x64 x (AND y (MOVDconst [63]))) => (SLD x (Select0 <typ.Int64> (ANDCCconst [63] y)))
+(Lsh64x64 x (Select0 (ANDCCconst <typ.Int64> [63] y))) => (SLD x (Select0 <typ.Int64> (ANDCCconst [63] y)))
+(Rsh64Ux64 x (AND y (MOVDconst [63]))) => (SRD x (Select0 <typ.Int64> (ANDCCconst [63] y)))
+(Rsh64Ux64 x (Select0 (ANDCCconst <typ.UInt> [63] y))) => (SRD x (Select0 <typ.UInt> (ANDCCconst [63] y)))
+(Rsh64Ux64 x (SUB <typ.UInt> (MOVDconst [64]) (Select0 (ANDCCconst <typ.UInt> [63] y)))) => (SRD x (SUB <typ.UInt> (MOVDconst [64]) (Select0 <typ.UInt> (ANDCCconst [63] y))))
+(Rsh64Ux64 x (SUBFCconst <typ.UInt> [64] (Select0 (ANDCCconst <typ.UInt> [63] y)))) => (SRD x (SUBFCconst <typ.UInt> [64] (Select0 <typ.UInt> (ANDCCconst [63] y))))
+(Rsh64Ux64 x (SUB <typ.UInt> (MOVDconst [64]) (AND <typ.UInt> y (MOVDconst [63])))) => (SRD x (SUB <typ.UInt> (MOVDconst [64]) (Select0 <typ.UInt> (ANDCCconst [63] y))))
+(Rsh64Ux64 x (SUBFCconst <typ.UInt> [64] (AND <typ.UInt> y (MOVDconst [63])))) => (SRD x (SUBFCconst <typ.UInt> [64] (Select0 <typ.UInt> (ANDCCconst [63] y))))
+(Rsh64x64 x (AND y (MOVDconst [63]))) => (SRAD x (Select0 <typ.Int64> (ANDCCconst [63] y)))
+(Rsh64x64 x (Select0 (ANDCCconst <typ.UInt> [63] y))) => (SRAD x (Select0 <typ.UInt> (ANDCCconst [63] y)))
+(Rsh64x64 x (SUB <typ.UInt> (MOVDconst [64]) (Select0 (ANDCCconst <typ.UInt> [63] y)))) => (SRAD x (SUB <typ.UInt> (MOVDconst [64]) (Select0 <typ.UInt> (ANDCCconst [63] y))))
+(Rsh64x64 x (SUBFCconst <typ.UInt> [64] (Select0 (ANDCCconst <typ.UInt> [63] y)))) => (SRAD x (SUBFCconst <typ.UInt> [64]  (Select0 <typ.UInt> (ANDCCconst [63] y))))
+(Rsh64x64 x (SUB <typ.UInt> (MOVDconst [64]) (AND <typ.UInt> y (MOVDconst [63])))) => (SRAD x (SUB <typ.UInt> (MOVDconst [64]) (Select0 <typ.UInt> (ANDCCconst [63] y))))
+(Rsh64x64 x (SUBFCconst <typ.UInt> [64] (AND <typ.UInt> y (MOVDconst [63])))) => (SRAD x (SUBFCconst <typ.UInt> [64] (Select0 <typ.UInt> (ANDCCconst [63] y))))
 
 (Lsh64x64 x y)  => (SLD  x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [64]))))
 (Rsh64x64 x y) => (SRAD x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [64]))))
 (Rsh64Ux64 x y) => (SRD x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [64]))))
 
-(Lsh32x64 x (AND y (MOVDconst [31]))) => (SLW x (ANDconst <typ.Int32> [31] y))
-(Lsh32x64 x (ANDconst <typ.Int32> [31] y)) => (SLW x (ANDconst <typ.Int32> [31] y))
+(Lsh32x64 x (AND y (MOVDconst [31]))) => (SLW x (Select0 <typ.Int32> (ANDCCconst [31] y)))
+(Lsh32x64 x (Select0 <typ.Int32> (ANDCCconst [31] y))) => (SLW x (Select0 <typ.Int32> (ANDCCconst [31] y)))
 
-(Rsh32Ux64 x (AND y (MOVDconst [31]))) => (SRW x (ANDconst <typ.Int32> [31] y))
-(Rsh32Ux64 x (ANDconst <typ.UInt> [31] y)) => (SRW x (ANDconst <typ.UInt> [31] y))
-(Rsh32Ux64 x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y))) => (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))
-(Rsh32Ux64 x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y))) => (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))
-(Rsh32Ux64 x (SUB <typ.UInt> (MOVDconst [32]) (AND <typ.UInt> y (MOVDconst [31])))) => (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))
-(Rsh32Ux64 x (SUBFCconst <typ.UInt> [32] (AND <typ.UInt> y (MOVDconst [31])))) => (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))
+(Rsh32Ux64 x (AND y (MOVDconst [31]))) => (SRW x (Select0 <typ.Int32> (ANDCCconst [31] y)))
+(Rsh32Ux64 x (Select0 (ANDCCconst <typ.UInt> [31] y))) => (SRW x (Select0 <typ.UInt> (ANDCCconst [31] y)))
+(Rsh32Ux64 x (SUB <typ.UInt> (MOVDconst [32]) (Select0 (ANDCCconst <typ.UInt> [31] y)))) => (SRW x (SUB <typ.UInt> (MOVDconst [32]) (Select0 <typ.UInt> (ANDCCconst [31] y))))
+(Rsh32Ux64 x (SUBFCconst <typ.UInt> [32] (Select0 (ANDCCconst <typ.UInt> [31] y)))) => (SRW x (SUBFCconst <typ.UInt> [32] (Select0 <typ.UInt> (ANDCCconst [31] y))))
+(Rsh32Ux64 x (SUB <typ.UInt> (MOVDconst [32]) (AND <typ.UInt> y (MOVDconst [31])))) => (SRW x (SUB <typ.UInt> (MOVDconst [32]) (Select0 <typ.UInt> (ANDCCconst [31] y))))
+(Rsh32Ux64 x (SUBFCconst <typ.UInt> [32] (AND <typ.UInt> y (MOVDconst [31])))) => (SRW x (SUBFCconst <typ.UInt> [32] (Select0 <typ.UInt> (ANDCCconst [31] y))))
 
-(Rsh32x64 x (AND y (MOVDconst [31]))) => (SRAW x (ANDconst <typ.Int32> [31] y))
-(Rsh32x64 x (ANDconst <typ.UInt> [31] y)) => (SRAW x (ANDconst <typ.UInt> [31] y))
-(Rsh32x64 x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y))) => (SRAW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))
-(Rsh32x64 x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y))) => (SRAW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))
-(Rsh32x64 x (SUB <typ.UInt> (MOVDconst [32]) (AND <typ.UInt> y (MOVDconst [31])))) => (SRAW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))
-(Rsh32x64 x (SUBFCconst <typ.UInt> [32] (AND <typ.UInt> y (MOVDconst [31])))) => (SRAW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))
+(Rsh32x64 x (AND y (MOVDconst [31]))) => (SRAW x (Select0 <typ.Int32> (ANDCCconst [31] y)))
+(Rsh32x64 x (Select0 (ANDCCconst <typ.UInt> [31] y))) => (SRAW x (Select0 <typ.UInt> (ANDCCconst [31] y)))
+(Rsh32x64 x (SUB <typ.UInt> (MOVDconst [32]) (Select0 (ANDCCconst <typ.UInt> [31] y)))) => (SRAW x (SUB <typ.UInt> (MOVDconst [32]) (Select0 <typ.UInt> (ANDCCconst [31] y))))
+(Rsh32x64 x (SUBFCconst <typ.UInt> [32] (Select0 (ANDCCconst <typ.UInt> [31] y)))) => (SRAW x (SUBFCconst <typ.UInt> [32] (Select0 <typ.UInt> (ANDCCconst [31] y))))
+(Rsh32x64 x (SUB <typ.UInt> (MOVDconst [32]) (AND <typ.UInt> y (MOVDconst [31])))) => (SRAW x (SUB <typ.UInt> (MOVDconst [32]) (Select0 <typ.UInt> (ANDCCconst [31] y))))
+(Rsh32x64 x (SUBFCconst <typ.UInt> [32] (AND <typ.UInt> y (MOVDconst [31])))) => (SRAW x (SUBFCconst <typ.UInt> [32] (Select0 <typ.UInt> (ANDCCconst [31] y))))
 
 (Rsh32x64 x y)  => (SRAW x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [32]))))
 (Rsh32Ux64 x y) => (SRW  x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [32]))))
@@ -351,8 +351,8 @@
 (Lsh8x8 x y)  => (SLW  x                (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [8]))))
 
 // Cleaning up shift ops
-(ISEL [0] (ANDconst [d] y) (MOVDconst [-1]) (CMPU (ANDconst [d] y) (MOVDconst [c]))) && c >= d => (ANDconst [d] y)
-(ISEL [0] (ANDconst [d] y) (MOVDconst [-1]) (CMPUconst [c] (ANDconst [d] y))) && c >= d => (ANDconst [d] y)
+(ISEL [0] (Select0 (ANDCCconst [d] y)) (MOVDconst [-1]) (CMPU (Select0 (ANDCCconst [d] y)) (MOVDconst [c]))) && c >= d => (Select0 (ANDCCconst [d] y))
+(ISEL [0] (Select0 (ANDCCconst [d] y)) (MOVDconst [-1]) (CMPUconst [c] (Select0 (ANDCCconst [d] y)))) && c >= d => (Select0 (ANDCCconst [d] y))
 (ORN x (MOVDconst [-1])) => x
 
 (S(RAD|RD|LD) x (MOVDconst [c])) => (S(RAD|RD|LD)const [c&63 | (c>>6&1*63)] x)
@@ -401,7 +401,7 @@
 (OR x (NOR y y)) => (ORN x y)
 
 // Lowering comparisons
-(EqB x y)  => (ANDconst [1] (EQV x y))
+(EqB x y)  => (Select0 <typ.Int> (ANDCCconst [1] (EQV x y)))
 // Sign extension dependence on operand sign sets up for sign/zero-extension elision later
 (Eq8 x y) && isSigned(x.Type) && isSigned(y.Type) => (Equal (CMPW (SignExt8to32 x) (SignExt8to32 y)))
 (Eq16 x y) && isSigned(x.Type) && isSigned(y.Type) => (Equal (CMPW (SignExt16to32 x) (SignExt16to32 y)))
@@ -461,25 +461,23 @@
 (If (FGreaterThan cc) yes no) => (FGT cc yes no)
 (If (FGreaterEqual cc) yes no) => (FGE cc yes no)
 
-(If cond yes no) => (NE (CMPWconst [0] (ANDconst <typ.UInt32> [1] cond)) yes no)
+(If cond yes no) => (NE (CMPWconst [0] (Select0 <typ.UInt32> (ANDCCconst [1] cond))) yes no)
 
 // Absorb boolean tests into block
-(NE (CMPWconst [0] (ANDconst [1] (Equal cc))) yes no) => (EQ cc yes no)
-(NE (CMPWconst [0] (ANDconst [1] (NotEqual cc))) yes no) => (NE cc yes no)
-(NE (CMPWconst [0] (ANDconst [1] (LessThan cc))) yes no) => (LT cc yes no)
-(NE (CMPWconst [0] (ANDconst [1] (LessEqual cc))) yes no) => (LE cc yes no)
-(NE (CMPWconst [0] (ANDconst [1] (GreaterThan cc))) yes no) => (GT cc yes no)
-(NE (CMPWconst [0] (ANDconst [1] (GreaterEqual cc))) yes no) => (GE cc yes no)
-(NE (CMPWconst [0] (ANDconst [1] (FLessThan cc))) yes no) => (FLT cc yes no)
-(NE (CMPWconst [0] (ANDconst [1] (FLessEqual cc))) yes no) => (FLE cc yes no)
-(NE (CMPWconst [0] (ANDconst [1] (FGreaterThan cc))) yes no) => (FGT cc yes no)
-(NE (CMPWconst [0] (ANDconst [1] (FGreaterEqual cc))) yes no) => (FGE cc yes no)
+(NE (CMPWconst [0] (Select0 (ANDCCconst [1] (Equal cc)))) yes no) => (EQ cc yes no)
+(NE (CMPWconst [0] (Select0 (ANDCCconst [1] (NotEqual cc)))) yes no) => (NE cc yes no)
+(NE (CMPWconst [0] (Select0 (ANDCCconst [1] (LessThan cc)))) yes no) => (LT cc yes no)
+(NE (CMPWconst [0] (Select0 (ANDCCconst [1] (LessEqual cc)))) yes no) => (LE cc yes no)
+(NE (CMPWconst [0] (Select0 (ANDCCconst [1] (GreaterThan cc)))) yes no) => (GT cc yes no)
+(NE (CMPWconst [0] (Select0 (ANDCCconst [1] (GreaterEqual cc)))) yes no) => (GE cc yes no)
+(NE (CMPWconst [0] (Select0 (ANDCCconst [1] (FLessThan cc)))) yes no) => (FLT cc yes no)
+(NE (CMPWconst [0] (Select0 (ANDCCconst [1] (FLessEqual cc)))) yes no) => (FLE cc yes no)
+(NE (CMPWconst [0] (Select0 (ANDCCconst [1] (FGreaterThan cc)))) yes no) => (FGT cc yes no)
+(NE (CMPWconst [0] (Select0 (ANDCCconst [1] (FGreaterEqual cc)))) yes no) => (FGE cc yes no)
 
-// Elide compares of bit tests // TODO need to make both CC and result of ANDCC available.
-(EQ (CMPconst [0] (ANDconst [c] x)) yes no) => (EQ (ANDCCconst [c] x) yes no)
-(NE (CMPconst [0] (ANDconst [c] x)) yes no) => (NE (ANDCCconst [c] x) yes no)
-(EQ (CMPWconst [0] (ANDconst [c] x)) yes no) => (EQ (ANDCCconst [c] x) yes no)
-(NE (CMPWconst [0] (ANDconst [c] x)) yes no) => (NE (ANDCCconst [c] x) yes no)
+// Elide compares of bit tests
+((EQ|NE) (CMPconst [0] (Select0 (ANDCCconst [c] x))) yes no) => ((EQ|NE) (Select1 <types.TypeFlags> (ANDCCconst [c] x)) yes no)
+((EQ|NE) (CMPWconst [0] (Select0 (ANDCCconst [c] x))) yes no) => ((EQ|NE) (Select1 <types.TypeFlags> (ANDCCconst [c] x)) yes no)
 
 // absorb flag constants into branches
 (EQ (FlagEQ) yes no) => (First yes no)
@@ -570,9 +568,9 @@
 (LessEqual (InvertFlags x)) => (GreaterEqual x)
 (GreaterEqual (InvertFlags x)) => (LessEqual x)
 
-// Elide compares of bit tests // TODO need to make both CC and result of ANDCC available.
-((EQ|NE|LT|LE|GT|GE) (CMPconst [0] (ANDconst [c] x)) yes no) => ((EQ|NE|LT|LE|GT|GE) (ANDCCconst [c] x) yes no)
-((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] (ANDconst [c] x)) yes no) => ((EQ|NE|LT|LE|GT|GE) (ANDCCconst [c] x) yes no)
+// Elide compares of bit tests
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] (Select0 (ANDCCconst [c] x))) yes no) => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> (ANDCCconst [c] x)) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] (Select0 (ANDCCconst [c] x))) yes no) => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> (ANDCCconst [c] x)) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (ANDCC x y) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(OR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (ORCC x y) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(XOR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (XORCC x y) yes no)
@@ -722,44 +720,44 @@
 (NOR (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [^(c|d)])
 
 // Discover consts
-(AND x (MOVDconst [c])) && isU16Bit(c) => (ANDconst [c] x)
+(AND x (MOVDconst [c])) && isU16Bit(c) => (Select0 (ANDCCconst [c] x))
 (XOR x (MOVDconst [c])) && isU32Bit(c) => (XORconst [c] x)
 (OR x (MOVDconst [c])) && isU32Bit(c) => (ORconst [c] x)
 
 // Simplify consts
-(ANDconst [c] (ANDconst [d] x)) => (ANDconst [c&d] x)
+(Select0 (ANDCCconst [c] (Select0 (ANDCCconst [d] x)))) => (Select0 (ANDCCconst [c&d] x))
 (ORconst [c] (ORconst [d] x)) => (ORconst [c|d] x)
 (XORconst [c] (XORconst [d] x)) => (XORconst [c^d] x)
-(ANDconst [-1] x) => x
-(ANDconst [0] _) => (MOVDconst [0])
+(Select0 (ANDCCconst [-1] x)) => x
+(Select0 (ANDCCconst [0] _)) => (MOVDconst [0])
 (XORconst [0] x) => x
 (ORconst [-1] _) => (MOVDconst [-1])
 (ORconst [0] x) => x
 
 // zero-extend of small and => small and
-(MOVBZreg y:(ANDconst [c] _)) && uint64(c) <= 0xFF => y
-(MOVHZreg y:(ANDconst [c] _)) && uint64(c) <= 0xFFFF => y
-(MOVWZreg y:(ANDconst [c] _)) && uint64(c) <= 0xFFFFFFFF => y
+(MOVBZreg y:(Select0 (ANDCCconst [c] _))) && uint64(c) <= 0xFF => y
+(MOVHZreg y:(Select0 (ANDCCconst [c] _))) && uint64(c) <= 0xFFFF => y
+(MOVWZreg y:(Select0 (ANDCCconst [c] _))) && uint64(c) <= 0xFFFFFFFF => y
 (MOVWZreg y:(AND (MOVDconst [c]) _)) && uint64(c) <= 0xFFFFFFFF => y
 
 // sign extend of small-positive and => small-positive-and
-(MOVBreg y:(ANDconst [c] _)) && uint64(c) <= 0x7F => y
-(MOVHreg y:(ANDconst [c] _)) && uint64(c) <= 0x7FFF => y
-(MOVWreg y:(ANDconst [c] _)) && uint64(c) <= 0xFFFF => y // 0xFFFF is largest immediate constant, when regarded as 32-bit is > 0
+(MOVBreg y:(Select0 (ANDCCconst [c] _))) && uint64(c) <= 0x7F => y
+(MOVHreg y:(Select0 (ANDCCconst [c] _))) && uint64(c) <= 0x7FFF => y
+(MOVWreg y:(Select0 (ANDCCconst [c] _))) && uint64(c) <= 0xFFFF => y // 0xFFFF is largest immediate constant, when regarded as 32-bit is > 0
 (MOVWreg y:(AND (MOVDconst [c]) _)) && uint64(c) <= 0x7FFFFFFF => y
 
 // small and of zero-extend => either zero-extend or small and
-(ANDconst [c] y:(MOVBZreg _)) && c&0xFF == 0xFF => y
-(ANDconst [0xFF] y:(MOVBreg _)) => y
-(ANDconst [c] y:(MOVHZreg _))  && c&0xFFFF == 0xFFFF => y
-(ANDconst [0xFFFF] y:(MOVHreg _)) => y
+(Select0 (ANDCCconst [c] y:(MOVBZreg _))) && c&0xFF == 0xFF => y
+(Select0 (ANDCCconst [0xFF] y:(MOVBreg _))) => y
+(Select0 (ANDCCconst [c] y:(MOVHZreg _)))  && c&0xFFFF == 0xFFFF => y
+(Select0 (ANDCCconst [0xFFFF] y:(MOVHreg _))) => y
 
 (AND (MOVDconst [c]) y:(MOVWZreg _))  && c&0xFFFFFFFF == 0xFFFFFFFF => y
 (AND (MOVDconst [0xFFFFFFFF]) y:(MOVWreg x)) => (MOVWZreg x)
 // normal case
-(ANDconst [c] (MOV(B|BZ)reg x)) => (ANDconst [c&0xFF] x)
-(ANDconst [c] (MOV(H|HZ)reg x)) => (ANDconst [c&0xFFFF] x)
-(ANDconst [c] (MOV(W|WZ)reg x)) => (ANDconst [c&0xFFFFFFFF] x)
+(Select0 (ANDCCconst [c] (MOV(B|BZ)reg x))) => (Select0 (ANDCCconst [c&0xFF] x))
+(Select0 (ANDCCconst [c] (MOV(H|HZ)reg x))) => (Select0 (ANDCCconst [c&0xFFFF] x))
+(Select0 (ANDCCconst [c] (MOV(W|WZ)reg x))) => (Select0 (ANDCCconst [c&0xFFFFFFFF] x))
 
 // Eliminate unnecessary sign/zero extend following right shift
 (MOV(B|H|W)Zreg (SRWconst [c] (MOVBZreg x))) => (SRWconst [c] (MOVBZreg x))
@@ -841,11 +839,11 @@
 (MOVBZreg ((OR|XOR|AND) <t> x (MOVHZreg y))) => (MOVBZreg ((OR|XOR|AND) <t> x y))
 (MOVBZreg ((OR|XOR|AND) <t> x (MOVBZreg y))) => (MOVBZreg ((OR|XOR|AND) <t> x y))
 
-(MOV(B|H|W)Zreg z:(ANDconst [c] (MOVBZload ptr x))) => z
+(MOV(B|H|W)Zreg z:(Select0 (ANDCCconst [c] (MOVBZload ptr x)))) => z
 (MOVBZreg z:(AND y (MOVBZload ptr x))) => z
-(MOV(H|W)Zreg z:(ANDconst [c] (MOVHZload ptr x))) => z
+(MOV(H|W)Zreg z:(Select0 (ANDCCconst [c] (MOVHZload ptr x)))) => z
 (MOVHZreg z:(AND y (MOVHZload ptr x))) => z
-(MOVWZreg z:(ANDconst [c] (MOVWZload ptr x))) => z
+(MOVWZreg z:(Select0 (ANDCCconst [c] (MOVWZload ptr x)))) => z
 (MOVWZreg z:(AND y (MOVWZload ptr x))) => z
 
 // Arithmetic constant ops
@@ -1067,11 +1065,11 @@
 (SLDconst [c] z:(MOVHZreg x)) && c < 16 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,48,63,64)] x)
 (SLDconst [c] z:(MOVWZreg x)) && c < 32 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,32,63,64)] x)
 
-(SLDconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c <= (64-getPPC64ShiftMaskLength(d)) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+(SLDconst [c] z:(Select0 (ANDCCconst [d] x))) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c <= (64-getPPC64ShiftMaskLength(d)) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
 (SLDconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(64-getPPC64ShiftMaskLength(d)) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
 (SLWconst [c] z:(MOVBZreg x)) && z.Uses == 1 && c < 8 => (CLRLSLWI [newPPC64ShiftAuxInt(c,24,31,32)] x)
 (SLWconst [c] z:(MOVHZreg x)) && z.Uses == 1 && c < 16 => (CLRLSLWI [newPPC64ShiftAuxInt(c,16,31,32)] x)
-(SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+(SLWconst [c] z:(Select0 (ANDCCconst [d] x))) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
 (SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
 // special case for power9
 (SL(W|D)const [c] z:(MOVWreg x)) && c < 32 && buildcfg.GOPPC64 >= 9 => (EXTSWSLconst [c] x)
@@ -1155,6 +1153,16 @@
 (ISEL [4] x _ (Flag(EQ|GT))) => x
 (ISEL [4] _ y (FlagLT)) => y
 
+(ISEL [2] x y (CMPconst [0] (Select0 (ANDCCconst [1] z)))) => (ISEL [2] x y (Select1 <types.TypeFlags> (ANDCCconst [1] z )))
+(ISEL [6] x y (CMPconst [0] (Select0 (ANDCCconst [1] z)))) => (ISEL [6] x y (Select1 <types.TypeFlags> (ANDCCconst [1] z )))
+(ISELB [2] x (CMPconst [0] (Select0 (ANDCCconst [1] z)))) => (XORconst [1] (Select0 <typ.UInt64> (ANDCCconst [1] z )))
+(ISELB [6] x (CMPconst [0] (Select0 (ANDCCconst [1] z)))) => (Select0 <typ.UInt64> (ANDCCconst [1] z ))
+
+(ISEL [2] x y (CMPWconst [0] (Select0 (ANDCCconst [1] z)))) => (ISEL [2] x y (Select1 <types.TypeFlags> (ANDCCconst [1] z )))
+(ISEL [6] x y (CMPWconst [0] (Select0 (ANDCCconst [1] z)))) => (ISEL [6] x y (Select1 <types.TypeFlags> (ANDCCconst [1] z )))
+(ISELB [2] x (CMPWconst [0] (Select0 (ANDCCconst [1] z)))) => (XORconst [1] (Select0 <typ.UInt64> (ANDCCconst [1] z )))
+(ISELB [6] x (CMPWconst [0] (Select0 (ANDCCconst [1] z)))) => (Select0 <typ.UInt64> (ANDCCconst [1] z ))
+
 (ISELB [n] (MOVDconst [1]) (InvertFlags bool)) && n%4 == 0 => (ISELB [n+1] (MOVDconst [1]) bool)
 (ISELB [n] (MOVDconst [1]) (InvertFlags bool)) && n%4 == 1 => (ISELB [n-1] (MOVDconst [1]) bool)
 (ISELB [n] (MOVDconst [1]) (InvertFlags bool)) && n%4 == 2 => (ISELB [n] (MOVDconst [1]) bool)
@@ -1166,7 +1174,7 @@
 (XORconst [1] (ISELB [4] (MOVDconst [1]) cmp)) => (ISELB [0] (MOVDconst [1]) cmp)
 
 // A particular pattern seen in cgo code:
-(AND (MOVDconst [c]) x:(MOVBZload _ _)) => (ANDconst [c&0xFF] x)
+(AND (MOVDconst [c]) x:(MOVBZload _ _)) => (Select0 (ANDCCconst [c&0xFF] x))
 
 // floating point negative abs
 (FNEG (FABS x)) => (FNABS x)
