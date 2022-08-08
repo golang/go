@@ -1087,6 +1087,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				c.ctxt.Diag("zero-width instruction\n%v", p)
 			}
 		}
+		pc += int64(m)
+
 		if o.flag&LFROM != 0 {
 			c.addpool(p, &p.From)
 		}
@@ -1096,13 +1098,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if o.flag&LTO != 0 {
 			c.addpool(p, &p.To)
 		}
-
-		if p.As == AB || p.As == obj.ARET || p.As == AERET { /* TODO: other unconditional operations */
-			c.checkpool(p, 0)
-		}
-		pc += int64(m)
 		if c.blitrl != nil {
-			c.checkpool(p, 1)
+			c.checkpool(p)
 		}
 	}
 
@@ -1249,48 +1246,54 @@ func (c *ctxt7) isRestartable(p *obj.Prog) bool {
 /*
  * when the first reference to the literal pool threatens
  * to go out of range of a 1Mb PC-relative offset
- * drop the pool now, and branch round it.
+ * drop the pool now.
  */
-func (c *ctxt7) checkpool(p *obj.Prog, skip int) {
-	if c.pool.size >= 0xffff0 || !ispcdisp(int32(p.Pc+4+int64(c.pool.size)-int64(c.pool.start)+8)) {
-		c.flushpool(p, skip)
-	} else if p.Link == nil {
-		c.flushpool(p, 2)
+func (c *ctxt7) checkpool(p *obj.Prog) {
+	// If the pool is going to go out of range or p is the last instruction of the function,
+	// flush the pool.
+	if c.pool.size >= 0xffff0 || !ispcdisp(int32(p.Pc+4+int64(c.pool.size)-int64(c.pool.start)+8)) || p.Link == nil {
+		c.flushpool(p)
 	}
 }
 
-func (c *ctxt7) flushpool(p *obj.Prog, skip int) {
-	if c.blitrl != nil {
-		if skip != 0 {
-			if c.ctxt.Debugvlog && skip == 1 {
-				fmt.Printf("note: flush literal pool at %#x: len=%d ref=%x\n", uint64(p.Pc+4), c.pool.size, c.pool.start)
-			}
-			q := c.newprog()
+func (c *ctxt7) flushpool(p *obj.Prog) {
+	// Needs to insert a branch before flushing the pool.
+	// We don't need the jump if following an unconditional branch.
+	// TODO: other unconditional operations.
+	if !(p.As == AB || p.As == obj.ARET || p.As == AERET) {
+		if c.ctxt.Debugvlog {
+			fmt.Printf("note: flush literal pool at %#x: len=%d ref=%x\n", uint64(p.Pc+4), c.pool.size, c.pool.start)
+		}
+		q := c.newprog()
+		if p.Link == nil {
+			// If p is the last instruction of the function, insert an UNDEF instruction in case the
+			// exection fall through to the pool.
+			q.As = obj.AUNDEF
+		} else {
+			// Else insert a branch to the next instruction of p.
 			q.As = AB
 			q.To.Type = obj.TYPE_BRANCH
 			q.To.SetTarget(p.Link)
-			q.Link = c.blitrl
-			q.Pos = p.Pos
-			c.blitrl = q
-		} else if p.Pc+int64(c.pool.size)-int64(c.pool.start) < maxPCDisp {
-			return
 		}
-
-		// The line number for constant pool entries doesn't really matter.
-		// We set it to the line number of the preceding instruction so that
-		// there are no deltas to encode in the pc-line tables.
-		for q := c.blitrl; q != nil; q = q.Link {
-			q.Pos = p.Pos
-		}
-
-		c.elitrl.Link = p.Link
-		p.Link = c.blitrl
-
-		c.blitrl = nil /* BUG: should refer back to values until out-of-range */
-		c.elitrl = nil
-		c.pool.size = 0
-		c.pool.start = 0
+		q.Link = c.blitrl
+		q.Pos = p.Pos
+		c.blitrl = q
 	}
+
+	// The line number for constant pool entries doesn't really matter.
+	// We set it to the line number of the preceding instruction so that
+	// there are no deltas to encode in the pc-line tables.
+	for q := c.blitrl; q != nil; q = q.Link {
+		q.Pos = p.Pos
+	}
+
+	c.elitrl.Link = p.Link
+	p.Link = c.blitrl
+
+	c.blitrl = nil /* BUG: should refer back to values until out-of-range */
+	c.elitrl = nil
+	c.pool.size = 0
+	c.pool.start = 0
 }
 
 // addpool128 adds a 128-bit constant to literal pool by two consecutive DWORD
@@ -1359,23 +1362,21 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 		}
 	}
 
-	q := c.newprog()
-	*q = *t
 	if c.blitrl == nil {
-		c.blitrl = q
+		c.blitrl = t
 		c.pool.start = uint32(p.Pc)
 	} else {
-		c.elitrl.Link = q
+		c.elitrl.Link = t
 	}
-	c.elitrl = q
-	if q.As == ADWORD {
+	c.elitrl = t
+	if t.As == ADWORD {
 		// make DWORD 8-byte aligned, this is not required by ISA,
 		// just to avoid performance penalties when loading from
 		// the constant pool across a cache line.
 		c.pool.size = roundUp(c.pool.size, 8)
 	}
 	c.pool.size += uint32(sz)
-	p.Pool = q
+	p.Pool = t
 }
 
 // roundUp rounds up x to "to".
