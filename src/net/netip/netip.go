@@ -1114,7 +1114,7 @@ func MustParseAddrPort(s string) AddrPort {
 // isZero reports whether p is the zero AddrPort.
 func (p AddrPort) isZero() bool { return p == AddrPort{} }
 
-// IsValid reports whether p.IP() is valid.
+// IsValid reports whether p.Addr() is valid.
 // All ports are valid, including zero.
 func (p AddrPort) IsValid() bool { return p.ip.IsValid() }
 
@@ -1276,7 +1276,7 @@ func (p Prefix) Addr() Addr { return p.ip }
 // It reports -1 if invalid.
 func (p Prefix) Bits() int { return int(p.bits) }
 
-// IsValid reports whether p.Bits() has a valid range for p.IP().
+// IsValid reports whether p.Bits() has a valid range for p.Addr().
 // If p.Addr() is the zero Addr, IsValid returns false.
 // Note that if p is the zero Prefix, then p.IsValid() == false.
 func (p Prefix) IsValid() bool { return !p.ip.isZero() && p.bits >= 0 && int(p.bits) <= p.ip.BitLen() }
