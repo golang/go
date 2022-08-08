@@ -364,7 +364,7 @@ func TestMapIterSet(t *testing.T) {
 		}
 	}
 
-	if strings.HasSuffix(testenv.Builder(), "-noopt") {
+	if testenv.OptimizationOff() {
 		return // no inlining with the noopt builder
 	}
 

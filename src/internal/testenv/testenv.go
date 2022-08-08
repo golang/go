@@ -408,6 +408,19 @@ func SkipIfShortAndSlow(t testing.TB) {
 	}
 }
 
+// SkipIfOptimizationOff skips t if optimization is disabled.
+func SkipIfOptimizationOff(t testing.TB) {
+	if OptimizationOff() {
+		t.Helper()
+		t.Skip("skipping test with optimization disabled on builder")
+	}
+}
+
+// OptimizationOff reports whether optimization is disabled.
+func OptimizationOff() bool {
+	return strings.HasSuffix(Builder(), "-noopt")
+}
+
 // RunWithTimeout runs cmd and returns its combined output. If the
 // subprocess exits with a non-zero status, it will log that status
 // and return a non-nil error, but this is not considered fatal.
