@@ -39,9 +39,12 @@ func main() {
 	})
 }
 
-// badPackageDup contains a duplicate definition of the 'a' const.
-// this is from diagnostics_test.go,
-const badPackageDup = `
+// This test demonstrates a case where gopls is confused by line directives,
+// and fails to surface type checking errors.
+func TestFailingDiagnosticClearingOnEdit(t *testing.T) {
+	// badPackageDup contains a duplicate definition of the 'a' const.
+	// this is from diagnostics_test.go,
+	const badPackageDup = `
 -- go.mod --
 module mod.com
 
@@ -56,11 +59,17 @@ package consts
 const a = 2
 `
 
-func TestFailingDiagnosticClearingOnEdit(t *testing.T) {
 	Run(t, badPackageDup, func(t *testing.T, env *Env) {
 		env.OpenFile("b.go")
+
 		// no diagnostics for any files, but there should be
-		env.Await(NoDiagnostics("a.go"), NoDiagnostics("b.go"))
+		env.Await(
+			OnceMet(
+				env.DoneWithOpen(),
+				EmptyOrNoDiagnostics("a.go"),
+				EmptyOrNoDiagnostics("b.go"),
+			),
+		)
 
 		// Fix the error by editing the const name in b.go to `b`.
 		env.RegexpReplace("b.go", "(a) = 2", "b")

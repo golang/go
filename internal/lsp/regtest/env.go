@@ -282,6 +282,7 @@ func (a *Awaiter) DiagnosticsFor(name string) *protocol.PublishDiagnosticsParams
 }
 
 func (e *Env) Await(expectations ...Expectation) {
+	e.T.Helper()
 	if err := e.Awaiter.Await(e.Ctx, expectations...); err != nil {
 		e.T.Fatal(err)
 	}
