@@ -360,8 +360,14 @@ func (c *cancelCtx) Done() <-chan struct{} {
 	if d != nil {
 		return d.(chan struct{})
 	}
-	c.done.CompareAndSwap(nil, make(chan struct{}))
-	return c.done.Load().(chan struct{})
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	d = c.done.Load()
+	if d == nil {
+		d = make(chan struct{})
+		c.done.Store(d)
+	}
+	return d.(chan struct{})
 }
 
 func (c *cancelCtx) Err() error {
