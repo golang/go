@@ -336,6 +336,14 @@ func (n *Name) Byval() bool {
 // NewClosureVar returns a new closure variable for fn to refer to
 // outer variable n.
 func NewClosureVar(pos src.XPos, fn *Func, n *Name) *Name {
+	switch n.Class {
+	case PAUTO, PPARAM, PPARAMOUT, PAUTOHEAP:
+		// ok
+	default:
+		// Prevent mistaken capture of global variables.
+		base.Fatalf("NewClosureVar: %+v", n)
+	}
+
 	c := NewNameAt(pos, n.Sym())
 	c.Curfn = fn
 	c.Class = PAUTOHEAP
