@@ -9,4 +9,5 @@ func AStuff()
 var _ A
 ```
 
-variable of type a\.A
+variable of type a.A
+

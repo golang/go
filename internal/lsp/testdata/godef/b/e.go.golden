@@ -3,7 +3,8 @@ godef/a/d.go:6:2-8: defined here as ```go
 field Member string
 ```
 
-\@Member
+@Member
+
 
 [`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)
 -- Member-definition-json --
@@ -21,7 +22,7 @@ field Member string
 			"offset": 96
 		}
 	},
-	"description": "```go\nfield Member string\n```\n\n\\@Member\n\n[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)"
+	"description": "```go\nfield Member string\n```\n\n@Member\n\n\n[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)"
 }
 
 -- Member-hoverdef --
@@ -29,7 +30,8 @@ field Member string
 field Member string
 ```
 
-\@Member
+@Member
+
 
 [`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)
 -- Other-definition --
@@ -37,7 +39,8 @@ godef/a/d.go:9:5-10: defined here as ```go
 var a.Other a.Thing
 ```
 
-\@Other
+@Other
+
 
 [`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
 -- Other-definition-json --
@@ -55,7 +58,7 @@ var a.Other a.Thing
 			"offset": 126
 		}
 	},
-	"description": "```go\nvar a.Other a.Thing\n```\n\n\\@Other\n\n[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)"
+	"description": "```go\nvar a.Other a.Thing\n```\n\n@Other\n\n\n[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)"
 }
 
 -- Other-hoverdef --
@@ -63,7 +66,8 @@ var a.Other a.Thing
 var a.Other a.Thing
 ```
 
-\@Other
+@Other
+
 
 [`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
 -- Thing-definition --

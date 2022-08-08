@@ -739,7 +739,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 		got := tests.StripSubscripts(hover.Contents.Value)
 		expectHover = tests.StripSubscripts(expectHover)
 		if got != expectHover {
-			t.Errorf("%s:\n%s", d.Src, tests.Diff(t, expectHover, got))
+			tests.CheckSameMarkdown(t, got, expectHover)
 		}
 	}
 	if !d.OnlyHover {

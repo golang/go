@@ -23,7 +23,7 @@ func debugf(format string, args ...interface{}) {
 		return
 	}
 	if false {
-		fmt.Sprintf(format, args...) // encourage vet to validate format strings
+		_ = fmt.Sprintf(format, args...) // encourage vet to validate format strings
 	}
 	fmt.Fprintf(os.Stderr, ">>> "+format+"\n", args...)
 }

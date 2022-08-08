@@ -3,7 +3,7 @@ godef/broken/unclosedIf.go:7:7-19: defined here as ```go
 var myUnclosedIf string
 ```
 
-\@myUnclosedIf
+@myUnclosedIf
 -- myUnclosedIf-definition-json --
 {
 	"span": {
@@ -19,7 +19,7 @@ var myUnclosedIf string
 			"offset": 80
 		}
 	},
-	"description": "```go\nvar myUnclosedIf string\n```\n\n\\@myUnclosedIf"
+	"description": "```go\nvar myUnclosedIf string\n```\n\n@myUnclosedIf"
 }
 
 -- myUnclosedIf-hoverdef --
@@ -27,4 +27,5 @@ var myUnclosedIf string
 var myUnclosedIf string
 ```
 
-\@myUnclosedIf
+@myUnclosedIf
+

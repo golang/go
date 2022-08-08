@@ -584,7 +584,8 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 		hover = tests.StripSubscripts(hover)
 		expectHover = tests.StripSubscripts(expectHover)
 		if hover != expectHover {
-			t.Errorf("hoverdef for %s failed:\n%s", d.Src, tests.Diff(t, expectHover, hover))
+			tests.CheckSameMarkdown(t, hover, expectHover)
+
 		}
 	}
 	if !d.OnlyHover {

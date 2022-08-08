@@ -797,12 +797,8 @@ func FormatHover(h *HoverJSON, options *Options) (string, error) {
 		if el != "" {
 			b.WriteString(el)
 
-			// Don't write out final newline.
-			if i == len(parts) {
-				continue
-			}
 			// If any elements of the remainder of the list are non-empty,
-			// write a newline.
+			// write an extra newline.
 			if anyNonEmpty(parts[i+1:]) {
 				if options.PreferredContentFormat == protocol.Markdown {
 					b.WriteString("\n\n")

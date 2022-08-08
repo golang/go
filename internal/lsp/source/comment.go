@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !go1.19
+// +build !go1.19
+
 package source
 
 import (
@@ -226,7 +229,7 @@ func unindent(block []string) {
 	prefix := block[0][0:indentLen(block[0])]
 	for _, line := range block {
 		if !isBlank(line) {
-			prefix = commonPrefix(prefix, line[0:indentLen(line)])
+			prefix = commonPrefix(prefix, line)
 		}
 	}
 	n := len(prefix)

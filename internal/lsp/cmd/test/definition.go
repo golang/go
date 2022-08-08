@@ -10,8 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/diff"
-	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 )
@@ -51,11 +49,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 			return []byte(got), nil
 		})))
 		if expect != "" && !strings.HasPrefix(got, expect) {
-			d, err := myers.ComputeEdits("", expect, got)
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Errorf("definition %v failed with %#v\n%s", tag, args, diff.ToUnified("expect", "got", expect, d))
+			tests.CheckSameMarkdown(t, got, expect)
 		}
 	}
 }
