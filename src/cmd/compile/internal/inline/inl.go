@@ -827,18 +827,18 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 // CalleeEffects appends any side effects from evaluating callee to init.
 func CalleeEffects(init *ir.Nodes, callee ir.Node) {
 	for {
+		init.Append(ir.TakeInit(callee)...)
+
 		switch callee.Op() {
 		case ir.ONAME, ir.OCLOSURE, ir.OMETHEXPR:
 			return // done
 
 		case ir.OCONVNOP:
 			conv := callee.(*ir.ConvExpr)
-			init.Append(ir.TakeInit(conv)...)
 			callee = conv.X
 
 		case ir.OINLCALL:
 			ic := callee.(*ir.InlinedCallExpr)
-			init.Append(ir.TakeInit(ic)...)
 			init.Append(ic.Body.Take()...)
 			callee = ic.SingleResult()
 
