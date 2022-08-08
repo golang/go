@@ -1127,6 +1127,15 @@ func dumpNode(w io.Writer, n Node, depth int) {
 		dumpNodeHeader(w, n)
 		return
 
+	case OLINKSYMOFFSET:
+		n := n.(*LinksymOffsetExpr)
+		fmt.Fprintf(w, "%+v-%v", n.Op(), n.Linksym)
+		// Offset is almost always 0, so only print when it's interesting.
+		if n.Offset_ != 0 {
+			fmt.Fprintf(w, "%+v", n.Offset_)
+		}
+		dumpNodeHeader(w, n)
+
 	case OASOP:
 		n := n.(*AssignOpStmt)
 		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.AsOp)
