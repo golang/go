@@ -74,6 +74,10 @@ func (e *escape) stmt(n ir.Node) {
 		e.block(n.Body)
 		e.block(n.Else)
 
+	case ir.OCHECKNIL:
+		n := n.(*ir.UnaryExpr)
+		e.discard(n.X)
+
 	case ir.OFOR, ir.OFORUNTIL:
 		n := n.(*ir.ForStmt)
 		e.loopDepth++
