@@ -1744,7 +1744,7 @@ func Test1xxResponses(t *testing.T) {
 	defer res.Body.Close()
 
 	if respCounter != 2 {
-		t.Errorf("Excpected 2 1xx responses; got %d", respCounter)
+		t.Errorf("Expected 2 1xx responses; got %d", respCounter)
 	}
 	checkLinkHeaders(t, []string{"</style.css>; rel=preload; as=style", "</script.js>; rel=preload; as=script", "</foo.js>; rel=preload; as=script"}, res.Header["Link"])
 
