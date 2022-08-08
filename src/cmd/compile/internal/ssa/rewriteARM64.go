@@ -20484,6 +20484,18 @@ func rewriteValueARM64_OpARM64SLL(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SLL x (ANDconst [63] y))
+	// result: (SLL x y)
+	for {
+		x := v_0
+		if v_1.Op != OpARM64ANDconst || auxIntToInt64(v_1.AuxInt) != 63 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpARM64SLL)
+		v.AddArg2(x, y)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64SLLconst(v *Value) bool {
@@ -20649,6 +20661,18 @@ func rewriteValueARM64_OpARM64SRA(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SRA x (ANDconst [63] y))
+	// result: (SRA x y)
+	for {
+		x := v_0
+		if v_1.Op != OpARM64ANDconst || auxIntToInt64(v_1.AuxInt) != 63 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpARM64SRA)
+		v.AddArg2(x, y)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64SRAconst(v *Value) bool {
@@ -20804,6 +20828,18 @@ func rewriteValueARM64_OpARM64SRL(v *Value) bool {
 		v.reset(OpARM64SRLconst)
 		v.AuxInt = int64ToAuxInt(c & 63)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SRL x (ANDconst [63] y))
+	// result: (SRL x y)
+	for {
+		x := v_0
+		if v_1.Op != OpARM64ANDconst || auxIntToInt64(v_1.AuxInt) != 63 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpARM64SRL)
+		v.AddArg2(x, y)
 		return true
 	}
 	return false

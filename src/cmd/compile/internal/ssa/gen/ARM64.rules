@@ -1235,9 +1235,12 @@
 (EON x (MOVDconst [c])) => (XORconst [^c] x)
 (ORN x (MOVDconst [c])) => (ORconst  [^c] x)
 
-(SLL x (MOVDconst [c])) => (SLLconst x [c&63]) // Note: I don't think we ever generate bad constant shifts (i.e. c>=64)
+(SLL x (MOVDconst [c])) => (SLLconst x [c&63])
 (SRL x (MOVDconst [c])) => (SRLconst x [c&63])
 (SRA x (MOVDconst [c])) => (SRAconst x [c&63])
+(SLL x (ANDconst [63] y)) => (SLL x y)
+(SRL x (ANDconst [63] y)) => (SRL x y)
+(SRA x (ANDconst [63] y)) => (SRA x y)
 
 (CMP x (MOVDconst [c])) => (CMPconst [c] x)
 (CMP (MOVDconst [c]) x) => (InvertFlags (CMPconst [c] x))

@@ -82,6 +82,7 @@ func lshMask64x64(v int64, s uint64) int64 {
 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
 	// riscv64:"SLL",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+	// arm64:"LSL",-"AND"
 	return v << (s & 63)
 }
 
@@ -90,6 +91,7 @@ func rshMask64Ux64(v uint64, s uint64) uint64 {
 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
 	// riscv64:"SRL",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+	// arm64:"LSR",-"AND"
 	return v >> (s & 63)
 }
 
@@ -98,6 +100,7 @@ func rshMask64x64(v int64, s uint64) int64 {
 	// ppc64le:"ANDCC",-ORN",-"ISEL"
 	// riscv64:"SRA",-"OR",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+	// arm64:"ASR",-"AND"
 	return v >> (s & 63)
 }
 
@@ -106,6 +109,7 @@ func lshMask32x64(v int32, s uint64) int32 {
 	// ppc64le:"ISEL",-"ORN"
 	// riscv64:"SLL","AND","SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+	// arm64:"LSL",-"AND"
 	return v << (s & 63)
 }
 
@@ -114,6 +118,7 @@ func rshMask32Ux64(v uint32, s uint64) uint32 {
 	// ppc64le:"ISEL",-"ORN"
 	// riscv64:"SRL","AND","SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+	// arm64:"LSR",-"AND"
 	return v >> (s & 63)
 }
 
@@ -122,6 +127,7 @@ func rshMask32x64(v int32, s uint64) int32 {
 	// ppc64le:"ISEL",-"ORN"
 	// riscv64:"SRA","OR","SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+	// arm64:"ASR",-"AND"
 	return v >> (s & 63)
 }
 
@@ -130,6 +136,7 @@ func lshMask64x32(v int64, s uint32) int64 {
 	// ppc64le:"ANDCC",-"ORN"
 	// riscv64:"SLL",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+	// arm64:"LSL",-"AND"
 	return v << (s & 63)
 }
 
@@ -138,6 +145,7 @@ func rshMask64Ux32(v uint64, s uint32) uint64 {
 	// ppc64le:"ANDCC",-"ORN"
 	// riscv64:"SRL",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+	// arm64:"LSR",-"AND"
 	return v >> (s & 63)
 }
 
@@ -146,6 +154,7 @@ func rshMask64x32(v int64, s uint32) int64 {
 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
 	// riscv64:"SRA",-"OR",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+	// arm64:"ASR",-"AND"
 	return v >> (s & 63)
 }
 
