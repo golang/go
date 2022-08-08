@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !race && !goexperiment.unified
+//go:build !race
 
 package test
 
@@ -11,7 +11,6 @@ import (
 	"testing"
 )
 
-// TODO(cuonglm,mdempsky): figure out why Unifed IR failed?
 func TestAppendOfMake(t *testing.T) {
 	testenv.SkipIfOptimizationOff(t)
 	for n := 32; n < 33; n++ { // avoid stack allocation of make()

@@ -1989,6 +1989,13 @@ func (r *reader) expr() (res ir.Node) {
 		case ir.OAPPEND:
 			n := n.(*ir.CallExpr)
 			n.RType = r.rtype(pos)
+			// For append(a, b...), we don't need the implicit conversion. The typechecker already
+			// ensured that a and b are both slices with the same base type, or []byte and string.
+			if n.IsDDD {
+				if conv, ok := n.Args[1].(*ir.ConvExpr); ok && conv.Op() == ir.OCONVNOP && conv.Implicit() {
+					n.Args[1] = conv.X
+				}
+			}
 		case ir.OCOPY:
 			n := n.(*ir.BinaryExpr)
 			n.RType = r.rtype(pos)
