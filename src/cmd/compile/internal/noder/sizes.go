@@ -82,7 +82,7 @@ func (s *gcSizes) Offsetsof(fields []*types2.Var) []int64 {
 	for i, f := range fields {
 		typ := f.Type()
 		a := s.Alignof(typ)
-		o = types.Rnd(o, a)
+		o = types.RoundUp(o, a)
 		offsets[i] = o
 		o += s.Sizeof(typ)
 	}
@@ -134,7 +134,7 @@ func (s *gcSizes) Sizeof(T types2.Type) int64 {
 		}
 
 		// gc: Size includes alignment padding.
-		return types.Rnd(offsets[n-1]+last, s.Alignof(t))
+		return types.RoundUp(offsets[n-1]+last, s.Alignof(t))
 	case *types2.Interface:
 		return int64(types.PtrSize) * 2
 	case *types2.Chan, *types2.Map, *types2.Pointer, *types2.Signature:

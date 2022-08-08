@@ -40,14 +40,14 @@ func UintN(s *obj.LSym, off int, v uint64, wid int) int {
 }
 
 func SymPtr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
-	off = int(types.Rnd(int64(off), int64(types.PtrSize)))
+	off = int(types.RoundUp(int64(off), int64(types.PtrSize)))
 	s.WriteAddr(base.Ctxt, int64(off), types.PtrSize, x, int64(xoff))
 	off += types.PtrSize
 	return off
 }
 
 func SymPtrWeak(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
-	off = int(types.Rnd(int64(off), int64(types.PtrSize)))
+	off = int(types.RoundUp(int64(off), int64(types.PtrSize)))
 	s.WriteWeakAddr(base.Ctxt, int64(off), types.PtrSize, x, int64(xoff))
 	off += types.PtrSize
 	return off

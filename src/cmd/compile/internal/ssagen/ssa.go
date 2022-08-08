@@ -521,7 +521,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 				typ = types.NewPtr(typ)
 			}
 
-			offset = types.Rnd(offset, typ.Alignment())
+			offset = types.RoundUp(offset, typ.Alignment())
 			ptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(typ), offset, clo)
 			offset += typ.Size()
 
@@ -5625,13 +5625,13 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 
 	for _, arg := range args {
 		t := arg.Type
-		off = types.Rnd(off, t.Alignment())
+		off = types.RoundUp(off, t.Alignment())
 		size := t.Size()
 		callArgs = append(callArgs, arg)
 		callArgTypes = append(callArgTypes, t)
 		off += size
 	}
-	off = types.Rnd(off, int64(types.RegSize))
+	off = types.RoundUp(off, int64(types.RegSize))
 
 	// Issue call
 	var call *ssa.Value
@@ -5656,11 +5656,11 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	// Load results
 	res := make([]*ssa.Value, len(results))
 	for i, t := range results {
-		off = types.Rnd(off, t.Alignment())
+		off = types.RoundUp(off, t.Alignment())
 		res[i] = s.resultOfCall(call, int64(i), t)
 		off += t.Size()
 	}
-	off = types.Rnd(off, int64(types.PtrSize))
+	off = types.RoundUp(off, int64(types.PtrSize))
 
 	// Remember how much callee stack space we needed.
 	call.AuxInt = off
@@ -7284,14 +7284,14 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 func defframe(s *State, e *ssafn, f *ssa.Func) {
 	pp := s.pp
 
-	frame := types.Rnd(s.maxarg+e.stksize, int64(types.RegSize))
+	frame := types.RoundUp(s.maxarg+e.stksize, int64(types.RegSize))
 	if Arch.PadFrame != nil {
 		frame = Arch.PadFrame(frame)
 	}
 
 	// Fill in argument and frame size.
 	pp.Text.To.Type = obj.TYPE_TEXTSIZE
-	pp.Text.To.Val = int32(types.Rnd(f.OwnAux.ArgWidth(), int64(types.RegSize)))
+	pp.Text.To.Val = int32(types.RoundUp(f.OwnAux.ArgWidth(), int64(types.RegSize)))
 	pp.Text.To.Offset = frame
 
 	p := pp.Text

@@ -63,9 +63,10 @@ var CalcSizeDisabled bool
 // the size of a pointer, set in gc.Main (see ../gc/main.go).
 var defercalc int
 
-func Rnd(o int64, r int64) int64 {
+// RoundUp rounds o to a multiple of r, r is a power of 2.
+func RoundUp(o int64, r int64) int64 {
 	if r < 1 || r > 8 || r&(r-1) != 0 {
-		base.Fatalf("rnd %d", r)
+		base.Fatalf("Round %d", r)
 	}
 	return (o + r - 1) &^ (r - 1)
 }
@@ -187,7 +188,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 			maxalign = int32(f.Type.align)
 		}
 		if f.Type.align > 0 {
-			o = Rnd(o, int64(f.Type.align))
+			o = RoundUp(o, int64(f.Type.align))
 		}
 		if isStruct { // For receiver/args/results, do not set, it depends on ABI
 			f.Offset = o
@@ -223,7 +224,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 
 	// final width is rounded
 	if flag != 0 {
-		o = Rnd(o, int64(maxalign))
+		o = RoundUp(o, int64(maxalign))
 	}
 	t.align = uint8(maxalign)
 

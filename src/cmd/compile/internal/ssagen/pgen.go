@@ -159,7 +159,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			w = 1
 		}
 		s.stksize += w
-		s.stksize = types.Rnd(s.stksize, n.Type().Alignment())
+		s.stksize = types.RoundUp(s.stksize, n.Type().Alignment())
 		if n.Type().HasPointers() {
 			s.stkptrsize = s.stksize
 			lastHasPtr = true
@@ -169,8 +169,8 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		n.SetFrameOffset(-s.stksize)
 	}
 
-	s.stksize = types.Rnd(s.stksize, int64(types.RegSize))
-	s.stkptrsize = types.Rnd(s.stkptrsize, int64(types.RegSize))
+	s.stksize = types.RoundUp(s.stksize, int64(types.RegSize))
+	s.stkptrsize = types.RoundUp(s.stkptrsize, int64(types.RegSize))
 }
 
 const maxStackSize = 1 << 30
