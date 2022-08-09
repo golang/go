@@ -134,6 +134,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpLOONG64SLLV,
 		ssa.OpLOONG64SRLV,
 		ssa.OpLOONG64SRAV,
+		ssa.OpLOONG64ROTR,
+		ssa.OpLOONG64ROTRV,
 		ssa.OpLOONG64ADDF,
 		ssa.OpLOONG64ADDD,
 		ssa.OpLOONG64SUBF,
@@ -165,6 +167,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpLOONG64SLLVconst,
 		ssa.OpLOONG64SRLVconst,
 		ssa.OpLOONG64SRAVconst,
+		ssa.OpLOONG64ROTRconst,
+		ssa.OpLOONG64ROTRVconst,
 		ssa.OpLOONG64SGTconst,
 		ssa.OpLOONG64SGTUconst:
 		p := s.Prog(v.Op.Asm())

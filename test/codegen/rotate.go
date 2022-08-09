@@ -18,6 +18,7 @@ func rot64(x uint64) uint64 {
 	// amd64:"ROLQ\t[$]7"
 	// ppc64:"ROTL\t[$]7"
 	// ppc64le:"ROTL\t[$]7"
+	// loong64: "ROTRV\t[$]57"
 	a += x<<7 | x>>57
 
 	// amd64:"ROLQ\t[$]8"
@@ -25,6 +26,7 @@ func rot64(x uint64) uint64 {
 	// s390x:"RISBGZ\t[$]0, [$]63, [$]8, "
 	// ppc64:"ROTL\t[$]8"
 	// ppc64le:"ROTL\t[$]8"
+	// loong64: "ROTRV\t[$]56"
 	a += x<<8 + x>>56
 
 	// amd64:"ROLQ\t[$]9"
@@ -32,6 +34,7 @@ func rot64(x uint64) uint64 {
 	// s390x:"RISBGZ\t[$]0, [$]63, [$]9, "
 	// ppc64:"ROTL\t[$]9"
 	// ppc64le:"ROTL\t[$]9"
+	// loong64: "ROTRV\t[$]55"
 	a += x<<9 ^ x>>55
 
 	// amd64:"ROLQ\t[$]10"
@@ -41,6 +44,7 @@ func rot64(x uint64) uint64 {
 	// ppc64le:"ROTL\t[$]10"
 	// arm64:"ROR\t[$]54"
 	// s390x:"RISBGZ\t[$]0, [$]63, [$]10, "
+	// loong64: "ROTRV\t[$]54"
 	a += bits.RotateLeft64(x, 10)
 
 	return a
@@ -53,6 +57,7 @@ func rot32(x uint32) uint32 {
 	// arm:"MOVW\tR\\d+@>25"
 	// ppc64:"ROTLW\t[$]7"
 	// ppc64le:"ROTLW\t[$]7"
+	// loong64: "ROTR\t[$]25"
 	a += x<<7 | x>>25
 
 	// amd64:`ROLL\t[$]8`
@@ -61,6 +66,7 @@ func rot32(x uint32) uint32 {
 	// s390x:"RLL\t[$]8"
 	// ppc64:"ROTLW\t[$]8"
 	// ppc64le:"ROTLW\t[$]8"
+	// loong64: "ROTR\t[$]24"
 	a += x<<8 + x>>24
 
 	// amd64:"ROLL\t[$]9"
@@ -69,6 +75,7 @@ func rot32(x uint32) uint32 {
 	// s390x:"RLL\t[$]9"
 	// ppc64:"ROTLW\t[$]9"
 	// ppc64le:"ROTLW\t[$]9"
+	// loong64: "ROTR\t[$]23"
 	a += x<<9 ^ x>>23
 
 	// amd64:"ROLL\t[$]10"
@@ -79,6 +86,7 @@ func rot32(x uint32) uint32 {
 	// ppc64le:"ROTLW\t[$]10"
 	// arm64:"RORW\t[$]22"
 	// s390x:"RLL\t[$]10"
+	// loong64: "ROTR\t[$]22"
 	a += bits.RotateLeft32(x, 10)
 
 	return a
@@ -127,12 +135,14 @@ func rot64nc(x uint64, z uint) uint64 {
 	// arm64:"ROR","NEG",-"AND"
 	// ppc64:"ROTL",-"NEG",-"AND"
 	// ppc64le:"ROTL",-"NEG",-"AND"
+	// loong64: "ROTRV", -"AND"
 	a += x<<z | x>>(64-z)
 
 	// amd64:"RORQ",-"AND"
 	// arm64:"ROR",-"NEG",-"AND"
 	// ppc64:"ROTL","NEG",-"AND"
 	// ppc64le:"ROTL","NEG",-"AND"
+	// loong64: "ROTRV", -"AND"
 	a += x>>z | x<<(64-z)
 
 	return a
@@ -147,12 +157,14 @@ func rot32nc(x uint32, z uint) uint32 {
 	// arm64:"ROR","NEG",-"AND"
 	// ppc64:"ROTLW",-"NEG",-"AND"
 	// ppc64le:"ROTLW",-"NEG",-"AND"
+	// loong64: "ROTR", -"AND"
 	a += x<<z | x>>(32-z)
 
 	// amd64:"RORL",-"AND"
 	// arm64:"ROR",-"NEG",-"AND"
 	// ppc64:"ROTLW","NEG",-"AND"
 	// ppc64le:"ROTLW","NEG",-"AND"
+	// loong64: "ROTR", -"AND"
 	a += x>>z | x<<(32-z)
 
 	return a
