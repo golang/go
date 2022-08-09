@@ -40,6 +40,10 @@ func checkGdbEnvironment(t *testing.T) {
 		if runtime.GOARCH == "mips" {
 			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
 		}
+		// Disable GDB tests on alpine until issue #54352 resolved.
+		if strings.HasSuffix(testenv.Builder(), "-alpine") {
+			t.Skip("skipping gdb tests on alpine; see https://golang.org/issue/54352")
+		}
 	case "freebsd":
 		t.Skip("skipping gdb tests on FreeBSD; see https://golang.org/issue/29508")
 	case "aix":
