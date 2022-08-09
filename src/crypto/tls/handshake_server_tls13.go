@@ -14,7 +14,6 @@ import (
 	"errors"
 	"hash"
 	"io"
-	"sync/atomic"
 	"time"
 )
 
@@ -82,7 +81,7 @@ func (hs *serverHandshakeStateTLS13) handshake() error {
 		return err
 	}
 
-	atomic.StoreUint32(&c.handshakeStatus, 1)
+	c.isHandshakeComplete.Store(true)
 
 	return nil
 }

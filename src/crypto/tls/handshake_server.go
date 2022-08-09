@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"sync/atomic"
 	"time"
 )
 
@@ -122,7 +121,7 @@ func (hs *serverHandshakeState) handshake() error {
 	}
 
 	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random)
-	atomic.StoreUint32(&c.handshakeStatus, 1)
+	c.isHandshakeComplete.Store(true)
 
 	return nil
 }

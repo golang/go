@@ -12,7 +12,6 @@ import (
 	"crypto/rsa"
 	"errors"
 	"hash"
-	"sync/atomic"
 	"time"
 )
 
@@ -104,7 +103,7 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 		return err
 	}
 
-	atomic.StoreUint32(&c.handshakeStatus, 1)
+	c.isHandshakeComplete.Store(true)
 
 	return nil
 }
