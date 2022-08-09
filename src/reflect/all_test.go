@@ -1876,11 +1876,9 @@ func TestSelect(t *testing.T) {
 				recvStr = fmt.Sprintf(", received %v, %v", recv.Interface(), recvOK)
 			}
 			t.Fatalf("%s\nselected #%d incorrectly%s", fmtSelect(info), i, recvStr)
-			continue
 		}
 		if cas.panic {
 			t.Fatalf("%s\nselected #%d incorrectly (case should panic)", fmtSelect(info), i)
-			continue
 		}
 
 		if cases[i].Dir == SelectRecv {
