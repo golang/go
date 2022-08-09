@@ -387,7 +387,9 @@ func markrootSpans(gcw *gcWork, shard int) {
 				// Mark everything that can be reached from
 				// the object (but *not* the object itself or
 				// we'll never collect it).
-				scanobject(p, gcw)
+				if !s.spanclass.noscan() {
+					scanobject(p, gcw)
+				}
 
 				// The special itself is a root.
 				scanblock(uintptr(unsafe.Pointer(&spf.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
@@ -1271,22 +1273,14 @@ func scanobject(b uintptr, gcw *gcWork) {
 	if n == 0 {
 		throw("scanobject n == 0")
 	}
+	if s.spanclass.noscan() {
+		throw("scanobject of a noscan object")
+	}
 
 	if n > maxObletBytes {
 		// Large object. Break into oblets for better
 		// parallelism and lower latency.
 		if b == s.base() {
-			// It's possible this is a noscan object (not
-			// from greyobject, but from other code
-			// paths), in which case we must *not* enqueue
-			// oblets since their bitmaps will be
-			// uninitialized.
-			if s.spanclass.noscan() {
-				// Bypass the whole scan.
-				gcw.bytesMarked += uint64(n)
-				return
-			}
-
 			// Enqueue the other oblets to scan later.
 			// Some oblets may be in b's scalar tail, but
 			// these will be marked as "no more pointers",
