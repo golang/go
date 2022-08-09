@@ -9,7 +9,6 @@ package syscall
 const _SYS_setgroups = SYS_SETGROUPS
 
 //sys	Dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT

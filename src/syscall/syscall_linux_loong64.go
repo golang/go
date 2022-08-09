@@ -8,13 +8,6 @@ import "unsafe"
 
 const _SYS_setgroups = SYS_SETGROUPS
 
-func EpollCreate(size int) (fd int, err error) {
-	if size <= 0 {
-		return -1, EINVAL
-	}
-	return EpollCreate1(0)
-}
-
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)

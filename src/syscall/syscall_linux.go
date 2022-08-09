@@ -115,6 +115,13 @@ func Creat(path string, mode uint32) (fd int, err error) {
 	return Open(path, O_CREAT|O_WRONLY|O_TRUNC, mode)
 }
 
+func EpollCreate(size int) (fd int, err error) {
+	if size <= 0 {
+		return -1, EINVAL
+	}
+	return EpollCreate1(0)
+}
+
 func isGroupMember(gid int) bool {
 	groups, err := Getgroups()
 	if err != nil {

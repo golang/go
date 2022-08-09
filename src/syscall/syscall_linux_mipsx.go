@@ -13,7 +13,6 @@ const _SYS_setgroups = SYS_SETGROUPS
 func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
 
 //sys	Dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
 //sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64

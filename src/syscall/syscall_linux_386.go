@@ -19,7 +19,6 @@ func setTimeval(sec, usec int64) Timeval {
 // 64-bit file system and 32-bit uid calls
 // (386 default is 32-bit file system and 16-bit uid).
 //sys	Dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
 //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
