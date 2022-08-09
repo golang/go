@@ -657,7 +657,6 @@ func TestReader(t *testing.T) {
 			for i, hdr := range hdrs {
 				if i >= len(v.headers) {
 					t.Fatalf("entry %d: unexpected header:\ngot %+v", i, *hdr)
-					continue
 				}
 				if !reflect.DeepEqual(*hdr, *v.headers[i]) {
 					t.Fatalf("entry %d: incorrect header:\ngot  %+v\nwant %+v", i, *hdr, *v.headers[i])
@@ -670,7 +669,6 @@ func TestReader(t *testing.T) {
 			for i, sum := range chksums {
 				if i >= len(v.chksums) {
 					t.Fatalf("entry %d: unexpected sum: got %s", i, sum)
-					continue
 				}
 				if sum != v.chksums[i] {
 					t.Fatalf("entry %d: incorrect checksum: got %s, want %s", i, sum, v.chksums[i])
