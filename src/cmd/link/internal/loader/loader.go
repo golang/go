@@ -1611,13 +1611,8 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
 	if l.SymType(fnSymIdx) != sym.STEXT {
 		log.Fatalf("error: non-function sym %d/%s t=%s passed to GetFuncDwarfAuxSyms", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
 	}
-	if l.IsExternal(fnSymIdx) {
-		// Current expectation is that any external function will
-		// not have auxsyms.
-		return
-	}
-	r, li := l.toLocal(fnSymIdx)
-	auxs := r.Auxs(li)
+	r, auxs := l.auxs(fnSymIdx)
+
 	for i := range auxs {
 		a := &auxs[i]
 		switch a.Type() {
