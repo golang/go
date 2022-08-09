@@ -280,10 +280,12 @@ func MOVCONST(d int64, s int, rt int) uint32 {
 
 const (
 	// Optab.flag
-	LFROM     = 1 << 0 // p.From uses constant pool
-	LFROM128  = 1 << 1 // p.From3<<64+p.From forms a 128-bit constant in literal pool
-	LTO       = 1 << 2 // p.To uses constant pool
-	NOTUSETMP = 1 << 3 // p expands to multiple instructions, but does NOT use REGTMP
+	LFROM        = 1 << iota // p.From uses constant pool
+	LFROM128                 // p.From3<<64+p.From forms a 128-bit constant in literal pool
+	LTO                      // p.To uses constant pool
+	NOTUSETMP                // p expands to multiple instructions, but does NOT use REGTMP
+	BRANCH14BITS             // branch instruction encodes 14 bits
+	BRANCH19BITS             // branch instruction encodes 19 bits
 )
 
 var optab = []Optab{
@@ -430,13 +432,12 @@ var optab = []Optab{
 	{ABL, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0},
 	{AB, C_NONE, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},
 	{ABL, C_NONE, C_NONE, C_NONE, C_ZREG, 6, 4, 0, 0, 0},
-	{ABL, C_ZREG, C_NONE, C_NONE, C_ZREG, 6, 4, 0, 0, 0},
 	{ABL, C_NONE, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},
 	{obj.ARET, C_NONE, C_NONE, C_NONE, C_ZREG, 6, 4, 0, 0, 0},
 	{obj.ARET, C_NONE, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},
-	{ABEQ, C_NONE, C_NONE, C_NONE, C_SBRA, 7, 4, 0, 0, 0},
-	{ACBZ, C_ZREG, C_NONE, C_NONE, C_SBRA, 39, 4, 0, 0, 0},
-	{ATBZ, C_VCON, C_ZREG, C_NONE, C_SBRA, 40, 4, 0, 0, 0},
+	{ABEQ, C_NONE, C_NONE, C_NONE, C_SBRA, 7, 4, 0, BRANCH19BITS, 0},
+	{ACBZ, C_ZREG, C_NONE, C_NONE, C_SBRA, 39, 4, 0, BRANCH19BITS, 0},
+	{ATBZ, C_VCON, C_ZREG, C_NONE, C_SBRA, 40, 4, 0, BRANCH14BITS, 0},
 	{AERET, C_NONE, C_NONE, C_NONE, C_NONE, 41, 4, 0, 0, 0},
 
 	// get a PC-relative address
@@ -1067,9 +1068,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var m int
 	var o *Optab
 	for p = p.Link; p != nil; p = p.Link {
-		if p.As == ADWORD && (pc&7) != 0 {
-			pc += 4
-		}
 		p.Pc = pc
 		o = c.oplook(p)
 		m = o.size(c.ctxt, p)
@@ -1120,21 +1118,17 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		bflag = 0
 		pc = 0
 		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
-			if p.As == ADWORD && (pc&7) != 0 {
-				pc += 4
-			}
 			p.Pc = pc
 			o = c.oplook(p)
 
 			/* very large branches */
-			if (o.type_ == 7 || o.type_ == 39 || o.type_ == 40) && p.To.Target() != nil { // 7: BEQ and like, 39: CBZ and like, 40: TBZ and like
+			if (o.flag&BRANCH14BITS != 0 || o.flag&BRANCH19BITS != 0) && p.To.Target() != nil {
 				otxt := p.To.Target().Pc - pc
 				var toofar bool
-				switch o.type_ {
-				case 7, 39: // branch instruction encodes 19 bits
-					toofar = otxt <= -(1<<20)+10 || otxt >= (1<<20)-10
-				case 40: // branch instruction encodes 14 bits
+				if o.flag&BRANCH14BITS != 0 { // branch instruction encodes 14 bits
 					toofar = otxt <= -(1<<15)+10 || otxt >= (1<<15)-10
+				} else if o.flag&BRANCH19BITS != 0 { // branch instruction encodes 19 bits
+					toofar = otxt <= -(1<<20)+10 || otxt >= (1<<20)-10
 				}
 				if toofar {
 					q := c.newprog()
@@ -1186,18 +1180,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
 		o = c.oplook(p)
-
-		// need to align DWORDs on 8-byte boundary. The ISA doesn't
-		// require it, but the various 64-bit loads we generate assume it.
-		if o.as == ADWORD && psz%8 != 0 {
-			bp[3] = 0
-			bp[2] = bp[3]
-			bp[1] = bp[2]
-			bp[0] = bp[1]
-			bp = bp[4:]
-			psz += 4
-		}
-
 		sz := o.size(c.ctxt, p)
 		if sz > 4*len(out) {
 			log.Fatalf("out array in span7 is too small, need at least %d for %v", sz/4, p)
