@@ -1316,6 +1316,8 @@ func (r *Request) ParseForm() error {
 // If ParseForm returns an error, ParseMultipartForm returns it but also
 // continues parsing the request body.
 // After one call to ParseMultipartForm, subsequent calls have no effect.
+// It is the caller's responsibility to call r.MultipartForm.RemoveAll()
+// after calling ParseMultipartForm.
 func (r *Request) ParseMultipartForm(maxMemory int64) error {
 	if r.MultipartForm == multipartByReader {
 		return errors.New("http: multipart handled by MultipartReader")
