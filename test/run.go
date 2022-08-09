@@ -75,10 +75,14 @@ var env = func() (res envVars) {
 	return
 }()
 
-// TODO(mdempsky): This will give false negatives if the unified
-// experiment is enabled by default, but presumably at that point we
-// won't need to disable tests for it anymore anyway.
-var unifiedEnabled = strings.Contains(","+env.GOEXPERIMENT+",", ",unified,")
+var unifiedEnabled = func() bool {
+	for _, tag := range build.Default.ToolTags {
+		if tag == "goexperiment.unified" {
+			return true
+		}
+	}
+	return false
+}()
 
 // defaultAllCodeGen returns the default value of the -all_codegen
 // flag. By default, we prefer to be fast (returning false), except on
