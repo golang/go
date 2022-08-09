@@ -22,8 +22,8 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name:      "directoryFilters",
 				Type:      "[]string",
-				Doc:       "directoryFilters can be used to exclude unwanted directories from the\nworkspace. By default, all directories are included. Filters are an\noperator, `+` to include and `-` to exclude, followed by a path prefix\nrelative to the workspace folder. They are evaluated in order, and\nthe last filter that applies to a path controls whether it is included.\nThe path prefix can be empty, so an initial `-` excludes everything.\n\nExamples:\n\nExclude node_modules: `-node_modules`\n\nInclude only project_a: `-` (exclude everything), `+project_a`\n\nInclude only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`\n",
-				Default:   "[\"-node_modules\"]",
+				Doc:       "directoryFilters can be used to exclude unwanted directories from the\nworkspace. By default, all directories are included. Filters are an\noperator, `+` to include and `-` to exclude, followed by a path prefix\nrelative to the workspace folder. They are evaluated in order, and\nthe last filter that applies to a path controls whether it is included.\nThe path prefix can be empty, so an initial `-` excludes everything.\n\nDirectoryFilters also supports the `**` operator to match 0 or more directories.\n\nExamples:\n\nExclude node_modules at current depth: `-node_modules`\n\nExclude node_modules at any depth: `-**/node_modules`\n\nInclude only project_a: `-` (exclude everything), `+project_a`\n\nInclude only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`\n",
+				Default:   "[\"-**/node_modules\"]",
 				Hierarchy: "build",
 			},
 			{

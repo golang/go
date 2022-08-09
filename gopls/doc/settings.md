@@ -63,15 +63,19 @@ relative to the workspace folder. They are evaluated in order, and
 the last filter that applies to a path controls whether it is included.
 The path prefix can be empty, so an initial `-` excludes everything.
 
+DirectoryFilters also supports the `**` operator to match 0 or more directories.
+
 Examples:
 
-Exclude node_modules: `-node_modules`
+Exclude node_modules at current depth: `-node_modules`
+
+Exclude node_modules at any depth: `-**/node_modules`
 
 Include only project_a: `-` (exclude everything), `+project_a`
 
 Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`
 
-Default: `["-node_modules"]`.
+Default: `["-**/node_modules"]`.
 
 #### **templateExtensions** *[]string*
 

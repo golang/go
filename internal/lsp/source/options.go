@@ -119,7 +119,7 @@ func DefaultOptions() *Options {
 					ExpandWorkspaceToModule:     true,
 					ExperimentalPackageCacheKey: true,
 					MemoryMode:                  ModeNormal,
-					DirectoryFilters:            []string{"-node_modules"},
+					DirectoryFilters:            []string{"-**/node_modules"},
 					TemplateExtensions:          []string{},
 				},
 				UIOptions: UIOptions{
@@ -232,9 +232,13 @@ type BuildOptions struct {
 	// the last filter that applies to a path controls whether it is included.
 	// The path prefix can be empty, so an initial `-` excludes everything.
 	//
+	// DirectoryFilters also supports the `**` operator to match 0 or more directories.
+	//
 	// Examples:
 	//
-	// Exclude node_modules: `-node_modules`
+	// Exclude node_modules at current depth: `-node_modules`
+	//
+	// Exclude node_modules at any depth: `-**/node_modules`
 	//
 	// Include only project_a: `-` (exclude everything), `+project_a`
 	//
