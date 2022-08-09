@@ -2147,6 +2147,10 @@ func TestBuildmodePIE(t *testing.T) {
 	default:
 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
 	}
+	// Skip on alpine until https://go.dev/issues/54354 resolved.
+	if strings.HasSuffix(testenv.Builder(), "-alpine") {
+		t.Skip("skipping PIE tests on alpine; see https://go.dev/issues/54354")
+	}
 	t.Run("non-cgo", func(t *testing.T) {
 		testBuildmodePIE(t, false, true)
 	})

@@ -700,8 +700,12 @@ func (t *tester) registerTests() {
 		})
 	}
 
+	// Stub out following test on alpine until 54354 resolved.
+	builderName := os.Getenv("GO_BUILDER_NAME")
+	disablePIE := strings.HasSuffix(builderName, "-alpine")
+
 	// Test internal linking of PIE binaries where it is supported.
-	if t.internalLinkPIE() {
+	if t.internalLinkPIE() && !disablePIE {
 		t.tests = append(t.tests, distTest{
 			name:    "pie_internal",
 			heading: "internal linking of -buildmode=pie",
@@ -711,7 +715,7 @@ func (t *tester) registerTests() {
 			},
 		})
 		// Also test a cgo package.
-		if t.cgoEnabled && t.internalLink() {
+		if t.cgoEnabled && t.internalLink() && !disablePIE {
 			t.tests = append(t.tests, distTest{
 				name:    "pie_internal_cgo",
 				heading: "internal linking of -buildmode=pie",
@@ -1188,6 +1192,10 @@ func (t *tester) cgoTest(dt *distTest) error {
 	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), ".")
 	setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=auto")
 
+	// Stub out various buildmode=pie tests  on alpine until 54354 resolved.
+	builderName := os.Getenv("GO_BUILDER_NAME")
+	disablePIE := strings.HasSuffix(builderName, "-alpine")
+
 	if t.internalLink() {
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal", ".")
 		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=internal")
@@ -1206,7 +1214,8 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s", ".")
 
-		if t.supportedBuildmode("pie") {
+		if t.supportedBuildmode("pie") && !disablePIE {
+
 			t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", ".")
 			if t.internalLink() && t.internalLinkPIE() {
 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie", ".")
@@ -1262,7 +1271,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 				}
 			}
 
-			if t.supportedBuildmode("pie") {
+			if t.supportedBuildmode("pie") && !disablePIE {
 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", ".")
 				if t.internalLink() && t.internalLinkPIE() {
 					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie", ".")

@@ -528,6 +528,9 @@ func checkPIE(t *testing.T, name string) {
 }
 
 func TestTrivialPIE(t *testing.T) {
+	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-alpine") {
+		t.Skip("skipping on alpine until issue #54354 resolved")
+	}
 	name := "trivial_pie"
 	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./trivial")
 	defer os.Remove(name)
