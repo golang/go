@@ -223,10 +223,11 @@ func (e *Env) DoneWithOpen() Expectation {
 	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), opens, true)
 }
 
-// StartedChange expects there to have been i work items started for
-// processing didChange notifications.
-func StartedChange(i uint64) Expectation {
-	return StartedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), i)
+// StartedChange expects that the server has at least started processing all
+// didChange notifications sent from the client.
+func (e *Env) StartedChange() Expectation {
+	changes := e.Editor.Stats().DidChange
+	return StartedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), changes)
 }
 
 // DoneWithChange expects all didChange notifications currently sent by the

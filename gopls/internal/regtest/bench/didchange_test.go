@@ -9,8 +9,6 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/fake"
-
-	. "golang.org/x/tools/internal/lsp/regtest"
 )
 
 // BenchmarkDidChange benchmarks modifications of a single file by making
@@ -35,6 +33,6 @@ func BenchmarkDidChange(b *testing.B) {
 			// Increment the placeholder text, to ensure cache misses.
 			Text: fmt.Sprintf("// __REGTEST_PLACEHOLDER_%d__\n", i+1),
 		})
-		env.Await(StartedChange(uint64(i + 1)))
+		env.Await(env.StartedChange())
 	}
 }
