@@ -1430,6 +1430,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
 
 	if coverErr := mergeCoverProfile(tempCoverProfile); coverErr != nil {
+		// TODO: consider whether an error to merge cover profiles should fail the test.
 		fmt.Fprintf(cmd.Stdout, "error: %v\n", coverErr)
 	}
 
@@ -1679,6 +1680,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 			return false
 		}
 		if err := mergeCoverProfile(f); err != nil {
+			// TODO: consider whether an error to merge cover profiles should fail the test.
 			if cache.DebugTest {
 				fmt.Fprintf(os.Stderr, "testcache: %s: test coverage profile not merged: %v\n", a.Package.ImportPath, err)
 			}
