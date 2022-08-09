@@ -14,30 +14,34 @@
 //
 // Heap bitmap
 //
-// The heap bitmap comprises 1 bit for each pointer-sized word in the heap,
-// recording whether a pointer is stored in that word or not. This bitmap
-// is stored in the heapArena metadata backing each heap arena.
-// That is, if ha is the heapArena for the arena starting at "start",
-// then ha.bitmap[0] holds the 64 bits for the 64 words "start"
-// through start+63*ptrSize, ha.bitmap[1] holds the entries for
-// start+64*ptrSize through start+127*ptrSize, and so on.
-// Bits correspond to words in little-endian order. ha.bitmap[0]&1 represents
-// the word at "start", ha.bitmap[0]>>1&1 represents the word at start+8, etc.
-// (For 32-bit platforms, s/64/32/.)
+// The heap bitmap comprises 2 bits for each pointer-sized word in the heap,
+// stored in the heapArena metadata backing each heap arena.
+// That is, if ha is the heapArena for the arena starting a start,
+// then ha.bitmap[0] holds the 2-bit entries for the four words start
+// through start+3*ptrSize, ha.bitmap[1] holds the entries for
+// start+4*ptrSize through start+7*ptrSize, and so on.
 //
-// We also keep a noMorePtrs bitmap which allows us to stop scanning
-// the heap bitmap early in certain situations. If ha.noMorePtrs[i]>>j&1
-// is 1, then the object containing the last word described by ha.bitmap[8*i+j]
-// has no more pointers beyond those described by ha.bitmap[8*i+j].
-// If ha.noMorePtrs[i]>>j&1 is set, the entries in ha.bitmap[8*i+j+1] and
-// beyond must all be zero until the start of the next object.
+// In each 2-bit entry, the lower bit is a pointer/scalar bit, just
+// like in the stack/data bitmaps described above. The upper bit
+// indicates scan/dead: a "1" value ("scan") indicates that there may
+// be pointers in later words of the allocation, and a "0" value
+// ("dead") indicates there are no more pointers in the allocation. If
+// the upper bit is 0, the lower bit must also be 0, and this
+// indicates scanning can ignore the rest of the allocation.
 //
-// The bitmap for noscan spans is not maintained (can be junk). Code must
-// ensure that an object is scannable before consulting its bitmap by
+// The 2-bit entries are split when written into the byte, so that the top half
+// of the byte contains 4 high (scan) bits and the bottom half contains 4 low
+// (pointer) bits. This form allows a copy from the 1-bit to the 4-bit form to
+// keep the pointer bits contiguous, instead of having to space them out.
+//
+// The code makes use of the fact that the zero value for a heap
+// bitmap means scalar/dead. This property must be preserved when
+// modifying the encoding.
+//
+// The bitmap for noscan spans is not maintained. Code must ensure
+// that an object is scannable before consulting its bitmap by
 // checking either the noscan bit in the span or by consulting its
 // type's information.
-//
-// The bitmap for unallocated objects is also not maintained.
 
 package runtime
 
@@ -46,6 +50,18 @@ import (
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
+)
+
+const (
+	bitPointer = 1 << 0
+	bitScan    = 1 << 4
+
+	heapBitsShift      = 1     // shift offset between successive bitPointer or bitScan entries
+	wordsPerBitmapByte = 8 / 2 // heap words described by one bitmap byte
+
+	// all scan/pointer bits in a byte
+	bitScanAll    = bitScan | bitScan<<heapBitsShift | bitScan<<(2*heapBitsShift) | bitScan<<(3*heapBitsShift)
+	bitPointerAll = bitPointer | bitPointer<<heapBitsShift | bitPointer<<(2*heapBitsShift) | bitPointer<<(3*heapBitsShift)
 )
 
 // addb returns the byte pointer p+n.
@@ -93,6 +109,21 @@ func subtract1(p *byte) *byte {
 	// compiler for this trivial expression during inlining.
 	return (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) - 1))
 }
+
+// heapBits provides access to the bitmap bits for a single heap word.
+// The methods on heapBits take value receivers so that the compiler
+// can more easily inline calls to those methods and registerize the
+// struct fields independently.
+type heapBits struct {
+	bitp  *uint8
+	shift uint32
+	arena uint32 // Index of heap arena containing bitp
+	last  *uint8 // Last byte arena's bitmap
+}
+
+// Make the compiler check that heapBits.arena is large enough to hold
+// the maximum arena frame number.
+var _ = heapBits{arena: (1<<heapAddrBits)/heapArenaBytes - 1}
 
 // markBits provides access to the mark bit for an object in the heap.
 // bytep points to the byte holding the mark bit.
@@ -282,6 +313,32 @@ func (m *markBits) advance() {
 	m.index++
 }
 
+// heapBitsForAddr returns the heapBits for the address addr.
+// The caller must ensure addr is in an allocated span.
+// In particular, be careful not to point past the end of an object.
+//
+// nosplit because it is used during write barriers and must not be preempted.
+//
+//go:nosplit
+func heapBitsForAddr(addr uintptr) (h heapBits) {
+	// 2 bits per word, 4 pairs per byte, and a mask is hard coded.
+	arena := arenaIndex(addr)
+	ha := mheap_.arenas[arena.l1()][arena.l2()]
+	// The compiler uses a load for nil checking ha, but in this
+	// case we'll almost never hit that cache line again, so it
+	// makes more sense to do a value check.
+	if ha == nil {
+		// addr is not in the heap. Return nil heapBits, which
+		// we expect to crash in the caller.
+		return
+	}
+	h.bitp = &ha.bitmap[(addr/(goarch.PtrSize*4))%heapArenaBitmapBytes]
+	h.shift = uint32((addr / goarch.PtrSize) & 3)
+	h.arena = uint32(arena)
+	h.last = &ha.bitmap[len(ha.bitmap)-1]
+	return
+}
+
 // clobberdeadPtr is a special value that is used by the compiler to
 // clobber dead stack slots, when -clobberdead flag is set.
 const clobberdeadPtr = uintptr(0xdeaddead | 0xdeaddead<<((^uintptr(0)>>63)*32))
@@ -376,132 +433,121 @@ func reflect_verifyNotInHeapPtr(p uintptr) bool {
 	return spanOf(p) == nil && p != clobberdeadPtr
 }
 
-const ptrBits = 8 * goarch.PtrSize
-
-// heapBits provides access to the bitmap bits for a single heap word.
-// The methods on heapBits take value receivers so that the compiler
-// can more easily inline calls to those methods and registerize the
-// struct fields independently.
-type heapBits struct {
-	// heapBits will report on pointers in the range [addr,addr+size).
-	// The low bit of mask contains the pointerness of the word at addr
-	// (assuming valid>0).
-	addr, size uintptr
-
-	// The next few pointer bits representing words starting at addr.
-	// Those bits already returned by next() are zeroed.
-	mask uintptr
-	// Number of bits in mask that are valid. mask is always less than 1<<valid.
-	valid uintptr
-}
-
-// heapBitsForAddr returns the heapBits for the address addr.
-// The caller must ensure [addr,addr+size) is in an allocated span.
-// In particular, be careful not to point past the end of an object.
-//
-// nosplit because it is used during write barriers and must not be preempted.
-//
-//go:nosplit
-func heapBitsForAddr(addr, size uintptr) heapBits {
-	// Find arena
-	ai := arenaIndex(addr)
-	ha := mheap_.arenas[ai.l1()][ai.l2()]
-
-	// Word index in arena.
-	word := addr / goarch.PtrSize % heapArenaWords
-
-	// Word index and bit offset in bitmap array.
-	idx := word / ptrBits
-	off := word % ptrBits
-
-	// Grab relevant bits of bitmap.
-	mask := ha.bitmap[idx] >> off
-	valid := ptrBits - off
-
-	// Process depending on where the object ends.
-	nptr := size / goarch.PtrSize
-	if nptr < valid {
-		// Bits for this object end before the end of this bitmap word.
-		// Squash bits for the following objects.
-		mask &= 1<<(nptr&(ptrBits-1)) - 1
-		valid = nptr
-	} else if nptr == valid {
-		// Bits for this object end at exactly the end of this bitmap word.
-		// All good.
-	} else {
-		// Bits for this object extend into the next bitmap word. See if there
-		// may be any pointers recorded there.
-		if uintptr(ha.noMorePtrs[idx/8])>>(idx%8)&1 != 0 {
-			// No more pointers in this object after this bitmap word.
-			// Update size so we know not to look there.
-			size = valid * goarch.PtrSize
-		}
-	}
-
-	return heapBits{addr: addr, size: size, mask: mask, valid: valid}
-}
-
-// Returns the (absolute) address of the next known pointer and
-// a heapBits iterator representing any remaining pointers.
-// If there are no more pointers, returns address 0.
+// next returns the heapBits describing the next pointer-sized word in memory.
+// That is, if h describes address p, h.next() describes p+ptrSize.
 // Note that next does not modify h. The caller must record the result.
 //
 // nosplit because it is used during write barriers and must not be preempted.
 //
 //go:nosplit
-func (h heapBits) next() (heapBits, uintptr) {
-	for {
-		if h.mask != 0 {
-			var i int
-			if goarch.PtrSize == 8 {
-				i = sys.Ctz64(uint64(h.mask))
-			} else {
-				i = sys.Ctz32(uint32(h.mask))
-			}
-			h.mask ^= uintptr(1) << (i & (ptrBits - 1))
-			return h, h.addr + uintptr(i)*goarch.PtrSize
-		}
-
-		// Skip words that we've already processed.
-		h.addr += h.valid * goarch.PtrSize
-		h.size -= h.valid * goarch.PtrSize
-		if h.size == 0 {
-			return h, 0 // no more pointers
-		}
-
-		// Grab more bits and try again.
-		h = heapBitsForAddr(h.addr, h.size)
+func (h heapBits) next() heapBits {
+	if h.shift < 3*heapBitsShift {
+		h.shift += heapBitsShift
+	} else if h.bitp != h.last {
+		h.bitp, h.shift = add1(h.bitp), 0
+	} else {
+		// Move to the next arena.
+		return h.nextArena()
 	}
+	return h
 }
 
-// nextFast is like next, but can return 0 even when there are more pointers
-// to be found. Callers should call next if nextFast returns 0 as its second
-// return value.
-//     if addr, h = h.nextFast(); addr == 0 {
-//         if addr, h = h.next(); addr == 0 {
-//             ... no more pointers ...
-//         }
-//     }
-//     ... process pointer at addr ...
-// nextFast is designed to be inlineable.
+// nextArena advances h to the beginning of the next heap arena.
+//
+// This is a slow-path helper to next. gc's inliner knows that
+// heapBits.next can be inlined even though it calls this. This is
+// marked noinline so it doesn't get inlined into next and cause next
+// to be too big to inline.
 //
 //go:nosplit
-func (h heapBits) nextFast() (heapBits, uintptr) {
-	// TESTQ/JEQ
-	if h.mask == 0 {
-		return h, 0
+//go:noinline
+func (h heapBits) nextArena() heapBits {
+	h.arena++
+	ai := arenaIdx(h.arena)
+	l2 := mheap_.arenas[ai.l1()]
+	if l2 == nil {
+		// We just passed the end of the object, which
+		// was also the end of the heap. Poison h. It
+		// should never be dereferenced at this point.
+		return heapBits{}
 	}
-	// BSFQ
-	var i int
-	if goarch.PtrSize == 8 {
-		i = sys.Ctz64(uint64(h.mask))
+	ha := l2[ai.l2()]
+	if ha == nil {
+		return heapBits{}
+	}
+	h.bitp, h.shift = &ha.bitmap[0], 0
+	h.last = &ha.bitmap[len(ha.bitmap)-1]
+	return h
+}
+
+// forward returns the heapBits describing n pointer-sized words ahead of h in memory.
+// That is, if h describes address p, h.forward(n) describes p+n*ptrSize.
+// h.forward(1) is equivalent to h.next(), just slower.
+// Note that forward does not modify h. The caller must record the result.
+// bits returns the heap bits for the current word.
+//
+//go:nosplit
+func (h heapBits) forward(n uintptr) heapBits {
+	n += uintptr(h.shift) / heapBitsShift
+	nbitp := uintptr(unsafe.Pointer(h.bitp)) + n/4
+	h.shift = uint32(n%4) * heapBitsShift
+	if nbitp <= uintptr(unsafe.Pointer(h.last)) {
+		h.bitp = (*uint8)(unsafe.Pointer(nbitp))
+		return h
+	}
+
+	// We're in a new heap arena.
+	past := nbitp - (uintptr(unsafe.Pointer(h.last)) + 1)
+	h.arena += 1 + uint32(past/heapArenaBitmapBytes)
+	ai := arenaIdx(h.arena)
+	if l2 := mheap_.arenas[ai.l1()]; l2 != nil && l2[ai.l2()] != nil {
+		a := l2[ai.l2()]
+		h.bitp = &a.bitmap[past%heapArenaBitmapBytes]
+		h.last = &a.bitmap[len(a.bitmap)-1]
 	} else {
-		i = sys.Ctz32(uint32(h.mask))
+		h.bitp, h.last = nil, nil
 	}
-	// BTCQ
-	h.mask ^= uintptr(1) << (i & (ptrBits - 1))
-	// LEAQ (XX)(XX*8)
-	return h, h.addr + uintptr(i)*goarch.PtrSize
+	return h
+}
+
+// forwardOrBoundary is like forward, but stops at boundaries between
+// contiguous sections of the bitmap. It returns the number of words
+// advanced over, which will be <= n.
+func (h heapBits) forwardOrBoundary(n uintptr) (heapBits, uintptr) {
+	maxn := 4 * ((uintptr(unsafe.Pointer(h.last)) + 1) - uintptr(unsafe.Pointer(h.bitp)))
+	if n > maxn {
+		n = maxn
+	}
+	return h.forward(n), n
+}
+
+// The caller can test morePointers and isPointer by &-ing with bitScan and bitPointer.
+// The result includes in its higher bits the bits for subsequent words
+// described by the same bitmap byte.
+//
+// nosplit because it is used during write barriers and must not be preempted.
+//
+//go:nosplit
+func (h heapBits) bits() uint32 {
+	// The (shift & 31) eliminates a test and conditional branch
+	// from the generated code.
+	return uint32(*h.bitp) >> (h.shift & 31)
+}
+
+// morePointers reports whether this word and all remaining words in this object
+// are scalars.
+// h must not describe the second word of the object.
+func (h heapBits) morePointers() bool {
+	return h.bits()&bitScan != 0
+}
+
+// isPointer reports whether the heap bits describe a pointer word.
+//
+// nosplit because it is used during write barriers and must not be preempted.
+//
+//go:nosplit
+func (h heapBits) isPointer() bool {
+	return h.bits()&bitPointer != 0
 }
 
 // bulkBarrierPreWrite executes a write barrier
@@ -565,29 +611,27 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 	}
 
 	buf := &getg().m.p.ptr().wbBuf
-	h := heapBitsForAddr(dst, size)
+	h := heapBitsForAddr(dst)
 	if src == 0 {
-		for {
-			var addr uintptr
-			if h, addr = h.next(); addr == 0 {
-				break
+		for i := uintptr(0); i < size; i += goarch.PtrSize {
+			if h.isPointer() {
+				dstx := (*uintptr)(unsafe.Pointer(dst + i))
+				if !buf.putFast(*dstx, 0) {
+					wbBufFlush(nil, 0)
+				}
 			}
-			dstx := (*uintptr)(unsafe.Pointer(addr))
-			if !buf.putFast(*dstx, 0) {
-				wbBufFlush(nil, 0)
-			}
+			h = h.next()
 		}
 	} else {
-		for {
-			var addr uintptr
-			if h, addr = h.next(); addr == 0 {
-				break
+		for i := uintptr(0); i < size; i += goarch.PtrSize {
+			if h.isPointer() {
+				dstx := (*uintptr)(unsafe.Pointer(dst + i))
+				srcx := (*uintptr)(unsafe.Pointer(src + i))
+				if !buf.putFast(*dstx, *srcx) {
+					wbBufFlush(nil, 0)
+				}
 			}
-			dstx := (*uintptr)(unsafe.Pointer(addr))
-			srcx := (*uintptr)(unsafe.Pointer(src + (addr - dst)))
-			if !buf.putFast(*dstx, *srcx) {
-				wbBufFlush(nil, 0)
-			}
+			h = h.next()
 		}
 	}
 }
@@ -610,16 +654,15 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
 		return
 	}
 	buf := &getg().m.p.ptr().wbBuf
-	h := heapBitsForAddr(dst, size)
-	for {
-		var addr uintptr
-		if h, addr = h.next(); addr == 0 {
-			break
+	h := heapBitsForAddr(dst)
+	for i := uintptr(0); i < size; i += goarch.PtrSize {
+		if h.isPointer() {
+			srcx := (*uintptr)(unsafe.Pointer(src + i))
+			if !buf.putFast(0, *srcx) {
+				wbBufFlush(nil, 0)
+			}
 		}
-		srcx := (*uintptr)(unsafe.Pointer(addr - dst + src))
-		if !buf.putFast(0, *srcx) {
-			wbBufFlush(nil, 0)
-		}
+		h = h.next()
 	}
 }
 
@@ -716,21 +759,43 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 	}
 }
 
-// initHeapBits initializes the heap bitmap for a span.
-// If this is a span of single pointer allocations, it initializes all
-// words to pointer.
-func (s *mspan) initHeapBits() {
+// The methods operating on spans all require that h has been returned
+// by heapBitsForSpan and that size, n, total are the span layout description
+// returned by the mspan's layout method.
+// If total > size*n, it means that there is extra leftover memory in the span,
+// usually due to rounding.
+//
+// TODO(rsc): Perhaps introduce a different heapBitsSpan type.
+
+// initSpan initializes the heap bitmap for a span.
+// If this is a span of pointer-sized objects, it initializes all
+// words to pointer/scan.
+// Otherwise, it initializes all words to scalar/dead.
+func (h heapBits) initSpan(s *mspan) {
+	// Clear bits corresponding to objects.
+	nw := (s.npages << _PageShift) / goarch.PtrSize
+	if nw%wordsPerBitmapByte != 0 {
+		throw("initSpan: unaligned length")
+	}
+	if h.shift != 0 {
+		throw("initSpan: unaligned base")
+	}
 	isPtrs := goarch.PtrSize == 8 && s.elemsize == goarch.PtrSize
-	if !isPtrs {
-		return // nothing to do
+	for nw > 0 {
+		hNext, anw := h.forwardOrBoundary(nw)
+		nbyte := anw / wordsPerBitmapByte
+		if isPtrs {
+			bitp := h.bitp
+			for i := uintptr(0); i < nbyte; i++ {
+				*bitp = bitPointerAll | bitScanAll
+				bitp = add1(bitp)
+			}
+		} else {
+			memclrNoHeapPointers(unsafe.Pointer(h.bitp), nbyte)
+		}
+		h = hNext
+		nw -= anw
 	}
-	h := writeHeapBitsForAddr(s.base())
-	size := s.npages * pageSize
-	nptrs := size / goarch.PtrSize
-	for i := uintptr(0); i < nptrs; i += ptrBits {
-		h = h.write(^uintptr(0), ptrBits)
-	}
-	h.flush(s.base(), size)
 }
 
 // countAlloc returns the number of objects allocated in span s by
@@ -753,146 +818,6 @@ func (s *mspan) countAlloc() int {
 	return count
 }
 
-type writeHeapBits struct {
-	addr  uintptr // address that the low bit of mask represents the pointer state of.
-	mask  uintptr // some pointer bits starting at the address addr.
-	valid uintptr // number of bits in buf that are valid (including low)
-	low   uintptr // number of low-order bits to not overwrite
-}
-
-func writeHeapBitsForAddr(addr uintptr) (h writeHeapBits) {
-	// We start writing bits maybe in the middle of a heap bitmap word.
-	// Remember how many bits into the word we started, so we can be sure
-	// not to overwrite the previous bits.
-	h.low = addr / goarch.PtrSize % ptrBits
-
-	// round down to heap word that starts the bitmap word.
-	h.addr = addr - h.low*goarch.PtrSize
-
-	// We don't have any bits yet.
-	h.mask = 0
-	h.valid = h.low
-
-	return
-}
-
-// write appends the pointerness of the next valid pointer slots
-// using the low valid bits of bits. 1=pointer, 0=scalar.
-func (h writeHeapBits) write(bits, valid uintptr) writeHeapBits {
-	if h.valid+valid <= ptrBits {
-		// Fast path - just accumulate the bits.
-		h.mask |= bits << h.valid
-		h.valid += valid
-		return h
-	}
-	// Too many bits to fit in this word. Write the current word
-	// out and move on to the next word.
-
-	data := h.mask | bits<<h.valid       // mask for this word
-	h.mask = bits >> (ptrBits - h.valid) // leftover for next word
-	h.valid += valid - ptrBits           // have h.valid+valid bits, writing ptrBits of them
-
-	// Flush mask to the memory bitmap.
-	// TODO: figure out how to cache arena lookup.
-	ai := arenaIndex(h.addr)
-	ha := mheap_.arenas[ai.l1()][ai.l2()]
-	idx := h.addr / (ptrBits * goarch.PtrSize) % heapArenaBitmapWords
-	m := uintptr(1)<<h.low - 1
-	ha.bitmap[idx] = ha.bitmap[idx]&m | data
-	// Note: no synchronization required for this write because
-	// the allocator has exclusive access to the page, and the bitmap
-	// entries are all for a single page. Also, visibility of these
-	// writes is guaranteed by the publication barrier in mallocgc.
-
-	// Clear noMorePtrs bit, since we're going to be writing bits
-	// into the following word.
-	ha.noMorePtrs[idx/8] &^= uint8(1) << (idx % 8)
-	// Note: same as above
-
-	// Move to next word of bitmap.
-	h.addr += ptrBits * goarch.PtrSize
-	h.low = 0
-	return h
-}
-
-// Add padding of size bytes.
-func (h writeHeapBits) pad(size uintptr) writeHeapBits {
-	if size == 0 {
-		return h
-	}
-	words := size / goarch.PtrSize
-	for words > ptrBits {
-		h = h.write(0, ptrBits)
-		words -= ptrBits
-	}
-	return h.write(0, words)
-}
-
-// Flush the bits that have been written, and add zeros as needed
-// to cover the full object [addr, addr+size).
-func (h writeHeapBits) flush(addr, size uintptr) {
-	// zeros counts the number of bits needed to represent the object minus the
-	// number of bits we've already written. This is the number of 0 bits
-	// that need to be added.
-	zeros := (addr+size-h.addr)/goarch.PtrSize - h.valid
-
-	// Add zero bits up to the bitmap word boundary
-	if zeros > 0 {
-		z := ptrBits - h.valid
-		if z > zeros {
-			z = zeros
-		}
-		h.valid += z
-		zeros -= z
-	}
-
-	// Find word in bitmap that we're going to write.
-	ai := arenaIndex(h.addr)
-	ha := mheap_.arenas[ai.l1()][ai.l2()]
-	idx := h.addr / (ptrBits * goarch.PtrSize) % heapArenaBitmapWords
-
-	// Write remaining bits.
-	if h.valid != h.low {
-		m := uintptr(1)<<h.low - 1      // don't clear existing bits below "low"
-		m |= ^(uintptr(1)<<h.valid - 1) // don't clear existing bits above "valid"
-		ha.bitmap[idx] = ha.bitmap[idx]&m | h.mask
-	}
-	if zeros == 0 {
-		return
-	}
-
-	// Record in the noMorePtrs map that there won't be any more 1 bits,
-	// so readers can stop early.
-	ha.noMorePtrs[idx/8] |= uint8(1) << (idx % 8)
-
-	// Advance to next bitmap word.
-	h.addr += ptrBits * goarch.PtrSize
-
-	// Continue on writing zeros for the rest of the object.
-	// For standard use of the ptr bits this is not required, as
-	// the bits are read from the beginning of the object. Some uses,
-	// like oblets, bulk write barriers, and cgocheck, might
-	// start mid-object, so these writes are still required.
-	for {
-		// Write zero bits.
-		ai := arenaIndex(h.addr)
-		ha := mheap_.arenas[ai.l1()][ai.l2()]
-		idx := h.addr / (ptrBits * goarch.PtrSize) % heapArenaBitmapWords
-		if zeros < ptrBits {
-			ha.bitmap[idx] &^= uintptr(1)<<zeros - 1
-			break
-		} else if zeros == ptrBits {
-			ha.bitmap[idx] = 0
-			break
-		} else {
-			ha.bitmap[idx] = 0
-			zeros -= ptrBits
-		}
-		ha.noMorePtrs[idx/8] |= uint8(1) << (idx % 8)
-		h.addr += ptrBits * goarch.PtrSize
-	}
-}
-
 // heapBitsSetType records that the new allocation [x, x+size)
 // holds in [x, x+dataSize) one or more values of type typ.
 // (The number of values is given by dataSize / typ.size.)
@@ -904,7 +829,7 @@ func (h writeHeapBits) flush(addr, size uintptr) {
 // heapBitsSweepSpan.
 //
 // There can only be one allocation from a given span active at a time,
-// and the bitmap for a span always falls on word boundaries,
+// and the bitmap for a span always falls on byte boundaries,
 // so there are no write-write races for access to the heap bitmap.
 // Hence, heapBitsSetType can access the bitmap without atomics.
 //
@@ -917,11 +842,21 @@ func (h writeHeapBits) flush(addr, size uintptr) {
 // machines, callers must execute a store/store (publication) barrier
 // between calling this function and making the object reachable.
 func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
-	const doubleCheck = true // slow but helpful; enable to test modifications to this code
+	const doubleCheck = false // slow but helpful; enable to test modifications to this code
 
-	if doubleCheck && dataSize%typ.size != 0 {
-		throw("heapBitsSetType: dataSize not a multiple of typ.size")
-	}
+	const (
+		mask1 = bitPointer | bitScan                        // 00010001
+		mask2 = bitPointer | bitScan | mask1<<heapBitsShift // 00110011
+		mask3 = bitPointer | bitScan | mask2<<heapBitsShift // 01110111
+	)
+
+	// dataSize is always size rounded up to the next malloc size class,
+	// except in the case of allocating a defer block, in which case
+	// size is sizeof(_defer{}) (at least 6 words) and dataSize may be
+	// arbitrarily larger.
+	//
+	// The checks for size == goarch.PtrSize and size == 2*goarch.PtrSize can therefore
+	// assume that dataSize == size without checking it explicitly.
 
 	if goarch.PtrSize == 8 && size == goarch.PtrSize {
 		// It's one word and it has pointers, it must be a pointer.
@@ -929,50 +864,189 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// (non-pointers are aggregated into tinySize allocations),
 		// initSpan sets the pointer bits for us. Nothing to do here.
 		if doubleCheck {
-			h, addr := heapBitsForAddr(x, size).next()
-			if addr != x {
+			h := heapBitsForAddr(x)
+			if !h.isPointer() {
 				throw("heapBitsSetType: pointer bit missing")
 			}
-			_, addr = h.next()
-			if addr != 0 {
-				throw("heapBitsSetType: second pointer bit found")
+			if !h.morePointers() {
+				throw("heapBitsSetType: scan bit missing")
 			}
 		}
 		return
 	}
 
-	h := writeHeapBitsForAddr(x)
+	h := heapBitsForAddr(x)
+	ptrmask := typ.gcdata // start of 1-bit pointer mask (or GC program, handled below)
 
-	// Handle GC program.
-	if typ.kind&kindGCProg != 0 {
-		// Expand the gc program into the storage we're going to use for the actual object.
-		obj := (*uint8)(unsafe.Pointer(x))
-		n := runGCProg(addb(typ.gcdata, 4), obj)
-		// Use the expanded program to set the heap bits.
-		for i := uintptr(0); true; i += typ.size {
-			// Copy expanded program to heap bitmap.
-			p := obj
-			j := n
-			for j > 8 {
-				h = h.write(uintptr(*p), 8)
-				p = add1(p)
-				j -= 8
+	// 2-word objects only have 4 bitmap bits and 3-word objects only have 6 bitmap bits.
+	// Therefore, these objects share a heap bitmap byte with the objects next to them.
+	// These are called out as a special case primarily so the code below can assume all
+	// objects are at least 4 words long and that their bitmaps start either at the beginning
+	// of a bitmap byte, or half-way in (h.shift of 0 and 2 respectively).
+
+	if size == 2*goarch.PtrSize {
+		if typ.size == goarch.PtrSize {
+			// We're allocating a block big enough to hold two pointers.
+			// On 64-bit, that means the actual object must be two pointers,
+			// or else we'd have used the one-pointer-sized block.
+			// On 32-bit, however, this is the 8-byte block, the smallest one.
+			// So it could be that we're allocating one pointer and this was
+			// just the smallest block available. Distinguish by checking dataSize.
+			// (In general the number of instances of typ being allocated is
+			// dataSize/typ.size.)
+			if goarch.PtrSize == 4 && dataSize == goarch.PtrSize {
+				// 1 pointer object. On 32-bit machines clear the bit for the
+				// unused second word.
+				*h.bitp &^= (bitPointer | bitScan | (bitPointer|bitScan)<<heapBitsShift) << h.shift
+				*h.bitp |= (bitPointer | bitScan) << h.shift
+			} else {
+				// 2-element array of pointer.
+				*h.bitp |= (bitPointer | bitScan | (bitPointer|bitScan)<<heapBitsShift) << h.shift
 			}
-			h = h.write(uintptr(*p), j)
-
-			if i+typ.size == dataSize {
-				break // no padding after last element
+			return
+		}
+		// Otherwise typ.size must be 2*goarch.PtrSize,
+		// and typ.kind&kindGCProg == 0.
+		if doubleCheck {
+			if typ.size != 2*goarch.PtrSize || typ.kind&kindGCProg != 0 {
+				print("runtime: heapBitsSetType size=", size, " but typ.size=", typ.size, " gcprog=", typ.kind&kindGCProg != 0, "\n")
+				throw("heapBitsSetType")
 			}
-
-			// Pad with zeros to the start of the next element.
-			h = h.pad(typ.size - n*goarch.PtrSize)
+		}
+		b := uint32(*ptrmask)
+		hb := b & 3
+		hb |= bitScanAll & ((bitScan << (typ.ptrdata / goarch.PtrSize)) - 1)
+		// Clear the bits for this object so we can set the
+		// appropriate ones.
+		*h.bitp &^= (bitPointer | bitScan | ((bitPointer | bitScan) << heapBitsShift)) << h.shift
+		*h.bitp |= uint8(hb << h.shift)
+		return
+	} else if size == 3*goarch.PtrSize {
+		b := uint8(*ptrmask)
+		if doubleCheck {
+			if b == 0 {
+				println("runtime: invalid type ", typ.string())
+				throw("heapBitsSetType: called with non-pointer type")
+			}
+			if goarch.PtrSize != 8 {
+				throw("heapBitsSetType: unexpected 3 pointer wide size class on 32 bit")
+			}
+			if typ.kind&kindGCProg != 0 {
+				throw("heapBitsSetType: unexpected GC prog for 3 pointer wide size class")
+			}
+			if typ.size == 2*goarch.PtrSize {
+				print("runtime: heapBitsSetType size=", size, " but typ.size=", typ.size, "\n")
+				throw("heapBitsSetType: inconsistent object sizes")
+			}
+		}
+		if typ.size == goarch.PtrSize {
+			// The type contains a pointer otherwise heapBitsSetType wouldn't have been called.
+			// Since the type is only 1 pointer wide and contains a pointer, its gcdata must be exactly 1.
+			if doubleCheck && *typ.gcdata != 1 {
+				print("runtime: heapBitsSetType size=", size, " typ.size=", typ.size, "but *typ.gcdata", *typ.gcdata, "\n")
+				throw("heapBitsSetType: unexpected gcdata for 1 pointer wide type size in 3 pointer wide size class")
+			}
+			// 3 element array of pointers. Unrolling ptrmask 3 times into p yields 00000111.
+			b = 7
 		}
 
-		h.flush(x, size)
+		hb := b & 7
+		// Set bitScan bits for all pointers.
+		hb |= hb << wordsPerBitmapByte
+		// First bitScan bit is always set since the type contains pointers.
+		hb |= bitScan
+		// Second bitScan bit needs to also be set if the third bitScan bit is set.
+		hb |= hb & (bitScan << (2 * heapBitsShift)) >> 1
 
-		// Erase the expanded GC program.
-		memclrNoHeapPointers(unsafe.Pointer(obj), (n+7)/8)
+		// For h.shift > 1 heap bits cross a byte boundary and need to be written part
+		// to h.bitp and part to the next h.bitp.
+		switch h.shift {
+		case 0:
+			*h.bitp &^= mask3 << 0
+			*h.bitp |= hb << 0
+		case 1:
+			*h.bitp &^= mask3 << 1
+			*h.bitp |= hb << 1
+		case 2:
+			*h.bitp &^= mask2 << 2
+			*h.bitp |= (hb & mask2) << 2
+			// Two words written to the first byte.
+			// Advance two words to get to the next byte.
+			h = h.next().next()
+			*h.bitp &^= mask1
+			*h.bitp |= (hb >> 2) & mask1
+		case 3:
+			*h.bitp &^= mask1 << 3
+			*h.bitp |= (hb & mask1) << 3
+			// One word written to the first byte.
+			// Advance one word to get to the next byte.
+			h = h.next()
+			*h.bitp &^= mask2
+			*h.bitp |= (hb >> 1) & mask2
+		}
 		return
+	}
+
+	// Copy from 1-bit ptrmask into 2-bit bitmap.
+	// The basic approach is to use a single uintptr as a bit buffer,
+	// alternating between reloading the buffer and writing bitmap bytes.
+	// In general, one load can supply two bitmap byte writes.
+	// This is a lot of lines of code, but it compiles into relatively few
+	// machine instructions.
+
+	outOfPlace := false
+	if arenaIndex(x+size-1) != arenaIdx(h.arena) || (doubleCheck && fastrandn(2) == 0) {
+		// This object spans heap arenas, so the bitmap may be
+		// discontiguous. Unroll it into the object instead
+		// and then copy it out.
+		//
+		// In doubleCheck mode, we randomly do this anyway to
+		// stress test the bitmap copying path.
+		outOfPlace = true
+		h.bitp = (*uint8)(unsafe.Pointer(x))
+		h.last = nil
+	}
+
+	var (
+		// Ptrmask input.
+		p     *byte   // last ptrmask byte read
+		b     uintptr // ptrmask bits already loaded
+		nb    uintptr // number of bits in b at next read
+		endp  *byte   // final ptrmask byte to read (then repeat)
+		endnb uintptr // number of valid bits in *endp
+		pbits uintptr // alternate source of bits
+
+		// Heap bitmap output.
+		w     uintptr // words processed
+		nw    uintptr // number of words to process
+		hbitp *byte   // next heap bitmap byte to write
+		hb    uintptr // bits being prepared for *hbitp
+	)
+
+	hbitp = h.bitp
+
+	// Handle GC program. Delayed until this part of the code
+	// so that we can use the same double-checking mechanism
+	// as the 1-bit case. Nothing above could have encountered
+	// GC programs: the cases were all too small.
+	if typ.kind&kindGCProg != 0 {
+		heapBitsSetTypeGCProg(h, typ.ptrdata, typ.size, dataSize, size, addb(typ.gcdata, 4))
+		if doubleCheck {
+			// Double-check the heap bits written by GC program
+			// by running the GC program to create a 1-bit pointer mask
+			// and then jumping to the double-check code below.
+			// This doesn't catch bugs shared between the 1-bit and 4-bit
+			// GC program execution, but it does catch mistakes specific
+			// to just one of those and bugs in heapBitsSetTypeGCProg's
+			// implementation of arrays.
+			lock(&debugPtrmask.lock)
+			if debugPtrmask.data == nil {
+				debugPtrmask.data = (*byte)(persistentalloc(1<<20, 1, &memstats.other_sys))
+			}
+			ptrmask = debugPtrmask.data
+			runGCProg(addb(typ.gcdata, 4), nil, ptrmask, 1)
+		}
+		goto Phase4
 	}
 
 	// Note about sizes:
@@ -987,52 +1061,424 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// to scan the buffer's heap bitmap at all.
 	// The 1-bit ptrmasks are sized to contain only bits for
 	// the typ.ptrdata prefix, zero padded out to a full byte
-	// of bitmap. If there is more room in the allocated object,
-	// that space is pointerless. The noMorePtrs bitmap will prevent
-	// scanning large pointerless tails of an object.
+	// of bitmap. This code sets nw (below) so that heap bitmap
+	// bits are only written for the typ.ptrdata prefix; if there is
+	// more room in the allocated object, the next heap bitmap
+	// entry is a 00, indicating that there are no more pointers
+	// to scan. So only the ptrmask for the ptrdata bytes is needed.
 	//
 	// Replicated copies are not as nice: if there is an array of
 	// objects with scalar tails, all but the last tail does have to
 	// be initialized, because there is no way to say "skip forward".
+	// However, because of the possibility of a repeated type with
+	// size not a multiple of 4 pointers (one heap bitmap byte),
+	// the code already must handle the last ptrmask byte specially
+	// by treating it as containing only the bits for endnb pointers,
+	// where endnb <= 4. We represent large scalar tails that must
+	// be expanded in the replication by setting endnb larger than 4.
+	// This will have the effect of reading many bits out of b,
+	// but once the real bits are shifted out, b will supply as many
+	// zero bits as we try to read, which is exactly what we need.
 
-	for i := uintptr(0); true; i += typ.size {
-		p := typ.gcdata
-		var j uintptr
-		for j = 0; j+8*goarch.PtrSize < typ.ptrdata; j += 8 * goarch.PtrSize {
-			h = h.write(uintptr(*p), 8)
-			p = add1(p)
+	p = ptrmask
+	if typ.size < dataSize {
+		// Filling in bits for an array of typ.
+		// Set up for repetition of ptrmask during main loop.
+		// Note that ptrmask describes only a prefix of
+		const maxBits = goarch.PtrSize*8 - 7
+		if typ.ptrdata/goarch.PtrSize <= maxBits {
+			// Entire ptrmask fits in uintptr with room for a byte fragment.
+			// Load into pbits and never read from ptrmask again.
+			// This is especially important when the ptrmask has
+			// fewer than 8 bits in it; otherwise the reload in the middle
+			// of the Phase 2 loop would itself need to loop to gather
+			// at least 8 bits.
+
+			// Accumulate ptrmask into b.
+			// ptrmask is sized to describe only typ.ptrdata, but we record
+			// it as describing typ.size bytes, since all the high bits are zero.
+			nb = typ.ptrdata / goarch.PtrSize
+			for i := uintptr(0); i < nb; i += 8 {
+				b |= uintptr(*p) << i
+				p = add1(p)
+			}
+			nb = typ.size / goarch.PtrSize
+
+			// Replicate ptrmask to fill entire pbits uintptr.
+			// Doubling and truncating is fewer steps than
+			// iterating by nb each time. (nb could be 1.)
+			// Since we loaded typ.ptrdata/goarch.PtrSize bits
+			// but are pretending to have typ.size/goarch.PtrSize,
+			// there might be no replication necessary/possible.
+			pbits = b
+			endnb = nb
+			if nb+nb <= maxBits {
+				for endnb <= goarch.PtrSize*8 {
+					pbits |= pbits << endnb
+					endnb += endnb
+				}
+				// Truncate to a multiple of original ptrmask.
+				// Because nb+nb <= maxBits, nb fits in a byte.
+				// Byte division is cheaper than uintptr division.
+				endnb = uintptr(maxBits/byte(nb)) * nb
+				pbits &= 1<<endnb - 1
+				b = pbits
+				nb = endnb
+			}
+
+			// Clear p and endp as sentinel for using pbits.
+			// Checked during Phase 2 loop.
+			p = nil
+			endp = nil
+		} else {
+			// Ptrmask is larger. Read it multiple times.
+			n := (typ.ptrdata/goarch.PtrSize+7)/8 - 1
+			endp = addb(ptrmask, n)
+			endnb = typ.size/goarch.PtrSize - n*8
 		}
-		h = h.write(uintptr(*p), (typ.ptrdata-j)/goarch.PtrSize)
-		if i+typ.size == dataSize {
-			break // don't need the trailing nonptr bits on the last element.
-		}
-		// Pad with zeros to the start of the next element.
-		h = h.pad(typ.size - typ.ptrdata)
 	}
-	h.flush(x, size)
+	if p != nil {
+		b = uintptr(*p)
+		p = add1(p)
+		nb = 8
+	}
 
-	if doubleCheck {
-		h := heapBitsForAddr(x, size)
-		for i := uintptr(0); i < size; i += goarch.PtrSize {
-			// Compute the pointer bit we want at offset i.
-			want := false
-			if i < dataSize {
-				off := i % typ.size
-				if off < typ.ptrdata {
-					j := off / goarch.PtrSize
-					want = *addb(typ.gcdata, j/8)>>(j%8)&1 != 0
-				}
+	if typ.size == dataSize {
+		// Single entry: can stop once we reach the non-pointer data.
+		nw = typ.ptrdata / goarch.PtrSize
+	} else {
+		// Repeated instances of typ in an array.
+		// Have to process first N-1 entries in full, but can stop
+		// once we reach the non-pointer data in the final entry.
+		nw = ((dataSize/typ.size-1)*typ.size + typ.ptrdata) / goarch.PtrSize
+	}
+	if nw == 0 {
+		// No pointers! Caller was supposed to check.
+		println("runtime: invalid type ", typ.string())
+		throw("heapBitsSetType: called with non-pointer type")
+		return
+	}
+
+	// Phase 1: Special case for leading byte (shift==0) or half-byte (shift==2).
+	// The leading byte is special because it contains the bits for word 1,
+	// which does not have the scan bit set.
+	// The leading half-byte is special because it's a half a byte,
+	// so we have to be careful with the bits already there.
+	switch {
+	default:
+		throw("heapBitsSetType: unexpected shift")
+
+	case h.shift == 0:
+		// Ptrmask and heap bitmap are aligned.
+		//
+		// This is a fast path for small objects.
+		//
+		// The first byte we write out covers the first four
+		// words of the object. The scan/dead bit on the first
+		// word must be set to scan since there are pointers
+		// somewhere in the object.
+		// In all following words, we set the scan/dead
+		// appropriately to indicate that the object continues
+		// to the next 2-bit entry in the bitmap.
+		//
+		// We set four bits at a time here, but if the object
+		// is fewer than four words, phase 3 will clear
+		// unnecessary bits.
+		hb = b & bitPointerAll
+		hb |= bitScanAll
+		if w += 4; w >= nw {
+			goto Phase3
+		}
+		*hbitp = uint8(hb)
+		hbitp = add1(hbitp)
+		b >>= 4
+		nb -= 4
+
+	case h.shift == 2:
+		// Ptrmask and heap bitmap are misaligned.
+		//
+		// On 32 bit architectures only the 6-word object that corresponds
+		// to a 24 bytes size class can start with h.shift of 2 here since
+		// all other non 16 byte aligned size classes have been handled by
+		// special code paths at the beginning of heapBitsSetType on 32 bit.
+		//
+		// Many size classes are only 16 byte aligned. On 64 bit architectures
+		// this results in a heap bitmap position starting with a h.shift of 2.
+		//
+		// The bits for the first two words are in a byte shared
+		// with another object, so we must be careful with the bits
+		// already there.
+		//
+		// We took care of 1-word, 2-word, and 3-word objects above,
+		// so this is at least a 6-word object.
+		hb = (b & (bitPointer | bitPointer<<heapBitsShift)) << (2 * heapBitsShift)
+		hb |= bitScan << (2 * heapBitsShift)
+		if nw > 1 {
+			hb |= bitScan << (3 * heapBitsShift)
+		}
+		b >>= 2
+		nb -= 2
+		*hbitp &^= uint8((bitPointer | bitScan | ((bitPointer | bitScan) << heapBitsShift)) << (2 * heapBitsShift))
+		*hbitp |= uint8(hb)
+		hbitp = add1(hbitp)
+		if w += 2; w >= nw {
+			// We know that there is more data, because we handled 2-word and 3-word objects above.
+			// This must be at least a 6-word object. If we're out of pointer words,
+			// mark no scan in next bitmap byte and finish.
+			hb = 0
+			w += 4
+			goto Phase3
+		}
+	}
+
+	// Phase 2: Full bytes in bitmap, up to but not including write to last byte (full or partial) in bitmap.
+	// The loop computes the bits for that last write but does not execute the write;
+	// it leaves the bits in hb for processing by phase 3.
+	// To avoid repeated adjustment of nb, we subtract out the 4 bits we're going to
+	// use in the first half of the loop right now, and then we only adjust nb explicitly
+	// if the 8 bits used by each iteration isn't balanced by 8 bits loaded mid-loop.
+	nb -= 4
+	for {
+		// Emit bitmap byte.
+		// b has at least nb+4 bits, with one exception:
+		// if w+4 >= nw, then b has only nw-w bits,
+		// but we'll stop at the break and then truncate
+		// appropriately in Phase 3.
+		hb = b & bitPointerAll
+		hb |= bitScanAll
+		if w += 4; w >= nw {
+			break
+		}
+		*hbitp = uint8(hb)
+		hbitp = add1(hbitp)
+		b >>= 4
+
+		// Load more bits. b has nb right now.
+		if p != endp {
+			// Fast path: keep reading from ptrmask.
+			// nb unmodified: we just loaded 8 bits,
+			// and the next iteration will consume 8 bits,
+			// leaving us with the same nb the next time we're here.
+			if nb < 8 {
+				b |= uintptr(*p) << nb
+				p = add1(p)
+			} else {
+				// Reduce the number of bits in b.
+				// This is important if we skipped
+				// over a scalar tail, since nb could
+				// be larger than the bit width of b.
+				nb -= 8
 			}
-			if want {
-				var addr uintptr
-				h, addr = h.next()
-				if addr != x+i {
-					throw("heapBitsSetType: pointer entry not correct")
-				}
+		} else if p == nil {
+			// Almost as fast path: track bit count and refill from pbits.
+			// For short repetitions.
+			if nb < 8 {
+				b |= pbits << nb
+				nb += endnb
+			}
+			nb -= 8 // for next iteration
+		} else {
+			// Slow path: reached end of ptrmask.
+			// Process final partial byte and rewind to start.
+			b |= uintptr(*p) << nb
+			nb += endnb
+			if nb < 8 {
+				b |= uintptr(*ptrmask) << nb
+				p = add1(ptrmask)
+			} else {
+				nb -= 8
+				p = ptrmask
 			}
 		}
-		if _, addr := h.next(); addr != 0 {
-			throw("heapBitsSetType: extra pointer")
+
+		// Emit bitmap byte.
+		hb = b & bitPointerAll
+		hb |= bitScanAll
+		if w += 4; w >= nw {
+			break
+		}
+		*hbitp = uint8(hb)
+		hbitp = add1(hbitp)
+		b >>= 4
+	}
+
+Phase3:
+	// Phase 3: Write last byte or partial byte and zero the rest of the bitmap entries.
+	if w > nw {
+		// Counting the 4 entries in hb not yet written to memory,
+		// there are more entries than possible pointer slots.
+		// Discard the excess entries (can't be more than 3).
+		mask := uintptr(1)<<(4-(w-nw)) - 1
+		hb &= mask | mask<<4 // apply mask to both pointer bits and scan bits
+	}
+
+	// Change nw from counting possibly-pointer words to total words in allocation.
+	nw = size / goarch.PtrSize
+
+	// Write whole bitmap bytes.
+	// The first is hb, the rest are zero.
+	if w <= nw {
+		*hbitp = uint8(hb)
+		hbitp = add1(hbitp)
+		hb = 0 // for possible final half-byte below
+		for w += 4; w <= nw; w += 4 {
+			*hbitp = 0
+			hbitp = add1(hbitp)
+		}
+	}
+
+	// Write final partial bitmap byte if any.
+	// We know w > nw, or else we'd still be in the loop above.
+	// It can be bigger only due to the 4 entries in hb that it counts.
+	// If w == nw+4 then there's nothing left to do: we wrote all nw entries
+	// and can discard the 4 sitting in hb.
+	// But if w == nw+2, we need to write first two in hb.
+	// The byte is shared with the next object, so be careful with
+	// existing bits.
+	if w == nw+2 {
+		*hbitp = *hbitp&^(bitPointer|bitScan|(bitPointer|bitScan)<<heapBitsShift) | uint8(hb)
+	}
+
+Phase4:
+	// Phase 4: Copy unrolled bitmap to per-arena bitmaps, if necessary.
+	if outOfPlace {
+		// TODO: We could probably make this faster by
+		// handling [x+dataSize, x+size) specially.
+		h := heapBitsForAddr(x)
+		// cnw is the number of heap words, or bit pairs
+		// remaining (like nw above).
+		cnw := size / goarch.PtrSize
+		src := (*uint8)(unsafe.Pointer(x))
+		// We know the first and last byte of the bitmap are
+		// not the same, but it's still possible for small
+		// objects span arenas, so it may share bitmap bytes
+		// with neighboring objects.
+		//
+		// Handle the first byte specially if it's shared. See
+		// Phase 1 for why this is the only special case we need.
+		if doubleCheck {
+			if !(h.shift == 0 || h.shift == 2) {
+				print("x=", x, " size=", size, " cnw=", h.shift, "\n")
+				throw("bad start shift")
+			}
+		}
+		if h.shift == 2 {
+			*h.bitp = *h.bitp&^((bitPointer|bitScan|(bitPointer|bitScan)<<heapBitsShift)<<(2*heapBitsShift)) | *src
+			h = h.next().next()
+			cnw -= 2
+			src = addb(src, 1)
+		}
+		// We're now byte aligned. Copy out to per-arena
+		// bitmaps until the last byte (which may again be
+		// partial).
+		for cnw >= 4 {
+			// This loop processes four words at a time,
+			// so round cnw down accordingly.
+			hNext, words := h.forwardOrBoundary(cnw / 4 * 4)
+
+			// n is the number of bitmap bytes to copy.
+			n := words / 4
+			memmove(unsafe.Pointer(h.bitp), unsafe.Pointer(src), n)
+			cnw -= words
+			h = hNext
+			src = addb(src, n)
+		}
+		if doubleCheck && h.shift != 0 {
+			print("cnw=", cnw, " h.shift=", h.shift, "\n")
+			throw("bad shift after block copy")
+		}
+		// Handle the last byte if it's shared.
+		if cnw == 2 {
+			*h.bitp = *h.bitp&^(bitPointer|bitScan|(bitPointer|bitScan)<<heapBitsShift) | *src
+			src = addb(src, 1)
+			h = h.next().next()
+		}
+		if doubleCheck {
+			if uintptr(unsafe.Pointer(src)) > x+size {
+				throw("copy exceeded object size")
+			}
+			if !(cnw == 0 || cnw == 2) {
+				print("x=", x, " size=", size, " cnw=", cnw, "\n")
+				throw("bad number of remaining words")
+			}
+			// Set up hbitp so doubleCheck code below can check it.
+			hbitp = h.bitp
+		}
+		// Zero the object where we wrote the bitmap.
+		memclrNoHeapPointers(unsafe.Pointer(x), uintptr(unsafe.Pointer(src))-x)
+	}
+
+	// Double check the whole bitmap.
+	if doubleCheck {
+		// x+size may not point to the heap, so back up one
+		// word and then advance it the way we do above.
+		end := heapBitsForAddr(x + size - goarch.PtrSize)
+		if outOfPlace {
+			// In out-of-place copying, we just advance
+			// using next.
+			end = end.next()
+		} else {
+			// Don't use next because that may advance to
+			// the next arena and the in-place logic
+			// doesn't do that.
+			end.shift += heapBitsShift
+			if end.shift == 4*heapBitsShift {
+				end.bitp, end.shift = add1(end.bitp), 0
+			}
+		}
+		if typ.kind&kindGCProg == 0 && (hbitp != end.bitp || (w == nw+2) != (end.shift == 2)) {
+			println("ended at wrong bitmap byte for", typ.string(), "x", dataSize/typ.size)
+			print("typ.size=", typ.size, " typ.ptrdata=", typ.ptrdata, " dataSize=", dataSize, " size=", size, "\n")
+			print("w=", w, " nw=", nw, " b=", hex(b), " nb=", nb, " hb=", hex(hb), "\n")
+			h0 := heapBitsForAddr(x)
+			print("initial bits h0.bitp=", h0.bitp, " h0.shift=", h0.shift, "\n")
+			print("ended at hbitp=", hbitp, " but next starts at bitp=", end.bitp, " shift=", end.shift, "\n")
+			throw("bad heapBitsSetType")
+		}
+
+		// Double-check that bits to be written were written correctly.
+		// Does not check that other bits were not written, unfortunately.
+		h := heapBitsForAddr(x)
+		nptr := typ.ptrdata / goarch.PtrSize
+		ndata := typ.size / goarch.PtrSize
+		count := dataSize / typ.size
+		totalptr := ((count-1)*typ.size + typ.ptrdata) / goarch.PtrSize
+		for i := uintptr(0); i < size/goarch.PtrSize; i++ {
+			j := i % ndata
+			var have, want uint8
+			have = (*h.bitp >> h.shift) & (bitPointer | bitScan)
+			if i >= totalptr {
+				if typ.kind&kindGCProg != 0 && i < (totalptr+3)/4*4 {
+					// heapBitsSetTypeGCProg always fills
+					// in full nibbles of bitScan.
+					want = bitScan
+				}
+			} else {
+				if j < nptr && (*addb(ptrmask, j/8)>>(j%8))&1 != 0 {
+					want |= bitPointer
+				}
+				want |= bitScan
+			}
+			if have != want {
+				println("mismatch writing bits for", typ.string(), "x", dataSize/typ.size)
+				print("typ.size=", typ.size, " typ.ptrdata=", typ.ptrdata, " dataSize=", dataSize, " size=", size, "\n")
+				print("kindGCProg=", typ.kind&kindGCProg != 0, " outOfPlace=", outOfPlace, "\n")
+				print("w=", w, " nw=", nw, " b=", hex(b), " nb=", nb, " hb=", hex(hb), "\n")
+				h0 := heapBitsForAddr(x)
+				print("initial bits h0.bitp=", h0.bitp, " h0.shift=", h0.shift, "\n")
+				print("current bits h.bitp=", h.bitp, " h.shift=", h.shift, " *h.bitp=", hex(*h.bitp), "\n")
+				print("ptrmask=", ptrmask, " p=", p, " endp=", endp, " endnb=", endnb, " pbits=", hex(pbits), " b=", hex(b), " nb=", nb, "\n")
+				println("at word", i, "offset", i*goarch.PtrSize, "have", hex(have), "want", hex(want))
+				if typ.kind&kindGCProg != 0 {
+					println("GC program:")
+					dumpGCProg(addb(typ.gcdata, 4))
+				}
+				throw("bad heapBitsSetType")
+			}
+			h = h.next()
+		}
+		if ptrmask == debugPtrmask.data {
+			unlock(&debugPtrmask.lock)
 		}
 	}
 }
@@ -1042,6 +1488,92 @@ var debugPtrmask struct {
 	data *byte
 }
 
+// heapBitsSetTypeGCProg implements heapBitsSetType using a GC program.
+// progSize is the size of the memory described by the program.
+// elemSize is the size of the element that the GC program describes (a prefix of).
+// dataSize is the total size of the intended data, a multiple of elemSize.
+// allocSize is the total size of the allocated memory.
+//
+// GC programs are only used for large allocations.
+// heapBitsSetType requires that allocSize is a multiple of 4 words,
+// so that the relevant bitmap bytes are not shared with surrounding
+// objects.
+func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize uintptr, prog *byte) {
+	if goarch.PtrSize == 8 && allocSize%(4*goarch.PtrSize) != 0 {
+		// Alignment will be wrong.
+		throw("heapBitsSetTypeGCProg: small allocation")
+	}
+	var totalBits uintptr
+	if elemSize == dataSize {
+		totalBits = runGCProg(prog, nil, h.bitp, 2)
+		if totalBits*goarch.PtrSize != progSize {
+			println("runtime: heapBitsSetTypeGCProg: total bits", totalBits, "but progSize", progSize)
+			throw("heapBitsSetTypeGCProg: unexpected bit count")
+		}
+	} else {
+		count := dataSize / elemSize
+
+		// Piece together program trailer to run after prog that does:
+		//	literal(0)
+		//	repeat(1, elemSize-progSize-1) // zeros to fill element size
+		//	repeat(elemSize, count-1) // repeat that element for count
+		// This zero-pads the data remaining in the first element and then
+		// repeats that first element to fill the array.
+		var trailer [40]byte // 3 varints (max 10 each) + some bytes
+		i := 0
+		if n := elemSize/goarch.PtrSize - progSize/goarch.PtrSize; n > 0 {
+			// literal(0)
+			trailer[i] = 0x01
+			i++
+			trailer[i] = 0
+			i++
+			if n > 1 {
+				// repeat(1, n-1)
+				trailer[i] = 0x81
+				i++
+				n--
+				for ; n >= 0x80; n >>= 7 {
+					trailer[i] = byte(n | 0x80)
+					i++
+				}
+				trailer[i] = byte(n)
+				i++
+			}
+		}
+		// repeat(elemSize/ptrSize, count-1)
+		trailer[i] = 0x80
+		i++
+		n := elemSize / goarch.PtrSize
+		for ; n >= 0x80; n >>= 7 {
+			trailer[i] = byte(n | 0x80)
+			i++
+		}
+		trailer[i] = byte(n)
+		i++
+		n = count - 1
+		for ; n >= 0x80; n >>= 7 {
+			trailer[i] = byte(n | 0x80)
+			i++
+		}
+		trailer[i] = byte(n)
+		i++
+		trailer[i] = 0
+		i++
+
+		runGCProg(prog, &trailer[0], h.bitp, 2)
+
+		// Even though we filled in the full array just now,
+		// record that we only filled in up to the ptrdata of the
+		// last element. This will cause the code below to
+		// memclr the dead section of the final array element,
+		// so that scanobject can stop early in the final element.
+		totalBits = (elemSize*(count-1) + progSize) / goarch.PtrSize
+	}
+	endProg := unsafe.Pointer(addb(h.bitp, (totalBits+3)/4))
+	endAlloc := unsafe.Pointer(addb(h.bitp, allocSize/goarch.PtrSize/wordsPerBitmapByte))
+	memclrNoHeapPointers(endProg, uintptr(endAlloc)-uintptr(endProg))
+}
+
 // progToPointerMask returns the 1-bit pointer mask output by the GC program prog.
 // size the size of the region described by prog, in bytes.
 // The resulting bitvector will have no more than size/goarch.PtrSize bits.
@@ -1049,7 +1581,7 @@ func progToPointerMask(prog *byte, size uintptr) bitvector {
 	n := (size/goarch.PtrSize + 7) / 8
 	x := (*[1 << 30]byte)(persistentalloc(n+1, 1, &memstats.buckhash_sys))[:n+1]
 	x[len(x)-1] = 0xa1 // overflow check sentinel
-	n = runGCProg(prog, &x[0])
+	n = runGCProg(prog, nil, &x[0], 1)
 	if x[len(x)-1] != 0xa1 {
 		throw("progToPointerMask: overflow")
 	}
@@ -1070,8 +1602,15 @@ func progToPointerMask(prog *byte, size uintptr) bitvector {
 //	10000000 n c: repeat the previous n bits c times; n, c are varints
 //	1nnnnnnn c: repeat the previous n bits c times; c is a varint
 
-// runGCProg returns the number of 1-bit entries written to memory.
-func runGCProg(prog, dst *byte) uintptr {
+// runGCProg executes the GC program prog, and then trailer if non-nil,
+// writing to dst with entries of the given size.
+// If size == 1, dst is a 1-bit pointer mask laid out moving forward from dst.
+// If size == 2, dst is the 2-bit heap bitmap, and writes move backward
+// starting at dst (because the heap bitmap does). In this case, the caller guarantees
+// that only whole bytes in dst need to be written.
+//
+// runGCProg returns the number of 1- or 2-bit entries written to memory.
+func runGCProg(prog, trailer, dst *byte, size int) uintptr {
 	dstStart := dst
 
 	// Bits waiting to be written to memory.
@@ -1084,9 +1623,20 @@ Run:
 		// Flush accumulated full bytes.
 		// The rest of the loop assumes that nbits <= 7.
 		for ; nbits >= 8; nbits -= 8 {
-			*dst = uint8(bits)
-			dst = add1(dst)
-			bits >>= 8
+			if size == 1 {
+				*dst = uint8(bits)
+				dst = add1(dst)
+				bits >>= 8
+			} else {
+				v := bits&bitPointerAll | bitScanAll
+				*dst = uint8(v)
+				dst = add1(dst)
+				bits >>= 4
+				v = bits&bitPointerAll | bitScanAll
+				*dst = uint8(v)
+				dst = add1(dst)
+				bits >>= 4
+			}
 		}
 
 		// Process one instruction.
@@ -1096,16 +1646,32 @@ Run:
 		if inst&0x80 == 0 {
 			// Literal bits; n == 0 means end of program.
 			if n == 0 {
-				// Program is over.
+				// Program is over; continue in trailer if present.
+				if trailer != nil {
+					p = trailer
+					trailer = nil
+					continue
+				}
 				break Run
 			}
 			nbyte := n / 8
 			for i := uintptr(0); i < nbyte; i++ {
 				bits |= uintptr(*p) << nbits
 				p = add1(p)
-				*dst = uint8(bits)
-				dst = add1(dst)
-				bits >>= 8
+				if size == 1 {
+					*dst = uint8(bits)
+					dst = add1(dst)
+					bits >>= 8
+				} else {
+					v := bits&0xf | bitScanAll
+					*dst = uint8(v)
+					dst = add1(dst)
+					bits >>= 4
+					v = bits&0xf | bitScanAll
+					*dst = uint8(v)
+					dst = add1(dst)
+					bits >>= 4
+				}
 			}
 			if n %= 8; n > 0 {
 				bits |= uintptr(*p) << nbits
@@ -1154,12 +1720,22 @@ Run:
 			npattern := nbits
 
 			// If we need more bits, fetch them from memory.
-			src = subtract1(src)
-			for npattern < n {
-				pattern <<= 8
-				pattern |= uintptr(*src)
+			if size == 1 {
 				src = subtract1(src)
-				npattern += 8
+				for npattern < n {
+					pattern <<= 8
+					pattern |= uintptr(*src)
+					src = subtract1(src)
+					npattern += 8
+				}
+			} else {
+				src = subtract1(src)
+				for npattern < n {
+					pattern <<= 4
+					pattern |= uintptr(*src) & 0xf
+					src = subtract1(src)
+					npattern += 4
+				}
 			}
 
 			// We started with the whole bit output buffer,
@@ -1209,11 +1785,20 @@ Run:
 			for ; c >= npattern; c -= npattern {
 				bits |= pattern << nbits
 				nbits += npattern
-				for nbits >= 8 {
-					*dst = uint8(bits)
-					dst = add1(dst)
-					bits >>= 8
-					nbits -= 8
+				if size == 1 {
+					for nbits >= 8 {
+						*dst = uint8(bits)
+						dst = add1(dst)
+						bits >>= 8
+						nbits -= 8
+					}
+				} else {
+					for nbits >= 4 {
+						*dst = uint8(bits&0xf | bitScanAll)
+						dst = add1(dst)
+						bits >>= 4
+						nbits -= 4
+					}
 				}
 			}
 
@@ -1230,37 +1815,74 @@ Run:
 		// Since nbits <= 7, we know the first few bytes of repeated data
 		// are already written to memory.
 		off := n - nbits // n > nbits because n > maxBits and nbits <= 7
-		// Leading src fragment.
-		src = subtractb(src, (off+7)/8)
-		if frag := off & 7; frag != 0 {
-			bits |= uintptr(*src) >> (8 - frag) << nbits
-			src = add1(src)
-			nbits += frag
-			c -= frag
-		}
-		// Main loop: load one byte, write another.
-		// The bits are rotating through the bit buffer.
-		for i := c / 8; i > 0; i-- {
-			bits |= uintptr(*src) << nbits
-			src = add1(src)
-			*dst = uint8(bits)
-			dst = add1(dst)
-			bits >>= 8
-		}
-		// Final src fragment.
-		if c %= 8; c > 0 {
-			bits |= (uintptr(*src) & (1<<c - 1)) << nbits
-			nbits += c
+		if size == 1 {
+			// Leading src fragment.
+			src = subtractb(src, (off+7)/8)
+			if frag := off & 7; frag != 0 {
+				bits |= uintptr(*src) >> (8 - frag) << nbits
+				src = add1(src)
+				nbits += frag
+				c -= frag
+			}
+			// Main loop: load one byte, write another.
+			// The bits are rotating through the bit buffer.
+			for i := c / 8; i > 0; i-- {
+				bits |= uintptr(*src) << nbits
+				src = add1(src)
+				*dst = uint8(bits)
+				dst = add1(dst)
+				bits >>= 8
+			}
+			// Final src fragment.
+			if c %= 8; c > 0 {
+				bits |= (uintptr(*src) & (1<<c - 1)) << nbits
+				nbits += c
+			}
+		} else {
+			// Leading src fragment.
+			src = subtractb(src, (off+3)/4)
+			if frag := off & 3; frag != 0 {
+				bits |= (uintptr(*src) & 0xf) >> (4 - frag) << nbits
+				src = add1(src)
+				nbits += frag
+				c -= frag
+			}
+			// Main loop: load one byte, write another.
+			// The bits are rotating through the bit buffer.
+			for i := c / 4; i > 0; i-- {
+				bits |= (uintptr(*src) & 0xf) << nbits
+				src = add1(src)
+				*dst = uint8(bits&0xf | bitScanAll)
+				dst = add1(dst)
+				bits >>= 4
+			}
+			// Final src fragment.
+			if c %= 4; c > 0 {
+				bits |= (uintptr(*src) & (1<<c - 1)) << nbits
+				nbits += c
+			}
 		}
 	}
 
 	// Write any final bits out, using full-byte writes, even for the final byte.
-	totalBits := (uintptr(unsafe.Pointer(dst))-uintptr(unsafe.Pointer(dstStart)))*8 + nbits
-	nbits += -nbits & 7
-	for ; nbits > 0; nbits -= 8 {
-		*dst = uint8(bits)
-		dst = add1(dst)
-		bits >>= 8
+	var totalBits uintptr
+	if size == 1 {
+		totalBits = (uintptr(unsafe.Pointer(dst))-uintptr(unsafe.Pointer(dstStart)))*8 + nbits
+		nbits += -nbits & 7
+		for ; nbits > 0; nbits -= 8 {
+			*dst = uint8(bits)
+			dst = add1(dst)
+			bits >>= 8
+		}
+	} else {
+		totalBits = (uintptr(unsafe.Pointer(dst))-uintptr(unsafe.Pointer(dstStart)))*4 + nbits
+		nbits += -nbits & 3
+		for ; nbits > 0; nbits -= 4 {
+			v := bits&0xf | bitScanAll
+			*dst = uint8(v)
+			dst = add1(dst)
+			bits >>= 4
+		}
 	}
 	return totalBits
 }
@@ -1276,7 +1898,7 @@ func materializeGCProg(ptrdata uintptr, prog *byte) *mspan {
 	// Compute the number of pages needed for bitmapBytes.
 	pages := divRoundUp(bitmapBytes, pageSize)
 	s := mheap_.allocManual(pages, spanAllocPtrScalarBits)
-	runGCProg(addb(prog, 4), (*byte)(unsafe.Pointer(s.startAddr)))
+	runGCProg(addb(prog, 4), nil, (*byte)(unsafe.Pointer(s.startAddr)), 1)
 	return s
 }
 func dematerializeGCProg(s *mspan) {
@@ -1344,7 +1966,13 @@ func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
 //
 //go:linkname reflect_gcbits reflect.gcbits
 func reflect_gcbits(x any) []byte {
-	return getgcmask(x)
+	ret := getgcmask(x)
+	typ := (*ptrtype)(unsafe.Pointer(efaceOf(&x)._type)).elem
+	nptr := typ.ptrdata / goarch.PtrSize
+	for uintptr(len(ret)) > nptr && ret[len(ret)-1] == 0 {
+		ret = ret[:len(ret)-1]
+	}
+	return ret
 }
 
 // Returns GC type info for the pointer stored in ep for testing.
@@ -1383,22 +2011,18 @@ func getgcmask(ep any) (mask []byte) {
 
 	// heap
 	if base, s, _ := findObject(uintptr(p), 0, 0); base != 0 {
-		if s.spanclass.noscan() {
-			return nil
-		}
+		hbits := heapBitsForAddr(base)
 		n := s.elemsize
-		hbits := heapBitsForAddr(base, n)
 		mask = make([]byte, n/goarch.PtrSize)
-		for {
-			var addr uintptr
-			if hbits, addr = hbits.next(); addr == 0 {
+		for i := uintptr(0); i < n; i += goarch.PtrSize {
+			if hbits.isPointer() {
+				mask[i/goarch.PtrSize] = 1
+			}
+			if !hbits.morePointers() {
+				mask = mask[:i/goarch.PtrSize]
 				break
 			}
-			mask[(addr-base)/goarch.PtrSize] = 1
-		}
-		// Callers expect this mask to end at the last pointer.
-		for len(mask) > 0 && mask[len(mask)-1] == 0 {
-			mask = mask[:len(mask)-1]
+			hbits = hbits.next()
 		}
 		return
 	}
