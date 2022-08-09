@@ -1860,25 +1860,21 @@ func (c *runCache) saveOutput(a *work.Action, coverprofileFile string) {
 	if err != nil {
 		return
 	}
-	var coverprof *os.File
+	saveCoverProfile := func(testID cache.ActionID) {}
 	if coverprofileFile != "" {
-		coverprof, err = os.Open(coverprofileFile)
-		if err != nil && cache.DebugTest {
+		coverprof, err := os.Open(coverprofileFile)
+		if err == nil {
+			saveCoverProfile = func(testID cache.ActionID) {
+				cache.Default().Put(testCoverProfileKey(testID, testInputsID), coverprof)
+			}
+			defer func() {
+				if err := coverprof.Close(); err != nil && cache.DebugTest {
+					fmt.Fprintf(os.Stderr, "testcache: %s: closing temporary coverprofile: %v", a.Package.ImportPath, err)
+				}
+			}()
+		} else if cache.DebugTest {
 			fmt.Fprintf(os.Stderr, "testcache: %s: failed to open temporary coverprofile: %s", a.Package.ImportPath, err)
 		}
-	}
-	if coverprof != nil {
-		defer func() {
-			if err := coverprof.Close(); err != nil && cache.DebugTest {
-				fmt.Fprintf(os.Stderr, "testcache: %s: closing temporary coverprofile: %v", a.Package.ImportPath, err)
-			}
-		}()
-	}
-	saveCoverProfile := func(testID cache.ActionID) {
-		if coverprof == nil {
-			return
-		}
-		cache.Default().Put(testCoverProfileKey(testID, testInputsID), coverprof)
 	}
 	if c.id1 != (cache.ActionID{}) {
 		if cache.DebugTest {
