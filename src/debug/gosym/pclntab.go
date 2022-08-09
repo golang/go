@@ -312,11 +312,12 @@ func (t *LineTable) go12Funcs() []Func {
 		f.LineTable = t
 		f.FrameSize = int(info.deferreturn())
 		syms[i] = Sym{
-			Value:  f.Entry,
-			Type:   'T',
-			Name:   t.funcName(info.nameoff()),
-			GoType: 0,
-			Func:   f,
+			Value:     f.Entry,
+			Type:      'T',
+			Name:      t.funcName(info.nameoff()),
+			GoType:    0,
+			Func:      f,
+			goVersion: t.version,
 		}
 		f.Sym = &syms[i]
 	}
