@@ -335,6 +335,7 @@ const (
 	ASQRTF
 	ASRA
 	ASRL
+	AROTR
 	ASUB
 	ASUBD
 	ASUBF
@@ -362,6 +363,7 @@ const (
 	ASLLV
 	ASRAV
 	ASRLV
+	AROTRV
 	ADIVV
 	ADIVVU
 
