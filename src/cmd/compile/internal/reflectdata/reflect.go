@@ -1549,11 +1549,7 @@ func dgcsym(t *types.Type, write bool) (lsym *obj.LSym, useGCProg bool, ptrdata 
 
 // dgcptrmask emits and returns the symbol containing a pointer mask for type t.
 func dgcptrmask(t *types.Type, write bool) *obj.LSym {
-	// Bytes we need for the ptrmask.
-	n := (types.PtrDataSize(t)/int64(types.PtrSize) + 7) / 8
-	// Runtime wants ptrmasks padded to a multiple of uintptr in size.
-	n = (n + int64(types.PtrSize) - 1) &^ (int64(types.PtrSize) - 1)
-	ptrmask := make([]byte, n)
+	ptrmask := make([]byte, (types.PtrDataSize(t)/int64(types.PtrSize)+7)/8)
 	fillptrmask(t, ptrmask)
 	p := fmt.Sprintf("runtime.gcbits.%x", ptrmask)
 
