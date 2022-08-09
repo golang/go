@@ -130,7 +130,7 @@ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
 	}
 
 	if et.size == 0 {
-		if ptr == nil && len > 0  {
+		if ptr == nil && len > 0 {
 			panicunsafeslicenilptr()
 		}
 	}
