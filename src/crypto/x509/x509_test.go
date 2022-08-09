@@ -68,6 +68,20 @@ func TestPKCS1MismatchPublicKeyFormat(t *testing.T) {
 	}
 }
 
+func TestMarshalInvalidPublicKey(t *testing.T) {
+	_, err := MarshalPKIXPublicKey(&ecdsa.PublicKey{})
+	if err == nil {
+		t.Errorf("expected error, got MarshalPKIXPublicKey success")
+	}
+	_, err = MarshalPKIXPublicKey(&ecdsa.PublicKey{
+		Curve: elliptic.P256(),
+		X:     big.NewInt(1), Y: big.NewInt(2),
+	})
+	if err == nil {
+		t.Errorf("expected error, got MarshalPKIXPublicKey success")
+	}
+}
+
 func testParsePKIXPublicKey(t *testing.T, pemBytes string) (pub any) {
 	block, _ := pem.Decode([]byte(pemBytes))
 	pub, err := ParsePKIXPublicKey(block.Bytes)
