@@ -18,8 +18,12 @@ func EpollCreate(size int) (fd int, err error) {
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstat(fd int, stat *Stat_t) (err error)
-//sys	Fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
 //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error)
+
+func Fstatat(fd int, path string, stat *Stat_t, flags int) error {
+	return fstatat(fd, path, stat, flags)
+}
+
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
 //sysnb	Getegid() (egid int)
@@ -44,7 +48,7 @@ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err e
 }
 
 func Stat(path string, stat *Stat_t) (err error) {
-	return Fstatat(_AT_FDCWD, path, stat, 0)
+	return fstatat(_AT_FDCWD, path, stat, 0)
 }
 
 func Lchown(path string, uid int, gid int) (err error) {
@@ -52,7 +56,7 @@ func Lchown(path string, uid int, gid int) (err error) {
 }
 
 func Lstat(path string, stat *Stat_t) (err error) {
-	return Fstatat(_AT_FDCWD, path, stat, _AT_SYMLINK_NOFOLLOW)
+	return fstatat(_AT_FDCWD, path, stat, _AT_SYMLINK_NOFOLLOW)
 }
 
 //sys	Statfs(path string, buf *Statfs_t) (err error)
