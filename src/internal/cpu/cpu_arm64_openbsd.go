@@ -44,8 +44,11 @@ func osInit() {
 	}
 
 	switch extractBits(isar0, 12, 15) {
-	case 1, 2:
+	case 1:
 		ARM64.HasSHA2 = true
+	case 2:
+		ARM64.HasSHA2 = true
+		ARM64.HasSHA512 = true
 	}
 
 	switch extractBits(isar0, 16, 19) {
