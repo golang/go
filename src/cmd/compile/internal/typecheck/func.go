@@ -901,7 +901,7 @@ func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
 		base.Errorf("first argument to unsafe.Slice must be pointer; have %L", t)
 	} else if t.Elem().NotInHeap() {
 		// TODO(mdempsky): This can be relaxed, but should only affect the
-		// Go runtime itself. End users should only see //go:notinheap
+		// Go runtime itself. End users should only see not-in-heap
 		// types due to incomplete C structs in cgo, and those types don't
 		// have a meaningful size anyway.
 		base.Errorf("unsafe.Slice of incomplete (or unallocatable) type not allowed")

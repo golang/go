@@ -2355,7 +2355,7 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 		if n.Alias {
 			pw.checkPragmas(n.Pragma, 0, false)
 		} else {
-			pw.checkPragmas(n.Pragma, typePragmas, false)
+			pw.checkPragmas(n.Pragma, 0, false)
 
 			// Assign a unique ID to function-scoped defined types.
 			if c.withinFunc {

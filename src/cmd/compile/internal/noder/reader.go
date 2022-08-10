@@ -1096,9 +1096,6 @@ func (r *reader) typeExt(name *ir.Name) {
 	}
 
 	name.SetPragma(r.pragmaFlag())
-	if name.Pragma()&ir.NotInHeap != 0 {
-		typ.SetNotInHeap(true)
-	}
 
 	typecheck.SetBaseTypeIndex(typ, r.Int64(), r.Int64())
 }
@@ -2439,16 +2436,6 @@ func (r *reader) expr() (res ir.Node) {
 
 		// TODO(mdempsky): Stop constructing expressions of untyped type.
 		x = typecheck.DefaultLit(x, typ)
-
-		if op, why := typecheck.Convertop(x.Op() == ir.OLITERAL, x.Type(), typ); op == ir.OXXX {
-			// types2 ensured that x is convertable to typ under standard Go
-			// semantics, but cmd/compile also disallows some conversions
-			// involving //go:notinheap.
-			//
-			// TODO(mdempsky): This can be removed after #46731 is implemented.
-			base.ErrorfAt(pos, "cannot convert %L to type %v%v", x, typ, why)
-			base.ErrorExit() // harsh, but prevents constructing invalid IR
-		}
 
 		ce := ir.NewConvExpr(pos, ir.OCONV, typ, x)
 		ce.TypeWord, ce.SrcRType = typeWord, srcRType
