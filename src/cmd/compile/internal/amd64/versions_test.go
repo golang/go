@@ -14,6 +14,7 @@ import (
 	"debug/macho"
 	"errors"
 	"fmt"
+	"go/build"
 	"internal/testenv"
 	"io"
 	"math"
@@ -36,10 +37,10 @@ func TestGoAMD64v1(t *testing.T) {
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		t.Skip("test only works on elf or macho platforms")
 	}
-	if v := os.Getenv("GOAMD64"); v != "" && v != "v1" {
-		// Test runs only on v1 (which is the default).
-		// TODO: use build tags from #45454 instead.
-		t.Skip("GOAMD64 already set")
+	for _, tag := range build.Default.ToolTags {
+		if tag == "amd64.v2" {
+			t.Skip("compiling for GOAMD64=v2 or higher")
+		}
 	}
 	if os.Getenv("TESTGOAMD64V1") != "" {
 		t.Skip("recursive call")
