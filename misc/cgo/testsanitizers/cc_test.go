@@ -202,16 +202,16 @@ func compilerVersion() (version, error) {
 			var match [][]byte
 			if bytes.HasPrefix(out, []byte("gcc")) {
 				compiler.name = "gcc"
-				cmd, err := cc("-v")
+				cmd, err := cc("-dumpfullversion", "-dumpversion")
 				if err != nil {
 					return err
 				}
-				out, err := cmd.CombinedOutput()
+				out, err := cmd.Output()
 				if err != nil {
 					// gcc, but does not support gcc's "-v" flag?!
 					return err
 				}
-				gccRE := regexp.MustCompile(`gcc version (\d+)\.(\d+)`)
+				gccRE := regexp.MustCompile(`(\d+)\.(\d+)`)
 				match = gccRE.FindSubmatch(out)
 			} else {
 				clangRE := regexp.MustCompile(`clang version (\d+)\.(\d+)`)
