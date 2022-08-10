@@ -4,9 +4,8 @@
 
 package sys
 
-// TODO: make this as a compiler intrinsic type, and remove go:notinheap
-//
-//go:notinheap
+// NOTE: keep in sync with cmd/compile/internal/types.CalcSize
+// to make the compiler recognize this as an intrinsic type.
 type nih struct{}
 
 // NotInHeap is a type must never be allocated from the GC'd heap or on the stack,

@@ -625,7 +625,6 @@ func NewArray(elem *Type, bound int64) *Type {
 	}
 	t := newType(TARRAY)
 	t.extra = &Array{Elem: elem, Bound: bound}
-	t.SetNotInHeap(elem.NotInHeap())
 	if elem.HasTParam() {
 		t.SetHasTParam(true)
 	}
@@ -1061,17 +1060,6 @@ func (t *Type) SetFields(fields []*Field) {
 		base.Fatalf("SetFields of %v: width previously calculated", t)
 	}
 	t.wantEtype(TSTRUCT)
-	for _, f := range fields {
-		// If type T contains a field F with a go:notinheap
-		// type, then T must also be go:notinheap. Otherwise,
-		// you could heap allocate T and then get a pointer F,
-		// which would be a heap pointer to a go:notinheap
-		// type.
-		if f.Type != nil && f.Type.NotInHeap() {
-			t.SetNotInHeap(true)
-			break
-		}
-	}
 	t.Fields().Set(fields)
 }
 
@@ -1676,7 +1664,7 @@ func (t *Type) IsUntyped() bool {
 }
 
 // HasPointers reports whether t contains a heap pointer.
-// Note that this function ignores pointers to go:notinheap types.
+// Note that this function ignores pointers to not-in-heap types.
 func (t *Type) HasPointers() bool {
 	return PtrDataSize(t) > 0
 }

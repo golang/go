@@ -184,6 +184,13 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 		}
 
 		CalcSize(f.Type)
+		// If type T contains a field F marked as not-in-heap,
+		// then T must also be a not-in-heap type. Otherwise,
+		// you could heap allocate T and then get a pointer F,
+		// which would be a heap pointer to a not-in-heap type.
+		if f.Type.NotInHeap() {
+			t.SetNotInHeap(true)
+		}
 		if int32(f.Type.align) > maxalign {
 			maxalign = int32(f.Type.align)
 		}
@@ -391,6 +398,7 @@ func CalcSize(t *Type) {
 		}
 
 		CalcSize(t.Elem())
+		t.SetNotInHeap(t.Elem().NotInHeap())
 		if t.Elem().width != 0 {
 			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().width)
 			if uint64(t.NumElem()) > cap {
@@ -411,6 +419,10 @@ func CalcSize(t *Type) {
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
 			base.Fatalf("CalcSize fn struct %v", t)
+		}
+		// Recognize and mark runtime/internal/sys.nih as not-in-heap.
+		if sym := t.Sym(); sym != nil && sym.Pkg.Path == "runtime/internal/sys" && sym.Name == "nih" {
+			t.SetNotInHeap(true)
 		}
 		w = calcStructOffset(t, t, 0, 1)
 
