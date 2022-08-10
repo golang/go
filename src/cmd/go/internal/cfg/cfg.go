@@ -237,9 +237,12 @@ func init() {
 	CleanGOEXPERIMENT = Experiment.String()
 
 	// Add build tags based on the experiments in effect.
-	for _, exp := range Experiment.Enabled() {
-		BuildContext.ToolTags = append(BuildContext.ToolTags, "goexperiment."+exp)
+	exps := Experiment.Enabled()
+	expTags := make([]string, 0, len(exps)+len(BuildContext.ToolTags))
+	for _, exp := range exps {
+		expTags = append(expTags, "goexperiment."+exp)
 	}
+	BuildContext.ToolTags = append(expTags, BuildContext.ToolTags...)
 }
 
 // An EnvVar is an environment variable Name=Value.
