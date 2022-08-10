@@ -12,10 +12,12 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/internal/testenv"
@@ -134,4 +136,58 @@ func TestIssue28106(t *testing.T) {
 	}
 	prog, _ := ssautil.Packages(pkgs, ssa.BuilderMode(0))
 	prog.Build() // no crash
+}
+
+func TestIssue53604(t *testing.T) {
+	// Tests that variable initializers are not added to init() when syntax
+	// is not present but types.Info is available.
+	//
+	// Packages x, y, z are loaded with mode `packages.LoadSyntax`.
+	// Package x imports y, and y imports z.
+	// Packages are built using ssautil.Packages() with x and z as roots.
+	// This setup creates y using CreatePackage(pkg, files, info, ...)
+	// where len(files) == 0 but info != nil.
+	//
+	// Tests that globals from y are not initialized.
+	e := packagestest.Export(t, packagestest.Modules, []packagestest.Module{
+		{
+			Name: "golang.org/fake",
+			Files: map[string]interface{}{
+				"x/x.go": `package x; import "golang.org/fake/y"; var V = y.F()`,
+				"y/y.go": `package y; import "golang.org/fake/z"; var F = func () *int { return &z.Z } `,
+				"z/z.go": `package z; var Z int`,
+			},
+		},
+	})
+	defer e.Cleanup()
+
+	// Load x and z as entry packages using packages.LoadSyntax
+	e.Config.Mode = packages.LoadSyntax
+	pkgs, err := packages.Load(e.Config, path.Join(e.Temp(), "fake/x"), path.Join(e.Temp(), "fake/z"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range pkgs {
+		if len(p.Errors) > 0 {
+			t.Fatalf("%v", p.Errors)
+		}
+	}
+
+	prog, _ := ssautil.Packages(pkgs, ssa.BuilderMode(0))
+	prog.Build()
+
+	// y does not initialize F.
+	y := prog.ImportedPackage("golang.org/fake/y")
+	if y == nil {
+		t.Fatal("Failed to load intermediate package y")
+	}
+	yinit := y.Members["init"].(*ssa.Function)
+	for _, bb := range yinit.Blocks {
+		for _, i := range bb.Instrs {
+			if store, ok := i.(*ssa.Store); ok && store.Addr == y.Var("F") {
+				t.Errorf("y.init() stores to F %v", store)
+			}
+		}
+	}
+
 }

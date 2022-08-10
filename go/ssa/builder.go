@@ -2461,6 +2461,9 @@ func (p *Package) build() {
 	}
 
 	// Initialize package-level vars in correct order.
+	if len(p.info.InitOrder) > 0 && len(p.files) == 0 {
+		panic("no source files provided for package. cannot initialize globals")
+	}
 	for _, varinit := range p.info.InitOrder {
 		if init.Prog.mode&LogSource != 0 {
 			fmt.Fprintf(os.Stderr, "build global initializer %v @ %s\n",

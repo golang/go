@@ -77,10 +77,12 @@ func doPackages(initial []*packages.Package, mode ssa.BuilderMode, deps bool) (*
 	packages.Visit(initial, nil, func(p *packages.Package) {
 		if p.Types != nil && !p.IllTyped {
 			var files []*ast.File
+			var info *types.Info
 			if deps || isInitial[p] {
 				files = p.Syntax
+				info = p.TypesInfo
 			}
-			ssamap[p] = prog.CreatePackage(p.Types, files, p.TypesInfo, true)
+			ssamap[p] = prog.CreatePackage(p.Types, files, info, true)
 		}
 	})
 
