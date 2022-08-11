@@ -147,8 +147,9 @@ func (pw *PkgEncoder) NewEncoderRaw(k RelocKind) Encoder {
 type Encoder struct {
 	p *PkgEncoder
 
-	Relocs []RelocEnt
-	Data   bytes.Buffer // accumulated element bitstream data
+	Relocs   []RelocEnt
+	RelocMap map[RelocEnt]uint32
+	Data     bytes.Buffer // accumulated element bitstream data
 
 	encodingRelocHeader bool
 
@@ -210,15 +211,18 @@ func (w *Encoder) rawVarint(x int64) {
 }
 
 func (w *Encoder) rawReloc(r RelocKind, idx Index) int {
-	// TODO(mdempsky): Use map for lookup; this takes quadratic time.
-	for i, rEnt := range w.Relocs {
-		if rEnt.Kind == r && rEnt.Idx == idx {
-			return i
+	e := RelocEnt{r, idx}
+	if w.RelocMap != nil {
+		if i, ok := w.RelocMap[e]; ok {
+			return int(i)
 		}
+	} else {
+		w.RelocMap = make(map[RelocEnt]uint32)
 	}
 
 	i := len(w.Relocs)
-	w.Relocs = append(w.Relocs, RelocEnt{r, idx})
+	w.RelocMap[e] = uint32(i)
+	w.Relocs = append(w.Relocs, e)
 	return i
 }
 
