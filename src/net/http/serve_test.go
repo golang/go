@@ -20,6 +20,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"mime/multipart"
 	"net"
 	. "net/http"
 	"net/http/httptest"
@@ -6756,5 +6757,70 @@ func TestProcessing(t *testing.T) {
 	expected := "HTTP/1.1 102 Processing\r\n\r\nHTTP/1.1 200 OK\r\nDate: " // dynamic content expected
 	if !strings.Contains(got, expected) {
 		t.Errorf("unexpected response; got %q; should start by %q", got, expected)
+	}
+}
+
+func TestParseFormCleanup_h1(t *testing.T) { testParseFormCleanup(t, h1Mode) }
+func TestParseFormCleanup_h2(t *testing.T) {
+	t.Skip("https://go.dev/issue/20253")
+	testParseFormCleanup(t, h2Mode)
+}
+
+func testParseFormCleanup(t *testing.T, h2 bool) {
+	const maxMemory = 1024
+	const key = "file"
+
+	if runtime.GOOS == "windows" {
+		// Windows sometimes refuses to remove a file that was just closed.
+		t.Skip("https://go.dev/issue/25965")
+	}
+
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		r.ParseMultipartForm(maxMemory)
+		f, _, err := r.FormFile(key)
+		if err != nil {
+			t.Errorf("r.FormFile(%q) = %v", key, err)
+			return
+		}
+		of, ok := f.(*os.File)
+		if !ok {
+			t.Errorf("r.FormFile(%q) returned type %T, want *os.File", key, f)
+			return
+		}
+		w.Write([]byte(of.Name()))
+	}))
+	defer cst.close()
+
+	fBuf := new(bytes.Buffer)
+	mw := multipart.NewWriter(fBuf)
+	mf, err := mw.CreateFormFile(key, "myfile.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mf.Write(bytes.Repeat([]byte("A"), maxMemory*2)); err != nil {
+		t.Fatal(err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req, err := NewRequest("POST", cst.ts.URL, fBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	fname, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cst.close()
+	if _, err := os.Stat(string(fname)); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("file %q exists after HTTP handler returned", string(fname))
 	}
 }
