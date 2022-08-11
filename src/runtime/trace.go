@@ -459,6 +459,9 @@ func ReadTrace() []byte {
 		goparkunlock(&trace.lock, waitReasonTraceReaderBlocked, traceEvGoBlock, 2)
 		lock(&trace.lock)
 	}
+
+newFull:
+	assertLockHeld(&trace.lock)
 	// Write a buffer.
 	if trace.fullHead != 0 {
 		buf := traceFullDequeue()
@@ -478,13 +481,22 @@ func ReadTrace() []byte {
 		}
 		trace.lockOwner = nil
 		unlock(&trace.lock)
-		var data []byte
-		data = append(data, traceEvFrequency|0<<traceArgCountShift)
-		data = traceAppend(data, uint64(freq))
+
+		// Write frequency event.
+		bufp := traceFlush(0, 0)
+		buf := bufp.ptr()
+		buf.byte(traceEvFrequency | 0<<traceArgCountShift)
+		buf.varint(uint64(freq))
+
+		// Dump stack table.
 		// This will emit a bunch of full buffers, we will pick them up
 		// on the next iteration.
-		trace.stackTab.dump()
-		return data
+		bufp = trace.stackTab.dump(bufp)
+
+		// Flush final buffer.
+		lock(&trace.lock)
+		traceFullQueue(bufp)
+		goto newFull // trace.lock should be held at newFull
 	}
 	// Done.
 	if trace.shutdown {
@@ -914,15 +926,6 @@ func traceString(bufp *traceBufPtr, pid int32, s string) (uint64, *traceBufPtr) 
 	return id, bufp
 }
 
-// traceAppend appends v to buf in little-endian-base-128 encoding.
-func traceAppend(buf []byte, v uint64) []byte {
-	for ; v >= 0x80; v >>= 7 {
-		buf = append(buf, 0x80|byte(v))
-	}
-	buf = append(buf, byte(v))
-	return buf
-}
-
 // varint appends v to buf in little-endian-base-128 encoding.
 func (buf *traceBuf) varint(v uint64) {
 	pos := buf.pos
@@ -1058,8 +1061,7 @@ func traceFrames(bufp traceBufPtr, pcs []uintptr) ([]traceFrame, traceBufPtr) {
 
 // dump writes all previously cached stacks to trace buffers,
 // releases all memory and resets state.
-func (tab *traceStackTable) dump() {
-	bufp := traceFlush(0, 0)
+func (tab *traceStackTable) dump(bufp traceBufPtr) traceBufPtr {
 	for i, _ := range tab.tab {
 		stk := tab.tab[i].ptr()
 		for ; stk != nil; stk = stk.link.ptr() {
@@ -1097,13 +1099,11 @@ func (tab *traceStackTable) dump() {
 		}
 	}
 
-	lock(&trace.lock)
-	traceFullQueue(bufp)
-	unlock(&trace.lock)
-
 	tab.mem.drop()
 	*tab = traceStackTable{}
 	lockInit(&((*tab).lock), lockRankTraceStackTab)
+
+	return bufp
 }
 
 type traceFrame struct {
