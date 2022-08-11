@@ -45,9 +45,9 @@ func testGoArch() string {
 	return *testGoArchFlag
 }
 
-func hasRegisterAbi() bool {
+func hasRegisterABI() bool {
 	switch testGoArch() {
-	case "amd64", "arm64", "ppc64le", "riscv":
+	case "amd64", "arm64", "ppc64", "ppc64le", "riscv":
 		return true
 	}
 	return false
@@ -62,7 +62,7 @@ func unixOnly(t *testing.T) {
 // testDebugLinesDefault removes the first wanted statement on architectures that are not (yet) register ABI.
 func testDebugLinesDefault(t *testing.T, gcflags, file, function string, wantStmts []int, ignoreRepeats bool) {
 	unixOnly(t)
-	if !hasRegisterAbi() {
+	if !hasRegisterABI() {
 		wantStmts = wantStmts[1:]
 	}
 	testDebugLines(t, gcflags, file, function, wantStmts, ignoreRepeats)
