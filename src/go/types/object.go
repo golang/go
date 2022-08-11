@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"unicode"
+	"unicode/utf8"
 )
 
 // An Object describes a named language entity such as a package,
@@ -55,6 +57,11 @@ type Object interface {
 
 	// setScopePos sets the start position of the scope for this Object.
 	setScopePos(pos token.Pos)
+}
+
+func isExported(name string) bool {
+	ch, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(ch)
 }
 
 // Id returns name if it is exported, otherwise it

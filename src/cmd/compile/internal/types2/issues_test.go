@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"internal/testenv"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -701,5 +702,125 @@ func TestIssue51093(t *testing.T) {
 		if n != 1 {
 			t.Fatalf("%s: got %d CallExpr nodes; want 1", src, 1)
 		}
+	}
+}
+
+func TestIssue54258(t *testing.T) {
+	tests := []struct{ main, b, want string }{
+		{ //---------------------------------------------------------------
+			`package main
+import "b"
+type I0 interface {
+	M0(w struct{ f string })
+}
+var _ I0 = b.S{}
+`,
+			`package b
+type S struct{}
+func (S) M0(struct{ f string }) {}
+`,
+			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I0 value in variable declaration: b[.]S does not implement I0 [(]wrong type for method M0[)]
+.*have M0[(]struct{f string /[*] package b [*]/ }[)]
+.*want M0[(]struct{f string /[*] package main [*]/ }[)]`},
+
+		{ //---------------------------------------------------------------
+			`package main
+import "b"
+type I1 interface {
+	M1(struct{ string })
+}
+var _ I1 = b.S{}
+`,
+			`package b
+type S struct{}
+func (S) M1(struct{ string }) {}
+`,
+			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I1 value in variable declaration: b[.]S does not implement I1 [(]wrong type for method M1[)]
+.*have M1[(]struct{string /[*] package b [*]/ }[)]
+.*want M1[(]struct{string /[*] package main [*]/ }[)]`},
+
+		{ //---------------------------------------------------------------
+			`package main
+import "b"
+type I2 interface {
+	M2(y struct{ f struct{ f string } })
+}
+var _ I2 = b.S{}
+`,
+			`package b
+type S struct{}
+func (S) M2(struct{ f struct{ f string } }) {}
+`,
+			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I2 value in variable declaration: b[.]S does not implement I2 [(]wrong type for method M2[)]
+.*have M2[(]struct{f struct{f string} /[*] package b [*]/ }[)]
+.*want M2[(]struct{f struct{f string} /[*] package main [*]/ }[)]`},
+
+		{ //---------------------------------------------------------------
+			`package main
+import "b"
+type I3 interface {
+	M3(z struct{ F struct{ f string } })
+}
+var _ I3 = b.S{}
+`,
+			`package b
+type S struct{}
+func (S) M3(struct{ F struct{ f string } }) {}
+`,
+			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I3 value in variable declaration: b[.]S does not implement I3 [(]wrong type for method M3[)]
+.*have M3[(]struct{F struct{f string /[*] package b [*]/ }}[)]
+.*want M3[(]struct{F struct{f string /[*] package main [*]/ }}[)]`},
+
+		{ //---------------------------------------------------------------
+			`package main
+import "b"
+type I4 interface {
+	M4(_ struct { *string })
+}
+var _ I4 = b.S{}
+`,
+			`package b
+type S struct{}
+func (S) M4(struct { *string }) {}
+`,
+			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I4 value in variable declaration: b[.]S does not implement I4 [(]wrong type for method M4[)]
+.*have M4[(]struct{[*]string /[*] package b [*]/ }[)]
+.*want M4[(]struct{[*]string /[*] package main [*]/ }[)]`},
+
+		{ //---------------------------------------------------------------
+			`package main
+import "b"
+type t struct{ A int }
+type I5 interface {
+	M5(_ struct {b.S;t})
+}
+var _ I5 = b.S{}
+`,
+			`package b
+type S struct{}
+type t struct{ A int }
+func (S) M5(struct {S;t}) {}
+`,
+			`7:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I5 value in variable declaration: b[.]S does not implement I5 [(]wrong type for method M5[)]
+.*have M5[(]struct{b[.]S; b[.]t}[)]
+.*want M5[(]struct{b[.]S; t}[)]`},
+	}
+
+	test := func(main, imported, want string) {
+		re := regexp.MustCompile(want)
+		a := mustTypecheck("b", imported, nil)
+		bast := mustParse("", main)
+		conf := Config{Importer: importHelper{pkg: a}}
+		_, err := conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
+		if err == nil {
+			t.Errorf("Expected failure, but it did not")
+		} else if got := err.Error(); !re.MatchString(got) {
+			t.Errorf("Wanted match for\n%s\n but got \n%s", want, got)
+		} else if testing.Verbose() {
+			t.Logf("Saw expected\n%s", err.Error())
+		}
+	}
+	for _, t := range tests {
+		test(t.main, t.b, t.want)
 	}
 }

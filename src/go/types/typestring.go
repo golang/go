@@ -59,9 +59,8 @@ func WriteType(buf *bytes.Buffer, typ Type, qf Qualifier) {
 }
 
 // WriteSignature writes the representation of the signature sig to buf,
-// without a leading "func" keyword.
-// The Qualifier controls the printing of
-// package-level objects, and may be nil.
+// without a leading "func" keyword. The Qualifier controls the printing
+// of package-level objects, and may be nil.
 func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
 	newTypeWriter(buf, qf).signature(sig)
 }
@@ -74,15 +73,16 @@ type typeWriter struct {
 	tparams      *TypeParamList // local type parameters
 	paramNames   bool           // if set, write function parameter names, otherwise, write types only
 	tpSubscripts bool           // if set, write type parameter indices as subscripts
+	pkgInfo      bool           // package-annotate first unexported-type field to avoid confusing type description
 }
 
 func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
-	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, true, false}
+	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, true, false, false}
 }
 
 func newTypeHasher(buf *bytes.Buffer, ctxt *Context) *typeWriter {
 	assert(ctxt != nil)
-	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false, false}
+	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false, false, false}
 }
 
 func (w *typeWriter) byte(b byte) {
@@ -149,6 +149,16 @@ func (w *typeWriter) typ(typ Type) {
 			if i > 0 {
 				w.byte(';')
 			}
+
+			// If disambiguating one struct for another, look for the first unexported field.
+			// Do this first in case of nested structs; tag the first-outermost field.
+			pkgAnnotate := false
+			if w.qf == nil && w.pkgInfo && !isExported(f.name) {
+				// note for embedded types, type name is field name, and "string" etc are lower case hence unexported.
+				pkgAnnotate = true
+				w.pkgInfo = false // only tag once
+			}
+
 			// This doesn't do the right thing for embedded type
 			// aliases where we should print the alias name, not
 			// the aliased type (see issue #44410).
@@ -157,6 +167,11 @@ func (w *typeWriter) typ(typ Type) {
 				w.byte(' ')
 			}
 			w.typ(f.typ)
+			if pkgAnnotate {
+				w.string(" /* package ")
+				w.string(f.pkg.Path())
+				w.string(" */ ")
+			}
 			if tag := t.Tag(i); tag != "" {
 				w.byte(' ')
 				// TODO(rfindley) If tag contains blanks, replacing them with '#'
