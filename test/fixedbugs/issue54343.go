@@ -26,7 +26,7 @@ func New[X any]() *T[X] {
 	return p
 }
 
-type T[X any] int
+type T[X any] [4]int // N.B., [4]int avoids runtime's tiny object allocator
 
 func (*T[X]) M() {}
 
