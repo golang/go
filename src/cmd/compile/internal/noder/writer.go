@@ -1060,7 +1060,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 			if stmt.Op != syntax.Shl && stmt.Op != syntax.Shr {
 				typ = w.p.typeOf(stmt.Lhs)
 			}
-			w.implicitConvExpr(stmt, typ, stmt.Rhs)
+			w.implicitConvExpr(typ, stmt.Rhs)
 
 		default:
 			w.assignStmt(stmt, stmt.Lhs, stmt.Rhs)
@@ -1125,7 +1125,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		w.Code(stmtSend)
 		w.pos(stmt)
 		w.expr(stmt.Chan)
-		w.implicitConvExpr(stmt, chanType.Elem(), stmt.Value)
+		w.implicitConvExpr(chanType.Elem(), stmt.Value)
 
 	case *syntax.SwitchStmt:
 		w.Code(stmtSwitch)
@@ -1376,7 +1376,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		}
 
 		if w.Bool(tag != nil) {
-			w.implicitConvExpr(tag, tagType, tag)
+			w.implicitConvExpr(tagType, tag)
 		}
 	}
 
@@ -1406,7 +1406,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 			w.Sync(pkgbits.SyncExprs)
 			w.Len(len(cases))
 			for _, cas := range cases {
-				w.implicitConvExpr(cas, tagType, cas)
+				w.implicitConvExpr(tagType, cas)
 			}
 		}
 
@@ -1569,7 +1569,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.Code(exprIndex)
 		w.expr(expr.X)
 		w.pos(expr)
-		w.implicitConvExpr(expr, keyType, expr.Index)
+		w.implicitConvExpr(keyType, expr.Index)
 		if keyType != nil {
 			w.rtype(xtyp)
 		}
@@ -1619,9 +1619,9 @@ func (w *writer) expr(expr syntax.Expr) {
 
 		w.Code(exprBinaryOp)
 		w.op(binOps[expr.Op])
-		w.implicitConvExpr(expr, commonType, expr.X)
+		w.implicitConvExpr(commonType, expr.X)
 		w.pos(expr)
-		w.implicitConvExpr(expr, commonType, expr.Y)
+		w.implicitConvExpr(commonType, expr.Y)
 
 	case *syntax.CallExpr:
 		tv, ok := w.p.info.Types[expr.Fun]
@@ -1814,23 +1814,23 @@ func (w *writer) multiExpr(pos poser, dstType func(int) types2.Type, exprs []syn
 	w.Bool(false) // N:N assignment
 	w.Len(len(exprs))
 	for i, expr := range exprs {
-		w.implicitConvExpr(pos, dstType(i), expr)
+		w.implicitConvExpr(dstType(i), expr)
 	}
 }
 
-// implicitConvExpr is like expr, but if dst is non-nil and different from
-// expr's type, then an implicit conversion operation is inserted at
-// pos.
-func (w *writer) implicitConvExpr(pos poser, dst types2.Type, expr syntax.Expr) {
+// implicitConvExpr is like expr, but if dst is non-nil and different
+// from expr's type, then an implicit conversion operation is inserted
+// at expr's position.
+func (w *writer) implicitConvExpr(dst types2.Type, expr syntax.Expr) {
 	src := w.p.typeOf(expr)
 	if dst != nil && !types2.Identical(src, dst) {
 		if !types2.AssignableTo(src, dst) {
-			w.p.fatalf(pos, "%v is not assignable to %v", src, dst)
+			w.p.fatalf(expr.Pos(), "%v is not assignable to %v", src, dst)
 		}
 		w.Code(exprConvert)
 		w.Bool(true) // implicit
 		w.typ(dst)
-		w.pos(pos)
+		w.pos(expr)
 		w.convRTTI(src, dst)
 		w.Bool(isTypeParam(dst))
 		// fallthrough
@@ -1882,12 +1882,12 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 			if kv, ok := elem.(*syntax.KeyValueExpr); w.Bool(ok) {
 				// use position of expr.Key rather than of elem (which has position of ':')
 				w.pos(kv.Key)
-				w.implicitConvExpr(kv.Key, keyType, kv.Key)
+				w.implicitConvExpr(keyType, kv.Key)
 				elem = kv.Value
 			}
 		}
 		w.pos(elem)
-		w.implicitConvExpr(elem, elemType, elem)
+		w.implicitConvExpr(elemType, elem)
 	}
 }
 
