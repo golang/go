@@ -186,6 +186,8 @@ module a.com
 go 1.12
 -- a/a.go --
 package a
+-- a/empty.go --
+// an empty file
 -- b/go.mod --
 module b.com
 
@@ -202,6 +204,7 @@ package b
 				ver := env.GoVersion()
 				msg := msgForVersion(ver)
 				env.OpenFile("a/a.go")
+				env.OpenFile("a/empty.go")
 				env.OpenFile("b/go.mod")
 				env.Await(
 					env.DiagnosticAtRegexp("a/a.go", "package a"),
