@@ -935,6 +935,22 @@ func (buf *traceBuf) varint(v uint64) {
 	buf.pos = pos
 }
 
+// varintAt writes varint v at byte position pos in buf. This always
+// consumes traceBytesPerNumber bytes. This is intended for when the
+// caller needs to reserve space for a varint but can't populate it
+// until later.
+func (buf *traceBuf) varintAt(pos int, v uint64) {
+	for i := 0; i < traceBytesPerNumber; i++ {
+		if i < traceBytesPerNumber-1 {
+			buf.arr[pos] = 0x80 | byte(v)
+		} else {
+			buf.arr[pos] = byte(v)
+		}
+		v >>= 7
+		pos++
+	}
+}
+
 // byte appends v to buf.
 func (buf *traceBuf) byte(v byte) {
 	buf.arr[buf.pos] = v
@@ -1024,15 +1040,18 @@ func (tab *traceStackTable) newStack(n int) *traceStack {
 	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*goarch.PtrSize))
 }
 
-// allFrames returns all of the Frames corresponding to pcs.
-func allFrames(pcs []uintptr) []Frame {
-	frames := make([]Frame, 0, len(pcs))
+// traceFrames returns the frames corresponding to pcs. It may
+// allocate and may emit trace events.
+func traceFrames(bufp traceBufPtr, pcs []uintptr) ([]traceFrame, traceBufPtr) {
+	frames := make([]traceFrame, 0, len(pcs))
 	ci := CallersFrames(pcs)
 	for {
+		var frame traceFrame
 		f, more := ci.Next()
-		frames = append(frames, f)
+		frame, bufp = traceFrameForPC(bufp, 0, f)
+		frames = append(frames, frame)
 		if !more {
-			return frames
+			return frames, bufp
 		}
 	}
 }
@@ -1040,32 +1059,41 @@ func allFrames(pcs []uintptr) []Frame {
 // dump writes all previously cached stacks to trace buffers,
 // releases all memory and resets state.
 func (tab *traceStackTable) dump() {
-	var tmp [(2 + 4*traceStackSize) * traceBytesPerNumber]byte
 	bufp := traceFlush(0, 0)
 	for _, stk := range tab.tab {
 		stk := stk.ptr()
 		for ; stk != nil; stk = stk.link.ptr() {
-			tmpbuf := tmp[:0]
-			tmpbuf = traceAppend(tmpbuf, uint64(stk.id))
-			frames := allFrames(stk.stack())
-			tmpbuf = traceAppend(tmpbuf, uint64(len(frames)))
-			for _, f := range frames {
-				var frame traceFrame
-				frame, bufp = traceFrameForPC(bufp, 0, f)
-				tmpbuf = traceAppend(tmpbuf, uint64(f.PC))
-				tmpbuf = traceAppend(tmpbuf, uint64(frame.funcID))
-				tmpbuf = traceAppend(tmpbuf, uint64(frame.fileID))
-				tmpbuf = traceAppend(tmpbuf, uint64(frame.line))
-			}
-			// Now copy to the buffer.
-			size := 1 + traceBytesPerNumber + len(tmpbuf)
-			if buf := bufp.ptr(); len(buf.arr)-buf.pos < size {
+			var frames []traceFrame
+			frames, bufp = traceFrames(bufp, stk.stack())
+
+			// Estimate the size of this record. This
+			// bound is pretty loose, but avoids counting
+			// lots of varint sizes.
+			maxSize := 1 + traceBytesPerNumber + (2+4*len(frames))*traceBytesPerNumber
+			// Make sure we have enough buffer space.
+			if buf := bufp.ptr(); len(buf.arr)-buf.pos < maxSize {
 				bufp = traceFlush(bufp, 0)
 			}
+
+			// Emit header, with space reserved for length.
 			buf := bufp.ptr()
 			buf.byte(traceEvStack | 3<<traceArgCountShift)
-			buf.varint(uint64(len(tmpbuf)))
-			buf.pos += copy(buf.arr[buf.pos:], tmpbuf)
+			lenPos := buf.pos
+			buf.pos += traceBytesPerNumber
+
+			// Emit body.
+			recPos := buf.pos
+			buf.varint(uint64(stk.id))
+			buf.varint(uint64(len(frames)))
+			for _, frame := range frames {
+				buf.varint(uint64(frame.PC))
+				buf.varint(frame.funcID)
+				buf.varint(frame.fileID)
+				buf.varint(frame.line)
+			}
+
+			// Fill in size header.
+			buf.varintAt(lenPos, uint64(buf.pos-recPos))
 		}
 	}
 
@@ -1079,6 +1107,7 @@ func (tab *traceStackTable) dump() {
 }
 
 type traceFrame struct {
+	PC     uintptr
 	funcID uint64
 	fileID uint64
 	line   uint64
@@ -1089,6 +1118,7 @@ type traceFrame struct {
 func traceFrameForPC(buf traceBufPtr, pid int32, f Frame) (traceFrame, traceBufPtr) {
 	bufp := &buf
 	var frame traceFrame
+	frame.PC = f.PC
 
 	fn := f.Function
 	const maxLen = 1 << 10
