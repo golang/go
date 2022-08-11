@@ -1060,8 +1060,8 @@ func traceFrames(bufp traceBufPtr, pcs []uintptr) ([]traceFrame, traceBufPtr) {
 // releases all memory and resets state.
 func (tab *traceStackTable) dump() {
 	bufp := traceFlush(0, 0)
-	for _, stk := range tab.tab {
-		stk := stk.ptr()
+	for i, _ := range tab.tab {
+		stk := tab.tab[i].ptr()
 		for ; stk != nil; stk = stk.link.ptr() {
 			var frames []traceFrame
 			frames, bufp = traceFrames(bufp, stk.stack())
