@@ -105,6 +105,11 @@ godef/a/d.go:5:6-11: defined here as ```go
 type Thing struct {
 	Member string //@Member
 }
+
+func (Thing).Method(i int) string
+func (*Thing).Method2(i int, j int) (error, string)
+func (Thing).Method3()
+func (*Thing).private()
 ```
 
 [`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Thing)
@@ -123,7 +128,7 @@ type Thing struct {
 			"offset": 70
 		}
 	},
-	"description": "```go\ntype Thing struct {\n\tMember string //@Member\n}\n```\n\n[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Thing)"
+	"description": "```go\ntype Thing struct {\n\tMember string //@Member\n}\n\nfunc (Thing).Method(i int) string\nfunc (*Thing).Method2(i int, j int) (error, string)\nfunc (Thing).Method3()\nfunc (*Thing).private()\n```\n\n[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Thing)"
 }
 
 -- Thing-hoverdef --
@@ -131,6 +136,11 @@ type Thing struct {
 type Thing struct {
 	Member string //@Member
 }
+
+func (Thing).Method(i int) string
+func (*Thing).Method2(i int, j int) (error, string)
+func (Thing).Method3()
+func (*Thing).private()
 ```
 
 [`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Thing)
@@ -167,3 +177,15 @@ func Things(val []string) []Thing
 -- a-hoverdef --
 Package a is a package for testing go to definition.
 
+-- NextThing-hoverdef --
+```go
+type NextThing struct {
+	Thing
+	Value int
+}
+
+func (*NextThing).Method3() int
+func (NextThing).another() string
+```
+
+[`a.NextThing` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#NextThing)

@@ -88,6 +88,8 @@ package a ("golang.org/lsptests/godef/a")
 -- AString-definition --
 godef/a/a.go:26:6-7: defined here as ```go
 type A string
+
+func (a.A).Hi()
 ```
 
 @mark(AString, "A")
@@ -109,12 +111,14 @@ type A string
 			"offset": 468
 		}
 	},
-	"description": "```go\ntype A string\n```\n\n@mark(AString, \"A\")\n\n\n[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#A)"
+	"description": "```go\ntype A string\n\nfunc (a.A).Hi()\n```\n\n@mark(AString, \"A\")\n\n\n[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#A)"
 }
 
 -- AString-hoverdef --
 ```go
 type A string
+
+func (a.A).Hi()
 ```
 
 @mark(AString, "A")
@@ -376,6 +380,8 @@ field F2 int
 -- aAlias-definition --
 godef/b/b.go:25:6-12: defined here as ```go
 type aAlias = a.A
+
+func (a.A).Hi()
 ```
 
 @mark(aAlias, "aAlias")
@@ -394,12 +400,14 @@ type aAlias = a.A
 			"offset": 524
 		}
 	},
-	"description": "```go\ntype aAlias = a.A\n```\n\n@mark(aAlias, \"aAlias\")"
+	"description": "```go\ntype aAlias = a.A\n\nfunc (a.A).Hi()\n```\n\n@mark(aAlias, \"aAlias\")"
 }
 
 -- aAlias-hoverdef --
 ```go
 type aAlias = a.A
+
+func (a.A).Hi()
 ```
 
 @mark(aAlias, "aAlias")

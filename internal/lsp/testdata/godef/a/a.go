@@ -60,16 +60,16 @@ type R struct {
 
 func (_ R) Hey() {} //@mark(AHey, "Hey")
 
-type H interface {
+type H interface { //@H
 	Goodbye() //@mark(AGoodbye, "Goodbye")
 }
 
-type I interface {
+type I interface { //@I
 	B() //@mark(AB, "B")
 	J
 }
 
-type J interface {
+type J interface { //@J
 	Hello() //@mark(AHello, "Hello")
 }
 
@@ -103,3 +103,9 @@ func _() {
 		} // e has a comment
 	)
 }
+
+var (
+	hh H //@hoverdef("H", H)
+	ii I //@hoverdef("I", I)
+	jj J //@hoverdef("J", J)
+)

@@ -21,6 +21,7 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/text/unicode/runenames"
+	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -273,6 +274,24 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 		if err := format.Node(&b, fset, &x2); err != nil {
 			return nil, err
 		}
+
+		// Display the declared methods accessible from the identifier.
+		//
+		// (The format.Node call above displays any struct fields, public
+		// or private, in syntactic form. We choose not to recursively
+		// enumerate any fields and methods promoted from them.)
+		obj := i.Type.Object
+		if obj != nil && !types.IsInterface(obj.Type()) {
+			sep := "\n\n"
+			for _, m := range typeutil.IntuitiveMethodSet(obj.Type(), nil) {
+				if (m.Obj().Exported() || m.Obj().Pkg() == i.pkg.GetTypes()) && len(m.Index()) == 1 {
+					b.WriteString(sep)
+					sep = "\n"
+					b.WriteString(objectString(m.Obj(), i.qf, nil))
+				}
+			}
+		}
+
 		h.Signature = b.String()
 
 	case ast.Node:
