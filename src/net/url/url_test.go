@@ -2082,6 +2082,26 @@ func TestJoinPath(t *testing.T) {
 		},
 		{
 			base: "https://go.googlesource.com/",
+			elem: []string{"../go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"../go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"../go", "../../go", "../../../go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com/../go",
+			elem: nil,
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com/",
 			elem: []string{"./go"},
 			out:  "https://go.googlesource.com/go",
 		},
@@ -2112,7 +2132,7 @@ func TestJoinPath(t *testing.T) {
 		{
 			base: "https://go.googlesource.com",
 			elem: nil,
-			out:  "https://go.googlesource.com",
+			out:  "https://go.googlesource.com/",
 		},
 		{
 			base: "https://go.googlesource.com/",
@@ -2130,9 +2150,44 @@ func TestJoinPath(t *testing.T) {
 			out:  "https://go.googlesource.com/a%2fb/c%2fd",
 		},
 		{
+			base: "https://go.googlesource.com/a/b",
+			elem: []string{"/go"},
+			out:  "https://go.googlesource.com/a/b/go",
+		},
+		{
 			base: "/",
 			elem: nil,
 			out:  "/",
+		},
+		{
+			base: "a",
+			elem: nil,
+			out:  "a",
+		},
+		{
+			base: "a",
+			elem: []string{"b"},
+			out:  "a/b",
+		},
+		{
+			base: "a",
+			elem: []string{"../b"},
+			out:  "b",
+		},
+		{
+			base: "a",
+			elem: []string{"../../b"},
+			out:  "b",
+		},
+		{
+			base: "",
+			elem: []string{"a"},
+			out:  "a",
+		},
+		{
+			base: "",
+			elem: []string{"../a"},
+			out:  "a",
 		},
 	}
 	for _, tt := range tests {

@@ -1194,17 +1194,23 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 // any existing path and the resulting path cleaned of any ./ or ../ elements.
 // Any sequences of multiple / characters will be reduced to a single /.
 func (u *URL) JoinPath(elem ...string) *URL {
-	url := *u
-	if len(elem) > 0 {
-		elem = append([]string{u.EscapedPath()}, elem...)
-		p := path.Join(elem...)
-		// path.Join will remove any trailing slashes.
-		// Preserve at least one.
-		if strings.HasSuffix(elem[len(elem)-1], "/") && !strings.HasSuffix(p, "/") {
-			p += "/"
-		}
-		url.setPath(p)
+	elem = append([]string{u.EscapedPath()}, elem...)
+	var p string
+	if !strings.HasPrefix(elem[0], "/") {
+		// Return a relative path if u is relative,
+		// but ensure that it contains no ../ elements.
+		elem[0] = "/" + elem[0]
+		p = path.Join(elem...)[1:]
+	} else {
+		p = path.Join(elem...)
 	}
+	// path.Join will remove any trailing slashes.
+	// Preserve at least one.
+	if strings.HasSuffix(elem[len(elem)-1], "/") && !strings.HasSuffix(p, "/") {
+		p += "/"
+	}
+	url := *u
+	url.setPath(p)
 	return &url
 }
 
