@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2011 The Go Authors. All rights reserved.
+// Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -40,7 +40,7 @@ L:
 // goto across declaration not okay
 func _() {
 	goto L // ERROR "goto L jumps over declaration of x at LINE+1|goto jumps over declaration"
-	x := 1 // GCCGO_ERROR "defined here"
+	x := 1 // GCCGO_ERROR "defined here at"
 	_ = x
 L:
 }
