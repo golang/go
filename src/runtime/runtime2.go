@@ -779,7 +779,7 @@ type schedt struct {
 
 	pidle        puintptr // idle p's
 	npidle       atomic.Int32
-	nmspinning   atomic.Int32 // See "Worker thread parking/unparking" comment in proc.go.
+	nmspinning   atomic.Int32  // See "Worker thread parking/unparking" comment in proc.go.
 	needspinning atomic.Uint32 // See "Delicate dance" comment in proc.go. Boolean. Must hold sched.lock to set to 1.
 
 	// Global runnable queue.

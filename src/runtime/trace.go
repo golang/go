@@ -1158,7 +1158,7 @@ func traceFrames(bufp traceBufPtr, pcs []uintptr) ([]traceFrame, traceBufPtr) {
 //
 //go:systemstack
 func (tab *traceStackTable) dump(bufp traceBufPtr) traceBufPtr {
-	for i, _ := range tab.tab {
+	for i := range tab.tab {
 		stk := tab.tab[i].ptr()
 		for ; stk != nil; stk = stk.link.ptr() {
 			var frames []traceFrame

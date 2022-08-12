@@ -200,6 +200,7 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 }
 
 // Always called on g0. gp is the G where the exception occurred.
+//
 //go:nosplit
 func winthrow(info *exceptionrecord, r *context, gp *g) {
 	g0 := getg()

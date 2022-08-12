@@ -1319,13 +1319,13 @@ func TestGoroutineCounts(t *testing.T) {
 		t.Errorf("protobuf profile is invalid: %v", err)
 	}
 	expectedLabels := map[int64]map[string]string{
-		50: map[string]string{},
-		44: map[string]string{"label": "value"},
-		40: map[string]string{},
-		36: map[string]string{"label": "value"},
-		10: map[string]string{},
-		9:  map[string]string{"label": "value"},
-		1:  map[string]string{},
+		50: {},
+		44: {"label": "value"},
+		40: {},
+		36: {"label": "value"},
+		10: {},
+		9:  {"label": "value"},
+		1:  {},
 	}
 	if !containsCountsLabels(p, expectedLabels) {
 		t.Errorf("expected count profile to contain goroutines with counts and labels %v, got %v",
