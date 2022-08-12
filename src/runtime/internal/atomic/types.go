@@ -136,6 +136,8 @@ type Bool struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (b *Bool) Load() bool {
 	return b.u.Load() != 0
 }
