@@ -128,7 +128,7 @@ if x%4==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
 
 :: Run dist bootstrap to complete make.bash.
 :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
-:: Throw ours, built with Go 1.4, away after bootstrap.
+:: Throw ours, built with the bootstrap toolchain, away after bootstrap.
 .\cmd\dist\dist.exe bootstrap -a %vflag% %bootstrapflags%
 if errorlevel 1 goto fail
 del .\cmd\dist\dist.exe
@@ -147,7 +147,7 @@ goto end
 
 :bootstrapfail
 echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
-echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go 1.4.
+echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go 1.17.
 
 :fail
 set GOBUILDFAIL=1

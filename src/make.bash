@@ -67,9 +67,12 @@
 # timing information to this file. Useful for profiling where the
 # time goes when these scripts run.
 #
-# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.4 for bootstrap.
+# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.17 for bootstrap.
 # If $GOROOT_BOOTSTRAP/bin/go is missing, $(go env GOROOT) is
-# tried for all "go" in $PATH. $HOME/go1.4 by default.
+# tried for all "go" in $PATH. By default, one of $HOME/go1.17,
+# $HOME/sdk/go1.17, or $HOME/go1.4, whichever exists, in that order.
+# We still check $HOME/go1.4 to allow for build scripts that still hard-code
+# that name even though they put newer Go toolchains there.
 
 set -e
 
@@ -172,7 +175,7 @@ IFS=$'\n'; for go_exe in $(type -ap go); do
 done; unset IFS
 if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 	echo "ERROR: Cannot find $GOROOT_BOOTSTRAP/bin/go." >&2
-	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
+	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.17." >&2
 	exit 1
 fi
 # Get the exact bootstrap toolchain version to help with debugging.
@@ -185,7 +188,7 @@ if $verbose; then
 fi
 if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
 	echo "ERROR: \$GOROOT_BOOTSTRAP must not be set to \$GOROOT" >&2
-	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
+	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.17." >&2
 	exit 1
 fi
 rm -f cmd/dist/dist
@@ -213,7 +216,7 @@ fi
 
 # Run dist bootstrap to complete make.bash.
 # Bootstrap installs a proper cmd/dist, built with the new toolchain.
-# Throw ours, built with Go 1.4, away after bootstrap.
+# Throw ours, built with the bootstrap toolchain, away after bootstrap.
 ./cmd/dist/dist bootstrap -a $vflag $GO_DISTFLAGS "$@"
 rm -f ./cmd/dist/dist
 

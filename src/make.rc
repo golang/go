@@ -72,12 +72,12 @@ for(p in $path){
 }
 if(! test -x $GOROOT_BOOTSTRAP/bin/go){
 	echo 'ERROR: Cannot find '$GOROOT_BOOTSTRAP'/bin/go.' >[1=2]
-	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4.' >[1=2]
+	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.17.' >[1=2]
 	exit bootstrap
 }
 if(~ $GOROOT_BOOTSTRAP $GOROOT){
 	echo 'ERROR: $GOROOT_BOOTSTRAP must not be set to $GOROOT' >[1=2]
-	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4.' >[1=2]
+	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.17.' >[1=2]
 	exit bootstrap
 }
 
@@ -105,7 +105,7 @@ if(~ $1 --dist-tool){
 
 # Run dist bootstrap to complete make.bash.
 # Bootstrap installs a proper cmd/dist, built with the new toolchain.
-# Throw ours, built with Go 1.4, away after bootstrap.
+# Throw ours, built with the bootstrap toolchain, away after bootstrap.
 ./cmd/dist/dist bootstrap -a $vflag $*
 rm -f ./cmd/dist/dist
 
