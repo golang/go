@@ -7,7 +7,6 @@
 package timeformat
 
 import (
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -59,7 +58,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			if badAt > -1 {
 				// Check if it's a literal string, otherwise we can't suggest a fix.
 				if _, ok := arg.(*ast.BasicLit); ok {
-					fmt.Printf("%#v\n", arg)
 					pos := int(arg.Pos()) + badAt + 1 // +1 to skip the " or `
 					end := pos + len(badFormat)
 

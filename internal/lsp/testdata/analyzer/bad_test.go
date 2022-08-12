@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 )
 
 func Testbad(t *testing.T) { //@diag("", "tests", "Testbad has malformed name: first letter after 'Test' must not be lowercase", "warning")
@@ -15,4 +16,9 @@ func Testbad(t *testing.T) { //@diag("", "tests", "Testbad has malformed name: f
 
 func printfWrapper(format string, args ...interface{}) {
 	fmt.Printf(format, args...)
+}
+
+func _() {
+	now := time.Now()
+	fmt.Println(now.Format("2006-02-01")) //@diag("2006-02-01", "timeformat", "2006-02-01 should be 2006-01-02", "warning")
 }
