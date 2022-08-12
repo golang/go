@@ -3,7 +3,7 @@ cgo/declarecgo.go:18:6-13: defined here as ```go
 func cgo.Example()
 ```
 
-[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo?utm_source=gopls#Example)
+[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo#Example)
 -- funccgoexample-definition-json --
 {
 	"span": {
@@ -19,7 +19,7 @@ func cgo.Example()
 			"offset": 158
 		}
 	},
-	"description": "```go\nfunc cgo.Example()\n```\n\n[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo?utm_source=gopls#Example)"
+	"description": "```go\nfunc cgo.Example()\n```\n\n[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo#Example)"
 }
 
 -- funccgoexample-hoverdef --
@@ -27,4 +27,4 @@ func cgo.Example()
 func cgo.Example()
 ```
 
-[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo?utm_source=gopls#Example)
+[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo#Example)

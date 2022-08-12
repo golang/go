@@ -5,7 +5,7 @@ func (*sync.Mutex).Lock()
 
 Lock locks m\.
 
-[`(sync.Mutex).Lock` on pkg.go.dev](https://pkg.go.dev/sync?utm_source=gopls#Mutex.Lock)
+[`(sync.Mutex).Lock` on pkg.go.dev](https://pkg.go.dev/sync#Mutex.Lock)
 -- Name-hoverdef --
 ```go
 func (*types.object).Name() string
@@ -13,13 +13,13 @@ func (*types.object).Name() string
 
 Name returns the object\'s \(package\-local, unqualified\) name\.
 
-[`(types.TypeName).Name` on pkg.go.dev](https://pkg.go.dev/go/types?utm_source=gopls#TypeName.Name)
+[`(types.TypeName).Name` on pkg.go.dev](https://pkg.go.dev/go/types#TypeName.Name)
 -- Random-definition --
 godef/a/random.go:3:6-12: defined here as ```go
 func Random() int
 ```
 
-[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Random)
+[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
 -- Random-definition-json --
 {
 	"span": {
@@ -35,7 +35,7 @@ func Random() int
 			"offset": 22
 		}
 	},
-	"description": "```go\nfunc Random() int\n```\n\n[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Random)"
+	"description": "```go\nfunc Random() int\n```\n\n[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)"
 }
 
 -- Random-hoverdef --
@@ -43,13 +43,13 @@ func Random() int
 func Random() int
 ```
 
-[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Random)
+[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
 -- Random2-definition --
 godef/a/random.go:8:6-13: defined here as ```go
 func Random2(y int) int
 ```
 
-[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Random2)
+[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
 -- Random2-definition-json --
 {
 	"span": {
@@ -65,7 +65,7 @@ func Random2(y int) int
 			"offset": 78
 		}
 	},
-	"description": "```go\nfunc Random2(y int) int\n```\n\n[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Random2)"
+	"description": "```go\nfunc Random2(y int) int\n```\n\n[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)"
 }
 
 -- Random2-hoverdef --
@@ -73,7 +73,7 @@ func Random2(y int) int
 func Random2(y int) int
 ```
 
-[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Random2)
+[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
 -- aPackage-hoverdef --
 Package a is a package for testing go to definition\.
 -- declBlockA-hoverdef --
@@ -161,7 +161,7 @@ func make(t Type, size ...int) Type
 
 The make built\-in function allocates and initializes an object of type slice, map, or chan \(only\)\.
 
-[`make` on pkg.go.dev](https://pkg.go.dev/builtin?utm_source=gopls#make)
+[`make` on pkg.go.dev](https://pkg.go.dev/builtin#make)
 -- string-hoverdef --
 ```go
 type string string
@@ -169,13 +169,13 @@ type string string
 
 string is the set of all strings of 8\-bit bytes, conventionally but not necessarily representing UTF\-8\-encoded text\.
 
-[`string` on pkg.go.dev](https://pkg.go.dev/builtin?utm_source=gopls#string)
+[`string` on pkg.go.dev](https://pkg.go.dev/builtin#string)
 -- typesImport-hoverdef --
 ```go
 package types ("go/types")
 ```
 
-[`types` on pkg.go.dev](https://pkg.go.dev/go/types?utm_source=gopls)
+[`types` on pkg.go.dev](https://pkg.go.dev/go/types)
 -- x-hoverdef --
 ```go
 var x string

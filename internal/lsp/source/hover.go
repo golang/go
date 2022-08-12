@@ -841,9 +841,6 @@ func formatLink(h *HoverJSON, options *Options) string {
 // BuildLink constructs a link with the given target, path, and anchor.
 func BuildLink(target, path, anchor string) string {
 	link := fmt.Sprintf("https://%s/%s", target, path)
-	if target == "pkg.go.dev" {
-		link += "?utm_source=gopls"
-	}
 	if anchor == "" {
 		return link
 	}
@@ -879,7 +876,7 @@ func anyNonEmpty(x []string) bool {
 // or Ellipsis.Elt, the field is returned, along with the innermost
 // enclosing Decl, which could be only loosely related---consider:
 //
-//    var decl = f(  func(field int) {}  )
+//	var decl = f(  func(field int) {}  )
 //
 // It returns (nil, nil) if no Field or Decl is found at pos.
 func FindDeclAndField(files []*ast.File, pos token.Pos) (decl ast.Decl, field *ast.Field) {
