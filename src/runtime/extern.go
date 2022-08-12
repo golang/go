@@ -42,6 +42,12 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	clobber the memory content of an object with bad content when it frees
 	the object.
 
+	cpu.*: cpu.all=off disables the use of all optional instruction set extensions.
+	cpu.extension=off disables use of instructions from the specified instruction set extension.
+	extension is the lower case name for the instruction set extension such as sse41 or avx
+	as listed in internal/cpu package. As an example cpu.avx=off disables runtime detection
+	and thereby use of AVX instructions.
+
 	cgocheck: setting cgocheck=0 disables all checks for packages
 	using cgo to incorrectly pass Go pointers to non-Go code.
 	Setting cgocheck=1 (the default) enables relatively cheap
