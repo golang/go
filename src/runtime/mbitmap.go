@@ -718,9 +718,9 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 
 // initHeapBits initializes the heap bitmap for a span.
 // If this is a span of single pointer allocations, it initializes all
-// words to pointer.
-func (s *mspan) initHeapBits() {
-	if s.spanclass.noscan() {
+// words to pointer. If force is true, clears all bits.
+func (s *mspan) initHeapBits(forceClear bool) {
+	if forceClear || s.spanclass.noscan() {
 		// Set all the pointer bits to zero. We do this once
 		// when the span is allocated so we don't have to do it
 		// for each object allocation.
