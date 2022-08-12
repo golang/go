@@ -1976,6 +1976,7 @@ var types2Failures32Bit = setOf(
 )
 
 var go118Failures = setOf(
+	"fixedbugs/issue53702.go",  // 1.18 compiler failed with "Value live at entry" error
 	"fixedbugs/issue54343.go",  // 1.18 compiler assigns receiver parameter to global variable
 	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
 	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
