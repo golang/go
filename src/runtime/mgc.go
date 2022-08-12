@@ -1162,6 +1162,15 @@ func gcMarkTermination() {
 		printunlock()
 	}
 
+	// Set any arena chunks that were deferred to fault.
+	lock(&userArenaState.lock)
+	faultList := userArenaState.fault
+	userArenaState.fault = nil
+	unlock(&userArenaState.lock)
+	for _, lc := range faultList {
+		lc.mspan.setUserArenaChunkToFault()
+	}
+
 	semrelease(&worldsema)
 	semrelease(&gcsema)
 	// Careful: another GC cycle may start now.

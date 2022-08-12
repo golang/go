@@ -362,6 +362,9 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			if s.state.get() != mSpanInUse {
 				continue
 			}
+			if s.isUnusedUserArenaChunk() {
+				continue
+			}
 			if sizeclass := s.spanclass.sizeclass(); sizeclass == 0 {
 				slow.Mallocs++
 				slow.Alloc += uint64(s.elemsize)
@@ -1625,3 +1628,67 @@ func (s *ScavengeIndex) Clear(ci ChunkIdx) {
 }
 
 const GTrackingPeriod = gTrackingPeriod
+
+var ZeroBase = unsafe.Pointer(&zerobase)
+
+const UserArenaChunkBytes = userArenaChunkBytes
+
+type UserArena struct {
+	arena *userArena
+}
+
+func NewUserArena() *UserArena {
+	return &UserArena{newUserArena()}
+}
+
+func (a *UserArena) New(out *any) {
+	i := efaceOf(out)
+	typ := i._type
+	if typ.kind&kindMask != kindPtr {
+		panic("new result of non-ptr type")
+	}
+	typ = (*ptrtype)(unsafe.Pointer(typ)).elem
+	i.data = a.arena.new(typ)
+}
+
+func (a *UserArena) Slice(sl any, cap int) {
+	a.arena.slice(sl, cap)
+}
+
+func (a *UserArena) Free() {
+	a.arena.free()
+}
+
+func GlobalWaitingArenaChunks() int {
+	n := 0
+	systemstack(func() {
+		lock(&mheap_.lock)
+		for s := mheap_.userArena.quarantineList.first; s != nil; s = s.next {
+			n++
+		}
+		unlock(&mheap_.lock)
+	})
+	return n
+}
+
+var AlignUp = alignUp
+
+// BlockUntilEmptyFinalizerQueue blocks until either the finalizer
+// queue is emptied (and the finalizers have executed) or the timeout
+// is reached. Returns true if the finalizer queue was emptied.
+func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
+	start := nanotime()
+	for nanotime()-start < timeout {
+		lock(&finlock)
+		// We know the queue has been drained when both finq is nil
+		// and the finalizer g has stopped executing.
+		empty := finq == nil
+		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
+		unlock(&finlock)
+		if empty {
+			return true
+		}
+		Gosched()
+	}
+	return false
+}

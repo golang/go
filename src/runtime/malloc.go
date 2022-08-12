@@ -452,6 +452,14 @@ func mallocinit() {
 		//
 		// On AIX, mmaps starts at 0x0A00000000000000 for 64-bit.
 		// processes.
+		//
+		// Space mapped for user arenas comes immediately after the range
+		// originally reserved for the regular heap when race mode is not
+		// enabled because user arena chunks can never be used for regular heap
+		// allocations and we want to avoid fragmenting the address space.
+		//
+		// In race mode we have no choice but to just use the same hints because
+		// the race detector requires that the heap be mapped contiguously.
 		for i := 0x7f; i >= 0; i-- {
 			var p uintptr
 			switch {
@@ -477,9 +485,16 @@ func mallocinit() {
 			default:
 				p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
 			}
+			// Switch to generating hints for user arenas if we've gone
+			// through about half the hints. In race mode, take only about
+			// a quarter; we don't have very much space to work with.
+			hintList := &mheap_.arenaHints
+			if (!raceenabled && i > 0x3f) || (raceenabled && i > 0x5f) {
+				hintList = &mheap_.userArena.arenaHints
+			}
 			hint := (*arenaHint)(mheap_.arenaHintAlloc.alloc())
 			hint.addr = p
-			hint.next, mheap_.arenaHints = mheap_.arenaHints, hint
+			hint.next, *hintList = *hintList, hint
 		}
 	} else {
 		// On a 32-bit machine, we're much more concerned
@@ -547,6 +562,14 @@ func mallocinit() {
 		hint := (*arenaHint)(mheap_.arenaHintAlloc.alloc())
 		hint.addr = p
 		hint.next, mheap_.arenaHints = mheap_.arenaHints, hint
+
+		// Place the hint for user arenas just after the large reservation.
+		//
+		// While this potentially competes with the hint above, in practice we probably
+		// aren't going to be getting this far anyway on 32-bit platforms.
+		userArenaHint := (*arenaHint)(mheap_.arenaHintAlloc.alloc())
+		userArenaHint.addr = p
+		userArenaHint.next, mheap_.userArena.arenaHints = mheap_.userArena.arenaHints, userArenaHint
 	}
 }
 
@@ -755,8 +778,6 @@ retry:
 	case p == 0:
 		return nil, 0
 	case p&(align-1) == 0:
-		// We got lucky and got an aligned region, so we can
-		// use the whole thing.
 		return unsafe.Pointer(p), size + align
 	case GOOS == "windows":
 		// On Windows we can't release pieces of a
