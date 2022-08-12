@@ -47,7 +47,7 @@ go work use tools tools/gopls
 #### Experimental workspace module (Go 1.17 and earlier)
 
 With earlier versions of Go, `gopls` can simulate multi-module workspaces by
-creating a synthetic module requiring the the modules in the workspace root.
+creating a synthetic module requiring the modules in the workspace root.
 See [the design document](https://github.com/golang/proposal/blob/master/design/37720-gopls-workspaces.md)
 for more information.
 
