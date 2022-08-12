@@ -288,10 +288,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	// T is an interface type and x implements T and T is not a type parameter.
 	// Also handle the case where T is a pointer to an interface.
 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
-		if err := check.implements(V, T); err != nil {
-			if reason != nil {
-				*reason = err.Error()
-			}
+		if !check.implements(V, T, reason) {
 			return false, _InvalidIfaceAssign
 		}
 		return true, 0
@@ -299,7 +296,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	// If V is an interface, check if a missing type assertion is the problem.
 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
-		if check.implements(T, V) == nil {
+		if check.implements(T, V, nil) {
 			// T implements V, so give hint about type assertion.
 			if reason != nil {
 				*reason = "need type assertion"

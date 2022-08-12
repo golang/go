@@ -429,7 +429,7 @@ func AssertableTo(V *Interface, T Type) bool {
 	if T.Underlying() == Typ[Invalid] {
 		return false
 	}
-	return (*Checker)(nil).newAssertableTo(V, T) == nil
+	return (*Checker)(nil).newAssertableTo(V, T)
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable
@@ -467,7 +467,7 @@ func Implements(V Type, T *Interface) bool {
 	if V.Underlying() == Typ[Invalid] {
 		return false
 	}
-	return (*Checker)(nil).implements(V, T) == nil
+	return (*Checker)(nil).implements(V, T, nil)
 }
 
 // Identical reports whether x and y are identical types.
