@@ -982,6 +982,12 @@ func TestMaxBytesReaderDifferentLimits(t *testing.T) {
 			wantN:   len(testStr),
 			wantErr: false,
 		},
+		10: { /* Issue 54408 */
+			limit:   int64(1<<63-1),
+			lenP:    len(testStr),
+			wantN:   len(testStr),
+			wantErr: false,
+		},
 	}
 	for i, tt := range tests {
 		rc := MaxBytesReader(nil, io.NopCloser(strings.NewReader(testStr)), tt.limit)

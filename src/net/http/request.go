@@ -1169,7 +1169,8 @@ func (l *maxBytesReader) Read(p []byte) (n int, err error) {
 	// If they asked for a 32KB byte read but only 5 bytes are
 	// remaining, no need to read 32KB. 6 bytes will answer the
 	// question of the whether we hit the limit or go past it.
-	if int64(len(p)) > l.n+1 {
+	// 0 < len(p) < 2^63
+	if int64(len(p))-1 > l.n {
 		p = p[:l.n+1]
 	}
 	n, err = l.r.Read(p)
