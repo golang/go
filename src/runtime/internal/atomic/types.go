@@ -100,6 +100,8 @@ type Uint8 struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (u *Uint8) Load() uint8 {
 	return Load8(&u.value)
 }
@@ -136,6 +138,8 @@ type Bool struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (b *Bool) Load() bool {
 	return b.u.Load() != 0
 }
@@ -158,6 +162,8 @@ type Uint32 struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (u *Uint32) Load() uint32 {
 	return Load(&u.value)
 }
@@ -169,6 +175,8 @@ func (u *Uint32) Load() uint32 {
 // on this thread can be observed to occur before it.
 //
 // WARNING: Use sparingly and with great care.
+//
+//go:nosplit
 func (u *Uint32) LoadAcquire() uint32 {
 	return LoadAcq(&u.value)
 }
@@ -255,6 +263,8 @@ type Uint64 struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (u *Uint64) Load() uint64 {
 	return Load64(&u.value)
 }
@@ -283,6 +293,8 @@ func (u *Uint64) Swap(value uint64) uint64 {
 //
 // This operation wraps around in the usual
 // two's-complement way.
+//
+//go:nosplit
 func (u *Uint64) Add(delta int64) uint64 {
 	return Xadd64(&u.value, delta)
 }
@@ -307,6 +319,8 @@ func (u *Uintptr) Load() uintptr {
 // on this thread can be observed to occur before it.
 //
 // WARNING: Use sparingly and with great care.
+//
+//go:nosplit
 func (u *Uintptr) LoadAcquire() uintptr {
 	return LoadAcquintptr(&u.value)
 }
@@ -361,6 +375,8 @@ type Float64 struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (f *Float64) Load() float64 {
 	r := f.u.Load()
 	return *(*float64)(unsafe.Pointer(&r))
@@ -386,6 +402,8 @@ type UnsafePointer struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (u *UnsafePointer) Load() unsafe.Pointer {
 	return Loadp(unsafe.Pointer(&u.value))
 }
@@ -420,6 +438,8 @@ type Pointer[T any] struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (p *Pointer[T]) Load() *T {
 	return (*T)(p.u.Load())
 }
