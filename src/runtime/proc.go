@@ -1925,7 +1925,7 @@ func oneNewExtraM() {
 		// while calling from C thread to Go.
 		traceGoCreate(gp, 0) // no start pc
 		gp.traceseq++
-		traceEvent(traceEvGoInSyscall, -1, uint64(gp.goid))
+		traceEvent(traceEvGoInSyscall, -1, gp.goid)
 	}
 	// put on allg for garbage collector
 	allgadd(gp)
