@@ -272,6 +272,17 @@ func StartTrace() error {
 		if status == _Gsyscall {
 			gp.traceseq++
 			traceEvent(traceEvGoInSyscall, -1, gp.goid)
+		} else if status == _Gdead && gp.m != nil && gp.m.isextra {
+			// trigger two trace events for the dead g in the extra m,
+			// since the next event of the g will be traceEvGoSysExit in exitsyscall,
+			// while calling from C thread to Go.
+			gp.traceseq = 0
+			gp.tracelastp = getg().m.p
+			// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
+			id := trace.stackTab.put([]uintptr{startPCforTrace(0) + sys.PCQuantum}) // no start pc
+			traceEvent(traceEvGoCreate, -1, gp.goid, uint64(id), stackID)
+			gp.traceseq++
+			traceEvent(traceEvGoInSyscall, -1, gp.goid)
 		} else {
 			gp.sysblocktraced = false
 		}
@@ -1555,7 +1566,7 @@ func trace_userLog(id uint64, category, message string) {
 func startPCforTrace(pc uintptr) uintptr {
 	f := findfunc(pc)
 	if !f.valid() {
-		return pc // should not happen, but don't care
+		return pc // may happen for locked g in extra M since its pc is 0.
 	}
 	w := funcdata(f, _FUNCDATA_WrapInfo)
 	if w == nil {

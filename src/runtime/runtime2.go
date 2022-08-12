@@ -546,6 +546,7 @@ type m struct {
 	newSigstack   bool // minit on C thread called sigaltstack
 	printlock     int8
 	incgo         bool   // m is executing a cgo call
+	isextra       bool   // m is an extra m
 	freeWait      uint32 // if == 0, safe to free g0 and delete m (atomic)
 	fastrand      uint64
 	needextram    bool
