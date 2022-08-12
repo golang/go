@@ -89,6 +89,102 @@ import (
 	"unsafe"
 )
 
+// Functions starting with arena_ are meant to be exported to downstream users
+// of arenas. They should wrap these functions in a higher-lever API.
+//
+// The underlying arena and its resources are managed through an opaque unsafe.Pointer.
+
+// arena_newArena is a wrapper around newUserArena.
+//
+//go:linkname arena_newArena arena.runtime_arena_newArena
+func arena_newArena() unsafe.Pointer {
+	return unsafe.Pointer(newUserArena())
+}
+
+// arena_arena_New is a wrapper around (*userArena).new, except that typ
+// is an any (must be a *_type, still) and typ must be a type descriptor
+// for a pointer to the type to actually be allocated, i.e. pass a *T
+// to allocate a T. This is necessary because this function returns a *T.
+//
+//go:linkname arena_arena_New arena.runtime_arena_arena_New
+func arena_arena_New(arena unsafe.Pointer, typ any) any {
+	t := (*_type)(efaceOf(&typ).data)
+	if t.kind&kindMask != kindPtr {
+		throw("arena_New: non-pointer type")
+	}
+	te := (*ptrtype)(unsafe.Pointer(t)).elem
+	x := ((*userArena)(arena)).new(te)
+	var result any
+	e := efaceOf(&result)
+	e._type = t
+	e.data = x
+	return result
+}
+
+// arena_arena_Slice is a wrapper around (*userArena).slice.
+//
+//go:linkname arena_arena_Slice arena.runtime_arena_arena_Slice
+func arena_arena_Slice(arena unsafe.Pointer, slice any, cap int) {
+	((*userArena)(arena)).slice(slice, cap)
+}
+
+// arena_arena_Free is a wrapper around (*userArena).free.
+//
+//go:linkname arena_arena_Free arena.runtime_arena_arena_Free
+func arena_arena_Free(arena unsafe.Pointer) {
+	((*userArena)(arena)).free()
+}
+
+// arena_heapify takes a value that lives in an arena and makes a copy
+// of it on the heap. Values that don't live in an arena are returned unmodified.
+//
+//go:linkname arena_heapify arena.runtime_arena_heapify
+func arena_heapify(s any) any {
+	var v unsafe.Pointer
+	e := efaceOf(&s)
+	t := e._type
+	switch t.kind & kindMask {
+	case kindString:
+		v = stringStructOf((*string)(e.data)).str
+	case kindSlice:
+		v = (*slice)(e.data).array
+	case kindPtr:
+		v = e.data
+	default:
+		panic("arena: Clone only supports pointers, slices, and strings")
+	}
+	span := spanOf(uintptr(v))
+	if span == nil || !span.isUserArenaChunk {
+		// Not stored in a user arena chunk.
+		return s
+	}
+	// Heap-allocate storage for a copy.
+	var x any
+	switch t.kind & kindMask {
+	case kindString:
+		s1 := s.(string)
+		s2, b := rawstring(len(s1))
+		copy(b, s1)
+		x = s2
+	case kindSlice:
+		len := (*slice)(e.data).len
+		et := (*slicetype)(unsafe.Pointer(t)).elem
+		sl := new(slice)
+		*sl = slice{makeslicecopy(et, len, len, (*slice)(e.data).array), len, len}
+		xe := efaceOf(&x)
+		xe._type = t
+		xe.data = unsafe.Pointer(sl)
+	case kindPtr:
+		et := (*ptrtype)(unsafe.Pointer(t)).elem
+		e2 := newobject(et)
+		typedmemmove(et, e2, e.data)
+		xe := efaceOf(&x)
+		xe._type = t
+		xe.data = e2
+	}
+	return x
+}
+
 const (
 	// userArenaChunkBytes is the size of a user arena chunk.
 	userArenaChunkBytesMax = 8 << 20

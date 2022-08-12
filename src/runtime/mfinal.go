@@ -370,6 +370,11 @@ func SetFinalizer(obj any, finalizer any) {
 		throw("nil elem type!")
 	}
 
+	if inUserArenaChunk(uintptr(e.data)) {
+		// Arena-allocated objects are not eligible for finalizers.
+		throw("runtime.SetFinalizer: first argument was allocated into an arena")
+	}
+
 	// find the containing object
 	base, _, _ := findObject(uintptr(e.data), 0, 0)
 
