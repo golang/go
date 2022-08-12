@@ -80,8 +80,11 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		// }
 		typeWord = typecheck.Temp(types.NewPtr(types.Types[types.TUINT8]))
 		init.Append(ir.NewAssignStmt(base.Pos, typeWord, itab))
-		nif := ir.NewIfStmt(base.Pos, typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.ONE, typeWord, typecheck.NodNil())), nil, nil)
-		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, typeWord, itabType(typeWord))}
+		nif := ir.NewIfStmt(
+			base.Pos,
+			typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.ONE, typeWord, typecheck.NodNil())), /* cond */
+			[]ir.Node{ir.NewAssignStmt(base.Pos, typeWord, itabType(typeWord))}, /* body */
+			nil)
 		init.Append(nif)
 	} else {
 		// Must be converting I2I (more specific to less specific interface).

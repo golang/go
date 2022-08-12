@@ -177,10 +177,11 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 	l = append(l, ir.NewAssignStmt(base.Pos, nlen, ir.NewUnaryExpr(base.Pos, ir.OLEN, nl)))
 
 	// if n > len(frm) { n = len(frm) }
-	nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
-
-	nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OGT, nlen, ir.NewUnaryExpr(base.Pos, ir.OLEN, nr))
-	nif.Body.Append(ir.NewAssignStmt(base.Pos, nlen, ir.NewUnaryExpr(base.Pos, ir.OLEN, nr)))
+	nif := ir.NewIfStmt(
+		base.Pos,
+		ir.NewBinaryExpr(base.Pos, ir.OGT, nlen, ir.NewUnaryExpr(base.Pos, ir.OLEN, nr)), /* cond */
+		[]ir.Node{ir.NewAssignStmt(base.Pos, nlen, ir.NewUnaryExpr(base.Pos, ir.OLEN, nr))}, /* body */
+		nil)
 	l = append(l, nif)
 
 	// if to.ptr != frm.ptr { memmove( ... ) }
@@ -389,10 +390,14 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		//     if len < 0 { panicmakeslicelen() }
 		//     panicmakeslicecap()
 		// }
-		nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGT, typecheck.Conv(l, types.Types[types.TUINT64]), ir.NewInt(i)), nil, nil)
-		niflen := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLT, l, ir.NewInt(0)), nil, nil)
-		niflen.Body = []ir.Node{mkcall("panicmakeslicelen", nil, init)}
-		nif.Body.Append(niflen, mkcall("panicmakeslicecap", nil, init))
+		niflen := ir.NewIfStmt(
+			base.Pos,
+			ir.NewBinaryExpr(base.Pos, ir.OLT, l, ir.NewInt(0)), /* cond */
+			[]ir.Node{mkcall("panicmakeslicelen", nil, init)}, /* body */
+			nil)
+		nifBody := []ir.Node{niflen, mkcall("panicmakeslicecap", nil, init)}
+		nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGT, typecheck.Conv(l, types.Types[types.TUINT64]), ir.NewInt(i)), nifBody,
+			nil)
 		init.Append(typecheck.Stmt(nif))
 
 		t = types.NewArray(t.Elem(), i) // [r]T

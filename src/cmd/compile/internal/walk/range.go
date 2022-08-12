@@ -128,8 +128,11 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// TODO(austin): OFORUNTIL inhibits bounds-check
 		// elimination on the index variable (see #20711).
 		// Enhance the prove pass to understand this.
-		ifGuard = ir.NewIfStmt(base.Pos, nil, nil, nil)
-		ifGuard.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn)
+		ifGuard = ir.NewIfStmt(
+			base.Pos,
+			ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn), /* cond */
+			nil,
+			nil)
 		nfor.SetOp(ir.OFORUNTIL)
 
 		hp := typecheck.Temp(types.NewPtr(t.Elem()))
@@ -246,13 +249,13 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		nind.SetBounded(true)
 		body = append(body, ir.NewAssignStmt(base.Pos, hv2, typecheck.Conv(nind, types.RuneType)))
 
-		// if hv2 < utf8.RuneSelf
-		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
-		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv2, ir.NewInt(utf8.RuneSelf))
-
+		// if hv2 < utf8.RuneSelf  {
 		// hv1++
-		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(1)))}
-
+		nif := ir.NewIfStmt(
+			base.Pos,
+			ir.NewBinaryExpr(base.Pos, ir.OLT, hv2, ir.NewInt(utf8.RuneSelf)), /* cond */
+			[]ir.Node{ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(1)))},
+			nil)
 		// } else {
 		// hv2, hv1 = decoderune(ha, hv1)
 		fn := typecheck.LookupRuntime("decoderune")
@@ -449,8 +452,11 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	// 	memclr{NoHeap,Has}Pointers(hp, hn)
 	// 	i = len(a) - 1
 	// }
-	n := ir.NewIfStmt(base.Pos, nil, nil, nil)
-	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(0))
+	n := ir.NewIfStmt(
+		base.Pos,
+		ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(0)), /* cond */
+		nil,
+		nil)
 
 	// hp = &a[0]
 	hp := typecheck.Temp(types.Types[types.TUNSAFEPTR])

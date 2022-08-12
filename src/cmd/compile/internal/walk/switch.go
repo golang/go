@@ -410,11 +410,12 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 	//     }
 	//     h := e._type.hash
 	// Use a similar strategy for non-empty interfaces.
-	ifNil := ir.NewIfStmt(base.Pos, nil, nil, nil)
-	ifNil.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, itab, typecheck.NodNil())
+	var ifNilCond ir.Node
+	ifNilCond = ir.NewBinaryExpr(base.Pos, ir.OEQ, itab, typecheck.NodNil())
 	base.Pos = base.Pos.WithNotStmt() // disable statement marks after the first check.
-	ifNil.Cond = typecheck.Expr(ifNil.Cond)
-	ifNil.Cond = typecheck.DefaultLit(ifNil.Cond, nil)
+	ifNilCond = typecheck.Expr(ifNilCond)
+	ifNilCond = typecheck.DefaultLit(ifNilCond, nil)
+	ifNil := ir.NewIfStmt(base.Pos, ifNilCond, nil, nil)
 	// ifNil.Nbody assigned at end.
 	sw.Compiled.Append(ifNil)
 
@@ -587,9 +588,9 @@ func (s *typeSwitch) Add(pos src.XPos, n1 ir.Node, caseVar *ir.Name, jmp ir.Node
 	appendWalkStmt(&body, as)
 
 	// if ok { goto label }
-	nif := ir.NewIfStmt(pos, nil, nil, nil)
-	nif.Cond = s.okname
-	nif.Body = []ir.Node{jmp}
+	nifCond := s.okname
+	nifBody := []ir.Node{jmp}
+	nif := ir.NewIfStmt(pos, nifCond, nifBody, nil)
 	body.Append(nif)
 
 	if n1.Op() == ir.OTYPE && !typ.IsInterface() {
@@ -675,11 +676,11 @@ func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i in
 		}
 
 		half := lo + n/2
-		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
-		nif.Cond = less(half)
+		nifCond := less(half)
 		base.Pos = base.Pos.WithNotStmt()
-		nif.Cond = typecheck.Expr(nif.Cond)
-		nif.Cond = typecheck.DefaultLit(nif.Cond, nil)
+		nifCond = typecheck.Expr(nifCond)
+		nifCond = typecheck.DefaultLit(nifCond, nil)
+		nif := ir.NewIfStmt(base.Pos, nifCond, nil, nil)
 		do(lo, half, &nif.Body)
 		do(half, hi, &nif.Else)
 		out.Append(nif)
