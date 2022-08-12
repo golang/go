@@ -1671,6 +1671,10 @@ func GlobalWaitingArenaChunks() int {
 	return n
 }
 
+func UserArenaClone[T any](s T) T {
+	return arena_heapify(s).(T)
+}
+
 var AlignUp = alignUp
 
 // BlockUntilEmptyFinalizerQueue blocks until either the finalizer

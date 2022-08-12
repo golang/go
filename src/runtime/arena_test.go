@@ -375,3 +375,155 @@ func TestUserArenaClearsPointerBits(t *testing.T) {
 	GC()
 	GC()
 }
+
+func TestUserArenaCloneString(t *testing.T) {
+	a := NewUserArena()
+
+	// A static string (not on heap or arena)
+	var s = "abcdefghij"
+
+	// Create a byte slice in the arena, initialize it with s
+	var b []byte
+	a.Slice(&b, len(s))
+	copy(b, s)
+
+	// Create a string as using the same memory as the byte slice, hence in
+	// the arena. This could be an arena API, but hasn't really been needed
+	// yet.
+	var as string
+	asHeader := (*reflect.StringHeader)(unsafe.Pointer(&as))
+	asHeader.Data = (*reflect.SliceHeader)(unsafe.Pointer(&b)).Data
+	asHeader.Len = len(b)
+
+	// Clone should make a copy of as, since it is in the arena.
+	asCopy := UserArenaClone(as)
+	if (*reflect.StringHeader)(unsafe.Pointer(&as)).Data == (*reflect.StringHeader)(unsafe.Pointer(&asCopy)).Data {
+		t.Error("Clone did not make a copy")
+	}
+
+	// Clone should make a copy of subAs, since subAs is just part of as and so is in the arena.
+	subAs := as[1:3]
+	subAsCopy := UserArenaClone(subAs)
+	if (*reflect.StringHeader)(unsafe.Pointer(&subAs)).Data == (*reflect.StringHeader)(unsafe.Pointer(&subAsCopy)).Data {
+		t.Error("Clone did not make a copy")
+	}
+	if len(subAs) != len(subAsCopy) {
+		t.Errorf("Clone made an incorrect copy (bad length): %d -> %d", len(subAs), len(subAsCopy))
+	} else {
+		for i := range subAs {
+			if subAs[i] != subAsCopy[i] {
+				t.Errorf("Clone made an incorrect copy (data at index %d): %d -> %d", i, subAs[i], subAs[i])
+			}
+		}
+	}
+
+	// Clone should not make a copy of doubleAs, since doubleAs will be on the heap.
+	doubleAs := as + as
+	doubleAsCopy := UserArenaClone(doubleAs)
+	if (*reflect.StringHeader)(unsafe.Pointer(&doubleAs)).Data != (*reflect.StringHeader)(unsafe.Pointer(&doubleAsCopy)).Data {
+		t.Error("Clone should not have made a copy")
+	}
+
+	// Clone should not make a copy of s, since s is a static string.
+	sCopy := UserArenaClone(s)
+	if (*reflect.StringHeader)(unsafe.Pointer(&s)).Data != (*reflect.StringHeader)(unsafe.Pointer(&sCopy)).Data {
+		t.Error("Clone should not have made a copy")
+	}
+
+	a.Free()
+}
+
+func TestUserArenaClonePointer(t *testing.T) {
+	a := NewUserArena()
+
+	// Clone should not make a copy of a heap-allocated smallScalar.
+	x := Escape(new(smallScalar))
+	xCopy := UserArenaClone(x)
+	if unsafe.Pointer(x) != unsafe.Pointer(xCopy) {
+		t.Errorf("Clone should not have made a copy: %#v -> %#v", x, xCopy)
+	}
+
+	// Clone should make a copy of an arena-allocated smallScalar.
+	var i any
+	i = (*smallScalar)(nil)
+	a.New(&i)
+	xArena := i.(*smallScalar)
+	xArenaCopy := UserArenaClone(xArena)
+	if unsafe.Pointer(xArena) == unsafe.Pointer(xArenaCopy) {
+		t.Errorf("Clone should have made a copy: %#v -> %#v", xArena, xArenaCopy)
+	}
+	if *xArena != *xArenaCopy {
+		t.Errorf("Clone made an incorrect copy copy: %#v -> %#v", *xArena, *xArenaCopy)
+	}
+
+	a.Free()
+}
+
+func TestUserArenaCloneSlice(t *testing.T) {
+	a := NewUserArena()
+
+	// A static string (not on heap or arena)
+	var s = "klmnopqrstuv"
+
+	// Create a byte slice in the arena, initialize it with s
+	var b []byte
+	a.Slice(&b, len(s))
+	copy(b, s)
+
+	// Clone should make a copy of b, since it is in the arena.
+	bCopy := UserArenaClone(b)
+	if unsafe.Pointer(&b[0]) == unsafe.Pointer(&bCopy[0]) {
+		t.Errorf("Clone did not make a copy: %#v -> %#v", b, bCopy)
+	}
+	if len(b) != len(bCopy) {
+		t.Errorf("Clone made an incorrect copy (bad length): %d -> %d", len(b), len(bCopy))
+	} else {
+		for i := range b {
+			if b[i] != bCopy[i] {
+				t.Errorf("Clone made an incorrect copy (data at index %d): %d -> %d", i, b[i], bCopy[i])
+			}
+		}
+	}
+
+	// Clone should make a copy of bSub, since bSub is just part of b and so is in the arena.
+	bSub := b[1:3]
+	bSubCopy := UserArenaClone(bSub)
+	if unsafe.Pointer(&bSub[0]) == unsafe.Pointer(&bSubCopy[0]) {
+		t.Errorf("Clone did not make a copy: %#v -> %#v", bSub, bSubCopy)
+	}
+	if len(bSub) != len(bSubCopy) {
+		t.Errorf("Clone made an incorrect copy (bad length): %d -> %d", len(bSub), len(bSubCopy))
+	} else {
+		for i := range bSub {
+			if bSub[i] != bSubCopy[i] {
+				t.Errorf("Clone made an incorrect copy (data at index %d): %d -> %d", i, bSub[i], bSubCopy[i])
+			}
+		}
+	}
+
+	// Clone should not make a copy of bNotArena, since it will not be in an arena.
+	bNotArena := make([]byte, len(s))
+	copy(bNotArena, s)
+	bNotArenaCopy := UserArenaClone(bNotArena)
+	if unsafe.Pointer(&bNotArena[0]) != unsafe.Pointer(&bNotArenaCopy[0]) {
+		t.Error("Clone should not have made a copy")
+	}
+
+	a.Free()
+}
+
+func TestUserArenaClonePanic(t *testing.T) {
+	var s string
+	func() {
+		x := smallScalar{2}
+		defer func() {
+			if v := recover(); v != nil {
+				s = v.(string)
+			}
+		}()
+		UserArenaClone(x)
+	}()
+	if s == "" {
+		t.Errorf("expected panic from Clone")
+	}
+}
