@@ -460,7 +460,7 @@ TEXT runtime·getCntxct(SB),NOSPLIT,$0
 	BEQ	3(PC)
 
 	// get CNTPCT (Physical Count Register) into R0
-	MRS	CNTPCT_EL0, R0 // SIGILL
+	MRS	CNTPCT_EL0, R0
 	B	2(PC)
 
 	// get CNTVCT (Virtual Count Register) into R0
