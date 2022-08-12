@@ -46,47 +46,47 @@ type Var interface {
 
 // Int is a 64-bit integer variable that satisfies the Var interface.
 type Int struct {
-	i int64
+	i atomic.Int64
 }
 
 func (v *Int) Value() int64 {
-	return atomic.LoadInt64(&v.i)
+	return v.i.Load()
 }
 
 func (v *Int) String() string {
-	return strconv.FormatInt(atomic.LoadInt64(&v.i), 10)
+	return strconv.FormatInt(v.i.Load(), 10)
 }
 
 func (v *Int) Add(delta int64) {
-	atomic.AddInt64(&v.i, delta)
+	v.i.Add(delta)
 }
 
 func (v *Int) Set(value int64) {
-	atomic.StoreInt64(&v.i, value)
+	v.i.Store(value)
 }
 
 // Float is a 64-bit float variable that satisfies the Var interface.
 type Float struct {
-	f uint64
+	f atomic.Uint64
 }
 
 func (v *Float) Value() float64 {
-	return math.Float64frombits(atomic.LoadUint64(&v.f))
+	return math.Float64frombits(v.f.Load())
 }
 
 func (v *Float) String() string {
 	return strconv.FormatFloat(
-		math.Float64frombits(atomic.LoadUint64(&v.f)), 'g', -1, 64)
+		math.Float64frombits(v.f.Load()), 'g', -1, 64)
 }
 
 // Add adds delta to v.
 func (v *Float) Add(delta float64) {
 	for {
-		cur := atomic.LoadUint64(&v.f)
+		cur := v.f.Load()
 		curVal := math.Float64frombits(cur)
 		nxtVal := curVal + delta
 		nxt := math.Float64bits(nxtVal)
-		if atomic.CompareAndSwapUint64(&v.f, cur, nxt) {
+		if v.f.CompareAndSwap(cur, nxt) {
 			return
 		}
 	}
@@ -94,7 +94,7 @@ func (v *Float) Add(delta float64) {
 
 // Set sets v to value.
 func (v *Float) Set(value float64) {
-	atomic.StoreUint64(&v.f, math.Float64bits(value))
+	v.f.Store(math.Float64bits(value))
 }
 
 // Map is a string-to-Var map variable that satisfies the Var interface.
