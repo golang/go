@@ -261,10 +261,18 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
 }
 
 type instanceLookup struct {
-	m map[*Named][]*Named
+	// buf is used to avoid allocating the map m in the common case of a small
+	// number of instances.
+	buf [3]*Named
+	m   map[*Named][]*Named
 }
 
 func (l *instanceLookup) lookup(inst *Named) *Named {
+	for _, t := range l.buf {
+		if t != nil && Identical(inst, t) {
+			return t
+		}
+	}
 	for _, t := range l.m[inst.Origin()] {
 		if Identical(inst, t) {
 			return t
@@ -274,6 +282,12 @@ func (l *instanceLookup) lookup(inst *Named) *Named {
 }
 
 func (l *instanceLookup) add(inst *Named) {
+	for i, t := range l.buf {
+		if t == nil {
+			l.buf[i] = inst
+			return
+		}
+	}
 	if l.m == nil {
 		l.m = make(map[*Named][]*Named)
 	}
