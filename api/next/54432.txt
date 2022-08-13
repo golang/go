@@ -1,0 +1,4 @@
+pkg html/template, method (*Template) ExecuteFuncMap(io.Writer, interface{}, template.FuncMap) error #54432
+pkg html/template, method (*Template) ExecuteTemplateFuncMap(io.Writer, string, interface{}, template.FuncMap) error #54432
+pkg text/template, method (*Template) ExecuteFuncMap(io.Writer, interface{}, FuncMap) error #54432
+pkg text/template, method (*Template) ExecuteTemplateFuncMap(io.Writer, string, interface{}, FuncMap) error #54432
