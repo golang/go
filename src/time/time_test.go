@@ -1487,6 +1487,13 @@ func BenchmarkISOWeek(b *testing.B) {
 	}
 }
 
+func BenchmarkGoString(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		_ = t.GoString()
+	}
+}
+
 func TestMarshalBinaryZeroTime(t *testing.T) {
 	t0 := Time{}
 	enc, err := t0.MarshalBinary()

@@ -540,26 +540,29 @@ func (t Time) String() string {
 // GoString implements fmt.GoStringer and formats t to be printed in Go source
 // code.
 func (t Time) GoString() string {
-	buf := make([]byte, 0, 70)
+	abs := t.abs()
+	year, month, day, _ := absDate(abs, true)
+	hour, minute, second := absClock(abs)
+
+	buf := make([]byte, 0, len("time.Date(9999, time.September, 31, 23, 59, 59, 999999999, time.Local)"))
 	buf = append(buf, "time.Date("...)
-	buf = appendInt(buf, t.Year(), 0)
-	month := t.Month()
+	buf = appendInt(buf, year, 0)
 	if January <= month && month <= December {
 		buf = append(buf, ", time."...)
-		buf = append(buf, t.Month().String()...)
+		buf = append(buf, longMonthNames[month-1]...)
 	} else {
 		// It's difficult to construct a time.Time with a date outside the
 		// standard range but we might as well try to handle the case.
 		buf = appendInt(buf, int(month), 0)
 	}
 	buf = append(buf, ", "...)
-	buf = appendInt(buf, t.Day(), 0)
+	buf = appendInt(buf, day, 0)
 	buf = append(buf, ", "...)
-	buf = appendInt(buf, t.Hour(), 0)
+	buf = appendInt(buf, hour, 0)
 	buf = append(buf, ", "...)
-	buf = appendInt(buf, t.Minute(), 0)
+	buf = appendInt(buf, minute, 0)
 	buf = append(buf, ", "...)
-	buf = appendInt(buf, t.Second(), 0)
+	buf = appendInt(buf, second, 0)
 	buf = append(buf, ", "...)
 	buf = appendInt(buf, t.Nanosecond(), 0)
 	buf = append(buf, ", "...)
@@ -586,7 +589,7 @@ func (t Time) GoString() string {
 		// case we hope not to hit too often.
 		buf = append(buf, `time.Location(`...)
 		buf = append(buf, []byte(quote(loc.name))...)
-		buf = append(buf, `)`...)
+		buf = append(buf, ')')
 	}
 	buf = append(buf, ')')
 	return string(buf)
