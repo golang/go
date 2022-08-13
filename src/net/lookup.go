@@ -316,7 +316,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 
 	lookupKey := network + "\000" + host
 	dnsWaitGroup.Add(1)
-	ch, _ := r.getLookupGroup().DoChan(lookupKey, func() (any, error) {
+	ch := r.getLookupGroup().DoChan(lookupKey, func() (any, error) {
 		return testHookLookupIP(lookupGroupCtx, resolverFunc, network, host)
 	})
 
