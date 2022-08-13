@@ -632,6 +632,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.UnaryExpr)
 		return tcLenCap(n)
 
+	case ir.OUNSAFESTRINGDATA:
+		n := n.(*ir.UnaryExpr)
+		return tcStringData(n)
+
 	case ir.OREAL, ir.OIMAG:
 		n := n.(*ir.UnaryExpr)
 		return tcRealImag(n)

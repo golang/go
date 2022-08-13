@@ -53,6 +53,10 @@ func main() {
 		_ = unsafe.Slice(last, 1)
 		mustPanic(func() { _ = unsafe.Slice(last, 2) })
 	}
+	{
+		var s = "string"
+		_ = unsafe.StringData(s)
+	}
 }
 
 func assert(ok bool) {
