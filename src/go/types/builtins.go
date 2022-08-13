@@ -751,7 +751,23 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if check.Types != nil {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ, y.typ))
 		}
+	case _StringData:
+		// unsafe.StringData(str string) *byte
+		if !check.allowVersion(check.pkg, 1, 17) {
+			check.errorf(call.Fun, _InvalidUnsafeStringData, "unsafe.Slice requires go1.17 or later")
+			return
+		}
 
+		typ, ok := under(x.typ).(*Basic)
+		if !ok || (typ.Kind() != String && typ.Kind() != UntypedString) {
+			check.invalidArg(x, _InvalidUnsafeStringData, "%s is not a string", x)
+			return
+		}
+		x.mode = value
+		x.typ = NewPointer(aliases[0])
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ))
+		}
 	case _Assert:
 		// assert(pred) causes a typechecker error if pred is false.
 		// The result of assert is the value of pred if there is no error.
