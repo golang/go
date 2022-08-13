@@ -1245,7 +1245,7 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 		c.methodSetCache[methodSetKey{typ, addressable}] = mset
 	}
 
-	if typ.String() == "*testing.F" && addressable {
+	if isStarTestingDotF(typ) && addressable {
 		// is that a sufficient test? (or is more care needed?)
 		if c.fuzz(typ, mset, imp, cb, c.snapshot.FileSet()) {
 			return
@@ -1270,6 +1270,19 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 			addressable: addressable || isPointer(typ),
 		})
 	})
+}
+
+// isStarTestingDotF reports whether typ is *testing.F.
+func isStarTestingDotF(typ types.Type) bool {
+	ptr, _ := typ.(*types.Pointer)
+	if ptr == nil {
+		return false
+	}
+	named, _ := ptr.Elem().(*types.Named)
+	if named == nil {
+		return false
+	}
+	return named.Obj() != nil && named.Obj().Pkg().Path() == "testing" && named.Obj().Name() == "F"
 }
 
 // lexical finds completions in the lexical environment.
