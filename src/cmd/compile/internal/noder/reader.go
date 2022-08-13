@@ -1955,7 +1955,7 @@ func (r *reader) expr() (res ir.Node) {
 		case ir.ODELETE:
 			n := n.(*ir.CallExpr)
 			n.RType = r.rtype(pos)
-		case ir.OUNSAFESLICE:
+		case ir.OUNSAFESLICE, ir.OUNSAFESTRING:
 			n := n.(*ir.BinaryExpr)
 			n.RType = r.rtype(pos)
 		}

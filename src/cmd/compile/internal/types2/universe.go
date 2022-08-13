@@ -165,6 +165,7 @@ const (
 	_Offsetof
 	_Sizeof
 	_Slice
+	_String
 
 	// testing support
 	_Assert
@@ -198,9 +199,9 @@ var predeclaredFuncs = [...]struct {
 	_Offsetof: {"Offsetof", 1, false, expression},
 	_Sizeof:   {"Sizeof", 1, false, expression},
 	_Slice:    {"Slice", 2, false, expression},
-
-	_Assert: {"assert", 1, false, statement},
-	_Trace:  {"trace", 0, true, statement},
+	_String:   {"String", 2, false, expression},
+	_Assert:   {"assert", 1, false, statement},
+	_Trace:    {"trace", 0, true, statement},
 }
 
 func defPredeclaredFuncs() {

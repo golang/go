@@ -53,6 +53,32 @@ func main() {
 		_ = unsafe.Slice(last, 1)
 		mustPanic(func() { _ = unsafe.Slice(last, 2) })
 	}
+
+	// unsafe.String
+	{
+		s := unsafe.String(&p[0], len(p))
+		assert(s[0] == p[0])
+		assert(len(s) == len(p))
+
+		// nil pointer with zero length returns nil
+		assert(unsafe.String((*byte)(nil), 0) == "")
+
+		// nil pointer with positive length panics
+		mustPanic(func() { _ = unsafe.String((*byte)(nil), 1) })
+
+		// negative length
+		var neg int = -1
+		mustPanic(func() { _ = unsafe.String(new(byte), neg) })
+
+		// length too large
+		var tooBig uint64 = math.MaxUint64
+		mustPanic(func() { _ = unsafe.String(new(byte), tooBig) })
+
+		// string memory overflows address space
+		last := (*byte)(unsafe.Pointer(^uintptr(0)))
+		_ = unsafe.String(last, 1)
+		mustPanic(func() { _ = unsafe.String(last, 2) })
+	}
 }
 
 func assert(ok bool) {

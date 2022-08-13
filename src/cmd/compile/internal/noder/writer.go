@@ -1691,6 +1691,8 @@ func (w *writer) expr(expr syntax.Expr) {
 				rtype = typ
 			case "Slice":
 				rtype = sliceElem(w.p.typeOf(expr))
+			case "String":
+				rtype = w.p.typeOf(expr)
 			}
 		}
 

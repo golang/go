@@ -239,3 +239,15 @@ func Add(ptr Pointer, len IntegerType) Pointer
 // At run time, if len is negative, or if ptr is nil and len is not zero,
 // a run-time panic occurs.
 func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
+
+// String returns a String whose underlying array starts at ptr to byte
+// and whose length  are len.
+// except that, as a special case, if ptr is nil and len is zero,
+// String returns "".
+//
+// The len argument must be of integer type or an untyped constant.
+// A constant len argument must be non-negative and representable by a value of type int;
+// if it is an untyped constant it is given type int.
+// At run time, if len is negative, or if ptr is nil and len is not zero,
+// a run-time panic occurs.
+func String(ptr *byte, len IntegerType) string

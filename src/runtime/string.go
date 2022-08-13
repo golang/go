@@ -587,3 +587,44 @@ func gostringw(strw *uint16) string {
 	b[n2] = 0 // for luck
 	return s[:n2]
 }
+
+func unsafestring(et *_type, ptr unsafe.Pointer, len int) {
+	if len < 0 {
+		panicunsafestringlen()
+	}
+
+	if ptr == nil && len > 0 {
+		panicunsafestringnilptr()
+	}
+
+	if uintptr(len) > -uintptr(ptr) {
+		panicunsafeslicelen()
+	}
+}
+
+// Keep this code in sync with cmd/compile/internal/walk/builtin.go:walkUnsafeString
+func unsafeString64(et *_type, ptr unsafe.Pointer, len64 int64) {
+	len := int(len64)
+	if int64(len) != len64 {
+		panicunsafeslicelen()
+	}
+	unsafestring(et, ptr, len)
+}
+
+func unsafestringcheckptr(et *_type, ptr unsafe.Pointer, len64 int64) {
+	unsafeString64(et, ptr, len64)
+
+	// Check that underlying array doesn't straddle multiple heap objects.
+	// unsafeslice64 has already checked for overflow.
+	if checkptrStraddles(ptr, uintptr(len64)) {
+		throw("checkptr: unsafe.Slice result straddles multiple allocations")
+	}
+}
+
+func panicunsafestringlen() {
+	panic(errorString("unsafe.String: len out of range"))
+}
+
+func panicunsafestringnilptr() {
+	panic(errorString("unsafe.String: ptr is nil and len is not zero"))
+}
