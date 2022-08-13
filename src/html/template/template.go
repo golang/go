@@ -124,6 +124,20 @@ func (t *Template) Execute(wr io.Writer, data any) error {
 	return t.text.Execute(wr, data)
 }
 
+// ExecuteFuncMap applies a parsed template to the specified data object,
+// FuncMap overlay and writes the output to wr.
+// If an error occurs executing the template or writing its output,
+// execution stops, but partial results may already have been written to
+// the output writer.
+// A template may be executed safely in parallel, although if parallel
+// executions share a Writer the output may be interleaved.
+func (t *Template) ExecuteFuncMap(wr io.Writer, data any, funcs FuncMap) error {
+	if err := t.escape(); err != nil {
+		return err
+	}
+	return t.text.ExecuteFuncMap(wr, data, funcs)
+}
+
 // ExecuteTemplate applies the template associated with t that has the given
 // name to the specified data object and writes the output to wr.
 // If an error occurs executing the template or writing its output,
@@ -137,6 +151,21 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 		return err
 	}
 	return tmpl.text.Execute(wr, data)
+}
+
+// ExecuteTemplateFuncMap applies the template associated with t that has the given
+// name to the specified data object and FuncMap overlay writing the output to wr.
+// If an error occurs executing the template or writing its output,
+// execution stops, but partial results may already have been written to
+// the output writer.
+// A template may be executed safely in parallel, although if parallel
+// executions share a Writer the output may be interleaved.
+func (t *Template) ExecuteTemplateFuncMap(wr io.Writer, name string, data any, funcs FuncMap) error {
+	tmpl, err := t.lookupAndEscapeTemplate(name)
+	if err != nil {
+		return err
+	}
+	return tmpl.text.ExecuteFuncMap(wr, data, funcs)
 }
 
 // lookupAndEscapeTemplate guarantees that the template with the given name

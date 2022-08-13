@@ -37,6 +37,7 @@ type state struct {
 	node  parse.Node // current node, for errors
 	vars  []variable // push-down stack of variable values.
 	depth int        // the height of the stack of executing templates.
+	funcs map[string]reflect.Value
 }
 
 // variable holds the dynamic value of a variable such as $, $x etc.
@@ -187,6 +188,21 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 	return tmpl.Execute(wr, data)
 }
 
+// ExecuteTemplateFuncMap applies the template associated with t that has the given name
+// to the specified data object and writes the output to wr.
+// If an error occurs executing the template or writing its output,
+// execution stops, but partial results may already have been written to
+// the output writer.
+// A template may be executed safely in parallel, although if parallel
+// executions share a Writer the output may be interleaved.
+func (t *Template) ExecuteTemplateFuncMap(wr io.Writer, name string, data interface{}, funcs FuncMap) error {
+	tmpl := t.Lookup(name)
+	if tmpl == nil {
+		return fmt.Errorf("template: no template %q associated with template %q", name, t.name)
+	}
+	return tmpl.ExecuteFuncMap(wr, data, funcs)
+}
+
 // Execute applies a parsed template to the specified data object,
 // and writes the output to wr.
 // If an error occurs executing the template or writing its output,
@@ -198,10 +214,24 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 // If data is a reflect.Value, the template applies to the concrete
 // value that the reflect.Value holds, as in fmt.Print.
 func (t *Template) Execute(wr io.Writer, data any) error {
-	return t.execute(wr, data)
+	return t.execute(wr, data, nil)
 }
 
-func (t *Template) execute(wr io.Writer, data any) (err error) {
+// ExecuteFuncMap applies a parsed template to the specified data object,
+// FuncMap overlay and writes the output to wr.
+// If an error occurs executing the template or writing its output,
+// execution stops, but partial results may already have been written to
+// the output writer.
+// A template may be executed safely in parallel, although if parallel
+// executions share a Writer the output may be interleaved.
+//
+// If data is a reflect.Value, the template applies to the concrete
+// value that the reflect.Value holds, as in fmt.Print.
+func (t *Template) ExecuteFuncMap(wr io.Writer, data any, funcs FuncMap) error {
+	return t.execute(wr, data, funcs)
+}
+
+func (t *Template) execute(wr io.Writer, data any, funcs FuncMap) (err error) {
 	defer errRecover(&err)
 	value, ok := data.(reflect.Value)
 	if !ok {
@@ -212,6 +242,9 @@ func (t *Template) execute(wr io.Writer, data any) (err error) {
 		wr:   wr,
 		vars: []variable{{"$", value}},
 	}
+        if funcs != nil {
+            state.funcs = createValueFuncs(funcs)
+        }
 	if t.Tree == nil || t.Root == nil {
 		state.errorf("%q is an incomplete or empty template", t.Name())
 	}
@@ -436,6 +469,7 @@ func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
 	newState.tmpl = tmpl
 	// No dynamic scoping: template invocations inherit no variables.
 	newState.vars = []variable{{"$", dot}}
+	newState.funcs = s.funcs
 	newState.walk(dot, tmpl.Root)
 }
 
@@ -594,9 +628,14 @@ func (s *state) evalFieldChain(dot, receiver reflect.Value, node parse.Node, ide
 func (s *state) evalFunction(dot reflect.Value, node *parse.IdentifierNode, cmd parse.Node, args []parse.Node, final reflect.Value) reflect.Value {
 	s.at(node)
 	name := node.Ident
-	function, isBuiltin, ok := findFunction(name, s.tmpl)
-	if !ok {
-		s.errorf("%q is not a defined function", name)
+	isBuiltin := false
+	function := s.funcs[name]
+	if !function.IsValid() {
+		ok := false
+		function, isBuiltin, ok = findFunction(name, s.tmpl)
+		if !ok {
+			s.errorf("%q is not a defined function", name)
+		}
 	}
 	return s.evalCall(dot, function, isBuiltin, cmd, name, args, final)
 }

@@ -824,8 +824,79 @@ func testExecute(execTests []execTest, template *Template, t *testing.T) {
 	}
 }
 
+func testExecuteFuncMap(execTests []execTest, template *Template, t *testing.T) {
+	b := new(bytes.Buffer)
+	funcs := FuncMap{
+		"add":         add,
+		"count":       count,
+		"dddArg":      dddArg,
+		"die":         func() bool { panic("die") },
+		"echo":        echo,
+		"makemap":     makemap,
+		"mapOfThree":  mapOfThree,
+		"oneArg":      oneArg,
+		"returnInt":   returnInt,
+		"stringer":    stringer,
+		"twoArgs":     twoArgs,
+		"typeOf":      typeOf,
+		"valueString": valueString,
+		"vfunc":       vfunc,
+		"zeroArgs":    zeroArgs,
+	}
+	emptyFuncs := FuncMap{
+		"add":         func(...int) int { return 0 },
+		"count":       func(int) chan string { return nil },
+		"dddArg":      func(int, ...string) string { return "" },
+		"die":         func() bool { return false },
+		"echo":        func(any) any { return nil },
+		"makemap":     func(...string) map[string]string { return nil },
+		"mapOfThree":  func() any { return nil },
+		"oneArg":      func(string) string { return "" },
+		"returnInt":   func() int { return 0 },
+		"stringer":    func(fmt.Stringer) string { return "" },
+		"twoArgs":     func(string, string) string { return "" },
+		"typeOf":      func(any) string { return "" },
+		"valueString": func(string) string { return "" },
+		"vfunc":       func(V, *V) string { return "" },
+		"zeroArgs":    func() string { return "" },
+	}
+	for _, test := range execTests {
+		var tmpl *Template
+		var err error
+		if template == nil {
+			tmpl, err = New(test.name).Funcs(emptyFuncs).Parse(test.input)
+		} else {
+			tmpl, err = template.New(test.name).Funcs(emptyFuncs).Parse(test.input)
+		}
+		if err != nil {
+			t.Errorf("%s: parse error: %s", test.name, err)
+			continue
+		}
+		b.Reset()
+		err = tmpl.ExecuteFuncMap(b, test.data, funcs)
+		switch {
+		case !test.ok && err == nil:
+			t.Errorf("%s: expected error; got none", test.name)
+			continue
+		case test.ok && err != nil:
+			t.Errorf("%s: unexpected execute error: %s", test.name, err)
+			continue
+		case !test.ok && err != nil:
+			// expected error, got one
+			if *debug {
+				fmt.Printf("%s: %s\n\t%s\n", test.name, test.input, err)
+			}
+		}
+		result := b.String()
+		if result != test.output {
+			t.Errorf("%s: expected\n\t%q\ngot\n\t%q", test.name, test.output, result)
+		}
+	}
+}
+
 func TestExecute(t *testing.T) {
 	testExecute(execTests, nil, t)
+	testExecuteFuncMap(execTests, nil, t)
 }
 
 var delimPairs = []string{
