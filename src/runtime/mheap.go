@@ -1230,56 +1230,6 @@ func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass
 	unlock(&h.lock)
 
 HaveSpan:
-	// At this point, both s != nil and base != 0, and the heap
-	// lock is no longer held. Initialize the span.
-	s.init(base, npages)
-	if h.allocNeedsZero(base, npages) {
-		s.needzero = 1
-	}
-	nbytes := npages * pageSize
-	if typ.manual() {
-		s.manualFreeList = 0
-		s.nelems = 0
-		s.limit = s.base() + s.npages*pageSize
-		s.state.set(mSpanManual)
-	} else {
-		// We must set span properties before the span is published anywhere
-		// since we're not holding the heap lock.
-		s.spanclass = spanclass
-		if sizeclass := spanclass.sizeclass(); sizeclass == 0 {
-			s.elemsize = nbytes
-			s.nelems = 1
-			s.divMul = 0
-		} else {
-			s.elemsize = uintptr(class_to_size[sizeclass])
-			s.nelems = nbytes / s.elemsize
-			s.divMul = class_to_divmagic[sizeclass]
-		}
-
-		// Initialize mark and allocation structures.
-		s.freeindex = 0
-		s.allocCache = ^uint64(0) // all 1s indicating all free.
-		s.gcmarkBits = newMarkBits(s.nelems)
-		s.allocBits = newAllocBits(s.nelems)
-
-		// It's safe to access h.sweepgen without the heap lock because it's
-		// only ever updated with the world stopped and we run on the
-		// systemstack which blocks a STW transition.
-		atomic.Store(&s.sweepgen, h.sweepgen)
-
-		// Now that the span is filled in, set its state. This
-		// is a publication barrier for the other fields in
-		// the span. While valid pointers into this span
-		// should never be visible until the span is returned,
-		// if the garbage collector finds an invalid pointer,
-		// access to the span may race with initialization of
-		// the span. We resolve this race by atomically
-		// setting the state after the span is fully
-		// initialized, and atomically checking the state in
-		// any situation where a pointer is suspect.
-		s.state.set(mSpanInUse)
-	}
-
 	// Decide if we need to scavenge in response to what we just allocated.
 	// Specifically, we track the maximum amount of memory to scavenge of all
 	// the alternatives below, assuming that the maximum satisfies *all*
@@ -1349,7 +1299,11 @@ HaveSpan:
 		scavenge.assistTime.Add(now - start)
 	}
 
+	// Initialize the span.
+	h.initSpan(s, typ, spanclass, base, npages)
+
 	// Commit and account for any scavenged memory that the span now owns.
+	nbytes := npages * pageSize
 	if scav != 0 {
 		// sysUsed all the pages that are actually available
 		// in the span since some of them might be scavenged.
@@ -1377,6 +1331,62 @@ HaveSpan:
 	}
 	memstats.heapStats.release()
 
+	return s
+}
+
+// initSpan initializes a blank span s which will represent the range
+// [base, base+npages*pageSize). typ is the type of span being allocated.
+func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base, npages uintptr) {
+	// At this point, both s != nil and base != 0, and the heap
+	// lock is no longer held. Initialize the span.
+	s.init(base, npages)
+	if h.allocNeedsZero(base, npages) {
+		s.needzero = 1
+	}
+	nbytes := npages * pageSize
+	if typ.manual() {
+		s.manualFreeList = 0
+		s.nelems = 0
+		s.limit = s.base() + s.npages*pageSize
+		s.state.set(mSpanManual)
+	} else {
+		// We must set span properties before the span is published anywhere
+		// since we're not holding the heap lock.
+		s.spanclass = spanclass
+		if sizeclass := spanclass.sizeclass(); sizeclass == 0 {
+			s.elemsize = nbytes
+			s.nelems = 1
+			s.divMul = 0
+		} else {
+			s.elemsize = uintptr(class_to_size[sizeclass])
+			s.nelems = nbytes / s.elemsize
+			s.divMul = class_to_divmagic[sizeclass]
+		}
+
+		// Initialize mark and allocation structures.
+		s.freeindex = 0
+		s.allocCache = ^uint64(0) // all 1s indicating all free.
+		s.gcmarkBits = newMarkBits(s.nelems)
+		s.allocBits = newAllocBits(s.nelems)
+
+		// It's safe to access h.sweepgen without the heap lock because it's
+		// only ever updated with the world stopped and we run on the
+		// systemstack which blocks a STW transition.
+		atomic.Store(&s.sweepgen, h.sweepgen)
+
+		// Now that the span is filled in, set its state. This
+		// is a publication barrier for the other fields in
+		// the span. While valid pointers into this span
+		// should never be visible until the span is returned,
+		// if the garbage collector finds an invalid pointer,
+		// access to the span may race with initialization of
+		// the span. We resolve this race by atomically
+		// setting the state after the span is fully
+		// initialized, and atomically checking the state in
+		// any situation where a pointer is suspect.
+		s.state.set(mSpanInUse)
+	}
+
 	// Publish the span in various locations.
 
 	// This is safe to call without the lock held because the slots
@@ -1402,8 +1412,6 @@ HaveSpan:
 	// Make sure the newly allocated span will be observed
 	// by the GC before pointers into the span are published.
 	publicationBarrier()
-
-	return s
 }
 
 // Try to add at least npage pages of memory to the heap,
