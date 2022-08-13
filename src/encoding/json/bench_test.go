@@ -99,6 +99,36 @@ func BenchmarkCodeEncoder(b *testing.B) {
 	b.SetBytes(int64(len(codeJSON)))
 }
 
+func BenchmarkCodeEncoderError(b *testing.B) {
+	b.ReportAllocs()
+	if codeJSON == nil {
+		b.StopTimer()
+		codeInit()
+		b.StartTimer()
+	}
+
+	// Trigger an error in Marshal with cyclic data.
+	type Dummy struct {
+		Name string
+		Next *Dummy
+	}
+	dummy := Dummy{Name: "Dummy"}
+	dummy.Next = &dummy
+
+	b.RunParallel(func(pb *testing.PB) {
+		enc := NewEncoder(io.Discard)
+		for pb.Next() {
+			if err := enc.Encode(&codeStruct); err != nil {
+				b.Fatal("Encode:", err)
+			}
+			if _, err := Marshal(dummy); err == nil {
+				b.Fatal("expect an error here")
+			}
+		}
+	})
+	b.SetBytes(int64(len(codeJSON)))
+}
+
 func BenchmarkCodeMarshal(b *testing.B) {
 	b.ReportAllocs()
 	if codeJSON == nil {
@@ -110,6 +140,35 @@ func BenchmarkCodeMarshal(b *testing.B) {
 		for pb.Next() {
 			if _, err := Marshal(&codeStruct); err != nil {
 				b.Fatal("Marshal:", err)
+			}
+		}
+	})
+	b.SetBytes(int64(len(codeJSON)))
+}
+
+func BenchmarkCodeMarshalError(b *testing.B) {
+	b.ReportAllocs()
+	if codeJSON == nil {
+		b.StopTimer()
+		codeInit()
+		b.StartTimer()
+	}
+
+	// Trigger an error in Marshal with cyclic data.
+	type Dummy struct {
+		Name string
+		Next *Dummy
+	}
+	dummy := Dummy{Name: "Dummy"}
+	dummy.Next = &dummy
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if _, err := Marshal(&codeStruct); err != nil {
+				b.Fatal("Marshal:", err)
+			}
+			if _, err := Marshal(dummy); err == nil {
+				b.Fatal("expect an error here")
 			}
 		}
 	})
@@ -134,6 +193,36 @@ func benchMarshalBytes(n int) func(*testing.B) {
 	}
 }
 
+func benchMarshalBytesError(n int) func(*testing.B) {
+	sample := []byte("hello world")
+	// Use a struct pointer, to avoid an allocation when passing it as an
+	// interface parameter to Marshal.
+	v := &struct {
+		Bytes []byte
+	}{
+		bytes.Repeat(sample, (n/len(sample))+1)[:n],
+	}
+
+	// Trigger an error in Marshal with cyclic data.
+	type Dummy struct {
+		Name string
+		Next *Dummy
+	}
+	dummy := Dummy{Name: "Dummy"}
+	dummy.Next = &dummy
+
+	return func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if _, err := Marshal(v); err != nil {
+				b.Fatal("Marshal:", err)
+			}
+			if _, err := Marshal(dummy); err == nil {
+				b.Fatal("expect an error here")
+			}
+		}
+	}
+}
+
 func BenchmarkMarshalBytes(b *testing.B) {
 	b.ReportAllocs()
 	// 32 fits within encodeState.scratch.
@@ -143,6 +232,17 @@ func BenchmarkMarshalBytes(b *testing.B) {
 	b.Run("256", benchMarshalBytes(256))
 	// 4096 is large enough that we want to avoid allocating for it.
 	b.Run("4096", benchMarshalBytes(4096))
+}
+
+func BenchmarkMarshalBytesError(b *testing.B) {
+	b.ReportAllocs()
+	// 32 fits within encodeState.scratch.
+	b.Run("32", benchMarshalBytesError(32))
+	// 256 doesn't fit in encodeState.scratch, but is small enough to
+	// allocate and avoid the slower base64.NewEncoder.
+	b.Run("256", benchMarshalBytesError(256))
+	// 4096 is large enough that we want to avoid allocating for it.
+	b.Run("4096", benchMarshalBytesError(4096))
 }
 
 func BenchmarkCodeDecoder(b *testing.B) {

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -56,6 +57,43 @@ func TestEncoder(t *testing.T) {
 			diff(t, []byte(have), []byte(want))
 			break
 		}
+	}
+}
+
+func TestEncoderErrorAndReuseEncodeState(t *testing.T) {
+	// Disable the GC temporarily to prevent encodeState's in Pool being cleaned away during the test.
+	percent := debug.SetGCPercent(-1)
+	defer debug.SetGCPercent(percent)
+
+	// Trigger an error in Marshal with cyclic data.
+	type Dummy struct {
+		Name string
+		Next *Dummy
+	}
+	dummy := Dummy{Name: "Dummy"}
+	dummy.Next = &dummy
+
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	if err := enc.Encode(dummy); err == nil {
+		t.Errorf("Encode(dummy) == nil; want error")
+	}
+
+	type Data struct {
+		A string
+		I int
+	}
+	data := Data{A: "a", I: 1}
+	if err := enc.Encode(data); err != nil {
+		t.Errorf("Marshal(%v) = %v", data, err)
+	}
+
+	var data2 Data
+	if err := Unmarshal(buf.Bytes(), &data2); err != nil {
+		t.Errorf("Unmarshal(%v) = %v", data2, err)
+	}
+	if data2 != data {
+		t.Errorf("expect: %v, but get: %v", data, data2)
 	}
 }
 
