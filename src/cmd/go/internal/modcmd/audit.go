@@ -36,7 +36,7 @@ func runAudit(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 
 	if len(args) != 0 {
-		base.Fatalf("go: verify takes no arguments")
+		base.Fatalf("go: audit takes no arguments")
 	}
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
