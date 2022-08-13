@@ -14,7 +14,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
-	web "cmd/go/internal/web"
+	"cmd/go/internal/web"
 
 	"golang.org/x/mod/module"
 )
