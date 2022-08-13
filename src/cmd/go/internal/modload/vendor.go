@@ -15,6 +15,7 @@ import (
 
 	"cmd/go/internal/base"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
@@ -31,16 +32,17 @@ var (
 type vendorMetadata struct {
 	Explicit    bool
 	Replacement module.Version
+	GoVersion   string
 }
 
 // readVendorList reads the list of vendored modules from vendor/modules.txt.
-func readVendorList() {
+func readVendorList(mainModule module.Version) {
 	vendorOnce.Do(func() {
 		vendorList = nil
 		vendorPkgModule = make(map[string]module.Version)
 		vendorVersion = make(map[string]string)
 		vendorMeta = make(map[module.Version]vendorMetadata)
-		data, err := os.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
+		data, err := os.ReadFile(filepath.Join(MainModules.ModRoot(mainModule), "vendor/modules.txt"))
 		if err != nil {
 			if !errors.Is(err, fs.ErrNotExist) {
 				base.Fatalf("go: %s", err)
@@ -104,6 +106,10 @@ func readVendorList() {
 					if entry == "explicit" {
 						meta.Explicit = true
 					}
+					if strings.HasPrefix(entry, "go ") {
+						meta.GoVersion = strings.TrimPrefix(entry, "go ")
+						rawGoVersion.Store(mod, meta.GoVersion)
+					}
 					// All other tokens are reserved for future use.
 				}
 				vendorMeta[mod] = meta
@@ -129,8 +135,8 @@ func readVendorList() {
 // checkVendorConsistency verifies that the vendor/modules.txt file matches (if
 // go 1.14) or at least does not contradict (go 1.13 or earlier) the
 // requirements and replacements listed in the main module's go.mod file.
-func checkVendorConsistency() {
-	readVendorList()
+func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
+	readVendorList(MainModules.mustGetSingleMainModule())
 
 	pre114 := false
 	if semver.Compare(index.goVersionV, "v1.14") < 0 {
@@ -141,7 +147,7 @@ func checkVendorConsistency() {
 	}
 
 	vendErrors := new(strings.Builder)
-	vendErrorf := func(mod module.Version, format string, args ...interface{}) {
+	vendErrorf := func(mod module.Version, format string, args ...any) {
 		detail := fmt.Sprintf(format, args...)
 		if mod.Version == "" {
 			fmt.Fprintf(vendErrors, "\n\t%s: %s", mod.Path, detail)
@@ -214,6 +220,7 @@ func checkVendorConsistency() {
 	}
 
 	if vendErrors.Len() > 0 {
+		modRoot := MainModules.ModRoot(MainModules.mustGetSingleMainModule())
 		base.Fatalf("go: inconsistent vendoring in %s:%s\n\n\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo mod vendor", modRoot, vendErrors)
 	}
 }

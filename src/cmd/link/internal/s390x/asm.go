@@ -43,10 +43,10 @@ import (
 // moduledata linked list at initialization time. This is only done if the runtime
 // is in a different module.
 //
-// <go.link.addmoduledata>:
-// 	larl  %r2, <local.moduledata>
-// 	jg    <runtime.addmoduledata@plt>
-//	undef
+//	<go.link.addmoduledata>:
+//		larl  %r2, <local.moduledata>
+//		jg    <runtime.addmoduledata@plt>
+//		undef
 //
 // The job of appending the moduledata is delegated to runtime.addmoduledata.
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {
@@ -111,9 +111,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		if targType == sym.SDYNIMPORT {
 			ldr.Errorf(s, "unexpected R_390_PCnn relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
-		// sense and should be removed when someone has thought about it properly.
-		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
+		if targType == 0 || targType == sym.SXREF {
 			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
 		}
 		su := ldr.MakeSymbolUpdater(s)
@@ -371,7 +369,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	return val, 0, false
 }
 
-func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64) int64 {
+func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64, p []byte) int64 {
 	switch rv & sym.RV_TYPE_MASK {
 	default:
 		ldr.Errorf(s, "unexpected relocation variant %d", rv)

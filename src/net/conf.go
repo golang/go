@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build !js
 
 package net
 
 import (
 	"internal/bytealg"
+	"internal/godebug"
 	"os"
 	"runtime"
 	"sync"
@@ -20,7 +21,7 @@ type conf struct {
 	forceCgoLookupHost bool
 
 	netGo  bool // go DNS resolution forced
-	netCgo bool // cgo DNS resolution forced
+	netCgo bool // non-go DNS resolution forced (cgo, or win32)
 
 	// machine has an /etc/mdns.allow file
 	hasMDNSAllow bool
@@ -48,9 +49,23 @@ func initConfVal() {
 	confVal.dnsDebugLevel = debugLevel
 	confVal.netGo = netGo || dnsMode == "go"
 	confVal.netCgo = netCgo || dnsMode == "cgo"
+	if !confVal.netGo && !confVal.netCgo && (runtime.GOOS == "windows" || runtime.GOOS == "plan9") {
+		// Neither of these platforms actually use cgo.
+		//
+		// The meaning of "cgo" mode in the net package is
+		// really "the native OS way", which for libc meant
+		// cgo on the original platforms that motivated
+		// PreferGo support before Windows and Plan9 got support,
+		// at which time the GODEBUG=netdns=go and GODEBUG=netdns=cgo
+		// names were already kinda locked in.
+		confVal.netCgo = true
+	}
 
 	if confVal.dnsDebugLevel > 0 {
 		defer func() {
+			if confVal.dnsDebugLevel > 1 {
+				println("go package net: confVal.netCgo =", confVal.netCgo, " netGo =", confVal.netGo)
+			}
 			switch {
 			case confVal.netGo:
 				if netGo {
@@ -71,6 +86,10 @@ func initConfVal() {
 	// avoids that.
 	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		confVal.forceCgoLookupHost = true
+		return
+	}
+
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
 		return
 	}
 
@@ -128,7 +147,19 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	}
 	fallbackOrder := hostLookupCgo
 	if c.netGo || r.preferGo() {
-		fallbackOrder = hostLookupFilesDNS
+		switch c.goos {
+		case "windows":
+			// TODO(bradfitz): implement files-based
+			// lookup on Windows too? I guess /etc/hosts
+			// kinda exists on Windows. But for now, only
+			// do DNS.
+			fallbackOrder = hostLookupDNS
+		default:
+			fallbackOrder = hostLookupFilesDNS
+		}
+	}
+	if c.goos == "windows" || c.goos == "plan9" {
+		return fallbackOrder
 	}
 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
 		return fallbackOrder
@@ -277,16 +308,18 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 
 // goDebugNetDNS parses the value of the GODEBUG "netdns" value.
 // The netdns value can be of the form:
-//    1       // debug level 1
-//    2       // debug level 2
-//    cgo     // use cgo for DNS lookups
-//    go      // use go for DNS lookups
-//    cgo+1   // use cgo for DNS lookups + debug level 1
-//    1+cgo   // same
-//    cgo+2   // same, but debug level 2
+//
+//	1       // debug level 1
+//	2       // debug level 2
+//	cgo     // use cgo for DNS lookups
+//	go      // use go for DNS lookups
+//	cgo+1   // use cgo for DNS lookups + debug level 1
+//	1+cgo   // same
+//	cgo+2   // same, but debug level 2
+//
 // etc.
 func goDebugNetDNS() (dnsMode string, debugLevel int) {
-	goDebug := goDebugString("netdns")
+	goDebug := godebug.Get("netdns")
 	parsePart := func(s string) {
 		if s == "" {
 			return

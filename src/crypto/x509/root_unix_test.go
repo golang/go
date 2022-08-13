@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build dragonfly freebsd linux netbsd openbsd solaris
+//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package x509
 
@@ -146,11 +146,7 @@ func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
 		os.Setenv(certFileEnv, origFile)
 	}()
 
-	tmpDir, err := os.MkdirTemp(os.TempDir(), "x509-issue35325")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	rootPEMs := []string{
 		geoTrustRoot,

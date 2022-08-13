@@ -12,6 +12,9 @@ import (
 )
 
 func TestFixLongPath(t *testing.T) {
+	if os.CanUseLongPaths {
+		return
+	}
 	// 248 is long enough to trigger the longer-than-248 checks in
 	// fixLongPath, but short enough not to make a path component
 	// longer than 255, which is illegal on Windows. (which
@@ -46,12 +49,22 @@ func TestFixLongPath(t *testing.T) {
 	}
 }
 
-func TestMkdirAllExtendedLength(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "TestMkdirAllExtendedLength")
-	if err != nil {
-		t.Fatal(err)
+func TestMkdirAllLongPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := tmpDir
+	for i := 0; i < 100; i++ {
+		path += `\another-path-component`
 	}
-	defer os.RemoveAll(tmpDir)
+	if err := os.MkdirAll(path, 0777); err != nil {
+		t.Fatalf("MkdirAll(%q) failed; %v", path, err)
+	}
+	if err := os.RemoveAll(tmpDir); err != nil {
+		t.Fatalf("RemoveAll(%q) failed; %v", tmpDir, err)
+	}
+}
+
+func TestMkdirAllExtendedLength(t *testing.T) {
+	tmpDir := t.TempDir()
 
 	const prefix = `\\?\`
 	if len(tmpDir) < 4 || tmpDir[:4] != prefix {
@@ -62,14 +75,12 @@ func TestMkdirAllExtendedLength(t *testing.T) {
 		tmpDir = prefix + fullPath
 	}
 	path := tmpDir + `\dir\`
-	err = os.MkdirAll(path, 0777)
-	if err != nil {
+	if err := os.MkdirAll(path, 0777); err != nil {
 		t.Fatalf("MkdirAll(%q) failed: %v", path, err)
 	}
 
 	path = path + `.\dir2`
-	err = os.MkdirAll(path, 0777)
-	if err == nil {
+	if err := os.MkdirAll(path, 0777); err == nil {
 		t.Fatalf("MkdirAll(%q) should have failed, but did not", path)
 	}
 }

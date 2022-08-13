@@ -13,7 +13,7 @@ func TestMove(t *testing.T) {
 	copy(x[1:], x[:])
 	for i := 1; i < len(x); i++ {
 		if int(x[i]) != i {
-			t.Errorf("Memmove got converted to OpMove in alias-unsafe way. Got %d insted of %d in position %d", int(x[i]), i, i+1)
+			t.Errorf("Memmove got converted to OpMove in alias-unsafe way. Got %d instead of %d in position %d", int(x[i]), i, i+1)
 		}
 	}
 }
@@ -205,6 +205,7 @@ func TestMergePPC64AndSrwi(t *testing.T) {
 		{0x00000000, 4, false, 0, 0},
 		{0xF0000000, 4, false, 0, 0},
 		{0xF0000000, 32, false, 0, 0},
+		{0xFFFFFFFF, 0, true, 0, 0xFFFFFFFF},
 	}
 	for i, v := range tests {
 		result := mergePPC64AndSrwi(v.and, v.srw)

@@ -90,10 +90,11 @@ func (h *Handler) stderr() io.Writer {
 
 // removeLeadingDuplicates remove leading duplicate in environments.
 // It's possible to override environment like following.
-//    cgi.Handler{
-//      ...
-//      Env: []string{"SCRIPT_FILENAME=foo.php"},
-//    }
+//
+//	cgi.Handler{
+//	  ...
+//	  Env: []string{"SCRIPT_FILENAME=foo.php"},
+//	}
 func removeLeadingDuplicates(env []string) (ret []string) {
 	for i, e := range env {
 		found := false
@@ -137,7 +138,6 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	env := []string{
 		"SERVER_SOFTWARE=go",
-		"SERVER_NAME=" + req.Host,
 		"SERVER_PROTOCOL=HTTP/1.1",
 		"HTTP_HOST=" + req.Host,
 		"GATEWAY_INTERFACE=CGI/1.1",
@@ -155,6 +155,12 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	} else {
 		// could not parse ip:port, let's use whole RemoteAddr and leave REMOTE_PORT undefined
 		env = append(env, "REMOTE_ADDR="+req.RemoteAddr, "REMOTE_HOST="+req.RemoteAddr)
+	}
+
+	if hostDomain, _, err := net.SplitHostPort(req.Host); err == nil {
+		env = append(env, "SERVER_NAME="+hostDomain)
+	} else {
+		env = append(env, "SERVER_NAME="+req.Host)
 	}
 
 	if req.TLS != nil {
@@ -273,12 +279,11 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			break
 		}
 		headerLines++
-		parts := strings.SplitN(string(line), ":", 2)
-		if len(parts) < 2 {
+		header, val, ok := strings.Cut(string(line), ":")
+		if !ok {
 			h.printf("cgi: bogus header line: %s", string(line))
 			continue
 		}
-		header, val := parts[0], parts[1]
 		if !httpguts.ValidHeaderFieldName(header) {
 			h.printf("cgi: invalid header name: %q", header)
 			continue
@@ -351,7 +356,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (h *Handler) printf(format string, v ...interface{}) {
+func (h *Handler) printf(format string, v ...any) {
 	if h.Logger != nil {
 		h.Logger.Printf(format, v...)
 	} else {

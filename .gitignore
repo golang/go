@@ -37,6 +37,7 @@ _testmain.go
 /src/cmd/internal/objabi/zbootstrap.go
 /src/go/build/zcgo.go
 /src/go/doc/headscan
+/src/internal/buildcfg/zbootstrap.go
 /src/runtime/internal/sys/zversion.go
 /src/unicode/maketables
 /test.out

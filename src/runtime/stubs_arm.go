@@ -4,6 +4,8 @@
 
 package runtime
 
+import "unsafe"
+
 // Called from compiler-generated code; declared for go vet.
 func udiv()
 func _div()
@@ -18,3 +20,6 @@ func save_g()
 func emptyfunc()
 func _initcgo()
 func read_tls_fallback()
+
+//go:noescape
+func asmcgocall_no_g(fn, arg unsafe.Pointer)

@@ -1,7 +1,7 @@
 [short] skip
 
 go mod download example.com/printversion@v0.1.0 example.com/printversion@v1.0.0
-go get -d example.com/printversion@v0.1.0
+go get example.com/printversion@v0.1.0
 go install example.com/printversion
 
 go run example.com/printversion

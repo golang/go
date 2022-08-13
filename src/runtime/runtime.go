@@ -12,8 +12,11 @@ import (
 //go:generate go run wincallback.go
 //go:generate go run mkduff.go
 //go:generate go run mkfastlog2table.go
+//go:generate go run mklockrank.go -o lockrank.go
 
-var ticks struct {
+var ticks ticksType
+
+type ticksType struct {
 	lock mutex
 	pad  uint32 // ensure 8-byte alignment of val on 386
 	val  uint64

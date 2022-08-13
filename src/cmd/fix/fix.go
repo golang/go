@@ -43,15 +43,15 @@ func register(f fix) {
 // walk traverses the AST x, calling visit(y) for each node y in the tree but
 // also with a pointer to each ast.Expr, ast.Stmt, and *ast.BlockStmt,
 // in a bottom-up traversal.
-func walk(x interface{}, visit func(interface{})) {
+func walk(x any, visit func(any)) {
 	walkBeforeAfter(x, nop, visit)
 }
 
-func nop(interface{}) {}
+func nop(any) {}
 
 // walkBeforeAfter is like walk but calls before(x) before traversing
 // x's children and after(x) afterward.
-func walkBeforeAfter(x interface{}, before, after func(interface{})) {
+func walkBeforeAfter(x any, before, after func(any)) {
 	before(x)
 
 	switch n := x.(type) {
@@ -125,6 +125,9 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 	case *ast.IndexExpr:
 		walkBeforeAfter(&n.X, before, after)
 		walkBeforeAfter(&n.Index, before, after)
+	case *ast.IndexListExpr:
+		walkBeforeAfter(&n.X, before, after)
+		walkBeforeAfter(&n.Indices, before, after)
 	case *ast.SliceExpr:
 		walkBeforeAfter(&n.X, before, after)
 		if n.Low != nil {
@@ -156,6 +159,9 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 	case *ast.StructType:
 		walkBeforeAfter(&n.Fields, before, after)
 	case *ast.FuncType:
+		if n.TypeParams != nil {
+			walkBeforeAfter(&n.TypeParams, before, after)
+		}
 		walkBeforeAfter(&n.Params, before, after)
 		if n.Results != nil {
 			walkBeforeAfter(&n.Results, before, after)
@@ -231,6 +237,9 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 		walkBeforeAfter(&n.Values, before, after)
 		walkBeforeAfter(&n.Names, before, after)
 	case *ast.TypeSpec:
+		if n.TypeParams != nil {
+			walkBeforeAfter(&n.TypeParams, before, after)
+		}
 		walkBeforeAfter(&n.Type, before, after)
 
 	case *ast.BadDecl:
@@ -381,7 +390,7 @@ func renameTop(f *ast.File, old, new string) bool {
 	// Rename top-level old to new, both unresolved names
 	// (probably defined in another file) and names that resolve
 	// to a declaration we renamed.
-	walk(f, func(n interface{}) {
+	walk(f, func(n any) {
 		id, ok := n.(*ast.Ident)
 		if ok && isTopName(id, old) {
 			id.Name = new

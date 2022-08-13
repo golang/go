@@ -2,23 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !math_big_pure_go,s390x
+//go:build !math_big_pure_go
+// +build !math_big_pure_go
 
 #include "textflag.h"
 
 // This file provides fast assembly versions for the elementary
 // arithmetic operations on vectors implemented in arith.go.
 
-TEXT ·mulWW(SB), NOSPLIT, $0
-	MOVD   x+0(FP), R3
-	MOVD   y+8(FP), R4
-	MULHDU R3, R4
-	MOVD   R10, z1+16(FP)
-	MOVD   R11, z0+24(FP)
-	RET
-
-
-// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2 , r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
+// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2, r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
 // func addVV(z, x, y []Word) (c Word)
 
 TEXT ·addVV(SB), NOSPLIT, $0
@@ -288,7 +280,7 @@ vectorimpl:
 GLOBL subvectorfacility+0x00(SB), NOPTR, $8
 DATA subvectorfacility+0x00(SB)/8, $·subVV_check(SB)
 
-// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2 , r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
+// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2, r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
 // func subVV(z, x, y []Word) (c Word)
 // (same as addVV except for SUBC/SUBE instead of ADDC/ADDE and label names)
 TEXT ·subVV_vec(SB), NOSPLIT, $0
@@ -442,7 +434,7 @@ E1:
 	MOVD R4, c+72(FP) // return c
 	RET
 
-// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2 , r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
+// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2, r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
 // func subVV(z, x, y []Word) (c Word)
 // (same as addVV except for SUBC/SUBE instead of ADDC/ADDE and label names)
 TEXT ·subVV_novec(SB), NOSPLIT, $0
@@ -699,7 +691,7 @@ TEXT ·shlVU(SB), NOSPLIT, $0
 TEXT ·shrVU(SB), NOSPLIT, $0
 	BR ·shrVU_g(SB)
 
-// CX = R4, r8 = r8, r9=r9, r10 = r2 , r11 = r5, DX = r3, AX = r6 , BX = R1 , (R0 set to 0) + use R11 + use R7 for i
+// CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, DX = r3, AX = r6, BX = R1, (R0 set to 0) + use R11 + use R7 for i
 // func mulAddVWW(z, x []Word, y, r Word) (c Word)
 TEXT ·mulAddVWW(SB), NOSPLIT, $0
 	MOVD z+0(FP), R2
@@ -729,7 +721,7 @@ E5:
 	RET
 
 // func addMulVVW(z, x []Word, y Word) (c Word)
-// CX = R4, r8 = r8, r9=r9, r10 = r2 , r11 = r5, AX = r11, DX = R6, r12=r12, BX = R1 , (R0 set to 0) + use R11 + use R7 for i
+// CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, AX = r11, DX = R6, r12=r12, BX = R1, (R0 set to 0) + use R11 + use R7 for i
 TEXT ·addMulVVW(SB), NOSPLIT, $0
 	MOVD z+0(FP), R2
 	MOVD x+24(FP), R8

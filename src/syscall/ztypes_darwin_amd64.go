@@ -1,7 +1,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_darwin.go
 
-// +build amd64,darwin
+//go:build amd64 && darwin
 
 package syscall
 

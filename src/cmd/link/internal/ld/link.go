@@ -33,7 +33,6 @@ package ld
 import (
 	"bufio"
 	"cmd/internal/objabi"
-	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
@@ -84,9 +83,6 @@ type Link struct {
 	loader  *loader.Loader
 	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
 
-	cgo_export_static  map[string]bool
-	cgo_export_dynamic map[string]bool
-
 	datap  []loader.Sym
 	dynexp []loader.Sym
 
@@ -104,23 +100,6 @@ type cgodata struct {
 	file       string
 	pkg        string
 	directives [][]string
-}
-
-// The smallest possible offset from the hardware stack pointer to a local
-// variable on the stack. Architectures that use a link register save its value
-// on the stack in the function prologue and so always have a pointer between
-// the hardware stack pointer and the local variable area.
-func (ctxt *Link) FixedFrameSize() int64 {
-	switch ctxt.Arch.Family {
-	case sys.AMD64, sys.I386:
-		return 0
-	case sys.PPC64:
-		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
-		// just use that much stack always on ppc64x.
-		return int64(4 * ctxt.Arch.PtrSize)
-	default:
-		return int64(ctxt.Arch.PtrSize)
-	}
 }
 
 func (ctxt *Link) Logf(format string, args ...interface{}) {
@@ -151,12 +130,18 @@ func (ctxt *Link) MaxVersion() int {
 }
 
 // generatorFunc is a convenience type.
-// Linker created symbols that are large, and shouldn't really live in the
-// heap can define a generator function, and their bytes can be generated
+// Some linker-created Symbols are large and shouldn't really live in the heap.
+// Such Symbols can define a generator function. Their bytes can be generated
 // directly in the output mmap.
 //
-// Generator symbols shouldn't grow the symbol size, and might be called in
-// parallel in the future.
+// Relocations are applied prior to emitting generator Symbol contents.
+// Generator Symbols that require relocations can be written in two passes.
+// The first pass, at Symbol creation time, adds only relocations.
+// The second pass, at content generation time, adds the rest.
+// See generateFunctab for an example.
+//
+// Generator functions shouldn't grow the Symbol size.
+// Generator functions must be safe for concurrent use.
 //
 // Generator Symbols have their Data set to the mmapped area when the
 // generator is called.

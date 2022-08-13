@@ -948,7 +948,7 @@ QUIT
 `
 
 func TestTLSClient(t *testing.T) {
-	if (runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64") || runtime.GOOS == "js" {
+	if runtime.GOOS == "freebsd" || runtime.GOOS == "js" {
 		testenv.SkipFlaky(t, 19229)
 	}
 	ln := newLocalListener(t)
@@ -1104,8 +1104,9 @@ func sendMail(hostPort string) error {
 }
 
 // localhostCert is a PEM-encoded TLS cert generated from src/crypto/tls:
-// go run generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,example.com \
-// 		--ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+//
+//	go run generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,example.com \
+//		--ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
 var localhostCert = []byte(`
 -----BEGIN CERTIFICATE-----
 MIICFDCCAX2gAwIBAgIRAK0xjnaPuNDSreeXb+z+0u4wDQYJKoZIhvcNAQELBQAw

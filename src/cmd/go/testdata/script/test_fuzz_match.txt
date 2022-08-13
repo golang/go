@@ -1,0 +1,38 @@
+[!fuzz] skip
+
+# Matches only fuzz targets to test.
+go test standalone_fuzz_test.go
+! stdout '^ok.*\[no tests to run\]'
+stdout '^ok'
+
+# Matches only for fuzzing.
+go test -fuzz Fuzz -fuzztime 1x standalone_fuzz_test.go
+! stdout '^ok.*\[no tests to run\]'
+stdout '^ok'
+
+# Matches none for fuzzing but will run the fuzz target as a test.
+go test -fuzz ThisWillNotMatch -fuzztime 1x standalone_fuzz_test.go
+! stdout '^ok.*no tests to run'
+stdout '^ok'
+stdout 'no fuzz tests to fuzz'
+
+[short] stop
+
+# Matches only fuzz targets to test with -run.
+go test -run Fuzz standalone_fuzz_test.go
+! stdout '^ok.*\[no tests to run\]'
+stdout '^ok'
+
+# Matches no fuzz targets.
+go test -run ThisWillNotMatch standalone_fuzz_test.go
+stdout '^ok.*no tests to run'
+! stdout 'no fuzz tests to fuzz'
+
+-- standalone_fuzz_test.go --
+package standalone_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+	f.Fuzz(func (*testing.T, []byte) {})
+}

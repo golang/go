@@ -9,6 +9,7 @@ package rsa
 import (
 	"bytes"
 	"crypto"
+	"crypto/internal/boring"
 	"errors"
 	"hash"
 	"io"
@@ -213,6 +214,21 @@ func signPSSWithSalt(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed,
 	if err != nil {
 		return nil, err
 	}
+
+	if boring.Enabled {
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		// Note: BoringCrypto takes care of the "AndCheck" part of "decryptAndCheck".
+		// (It's not just decrypt.)
+		s, err := boring.DecryptRSANoPadding(bkey, em)
+		if err != nil {
+			return nil, err
+		}
+		return s, nil
+	}
+
 	m := new(big.Int).SetBytes(em)
 	c, err := decryptAndCheck(rand, priv, m)
 	if err != nil {
@@ -269,10 +285,19 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 	saltLength := opts.saltLength()
 	switch saltLength {
 	case PSSSaltLengthAuto:
-		saltLength = priv.Size() - 2 - hash.Size()
+		saltLength = (priv.N.BitLen()-1+7)/8 - 2 - hash.Size()
 	case PSSSaltLengthEqualsHash:
 		saltLength = hash.Size()
 	}
+
+	if boring.Enabled && rand == boring.RandReader {
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		return boring.SignRSAPSS(bkey, hash, digest, saltLength)
+	}
+	boring.UnreachableExceptTests()
 
 	salt := make([]byte, saltLength)
 	if _, err := io.ReadFull(rand, salt); err != nil {
@@ -288,6 +313,16 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 // argument may be nil, in which case sensible defaults are used. opts.Hash is
 // ignored.
 func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts *PSSOptions) error {
+	if boring.Enabled {
+		bkey, err := boringPublicKey(pub)
+		if err != nil {
+			return err
+		}
+		if err := boring.VerifyRSAPSS(bkey, hash, digest, sig, opts.saltLength()); err != nil {
+			return ErrVerification
+		}
+		return nil
+	}
 	if len(sig) != pub.Size() {
 		return ErrVerification
 	}

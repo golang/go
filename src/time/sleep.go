@@ -14,8 +14,8 @@ type runtimeTimer struct {
 	pp       uintptr
 	when     int64
 	period   int64
-	f        func(interface{}, uintptr) // NOTE: must not be closure
-	arg      interface{}
+	f        func(any, uintptr) // NOTE: must not be closure
+	arg      any
 	seq      uintptr
 	nextwhen int64
 	status   uint32
@@ -41,7 +41,7 @@ func when(d Duration) int64 {
 func startTimer(*runtimeTimer)
 func stopTimer(*runtimeTimer) bool
 func resetTimer(*runtimeTimer, int64) bool
-func modTimer(t *runtimeTimer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr)
+func modTimer(t *runtimeTimer, when, period int64, f func(any, uintptr), arg any, seq uintptr)
 
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
@@ -62,9 +62,9 @@ type Timer struct {
 // return value and drain the channel.
 // For example, assuming the program has not received from t.C already:
 //
-// 	if !t.Stop() {
-// 		<-t.C
-// 	}
+//	if !t.Stop() {
+//		<-t.C
+//	}
 //
 // This cannot be done concurrent to other receives from the Timer's
 // channel or other calls to the Timer's Stop method.
@@ -101,17 +101,19 @@ func NewTimer(d Duration) *Timer {
 // It returns true if the timer had been active, false if the timer had
 // expired or been stopped.
 //
-// Reset should be invoked only on stopped or expired timers with drained channels.
+// For a Timer created with NewTimer, Reset should be invoked only on
+// stopped or expired timers with drained channels.
+//
 // If a program has already received a value from t.C, the timer is known
 // to have expired and the channel drained, so t.Reset can be used directly.
 // If a program has not yet received a value from t.C, however,
 // the timer must be stopped and—if Stop reports that the timer expired
 // before being stopped—the channel explicitly drained:
 //
-// 	if !t.Stop() {
-// 		<-t.C
-// 	}
-// 	t.Reset(d)
+//	if !t.Stop() {
+//		<-t.C
+//	}
+//	t.Reset(d)
 //
 // This should not be done concurrent to other receives from the Timer's
 // channel.
@@ -120,6 +122,15 @@ func NewTimer(d Duration) *Timer {
 // is a race condition between draining the channel and the new timer expiring.
 // Reset should always be invoked on stopped or expired channels, as described above.
 // The return value exists to preserve compatibility with existing programs.
+//
+// For a Timer created with AfterFunc(d, f), Reset either reschedules
+// when f will run, in which case Reset returns true, or schedules f
+// to run again, in which case it returns false.
+// When Reset returns false, Reset neither waits for the prior f to
+// complete before returning nor does it guarantee that the subsequent
+// goroutine running f does not run concurrently with the prior
+// one. If the caller needs to know whether the prior execution of
+// f is completed, it must coordinate with f explicitly.
 func (t *Timer) Reset(d Duration) bool {
 	if t.r.f == nil {
 		panic("time: Reset called on uninitialized Timer")
@@ -128,12 +139,8 @@ func (t *Timer) Reset(d Duration) bool {
 	return resetTimer(&t.r, w)
 }
 
-func sendTime(c interface{}, seq uintptr) {
-	// Non-blocking send of time on c.
-	// Used in NewTimer, it cannot block anyway (buffer).
-	// Used in NewTicker, dropping sends on the floor is
-	// the desired behavior when the reader gets behind,
-	// because the sends are periodic.
+// sendTime does a non-blocking send of the current time on c.
+func sendTime(c any, seq uintptr) {
 	select {
 	case c.(chan Time) <- Now():
 	default:
@@ -165,6 +172,6 @@ func AfterFunc(d Duration, f func()) *Timer {
 	return t
 }
 
-func goFunc(arg interface{}, seq uintptr) {
+func goFunc(arg any, seq uintptr) {
 	go arg.(func())()
 }

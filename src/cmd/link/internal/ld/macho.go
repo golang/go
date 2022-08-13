@@ -14,6 +14,7 @@ import (
 	"debug/macho"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"os"
 	"sort"
@@ -86,6 +87,8 @@ const (
 	MACHO_SUBCPU_ARMV7                   = 9
 	MACHO_CPU_ARM64                      = 1<<24 | 12
 	MACHO_SUBCPU_ARM64_ALL               = 0
+	MACHO_SUBCPU_ARM64_V8                = 1
+	MACHO_SUBCPU_ARM64E                  = 2
 	MACHO32SYMSIZE                       = 12
 	MACHO64SYMSIZE                       = 16
 	MACHO_X86_64_RELOC_UNSIGNED          = 0
@@ -176,6 +179,8 @@ const (
 	LC_VERSION_MIN_WATCHOS      = 0x30
 	LC_VERSION_NOTE             = 0x31
 	LC_BUILD_VERSION            = 0x32
+	LC_DYLD_EXPORTS_TRIE        = 0x80000033
+	LC_DYLD_CHAINED_FIXUPS      = 0x80000034
 )
 
 const (
@@ -466,26 +471,24 @@ func (ctxt *Link) domacho() {
 		}
 	}
 	if machoPlatform == 0 {
-		switch ctxt.Arch.Family {
-		default:
-			machoPlatform = PLATFORM_MACOS
-			if ctxt.LinkMode == LinkInternal {
-				// For lldb, must say LC_VERSION_MIN_MACOSX or else
-				// it won't know that this Mach-O binary is from OS X
-				// (could be iOS or WatchOS instead).
-				// Go on iOS uses linkmode=external, and linkmode=external
-				// adds this itself. So we only need this code for linkmode=internal
-				// and we can assume OS X.
-				//
-				// See golang.org/issues/12941.
-				//
-				// The version must be at least 10.9; see golang.org/issues/30488.
-				ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
-				ml.data[0] = 10<<16 | 9<<8 | 0<<0 // OS X version 10.9.0
-				ml.data[1] = 10<<16 | 9<<8 | 0<<0 // SDK 10.9.0
-			}
-		case sys.ARM, sys.ARM64:
+		machoPlatform = PLATFORM_MACOS
+		if buildcfg.GOOS == "ios" {
 			machoPlatform = PLATFORM_IOS
+		}
+		if ctxt.LinkMode == LinkInternal && machoPlatform == PLATFORM_MACOS {
+			var version uint32
+			switch ctxt.Arch.Family {
+			case sys.AMD64:
+				// The version must be at least 10.9; see golang.org/issues/30488.
+				version = 10<<16 | 9<<8 | 0<<0 // 10.9.0
+			case sys.ARM64:
+				version = 11<<16 | 0<<8 | 0<<0 // 11.0.0
+			}
+			ml := newMachoLoad(ctxt.Arch, LC_BUILD_VERSION, 4)
+			ml.data[0] = uint32(machoPlatform)
+			ml.data[1] = version // OS version
+			ml.data[2] = version // SDK version
+			ml.data[3] = 0       // ntools
 		}
 	}
 
@@ -535,12 +538,31 @@ func (ctxt *Link) domacho() {
 		sb.AddUint8(0)
 	}
 
-	// Do not export C symbols dynamically in plugins, as runtime C symbols like crosscall2
-	// are in pclntab and end up pointing at the host binary, breaking unwinding.
-	// See Issue #18190.
+	// Un-export runtime symbols from plugins. Since the runtime
+	// is included in both the main binary and each plugin, these
+	// symbols appear in both images. If we leave them exported in
+	// the plugin, then the dynamic linker will resolve
+	// relocations to these functions in the plugin's functab to
+	// point to the main image, causing the runtime to think the
+	// plugin's functab is corrupted. By unexporting them, these
+	// become static references, which are resolved to the
+	// plugin's text.
+	//
+	// It would be better to omit the runtime from plugins. (Using
+	// relative PCs in the functab instead of relocations would
+	// also address this.)
+	//
+	// See issue #18190.
 	if ctxt.BuildMode == BuildModePlugin {
 		for _, name := range []string{"_cgo_topofstack", "__cgo_topofstack", "_cgo_panic", "crosscall2"} {
-			s := ctxt.loader.Lookup(name, 0)
+			// Most of these are data symbols or C
+			// symbols, so they have symbol version 0.
+			ver := 0
+			// _cgo_panic is a Go function, so it uses ABIInternal.
+			if name == "_cgo_panic" {
+				ver = abiInternalVer
+			}
+			s := ctxt.loader.Lookup(name, ver)
 			if s != 0 {
 				ctxt.loader.SetAttrCgoExportDynamic(s, false)
 			}
@@ -875,6 +897,14 @@ func collectmachosyms(ctxt *Link) {
 		if ldr.SymType(s) == sym.STEXT {
 			addsym(s)
 		}
+		for n := range Segtext.Sections[1:] {
+			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
+			if s != 0 {
+				addsym(s)
+			} else {
+				break
+			}
+		}
 		s = ldr.Lookup("runtime.etext", 0)
 		if ldr.SymType(s) == sym.STEXT {
 			addsym(s)
@@ -890,7 +920,7 @@ func collectmachosyms(ctxt *Link) {
 		if ldr.AttrNotInSymbolTable(s) {
 			return false
 		}
-		name := ldr.RawSymName(s) // TODO: try not to read the name
+		name := ldr.SymName(s) // TODO: try not to read the name
 		if name == "" || name[0] == '.' {
 			return false
 		}
@@ -925,12 +955,12 @@ func collectmachosyms(ctxt *Link) {
 			if machoPlatform == PLATFORM_MACOS {
 				switch n := ldr.SymExtname(s); n {
 				case "fdopendir":
-					switch objabi.GOARCH {
+					switch buildcfg.GOARCH {
 					case "amd64":
 						ldr.SetSymExtname(s, n+"$INODE64")
 					}
 				case "readdir_r", "getfsstat":
-					switch objabi.GOARCH {
+					switch buildcfg.GOARCH {
 					case "amd64":
 						ldr.SetSymExtname(s, n+"$INODE64")
 					}
@@ -989,17 +1019,17 @@ func machoShouldExport(ctxt *Link, ldr *loader.Loader, s loader.Sym) bool {
 	if ctxt.BuildMode == BuildModePlugin && strings.HasPrefix(ldr.SymExtname(s), objabi.PathToPrefix(*flagPluginPath)) {
 		return true
 	}
-	name := ldr.RawSymName(s)
-	if strings.HasPrefix(name, "go.itab.") {
+	name := ldr.SymName(s)
+	if strings.HasPrefix(name, "go:itab.") {
 		return true
 	}
-	if strings.HasPrefix(name, "type.") && !strings.HasPrefix(name, "type..") {
+	if strings.HasPrefix(name, "type:") && !strings.HasPrefix(name, "type:.") {
 		// reduce runtime typemap pressure, but do not
-		// export alg functions (type..*), as these
+		// export alg functions (type:.*), as these
 		// appear in pclntable.
 		return true
 	}
-	if strings.HasPrefix(name, "go.link.pkghash") {
+	if strings.HasPrefix(name, "go:link.pkghash") {
 		return true
 	}
 	return ldr.SymType(s) >= sym.SFirstWritable // only writable sections
@@ -1022,7 +1052,10 @@ func machosymtab(ctxt *Link) {
 		symstr.AddUint8('_')
 
 		// replace "·" as ".", because DTrace cannot handle it.
-		symstr.Addstring(strings.Replace(ldr.SymExtname(s), "·", ".", -1))
+		name := strings.Replace(ldr.SymExtname(s), "·", ".", -1)
+
+		name = mangleABIName(ctxt, ldr, s, name)
+		symstr.Addstring(name)
 
 		if t := ldr.SymType(s); t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
 			symtab.AddUint8(0x01)                             // type N_EXT, external symbol
@@ -1168,7 +1201,7 @@ func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sy
 		}
 	}
 
-	eaddr := int32(sect.Vaddr + sect.Length)
+	eaddr := sect.Vaddr + sect.Length
 	for _, s := range syms {
 		if !ldr.AttrReachable(s) {
 			continue
@@ -1215,7 +1248,11 @@ func machoEmitReloc(ctxt *Link) {
 
 	relocSect(ctxt, Segtext.Sections[0], ctxt.Textp)
 	for _, sect := range Segtext.Sections[1:] {
-		relocSect(ctxt, sect, ctxt.datap)
+		if sect.Name == ".text" {
+			relocSect(ctxt, sect, ctxt.Textp)
+		} else {
+			relocSect(ctxt, sect, ctxt.datap)
+		}
 	}
 	for _, sect := range Segrelrodata.Sections {
 		relocSect(ctxt, sect, ctxt.datap)

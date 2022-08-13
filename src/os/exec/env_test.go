@@ -18,16 +18,28 @@ func TestDedupEnv(t *testing.T) {
 		{
 			noCase: true,
 			in:     []string{"k1=v1", "k2=v2", "K1=v3"},
-			want:   []string{"K1=v3", "k2=v2"},
+			want:   []string{"k2=v2", "K1=v3"},
 		},
 		{
 			noCase: false,
 			in:     []string{"k1=v1", "K1=V2", "k1=v3"},
-			want:   []string{"k1=v3", "K1=V2"},
+			want:   []string{"K1=V2", "k1=v3"},
 		},
 		{
 			in:   []string{"=a", "=b", "foo", "bar"},
 			want: []string{"=b", "foo", "bar"},
+		},
+		{
+			// #49886: preserve weird Windows keys with leading "=" signs.
+			noCase: true,
+			in:     []string{`=C:=C:\golang`, `=D:=D:\tmp`, `=D:=D:\`},
+			want:   []string{`=C:=C:\golang`, `=D:=D:\`},
+		},
+		{
+			// #52436: preserve invalid key-value entries (for now).
+			// (Maybe filter them out or error out on them at some point.)
+			in:   []string{"dodgy", "entries"},
+			want: []string{"dodgy", "entries"},
 		},
 	}
 	for _, tt := range tests {

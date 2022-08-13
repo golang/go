@@ -15,6 +15,7 @@ var goodCompilerFlags = [][]string{
 	{"-Ufoo"},
 	{"-Ufoo1"},
 	{"-F/Qt"},
+	{"-F", "/Qt"},
 	{"-I/"},
 	{"-I/etc/passwd"},
 	{"-I."},
@@ -164,6 +165,8 @@ var goodLinkerFlags = [][]string{
 	{"-Wl,-framework", "-Wl,Chocolate"},
 	{"-Wl,-framework,Chocolate"},
 	{"-Wl,-unresolved-symbols=ignore-all"},
+	{"libcgotbdtest.tbd"},
+	{"./libcgotbdtest.tbd"},
 }
 
 var badLinkerFlags = [][]string{

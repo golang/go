@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"encoding/hex"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -14,7 +15,7 @@ import (
 	"time"
 )
 
-var tests = []interface{}{
+var tests = []any{
 	&clientHelloMsg{},
 	&serverHelloMsg{},
 	&finishedMsg{},
@@ -147,10 +148,10 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
 	}
 	for i := 0; i < rand.Intn(5); i++ {
 		m.alpnProtocols = append(m.alpnProtocols, randomString(rand.Intn(20)+1, rand))
@@ -369,10 +370,10 @@ func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand, size int) reflect.V
 		m.scts = true
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
 		m.certificateAuthorities = make([][]byte, 3)
@@ -461,5 +462,25 @@ func TestRejectEmptySCT(t *testing.T) {
 	var serverHelloCopy serverHelloMsg
 	if serverHelloCopy.unmarshal(serverHelloBytes) {
 		t.Fatal("Unmarshaled ServerHello with zero-length SCT")
+	}
+}
+
+func TestRejectDuplicateExtensions(t *testing.T) {
+	clientHelloBytes, err := hex.DecodeString("010000440303000000000000000000000000000000000000000000000000000000000000000000000000001c0000000a000800000568656c6c6f0000000a000800000568656c6c6f")
+	if err != nil {
+		t.Fatalf("failed to decode test ClientHello: %s", err)
+	}
+	var clientHelloCopy clientHelloMsg
+	if clientHelloCopy.unmarshal(clientHelloBytes) {
+		t.Error("Unmarshaled ClientHello with duplicate extensions")
+	}
+
+	serverHelloBytes, err := hex.DecodeString("02000030030300000000000000000000000000000000000000000000000000000000000000000000000000080005000000050000")
+	if err != nil {
+		t.Fatalf("failed to decode test ServerHello: %s", err)
+	}
+	var serverHelloCopy serverHelloMsg
+	if serverHelloCopy.unmarshal(serverHelloBytes) {
+		t.Fatal("Unmarshaled ServerHello with duplicate extensions")
 	}
 }

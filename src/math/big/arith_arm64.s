@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !math_big_pure_go
 // +build !math_big_pure_go
 
 #include "textflag.h"
@@ -11,17 +12,6 @@
 
 // TODO: Consider re-implementing using Advanced SIMD
 // once the assembler supports those instructions.
-
-// func mulWW(x, y Word) (z1, z0 Word)
-TEXT ·mulWW(SB),NOSPLIT,$0
-	MOVD	x+0(FP), R0
-	MOVD	y+8(FP), R1
-	MUL	R0, R1, R2
-	UMULH	R0, R1, R3
-	MOVD	R3, z1+16(FP)
-	MOVD	R2, z0+24(FP)
-	RET
-
 
 // func addVV(z, x, y []Word) (c Word)
 TEXT ·addVV(SB),NOSPLIT,$0

@@ -121,7 +121,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		}
 		sb := l.MakeSymbolUpdater(sect.sym)
 		for _, rx := range sect.Relocs {
-			rSym := l.LookupOrCreateSym(rx.Symbol.Name, 0)
+			rSym := l.LookupOrCreateCgoExport(rx.Symbol.Name, 0)
 			if uint64(int32(rx.VirtualAddress)) != rx.VirtualAddress {
 				return errorf("virtual address of a relocation is too big: 0x%x", rx.VirtualAddress)
 			}

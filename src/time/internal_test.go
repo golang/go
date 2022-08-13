@@ -5,33 +5,38 @@
 package time
 
 func init() {
-	// force US/Pacific for time zone tests
+	// Force US/Pacific for time zone tests.
 	ForceUSPacificForTesting()
 }
 
 func initTestingZone() {
-	z, err := loadLocation("America/Los_Angeles", zoneSources[len(zoneSources)-1:])
+	// For hermeticity, use only tzinfo source from the test's GOROOT,
+	// not the system sources and not whatever GOROOT may happen to be
+	// set in the process's environment (if any).
+	// This test runs in GOROOT/src/time, so GOROOT is "../..",
+	// but it is theoretically possible
+	sources := []string{"../../lib/time/zoneinfo.zip"}
+	z, err := loadLocation("America/Los_Angeles", sources)
 	if err != nil {
-		panic("cannot load America/Los_Angeles for testing: " + err.Error())
+		panic("cannot load America/Los_Angeles for testing: " + err.Error() + "; you may want to use -tags=timetzdata")
 	}
 	z.name = "Local"
 	localLoc = *z
 }
 
-var OrigZoneSources = zoneSources
+var origPlatformZoneSources []string = platformZoneSources
 
-func forceZipFileForTesting(zipOnly bool) {
-	zoneSources = make([]string, len(OrigZoneSources))
-	copy(zoneSources, OrigZoneSources)
-	if zipOnly {
-		zoneSources = zoneSources[len(zoneSources)-1:]
+func disablePlatformSources() (undo func()) {
+	platformZoneSources = nil
+	return func() {
+		platformZoneSources = origPlatformZoneSources
 	}
 }
 
 var Interrupt = interrupt
 var DaysIn = daysIn
 
-func empty(arg interface{}, seq uintptr) {}
+func empty(arg any, seq uintptr) {}
 
 // Test that a runtimeTimer with a period that would overflow when on
 // expiration does not throw or cause other timers to hang.
@@ -62,4 +67,6 @@ func CheckRuntimeTimerPeriodOverflow() {
 var (
 	MinMonoTime = Time{wall: 1 << 63, ext: -1 << 63, loc: UTC}
 	MaxMonoTime = Time{wall: 1 << 63, ext: 1<<63 - 1, loc: UTC}
+
+	NotMonoNegativeTime = Time{wall: 0, ext: -1<<63 + 50}
 )

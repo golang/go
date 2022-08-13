@@ -5,7 +5,8 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -13,7 +14,9 @@ import (
 //
 //go:nowritebarrierrec
 func sighandler(_ureg *ureg, note *byte, gp *g) int {
-	_g_ := getg()
+	gsignal := getg()
+	mp := gsignal.m
+
 	var t sigTabT
 	var docrash bool
 	var sig int
@@ -60,7 +63,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	if flags&_SigPanic != 0 {
 		// Copy the error string from sigtramp's stack into m->notesig so
 		// we can reliably access it from the panic routines.
-		memmove(unsafe.Pointer(_g_.m.notesig), unsafe.Pointer(note), uintptr(len(notestr)+1))
+		memmove(unsafe.Pointer(mp.notesig), unsafe.Pointer(note), uintptr(len(notestr)+1))
 		gp.sig = uint32(sig)
 		gp.sigpc = c.pc()
 
@@ -92,19 +95,15 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 			if usesLR {
 				c.setlr(pc)
 			} else {
-				if sys.RegSize > sys.PtrSize {
-					sp -= sys.PtrSize
-					*(*uintptr)(unsafe.Pointer(sp)) = 0
-				}
-				sp -= sys.PtrSize
+				sp -= goarch.PtrSize
 				*(*uintptr)(unsafe.Pointer(sp)) = pc
 				c.setsp(sp)
 			}
 		}
 		if usesLR {
-			c.setpc(funcPC(sigpanictramp))
+			c.setpc(abi.FuncPCABI0(sigpanictramp))
 		} else {
-			c.setpc(funcPC(sigpanic))
+			c.setpc(abi.FuncPCABI0(sigpanic0))
 		}
 		return _NCONT
 	}
@@ -123,8 +122,8 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		return _NCONT
 	}
 Throw:
-	_g_.m.throwing = 1
-	_g_.m.caughtsig.set(gp)
+	mp.throwing = throwTypeRuntime
+	mp.caughtsig.set(gp)
 	startpanic_m()
 	print(notestr, "\n")
 	print("PC=", hex(c.pc()), "\n")

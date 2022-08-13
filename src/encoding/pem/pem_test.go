@@ -107,6 +107,12 @@ const pemMissingEndingSpace = `
 dGVzdA==
 -----ENDBAR-----`
 
+const pemMissingEndLine = `
+-----BEGIN FOO-----
+Header: 1`
+
+var pemRepeatingBegin = strings.Repeat("-----BEGIN \n", 10)
+
 var badPEMTests = []struct {
 	name  string
 	input string
@@ -131,14 +137,34 @@ var badPEMTests = []struct {
 		"missing ending space",
 		pemMissingEndingSpace,
 	},
+	{
+		"repeating begin",
+		pemRepeatingBegin,
+	},
+	{
+		"missing end line",
+		pemMissingEndLine,
+	},
 }
 
 func TestBadDecode(t *testing.T) {
 	for _, test := range badPEMTests {
-		result, _ := Decode([]byte(test.input))
+		result, rest := Decode([]byte(test.input))
 		if result != nil {
 			t.Errorf("unexpected success while parsing %q", test.name)
 		}
+		if string(rest) != test.input {
+			t.Errorf("unexpected rest: %q; want = %q", rest, test.input)
+		}
+	}
+}
+
+func TestCVE202224675(t *testing.T) {
+	// Prior to CVE-2022-24675, this input would cause a stack overflow.
+	input := []byte(strings.Repeat("-----BEGIN \n", 10000000))
+	result, rest := Decode(input)
+	if result != nil || !reflect.DeepEqual(rest, input) {
+		t.Errorf("Encode of %#v decoded as %#v", input, rest)
 	}
 }
 

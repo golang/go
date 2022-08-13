@@ -6,10 +6,10 @@
 go mod init m
 
 # Request a +incompatible version retracted in v1.0.0.
-go get -d example.com/retract/incompatible@v2.0.0+incompatible
+go get example.com/retract/incompatible@v2.0.0+incompatible
 stderr '^go: warning: example.com/retract/incompatible@v2.0.0\+incompatible: retracted by module author$'
 
 # We should still see a warning if the +incompatible was previously in the
 # build list.
-go get -d example.com/retract/incompatible@v2.0.0+incompatible
+go get example.com/retract/incompatible@v2.0.0+incompatible
 stderr '^go: warning: example.com/retract/incompatible@v2.0.0\+incompatible: retracted by module author$'

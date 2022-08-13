@@ -22,8 +22,11 @@ func AddImport(fset *token.FileSet, f *ast.File, path string) (added bool) {
 // If name is not empty, it is used to rename the import.
 //
 // For example, calling
+//
 //	AddNamedImport(fset, f, "pathpkg", "path")
+//
 // adds
+//
 //	import pathpkg "path"
 func AddNamedImport(fset *token.FileSet, f *ast.File, name, path string) (added bool) {
 	if imports(f, name, path) {
@@ -270,8 +273,8 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
 			}
 			if j > 0 {
 				lastImpspec := gen.Specs[j-1].(*ast.ImportSpec)
-				lastLine := fset.Position(lastImpspec.Path.ValuePos).Line
-				line := fset.Position(impspec.Path.ValuePos).Line
+				lastLine := fset.PositionFor(lastImpspec.Path.ValuePos, false).Line
+				line := fset.PositionFor(impspec.Path.ValuePos, false).Line
 
 				// We deleted an entry but now there may be
 				// a blank line-sized hole where the import was.

@@ -8,6 +8,7 @@ gcc -gdwarf-2 -m64 -c typedef.c && gcc -gdwarf-2 -m64 -o typedef.elf typedef.o
 
 OS X Mach-O:
 gcc -gdwarf-2 -m64 -c typedef.c -o typedef.macho
+gcc -gdwarf-4 -m64 -c typedef.c -o typedef.macho4
 */
 #include <complex.h>
 

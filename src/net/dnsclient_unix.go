@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build !js
 
 // DNS client: see RFC 1035.
 // Has to be linked into package net for Dial.
@@ -17,8 +17,10 @@ package net
 import (
 	"context"
 	"errors"
+	"internal/itoa"
 	"io"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -29,6 +31,10 @@ const (
 	// to be used as a useTCP parameter to exchange
 	useTCPOnly  = true
 	useUDPOrTCP = false
+
+	// Maximum DNS packet size.
+	// Value taken from https://dnsflagday.net/2020/.
+	maxDNSPacketSize = 1232
 )
 
 var (
@@ -55,12 +61,28 @@ func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err er
 	if err := b.Question(q); err != nil {
 		return 0, nil, nil, err
 	}
+
+	// Accept packets up to maxDNSPacketSize.  RFC 6891.
+	if err := b.StartAdditionals(); err != nil {
+		return 0, nil, nil, err
+	}
+	var rh dnsmessage.ResourceHeader
+	if err := rh.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false); err != nil {
+		return 0, nil, nil, err
+	}
+	if err := b.OPTResource(rh, dnsmessage.OPTResource{}); err != nil {
+		return 0, nil, nil, err
+	}
+
 	tcpReq, err = b.Finish()
+	if err != nil {
+		return 0, nil, nil, err
+	}
 	udpReq = tcpReq[2:]
 	l := len(tcpReq) - 2
 	tcpReq[0] = byte(l >> 8)
 	tcpReq[1] = byte(l)
-	return id, udpReq, tcpReq, err
+	return id, udpReq, tcpReq, nil
 }
 
 func checkResponse(reqID uint16, reqQues dnsmessage.Question, respHdr dnsmessage.Header, respQues dnsmessage.Question) bool {
@@ -81,7 +103,7 @@ func dnsPacketRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 		return dnsmessage.Parser{}, dnsmessage.Header{}, err
 	}
 
-	b = make([]byte, 512) // see RFC 1035
+	b = make([]byte, maxDNSPacketSize)
 	for {
 		n, err := c.Read(b)
 		if err != nil {
@@ -360,12 +382,21 @@ func (conf *resolverConfig) tryUpdate(name string) {
 	}
 	conf.lastChecked = now
 
-	var mtime time.Time
-	if fi, err := os.Stat(name); err == nil {
-		mtime = fi.ModTime()
-	}
-	if mtime.Equal(conf.dnsConfig.mtime) {
-		return
+	switch runtime.GOOS {
+	case "windows":
+		// There's no file on disk, so don't bother checking
+		// and failing.
+		//
+		// The Windows implementation of dnsReadConfig (called
+		// below) ignores the name.
+	default:
+		var mtime time.Time
+		if fi, err := os.Stat(name); err == nil {
+			mtime = fi.ModTime()
+		}
+		if mtime.Equal(conf.dnsConfig.mtime) {
+			return
+		}
 	}
 
 	dnsConf := dnsReadConfig(name)
@@ -451,7 +482,7 @@ func (conf *dnsConfig) nameList(name string) []string {
 	// Check name length (see isDomainName).
 	l := len(name)
 	rooted := l > 0 && name[l-1] == '.'
-	if l > 254 || l == 254 && rooted {
+	if l > 254 || l == 254 && !rooted {
 		return nil
 	}
 
@@ -509,7 +540,7 @@ func (o hostLookupOrder) String() string {
 	if s, ok := lookupOrderName[o]; ok {
 		return s
 	}
-	return "hostLookupOrder=" + itoa(int(o)) + "??"
+	return "hostLookupOrder=" + itoa.Itoa(int(o)) + "??"
 }
 
 // goLookupHost is the native Go implementation of LookupHost.
@@ -530,7 +561,7 @@ func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hos
 			return
 		}
 	}
-	ips, _, err := r.goLookupIPCNAMEOrder(ctx, name, order)
+	ips, _, err := r.goLookupIPCNAMEOrder(ctx, "ip", name, order)
 	if err != nil {
 		return
 	}
@@ -556,13 +587,13 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
 
 // goLookupIP is the native Go implementation of LookupIP.
 // The libc versions are in cgo_*.go.
-func (r *Resolver) goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+func (r *Resolver) goLookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
 	order := systemConf().hostLookupOrder(r, host)
-	addrs, _, err = r.goLookupIPCNAMEOrder(ctx, host, order)
+	addrs, _, err = r.goLookupIPCNAMEOrder(ctx, network, host, order)
 	return
 }
 
-func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []IPAddr, cname dnsmessage.Name, err error) {
+func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name string, order hostLookupOrder) (addrs []IPAddr, cname dnsmessage.Name, err error) {
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
 		addrs = goLookupIPFiles(name)
 		if len(addrs) > 0 || order == hostLookupFiles {
@@ -583,7 +614,13 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 		error
 	}
 	lane := make(chan result, 1)
-	qtypes := [...]dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
+	qtypes := []dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
+	switch ipVersion(network) {
+	case '4':
+		qtypes = []dnsmessage.Type{dnsmessage.TypeA}
+	case '6':
+		qtypes = []dnsmessage.Type{dnsmessage.TypeAAAA}
+	}
 	var queryFn func(fqdn string, qtype dnsmessage.Type)
 	var responseFn func(fqdn string, qtype dnsmessage.Type) result
 	if conf.singleRequest {
@@ -728,7 +765,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 // goLookupCNAME is the native Go (non-cgo) implementation of LookupCNAME.
 func (r *Resolver) goLookupCNAME(ctx context.Context, host string) (string, error) {
 	order := systemConf().hostLookupOrder(r, host)
-	_, cname, err := r.goLookupIPCNAMEOrder(ctx, host, order)
+	_, cname, err := r.goLookupIPCNAMEOrder(ctx, "ip", host, order)
 	return cname.String(), err
 }
 

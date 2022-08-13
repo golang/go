@@ -52,6 +52,17 @@ func NewCBCEncrypter(b Block, iv []byte) BlockMode {
 	return (*cbcEncrypter)(newCBC(b, iv))
 }
 
+// newCBCGenericEncrypter returns a BlockMode which encrypts in cipher block chaining
+// mode, using the given Block. The length of iv must be the same as the
+// Block's block size. This always returns the generic non-asm encrypter for use
+// in fuzz testing.
+func newCBCGenericEncrypter(b Block, iv []byte) BlockMode {
+	if len(iv) != b.BlockSize() {
+		panic("cipher.NewCBCEncrypter: IV length must equal block size")
+	}
+	return (*cbcEncrypter)(newCBC(b, iv))
+}
+
 func (x *cbcEncrypter) BlockSize() int { return x.blockSize }
 
 func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
@@ -108,6 +119,17 @@ func NewCBCDecrypter(b Block, iv []byte) BlockMode {
 	}
 	if cbc, ok := b.(cbcDecAble); ok {
 		return cbc.NewCBCDecrypter(iv)
+	}
+	return (*cbcDecrypter)(newCBC(b, iv))
+}
+
+// newCBCGenericDecrypter returns a BlockMode which encrypts in cipher block chaining
+// mode, using the given Block. The length of iv must be the same as the
+// Block's block size. This always returns the generic non-asm decrypter for use in
+// fuzz testing.
+func newCBCGenericDecrypter(b Block, iv []byte) BlockMode {
+	if len(iv) != b.BlockSize() {
+		panic("cipher.NewCBCDecrypter: IV length must equal block size")
 	}
 	return (*cbcDecrypter)(newCBC(b, iv))
 }

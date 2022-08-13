@@ -62,14 +62,14 @@ func main() {
 	}
 
 	// helloworld.go is package main
-	run("go tool compile -o", tmp("linkmain.o"), "helloworld.go")
-	run("go tool compile -pack -o", tmp("linkmain.a"), "helloworld.go")
+	run("go tool compile -p=main -o", tmp("linkmain.o"), "helloworld.go")
+	run("go tool compile -p=main -pack -o", tmp("linkmain.a"), "helloworld.go")
 	run("go tool link -o", tmp("linkmain.exe"), tmp("linkmain.o"))
 	run("go tool link -o", tmp("linkmain.exe"), tmp("linkmain.a"))
 
 	// linkmain.go is not
-	run("go tool compile -o", tmp("linkmain1.o"), "linkmain.go")
-	run("go tool compile -pack -o", tmp("linkmain1.a"), "linkmain.go")
+	run("go tool compile -p=notmain -o", tmp("linkmain1.o"), "linkmain.go")
+	run("go tool compile -p=notmain -pack -o", tmp("linkmain1.a"), "linkmain.go")
 	runFail("go tool link -o", tmp("linkmain.exe"), tmp("linkmain1.o"))
 	runFail("go tool link -o", tmp("linkmain.exe"), tmp("linkmain1.a"))
 	cleanup()

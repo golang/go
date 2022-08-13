@@ -13,7 +13,7 @@ import (
 
 // AEAD is a cipher mode providing authenticated encryption with associated
 // data. For a description of the methodology, see
-//	https://en.wikipedia.org/wiki/Authenticated_encryption
+// https://en.wikipedia.org/wiki/Authenticated_encryption.
 type AEAD interface {
 	// NonceSize returns the size of the nonce that must be passed to Seal
 	// and Open.
@@ -56,10 +56,11 @@ type gcmAble interface {
 // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
 // standard and make binary.BigEndian suitable for marshaling these values, the
 // bits are stored in big endian order. For example:
-//   the coefficient of x⁰ can be obtained by v.low >> 63.
-//   the coefficient of x⁶³ can be obtained by v.low & 1.
-//   the coefficient of x⁶⁴ can be obtained by v.high >> 63.
-//   the coefficient of x¹²⁷ can be obtained by v.high & 1.
+//
+//	the coefficient of x⁰ can be obtained by v.low >> 63.
+//	the coefficient of x⁶³ can be obtained by v.low & 1.
+//	the coefficient of x⁶⁴ can be obtained by v.high >> 63.
+//	the coefficient of x¹²⁷ can be obtained by v.high & 1.
 type gcmFieldElement struct {
 	low, high uint64
 }

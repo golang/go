@@ -1,0 +1,95 @@
+# If the root requirements in a lazy module are inconsistent
+# (for example, due to a bad hand-edit or git merge),
+# they can go unnoticed as long as the module with the violated
+# requirement is not used.
+# When we load a package from that module, we should spot-check its
+# requirements and either emit an error or update the go.mod file.
+
+cp go.mod go.mod.orig
+
+
+# If we load package x from x.1, we only check the requirements of x,
+# which are fine: loading succeeds.
+
+go list -deps ./usex
+stdout '^example.net/x$'
+cmp go.mod go.mod.orig
+
+
+# However, if we load needx2, we should load the requirements of needx2.
+# Those requirements indicate x.2, not x.1, so the module graph is
+# inconsistent and needs to be fixed.
+
+! go list -deps ./useneedx2
+stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy$'
+
+! go list -deps example.net/needx2
+stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy$'
+
+
+# The command printed in the error message should fix the problem.
+
+go mod tidy
+go list -deps ./useneedx2
+stdout '^example.net/m/useneedx2$'
+stdout '^example.net/needx2$'
+stdout '^example.net/x$'
+
+go list -m all
+stdout '^example.net/needx2 v0\.1\.0 '
+stdout '^example.net/x v0\.2\.0 '
+
+
+-- go.mod --
+module example.net/m
+
+go 1.17
+
+require (
+	example.net/needx2 v0.1.0
+	example.net/x v0.1.0
+)
+
+replace (
+	example.net/needx2 v0.1.0 => ./needx2.1
+	example.net/x v0.1.0 => ./x.1
+	example.net/x v0.2.0 => ./x.2
+)
+-- useneedx2/useneedx2.go --
+package useneedx2
+
+import _ "example.net/needx2"
+-- usex/usex.go --
+package usex
+
+import _ "example.net/x"
+
+-- x.1/go.mod --
+module example.com/x
+
+go 1.17
+-- x.1/x.go --
+package x
+
+-- x.2/go.mod --
+module example.com/x
+
+go 1.17
+-- x.2/x.go --
+package x
+
+const AddedInV2 = true
+
+-- needx2.1/go.mod --
+module example.com/x
+
+go 1.17
+
+require example.net/x v0.2.0
+-- needx2.1/needx2.go --
+// Package needx2 needs x v0.2.0 or higher.
+package needx2
+
+import "example.net/x"
+
+var _ = x.AddedInV2

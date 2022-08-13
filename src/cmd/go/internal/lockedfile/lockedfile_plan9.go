@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build plan9
+//go:build plan9
 
 package lockedfile
 
@@ -12,16 +12,14 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"cmd/go/internal/fsys"
 )
 
 // Opening an exclusive-use file returns an error.
 // The expected error strings are:
 //
-//  - "open/create -- file is locked" (cwfs, kfs)
-//  - "exclusive lock" (fossil)
-//  - "exclusive use file already open" (ramfs)
+//   - "open/create -- file is locked" (cwfs, kfs)
+//   - "exclusive lock" (fossil)
+//   - "exclusive use file already open" (ramfs)
 var lockedErrStrings = [...]string{
 	"file is locked",
 	"exclusive lock",
@@ -58,7 +56,7 @@ func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
 	// If the file was unpacked or created by some other program, it might not
 	// have the ModeExclusive bit set. Set it before we call OpenFile, so that we
 	// can be confident that a successful OpenFile implies exclusive use.
-	if fi, err := fsys.Stat(name); err == nil {
+	if fi, err := os.Stat(name); err == nil {
 		if fi.Mode()&fs.ModeExclusive == 0 {
 			if err := os.Chmod(name, fi.Mode()|fs.ModeExclusive); err != nil {
 				return nil, err
@@ -71,7 +69,7 @@ func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
 	nextSleep := 1 * time.Millisecond
 	const maxSleep = 500 * time.Millisecond
 	for {
-		f, err := fsys.OpenFile(name, flag, perm|fs.ModeExclusive)
+		f, err := os.OpenFile(name, flag, perm|fs.ModeExclusive)
 		if err == nil {
 			return f, nil
 		}

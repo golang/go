@@ -1,7 +1,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_linux.go
 
-// +build 386,linux
+//go:build 386 && linux
 
 package syscall
 

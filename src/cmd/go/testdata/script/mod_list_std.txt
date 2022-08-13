@@ -48,18 +48,20 @@ stdout ^vendor/golang.org/x/crypto/internal/subtle
 ! stdout ^golang\.org/x
 
 # Within the std module, the dependencies of the non-vendored packages within
-# std should appear to come from modules, but they should be loaded from the
-# vendor directory (just like ordinary vendored module dependencies).
+# std should appear to be packages beginning with 'vendor/', not 'golang.org/…'
+# module dependencies.
 
 go list all
-stdout ^golang.org/x/
+! stdout ^golang.org/x/
 ! stdout ^std/
 ! stdout ^cmd/
-! stdout ^vendor/
+stdout ^vendor/
 
 go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' std
-! stdout ^vendor/golang.org/x/net/http2/hpack
-stdout ^golang.org/x/net/http2/hpack
+! stdout .
+
+# However, the 'golang.org/…' module dependencies should resolve to those same
+# directories.
 
 go list -f '{{.Dir}}' golang.org/x/net/http2/hpack
 stdout $GOROOT[/\\]src[/\\]vendor

@@ -226,11 +226,13 @@ func TestNonblockRecvRace(t *testing.T) {
 // This test checks that select acts on the state of the channels at one
 // moment in the execution, not over a smeared time window.
 // In the test, one goroutine does:
+//
 //	create c1, c2
 //	make c1 ready for receiving
 //	create second goroutine
 //	make c2 ready for receiving
 //	make c1 no longer ready for receiving (if possible)
+//
 // The second goroutine does a non-blocking select receiving from c1 and c2.
 // From the time the second goroutine is created, at least one of c1 and c2
 // is always ready for receiving, so the select in the second goroutine must
@@ -494,7 +496,7 @@ func TestSelectFairness(t *testing.T) {
 func TestChanSendInterface(t *testing.T) {
 	type mt struct{}
 	m := &mt{}
-	c := make(chan interface{}, 1)
+	c := make(chan any, 1)
 	c <- m
 	select {
 	case c <- m:
@@ -624,6 +626,13 @@ func TestShrinkStackDuringBlockedSend(t *testing.T) {
 }
 
 func TestNoShrinkStackWhileParking(t *testing.T) {
+	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
+		testenv.SkipFlaky(t, 49382)
+	}
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 51482)
+	}
+
 	// The goal of this test is to trigger a "racy sudog adjustment"
 	// throw. Basically, there's a window between when a goroutine
 	// becomes available for preemption for stack scanning (and thus,
@@ -631,7 +640,7 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
 	// channel. See issue 40641 for more details on the problem.
 	//
 	// The way we try to induce this failure is to set up two
-	// goroutines: a sender and a reciever that communicate across
+	// goroutines: a sender and a receiver that communicate across
 	// a channel. We try to set up a situation where the sender
 	// grows its stack temporarily then *fully* blocks on a channel
 	// often. Meanwhile a GC is triggered so that we try to get a
@@ -671,7 +680,7 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
 		go send(c, done)
 		// Wait a little bit before triggering
 		// the GC to make sure the sender and
-		// reciever have gotten into their groove.
+		// receiver have gotten into their groove.
 		time.Sleep(50 * time.Microsecond)
 		runtime.GC()
 		<-done
@@ -707,8 +716,6 @@ func TestSelectDuplicateChannel(t *testing.T) {
 	<-e    // A tells us it's done
 	c <- 8 // wake up B.  This operation used to fail because c.recvq was corrupted (it tries to wake up an already running G instead of B)
 }
-
-var selectSink interface{}
 
 func TestSelectStackAdjust(t *testing.T) {
 	// Test that channel receive slots that contain local stack
@@ -766,20 +773,8 @@ func TestSelectStackAdjust(t *testing.T) {
 	<-ready2
 	time.Sleep(10 * time.Millisecond)
 
-	// Force concurrent GC a few times.
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	for i := 0; i < 100; i++ {
-		selectSink = new([1 << 20]byte)
-		runtime.ReadMemStats(&after)
-		if after.NumGC-before.NumGC >= 2 {
-			goto done
-		}
-		runtime.Gosched()
-	}
-	t.Fatal("failed to trigger concurrent GC")
-done:
-	selectSink = nil
+	// Force concurrent GC to shrink the stacks.
+	runtime.GC()
 
 	// Wake selects.
 	close(d)
@@ -1132,6 +1127,19 @@ func BenchmarkSelectProdCons(b *testing.B) {
 	for p := 0; p < procs; p++ {
 		<-c
 		<-c
+	}
+}
+
+func BenchmarkReceiveDataFromClosedChan(b *testing.B) {
+	count := b.N
+	ch := make(chan struct{}, count)
+	for i := 0; i < count; i++ {
+		ch <- struct{}{}
+	}
+	close(ch)
+
+	b.ResetTimer()
+	for range ch {
 	}
 }
 

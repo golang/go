@@ -385,9 +385,9 @@ func TestIssue28005(t *testing.T) {
 			}
 		}
 		if obj == nil {
-			t.Fatal("interface not found")
+			t.Fatal("object X not found")
 		}
-		iface := obj.Type().Underlying().(*Interface) // I must be an interface
+		iface := obj.Type().Underlying().(*Interface) // object X must be an interface
 
 		// Each iface method m is embedded; and m's receiver base type name
 		// must match the method's name per the choice in the source file.
@@ -477,7 +477,7 @@ func TestIssue34151(t *testing.T) {
 	}
 
 	bast := mustParse(t, bsrc)
-	conf := Config{Importer: importHelper{a}}
+	conf := Config{Importer: importHelper{pkg: a}}
 	b, err := conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
 	if err != nil {
 		t.Errorf("package %s failed to typecheck: %v", b.Name(), err)
@@ -485,14 +485,18 @@ func TestIssue34151(t *testing.T) {
 }
 
 type importHelper struct {
-	pkg *Package
+	pkg      *Package
+	fallback Importer
 }
 
 func (h importHelper) Import(path string) (*Package, error) {
-	if path != h.pkg.Path() {
+	if path == h.pkg.Path() {
+		return h.pkg, nil
+	}
+	if h.fallback == nil {
 		return nil, fmt.Errorf("got package path %q; want %q", path, h.pkg.Path())
 	}
-	return h.pkg, nil
+	return h.fallback.Import(path)
 }
 
 // TestIssue34921 verifies that we don't update an imported type's underlying
@@ -516,7 +520,7 @@ func TestIssue34921(t *testing.T) {
 	var pkg *Package
 	for _, src := range sources {
 		f := mustParse(t, src)
-		conf := Config{Importer: importHelper{pkg}}
+		conf := Config{Importer: importHelper{pkg: pkg}}
 		res, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
 		if err != nil {
 			t.Errorf("%q failed to typecheck: %v", src, err)
@@ -548,4 +552,115 @@ func TestIssue43088(t *testing.T) {
 	// These calls must terminate (no endless recursion).
 	Comparable(T1)
 	Comparable(T2)
+}
+
+func TestIssue44515(t *testing.T) {
+	typ := Unsafe.Scope().Lookup("Pointer").Type()
+
+	got := TypeString(typ, nil)
+	want := "unsafe.Pointer"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
+
+	qf := func(pkg *Package) string {
+		if pkg == Unsafe {
+			return "foo"
+		}
+		return ""
+	}
+	got = TypeString(typ, qf)
+	want = "foo.Pointer"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
+}
+
+func TestIssue43124(t *testing.T) {
+	// TODO(rFindley) move this to testdata by enhancing support for importing.
+
+	// All involved packages have the same name (template). Error messages should
+	// disambiguate between text/template and html/template by printing the full
+	// path.
+	const (
+		asrc = `package a; import "text/template"; func F(template.Template) {}; func G(int) {}`
+		bsrc = `
+package b
+
+import (
+	"a"
+	"html/template"
+)
+
+func _() {
+	// Packages should be fully qualified when there is ambiguity within the
+	// error string itself.
+	a.F(template /* ERROR cannot use.*html/template.* as .*text/template */ .Template{})
+}
+`
+		csrc = `
+package c
+
+import (
+	"a"
+	"fmt"
+	"html/template"
+)
+
+// Issue #46905: make sure template is not the first package qualified.
+var _ fmt.Stringer = 1 // ERROR cannot use 1.*as fmt\.Stringer
+
+// Packages should be fully qualified when there is ambiguity in reachable
+// packages. In this case both a (and for that matter html/template) import
+// text/template.
+func _() { a.G(template /* ERROR cannot use .*html/template.*Template */ .Template{}) }
+`
+
+		tsrc = `
+package template
+
+import "text/template"
+
+type T int
+
+// Verify that the current package name also causes disambiguation.
+var _ T = template /* ERROR cannot use.*text/template.* as T value */.Template{}
+`
+	)
+
+	a, err := pkgFor("a", asrc, nil)
+	if err != nil {
+		t.Fatalf("package a failed to typecheck: %v", err)
+	}
+	imp := importHelper{pkg: a, fallback: importer.Default()}
+
+	testFiles(t, nil, []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
+	testFiles(t, nil, []string{"c.go"}, [][]byte{[]byte(csrc)}, false, imp)
+	testFiles(t, nil, []string{"t.go"}, [][]byte{[]byte(tsrc)}, false, imp)
+}
+
+func TestIssue50646(t *testing.T) {
+	anyType := Universe.Lookup("any").Type()
+	comparableType := Universe.Lookup("comparable").Type()
+
+	if !Comparable(anyType) {
+		t.Errorf("any is not a comparable type")
+	}
+	if !Comparable(comparableType) {
+		t.Errorf("comparable is not a comparable type")
+	}
+
+	if Implements(anyType, comparableType.Underlying().(*Interface)) {
+		t.Errorf("any implements comparable")
+	}
+	if !Implements(comparableType, anyType.(*Interface)) {
+		t.Errorf("comparable does not implement any")
+	}
+
+	if AssignableTo(anyType, comparableType) {
+		t.Errorf("any assignable to comparable")
+	}
+	if !AssignableTo(comparableType, anyType) {
+		t.Errorf("comparable not assignable to any")
+	}
 }

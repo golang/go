@@ -9,14 +9,12 @@ import (
 	"cmd/internal/objabi"
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 )
 
 // pkgMap maps a package path to a package.
 var pkgMap = make(map[string]*Pkg)
-
-// MaxPkgHeight is a height greater than any likely package height.
-const MaxPkgHeight = 1e9
 
 type Pkg struct {
 	Path    string // string literal used in import statement, e.g. "runtime/internal/sys"
@@ -25,14 +23,7 @@ type Pkg struct {
 	Syms    map[string]*Sym
 	Pathsym *obj.LSym
 
-	// Height is the package's height in the import graph. Leaf
-	// packages (i.e., packages with no imports) have height 0,
-	// and all other packages have height 1 plus the maximum
-	// height of their imported packages.
-	Height int
-
-	Imported bool // export data of this package was parsed
-	Direct   bool // imported directly
+	Direct bool // imported directly
 }
 
 // NewPkg returns a new Pkg for the given package path and name.
@@ -49,7 +40,15 @@ func NewPkg(path, name string) *Pkg {
 	p := new(Pkg)
 	p.Path = path
 	p.Name = name
-	p.Prefix = objabi.PathToPrefix(path)
+	if path == "go.shape" {
+		// Don't escape "go.shape", since it's not needed (it's a builtin
+		// package), and we don't want escape codes showing up in shape type
+		// names, which also appear in names of function/method
+		// instantiations.
+		p.Prefix = path
+	} else {
+		p.Prefix = objabi.PathToPrefix(path)
+	}
 	p.Syms = make(map[string]*Sym)
 	pkgMap[path] = p
 
@@ -84,9 +83,6 @@ func (pkg *Pkg) Lookup(name string) *Sym {
 	return s
 }
 
-// List of .inittask entries in imported packages, in source code order.
-var InitSyms []*Sym
-
 // LookupOK looks up name in pkg and reports whether it previously existed.
 func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
 	// TODO(gri) remove this check in favor of specialized lookup
@@ -100,9 +96,6 @@ func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
 	s = &Sym{
 		Name: name,
 		Pkg:  pkg,
-	}
-	if name == ".inittask" {
-		InitSyms = append(InitSyms, s)
 	}
 	pkg.Syms[name] = s
 	return s, false
@@ -118,6 +111,15 @@ func (pkg *Pkg) LookupBytes(name []byte) *Sym {
 	}
 	str := InternString(name)
 	return pkg.Lookup(str)
+}
+
+// LookupNum looks up the symbol starting with prefix and ending with
+// the decimal n. If prefix is too long, LookupNum panics.
+func (pkg *Pkg) LookupNum(prefix string, n int) *Sym {
+	var buf [20]byte // plenty long enough for all current users
+	copy(buf[:], prefix)
+	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
+	return pkg.LookupBytes(b)
 }
 
 var (

@@ -178,6 +178,12 @@ func (t SparseTree) Child(x *Block) *Block {
 	return t[x.ID].child
 }
 
+// Parent returns the parent of x in the dominator tree, or
+// nil if x is the function's entry.
+func (t SparseTree) Parent(x *Block) *Block {
+	return t[x.ID].parent
+}
+
 // isAncestorEq reports whether x is an ancestor of or equal to y.
 func (t SparseTree) IsAncestorEq(x, y *Block) bool {
 	if x == y {
@@ -201,9 +207,10 @@ func (t SparseTree) isAncestor(x, y *Block) bool {
 // domorder returns a value for dominator-oriented sorting.
 // Block domination does not provide a total ordering,
 // but domorder two has useful properties.
-// (1) If domorder(x) > domorder(y) then x does not dominate y.
-// (2) If domorder(x) < domorder(y) and domorder(y) < domorder(z) and x does not dominate y,
+//  1. If domorder(x) > domorder(y) then x does not dominate y.
+//  2. If domorder(x) < domorder(y) and domorder(y) < domorder(z) and x does not dominate y,
 //     then x does not dominate z.
+//
 // Property (1) means that blocks sorted by domorder always have a maximal dominant block first.
 // Property (2) allows searches for dominated blocks to exit early.
 func (t SparseTree) domorder(x *Block) int32 {

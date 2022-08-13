@@ -8,7 +8,7 @@
 // functions for the predeclared unsigned integer types.
 package bits
 
-const uintSize = 32 << (^uint(0) >> 32 & 1) // 32 or 64
+const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
 
 // UintSize is the size of a uint in bits.
 const UintSize = uintSize

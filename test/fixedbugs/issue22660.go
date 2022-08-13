@@ -35,7 +35,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	out, err := exec.Command("go", "tool", "compile", fmt.Sprintf("-trimpath=%s", path), f.Name()).CombinedOutput()
+	out, err := exec.Command("go", "tool", "compile", "-p=p", fmt.Sprintf("-trimpath=%s", path), f.Name()).CombinedOutput()
 	if err == nil {
 		log.Fatalf("expected compiling %s to fail", f.Name())
 	}

@@ -66,7 +66,7 @@ func TestNonGoExecs(t *testing.T) {
 		"internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec",
 	}
 	for _, f := range testfiles {
-		exepath := filepath.Join(runtime.GOROOT(), "src", f)
+		exepath := filepath.Join(testenv.GOROOT(t), "src", f)
 		if strings.HasSuffix(f, ".base64") {
 			tf, err := obscuretestdata.DecodeToTempFile(exepath)
 			if err != nil {
@@ -250,23 +250,14 @@ func testGoLib(t *testing.T, iscgo bool) {
 		t.Fatal(err)
 	}
 
-	args := []string{"install", "mylib"}
-	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=archive", "-o", "mylib.a", ".")
 	cmd.Dir = libpath
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("building test lib failed: %s %s", err, out)
 	}
-	pat := filepath.Join(gopath, "pkg", "*", "mylib.a")
-	ms, err := filepath.Glob(pat)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(ms) == 0 {
-		t.Fatalf("cannot found paths for pattern %s", pat)
-	}
-	mylib := ms[0]
+	mylib := filepath.Join(libpath, "mylib.a")
 
 	out, err = exec.Command(testnmpath, mylib).CombinedOutput()
 	if err != nil {

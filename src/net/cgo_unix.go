@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build cgo,!netgo
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build cgo && !netgo && unix
 
 package net
 
@@ -251,12 +250,12 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, 
 
 // These are roughly enough for the following:
 //
-// Source		Encoding			Maximum length of single name entry
-// Unicast DNS		ASCII or			<=253 + a NUL terminator
-//			Unicode in RFC 5892		252 * total number of labels + delimiters + a NUL terminator
-// Multicast DNS	UTF-8 in RFC 5198 or		<=253 + a NUL terminator
-//			the same as unicast DNS ASCII	<=253 + a NUL terminator
-// Local database	various				depends on implementation
+//	 Source		Encoding			Maximum length of single name entry
+//	 Unicast DNS		ASCII or			<=253 + a NUL terminator
+//				Unicode in RFC 5892		252 * total number of labels + delimiters + a NUL terminator
+//	 Multicast DNS	UTF-8 in RFC 5198 or		<=253 + a NUL terminator
+//				the same as unicast DNS ASCII	<=253 + a NUL terminator
+//	 Local database	various				depends on implementation
 const (
 	nameinfoLen    = 64
 	maxNameinfoLen = 4096
@@ -321,7 +320,7 @@ func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (na
 			break
 		}
 	}
-	return []string{absDomainName(b)}, nil
+	return []string{absDomainName(string(b))}, nil
 }
 
 func cgoReverseLookup(result chan<- reverseLookupResult, addr string, sa *C.struct_sockaddr, salen C.socklen_t) {

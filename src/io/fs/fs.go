@@ -10,6 +10,7 @@ package fs
 import (
 	"internal/oserror"
 	"time"
+	"unicode/utf8"
 )
 
 // An FS provides access to a hierarchical file system.
@@ -32,14 +33,22 @@ type FS interface {
 
 // ValidPath reports whether the given path name
 // is valid for use in a call to Open.
-// Path names passed to open are unrooted, slash-separated
-// sequences of path elements, like “x/y/z”.
-// Path names must not contain a “.” or “..” or empty element,
-// except for the special case that the root directory is named “.”.
 //
-// Paths are slash-separated on all systems, even Windows.
-// Backslashes must not appear in path names.
+// Path names passed to open are UTF-8-encoded,
+// unrooted, slash-separated sequences of path elements, like “x/y/z”.
+// Path names must not contain an element that is “.” or “..” or the empty string,
+// except for the special case that the root directory is named “.”.
+// Paths must not start or end with a slash: “/x” and “x/” are invalid.
+//
+// Note that paths are slash-separated on all systems, even Windows.
+// Paths containing other characters such as backslash and colon
+// are accepted as valid, but those characters must never be
+// interpreted by an FS implementation as path element separators.
 func ValidPath(name string) bool {
+	if !utf8.ValidString(name) {
+		return false
+	}
+
 	if name == "." {
 		// special case
 		return true
@@ -49,9 +58,6 @@ func ValidPath(name string) bool {
 	for {
 		i := 0
 		for i < len(name) && name[i] != '/' {
-			if name[i] == '\\' {
-				return false
-			}
 			i++
 		}
 		elem := name[:i]
@@ -67,8 +73,8 @@ func ValidPath(name string) bool {
 
 // A File provides access to a single file.
 // The File interface is the minimum implementation required of the file.
-// A file may implement additional interfaces, such as
-// ReadDirFile, ReaderAt, or Seeker, to provide additional or optimized functionality.
+// Directory files should also implement ReadDirFile.
+// A file may implement io.ReaderAt or io.Seeker as optimizations.
 type File interface {
 	Stat() (FileInfo, error)
 	Read([]byte) (int, error)
@@ -80,7 +86,7 @@ type File interface {
 type DirEntry interface {
 	// Name returns the name of the file (or subdirectory) described by the entry.
 	// This name is only the final element of the path (the base name), not the entire path.
-	// For example, Name would return "hello.go" not "/home/gopher/hello.go".
+	// For example, Name would return "hello.go" not "home/gopher/hello.go".
 	Name() string
 
 	// IsDir reports whether the entry describes a directory.
@@ -114,6 +120,7 @@ type ReadDirFile interface {
 	// In this case, if ReadDir returns an empty slice, it will return
 	// a non-nil error explaining why.
 	// At the end of a directory, the error is io.EOF.
+	// (ReadDir must return io.EOF itself, not an error wrapping io.EOF.)
 	//
 	// If n <= 0, ReadDir returns all the DirEntry values from the directory
 	// in a single slice. In this case, if ReadDir succeeds (reads all the way
@@ -147,7 +154,7 @@ type FileInfo interface {
 	Mode() FileMode     // file mode bits
 	ModTime() time.Time // modification time
 	IsDir() bool        // abbreviation for Mode().IsDir()
-	Sys() interface{}   // underlying data source (can return nil)
+	Sys() any           // underlying data source (can return nil)
 }
 
 // A FileMode represents a file's mode and permission bits.

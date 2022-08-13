@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 package syscall
 
 import (
+	"internal/itoa"
 	"internal/oserror"
 	"sync"
 	"unsafe"
@@ -40,6 +41,7 @@ const PathMax = 256
 // An Errno is an unsigned number describing an error condition.
 // It implements the error interface. The zero Errno is by convention
 // a non-error, so code to convert from Errno to error should use:
+//
 //	err = nil
 //	if errno != 0 {
 //		err = errno
@@ -59,7 +61,7 @@ func (e Errno) Error() string {
 			return s
 		}
 	}
-	return "errno " + itoa(int(e))
+	return "errno " + itoa.Itoa(int(e))
 }
 
 func (e Errno) Is(target error) bool {
@@ -105,7 +107,7 @@ func (s Signal) String() string {
 			return str
 		}
 	}
-	return "signal " + itoa(int(s))
+	return "signal " + itoa.Itoa(int(s))
 }
 
 var signals = [...]string{}

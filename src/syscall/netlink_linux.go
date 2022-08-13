@@ -55,13 +55,21 @@ func NetlinkRIB(proto, family int) ([]byte, error) {
 		return nil, err
 	}
 	defer Close(s)
-	lsa := &SockaddrNetlink{Family: AF_NETLINK}
-	if err := Bind(s, lsa); err != nil {
+	sa := &SockaddrNetlink{Family: AF_NETLINK}
+	if err := Bind(s, sa); err != nil {
 		return nil, err
 	}
 	wb := newNetlinkRouteRequest(proto, 1, family)
-	if err := Sendto(s, wb, 0, lsa); err != nil {
+	if err := Sendto(s, wb, 0, sa); err != nil {
 		return nil, err
+	}
+	lsa, err := Getsockname(s)
+	if err != nil {
+		return nil, err
+	}
+	lsanl, ok := lsa.(*SockaddrNetlink)
+	if !ok {
+		return nil, EINVAL
 	}
 	var tab []byte
 	rbNew := make([]byte, Getpagesize())
@@ -82,16 +90,7 @@ done:
 			return nil, err
 		}
 		for _, m := range msgs {
-			lsa, err := Getsockname(s)
-			if err != nil {
-				return nil, err
-			}
-			switch v := lsa.(type) {
-			case *SockaddrNetlink:
-				if m.Header.Seq != 1 || m.Header.Pid != v.Pid {
-					return nil, EINVAL
-				}
-			default:
+			if m.Header.Seq != 1 || m.Header.Pid != lsanl.Pid {
 				return nil, EINVAL
 			}
 			if m.Header.Type == NLMSG_DONE {

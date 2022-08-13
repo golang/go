@@ -11,62 +11,25 @@ import (
 	"unsafe"
 )
 
-// Statistics.
-//
-// For detailed descriptions see the documentation for MemStats.
-// Fields that differ from MemStats are further documented here.
-//
-// Many of these fields are updated on the fly, while others are only
-// updated when updatememstats is called.
 type mstats struct {
-	// General statistics.
-	alloc       uint64 // bytes allocated and not yet freed
-	total_alloc uint64 // bytes allocated (even if freed)
-	sys         uint64 // bytes obtained from system (should be sum of xxx_sys below, no locking, approximate)
-	nlookup     uint64 // number of pointer lookups (unused)
-	nmalloc     uint64 // number of mallocs
-	nfree       uint64 // number of frees
-
 	// Statistics about malloc heap.
-	// Updated atomically, or with the world stopped.
-	//
-	// Like MemStats, heap_sys and heap_inuse do not count memory
-	// in manually-managed spans.
-	heap_sys      sysMemStat // virtual address space obtained from system for GC'd heap
-	heap_inuse    uint64     // bytes in mSpanInUse spans
-	heap_released uint64     // bytes released to the os
-
-	// heap_objects is not used by the runtime directly and instead
-	// computed on the fly by updatememstats.
-	heap_objects uint64 // total number of allocated objects
+	heapStats consistentHeapStats
 
 	// Statistics about stacks.
-	stacks_inuse uint64     // bytes in manually-managed stack spans; computed by updatememstats
-	stacks_sys   sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
+	stacks_sys sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
 
 	// Statistics about allocation of low-level fixed-size structures.
-	// Protected by FixAlloc locks.
-	mspan_inuse  uint64 // mspan structures
 	mspan_sys    sysMemStat
-	mcache_inuse uint64 // mcache structures
 	mcache_sys   sysMemStat
 	buckhash_sys sysMemStat // profiling bucket hash table
 
 	// Statistics about GC overhead.
-	gcWorkBufInUse           uint64     // computed by updatememstats
-	gcProgPtrScalarBitsInUse uint64     // computed by updatememstats
-	gcMiscSys                sysMemStat // updated atomically or during STW
+	gcMiscSys sysMemStat // updated atomically or during STW
 
 	// Miscellaneous statistics.
 	other_sys sysMemStat // updated atomically or during STW
 
 	// Statistics about the garbage collector.
-
-	// next_gc is the goal heap_live for when next GC ends.
-	// Set to ^uint64(0) if disabled.
-	//
-	// Read and written atomically, unless the world is stopped.
-	next_gc uint64
 
 	// Protected by mheap or stopping the world during GC.
 	last_gc_unix    uint64 // last gc (in unix time)
@@ -76,89 +39,13 @@ type mstats struct {
 	numgc           uint32
 	numforcedgc     uint32  // number of user-forced GCs
 	gc_cpu_fraction float64 // fraction of CPU time used by GC
-	enablegc        bool
-	debuggc         bool
-
-	// Statistics about allocation size classes.
-
-	by_size [_NumSizeClasses]struct {
-		size    uint32
-		nmalloc uint64
-		nfree   uint64
-	}
-
-	// Add an uint32 for even number of size classes to align below fields
-	// to 64 bits for atomic operations on 32 bit platforms.
-	_ [1 - _NumSizeClasses%2]uint32
 
 	last_gc_nanotime uint64 // last gc (monotonic time)
-	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
-	last_next_gc     uint64 // next_gc for the previous GC
-	last_heap_inuse  uint64 // heap_inuse at mark termination of the previous GC
+	lastHeapInUse    uint64 // heapInUse at mark termination of the previous GC
 
-	// triggerRatio is the heap growth ratio that triggers marking.
-	//
-	// E.g., if this is 0.6, then GC should start when the live
-	// heap has reached 1.6 times the heap size marked by the
-	// previous cycle. This should be ≤ GOGC/100 so the trigger
-	// heap size is less than the goal heap size. This is set
-	// during mark termination for the next cycle's trigger.
-	triggerRatio float64
+	enablegc bool
 
-	// gc_trigger is the heap size that triggers marking.
-	//
-	// When heap_live ≥ gc_trigger, the mark phase will start.
-	// This is also the heap size by which proportional sweeping
-	// must be complete.
-	//
-	// This is computed from triggerRatio during mark termination
-	// for the next cycle's trigger.
-	gc_trigger uint64
-
-	// heap_live is the number of bytes considered live by the GC.
-	// That is: retained by the most recent GC plus allocated
-	// since then. heap_live <= alloc, since alloc includes unmarked
-	// objects that have not yet been swept (and hence goes up as we
-	// allocate and down as we sweep) while heap_live excludes these
-	// objects (and hence only goes up between GCs).
-	//
-	// This is updated atomically without locking. To reduce
-	// contention, this is updated only when obtaining a span from
-	// an mcentral and at this point it counts all of the
-	// unallocated slots in that span (which will be allocated
-	// before that mcache obtains another span from that
-	// mcentral). Hence, it slightly overestimates the "true" live
-	// heap size. It's better to overestimate than to
-	// underestimate because 1) this triggers the GC earlier than
-	// necessary rather than potentially too late and 2) this
-	// leads to a conservative GC rate rather than a GC rate that
-	// is potentially too low.
-	//
-	// Reads should likewise be atomic (or during STW).
-	//
-	// Whenever this is updated, call traceHeapAlloc() and
-	// gcController.revise().
-	heap_live uint64
-
-	// heap_scan is the number of bytes of "scannable" heap. This
-	// is the live heap (as counted by heap_live), but omitting
-	// no-scan objects and no-scan tails of objects.
-	//
-	// Whenever this is updated, call gcController.revise().
-	//
-	// Read and written atomically or with the world stopped.
-	heap_scan uint64
-
-	// heap_marked is the number of bytes marked by the previous
-	// GC. After mark termination, heap_live == heap_marked, but
-	// unlike heap_live, heap_marked does not change until the
-	// next mark termination.
-	heap_marked uint64
-
-	// heapStats is a set of statistics
-	heapStats consistentHeapStats
-
-	// _ uint32 // ensure gcPauseDist is aligned
+	_ uint32 // ensure gcPauseDist is aligned.
 
 	// gcPauseDist represents the distribution of all GC-related
 	// application pauses in the runtime.
@@ -443,17 +330,9 @@ type MemStats struct {
 }
 
 func init() {
-	if offset := unsafe.Offsetof(memstats.heap_live); offset%8 != 0 {
-		println(offset)
-		throw("memstats.heap_live not aligned to 8 bytes")
-	}
 	if offset := unsafe.Offsetof(memstats.heapStats); offset%8 != 0 {
 		println(offset)
 		throw("memstats.heapStats not aligned to 8 bytes")
-	}
-	if offset := unsafe.Offsetof(memstats.gcPauseDist); offset%8 != 0 {
-		println(offset)
-		throw("memstats.gcPauseDist not aligned to 8 bytes")
 	}
 	// Ensure the size of heapStatsDelta causes adjacent fields/slots (e.g.
 	// [3]heapStatsDelta) to be 8-byte aligned.
@@ -479,16 +358,141 @@ func ReadMemStats(m *MemStats) {
 	startTheWorld()
 }
 
+// readmemstats_m populates stats for internal runtime values.
+//
+// The world must be stopped.
 func readmemstats_m(stats *MemStats) {
-	updatememstats()
+	assertWorldStopped()
 
-	stats.Alloc = memstats.alloc
-	stats.TotalAlloc = memstats.total_alloc
-	stats.Sys = memstats.sys
-	stats.Mallocs = memstats.nmalloc
-	stats.Frees = memstats.nfree
-	stats.HeapAlloc = memstats.alloc
-	stats.HeapSys = memstats.heap_sys.load()
+	// Flush mcaches to mcentral before doing anything else.
+	//
+	// Flushing to the mcentral may in general cause stats to
+	// change as mcentral data structures are manipulated.
+	systemstack(flushallmcaches)
+
+	// Calculate memory allocator stats.
+	// During program execution we only count number of frees and amount of freed memory.
+	// Current number of alive objects in the heap and amount of alive heap memory
+	// are calculated by scanning all spans.
+	// Total number of mallocs is calculated as number of frees plus number of alive objects.
+	// Similarly, total amount of allocated memory is calculated as amount of freed memory
+	// plus amount of alive heap memory.
+
+	// Collect consistent stats, which are the source-of-truth in some cases.
+	var consStats heapStatsDelta
+	memstats.heapStats.unsafeRead(&consStats)
+
+	// Collect large allocation stats.
+	totalAlloc := consStats.largeAlloc
+	nMalloc := consStats.largeAllocCount
+	totalFree := consStats.largeFree
+	nFree := consStats.largeFreeCount
+
+	// Collect per-sizeclass stats.
+	var bySize [_NumSizeClasses]struct {
+		Size    uint32
+		Mallocs uint64
+		Frees   uint64
+	}
+	for i := range bySize {
+		bySize[i].Size = uint32(class_to_size[i])
+
+		// Malloc stats.
+		a := consStats.smallAllocCount[i]
+		totalAlloc += a * uint64(class_to_size[i])
+		nMalloc += a
+		bySize[i].Mallocs = a
+
+		// Free stats.
+		f := consStats.smallFreeCount[i]
+		totalFree += f * uint64(class_to_size[i])
+		nFree += f
+		bySize[i].Frees = f
+	}
+
+	// Account for tiny allocations.
+	// For historical reasons, MemStats includes tiny allocations
+	// in both the total free and total alloc count. This double-counts
+	// memory in some sense because their tiny allocation block is also
+	// counted. Tracking the lifetime of individual tiny allocations is
+	// currently not done because it would be too expensive.
+	nFree += consStats.tinyAllocCount
+	nMalloc += consStats.tinyAllocCount
+
+	// Calculate derived stats.
+
+	stackInUse := uint64(consStats.inStacks)
+	gcWorkBufInUse := uint64(consStats.inWorkBufs)
+	gcProgPtrScalarBitsInUse := uint64(consStats.inPtrScalarBits)
+
+	totalMapped := gcController.heapInUse.load() + gcController.heapFree.load() + gcController.heapReleased.load() +
+		memstats.stacks_sys.load() + memstats.mspan_sys.load() + memstats.mcache_sys.load() +
+		memstats.buckhash_sys.load() + memstats.gcMiscSys.load() + memstats.other_sys.load() +
+		stackInUse + gcWorkBufInUse + gcProgPtrScalarBitsInUse
+
+	heapGoal := gcController.heapGoal()
+
+	// The world is stopped, so the consistent stats (after aggregation)
+	// should be identical to some combination of memstats. In particular:
+	//
+	// * memstats.heapInUse == inHeap
+	// * memstats.heapReleased == released
+	// * memstats.heapInUse + memstats.heapFree == committed - inStacks - inWorkBufs - inPtrScalarBits
+	// * memstats.totalAlloc == totalAlloc
+	// * memstats.totalFree == totalFree
+	//
+	// Check if that's actually true.
+	//
+	// TODO(mknyszek): Maybe don't throw here. It would be bad if a
+	// bug in otherwise benign accounting caused the whole application
+	// to crash.
+	if gcController.heapInUse.load() != uint64(consStats.inHeap) {
+		print("runtime: heapInUse=", gcController.heapInUse.load(), "\n")
+		print("runtime: consistent value=", consStats.inHeap, "\n")
+		throw("heapInUse and consistent stats are not equal")
+	}
+	if gcController.heapReleased.load() != uint64(consStats.released) {
+		print("runtime: heapReleased=", gcController.heapReleased.load(), "\n")
+		print("runtime: consistent value=", consStats.released, "\n")
+		throw("heapReleased and consistent stats are not equal")
+	}
+	heapRetained := gcController.heapInUse.load() + gcController.heapFree.load()
+	consRetained := uint64(consStats.committed - consStats.inStacks - consStats.inWorkBufs - consStats.inPtrScalarBits)
+	if heapRetained != consRetained {
+		print("runtime: global value=", heapRetained, "\n")
+		print("runtime: consistent value=", consRetained, "\n")
+		throw("measures of the retained heap are not equal")
+	}
+	if gcController.totalAlloc.Load() != totalAlloc {
+		print("runtime: totalAlloc=", gcController.totalAlloc.Load(), "\n")
+		print("runtime: consistent value=", totalAlloc, "\n")
+		throw("totalAlloc and consistent stats are not equal")
+	}
+	if gcController.totalFree.Load() != totalFree {
+		print("runtime: totalFree=", gcController.totalFree.Load(), "\n")
+		print("runtime: consistent value=", totalFree, "\n")
+		throw("totalFree and consistent stats are not equal")
+	}
+	// Also check that mappedReady lines up with totalMapped - released.
+	// This isn't really the same type of "make sure consistent stats line up" situation,
+	// but this is an opportune time to check.
+	if gcController.mappedReady.Load() != totalMapped-uint64(consStats.released) {
+		print("runtime: mappedReady=", gcController.mappedReady.Load(), "\n")
+		print("runtime: totalMapped=", totalMapped, "\n")
+		print("runtime: released=", uint64(consStats.released), "\n")
+		print("runtime: totalMapped-released=", totalMapped-uint64(consStats.released), "\n")
+		throw("mappedReady and other memstats are not equal")
+	}
+
+	// We've calculated all the values we need. Now, populate stats.
+
+	stats.Alloc = totalAlloc - totalFree
+	stats.TotalAlloc = totalAlloc
+	stats.Sys = totalMapped
+	stats.Mallocs = nMalloc
+	stats.Frees = nFree
+	stats.HeapAlloc = totalAlloc - totalFree
+	stats.HeapSys = gcController.heapInUse.load() + gcController.heapFree.load() + gcController.heapReleased.load()
 	// By definition, HeapIdle is memory that was mapped
 	// for the heap but is not currently used to hold heap
 	// objects. It also specifically is memory that can be
@@ -496,34 +500,34 @@ func readmemstats_m(stats *MemStats) {
 	// is subtracted out of HeapSys before it makes that
 	// transition. Put another way:
 	//
-	// heap_sys = bytes allocated from the OS for the heap - bytes ultimately used for non-heap purposes
-	// heap_idle = bytes allocated from the OS for the heap - bytes ultimately used for any purpose
+	// HeapSys = bytes allocated from the OS for the heap - bytes ultimately used for non-heap purposes
+	// HeapIdle = bytes allocated from the OS for the heap - bytes ultimately used for any purpose
 	//
 	// or
 	//
-	// heap_sys = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse
-	// heap_idle = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse - heap_inuse
+	// HeapSys = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse
+	// HeapIdle = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse - heapInUse
 	//
-	// => heap_idle = heap_sys - heap_inuse
-	stats.HeapIdle = memstats.heap_sys.load() - memstats.heap_inuse
-	stats.HeapInuse = memstats.heap_inuse
-	stats.HeapReleased = memstats.heap_released
-	stats.HeapObjects = memstats.heap_objects
-	stats.StackInuse = memstats.stacks_inuse
+	// => HeapIdle = HeapSys - heapInUse = heapFree + heapReleased
+	stats.HeapIdle = gcController.heapFree.load() + gcController.heapReleased.load()
+	stats.HeapInuse = gcController.heapInUse.load()
+	stats.HeapReleased = gcController.heapReleased.load()
+	stats.HeapObjects = nMalloc - nFree
+	stats.StackInuse = stackInUse
 	// memstats.stacks_sys is only memory mapped directly for OS stacks.
 	// Add in heap-allocated stack memory for user consumption.
-	stats.StackSys = memstats.stacks_inuse + memstats.stacks_sys.load()
-	stats.MSpanInuse = memstats.mspan_inuse
+	stats.StackSys = stackInUse + memstats.stacks_sys.load()
+	stats.MSpanInuse = uint64(mheap_.spanalloc.inuse)
 	stats.MSpanSys = memstats.mspan_sys.load()
-	stats.MCacheInuse = memstats.mcache_inuse
+	stats.MCacheInuse = uint64(mheap_.cachealloc.inuse)
 	stats.MCacheSys = memstats.mcache_sys.load()
 	stats.BuckHashSys = memstats.buckhash_sys.load()
 	// MemStats defines GCSys as an aggregate of all memory related
 	// to the memory management system, but we track this memory
 	// at a more granular level in the runtime.
-	stats.GCSys = memstats.gcMiscSys.load() + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse
+	stats.GCSys = memstats.gcMiscSys.load() + gcWorkBufInUse + gcProgPtrScalarBitsInUse
 	stats.OtherSys = memstats.other_sys.load()
-	stats.NextGC = memstats.next_gc
+	stats.NextGC = heapGoal
 	stats.LastGC = memstats.last_gc_unix
 	stats.PauseTotalNs = memstats.pause_total_ns
 	stats.PauseNs = memstats.pause_ns
@@ -533,23 +537,11 @@ func readmemstats_m(stats *MemStats) {
 	stats.GCCPUFraction = memstats.gc_cpu_fraction
 	stats.EnableGC = true
 
-	// Handle BySize. Copy N values, where N is
-	// the minimum of the lengths of the two arrays.
-	// Unfortunately copy() won't work here because
-	// the arrays have different structs.
-	//
-	// TODO(mknyszek): Consider renaming the fields
-	// of by_size's elements to align so we can use
-	// the copy built-in.
-	bySizeLen := len(stats.BySize)
-	if l := len(memstats.by_size); l < bySizeLen {
-		bySizeLen = l
-	}
-	for i := 0; i < bySizeLen; i++ {
-		stats.BySize[i].Size = memstats.by_size[i].size
-		stats.BySize[i].Mallocs = memstats.by_size[i].nmalloc
-		stats.BySize[i].Frees = memstats.by_size[i].nfree
-	}
+	// stats.BySize and bySize might not match in length.
+	// That's OK, stats.BySize cannot change due to backwards
+	// compatibility issues. copy will copy the minimum amount
+	// of values between the two of them.
+	copy(stats.BySize[:], bySize[:])
 }
 
 //go:linkname readGCStats runtime/debug.readGCStats
@@ -561,6 +553,7 @@ func readGCStats(pauses *[]uint64) {
 
 // readGCStats_m must be called on the system stack because it acquires the heap
 // lock. See mheap for details.
+//
 //go:systemstack
 func readGCStats_m(pauses *[]uint64) {
 	p := *pauses
@@ -593,113 +586,6 @@ func readGCStats_m(pauses *[]uint64) {
 	p[n+n+2] = memstats.pause_total_ns
 	unlock(&mheap_.lock)
 	*pauses = p[:n+n+3]
-}
-
-// Updates the memstats structure.
-//
-// The world must be stopped.
-//
-//go:nowritebarrier
-func updatememstats() {
-	assertWorldStopped()
-
-	// Flush mcaches to mcentral before doing anything else.
-	//
-	// Flushing to the mcentral may in general cause stats to
-	// change as mcentral data structures are manipulated.
-	systemstack(flushallmcaches)
-
-	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
-	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
-	memstats.sys = memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
-		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gcMiscSys.load() +
-		memstats.other_sys.load()
-
-	// Calculate memory allocator stats.
-	// During program execution we only count number of frees and amount of freed memory.
-	// Current number of alive objects in the heap and amount of alive heap memory
-	// are calculated by scanning all spans.
-	// Total number of mallocs is calculated as number of frees plus number of alive objects.
-	// Similarly, total amount of allocated memory is calculated as amount of freed memory
-	// plus amount of alive heap memory.
-	memstats.alloc = 0
-	memstats.total_alloc = 0
-	memstats.nmalloc = 0
-	memstats.nfree = 0
-	for i := 0; i < len(memstats.by_size); i++ {
-		memstats.by_size[i].nmalloc = 0
-		memstats.by_size[i].nfree = 0
-	}
-	// Collect consistent stats, which are the source-of-truth in the some cases.
-	var consStats heapStatsDelta
-	memstats.heapStats.unsafeRead(&consStats)
-
-	// Collect large allocation stats.
-	totalAlloc := uint64(consStats.largeAlloc)
-	memstats.nmalloc += uint64(consStats.largeAllocCount)
-	totalFree := uint64(consStats.largeFree)
-	memstats.nfree += uint64(consStats.largeFreeCount)
-
-	// Collect per-sizeclass stats.
-	for i := 0; i < _NumSizeClasses; i++ {
-		// Malloc stats.
-		a := uint64(consStats.smallAllocCount[i])
-		totalAlloc += a * uint64(class_to_size[i])
-		memstats.nmalloc += a
-		memstats.by_size[i].nmalloc = a
-
-		// Free stats.
-		f := uint64(consStats.smallFreeCount[i])
-		totalFree += f * uint64(class_to_size[i])
-		memstats.nfree += f
-		memstats.by_size[i].nfree = f
-	}
-
-	// Account for tiny allocations.
-	memstats.nfree += memstats.tinyallocs
-	memstats.nmalloc += memstats.tinyallocs
-
-	// Calculate derived stats.
-	memstats.total_alloc = totalAlloc
-	memstats.alloc = totalAlloc - totalFree
-	memstats.heap_objects = memstats.nmalloc - memstats.nfree
-
-	memstats.stacks_inuse = uint64(consStats.inStacks)
-	memstats.gcWorkBufInUse = uint64(consStats.inWorkBufs)
-	memstats.gcProgPtrScalarBitsInUse = uint64(consStats.inPtrScalarBits)
-
-	// We also count stacks_inuse, gcWorkBufInUse, and gcProgPtrScalarBitsInUse as sys memory.
-	memstats.sys += memstats.stacks_inuse + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse
-
-	// The world is stopped, so the consistent stats (after aggregation)
-	// should be identical to some combination of memstats. In particular:
-	//
-	// * heap_inuse == inHeap
-	// * heap_released == released
-	// * heap_sys - heap_released == committed - inStacks - inWorkBufs - inPtrScalarBits
-	//
-	// Check if that's actually true.
-	//
-	// TODO(mknyszek): Maybe don't throw here. It would be bad if a
-	// bug in otherwise benign accounting caused the whole application
-	// to crash.
-	if memstats.heap_inuse != uint64(consStats.inHeap) {
-		print("runtime: heap_inuse=", memstats.heap_inuse, "\n")
-		print("runtime: consistent value=", consStats.inHeap, "\n")
-		throw("heap_inuse and consistent stats are not equal")
-	}
-	if memstats.heap_released != uint64(consStats.released) {
-		print("runtime: heap_released=", memstats.heap_released, "\n")
-		print("runtime: consistent value=", consStats.released, "\n")
-		throw("heap_released and consistent stats are not equal")
-	}
-	globalRetained := memstats.heap_sys.load() - memstats.heap_released
-	consRetained := uint64(consStats.committed - consStats.inStacks - consStats.inWorkBufs - consStats.inPtrScalarBits)
-	if globalRetained != consRetained {
-		print("runtime: global value=", globalRetained, "\n")
-		print("runtime: consistent value=", consRetained, "\n")
-		throw("measures of the retained heap are not equal")
-	}
 }
 
 // flushmcache flushes the mcache of allp[i].
@@ -740,6 +626,7 @@ type sysMemStat uint64
 // load atomically reads the value of the stat.
 //
 // Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
+//
 //go:nosplit
 func (s *sysMemStat) load() uint64 {
 	return atomic.Load64((*uint64)(s))
@@ -748,11 +635,9 @@ func (s *sysMemStat) load() uint64 {
 // add atomically adds the sysMemStat by n.
 //
 // Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
+//
 //go:nosplit
 func (s *sysMemStat) add(n int64) {
-	if s == nil {
-		return
-	}
 	val := atomic.Xadd64((*uint64)(s), n)
 	if (n > 0 && int64(val) < n) || (n < 0 && int64(val)+n < n) {
 		print("runtime: val=", val, " n=", n, "\n")
@@ -773,16 +658,20 @@ type heapStatsDelta struct {
 	inPtrScalarBits int64 // byte delta of memory reserved for unrolled GC prog bits
 
 	// Allocator stats.
-	largeAlloc      uintptr                  // bytes allocated for large objects
-	largeAllocCount uintptr                  // number of large object allocations
-	smallAllocCount [_NumSizeClasses]uintptr // number of allocs for small objects
-	largeFree       uintptr                  // bytes freed for large objects (>maxSmallSize)
-	largeFreeCount  uintptr                  // number of frees for large objects (>maxSmallSize)
-	smallFreeCount  [_NumSizeClasses]uintptr // number of frees for small objects (<=maxSmallSize)
+	//
+	// These are all uint64 because they're cumulative, and could quickly wrap
+	// around otherwise.
+	tinyAllocCount  uint64                  // number of tiny allocations
+	largeAlloc      uint64                  // bytes allocated for large objects
+	largeAllocCount uint64                  // number of large object allocations
+	smallAllocCount [_NumSizeClasses]uint64 // number of allocs for small objects
+	largeFree       uint64                  // bytes freed for large objects (>maxSmallSize)
+	largeFreeCount  uint64                  // number of frees for large objects (>maxSmallSize)
+	smallFreeCount  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxSmallSize)
 
-	// Add a uint32 to ensure this struct is a multiple of 8 bytes in size.
-	// Only necessary on 32-bit platforms.
-	// _ [(sys.PtrSize / 4) % 2]uint32
+	// NOTE: This struct must be a multiple of 8 bytes in size because it
+	// is stored in an array. If it's not, atomic accesses to the above
+	// fields may be unaligned and fail on 32-bit platforms.
 }
 
 // merge adds in the deltas from b into a.
@@ -794,6 +683,7 @@ func (a *heapStatsDelta) merge(b *heapStatsDelta) {
 	a.inWorkBufs += b.inWorkBufs
 	a.inPtrScalarBits += b.inPtrScalarBits
 
+	a.tinyAllocCount += b.tinyAllocCount
 	a.largeAlloc += b.largeAlloc
 	a.largeAllocCount += b.largeAllocCount
 	for i := range b.smallAllocCount {
@@ -858,7 +748,15 @@ type consistentHeapStats struct {
 //
 // The caller's P must not change between acquire and
 // release. This also means that the caller should not
-// acquire a P or release its P in between.
+// acquire a P or release its P in between. A P also must
+// not acquire a given consistentHeapStats if it hasn't
+// yet released it.
+//
+// nosplit because a stack growth in this function could
+// lead to a stack allocation that could reenter the
+// function.
+//
+//go:nosplit
 func (m *consistentHeapStats) acquire() *heapStatsDelta {
 	if pp := getg().m.p.ptr(); pp != nil {
 		seq := atomic.Xadd(&pp.statsSeq, 1)
@@ -882,6 +780,12 @@ func (m *consistentHeapStats) acquire() *heapStatsDelta {
 // The caller's P must not change between acquire and
 // release. This also means that the caller should not
 // acquire a P or release its P in between.
+//
+// nosplit because a stack growth in this function could
+// lead to a stack allocation that causes another acquire
+// before this operation has completed.
+//
+//go:nosplit
 func (m *consistentHeapStats) release() {
 	if pp := getg().m.p.ptr(); pp != nil {
 		seq := atomic.Xadd(&pp.statsSeq, 1)

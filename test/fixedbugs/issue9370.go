@@ -33,24 +33,24 @@ var (
 var (
 	_ = e == c
 	_ = e != c
-	_ = e >= c // ERROR "invalid operation.*not defined|invalid comparison"
+	_ = e >= c // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
 	_ = c == e
 	_ = c != e
-	_ = c >= e // ERROR "invalid operation.*not defined|invalid comparison"
+	_ = c >= e // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
 
 	_ = i == c
 	_ = i != c
-	_ = i >= c // ERROR "invalid operation.*not defined|invalid comparison"
+	_ = i >= c // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
 	_ = c == i
 	_ = c != i
-	_ = c >= i // ERROR "invalid operation.*not defined|invalid comparison"
+	_ = c >= i // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
 
 	_ = e == n
 	_ = e != n
-	_ = e >= n // ERROR "invalid operation.*not defined|invalid comparison"
+	_ = e >= n // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
 	_ = n == e
 	_ = n != e
-	_ = n >= e // ERROR "invalid operation.*not defined|invalid comparison"
+	_ = n >= e // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
 
 	// i and n are not assignable to each other
 	_ = i == n // ERROR "invalid operation.*mismatched types|incompatible types"
@@ -67,12 +67,12 @@ var (
 	_ = 1 != e
 	_ = 1 >= e // ERROR "invalid operation.*not defined|invalid comparison"
 
-	_ = i == 1 // ERROR "invalid operation.*mismatched types|incompatible types"
-	_ = i != 1 // ERROR "invalid operation.*mismatched types|incompatible types"
-	_ = i >= 1 // ERROR "invalid operation.*mismatched types|incompatible types"
-	_ = 1 == i // ERROR "invalid operation.*mismatched types|incompatible types"
-	_ = 1 != i // ERROR "invalid operation.*mismatched types|incompatible types"
-	_ = 1 >= i // ERROR "invalid operation.*mismatched types|incompatible types"
+	_ = i == 1 // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
+	_ = i != 1 // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
+	_ = i >= 1 // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
+	_ = 1 == i // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
+	_ = 1 != i // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
+	_ = 1 >= i // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
 
 	_ = e == f // ERROR "invalid operation.*not defined|invalid operation"
 	_ = e != f // ERROR "invalid operation.*not defined|invalid operation"

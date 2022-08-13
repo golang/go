@@ -171,8 +171,10 @@ func TestErrorCodeStyle(t *testing.T) {
 			}
 		}
 		doc := spec.Doc.Text()
-		if !strings.HasPrefix(doc, name) {
-			t.Errorf("doc for %q does not start with identifier", name)
+		if doc == "" {
+			t.Errorf("%q is undocumented", name)
+		} else if !strings.HasPrefix(doc, name) {
+			t.Errorf("doc for %q does not start with the error code name", name)
 		}
 		lowerComment := strings.ToLower(strings.TrimPrefix(doc, name))
 		for _, bad := range forbiddenInComment {

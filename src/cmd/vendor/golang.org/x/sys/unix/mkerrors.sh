@@ -54,8 +54,9 @@ includes_AIX='
 
 includes_Darwin='
 #define _DARWIN_C_SOURCE
-#define KERNEL
+#define KERNEL 1
 #define _DARWIN_USE_64_BIT_INODE
+#define __APPLE_USE_RFC_3542
 #include <stdint.h>
 #include <sys/attr.h>
 #include <sys/clonefile.h>
@@ -65,6 +66,7 @@ includes_Darwin='
 #include <sys/ptrace.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/sockio.h>
 #include <sys/sys_domain.h>
 #include <sys/sysctl.h>
@@ -73,6 +75,7 @@ includes_Darwin='
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <sys/xattr.h>
+#include <sys/vsock.h>
 #include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_types.h>
@@ -80,6 +83,9 @@ includes_Darwin='
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <termios.h>
+
+// for backwards compatibility because moved TIOCREMOTE to Kernel.framework after MacOSX12.0.sdk.
+#define TIOCREMOTE 0x80047469
 '
 
 includes_DragonFly='
@@ -114,6 +120,7 @@ includes_FreeBSD='
 #include <sys/sched.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/sockio.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -121,6 +128,7 @@ includes_FreeBSD='
 #include <sys/mount.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
+#include <sys/ptrace.h>
 #include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_types.h>
@@ -195,24 +203,28 @@ struct ltchars {
 #include <sys/timerfd.h>
 #include <sys/uio.h>
 #include <sys/xattr.h>
+#include <linux/audit.h>
 #include <linux/bpf.h>
 #include <linux/can.h>
 #include <linux/can/error.h>
+#include <linux/can/netlink.h>
 #include <linux/can/raw.h>
 #include <linux/capability.h>
 #include <linux/cryptouser.h>
 #include <linux/devlink.h>
 #include <linux/dm-ioctl.h>
 #include <linux/errqueue.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/falloc.h>
 #include <linux/fanotify.h>
+#include <linux/fib_rules.h>
 #include <linux/filter.h>
 #include <linux/fs.h>
 #include <linux/fscrypt.h>
 #include <linux/fsverity.h>
 #include <linux/genetlink.h>
 #include <linux/hdreg.h>
-#include <linux/icmpv6.h>
+#include <linux/hidraw.h>
 #include <linux/if.h>
 #include <linux/if_addr.h>
 #include <linux/if_alg.h>
@@ -222,16 +234,21 @@ struct ltchars {
 #include <linux/if_tun.h>
 #include <linux/if_packet.h>
 #include <linux/if_xdp.h>
+#include <linux/input.h>
+#include <linux/kcm.h>
 #include <linux/kexec.h>
 #include <linux/keyctl.h>
+#include <linux/landlock.h>
 #include <linux/loop.h>
 #include <linux/lwtunnel.h>
 #include <linux/magic.h>
 #include <linux/memfd.h>
 #include <linux/module.h>
+#include <linux/mount.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netlink.h>
 #include <linux/net_namespace.h>
+#include <linux/nfc.h>
 #include <linux/nsfs.h>
 #include <linux/perf_event.h>
 #include <linux/pps.h>
@@ -249,8 +266,10 @@ struct ltchars {
 #include <linux/vm_sockets.h>
 #include <linux/wait.h>
 #include <linux/watchdog.h>
+#include <linux/wireguard.h>
 
 #include <mtd/ubi-user.h>
+#include <mtd/mtd-user.h>
 #include <net/route.h>
 
 #if defined(__sparc__)
@@ -278,6 +297,10 @@ struct ltchars {
 #define SOL_NETLINK	270
 #endif
 
+#ifndef SOL_SMC
+#define SOL_SMC 286
+#endif
+
 #ifdef SOL_BLUETOOTH
 // SPARC includes this in /usr/include/sparc64-linux-gnu/bits/socket.h
 // but it is already in bluetooth_linux.go
@@ -298,6 +321,17 @@ struct ltchars {
 // Including linux/l2tp.h here causes conflicts between linux/in.h
 // and netinet/in.h included via net/route.h above.
 #define IPPROTO_L2TP		115
+
+// Copied from linux/hid.h.
+// Keep in sync with the size of the referenced fields.
+#define _HIDIOCGRAWNAME_LEN	128 // sizeof_field(struct hid_device, name)
+#define _HIDIOCGRAWPHYS_LEN	64  // sizeof_field(struct hid_device, phys)
+#define _HIDIOCGRAWUNIQ_LEN	64  // sizeof_field(struct hid_device, uniq)
+
+#define _HIDIOCGRAWNAME		HIDIOCGRAWNAME(_HIDIOCGRAWNAME_LEN)
+#define _HIDIOCGRAWPHYS		HIDIOCGRAWPHYS(_HIDIOCGRAWPHYS_LEN)
+#define _HIDIOCGRAWUNIQ		HIDIOCGRAWUNIQ(_HIDIOCGRAWUNIQ_LEN)
+
 '
 
 includes_NetBSD='
@@ -387,10 +421,11 @@ includes_SunOS='
 #include <net/if_arp.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <netinet/icmp6.h>
 #include <netinet/in.h>
-#include <termios.h>
 #include <netinet/ip.h>
 #include <netinet/ip_mroute.h>
+#include <termios.h>
 '
 
 
@@ -445,6 +480,7 @@ ccflags="$@"
 		$2 !~ /^EPROC_/ &&
 		$2 !~ /^EQUIV_/ &&
 		$2 !~ /^EXPR_/ &&
+		$2 !~ /^EVIOC/ &&
 		$2 ~ /^E[A-Z0-9_]+$/ ||
 		$2 ~ /^B[0-9_]+$/ ||
 		$2 ~ /^(OLD|NEW)DEV$/ ||
@@ -476,13 +512,18 @@ ccflags="$@"
 		$2 ~ /^O?XTABS$/ ||
 		$2 ~ /^TC[IO](ON|OFF)$/ ||
 		$2 ~ /^IN_/ ||
+		$2 ~ /^KCM/ ||
+		$2 ~ /^LANDLOCK_/ ||
 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
 		$2 ~ /^LO_(KEY|NAME)_SIZE$/ ||
 		$2 ~ /^LOOP_(CLR|CTL|GET|SET)_/ ||
-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|ICMP6|TCP|MCAST|EVFILT|NOTE|EV|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR)_/ ||
+		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT)_/ ||
+		$2 ~ /^NFC_(GENL|PROTO|COMM|RF|SE|DIRECTION|LLCP|SOCKPROTO)_/ ||
+		$2 ~ /^NFC_.*_(MAX)?SIZE$/ ||
+		$2 ~ /^RAW_PAYLOAD_/ ||
 		$2 ~ /^TP_STATUS_/ ||
 		$2 ~ /^FALLOC_/ ||
-		$2 == "ICMPV6_FILTER" ||
+		$2 ~ /^ICMPV?6?_(FILTER|SEC)/ ||
 		$2 == "SOMAXCONN" ||
 		$2 == "NAME_MAX" ||
 		$2 == "IFNAMSIZ" ||
@@ -491,10 +532,10 @@ ccflags="$@"
 		$2 ~ /^HW_MACHINE$/ ||
 		$2 ~ /^SYSCTL_VERS/ ||
 		$2 !~ "MNT_BITS" &&
-		$2 ~ /^(MS|MNT|UMOUNT)_/ ||
+		$2 ~ /^(MS|MNT|MOUNT|UMOUNT)_/ ||
 		$2 ~ /^NS_GET_/ ||
 		$2 ~ /^TUN(SET|GET|ATTACH|DETACH)/ ||
-		$2 ~ /^(O|F|[ES]?FD|NAME|S|PTRACE|PT|TFD)_/ ||
+		$2 ~ /^(O|F|[ES]?FD|NAME|S|PTRACE|PT|PIOD|TFD)_/ ||
 		$2 ~ /^KEXEC_/ ||
 		$2 ~ /^LINUX_REBOOT_CMD_/ ||
 		$2 ~ /^LINUX_REBOOT_MAGIC[12]$/ ||
@@ -518,6 +559,7 @@ ccflags="$@"
 		$2 ~ /^CLONE_[A-Z_]+/ ||
 		$2 !~ /^(BPF_TIMEVAL|BPF_FIB_LOOKUP_[A-Z]+)$/ &&
 		$2 ~ /^(BPF|DLT)_/ ||
+		$2 ~ /^AUDIT_/ ||
 		$2 ~ /^(CLOCK|TIMER)_/ ||
 		$2 ~ /^CAN_/ ||
 		$2 ~ /^CAP_/ ||
@@ -537,9 +579,9 @@ ccflags="$@"
 		$2 ~ /^KEYCTL_/ ||
 		$2 ~ /^PERF_/ ||
 		$2 ~ /^SECCOMP_MODE_/ ||
+		$2 ~ /^SEEK_/ ||
 		$2 ~ /^SPLICE_/ ||
 		$2 ~ /^SYNC_FILE_RANGE_/ ||
-		$2 !~ /^AUDIT_RECORD_MAGIC/ &&
 		$2 !~ /IOC_MAGIC/ &&
 		$2 ~ /^[A-Z][A-Z0-9_]+_MAGIC2?$/ ||
 		$2 ~ /^(VM|VMADDR)_/ ||
@@ -561,12 +603,24 @@ ccflags="$@"
 		$2 ~ /^(HDIO|WIN|SMART)_/ ||
 		$2 ~ /^CRYPTO_/ ||
 		$2 ~ /^TIPC_/ ||
+		$2 !~  "DEVLINK_RELOAD_LIMITS_VALID_MASK" &&
 		$2 ~ /^DEVLINK_/ ||
+		$2 ~ /^ETHTOOL_/ ||
 		$2 ~ /^LWTUNNEL_IP/ ||
+		$2 ~ /^ITIMER_/ ||
 		$2 !~ "WMESGLEN" &&
 		$2 ~ /^W[A-Z0-9]+$/ ||
+		$2 ~ /^P_/ ||
 		$2 ~/^PPPIOC/ ||
 		$2 ~ /^FAN_|FANOTIFY_/ ||
+		$2 == "HID_MAX_DESCRIPTOR_SIZE" ||
+		$2 ~ /^_?HIDIOC/ ||
+		$2 ~ /^BUS_(USB|HIL|BLUETOOTH|VIRTUAL)$/ ||
+		$2 ~ /^MTD/ ||
+		$2 ~ /^OTP/ ||
+		$2 ~ /^MEM/ ||
+		$2 ~ /^WG/ ||
+		$2 ~ /^FIB_RULE_/ ||
 		$2 ~ /^BLK[A-Z]*(GET$|SET$|BUF$|PART$|SIZE)/ {printf("\t%s = C.%s\n", $2, $2)}
 		$2 ~ /^__WCOREFLAG$/ {next}
 		$2 ~ /^__W[A-Z0-9]+$/ {printf("\t%s = C.%s\n", substr($2,3), $2)}
@@ -604,6 +658,7 @@ echo '#include <signal.h>' | $CC -x c - -E -dM $ccflags |
 echo '// mkerrors.sh' "$@"
 echo '// Code generated by the command above; see README.md. DO NOT EDIT.'
 echo
+echo "//go:build ${GOARCH} && ${GOOS}"
 echo "// +build ${GOARCH},${GOOS}"
 echo
 go tool cgo -godefs -- "$@" _const.go >_error.out

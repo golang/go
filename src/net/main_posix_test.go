@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js,!plan9
+//go:build !js && !plan9
 
 package net
 
@@ -17,9 +17,9 @@ func enableSocketConnect() {
 }
 
 func disableSocketConnect(network string) {
-	ss := strings.Split(network, ":")
+	net, _, _ := strings.Cut(network, ":")
 	sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
-		switch ss[0] {
+		switch net {
 		case "tcp4":
 			if so.Cookie.Family() == syscall.AF_INET && so.Cookie.Type() == syscall.SOCK_STREAM {
 				return nil, syscall.EHOSTUNREACH

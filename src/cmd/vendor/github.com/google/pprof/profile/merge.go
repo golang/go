@@ -35,7 +35,10 @@ func (p *Profile) Compact() *Profile {
 // functions and mappings. Profiles must have identical profile sample
 // and period types or the merge will fail. profile.Period of the
 // resulting profile will be the maximum of all profiles, and
-// profile.TimeNanos will be the earliest nonzero one.
+// profile.TimeNanos will be the earliest nonzero one. Merges are
+// associative with the caveat of the first profile having some
+// specialization in how headers are combined. There may be other
+// subtleties now or in the future regarding associativity.
 func Merge(srcs []*Profile) (*Profile, error) {
 	if len(srcs) == 0 {
 		return nil, fmt.Errorf("no profiles to merge")
@@ -228,7 +231,6 @@ func (pm *profileMerger) mapLocation(src *Location) *Location {
 	}
 
 	if l, ok := pm.locationsByID[src.ID]; ok {
-		pm.locationsByID[src.ID] = l
 		return l
 	}
 
@@ -301,16 +303,17 @@ func (pm *profileMerger) mapMapping(src *Mapping) mapInfo {
 		return mi
 	}
 	m := &Mapping{
-		ID:              uint64(len(pm.p.Mapping) + 1),
-		Start:           src.Start,
-		Limit:           src.Limit,
-		Offset:          src.Offset,
-		File:            src.File,
-		BuildID:         src.BuildID,
-		HasFunctions:    src.HasFunctions,
-		HasFilenames:    src.HasFilenames,
-		HasLineNumbers:  src.HasLineNumbers,
-		HasInlineFrames: src.HasInlineFrames,
+		ID:                     uint64(len(pm.p.Mapping) + 1),
+		Start:                  src.Start,
+		Limit:                  src.Limit,
+		Offset:                 src.Offset,
+		File:                   src.File,
+		KernelRelocationSymbol: src.KernelRelocationSymbol,
+		BuildID:                src.BuildID,
+		HasFunctions:           src.HasFunctions,
+		HasFilenames:           src.HasFilenames,
+		HasLineNumbers:         src.HasLineNumbers,
+		HasInlineFrames:        src.HasInlineFrames,
 	}
 	pm.p.Mapping = append(pm.p.Mapping, m)
 

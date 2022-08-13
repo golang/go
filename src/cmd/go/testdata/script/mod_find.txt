@@ -49,7 +49,7 @@ rm go.mod
 # Test that we ignore directories when trying to find go.mod.
 cd $WORK/gomoddir
 ! go list .
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 [!symlink] stop
 

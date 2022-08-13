@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js
+//go:build !js
 
 package net
 
@@ -186,10 +186,7 @@ func TestWritevError(t *testing.T) {
 		t.Skipf("skipping the test: windows does not have problem sending large chunks of data")
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	ch := make(chan Conn, 1)

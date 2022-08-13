@@ -11,11 +11,11 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strings"
-
-	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/internal/lsp/fuzzy"
+	"strconv"
 )
+
+// Flag to gate diagnostics for fuzz tests in 1.18.
+var DiagnoseFuzzTests bool = false
 
 var (
 	GetTypeErrors func(p interface{}) []types.Error
@@ -34,7 +34,7 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
 	return end
 }
 
-func ZeroValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 	under := typ
 	if n, ok := typ.(*types.Named); ok {
 		under = n.Underlying()
@@ -54,7 +54,7 @@ func ZeroValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.T
 	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
 		return ast.NewIdent("nil")
 	case *types.Struct:
-		texpr := TypeExpr(fset, f, pkg, typ) // typ because we want the name here.
+		texpr := TypeExpr(f, pkg, typ) // typ because we want the name here.
 		if texpr == nil {
 			return nil
 		}
@@ -78,7 +78,7 @@ func IsZeroValue(expr ast.Expr) bool {
 	}
 }
 
-func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 	switch t := typ.(type) {
 	case *types.Basic:
 		switch t.Kind() {
@@ -88,7 +88,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			return ast.NewIdent(t.Name())
 		}
 	case *types.Pointer:
-		x := TypeExpr(fset, f, pkg, t.Elem())
+		x := TypeExpr(f, pkg, t.Elem())
 		if x == nil {
 			return nil
 		}
@@ -97,7 +97,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			X:  x,
 		}
 	case *types.Array:
-		elt := TypeExpr(fset, f, pkg, t.Elem())
+		elt := TypeExpr(f, pkg, t.Elem())
 		if elt == nil {
 			return nil
 		}
@@ -109,7 +109,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			Elt: elt,
 		}
 	case *types.Slice:
-		elt := TypeExpr(fset, f, pkg, t.Elem())
+		elt := TypeExpr(f, pkg, t.Elem())
 		if elt == nil {
 			return nil
 		}
@@ -117,8 +117,8 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			Elt: elt,
 		}
 	case *types.Map:
-		key := TypeExpr(fset, f, pkg, t.Key())
-		value := TypeExpr(fset, f, pkg, t.Elem())
+		key := TypeExpr(f, pkg, t.Key())
+		value := TypeExpr(f, pkg, t.Elem())
 		if key == nil || value == nil {
 			return nil
 		}
@@ -131,7 +131,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 		if t.Dir() == types.SendRecv {
 			dir = ast.SEND | ast.RECV
 		}
-		value := TypeExpr(fset, f, pkg, t.Elem())
+		value := TypeExpr(f, pkg, t.Elem())
 		if value == nil {
 			return nil
 		}
@@ -142,7 +142,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 	case *types.Signature:
 		var params []*ast.Field
 		for i := 0; i < t.Params().Len(); i++ {
-			p := TypeExpr(fset, f, pkg, t.Params().At(i).Type())
+			p := TypeExpr(f, pkg, t.Params().At(i).Type())
 			if p == nil {
 				return nil
 			}
@@ -157,7 +157,7 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 		}
 		var returns []*ast.Field
 		for i := 0; i < t.Results().Len(); i++ {
-			r := TypeExpr(fset, f, pkg, t.Results().At(i).Type())
+			r := TypeExpr(f, pkg, t.Results().At(i).Type())
 			if r == nil {
 				return nil
 			}
@@ -181,13 +181,12 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			return ast.NewIdent(t.Obj().Name())
 		}
 		pkgName := t.Obj().Pkg().Name()
+
 		// If the file already imports the package under another name, use that.
-		for _, group := range astutil.Imports(fset, f) {
-			for _, cand := range group {
-				if strings.Trim(cand.Path.Value, `"`) == t.Obj().Pkg().Path() {
-					if cand.Name != nil && cand.Name.Name != "" {
-						pkgName = cand.Name.Name
-					}
+		for _, cand := range f.Imports {
+			if path, _ := strconv.Unquote(cand.Path.Value); path == t.Obj().Pkg().Path() {
+				if cand.Name != nil && cand.Name.Name != "" {
+					pkgName = cand.Name.Name
 				}
 			}
 		}
@@ -395,31 +394,4 @@ func equivalentTypes(want, got types.Type) bool {
 		}
 	}
 	return types.AssignableTo(want, got)
-}
-
-// FindBestMatch employs fuzzy matching to evaluate the similarity of each given identifier to the
-// given pattern. We return the identifier whose name is most similar to the pattern.
-func FindBestMatch(pattern string, idents []*ast.Ident) ast.Expr {
-	fuzz := fuzzy.NewMatcher(pattern)
-	var bestFuzz ast.Expr
-	highScore := float32(0) // minimum score is 0 (no match)
-	for _, ident := range idents {
-		// TODO: Improve scoring algorithm.
-		score := fuzz.Score(ident.Name)
-		if score > highScore {
-			highScore = score
-			bestFuzz = ident
-		} else if score == 0 {
-			// Order matters in the fuzzy matching algorithm. If we find no match
-			// when matching the target to the identifier, try matching the identifier
-			// to the target.
-			revFuzz := fuzzy.NewMatcher(ident.Name)
-			revScore := revFuzz.Score(pattern)
-			if revScore > highScore {
-				highScore = revScore
-				bestFuzz = ident
-			}
-		}
-	}
-	return bestFuzz
 }

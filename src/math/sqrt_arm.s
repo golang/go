@@ -4,8 +4,8 @@
 
 #include "textflag.h"
 
-// func Sqrt(x float64) float64
-TEXT ·Sqrt(SB),NOSPLIT,$0
+// func archSqrt(x float64) float64
+TEXT ·archSqrt(SB),NOSPLIT,$0
 	MOVB	runtime·goarm(SB), R11
 	CMP	$5, R11
 	BEQ	arm5

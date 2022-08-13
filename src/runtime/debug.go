@@ -45,7 +45,7 @@ func NumCPU() int {
 
 // NumCgoCall returns the number of cgo calls made by the current process.
 func NumCgoCall() int64 {
-	var n int64
+	var n = int64(atomic.Load64(&ncgocall))
 	for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
 		n += int64(mp.ncgocall)
 	}
@@ -60,4 +60,56 @@ func NumGoroutine() int {
 //go:linkname debug_modinfo runtime/debug.modinfo
 func debug_modinfo() string {
 	return modinfo
+}
+
+// mayMoreStackPreempt is a maymorestack hook that forces a preemption
+// at every possible cooperative preemption point.
+//
+// This is valuable to apply to the runtime, which can be sensitive to
+// preemption points. To apply this to all preemption points in the
+// runtime and runtime-like code, use the following in bash or zsh:
+//
+//	X=(-{gc,asm}flags={runtime/...,reflect,sync}=-d=maymorestack=runtime.mayMoreStackPreempt) GOFLAGS=${X[@]}
+//
+// This must be deeply nosplit because it is called from a function
+// prologue before the stack is set up and because the compiler will
+// call it from any splittable prologue (leading to infinite
+// recursion).
+//
+// Ideally it should also use very little stack because the linker
+// doesn't currently account for this in nosplit stack depth checking.
+//
+// Ensure mayMoreStackPreempt can be called for all ABIs.
+//
+//go:nosplit
+//go:linkname mayMoreStackPreempt
+func mayMoreStackPreempt() {
+	// Don't do anything on the g0 or gsignal stack.
+	gp := getg()
+	if gp == gp.m.g0 || gp == gp.m.gsignal {
+		return
+	}
+	// Force a preemption, unless the stack is already poisoned.
+	if gp.stackguard0 < stackPoisonMin {
+		gp.stackguard0 = stackPreempt
+	}
+}
+
+// mayMoreStackMove is a maymorestack hook that forces stack movement
+// at every possible point.
+//
+// See mayMoreStackPreempt.
+//
+//go:nosplit
+//go:linkname mayMoreStackMove
+func mayMoreStackMove() {
+	// Don't do anything on the g0 or gsignal stack.
+	gp := getg()
+	if gp == gp.m.g0 || gp == gp.m.gsignal {
+		return
+	}
+	// Force stack movement, unless the stack is already poisoned.
+	if gp.stackguard0 < stackPoisonMin {
+		gp.stackguard0 = stackForceMove
+	}
 }

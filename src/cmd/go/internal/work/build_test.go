@@ -173,10 +173,11 @@ func TestSharedLibName(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				cwd := base.Cwd()
 				oldGopath := cfg.BuildContext.GOPATH
 				defer func() {
 					cfg.BuildContext.GOPATH = oldGopath
-					os.Chdir(base.Cwd)
+					os.Chdir(cwd)
 					err := os.RemoveAll(tmpGopath)
 					if err != nil {
 						t.Error(err)
@@ -233,7 +234,7 @@ func TestRespectSetgidDir(t *testing.T) {
 	// of `(*Builder).ShowCmd` afterwards as a sanity check.
 	cfg.BuildX = true
 	var cmdBuf bytes.Buffer
-	b.Print = func(a ...interface{}) (int, error) {
+	b.Print = func(a ...any) (int, error) {
 		return cmdBuf.WriteString(fmt.Sprint(a...))
 	}
 

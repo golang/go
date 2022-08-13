@@ -114,6 +114,7 @@ func minNonzeroTime(a, b time.Time) time.Time {
 //   - now+Timeout
 //   - d.Deadline
 //   - the context's deadline
+//
 // Or zero, if none of Timeout, Deadline, or context's deadline is set.
 func (d *Dialer) deadline(ctx context.Context, now time.Time) (earliest time.Time) {
 	if d.Timeout != 0 { // including negative, for historical reasons
@@ -289,6 +290,7 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
 // Dial will try each IP address in order until one succeeds.
 //
 // Examples:
+//
 //	Dial("tcp", "golang.org:http")
 //	Dial("tcp", "192.0.2.1:http")
 //	Dial("tcp", "198.51.100.1:80")
@@ -304,6 +306,7 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
 // behaves with a non-well known protocol number such as "0" or "255".
 //
 // Examples:
+//
 //	Dial("ip4:1", "192.0.2.1")
 //	Dial("ip6:ipv6-icmp", "2001:db8::1")
 //	Dial("ip6:58", "fe80::1%lo0")
@@ -338,12 +341,16 @@ func DialTimeout(network, address string, timeout time.Duration) (Conn, error) {
 type sysDialer struct {
 	Dialer
 	network, address string
+	testHookDialTCP  func(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error)
 }
 
 // Dial connects to the address on the named network.
 //
 // See func Dial for a description of the network and address
 // parameters.
+//
+// Dial uses context.Background internally; to specify the context, use
+// DialContext.
 func (d *Dialer) Dial(network, address string) (Conn, error) {
 	return d.DialContext(context.Background(), network, address)
 }
@@ -418,12 +425,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		primaries = addrs
 	}
 
-	var c Conn
-	if len(fallbacks) > 0 {
-		c, err = sd.dialParallel(ctx, primaries, fallbacks)
-	} else {
-		c, err = sd.dialSerial(ctx, primaries)
-	}
+	c, err := sd.dialParallel(ctx, primaries, fallbacks)
 	if err != nil {
 		return nil, err
 	}
@@ -701,6 +703,9 @@ type sysListener struct {
 //
 // See func Dial for a description of the network and address
 // parameters.
+//
+// Listen uses context.Background internally; to specify the context, use
+// ListenConfig.Listen.
 func Listen(network, address string) (Listener, error) {
 	var lc ListenConfig
 	return lc.Listen(context.Background(), network, address)
@@ -728,6 +733,9 @@ func Listen(network, address string) (Listener, error) {
 //
 // See func Dial for a description of the network and address
 // parameters.
+//
+// ListenPacket uses context.Background internally; to specify the context, use
+// ListenConfig.ListenPacket.
 func ListenPacket(network, address string) (PacketConn, error) {
 	var lc ListenConfig
 	return lc.ListenPacket(context.Background(), network, address)

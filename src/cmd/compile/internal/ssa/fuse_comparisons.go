@@ -9,22 +9,22 @@ package ssa
 //
 // Look for branch structure like:
 //
-//   p
-//   |\
-//   | b
-//   |/ \
-//   s0 s1
+//	p
+//	|\
+//	| b
+//	|/ \
+//	s0 s1
 //
 // In our example, p has control '1 <= x', b has control 'x < 5',
 // and s0 and s1 are the if and else results of the comparison.
 //
 // This will be optimized into:
 //
-//   p
-//    \
-//     b
-//    / \
-//   s0 s1
+//	p
+//	 \
+//	  b
+//	 / \
+//	s0 s1
 //
 // where b has the combined control value 'unsigned(x-1) < 4'.
 // Later passes will then fuse p and b.

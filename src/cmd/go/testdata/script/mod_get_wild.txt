@@ -11,15 +11,15 @@ stdout '^example.net/a v0.1.0 '
 # already in the build list, and the wildcard in the first element prevents us
 # from attempting to resolve a new module whose path is a prefix of the pattern.
 
-! go get -d -u=patch example.../b@upgrade
-stderr '^go get: no modules to query for example\.\.\./b@upgrade because first path element contains a wildcard$'
+! go get -u=patch example.../b@upgrade
+stderr '^go: no modules to query for example\.\.\./b@upgrade because first path element contains a wildcard$'
 
 
 # Patching . causes a patch to example.net/a, which introduces a new match
 # for example.net/b/..., which is itself patched and causes another upgrade to
 # example.net/a, which is then patched again.
 
-go get -d -u=patch . example.../b@upgrade
+go get -u=patch . example.../b@upgrade
 go list -m all
 stdout '^example.net/a v0.2.1 '  # upgraded by dependency of b and -u=patch
 stdout '^example.net/b v0.2.0 '  # introduced by patch of a and upgraded by wildcard

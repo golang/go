@@ -5,8 +5,8 @@
 package types
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/internal/obj"
-	"cmd/internal/src"
 	"unicode"
 	"unicode/utf8"
 )
@@ -26,20 +26,22 @@ import (
 // NOTE: In practice, things can be messier than the description above
 // for various reasons (historical, convenience).
 type Sym struct {
-	Importdef *Pkg   // where imported definition was found
-	Linkname  string // link name
+	Linkname string // link name
 
 	Pkg  *Pkg
 	Name string // object name
 
-	// saved and restored by dcopy
-	Def        *Node    // definition: ONAME OTYPE OPACK or OLITERAL
-	Block      int32    // blocknumber to catch redeclaration
-	Lastlineno src.XPos // last declaration for diagnostic
+	// The unique ONAME, OTYPE, OPACK, or OLITERAL node that this symbol is
+	// bound to within the current scope. (Most parts of the compiler should
+	// prefer passing the Node directly, rather than relying on this field.)
+	//
+	// Def is saved and restored by Pushdcl/Popdcl.
+	//
+	// Deprecated: New code should avoid depending on Sym.Def. Add
+	// mdempsky@ as a reviewer for any CLs involving Sym.Def.
+	Def Object
 
-	flags   bitset8
-	Label   *Node // corresponding label (ephemeral)
-	Origpkg *Pkg  // original package for . import
+	flags bitset8
 }
 
 const (
@@ -47,7 +49,7 @@ const (
 	symUniq
 	symSiggen // type symbol has been generated
 	symAsm    // on asmlist, for writing to -asmhdr
-	symFunc   // function symbol; uses internal ABI
+	symFunc   // function symbol
 )
 
 func (sym *Sym) OnExportList() bool { return sym.flags&symOnExportList != 0 }
@@ -66,47 +68,46 @@ func (sym *Sym) IsBlank() bool {
 	return sym != nil && sym.Name == "_"
 }
 
-func (sym *Sym) LinksymName() string {
-	if sym.IsBlank() {
-		return "_"
+// Deprecated: This method should not be used directly. Instead, use a
+// higher-level abstraction that directly returns the linker symbol
+// for a named object. For example, reflectdata.TypeLinksym(t) instead
+// of reflectdata.TypeSym(t).Linksym().
+func (sym *Sym) Linksym() *obj.LSym {
+	abi := obj.ABI0
+	if sym.Func() {
+		abi = obj.ABIInternal
 	}
-	if sym.Linkname != "" {
-		return sym.Linkname
-	}
-	return sym.Pkg.Prefix + "." + sym.Name
+	return sym.LinksymABI(abi)
 }
 
-func (sym *Sym) Linksym() *obj.LSym {
+// Deprecated: This method should not be used directly. Instead, use a
+// higher-level abstraction that directly returns the linker symbol
+// for a named object. For example, (*ir.Name).LinksymABI(abi) instead
+// of (*ir.Name).Sym().LinksymABI(abi).
+func (sym *Sym) LinksymABI(abi obj.ABI) *obj.LSym {
 	if sym == nil {
-		return nil
+		base.Fatalf("nil symbol")
 	}
-	initPkg := func(r *obj.LSym) {
-		if sym.Linkname != "" {
-			r.Pkg = "_"
-		} else {
-			r.Pkg = sym.Pkg.Prefix
-		}
+	if sym.Linkname != "" {
+		return base.Linkname(sym.Linkname, abi)
 	}
-	if sym.Func() {
-		// This is a function symbol. Mark it as "internal ABI".
-		return Ctxt.LookupABIInit(sym.LinksymName(), obj.ABIInternal, initPkg)
-	}
-	return Ctxt.LookupInit(sym.LinksymName(), initPkg)
+	return base.PkgLinksym(sym.Pkg.Prefix, sym.Name, abi)
 }
 
 // Less reports whether symbol a is ordered before symbol b.
 //
 // Symbols are ordered exported before non-exported, then by name, and
-// finally (for non-exported symbols) by package height and path.
-//
-// Ordering by package height is necessary to establish a consistent
-// ordering for non-exported names with the same spelling but from
-// different packages. We don't necessarily know the path for the
-// package being compiled, but by definition it will have a height
-// greater than any other packages seen within the compilation unit.
-// For more background, see issue #24693.
+// finally (for non-exported symbols) by package path.
 func (a *Sym) Less(b *Sym) bool {
 	if a == b {
+		return false
+	}
+
+	// Nil before non-nil.
+	if a == nil {
+		return true
+	}
+	if b == nil {
 		return false
 	}
 
@@ -123,9 +124,6 @@ func (a *Sym) Less(b *Sym) bool {
 		return a.Name < b.Name
 	}
 	if !ea {
-		if a.Pkg.Height != b.Pkg.Height {
-			return a.Pkg.Height < b.Pkg.Height
-		}
 		return a.Pkg.Path < b.Pkg.Path
 	}
 	return false

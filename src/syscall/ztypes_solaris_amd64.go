@@ -1,7 +1,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_solaris.go
 
-// +build amd64,solaris
+//go:build amd64 && solaris
 
 package syscall
 

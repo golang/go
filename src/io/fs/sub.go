@@ -19,10 +19,10 @@ type SubFS interface {
 
 // Sub returns an FS corresponding to the subtree rooted at fsys's dir.
 //
-// If fs implements SubFS, Sub calls returns fsys.Sub(dir).
-// Otherwise, if dir is ".", Sub returns fsys unchanged.
+// If dir is ".", Sub returns fsys unchanged.
+// Otherwise, if fs implements SubFS, Sub returns fsys.Sub(dir).
 // Otherwise, Sub returns a new FS implementation sub that,
-// in effect, implements sub.Open(dir) as fsys.Open(path.Join(dir, name)).
+// in effect, implements sub.Open(name) as fsys.Open(path.Join(dir, name)).
 // The implementation also translates calls to ReadDir, ReadFile, and Glob appropriately.
 //
 // Note that Sub(os.DirFS("/"), "prefix") is equivalent to os.DirFS("/prefix")
@@ -68,7 +68,7 @@ func (f *subFS) shorten(name string) (rel string, ok bool) {
 	return "", false
 }
 
-// fixErr shortens any reported names in PathErrors by stripping dir.
+// fixErr shortens any reported names in PathErrors by stripping f.dir.
 func (f *subFS) fixErr(err error) error {
 	if e, ok := err.(*PathError); ok {
 		if short, ok := f.shorten(e.Path); ok {
@@ -124,4 +124,15 @@ func (f *subFS) Glob(pattern string) ([]string, error) {
 		list[i] = name
 	}
 	return list, f.fixErr(err)
+}
+
+func (f *subFS) Sub(dir string) (FS, error) {
+	if dir == "." {
+		return f, nil
+	}
+	full, err := f.fullName("sub", dir)
+	if err != nil {
+		return nil, err
+	}
+	return &subFS{f.fsys, full}, nil
 }

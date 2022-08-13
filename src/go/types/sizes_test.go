@@ -17,13 +17,16 @@ import (
 
 // findStructType typechecks src and returns the first struct type encountered.
 func findStructType(t *testing.T, src string) *types.Struct {
+	return findStructTypeConfig(t, src, &types.Config{})
+}
+
+func findStructTypeConfig(t *testing.T, src string, conf *types.Config) *types.Struct {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "x.go", src, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
-	var conf types.Config
 	_, err = conf.Check("x", fset, []*ast.File{f}, &info)
 	if err != nil {
 		t.Fatal(err)
@@ -108,5 +111,41 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 	for _, tv := range info.Types {
 		_ = conf.Sizes.Sizeof(tv.Type)
 		_ = conf.Sizes.Alignof(tv.Type)
+	}
+}
+
+// Issue #53884.
+func TestAtomicAlign(t *testing.T) {
+	const src = `
+package main
+
+import "sync/atomic"
+
+var s struct {
+	x int32
+	y atomic.Int64
+	z int64
+}
+`
+
+	want := []int64{0, 8, 16}
+	for _, arch := range []string{"386", "amd64"} {
+		t.Run(arch, func(t *testing.T) {
+			conf := types.Config{
+				Importer: importer.Default(),
+				Sizes:    types.SizesFor("gc", arch),
+			}
+			ts := findStructTypeConfig(t, src, &conf)
+			var fields []*types.Var
+			// Make a copy manually :(
+			for i := 0; i < ts.NumFields(); i++ {
+				fields = append(fields, ts.Field(i))
+			}
+
+			offsets := conf.Sizes.Offsetsof(fields)
+			if offsets[0] != want[0] || offsets[1] != want[1] || offsets[2] != want[2] {
+				t.Errorf("OffsetsOf(%v) = %v want %v", ts, offsets, want)
+			}
+		})
 	}
 }

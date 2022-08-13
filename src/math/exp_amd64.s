@@ -37,7 +37,7 @@ DATA exprodata<>+64(SB)/8, $2.4801587301587301587e-5
 GLOBL exprodata<>+0(SB), RODATA, $72
 
 // func Exp(x float64) float64
-TEXT ·Exp(SB),NOSPLIT,$0
+TEXT ·archExp(SB),NOSPLIT,$0
 	// test bits for not-finite
 	MOVQ    x+0(FP), BX
 	MOVQ    $~(1<<63), AX // sign bit mask

@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"internal/diff"
 	"io"
 	"os"
 	"path/filepath"
@@ -35,6 +36,7 @@ const (
 	rawFormat
 	normNumber
 	idempotent
+	allowTypeParams
 )
 
 // format parses src, prints the corresponding AST, verifies the resulting
@@ -70,7 +72,7 @@ func format(src []byte, mode checkMode) ([]byte, error) {
 
 	// make sure formatted output is syntactically correct
 	res := buf.Bytes()
-	if _, err := parser.ParseFile(fset, "", res, 0); err != nil {
+	if _, err := parser.ParseFile(fset, "", res, parser.ParseComments); err != nil {
 		return nil, fmt.Errorf("re-parse: %s\n%s", err, buf.Bytes())
 	}
 
@@ -86,36 +88,12 @@ func lineAt(text []byte, offs int) []byte {
 	return text[offs:i]
 }
 
-// diff compares a and b.
-func diff(aname, bname string, a, b []byte) error {
-	var buf bytes.Buffer // holding long error message
-
-	// compare lengths
-	if len(a) != len(b) {
-		fmt.Fprintf(&buf, "\nlength changed: len(%s) = %d, len(%s) = %d", aname, len(a), bname, len(b))
+// checkEqual compares a and b.
+func checkEqual(aname, bname string, a, b []byte) error {
+	if bytes.Equal(a, b) {
+		return nil
 	}
-
-	// compare contents
-	line := 1
-	offs := 1
-	for i := 0; i < len(a) && i < len(b); i++ {
-		ch := a[i]
-		if ch != b[i] {
-			fmt.Fprintf(&buf, "\n%s:%d:%d: %s", aname, line, i-offs+1, lineAt(a, offs))
-			fmt.Fprintf(&buf, "\n%s:%d:%d: %s", bname, line, i-offs+1, lineAt(b, offs))
-			fmt.Fprintf(&buf, "\n\n")
-			break
-		}
-		if ch == '\n' {
-			line++
-			offs = i + 1
-		}
-	}
-
-	if buf.Len() > 0 {
-		return errors.New(buf.String())
-	}
-	return nil
+	return errors.New(string(diff.Diff(aname, a, bname, b)))
 }
 
 func runcheck(t *testing.T, source, golden string, mode checkMode) {
@@ -147,7 +125,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 	}
 
 	// formatted source and golden must be the same
-	if err := diff(source, golden, res, gld); err != nil {
+	if err := checkEqual(source, golden, res, gld); err != nil {
 		t.Error(err)
 		return
 	}
@@ -161,7 +139,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 			t.Error(err)
 			return
 		}
-		if err := diff(golden, fmt.Sprintf("format(%s)", golden), gld, res); err != nil {
+		if err := checkEqual(golden, fmt.Sprintf("format(%s)", golden), gld, res); err != nil {
 			t.Errorf("golden is not idempotent: %s", err)
 		}
 	}
@@ -206,6 +184,14 @@ var data = []entry{
 	{"complit.input", "complit.x", export},
 	{"go2numbers.input", "go2numbers.golden", idempotent},
 	{"go2numbers.input", "go2numbers.norm", normNumber | idempotent},
+	{"generics.input", "generics.golden", idempotent | allowTypeParams},
+	{"gobuild1.input", "gobuild1.golden", idempotent},
+	{"gobuild2.input", "gobuild2.golden", idempotent},
+	{"gobuild3.input", "gobuild3.golden", idempotent},
+	{"gobuild4.input", "gobuild4.golden", idempotent},
+	{"gobuild5.input", "gobuild5.golden", idempotent},
+	{"gobuild6.input", "gobuild6.golden", idempotent},
+	{"gobuild7.input", "gobuild7.golden", idempotent},
 }
 
 func TestFiles(t *testing.T) {
@@ -226,7 +212,6 @@ func TestFiles(t *testing.T) {
 // TestLineComments, using a simple test case, checks that consecutive line
 // comments are properly terminated with a newline even if the AST position
 // information is incorrect.
-//
 func TestLineComments(t *testing.T) {
 	const src = `// comment 1
 	// comment 2

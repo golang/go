@@ -392,7 +392,6 @@ func (z *Rat) Inv(x *Rat) *Rat {
 //	-1 if x <  0
 //	 0 if x == 0
 //	+1 if x >  0
-//
 func (x *Rat) Sign() int {
 	return x.a.Sign()
 }
@@ -418,7 +417,7 @@ func (x *Rat) Num() *Int {
 // If the result is a reference to x's denominator it
 // may change if a new value is assigned to x, and vice versa.
 func (x *Rat) Denom() *Int {
-	x.b.neg = false // the result is always >= 0
+	// Note that x.b.neg is guaranteed false.
 	if len(x.b.abs) == 0 {
 		// Note: If this proves problematic, we could
 		//       panic instead and require the Rat to
@@ -479,10 +478,9 @@ func (z *Int) scaleDenom(x *Int, f nat) {
 
 // Cmp compares x and y and returns:
 //
-//   -1 if x <  y
-//    0 if x == y
-//   +1 if x >  y
-//
+//	-1 if x <  y
+//	 0 if x == y
+//	+1 if x >  y
 func (x *Rat) Cmp(y *Rat) int {
 	var a, b Int
 	a.scaleDenom(&x.a, y.b.abs)

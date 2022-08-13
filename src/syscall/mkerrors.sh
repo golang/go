@@ -131,6 +131,7 @@ includes_Linux='
 #include <linux/rtnetlink.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/serial.h>
 #include <linux/wait.h>
 #include <linux/icmpv6.h>
 #include <net/route.h>

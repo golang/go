@@ -123,8 +123,8 @@ const (
 	ELFOSABI_NONE       OSABI = 0   /* UNIX System V ABI */
 	ELFOSABI_HPUX       OSABI = 1   /* HP-UX operating system */
 	ELFOSABI_NETBSD     OSABI = 2   /* NetBSD */
-	ELFOSABI_LINUX      OSABI = 3   /* GNU/Linux */
-	ELFOSABI_HURD       OSABI = 4   /* GNU/Hurd */
+	ELFOSABI_LINUX      OSABI = 3   /* Linux */
+	ELFOSABI_HURD       OSABI = 4   /* Hurd */
 	ELFOSABI_86OPEN     OSABI = 5   /* 86Open common IA32 ABI */
 	ELFOSABI_SOLARIS    OSABI = 6   /* Solaris */
 	ELFOSABI_AIX        OSABI = 7   /* AIX */
@@ -384,6 +384,7 @@ const (
 	EM_RISCV         Machine = 243 /* RISC-V */
 	EM_LANAI         Machine = 244 /* Lanai 32-bit processor */
 	EM_BPF           Machine = 247 /* Linux BPF – in-kernel virtual machine */
+	EM_LOONGARCH     Machine = 258 /* LoongArch */
 
 	/* Non-standard or deprecated. */
 	EM_486         Machine = 6      /* Intel i486. */
@@ -575,6 +576,7 @@ var machineStrings = []intName{
 	{243, "EM_RISCV"},
 	{244, "EM_LANAI"},
 	{247, "EM_BPF"},
+	{258, "EM_LOONGARCH"},
 
 	/* Non-standard or deprecated. */
 	{6, "EM_486"},
@@ -644,6 +646,7 @@ const (
 	SHT_GNU_VERSYM     SectionType = 0x6fffffff /* GNU version symbol table */
 	SHT_HIOS           SectionType = 0x6fffffff /* Last of OS specific semantics */
 	SHT_LOPROC         SectionType = 0x70000000 /* reserved range for processor */
+	SHT_MIPS_ABIFLAGS  SectionType = 0x7000002a /* .MIPS.abiflags */
 	SHT_HIPROC         SectionType = 0x7fffffff /* specific section header types */
 	SHT_LOUSER         SectionType = 0x80000000 /* reserved range for application */
 	SHT_HIUSER         SectionType = 0xffffffff /* specific indexes */
@@ -675,6 +678,7 @@ var shtStrings = []intName{
 	{0x6ffffffe, "SHT_GNU_VERNEED"},
 	{0x6fffffff, "SHT_GNU_VERSYM"},
 	{0x70000000, "SHT_LOPROC"},
+	{0x7000002a, "SHT_MIPS_ABIFLAGS"},
 	{0x7fffffff, "SHT_HIPROC"},
 	{0x80000000, "SHT_LOUSER"},
 	{0xffffffff, "SHT_HIUSER"},
@@ -2148,6 +2152,196 @@ var rmipsStrings = []intName{
 func (i R_MIPS) String() string   { return stringName(uint32(i), rmipsStrings, false) }
 func (i R_MIPS) GoString() string { return stringName(uint32(i), rmipsStrings, true) }
 
+// Relocation types for LoongArch.
+type R_LARCH int
+
+const (
+	R_LARCH_NONE                       R_LARCH = 0
+	R_LARCH_32                         R_LARCH = 1
+	R_LARCH_64                         R_LARCH = 2
+	R_LARCH_RELATIVE                   R_LARCH = 3
+	R_LARCH_COPY                       R_LARCH = 4
+	R_LARCH_JUMP_SLOT                  R_LARCH = 5
+	R_LARCH_TLS_DTPMOD32               R_LARCH = 6
+	R_LARCH_TLS_DTPMOD64               R_LARCH = 7
+	R_LARCH_TLS_DTPREL32               R_LARCH = 8
+	R_LARCH_TLS_DTPREL64               R_LARCH = 9
+	R_LARCH_TLS_TPREL32                R_LARCH = 10
+	R_LARCH_TLS_TPREL64                R_LARCH = 11
+	R_LARCH_IRELATIVE                  R_LARCH = 12
+	R_LARCH_MARK_LA                    R_LARCH = 20
+	R_LARCH_MARK_PCREL                 R_LARCH = 21
+	R_LARCH_SOP_PUSH_PCREL             R_LARCH = 22
+	R_LARCH_SOP_PUSH_ABSOLUTE          R_LARCH = 23
+	R_LARCH_SOP_PUSH_DUP               R_LARCH = 24
+	R_LARCH_SOP_PUSH_GPREL             R_LARCH = 25
+	R_LARCH_SOP_PUSH_TLS_TPREL         R_LARCH = 26
+	R_LARCH_SOP_PUSH_TLS_GOT           R_LARCH = 27
+	R_LARCH_SOP_PUSH_TLS_GD            R_LARCH = 28
+	R_LARCH_SOP_PUSH_PLT_PCREL         R_LARCH = 29
+	R_LARCH_SOP_ASSERT                 R_LARCH = 30
+	R_LARCH_SOP_NOT                    R_LARCH = 31
+	R_LARCH_SOP_SUB                    R_LARCH = 32
+	R_LARCH_SOP_SL                     R_LARCH = 33
+	R_LARCH_SOP_SR                     R_LARCH = 34
+	R_LARCH_SOP_ADD                    R_LARCH = 35
+	R_LARCH_SOP_AND                    R_LARCH = 36
+	R_LARCH_SOP_IF_ELSE                R_LARCH = 37
+	R_LARCH_SOP_POP_32_S_10_5          R_LARCH = 38
+	R_LARCH_SOP_POP_32_U_10_12         R_LARCH = 39
+	R_LARCH_SOP_POP_32_S_10_12         R_LARCH = 40
+	R_LARCH_SOP_POP_32_S_10_16         R_LARCH = 41
+	R_LARCH_SOP_POP_32_S_10_16_S2      R_LARCH = 42
+	R_LARCH_SOP_POP_32_S_5_20          R_LARCH = 43
+	R_LARCH_SOP_POP_32_S_0_5_10_16_S2  R_LARCH = 44
+	R_LARCH_SOP_POP_32_S_0_10_10_16_S2 R_LARCH = 45
+	R_LARCH_SOP_POP_32_U               R_LARCH = 46
+	R_LARCH_ADD8                       R_LARCH = 47
+	R_LARCH_ADD16                      R_LARCH = 48
+	R_LARCH_ADD24                      R_LARCH = 49
+	R_LARCH_ADD32                      R_LARCH = 50
+	R_LARCH_ADD64                      R_LARCH = 51
+	R_LARCH_SUB8                       R_LARCH = 52
+	R_LARCH_SUB16                      R_LARCH = 53
+	R_LARCH_SUB24                      R_LARCH = 54
+	R_LARCH_SUB32                      R_LARCH = 55
+	R_LARCH_SUB64                      R_LARCH = 56
+	R_LARCH_GNU_VTINHERIT              R_LARCH = 57
+	R_LARCH_GNU_VTENTRY                R_LARCH = 58
+	R_LARCH_B16                        R_LARCH = 64
+	R_LARCH_B21                        R_LARCH = 65
+	R_LARCH_B26                        R_LARCH = 66
+	R_LARCH_ABS_HI20                   R_LARCH = 67
+	R_LARCH_ABS_LO12                   R_LARCH = 68
+	R_LARCH_ABS64_LO20                 R_LARCH = 69
+	R_LARCH_ABS64_HI12                 R_LARCH = 70
+	R_LARCH_PCALA_HI20                 R_LARCH = 71
+	R_LARCH_PCALA_LO12                 R_LARCH = 72
+	R_LARCH_PCALA64_LO20               R_LARCH = 73
+	R_LARCH_PCALA64_HI12               R_LARCH = 74
+	R_LARCH_GOT_PC_HI20                R_LARCH = 75
+	R_LARCH_GOT_PC_LO12                R_LARCH = 76
+	R_LARCH_GOT64_PC_LO20              R_LARCH = 77
+	R_LARCH_GOT64_PC_HI12              R_LARCH = 78
+	R_LARCH_GOT_HI20                   R_LARCH = 79
+	R_LARCH_GOT_LO12                   R_LARCH = 80
+	R_LARCH_GOT64_LO20                 R_LARCH = 81
+	R_LARCH_GOT64_HI12                 R_LARCH = 82
+	R_LARCH_TLS_LE_HI20                R_LARCH = 83
+	R_LARCH_TLS_LE_LO12                R_LARCH = 84
+	R_LARCH_TLS_LE64_LO20              R_LARCH = 85
+	R_LARCH_TLS_LE64_HI12              R_LARCH = 86
+	R_LARCH_TLS_IE_PC_HI20             R_LARCH = 87
+	R_LARCH_TLS_IE_PC_LO12             R_LARCH = 88
+	R_LARCH_TLS_IE64_PC_LO20           R_LARCH = 89
+	R_LARCH_TLS_IE64_PC_HI12           R_LARCH = 90
+	R_LARCH_TLS_IE_HI20                R_LARCH = 91
+	R_LARCH_TLS_IE_LO12                R_LARCH = 92
+	R_LARCH_TLS_IE64_LO20              R_LARCH = 93
+	R_LARCH_TLS_IE64_HI12              R_LARCH = 94
+	R_LARCH_TLS_LD_PC_HI20             R_LARCH = 95
+	R_LARCH_TLS_LD_HI20                R_LARCH = 96
+	R_LARCH_TLS_GD_PC_HI20             R_LARCH = 97
+	R_LARCH_TLS_GD_HI20                R_LARCH = 98
+	R_LARCH_32_PCREL                   R_LARCH = 99
+	R_LARCH_RELAX                      R_LARCH = 100
+)
+
+var rlarchStrings = []intName{
+	{0, "R_LARCH_NONE"},
+	{1, "R_LARCH_32"},
+	{2, "R_LARCH_64"},
+	{3, "R_LARCH_RELATIVE"},
+	{4, "R_LARCH_COPY"},
+	{5, "R_LARCH_JUMP_SLOT"},
+	{6, "R_LARCH_TLS_DTPMOD32"},
+	{7, "R_LARCH_TLS_DTPMOD64"},
+	{8, "R_LARCH_TLS_DTPREL32"},
+	{9, "R_LARCH_TLS_DTPREL64"},
+	{10, "R_LARCH_TLS_TPREL32"},
+	{11, "R_LARCH_TLS_TPREL64"},
+	{12, "R_LARCH_IRELATIVE"},
+	{20, "R_LARCH_MARK_LA"},
+	{21, "R_LARCH_MARK_PCREL"},
+	{22, "R_LARCH_SOP_PUSH_PCREL"},
+	{23, "R_LARCH_SOP_PUSH_ABSOLUTE"},
+	{24, "R_LARCH_SOP_PUSH_DUP"},
+	{25, "R_LARCH_SOP_PUSH_GPREL"},
+	{26, "R_LARCH_SOP_PUSH_TLS_TPREL"},
+	{27, "R_LARCH_SOP_PUSH_TLS_GOT"},
+	{28, "R_LARCH_SOP_PUSH_TLS_GD"},
+	{29, "R_LARCH_SOP_PUSH_PLT_PCREL"},
+	{30, "R_LARCH_SOP_ASSERT"},
+	{31, "R_LARCH_SOP_NOT"},
+	{32, "R_LARCH_SOP_SUB"},
+	{33, "R_LARCH_SOP_SL"},
+	{34, "R_LARCH_SOP_SR"},
+	{35, "R_LARCH_SOP_ADD"},
+	{36, "R_LARCH_SOP_AND"},
+	{37, "R_LARCH_SOP_IF_ELSE"},
+	{38, "R_LARCH_SOP_POP_32_S_10_5"},
+	{39, "R_LARCH_SOP_POP_32_U_10_12"},
+	{40, "R_LARCH_SOP_POP_32_S_10_12"},
+	{41, "R_LARCH_SOP_POP_32_S_10_16"},
+	{42, "R_LARCH_SOP_POP_32_S_10_16_S2"},
+	{43, "R_LARCH_SOP_POP_32_S_5_20"},
+	{44, "R_LARCH_SOP_POP_32_S_0_5_10_16_S2"},
+	{45, "R_LARCH_SOP_POP_32_S_0_10_10_16_S2"},
+	{46, "R_LARCH_SOP_POP_32_U"},
+	{47, "R_LARCH_ADD8"},
+	{48, "R_LARCH_ADD16"},
+	{49, "R_LARCH_ADD24"},
+	{50, "R_LARCH_ADD32"},
+	{51, "R_LARCH_ADD64"},
+	{52, "R_LARCH_SUB8"},
+	{53, "R_LARCH_SUB16"},
+	{54, "R_LARCH_SUB24"},
+	{55, "R_LARCH_SUB32"},
+	{56, "R_LARCH_SUB64"},
+	{57, "R_LARCH_GNU_VTINHERIT"},
+	{58, "R_LARCH_GNU_VTENTRY"},
+	{64, "R_LARCH_B16"},
+	{65, "R_LARCH_B21"},
+	{66, "R_LARCH_B26"},
+	{67, "R_LARCH_ABS_HI20"},
+	{68, "R_LARCH_ABS_LO12"},
+	{69, "R_LARCH_ABS64_LO20"},
+	{70, "R_LARCH_ABS64_HI12"},
+	{71, "R_LARCH_PCALA_HI20"},
+	{72, "R_LARCH_PCALA_LO12"},
+	{73, "R_LARCH_PCALA64_LO20"},
+	{74, "R_LARCH_PCALA64_HI12"},
+	{75, "R_LARCH_GOT_PC_HI20"},
+	{76, "R_LARCH_GOT_PC_LO12"},
+	{77, "R_LARCH_GOT64_PC_LO20"},
+	{78, "R_LARCH_GOT64_PC_HI12"},
+	{79, "R_LARCH_GOT_HI20"},
+	{80, "R_LARCH_GOT_LO12"},
+	{81, "R_LARCH_GOT64_LO20"},
+	{82, "R_LARCH_GOT64_HI12"},
+	{83, "R_LARCH_TLS_LE_HI20"},
+	{84, "R_LARCH_TLS_LE_LO12"},
+	{85, "R_LARCH_TLS_LE64_LO20"},
+	{86, "R_LARCH_TLS_LE64_HI12"},
+	{87, "R_LARCH_TLS_IE_PC_HI20"},
+	{88, "R_LARCH_TLS_IE_PC_LO12"},
+	{89, "R_LARCH_TLS_IE64_PC_LO20"},
+	{90, "R_LARCH_TLS_IE64_PC_HI12"},
+	{91, "R_LARCH_TLS_IE_HI20"},
+	{92, "R_LARCH_TLS_IE_LO12"},
+	{93, "R_LARCH_TLS_IE64_LO20"},
+	{94, "R_LARCH_TLS_IE64_HI12"},
+	{95, "R_LARCH_TLS_LD_PC_HI20"},
+	{96, "R_LARCH_TLS_LD_HI20"},
+	{97, "R_LARCH_TLS_GD_PC_HI20"},
+	{98, "R_LARCH_TLS_GD_HI20"},
+	{99, "R_LARCH_32_PCREL"},
+	{100, "R_LARCH_RELAX"},
+}
+
+func (i R_LARCH) String() string   { return stringName(uint32(i), rlarchStrings, false) }
+func (i R_LARCH) GoString() string { return stringName(uint32(i), rlarchStrings, true) }
+
 // Relocation types for PowerPC.
 //
 // Values that are shared by both R_PPC and R_PPC64 are prefixed with
@@ -2347,6 +2541,7 @@ const (
 	R_PPC64_GOT16_HI           R_PPC64 = 16 // R_POWERPC_GOT16_HI
 	R_PPC64_GOT16_HA           R_PPC64 = 17 // R_POWERPC_GOT16_HA
 	R_PPC64_JMP_SLOT           R_PPC64 = 21 // R_POWERPC_JMP_SLOT
+	R_PPC64_RELATIVE           R_PPC64 = 22 // R_POWERPC_RELATIVE
 	R_PPC64_REL32              R_PPC64 = 26 // R_POWERPC_REL32
 	R_PPC64_ADDR64             R_PPC64 = 38
 	R_PPC64_ADDR16_HIGHER      R_PPC64 = 39
@@ -2455,6 +2650,7 @@ var rppc64Strings = []intName{
 	{16, "R_PPC64_GOT16_HI"},
 	{17, "R_PPC64_GOT16_HA"},
 	{21, "R_PPC64_JMP_SLOT"},
+	{22, "R_PPC64_RELATIVE"},
 	{26, "R_PPC64_REL32"},
 	{38, "R_PPC64_ADDR64"},
 	{39, "R_PPC64_ADDR16_HIGHER"},

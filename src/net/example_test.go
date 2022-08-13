@@ -124,6 +124,176 @@ func ExampleIP_DefaultMask() {
 	// ffffff00
 }
 
+func ExampleIP_Equal() {
+	ipv4DNS := net.ParseIP("8.8.8.8")
+	ipv4Lo := net.ParseIP("127.0.0.1")
+	ipv6DNS := net.ParseIP("0:0:0:0:0:FFFF:0808:0808")
+
+	fmt.Println(ipv4DNS.Equal(ipv4DNS))
+	fmt.Println(ipv4DNS.Equal(ipv4Lo))
+	fmt.Println(ipv4DNS.Equal(ipv6DNS))
+
+	// Output:
+	// true
+	// false
+	// true
+}
+
+func ExampleIP_IsGlobalUnicast() {
+	ipv6Global := net.ParseIP("2000::")
+	ipv6UniqLocal := net.ParseIP("2000::")
+	ipv6Multi := net.ParseIP("FF00::")
+
+	ipv4Private := net.ParseIP("10.255.0.0")
+	ipv4Public := net.ParseIP("8.8.8.8")
+	ipv4Broadcast := net.ParseIP("255.255.255.255")
+
+	fmt.Println(ipv6Global.IsGlobalUnicast())
+	fmt.Println(ipv6UniqLocal.IsGlobalUnicast())
+	fmt.Println(ipv6Multi.IsGlobalUnicast())
+
+	fmt.Println(ipv4Private.IsGlobalUnicast())
+	fmt.Println(ipv4Public.IsGlobalUnicast())
+	fmt.Println(ipv4Broadcast.IsGlobalUnicast())
+
+	// Output:
+	// true
+	// true
+	// false
+	// true
+	// true
+	// false
+}
+
+func ExampleIP_IsInterfaceLocalMulticast() {
+	ipv6InterfaceLocalMulti := net.ParseIP("ff01::1")
+	ipv6Global := net.ParseIP("2000::")
+	ipv4 := net.ParseIP("255.0.0.0")
+
+	fmt.Println(ipv6InterfaceLocalMulti.IsInterfaceLocalMulticast())
+	fmt.Println(ipv6Global.IsInterfaceLocalMulticast())
+	fmt.Println(ipv4.IsInterfaceLocalMulticast())
+
+	// Output:
+	// true
+	// false
+	// false
+}
+
+func ExampleIP_IsLinkLocalMulticast() {
+	ipv6LinkLocalMulti := net.ParseIP("ff02::2")
+	ipv6LinkLocalUni := net.ParseIP("fe80::")
+	ipv4LinkLocalMulti := net.ParseIP("224.0.0.0")
+	ipv4LinkLocalUni := net.ParseIP("169.254.0.0")
+
+	fmt.Println(ipv6LinkLocalMulti.IsLinkLocalMulticast())
+	fmt.Println(ipv6LinkLocalUni.IsLinkLocalMulticast())
+	fmt.Println(ipv4LinkLocalMulti.IsLinkLocalMulticast())
+	fmt.Println(ipv4LinkLocalUni.IsLinkLocalMulticast())
+
+	// Output:
+	// true
+	// false
+	// true
+	// false
+}
+
+func ExampleIP_IsLinkLocalUnicast() {
+	ipv6LinkLocalUni := net.ParseIP("fe80::")
+	ipv6Global := net.ParseIP("2000::")
+	ipv4LinkLocalUni := net.ParseIP("169.254.0.0")
+	ipv4LinkLocalMulti := net.ParseIP("224.0.0.0")
+
+	fmt.Println(ipv6LinkLocalUni.IsLinkLocalUnicast())
+	fmt.Println(ipv6Global.IsLinkLocalUnicast())
+	fmt.Println(ipv4LinkLocalUni.IsLinkLocalUnicast())
+	fmt.Println(ipv4LinkLocalMulti.IsLinkLocalUnicast())
+
+	// Output:
+	// true
+	// false
+	// true
+	// false
+}
+
+func ExampleIP_IsLoopback() {
+	ipv6Lo := net.ParseIP("::1")
+	ipv6 := net.ParseIP("ff02::1")
+	ipv4Lo := net.ParseIP("127.0.0.0")
+	ipv4 := net.ParseIP("128.0.0.0")
+
+	fmt.Println(ipv6Lo.IsLoopback())
+	fmt.Println(ipv6.IsLoopback())
+	fmt.Println(ipv4Lo.IsLoopback())
+	fmt.Println(ipv4.IsLoopback())
+
+	// Output:
+	// true
+	// false
+	// true
+	// false
+}
+
+func ExampleIP_IsMulticast() {
+	ipv6Multi := net.ParseIP("FF00::")
+	ipv6LinkLocalMulti := net.ParseIP("ff02::1")
+	ipv6Lo := net.ParseIP("::1")
+	ipv4Multi := net.ParseIP("239.0.0.0")
+	ipv4LinkLocalMulti := net.ParseIP("224.0.0.0")
+	ipv4Lo := net.ParseIP("127.0.0.0")
+
+	fmt.Println(ipv6Multi.IsMulticast())
+	fmt.Println(ipv6LinkLocalMulti.IsMulticast())
+	fmt.Println(ipv6Lo.IsMulticast())
+	fmt.Println(ipv4Multi.IsMulticast())
+	fmt.Println(ipv4LinkLocalMulti.IsMulticast())
+	fmt.Println(ipv4Lo.IsMulticast())
+
+	// Output:
+	// true
+	// true
+	// false
+	// true
+	// true
+	// false
+}
+
+func ExampleIP_IsPrivate() {
+	ipv6Private := net.ParseIP("fc00::")
+	ipv6Public := net.ParseIP("fe00::")
+	ipv4Private := net.ParseIP("10.255.0.0")
+	ipv4Public := net.ParseIP("11.0.0.0")
+
+	fmt.Println(ipv6Private.IsPrivate())
+	fmt.Println(ipv6Public.IsPrivate())
+	fmt.Println(ipv4Private.IsPrivate())
+	fmt.Println(ipv4Public.IsPrivate())
+
+	// Output:
+	// true
+	// false
+	// true
+	// false
+}
+
+func ExampleIP_IsUnspecified() {
+	ipv6Unspecified := net.ParseIP("::")
+	ipv6Specified := net.ParseIP("fe00::")
+	ipv4Unspecified := net.ParseIP("0.0.0.0")
+	ipv4Specified := net.ParseIP("8.8.8.8")
+
+	fmt.Println(ipv6Unspecified.IsUnspecified())
+	fmt.Println(ipv6Specified.IsUnspecified())
+	fmt.Println(ipv4Unspecified.IsUnspecified())
+	fmt.Println(ipv4Specified.IsUnspecified())
+
+	// Output:
+	// true
+	// false
+	// true
+	// false
+}
+
 func ExampleIP_Mask() {
 	ipv4Addr := net.ParseIP("192.0.2.1")
 	// This mask corresponds to a /24 subnet for IPv4.
@@ -138,6 +308,42 @@ func ExampleIP_Mask() {
 	// Output:
 	// 192.0.2.0
 	// 2001:db8::
+}
+
+func ExampleIP_String() {
+	ipv6 := net.IP{0xfc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	ipv4 := net.IPv4(10, 255, 0, 0)
+
+	fmt.Println(ipv6.String())
+	fmt.Println(ipv4.String())
+
+	// Output:
+	// fc00::
+	// 10.255.0.0
+}
+
+func ExampleIP_To16() {
+	ipv6 := net.IP{0xfc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	ipv4 := net.IPv4(10, 255, 0, 0)
+
+	fmt.Println(ipv6.To16())
+	fmt.Println(ipv4.To16())
+
+	// Output:
+	// fc00::
+	// 10.255.0.0
+}
+
+func ExampleIP_to4() {
+	ipv6 := net.IP{0xfc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	ipv4 := net.IPv4(10, 255, 0, 0)
+
+	fmt.Println(ipv6.To4())
+	fmt.Println(ipv4.To4())
+
+	// Output:
+	// <nil>
+	// 10.255.0.0
 }
 
 func ExampleCIDRMask() {

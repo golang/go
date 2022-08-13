@@ -1,17 +1,17 @@
 /*
-	Parenthesized type switch expressions originally
-	accepted by gofmt must continue to be rewritten
-	into the correct unparenthesized form.
+Parenthesized type switch expressions originally
+accepted by gofmt must continue to be rewritten
+into the correct unparenthesized form.
 
-	Only type-switches that didn't declare a variable
-	in the type switch type assertion and which
-	contained only "expression-like" (named) types in their
-	cases were permitted to have their type assertion parenthesized
-	by go/parser (due to a weak predicate in the parser). All others
-	were rejected always, either with a syntax error in the
-	type switch header or in the case.
+Only type-switches that didn't declare a variable
+in the type switch type assertion and which
+contained only "expression-like" (named) types in their
+cases were permitted to have their type assertion parenthesized
+by go/parser (due to a weak predicate in the parser). All others
+were rejected always, either with a syntax error in the
+type switch header or in the case.
 
-	See also issue 4470.
+See also issue 4470.
 */
 package p
 

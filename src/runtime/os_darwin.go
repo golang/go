@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 type mOS struct {
 	initialized bool
@@ -115,10 +118,15 @@ func sigNoteWakeup(*note) {
 
 // sigNoteSleep waits for a note created by sigNoteSetup to be woken.
 func sigNoteSleep(*note) {
-	entersyscallblock()
-	var b byte
-	read(sigNoteRead, unsafe.Pointer(&b), 1)
-	exitsyscall()
+	for {
+		var b byte
+		entersyscallblock()
+		n := read(sigNoteRead, unsafe.Pointer(&b), 1)
+		exitsyscall()
+		if n != -_EINTR {
+			return
+		}
+	}
 }
 
 // BSD interface for threading.
@@ -187,6 +195,7 @@ func goenvs() {
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrierrec
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
@@ -221,7 +230,7 @@ func newosproc(mp *m) {
 	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
+	err = pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
@@ -284,6 +293,7 @@ var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 // Called to do synchronous initialization of Go code built with
 // -buildmode=c-archive or -buildmode=c-shared.
 // None of the Go runtime is initialized.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
@@ -316,6 +326,7 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	// iOS does not support alternate signal stack.
@@ -323,6 +334,16 @@ func unminit() {
 	if !(GOOS == "ios" && GOARCH == "arm64") {
 		unminitSignals()
 	}
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
+}
+
+//go:nosplit
+func osyield_no_g() {
+	usleep_no_g(1)
 }
 
 //go:nosplit
@@ -351,11 +372,11 @@ func setsig(i uint32, fn uintptr) {
 	var sa usigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = ^uint32(0)
-	if fn == funcPC(sighandler) {
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
 		if iscgo {
-			fn = funcPC(cgoSigtramp)
+			fn = abi.FuncPCABI0(cgoSigtramp)
 		} else {
-			fn = funcPC(sigtramp)
+			fn = abi.FuncPCABI0(sigtramp)
 		}
 	}
 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = fn
@@ -392,6 +413,7 @@ func getsig(i uint32) uintptr {
 }
 
 // setSignaltstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
@@ -405,6 +427,19 @@ func sigaddset(mask *sigset, i int) {
 
 func sigdelset(mask *sigset, i int) {
 	*mask &^= 1 << (uint32(i) - 1)
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
 }
 
 //go:linkname executablePath os.executablePath
@@ -427,4 +462,13 @@ func sysargs(argc int32, argv **byte) {
 
 func signalM(mp *m, sig int) {
 	pthread_kill(pthread(mp.procid), uint32(sig))
+}
+
+// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+// number.
+const sigPerThreadSyscall = 1 << 31
+
+//go:nosplit
+func runPerThreadSyscall() {
+	throw("runPerThreadSyscall only valid on linux")
 }

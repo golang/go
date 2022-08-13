@@ -184,7 +184,7 @@ func TestInstallationImporter(t *testing.T) {
 		{pkgpath: "io", name: "ReadWriter", want: "type ReadWriter interface{Reader; Writer}"},
 		{pkgpath: "math", name: "Pi", want: "const Pi untyped float"},
 		{pkgpath: "math", name: "Sin", want: "func Sin(x float64) float64"},
-		{pkgpath: "sort", name: "Ints", want: "func Ints(a []int)"},
+		{pkgpath: "sort", name: "Search", want: "func Search(n int, f func(int) bool) int"},
 		{pkgpath: "unsafe", name: "Pointer", want: "type Pointer"},
 	} {
 		runImporterTest(t, imp, nil, &test)

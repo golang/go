@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
-// Generate builtinlist.go from cmd/compile/internal/gc/builtin/runtime.go.
+// Generate builtinlist.go from cmd/compile/internal/typecheck/builtin/runtime.go.
 
 package main
 
@@ -53,7 +54,7 @@ func main() {
 func mkbuiltin(w io.Writer) {
 	pkg := "runtime"
 	fset := token.NewFileSet()
-	path := filepath.Join("..", "..", "compile", "internal", "gc", "builtin", "runtime.go")
+	path := filepath.Join("..", "..", "compile", "internal", "typecheck", "builtin", "runtime.go")
 	f, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
 		log.Fatal(err)
@@ -104,7 +105,7 @@ func mkbuiltin(w io.Writer) {
 	extras := append(fextras[:], enumerateBasicTypes()...)
 	for _, b := range extras {
 		prefix := ""
-		if !strings.HasPrefix(b.name, "type.") {
+		if !strings.HasPrefix(b.name, "type:") {
 			prefix = pkg + "."
 		}
 		name := prefix + b.name
@@ -118,8 +119,8 @@ func mkbuiltin(w io.Writer) {
 
 // addBasicTypes returns the symbol names for basic types that are
 // defined in the runtime and referenced in other packages.
-// Needs to be kept in sync with reflect.go:dumpbasictypes() and
-// reflect.go:dtypesym() in the compiler.
+// Needs to be kept in sync with reflect.go:WriteBasicTypes() and
+// reflect.go:writeType() in the compiler.
 func enumerateBasicTypes() []extra {
 	names := [...]string{
 		"int8", "uint8", "int16", "uint16",
@@ -129,8 +130,8 @@ func enumerateBasicTypes() []extra {
 		"func(error) string"}
 	result := []extra{}
 	for _, n := range names {
-		result = append(result, extra{"type." + n, 0})
-		result = append(result, extra{"type.*" + n, 0})
+		result = append(result, extra{"type:" + n, 0})
+		result = append(result, extra{"type:*" + n, 0})
 	}
 	return result
 }
@@ -150,7 +151,9 @@ var fextras = [...]extra{
 	{"sigpanic", 1},
 
 	// compiler backend inserted calls
-	{"gcWriteBarrier", 0}, // asm function, ABI0
+	{"gcWriteBarrier", 1},
+	{"duffzero", 1},
+	{"duffcopy", 1},
 
 	// assembler backend inserted calls
 	{"morestack", 0},        // asm function, ABI0

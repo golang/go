@@ -53,7 +53,7 @@ func BenchmarkRegexpMatchEasy0_32(b *testing.B)  { benchmark(b, easy0, 32<<0) }
 func BenchmarkRegexpMatchEasy0_1K(b *testing.B)  { benchmark(b, easy0, 1<<10) }
 func BenchmarkRegexpMatchEasy1_32(b *testing.B)  { benchmark(b, easy1, 32<<0) }
 func BenchmarkRegexpMatchEasy1_1K(b *testing.B)  { benchmark(b, easy1, 1<<10) }
-func BenchmarkRegexpMatchMedium_32(b *testing.B) { benchmark(b, medium, 1<<0) }
+func BenchmarkRegexpMatchMedium_32(b *testing.B) { benchmark(b, medium, 32<<0) }
 func BenchmarkRegexpMatchMedium_1K(b *testing.B) { benchmark(b, medium, 1<<10) }
 func BenchmarkRegexpMatchHard_32(b *testing.B)   { benchmark(b, hard, 32<<0) }
 func BenchmarkRegexpMatchHard_1K(b *testing.B)   { benchmark(b, hard, 1<<10) }

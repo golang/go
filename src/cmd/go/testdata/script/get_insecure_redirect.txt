@@ -1,4 +1,4 @@
-# golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure.
+# golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure (now replaced by GOINSECURE).
 # golang.org/issue/34049: 'go get' would panic in case of an insecure redirect in GOPATH mode
 
 [!net] skip
@@ -9,4 +9,5 @@ env GO111MODULE=off
 ! go get -d vcs-test.golang.org/insecure/go/insecure
 stderr 'redirected .* to insecure URL'
 
-go get -d -insecure vcs-test.golang.org/insecure/go/insecure
+env GOINSECURE=vcs-test.golang.org/insecure/go/insecure
+go get -d vcs-test.golang.org/insecure/go/insecure

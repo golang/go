@@ -38,7 +38,7 @@ const (
 
 var config = printer.Config{Mode: printerMode, Tabwidth: tabWidth}
 
-const parserMode = parser.ParseComments
+const parserMode = parser.ParseComments | parser.SkipObjectResolution
 
 // Node formats node in canonical gofmt style and writes the result to dst.
 //
@@ -50,8 +50,7 @@ const parserMode = parser.ParseComments
 //
 // The function may return early (before the entire result is written)
 // and return a formatting error, for instance due to an incorrect AST.
-//
-func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
+func Node(dst io.Writer, fset *token.FileSet, node any) error {
 	// Determine if we have a complete source file (file != nil).
 	var file *ast.File
 	var cnode *printer.CommentedNode
@@ -99,7 +98,6 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
 // is applied to the result (such that it has the same leading and trailing
 // space as src), and the result is indented by the same amount as the first
 // line of src containing code. Imports are not sorted for partial source files.
-//
 func Source(src []byte) ([]byte, error) {
 	fset := token.NewFileSet()
 	file, sourceAdj, indentAdj, err := parse(fset, "", src, true)

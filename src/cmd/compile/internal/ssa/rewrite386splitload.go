@@ -26,7 +26,7 @@ func rewriteValue386splitload_Op386CMPBconstload(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPBconstload {sym} [vo] ptr mem)
-	// result: (CMPBconst (MOVBload {sym} [vo.Off32()] ptr mem) [vo.Val8()])
+	// result: (CMPBconst (MOVBload {sym} [vo.Off()] ptr mem) [vo.Val8()])
 	for {
 		vo := auxIntToValAndOff(v.AuxInt)
 		sym := auxToSym(v.Aux)
@@ -35,7 +35,7 @@ func rewriteValue386splitload_Op386CMPBconstload(v *Value) bool {
 		v.reset(Op386CMPBconst)
 		v.AuxInt = int8ToAuxInt(vo.Val8())
 		v0 := b.NewValue0(v.Pos, Op386MOVBload, typ.UInt8)
-		v0.AuxInt = int32ToAuxInt(vo.Off32())
+		v0.AuxInt = int32ToAuxInt(vo.Off())
 		v0.Aux = symToAux(sym)
 		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
@@ -71,16 +71,16 @@ func rewriteValue386splitload_Op386CMPLconstload(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPLconstload {sym} [vo] ptr mem)
-	// result: (CMPLconst (MOVLload {sym} [vo.Off32()] ptr mem) [vo.Val32()])
+	// result: (CMPLconst (MOVLload {sym} [vo.Off()] ptr mem) [vo.Val()])
 	for {
 		vo := auxIntToValAndOff(v.AuxInt)
 		sym := auxToSym(v.Aux)
 		ptr := v_0
 		mem := v_1
 		v.reset(Op386CMPLconst)
-		v.AuxInt = int32ToAuxInt(vo.Val32())
+		v.AuxInt = int32ToAuxInt(vo.Val())
 		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
-		v0.AuxInt = int32ToAuxInt(vo.Off32())
+		v0.AuxInt = int32ToAuxInt(vo.Off())
 		v0.Aux = symToAux(sym)
 		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
@@ -116,7 +116,7 @@ func rewriteValue386splitload_Op386CMPWconstload(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPWconstload {sym} [vo] ptr mem)
-	// result: (CMPWconst (MOVWload {sym} [vo.Off32()] ptr mem) [vo.Val16()])
+	// result: (CMPWconst (MOVWload {sym} [vo.Off()] ptr mem) [vo.Val16()])
 	for {
 		vo := auxIntToValAndOff(v.AuxInt)
 		sym := auxToSym(v.Aux)
@@ -125,7 +125,7 @@ func rewriteValue386splitload_Op386CMPWconstload(v *Value) bool {
 		v.reset(Op386CMPWconst)
 		v.AuxInt = int16ToAuxInt(vo.Val16())
 		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
-		v0.AuxInt = int32ToAuxInt(vo.Off32())
+		v0.AuxInt = int32ToAuxInt(vo.Off())
 		v0.Aux = symToAux(sym)
 		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
@@ -156,7 +156,5 @@ func rewriteValue386splitload_Op386CMPWload(v *Value) bool {
 	}
 }
 func rewriteBlock386splitload(b *Block) bool {
-	switch b.Kind {
-	}
 	return false
 }

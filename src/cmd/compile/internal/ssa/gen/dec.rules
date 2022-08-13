@@ -56,6 +56,7 @@
 (SlicePtr (SliceMake ptr _ _ )) => ptr
 (SliceLen (SliceMake _ len _)) => len
 (SliceCap (SliceMake _ _ cap)) => cap
+(SlicePtrUnchecked (SliceMake ptr _ _ )) => ptr
 
 (Load <t> ptr mem) && t.IsSlice() =>
   (SliceMake

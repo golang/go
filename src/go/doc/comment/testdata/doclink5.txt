@@ -1,0 +1,5 @@
+{"DocLinkBaseURL": "https://pkg.go.dev"}
+-- input --
+[encoding/json.Marshal] is a doc link.
+-- markdown --
+[encoding/json.Marshal](https://pkg.go.dev/encoding/json#Marshal) is a doc link.

@@ -66,7 +66,7 @@ func TestGCInfo(t *testing.T) {
 		runtime.KeepAlive(x)
 	}
 	{
-		var x interface{}
+		var x any
 		verifyGCInfo(t, "stack eface", &x, infoEface)
 		runtime.KeepAlive(x)
 	}
@@ -77,19 +77,19 @@ func TestGCInfo(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		verifyGCInfo(t, "heap Ptr", escape(new(Ptr)), trimDead(infoPtr))
-		verifyGCInfo(t, "heap PtrSlice", escape(&make([]*byte, 10)[0]), trimDead(infoPtr10))
-		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), trimDead(infoScalarPtr))
-		verifyGCInfo(t, "heap ScalarPtrSlice", escape(&make([]ScalarPtr, 4)[0]), trimDead(infoScalarPtr4))
-		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), trimDead(infoPtrScalar))
-		verifyGCInfo(t, "heap BigStruct", escape(new(BigStruct)), trimDead(infoBigStruct()))
-		verifyGCInfo(t, "heap string", escape(new(string)), trimDead(infoString))
-		verifyGCInfo(t, "heap eface", escape(new(interface{})), trimDead(infoEface))
-		verifyGCInfo(t, "heap iface", escape(new(Iface)), trimDead(infoIface))
+		verifyGCInfo(t, "heap Ptr", runtime.Escape(new(Ptr)), trimDead(infoPtr))
+		verifyGCInfo(t, "heap PtrSlice", runtime.Escape(&make([]*byte, 10)[0]), trimDead(infoPtr10))
+		verifyGCInfo(t, "heap ScalarPtr", runtime.Escape(new(ScalarPtr)), trimDead(infoScalarPtr))
+		verifyGCInfo(t, "heap ScalarPtrSlice", runtime.Escape(&make([]ScalarPtr, 4)[0]), trimDead(infoScalarPtr4))
+		verifyGCInfo(t, "heap PtrScalar", runtime.Escape(new(PtrScalar)), trimDead(infoPtrScalar))
+		verifyGCInfo(t, "heap BigStruct", runtime.Escape(new(BigStruct)), trimDead(infoBigStruct()))
+		verifyGCInfo(t, "heap string", runtime.Escape(new(string)), trimDead(infoString))
+		verifyGCInfo(t, "heap eface", runtime.Escape(new(any)), trimDead(infoEface))
+		verifyGCInfo(t, "heap iface", runtime.Escape(new(Iface)), trimDead(infoIface))
 	}
 }
 
-func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
+func verifyGCInfo(t *testing.T, name string, p any, mask0 []byte) {
 	mask := runtime.GCMask(p)
 	if !bytes.Equal(mask, mask0) {
 		t.Errorf("bad GC program for %v:\nwant %+v\ngot  %+v", name, mask0, mask)
@@ -102,13 +102,6 @@ func trimDead(mask []byte) []byte {
 		mask = mask[:len(mask)-1]
 	}
 	return mask
-}
-
-var gcinfoSink interface{}
-
-func escape(p interface{}) interface{} {
-	gcinfoSink = p
-	return p
 }
 
 var infoPtr = []byte{typePointer}
@@ -164,7 +157,7 @@ func infoBigStruct() []byte {
 			typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
 			typePointer, typeScalar, // i string
 		}
-	case "arm64", "amd64", "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x", "wasm":
+	case "arm64", "amd64", "loong64", "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x", "wasm":
 		return []byte{
 			typePointer,                        // q *int
 			typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
@@ -194,18 +187,18 @@ var (
 	bssBigStruct BigStruct
 	bssString    string
 	bssSlice     []string
-	bssEface     interface{}
+	bssEface     any
 	bssIface     Iface
 
 	// DATA
-	dataPtr                   = Ptr{new(byte)}
-	dataScalarPtr             = ScalarPtr{q: 1}
-	dataPtrScalar             = PtrScalar{w: 1}
-	dataBigStruct             = BigStruct{w: 1}
-	dataString                = "foo"
-	dataSlice                 = []string{"foo"}
-	dataEface     interface{} = 42
-	dataIface     Iface       = IfaceImpl(42)
+	dataPtr             = Ptr{new(byte)}
+	dataScalarPtr       = ScalarPtr{q: 1}
+	dataPtrScalar       = PtrScalar{w: 1}
+	dataBigStruct       = BigStruct{w: 1}
+	dataString          = "foo"
+	dataSlice           = []string{"foo"}
+	dataEface     any   = 42
+	dataIface     Iface = IfaceImpl(42)
 
 	infoString = []byte{typePointer, typeScalar}
 	infoSlice  = []byte{typePointer, typeScalar, typeScalar}

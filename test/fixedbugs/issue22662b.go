@@ -48,7 +48,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		out, err := exec.Command("go", "tool", "compile", f.Name()).CombinedOutput()
+		out, err := exec.Command("go", "tool", "compile", "-p=p", f.Name()).CombinedOutput()
 		if err == nil {
 			log.Fatalf("expected compiling\n---\n%s\n---\nto fail", test.src)
 		}

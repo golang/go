@@ -4,7 +4,7 @@
 
 // Fake networking for js/wasm. It is intended to allow tests of other package to pass.
 
-// +build js,wasm
+//go:build js && wasm
 
 package net
 
@@ -16,6 +16,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 var listenersMu sync.Mutex
@@ -265,13 +267,45 @@ func sysSocket(family, sotype, proto int) (int, error) {
 
 func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 	return 0, nil, syscall.ENOSYS
+
+}
+func (fd *netFD) readFromInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
+	return 0, syscall.ENOSYS
 }
 
-func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+func (fd *netFD) readFromInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
+	return 0, syscall.ENOSYS
+}
+
+func (fd *netFD) readMsg(p []byte, oob []byte, flags int) (n, oobn, retflags int, sa syscall.Sockaddr, err error) {
 	return 0, 0, 0, nil, syscall.ENOSYS
 }
 
+func (fd *netFD) readMsgInet4(p []byte, oob []byte, flags int, sa *syscall.SockaddrInet4) (n, oobn, retflags int, err error) {
+	return 0, 0, 0, syscall.ENOSYS
+}
+
+func (fd *netFD) readMsgInet6(p []byte, oob []byte, flags int, sa *syscall.SockaddrInet6) (n, oobn, retflags int, err error) {
+	return 0, 0, 0, syscall.ENOSYS
+}
+
+func (fd *netFD) writeMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (n int, oobn int, err error) {
+	return 0, 0, syscall.ENOSYS
+}
+
+func (fd *netFD) writeMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (n int, oobn int, err error) {
+	return 0, 0, syscall.ENOSYS
+}
+
 func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+	return 0, syscall.ENOSYS
+}
+
+func (fd *netFD) writeToInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
+	return 0, syscall.ENOSYS
+}
+
+func (fd *netFD) writeToInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
 	return 0, syscall.ENOSYS
 }
 
@@ -281,4 +315,8 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 
 func (fd *netFD) dup() (f *os.File, err error) {
 	return nil, syscall.ENOSYS
+}
+
+func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type) (dnsmessage.Parser, string, error) {
+	panic("unreachable")
 }

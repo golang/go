@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Binary api computes the exported API of a set of Go packages.
+// Api computes the exported API of a set of Go packages.
 package main
 
 import (
@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -33,21 +34,24 @@ func goCmd() string {
 	if runtime.GOOS == "windows" {
 		exeSuffix = ".exe"
 	}
-	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
-	if _, err := os.Stat(path); err == nil {
-		return path
+	if goroot := build.Default.GOROOT; goroot != "" {
+		path := filepath.Join(goroot, "bin", "go"+exeSuffix)
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
 	}
 	return "go"
 }
 
 // Flags
 var (
-	checkFile  = flag.String("c", "", "optional comma-separated filename(s) to check API against")
-	allowNew   = flag.Bool("allow_new", true, "allow API additions")
-	exceptFile = flag.String("except", "", "optional filename of packages that are allowed to change without triggering a failure in the tool")
-	nextFile   = flag.String("next", "", "optional filename of tentative upcoming API features for the next release. This file can be lazily maintained. It only affects the delta warnings from the -c file printed on success.")
-	verbose    = flag.Bool("v", false, "verbose debugging")
-	forceCtx   = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
+	checkFiles      = flag.String("c", "", "optional comma-separated filename(s) to check API against")
+	requireApproval = flag.String("approval", "", "require approvals in comma-separated list of `files`")
+	allowNew        = flag.Bool("allow_new", true, "allow API additions")
+	exceptFile      = flag.String("except", "", "optional filename of packages that are allowed to change without triggering a failure in the tool")
+	nextFiles       = flag.String("next", "", "comma-separated list of `files` for upcoming API features for the next release. These files can be lazily maintained. They only affects the delta warnings from the -c file printed on success.")
+	verbose         = flag.Bool("v", false, "verbose debugging")
+	forceCtx        = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
 )
 
 // contexts are the default contexts which are scanned, unless
@@ -125,10 +129,14 @@ var internalPkg = regexp.MustCompile(`(^|/)internal($|/)`)
 func main() {
 	flag.Parse()
 
+	if build.Default.GOROOT == "" {
+		log.Fatalf("GOROOT not found. (If binary was built with -trimpath, $GOROOT must be set.)")
+	}
+
 	if !strings.Contains(runtime.Version(), "weekly") && !strings.Contains(runtime.Version(), "devel") {
-		if *nextFile != "" {
-			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFile)
-			*nextFile = ""
+		if *nextFiles != "" {
+			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFiles)
+			*nextFiles = ""
 		}
 	}
 
@@ -201,7 +209,7 @@ func main() {
 	bw := bufio.NewWriter(os.Stdout)
 	defer bw.Flush()
 
-	if *checkFile == "" {
+	if *checkFiles == "" {
 		sort.Strings(features)
 		for _, f := range features {
 			fmt.Fprintln(bw, f)
@@ -210,13 +218,17 @@ func main() {
 	}
 
 	var required []string
-	for _, file := range strings.Split(*checkFile, ",") {
+	for _, file := range strings.Split(*checkFiles, ",") {
 		required = append(required, fileFeatures(file)...)
 	}
-	optional := fileFeatures(*nextFile)
+	var optional []string
+	if *nextFiles != "" {
+		for _, file := range strings.Split(*nextFiles, ",") {
+			optional = append(optional, fileFeatures(file)...)
+		}
+	}
 	exception := fileFeatures(*exceptFile)
-	fail = !compareAPI(bw, features, required, optional, exception,
-		*allowNew && strings.Contains(runtime.Version(), "devel"))
+	fail = !compareAPI(bw, features, required, optional, exception, *allowNew)
 }
 
 // export emits the exported package features.
@@ -341,6 +353,13 @@ func fileFeatures(filename string) []string {
 	if filename == "" {
 		return nil
 	}
+	needApproval := false
+	for _, name := range strings.Split(*requireApproval, ",") {
+		if filename == name {
+			needApproval = true
+			break
+		}
+	}
 	bs, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("Error reading file %s: %v", filename, err)
@@ -349,11 +368,23 @@ func fileFeatures(filename string) []string {
 	s = aliasReplacer.Replace(s)
 	lines := strings.Split(s, "\n")
 	var nonblank []string
-	for _, line := range lines {
+	for i, line := range lines {
 		line = strings.TrimSpace(line)
-		if line != "" && !strings.HasPrefix(line, "#") {
-			nonblank = append(nonblank, line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
 		}
+		if needApproval {
+			feature, approval, ok := strings.Cut(line, "#")
+			if !ok {
+				log.Fatalf("%s:%d: missing proposal approval\n", filename, i+1)
+			}
+			_, err := strconv.Atoi(approval)
+			if err != nil {
+				log.Fatalf("%s:%d: malformed proposal approval #%s\n", filename, i+1, approval)
+			}
+			line = strings.TrimSpace(feature)
+		}
+		nonblank = append(nonblank, line)
 	}
 	return nonblank
 }
@@ -460,8 +491,11 @@ type listImports struct {
 
 var listCache sync.Map // map[string]listImports, keyed by contextName
 
-// listSem is a semaphore restricting concurrent invocations of 'go list'.
-var listSem = make(chan semToken, runtime.GOMAXPROCS(0))
+// listSem is a semaphore restricting concurrent invocations of 'go list'. 'go
+// list' has its own internal concurrency, so we use a hard-coded constant (to
+// allow the I/O-intensive phases of 'go list' to overlap) instead of scaling
+// all the way up to GOMAXPROCS.
+var listSem = make(chan semToken, 2)
 
 type semToken struct{}
 
@@ -654,10 +688,15 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
 	}
 
 	// Type-check package files.
+	var sizes types.Sizes
+	if w.context != nil {
+		sizes = types.SizesFor(w.context.Compiler, w.context.GOARCH)
+	}
 	conf := types.Config{
 		IgnoreFuncBodies: true,
 		FakeImportC:      true,
 		Importer:         w,
+		Sizes:            sizes,
 	}
 	pkg, err = conf.Check(name, fset, files, nil)
 	if err != nil {
@@ -697,6 +736,36 @@ func sortedMethodNames(typ *types.Interface) []string {
 	list := make([]string, n)
 	for i := range list {
 		list[i] = typ.Method(i).Name()
+	}
+	sort.Strings(list)
+	return list
+}
+
+// sortedEmbeddeds returns constraint types embedded in an
+// interface. It does not include embedded interface types or methods.
+func (w *Walker) sortedEmbeddeds(typ *types.Interface) []string {
+	n := typ.NumEmbeddeds()
+	list := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		emb := typ.EmbeddedType(i)
+		switch emb := emb.(type) {
+		case *types.Interface:
+			list = append(list, w.sortedEmbeddeds(emb)...)
+		case *types.Union:
+			var buf bytes.Buffer
+			nu := emb.Len()
+			for i := 0; i < nu; i++ {
+				if i > 0 {
+					buf.WriteString(" | ")
+				}
+				term := emb.Term(i)
+				if term.Tilde() {
+					buf.WriteByte('~')
+				}
+				w.writeType(&buf, term.Type())
+			}
+			list = append(list, buf.String())
+		}
 	}
 	sort.Strings(list)
 	return list
@@ -759,9 +828,16 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 
 	case *types.Interface:
 		buf.WriteString("interface{")
-		if typ.NumMethods() > 0 {
+		if typ.NumMethods() > 0 || typ.NumEmbeddeds() > 0 {
 			buf.WriteByte(' ')
+		}
+		if typ.NumMethods() > 0 {
 			buf.WriteString(strings.Join(sortedMethodNames(typ), ", "))
+		}
+		if typ.NumEmbeddeds() > 0 {
+			buf.WriteString(strings.Join(w.sortedEmbeddeds(typ), ", "))
+		}
+		if typ.NumMethods() > 0 || typ.NumEmbeddeds() > 0 {
 			buf.WriteByte(' ')
 		}
 		buf.WriteString("}")
@@ -796,12 +872,19 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 		}
 		buf.WriteString(typ.Obj().Name())
 
+	case *types.TypeParam:
+		// Type parameter names may change, so use a placeholder instead.
+		fmt.Fprintf(buf, "$%d", typ.Index())
+
 	default:
 		panic(fmt.Sprintf("unknown type %T", typ))
 	}
 }
 
 func (w *Walker) writeSignature(buf *bytes.Buffer, sig *types.Signature) {
+	if tparams := sig.TypeParams(); tparams != nil {
+		w.writeTypeParams(buf, tparams, true)
+	}
 	w.writeParams(buf, sig.Params(), sig.Variadic())
 	switch res := sig.Results(); res.Len() {
 	case 0:
@@ -813,6 +896,23 @@ func (w *Walker) writeSignature(buf *bytes.Buffer, sig *types.Signature) {
 		buf.WriteByte(' ')
 		w.writeParams(buf, res, false)
 	}
+}
+
+func (w *Walker) writeTypeParams(buf *bytes.Buffer, tparams *types.TypeParamList, withConstraints bool) {
+	buf.WriteByte('[')
+	c := tparams.Len()
+	for i := 0; i < c; i++ {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		tp := tparams.At(i)
+		w.writeType(buf, tp)
+		if withConstraints {
+			buf.WriteByte(' ')
+			w.writeType(buf, tp.Constraint())
+		}
+	}
+	buf.WriteByte(']')
 }
 
 func (w *Walker) writeParams(buf *bytes.Buffer, t *types.Tuple, variadic bool) {
@@ -868,6 +968,12 @@ func (w *Walker) emitObj(obj types.Object) {
 
 func (w *Walker) emitType(obj *types.TypeName) {
 	name := obj.Name()
+	if tparams := obj.Type().(*types.Named).TypeParams(); tparams != nil {
+		var buf bytes.Buffer
+		buf.WriteString(name)
+		w.writeTypeParams(&buf, tparams, true)
+		name = buf.String()
+	}
 	typ := obj.Type()
 	if obj.IsAlias() {
 		w.emitf("type %s = %s", name, w.typeString(typ))
@@ -991,10 +1097,16 @@ func (w *Walker) emitMethod(m *types.Selection) {
 			log.Fatalf("exported method with unexported receiver base type: %s", m)
 		}
 	}
-	w.emitf("method (%s) %s%s", w.typeString(recv), m.Obj().Name(), w.signatureString(sig))
+	tps := ""
+	if rtp := sig.RecvTypeParams(); rtp != nil {
+		var buf bytes.Buffer
+		w.writeTypeParams(&buf, rtp, false)
+		tps = buf.String()
+	}
+	w.emitf("method (%s%s) %s%s", w.typeString(recv), tps, m.Obj().Name(), w.signatureString(sig))
 }
 
-func (w *Walker) emitf(format string, args ...interface{}) {
+func (w *Walker) emitf(format string, args ...any) {
 	f := strings.Join(w.scope, ", ") + ", " + fmt.Sprintf(format, args...)
 	if strings.Contains(f, "\n") {
 		panic("feature contains newlines: " + f)

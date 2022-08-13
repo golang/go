@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -104,6 +105,7 @@ var setStringTests = []StringTest{
 	{in: "4/3/"},
 	{in: "4/3."},
 	{in: "4/"},
+	{in: "13e-9223372036854775808"}, // CVE-2022-23772
 
 	// valid
 	{"0", "0", true},
@@ -201,6 +203,14 @@ func TestRatSetString(t *testing.T) {
 				t.Errorf("#%d SetString(%q) got %p want nil", i, test.in, x)
 			}
 		}
+	}
+}
+
+func TestRatSetStringZero(t *testing.T) {
+	got, _ := new(Rat).SetString("0")
+	want := new(Rat).SetInt64(0)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %#+v, want %#+v", got, want)
 	}
 }
 
@@ -586,6 +596,31 @@ func TestIssue31184(t *testing.T) {
 		got := x.FloatString(3)
 		if got != want {
 			t.Errorf("got %s, want %s", got, want)
+		}
+	}
+}
+
+func TestIssue45910(t *testing.T) {
+	var x Rat
+	for _, test := range []struct {
+		input string
+		want  bool
+	}{
+		{"1e-1000001", false},
+		{"1e-1000000", true},
+		{"1e+1000000", true},
+		{"1e+1000001", false},
+
+		{"0p1000000000000", true},
+		{"1p-10000001", false},
+		{"1p-10000000", true},
+		{"1p+10000000", true},
+		{"1p+10000001", false},
+		{"1.770p02041010010011001001", false}, // test case from issue
+	} {
+		_, got := x.SetString(test.input)
+		if got != test.want {
+			t.Errorf("SetString(%s) got ok = %v; want %v", test.input, got, test.want)
 		}
 	}
 }

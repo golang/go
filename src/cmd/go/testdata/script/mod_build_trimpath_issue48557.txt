@@ -1,0 +1,52 @@
+# Regression test for issue #48557.
+# Since builds in module mode do not support relative imports at all, the build
+# ID for (and other contents of) a binary built with -trimpath in module mode
+# should not depend on its working directory, even if the binary is specified as
+# a list of relative source files.
+
+[short] skip  # links and runs binaries
+
+env GOFLAGS=-trimpath
+env GOCACHE=$WORK/gocache
+
+
+# When we build a binary in module mode with -trimpath, the -D flag (for the
+# "local import prefix") should not be passed to it.
+
+cd $WORK/tmp/foo
+go build -x -o a.exe main.go
+stderr ${/}compile$GOEXE.*' -nolocalimports'
+! stderr ${/}compile$GOEXE.*' -D[ =]'
+
+go tool buildid a.exe
+cp stdout ../foo-buildid.txt
+go version a.exe
+cp stdout ../foo-version.txt
+cd ..
+
+
+# On the second build — in a different directory but with -trimpath — the
+# compiler should not be invoked, since the cache key should be identical.
+# Only the linker and buildid tool should be needed.
+
+mkdir bar
+cp foo/main.go bar/main.go
+cd bar
+go build -x -o a.exe main.go
+! stderr ${/}compile$GOEXE
+
+go tool buildid a.exe
+cp stdout ../bar-buildid.txt
+go version a.exe
+cp stdout ../bar-version.txt
+cd ..
+
+cmp bar-buildid.txt foo-buildid.txt
+cmp bar-version.txt foo-version.txt
+cmp bar/a.exe foo/a.exe
+
+
+-- $WORK/tmp/foo/main.go --
+package main
+
+func main() {}

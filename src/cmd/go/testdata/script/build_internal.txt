@@ -10,8 +10,10 @@ stderr 'internal'
 
 # Test internal packages outside GOROOT are respected
 cd ../testinternal2
+env GO111MODULE=off
 ! go build -v .
 stderr 'p\.go:3:8: use of internal package .*internal/w not allowed'
+env GO111MODULE=''
 
 [gccgo] skip # gccgo does not have GOROOT
 cd ../testinternal

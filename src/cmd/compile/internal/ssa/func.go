@@ -5,20 +5,15 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"crypto/sha1"
 	"fmt"
-	"io"
 	"math"
 	"os"
 	"strings"
 )
-
-type writeSyncer interface {
-	io.Writer
-	Sync() error
-}
 
 // A Func represents a Go func declaration (or function literal) and its body.
 // This package compiles each Func independently.
@@ -36,13 +31,13 @@ type Func struct {
 	bid idAlloc // block ID allocator
 	vid idAlloc // value ID allocator
 
-	// Given an environment variable used for debug hash match,
-	// what file (if any) receives the yes/no logging?
-	logfiles       map[string]writeSyncer
 	HTMLWriter     *HTMLWriter    // html writer, for debugging
-	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
-	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
+	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.  There's an odd dependence on this in debug.go for method logf.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
+	ABI0           *abi.ABIConfig // A copy, for no-sync access
+	ABI1           *abi.ABIConfig // A copy, for no-sync access
+	ABISelf        *abi.ABIConfig // ABI for function being compiled
+	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
 
 	scheduled   bool  // Values in Blocks are in final order
 	laidout     bool  // Blocks are ordered
@@ -56,7 +51,16 @@ type Func struct {
 	NamedValues map[LocalSlot][]*Value
 	// Names is a copy of NamedValues.Keys. We keep a separate list
 	// of keys to make iteration order deterministic.
-	Names []LocalSlot
+	Names []*LocalSlot
+	// Canonicalize root/top-level local slots, and canonicalize their pieces.
+	// Because LocalSlot pieces refer to their parents with a pointer, this ensures that equivalent slots really are equal.
+	CanonicalLocalSlots  map[LocalSlot]*LocalSlot
+	CanonicalLocalSplits map[LocalSlotSplitKey]*LocalSlot
+
+	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
+	RegArgs []Spill
+	// AuxCall describing parameters and results for this function.
+	OwnAux *AuxCall
 
 	// WBLoads is a list of Blocks that branch on the write
 	// barrier flag. Safe-points are disabled from the OpLoad that
@@ -77,10 +81,16 @@ type Func struct {
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
 }
 
+type LocalSlotSplitKey struct {
+	parent *LocalSlot
+	Off    int64       // offset of slot in N
+	Type   *types.Type // type of slot
+}
+
 // NewFunc returns a new, empty function object.
 // Caller must set f.Config and f.Cache before using f.
 func NewFunc(fe Frontend) *Func {
-	return &Func{fe: fe, NamedValues: make(map[LocalSlot][]*Value)}
+	return &Func{fe: fe, NamedValues: make(map[LocalSlot][]*Value), CanonicalLocalSlots: make(map[LocalSlot]*LocalSlot), CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot)}
 }
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.
@@ -181,6 +191,101 @@ func (f *Func) newDeadcodeLiveOrderStmts() []*Value {
 // retDeadcodeLiveOrderStmts returns a deadcode liveOrderStmts slice for re-use.
 func (f *Func) retDeadcodeLiveOrderStmts(liveOrderStmts []*Value) {
 	f.Cache.deadcode.liveOrderStmts = liveOrderStmts
+}
+
+func (f *Func) localSlotAddr(slot LocalSlot) *LocalSlot {
+	a, ok := f.CanonicalLocalSlots[slot]
+	if !ok {
+		a = new(LocalSlot)
+		*a = slot // don't escape slot
+		f.CanonicalLocalSlots[slot] = a
+	}
+	return a
+}
+
+func (f *Func) SplitString(name *LocalSlot) (*LocalSlot, *LocalSlot) {
+	ptrType := types.NewPtr(types.Types[types.TUINT8])
+	lenType := types.Types[types.TINT]
+	// Split this string up into two separate variables.
+	p := f.SplitSlot(name, ".ptr", 0, ptrType)
+	l := f.SplitSlot(name, ".len", ptrType.Size(), lenType)
+	return p, l
+}
+
+func (f *Func) SplitInterface(name *LocalSlot) (*LocalSlot, *LocalSlot) {
+	n := name.N
+	u := types.Types[types.TUINTPTR]
+	t := types.NewPtr(types.Types[types.TUINT8])
+	// Split this interface up into two separate variables.
+	sfx := ".itab"
+	if n.Type().IsEmptyInterface() {
+		sfx = ".type"
+	}
+	c := f.SplitSlot(name, sfx, 0, u) // see comment in typebits.Set
+	d := f.SplitSlot(name, ".data", u.Size(), t)
+	return c, d
+}
+
+func (f *Func) SplitSlice(name *LocalSlot) (*LocalSlot, *LocalSlot, *LocalSlot) {
+	ptrType := types.NewPtr(name.Type.Elem())
+	lenType := types.Types[types.TINT]
+	p := f.SplitSlot(name, ".ptr", 0, ptrType)
+	l := f.SplitSlot(name, ".len", ptrType.Size(), lenType)
+	c := f.SplitSlot(name, ".cap", ptrType.Size()+lenType.Size(), lenType)
+	return p, l, c
+}
+
+func (f *Func) SplitComplex(name *LocalSlot) (*LocalSlot, *LocalSlot) {
+	s := name.Type.Size() / 2
+	var t *types.Type
+	if s == 8 {
+		t = types.Types[types.TFLOAT64]
+	} else {
+		t = types.Types[types.TFLOAT32]
+	}
+	r := f.SplitSlot(name, ".real", 0, t)
+	i := f.SplitSlot(name, ".imag", t.Size(), t)
+	return r, i
+}
+
+func (f *Func) SplitInt64(name *LocalSlot) (*LocalSlot, *LocalSlot) {
+	var t *types.Type
+	if name.Type.IsSigned() {
+		t = types.Types[types.TINT32]
+	} else {
+		t = types.Types[types.TUINT32]
+	}
+	if f.Config.BigEndian {
+		return f.SplitSlot(name, ".hi", 0, t), f.SplitSlot(name, ".lo", t.Size(), types.Types[types.TUINT32])
+	}
+	return f.SplitSlot(name, ".hi", t.Size(), t), f.SplitSlot(name, ".lo", 0, types.Types[types.TUINT32])
+}
+
+func (f *Func) SplitStruct(name *LocalSlot, i int) *LocalSlot {
+	st := name.Type
+	return f.SplitSlot(name, st.FieldName(i), st.FieldOff(i), st.FieldType(i))
+}
+func (f *Func) SplitArray(name *LocalSlot) *LocalSlot {
+	n := name.N
+	at := name.Type
+	if at.NumElem() != 1 {
+		base.FatalfAt(n.Pos(), "bad array size")
+	}
+	et := at.Elem()
+	return f.SplitSlot(name, "[0]", 0, et)
+}
+
+func (f *Func) SplitSlot(name *LocalSlot, sfx string, offset int64, t *types.Type) *LocalSlot {
+	lssk := LocalSlotSplitKey{name, offset, t}
+	if als, ok := f.CanonicalLocalSplits[lssk]; ok {
+		return als
+	}
+	// Note: the _ field may appear several times.  But
+	// have no fear, identically-named but distinct Autos are
+	// ok, albeit maybe confusing for a debugger.
+	ls := f.fe.SplitSlot(name, sfx, offset, t)
+	f.CanonicalLocalSplits[lssk] = &ls
+	return &ls
 }
 
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
@@ -377,13 +482,7 @@ func (b *Block) NewValue0I(pos src.XPos, op Op, t *types.Type, auxint int64) *Va
 }
 
 // NewValue returns a new value in the block with no arguments and an aux value.
-func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux interface{}) *Value {
-	if _, ok := aux.(int64); ok {
-		// Disallow int64 aux values. They should be in the auxint field instead.
-		// Maybe we want to allow this at some point, but for now we disallow it
-		// to prevent errors like using NewValue1A instead of NewValue1I.
-		b.Fatalf("aux field has int64 type op=%s type=%s aux=%v", op, t, aux)
-	}
+func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux Aux) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -392,7 +491,7 @@ func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux interface{}) 
 }
 
 // NewValue returns a new value in the block with no arguments and both an auxint and aux values.
-func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}) *Value {
+func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -421,7 +520,7 @@ func (b *Block) NewValue1I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue1A returns a new value in the block with one argument and an aux value.
-func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg *Value) *Value {
+func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux Aux, arg *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -432,7 +531,7 @@ func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux interface{}, 
 }
 
 // NewValue1IA returns a new value in the block with one argument and both an auxint and aux values.
-func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}, arg *Value) *Value {
+func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -455,7 +554,7 @@ func (b *Block) NewValue2(pos src.XPos, op Op, t *types.Type, arg0, arg1 *Value)
 }
 
 // NewValue2A returns a new value in the block with two arguments and one aux values.
-func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -480,7 +579,7 @@ func (b *Block) NewValue2I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue2IA returns a new value in the block with two arguments and both an auxint and aux values.
-func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -521,7 +620,7 @@ func (b *Block) NewValue3I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue3A returns a new value in the block with three argument and an aux value.
-func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1, arg2 *Value) *Value {
+func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1, arg2 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -547,7 +646,7 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, 
 	return v
 }
 
-// NewValue4I returns a new value in the block with four arguments and and auxint value.
+// NewValue4I returns a new value in the block with four arguments and auxint value.
 func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
@@ -633,7 +732,7 @@ func (f *Func) ConstNil(t *types.Type) *Value {
 }
 func (f *Func) ConstEmptyString(t *types.Type) *Value {
 	v := f.constVal(OpConstString, t, constEmptyStringMagic, false)
-	v.Aux = ""
+	v.Aux = StringToAux("")
 	return v
 }
 func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
@@ -649,7 +748,19 @@ func (f *Func) Frontend() Frontend                                  { return f.f
 func (f *Func) Warnl(pos src.XPos, msg string, args ...interface{}) { f.fe.Warnl(pos, msg, args...) }
 func (f *Func) Logf(msg string, args ...interface{})                { f.fe.Logf(msg, args...) }
 func (f *Func) Log() bool                                           { return f.fe.Log() }
-func (f *Func) Fatalf(msg string, args ...interface{})              { f.fe.Fatalf(f.Entry.Pos, msg, args...) }
+
+func (f *Func) Fatalf(msg string, args ...interface{}) {
+	stats := "crashed"
+	if f.Log() {
+		f.Logf("  pass %s end %s\n", f.pass.name, stats)
+		printFunc(f)
+	}
+	if f.HTMLWriter != nil {
+		f.HTMLWriter.WritePhase(f.pass.name, fmt.Sprintf("%s <span class=\"stats\">%s</span>", f.pass.name, stats))
+		f.HTMLWriter.flushPhases()
+	}
+	f.fe.Fatalf(f.Entry.Pos, msg, args...)
+}
 
 // postorder returns the reachable blocks in f in a postorder traversal.
 func (f *Func) postorder() []*Block {
@@ -697,87 +808,22 @@ func (f *Func) invalidateCFG() {
 	f.cachedLoopnest = nil
 }
 
-// DebugHashMatch reports whether environment variable evname
-// 1) is empty (this is a special more-quickly implemented case of 3)
-// 2) is "y" or "Y"
-// 3) is a suffix of the sha1 hash of name
-// 4) is a suffix of the environment variable
-//    fmt.Sprintf("%s%d", evname, n)
-//    provided that all such variables are nonempty for 0 <= i <= n
-// Otherwise it returns false.
-// When true is returned the message
-//  "%s triggered %s\n", evname, name
-// is printed on the file named in environment variable
-//  GSHS_LOGFILE
-// or standard out if that is empty or there is an error
-// opening the file.
-func (f *Func) DebugHashMatch(evname string) bool {
+// DebugHashMatch returns
+//   base.DebugHashMatch(this function's package.name)
+// for use in bug isolation.  The return value is true unless
+// environment variable GOSSAHASH is set, in which case "it depends".
+// See [base.DebugHashMatch] for more information.
+func (f *Func) DebugHashMatch() bool {
+	evhash := os.Getenv(base.GOSSAHASH)
+	if evhash == "" {
+		return true
+	}
 	name := f.fe.MyImportPath() + "." + f.Name
-	evhash := os.Getenv(evname)
-	switch evhash {
-	case "":
-		return true // default behavior with no EV is "on"
-	case "y", "Y":
-		f.logDebugHashMatch(evname, name)
-		return true
-	case "n", "N":
-		return false
-	}
-	// Check the hash of the name against a partial input hash.
-	// We use this feature to do a binary search to
-	// find a function that is incorrectly compiled.
-	hstr := ""
-	for _, b := range sha1.Sum([]byte(name)) {
-		hstr += fmt.Sprintf("%08b", b)
-	}
-
-	if strings.HasSuffix(hstr, evhash) {
-		f.logDebugHashMatch(evname, name)
-		return true
-	}
-
-	// Iteratively try additional hashes to allow tests for multi-point
-	// failure.
-	for i := 0; true; i++ {
-		ev := fmt.Sprintf("%s%d", evname, i)
-		evv := os.Getenv(ev)
-		if evv == "" {
-			break
-		}
-		if strings.HasSuffix(hstr, evv) {
-			f.logDebugHashMatch(ev, name)
-			return true
-		}
-	}
-	return false
-}
-
-func (f *Func) logDebugHashMatch(evname, name string) {
-	if f.logfiles == nil {
-		f.logfiles = make(map[string]writeSyncer)
-	}
-	file := f.logfiles[evname]
-	if file == nil {
-		file = os.Stdout
-		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
-			var err error
-			file, err = os.OpenFile(tmpfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-			if err != nil {
-				f.Fatalf("could not open hash-testing logfile %s", tmpfile)
-			}
-		}
-		f.logfiles[evname] = file
-	}
-	fmt.Fprintf(file, "%s triggered %s\n", evname, name)
-	file.Sync()
-}
-
-func DebugNameMatch(evname, name string) bool {
-	return os.Getenv(evname) == name
+	return base.DebugHashMatch(name)
 }
 
 func (f *Func) spSb() (sp, sb *Value) {
-	initpos := f.Entry.Pos
+	initpos := src.NoXPos // These are originally created with no position in ssa.go; if they are optimized out then recreated, should be the same.
 	for _, v := range f.Entry.Values {
 		if v.Op == OpSB {
 			sb = v
@@ -786,7 +832,7 @@ func (f *Func) spSb() (sp, sb *Value) {
 			sp = v
 		}
 		if sb != nil && sp != nil {
-			break
+			return
 		}
 	}
 	if sb == nil {

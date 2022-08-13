@@ -16,12 +16,21 @@ import (
 	"unsafe"
 )
 
-func throw(string) // provided by runtime
+// Provided by runtime via linkname.
+func throw(string)
+func fatal(string)
 
 // A Mutex is a mutual exclusion lock.
 // The zero value for a Mutex is an unlocked mutex.
 //
 // A Mutex must not be copied after first use.
+//
+// In the terminology of the Go memory model,
+// the n'th call to Unlock “synchronizes before” the m'th call to Lock
+// for any n < m.
+// A successful call to TryLock is equivalent to a call to Lock.
+// A failed call to TryLock does not establish any “synchronizes before”
+// relation at all.
 type Mutex struct {
 	state int32
 	sema  uint32
@@ -79,6 +88,30 @@ func (m *Mutex) Lock() {
 	}
 	// Slow path (outlined so that the fast path can be inlined)
 	m.lockSlow()
+}
+
+// TryLock tries to lock m and reports whether it succeeded.
+//
+// Note that while correct uses of TryLock do exist, they are rare,
+// and use of TryLock is often a sign of a deeper problem
+// in a particular use of mutexes.
+func (m *Mutex) TryLock() bool {
+	old := m.state
+	if old&(mutexLocked|mutexStarving) != 0 {
+		return false
+	}
+
+	// There may be a goroutine waiting for the mutex, but we are
+	// running now and can try to grab the mutex before that
+	// goroutine wakes up.
+	if !atomic.CompareAndSwapInt32(&m.state, old, old|mutexLocked) {
+		return false
+	}
+
+	if race.Enabled {
+		race.Acquire(unsafe.Pointer(m))
+	}
+	return true
 }
 
 func (m *Mutex) lockSlow() {
@@ -193,7 +226,7 @@ func (m *Mutex) Unlock() {
 
 func (m *Mutex) unlockSlow(new int32) {
 	if (new+mutexLocked)&mutexLocked == 0 {
-		throw("sync: unlock of unlocked mutex")
+		fatal("sync: unlock of unlocked mutex")
 	}
 	if new&mutexStarving == 0 {
 		old := new

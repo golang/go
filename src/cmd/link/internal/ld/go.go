@@ -9,6 +9,7 @@ package ld
 import (
 	"bytes"
 	"cmd/internal/bio"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -24,11 +25,6 @@ import (
 )
 
 // go-specific code shared across loaders (5l, 6l, 8l).
-
-// replace all "". with pkg.
-func expandpkg(t0 string, pkg string) string {
-	return strings.Replace(t0, `"".`, pkg+".", -1)
-}
 
 // TODO:
 //	generate debugging section in binary.
@@ -101,36 +97,13 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 		return
 	}
 
-	// Find cgo_export symbols. They are roots in the deadcode pass.
-	for _, f := range directives {
-		switch f[0] {
-		case "cgo_export_static", "cgo_export_dynamic":
-			if len(f) < 2 || len(f) > 3 {
-				continue
-			}
-			local := f[1]
-			switch ctxt.BuildMode {
-			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
-				if local == "main" {
-					continue
-				}
-			}
-			local = expandpkg(local, pkg)
-			if f[0] == "cgo_export_static" {
-				ctxt.cgo_export_static[local] = true
-			} else {
-				ctxt.cgo_export_dynamic[local] = true
-			}
-		}
-	}
-
 	// Record the directives. We'll process them later after Symbols are created.
 	ctxt.cgodata = append(ctxt.cgodata, cgodata{file, pkg, directives})
 }
 
 // Set symbol attributes or flags based on cgo directives.
 // Any newly discovered HOSTOBJ syms are added to 'hostObjSyms'.
-func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pkg string, directives [][]string, hostObjSyms map[loader.Sym]struct{}) {
+func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, hostObjSyms map[loader.Sym]struct{}) {
 	l := ctxt.loader
 	for _, f := range directives {
 		switch f[0] {
@@ -168,12 +141,11 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 				continue
 			}
 
-			local = expandpkg(local, pkg)
 			q := ""
 			if i := strings.Index(remote, "#"); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
 			}
-			s := lookup(local, 0)
+			s := l.LookupOrCreateSym(local, 0)
 			st := l.SymType(s)
 			if st == 0 || st == sym.SXREF || st == sym.SBSS || st == sym.SNOPTRBSS || st == sym.SHOSTOBJ {
 				l.SetSymDynimplib(s, lib)
@@ -199,7 +171,7 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 			}
 			local := f[1]
 
-			s := lookup(local, 0)
+			s := l.LookupOrCreateSym(local, 0)
 			su := l.MakeSymbolUpdater(s)
 			su.SetType(sym.SHOSTOBJ)
 			su.SetSize(0)
@@ -207,7 +179,7 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 			continue
 
 		case "cgo_export_static", "cgo_export_dynamic":
-			if len(f) < 2 || len(f) > 3 {
+			if len(f) < 2 || len(f) > 4 {
 				break
 			}
 			local := f[1]
@@ -215,14 +187,20 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 			if len(f) > 2 {
 				remote = f[2]
 			}
-			local = expandpkg(local, pkg)
+			// The compiler adds a fourth argument giving
+			// the definition ABI of function symbols.
+			abi := obj.ABI0
+			if len(f) > 3 {
+				var ok bool
+				abi, ok = obj.ParseABI(f[3])
+				if !ok {
+					fmt.Fprintf(os.Stderr, "%s: bad ABI in cgo_export directive %s\n", os.Args[0], f)
+					nerrors++
+					return
+				}
+			}
 
-			// The compiler arranges for an ABI0 wrapper
-			// to be available for all cgo-exported
-			// functions. Link.loadlib will resolve any
-			// ABI aliases we find here (since we may not
-			// yet know it's an alias).
-			s := lookup(local, 0)
+			s := l.LookupOrCreateSym(local, sym.ABIToVersion(abi))
 
 			if l.SymType(s) == sym.SHOSTOBJ {
 				hostObjSyms[s] = struct{}{}
@@ -230,7 +208,7 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 
 			switch ctxt.BuildMode {
 			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
-				if s == lookup("main", 0) {
+				if s == l.Lookup("main", 0) {
 					continue
 				}
 			}
@@ -254,11 +232,32 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 				return
 			}
 
+			// Mark exported symbols and also add them to
+			// the lists used for roots in the deadcode pass.
 			if f[0] == "cgo_export_static" {
+				if ctxt.LinkMode == LinkExternal && !l.AttrCgoExportStatic(s) {
+					// Static cgo exports appear
+					// in the exported symbol table.
+					ctxt.dynexp = append(ctxt.dynexp, s)
+				}
+				if ctxt.LinkMode == LinkInternal {
+					// For internal linking, we're
+					// responsible for resolving
+					// relocations from host objects.
+					// Record the right Go symbol
+					// version to use.
+					l.AddCgoExport(s)
+				}
 				l.SetAttrCgoExportStatic(s, true)
 			} else {
+				if ctxt.LinkMode == LinkInternal && !l.AttrCgoExportDynamic(s) {
+					// Dynamic cgo exports appear
+					// in the exported symbol table.
+					ctxt.dynexp = append(ctxt.dynexp, s)
+				}
 				l.SetAttrCgoExportDynamic(s, true)
 			}
+
 			continue
 
 		case "cgo_dynamic_linker":
@@ -386,7 +385,7 @@ func Adddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym)
 func fieldtrack(arch *sys.Arch, l *loader.Loader) {
 	var buf bytes.Buffer
 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
-		if name := l.SymName(i); strings.HasPrefix(name, "go.track.") {
+		if name := l.SymName(i); strings.HasPrefix(name, "go:track.") {
 			if l.AttrReachable(i) {
 				l.SetAttrSpecial(i, true)
 				l.SetAttrNotInSymbolTable(i, true)
@@ -440,9 +439,16 @@ func (ctxt *Link) addexport() {
 		return
 	}
 
-	for _, exp := range ctxt.dynexp {
-		Adddynsym(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, exp)
+	// Add dynamic symbols.
+	for _, s := range ctxt.dynexp {
+		// Consistency check.
+		if !ctxt.loader.AttrReachable(s) {
+			panic("dynexp entry not reachable")
+		}
+
+		Adddynsym(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, s)
 	}
+
 	for _, lib := range dedupLibraries(ctxt, dynlib) {
 		adddynlib(ctxt, lib)
 	}

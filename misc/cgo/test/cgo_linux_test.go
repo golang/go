@@ -15,6 +15,14 @@ func TestSetgid(t *testing.T) {
 	}
 	testSetgid(t)
 }
+
+func TestSetgidStress(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skip("unsupported on Android")
+	}
+	testSetgidStress(t)
+}
+
 func Test1435(t *testing.T)    { test1435(t) }
 func Test6997(t *testing.T)    { test6997(t) }
 func TestBuildID(t *testing.T) { testBuildID(t) }

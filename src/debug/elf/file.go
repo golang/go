@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"os"
 	"strings"
@@ -102,9 +103,7 @@ type Section struct {
 // Even if the section is stored compressed in the ELF file,
 // Data returns uncompressed data.
 func (s *Section) Data() ([]byte, error) {
-	dat := make([]byte, s.Size)
-	n, err := io.ReadFull(s.Open(), dat)
-	return dat[0:n], err
+	return saferio.ReadData(s.Open(), s.Size)
 }
 
 // stringTable reads and returns the string table given by the
@@ -120,6 +119,9 @@ func (f *File) stringTable(link uint32) ([]byte, error) {
 // Even if the section is stored compressed in the ELF file,
 // the ReadSeeker reads uncompressed data.
 func (s *Section) Open() io.ReadSeeker {
+	if s.Type == SHT_NOBITS {
+		return io.NewSectionReader(&zeroReader{}, 0, int64(s.Size))
+	}
 	if s.Flags&SHF_COMPRESSED == 0 {
 		return io.NewSectionReader(s.sr, 0, 1<<63-1)
 	}
@@ -185,7 +187,7 @@ type Symbol struct {
 type FormatError struct {
 	off int64
 	msg string
-	val interface{}
+	val any
 }
 
 func (e *FormatError) Error() string {
@@ -322,6 +324,13 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		shstrndx = int(hdr.Shstrndx)
 	}
 
+	if shoff < 0 {
+		return nil, &FormatError{0, "invalid shoff", shoff}
+	}
+	if phoff < 0 {
+		return nil, &FormatError{0, "invalid phoff", phoff}
+	}
+
 	if shoff == 0 && shnum != 0 {
 		return nil, &FormatError{0, "invalid ELF shnum for shoff=0", shnum}
 	}
@@ -416,6 +425,12 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				Entsize:   sh.Entsize,
 			}
 		}
+		if int64(s.Offset) < 0 {
+			return nil, &FormatError{off, "invalid section offset", int64(s.Offset)}
+		}
+		if int64(s.FileSize) < 0 {
+			return nil, &FormatError{off, "invalid section size", int64(s.FileSize)}
+		}
 		s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.FileSize))
 
 		if s.Flags&SHF_COMPRESSED == 0 {
@@ -494,7 +509,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 
 	data, err := symtabSection.Data()
 	if err != nil {
-		return nil, nil, errors.New("cannot load symbol section")
+		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
 	}
 	symtab := bytes.NewReader(data)
 	if symtab.Len()%Sym32Size != 0 {
@@ -503,7 +518,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 
 	strdata, err := f.stringTable(symtabSection.Link)
 	if err != nil {
-		return nil, nil, errors.New("cannot load string table section")
+		return nil, nil, fmt.Errorf("cannot load string table section: %w", err)
 	}
 
 	// The first entry is all zeros.
@@ -537,7 +552,7 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 
 	data, err := symtabSection.Data()
 	if err != nil {
-		return nil, nil, errors.New("cannot load symbol section")
+		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
 	}
 	symtab := bytes.NewReader(data)
 	if symtab.Len()%Sym64Size != 0 {
@@ -546,7 +561,7 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 
 	strdata, err := f.stringTable(symtabSection.Link)
 	if err != nil {
-		return nil, nil, errors.New("cannot load string table section")
+		return nil, nil, fmt.Errorf("cannot load string table section: %w", err)
 	}
 
 	// The first entry is all zeros.
@@ -617,6 +632,8 @@ func (f *File) applyRelocations(dst []byte, rels []byte) error {
 		return f.applyRelocationsMIPS(dst, rels)
 	case f.Class == ELFCLASS64 && f.Machine == EM_MIPS:
 		return f.applyRelocationsMIPS64(dst, rels)
+	case f.Class == ELFCLASS64 && f.Machine == EM_LOONGARCH:
+		return f.applyRelocationsLOONG64(dst, rels)
 	case f.Class == ELFCLASS64 && f.Machine == EM_RISCV:
 		return f.applyRelocationsRISCV64(dst, rels)
 	case f.Class == ELFCLASS64 && f.Machine == EM_S390:
@@ -990,6 +1007,54 @@ func (f *File) applyRelocationsMIPS64(dst []byte, rels []byte) error {
 	return nil
 }
 
+func (f *File) applyRelocationsLOONG64(dst []byte, rels []byte) error {
+	// 24 is the size of Rela64.
+	if len(rels)%24 != 0 {
+		return errors.New("length of relocation section is not a multiple of 24")
+	}
+
+	symbols, _, err := f.getSymbols(SHT_SYMTAB)
+	if err != nil {
+		return err
+	}
+
+	b := bytes.NewReader(rels)
+	var rela Rela64
+
+	for b.Len() > 0 {
+		binary.Read(b, f.ByteOrder, &rela)
+		var symNo uint64
+		var t R_LARCH
+		symNo = rela.Info >> 32
+		t = R_LARCH(rela.Info & 0xffff)
+
+		if symNo == 0 || symNo > uint64(len(symbols)) {
+			continue
+		}
+		sym := &symbols[symNo-1]
+		if !canApplyRelocation(sym) {
+			continue
+		}
+
+		switch t {
+		case R_LARCH_64:
+			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+				continue
+			}
+			val64 := sym.Value + uint64(rela.Addend)
+			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
+		case R_LARCH_32:
+			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+				continue
+			}
+			val32 := uint32(sym.Value) + uint32(rela.Addend)
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
+		}
+	}
+
+	return nil
+}
+
 func (f *File) applyRelocationsRISCV64(dst []byte, rels []byte) error {
 	// 24 is the size of Rela64.
 	if len(rels)%24 != 0 {
@@ -1147,21 +1212,50 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		if err != nil && uint64(len(b)) < s.Size {
 			return nil, err
 		}
-
+		var dlen uint64
 		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
-			dlen := binary.BigEndian.Uint64(b[4:12])
-			dbuf := make([]byte, dlen)
-			r, err := zlib.NewReader(bytes.NewBuffer(b[12:]))
+			dlen = binary.BigEndian.Uint64(b[4:12])
+			s.compressionOffset = 12
+		}
+		if dlen == 0 && len(b) >= 12 && s.Flags&SHF_COMPRESSED != 0 &&
+			s.Flags&SHF_ALLOC == 0 &&
+			f.FileHeader.ByteOrder.Uint32(b[:]) == uint32(COMPRESS_ZLIB) {
+			s.compressionType = COMPRESS_ZLIB
+			switch f.FileHeader.Class {
+			case ELFCLASS32:
+				// Chdr32.Size offset
+				dlen = uint64(f.FileHeader.ByteOrder.Uint32(b[4:]))
+				s.compressionOffset = 12
+			case ELFCLASS64:
+				if len(b) < 24 {
+					return nil, errors.New("invalid compress header 64")
+				}
+				// Chdr64.Size offset
+				dlen = f.FileHeader.ByteOrder.Uint64(b[8:])
+				s.compressionOffset = 24
+			default:
+				return nil, fmt.Errorf("unsupported compress header:%s", f.FileHeader.Class)
+			}
+		}
+		if dlen > 0 {
+			r, err := zlib.NewReader(bytes.NewBuffer(b[s.compressionOffset:]))
 			if err != nil {
 				return nil, err
 			}
-			if _, err := io.ReadFull(r, dbuf); err != nil {
+			b, err = saferio.ReadData(r, dlen)
+			if err != nil {
 				return nil, err
 			}
 			if err := r.Close(); err != nil {
 				return nil, err
 			}
-			b = dbuf
+		}
+
+		if f.Type == ET_EXEC {
+			// Do not apply relocations to DWARF sections for ET_EXEC binaries.
+			// Relocations should already be applied, and .rela sections may
+			// contain incorrect data.
+			return b, nil
 		}
 
 		for _, r := range f.Sections {
@@ -1445,4 +1539,13 @@ func (f *File) DynString(tag DynTag) ([]string, error) {
 		}
 	}
 	return all, nil
+}
+
+type zeroReader struct{}
+
+func (*zeroReader) ReadAt(p []byte, off int64) (n int, err error) {
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
 }

@@ -29,22 +29,32 @@ import (
 // For TestRawConnReadWrite.
 type syscallDescriptor = syscall.Handle
 
+// chdir changes the current working directory to the named directory,
+// and then restore the original working directory at the end of the test.
+func chdir(t *testing.T, dir string) {
+	olddir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+
+	t.Cleanup(func() {
+		if err := os.Chdir(olddir); err != nil {
+			t.Errorf("chdir to original working directory %s: %v", olddir, err)
+			os.Exit(1)
+		}
+	})
+}
+
 func TestSameWindowsFile(t *testing.T) {
 	temp, err := os.MkdirTemp("", "TestSameWindowsFile")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(temp)
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = os.Chdir(temp)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(wd)
+	chdir(t, temp)
 
 	f, err := os.Create("a")
 	if err != nil {
@@ -94,16 +104,7 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = os.Chdir(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(oldwd)
+	chdir(t, tmpdir)
 
 	dir := filepath.Join(tmpdir, "dir")
 	err = os.Mkdir(dir, 0777)
@@ -444,15 +445,7 @@ func TestNetworkSymbolicLink(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = os.Chdir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(oldwd)
+	chdir(t, dir)
 
 	shareName := "GoSymbolicLinkTestShare" // hope no conflictions
 	sharePath := filepath.Join(dir, shareName)
@@ -604,16 +597,7 @@ func TestOpenVolumeName(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = os.Chdir(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(wd)
+	chdir(t, tmpdir)
 
 	want := []string{"file1", "file2", "file3", "gopher.txt"}
 	sort.Strings(want)
@@ -642,11 +626,7 @@ func TestOpenVolumeName(t *testing.T) {
 }
 
 func TestDeleteReadOnly(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "TestDeleteReadOnly")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 	p := filepath.Join(tmpdir, "a")
 	// This sets FILE_ATTRIBUTE_READONLY.
 	f, err := os.OpenFile(p, os.O_CREATE, 0400)
@@ -663,36 +643,22 @@ func TestDeleteReadOnly(t *testing.T) {
 	}
 }
 
-func TestStatSymlinkLoop(t *testing.T) {
-	testenv.MustHaveSymlink(t)
-
-	defer chtmpdir(t)()
-
-	err := os.Symlink("x", "y")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove("y")
-
-	err = os.Symlink("y", "x")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove("x")
-
-	_, err = os.Stat("x")
-	if _, ok := err.(*fs.PathError); !ok {
-		t.Errorf("expected *PathError, got %T: %v\n", err, err)
-	}
-}
-
 func TestReadStdin(t *testing.T) {
 	old := poll.ReadConsole
 	defer func() {
 		poll.ReadConsole = old
 	}()
 
-	testConsole := os.NewConsoleFile(syscall.Stdin, "test")
+	p, err := syscall.GetCurrentProcess()
+	if err != nil {
+		t.Fatalf("Unable to get handle to current process: %v", err)
+	}
+	var stdinDuplicate syscall.Handle
+	err = syscall.DuplicateHandle(p, syscall.Handle(syscall.Stdin), p, &stdinDuplicate, 0, false, syscall.DUPLICATE_SAME_ACCESS)
+	if err != nil {
+		t.Fatalf("Unable to duplicate stdin: %v", err)
+	}
+	testConsole := os.NewConsoleFile(stdinDuplicate, "test")
 
 	var tests = []string{
 		"abc",
@@ -803,11 +769,7 @@ func compareCommandLineToArgvWithSyscall(t *testing.T, cmd string) {
 }
 
 func TestCmdArgs(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "TestCmdArgs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	const prog = `
 package main
@@ -822,8 +784,7 @@ func main() {
 }
 `
 	src := filepath.Join(tmpdir, "main.go")
-	err = os.WriteFile(src, []byte(prog), 0666)
-	if err != nil {
+	if err := os.WriteFile(src, []byte(prog), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -970,21 +931,14 @@ func TestSymlinkCreation(t *testing.T) {
 	}
 	t.Parallel()
 
-	temp, err := os.MkdirTemp("", "TestSymlinkCreation")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(temp)
-
+	temp := t.TempDir()
 	dummyFile := filepath.Join(temp, "file")
-	err = os.WriteFile(dummyFile, []byte(""), 0644)
-	if err != nil {
+	if err := os.WriteFile(dummyFile, []byte(""), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	linkFile := filepath.Join(temp, "link")
-	err = os.Symlink(dummyFile, linkFile)
-	if err != nil {
+	if err := os.Symlink(dummyFile, linkFile); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1217,16 +1171,7 @@ func TestWindowsReadlink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = os.Chdir(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(wd)
+	chdir(t, tmpdir)
 
 	vol := filepath.VolumeName(tmpdir)
 	output, err := osexec.Command("cmd", "/c", "mountvol", vol, "/L").CombinedOutput()

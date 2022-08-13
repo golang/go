@@ -6,13 +6,13 @@
 // driver that analyzes a single compilation unit during a build.
 // It is invoked by a build system such as "go vet":
 //
-//   $ go vet -vettool=$(which vet)
+//	$ go vet -vettool=$(which vet)
 //
 // It supports the following command-line protocol:
 //
-//      -V=full         describe executable               (to the build tool)
-//      -flags          describe flags                    (to the build tool)
-//      foo.cfg         description of compilation unit (from the build tool)
+//	-V=full         describe executable               (to the build tool)
+//	-flags          describe flags                    (to the build tool)
+//	foo.cfg         description of compilation unit (from the build tool)
 //
 // This package does not depend on go/packages.
 // If you need a standalone tool, use multichecker,
@@ -51,6 +51,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
 	"golang.org/x/tools/go/analysis/internal/facts"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // A Config describes a compilation unit to be analyzed.
@@ -78,11 +79,10 @@ type Config struct {
 //
 // The protocol required by 'go vet -vettool=...' is that the tool must support:
 //
-//      -flags          describe flags in JSON
-//      -V=full         describe executable for build caching
-//      foo.cfg         perform separate modular analyze on the single
-//                      unit described by a JSON config file foo.cfg.
-//
+//	-flags          describe flags in JSON
+//	-V=full         describe executable for build caching
+//	foo.cfg         perform separate modular analyze on the single
+//	                unit described by a JSON config file foo.cfg.
 func Main(analyzers ...*analysis.Analyzer) {
 	progname := filepath.Base(os.Args[0])
 	log.SetFlags(0)
@@ -97,7 +97,7 @@ func Main(analyzers ...*analysis.Analyzer) {
 
 Usage of %[1]s:
 	%.16[1]s unit.cfg	# execute analysis specified by config file
-	%.16[1]s help    	# general help
+	%.16[1]s help    	# general help, including listing analyzers and flags
 	%.16[1]s help name	# help on specific analyzer and its flags
 `, progname)
 		os.Exit(1)
@@ -233,6 +233,8 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		Scopes:     make(map[ast.Node]*types.Scope),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
+	typeparams.InitInstanceInfo(info)
+
 	pkg, err := tc.Check(cfg.ImportPath, fset, files, info)
 	if err != nil {
 		if cfg.SucceedOnTypecheckFailure {

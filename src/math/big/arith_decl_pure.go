@@ -2,13 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build math_big_pure_go
 // +build math_big_pure_go
 
 package big
-
-func mulWW(x, y Word) (z1, z0 Word) {
-	return mulWW_g(x, y)
-}
 
 func addVV(z, x, y []Word) (c Word) {
 	return addVV_g(z, x, y)

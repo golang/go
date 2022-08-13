@@ -157,7 +157,7 @@ func TestBlockGeneric(t *testing.T) {
 // Tests for unmarshaling hashes that have hashed a large amount of data
 // The initial hash generation is omitted from the test, because it takes a long time.
 // The test contains some already-generated states, and their expected sums
-// Tests a problem that is outlined in Github issue #29541
+// Tests a problem that is outlined in GitHub issue #29541
 // The problem is triggered when an amount of data has been hashed for which
 // the data length has a 1 in the 32nd bit. When casted to int, this changes
 // the sign of the value, and causes the modulus operation to return a
@@ -211,8 +211,22 @@ func TestLargeHashes(t *testing.T) {
 	}
 }
 
+func TestAllocations(t *testing.T) {
+	in := []byte("hello, world!")
+	out := make([]byte, 0, Size)
+	h := New()
+	n := int(testing.AllocsPerRun(10, func() {
+		h.Reset()
+		h.Write(in)
+		out = h.Sum(out[:0])
+	}))
+	if n > 0 {
+		t.Errorf("allocs = %d, want 0", n)
+	}
+}
+
 var bench = New()
-var buf = make([]byte, 8192+1)
+var buf = make([]byte, 1024*1024*8+1)
 var sum = make([]byte, bench.Size())
 
 func benchmarkSize(b *testing.B, size int, unaligned bool) {
@@ -235,12 +249,36 @@ func BenchmarkHash8Bytes(b *testing.B) {
 	benchmarkSize(b, 8, false)
 }
 
+func BenchmarkHash64(b *testing.B) {
+	benchmarkSize(b, 64, false)
+}
+
+func BenchmarkHash128(b *testing.B) {
+	benchmarkSize(b, 128, false)
+}
+
+func BenchmarkHash256(b *testing.B) {
+	benchmarkSize(b, 256, false)
+}
+
+func BenchmarkHash512(b *testing.B) {
+	benchmarkSize(b, 512, false)
+}
+
 func BenchmarkHash1K(b *testing.B) {
 	benchmarkSize(b, 1024, false)
 }
 
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(b, 8192, false)
+}
+
+func BenchmarkHash1M(b *testing.B) {
+	benchmarkSize(b, 1024*1024, false)
+}
+
+func BenchmarkHash8M(b *testing.B) {
+	benchmarkSize(b, 8*1024*1024, false)
 }
 
 func BenchmarkHash8BytesUnaligned(b *testing.B) {

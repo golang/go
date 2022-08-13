@@ -2,6 +2,7 @@ package ssa_test
 
 import (
 	cmddwarf "cmd/internal/dwarf"
+	"cmd/internal/quoted"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
@@ -57,7 +58,11 @@ func TestStmtLines(t *testing.T) {
 		if extld == "" {
 			extld = "gcc"
 		}
-		enabled, err := cmddwarf.IsDWARFEnabledOnAIXLd(extld)
+		extldArgs, err := quoted.Split(extld)
+		if err != nil {
+			t.Fatal(err)
+		}
+		enabled, err := cmddwarf.IsDWARFEnabledOnAIXLd(extldArgs)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,6 +88,9 @@ func TestStmtLines(t *testing.T) {
 		pkgname, _ := e.Val(dwarf.AttrName).(string)
 		if pkgname == "runtime" {
 			continue
+		}
+		if pkgname == "crypto/internal/nistec/fiat" {
+			continue // golang.org/issue/49372
 		}
 		if e.Val(dwarf.AttrStmtList) == nil {
 			continue
@@ -110,13 +118,19 @@ func TestStmtLines(t *testing.T) {
 		}
 	}
 
+	var m int
 	if runtime.GOARCH == "amd64" {
-		if len(nonStmtLines)*100 > len(lines) { // > 99% obtained on amd64, no backsliding
-			t.Errorf("Saw too many (amd64, > 1%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
-		}
-	} else if len(nonStmtLines)*100 > 2*len(lines) { // expect 98% elsewhere.
-		t.Errorf("Saw too many (not amd64, > 2%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
+		m = 1 // > 99% obtained on amd64, no backsliding
+	} else if runtime.GOARCH == "riscv64" {
+		m = 3 // XXX temporary update threshold to 97% for regabi
+	} else {
+		m = 2 // expect 98% elsewhere.
 	}
+
+	if len(nonStmtLines)*100 > m*len(lines) {
+		t.Errorf("Saw too many (%s, > %d%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", runtime.GOARCH, m, len(lines), len(nonStmtLines))
+	}
+	t.Logf("Saw %d out of %d lines without statement marks", len(nonStmtLines), len(lines))
 	if testing.Verbose() {
 		sort.Slice(nonStmtLines, func(i, j int) bool {
 			if nonStmtLines[i].File != nonStmtLines[j].File {

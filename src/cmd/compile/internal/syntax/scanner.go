@@ -39,8 +39,8 @@ type scanner struct {
 	lit       string   // valid if tok is _Name, _Literal, or _Semi ("semicolon", "newline", or "EOF"); may be malformed if bad is true
 	bad       bool     // valid if tok is _Literal, true if a syntax error occurred, lit may be malformed
 	kind      LitKind  // valid if tok is _Literal
-	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
-	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
+	op        Operator // valid if tok is _Operator, _Star, _AssignOp, or _IncOp
+	prec      int      // valid if tok is _Operator, _Star, _AssignOp, or _IncOp
 }
 
 func (s *scanner) init(src io.Reader, errh func(line, col uint, msg string), mode uint) {
@@ -341,6 +341,11 @@ redo:
 			break
 		}
 		s.op, s.prec = Not, 0
+		s.tok = _Operator
+
+	case '~':
+		s.nextch()
+		s.op, s.prec = Tilde, 0
 		s.tok = _Operator
 
 	default:

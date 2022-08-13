@@ -9,9 +9,9 @@ import "./a"
 var x a.Foo
 
 func main() {
-	x.int = 20    // ERROR "unexported field"
-	x.int8 = 20   // ERROR "unexported field"
-	x.error = nil // ERROR "unexported field"
-	x.rune = 'a'  // ERROR "unexported field"
-	x.byte = 20   // ERROR "unexported field"
+	x.int = 20    // ERROR "unexported field|undefined"
+	x.int8 = 20   // ERROR "unexported field|undefined"
+	x.error = nil // ERROR "unexported field|undefined"
+	x.rune = 'a'  // ERROR "unexported field|undefined"
+	x.byte = 20   // ERROR "unexported field|undefined"
 }

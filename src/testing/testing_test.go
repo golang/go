@@ -58,6 +58,9 @@ func TestTempDir(t *testing.T) {
 	t.Run("test:subtest", testTempDir)
 	t.Run("test/..", testTempDir)
 	t.Run("../test", testTempDir)
+	t.Run("test[]", testTempDir)
+	t.Run("test*", testTempDir)
+	t.Run("äöüéè", testTempDir)
 }
 
 func testTempDir(t *testing.T) {
@@ -74,7 +77,7 @@ func testTempDir(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			t.Errorf("directory %q stil exists: %v, isDir=%v", dir, fi, fi.IsDir())
+			t.Errorf("directory %q still exists: %v, isDir=%v", dir, fi, fi.IsDir())
 		default:
 			if !t.Failed() {
 				t.Fatal("never received dir channel")
@@ -108,4 +111,92 @@ func testTempDir(t *testing.T) {
 	if len(files) > 0 {
 		t.Errorf("unexpected %d files in TempDir: %v", len(files), files)
 	}
+
+	glob := filepath.Join(dir, "*.txt")
+	if _, err := filepath.Glob(glob); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetenv(t *testing.T) {
+	tests := []struct {
+		name               string
+		key                string
+		initialValueExists bool
+		initialValue       string
+		newValue           string
+	}{
+		{
+			name:               "initial value exists",
+			key:                "GO_TEST_KEY_1",
+			initialValueExists: true,
+			initialValue:       "111",
+			newValue:           "222",
+		},
+		{
+			name:               "initial value exists but empty",
+			key:                "GO_TEST_KEY_2",
+			initialValueExists: true,
+			initialValue:       "",
+			newValue:           "222",
+		},
+		{
+			name:               "initial value is not exists",
+			key:                "GO_TEST_KEY_3",
+			initialValueExists: false,
+			initialValue:       "",
+			newValue:           "222",
+		},
+	}
+
+	for _, test := range tests {
+		if test.initialValueExists {
+			if err := os.Setenv(test.key, test.initialValue); err != nil {
+				t.Fatalf("unable to set env: got %v", err)
+			}
+		} else {
+			os.Unsetenv(test.key)
+		}
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv(test.key, test.newValue)
+			if os.Getenv(test.key) != test.newValue {
+				t.Fatalf("unexpected value after t.Setenv: got %s, want %s", os.Getenv(test.key), test.newValue)
+			}
+		})
+
+		got, exists := os.LookupEnv(test.key)
+		if got != test.initialValue {
+			t.Fatalf("unexpected value after t.Setenv cleanup: got %s, want %s", got, test.initialValue)
+		}
+		if exists != test.initialValueExists {
+			t.Fatalf("unexpected value after t.Setenv cleanup: got %t, want %t", exists, test.initialValueExists)
+		}
+	}
+}
+
+func TestSetenvWithParallelAfterSetenv(t *testing.T) {
+	defer func() {
+		want := "testing: t.Parallel called after t.Setenv; cannot set environment variables in parallel tests"
+		if got := recover(); got != want {
+			t.Fatalf("expected panic; got %#v want %q", got, want)
+		}
+	}()
+
+	t.Setenv("GO_TEST_KEY_1", "value")
+
+	t.Parallel()
+}
+
+func TestSetenvWithParallelBeforeSetenv(t *testing.T) {
+	defer func() {
+		want := "testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests"
+		if got := recover(); got != want {
+			t.Fatalf("expected panic; got %#v want %q", got, want)
+		}
+	}()
+
+	t.Parallel()
+
+	t.Setenv("GO_TEST_KEY_1", "value")
 }

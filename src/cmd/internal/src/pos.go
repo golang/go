@@ -214,8 +214,10 @@ func NewFileBase(filename, absFilename string) *PosBase {
 }
 
 // NewLinePragmaBase returns a new *PosBase for a line directive of the form
-//      //line filename:line:col
-//      /*line filename:line:col*/
+//
+//	//line filename:line:col
+//	/*line filename:line:col*/
+//
 // at position pos.
 func NewLinePragmaBase(pos Pos, filename, absFilename string, line, col uint) *PosBase {
 	return &PosBase{pos, filename, absFilename, FileSymPrefix + absFilename, line, col, -1}
@@ -389,9 +391,12 @@ func makeBogusLico() lico {
 }
 
 func makeLico(line, col uint) lico {
-	if line > lineMax {
+	if line >= lineMax {
 		// cannot represent line, use max. line so we have some information
 		line = lineMax
+		// Drop column information if line number saturates.
+		// Ensures line+col is monotonic. See issue 51193.
+		col = 0
 	}
 	if col > colMax {
 		// cannot represent column, use max. column so we have some information

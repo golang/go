@@ -5,12 +5,12 @@
 package main
 
 import (
-	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/amd64"
 	"cmd/link/internal/arm"
 	"cmd/link/internal/arm64"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/loong64"
 	"cmd/link/internal/mips"
 	"cmd/link/internal/mips64"
 	"cmd/link/internal/ppc64"
@@ -19,6 +19,7 @@ import (
 	"cmd/link/internal/wasm"
 	"cmd/link/internal/x86"
 	"fmt"
+	"internal/buildcfg"
 	"os"
 )
 
@@ -40,9 +41,10 @@ func main() {
 	var arch *sys.Arch
 	var theArch ld.Arch
 
-	switch objabi.GOARCH {
+	buildcfg.Check()
+	switch buildcfg.GOARCH {
 	default:
-		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", objabi.GOARCH)
+		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", buildcfg.GOARCH)
 		os.Exit(2)
 	case "386":
 		arch, theArch = x86.Init()
@@ -52,6 +54,8 @@ func main() {
 		arch, theArch = arm.Init()
 	case "arm64":
 		arch, theArch = arm64.Init()
+	case "loong64":
+		arch, theArch = loong64.Init()
 	case "mips", "mipsle":
 		arch, theArch = mips.Init()
 	case "mips64", "mips64le":

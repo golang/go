@@ -35,7 +35,9 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"log"
 	"math"
+	"path"
 	"strings"
 )
 
@@ -134,7 +136,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.To.Index = REG_NONE
 		}
 	} else {
-		// load_g_cx, below, always inserts the 1-instruction sequence. Rewrite it
+		// load_g, below, always inserts the 1-instruction sequence. Rewrite it
 		// as the 2-instruction sequence if necessary.
 		//	MOVQ 0(TLS), BX
 		// becomes
@@ -562,6 +564,11 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	obj.Nopout(p)
 }
 
+// Prog.mark
+const (
+	markBit = 1 << 0 // used in errorCheck to avoid duplicate work
+)
+
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
 		return
@@ -637,13 +644,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	if !p.From.Sym.NoSplit() || p.From.Sym.Wrapper() {
-		p = obj.Appendp(p, newprog)
-		p = load_g_cx(ctxt, p, newprog) // load g into CX
+	var regEntryTmp0, regEntryTmp1 int16
+	if ctxt.Arch.Family == sys.AMD64 {
+		regEntryTmp0, regEntryTmp1 = REGENTRYTMP0, REGENTRYTMP1
+	} else {
+		regEntryTmp0, regEntryTmp1 = REG_BX, REG_DI
 	}
 
-	if !cursym.Func().Text.From.Sym.NoSplit() {
-		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg)) // emit split check
+	var regg int16
+	if !p.From.Sym.NoSplit() {
+		// Emit split check and load G register
+		p, regg = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg))
+	} else if p.From.Sym.Wrapper() {
+		// Load G register for the wrapper code
+		p, regg = loadG(ctxt, cursym, p, newprog)
 	}
 
 	// Delve debugger would like the next instruction to be noted as the end of the function prologue.
@@ -695,17 +709,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		//   g._panic.argp = bottom-of-frame
 		// }
 		//
-		//	MOVQ g_panic(CX), BX
-		//	TESTQ BX, BX
+		//	MOVQ g_panic(g), regEntryTmp0
+		//	TESTQ regEntryTmp0, regEntryTmp0
 		//	JNE checkargp
 		// end:
 		//	NOP
 		//  ... rest of function ...
 		// checkargp:
-		//	LEAQ (autoffset+8)(SP), DI
-		//	CMPQ panic_argp(BX), DI
+		//	LEAQ (autoffset+8)(SP), regEntryTmp1
+		//	CMPQ panic_argp(regEntryTmp0), regEntryTmp1
 		//	JNE end
-		//  MOVQ SP, panic_argp(BX)
+		//  MOVQ SP, panic_argp(regEntryTmp0)
 		//  JMP end
 		//
 		// The NOP is needed to give the jumps somewhere to land.
@@ -714,25 +728,25 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		// The layout is chosen to help static branch prediction:
 		// Both conditional jumps are unlikely, so they are arranged to be forward jumps.
 
-		// MOVQ g_panic(CX), BX
+		// MOVQ g_panic(g), regEntryTmp0
 		p = obj.Appendp(p, newprog)
 		p.As = AMOVQ
 		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = REG_CX
+		p.From.Reg = regg
 		p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // g_panic
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_BX
+		p.To.Reg = regEntryTmp0
 		if ctxt.Arch.Family == sys.I386 {
 			p.As = AMOVL
 		}
 
-		// TESTQ BX, BX
+		// TESTQ regEntryTmp0, regEntryTmp0
 		p = obj.Appendp(p, newprog)
 		p.As = ATESTQ
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_BX
+		p.From.Reg = regEntryTmp0
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_BX
+		p.To.Reg = regEntryTmp0
 		if ctxt.Arch.Family == sys.I386 {
 			p.As = ATESTL
 		}
@@ -752,14 +766,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		for last = end; last.Link != nil; last = last.Link {
 		}
 
-		// LEAQ (autoffset+8)(SP), DI
+		// LEAQ (autoffset+8)(SP), regEntryTmp1
 		p = obj.Appendp(last, newprog)
 		p.As = ALEAQ
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = REG_SP
 		p.From.Offset = int64(autoffset) + int64(ctxt.Arch.RegSize)
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_DI
+		p.To.Reg = regEntryTmp1
 		if ctxt.Arch.Family == sys.I386 {
 			p.As = ALEAL
 		}
@@ -767,14 +781,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		// Set jne branch target.
 		jne.To.SetTarget(p)
 
-		// CMPQ panic_argp(BX), DI
+		// CMPQ panic_argp(regEntryTmp0), regEntryTmp1
 		p = obj.Appendp(p, newprog)
 		p.As = ACMPQ
 		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = REG_BX
+		p.From.Reg = regEntryTmp0
 		p.From.Offset = 0 // Panic.argp
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_DI
+		p.To.Reg = regEntryTmp1
 		if ctxt.Arch.Family == sys.I386 {
 			p.As = ACMPL
 		}
@@ -785,13 +799,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.To.Type = obj.TYPE_BRANCH
 		p.To.SetTarget(end)
 
-		// MOVQ SP, panic_argp(BX)
+		// MOVQ SP, panic_argp(regEntryTmp0)
 		p = obj.Appendp(p, newprog)
 		p.As = AMOVQ
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_SP
 		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = REG_BX
+		p.To.Reg = regEntryTmp0
 		p.To.Offset = 0 // Panic.argp
 		if ctxt.Arch.Family == sys.I386 {
 			p.As = AMOVL
@@ -833,6 +847,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		switch p.As {
 		default:
+			if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SP && p.As != ACMPL && p.As != ACMPQ {
+				f := cursym.Func()
+				if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
+					f.FuncFlag |= objabi.FuncFlag_SPWRITE
+					if ctxt.Debugvlog || !ctxt.IsAsm {
+						ctxt.Logf("auto-SPWRITE: %s %v\n", cursym.Name, p)
+						if !ctxt.IsAsm {
+							ctxt.Diag("invalid auto-SPWRITE in non-assembly")
+							ctxt.DiagFlush()
+							log.Fatalf("bad SPWRITE")
+						}
+					}
+				}
+			}
 			continue
 
 		case APUSHL, APUSHFL:
@@ -875,7 +903,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		if autoffset != deltasp {
-			ctxt.Diag("unbalanced PUSH/POP")
+			ctxt.Diag("%s: unbalanced PUSH/POP", cursym)
 		}
 
 		if autoffset != 0 {
@@ -937,12 +965,21 @@ func indir_cx(ctxt *obj.Link, a *obj.Addr) {
 	a.Reg = REG_CX
 }
 
-// Append code to p to load g into cx.
-// Overwrites p with the first instruction (no first appendp).
-// Overwriting p is unusual but it lets use this in both the
-// prologue (caller must call appendp first) and in the epilogue.
-// Returns last new instruction.
-func load_g_cx(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) *obj.Prog {
+// loadG ensures the G is loaded into a register (either CX or REGG),
+// appending instructions to p if necessary. It returns the new last
+// instruction and the G register.
+func loadG(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc) (*obj.Prog, int16) {
+	if ctxt.Arch.Family == sys.AMD64 && cursym.ABI() == obj.ABIInternal {
+		// Use the G register directly in ABIInternal
+		return p, REGG
+	}
+
+	var regg int16 = REG_CX
+	if ctxt.Arch.Family == sys.AMD64 {
+		regg = REGG // == REG_R14
+	}
+
+	p = obj.Appendp(p, newprog)
 	p.As = AMOVQ
 	if ctxt.Arch.PtrSize == 4 {
 		p.As = AMOVL
@@ -951,8 +988,9 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) *obj.Prog {
 	p.From.Reg = REG_TLS
 	p.From.Offset = 0
 	p.To.Type = obj.TYPE_REG
-	p.To.Reg = REG_CX
+	p.To.Reg = regg
 
+	// Rewrite TLS instruction if necessary.
 	next := p.Link
 	progedit(ctxt, p, newprog)
 	for p.Link != next {
@@ -964,25 +1002,72 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) *obj.Prog {
 		p.From.Scale = 2
 	}
 
-	return p
+	return p, regg
 }
 
 // Append code to p to check for stack split.
 // Appends to (does not overwrite) p.
-// Assumes g is in CX.
-// Returns last new instruction.
-func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc, framesize int32, textarg int32) *obj.Prog {
+// Assumes g is in rg.
+// Returns last new instruction and G register.
+func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc, framesize int32, textarg int32) (*obj.Prog, int16) {
 	cmp := ACMPQ
 	lea := ALEAQ
 	mov := AMOVQ
 	sub := ASUBQ
+	push, pop := APUSHQ, APOPQ
 
 	if ctxt.Arch.Family == sys.I386 {
 		cmp = ACMPL
 		lea = ALEAL
 		mov = AMOVL
 		sub = ASUBL
+		push, pop = APUSHL, APOPL
 	}
+
+	tmp := int16(REG_AX) // use AX for 32-bit
+	if ctxt.Arch.Family == sys.AMD64 {
+		// Avoid register parameters.
+		tmp = int16(REGENTRYTMP0)
+	}
+
+	if ctxt.Flag_maymorestack != "" {
+		p = cursym.Func().SpillRegisterArgs(p, newprog)
+
+		if cursym.Func().Text.From.Sym.NeedCtxt() {
+			p = obj.Appendp(p, newprog)
+			p.As = push
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = REGCTXT
+		}
+
+		// We call maymorestack with an ABI matching the
+		// caller's ABI. Since this is the first thing that
+		// happens in the function, we have to be consistent
+		// with the caller about CPU state (notably,
+		// fixed-meaning registers).
+
+		p = obj.Appendp(p, newprog)
+		p.As = obj.ACALL
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = ctxt.LookupABI(ctxt.Flag_maymorestack, cursym.ABI())
+
+		if cursym.Func().Text.From.Sym.NeedCtxt() {
+			p = obj.Appendp(p, newprog)
+			p.As = pop
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = REGCTXT
+		}
+
+		p = cursym.Func().UnspillRegisterArgs(p, newprog)
+	}
+
+	// Jump back to here after morestack returns.
+	startPred := p
+
+	// Load G register
+	var rg int16
+	p, rg = loadG(ctxt, cursym, p, newprog)
 
 	var q1 *obj.Prog
 	if framesize <= objabi.StackSmall {
@@ -993,7 +1078,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_SP
-		indir_cx(ctxt, &p.To)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = rg
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1006,8 +1092,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p = ctxt.StartUnsafePoint(p, newprog)
 	} else if framesize <= objabi.StackBig {
 		// large stack: SP-framesize <= stackguard-StackSmall
-		//	LEAQ -xxx(SP), AX
-		//	CMPQ AX, stackguard
+		//	LEAQ -xxx(SP), tmp
+		//	CMPQ tmp, stackguard
 		p = obj.Appendp(p, newprog)
 
 		p.As = lea
@@ -1015,13 +1101,14 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.From.Reg = REG_SP
 		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_AX
+		p.To.Reg = tmp
 
 		p = obj.Appendp(p, newprog)
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_AX
-		indir_cx(ctxt, &p.To)
+		p.From.Reg = tmp
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = rg
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
@@ -1029,70 +1116,51 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 
 		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
 	} else {
-		// Such a large stack we need to protect against wraparound.
-		// If SP is close to zero:
-		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
-		// The +StackGuard on both sides is required to keep the left side positive:
-		// SP is allowed to be slightly below stackguard. See stack.h.
+		// Such a large stack we need to protect against underflow.
+		// The runtime guarantees SP > objabi.StackBig, but
+		// framesize is large enough that SP-framesize may
+		// underflow, causing a direct comparison with the
+		// stack guard to incorrectly succeed. We explicitly
+		// guard against underflow.
 		//
-		// Preemption sets stackguard to StackPreempt, a very large value.
-		// That breaks the math above, so we have to check for that explicitly.
-		//	MOVQ	stackguard, SI
-		//	CMPQ	SI, $StackPreempt
-		//	JEQ	label-of-call-to-morestack
-		//	LEAQ	StackGuard(SP), AX
-		//	SUBQ	SI, AX
-		//	CMPQ	AX, $(framesize+(StackGuard-StackSmall))
+		//	MOVQ	SP, tmp
+		//	SUBQ	$(framesize - StackSmall), tmp
+		//	// If subtraction wrapped (carry set), morestack.
+		//	JCS	label-of-call-to-morestack
+		//	CMPQ	tmp, stackguard
 
 		p = obj.Appendp(p, newprog)
 
 		p.As = mov
-		indir_cx(ctxt, &p.From)
-		p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-		if cursym.CFunc() {
-			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
-		}
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_SP
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_SI
+		p.To.Reg = tmp
 
 		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
 
 		p = obj.Appendp(p, newprog)
-		p.As = cmp
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_SI
-		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = objabi.StackPreempt
-		if ctxt.Arch.Family == sys.I386 {
-			p.To.Offset = int64(uint32(objabi.StackPreempt & (1<<32 - 1)))
-		}
+		p.As = sub
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(framesize) - objabi.StackSmall
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = tmp
 
 		p = obj.Appendp(p, newprog)
-		p.As = AJEQ
+		p.As = AJCS
 		p.To.Type = obj.TYPE_BRANCH
 		q1 = p
 
 		p = obj.Appendp(p, newprog)
-		p.As = lea
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = REG_SP
-		p.From.Offset = int64(objabi.StackGuard)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_AX
-
-		p = obj.Appendp(p, newprog)
-		p.As = sub
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_SI
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_AX
-
-		p = obj.Appendp(p, newprog)
 		p.As = cmp
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_AX
-		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = int64(framesize) + (int64(objabi.StackGuard) - objabi.StackSmall)
+		p.From.Reg = tmp
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = rg
+		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+		if cursym.CFunc() {
+			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+		}
 	}
 
 	// common
@@ -1114,7 +1182,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	spfix.Spadj = -framesize
 
 	pcdata := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
-	pcdata = ctxt.StartUnsafePoint(pcdata, newprog)
+	spill := ctxt.StartUnsafePoint(pcdata, newprog)
+	pcdata = cursym.Func().SpillRegisterArgs(spill, newprog)
 
 	call := obj.Appendp(pcdata, newprog)
 	call.Pos = cursym.Func().Text.Pos
@@ -1139,20 +1208,129 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		progedit(ctxt, callend.Link, newprog)
 	}
 
-	pcdata = ctxt.EndUnsafePoint(callend, newprog, -1)
+	pcdata = cursym.Func().UnspillRegisterArgs(callend, newprog)
+	pcdata = ctxt.EndUnsafePoint(pcdata, newprog, -1)
 
 	jmp := obj.Appendp(pcdata, newprog)
 	jmp.As = obj.AJMP
 	jmp.To.Type = obj.TYPE_BRANCH
-	jmp.To.SetTarget(cursym.Func().Text.Link)
+	jmp.To.SetTarget(startPred.Link)
 	jmp.Spadj = +framesize
 
-	jls.To.SetTarget(call)
+	jls.To.SetTarget(spill)
 	if q1 != nil {
-		q1.To.SetTarget(call)
+		q1.To.SetTarget(spill)
 	}
 
-	return end
+	return end, rg
+}
+
+func isR15(r int16) bool {
+	return r == REG_R15 || r == REG_R15B
+}
+func addrMentionsR15(a *obj.Addr) bool {
+	if a == nil {
+		return false
+	}
+	return isR15(a.Reg) || isR15(a.Index)
+}
+func progMentionsR15(p *obj.Prog) bool {
+	return addrMentionsR15(&p.From) || addrMentionsR15(&p.To) || isR15(p.Reg) || addrMentionsR15(p.GetFrom3())
+}
+
+// progOverwritesR15 reports whether p writes to R15 and does not depend on
+// the previous value of R15.
+func progOverwritesR15(p *obj.Prog) bool {
+	if !(p.To.Type == obj.TYPE_REG && isR15(p.To.Reg)) {
+		// Not writing to R15.
+		return false
+	}
+	if (p.As == AXORL || p.As == AXORQ) && p.From.Type == obj.TYPE_REG && isR15(p.From.Reg) {
+		// These look like uses of R15, but aren't, so we must detect these
+		// before the use check below.
+		return true
+	}
+	if addrMentionsR15(&p.From) || isR15(p.Reg) || addrMentionsR15(p.GetFrom3()) {
+		// use before overwrite
+		return false
+	}
+	if p.As == AMOVL || p.As == AMOVQ || p.As == APOPQ {
+		return true
+		// TODO: MOVB might be ok if we only ever use R15B.
+	}
+	return false
+}
+
+func addrUsesGlobal(a *obj.Addr) bool {
+	if a == nil {
+		return false
+	}
+	return a.Name == obj.NAME_EXTERN && !a.Sym.Local()
+}
+func progUsesGlobal(p *obj.Prog) bool {
+	if p.As == obj.ACALL || p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ARET || p.As == obj.AJMP {
+		// These opcodes don't use a GOT to access their argument (see rewriteToUseGot),
+		// or R15 would be dead at them anyway.
+		return false
+	}
+	if p.As == ALEAQ {
+		// The GOT entry is placed directly in the destination register; R15 is not used.
+		return false
+	}
+	return addrUsesGlobal(&p.From) || addrUsesGlobal(&p.To) || addrUsesGlobal(p.GetFrom3())
+}
+
+func errorCheck(ctxt *obj.Link, s *obj.LSym) {
+	// When dynamic linking, R15 is used to access globals. Reject code that
+	// uses R15 after a global variable access.
+	if !ctxt.Flag_dynlink {
+		return
+	}
+
+	// Flood fill all the instructions where R15's value is junk.
+	// If there are any uses of R15 in that set, report an error.
+	var work []*obj.Prog
+	var mentionsR15 bool
+	for p := s.Func().Text; p != nil; p = p.Link {
+		if progUsesGlobal(p) {
+			work = append(work, p)
+			p.Mark |= markBit
+		}
+		if progMentionsR15(p) {
+			mentionsR15 = true
+		}
+	}
+	if mentionsR15 {
+		for len(work) > 0 {
+			p := work[len(work)-1]
+			work = work[:len(work)-1]
+			if q := p.To.Target(); q != nil && q.Mark&markBit == 0 {
+				q.Mark |= markBit
+				work = append(work, q)
+			}
+			if p.As == obj.AJMP || p.As == obj.ARET {
+				continue // no fallthrough
+			}
+			if progMentionsR15(p) {
+				if progOverwritesR15(p) {
+					// R15 is overwritten by this instruction. Its value is not junk any more.
+					continue
+				}
+				pos := ctxt.PosTable.Pos(p.Pos)
+				ctxt.Diag("%s:%s: when dynamic linking, R15 is clobbered by a global variable access and is used here: %v", path.Base(pos.Filename()), pos.LineNumber(), p)
+				break // only report one error
+			}
+			if q := p.Link; q != nil && q.Mark&markBit == 0 {
+				q.Mark |= markBit
+				work = append(work, q)
+			}
+		}
+	}
+
+	// Clean up.
+	for p := s.Func().Text; p != nil; p = p.Link {
+		p.Mark &^= markBit
+	}
 }
 
 var unaryDst = map[obj.As]bool{
@@ -1243,6 +1421,7 @@ var unaryDst = map[obj.As]bool{
 var Linkamd64 = obj.LinkArch{
 	Arch:           sys.ArchAMD64,
 	Init:           instinit,
+	ErrorCheck:     errorCheck,
 	Preprocess:     preprocess,
 	Assemble:       span6,
 	Progedit:       progedit,

@@ -8,6 +8,7 @@ import (
 	. "io/fs"
 	"os"
 	"path"
+	"strings"
 	"testing"
 )
 
@@ -17,6 +18,7 @@ var globTests = []struct {
 }{
 	{os.DirFS("."), "glob.go", "glob.go"},
 	{os.DirFS("."), "gl?b.go", "glob.go"},
+	{os.DirFS("."), `gl\ob.go`, "glob.go"},
 	{os.DirFS("."), "*", "glob.go"},
 	{os.DirFS(".."), "*/glob.go", "fs/glob.go"},
 }
@@ -32,7 +34,7 @@ func TestGlob(t *testing.T) {
 			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
 		}
 	}
-	for _, pattern := range []string{"no_match", "../*/no_match"} {
+	for _, pattern := range []string{"no_match", "../*/no_match", `\*`} {
 		matches, err := Glob(os.DirFS("."), pattern)
 		if err != nil {
 			t.Errorf("Glob error for %q: %s", pattern, err)
@@ -51,6 +53,15 @@ func TestGlobError(t *testing.T) {
 		if err != path.ErrBadPattern {
 			t.Errorf("Glob(fs, %#q) returned err=%v, want path.ErrBadPattern", pattern, err)
 		}
+	}
+}
+
+func TestCVE202230630(t *testing.T) {
+	// Prior to CVE-2022-30630, a stack exhaustion would occur given a large
+	// number of separators. There is now a limit of 10,000.
+	_, err := Glob(os.DirFS("."), "/*"+strings.Repeat("/", 10001))
+	if err != path.ErrBadPattern {
+		t.Fatalf("Glob returned err=%v, want %v", err, path.ErrBadPattern)
 	}
 }
 

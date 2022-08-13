@@ -103,7 +103,7 @@ func TestFindAndHash(t *testing.T) {
 		id[i] = byte(i)
 	}
 	numError := 0
-	errorf := func(msg string, args ...interface{}) {
+	errorf := func(msg string, args ...any) {
 		t.Errorf(msg, args...)
 		if numError++; numError > 20 {
 			t.Logf("stopping after too many errors")
@@ -175,5 +175,13 @@ func TestExcludedReader(t *testing.T) {
 				t.Errorf("unexpected bytes: want %q, got %q", res, p[:n])
 			}
 		}
+	}
+}
+
+func TestEmptyID(t *testing.T) {
+	r := strings.NewReader("aha!")
+	matches, hash, err := FindAndHash(r, "", 1000)
+	if matches != nil || hash != ([32]byte{}) || err == nil || !strings.Contains(err.Error(), "no id") {
+		t.Errorf("FindAndHash: want nil, [32]byte{}, no id specified, got %v, %v, %v", matches, hash, err)
 	}
 }

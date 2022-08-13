@@ -52,7 +52,7 @@ func x() {
 		log.Fatal(err)
 	}
 
-	cmd := exec.Command("go", "tool", "compile", "x.go")
+	cmd := exec.Command("go", "tool", "compile", "-p=p", "x.go")
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 	if err == nil {

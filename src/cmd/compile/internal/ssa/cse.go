@@ -83,7 +83,7 @@ func cse(f *Func) {
 	// non-equivalent arguments.  Repeat until we can't find any
 	// more splits.
 	var splitPoints []int
-	byArgClass := new(partitionByArgClass) // reuseable partitionByArgClass to reduce allocations
+	byArgClass := new(partitionByArgClass) // reusable partitionByArgClass to reduce allocations
 	for {
 		changed := false
 
@@ -235,14 +235,15 @@ type eqclass []*Value
 
 // partitionValues partitions the values into equivalence classes
 // based on having all the following features match:
-//  - opcode
-//  - type
-//  - auxint
-//  - aux
-//  - nargs
-//  - block # if a phi op
-//  - first two arg's opcodes and auxint
-//  - NOT first two arg's aux; that can break CSE.
+//   - opcode
+//   - type
+//   - auxint
+//   - aux
+//   - nargs
+//   - block # if a phi op
+//   - first two arg's opcodes and auxint
+//   - NOT first two arg's aux; that can break CSE.
+//
 // partitionValues returns a list of equivalence classes, each
 // being a sorted by ID list of *Values. The eqclass slices are
 // backed by the same storage as the input slice.
@@ -275,7 +276,7 @@ func lt2Cmp(isLt bool) types.Cmp {
 	return types.CMPgt
 }
 
-type auxmap map[interface{}]int32
+type auxmap map[Aux]int32
 
 func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
 	// Try to order these comparison by cost (cheaper first)
@@ -299,7 +300,7 @@ func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
 	// OpSelect is a pseudo-op. We need to be more aggressive
 	// regarding CSE to keep multiple OpSelect's of the same
 	// argument from existing.
-	if v.Op != OpSelect0 && v.Op != OpSelect1 {
+	if v.Op != OpSelect0 && v.Op != OpSelect1 && v.Op != OpSelectN {
 		if tc := v.Type.Compare(w.Type); tc != types.CMPeq {
 			return tc
 		}

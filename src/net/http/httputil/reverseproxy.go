@@ -11,8 +11,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net"
 	"net/http"
+	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
 	"strings"
@@ -26,14 +28,18 @@ import (
 // sends it to another server, proxying the response back to the
 // client.
 //
-// ReverseProxy by default sets the client IP as the value of the
-// X-Forwarded-For header.
+// ReverseProxy by default sets
+//   - the X-Forwarded-For header to the client IP address;
+//   - the X-Forwarded-Host header to the host of the original client
+//     request; and
+//   - the X-Forwarded-Proto header to "https" if the client request
+//     was made on a TLS-enabled connection or "http" otherwise.
 //
 // If an X-Forwarded-For header already exists, the client IP is
-// appended to the existing values. As a special case, if the header
-// exists in the Request.Header map but has a nil value (such as when
-// set by the Director func), the X-Forwarded-For header is
-// not modified.
+// appended to the existing values.
+//
+// If a header exists in the Request.Header map but has a nil value
+// (such as when set by the Director func), it is not modified.
 //
 // To prevent IP spoofing, be sure to delete any pre-existing
 // X-Forwarded-For header coming from the client or
@@ -150,10 +156,6 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 		} else {
 			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
 		}
-		if _, ok := req.Header["User-Agent"]; !ok {
-			// explicitly disable User-Agent so it's not set to default value
-			req.Header.Set("User-Agent", "")
-		}
 	}
 	return &ReverseProxy{Director: director}
 }
@@ -216,7 +218,18 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	ctx := req.Context()
-	if cn, ok := rw.(http.CloseNotifier); ok {
+	if ctx.Done() != nil {
+		// CloseNotifier predates context.Context, and has been
+		// entirely superseded by it. If the request contains
+		// a Context that carries a cancellation signal, don't
+		// bother spinning up a goroutine to watch the CloseNotify
+		// channel (if any).
+		//
+		// If the request Context has a nil Done channel (which
+		// means it is either context.Background, or a custom
+		// Context implementation with no cancellation signal),
+		// then consult the CloseNotifier if available.
+	} else if cn, ok := rw.(http.CloseNotifier); ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
@@ -234,6 +247,15 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if req.ContentLength == 0 {
 		outreq.Body = nil // Issue 16036: nil Body for http.Transport retries
 	}
+	if outreq.Body != nil {
+		// Reading from the request body after returning from a handler is not
+		// allowed, and the RoundTrip goroutine that reads the Body can outlive
+		// this handler. This can lead to a crash if the handler panics (see
+		// Issue 46866). Although calling Close doesn't guarantee there isn't
+		// any Read in flight after the handle returns, in practice it's safe to
+		// read after closing it.
+		defer outreq.Body.Close()
+	}
 	if outreq.Header == nil {
 		outreq.Header = make(http.Header) // Issue 33142: historical behavior was to always allocate
 	}
@@ -242,26 +264,26 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	outreq.Close = false
 
 	reqUpType := upgradeType(outreq.Header)
+	if !ascii.IsPrint(reqUpType) {
+		p.getErrorHandler()(rw, req, fmt.Errorf("client tried to switch to invalid protocol %q", reqUpType))
+		return
+	}
 	removeConnectionHeaders(outreq.Header)
 
 	// Remove hop-by-hop headers to the backend. Especially
 	// important is "Connection" because we want a persistent
 	// connection, regardless of what the client sent to us.
 	for _, h := range hopHeaders {
-		hv := outreq.Header.Get(h)
-		if hv == "" {
-			continue
-		}
-		if h == "Te" && hv == "trailers" {
-			// Issue 21096: tell backend applications that
-			// care about trailer support that we support
-			// trailers. (We do, but we don't go out of
-			// our way to advertise that unless the
-			// incoming client request thought it was
-			// worth mentioning)
-			continue
-		}
 		outreq.Header.Del(h)
+	}
+
+	// Issue 21096: tell backend applications that care about trailer support
+	// that we support trailers. (We do, but we don't go out of our way to
+	// advertise that unless the incoming client request thought it was worth
+	// mentioning.) Note that we look at req.Header, not outreq.Header, since
+	// the latter has passed through removeConnectionHeaders.
+	if httpguts.HeaderValuesContainsToken(req.Header["Te"], "trailers") {
+		outreq.Header.Set("Te", "trailers")
 	}
 
 	// After stripping all the hop-by-hop connection headers above, add back any
@@ -283,6 +305,22 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		if !omit {
 			outreq.Header.Set("X-Forwarded-For", clientIP)
 		}
+	}
+	if prior, ok := outreq.Header["X-Forwarded-Host"]; !(ok && prior == nil) {
+		outreq.Header.Set("X-Forwarded-Host", req.Host)
+	}
+	if prior, ok := outreq.Header["X-Forwarded-Proto"]; !(ok && prior == nil) {
+		if req.TLS == nil {
+			outreq.Header.Set("X-Forwarded-Proto", "http")
+		} else {
+			outreq.Header.Set("X-Forwarded-Proto", "https")
+		}
+	}
+
+	if _, ok := outreq.Header["User-Agent"]; !ok {
+		// If the outbound request doesn't have a User-Agent header set,
+		// don't send the default Go HTTP client User-Agent.
+		outreq.Header.Set("User-Agent", "")
 	}
 
 	res, err := transport.RoundTrip(outreq)
@@ -402,7 +440,7 @@ func (p *ReverseProxy) flushInterval(res *http.Response) time.Duration {
 
 	// For Server-Sent Events responses, flush immediately.
 	// The MIME type is defined in https://www.w3.org/TR/eventsource/#text-event-stream
-	if resCT == "text/event-stream" {
+	if baseCT, _, _ := mime.ParseMediaType(resCT); baseCT == "text/event-stream" {
 		return -1 // negative means immediately
 	}
 
@@ -473,7 +511,7 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 	}
 }
 
-func (p *ReverseProxy) logf(format string, args ...interface{}) {
+func (p *ReverseProxy) logf(format string, args ...any) {
 	if p.ErrorLog != nil {
 		p.ErrorLog.Printf(format, args...)
 	} else {
@@ -538,13 +576,16 @@ func upgradeType(h http.Header) string {
 	if !httpguts.HeaderValuesContainsToken(h["Connection"], "Upgrade") {
 		return ""
 	}
-	return strings.ToLower(h.Get("Upgrade"))
+	return h.Get("Upgrade")
 }
 
 func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request, res *http.Response) {
 	reqUpType := upgradeType(req.Header)
 	resUpType := upgradeType(res.Header)
-	if reqUpType != resUpType {
+	if !ascii.IsPrint(resUpType) { // We know reqUpType is ASCII, it's checked by the caller.
+		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch to invalid protocol %q", resUpType))
+	}
+	if !ascii.EqualFold(reqUpType, resUpType) {
 		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch protocol %q when %q was requested", resUpType, reqUpType))
 		return
 	}
@@ -562,7 +603,7 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 
 	backConnCloseCh := make(chan bool)
 	go func() {
-		// Ensure that the cancelation of a request closes the backend.
+		// Ensure that the cancellation of a request closes the backend.
 		// See issue https://golang.org/issue/35559.
 		select {
 		case <-req.Context().Done():
@@ -597,7 +638,6 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	go spc.copyToBackend(errc)
 	go spc.copyFromBackend(errc)
 	<-errc
-	return
 }
 
 // switchProtocolCopier exists so goroutines proxying data back and

@@ -28,8 +28,11 @@ const (
 	// Total amount of space to reserve at the start of the file
 	// for File Header, Auxiliary Header, and Section Headers.
 	// May waste some.
-	XCOFFHDRRESERVE       = FILHSZ_64 + AOUTHSZ_EXEC64 + SCNHSZ_64*23
-	XCOFFSECTALIGN  int64 = 32 // base on dump -o
+	XCOFFHDRRESERVE = FILHSZ_64 + AOUTHSZ_EXEC64 + SCNHSZ_64*23
+
+	// base on dump -o, then rounded from 32B to 64B to
+	// match worst case elf text section alignment on ppc64.
+	XCOFFSECTALIGN int64 = 64
 
 	// XCOFF binaries should normally have all its sections position-independent.
 	// However, this is not yet possible for .text because of some R_ADDR relocations
@@ -555,11 +558,12 @@ func Xcoffinit(ctxt *Link) {
 
 // type records C_FILE information needed for genasmsym in XCOFF.
 type xcoffSymSrcFile struct {
-	name       string
-	file       *XcoffSymEnt64   // Symbol of this C_FILE
-	csectAux   *XcoffAuxCSect64 // Symbol for the current .csect
-	csectSymNb uint64           // Symbol number for the current .csect
-	csectSize  int64
+	name         string
+	file         *XcoffSymEnt64   // Symbol of this C_FILE
+	csectAux     *XcoffAuxCSect64 // Symbol for the current .csect
+	csectSymNb   uint64           // Symbol number for the current .csect
+	csectVAStart int64
+	csectVAEnd   int64
 }
 
 var (
@@ -594,16 +598,16 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 		if !ctxt.DynlinkingGo() {
 			// runtime.types size must be removed, as it's a real symbol.
 			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
-			outerSymSize["type.*"] = size - tsize
+			outerSymSize["type:*"] = size - tsize
 		}
 	case sym.SGOSTRING:
-		outerSymSize["go.string.*"] = size
+		outerSymSize["go:string.*"] = size
 	case sym.SGOFUNC:
 		if !ctxt.DynlinkingGo() {
-			outerSymSize["go.func.*"] = size
+			outerSymSize["go:func.*"] = size
 		}
 	case sym.SGOFUNCRELRO:
-		outerSymSize["go.funcrel.*"] = size
+		outerSymSize["go:funcrel.*"] = size
 	case sym.SGCBITS:
 		outerSymSize["runtime.gcbits.*"] = size
 	case sym.SPCLNTAB:
@@ -746,12 +750,13 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 	f.addSymbol(aux)
 
 	currSymSrcFile.csectAux = aux
-	currSymSrcFile.csectSize = 0
+	currSymSrcFile.csectVAStart = int64(firstEntry)
+	currSymSrcFile.csectVAEnd = int64(firstEntry)
 }
 
 // Update values for the previous package.
-//  - Svalue of the C_FILE symbol: if it is the last one, this Svalue must be -1
-//  - Xsclen of the csect symbol.
+//   - Svalue of the C_FILE symbol: if it is the last one, this Svalue must be -1
+//   - Xsclen of the csect symbol.
 func (f *xcoffFile) updatePreviousFile(ctxt *Link, last bool) {
 	// first file
 	if currSymSrcFile.file == nil {
@@ -768,8 +773,9 @@ func (f *xcoffFile) updatePreviousFile(ctxt *Link, last bool) {
 
 	// update csect scnlen in this auxiliary entry
 	aux := currSymSrcFile.csectAux
-	aux.Xscnlenlo = uint32(currSymSrcFile.csectSize & 0xFFFFFFFF)
-	aux.Xscnlenhi = uint32(currSymSrcFile.csectSize >> 32)
+	csectSize := currSymSrcFile.csectVAEnd - currSymSrcFile.csectVAStart
+	aux.Xscnlenlo = uint32(csectSize & 0xFFFFFFFF)
+	aux.Xscnlenhi = uint32(csectSize >> 32)
 }
 
 // Write symbol representing a .text function.
@@ -816,24 +822,32 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
 		}
 	}
 
+	name = ldr.SymExtname(x)
+	name = mangleABIName(ctxt, ldr, x, name)
+
 	s := &XcoffSymEnt64{
 		Nsclass: C_EXT,
-		Noffset: uint32(xfile.stringTable.add(ldr.SymExtname(x))),
+		Noffset: uint32(xfile.stringTable.add(name)),
 		Nvalue:  uint64(ldr.SymValue(x)),
 		Nscnum:  f.getXCOFFscnum(ldr.SymSect(x)),
 		Ntype:   SYM_TYPE_FUNC,
 		Nnumaux: 2,
 	}
 
-	if ldr.SymVersion(x) != 0 || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
 		s.Nsclass = C_HIDEXT
 	}
 
 	ldr.SetSymDynid(x, int32(xfile.symbolCount))
 	syms = append(syms, s)
 
-	// Update current csect size
-	currSymSrcFile.csectSize += ldr.SymSize(x)
+	// Keep track of the section size by tracking the VA range. Individual
+	// alignment differences may introduce a few extra bytes of padding
+	// which are not fully accounted for by ldr.SymSize(x).
+	sv := ldr.SymValue(x) + ldr.SymSize(x)
+	if currSymSrcFile.csectVAEnd < sv {
+		currSymSrcFile.csectVAEnd = sv
+	}
 
 	// create auxiliary entries
 	a2 := &XcoffAuxFcn64{
@@ -879,7 +893,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 			syms = xfile.writeSymbolFunc(ctxt, x)
 		} else {
 			// Only runtime.text and runtime.etext come through this way
-			if name != "runtime.text" && name != "runtime.etext" && name != "go.buildid" {
+			if name != "runtime.text" && name != "runtime.etext" && name != "go:buildid" {
 				Exitf("putaixsym: unknown text symbol %s", name)
 			}
 			s := &XcoffSymEnt64{
@@ -914,7 +928,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 			Nnumaux: 1,
 		}
 
-		if ldr.SymVersion(x) != 0 || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+		if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
 			// There is more symbols in the case of a global data
 			// which are related to the assembly generated
 			// to access such symbols.
@@ -1103,7 +1117,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, TLSSym)
 			}
 
-		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_EXTRA_COUNTER:
+		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER:
 			if ldr.AttrReachable(s) {
 				data := ldr.Data(s)
 				if len(data) > 0 {
@@ -1227,7 +1241,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 		sym:  s,
 		roff: r.Off(),
 	}
-	targ := ldr.ResolveABIAlias(r.Sym())
+	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
 		targType = ldr.SymType(targ)
@@ -1276,10 +1290,6 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 }
 
 func (ctxt *Link) doxcoff() {
-	if *FlagD {
-		// All XCOFF files have dynamic symbols because of the syscalls.
-		Exitf("-d is not available on AIX")
-	}
 	ldr := ctxt.loader
 
 	// TOC
@@ -1318,19 +1328,14 @@ func (ctxt *Link) doxcoff() {
 			if !ldr.AttrCgoExport(s) {
 				continue
 			}
-			if ldr.SymVersion(s) != 0 { // sanity check
-				panic("cgo_export on non-version 0 symbol")
+			if ldr.IsFileLocal(s) {
+				panic("cgo_export on static symbol")
 			}
 
-			if ldr.SymType(s) == sym.STEXT || ldr.SymType(s) == sym.SABIALIAS {
+			if ldr.SymType(s) == sym.STEXT {
 				// On AIX, a exported function must have two symbols:
 				// - a .text symbol which must start with a ".".
 				// - a .data symbol which is a function descriptor.
-				//
-				// CgoExport attribute should only be set on a version 0
-				// symbol, which can be TEXT or ABIALIAS.
-				// (before, setupdynexp copies the attribute from the
-				// alias to the aliased. Now we are before setupdynexp.)
 				name := ldr.SymExtname(s)
 				ldr.SetSymExtname(s, "."+name)
 
@@ -1554,7 +1559,7 @@ func (f *xcoffFile) writeFileHeader(ctxt *Link) {
 		f.xahdr.Otoc = uint64(ldr.SymValue(toc))
 		f.xahdr.Osntoc = f.getXCOFFscnum(ldr.SymSect(toc))
 
-		f.xahdr.Oalgntext = int16(logBase2(int(Funcalign)))
+		f.xahdr.Oalgntext = int16(logBase2(int(XCOFFSECTALIGN)))
 		f.xahdr.Oalgndata = 0x5
 
 		binary.Write(ctxt.Out, binary.BigEndian, &f.xfhdr)
@@ -1787,8 +1792,8 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
 		if !strings.HasPrefix(extname, "._cgoexp_") {
 			continue
 		}
-		if ldr.SymVersion(s) != 0 {
-			continue // Only export version 0 symbols. See the comment in doxcoff.
+		if ldr.IsFileLocal(s) {
+			continue // Only export non-static symbols
 		}
 
 		// Retrieve the name of the initial symbol

@@ -2,13 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !mips
-// +build !mipsle
-// +build !mips64
-// +build !mips64le
-// +build !s390x
-// +build !ppc64
-// +build linux
+//go:build !mips && !mipsle && !mips64 && !mips64le && !s390x && !ppc64 && linux
 
 package runtime
 

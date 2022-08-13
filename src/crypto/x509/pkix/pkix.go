@@ -98,7 +98,7 @@ type RelativeDistinguishedNameSET []AttributeTypeAndValue
 // RFC 5280, Section 4.1.2.4.
 type AttributeTypeAndValue struct {
 	Type  asn1.ObjectIdentifier
-	Value interface{}
+	Value any
 }
 
 // AttributeTypeAndValueSET represents a set of ASN.1 sequences of
@@ -214,13 +214,13 @@ func (n Name) appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentif
 // ToRDNSequence converts n into a single RDNSequence. The following
 // attributes are encoded as multi-value RDNs:
 //
-//  - Country
-//  - Organization
-//  - OrganizationalUnit
-//  - Locality
-//  - Province
-//  - StreetAddress
-//  - PostalCode
+//   - Country
+//   - Organization
+//   - OrganizationalUnit
+//   - Locality
+//   - Province
+//   - StreetAddress
+//   - PostalCode
 //
 // Each ExtraNames entry is encoded as an individual RDN.
 func (n Name) ToRDNSequence() (ret RDNSequence) {
@@ -283,6 +283,8 @@ func oidInAttributeTypeAndValue(oid asn1.ObjectIdentifier, atv []AttributeTypeAn
 // CertificateList represents the ASN.1 structure of the same name. See RFC
 // 5280, section 5.1. Use Certificate.CheckCRLSignature to verify the
 // signature.
+//
+// Deprecated: x509.RevocationList should be used instead.
 type CertificateList struct {
 	TBSCertList        TBSCertificateList
 	SignatureAlgorithm AlgorithmIdentifier
@@ -296,6 +298,8 @@ func (certList *CertificateList) HasExpired(now time.Time) bool {
 
 // TBSCertificateList represents the ASN.1 structure of the same name. See RFC
 // 5280, section 5.1.
+//
+// Deprecated: x509.RevocationList should be used instead.
 type TBSCertificateList struct {
 	Raw                 asn1.RawContent
 	Version             int `asn1:"optional,default:0"`

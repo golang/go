@@ -73,6 +73,10 @@ func generateRawReport(p *profile.Profile, cmd []string, cfg config, o *plugin.O
 
 	cfg = applyCommandOverrides(cmd[0], c.format, cfg)
 
+	// Create label pseudo nodes before filtering, in case the filters use
+	// the generated nodes.
+	generateTagRootsLeaves(p, cfg, o.UI)
+
 	// Delay focus after configuring report to get percentages on all samples.
 	relative := cfg.RelativePercentages
 	if relative {
@@ -163,7 +167,7 @@ func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
 	trim := cfg.Trim
 
 	switch cmd {
-	case "disasm", "weblist":
+	case "disasm":
 		trim = false
 		cfg.Granularity = "addresses"
 		// Force the 'noinlines' mode so that source locations for a given address
@@ -172,6 +176,10 @@ func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
 		// This is because the merge is done by address and in case of an inlined
 		// stack each of the inlined entries is a separate callgraph node.
 		cfg.NoInlines = true
+	case "weblist":
+		trim = false
+		cfg.Granularity = "addresses"
+		cfg.NoInlines = false // Need inline info to support call expansion
 	case "peek":
 		trim = false
 	case "list":
@@ -202,6 +210,25 @@ func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
 		cfg.EdgeFraction = 0
 	}
 	return cfg
+}
+
+// generateTagRootsLeaves generates extra nodes from the tagroot and tagleaf options.
+func generateTagRootsLeaves(prof *profile.Profile, cfg config, ui plugin.UI) {
+	tagRootLabelKeys := dropEmptyStrings(strings.Split(cfg.TagRoot, ","))
+	tagLeafLabelKeys := dropEmptyStrings(strings.Split(cfg.TagLeaf, ","))
+	rootm, leafm := addLabelNodes(prof, tagRootLabelKeys, tagLeafLabelKeys, cfg.Unit)
+	warnNoMatches(cfg.TagRoot == "" || rootm, "TagRoot", ui)
+	warnNoMatches(cfg.TagLeaf == "" || leafm, "TagLeaf", ui)
+}
+
+// dropEmptyStrings filters a slice to only non-empty strings
+func dropEmptyStrings(in []string) (out []string) {
+	for _, s := range in {
+		if s != "" {
+			out = append(out, s)
+		}
+	}
+	return
 }
 
 func aggregate(prof *profile.Profile, cfg config) error {

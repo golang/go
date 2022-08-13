@@ -191,18 +191,17 @@ func parseTestData(r io.Reader) (flows [][]byte, err error) {
 		// Otherwise the line is a line of hex dump that looks like:
 		// 00000170  fc f5 06 bf (...)  |.....X{&?......!|
 		// (Some bytes have been omitted from the middle section.)
-
-		if i := strings.IndexByte(line, ' '); i >= 0 {
-			line = line[i:]
-		} else {
+		_, after, ok := strings.Cut(line, " ")
+		if !ok {
 			return nil, errors.New("invalid test data")
 		}
+		line = after
 
-		if i := strings.IndexByte(line, '|'); i >= 0 {
-			line = line[:i]
-		} else {
+		before, _, ok := strings.Cut(line, "|")
+		if !ok {
 			return nil, errors.New("invalid test data")
 		}
+		line = before
 
 		hexBytes := strings.Fields(line)
 		for _, hexByte := range hexBytes {
@@ -335,15 +334,9 @@ func TestMain(m *testing.M) {
 }
 
 func runMain(m *testing.M) int {
-	// TLS 1.3 cipher suites preferences are not configurable and change based
-	// on the architecture. Force them to the version with AES acceleration for
-	// test consistency.
-	once.Do(initDefaultCipherSuites)
-	varDefaultCipherSuitesTLS13 = []uint16{
-		TLS_AES_128_GCM_SHA256,
-		TLS_CHACHA20_POLY1305_SHA256,
-		TLS_AES_256_GCM_SHA384,
-	}
+	// Cipher suites preferences change based on the architecture. Force them to
+	// the version without AES acceleration for test consistency.
+	hasAESGCMHardwareSupport = false
 
 	// Set up localPipe.
 	l, err := net.Listen("tcp", "127.0.0.1:0")
@@ -370,6 +363,8 @@ func runMain(m *testing.M) int {
 		Certificates:       make([]Certificate, 2),
 		InsecureSkipVerify: true,
 		CipherSuites:       allCipherSuites(),
+		MinVersion:         VersionTLS10,
+		MaxVersion:         VersionTLS13,
 	}
 	testConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
 	testConfig.Certificates[0].PrivateKey = testRSAPrivateKey

@@ -45,16 +45,6 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	return &ProcessState{p.Pid, syscall.WaitStatus{ExitCode: ec}, &u}, nil
 }
 
-func terminateProcess(pid, exitcode int) error {
-	h, e := syscall.OpenProcess(syscall.PROCESS_TERMINATE, false, uint32(pid))
-	if e != nil {
-		return NewSyscallError("OpenProcess", e)
-	}
-	defer syscall.CloseHandle(h)
-	e = syscall.TerminateProcess(h, uint32(exitcode))
-	return NewSyscallError("TerminateProcess", e)
-}
-
 func (p *Process) signal(sig Signal) error {
 	handle := atomic.LoadUintptr(&p.handle)
 	if handle == uintptr(syscall.InvalidHandle) {
@@ -64,16 +54,22 @@ func (p *Process) signal(sig Signal) error {
 		return ErrProcessDone
 	}
 	if sig == Kill {
-		err := terminateProcess(p.Pid, 1)
+		var terminationHandle syscall.Handle
+		e := syscall.DuplicateHandle(^syscall.Handle(0), syscall.Handle(handle), ^syscall.Handle(0), &terminationHandle, syscall.PROCESS_TERMINATE, false, 0)
+		if e != nil {
+			return NewSyscallError("DuplicateHandle", e)
+		}
 		runtime.KeepAlive(p)
-		return err
+		defer syscall.CloseHandle(terminationHandle)
+		e = syscall.TerminateProcess(syscall.Handle(terminationHandle), 1)
+		return NewSyscallError("TerminateProcess", e)
 	}
 	// TODO(rsc): Handle Interrupt too?
 	return syscall.Errno(syscall.EWINDOWS)
 }
 
 func (p *Process) release() error {
-	handle := atomic.LoadUintptr(&p.handle)
+	handle := atomic.SwapUintptr(&p.handle, uintptr(syscall.InvalidHandle))
 	if handle == uintptr(syscall.InvalidHandle) {
 		return syscall.EINVAL
 	}
@@ -81,7 +77,6 @@ func (p *Process) release() error {
 	if e != nil {
 		return NewSyscallError("CloseHandle", e)
 	}
-	atomic.StoreUintptr(&p.handle, uintptr(syscall.InvalidHandle))
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(p, nil)
 	return nil

@@ -49,7 +49,9 @@ type Range32 struct {
 // means the character is in the corresponding case. There is a special
 // case representing sequences of alternating corresponding Upper and Lower
 // pairs. It appears with a fixed Delta of
+//
 //	{UpperLower, UpperLower, UpperLower}
+//
 // The constant UpperLower has an otherwise impossible delta value.
 type CaseRange struct {
 	Lo    uint32
@@ -154,7 +156,8 @@ func is32(ranges []Range32, r uint32) bool {
 // Is reports whether the rune is in the specified table of ranges.
 func Is(rangeTab *RangeTable, r rune) bool {
 	r16 := rangeTab.R16
-	if len(r16) > 0 && r <= rune(r16[len(r16)-1].Hi) {
+	// Compare as uint32 to correctly handle negative runes.
+	if len(r16) > 0 && uint32(r) <= uint32(r16[len(r16)-1].Hi) {
 		return is16(r16, uint16(r))
 	}
 	r32 := rangeTab.R32
@@ -166,7 +169,8 @@ func Is(rangeTab *RangeTable, r rune) bool {
 
 func isExcludingLatin(rangeTab *RangeTable, r rune) bool {
 	r16 := rangeTab.R16
-	if off := rangeTab.LatinOffset; len(r16) > off && r <= rune(r16[len(r16)-1].Hi) {
+	// Compare as uint32 to correctly handle negative runes.
+	if off := rangeTab.LatinOffset; len(r16) > off && uint32(r) <= uint32(r16[len(r16)-1].Hi) {
 		return is16(r16[off:], uint16(r))
 	}
 	r32 := rangeTab.R32
@@ -322,6 +326,7 @@ type foldPair struct {
 // If r is not a valid Unicode code point, SimpleFold(r) returns r.
 //
 // For example:
+//
 //	SimpleFold('A') = 'a'
 //	SimpleFold('a') = 'A'
 //
@@ -332,7 +337,6 @@ type foldPair struct {
 //	SimpleFold('1') = '1'
 //
 //	SimpleFold(-2) = -2
-//
 func SimpleFold(r rune) rune {
 	if r < 0 || r > MaxRune {
 		return r

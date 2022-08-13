@@ -33,10 +33,14 @@ func (c *CommonType) Size() int64 { return c.ByteSize }
 // Basic types
 
 // A BasicType holds fields common to all basic types.
+//
+// See the documentation for StructField for more info on the interpretation of
+// the BitSize/BitOffset/DataBitOffset fields.
 type BasicType struct {
 	CommonType
-	BitSize   int64
-	BitOffset int64
+	BitSize       int64
+	BitOffset     int64
+	DataBitOffset int64
 }
 
 func (b *BasicType) Basic() *BasicType { return b }
@@ -150,13 +154,86 @@ type StructType struct {
 }
 
 // A StructField represents a field in a struct, union, or C++ class type.
+//
+// # Bit Fields
+//
+// The BitSize, BitOffset, and DataBitOffset fields describe the bit
+// size and offset of data members declared as bit fields in C/C++
+// struct/union/class types.
+//
+// BitSize is the number of bits in the bit field.
+//
+// DataBitOffset, if non-zero, is the number of bits from the start of
+// the enclosing entity (e.g. containing struct/class/union) to the
+// start of the bit field. This corresponds to the DW_AT_data_bit_offset
+// DWARF attribute that was introduced in DWARF 4.
+//
+// BitOffset, if non-zero, is the number of bits between the most
+// significant bit of the storage unit holding the bit field to the
+// most significant bit of the bit field. Here "storage unit" is the
+// type name before the bit field (for a field "unsigned x:17", the
+// storage unit is "unsigned"). BitOffset values can vary depending on
+// the endianness of the system. BitOffset corresponds to the
+// DW_AT_bit_offset DWARF attribute that was deprecated in DWARF 4 and
+// removed in DWARF 5.
+//
+// At most one of DataBitOffset and BitOffset will be non-zero;
+// DataBitOffset/BitOffset will only be non-zero if BitSize is
+// non-zero. Whether a C compiler uses one or the other
+// will depend on compiler vintage and command line options.
+//
+// Here is an example of C/C++ bit field use, along with what to
+// expect in terms of DWARF bit offset info. Consider this code:
+//
+//	struct S {
+//		int q;
+//		int j:5;
+//		int k:6;
+//		int m:5;
+//		int n:8;
+//	} s;
+//
+// For the code above, one would expect to see the following for
+// DW_AT_bit_offset values (using GCC 8):
+//
+//	       Little   |     Big
+//	       Endian   |    Endian
+//	                |
+//	"j":     27     |     0
+//	"k":     21     |     5
+//	"m":     16     |     11
+//	"n":     8      |     16
+//
+// Note that in the above the offsets are purely with respect to the
+// containing storage unit for j/k/m/n -- these values won't vary based
+// on the size of prior data members in the containing struct.
+//
+// If the compiler emits DW_AT_data_bit_offset, the expected values
+// would be:
+//
+//	"j":     32
+//	"k":     37
+//	"m":     43
+//	"n":     48
+//
+// Here the value 32 for "j" reflects the fact that the bit field is
+// preceded by other data members (recall that DW_AT_data_bit_offset
+// values are relative to the start of the containing struct). Hence
+// DW_AT_data_bit_offset values can be quite large for structs with
+// many fields.
+//
+// DWARF also allow for the possibility of base types that have
+// non-zero bit size and bit offset, so this information is also
+// captured for base types, but it is worth noting that it is not
+// possible to trigger this behavior using mainstream languages.
 type StructField struct {
-	Name       string
-	Type       Type
-	ByteOffset int64
-	ByteSize   int64 // usually zero; use Type.Size() for normal fields
-	BitOffset  int64 // within the ByteSize bytes at ByteOffset
-	BitSize    int64 // zero if not a bit field
+	Name          string
+	Type          Type
+	ByteOffset    int64
+	ByteSize      int64 // usually zero; use Type.Size() for normal fields
+	BitOffset     int64
+	DataBitOffset int64
+	BitSize       int64 // zero if not a bit field
 }
 
 func (t *StructType) String() string {
@@ -164,6 +241,13 @@ func (t *StructType) String() string {
 		return t.Kind + " " + t.StructName
 	}
 	return t.Defn()
+}
+
+func (f *StructField) bitOffset() int64 {
+	if f.BitOffset != 0 {
+		return f.BitOffset
+	}
+	return f.DataBitOffset
 }
 
 func (t *StructType) Defn() string {
@@ -184,7 +268,7 @@ func (t *StructType) Defn() string {
 		s += "@" + strconv.FormatInt(f.ByteOffset, 10)
 		if f.BitSize > 0 {
 			s += " : " + strconv.FormatInt(f.BitSize, 10)
-			s += "@" + strconv.FormatInt(f.BitOffset, 10)
+			s += "@" + strconv.FormatInt(f.bitOffset(), 10)
 		}
 	}
 	s += "}"
@@ -287,16 +371,40 @@ type typeReader interface {
 	AddressSize() int
 }
 
-// Type reads the type at off in the DWARF ``info'' section.
+// Type reads the type at off in the DWARF “info” section.
 func (d *Data) Type(off Offset) (Type, error) {
 	return d.readType("info", d.Reader(), off, d.typeCache, nil)
+}
+
+type typeFixer struct {
+	typedefs   []*TypedefType
+	arraytypes []*Type
+}
+
+func (tf *typeFixer) recordArrayType(t *Type) {
+	if t == nil {
+		return
+	}
+	_, ok := (*t).(*ArrayType)
+	if ok {
+		tf.arraytypes = append(tf.arraytypes, t)
+	}
+}
+
+func (tf *typeFixer) apply() {
+	for _, t := range tf.typedefs {
+		t.Common().ByteSize = t.Type.Size()
+	}
+	for _, t := range tf.arraytypes {
+		zeroArray(t)
+	}
 }
 
 // readType reads a type from r at off of name. It adds types to the
 // type cache, appends new typedef types to typedefs, and computes the
 // sizes of types. Callers should pass nil for typedefs; this is used
 // for internal recursion.
-func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Offset]Type, typedefs *[]*TypedefType) (Type, error) {
+func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Offset]Type, fixups *typeFixer) (Type, error) {
 	if t, ok := typeCache[off]; ok {
 		return t, nil
 	}
@@ -311,18 +419,16 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 	}
 
 	// If this is the root of the recursion, prepare to resolve
-	// typedef sizes once the recursion is done. This must be done
-	// after the type graph is constructed because it may need to
-	// resolve cycles in a different order than readType
-	// encounters them.
-	if typedefs == nil {
-		var typedefList []*TypedefType
+	// typedef sizes and perform other fixups once the recursion is
+	// done. This must be done after the type graph is constructed
+	// because it may need to resolve cycles in a different order than
+	// readType encounters them.
+	if fixups == nil {
+		var fixer typeFixer
 		defer func() {
-			for _, t := range typedefList {
-				t.Common().ByteSize = t.Type.Size()
-			}
+			fixer.apply()
 		}()
-		typedefs = &typedefList
+		fixups = &fixer
 	}
 
 	// Parse type from Entry.
@@ -376,7 +482,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		var t Type
 		switch toff := tval.(type) {
 		case Offset:
-			if t, err = d.readType(name, r.clone(), toff, typeCache, typedefs); err != nil {
+			if t, err = d.readType(name, r.clone(), toff, typeCache, fixups); err != nil {
 				return nil
 			}
 		case uint64:
@@ -447,8 +553,12 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		//	AttrName: name of base type in programming language of the compilation unit [required]
 		//	AttrEncoding: encoding value for type (encFloat etc) [required]
 		//	AttrByteSize: size of type in bytes [required]
-		//	AttrBitOffset: for sub-byte types, size in bits
-		//	AttrBitSize: for sub-byte types, bit offset of high order bit in the AttrByteSize bytes
+		//	AttrBitOffset: bit offset of value within containing storage unit
+		//	AttrDataBitOffset: bit offset of value within containing storage unit
+		//	AttrBitSize: size in bits
+		//
+		// For most languages BitOffset/DataBitOffset/BitSize will not be present
+		// for base types.
 		name, _ := e.Val(AttrName).(string)
 		enc, ok := e.Val(AttrEncoding).(int64)
 		if !ok {
@@ -494,7 +604,14 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		}).Basic()
 		t.Name = name
 		t.BitSize, _ = e.Val(AttrBitSize).(int64)
-		t.BitOffset, _ = e.Val(AttrBitOffset).(int64)
+		haveBitOffset := false
+		haveDataBitOffset := false
+		t.BitOffset, haveBitOffset = e.Val(AttrBitOffset).(int64)
+		t.DataBitOffset, haveDataBitOffset = e.Val(AttrDataBitOffset).(int64)
+		if haveBitOffset && haveDataBitOffset {
+			err = DecodeError{name, e.Offset, "duplicate bit offset attributes"}
+			goto Error
+		}
 
 	case TagClassType, TagStructType, TagUnionType:
 		// Structure, union, or class type.  (DWARF v2 §5.5)
@@ -508,6 +625,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		//		AttrType: type of member [required]
 		//		AttrByteSize: size in bytes
 		//		AttrBitOffset: bit offset within bytes for bit fields
+		//		AttrDataBitOffset: field bit offset relative to struct start
 		//		AttrBitSize: bit size for bit fields
 		//		AttrDataMemberLoc: location within struct [required for struct, class]
 		// There is much more to handle C++, all ignored for now.
@@ -526,7 +644,8 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		t.Incomplete = e.Val(AttrDeclaration) != nil
 		t.Field = make([]*StructField, 0, 8)
 		var lastFieldType *Type
-		var lastFieldBitOffset int64
+		var lastFieldBitSize int64
+		var lastFieldByteOffset int64
 		for kid := next(); kid != nil; kid = next() {
 			if kid.Tag != TagMember {
 				continue
@@ -553,30 +672,33 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 				f.ByteOffset = loc
 			}
 
-			haveBitOffset := false
 			f.Name, _ = kid.Val(AttrName).(string)
 			f.ByteSize, _ = kid.Val(AttrByteSize).(int64)
+			haveBitOffset := false
+			haveDataBitOffset := false
 			f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64)
+			f.DataBitOffset, haveDataBitOffset = kid.Val(AttrDataBitOffset).(int64)
+			if haveBitOffset && haveDataBitOffset {
+				err = DecodeError{name, e.Offset, "duplicate bit offset attributes"}
+				goto Error
+			}
 			f.BitSize, _ = kid.Val(AttrBitSize).(int64)
 			t.Field = append(t.Field, f)
 
-			bito := f.BitOffset
-			if !haveBitOffset {
-				bito = f.ByteOffset * 8
-			}
-			if bito == lastFieldBitOffset && t.Kind != "union" {
+			if lastFieldBitSize == 0 && lastFieldByteOffset == f.ByteOffset && t.Kind != "union" {
 				// Last field was zero width. Fix array length.
 				// (DWARF writes out 0-length arrays as if they were 1-length arrays.)
-				zeroArray(lastFieldType)
+				fixups.recordArrayType(lastFieldType)
 			}
 			lastFieldType = &f.Type
-			lastFieldBitOffset = bito
+			lastFieldByteOffset = f.ByteOffset
+			lastFieldBitSize = f.BitSize
 		}
 		if t.Kind != "union" {
 			b, ok := e.Val(AttrByteSize).(int64)
-			if ok && b*8 == lastFieldBitOffset {
+			if ok && b == lastFieldByteOffset {
 				// Final field must be zero width. Fix array length.
-				zeroArray(lastFieldType)
+				fixups.recordArrayType(lastFieldType)
 			}
 		}
 
@@ -719,7 +841,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 				// Record that we need to resolve this
 				// type's size once the type graph is
 				// constructed.
-				*typedefs = append(*typedefs, t)
+				fixups.typedefs = append(fixups.typedefs, t)
 			case *PtrType:
 				b = int64(addressSize)
 			}
@@ -737,11 +859,8 @@ Error:
 }
 
 func zeroArray(t *Type) {
-	if t == nil {
-		return
-	}
-	at, ok := (*t).(*ArrayType)
-	if !ok || at.Type.Size() == 0 {
+	at := (*t).(*ArrayType)
+	if at.Type.Size() == 0 {
 		return
 	}
 	// Make a copy to avoid invalidating typeCache.

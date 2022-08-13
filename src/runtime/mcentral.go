@@ -81,8 +81,6 @@ func (c *mcentral) cacheSpan() *mspan {
 	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
 	deductSweepCredit(spanBytes, 0)
 
-	sg := mheap_.sweepgen
-
 	traceDone := false
 	if trace.enabled {
 		traceGCSweepStart()
@@ -104,50 +102,58 @@ func (c *mcentral) cacheSpan() *mspan {
 	spanBudget := 100
 
 	var s *mspan
+	var sl sweepLocker
 
 	// Try partial swept spans first.
+	sg := mheap_.sweepgen
 	if s = c.partialSwept(sg).pop(); s != nil {
 		goto havespan
 	}
 
-	// Now try partial unswept spans.
-	for ; spanBudget >= 0; spanBudget-- {
-		s = c.partialUnswept(sg).pop()
-		if s == nil {
-			break
-		}
-		if atomic.Load(&s.sweepgen) == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			// We got ownership of the span, so let's sweep it and use it.
-			s.sweep(true)
-			goto havespan
-		}
-		// We failed to get ownership of the span, which means it's being or
-		// has been swept by an asynchronous sweeper that just couldn't remove it
-		// from the unswept list. That sweeper took ownership of the span and
-		// responsibility for either freeing it to the heap or putting it on the
-		// right swept list. Either way, we should just ignore it (and it's unsafe
-		// for us to do anything else).
-	}
-	// Now try full unswept spans, sweeping them and putting them into the
-	// right list if we fail to get a span.
-	for ; spanBudget >= 0; spanBudget-- {
-		s = c.fullUnswept(sg).pop()
-		if s == nil {
-			break
-		}
-		if atomic.Load(&s.sweepgen) == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			// We got ownership of the span, so let's sweep it.
-			s.sweep(true)
-			// Check if there's any free space.
-			freeIndex := s.nextFreeIndex()
-			if freeIndex != s.nelems {
-				s.freeindex = freeIndex
+	sl = sweep.active.begin()
+	if sl.valid {
+		// Now try partial unswept spans.
+		for ; spanBudget >= 0; spanBudget-- {
+			s = c.partialUnswept(sg).pop()
+			if s == nil {
+				break
+			}
+			if s, ok := sl.tryAcquire(s); ok {
+				// We got ownership of the span, so let's sweep it and use it.
+				s.sweep(true)
+				sweep.active.end(sl)
 				goto havespan
 			}
-			// Add it to the swept list, because sweeping didn't give us any free space.
-			c.fullSwept(sg).push(s)
+			// We failed to get ownership of the span, which means it's being or
+			// has been swept by an asynchronous sweeper that just couldn't remove it
+			// from the unswept list. That sweeper took ownership of the span and
+			// responsibility for either freeing it to the heap or putting it on the
+			// right swept list. Either way, we should just ignore it (and it's unsafe
+			// for us to do anything else).
 		}
-		// See comment for partial unswept spans.
+		// Now try full unswept spans, sweeping them and putting them into the
+		// right list if we fail to get a span.
+		for ; spanBudget >= 0; spanBudget-- {
+			s = c.fullUnswept(sg).pop()
+			if s == nil {
+				break
+			}
+			if s, ok := sl.tryAcquire(s); ok {
+				// We got ownership of the span, so let's sweep it.
+				s.sweep(true)
+				// Check if there's any free space.
+				freeIndex := s.nextFreeIndex()
+				if freeIndex != s.nelems {
+					s.freeindex = freeIndex
+					sweep.active.end(sl)
+					goto havespan
+				}
+				// Add it to the swept list, because sweeping didn't give us any free space.
+				c.fullSwept(sg).push(s.mspan)
+			}
+			// See comment for partial unswept spans.
+		}
+		sweep.active.end(sl)
 	}
 	if trace.enabled {
 		traceGCSweepDone()
@@ -211,7 +217,13 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 	if stale {
 		// It's stale, so just sweep it. Sweeping will put it on
 		// the right list.
-		s.sweep(false)
+		//
+		// We don't use a sweepLocker here. Stale cached spans
+		// aren't in the global sweep lists, so mark termination
+		// itself holds up sweep completion until all mcaches
+		// have been swept.
+		ss := sweepLocked{s}
+		ss.sweep(false)
 	} else {
 		if int(s.nelems)-int(s.allocCount) > 0 {
 			// Put it back on the partial swept list.
@@ -229,14 +241,14 @@ func (c *mcentral) grow() *mspan {
 	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
 	size := uintptr(class_to_size[c.spanclass.sizeclass()])
 
-	s := mheap_.alloc(npages, c.spanclass, true)
+	s := mheap_.alloc(npages, c.spanclass)
 	if s == nil {
 		return nil
 	}
 
 	// Use division by multiplication and shifts to quickly compute:
 	// n := (npages << _PageShift) / size
-	n := (npages << _PageShift) >> s.divShift * uintptr(s.divMul) >> s.divShift2
+	n := s.divideByElemSize(npages << _PageShift)
 	s.limit = s.base() + size*n
 	heapBitsForAddr(s.base()).initSpan(s)
 	return s

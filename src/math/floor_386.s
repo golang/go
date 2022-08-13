@@ -4,8 +4,8 @@
 
 #include "textflag.h"
 
-// func Ceil(x float64) float64
-TEXT ·Ceil(SB),NOSPLIT,$0
+// func archCeil(x float64) float64
+TEXT ·archCeil(SB),NOSPLIT,$0
 	FMOVD   x+0(FP), F0  // F0=x
 	FSTCW   -2(SP)       // save old Control Word
 	MOVW    -2(SP), AX
@@ -18,8 +18,8 @@ TEXT ·Ceil(SB),NOSPLIT,$0
 	FMOVDP  F0, ret+8(FP)
 	RET
 
-// func Floor(x float64) float64
-TEXT ·Floor(SB),NOSPLIT,$0
+// func archFloor(x float64) float64
+TEXT ·archFloor(SB),NOSPLIT,$0
 	FMOVD   x+0(FP), F0  // F0=x
 	FSTCW   -2(SP)       // save old Control Word
 	MOVW    -2(SP), AX
@@ -32,8 +32,8 @@ TEXT ·Floor(SB),NOSPLIT,$0
 	FMOVDP  F0, ret+8(FP)
 	RET
 
-// func Trunc(x float64) float64
-TEXT ·Trunc(SB),NOSPLIT,$0
+// func archTrunc(x float64) float64
+TEXT ·archTrunc(SB),NOSPLIT,$0
 	FMOVD   x+0(FP), F0  // F0=x
 	FSTCW   -2(SP)       // save old Control Word
 	MOVW    -2(SP), AX

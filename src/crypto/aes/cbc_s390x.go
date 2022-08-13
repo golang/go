@@ -39,6 +39,7 @@ func (x *cbc) BlockSize() int { return BlockSize }
 
 // cryptBlocksChain invokes the cipher message with chaining (KMC) instruction
 // with the given function code. The length must be a multiple of BlockSize (16).
+//
 //go:noescape
 func cryptBlocksChain(c code, iv, key, dst, src *byte, length int)
 

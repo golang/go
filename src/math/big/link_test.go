@@ -42,7 +42,7 @@ func main() {}
 	if err != nil {
 		t.Fatalf("nm: %v, %s", err, nm)
 	}
-	const want = "runtime.(*Frames).Next"
+	const want = "runtime.main"
 	if !bytes.Contains(nm, []byte(want)) {
 		// Test the test.
 		t.Errorf("expected symbol %q not found", want)

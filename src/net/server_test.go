@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js
+//go:build !js
 
 package net
 
@@ -77,10 +77,7 @@ func TestTCPServer(t *testing.T) {
 				}
 			}()
 			for i := 0; i < N; i++ {
-				ls, err := (&streamListener{Listener: ln}).newLocalServer()
-				if err != nil {
-					t.Fatal(err)
-				}
+				ls := (&streamListener{Listener: ln}).newLocalServer()
 				lss = append(lss, ls)
 				tpchs = append(tpchs, make(chan error, 1))
 			}
@@ -104,13 +101,6 @@ func TestTCPServer(t *testing.T) {
 					if perr := parseDialError(err); perr != nil {
 						t.Error(perr)
 					}
-					if tt.taddr == "::1" && os.Getenv("GO_BUILDER_NAME") == "darwin-amd64-10_12" && os.IsTimeout(err) {
-						// A suspected kernel bug in macOS 10.12 occasionally results in
-						// "i/o timeout" errors when dialing address ::1. The errors have not
-						// been observed on newer versions of the OS, so we don't plan to work
-						// around them. See https://golang.org/issue/32919.
-						t.Skipf("skipping due to error on known-flaky macOS 10.12 builder: %v", err)
-					}
 					t.Fatal(err)
 				}
 				defer c.Close()
@@ -132,19 +122,19 @@ func TestTCPServer(t *testing.T) {
 	}
 }
 
-var unixAndUnixpacketServerTests = []struct {
-	network, address string
-}{
-	{"unix", testUnixAddr()},
-	{"unix", "@nettest/go/unix"},
-
-	{"unixpacket", testUnixAddr()},
-	{"unixpacket", "@nettest/go/unixpacket"},
-}
-
 // TestUnixAndUnixpacketServer tests concurrent accept-read-write
 // servers
 func TestUnixAndUnixpacketServer(t *testing.T) {
+	var unixAndUnixpacketServerTests = []struct {
+		network, address string
+	}{
+		{"unix", testUnixAddr(t)},
+		{"unix", "@nettest/go/unix"},
+
+		{"unixpacket", testUnixAddr(t)},
+		{"unixpacket", "@nettest/go/unixpacket"},
+	}
+
 	const N = 3
 
 	for i, tt := range unixAndUnixpacketServerTests {
@@ -169,10 +159,7 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
 			}
 		}()
 		for i := 0; i < N; i++ {
-			ls, err := (&streamListener{Listener: ln}).newLocalServer()
-			if err != nil {
-				t.Fatal(err)
-			}
+			ls := (&streamListener{Listener: ln}).newLocalServer()
 			lss = append(lss, ls)
 			tpchs = append(tpchs, make(chan error, 1))
 		}
@@ -194,7 +181,11 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
 				}
 				t.Fatal(err)
 			}
-			defer os.Remove(c.LocalAddr().String())
+
+			if addr := c.LocalAddr(); addr != nil {
+				t.Logf("connected %s->%s", addr, lss[i].Listener.Addr())
+			}
+
 			defer c.Close()
 			trchs = append(trchs, make(chan error, 1))
 			go transceiver(c, []byte("UNIX AND UNIXPACKET SERVER TEST"), trchs[i])
@@ -273,10 +264,7 @@ func TestUDPServer(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&packetListener{PacketConn: c1}).newLocalServer()
 		defer ls.teardown()
 		tpch := make(chan error, 1)
 		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }
@@ -325,18 +313,18 @@ func TestUDPServer(t *testing.T) {
 	}
 }
 
-var unixgramServerTests = []struct {
-	saddr string // server endpoint
-	caddr string // client endpoint
-	dial  bool   // test with Dial
-}{
-	{saddr: testUnixAddr(), caddr: testUnixAddr()},
-	{saddr: testUnixAddr(), caddr: testUnixAddr(), dial: true},
-
-	{saddr: "@nettest/go/unixgram/server", caddr: "@nettest/go/unixgram/client"},
-}
-
 func TestUnixgramServer(t *testing.T) {
+	var unixgramServerTests = []struct {
+		saddr string // server endpoint
+		caddr string // client endpoint
+		dial  bool   // test with Dial
+	}{
+		{saddr: testUnixAddr(t), caddr: testUnixAddr(t)},
+		{saddr: testUnixAddr(t), caddr: testUnixAddr(t), dial: true},
+
+		{saddr: "@nettest/go/unixgram/server", caddr: "@nettest/go/unixgram/client"},
+	}
+
 	for i, tt := range unixgramServerTests {
 		if !testableListenArgs("unixgram", tt.saddr, "") {
 			t.Logf("skipping %s test", "unixgram "+tt.saddr+"<-"+tt.caddr)
@@ -351,10 +339,7 @@ func TestUnixgramServer(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&packetListener{PacketConn: c1}).newLocalServer()
 		defer ls.teardown()
 		tpch := make(chan error, 1)
 		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }

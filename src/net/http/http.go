@@ -62,15 +62,6 @@ func isNotToken(r rune) bool {
 	return !httpguts.IsTokenRune(r)
 }
 
-func isASCII(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] >= utf8.RuneSelf {
-			return false
-		}
-	}
-	return true
-}
-
 // stringContainsCTLByte reports whether s contains any ASCII control character.
 func stringContainsCTLByte(s string) bool {
 	for i := 0; i < len(s); i++ {

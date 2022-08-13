@@ -97,6 +97,7 @@ var findTests = []FindTest{
 	{`\B`, "xx", build(1, 1, 1)},
 	{`\B`, "x y", nil},
 	{`\B`, "xx yy", build(2, 1, 1, 4, 4)},
+	{`(|a)*`, "aa", build(3, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2)},
 
 	// RE2 tests
 	{`[^\S\s]`, "abcd", nil},
@@ -114,6 +115,13 @@ var findTests = []FindTest{
 		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, build(1, 0, 31)},
 	{"\\`", "`", build(1, 0, 1)},
 	{"[\\`]+", "`", build(1, 0, 1)},
+
+	{"\ufffd", "\xff", build(1, 0, 1)},
+	{"\ufffd", "hello\xffworld", build(1, 5, 6)},
+	{`.*`, "hello\xffworld", build(1, 0, 11)},
+	{`\x{fffd}`, "\xc2\x00", build(1, 0, 1)},
+	{"[\ufffd]", "\xff", build(1, 0, 1)},
+	{`[\x{fffd}]`, "\xc2\x00", build(1, 0, 1)},
 
 	// long set of matches (longer than startSize)
 	{

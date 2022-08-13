@@ -1023,7 +1023,7 @@ func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape"
 	a[997] = 0
 	a[998] = 0
 	a[999] = 0
-	x := small(a)  // ERROR "inlining call to small .*"
+	x := small(a)  // ERROR "inlining call to small"
 	y := medium(a) // The crux of this test: medium is not inlined.
 	return x + y
 }

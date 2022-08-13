@@ -1631,8 +1631,8 @@ var vfpowSC = [][2]float64{
 	{-1, Inf(-1)},
 	{-1, Inf(1)},
 	{-1, NaN()},
-	{-1 / 2, Inf(-1)},
-	{-1 / 2, Inf(1)},
+	{-0.5, Inf(-1)},
+	{-0.5, Inf(1)},
 	{Copysign(0, -1), Inf(-1)},
 	{Copysign(0, -1), -Pi},
 	{Copysign(0, -1), -0.5},
@@ -1652,8 +1652,8 @@ var vfpowSC = [][2]float64{
 	{0, Inf(1)},
 	{0, NaN()},
 
-	{1 / 2, Inf(-1)},
-	{1 / 2, Inf(1)},
+	{0.5, Inf(-1)},
+	{0.5, Inf(1)},
 	{1, Inf(-1)},
 	{1, Inf(1)},
 	{1, NaN()},
@@ -1681,8 +1681,8 @@ var vfpowSC = [][2]float64{
 	{2, float64(1 << 32)},
 	{2, -float64(1 << 32)},
 	{-2, float64(1<<32 + 1)},
-	{1 / 2, float64(1 << 45)},
-	{1 / 2, -float64(1 << 45)},
+	{0.5, float64(1 << 45)},
+	{0.5, -float64(1 << 45)},
 	{Nextafter(1, 2), float64(1 << 63)},
 	{Nextafter(1, -2), float64(1 << 63)},
 	{Nextafter(-1, 2), float64(1 << 63)},
@@ -2065,6 +2065,21 @@ var fmaC = []struct{ x, y, z, want float64 }{
 	{4.612811918325842e+18, 1.4901161193847641e-08, 2.6077032311277997e-08, 6.873625395187494e+10},
 	{-9.094947033611148e-13, 4.450691014249257e-308, 2.086006742350485e-308, 2.086006742346437e-308},
 	{-7.751454006381804e-05, 5.588653777189071e-308, -2.2207280111272877e-308, -2.2211612130544025e-308},
+}
+
+var sqrt32 = []float32{
+	0,
+	float32(Copysign(0, -1)),
+	float32(NaN()),
+	float32(Inf(1)),
+	float32(Inf(-1)),
+	1,
+	2,
+	-2,
+	4.9790119248836735e+00,
+	7.7388724745781045e+00,
+	-2.7688005719200159e-01,
+	-5.0106036182710749e+00,
 }
 
 func tolerance(a, b, e float64) bool {
@@ -3160,7 +3175,7 @@ func TestTrigReduce(t *testing.T) {
 // https://golang.org/issue/201
 
 type floatTest struct {
-	val  interface{}
+	val  any
 	name string
 	str  string
 }
@@ -3177,6 +3192,34 @@ func TestFloatMinMax(t *testing.T) {
 		s := fmt.Sprint(tt.val)
 		if s != tt.str {
 			t.Errorf("Sprint(%v) = %s, want %s", tt.name, s, tt.str)
+		}
+	}
+}
+
+func TestFloatMinima(t *testing.T) {
+	if q := float32(SmallestNonzeroFloat32 / 2); q != 0 {
+		t.Errorf("float32(SmallestNonzeroFloat32 / 2) = %g, want 0", q)
+	}
+	if q := float64(SmallestNonzeroFloat64 / 2); q != 0 {
+		t.Errorf("float64(SmallestNonzeroFloat64 / 2) = %g, want 0", q)
+	}
+}
+
+var indirectSqrt = Sqrt
+
+// TestFloat32Sqrt checks the correctness of the float32 square root optimization result.
+func TestFloat32Sqrt(t *testing.T) {
+	for _, v := range sqrt32 {
+		want := float32(indirectSqrt(float64(v)))
+		got := float32(Sqrt(float64(v)))
+		if IsNaN(float64(want)) {
+			if !IsNaN(float64(got)) {
+				t.Errorf("got=%#v want=NaN, v=%#v", got, v)
+			}
+			continue
+		}
+		if got != want {
+			t.Errorf("got=%#v want=%#v, v=%#v", got, want, v)
 		}
 	}
 }

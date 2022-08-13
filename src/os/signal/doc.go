@@ -8,7 +8,7 @@ Package signal implements access to incoming signals.
 Signals are primarily used on Unix-like systems. For the use of this
 package on Windows and Plan 9, see below.
 
-Types of signals
+# Types of signals
 
 The signals SIGKILL and SIGSTOP may not be caught by a program, and
 therefore cannot be affected by this package.
@@ -33,7 +33,7 @@ by default is ^\ (Control-Backslash). In general you can cause a
 program to simply exit by pressing ^C, and you can cause it to exit
 with a stack dump by pressing ^\.
 
-Default behavior of signals in Go programs
+# Default behavior of signals in Go programs
 
 By default, a synchronous signal is converted into a run-time panic. A
 SIGHUP, SIGINT, or SIGTERM signal causes the program to exit. A
@@ -50,12 +50,12 @@ If the Go program is started with either SIGHUP or SIGINT ignored
 If the Go program is started with a non-empty signal mask, that will
 generally be honored. However, some signals are explicitly unblocked:
 the synchronous signals, SIGILL, SIGTRAP, SIGSTKFLT, SIGCHLD, SIGPROF,
-and, on GNU/Linux, signals 32 (SIGCANCEL) and 33 (SIGSETXID)
+and, on Linux, signals 32 (SIGCANCEL) and 33 (SIGSETXID)
 (SIGCANCEL and SIGSETXID are used internally by glibc). Subprocesses
 started by os.Exec, or by the os/exec package, will inherit the
 modified signal mask.
 
-Changing the behavior of signals in Go programs
+# Changing the behavior of signals in Go programs
 
 The functions in this package allow a program to change the way Go
 programs handle signals.
@@ -88,7 +88,7 @@ for a blocked signal, it will be unblocked. If, later, Reset is
 called for that signal, or Stop is called on all channels passed to
 Notify for that signal, the signal will once again be blocked.
 
-SIGPIPE
+# SIGPIPE
 
 When a Go program writes to a broken pipe, the kernel will raise a
 SIGPIPE signal.
@@ -109,7 +109,7 @@ This means that, by default, command line programs will behave like
 typical Unix command line programs, while other programs will not
 crash with SIGPIPE when writing to a closed network connection.
 
-Go programs that use cgo or SWIG
+# Go programs that use cgo or SWIG
 
 In a Go program that includes non-Go code, typically C/C++ code
 accessed using cgo or SWIG, Go's startup code normally runs first. It
@@ -129,9 +129,7 @@ If the non-Go code installs any signal handlers, it must use the
 SA_ONSTACK flag with sigaction. Failing to do so is likely to cause
 the program to crash if the signal is received. Go programs routinely
 run with a limited stack, and therefore set up an alternate signal
-stack. Also, the Go standard library expects that any signal handlers
-will use the SA_RESTART flag. Failing to do so may cause some library
-calls to return "interrupted system call" errors.
+stack.
 
 If the non-Go code installs a signal handler for any of the
 synchronous signals (SIGBUS, SIGFPE, SIGSEGV), then it should record
@@ -166,7 +164,7 @@ signal, and raises it again, to invoke any non-Go handler or default
 system handler. If the program does not exit, the Go handler then
 reinstalls itself and continues execution of the program.
 
-Non-Go programs that call Go code
+# Non-Go programs that call Go code
 
 When Go code is built with options like -buildmode=c-shared, it will
 be run as part of an existing non-Go program. The non-Go code may
@@ -178,7 +176,7 @@ will initialize signals at global constructor time.  For
 shared library is loaded.
 
 If the Go runtime sees an existing signal handler for the SIGCANCEL or
-SIGSETXID signals (which are used only on GNU/Linux), it will turn on
+SIGSETXID signals (which are used only on Linux), it will turn on
 the SA_ONSTACK flag and otherwise keep the signal handler.
 
 For the synchronous signals and SIGPIPE, the Go runtime will install a
@@ -203,7 +201,7 @@ non-Go thread, it will act as described above, except that if there is
 an existing non-Go signal handler, that handler will be installed
 before raising the signal.
 
-Windows
+# Windows
 
 On Windows a ^C (Control-C) or ^BREAK (Control-Break) normally cause
 the program to exit. If Notify is called for os.Interrupt, ^C or ^BREAK
@@ -219,11 +217,10 @@ CTRL_LOGOFF_EVENT or CTRL_SHUTDOWN_EVENT is received - the process will
 still get terminated unless it exits. But receiving syscall.SIGTERM will
 give the process an opportunity to clean up before termination.
 
-Plan 9
+# Plan 9
 
 On Plan 9, signals have type syscall.Note, which is a string. Calling
 Notify with a syscall.Note will cause that value to be sent on the
 channel when that string is posted as a note.
-
 */
 package signal

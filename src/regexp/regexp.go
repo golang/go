@@ -9,17 +9,22 @@
 // More precisely, it is the syntax accepted by RE2 and described at
 // https://golang.org/s/re2syntax, except for \C.
 // For an overview of the syntax, run
-//   go doc regexp/syntax
+//
+//	go doc regexp/syntax
 //
 // The regexp implementation provided by this package is
 // guaranteed to run in time linear in the size of the input.
 // (This is a property not guaranteed by most open source
 // implementations of regular expressions.) For more information
 // about this property, see
+//
 //	https://swtch.com/~rsc/regexp/regexp1.html
+//
 // or any book about automata theory.
 //
 // All characters are UTF-8-encoded code points.
+// Following utf8.DecodeRune, each byte of an invalid UTF-8 sequence
+// is treated as if it encoded utf8.RuneError (U+FFFD).
 //
 // There are 16 methods of Regexp that match a regular expression and identify
 // the matched text. Their names are matched by this regular expression:
@@ -40,11 +45,11 @@
 // successive submatches of the expression. Submatches are matches of
 // parenthesized subexpressions (also known as capturing groups) within the
 // regular expression, numbered from left to right in order of opening
-// parenthesis. Submatch 0 is the match of the entire expression, submatch 1
+// parenthesis. Submatch 0 is the match of the entire expression, submatch 1 is
 // the match of the first parenthesized subexpression, and so on.
 //
 // If 'Index' is present, matches and submatches are identified by byte index
-// pairs within the input string: result[2*n:2*n+1] identifies the indexes of
+// pairs within the input string: result[2*n:2*n+2] identifies the indexes of
 // the nth submatch. The pair for n==0 identifies the match of the entire
 // expression. If 'Index' is not present, the match is identified by the text
 // of the match/submatch. If an index is negative or text is nil, it means that
@@ -62,7 +67,6 @@
 // before returning.
 //
 // (There are a few other methods that do not match this pattern.)
-//
 package regexp
 
 import (
@@ -276,7 +280,11 @@ func minInputLen(re *syntax.Regexp) int {
 	case syntax.OpLiteral:
 		l := 0
 		for _, r := range re.Rune {
-			l += utf8.RuneLen(r)
+			if r == utf8.RuneError {
+				l++
+			} else {
+				l += utf8.RuneLen(r)
+			}
 		}
 		return l
 	case syntax.OpCapture, syntax.OpPlus:
@@ -787,11 +795,12 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 				accept = false
 			}
 			var width int
-			// TODO: use step()
 			if b == nil {
-				_, width = utf8.DecodeRuneInString(s[pos:end])
+				is := inputString{str: s}
+				_, width = is.step(pos)
 			} else {
-				_, width = utf8.DecodeRune(b[pos:end])
+				ib := inputBytes{str: b}
+				_, width = ib.step(pos)
 			}
 			if width > 0 {
 				pos += width
@@ -922,23 +931,22 @@ func (re *Regexp) ExpandString(dst []byte, template string, src string, match []
 
 func (re *Regexp) expand(dst []byte, template string, bsrc []byte, src string, match []int) []byte {
 	for len(template) > 0 {
-		i := strings.Index(template, "$")
-		if i < 0 {
+		before, after, ok := strings.Cut(template, "$")
+		if !ok {
 			break
 		}
-		dst = append(dst, template[:i]...)
-		template = template[i:]
-		if len(template) > 1 && template[1] == '$' {
+		dst = append(dst, before...)
+		template = after
+		if template != "" && template[0] == '$' {
 			// Treat $$ as $.
 			dst = append(dst, '$')
-			template = template[2:]
+			template = template[1:]
 			continue
 		}
 		name, num, rest, ok := extract(template)
 		if !ok {
 			// Malformed; treat $ as raw text.
 			dst = append(dst, '$')
-			template = template[1:]
 			continue
 		}
 		template = rest
@@ -967,17 +975,16 @@ func (re *Regexp) expand(dst []byte, template string, bsrc []byte, src string, m
 	return dst
 }
 
-// extract returns the name from a leading "$name" or "${name}" in str.
+// extract returns the name from a leading "name" or "{name}" in str.
+// (The $ has already been removed by the caller.)
 // If it is a number, extract returns num set to that number; otherwise num = -1.
 func extract(str string) (name string, num int, rest string, ok bool) {
-	if len(str) < 2 || str[0] != '$' {
+	if str == "" {
 		return
 	}
 	brace := false
-	if str[1] == '{' {
+	if str[0] == '{' {
 		brace = true
-		str = str[2:]
-	} else {
 		str = str[1:]
 	}
 	i := 0
@@ -1234,13 +1241,15 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 // that contains no metacharacters, it is equivalent to strings.SplitN.
 //
 // Example:
-//   s := regexp.MustCompile("a*").Split("abaabaccadaaae", 5)
-//   // s: ["", "b", "b", "c", "cadaaae"]
+//
+//	s := regexp.MustCompile("a*").Split("abaabaccadaaae", 5)
+//	// s: ["", "b", "b", "c", "cadaaae"]
 //
 // The count determines the number of substrings to return:
-//   n > 0: at most n substrings; the last substring will be the unsplit remainder.
-//   n == 0: the result is nil (zero substrings)
-//   n < 0: all substrings
+//
+//	n > 0: at most n substrings; the last substring will be the unsplit remainder.
+//	n == 0: the result is nil (zero substrings)
+//	n < 0: all substrings
 func (re *Regexp) Split(s string, n int) []string {
 
 	if n == 0 {

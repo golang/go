@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin js,wasm netbsd openbsd
+//go:build aix || (js && wasm) || netbsd || openbsd || ios
 
 package net
 

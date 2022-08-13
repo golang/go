@@ -12,7 +12,7 @@ import (
 	"errors"
 	"io"
 	"net"
-	"net/http/internal"
+	"net/http/internal/testcert"
 	"strings"
 	"testing"
 )
@@ -52,8 +52,8 @@ func TestTransportPersistConnReadLoopEOF(t *testing.T) {
 	conn.Close() // simulate the server hanging up on the client
 
 	_, err = pc.roundTrip(treq)
-	if !isTransportReadFromServerError(err) && err != errServerClosedIdle {
-		t.Errorf("roundTrip = %#v, %v; want errServerClosedIdle or transportReadFromServerError", err, err)
+	if !isNothingWrittenError(err) && !isTransportReadFromServerError(err) && err != errServerClosedIdle {
+		t.Errorf("roundTrip = %#v, %v; want errServerClosedIdle, transportReadFromServerError, or nothingWrittenError", err, err)
 	}
 
 	<-pc.closech
@@ -61,6 +61,11 @@ func TestTransportPersistConnReadLoopEOF(t *testing.T) {
 	if !isTransportReadFromServerError(err) && err != errServerClosedIdle {
 		t.Errorf("pc.closed = %#v, %v; want errServerClosedIdle or transportReadFromServerError", err, err)
 	}
+}
+
+func isNothingWrittenError(err error) bool {
+	_, ok := err.(nothingWrittenError)
+	return ok
 }
 
 func isTransportReadFromServerError(err error) bool {
@@ -191,7 +196,7 @@ func (f roundTripFunc) RoundTrip(r *Request) (*Response, error) {
 
 // Issue 25009
 func TestTransportBodyAltRewind(t *testing.T) {
-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
 	}

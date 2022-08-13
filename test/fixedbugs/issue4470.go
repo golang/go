@@ -13,4 +13,5 @@ func main() {
 	switch (i.(type)) { // ERROR "outside type switch"
 	default:
 	}
+	_ = i
 }

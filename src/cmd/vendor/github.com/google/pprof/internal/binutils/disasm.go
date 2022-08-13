@@ -19,6 +19,7 @@ import (
 	"io"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/google/pprof/internal/plugin"
 	"github.com/ianlancetaylor/demangle"
@@ -121,6 +122,7 @@ func disassemble(asm []byte) ([]plugin.Inst, error) {
 				break
 			}
 		}
+		input = strings.TrimSpace(input)
 
 		if fields := objdumpAsmOutputRE.FindStringSubmatch(input); len(fields) == 3 {
 			if address, err := strconv.ParseUint(fields[1], 16, 64); err == nil {
@@ -167,6 +169,7 @@ func nextSymbol(buf *bytes.Buffer) (uint64, string, error) {
 				return 0, "", err
 			}
 		}
+		line = strings.TrimSpace(line)
 
 		if fields := nmOutputRE.FindStringSubmatch(line); len(fields) == 4 {
 			if address, err := strconv.ParseUint(fields[1], 16, 64); err == nil {

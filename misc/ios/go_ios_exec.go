@@ -13,9 +13,11 @@
 // binary.
 //
 // This script requires that three environment variables be set:
-// 	GOIOS_DEV_ID: The codesigning developer id or certificate identifier
-// 	GOIOS_APP_ID: The provisioning app id prefix. Must support wildcard app ids.
-// 	GOIOS_TEAM_ID: The team id that owns the app id prefix.
+//
+//	GOIOS_DEV_ID: The codesigning developer id or certificate identifier
+//	GOIOS_APP_ID: The provisioning app id prefix. Must support wildcard app ids.
+//	GOIOS_TEAM_ID: The team id that owns the app id prefix.
+//
 // $GOROOT/misc/ios contains a script, detect.go, that attempts to autodetect these.
 package main
 
@@ -26,7 +28,6 @@ import (
 	"fmt"
 	"go/build"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -79,7 +80,7 @@ func main() {
 
 func runMain() (int, error) {
 	var err error
-	tmpdir, err = ioutil.TempDir("", "go_ios_exec_")
+	tmpdir, err = os.MkdirTemp("", "go_ios_exec_")
 	if err != nil {
 		return 1, err
 	}
@@ -149,9 +150,8 @@ func runOnDevice(appdir string) error {
 	// Device IDs as listed with ios-deploy -c.
 	deviceID = os.Getenv("GOIOS_DEVICE_ID")
 
-	parts := strings.SplitN(appID, ".", 2)
-	if len(parts) == 2 {
-		bundleID = parts[1]
+	if _, id, ok := strings.Cut(appID, "."); ok {
+		bundleID = id
 	}
 
 	if err := signApp(appdir); err != nil {
@@ -205,13 +205,13 @@ func assembleApp(appdir, bin string) error {
 	}
 
 	entitlementsPath := filepath.Join(tmpdir, "Entitlements.plist")
-	if err := ioutil.WriteFile(entitlementsPath, []byte(entitlementsPlist()), 0744); err != nil {
+	if err := os.WriteFile(entitlementsPath, []byte(entitlementsPlist()), 0744); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(appdir, "Info.plist"), []byte(infoPlist(pkgpath)), 0744); err != nil {
+	if err := os.WriteFile(filepath.Join(appdir, "Info.plist"), []byte(infoPlist(pkgpath)), 0744); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(appdir, "ResourceRules.plist"), []byte(resourceRules), 0744); err != nil {
+	if err := os.WriteFile(filepath.Join(appdir, "ResourceRules.plist"), []byte(resourceRules), 0744); err != nil {
 		return err
 	}
 	return nil
@@ -292,11 +292,10 @@ func findDevImage() (string, error) {
 	var iosVer, buildVer string
 	lines := bytes.Split(out, []byte("\n"))
 	for _, line := range lines {
-		spl := bytes.SplitN(line, []byte(": "), 2)
-		if len(spl) != 2 {
+		key, val, ok := strings.Cut(string(line), ": ")
+		if !ok {
 			continue
 		}
-		key, val := string(spl[0]), string(spl[1])
 		switch key {
 		case "ProductVersion":
 			iosVer = val

@@ -113,15 +113,11 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 	// Negative precision means "only as much as needed to be exact."
 	shortest := prec < 0
 	if shortest {
-		// Try Grisu3 algorithm.
-		f := new(extFloat)
-		lower, upper := f.AssignComputeBounds(mant, exp, neg, flt)
+		// Use Ryu algorithm.
 		var buf [32]byte
 		digs.d = buf[:]
-		ok = f.ShortestDecimal(&digs, &lower, &upper)
-		if !ok {
-			return bigFtoa(dst, prec, fmt, neg, mant, exp, flt)
-		}
+		ryuFtoaShortest(&digs, mant, exp-int(flt.mantbits), flt)
+		ok = true
 		// Precision for shortest representation mode.
 		switch fmt {
 		case 'e', 'E':
@@ -142,13 +138,19 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 				prec = 1
 			}
 			digits = prec
+		default:
+			// Invalid mode.
+			digits = 1
 		}
-		if digits <= 15 {
-			// try fast algorithm when the number of digits is reasonable.
-			var buf [24]byte
+		var buf [24]byte
+		if bitSize == 32 && digits <= 9 {
 			digs.d = buf[:]
-			f := extFloat{mant, exp - int(flt.mantbits), neg}
-			ok = f.FixedDecimal(&digs, digits)
+			ryuFtoaFixed32(&digs, uint32(mant), exp-int(flt.mantbits), digits)
+			ok = true
+		} else if digits <= 18 {
+			digs.d = buf[:]
+			ryuFtoaFixed64(&digs, mant, exp-int(flt.mantbits), digits)
+			ok = true
 		}
 	}
 	if !ok {

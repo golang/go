@@ -78,7 +78,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 				// Retrieve MTU
 				ifr := &ifreq{}
 				copy(ifr.Name[:], ifi.Name)
-				err = unix.Ioctl(sock, syscall.SIOCGIFMTU, uintptr(unsafe.Pointer(ifr)))
+				err = unix.Ioctl(sock, syscall.SIOCGIFMTU, unsafe.Pointer(ifr))
 				if err != nil {
 					return nil, err
 				}

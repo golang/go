@@ -33,7 +33,6 @@
 // accurately ascertain whether pkg.T implements an interface pkg.I
 // defined as interface{f()}. Exported thus means "described in export
 // data".
-//
 package facts
 
 import (

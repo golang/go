@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Cgo; see gmp.go for an overview.
+// Cgo; see doc.go for an overview.
 
 // TODO(rsc):
 //	Emit correct line number annotations.
@@ -11,12 +11,12 @@
 package main
 
 import (
-	"crypto/md5"
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"internal/buildcfg"
 	"io"
 	"io/ioutil"
 	"os"
@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"cmd/internal/edit"
+	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
 )
 
@@ -174,6 +175,7 @@ var ptrSizeMap = map[string]int64{
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"loong64":  8,
 	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
@@ -199,6 +201,7 @@ var intSizeMap = map[string]int64{
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"loong64":  8,
 	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
@@ -245,7 +248,8 @@ var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
 var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
 
-var goarch, goos string
+var goarch, goos, gomips, gomips64 string
+var gccBaseCmd []string
 
 func main() {
 	objabi.AddVersionFlag() // -V
@@ -289,6 +293,10 @@ func main() {
 		usage()
 	}
 
+	// Save original command line arguments for the godefs generated comment. Relative file
+	// paths in os.Args will be rewritten to absolute file paths in the loop below.
+	osArgs := make([]string, len(os.Args))
+	copy(osArgs, os.Args[:])
 	goFiles := args[i:]
 
 	for _, arg := range args[:i] {
@@ -301,6 +309,14 @@ func main() {
 	}
 
 	p := newPackage(args[:i])
+
+	// We need a C compiler to be available. Check this.
+	var err error
+	gccBaseCmd, err = checkGCCBaseCmd()
+	if err != nil {
+		fatalf("%v", err)
+		os.Exit(2)
+	}
 
 	// Record CGO_LDFLAGS from the environment for external linking.
 	if ldflags := os.Getenv("CGO_LDFLAGS"); ldflags != "" {
@@ -315,8 +331,8 @@ func main() {
 	// we use to coordinate between gcc and ourselves.
 	// We already put _cgo_ at the beginning, so the main
 	// concern is other cgo wrappers for the same functions.
-	// Use the beginning of the md5 of the input to disambiguate.
-	h := md5.New()
+	// Use the beginning of the notsha256 of the input to disambiguate.
+	h := notsha256.New()
 	io.WriteString(h, *importPath)
 	fs := make([]*File, len(goFiles))
 	for i, input := range goFiles {
@@ -380,7 +396,7 @@ func main() {
 		p.PackagePath = f.Package
 		p.Record(f)
 		if *godefs {
-			os.Stdout.WriteString(p.godefs(f))
+			os.Stdout.WriteString(p.godefs(f, osArgs))
 		} else {
 			p.writeOutput(f, input)
 		}
@@ -405,6 +421,9 @@ func newPackage(args []string) *Package {
 	if s := os.Getenv("GOOS"); s != "" {
 		goos = s
 	}
+	buildcfg.Check()
+	gomips = buildcfg.GOMIPS
+	gomips64 = buildcfg.GOMIPS64
 	ptrSize := ptrSizeMap[goarch]
 	if ptrSize == 0 {
 		fatalf("unknown ptrSize for $GOARCH %q", goarch)

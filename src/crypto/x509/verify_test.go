@@ -10,11 +10,15 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"math/big"
+	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +34,6 @@ type verifyTest struct {
 	systemSkip    bool
 	systemLax     bool
 	keyUsages     []ExtKeyUsage
-	ignoreCN      bool
 
 	errorCallback  func(*testing.T, error)
 	expectedChains [][]string
@@ -205,19 +208,6 @@ var verifyTests = []verifyTest{
 		},
 	},
 	{
-		name:          "SGCIntermediate",
-		leaf:          megaLeaf,
-		intermediates: []string{comodoIntermediate1},
-		roots:         []string{comodoRoot},
-		currentTime:   1360431182,
-
-		// CryptoAPI can find alternative validation paths.
-		systemLax: true,
-		expectedChains: [][]string{
-			{"mega.co.nz", "EssentialSSL CA", "COMODO Certification Authority"},
-		},
-	},
-	{
 		// Check that a name constrained intermediate works even when
 		// it lists multiple constraints.
 		name:          "MultipleConstraints",
@@ -297,8 +287,6 @@ var verifyTests = []verifyTest{
 		errorCallback: expectNotAuthorizedError,
 	},
 	{
-		// If any SAN extension is present (even one without any DNS
-		// names), the CN should be ignored.
 		name:        "IgnoreCNWithSANs",
 		leaf:        ignoreCNWithSANLeaf,
 		dnsName:     "foo.example.com",
@@ -325,7 +313,6 @@ var verifyTests = []verifyTest{
 		// verify error.
 		name:          "CriticalExtLeaf",
 		leaf:          criticalExtLeafWithExt,
-		dnsName:       "example.com",
 		intermediates: []string{criticalExtIntermediate},
 		roots:         []string{criticalExtRoot},
 		currentTime:   1486684488,
@@ -338,7 +325,6 @@ var verifyTests = []verifyTest{
 		// cause a verify error.
 		name:          "CriticalExtIntermediate",
 		leaf:          criticalExtLeaf,
-		dnsName:       "example.com",
 		intermediates: []string{criticalExtIntermediateWithExt},
 		roots:         []string{criticalExtRoot},
 		currentTime:   1486684488,
@@ -347,60 +333,12 @@ var verifyTests = []verifyTest{
 		errorCallback: expectUnhandledCriticalExtension,
 	},
 	{
-		// Test that invalid CN are ignored.
-		name:        "InvalidCN",
-		leaf:        invalidCNWithoutSAN,
-		dnsName:     "foo,invalid",
-		roots:       []string{invalidCNRoot},
-		currentTime: 1540000000,
-		systemSkip:  true, // does not chain to a system root
-
-		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
-	},
-	{
-		// Test that valid CN are respected.
 		name:        "ValidCN",
 		leaf:        validCNWithoutSAN,
 		dnsName:     "foo.example.com",
 		roots:       []string{invalidCNRoot},
 		currentTime: 1540000000,
 		systemSkip:  true, // does not chain to a system root
-
-		expectedChains: [][]string{
-			{"foo.example.com", "Test root"},
-		},
-	},
-	// Replicate CN tests with ignoreCN = true
-	{
-		name:        "IgnoreCNWithSANs/ignoreCN",
-		leaf:        ignoreCNWithSANLeaf,
-		dnsName:     "foo.example.com",
-		roots:       []string{ignoreCNWithSANRoot},
-		currentTime: 1486684488,
-		systemSkip:  true, // does not chain to a system root
-		ignoreCN:    true,
-
-		errorCallback: expectHostnameError("certificate is not valid for any names"),
-	},
-	{
-		name:        "InvalidCN/ignoreCN",
-		leaf:        invalidCNWithoutSAN,
-		dnsName:     "foo,invalid",
-		roots:       []string{invalidCNRoot},
-		currentTime: 1540000000,
-		systemSkip:  true, // does not chain to a system root
-		ignoreCN:    true,
-
-		errorCallback: expectHostnameError("certificate is not valid for any names"),
-	},
-	{
-		name:        "ValidCN/ignoreCN",
-		leaf:        validCNWithoutSAN,
-		dnsName:     "foo.example.com",
-		roots:       []string{invalidCNRoot},
-		currentTime: 1540000000,
-		systemSkip:  true, // does not chain to a system root
-		ignoreCN:    true,
 
 		errorCallback: expectHostnameError("certificate relies on legacy Common Name field"),
 	},
@@ -503,9 +441,6 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
 }
 
 func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
-	defer func(savedIgnoreCN bool) { ignoreCN = savedIgnoreCN }(ignoreCN)
-
-	ignoreCN = test.ignoreCN
 	opts := VerifyOptions{
 		Intermediates: NewCertPool(),
 		DNSName:       test.dnsName,
@@ -538,6 +473,9 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
 	chains, err := leaf.Verify(opts)
 
 	if test.errorCallback == nil && err != nil {
+		if runtime.GOOS == "windows" && strings.HasSuffix(testenv.Builder(), "-2008") && err.Error() == "x509: certificate signed by unknown authority" {
+			testenv.SkipFlaky(t, 19564)
+		}
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if test.errorCallback != nil {
@@ -603,6 +541,10 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
 }
 
 func TestGoVerify(t *testing.T) {
+	// Temporarily enable SHA-1 verification since a number of test chains
+	// require it. TODO(filippo): regenerate test chains.
+	defer func(old bool) { debugAllowSHA1 = old }(debugAllowSHA1)
+	debugAllowSHA1 = true
 	for _, test := range verifyTests {
 		t.Run(test.name, func(t *testing.T) {
 			testVerify(t, test, false)
@@ -986,93 +928,6 @@ UjWumDqtujWTI6cfSN01RpiyEGjkpTHCClguGYEQyVB1/OpaFs4R1+7vUIgtYf8/
 QnMFlEPVjjxOAToZpR9GTnfQXeWBIiGH/pR9hNiTrdZoQ0iy2+tzJOeRf1SktoA+
 naM8THLCV8Sg1Mw4J87VBp6iSNnpn86CcDaTmjvfliHjWbcM2pE38P1ZWrOZyGls
 QyYBNWNgVYkDOnXYukrZVP/u3oDYLdE41V4tC5h9Pmzb/CaIxw==
------END CERTIFICATE-----`
-
-var megaLeaf = `-----BEGIN CERTIFICATE-----
-MIIFOjCCBCKgAwIBAgIQWYE8Dup170kZ+k11Lg51OjANBgkqhkiG9w0BAQUFADBy
-MQswCQYDVQQGEwJHQjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYD
-VQQHEwdTYWxmb3JkMRowGAYDVQQKExFDT01PRE8gQ0EgTGltaXRlZDEYMBYGA1UE
-AxMPRXNzZW50aWFsU1NMIENBMB4XDTEyMTIxNDAwMDAwMFoXDTE0MTIxNDIzNTk1
-OVowfzEhMB8GA1UECxMYRG9tYWluIENvbnRyb2wgVmFsaWRhdGVkMS4wLAYDVQQL
-EyVIb3N0ZWQgYnkgSW5zdHJhIENvcnBvcmF0aW9uIFB0eS4gTFREMRUwEwYDVQQL
-EwxFc3NlbnRpYWxTU0wxEzARBgNVBAMTCm1lZ2EuY28ubnowggEiMA0GCSqGSIb3
-DQEBAQUAA4IBDwAwggEKAoIBAQDcxMCClae8BQIaJHBUIVttlLvhbK4XhXPk3RQ3
-G5XA6tLZMBQ33l3F9knYJ0YErXtr8IdfYoulRQFmKFMJl9GtWyg4cGQi2Rcr5VN5
-S5dA1vu4oyJBxE9fPELcK6Yz1vqaf+n6za+mYTiQYKggVdS8/s8hmNuXP9Zk1pIn
-+q0pGsf8NAcSHMJgLqPQrTDw+zae4V03DvcYfNKjuno88d2226ld7MAmQZ7uRNsI
-/CnkdelVs+akZsXf0szefSqMJlf08SY32t2jj4Ra7RApVYxOftD9nij/aLfuqOU6
-ow6IgIcIG2ZvXLZwK87c5fxL7UAsTTV+M1sVv8jA33V2oKLhAgMBAAGjggG9MIIB
-uTAfBgNVHSMEGDAWgBTay+qtWwhdzP/8JlTOSeVVxjj0+DAdBgNVHQ4EFgQUmP9l
-6zhyrZ06Qj4zogt+6LKFk4AwDgYDVR0PAQH/BAQDAgWgMAwGA1UdEwEB/wQCMAAw
-NAYDVR0lBC0wKwYIKwYBBQUHAwEGCCsGAQUFBwMCBgorBgEEAYI3CgMDBglghkgB
-hvhCBAEwTwYDVR0gBEgwRjA6BgsrBgEEAbIxAQICBzArMCkGCCsGAQUFBwIBFh1o
-dHRwczovL3NlY3VyZS5jb21vZG8uY29tL0NQUzAIBgZngQwBAgEwOwYDVR0fBDQw
-MjAwoC6gLIYqaHR0cDovL2NybC5jb21vZG9jYS5jb20vRXNzZW50aWFsU1NMQ0Eu
-Y3JsMG4GCCsGAQUFBwEBBGIwYDA4BggrBgEFBQcwAoYsaHR0cDovL2NydC5jb21v
-ZG9jYS5jb20vRXNzZW50aWFsU1NMQ0FfMi5jcnQwJAYIKwYBBQUHMAGGGGh0dHA6
-Ly9vY3NwLmNvbW9kb2NhLmNvbTAlBgNVHREEHjAcggptZWdhLmNvLm56gg53d3cu
-bWVnYS5jby5uejANBgkqhkiG9w0BAQUFAAOCAQEAcYhrsPSvDuwihMOh0ZmRpbOE
-Gw6LqKgLNTmaYUPQhzi2cyIjhUhNvugXQQlP5f0lp5j8cixmArafg1dTn4kQGgD3
-ivtuhBTgKO1VYB/VRoAt6Lmswg3YqyiS7JiLDZxjoV7KoS5xdiaINfHDUaBBY4ZH
-j2BUlPniNBjCqXe/HndUTVUewlxbVps9FyCmH+C4o9DWzdGBzDpCkcmo5nM+cp7q
-ZhTIFTvZfo3zGuBoyu8BzuopCJcFRm3cRiXkpI7iOMUIixO1szkJS6WpL1sKdT73
-UXp08U0LBqoqG130FbzEJBBV3ixbvY6BWMHoCWuaoF12KJnC5kHt2RoWAAgMXA==
------END CERTIFICATE-----`
-
-var comodoIntermediate1 = `-----BEGIN CERTIFICATE-----
-MIIFAzCCA+ugAwIBAgIQGLLLuqME8aAPwfLzJkYqSjANBgkqhkiG9w0BAQUFADCB
-gTELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4G
-A1UEBxMHU2FsZm9yZDEaMBgGA1UEChMRQ09NT0RPIENBIExpbWl0ZWQxJzAlBgNV
-BAMTHkNPTU9ETyBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTAeFw0wNjEyMDEwMDAw
-MDBaFw0xOTEyMzEyMzU5NTlaMHIxCzAJBgNVBAYTAkdCMRswGQYDVQQIExJHcmVh
-dGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcTB1NhbGZvcmQxGjAYBgNVBAoTEUNPTU9E
-TyBDQSBMaW1pdGVkMRgwFgYDVQQDEw9Fc3NlbnRpYWxTU0wgQ0EwggEiMA0GCSqG
-SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCt8AiwcsargxIxF3CJhakgEtSYau2A1NHf
-5I5ZLdOWIY120j8YC0YZYwvHIPPlC92AGvFaoL0dds23Izp0XmEbdaqb1IX04XiR
-0y3hr/yYLgbSeT1awB8hLRyuIVPGOqchfr7tZ291HRqfalsGs2rjsQuqag7nbWzD
-ypWMN84hHzWQfdvaGlyoiBSyD8gSIF/F03/o4Tjg27z5H6Gq1huQByH6RSRQXScq
-oChBRVt9vKCiL6qbfltTxfEFFld+Edc7tNkBdtzffRDPUanlOPJ7FAB1WfnwWdsX
-Pvev5gItpHnBXaIcw5rIp6gLSApqLn8tl2X2xQScRMiZln5+pN0vAgMBAAGjggGD
-MIIBfzAfBgNVHSMEGDAWgBQLWOWLxkwVN6RAqTCpIb5HNlpW/zAdBgNVHQ4EFgQU
-2svqrVsIXcz//CZUzknlVcY49PgwDgYDVR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQI
-MAYBAf8CAQAwIAYDVR0lBBkwFwYKKwYBBAGCNwoDAwYJYIZIAYb4QgQBMD4GA1Ud
-IAQ3MDUwMwYEVR0gADArMCkGCCsGAQUFBwIBFh1odHRwczovL3NlY3VyZS5jb21v
-ZG8uY29tL0NQUzBJBgNVHR8EQjBAMD6gPKA6hjhodHRwOi8vY3JsLmNvbW9kb2Nh
-LmNvbS9DT01PRE9DZXJ0aWZpY2F0aW9uQXV0aG9yaXR5LmNybDBsBggrBgEFBQcB
-AQRgMF4wNgYIKwYBBQUHMAKGKmh0dHA6Ly9jcnQuY29tb2RvY2EuY29tL0NvbW9k
-b1VUTlNHQ0NBLmNydDAkBggrBgEFBQcwAYYYaHR0cDovL29jc3AuY29tb2RvY2Eu
-Y29tMA0GCSqGSIb3DQEBBQUAA4IBAQAtlzR6QDLqcJcvgTtLeRJ3rvuq1xqo2l/z
-odueTZbLN3qo6u6bldudu+Ennv1F7Q5Slqz0J790qpL0pcRDAB8OtXj5isWMcL2a
-ejGjKdBZa0wztSz4iw+SY1dWrCRnilsvKcKxudokxeRiDn55w/65g+onO7wdQ7Vu
-F6r7yJiIatnyfKH2cboZT7g440LX8NqxwCPf3dfxp+0Jj1agq8MLy6SSgIGSH6lv
-+Wwz3D5XxqfyH8wqfOQsTEZf6/Nh9yvENZ+NWPU6g0QO2JOsTGvMd/QDzczc4BxL
-XSXaPV7Od4rhPsbXlM1wSTz/Dr0ISKvlUhQVnQ6cGodWaK2cCQBk
------END CERTIFICATE-----`
-
-var comodoRoot = `-----BEGIN CERTIFICATE-----
-MIIEHTCCAwWgAwIBAgIQToEtioJl4AsC7j41AkblPTANBgkqhkiG9w0BAQUFADCB
-gTELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4G
-A1UEBxMHU2FsZm9yZDEaMBgGA1UEChMRQ09NT0RPIENBIExpbWl0ZWQxJzAlBgNV
-BAMTHkNPTU9ETyBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTAeFw0wNjEyMDEwMDAw
-MDBaFw0yOTEyMzEyMzU5NTlaMIGBMQswCQYDVQQGEwJHQjEbMBkGA1UECBMSR3Jl
-YXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHEwdTYWxmb3JkMRowGAYDVQQKExFDT01P
-RE8gQ0EgTGltaXRlZDEnMCUGA1UEAxMeQ09NT0RPIENlcnRpZmljYXRpb24gQXV0
-aG9yaXR5MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0ECLi3LjkRv3
-UcEbVASY06m/weaKXTuH+7uIzg3jLz8GlvCiKVCZrts7oVewdFFxze1CkU1B/qnI
-2GqGd0S7WWaXUF601CxwRM/aN5VCaTwwxHGzUvAhTaHYujl8HJ6jJJ3ygxaYqhZ8
-Q5sVW7euNJH+1GImGEaaP+vB+fGQV+useg2L23IwambV4EajcNxo2f8ESIl33rXp
-+2dtQem8Ob0y2WIC8bGoPW43nOIv4tOiJovGuFVDiOEjPqXSJDlqR6sA1KGzqSX+
-DT+nHbrTUcELpNqsOO9VUCQFZUaTNE8tja3G1CEZ0o7KBWFxB3NH5YoZEr0ETc5O
-nKVIrLsm9wIDAQABo4GOMIGLMB0GA1UdDgQWBBQLWOWLxkwVN6RAqTCpIb5HNlpW
-/zAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zBJBgNVHR8EQjBAMD6g
-PKA6hjhodHRwOi8vY3JsLmNvbW9kb2NhLmNvbS9DT01PRE9DZXJ0aWZpY2F0aW9u
-QXV0aG9yaXR5LmNybDANBgkqhkiG9w0BAQUFAAOCAQEAPpiem/Yb6dc5t3iuHXIY
-SdOH5EOC6z/JqvWote9VfCFSZfnVDeFs9D6Mk3ORLgLETgdxb8CPOGEIqB6BCsAv
-IC9Bi5HcSEW88cbeunZrM8gALTFGTO3nnc+IlP8zwFboJIYmuNg4ON8qa90SzMc/
-RxdMosIGlgnW2/4/PEZB31jiVg88O8EckzXZOFKs7sjsLjBOlDW0JB9LeGna8gI4
-zJVSk/BwJVmcIGfE7vmLV2H0knZ9P4SNVbfo5azV8fUZVqZa+5Acr5Pr5RzUZ5dd
-BA6+C4OmF4O5MBKgxTMVBbkN+8cFduPYSo38NBejxiEovjBFMR7HeL5YYTisO+IB
-ZQ==
 -----END CERTIFICATE-----`
 
 var nameConstraintsLeaf = `-----BEGIN CERTIFICATE-----
@@ -1589,16 +1444,6 @@ oCGMjNwwCgYIKoZIzj0EAwIDRwAwRAIgDSiwgIn8g1lpruYH0QD1GYeoWVunfmrI
 XzZZl0eW/ugCICgOfXeZ2GGy3wIC0352BaC3a8r5AAb2XSGNe+e9wNN6
 -----END CERTIFICATE-----`
 
-const invalidCNWithoutSAN = `-----BEGIN CERTIFICATE-----
-MIIBJDCBywIUB7q8t9mrDAL+UB1OFaMN5BEWFKIwCgYIKoZIzj0EAwIwFDESMBAG
-A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4MzUyMVoXDTI4MDcwODE4MzUyMVow
-FjEUMBIGA1UEAwwLZm9vLGludmFsaWQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
-AASnpnwiM6dHfwiTLV9hNS7aRWd28pdzGLABEkoa1bdvQTy7BWn0Bl3/6yunhQtM
-90VOgUB6qcYdu7rZuSazylCQMAoGCCqGSM49BAMCA0gAMEUCIQCFlnW2cjxnEqB/
-hgSB0t3IZ1DXX4XAVFT85mtFCJPTKgIgYIY+1iimTtrdbpWJzAB2eBwDgIWmWgvr
-xfOcLt/vbvo=
------END CERTIFICATE-----`
-
 const validCNWithoutSAN = `-----BEGIN CERTIFICATE-----
 MIIBJzCBzwIUB7q8t9mrDAL+UB1OFaMN5BEWFKQwCgYIKoZIzj0EAwIwFDESMBAG
 A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4NDcyNFoXDTI4MDcwODE4NDcyNFow
@@ -1998,8 +1843,8 @@ func TestLongChain(t *testing.T) {
 }
 
 func TestSystemRootsError(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not use (or support) systemRoots")
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		t.Skip("Windows and darwin do not use (or support) systemRoots")
 	}
 
 	defer func(oldSystemRoots *CertPool) { systemRoots = oldSystemRoots }(systemRootsPool())
@@ -2033,4 +1878,747 @@ func TestSystemRootsErrorUnwrap(t *testing.T) {
 	if !errors.Is(err, err1) {
 		t.Error("errors.Is failed, wanted success")
 	}
+}
+
+func TestIssue51759(t *testing.T) {
+	// badCertData contains a cert that we parse as valid
+	// but that macOS SecCertificateCreateWithData rejects.
+	const badCertData = "0\x82\x01U0\x82\x01\a\xa0\x03\x02\x01\x02\x02\x01\x020\x05\x06\x03+ep0R1P0N\x06\x03U\x04\x03\x13Gderpkey8dc58100b2493614ee1692831a461f3f4dd3f9b3b088e244f887f81b4906ac260\x1e\x17\r220112235755Z\x17\r220313235755Z0R1P0N\x06\x03U\x04\x03\x13Gderpkey8dc58100b2493614ee1692831a461f3f4dd3f9b3b088e244f887f81b4906ac260*0\x05\x06\x03+ep\x03!\x00bA\xd8e\xadW\xcb\xefZ\x89\xb5\"\x1eR\x9d\xba\x0e:\x1042Q@\u007f\xbd\xfb{ks\x04\xd1£\x020\x000\x05\x06\x03+ep\x03A\x00[\xa7\x06y\x86(\x94\x97\x9eLwA\x00\x01x\xaa\xbc\xbd Ê]\n(΅!ف0\xf5\x9a%I\x19<\xffo\xf1\xeaaf@\xb1\xa7\xaf\xfd\xe9R\xc7\x0f\x8d&\xd5\xfc\x0f;Ϙ\x82\x84a\xbc\r"
+	badCert, err := ParseCertificate([]byte(badCertData))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("leaf", func(t *testing.T) {
+		opts := VerifyOptions{}
+		_, err = badCert.Verify(opts)
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
+	goodCert, err := certificateFromPEM(googleLeaf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("intermediate", func(t *testing.T) {
+		opts := VerifyOptions{
+			Intermediates: NewCertPool(),
+		}
+		opts.Intermediates.AddCert(badCert)
+		_, err = goodCert.Verify(opts)
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+}
+
+type trustGraphEdge struct {
+	Issuer         string
+	Subject        string
+	Type           int
+	MutateTemplate func(*Certificate)
+}
+
+type trustGraphDescription struct {
+	Roots []string
+	Leaf  string
+	Graph []trustGraphEdge
+}
+
+func genCertEdge(t *testing.T, subject string, key crypto.Signer, mutateTmpl func(*Certificate), certType int, issuer *Certificate, signer crypto.Signer) *Certificate {
+	t.Helper()
+
+	serial, err := rand.Int(rand.Reader, big.NewInt(100))
+	if err != nil {
+		t.Fatalf("failed to generate test serial: %s", err)
+	}
+	tmpl := &Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: subject},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+	if certType == rootCertificate || certType == intermediateCertificate {
+		tmpl.IsCA, tmpl.BasicConstraintsValid = true, true
+		tmpl.KeyUsage = KeyUsageCertSign
+	} else if certType == leafCertificate {
+		tmpl.DNSNames = []string{"localhost"}
+	}
+	if mutateTmpl != nil {
+		mutateTmpl(tmpl)
+	}
+
+	if certType == rootCertificate {
+		issuer = tmpl
+		signer = key
+	}
+
+	d, err := CreateCertificate(rand.Reader, tmpl, issuer, key.Public(), signer)
+	if err != nil {
+		t.Fatalf("failed to generate test cert: %s", err)
+	}
+	c, err := ParseCertificate(d)
+	if err != nil {
+		t.Fatalf("failed to parse test cert: %s", err)
+	}
+	return c
+}
+
+func buildTrustGraph(t *testing.T, d trustGraphDescription) (*CertPool, *CertPool, *Certificate) {
+	t.Helper()
+
+	certs := map[string]*Certificate{}
+	keys := map[string]crypto.Signer{}
+	roots := []*Certificate{}
+	for _, r := range d.Roots {
+		k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			t.Fatalf("failed to generate test key: %s", err)
+		}
+		root := genCertEdge(t, r, k, nil, rootCertificate, nil, nil)
+		roots = append(roots, root)
+		certs[r] = root
+		keys[r] = k
+	}
+
+	intermediates := []*Certificate{}
+	var leaf *Certificate
+	for _, e := range d.Graph {
+		issuerCert, ok := certs[e.Issuer]
+		if !ok {
+			t.Fatalf("unknown issuer %s", e.Issuer)
+		}
+		issuerKey, ok := keys[e.Issuer]
+		if !ok {
+			t.Fatalf("unknown issuer %s", e.Issuer)
+		}
+
+		k, ok := keys[e.Subject]
+		if !ok {
+			var err error
+			k, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			if err != nil {
+				t.Fatalf("failed to generate test key: %s", err)
+			}
+			keys[e.Subject] = k
+		}
+		cert := genCertEdge(t, e.Subject, k, e.MutateTemplate, e.Type, issuerCert, issuerKey)
+		certs[e.Subject] = cert
+		if e.Subject == d.Leaf {
+			leaf = cert
+		} else {
+			intermediates = append(intermediates, cert)
+		}
+	}
+
+	rootPool, intermediatePool := NewCertPool(), NewCertPool()
+	for i := len(roots) - 1; i >= 0; i-- {
+		rootPool.AddCert(roots[i])
+	}
+	for i := len(intermediates) - 1; i >= 0; i-- {
+		intermediatePool.AddCert(intermediates[i])
+	}
+
+	return rootPool, intermediatePool, leaf
+}
+
+func chainsToStrings(chains [][]*Certificate) []string {
+	chainStrings := []string{}
+	for _, chain := range chains {
+		names := []string{}
+		for _, c := range chain {
+			names = append(names, c.Subject.String())
+		}
+		chainStrings = append(chainStrings, strings.Join(names, " -> "))
+	}
+	sort.Strings(chainStrings)
+	return chainStrings
+}
+
+func TestPathBuilding(t *testing.T) {
+	tests := []struct {
+		name           string
+		graph          trustGraphDescription
+		expectedChains []string
+		expectedErr    string
+	}{
+		{
+			// Build the following graph from RFC 4158, figure 7 (note that in this graph edges represent
+			// certificates where the parent is the issuer and the child is the subject.) For the certificate
+			// C->B, use an unsupported ExtKeyUsage (in this case ExtKeyUsageCodeSigning) which invalidates
+			// the path Trust Anchor -> C -> B -> EE. The remaining valid paths should be:
+			//   * Trust Anchor -> A -> B -> EE
+			//   * Trust Anchor -> C -> A -> B -> EE
+			//
+			//     +---------+
+			//     |  Trust  |
+			//     | Anchor  |
+			//     +---------+
+			//      |       |
+			//      v       v
+			//   +---+    +---+
+			//   | A |<-->| C |
+			//   +---+    +---+
+			//    |         |
+			//    |  +---+  |
+			//    +->| B |<-+
+			//       +---+
+			//         |
+			//         v
+			//       +----+
+			//       | EE |
+			//       +----+
+			name: "bad EKU",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.ExtKeyUsage = []ExtKeyUsage{ExtKeyUsageCodeSigning}
+						},
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=inter c -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
+			},
+		},
+		{
+			// Build the following graph from RFC 4158, figure 7 (note that in this graph edges represent
+			// certificates where the parent is the issuer and the child is the subject.) For the certificate
+			// C->B, use a unconstrained SAN which invalidates the path Trust Anchor -> C -> B -> EE. The
+			// remaining valid paths should be:
+			//   * Trust Anchor -> A -> B -> EE
+			//   * Trust Anchor -> C -> A -> B -> EE
+			//
+			//     +---------+
+			//     |  Trust  |
+			//     | Anchor  |
+			//     +---------+
+			//      |       |
+			//      v       v
+			//   +---+    +---+
+			//   | A |<-->| C |
+			//   +---+    +---+
+			//    |         |
+			//    |  +---+  |
+			//    +->| B |<-+
+			//       +---+
+			//         |
+			//         v
+			//       +----+
+			//       | EE |
+			//       +----+
+			name: "bad EKU",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.PermittedDNSDomains = []string{"good"}
+							t.DNSNames = []string{"bad"}
+						},
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=inter c -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
+			},
+		},
+		{
+			// Build the following graph, we should find both paths:
+			//   * Trust Anchor -> A -> C -> EE
+			//   * Trust Anchor -> A -> B -> C -> EE
+			//
+			//	       +---------+
+			//	       |  Trust  |
+			//	       | Anchor  |
+			//	       +---------+
+			//	            |
+			//	            v
+			//	          +---+
+			//	          | A |
+			//	          +---+
+			//	           | |
+			//	           | +----+
+			//	           |      v
+			//	           |    +---+
+			//	           |    | B |
+			//	           |    +---+
+			//	           |      |
+			//	           |  +---v
+			//	           v  v
+			//            +---+
+			//            | C |
+			//            +---+
+			//              |
+			//              v
+			//            +----+
+			//            | EE |
+			//            +----+
+			name: "all paths",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter c -> CN=inter a -> CN=root",
+				"CN=leaf -> CN=inter c -> CN=inter b -> CN=inter a -> CN=root",
+			},
+		},
+		{
+			// Build the following graph, which contains a cross-signature loop
+			// (A and C cross sign each other). Paths that include the A -> C -> A
+			// (and vice versa) loop should be ignored, resulting in the paths:
+			//   * Trust Anchor -> A -> B -> EE
+			//   * Trust Anchor -> C -> B -> EE
+			//   * Trust Anchor -> A -> C -> B -> EE
+			//   * Trust Anchor -> C -> A -> B -> EE
+			//
+			//     +---------+
+			//     |  Trust  |
+			//     | Anchor  |
+			//     +---------+
+			//      |       |
+			//      v       v
+			//   +---+    +---+
+			//   | A |<-->| C |
+			//   +---+    +---+
+			//    |         |
+			//    |  +---+  |
+			//    +->| B |<-+
+			//       +---+
+			//         |
+			//         v
+			//       +----+
+			//       | EE |
+			//       +----+
+			name: "ignore cross-sig loops",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=inter c -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter c -> CN=inter a -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter c -> CN=root",
+			},
+		},
+		{
+			// Build a simple two node graph, where the leaf is directly issued from
+			// the root and both certificates have matching subject and public key, but
+			// the leaf has SANs.
+			name: "leaf with same subject, key, as parent but with SAN",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "root",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "root",
+						Type:    leafCertificate,
+						MutateTemplate: func(c *Certificate) {
+							c.DNSNames = []string{"localhost"}
+						},
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=root -> CN=root",
+			},
+		},
+		{
+			// Build a basic graph with two paths from leaf to root, but the path passing
+			// through C should be ignored, because it has invalid EKU nesting.
+			name: "ignore invalid EKU path",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.ExtKeyUsage = []ExtKeyUsage{ExtKeyUsageCodeSigning}
+						},
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.ExtKeyUsage = []ExtKeyUsage{ExtKeyUsageServerAuth}
+						},
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "leaf",
+						Type:    leafCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.ExtKeyUsage = []ExtKeyUsage{ExtKeyUsageServerAuth}
+						},
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			roots, intermediates, leaf := buildTrustGraph(t, tc.graph)
+			chains, err := leaf.Verify(VerifyOptions{
+				Roots:         roots,
+				Intermediates: intermediates,
+			})
+			if err != nil && err.Error() != tc.expectedErr {
+				t.Fatalf("unexpected error: got %q, want %q", err, tc.expectedErr)
+			}
+			gotChains := chainsToStrings(chains)
+			if !reflect.DeepEqual(gotChains, tc.expectedChains) {
+				t.Errorf("unexpected chains returned:\ngot:\n\t%s\nwant:\n\t%s", strings.Join(gotChains, "\n\t"), strings.Join(tc.expectedChains, "\n\t"))
+			}
+		})
+	}
+}
+
+func TestEKUEnforcement(t *testing.T) {
+	type ekuDescs struct {
+		EKUs    []ExtKeyUsage
+		Unknown []asn1.ObjectIdentifier
+	}
+	tests := []struct {
+		name       string
+		root       ekuDescs
+		inters     []ekuDescs
+		leaf       ekuDescs
+		verifyEKUs []ExtKeyUsage
+		err        string
+	}{
+		{
+			name:       "valid, full chain",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			inters:     []ekuDescs{ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+		},
+		{
+			name:       "valid, only leaf has EKU",
+			root:       ekuDescs{},
+			inters:     []ekuDescs{ekuDescs{}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+		},
+		{
+			name:       "invalid, serverAuth not nested",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageClientAuth}},
+			inters:     []ekuDescs{ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			err:        "x509: certificate specifies an incompatible key usage",
+		},
+		{
+			name:       "valid, two EKUs, one path",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			inters:     []ekuDescs{ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth},
+		},
+		{
+			name: "invalid, ladder",
+			root: ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			inters: []ekuDescs{
+				ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}},
+				ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageClientAuth}},
+				ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth}},
+				ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth},
+			err:        "x509: certificate specifies an incompatible key usage",
+		},
+		{
+			name:       "valid, intermediate has no EKU",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			inters:     []ekuDescs{ekuDescs{}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+		},
+		{
+			name:       "invalid, intermediate has no EKU and no nested path",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageClientAuth}},
+			inters:     []ekuDescs{ekuDescs{}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth},
+			err:        "x509: certificate specifies an incompatible key usage",
+		},
+		{
+			name:       "invalid, intermediate has unknown EKU",
+			root:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			inters:     []ekuDescs{ekuDescs{Unknown: []asn1.ObjectIdentifier{{1, 2, 3}}}},
+			leaf:       ekuDescs{EKUs: []ExtKeyUsage{ExtKeyUsageServerAuth}},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			err:        "x509: certificate specifies an incompatible key usage",
+		},
+	}
+
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rootPool := NewCertPool()
+			root := genCertEdge(t, "root", k, func(c *Certificate) {
+				c.ExtKeyUsage = tc.root.EKUs
+				c.UnknownExtKeyUsage = tc.root.Unknown
+			}, rootCertificate, nil, k)
+			rootPool.AddCert(root)
+
+			parent := root
+			interPool := NewCertPool()
+			for i, interEKUs := range tc.inters {
+				inter := genCertEdge(t, fmt.Sprintf("inter %d", i), k, func(c *Certificate) {
+					c.ExtKeyUsage = interEKUs.EKUs
+					c.UnknownExtKeyUsage = interEKUs.Unknown
+				}, intermediateCertificate, parent, k)
+				interPool.AddCert(inter)
+				parent = inter
+			}
+
+			leaf := genCertEdge(t, "leaf", k, func(c *Certificate) {
+				c.ExtKeyUsage = tc.leaf.EKUs
+				c.UnknownExtKeyUsage = tc.leaf.Unknown
+			}, intermediateCertificate, parent, k)
+
+			_, err := leaf.Verify(VerifyOptions{Roots: rootPool, Intermediates: interPool, KeyUsages: tc.verifyEKUs})
+			if err == nil && tc.err != "" {
+				t.Errorf("expected error")
+			} else if err != nil && err.Error() != tc.err {
+				t.Errorf("unexpected error: want %q, got %q", err.Error(), tc.err)
+			}
+		})
+	}
+}
+
+func TestVerifyEKURootAsLeaf(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %s", err)
+	}
+
+	for _, tc := range []struct {
+		rootEKUs   []ExtKeyUsage
+		verifyEKUs []ExtKeyUsage
+		succeed    bool
+	}{
+		{
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			succeed:    true,
+		},
+		{
+			rootEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			succeed:  true,
+		},
+		{
+			rootEKUs:   []ExtKeyUsage{ExtKeyUsageServerAuth},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			succeed:    true,
+		},
+		{
+			rootEKUs:   []ExtKeyUsage{ExtKeyUsageServerAuth},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageAny},
+			succeed:    true,
+		},
+		{
+			rootEKUs:   []ExtKeyUsage{ExtKeyUsageAny},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			succeed:    true,
+		},
+		{
+			rootEKUs:   []ExtKeyUsage{ExtKeyUsageClientAuth},
+			verifyEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+			succeed:    false,
+		},
+	} {
+		t.Run(fmt.Sprintf("root EKUs %#v, verify EKUs %#v", tc.rootEKUs, tc.verifyEKUs), func(t *testing.T) {
+			tmpl := &Certificate{
+				SerialNumber: big.NewInt(1),
+				Subject:      pkix.Name{CommonName: "root"},
+				NotBefore:    time.Now().Add(-time.Hour),
+				NotAfter:     time.Now().Add(time.Hour),
+				DNSNames:     []string{"localhost"},
+				ExtKeyUsage:  tc.rootEKUs,
+			}
+			rootDER, err := CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+			if err != nil {
+				t.Fatalf("failed to create certificate: %s", err)
+			}
+			root, err := ParseCertificate(rootDER)
+			if err != nil {
+				t.Fatalf("failed to parse certificate: %s", err)
+			}
+			roots := NewCertPool()
+			roots.AddCert(root)
+
+			_, err = root.Verify(VerifyOptions{Roots: roots, KeyUsages: tc.verifyEKUs})
+			if err == nil && !tc.succeed {
+				t.Error("verification succeed")
+			} else if err != nil && tc.succeed {
+				t.Errorf("verification failed: %q", err)
+			}
+		})
+	}
+
 }

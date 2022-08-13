@@ -16,32 +16,30 @@ import (
 	"testing"
 )
 
-// TestLarge generates a very large file to verify that large
-// program builds successfully, in particular, too-far
-// conditional branches are fixed.
-func TestLarge(t *testing.T) {
+// TestLargeBranch generates a large function with a very far conditional
+// branch, in order to ensure that it assembles successfully.
+func TestLargeBranch(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skip in short mode")
+		t.Skip("Skipping test in short mode")
 	}
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := ioutil.TempDir("", "testlarge")
+	dir, err := ioutil.TempDir("", "testlargebranch")
 	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
+		t.Fatalf("Could not create directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 
 	// Generate a very large function.
 	buf := bytes.NewBuffer(make([]byte, 0, 7000000))
-	gen(buf)
+	genLargeBranch(buf)
 
 	tmpfile := filepath.Join(dir, "x.s")
-	err = ioutil.WriteFile(tmpfile, buf.Bytes(), 0644)
-	if err != nil {
-		t.Fatalf("can't write output: %v\n", err)
+	if err := ioutil.WriteFile(tmpfile, buf.Bytes(), 0644); err != nil {
+		t.Fatalf("Failed to write file: %v", err)
 	}
 
-	// Build generated file.
+	// Assemble generated file.
 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
 	out, err := cmd.CombinedOutput()
@@ -50,8 +48,7 @@ func TestLarge(t *testing.T) {
 	}
 }
 
-// gen generates a very large program, with a very far conditional branch.
-func gen(buf *bytes.Buffer) {
+func genLargeBranch(buf *bytes.Buffer) {
 	fmt.Fprintln(buf, "TEXT f(SB),0,$0-0")
 	fmt.Fprintln(buf, "BEQ X0, X0, label")
 	for i := 0; i < 1<<19; i++ {
@@ -59,6 +56,76 @@ func gen(buf *bytes.Buffer) {
 	}
 	fmt.Fprintln(buf, "label:")
 	fmt.Fprintln(buf, "ADD $0, X0, X0")
+}
+
+// TestLargeCall generates a large function (>1MB of text) with a call to
+// a following function, in order to ensure that it assembles and links
+// correctly.
+func TestLargeCall(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+	testenv.MustHaveGoBuild(t)
+
+	dir, err := ioutil.TempDir("", "testlargecall")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module largecall"), 0644); err != nil {
+		t.Fatalf("Failed to write file: %v\n", err)
+	}
+	main := `package main
+func main() {
+        x()
+}
+
+func x()
+func y()
+`
+	if err := ioutil.WriteFile(filepath.Join(dir, "x.go"), []byte(main), 0644); err != nil {
+		t.Fatalf("failed to write main: %v\n", err)
+	}
+
+	// Generate a very large function with call.
+	buf := bytes.NewBuffer(make([]byte, 0, 7000000))
+	genLargeCall(buf)
+
+	if err := ioutil.WriteFile(filepath.Join(dir, "x.s"), buf.Bytes(), 0644); err != nil {
+		t.Fatalf("Failed to write file: %v\n", err)
+	}
+
+	// Build generated files.
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-linkmode=internal")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("Build failed: %v, output: %s", err, out)
+	}
+
+	if runtime.GOARCH == "riscv64" && testenv.HasCGO() {
+		cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-linkmode=external")
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("Build failed: %v, output: %s", err, out)
+		}
+	}
+}
+
+func genLargeCall(buf *bytes.Buffer) {
+	fmt.Fprintln(buf, "TEXT ·x(SB),0,$0-0")
+	fmt.Fprintln(buf, "CALL ·y(SB)")
+	for i := 0; i < 1<<19; i++ {
+		fmt.Fprintln(buf, "ADD $0, X0, X0")
+	}
+	fmt.Fprintln(buf, "RET")
+	fmt.Fprintln(buf, "TEXT ·y(SB),0,$0-0")
+	fmt.Fprintln(buf, "ADD $0, X0, X0")
+	fmt.Fprintln(buf, "RET")
 }
 
 // Issue 20348.
@@ -134,9 +201,6 @@ TEXT _stub(SB),$0-0
 }
 
 func TestBranch(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping in short mode")
-	}
 	if runtime.GOARCH != "riscv64" {
 		t.Skip("Requires riscv64 to run")
 	}

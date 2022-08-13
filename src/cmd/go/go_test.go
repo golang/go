@@ -13,7 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
-	"internal/race"
+	"internal/godebug"
 	"internal/testenv"
 	"io"
 	"io/fs"
@@ -31,8 +31,11 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/robustio"
+	"cmd/go/internal/search"
 	"cmd/go/internal/work"
 	"cmd/internal/sys"
+
+	cmdgo "cmd/go"
 )
 
 func init() {
@@ -44,9 +47,12 @@ func init() {
 }
 
 var (
-	canRace = false // whether we can run the race detector
-	canCgo  = false // whether we can use cgo
-	canMSan = false // whether we can run the memory sanitizer
+	canRace          = false // whether we can run the race detector
+	canCgo           = false // whether we can use cgo
+	canMSan          = false // whether we can run the memory sanitizer
+	canASan          = false // whether we can run the address sanitizer
+	canFuzz          = false // whether we can search for new fuzz failures
+	fuzzInstrumented = false // whether fuzzing uses instrumentation
 )
 
 var exeSuffix string = func() string {
@@ -72,7 +78,10 @@ func tooSlow(t *testing.T) {
 // (temp) directory.
 var testGOROOT string
 
-var testCC string
+// testGOROOT_FINAL is the GOROOT_FINAL with which the test binary is assumed to
+// have been built.
+var testGOROOT_FINAL = os.Getenv("GOROOT_FINAL")
+
 var testGOCACHE string
 
 var testGo string
@@ -82,6 +91,43 @@ var testBin string
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
+	// When CMDGO_TEST_RUN_MAIN is set, we're reusing the test binary as cmd/go.
+	// Enable the special behavior needed in cmd/go/internal/work,
+	// run the main func exported via export_test.go, and exit.
+	// We set CMDGO_TEST_RUN_MAIN via os.Setenv and testScript.setup.
+	if os.Getenv("CMDGO_TEST_RUN_MAIN") != "" {
+		if v := os.Getenv("TESTGO_VERSION"); v != "" {
+			work.RuntimeVersion = v
+		}
+
+		if testGOROOT := os.Getenv("TESTGO_GOROOT"); testGOROOT != "" {
+			// Disallow installs to the GOROOT from which testgo was built.
+			// Installs to other GOROOTs — such as one set explicitly within a test — are ok.
+			work.AllowInstall = func(a *work.Action) error {
+				if cfg.BuildN {
+					return nil
+				}
+
+				rel := search.InDir(a.Target, testGOROOT)
+				if rel == "" {
+					return nil
+				}
+
+				callerPos := ""
+				if _, file, line, ok := runtime.Caller(1); ok {
+					if shortFile := search.InDir(file, filepath.Join(testGOROOT, "src")); shortFile != "" {
+						file = shortFile
+					}
+					callerPos = fmt.Sprintf("%s:%d: ", file, line)
+				}
+				return fmt.Errorf("%stestgo must not write to GOROOT (installing to %s)", callerPos, filepath.Join("GOROOT", rel))
+			}
+		}
+		cmdgo.Main()
+		os.Exit(0)
+	}
+	os.Setenv("CMDGO_TEST_RUN_MAIN", "true")
+
 	// $GO_GCFLAGS a compiler debug flag known to cmd/dist, make.bash, etc.
 	// It is not a standard go command flag; use os.Getenv, not cfg.Getenv.
 	if os.Getenv("GO_GCFLAGS") != "" {
@@ -125,13 +171,9 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 		testGo = filepath.Join(testBin, "go"+exeSuffix)
-		args := []string{"build", "-tags", "testgo", "-o", testGo}
-		if race.Enabled {
-			args = append(args, "-race")
-		}
 		gotool, err := testenv.GoTool()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, "locating go tool: ", err)
 			os.Exit(2)
 		}
 
@@ -171,20 +213,33 @@ func TestMain(m *testing.M) {
 			return
 		}
 
-		buildCmd := exec.Command(gotool, args...)
-		buildCmd.Env = append(os.Environ(), "GOFLAGS=-mod=vendor")
-		out, err := buildCmd.CombinedOutput()
+		// Duplicate the test executable into the path at testGo, for $PATH.
+		// If the OS supports symlinks, use them instead of copying bytes.
+		testExe, err := os.Executable()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "building testgo failed: %v\n%s", err, out)
-			os.Exit(2)
+			log.Fatal(err)
 		}
+		if err := os.Symlink(testExe, testGo); err != nil {
+			// Otherwise, copy the bytes.
+			src, err := os.Open(testExe)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer src.Close()
 
-		out, err = exec.Command(gotool, "env", "CC").CombinedOutput()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "could not find testing CC: %v\n%s", err, out)
-			os.Exit(2)
+			dst, err := os.OpenFile(testGo, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o777)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			_, err = io.Copy(dst, src)
+			if closeErr := dst.Close(); err == nil {
+				err = closeErr
+			}
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
-		testCC = strings.TrimSpace(string(out))
 
 		cmd := exec.Command(testGo, "env", "CGO_ENABLED")
 		cmd.Stderr = new(strings.Builder)
@@ -198,7 +253,7 @@ func TestMain(m *testing.M) {
 			}
 		}
 
-		out, err = exec.Command(gotool, "env", "GOCACHE").CombinedOutput()
+		out, err := exec.Command(gotool, "env", "GOCACHE").CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "could not find testing GOCACHE: %v\n%s", err, out)
 			os.Exit(2)
@@ -206,6 +261,7 @@ func TestMain(m *testing.M) {
 		testGOCACHE = strings.TrimSpace(string(out))
 
 		canMSan = canCgo && sys.MSanSupported(runtime.GOOS, runtime.GOARCH)
+		canASan = canCgo && sys.ASanSupported(runtime.GOOS, runtime.GOARCH)
 		canRace = canCgo && sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
 		// The race detector doesn't work on Alpine Linux:
 		// golang.org/issue/14481
@@ -213,6 +269,8 @@ func TestMain(m *testing.M) {
 		if isAlpineLinux() || runtime.Compiler == "gccgo" {
 			canRace = false
 		}
+		canFuzz = sys.FuzzSupported(runtime.GOOS, runtime.GOARCH)
+		fuzzInstrumented = sys.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
 	}
 	// Don't let these environment variables confuse the test.
 	os.Setenv("GOENV", "off")
@@ -227,6 +285,14 @@ func TestMain(m *testing.M) {
 	os.Setenv("CCACHE_DISABLE", "1")
 	if cfg.Getenv("GOCACHE") == "" {
 		os.Setenv("GOCACHE", testGOCACHE) // because $HOME is gone
+	}
+
+	if testenv.Builder() != "" || os.Getenv("GIT_TRACE_CURL") == "1" {
+		// To help diagnose https://go.dev/issue/52545,
+		// enable tracing for Git HTTPS requests.
+		os.Setenv("GIT_TRACE_CURL", "1")
+		os.Setenv("GIT_TRACE_CURL_NO_DATA", "1")
+		os.Setenv("GIT_REDACT_COOKIES", "o,SSO,GSSO_Uberproxy")
 	}
 
 	r := m.Run()
@@ -811,8 +877,12 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	// so that we can change files.
 	for _, copydir := range []string{
 		"src/runtime",
+		"src/internal/abi",
 		"src/internal/bytealg",
 		"src/internal/cpu",
+		"src/internal/goarch",
+		"src/internal/goexperiment",
+		"src/internal/goos",
 		"src/math/bits",
 		"src/unsafe",
 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
@@ -919,21 +989,6 @@ func TestIssue10952(t *testing.T) {
 	repoDir := tg.path("src/" + importPath)
 	tg.runGit(repoDir, "remote", "set-url", "origin", "https://"+importPath+".git")
 	tg.run("get", "-d", "-u", importPath)
-}
-
-func TestIssue16471(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.must(os.MkdirAll(tg.path("src/rsc.io/go-get-issue-10952"), 0755))
-	tg.runGit(tg.path("src/rsc.io"), "clone", "https://github.com/zombiezen/go-get-issue-10952")
-	tg.runFail("get", "-u", "rsc.io/go-get-issue-10952")
-	tg.grepStderr("rsc.io/go-get-issue-10952 is a custom import path for https://github.com/rsc/go-get-issue-10952, but .* is checked out from https://github.com/zombiezen/go-get-issue-10952", "did not detect updated import path")
 }
 
 // Test git clone URL that uses SCP-like syntax and custom import path checking.
@@ -1126,11 +1181,11 @@ func TestGoListTest(t *testing.T) {
 	tg.grepStdoutNot(`^testing \[sort.test\]$`, "unexpected test copy of testing")
 	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
 
-	tg.run("list", "-test", "cmd/dist", "cmd/doc")
-	tg.grepStdout(`^cmd/dist$`, "missing cmd/dist")
+	tg.run("list", "-test", "cmd/buildid", "cmd/doc")
+	tg.grepStdout(`^cmd/buildid$`, "missing cmd/buildid")
 	tg.grepStdout(`^cmd/doc$`, "missing cmd/doc")
 	tg.grepStdout(`^cmd/doc\.test$`, "missing cmd/doc test")
-	tg.grepStdoutNot(`^cmd/dist\.test$`, "unexpected cmd/dist test")
+	tg.grepStdoutNot(`^cmd/buildid\.test$`, "unexpected cmd/buildid test")
 	tg.grepStdoutNot(`^testing`, "unexpected testing")
 
 	tg.run("list", "-test", "runtime/cgo")
@@ -1293,6 +1348,15 @@ func tempEnvName() string {
 	}
 }
 
+func pathEnvName() string {
+	switch runtime.GOOS {
+	case "plan9":
+		return "path"
+	default:
+		return "PATH"
+	}
+}
+
 func TestDefaultGOPATH(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1382,7 +1446,7 @@ func TestLdFlagsLongArgumentsIssue42295(t *testing.T) {
 		}`)
 	testStr := "test test test test test \n\\ "
 	var buf bytes.Buffer
-	for buf.Len() < work.ArgLengthForResponseFile+1 {
+	for buf.Len() < sys.ExecArgLengthLimit+1 {
 		buf.WriteString(testStr)
 	}
 	tg.run("run", "-ldflags", fmt.Sprintf(`-X "main.extern=%s"`, buf.String()), tg.path("main.go"))
@@ -1509,7 +1573,7 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempFile("src/origin/origin.go", `package origin
-		// #cgo !darwin LDFLAGS: -Wl,-rpath,$ORIGIN
+		// #cgo !darwin,!windows LDFLAGS: -Wl,-rpath,$ORIGIN
 		// void f(void) {}
 		import "C"
 		func f() { C.f() }`)
@@ -1573,7 +1637,7 @@ func TestListTemplateContextFunction(t *testing.T) {
 	}{
 		{"GOARCH", runtime.GOARCH},
 		{"GOOS", runtime.GOOS},
-		{"GOROOT", filepath.Clean(runtime.GOROOT())},
+		{"GOROOT", testGOROOT},
 		{"GOPATH", os.Getenv("GOPATH")},
 		{"CgoEnabled", ""},
 		{"UseAllFiles", ""},
@@ -1841,8 +1905,12 @@ func TestBinaryOnlyPackages(t *testing.T) {
 	tg.grepStdout("p2: false", "p2 listed as BinaryOnly")
 }
 
-// Issue 16050.
-func TestAlwaysLinkSysoFiles(t *testing.T) {
+// Issue 16050 and 21884.
+func TestLinkSysoFiles(t *testing.T) {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skip("not linux/amd64")
+	}
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1861,6 +1929,10 @@ func TestAlwaysLinkSysoFiles(t *testing.T) {
 	tg.setenv("CGO_ENABLED", "0")
 	tg.run("list", "-f", "{{.SysoFiles}}", "syso")
 	tg.grepStdout("a.syso", "missing syso file with CGO_ENABLED=0")
+
+	tg.setenv("CGO_ENABLED", "1")
+	tg.run("list", "-msan", "-f", "{{.SysoFiles}}", "syso")
+	tg.grepStdoutNot("a.syso", "unexpected syso file with -msan")
 }
 
 // Issue 16120.
@@ -2075,6 +2147,10 @@ func TestBuildmodePIE(t *testing.T) {
 	default:
 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
 	}
+	// Skip on alpine until https://go.dev/issues/54354 resolved.
+	if strings.HasSuffix(testenv.Builder(), "-alpine") {
+		t.Skip("skipping PIE tests on alpine; see https://go.dev/issues/54354")
+	}
 	t.Run("non-cgo", func(t *testing.T) {
 		testBuildmodePIE(t, false, true)
 	})
@@ -2183,7 +2259,7 @@ func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
 			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
 			section := f.Section(".edata")
 			if section == nil {
-				t.Fatalf(".edata section is not present")
+				t.Skip(".edata section is not present")
 			}
 			// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
 			type IMAGE_EXPORT_DIRECTORY struct {
@@ -2280,7 +2356,7 @@ func TestUpxCompression(t *testing.T) {
 
 func TestCacheListStale(t *testing.T) {
 	tooSlow(t)
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2303,7 +2379,7 @@ func TestCacheListStale(t *testing.T) {
 func TestCacheCoverage(t *testing.T) {
 	tooSlow(t)
 
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 
@@ -2335,7 +2411,7 @@ func TestIssue22588(t *testing.T) {
 
 func TestIssue22531(t *testing.T) {
 	tooSlow(t)
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2364,7 +2440,7 @@ func TestIssue22531(t *testing.T) {
 
 func TestIssue22596(t *testing.T) {
 	tooSlow(t)
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2394,7 +2470,7 @@ func TestIssue22596(t *testing.T) {
 func TestTestCache(t *testing.T) {
 	tooSlow(t)
 
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2829,4 +2905,60 @@ func TestCoverpkgTestOnly(t *testing.T) {
 	tg.run("test", "-coverpkg=a", "atest")
 	tg.grepStderrNot("no packages being tested depend on matches", "bad match message")
 	tg.grepStdout("coverage: 100", "no coverage")
+}
+
+// Regression test for golang.org/issue/34499: version command should not crash
+// when executed in a deleted directory on Linux.
+func TestExecInDeletedDir(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "plan9",
+		"aix",                // Fails with "device busy".
+		"solaris", "illumos": // Fails with "invalid argument".
+		t.Skipf("%v does not support removing the current working directory", runtime.GOOS)
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	wd, err := os.Getwd()
+	tg.check(err)
+	tg.makeTempdir()
+	tg.check(os.Chdir(tg.tempdir))
+	defer func() { tg.check(os.Chdir(wd)) }()
+
+	tg.check(os.Remove(tg.tempdir))
+
+	// `go version` should not fail
+	tg.run("version")
+}
+
+// A missing C compiler should not force the net package to be stale.
+// Issue 47215.
+func TestMissingCC(t *testing.T) {
+	if !canCgo {
+		t.Skip("test is only meaningful on systems with cgo")
+	}
+	cc := os.Getenv("CC")
+	if cc == "" {
+		cc = "gcc"
+	}
+	if filepath.IsAbs(cc) {
+		t.Skipf(`"CC" (%s) is an absolute path`, cc)
+	}
+	_, err := exec.LookPath(cc)
+	if err != nil {
+		t.Skipf(`"CC" (%s) not on PATH`, cc)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	netStale, _ := tg.isStale("net")
+	if netStale {
+		t.Skip(`skipping test because "net" package is currently stale`)
+	}
+
+	tg.setenv("PATH", "") // No C compiler on PATH.
+	netStale, _ = tg.isStale("net")
+	if netStale {
+		t.Error(`clearing "PATH" causes "net" to be stale`)
+	}
 }

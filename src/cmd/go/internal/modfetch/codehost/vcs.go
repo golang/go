@@ -38,7 +38,7 @@ type VCSError struct {
 
 func (e *VCSError) Error() string { return e.Err.Error() }
 
-func vcsErrorf(format string, a ...interface{}) error {
+func vcsErrorf(format string, a ...any) error {
 	return &VCSError{Err: fmt.Errorf(format, a...)}
 }
 
@@ -51,7 +51,7 @@ func NewRepo(vcs, remote string) (Repo, error) {
 		repo Repo
 		err  error
 	}
-	c := vcsRepoCache.Do(key{vcs, remote}, func() interface{} {
+	c := vcsRepoCache.Do(key{vcs, remote}, func() any {
 		repo, err := newVCSRepo(vcs, remote)
 		if err != nil {
 			err = &VCSError{err}
@@ -290,7 +290,13 @@ func (r *vcsRepo) loadBranches() {
 	}
 }
 
-func (r *vcsRepo) Tags(prefix string) ([]string, error) {
+var ErrNoRepoHash = errors.New("RepoHash not supported")
+
+func (r *vcsRepo) CheckReuse(old *Origin, subdir string) error {
+	return fmt.Errorf("vcs %s does not implement CheckReuse", r.cmd.vcs)
+}
+
+func (r *vcsRepo) Tags(prefix string) (*Tags, error) {
 	unlock, err := r.mu.Lock()
 	if err != nil {
 		return nil, err
@@ -298,14 +304,24 @@ func (r *vcsRepo) Tags(prefix string) ([]string, error) {
 	defer unlock()
 
 	r.tagsOnce.Do(r.loadTags)
-
-	tags := []string{}
+	tags := &Tags{
+		// None of the other VCS provide a reasonable way to compute TagSum
+		// without downloading the whole repo, so we only include VCS and URL
+		// in the Origin.
+		Origin: &Origin{
+			VCS: r.cmd.vcs,
+			URL: r.remote,
+		},
+		List: []Tag{},
+	}
 	for tag := range r.tags {
 		if strings.HasPrefix(tag, prefix) {
-			tags = append(tags, tag)
+			tags.List = append(tags.List, Tag{tag, ""})
 		}
 	}
-	sort.Strings(tags)
+	sort.Slice(tags.List, func(i, j int) bool {
+		return tags.List[i].Name < tags.List[j].Name
+	})
 	return tags, nil
 }
 
@@ -352,7 +368,16 @@ func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
 	if err != nil {
 		return nil, &UnknownRevisionError{Rev: rev}
 	}
-	return r.cmd.parseStat(rev, string(out))
+	info, err := r.cmd.parseStat(rev, string(out))
+	if err != nil {
+		return nil, err
+	}
+	if info.Origin == nil {
+		info.Origin = new(Origin)
+	}
+	info.Origin.VCS = r.cmd.vcs
+	info.Origin.URL = r.remote
+	return info, nil
 }
 
 func (r *vcsRepo) Latest() (*RevInfo, error) {
@@ -380,19 +405,6 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 		return nil, fs.ErrNotExist
 	}
 	return out, nil
-}
-
-func (r *vcsRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[string]*FileRev, error) {
-	// We don't technically need to lock here since we're returning an error
-	// uncondititonally, but doing so anyway will help to avoid baking in
-	// lock-inversion bugs.
-	unlock, err := r.mu.Lock()
-	if err != nil {
-		return nil, err
-	}
-	defer unlock()
-
-	return nil, vcsErrorf("ReadFileRevs not implemented")
 }
 
 func (r *vcsRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error) {
@@ -504,6 +516,9 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
 	sort.Strings(tags)
 
 	info := &RevInfo{
+		Origin: &Origin{
+			Hash: hash,
+		},
 		Name:    hash,
 		Short:   ShortenSHA1(hash),
 		Time:    time.Unix(t, 0).UTC(),
@@ -582,6 +597,9 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
 				version = hash // extend to full hash
 			}
 			info := &RevInfo{
+				Origin: &Origin{
+					Hash: hash,
+				},
 				Name:    hash,
 				Short:   ShortenSHA1(hash),
 				Time:    t,

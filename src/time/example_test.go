@@ -212,6 +212,11 @@ func ExampleTime_Format() {
 		panic(err)
 	}
 
+	tz, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil { // Always check errors even if they should not happen.
+		panic(err)
+	}
+
 	// time.Time's Stringer method is useful without any format.
 	fmt.Println("default format:", t)
 
@@ -220,6 +225,10 @@ func ExampleTime_Format() {
 
 	// The time zone attached to the time value affects its output.
 	fmt.Println("Same, in UTC:", t.UTC().Format(time.UnixDate))
+
+	fmt.Println("in Shanghai with seconds:", t.In(tz).Format("2006-01-02T15:04:05 -070000"))
+
+	fmt.Println("in Shanghai with colon seconds:", t.In(tz).Format("2006-01-02T15:04:05 -07:00:00"))
 
 	// The rest of this function demonstrates the properties of the
 	// layout string used in the format.
@@ -286,6 +295,8 @@ func ExampleTime_Format() {
 	// default format: 2015-02-25 11:06:39 -0800 PST
 	// Unix format: Wed Feb 25 11:06:39 PST 2015
 	// Same, in UTC: Wed Feb 25 19:06:39 UTC 2015
+	//in Shanghai with seconds: 2015-02-26T03:06:39 +080000
+	//in Shanghai with colon seconds: 2015-02-26T03:06:39 +08:00:00
 	//
 	// Formats:
 	//
@@ -344,6 +355,23 @@ func ExampleTime_Format_pad() {
 
 }
 
+func ExampleTime_GoString() {
+	t := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+	fmt.Println(t.GoString())
+	t = t.Add(1 * time.Minute)
+	fmt.Println(t.GoString())
+	t = t.AddDate(0, 1, 0)
+	fmt.Println(t.GoString())
+	t, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Feb 3, 2013 at 7:54pm (UTC)")
+	fmt.Println(t.GoString())
+
+	// Output:
+	// time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+	// time.Date(2009, time.November, 10, 23, 1, 0, 0, time.UTC)
+	// time.Date(2009, time.December, 10, 23, 1, 0, 0, time.UTC)
+	// time.Date(2013, time.February, 3, 19, 54, 0, 0, time.UTC)
+}
+
 func ExampleParse() {
 	// See the example for Time.Format for a thorough description of how
 	// to define the layout string to parse a time.Time value; Parse and
@@ -399,6 +427,39 @@ func ExampleParseInLocation() {
 	// Output:
 	// 2012-07-09 05:02:00 +0200 CEST
 	// 2012-07-09 00:00:00 +0200 CEST
+}
+
+func ExampleUnix() {
+	unixTime := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+	fmt.Println(unixTime.Unix())
+	t := time.Unix(unixTime.Unix(), 0).UTC()
+	fmt.Println(t)
+
+	// Output:
+	// 1257894000
+	// 2009-11-10 23:00:00 +0000 UTC
+}
+
+func ExampleUnixMicro() {
+	umt := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+	fmt.Println(umt.UnixMicro())
+	t := time.UnixMicro(umt.UnixMicro()).UTC()
+	fmt.Println(t)
+
+	// Output:
+	// 1257894000000000
+	// 2009-11-10 23:00:00 +0000 UTC
+}
+
+func ExampleUnixMilli() {
+	umt := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+	fmt.Println(umt.UnixMilli())
+	t := time.UnixMilli(umt.UnixMilli()).UTC()
+	fmt.Println(t)
+
+	// Output:
+	// 1257894000000
+	// 2009-11-10 23:00:00 +0000 UTC
 }
 
 func ExampleTime_Unix() {

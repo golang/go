@@ -4,8 +4,8 @@
 
 #include "textflag.h"
 
-// func Modf(f float64) (int float64, frac float64)
-TEXT ·Modf(SB),NOSPLIT,$0
+// func archModf(f float64) (int float64, frac float64)
+TEXT ·archModf(SB),NOSPLIT,$0
 	MOVD	f+0(FP), R0
 	FMOVD	R0, F0
 	FRINTZD	F0, F1

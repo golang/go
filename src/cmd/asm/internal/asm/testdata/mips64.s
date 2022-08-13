@@ -21,9 +21,9 @@ label0:
 	BEQ	R1, 2(PC)
 	JMP	label0+0	// JMP 3	// 1000fffd
 	BEQ	R1, 2(PC)
-	JAL	1(PC)		// CALL 1(PC)	// 0c00000e
+	JAL	1(PC)		// CALL 1(PC)	// 0c00000f
 	BEQ	R1, 2(PC)
-	JAL	label0+0	// CALL 3	// 0c000006
+	JAL	label0+0	// CALL 3	// 0c000007
 
 //	LBRA addr
 //	{
@@ -32,11 +32,11 @@ label0:
 	BEQ	R1, 2(PC)
 	JMP	0(R1)		// JMP (R1)	// 00200008
 	BEQ	R1, 2(PC)
-	JMP	foo+0(SB)	// JMP foo(SB)	// 08000018
+	JMP	foo+0(SB)	// JMP foo(SB)	// 08000019
 	BEQ	R1, 2(PC)
 	JAL	0(R1)		// CALL (R1)	// 0020f809
 	BEQ	R1, 2(PC)
-	JAL	foo+0(SB)	// CALL foo(SB)	// 0c000020
+	JAL	foo+0(SB)	// CALL foo(SB)	// 0c000021
 
 //
 // BEQ/BNE
@@ -407,6 +407,8 @@ label4:
 	SRLV	R27, R6, R17	// 03668816
 	SRA	R11, R19, R20	// 0173a007
 	SRAV	R20, R19, R19	// 02939817
+	ROTR	R19, R18, R20	// 0272a046
+	ROTRV	R9, R13, R16	// 012d8056
 
 //	LSHW rreg ',' rreg
 //	{
@@ -418,6 +420,8 @@ label4:
 	SRLV	R27, R6   	// 03663016
 	SRA	R11, R19	// 01739807
 	SRAV	R20, R19	// 02939817
+	ROTR	R20, R19	// 02939846
+	ROTRV	R16, R9		// 02094856
 
 //	LSHW imm ',' sreg ',' rreg
 //	{
@@ -429,6 +433,8 @@ label4:
 	SRLV	$31, R6, R17	// 00068ffa
 	SRA	$8, R8, R19	// 00089a03
 	SRAV	$19, R8, R7	// 00083cfb
+	ROTR	$12, R8, R3	// 00281b02
+	ROTRV	$8, R22, R22	// 0036b23a
 
 //	LSHW imm ',' rreg
 //	{
@@ -440,6 +446,8 @@ label4:
 	SRLV	$31, R17	// 00118ffa
 	SRA	$3, R12		// 000c60c3
 	SRAV	$12, R3		// 00031b3b
+	ROTR	$12, R8		// 00284302
+	ROTRV	$63, R22	// 0036b7fe
 
 
 //	LAND/LXOR/LNOR/LOR rreg ',' rreg

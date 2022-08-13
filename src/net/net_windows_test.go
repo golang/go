@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"os"
 	"os/exec"
@@ -204,12 +205,24 @@ func runCmd(args ...string) ([]byte, error) {
 	return removeUTF8BOM(out), nil
 }
 
-func netshSpeaksEnglish(t *testing.T) bool {
+func checkNetsh(t *testing.T) {
+	if testenv.Builder() == "windows-arm64-10" {
+		// netsh was observed to sometimes hang on this builder.
+		// We have not observed failures on windows-arm64-11, so for the
+		// moment we are leaving the test enabled elsewhere on the theory
+		// that it may have been a platform bug fixed in Windows 11.
+		testenv.SkipFlaky(t, 52082)
+	}
 	out, err := runCmd("netsh", "help")
 	if err != nil {
 		t.Fatal(err)
 	}
-	return bytes.Contains(out, []byte("The following commands are available:"))
+	if bytes.Contains(out, []byte("The following helper DLL cannot be loaded")) {
+		t.Skipf("powershell failure:\n%s", err)
+	}
+	if !bytes.Contains(out, []byte("The following commands are available:")) {
+		t.Skipf("powershell does not speak English:\n%s", out)
+	}
 }
 
 func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
@@ -256,9 +269,7 @@ func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
 }
 
 func TestInterfacesWithNetsh(t *testing.T) {
-	if !netshSpeaksEnglish(t) {
-		t.Skip("English version of netsh required for this test")
-	}
+	checkNetsh(t)
 
 	toString := func(name string, isup bool) string {
 		if isup {
@@ -427,9 +438,7 @@ func netshInterfaceIPv6ShowAddress(name string, netshOutput []byte) []string {
 }
 
 func TestInterfaceAddrsWithNetsh(t *testing.T) {
-	if !netshSpeaksEnglish(t) {
-		t.Skip("English version of netsh required for this test")
-	}
+	checkNetsh(t)
 
 	outIPV4, err := runCmd("netsh", "interface", "ipv4", "show", "address")
 	if err != nil {

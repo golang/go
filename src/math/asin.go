@@ -14,9 +14,15 @@ package math
 // Asin returns the arcsine, in radians, of x.
 //
 // Special cases are:
+//
 //	Asin(±0) = ±0
 //	Asin(x) = NaN if x < -1 or x > 1
-func Asin(x float64) float64
+func Asin(x float64) float64 {
+	if haveArchAsin {
+		return archAsin(x)
+	}
+	return asin(x)
+}
 
 func asin(x float64) float64 {
 	if x == 0 {
@@ -47,8 +53,14 @@ func asin(x float64) float64 {
 // Acos returns the arccosine, in radians, of x.
 //
 // Special case is:
+//
 //	Acos(x) = NaN if x < -1 or x > 1
-func Acos(x float64) float64
+func Acos(x float64) float64 {
+	if haveArchAcos {
+		return archAcos(x)
+	}
+	return acos(x)
+}
 
 func acos(x float64) float64 {
 	return Pi/2 - Asin(x)

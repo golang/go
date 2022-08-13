@@ -15,6 +15,7 @@ func isOddInt(x float64) bool {
 // Pow returns x**y, the base-x exponential of y.
 //
 // Special cases are (in order):
+//
 //	Pow(x, ±0) = 1 for any x
 //	Pow(1, y) = 1 for any y
 //	Pow(x, 1) = x for any x
@@ -35,7 +36,12 @@ func isOddInt(x float64) bool {
 //	Pow(+Inf, y) = +0 for y < 0
 //	Pow(-Inf, y) = Pow(-0, -y)
 //	Pow(x, y) = NaN for finite x < 0 and finite non-integer y
-func Pow(x, y float64) float64
+func Pow(x, y float64) float64 {
+	if haveArchPow {
+		return archPow(x, y)
+	}
+	return pow(x, y)
+}
 
 func pow(x, y float64) float64 {
 	switch {

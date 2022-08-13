@@ -6,6 +6,7 @@ package tls
 
 import (
 	"crypto"
+	"crypto/ecdh"
 	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -14,6 +15,25 @@ import (
 	"fmt"
 	"io"
 )
+
+// a keyAgreement implements the client and server side of a TLS key agreement
+// protocol by generating and processing key exchange messages.
+type keyAgreement interface {
+	// On the server side, the first two methods are called in order.
+
+	// In the case that the key agreement protocol doesn't use a
+	// ServerKeyExchange message, generateServerKeyExchange can return nil,
+	// nil.
+	generateServerKeyExchange(*Config, *Certificate, *clientHelloMsg, *serverHelloMsg) (*serverKeyExchangeMsg, error)
+	processClientKeyExchange(*Config, *Certificate, *clientKeyExchangeMsg, uint16) ([]byte, error)
+
+	// On the client side, the next two methods are called in order.
+
+	// This method may not be called if the server doesn't send a
+	// ServerKeyExchange message.
+	processServerKeyExchange(*Config, *clientHelloMsg, *serverHelloMsg, *x509.Certificate, *serverKeyExchangeMsg) error
+	generateClientKeyExchange(*Config, *clientHelloMsg, *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error)
+}
 
 var errClientKeyExchange = errors.New("tls: invalid ClientKeyExchange message")
 var errServerKeyExchange = errors.New("tls: invalid ServerKeyExchange message")
@@ -67,7 +87,11 @@ func (ka rsaKeyAgreement) generateClientKeyExchange(config *Config, clientHello 
 		return nil, nil, err
 	}
 
-	encrypted, err := rsa.EncryptPKCS1v15(config.rand(), cert.PublicKey.(*rsa.PublicKey), preMasterSecret)
+	rsaKey, ok := cert.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, nil, errors.New("tls: server certificate contains incorrect key type for selected ciphersuite")
+	}
+	encrypted, err := rsa.EncryptPKCS1v15(config.rand(), rsaKey, preMasterSecret)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -134,7 +158,7 @@ func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint1
 type ecdheKeyAgreement struct {
 	version uint16
 	isRSA   bool
-	params  ecdheParameters
+	key     *ecdh.PrivateKey
 
 	// ckx and preMasterSecret are generated in processServerKeyExchange
 	// and returned in generateClientKeyExchange.
@@ -154,18 +178,18 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 	if curveID == 0 {
 		return nil, errors.New("tls: no supported elliptic curves offered")
 	}
-	if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
+	if _, ok := curveForCurveID(curveID); !ok {
 		return nil, errors.New("tls: CurvePreferences includes unsupported curve")
 	}
 
-	params, err := generateECDHEParameters(config.rand(), curveID)
+	key, err := generateECDHEKey(config.rand(), curveID)
 	if err != nil {
 		return nil, err
 	}
-	ka.params = params
+	ka.key = key
 
 	// See RFC 4492, Section 5.4.
-	ecdhePublic := params.PublicKey()
+	ecdhePublic := key.PublicKey().Bytes()
 	serverECDHEParams := make([]byte, 1+2+1+len(ecdhePublic))
 	serverECDHEParams[0] = 3 // named curve
 	serverECDHEParams[1] = byte(curveID >> 8)
@@ -236,8 +260,12 @@ func (ka *ecdheKeyAgreement) processClientKeyExchange(config *Config, cert *Cert
 		return nil, errClientKeyExchange
 	}
 
-	preMasterSecret := ka.params.SharedKey(ckx.ciphertext[1:])
-	if preMasterSecret == nil {
+	peerKey, err := ka.key.Curve().NewPublicKey(ckx.ciphertext[1:])
+	if err != nil {
+		return nil, errClientKeyExchange
+	}
+	preMasterSecret, err := ka.key.Curve().ECDH(ka.key, peerKey)
+	if err != nil {
 		return nil, errClientKeyExchange
 	}
 
@@ -265,22 +293,26 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 		return errServerKeyExchange
 	}
 
-	if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
+	if _, ok := curveForCurveID(curveID); !ok {
 		return errors.New("tls: server selected unsupported curve")
 	}
 
-	params, err := generateECDHEParameters(config.rand(), curveID)
+	key, err := generateECDHEKey(config.rand(), curveID)
 	if err != nil {
 		return err
 	}
-	ka.params = params
+	ka.key = key
 
-	ka.preMasterSecret = params.SharedKey(publicKey)
-	if ka.preMasterSecret == nil {
+	peerKey, err := key.Curve().NewPublicKey(publicKey)
+	if err != nil {
+		return errServerKeyExchange
+	}
+	ka.preMasterSecret, err = key.Curve().ECDH(key, peerKey)
+	if err != nil {
 		return errServerKeyExchange
 	}
 
-	ourPublicKey := params.PublicKey()
+	ourPublicKey := key.PublicKey().Bytes()
 	ka.ckx = new(clientKeyExchangeMsg)
 	ka.ckx.ciphertext = make([]byte, 1+len(ourPublicKey))
 	ka.ckx.ciphertext[0] = byte(len(ourPublicKey))

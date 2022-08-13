@@ -10,7 +10,7 @@ stdout rsc.io/sampler
 ! grep 'rsc.io/sampler v1.3.0' go.mod
 
 # update to v1.3.1, now indirect in go.mod.
-go get -d rsc.io/sampler@v1.3.1
+go get rsc.io/sampler@v1.3.1
 grep 'rsc.io/sampler v1.3.1 // indirect' go.mod
 cp go.mod go.mod.good
 

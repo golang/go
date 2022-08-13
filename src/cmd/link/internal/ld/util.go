@@ -57,7 +57,7 @@ func afterErrorAction() {
 // Logging an error means that on exit cmd/link will delete any
 // output file and return a non-zero error code.
 //
-// TODO: remove. Use ctxt.Errof instead.
+// TODO: remove. Use ctxt.Errorf instead.
 // All remaining calls use nil as first arg.
 func Errorf(dummy *int, format string, args ...interface{}) {
 	format += "\n"

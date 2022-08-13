@@ -40,15 +40,15 @@ func main() {
 	C.foop = x // ERROR HERE
 
 	// issue 13129: used to output error about C.unsignedshort with CC=clang
-	var x C.ushort
-	x = int(0) // ERROR HERE: C\.ushort
+	var x1 C.ushort
+	x1 = int(0) // ERROR HERE: C\.ushort
 
 	// issue 13423
 	_ = C.fopen() // ERROR HERE
 
 	// issue 13467
-	var x rune = '✈'
-	var _ rune = C.transform(x) // ERROR HERE: C\.int
+	var x2 rune = '✈'
+	var _ rune = C.transform(x2) // ERROR HERE: C\.int
 
 	// issue 13635: used to output error about C.unsignedchar.
 	// This test tests all such types.
@@ -91,10 +91,18 @@ func main() {
 
 	// issue 26745
 	_ = func(i int) int {
-		return C.i + 1 // ERROR HERE: :13
+		// typecheck reports at column 14 ('+'), but types2 reports at
+		// column 10 ('C').
+		// TODO(mdempsky): Investigate why, and see if types2 can be
+		// updated to match typecheck behavior.
+		return C.i + 1 // ERROR HERE: \b(10|14)\b
 	}
 	_ = func(i int) {
-		C.fi(i) // ERROR HERE: :6
+		// typecheck reports at column 7 ('('), but types2 reports at
+		// column 8 ('i'). The types2 position is more correct, but
+		// updating typecheck here is fundamentally challenging because of
+		// IR limitations.
+		C.fi(i) // ERROR HERE: \b(7|8)\b
 	}
 
 	C.fi = C.fi // ERROR HERE

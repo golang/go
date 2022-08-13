@@ -1,0 +1,82 @@
+# https://golang.org/issue/45952: 'go mod tidy' in an eager module failed due
+# to an erroneous check on root completeness.
+#
+# Per the issue report:
+# > It may have to do with:
+# >
+# > package A imports package B in go.mod, which imports package C in its own go.mod
+# > package A drops direct dependency on package B …
+#
+# We infer from that that package C is still needed by some other indirect
+# dependency, and must be at a higher version than what is required by that
+# dependency (or else no new root would be needed). An additional package D
+# in its own module satisfies that condition, reproducing the bug.
+
+go mod tidy
+cmp go.mod go.mod.tidy
+
+-- go.mod --
+module example.net/a
+
+go 1.16
+
+require (
+	example.net/b v0.1.0
+	example.net/d v0.1.0
+)
+
+replace (
+	example.net/b v0.1.0 => ./b
+	example.net/c v0.1.0 => ./c
+	example.net/c v0.2.0 => ./c
+	example.net/d v0.1.0 => ./d
+)
+-- go.mod.tidy --
+module example.net/a
+
+go 1.16
+
+require (
+	example.net/c v0.2.0 // indirect
+	example.net/d v0.1.0
+)
+
+replace (
+	example.net/b v0.1.0 => ./b
+	example.net/c v0.1.0 => ./c
+	example.net/c v0.2.0 => ./c
+	example.net/d v0.1.0 => ./d
+)
+-- a.go --
+package a
+
+import _ "example.net/d"
+
+-- b/go.mod --
+module example.net/b
+
+go 1.16
+
+require example.net/c v0.2.0
+-- b/b.go --
+package b
+
+import _ "example.net/c"
+
+-- c/go.mod --
+module example.net/c
+
+go 1.16
+-- c/c.go --
+package c
+
+-- d/go.mod --
+module example.net/d
+
+go 1.16
+
+require example.net/c v0.1.0
+-- d/d.go --
+package d
+
+import _ "example.net/c"

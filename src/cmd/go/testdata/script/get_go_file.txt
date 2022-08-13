@@ -9,15 +9,15 @@ go get -d test
 
 # argument has .go suffix, is a file and exists
 ! go get -d test.go
-stderr 'go get test.go: arguments must be package or module paths'
+stderr 'go: test.go: arguments must be package or module paths'
 
 # argument has .go suffix, doesn't exist and has no slashes
 ! go get -d test_missing.go
-stderr 'go get test_missing.go: arguments must be package or module paths'
+stderr 'go: test_missing.go: arguments must be package or module paths'
 
 # argument has .go suffix, is a file and exists in sub-directory
 ! go get -d test/test.go
-stderr 'go get: test/test.go exists as a file, but ''go get'' requires package arguments'
+stderr 'go: test/test.go exists as a file, but ''go get'' requires package arguments'
 
 # argument has .go suffix, doesn't exist and has slashes
 ! go get -d test/test_missing.go
@@ -27,19 +27,19 @@ stderr 'go get: test/test.go exists as a file, but ''go get'' requires package a
 # argument has .go suffix, is a symlink and exists
 [symlink] symlink test_sym.go -> test.go
 [symlink] ! go get -d test_sym.go
-[symlink] stderr 'go get test_sym.go: arguments must be package or module paths'
+[symlink] stderr 'go: test_sym.go: arguments must be package or module paths'
 [symlink] rm test_sym.go
 
 # argument has .go suffix, is a symlink and exists in sub-directory
 [symlink] symlink test/test_sym.go -> test.go
 [symlink] ! go get -d test/test_sym.go
-[symlink] stderr 'go get: test/test_sym.go exists as a file, but ''go get'' requires package arguments'
+[symlink] stderr 'go: test/test_sym.go exists as a file, but ''go get'' requires package arguments'
 [symlink] rm test_sym.go
 
 # argument has .go suffix, is a directory and exists
 mkdir test_dir.go
 ! go get -d test_dir.go
-stderr 'go get test_dir.go: arguments must be package or module paths'
+stderr 'go: test_dir.go: arguments must be package or module paths'
 rm test_dir.go
 
 # argument has .go suffix, is a directory and exists in sub-directory

@@ -1,0 +1,67 @@
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod go.mod.orig
+
+-- go.mod --
+module example.com/tidy
+
+go 1.16
+
+require (
+	example.net/incomplete v0.1.0
+	example.net/indirect v0.2.0 // indirect
+	example.net/toolow v0.1.0
+)
+
+replace (
+	example.net/incomplete v0.1.0 => ./incomplete
+	example.net/indirect v0.1.0 => ./indirect.1
+	example.net/indirect v0.2.0 => ./indirect.2
+	example.net/toolow v0.1.0 => ./toolow
+)
+-- tidy.go --
+package tidy
+
+import (
+	_ "example.net/incomplete"
+	_ "example.net/toolow"
+)
+
+-- incomplete/go.mod --
+module example.net/incomplete
+
+go 1.16
+
+// This module omits a needed requirement on example.net/indirect.
+-- incomplete/incomplete.go --
+package incomplete
+
+import _ "example.net/indirect/newpkg"
+
+-- toolow/go.mod --
+module example.net/toolow
+
+go 1.16
+
+require example.net/indirect v0.1.0
+-- toolow/toolow.go --
+package toolow
+
+import _ "example.net/indirect/oldpkg"
+
+-- indirect.1/go.mod --
+module example.net/indirect
+
+go 1.16
+-- indirect.1/oldpkg/oldpkg.go --
+package oldpkg
+
+
+-- indirect.2/go.mod --
+module example.net/indirect
+
+go 1.16
+-- indirect.2/oldpkg/oldpkg.go --
+package oldpkg
+-- indirect.2/newpkg/newpkg.go --
+package newpkg

@@ -220,8 +220,7 @@ func TestRecorder(t *testing.T) {
 			"Trailer headers are correctly recorded",
 			func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Non-Trailer", "correct")
-				w.Header().Set("Trailer", "Trailer-A")
-				w.Header().Add("Trailer", "Trailer-B")
+				w.Header().Set("Trailer", "Trailer-A, Trailer-B")
 				w.Header().Add("Trailer", "Trailer-C")
 				io.WriteString(w, "<html>")
 				w.Header().Set("Non-Trailer", "incorrect")
@@ -343,5 +342,30 @@ func TestParseContentLength(t *testing.T) {
 		if got := parseContentLength(tt.cl); got != tt.want {
 			t.Errorf("%q:\n\tgot=%d\n\twant=%d", tt.cl, got, tt.want)
 		}
+	}
+}
+
+// Ensure that httptest.Recorder panics when given a non-3 digit (XXX)
+// status HTTP code. See https://golang.org/issues/45353
+func TestRecorderPanicsOnNonXXXStatusCode(t *testing.T) {
+	badCodes := []int{
+		-100, 0, 99, 1000, 20000,
+	}
+	for _, badCode := range badCodes {
+		badCode := badCode
+		t.Run(fmt.Sprintf("Code=%d", badCode), func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatal("Expected a panic")
+				}
+			}()
+
+			handler := func(rw http.ResponseWriter, _ *http.Request) {
+				rw.WriteHeader(badCode)
+			}
+			r, _ := http.NewRequest("GET", "http://example.org/", nil)
+			rw := NewRecorder()
+			handler(rw, r)
+		})
 	}
 }

@@ -78,16 +78,23 @@ func TestNoRaceMutexPureHappensBefore(t *testing.T) {
 	var mu sync.Mutex
 	var x int16 = 0
 	_ = x
+	written := false
 	ch := make(chan bool, 2)
 	go func() {
 		x = 1
 		mu.Lock()
+		written = true
 		mu.Unlock()
 		ch <- true
 	}()
 	go func() {
-		<-time.After(1e5)
+		time.Sleep(100 * time.Microsecond)
 		mu.Lock()
+		for !written {
+			mu.Unlock()
+			time.Sleep(100 * time.Microsecond)
+			mu.Lock()
+		}
 		mu.Unlock()
 		x = 1
 		ch <- true

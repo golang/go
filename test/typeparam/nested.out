@@ -1,0 +1,4 @@
+0,3: main.T·2[int;int]
+4,7: main.T·2[int;main.U·3[int;int]]
+22,23: main.T·2[main.Int;main.Int]
+26,27: main.T·2[main.Int;main.U·3[main.Int;main.Int]]

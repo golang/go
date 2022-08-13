@@ -18,7 +18,7 @@ import (
 
 /*
 Derived from Plan 9 from User Space's src/libmach/elf.h, elf.c
-http://code.swtch.com/plan9port/src/tip/src/libmach/
+https://github.com/9fans/plan9port/tree/master/src/libmach/
 
 	Copyright © 2004 Russ Cox.
 	Portions Copyright © 2008-2010 Google Inc.
@@ -607,7 +607,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if machsym.type_&N_EXT == 0 {
 			v = localSymVersion
 		}
-		s := l.LookupOrCreateSym(name, v)
+		s := l.LookupOrCreateCgoExport(name, v)
 		if machsym.type_&N_EXT == 0 {
 			l.SetAttrDuplicateOK(s, true)
 		}
@@ -686,7 +686,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			textp = append(textp, s)
 			for s1 := bld.Sub(); s1 != 0; s1 = l.SubSym(s1) {
 				if l.AttrOnList(s1) {
-					return errorf("symbol %s listed multiple times", l.RawSymName(s1))
+					return errorf("symbol %s listed multiple times", l.SymName(s1))
 				}
 				l.SetAttrOnList(s1, true)
 				textp = append(textp, s1)

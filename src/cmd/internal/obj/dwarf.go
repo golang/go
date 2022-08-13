@@ -378,9 +378,9 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
 		if err != nil {
 			ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
 		}
-		err = dwarf.PutConcreteFunc(dwctxt, fnstate)
+		err = dwarf.PutConcreteFunc(dwctxt, fnstate, s.Wrapper())
 	} else {
-		err = dwarf.PutDefaultFunc(dwctxt, fnstate)
+		err = dwarf.PutDefaultFunc(dwctxt, fnstate, s.Wrapper())
 	}
 	if err != nil {
 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
@@ -400,6 +400,23 @@ func (ctxt *Link) DwarfIntConst(myimportpath, name, typename string, val int64) 
 		ctxt.Data = append(ctxt.Data, s)
 	})
 	dwarf.PutIntConst(dwCtxt{ctxt}, s, ctxt.Lookup(dwarf.InfoPrefix+typename), myimportpath+"."+name, val)
+}
+
+// DwarfGlobal creates a link symbol containing a DWARF entry for
+// a global variable.
+func (ctxt *Link) DwarfGlobal(myimportpath, typename string, varSym *LSym) {
+	if myimportpath == "" || varSym.Local() {
+		return
+	}
+	varname := varSym.Name
+	dieSymName := dwarf.InfoPrefix + varname
+	dieSym := ctxt.LookupInit(dieSymName, func(s *LSym) {
+		s.Type = objabi.SDWARFVAR
+		s.Set(AttrDuplicateOK, true) // needed for shared linkage
+		ctxt.Data = append(ctxt.Data, s)
+	})
+	typeSym := ctxt.Lookup(dwarf.InfoPrefix + typename)
+	dwarf.PutGlobal(dwCtxt{ctxt}, dieSym, typeSym, varSym, varname)
 }
 
 func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath string) {

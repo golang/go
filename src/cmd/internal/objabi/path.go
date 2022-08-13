@@ -47,6 +47,8 @@ func PathToPrefix(s string) string {
 // some cases need to be aware of when they are building such a
 // package, for example to enable features such as ABI selectors in
 // assembly sources.
+//
+// Keep in sync with cmd/dist/build.go:IsRuntimePackagePath.
 func IsRuntimePackagePath(pkgpath string) bool {
 	rval := false
 	switch pkgpath {
@@ -55,6 +57,8 @@ func IsRuntimePackagePath(pkgpath string) bool {
 	case "reflect":
 		rval = true
 	case "syscall":
+		rval = true
+	case "internal/bytealg":
 		rval = true
 	default:
 		rval = strings.HasPrefix(pkgpath, "runtime/internal")

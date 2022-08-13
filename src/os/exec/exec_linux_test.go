@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux,cgo
+//go:build linux && cgo
 
 // On systems that use glibc, calling malloc can create a new arena,
 // and creating a new arena can read /sys/devices/system/cpu/online.
@@ -22,7 +22,7 @@ import (
 )
 
 func init() {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+	if os.Getenv("GO_EXEC_TEST_PID") == "" {
 		return
 	}
 

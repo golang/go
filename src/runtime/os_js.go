@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 package runtime
 
@@ -30,22 +30,32 @@ func wasmWrite(fd uintptr, p unsafe.Pointer, n int32)
 
 func usleep(usec uint32)
 
+//go:nosplit
+func usleep_no_g(usec uint32) {
+	usleep(usec)
+}
+
 func exitThread(wait *uint32)
 
 type mOS struct{}
 
 func osyield()
 
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
 const _SIGSEGV = 0xb
 
 func sigpanic() {
-	g := getg()
-	if !canpanic(g) {
+	gp := getg()
+	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 
 	// js only invokes the exception handler for memory faults.
-	g.sig = _SIGSEGV
+	gp.sig = _SIGSEGV
 	panicmem()
 }
 
@@ -84,6 +94,11 @@ func minit() {
 func unminit() {
 }
 
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
+}
+
 func osinit() {
 	ncpu = 1
 	getg().m.procid = 2
@@ -111,9 +126,10 @@ func initsig(preinit bool) {
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
-	panic("newosproc: not implemented")
+	throw("newosproc: not implemented")
 }
 
 func setProcessCPUProfiler(hz int32) {}

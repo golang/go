@@ -26,7 +26,6 @@ import (
 // advanced arbitrarily far past the last token. Programs that need more
 // control over error handling or large tokens, or must run sequential scans
 // on a reader, should use bufio.Reader instead.
-//
 type Scanner struct {
 	r            io.Reader // The reader provided by the client.
 	split        SplitFunc // The function to split the tokens.
@@ -48,7 +47,8 @@ type Scanner struct {
 // and the next token to return to the user, if any, plus an error, if any.
 //
 // Scanning stops if the function returns an error, in which case some of
-// the input may be discarded.
+// the input may be discarded. If that error is ErrFinalToken, scanning
+// stops with no error.
 //
 // Otherwise, the Scanner advances the input. If the token is not nil,
 // the Scanner returns it to the user. If the token is nil, the

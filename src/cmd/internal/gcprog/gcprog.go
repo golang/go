@@ -5,7 +5,7 @@
 // Package gcprog implements an encoder for packed GC pointer bitmaps,
 // known as GC programs.
 //
-// Program Format
+// # Program Format
 //
 // The GC program encodes a sequence of 0 and 1 bits indicating scalar or pointer words in an object.
 // The encoding is a simple Lempel-Ziv program, with codes to emit literal bits and to repeat the
@@ -20,7 +20,6 @@
 //
 // The numbers n and c, when they follow a code, are encoded as varints
 // using the same encoding as encoding/binary's Uvarint.
-//
 package gcprog
 
 import (

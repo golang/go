@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !faketime
+//go:build !faketime
 
 package runtime
 
@@ -19,13 +19,14 @@ func nanotime() int64 {
 	return nanotime1()
 }
 
-func walltime() (sec int64, nsec int32) {
-	return walltime1()
-}
+var overrideWrite func(fd uintptr, p unsafe.Pointer, n int32) int32
 
 // write must be nosplit on Windows (see write1)
 //
 //go:nosplit
 func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
+	if overrideWrite != nil {
+		return overrideWrite(fd, noescape(p), n)
+	}
 	return write1(fd, p, n)
 }

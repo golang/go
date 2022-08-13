@@ -7,9 +7,11 @@
 package main
 
 import (
+	"cmd/go/internal/workcmd"
 	"context"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"os"
 	"path/filepath"
@@ -55,6 +57,7 @@ func init() {
 		work.CmdInstall,
 		list.CmdList,
 		modcmd.CmdMod,
+		workcmd.CmdWork,
 		run.CmdRun,
 		test.CmdTest,
 		tool.CmdTool,
@@ -139,22 +142,13 @@ func main() {
 		}
 	}
 
+	if cfg.GOROOT == "" {
+		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
+		os.Exit(2)
+	}
 	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
 		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
 		os.Exit(2)
-	}
-
-	// Set environment (GOOS, GOARCH, etc) explicitly.
-	// In theory all the commands we invoke should have
-	// the same default computation of these as we do,
-	// but in practice there might be skew
-	// This makes sure we all agree.
-	cfg.OrigEnv = os.Environ()
-	cfg.CmdEnv = envcmd.MkEnv()
-	for _, env := range cfg.CmdEnv {
-		if os.Getenv(env.Name) != env.Value {
-			os.Setenv(env.Name, env.Value)
-		}
 	}
 
 BigCmdLoop:
@@ -182,18 +176,7 @@ BigCmdLoop:
 			if !cmd.Runnable() {
 				continue
 			}
-			cmd.Flag.Usage = func() { cmd.Usage() }
-			if cmd.CustomFlags {
-				args = args[1:]
-			} else {
-				base.SetFromGOFLAGS(&cmd.Flag)
-				cmd.Flag.Parse(args[1:])
-				args = cmd.Flag.Args()
-			}
-			ctx := maybeStartTrace(context.Background())
-			ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
-			cmd.Run(ctx, cmd, args)
-			span.Done()
+			invoke(cmd, args)
 			base.Exit()
 			return
 		}
@@ -205,6 +188,42 @@ BigCmdLoop:
 		base.SetExitStatus(2)
 		base.Exit()
 	}
+}
+
+func invoke(cmd *base.Command, args []string) {
+	// 'go env' handles checking the build config
+	if cmd != envcmd.CmdEnv {
+		buildcfg.Check()
+		if cfg.ExperimentErr != nil {
+			base.Fatalf("go: %v", cfg.ExperimentErr)
+		}
+	}
+
+	// Set environment (GOOS, GOARCH, etc) explicitly.
+	// In theory all the commands we invoke should have
+	// the same default computation of these as we do,
+	// but in practice there might be skew
+	// This makes sure we all agree.
+	cfg.OrigEnv = os.Environ()
+	cfg.CmdEnv = envcmd.MkEnv()
+	for _, env := range cfg.CmdEnv {
+		if os.Getenv(env.Name) != env.Value {
+			os.Setenv(env.Name, env.Value)
+		}
+	}
+
+	cmd.Flag.Usage = func() { cmd.Usage() }
+	if cmd.CustomFlags {
+		args = args[1:]
+	} else {
+		base.SetFromGOFLAGS(&cmd.Flag)
+		cmd.Flag.Parse(args[1:])
+		args = cmd.Flag.Args()
+	}
+	ctx := maybeStartTrace(context.Background())
+	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+	cmd.Run(ctx, cmd, args)
+	span.Done()
 }
 
 func init() {

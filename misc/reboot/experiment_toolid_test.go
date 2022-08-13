@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build explicit
 // +build explicit
 
 // Package experiment_toolid_test verifies that GOEXPERIMENT settings built
@@ -13,7 +14,6 @@ package reboot_test
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,7 +23,7 @@ import (
 
 func TestExperimentToolID(t *testing.T) {
 	// Set up GOROOT
-	goroot, err := ioutil.TempDir("", "experiment-goroot")
+	goroot, err := os.MkdirTemp("", "experiment-goroot")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,13 +34,13 @@ func TestExperimentToolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(goroot, "VERSION"), []byte("go1.999"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(goroot, "VERSION"), []byte("go1.999"), 0666); err != nil {
 		t.Fatal(err)
 	}
 	env := append(os.Environ(), "GOROOT=", "GOROOT_BOOTSTRAP="+runtime.GOROOT())
 
 	// Use a clean cache.
-	gocache, err := ioutil.TempDir("", "experiment-gocache")
+	gocache, err := os.MkdirTemp("", "experiment-gocache")
 	if err != nil {
 		t.Fatal(err)
 	}

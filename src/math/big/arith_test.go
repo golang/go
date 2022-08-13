@@ -510,7 +510,7 @@ func testFunVWW(t *testing.T, msg string, f funVWW, a argVWW) {
 }
 
 // TODO(gri) mulAddVWW and divWVW are symmetric operations but
-//           their signature is not symmetric. Try to unify.
+// their signature is not symmetric. Try to unify.
 
 type funWVW func(z []Word, xn Word, x []Word, y Word) (r Word)
 type argWVW struct {
@@ -558,7 +558,7 @@ var mulWWTests = []struct {
 
 func TestMulWW(t *testing.T) {
 	for i, test := range mulWWTests {
-		q, r := mulWW_g(test.x, test.y)
+		q, r := mulWW(test.x, test.y)
 		if q != test.q || r != test.r {
 			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r)
 		}
@@ -668,6 +668,30 @@ func BenchmarkDivWVW(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				divWVW(z, 0, x, y)
 			}
+		})
+	}
+}
+
+func BenchmarkNonZeroShifts(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		s := uint(rand.Int63n(_W-2)) + 1 // avoid 0 and over-large shifts
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			b.Run("shrVU", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					_ = shrVU(z, x, s)
+				}
+			})
+			b.Run("shlVU", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					_ = shlVU(z, x, s)
+				}
+			})
 		})
 	}
 }

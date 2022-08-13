@@ -37,28 +37,28 @@ func main() {
 
 	writeFile("p1.go", `
 		package p1
-		
+
 		func F() {
 			println("hello from p1")
 		}
 	`)
 	writeFile("p2.go", `
 		package p2
-		
+
 		import "./p1"
 
 		func F() {
 			p1.F()
 			println("hello from p2")
 		}
-		
+
 		func main() {}
 	`)
 	writeFile("p3.go", `
 		package main
 
 		import "./p2"
-		
+
 		func main() {
 			p2.F()
 			println("hello from main")
@@ -76,9 +76,9 @@ func main() {
 		}
 
 		// inlining is disabled to make sure that the link objects contain needed code.
-		run("go", "tool", "compile", pkg, "-D", ".", "-I", ".", "-l", "-o", "p1."+o, "-linkobj", "p1.lo", "p1.go")
-		run("go", "tool", "compile", pkg, "-D", ".", "-I", ".", "-l", "-o", "p2."+o, "-linkobj", "p2.lo", "p2.go")
-		run("go", "tool", "compile", pkg, "-D", ".", "-I", ".", "-l", "-o", "p3."+o, "-linkobj", "p3.lo", "p3.go")
+		run("go", "tool", "compile", "-p=p1", pkg, "-D", ".", "-I", ".", "-l", "-o", "p1."+o, "-linkobj", "p1.lo", "p1.go")
+		run("go", "tool", "compile", "-p=p2", pkg, "-D", ".", "-I", ".", "-l", "-o", "p2."+o, "-linkobj", "p2.lo", "p2.go")
+		run("go", "tool", "compile", "-p=main", pkg, "-D", ".", "-I", ".", "-l", "-o", "p3."+o, "-linkobj", "p3.lo", "p3.go")
 
 		cp("p1."+o, "p1.oo")
 		cp("p2."+o, "p2.oo")

@@ -25,11 +25,13 @@ func tokenize(s string) [][]lex.Token {
 
 func TestErroneous(t *testing.T) {
 
-	tests := []struct {
+	type errtest struct {
 		pseudo   string
 		operands string
 		expected string
-	}{
+	}
+
+	nonRuntimeTests := []errtest{
 		{"TEXT", "", "expect two or three operands for TEXT"},
 		{"TEXT", "%", "expect two or three operands for TEXT"},
 		{"TEXT", "1, 1", "TEXT symbol \"<erroneous symbol>\" must be a symbol(SB)"},
@@ -58,23 +60,44 @@ func TestErroneous(t *testing.T) {
 		{"PCDATA", "1", "expect two operands for PCDATA"},
 	}
 
+	runtimeTests := []errtest{
+		{"TEXT", "foo<ABIInternal>(SB),0", "TEXT \"foo\": ABIInternal requires NOSPLIT"},
+	}
+
+	testcats := []struct {
+		compilingRuntime bool
+		tests            []errtest
+	}{
+		{
+			compilingRuntime: false,
+			tests:            nonRuntimeTests,
+		},
+		{
+			compilingRuntime: true,
+			tests:            runtimeTests,
+		},
+	}
+
 	// Note these errors should be independent of the architecture.
 	// Just run the test with amd64.
 	parser := newParser("amd64")
 	var buf bytes.Buffer
 	parser.errorWriter = &buf
 
-	for _, test := range tests {
-		parser.errorCount = 0
-		parser.lineNum++
-		if !parser.pseudo(test.pseudo, tokenize(test.operands)) {
-			t.Fatalf("Wrong pseudo-instruction: %s", test.pseudo)
+	for _, cat := range testcats {
+		for _, test := range cat.tests {
+			parser.compilingRuntime = cat.compilingRuntime
+			parser.errorCount = 0
+			parser.lineNum++
+			if !parser.pseudo(test.pseudo, tokenize(test.operands)) {
+				t.Fatalf("Wrong pseudo-instruction: %s", test.pseudo)
+			}
+			errorLine := buf.String()
+			if test.expected != errorLine {
+				t.Errorf("Unexpected error %q; expected %q", errorLine, test.expected)
+			}
+			buf.Reset()
 		}
-		errorLine := buf.String()
-		if test.expected != errorLine {
-			t.Errorf("Unexpected error %q; expected %q", errorLine, test.expected)
-		}
-		buf.Reset()
 	}
 
 }

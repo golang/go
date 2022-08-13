@@ -1,0 +1,36 @@
+env GO111MODULE=on
+[!symlink] skip
+
+cd m
+symlink symlink -> ../outside
+
+cp go.mod go.mod.orig
+
+# Issue 35941: suppress symlink warnings when running 'go mod tidy'.
+# 'go mod tidy' should not scan packages in symlinked subdirectories.
+go mod tidy
+! stderr 'warning: ignoring symlink'
+cmp go.mod go.mod.orig
+
+! go build ./symlink
+stderr '^symlink[\\/]symlink.go:3:8: module example.net/unresolved provides package example.net/unresolved and is replaced but not required; to add it:\n\tgo get example.net/unresolved@v0.1.0$'
+
+-- m/go.mod --
+module example.net/m
+
+go 1.16
+
+replace example.net/unresolved v0.1.0 => ../unresolved
+-- m/a.go --
+package a
+-- outside/symlink.go --
+package symlink
+
+import _ "example.net/unresolved"
+-- unresolved/go.mod --
+module example.net/unresolved
+
+go 1.16
+-- unresolved/unresolved.go --
+// Package unresolved exists, but 'go mod tidy' won't add it.
+package unresolved

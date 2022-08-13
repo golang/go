@@ -157,9 +157,25 @@ func testServerIssue5953(t *testing.T, h2 bool) {
 	resp.Body.Close()
 }
 
-func TestContentTypeWithCopy_h1(t *testing.T) { testContentTypeWithCopy(t, h1Mode) }
-func TestContentTypeWithCopy_h2(t *testing.T) { testContentTypeWithCopy(t, h2Mode) }
-func testContentTypeWithCopy(t *testing.T, h2 bool) {
+type byteAtATimeReader struct {
+	buf []byte
+}
+
+func (b *byteAtATimeReader) Read(p []byte) (n int, err error) {
+	if len(p) < 1 {
+		return 0, nil
+	}
+	if len(b.buf) == 0 {
+		return 0, io.EOF
+	}
+	p[0] = b.buf[0]
+	b.buf = b.buf[1:]
+	return 1, nil
+}
+
+func TestContentTypeWithVariousSources_h1(t *testing.T) { testContentTypeWithVariousSources(t, h1Mode) }
+func TestContentTypeWithVariousSources_h2(t *testing.T) { testContentTypeWithVariousSources(t, h2Mode) }
+func testContentTypeWithVariousSources(t *testing.T, h2 bool) {
 	defer afterTest(t)
 
 	const (
@@ -167,30 +183,86 @@ func testContentTypeWithCopy(t *testing.T, h2 bool) {
 		expected = "text/html; charset=utf-8"
 	)
 
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
-		// Use io.Copy from a bytes.Buffer to trigger ReadFrom.
-		buf := bytes.NewBuffer([]byte(input))
-		n, err := io.Copy(w, buf)
-		if int(n) != len(input) || err != nil {
-			t.Errorf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
-		}
-	}))
-	defer cst.close()
+	for _, test := range []struct {
+		name    string
+		handler func(ResponseWriter, *Request)
+	}{{
+		name: "write",
+		handler: func(w ResponseWriter, r *Request) {
+			// Write the whole input at once.
+			n, err := w.Write([]byte(input))
+			if int(n) != len(input) || err != nil {
+				t.Errorf("w.Write(%q) = %v, %v want %d, nil", input, n, err, len(input))
+			}
+		},
+	}, {
+		name: "write one byte at a time",
+		handler: func(w ResponseWriter, r *Request) {
+			// Write the input one byte at a time.
+			buf := []byte(input)
+			for i := range buf {
+				n, err := w.Write(buf[i : i+1])
+				if n != 1 || err != nil {
+					t.Errorf("w.Write(%q) = %v, %v want 1, nil", input, n, err)
+				}
+			}
+		},
+	}, {
+		name: "copy from Reader",
+		handler: func(w ResponseWriter, r *Request) {
+			// Use io.Copy from a plain Reader.
+			type readerOnly struct{ io.Reader }
+			buf := bytes.NewBuffer([]byte(input))
+			n, err := io.Copy(w, readerOnly{buf})
+			if int(n) != len(input) || err != nil {
+				t.Errorf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
+			}
+		},
+	}, {
+		name: "copy from bytes.Buffer",
+		handler: func(w ResponseWriter, r *Request) {
+			// Use io.Copy from a bytes.Buffer to trigger ReadFrom.
+			buf := bytes.NewBuffer([]byte(input))
+			n, err := io.Copy(w, buf)
+			if int(n) != len(input) || err != nil {
+				t.Errorf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
+			}
+		},
+	}, {
+		name: "copy one byte at a time",
+		handler: func(w ResponseWriter, r *Request) {
+			// Use io.Copy from a Reader that returns one byte at a time.
+			n, err := io.Copy(w, &byteAtATimeReader{[]byte(input)})
+			if int(n) != len(input) || err != nil {
+				t.Errorf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
+			}
+		},
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			cst := newClientServerTest(t, h2, HandlerFunc(test.handler))
+			defer cst.close()
 
-	resp, err := cst.c.Get(cst.ts.URL)
-	if err != nil {
-		t.Fatalf("Get: %v", err)
+			resp, err := cst.c.Get(cst.ts.URL)
+			if err != nil {
+				t.Fatalf("Get: %v", err)
+			}
+			if ct := resp.Header.Get("Content-Type"); ct != expected {
+				t.Errorf("Content-Type = %q, want %q", ct, expected)
+			}
+			if want, got := resp.Header.Get("Content-Length"), fmt.Sprint(len(input)); want != got {
+				t.Errorf("Content-Length = %q, want %q", want, got)
+			}
+			data, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("reading body: %v", err)
+			} else if !bytes.Equal(data, []byte(input)) {
+				t.Errorf("data is %q, want %q", data, input)
+			}
+			resp.Body.Close()
+
+		})
+
 	}
-	if ct := resp.Header.Get("Content-Type"); ct != expected {
-		t.Errorf("Content-Type = %q, want %q", ct, expected)
-	}
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Errorf("reading body: %v", err)
-	} else if !bytes.Equal(data, []byte(input)) {
-		t.Errorf("data is %q, want %q", data, input)
-	}
-	resp.Body.Close()
 }
 
 func TestSniffWriteSize_h1(t *testing.T) { testSniffWriteSize(t, h1Mode) }

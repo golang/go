@@ -52,6 +52,7 @@ var (
 	procOpenThreadToken              = modadvapi32.NewProc("OpenThreadToken")
 	procRevertToSelf                 = modadvapi32.NewProc("RevertToSelf")
 	procSetTokenInformation          = modadvapi32.NewProc("SetTokenInformation")
+	procSystemFunction036            = modadvapi32.NewProc("SystemFunction036")
 	procGetAdaptersAddresses         = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procGetACP                       = modkernel32.NewProc("GetACP")
 	procGetComputerNameExW           = modkernel32.NewProc("GetComputerNameExW")
@@ -65,6 +66,7 @@ var (
 	procMultiByteToWideChar          = modkernel32.NewProc("MultiByteToWideChar")
 	procSetFileInformationByHandle   = modkernel32.NewProc("SetFileInformationByHandle")
 	procUnlockFileEx                 = modkernel32.NewProc("UnlockFileEx")
+	procVirtualQuery                 = modkernel32.NewProc("VirtualQuery")
 	procNetShareAdd                  = modnetapi32.NewProc("NetShareAdd")
 	procNetShareDel                  = modnetapi32.NewProc("NetShareDel")
 	procNetUserGetLocalGroups        = modnetapi32.NewProc("NetUserGetLocalGroups")
@@ -134,6 +136,18 @@ func RevertToSelf() (err error) {
 
 func SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) {
 	r1, _, e1 := syscall.Syscall6(procSetTokenInformation.Addr(), 4, uintptr(tokenHandle), uintptr(tokenInformationClass), uintptr(tokenInformation), uintptr(tokenInformationLength), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func RtlGenRandom(buf []byte) (err error) {
+	var _p0 *byte
+	if len(buf) > 0 {
+		_p0 = &buf[0]
+	}
+	r1, _, e1 := syscall.Syscall(procSystemFunction036.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
@@ -238,6 +252,14 @@ func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint
 
 func UnlockFileEx(file syscall.Handle, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) {
 	r1, _, e1 := syscall.Syscall6(procUnlockFileEx.Addr(), 5, uintptr(file), uintptr(reserved), uintptr(bytesLow), uintptr(bytesHigh), uintptr(unsafe.Pointer(overlapped)), 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) {
+	r1, _, e1 := syscall.Syscall(procVirtualQuery.Addr(), 3, uintptr(address), uintptr(unsafe.Pointer(buffer)), uintptr(length))
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

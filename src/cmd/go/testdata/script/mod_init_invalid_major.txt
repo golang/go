@@ -1,0 +1,82 @@
+env GO111MODULE=on
+env GOFLAGS=-mod=mod
+
+! go mod init example.com/user/repo/v0
+stderr '(?s)^go: invalid module path "example.com/user/repo/v0": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+
+! go mod init example.com/user/repo/v02
+stderr '(?s)^go: invalid module path "example.com/user/repo/v02": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+
+! go mod init example.com/user/repo/v023
+stderr '(?s)^go: invalid module path "example.com/user/repo/v023": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v23$'
+
+! go mod init example.com/user/repo/v1
+stderr '(?s)^go: invalid module path "example.com/user/repo/v1": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+
+! go mod init example.com/user/repo/v2.0
+stderr '(?s)^go: invalid module path "example.com/user/repo/v2.0": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+
+! go mod init example.com/user/repo/v2.1.4
+stderr '(?s)^go: invalid module path "example.com/user/repo/v2.1.4": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+
+! go mod init example.com/user/repo/v3.5
+stderr '(?s)^go: invalid module path "example.com/user/repo/v3.5": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v3$'
+
+! go mod init example.com/user/repo/v4.1.4
+stderr '(?s)^go: invalid module path "example.com/user/repo/v4.1.4": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v4$'
+
+! go mod init example.com/user/repo/v.2.3
+stderr '(?s)^go: invalid module path "example.com/user/repo/v.2.3": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+
+! go mod init example.com/user/repo/v.5.3
+stderr '(?s)^go: invalid module path "example.com/user/repo/v.5.3": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v5$'
+
+! go mod init gopkg.in/pkg
+stderr '(?s)^go: invalid module path "gopkg.in/pkg": module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN(.*)go mod init gopkg.in/pkg.v1$'
+
+! go mod init gopkg.in/user/pkg
+stderr '(?s)^go: invalid module path "gopkg.in/user/pkg": module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN(.*)go mod init gopkg.in/user/pkg.v1$'
+
+! go mod init gopkg.in/user/pkg/v0
+stderr '(?s)^go: invalid module path "gopkg.in/user/pkg/v0": module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN(.*)go mod init gopkg.in/user/pkg.v1$'
+
+! go mod init gopkg.in/user/pkg/v1
+stderr '(?s)^go: invalid module path "gopkg.in/user/pkg/v1": module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN(.*)go mod init gopkg.in/user/pkg.v1$'
+
+! go mod init gopkg.in/user/pkg/v2
+stderr '(?s)^go: invalid module path "gopkg.in/user/pkg/v2": module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN(.*)go mod init gopkg.in/user/pkg.v2$'
+
+! go mod init gopkg.in/user/pkg.v
+stderr '(?s)^go: invalid module path "gopkg.in/user/pkg.v": module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN(.*)go mod init gopkg.in/user/pkg.v1$'
+
+! go mod init gopkg.in/user/pkg.v0.1
+stderr '(?s)^go: invalid module path "gopkg.in/user/pkg.v0.1": module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN(.*)go mod init gopkg.in/user/pkg.v1$'
+
+! go mod init gopkg.in/user/pkg.v.1
+stderr '(?s)^go: invalid module path "gopkg.in/user/pkg.v.1": module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN(.*)go mod init gopkg.in/user/pkg.v1$'
+
+! go mod init gopkg.in/user/pkg.v01
+stderr '(?s)^go: invalid module path "gopkg.in/user/pkg.v01": module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN(.*)go mod init gopkg.in/user/pkg.v1$'
+
+! go mod init gopkg.in/user/pkg.v.2.3
+stderr '(?s)^go: invalid module path "gopkg.in/user/pkg.v.2.3": module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN(.*)go mod init gopkg.in/user/pkg.v2$'
+
+# module paths with a trailing dot are rejected as invalid import paths
+! go mod init example.com/user/repo/v2.
+stderr '(?s)^go: malformed module path "example.com/user/repo/v2.": trailing dot in path element$'
+
+! go mod init example.com/user/repo/v2..
+stderr '(?s)^go: malformed module path "example.com/user/repo/v2..": trailing dot in path element$'
+
+! go mod init gopkg.in/user/pkg.v.2.
+stderr '(?s)^go: malformed module path "gopkg.in/user/pkg.v.2.": trailing dot in path element$'
+
+! go mod init gopkg.in/user/pkg.v.2..
+stderr '(?s)^go: malformed module path "gopkg.in/user/pkg.v.2..": trailing dot in path element$'
+
+# module paths with spaces are also rejected
+! go mod init 'foo bar'
+stderr '(?s)^go: malformed module path "foo bar": invalid char '' ''$'
+
+! go mod init 'foo  bar baz'
+stderr '(?s)^go: malformed module path "foo  bar baz": invalid char '' ''$'

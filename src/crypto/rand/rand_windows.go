@@ -8,8 +8,7 @@
 package rand
 
 import (
-	"os"
-	"syscall"
+	"internal/syscall/windows"
 )
 
 func init() { Reader = &rngReader{} }
@@ -17,16 +16,11 @@ func init() { Reader = &rngReader{} }
 type rngReader struct{}
 
 func (r *rngReader) Read(b []byte) (n int, err error) {
-	// RtlGenRandom only accepts 2**32-1 bytes at a time, so truncate.
-	inputLen := uint32(len(b))
-
-	if inputLen == 0 {
-		return 0, nil
+	// RtlGenRandom only returns 1<<32-1 bytes at a time. We only read at
+	// most 1<<31-1 bytes at a time so that  this works the same on 32-bit
+	// and 64-bit systems.
+	if err := batched(windows.RtlGenRandom, 1<<31-1)(b); err != nil {
+		return 0, err
 	}
-
-	err = syscall.RtlGenRandom(&b[0], inputLen)
-	if err != nil {
-		return 0, os.NewSyscallError("RtlGenRandom", err)
-	}
-	return int(inputLen), nil
+	return len(b), nil
 }

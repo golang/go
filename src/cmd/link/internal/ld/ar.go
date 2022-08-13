@@ -32,12 +32,14 @@ package ld
 
 import (
 	"cmd/internal/bio"
-	"cmd/internal/objabi"
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 const (
@@ -65,6 +67,9 @@ type ArHdr struct {
 // define them. This is used for the compiler support library
 // libgcc.a.
 func hostArchive(ctxt *Link, name string) {
+	if ctxt.Debugvlog > 1 {
+		ctxt.Logf("hostArchive(%s)\n", name)
+	}
 	f, err := bio.Open(name)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -122,8 +127,16 @@ func hostArchive(ctxt *Link, name string) {
 			pname := fmt.Sprintf("%s(%s)", name, arhdr.name)
 			l = atolwhex(arhdr.size)
 
-			libgcc := sym.Library{Pkg: "libgcc"}
-			h := ldobj(ctxt, f, &libgcc, l, pname, name)
+			pkname := filepath.Base(name)
+			if i := strings.LastIndex(pkname, ".a"); i >= 0 {
+				pkname = pkname[:i]
+			}
+			libar := sym.Library{Pkg: pkname}
+			h := ldobj(ctxt, f, &libar, l, pname, name)
+			if h.ld == nil {
+				Errorf(nil, "%s unrecognized object file at offset %d", name, off)
+				continue
+			}
 			f.MustSeek(h.off, 0)
 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
 		}
@@ -170,7 +183,7 @@ func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
 
 		// For Mach-O and PE/386 files we strip a leading
 		// underscore from the symbol name.
-		if objabi.GOOS == "darwin" || objabi.GOOS == "ios" || (objabi.GOOS == "windows" && objabi.GOARCH == "386") {
+		if buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" || (buildcfg.GOOS == "windows" && buildcfg.GOARCH == "386") {
 			if name[0] == '_' && len(name) > 1 {
 				name = name[1:]
 			}

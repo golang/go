@@ -1,0 +1,68 @@
+# When all versions are replaced, we should not look up a deprecation message.
+# We will still look up a deprecation message for the replacement.
+cp go.mod.allreplaced go.mod
+go list -m -u -f '{{.Path}}@{{.Version}} <{{.Deprecated}}>{{with .Replace}} => {{.Path}}@{{.Version}} <{{.Deprecated}}>{{end}}' all
+stdout '^example.com/deprecated/a@v1.0.0 <> => example.com/deprecated/b@v1.0.0 <in example.com/deprecated/b@v1.9.0>$'
+
+# When one version is replaced, we should see a deprecation message.
+cp go.mod.onereplaced go.mod
+go list -m -u -f '{{.Path}}@{{.Version}} <{{.Deprecated}}>{{with .Replace}} => {{.Path}}@{{.Version}} <{{.Deprecated}}>{{end}}' all
+stdout '^example.com/deprecated/a@v1.0.0 <in example.com/deprecated/a@v1.9.0> => example.com/deprecated/b@v1.0.0 <in example.com/deprecated/b@v1.9.0>$'
+
+# If the replacement is a directory, we won't look that up.
+cp go.mod.dirreplacement go.mod
+go list -m -u -f '{{.Path}}@{{.Version}} <{{.Deprecated}}>{{with .Replace}} => {{.Path}}@{{.Version}} <{{.Deprecated}}>{{end}}' all
+stdout '^example.com/deprecated/a@v1.0.0 <> => ./a@ <>$'
+
+# If the latest version of the replacement is replaced, we'll use the content
+# from that replacement.
+cp go.mod.latestreplaced go.mod
+go list -m -u -f '{{.Path}}@{{.Version}} <{{.Deprecated}}>{{with .Replace}} => {{.Path}}@{{.Version}} <{{.Deprecated}}>{{end}}' all
+stdout '^example.com/deprecated/a@v1.0.0 <> => example.com/deprecated/b@v1.0.0 <in ./b>$'
+
+-- go.mod.allreplaced --
+module m
+
+go 1.17
+
+require example.com/deprecated/a v1.0.0
+
+replace example.com/deprecated/a => example.com/deprecated/b v1.0.0
+-- go.mod.onereplaced --
+module m
+
+go 1.17
+
+require example.com/deprecated/a v1.0.0
+
+replace example.com/deprecated/a v1.0.0 => example.com/deprecated/b v1.0.0
+-- go.mod.dirreplacement --
+module m
+
+go 1.17
+
+require example.com/deprecated/a v1.0.0
+
+replace example.com/deprecated/a => ./a
+-- go.mod.latestreplaced --
+module m
+
+go 1.17
+
+require example.com/deprecated/a v1.0.0
+
+replace (
+	example.com/deprecated/a => example.com/deprecated/b v1.0.0
+	example.com/deprecated/b v1.9.0 => ./b
+)
+-- go.sum --
+example.com/deprecated/b v1.0.0/go.mod h1:b19J9ywRGviY7Nq4aJ1WBJ+A7qUlEY9ihp22yI4/F6M=
+-- a/go.mod --
+module example.com/deprecated/a
+
+go 1.17
+-- b/go.mod --
+// Deprecated: in ./b
+module example.com/deprecated/b
+
+go 1.17

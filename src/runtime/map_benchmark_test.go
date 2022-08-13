@@ -488,20 +488,20 @@ func BenchmarkMapStringConversion(b *testing.B) {
 var BoolSink bool
 
 func BenchmarkMapInterfaceString(b *testing.B) {
-	m := map[interface{}]bool{}
+	m := map[any]bool{}
 
 	for i := 0; i < 100; i++ {
 		m[fmt.Sprintf("%d", i)] = true
 	}
 
-	key := (interface{})("A")
+	key := (any)("A")
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		BoolSink = m[key]
 	}
 }
 func BenchmarkMapInterfacePtr(b *testing.B) {
-	m := map[interface{}]bool{}
+	m := map[any]bool{}
 
 	for i := 0; i < 100; i++ {
 		i := i

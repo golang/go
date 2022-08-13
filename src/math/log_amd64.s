@@ -19,7 +19,7 @@
 #define PosInf 0x7FF0000000000000
 
 // func Log(x float64) float64
-TEXT ·Log(SB),NOSPLIT,$0
+TEXT ·archLog(SB),NOSPLIT,$0
 	// test bits for special cases
 	MOVQ    x+0(FP), BX
 	MOVQ    $~(1<<63), AX // sign bit mask

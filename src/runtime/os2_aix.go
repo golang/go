@@ -18,11 +18,11 @@ import (
 
 //go:cgo_import_dynamic libc___n_pthreads __n_pthreads "libpthread.a/shr_xpg5_64.o"
 //go:cgo_import_dynamic libc___mod_init __mod_init "libc.a/shr_64.o"
-//go:linkname libc___n_pthreads libc___n_pthread
+//go:linkname libc___n_pthreads libc___n_pthreads
 //go:linkname libc___mod_init libc___mod_init
 
 var (
-	libc___n_pthread,
+	libc___n_pthreads,
 	libc___mod_init libFunc
 )
 
@@ -388,11 +388,11 @@ func exit1(code int32)
 
 //go:nosplit
 func exit(code int32) {
-	_g_ := getg()
+	gp := getg()
 
 	// Check the validity of g because without a g during
 	// newosproc0.
-	if _g_ != nil {
+	if gp != nil {
 		syscall1(&libc_exit, uintptr(code))
 		return
 	}
@@ -403,11 +403,11 @@ func write2(fd, p uintptr, n int32) int32
 
 //go:nosplit
 func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
-	_g_ := getg()
+	gp := getg()
 
 	// Check the validity of g because without a g during
 	// newosproc0.
-	if _g_ != nil {
+	if gp != nil {
 		r, errno := syscall3(&libc_write, uintptr(fd), uintptr(p), uintptr(n))
 		if int32(r) < 0 {
 			return -int32(errno)
@@ -452,6 +452,7 @@ func pipe() (r, w int32, errno int32) {
 // assembly routine; the higher bits (if required), should be provided
 // by the assembly routine as 0.
 // The err result is an OS error code such as ENOMEM.
+//
 //go:nosplit
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
 	r, err0 := syscall6(&libc_mmap, uintptr(addr), uintptr(n), uintptr(prot), uintptr(flags), uintptr(fd), uintptr(off))
@@ -492,11 +493,11 @@ func sigaction1(sig, new, old uintptr)
 
 //go:nosplit
 func sigaction(sig uintptr, new, old *sigactiont) {
-	_g_ := getg()
+	gp := getg()
 
 	// Check the validity of g because without a g during
 	// runtime.libpreinit.
-	if _g_ != nil {
+	if gp != nil {
 		r, err := syscall3(&libc_sigaction, sig, uintptr(unsafe.Pointer(new)), uintptr(unsafe.Pointer(old)))
 		if int32(r) == -1 {
 			println("Sigaction failed for sig: ", sig, " with error:", hex(err))
@@ -527,20 +528,17 @@ func internal_cpu_getsystemcfg(label uint) uint {
 func usleep1(us uint32)
 
 //go:nosplit
-func usleep(us uint32) {
-	_g_ := getg()
-
-	// Check the validity of m because we might be called in cgo callback
-	// path early enough where there isn't a g or a m available yet.
-	if _g_ != nil && _g_.m != nil {
-		r, err := syscall1(&libc_usleep, uintptr(us))
-		if int32(r) == -1 {
-			println("syscall usleep failed: ", hex(err))
-			throw("syscall usleep")
-		}
-		return
-	}
+func usleep_no_g(us uint32) {
 	usleep1(us)
+}
+
+//go:nosplit
+func usleep(us uint32) {
+	r, err := syscall1(&libc_usleep, uintptr(us))
+	if int32(r) == -1 {
+		println("syscall usleep failed: ", hex(err))
+		throw("syscall usleep")
+	}
 }
 
 //go:nosplit
@@ -611,20 +609,17 @@ func raiseproc(sig uint32) {
 func osyield1()
 
 //go:nosplit
-func osyield() {
-	_g_ := getg()
-
-	// Check the validity of m because it might be called during a cgo
-	// callback early enough where m isn't available yet.
-	if _g_ != nil && _g_.m != nil {
-		r, err := syscall0(&libc_sched_yield)
-		if int32(r) == -1 {
-			println("syscall osyield failed: ", hex(err))
-			throw("syscall osyield")
-		}
-		return
-	}
+func osyield_no_g() {
 	osyield1()
+}
+
+//go:nosplit
+func osyield() {
+	r, err := syscall0(&libc_sched_yield)
+	if int32(r) == -1 {
+		println("syscall osyield failed: ", hex(err))
+		throw("syscall osyield")
+	}
 }
 
 //go:nosplit
@@ -650,11 +645,11 @@ func pthread_attr_init1(attr uintptr) int32
 
 //go:nosplit
 func pthread_attr_init(attr *pthread_attr) int32 {
-	_g_ := getg()
+	gp := getg()
 
 	// Check the validity of g because without a g during
 	// newosproc0.
-	if _g_ != nil {
+	if gp != nil {
 		r, _ := syscall1(&libpthread_attr_init, uintptr(unsafe.Pointer(attr)))
 		return int32(r)
 	}
@@ -666,11 +661,11 @@ func pthread_attr_setdetachstate1(attr uintptr, state int32) int32
 
 //go:nosplit
 func pthread_attr_setdetachstate(attr *pthread_attr, state int32) int32 {
-	_g_ := getg()
+	gp := getg()
 
 	// Check the validity of g because without a g during
 	// newosproc0.
-	if _g_ != nil {
+	if gp != nil {
 		r, _ := syscall2(&libpthread_attr_setdetachstate, uintptr(unsafe.Pointer(attr)), uintptr(state))
 		return int32(r)
 	}
@@ -694,11 +689,11 @@ func pthread_attr_setstacksize1(attr uintptr, size uint64) int32
 
 //go:nosplit
 func pthread_attr_setstacksize(attr *pthread_attr, size uint64) int32 {
-	_g_ := getg()
+	gp := getg()
 
 	// Check the validity of g because without a g during
 	// newosproc0.
-	if _g_ != nil {
+	if gp != nil {
 		r, _ := syscall2(&libpthread_attr_setstacksize, uintptr(unsafe.Pointer(attr)), uintptr(size))
 		return int32(r)
 	}
@@ -710,11 +705,11 @@ func pthread_create1(tid, attr, fn, arg uintptr) int32
 
 //go:nosplit
 func pthread_create(tid *pthread, attr *pthread_attr, fn *funcDescriptor, arg unsafe.Pointer) int32 {
-	_g_ := getg()
+	gp := getg()
 
 	// Check the validity of g because without a g during
 	// newosproc0.
-	if _g_ != nil {
+	if gp != nil {
 		r, _ := syscall4(&libpthread_create, uintptr(unsafe.Pointer(tid)), uintptr(unsafe.Pointer(attr)), uintptr(unsafe.Pointer(fn)), uintptr(arg))
 		return int32(r)
 	}
@@ -728,11 +723,11 @@ func sigprocmask1(how, new, old uintptr)
 
 //go:nosplit
 func sigprocmask(how int32, new, old *sigset) {
-	_g_ := getg()
+	gp := getg()
 
 	// Check the validity of m because it might be called during a cgo
 	// callback early enough where m isn't available yet.
-	if _g_ != nil && _g_.m != nil {
+	if gp != nil && gp.m != nil {
 		r, err := syscall3(&libpthread_sigthreadmask, uintptr(how), uintptr(unsafe.Pointer(new)), uintptr(unsafe.Pointer(old)))
 		if int32(r) != 0 {
 			println("syscall sigthreadmask failed: ", hex(err))

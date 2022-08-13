@@ -10,7 +10,8 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/goarch"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -141,6 +142,69 @@ func (l offAddr) addr() uintptr {
 	return l.a
 }
 
+// atomicOffAddr is like offAddr, but operations on it are atomic.
+// It also contains operations to be able to store marked addresses
+// to ensure that they're not overridden until they've been seen.
+type atomicOffAddr struct {
+	// a contains the offset address, unlike offAddr.
+	a atomic.Int64
+}
+
+// Clear attempts to store minOffAddr in atomicOffAddr. It may fail
+// if a marked value is placed in the box in the meanwhile.
+func (b *atomicOffAddr) Clear() {
+	for {
+		old := b.a.Load()
+		if old < 0 {
+			return
+		}
+		if b.a.CompareAndSwap(old, int64(minOffAddr.addr()-arenaBaseOffset)) {
+			return
+		}
+	}
+}
+
+// StoreMin stores addr if it's less than the current value in the
+// offset address space if the current value is not marked.
+func (b *atomicOffAddr) StoreMin(addr uintptr) {
+	new := int64(addr - arenaBaseOffset)
+	for {
+		old := b.a.Load()
+		if old < new {
+			return
+		}
+		if b.a.CompareAndSwap(old, new) {
+			return
+		}
+	}
+}
+
+// StoreUnmark attempts to unmark the value in atomicOffAddr and
+// replace it with newAddr. markedAddr must be a marked address
+// returned by Load. This function will not store newAddr if the
+// box no longer contains markedAddr.
+func (b *atomicOffAddr) StoreUnmark(markedAddr, newAddr uintptr) {
+	b.a.CompareAndSwap(-int64(markedAddr-arenaBaseOffset), int64(newAddr-arenaBaseOffset))
+}
+
+// StoreMarked stores addr but first converted to the offset address
+// space and then negated.
+func (b *atomicOffAddr) StoreMarked(addr uintptr) {
+	b.a.Store(-int64(addr - arenaBaseOffset))
+}
+
+// Load returns the address in the box as a virtual address. It also
+// returns if the value was marked or not.
+func (b *atomicOffAddr) Load() (uintptr, bool) {
+	v := b.a.Load()
+	wasMarked := false
+	if v < 0 {
+		wasMarked = true
+		v = -v
+	}
+	return uintptr(v) + arenaBaseOffset, wasMarked
+}
+
 // addrRanges is a data structure holding a collection of ranges of
 // address space.
 //
@@ -167,7 +231,7 @@ func (a *addrRanges) init(sysStat *sysMemStat) {
 	ranges := (*notInHeapSlice)(unsafe.Pointer(&a.ranges))
 	ranges.len = 0
 	ranges.cap = 16
-	ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), sys.PtrSize, sysStat))
+	ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), goarch.PtrSize, sysStat))
 	a.sysStat = sysStat
 	a.totalBytes = 0
 }
@@ -294,7 +358,7 @@ func (a *addrRanges) add(r addrRange) {
 			ranges := (*notInHeapSlice)(unsafe.Pointer(&a.ranges))
 			ranges.len = len(oldRanges) + 1
 			ranges.cap = cap(oldRanges) * 2
-			ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), sys.PtrSize, a.sysStat))
+			ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), goarch.PtrSize, a.sysStat))
 
 			// Copy in the old array, but make space for the new range.
 			copy(a.ranges[:i], oldRanges[:i])
@@ -364,7 +428,7 @@ func (a *addrRanges) cloneInto(b *addrRanges) {
 		ranges := (*notInHeapSlice)(unsafe.Pointer(&b.ranges))
 		ranges.len = 0
 		ranges.cap = cap(a.ranges)
-		ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), sys.PtrSize, b.sysStat))
+		ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), goarch.PtrSize, b.sysStat))
 	}
 	b.ranges = b.ranges[:len(a.ranges)]
 	b.totalBytes = a.totalBytes

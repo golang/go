@@ -9,24 +9,34 @@
 // files read from the package directory or subdirectories at compile time.
 //
 // For example, here are three ways to embed a file named hello.txt
-// and then print its contents at run time:
+// and then print its contents at run time.
 //
-//	import "embed"
+// Embedding one file into a string:
+//
+//	import _ "embed"
 //
 //	//go:embed hello.txt
 //	var s string
 //	print(s)
 //
+// Embedding one file into a slice of bytes:
+//
+//	import _ "embed"
+//
 //	//go:embed hello.txt
 //	var b []byte
 //	print(string(b))
+//
+// Embedded one or more files into a file system:
+//
+//	import "embed"
 //
 //	//go:embed hello.txt
 //	var f embed.FS
 //	data, _ := f.ReadFile("hello.txt")
 //	print(string(data))
 //
-// Directives
+// # Directives
 //
 // A //go:embed directive above a variable declaration specifies which files to embed,
 // using one or more path.Match patterns.
@@ -34,8 +44,8 @@
 // The directive must immediately precede a line containing the declaration of a single variable.
 // Only blank lines and ‘//’ line comments are permitted between the directive and the declaration.
 //
-// The variable must be of type string, []byte, or FS exactly. Named types or type aliases
-// derived from those types are not allowed.
+// The type of the variable must be a string type, or a slice of a byte type,
+// or FS (or an alias of FS).
 //
 // For example:
 //
@@ -51,12 +61,15 @@
 // The Go build system will recognize the directives and arrange for the declared variable
 // (in the example above, content) to be populated with the matching files from the file system.
 //
-// The //go:embed directive accepts multiple space-separated patterns for brevity,
-// but it can also be repeated, to avoid very long lines when there are many patterns.
-// The patterns are interpreted relative to the package directory containing the source file.
-// The path separator is a forward slash, even on Windows systems.
-// To allow for naming files with spaces in their names, patterns can be written
-// as Go double-quoted or back-quoted string literals.
+// The //go:embed directive accepts multiple space-separated patterns for
+// brevity, but it can also be repeated, to avoid very long lines when there are
+// many patterns. The patterns are interpreted relative to the package directory
+// containing the source file. The path separator is a forward slash, even on
+// Windows systems. Patterns may not contain ‘.’ or ‘..’ or empty path elements,
+// nor may they begin or end with a slash. To match everything in the current
+// directory, use ‘*’ instead of ‘.’. To allow for naming files with spaces in
+// their names, patterns can be written as Go double-quoted or back-quoted
+// string literals.
 //
 // If a pattern names a directory, all files in the subtree rooted at that directory are
 // embedded (recursively), except that files with names beginning with ‘.’ or ‘_’
@@ -67,22 +80,24 @@
 //	var content embed.FS
 //
 // The difference is that ‘image/*’ embeds ‘image/.tempfile’ while ‘image’ does not.
+// Neither embeds ‘image/dir/.tempfile’.
+//
+// If a pattern begins with the prefix ‘all:’, then the rule for walking directories is changed
+// to include those files beginning with ‘.’ or ‘_’. For example, ‘all:image’ embeds
+// both ‘image/.tempfile’ and ‘image/dir/.tempfile’.
 //
 // The //go:embed directive can be used with both exported and unexported variables,
 // depending on whether the package wants to make the data available to other packages.
-// Similarly, it can be used with both global and function-local variables,
-// depending on what is more convenient in context.
+// It can only be used with variables at package scope, not with local variables.
 //
 // Patterns must not match files outside the package's module, such as ‘.git/*’ or symbolic links.
+// Patterns must not match files whose names include the special punctuation characters  " * < > ? ` ' | / \ and :.
 // Matches for empty directories are ignored. After that, each pattern in a //go:embed line
 // must match at least one file or non-empty directory.
 //
-// Patterns must not contain ‘.’ or ‘..’ path elements nor begin with a leading slash.
-// To match everything in the current directory, use ‘*’ instead of ‘.’.
-//
 // If any patterns are invalid or have invalid matches, the build will fail.
 //
-// Strings and Bytes
+// # Strings and Bytes
 //
 // The //go:embed line for a variable of type string or []byte can have only a single pattern,
 // and that pattern can match only a single file. The string or []byte is initialized with
@@ -91,7 +106,7 @@
 // The //go:embed directive requires importing "embed", even when using a string or []byte.
 // In source files that don't refer to embed.FS, use a blank import (import _ "embed").
 //
-// File Systems
+// # File Systems
 //
 // For embedding a single file, a variable of type string or []byte is often best.
 // The FS type enables embedding a tree of files, such as a directory of static
@@ -106,12 +121,11 @@
 //
 //	template.ParseFS(content, "*.tmpl")
 //
-// Tools
+// # Tools
 //
 // To support tools that analyze Go packages, the patterns found in //go:embed lines
 // are available in “go list” output. See the EmbedPatterns, TestEmbedPatterns,
 // and XTestEmbedPatterns fields in the “go help list” output.
-//
 package embed
 
 import (
@@ -133,7 +147,7 @@ import (
 // See the package documentation for more details about initializing an FS.
 type FS struct {
 	// The compiler knows the layout of this struct.
-	// See cmd/compile/internal/gc's initEmbed.
+	// See cmd/compile/internal/staticdata's WriteEmbed.
 	//
 	// The files list is sorted by name but not by simple string comparison.
 	// Instead, each file's name takes the form "dir/elem" or "dir/elem/".
@@ -203,7 +217,7 @@ var (
 // It implements fs.FileInfo and fs.DirEntry.
 type file struct {
 	// The compiler knows the layout of this struct.
-	// See cmd/compile/internal/gc's initEmbed.
+	// See cmd/compile/internal/staticdata's WriteEmbed.
 	name string
 	data string
 	hash [16]byte // truncated SHA256 hash
@@ -218,7 +232,7 @@ func (f *file) Name() string               { _, elem, _ := split(f.name); return
 func (f *file) Size() int64                { return int64(len(f.data)) }
 func (f *file) ModTime() time.Time         { return time.Time{} }
 func (f *file) IsDir() bool                { _, _, isDir := split(f.name); return isDir }
-func (f *file) Sys() interface{}           { return nil }
+func (f *file) Sys() any                   { return nil }
 func (f *file) Type() fs.FileMode          { return f.Mode().Type() }
 func (f *file) Info() (fs.FileInfo, error) { return f, nil }
 
@@ -244,6 +258,9 @@ func (f FS) lookup(name string) *file {
 	if name == "." {
 		return dotFile
 	}
+	if f.files == nil {
+		return nil
+	}
 
 	// Binary search to find where name would be in the list,
 	// and then check if name is at that position.
@@ -261,6 +278,9 @@ func (f FS) lookup(name string) *file {
 
 // readDir returns the list of files corresponding to the directory dir.
 func (f FS) readDir(dir string) []file {
+	if f.files == nil {
+		return nil
+	}
 	// Binary search to find where dir starts and ends in the list
 	// and then return that slice of the list.
 	files := *f.files
@@ -276,6 +296,8 @@ func (f FS) readDir(dir string) []file {
 }
 
 // Open opens the named file for reading and returns it as an fs.File.
+//
+// The returned file implements io.Seeker when the file is not a directory.
 func (f FS) Open(name string) (fs.File, error) {
 	file := f.lookup(name)
 	if file == nil {
@@ -322,6 +344,10 @@ type openFile struct {
 	f      *file // the file itself
 	offset int64 // current read offset
 }
+
+var (
+	_ io.Seeker = (*openFile)(nil)
+)
 
 func (f *openFile) Close() error               { return nil }
 func (f *openFile) Stat() (fs.FileInfo, error) { return f.f, nil }
@@ -370,14 +396,14 @@ func (d *openDir) Read([]byte) (int, error) {
 
 func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
 	n := len(d.files) - d.offset
-	if count > 0 && n > count {
-		n = count
-	}
 	if n == 0 {
 		if count <= 0 {
 			return nil, nil
 		}
 		return nil, io.EOF
+	}
+	if count > 0 && n > count {
+		n = count
 	}
 	list := make([]fs.DirEntry, n)
 	for i := range list {

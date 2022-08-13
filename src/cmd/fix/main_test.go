@@ -7,17 +7,17 @@ package main
 import (
 	"go/ast"
 	"go/parser"
+	"internal/diff"
 	"strings"
 	"testing"
-
-	"cmd/internal/diff"
 )
 
 type testCase struct {
-	Name string
-	Fn   func(*ast.File) bool
-	In   string
-	Out  string
+	Name    string
+	Fn      func(*ast.File) bool
+	Version int
+	In      string
+	Out     string
 }
 
 var testCases []testCase
@@ -51,7 +51,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string, mustB
 	if s := string(outb); in != s && mustBeGofmt {
 		t.Errorf("not gofmt-formatted.\n--- %s\n%s\n--- %s | gofmt\n%s",
 			desc, in, desc, s)
-		tdiff(t, in, s)
+		tdiff(t, "want", in, "have", s)
 		return
 	}
 
@@ -78,7 +78,16 @@ func TestRewrite(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
-			t.Parallel()
+			if tt.Version == 0 {
+				t.Parallel()
+			} else {
+				old := goVersion
+				goVersion = tt.Version
+				defer func() {
+					goVersion = old
+				}()
+			}
+
 			// Apply fix: should get tt.Out.
 			out, fixed, ok := parseFixPrint(t, tt.Fn, tt.Name, tt.In, true)
 			if !ok {
@@ -91,12 +100,15 @@ func TestRewrite(t *testing.T) {
 				return
 			}
 
+			if tt.Out == "" {
+				tt.Out = tt.In
+			}
 			if out != tt.Out {
 				t.Errorf("incorrect output.\n")
 				if !strings.HasPrefix(tt.Name, "testdata/") {
 					t.Errorf("--- have\n%s\n--- want\n%s", out, tt.Out)
 				}
-				tdiff(t, out, tt.Out)
+				tdiff(t, "have", out, "want", tt.Out)
 				return
 			}
 
@@ -119,17 +131,12 @@ func TestRewrite(t *testing.T) {
 			if out2 != out {
 				t.Errorf("changed output after second round of fixes.\n--- output after first round\n%s\n--- output after second round\n%s",
 					out, out2)
-				tdiff(t, out, out2)
+				tdiff(t, "first", out, "second", out2)
 			}
 		})
 	}
 }
 
-func tdiff(t *testing.T, a, b string) {
-	data, err := diff.Diff("go-fix-test", []byte(a), []byte(b))
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	t.Error(string(data))
+func tdiff(t *testing.T, aname, a, bname, b string) {
+	t.Errorf("%s", diff.Diff(aname, []byte(a), bname, []byte(b)))
 }

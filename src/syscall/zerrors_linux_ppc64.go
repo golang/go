@@ -4,7 +4,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs -- -m64 _const.go
 
-// +build ppc64,linux
+//go:build ppc64 && linux
 
 package syscall
 

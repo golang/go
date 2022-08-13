@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ppc64 || ppc64le
 // +build ppc64 ppc64le
 
 #include "textflag.h"
@@ -11,17 +12,20 @@
 // func crosscall2(fn, a unsafe.Pointer, n int32, ctxt uintptr)
 // Saves C callee-saved registers and calls cgocallback with three arguments.
 // fn is the PC of a func(a unsafe.Pointer) function.
+// The value of R2 is saved on the new stack frame, and not
+// the caller's frame due to issue #43228.
 TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	// Start with standard C stack frame layout and linkage
 	MOVD	LR, R0
 	MOVD	R0, 16(R1)	// Save LR in caller's frame
 	MOVW	CR, R0		// Save CR in caller's frame
-	MOVD	R0, 8(R1)
-	MOVD	R2, 24(R1)	// Save TOC in caller's frame
+	MOVW	R0, 8(R1)
 
 	BL	saveregs2<>(SB)
 
 	MOVDU	R1, (-288-3*8-FIXED_FRAME)(R1)
+	// Save the caller's R2
+	MOVD	R2, 24(R1)
 
 	// Initialize Go ABI environment
 	BL	runtime·reginit(SB)
@@ -40,12 +44,13 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R6, FIXED_FRAME+16(R1)	// ctxt uintptr
 	BL	runtime·cgocallback(SB)
 
+	// Restore the caller's R2
+	MOVD	24(R1), R2
 	ADD	$(288+3*8+FIXED_FRAME), R1
 
 	BL	restoreregs2<>(SB)
 
-	MOVD	24(R1), R2
-	MOVD	8(R1), R0
+	MOVW	8(R1), R0
 	MOVFL	R0, $0xff
 	MOVD	16(R1), R0
 	MOVD	R0, LR

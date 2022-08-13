@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 /*
 Input to cgo.
@@ -43,7 +43,6 @@ const (
 	ETIMEDOUT   = C.ETIMEDOUT
 	EWOULDBLOCK = C.EWOULDBLOCK
 	EINPROGRESS = C.EINPROGRESS
-	ENOSYS      = C.ENOSYS
 
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ

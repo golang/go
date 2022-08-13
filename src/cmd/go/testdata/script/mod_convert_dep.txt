@@ -18,7 +18,7 @@ stdout '^m$'
 # Test that we ignore directories when trying to find alternate config files.
 cd $WORK/gopkgdir/x
 ! go list .
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 ! stderr 'Gopkg.lock'
 
 -- $WORK/test/Gopkg.lock --

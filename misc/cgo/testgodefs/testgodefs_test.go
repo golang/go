@@ -6,10 +6,10 @@ package testgodefs
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -26,6 +26,7 @@ var filePrefixes = []string{
 	"issue37621",
 	"issue38649",
 	"issue39534",
+	"issue48396",
 }
 
 func TestGoDefs(t *testing.T) {
@@ -34,7 +35,7 @@ func TestGoDefs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gopath, err := ioutil.TempDir("", "testgodefs-gopath")
+	gopath, err := os.MkdirTemp("", "testgodefs-gopath")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,20 +59,43 @@ func TestGoDefs(t *testing.T) {
 			t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
 		}
 
-		if err := ioutil.WriteFile(filepath.Join(dir, fp+"_defs.go"), out, 0644); err != nil {
+		fn := fp + "_defs.go"
+		if err := os.WriteFile(filepath.Join(dir, fn), out, 0644); err != nil {
 			t.Fatal(err)
+		}
+
+		// Verify that command line arguments are not rewritten in the generated comment,
+		// see go.dev/issue/52063
+		hasGeneratedByComment := false
+		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			cgoExe := "cgo"
+			if runtime.GOOS == "windows" {
+				cgoExe = "cgo.exe"
+			}
+			if !strings.HasPrefix(line, "// "+cgoExe+" -godefs") {
+				continue
+			}
+			if want := "// " + cgoExe + " " + strings.Join(cmd.Args[3:], " "); line != want {
+				t.Errorf("%s: got generated comment %q, want %q", fn, line, want)
+			}
+			hasGeneratedByComment = true
+			break
+		}
+
+		if !hasGeneratedByComment {
+			t.Errorf("%s: comment with generating cgo -godefs command not found", fn)
 		}
 	}
 
-	main, err := ioutil.ReadFile(filepath.Join("testdata", "main.go"))
+	main, err := os.ReadFile(filepath.Join("testdata", "main.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(dir, "main.go"), main, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), main, 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module testgodefs\ngo 1.14\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module testgodefs\ngo 1.14\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 

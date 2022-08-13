@@ -10,13 +10,14 @@ import (
 	"debug/elf"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -45,6 +46,13 @@ func TestMain(m *testing.M) {
 		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
 		os.Exit(0)
 	}
+	if runtime.GOOS == "linux" {
+		if _, err := os.Stat("/etc/alpine-release"); err == nil {
+			fmt.Printf("SKIP - skipping failing test on alpine - go.dev/issue/19938\n")
+			os.Exit(0)
+		}
+	}
+
 	log.SetFlags(log.Lshortfile)
 	os.Exit(testMain(m))
 }
@@ -53,7 +61,7 @@ func testMain(m *testing.M) int {
 	// We need a writable GOPATH in which to run the tests.
 	// Construct one in a temporary directory.
 	var err error
-	GOPATH, err = ioutil.TempDir("", "carchive_test")
+	GOPATH, err = os.MkdirTemp("", "carchive_test")
 	if err != nil {
 		log.Panic(err)
 	}
@@ -74,7 +82,7 @@ func testMain(m *testing.M) int {
 		log.Panic(err)
 	}
 	os.Setenv("PWD", modRoot)
-	if err := ioutil.WriteFile("go.mod", []byte("module testcarchive\n"), 0666); err != nil {
+	if err := os.WriteFile("go.mod", []byte("module testcarchive\n"), 0666); err != nil {
 		log.Panic(err)
 	}
 
@@ -139,6 +147,9 @@ func testMain(m *testing.M) int {
 	libgodir = filepath.Join(GOPATH, "pkg", libbase, "testcarchive")
 	cc = append(cc, "-I", libgodir)
 
+	// Force reallocation (and avoid aliasing bugs) for parallel tests that append to cc.
+	cc = cc[:len(cc):len(cc)]
+
 	if GOOS == "windows" {
 		exeSuffix = ".exe"
 	}
@@ -176,7 +187,7 @@ func genHeader(t *testing.T, header, dir string) {
 	// The 'cgo' command generates a number of additional artifacts,
 	// but we're only interested in the header.
 	// Shunt the rest of the outputs to a temporary directory.
-	objDir, err := ioutil.TempDir(GOPATH, "_obj")
+	objDir, err := os.MkdirTemp(GOPATH, "_obj")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,6 +212,7 @@ func genHeader(t *testing.T, header, dir string) {
 func testInstall(t *testing.T, exe, libgoa, libgoh string, buildcmd ...string) {
 	t.Helper()
 	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Env = append(cmd.Environ(), "GO111MODULE=off") // 'go install' only works in GOPATH mode
 	t.Log(buildcmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
@@ -234,7 +246,7 @@ func testInstall(t *testing.T, exe, libgoa, libgoh string, buildcmd ...string) {
 	binArgs := append(cmdToRun(exe), "arg1", "arg2")
 	cmd = exec.Command(binArgs[0], binArgs[1:]...)
 	if runtime.Compiler == "gccgo" {
-		cmd.Env = append(os.Environ(), "GCCGO=1")
+		cmd.Env = append(cmd.Environ(), "GCCGO=1")
 	}
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
@@ -252,7 +264,7 @@ var badLineRegexp = regexp.MustCompile(`(?m)^#line [0-9]+ "/.*$`)
 // the user and make the files change based on details of the location
 // of GOPATH.
 func checkLineComments(t *testing.T, hdrname string) {
-	hdr, err := ioutil.ReadFile(hdrname)
+	hdr, err := os.ReadFile(hdrname)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			t.Error(err)
@@ -261,6 +273,173 @@ func checkLineComments(t *testing.T, hdrname string) {
 	}
 	if line := badLineRegexp.Find(hdr); line != nil {
 		t.Errorf("bad #line directive with absolute path in %s: %q", hdrname, line)
+	}
+}
+
+// checkArchive verifies that the created library looks OK.
+// We just check a couple of things now, we can add more checks as needed.
+func checkArchive(t *testing.T, arname string) {
+	t.Helper()
+
+	switch GOOS {
+	case "aix", "darwin", "ios", "windows":
+		// We don't have any checks for non-ELF libraries yet.
+		if _, err := os.Stat(arname); err != nil {
+			t.Errorf("archive %s does not exist: %v", arname, err)
+		}
+	default:
+		checkELFArchive(t, arname)
+	}
+}
+
+// checkELFArchive checks an ELF archive.
+func checkELFArchive(t *testing.T, arname string) {
+	t.Helper()
+
+	f, err := os.Open(arname)
+	if err != nil {
+		t.Errorf("archive %s does not exist: %v", arname, err)
+		return
+	}
+	defer f.Close()
+
+	// TODO(iant): put these in a shared package?  But where?
+	const (
+		magic = "!<arch>\n"
+		fmag  = "`\n"
+
+		namelen = 16
+		datelen = 12
+		uidlen  = 6
+		gidlen  = 6
+		modelen = 8
+		sizelen = 10
+		fmaglen = 2
+		hdrlen  = namelen + datelen + uidlen + gidlen + modelen + sizelen + fmaglen
+	)
+
+	type arhdr struct {
+		name string
+		date string
+		uid  string
+		gid  string
+		mode string
+		size string
+		fmag string
+	}
+
+	var magbuf [len(magic)]byte
+	if _, err := io.ReadFull(f, magbuf[:]); err != nil {
+		t.Errorf("%s: archive too short", arname)
+		return
+	}
+	if string(magbuf[:]) != magic {
+		t.Errorf("%s: incorrect archive magic string %q", arname, magbuf)
+	}
+
+	off := int64(len(magic))
+	for {
+		if off&1 != 0 {
+			var b [1]byte
+			if _, err := f.Read(b[:]); err != nil {
+				if err == io.EOF {
+					break
+				}
+				t.Errorf("%s: error skipping alignment byte at %d: %v", arname, off, err)
+			}
+			off++
+		}
+
+		var hdrbuf [hdrlen]byte
+		if _, err := io.ReadFull(f, hdrbuf[:]); err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Errorf("%s: error reading archive header at %d: %v", arname, off, err)
+			return
+		}
+
+		var hdr arhdr
+		hdrslice := hdrbuf[:]
+		set := func(len int, ps *string) {
+			*ps = string(bytes.TrimSpace(hdrslice[:len]))
+			hdrslice = hdrslice[len:]
+		}
+		set(namelen, &hdr.name)
+		set(datelen, &hdr.date)
+		set(uidlen, &hdr.uid)
+		set(gidlen, &hdr.gid)
+		set(modelen, &hdr.mode)
+		set(sizelen, &hdr.size)
+		hdr.fmag = string(hdrslice[:fmaglen])
+		hdrslice = hdrslice[fmaglen:]
+		if len(hdrslice) != 0 {
+			t.Fatalf("internal error: len(hdrslice) == %d", len(hdrslice))
+		}
+
+		if hdr.fmag != fmag {
+			t.Errorf("%s: invalid fmagic value %q at %d", arname, hdr.fmag, off)
+			return
+		}
+
+		size, err := strconv.ParseInt(hdr.size, 10, 64)
+		if err != nil {
+			t.Errorf("%s: error parsing size %q at %d: %v", arname, hdr.size, off, err)
+			return
+		}
+
+		off += hdrlen
+
+		switch hdr.name {
+		case "__.SYMDEF", "/", "/SYM64/":
+			// The archive symbol map.
+		case "//", "ARFILENAMES/":
+			// The extended name table.
+		default:
+			// This should be an ELF object.
+			checkELFArchiveObject(t, arname, off, io.NewSectionReader(f, off, size))
+		}
+
+		off += size
+		if _, err := f.Seek(off, os.SEEK_SET); err != nil {
+			t.Errorf("%s: failed to seek to %d: %v", arname, off, err)
+		}
+	}
+}
+
+// checkELFArchiveObject checks an object in an ELF archive.
+func checkELFArchiveObject(t *testing.T, arname string, off int64, obj io.ReaderAt) {
+	t.Helper()
+
+	ef, err := elf.NewFile(obj)
+	if err != nil {
+		t.Errorf("%s: failed to open ELF file at %d: %v", arname, off, err)
+		return
+	}
+	defer ef.Close()
+
+	// Verify section types.
+	for _, sec := range ef.Sections {
+		want := elf.SHT_NULL
+		switch sec.Name {
+		case ".text", ".data":
+			want = elf.SHT_PROGBITS
+		case ".bss":
+			want = elf.SHT_NOBITS
+		case ".symtab":
+			want = elf.SHT_SYMTAB
+		case ".strtab":
+			want = elf.SHT_STRTAB
+		case ".init_array":
+			want = elf.SHT_INIT_ARRAY
+		case ".fini_array":
+			want = elf.SHT_FINI_ARRAY
+		case ".preinit_array":
+			want = elf.SHT_PREINIT_ARRAY
+		}
+		if want != elf.SHT_NULL && sec.Type != want {
+			t.Errorf("%s: incorrect section type in elf file at %d for section %q: got %v want %v", arname, off, sec.Name, sec.Type, want)
+		}
 	}
 }
 
@@ -311,7 +490,7 @@ func TestEarlySignalHandler(t *testing.T) {
 		defer func() {
 			os.Remove("libgo2.a")
 			os.Remove("libgo2.h")
-			os.Remove("testp")
+			os.Remove("testp" + exeSuffix)
 			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
 		}()
 	}
@@ -322,6 +501,7 @@ func TestEarlySignalHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo2.h")
+	checkArchive(t, "libgo2.a")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main2.c", "libgo2.a")
 	if runtime.Compiler == "gccgo" {
@@ -351,7 +531,7 @@ func TestSignalForwarding(t *testing.T) {
 		defer func() {
 			os.Remove("libgo2.a")
 			os.Remove("libgo2.h")
-			os.Remove("testp")
+			os.Remove("testp" + exeSuffix)
 			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
 		}()
 	}
@@ -362,6 +542,7 @@ func TestSignalForwarding(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo2.h")
+	checkArchive(t, "libgo2.a")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
 	if runtime.Compiler == "gccgo" {
@@ -375,7 +556,7 @@ func TestSignalForwarding(t *testing.T) {
 	cmd = exec.Command(bin[0], append(bin[1:], "1")...)
 
 	out, err := cmd.CombinedOutput()
-	t.Logf("%s", out)
+	t.Logf("%v\n%s", cmd.Args, out)
 	expectSignal(t, err, syscall.SIGSEGV)
 
 	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
@@ -384,7 +565,9 @@ func TestSignalForwarding(t *testing.T) {
 		cmd = exec.Command(bin[0], append(bin[1:], "3")...)
 
 		out, err = cmd.CombinedOutput()
-		t.Logf("%s", out)
+		if len(out) > 0 {
+			t.Logf("%s", out)
+		}
 		expectSignal(t, err, syscall.SIGPIPE)
 	}
 }
@@ -401,7 +584,7 @@ func TestSignalForwardingExternal(t *testing.T) {
 		defer func() {
 			os.Remove("libgo2.a")
 			os.Remove("libgo2.h")
-			os.Remove("testp")
+			os.Remove("testp" + exeSuffix)
 			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
 		}()
 	}
@@ -412,6 +595,7 @@ func TestSignalForwardingExternal(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo2.h")
+	checkArchive(t, "libgo2.a")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
 	if runtime.Compiler == "gccgo" {
@@ -518,7 +702,7 @@ func TestOsSignal(t *testing.T) {
 		defer func() {
 			os.Remove("libgo3.a")
 			os.Remove("libgo3.h")
-			os.Remove("testp")
+			os.Remove("testp" + exeSuffix)
 			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
 		}()
 	}
@@ -529,6 +713,7 @@ func TestOsSignal(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo3.h")
+	checkArchive(t, "libgo3.a")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main3.c", "libgo3.a")
 	if runtime.Compiler == "gccgo" {
@@ -555,7 +740,7 @@ func TestSigaltstack(t *testing.T) {
 		defer func() {
 			os.Remove("libgo4.a")
 			os.Remove("libgo4.h")
-			os.Remove("testp")
+			os.Remove("testp" + exeSuffix)
 			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
 		}()
 	}
@@ -566,6 +751,7 @@ func TestSigaltstack(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo4.h")
+	checkArchive(t, "libgo4.a")
 
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main4.c", "libgo4.a")
 	if runtime.Compiler == "gccgo" {
@@ -618,7 +804,7 @@ func TestExtar(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := strings.Replace(testar, "PWD", dir, 1)
-	if err := ioutil.WriteFile("testar", []byte(s), 0777); err != nil {
+	if err := os.WriteFile("testar", []byte(s), 0777); err != nil {
 		t.Fatal(err)
 	}
 
@@ -644,9 +830,15 @@ func TestPIE(t *testing.T) {
 		t.Skipf("skipping PIE test on %s", GOOS)
 	}
 
+	libgoa := "libgo.a"
+	if runtime.Compiler == "gccgo" {
+		libgoa = "liblibgo.a"
+	}
+
 	if !testWork {
 		defer func() {
 			os.Remove("testp" + exeSuffix)
+			os.Remove(libgoa)
 			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
 		}()
 	}
@@ -659,18 +851,13 @@ func TestPIE(t *testing.T) {
 	// be running this test in a GOROOT owned by root.)
 	genHeader(t, "p.h", "./p")
 
-	cmd := exec.Command("go", "install", "-buildmode=c-archive", "./libgo")
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "./libgo")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
 	}
 
-	libgoa := "libgo.a"
-	if runtime.Compiler == "gccgo" {
-		libgoa = "liblibgo.a"
-	}
-
-	ccArgs := append(cc, "-fPIE", "-pie", "-o", "testp"+exeSuffix, "main.c", "main_unix.c", filepath.Join(libgodir, libgoa))
+	ccArgs := append(cc, "-fPIE", "-pie", "-o", "testp"+exeSuffix, "main.c", "main_unix.c", libgoa)
 	if runtime.Compiler == "gccgo" {
 		ccArgs = append(ccArgs, "-lgo")
 	}
@@ -748,25 +935,29 @@ func TestSIGPROF(t *testing.T) {
 	}
 
 	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo6.a", "./libgo6")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Logf("%s", out)
+	out, err := cmd.CombinedOutput()
+	t.Logf("%v\n%s", cmd.Args, out)
+	if err != nil {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo6.h")
+	checkArchive(t, "libgo6.a")
 
 	ccArgs := append(cc, "-o", "testp6"+exeSuffix, "main6.c", "libgo6.a")
 	if runtime.Compiler == "gccgo" {
 		ccArgs = append(ccArgs, "-lgo")
 	}
-	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
-		t.Logf("%s", out)
+	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", ccArgs, out)
+	if err != nil {
 		t.Fatal(err)
 	}
 
 	argv := cmdToRun("./testp6")
 	cmd = exec.Command(argv[0], argv[1:]...)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Logf("%s", out)
+	out, err = cmd.CombinedOutput()
+	t.Logf("%v\n%s", argv, out)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -776,7 +967,7 @@ func TestSIGPROF(t *testing.T) {
 // tool with -buildmode=c-archive, it passes -shared to the compiler,
 // so we override that. The go tool doesn't work this way, but Bazel
 // will likely do it in the future. And it ought to work. This test
-// was added because at one time it did not work on PPC GNU/Linux.
+// was added because at one time it did not work on PPC Linux.
 func TestCompileWithoutShared(t *testing.T) {
 	// For simplicity, reuse the signal forwarding test.
 	checkSignalForwardingTest(t)
@@ -789,13 +980,13 @@ func TestCompileWithoutShared(t *testing.T) {
 	}
 
 	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-gcflags=-shared=false", "-o", "libgo2.a", "./libgo2")
-	t.Log(cmd.Args)
 	out, err := cmd.CombinedOutput()
-	t.Logf("%s", out)
+	t.Logf("%v\n%s", cmd.Args, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo2.h")
+	checkArchive(t, "libgo2.a")
 
 	exe := "./testnoshared" + exeSuffix
 
@@ -805,23 +996,22 @@ func TestCompileWithoutShared(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
 		ccArgs = append(ccArgs, "-lgo")
 	}
-	t.Log(ccArgs)
 	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", ccArgs, out)
 
 	// If -no-pie unrecognized, try -nopie if this is possibly clang
 	if err != nil && bytes.Contains(out, []byte("unknown")) && !strings.Contains(cc[0], "gcc") {
 		ccArgs = append(cc, "-o", exe, "-nopie", "main5.c", "libgo2.a")
-		t.Log(ccArgs)
 		out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+		t.Logf("%v\n%s", ccArgs, out)
 	}
 
 	// Don't use either -no-pie or -nopie
 	if err != nil && bytes.Contains(out, []byte("unrecognized")) {
-		ccArgs := append(cc, "-o", exe, "main5.c", "libgo2.a")
-		t.Log(ccArgs)
+		ccArgs = append(cc, "-o", exe, "main5.c", "libgo2.a")
 		out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+		t.Logf("%v\n%s", ccArgs, out)
 	}
-	t.Logf("%s", out)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -830,17 +1020,15 @@ func TestCompileWithoutShared(t *testing.T) {
 	}
 
 	binArgs := append(cmdToRun(exe), "1")
-	t.Log(binArgs)
 	out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()
-	t.Logf("%s", out)
+	t.Logf("%v\n%s", binArgs, out)
 	expectSignal(t, err, syscall.SIGSEGV)
 
 	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
 	if runtime.GOOS != "darwin" && runtime.GOOS != "ios" {
 		binArgs := append(cmdToRun(exe), "3")
-		t.Log(binArgs)
 		out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()
-		t.Logf("%s", out)
+		t.Logf("%v\n%s", binArgs, out)
 		expectSignal(t, err, syscall.SIGPIPE)
 	}
 }
@@ -856,6 +1044,7 @@ func TestCachedInstall(t *testing.T) {
 	buildcmd := []string{"go", "install", "-buildmode=c-archive", "./libgo"}
 
 	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Env = append(cmd.Environ(), "GO111MODULE=off") // 'go install' only works in GOPATH mode
 	t.Log(buildcmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
@@ -871,6 +1060,7 @@ func TestCachedInstall(t *testing.T) {
 	}
 
 	cmd = exec.Command(buildcmd[0], buildcmd[1:]...)
+	cmd.Env = append(cmd.Environ(), "GO111MODULE=off")
 	t.Log(buildcmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
@@ -895,26 +1085,29 @@ func TestManyCalls(t *testing.T) {
 	}
 
 	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo7.a", "./libgo7")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Logf("%s", out)
+	out, err := cmd.CombinedOutput()
+	t.Logf("%v\n%s", cmd.Args, out)
+	if err != nil {
 		t.Fatal(err)
 	}
 	checkLineComments(t, "libgo7.h")
+	checkArchive(t, "libgo7.a")
 
 	ccArgs := append(cc, "-o", "testp7"+exeSuffix, "main7.c", "libgo7.a")
 	if runtime.Compiler == "gccgo" {
 		ccArgs = append(ccArgs, "-lgo")
 	}
-	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
-		t.Logf("%s", out)
+	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", ccArgs, out)
+	if err != nil {
 		t.Fatal(err)
 	}
 
 	argv := cmdToRun("./testp7")
 	cmd = exec.Command(argv[0], argv[1:]...)
-	var sb strings.Builder
-	cmd.Stdout = &sb
-	cmd.Stderr = &sb
+	sb := new(strings.Builder)
+	cmd.Stdout = sb
+	cmd.Stderr = sb
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -927,8 +1120,65 @@ func TestManyCalls(t *testing.T) {
 	)
 	defer timer.Stop()
 
-	if err := cmd.Wait(); err != nil {
-		t.Log(sb.String())
+	err = cmd.Wait()
+	t.Logf("%v\n%s", cmd.Args, sb)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// Issue 49288.
+func TestPreemption(t *testing.T) {
+	if runtime.Compiler == "gccgo" {
+		t.Skip("skipping asynchronous preemption test with gccgo")
+	}
+
+	t.Parallel()
+
+	if !testWork {
+		defer func() {
+			os.Remove("testp8" + exeSuffix)
+			os.Remove("libgo8.a")
+			os.Remove("libgo8.h")
+		}()
+	}
+
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo8.a", "./libgo8")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%v\n%s", cmd.Args, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkLineComments(t, "libgo8.h")
+	checkArchive(t, "libgo8.a")
+
+	ccArgs := append(cc, "-o", "testp8"+exeSuffix, "main8.c", "libgo8.a")
+	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", ccArgs, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	argv := cmdToRun("./testp8")
+	cmd = exec.Command(argv[0], argv[1:]...)
+	sb := new(strings.Builder)
+	cmd.Stdout = sb
+	cmd.Stderr = sb
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	timer := time.AfterFunc(time.Minute,
+		func() {
+			t.Error("test program timed out")
+			cmd.Process.Kill()
+		},
+	)
+	defer timer.Stop()
+
+	err = cmd.Wait()
+	t.Logf("%v\n%s", cmd.Args, sb)
+	if err != nil {
 		t.Error(err)
 	}
 }

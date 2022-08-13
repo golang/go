@@ -17,3 +17,7 @@ func isPlatformError(err error) bool {
 	_, ok := err.(syscall.ErrorString)
 	return ok
 }
+
+func isENOBUFS(err error) bool {
+	return false // ENOBUFS is Unix-specific
+}

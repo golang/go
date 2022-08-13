@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js
+//go:build js
 
 package testing
 
@@ -36,7 +36,7 @@ func runExample(eg InternalExample) (ok bool) {
 		// Restore stdout, get output and remove temporary file.
 		os.Stdout = stdout
 		var buf strings.Builder
-		_, seekErr := f.Seek(0, os.SEEK_SET)
+		_, seekErr := f.Seek(0, io.SeekStart)
 		_, readErr := io.Copy(&buf, f)
 		out := buf.String()
 		f.Close()

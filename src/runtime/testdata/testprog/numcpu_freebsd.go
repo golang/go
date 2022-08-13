@@ -85,19 +85,18 @@ func getList() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fail to execute '%s': %s", cmdline, err)
 	}
-	pos := bytes.IndexRune(output, '\n')
-	if pos == -1 {
+	output, _, ok := bytes.Cut(output, []byte("\n"))
+	if !ok {
 		return nil, fmt.Errorf("invalid output from '%s', '\\n' not found: %s", cmdline, output)
 	}
-	output = output[0:pos]
 
-	pos = bytes.IndexRune(output, ':')
-	if pos == -1 {
+	_, cpus, ok := bytes.Cut(output, []byte(":"))
+	if !ok {
 		return nil, fmt.Errorf("invalid output from '%s', ':' not found: %s", cmdline, output)
 	}
 
 	var list []string
-	for _, val := range bytes.Split(output[pos+1:], []byte(",")) {
+	for _, val := range bytes.Split(cpus, []byte(",")) {
 		index := string(bytes.TrimSpace(val))
 		if len(index) == 0 {
 			continue

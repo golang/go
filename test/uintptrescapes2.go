@@ -30,7 +30,7 @@ type T struct{}
 func (T) M1(a uintptr) {} // ERROR "escaping uintptr"
 
 //go:uintptrescapes
-func (T) M2(a ...uintptr) {} // ERROR "escaping ...uintptr" "leaking param: a"
+func (T) M2(a ...uintptr) {} // ERROR "escaping ...uintptr"
 
 func TestF1() {
 	var t int                        // ERROR "moved to heap"

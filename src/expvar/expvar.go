@@ -17,8 +17,8 @@
 // The package is sometimes only imported for the side effect of
 // registering its HTTP handler and the above variables. To use it
 // this way, link this package into your program:
-//	import _ "expvar"
 //
+//	import _ "expvar"
 package expvar
 
 import (
@@ -118,7 +118,12 @@ func (v *Map) String() string {
 		if !first {
 			fmt.Fprintf(&b, ", ")
 		}
-		fmt.Fprintf(&b, "%q: %v", kv.Key, kv.Value)
+		fmt.Fprintf(&b, "%q: ", kv.Key)
+		if kv.Value != nil {
+			fmt.Fprintf(&b, "%v", kv.Value)
+		} else {
+			fmt.Fprint(&b, "null")
+		}
 		first = false
 	})
 	fmt.Fprintf(&b, "}")
@@ -130,7 +135,7 @@ func (v *Map) Init() *Map {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
 	v.keys = v.keys[:0]
-	v.m.Range(func(k, _ interface{}) bool {
+	v.m.Range(func(k, _ any) bool {
 		v.m.Delete(k)
 		return true
 	})
@@ -224,7 +229,8 @@ func (v *Map) Do(f func(KeyValue)) {
 	defer v.keysMu.RUnlock()
 	for _, k := range v.keys {
 		i, _ := v.m.Load(k)
-		f(KeyValue{k, i.(Var)})
+		val, _ := i.(Var)
+		f(KeyValue{k, val})
 	}
 }
 
@@ -252,9 +258,9 @@ func (v *String) Set(value string) {
 
 // Func implements Var by calling the function
 // and formatting the returned value using JSON.
-type Func func() interface{}
+type Func func() any
 
-func (f Func) Value() interface{} {
+func (f Func) Value() any {
 	return f()
 }
 
@@ -350,11 +356,11 @@ func Handler() http.Handler {
 	return http.HandlerFunc(expvarHandler)
 }
 
-func cmdline() interface{} {
+func cmdline() any {
 	return os.Args
 }
 
-func memstats() interface{} {
+func memstats() any {
 	stats := new(runtime.MemStats)
 	runtime.ReadMemStats(stats)
 	return *stats

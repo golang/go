@@ -2,22 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !math_big_pure_go
 // +build !math_big_pure_go
 
 #include "textflag.h"
 
 // This file provides fast assembly versions for the elementary
 // arithmetic operations on vectors implemented in arith.go.
-
-// func mulWW(x, y Word) (z1, z0 Word)
-TEXT ·mulWW(SB),NOSPLIT,$0
-	MOVQ x+0(FP), AX
-	MULQ y+8(FP)
-	MOVQ DX, z1+16(FP)
-	MOVQ AX, z0+24(FP)
-	RET
-
-
 
 // The carry bit is saved with SBBQ Rx, Rx: if the carry was set, Rx is -1, otherwise it is 0.
 // It is restored with ADDQ Rx, Rx: if Rx was -1 the carry is set, otherwise it is cleared.
@@ -378,7 +369,7 @@ E5:	CMPQ BX, R11		// i < n
 
 // func addMulVVW(z, x []Word, y Word) (c Word)
 TEXT ·addMulVVW(SB),NOSPLIT,$0
-	CMPB    ·support_adx(SB), $1
+	CMPB ·support_adx(SB), $1
 	JEQ adx
 	MOVQ z+0(FP), R10
 	MOVQ x+24(FP), R8

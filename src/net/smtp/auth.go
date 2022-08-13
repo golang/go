@@ -16,8 +16,7 @@ type Auth interface {
 	// Start begins an authentication with a server.
 	// It returns the name of the authentication protocol
 	// and optionally data to include in the initial AUTH message
-	// sent to the server. It can return proto == "" to indicate
-	// that the authentication should be skipped.
+	// sent to the server.
 	// If it returns a non-nil error, the SMTP client aborts
 	// the authentication attempt and closes the connection.
 	Start(server *ServerInfo) (proto string, toServer []byte, err error)

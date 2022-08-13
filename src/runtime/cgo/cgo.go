@@ -21,12 +21,11 @@ package cgo
 #cgo openbsd LDFLAGS: -lpthread
 #cgo aix LDFLAGS: -Wl,-berok
 #cgo solaris LDFLAGS: -lxnet
-#cgo illumos LDFLAGS: -lsocket
+#cgo solaris LDFLAGS: -lsocket
 
-// Issue 35247.
-#cgo darwin CFLAGS: -Wno-nullability-completeness
-
-#cgo CFLAGS: -Wall -Werror
+// We use -fno-stack-protector because internal linking won't find
+// the support functions. See issues #52919 and #54313.
+#cgo CFLAGS: -Wall -Werror -fno-stack-protector
 
 #cgo solaris CPPFLAGS: -D_POSIX_PTHREAD_SEMANTICS
 

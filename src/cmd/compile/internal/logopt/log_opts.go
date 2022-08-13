@@ -6,10 +6,10 @@ package logopt
 
 import (
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"encoding/json"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"log"
 	"net/url"
@@ -376,7 +376,7 @@ func writerForLSP(subdirpath, file string) io.WriteCloser {
 	if lastdot != -1 {
 		basename = basename[:lastdot]
 	}
-	basename = pathEscape(basename)
+	basename = url.PathEscape(basename)
 
 	// Assume a directory, make a file
 	p := filepath.Join(subdirpath, basename+".json")
@@ -405,10 +405,10 @@ func uriIfy(f string) DocumentURI {
 // Return filename, replacing a first occurrence of $GOROOT with the
 // actual value of the GOROOT (because LSP does not speak "$GOROOT").
 func uprootedPath(filename string) string {
-	if !strings.HasPrefix(filename, "$GOROOT/") {
+	if buildcfg.GOROOT == "" || !strings.HasPrefix(filename, "$GOROOT/") {
 		return filename
 	}
-	return objabi.GOROOT + filename[len("$GOROOT"):]
+	return buildcfg.GOROOT + filename[len("$GOROOT"):]
 }
 
 // FlushLoggedOpts flushes all the accumulated optimization log entries.
@@ -428,7 +428,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 		if slashPkgPath == "" {
 			slashPkgPath = "\000"
 		}
-		subdirpath := filepath.Join(dest, pathEscape(slashPkgPath))
+		subdirpath := filepath.Join(dest, url.PathEscape(slashPkgPath))
 		err := os.MkdirAll(subdirpath, 0755)
 		if err != nil {
 			log.Fatalf("Could not create directory %s for logging optimizer actions, %v", subdirpath, err)
@@ -448,7 +448,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 				currentFile = p0f
 				w = writerForLSP(subdirpath, currentFile)
 				encoder = json.NewEncoder(w)
-				encoder.Encode(VersionHeader{Version: 0, Package: slashPkgPath, Goos: objabi.GOOS, Goarch: objabi.GOARCH, GcVersion: objabi.Version, File: currentFile})
+				encoder.Encode(VersionHeader{Version: 0, Package: slashPkgPath, Goos: buildcfg.GOOS, Goarch: buildcfg.GOARCH, GcVersion: buildcfg.Version, File: currentFile})
 			}
 
 			// The first "target" is the most important one.

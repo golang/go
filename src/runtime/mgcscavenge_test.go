@@ -6,9 +6,12 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/goos"
 	"math/rand"
 	. "runtime"
+	"runtime/internal/atomic"
 	"testing"
+	"time"
 )
 
 // makePallocData produces an initialized PallocData by setting
@@ -145,12 +148,6 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 			min:       m,
 			max:       PallocChunkPages,
 			want:      BitRange{0, 0},
-		}
-		tests["StartFree"+suffix] = test{
-			alloc: []BitRange{{uint(m), PallocChunkPages - uint(m)}},
-			min:   m,
-			max:   PallocChunkPages,
-			want:  BitRange{0, uint(m)},
 		}
 		tests["StartFree"+suffix] = test{
 			alloc: []BitRange{{uint(m), PallocChunkPages - uint(m)}},
@@ -414,7 +411,9 @@ func TestPageAllocScavenge(t *testing.T) {
 			},
 		},
 	}
-	if PageAlloc64Bit != 0 {
+	// Disable these tests on iOS since we have a small address space.
+	// See #46860.
+	if PageAlloc64Bit != 0 && goos.IsIos == 0 {
 		tests["ScavAllVeryDiscontiguous"] = setup{
 			beforeAlloc: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:          {},
@@ -436,12 +435,12 @@ func TestPageAllocScavenge(t *testing.T) {
 	}
 	for name, v := range tests {
 		v := v
-		runTest := func(t *testing.T, mayUnlock bool) {
+		t.Run(name, func(t *testing.T) {
 			b := NewPageAlloc(v.beforeAlloc, v.beforeScav)
 			defer FreePageAlloc(b)
 
 			for iter, h := range v.expect {
-				if got := b.Scavenge(h.request, mayUnlock); got != h.expect {
+				if got := b.Scavenge(h.request); got != h.expect {
 					t.Fatalf("bad scavenge #%d: want %d, got %d", iter+1, h.expect, got)
 				}
 			}
@@ -449,12 +448,262 @@ func TestPageAllocScavenge(t *testing.T) {
 			defer FreePageAlloc(want)
 
 			checkPageAlloc(t, want, b)
-		}
-		t.Run(name, func(t *testing.T) {
-			runTest(t, false)
-		})
-		t.Run(name+"MayUnlock", func(t *testing.T) {
-			runTest(t, true)
 		})
 	}
+}
+
+func TestScavenger(t *testing.T) {
+	// workedTime is a standard conversion of bytes of scavenge
+	// work to time elapsed.
+	workedTime := func(bytes uintptr) int64 {
+		return int64((bytes+4095)/4096) * int64(10*time.Microsecond)
+	}
+
+	// Set up a bunch of state that we're going to track and verify
+	// throughout the test.
+	totalWork := uint64(64<<20 - 3*PhysPageSize)
+	var totalSlept, totalWorked atomic.Int64
+	var availableWork atomic.Uint64
+	var stopAt atomic.Uint64 // How much available work to stop at.
+
+	// Set up the scavenger.
+	var s Scavenger
+	s.Sleep = func(ns int64) int64 {
+		totalSlept.Add(ns)
+		return ns
+	}
+	s.Scavenge = func(bytes uintptr) (uintptr, int64) {
+		avail := availableWork.Load()
+		if uint64(bytes) > avail {
+			bytes = uintptr(avail)
+		}
+		t := workedTime(bytes)
+		if bytes != 0 {
+			availableWork.Add(-int64(bytes))
+			totalWorked.Add(t)
+		}
+		return bytes, t
+	}
+	s.ShouldStop = func() bool {
+		if availableWork.Load() <= stopAt.Load() {
+			return true
+		}
+		return false
+	}
+	s.GoMaxProcs = func() int32 {
+		return 1
+	}
+
+	// Define a helper for verifying that various properties hold.
+	verifyScavengerState := func(t *testing.T, expWork uint64) {
+		t.Helper()
+
+		// Check to make sure it did the amount of work we expected.
+		if workDone := uint64(s.Released()); workDone != expWork {
+			t.Errorf("want %d bytes of work done, got %d", expWork, workDone)
+		}
+		// Check to make sure the scavenger is meeting its CPU target.
+		idealFraction := float64(ScavengePercent) / 100.0
+		cpuFraction := float64(totalWorked.Load()) / float64(totalWorked.Load()+totalSlept.Load())
+		if cpuFraction < idealFraction-0.005 || cpuFraction > idealFraction+0.005 {
+			t.Errorf("want %f CPU fraction, got %f", idealFraction, cpuFraction)
+		}
+	}
+
+	// Start the scavenger.
+	s.Start()
+
+	// Set up some work and let the scavenger run to completion.
+	availableWork.Store(totalWork)
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run a check.
+	verifyScavengerState(t, totalWork)
+
+	// Now let's do it again and see what happens when we have no work to do.
+	// It should've gone right back to sleep.
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run another check.
+	verifyScavengerState(t, totalWork)
+
+	// One more time, this time doing the same amount of work as the first time.
+	// Let's see if we can get the scavenger to continue.
+	availableWork.Store(totalWork)
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run another check.
+	verifyScavengerState(t, 2*totalWork)
+
+	// This time, let's stop after a certain amount of work.
+	//
+	// Pick a stopping point such that when subtracted from totalWork
+	// we get a multiple of a relatively large power of 2. verifyScavengerState
+	// always makes an exact check, but the scavenger might go a little over,
+	// which is OK. If this breaks often or gets annoying to maintain, modify
+	// verifyScavengerState.
+	availableWork.Store(totalWork)
+	stoppingPoint := uint64(1<<20 - 3*PhysPageSize)
+	stopAt.Store(stoppingPoint)
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run another check.
+	verifyScavengerState(t, 2*totalWork+(totalWork-stoppingPoint))
+
+	// Clean up.
+	s.Stop()
+}
+
+func TestScavengeIndex(t *testing.T) {
+	setup := func(t *testing.T) (func(ChunkIdx, uint), func(uintptr, uintptr)) {
+		t.Helper()
+
+		// Pick some reasonable bounds. We don't need a huge range just to test.
+		si := NewScavengeIndex(BaseChunkIdx, BaseChunkIdx+64)
+		find := func(want ChunkIdx, wantOffset uint) {
+			t.Helper()
+
+			got, gotOffset := si.Find()
+			if want != got {
+				t.Errorf("find: wanted chunk index %d, got %d", want, got)
+			}
+			if want != got {
+				t.Errorf("find: wanted page offset %d, got %d", wantOffset, gotOffset)
+			}
+			if t.Failed() {
+				t.FailNow()
+			}
+			si.Clear(got)
+		}
+		mark := func(base, limit uintptr) {
+			t.Helper()
+
+			si.Mark(base, limit)
+		}
+		return find, mark
+	}
+	t.Run("Uninitialized", func(t *testing.T) {
+		find, _ := setup(t)
+		find(0, 0)
+	})
+	t.Run("OnePage", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 3), PageBase(BaseChunkIdx, 4))
+		find(BaseChunkIdx, 3)
+		find(0, 0)
+	})
+	t.Run("FirstPage", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx, 1))
+		find(BaseChunkIdx, 0)
+		find(0, 0)
+	})
+	t.Run("SeveralPages", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 9), PageBase(BaseChunkIdx, 14))
+		find(BaseChunkIdx, 13)
+		find(0, 0)
+	})
+	t.Run("WholeChunk", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+		find(BaseChunkIdx, PallocChunkPages-1)
+		find(0, 0)
+	})
+	t.Run("LastPage", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, PallocChunkPages-1), PageBase(BaseChunkIdx+1, 0))
+		find(BaseChunkIdx, PallocChunkPages-1)
+		find(0, 0)
+	})
+	t.Run("TwoChunks", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 128), PageBase(BaseChunkIdx+1, 128))
+		find(BaseChunkIdx+1, 127)
+		find(BaseChunkIdx, PallocChunkPages-1)
+		find(0, 0)
+	})
+	t.Run("TwoChunksOffset", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx+7, 128), PageBase(BaseChunkIdx+8, 129))
+		find(BaseChunkIdx+8, 128)
+		find(BaseChunkIdx+7, PallocChunkPages-1)
+		find(0, 0)
+	})
+	t.Run("SevenChunksOffset", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx+6, 11), PageBase(BaseChunkIdx+13, 15))
+		find(BaseChunkIdx+13, 14)
+		for i := BaseChunkIdx + 12; i >= BaseChunkIdx+6; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("ThirtyTwoChunks", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+		for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("ThirtyTwoChunksOffset", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx+3, 0), PageBase(BaseChunkIdx+35, 0))
+		for i := BaseChunkIdx + 34; i >= BaseChunkIdx+3; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("Mark", func(t *testing.T) {
+		find, mark := setup(t)
+		for i := BaseChunkIdx; i < BaseChunkIdx+32; i++ {
+			mark(PageBase(i, 0), PageBase(i+1, 0))
+		}
+		for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("MarkInterleaved", func(t *testing.T) {
+		find, mark := setup(t)
+		for i := BaseChunkIdx; i < BaseChunkIdx+32; i++ {
+			mark(PageBase(i, 0), PageBase(i+1, 0))
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("MarkIdempotentOneChunk", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+		find(BaseChunkIdx, PallocChunkPages-1)
+		find(0, 0)
+	})
+	t.Run("MarkIdempotentThirtyTwoChunks", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+		for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("MarkIdempotentThirtyTwoChunksOffset", func(t *testing.T) {
+		find, mark := setup(t)
+		mark(PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+31, 0))
+		mark(PageBase(BaseChunkIdx+5, 0), PageBase(BaseChunkIdx+36, 0))
+		for i := BaseChunkIdx + 35; i >= BaseChunkIdx+4; i-- {
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
 }

@@ -1,0 +1,7 @@
+package p
+
+//go:build x
+
+func f()
+
+// +build y

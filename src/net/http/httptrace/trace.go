@@ -50,7 +50,7 @@ func WithClientTrace(ctx context.Context, trace *ClientTrace) context.Context {
 			}
 		}
 		if trace.DNSDone != nil {
-			nt.DNSDone = func(netIPs []interface{}, coalesced bool, err error) {
+			nt.DNSDone = func(netIPs []any, coalesced bool, err error) {
 				addrs := make([]net.IPAddr, len(netIPs))
 				for i, ip := range netIPs {
 					addrs[i] = ip.(net.IPAddr)
@@ -127,7 +127,7 @@ type ClientTrace struct {
 
 	// ConnectDone is called when a new connection's Dial
 	// completes. The provided err indicates whether the
-	// connection completedly successfully.
+	// connection completed successfully.
 	// If net.Dialer.DualStack ("Happy Eyeballs") support is
 	// enabled, this may be called multiple times.
 	ConnectDone func(network, addr string, err error)

@@ -17,6 +17,7 @@ var _ ctrAble = (*aesCipherAsm)(nil)
 // dst. If a and b are not the same length then the number of bytes processed
 // will be equal to the length of shorter of the two. Returns the number
 // of bytes processed.
+//
 //go:noescape
 func xorBytes(dst, a, b []byte) int
 

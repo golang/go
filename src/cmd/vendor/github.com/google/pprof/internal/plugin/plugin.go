@@ -109,8 +109,10 @@ type MappingSources map[string][]struct {
 type ObjTool interface {
 	// Open opens the named object file. If the object is a shared
 	// library, start/limit/offset are the addresses where it is mapped
-	// into memory in the address space being inspected.
-	Open(file string, start, limit, offset uint64) (ObjFile, error)
+	// into memory in the address space being inspected. If the object
+	// is a linux kernel, relocationSymbol is the name of the symbol
+	// corresponding to the start address.
+	Open(file string, start, limit, offset uint64, relocationSymbol string) (ObjFile, error)
 
 	// Disasm disassembles the named object file, starting at
 	// the start address and stopping at (before) the end address.
@@ -131,8 +133,9 @@ type ObjFile interface {
 	// Name returns the underlyinf file name, if available
 	Name() string
 
-	// Base returns the base address to use when looking up symbols in the file.
-	Base() uint64
+	// ObjAddr returns the objdump (linker) address corresponding to a runtime
+	// address, and an error.
+	ObjAddr(addr uint64) (uint64, error)
 
 	// BuildID returns the GNU build ID of the file, or an empty string.
 	BuildID() string

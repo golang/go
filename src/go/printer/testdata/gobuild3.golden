@@ -1,0 +1,10 @@
+// other comment
+
+//go:build x
+// +build x
+
+// yet another comment
+
+package p
+
+func f()

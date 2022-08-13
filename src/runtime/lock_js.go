@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 package runtime
 
@@ -144,8 +144,12 @@ func notetsleepg(n *note, ns int64) bool {
 }
 
 // checkTimeouts resumes goroutines that are waiting on a note which has reached its deadline.
+// TODO(drchase): need to understand if write barriers are really okay in this context.
+//
+//go:yeswritebarrierrec
 func checkTimeouts() {
 	now := nanotime()
+	// TODO: map iteration has the write barriers in it; is that okay?
 	for n, nt := range notesWithTimeout {
 		if n.key == note_cleared && now >= nt.deadline {
 			n.key = note_timeout
@@ -175,7 +179,15 @@ var idleID int32
 // If an event handler returned, we resume it and it will pause the execution.
 // beforeIdle either returns the specific goroutine to schedule next or
 // indicates with otherReady that some goroutine became ready.
-func beforeIdle(delay int64) (gp *g, otherReady bool) {
+// TODO(drchase): need to understand if write barriers are really okay in this context.
+//
+//go:yeswritebarrierrec
+func beforeIdle(now, pollUntil int64) (gp *g, otherReady bool) {
+	delay := int64(-1)
+	if pollUntil != 0 {
+		delay = pollUntil - now
+	}
+
 	if delay > 0 {
 		clearIdleID()
 		if delay < 1e6 {
@@ -191,6 +203,7 @@ func beforeIdle(delay int64) (gp *g, otherReady bool) {
 	}
 
 	if len(events) == 0 {
+		// TODO: this is the line that requires the yeswritebarrierrec
 		go handleAsyncEvent()
 		return nil, true
 	}

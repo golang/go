@@ -41,8 +41,20 @@ All `g`, `m`, and `p` objects are heap allocated, but are never freed,
 so their memory remains type stable. As a result, the runtime can
 avoid write barriers in the depths of the scheduler.
 
-User stacks and system stacks
------------------------------
+`getg()` and `getg().m.curg`
+----------------------------
+
+To get the current user `g`, use `getg().m.curg`.
+
+`getg()` alone returns the current `g`, but when executing on the
+system or signal stacks, this will return the current M's "g0" or
+"gsignal", respectively. This is usually not what you want.
+
+To determine if you're running on the user stack or the system stack,
+use `getg() == getg().m.curg`.
+
+Stacks
+======
 
 Every non-dead G has a *user stack* associated with it, which is what
 user Go code executes on. User stacks start small (e.g., 2K) and grow
@@ -63,17 +75,33 @@ non-preemptible and the garbage collector does not scan system stacks.
 While running on the system stack, the current user stack is not used
 for execution.
 
-`getg()` and `getg().m.curg`
-----------------------------
+nosplit functions
+-----------------
 
-To get the current user `g`, use `getg().m.curg`.
+Most functions start with a prologue that inspects the stack pointer
+and the current G's stack bound and calls `morestack` if the stack
+needs to grow.
 
-`getg()` alone returns the current `g`, but when executing on the
-system or signal stacks, this will return the current M's "g0" or
-"gsignal", respectively. This is usually not what you want.
+Functions can be marked `//go:nosplit` (or `NOSPLIT` in assembly) to
+indicate that they should not get this prologue. This has several
+uses:
 
-To determine if you're running on the user stack or the system stack,
-use `getg() == getg().m.curg`.
+- Functions that must run on the user stack, but must not call into
+  stack growth, for example because this would cause a deadlock, or
+  because they have untyped words on the stack.
+
+- Functions that must not be preempted on entry.
+
+- Functions that may run without a valid G. For example, functions
+  that run in early runtime start-up, or that may be entered from C
+  code such as cgo callbacks or the signal handler.
+
+Splittable functions ensure there's some amount of space on the stack
+for nosplit functions to run in and the linker checks that any static
+chain of nosplit function calls cannot exceed this bound.
+
+Any function with a `//go:nosplit` annotation should explain why it is
+nosplit in its documentation comment.
 
 Error handling and reporting
 ============================
@@ -90,8 +118,15 @@ avoid allocating in perilous situations. By convention, additional
 details are printed before `throw` using `print` or `println` and the
 messages are prefixed with "runtime:".
 
-For runtime error debugging, it's useful to run with
-`GOTRACEBACK=system` or `GOTRACEBACK=crash`.
+For unrecoverable errors where user code is expected to be at fault for the
+failure (such as racing map writes), use `fatal`.
+
+For runtime error debugging, it may be useful to run with `GOTRACEBACK=system`
+or `GOTRACEBACK=crash`. The output of `panic` and `fatal` is as described by
+`GOTRACEBACK`. The output of `throw` always includes runtime frames, metadata
+and all goroutines regardless of `GOTRACEBACK` (i.e., equivalent to
+`GOTRACEBACK=system`). Whether `throw` crashes or not is still controlled by
+`GOTRACEBACK`.
 
 Synchronization
 ===============
@@ -276,6 +311,25 @@ functions that release the P or may run without a P and
 `go:yeswritebarrierrec` is used when code re-acquires an active P.
 Since these are function-level annotations, code that releases or
 acquires a P may need to be split across two functions.
+
+go:uintptrkeepalive
+-------------------
+
+The //go:uintptrkeepalive directive must be followed by a function declaration.
+
+It specifies that the function's uintptr arguments may be pointer values that
+have been converted to uintptr and must be kept alive for the duration of the
+call, even though from the types alone it would appear that the object is no
+longer needed during the call.
+
+This directive is similar to //go:uintptrescapes, but it does not force
+arguments to escape. Since stack growth does not understand these arguments,
+this directive must be used with //go:nosplit (in the marked function and all
+transitive calls) to prevent stack growth.
+
+The conversion from pointer to uintptr must appear in the argument list of any
+call to this function. This directive is used for some low-level system call
+implementations.
 
 go:notinheap
 ------------

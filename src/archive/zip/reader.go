@@ -33,6 +33,10 @@ type Reader struct {
 	Comment       string
 	decompressors map[uint16]Decompressor
 
+	// Some JAR files are zip files with a prefix that is a bash script.
+	// The baseOffset field is the start of the zip file proper.
+	baseOffset int64
+
 	// fileList is a list of files sorted by ename,
 	// for use by the Open method.
 	fileListOnce sync.Once
@@ -52,12 +56,8 @@ type File struct {
 	FileHeader
 	zip          *Reader
 	zipr         io.ReaderAt
-	zipsize      int64
-	headerOffset int64
-}
-
-func (f *File) hasDataDescriptor() bool {
-	return f.Flags&0x8 != 0
+	headerOffset int64 // includes overall ZIP archive baseOffset
+	zip64        bool  // zip64 extended information extra field presence
 }
 
 // OpenReader will open the Zip file specified by name and return a ReadCloser.
@@ -94,15 +94,24 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 }
 
 func (z *Reader) init(r io.ReaderAt, size int64) error {
-	end, err := readDirectoryEnd(r, size)
+	end, baseOffset, err := readDirectoryEnd(r, size)
 	if err != nil {
 		return err
 	}
 	z.r = r
-	z.File = make([]*File, 0, end.directoryRecords)
+	z.baseOffset = baseOffset
+	// Since the number of directory records is not validated, it is not
+	// safe to preallocate z.File without first checking that the specified
+	// number of files is reasonable, since a malformed archive may
+	// indicate it contains up to 1 << 128 - 1 files. Since each file has a
+	// header which will be _at least_ 30 bytes we can safely preallocate
+	// if (data size / 30) >= end.directoryRecords.
+	if end.directorySize < uint64(size) && (uint64(size)-end.directorySize)/30 >= end.directoryRecords {
+		z.File = make([]*File, 0, end.directoryRecords)
+	}
 	z.Comment = end.comment
 	rs := io.NewSectionReader(r, 0, size)
-	if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
+	if _, err = rs.Seek(z.baseOffset+int64(end.directoryOffset), io.SeekStart); err != nil {
 		return err
 	}
 	buf := bufio.NewReader(rs)
@@ -112,14 +121,29 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	// a bad one, and then only report an ErrFormat or UnexpectedEOF if
 	// the file count modulo 65536 is incorrect.
 	for {
-		f := &File{zip: z, zipr: r, zipsize: size}
+		f := &File{zip: z, zipr: r}
 		err = readDirectoryHeader(f, buf)
+
+		// For compatibility with other zip programs,
+		// if we have a non-zero base offset and can't read
+		// the first directory header, try again with a zero
+		// base offset.
+		if err == ErrFormat && z.baseOffset != 0 && len(z.File) == 0 {
+			z.baseOffset = 0
+			if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
+				return err
+			}
+			buf.Reset(rs)
+			continue
+		}
+
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
 		if err != nil {
 			return err
 		}
+		f.headerOffset += z.baseOffset
 		z.File = append(z.File, f)
 	}
 	if uint16(len(z.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
@@ -193,6 +217,17 @@ func (f *File) Open() (io.ReadCloser, error) {
 	return rc, nil
 }
 
+// OpenRaw returns a Reader that provides access to the File's contents without
+// decompression.
+func (f *File) OpenRaw() (io.Reader, error) {
+	bodyOffset, err := f.findBodyOffset()
+	if err != nil {
+		return nil, err
+	}
+	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, int64(f.CompressedSize64))
+	return r, nil
+}
+
 type checksumReader struct {
 	rc    io.ReadCloser
 	hash  hash.Hash32
@@ -213,6 +248,9 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
 	n, err = r.rc.Read(b)
 	r.hash.Write(b[:n])
 	r.nread += uint64(n)
+	if r.nread > r.f.UncompressedSize64 {
+		return 0, ErrFormat
+	}
 	if err == nil {
 		return
 	}
@@ -336,6 +374,8 @@ parseExtras:
 
 		switch fieldTag {
 		case zip64ExtraID:
+			f.zip64 = true
+
 			// update directory values from the zip64 extra block.
 			// They should only be consulted if the sizes read earlier
 			// are maxed out.
@@ -437,7 +477,6 @@ parseExtras:
 
 func readDataDescriptor(r io.Reader, f *File) error {
 	var buf [dataDescriptorLen]byte
-
 	// The spec says: "Although not originally assigned a
 	// signature, the value 0x08074b50 has commonly been adopted
 	// as a signature value for the data descriptor record.
@@ -475,7 +514,7 @@ func readDataDescriptor(r io.Reader, f *File) error {
 	return nil
 }
 
-func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) {
+func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, baseOffset int64, err error) {
 	// look for directoryEndSignature in the last 1k, then in the last 65k
 	var buf []byte
 	var directoryEndOffset int64
@@ -485,7 +524,7 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) 
 		}
 		buf = make([]byte, int(bLen))
 		if _, err := r.ReadAt(buf, size-bLen); err != nil && err != io.EOF {
-			return nil, err
+			return nil, 0, err
 		}
 		if p := findSignatureInBlock(buf); p >= 0 {
 			buf = buf[p:]
@@ -493,7 +532,7 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) 
 			break
 		}
 		if i == 1 || bLen == size {
-			return nil, ErrFormat
+			return nil, 0, ErrFormat
 		}
 	}
 
@@ -510,7 +549,7 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) 
 	}
 	l := int(d.commentLen)
 	if l > len(b) {
-		return nil, errors.New("zip: invalid comment length")
+		return nil, 0, errors.New("zip: invalid comment length")
 	}
 	d.comment = string(b[:l])
 
@@ -518,17 +557,21 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) 
 	if d.directoryRecords == 0xffff || d.directorySize == 0xffff || d.directoryOffset == 0xffffffff {
 		p, err := findDirectory64End(r, directoryEndOffset)
 		if err == nil && p >= 0 {
+			directoryEndOffset = p
 			err = readDirectory64End(r, p, d)
 		}
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 	}
+
+	baseOffset = directoryEndOffset - int64(d.directorySize) - int64(d.directoryOffset)
+
 	// Make sure directoryOffset points to somewhere in our file.
-	if o := int64(d.directoryOffset); o < 0 || o >= size {
-		return nil, ErrFormat
+	if o := baseOffset + int64(d.directoryOffset); o < 0 || o >= size {
+		return nil, 0, ErrFormat
 	}
-	return d, nil
+	return d, baseOffset, nil
 }
 
 // findDirectory64End tries to read the zip64 locator just before the
@@ -628,10 +671,12 @@ func (b *readBuf) sub(n int) readBuf {
 }
 
 // A fileListEntry is a File and its ename.
-// If file == nil, the fileListEntry describes a directory, without metadata.
+// If file == nil, the fileListEntry describes a directory without metadata.
 type fileListEntry struct {
-	name string
-	file *File // nil for directories
+	name  string
+	file  *File
+	isDir bool
+	isDup bool
 }
 
 type fileInfoDirEntry interface {
@@ -639,21 +684,30 @@ type fileInfoDirEntry interface {
 	fs.DirEntry
 }
 
-func (e *fileListEntry) stat() fileInfoDirEntry {
-	if e.file != nil {
-		return headerFileInfo{&e.file.FileHeader}
+func (e *fileListEntry) stat() (fileInfoDirEntry, error) {
+	if e.isDup {
+		return nil, errors.New(e.name + ": duplicate entries in zip file")
 	}
-	return e
+	if !e.isDir {
+		return headerFileInfo{&e.file.FileHeader}, nil
+	}
+	return e, nil
 }
 
 // Only used for directories.
-func (f *fileListEntry) Name() string       { _, elem, _ := split(f.name); return elem }
-func (f *fileListEntry) Size() int64        { return 0 }
-func (f *fileListEntry) ModTime() time.Time { return time.Time{} }
-func (f *fileListEntry) Mode() fs.FileMode  { return fs.ModeDir | 0555 }
-func (f *fileListEntry) Type() fs.FileMode  { return fs.ModeDir }
-func (f *fileListEntry) IsDir() bool        { return true }
-func (f *fileListEntry) Sys() interface{}   { return nil }
+func (f *fileListEntry) Name() string      { _, elem, _ := split(f.name); return elem }
+func (f *fileListEntry) Size() int64       { return 0 }
+func (f *fileListEntry) Mode() fs.FileMode { return fs.ModeDir | 0555 }
+func (f *fileListEntry) Type() fs.FileMode { return fs.ModeDir }
+func (f *fileListEntry) IsDir() bool       { return true }
+func (f *fileListEntry) Sys() any          { return nil }
+
+func (f *fileListEntry) ModTime() time.Time {
+	if f.file == nil {
+		return time.Time{}
+	}
+	return f.file.FileHeader.Modified.UTC()
+}
 
 func (f *fileListEntry) Info() (fs.FileInfo, error) { return f, nil }
 
@@ -664,7 +718,7 @@ func toValidName(name string) string {
 	if strings.HasPrefix(p, "/") {
 		p = p[len("/"):]
 	}
-	for strings.HasPrefix(name, "../") {
+	for strings.HasPrefix(p, "../") {
 		p = p[len("../"):]
 	}
 	return p
@@ -672,16 +726,62 @@ func toValidName(name string) string {
 
 func (r *Reader) initFileList() {
 	r.fileListOnce.Do(func() {
+		// files and knownDirs map from a file/directory name
+		// to an index into the r.fileList entry that we are
+		// building. They are used to mark duplicate entries.
+		files := make(map[string]int)
+		knownDirs := make(map[string]int)
+
+		// dirs[name] is true if name is known to be a directory,
+		// because it appears as a prefix in a path.
 		dirs := make(map[string]bool)
+
 		for _, file := range r.File {
+			isDir := len(file.Name) > 0 && file.Name[len(file.Name)-1] == '/'
 			name := toValidName(file.Name)
+			if name == "" {
+				continue
+			}
+
+			if idx, ok := files[name]; ok {
+				r.fileList[idx].isDup = true
+				continue
+			}
+			if idx, ok := knownDirs[name]; ok {
+				r.fileList[idx].isDup = true
+				continue
+			}
+
 			for dir := path.Dir(name); dir != "."; dir = path.Dir(dir) {
 				dirs[dir] = true
 			}
-			r.fileList = append(r.fileList, fileListEntry{name, file})
+
+			idx := len(r.fileList)
+			entry := fileListEntry{
+				name:  name,
+				file:  file,
+				isDir: isDir,
+			}
+			r.fileList = append(r.fileList, entry)
+			if isDir {
+				knownDirs[name] = idx
+			} else {
+				files[name] = idx
+			}
 		}
 		for dir := range dirs {
-			r.fileList = append(r.fileList, fileListEntry{dir + "/", nil})
+			if _, ok := knownDirs[dir]; !ok {
+				if idx, ok := files[dir]; ok {
+					r.fileList[idx].isDup = true
+				} else {
+					entry := fileListEntry{
+						name:  dir,
+						file:  nil,
+						isDir: true,
+					}
+					r.fileList = append(r.fileList, entry)
+				}
+			}
 		}
 
 		sort.Slice(r.fileList, func(i, j int) bool { return fileEntryLess(r.fileList[i].name, r.fileList[j].name) })
@@ -701,11 +801,14 @@ func fileEntryLess(x, y string) bool {
 func (r *Reader) Open(name string) (fs.File, error) {
 	r.initFileList()
 
+	if !fs.ValidPath(name) {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrInvalid}
+	}
 	e := r.openLookup(name)
-	if e == nil || !fs.ValidPath(name) {
+	if e == nil {
 		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
 	}
-	if e.file == nil || strings.HasSuffix(e.file.Name, "/") {
+	if e.isDir {
 		return &openDir{e, r.openReadDir(name), 0}, nil
 	}
 	rc, err := e.file.Open()
@@ -716,7 +819,7 @@ func (r *Reader) Open(name string) (fs.File, error) {
 }
 
 func split(name string) (dir, elem string, isDir bool) {
-	if name[len(name)-1] == '/' {
+	if len(name) > 0 && name[len(name)-1] == '/' {
 		isDir = true
 		name = name[:len(name)-1]
 	}
@@ -730,7 +833,7 @@ func split(name string) (dir, elem string, isDir bool) {
 	return name[:i], name[i+1:], isDir
 }
 
-var dotFile = &fileListEntry{name: "./"}
+var dotFile = &fileListEntry{name: "./", isDir: true}
 
 func (r *Reader) openLookup(name string) *fileListEntry {
 	if name == "." {
@@ -772,7 +875,7 @@ type openDir struct {
 }
 
 func (d *openDir) Close() error               { return nil }
-func (d *openDir) Stat() (fs.FileInfo, error) { return d.e.stat(), nil }
+func (d *openDir) Stat() (fs.FileInfo, error) { return d.e.stat() }
 
 func (d *openDir) Read([]byte) (int, error) {
 	return 0, &fs.PathError{Op: "read", Path: d.e.name, Err: errors.New("is a directory")}
@@ -791,7 +894,11 @@ func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
 	}
 	list := make([]fs.DirEntry, n)
 	for i := range list {
-		list[i] = d.files[d.offset+i].stat()
+		s, err := d.files[d.offset+i].stat()
+		if err != nil {
+			return nil, err
+		}
+		list[i] = s
 	}
 	d.offset += n
 	return list, nil

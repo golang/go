@@ -11,18 +11,18 @@ import "cmd/internal/src"
 //
 // Search for basic blocks that look like
 //
-// bb0            bb0
-//  | \          /   \
-//  | bb1  or  bb1   bb2    <- trivial if/else blocks
-//  | /          \   /
-// bb2            bb3
+//	bb0            bb0
+//	 | \          /   \
+//	 | bb1  or  bb1   bb2    <- trivial if/else blocks
+//	 | /          \   /
+//	bb2            bb3
 //
 // where the intermediate blocks are mostly empty (with no side-effects);
 // rewrite Phis in the postdominator as CondSelects.
 func branchelim(f *Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
 	switch f.Config.arch {
-	case "arm64", "amd64", "wasm":
+	case "arm64", "ppc64le", "ppc64", "amd64", "wasm":
 		// implemented
 	default:
 		return

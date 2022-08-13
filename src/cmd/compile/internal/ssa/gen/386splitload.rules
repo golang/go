@@ -6,6 +6,6 @@
 
 (CMP(L|W|B)load {sym} [off] ptr x mem) => (CMP(L|W|B) (MOV(L|W|B)load {sym} [off] ptr mem) x)
 
-(CMPLconstload {sym} [vo] ptr mem) => (CMPLconst (MOVLload {sym} [vo.Off32()] ptr mem) [vo.Val32()])
-(CMPWconstload {sym} [vo] ptr mem) => (CMPWconst (MOVWload {sym} [vo.Off32()] ptr mem) [vo.Val16()])
-(CMPBconstload {sym} [vo] ptr mem) => (CMPBconst (MOVBload {sym} [vo.Off32()] ptr mem) [vo.Val8()])
+(CMPLconstload {sym} [vo] ptr mem) => (CMPLconst (MOVLload {sym} [vo.Off()] ptr mem) [vo.Val()])
+(CMPWconstload {sym} [vo] ptr mem) => (CMPWconst (MOVWload {sym} [vo.Off()] ptr mem) [vo.Val16()])
+(CMPBconstload {sym} [vo] ptr mem) => (CMPBconst (MOVBload {sym} [vo.Off()] ptr mem) [vo.Val8()])

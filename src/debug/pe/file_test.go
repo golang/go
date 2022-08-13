@@ -22,7 +22,7 @@ import (
 type fileTest struct {
 	file           string
 	hdr            FileHeader
-	opthdr         interface{}
+	opthdr         any
 	sections       []*SectionHeader
 	symbols        []*Symbol
 	hasNoDwarfInfo bool
@@ -250,7 +250,7 @@ var fileTests = []fileTest{
 	},
 }
 
-func isOptHdrEq(a, b interface{}) bool {
+func isOptHdrEq(a, b any) bool {
 	switch va := a.(type) {
 	case *OptionalHeader32:
 		vb, ok := b.(*OptionalHeader32)
@@ -353,11 +353,7 @@ func testDWARF(t *testing.T, linktype int) {
 	}
 	testenv.MustHaveGoRun(t)
 
-	tmpdir, err := os.MkdirTemp("", "TestDWARF")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "a.go")
 	file, err := os.Create(src)
@@ -472,11 +468,7 @@ func TestBSSHasZeros(t *testing.T) {
 		t.Skip("skipping test: gcc is missing")
 	}
 
-	tmpdir, err := os.MkdirTemp("", "TestBSSHasZeros")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	srcpath := filepath.Join(tmpdir, "a.c")
 	src := `
@@ -596,15 +588,10 @@ func TestBuildingWindowsGUI(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("skipping windows only test")
 	}
-	tmpdir, err := os.MkdirTemp("", "TestBuildingWindowsGUI")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "a.go")
-	err = os.WriteFile(src, []byte(`package main; func main() {}`), 0644)
-	if err != nil {
+	if err := os.WriteFile(src, []byte(`package main; func main() {}`), 0644); err != nil {
 		t.Fatal(err)
 	}
 	exe := filepath.Join(tmpdir, "a.exe")

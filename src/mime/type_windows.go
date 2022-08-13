@@ -30,6 +30,17 @@ func initMimeWindows() {
 		if err != nil {
 			continue
 		}
+
+		// There is a long-standing problem on Windows: the
+		// registry sometimes records that the ".js" extension
+		// should be "text/plain". See issue #32350. While
+		// normally local configuration should override
+		// defaults, this problem is common enough that we
+		// handle it here by ignoring that registry setting.
+		if name == ".js" && (v == "text/plain" || v == "text/plain; charset=utf-8") {
+			continue
+		}
+
 		setExtensionType(name, v)
 	}
 }

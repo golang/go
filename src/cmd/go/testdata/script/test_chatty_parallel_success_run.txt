@@ -1,0 +1,41 @@
+# Run parallel chatty tests. Assert on CONT lines. This test makes sure that
+# multiple parallel outputs have the appropriate CONT lines between them.
+go test -parallel 3 chatty_parallel -v
+
+stdout '=== RUN   TestInterruptor/interruption\n=== CONT  TestLog\n    chatty_parallel_test.go:28: this is the second TestLog log\n--- PASS: Test(Log|Interruptor) \([0-9.]{4}s\)'
+
+-- go.mod --
+module chatty_parallel
+
+go 1.18
+-- chatty_parallel_test.go --
+package chatty_parallel_test
+
+import (
+	"testing"
+)
+
+var (
+	afterFirstLog = make(chan struct{})
+	afterSubTest  = make(chan struct{})
+	afterSecondLog = make(chan struct{})
+)
+
+func TestInterruptor(t *testing.T) {
+	t.Parallel()
+
+	<-afterFirstLog
+	t.Run("interruption", func (t *testing.T) {})
+	close(afterSubTest)
+	<-afterSecondLog // Delay the "PASS: TestInterruptor" line until after "CONT  TestLog".
+}
+
+func TestLog(t *testing.T) {
+	t.Parallel()
+
+	t.Logf("this is the first TestLog log")
+	close(afterFirstLog)
+	<-afterSubTest
+	t.Logf("this is the second TestLog log")
+	close(afterSecondLog)
+}

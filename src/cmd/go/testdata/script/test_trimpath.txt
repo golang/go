@@ -1,0 +1,51 @@
+[short] skip
+
+go test -trimpath -v .
+! stdout '[/\\]pkg_test[/\\]'
+stdout -count=3 '[/\\]pkg[/\\]'
+
+-- go.mod --
+module example.com/pkg
+
+go 1.17
+
+-- pkg.go --
+package pkg
+
+import "runtime"
+
+func PrintFile() {
+	_, file, _, _ := runtime.Caller(0)
+	println(file)
+}
+
+-- pkg_test.go --
+package pkg
+
+import "runtime"
+
+func PrintFileForTest() {
+	_, file, _, _ := runtime.Caller(0)
+	println(file)
+}
+
+-- pkg_x_test.go --
+package pkg_test
+
+import (
+	"runtime"
+	"testing"
+
+	"example.com/pkg"
+)
+
+func TestMain(m *testing.M) {
+	pkg.PrintFile()
+	pkg.PrintFileForTest()
+	PrintFileInXTest()
+}
+
+func PrintFileInXTest() {
+	_, file, _, _ := runtime.Caller(0)
+	println(file)
+}

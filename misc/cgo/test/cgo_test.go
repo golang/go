@@ -11,6 +11,7 @@ import "testing"
 // These wrappers are here for gotest to find.
 
 func Test1328(t *testing.T)                  { test1328(t) }
+func Test1560(t *testing.T)                  { test1560(t) }
 func Test1635(t *testing.T)                  { test1635(t) }
 func Test3250(t *testing.T)                  { test3250(t) }
 func Test3729(t *testing.T)                  { test3729(t) }
@@ -59,6 +60,9 @@ func Test28896(t *testing.T)                 { test28896(t) }
 func Test30065(t *testing.T)                 { test30065(t) }
 func Test32579(t *testing.T)                 { test32579(t) }
 func Test31891(t *testing.T)                 { test31891(t) }
+func Test42018(t *testing.T)                 { test42018(t) }
+func Test45451(t *testing.T)                 { test45451(t) }
+func Test49633(t *testing.T)                 { test49633(t) }
 func TestAlign(t *testing.T)                 { testAlign(t) }
 func TestAtol(t *testing.T)                  { testAtol(t) }
 func TestBlocking(t *testing.T)              { testBlocking(t) }
@@ -80,12 +84,12 @@ func TestNamedEnum(t *testing.T)             { testNamedEnum(t) }
 func TestCastToEnum(t *testing.T)            { testCastToEnum(t) }
 func TestErrno(t *testing.T)                 { testErrno(t) }
 func TestFpVar(t *testing.T)                 { testFpVar(t) }
+func TestHandle(t *testing.T)                { testHandle(t) }
 func TestHelpers(t *testing.T)               { testHelpers(t) }
 func TestLibgcc(t *testing.T)                { testLibgcc(t) }
 func TestMultipleAssign(t *testing.T)        { testMultipleAssign(t) }
 func TestNaming(t *testing.T)                { testNaming(t) }
 func TestPanicFromC(t *testing.T)            { testPanicFromC(t) }
-func TestParallelSleep(t *testing.T)         { testParallelSleep(t) }
 func TestPrintf(t *testing.T)                { testPrintf(t) }
 func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
 func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }

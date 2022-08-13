@@ -42,9 +42,11 @@ func init() {
 }
 
 func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if len(args) != 0 {
 		// NOTE(rsc): Could take a module pattern.
-		base.Fatalf("go mod verify: verify takes no arguments")
+		base.Fatalf("go: verify takes no arguments")
 	}
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
@@ -54,7 +56,8 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 
 	// Use a slice of result channels, so that the output is deterministic.
-	mods := modload.LoadAllModules(ctx)[1:]
+	const defaultGoVersion = ""
+	mods := modload.LoadModGraph(ctx, defaultGoVersion).BuildList()[1:]
 	errsChans := make([]<-chan []error, len(mods))
 
 	for i, mod := range mods {

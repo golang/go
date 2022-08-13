@@ -7,8 +7,8 @@
 #define PosInf 0x7FF0000000000000
 #define NaN 0x7FF8000000000001
 
-// func Hypot(p, q float64) float64
-TEXT ·Hypot(SB),NOSPLIT,$0
+// func archHypot(p, q float64) float64
+TEXT ·archHypot(SB),NOSPLIT,$0
 	// test bits for special cases
 	MOVQ    p+0(FP), BX
 	MOVQ    $~(1<<63), AX

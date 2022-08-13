@@ -125,6 +125,40 @@ func TestDeflate(t *testing.T) {
 	}
 }
 
+func TestWriterClose(t *testing.T) {
+	b := new(bytes.Buffer)
+	zw, err := NewWriter(b, 6)
+	if err != nil {
+		t.Fatalf("NewWriter: %v", err)
+	}
+
+	if c, err := zw.Write([]byte("Test")); err != nil || c != 4 {
+		t.Fatalf("Write to not closed writer: %s, %d", err, c)
+	}
+
+	if err := zw.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	afterClose := b.Len()
+
+	if c, err := zw.Write([]byte("Test")); err == nil || c != 0 {
+		t.Fatalf("Write to closed writer: %v, %d", err, c)
+	}
+
+	if err := zw.Flush(); err == nil {
+		t.Fatalf("Flush to closed writer: %s", err)
+	}
+
+	if err := zw.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	if afterClose != b.Len() {
+		t.Fatalf("Writer wrote data after close. After close: %d. After writes on closed stream: %d", afterClose, b.Len())
+	}
+}
+
 // A sparseReader returns a stream consisting of 0s followed by 1<<16 1s.
 // This tests missing hash references in a very large input.
 type sparseReader struct {
@@ -683,7 +717,7 @@ func (w *failWriter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func TestWriterPersistentError(t *testing.T) {
+func TestWriterPersistentWriteError(t *testing.T) {
 	t.Parallel()
 	d, err := os.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
 	if err != nil {
@@ -706,16 +740,68 @@ func TestWriterPersistentError(t *testing.T) {
 
 		_, werr := zw.Write(d)
 		cerr := zw.Close()
+		ferr := zw.Flush()
 		if werr != errIO && werr != nil {
 			t.Errorf("test %d, mismatching Write error: got %v, want %v", i, werr, errIO)
 		}
 		if cerr != errIO && fw.n < 0 {
 			t.Errorf("test %d, mismatching Close error: got %v, want %v", i, cerr, errIO)
 		}
+		if ferr != errIO && fw.n < 0 {
+			t.Errorf("test %d, mismatching Flush error: got %v, want %v", i, ferr, errIO)
+		}
 		if fw.n >= 0 {
 			// At this point, the failure threshold was sufficiently high enough
 			// that we wrote the whole stream without any errors.
 			return
+		}
+	}
+}
+func TestWriterPersistentFlushError(t *testing.T) {
+	zw, err := NewWriter(&failWriter{0}, DefaultCompression)
+	if err != nil {
+		t.Fatalf("NewWriter: %v", err)
+	}
+	flushErr := zw.Flush()
+	closeErr := zw.Close()
+	_, writeErr := zw.Write([]byte("Test"))
+	checkErrors([]error{closeErr, flushErr, writeErr}, errIO, t)
+}
+
+func TestWriterPersistentCloseError(t *testing.T) {
+	// If underlying writer return error on closing stream we should persistent this error across all writer calls.
+	zw, err := NewWriter(&failWriter{0}, DefaultCompression)
+	if err != nil {
+		t.Fatalf("NewWriter: %v", err)
+	}
+	closeErr := zw.Close()
+	flushErr := zw.Flush()
+	_, writeErr := zw.Write([]byte("Test"))
+	checkErrors([]error{closeErr, flushErr, writeErr}, errIO, t)
+
+	// After closing writer we should persistent "write after close" error across Flush and Write calls, but return nil
+	// on next Close calls.
+	var b bytes.Buffer
+	zw.Reset(&b)
+	err = zw.Close()
+	if err != nil {
+		t.Fatalf("First call to close returned error: %s", err)
+	}
+	err = zw.Close()
+	if err != nil {
+		t.Fatalf("Second call to close returned error: %s", err)
+	}
+
+	flushErr = zw.Flush()
+	_, writeErr = zw.Write([]byte("Test"))
+	checkErrors([]error{flushErr, writeErr}, errWriterClosed, t)
+}
+
+func checkErrors(got []error, want error, t *testing.T) {
+	t.Helper()
+	for _, err := range got {
+		if err != want {
+			t.Errorf("Errors dosn't match\nWant: %s\nGot: %s", want, got)
 		}
 	}
 }

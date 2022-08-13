@@ -16,11 +16,11 @@ env GOSUMDB=off
 #
 # The pseudo-version is based on sub/v0.0.10, since v0.2.0 doesn't
 # contain the prefix.
-go get -d vcs-test.golang.org/git/prefixtagtests.git/sub
+go get vcs-test.golang.org/git/prefixtagtests.git/sub
 go list -m all
 stdout '^vcs-test.golang.org/git/prefixtagtests.git/sub v0.0.10$'
 
-go get -d -u vcs-test.golang.org/git/prefixtagtests.git/sub@master
+go get -u vcs-test.golang.org/git/prefixtagtests.git/sub@master
 go list -m all
 stdout '^vcs-test.golang.org/git/prefixtagtests.git/sub v0.0.11-0\.'
 

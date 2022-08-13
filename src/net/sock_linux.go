@@ -43,8 +43,8 @@ func kernelVersion() (major int, minor int) {
 
 // Linux stores the backlog as:
 //
-//  - uint16 in kernel version < 4.1,
-//  - uint32 in kernel version >= 4.1
+//   - uint16 in kernel version < 4.1,
+//   - uint32 in kernel version >= 4.1
 //
 // Truncate number to avoid wrapping.
 //

@@ -90,17 +90,3 @@ func TestXGlobal(t *testing.T) {
 	}
 	bbig[0] = old
 }
-
-func TestXLocal(t *testing.T) {
-	//go:embed testdata/*o.txt
-	var local embed.FS
-	testFiles(t, local, "testdata/hello.txt", "hello, world\n")
-
-	//go:embed testdata/k*.txt
-	var s string
-	testString(t, s, "local variable s", "If a program is too slow, it must have a loop.\n")
-
-	//go:embed testdata/h*.txt
-	var b []byte
-	testString(t, string(b), "local variable b", "hello, world\n")
-}

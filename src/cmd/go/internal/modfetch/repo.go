@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"sort"
 	"strconv"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	web "cmd/go/internal/web"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 const traceRepo = false // trace all repo actions, for debugging
@@ -31,11 +29,17 @@ type Repo interface {
 	// ModulePath returns the module path.
 	ModulePath() string
 
+	// CheckReuse checks whether the validation criteria in the origin
+	// are still satisfied on the server corresponding to this module.
+	// If so, the caller can reuse any cached Versions or RevInfo containing
+	// this origin rather than redownloading those from the server.
+	CheckReuse(old *codehost.Origin) error
+
 	// Versions lists all known versions with the given prefix.
 	// Pseudo-versions are not included.
 	//
 	// Versions should be returned sorted in semver order
-	// (implementations can use SortVersions).
+	// (implementations can use semver.Sort).
 	//
 	// Versions returns a non-nil error only if there was a problem
 	// fetching the list of versions: it may return an empty list
@@ -44,7 +48,7 @@ type Repo interface {
 	//
 	// If the underlying repository does not exist,
 	// Versions returns an error matching errors.Is(_, os.NotExist).
-	Versions(prefix string) ([]string, error)
+	Versions(prefix string) (*Versions, error)
 
 	// Stat returns information about the revision rev.
 	// A revision can be any identifier known to the underlying service:
@@ -63,7 +67,14 @@ type Repo interface {
 	Zip(dst io.Writer, version string) error
 }
 
-// A Rev describes a single revision in a module repository.
+// A Versions describes the available versions in a module repository.
+type Versions struct {
+	Origin *codehost.Origin `json:",omitempty"` // origin information for reuse
+
+	List []string // semver versions
+}
+
+// A RevInfo describes a single revision in a module repository.
 type RevInfo struct {
 	Version string    // suggested version string for this revision
 	Time    time.Time // commit time
@@ -72,6 +83,8 @@ type RevInfo struct {
 	// but they are not recorded when talking about module versions.
 	Name  string `json:"-"` // complete ID in underlying repository
 	Short string `json:"-"` // shortened ID, for use in pseudo-version
+
+	Origin *codehost.Origin `json:",omitempty"` // provenance for reuse
 }
 
 // Re: module paths, import paths, repository roots, and lookups
@@ -171,15 +184,6 @@ type RevInfo struct {
 // and it can check that the path can be resolved to a target repository.
 // To avoid version control access except when absolutely necessary,
 // Lookup does not attempt to connect to the repository itself.
-//
-// The ImportRepoRev function is a variant of Import which is limited
-// to code in a source code repository at a particular revision identifier
-// (usually a commit hash or source code repository tag, not necessarily
-// a module version).
-// ImportRepoRev is used when converting legacy dependency requirements
-// from older systems into go.mod files. Those older systems worked
-// at either package or repository granularity, and most of the time they
-// recorded commit hashes, not tagged versions.
 
 var lookupCache par.Cache
 
@@ -194,7 +198,8 @@ type lookupCacheKey struct {
 // from its origin, and "noproxy" indicates that the patch should be fetched
 // directly only if GONOPROXY matches the given path.
 //
-// For the distinguished proxy "off", Lookup always returns a non-nil error.
+// For the distinguished proxy "off", Lookup always returns a Repo that returns
+// a non-nil error for every method call.
 //
 // A successful return does not guarantee that the module
 // has any defined versions.
@@ -206,7 +211,7 @@ func Lookup(proxy, path string) Repo {
 	type cached struct {
 		r Repo
 	}
-	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() interface{} {
+	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() any {
 		r := newCachingRepo(path, func() (Repo, error) {
 			r, err := lookup(proxy, path)
 			if err == nil && traceRepo {
@@ -267,7 +272,7 @@ var (
 func lookupDirect(path string) (Repo, error) {
 	security := web.SecureOnly
 
-	if allowInsecure(path) {
+	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
 		security = web.Insecure
 	}
 	rr, err := vcs.RepoRootForImportPath(path, vcs.PreferMod, security)
@@ -299,63 +304,6 @@ func lookupCodeRepo(rr *vcs.RepoRoot) (codehost.Repo, error) {
 	return code, nil
 }
 
-// ImportRepoRev returns the module and version to use to access
-// the given import path loaded from the source code repository that
-// the original "go get" would have used, at the specific repository revision
-// (typically a commit hash, but possibly also a source control tag).
-func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
-	if cfg.BuildMod == "vendor" || cfg.BuildMod == "readonly" {
-		return nil, nil, fmt.Errorf("repo version lookup disabled by -mod=%s", cfg.BuildMod)
-	}
-
-	// Note: Because we are converting a code reference from a legacy
-	// version control system, we ignore meta tags about modules
-	// and use only direct source control entries (get.IgnoreMod).
-	security := web.SecureOnly
-	if allowInsecure(path) {
-		security = web.Insecure
-	}
-	rr, err := vcs.RepoRootForImportPath(path, vcs.IgnoreMod, security)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	code, err := lookupCodeRepo(rr)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	revInfo, err := code.Stat(rev)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// TODO: Look in repo to find path, check for go.mod files.
-	// For now we're just assuming rr.Root is the module path,
-	// which is true in the absence of go.mod files.
-
-	repo, err := newCodeRepo(code, rr.Root, rr.Root)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	info, err := repo.(*codeRepo).convert(revInfo, rev)
-	if err != nil {
-		return nil, nil, err
-	}
-	return repo, info, nil
-}
-
-func SortVersions(list []string) {
-	sort.Slice(list, func(i, j int) bool {
-		cmp := semver.Compare(list[i], list[j])
-		if cmp != 0 {
-			return cmp < 0
-		}
-		return list[i] < list[j]
-	})
-}
-
 // A loggingRepo is a wrapper around an underlying Repo
 // that prints a log message at the start and end of each call.
 // It can be inserted when debugging.
@@ -375,7 +323,7 @@ func newLoggingRepo(r Repo) *loggingRepo {
 //	defer logCall("hello %s", arg)()
 //
 // Note the final ().
-func logCall(format string, args ...interface{}) func() {
+func logCall(format string, args ...any) func() {
 	start := time.Now()
 	fmt.Fprintf(os.Stderr, "+++ %s\n", fmt.Sprintf(format, args...))
 	return func() {
@@ -387,7 +335,14 @@ func (l *loggingRepo) ModulePath() string {
 	return l.r.ModulePath()
 }
 
-func (l *loggingRepo) Versions(prefix string) (tags []string, err error) {
+func (l *loggingRepo) CheckReuse(old *codehost.Origin) (err error) {
+	defer func() {
+		logCall("CheckReuse[%s]: %v", l.r.ModulePath(), err)
+	}()
+	return l.r.CheckReuse(old)
+}
+
+func (l *loggingRepo) Versions(prefix string) (*Versions, error) {
 	defer logCall("Repo[%s]: Versions(%q)", l.r.ModulePath(), prefix)()
 	return l.r.Versions(prefix)
 }
@@ -427,18 +382,19 @@ type errRepo struct {
 
 func (r errRepo) ModulePath() string { return r.modulePath }
 
-func (r errRepo) Versions(prefix string) (tags []string, err error) { return nil, r.err }
-func (r errRepo) Stat(rev string) (*RevInfo, error)                 { return nil, r.err }
-func (r errRepo) Latest() (*RevInfo, error)                         { return nil, r.err }
-func (r errRepo) GoMod(version string) ([]byte, error)              { return nil, r.err }
-func (r errRepo) Zip(dst io.Writer, version string) error           { return r.err }
+func (r errRepo) CheckReuse(old *codehost.Origin) error     { return r.err }
+func (r errRepo) Versions(prefix string) (*Versions, error) { return nil, r.err }
+func (r errRepo) Stat(rev string) (*RevInfo, error)         { return nil, r.err }
+func (r errRepo) Latest() (*RevInfo, error)                 { return nil, r.err }
+func (r errRepo) GoMod(version string) ([]byte, error)      { return nil, r.err }
+func (r errRepo) Zip(dst io.Writer, version string) error   { return r.err }
 
 // A notExistError is like fs.ErrNotExist, but with a custom message
 type notExistError struct {
 	err error
 }
 
-func notExistErrorf(format string, args ...interface{}) error {
+func notExistErrorf(format string, args ...any) error {
 	return notExistError{fmt.Errorf(format, args...)}
 }
 
