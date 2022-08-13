@@ -2346,6 +2346,15 @@ func (p *Package) setBuildInfo(includeVCS bool) {
 	if BuildAsmflags.present {
 		appendSetting("-asmflags", BuildAsmflags.String())
 	}
+	buildmode := cfg.BuildBuildmode
+	if buildmode == "default" {
+		if p.Name == "main" {
+			buildmode = "exe"
+		} else {
+			buildmode = "archive"
+		}
+	}
+	appendSetting("-buildmode", buildmode)
 	appendSetting("-compiler", cfg.BuildContext.Compiler)
 	if gccgoflags := BuildGccgoflags.String(); gccgoflags != "" && cfg.BuildContext.Compiler == "gccgo" {
 		appendSetting("-gccgoflags", gccgoflags)
