@@ -88,7 +88,7 @@ func TestFloat(t *testing.T) {
 	RemoveAll()
 	reqs := NewFloat("requests-float")
 	if reqs.Value() != 0.0 {
-		t.Errorf("reqs.f = %v, want 0", reqs.f)
+		t.Errorf("reqs.Value() = %v, want 0", reqs.Value())
 	}
 	if reqs != Get("requests-float").(*Float) {
 		t.Errorf("Get() failed.")
