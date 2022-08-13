@@ -1053,6 +1053,7 @@
 //
 // The commands are:
 //
+//	audit       audit dependencies for known vulnerabilities
 //	download    download modules to local cache
 //	edit        edit go.mod from tools or scripts
 //	graph       print module requirement graph
@@ -1063,6 +1064,14 @@
 //	why         explain why packages or modules are needed
 //
 // Use "go help mod <command>" for more information about a command.
+//
+// # Audit dependencies for known vulnerabilities
+//
+// Usage:
+//
+//	go mod audit
+//
+// Audit checks dependencies for known vulnerabilities.
 //
 // # Download modules to local cache
 //
