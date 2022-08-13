@@ -1917,21 +1917,12 @@ func oneNewExtraM() {
 	casgstatus(gp, _Gidle, _Gdead)
 	gp.m = mp
 	mp.curg = gp
-	mp.isextra = true
 	mp.lockedInt++
 	mp.lockedg.set(gp)
 	gp.lockedm.set(mp)
 	gp.goid = sched.goidgen.Add(1)
 	if raceenabled {
 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
-	}
-	if trace.enabled {
-		// trigger two trace events for the locked g in the extra m,
-		// since the next event of the g will be traceEvGoSysExit in exitsyscall,
-		// while calling from C thread to Go.
-		traceGoCreate(gp, 0) // no start pc
-		gp.traceseq++
-		traceEvent(traceEvGoInSyscall, -1, gp.goid)
 	}
 	// put on allg for garbage collector
 	allgadd(gp)
