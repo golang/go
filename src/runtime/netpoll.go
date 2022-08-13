@@ -366,7 +366,7 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 		if pd.rd > 0 {
 			pd.rt.modify(pd.rd, 0, rtf, pd.makeArg(), pd.rseq)
 		} else {
-			pd.rt.delete()
+			pd.rt.stop()
 			pd.rt.f = nil
 		}
 	}
@@ -382,7 +382,7 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 		if pd.wd > 0 && !combo {
 			pd.wt.modify(pd.wd, 0, netpollWriteDeadline, pd.makeArg(), pd.wseq)
 		} else {
-			pd.wt.delete()
+			pd.wt.stop()
 			pd.wt.f = nil
 		}
 	}
@@ -418,11 +418,11 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
 	rg = netpollunblock(pd, 'r', false)
 	wg = netpollunblock(pd, 'w', false)
 	if pd.rt.f != nil {
-		pd.rt.delete()
+		pd.rt.stop()
 		pd.rt.f = nil
 	}
 	if pd.wt.f != nil {
-		pd.wt.delete()
+		pd.wt.stop()
 		pd.wt.f = nil
 	}
 	unlock(&pd.lock)

@@ -668,8 +668,6 @@ type p struct {
 
 	palloc persistentAlloc // per-P to avoid mutex
 
-	_ uint32 // Alignment for atomic fields below
-
 	timing timing
 
 	// Per-P GC state

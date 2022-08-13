@@ -4,10 +4,6 @@
 
 package runtime
 
-import (
-	"runtime/internal/atomic"
-)
-
 // Check all Ps and returns the time when the next timer should fire.
 // Returns maxWhen if there are no timers.
 // This is only called by sysmon and checkdead.
@@ -23,12 +19,12 @@ func timeSleepUntil() int64 {
 			continue
 		}
 
-		w := int64(atomic.Load64(&pp.timing.timer0When))
+		w := int64(pp.timing.timer0When.Load())
 		if w != 0 && w < next {
 			next = w
 		}
 
-		w = int64(atomic.Load64(&pp.timing.timerModifiedEarliest))
+		w = int64(pp.timing.timerModifiedEarliest.Load())
 		if w != 0 && w < next {
 			next = w
 		}

@@ -6,10 +6,10 @@
 
 package runtime
 
-// timer.add():
+// timer.start():
 //   timerNoStatus   -> timerWaiting
 //   anything else   -> panic: invalid value
-// timer.delete():
+// timer.stop():
 //   timerWaiting         -> timerModifying -> timerDeleted
 //   timerModifiedEarlier -> timerModifying -> timerDeleted
 //   timerModifiedLater   -> timerModifying -> timerDeleted
@@ -30,6 +30,7 @@ package runtime
 //   timerMoving     -> wait until status changes
 //   timerRemoving   -> wait until status changes
 //   timerModifying  -> wait until status changes
+// 
 // timing.cleanTimers() (looks in P's timer heap):
 //   timerDeleted    -> timerRemoving -> timerRemoved
 //   timerModifiedXX -> timerMoving -> timerWaiting

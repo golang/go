@@ -66,14 +66,14 @@ type timer struct {
 	nextwhen int64
 
 	// The status field holds one of the values below.
-	status uint32
+	status atomic.Uint32
 }
 
-// add adds the timer to the current P.
+// start adds the timer to the current P timing.
 // This should only be called with a newly created timer.
 // That avoids the risk of changing the when field of a timer in some P's heap,
 // which could cause the heap to become unsorted.
-func (t *timer) add() {
+func (t *timer) start() {
 	// when must be positive. A negative value will cause timing.runTimer to
 	// overflow during its delta calculation and never expire other runtime
 	// timers. Zero will cause checkTimers to fail to notice the timer.
@@ -83,10 +83,10 @@ func (t *timer) add() {
 	if t.period < 0 {
 		throw("timer.add: period must be non-negative")
 	}
-	if t.status != timerNoStatus {
+	if t.status.Load() != timerNoStatus {
 		throw("timer.add: called with initialized timer")
 	}
-	t.status = timerWaiting
+	t.status.Store(timerWaiting)
 
 	when := t.when
 
@@ -104,27 +104,27 @@ func (t *timer) add() {
 	releasem(mp)
 }
 
-// delete deletes the timer t. It may be on some other P, so we can't
+// stop stop the timer t. It may be on some other P, so we can't
 // actually remove it from the timers heap. We can only mark it as deleted.
 // It will be removed in due course by the P whose heap it is on.
 // Reports whether the timer was removed before it was run.
-func (t *timer) delete() bool {
+func (t *timer) stop() bool {
 	for {
-		switch s := atomic.Load(&t.status); s {
+		switch s := t.status.Load(); s {
 		case timerWaiting, timerModifiedLater:
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp := acquirem()
-			if atomic.Cas(&t.status, s, timerModifying) {
+			if t.status.CompareAndSwap(s, timerModifying) {
 				// Must fetch t.pp before changing status,
 				// as cleanTimers in another goroutine
 				// can clear t.pp of a timerDeleted timer.
 				tpp := t.pp.ptr()
-				if !atomic.Cas(&t.status, timerModifying, timerDeleted) {
+				if !t.status.CompareAndSwap(timerModifying, timerDeleted) {
 					badTimer()
 				}
 				releasem(mp)
-				atomic.Xadd(&tpp.timing.deletedTimers, 1)
+				tpp.timing.deletedTimers.Add(1)
 				// Timer was not yet run.
 				return true
 			} else {
@@ -134,15 +134,15 @@ func (t *timer) delete() bool {
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp := acquirem()
-			if atomic.Cas(&t.status, s, timerModifying) {
+			if t.status.CompareAndSwap(s, timerModifying) {
 				// Must fetch t.pp before setting status
 				// to timerDeleted.
 				tpp := t.pp.ptr()
-				if !atomic.Cas(&t.status, timerModifying, timerDeleted) {
+				if !t.status.CompareAndSwap(timerModifying, timerDeleted) {
 					badTimer()
 				}
 				releasem(mp)
-				atomic.Xadd(&tpp.timing.deletedTimers, 1)
+				tpp.timing.deletedTimers.Add(1)
 				// Timer was not yet run.
 				return true
 			} else {
@@ -189,18 +189,18 @@ func (t *timer) modify(when, period int64, f func(any, uintptr), arg any, seq ui
 		throw("timer.modify: period must be non-negative")
 	}
 
-	status := uint32(timerNoStatus)
-	wasRemoved := false
+	var wasRemoved = false
 	var pending bool
 	var mp *m
 loop:
 	for {
-		switch status = atomic.Load(&t.status); status {
+		var status = t.status.Load()
+		switch status {
 		case timerWaiting, timerModifiedEarlier, timerModifiedLater:
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp = acquirem()
-			if atomic.Cas(&t.status, status, timerModifying) {
+			if t.status.CompareAndSwap(status, timerModifying) {
 				pending = true // timer not yet run
 				break loop
 			}
@@ -212,7 +212,7 @@ loop:
 
 			// Timer was already run and t is no longer in a heap.
 			// Act like timer.add().
-			if atomic.Cas(&t.status, status, timerModifying) {
+			if t.status.CompareAndSwap(status, timerModifying) {
 				wasRemoved = true
 				pending = false // timer already run or stopped
 				break loop
@@ -222,9 +222,9 @@ loop:
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp = acquirem()
-			if atomic.Cas(&t.status, status, timerModifying) {
+			if t.status.CompareAndSwap(status, timerModifying) {
 				tpp := t.pp.ptr()
-				atomic.Xadd(&tpp.timing.deletedTimers, -1)
+				tpp.timing.deletedTimers.Add(-1)
 				pending = false // timer already stopped
 				break loop
 			}
@@ -253,7 +253,7 @@ loop:
 		lock(&pp.timing.timersLock)
 		pp.timing.addTimer(t)
 		unlock(&pp.timing.timersLock)
-		if !atomic.Cas(&t.status, timerModifying, timerWaiting) {
+		if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
 			badTimer()
 		}
 		releasem(mp)
@@ -278,7 +278,7 @@ loop:
 		}
 
 		// Set the new status of the timer.
-		if !atomic.Cas(&t.status, timerModifying, newStatus) {
+		if !t.status.CompareAndSwap(timerModifying, newStatus) {
 			badTimer()
 		}
 		releasem(mp)
@@ -299,7 +299,7 @@ func startTimer(t *timer) {
 	if raceenabled {
 		racerelease(unsafe.Pointer(t))
 	}
-	t.add()
+	t.start()
 }
 
 // stopTimer stops a timer.
@@ -307,7 +307,7 @@ func startTimer(t *timer) {
 //
 //go:linkname stopTimer time.stopTimer
 func stopTimer(t *timer) bool {
-	return t.delete()
+	return t.stop()
 }
 
 // resetTimer resets an inactive timer, adding it to the heap.
