@@ -88,11 +88,12 @@ run="sh"
 
 case "$1" in
 -syscalls)
-	for i in zsyscall*go
+	shift
+	for i in ${@:-zsyscall*go}
 	do
 		# Run the command line that appears in the first line
 		# of the generated file to regenerate it.
-		sed 1q $i | sed 's;^// ;;' | sh > _$i && gofmt < _$i > $i
+		sed 1q $i | sed 's;^// ;./;' | sh > _$i && gofmt < _$i > $i
 		rm _$i
 	done
 	exit 0
