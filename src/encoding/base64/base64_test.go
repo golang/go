@@ -504,6 +504,16 @@ func BenchmarkDecodeString(b *testing.B) {
 	}
 }
 
+func BenchmarkNewEncoding(b *testing.B) {
+	b.SetBytes(int64(len(Encoding{}.decodeMap)))
+	for i := 0; i < b.N; i++ {
+		e := NewEncoding(encodeStd)
+		for _, v := range e.decodeMap {
+			_ = v
+		}
+	}
+}
+
 func TestDecoderRaw(t *testing.T) {
 	source := "AAAAAA"
 	want := []byte{0, 0, 0, 0}
