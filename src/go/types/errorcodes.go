@@ -1298,6 +1298,14 @@ const (
 	//  var _ = unsafe.Slice(&x, uint64(1) << 63)
 	_InvalidUnsafeSlice
 
+	// _InvalidUnsafeSliceData occurs when unsafe.SliceData called with type
+	// is not slice
+	// Example:
+	// import "unsafe"
+	// var x int
+	// var _ = unsafe.SliceData(x)
+	_InvalidUnsafeSliceData
+
 	// All codes below were added in Go 1.18.
 
 	// _UnsupportedFeature occurs when a language feature is used that is not
