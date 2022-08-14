@@ -3246,6 +3246,92 @@ func (v Value) CanConvert(t Type) bool {
 	return true
 }
 
+// Comparable reports whether the type of v is comparable.
+// If the type of v is an interface, this checks the dynamic type.
+// If this reports true then v.Interface() == x will not panic for any x.
+func (v Value) Comparable() bool {
+	k := v.Kind()
+	switch k {
+	case Invalid:
+		return false
+
+	case Bool,
+		Int, Int8, Int16, Int32, Int64,
+		Uint, Uint8, Uint16, Uint32, Uint64,
+		Uintptr,
+		Float32, Float64, Complex64, Complex128,
+		Chan:
+		return true
+
+	case Array:
+		if v.Type().Len() == 0 {
+			return v.Type().Comparable()
+		}
+
+		switch v.Type().Elem().Kind() {
+		case Interface, Array, Struct:
+			for i := 0; i < v.Type().Len(); i++ {
+				if !v.Index(i).Comparable() {
+					return false
+				}
+			}
+		default:
+			return v.Index(0).Comparable()
+		}
+
+		return true
+
+	case Func:
+		return false
+
+	case Interface:
+		return v.Elem().Comparable()
+
+	case Map:
+		return false
+
+	case Pointer:
+		return true
+
+	case Slice:
+		return false
+
+	case String:
+		return true
+
+	case Struct:
+		for i := 0; i < v.NumField(); i++ {
+			if !v.Field(i).Comparable() {
+				return false
+			}
+		}
+		return true
+
+	case UnsafePointer:
+		return true
+
+	default:
+		return false
+	}
+}
+
+// Equal reports true if v is equal to u.
+func (v Value) Equal(u Value) bool {
+	if !v.IsValid() || !u.IsValid() {
+		return v.IsValid() == u.IsValid()
+	}
+
+	if v.Comparable() || u.Comparable() {
+		return valueInterface(v, false) == valueInterface(u, false)
+	}
+
+	if u.Kind() == Interface && v.kind() == Interface { // this case is for nil interface value
+		return v.Elem().Equal(u.Elem())
+	}
+
+	return false
+}
+
 // convertOp returns the function to convert a value of type src
 // to a value of type dst. If the conversion is illegal, convertOp returns nil.
 func convertOp(dst, src *rtype) func(Value, Type) Value {
