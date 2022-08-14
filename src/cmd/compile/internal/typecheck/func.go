@@ -299,7 +299,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 			n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
 			return typecheck(n, top)
 
-		case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL:
+		case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESLICEDATA:
 			typecheckargs(n)
 			fallthrough
 		case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:

@@ -129,6 +129,8 @@ var builtinCalls = []struct {
 	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
 	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},
 
+	{"SliceData", "var a = []int{1,2,3}; _ = unsafe.SliceData(a)", `func([]int) *int`},
+
 	{"assert", `assert(true)`, `invalid type`},                                    // constant
 	{"assert", `type B bool; const pred B = 1 < 2; assert(pred)`, `invalid type`}, // constant
 

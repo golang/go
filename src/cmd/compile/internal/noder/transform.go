@@ -900,7 +900,7 @@ func transformBuiltin(n *ir.CallExpr) ir.Node {
 		transformArgs(n)
 		fallthrough
 
-	case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+	case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF, ir.OUNSAFESLICEDATA:
 		u := ir.NewUnaryExpr(n.Pos(), op, n.Args[0])
 		u1 := typed(n.Type(), ir.InitExpr(n.Init(), u)) // typecheckargs can add to old.Init
 		switch op {
@@ -913,7 +913,7 @@ func transformBuiltin(n *ir.CallExpr) ir.Node {
 		case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
 			// This corresponds to the EvalConst() call near end of typecheck().
 			return typecheck.EvalConst(u1)
-		case ir.OCLOSE, ir.ONEW:
+		case ir.OCLOSE, ir.ONEW, ir.OUNSAFESLICEDATA:
 			// nothing more to do
 			return u1
 		}

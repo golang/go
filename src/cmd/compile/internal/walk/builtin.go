@@ -731,6 +731,15 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	return walkExpr(typecheck.Expr(h), init)
 }
 
+func walkUnsafeSliceData(n *ir.UnaryExpr, init *ir.Nodes) (res ir.Node) {
+
+	slice := safeExpr(n.X, init)
+	dataPtr := typecheck.Expr(ir.NewUnaryExpr(base.Pos, ir.OSPTR, slice))
+	ptrSliceType := types.NewPtr(slice.Type().Elem())
+	res = typecheck.Conv(dataPtr, ptrSliceType)
+	return walkExpr(res, init)
+}
+
 func badtype(op ir.Op, tl, tr *types.Type) {
 	var s string
 	if tl != nil {

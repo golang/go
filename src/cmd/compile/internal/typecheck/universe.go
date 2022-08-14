@@ -58,6 +58,7 @@ var unsafeFuncs = [...]struct {
 	{"Offsetof", ir.OOFFSETOF},
 	{"Sizeof", ir.OSIZEOF},
 	{"Slice", ir.OUNSAFESLICE},
+	{"SliceData", ir.OUNSAFESLICEDATA},
 }
 
 // InitUniverse initializes the universe block.

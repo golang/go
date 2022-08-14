@@ -758,7 +758,8 @@ func callOrChan(n ir.Node) bool {
 		ir.ORECOVER,
 		ir.ORECV,
 		ir.OUNSAFEADD,
-		ir.OUNSAFESLICE:
+		ir.OUNSAFESLICE,
+		ir.OUNSAFESLICEDATA:
 		return true
 	}
 	return false

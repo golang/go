@@ -1982,7 +1982,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.expr(n.X)
 		w.bool(n.Implicit())
 
-	case ir.OREAL, ir.OIMAG, ir.OCAP, ir.OCLOSE, ir.OLEN, ir.ONEW, ir.OPANIC:
+	case ir.OREAL, ir.OIMAG, ir.OCAP, ir.OCLOSE, ir.OLEN, ir.ONEW, ir.OPANIC, ir.OUNSAFESLICEDATA:
 		n := n.(*ir.UnaryExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())

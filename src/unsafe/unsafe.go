@@ -239,3 +239,8 @@ func Add(ptr Pointer, len IntegerType) Pointer
 // At run time, if len is negative, or if ptr is nil and len is not zero,
 // a run-time panic occurs.
 func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
+
+// SliceData return the data ptr of slice
+// SliceData(s) is equivalent to( when s is type []byte)
+// (*byte)(*(*unsafe.Pointer)(unsafe.Pointer(&s))
+func SliceData(slice []ArbitraryType) *ArbitraryType

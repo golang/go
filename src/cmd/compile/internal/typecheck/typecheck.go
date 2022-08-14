@@ -636,6 +636,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.UnaryExpr)
 		return tcRealImag(n)
 
+	case ir.OUNSAFESLICEDATA:
+		n := n.(*ir.UnaryExpr)
+		return tcSliceData(n)
+
 	case ir.OCOMPLEX:
 		n := n.(*ir.BinaryExpr)
 		return tcComplex(n)

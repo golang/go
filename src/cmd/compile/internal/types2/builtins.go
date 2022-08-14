@@ -743,6 +743,24 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ, y.typ))
 		}
 
+	case _SliceData:
+		// unsafe.SliceData(str string) *byte
+		if !check.allowVersion(check.pkg, 1, 17) {
+			check.versionErrorf(call.Fun, "go1.17", "unsafe.SliceData")
+			return
+		}
+
+		typ, ok := under(x.typ).(*Slice)
+		if !ok {
+			check.errorf(x, invalidArg+"%s is not a slice", x)
+			return
+		}
+		x.mode = value
+		x.typ = NewPointer(typ.Elem())
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ))
+		}
+
 	case _Assert:
 		// assert(pred) causes a typechecker error if pred is false.
 		// The result of assert is the value of pred if there is no error.

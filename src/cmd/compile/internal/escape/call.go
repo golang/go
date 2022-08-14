@@ -188,6 +188,9 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		call := call.(*ir.BinaryExpr)
 		argument(ks[0], &call.X)
 		argument(e.discardHole(), &call.Y)
+	case ir.OUNSAFESLICEDATA:
+		call := call.(*ir.UnaryExpr)
+		argument(ks[0], &call.X)
 	}
 }
 

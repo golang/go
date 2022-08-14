@@ -659,6 +659,26 @@ func tcLenCap(n *ir.UnaryExpr) ir.Node {
 	return n
 }
 
+func tcSliceData(n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(n.X)
+	n.X = DefaultLit(n.X, nil)
+	l := n.X
+	t := l.Type()
+	if t == nil {
+		n.SetType(nil)
+		return n
+	}
+
+	if t.Kind() != types.TSLICE {
+		base.Errorf("invalid argument %L for %v", l, n.Op())
+		n.SetType(nil)
+		return n
+	}
+
+	n.SetType(types.NewPtr(t.Elem()))
+	return n
+}
+
 // tcRecv typechecks an ORECV node.
 func tcRecv(n *ir.UnaryExpr) ir.Node {
 	n.X = Expr(n.X)
