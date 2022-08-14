@@ -165,6 +165,9 @@ const (
 	_Offsetof
 	_Sizeof
 	_Slice
+	_SliceData
+	_String
+	_StringData
 
 	// testing support
 	_Assert
@@ -193,11 +196,14 @@ var predeclaredFuncs = [...]struct {
 	_Real:    {"real", 1, false, expression},
 	_Recover: {"recover", 0, false, statement},
 
-	_Add:      {"Add", 2, false, expression},
-	_Alignof:  {"Alignof", 1, false, expression},
-	_Offsetof: {"Offsetof", 1, false, expression},
-	_Sizeof:   {"Sizeof", 1, false, expression},
-	_Slice:    {"Slice", 2, false, expression},
+	_Add:        {"Add", 2, false, expression},
+	_Alignof:    {"Alignof", 1, false, expression},
+	_Offsetof:   {"Offsetof", 1, false, expression},
+	_Sizeof:     {"Sizeof", 1, false, expression},
+	_Slice:      {"Slice", 2, false, expression},
+	_SliceData:  {"SliceData", 1, false, expression},
+	_String:     {"String", 2, false, expression},
+	_StringData: {"StringData", 1, false, expression},
 
 	_Assert: {"assert", 1, false, statement},
 	_Trace:  {"trace", 0, true, statement},

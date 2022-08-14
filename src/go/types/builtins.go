@@ -734,8 +734,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		typ, _ := under(x.typ).(*Pointer)
-		if typ == nil {
+		ptr, _ := under(x.typ).(*Pointer) // TODO(gri) should this be coreType rather than under?
+		if ptr == nil {
 			check.invalidArg(x, _InvalidUnsafeSlice, "%s is not a pointer", x)
 			return
 		}
@@ -747,9 +747,71 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		x.mode = value
-		x.typ = NewSlice(typ.base)
+		x.typ = NewSlice(ptr.base)
 		if check.Types != nil {
-			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ, y.typ))
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, ptr, y.typ))
+		}
+
+	case _SliceData:
+		// unsafe.SliceData(str string) *byte
+		if !check.allowVersion(check.pkg, 1, 20) {
+			check.errorf(call.Fun, _InvalidUnsafeSliceData, "unsafe.SliceData requires go1.20 or later")
+			return
+		}
+
+		slice, ok := under(x.typ).(*Slice)
+		if !ok {
+			check.invalidArg(x, _InvalidUnsafeSliceData, "%s is not a slice", x)
+			return
+		}
+		x.mode = value
+		x.typ = NewPointer(slice.Elem())
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, slice))
+		}
+
+	case _String:
+		// unsafe.String(ptr *byte, len IntegerType) string
+		if !check.allowVersion(check.pkg, 1, 20) {
+			check.errorf(call.Fun, _InvalidUnsafeString, "unsafe.String requires go1.20 or later")
+			return
+		}
+
+		check.assignment(x, NewPointer(universeByte), "argument to unsafe.String")
+		if x.mode == invalid {
+			check.invalidArg(x, _InvalidUnsafeString, "%s is not a *byte", x)
+			return
+		}
+
+		var y operand
+		arg(&y, 1)
+		if !check.isValidIndex(&y, _InvalidUnsafeString, "length", false) {
+			return
+		}
+
+		x.mode = value
+		x.typ = Typ[String]
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, NewPointer(universeByte), y.typ))
+		}
+
+	case _StringData:
+		// unsafe.StringData(str string) *byte
+		if !check.allowVersion(check.pkg, 1, 20) {
+			check.errorf(call.Fun, _InvalidUnsafeStringData, "unsafe.StringData requires go1.20 or later")
+			return
+		}
+
+		str, _ := x.typ.(*Basic)
+		if str == nil || str.kind != String {
+			check.invalidArg(x, _InvalidUnsafeStringData, "%s is not a string", x)
+			return
+		}
+
+		x.mode = value
+		x.typ = NewPointer(universeByte)
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, str))
 		}
 
 	case _Assert:

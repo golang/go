@@ -1389,4 +1389,39 @@ const (
 	// Example:
 	//  type T[P any] struct{ *P }
 	_MisplacedTypeParam
+
+	// _InvalidUnsafeSliceData occurs when unsafe.SliceData called with type
+	// is not slice
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.SliceData(x)
+	_InvalidUnsafeSliceData
+
+	// _InvalidUnsafeString occurs when unsafe.String is called with a
+	// pointer argument that is not of pointer type or a length argument
+	// that is not of integer type, negative, or out of bounds.
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var b [10]byte
+	//  var _ = unsafe.String(&b[0], -1)
+	_InvalidUnsafeString
+
+	// _InvalidUnsafeStringData
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  var x int
+	//  var _ = unsafe.StringData(x)
+	//
+	// Example:
+	// import "unsafe"
+	//
+	// var _ = unsafe.StringData("abc")
+	_InvalidUnsafeStringData
 )
