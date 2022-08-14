@@ -285,20 +285,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			frame.varp -= goarch.PtrSize
 		}
 
-		// Derive size of arguments.
-		// Most functions have a fixed-size argument block,
-		// so we can use metadata about the function f.
-		// Not all, though: there are some variadic functions
-		// in package runtime and reflect, and for those we use call-specific
-		// metadata recorded by f's caller.
-		if callback != nil || printing {
-			frame.argp = frame.fp + sys.MinFrameSize
-			var ok bool
-			frame.arglen, frame.argmap, ok = getArgInfoFast(f, callback != nil)
-			if !ok {
-				frame.arglen, frame.argmap = getArgInfo(&frame, callback != nil)
-			}
-		}
+		frame.argp = frame.fp + sys.MinFrameSize
 
 		// Determine frame's 'continuation PC', where it can continue.
 		// Normally this is the return address on the stack, but if sigpanic
@@ -491,7 +478,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		frame.lr = 0
 		frame.sp = frame.fp
 		frame.fp = 0
-		frame.argmap = nil
 
 		// On link register architectures, sighandler saves the LR on stack
 		// before faking a call.
@@ -670,21 +656,33 @@ type reflectMethodValue struct {
 	argLen uintptr    // just args
 }
 
-// getArgInfoFast returns the argument frame information for a call to f.
-// It is short and inlineable. However, it does not handle all functions.
-// If ok reports false, you must call getArgInfo instead.
-// TODO(josharian): once we do mid-stack inlining,
-// call getArgInfo directly from getArgInfoFast and stop returning an ok bool.
-func getArgInfoFast(f funcInfo, needArgMap bool) (arglen uintptr, argmap *bitvector, ok bool) {
-	return uintptr(f.args), nil, !(needArgMap && f.args == _ArgsSizeUnknown)
+// argBytes returns the argument frame size for a call to frame.fn.
+func (frame *stkframe) argBytes() uintptr {
+	if frame.fn.args != _ArgsSizeUnknown {
+		return uintptr(frame.fn.args)
+	}
+	// This is an uncommon and complicated case. Fall back to fully
+	// fetching the argument map to compute its size.
+	argMap, _ := frame.argMapInternal()
+	return uintptr(argMap.n) * goarch.PtrSize
 }
 
-// getArgInfo returns the argument frame information for a call to f
-// with call frame frame.
-func getArgInfo(frame *stkframe, needArgMap bool) (arglen uintptr, argmap *bitvector) {
+// argMapInternal is used internally by stkframe to fetch special
+// argument maps.
+//
+// argMap.n is always populated with the size of the argument map.
+//
+// argMap.bytedata is only populated for dynamic argument maps (used
+// by reflect). If the caller requires the argument map, it should use
+// this if non-nil, and otherwise fetch the argument map using the
+// current PC.
+//
+// hasReflectStackObj indicates that this frame also has a reflect
+// function stack object, which the caller must synthesize.
+func (frame *stkframe) argMapInternal() (argMap bitvector, hasReflectStackObj bool) {
 	f := frame.fn
-	arglen = uintptr(f.args)
-	if needArgMap && f.args == _ArgsSizeUnknown {
+	argMap.n = f.args / goarch.PtrSize
+	if f.args == _ArgsSizeUnknown {
 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
 		switch funcname(f) {
 		case "reflect.makeFuncStub", "reflect.methodValueCall":
@@ -715,8 +713,9 @@ func getArgInfo(frame *stkframe, needArgMap bool) (arglen uintptr, argmap *bitve
 					print("runtime: confused by ", funcname(f), ": no frame (sp=", hex(frame.sp), " fp=", hex(frame.fp), ") at entry+", hex(frame.pc-f.entry()), "\n")
 					throw("reflect mismatch")
 				}
-				return 0, nil
+				return bitvector{}, false // No locals, so also no stack objects
 			}
+			hasReflectStackObj = true
 			mv := *(**reflectMethodValue)(unsafe.Pointer(arg0))
 			// Figure out whether the return values are valid.
 			// Reflect will update this value after it copies
@@ -726,12 +725,15 @@ func getArgInfo(frame *stkframe, needArgMap bool) (arglen uintptr, argmap *bitve
 				print("runtime: confused by ", funcname(f), "\n")
 				throw("reflect mismatch")
 			}
-			bv := mv.stack
-			arglen = uintptr(bv.n * goarch.PtrSize)
+			argMap = *mv.stack
 			if !retValid {
-				arglen = uintptr(mv.argLen) &^ (goarch.PtrSize - 1)
+				// argMap.n includes the results, but
+				// those aren't valid, so drop them.
+				n := int32((uintptr(mv.argLen) &^ (goarch.PtrSize - 1)) / goarch.PtrSize)
+				if n < argMap.n {
+					argMap.n = n
+				}
 			}
-			argmap = bv
 		}
 	}
 	return

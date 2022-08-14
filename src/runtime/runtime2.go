@@ -1027,13 +1027,11 @@ type stkframe struct {
 	// This is the PC to use to look up GC liveness for this frame.
 	continpc uintptr
 
-	lr     uintptr    // program counter at caller aka link register
-	sp     uintptr    // stack pointer at pc
-	fp     uintptr    // stack pointer at caller aka frame pointer
-	varp   uintptr    // top of local variables
-	argp   uintptr    // pointer to function arguments
-	arglen uintptr    // number of bytes at argp
-	argmap *bitvector // force use of this argmap
+	lr   uintptr // program counter at caller aka link register
+	sp   uintptr // stack pointer at pc
+	fp   uintptr // stack pointer at caller aka frame pointer
+	varp uintptr // top of local variables
+	argp uintptr // pointer to function arguments
 }
 
 // ancestorInfo records details of where a goroutine was started.

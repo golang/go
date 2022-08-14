@@ -47,7 +47,6 @@ func TestIntendedInlining(t *testing.T) {
 			"fastrand",
 			"float64bits",
 			"funcspdelta",
-			"getArgInfoFast",
 			"getm",
 			"getMCache",
 			"isDirectIface",

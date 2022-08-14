@@ -945,10 +945,10 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 		}
 
 		// Scan arguments to this frame.
-		if frame.arglen != 0 {
+		if n := frame.argBytes(); n != 0 {
 			// TODO: We could pass the entry argument map
 			// to narrow this down further.
-			scanConservative(frame.argp, frame.arglen, nil, gcw, state)
+			scanConservative(frame.argp, n, nil, gcw, state)
 		}
 
 		if isAsyncPreempt || isDebugCall {

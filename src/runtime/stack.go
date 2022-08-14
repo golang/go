@@ -1305,40 +1305,35 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 		}
 	}
 
-	// Arguments.
-	if frame.arglen > 0 {
-		if frame.argmap != nil {
-			// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
-			// In this case, arglen specifies how much of the args section is actually live.
-			// (It could be either all the args + results, or just the args.)
-			args = *frame.argmap
-			n := int32(frame.arglen / goarch.PtrSize)
-			if n < args.n {
-				args.n = n // Don't use more of the arguments than arglen.
-			}
+	// Arguments. First fetch frame size and special-case argument maps.
+	var isReflect bool
+	args, isReflect = frame.argMapInternal()
+	if args.n > 0 && args.bytedata == nil {
+		// Non-empty argument frame, but not a special map.
+		// Fetch the argument map at pcdata.
+		stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+		if stackmap == nil || stackmap.n <= 0 {
+			print("runtime: frame ", funcname(f), " untyped args ", hex(frame.argp), "+", hex(args.n*goarch.PtrSize), "\n")
+			throw("missing stackmap")
+		}
+		if pcdata < 0 || pcdata >= stackmap.n {
+			// don't know where we are
+			print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " args stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
+			throw("bad symbol table")
+		}
+		if stackmap.nbit == 0 {
+			args.n = 0
 		} else {
-			stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
-			if stackmap == nil || stackmap.n <= 0 {
-				print("runtime: frame ", funcname(f), " untyped args ", hex(frame.argp), "+", hex(frame.arglen), "\n")
-				throw("missing stackmap")
-			}
-			if pcdata < 0 || pcdata >= stackmap.n {
-				// don't know where we are
-				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " args stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
-				throw("bad symbol table")
-			}
-			if stackmap.nbit > 0 {
-				args = stackmapdata(stackmap, pcdata)
-			}
+			args = stackmapdata(stackmap, pcdata)
 		}
 	}
 
 	// stack objects.
 	if (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64") &&
-		unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
-		// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
-		// We don't actually use argmap in this case, but we need to fake the stack object
-		// record for these frames which contain an internal/abi.RegArgs at a hard-coded offset.
+		unsafe.Sizeof(abi.RegArgs{}) > 0 && isReflect {
+		// For reflect.makeFuncStub and reflect.methodValueCall,
+		// we need to fake the stack object record.
+		// These frames contain an internal/abi.RegArgs at a hard-coded offset.
 		// This offset matches the assembly code on amd64 and arm64.
 		objs = methodValueCallFrameObjs[:]
 	} else {

@@ -327,7 +327,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 
 	// Record arg info for parent.
 	child.argoff = s.argp - s.fp
-	child.arglen = s.arglen
+	child.arglen = s.argBytes()
 	child.sp = (*uint8)(unsafe.Pointer(s.sp))
 	child.depth++
 	stkmap = (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
