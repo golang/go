@@ -128,6 +128,17 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.OUNSAFESLICE:
 		n := n.(*ir.BinaryExpr)
 		return walkUnsafeSlice(n, init)
+	case ir.OUNSAFESTRING:
+		n := n.(*ir.BinaryExpr)
+		return walkUnsafeString(n, init)
+
+	case ir.OUNSAFESTRINGDATA:
+		n := n.(*ir.UnaryExpr)
+		return walkUnsafeStringData(n, init)
+
+	case ir.OUNSAFESLICEDATA:
+		n := n.(*ir.UnaryExpr)
+		return walkUnsafeSliceData(n, init)
 
 	case ir.ODOT, ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
