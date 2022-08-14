@@ -751,6 +751,65 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if check.Types != nil {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ, y.typ))
 		}
+	case _StringData:
+		// unsafe.StringData(str string) *byte
+		if !check.allowVersion(check.pkg, 1, 17) {
+			check.errorf(call.Fun, _InvalidUnsafeStringData, "unsafe.Slice requires go1.17 or later")
+			return
+		}
+		typ, ok := under(x.typ).(*Basic)
+		if !ok || (typ.Kind() != String && typ.Kind() != UntypedString) {
+			check.invalidArg(x, _InvalidUnsafeStringData, "%s is not a string", x)
+			return
+		}
+		x.mode = value
+		x.typ = NewPointer(aliases[0])
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ))
+		}
+
+	case _String:
+		// unsafe.String(ptr *byte, len IntegerType) string
+		if !check.allowVersion(check.pkg, 1, 17) {
+			check.errorf(call.Fun, _InvalidUnsafeString, "unsafe.Slice requires go1.17 or later")
+			return
+		}
+
+		typ, _ := under(x.typ).(*Pointer)
+		if typ == nil && typ.Elem() != Typ[Uint8] {
+			check.invalidArg(x, _InvalidUnsafeString, "%s is not a pointer", x)
+			return
+		}
+
+		var y operand
+		arg(&y, 1)
+		if !check.isValidIndex(&y, _InvalidUnsafeString, "length", false) {
+			return
+		}
+
+		x.mode = value
+		x.typ = Typ[String]
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ, y.typ))
+		}
+
+	case _SliceData:
+		// unsafe.SliceData(str string) *byte
+		if !check.allowVersion(check.pkg, 1, 17) {
+			check.errorf(call.Fun, _InvalidUnsafeSliceData, "unsafe.SliceData requires go1.17 or later")
+			return
+		}
+
+		typ, ok := under(x.typ).(*Slice)
+		if !ok {
+			check.invalidArg(x, _InvalidUnsafeSliceData, "%s is not a slice", x)
+			return
+		}
+		x.mode = value
+		x.typ = NewPointer(typ.Elem())
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ))
+		}
 
 	case _Assert:
 		// assert(pred) causes a typechecker error if pred is false.
