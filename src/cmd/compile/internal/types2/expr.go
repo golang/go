@@ -783,6 +783,12 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 
 // If switchCase is true, the operator op is ignored.
 func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase bool) {
+	// Avoid spurious errors if any of the operands has an invalid type (issue #54405).
+	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
+		x.mode = invalid
+		return
+	}
+
 	if switchCase {
 		op = syntax.Eql
 	}
