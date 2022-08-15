@@ -76,16 +76,14 @@ type Table [256]uint32
 // using this polynomial.
 var castagnoliTable *Table
 var castagnoliTable8 *slicing8Table
-var castagnoliArchImpl bool
 var updateCastagnoli func(crc uint32, p []byte) uint32
 var castagnoliOnce sync.Once
 var haveCastagnoli uint32
 
 func castagnoliInit() {
 	castagnoliTable = simpleMakeTable(Castagnoli)
-	castagnoliArchImpl = archAvailableCastagnoli()
 
-	if castagnoliArchImpl {
+	if archAvailableCastagnoli() {
 		archInitCastagnoli()
 		updateCastagnoli = archUpdateCastagnoli
 	} else {
@@ -104,14 +102,11 @@ var IEEETable = simpleMakeTable(IEEE)
 
 // ieeeTable8 is the slicing8Table for IEEE
 var ieeeTable8 *slicing8Table
-var ieeeArchImpl bool
 var updateIEEE func(crc uint32, p []byte) uint32
 var ieeeOnce sync.Once
 
 func ieeeInit() {
-	ieeeArchImpl = archAvailableIEEE()
-
-	if ieeeArchImpl {
+	if archAvailableIEEE() {
 		archInitIEEE()
 		updateIEEE = archUpdateIEEE
 	} else {
