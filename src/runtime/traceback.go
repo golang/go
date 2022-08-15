@@ -53,8 +53,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	}
 	level, _, _ := gotraceback()
 
-	var ctxt *funcval // Context pointer for unstarted goroutines. See issue #25897.
-
 	if pc0 == ^uintptr(0) && sp0 == ^uintptr(0) { // Signal to fetch saved values from gp.
 		if gp.syscallsp != 0 {
 			pc0 = gp.syscallpc
@@ -68,7 +66,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			if usesLR {
 				lr0 = gp.sched.lr
 			}
-			ctxt = (*funcval)(gp.sched.ctxt)
 		}
 	}
 
@@ -297,10 +294,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			var ok bool
 			frame.arglen, frame.argmap, ok = getArgInfoFast(f, callback != nil)
 			if !ok {
-				frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil, ctxt)
+				frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil)
 			}
 		}
-		ctxt = nil // ctxt is only needed to get arg maps for the topmost frame
 
 		// Determine frame's 'continuation PC', where it can continue.
 		// Normally this is the return address on the stack, but if sigpanic
@@ -683,40 +679,46 @@ func getArgInfoFast(f funcInfo, needArgMap bool) (arglen uintptr, argmap *bitvec
 
 // getArgInfo returns the argument frame information for a call to f
 // with call frame frame.
-//
-// This is used for both actual calls with active stack frames and for
-// deferred calls or goroutines that are not yet executing. If this is an actual
-// call, ctxt must be nil (getArgInfo will retrieve what it needs from
-// the active stack frame). If this is a deferred call or unstarted goroutine,
-// ctxt must be the function object that was deferred or go'd.
-func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (arglen uintptr, argmap *bitvector) {
+func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool) (arglen uintptr, argmap *bitvector) {
 	arglen = uintptr(f.args)
 	if needArgMap && f.args == _ArgsSizeUnknown {
 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
 		switch funcname(f) {
 		case "reflect.makeFuncStub", "reflect.methodValueCall":
 			// These take a *reflect.methodValue as their
-			// context register.
-			var mv *reflectMethodValue
-			var retValid bool
-			if ctxt != nil {
-				// This is not an actual call, but a
-				// deferred call or an unstarted goroutine.
-				// The function value is itself the *reflect.methodValue.
-				mv = (*reflectMethodValue)(unsafe.Pointer(ctxt))
-			} else {
-				// This is a real call that took the
-				// *reflect.methodValue as its context
-				// register and immediately saved it
-				// to 0(SP). Get the methodValue from
-				// 0(SP).
-				arg0 := frame.sp + sys.MinFrameSize
-				mv = *(**reflectMethodValue)(unsafe.Pointer(arg0))
-				// Figure out whether the return values are valid.
-				// Reflect will update this value after it copies
-				// in the return values.
-				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*goarch.PtrSize))
+			// context register and immediately save it to 0(SP).
+			// Get the methodValue from 0(SP).
+			arg0 := frame.sp + sys.MinFrameSize
+
+			minSP := frame.fp
+			if !usesLR {
+				// The CALL itself pushes a word.
+				// Undo that adjustment.
+				minSP -= goarch.PtrSize
 			}
+			if arg0 >= minSP {
+				// The function hasn't started yet.
+				// This only happens if f was the
+				// start function of a new goroutine
+				// that hasn't run yet *and* f takes
+				// no arguments and has no results
+				// (otherwise it will get wrapped in a
+				// closure). In this case, we can't
+				// reach into its locals because it
+				// doesn't have locals yet, but we
+				// also know its argument map is
+				// empty.
+				if frame.pc != f.entry() {
+					print("runtime: confused by ", funcname(f), ": no frame (sp=", hex(frame.sp), " fp=", hex(frame.fp), ") at entry+", hex(frame.pc-f.entry()), "\n")
+					throw("reflect mismatch")
+				}
+				return 0, nil
+			}
+			mv := *(**reflectMethodValue)(unsafe.Pointer(arg0))
+			// Figure out whether the return values are valid.
+			// Reflect will update this value after it copies
+			// in the return values.
+			retValid := *(*bool)(unsafe.Pointer(arg0 + 4*goarch.PtrSize))
 			if mv.fn != f.entry() {
 				print("runtime: confused by ", funcname(f), "\n")
 				throw("reflect mismatch")

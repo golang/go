@@ -223,6 +223,10 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 
 	// If the function is already a zero argument/result function call,
 	// just escape analyze it normally.
+	//
+	// Note that the runtime is aware of this optimization for
+	// "go" statements that start in reflect.makeFuncStub or
+	// reflect.methodValueCall.
 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
 		if sig := call.X.Type(); sig.NumParams()+sig.NumResults() == 0 {
 			if clo, ok := call.X.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
