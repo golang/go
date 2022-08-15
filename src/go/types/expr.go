@@ -110,7 +110,11 @@ func (check *Checker) overflow(x *operand, opPos token.Pos) {
 	// Untyped integer values must not grow arbitrarily.
 	const prec = 512 // 512 is the constant precision
 	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
-		check.errorf(atPos(opPos), _InvalidConstVal, "constant %s overflow", opName(x.expr))
+		op := opName(x.expr)
+		if op != "" {
+			op += " "
+		}
+		check.errorf(atPos(opPos), _InvalidConstVal, "constant %soverflow", op)
 		x.val = constant.MakeUnknown()
 	}
 }
@@ -1300,6 +1304,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.errorf(e, _InvalidConstVal, "malformed constant: %s", e.Value)
 			goto Error
 		}
+		// Ensure that integer values don't overflow (issue #54280).
+		check.overflow(x, e.Pos())
 
 	case *ast.FuncLit:
 		if sig, ok := check.typ(e.Type).(*Signature); ok {

@@ -352,7 +352,7 @@ func TestManual(t *testing.T) {
 }
 
 func TestLongConstants(t *testing.T) {
-	format := "package longconst\n\nconst _ = %s\nconst _ = %s // ERROR excessively long constant"
+	format := "package longconst\n\nconst _ = %s /* ERROR constant overflow */ \nconst _ = %s // ERROR excessively long constant"
 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
 	testFiles(t, nil, []string{"longconst.go"}, [][]byte{[]byte(src)}, false, nil)
 }
