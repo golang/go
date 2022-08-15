@@ -877,8 +877,6 @@ func main() {}
 }
 
 func TestSumUpdateFixesDiagnostics(t *testing.T) {
-	t.Skipf("Skipping known-flaky test; see https://go.dev/issue/51352.")
-
 	testenv.NeedsGo1Point(t, 14)
 
 	const mod = `
