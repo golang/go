@@ -301,7 +301,12 @@ var depsRules = `
 	< C
 	< runtime/cgo
 	< CGO
-	< runtime/race, runtime/msan, runtime/asan;
+	< runtime/msan, runtime/asan;
+
+	# runtime/race
+	NONE < runtime/race/internal/amd64v1;
+	NONE < runtime/race/internal/amd64v3;
+	CGO, runtime/race/internal/amd64v1, runtime/race/internal/amd64v3 < runtime/race;
 
 	# Bulk of the standard library must not use cgo.
 	# The prohibition stops at net and os/user.
