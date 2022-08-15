@@ -126,11 +126,14 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+
+	// This log message is sought for by TestReloadOnlyOnce.
 	if err != nil {
 		event.Error(ctx, eventName, err, tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	} else {
 		event.Log(ctx, eventName, tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	}
+
 	if len(pkgs) == 0 {
 		if err == nil {
 			err = fmt.Errorf("no packages returned")
@@ -210,6 +213,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		if existing := s.meta.metadata[m.ID]; existing == nil || !existing.Valid {
 			updates[m.ID] = m
 			updatedIDs = append(updatedIDs, m.ID)
+			delete(s.shouldLoad, m.ID)
 		}
 	}
 

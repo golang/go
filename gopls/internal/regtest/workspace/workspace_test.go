@@ -156,6 +156,31 @@ func TestClearAnalysisDiagnostics(t *testing.T) {
 	})
 }
 
+// TestReloadOnlyOnce checks that changes to the go.mod file do not result in
+// redundant package loads (golang/go#54473).
+//
+// Note that this test may be fragile, as it depends on specific structure to
+// log messages around reinitialization. Nevertheless, it is important for
+// guarding against accidentally duplicate reloading.
+func TestReloadOnlyOnce(t *testing.T) {
+	WithOptions(
+		ProxyFiles(workspaceProxy),
+		WorkspaceFolders("pkg"),
+	).Run(t, workspaceModule, func(t *testing.T, env *Env) {
+		dir := env.Sandbox.Workdir.URI("goodbye").SpanURI().Filename()
+		goModWithReplace := fmt.Sprintf(`%s
+replace random.org => %s
+`, env.ReadWorkspaceFile("pkg/go.mod"), dir)
+		env.WriteWorkspaceFile("pkg/go.mod", goModWithReplace)
+		env.Await(
+			OnceMet(
+				env.DoneWithChangeWatchedFiles(),
+				LogMatching(protocol.Info, `packages\.Load #\d+\n`, 2, false),
+			),
+		)
+	})
+}
+
 // This test checks that gopls updates the set of files it watches when a
 // replace target is added to the go.mod.
 func TestWatchReplaceTargets(t *testing.T) {
