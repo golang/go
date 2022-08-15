@@ -17,6 +17,7 @@ package profile
 import (
 	"errors"
 	"sort"
+	"strings"
 )
 
 func (p *Profile) decoder() []decoder {
@@ -252,6 +253,14 @@ func (p *Profile) postDecode() error {
 		} else {
 			mappings[m.ID] = m
 		}
+
+		// If this a main linux kernel mapping with a relocation symbol suffix
+		// ("[kernel.kallsyms]_text"), extract said suffix.
+		// It is fairly hacky to handle at this level, but the alternatives appear even worse.
+		if strings.HasPrefix(m.File, "[kernel.kallsyms]") {
+			m.KernelRelocationSymbol = strings.ReplaceAll(m.File, "[kernel.kallsyms]", "")
+		}
+
 	}
 
 	functions := make(map[uint64]*Function, len(p.Function))

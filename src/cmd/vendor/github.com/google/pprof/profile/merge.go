@@ -303,16 +303,17 @@ func (pm *profileMerger) mapMapping(src *Mapping) mapInfo {
 		return mi
 	}
 	m := &Mapping{
-		ID:              uint64(len(pm.p.Mapping) + 1),
-		Start:           src.Start,
-		Limit:           src.Limit,
-		Offset:          src.Offset,
-		File:            src.File,
-		BuildID:         src.BuildID,
-		HasFunctions:    src.HasFunctions,
-		HasFilenames:    src.HasFilenames,
-		HasLineNumbers:  src.HasLineNumbers,
-		HasInlineFrames: src.HasInlineFrames,
+		ID:                     uint64(len(pm.p.Mapping) + 1),
+		Start:                  src.Start,
+		Limit:                  src.Limit,
+		Offset:                 src.Offset,
+		File:                   src.File,
+		KernelRelocationSymbol: src.KernelRelocationSymbol,
+		BuildID:                src.BuildID,
+		HasFunctions:           src.HasFunctions,
+		HasFilenames:           src.HasFilenames,
+		HasLineNumbers:         src.HasLineNumbers,
+		HasInlineFrames:        src.HasInlineFrames,
 	}
 	pm.p.Mapping = append(pm.p.Mapping, m)
 

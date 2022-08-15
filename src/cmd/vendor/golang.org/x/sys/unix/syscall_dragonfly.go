@@ -101,7 +101,10 @@ func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
-	p[0], p[1], err = pipe()
+	r, w, err := pipe()
+	if err == nil {
+		p[0], p[1] = r, w
+	}
 	return
 }
 
@@ -114,7 +117,10 @@ func Pipe2(p []int, flags int) (err error) {
 	var pp [2]_C_int
 	// pipe2 on dragonfly takes an fds array as an argument, but still
 	// returns the file descriptors.
-	p[0], p[1], err = pipe2(&pp, flags)
+	r, w, err := pipe2(&pp, flags)
+	if err == nil {
+		p[0], p[1] = r, w
+	}
 	return err
 }
 

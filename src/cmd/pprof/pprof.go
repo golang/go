@@ -149,7 +149,7 @@ type objTool struct {
 	disasmCache map[string]*objfile.Disasm
 }
 
-func (*objTool) Open(name string, start, limit, offset uint64) (driver.ObjFile, error) {
+func (*objTool) Open(name string, start, limit, offset uint64, relocationSymbol string) (driver.ObjFile, error) {
 	of, err := objfile.Open(name)
 	if err != nil {
 		return nil, err

@@ -113,12 +113,17 @@ func formatLabelValues(s *profile.Sample, k string, outputUnit string) []string 
 	values = append(values, s.Label[k]...)
 	numLabels := s.NumLabel[k]
 	numUnits := s.NumUnit[k]
-	if len(numLabels) != len(numUnits) {
+	if len(numLabels) != len(numUnits) && len(numUnits) != 0 {
 		return values
 	}
 	for i, numLabel := range numLabels {
-		unit := numUnits[i]
-		values = append(values, measurement.ScaledLabel(numLabel, unit, outputUnit))
+		var value string
+		if len(numUnits) != 0 {
+			value = measurement.ScaledLabel(numLabel, numUnits[i], outputUnit)
+		} else {
+			value = measurement.ScaledLabel(numLabel, "", "")
+		}
+		values = append(values, value)
 	}
 	return values
 }

@@ -145,15 +145,6 @@ const (
 	netSendMMsg    = 20
 )
 
-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (int, error) {
-	args := [3]uintptr{uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen))}
-	fd, _, err := Syscall(SYS_SOCKETCALL, netAccept, uintptr(unsafe.Pointer(&args)), 0)
-	if err != 0 {
-		return 0, err
-	}
-	return int(fd), nil
-}
-
 func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (int, error) {
 	args := [4]uintptr{uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags)}
 	fd, _, err := Syscall(SYS_SOCKETCALL, netAccept4, uintptr(unsafe.Pointer(&args)), 0)

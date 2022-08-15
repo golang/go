@@ -210,8 +210,8 @@ type PtraceFpregs struct {
 }
 
 type PtracePer struct {
-	_             [0]uint64
-	_             [32]byte
+	Control_regs  [3]uint64
+	_             [8]byte
 	Starting_addr uint64
 	Ending_addr   uint64
 	Perc_atmid    uint16

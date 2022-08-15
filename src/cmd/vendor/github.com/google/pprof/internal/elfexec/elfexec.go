@@ -165,9 +165,9 @@ func GetBuildID(binary io.ReaderAt) ([]byte, error) {
 	return nil, nil
 }
 
-// kernelBase caluclates the base for kernel mappings, which usually require
+// kernelBase calculates the base for kernel mappings, which usually require
 // special handling. For kernel mappings, tools (like perf) use the address of
-// the kernel relocation symbol (_text or _stext) as the mmap start. Additionaly,
+// the kernel relocation symbol (_text or _stext) as the mmap start. Additionally,
 // for obfuscation, ChromeOS profiles have the kernel image remapped to the 0-th page.
 func kernelBase(loadSegment *elf.ProgHeader, stextOffset *uint64, start, limit, offset uint64) (uint64, bool) {
 	const (
@@ -217,7 +217,7 @@ func kernelBase(loadSegment *elf.ProgHeader, stextOffset *uint64, start, limit, 
 // GetBase determines the base address to subtract from virtual
 // address to get symbol table address. For an executable, the base
 // is 0. Otherwise, it's a shared library, and the base is the
-// address where the mapping starts. The kernel needs special hanldling.
+// address where the mapping starts. The kernel needs special handling.
 func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint64, start, limit, offset uint64) (uint64, error) {
 
 	if start == 0 && offset == 0 && (limit == ^uint64(0) || limit == 0) {
