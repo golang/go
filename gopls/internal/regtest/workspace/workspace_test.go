@@ -302,8 +302,6 @@ func main() {
 // This change tests that the version of the module used changes after it has
 // been deleted from the workspace.
 func TestDeleteModule_Interdependent(t *testing.T) {
-	t.Skip("Skipping due to golang/go#46375: race due to orphaned file reloading")
-
 	const multiModule = `
 -- moda/a/go.mod --
 module a.com
@@ -353,15 +351,6 @@ func Hello() int {
 			env.DoneWithChangeWatchedFiles(),
 		)
 
-		d := protocol.PublishDiagnosticsParams{}
-		env.Await(
-			OnceMet(
-				env.DiagnosticAtRegexpWithMessage("moda/a/go.mod", "require b.com v1.2.3", "b.com@v1.2.3 has not been downloaded"),
-				ReadDiagnostics("moda/a/go.mod", &d),
-			),
-		)
-		env.ApplyQuickFixes("moda/a/go.mod", d.Diagnostics)
-		env.Await(env.DoneWithChangeWatchedFiles())
 		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(got, want) {
 			t.Errorf("expected %s, got %v", want, got)
