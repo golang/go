@@ -11,12 +11,8 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-// A metadataGraph holds information about a transtively closed import graph of
-// Go packages, as obtained from go/packages.
-//
-// Currently a new metadata graph is created for each snapshot.
-// TODO(rfindley): make this type immutable, so that it may be shared across
-// snapshots.
+// A metadataGraph is an immutable and transitively closed import
+// graph of Go packages, as obtained from go/packages.
 type metadataGraph struct {
 	// metadata maps package IDs to their associated metadata.
 	metadata map[PackageID]*KnownMetadata

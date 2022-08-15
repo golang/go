@@ -1986,13 +1986,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	}
 
 	// Update metadata, if necessary.
-	if len(metadataUpdates) > 0 {
-		result.meta = s.meta.Clone(metadataUpdates)
-	} else {
-		// No metadata changes. Since metadata is only updated by cloning, it is
-		// safe to re-use the existing metadata here.
-		result.meta = s.meta
-	}
+	result.meta = s.meta.Clone(metadataUpdates)
 
 	// Update workspace and active packages, if necessary.
 	if result.meta != s.meta || anyFileOpenedOrClosed {

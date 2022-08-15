@@ -710,8 +710,9 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 		scopes = append(scopes, viewLoadScope("LOAD_VIEW"))
 	}
 
-	// If we're loading anything, ensure we also load builtin.
-	// TODO(rstambler): explain the rationale for this.
+	// If we're loading anything, ensure we also load builtin,
+	// since it provides fake definitions (and documentation)
+	// for types like int that are used everywhere.
 	if len(scopes) > 0 {
 		scopes = append(scopes, PackagePath("builtin"))
 	}

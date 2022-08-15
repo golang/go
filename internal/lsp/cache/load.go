@@ -93,9 +93,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 
 	if s.view.Options().VerboseWorkDoneProgress {
 		work := s.view.session.progress.Start(ctx, "Load", fmt.Sprintf("Loading query=%s", query), nil, nil)
-		defer func() {
-			work.End(ctx, "Done.")
-		}()
+		defer work.End(ctx, "Done.")
 	}
 
 	ctx, done := event.Start(ctx, "cache.view.load", tag.Query.Of(query))
@@ -241,14 +239,13 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	s.dumpWorkspace("load")
 	s.mu.Unlock()
 
-	// Rebuild the workspace package handle for any packages we invalidated.
+	// Recompute the workspace package handle for any packages we invalidated.
 	//
-	// TODO(rfindley): what's the point of returning an error here? Probably we
-	// can simply remove this step: The package handle will be rebuilt as needed.
+	// This is (putatively) an optimization since handle
+	// construction prefetches the content of all Go source files.
+	// It is safe to ignore errors, or omit this step entirely.
 	for _, m := range updates {
-		if _, err := s.buildPackageHandle(ctx, m.ID, s.workspaceParseMode(m.ID)); err != nil {
-			return err
-		}
+		s.buildPackageHandle(ctx, m.ID, s.workspaceParseMode(m.ID)) // ignore error
 	}
 
 	if len(moduleErrs) > 0 {
