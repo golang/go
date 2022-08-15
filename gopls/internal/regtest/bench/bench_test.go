@@ -75,8 +75,8 @@ var (
 	file      = flag.String("file", "go/ast/astutil/util.go", "active file, for benchmarks that operate on a file")
 	commitish = flag.String("commit", "gopls/v0.9.0", "if set (and -workdir is unset), run benchmarks at this commit")
 
-	goplsPath    = flag.String("gopls_path", "", "if set, use this gopls for testing; incompatible with -gopls_version")
-	goplsVersion = flag.String("gopls_version", "", "if set, install and use gopls at this version for testing; incompatible with -gopls_path")
+	goplsPath   = flag.String("gopls_path", "", "if set, use this gopls for testing; incompatible with -gopls_commit")
+	goplsCommit = flag.String("gopls_commit", "", "if set, install and use gopls at this commit for testing; incompatible with -gopls_path")
 
 	// If non-empty, tempDir is a temporary working dir that was created by this
 	// test suite.
@@ -123,24 +123,35 @@ func benchmarkDir() string {
 
 	dir := filepath.Join(getTempDir(), "repo")
 	checkoutRepoOnce.Do(func() {
-		if err := os.Mkdir(dir, 0750); err != nil {
-			log.Fatalf("creating repo dir: %v", err)
-		}
-		log.Printf("checking out %s@%s to %s\n", *repo, *commitish, dir)
-
-		// Set a timeout for git fetch. If this proves flaky, it can be removed.
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-		defer cancel()
-
-		// Use a shallow fetch to download just the releveant commit.
-		shInit := fmt.Sprintf("git init && git fetch --depth=1 %q %q && git checkout FETCH_HEAD", *repo, *commitish)
-		initCmd := exec.CommandContext(ctx, "/bin/sh", "-c", shInit)
-		initCmd.Dir = dir
-		if err := initCmd.Run(); err != nil {
-			log.Fatalf("checking out %s: %v", *repo, err)
+		log.Printf("creating working dir: checking out %s@%s to %s\n", *repo, *commitish, dir)
+		if err := shallowClone(dir, *repo, *commitish); err != nil {
+			log.Fatal(err)
 		}
 	})
 	return dir
+}
+
+// shallowClone performs a shallow clone of repo into dir at the given
+// 'commitish' ref (any commit reference understood by git).
+//
+// The directory dir must not already exist.
+func shallowClone(dir, repo, commitish string) error {
+	if err := os.Mkdir(dir, 0750); err != nil {
+		return fmt.Errorf("creating dir for %s: %v", repo, err)
+	}
+
+	// Set a timeout for git fetch. If this proves flaky, it can be removed.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	// Use a shallow fetch to download just the relevant commit.
+	shInit := fmt.Sprintf("git init && git fetch --depth=1 %q %q && git checkout FETCH_HEAD", repo, commitish)
+	initCmd := exec.CommandContext(ctx, "/bin/sh", "-c", shInit)
+	initCmd.Dir = dir
+	if output, err := initCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("checking out %s: %v\n%s", repo, err, output)
+	}
+	return nil
 }
 
 // benchmarkEnv returns a shared benchmark environment
@@ -191,50 +202,45 @@ func connectEditor(dir string, config fake.EditorConfig) (*fake.Sandbox, *fake.E
 // getServer returns a server connector that either starts a new in-process
 // server, or starts a separate gopls process.
 func getServer() servertest.Connector {
-	if *goplsPath != "" && *goplsVersion != "" {
-		panic("can't set both -gopls_path and -gopls_version")
+	if *goplsPath != "" && *goplsCommit != "" {
+		panic("can't set both -gopls_path and -gopls_commit")
 	}
 	if *goplsPath != "" {
 		return &SidecarServer{*goplsPath}
 	}
-	if *goplsVersion != "" {
-		path := getInstalledGopls(*goplsVersion)
+	if *goplsCommit != "" {
+		path := getInstalledGopls()
 		return &SidecarServer{path}
 	}
 	server := lsprpc.NewStreamServer(cache.New(nil, nil, hooks.Options), false)
 	return servertest.NewPipeServer(server, jsonrpc2.NewRawStream)
 }
 
-func getInstalledGopls(version string) string {
-	// Use a temp GOPATH to while installing gopls, to avoid overwriting gopls in
-	// the user's PATH.
-	gopath := filepath.Join(getTempDir(), "gopath")
-	goplsPath := filepath.Join(gopath, "bin", "gopls")
+// getInstalledGopls builds gopls at the given -gopls_commit, returning the
+// path to the gopls binary.
+func getInstalledGopls() string {
+	if *goplsCommit == "" {
+		panic("must provide -gopls_commit")
+	}
+	toolsDir := filepath.Join(getTempDir(), "tools")
+	goplsPath := filepath.Join(toolsDir, "gopls", "gopls")
+
 	installGoplsOnce.Do(func() {
-		if err := os.Mkdir(gopath, 0755); err != nil {
-			log.Fatalf("creating temp GOPATH: %v", err)
-		}
-		env := append(os.Environ(), "GOPATH="+gopath)
-
-		// Install gopls.
-		log.Printf("installing gopls@%s\n", version)
-		cmd := exec.Command("go", "install", fmt.Sprintf("golang.org/x/tools/gopls@%s", version))
-		cmd.Env = env
-		if output, err := cmd.CombinedOutput(); err != nil {
-			log.Fatalf("installing gopls: %v:\n%s", err, string(output))
+		log.Printf("installing gopls: checking out x/tools@%s\n", *goplsCommit)
+		if err := shallowClone(toolsDir, "https://go.googlesource.com/tools", *goplsCommit); err != nil {
+			log.Fatal(err)
 		}
 
-		// Clean the modcache, otherwise we'll get errors when trying to remove the
-		// temp directory.
-		cleanCmd := exec.Command("go", "clean", "-modcache")
-		cleanCmd.Env = env
-		if output, err := cleanCmd.CombinedOutput(); err != nil {
-			log.Fatalf("cleaning up temp GOPATH: %v\n%s", err, string(output))
+		log.Println("installing gopls: building...")
+		bld := exec.Command("go", "build", ".")
+		bld.Dir = filepath.Join(getTempDir(), "tools", "gopls")
+		if output, err := bld.CombinedOutput(); err != nil {
+			log.Fatalf("building gopls: %v\n%s", err, output)
 		}
 
 		// Confirm that the resulting path now exists.
 		if _, err := os.Stat(goplsPath); err != nil {
-			log.Fatalf("os.Stat(goplsPath): %v", err)
+			log.Fatalf("os.Stat(%s): %v", goplsPath, err)
 		}
 	})
 	return goplsPath

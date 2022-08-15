@@ -12,9 +12,9 @@ import (
 	. "golang.org/x/tools/internal/lsp/regtest"
 )
 
-// BenchmarkIWL benchmarks the initial workspace load time for a new editing
-// session.
-func BenchmarkIWL(b *testing.B) {
+// BenchmarkInitialWorkspaceLoad benchmarks the initial workspace load time for
+// a new editing session.
+func BenchmarkInitialWorkspaceLoad(b *testing.B) {
 	dir := benchmarkDir()
 	b.ResetTimer()
 
