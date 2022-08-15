@@ -53,6 +53,16 @@ var dnsReadConfigTests = []struct {
 		},
 	},
 	{
+		name: "testdata/search-single-dot-resolv.conf",
+		want: &dnsConfig{
+			servers:  []string{"8.8.8.8:53"},
+			search:   []string{},
+			ndots:    1,
+			timeout:  5 * time.Second,
+			attempts: 2,
+		},
+	},
+	{
 		name: "testdata/empty-resolv.conf",
 		want: &dnsConfig{
 			servers:  defaultNS,
@@ -166,6 +176,9 @@ func TestDNSReadConfig(t *testing.T) {
 	getHostname = func() (string, error) { return "host.domain.local", nil }
 
 	for _, tt := range dnsReadConfigTests {
+		if len(tt.want.search) == 0 {
+			tt.want.search = append(tt.want.search, dnsDefaultSearch()...)
+		}
 		conf := dnsReadConfig(tt.name)
 		if conf.err != nil {
 			t.Fatal(conf.err)

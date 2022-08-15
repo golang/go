@@ -64,9 +64,13 @@ func dnsReadConfig(filename string) *dnsConfig {
 			}
 
 		case "search": // set search path to given servers
-			conf.search = make([]string, len(f)-1)
-			for i := 0; i < len(conf.search); i++ {
-				conf.search[i] = ensureRooted(f[i+1])
+			conf.search = make([]string, 0, len(f)-1)
+			for i := 1; i < len(f); i++ {
+				name := ensureRooted(f[i])
+				if name == "." {
+					continue
+				}
+				conf.search = append(conf.search, name)
 			}
 
 		case "options": // magic options
