@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !boringcrypto || !linux || !amd64 || !cgo || android || cmd_go_bootstrap || msan
-// +build !boringcrypto !linux !amd64 !cgo android cmd_go_bootstrap msan
+//go:build !(boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan && cgo)
 
 package boring
 
