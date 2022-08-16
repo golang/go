@@ -10,6 +10,7 @@ import (
 	"crypto/cipher"
 	"crypto/ecdh"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"internal/testenv"
@@ -173,7 +174,8 @@ func TestVectors(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !bytes.Equal(secret, hexDecode(t, v.SharedSecret)) {
-			t.Error("shared secret does not match")
+			t.Errorf("shared secret does not match: %x %x %s %x", secret, sha256.Sum256(secret), v.SharedSecret,
+				sha256.Sum256(hexDecode(t, v.SharedSecret)))
 		}
 	})
 }
@@ -285,6 +287,8 @@ func TestNewPrivateKey(t *testing.T) {
 				t.Errorf("unexpectedly accepted %q", input)
 			} else if k != nil {
 				t.Error("PrivateKey was not nil on error")
+			} else if strings.Contains(err.Error(), "boringcrypto") {
+				t.Errorf("boringcrypto error leaked out: %v", err)
 			}
 		}
 	})
@@ -344,6 +348,8 @@ func TestNewPublicKey(t *testing.T) {
 				t.Errorf("unexpectedly accepted %q", input)
 			} else if k != nil {
 				t.Error("PublicKey was not nil on error")
+			} else if strings.Contains(err.Error(), "boringcrypto") {
+				t.Errorf("boringcrypto error leaked out: %v", err)
 			}
 		}
 	})

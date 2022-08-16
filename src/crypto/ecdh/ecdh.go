@@ -8,6 +8,7 @@ package ecdh
 
 import (
 	"crypto"
+	"crypto/internal/boring"
 	"crypto/subtle"
 	"io"
 	"sync"
@@ -64,6 +65,7 @@ type Curve interface {
 type PublicKey struct {
 	curve     Curve
 	publicKey []byte
+	boring    *boring.PublicKeyECDH
 }
 
 // Bytes returns a copy of the encoding of the public key.
@@ -98,6 +100,7 @@ func (k *PublicKey) Curve() Curve {
 type PrivateKey struct {
 	curve      Curve
 	privateKey []byte
+	boring     *boring.PrivateKeyECDH
 	// publicKey is set under publicKeyOnce, to allow loading private keys with
 	// NewPrivateKey without having to perform a scalar multiplication.
 	publicKey     *PublicKey
@@ -134,7 +137,23 @@ func (k *PrivateKey) Curve() Curve {
 
 func (k *PrivateKey) PublicKey() *PublicKey {
 	k.publicKeyOnce.Do(func() {
-		k.publicKey = k.curve.privateKeyToPublicKey(k)
+		if k.boring != nil {
+			// Because we already checked in NewPrivateKey that the key is valid,
+			// there should not be any possible errors from BoringCrypto,
+			// so we turn the error into a panic.
+			// (We can't return it anyhow.)
+			kpub, err := k.boring.PublicKey()
+			if err != nil {
+				panic("boringcrypto: " + err.Error())
+			}
+			k.publicKey = &PublicKey{
+				curve:     k.curve,
+				publicKey: kpub.Bytes(),
+				boring:    kpub,
+			}
+		} else {
+			k.publicKey = k.curve.privateKeyToPublicKey(k)
+		}
 	})
 	return k.publicKey
 }

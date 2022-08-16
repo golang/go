@@ -5,6 +5,7 @@
 package ecdh
 
 import (
+	"crypto/internal/boring"
 	"crypto/internal/nistec"
 	"crypto/internal/randutil"
 	"encoding/binary"
@@ -35,6 +36,14 @@ func (c *nistCurve[Point]) String() string {
 var errInvalidPrivateKey = errors.New("crypto/ecdh: invalid private key")
 
 func (c *nistCurve[Point]) GenerateKey(rand io.Reader) (*PrivateKey, error) {
+	if boring.Enabled && rand == boring.RandReader {
+		key, bytes, err := boring.GenerateKeyECDH(c.name)
+		if err != nil {
+			return nil, err
+		}
+		return newBoringPrivateKey(c, key, bytes)
+	}
+
 	key := make([]byte, len(c.scalarOrder))
 	randutil.MaybeReadByte(rand)
 	for {
@@ -70,13 +79,31 @@ func (c *nistCurve[Point]) NewPrivateKey(key []byte) (*PrivateKey, error) {
 	if isZero(key) || !isLess(key, c.scalarOrder) {
 		return nil, errInvalidPrivateKey
 	}
-	return &PrivateKey{
+	if boring.Enabled {
+		bk, err := boring.NewPrivateKeyECDH(c.name, key)
+		if err != nil {
+			return nil, err
+		}
+		return newBoringPrivateKey(c, bk, key)
+	}
+	k := &PrivateKey{
 		curve:      c,
 		privateKey: append([]byte{}, key...),
-	}, nil
+	}
+	return k, nil
+}
+
+func newBoringPrivateKey(c Curve, bk *boring.PrivateKeyECDH, privateKey []byte) (*PrivateKey, error) {
+	k := &PrivateKey{
+		curve:      c,
+		boring:     bk,
+		privateKey: append([]byte(nil), privateKey...),
+	}
+	return k, nil
 }
 
 func (c *nistCurve[Point]) privateKeyToPublicKey(key *PrivateKey) *PublicKey {
+	boring.Unreachable()
 	if key.curve != c {
 		panic("crypto/ecdh: internal error: converting the wrong key type")
 	}
@@ -142,15 +169,23 @@ func (c *nistCurve[Point]) NewPublicKey(key []byte) (*PublicKey, error) {
 	if len(key) == 0 || key[0] != 4 {
 		return nil, errors.New("crypto/ecdh: invalid public key")
 	}
-	// SetBytes also checks that the point is on the curve.
-	if _, err := c.newPoint().SetBytes(key); err != nil {
-		return nil, err
-	}
-
-	return &PublicKey{
+	k := &PublicKey{
 		curve:     c,
 		publicKey: append([]byte{}, key...),
-	}, nil
+	}
+	if boring.Enabled {
+		bk, err := boring.NewPublicKeyECDH(c.name, k.publicKey)
+		if err != nil {
+			return nil, err
+		}
+		k.boring = bk
+	} else {
+		// SetBytes also checks that the point is on the curve.
+		if _, err := c.newPoint().SetBytes(key); err != nil {
+			return nil, err
+		}
+	}
+	return k, nil
 }
 
 func (c *nistCurve[Point]) ECDH(local *PrivateKey, remote *PublicKey) ([]byte, error) {
@@ -160,6 +195,12 @@ func (c *nistCurve[Point]) ECDH(local *PrivateKey, remote *PublicKey) ([]byte, e
 	// at infinity, but in a prime order group such as the NIST curves that can
 	// only be the result of a scalar multiplication if one of the inputs is the
 	// zero scalar or the point at infinity.
+
+	if boring.Enabled {
+		return boring.ECDH(local.boring, remote.boring)
+	}
+
+	boring.Unreachable()
 	p, err := c.newPoint().SetBytes(remote.publicKey)
 	if err != nil {
 		return nil, err
