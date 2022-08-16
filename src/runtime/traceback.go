@@ -294,7 +294,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			var ok bool
 			frame.arglen, frame.argmap, ok = getArgInfoFast(f, callback != nil)
 			if !ok {
-				frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil)
+				frame.arglen, frame.argmap = getArgInfo(&frame, callback != nil)
 			}
 		}
 
@@ -679,7 +679,8 @@ func getArgInfoFast(f funcInfo, needArgMap bool) (arglen uintptr, argmap *bitvec
 
 // getArgInfo returns the argument frame information for a call to f
 // with call frame frame.
-func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool) (arglen uintptr, argmap *bitvector) {
+func getArgInfo(frame *stkframe, needArgMap bool) (arglen uintptr, argmap *bitvector) {
+	f := frame.fn
 	arglen = uintptr(f.args)
 	if needArgMap && f.args == _ArgsSizeUnknown {
 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
