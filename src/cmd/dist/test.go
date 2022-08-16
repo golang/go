@@ -25,6 +25,7 @@ import (
 
 func cmdtest() {
 	gogcflags = os.Getenv("GO_GCFLAGS")
+	setNoOpt()
 
 	var t tester
 
@@ -325,10 +326,17 @@ func (t *tester) goTest() []string {
 }
 
 func (t *tester) tags() string {
-	if t.iOS() {
+	ios := t.iOS()
+	switch {
+	case ios && noOpt:
+		return "-tags=lldb,noopt"
+	case ios:
 		return "-tags=lldb"
+	case noOpt:
+		return "-tags=noopt"
+	default:
+		return "-tags="
 	}
-	return "-tags="
 }
 
 // timeoutDuration converts the provided number of seconds into a

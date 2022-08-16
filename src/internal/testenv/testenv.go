@@ -412,13 +412,8 @@ func SkipIfShortAndSlow(t testing.TB) {
 func SkipIfOptimizationOff(t testing.TB) {
 	if OptimizationOff() {
 		t.Helper()
-		t.Skip("skipping test with optimization disabled on builder")
+		t.Skip("skipping test with optimization disabled")
 	}
-}
-
-// OptimizationOff reports whether optimization is disabled.
-func OptimizationOff() bool {
-	return strings.HasSuffix(Builder(), "-noopt")
 }
 
 // RunWithTimeout runs cmd and returns its combined output. If the
