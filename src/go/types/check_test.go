@@ -185,7 +185,7 @@ func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
 
 // parseFlags parses flags from the first line of the given source
 // (from src if present, or by reading from the file) if the line
-// starts with "//" (line comment) followed by "-" (possiby with
+// starts with "//" (line comment) followed by "-" (possibly with
 // spaces between). Otherwise the line is ignored.
 func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
 	// If there is no src, read from the file.

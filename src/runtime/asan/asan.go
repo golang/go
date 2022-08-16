@@ -34,7 +34,7 @@ void __asan_poison_go(void *addr, uintptr_t sz) {
 	__asan_poison_memory_region(addr, sz);
 }
 
-// Keep in sync with the defination in compiler-rt
+// Keep in sync with the definition in compiler-rt
 // https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/asan/asan_interface_internal.h#L41
 // This structure is used to describe the source location of
 // a place where global was defined.
@@ -44,7 +44,7 @@ struct _asan_global_source_location {
 	int column_no;
 };
 
-// Keep in sync with the defination in compiler-rt
+// Keep in sync with the definition in compiler-rt
 // https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/asan/asan_interface_internal.h#L48
 // So far, the current implementation is only compatible with the ASan library from version v7 to v9.
 // https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/asan/asan_init_version.h

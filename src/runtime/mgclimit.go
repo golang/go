@@ -339,7 +339,7 @@ func (l *gcCPULimiterState) resetCapacity(now int64, nprocs int32) {
 	l.unlock()
 }
 
-// limiterEventType indicates the type of an event occuring on some P.
+// limiterEventType indicates the type of an event occurring on some P.
 //
 // These events represent the full set of events that the GC CPU limiter tracks
 // to execute its function.

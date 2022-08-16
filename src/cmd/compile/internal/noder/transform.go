@@ -733,7 +733,7 @@ func transformAppend(n *ir.CallExpr) ir.Node {
 		// assignconvfn is of args[1] not required here, as the
 		// types of args[0] and args[1] don't need to match
 		// (They will both have an underlying type which are
-		// slices of indentical base types, or be []byte and string.)
+		// slices of identical base types, or be []byte and string.)
 		// See issue 53888.
 		return n
 	}
