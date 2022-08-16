@@ -721,13 +721,12 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
 			continue
 		}
 
-		// TODO: pprof's remapMappingIDs makes two adjustments:
+		// TODO: pprof's remapMappingIDs makes one adjustment:
 		// 1. If there is an /anon_hugepage mapping first and it is
 		// consecutive to a next mapping, drop the /anon_hugepage.
-		// 2. If start-offset = 0x400000, change start to 0x400000 and offset to 0.
-		// There's no indication why either of these is needed.
-		// Let's try not doing these and see what breaks.
-		// If we do need them, they would go here, before we
+		// There's no indication why this is needed.
+		// Let's try not doing this and see what breaks.
+		// If we do need it, it would go here, before we
 		// enter the mappings into b.mem in the first place.
 
 		buildID, _ := elfBuildID(file)
