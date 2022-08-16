@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package subtle_test
+package alias
 
-import (
-	"testing"
-
-	"crypto/internal/subtle"
-)
+import "testing"
 
 var a, b [100]byte
 
@@ -32,11 +28,11 @@ var aliasingTests = []struct {
 }
 
 func testAliasing(t *testing.T, i int, x, y []byte, anyOverlap, inexactOverlap bool) {
-	any := subtle.AnyOverlap(x, y)
+	any := AnyOverlap(x, y)
 	if any != anyOverlap {
 		t.Errorf("%d: wrong AnyOverlap result, expected %v, got %v", i, anyOverlap, any)
 	}
-	inexact := subtle.InexactOverlap(x, y)
+	inexact := InexactOverlap(x, y)
 	if inexact != inexactOverlap {
 		t.Errorf("%d: wrong InexactOverlap result, expected %v, got %v", i, inexactOverlap, any)
 	}

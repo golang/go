@@ -381,7 +381,7 @@ var depsRules = `
 	hash, embed
 	< crypto
 	< crypto/subtle
-	< crypto/internal/subtle
+	< crypto/internal/alias
 	< crypto/internal/randutil
 	< crypto/internal/nistec/fiat
 	< crypto/internal/nistec
@@ -415,6 +415,7 @@ var depsRules = `
 
 	# TLS, Prince of Dependencies.
 	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem
+	< golang.org/x/crypto/internal/alias
 	< golang.org/x/crypto/internal/subtle
 	< golang.org/x/crypto/chacha20
 	< golang.org/x/crypto/internal/poly1305

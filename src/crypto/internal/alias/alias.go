@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !appengine
-
-// Package subtle implements functions that are often useful in cryptographic
-// code but require careful thought to use correctly.
-//
-// This is a mirror of golang.org/x/crypto/internal/subtle.
-package subtle // import "crypto/internal/subtle"
+// Package alias implements memory alaising tests.
+// This code also exists as golang.org/x/crypto/internal/alias.
+package alias
 
 import "unsafe"
 

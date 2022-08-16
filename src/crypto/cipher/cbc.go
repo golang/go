@@ -11,7 +11,7 @@
 
 package cipher
 
-import "crypto/internal/subtle"
+import "crypto/internal/alias"
 
 type cbc struct {
 	b         Block
@@ -72,7 +72,7 @@ func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
-	if subtle.InexactOverlap(dst[:len(src)], src) {
+	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
 
@@ -143,7 +143,7 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
-	if subtle.InexactOverlap(dst[:len(src)], src) {
+	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
 	if len(src) == 0 {
