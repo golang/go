@@ -137,7 +137,7 @@ func (n *BinaryExpr) SetOp(op Op) {
 		panic(n.no("SetOp " + op.String()))
 	case OADD, OADDSTR, OAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
 		OLSH, OLT, OMOD, OMUL, ONE, OOR, ORSH, OSUB, OXOR,
-		OCOPY, OCOMPLEX, OUNSAFEADD, OUNSAFESLICE,
+		OCOPY, OCOMPLEX, OUNSAFEADD, OUNSAFESLICE, OUNSAFESTRING,
 		OEFACE:
 		n.op = op
 	}
@@ -624,6 +624,21 @@ func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *Slic
 	return n
 }
 
+// A StringHeaderExpr expression constructs a string header from its parts.
+type StringHeaderExpr struct {
+	miniExpr
+	Ptr Node
+	Len Node
+}
+
+func NewStringHeaderExpr(pos src.XPos, ptr, len Node) *StringHeaderExpr {
+	n := &StringHeaderExpr{Ptr: ptr, Len: len}
+	n.pos = pos
+	n.op = OSTRINGHEADER
+	n.typ = types.Types[types.TSTRING]
+	return n
+}
+
 // A StarExpr is a dereference expression *X.
 // It may end up being a value or a type.
 type StarExpr struct {
@@ -734,7 +749,8 @@ func (n *UnaryExpr) SetOp(op Op) {
 	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
 		OALIGNOF, OCAP, OCLOSE, OIMAG, OLEN, ONEW,
 		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
-		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR:
+		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR,
+		OUNSAFESTRINGDATA, OUNSAFESLICEDATA:
 		n.op = op
 	}
 }

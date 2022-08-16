@@ -299,7 +299,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 			n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
 			return typecheck(n, top)
 
-		case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL:
+		case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 			typecheckargs(n)
 			fallthrough
 		case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
@@ -311,7 +311,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 			u := ir.NewUnaryExpr(n.Pos(), l.BuiltinOp, arg)
 			return typecheck(ir.InitExpr(n.Init(), u), top) // typecheckargs can add to old.Init
 
-		case ir.OCOMPLEX, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+		case ir.OCOMPLEX, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE, ir.OUNSAFESTRING:
 			typecheckargs(n)
 			arg1, arg2, ok := needTwoArgs(n)
 			if !ok {
@@ -907,10 +907,31 @@ func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
 		base.Errorf("unsafe.Slice of incomplete (or unallocatable) type not allowed")
 	}
 
-	if !checkunsafeslice(&n.Y) {
+	if !checkunsafesliceorstring(n.Op(), &n.Y) {
 		n.SetType(nil)
 		return n
 	}
 	n.SetType(types.NewSlice(t.Elem()))
+	return n
+}
+
+// tcUnsafeString typechecks an OUNSAFESTRING node.
+func tcUnsafeString(n *ir.BinaryExpr) *ir.BinaryExpr {
+	n.X = Expr(n.X)
+	n.Y = Expr(n.Y)
+	if n.X.Type() == nil || n.Y.Type() == nil {
+		n.SetType(nil)
+		return n
+	}
+	t := n.X.Type()
+	if !t.IsPtr() || !types.Identical(t.Elem(), types.Types[types.TUINT8]) {
+		base.Errorf("first argument to unsafe.String must be *byte; have %L", t)
+	}
+
+	if !checkunsafesliceorstring(n.Op(), &n.Y) {
+		n.SetType(nil)
+		return n
+	}
+	n.SetType(types.Types[types.TSTRING])
 	return n
 }

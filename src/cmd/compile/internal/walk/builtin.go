@@ -642,6 +642,14 @@ func walkRecoverFP(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	return mkcall("gorecover", nn.Type(), init, walkExpr(nn.Args[0], init))
 }
 
+// walkUnsafeData walks an OUNSAFESLICEDATA or OUNSAFESTRINGDATA expression.
+func walkUnsafeData(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+	slice := walkExpr(n.X, init)
+	res := typecheck.Expr(ir.NewUnaryExpr(n.Pos(), ir.OSPTR, slice))
+	res.SetType(n.Type())
+	return walkExpr(res, init)
+}
+
 func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	ptr := safeExpr(n.X, init)
 	len := safeExpr(n.Y, init)
@@ -728,6 +736,64 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		typecheck.Conv(ptr, types.Types[types.TUNSAFEPTR]),
 		typecheck.Conv(len, types.Types[types.TINT]),
 		typecheck.Conv(len, types.Types[types.TINT]))
+	return walkExpr(typecheck.Expr(h), init)
+}
+
+func walkUnsafeString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+	ptr := safeExpr(n.X, init)
+	len := safeExpr(n.Y, init)
+
+	lenType := types.Types[types.TINT64]
+	unsafePtr := typecheck.Conv(ptr, types.Types[types.TUNSAFEPTR])
+
+	// If checkptr enabled, call runtime.unsafestringcheckptr to check ptr and len.
+	// for simplicity, unsafestringcheckptr always uses int64.
+	// Type checking guarantees that TIDEAL len are positive and fit in an int.
+	if ir.ShouldCheckPtr(ir.CurFunc, 1) {
+		fnname := "unsafestringcheckptr"
+		fn := typecheck.LookupRuntime(fnname)
+		init.Append(mkcall1(fn, nil, init, unsafePtr, typecheck.Conv(len, lenType)))
+	} else {
+		// Otherwise, open code unsafe.String to prevent runtime call overhead.
+		// Keep this code in sync with runtime.unsafestring{,64}
+		if len.Type().IsKind(types.TIDEAL) || len.Type().Size() <= types.Types[types.TUINT].Size() {
+			lenType = types.Types[types.TINT]
+		} else {
+			// len64 := int64(len)
+			// if int64(int(len64)) != len64 {
+			//     panicunsafestringlen()
+			// }
+			len64 := typecheck.Conv(len, lenType)
+			nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
+			nif.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, typecheck.Conv(typecheck.Conv(len64, types.Types[types.TINT]), lenType), len64)
+			nif.Body.Append(mkcall("panicunsafestringlen", nil, &nif.Body))
+			appendWalkStmt(init, nif)
+		}
+
+		// if len < 0 { panicunsafestringlen() }
+		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
+		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, typecheck.Conv(len, lenType), ir.NewInt(0))
+		nif.Body.Append(mkcall("panicunsafestringlen", nil, &nif.Body))
+		appendWalkStmt(init, nif)
+
+		// if uintpr(len) > -uintptr(ptr) {
+		//    if ptr == nil {
+		//       panicunsafestringnilptr()
+		//    }
+		//    panicunsafeslicelen()
+		// }
+		nifLen := ir.NewIfStmt(base.Pos, nil, nil, nil)
+		nifLen.Cond = ir.NewBinaryExpr(base.Pos, ir.OGT, typecheck.Conv(len, types.Types[types.TUINTPTR]), ir.NewUnaryExpr(base.Pos, ir.ONEG, typecheck.Conv(unsafePtr, types.Types[types.TUINTPTR])))
+		nifPtr := ir.NewIfStmt(base.Pos, nil, nil, nil)
+		nifPtr.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, unsafePtr, typecheck.NodNil())
+		nifPtr.Body.Append(mkcall("panicunsafestringnilptr", nil, &nifPtr.Body))
+		nifLen.Body.Append(nifPtr, mkcall("panicunsafestringlen", nil, &nifLen.Body))
+		appendWalkStmt(init, nifLen)
+	}
+	h := ir.NewStringHeaderExpr(n.Pos(),
+		typecheck.Conv(ptr, types.Types[types.TUNSAFEPTR]),
+		typecheck.Conv(len, types.Types[types.TINT]),
+	)
 	return walkExpr(typecheck.Expr(h), init)
 }
 

@@ -1460,7 +1460,7 @@ func (s *state) stmt(n ir.Node) {
 		s.callResult(n, callNormal)
 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PFUNC {
 			if fn := n.X.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
-				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr") {
+				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr") {
 				m := s.mem()
 				b := s.endBlock()
 				b.Kind = ssa.BlockExit
@@ -3241,6 +3241,12 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		l := s.expr(n.Len)
 		c := s.expr(n.Cap)
 		return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
+
+	case ir.OSTRINGHEADER:
+		n := n.(*ir.StringHeaderExpr)
+		p := s.expr(n.Ptr)
+		l := s.expr(n.Len)
+		return s.newValue2(ssa.OpStringMake, n.Type(), p, l)
 
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)

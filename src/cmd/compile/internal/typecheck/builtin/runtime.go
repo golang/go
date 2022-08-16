@@ -183,6 +183,9 @@ func growslice(typ *byte, old []any, cap int) (ary []any)
 func unsafeslicecheckptr(typ *byte, ptr unsafe.Pointer, len int64)
 func panicunsafeslicelen()
 func panicunsafeslicenilptr()
+func unsafestringcheckptr(ptr unsafe.Pointer, len int64)
+func panicunsafestringlen()
+func panicunsafestringnilptr()
 
 func mulUintptr(x, y uintptr) (uintptr, bool)
 

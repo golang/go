@@ -610,6 +610,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.SliceHeaderExpr)
 		return tcSliceHeader(n)
 
+	case ir.OSTRINGHEADER:
+		n := n.(*ir.StringHeaderExpr)
+		return tcStringHeader(n)
+
 	case ir.OMAKESLICECOPY:
 		n := n.(*ir.MakeExpr)
 		return tcMakeSliceCopy(n)
@@ -691,6 +695,18 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OUNSAFESLICE:
 		n := n.(*ir.BinaryExpr)
 		return tcUnsafeSlice(n)
+
+	case ir.OUNSAFESLICEDATA:
+		n := n.(*ir.UnaryExpr)
+		return tcUnsafeData(n)
+
+	case ir.OUNSAFESTRING:
+		n := n.(*ir.BinaryExpr)
+		return tcUnsafeString(n)
+
+	case ir.OUNSAFESTRINGDATA:
+		n := n.(*ir.UnaryExpr)
+		return tcUnsafeData(n)
 
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
@@ -1647,11 +1663,11 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
 	return true
 }
 
-// checkunsafeslice is like checkmake but for unsafe.Slice.
-func checkunsafeslice(np *ir.Node) bool {
+// checkunsafesliceorstring is like checkmake but for unsafe.{Slice,String}.
+func checkunsafesliceorstring(op ir.Op, np *ir.Node) bool {
 	n := *np
 	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
-		base.Errorf("non-integer len argument in unsafe.Slice - %v", n.Type())
+		base.Errorf("non-integer len argument in %v - %v", op, n.Type())
 		return false
 	}
 
@@ -1660,11 +1676,11 @@ func checkunsafeslice(np *ir.Node) bool {
 	if n.Op() == ir.OLITERAL {
 		v := toint(n.Val())
 		if constant.Sign(v) < 0 {
-			base.Errorf("negative len argument in unsafe.Slice")
+			base.Errorf("negative len argument in %v", op)
 			return false
 		}
 		if ir.ConstOverflow(v, types.Types[types.TINT]) {
-			base.Errorf("len argument too large in unsafe.Slice")
+			base.Errorf("len argument too large in %v", op)
 			return false
 		}
 	}

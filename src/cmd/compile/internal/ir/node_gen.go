@@ -1146,6 +1146,34 @@ func (n *StarExpr) editChildren(edit func(Node) Node) {
 	}
 }
 
+func (n *StringHeaderExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *StringHeaderExpr) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *StringHeaderExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Ptr != nil && do(n.Ptr) {
+		return true
+	}
+	if n.Len != nil && do(n.Len) {
+		return true
+	}
+	return false
+}
+func (n *StringHeaderExpr) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Ptr != nil {
+		n.Ptr = edit(n.Ptr).(Node)
+	}
+	if n.Len != nil {
+		n.Len = edit(n.Len).(Node)
+	}
+}
+
 func (n *StructKeyExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *StructKeyExpr) copy() Node {
 	c := *n

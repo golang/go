@@ -129,6 +129,14 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.BinaryExpr)
 		return walkUnsafeSlice(n, init)
 
+	case ir.OUNSAFESTRING:
+		n := n.(*ir.BinaryExpr)
+		return walkUnsafeString(n, init)
+
+	case ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
+		n := n.(*ir.UnaryExpr)
+		return walkUnsafeData(n, init)
+
 	case ir.ODOT, ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
 		return walkDot(n, init)
@@ -243,6 +251,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.OSLICEHEADER:
 		n := n.(*ir.SliceHeaderExpr)
 		return walkSliceHeader(n, init)
+
+	case ir.OSTRINGHEADER:
+		n := n.(*ir.StringHeaderExpr)
+		return walkStringHeader(n, init)
 
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICESTR, ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
@@ -846,6 +858,13 @@ func walkSliceHeader(n *ir.SliceHeaderExpr, init *ir.Nodes) ir.Node {
 	n.Ptr = walkExpr(n.Ptr, init)
 	n.Len = walkExpr(n.Len, init)
 	n.Cap = walkExpr(n.Cap, init)
+	return n
+}
+
+// walkStringHeader walks an OSTRINGHEADER node.
+func walkStringHeader(n *ir.StringHeaderExpr, init *ir.Nodes) ir.Node {
+	n.Ptr = walkExpr(n.Ptr, init)
+	n.Len = walkExpr(n.Len, init)
 	return n
 }
 

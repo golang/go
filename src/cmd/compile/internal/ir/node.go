@@ -209,45 +209,49 @@ const (
 	//
 	// This node is created so the walk pass can optimize this pattern which would
 	// otherwise be hard to detect after the order pass.
-	OMUL         // X * Y
-	ODIV         // X / Y
-	OMOD         // X % Y
-	OLSH         // X << Y
-	ORSH         // X >> Y
-	OAND         // X & Y
-	OANDNOT      // X &^ Y
-	ONEW         // new(X); corresponds to calls to new in source code
-	ONOT         // !X
-	OBITNOT      // ^X
-	OPLUS        // +X
-	ONEG         // -X
-	OOROR        // X || Y
-	OPANIC       // panic(X)
-	OPRINT       // print(List)
-	OPRINTN      // println(List)
-	OPAREN       // (X)
-	OSEND        // Chan <- Value
-	OSLICE       // X[Low : High] (X is untypechecked or slice)
-	OSLICEARR    // X[Low : High] (X is pointer to array)
-	OSLICESTR    // X[Low : High] (X is string)
-	OSLICE3      // X[Low : High : Max] (X is untypedchecked or slice)
-	OSLICE3ARR   // X[Low : High : Max] (X is pointer to array)
-	OSLICEHEADER // sliceheader{Ptr, Len, Cap} (Ptr is unsafe.Pointer, Len is length, Cap is capacity)
-	ORECOVER     // recover()
-	ORECOVERFP   // recover(Args) w/ explicit FP argument
-	ORECV        // <-X
-	ORUNESTR     // Type(X) (Type is string, X is rune)
-	OSELRECV2    // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)
-	OREAL        // real(X)
-	OIMAG        // imag(X)
-	OCOMPLEX     // complex(X, Y)
-	OALIGNOF     // unsafe.Alignof(X)
-	OOFFSETOF    // unsafe.Offsetof(X)
-	OSIZEOF      // unsafe.Sizeof(X)
-	OUNSAFEADD   // unsafe.Add(X, Y)
-	OUNSAFESLICE // unsafe.Slice(X, Y)
-	OMETHEXPR    // X(Args) (method expression T.Method(args), first argument is the method receiver)
-	OMETHVALUE   // X.Sel   (method expression t.Method, not called)
+	OMUL              // X * Y
+	ODIV              // X / Y
+	OMOD              // X % Y
+	OLSH              // X << Y
+	ORSH              // X >> Y
+	OAND              // X & Y
+	OANDNOT           // X &^ Y
+	ONEW              // new(X); corresponds to calls to new in source code
+	ONOT              // !X
+	OBITNOT           // ^X
+	OPLUS             // +X
+	ONEG              // -X
+	OOROR             // X || Y
+	OPANIC            // panic(X)
+	OPRINT            // print(List)
+	OPRINTN           // println(List)
+	OPAREN            // (X)
+	OSEND             // Chan <- Value
+	OSLICE            // X[Low : High] (X is untypechecked or slice)
+	OSLICEARR         // X[Low : High] (X is pointer to array)
+	OSLICESTR         // X[Low : High] (X is string)
+	OSLICE3           // X[Low : High : Max] (X is untypedchecked or slice)
+	OSLICE3ARR        // X[Low : High : Max] (X is pointer to array)
+	OSLICEHEADER      // sliceheader{Ptr, Len, Cap} (Ptr is unsafe.Pointer, Len is length, Cap is capacity)
+	OSTRINGHEADER     // stringheader{Ptr, Len} (Ptr is unsafe.Pointer, Len is length)
+	ORECOVER          // recover()
+	ORECOVERFP        // recover(Args) w/ explicit FP argument
+	ORECV             // <-X
+	ORUNESTR          // Type(X) (Type is string, X is rune)
+	OSELRECV2         // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)
+	OREAL             // real(X)
+	OIMAG             // imag(X)
+	OCOMPLEX          // complex(X, Y)
+	OALIGNOF          // unsafe.Alignof(X)
+	OOFFSETOF         // unsafe.Offsetof(X)
+	OSIZEOF           // unsafe.Sizeof(X)
+	OUNSAFEADD        // unsafe.Add(X, Y)
+	OUNSAFESLICE      // unsafe.Slice(X, Y)
+	OUNSAFESLICEDATA  // unsafe.SliceData(X)
+	OUNSAFESTRING     // unsafe.String(X, Y)
+	OUNSAFESTRINGDATA // unsafe.StringData(X)
+	OMETHEXPR         // X(Args) (method expression T.Method(args), first argument is the method receiver)
+	OMETHVALUE        // X.Sel   (method expression t.Method, not called)
 
 	// statements
 	OBLOCK // { List } (block of code)
