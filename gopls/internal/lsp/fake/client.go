@@ -30,6 +30,10 @@ type Client struct {
 	hooks  ClientHooks
 }
 
+func (c *Client) CodeLensRefresh(context.Context) error { return nil }
+
+func (c *Client) LogTrace(context.Context, *protocol.LogTraceParams) error { return nil }
+
 func (c *Client) ShowMessage(ctx context.Context, params *protocol.ShowMessageParams) error {
 	if c.hooks.OnShowMessage != nil {
 		return c.hooks.OnShowMessage(ctx, params)

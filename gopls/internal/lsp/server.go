@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"sync"
 
-	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -123,7 +123,7 @@ type pendingModificationSet struct {
 	changes      []source.FileModification
 }
 
-func (s *Server) workDoneProgressCancel(params *protocol.WorkDoneProgressCancelParams) error {
+func (s *Server) workDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {
 	return s.progress.Cancel(params.Token)
 }
 

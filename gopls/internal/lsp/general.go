@@ -15,12 +15,12 @@ import (
 	"path/filepath"
 	"sync"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -173,10 +173,7 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 				},
 			},
 		},
-		ServerInfo: struct {
-			Name    string `json:"name"`
-			Version string `json:"version,omitempty"`
-		}{
+		ServerInfo: protocol.PServerInfoMsg_initialize{
 			Name:    "gopls",
 			Version: string(goplsVersion),
 		},
@@ -404,13 +401,12 @@ func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, 
 		return nil
 	}
 	configs, err := s.client.Configuration(ctx, &protocol.ParamConfiguration{
-		ConfigurationParams: protocol.ConfigurationParams{
-			Items: []protocol.ConfigurationItem{{
-				ScopeURI: string(folder),
-				Section:  "gopls",
-			}},
-		},
-	})
+		Items: []protocol.ConfigurationItem{{
+			ScopeURI: string(folder),
+			Section:  "gopls",
+		}},
+	},
+	)
 	if err != nil {
 		return fmt.Errorf("failed to get workspace configuration from client (%s): %v", folder, err)
 	}

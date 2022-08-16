@@ -99,7 +99,7 @@ func allDeltas(t *testing.T, v [][]int, repls ...string) {
 }
 
 func tryChange(start, end int, repl string) error {
-	var p, q protocol.InitializeParams
+	var p, q protocol.ParamInitialize
 	mod := input[:start] + repl + input[end:]
 	excerpt := func() (string, string) {
 		a := start - 5

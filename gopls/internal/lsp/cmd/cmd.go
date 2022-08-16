@@ -22,13 +22,13 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/gopls/internal/lsp"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
 	"golang.org/x/tools/gopls/internal/lsp/lsprpc"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
 	"golang.org/x/tools/internal/xcontext"
@@ -421,6 +421,10 @@ func fileURI(uri protocol.DocumentURI) span.URI {
 	}
 	return sURI
 }
+
+func (c *cmdClient) CodeLensRefresh(context.Context) error { return nil }
+
+func (c *cmdClient) LogTrace(context.Context, *protocol.LogTraceParams) error { return nil }
 
 func (c *cmdClient) ShowMessage(ctx context.Context, p *protocol.ShowMessageParams) error { return nil }
 

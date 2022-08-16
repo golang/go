@@ -20,10 +20,6 @@ func (s *Server) CodeLens(ctx context.Context, params *protocol.CodeLensParams) 
 	return s.codeLens(ctx, params)
 }
 
-func (s *Server) CodeLensRefresh(context.Context) error {
-	return notImplemented("CodeLensRefresh")
-}
-
 func (s *Server) ColorPresentation(context.Context, *protocol.ColorPresentationParams) ([]protocol.ColorPresentation, error) {
 	return nil, notImplemented("ColorPresentation")
 }
@@ -32,11 +28,11 @@ func (s *Server) Completion(ctx context.Context, params *protocol.CompletionPara
 	return s.completion(ctx, params)
 }
 
-func (s *Server) Declaration(context.Context, *protocol.DeclarationParams) (protocol.Declaration, error) {
+func (s *Server) Declaration(context.Context, *protocol.DeclarationParams) (*protocol.Or_textDocument_declaration, error) {
 	return nil, notImplemented("Declaration")
 }
 
-func (s *Server) Definition(ctx context.Context, params *protocol.DefinitionParams) (protocol.Definition, error) {
+func (s *Server) Definition(ctx context.Context, params *protocol.DefinitionParams) ([]protocol.Location, error) {
 	return s.definition(ctx, params)
 }
 
@@ -144,7 +140,7 @@ func (s *Server) Hover(ctx context.Context, params *protocol.HoverParams) (*prot
 	return s.hover(ctx, params)
 }
 
-func (s *Server) Implementation(ctx context.Context, params *protocol.ImplementationParams) (protocol.Definition, error) {
+func (s *Server) Implementation(ctx context.Context, params *protocol.ImplementationParams) ([]protocol.Location, error) {
 	return s.implementation(ctx, params)
 }
 
@@ -180,10 +176,6 @@ func (s *Server) LinkedEditingRange(context.Context, *protocol.LinkedEditingRang
 	return nil, notImplemented("LinkedEditingRange")
 }
 
-func (s *Server) LogTrace(context.Context, *protocol.LogTraceParams) error {
-	return notImplemented("LogTrace")
-}
-
 func (s *Server) Moniker(context.Context, *protocol.MonikerParams) ([]protocol.Moniker, error) {
 	return nil, notImplemented("Moniker")
 }
@@ -210,6 +202,10 @@ func (s *Server) PrepareRename(ctx context.Context, params *protocol.PrepareRena
 
 func (s *Server) PrepareTypeHierarchy(context.Context, *protocol.TypeHierarchyPrepareParams) ([]protocol.TypeHierarchyItem, error) {
 	return nil, notImplemented("PrepareTypeHierarchy")
+}
+
+func (s *Server) Progress(context.Context, *protocol.ProgressParams) error {
+	return notImplemented("Progress")
 }
 
 func (s *Server) RangeFormatting(context.Context, *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
@@ -292,7 +288,7 @@ func (s *Server) Symbol(ctx context.Context, params *protocol.WorkspaceSymbolPar
 	return s.symbol(ctx, params)
 }
 
-func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TypeDefinitionParams) (protocol.Definition, error) {
+func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TypeDefinitionParams) ([]protocol.Location, error) {
 	return s.typeDefinition(ctx, params)
 }
 
@@ -317,5 +313,5 @@ func (s *Server) WillSaveWaitUntil(context.Context, *protocol.WillSaveTextDocume
 }
 
 func (s *Server) WorkDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {
-	return s.workDoneProgressCancel(params)
+	return s.workDoneProgressCancel(ctx, params)
 }
