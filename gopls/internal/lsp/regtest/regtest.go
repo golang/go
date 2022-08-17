@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/cmd"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/tool"
@@ -94,6 +95,9 @@ func DefaultModes() Mode {
 
 // Main sets up and tears down the shared regtest state.
 func Main(m *testing.M, hook func(*source.Options)) {
+	// golang/go#54461: enable additional debugging around hanging Go commands.
+	gocommand.DebugHangingGoCommands = true
+
 	// If this magic environment variable is set, run gopls instead of the test
 	// suite. See the documentation for runTestAsGoplsEnvvar for more details.
 	if os.Getenv(runTestAsGoplsEnvvar) == "true" {

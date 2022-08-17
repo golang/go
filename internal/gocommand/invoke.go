@@ -10,8 +10,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -232,6 +234,12 @@ func (i *Invocation) run(ctx context.Context, stdout, stderr io.Writer) error {
 	return runCmdContext(ctx, cmd)
 }
 
+// DebugHangingGoCommands may be set by tests to enable additional
+// instrumentation (including panics) for debugging hanging Go commands.
+//
+// See golang/go#54461 for details.
+var DebugHangingGoCommands = false
+
 // runCmdContext is like exec.CommandContext except it sends os.Interrupt
 // before os.Kill.
 func runCmdContext(ctx context.Context, cmd *exec.Cmd) error {
@@ -243,11 +251,24 @@ func runCmdContext(ctx context.Context, cmd *exec.Cmd) error {
 		resChan <- cmd.Wait()
 	}()
 
-	select {
-	case err := <-resChan:
-		return err
-	case <-ctx.Done():
+	// If we're interested in debugging hanging Go commands, stop waiting after a
+	// minute and panic with interesting information.
+	if DebugHangingGoCommands {
+		select {
+		case err := <-resChan:
+			return err
+		case <-time.After(1 * time.Minute):
+			HandleHangingGoCommand()
+		case <-ctx.Done():
+		}
+	} else {
+		select {
+		case err := <-resChan:
+			return err
+		case <-ctx.Done():
+		}
 	}
+
 	// Cancelled. Interrupt and see if it ends voluntarily.
 	cmd.Process.Signal(os.Interrupt)
 	select {
@@ -256,8 +277,57 @@ func runCmdContext(ctx context.Context, cmd *exec.Cmd) error {
 	case <-time.After(time.Second):
 	}
 	// Didn't shut down in response to interrupt. Kill it hard.
-	cmd.Process.Kill()
+	if err := cmd.Process.Kill(); err != nil && DebugHangingGoCommands {
+		// Don't panic here as this reliably fails on windows with EINVAL.
+		log.Printf("error killing the Go command: %v", err)
+	}
+
+	// See above: only wait for a minute if we're debugging hanging Go commands.
+	if DebugHangingGoCommands {
+		select {
+		case err := <-resChan:
+			return err
+		case <-time.After(1 * time.Minute):
+			HandleHangingGoCommand()
+		}
+	}
 	return <-resChan
+}
+
+func HandleHangingGoCommand() {
+	switch runtime.GOOS {
+	case "linux", "darwin", "freebsd", "netbsd":
+		fmt.Fprintln(os.Stderr, `DETECTED A HANGING GO COMMAND
+
+The gopls test runner has detected a hanging go command. In order to debug
+this, the output of ps and lsof/fstat is printed below.
+
+See golang/go#54461 for more details.`)
+
+		fmt.Fprintln(os.Stderr, "\nps axo ppid,pid,command:")
+		fmt.Fprintln(os.Stderr, "-------------------------")
+		psCmd := exec.Command("ps", "axo", "ppid,pid,command")
+		psCmd.Stdout = os.Stderr
+		psCmd.Stderr = os.Stderr
+		if err := psCmd.Run(); err != nil {
+			panic(fmt.Sprintf("running ps: %v", err))
+		}
+
+		listFiles := "lsof"
+		if runtime.GOOS == "freebsd" || runtime.GOOS == "netbsd" {
+			listFiles = "fstat"
+		}
+
+		fmt.Fprintln(os.Stderr, "\n"+listFiles+":")
+		fmt.Fprintln(os.Stderr, "-----")
+		listFilesCmd := exec.Command(listFiles)
+		listFilesCmd.Stdout = os.Stderr
+		listFilesCmd.Stderr = os.Stderr
+		if err := listFilesCmd.Run(); err != nil {
+			panic(fmt.Sprintf("running %s: %v", listFiles, err))
+		}
+	}
+	panic("detected hanging go command: see golang/go#54461 for more details")
 }
 
 func cmdDebugStr(cmd *exec.Cmd) string {
