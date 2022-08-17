@@ -127,11 +127,13 @@ func NewServer(scriptDir, workDir string, logger *log.Logger) (*Server, error) {
 		homeDir:   homeDir,
 		engine:    newScriptEngine(),
 		vcsHandlers: map[string]vcsHandler{
-			"dir":    new(dirHandler),
-			"bzr":    new(bzrHandler),
-			"fossil": new(fossilHandler),
-			"git":    new(gitHandler),
-			"hg":     new(hgHandler),
+			"auth":     new(authHandler),
+			"dir":      new(dirHandler),
+			"bzr":      new(bzrHandler),
+			"fossil":   new(fossilHandler),
+			"git":      new(gitHandler),
+			"hg":       new(hgHandler),
+			"insecure": new(insecureHandler),
 		},
 	}
 
