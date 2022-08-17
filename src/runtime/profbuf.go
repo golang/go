@@ -87,7 +87,7 @@ import (
 type profBuf struct {
 	// accessed atomically
 	r, w         profAtomic
-	overflow     uint64
+	overflow     atomic.Uint64
 	overflowTime uint64
 	eof          uint32
 
@@ -150,14 +150,14 @@ func (x profIndex) addCountsAndClearFlags(data, tag int) profIndex {
 
 // hasOverflow reports whether b has any overflow records pending.
 func (b *profBuf) hasOverflow() bool {
-	return uint32(atomic.Load64(&b.overflow)) > 0
+	return uint32(b.overflow.Load()) > 0
 }
 
 // takeOverflow consumes the pending overflow records, returning the overflow count
 // and the time of the first overflow.
 // When called by the reader, it is racing against incrementOverflow.
 func (b *profBuf) takeOverflow() (count uint32, time uint64) {
-	overflow := atomic.Load64(&b.overflow)
+	overflow := b.overflow.Load()
 	time = atomic.Load64(&b.overflowTime)
 	for {
 		count = uint32(overflow)
@@ -166,10 +166,10 @@ func (b *profBuf) takeOverflow() (count uint32, time uint64) {
 			break
 		}
 		// Increment generation, clear overflow count in low bits.
-		if atomic.Cas64(&b.overflow, overflow, ((overflow>>32)+1)<<32) {
+		if b.overflow.CompareAndSwap(overflow, ((overflow>>32)+1)<<32) {
 			break
 		}
-		overflow = atomic.Load64(&b.overflow)
+		overflow = b.overflow.Load()
 		time = atomic.Load64(&b.overflowTime)
 	}
 	return uint32(overflow), time
@@ -179,14 +179,14 @@ func (b *profBuf) takeOverflow() (count uint32, time uint64) {
 // It is racing against a possible takeOverflow in the reader.
 func (b *profBuf) incrementOverflow(now int64) {
 	for {
-		overflow := atomic.Load64(&b.overflow)
+		overflow := b.overflow.Load()
 
 		// Once we see b.overflow reach 0, it's stable: no one else is changing it underfoot.
 		// We need to set overflowTime if we're incrementing b.overflow from 0.
 		if uint32(overflow) == 0 {
 			// Store overflowTime first so it's always available when overflow != 0.
 			atomic.Store64(&b.overflowTime, uint64(now))
-			atomic.Store64(&b.overflow, (((overflow>>32)+1)<<32)+1)
+			b.overflow.Store((((overflow >> 32) + 1) << 32) + 1)
 			break
 		}
 		// Otherwise we're racing to increment against reader
@@ -196,7 +196,7 @@ func (b *profBuf) incrementOverflow(now int64) {
 		if int32(overflow) == -1 {
 			break
 		}
-		if atomic.Cas64(&b.overflow, overflow, overflow+1) {
+		if b.overflow.CompareAndSwap(overflow, overflow+1) {
 			break
 		}
 	}
