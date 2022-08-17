@@ -10,13 +10,13 @@ import (
 	"sort"
 	"strings"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/gopls/internal/lsp/command"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/gopls/internal/lsp/mod"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -70,14 +70,18 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	switch kind {
 	case source.Mod:
 		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
-			diags, err := mod.DiagnosticsForMod(ctx, snapshot, fh)
+			diags, err := mod.ModDiagnostics(ctx, snapshot, fh)
 			if source.IsNonFatalGoModError(err) {
 				return nil, nil
 			}
 			if err != nil {
 				return nil, err
 			}
-			quickFixes, err := codeActionsMatchingDiagnostics(ctx, snapshot, diagnostics, diags)
+			udiags, err := mod.ModUpgradeDiagnostics(ctx, snapshot, fh)
+			if err != nil {
+				return nil, err
+			}
+			quickFixes, err := codeActionsMatchingDiagnostics(ctx, snapshot, diagnostics, append(diags, udiags...))
 			if err != nil {
 				return nil, err
 			}

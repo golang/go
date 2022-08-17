@@ -21,10 +21,10 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -266,6 +266,9 @@ type View interface {
 	// RegisterModuleUpgrades registers that upgrades exist for the given modules
 	// required by modfile.
 	RegisterModuleUpgrades(modfile span.URI, upgrades map[string]string)
+
+	// ClearModuleUpgrades clears all upgrades for the modules in modfile.
+	ClearModuleUpgrades(modfile span.URI)
 
 	// FileKind returns the type of a file
 	FileKind(FileHandle) FileKind

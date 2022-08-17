@@ -98,6 +98,11 @@ type Interface interface {
 	// Removes a dependency from the go.mod file of a module.
 	RemoveDependency(context.Context, RemoveDependencyArgs) error
 
+	// ResetGoModDiagnostics: Reset go.mod diagnostics
+	//
+	// Reset diagnostics in the go.mod file of a module.
+	ResetGoModDiagnostics(context.Context, URIArg) error
+
 	// GoGetPackage: go get a package
 	//
 	// Runs `go get` to fetch a package.

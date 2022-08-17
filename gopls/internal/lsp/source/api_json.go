@@ -741,6 +741,12 @@ var GeneratedAPIJSON = &APIJSON{
 			ArgDoc:  "{\n\t// The go.mod file URI.\n\t\"URI\": string,\n\t// The module path to remove.\n\t\"ModulePath\": string,\n\t\"OnlyDiagnostic\": bool,\n}",
 		},
 		{
+			Command: "gopls.reset_go_mod_diagnostics",
+			Title:   "Reset go.mod diagnostics",
+			Doc:     "Reset diagnostics in the go.mod file of a module.",
+			ArgDoc:  "{\n\t// The file URI.\n\t\"URI\": string,\n}",
+		},
+		{
 			Command: "gopls.run_tests",
 			Title:   "Run test(s)",
 			Doc:     "Runs `go test` for a specific set of test or benchmark functions.",

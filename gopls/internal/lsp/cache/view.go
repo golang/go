@@ -24,12 +24,12 @@ import (
 	"golang.org/x/mod/semver"
 	exec "golang.org/x/sys/execabs"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/internal/bug"
-	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 )
@@ -1029,6 +1029,13 @@ func (v *View) RegisterModuleUpgrades(uri span.URI, upgrades map[string]string) 
 	for mod, ver := range upgrades {
 		m[mod] = ver
 	}
+}
+
+func (v *View) ClearModuleUpgrades(modfile span.URI) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	v.moduleUpgrades[modfile] = nil
 }
 
 // Copied from

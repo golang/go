@@ -19,28 +19,29 @@ import (
 )
 
 const (
-	AddDependency     Command = "add_dependency"
-	AddImport         Command = "add_import"
-	ApplyFix          Command = "apply_fix"
-	CheckUpgrades     Command = "check_upgrades"
-	EditGoDirective   Command = "edit_go_directive"
-	GCDetails         Command = "gc_details"
-	Generate          Command = "generate"
-	GenerateGoplsMod  Command = "generate_gopls_mod"
-	GoGetPackage      Command = "go_get_package"
-	ListImports       Command = "list_imports"
-	ListKnownPackages Command = "list_known_packages"
-	RegenerateCgo     Command = "regenerate_cgo"
-	RemoveDependency  Command = "remove_dependency"
-	RunTests          Command = "run_tests"
-	RunVulncheckExp   Command = "run_vulncheck_exp"
-	StartDebugging    Command = "start_debugging"
-	Test              Command = "test"
-	Tidy              Command = "tidy"
-	ToggleGCDetails   Command = "toggle_gc_details"
-	UpdateGoSum       Command = "update_go_sum"
-	UpgradeDependency Command = "upgrade_dependency"
-	Vendor            Command = "vendor"
+	AddDependency         Command = "add_dependency"
+	AddImport             Command = "add_import"
+	ApplyFix              Command = "apply_fix"
+	CheckUpgrades         Command = "check_upgrades"
+	EditGoDirective       Command = "edit_go_directive"
+	GCDetails             Command = "gc_details"
+	Generate              Command = "generate"
+	GenerateGoplsMod      Command = "generate_gopls_mod"
+	GoGetPackage          Command = "go_get_package"
+	ListImports           Command = "list_imports"
+	ListKnownPackages     Command = "list_known_packages"
+	RegenerateCgo         Command = "regenerate_cgo"
+	RemoveDependency      Command = "remove_dependency"
+	ResetGoModDiagnostics Command = "reset_go_mod_diagnostics"
+	RunTests              Command = "run_tests"
+	RunVulncheckExp       Command = "run_vulncheck_exp"
+	StartDebugging        Command = "start_debugging"
+	Test                  Command = "test"
+	Tidy                  Command = "tidy"
+	ToggleGCDetails       Command = "toggle_gc_details"
+	UpdateGoSum           Command = "update_go_sum"
+	UpgradeDependency     Command = "upgrade_dependency"
+	Vendor                Command = "vendor"
 )
 
 var Commands = []Command{
@@ -57,6 +58,7 @@ var Commands = []Command{
 	ListKnownPackages,
 	RegenerateCgo,
 	RemoveDependency,
+	ResetGoModDiagnostics,
 	RunTests,
 	RunVulncheckExp,
 	StartDebugging,
@@ -148,6 +150,12 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return nil, s.RemoveDependency(ctx, a0)
+	case "gopls.reset_go_mod_diagnostics":
+		var a0 URIArg
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return nil, s.ResetGoModDiagnostics(ctx, a0)
 	case "gopls.run_tests":
 		var a0 RunTestsArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -360,6 +368,18 @@ func NewRemoveDependencyCommand(title string, a0 RemoveDependencyArgs) (protocol
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.remove_dependency",
+		Arguments: args,
+	}, nil
+}
+
+func NewResetGoModDiagnosticsCommand(title string, a0 URIArg) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.reset_go_mod_diagnostics",
 		Arguments: args,
 	}, nil
 }

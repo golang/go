@@ -15,14 +15,14 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/gopls/internal/lsp/debug/log"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/gopls/internal/lsp/mod"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/template"
 	"golang.org/x/tools/gopls/internal/lsp/work"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 )
@@ -37,6 +37,7 @@ const (
 	typeCheckSource
 	orphanedSource
 	workSource
+	modCheckUpgradesSource
 )
 
 // A diagnosticReport holds results for a single diagnostic source.
@@ -93,6 +94,8 @@ func (d diagnosticSource) String() string {
 		return "FromOrphans"
 	case workSource:
 		return "FromGoWork"
+	case modCheckUpgradesSource:
+		return "FromCheckForUpgrades"
 	default:
 		return fmt.Sprintf("From?%d?", d)
 	}
@@ -237,6 +240,21 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 			continue
 		}
 		s.storeDiagnostics(snapshot, id.URI, modSource, diags)
+	}
+	upgradeModReports, upgradeErr := mod.UpgradeDiagnostics(ctx, snapshot)
+	if ctx.Err() != nil {
+		log.Trace.Log(ctx, "diagnose cancelled")
+		return
+	}
+	if upgradeErr != nil {
+		event.Error(ctx, "warning: diagnose go.mod upgrades", upgradeErr, tag.Directory.Of(snapshot.View().Folder().Filename()), tag.Snapshot.Of(snapshot.ID()))
+	}
+	for id, diags := range upgradeModReports {
+		if id.URI == "" {
+			event.Error(ctx, "missing URI for module diagnostics", fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
+			continue
+		}
+		s.storeDiagnostics(snapshot, id.URI, modCheckUpgradesSource, diags)
 	}
 
 	// Diagnose the go.work file, if it exists.

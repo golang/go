@@ -217,6 +217,13 @@ require golang.org/x/hello v1.2.3
 						env.NoDiagnosticAtRegexp("b/go.mod", `require`),
 					),
 				)
+				// Check for upgrades in b/go.mod and then clear them.
+				env.ExecuteCodeLensCommand("b/go.mod", command.CheckUpgrades)
+				env.Await(env.DiagnosticAtRegexpWithMessage("b/go.mod", `require`, "can be upgraded"))
+				env.ExecuteCodeLensCommand("b/go.mod", command.ResetGoModDiagnostics)
+				env.Await(EmptyDiagnostics("b/go.mod"))
+
+				// Apply the diagnostics to a/go.mod.
 				env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
 				env.Await(env.DoneWithChangeWatchedFiles())
 				if got := env.Editor.BufferText("a/go.mod"); got != wantGoModA {

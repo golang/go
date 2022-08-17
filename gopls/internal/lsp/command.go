@@ -202,6 +202,22 @@ func (c *commandHandler) UpgradeDependency(ctx context.Context, args command.Dep
 	return c.GoGetModule(ctx, args)
 }
 
+func (c *commandHandler) ResetGoModDiagnostics(ctx context.Context, uri command.URIArg) error {
+	return c.run(ctx, commandConfig{
+		forURI: uri.URI,
+	}, func(ctx context.Context, deps commandDeps) error {
+		deps.snapshot.View().ClearModuleUpgrades(uri.URI.SpanURI())
+		// Clear all diagnostics coming from the upgrade check source.
+		// This will clear the diagnostics in all go.mod files, but they
+		// will be re-calculated when the snapshot is diagnosed again.
+		c.s.clearDiagnosticSource(modCheckUpgradesSource)
+
+		// Re-diagnose the snapshot to remove the diagnostics.
+		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
+		return nil
+	})
+}
+
 func (c *commandHandler) GoGetModule(ctx context.Context, args command.DependencyArgs) error {
 	return c.run(ctx, commandConfig{
 		progress: "Running go get",

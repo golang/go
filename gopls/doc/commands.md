@@ -247,6 +247,20 @@ Args:
 }
 ```
 
+### **Reset go.mod diagnostics**
+Identifier: `gopls.reset_go_mod_diagnostics`
+
+Reset diagnostics in the go.mod file of a module.
+
+Args:
+
+```
+{
+	// The file URI.
+	"URI": string,
+}
+```
+
 ### **Run test(s)**
 Identifier: `gopls.run_tests`
 

@@ -63,6 +63,10 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 	if err != nil {
 		return nil, err
 	}
+	reset, err := command.NewResetGoModDiagnosticsCommand("Reset go.mod diagnostics", command.URIArg{URI: uri})
+	if err != nil {
+		return nil, err
+	}
 	// Put the upgrade code lenses above the first require block or statement.
 	rng, err := firstRequireRange(fh, pm)
 	if err != nil {
@@ -73,6 +77,7 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 		{Range: rng, Command: checkUpgrade},
 		{Range: rng, Command: upgradeTransitive},
 		{Range: rng, Command: upgradeDirect},
+		{Range: rng, Command: reset},
 	}, nil
 }
 
