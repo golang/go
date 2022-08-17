@@ -509,7 +509,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 
 	defer func() {
 		if err != nil && err != errPrintedOutput {
-			err = fmt.Errorf("go build %s: %v", a.Package.ImportPath, err)
+			err = fmt.Errorf("go build %s: %v", p.ImportPath, err)
 		}
 		if err != nil && b.IsCmdList && b.NeedError && p.Error == nil {
 			p.Error = &load.PackageError{Err: err}
@@ -521,14 +521,14 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		// different sections of the bootstrap script have to
 		// be merged, the banners give patch something
 		// to use to find its context.
-		b.Print("\n#\n# " + a.Package.ImportPath + "\n#\n\n")
+		b.Print("\n#\n# " + p.ImportPath + "\n#\n\n")
 	}
 
 	if cfg.BuildV {
-		b.Print(a.Package.ImportPath + "\n")
+		b.Print(p.ImportPath + "\n")
 	}
 
-	if a.Package.BinaryOnly {
+	if p.BinaryOnly {
 		p.Stale = true
 		p.StaleReason = "binary-only packages are no longer supported"
 		if b.IsCmdList {
@@ -574,15 +574,15 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		}
 	}
 
-	gofiles := str.StringList(a.Package.GoFiles)
-	cgofiles := str.StringList(a.Package.CgoFiles)
-	cfiles := str.StringList(a.Package.CFiles)
-	sfiles := str.StringList(a.Package.SFiles)
-	cxxfiles := str.StringList(a.Package.CXXFiles)
+	gofiles := str.StringList(p.GoFiles)
+	cgofiles := str.StringList(p.CgoFiles)
+	cfiles := str.StringList(p.CFiles)
+	sfiles := str.StringList(p.SFiles)
+	cxxfiles := str.StringList(p.CXXFiles)
 	var objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
 
-	if a.Package.UsesCgo() || a.Package.UsesSwig() {
-		if pcCFLAGS, pcLDFLAGS, err = b.getPkgConfigFlags(a.Package); err != nil {
+	if p.UsesCgo() || p.UsesSwig() {
+		if pcCFLAGS, pcLDFLAGS, err = b.getPkgConfigFlags(p); err != nil {
 			return
 		}
 	}
@@ -591,7 +591,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	// put correct contents of all those files in the objdir, to ensure
 	// the correct headers are included. nonGoOverlay is the overlay that
 	// points from nongo files to the copied files in objdir.
-	nonGoFileLists := [][]string{a.Package.CFiles, a.Package.SFiles, a.Package.CXXFiles, a.Package.HFiles, a.Package.FFiles}
+	nonGoFileLists := [][]string{p.CFiles, p.SFiles, p.CXXFiles, p.HFiles, p.FFiles}
 OverlayLoop:
 	for _, fs := range nonGoFileLists {
 		for _, f := range fs {
@@ -618,8 +618,8 @@ OverlayLoop:
 	// Run SWIG on each .swig and .swigcxx file.
 	// Each run will generate two files, a .go file and a .c or .cxx file.
 	// The .go file will use import "C" and is to be processed by cgo.
-	if a.Package.UsesSwig() {
-		outGo, outC, outCXX, err := b.swig(a, a.Package, objdir, pcCFLAGS)
+	if p.UsesSwig() {
+		outGo, outC, outCXX, err := b.swig(a, p, objdir, pcCFLAGS)
 		if err != nil {
 			return err
 		}
@@ -629,7 +629,7 @@ OverlayLoop:
 	}
 
 	// If we're doing coverage, preprocess the .go files and put them in the work directory
-	if a.Package.Internal.CoverMode != "" {
+	if p.Internal.CoverMode != "" {
 		for i, file := range str.StringList(gofiles, cgofiles) {
 			var sourceFile string
 			var coverFile string
@@ -641,12 +641,12 @@ OverlayLoop:
 				coverFile = objdir + base
 				key = strings.TrimSuffix(base, ".cgo1.go") + ".go"
 			} else {
-				sourceFile = filepath.Join(a.Package.Dir, file)
+				sourceFile = filepath.Join(p.Dir, file)
 				coverFile = objdir + file
 				key = file
 			}
 			coverFile = strings.TrimSuffix(coverFile, ".go") + ".cover.go"
-			cover := a.Package.Internal.CoverVars[key]
+			cover := p.Internal.CoverVars[key]
 			if cover == nil || base.IsTestFile(file) {
 				// Not covering this file.
 				continue
@@ -663,7 +663,7 @@ OverlayLoop:
 	}
 
 	// Run cgo.
-	if a.Package.UsesCgo() || a.Package.UsesSwig() {
+	if p.UsesCgo() || p.UsesSwig() {
 		// In a package using cgo, cgo compiles the C, C++ and assembly files with gcc.
 		// There is one exception: runtime/cgo's job is to bridge the
 		// cgo and non-cgo worlds, so it necessarily has files in both.
@@ -671,7 +671,7 @@ OverlayLoop:
 		var gccfiles []string
 		gccfiles = append(gccfiles, cfiles...)
 		cfiles = nil
-		if a.Package.Standard && a.Package.ImportPath == "runtime/cgo" {
+		if p.Standard && p.ImportPath == "runtime/cgo" {
 			filter := func(files, nongcc, gcc []string) ([]string, []string) {
 				for _, f := range files {
 					if strings.HasPrefix(f, "gcc_") {
@@ -685,7 +685,7 @@ OverlayLoop:
 			sfiles, gccfiles = filter(sfiles, sfiles[:0], gccfiles)
 		} else {
 			for _, sfile := range sfiles {
-				data, err := os.ReadFile(filepath.Join(a.Package.Dir, sfile))
+				data, err := os.ReadFile(filepath.Join(p.Dir, sfile))
 				if err == nil {
 					if bytes.HasPrefix(data, []byte("TEXT")) || bytes.Contains(data, []byte("\nTEXT")) ||
 						bytes.HasPrefix(data, []byte("DATA")) || bytes.Contains(data, []byte("\nDATA")) ||
@@ -698,7 +698,7 @@ OverlayLoop:
 			sfiles = nil
 		}
 
-		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, mkAbsFiles(a.Package.Dir, cgofiles), gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
+		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, mkAbsFiles(p.Dir, cgofiles), gccfiles, cxxfiles, p.MFiles, p.FFiles)
 
 		// The files in cxxfiles have now been handled by b.cgo.
 		cxxfiles = nil
@@ -730,7 +730,7 @@ OverlayLoop:
 
 	// Sanity check only, since Package.load already checked as well.
 	if len(gofiles) == 0 {
-		return &load.NoGoError{Package: a.Package}
+		return &load.NoGoError{Package: p}
 	}
 
 	// Prepare Go vet config if needed.
@@ -763,8 +763,8 @@ OverlayLoop:
 	// except when it doesn't.
 	var icfg bytes.Buffer
 	fmt.Fprintf(&icfg, "# import config\n")
-	for i, raw := range a.Package.Internal.RawImports {
-		final := a.Package.Imports[i]
+	for i, raw := range p.Internal.RawImports {
+		final := p.Imports[i]
 		if final != raw {
 			fmt.Fprintf(&icfg, "importmap %s=%s\n", raw, final)
 		}
@@ -815,14 +815,14 @@ OverlayLoop:
 		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
 			output += "note: module requires Go " + p.Module.GoVersion + "\n"
 		}
-		b.showOutput(a, a.Package.Dir, a.Package.Desc(), output)
+		b.showOutput(a, p.Dir, p.Desc(), output)
 		if err != nil {
 			return errPrintedOutput
 		}
 	}
 	if err != nil {
 		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
-			b.showOutput(a, a.Package.Dir, a.Package.Desc(), "note: module requires Go "+p.Module.GoVersion+"\n")
+			b.showOutput(a, p.Dir, p.Desc(), "note: module requires Go "+p.Module.GoVersion+"\n")
 		}
 		return err
 	}
@@ -836,22 +836,22 @@ OverlayLoop:
 	_goos_goarch := "_" + cfg.Goos + "_" + cfg.Goarch
 	_goos := "_" + cfg.Goos
 	_goarch := "_" + cfg.Goarch
-	for _, file := range a.Package.HFiles {
+	for _, file := range p.HFiles {
 		name, ext := fileExtSplit(file)
 		switch {
 		case strings.HasSuffix(name, _goos_goarch):
 			targ := file[:len(name)-len(_goos_goarch)] + "_GOOS_GOARCH." + ext
-			if err := b.copyFile(objdir+targ, filepath.Join(a.Package.Dir, file), 0666, true); err != nil {
+			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goarch):
 			targ := file[:len(name)-len(_goarch)] + "_GOARCH." + ext
-			if err := b.copyFile(objdir+targ, filepath.Join(a.Package.Dir, file), 0666, true); err != nil {
+			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goos):
 			targ := file[:len(name)-len(_goos)] + "_GOOS." + ext
-			if err := b.copyFile(objdir+targ, filepath.Join(a.Package.Dir, file), 0666, true); err != nil {
+			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		}
@@ -899,8 +899,8 @@ OverlayLoop:
 	objects = append(objects, cgoObjects...)
 
 	// Add system object files.
-	for _, syso := range a.Package.SysoFiles {
-		objects = append(objects, filepath.Join(a.Package.Dir, syso))
+	for _, syso := range p.SysoFiles {
+		objects = append(objects, filepath.Join(p.Dir, syso))
 	}
 
 	// Pack into archive in objdir directory.
