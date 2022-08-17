@@ -1326,7 +1326,7 @@ func preemptM(mp *m) {
 	if !atomic.Cas(&mp.preemptExtLock, 0, 1) {
 		// External code is running. Fail the preemption
 		// attempt.
-		atomic.Xadd(&mp.preemptGen, 1)
+		mp.preemptGen.Add(1)
 		return
 	}
 
@@ -1336,7 +1336,7 @@ func preemptM(mp *m) {
 		// The M hasn't been minit'd yet (or was just unminit'd).
 		unlock(&mp.threadLock)
 		atomic.Store(&mp.preemptExtLock, 0)
-		atomic.Xadd(&mp.preemptGen, 1)
+		mp.preemptGen.Add(1)
 		return
 	}
 	var thread uintptr
@@ -1366,7 +1366,7 @@ func preemptM(mp *m) {
 		atomic.Store(&mp.preemptExtLock, 0)
 		// The thread no longer exists. This shouldn't be
 		// possible, but just acknowledge the request.
-		atomic.Xadd(&mp.preemptGen, 1)
+		mp.preemptGen.Add(1)
 		return
 	}
 
@@ -1431,7 +1431,7 @@ func preemptM(mp *m) {
 	atomic.Store(&mp.preemptExtLock, 0)
 
 	// Acknowledge the preemption.
-	atomic.Xadd(&mp.preemptGen, 1)
+	mp.preemptGen.Add(1)
 
 	stdcall1(_ResumeThread, thread)
 	stdcall1(_CloseHandle, thread)

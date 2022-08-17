@@ -349,7 +349,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 	}
 
 	// Acknowledge the preemption.
-	atomic.Xadd(&gp.m.preemptGen, 1)
+	gp.m.preemptGen.Add(1)
 	gp.m.signalPending.Store(0)
 
 	if GOOS == "darwin" || GOOS == "ios" {
