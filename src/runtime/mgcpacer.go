@@ -684,7 +684,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 	//
 	//    assistDuration * procs * (utilization + idleUtilization)
 	//
-	// In this case, we *include* idle utilization, because that is additional CPU time that the
+	// In this case, we *include* idle utilization, because that is additional CPU time that
 	// the GC had available to it.
 	//
 	// In effect, idle GC time is sort of double-counted here, but it's very weird compared
