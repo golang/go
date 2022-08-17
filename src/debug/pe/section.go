@@ -98,7 +98,7 @@ type Section struct {
 
 // Data reads and returns the contents of the PE section s.
 func (s *Section) Data() ([]byte, error) {
-	return saferio.ReadDataAt(s.sr, uint64(s.sr.Size()), 0)
+	return saferio.ReadDataAt(s.sr, uint64(s.Size), 0)
 }
 
 // Open returns a new ReadSeeker reading the PE section s.
