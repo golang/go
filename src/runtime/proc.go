@@ -868,13 +868,13 @@ const freezeStopWait = 0x7fffffff
 
 // freezing is set to non-zero if the runtime is trying to freeze the
 // world.
-var freezing uint32
+var freezing atomic.Bool
 
 // Similar to stopTheWorld but best-effort and can be called several times.
 // There is no reverse operation, used during crashing.
 // This function must not lock any mutexes.
 func freezetheworld() {
-	atomic.Store(&freezing, 1)
+	freezing.Store(true)
 	// stopwait and preemption requests can be lost
 	// due to races with concurrently executing threads,
 	// so try several times
@@ -1240,7 +1240,7 @@ func stopTheWorldWithSema() {
 			}
 		}
 	}
-	if atomic.Load(&freezing) != 0 {
+	if freezing.Load() {
 		// Some other thread is panicking. This can cause the
 		// sanity checks above to fail if the panic happens in
 		// the signal handler on a stopped thread. Either way,
