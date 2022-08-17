@@ -578,6 +578,10 @@ func TestCodeRepo(t *testing.T) {
 	for _, tt := range codeRepoTests {
 		f := func(tt codeRepoTest) func(t *testing.T) {
 			return func(t *testing.T) {
+				if strings.Contains(tt.path, "gopkg.in") {
+					testenv.SkipFlaky(t, 54503)
+				}
+
 				t.Parallel()
 				if tt.vcs != "mod" {
 					testenv.MustHaveExecPath(t, tt.vcs)
@@ -811,8 +815,12 @@ func TestCodeRepoVersions(t *testing.T) {
 
 	t.Run("parallel", func(t *testing.T) {
 		for _, tt := range codeRepoVersionsTests {
+			tt := tt
 			t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
-				tt := tt
+				if strings.Contains(tt.path, "gopkg.in") {
+					testenv.SkipFlaky(t, 54503)
+				}
+
 				t.Parallel()
 				if tt.vcs != "mod" {
 					testenv.MustHaveExecPath(t, tt.vcs)
