@@ -400,7 +400,7 @@ func dodeltimer(pp *p, i int) int {
 	n := atomic.Xadd(&pp.numTimers, -1)
 	if n == 0 {
 		// If there are no timers, then clearly none are modified.
-		atomic.Store64(&pp.timerModifiedEarliest, 0)
+		pp.timerModifiedEarliest.Store(0)
 	}
 	return smallestChanged
 }
@@ -428,7 +428,7 @@ func dodeltimer0(pp *p) {
 	n := atomic.Xadd(&pp.numTimers, -1)
 	if n == 0 {
 		// If there are no timers, then clearly none are modified.
-		atomic.Store64(&pp.timerModifiedEarliest, 0)
+		pp.timerModifiedEarliest.Store(0)
 	}
 }
 
@@ -671,7 +671,7 @@ func adjusttimers(pp *p, now int64) {
 	// a lot of timers back and forth if the timers rarely expire.
 	// We'll postpone looking through all the adjusted timers until
 	// one would actually expire.
-	first := atomic.Load64(&pp.timerModifiedEarliest)
+	first := pp.timerModifiedEarliest.Load()
 	if first == 0 || int64(first) > now {
 		if verifyTimers {
 			verifyTimerHeap(pp)
@@ -680,7 +680,7 @@ func adjusttimers(pp *p, now int64) {
 	}
 
 	// We are going to clear all timerModifiedEarlier timers.
-	atomic.Store64(&pp.timerModifiedEarliest, 0)
+	pp.timerModifiedEarliest.Store(0)
 
 	var moved []*timer
 	for i := 0; i < len(pp.timers); i++ {
@@ -755,7 +755,7 @@ func addAdjustedTimers(pp *p, moved []*timer) {
 //go:nowritebarrierrec
 func nobarrierWakeTime(pp *p) int64 {
 	next := int64(pp.timer0When.Load())
-	nextAdj := int64(atomic.Load64(&pp.timerModifiedEarliest))
+	nextAdj := int64(pp.timerModifiedEarliest.Load())
 	if next == 0 || (nextAdj != 0 && nextAdj < next) {
 		next = nextAdj
 	}
@@ -903,7 +903,7 @@ func runOneTimer(pp *p, t *timer, now int64) {
 func clearDeletedTimers(pp *p) {
 	// We are going to clear all timerModifiedEarlier timers.
 	// Do this now in case new ones show up while we are looping.
-	atomic.Store64(&pp.timerModifiedEarliest, 0)
+	pp.timerModifiedEarliest.Store(0)
 
 	cdel := int32(0)
 	to := 0
@@ -1014,11 +1014,12 @@ func updateTimer0When(pp *p) {
 // The timers for pp will not be locked.
 func updateTimerModifiedEarliest(pp *p, nextwhen int64) {
 	for {
-		old := atomic.Load64(&pp.timerModifiedEarliest)
+		old := pp.timerModifiedEarliest.Load()
 		if old != 0 && int64(old) < nextwhen {
 			return
 		}
-		if atomic.Cas64(&pp.timerModifiedEarliest, old, uint64(nextwhen)) {
+
+		if pp.timerModifiedEarliest.CompareAndSwap(old, uint64(nextwhen)) {
 			return
 		}
 	}
@@ -1044,7 +1045,7 @@ func timeSleepUntil() int64 {
 			next = w
 		}
 
-		w = int64(atomic.Load64(&pp.timerModifiedEarliest))
+		w = int64(pp.timerModifiedEarliest.Load())
 		if w != 0 && w < next {
 			next = w
 		}
