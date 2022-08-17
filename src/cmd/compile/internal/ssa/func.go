@@ -809,7 +809,9 @@ func (f *Func) invalidateCFG() {
 }
 
 // DebugHashMatch returns
-//   base.DebugHashMatch(this function's package.name)
+//
+//	base.DebugHashMatch(this function's package.name)
+//
 // for use in bug isolation.  The return value is true unless
 // environment variable GOSSAHASH is set, in which case "it depends".
 // See [base.DebugHashMatch] for more information.

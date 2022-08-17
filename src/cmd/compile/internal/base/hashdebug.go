@@ -32,12 +32,15 @@ var hd HashDebug
 // DebugHashMatch reports whether environment variable GOSSAHASH
 //
 //  1. is empty (this is a special more-quickly implemented case of 3)
+//
 //  2. is "y" or "Y"
+//
 //  3. is a suffix of the sha1 hash of name
+//
 //  4. OR
-//      if evname(i) is a suffix of the sha1 hash of name
-//      where evname(i)=fmt.Sprintf("GOSSAHASH%d", i),
-//      for 0<=i<n such that for all i evname(i) != "" and evname(n) == ""
+//     if evname(i) is a suffix of the sha1 hash of name
+//     where evname(i)=fmt.Sprintf("GOSSAHASH%d", i),
+//     for 0<=i<n such that for all i evname(i) != "" and evname(n) == ""
 //
 //     That is, as long as they're not empty, try GOSSAHASH, GOSSAHASH0, GOSSAHASH1, etc,
 //     but quit trying at the first empty environment variable substitution.
@@ -55,27 +58,30 @@ var hd HashDebug
 // Typical use:
 //
 //  1. you make a change to the compiler, say, adding a new phase
+//
 //  2. it is broken in some mystifying way, for example, make.bash builds a broken
 //     compiler that almost works, but crashes compiling a test in run.bash.
+//
 //  3. add this guard to the code, which by default leaves it broken, but
 //     does not run the broken new code if GOSSAHASH is non-empty and non-matching:
 //
-//      if !base.DebugHashMatch(ir.PkgFuncName(fn)) {
-//      return nil // early exit, do nothing
-//      }
+//     if !base.DebugHashMatch(ir.PkgFuncName(fn)) {
+//     return nil // early exit, do nothing
+//     }
 //
 //  4. rebuild w/o the bad code, GOSSAHASH=n ./all.bash to verify that you
 //     put theguard in the right place with the right sense of the test.
+//
 //  5. use github.com/dr2chase/gossahash to search for the error:
 //
-//      go install github.com/dr2chase/gossahash@latest
+//     go install github.com/dr2chase/gossahash@latest
 //
-//      gossahash -- <the thing that fails>
+//     gossahash -- <the thing that fails>
 //
-//      for example: GOMAXPROCS=1 gossahash -- ./all.bash
+//     for example: GOMAXPROCS=1 gossahash -- ./all.bash
+//
 //  6. gossahash should return a single function whose miscompilation
 //     causes the problem, and you can focus on that.
-//
 func DebugHashMatch(pkgAndName string) bool {
 	return hd.DebugHashMatch(pkgAndName)
 }
