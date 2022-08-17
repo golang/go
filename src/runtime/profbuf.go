@@ -88,7 +88,7 @@ type profBuf struct {
 	// accessed atomically
 	r, w         profAtomic
 	overflow     atomic.Uint64
-	overflowTime uint64
+	overflowTime atomic.Uint64
 	eof          uint32
 
 	// immutable (excluding slice content)
@@ -158,7 +158,7 @@ func (b *profBuf) hasOverflow() bool {
 // When called by the reader, it is racing against incrementOverflow.
 func (b *profBuf) takeOverflow() (count uint32, time uint64) {
 	overflow := b.overflow.Load()
-	time = atomic.Load64(&b.overflowTime)
+	time = b.overflowTime.Load()
 	for {
 		count = uint32(overflow)
 		if count == 0 {
@@ -170,7 +170,7 @@ func (b *profBuf) takeOverflow() (count uint32, time uint64) {
 			break
 		}
 		overflow = b.overflow.Load()
-		time = atomic.Load64(&b.overflowTime)
+		time = b.overflowTime.Load()
 	}
 	return uint32(overflow), time
 }
@@ -185,7 +185,7 @@ func (b *profBuf) incrementOverflow(now int64) {
 		// We need to set overflowTime if we're incrementing b.overflow from 0.
 		if uint32(overflow) == 0 {
 			// Store overflowTime first so it's always available when overflow != 0.
-			atomic.Store64(&b.overflowTime, uint64(now))
+			b.overflowTime.Store(uint64(now))
 			b.overflow.Store((((overflow >> 32) + 1) << 32) + 1)
 			break
 		}
