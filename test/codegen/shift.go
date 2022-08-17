@@ -392,3 +392,12 @@ func check128bitShifts(x, y uint64, bits uint) (uint64, uint64) {
 	shl := x<<s | y>>ŝ
 	return shr, shl
 }
+
+func checkShiftToMask(u []uint64, s []int64) {
+	// amd64:-"SHR",-"SHL","ANDQ"
+	u[0] = u[0] >> 5 << 5
+	// amd64:-"SAR",-"SHL","ANDQ"
+	s[0] = s[0] >> 5 << 5
+	// amd64:-"SHR",-"SHL","ANDQ"
+	u[1] = u[1] << 5 >> 5
+}

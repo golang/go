@@ -443,6 +443,17 @@
 (Rsh32Ux64 (Rsh32x64 x _) (Const64 <t> [31])) => (Rsh32Ux64 x (Const64 <t> [31]))
 (Rsh64Ux64 (Rsh64x64 x _) (Const64 <t> [63])) => (Rsh64Ux64 x (Const64 <t> [63]))
 
+// Convert x>>c<<c to x&^(1<<c-1)
+(Lsh64x64 i:(Rsh(64|64U)x64  x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 64 && i.Uses == 1 => (And64 x (Const64 <v.Type> [int64(-1) << c]))
+(Lsh32x64 i:(Rsh(32|32U)x64  x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 32 && i.Uses == 1 => (And32 x (Const32 <v.Type> [int32(-1) << c]))
+(Lsh16x64 i:(Rsh(16|16U)x64  x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 16 && i.Uses == 1 => (And16 x (Const16 <v.Type> [int16(-1) << c]))
+(Lsh8x64  i:(Rsh(8|8U)x64    x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 8  && i.Uses == 1 => (And8  x (Const8  <v.Type> [int8(-1)  << c]))
+// similarly for x<<c>>c
+(Rsh64Ux64 i:(Lsh64x64 x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 64 && i.Uses == 1 => (And64 x (Const64 <v.Type> [int64(^uint64(0)>>c)]))
+(Rsh32Ux64 i:(Lsh32x64 x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 32 && i.Uses == 1 => (And32 x (Const32 <v.Type> [int32(^uint32(0)>>c)]))
+(Rsh16Ux64 i:(Lsh16x64 x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 16 && i.Uses == 1 => (And16 x (Const16 <v.Type> [int16(^uint16(0)>>c)]))
+(Rsh8Ux64  i:(Lsh8x64  x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 8  && i.Uses == 1 => (And8  x (Const8  <v.Type> [int8 (^uint8 (0)>>c)]))
+
 // ((x >> c1) << c2) >> c3
 (Rsh(64|32|16|8)Ux64 (Lsh(64|32|16|8)x64 (Rsh(64|32|16|8)Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
   && uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
