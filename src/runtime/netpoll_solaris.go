@@ -88,7 +88,7 @@ var (
 	libc_port_dissociate,
 	libc_port_getn,
 	libc_port_alert libcFunc
-	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
+	netpollWakeSig atomic.Uint32 // used to avoid duplicate calls of netpollBreak
 )
 
 func errno() int32 {
@@ -192,7 +192,7 @@ func netpollarm(pd *pollDesc, mode int) {
 // netpollBreak interrupts a port_getn wait.
 func netpollBreak() {
 	// Failing to cas indicates there is an in-flight wakeup, so we're done here.
-	if !atomic.Cas(&netpollWakeSig, 0, 1) {
+	if !netpollWakeSig.CompareAndSwap(0, 1) {
 		return
 	}
 
@@ -277,7 +277,7 @@ retry:
 					println("runtime: port_alert failed with", e)
 					throw("runtime: netpoll: port_alert failed")
 				}
-				atomic.Store(&netpollWakeSig, 0)
+				netpollWakeSig.Store(0)
 			}
 			continue
 		}
