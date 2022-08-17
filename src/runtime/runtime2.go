@@ -671,13 +671,13 @@ type p struct {
 
 	// The when field of the first entry on the timer heap.
 	// This is 0 if the timer heap is empty.
-	timer0When atomic.Uint64
+	timer0When atomic.Int64
 
 	// The earliest known nextwhen field of a timer with
 	// timerModifiedEarlier status. Because the timer may have been
 	// modified again, there need not be any timer with this value.
 	// This is 0 if there are no timerModifiedEarlier timers.
-	timerModifiedEarliest atomic.Uint64
+	timerModifiedEarliest atomic.Int64
 
 	// Per-P GC state
 	gcAssistTime         int64 // Nanoseconds in assistAlloc
