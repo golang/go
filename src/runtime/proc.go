@@ -4609,7 +4609,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		// cgoCallers.  We are running in a signal handler
 		// with all signals blocked, so we don't have to worry
 		// about any other code interrupting us.
-		if atomic.Load(&mp.cgoCallersUse) == 0 && mp.cgoCallers != nil && mp.cgoCallers[0] != 0 {
+		if mp.cgoCallersUse.Load() == 0 && mp.cgoCallers != nil && mp.cgoCallers[0] != 0 {
 			for cgoOff < len(mp.cgoCallers) && mp.cgoCallers[cgoOff] != 0 {
 				cgoOff++
 			}

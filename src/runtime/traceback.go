@@ -7,7 +7,6 @@ package runtime
 import (
 	"internal/bytealg"
 	"internal/goarch"
-	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -819,10 +818,10 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
 		// concurrently with a signal handler.
 		// We just have to stop a signal handler from interrupting
 		// in the middle of our copy.
-		atomic.Store(&gp.m.cgoCallersUse, 1)
+		gp.m.cgoCallersUse.Store(1)
 		cgoCallers := *gp.m.cgoCallers
 		gp.m.cgoCallers[0] = 0
-		atomic.Store(&gp.m.cgoCallersUse, 0)
+		gp.m.cgoCallersUse.Store(0)
 
 		printCgoTraceback(&cgoCallers)
 	}
