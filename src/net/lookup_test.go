@@ -416,6 +416,7 @@ func TestLookupGoogleHost(t *testing.T) {
 }
 
 func TestLookupLongTXT(t *testing.T) {
+	testenv.SkipFlaky(t, 22857)
 	mustHaveExternalNetwork(t)
 
 	defer dnsWaitGroup.Wait()
