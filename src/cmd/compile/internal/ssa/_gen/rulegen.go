@@ -89,6 +89,7 @@ func (r Rule) parse() (match, cond, result string) {
 
 func genRules(arch arch)          { genRulesSuffix(arch, "") }
 func genSplitLoadRules(arch arch) { genRulesSuffix(arch, "splitload") }
+func genLateLowerRules(arch arch) { genRulesSuffix(arch, "latelower") }
 
 func genRulesSuffix(arch arch, suff string) {
 	// Open input file.

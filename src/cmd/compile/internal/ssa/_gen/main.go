@@ -159,6 +159,7 @@ func main() {
 		tasks = append(tasks, func() {
 			genRules(a)
 			genSplitLoadRules(a)
+			genLateLowerRules(a)
 		})
 	}
 	var wg sync.WaitGroup

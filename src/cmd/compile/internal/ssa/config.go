@@ -22,7 +22,8 @@ type Config struct {
 	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
 	Types          Types
 	lowerBlock     blockRewriter  // lowering function
-	lowerValue     valueRewriter  // lowering function
+	lowerValue     valueRewriter  // lowering function, first round
+	lateLowerValue valueRewriter  // lowering function that needs to be run after the first round of lower function; only used on some architectures
 	splitLoad      valueRewriter  // function for splitting merged load ops; only used on some architectures
 	registers      []Register     // machine registers
 	gpRegMask      regMask        // general purpose integer register mask
@@ -222,6 +223,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockARM64
 		c.lowerValue = rewriteValueARM64
+		c.lateLowerValue = rewriteValueARM64latelower
 		c.registers = registersARM64[:]
 		c.gpRegMask = gpRegMaskARM64
 		c.fpRegMask = fpRegMaskARM64

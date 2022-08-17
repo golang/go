@@ -1312,6 +1312,10 @@
 (ROR x (MOVDconst [c])) => (RORconst x [c&63])
 (RORW x (MOVDconst [c])) => (RORWconst x [c&31])
 
+(ADDSflags x (MOVDconst [c]))  => (ADDSconstflags [c] x)
+
+(ADDconst [c] y) && c < 0 => (SUBconst [-c] y)
+
 // Canonicalize the order of arguments to comparisons - helps with CSE.
 ((CMP|CMPW) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW) y x))
 
