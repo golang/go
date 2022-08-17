@@ -966,7 +966,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 		return
 	}
 
-	locals, args, objs := getStackMap(frame, &state.cache, false)
+	locals, args, objs := frame.getStackMap(&state.cache, false)
 
 	// Scan local variables if stack frame has been allocated.
 	if locals.n > 0 {

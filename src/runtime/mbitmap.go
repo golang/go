@@ -1479,7 +1479,7 @@ func getgcmask(ep any) (mask []byte) {
 		frame.sp = uintptr(p)
 		gentraceback(gp.m.curg.sched.pc, gp.m.curg.sched.sp, 0, gp.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
 		if frame.fn.valid() {
-			locals, _, _ := getStackMap(&frame, nil, false)
+			locals, _, _ := frame.getStackMap(nil, false)
 			if locals.n == 0 {
 				return
 			}

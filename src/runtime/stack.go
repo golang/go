@@ -664,7 +664,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		return true
 	}
 
-	locals, args, objs := getStackMap(frame, &adjinfo.cache, true)
+	locals, args, objs := frame.getStackMap(&adjinfo.cache, true)
 
 	// Adjust local variables if stack frame has been allocated.
 	if locals.n > 0 {
@@ -1249,7 +1249,7 @@ func freeStackSpans() {
 
 // getStackMap returns the locals and arguments live pointer maps, and
 // stack object list for frame.
-func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args bitvector, objs []stackObjectRecord) {
+func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, args bitvector, objs []stackObjectRecord) {
 	targetpc := frame.continpc
 	if targetpc == 0 {
 		// Frame is dead. Return empty bitvectors.
