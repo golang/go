@@ -301,7 +301,7 @@ func doaddtimer(pp *p, t *timer) {
 	pp.timers = append(pp.timers, t)
 	siftupTimer(pp.timers, i)
 	if t == pp.timers[0] {
-		atomic.Store64(&pp.timer0When, uint64(t.when))
+		pp.timer0When.Store(uint64(t.when))
 	}
 	atomic.Xadd(&pp.numTimers, 1)
 }
@@ -754,7 +754,7 @@ func addAdjustedTimers(pp *p, moved []*timer) {
 //
 //go:nowritebarrierrec
 func nobarrierWakeTime(pp *p) int64 {
-	next := int64(atomic.Load64(&pp.timer0When))
+	next := int64(pp.timer0When.Load())
 	nextAdj := int64(atomic.Load64(&pp.timerModifiedEarliest))
 	if next == 0 || (nextAdj != 0 && nextAdj < next) {
 		next = nextAdj
@@ -1003,9 +1003,9 @@ func verifyTimerHeap(pp *p) {
 // The caller must have locked the timers for pp.
 func updateTimer0When(pp *p) {
 	if len(pp.timers) == 0 {
-		atomic.Store64(&pp.timer0When, 0)
+		pp.timer0When.Store(0)
 	} else {
-		atomic.Store64(&pp.timer0When, uint64(pp.timers[0].when))
+		pp.timer0When.Store(uint64(pp.timers[0].when))
 	}
 }
 
@@ -1039,7 +1039,7 @@ func timeSleepUntil() int64 {
 			continue
 		}
 
-		w := int64(atomic.Load64(&pp.timer0When))
+		w := int64(pp.timer0When.Load())
 		if w != 0 && w < next {
 			next = w
 		}

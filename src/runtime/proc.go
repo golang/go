@@ -3329,7 +3329,7 @@ func dropg() {
 func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 	// If it's not yet time for the first timer, or the first adjusted
 	// timer, then there is nothing to do.
-	next := int64(atomic.Load64(&pp.timer0When))
+	next := int64(pp.timer0When.Load())
 	nextAdj := int64(atomic.Load64(&pp.timerModifiedEarliest))
 	if next == 0 || (nextAdj != 0 && nextAdj < next) {
 		next = nextAdj
@@ -4787,7 +4787,7 @@ func (pp *p) destroy() {
 		pp.timers = nil
 		pp.numTimers = 0
 		pp.deletedTimers = 0
-		atomic.Store64(&pp.timer0When, 0)
+		pp.timer0When.Store(0)
 		unlock(&pp.timersLock)
 		unlock(&plocal.timersLock)
 	}
