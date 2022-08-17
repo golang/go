@@ -89,7 +89,7 @@ type profBuf struct {
 	r, w         profAtomic
 	overflow     atomic.Uint64
 	overflowTime atomic.Uint64
-	eof          uint32
+	eof          atomic.Uint32
 
 	// immutable (excluding slice content)
 	hdrsize uintptr
@@ -394,10 +394,10 @@ func (b *profBuf) write(tagPtr *unsafe.Pointer, now int64, hdr []uint64, stk []u
 // close signals that there will be no more writes on the buffer.
 // Once all the data has been read from the buffer, reads will return eof=true.
 func (b *profBuf) close() {
-	if atomic.Load(&b.eof) > 0 {
+	if b.eof.Load() > 0 {
 		throw("runtime: profBuf already closed")
 	}
-	atomic.Store(&b.eof, 1)
+	b.eof.Store(1)
 	b.wakeupExtra()
 }
 
@@ -475,7 +475,7 @@ Read:
 			dst[2+b.hdrsize] = uint64(count)
 			return dst[:2+b.hdrsize+1], overflowTag[:1], false
 		}
-		if atomic.Load(&b.eof) > 0 {
+		if b.eof.Load() > 0 {
 			// No data, no overflow, EOF set: done.
 			return nil, nil, true
 		}
