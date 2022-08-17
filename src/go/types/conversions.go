@@ -71,23 +71,23 @@ func (check *Checker) conversion(x *operand, T Type) {
 	}
 
 	if !ok {
-		// TODO(rfindley): use types2-style error reporting here.
+		var err error_
+		err.code = _InvalidConversion
 		if compilerErrorMessages {
 			if cause != "" {
 				// Add colon at end of line if we have a following cause.
-				err := newErrorf(x, _InvalidConversion, "cannot convert %s to type %s:", x, T)
+				err.errorf(x.Pos(), "cannot convert %s to type %s:", x, T)
 				err.errorf(token.NoPos, cause)
-				check.report(err)
 			} else {
-				check.errorf(x, _InvalidConversion, "cannot convert %s to type %s", x, T)
+				err.errorf(x.Pos(), "cannot convert %s to type %s", x, T)
 			}
 		} else {
+			err.errorf(x.Pos(), "cannot convert %s to %s", x, T)
 			if cause != "" {
-				check.errorf(x, _InvalidConversion, "cannot convert %s to %s (%s)", x, T, cause)
-			} else {
-				check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
+				err.errorf(token.NoPos, cause)
 			}
 		}
+		check.report(&err)
 		x.mode = invalid
 		return
 	}
