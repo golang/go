@@ -416,6 +416,9 @@ var ErrNoCookie = errors.New("http: named cookie not present")
 // If multiple cookies match the given name, only one cookie will
 // be returned.
 func (r *Request) Cookie(name string) (*Cookie, error) {
+	if name == "" {
+		return nil, ErrNoCookie
+	}
 	for _, c := range readCookies(r.Header, name) {
 		return c, nil
 	}
