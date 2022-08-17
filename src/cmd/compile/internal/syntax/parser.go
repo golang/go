@@ -1111,20 +1111,19 @@ loop:
 		case _Lbrack:
 			p.next()
 
-			if p.tok == _Rbrack {
-				// invalid empty instance, slice or index expression; accept but complain
-				p.syntaxError("expecting operand")
-				p.next()
-				break
-			}
-
 			var i Expr
 			if p.tok != _Colon {
 				var comma bool
-				i, comma = p.typeList()
+				if p.tok == _Rbrack {
+					// invalid empty instance, slice or index expression; accept but complain
+					p.syntaxError("expecting operand")
+					i = p.badExpr()
+				} else {
+					i, comma = p.typeList()
+				}
 				if comma || p.tok == _Rbrack {
 					p.want(_Rbrack)
-					// x[i,] or x[i, j, ...]
+					// x[], x[i,] or x[i, j, ...]
 					t := new(IndexExpr)
 					t.pos = pos
 					t.X = x

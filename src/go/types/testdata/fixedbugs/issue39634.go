@@ -83,9 +83,6 @@ var x T25 /* ERROR without instantiation */ .m1
 
 // crash 26
 type T26 = interface{ F26[ /* ERROR interface method must have no type parameters */ Z any]() }
-// The error messages on the line below differ from types2 because for backward
-// compatibility go/parser must produce an IndexExpr with BadExpr index for the
-// expression F26[].
 func F26[Z any]() T26 { return F26[] /* ERROR operand */ }
 
 // crash 27
