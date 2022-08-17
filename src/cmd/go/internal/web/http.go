@@ -32,7 +32,8 @@ import (
 // when we're connecting to https servers that might not be there
 // or might be using self-signed certificates.
 var impatientInsecureHTTPClient = &http.Client{
-	Timeout: 5 * time.Second,
+	CheckRedirect: checkRedirect,
+	Timeout:       5 * time.Second,
 	Transport: &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{
@@ -41,23 +42,90 @@ var impatientInsecureHTTPClient = &http.Client{
 	},
 }
 
-// securityPreservingHTTPClient is like the default HTTP client, but rejects
-// redirects to plain-HTTP URLs if the original URL was secure.
-var securityPreservingHTTPClient = &http.Client{
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+var securityPreservingDefaultClient = securityPreservingHTTPClient(http.DefaultClient)
+
+// securityPreservingDefaultClient returns a client that is like the original
+// but rejects redirects to plain-HTTP URLs if the original URL was secure.
+func securityPreservingHTTPClient(original *http.Client) *http.Client {
+	c := new(http.Client)
+	*c = *original
+	c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		if len(via) > 0 && via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
 			lastHop := via[len(via)-1].URL
 			return fmt.Errorf("redirected from secure URL %s to insecure URL %s", lastHop, req.URL)
 		}
+		return checkRedirect(req, via)
+	}
+	return c
+}
 
-		// Go's http.DefaultClient allows 10 redirects before returning an error.
-		// The securityPreservingHTTPClient also uses this default policy to avoid
-		// Go command hangs.
-		if len(via) >= 10 {
-			return errors.New("stopped after 10 redirects")
+func checkRedirect(req *http.Request, via []*http.Request) error {
+	// Go's http.DefaultClient allows 10 redirects before returning an error.
+	// Mimic that behavior here.
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+
+	interceptRequest(req)
+	return nil
+}
+
+type Interceptor struct {
+	Scheme   string
+	FromHost string
+	ToHost   string
+	Client   *http.Client
+}
+
+func EnableTestHooks(interceptors []Interceptor) error {
+	if enableTestHooks {
+		return errors.New("web: test hooks already enabled")
+	}
+
+	for _, t := range interceptors {
+		if t.FromHost == "" {
+			panic("EnableTestHooks: missing FromHost")
 		}
-		return nil
-	},
+		if t.ToHost == "" {
+			panic("EnableTestHooks: missing ToHost")
+		}
+	}
+
+	testInterceptors = interceptors
+	enableTestHooks = true
+	return nil
+}
+
+func DisableTestHooks() {
+	if !enableTestHooks {
+		panic("web: test hooks not enabled")
+	}
+	enableTestHooks = false
+	testInterceptors = nil
+}
+
+var (
+	enableTestHooks  = false
+	testInterceptors []Interceptor
+)
+
+func interceptURL(u *urlpkg.URL) (*Interceptor, bool) {
+	if !enableTestHooks {
+		return nil, false
+	}
+	for i, t := range testInterceptors {
+		if u.Host == t.FromHost && (t.Scheme == "" || u.Scheme == t.Scheme) {
+			return &testInterceptors[i], true
+		}
+	}
+	return nil, false
+}
+
+func interceptRequest(req *http.Request) {
+	if t, ok := interceptURL(req.URL); ok {
+		req.Host = req.URL.Host
+		req.URL.Host = t.ToHost
+	}
 }
 
 func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
@@ -67,31 +135,39 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		return getFile(url)
 	}
 
-	if os.Getenv("TESTGOPROXY404") == "1" && url.Host == "proxy.golang.org" {
-		res := &Response{
-			URL:        url.Redacted(),
-			Status:     "404 testing",
-			StatusCode: 404,
-			Header:     make(map[string][]string),
-			Body:       http.NoBody,
-		}
-		if cfg.BuildX {
-			fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", url.Redacted(), res.Status, time.Since(start).Seconds())
-		}
-		return res, nil
-	}
+	if enableTestHooks {
+		switch url.Host {
+		case "proxy.golang.org":
+			if os.Getenv("TESTGOPROXY404") == "1" {
+				res := &Response{
+					URL:        url.Redacted(),
+					Status:     "404 testing",
+					StatusCode: 404,
+					Header:     make(map[string][]string),
+					Body:       http.NoBody,
+				}
+				if cfg.BuildX {
+					fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", url.Redacted(), res.Status, time.Since(start).Seconds())
+				}
+				return res, nil
+			}
 
-	if url.Host == "localhost.localdev" {
-		return nil, fmt.Errorf("no such host localhost.localdev")
-	}
-	if os.Getenv("TESTGONETWORK") == "panic" {
-		host := url.Host
-		if h, _, err := net.SplitHostPort(url.Host); err == nil && h != "" {
-			host = h
-		}
-		addr := net.ParseIP(host)
-		if addr == nil || (!addr.IsLoopback() && !addr.IsUnspecified()) {
-			panic("use of network: " + url.String())
+		case "localhost.localdev":
+			return nil, fmt.Errorf("no such host localhost.localdev")
+
+		default:
+			if os.Getenv("TESTGONETWORK") == "panic" {
+				if _, ok := interceptURL(url); !ok {
+					host := url.Host
+					if h, _, err := net.SplitHostPort(url.Host); err == nil && h != "" {
+						host = h
+					}
+					addr := net.ParseIP(host)
+					if addr == nil || (!addr.IsLoopback() && !addr.IsUnspecified()) {
+						panic("use of network: " + url.String())
+					}
+				}
+			}
 		}
 	}
 
@@ -111,12 +187,22 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		if url.Scheme == "https" {
 			auth.AddCredentials(req)
 		}
+		t, intercepted := interceptURL(req.URL)
+		if intercepted {
+			req.Host = req.URL.Host
+			req.URL.Host = t.ToHost
+		}
 
 		var res *http.Response
 		if security == Insecure && url.Scheme == "https" { // fail earlier
 			res, err = impatientInsecureHTTPClient.Do(req)
 		} else {
-			res, err = securityPreservingHTTPClient.Do(req)
+			if intercepted && t.Client != nil {
+				client := securityPreservingHTTPClient(t.Client)
+				res, err = client.Do(req)
+			} else {
+				res, err = securityPreservingDefaultClient.Do(req)
+			}
 		}
 		return url, res, err
 	}

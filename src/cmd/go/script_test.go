@@ -18,6 +18,7 @@ import (
 	"go/build"
 	"internal/testenv"
 	"internal/txtar"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -29,7 +30,6 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/script"
 	"cmd/go/internal/script/scripttest"
-	"cmd/go/internal/vcs"
 	"cmd/go/internal/vcweb/vcstest"
 )
 
@@ -49,6 +49,10 @@ func TestScript(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	certFile, err := srv.WriteCertificateFile()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	StartProxy()
 
@@ -79,7 +83,7 @@ func TestScript(t *testing.T) {
 		t.Cleanup(cancel)
 	}
 
-	env, err := scriptEnv()
+	env, err := scriptEnv(srv, certFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +179,15 @@ func initScriptDirs(t testing.TB, s *script.State) {
 	must(s.Chdir(gopathSrc))
 }
 
-func scriptEnv() ([]string, error) {
+func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
+	httpURL, err := url.Parse(srv.HTTP.URL)
+	if err != nil {
+		return nil, err
+	}
+	httpsURL, err := url.Parse(srv.HTTPS.URL)
+	if err != nil {
+		return nil, err
+	}
 	version, err := goVersion()
 	if err != nil {
 		return nil, err
@@ -199,7 +211,9 @@ func scriptEnv() ([]string, error) {
 		"GOROOT_FINAL=" + testGOROOT_FINAL, // causes spurious rebuilds and breaks the "stale" built-in if not propagated
 		"GOTRACEBACK=system",
 		"TESTGO_GOROOT=" + testGOROOT,
-		"TESTGO_VCSTEST_URL=" + vcs.VCSTestRepoURL,
+		"TESTGO_VCSTEST_HOST=" + httpURL.Host,
+		"TESTGO_VCSTEST_TLS_HOST=" + httpsURL.Host,
+		"TESTGO_VCSTEST_CERT=" + srvCertFile,
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",
 		"GONOSUMDB=",

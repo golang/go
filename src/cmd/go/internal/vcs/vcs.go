@@ -1208,7 +1208,9 @@ func interceptVCSTest(repo string, vcs *Cmd, security web.SecurityMode) (repoURL
 		return "", false
 	}
 	if vcs == vcsMod {
-		return "", false // Will be implemented in CL 427254.
+		// Since the "mod" protocol is implemented internally,
+		// requests will be intercepted at a lower level (in cmd/go/internal/web).
+		return "", false
 	}
 	if vcs == vcsSvn {
 		return "", false // Will be implemented in CL 427914.

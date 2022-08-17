@@ -21,6 +21,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/zip"
 )
 
 // newScriptEngine returns a script engine augmented with commands for
@@ -38,6 +41,7 @@ func newScriptEngine() *script.Engine {
 	cmds["git"] = script.Program("git", interrupt, gracePeriod)
 	cmds["hg"] = script.Program("hg", interrupt, gracePeriod)
 	cmds["handle"] = scriptHandle()
+	cmds["modzip"] = scriptModzip()
 	cmds["svn"] = script.Program("svn", interrupt, gracePeriod)
 	cmds["unquote"] = scriptUnquote()
 
@@ -277,6 +281,40 @@ func scriptHandle() script.Cmd {
 			}
 			sc.handler, err = h.Handler(dir, st.Environ(), sc.server.logger)
 			return nil, err
+		})
+}
+
+func scriptModzip() script.Cmd {
+	return script.Command(
+		script.CmdUsage{
+			Summary: "create a Go module zip file from a directory",
+			Args:    "zipfile path@version dir",
+		},
+		func(st *script.State, args ...string) (wait script.WaitFunc, err error) {
+			if len(args) != 3 {
+				return nil, script.ErrUsage
+			}
+			zipPath := st.Path(args[0])
+			mPath, version, ok := strings.Cut(args[1], "@")
+			if !ok {
+				return nil, script.ErrUsage
+			}
+			dir := st.Path(args[2])
+
+			if err := os.MkdirAll(filepath.Dir(zipPath), 0755); err != nil {
+				return nil, err
+			}
+			f, err := os.Create(zipPath)
+			if err != nil {
+				return nil, err
+			}
+			defer func() {
+				if closeErr := f.Close(); err == nil {
+					err = closeErr
+				}
+			}()
+
+			return nil, zip.CreateFromDir(f, module.Version{Path: mPath, Version: version}, dir)
 		})
 }
 
