@@ -12,10 +12,10 @@ package main
 /*
 #include <pthread.h>
 
-extern void* callback(void*);
-typedef void* (*cb)(void*);
+extern void* callbackTraceParser(void*);
+typedef void* (*cbTraceParser)(void*);
 
-static void testCallback(cb cb) {
+static void testCallbackTraceParser(cb cb) {
 	pthread_t thread_id;
 	pthread_create(&thread_id, NULL, cb, NULL);
 	pthread_join(thread_id, NULL);
@@ -36,8 +36,8 @@ func init() {
 	register("CgoTraceParser", CgoTraceParser)
 }
 
-//export callback
-func callback(unsafe.Pointer) unsafe.Pointer {
+//export callbackTraceParser
+func callbackTraceParser(unsafe.Pointer) unsafe.Pointer {
 	time.Sleep(time.Millisecond)
 	return nil
 }
@@ -46,7 +46,7 @@ func CgoTraceParser() {
 	buf := new(bytes.Buffer)
 
 	trace.Start(buf)
-	C.testCallback(C.cb(C.callback))
+	C.testCallbackTraceParser(C.cbTraceParser(C.callbackTraceParser))
 	trace.Stop()
 
 	_, err := traceparser.Parse(buf, "")
