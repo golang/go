@@ -289,7 +289,7 @@ func addtimer(t *timer) {
 func doaddtimer(pp *p, t *timer) {
 	// Timers rely on the network poller, so make sure the poller
 	// has started.
-	if netpollInited == 0 {
+	if netpollInited.Load() == 0 {
 		netpollGenericInit()
 	}
 
