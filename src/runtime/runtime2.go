@@ -587,8 +587,7 @@ type m struct {
 	preemptGen uint32
 
 	// Whether this is a pending preemption signal on this M.
-	// Accessed atomically.
-	signalPending uint32
+	signalPending atomic.Uint32
 
 	dlogPerM
 

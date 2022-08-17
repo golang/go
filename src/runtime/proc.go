@@ -1547,7 +1547,7 @@ found:
 	if GOOS == "darwin" || GOOS == "ios" {
 		// Make sure pendingPreemptSignals is correct when an M exits.
 		// For #41702.
-		if atomic.Load(&mp.signalPending) != 0 {
+		if mp.signalPending.Load() != 0 {
 			pendingPreemptSignals.Add(-1)
 		}
 	}
