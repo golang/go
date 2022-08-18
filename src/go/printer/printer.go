@@ -886,7 +886,7 @@ func mayCombine(prev token.Token, next byte) (b bool) {
 	return
 }
 
-func (p *printer) printPos(pos token.Pos) {
+func (p *printer) setPos(pos token.Pos) {
 	if pos.IsValid() {
 		p.pos = p.posFor(pos) // accurate position of next item
 	}
