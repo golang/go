@@ -112,7 +112,7 @@ type ReverseProxy struct {
 	// At most one of Rewrite or Director may be set.
 	Rewrite func(*ProxyRequest)
 
-	// Director is a function which modifies the
+	// Director is a function which modifies
 	// the request into a new request to be sent
 	// using Transport. Its response is then copied
 	// back to the original client unmodified.

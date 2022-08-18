@@ -179,7 +179,7 @@ func schedule(f *Func) {
 					// scored CarryChainTail (and prove w is not a tail).
 					score[w.ID] = ScoreFlags
 				}
-				// Verify v has not been scored. If v has not been visited, v may be the
+				// Verify v has not been scored. If v has not been visited, v may be
 				// the final (tail) operation in a carry chain. If v is not, v will be
 				// rescored above when v's carry-using op is scored. When scoring is done,
 				// only tail operations will retain the CarryChainTail score.

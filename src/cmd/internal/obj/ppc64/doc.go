@@ -198,7 +198,7 @@ greater than the max then the assembler sets it to the max for that size (31 for
 32 bit values, 63 for 64 bit values). If the shift count is in a register, then
 only the low 5 or 6 bits of the register will be used as the shift count. The
 Go compiler will add appropriate code to compare the shift value to achieve the
-the correct result, and the assembler does not add extra checking.
+correct result, and the assembler does not add extra checking.
 
 Examples:
 
