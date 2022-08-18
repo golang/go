@@ -92,20 +92,20 @@ func _[
 	var (
 		_ _SendChan = c
 		_ _RecvChan = c
-		_ _Chan = c
+		_ _Chan     = c
 
 		_ _SendChan = C
 		_ _RecvChan = C
-		_ _Chan = C
+		_ _Chan     = C
 
 		_ SendChan = c
 		_ RecvChan = c
-		_ Chan = c
+		_ Chan     = c
 
 		_ SendChan = C // ERROR cannot use C .* as SendChan value
 		_ RecvChan = C // ERROR cannot use C .* as RecvChan value
-		_ Chan = C
-		_ Chan = make /* ERROR cannot use make\(chan Basic\) .* as Chan value */ (chan Basic)
+		_ Chan     = C
+		_ Chan     = make /* ERROR cannot use make\(chan Basic\) .* as Chan value */ (chan Basic)
 	)
 
 	var (
@@ -152,8 +152,6 @@ func _[
 }
 
 // "x is the predeclared identifier nil and T is a pointer, function, slice, map, channel, or interface type"
-// TODO(rfindley) error messages about untyped nil diverge from types2 here.
-// Consider aligning them.
 func _[TP Interface](X TP) {
 	b = nil // ERROR cannot use nil
 	a = nil // ERROR cannot use nil
@@ -185,13 +183,13 @@ func _[
 	Int16 ~int16,
 	Int32 ~int32,
 	Int64 ~int64,
-        Int8_16 ~int8 | ~int16,
+	Int8_16 ~int8 | ~int16,
 ](
 	i8 Int8,
 	i16 Int16,
 	i32 Int32,
 	i64 Int64,
-        i8_16 Int8_16,
+	i8_16 Int8_16,
 ) {
 	b = 42
 	b = 42.0
