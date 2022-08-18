@@ -11,7 +11,6 @@ import (
 	"debug/dwarf"
 	"debug/pe"
 	"fmt"
-	"internal/buildcfg"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -1596,9 +1595,6 @@ func TestDictIndex(t *testing.T) {
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
-	if buildcfg.Experiment.Unified {
-		t.Skip("GOEXPERIMENT=unified does not emit dictionaries yet")
 	}
 	t.Parallel()
 

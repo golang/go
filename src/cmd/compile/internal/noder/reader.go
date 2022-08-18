@@ -1490,7 +1490,7 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
 	if name.Sym().Name == dictParamName {
 		r.dictParam = name
 	} else {
-		if ctxt == ir.PAUTO {
+		if r.synthetic == nil {
 			r.Sync(pkgbits.SyncAddLocal)
 			if r.p.SyncMarkers() {
 				want := r.Int()
@@ -1498,12 +1498,10 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
 					base.FatalfAt(name.Pos(), "locals table has desynced")
 				}
 			}
+			r.varDictIndex(name)
 		}
 
 		r.locals = append(r.locals, name)
-
-		// TODO(go.dev/issue/54514): Set name.DictIndex for variables of
-		// derived type and enable cmd/link/internal/ld.TestDictIndex.
 	}
 
 	name.SetUsed(true)
@@ -3060,6 +3058,17 @@ func (r *reader) rtype0(pos src.XPos) (typ *types.Type, rtype ir.Node) {
 	typ = r.typ()
 	rtype = reflectdata.TypePtrAt(pos, typ)
 	return
+}
+
+// varDictIndex populates name.DictIndex if name is a derived type.
+func (r *reader) varDictIndex(name *ir.Name) {
+	if r.Bool() {
+		idx := 1 + r.dict.rtypesOffset() + r.Len()
+		if int(uint16(idx)) != idx {
+			base.FatalfAt(name.Pos(), "DictIndex overflow for %v: %v", name, idx)
+		}
+		name.DictIndex = uint16(idx)
+	}
 }
 
 func (r *reader) itab(pos src.XPos) (typ *types.Type, typRType ir.Node, iface *types.Type, ifaceRType ir.Node, itab ir.Node) {

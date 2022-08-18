@@ -1090,20 +1090,19 @@ func (w *writer) funcargs(sig *types2.Signature) {
 
 func (w *writer) funcarg(param *types2.Var, result bool) {
 	if param.Name() != "" || result {
-		w.addLocal(param, true)
+		w.addLocal(param)
 	}
 }
 
 // addLocal records the declaration of a new local variable.
-func (w *writer) addLocal(obj *types2.Var, isParam bool) {
+func (w *writer) addLocal(obj *types2.Var) {
 	idx := len(w.localsIdx)
 
-	if !isParam {
-		w.Sync(pkgbits.SyncAddLocal)
-		if w.p.SyncMarkers() {
-			w.Int(idx)
-		}
+	w.Sync(pkgbits.SyncAddLocal)
+	if w.p.SyncMarkers() {
+		w.Int(idx)
 	}
+	w.varDictIndex(obj)
 
 	if w.localsIdx == nil {
 		w.localsIdx = make(map[*types2.Var]int)
@@ -1295,7 +1294,7 @@ func (w *writer) assign(expr syntax.Expr) {
 
 			// TODO(mdempsky): Minimize locals index size by deferring
 			// this until the variables actually come into scope.
-			w.addLocal(obj, false)
+			w.addLocal(obj)
 			return
 		}
 	}
@@ -1558,7 +1557,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 
 			obj := obj.(*types2.Var)
 			w.typ(obj.Type())
-			w.addLocal(obj, false)
+			w.addLocal(obj)
 		}
 
 		w.stmts(clause.Body)
@@ -2174,6 +2173,15 @@ func (w *writer) rtype(typ types2.Type) {
 		w.Len(w.dict.rtypeIdx(info))
 	} else {
 		w.typInfo(info)
+	}
+}
+
+// varDictIndex writes out information for populating DictIndex for
+// the ir.Name that will represent obj.
+func (w *writer) varDictIndex(obj *types2.Var) {
+	info := w.p.typIdx(obj.Type(), w.dict)
+	if w.Bool(info.derived) {
+		w.Len(w.dict.rtypeIdx(info))
 	}
 }
 
