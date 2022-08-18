@@ -21,9 +21,6 @@ import (
 	"go/internal/typeparams"
 	"go/scanner"
 	"go/token"
-	"strconv"
-	"strings"
-	"unicode"
 )
 
 // The parser structure holds the parser's internal state.
@@ -2547,17 +2544,6 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 
 type parseSpecFunction func(doc *ast.CommentGroup, pos token.Pos, keyword token.Token, iota int) ast.Spec
 
-func isValidImport(lit string) bool {
-	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
-	s, _ := strconv.Unquote(lit) // go/scanner returns a legal string literal
-	for _, r := range s {
-		if !unicode.IsGraphic(r) || unicode.IsSpace(r) || strings.ContainsRune(illegalChars, r) {
-			return false
-		}
-	}
-	return s != ""
-}
-
 func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ImportSpec"))
@@ -2576,9 +2562,6 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Tok
 	var path string
 	if p.tok == token.STRING {
 		path = p.lit
-		if !isValidImport(path) {
-			p.error(pos, "invalid import path: "+path)
-		}
 		p.next()
 	} else {
 		p.expect(token.STRING) // use expect() error handling

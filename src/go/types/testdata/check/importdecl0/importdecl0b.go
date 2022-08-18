@@ -12,12 +12,9 @@ import . /* ERROR .unsafe. imported but not used */ "unsafe"
 import . "fmt"     // declares Println in file scope
 
 import (
-	// TODO(gri) At the moment, 2 errors are reported because both go/parser
-	// and the type checker report it. Eventually, this test should not be
-	// done by the parser anymore.
-	"" /* ERROR invalid import path */ /* ERROR invalid import path */
-	"a!b" /* ERROR invalid import path */ /* ERROR invalid import path */
-	"abc\xffdef" /* ERROR invalid import path */ /* ERROR invalid import path */
+	"" /* ERROR invalid import path */
+	"a!b" /* ERROR invalid import path */
+	"abc\xffdef" /* ERROR invalid import path */
 )
 
 // using "math" in this file doesn't affect its use in other files
