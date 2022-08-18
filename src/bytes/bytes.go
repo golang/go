@@ -1329,7 +1329,7 @@ func CutPrefix(s, prefix []byte) (after []byte, found bool) {
 // If suffix is the empty byte slice, CutSuffix returns s, true.
 //
 // CutSuffix returns slices of the original slice s, not copies.
-func CutSuffix(s, suffix []byte) (after []byte, found bool) {
+func CutSuffix(s, suffix []byte) (before []byte, found bool) {
 	if !HasSuffix(s, suffix) {
 		return s, false
 	}

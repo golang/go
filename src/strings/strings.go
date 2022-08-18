@@ -1223,7 +1223,7 @@ func CutPrefix(s, prefix string) (after string, found bool) {
 // and reports whether it found the suffix.
 // If s doesn't end with suffix, CutSuffix returns s, false.
 // If suffix is the empty string, CutSuffix returns s, true.
-func CutSuffix(s, suffix string) (after string, found bool) {
+func CutSuffix(s, suffix string) (before string, found bool) {
 	if !HasSuffix(s, suffix) {
 		return s, false
 	}
