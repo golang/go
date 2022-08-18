@@ -137,7 +137,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 					}
 				}
 				if call.HasDots {
-					check.errorf(call.ArgList[0], "invalid use of ... in type conversion to %s", T)
+					check.errorf(call.ArgList[0], "invalid use of ... in conversion to %s", T)
 					break
 				}
 				check.conversion(x, T)
