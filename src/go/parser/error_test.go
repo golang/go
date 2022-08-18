@@ -24,7 +24,6 @@ package parser
 
 import (
 	"flag"
-	"go/internal/typeparams"
 	"go/scanner"
 	"go/token"
 	"os"
@@ -189,9 +188,6 @@ func TestErrors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
 				mode := DeclarationErrors | AllErrors
-				if !strings.HasSuffix(name, ".go2") {
-					mode |= typeparams.DisallowParsing
-				}
 				if *traceErrs {
 					mode |= Trace
 				}

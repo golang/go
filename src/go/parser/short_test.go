@@ -6,10 +6,7 @@
 
 package parser
 
-import (
-	"go/internal/typeparams"
-	"testing"
-)
+import "testing"
 
 var valids = []string{
 	"package p\n",
@@ -64,80 +61,65 @@ var valids = []string{
 	`package p; type _ struct{ f [n]E }`,
 	`package p; type _ struct{ f [a+b+c+d]E }`,
 	`package p; type I1 interface{}; type I2 interface{ I1 }`,
-}
 
-// validWithTParamsOnly holds source code examples that are valid if
-// parseTypeParams is set, but invalid if not. When checking with the
-// parseTypeParams set, errors are ignored.
-var validWithTParamsOnly = []string{
-	`package p; type _ []T[ /* ERROR "expected ';', found '\['" */ int]`,
-	`package p; type T[P any /* ERROR "expected ']', found any" */ ] struct { P }`,
-	`package p; type T[P comparable /* ERROR "expected ']', found comparable" */ ] struct { P }`,
-	`package p; type T[P comparable /* ERROR "expected ']', found comparable" */ [P]] struct { P }`,
-	`package p; type T[P1, /* ERROR "unexpected comma" */ P2 any] struct { P1; f []P2 }`,
-	`package p; func _[ /* ERROR "expected '\(', found '\['" */ T any]()()`,
+	// generic code
+	`package p; type _ []T[int]`,
+	`package p; type T[P any] struct { P }`,
+	`package p; type T[P comparable] struct { P }`,
+	`package p; type T[P comparable[P]] struct { P }`,
+	`package p; type T[P1, P2 any] struct { P1; f []P2 }`,
+	`package p; func _[T any]()()`,
 	`package p; func _(T (P))`,
-	`package p; func f[ /* ERROR "expected '\(', found '\['" */ A, B any](); func _() { _ = f[int, int] }`,
-	`package p; func _(x /* ERROR "mixed named and unnamed parameters" */ T[P1, P2, P3])`,
-	`package p; func _(x /* ERROR "mixed named and unnamed parameters" */ p.T[Q])`,
-	`package p; func _(p.T[ /* ERROR "missing ',' in parameter list" */ Q])`,
-	`package p; type _[A interface /* ERROR "expected ']', found 'interface'" */ {},] struct{}`,
-	`package p; type _[A interface /* ERROR "expected ']', found 'interface'" */ {}] struct{}`,
-	`package p; type _[A, /* ERROR "unexpected comma" */  B any,] struct{}`,
-	`package p; type _[A, /* ERROR "unexpected comma" */ B any] struct{}`,
-	`package p; type _[A any /* ERROR "expected ']', found any" */,] struct{}`,
-	`package p; type _[A any /* ERROR "expected ']', found any" */ ]struct{}`,
-	`package p; type _[A any /* ERROR "expected ']', found any" */ ] struct{ A }`,
-	`package p; func _[ /* ERROR "expected '\(', found '\['" */ T any]()`,
-	`package p; func _[ /* ERROR "expected '\(', found '\['" */ T any](x T)`,
-	`package p; func _[ /* ERROR "expected '\(', found '\['" */ T1, T2 any](x T)`,
-	`package p; func _[ /* ERROR "expected '\(', found '\['" */ A, B any](a A) B`,
-	`package p; func _[ /* ERROR "expected '\(', found '\['" */ A, B C](a A) B`,
-	`package p; func _[ /* ERROR "expected '\(', found '\['" */ A, B C[A, B]](a A) B`,
+	`package p; func f[A, B any](); func _() { _ = f[int, int] }`,
+	`package p; func _(x T[P1, P2, P3])`,
+	`package p; func _(x p.T[Q])`,
+	`package p; func _(p.T[Q])`,
+	`package p; type _[A interface{},] struct{}`,
+	`package p; type _[A interface{}] struct{}`,
+	`package p; type _[A,  B any,] struct{}`,
+	`package p; type _[A, B any] struct{}`,
+	`package p; type _[A any,] struct{}`,
+	`package p; type _[A any]struct{}`,
+	`package p; type _[A any] struct{ A }`,
+	`package p; func _[T any]()`,
+	`package p; func _[T any](x T)`,
+	`package p; func _[T1, T2 any](x T)`,
+	`package p; func _[A, B any](a A) B`,
+	`package p; func _[A, B C](a A) B`,
+	`package p; func _[A, B C[A, B]](a A) B`,
 
-	`package p; type _[A, /* ERROR "unexpected comma" */ B any] interface { _(a A) B }`,
-	`package p; type _[A, /* ERROR "unexpected comma" */ B C[A, B]] interface { _(a A) B }`,
-	`package p; func _[ /* ERROR "expected '\(', found '\['" */ T1, T2 interface{}](x T1) T2`,
-	`package p; func _[ /* ERROR "expected '\(', found '\['" */ T1 interface{ m() }, T2, T3 interface{}](x T1, y T3) T2`,
-	`package p; var _ = [ /* ERROR "expected expression" */ ]T[int]{}`,
-	`package p; var _ = [ /* ERROR "expected expression" */ 10]T[int]{}`,
-	`package p; var _ = func /* ERROR "expected expression" */ ()T[int]{}`,
-	`package p; var _ = map /* ERROR "expected expression" */ [T[int]]T[int]{}`,
-	`package p; var _ = chan /* ERROR "expected expression" */ T[int](x)`,
-	`package p; func _(_ T[ /* ERROR "missing ',' in parameter list" */ P], T P) T[P]`,
-	`package p; var _ T[ /* ERROR "expected ';', found '\['" */ chan int]`,
+	`package p; type _[A, B any] interface { _(a A) B }`,
+	`package p; type _[A, B C[A, B]] interface { _(a A) B }`,
+	`package p; func _[T1, T2 interface{}](x T1) T2`,
+	`package p; func _[T1 interface{ m() }, T2, T3 interface{}](x T1, y T3) T2`,
+	`package p; var _ = []T[int]{}`,
+	`package p; var _ = [10]T[int]{}`,
+	`package p; var _ = func()T[int]{}`,
+	`package p; var _ = map[T[int]]T[int]{}`,
+	`package p; var _ = chan T[int](x)`,
+	`package p; func _(_ T[P], T P) T[P]`,
+	`package p; var _ T[chan int]`,
 
-	// TODO(rfindley) this error message could be improved.
-	`package p; func (_ /* ERROR "mixed named and unnamed parameters" */ R[P]) _(x T)`,
-	`package p; func (_ /* ERROR "mixed named and unnamed parameters" */ R[ P, Q]) _(x T)`,
+	`package p; func (_ R[P]) _(x T)`,
+	`package p; func (_ R[ P, Q]) _(x T)`,
 
-	`package p; func (R[P] /* ERROR "missing element type" */ ) _()`,
-	`package p; func _(T[P] /* ERROR "missing element type" */ )`,
-	`package p; func _(T[P1, /* ERROR "expected ']', found ','" */ P2, P3 ])`,
-	`package p; func _(T[P] /* ERROR "missing element type" */ ) T[P]`,
-	`package p; type _ struct{ T[P] /* ERROR "missing element type" */ }`,
-	`package p; type _ struct{ T[struct /* ERROR "expected expression" */ {a, b, c int}] }`,
-	`package p; type _ interface{int| /* ERROR "expected ';'" */ float32; bool; m(); string;}`,
-	`package p; type I1[T any /* ERROR "expected ']', found any" */ ] interface{}; type I2 interface{ I1[int] }`,
-	`package p; type I1[T any /* ERROR "expected ']', found any" */ ] interface{}; type I2[T any] interface{ I1[T] }`,
-	`package p; type _ interface { N[ /* ERROR "expected ';', found '\['" */ T] }`,
-	`package p; type T[P any /* ERROR "expected ']'" */ ] = T0`,
+	`package p; func (R[P]) _()`,
+	`package p; func _(T[P])`,
+	`package p; func _(T[P1, P2, P3 ])`,
+	`package p; func _(T[P]) T[P]`,
+	`package p; type _ struct{ T[P]}`,
+	`package p; type _ struct{ T[struct{a, b, c int}] }`,
+	`package p; type _ interface{int|float32; bool; m(); string;}`,
+	`package p; type I1[T any] interface{}; type I2 interface{ I1[int] }`,
+	`package p; type I1[T any] interface{}; type I2[T any] interface{ I1[T] }`,
+	`package p; type _ interface { N[T] }`,
+	`package p; type T[P any] = T0`,
 }
 
 func TestValid(t *testing.T) {
-	t.Run("no tparams", func(t *testing.T) {
-		for _, src := range valids {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors, false)
-		}
-	})
-	t.Run("tparams", func(t *testing.T) {
-		for _, src := range valids {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors, false)
-		}
-		for _, src := range validWithTParamsOnly {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors, false)
-		}
-	})
+	for _, src := range valids {
+		checkErrors(t, src, src, DeclarationErrors|AllErrors, false)
+	}
 }
 
 // TestSingle is useful to track down a problem with a single short test program.
@@ -228,28 +210,8 @@ var invalids = []string{
 	// issue 13475
 	`package p; func f() { if true {} else ; /* ERROR "expected if statement or block" */ }`,
 	`package p; func f() { if true {} else defer /* ERROR "expected if statement or block" */ f() }`,
-}
 
-// invalidNoTParamErrs holds invalid source code examples annotated with the
-// error messages produced when ParseTypeParams is not set.
-var invalidNoTParamErrs = []string{
-	`package p; type _[_ any /* ERROR "expected ']', found any" */ ] int; var _ = T[]{}`,
-	`package p; type T[P any /* ERROR "expected ']', found any" */ ] = T0`,
-	`package p; var _ func[ /* ERROR "expected '\(', found '\['" */ T any](T)`,
-	`package p; func _[ /* ERROR "expected '\(', found '\['" */ ]()`,
-	`package p; type _[A, /* ERROR "unexpected comma" */] struct{ A }`,
-	`package p; func _[ /* ERROR "expected '\(', found '\['" */ type P, *Q interface{}]()`,
-
-	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B any](a A) B`,
-	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C](a A) B`,
-	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C[A, B]](a A) B`,
-
-	`package p; func(*T[ /* ERROR "missing ',' in parameter list" */ e, e]) _()`,
-}
-
-// invalidTParamErrs holds invalid source code examples annotated with the
-// error messages produced when ParseTypeParams is set.
-var invalidTParamErrs = []string{
+	// generic code
 	`package p; type _[_ any] int; var _ = T[] /* ERROR "expected operand" */ {}`,
 	`package p; var _ func[ /* ERROR "must have no type parameters" */ T any](T)`,
 	`package p; func _[]/* ERROR "empty type parameter list" */()`,
@@ -268,23 +230,7 @@ var invalidTParamErrs = []string{
 }
 
 func TestInvalid(t *testing.T) {
-	t.Run("no tparams", func(t *testing.T) {
-		for _, src := range invalids {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors|typeparams.DisallowParsing, true)
-		}
-		for _, src := range validWithTParamsOnly {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors|typeparams.DisallowParsing, true)
-		}
-		for _, src := range invalidNoTParamErrs {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors|typeparams.DisallowParsing, true)
-		}
-	})
-	t.Run("tparams", func(t *testing.T) {
-		for _, src := range invalids {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors, true)
-		}
-		for _, src := range invalidTParamErrs {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors, true)
-		}
-	})
+	for _, src := range invalids {
+		checkErrors(t, src, src, DeclarationErrors|AllErrors, true)
+	}
 }

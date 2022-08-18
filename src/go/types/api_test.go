@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/importer"
-	"go/internal/typeparams"
 	"go/parser"
 	"go/token"
 	"internal/testenv"
@@ -57,12 +56,10 @@ func mustTypecheck(t testing.TB, path, source string, info *Info) string {
 
 // genericPkg is a prefix for packages that should be type checked with
 // generics.
+// TODO(gri) remove this machinery now that all source accepts generics.
 const genericPkg = "package generic_"
 
 func modeForSource(src string) parser.Mode {
-	if !strings.HasPrefix(src, genericPkg) {
-		return typeparams.DisallowParsing
-	}
 	return 0
 }
 
@@ -361,9 +358,7 @@ func TestTypesInfo(t *testing.T) {
 		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[P any]`},
 		{genericPkg + `t2; type t[P interface{}] int; var _ t[int]`, `t`, `generic_t2.t[P interface{}]`},
 		{genericPkg + `t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `generic_t3.t[P, Q interface{}]`},
-
-		// TODO (rFindley): compare with types2, which resolves the type broken_t4.t[P₁, Q₂ interface{m()}] here
-		{broken + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t`},
+		{broken + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t[P, Q interface{m()}]`},
 
 		// instantiated types must be sanitized
 		{genericPkg + `g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `generic_g0.t[int]`},
