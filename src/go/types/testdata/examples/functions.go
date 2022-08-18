@@ -183,6 +183,7 @@ func _() {
 	var s1 string
 	g3(nil, "1", myString("2"), "3")
 	g3(& /* ERROR does not match */ s1, "1", myString("2"), "3")
+	_ = s1
 
 	type myStruct struct{x int}
 	var s2 myStruct

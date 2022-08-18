@@ -211,7 +211,7 @@ func _() {
 func h[] /* ERROR empty type parameter list */ () {}
 
 func _() {
-	h[ /* ERROR cannot index */ ] /* ERROR operand */ ()
+	h /* ERROR cannot index */ [] /* ERROR operand */ ()
 }
 
 // Parameterized functions must have a function body.

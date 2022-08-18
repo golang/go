@@ -106,7 +106,7 @@ var _ = T /* ERROR cannot use generic type T */ (0)
 
 // In type context, generic (parameterized) types cannot be parenthesized before
 // being instantiated. See also NOTES entry from 12/4/2019.
-var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR unexpected \[ */ int]
+var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR unexpected \[|expected ';' */ int]
 
 // All types may be parameterized, including interfaces.
 type I1[T any] interface{

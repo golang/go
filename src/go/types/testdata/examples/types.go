@@ -106,7 +106,7 @@ var _ = T /* ERROR cannot use generic type T */ (0)
 
 // In type context, generic (parameterized) types cannot be parenthesized before
 // being instantiated. See also NOTES entry from 12/4/2019.
-var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR expected ';' */ int]
+var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR unexpected \[|expected ';' */ int]
 
 // All types may be parameterized, including interfaces.
 type I1[T any] interface{
@@ -145,21 +145,17 @@ func _() {
 	x.m("foo")
 }
 
-// We accept parenthesized embedded struct fields so we can distinguish between
-// a named field with a parenthesized type foo (T) and an embedded parameterized
-// type (foo(T)), similarly to interface embedding.
-// They still need to be valid embedded types after the parentheses are stripped
-// (i.e., in contrast to interfaces, we cannot embed a struct literal). The name
-// of the embedded field is derived as before, after stripping parentheses.
-// (7/14/2020: See comment above. We probably will revert this generalized ability
-// if we go with [] for type parameters.)
 type _ struct {
+	// TODO(gri) The next 3 lines need to be adjusted to match
+	//           the corresponding types2 tests. This requires
+	//           a go/parser fix (issue #51655).
 	int8
 	*int16
-	*List[int]
+	List[int]
 
 	int8 /* ERROR int8 redeclared */
-	* /* ERROR List redeclared */ List[int]
+	* /* ERROR int16 redeclared */ int16
+	List /* ERROR List redeclared */ [int]
 }
 
 // Issue #45639: We don't allow this anymore. Keep this code
@@ -169,27 +165,27 @@ type _ struct {
 // are type parameters. As with ordinary type definitions, the
 // types underlying properties are "inherited" but the methods
 // are not.
-//func _[T interface{ m(); ~int }]() {
-//	type L T
-//	var x L
-//
-//	// m is not defined on L (it is not "inherited" from
-//	// its underlying type).
-//	x.m /* ERROR x.m undefined */ ()
-//
-//	// But the properties of T, such that as that it supports
-//	// the operations of the types given by its type bound,
-//	// are also the properties of L.
-//	x++
-//	_ = x - x
-//
-//	// On the other hand, if we define a local alias for T,
-//	// that alias stands for T as expected.
-//	type A = T
-//	var y A
-//	y.m()
-//	_ = y < 0
-//}
+// func _[T interface{ m(); ~int }]() {
+// 	type L T
+// 	var x L
+// 
+// 	// m is not defined on L (it is not "inherited" from
+// 	// its underlying type).
+// 	x.m /* ERROR x.m undefined */ ()
+// 
+// 	// But the properties of T, such that as that it supports
+// 	// the operations of the types given by its type bound,
+// 	// are also the properties of L.
+// 	x++
+// 	_ = x - x
+// 
+// 	// On the other hand, if we define a local alias for T,
+// 	// that alias stands for T as expected.
+// 	type A = T
+// 	var y A
+// 	y.m()
+// 	_ = y < 0
+// }
 
 // For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
 // // It is not permitted to declare a local type whose underlying
@@ -285,7 +281,7 @@ func _() {
 // (If a type set contains just a single const type, we could
 // allow it, but such type sets don't make much sense in the
 // first place.)
-func _[T interface {~int|~float64}]() {
+func _[T interface{~int|~float64}]() {
 	// not valid
 	const _ = T /* ERROR not constant */ (0)
 	const _ T /* ERROR invalid constant type T */ = 1
