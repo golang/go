@@ -1665,6 +1665,16 @@
 // zero upper bit of the register; no need to zero-extend
 (MOVBUreg x:((Equal|NotEqual|LessThan|LessThanU|LessThanF|LessEqual|LessEqualU|LessEqualF|GreaterThan|GreaterThanU|GreaterThanF|GreaterEqual|GreaterEqualU|GreaterEqualF) _)) => (MOVDreg x)
 
+// omit unsign extension
+
+(MOVWUreg x) && zeroUpper32Bits(x, 3) => x
+
+// omit sign extension
+
+(MOVWreg <t> (ANDconst x [c])) && uint64(c) & uint64(0xffffffff80000000) == 0 => (ANDconst <t> x [c])
+(MOVHreg <t> (ANDconst x [c])) && uint64(c) & uint64(0xffffffffffff8000) == 0 => (ANDconst <t> x [c])
+(MOVBreg <t> (ANDconst x [c])) && uint64(c) & uint64(0xffffffffffffff80) == 0 => (ANDconst <t> x [c])
+
 // absorb flag constants into conditional instructions
 (CSEL [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
 (CSEL [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => y

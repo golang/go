@@ -1298,6 +1298,10 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 		OpAMD64SHRL, OpAMD64SHRLconst, OpAMD64SARL, OpAMD64SARLconst,
 		OpAMD64SHLL, OpAMD64SHLLconst:
 		return true
+	case OpARM64REV16W, OpARM64REVW, OpARM64RBITW, OpARM64CLZW, OpARM64EXTRWconst,
+		OpARM64MULW, OpARM64MNEGW, OpARM64UDIVW, OpARM64DIVW, OpARM64UMODW,
+		OpARM64MADDW, OpARM64MSUBW, OpARM64RORW, OpARM64RORWconst:
+		return true
 	case OpArg:
 		return x.Type.Size() == 4
 	case OpPhi, OpSelect0, OpSelect1:
