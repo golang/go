@@ -1990,6 +1990,7 @@ var go118Failures = setOf(
 	"fixedbugs/issue54343.go",  // 1.18 compiler assigns receiver parameter to global variable
 	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
 	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
+	"typeparam/issue54456.go",  // 1.18 compiler fails to distinguish local generic types
 	"typeparam/issue54497.go",  // 1.18 compiler is more conservative about inlining due to repeated issues
 	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions
 	"typeparam/mdempsky/17.go", // 1.18 compiler mishandles implicit conversions from range loops

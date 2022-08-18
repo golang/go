@@ -777,8 +777,13 @@ func (dict *readerDict) mangle(sym *types.Sym) *types.Sym {
 		return sym
 	}
 
+	// If sym is a locally defined generic type, we need the suffix to
+	// stay at the end after mangling so that types/fmt.go can strip it
+	// out again when writing the type's runtime descriptor (#54456).
+	base, suffix := types.SplitVargenSuffix(sym.Name)
+
 	var buf strings.Builder
-	buf.WriteString(sym.Name)
+	buf.WriteString(base)
 	buf.WriteByte('[')
 	for i, targ := range dict.targs {
 		if i > 0 {
@@ -791,6 +796,7 @@ func (dict *readerDict) mangle(sym *types.Sym) *types.Sym {
 		buf.WriteString(targ.LinkString())
 	}
 	buf.WriteByte(']')
+	buf.WriteString(suffix)
 	return sym.Pkg.Lookup(buf.String())
 }
 

@@ -340,13 +340,9 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 		// non-fmtTypeID modes.
 		sym := t.Sym()
 		if mode != fmtTypeID {
-			i := len(sym.Name)
-			for i > 0 && sym.Name[i-1] >= '0' && sym.Name[i-1] <= '9' {
-				i--
-			}
-			const dot = "·"
-			if i >= len(dot) && sym.Name[i-len(dot):i] == dot {
-				sym = &Sym{Pkg: sym.Pkg, Name: sym.Name[:i-len(dot)]}
+			base, _ := SplitVargenSuffix(sym.Name)
+			if len(base) < len(sym.Name) {
+				sym = &Sym{Pkg: sym.Pkg, Name: base}
 			}
 		}
 		sconv2(b, sym, verb, mode)
@@ -702,6 +698,21 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 		b.WriteString(" ")
 		b.WriteString(strconv.Quote(f.Note))
 	}
+}
+
+// SplitVargenSuffix returns name split into a base string and a ·N
+// suffix, if any.
+func SplitVargenSuffix(name string) (base, suffix string) {
+	i := len(name)
+	for i > 0 && name[i-1] >= '0' && name[i-1] <= '9' {
+		i--
+	}
+	const dot = "·"
+	if i >= len(dot) && name[i-len(dot):i] == dot {
+		i -= len(dot)
+		return name[:i], name[i:]
+	}
+	return name, ""
 }
 
 // Val

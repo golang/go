@@ -933,8 +933,11 @@ func (w *writer) qualifiedIdent(obj types2.Object) {
 		decl, ok := w.p.typDecls[obj.(*types2.TypeName)]
 		assert(ok)
 		if decl.gen != 0 {
-			// TODO(mdempsky): Find a better solution than embedding middle
-			// dot in the symbol name; this is terrible.
+			// For local defined types, we embed a scope-disambiguation
+			// number directly into their name. types.SplitVargenSuffix then
+			// knows to look for this.
+			//
+			// TODO(mdempsky): Find a better solution; this is terrible.
 			name = fmt.Sprintf("%s·%v", name, decl.gen)
 		}
 	}
