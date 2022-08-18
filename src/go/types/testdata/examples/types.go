@@ -146,11 +146,9 @@ func _() {
 }
 
 type _ struct {
-	// TODO(gri) The next 3 lines need to be adjusted to match
-	//           the corresponding types2 tests. This requires
-	//           a go/parser fix (issue #51655).
-	int8
-	*int16
+	( /* ERROR cannot parenthesize */ int8)
+	( /* ERROR cannot parenthesize */ *int16)
+	*( /* ERROR cannot parenthesize */ int32)
 	List[int]
 
 	int8 /* ERROR int8 redeclared */
