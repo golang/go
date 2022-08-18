@@ -643,7 +643,8 @@ func (p *parser) parseFieldDecl() *ast.Field {
 
 	var names []*ast.Ident
 	var typ ast.Expr
-	if p.tok == token.IDENT {
+	switch p.tok {
+	case token.IDENT:
 		name := p.parseIdent()
 		if p.tok == token.PERIOD || p.tok == token.STRING || p.tok == token.SEMICOLON || p.tok == token.RBRACE {
 			// embedded type
@@ -670,11 +671,46 @@ func (p *parser) parseFieldDecl() *ast.Field {
 				typ = p.parseType()
 			}
 		}
-	} else {
-		// embedded, possibly generic type
-		// (using the enclosing parentheses to distinguish it from a named field declaration)
-		// TODO(rFindley) confirm that this doesn't allow parenthesized embedded type
-		typ = p.parseType()
+	case token.MUL:
+		star := p.pos
+		p.next()
+		if p.tok == token.LPAREN {
+			// *(T)
+			p.error(p.pos, "cannot parenthesize embedded type")
+			p.next()
+			typ = p.parseQualifiedIdent(nil)
+			// expect closing ')' but no need to complain if missing
+			if p.tok == token.RPAREN {
+				p.next()
+			}
+		} else {
+			// *T
+			typ = p.parseQualifiedIdent(nil)
+		}
+		typ = &ast.StarExpr{Star: star, X: typ}
+
+	case token.LPAREN:
+		p.error(p.pos, "cannot parenthesize embedded type")
+		p.next()
+		if p.tok == token.MUL {
+			// (*T)
+			star := p.pos
+			p.next()
+			typ = &ast.StarExpr{Star: star, X: p.parseQualifiedIdent(nil)}
+		} else {
+			// (T)
+			typ = p.parseQualifiedIdent(nil)
+		}
+		// expect closing ')' but no need to complain if missing
+		if p.tok == token.RPAREN {
+			p.next()
+		}
+
+	default:
+		pos := p.pos
+		p.errorExpected(pos, "field name or embedded type")
+		p.advance(exprEnd)
+		typ = &ast.BadExpr{From: pos, To: p.pos}
 	}
 
 	var tag *ast.BasicLit

@@ -52,9 +52,9 @@ var valids = []string{
 	`package p; type T = int`,
 	`package p; type (T = p.T; _ = struct{}; x = *T)`,
 	`package p; type T (*int)`,
-	`package p; type _ struct{ ((int)) }`,
-	`package p; type _ struct{ (*(int)) }`,
-	`package p; type _ struct{ ([]byte) }`, // disallowed by type-checker
+	`package p; type _ struct{ int }`,
+	`package p; type _ struct{ pkg.T }`,
+	`package p; type _ struct{ *pkg.T }`,
 	`package p; var _ = func()T(nil)`,
 	`package p; func _(T (P))`,
 	`package p; func _(T []E)`,
@@ -194,6 +194,12 @@ var invalids = []string{
 	`package p; func _() (type /* ERROR "found 'type'" */ T)(T)`,
 	`package p; func (type /* ERROR "found 'type'" */ T)(T) _()`,
 	`package p; type _[A+B, /* ERROR "unexpected comma" */ ] int`,
+
+	`package p; type _ struct{ [ /* ERROR "expected '}', found '\['" */ ]byte }`,
+	`package p; type _ struct{ ( /* ERROR "cannot parenthesize embedded type" */ int) }`,
+	`package p; type _ struct{ ( /* ERROR "cannot parenthesize embedded type" */ []byte) }`,
+	`package p; type _ struct{ *( /* ERROR "cannot parenthesize embedded type" */ int) }`,
+	`package p; type _ struct{ *( /* ERROR "cannot parenthesize embedded type" */ []byte) }`,
 
 	// TODO(rfindley): this error should be positioned on the ':'
 	`package p; var a = a[[]int:[ /* ERROR "expected expression" */ ]int];`,
