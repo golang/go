@@ -846,6 +846,25 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	// N.B., the go/types importer reads up to the section, but doesn't
 	// read any further, so it's safe to change. (See TODO above.)
 
+	// For each type parameter, write out whether the constraint is a
+	// basic interface. This is used to determine how aggressively we
+	// can shape corresponding type arguments.
+	//
+	// This is somewhat redundant with writing out the full type
+	// parameter constraints above, but the compiler currently skips
+	// over those. Also, we don't care about the *declared* constraints,
+	// but how the type parameters are actually *used*. E.g., if a type
+	// parameter is constrained to `int | uint` but then never used in
+	// arithmetic/conversions/etc, we could shape those together.
+	for _, implicit := range dict.implicits {
+		tparam := implicit.Type().(*types2.TypeParam)
+		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
+	}
+	for i := 0; i < ntparams; i++ {
+		tparam := tparams.At(i)
+		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
+	}
+
 	w.Len(len(dict.typeParamMethodExprs))
 	for _, info := range dict.typeParamMethodExprs {
 		w.Len(info.typeParamIdx)

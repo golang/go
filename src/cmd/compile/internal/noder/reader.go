@@ -795,18 +795,31 @@ func (dict *readerDict) mangle(sym *types.Sym) *types.Sym {
 }
 
 // shapify returns the shape type for targ.
-func shapify(targ *types.Type) *types.Type {
-	if targ.IsShape() {
-		return targ
-	}
-
+//
+// If basic is true, then the type argument is used to instantiate a
+// type parameter whose constraint is a basic interface.
+func shapify(targ *types.Type, basic bool) *types.Type {
 	base.Assertf(targ.Kind() != types.TFORW, "%v is missing its underlying type", targ)
 
-	// TODO(go.dev/issue/54513): Better shaping than merely converting
-	// to underlying type. E.g., shape pointer types to unsafe.Pointer
-	// when we know the element type doesn't matter, and then enable
-	// cmd/compile/internal/test.TestInst.
+	// When a pointer type is used to instantiate a type parameter
+	// constrained by a basic interface, we know the pointer's element
+	// type can't matter to the generated code. In this case, we can use
+	// an arbitrary pointer type as the shape type. (To match the
+	// non-unified frontend, we use `*byte`.)
+	//
+	// Otherwise, we simply use the type's underlying type as its shape.
+	//
+	// TODO(mdempsky): It should be possible to do much more aggressive
+	// shaping still; e.g., collapsing all pointer-shaped types into a
+	// common type, collapsing scalars of the same size/alignment into a
+	// common type, recursively shaping the element types of composite
+	// types, and discarding struct field names and tags. However, we'll
+	// need to start tracking how type parameters are actually used to
+	// implement some of these optimizations.
 	under := targ.Underlying()
+	if basic && targ.IsPtr() && !targ.Elem().NotInHeap() {
+		under = types.NewPtr(types.Types[types.TUINT8])
+	}
 
 	sym := types.ShapePkg.Lookup(under.LinkString())
 	if sym.Def == nil {
@@ -839,6 +852,20 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
 	dict.targs = append(implicits[:nimplicits:nimplicits], explicits...)
 	dict.implicits = nimplicits
 
+	// Within the compiler, we can just skip over the type parameters.
+	for range dict.targs[dict.implicits:] {
+		// Skip past bounds without actually evaluating them.
+		r.typInfo()
+	}
+
+	dict.derived = make([]derivedInfo, r.Len())
+	dict.derivedTypes = make([]*types.Type, len(dict.derived))
+	for i := range dict.derived {
+		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
+	}
+
+	// Runtime dictionary information; private to the compiler.
+
 	// If any type argument is already shaped, then we're constructing a
 	// shaped object, even if not explicitly requested (i.e., calling
 	// objIdx with shaped==true). This can happen with instantiating
@@ -852,25 +879,14 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
 
 	// And if we're constructing a shaped object, then shapify all type
 	// arguments.
-	if dict.shaped {
-		for i, targ := range dict.targs {
-			dict.targs[i] = shapify(targ)
+	for i, targ := range dict.targs {
+		basic := r.Bool()
+		if dict.shaped {
+			dict.targs[i] = shapify(targ, basic)
 		}
 	}
 
 	dict.baseSym = dict.mangle(sym)
-
-	// For stenciling, we can just skip over the type parameters.
-	for range dict.targs[dict.implicits:] {
-		// Skip past bounds without actually evaluating them.
-		r.typInfo()
-	}
-
-	dict.derived = make([]derivedInfo, r.Len())
-	dict.derivedTypes = make([]*types.Type, len(dict.derived))
-	for i := range dict.derived {
-		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
-	}
 
 	dict.typeParamMethodExprs = make([]readerMethodExprInfo, r.Len())
 	for i := range dict.typeParamMethodExprs {

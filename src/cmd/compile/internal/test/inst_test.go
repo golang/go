@@ -5,7 +5,6 @@
 package test
 
 import (
-	"internal/goexperiment"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -18,9 +17,6 @@ import (
 // TestInst tests that only one instantiation of Sort is created, even though generic
 // Sort is used for multiple pointer types across two packages.
 func TestInst(t *testing.T) {
-	if goexperiment.Unified {
-		t.Skip("unified currently does stenciling, not dictionaries")
-	}
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveGoRun(t)
 
