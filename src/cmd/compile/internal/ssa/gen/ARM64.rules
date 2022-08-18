@@ -1820,9 +1820,6 @@
 (ORNshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [-1])
 (ORNshiftRO (RORconst x [c]) x [c]) => (MOVDconst [-1])
 
-(RORconst [c] (RORconst [d] x)) => (RORconst [(c+d)&63] x)
-(RORWconst [c] (RORWconst [d] x)) => (RORWconst [(c+d)&31] x)
-
 // rev16w | rev16
 // ((x>>8) | (x<<8)) => (REV16W x), the type of x is uint16, "|" can also be "^" or "+".
 ((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (UBFX <typ.UInt16> [armBFAuxInt(8, 8)] x) x) => (REV16W x)

@@ -204,6 +204,14 @@ func f32(x uint32) uint32 {
 	return rot32nc(x, 7)
 }
 
+func doubleRotate(x uint64) uint64 {
+	x = (x << 5) | (x >> 59)
+	// amd64:"ROLQ\t[$]15"
+	// arm64:"ROR\t[$]49"
+	x = (x << 10) | (x >> 54)
+	return x
+}
+
 // --------------------------------------- //
 //    Combined Rotate + Masking operations //
 // --------------------------------------- //
@@ -234,16 +242,16 @@ func checkMaskedRotate32(a []uint32, r int) {
 	i++
 	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]16, [$]23, R[0-9]+"
 	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]16, [$]23, R[0-9]+"
-	a[i] = bits.RotateLeft32(a[3], r) & 0xFF00
+	a[i] = bits.RotateLeft32(a[i], r) & 0xFF00
 	i++
 
 	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]20, [$]11, R[0-9]+"
 	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]20, [$]11, R[0-9]+"
-	a[i] = bits.RotateLeft32(a[3], r) & 0xFFF00FFF
+	a[i] = bits.RotateLeft32(a[i], r) & 0xFFF00FFF
 	i++
 	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]11, R[0-9]+"
 	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]11, R[0-9]+"
-	a[i] = bits.RotateLeft32(a[3], 4) & 0xFFF00FFF
+	a[i] = bits.RotateLeft32(a[i], 4) & 0xFFF00FFF
 	i++
 }
 

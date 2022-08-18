@@ -6690,20 +6690,6 @@ func rewriteValue386_Op386ROLB(v *Value) bool {
 }
 func rewriteValue386_Op386ROLBconst(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (ROLBconst [c] (ROLBconst [d] x))
-	// result: (ROLBconst [(c+d)& 7] x)
-	for {
-		c := auxIntToInt8(v.AuxInt)
-		if v_0.Op != Op386ROLBconst {
-			break
-		}
-		d := auxIntToInt8(v_0.AuxInt)
-		x := v_0.Args[0]
-		v.reset(Op386ROLBconst)
-		v.AuxInt = int8ToAuxInt((c + d) & 7)
-		v.AddArg(x)
-		return true
-	}
 	// match: (ROLBconst [0] x)
 	// result: x
 	for {
@@ -6736,20 +6722,6 @@ func rewriteValue386_Op386ROLL(v *Value) bool {
 }
 func rewriteValue386_Op386ROLLconst(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (ROLLconst [c] (ROLLconst [d] x))
-	// result: (ROLLconst [(c+d)&31] x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386ROLLconst {
-			break
-		}
-		d := auxIntToInt32(v_0.AuxInt)
-		x := v_0.Args[0]
-		v.reset(Op386ROLLconst)
-		v.AuxInt = int32ToAuxInt((c + d) & 31)
-		v.AddArg(x)
-		return true
-	}
 	// match: (ROLLconst [0] x)
 	// result: x
 	for {
@@ -6782,20 +6754,6 @@ func rewriteValue386_Op386ROLW(v *Value) bool {
 }
 func rewriteValue386_Op386ROLWconst(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (ROLWconst [c] (ROLWconst [d] x))
-	// result: (ROLWconst [(c+d)&15] x)
-	for {
-		c := auxIntToInt16(v.AuxInt)
-		if v_0.Op != Op386ROLWconst {
-			break
-		}
-		d := auxIntToInt16(v_0.AuxInt)
-		x := v_0.Args[0]
-		v.reset(Op386ROLWconst)
-		v.AuxInt = int16ToAuxInt((c + d) & 15)
-		v.AddArg(x)
-		return true
-	}
 	// match: (ROLWconst [0] x)
 	// result: x
 	for {

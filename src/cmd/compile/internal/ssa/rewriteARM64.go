@@ -345,10 +345,6 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64ROR(v)
 	case OpARM64RORW:
 		return rewriteValueARM64_OpARM64RORW(v)
-	case OpARM64RORWconst:
-		return rewriteValueARM64_OpARM64RORWconst(v)
-	case OpARM64RORconst:
-		return rewriteValueARM64_OpARM64RORconst(v)
 	case OpARM64SBCSflags:
 		return rewriteValueARM64_OpARM64SBCSflags(v)
 	case OpARM64SLL:
@@ -20414,42 +20410,6 @@ func rewriteValueARM64_OpARM64RORW(v *Value) bool {
 		c := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpARM64RORWconst)
 		v.AuxInt = int64ToAuxInt(c & 31)
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValueARM64_OpARM64RORWconst(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (RORWconst [c] (RORWconst [d] x))
-	// result: (RORWconst [(c+d)&31] x)
-	for {
-		c := auxIntToInt64(v.AuxInt)
-		if v_0.Op != OpARM64RORWconst {
-			break
-		}
-		d := auxIntToInt64(v_0.AuxInt)
-		x := v_0.Args[0]
-		v.reset(OpARM64RORWconst)
-		v.AuxInt = int64ToAuxInt((c + d) & 31)
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValueARM64_OpARM64RORconst(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (RORconst [c] (RORconst [d] x))
-	// result: (RORconst [(c+d)&63] x)
-	for {
-		c := auxIntToInt64(v.AuxInt)
-		if v_0.Op != OpARM64RORconst {
-			break
-		}
-		d := auxIntToInt64(v_0.AuxInt)
-		x := v_0.Args[0]
-		v.reset(OpARM64RORconst)
-		v.AuxInt = int64ToAuxInt((c + d) & 63)
 		v.AddArg(x)
 		return true
 	}

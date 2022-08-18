@@ -427,12 +427,6 @@
 (SHLL x (ANDLconst [31] y)) => (SHLL x y)
 (SHRL x (ANDLconst [31] y)) => (SHRL x y)
 
-// Rotate instructions
-
-(ROLLconst [c] (ROLLconst [d] x)) => (ROLLconst [(c+d)&31] x)
-(ROLWconst [c] (ROLWconst [d] x)) => (ROLWconst [(c+d)&15] x)
-(ROLBconst [c] (ROLBconst [d] x)) => (ROLBconst [(c+d)& 7] x)
-
 // Constant shift simplifications
 
 (SHLLconst x [0]) => x
