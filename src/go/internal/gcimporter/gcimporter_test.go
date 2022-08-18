@@ -787,6 +787,23 @@ func TestIssue25596(t *testing.T) {
 	compileAndImportPkg(t, "issue25596")
 }
 
+func TestIssue57015(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+	}
+
+	// On windows, we have to set the -D option for the compiler to avoid having a drive
+	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+	if runtime.GOOS == "windows" {
+		t.Skip("avoid dealing with relative paths/drive letters on windows")
+	}
+
+	compileAndImportPkg(t, "issue57015")
+}
+
 func importPkg(t *testing.T, path, srcDir string) *types.Package {
 	fset := token.NewFileSet()
 	pkg, err := Import(fset, make(map[string]*types.Package), path, srcDir, nil)
