@@ -2531,3 +2531,61 @@ func TestMarshalZeroValue(t *testing.T) {
 		t.Fatalf("unexpected unmarshal result, want %q but got %q", proofXml, anotherXML)
 	}
 }
+
+var closeTests = []struct {
+	desc string
+	toks []Token
+	want string
+	err  string
+}{{
+	desc: "unclosed start element",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, nil},
+	},
+	want: `<foo>`,
+	err:  "unclosed tag <foo>",
+}, {
+	desc: "closed element",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, nil},
+		EndElement{Name{"", "foo"}},
+	},
+	want: `<foo></foo>`,
+}, {
+	desc: "directive",
+	toks: []Token{
+		Directive("foo"),
+	},
+	want: `<!foo>`,
+}}
+
+func TestClose(t *testing.T) {
+	for _, tt := range closeTests {
+		tt := tt
+		t.Run(tt.desc, func(t *testing.T) {
+			var out strings.Builder
+			enc := NewEncoder(&out)
+			for j, tok := range tt.toks {
+				if err := enc.EncodeToken(tok); err != nil {
+					t.Fatalf("token #%d: %v", j, err)
+				}
+			}
+			err := enc.Close()
+			switch {
+			case tt.err != "" && err == nil:
+				t.Error(" expected error; got none")
+			case tt.err == "" && err != nil:
+				t.Errorf(" got error: %v", err)
+			case tt.err != "" && err != nil && tt.err != err.Error():
+				t.Errorf(" error mismatch; got %v, want %v", err, tt.err)
+			}
+			if got := out.String(); got != tt.want {
+				t.Errorf("\ngot  %v\nwant %v", got, tt.want)
+			}
+			t.Log(enc.p.closed)
+			if err := enc.EncodeToken(Directive("foo")); err == nil {
+				t.Errorf("unexpected success when encoding after Close")
+			}
+		})
+	}
+}
