@@ -17,46 +17,11 @@ var (
 
 const maxCopyFileRangeRound = 1 << 30
 
-func kernelVersion() (major int, minor int) {
-	var uname syscall.Utsname
-	if err := syscall.Uname(&uname); err != nil {
-		return
-	}
-
-	rl := uname.Release
-	var values [2]int
-	vi := 0
-	value := 0
-	for _, c := range rl {
-		if '0' <= c && c <= '9' {
-			value = (value * 10) + int(c-'0')
-		} else {
-			// Note that we're assuming N.N.N here.  If we see anything else we are likely to
-			// mis-parse it.
-			values[vi] = value
-			vi++
-			if vi >= len(values) {
-				break
-			}
-			value = 0
-		}
-	}
-	switch vi {
-	case 0:
-		return 0, 0
-	case 1:
-		return values[0], 0
-	case 2:
-		return values[0], values[1]
-	}
-	return
-}
-
 // CopyFileRange copies at most remain bytes of data from src to dst, using
 // the copy_file_range system call. dst and src must refer to regular files.
 func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err error) {
 	kernelVersion53Once.Do(func() {
-		major, minor := kernelVersion()
+		major, minor := unix.KernelVersion()
 		// copy_file_range(2) is broken in various ways on kernels older than 5.3,
 		// see issue #42400 and
 		// https://man7.org/linux/man-pages/man2/copy_file_range.2.html#VERSIONS
