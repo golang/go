@@ -74,6 +74,25 @@ func Call(call *ir.CallExpr) {
 			}
 			return
 		}
+
+		// Further, if sel.X's type has a shape type, then it's a shaped
+		// interface type. In this case, the (non-dynamic) TypeAssertExpr
+		// we construct below would attempt to create an itab
+		// corresponding to this shaped interface type; but the actual
+		// itab pointer in the interface value will correspond to the
+		// original (non-shaped) interface type instead. These are
+		// functionally equivalent, but they have distinct pointer
+		// identities, which leads to the type assertion failing.
+		//
+		// TODO(mdempsky): We know the type assertion here is safe, so we
+		// could instead set a flag so that walk skips the itab check. For
+		// now, punting is easy and safe.
+		if sel.X.Type().HasShape() {
+			if base.Flag.LowerM != 0 {
+				base.WarnfAt(call.Pos(), "cannot devirtualize %v: shaped interface %v", call, sel.X.Type())
+			}
+			return
+		}
 	}
 
 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, nil)
