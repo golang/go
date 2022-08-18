@@ -115,11 +115,9 @@ func TestScript(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if *testWork {
-				work, _ := s.LookupEnv("WORK")
-				t.Logf("$WORK=%s", work)
-			}
 			t.Log(time.Now().UTC().Format(time.RFC3339))
+			work, _ := s.LookupEnv("WORK")
+			t.Logf("$WORK=%s", work)
 
 			// With -testsum, if a go.mod file is present in the test's initial
 			// working directory, run 'go mod tidy'.

@@ -17,17 +17,17 @@ env HOME=$WORK/home
 
 # With all three set, we should prefer GOCACHE.
 go env GOCACHE
-stdout '\$WORK/gocache$'
+stdout $WORK'/gocache$'
 
 # Without GOCACHE, we should prefer XDG_CACHE_HOME over HOME.
 env GOCACHE=
 go env GOCACHE
-stdout '\$WORK/xdg/go-build$$'
+stdout $WORK'/xdg/go-build$$'
 
 # With only HOME set, we should use $HOME/.cache.
 env XDG_CACHE_HOME=
 go env GOCACHE
-stdout '\$WORK/home/.cache/go-build$'
+stdout $WORK'/home/.cache/go-build$'
 
 # With no guidance from the environment, we must disable the cache, but that
 # should not cause commands that do not write to the cache to fail.

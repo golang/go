@@ -707,9 +707,6 @@ func match(s *State, args []string, text, name string) error {
 		text = string(data)
 	}
 
-	// Matching against workdir would be misleading.
-	text = strings.ReplaceAll(text, s.workdir, "$WORK")
-
 	if n > 0 {
 		count := len(re.FindAllString(text, -1))
 		if count != n {

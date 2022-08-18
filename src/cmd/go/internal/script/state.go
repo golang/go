@@ -132,13 +132,6 @@ func (s *State) ExpandEnv(str string, inRegexp bool) string {
 	return os.Expand(str, func(key string) string {
 		e := s.envMap[key]
 		if inRegexp {
-			// Replace workdir with $WORK, since we have done the same substitution in
-			// the text we're about to compare against.
-			//
-			// TODO(bcmills): This seems out-of-place in the script engine.
-			// See if we can remove it.
-			e = strings.ReplaceAll(e, s.workdir, "$WORK")
-
 			// Quote to literal strings: we want paths like C:\work\go1.4 to remain
 			// paths rather than regular expressions.
 			e = regexp.QuoteMeta(e)
