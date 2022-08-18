@@ -75,7 +75,7 @@ func new[T any]() *T {
 var _ = new /* ERROR cannot use generic function new */
 var _ *int = new[int]()
 
-func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) {} // w/o constraint we don't know if T is comparable
+func _[T any](map[T /* ERROR invalid map key type T \(missing comparable constraint\) */]int) {} // w/o constraint we don't know if T is comparable
 
 func f1[T1 any](struct{T1 /* ERROR cannot be a .* type parameter */ }) int { panic(0) }
 var _ = f1[int](struct{T1}{})
