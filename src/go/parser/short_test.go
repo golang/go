@@ -194,10 +194,7 @@ var invalids = []string{
 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,
 
 	// issue 9639
-	`package p; var x /* ERROR "missing variable type or initialization" */ , y, z;`,
-	`package p; const x /* ERROR "missing constant value" */ ;`,
-	`package p; const x /* ERROR "missing constant value" */ int;`,
-	`package p; const (x = 0; y; z /* ERROR "missing constant value" */ int);`,
+	`package p; var x, y, z; /* ERROR "expected type" */`,
 
 	// issue 12437
 	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ }{};`,

@@ -14,12 +14,9 @@ var m map[string]int
 var _ int
 var _, _ int
 
-// The first error message is produced by the parser.
-// In a real-world scenario, the type-checker would not be run
-// in this case and the 2nd error message would not appear.
-var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */
-var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */, _
-var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */, _, _
+var _; /* ERROR "expected type" */
+var _, _; /* ERROR "expected type" */
+var _, _, _; /* ERROR "expected type" */
 
 // The initializer must be an expression.
 var _ = int /* ERROR "not an expression" */

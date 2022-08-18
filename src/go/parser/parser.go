@@ -2553,27 +2553,31 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, _ token.Pos, keyword toke
 		defer un(trace(p, keyword.String()+"Spec"))
 	}
 
-	pos := p.pos
 	idents := p.parseIdentList()
-	typ := p.tryIdentOrType()
+	var typ ast.Expr
 	var values []ast.Expr
-	// always permit optional initialization for more tolerant parsing
-	if p.tok == token.ASSIGN {
-		p.next()
-		values = p.parseList(true)
+	switch keyword {
+	case token.CONST:
+		// always permit optional type and initialization for more tolerant parsing
+		if p.tok != token.EOF && p.tok != token.SEMICOLON && p.tok != token.RPAREN {
+			typ = p.tryIdentOrType()
+			if p.tok == token.ASSIGN {
+				p.next()
+				values = p.parseList(true)
+			}
+		}
+	case token.VAR:
+		if p.tok != token.ASSIGN {
+			typ = p.parseType()
+		}
+		if p.tok == token.ASSIGN {
+			p.next()
+			values = p.parseList(true)
+		}
+	default:
+		panic("unreachable")
 	}
 	p.expectSemi() // call before accessing p.linecomment
-
-	switch keyword {
-	case token.VAR:
-		if typ == nil && values == nil {
-			p.error(pos, "missing variable type or initialization")
-		}
-	case token.CONST:
-		if values == nil && (iota == 0 || typ != nil) {
-			p.error(pos, "missing constant value")
-		}
-	}
 
 	spec := &ast.ValueSpec{
 		Doc:     doc,
