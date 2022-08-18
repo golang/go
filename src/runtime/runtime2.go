@@ -667,8 +667,6 @@ type p struct {
 
 	palloc persistentAlloc // per-P to avoid mutex
 
-	_ uint32 // Alignment for atomic fields below
-
 	// The when field of the first entry on the timer heap.
 	// This is 0 if the timer heap is empty.
 	timer0When atomic.Int64
