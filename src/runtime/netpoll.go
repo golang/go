@@ -492,7 +492,7 @@ func netpollgoready(gp *g, traceskip int) {
 	goready(gp, traceskip+1)
 }
 
-// returns true if IO is ready, or false if timedout or closed
+// returns true if IO is ready, or false if timed out or closed
 // waitio - wait only for completed IO, ignore errors
 // Concurrent calls to netpollblock in the same mode are forbidden, as pollDesc
 // can hold only a single waiting goroutine for each mode.
