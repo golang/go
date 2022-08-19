@@ -870,7 +870,7 @@ func (d *decoder) parseIEND(length uint32) error {
 	return d.verifyChecksum()
 }
 
-func (d *decoder) parseChunk() error {
+func (d *decoder) parseChunk(configOnly bool) error {
 	// Read the length and chunk type.
 	if _, err := io.ReadFull(d.r, d.tmp[:8]); err != nil {
 		return err
@@ -915,6 +915,9 @@ func (d *decoder) parseChunk() error {
 			break
 		}
 		d.stage = dsSeenIDAT
+		if configOnly {
+			return nil
+		}
 		return d.parseIDAT(length)
 	case "IEND":
 		if d.stage != dsSeenIDAT {
@@ -974,7 +977,7 @@ func Decode(r io.Reader) (image.Image, error) {
 		return nil, err
 	}
 	for d.stage != dsSeenIEND {
-		if err := d.parseChunk(); err != nil {
+		if err := d.parseChunk(false); err != nil {
 			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
@@ -997,21 +1000,26 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 		}
 		return image.Config{}, err
 	}
+
 	for {
-		if err := d.parseChunk(); err != nil {
+		if err := d.parseChunk(true); err != nil {
 			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
 			return image.Config{}, err
 		}
-		paletted := cbPaletted(d.cb)
-		if d.stage == dsSeenIHDR && !paletted {
-			break
-		}
-		if d.stage == dsSeenPLTE && paletted {
-			break
+
+		if cbPaletted(d.cb) {
+			if d.stage >= dsSeentRNS {
+				break
+			}
+		} else {
+			if d.stage >= dsSeenIHDR {
+				break
+			}
 		}
 	}
+
 	var cm color.Model
 	switch d.cb {
 	case cbG1, cbG2, cbG4, cbG8:
