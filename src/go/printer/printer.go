@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"unicode"
 )
@@ -92,16 +93,6 @@ type printer struct {
 	// Cache of most recently computed line position.
 	cachedPos  token.Pos
 	cachedLine int // line corresponding to cachedPos
-}
-
-func (p *printer) init(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]int) {
-	p.Config = *cfg
-	p.fset = fset
-	p.pos = token.Position{Line: 1, Column: 1}
-	p.out = token.Position{Line: 1, Column: 1}
-	p.wsbuf = make([]whiteSpace, 0, 16) // whitespace sequences are short
-	p.nodeSizes = nodeSizes
-	p.cachedPos = -1
 }
 
 func (p *printer) internalError(msg ...any) {
@@ -1324,11 +1315,47 @@ type Config struct {
 	Indent   int  // default: 0 (all code is indented at least by this much)
 }
 
+var printerPool = sync.Pool{
+	New: func() any {
+		return &printer{
+			// Whitespace sequences are short.
+			wsbuf: make([]whiteSpace, 0, 16),
+			// We start the printer with a 16K output buffer, which is currently
+			// larger than about 80% of Go files in the standard library.
+			output: make([]byte, 0, 16<<10),
+		}
+	},
+}
+
+func newPrinter(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]int) *printer {
+	p := printerPool.Get().(*printer)
+	*p = printer{
+		Config:    *cfg,
+		fset:      fset,
+		pos:       token.Position{Line: 1, Column: 1},
+		out:       token.Position{Line: 1, Column: 1},
+		wsbuf:     p.wsbuf[:0],
+		nodeSizes: nodeSizes,
+		cachedPos: -1,
+		output:    p.output[:0],
+	}
+	return p
+}
+
+func (p *printer) free() {
+	// Hard limit on buffer size; see https://golang.org/issue/23199.
+	if cap(p.output) > 64<<10 {
+		return
+	}
+
+	printerPool.Put(p)
+}
+
 // fprint implements Fprint and takes a nodesSizes map for setting up the printer state.
 func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node any, nodeSizes map[ast.Node]int) (err error) {
 	// print node
-	var p printer
-	p.init(cfg, fset, nodeSizes)
+	p := newPrinter(cfg, fset, nodeSizes)
+	defer p.free()
 	if err = p.printNode(node); err != nil {
 		return
 	}

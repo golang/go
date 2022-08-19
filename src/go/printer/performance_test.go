@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"go/ast"
 	"go/parser"
+	"go/token"
 	"io"
 	"log"
 	"os"
@@ -18,12 +19,15 @@ import (
 )
 
 var (
-	testfile *ast.File
-	testsize int64
+	fileNode *ast.File
+	fileSize int64
+
+	declNode ast.Decl
+	declSize int64
 )
 
-func testprint(out io.Writer, file *ast.File) {
-	if err := (&Config{TabIndent | UseSpaces | normalizeNumbers, 8, 0}).Fprint(out, fset, file); err != nil {
+func testprint(out io.Writer, node ast.Node) {
+	if err := (&Config{TabIndent | UseSpaces | normalizeNumbers, 8, 0}).Fprint(out, fset, node); err != nil {
 		log.Fatalf("print error: %s", err)
 	}
 }
@@ -48,17 +52,40 @@ func initialize() {
 		log.Fatalf("print error: %s not idempotent", filename)
 	}
 
-	testfile = file
-	testsize = int64(len(src))
+	fileNode = file
+	fileSize = int64(len(src))
+
+	for _, decl := range file.Decls {
+		// The first global variable, which is pretty short:
+		//
+		//	var unresolved = new(ast.Object)
+		if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.VAR {
+			declNode = decl
+			declSize = int64(fset.Position(decl.End()).Offset - fset.Position(decl.Pos()).Offset)
+			break
+		}
+
+	}
 }
 
-func BenchmarkPrint(b *testing.B) {
-	if testfile == nil {
+func BenchmarkPrintFile(b *testing.B) {
+	if fileNode == nil {
 		initialize()
 	}
 	b.ReportAllocs()
-	b.SetBytes(testsize)
+	b.SetBytes(fileSize)
 	for i := 0; i < b.N; i++ {
-		testprint(io.Discard, testfile)
+		testprint(io.Discard, fileNode)
+	}
+}
+
+func BenchmarkPrintDecl(b *testing.B) {
+	if declNode == nil {
+		initialize()
+	}
+	b.ReportAllocs()
+	b.SetBytes(declSize)
+	for i := 0; i < b.N; i++ {
+		testprint(io.Discard, declNode)
 	}
 }
