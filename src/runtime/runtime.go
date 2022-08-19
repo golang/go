@@ -18,18 +18,17 @@ var ticks ticksType
 
 type ticksType struct {
 	lock mutex
-	pad  uint32 // ensure 8-byte alignment of val on 386
-	val  uint64
+	val  atomic.Int64
 }
 
 // Note: Called by runtime/pprof in addition to runtime code.
 func tickspersecond() int64 {
-	r := int64(atomic.Load64(&ticks.val))
+	r := ticks.val.Load()
 	if r != 0 {
 		return r
 	}
 	lock(&ticks.lock)
-	r = int64(ticks.val)
+	r = ticks.val.Load()
 	if r == 0 {
 		t0 := nanotime()
 		c0 := cputicks()
@@ -43,7 +42,7 @@ func tickspersecond() int64 {
 		if r == 0 {
 			r++
 		}
-		atomic.Store64(&ticks.val, uint64(r))
+		ticks.val.Store(r)
 	}
 	unlock(&ticks.lock)
 	return r

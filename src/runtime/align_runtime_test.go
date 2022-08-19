@@ -33,7 +33,6 @@ var AtomicFields = []uintptr{
 	unsafe.Offsetof(lfnode{}.next),
 	unsafe.Offsetof(mstats{}.last_gc_nanotime),
 	unsafe.Offsetof(mstats{}.last_gc_unix),
-	unsafe.Offsetof(ticksType{}.val),
 	unsafe.Offsetof(workType{}.bytesMarked),
 }
 
