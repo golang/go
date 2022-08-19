@@ -37,6 +37,27 @@ func TestReadData(t *testing.T) {
 			t.Error("large read succeeded unexpectedly")
 		}
 	})
+
+	t.Run("small-EOF", func(t *testing.T) {
+		_, err := ReadData(bytes.NewReader(nil), chunk-1)
+		if err != io.EOF {
+			t.Errorf("ReadData = %v, want io.EOF", err)
+		}
+	})
+
+	t.Run("large-EOF", func(t *testing.T) {
+		_, err := ReadData(bytes.NewReader(nil), chunk+1)
+		if err != io.EOF {
+			t.Errorf("ReadData = %v, want io.EOF", err)
+		}
+	})
+
+	t.Run("large-UnexpectedEOF", func(t *testing.T) {
+		_, err := ReadData(bytes.NewReader(make([]byte, chunk)), chunk+1)
+		if err != io.ErrUnexpectedEOF {
+			t.Errorf("ReadData = %v, want io.ErrUnexpectedEOF", err)
+		}
+	})
 }
 
 func TestReadDataAt(t *testing.T) {

@@ -21,6 +21,10 @@ const chunk = 10 << 20 // 10M
 // ReadData reads n bytes from the input stream, but avoids allocating
 // all n bytes if n is large. This avoids crashing the program by
 // allocating all n bytes in cases where n is incorrect.
+//
+// The error is io.EOF only if no bytes were read.
+// If an io.EOF happens after reading some but not all the bytes,
+// ReadData returns io.ErrUnexpectedEOF.
 func ReadData(r io.Reader, n uint64) ([]byte, error) {
 	if int64(n) < 0 || n != uint64(int(n)) {
 		// n is too large to fit in int, so we can't allocate
@@ -46,6 +50,9 @@ func ReadData(r io.Reader, n uint64) ([]byte, error) {
 		}
 		_, err := io.ReadFull(r, buf1[:next])
 		if err != nil {
+			if len(buf) > 0 && err == io.EOF {
+				err = io.ErrUnexpectedEOF
+			}
 			return nil, err
 		}
 		buf = append(buf, buf1[:next]...)
