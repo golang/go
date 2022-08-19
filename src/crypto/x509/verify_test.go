@@ -9,6 +9,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
@@ -2620,5 +2621,94 @@ func TestVerifyEKURootAsLeaf(t *testing.T) {
 			}
 		})
 	}
+}
 
+const rootCertHightS = `-----BEGIN CERTIFICATE-----
+MIICUjCCAfegAwIBAgIQQsXmbjAQVrOBjL2Z+jFp0jAKBggqhkjOPQQDAjBzMQsw
+CQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZy
+YW5jaXNjbzEZMBcGA1UEChMQb3JnMS5leGFtcGxlLmNvbTEcMBoGA1UEAxMTY2Eu
+b3JnMS5leGFtcGxlLmNvbTAeFw0yMDA2MDIxOTUzMDBaFw0zMDA1MzExOTUzMDBa
+MHMxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1T
+YW4gRnJhbmNpc2NvMRkwFwYDVQQKExBvcmcxLmV4YW1wbGUuY29tMRwwGgYDVQQD
+ExNjYS5vcmcxLmV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
+KGHxCO8p0mpmpZ85V0EK1nthHWcbxPOUVb+NI/ORkxU5umFdEMyBPOCHlEfUlRa3
+aHZJROyrziQojvDx3gstb6NtMGswDgYDVR0PAQH/BAQDAgGmMB0GA1UdJQQWMBQG
+CCsGAQUFBwMCBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MCkGA1UdDgQiBCD/
+MLvrYcATgbFpu+X+Z5Osa8OafniFEdeUNqj3VTo5BjAKBggqhkjOPQQDAgNJADBG
+AiEAkrAT1sBFIHIw+A8/bC/NuBoQhFGjFro2WpTc9buIQmkCIQCpkKZl6DVnHz/c
+Z/Vtwc17BR/azienURuJ826eOsrVYg==
+-----END CERTIFICATE-----`
+
+const rootCertLowS = `-----BEGIN CERTIFICATE-----
+MIICUTCCAfegAwIBAgIQQsXmbjAQVrOBjL2Z+jFp0jAKBggqhkjOPQQDAjBzMQsw
+CQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZy
+YW5jaXNjbzEZMBcGA1UEChMQb3JnMS5leGFtcGxlLmNvbTEcMBoGA1UEAxMTY2Eu
+b3JnMS5leGFtcGxlLmNvbTAeFw0yMDA2MDIxOTUzMDBaFw0zMDA1MzExOTUzMDBa
+MHMxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1T
+YW4gRnJhbmNpc2NvMRkwFwYDVQQKExBvcmcxLmV4YW1wbGUuY29tMRwwGgYDVQQD
+ExNjYS5vcmcxLmV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
+KGHxCO8p0mpmpZ85V0EK1nthHWcbxPOUVb+NI/ORkxU5umFdEMyBPOCHlEfUlRa3
+aHZJROyrziQojvDx3gstb6NtMGswDgYDVR0PAQH/BAQDAgGmMB0GA1UdJQQWMBQG
+CCsGAQUFBwMCBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MCkGA1UdDgQiBCD/
+MLvrYcATgbFpu+X+Z5Osa8OafniFEdeUNqj3VTo5BjAKBggqhkjOPQQDAgNIADBF
+AiEAkrAT1sBFIHIw+A8/bC/NuBoQhFGjFro2WpTc9buIQmkCIFZvWZkXypjhwCOY
+CpI+MoS3xx/ff3BNaWnGXCTBmE/v
+-----END CERTIFICATE-----`
+
+func Test2CertHightSAndLowS(t *testing.T) {
+	blockHS, _ := pem.Decode([]byte(rootCertHightS))
+	if blockHS == nil {
+		t.Fatal("failed to decode block")
+	}
+
+	certHightS, err := x509.ParseCertificate(blockHS.Bytes)
+	if err != nil {
+		t.Error(err)
+	}
+	if certHightS == nil {
+		t.Fatal("failed to parse cert")
+	}
+
+	blockLS, _ := pem.Decode([]byte(rootCertLowS))
+	if blockLS == nil {
+		t.Fatal("failed to decode block")
+	}
+
+	certLowS, err := x509.ParseCertificate(blockLS.Bytes)
+	if err != nil {
+		t.Error(err)
+	}
+	if certLowS == nil {
+		t.Fatal("failed to parse cert")
+	}
+
+	if certHightS.Equal(certLowS) {
+		t.Fatal("failed compare tow cert")
+	}
+
+	optsHightS := &x509.VerifyOptions{Roots: x509.NewCertPool(), Intermediates: x509.NewCertPool()}
+	optsHightS.Roots.AddCert(certHightS)
+	optsHightS.CurrentTime = certHightS.NotBefore.Add(time.Second)
+	optsLowS := &x509.VerifyOptions{Roots: x509.NewCertPool(), Intermediates: x509.NewCertPool()}
+	optsLowS.Roots.AddCert(certLowS)
+	optsLowS.CurrentTime = certLowS.NotBefore.Add(time.Second)
+
+	_, err = certHightS.Verify(*optsHightS)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = certLowS.Verify(*optsLowS)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = certLowS.Verify(*optsHightS)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = certHightS.Verify(*optsLowS)
+	if err != nil {
+		t.Error(err)
+	}
 }

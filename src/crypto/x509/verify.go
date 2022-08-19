@@ -865,6 +865,9 @@ func alreadyInChain(candidate *Certificate, chain []*Certificate) bool {
 		if !candidate.PublicKey.(pubKeyEqual).Equal(cert.PublicKey) {
 			continue
 		}
+		if !bytes.Equal(candidate.Signature, cert.Signature) {
+			continue
+		}
 		var certSAN *pkix.Extension
 		for _, ext := range cert.Extensions {
 			if ext.Id.Equal(oidExtensionSubjectAltName) {
@@ -872,10 +875,8 @@ func alreadyInChain(candidate *Certificate, chain []*Certificate) bool {
 				break
 			}
 		}
-		if candidateSAN == nil && certSAN == nil {
-			return true
-		} else if candidateSAN == nil || certSAN == nil {
-			return false
+		if candidateSAN == nil || certSAN == nil {
+			return candidateSAN == certSAN
 		}
 		if bytes.Equal(candidateSAN.Value, certSAN.Value) {
 			return true
