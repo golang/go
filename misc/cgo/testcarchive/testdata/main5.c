@@ -29,6 +29,10 @@ int main(int argc, char** argv) {
 
 	verbose = (argc > 2);
 
+	if (verbose) {
+		printf("calling RunGoroutines\n");
+	}
+
 	Noop();
 
 	switch (test) {
@@ -85,15 +89,6 @@ int main(int argc, char** argv) {
 			}
 			printf("did not receive SIGPIPE\n");
 			return 0;
-		}
-		case 4: {
-			fprintf(stderr, "OK\n");
-			fflush(stderr);
-
-			if (verbose) {
-				printf("calling Block\n");
-			}
-			Block();
 		}
 		default:
 			printf("Unknown test: %d\n", test);

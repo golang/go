@@ -19,7 +19,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -527,13 +526,38 @@ func TestEarlySignalHandler(t *testing.T) {
 
 func TestSignalForwarding(t *testing.T) {
 	checkSignalForwardingTest(t)
-	buildSignalForwardingTest(t)
 
-	cmd := exec.Command(bin[0], append(bin[1:], "1")...)
+	if !testWork {
+		defer func() {
+			os.Remove("libgo2.a")
+			os.Remove("libgo2.h")
+			os.Remove("testp" + exeSuffix)
+			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
+		}()
+	}
+
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+	checkLineComments(t, "libgo2.h")
+	checkArchive(t, "libgo2.a")
+
+	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
+	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(bin[0], append(bin[1:], "1")...)
 
 	out, err := cmd.CombinedOutput()
 	t.Logf("%v\n%s", cmd.Args, out)
-	expectSignal(t, err, syscall.SIGSEGV, 0)
+	expectSignal(t, err, syscall.SIGSEGV)
 
 	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
 	if runtime.GOOS != "darwin" && runtime.GOOS != "ios" {
@@ -544,7 +568,7 @@ func TestSignalForwarding(t *testing.T) {
 		if len(out) > 0 {
 			t.Logf("%s", out)
 		}
-		expectSignal(t, err, syscall.SIGPIPE, 0)
+		expectSignal(t, err, syscall.SIGPIPE)
 	}
 }
 
@@ -555,7 +579,32 @@ func TestSignalForwardingExternal(t *testing.T) {
 		t.Skipf("skipping on %s/%s: runtime does not permit SI_USER SIGSEGV", GOOS, GOARCH)
 	}
 	checkSignalForwardingTest(t)
-	buildSignalForwardingTest(t)
+
+	if !testWork {
+		defer func() {
+			os.Remove("libgo2.a")
+			os.Remove("libgo2.h")
+			os.Remove("testp" + exeSuffix)
+			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
+		}()
+	}
+
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+	checkLineComments(t, "libgo2.h")
+	checkArchive(t, "libgo2.a")
+
+	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
+	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
 
 	// We want to send the process a signal and see if it dies.
 	// Normally the signal goes to the C thread, the Go signal
@@ -568,42 +617,47 @@ func TestSignalForwardingExternal(t *testing.T) {
 	// fail.
 	const tries = 20
 	for i := 0; i < tries; i++ {
-		err := runSignalForwardingTest(t, "2")
+		cmd = exec.Command(bin[0], append(bin[1:], "2")...)
+
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer stderr.Close()
+
+		r := bufio.NewReader(stderr)
+
+		err = cmd.Start()
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Wait for trigger to ensure that the process is started.
+		ok, err := r.ReadString('\n')
+
+		// Verify trigger.
+		if err != nil || ok != "OK\n" {
+			t.Fatalf("Did not receive OK signal")
+		}
+
+		// Give the program a chance to enter the sleep function.
+		time.Sleep(time.Millisecond)
+
+		cmd.Process.Signal(syscall.SIGSEGV)
+
+		err = cmd.Wait()
+
 		if err == nil {
 			continue
 		}
 
-		// If the signal is delivered to a C thread, as expected,
-		// the Go signal handler will disable itself and re-raise
-		// the signal, causing the program to die with SIGSEGV.
-		//
-		// It is also possible that the signal will be
-		// delivered to a Go thread, such as a GC thread.
-		// Currently when the Go runtime sees that a SIGSEGV was
-		// sent from a different program, it first tries to send
-		// the signal to the os/signal API. If nothing is looking
-		// for (or explicitly ignoring) SIGSEGV, then it crashes.
-		// Because the Go runtime is invoked via a c-archive,
-		// it treats this as GOTRACEBACK=crash, meaning that it
-		// dumps a stack trace for all goroutines, which it does
-		// by raising SIGQUIT. The effect is that we will see the
-		// program die with SIGQUIT in that case, not SIGSEGV.
-		if expectSignal(t, err, syscall.SIGSEGV, syscall.SIGQUIT) {
+		if expectSignal(t, err, syscall.SIGSEGV) {
 			return
 		}
 	}
 
 	t.Errorf("program succeeded unexpectedly %d times", tries)
-}
-
-func TestSignalForwardingGo(t *testing.T) {
-	checkSignalForwardingTest(t)
-	buildSignalForwardingTest(t)
-	err := runSignalForwardingTest(t, "4")
-
-	// Occasionally the signal will be delivered to a C thread,
-	// and the program will crash with SIGSEGV.
-	expectSignal(t, err, syscall.SIGQUIT, syscall.SIGSEGV)
 }
 
 // checkSignalForwardingTest calls t.Skip if the SignalForwarding test
@@ -620,121 +674,18 @@ func checkSignalForwardingTest(t *testing.T) {
 	}
 }
 
-// buildSignalForwardingTest builds the executable used by the various
-// signal forwarding tests.
-func buildSignalForwardingTest(t *testing.T) {
-	if !testWork {
-		t.Cleanup(func() {
-			os.Remove("libgo2.a")
-			os.Remove("libgo2.h")
-			os.Remove("testp" + exeSuffix)
-			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
-		})
-	}
-
-	t.Log("go build -buildmode=c-archive -o libgo2.a ./libgo2")
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
-	out, err := cmd.CombinedOutput()
-	if len(out) > 0 {
-		t.Logf("%s", out)
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	checkLineComments(t, "libgo2.h")
-	checkArchive(t, "libgo2.a")
-
-	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
-	if runtime.Compiler == "gccgo" {
-		ccArgs = append(ccArgs, "-lgo")
-	}
-	t.Log(ccArgs)
-	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
-	if len(out) > 0 {
-		t.Logf("%s", out)
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func runSignalForwardingTest(t *testing.T, arg string) error {
-	t.Logf("%v %s", bin, arg)
-	cmd := exec.Command(bin[0], append(bin[1:], arg)...)
-
-	var out strings.Builder
-	cmd.Stdout = &out
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer stderr.Close()
-
-	r := bufio.NewReader(stderr)
-
-	err = cmd.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Wait for trigger to ensure that process is started.
-	ok, err := r.ReadString('\n')
-
-	// Verify trigger.
-	if err != nil || ok != "OK\n" {
-		t.Fatal("Did not receive OK signal")
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	var errsb strings.Builder
-	go func() {
-		defer wg.Done()
-		io.Copy(&errsb, r)
-	}()
-
-	// Give the program a chance to enter the function.
-	// If the program doesn't get there the test will still
-	// pass, although it doesn't quite test what we intended.
-	// This is fine as long as the program normally makes it.
-	time.Sleep(time.Millisecond)
-
-	cmd.Process.Signal(syscall.SIGSEGV)
-
-	err = cmd.Wait()
-
-	s := out.String()
-	if len(s) > 0 {
-		t.Log(s)
-	}
-	wg.Wait()
-	s = errsb.String()
-	if len(s) > 0 {
-		t.Log(s)
-	}
-
-	return err
-}
-
 // expectSignal checks that err, the exit status of a test program,
-// shows a failure due to a specific signal or two. Returns whether we
-// found an expected signal.
-func expectSignal(t *testing.T, err error, sig1, sig2 syscall.Signal) bool {
-	t.Helper()
+// shows a failure due to a specific signal. Returns whether we found
+// the expected signal.
+func expectSignal(t *testing.T, err error, sig syscall.Signal) bool {
 	if err == nil {
 		t.Error("test program succeeded unexpectedly")
 	} else if ee, ok := err.(*exec.ExitError); !ok {
 		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
 	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
 		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
-	} else if !ws.Signaled() || (ws.Signal() != sig1 && ws.Signal() != sig2) {
-		if sig2 == 0 {
-			t.Errorf("got %q; expected signal %q", ee, sig1)
-		} else {
-			t.Errorf("got %q; expected signal %q or %q", ee, sig1, sig2)
-		}
+	} else if !ws.Signaled() || ws.Signal() != sig {
+		t.Errorf("got %v; expected signal %v", ee, sig)
 	} else {
 		return true
 	}
@@ -1071,14 +1022,14 @@ func TestCompileWithoutShared(t *testing.T) {
 	binArgs := append(cmdToRun(exe), "1")
 	out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()
 	t.Logf("%v\n%s", binArgs, out)
-	expectSignal(t, err, syscall.SIGSEGV, 0)
+	expectSignal(t, err, syscall.SIGSEGV)
 
 	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
 	if runtime.GOOS != "darwin" && runtime.GOOS != "ios" {
 		binArgs := append(cmdToRun(exe), "3")
 		out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()
 		t.Logf("%v\n%s", binArgs, out)
-		expectSignal(t, err, syscall.SIGPIPE, 0)
+		expectSignal(t, err, syscall.SIGPIPE)
 	}
 }
 
