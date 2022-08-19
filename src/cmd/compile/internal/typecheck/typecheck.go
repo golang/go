@@ -1818,7 +1818,7 @@ func isTermNode(n ir.Node) bool {
 }
 
 func Conv(n ir.Node, t *types.Type) ir.Node {
-	if types.Identical(n.Type(), t) {
+	if types.IdenticalStrict(n.Type(), t) {
 		return n
 	}
 	n = ir.NewConvExpr(base.Pos, ir.OCONV, nil, n)
@@ -1830,7 +1830,7 @@ func Conv(n ir.Node, t *types.Type) ir.Node {
 // ConvNop converts node n to type t using the OCONVNOP op
 // and typechecks the result with ctxExpr.
 func ConvNop(n ir.Node, t *types.Type) ir.Node {
-	if types.Identical(n.Type(), t) {
+	if types.IdenticalStrict(n.Type(), t) {
 		return n
 	}
 	n = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, n)
