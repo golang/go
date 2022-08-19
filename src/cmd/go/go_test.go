@@ -2939,3 +2939,38 @@ func TestMissingCC(t *testing.T) {
 		t.Error(`clearing "PATH" causes "net" to be stale`)
 	}
 }
+
+// Issue 54545.
+func TestToolTest2JsonUseOriginalEnvironment(t *testing.T) {
+	tooSlow(t)
+	t.Setenv("CGO_ENABLED", "")
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.tempDir("src/issue54545")
+	tg.tempFile("src/issue54545/cgo_test.go", `
+package issue54545_test
+
+import (
+	"os"
+	"testing"
+)
+
+func TestCgo(t *testing.T) {
+	got := os.Getenv("CGO_ENABLED")
+	want := ""
+	if got != want {
+		t.Errorf("Expecting CGO_ENABLED equal %#v, got %#v", want, got)
+	}
+}
+`)
+	tg.setenv("GOOS", "linux")
+	tg.setenv("GOARCH", "amd64")
+	tg.setenv("CGO_ENABLED", "")
+	tg.setenv("GOPATH", tg.path("."))
+	testbin := tg.path("cgo.test" + exeSuffix)
+	tg.run("test", "-c", "-o", testbin, "issue54545")
+	tg.run("tool", "test2json", "-t", testbin,
+		"-test.v", "-test.count=1")
+	tg.grepStdout(`PASS: TestCgo`, "did not find PASS in output")
+}
