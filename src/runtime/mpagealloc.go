@@ -280,8 +280,6 @@ type pageAlloc struct {
 		// Updated atomically.
 		released uintptr
 
-		_ uint32 // Align assistTime for atomics on 32-bit platforms.
-
 		// scavengeAssistTime is the time spent scavenging in the last GC cycle.
 		//
 		// This is reset once a GC cycle ends.
