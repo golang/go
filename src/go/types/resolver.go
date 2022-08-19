@@ -394,7 +394,7 @@ func (check *Checker) collectObjects() {
 				if d.decl.Recv.NumFields() == 0 {
 					// regular function
 					if d.decl.Recv != nil {
-						check.error(d.decl.Recv, _BadRecv, "method is missing receiver")
+						check.error(d.decl.Recv, _BadRecv, "method has no receiver")
 						// treat as function
 					}
 					if name == "init" || (name == "main" && check.pkg.name == "main") {

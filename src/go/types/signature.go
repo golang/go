@@ -196,7 +196,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			recv = NewParam(token.NoPos, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
-			check.error(recvList[len(recvList)-1], _InvalidRecv, "method must have exactly one receiver")
+			check.error(recvList[len(recvList)-1], _InvalidRecv, "method has multiple receivers")
 			fallthrough // continue with first receiver
 		case 1:
 			recv = recvList[0]
