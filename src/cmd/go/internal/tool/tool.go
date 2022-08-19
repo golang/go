@@ -86,6 +86,9 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}
+	if toolName == "test2json" {
+		toolCmd.Env = append([]string{}, cfg.OrigEnv...)
+	}
 	err := toolCmd.Start()
 	if err == nil {
 		c := make(chan os.Signal, 100)
