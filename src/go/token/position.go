@@ -286,7 +286,6 @@ func searchLineInfos(a []lineInfo, x int) int {
 // possibly adjusted by //line comments; otherwise those comments are ignored.
 func (f *File) unpack(offset int, adjusted bool) (filename string, line, column int) {
 	f.mutex.Lock()
-	defer f.mutex.Unlock()
 	filename = f.name
 	if i := searchInts(f.lines, offset); i >= 0 {
 		line, column = i+1, offset-f.lines[i]+1
@@ -314,6 +313,9 @@ func (f *File) unpack(offset int, adjusted bool) (filename string, line, column 
 			}
 		}
 	}
+	// TODO(mvdan): move Unlock back under Lock with a defer statement once
+	// https://go.dev/issue/38471 is fixed to remove the performance penalty.
+	f.mutex.Unlock()
 	return
 }
 
