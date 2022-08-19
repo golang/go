@@ -58,6 +58,7 @@ const (
 	exprNil
 	exprFuncInst
 	exprRecv
+	exprReshape
 )
 
 type codeAssign int

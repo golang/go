@@ -89,7 +89,7 @@ func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pk
 	}
 }
 
-// A writer provides APIs for reading an individual element.
+// A reader provides APIs for reading an individual element.
 type reader struct {
 	pkgbits.Decoder
 
@@ -2366,6 +2366,41 @@ func (r *reader) expr() (res ir.Node) {
 		pos := r.pos()
 		typ := r.exprType()
 		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
+
+	case exprReshape:
+		typ := r.typ()
+		x := r.expr()
+
+		if types.IdenticalStrict(x.Type(), typ) {
+			return x
+		}
+
+		// Comparison expressions are constructed as "untyped bool" still.
+		//
+		// TODO(mdempsky): It should be safe to reshape them here too, but
+		// maybe it's better to construct them with the proper type
+		// instead.
+		if x.Type() == types.UntypedBool && typ.IsBoolean() {
+			return x
+		}
+
+		base.AssertfAt(x.Type().HasShape() || typ.HasShape(), x.Pos(), "%L and %v are not shape types", x, typ)
+		base.AssertfAt(types.Identical(x.Type(), typ), x.Pos(), "%L is not shape-identical to %v", x, typ)
+
+		// We use ir.HasUniquePos here as a check that x only appears once
+		// in the AST, so it's okay for us to call SetType without
+		// breaking any other uses of it.
+		//
+		// Notably, any ONAMEs should already have the exactly right shape
+		// type and been caught by types.IdenticalStrict above.
+		base.AssertfAt(ir.HasUniquePos(x), x.Pos(), "cannot call SetType(%v) on %L", typ, x)
+
+		if base.Debug.Reshape != 0 {
+			base.WarnfAt(x.Pos(), "reshaping %L to %v", x, typ)
+		}
+
+		x.SetType(typ)
+		return x
 
 	case exprConvert:
 		implicit := r.Bool()

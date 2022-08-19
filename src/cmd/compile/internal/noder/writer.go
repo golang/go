@@ -1629,6 +1629,16 @@ func (w *writer) expr(expr syntax.Expr) {
 			w.typ(tv.Type)
 			return
 		}
+
+		// With shape types (and particular pointer shaping), we may have
+		// an expression of type "go.shape.*uint8", but need to reshape it
+		// to another shape-identical type to allow use in field
+		// selection, indexing, etc.
+		if typ := tv.Type; !tv.IsBuiltin() && !isTuple(typ) && !isUntyped(typ) {
+			w.Code(exprReshape)
+			w.typ(typ)
+			// fallthrough
+		}
 	}
 
 	if obj != nil {
@@ -2197,6 +2207,11 @@ func (w *writer) varDictIndex(obj *types2.Var) {
 func isUntyped(typ types2.Type) bool {
 	basic, ok := typ.(*types2.Basic)
 	return ok && basic.Info()&types2.IsUntyped != 0
+}
+
+func isTuple(typ types2.Type) bool {
+	_, ok := typ.(*types2.Tuple)
+	return ok
 }
 
 func (w *writer) itab(typ, iface types2.Type) {
