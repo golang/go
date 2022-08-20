@@ -190,8 +190,8 @@ type eD struct {
 }
 
 var (
-	_ = eD{}.xf /* ERROR ambiguous selector \(eD literal\).xf */
-	_ = eD{}.xm /* ERROR ambiguous selector \(eD literal\).xm */
+	_ = eD{}.xf /* ERROR ambiguous selector eD{}.xf */
+	_ = eD{}.xm /* ERROR ambiguous selector eD{}.xm */
 )
 
 var (

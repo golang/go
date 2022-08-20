@@ -133,7 +133,7 @@ func issue10260() {
 	)
 
 	var x I1
-	x = T1 /* ERROR cannot use \(T1 literal\) .* as I1 value in assignment: T1 does not implement I1 \(method foo has pointer receiver\) */ {}
+	x = T1 /* ERROR cannot use T1{} .* as I1 value in assignment: T1 does not implement I1 \(method foo has pointer receiver\) */ {}
 	_ = x /* ERROR impossible type assertion: x\.\(T1\)\n\tT1 does not implement I1 \(method foo has pointer receiver\) */ .(T1)
 
 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()

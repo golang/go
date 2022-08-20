@@ -221,16 +221,16 @@ func _() {
 	_ = S2{}.B
 	_ = S2{}.C
 	_ = S2{}.D /* ERROR "no field or method" */
-	_ = S3{}.S1 /* ERROR "ambiguous selector \(S3 literal\).S1" */
+	_ = S3{}.S1 /* ERROR "ambiguous selector S3{}.S1" */
 	_ = S3{}.A
-	_ = S3{}.B /* ERROR "ambiguous selector" \(S3 literal\).B */
+	_ = S3{}.B /* ERROR "ambiguous selector" S3{}.B */
 	_ = S3{}.D
 	_ = S3{}.E
 	_ = S4{}.A
 	_ = S4{}.B /* ERROR "no field or method" */
-	_ = S5{}.X /* ERROR "ambiguous selector \(S5 literal\).X" */
+	_ = S5{}.X /* ERROR "ambiguous selector S5{}.X" */
 	_ = S5{}.Y
-	_ = S10{}.X /* ERROR "ambiguous selector \(S10 literal\).X" */
+	_ = S10{}.X /* ERROR "ambiguous selector S10{}.X" */
 	_ = S10{}.Y
 }
 
@@ -306,4 +306,4 @@ type R22 R21
 type R23 R21
 type R24 R21
 
-var _ = R0{}.X /* ERROR "ambiguous selector \(R0 literal\).X" */
+var _ = R0{}.X /* ERROR "ambiguous selector R0{}.X" */
