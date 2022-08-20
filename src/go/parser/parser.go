@@ -1997,7 +1997,7 @@ func (p *parser) parseCallExpr(callType string) *ast.CallExpr {
 	}
 	if _, isBad := x.(*ast.BadExpr); !isBad {
 		// only report error if it's a new one
-		p.error(p.safePos(x.End()), fmt.Sprintf("function must be invoked in %s statement", callType))
+		p.error(p.safePos(x.End()), fmt.Sprintf("expression in %s must be function call", callType))
 	}
 	return nil
 }

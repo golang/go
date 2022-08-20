@@ -229,7 +229,7 @@ func selects() {
 }
 
 func gos() {
-	go 1 /* ERROR HERE "function must be invoked" */
+	go 1 /* ERROR HERE "must be function call" */
 	go int /* ERROR "go requires function call, not conversion" */ (0)
 	go gos()
 	var c chan int
@@ -238,7 +238,7 @@ func gos() {
 }
 
 func defers() {
-	defer 1 /* ERROR HERE "function must be invoked" */
+	defer 1 /* ERROR HERE "must be function call" */
 	defer int /* ERROR "defer requires function call, not conversion" */ (0)
 	defer defers()
 	var c chan int
