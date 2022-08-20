@@ -1225,19 +1225,10 @@ func (p *AddrPort) UnmarshalBinary(b []byte) error {
 type Prefix struct {
 	ip Addr
 
-	// bits is logically a uint8 (storing [0,128]) but also
-	// encodes an "invalid" bit, currently represented by the
-	// invalidPrefixBits sentinel value. It could be packed into
-	// the uint8 more with more complicated expressions in the
-	// accessors, but the extra byte (in padding anyway) doesn't
-	// hurt and simplifies code below.
-	bits int16
+	// bitsPlusOne stores the prefix bit length plus one.
+	// A Prefix is valid if and only if bitsPlusOne is non-zero.
+	bitsPlusOne uint8
 }
-
-// invalidPrefixBits is the Prefix.bits value used when PrefixFrom is
-// outside the range of a uint8. It's returned as the int -1 in the
-// public API.
-const invalidPrefixBits = -1
 
 // PrefixFrom returns a Prefix with the provided IP address and bit
 // prefix length.
@@ -1248,13 +1239,13 @@ const invalidPrefixBits = -1
 // If bits is less than zero or greater than ip.BitLen, Prefix.Bits
 // will return an invalid value -1.
 func PrefixFrom(ip Addr, bits int) Prefix {
-	if bits < 0 || bits > ip.BitLen() {
-		bits = invalidPrefixBits
+	var bitsPlusOne uint8
+	if !ip.isZero() && bits >= 0 && bits <= ip.BitLen() {
+		bitsPlusOne = uint8(bits) + 1
 	}
-	b16 := int16(bits)
 	return Prefix{
-		ip:   ip.withoutZone(),
-		bits: b16,
+		ip:          ip.withoutZone(),
+		bitsPlusOne: bitsPlusOne,
 	}
 }
 
@@ -1264,17 +1255,17 @@ func (p Prefix) Addr() Addr { return p.ip }
 // Bits returns p's prefix length.
 //
 // It reports -1 if invalid.
-func (p Prefix) Bits() int { return int(p.bits) }
+func (p Prefix) Bits() int { return int(p.bitsPlusOne) - 1 }
 
 // IsValid reports whether p.Bits() has a valid range for p.Addr().
 // If p.Addr() is the zero Addr, IsValid returns false.
 // Note that if p is the zero Prefix, then p.IsValid() == false.
-func (p Prefix) IsValid() bool { return !p.ip.isZero() && p.bits >= 0 && int(p.bits) <= p.ip.BitLen() }
+func (p Prefix) IsValid() bool { return p.bitsPlusOne > 0 }
 
 func (p Prefix) isZero() bool { return p == Prefix{} }
 
 // IsSingleIP reports whether p contains exactly one IP.
-func (p Prefix) IsSingleIP() bool { return p.bits != 0 && int(p.bits) == p.ip.BitLen() }
+func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLen() }
 
 // ParsePrefix parses s as an IP address prefix.
 // The string can be in the form "192.168.1.0/24" or "2001:db8::/32",
@@ -1327,10 +1318,8 @@ func MustParsePrefix(s string) Prefix {
 //
 // If p is zero or otherwise invalid, Masked returns the zero Prefix.
 func (p Prefix) Masked() Prefix {
-	if m, err := p.ip.Prefix(int(p.bits)); err == nil {
-		return m
-	}
-	return Prefix{}
+	m, _ := p.ip.Prefix(p.Bits())
+	return m
 }
 
 // Contains reports whether the network p includes ip.
@@ -1356,12 +1345,12 @@ func (p Prefix) Contains(ip Addr) bool {
 		// the compiler doesn't know that, so mask with 63 to help it.
 		// Now truncate to 32 bits, because this is IPv4.
 		// If all the bits we care about are equal, the result will be zero.
-		return uint32((ip.addr.lo^p.ip.addr.lo)>>((32-p.bits)&63)) == 0
+		return uint32((ip.addr.lo^p.ip.addr.lo)>>((32-p.Bits())&63)) == 0
 	} else {
 		// xor the IP addresses together.
 		// Mask away the bits we don't care about.
 		// If all the bits we care about are equal, the result will be zero.
-		return ip.addr.xor(p.ip.addr).and(mask6(int(p.bits))).isZero()
+		return ip.addr.xor(p.ip.addr).and(mask6(p.Bits())).isZero()
 	}
 }
 
@@ -1380,11 +1369,11 @@ func (p Prefix) Overlaps(o Prefix) bool {
 	if p.ip.Is4() != o.ip.Is4() {
 		return false
 	}
-	var minBits int16
-	if p.bits < o.bits {
-		minBits = p.bits
+	var minBits int
+	if pb, ob := p.Bits(), o.Bits(); pb < ob {
+		minBits = pb
 	} else {
-		minBits = o.bits
+		minBits = ob
 	}
 	if minBits == 0 {
 		return true
@@ -1394,10 +1383,10 @@ func (p Prefix) Overlaps(o Prefix) bool {
 	// so the Prefix call on the one that's already minBits serves to zero
 	// out any remaining bits in IP.
 	var err error
-	if p, err = p.ip.Prefix(int(minBits)); err != nil {
+	if p, err = p.ip.Prefix(minBits); err != nil {
 		return false
 	}
-	if o, err = o.ip.Prefix(int(minBits)); err != nil {
+	if o, err = o.ip.Prefix(minBits); err != nil {
 		return false
 	}
 	return p.ip == o.ip
@@ -1427,7 +1416,7 @@ func (p Prefix) AppendTo(b []byte) []byte {
 	}
 
 	b = append(b, '/')
-	b = appendDecimal(b, uint8(p.bits))
+	b = appendDecimal(b, uint8(p.Bits()))
 	return b
 }
 
@@ -1490,5 +1479,5 @@ func (p Prefix) String() string {
 	if !p.IsValid() {
 		return "invalid Prefix"
 	}
-	return p.ip.String() + "/" + itoa.Itoa(int(p.bits))
+	return p.ip.String() + "/" + itoa.Itoa(p.Bits())
 }
