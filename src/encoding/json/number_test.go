@@ -116,18 +116,3 @@ func TestNumberIsValid(t *testing.T) {
 		}
 	}
 }
-
-func BenchmarkNumberIsValid(b *testing.B) {
-	s := "-61657.61667E+61673"
-	for i := 0; i < b.N; i++ {
-		isValidNumber(s)
-	}
-}
-
-func BenchmarkNumberIsValidRegexp(b *testing.B) {
-	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
-	s := "-61657.61667E+61673"
-	for i := 0; i < b.N; i++ {
-		jsonNumberRegexp.MatchString(s)
-	}
-}

@@ -347,21 +347,6 @@ func TestBlocking(t *testing.T) {
 	}
 }
 
-func BenchmarkEncoderEncode(b *testing.B) {
-	b.ReportAllocs()
-	type T struct {
-		X, Y string
-	}
-	v := &T{"foo", "bar"}
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			if err := NewEncoder(io.Discard).Encode(v); err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
-}
-
 type tokenStreamCase struct {
 	json      string
 	expTokens []any

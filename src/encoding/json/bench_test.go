@@ -18,6 +18,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -507,4 +508,34 @@ func BenchmarkEncodeMarshaler(b *testing.B) {
 			}
 		}
 	})
+}
+
+func BenchmarkEncoderEncode(b *testing.B) {
+	b.ReportAllocs()
+	type T struct {
+		X, Y string
+	}
+	v := &T{"foo", "bar"}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if err := NewEncoder(io.Discard).Encode(v); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+func BenchmarkNumberIsValid(b *testing.B) {
+	s := "-61657.61667E+61673"
+	for i := 0; i < b.N; i++ {
+		isValidNumber(s)
+	}
+}
+
+func BenchmarkNumberIsValidRegexp(b *testing.B) {
+	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
+	s := "-61657.61667E+61673"
+	for i := 0; i < b.N; i++ {
+		jsonNumberRegexp.MatchString(s)
+	}
 }
