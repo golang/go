@@ -863,7 +863,7 @@ func TestFormatFractionalSecondSeparators(t *testing.T) {
 	}
 }
 
-// Issue 48685
+// Issue 48685 and 54567.
 func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
 	tests := []struct {
 		s    string
@@ -893,13 +893,15 @@ func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tm, err := Parse(RFC3339, tt.s)
-		if err != nil {
-			t.Errorf("Unexpected error: %v", err)
-			continue
-		}
-		if got := tm.Nanosecond(); got != tt.want {
-			t.Errorf("Parse(%q) = got %d, want %d", tt.s, got, tt.want)
+		for _, format := range []string{RFC3339, RFC3339Nano} {
+			tm, err := Parse(format, tt.s)
+			if err != nil {
+				t.Errorf("Parse(%q, %q) error: %v", format, tt.s, err)
+				continue
+			}
+			if got := tm.Nanosecond(); got != tt.want {
+				t.Errorf("Parse(%q, %q) = got %d, want %d", format, tt.s, got, tt.want)
+			}
 		}
 	}
 }
