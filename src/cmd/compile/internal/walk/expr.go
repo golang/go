@@ -545,8 +545,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
 			e = ir.NewAddrExpr(n.Pos(), e)
 			e.SetType(types.Types[types.TUINTPTR].PtrTo())
-			e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e)
-			return e
+			return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e))
 		}
 		// fn is not a defined function. It must be ABIInternal.
 		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
@@ -556,8 +555,10 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		arg = walkExpr(arg, init)
 		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)
 		e.SetType(n.Type().PtrTo())
+		e.SetTypecheck(1)
 		e = ir.NewStarExpr(n.Pos(), e)
 		e.SetType(n.Type())
+		e.SetTypecheck(1)
 		return e
 	}
 
