@@ -1233,12 +1233,12 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 				sign, hour, min, seconds, value = value[0:1], value[1:3], value[3:5], "00", value[5:]
 			}
 			var hr, mm, ss int
-			hr, err = atoi(hour)
+			hr, _, err = getnum(hour, true)
 			if err == nil {
-				mm, err = atoi(min)
+				mm, _, err = getnum(min, true)
 			}
 			if err == nil {
-				ss, err = atoi(seconds)
+				ss, _, err = getnum(seconds, true)
 			}
 			zoneOffset = (hr*60+mm)*60 + ss // offset is in seconds
 			switch sign[0] {
