@@ -54,7 +54,6 @@ var (
 func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err error) {
 	id = uint16(randInt())
 	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true})
-	b.EnableCompression()
 	if err := b.StartQuestions(); err != nil {
 		return 0, nil, nil, err
 	}
