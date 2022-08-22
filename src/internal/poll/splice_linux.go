@@ -17,7 +17,9 @@ const (
 
 	// maxSpliceSize is the maximum amount of data Splice asks
 	// the kernel to move in a single call to splice(2).
-	maxSpliceSize = 4 << 20
+	// We use 1MB as Splice writes data through a pipe, and 1MB is the default maximum pipe buffer size,
+	// which is determined by /proc/sys/fs/pipe-max-size.
+	maxSpliceSize = 1 << 20
 )
 
 // Splice transfers at most remain bytes of data from src to dst, using the
@@ -211,6 +213,14 @@ func newPipe() *splicePipe {
 	if err := syscall.Pipe2(fds[:], syscall.O_CLOEXEC|syscall.O_NONBLOCK); err != nil {
 		return nil
 	}
+
+	// Splice will loop writing maxSpliceSize bytes from the source to the pipe,
+	// and then write those bytes from the pipe to the destination.
+	// Set the pipe buffer size to maxSpliceSize to optimize that.
+	// Ignore errors here, as a smaller buffer size will work,
+	// although it will require more system calls.
+	fcntl(fds[0], syscall.F_SETPIPE_SZ, maxSpliceSize)
+
 	return &splicePipe{splicePipeFields: splicePipeFields{rfd: fds[0], wfd: fds[1]}}
 }
 
