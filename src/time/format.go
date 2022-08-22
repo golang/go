@@ -618,6 +618,17 @@ func (t Time) Format(layout string) string {
 // AppendFormat is like Format but appends the textual
 // representation to b and returns the extended buffer.
 func (t Time) AppendFormat(b []byte, layout string) []byte {
+	switch layout {
+	case RFC3339:
+		return t.appendFormatRFC3339(b, false)
+	case RFC3339Nano:
+		return t.appendFormatRFC3339(b, true)
+	default:
+		return t.appendFormat(b, layout)
+	}
+}
+
+func (t Time) appendFormat(b []byte, layout string) []byte {
 	var (
 		name, offset, abs = t.locabs()
 
@@ -629,14 +640,6 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		min   int
 		sec   int
 	)
-
-	// Handle most frequent layouts separately.
-	switch layout {
-	case RFC3339:
-		return t.appendFormatRFC3339(b, abs, offset, false)
-	case RFC3339Nano:
-		return t.appendFormatRFC3339(b, abs, offset, true)
-	}
 
 	// Each iteration generates one std value.
 	for layout != "" {
@@ -793,7 +796,9 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 	return b
 }
 
-func (t Time) appendFormatRFC3339(b []byte, abs uint64, offset int, nanos bool) []byte {
+func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
+	_, offset, abs := t.locabs()
+
 	// Format date.
 	year, month, day, _ := absDate(abs, true)
 	b = appendInt(b, year, 4)

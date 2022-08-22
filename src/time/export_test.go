@@ -132,3 +132,6 @@ var StdChunkNames = map[int]string{
 }
 
 var Quote = quote
+
+var AppendFormatAny = Time.appendFormat
+var AppendFormatRFC3339 = Time.appendFormatRFC3339

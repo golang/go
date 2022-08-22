@@ -5,7 +5,9 @@
 package time_test
 
 import (
+	"bytes"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -910,4 +912,46 @@ func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
 			}
 		}
 	}
+}
+
+func FuzzFormatRFC3339(f *testing.F) {
+	for _, ts := range [][2]int64{
+		{math.MinInt64, math.MinInt64}, // 292277026304-08-26T15:42:51Z
+		{-62167219200, 0},              // 0000-01-01T00:00:00Z
+		{1661201140, 676836973},        // 2022-08-22T20:45:40.676836973Z
+		{253402300799, 999999999},      // 9999-12-31T23:59:59.999999999Z
+		{math.MaxInt64, math.MaxInt64}, // -292277022365-05-08T08:17:07Z
+	} {
+		f.Add(ts[0], ts[1], true, false, 0)
+		f.Add(ts[0], ts[1], false, true, 0)
+		for _, offset := range []int{0, 60, 60 * 60, 99*60*60 + 99*60, 123456789} {
+			f.Add(ts[0], ts[1], false, false, -offset)
+			f.Add(ts[0], ts[1], false, false, +offset)
+		}
+	}
+
+	f.Fuzz(func(t *testing.T, sec, nsec int64, useUTC, useLocal bool, tzOffset int) {
+		var loc *Location
+		switch {
+		case useUTC:
+			loc = UTC
+		case useLocal:
+			loc = Local
+		default:
+			loc = FixedZone("", tzOffset)
+		}
+		ts := Unix(sec, nsec).In(loc)
+
+		got := AppendFormatRFC3339(ts, nil, false)
+		want := AppendFormatAny(ts, nil, RFC3339)
+		if !bytes.Equal(got, want) {
+			t.Errorf("Format(%s, RFC3339) mismatch:\n\tgot:  %s\n\twant: %s", ts, got, want)
+		}
+
+		gotNanos := AppendFormatRFC3339(ts, nil, true)
+		wantNanos := AppendFormatAny(ts, nil, RFC3339Nano)
+		if !bytes.Equal(got, want) {
+			t.Errorf("Format(%s, RFC3339Nano) mismatch:\n\tgot:  %s\n\twant: %s", ts, gotNanos, wantNanos)
+		}
+	})
 }
