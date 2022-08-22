@@ -588,7 +588,7 @@ func (t Time) GoString() string {
 		// Of these, Location(loc.name) is the least disruptive. This is an edge
 		// case we hope not to hit too often.
 		buf = append(buf, `time.Location(`...)
-		buf = append(buf, []byte(quote(loc.name))...)
+		buf = append(buf, quote(loc.name)...)
 		buf = append(buf, ')')
 	}
 	buf = append(buf, ')')

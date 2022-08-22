@@ -590,7 +590,7 @@ func forkExecPipe(p []int) (err error) {
 func formatIDMappings(idMap []SysProcIDMap) []byte {
 	var data []byte
 	for _, im := range idMap {
-		data = append(data, []byte(itoa.Itoa(im.ContainerID)+" "+itoa.Itoa(im.HostID)+" "+itoa.Itoa(im.Size)+"\n")...)
+		data = append(data, itoa.Itoa(im.ContainerID)+" "+itoa.Itoa(im.HostID)+" "+itoa.Itoa(im.Size)+"\n"...)
 	}
 	return data
 }

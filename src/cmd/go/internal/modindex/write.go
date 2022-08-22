@@ -126,7 +126,7 @@ func (e *encoder) String(s string) {
 	e.strings[s] = pos
 	e.Int(pos)
 	e.stringTable = binary.AppendUvarint(e.stringTable, uint64(len(s)))
-	e.stringTable = append(e.stringTable, []byte(s)...)
+	e.stringTable = append(e.stringTable, s...)
 }
 
 func (e *encoder) Bool(b bool) {
