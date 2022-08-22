@@ -26,6 +26,7 @@ var Syms struct {
 	GCWriteBarrier    *obj.LSym
 	Goschedguarded    *obj.LSym
 	Growslice         *obj.LSym
+	Memmove           *obj.LSym
 	Msanread          *obj.LSym
 	Msanwrite         *obj.LSym
 	Msanmove          *obj.LSym
