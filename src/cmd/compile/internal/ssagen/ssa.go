@@ -105,6 +105,7 @@ func InitConfig() {
 	ir.Syms.GCWriteBarrier = typecheck.LookupRuntimeFunc("gcWriteBarrier")
 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
+	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
 	ir.Syms.Msanwrite = typecheck.LookupRuntimeFunc("msanwrite")
 	ir.Syms.Msanmove = typecheck.LookupRuntimeFunc("msanmove")
@@ -1371,7 +1372,47 @@ func (s *state) zero(t *types.Type, dst *ssa.Value) {
 }
 
 func (s *state) move(t *types.Type, dst, src *ssa.Value) {
+	s.moveWhichMayOverlap(t, dst, src, false)
+}
+func (s *state) moveWhichMayOverlap(t *types.Type, dst, src *ssa.Value, mayOverlap bool) {
 	s.instrumentMove(t, dst, src)
+	if mayOverlap && t.IsArray() && t.NumElem() > 1 && !ssa.IsInlinableMemmove(dst, src, t.Size(), s.f.Config) {
+		// Normally, when moving Go values of type T from one location to another,
+		// we don't need to worry about partial overlaps. The two Ts must either be
+		// in disjoint (nonoverlapping) memory or in exactly the same location.
+		// There are 2 cases where this isn't true:
+		//  1) Using unsafe you can arrange partial overlaps.
+		//  2) Since Go 1.17, you can use a cast from a slice to a ptr-to-array.
+		//     https://go.dev/ref/spec#Conversions_from_slice_to_array_pointer
+		//     This feature can be used to construct partial overlaps of array types.
+		//       var a [3]int
+		//       p := (*[2]int)(a[:])
+		//       q := (*[2]int)(a[1:])
+		//       *p = *q
+		// We don't care about solving 1. Or at least, we haven't historically
+		// and no one has complained.
+		// For 2, we need to ensure that if there might be partial overlap,
+		// then we can't use OpMove; we must use memmove instead.
+		// (memmove handles partial overlap by copying in the correct
+		// direction. OpMove does not.)
+		//
+		// Note that we have to be careful here not to introduce a call when
+		// we're marshaling arguments to a call or unmarshaling results from a call.
+		// Cases where this is happening must pass mayOverlap to false.
+		// (Currently this only happens when unmarshaling results of a call.)
+		if t.HasPointers() {
+			s.rtcall(ir.Syms.Typedmemmove, true, nil, s.reflectType(t), dst, src)
+			// We would have otherwise implemented this move with straightline code,
+			// including a write barrier. Pretend we issue a write barrier here,
+			// so that the write barrier tests work. (Otherwise they'd need to know
+			// the details of IsInlineableMemmove.)
+			s.curfn.SetWBPos(s.peekPos())
+		} else {
+			s.rtcall(ir.Syms.Memmove, true, nil, dst, src, s.constInt(types.Types[types.TUINTPTR], t.Size()))
+		}
+		ssa.LogLargeCopy(s.f.Name, s.peekPos(), t.Size())
+		return
+	}
 	store := s.newValue3I(ssa.OpMove, types.TypeMem, t.Size(), dst, src, s.mem())
 	store.Aux = t
 	s.vars[memVar] = store
@@ -1547,6 +1588,36 @@ func (s *state) stmt(n ir.Node) {
 			return
 		}
 
+		// mayOverlap keeps track of whether the LHS and RHS might
+		// refer to overlapping memory.
+		mayOverlap := true
+		if n.Y == nil {
+			// Not a move at all, mayOverlap is not relevant.
+		} else if n.Def {
+			// A variable being defined cannot overlap anything else.
+			mayOverlap = false
+		} else if n.X.Op() == ir.ONAME && n.Y.Op() == ir.ONAME {
+			// Two named things never overlap.
+			// (Or they are identical, which we treat as nonoverlapping.)
+			mayOverlap = false
+		} else if n.Y.Op() == ir.ODEREF {
+			p := n.Y.(*ir.StarExpr).X
+			for p.Op() == ir.OCONVNOP {
+				p = p.(*ir.ConvExpr).X
+			}
+			if p.Op() == ir.OSPTR && p.(*ir.UnaryExpr).X.Type().IsString() {
+				// Pointer fields of strings point to unmodifiable memory.
+				// That memory can't overlap with the memory being written.
+				mayOverlap = false
+			}
+		} else if n.Y.Op() == ir.ORESULT || n.Y.Op() == ir.OCALLFUNC || n.Y.Op() == ir.OCALLINTER {
+			// When copying values out of the return area of a call, we know
+			// the source and destination don't overlap. Importantly, we must
+			// set mayOverlap so we don't introduce a call to memmove while
+			// we still have live data in the argument area.
+			mayOverlap = false
+		}
+
 		// Evaluate RHS.
 		rhs := n.Y
 		if rhs != nil {
@@ -1647,7 +1718,7 @@ func (s *state) stmt(n ir.Node) {
 			}
 		}
 
-		s.assign(n.X, r, deref, skip)
+		s.assignWhichMayOverlap(n.X, r, deref, skip, mayOverlap)
 
 	case ir.OIF:
 		n := n.(*ir.IfStmt)
@@ -3529,7 +3600,11 @@ const (
 // If deref is true, then we do left = *right instead (and right has already been nil-checked).
 // If deref is true and right == nil, just do left = 0.
 // skip indicates assignments (at the top level) that can be avoided.
+// mayOverlap indicates whether left&right might partially overlap in memory. Default is false.
 func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask) {
+	s.assignWhichMayOverlap(left, right, deref, skip, false)
+}
+func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool, skip skipMask, mayOverlap bool) {
 	if left.Op() == ir.ONAME && ir.IsBlank(left) {
 		return
 	}
@@ -3630,7 +3705,7 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
 		if right == nil {
 			s.zero(t, addr)
 		} else {
-			s.move(t, addr, right)
+			s.moveWhichMayOverlap(t, addr, right, mayOverlap)
 		}
 		return
 	}
