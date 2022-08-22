@@ -283,6 +283,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				return nil, err
 			}
 			numaux = int(se.Nnumaux)
+			if numaux < 0 {
+				return nil, fmt.Errorf("malformed symbol table, invalid number of aux symbols")
+			}
 			sym.SectionNumber = int(se.Nscnum)
 			sym.StorageClass = int(se.Nsclass)
 			sym.Value = uint64(se.Nvalue)
@@ -303,6 +306,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				return nil, err
 			}
 			numaux = int(se.Nnumaux)
+			if numaux < 0 {
+				return nil, fmt.Errorf("malformed symbol table, invalid number of aux symbols")
+			}
 			sym.SectionNumber = int(se.Nscnum)
 			sym.StorageClass = int(se.Nsclass)
 			sym.Value = se.Nvalue
