@@ -16,7 +16,8 @@
 (Hmul64u ...) => (UMULH ...)
 (Hmul32 x y) => (SRAconst (MULL <typ.Int64> x y) [32])
 (Hmul32u x y) => (SRAconst (UMULL <typ.UInt64> x y) [32])
-(Mul64uhilo ...) => (LoweredMuluhilo ...)
+(Select0 (Mul64uhilo x y)) => (UMULH x y)
+(Select1 (Mul64uhilo x y)) => (MUL x y)
 
 (Div64 [false] x y) => (DIV x y)
 (Div64u ...) => (UDIV ...)

@@ -849,9 +849,6 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMul64F:
 		v.Op = OpARM64FMULD
 		return true
-	case OpMul64uhilo:
-		v.Op = OpARM64LoweredMuluhilo
-		return true
 	case OpMul8:
 		v.Op = OpARM64MULW
 		return true
@@ -27321,6 +27318,18 @@ func rewriteValueARM64_OpSelect0(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Select0 (Mul64uhilo x y))
+	// result: (UMULH x y)
+	for {
+		if v_0.Op != OpMul64uhilo {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpARM64UMULH)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Select0 (Add64carry x y c))
 	// result: (Select0 <typ.UInt64> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c))))
 	for {
@@ -27380,6 +27389,18 @@ func rewriteValueARM64_OpSelect1(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Select1 (Mul64uhilo x y))
+	// result: (MUL x y)
+	for {
+		if v_0.Op != OpMul64uhilo {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpARM64MUL)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Select1 (Add64carry x y c))
 	// result: (ADCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c)))))
 	for {

@@ -798,6 +798,18 @@ func Mul64(x, y uint64) (hi, lo uint64) {
 	return bits.Mul64(x, y)
 }
 
+func Mul64HiOnly(x, y uint64) uint64 {
+	// arm64:"UMULH",-"MUL"
+	hi, _ := bits.Mul64(x, y)
+	return hi
+}
+
+func Mul64LoOnly(x, y uint64) uint64 {
+	// arm64:"MUL",-"UMULH"
+	_, lo := bits.Mul64(x, y)
+	return lo
+}
+
 // --------------- //
 //    bits.Div*    //
 // --------------- //

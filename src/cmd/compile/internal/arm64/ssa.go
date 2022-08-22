@@ -565,21 +565,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpARM64LoweredMuluhilo:
-		r0 := v.Args[0].Reg()
-		r1 := v.Args[1].Reg()
-		p := s.Prog(arm64.AUMULH)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r1
-		p.Reg = r0
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg0()
-		p1 := s.Prog(arm64.AMUL)
-		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = r1
-		p1.Reg = r0
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = v.Reg1()
 	case ssa.OpARM64LoweredAtomicExchange64,
 		ssa.OpARM64LoweredAtomicExchange32:
 		// LDAXR	(Rarg0), Rout
