@@ -1362,7 +1362,8 @@ func zeroUpper56Bits(x *Value, depth int) bool {
 
 // isInlinableMemmove reports whether the given arch performs a Move of the given size
 // faster than memmove. It will only return true if replacing the memmove with a Move is
-// safe, either because Move is small or because the arguments are disjoint.
+// safe, either because Move will do all of its loads before any of its stores, or
+// because the arguments are known to be disjoint.
 // This is used as a check for replacing memmove with Move ops.
 func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	// It is always safe to convert memmove into Move when its arguments are disjoint.
@@ -1381,6 +1382,9 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	}
 	return false
 }
+func IsInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
+	return isInlinableMemmove(dst, src, sz, c)
+}
 
 // logLargeCopy logs the occurrence of a large copy.
 // The best place to do this is in the rewrite rules where the size of the move is easy to find.
@@ -1393,6 +1397,14 @@ func logLargeCopy(v *Value, s int64) bool {
 		logopt.LogOpt(v.Pos, "copy", "lower", v.Block.Func.Name, fmt.Sprintf("%d bytes", s))
 	}
 	return true
+}
+func LogLargeCopy(funcName string, pos src.XPos, s int64) {
+	if s < 128 {
+		return
+	}
+	if logopt.Enabled() {
+		logopt.LogOpt(pos, "copy", "lower", funcName, fmt.Sprintf("%d bytes", s))
+	}
 }
 
 // hasSmallRotate reports whether the architecture has rotate instructions
