@@ -135,3 +135,5 @@ var Quote = quote
 
 var AppendFormatAny = Time.appendFormat
 var AppendFormatRFC3339 = Time.appendFormatRFC3339
+var ParseAny = parse
+var ParseRFC3339 = parseRFC3339

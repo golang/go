@@ -618,6 +618,7 @@ func (t Time) Format(layout string) string {
 // AppendFormat is like Format but appends the textual
 // representation to b and returns the extended buffer.
 func (t Time) AppendFormat(b []byte, layout string) []byte {
+	// Optimize for RFC3339 as it accounts for over half of all representations.
 	switch layout {
 	case RFC3339:
 		return t.appendFormatRFC3339(b, false)
@@ -1018,6 +1019,12 @@ func skip(value, prefix string) (string, error) {
 // differ by the actual zone offset. To avoid such problems, prefer time layouts
 // that use a numeric zone offset, or use ParseInLocation.
 func Parse(layout, value string) (Time, error) {
+	// Optimize for RFC3339 as it accounts for over half of all representations.
+	if layout == RFC3339 || layout == RFC3339Nano {
+		if t, ok := parseRFC3339(value, Local); ok {
+			return t, nil
+		}
+	}
 	return parse(layout, value, UTC, Local)
 }
 
@@ -1027,7 +1034,86 @@ func Parse(layout, value string) (Time, error) {
 // Second, when given a zone offset or abbreviation, Parse tries to match it
 // against the Local location; ParseInLocation uses the given location.
 func ParseInLocation(layout, value string, loc *Location) (Time, error) {
+	// Optimize for RFC3339 as it accounts for over half of all representations.
+	if layout == RFC3339 || layout == RFC3339Nano {
+		if t, ok := parseRFC3339(value, loc); ok {
+			return t, nil
+		}
+	}
 	return parse(layout, value, loc, loc)
+}
+
+func parseRFC3339(s string, local *Location) (Time, bool) {
+	// parseUint parses s as an unsigned decimal integer and
+	// verifies that it is within some range.
+	// If it is invalid or out-of-range,
+	// it sets ok to false and returns the min value.
+	ok := true
+	parseUint := func(s string, min, max int) (x int) {
+		for _, c := range []byte(s) {
+			if c < '0' || '9' < c {
+				ok = false
+				return min
+			}
+			x = x*10 + int(c) - '0'
+		}
+		if x < min || max < x {
+			ok = false
+			return min
+		}
+		return x
+	}
+
+	// Parse the date and time.
+	if len(s) < len("2006-01-02T15:04:05") {
+		return Time{}, false
+	}
+	year := parseUint(s[0:4], 0, 9999)                       // e.g., 2006
+	month := parseUint(s[5:7], 1, 12)                        // e.g., 01
+	day := parseUint(s[8:10], 1, daysIn(Month(month), year)) // e.g., 02
+	hour := parseUint(s[11:13], 0, 23)                       // e.g., 15
+	min := parseUint(s[14:16], 0, 59)                        // e.g., 04
+	sec := parseUint(s[17:19], 0, 59)                        // e.g., 05
+	if !ok || !(s[4] == '-' && s[7] == '-' && s[10] == 'T' && s[13] == ':' && s[16] == ':') {
+		return Time{}, false
+	}
+	s = s[19:]
+
+	// Parse the fractional second.
+	var nsec int
+	if len(s) >= 2 && s[0] == '.' && isDigit(s, 1) {
+		n := 2
+		for ; n < len(s) && isDigit(s, n); n++ {
+		}
+		nsec, _, _ = parseNanoseconds(s, n)
+		s = s[n:]
+	}
+
+	// Parse the time zone.
+	t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
+	if s != "Z" {
+		if len(s) != len("-07:00") {
+			return Time{}, false
+		}
+		hr := parseUint(s[1:3], 0, 23) // e.g., 07
+		mm := parseUint(s[4:6], 0, 59) // e.g., 00
+		if !ok || !((s[0] == '-' || s[0] == '+') && s[3] == ':') {
+			return Time{}, false
+		}
+		zoneOffset := (hr*60 + mm) * 60
+		if s[0] == '-' {
+			zoneOffset *= -1
+		}
+		t.addSec(-int64(zoneOffset))
+
+		// Use local zone with the given offset if possible.
+		if _, offset, _, _, _ := local.lookup(t.unixSec()); offset == zoneOffset {
+			t.setLoc(local)
+		} else {
+			t.setLoc(FixedZone("", zoneOffset))
+		}
+	}
+	return t, true
 }
 
 func parse(layout, value string, defaultLocation, local *Location) (Time, error) {
