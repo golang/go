@@ -5058,6 +5058,9 @@ func (sc *http2serverConn) startGracefulShutdownInternal() {
 func (sc *http2serverConn) goAway(code http2ErrCode) {
 	sc.serveG.check()
 	if sc.inGoAway {
+		if sc.goAwayCode == http2ErrCodeNo {
+			sc.goAwayCode = code
+		}
 		return
 	}
 	sc.inGoAway = true
