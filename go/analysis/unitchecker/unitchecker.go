@@ -340,6 +340,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				Pkg:               pkg,
 				TypesInfo:         info,
 				TypesSizes:        tc.Sizes,
+				TypeErrors:        nil, // unitchecker doesn't RunDespiteErrors
 				ResultOf:          inputs,
 				Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
 				ImportObjectFact:  facts.ImportObjectFact,

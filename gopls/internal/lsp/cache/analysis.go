@@ -17,7 +17,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
@@ -291,6 +290,7 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 		Pkg:        pkg.GetTypes(),
 		TypesInfo:  pkg.GetTypesInfo(),
 		TypesSizes: pkg.GetTypesSizes(),
+		TypeErrors: pkg.typeErrors,
 		ResultOf:   inputs,
 		Report: func(d analysis.Diagnostic) {
 			// Prefix the diagnostic category with the analyzer's name.
@@ -351,7 +351,6 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 			return facts
 		},
 	}
-	analysisinternal.SetTypeErrors(pass, pkg.typeErrors)
 
 	if (pkg.HasListOrParseErrors() || pkg.HasTypeErrors()) && !analyzer.RunDespiteErrors {
 		return nil, fmt.Errorf("skipping analysis %s because package %s contains errors", analyzer.Name, pkg.ID())

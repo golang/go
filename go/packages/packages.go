@@ -303,6 +303,9 @@ type Package struct {
 	// of the package, or while parsing or type-checking its files.
 	Errors []Error
 
+	// TypeErrors contains the subset of errors produced during type checking.
+	TypeErrors []types.Error
+
 	// GoFiles lists the absolute file paths of the package's Go source files.
 	GoFiles []string
 
@@ -911,6 +914,7 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 
 		case types.Error:
 			// from type checker
+			lpkg.TypeErrors = append(lpkg.TypeErrors, err)
 			errs = append(errs, Error{
 				Pos:  err.Fset.Position(err.Pos).String(),
 				Msg:  err.Msg,

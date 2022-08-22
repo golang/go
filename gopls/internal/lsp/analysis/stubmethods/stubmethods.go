@@ -35,7 +35,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	for _, err := range analysisinternal.GetTypeErrors(pass) {
+	for _, err := range pass.TypeErrors {
 		ifaceErr := strings.Contains(err.Msg, "missing method") || strings.HasPrefix(err.Msg, "cannot convert")
 		if !ifaceErr {
 			continue

@@ -29,7 +29,7 @@ will turn into
 `
 
 var Analyzer = &analysis.Analyzer{
-	Name:             string(analysisinternal.NoResultValues),
+	Name:             "noresultvalues",
 	Doc:              Doc,
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	Run:              run,
@@ -38,7 +38,6 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	errors := analysisinternal.GetTypeErrors(pass)
 
 	nodeFilter := []ast.Node{(*ast.ReturnStmt)(nil)}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
@@ -55,7 +54,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
-		for _, err := range errors {
+		for _, err := range pass.TypeErrors {
 			if !FixesError(err.Msg) {
 				continue
 			}

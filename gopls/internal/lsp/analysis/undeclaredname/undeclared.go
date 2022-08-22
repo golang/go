@@ -38,7 +38,7 @@ func <>(inferred parameters) {
 `
 
 var Analyzer = &analysis.Analyzer{
-	Name:             string(analysisinternal.UndeclaredName),
+	Name:             "undeclaredname",
 	Doc:              Doc,
 	Requires:         []*analysis.Analyzer{},
 	Run:              run,
@@ -49,7 +49,7 @@ var Analyzer = &analysis.Analyzer{
 var undeclaredNamePrefixes = []string{"undeclared name: ", "undefined: "}
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	for _, err := range analysisinternal.GetTypeErrors(pass) {
+	for _, err := range pass.TypeErrors {
 		runForError(pass, err)
 	}
 	return nil, nil

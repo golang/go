@@ -26,7 +26,6 @@ import (
 	"runtime/pprof"
 	"runtime/trace"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,7 +33,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/analysisinternal"
 )
 
 var (
@@ -699,14 +697,16 @@ func (act *action) execOnce() {
 
 	// Run the analysis.
 	pass := &analysis.Pass{
-		Analyzer:          act.a,
-		Fset:              act.pkg.Fset,
-		Files:             act.pkg.Syntax,
-		OtherFiles:        act.pkg.OtherFiles,
-		IgnoredFiles:      act.pkg.IgnoredFiles,
-		Pkg:               act.pkg.Types,
-		TypesInfo:         act.pkg.TypesInfo,
-		TypesSizes:        act.pkg.TypesSizes,
+		Analyzer:     act.a,
+		Fset:         act.pkg.Fset,
+		Files:        act.pkg.Syntax,
+		OtherFiles:   act.pkg.OtherFiles,
+		IgnoredFiles: act.pkg.IgnoredFiles,
+		Pkg:          act.pkg.Types,
+		TypesInfo:    act.pkg.TypesInfo,
+		TypesSizes:   act.pkg.TypesSizes,
+		TypeErrors:   act.pkg.TypeErrors,
+
 		ResultOf:          inputs,
 		Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
 		ImportObjectFact:  act.importObjectFact,
@@ -717,72 +717,6 @@ func (act *action) execOnce() {
 		AllPackageFacts:   act.allPackageFacts,
 	}
 	act.pass = pass
-
-	var errors []types.Error
-	// Get any type errors that are attributed to the pkg.
-	// This is necessary to test analyzers that provide
-	// suggested fixes for compiler/type errors.
-	// TODO(adonovan): eliminate this hack;
-	// see https://github.com/golang/go/issues/54619.
-	for _, err := range act.pkg.Errors {
-		if err.Kind != packages.TypeError {
-			continue
-		}
-
-		// Parse err.Pos, a string of form: "file:line:col" or "file:line" or "" or "-"
-		// The filename may have a single ASCII letter Windows drive prefix such as "C:"
-		var file string
-		var line, col int
-		var convErr error
-		words := strings.Split(err.Pos, ":")
-		if runtime.GOOS == "windows" &&
-			len(words) > 2 &&
-			len(words[0]) == 1 &&
-			('A' <= words[0][0] && words[0][0] <= 'Z' ||
-				'a' <= words[0][0] && words[0][0] <= 'z') {
-			words[1] = words[0] + ":" + words[1]
-			words = words[1:]
-		}
-		switch len(words) {
-		case 2:
-			// file:line
-			file = words[0]
-			line, convErr = strconv.Atoi(words[1])
-		case 3:
-			// file:line:col
-			file = words[0]
-			line, convErr = strconv.Atoi(words[1])
-			if convErr == nil {
-				col, convErr = strconv.Atoi(words[2])
-			}
-		default:
-			continue
-		}
-		if convErr != nil {
-			continue
-		}
-
-		// Extract the token positions from the error string.
-		// (This is guesswork: Fset may contain all manner
-		// of stale files with the same name.)
-		offset := -1
-		act.pkg.Fset.Iterate(func(f *token.File) bool {
-			if f.Name() != file {
-				return true
-			}
-			offset = int(f.LineStart(line)) + col - 1
-			return false
-		})
-		if offset == -1 {
-			continue
-		}
-		errors = append(errors, types.Error{
-			Fset: act.pkg.Fset,
-			Msg:  err.Msg,
-			Pos:  token.Pos(offset),
-		})
-	}
-	analysisinternal.SetTypeErrors(pass, errors)
 
 	var err error
 	if act.pkg.IllTyped && !pass.Analyzer.RunDespiteErrors {

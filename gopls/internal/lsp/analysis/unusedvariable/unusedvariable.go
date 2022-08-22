@@ -16,7 +16,6 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/internal/analysisinternal"
 )
 
 const Doc = `check for unused variables
@@ -36,7 +35,7 @@ var Analyzer = &analysis.Analyzer{
 var unusedVariableSuffixes = []string{" declared and not used", " declared but not used"}
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	for _, typeErr := range analysisinternal.GetTypeErrors(pass) {
+	for _, typeErr := range pass.TypeErrors {
 		for _, suffix := range unusedVariableSuffixes {
 			if strings.HasSuffix(typeErr.Msg, suffix) {
 				varName := strings.TrimSuffix(typeErr.Msg, suffix)

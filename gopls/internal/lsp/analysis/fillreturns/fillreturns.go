@@ -52,9 +52,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		return nil, fmt.Errorf("nil TypeInfo")
 	}
 
-	errors := analysisinternal.GetTypeErrors(pass)
 outer:
-	for _, typeErr := range errors {
+	for _, typeErr := range pass.TypeErrors {
 		// Filter out the errors that are not relevant to this analyzer.
 		if !FixesError(typeErr) {
 			continue
