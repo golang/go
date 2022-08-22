@@ -1054,7 +1054,7 @@ func (buf *traceBuf) byte(v byte) {
 // traceStackTable maps stack traces (arrays of PC's) to unique uint32 ids.
 // It is lock-free for reading.
 type traceStackTable struct {
-	lock mutex
+	lock mutex // Must be acquired on the system stack
 	seq  uint32
 	mem  traceAlloc
 	tab  [1 << 13]traceStackPtr
@@ -1090,26 +1090,31 @@ func (tab *traceStackTable) put(pcs []uintptr) uint32 {
 		return id
 	}
 	// Now, double check under the mutex.
-	lock(&tab.lock)
-	if id := tab.find(pcs, hash); id != 0 {
+	// Switch to the system stack so we can acquire tab.lock
+	var id uint32
+	systemstack(func() {
+		lock(&tab.lock)
+		if id = tab.find(pcs, hash); id != 0 {
+			unlock(&tab.lock)
+			return
+		}
+		// Create new record.
+		tab.seq++
+		stk := tab.newStack(len(pcs))
+		stk.hash = hash
+		stk.id = tab.seq
+		id = stk.id
+		stk.n = len(pcs)
+		stkpc := stk.stack()
+		for i, pc := range pcs {
+			stkpc[i] = pc
+		}
+		part := int(hash % uintptr(len(tab.tab)))
+		stk.link = tab.tab[part]
+		atomicstorep(unsafe.Pointer(&tab.tab[part]), unsafe.Pointer(stk))
 		unlock(&tab.lock)
-		return id
-	}
-	// Create new record.
-	tab.seq++
-	stk := tab.newStack(len(pcs))
-	stk.hash = hash
-	stk.id = tab.seq
-	stk.n = len(pcs)
-	stkpc := stk.stack()
-	for i, pc := range pcs {
-		stkpc[i] = pc
-	}
-	part := int(hash % uintptr(len(tab.tab)))
-	stk.link = tab.tab[part]
-	atomicstorep(unsafe.Pointer(&tab.tab[part]), unsafe.Pointer(stk))
-	unlock(&tab.lock)
-	return stk.id
+	})
+	return id
 }
 
 // find checks if the stack trace pcs is already present in the table.
