@@ -432,9 +432,8 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
 // @@@ Types
 
 var (
-	anyTypeName        = types2.Universe.Lookup("any").(*types2.TypeName)
-	comparableTypeName = types2.Universe.Lookup("comparable").(*types2.TypeName)
-	runeTypeName       = types2.Universe.Lookup("rune").(*types2.TypeName)
+	anyTypeName  = types2.Universe.Lookup("any").(*types2.TypeName)
+	runeTypeName = types2.Universe.Lookup("rune").(*types2.TypeName)
 )
 
 // typ writes a use of the given type into the bitstream.
@@ -486,7 +485,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 			w.Len(int(kind))
 
 		default:
-			// Handle "byte" and "rune" as references to their TypeNames.
+			// Handle "byte" and "rune" as references to their TypeName.
 			obj := types2.Universe.Lookup(typ.Name())
 			assert(obj.Type() == typ)
 
@@ -544,7 +543,6 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		w.structType(typ)
 
 	case *types2.Interface:
-		// Handle "any" as reference to its TypeName.
 		if typ == anyTypeName.Type() {
 			w.Code(pkgbits.TypeNamed)
 			w.obj(anyTypeName, nil)
@@ -592,23 +590,6 @@ func (w *writer) unionType(typ *types2.Union) {
 }
 
 func (w *writer) interfaceType(typ *types2.Interface) {
-	// If typ has no embedded types but it's not a basic interface, then
-	// the natural description we write out below will fail to
-	// reconstruct it.
-	if typ.NumEmbeddeds() == 0 && !typ.IsMethodSet() {
-		// Currently, this can only happen for the underlying Interface of
-		// "comparable", which is needed to handle type declarations like
-		// "type C comparable".
-		assert(typ == comparableTypeName.Type().(*types2.Named).Underlying())
-
-		// Export as "interface{ comparable }".
-		w.Len(0)                         // NumExplicitMethods
-		w.Len(1)                         // NumEmbeddeds
-		w.Bool(false)                    // IsImplicit
-		w.typ(comparableTypeName.Type()) // EmbeddedType(0)
-		return
-	}
-
 	w.Len(typ.NumExplicitMethods())
 	w.Len(typ.NumEmbeddeds())
 
@@ -794,6 +775,9 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		return pkgbits.ObjFunc
 
 	case *types2.TypeName:
+		decl, ok := w.p.typDecls[obj]
+		assert(ok)
+
 		if obj.IsAlias() {
 			w.pos(obj)
 			w.typ(obj.Type())
@@ -806,7 +790,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		w.pos(obj)
 		w.typeParamNames(named.TypeParams())
 		wext.typeExt(obj)
-		w.typ(named.Underlying())
+		w.typExpr(decl.Type)
 
 		w.Len(named.NumMethods())
 		for i := 0; i < named.NumMethods(); i++ {
@@ -821,6 +805,16 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		wext.varExt(obj)
 		return pkgbits.ObjVar
 	}
+}
+
+// typExpr writes the type represented by the given expression.
+//
+// TODO(mdempsky): Document how this differs from exprType.
+func (w *writer) typExpr(expr syntax.Expr) {
+	tv, ok := w.p.info.Types[expr]
+	assert(ok)
+	assert(tv.IsType())
+	w.typ(tv.Type)
 }
 
 // objDict writes the dictionary needed for reading the given object.
