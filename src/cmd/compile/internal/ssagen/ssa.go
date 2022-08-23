@@ -7324,7 +7324,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 func defframe(s *State, e *ssafn, f *ssa.Func) {
 	pp := s.pp
 
-	frame := types.RoundUp(s.maxarg+e.stksize, int64(types.RegSize))
+	s.maxarg = types.RoundUp(s.maxarg, e.stkalign)
+	frame := s.maxarg + e.stksize
 	if Arch.PadFrame != nil {
 		frame = Arch.PadFrame(frame)
 	}
@@ -7762,7 +7763,14 @@ type ssafn struct {
 	strings    map[string]*obj.LSym // map from constant string to data symbols
 	stksize    int64                // stack size for current frame
 	stkptrsize int64                // prefix of stack containing pointers
-	log        bool                 // print ssa debug to the stdout
+
+	// alignment for current frame.
+	// NOTE: when stkalign > PtrSize, currently this only ensures the offsets of
+	// objects in the stack frame are aligned. The stack pointer is still aligned
+	// only PtrSize.
+	stkalign int64
+
+	log bool // print ssa debug to the stdout
 }
 
 // StringData returns a symbol which

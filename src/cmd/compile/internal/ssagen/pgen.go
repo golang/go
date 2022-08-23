@@ -96,6 +96,7 @@ func needAlloc(n *ir.Name) bool {
 func (s *ssafn) AllocFrame(f *ssa.Func) {
 	s.stksize = 0
 	s.stkptrsize = 0
+	s.stkalign = int64(types.RegSize)
 	fn := s.curfn
 
 	// Mark the PAUTO's unused.
@@ -160,6 +161,9 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 		s.stksize += w
 		s.stksize = types.RoundUp(s.stksize, n.Type().Alignment())
+		if n.Type().Alignment() > int64(types.RegSize) {
+			s.stkalign = n.Type().Alignment()
+		}
 		if n.Type().HasPointers() {
 			s.stkptrsize = s.stksize
 			lastHasPtr = true
@@ -169,8 +173,8 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		n.SetFrameOffset(-s.stksize)
 	}
 
-	s.stksize = types.RoundUp(s.stksize, int64(types.RegSize))
-	s.stkptrsize = types.RoundUp(s.stkptrsize, int64(types.RegSize))
+	s.stksize = types.RoundUp(s.stksize, s.stkalign)
+	s.stkptrsize = types.RoundUp(s.stkptrsize, s.stkalign)
 }
 
 const maxStackSize = 1 << 30
