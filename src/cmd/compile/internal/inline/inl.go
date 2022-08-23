@@ -532,18 +532,23 @@ func InlineCalls(fn *ir.Func) {
 	if isBigFunc(fn) {
 		maxCost = inlineBigFunctionMaxCost
 	}
-	// Map to keep track of functions that have been inlined at a particular
-	// call site, in order to stop inlining when we reach the beginning of a
-	// recursion cycle again. We don't inline immediately recursive functions,
-	// but allow inlining if there is a recursion cycle of many functions.
-	// Most likely, the inlining will stop before we even hit the beginning of
-	// the cycle again, but the map catches the unusual case.
-	inlMap := make(map[*ir.Func]bool)
+	var inlCalls []*ir.InlinedCallExpr
 	var edit func(ir.Node) ir.Node
 	edit = func(n ir.Node) ir.Node {
-		return inlnode(n, maxCost, inlMap, edit)
+		return inlnode(n, maxCost, &inlCalls, edit)
 	}
 	ir.EditChildren(fn, edit)
+
+	// If we inlined any calls, we want to recursively visit their
+	// bodies for further inlining. However, we need to wait until
+	// *after* the original function body has been expanded, or else
+	// inlCallee can have false positives (e.g., #54632).
+	for len(inlCalls) > 0 {
+		call := inlCalls[0]
+		inlCalls = inlCalls[1:]
+		ir.EditChildren(call, edit)
+	}
+
 	ir.CurFunc = savefn
 }
 
@@ -561,7 +566,7 @@ func InlineCalls(fn *ir.Func) {
 // The result of inlnode MUST be assigned back to n, e.g.
 //
 //	n.Left = inlnode(n.Left)
-func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.Node) ir.Node) ir.Node {
+func inlnode(n ir.Node, maxCost int32, inlCalls *[]*ir.InlinedCallExpr, edit func(ir.Node) ir.Node) ir.Node {
 	if n == nil {
 		return n
 	}
@@ -623,7 +628,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 			break
 		}
 		if fn := inlCallee(call.X); fn != nil && typecheck.HaveInlineBody(fn) {
-			n = mkinlcall(call, fn, maxCost, inlMap, edit)
+			n = mkinlcall(call, fn, maxCost, inlCalls, edit)
 		}
 	}
 
@@ -696,7 +701,7 @@ var NewInline = oldInline
 // The result of mkinlcall MUST be assigned back to n, e.g.
 //
 //	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.Node) ir.Node) ir.Node {
+func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.InlinedCallExpr, edit func(ir.Node) ir.Node) ir.Node {
 	if fn.Inl == nil {
 		if logopt.Enabled() {
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
@@ -775,22 +780,27 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		return n
 	}
 
-	if inlMap[fn] {
-		if base.Flag.LowerM > 1 {
-			fmt.Printf("%v: cannot inline %v into %v: repeated recursive cycle\n", ir.Line(n), fn, ir.FuncName(ir.CurFunc))
+	parent := base.Ctxt.PosTable.Pos(n.Pos()).Base().InliningIndex()
+	sym := fn.Linksym()
+
+	// Check if we've already inlined this function at this particular
+	// call site, in order to stop inlining when we reach the beginning
+	// of a recursion cycle again. We don't inline immediately recursive
+	// functions, but allow inlining if there is a recursion cycle of
+	// many functions. Most likely, the inlining will stop before we
+	// even hit the beginning of the cycle again, but this catches the
+	// unusual case.
+	for inlIndex := parent; inlIndex >= 0; inlIndex = base.Ctxt.InlTree.Parent(inlIndex) {
+		if base.Ctxt.InlTree.InlinedFunction(inlIndex) == sym {
+			if base.Flag.LowerM > 1 {
+				fmt.Printf("%v: cannot inline %v into %v: repeated recursive cycle\n", ir.Line(n), fn, ir.FuncName(ir.CurFunc))
+			}
+			return n
 		}
-		return n
 	}
-	inlMap[fn] = true
-	defer func() {
-		inlMap[fn] = false
-	}()
 
 	typecheck.FixVariadicCall(n)
 
-	parent := base.Ctxt.PosTable.Pos(n.Pos()).Base().InliningIndex()
-
-	sym := fn.Linksym()
 	inlIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
 
 	if base.Flag.GenDwarfInl > 0 {
@@ -812,17 +822,11 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		return n
 	}
 
-	// transitive inlining
-	// might be nice to do this before exporting the body,
-	// but can't emit the body with inlining expanded.
-	// instead we emit the things that the body needs
-	// and each use must redo the inlining.
-	// luckily these are small.
-	ir.EditChildren(res, edit)
-
 	if base.Flag.LowerM > 2 {
 		fmt.Printf("%v: After inlining %+v\n\n", ir.Line(res), res)
 	}
+
+	*inlCalls = append(*inlCalls, res)
 
 	return res
 }
