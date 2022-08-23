@@ -75,7 +75,8 @@ const (
 // This test confirms the full functionality of the code lenses for updating
 // dependencies in a go.mod file. It checks for the code lens that suggests
 // an update and then executes the command associated with that code lens. A
-// regression test for golang/go#39446.
+// regression test for golang/go#39446. It also checks that these code lenses
+// only affect the diagnostics and contents of the containing go.mod file.
 func TestUpgradeCodelens(t *testing.T) {
 	const proxyWithLatest = `
 -- golang.org/x/hello@v1.3.3/go.mod --
@@ -97,16 +98,23 @@ var Goodbye error
 `
 
 	const shouldUpdateDep = `
--- go.mod --
-module mod.com
+-- go.work --
+go 1.18
+
+use (
+	./a
+	./b
+)
+-- a/go.mod --
+module mod.com/a
 
 go 1.14
 
 require golang.org/x/hello v1.2.3
--- go.sum --
+-- a/go.sum --
 golang.org/x/hello v1.2.3 h1:7Wesfkx/uBd+eFgPrq0irYj/1XfmbvLV8jZ/W7C2Dwg=
 golang.org/x/hello v1.2.3/go.mod h1:OgtlzsxVMUUdsdQCIDYgaauCTH47B8T8vofouNJfzgY=
--- main.go --
+-- a/main.go --
 package main
 
 import "golang.org/x/hello/hi"
@@ -114,13 +122,40 @@ import "golang.org/x/hello/hi"
 func main() {
 	_ = hi.Goodbye
 }
+-- b/go.mod --
+module mod.com/b
+
+go 1.14
+
+require golang.org/x/hello v1.2.3
+-- b/go.sum --
+golang.org/x/hello v1.2.3 h1:7Wesfkx/uBd+eFgPrq0irYj/1XfmbvLV8jZ/W7C2Dwg=
+golang.org/x/hello v1.2.3/go.mod h1:OgtlzsxVMUUdsdQCIDYgaauCTH47B8T8vofouNJfzgY=
+-- b/main.go --
+package main
+
+import (
+	"golang.org/x/hello/hi"
+)
+
+func main() {
+	_ = hi.Goodbye
+}
 `
 
-	const wantGoMod = `module mod.com
+	const wantGoModA = `module mod.com/a
 
 go 1.14
 
 require golang.org/x/hello v1.3.3
+`
+	// Applying the diagnostics or running the codelenses for a/go.mod
+	// should not change the contents of b/go.mod
+	const wantGoModB = `module mod.com/b
+
+go 1.14
+
+require golang.org/x/hello v1.2.3
 `
 
 	for _, commandTitle := range []string{
@@ -131,10 +166,11 @@ require golang.org/x/hello v1.3.3
 			WithOptions(
 				ProxyFiles(proxyWithLatest),
 			).Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
-				env.OpenFile("go.mod")
+				env.OpenFile("a/go.mod")
+				env.OpenFile("b/go.mod")
 				var lens protocol.CodeLens
 				var found bool
-				for _, l := range env.CodeLens("go.mod") {
+				for _, l := range env.CodeLens("a/go.mod") {
 					if l.Command.Title == commandTitle {
 						lens = l
 						found = true
@@ -150,8 +186,11 @@ require golang.org/x/hello v1.3.3
 					t.Fatal(err)
 				}
 				env.Await(env.DoneWithChangeWatchedFiles())
-				if got := env.Editor.BufferText("go.mod"); got != wantGoMod {
-					t.Fatalf("go.mod upgrade failed:\n%s", tests.Diff(t, wantGoMod, got))
+				if got := env.Editor.BufferText("a/go.mod"); got != wantGoModA {
+					t.Fatalf("a/go.mod upgrade failed:\n%s", tests.Diff(t, wantGoModA, got))
+				}
+				if got := env.Editor.BufferText("b/go.mod"); got != wantGoModB {
+					t.Fatalf("b/go.mod changed unexpectedly:\n%s", tests.Diff(t, wantGoModB, got))
 				}
 			})
 		})
@@ -160,22 +199,31 @@ require golang.org/x/hello v1.3.3
 		t.Run(fmt.Sprintf("Upgrade individual dependency vendoring=%v", vendoring), func(t *testing.T) {
 			WithOptions(ProxyFiles(proxyWithLatest)).Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
 				if vendoring {
-					env.RunGoCommand("mod", "vendor")
+					env.RunGoCommandInDir("a", "mod", "vendor")
 				}
 				env.Await(env.DoneWithChangeWatchedFiles())
-				env.OpenFile("go.mod")
-				env.ExecuteCodeLensCommand("go.mod", command.CheckUpgrades)
+				env.OpenFile("a/go.mod")
+				env.OpenFile("b/go.mod")
+				env.ExecuteCodeLensCommand("a/go.mod", command.CheckUpgrades)
 				d := &protocol.PublishDiagnosticsParams{}
 				env.Await(
 					OnceMet(
-						env.DiagnosticAtRegexpWithMessage("go.mod", `require`, "can be upgraded"),
-						ReadDiagnostics("go.mod", d),
+						env.DiagnosticAtRegexpWithMessage("a/go.mod", `require`, "can be upgraded"),
+						ReadDiagnostics("a/go.mod", d),
+						// We do not want there to be a diagnostic for b/go.mod,
+						// but there may be some subtlety in timing here, where this
+						// should always succeed, but may not actually test the correct
+						// behavior.
+						env.NoDiagnosticAtRegexp("b/go.mod", `require`),
 					),
 				)
-				env.ApplyQuickFixes("go.mod", d.Diagnostics)
+				env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
 				env.Await(env.DoneWithChangeWatchedFiles())
-				if got := env.Editor.BufferText("go.mod"); got != wantGoMod {
-					t.Fatalf("go.mod upgrade failed:\n%s", tests.Diff(t, wantGoMod, got))
+				if got := env.Editor.BufferText("a/go.mod"); got != wantGoModA {
+					t.Fatalf("a/go.mod upgrade failed:\n%s", tests.Diff(t, wantGoModA, got))
+				}
+				if got := env.Editor.BufferText("b/go.mod"); got != wantGoModB {
+					t.Fatalf("b/go.mod changed unexpectedly:\n%s", tests.Diff(t, wantGoModB, got))
 				}
 			})
 		})

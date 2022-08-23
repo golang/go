@@ -259,11 +259,13 @@ type View interface {
 	// by the GOPRIVATE environment variable.
 	IsGoPrivatePath(path string) bool
 
-	// ModuleUpgrades returns known module upgrades.
-	ModuleUpgrades() map[string]string
+	// ModuleUpgrades returns known module upgrades for the dependencies of
+	// modfile.
+	ModuleUpgrades(modfile span.URI) map[string]string
 
-	// RegisterModuleUpgrades registers that upgrades exist for the given modules.
-	RegisterModuleUpgrades(upgrades map[string]string)
+	// RegisterModuleUpgrades registers that upgrades exist for the given modules
+	// required by modfile.
+	RegisterModuleUpgrades(modfile span.URI, upgrades map[string]string)
 
 	// FileKind returns the type of a file
 	FileKind(FileHandle) FileKind

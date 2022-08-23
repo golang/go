@@ -180,7 +180,7 @@ func (c *commandHandler) CheckUpgrades(ctx context.Context, args command.CheckUp
 		if err != nil {
 			return err
 		}
-		deps.snapshot.View().RegisterModuleUpgrades(upgrades)
+		deps.snapshot.View().RegisterModuleUpgrades(args.URI.SpanURI(), upgrades)
 		// Re-diagnose the snapshot to publish the new module diagnostics.
 		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
 		return nil

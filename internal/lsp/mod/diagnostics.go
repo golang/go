@@ -55,7 +55,7 @@ func DiagnosticsForMod(ctx context.Context, snapshot source.Snapshot, fh source.
 	var diagnostics []*source.Diagnostic
 
 	// Add upgrade quick fixes for individual modules if we know about them.
-	upgrades := snapshot.View().ModuleUpgrades()
+	upgrades := snapshot.View().ModuleUpgrades(fh.URI())
 	for _, req := range pm.File.Require {
 		ver, ok := upgrades[req.Mod.Path]
 		if !ok || req.Mod.Version == ver {

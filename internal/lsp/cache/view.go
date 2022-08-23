@@ -56,8 +56,9 @@ type View struct {
 
 	importsState *importsState
 
-	// moduleUpgrades tracks known upgrades for module paths.
-	moduleUpgrades map[string]string
+	// moduleUpgrades tracks known upgrades for module paths in each modfile.
+	// Each modfile has a map of module name to upgrade version.
+	moduleUpgrades map[span.URI]map[string]string
 
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
@@ -1000,23 +1001,33 @@ func (v *View) IsGoPrivatePath(target string) bool {
 	return globsMatchPath(v.goprivate, target)
 }
 
-func (v *View) ModuleUpgrades() map[string]string {
+func (v *View) ModuleUpgrades(uri span.URI) map[string]string {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
 	upgrades := map[string]string{}
-	for mod, ver := range v.moduleUpgrades {
+	for mod, ver := range v.moduleUpgrades[uri] {
 		upgrades[mod] = ver
 	}
 	return upgrades
 }
 
-func (v *View) RegisterModuleUpgrades(upgrades map[string]string) {
+func (v *View) RegisterModuleUpgrades(uri span.URI, upgrades map[string]string) {
+	// Return early if there are no upgrades.
+	if len(upgrades) == 0 {
+		return
+	}
+
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
+	m := v.moduleUpgrades[uri]
+	if m == nil {
+		m = make(map[string]string)
+		v.moduleUpgrades[uri] = m
+	}
 	for mod, ver := range upgrades {
-		v.moduleUpgrades[mod] = ver
+		m[mod] = ver
 	}
 }
 
