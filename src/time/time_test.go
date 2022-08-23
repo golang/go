@@ -1494,6 +1494,14 @@ func BenchmarkGoString(b *testing.B) {
 	}
 }
 
+func BenchmarkUnmarshalText(b *testing.B) {
+	var t Time
+	in := []byte("2020-08-22T11:27:43.123456789-02:00")
+	for i := 0; i < b.N; i++ {
+		t.UnmarshalText(in)
+	}
+}
+
 func TestMarshalBinaryZeroTime(t *testing.T) {
 	t0 := Time{}
 	enc, err := t0.MarshalBinary()
