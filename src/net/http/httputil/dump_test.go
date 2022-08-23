@@ -236,6 +236,19 @@ var dumpTests = []dumpTest{
 			"Transfer-Encoding: chunked\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n",
 	},
+
+	// Issue 54616: request with Connection header doesn't result in duplicate header.
+	{
+		GetReq: func() *http.Request {
+			return mustReadRequest("GET / HTTP/1.1\r\n" +
+				"Host: example.com\r\n" +
+				"Connection: close\r\n\r\n")
+		},
+		NoBody: true,
+		WantDump: "GET / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"Connection: close\r\n\r\n",
+	},
 }
 
 func TestDumpRequest(t *testing.T) {
