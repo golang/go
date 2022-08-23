@@ -175,6 +175,11 @@ func ExtraEnvVars() []cfg.EnvVar {
 // but are costly to evaluate.
 func ExtraEnvVarsCostly() []cfg.EnvVar {
 	b := work.NewBuilder("")
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}()
 
 	cppflags, cflags, cxxflags, fflags, ldflags, err := b.CFlags(&load.Package{})
 	if err != nil {
@@ -272,6 +277,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 	if needCostly {
+		work.BuildInit()
 		env = append(env, ExtraEnvVarsCostly()...)
 	}
 

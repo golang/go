@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +24,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/robustio"
 	"cmd/go/internal/trace"
 	"cmd/internal/buildid"
 )
@@ -244,6 +244,8 @@ const (
 //
 // If workDir is the empty string, NewBuilder creates a WorkDir if needed
 // and arranges for it to be removed in case of an unclean exit.
+// The caller must Close the builder explicitly to clean up the WorkDir
+// before a clean exit.
 func NewBuilder(workDir string) *Builder {
 	b := new(Builder)
 
@@ -260,6 +262,9 @@ func NewBuilder(workDir string) *Builder {
 	} else if cfg.BuildN {
 		b.WorkDir = "$WORK"
 	} else {
+		if !buildInitStarted {
+			panic("internal error: NewBuilder called before BuildInit")
+		}
 		tmp, err := os.MkdirTemp(cfg.Getenv("GOTMPDIR"), "go-build")
 		if err != nil {
 			base.Fatalf("go: creating work dir: %v", err)
@@ -273,31 +278,9 @@ func NewBuilder(workDir string) *Builder {
 			tmp = abs
 		}
 		b.WorkDir = tmp
+		builderWorkDirs.Store(b, b.WorkDir)
 		if cfg.BuildX || cfg.BuildWork {
 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
-		}
-		if !cfg.BuildWork {
-			workdir := b.WorkDir
-			base.AtExit(func() {
-				start := time.Now()
-				for {
-					err := os.RemoveAll(workdir)
-					if err == nil {
-						return
-					}
-
-					// On some configurations of Windows, directories containing executable
-					// files may be locked for a while after the executable exits (perhaps
-					// due to antivirus scans?). It's probably worth a little extra latency
-					// on exit to avoid filling up the user's temporary directory with leaked
-					// files. (See golang.org/issue/30789.)
-					if runtime.GOOS != "windows" || time.Since(start) >= 500*time.Millisecond {
-						fmt.Fprintf(os.Stderr, "go: failed to remove work dir: %s\n", err)
-						return
-					}
-					time.Sleep(5 * time.Millisecond)
-				}
-			})
 		}
 	}
 
@@ -316,6 +299,44 @@ func NewBuilder(workDir string) *Builder {
 	}
 
 	return b
+}
+
+var builderWorkDirs sync.Map // *Builder → WorkDir
+
+func (b *Builder) Close() error {
+	wd, ok := builderWorkDirs.Load(b)
+	if !ok {
+		return nil
+	}
+	defer builderWorkDirs.Delete(b)
+
+	if b.WorkDir != wd.(string) {
+		base.Errorf("go: internal error: Builder WorkDir unexpectedly changed from %s to %s", wd, b.WorkDir)
+	}
+
+	if !cfg.BuildWork {
+		if err := robustio.RemoveAll(b.WorkDir); err != nil {
+			return err
+		}
+	}
+	b.WorkDir = ""
+	return nil
+}
+
+func closeBuilders() {
+	leakedBuilders := 0
+	builderWorkDirs.Range(func(bi, _ any) bool {
+		leakedBuilders++
+		if err := bi.(*Builder).Close(); err != nil {
+			base.Errorf("go: %v", err)
+		}
+		return true
+	})
+
+	if leakedBuilders > 0 && base.GetExitStatus() == 0 {
+		fmt.Fprintf(os.Stderr, "go: internal error: Builder leaked on successful exit\n")
+		base.SetExitStatus(1)
+	}
 }
 
 func CheckGOOSARCHPair(goos, goarch string) error {

@@ -745,6 +745,11 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	b := work.NewBuilder("")
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}()
 
 	if cfg.BuildI {
 		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
@@ -808,6 +813,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		//
 		// Maybe this has the effect of removing actions that were registered by the
 		// call to CompileAction above?
+		if err := b.Close(); err != nil {
+			base.Fatalf("go: %v", err)
+		}
 		b = work.NewBuilder("")
 	}
 

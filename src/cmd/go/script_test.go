@@ -577,6 +577,11 @@ func (ts *testScript) cmdCc(want simpleStatus, args []string) {
 	}
 
 	b := work.NewBuilder(ts.workdir)
+	defer func() {
+		if err := b.Close(); err != nil {
+			ts.fatalf("%v", err)
+		}
+	}()
 	ts.cmdExec(want, append(b.GccCmd(".", ""), args...))
 }
 

@@ -92,6 +92,11 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 
 	work.BuildInit()
 	b := work.NewBuilder("")
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}()
 	b.Print = printStderr
 
 	i := 0

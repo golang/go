@@ -95,6 +95,11 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	b := work.NewBuilder("")
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}()
 
 	root := &work.Action{Mode: "go vet"}
 	for _, p := range pkgs {
