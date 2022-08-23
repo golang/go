@@ -348,12 +348,21 @@ func (r *gitRepo) Latest() (*RevInfo, error) {
 	if refs["HEAD"] == "" {
 		return nil, ErrNoCommits
 	}
-	info, err := r.Stat(refs["HEAD"])
+	statInfo, err := r.Stat(refs["HEAD"])
 	if err != nil {
 		return nil, err
 	}
+
+	// Stat may return cached info, so make a copy to modify here.
+	info := new(RevInfo)
+	*info = *statInfo
+	info.Origin = new(Origin)
+	if statInfo.Origin != nil {
+		*info.Origin = *statInfo.Origin
+	}
 	info.Origin.Ref = "HEAD"
 	info.Origin.Hash = refs["HEAD"]
+
 	return info, nil
 }
 
@@ -560,7 +569,7 @@ func (r *gitRepo) fetchRefsLocked() error {
 	return nil
 }
 
-// statLocal returns a RevInfo describing rev in the local git repository.
+// statLocal returns a new RevInfo describing rev in the local git repository.
 // It uses version as info.Version.
 func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
 	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")

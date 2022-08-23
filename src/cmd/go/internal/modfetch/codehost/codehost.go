@@ -37,7 +37,9 @@ const (
 // A Repo represents a code hosting source.
 // Typical implementations include local version control repositories,
 // remote version control servers, and code hosting sites.
-// A Repo must be safe for simultaneous use by multiple goroutines.
+//
+// A Repo must be safe for simultaneous use by multiple goroutines,
+// and callers must not modify returned values, which may be cached and shared.
 type Repo interface {
 	// CheckReuse checks whether the old origin information
 	// remains up to date. If so, whatever cached object it was

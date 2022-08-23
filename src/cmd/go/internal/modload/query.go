@@ -220,6 +220,17 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		return revErr, err
 	}
 
+	mergeRevOrigin := func(rev *modfetch.RevInfo, origin *codehost.Origin) *modfetch.RevInfo {
+		merged := mergeOrigin(rev.Origin, origin)
+		if merged == rev.Origin {
+			return rev
+		}
+		clone := new(modfetch.RevInfo)
+		*clone = *rev
+		clone.Origin = merged
+		return clone
+	}
+
 	lookup := func(v string) (*modfetch.RevInfo, error) {
 		rev, err := repo.Stat(v)
 		// Stat can return a non-nil rev and a non-nil err,
@@ -227,7 +238,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		if rev == nil && err != nil {
 			return revErr, err
 		}
-		rev.Origin = mergeOrigin(rev.Origin, versions.Origin)
+		rev = mergeRevOrigin(rev, versions.Origin)
 		if err != nil {
 			return rev, err
 		}
@@ -256,12 +267,12 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
 					return revErr, err
 				}
-				info, err := repo.Stat(current)
-				if info == nil && err != nil {
+				rev, err = repo.Stat(current)
+				if rev == nil && err != nil {
 					return revErr, err
 				}
-				info.Origin = mergeOrigin(info.Origin, versions.Origin)
-				return info, err
+				rev = mergeRevOrigin(rev, versions.Origin)
+				return rev, err
 			}
 		}
 

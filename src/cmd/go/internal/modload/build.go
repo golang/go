@@ -182,23 +182,27 @@ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
 	if !m2.Checkable() {
 		return m2
 	}
+
+	merged := new(codehost.Origin)
+	*merged = *m1 // Clone to avoid overwriting fields in cached results.
+
 	if m2.TagSum != "" {
 		if m1.TagSum != "" && (m1.TagSum != m2.TagSum || m1.TagPrefix != m2.TagPrefix) {
-			m1.ClearCheckable()
-			return m1
+			merged.ClearCheckable()
+			return merged
 		}
-		m1.TagSum = m2.TagSum
-		m1.TagPrefix = m2.TagPrefix
+		merged.TagSum = m2.TagSum
+		merged.TagPrefix = m2.TagPrefix
 	}
 	if m2.Hash != "" {
 		if m1.Hash != "" && (m1.Hash != m2.Hash || m1.Ref != m2.Ref) {
-			m1.ClearCheckable()
-			return m1
+			merged.ClearCheckable()
+			return merged
 		}
-		m1.Hash = m2.Hash
-		m1.Ref = m2.Ref
+		merged.Hash = m2.Hash
+		merged.Ref = m2.Ref
 	}
-	return m1
+	return merged
 }
 
 // addVersions fills in m.Versions with the list of known versions.
