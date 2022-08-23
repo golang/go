@@ -32,12 +32,10 @@
 // If ha.noMorePtrs[i]>>j&1 is set, the entries in ha.bitmap[8*i+j+1] and
 // beyond must all be zero until the start of the next object.
 //
-// The bitmap for noscan spans is not maintained (can be junk). Code must
-// ensure that an object is scannable before consulting its bitmap by
-// checking either the noscan bit in the span or by consulting its
-// type's information.
+// The bitmap for noscan spans is set to all zero at span allocation time.
 //
-// The bitmap for unallocated objects is also not maintained.
+// The bitmap for unallocated objects in scannable spans is not maintained
+// (can be junk).
 
 package runtime
 
@@ -722,6 +720,16 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 // If this is a span of single pointer allocations, it initializes all
 // words to pointer.
 func (s *mspan) initHeapBits() {
+	if s.spanclass.noscan() {
+		// Set all the pointer bits to zero. We do this once
+		// when the span is allocated so we don't have to do it
+		// for each object allocation.
+		base := s.base()
+		size := s.npages * pageSize
+		h := writeHeapBitsForAddr(base)
+		h.flush(base, size)
+		return
+	}
 	isPtrs := goarch.PtrSize == 8 && s.elemsize == goarch.PtrSize
 	if !isPtrs {
 		return // nothing to do
@@ -873,7 +881,7 @@ func (h writeHeapBits) flush(addr, size uintptr) {
 	// Continue on writing zeros for the rest of the object.
 	// For standard use of the ptr bits this is not required, as
 	// the bits are read from the beginning of the object. Some uses,
-	// like oblets, bulk write barriers, and cgocheck, might
+	// like noscan spans, oblets, bulk write barriers, and cgocheck, might
 	// start mid-object, so these writes are still required.
 	for {
 		// Write zero bits.
@@ -942,7 +950,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// It's one word and it has pointers, it must be a pointer.
 		// Since all allocated one-word objects are pointers
 		// (non-pointers are aggregated into tinySize allocations),
-		// initSpan sets the pointer bits for us. Nothing to do here.
+		// (*mspan).initHeapBits sets the pointer bits for us.
+		// Nothing to do here.
 		if doubleCheck {
 			h, addr := heapBitsForAddr(x, size).next()
 			if addr != x {

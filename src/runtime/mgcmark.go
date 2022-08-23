@@ -1273,6 +1273,8 @@ func scanobject(b uintptr, gcw *gcWork) {
 		throw("scanobject n == 0")
 	}
 	if s.spanclass.noscan() {
+		// Correctness-wise this is ok, but it's inefficient
+		// if noscan objects reach here.
 		throw("scanobject of a noscan object")
 	}
 
