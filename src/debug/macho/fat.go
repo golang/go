@@ -80,7 +80,7 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 
 	// Combine the Cpu and SubCpu (both uint32) into a uint64 to make sure
 	// there are not duplicate architectures.
-	seenArches := make(map[uint64]bool, narch)
+	seenArches := make(map[uint64]bool)
 	// Make sure that all images are for the same MH_ type.
 	var machoType Type
 
