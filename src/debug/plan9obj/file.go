@@ -212,6 +212,9 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
 			p = p[4:]
 		}
 
+		if len(p) < 1 {
+			return &formatError{len(data), "unexpected EOF", nil}
+		}
 		typ := p[0] & 0x7F
 		s.typ = typ
 		p = p[1:]
