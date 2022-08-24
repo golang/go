@@ -1,7 +1,8 @@
 # Test that syso in deps is available to cgo.
 
-[!gc] skip
+[!gc] skip 'requires syso support'
 [!cgo] skip
+[short] skip 'invokes system C compiler'
 
 # External linking is not supported on linux/ppc64.
 # See: https://github.com/golang/go/issues/8912
