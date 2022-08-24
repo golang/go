@@ -252,14 +252,30 @@ func compilerSupportsLocation() bool {
 	}
 }
 
+// compilerRequiredTsanVersion reports whether the compiler is the version required by Tsan.
+// Only restrictions for ppc64le are known; otherwise return true.
+func compilerRequiredTsanVersion(goos, goarch string) bool {
+	compiler, err := compilerVersion()
+	if err != nil {
+		return false
+	}
+	if compiler.name == "gcc" && goarch == "ppc64le" {
+		return compiler.major >= 9
+	}
+	return true
+}
+
 // compilerRequiredAsanVersion reports whether the compiler is the version required by Asan.
-func compilerRequiredAsanVersion() bool {
+func compilerRequiredAsanVersion(goos, goarch string) bool {
 	compiler, err := compilerVersion()
 	if err != nil {
 		return false
 	}
 	switch compiler.name {
 	case "gcc":
+		if goarch == "ppc64le" {
+			return compiler.major >= 9
+		}
 		return compiler.major >= 7
 	case "clang":
 		return compiler.major >= 9
