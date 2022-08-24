@@ -174,8 +174,8 @@ func ExtraEnvVars() []cfg.EnvVar {
 // ExtraEnvVarsCostly returns environment variables that should not leak into child processes
 // but are costly to evaluate.
 func ExtraEnvVarsCostly() []cfg.EnvVar {
-	var b work.Builder
-	b.Init()
+	b := work.NewBuilder("")
+
 	cppflags, cflags, cxxflags, fflags, ldflags, err := b.CFlags(&load.Package{})
 	if err != nil {
 		// Should not happen - b.CFlags was given an empty package.
