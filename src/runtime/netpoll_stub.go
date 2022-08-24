@@ -9,7 +9,7 @@ package runtime
 import "runtime/internal/atomic"
 
 var netpollInited atomic.Uint32
-var netpollWaiters uint32
+var netpollWaiters atomic.Uint32
 
 var netpollStubLock mutex
 var netpollNote note

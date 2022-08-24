@@ -181,7 +181,7 @@ var (
 	netpollInited   atomic.Uint32
 
 	pollcache      pollCache
-	netpollWaiters uint32
+	netpollWaiters atomic.Uint32
 )
 
 //go:linkname poll_runtime_pollServerInit internal/poll.runtime_pollServerInit
@@ -483,13 +483,13 @@ func netpollblockcommit(gp *g, gpp unsafe.Pointer) bool {
 		// Bump the count of goroutines waiting for the poller.
 		// The scheduler uses this to decide whether to block
 		// waiting for the poller if there is nothing else to do.
-		atomic.Xadd(&netpollWaiters, 1)
+		netpollWaiters.Add(1)
 	}
 	return r
 }
 
 func netpollgoready(gp *g, traceskip int) {
-	atomic.Xadd(&netpollWaiters, -1)
+	netpollWaiters.Add(-1)
 	goready(gp, traceskip+1)
 }
 
