@@ -158,8 +158,8 @@ TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
  */
 
 // Called during function prolog when more stack is needed.
-// Caller has already loaded:
-// R1: framesize, R2: argsize, R3: LR
+// Called with return address (i.e. caller's PC) in X5 (aka T0),
+// and the LR register contains the caller's LR.
 //
 // The traceback routines see morestack on a g0 as being
 // the top of a stack (for example, morestack calling newstack
@@ -209,6 +209,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 
 // func morestack_noctxt()
 TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
+	// Force SPWRITE. This function doesn't actually write SP,
+	// but it is called with a special calling convention where
+	// the caller doesn't save LR on stack but passes it as a
+	// register, and the unwinder currently doesn't understand.
+	// Make it SPWRITE to stop unwinding. (See issue 54332)
+	MOV	X2, X2
+
 	MOV	ZERO, CTXT
 	JMP	runtime·morestack(SB)
 
