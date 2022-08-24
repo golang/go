@@ -912,7 +912,7 @@ type lfnode struct {
 type forcegcstate struct {
 	lock mutex
 	g    *g
-	idle uint32
+	idle atomic.Bool
 }
 
 // extendRandom extends the random numbers in r[:n] to the whole slice r.

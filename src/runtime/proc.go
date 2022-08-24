@@ -295,10 +295,10 @@ func forcegchelper() {
 	lockInit(&forcegc.lock, lockRankForcegc)
 	for {
 		lock(&forcegc.lock)
-		if forcegc.idle != 0 {
+		if forcegc.idle.Load() {
 			throw("forcegc: phase error")
 		}
-		atomic.Store(&forcegc.idle, 1)
+		forcegc.idle.Store(true)
 		goparkunlock(&forcegc.lock, waitReasonForceGCIdle, traceEvGoBlock, 1)
 		// this goroutine is explicitly resumed by sysmon
 		if debug.gctrace > 0 {
@@ -5312,9 +5312,9 @@ func sysmon() {
 			idle++
 		}
 		// check if we need to force a GC
-		if t := (gcTrigger{kind: gcTriggerTime, now: now}); t.test() && atomic.Load(&forcegc.idle) != 0 {
+		if t := (gcTrigger{kind: gcTriggerTime, now: now}); t.test() && forcegc.idle.Load() {
 			lock(&forcegc.lock)
-			forcegc.idle = 0
+			forcegc.idle.Store(false)
 			var list gList
 			list.push(forcegc.g)
 			injectglist(&list)
