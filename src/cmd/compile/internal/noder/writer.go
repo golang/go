@@ -1973,7 +1973,7 @@ func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *ty
 	sig := fun.Type().(*types2.Signature)
 
 	w.typ(recv)
-	w.signature(sig)
+	w.typ(sig)
 	w.pos(expr)
 	w.selector(fun)
 

@@ -13,9 +13,9 @@ func r(z int) int {
 		return x + z
 	}
 	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
-		return x + func(y int) int { // ERROR "can inline r.func2.1"
+		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.func3"
 			return 2*y + x*z
 		}(x) // ERROR "inlining call to r.func2.1"
 	}
-	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "can inline r.func3" "inlining call to r.func3"
+	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.func3"
 }
