@@ -1518,7 +1518,9 @@ func (c *Conn) OCSPResponse() []byte {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
 
-	return c.ocspResponse
+	response := make([]byte, len(c.ocspResponse))
+	copy(response, c.ocspResponse)
+	return response
 }
 
 // VerifyHostname checks that the peer certificate chain is valid for
