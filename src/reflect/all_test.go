@@ -8001,6 +8001,17 @@ func TestSetIter(t *testing.T) {
 	if got := *y.Interface().(*int); got != b {
 		t.Errorf("pointer incorrect: got %d want %d", got, b)
 	}
+
+	// Make sure we panic assigning from an unexported field.
+	m = ValueOf(struct{ m map[string]int }{data}).Field(0)
+	for iter := m.MapRange(); iter.Next(); {
+		shouldPanic("using value obtained using unexported field", func() {
+			k.SetIterKey(iter)
+		})
+		shouldPanic("using value obtained using unexported field", func() {
+			v.SetIterValue(iter)
+		})
+	}
 }
 
 func TestMethodCallValueCodePtr(t *testing.T) {
