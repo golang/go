@@ -899,7 +899,7 @@ func freezetheworld() {
 //
 //go:nosplit
 func readgstatus(gp *g) uint32 {
-	return atomic.Load(&gp.atomicstatus)
+	return gp.atomicstatus.Load()
 }
 
 // The Gscanstatuses are acting like locks and this releases them.
@@ -921,7 +921,7 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 		_Gscansyscall,
 		_Gscanpreempted:
 		if newval == oldval&^_Gscan {
-			success = atomic.Cas(&gp.atomicstatus, oldval, newval)
+			success = gp.atomicstatus.CompareAndSwap(oldval, newval)
 		}
 	}
 	if !success {
@@ -941,7 +941,7 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 		_Gwaiting,
 		_Gsyscall:
 		if newval == oldval|_Gscan {
-			r := atomic.Cas(&gp.atomicstatus, oldval, newval)
+			r := gp.atomicstatus.CompareAndSwap(oldval, newval)
 			if r {
 				acquireLockRank(lockRankGscan)
 			}
@@ -977,15 +977,15 @@ func casgstatus(gp *g, oldval, newval uint32) {
 
 	// loop if gp->atomicstatus is in a scan state giving
 	// GC time to finish and change the state to oldval.
-	for i := 0; !atomic.Cas(&gp.atomicstatus, oldval, newval); i++ {
-		if oldval == _Gwaiting && gp.atomicstatus == _Grunnable {
+	for i := 0; !gp.atomicstatus.CompareAndSwap(oldval, newval); i++ {
+		if oldval == _Gwaiting && gp.atomicstatus.Load() == _Grunnable {
 			throw("casgstatus: waiting for Gwaiting but is Grunnable")
 		}
 		if i == 0 {
 			nextYield = nanotime() + yieldDelay
 		}
 		if nanotime() < nextYield {
-			for x := 0; x < 10 && gp.atomicstatus != oldval; x++ {
+			for x := 0; x < 10 && gp.atomicstatus.Load() != oldval; x++ {
 				procyield(1)
 			}
 		} else {
@@ -1040,7 +1040,7 @@ func casgcopystack(gp *g) uint32 {
 		if oldstatus != _Gwaiting && oldstatus != _Grunnable {
 			throw("copystack: bad status, not Gwaiting or Grunnable")
 		}
-		if atomic.Cas(&gp.atomicstatus, oldstatus, _Gcopystack) {
+		if gp.atomicstatus.CompareAndSwap(oldstatus, _Gcopystack) {
 			return oldstatus
 		}
 	}
@@ -1055,7 +1055,7 @@ func casGToPreemptScan(gp *g, old, new uint32) {
 		throw("bad g transition")
 	}
 	acquireLockRank(lockRankGscan)
-	for !atomic.Cas(&gp.atomicstatus, _Grunning, _Gscan|_Gpreempted) {
+	for !gp.atomicstatus.CompareAndSwap(_Grunning, _Gscan|_Gpreempted) {
 	}
 }
 
@@ -1066,7 +1066,7 @@ func casGFromPreempted(gp *g, old, new uint32) bool {
 	if old != _Gpreempted || new != _Gwaiting {
 		throw("bad g transition")
 	}
-	return atomic.Cas(&gp.atomicstatus, _Gpreempted, _Gwaiting)
+	return gp.atomicstatus.CompareAndSwap(_Gpreempted, _Gwaiting)
 }
 
 // stopTheWorld stops all P's from executing goroutines, interrupting
