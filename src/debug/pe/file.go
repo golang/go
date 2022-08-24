@@ -603,8 +603,8 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
 // its size and number of data directories as seen in optional header.
 // It parses the given size of bytes and returns given number of data directories.
 func readDataDirectories(r io.ReadSeeker, sz uint16, n uint32) ([]DataDirectory, error) {
-	ddSz := binary.Size(DataDirectory{})
-	if uint32(sz) != n*uint32(ddSz) {
+	ddSz := uint64(binary.Size(DataDirectory{}))
+	if uint64(sz) != uint64(n)*ddSz {
 		return nil, fmt.Errorf("size of data directories(%d) is inconsistent with number of data directories(%d)", sz, n)
 	}
 
