@@ -849,6 +849,60 @@ func Sizeof2() {
 	_ = unsafe.Sizeof(f2()) // ERROR too many arguments
 }
 
+func Slice1() {
+	var x int
+	unsafe.Slice()        // ERROR not enough arguments
+	unsafe.Slice(1, 2, 3) // ERROR too many arguments
+	unsafe.Slice(1 /* ERROR is not a pointer */ , 2)
+	unsafe.Slice(nil /* ERROR nil is not a pointer */ , 0)
+	unsafe.Slice(&x, "foo" /* ERROR cannot convert .* to int */ )
+	unsafe.Slice(&x, 1.2 /* ERROR truncated to int */ )
+	unsafe.Slice(&x, - /* ERROR must not be negative */ 1)
+	unsafe /* ERROR not used */ .Slice(&x, 0)
+	var _ []byte = unsafe /* ERROR value of type \[\]int */ .Slice(&x, 0)
+
+	var _ []int = unsafe.Slice(&x, 0)
+	_ = unsafe.Slice(&x, 1.0)
+	_ = unsafe.Slice((*int)(nil), 0)
+}
+
+func SliceData1() {
+	var s []int
+	unsafe.SliceData(0 /* ERROR not a slice */)
+	unsafe /* ERROR not used */ .SliceData(s)
+
+	type S []int
+	_ = unsafe.SliceData(s)
+	_ = unsafe.SliceData(S{})
+}
+
+func String1() {
+	var b byte
+	unsafe.String()        // ERROR not enough arguments
+	unsafe.String(1, 2, 3) // ERROR too many arguments
+	unsafe.String(1 /* ERROR cannot use 1 */ , 2)
+	unsafe.String(&b, "foo" /* ERROR cannot convert .* to int */ )
+	unsafe.String(&b, 1.2 /* ERROR truncated to int */ )
+	unsafe.String(&b, - /* ERROR must not be negative */ 1)
+	unsafe /* ERROR not used */ .String(&b, 0)
+	var _ []byte = unsafe /* ERROR value of type string */ .String(&b, 0)
+
+	var _ string = unsafe.String(&b, 0)
+	_ = unsafe.String(&b, 1.0)
+	_ = unsafe.String(nil, 0) // here we allow nil as ptr argument (in contrast to unsafe.Slice)
+}
+
+func StringData1() {
+	var s string
+	type S string
+	unsafe.StringData(0 /* ERROR cannot use 0 */)
+	unsafe.StringData(S /* ERROR cannot use S */ ("foo"))
+	unsafe /* ERROR not used */ .StringData(s)
+
+	_ = unsafe.StringData(s)
+	_ = unsafe.StringData("foo")
+}
+
 // self-testing only
 func assert1() {
 	var x int

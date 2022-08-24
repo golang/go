@@ -1261,6 +1261,8 @@ const (
 
 	// _InvalidUnsafeAdd occurs when unsafe.Add is called with a
 	// length argument that is not of integer type.
+	// It also occurs if it is used in a package compiled for a
+	// language version before go1.17.
 	//
 	// Example:
 	//  import "unsafe"
@@ -1272,6 +1274,8 @@ const (
 	// _InvalidUnsafeSlice occurs when unsafe.Slice is called with a
 	// pointer argument that is not of pointer type or a length argument
 	// that is not of integer type, negative, or out of bounds.
+	// It also occurs if it is used in a package compiled for a language
+	// version before go1.17.
 	//
 	// Example:
 	//  import "unsafe"
@@ -1390,8 +1394,9 @@ const (
 	//  type T[P any] struct{ *P }
 	_MisplacedTypeParam
 
-	// _InvalidUnsafeSliceData occurs when unsafe.SliceData called with type
-	// is not slice
+	// _InvalidUnsafeSliceData occurs when unsafe.SliceData is called with
+	// an argument that is not of slice type. It also occurs if it is used
+	// in a package compiled for a language version before go1.20.
 	//
 	// Example:
 	//  import "unsafe"
@@ -1400,9 +1405,10 @@ const (
 	//  var _ = unsafe.SliceData(x)
 	_InvalidUnsafeSliceData
 
-	// _InvalidUnsafeString occurs when unsafe.String is called with a
-	// pointer argument that is not of pointer type or a length argument
-	// that is not of integer type, negative, or out of bounds.
+	// _InvalidUnsafeString occurs when unsafe.String is called with
+	// a length argument that is not of integer type, negative, or
+	// out of bounds. It also occurs if it is used in a package
+	// compiled for a language version before go1.20.
 	//
 	// Example:
 	//  import "unsafe"
@@ -1411,17 +1417,7 @@ const (
 	//  var _ = unsafe.String(&b[0], -1)
 	_InvalidUnsafeString
 
-	// _InvalidUnsafeStringData
-	//
-	// Example:
-	//  import "unsafe"
-	//
-	//  var x int
-	//  var _ = unsafe.StringData(x)
-	//
-	// Example:
-	// import "unsafe"
-	//
-	// var _ = unsafe.StringData("abc")
+	// _InvalidUnsafeStringData occurs if it is used in a package
+	// compiled for a language version before go1.20.
 	_InvalidUnsafeStringData
 )

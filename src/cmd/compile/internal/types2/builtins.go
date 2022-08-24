@@ -757,7 +757,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		x.mode = value
-		x.typ = NewPointer(slice.Elem())
+		x.typ = NewPointer(slice.elem)
 		if check.Types != nil {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, slice))
 		}
@@ -793,16 +793,15 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		str, _ := x.typ.(*Basic)
-		if str == nil || str.Kind() != String {
-			check.errorf(x, invalidArg+"%s is not a string", x)
+		check.assignment(x, Typ[String], "argument to unsafe.StringData")
+		if x.mode == invalid {
 			return
 		}
 
 		x.mode = value
 		x.typ = NewPointer(universeByte)
 		if check.Types != nil {
-			check.recordBuiltinType(call.Fun, makeSig(x.typ, str))
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, Typ[String]))
 		}
 
 	case _Assert:

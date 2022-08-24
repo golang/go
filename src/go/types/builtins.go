@@ -753,19 +753,20 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 	case _SliceData:
-		// unsafe.SliceData(str string) *byte
+		// unsafe.SliceData(slice []T) *T
 		if !check.allowVersion(check.pkg, 1, 20) {
 			check.errorf(call.Fun, _InvalidUnsafeSliceData, "unsafe.SliceData requires go1.20 or later")
 			return
 		}
 
-		slice, ok := under(x.typ).(*Slice)
-		if !ok {
+		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
+		if slice == nil {
 			check.invalidArg(x, _InvalidUnsafeSliceData, "%s is not a slice", x)
 			return
 		}
+
 		x.mode = value
-		x.typ = NewPointer(slice.Elem())
+		x.typ = NewPointer(slice.elem)
 		if check.Types != nil {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, slice))
 		}
@@ -779,7 +780,6 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		check.assignment(x, NewPointer(universeByte), "argument to unsafe.String")
 		if x.mode == invalid {
-			check.invalidArg(x, _InvalidUnsafeString, "%s is not a *byte", x)
 			return
 		}
 
@@ -802,16 +802,15 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		str, _ := x.typ.(*Basic)
-		if str == nil || str.kind != String {
-			check.invalidArg(x, _InvalidUnsafeStringData, "%s is not a string", x)
+		check.assignment(x, Typ[String], "argument to unsafe.StringData")
+		if x.mode == invalid {
 			return
 		}
 
 		x.mode = value
 		x.typ = NewPointer(universeByte)
 		if check.Types != nil {
-			check.recordBuiltinType(call.Fun, makeSig(x.typ, str))
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, Typ[String]))
 		}
 
 	case _Assert:
