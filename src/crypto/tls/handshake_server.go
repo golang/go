@@ -239,7 +239,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 
 	hs.ecdheOk = supportsECDHE(c.config, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
 
-	if hs.ecdheOk {
+	if hs.ecdheOk && len(hs.clientHello.supportedPoints) > 0 {
 		// Although omitting the ec_point_formats extension is permitted, some
 		// old OpenSSL version will refuse to handshake if not present.
 		//
@@ -319,6 +319,13 @@ func supportsECDHE(c *Config, supportedCurves []CurveID, supportedPoints []uint8
 			supportsPointFormat = true
 			break
 		}
+	}
+	// Per RFC 8422, Section 5.1.2, if the Supported Point Formats extension is
+	// missing, uncompressed points are supported. If supportedPoints is empty,
+	// the extension must be missing, as an empty extension body is rejected by
+	// the parser. See https://go.dev/issue/49126.
+	if len(supportedPoints) == 0 {
+		supportsPointFormat = true
 	}
 
 	return supportsCurve && supportsPointFormat
