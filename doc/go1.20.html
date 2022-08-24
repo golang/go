@@ -39,8 +39,18 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- https://go.dev/issue/38687, CL 421440 -->
+  TODO: <a href="https://go.dev/cl/421440">https://go.dev/cl/421440</a>: cmd/go: add go generate -skip flag
+</p>
+
+<p><!-- https://go.dev/issue/45454 -->
+  TODO: <a href="https://go.dev/issue/45454">https://go.dev/issue/45454</a>: provide build tags for architecture environment variables
+</p>
+
+<h3 id="vet">Vet</h3>
+
+<p><!-- https://go.dev/issue/48801, CL 354010 -->
+  TODO: <a href="https://go.dev/issue/48801">https://go.dev/issue/48801</a>: check for time formats with 2006-02-01
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -51,8 +61,8 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="compiler">Compiler</h2>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- https://go.dev/issue/49390 -->
+  TODO: <a href="https://go.dev/issue/49390">https://go.dev/issue/49390</a>: clarify whether "-l" and "-N" compiler flags are actually supported
 </p>
 
 <h2 id="linker">Linker</h2>
@@ -61,7 +71,19 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section, or delete if not needed
 </p>
 
+<h2 id="bootstrap">Bootstrap</h2>
+
+<p><!-- https://go.dev/issue/44505 -->
+  TODO: <a href="https://go.dev/issue/44505">https://go.dev/issue/44505</a>: adopt Go 1.17 as bootstrap toolchain for Go 1.20
+</p>
+
 <h2 id="library">Core library</h2>
+
+<h3 id="crypto/ecdh">New <code>crypto/ecdh</code> package</h3>
+
+<p><!-- https://go.dev/issue/52221, CL 398914 -->
+  TODO: complete this section
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -75,3 +97,199 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: complete this section
 </p>
+
+<dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
+  <dd>
+    <p><!-- CL 407176 -->
+      TODO: <a href="https://go.dev/cl/407176">https://go.dev/cl/407176</a>: strings, bytes: add CutPrefix and CutSuffix
+    </p>
+
+    <p><!-- CL 359675 -->
+      TODO: <a href="https://go.dev/cl/359675">https://go.dev/cl/359675</a>: bytes: add Clone function
+    </p>
+  </dd>
+</dl><!-- bytes -->
+
+<dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/34648 -->
+      TODO: <a href="https://go.dev/issue/34648">https://go.dev/issue/34648</a>: automatically upgrade CurveParams for known curves and deprecate custom ones
+    </p>
+  </dd>
+</dl><!-- crypto/elliptic -->
+
+<dl id="crypto/subtle"><dt><a href="/pkg/crypto/subtle/">crypto/subtle</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/53021 -->
+      TODO: <a href="https://go.dev/issue/53021">https://go.dev/issue/53021</a>: add XORBytes
+    </p>
+
+    <p><!-- CL 421435 -->
+      TODO: <a href="https://go.dev/cl/421435">https://go.dev/cl/421435</a>: crypto/subtle: add XORBytes; modified api/next/53021.txt
+    </p>
+  </dd>
+</dl><!-- crypto/subtle -->
+
+<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+  <dd>
+    <p><!-- CL 420982 -->
+      TODO: <a href="https://go.dev/cl/420982">https://go.dev/cl/420982</a>: debug/elf: add new-style LoongArch reloc types; modified api/next/54222.txt
+    </p>
+  </dd>
+</dl><!-- debug/elf -->
+
+<dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+  <dd>
+    <p><!-- CL 421357 -->
+      TODO: <a href="https://go.dev/cl/421357">https://go.dev/cl/421357</a>: debug/pe: add IMAGE_FILE_MACHINE_RISCV{32,64,128}; modified api/next/54251.txt
+    </p>
+  </dd>
+</dl><!-- debug/pe -->
+
+<dl id="encoding/binary"><dt><a href="/pkg/encoding/binary/">encoding/binary</a></dt>
+  <dd>
+    <p><!-- CL 420274 -->
+      TODO: <a href="https://go.dev/cl/420274">https://go.dev/cl/420274</a>: encoding/binary: ReadUvarint return io.ErrUnexpectedEOF when read at least 1 byte
+    </p>
+  </dd>
+</dl><!-- encoding/binary -->
+
+<dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/53346 -->
+      TODO: <a href="https://go.dev/issue/53346">https://go.dev/issue/53346</a>: Add (*Encoder).Close() to check for unclosed elements
+    </p>
+
+    <p><!-- CL 424777 -->
+      TODO: <a href="https://go.dev/cl/424777">https://go.dev/cl/424777</a>: encoding/xml: add (*Encoder).Close
+    </p>
+  </dd>
+</dl><!-- encoding/xml -->
+
+<dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/51668 -->
+      TODO: <a href="https://go.dev/issue/51668">https://go.dev/issue/51668</a>: add FormatString(State) string
+    </p>
+
+    <p><!-- CL 400875 -->
+      TODO: <a href="https://go.dev/cl/400875">https://go.dev/cl/400875</a>: fmt: add a function to recover the original format string given a State; modified api/next/51668.txt
+    </p>
+  </dd>
+</dl><!-- fmt -->
+
+<dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
+  <dd>
+    <p><!-- CL 421434 -->
+      TODO: <a href="https://go.dev/cl/421434">https://go.dev/cl/421434</a>: go/build: add GO$GOARCH-based ToolTags
+    </p>
+  </dd>
+</dl><!-- go/build -->
+
+<dl id="go/token"><dt><a href="/pkg/go/token/">go/token</a></dt>
+  <dd>
+    <p><!-- CL 410114 -->
+      TODO: <a href="https://go.dev/cl/410114">https://go.dev/cl/410114</a>: go/token: add (*FileSet).RemoveFile(*File) method
+    </p>
+  </dd>
+</dl><!-- go/token -->
+
+<dl id="io"><dt><a href="/pkg/io/">io</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/45899 -->
+      TODO: <a href="https://go.dev/issue/45899">https://go.dev/issue/45899</a>: add OffsetWriter, NewOffsetWriter
+    </p>
+
+    <p><!-- CL 406776 -->
+      TODO: <a href="https://go.dev/cl/406776">https://go.dev/cl/406776</a>: io: add OffsetWriter, NewOffsetWriter; modified api/next/45899.txt
+    </p>
+  </dd>
+</dl><!-- io -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/41773 -->
+      TODO: <a href="https://go.dev/issue/41773">https://go.dev/issue/41773</a>: add Server.OptionsHandler to allow custom handling of OPTIONS *
+    </p>
+
+    <p><!-- CL 356410 -->
+      TODO: <a href="https://go.dev/cl/356410">https://go.dev/cl/356410</a>: net/http: add Server.DisableOptionsHandler for custom handling of OPTIONS *; modified api/next/41773.txt
+    </p>
+  </dd>
+</dl><!-- net/http -->
+
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/50465 -->
+      TODO: <a href="https://go.dev/issue/50465">https://go.dev/issue/50465</a>: add X-Forwarded-Proto and X-Forwarded-Host by default
+    </p>
+
+    <p><!-- https://go.dev/issue/53002 -->
+      TODO: <a href="https://go.dev/issue/53002">https://go.dev/issue/53002</a>: replace Director with Rewrite
+    </p>
+
+    <p><!-- CL 407214 -->
+      TODO: <a href="https://go.dev/cl/407214">https://go.dev/cl/407214</a>: net/http/httputil: add ReverseProxy.Rewrite; modified api/next/53002.txt
+    </p>
+
+    <p><!-- CL 407414 -->
+      TODO: <a href="https://go.dev/cl/407414">https://go.dev/cl/407414</a>: net/http/httputil: add X-Forwarded-{Host,Proto} headers in ReverseProxy
+    </p>
+  </dd>
+</dl><!-- net/http/httputil -->
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 345488 -->
+      TODO: <a href="https://go.dev/cl/345488">https://go.dev/cl/345488</a>: strconv: optimize Parse for []byte arguments
+    </p>
+  </dd>
+</dl><!-- strconv -->
+
+<dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/42537 -->
+      TODO: <a href="https://go.dev/issue/42537">https://go.dev/issue/42537</a>: add CutPrefix and CutSuffix
+    </p>
+
+    <p><!-- https://go.dev/issue/45038 -->
+      TODO: <a href="https://go.dev/issue/45038">https://go.dev/issue/45038</a>: bytes, strings: add Clone
+    </p>
+  </dd>
+</dl><!-- strings -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 407574 -->
+      TODO: <a href="https://go.dev/cl/407574">https://go.dev/cl/407574</a>: syscall: add new CLONE_ flags for Linux
+    </p>
+  </dd>
+</dl><!-- syscall -->
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/52746 -->
+      TODO: <a href="https://go.dev/issue/52746">https://go.dev/issue/52746</a>: add DateTime, DateOnly, TimeOnly format constants
+    </p>
+
+    <p><!-- CL 412495 -->
+      TODO: <a href="https://go.dev/cl/412495">https://go.dev/cl/412495</a>: time: add DateTime, DateOnly, and TimeOnly
+    </p>
+  </dd>
+</dl><!-- time -->
+
+<dl id="unicode/utf16"><dt><a href="/pkg/unicode/utf16/">unicode/utf16</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/51896 -->
+      TODO: <a href="https://go.dev/issue/51896">https://go.dev/issue/51896</a>: add AppendRune
+    </p>
+
+    <p><!-- CL 409054 -->
+      TODO: <a href="https://go.dev/cl/409054">https://go.dev/cl/409054</a>: unicode/utf16: add AppendRune; modified api/next/51896.txt
+    </p>
+  </dd>
+</dl><!-- unicode/utf16 -->
+
+<!-- Silence false positives from x/build/cmd/relnote: -->
+<!-- https://go.dev/issue/45964 was documented in Go 1.18 release notes but closed recently -->
+<!-- https://go.dev/issue/52114 is an accepted proposal to add golang.org/x/net/http2.Transport.DialTLSContext; it's not a part of the Go release -->
