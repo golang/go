@@ -105,18 +105,49 @@ func EqStructCost(t *types.Type) int64 {
 	return cost
 }
 
+// eqStructFieldCost returns the cost of an equality comparison of two struct fields.
+// t is the parent struct type, and i is the index of the first field in the run.
+// next is the index just after the end of the run.
+// The cost is determined using an algorithm which takes into consideration
+// the size of the registers in the current architecture and the size of the
+// memory-only fields in the struct.
+// The return values are the cost of the comparison, the size of the memory run, and the index
+// just after the end of the memory run.
 func eqStructFieldCost(t *types.Type, i int) (int64, int64, int) {
 	var (
 		cost    = int64(0)
 		regSize = int64(types.RegSize)
+
+		size int64
+		next int
 	)
 
-	size, next := Memrun(t, i)
+	if base.Ctxt.Arch.CanMergeLoads {
+		// If we can merge adjacent loads then we can calculate the cost of the
+		// comparison using the size of the memory run and the size of the registers.
+		size, next = Memrun(t, i)
+		cost = size / regSize
+		if size%regSize != 0 {
+			cost++
+		}
+	} else {
+		// If we cannot merge adjacent loads then we have to use the size of the
+		// field and take into account the type to determine how many loads and compares
+		// are needed.
+		ft := t.Field(i).Type
+		size = ft.Size()
+		next = i + 1
 
-	if base.Ctxt.Arch.CanMergeLoads && size%regSize == 0 {
-		cost += size / regSize
-	} else if next == i+1 {
-		cost++
+		switch ft.Kind() {
+		case types.TSTRUCT:
+			return EqStructCost(ft), size, next
+		case types.TARRAY, types.TSLICE:
+			cost = ft.NumElem()
+		case types.TSTRING:
+			cost = 2
+		default:
+			cost = 1
+		}
 	}
 
 	return cost, size, next
@@ -179,7 +210,7 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 				and(eqfield(np, nq, ir.OEQ, f.Sym))
 			}
 		} else {
-			// More than two fields: use memequal.
+			// Higher cost: use memequal.
 			cc := eqmem(np, nq, f.Sym, size)
 			and(cc)
 		}

@@ -28,9 +28,14 @@ func init() {
 	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
 }
 
-func TestEqStructCost(t *testing.T) {
+func TestEqStructCostWithMergedLoads(t *testing.T) {
 	newByteField := func(parent *types.Type, offset int64) *types.Field {
 		f := types.NewField(src.XPos{}, parent.Sym(), types.ByteType)
+		f.Offset = offset
+		return f
+	}
+	newByteArrayField := func(parent *types.Type, offset int64, len int64) *types.Field {
+		f := types.NewField(src.XPos{}, parent.Sym(), types.NewArray(types.Types[types.TUINT16], len))
 		f.Offset = offset
 		return f
 	}
@@ -40,15 +45,16 @@ func TestEqStructCost(t *testing.T) {
 		return f
 	}
 	tt := []struct {
-		name string
-		cost int64
-		tfn  typefn
+		name             string
+		cost             int64
+		nonMergeLoadCost int64
+		tfn              typefn
 	}{
-		{"struct without fields", 0,
+		{"struct without fields", 0, 0,
 			func() *types.Type {
 				return types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 			}},
-		{"struct with 1 byte field", 1,
+		{"struct with 1 byte field", 1, 1,
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := []*types.Field{
@@ -58,7 +64,7 @@ func TestEqStructCost(t *testing.T) {
 				return parent
 			},
 		},
-		{"struct with 8 byte fields", 1,
+		{"struct with 8 byte fields", 1, 8,
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := make([]*types.Field, 8)
@@ -69,7 +75,7 @@ func TestEqStructCost(t *testing.T) {
 				return parent
 			},
 		},
-		{"struct with 16 byte fields", 2,
+		{"struct with 16 byte fields", 2, 16,
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := make([]*types.Field, 16)
@@ -80,7 +86,7 @@ func TestEqStructCost(t *testing.T) {
 				return parent
 			},
 		},
-		{"struct with 32 byte fields", 4,
+		{"struct with 32 byte fields", 4, 32,
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := make([]*types.Field, 32)
@@ -91,7 +97,7 @@ func TestEqStructCost(t *testing.T) {
 				return parent
 			},
 		},
-		{"struct with 2 int32 fields", 1,
+		{"struct with 2 int32 fields", 1, 2,
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := make([]*types.Field, 2)
@@ -102,7 +108,7 @@ func TestEqStructCost(t *testing.T) {
 				return parent
 			},
 		},
-		{"struct with 2 int32 fields and 1 int64", 2,
+		{"struct with 2 int32 fields and 1 int64", 2, 3,
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := make([]*types.Field, 3)
@@ -113,7 +119,7 @@ func TestEqStructCost(t *testing.T) {
 				return parent
 			},
 		},
-		{"struct with 1 int field and 1 string", 3,
+		{"struct with 1 int field and 1 string", 3, 3,
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := make([]*types.Field, 2)
@@ -123,7 +129,7 @@ func TestEqStructCost(t *testing.T) {
 				return parent
 			},
 		},
-		{"struct with 2 strings", 4,
+		{"struct with 2 strings", 4, 4,
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := make([]*types.Field, 2)
@@ -133,14 +139,32 @@ func TestEqStructCost(t *testing.T) {
 				return parent
 			},
 		},
+		{"struct with 1 large byte array field", 26, 101,
+			func() *types.Type {
+				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				fields := []*types.Field{
+					newByteArrayField(parent, 0, 101),
+				}
+				parent.SetFields(fields)
+				return parent
+			},
+		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			want := tc.cost
+			base.Ctxt.Arch.CanMergeLoads = true
 			actual := EqStructCost(tc.tfn())
 			if actual != want {
-				t.Errorf("EqStructCost(%v) = %d, want %d", tc.tfn, actual, want)
+				t.Errorf("CanMergeLoads=true EqStructCost(%v) = %d, want %d", tc.tfn, actual, want)
+			}
+
+			base.Ctxt.Arch.CanMergeLoads = false
+			want = tc.nonMergeLoadCost
+			actual = EqStructCost(tc.tfn())
+			if actual != want {
+				t.Errorf("CanMergeLoads=false EqStructCost(%v) = %d, want %d", tc.tfn, actual, want)
 			}
 		})
 	}
