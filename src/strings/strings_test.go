@@ -1556,13 +1556,36 @@ func TestEqualFold(t *testing.T) {
 }
 
 func BenchmarkEqualFold(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for _, tt := range EqualFoldTests {
-			if out := EqualFold(tt.s, tt.t); out != tt.out {
-				b.Fatal("wrong result")
+	b.Run("Tests", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, tt := range EqualFoldTests {
+				if out := EqualFold(tt.s, tt.t); out != tt.out {
+					b.Fatal("wrong result")
+				}
 			}
 		}
-	}
+	})
+
+	const s1 = "abcdefghijKz"
+	const s2 = "abcDefGhijKz"
+
+	b.Run("ASCII", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			EqualFold(s1, s2)
+		}
+	})
+
+	b.Run("UnicodePrefix", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			EqualFold("αβδ"+s1, "ΑΒΔ"+s2)
+		}
+	})
+
+	b.Run("UnicodeSuffix", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			EqualFold(s1+"αβδ", s2+"ΑΒΔ")
+		}
+	})
 }
 
 var CountTests = []struct {

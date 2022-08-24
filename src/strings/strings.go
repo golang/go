@@ -1067,15 +1067,44 @@ func ReplaceAll(s, old, new string) string {
 // are equal under simple Unicode case-folding, which is a more general
 // form of case-insensitivity.
 func EqualFold(s, t string) bool {
-	for s != "" && t != "" {
-		// Extract first rune from each string.
-		var sr, tr rune
-		if s[0] < utf8.RuneSelf {
-			sr, s = rune(s[0]), s[1:]
-		} else {
-			r, size := utf8.DecodeRuneInString(s)
-			sr, s = r, s[size:]
+	// ASCII fast path
+	i := 0
+	for ; i < len(s) && i < len(t); i++ {
+		sr := s[i]
+		tr := t[i]
+		if sr|tr >= utf8.RuneSelf {
+			goto hasUnicode
 		}
+
+		// Easy case.
+		if tr == sr {
+			continue
+		}
+
+		// Make sr < tr to simplify what follows.
+		if tr < sr {
+			tr, sr = sr, tr
+		}
+		// ASCII only, sr/tr must be upper/lower case
+		if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
+			continue
+		}
+		return false
+	}
+	// Check if we've exhausted both strings.
+	return len(s) == len(t)
+
+hasUnicode:
+	s = s[i:]
+	t = t[i:]
+	for _, sr := range s {
+		// If t is exhausted the strings are not equal.
+		if len(t) == 0 {
+			return false
+		}
+
+		// Extract first rune from second string.
+		var tr rune
 		if t[0] < utf8.RuneSelf {
 			tr, t = rune(t[0]), t[1:]
 		} else {
@@ -1115,8 +1144,8 @@ func EqualFold(s, t string) bool {
 		return false
 	}
 
-	// One string is empty. Are both?
-	return s == t
+	// First string is empty, so check if the second one is also empty.
+	return len(t) == 0
 }
 
 // Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.

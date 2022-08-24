@@ -1134,6 +1134,36 @@ func ReplaceAll(s, old, new []byte) []byte {
 // are equal under simple Unicode case-folding, which is a more general
 // form of case-insensitivity.
 func EqualFold(s, t []byte) bool {
+	// ASCII fast path
+	i := 0
+	for ; i < len(s) && i < len(t); i++ {
+		sr := s[i]
+		tr := t[i]
+		if sr|tr >= utf8.RuneSelf {
+			goto hasUnicode
+		}
+
+		// Easy case.
+		if tr == sr {
+			continue
+		}
+
+		// Make sr < tr to simplify what follows.
+		if tr < sr {
+			tr, sr = sr, tr
+		}
+		// ASCII only, sr/tr must be upper/lower case
+		if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
+			continue
+		}
+		return false
+	}
+	// Check if we've exhausted both strings.
+	return len(s) == len(t)
+
+hasUnicode:
+	s = s[i:]
+	t = t[i:]
 	for len(s) != 0 && len(t) != 0 {
 		// Extract first rune from each.
 		var sr, tr rune
