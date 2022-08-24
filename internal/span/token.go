@@ -29,8 +29,11 @@ func NewRange(file *token.File, start, end token.Pos) Range {
 	if file == nil {
 		panic("nil *token.File")
 	}
-	if !start.IsValid() || !end.IsValid() {
-		panic("invalid start/end token.Pos")
+	if !start.IsValid() {
+		panic("invalid start token.Pos")
+	}
+	if !end.IsValid() {
+		panic("invalid end token.Pos")
 	}
 
 	// TODO(adonovan): ideally we would make this stronger assertion:
@@ -76,6 +79,9 @@ func (r Range) Span() (Span, error) {
 // line directives they may reference positions in another file. If srcFile is
 // provided, it is used to map the line:column positions referenced by start
 // and end to offsets in the corresponding file.
+//
+// TODO(adonovan): clarify whether it is valid to pass posFile==srcFile when
+// //line directives are in use. If so, fix this function; if not, fix Range.Span.
 func FileSpan(posFile, srcFile *token.File, start, end token.Pos) (Span, error) {
 	if !start.IsValid() {
 		return Span{}, fmt.Errorf("start pos is not valid")
@@ -111,7 +117,16 @@ func FileSpan(posFile, srcFile *token.File, start, end token.Pos) (Span, error) 
 		tf = srcFile
 	}
 	if startFilename != tf.Name() {
-		return Span{}, bug.Errorf("must supply Converter for file %q", startFilename)
+		// 'start' identifies a position specified by a //line directive
+		// in a file other than the one containing the directive.
+		// (Debugging support for https://github.com/golang/go/issues/54655.)
+		//
+		// This used to be a bug.Errorf, but that was unsound because
+		// Range.Span passes this function the same TokFile argument twice,
+		// which is never going to pass this test for a file containing
+		// a //line directive.
+		// TODO(adonovan): decide where the bug.Errorf really belongs.
+		return Span{}, fmt.Errorf("must supply Converter for file %q (tf.Name() = %q)", startFilename, tf.Name())
 	}
 	return s.WithOffset(tf)
 }
@@ -202,5 +217,11 @@ func ToOffset(tf *token.File, line, col int) (int, error) {
 	// we assume that column is in bytes here, and that the first byte of a
 	// line is at column 1
 	pos += token.Pos(col - 1)
+
+	// Debugging support for https://github.com/golang/go/issues/54655.
+	if pos > token.Pos(tf.Base()+tf.Size()) {
+		return 0, fmt.Errorf("ToOffset: column %d is beyond end of file", col)
+	}
+
 	return offset(tf, pos)
 }

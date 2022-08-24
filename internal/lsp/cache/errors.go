@@ -298,7 +298,11 @@ func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnos
 			if tokFile == nil {
 				return nil, bug.Errorf("no file for edit position")
 			}
-			spn, err := span.NewRange(tokFile, e.Pos, e.End).Span()
+			end := e.End
+			if !end.IsValid() {
+				end = e.Pos
+			}
+			spn, err := span.NewRange(tokFile, e.Pos, end).Span()
 			if err != nil {
 				return nil, err
 			}
@@ -353,7 +357,20 @@ func typeErrorData(fset *token.FileSet, pkg *pkg, terr types.Error) (typesintern
 		start, end = terr.Pos, terr.Pos
 		ecode = 0
 	}
+	// go/types may return invalid positions in some cases, such as
+	// in errors on tokens missing from the syntax tree.
+	if !start.IsValid() {
+		return 0, span.Span{}, fmt.Errorf("type error (%q, code %d, go116=%t) without position", terr.Msg, ecode, ok)
+	}
+	// go/types errors retain their FileSet.
+	// Sanity-check that we're using the right one.
+	if fset != terr.Fset {
+		return 0, span.Span{}, bug.Errorf("wrong FileSet for type error")
+	}
 	posn := fset.Position(start)
+	if !posn.IsValid() {
+		return 0, span.Span{}, fmt.Errorf("position %d of type error %q (code %q) not found in FileSet", start, start, terr)
+	}
 	pgf, err := pkg.File(span.URIFromPath(posn.Filename))
 	if err != nil {
 		return 0, span.Span{}, err

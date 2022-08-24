@@ -242,11 +242,6 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 		objectFacts:  make(map[objectFactKey]analysis.Fact),
 		packageFacts: make(map[packageFactKey]analysis.Fact),
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			data.err = fmt.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath(), r)
-		}
-	}()
 
 	// Plumb the output values of the dependencies
 	// into the inputs of this action.  Also facts.
@@ -362,7 +357,20 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 		data.err = fmt.Errorf("analysis skipped due to errors in package")
 		return data
 	}
-	data.result, data.err = pass.Analyzer.Run(pass)
+
+	// Recover from panics (only) within the analyzer logic.
+	// (Use an anonymous function to limit the recover scope.)
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// TODO(adonovan): use bug.Errorf here so that we
+				// detect crashes covered by our test suite.
+				// e.g.
+				data.err = fmt.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath(), r)
+			}
+		}()
+		data.result, data.err = pass.Analyzer.Run(pass)
+	}()
 	if data.err != nil {
 		return data
 	}

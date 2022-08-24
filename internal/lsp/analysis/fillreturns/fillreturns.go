@@ -168,6 +168,9 @@ outer:
 			var match ast.Expr
 			var idx int
 			for j, val := range remaining {
+				// TODO(adonovan): if TypeOf returns nil (as it may, since we
+				// RunDespiteErrors), then matchingTypes will panic in
+				// types.AssignableTo. Fix it, and audit for other instances.
 				if !matchingTypes(info.TypeOf(val), retTyp) {
 					continue
 				}
