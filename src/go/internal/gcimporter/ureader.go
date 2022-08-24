@@ -539,7 +539,9 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 						embeds[i] = iface.EmbeddedType(i)
 					}
 
-					underlying = types.NewInterfaceType(methods, embeds)
+					newIface := types.NewInterfaceType(methods, embeds)
+					r.p.ifaces = append(r.p.ifaces, newIface)
+					underlying = newIface
 				}
 
 				named.SetUnderlying(underlying)
