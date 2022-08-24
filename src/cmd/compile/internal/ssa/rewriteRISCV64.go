@@ -605,6 +605,10 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpRsh8x64(v)
 	case OpRsh8x8:
 		return rewriteValueRISCV64_OpRsh8x8(v)
+	case OpSelect0:
+		return rewriteValueRISCV64_OpSelect0(v)
+	case OpSelect1:
+		return rewriteValueRISCV64_OpSelect1(v)
 	case OpSignExt16to32:
 		v.Op = OpRISCV64MOVHreg
 		return true
@@ -6029,6 +6033,48 @@ func rewriteValueRISCV64_OpRsh8x8(v *Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+}
+func rewriteValueRISCV64_OpSelect0(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Select0 m:(LoweredMuluhilo x y))
+	// cond: m.Uses == 1
+	// result: (MULHU x y)
+	for {
+		m := v_0
+		if m.Op != OpRISCV64LoweredMuluhilo {
+			break
+		}
+		y := m.Args[1]
+		x := m.Args[0]
+		if !(m.Uses == 1) {
+			break
+		}
+		v.reset(OpRISCV64MULHU)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpSelect1(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Select1 m:(LoweredMuluhilo x y))
+	// cond: m.Uses == 1
+	// result: (MUL x y)
+	for {
+		m := v_0
+		if m.Op != OpRISCV64LoweredMuluhilo {
+			break
+		}
+		y := m.Args[1]
+		x := m.Args[0]
+		if !(m.Uses == 1) {
+			break
+		}
+		v.reset(OpRISCV64MUL)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
 }
 func rewriteValueRISCV64_OpSlicemask(v *Value) bool {
 	v_0 := v.Args[0]

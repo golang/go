@@ -743,6 +743,10 @@
 (SLTI  [x] (MOVDconst [y])) => (MOVDconst [b2i(int64(y) < int64(x))])
 (SLTIU [x] (MOVDconst [y])) => (MOVDconst [b2i(uint64(y) < uint64(x))])
 
+// deadcode for LoweredMuluhilo
+(Select0 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MULHU x y)
+(Select1 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MUL x y)
+
 // Merge negation into fused multiply-add and multiply-subtract.
 //
 // Key:

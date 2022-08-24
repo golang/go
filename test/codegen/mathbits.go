@@ -800,12 +800,14 @@ func Mul64(x, y uint64) (hi, lo uint64) {
 
 func Mul64HiOnly(x, y uint64) uint64 {
 	// arm64:"UMULH",-"MUL"
+	// riscv64:"MULHU",-"MUL\t"
 	hi, _ := bits.Mul64(x, y)
 	return hi
 }
 
 func Mul64LoOnly(x, y uint64) uint64 {
 	// arm64:"MUL",-"UMULH"
+	// riscv64:"MUL\t",-"MULHU"
 	_, lo := bits.Mul64(x, y)
 	return lo
 }
