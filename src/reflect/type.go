@@ -1999,31 +1999,32 @@ func MapOf(key, elem Type) Type {
 	return ti.(Type)
 }
 
-// TODO(crawshaw): as these funcTypeFixedN structs have no methods,
-// they could be defined at runtime using the StructOf function.
-type funcTypeFixed4 struct {
-	funcType
-	args [4]*rtype
-}
-type funcTypeFixed8 struct {
-	funcType
-	args [8]*rtype
-}
-type funcTypeFixed16 struct {
-	funcType
-	args [16]*rtype
-}
-type funcTypeFixed32 struct {
-	funcType
-	args [32]*rtype
-}
-type funcTypeFixed64 struct {
-	funcType
-	args [64]*rtype
-}
-type funcTypeFixed128 struct {
-	funcType
-	args [128]*rtype
+var funcTypes []Type
+var funcTypesMutex sync.Mutex
+
+func initFuncTypes(n int) {
+	funcTypesMutex.Lock()
+	defer funcTypesMutex.Unlock()
+	if n < len(funcTypes) {
+		if funcTypes[n] != nil {
+			return
+		}
+	} else {
+		newFuncTypes := make([]Type, n+1)
+		copy(newFuncTypes, funcTypes)
+		funcTypes = newFuncTypes
+	}
+
+	funcTypes[n] = StructOf([]StructField{
+		{
+			Name: "FuncType",
+			Type: TypeOf(funcType{}),
+		},
+		{
+			Name: "Args",
+			Type: ArrayOf(n, TypeOf(&rtype{})),
+		},
+	})
 }
 
 // FuncOf returns the function type with the given argument and result types.
@@ -2045,34 +2046,15 @@ func FuncOf(in, out []Type, variadic bool) Type {
 
 	var ft *funcType
 	var args []*rtype
-	switch {
-	case n <= 4:
-		fixed := new(funcTypeFixed4)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	case n <= 8:
-		fixed := new(funcTypeFixed8)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	case n <= 16:
-		fixed := new(funcTypeFixed16)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	case n <= 32:
-		fixed := new(funcTypeFixed32)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	case n <= 64:
-		fixed := new(funcTypeFixed64)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	case n <= 128:
-		fixed := new(funcTypeFixed128)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	default:
+	if n <= 128 {
+		initFuncTypes(n)
+		o := New(funcTypes[n]).Elem()
+		ft = (*funcType)(unsafe.Pointer(o.Field(0).Addr().Pointer()))
+		args = unsafe.Slice((**rtype)(unsafe.Pointer(o.Field(1).Addr().Pointer())), n)[0:0:n]
+	} else {
 		panic("reflect.FuncOf: too many arguments")
 	}
+
 	*ft = *prototype
 
 	// Build a hash and minimally populate ft.
