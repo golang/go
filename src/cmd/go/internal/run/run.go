@@ -91,8 +91,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	work.BuildInit()
-	var b work.Builder
-	b.Init()
+	b := work.NewBuilder("")
 	b.Print = printStderr
 
 	i := 0
