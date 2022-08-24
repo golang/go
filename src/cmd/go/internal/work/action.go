@@ -240,7 +240,13 @@ const (
 	ModeVetOnly = 1 << 8
 )
 
-func (b *Builder) Init() {
+// NewBuilder returns a new Builder ready for use.
+//
+// If workDir is the empty string, NewBuilder creates a WorkDir if needed
+// and arranges for it to be removed in case of an unclean exit.
+func NewBuilder(workDir string) *Builder {
+	b := new(Builder)
+
 	b.Print = func(a ...any) (int, error) {
 		return fmt.Fprint(os.Stderr, a...)
 	}
@@ -249,7 +255,9 @@ func (b *Builder) Init() {
 	b.toolIDCache = make(map[string]string)
 	b.buildIDCache = make(map[string]string)
 
-	if cfg.BuildN {
+	if workDir != "" {
+		b.WorkDir = workDir
+	} else if cfg.BuildN {
 		b.WorkDir = "$WORK"
 	} else {
 		tmp, err := os.MkdirTemp(cfg.Getenv("GOTMPDIR"), "go-build")
@@ -306,6 +314,8 @@ func (b *Builder) Init() {
 			base.Exit()
 		}
 	}
+
+	return b
 }
 
 func CheckGOOSARCHPair(goos, goarch string) error {

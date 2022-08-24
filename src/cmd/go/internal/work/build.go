@@ -402,8 +402,7 @@ var runtimeVersion = runtime.Version()
 func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 	BuildInit()
-	var b Builder
-	b.Init()
+	b := NewBuilder("")
 
 	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: true}, args)
 	load.CheckPackageErrors(pkgs)
@@ -721,8 +720,8 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 	}
 	base.ExitIfErrors()
 
-	var b Builder
-	b.Init()
+	b := NewBuilder("")
+
 	depMode := ModeBuild
 	if cfg.BuildI {
 		depMode = ModeInstall
