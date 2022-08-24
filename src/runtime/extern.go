@@ -79,7 +79,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	error at each collection, summarizing the amount of memory collected and the
 	length of the pause. The format of this line is subject to change.
 	Currently, it is:
-		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # P
+		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # MB stacks, #MB globals, # P
 	where the fields are as follows:
 		gc #         the GC number, incremented at each GC
 		@#s          time in seconds since program start
