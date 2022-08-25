@@ -18,9 +18,7 @@ type Curve interface {
 	//
 	// For NIST curves, this performs ECDH as specified in SEC 1, Version 2.0,
 	// Section 3.3.1, and returns the x-coordinate encoded according to SEC 1,
-	// Version 2.0, Section 2.3.5. In particular, if the result is the point at
-	// infinity, ECDH returns an error. (Note that for NIST curves, that's only
-	// possible if the private key is the all-zero value.)
+	// Version 2.0, Section 2.3.5. The result is never the point at infinity.
 	//
 	// For X25519, this performs ECDH as specified in RFC 7748, Section 6.1. If
 	// the result is the all-zero value, ECDH returns an error.
@@ -37,8 +35,7 @@ type Curve interface {
 	// private key is also rejected, as the encoding of the corresponding public
 	// key would be irregular.
 	//
-	// For X25519, this only checks the scalar length. Adversarially selected
-	// private keys can cause ECDH to return an error.
+	// For X25519, this only checks the scalar length.
 	NewPrivateKey(key []byte) (*PrivateKey, error)
 
 	// NewPublicKey checks that key is valid and returns a PublicKey.
@@ -54,9 +51,9 @@ type Curve interface {
 	// privateKeyToPublicKey converts a PrivateKey to a PublicKey. It's exposed
 	// as the PrivateKey.PublicKey method.
 	//
-	// This method always succeeds: for X25519, it might output the all-zeroes
-	// value (unlike the ECDH method); for NIST curves, it would only fail for
-	// the zero private key, which is rejected by NewPrivateKey.
+	// This method always succeeds: for X25519, the zero key can't be
+	// constructed due to clamping; for NIST curves, it is rejected by
+	// NewPrivateKey.
 	//
 	// The private method also allow us to expand the ECDH interface with more
 	// methods in the future without breaking backwards compatibility.
