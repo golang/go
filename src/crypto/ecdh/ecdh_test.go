@@ -195,6 +195,160 @@ func TestString(t *testing.T) {
 	})
 }
 
+func TestX25519Failure(t *testing.T) {
+	identity := hexDecode(t, "0000000000000000000000000000000000000000000000000000000000000000")
+	lowOrderPoint := hexDecode(t, "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800")
+	randomScalar := make([]byte, 32)
+	rand.Read(randomScalar)
+
+	t.Run("identity point", func(t *testing.T) { testX25519Failure(t, randomScalar, identity) })
+	t.Run("low order point", func(t *testing.T) { testX25519Failure(t, randomScalar, lowOrderPoint) })
+}
+
+func testX25519Failure(t *testing.T, private, public []byte) {
+	priv, err := ecdh.X25519().NewPrivateKey(private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub, err := ecdh.X25519().NewPublicKey(public)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret, err := ecdh.X25519().ECDH(priv, pub)
+	if err == nil {
+		t.Error("expected ECDH error")
+	}
+	if secret != nil {
+		t.Errorf("unexpected ECDH output: %x", secret)
+	}
+}
+
+var invalidPrivateKeys = map[ecdh.Curve][]string{
+	ecdh.P256(): {
+		// Bad lengths.
+		"",
+		"01",
+		"01010101010101010101010101010101010101010101010101010101010101",
+		"000101010101010101010101010101010101010101010101010101010101010101",
+		strings.Repeat("01", 200),
+		// Zero.
+		"0000000000000000000000000000000000000000000000000000000000000000",
+		// Order of the curve and above.
+		"ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551",
+		"ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632552",
+		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+	},
+	ecdh.P384(): {
+		// Bad lengths.
+		"",
+		"01",
+		"0101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101",
+		"00010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101",
+		strings.Repeat("01", 200),
+		// Zero.
+		"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+		// Order of the curve and above.
+		"ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973",
+		"ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52974",
+		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+	},
+	ecdh.P521(): {
+		// Bad lengths.
+		"",
+		"01",
+		"0101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101",
+		"00010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101",
+		strings.Repeat("01", 200),
+		// Zero.
+		"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+		// Order of the curve and above.
+		"01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409",
+		"01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e9138640a",
+		"11fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409",
+		"03fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff4a30d0f077e5f2cd6ff980291ee134ba0776b937113388f5d76df6e3d2270c812",
+	},
+	ecdh.X25519(): {
+		// X25519 only rejects bad lengths.
+		"",
+		"01",
+		"01010101010101010101010101010101010101010101010101010101010101",
+		"000101010101010101010101010101010101010101010101010101010101010101",
+		strings.Repeat("01", 200),
+	},
+}
+
+func TestNewPrivateKey(t *testing.T) {
+	testAllCurves(t, func(t *testing.T, curve ecdh.Curve) {
+		for _, input := range invalidPrivateKeys[curve] {
+			k, err := curve.NewPrivateKey(hexDecode(t, input))
+			if err == nil {
+				t.Errorf("unexpectedly accepted %q", input)
+			} else if k != nil {
+				t.Error("PrivateKey was not nil on error")
+			}
+		}
+	})
+}
+
+var invalidPublicKeys = map[ecdh.Curve][]string{
+	ecdh.P256(): {
+		// Bad lengths.
+		"",
+		"04",
+		strings.Repeat("04", 200),
+		// Infinity.
+		"00",
+		// Compressed encodings.
+		"036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
+		"02e2534a3532d08fbba02dde659ee62bd0031fe2db785596ef509302446b030852",
+		// Points not on the curve.
+		"046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f6",
+		"0400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+	},
+	ecdh.P384(): {
+		// Bad lengths.
+		"",
+		"04",
+		strings.Repeat("04", 200),
+		// Infinity.
+		"00",
+		// Compressed encodings.
+		"03aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7",
+		"0208d999057ba3d2d969260045c55b97f089025959a6f434d651d207d19fb96e9e4fe0e86ebe0e64f85b96a9c75295df61",
+		// Points not on the curve.
+		"04aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab73617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e60",
+		"04000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+	},
+	ecdh.P521(): {
+		// Bad lengths.
+		"",
+		"04",
+		strings.Repeat("04", 200),
+		// Infinity.
+		"00",
+		// Compressed encodings.
+		"030035b5df64ae2ac204c354b483487c9070cdc61c891c5ff39afc06c5d55541d3ceac8659e24afe3d0750e8b88e9f078af066a1d5025b08e5a5e2fbc87412871902f3",
+		"0200c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66",
+		// Points not on the curve.
+		"0400c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16651",
+		"04000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+	},
+	ecdh.X25519(): {},
+}
+
+func TestNewPublicKey(t *testing.T) {
+	testAllCurves(t, func(t *testing.T, curve ecdh.Curve) {
+		for _, input := range invalidPublicKeys[curve] {
+			k, err := curve.NewPublicKey(hexDecode(t, input))
+			if err == nil {
+				t.Errorf("unexpectedly accepted %q", input)
+			} else if k != nil {
+				t.Error("PublicKey was not nil on error")
+			}
+		}
+	})
+}
+
 func testAllCurves(t *testing.T, f func(t *testing.T, curve ecdh.Curve)) {
 	t.Run("P256", func(t *testing.T) { f(t, ecdh.P256()) })
 	t.Run("P384", func(t *testing.T) { f(t, ecdh.P384()) })
