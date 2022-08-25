@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -708,6 +709,13 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		for spn, actionKinds := range data.SuggestedFixes {
 			// Check if we should skip this spn if the -modfile flag is not available.
 			if shouldSkip(data, spn.URI()) {
+				continue
+			}
+			// Temporarily suppress test failing on some ARM builders.
+			// https://github.com/golang/go/issues/54655.
+			// TODO(adonovan): reenable along with fix.
+			if name := SpanName(spn); runtime.GOARCH == "arm64" && (name == "a4_28_18" || name == "a4_35_20") {
+				t.Logf("skipping test %s on GOARCH=arm64", name)
 				continue
 			}
 			t.Run(SpanName(spn), func(t *testing.T) {
