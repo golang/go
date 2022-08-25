@@ -14,9 +14,9 @@ var m map[string]int
 var _ int
 var _, _ int
 
-var _ /* ERROR "expecting type" */
-var _, _ /* ERROR "expecting type" */
-var _, _, _ /* ERROR "expecting type" */
+var _ /* ERROR "expected type" */
+var _, _ /* ERROR "expected type" */
+var _, _, _ /* ERROR "expected type" */
 
 // The initializer must be an expression.
 var _ = int /* ERROR "not an expression" */

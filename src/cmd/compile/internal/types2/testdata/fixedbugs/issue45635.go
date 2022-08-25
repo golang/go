@@ -10,7 +10,7 @@ func main() {
 
 type N[T any] struct{}
 
-var _ N[] /* ERROR expecting type */
+var _ N[] /* ERROR expected type */
 
 type I interface {
 	~[]int

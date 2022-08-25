@@ -36,11 +36,11 @@ var _ A3
 var x int
 type _ x /* ERROR not a type */ [int]
 
-type _ int /* ERROR not a generic type */ [] // ERROR expecting type
-type _ myInt /* ERROR not a generic type */ [] // ERROR expecting type
+type _ int /* ERROR not a generic type */ [] // ERROR expected type argument list
+type _ myInt /* ERROR not a generic type */ [] // ERROR expected type argument list
 
 // TODO(gri) better error messages
-type _ T1[] // ERROR expecting type
+type _ T1[] // ERROR expected type argument list
 type _ T1[x /* ERROR not a type */ ]
 type _ T1 /* ERROR got 2 arguments but 1 type parameters */ [int, float32]
 
