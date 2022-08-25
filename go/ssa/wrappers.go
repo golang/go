@@ -120,19 +120,19 @@ func makeWrapper(prog *Program, sel *selection, cr *creator) *Function {
 	// address of implicit  C field.
 
 	var c Call
-	if r := recvType(obj); !isInterface(r) { // concrete method
+	if r := recvType(obj); !types.IsInterface(r) { // concrete method
 		if !isPointer(r) {
 			v = emitLoad(fn, v)
 		}
 		callee := prog.originFunc(obj)
-		if len(callee._TypeParams) > 0 {
-			callee = prog.instances[callee].lookupOrCreate(receiverTypeArgs(obj), cr)
+		if callee.typeparams.Len() > 0 {
+			callee = prog.lookupOrCreateInstance(callee, receiverTypeArgs(obj), cr)
 		}
 		c.Call.Value = callee
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
 		c.Call.Method = obj
-		c.Call.Value = emitLoad(fn, v)
+		c.Call.Value = emitLoad(fn, v) // interface (possibly a typeparam)
 	}
 	for _, arg := range fn.Params[1:] {
 		c.Call.Args = append(c.Call.Args, arg)
@@ -208,16 +208,16 @@ func makeBound(prog *Program, obj *types.Func, cr *creator) *Function {
 		createParams(fn, 0)
 		var c Call
 
-		if !isInterface(recvType(obj)) { // concrete
+		if !types.IsInterface(recvType(obj)) { // concrete
 			callee := prog.originFunc(obj)
-			if len(callee._TypeParams) > 0 {
-				callee = prog.instances[callee].lookupOrCreate(targs, cr)
+			if callee.typeparams.Len() > 0 {
+				callee = prog.lookupOrCreateInstance(callee, targs, cr)
 			}
 			c.Call.Value = callee
 			c.Call.Args = []Value{fv}
 		} else {
-			c.Call.Value = fv
 			c.Call.Method = obj
+			c.Call.Value = fv // interface (possibly a typeparam)
 		}
 		for _, arg := range fn.Params {
 			c.Call.Args = append(c.Call.Args, arg)
@@ -323,4 +323,64 @@ func toSelection(sel *types.Selection) *selection {
 		index:    sel.Index(),
 		indirect: sel.Indirect(),
 	}
+}
+
+// -- instantiations --------------------------------------------------
+
+// buildInstantiationWrapper creates a body for an instantiation
+// wrapper fn. The body calls the original generic function,
+// bracketed by ChangeType conversions on its arguments and results.
+func buildInstantiationWrapper(fn *Function) {
+	orig := fn.topLevelOrigin
+	sig := fn.Signature
+
+	fn.startBody()
+	if sig.Recv() != nil {
+		fn.addParamObj(sig.Recv())
+	}
+	createParams(fn, 0)
+
+	// Create body. Add a call to origin generic function
+	// and make type changes between argument and parameters,
+	// as well as return values.
+	var c Call
+	c.Call.Value = orig
+	if res := orig.Signature.Results(); res.Len() == 1 {
+		c.typ = res.At(0).Type()
+	} else {
+		c.typ = res
+	}
+
+	// parameter of instance becomes an argument to the call
+	// to the original generic function.
+	argOffset := 0
+	for i, arg := range fn.Params {
+		var typ types.Type
+		if i == 0 && sig.Recv() != nil {
+			typ = orig.Signature.Recv().Type()
+			argOffset = 1
+		} else {
+			typ = orig.Signature.Params().At(i - argOffset).Type()
+		}
+		c.Call.Args = append(c.Call.Args, emitTypeCoercion(fn, arg, typ))
+	}
+
+	results := fn.emit(&c)
+	var ret Return
+	switch res := sig.Results(); res.Len() {
+	case 0:
+		// no results, do nothing.
+	case 1:
+		ret.Results = []Value{emitTypeCoercion(fn, results, res.At(0).Type())}
+	default:
+		for i := 0; i < sig.Results().Len(); i++ {
+			v := emitExtract(fn, results, i)
+			ret.Results = append(ret.Results, emitTypeCoercion(fn, v, res.At(i).Type()))
+		}
+	}
+
+	fn.emit(&ret)
+	fn.currentBlock = nil
+
+	fn.finishBody()
 }

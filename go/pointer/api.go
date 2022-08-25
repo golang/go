@@ -28,7 +28,11 @@ type Config struct {
 	// dependencies of any main package may still affect the
 	// analysis result, because they contribute runtime types and
 	// thus methods.
+	//
 	// TODO(adonovan): investigate whether this is desirable.
+	//
+	// Calls to generic functions will be unsound unless packages
+	// are built using the ssa.InstantiateGenerics builder mode.
 	Mains []*ssa.Package
 
 	// Reflection determines whether to handle reflection

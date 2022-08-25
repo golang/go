@@ -358,6 +358,14 @@ A. Control-flow joins would merge interfaces ({T1}, {V1}) and ({T2},
 type-unsafe combination (T1,V2).  Treating the value and its concrete
 type as inseparable makes the analysis type-safe.)
 
+Type parameters:
+
+Type parameters are not directly supported by the analysis.
+Calls to generic functions will be left as if they had empty bodies.
+Users of the package are expected to use the ssa.InstantiateGenerics
+builder mode when building code that uses or depends on code
+containing generics.
+
 reflect.Value:
 
 A reflect.Value is modelled very similar to an interface{}, i.e. as

@@ -111,3 +111,12 @@ func (w *tpWalker) isParameterized(typ types.Type) (res bool) {
 
 	return false
 }
+
+func (w *tpWalker) anyParameterized(ts []types.Type) bool {
+	for _, t := range ts {
+		if w.isParameterized(t) {
+			return true
+		}
+	}
+	return false
+}

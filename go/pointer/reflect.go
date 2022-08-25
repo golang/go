@@ -1024,7 +1024,7 @@ func ext۰reflect۰ChanOf(a *analysis, cgn *cgnode) {
 	var dir reflect.ChanDir // unknown
 	if site := cgn.callersite; site != nil {
 		if c, ok := site.instr.Common().Args[0].(*ssa.Const); ok {
-			v, _ := constant.Int64Val(c.Value)
+			v := c.Int64()
 			if 0 <= v && v <= int64(reflect.BothDir) {
 				dir = reflect.ChanDir(v)
 			}
@@ -1751,8 +1751,7 @@ func ext۰reflect۰rtype۰InOut(a *analysis, cgn *cgnode, out bool) {
 	index := -1
 	if site := cgn.callersite; site != nil {
 		if c, ok := site.instr.Common().Args[0].(*ssa.Const); ok {
-			v, _ := constant.Int64Val(c.Value)
-			index = int(v)
+			index = int(c.Int64())
 		}
 	}
 	a.addConstraint(&rtypeInOutConstraint{

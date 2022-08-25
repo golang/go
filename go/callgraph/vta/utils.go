@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func canAlias(n1, n2 node) bool {
@@ -117,19 +118,27 @@ func functionUnderPtr(t types.Type) types.Type {
 }
 
 // sliceArrayElem returns the element type of type `t` that is
-// expected to be a (pointer to) array or slice, consistent with
+// expected to be a (pointer to) array, slice or string, consistent with
 // the ssa.Index and ssa.IndexAddr instructions. Panics otherwise.
 func sliceArrayElem(t types.Type) types.Type {
-	u := t.Underlying()
-
-	if p, ok := u.(*types.Pointer); ok {
-		u = p.Elem().Underlying()
+	switch u := t.Underlying().(type) {
+	case *types.Pointer:
+		return u.Elem().Underlying().(*types.Array).Elem()
+	case *types.Array:
+		return u.Elem()
+	case *types.Slice:
+		return u.Elem()
+	case *types.Basic:
+		return types.Typ[types.Byte]
+	case *types.Interface: // type param.
+		terms, err := typeparams.InterfaceTermSet(u)
+		if err != nil || len(terms) == 0 {
+			panic(t)
+		}
+		return sliceArrayElem(terms[0].Type()) // Element types must match.
+	default:
+		panic(t)
 	}
-
-	if a, ok := u.(*types.Array); ok {
-		return a.Elem()
-	}
-	return u.(*types.Slice).Elem()
 }
 
 // siteCallees computes a set of callees for call site `c` given program `callgraph`.

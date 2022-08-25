@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"sort"
+	"strings"
 
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
@@ -377,10 +378,25 @@ func (a *analysis) callEdge(caller *cgnode, site *callsite, calleeid nodeid) {
 		fmt.Fprintf(a.log, "\tcall edge %s -> %s\n", site, callee)
 	}
 
-	// Warn about calls to non-intrinsic external functions.
+	// Warn about calls to functions that are handled unsoundly.
 	// TODO(adonovan): de-dup these messages.
-	if fn := callee.fn; fn.Blocks == nil && a.findIntrinsic(fn) == nil {
+	fn := callee.fn
+
+	// Warn about calls to non-intrinsic external functions.
+	if fn.Blocks == nil && a.findIntrinsic(fn) == nil {
 		a.warnf(site.pos(), "unsound call to unknown intrinsic: %s", fn)
+		a.warnf(fn.Pos(), " (declared here)")
+	}
+
+	// Warn about calls to generic function bodies.
+	if fn.TypeParams().Len() > 0 && len(fn.TypeArgs()) == 0 {
+		a.warnf(site.pos(), "unsound call to generic function body: %s (build with ssa.InstantiateGenerics)", fn)
+		a.warnf(fn.Pos(), " (declared here)")
+	}
+
+	// Warn about calls to instantiation wrappers of generics functions.
+	if fn.Origin() != nil && strings.HasPrefix(fn.Synthetic, "instantiation wrapper ") {
+		a.warnf(site.pos(), "unsound call to instantiation wrapper of generic: %s (build with ssa.InstantiateGenerics)", fn)
 		a.warnf(fn.Pos(), " (declared here)")
 	}
 }

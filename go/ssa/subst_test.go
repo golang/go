@@ -99,12 +99,8 @@ var _ L[int] = Fn0[L[int]](nil)
 		}
 
 		T := tv.Type.(*types.Named)
-		var tparams []*typeparams.TypeParam
-		for i, l := 0, typeparams.ForNamed(T); i < l.Len(); i++ {
-			tparams = append(tparams, l.At(i))
-		}
 
-		subst := makeSubster(typeparams.NewContext(), tparams, targs, true)
+		subst := makeSubster(typeparams.NewContext(), typeparams.ForNamed(T), targs, true)
 		sub := subst.typ(T.Underlying())
 		if got := sub.String(); got != test.want {
 			t.Errorf("subst{%v->%v}.typ(%s) = %v, want %v", test.expr, test.args, T.Underlying(), got, test.want)

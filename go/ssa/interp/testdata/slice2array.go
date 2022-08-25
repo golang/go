@@ -19,7 +19,7 @@ func main() {
 
 	{
 		var s []int
-		a:= ([0]int)(s)
+		a := ([0]int)(s)
 		if a != [0]int{} {
 			panic("zero len array is not equal")
 		}
@@ -30,6 +30,20 @@ func main() {
 	}
 	if !threeToFourDoesPanic() {
 		panic("panic expected from threeToFourDoesPanic()")
+	}
+
+	if !fourPanicsWhileOneDoesNot[[4]int]() {
+		panic("panic expected from fourPanicsWhileOneDoesNot[[4]int]()")
+	}
+	if fourPanicsWhileOneDoesNot[[1]int]() {
+		panic("no panic expected from fourPanicsWhileOneDoesNot[[1]int]()")
+	}
+
+	if !fourPanicsWhileZeroDoesNot[[4]int]() {
+		panic("panic expected from fourPanicsWhileZeroDoesNot[[4]int]()")
+	}
+	if fourPanicsWhileZeroDoesNot[[0]int]() {
+		panic("no panic expected from fourPanicsWhileZeroDoesNot[[0]int]()")
 	}
 }
 
@@ -52,5 +66,27 @@ func threeToFourDoesPanic() (raised bool) {
 	}()
 	s := make([]int, 3, 5)
 	_ = ([4]int)(s)
+	return false
+}
+
+func fourPanicsWhileOneDoesNot[T [1]int | [4]int]() (raised bool) {
+	defer func() {
+		if e := recover(); e != nil {
+			raised = true
+		}
+	}()
+	s := make([]int, 3, 5)
+	_ = T(s)
+	return false
+}
+
+func fourPanicsWhileZeroDoesNot[T [0]int | [4]int]() (raised bool) {
+	defer func() {
+		if e := recover(); e != nil {
+			raised = true
+		}
+	}()
+	var s []int
+	_ = T(s)
 	return false
 }

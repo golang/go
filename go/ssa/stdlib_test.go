@@ -21,12 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/internal/testenv"
-	"golang.org/x/tools/internal/typeparams/genericfeatures"
 )
 
 func bytesAllocated() uint64 {
@@ -51,22 +49,6 @@ func TestStdlib(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var nonGeneric int
-	for i := 0; i < len(pkgs); i++ {
-		pkg := pkgs[i]
-		inspect := inspector.New(pkg.Syntax)
-		features := genericfeatures.ForPackage(inspect, pkg.TypesInfo)
-		// Skip standard library packages that use generics. This won't be
-		// sufficient if any standard library packages start _importing_ packages
-		// that use generics.
-		if features != 0 {
-			t.Logf("skipping package %q which uses generics", pkg.PkgPath)
-			continue
-		}
-		pkgs[nonGeneric] = pkg
-		nonGeneric++
-	}
-	pkgs = pkgs[:nonGeneric]
 
 	t1 := time.Now()
 	alloc1 := bytesAllocated()

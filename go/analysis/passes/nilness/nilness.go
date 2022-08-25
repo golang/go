@@ -62,7 +62,6 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	ssainput := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
-	// TODO(48525): ssainput.SrcFuncs is missing fn._Instances(). runFunc will be skipped.
 	for _, fn := range ssainput.SrcFuncs {
 		runFunc(pass, fn)
 	}
@@ -307,9 +306,9 @@ func nilnessOf(stack []fact, v ssa.Value) nilness {
 		return isnonnil
 	case *ssa.Const:
 		if v.IsNil() {
-			return isnil
+			return isnil // nil or zero value of a pointer-like type
 		} else {
-			return isnonnil
+			return unknown // non-pointer
 		}
 	}
 

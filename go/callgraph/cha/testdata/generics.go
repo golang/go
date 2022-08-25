@@ -41,5 +41,9 @@ func f(h func(), g func(I), k func(A), a A, b B) {
 //   f --> instantiated[main.A]
 //   f --> instantiated[main.A]
 //   f --> instantiated[main.B]
+//   instantiated --> (*A).Foo
+//   instantiated --> (*B).Foo
+//   instantiated --> (A).Foo
+//   instantiated --> (B).Foo
 //   instantiated[main.A] --> (A).Foo
 //   instantiated[main.B] --> (B).Foo

@@ -22,6 +22,8 @@
 // partial programs, such as libraries without a main or test function.
 package cha // import "golang.org/x/tools/go/callgraph/cha"
 
+// TODO(zpavlinovic): update CHA for how it handles generic function bodies.
+
 import (
 	"go/types"
 

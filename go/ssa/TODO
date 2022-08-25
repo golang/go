@@ -1,0 +1,16 @@
+-*- text -*-
+
+SSA Generics to-do list
+===========================
+
+DOCUMENTATION:
+- Read me for internals
+
+TYPE PARAMETERIZED GENERIC FUNCTIONS:
+- sanity.go updates.
+- Check source functions going to generics.
+- Tests, tests, tests...
+
+USAGE:
+- Back fill users for handling ssa.InstantiateGenerics being off.
+

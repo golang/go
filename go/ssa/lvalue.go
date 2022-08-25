@@ -56,12 +56,12 @@ func (a *address) typ() types.Type {
 }
 
 // An element is an lvalue represented by m[k], the location of an
-// element of a map or string.  These locations are not addressable
+// element of a map.  These locations are not addressable
 // since pointers cannot be formed from them, but they do support
-// load(), and in the case of maps, store().
+// load() and store().
 type element struct {
-	m, k Value      // map or string
-	t    types.Type // map element type or string byte type
+	m, k Value      // map
+	t    types.Type // map element type
 	pos  token.Pos  // source position of colon ({k:v}) or lbrack (m[k]=v)
 }
 
@@ -86,7 +86,7 @@ func (e *element) store(fn *Function, v Value) {
 }
 
 func (e *element) address(fn *Function) Value {
-	panic("map/string elements are not addressable")
+	panic("map elements are not addressable")
 }
 
 func (e *element) typ() types.Type {

@@ -37,6 +37,8 @@ package callgraph // import "golang.org/x/tools/go/callgraph"
 // More generally, we could eliminate "uninteresting" nodes such as
 // nodes from packages we don't care about.
 
+// TODO(zpavlinovic): decide how callgraphs handle calls to and from generic function bodies.
+
 import (
 	"fmt"
 	"go/token"

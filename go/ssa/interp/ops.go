@@ -34,9 +34,10 @@ type exitPanic int
 // constValue returns the value of the constant with the
 // dynamic type tag appropriate for c.Type().
 func constValue(c *ssa.Const) value {
-	if c.IsNil() {
-		return zero(c.Type()) // typed nil
+	if c.Value == nil {
+		return zero(c.Type()) // typed zero
 	}
+	// c is not a type parameter so it's underlying type is basic.
 
 	if t, ok := c.Type().Underlying().(*types.Basic); ok {
 		// TODO(adonovan): eliminate untyped constants from SSA form.
@@ -307,7 +308,7 @@ func slice(x, lo, hi, max value) value {
 	panic(fmt.Sprintf("slice: unexpected X type: %T", x))
 }
 
-// lookup returns x[idx] where x is a map or string.
+// lookup returns x[idx] where x is a map.
 func lookup(instr *ssa.Lookup, x, idx value) value {
 	switch x := x.(type) { // map or string
 	case map[value]value, *hashmap:
@@ -327,8 +328,6 @@ func lookup(instr *ssa.Lookup, x, idx value) value {
 			v = tuple{v, ok}
 		}
 		return v
-	case string:
-		return x[asInt64(idx)]
 	}
 	panic(fmt.Sprintf("unexpected x type in Lookup: %T", x))
 }

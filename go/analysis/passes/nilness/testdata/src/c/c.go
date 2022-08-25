@@ -2,7 +2,7 @@ package c
 
 func instantiated[X any](x *X) int {
 	if x == nil {
-		print(*x) // not reported until _Instances are added to SrcFuncs
+		print(*x) // want "nil dereference in load"
 	}
 	return 1
 }

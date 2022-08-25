@@ -12,12 +12,51 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
+	"strings"
+
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // NewConst returns a new constant of the specified value and type.
 // val must be valid according to the specification of Const.Value.
 func NewConst(val constant.Value, typ types.Type) *Const {
+	if val == nil {
+		switch soleTypeKind(typ) {
+		case types.IsBoolean:
+			val = constant.MakeBool(false)
+		case types.IsInteger:
+			val = constant.MakeInt64(0)
+		case types.IsString:
+			val = constant.MakeString("")
+		}
+	}
 	return &Const{typ, val}
+}
+
+// soleTypeKind returns a BasicInfo for which constant.Value can
+// represent all zero values for the types in the type set.
+//
+//	types.IsBoolean for false is a representative.
+//	types.IsInteger for 0
+//	types.IsString for ""
+//	0 otherwise.
+func soleTypeKind(typ types.Type) types.BasicInfo {
+	// State records the set of possible zero values (false, 0, "").
+	// Candidates (perhaps all) are eliminated during the type-set
+	// iteration, which executes at least once.
+	state := types.IsBoolean | types.IsInteger | types.IsString
+	typeSetOf(typ).underIs(func(t types.Type) bool {
+		var c types.BasicInfo
+		if t, ok := t.(*types.Basic); ok {
+			c = t.Info()
+		}
+		if c&types.IsNumeric != 0 { // int/float/complex
+			c = types.IsInteger
+		}
+		state = state & c
+		return state != 0
+	})
+	return state
 }
 
 // intConst returns an 'int' constant that evaluates to i.
@@ -26,51 +65,20 @@ func intConst(i int64) *Const {
 	return NewConst(constant.MakeInt64(i), tInt)
 }
 
-// nilConst returns a nil constant of the specified type, which may
-// be any reference type, including interfaces.
-func nilConst(typ types.Type) *Const {
-	return NewConst(nil, typ)
-}
-
 // stringConst returns a 'string' constant that evaluates to s.
 func stringConst(s string) *Const {
 	return NewConst(constant.MakeString(s), tString)
 }
 
-// zeroConst returns a new "zero" constant of the specified type,
-// which must not be an array or struct type: the zero values of
-// aggregates are well-defined but cannot be represented by Const.
+// zeroConst returns a new "zero" constant of the specified type.
 func zeroConst(t types.Type) *Const {
-	switch t := t.(type) {
-	case *types.Basic:
-		switch {
-		case t.Info()&types.IsBoolean != 0:
-			return NewConst(constant.MakeBool(false), t)
-		case t.Info()&types.IsNumeric != 0:
-			return NewConst(constant.MakeInt64(0), t)
-		case t.Info()&types.IsString != 0:
-			return NewConst(constant.MakeString(""), t)
-		case t.Kind() == types.UnsafePointer:
-			fallthrough
-		case t.Kind() == types.UntypedNil:
-			return nilConst(t)
-		default:
-			panic(fmt.Sprint("zeroConst for unexpected type:", t))
-		}
-	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
-		return nilConst(t)
-	case *types.Named:
-		return NewConst(zeroConst(t.Underlying()).Value, t)
-	case *types.Array, *types.Struct, *types.Tuple:
-		panic(fmt.Sprint("zeroConst applied to aggregate:", t))
-	}
-	panic(fmt.Sprint("zeroConst: unexpected ", t))
+	return NewConst(nil, t)
 }
 
 func (c *Const) RelString(from *types.Package) string {
 	var s string
 	if c.Value == nil {
-		s = "nil"
+		s = zeroString(c.typ, from)
 	} else if c.Value.Kind() == constant.String {
 		s = constant.StringVal(c.Value)
 		const max = 20
@@ -83,6 +91,44 @@ func (c *Const) RelString(from *types.Package) string {
 		s = c.Value.String()
 	}
 	return s + ":" + relType(c.Type(), from)
+}
+
+// zeroString returns the string representation of the "zero" value of the type t.
+func zeroString(t types.Type, from *types.Package) string {
+	switch t := t.(type) {
+	case *types.Basic:
+		switch {
+		case t.Info()&types.IsBoolean != 0:
+			return "false"
+		case t.Info()&types.IsNumeric != 0:
+			return "0"
+		case t.Info()&types.IsString != 0:
+			return `""`
+		case t.Kind() == types.UnsafePointer:
+			fallthrough
+		case t.Kind() == types.UntypedNil:
+			return "nil"
+		default:
+			panic(fmt.Sprint("zeroString for unexpected type:", t))
+		}
+	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
+		return "nil"
+	case *types.Named:
+		return zeroString(t.Underlying(), from)
+	case *types.Array, *types.Struct:
+		return relType(t, from) + "{}"
+	case *types.Tuple:
+		// Tuples are not normal values.
+		// We are currently format as "(t[0], ..., t[n])". Could be something else.
+		components := make([]string, t.Len())
+		for i := 0; i < t.Len(); i++ {
+			components[i] = zeroString(t.At(i).Type(), from)
+		}
+		return "(" + strings.Join(components, ", ") + ")"
+	case *typeparams.TypeParam:
+		return "*new(" + relType(t, from) + ")"
+	}
+	panic(fmt.Sprint("zeroString: unexpected ", t))
 }
 
 func (c *Const) Name() string {
@@ -107,9 +153,26 @@ func (c *Const) Pos() token.Pos {
 	return token.NoPos
 }
 
-// IsNil returns true if this constant represents a typed or untyped nil value.
+// IsNil returns true if this constant represents a typed or untyped nil value
+// with an underlying reference type: pointer, slice, chan, map, function, or
+// *basic* interface.
+//
+// Note: a type parameter whose underlying type is a basic interface is
+// considered a reference type.
 func (c *Const) IsNil() bool {
-	return c.Value == nil
+	return c.Value == nil && nillable(c.typ)
+}
+
+// nillable reports whether *new(T) == nil is legal for type T.
+func nillable(t types.Type) bool {
+	switch t := t.Underlying().(type) {
+	case *types.Pointer, *types.Slice, *types.Chan, *types.Map, *types.Signature:
+		return true
+	case *types.Interface:
+		return len(typeSetOf(t)) == 0 // basic interface.
+	default:
+		return false
+	}
 }
 
 // TODO(adonovan): move everything below into golang.org/x/tools/go/ssa/interp.
@@ -149,14 +212,16 @@ func (c *Const) Uint64() uint64 {
 // Float64 returns the numeric value of this constant truncated to fit
 // a float64.
 func (c *Const) Float64() float64 {
-	f, _ := constant.Float64Val(c.Value)
+	x := constant.ToFloat(c.Value) // (c.Value == nil) => x.Kind() == Unknown
+	f, _ := constant.Float64Val(x)
 	return f
 }
 
 // Complex128 returns the complex value of this constant truncated to
 // fit a complex128.
 func (c *Const) Complex128() complex128 {
-	re, _ := constant.Float64Val(constant.Real(c.Value))
-	im, _ := constant.Float64Val(constant.Imag(c.Value))
+	x := constant.ToComplex(c.Value) // (c.Value == nil) => x.Kind() == Unknown
+	re, _ := constant.Float64Val(constant.Real(x))
+	im, _ := constant.Float64Val(constant.Imag(x))
 	return complex(re, im)
 }

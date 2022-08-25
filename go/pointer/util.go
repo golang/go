@@ -8,11 +8,12 @@ import (
 	"bytes"
 	"fmt"
 	"go/types"
-	exec "golang.org/x/sys/execabs"
 	"log"
 	"os"
 	"runtime"
 	"time"
+
+	exec "golang.org/x/sys/execabs"
 
 	"golang.org/x/tools/container/intsets"
 )
@@ -125,7 +126,7 @@ func (a *analysis) flatten(t types.Type) []*fieldInfo {
 				// Debuggability hack: don't remove
 				// the named type from interfaces as
 				// they're very verbose.
-				fl = append(fl, &fieldInfo{typ: t})
+				fl = append(fl, &fieldInfo{typ: t}) // t may be a type param
 			} else {
 				fl = a.flatten(u)
 			}

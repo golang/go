@@ -232,7 +232,7 @@ func (v *MakeChan) String() string {
 }
 
 func (v *FieldAddr) String() string {
-	st := deref(v.X.Type()).Underlying().(*types.Struct)
+	st := coreType(deref(v.X.Type())).(*types.Struct)
 	// Be robust against a bad index.
 	name := "?"
 	if 0 <= v.Field && v.Field < st.NumFields() {
@@ -242,7 +242,7 @@ func (v *FieldAddr) String() string {
 }
 
 func (v *Field) String() string {
-	st := v.X.Type().Underlying().(*types.Struct)
+	st := coreType(v.X.Type()).(*types.Struct)
 	// Be robust against a bad index.
 	name := "?"
 	if 0 <= v.Field && v.Field < st.NumFields() {

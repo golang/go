@@ -27,8 +27,8 @@ func (prog *Program) MethodValue(sel *types.Selection) *Function {
 		panic(fmt.Sprintf("MethodValue(%s) kind != MethodVal", sel))
 	}
 	T := sel.Recv()
-	if isInterface(T) {
-		return nil // abstract method (interface)
+	if types.IsInterface(T) {
+		return nil // abstract method (interface, possibly type param)
 	}
 	if prog.mode&LogSource != 0 {
 		defer logStack("MethodValue %s %v", T, sel)()
@@ -76,7 +76,7 @@ type methodSet struct {
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 func (prog *Program) createMethodSet(T types.Type) *methodSet {
 	if prog.mode&SanityCheckFunctions != 0 {
-		if isInterface(T) || prog.parameterized.isParameterized(T) {
+		if types.IsInterface(T) || prog.parameterized.isParameterized(T) {
 			panic("type is interface or parameterized")
 		}
 	}
@@ -107,9 +107,9 @@ func (prog *Program) addMethod(mset *methodSet, sel *types.Selection, cr *creato
 			fn = makeWrapper(prog, sel, cr)
 		} else {
 			fn = prog.originFunc(obj)
-			if len(fn._TypeParams) > 0 { // instantiate
+			if fn.typeparams.Len() > 0 { // instantiate
 				targs := receiverTypeArgs(obj)
-				fn = prog.instances[fn].lookupOrCreate(targs, cr)
+				fn = prog.lookupOrCreateInstance(fn, targs, cr)
 			}
 		}
 		if fn.Signature.Recv() == nil {
@@ -190,7 +190,7 @@ func (prog *Program) needMethods(T types.Type, skip bool, cr *creator) {
 
 	tmset := prog.MethodSets.MethodSet(T)
 
-	if !skip && !isInterface(T) && tmset.Len() > 0 {
+	if !skip && !types.IsInterface(T) && tmset.Len() > 0 {
 		// Create methods of T.
 		mset := prog.createMethodSet(T)
 		if !mset.complete {

@@ -127,12 +127,14 @@ var testdataTests = []string{
 	"width32.go",
 
 	"fixedbugs/issue52342.go",
-	"fixedbugs/issue55086.go",
 }
 
 func init() {
 	if typeparams.Enabled {
 		testdataTests = append(testdataTests, "fixedbugs/issue52835.go")
+		testdataTests = append(testdataTests, "fixedbugs/issue55086.go")
+		testdataTests = append(testdataTests, "typeassert.go")
+		testdataTests = append(testdataTests, "zeros.go")
 	}
 }
 

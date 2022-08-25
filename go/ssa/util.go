@@ -49,7 +49,56 @@ func isPointer(typ types.Type) bool {
 	return ok
 }
 
-func isInterface(T types.Type) bool { return types.IsInterface(T) }
+// isNonTypeParamInterface reports whether t is an interface type but not a type parameter.
+func isNonTypeParamInterface(t types.Type) bool {
+	return !typeparams.IsTypeParam(t) && types.IsInterface(t)
+}
+
+// isBasic reports whether t is a basic type.
+func isBasic(t types.Type) bool {
+	_, ok := t.(*types.Basic)
+	return ok
+}
+
+// isString reports whether t is exactly a string type.
+func isString(t types.Type) bool {
+	return isBasic(t) && t.(*types.Basic).Info()&types.IsString != 0
+}
+
+// isByteSlice reports whether t is []byte.
+func isByteSlice(t types.Type) bool {
+	if b, ok := t.(*types.Slice); ok {
+		e, _ := b.Elem().(*types.Basic)
+		return e != nil && e.Kind() == types.Byte
+	}
+	return false
+}
+
+// isRuneSlice reports whether t is []rune.
+func isRuneSlice(t types.Type) bool {
+	if b, ok := t.(*types.Slice); ok {
+		e, _ := b.Elem().(*types.Basic)
+		return e != nil && e.Kind() == types.Rune
+	}
+	return false
+}
+
+// isBasicConvType returns true when a type set can be
+// one side of a Convert operation. This is when:
+// - All are basic, []byte, or []rune.
+// - At least 1 is basic.
+// - At most 1 is []byte or []rune.
+func isBasicConvTypes(tset typeSet) bool {
+	basics := 0
+	all := tset.underIs(func(t types.Type) bool {
+		if isBasic(t) {
+			basics++
+			return true
+		}
+		return isByteSlice(t) || isRuneSlice(t)
+	})
+	return all && basics >= 1 && len(tset)-basics <= 1
+}
 
 // deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {
@@ -113,7 +162,7 @@ func nonbasicTypes(ts []types.Type) []types.Type {
 	added := make(map[types.Type]bool) // additionally filter duplicates
 	var filtered []types.Type
 	for _, T := range ts {
-		if _, basic := T.(*types.Basic); !basic {
+		if !isBasic(T) {
 			if !added[T] {
 				added[T] = true
 				filtered = append(filtered, T)
@@ -121,22 +170,6 @@ func nonbasicTypes(ts []types.Type) []types.Type {
 		}
 	}
 	return filtered
-}
-
-// isGeneric returns true if a package-level member is generic.
-func isGeneric(m Member) bool {
-	switch m := m.(type) {
-	case *NamedConst, *Global:
-		return false
-	case *Type:
-		// lifted from types.isGeneric.
-		named, _ := m.Type().(*types.Named)
-		return named != nil && named.Obj() != nil && typeparams.NamedTypeArgs(named) == nil && typeparams.ForNamed(named) != nil
-	case *Function:
-		return len(m._TypeParams) != len(m._TypeArgs)
-	default:
-		panic("unreachable")
-	}
 }
 
 // receiverTypeArgs returns the type arguments to a function's reciever.

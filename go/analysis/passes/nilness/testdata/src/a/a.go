@@ -209,3 +209,10 @@ func f13() {
 	var d *Y
 	print(d.value) // want "nil dereference in field selection"
 }
+
+func f14() {
+	var x struct{ f string }
+	if x == struct{ f string }{} { // we don't catch this tautology as we restrict to reference types
+		print(x)
+	}
+}

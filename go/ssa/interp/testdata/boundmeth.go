@@ -123,7 +123,8 @@ func nilInterfaceMethodValue() {
 		r := fmt.Sprint(recover())
 		// runtime panic string varies across toolchains
 		if r != "interface conversion: interface is nil, not error" &&
-			r != "runtime error: invalid memory address or nil pointer dereference" {
+			r != "runtime error: invalid memory address or nil pointer dereference" &&
+			r != "method value: interface is nil" {
 			panic("want runtime panic from nil interface method value, got " + r)
 		}
 	}()

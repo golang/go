@@ -51,7 +51,6 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"strings"
 	"sync/atomic"
 
 	"golang.org/x/tools/go/ssa"
@@ -335,7 +334,17 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		}
 
 	case *ssa.Index:
-		fr.env[instr] = fr.get(instr.X).(array)[asInt64(fr.get(instr.Index))]
+		x := fr.get(instr.X)
+		idx := fr.get(instr.Index)
+
+		switch x := x.(type) {
+		case array:
+			fr.env[instr] = x[asInt64(idx)]
+		case string:
+			fr.env[instr] = x[asInt64(idx)]
+		default:
+			panic(fmt.Sprintf("unexpected x type in Index: %T", x))
+		}
 
 	case *ssa.Lookup:
 		fr.env[instr] = lookup(instr, fr.get(instr.X), fr.get(instr.Index))
@@ -506,13 +515,15 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 			return ext(fr, args)
 		}
 		if fn.Blocks == nil {
-			var reason string // empty by default
-			if strings.HasPrefix(fn.Synthetic, "instantiation") {
-				reason = " (interp requires ssa.BuilderMode to include InstantiateGenerics on generics)"
-			}
-			panic("no code for function: " + name + reason)
+			panic("no code for function: " + name)
 		}
 	}
+
+	// generic function body?
+	if fn.TypeParams().Len() > 0 && len(fn.TypeArgs()) == 0 {
+		panic("interp requires ssa.BuilderMode to include InstantiateGenerics to execute generics")
+	}
+
 	fr.env = make(map[ssa.Value]value)
 	fr.block = fn.Blocks[0]
 	fr.locals = make([]value, len(fn.Locals))

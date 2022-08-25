@@ -18,6 +18,8 @@ import (
 //
 // Not concurrency-safe.
 type subster struct {
+	// TODO(zpavlinovic): replacements can contain type params
+	// when generating instances inside of a generic function body.
 	replacements map[*typeparams.TypeParam]types.Type // values should contain no type params
 	cache        map[types.Type]types.Type            // cache of subst results
 	ctxt         *typeparams.Context
@@ -27,17 +29,17 @@ type subster struct {
 
 // Returns a subster that replaces tparams[i] with targs[i]. Uses ctxt as a cache.
 // targs should not contain any types in tparams.
-func makeSubster(ctxt *typeparams.Context, tparams []*typeparams.TypeParam, targs []types.Type, debug bool) *subster {
-	assert(len(tparams) == len(targs), "makeSubster argument count must match")
+func makeSubster(ctxt *typeparams.Context, tparams *typeparams.TypeParamList, targs []types.Type, debug bool) *subster {
+	assert(tparams.Len() == len(targs), "makeSubster argument count must match")
 
 	subst := &subster{
-		replacements: make(map[*typeparams.TypeParam]types.Type, len(tparams)),
+		replacements: make(map[*typeparams.TypeParam]types.Type, tparams.Len()),
 		cache:        make(map[types.Type]types.Type),
 		ctxt:         ctxt,
 		debug:        debug,
 	}
-	for i, tpar := range tparams {
-		subst.replacements[tpar] = targs[i]
+	for i := 0; i < tparams.Len(); i++ {
+		subst.replacements[tparams.At(i)] = targs[i]
 	}
 	if subst.debug {
 		if err := subst.wellFormed(); err != nil {
@@ -331,9 +333,9 @@ func (subst *subster) named(t *types.Named) types.Type {
 	//    type N[A any] func() A
 	//    func Foo[T](g N[T]) {}
 	//  To instantiate Foo[string], one goes through {T->string}. To get the type of g
-	//  one subsitutes T with string in {N with TypeArgs == {T} and TypeParams == {A} }
-	//  to get {N with TypeArgs == {string} and TypeParams == {A} }.
-	assert(targs.Len() == tparams.Len(), "TypeArgs().Len() must match TypeParams().Len() if present")
+	//  one subsitutes T with string in {N with typeargs == {T} and typeparams == {A} }
+	//  to get {N with TypeArgs == {string} and typeparams == {A} }.
+	assert(targs.Len() == tparams.Len(), "typeargs.Len() must match typeparams.Len() if present")
 	for i, n := 0, targs.Len(); i < n; i++ {
 		inst := subst.typ(targs.At(i)) // TODO(generic): Check with rfindley for mutual recursion
 		insts[i] = inst

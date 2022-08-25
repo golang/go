@@ -91,36 +91,30 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		}
 
 		// Collect type parameters if this is a generic function/method.
-		var tparams []*typeparams.TypeParam
-		for i, rtparams := 0, typeparams.RecvTypeParams(sig); i < rtparams.Len(); i++ {
-			tparams = append(tparams, rtparams.At(i))
-		}
-		for i, sigparams := 0, typeparams.ForSignature(sig); i < sigparams.Len(); i++ {
-			tparams = append(tparams, sigparams.At(i))
+		var tparams *typeparams.TypeParamList
+		if rtparams := typeparams.RecvTypeParams(sig); rtparams.Len() > 0 {
+			tparams = rtparams
+		} else if sigparams := typeparams.ForSignature(sig); sigparams.Len() > 0 {
+			tparams = sigparams
 		}
 
 		fn := &Function{
-			name:        name,
-			object:      obj,
-			Signature:   sig,
-			syntax:      syntax,
-			pos:         obj.Pos(),
-			Pkg:         pkg,
-			Prog:        pkg.Prog,
-			_TypeParams: tparams,
-			info:        pkg.info,
+			name:       name,
+			object:     obj,
+			Signature:  sig,
+			syntax:     syntax,
+			pos:        obj.Pos(),
+			Pkg:        pkg,
+			Prog:       pkg.Prog,
+			typeparams: tparams,
+			info:       pkg.info,
 		}
 		pkg.created.Add(fn)
 		if syntax == nil {
 			fn.Synthetic = "loaded from gc object file"
 		}
-		if len(tparams) > 0 {
+		if tparams.Len() > 0 {
 			fn.Prog.createInstanceSet(fn)
-		}
-		if len(tparams) > 0 && syntax != nil {
-			fn.Synthetic = "generic function"
-			// TODO(taking): Allow for the function to be built once type params are supported.
-			fn.syntax = nil // Treating as an external function temporarily.
 		}
 
 		pkg.objects[obj] = fn

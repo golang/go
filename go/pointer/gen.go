@@ -14,9 +14,11 @@ import (
 	"fmt"
 	"go/token"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 var (
@@ -978,7 +980,10 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 			a.sizeof(instr.Type()))
 
 	case *ssa.Index:
-		a.copy(a.valueNode(instr), 1+a.valueNode(instr.X), a.sizeof(instr.Type()))
+		_, isstring := typeparams.CoreType(instr.X.Type()).(*types.Basic)
+		if !isstring {
+			a.copy(a.valueNode(instr), 1+a.valueNode(instr.X), a.sizeof(instr.Type()))
+		}
 
 	case *ssa.Select:
 		recv := a.valueOffsetNode(instr, 2) // instr : (index, recvOk, recv0, ... recv_n-1)
@@ -1198,6 +1203,19 @@ func (a *analysis) genFunc(cgn *cgnode) {
 
 	if fn.Blocks == nil {
 		// External function with no intrinsic treatment.
+		// We'll warn about calls to such functions at the end.
+		return
+	}
+
+	if fn.TypeParams().Len() > 0 && len(fn.TypeArgs()) == 0 {
+		// Body of generic function.
+		// We'll warn about calls to such functions at the end.
+		return
+	}
+
+	if strings.HasPrefix(fn.Synthetic, "instantiation wrapper ") {
+		// instantiation wrapper of a generic function.
+		// These may contain type coercions which are not currently supported.
 		// We'll warn about calls to such functions at the end.
 		return
 	}

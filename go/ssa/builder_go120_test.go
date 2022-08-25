@@ -25,6 +25,10 @@ func TestBuildPackageGo120(t *testing.T) {
 		importer types.Importer
 	}{
 		{"slice to array", "package p; var s []byte; var _ = ([4]byte)(s)", nil},
+		{"slice to zero length array", "package p; var s []byte; var _ = ([0]byte)(s)", nil},
+		{"slice to zero length array type parameter", "package p; var s []byte; func f[T ~[0]byte]() { tmp := (T)(s); var z T; _ = tmp == z}", nil},
+		{"slice to non-zero length array type parameter", "package p; var s []byte; func h[T ~[1]byte | [4]byte]() { tmp := T(s); var z T; _ = tmp == z}", nil},
+		{"slice to maybe-zero length array type parameter", "package p; var s []byte; func g[T ~[0]byte | [4]byte]() { tmp := T(s); var z T; _ = tmp == z}", nil},
 	}
 
 	for _, tc := range tests {

@@ -6,6 +6,8 @@
 // only static call edges.
 package static // import "golang.org/x/tools/go/callgraph/static"
 
+// TODO(zpavlinovic): update static for how it handles generic function bodies.
+
 import (
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"

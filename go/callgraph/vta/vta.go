@@ -54,6 +54,8 @@
 // reaching the node representing the call site to create a set of callees.
 package vta
 
+// TODO(zpavlinovic): update VTA for how it handles generic function bodies and instantiation wrappers.
+
 import (
 	"go/types"
 

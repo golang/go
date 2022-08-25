@@ -18,7 +18,7 @@ import (
 //
 // This is an experimental interface! It may change without warning.
 func (prog *Program) _Instances(fn *Function) []*Function {
-	if len(fn._TypeParams) == 0 {
+	if fn.typeparams.Len() == 0 || len(fn.typeargs) > 0 {
 		return nil
 	}
 
@@ -29,7 +29,7 @@ func (prog *Program) _Instances(fn *Function) []*Function {
 
 // A set of instantiations of a generic function fn.
 type instanceSet struct {
-	fn        *Function               // len(fn._TypeParams) > 0 and len(fn._TypeArgs) == 0.
+	fn        *Function               // fn.typeparams.Len() > 0 and len(fn.typeargs) == 0.
 	instances map[*typeList]*Function // canonical type arguments to an instance.
 	syntax    *ast.FuncDecl           // fn.syntax copy for instantiating after fn is done. nil on synthetic packages.
 	info      *types.Info             // fn.pkg.info copy for building after fn is done.. nil on synthetic packages.
@@ -56,7 +56,7 @@ func (insts *instanceSet) list() []*Function {
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodMu)
 func (prog *Program) createInstanceSet(fn *Function) {
-	assert(len(fn._TypeParams) > 0 && len(fn._TypeArgs) == 0, "Can only create instance sets for generic functions")
+	assert(fn.typeparams.Len() > 0 && len(fn.typeargs) == 0, "Can only create instance sets for generic functions")
 
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
@@ -73,7 +73,7 @@ func (prog *Program) createInstanceSet(fn *Function) {
 	}
 }
 
-// needsInstance returns an Function that that is the instantiation of fn with the type arguments targs.
+// needsInstance returns a Function that is the instantiation of fn with the type arguments targs.
 //
 // Any CREATEd instance is added to cr.
 //
@@ -82,15 +82,27 @@ func (prog *Program) needsInstance(fn *Function, targs []types.Type, cr *creator
 	prog.methodsMu.Lock()
 	defer prog.methodsMu.Unlock()
 
-	return prog.instances[fn].lookupOrCreate(targs, cr)
+	return prog.lookupOrCreateInstance(fn, targs, cr)
+}
+
+// lookupOrCreateInstance returns a Function that is the instantiation of fn with the type arguments targs.
+//
+// Any CREATEd instance is added to cr.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(prog.methodMu)
+func (prog *Program) lookupOrCreateInstance(fn *Function, targs []types.Type, cr *creator) *Function {
+	return prog.instances[fn].lookupOrCreate(targs, &prog.parameterized, cr)
 }
 
 // lookupOrCreate returns the instantiation of insts.fn using targs.
-// If the instantiation is reported, this is added to cr.
-func (insts *instanceSet) lookupOrCreate(targs []types.Type, cr *creator) *Function {
+// If the instantiation is created, this is added to cr.
+func (insts *instanceSet) lookupOrCreate(targs []types.Type, parameterized *tpWalker, cr *creator) *Function {
 	if insts.instances == nil {
 		insts.instances = make(map[*typeList]*Function)
 	}
+
+	fn := insts.fn
+	prog := fn.Prog
 
 	// canonicalize on a tuple of targs. Sig is not unique.
 	//
@@ -98,25 +110,17 @@ func (insts *instanceSet) lookupOrCreate(targs []types.Type, cr *creator) *Funct
 	//   var x T
 	//   fmt.Println("%T", x)
 	// }
-	key := insts.fn.Prog.canon.List(targs)
+	key := prog.canon.List(targs)
 	if inst, ok := insts.instances[key]; ok {
 		return inst
 	}
 
+	// CREATE instance/instantiation wrapper
 	var syntax ast.Node
 	if insts.syntax != nil {
 		syntax = insts.syntax
 	}
-	instance := createInstance(insts.fn, targs, insts.info, syntax, cr)
-	insts.instances[key] = instance
-	return instance
-}
 
-// createInstance returns an CREATEd instantiation of fn using targs.
-//
-// Function is added to cr.
-func createInstance(fn *Function, targs []types.Type, info *types.Info, syntax ast.Node, cr *creator) *Function {
-	prog := fn.Prog
 	var sig *types.Signature
 	var obj *types.Func
 	if recv := fn.Signature.Recv(); recv != nil {
@@ -137,25 +141,36 @@ func createInstance(fn *Function, targs []types.Type, info *types.Info, syntax a
 		sig = prog.canon.Type(instance).(*types.Signature)
 	}
 
+	var synthetic string
+	var subst *subster
+
+	concrete := !parameterized.anyParameterized(targs)
+
+	if prog.mode&InstantiateGenerics != 0 && concrete {
+		synthetic = fmt.Sprintf("instance of %s", fn.Name())
+		subst = makeSubster(prog.ctxt, fn.typeparams, targs, false)
+	} else {
+		synthetic = fmt.Sprintf("instantiation wrapper of %s", fn.Name())
+	}
+
 	name := fmt.Sprintf("%s%s", fn.Name(), targs) // may not be unique
-	synthetic := fmt.Sprintf("instantiation of %s", fn.Name())
 	instance := &Function{
-		name:        name,
-		object:      obj,
-		Signature:   sig,
-		Synthetic:   synthetic,
-		_Origin:     fn,
-		pos:         obj.Pos(),
-		Pkg:         nil,
-		Prog:        fn.Prog,
-		_TypeParams: fn._TypeParams,
-		_TypeArgs:   targs,
-		info:        info, // on synthetic packages info is nil.
-		subst:       makeSubster(prog.ctxt, fn._TypeParams, targs, false),
+		name:           name,
+		object:         obj,
+		Signature:      sig,
+		Synthetic:      synthetic,
+		syntax:         syntax,
+		topLevelOrigin: fn,
+		pos:            obj.Pos(),
+		Pkg:            nil,
+		Prog:           fn.Prog,
+		typeparams:     fn.typeparams, // share with origin
+		typeargs:       targs,
+		info:           insts.info, // on synthetic packages info is nil.
+		subst:          subst,
 	}
-	if prog.mode&InstantiateGenerics != 0 {
-		instance.syntax = syntax // otherwise treat instance as an external function.
-	}
+
 	cr.Add(instance)
+	insts.instances[key] = instance
 	return instance
 }

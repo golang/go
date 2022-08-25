@@ -226,6 +226,18 @@ func TestRuntimeTypes(t *testing.T) {
 			nil,
 		},
 	}
+
+	if typeparams.Enabled {
+		tests = append(tests, []struct {
+			input string
+			want  []string
+		}{
+			// MakeInterface does not create runtime type for parameterized types.
+			{`package N; var g interface{}; func f[S any]() { var v []S; g = v }; `,
+				nil,
+			},
+		}...)
+	}
 	for _, test := range tests {
 		// Parse the file.
 		fset := token.NewFileSet()

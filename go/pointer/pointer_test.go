@@ -240,9 +240,14 @@ func doOneInput(t *testing.T, input, fpath string) bool {
 	// Find all calls to the built-in print(x).  Analytically,
 	// print is a no-op, but it's a convenient hook for testing
 	// the PTS of an expression, so our tests use it.
+	// Exclude generic bodies as these should be dead code for pointer.
+	// Instance of generics are included.
 	probes := make(map[*ssa.CallCommon]bool)
 	for fn := range ssautil.AllFunctions(prog) {
-		// TODO(taking): Switch to a more principled check like fn.declaredPackage() == mainPkg if _Origin is exported.
+		if isGenericBody(fn) {
+			continue // skip generic bodies
+		}
+		// TODO(taking): Switch to a more principled check like fn.declaredPackage() == mainPkg if Origin is exported.
 		if fn.Pkg == mainpkg || (fn.Pkg == nil && mainFiles[prog.Fset.File(fn.Pos())]) {
 			for _, b := range fn.Blocks {
 				for _, instr := range b.Instrs {
@@ -654,6 +659,15 @@ func TestInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+// isGenericBody returns true if fn is the body of a generic function.
+func isGenericBody(fn *ssa.Function) bool {
+	sig := fn.Signature
+	if typeparams.ForSignature(sig).Len() > 0 || typeparams.RecvTypeParams(sig).Len() > 0 {
+		return fn.Synthetic == ""
+	}
+	return false
 }
 
 // join joins the elements of multiset with " | "s.
