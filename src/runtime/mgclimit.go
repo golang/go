@@ -55,8 +55,6 @@ type gcCPULimiterState struct {
 	// the mark and sweep phases.
 	transitioning bool
 
-	_ uint32 // Align assistTimePool and lastUpdate on 32-bit platforms.
-
 	// assistTimePool is the accumulated assist time since the last update.
 	assistTimePool atomic.Int64
 
