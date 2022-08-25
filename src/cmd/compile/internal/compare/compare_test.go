@@ -2,7 +2,7 @@ package compare
 
 import (
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -19,23 +19,20 @@ func init() {
 	types.PtrSize = 8
 	types.RegSize = 8
 	types.MaxWidth = 1 << 50
-	types.InitTypes(func(sym *types.Sym, typ *types.Type) types.Object {
-		obj := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, sym)
-		obj.SetType(typ)
-		sym.Def = obj
-		return obj
-	})
+	typecheck.InitUniverse()
 	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
 }
 
-func TestEqStructCostWithMergedLoads(t *testing.T) {
+func TestEqStructCost(t *testing.T) {
 	newByteField := func(parent *types.Type, offset int64) *types.Field {
 		f := types.NewField(src.XPos{}, parent.Sym(), types.ByteType)
 		f.Offset = offset
 		return f
 	}
-	newByteArrayField := func(parent *types.Type, offset int64, len int64) *types.Field {
+	newUint16ArrayField := func(parent *types.Type, offset int64, len int64) *types.Field {
 		f := types.NewField(src.XPos{}, parent.Sym(), types.NewArray(types.Types[types.TUINT16], len))
+		// Call Type.Size here to force the size calculation to be done. If not done here the size returned later is incorrect.
+		f.Type.Size()
 		f.Offset = offset
 		return f
 	}
@@ -143,7 +140,7 @@ func TestEqStructCostWithMergedLoads(t *testing.T) {
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := []*types.Field{
-					newByteArrayField(parent, 0, 101),
+					newUint16ArrayField(parent, 0, 101),
 				}
 				parent.SetFields(fields)
 				return parent

@@ -625,7 +625,6 @@ func NewArray(elem *Type, bound int64) *Type {
 	}
 	t := newType(TARRAY)
 	t.extra = &Array{Elem: elem, Bound: bound}
-	t.width = elem.Size() * bound
 	t.SetNotInHeap(elem.NotInHeap())
 	if elem.HasTParam() {
 		t.SetHasTParam(true)

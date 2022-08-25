@@ -130,24 +130,30 @@ func eqStructFieldCost(t *types.Type, i int) (int64, int64, int) {
 		if size%regSize != 0 {
 			cost++
 		}
-	} else {
-		// If we cannot merge adjacent loads then we have to use the size of the
-		// field and take into account the type to determine how many loads and compares
-		// are needed.
-		ft := t.Field(i).Type
-		size = ft.Size()
-		next = i + 1
+		return cost, size, next
+	}
 
-		switch ft.Kind() {
-		case types.TSTRUCT:
-			return EqStructCost(ft), size, next
-		case types.TARRAY, types.TSLICE:
-			cost = ft.NumElem()
-		case types.TSTRING:
-			cost = 2
-		default:
-			cost = 1
-		}
+	// If we cannot merge adjacent loads then we have to use the size of the
+	// field and take into account the type to determine how many loads and compares
+	// are needed.
+	ft := t.Field(i).Type
+	size = ft.Size()
+	next = i + 1
+
+	switch ft.Kind() {
+	case types.TSTRUCT:
+		return EqStructCost(ft), size, next
+	case types.TSLICE:
+		// Cost of 3 for ptr, len, and cap.
+		cost = 3
+	case types.TARRAY:
+		cost = ft.NumElem()
+	case types.TSTRING, types.TINTER, types.TCOMPLEX64, types.TCOMPLEX128:
+		cost = 2
+	case types.TINT64, types.TUINT64:
+		cost = 8 / int64(types.RegSize)
+	default:
+		cost = 1
 	}
 
 	return cost, size, next
