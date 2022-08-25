@@ -377,6 +377,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 
 	default:
 		check.errorf(e0, _NotAType, "%s is not a type", e0)
+		check.use(e0)
 	}
 
 	typ := Typ[Invalid]

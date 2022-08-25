@@ -482,7 +482,7 @@ func make1() {
 }
 
 func make2() {
-	f1 /* ERROR not used */ := func() (x []int) { return }
+	f1 := func() (x []int) { return }
 	_ = make(f0 /* ERROR not a type */ ())
 	_ = make(f1 /* ERROR not a type */ ())
 }
@@ -502,7 +502,7 @@ func new1() {
 }
 
 func new2() {
-	f1 /* ERROR not used */ := func() (x []int) { return }
+	f1 := func() (x []int) { return }
 	_ = new(f0 /* ERROR not a type */ ())
 	_ = new(f1 /* ERROR not a type */ ())
 }
