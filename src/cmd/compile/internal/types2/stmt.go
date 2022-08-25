@@ -165,7 +165,7 @@ func (check *Checker) closeScope() {
 	check.scope = check.scope.Parent()
 }
 
-func (check *Checker) suspendedCall(keyword string, call *syntax.CallExpr) {
+func (check *Checker) suspendedCall(keyword string, call syntax.Expr) {
 	var x operand
 	var msg string
 	switch check.rawExpr(&x, call, nil, false) {

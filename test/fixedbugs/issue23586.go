@@ -11,13 +11,15 @@
 
 package p
 
+// TODO(gri) The "not used" errors should not be reported.
+
 import (
-	"fmt"
-	"math"
+	"fmt"  // ERROR "imported and not used"
+	"math" // ERROR "imported and not used"
 )
 
 func f() {
-	var i int
+	var i int // ERROR "i declared but not used"
 	defer func() { fmt.Println() } // ERROR "must be function call"
 	go func() { _ = math.Sin(0) }  // ERROR "must be function call"
 	go func() { _ = i}             // ERROR "must be function call"
