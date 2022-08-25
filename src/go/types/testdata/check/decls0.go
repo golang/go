@@ -51,7 +51,7 @@ func _() { var init int; _ = init }
 
 // invalid array types
 type (
-	iA0 [... /* ERROR "invalid use of '...'" */ ]byte
+	iA0 [... /* ERROR "invalid use of \[...\] array" */ ]byte
 	// The error message below could be better. At the moment
 	// we believe an integer that is too large is not an integer.
 	// But at least we get an error.

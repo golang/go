@@ -292,11 +292,19 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 
 		typ := new(Array)
 		def.setUnderlying(typ)
-		typ.len = check.arrayLength(e.Len)
+		// Provide a more specific error when encountering a [...] array
+		// rather than leaving it to the handling of the ... expression.
+		if _, ok := e.Len.(*ast.Ellipsis); ok {
+			check.error(e.Len, _BadDotDotDotSyntax, "invalid use of [...] array (outside a composite literal)")
+			typ.len = -1
+		} else {
+			typ.len = check.arrayLength(e.Len)
+		}
 		typ.elem = check.varType(e.Elt)
 		if typ.len >= 0 {
 			return typ
 		}
+		// report error if we encountered [...]
 
 	case *ast.Ellipsis:
 		// dots are handled explicitly where they are legal
