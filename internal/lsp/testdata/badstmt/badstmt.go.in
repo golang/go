@@ -5,9 +5,16 @@ import (
 )
 
 func _() {
-	defer foo.F //@complete(" //", Foo),diag(" //", "syntax", "function must be invoked in defer statement", "error")
+	/*
+	Temporarily disabled so we can change the parser error message
+	TODO(gri) uncomment once CL 425007 is submitted, and remove spaces
+	between // and @.
+
+	defer foo.F // @complete(" //", Foo),diag(" //", "syntax", "function must be invoked in defer statement", "error")
 	y := 1
-	defer foo.F //@complete(" //", Foo)
+
+	defer foo.F // @complete(" //", Foo)
+	*/
 }
 
 func _() {
