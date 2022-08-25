@@ -5,6 +5,4 @@
 // Check that there is only one error (no follow-on errors).
 
 package p
-// TODO(rFindley) This is a parser error, but in types2 it is a type checking
-//                error. We could probably do without this check in the parser.
-var _ = [... /* ERROR expected array length, found '...' */ ]byte("foo")
+var _ = [ ... /* ERROR invalid use of \[...\] array */ ]byte("foo")

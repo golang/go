@@ -141,18 +141,6 @@ var invalids = []string{
 	`package p; func f() { switch t = /* ERROR "expected ':=', found '='" */ t.(type) {} };`,
 	`package p; func f() { switch t /* ERROR "expected switch expression" */ , t = t.(type) {} };`,
 	`package p; func f() { switch t /* ERROR "expected switch expression" */ = t.(type), t {} };`,
-	`package p; var a = [ /* ERROR "expected expression" */ 1]int;`,
-	`package p; var a = [ /* ERROR "expected expression" */ ...]int;`,
-	`package p; var a = struct /* ERROR "expected expression" */ {}`,
-	`package p; var a = func /* ERROR "expected expression" */ ();`,
-	`package p; var a = interface /* ERROR "expected expression" */ {}`,
-	`package p; var a = [ /* ERROR "expected expression" */ ]int`,
-	`package p; var a = map /* ERROR "expected expression" */ [int]int`,
-	`package p; var a = chan /* ERROR "expected expression" */ int;`,
-	`package p; var a = []int{[ /* ERROR "expected expression" */ ]int};`,
-	`package p; var a = ( /* ERROR "expected expression" */ []int);`,
-	`package p; var a = <- /* ERROR "expected expression" */ chan int;`,
-	`package p; func f() { select { case _ <- chan /* ERROR "expected expression" */ int: } };`,
 	`package p; func f() { _ = (<-<- /* ERROR "expected 'chan'" */ chan int)(nil) };`,
 	`package p; func f() { _ = (<-chan<-chan<-chan<-chan<-chan<- /* ERROR "expected channel type" */ int)(nil) };`,
 	`package p; func f() { var t []int; t /* ERROR "expected identifier on left side of :=" */ [0] := 0 };`,
@@ -182,13 +170,6 @@ var invalids = []string{
 	`package p; type _ struct{ ( /* ERROR "cannot parenthesize embedded type" */ []byte) }`,
 	`package p; type _ struct{ *( /* ERROR "cannot parenthesize embedded type" */ int) }`,
 	`package p; type _ struct{ *( /* ERROR "cannot parenthesize embedded type" */ []byte) }`,
-
-	// TODO(rfindley): this error should be positioned on the ':'
-	`package p; var a = a[[]int:[ /* ERROR "expected expression" */ ]int];`,
-
-	// TODO(rfindley): the compiler error is better here: "cannot parenthesize embedded type"
-	// TODO(rfindley): confirm that parenthesized types should now be accepted.
-	// `package p; type I1 interface{}; type I2 interface{ (/* ERROR "expected '}', found '\('" */ I1) }`,
 
 	// issue 8656
 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,

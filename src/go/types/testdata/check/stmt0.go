@@ -728,7 +728,7 @@ func typeswitches() {
 		case int:
 			println(x)
 			println(x / 0 /* ERROR "invalid operation: division by zero" */)
-		case 1 /* ERROR "expected type, found 1" */:
+		case 1 /* ERROR "1 is not a type" */:
 		}
 	}
 }
