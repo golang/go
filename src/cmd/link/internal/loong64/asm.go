@@ -59,6 +59,16 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(elf.R_LARCH_B26) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
 
+	case objabi.R_LOONG64_TLS_IE_PCREL_HI:
+		out.Write64(uint64(sectoff))
+		out.Write64(uint64(elf.R_LARCH_TLS_IE_PC_HI20) | uint64(elfsym)<<32)
+		out.Write64(uint64(0x0))
+
+	case objabi.R_LOONG64_TLS_IE_LO:
+		out.Write64(uint64(sectoff))
+		out.Write64(uint64(elf.R_LARCH_TLS_IE_PC_LO12) | uint64(elfsym)<<32)
+		out.Write64(uint64(0x0))
+
 	case objabi.R_ADDRLOONG64:
 		out.Write64(uint64(sectoff))
 		out.Write64(uint64(elf.R_LARCH_PCALA_LO12) | uint64(elfsym)<<32)
@@ -99,7 +109,9 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		case objabi.R_ADDRLOONG64TLS,
 			objabi.R_ADDRLOONG64TLSU,
 			objabi.R_CALLLOONG64,
-			objabi.R_JMPLOONG64:
+			objabi.R_JMPLOONG64,
+			objabi.R_LOONG64_TLS_IE_PCREL_HI,
+			objabi.R_LOONG64_TLS_IE_LO:
 			return val, 1, true
 		}
 	}
@@ -152,7 +164,9 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 		objabi.R_CONST,
 		objabi.R_GOTOFF,
 		objabi.R_CALLLOONG64,
-		objabi.R_JMPLOONG64:
+		objabi.R_JMPLOONG64,
+		objabi.R_LOONG64_TLS_IE_PCREL_HI,
+		objabi.R_LOONG64_TLS_IE_LO:
 		return ld.ExtrelocSimple(ldr, r), true
 	}
 	return loader.ExtReloc{}, false

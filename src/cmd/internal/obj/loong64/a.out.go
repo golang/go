@@ -225,7 +225,8 @@ const (
 	C_LOREG
 	C_GOK
 	C_ADDR
-	C_TLS
+	C_TLS_LE
+	C_TLS_IE
 	C_TEXTSIZE
 
 	C_NCLASS // must be the last

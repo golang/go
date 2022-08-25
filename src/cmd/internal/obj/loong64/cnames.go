@@ -37,7 +37,8 @@ var cnames0 = []string{
 	"LOREG",
 	"GOK",
 	"ADDR",
-	"TLS",
+	"TLS_LE",
+	"TLS_IE",
 	"TEXTSIZE",
 	"NCLASS",
 }
