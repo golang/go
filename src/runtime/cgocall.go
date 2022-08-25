@@ -86,7 +86,6 @@ package runtime
 
 import (
 	"internal/goarch"
-	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -259,7 +258,7 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 	// We must still stay on the same m.
 	defer unlockOSThread()
 
-	if gp.m.needextram || atomic.Load(&extraMWaiters) > 0 {
+	if gp.m.needextram || extraMWaiters.Load() > 0 {
 		gp.m.needextram = false
 		systemstack(newextram)
 	}

@@ -1878,7 +1878,7 @@ var earlycgocallback = []byte("fatal error: cgo callback before cgo call\n")
 // It is called with a working local m, so that it can do things
 // like call schedlock and allocate.
 func newextram() {
-	c := atomic.Xchg(&extraMWaiters, 0)
+	c := extraMWaiters.Swap(0)
 	if c > 0 {
 		for i := uint32(0); i < c; i++ {
 			oneNewExtraM()
@@ -1999,9 +1999,9 @@ func getm() uintptr {
 	return uintptr(unsafe.Pointer(getg().m))
 }
 
-var extram uintptr
+var extram atomic.Uintptr
 var extraMCount uint32 // Protected by lockextra
-var extraMWaiters uint32
+var extraMWaiters atomic.Uint32
 
 // lockextra locks the extra list and returns the list head.
 // The caller must unlock the list by storing a new list head
@@ -2015,7 +2015,7 @@ func lockextra(nilokay bool) *m {
 
 	incr := false
 	for {
-		old := atomic.Loaduintptr(&extram)
+		old := extram.Load()
 		if old == locked {
 			osyield_no_g()
 			continue
@@ -2025,13 +2025,13 @@ func lockextra(nilokay bool) *m {
 				// Add 1 to the number of threads
 				// waiting for an M.
 				// This is cleared by newextram.
-				atomic.Xadd(&extraMWaiters, 1)
+				extraMWaiters.Add(1)
 				incr = true
 			}
 			usleep_no_g(1)
 			continue
 		}
-		if atomic.Casuintptr(&extram, old, locked) {
+		if extram.CompareAndSwap(old, locked) {
 			return (*m)(unsafe.Pointer(old))
 		}
 		osyield_no_g()
@@ -2041,7 +2041,7 @@ func lockextra(nilokay bool) *m {
 
 //go:nosplit
 func unlockextra(mp *m) {
-	atomic.Storeuintptr(&extram, uintptr(unsafe.Pointer(mp)))
+	extram.Store(uintptr(unsafe.Pointer(mp)))
 }
 
 var (
