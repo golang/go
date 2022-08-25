@@ -759,7 +759,7 @@ type consistentHeapStats struct {
 //go:nosplit
 func (m *consistentHeapStats) acquire() *heapStatsDelta {
 	if pp := getg().m.p.ptr(); pp != nil {
-		seq := atomic.Xadd(&pp.statsSeq, 1)
+		seq := pp.statsSeq.Add(1)
 		if seq%2 == 0 {
 			// Should have been incremented to odd.
 			print("runtime: seq=", seq, "\n")
@@ -788,7 +788,7 @@ func (m *consistentHeapStats) acquire() *heapStatsDelta {
 //go:nosplit
 func (m *consistentHeapStats) release() {
 	if pp := getg().m.p.ptr(); pp != nil {
-		seq := atomic.Xadd(&pp.statsSeq, 1)
+		seq := pp.statsSeq.Add(1)
 		if seq%2 != 0 {
 			// Should have been incremented to even.
 			print("runtime: seq=", seq, "\n")
@@ -862,7 +862,7 @@ func (m *consistentHeapStats) read(out *heapStatsDelta) {
 
 	for _, p := range allp {
 		// Spin until there are no more writers.
-		for atomic.Load(&p.statsSeq)%2 != 0 {
+		for p.statsSeq.Load()%2 != 0 {
 		}
 	}
 
