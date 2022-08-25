@@ -2384,6 +2384,16 @@ func TestMethod(t *testing.T) {
 		t.Errorf("NoArgs returned %d values; want 0", n)
 	}
 
+	_, ok = TypeOf(&p).MethodByName("AA")
+	if ok {
+		t.Errorf(`MethodByName("AA") should have failed`)
+	}
+
+	_, ok = TypeOf(&p).MethodByName("ZZ")
+	if ok {
+		t.Errorf(`MethodByName("ZZ") should have failed`)
+	}
+
 	// Curried method of value.
 	tfunc := TypeOf((func(int) int)(nil))
 	v := ValueOf(p).Method(1)
