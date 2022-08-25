@@ -50,7 +50,7 @@ type mcache struct {
 	// was last flushed. If flushGen != mheap_.sweepgen, the spans
 	// in this mcache are stale and need to the flushed so they
 	// can be swept. This is done in acquirep.
-	flushGen uint32
+	flushGen atomic.Uint32
 }
 
 // A gclink is a node in a linked list of blocks, like mlink,
@@ -87,7 +87,7 @@ func allocmcache() *mcache {
 	systemstack(func() {
 		lock(&mheap_.lock)
 		c = (*mcache)(mheap_.cachealloc.alloc())
-		c.flushGen = mheap_.sweepgen
+		c.flushGen.Store(mheap_.sweepgen)
 		unlock(&mheap_.lock)
 	})
 	for i := range c.alloc {
@@ -318,13 +318,14 @@ func (c *mcache) prepareForSweep() {
 	// allocate-black. However, with this approach it's difficult
 	// to avoid spilling mark bits into the *next* GC cycle.
 	sg := mheap_.sweepgen
-	if c.flushGen == sg {
+	flushGen := c.flushGen.Load()
+	if flushGen == sg {
 		return
-	} else if c.flushGen != sg-2 {
-		println("bad flushGen", c.flushGen, "in prepareForSweep; sweepgen", sg)
+	} else if flushGen != sg-2 {
+		println("bad flushGen", flushGen, "in prepareForSweep; sweepgen", sg)
 		throw("bad flushGen")
 	}
 	c.releaseAll()
 	stackcache_clear(c)
-	atomic.Store(&c.flushGen, mheap_.sweepgen) // Synchronizes with gcStart
+	c.flushGen.Store(mheap_.sweepgen) // Synchronizes with gcStart
 }

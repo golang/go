@@ -636,7 +636,7 @@ func gcStart(trigger gcTrigger) {
 
 	// Check that all Ps have finished deferred mcache flushes.
 	for _, p := range allp {
-		if fg := atomic.Load(&p.mcache.flushGen); fg != mheap_.sweepgen {
+		if fg := p.mcache.flushGen.Load(); fg != mheap_.sweepgen {
 			println("runtime: p", p.id, "flushGen", fg, "!= sweepgen", mheap_.sweepgen)
 			throw("p mcache not flushed")
 		}
