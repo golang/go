@@ -1004,7 +1004,10 @@ func checkData(t *testing.T, data *Data) {
 	}))
 	got := buf.String()
 	if want != got {
-		t.Errorf("test summary does not match:\n%s", Diff(t, want, got))
+		// These counters change when assertions are added or removed.
+		// They act as an independent safety net to ensure that the
+		// tests didn't spuriously pass because they did no work.
+		t.Errorf("test summary does not match:\n%s\n(Run with -golden to update golden file; also, there may be one per Go version.)", Diff(t, want, got))
 	}
 }
 
