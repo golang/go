@@ -297,9 +297,12 @@ func TestManual(t *testing.T) {
 
 // TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
 
-func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", 55, false) } // TODO(gri) narrow column tolerance
+func TestCheck(t *testing.T) {
+	DefPredeclaredTestFuncs()
+	testDirFiles(t, "../../../../go/types/testdata/check", 55, false) // TODO(gri) narrow column tolerance
+}
 func TestSpec(t *testing.T)      { testDirFiles(t, "../../../../go/types/testdata/spec", 0, false) }
-func TestExamples(t *testing.T)  { testDirFiles(t, "../../../../go/types/testdata/examples", 45, false) }
+func TestExamples(t *testing.T)  { testDirFiles(t, "../../../../go/types/testdata/examples", 45, false) } // TODO(gri) narrow column tolerance
 func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 0, false) }
 
 func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
