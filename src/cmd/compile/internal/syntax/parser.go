@@ -953,20 +953,6 @@ func (p *parser) callStmt() *CallStmt {
 		x = t
 	}
 
-	// TODO(gri) Now that we don't store a CallExpr in a CallStmt anymore
-	//           we might as well leave this check to the type checker.
-	//           Adjust this here and in go/parser eventually.
-	if _, ok := x.(*CallExpr); !ok {
-		// only report an error if it's a new one
-		if bad, ok := x.(*BadExpr); !ok {
-			p.errorAt(x.Pos(), fmt.Sprintf("expression in %s must be function call", s.Tok))
-			// already progressed, no need to advance
-			bad = new(BadExpr)
-			bad.pos = x.Pos()
-			x = bad
-		}
-	}
-
 	s.Call = x
 	return s
 }
