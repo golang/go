@@ -451,7 +451,7 @@ func (root *semaRoot) rotateRight(y *sudog) {
 type notifyList struct {
 	// wait is the ticket number of the next waiter. It is atomically
 	// incremented outside the lock.
-	wait uint32
+	wait atomic.Uint32
 
 	// notify is the ticket number of the next waiter to be notified. It can
 	// be read outside the lock, but is only written to with lock held.
@@ -482,7 +482,7 @@ func less(a, b uint32) bool {
 func notifyListAdd(l *notifyList) uint32 {
 	// This may be called concurrently, for example, when called from
 	// sync.Cond.Wait while holding a RWMutex in read mode.
-	return atomic.Xadd(&l.wait, 1) - 1
+	return l.wait.Add(1) - 1
 }
 
 // notifyListWait waits for a notification. If one has been sent since
@@ -527,7 +527,7 @@ func notifyListWait(l *notifyList, t uint32) {
 func notifyListNotifyAll(l *notifyList) {
 	// Fast-path: if there are no new waiters since the last notification
 	// we don't need to acquire the lock.
-	if atomic.Load(&l.wait) == atomic.Load(&l.notify) {
+	if l.wait.Load() == atomic.Load(&l.notify) {
 		return
 	}
 
@@ -542,7 +542,7 @@ func notifyListNotifyAll(l *notifyList) {
 	// value of wait because any previous waiters are already in the list
 	// or will notice that they have already been notified when trying to
 	// add themselves to the list.
-	atomic.Store(&l.notify, atomic.Load(&l.wait))
+	atomic.Store(&l.notify, l.wait.Load())
 	unlock(&l.lock)
 
 	// Go through the local list and ready all waiters.
@@ -560,7 +560,7 @@ func notifyListNotifyAll(l *notifyList) {
 func notifyListNotifyOne(l *notifyList) {
 	// Fast-path: if there are no new waiters since the last notification
 	// we don't need to acquire the lock at all.
-	if atomic.Load(&l.wait) == atomic.Load(&l.notify) {
+	if l.wait.Load() == atomic.Load(&l.notify) {
 		return
 	}
 
@@ -568,7 +568,7 @@ func notifyListNotifyOne(l *notifyList) {
 
 	// Re-check under the lock if we need to do anything.
 	t := l.notify
-	if t == atomic.Load(&l.wait) {
+	if t == l.wait.Load() {
 		unlock(&l.lock)
 		return
 	}
