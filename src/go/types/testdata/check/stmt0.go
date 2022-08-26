@@ -231,6 +231,7 @@ func selects() {
 func gos() {
 	go 1; /* ERROR "must be function call" */
 	go int /* ERROR "go requires function call, not conversion" */ (0)
+	go ( /* ERROR expression in go must not be parenthesized */ gos())
 	go gos()
 	var c chan int
 	go close(c)
@@ -240,6 +241,7 @@ func gos() {
 func defers() {
 	defer 1; /* ERROR "must be function call" */
 	defer int /* ERROR "defer requires function call, not conversion" */ (0)
+	defer ( /* ERROR expression in defer must not be parenthesized */ defers())
 	defer defers()
 	var c chan int
 	defer close(c)

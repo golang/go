@@ -1928,6 +1928,10 @@ func (p *parser) checkAssignStmt(as *ast.AssignStmt) {
 
 func (p *parser) parseCallExpr(callType string) *ast.CallExpr {
 	x := p.parseRhs() // could be a conversion: (some type)(x)
+	if t := unparen(x); t != x {
+		p.error(x.Pos(), fmt.Sprintf("expression in %s must not be parenthesized", callType))
+		x = t
+	}
 	if call, isCall := x.(*ast.CallExpr); isCall {
 		return call
 	}
