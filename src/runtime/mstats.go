@@ -727,8 +727,7 @@ type consistentHeapStats struct {
 
 	// gen represents the current index into which writers
 	// are writing, and can take on the value of 0, 1, or 2.
-	// This value is updated atomically.
-	gen uint32
+	gen atomic.Uint32
 
 	// noPLock is intended to provide mutual exclusion for updating
 	// stats when no P is available. It does not block other writers
@@ -766,7 +765,7 @@ func (m *consistentHeapStats) acquire() *heapStatsDelta {
 	} else {
 		lock(&m.noPLock)
 	}
-	gen := atomic.Load(&m.gen) % 3
+	gen := m.gen.Load() % 3
 	return &m.stats[gen]
 }
 
@@ -837,7 +836,7 @@ func (m *consistentHeapStats) read(out *heapStatsDelta) {
 	// Get the current generation. We can be confident that this
 	// will not change since read is serialized and is the only
 	// one that modifies currGen.
-	currGen := atomic.Load(&m.gen)
+	currGen := m.gen.Load()
 	prevGen := currGen - 1
 	if currGen == 0 {
 		prevGen = 2
@@ -852,7 +851,7 @@ func (m *consistentHeapStats) read(out *heapStatsDelta) {
 	//
 	// This exchange is safe to do because we won't race
 	// with anyone else trying to update this value.
-	atomic.Xchg(&m.gen, (currGen+1)%3)
+	m.gen.Swap((currGen + 1) % 3)
 
 	// Allow P-less writers to continue. They'll be writing to the
 	// next generation now.
