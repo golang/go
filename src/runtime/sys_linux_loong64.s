@@ -9,6 +9,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "cgo/abi_loong64.h"
 
 #define AT_FDCWD -100
 
@@ -374,18 +375,29 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	JAL	(R20)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$168
+	MOVW	R4, (1*8)(R3)
+	MOVV	R5, (2*8)(R3)
+	MOVV	R6, (3*8)(R3)
+
+	// Save callee-save registers in the case of signal forwarding.
+	// Please refer to https://golang.org/issue/31827 .
+	SAVE_R22_TO_R31((4*8))
+	SAVE_F24_TO_F31((14*8))
+
 	// this might be called in external code context,
 	// where g is not set.
-	MOVB	runtime·iscgo(SB), R19
-	BEQ	R19, 2(PC)
+	MOVB	runtime·iscgo(SB), R4
+	BEQ	R4, 2(PC)
 	JAL	runtime·load_g(SB)
 
-	MOVW	R4, 8(R3)
-	MOVV	R5, 16(R3)
-	MOVV	R6, 24(R3)
-	MOVV	$runtime·sigtrampgo(SB), R19
-	JAL	(R19)
+	MOVV	$runtime·sigtrampgo(SB), R4
+	JAL	(R4)
+
+	// Restore callee-save registers.
+	RESTORE_R22_TO_R31((4*8))
+	RESTORE_F24_TO_F31((14*8))
+
 	RET
 
 TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
