@@ -3348,7 +3348,7 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 		// if we would clear deleted timers.
 		// This corresponds to the condition below where
 		// we decide whether to call clearDeletedTimers.
-		if pp != getg().m.p.ptr() || int(atomic.Load(&pp.deletedTimers)) <= int(atomic.Load(&pp.numTimers)/4) {
+		if pp != getg().m.p.ptr() || int(pp.deletedTimers.Load()) <= int(pp.numTimers.Load()/4) {
 			return now, next, false
 		}
 	}
@@ -3373,7 +3373,7 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 	// If this is the local P, and there are a lot of deleted timers,
 	// clear them out. We only do this for the local P to reduce
 	// lock contention on timersLock.
-	if pp == getg().m.p.ptr() && int(atomic.Load(&pp.deletedTimers)) > len(pp.timers)/4 {
+	if pp == getg().m.p.ptr() && int(pp.deletedTimers.Load()) > len(pp.timers)/4 {
 		clearDeletedTimers(pp)
 	}
 
@@ -4785,8 +4785,8 @@ func (pp *p) destroy() {
 		lock(&pp.timersLock)
 		moveTimers(plocal, pp.timers)
 		pp.timers = nil
-		pp.numTimers = 0
-		pp.deletedTimers = 0
+		pp.numTimers.Store(0)
+		pp.deletedTimers.Store(0)
 		pp.timer0When.Store(0)
 		unlock(&pp.timersLock)
 		unlock(&plocal.timersLock)
@@ -5738,7 +5738,7 @@ func (p pMask) clear(id int32) {
 // TODO(prattmic): Additional targeted updates may improve the above cases.
 // e.g., updating the mask when stealing a timer.
 func updateTimerPMask(pp *p) {
-	if atomic.Load(&pp.numTimers) > 0 {
+	if pp.numTimers.Load() > 0 {
 		return
 	}
 
@@ -5746,7 +5746,7 @@ func updateTimerPMask(pp *p) {
 	// decrement numTimers when handling a timerModified timer in
 	// checkTimers. We must take timersLock to serialize with these changes.
 	lock(&pp.timersLock)
-	if atomic.Load(&pp.numTimers) == 0 {
+	if pp.numTimers.Load() == 0 {
 		timerpMask.clear(pp.id)
 	}
 	unlock(&pp.timersLock)

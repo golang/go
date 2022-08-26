@@ -720,12 +720,10 @@ type p struct {
 	timers []*timer
 
 	// Number of timers in P's heap.
-	// Modified using atomic instructions.
-	numTimers uint32
+	numTimers atomic.Uint32
 
 	// Number of timerDeleted timers in P's heap.
-	// Modified using atomic instructions.
-	deletedTimers uint32
+	deletedTimers atomic.Uint32
 
 	// Race context used while executing timer functions.
 	timerRaceCtx uintptr
