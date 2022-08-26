@@ -474,7 +474,6 @@ type g struct {
 	traceseq       uint64   // trace event sequencer
 	tracelastp     puintptr // last P emitted an event for this goroutine
 	lockedm        muintptr
-	sig            uint32
 	writebuf       []byte
 	sigcode0       uintptr
 	sigcode1       uintptr
@@ -488,6 +487,9 @@ type g struct {
 	labels         unsafe.Pointer // profiler labels
 	timer          *timer         // cached timer for time.Sleep
 	selectDone     uint32         // are we participating in a select and did someone win the race?
+	sig            uint32
+	lastsched      int64 // timestamp when the G last started running
+	runningnanos   int64 // wall time spent in the running state
 
 	// goroutineProfiled indicates the status of this goroutine's stack for the
 	// current in-progress goroutine profile
