@@ -93,58 +93,59 @@ func (frame *stkframe) argBytes() uintptr {
 // function stack object, which the caller must synthesize.
 func (frame *stkframe) argMapInternal() (argMap bitvector, hasReflectStackObj bool) {
 	f := frame.fn
-	argMap.n = f.args / goarch.PtrSize
-	if f.args == _ArgsSizeUnknown {
-		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
-		switch funcname(f) {
-		case "reflect.makeFuncStub", "reflect.methodValueCall":
-			// These take a *reflect.methodValue as their
-			// context register and immediately save it to 0(SP).
-			// Get the methodValue from 0(SP).
-			arg0 := frame.sp + sys.MinFrameSize
+	if f.args != _ArgsSizeUnknown {
+		argMap.n = f.args / goarch.PtrSize
+		return
+	}
+	// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
+	switch funcname(f) {
+	case "reflect.makeFuncStub", "reflect.methodValueCall":
+		// These take a *reflect.methodValue as their
+		// context register and immediately save it to 0(SP).
+		// Get the methodValue from 0(SP).
+		arg0 := frame.sp + sys.MinFrameSize
 
-			minSP := frame.fp
-			if !usesLR {
-				// The CALL itself pushes a word.
-				// Undo that adjustment.
-				minSP -= goarch.PtrSize
-			}
-			if arg0 >= minSP {
-				// The function hasn't started yet.
-				// This only happens if f was the
-				// start function of a new goroutine
-				// that hasn't run yet *and* f takes
-				// no arguments and has no results
-				// (otherwise it will get wrapped in a
-				// closure). In this case, we can't
-				// reach into its locals because it
-				// doesn't have locals yet, but we
-				// also know its argument map is
-				// empty.
-				if frame.pc != f.entry() {
-					print("runtime: confused by ", funcname(f), ": no frame (sp=", hex(frame.sp), " fp=", hex(frame.fp), ") at entry+", hex(frame.pc-f.entry()), "\n")
-					throw("reflect mismatch")
-				}
-				return bitvector{}, false // No locals, so also no stack objects
-			}
-			hasReflectStackObj = true
-			mv := *(**reflectMethodValue)(unsafe.Pointer(arg0))
-			// Figure out whether the return values are valid.
-			// Reflect will update this value after it copies
-			// in the return values.
-			retValid := *(*bool)(unsafe.Pointer(arg0 + 4*goarch.PtrSize))
-			if mv.fn != f.entry() {
-				print("runtime: confused by ", funcname(f), "\n")
+		minSP := frame.fp
+		if !usesLR {
+			// The CALL itself pushes a word.
+			// Undo that adjustment.
+			minSP -= goarch.PtrSize
+		}
+		if arg0 >= minSP {
+			// The function hasn't started yet.
+			// This only happens if f was the
+			// start function of a new goroutine
+			// that hasn't run yet *and* f takes
+			// no arguments and has no results
+			// (otherwise it will get wrapped in a
+			// closure). In this case, we can't
+			// reach into its locals because it
+			// doesn't have locals yet, but we
+			// also know its argument map is
+			// empty.
+			if frame.pc != f.entry() {
+				print("runtime: confused by ", funcname(f), ": no frame (sp=", hex(frame.sp), " fp=", hex(frame.fp), ") at entry+", hex(frame.pc-f.entry()), "\n")
 				throw("reflect mismatch")
 			}
-			argMap = *mv.stack
-			if !retValid {
-				// argMap.n includes the results, but
-				// those aren't valid, so drop them.
-				n := int32((uintptr(mv.argLen) &^ (goarch.PtrSize - 1)) / goarch.PtrSize)
-				if n < argMap.n {
-					argMap.n = n
-				}
+			return bitvector{}, false // No locals, so also no stack objects
+		}
+		hasReflectStackObj = true
+		mv := *(**reflectMethodValue)(unsafe.Pointer(arg0))
+		// Figure out whether the return values are valid.
+		// Reflect will update this value after it copies
+		// in the return values.
+		retValid := *(*bool)(unsafe.Pointer(arg0 + 4*goarch.PtrSize))
+		if mv.fn != f.entry() {
+			print("runtime: confused by ", funcname(f), "\n")
+			throw("reflect mismatch")
+		}
+		argMap = *mv.stack
+		if !retValid {
+			// argMap.n includes the results, but
+			// those aren't valid, so drop them.
+			n := int32((uintptr(mv.argLen) &^ (goarch.PtrSize - 1)) / goarch.PtrSize)
+			if n < argMap.n {
+				argMap.n = n
 			}
 		}
 	}
