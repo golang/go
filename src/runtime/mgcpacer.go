@@ -1314,7 +1314,7 @@ func setGCPercent(in int32) (out int32) {
 	// If we just disabled GC, wait for any concurrent GC mark to
 	// finish so we always return with no GC running.
 	if in < 0 {
-		gcWaitOnMark(atomic.Load(&work.cycles))
+		gcWaitOnMark(work.cycles.Load())
 	}
 
 	return out

@@ -393,7 +393,7 @@ type workType struct {
 	// cycle is sweep termination, mark, mark termination, and
 	// sweep. This differs from memstats.numgc, which is
 	// incremented at mark termination.
-	cycles uint32
+	cycles atomic.Uint32
 
 	// Timing/utilization stats for this cycle.
 	stwprocs, maxprocs                 int32
@@ -436,7 +436,7 @@ func GC() {
 
 	// Wait until the current sweep termination, mark, and mark
 	// termination complete.
-	n := atomic.Load(&work.cycles)
+	n := work.cycles.Load()
 	gcWaitOnMark(n)
 
 	// We're now in sweep N or later. Trigger GC cycle N+1, which
@@ -451,7 +451,7 @@ func GC() {
 	// complete the cycle and because runtime.GC() is often used
 	// as part of tests and benchmarks to get the system into a
 	// relatively stable and isolated state.
-	for atomic.Load(&work.cycles) == n+1 && sweepone() != ^uintptr(0) {
+	for work.cycles.Load() == n+1 && sweepone() != ^uintptr(0) {
 		sweep.nbgsweep++
 		Gosched()
 	}
@@ -467,7 +467,7 @@ func GC() {
 	// First, wait for sweeping to finish. (We know there are no
 	// more spans on the sweep queue, but we may be concurrently
 	// sweeping spans, so we have to wait.)
-	for atomic.Load(&work.cycles) == n+1 && !isSweepDone() {
+	for work.cycles.Load() == n+1 && !isSweepDone() {
 		Gosched()
 	}
 
@@ -475,7 +475,7 @@ func GC() {
 	// stable heap profile. Only do this if we haven't already hit
 	// another mark termination.
 	mp := acquirem()
-	cycle := atomic.Load(&work.cycles)
+	cycle := work.cycles.Load()
 	if cycle == n+1 || (gcphase == _GCmark && cycle == n+2) {
 		mProf_PostSweep()
 	}
@@ -488,7 +488,7 @@ func gcWaitOnMark(n uint32) {
 	for {
 		// Disable phase transitions.
 		lock(&work.sweepWaiters.lock)
-		nMarks := atomic.Load(&work.cycles)
+		nMarks := work.cycles.Load()
 		if gcphase != _GCmark {
 			// We've already completed this cycle's mark.
 			nMarks++
@@ -565,7 +565,7 @@ func (t gcTrigger) test() bool {
 		return lastgc != 0 && t.now-lastgc > forcegcperiod
 	case gcTriggerCycle:
 		// t.n > work.cycles, but accounting for wraparound.
-		return int32(t.n-work.cycles) > 0
+		return int32(t.n-work.cycles.Load()) > 0
 	}
 	return true
 }
@@ -672,7 +672,7 @@ func gcStart(trigger gcTrigger) {
 	// reclaimed until the next GC cycle.
 	clearpools()
 
-	work.cycles++
+	work.cycles.Add(1)
 
 	// Assists and workers can start the moment we start
 	// the world.
