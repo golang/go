@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/token"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -110,27 +111,40 @@ func summarizeSymbols(i int, want, got []protocol.DocumentSymbol, reason string,
 }
 
 // DiffDiagnostics prints the diff between expected and actual diagnostics test
-// results.
+// results. If the sole expectation is "no_diagnostics", the check is suppressed.
+// The Message field of each want element must be a regular expression.
 func DiffDiagnostics(uri span.URI, want, got []*source.Diagnostic) string {
+	// A special case to test that there are no diagnostics for a file.
+	if len(want) == 1 && want[0].Source == "no_diagnostics" {
+		if len(got) != 0 {
+			return fmt.Sprintf("expected no diagnostics for %s, got %v", uri, got)
+		}
+		return ""
+	}
+
 	source.SortDiagnostics(want)
 	source.SortDiagnostics(got)
 
 	if len(got) != len(want) {
+		// TODO(adonovan): print the actual difference, not the difference in length!
 		return summarizeDiagnostics(-1, uri, want, got, "different lengths got %v want %v", len(got), len(want))
 	}
 	for i, w := range want {
 		g := got[i]
-		if w.Message != g.Message {
-			return summarizeDiagnostics(i, uri, want, got, "incorrect Message got %v want %v", g.Message, w.Message)
+		if match, err := regexp.MatchString(w.Message, g.Message); err != nil {
+			return summarizeDiagnostics(i, uri, want, got, "invalid regular expression %q: %v", w.Message, err)
+
+		} else if !match {
+			return summarizeDiagnostics(i, uri, want, got, "got Message %q, want match for pattern %q", g.Message, w.Message)
 		}
 		if w.Severity != g.Severity {
-			return summarizeDiagnostics(i, uri, want, got, "incorrect Severity got %v want %v", g.Severity, w.Severity)
+			return summarizeDiagnostics(i, uri, want, got, "got Severity %v, want %v", g.Severity, w.Severity)
 		}
 		if w.Source != g.Source {
-			return summarizeDiagnostics(i, uri, want, got, "incorrect Source got %v want %v", g.Source, w.Source)
+			return summarizeDiagnostics(i, uri, want, got, "got Source %v, want %v", g.Source, w.Source)
 		}
 		if !rangeOverlaps(g.Range, w.Range) {
-			return summarizeDiagnostics(i, uri, want, got, "range %v does not overlap %v", g.Range, w.Range)
+			return summarizeDiagnostics(i, uri, want, got, "got Range %v, want overlap with %v", g.Range, w.Range)
 		}
 	}
 	return ""

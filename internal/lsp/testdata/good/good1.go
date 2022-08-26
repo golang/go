@@ -14,6 +14,7 @@ func random2(y int) int { //@item(good_random2, "random2", "func(y int) int", "f
 	//@complete("", good_y_param, types_import, good_random, good_random2, good_stuff)
 	var b types.Bob = &types.X{}   //@prepare("ypes","types", "types")
 	if _, ok := b.(*types.X); ok { //@complete("X", X_struct, Y_struct, Bob_interface, CoolAlias)
+		_ = 0 // suppress "empty branch" diagnostic
 	}
 
 	return y

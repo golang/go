@@ -685,6 +685,10 @@ type Diagnostic struct {
 	Analyzer       *Analyzer
 }
 
+func (d *Diagnostic) String() string {
+	return fmt.Sprintf("%v: %s", d.Range, d.Message)
+}
+
 type DiagnosticSource string
 
 const (

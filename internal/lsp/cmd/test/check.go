@@ -5,59 +5,61 @@
 package cmdtest
 
 import (
-	"fmt"
 	"io/ioutil"
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 )
 
+// Diagnostics runs the gopls command on a single file, parses its
+// diagnostics, and compares against the expectations defined by
+// markers in the source file.
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnostic) {
-	if len(want) == 1 && want[0].Message == "" {
-		return
+	out, _ := r.runGoplsCmd(t, "check", uri.Filename())
+
+	content, err := ioutil.ReadFile(uri.Filename())
+	if err != nil {
+		t.Fatal(err)
 	}
-	fname := uri.Filename()
-	out, _ := r.runGoplsCmd(t, "check", fname)
-	// parse got into a collection of reports
-	got := map[string]struct{}{}
-	for _, l := range strings.Split(out, "\n") {
-		if len(l) == 0 {
-			continue
+	mapper := protocol.NewColumnMapper(uri, content)
+
+	// Parse command output into a set of diagnostics.
+	var got []*source.Diagnostic
+	for _, line := range strings.Split(out, "\n") {
+		if line == "" {
+			continue // skip blank
 		}
-		// parse and reprint to normalize the span
-		bits := strings.SplitN(l, ": ", 2)
-		if len(bits) == 2 {
-			spn := span.Parse(strings.TrimSpace(bits[0]))
-			spn = span.New(spn.URI(), spn.Start(), span.Point{})
-			data, err := ioutil.ReadFile(fname)
-			if err != nil {
-				t.Fatal(err)
-			}
-			converter := span.NewTokenFile(fname, data)
-			s, err := spn.WithPosition(converter)
-			if err != nil {
-				t.Fatal(err)
-			}
-			l = fmt.Sprintf("%s: %s", s, strings.TrimSpace(bits[1]))
+		parts := strings.SplitN(line, ": ", 2) // "span: message"
+		if len(parts) != 2 {
+			t.Fatalf("output line not of form 'span: message': %q", line)
 		}
-		got[r.NormalizePrefix(l)] = struct{}{}
+		spn, message := span.Parse(parts[0]), parts[1]
+		rng, err := mapper.Range(spn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Set only the fields needed by DiffDiagnostics.
+		got = append(got, &source.Diagnostic{
+			URI:     uri,
+			Range:   rng,
+			Message: message,
+		})
 	}
+
+	// Don't expect fields that we can't populate from the command output.
 	for _, diag := range want {
-		expect := fmt.Sprintf("%v:%v:%v: %v", uri.Filename(), diag.Range.Start.Line+1, diag.Range.Start.Character+1, diag.Message)
-		if diag.Range.Start.Character == 0 {
-			expect = fmt.Sprintf("%v:%v: %v", uri.Filename(), diag.Range.Start.Line+1, diag.Message)
+		if diag.Source == "no_diagnostics" {
+			continue // see DiffDiagnostics
 		}
-		expect = r.NormalizePrefix(expect)
-		_, found := got[expect]
-		if !found {
-			t.Errorf("missing diagnostic %q, %v", expect, got)
-		} else {
-			delete(got, expect)
-		}
+		diag.Source = ""
+		diag.Severity = 0
 	}
-	for extra := range got {
-		t.Errorf("extra diagnostic %q", extra)
+
+	if diff := tests.DiffDiagnostics(uri, want, got); diff != "" {
+		t.Error(diff)
 	}
 }

@@ -156,13 +156,6 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A special case to test that there are no diagnostics for a file.
-	if len(want) == 1 && want[0].Source == "no_diagnostics" {
-		if len(got) != 0 {
-			t.Errorf("expected no diagnostics for %s, got %v", uri, got)
-		}
-		return
-	}
 	if diff := tests.DiffDiagnostics(fileID.URI, want, got); diff != "" {
 		t.Error(diff)
 	}
