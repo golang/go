@@ -13,7 +13,7 @@ import (
 
 // worldIsStopped is accessed atomically to track world-stops. 1 == world
 // stopped.
-var worldIsStopped uint32
+var worldIsStopped atomic.Uint32
 
 // lockRankStruct is embedded in mutex
 type lockRankStruct struct {
@@ -301,7 +301,7 @@ func assertRankHeld(r lockRank) {
 //
 //go:nosplit
 func worldStopped() {
-	if stopped := atomic.Xadd(&worldIsStopped, 1); stopped != 1 {
+	if stopped := worldIsStopped.Add(1); stopped != 1 {
 		systemstack(func() {
 			print("world stop count=", stopped, "\n")
 			throw("recursive world stop")
@@ -317,7 +317,7 @@ func worldStopped() {
 //
 //go:nosplit
 func worldStarted() {
-	if stopped := atomic.Xadd(&worldIsStopped, -1); stopped != 0 {
+	if stopped := worldIsStopped.Add(-1); stopped != 0 {
 		systemstack(func() {
 			print("world stop count=", stopped, "\n")
 			throw("released non-stopped world stop")
@@ -329,7 +329,7 @@ func worldStarted() {
 //
 //go:nosplit
 func checkWorldStopped() bool {
-	stopped := atomic.Load(&worldIsStopped)
+	stopped := worldIsStopped.Load()
 	if stopped > 1 {
 		systemstack(func() {
 			print("inconsistent world stop count=", stopped, "\n")
