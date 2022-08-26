@@ -6,11 +6,14 @@ package poll
 
 import (
 	"internal/syscall/unix"
-	"sync/atomic"
+	"sync"
 	"syscall"
 )
 
-var copyFileRangeSupported int32 = -1 // accessed atomically
+var (
+	kernelVersion53Once sync.Once
+	kernelVersion53     bool
+)
 
 const maxCopyFileRangeRound = 1 << 30
 
@@ -52,20 +55,20 @@ func kernelVersion() (major int, minor int) {
 // CopyFileRange copies at most remain bytes of data from src to dst, using
 // the copy_file_range system call. dst and src must refer to regular files.
 func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err error) {
-	if supported := atomic.LoadInt32(&copyFileRangeSupported); supported == 0 {
-		return 0, false, nil
-	} else if supported == -1 {
+	kernelVersion53Once.Do(func() {
 		major, minor := kernelVersion()
+		// copy_file_range(2) is broken in various ways on kernels older than 5.3,
+		// see issue #42400 and
+		// https://man7.org/linux/man-pages/man2/copy_file_range.2.html#VERSIONS
 		if major > 5 || (major == 5 && minor >= 3) {
-			atomic.StoreInt32(&copyFileRangeSupported, 1)
-		} else {
-			// copy_file_range(2) is broken in various ways on kernels older than 5.3,
-			// see issue #42400 and
-			// https://man7.org/linux/man-pages/man2/copy_file_range.2.html#VERSIONS
-			atomic.StoreInt32(&copyFileRangeSupported, 0)
-			return 0, false, nil
+			kernelVersion53 = true
 		}
+	})
+
+	if !kernelVersion53 {
+		return 0, false, nil
 	}
+
 	for remain > 0 {
 		max := remain
 		if max > maxCopyFileRangeRound {
@@ -82,10 +85,6 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
 			// any data, so we can tell the caller that we
 			// couldn't handle the transfer and let them fall
 			// back to more generic code.
-			//
-			// Seeing ENOSYS also means that we will not try to
-			// use copy_file_range(2) again.
-			atomic.StoreInt32(&copyFileRangeSupported, 0)
 			return 0, false, nil
 		case syscall.EXDEV, syscall.EINVAL, syscall.EIO, syscall.EOPNOTSUPP, syscall.EPERM:
 			// Prior to Linux 5.3, it was not possible to
