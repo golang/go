@@ -836,8 +836,6 @@ type schedt struct {
 	// with the rest of the runtime.
 	sysmonlock mutex
 
-	_ uint32 // ensure timeToRun has 8-byte alignment
-
 	// timeToRun is a distribution of scheduling latencies, defined
 	// as the sum of time a G spends in the _Grunnable state before
 	// it transitions to _Grunning.

@@ -45,8 +45,6 @@ type mstats struct {
 
 	enablegc bool
 
-	_ uint32 // ensure gcPauseDist is aligned.
-
 	// gcPauseDist represents the distribution of all GC-related
 	// application pauses in the runtime.
 	//
