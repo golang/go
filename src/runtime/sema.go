@@ -39,8 +39,8 @@ import (
 // BenchmarkSemTable/OneAddrCollision/* for a benchmark that exercises this.
 type semaRoot struct {
 	lock  mutex
-	treap *sudog // root of balanced tree of unique waiters.
-	nwait uint32 // Number of waiters. Read w/o the lock.
+	treap *sudog        // root of balanced tree of unique waiters.
+	nwait atomic.Uint32 // Number of waiters. Read w/o the lock.
 }
 
 var semtable semTable
@@ -137,10 +137,10 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes i
 	for {
 		lockWithRank(&root.lock, lockRankRoot)
 		// Add ourselves to nwait to disable "easy case" in semrelease.
-		atomic.Xadd(&root.nwait, 1)
+		root.nwait.Add(1)
 		// Check cansemacquire to avoid missed wakeup.
 		if cansemacquire(addr) {
-			atomic.Xadd(&root.nwait, -1)
+			root.nwait.Add(-1)
 			unlock(&root.lock)
 			break
 		}
@@ -169,13 +169,13 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 	// Easy case: no waiters?
 	// This check must happen after the xadd, to avoid a missed wakeup
 	// (see loop in semacquire).
-	if atomic.Load(&root.nwait) == 0 {
+	if root.nwait.Load() == 0 {
 		return
 	}
 
 	// Harder case: search for a waiter and wake it.
 	lockWithRank(&root.lock, lockRankRoot)
-	if atomic.Load(&root.nwait) == 0 {
+	if root.nwait.Load() == 0 {
 		// The count is already consumed by another goroutine,
 		// so no need to wake up another goroutine.
 		unlock(&root.lock)
@@ -183,7 +183,7 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 	}
 	s, t0 := root.dequeue(addr)
 	if s != nil {
-		atomic.Xadd(&root.nwait, -1)
+		root.nwait.Add(-1)
 	}
 	unlock(&root.lock)
 	if s != nil { // May be slow or even yield, so unlock first

@@ -1164,7 +1164,7 @@ var Semrelease1 = semrelease1
 
 func SemNwait(addr *uint32) uint32 {
 	root := semtable.rootFor(addr)
-	return atomic.Load(&root.nwait)
+	return root.nwait.Load()
 }
 
 const SemTableSize = semTabSize
