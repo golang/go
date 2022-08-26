@@ -1742,7 +1742,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 			toReplace.Type = t
 			w = toReplace
 		} else {
-			w = baseArg.Block.NewValue0IA(pos, OpArg, t, auxInt, aux)
+			w = baseArg.Block.NewValue0IA(baseArg.Pos, OpArg, t, auxInt, aux)
 		}
 		x.commonArgs[key] = w
 		if toReplace != nil {
@@ -1773,7 +1773,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 		toReplace.Type = t
 		w = toReplace
 	} else {
-		w = baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
+		w = baseArg.Block.NewValue0IA(baseArg.Pos, op, t, auxInt, aux)
 	}
 	x.commonArgs[key] = w
 	if toReplace != nil {
