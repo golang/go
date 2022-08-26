@@ -64,7 +64,7 @@ func dlog() *dlogger {
 		allp := (*uintptr)(unsafe.Pointer(&allDloggers))
 		all := (*dlogger)(unsafe.Pointer(atomic.Loaduintptr(allp)))
 		for l1 := all; l1 != nil; l1 = l1.allLink {
-			if atomic.Load(&l1.owned) == 0 && atomic.Cas(&l1.owned, 0, 1) {
+			if l1.owned.Load() == 0 && l1.owned.CompareAndSwap(0, 1) {
 				l = l1
 				break
 			}
@@ -80,7 +80,7 @@ func dlog() *dlogger {
 			throw("failed to allocate debug log")
 		}
 		l.w.r.data = &l.w.data
-		l.owned = 1
+		l.owned.Store(1)
 
 		// Prepend to allDloggers list.
 		headp := (*uintptr)(unsafe.Pointer(&allDloggers))
@@ -131,7 +131,7 @@ type dlogger struct {
 
 	// owned indicates that this dlogger is owned by an M. This is
 	// accessed atomically.
-	owned uint32
+	owned atomic.Uint32
 }
 
 // allDloggers is a list of all dloggers, linked through
@@ -160,7 +160,7 @@ func (l *dlogger) end() {
 	}
 
 	// Return the logger to the global pool.
-	atomic.Store(&l.owned, 0)
+	l.owned.Store(0)
 }
 
 const (
