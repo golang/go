@@ -29,7 +29,7 @@ func arrays() {
 	_ = a == b
 	_ = a != b
 	_ = a /* ERROR < not defined */ < b
-	_ = a == nil /* ERROR invalid operation.*mismatched types */
+	_ = a /* ERROR cannot compare.*mismatched types */ == nil
 
 	type C [10]int
 	var c C
@@ -53,7 +53,7 @@ func structs() {
 	_ = s == t
 	_ = s != t
 	_ = s /* ERROR < not defined */ < t
-	_ = s == nil /* ERROR invalid operation.*mismatched types */
+	_ = s /* ERROR cannot compare.*mismatched types */ == nil
 
 	type S struct {
 		x int

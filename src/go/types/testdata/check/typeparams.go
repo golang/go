@@ -452,7 +452,7 @@ func (_ R2[X, Y]) m2(X) Y
 //         switch x.(type) {
 //         case I4:
 //         }
-// 
+//
 //         // type assertions and type switches over generic types are strict
 //         _ = p /* ERROR cannot have dynamic type I4 */.(I4)
 //         switch p.(type) {

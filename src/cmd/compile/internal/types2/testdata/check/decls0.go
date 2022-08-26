@@ -186,11 +186,13 @@ func f1(x f1 /* ERROR "not a type" */ ) {}
 func f2(x *f2 /* ERROR "not a type" */ ) {}
 func f3() (x f3 /* ERROR "not a type" */ ) { return }
 func f4() (x *f4 /* ERROR "not a type" */ ) { return }
+// TODO(#43215) this should be detected as a cycle error
+func f5([unsafe.Sizeof(f5)]int) {}
 
-func (S0) m1(x S0 /* ERROR illegal cycle in method declaration */ .m1) {}
-func (S0) m2(x *S0 /* ERROR illegal cycle in method declaration */ .m2) {}
-func (S0) m3() (x S0 /* ERROR illegal cycle in method declaration */ .m3) { return }
-func (S0) m4() (x *S0 /* ERROR illegal cycle in method declaration */ .m4) { return }
+func (S0) m1 (x S0 /* ERROR illegal cycle in method declaration */ .m1) {}
+func (S0) m2 (x *S0 /* ERROR illegal cycle in method declaration */ .m2) {}
+func (S0) m3 () (x S0 /* ERROR illegal cycle in method declaration */ .m3) { return }
+func (S0) m4 () (x *S0 /* ERROR illegal cycle in method declaration */ .m4) { return }
 
 // interfaces may not have any blank methods
 type BlankI interface {

@@ -7,9 +7,8 @@ package expr3
 import "time"
 
 func indexes() {
-	var x int
 	_ = 1 /* ERROR "cannot index" */ [0]
-	_ = x /* ERROR "cannot index" */ [0]
+	_ = indexes /* ERROR "cannot index" */ [0]
 	_ = ( /* ERROR "cannot slice" */ 12 + 3)[1:2]
 
 	var a [10]int
@@ -83,7 +82,7 @@ func indexes() {
 	_ = s[: - /* ERROR "negative" */ 1]
 	_ = s[0]
 	_ = s[1:2]
-	_ = s[2:1] /* ERROR "invalid slice indices" */
+	_ = s[2:1 /* ERROR "invalid slice indices" */ ]
 	_ = s[2:]
 	_ = s[: 1 /* ERROR "overflows" */ <<100]
 	_ = s[1 /* ERROR "overflows" */ <<100 :]
@@ -104,7 +103,7 @@ func indexes() {
 	var ok mybool
 	_, ok = m["bar"]
 	_ = ok
-	_ = m[0 /* ERROR "cannot use 0" */ ] + "foo" // ERROR "mismatched types int and untyped string"
+	_ = m/* ERROR "mismatched types int and untyped string" */[0 /* ERROR "cannot use 0" */ ] + "foo"
 
 	var t string
 	_ = t[- /* ERROR "negative" */ 1]
@@ -459,7 +458,7 @@ func type_asserts() {
 
 	var t I
 	_ = t /* ERROR "use of .* outside type switch" */ .(type)
-	_ = t /* ERROR "method m has pointer receiver" */ .(T)
+	_ = t /* ERROR "m has pointer receiver" */ .(T)
 	_ = t.(*T)
 	_ = t /* ERROR "missing method m" */ .(T1)
 	_ = t /* ERROR "wrong type for method m" */ .(T2)
@@ -494,7 +493,7 @@ func _calls() {
 	f1(0)
 	f1(x)
 	f1(10.0)
-	f1 /* ERROR "not enough arguments in call to f1\n\thave \(\)\n\twant \(int\)" */ ()
+	f1() /* ERROR "not enough arguments in call to f1\n\thave \(\)\n\twant \(int\)" */
 	f1(x, y /* ERROR "too many arguments in call to f1\n\thave \(int, float32\)\n\twant \(int\)" */ )
 	f1(s /* ERROR "cannot use .* in argument" */ )
 	f1(x ... /* ERROR "cannot use ..." */ )
@@ -502,15 +501,15 @@ func _calls() {
 	f1(g1())
 	f1(g2 /* ERROR "too many arguments in call to f1\n\thave \(float32, string\)\n\twant \(int\)" */ ())
 
-	f2 /* ERROR "not enough arguments in call to f2\n\thave \(\)\n\twant \(float32, string\)" */ ()
-	f2(3.14 /* ERROR "not enough arguments in call to f2\n\thave \(number\)\n\twant \(float32, string\)" */ )
+	f2() /* ERROR "not enough arguments in call to f2\n\thave \(\)\n\twant \(float32, string\)" */
+	f2(3.14) /* ERROR "not enough arguments in call to f2\n\thave \(number\)\n\twant \(float32, string\)" */
 	f2(3.14, "foo")
 	f2(x /* ERROR "cannot use .* in argument" */ , "foo")
 	f2(g0 /* ERROR "used as value" */ ())
-	f2(g1 /* ERROR "not enough arguments in call to f2\n\thave \(int\)\n\twant \(float32, string\)" */ ())
+	f2(g1()) /* ERROR "not enough arguments in call to f2\n\thave \(int\)\n\twant \(float32, string\)" */
 	f2(g2())
 
-	fs /* ERROR "not enough arguments" */ ()
+	fs() /* ERROR "not enough arguments" */
 	fs(g0 /* ERROR "used as value" */ ())
 	fs(g1 /* ERROR "cannot use .* in argument" */ ())
 	fs(g2 /* ERROR "too many arguments" */ ())
@@ -521,7 +520,7 @@ func _calls() {
 	fv(s /* ERROR "cannot use .* in argument" */ )
 	fv(s...)
 	fv(x /* ERROR "cannot use" */ ...)
-	fv(1, s /* ERROR "too many arguments" */ ... )
+	fv(1, s /* ERROR "too many arguments" */ ...)
 	fv(gs /* ERROR "cannot use .* in argument" */ ())
 	fv(gs /* ERROR "cannot use .* in argument" */ ()...)
 
@@ -530,7 +529,7 @@ func _calls() {
 	t.fm(1, 2.0, x)
 	t.fm(s /* ERROR "cannot use .* in argument" */ )
 	t.fm(g1())
-	t.fm(1, s /* ERROR "too many arguments" */ ... )
+	t.fm(1, s /* ERROR "too many arguments" */ ...)
 	t.fm(gs /* ERROR "cannot use .* in argument" */ ())
 	t.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
 
@@ -538,7 +537,7 @@ func _calls() {
 	T.fm(t, 1, 2.0, x)
 	T.fm(t, s /* ERROR "cannot use .* in argument" */ )
 	T.fm(t, g1())
-	T.fm(t, 1, s /* ERROR "too many arguments" */ ... )
+	T.fm(t, 1, s /* ERROR "too many arguments" */ ...)
 	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ())
 	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ()...)
 
@@ -547,7 +546,7 @@ func _calls() {
 	i.fm(1, 2.0, x)
 	i.fm(s /* ERROR "cannot use .* in argument" */ )
 	i.fm(g1())
-	i.fm(1, s /* ERROR "too many arguments" */ ... )
+	i.fm(1, s /* ERROR "too many arguments" */ ...)
 	i.fm(gs /* ERROR "cannot use .* in argument" */ ())
 	i.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
 

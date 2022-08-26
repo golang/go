@@ -10,4 +10,3 @@ package p
 
 // type alias declarations
 type any = /* ERROR type aliases requires go1.9 or later */ interface{}
-

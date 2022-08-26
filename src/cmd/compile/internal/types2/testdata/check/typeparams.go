@@ -1,4 +1,4 @@
-// Copyright 2020 The Go Authors. All rights reserved.
+// Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -134,11 +134,11 @@ func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3
 type myByte1 []byte
 type myByte2 []byte
 func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
-func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x[ /* ERROR no core type */ i:j:k] }
+func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR no core type */ [i:j:k] }
 
 func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
 func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3-index slice of string */ ] }
-func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x[ /* ERROR no core type */ i:j] }
+func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR no core type */ [i:j] }
 
 // len/cap built-ins
 
@@ -274,17 +274,17 @@ func _[
 
 // type inference checks
 
-var _ = new() /* ERROR cannot infer T */
+var _ = new /* ERROR cannot infer T */ ()
 
 func f4[A, B, C any](A, B) C { panic(0) }
 
-var _ = f4(1, 2) /* ERROR cannot infer C */
+var _ = f4 /* ERROR cannot infer C */ (1, 2)
 var _ = f4[int, float32, complex128](1, 2)
 
 func f5[A, B, C any](A, []*B, struct{f []C}) int { panic(0) }
 
 var _ = f5[int, float32, complex128](0, nil, struct{f []complex128}{})
-var _ = f5(0, nil, struct{f []complex128}{}) // ERROR cannot infer
+var _ = f5 /* ERROR cannot infer */ (0, nil, struct{f []complex128}{})
 var _ = f5(0, []*float32{new[float32]()}, struct{f []complex128}{})
 
 func f6[A any](A, []A) int { panic(0) }
@@ -293,13 +293,13 @@ var _ = f6(0, nil)
 
 func f6nil[A any](A) int { panic(0) }
 
-var _ = f6nil(nil) // ERROR cannot infer
+var _ = f6nil /* ERROR cannot infer */ (nil)
 
 // type inference with variadic functions
 
 func f7[T any](...T) T { panic(0) }
 
-var _ int = f7() /* ERROR cannot infer T */
+var _ int = f7 /* ERROR cannot infer T */ ()
 var _ int = f7(1)
 var _ int = f7(1, 2)
 var _ int = f7([]int{}...)
@@ -312,7 +312,7 @@ var _ = f7(1.2, 3 /* ERROR does not match */ )
 
 func f8[A, B any](A, B, ...B) int { panic(0) }
 
-var _ = f8(1 /* ERROR not enough arguments */ )
+var _ = f8(1) /* ERROR not enough arguments */
 var _ = f8(1, 2.3)
 var _ = f8(1, 2.3, 3.4, 4.5)
 var _ = f8(1, 2.3, 3.4, 4 /* ERROR does not match */ )

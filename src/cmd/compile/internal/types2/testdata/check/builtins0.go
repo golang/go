@@ -25,11 +25,11 @@ func append1() {
 	_ = append(s, b)
 	_ = append(s, x /* ERROR cannot use x */ )
 	_ = append(s, s /* ERROR cannot use s */ )
-	_ = append(s /* ERROR not enough arguments */ ...)
-	_ = append(s, b, s /* ERROR too many arguments */ ... )
+	_ = append(s...) /* ERROR not enough arguments */
+	_ = append(s, b, s /* ERROR too many arguments */ ...)
 	_ = append(s, 1, 2, 3)
 	_ = append(s, 1, 2, 3, x /* ERROR cannot use x */ , 5, 6, 6)
-	_ = append(s, 1, 2 /* ERROR too many arguments */ , s... )
+	_ = append(s, 1, 2 /* ERROR too many arguments */, s...)
 	_ = append([]interface{}(nil), 1, 2, "foo", x, 3.1425, false)
 
 	type S []byte

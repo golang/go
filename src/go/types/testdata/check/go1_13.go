@@ -21,4 +21,3 @@ type _ interface {
 	I
 	I // ERROR "duplicate method m"
 }
-

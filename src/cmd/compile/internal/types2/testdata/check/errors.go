@@ -33,7 +33,7 @@ func f(x int, m map[string]int) {
 
 	// values
 	nil // ERROR nil is not used
-	(*int)(nil) // ERROR \(\*int\)\(nil\) \(value of type \*int\) is not used
+	( /* ERROR \(\*int\)\(nil\) \(value of type \*int\) is not used */ *int)(nil)
 	x /* ERROR x != x \(untyped bool value\) is not used */ != x
 	x /* ERROR x \+ x \(value of type int\) is not used */ + x
 

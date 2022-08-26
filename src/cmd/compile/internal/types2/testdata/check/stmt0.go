@@ -49,18 +49,18 @@ func assignments1() {
 	b = true
 
 	i += 1
-	i += "foo" /* ERROR "mismatched types int and untyped string" */
+	i /* ERROR "mismatched types int and untyped string" */+= "foo"
 
 	f -= 1
 	f /= 0
 	f = float32(0)/0 /* ERROR "division by zero" */
-	f -= "foo" /* ERROR "mismatched types float64 and untyped string" */
+	f /* ERROR "mismatched types float64 and untyped string" */-= "foo"
 
 	c *= 1
 	c /= 0
 
 	s += "bar"
-	s += 1 /* ERROR "mismatched types string and untyped int" */
+	s /* ERROR "mismatched types string and untyped int" */+= 1
 
 	var u64 uint64
 	u64 += 1<<u64
@@ -86,11 +86,11 @@ func assignments1() {
 
 	g := func(int, bool){}
 	var m map[int]int
-	g(m /* ERROR "not enough arguments" */ [0])
+	g(m[0]) /* ERROR "not enough arguments" */
 
 	// assignments to _
 	_ = nil /* ERROR "use of untyped nil" */
-	_ = 1 /* ERROR overflow */ <<1000
+	_ = 1  << /* ERROR constant shift overflow */ 1000
 	(_) = 0
 }
 
@@ -229,7 +229,7 @@ func selects() {
 }
 
 func gos() {
-	go 1 /* ERROR must be function call */
+	go 1; /* ERROR "must be function call" */
 	go int /* ERROR "go requires function call, not conversion" */ (0)
 	go gos()
 	var c chan int
@@ -238,7 +238,7 @@ func gos() {
 }
 
 func defers() {
-	defer 1 /* ERROR must be function call */
+	defer 1; /* ERROR "must be function call" */
 	defer int /* ERROR "defer requires function call, not conversion" */ (0)
 	defer defers()
 	var c chan int
@@ -695,7 +695,7 @@ func typeswitches() {
 		_ = y
 	}
 
-	switch /* ERROR "x declared but not used" */ x := i /* ERROR "not an interface" */ .(type) {}
+	switch x /* ERROR "x declared but not used" */ := i /* ERROR "not an interface" */ .(type) {}
 
 	switch t := x.(type) {
 	case nil:
@@ -727,8 +727,8 @@ func typeswitches() {
 		switch v /* ERROR "v [(]variable of type int[)] is not an interface" */ .(type) {
 		case int:
 			println(x)
-			println(x / /* ERROR "invalid operation: division by zero" */ 0)
-		case /* ERROR "1 is not a type" */ 1:
+			println(x / 0 /* ERROR "invalid operation: division by zero" */)
+		case 1 /* ERROR "1 is not a type" */:
 		}
 	}
 }
@@ -898,7 +898,7 @@ func rangeloops1() {
 		ee = e
 		_ = ee
 	}
-	for _ = range sc /* ERROR "send-only channel" */ {}
+	for _ = range sc /* ERROR "cannot range over" */ {}
 	for _ = range rc {}
 
 	// constant strings
@@ -949,13 +949,13 @@ func issue6766b() {
 // errors reported).
 func issue10148() {
 	for y /* ERROR declared but not used */ := range "" {
-		_ = "" /* ERROR mismatched types untyped string and untyped int*/ + 1
+		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
 	}
 	for range 1 /* ERROR cannot range over 1 */ {
-		_ = "" /* ERROR mismatched types untyped string and untyped int*/ + 1
+		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
 	}
 	for y := range 1 /* ERROR cannot range over 1 */ {
-		_ = "" /* ERROR mismatched types untyped string and untyped int*/ + 1
+		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
 	}
 }
 

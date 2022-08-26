@@ -96,6 +96,8 @@ var (
 	v11 = xx/yy*yy - xx
 	v12 = true && false
 	v13 = nil /* ERROR "use of untyped nil" */
+	v14 string = 257 // ERROR cannot use 257 .* as string value in variable declaration$
+	v15 int8 = 257 // ERROR cannot use 257 .* as int8 value in variable declaration .*overflows
 )
 
 // Multiple assignment expressions

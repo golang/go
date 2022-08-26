@@ -163,13 +163,13 @@ type _ interface {
 
 // Type sets may contain each type at most once.
 type _ interface {
-	~int|~int /* ERROR overlapping terms ~int */
+	~int|~ /* ERROR overlapping terms ~int */ int
 	~int|int /* ERROR overlapping terms int */
 	int|int /* ERROR overlapping terms int */
 }
 
 type _ interface {
-	~struct{f int} | ~struct{g int} | ~struct /* ERROR overlapping terms */ {f int}
+	~struct{f int} | ~struct{g int} | ~ /* ERROR overlapping terms */ struct{f int}
 }
 
 // Interface term lists can contain any type, incl. *Named types.

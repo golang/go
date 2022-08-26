@@ -86,11 +86,11 @@ func (ptr /* ERROR "invalid receiver" */ ) _() {}
 func (* /* ERROR "invalid receiver" */ ptr) _() {}
 
 // Methods with zero or multiple receivers.
-func ( /* ERROR "no receiver" */ ) _() {}
-func (T3, * /* ERROR "multiple receivers" */ T3) _() {}
-func (T3, T3, T3 /* ERROR "multiple receivers" */ ) _() {}
-func (a, b /* ERROR "multiple receivers" */ T3) _() {}
-func (a, b, c /* ERROR "multiple receivers" */ T3) _() {}
+func ( /* ERROR "method has no receiver" */ ) _() {}
+func (T3, * /* ERROR "method has multiple receivers" */ T3) _() {}
+func (T3, T3, T3 /* ERROR "method has multiple receivers" */ ) _() {}
+func (a, b /* ERROR "method has multiple receivers" */ T3) _() {}
+func (a, b, c /* ERROR "method has multiple receivers" */ T3) _() {}
 
 // Methods associated with non-local or unnamed types.
 func (int /* ERROR "cannot define new methods on non-local type int" */ ) m() {}

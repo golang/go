@@ -63,7 +63,7 @@ func _[T ~[]byte](x, y T) {
 	type myByte byte
 	var x3 []myByte
 	copy(x3 /* ERROR different element types */ , y)
-	copy(y, x3 /* ERROR different element types */ )
+	copy(y /* ERROR different element types */ , x3)
 }
 
 func _[T ~[]E, E any](x T, y []E) {
@@ -144,7 +144,7 @@ func _[
 	_ = make([]int, 10)
 	_ = make(S0, 10)
 	_ = make(S1, 10)
-	_ = make /* ERROR not enough arguments */ ()
+	_ = make() /* ERROR not enough arguments */
 	_ = make /* ERROR expects 2 or 3 arguments */ (S1)
 	_ = make(S1, 10, 20)
 	_ = make /* ERROR expects 2 or 3 arguments */ (S1, 10, 20, 30)
