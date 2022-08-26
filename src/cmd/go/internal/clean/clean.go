@@ -118,6 +118,23 @@ func init() {
 }
 
 func runClean(ctx context.Context, cmd *base.Command, args []string) {
+	if len(args) > 0 {
+		cacheFlag := ""
+		switch {
+		case cleanCache:
+			cacheFlag = "-cache"
+		case cleanTestcache:
+			cacheFlag = "-testcache"
+		case cleanFuzzcache:
+			cacheFlag = "-fuzzcache"
+		case cleanModcache:
+			cacheFlag = "-modcache"
+		}
+		if cacheFlag != "" {
+			base.Fatalf("go: clean %s cannot be used with package arguments", cacheFlag)
+		}
+	}
+
 	// golang.org/issue/29925: only load packages before cleaning if
 	// either the flags and arguments explicitly imply a package,
 	// or no other target (such as a cache) was requested to be cleaned.

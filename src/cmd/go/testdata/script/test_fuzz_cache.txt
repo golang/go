@@ -37,6 +37,9 @@ go test -fuzz=FuzzEmpty -fuzztime=2x .
 stdout 'new interesting: 0'
 stdout 'total: 1'
 
+! go clean -fuzzcache example.com/y
+stderr 'go: clean -fuzzcache cannot be used with package arguments'
+
 -- go.mod --
 module example.com/y
 
