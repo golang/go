@@ -3309,6 +3309,7 @@ func (v Value) Comparable() bool {
 }
 
 // Equal reports true if v is equal to u.
+// For valid values, if either v or u is non-comparable, Equal returns false.
 func (v Value) Equal(u Value) bool {
 	if !v.IsValid() || !u.IsValid() {
 		return v.IsValid() == u.IsValid()
