@@ -539,7 +539,7 @@ type common struct {
 
 	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
 	bench      bool           // Whether the current test is a benchmark.
-	hasSub     int32          // Written atomically.
+	hasSub     atomic.Bool    // whether there are sub-benchmarks.
 	raceErrors int            // Number of races detected during test.
 	runner     string         // Function name of tRunner running the test.
 
@@ -1459,7 +1459,7 @@ func tRunner(t *T, fn func(t *T)) {
 		// Do not lock t.done to allow race detector to detect race in case
 		// the user does not appropriately synchronize a goroutine.
 		t.done = true
-		if t.parent != nil && atomic.LoadInt32(&t.hasSub) == 0 {
+		if t.parent != nil && !t.hasSub.Load() {
 			t.setRan()
 		}
 	}()
@@ -1486,7 +1486,7 @@ func tRunner(t *T, fn func(t *T)) {
 // Run may be called simultaneously from multiple goroutines, but all such calls
 // must return before the outer test function for t returns.
 func (t *T) Run(name string, f func(t *T)) bool {
-	atomic.StoreInt32(&t.hasSub, 1)
+	t.hasSub.Store(true)
 	testName, ok, _ := t.context.match.fullName(&t.common, name)
 	if !ok || shouldFailFast() {
 		return true
