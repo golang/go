@@ -5350,6 +5350,28 @@ func rewriteValueRISCV64_OpRISCV64SEQZ(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SEQZ (SEQZ x))
+	// result: (SNEZ x)
+	for {
+		if v_0.Op != OpRISCV64SEQZ {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpRISCV64SNEZ)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SEQZ (SNEZ x))
+	// result: (SEQZ x)
+	for {
+		if v_0.Op != OpRISCV64SNEZ {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpRISCV64SEQZ)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueRISCV64_OpRISCV64SLL(v *Value) bool {
@@ -5460,6 +5482,28 @@ func rewriteValueRISCV64_OpRISCV64SNEZ(v *Value) bool {
 	// result: (SNEZ x)
 	for {
 		if v_0.Op != OpRISCV64NEG {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpRISCV64SNEZ)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SNEZ (SEQZ x))
+	// result: (SEQZ x)
+	for {
+		if v_0.Op != OpRISCV64SEQZ {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpRISCV64SEQZ)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SNEZ (SNEZ x))
+	// result: (SNEZ x)
+	for {
+		if v_0.Op != OpRISCV64SNEZ {
 			break
 		}
 		x := v_0.Args[0]

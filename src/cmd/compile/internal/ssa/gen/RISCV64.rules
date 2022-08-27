@@ -609,7 +609,7 @@
 (BNEZ (SEQZ x) yes no) => (BEQZ x yes no)
 (BNEZ (SNEZ x) yes no) => (BNEZ x yes no)
 
-// Absorb NEG into branch.
+// Remove redundant NEG from BEQZ/BNEZ.
 (BEQZ (NEG x) yes no) => (BEQZ x yes no)
 (BNEZ (NEG x) yes no) => (BNEZ x yes no)
 
@@ -637,11 +637,17 @@
 (BGE (MOVDconst [0]) cond yes no) => (BLEZ cond yes no)
 (BGE cond (MOVDconst [0]) yes no) => (BGEZ cond yes no)
 
-// Remove NEG when used with SEQZ/SNEZ.
+// Remove redundant NEG from SEQZ/SNEZ.
 (SEQZ (NEG x)) => (SEQZ x)
 (SNEZ (NEG x)) => (SNEZ x)
 
-// Store zero
+// Remove redundant SEQZ/SNEZ.
+(SEQZ (SEQZ x)) => (SNEZ x)
+(SEQZ (SNEZ x)) => (SEQZ x)
+(SNEZ (SEQZ x)) => (SEQZ x)
+(SNEZ (SNEZ x)) => (SNEZ x)
+
+// Store zero.
 (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
 (MOVHstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
 (MOVWstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVWstorezero [off] {sym} ptr mem)
