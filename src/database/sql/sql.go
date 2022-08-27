@@ -2136,11 +2136,10 @@ type Tx struct {
 	// any held driverConn back to the pool.
 	releaseConn func(error)
 
-	// done transitions from 0 to 1 exactly once, on Commit
+	// done transitions from false to true exactly once, on Commit
 	// or Rollback. once done, all operations fail with
 	// ErrTxDone.
-	// Use atomic operations on value when checking value.
-	done int32
+	done atomic.Bool
 
 	// keepConnOnRollback is true if the driver knows
 	// how to reset the connection's session and if need be discard
@@ -2179,7 +2178,7 @@ func (tx *Tx) awaitDone() {
 }
 
 func (tx *Tx) isDone() bool {
-	return atomic.LoadInt32(&tx.done) != 0
+	return tx.done.Load()
 }
 
 // ErrTxDone is returned by any operation that is performed on a transaction
@@ -2248,12 +2247,12 @@ func (tx *Tx) Commit() error {
 	select {
 	default:
 	case <-tx.ctx.Done():
-		if atomic.LoadInt32(&tx.done) == 1 {
+		if tx.done.Load() {
 			return ErrTxDone
 		}
 		return tx.ctx.Err()
 	}
-	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
+	if !tx.done.CompareAndSwap(false, true) {
 		return ErrTxDone
 	}
 
@@ -2281,7 +2280,7 @@ var rollbackHook func()
 // rollback aborts the transaction and optionally forces the pool to discard
 // the connection.
 func (tx *Tx) rollback(discardConn bool) error {
-	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
+	if !tx.done.CompareAndSwap(false, true) {
 		return ErrTxDone
 	}
 
