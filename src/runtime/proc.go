@@ -1530,7 +1530,7 @@ found:
 	}
 	unlock(&sched.lock)
 
-	atomic.Xadd64(&ncgocall, int64(mp.ncgocall))
+	ncgocall.Add(int64(mp.ncgocall))
 
 	// Release the P.
 	handoffp(releasep())
