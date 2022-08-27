@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"os/exec"
 )
@@ -21,13 +20,13 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 		// Some compilers have trouble with standard input.
 		// Others have trouble with -xc.
 		// Avoid both problems by writing a file with a .c extension.
-		f, err := ioutil.TempFile("", "cgo-gcc-input-")
+		f, err := os.CreateTemp("", "cgo-gcc-input-")
 		if err != nil {
 			fatalf("%s", err)
 		}
 		name := f.Name()
 		f.Close()
-		if err := ioutil.WriteFile(name+".c", stdin, 0666); err != nil {
+		if err := os.WriteFile(name+".c", stdin, 0666); err != nil {
 			os.Remove(name)
 			fatalf("%s", err)
 		}

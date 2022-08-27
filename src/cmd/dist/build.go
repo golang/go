@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -260,7 +259,7 @@ func xinit() {
 	os.Setenv("GOWORK", "off")
 
 	workdir = xworkdir()
-	if err := ioutil.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
+	if err := os.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
 		fatalf("cannot write stub go.mod: %s", err)
 	}
 	xatexit(rmworkdir)
@@ -833,7 +832,7 @@ func runInstall(pkg string, ch chan struct{}) {
 		var wg sync.WaitGroup
 		asmabis := append(asmArgs[:len(asmArgs):len(asmArgs)], "-gensymabis", "-o", symabis)
 		asmabis = append(asmabis, sfiles...)
-		if err := ioutil.WriteFile(goasmh, nil, 0666); err != nil {
+		if err := os.WriteFile(goasmh, nil, 0666); err != nil {
 			fatalf("cannot write empty go_asm.h: %s", err)
 		}
 		bgrun(&wg, dir, asmabis...)
@@ -853,7 +852,7 @@ func runInstall(pkg string, ch chan struct{}) {
 		fmt.Fprintf(buf, "packagefile %s=%s\n", dep, packagefile(dep))
 	}
 	importcfg := pathf("%s/importcfg", workdir)
-	if err := ioutil.WriteFile(importcfg, buf.Bytes(), 0666); err != nil {
+	if err := os.WriteFile(importcfg, buf.Bytes(), 0666); err != nil {
 		fatalf("cannot write importcfg file: %v", err)
 	}
 

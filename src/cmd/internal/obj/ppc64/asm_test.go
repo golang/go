@@ -6,11 +6,8 @@ package ppc64
 
 import (
 	"bytes"
-	"cmd/internal/obj"
-	"cmd/internal/objabi"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"math"
 	"os"
 	"os/exec"
@@ -18,6 +15,9 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"cmd/internal/obj"
+	"cmd/internal/objabi"
 )
 
 var platformEnvs = [][]string{
@@ -167,7 +167,7 @@ PNOP
 func TestPfxAlign(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := ioutil.TempDir("", "testpfxalign")
+	dir, err := os.MkdirTemp("", "testpfxalign")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -188,7 +188,7 @@ func TestPfxAlign(t *testing.T) {
 
 	for _, pgm := range pgms {
 		tmpfile := filepath.Join(dir, "x.s")
-		err = ioutil.WriteFile(tmpfile, pgm.text, 0644)
+		err = os.WriteFile(tmpfile, pgm.text, 0644)
 		if err != nil {
 			t.Fatalf("can't write output: %v\n", err)
 		}
@@ -217,7 +217,7 @@ func TestLarge(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := ioutil.TempDir("", "testlarge")
+	dir, err := os.MkdirTemp("", "testlarge")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -281,7 +281,7 @@ func TestLarge(t *testing.T) {
 		gen(buf, test.jmpinsn)
 
 		tmpfile := filepath.Join(dir, "x.s")
-		err = ioutil.WriteFile(tmpfile, buf.Bytes(), 0644)
+		err = os.WriteFile(tmpfile, buf.Bytes(), 0644)
 		if err != nil {
 			t.Fatalf("can't write output: %v\n", err)
 		}
@@ -336,7 +336,7 @@ func TestPCalign(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := ioutil.TempDir("", "testpcalign")
+	dir, err := os.MkdirTemp("", "testpcalign")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -345,7 +345,7 @@ func TestPCalign(t *testing.T) {
 	// generate a test with valid uses of PCALIGN
 
 	tmpfile := filepath.Join(dir, "x.s")
-	err = ioutil.WriteFile(tmpfile, []byte(validPCAlignSrc), 0644)
+	err = os.WriteFile(tmpfile, []byte(validPCAlignSrc), 0644)
 	if err != nil {
 		t.Fatalf("can't write output: %v\n", err)
 	}
@@ -385,7 +385,7 @@ func TestPCalign(t *testing.T) {
 	// generate a test with invalid use of PCALIGN
 
 	tmpfile = filepath.Join(dir, "xi.s")
-	err = ioutil.WriteFile(tmpfile, []byte(invalidPCAlignSrc), 0644)
+	err = os.WriteFile(tmpfile, []byte(invalidPCAlignSrc), 0644)
 	if err != nil {
 		t.Fatalf("can't write output: %v\n", err)
 	}

@@ -18,7 +18,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"sort"
 	"strings"
@@ -160,7 +159,7 @@ func main() {
 		// write out mangled source so we can see the bug.
 		out = buf.Bytes()
 	}
-	err = ioutil.WriteFile("node_gen.go", out, 0666)
+	err = os.WriteFile("node_gen.go", out, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}

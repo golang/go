@@ -8,20 +8,18 @@ import (
 	"bufio"
 	"bytes"
 	"flag"
-	"internal/buildcfg"
-	"runtime"
-	"sort"
-	"strings"
-
 	"fmt"
+	"internal/buildcfg"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
+	"sort"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -129,7 +127,7 @@ func TestDebugLines_53456(t *testing.T) {
 func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 	testenv.MustHaveGoBuild(t)
 
-	tmpdir, err := ioutil.TempDir("", "debug_lines_test")
+	tmpdir, err := os.MkdirTemp("", "debug_lines_test")
 	if err != nil {
 		panic(fmt.Sprintf("Problem creating TempDir, error %v", err))
 	}

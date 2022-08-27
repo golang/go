@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -228,7 +227,7 @@ func mtime(p string) time.Time {
 
 // readfile returns the content of the named file.
 func readfile(file string) string {
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		fatalf("%v", err)
 	}
@@ -247,7 +246,7 @@ const (
 func writefile(text, file string, flag int) {
 	new := []byte(text)
 	if flag&writeSkipSame != 0 {
-		old, err := ioutil.ReadFile(file)
+		old, err := os.ReadFile(file)
 		if err == nil && bytes.Equal(old, new) {
 			return
 		}
@@ -257,7 +256,7 @@ func writefile(text, file string, flag int) {
 		mode = 0777
 	}
 	xremove(file) // in case of symlink tricks by misc/reboot test
-	err := ioutil.WriteFile(file, new, mode)
+	err := os.WriteFile(file, new, mode)
 	if err != nil {
 		fatalf("%v", err)
 	}
@@ -334,7 +333,7 @@ func xreaddirfiles(dir string) []string {
 // xworkdir creates a new temporary directory to hold object files
 // and returns the name of that directory.
 func xworkdir() string {
-	name, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-tool-dist-")
+	name, err := os.MkdirTemp(os.Getenv("GOTMPDIR"), "go-tool-dist-")
 	if err != nil {
 		fatalf("%v", err)
 	}

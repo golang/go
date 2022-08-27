@@ -6,12 +6,12 @@ package types2_test
 
 import (
 	"bytes"
-	"cmd/compile/internal/syntax"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 
+	"cmd/compile/internal/syntax"
 	. "cmd/compile/internal/types2"
 )
 
@@ -24,7 +24,7 @@ func TestHilbert(t *testing.T) {
 	// generate source
 	src := program(*H, *out)
 	if *out != "" {
-		ioutil.WriteFile(*out, src, 0666)
+		os.WriteFile(*out, src, 0666)
 		return
 	}
 

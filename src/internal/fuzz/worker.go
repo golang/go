@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"reflect"
@@ -958,7 +957,7 @@ func (wc *workerClient) Close() error {
 
 	// Drain fuzzOut and close it. When the server exits, the kernel will close
 	// its end of fuzzOut, and we'll get EOF.
-	if _, err := io.Copy(ioutil.Discard, wc.fuzzOut); err != nil {
+	if _, err := io.Copy(io.Discard, wc.fuzzOut); err != nil {
 		wc.fuzzOut.Close()
 		return err
 	}

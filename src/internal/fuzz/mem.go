@@ -6,7 +6,6 @@ package fuzz
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"unsafe"
 )
@@ -65,7 +64,7 @@ func sharedMemSize(valueSize int) int {
 // it into memory. The file will be removed when the Close method is called.
 func sharedMemTempFile(size int) (m *sharedMem, err error) {
 	// Create a temporary file.
-	f, err := ioutil.TempFile("", "fuzz-*")
+	f, err := os.CreateTemp("", "fuzz-*")
 	if err != nil {
 		return nil, err
 	}

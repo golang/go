@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"internal/godebug"
 	"io"
-	"io/ioutil"
 	"math/bits"
 	"os"
 	"path/filepath"
@@ -963,7 +962,7 @@ func (e *MalformedCorpusError) Error() string {
 // be saved in a MalformedCorpusError and returned, along with the most recent
 // error.
 func ReadCorpus(dir string, types []reflect.Type) ([]CorpusEntry, error) {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
 		return nil, nil // No corpus to read
 	} else if err != nil {
@@ -981,7 +980,7 @@ func ReadCorpus(dir string, types []reflect.Type) ([]CorpusEntry, error) {
 			continue
 		}
 		filename := filepath.Join(dir, file.Name())
-		data, err := ioutil.ReadFile(filename)
+		data, err := os.ReadFile(filename)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read corpus file: %v", err)
 		}
@@ -1038,7 +1037,7 @@ func writeToCorpus(entry *CorpusEntry, dir string) (err error) {
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(entry.Path, entry.Data, 0666); err != nil {
+	if err := os.WriteFile(entry.Path, entry.Data, 0666); err != nil {
 		os.Remove(entry.Path) // remove partially written file
 		return err
 	}

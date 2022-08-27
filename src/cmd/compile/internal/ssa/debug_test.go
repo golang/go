@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -223,7 +222,7 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
 
 	// Use a temporary directory unless -f is specified
 	if !*force {
-		tmpdir, err := ioutil.TempDir("", "debug_test")
+		tmpdir, err := os.MkdirTemp("", "debug_test")
 		if err != nil {
 			panic(fmt.Sprintf("Problem creating TempDir, error %v\n", err))
 		}
@@ -366,7 +365,7 @@ func (h *nextHist) write(filename string) {
 
 func (h *nextHist) read(filename string) {
 	h.f2i = make(map[string]uint8)
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := os.ReadFile(filename)
 	if err != nil {
 		panic(fmt.Sprintf("Problem reading %s, error %v\n", filename, err))
 	}

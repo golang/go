@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"internal/testenv"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"testing"
 )
@@ -28,7 +28,7 @@ func TestLargeText(t *testing.T) {
 	const FN = 4
 	tmpdir := t.TempDir()
 
-	if err := ioutil.WriteFile(tmpdir+"/go.mod", []byte("module big_test\n"), 0666); err != nil {
+	if err := os.WriteFile(tmpdir+"/go.mod", []byte("module big_test\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -50,7 +50,7 @@ func TestLargeText(t *testing.T) {
 			fmt.Fprintf(&w, inst)
 		}
 		fmt.Fprintf(&w, "\tRET\n")
-		err := ioutil.WriteFile(tmpdir+"/"+testname+".s", w.Bytes(), 0666)
+		err := os.WriteFile(tmpdir+"/"+testname+".s", w.Bytes(), 0666)
 		if err != nil {
 			t.Fatalf("can't write output: %v\n", err)
 		}
@@ -77,7 +77,7 @@ func TestLargeText(t *testing.T) {
 	fmt.Fprintf(&w, "\t}\n")
 	fmt.Fprintf(&w, "\tfmt.Printf(\"PASS\\n\")\n")
 	fmt.Fprintf(&w, "}")
-	err := ioutil.WriteFile(tmpdir+"/bigfn.go", w.Bytes(), 0666)
+	err := os.WriteFile(tmpdir+"/bigfn.go", w.Bytes(), 0666)
 	if err != nil {
 		t.Fatalf("can't write output: %v\n", err)
 	}

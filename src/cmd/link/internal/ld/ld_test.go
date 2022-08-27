@@ -9,7 +9,7 @@ import (
 	"debug/pe"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -107,7 +107,7 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
 
 	srcfile := filepath.Join(dir, "test.go")
 	arfile := filepath.Join(dir, "test.a")
-	if err := ioutil.WriteFile(srcfile, []byte(carchiveSrcText), 0666); err != nil {
+	if err := os.WriteFile(srcfile, []byte(carchiveSrcText), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -202,7 +202,7 @@ func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
 
 	srcfile := filepath.Join(dir, "test.go")
 	objfile := filepath.Join(dir, "test.dll")
-	if err := ioutil.WriteFile(srcfile, []byte(`package main; func main() { print("hello") }`), 0666); err != nil {
+	if err := os.WriteFile(srcfile, []byte(`package main; func main() { print("hello") }`), 0666); err != nil {
 		t.Fatal(err)
 	}
 	argv := []string{"build", "-buildmode=c-shared"}
@@ -327,7 +327,7 @@ func main() {
 			t.Parallel()
 			tempDir := t.TempDir()
 			src := filepath.Join(tempDir, "x.go")
-			if err := ioutil.WriteFile(src, []byte(tt.prog), 0644); err != nil {
+			if err := os.WriteFile(src, []byte(tt.prog), 0644); err != nil {
 				t.Fatal(err)
 			}
 			cmd := exec.Command(testenv.GoToolPath(t), "run", src)

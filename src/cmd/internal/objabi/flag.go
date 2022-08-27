@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
@@ -57,7 +56,7 @@ func expandArgs(in []string) (out []string) {
 				out = make([]string, 0, len(in)*2)
 				out = append(out, in[:i]...)
 			}
-			slurp, err := ioutil.ReadFile(s[1:])
+			slurp, err := os.ReadFile(s[1:])
 			if err != nil {
 				log.Fatal(err)
 			}

@@ -13,7 +13,6 @@ import (
 	"internal/testenv"
 	"internal/xcoff"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,12 +42,12 @@ func copyDir(dst, src string) error {
 	if err != nil {
 		return err
 	}
-	fis, err := ioutil.ReadDir(src)
+	entries, err := os.ReadDir(src)
 	if err != nil {
 		return err
 	}
-	for _, fi := range fis {
-		err = copyFile(filepath.Join(dst, fi.Name()), filepath.Join(src, fi.Name()))
+	for _, entry := range entries {
+		err = copyFile(filepath.Join(dst, entry.Name()), filepath.Join(src, entry.Name()))
 		if err != nil {
 			return err
 		}
@@ -96,7 +95,7 @@ type goobjPaths struct {
 func buildGoobj(t *testing.T) goobjPaths {
 	buildOnce.Do(func() {
 		buildErr = func() (err error) {
-			buildDir, err = ioutil.TempDir("", "TestGoobj")
+			buildDir, err = os.MkdirTemp("", "TestGoobj")
 			if err != nil {
 				return err
 			}
@@ -132,7 +131,7 @@ func buildGoobj(t *testing.T) goobjPaths {
 				gopath := filepath.Join(buildDir, "gopath")
 				err = copyDir(filepath.Join(gopath, "src", "mycgo"), filepath.Join("testdata", "mycgo"))
 				if err == nil {
-					err = ioutil.WriteFile(filepath.Join(gopath, "src", "mycgo", "go.mod"), []byte("module mycgo\n"), 0666)
+					err = os.WriteFile(filepath.Join(gopath, "src", "mycgo", "go.mod"), []byte("module mycgo\n"), 0666)
 				}
 				if err != nil {
 					return err

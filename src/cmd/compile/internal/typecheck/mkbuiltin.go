@@ -18,7 +18,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -50,7 +49,7 @@ func main() {
 	if *stdout {
 		_, err = os.Stdout.Write(out)
 	} else {
-		err = ioutil.WriteFile("builtin.go", out, 0666)
+		err = os.WriteFile("builtin.go", out, 0666)
 	}
 	if err != nil {
 		log.Fatal(err)

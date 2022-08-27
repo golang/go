@@ -6,17 +6,18 @@ package ld
 
 import (
 	"bytes"
-	"cmd/internal/objabi"
-	"cmd/link/internal/loader"
-	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"math/bits"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+
+	"cmd/internal/objabi"
+	"cmd/link/internal/loader"
+	"cmd/link/internal/sym"
 )
 
 // This file handles all algorithms related to XCOFF files generation.
@@ -1805,7 +1806,7 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
 		buf.Write([]byte(name + "\n"))
 	}
 
-	err := ioutil.WriteFile(fname, buf.Bytes(), 0666)
+	err := os.WriteFile(fname, buf.Bytes(), 0666)
 	if err != nil {
 		Errorf(nil, "WriteFile %s failed: %v", fname, err)
 	}

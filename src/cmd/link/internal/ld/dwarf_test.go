@@ -5,15 +5,11 @@
 package ld
 
 import (
-	intdwarf "cmd/internal/dwarf"
-	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
-	"cmd/link/internal/dwtest"
 	"debug/dwarf"
 	"debug/pe"
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,6 +19,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	intdwarf "cmd/internal/dwarf"
+	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
+	"cmd/link/internal/dwtest"
 )
 
 const (
@@ -96,7 +96,7 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFi
 	src := filepath.Join(dir, "test.go")
 	dst := filepath.Join(dir, "out.exe")
 
-	if err := ioutil.WriteFile(src, []byte(testfile), 0666); err != nil {
+	if err := os.WriteFile(src, []byte(testfile), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1394,7 +1394,7 @@ func TestIssue42484(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestIssue42484")
+	tmpdir, err := os.MkdirTemp("", "TestIssue42484")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}

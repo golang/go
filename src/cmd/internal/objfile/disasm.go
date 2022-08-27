@@ -7,19 +7,19 @@ package objfile
 import (
 	"bufio"
 	"bytes"
-	"cmd/internal/src"
 	"container/list"
 	"debug/gosym"
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"cmd/internal/src"
 
 	"golang.org/x/arch/arm/armasm"
 	"golang.org/x/arch/arm64/arm64asm"
@@ -157,7 +157,7 @@ func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
 	}
 
 	if e == nil {
-		content, err := ioutil.ReadFile(filename)
+		content, err := os.ReadFile(filename)
 		if err != nil {
 			return nil, err
 		}

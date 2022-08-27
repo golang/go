@@ -7,15 +7,15 @@ package importer
 
 import (
 	"bufio"
-	"cmd/compile/internal/types2"
 	"fmt"
 	"go/build"
 	"internal/pkgbits"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"cmd/compile/internal/types2"
 )
 
 // debugging/development support
@@ -149,7 +149,7 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 		if size >= 0 {
 			r = io.LimitReader(r, int64(size))
 		}
-		data, err = ioutil.ReadAll(r)
+		data, err = io.ReadAll(r)
 		if err != nil {
 			break
 		}

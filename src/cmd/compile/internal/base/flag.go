@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"internal/buildcfg"
-	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
@@ -392,7 +391,7 @@ func readImportCfg(file string) {
 		Flag.Cfg.ImportMap = make(map[string]string)
 	}
 	Flag.Cfg.PackageFile = map[string]string{}
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-importcfg: %v", err)
 	}
@@ -432,7 +431,7 @@ func readImportCfg(file string) {
 }
 
 func readEmbedCfg(file string) {
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-embedcfg: %v", err)
 	}

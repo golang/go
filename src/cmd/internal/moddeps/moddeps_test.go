@@ -11,7 +11,6 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -361,7 +360,7 @@ func TestDependencyVersionsConsistent(t *testing.T) {
 		// It's ok if there are undetected differences in modules that do not
 		// provide imported packages: we will not have to pull in any backports of
 		// fixes to those modules anyway.
-		vendor, err := ioutil.ReadFile(filepath.Join(m.Dir, "vendor", "modules.txt"))
+		vendor, err := os.ReadFile(filepath.Join(m.Dir, "vendor", "modules.txt"))
 		if err != nil {
 			t.Error(err)
 			continue

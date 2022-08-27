@@ -18,7 +18,6 @@ import (
 	"go/token"
 	"internal/buildcfg"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -345,7 +344,7 @@ func main() {
 			input = aname
 		}
 
-		b, err := ioutil.ReadFile(input)
+		b, err := os.ReadFile(input)
 		if err != nil {
 			fatalf("%s", err)
 		}

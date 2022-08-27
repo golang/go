@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -19,7 +18,7 @@ import (
 // ToSymbolFunc returns a function that may be used to convert a
 // package path into a string suitable for use as a symbol.
 // cmd is the gccgo/GoLLVM compiler in use, and tmpdir is a temporary
-// directory to pass to ioutil.TempFile.
+// directory to pass to os.CreateTemp().
 // For example, this returns a function that converts "net/http"
 // into a string like "net..z2fhttp". The actual string varies for
 // different gccgo/GoLLVM versions, which is why this returns a function
@@ -32,7 +31,7 @@ func ToSymbolFunc(cmd, tmpdir string) (func(string) string, error) {
 	// the same string. More recent versions use a new mangler
 	// that avoids these collisions.
 	const filepat = "*_gccgo_manglechck.go"
-	f, err := ioutil.TempFile(tmpdir, filepat)
+	f, err := os.CreateTemp(tmpdir, filepat)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +39,7 @@ func ToSymbolFunc(cmd, tmpdir string) (func(string) string, error) {
 	f.Close()
 	defer os.Remove(gofilename)
 
-	if err := ioutil.WriteFile(gofilename, []byte(mangleCheckCode), 0644); err != nil {
+	if err := os.WriteFile(gofilename, []byte(mangleCheckCode), 0644); err != nil {
 		return nil, err
 	}
 

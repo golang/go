@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"go/build"
 	"internal/lazyregexp"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -592,7 +591,7 @@ func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []
 
 // ReadWorkFile reads and parses the go.work file at the given path.
 func ReadWorkFile(path string) (*modfile.WorkFile, error) {
-	workData, err := ioutil.ReadFile(path)
+	workData, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -606,7 +605,7 @@ func WriteWorkFile(path string, wf *modfile.WorkFile) error {
 	wf.Cleanup()
 	out := modfile.Format(wf.Syntax)
 
-	return ioutil.WriteFile(path, out, 0666)
+	return os.WriteFile(path, out, 0666)
 }
 
 // UpdateWorkFile updates comments on directory directives in the go.work

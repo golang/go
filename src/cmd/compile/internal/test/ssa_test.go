@@ -11,7 +11,6 @@ import (
 	"go/parser"
 	"go/token"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,14 +34,14 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
 		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
 	}
 	// Write stdout into a temporary file
-	tmpdir, ok := ioutil.TempDir("", tmpname)
+	tmpdir, ok := os.MkdirTemp("", tmpname)
 	if ok != nil {
 		t.Fatalf("Failed to create temporary directory")
 	}
 	defer os.RemoveAll(tmpdir)
 
 	rungo := filepath.Join(tmpdir, "run.go")
-	ok = ioutil.WriteFile(rungo, stdout.Bytes(), 0600)
+	ok = os.WriteFile(rungo, stdout.Bytes(), 0600)
 	if ok != nil {
 		t.Fatalf("Failed to create temporary file " + rungo)
 	}
@@ -81,7 +80,7 @@ func TestCode(t *testing.T) {
 	gotool := testenv.GoToolPath(t)
 
 	// Make a temporary directory to work in.
-	tmpdir, err := ioutil.TempDir("", "TestCode")
+	tmpdir, err := os.MkdirTemp("", "TestCode")
 	if err != nil {
 		t.Fatalf("Failed to create temporary directory: %v", err)
 	}
@@ -94,7 +93,7 @@ func TestCode(t *testing.T) {
 		usesFloat bool   // might use float operations
 	}
 	var tests []test
-	files, err := ioutil.ReadDir("testdata")
+	files, err := os.ReadDir("testdata")
 	if err != nil {
 		t.Fatalf("can't read testdata directory: %v", err)
 	}
@@ -102,7 +101,7 @@ func TestCode(t *testing.T) {
 		if !strings.HasSuffix(f.Name(), "_test.go") {
 			continue
 		}
-		text, err := ioutil.ReadFile(filepath.Join("testdata", f.Name()))
+		text, err := os.ReadFile(filepath.Join("testdata", f.Name()))
 		if err != nil {
 			t.Fatalf("can't read testdata/%s: %v", f.Name(), err)
 		}

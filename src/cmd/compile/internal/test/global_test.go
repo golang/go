@@ -7,7 +7,6 @@ package test
 import (
 	"bytes"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,7 +21,7 @@ func TestScanfRemoval(t *testing.T) {
 	t.Parallel()
 
 	// Make a directory to work in.
-	dir, err := ioutil.TempDir("", "issue6853a-")
+	dir, err := os.MkdirTemp("", "issue6853a-")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -70,7 +69,7 @@ func TestDashS(t *testing.T) {
 	t.Parallel()
 
 	// Make a directory to work in.
-	dir, err := ioutil.TempDir("", "issue14515-")
+	dir, err := os.MkdirTemp("", "issue14515-")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}

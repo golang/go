@@ -32,6 +32,21 @@ package ld
 
 import (
 	"bytes"
+	"debug/elf"
+	"debug/macho"
+	"encoding/base64"
+	"encoding/binary"
+	"fmt"
+	"internal/buildcfg"
+	"io"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
+
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
 	"cmd/internal/notsha256"
@@ -43,21 +58,6 @@ import (
 	"cmd/link/internal/loadpe"
 	"cmd/link/internal/loadxcoff"
 	"cmd/link/internal/sym"
-	"debug/elf"
-	"debug/macho"
-	"encoding/base64"
-	"encoding/binary"
-	"fmt"
-	"internal/buildcfg"
-	"io"
-	"io/ioutil"
-	"log"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"runtime"
-	"strings"
-	"sync"
 )
 
 // Data layout and relocation.
@@ -1157,7 +1157,7 @@ func hostlinksetup(ctxt *Link) {
 
 	// create temporary directory and arrange cleanup
 	if *flagTmpdir == "" {
-		dir, err := ioutil.TempDir("", "go-link-")
+		dir, err := os.MkdirTemp("", "go-link-")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -1238,7 +1238,7 @@ func writeGDBLinkerScript() string {
 }
 INSERT AFTER .debug_types;
 `
-	err := ioutil.WriteFile(path, []byte(src), 0666)
+	err := os.WriteFile(path, []byte(src), 0666)
 	if err != nil {
 		Errorf(nil, "WriteFile %s failed: %v", name, err)
 	}
@@ -1849,7 +1849,7 @@ var createTrivialCOnce sync.Once
 func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
 	createTrivialCOnce.Do(func() {
 		src := filepath.Join(*flagTmpdir, "trivial.c")
-		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
+		if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
 			Errorf(nil, "WriteFile trivial.c failed: %v", err)
 		}
 	})

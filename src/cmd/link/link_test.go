@@ -7,11 +7,9 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"cmd/internal/sys"
 	"debug/macho"
 	"internal/buildcfg"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +17,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"cmd/internal/sys"
 )
 
 var AuthorPaidByTheColumnInch struct {
@@ -51,7 +51,7 @@ func main() {}
 
 	tmpdir := t.TempDir()
 
-	err := ioutil.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
+	err := os.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
 	if err != nil {
 		t.Fatalf("failed to write main.go: %v\n", err)
 	}
@@ -83,7 +83,7 @@ func TestIssue28429(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	write := func(name, content string) {
-		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+		err := os.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -122,7 +122,7 @@ func TestUnresolved(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	write := func(name, content string) {
-		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+		err := os.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -190,7 +190,7 @@ func TestIssue33979(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	write := func(name, content string) {
-		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+		err := os.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -328,7 +328,7 @@ func TestXFlag(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err := ioutil.WriteFile(src, []byte(testXFlagSrc), 0666)
+	err := os.WriteFile(src, []byte(testXFlagSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +352,7 @@ func TestMachOBuildVersion(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err := ioutil.WriteFile(src, []byte(testMachOBuildVersionSrc), 0666)
+	err := os.WriteFile(src, []byte(testMachOBuildVersionSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +428,7 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "blah.go")
-	err := ioutil.WriteFile(src, []byte(Issue34788src), 0666)
+	err := os.WriteFile(src, []byte(Issue34788src), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -504,19 +504,19 @@ func TestStrictDup(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "x.go")
-	err := ioutil.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
+	err := os.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, af := range asmfiles {
 		src = filepath.Join(tmpdir, af.fname+".s")
-		err = ioutil.WriteFile(src, []byte(af.payload), 0666)
+		err = os.WriteFile(src, []byte(af.payload), 0666)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 	src = filepath.Join(tmpdir, "go.mod")
-	err = ioutil.WriteFile(src, []byte("module teststrictdup\n"), 0666)
+	err = os.WriteFile(src, []byte("module teststrictdup\n"), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -589,17 +589,17 @@ func TestFuncAlign(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "go.mod")
-	err := ioutil.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
+	err := os.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 	src = filepath.Join(tmpdir, "falign.go")
-	err = ioutil.WriteFile(src, []byte(testFuncAlignSrc), 0666)
+	err = os.WriteFile(src, []byte(testFuncAlignSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 	src = filepath.Join(tmpdir, "falign.s")
-	err = ioutil.WriteFile(src, []byte(testFuncAlignAsmSrc), 0666)
+	err = os.WriteFile(src, []byte(testFuncAlignAsmSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -662,7 +662,7 @@ func TestTrampoline(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "hello.go")
-	err := ioutil.WriteFile(src, []byte(testTrampSrc), 0666)
+	err := os.WriteFile(src, []byte(testTrampSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -720,7 +720,7 @@ func TestTrampolineCgo(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "hello.go")
-	err := ioutil.WriteFile(src, []byte(testTrampCgoSrc), 0666)
+	err := os.WriteFile(src, []byte(testTrampCgoSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -842,7 +842,7 @@ func TestPErsrcBinutils(t *testing.T) {
 	}
 
 	// Check that the binary contains the rsrc data
-	b, err := ioutil.ReadFile(exe)
+	b, err := os.ReadFile(exe)
 	if err != nil {
 		t.Fatalf("reading output failed: %v", err)
 	}
@@ -874,7 +874,7 @@ func TestPErsrcLLVM(t *testing.T) {
 	}
 
 	// Check that the binary contains the rsrc data
-	b, err := ioutil.ReadFile(exe)
+	b, err := os.ReadFile(exe)
 	if err != nil {
 		t.Fatalf("reading output failed: %v", err)
 	}
@@ -935,7 +935,7 @@ func TestIssue38554(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "x.go")
-	err := ioutil.WriteFile(src, []byte(testIssue38554Src), 0666)
+	err := os.WriteFile(src, []byte(testIssue38554Src), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
@@ -985,7 +985,7 @@ func TestIssue42396(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err := ioutil.WriteFile(src, []byte(testIssue42396src), 0666)
+	err := os.WriteFile(src, []byte(testIssue42396src), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
@@ -1056,7 +1056,7 @@ func TestLargeReloc(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "x.go")
-	err := ioutil.WriteFile(src, []byte(testLargeRelocSrc), 0666)
+	err := os.WriteFile(src, []byte(testLargeRelocSrc), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
@@ -1091,11 +1091,11 @@ func TestUnlinkableObj(t *testing.T) {
 	xObj := filepath.Join(tmpdir, "x.o")
 	pObj := filepath.Join(tmpdir, "p.o")
 	exe := filepath.Join(tmpdir, "x.exe")
-	err := ioutil.WriteFile(xSrc, []byte("package main\nimport _ \"p\"\nfunc main() {}\n"), 0666)
+	err := os.WriteFile(xSrc, []byte("package main\nimport _ \"p\"\nfunc main() {}\n"), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
-	err = ioutil.WriteFile(pSrc, []byte("package p\n"), 0666)
+	err = os.WriteFile(pSrc, []byte("package p\n"), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}

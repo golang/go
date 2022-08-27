@@ -32,22 +32,22 @@
 package ld
 
 import (
-	"cmd/internal/goobj"
-	"cmd/link/internal/loader"
-	"cmd/link/internal/sym"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"cmd/internal/goobj"
+	"cmd/link/internal/loader"
+	"cmd/link/internal/sym"
 )
 
 func (ctxt *Link) readImportCfg(file string) {
 	ctxt.PackageFile = make(map[string]string)
 	ctxt.PackageShlib = make(map[string]string)
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-importcfg: %v", err)
 	}
@@ -196,7 +196,7 @@ func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint
 	l.Fingerprint = fingerprint
 	if shlib != "" {
 		if strings.HasSuffix(shlib, ".shlibname") {
-			data, err := ioutil.ReadFile(shlib)
+			data, err := os.ReadFile(shlib)
 			if err != nil {
 				Errorf(nil, "cannot read %s: %v", shlib, err)
 			}

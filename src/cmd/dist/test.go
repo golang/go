@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -1180,7 +1179,7 @@ func (t *tester) runHostTest(dir, pkg string) error {
 	GOEXE := strings.TrimSpace(parts[0])
 	GOTMPDIR := strings.TrimSpace(parts[1])
 
-	f, err := ioutil.TempFile(GOTMPDIR, "test.test-*"+GOEXE)
+	f, err := os.CreateTemp(GOTMPDIR, "test.test-*"+GOEXE)
 	if err != nil {
 		return err
 	}
@@ -1531,7 +1530,7 @@ var runtest struct {
 
 func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
 	runtest.Do(func() {
-		f, err := ioutil.TempFile("", "runtest-*.exe") // named exe for Windows, but harmless elsewhere
+		f, err := os.CreateTemp("", "runtest-*.exe") // named exe for Windows, but harmless elsewhere
 		if err != nil {
 			runtest.err = err
 			return
@@ -1591,7 +1590,7 @@ func (t *tester) packageHasBenchmarks(pkg string) bool {
 		if !strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		slurp, err := ioutil.ReadFile(filepath.Join(pkgDir, name))
+		slurp, err := os.ReadFile(filepath.Join(pkgDir, name))
 		if err != nil {
 			return true // conservatively
 		}

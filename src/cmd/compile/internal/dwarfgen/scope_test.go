@@ -8,7 +8,6 @@ import (
 	"debug/dwarf"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -221,7 +220,7 @@ func TestScopeRanges(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	dir, err := ioutil.TempDir("", "TestScopeRanges")
+	dir, err := os.MkdirTemp("", "TestScopeRanges")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -498,7 +497,7 @@ func TestEmptyDwarfRanges(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	dir, err := ioutil.TempDir("", "TestEmptyDwarfRanges")
+	dir, err := os.MkdirTemp("", "TestEmptyDwarfRanges")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}

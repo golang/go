@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/godebug"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	pathpkg "path"
@@ -291,21 +290,29 @@ func parentIsOverlayFile(name string) (string, bool) {
 var errNotDir = errors.New("not a directory")
 
 // readDir reads a dir on disk, returning an error that is errNotDir if the dir is not a directory.
-// Unfortunately, the error returned by ioutil.ReadDir if dir is not a directory
+// Unfortunately, the error returned by os.ReadDir if dir is not a directory
 // can vary depending on the OS (Linux, Mac, Windows return ENOTDIR; BSD returns EINVAL).
 func readDir(dir string) ([]fs.FileInfo, error) {
-	fis, err := ioutil.ReadDir(dir)
-	if err == nil {
-		return fis, nil
-	}
-
-	if os.IsNotExist(err) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, err
+		}
+		if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
+			return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+		}
 		return nil, err
 	}
-	if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
-		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+
+	fis := make([]fs.FileInfo, 0, len(entries))
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		fis = append(fis, info)
 	}
-	return nil, err
+	return fis, nil
 }
 
 // ReadDir provides a slice of fs.FileInfo entries corresponding

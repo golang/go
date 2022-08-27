@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/constant"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strconv"
@@ -124,7 +123,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 	}
 	size := info.Size()
 	if size <= 1*1024 {
-		data, err := ioutil.ReadAll(f)
+		data, err := io.ReadAll(f)
 		if err != nil {
 			return nil, 0, err
 		}

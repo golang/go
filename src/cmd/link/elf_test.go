@@ -8,11 +8,9 @@
 package main
 
 import (
-	"cmd/internal/sys"
 	"debug/elf"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,6 +19,8 @@ import (
 	"sync"
 	"testing"
 	"text/template"
+
+	"cmd/internal/sys"
 )
 
 func getCCAndCCFLAGS(t *testing.T, env []string) (string, []string) {
@@ -75,12 +75,12 @@ func TestSectionsWithSameName(t *testing.T) {
 	gopath := filepath.Join(dir, "GOPATH")
 	env := append(os.Environ(), "GOPATH="+gopath)
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
 	asmFile := filepath.Join(dir, "x.s")
-	if err := ioutil.WriteFile(asmFile, []byte(asmSource), 0444); err != nil {
+	if err := os.WriteFile(asmFile, []byte(asmSource), 0444); err != nil {
 		t.Fatal(err)
 	}
 
@@ -108,7 +108,7 @@ func TestSectionsWithSameName(t *testing.T) {
 	}
 
 	goFile := filepath.Join(dir, "main.go")
-	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
 		t.Fatal(err)
 	}
 
@@ -145,7 +145,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	gopath := filepath.Join(dir, "GOPATH")
 	env := append(os.Environ(), "GOPATH="+gopath)
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -157,7 +157,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	for i, content := range cSources35779 {
 		csrcFile := filepath.Join(dir, fmt.Sprintf("x%d.c", i))
 		csrcs = append(csrcs, csrcFile)
-		if err := ioutil.WriteFile(csrcFile, []byte(content), 0444); err != nil {
+		if err := os.WriteFile(csrcFile, []byte(content), 0444); err != nil {
 			t.Fatal(err)
 		}
 
@@ -187,7 +187,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	}
 
 	goFile := filepath.Join(dir, "main.go")
-	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
 		t.Fatal(err)
 	}
 
@@ -216,7 +216,7 @@ func TestMergeNoteSections(t *testing.T) {
 	t.Parallel()
 
 	goFile := filepath.Join(t.TempDir(), "notes.go")
-	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
 		t.Fatal(err)
 	}
 	outFile := filepath.Join(t.TempDir(), "notes.exe")

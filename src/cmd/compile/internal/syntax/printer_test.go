@@ -7,7 +7,6 @@ package syntax
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -155,7 +154,7 @@ func testOut() io.Writer {
 	if testing.Verbose() {
 		return os.Stdout
 	}
-	return ioutil.Discard
+	return io.Discard
 }
 
 func dup(s string) [2]string { return [2]string{s, s} }

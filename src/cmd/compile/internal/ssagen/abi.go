@@ -7,7 +7,6 @@ package ssagen
 import (
 	"fmt"
 	"internal/buildcfg"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -59,7 +58,7 @@ func (s *SymABIs) canonicalize(linksym string) string {
 // the symbol name and the third field is the ABI name, as one of the
 // named cmd/internal/obj.ABI constants.
 func (s *SymABIs) ReadSymABIs(file string) {
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-symabis: %v", err)
 	}

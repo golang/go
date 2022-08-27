@@ -6,7 +6,6 @@ package test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,7 +21,7 @@ func TestInst(t *testing.T) {
 
 	var tmpdir string
 	var err error
-	tmpdir, err = ioutil.TempDir("", "TestDict")
+	tmpdir, err = os.MkdirTemp("", "TestDict")
 	if err != nil {
 		t.Fatalf("Failed to create temporary directory: %v", err)
 	}
@@ -59,7 +58,7 @@ func TestInst(t *testing.T) {
 	if output, err = cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed: %v:\nOut: %s\n", err, output)
 	}
-	out, err := ioutil.ReadFile(filepath.Join("testdata", outname))
+	out, err := os.ReadFile(filepath.Join("testdata", outname))
 	if err != nil {
 		t.Fatalf("Could not find %s\n", outname)
 	}

@@ -7,7 +7,7 @@ package typecheck
 import (
 	"bytes"
 	"internal/testenv"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"testing"
 )
@@ -16,7 +16,7 @@ func TestBuiltin(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
-	old, err := ioutil.ReadFile("builtin.go")
+	old, err := os.ReadFile("builtin.go")
 	if err != nil {
 		t.Fatal(err)
 	}

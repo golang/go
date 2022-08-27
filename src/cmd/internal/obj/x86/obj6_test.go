@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -81,7 +80,7 @@ func normalize(s string) string {
 }
 
 func asmOutput(t *testing.T, s string) []byte {
-	tmpdir, err := ioutil.TempDir("", "progedittest")
+	tmpdir, err := os.MkdirTemp("", "progedittest")
 	if err != nil {
 		t.Fatal(err)
 	}
