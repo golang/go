@@ -13,7 +13,7 @@ Unless otherwise noted, the Go source files are distributed under the
 BSD-style license found in the LICENSE file.
 
 ### Download and Install
-
+just fuck test
 #### Binary Distributions
 
 Official binary distributions are available at https://go.dev/dl/.
