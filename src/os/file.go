@@ -642,7 +642,7 @@ func (dir dirFS) Open(name string) (fs.File, error) {
 	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
 		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
 	}
-	f, err := Open(string(dir) + "/" + name)
+	f, err := Open(dir.join(name))
 	if err != nil {
 		return nil, err // nil fs.File
 	}
@@ -653,11 +653,26 @@ func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
 	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
 		return nil, &PathError{Op: "stat", Path: name, Err: ErrInvalid}
 	}
-	f, err := Stat(string(dir) + "/" + name)
+	f, err := Stat(dir.join(name))
 	if err != nil {
 		return nil, err
 	}
 	return f, nil
+}
+
+// join returns the path for name in dir. We can't always use "/"
+// because that fails on Windows for UNC paths.
+func (dir dirFS) join(name string) string {
+	if runtime.GOOS == "windows" && containsAny(name, "/") {
+		buf := []byte(name)
+		for i, b := range buf {
+			if b == '/' {
+				buf[i] = '\\'
+			}
+		}
+		name = string(buf)
+	}
+	return string(dir) + string(PathSeparator) + name
 }
 
 // ReadFile reads the named file and returns the contents.
