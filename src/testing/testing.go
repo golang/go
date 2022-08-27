@@ -36,7 +36,7 @@
 //	}
 //
 // If the file is in a separate "_test" package, the package being tested
-// must be imported explicitly and only its exported identifiers may be used:
+// must be imported explicitly and only its exported identifiers may be used.
 // This is known as "black box" testing.
 //
 //	package abs_test
