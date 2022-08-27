@@ -607,7 +607,10 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		return !isRetracted(v)
 	}
 	if pseudoBase == "" {
-		tag, _ := r.code.RecentTag(info.Name, tagPrefix, tagAllowed)
+		tag, err := r.code.RecentTag(info.Name, tagPrefix, tagAllowed)
+		if err != nil {
+			return nil, err
+		}
 		if tag != "" {
 			pseudoBase, _ = tagToVersion(tag)
 		}
