@@ -601,9 +601,9 @@
 (BNEZ (SEQZ x) yes no) => (BEQZ x yes no)
 (BNEZ (SNEZ x) yes no) => (BNEZ x yes no)
 
-// Absorb NEG into branch when possible.
-(BEQZ x:(NEG y) yes no) && x.Uses == 1 => (BEQZ y yes no)
-(BNEZ x:(NEG y) yes no) && x.Uses == 1 => (BNEZ y yes no)
+// Absorb NEG into branch.
+(BEQZ (NEG x) yes no) => (BEQZ x yes no)
+(BNEZ (NEG x) yes no) => (BNEZ x yes no)
 
 // Convert BEQZ/BNEZ into more optimal branch conditions.
 (BEQZ (SUB x y) yes no) => (BEQ x y yes no)
@@ -622,6 +622,10 @@
 (BLT cond (MOVDconst [0]) yes no) => (BLTZ cond yes no)
 (BGE (MOVDconst [0]) cond yes no) => (BLEZ cond yes no)
 (BGE cond (MOVDconst [0]) yes no) => (BGEZ cond yes no)
+
+// Remove NEG when used with SEQZ/SNEZ.
+(SEQZ (NEG x)) => (SEQZ x)
+(SNEZ (NEG x)) => (SNEZ x)
 
 // Store zero
 (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
