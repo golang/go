@@ -443,7 +443,7 @@ var (
 	cpuList     []int
 	testlogFile *os.File
 
-	numFailed uint32 // number of test failures
+	numFailed atomic.Uint32 // number of test failures
 )
 
 type chattyPrinter struct {
@@ -1312,7 +1312,7 @@ func tRunner(t *T, fn func(t *T)) {
 	// a signal saying that the test is done.
 	defer func() {
 		if t.Failed() {
-			atomic.AddUint32(&numFailed, 1)
+			numFailed.Add(1)
 		}
 
 		if t.raceErrors+race.Errors() > 0 {
@@ -2064,5 +2064,5 @@ func parseCpuList() {
 }
 
 func shouldFailFast() bool {
-	return *failFast && atomic.LoadUint32(&numFailed) > 0
+	return *failFast && numFailed.Load() > 0
 }
