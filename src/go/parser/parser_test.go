@@ -697,3 +697,33 @@ func TestScopeDepthLimit(t *testing.T) {
 		}
 	}
 }
+
+// proposal #50429
+func TestRangePos(t *testing.T) {
+	testcases := []string{
+		"package p; func _() { for range x {} }",
+		"package p; func _() { for i = range x {} }",
+		"package p; func _() { for i := range x {} }",
+		"package p; func _() { for k, v = range x {} }",
+		"package p; func _() { for k, v := range x {} }",
+	}
+
+	for _, src := range testcases {
+		fset := token.NewFileSet()
+		f, err := ParseFile(fset, src, src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ast.Inspect(f, func(x ast.Node) bool {
+			switch s := x.(type) {
+			case *ast.RangeStmt:
+				pos := fset.Position(s.Range)
+				if pos.Offset != strings.Index(src, "range") {
+					t.Errorf("%s: got offset %v, want %v", src, pos.Offset, strings.Index(src, "range"))
+				}
+			}
+			return true
+		})
+	}
+}

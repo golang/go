@@ -2338,6 +2338,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 			Value:  value,
 			TokPos: as.TokPos,
 			Tok:    as.Tok,
+			Range:  as.Rhs[0].Pos(),
 			X:      x,
 			Body:   body,
 		}
