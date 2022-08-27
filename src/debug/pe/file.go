@@ -353,7 +353,10 @@ func (f *File) ImportedSymbols() ([]string, error) {
 	var ds *Section
 	ds = nil
 	for _, s := range f.Sections {
-		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress < s.VirtualAddress+s.VirtualSize {
+		// We are using distance between s.VirtualAddress and idd.VirtualAddress
+		// to avoid potential overflow of uint32 caused by addition of s.VirtualSize
+		// to s.VirtualAddress.
+		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress-s.VirtualAddress < s.VirtualSize {
 			ds = s
 			break
 		}
