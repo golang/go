@@ -9,40 +9,97 @@
 // void runtime·memclrNoHeapPointers(void*, uintptr)
 TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
 #ifndef GOEXPERIMENT_regabiargs
-	MOV	ptr+0(FP), A0
-	MOV	n+8(FP), A1
+	MOV	ptr+0(FP), X10
+	MOV	n+8(FP), X11
 #endif
-	ADD	A0, A1, T4
 
-	// If less than eight bytes, do one byte at a time.
-	SLTU	$8, A1, T3
-	BNE	T3, ZERO, outcheck
+	// If less than 8 bytes, do single byte zeroing.
+	MOV	$8, X9
+	BLT	X11, X9, check4
 
-	// Do one byte at a time until eight-aligned.
-	JMP	aligncheck
+	// Check alignment
+	AND	$3, X10, X5
+	BEQZ	X5, aligned
+
+	// Zero one byte at a time until we reach 8 byte alignment.
+	SUB	X5, X11, X11
 align:
-	MOVB	ZERO, (A0)
-	ADD	$1, A0
-aligncheck:
-	AND	$7, A0, T3
-	BNE	T3, ZERO, align
+	ADD	$-1, X5
+	MOVB	ZERO, 0(X10)
+	ADD	$1, X10
+	BNEZ	X5, align
 
-	// Do eight bytes at a time as long as there is room.
-	ADD	$-7, T4, T5
-	JMP	wordscheck
-words:
-	MOV	ZERO, (A0)
-	ADD	$8, A0
-wordscheck:
-	SLTU	T5, A0, T3
-	BNE	T3, ZERO, words
+aligned:
+	MOV	$8, X9
+	BLT	X11, X9, check4
+	MOV	$16, X9
+	BLT	X11, X9, zero8
+	MOV	$32, X9
+	BLT	X11, X9, zero16
+	MOV	$64, X9
+	BLT	X11, X9, zero32
+loop64:
+	MOV	ZERO, 0(X10)
+	MOV	ZERO, 8(X10)
+	MOV	ZERO, 16(X10)
+	MOV	ZERO, 24(X10)
+	MOV	ZERO, 32(X10)
+	MOV	ZERO, 40(X10)
+	MOV	ZERO, 48(X10)
+	MOV	ZERO, 56(X10)
+	ADD	$64, X10
+	ADD	$-64, X11
+	BGE	X11, X9, loop64
+	BEQZ	X11, done
 
-	JMP	outcheck
-out:
-	MOVB	ZERO, (A0)
-	ADD	$1, A0
-outcheck:
-	BNE	A0, T4, out
+check32:
+	MOV	$32, X9
+	BLT	X11, X9, check16
+zero32:
+	MOV	ZERO, 0(X10)
+	MOV	ZERO, 8(X10)
+	MOV	ZERO, 16(X10)
+	MOV	ZERO, 24(X10)
+	ADD	$32, X10
+	ADD	$-32, X11
+	BEQZ	X11, done
+
+check16:
+	MOV	$16, X9
+	BLT	X11, X9, check8
+zero16:
+	MOV	ZERO, 0(X10)
+	MOV	ZERO, 8(X10)
+	ADD	$16, X10
+	ADD	$-16, X11
+	BEQZ	X11, done
+
+check8:
+	MOV	$8, X9
+	BLT	X11, X9, check4
+zero8:
+	MOV	ZERO, 0(X10)
+	ADD	$8, X10
+	ADD	$-8, X11
+	BEQZ	X11, done
+
+check4:
+	MOV	$4, X9
+	BLT	X11, X9, loop1
+zero4:
+	MOVB	ZERO, 0(X10)
+	MOVB	ZERO, 1(X10)
+	MOVB	ZERO, 2(X10)
+	MOVB	ZERO, 3(X10)
+	ADD	$4, X10
+	ADD	$-4, X11
+
+loop1:
+	BEQZ	X11, done
+	MOVB	ZERO, 0(X10)
+	ADD	$1, X10
+	ADD	$-1, X11
+	JMP	loop1
 
 done:
 	RET
