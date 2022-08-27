@@ -1127,12 +1127,17 @@ func (c *common) TempDir() string {
 			})
 		}
 	}
+
+	if c.tempDirErr == nil {
+		c.tempDirSeq++
+	}
+	seq := c.tempDirSeq
 	c.tempDirMu.Unlock()
 
 	if c.tempDirErr != nil {
 		c.Fatalf("TempDir: %v", c.tempDirErr)
 	}
-	seq := atomic.AddInt32(&c.tempDirSeq, 1)
+
 	dir := fmt.Sprintf("%s%c%03d", c.tempDir, os.PathSeparator, seq)
 	if err := os.Mkdir(dir, 0777); err != nil {
 		c.Fatalf("TempDir: %v", err)
