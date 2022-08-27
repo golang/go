@@ -453,15 +453,14 @@ var ErrNoRows = errors.New("sql: no rows in result set")
 // connection is returned to DB's idle connection pool. The pool size
 // can be controlled with SetMaxIdleConns.
 type DB struct {
-	// Atomic access only. At top of struct to prevent mis-alignment
-	// on 32-bit platforms. Of type time.Duration.
-	waitDuration int64 // Total time waited for new connections.
+	// Total time waited for new connections.
+	waitDuration atomic.Int64
 
 	connector driver.Connector
 	// numClosed is an atomic counter which represents a total number of
 	// closed connections. Stmt.openStmt checks it before cleaning closed
 	// connections in Stmt.css.
-	numClosed uint64
+	numClosed atomic.Uint64
 
 	mu           sync.Mutex    // protects following fields
 	freeConn     []*driverConn // free connections ordered by returnedAt oldest to newest
@@ -651,7 +650,7 @@ func (dc *driverConn) finalClose() error {
 	dc.db.maybeOpenNewConnections()
 	dc.db.mu.Unlock()
 
-	atomic.AddUint64(&dc.db.numClosed, 1)
+	dc.db.numClosed.Add(1)
 	return err
 }
 
@@ -1171,7 +1170,7 @@ type DBStats struct {
 
 // Stats returns database statistics.
 func (db *DB) Stats() DBStats {
-	wait := atomic.LoadInt64(&db.waitDuration)
+	wait := db.waitDuration.Load()
 
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -1341,7 +1340,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 			delete(db.connRequests, reqKey)
 			db.mu.Unlock()
 
-			atomic.AddInt64(&db.waitDuration, int64(time.Since(waitStart)))
+			db.waitDuration.Add(int64(time.Since(waitStart)))
 
 			select {
 			default:
@@ -1352,7 +1351,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 			}
 			return nil, ctx.Err()
 		case ret, ok := <-req:
-			atomic.AddInt64(&db.waitDuration, int64(time.Since(waitStart)))
+			db.waitDuration.Add(int64(time.Since(waitStart)))
 
 			if !ok {
 				return nil, errDBClosed
@@ -1619,7 +1618,7 @@ func (db *DB) prepareDC(ctx context.Context, dc *driverConn, release func(error)
 	// the DB.
 	if cg == nil {
 		stmt.css = []connStmt{{dc, ds}}
-		stmt.lastNumClosed = atomic.LoadUint64(&db.numClosed)
+		stmt.lastNumClosed = db.numClosed.Load()
 		db.addDep(stmt, stmt)
 	}
 	return stmt, nil
@@ -2649,7 +2648,7 @@ func (s *Stmt) removeClosedStmtLocked() {
 	if t > 10 {
 		t = 10
 	}
-	dbClosed := atomic.LoadUint64(&s.db.numClosed)
+	dbClosed := s.db.numClosed.Load()
 	if dbClosed-s.lastNumClosed < uint64(t) {
 		return
 	}
