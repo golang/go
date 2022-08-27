@@ -633,6 +633,14 @@
 (MOVBUreg x:((SEQZ|SNEZ) _)) => x
 (MOVBUreg x:((SLT|SLTU) _ _)) => x
 
+// Avoid extending when already sufficiently masked.
+(MOVBreg  x:(ANDI [c] y)) && c >= 0 && int64(int8(c)) == c => x
+(MOVHreg  x:(ANDI [c] y)) && c >= 0 && int64(int16(c)) == c => x
+(MOVWreg  x:(ANDI [c] y)) && c >= 0 && int64(int32(c)) == c => x
+(MOVBUreg x:(ANDI [c] y)) && c >= 0 && int64(uint8(c)) == c => x
+(MOVHUreg x:(ANDI [c] y)) && c >= 0 && int64(uint16(c)) == c => x
+(MOVWUreg x:(ANDI [c] y)) && c >= 0 && int64(uint32(c)) == c => x
+
 // Avoid sign/zero extension for consts.
 (MOVBreg  (MOVDconst [c])) => (MOVDconst [int64(int8(c))])
 (MOVHreg  (MOVDconst [c])) => (MOVDconst [int64(int16(c))])
