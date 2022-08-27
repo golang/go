@@ -3264,10 +3264,6 @@ func (v Value) Comparable() bool {
 		return true
 
 	case Array:
-		if v.Type().Len() == 0 {
-			return v.Type().Comparable()
-		}
-
 		switch v.Type().Elem().Kind() {
 		case Interface, Array, Struct:
 			for i := 0; i < v.Type().Len(); i++ {
@@ -3275,11 +3271,8 @@ func (v Value) Comparable() bool {
 					return false
 				}
 			}
-		default:
-			return v.Index(0).Comparable()
 		}
-
-		return true
+		return v.Type().Comparable()
 
 	case Func:
 		return false
