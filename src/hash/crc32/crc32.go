@@ -78,7 +78,7 @@ var castagnoliTable *Table
 var castagnoliTable8 *slicing8Table
 var updateCastagnoli func(crc uint32, p []byte) uint32
 var castagnoliOnce sync.Once
-var haveCastagnoli uint32
+var haveCastagnoli atomic.Bool
 
 func castagnoliInit() {
 	castagnoliTable = simpleMakeTable(Castagnoli)
@@ -94,7 +94,7 @@ func castagnoliInit() {
 		}
 	}
 
-	atomic.StoreUint32(&haveCastagnoli, 1)
+	haveCastagnoli.Store(true)
 }
 
 // IEEETable is the table for the IEEE polynomial.
@@ -208,7 +208,7 @@ func readUint32(b []byte) uint32 {
 // Update returns the result of adding the bytes in p to the crc.
 func Update(crc uint32, tab *Table, p []byte) uint32 {
 	switch {
-	case atomic.LoadUint32(&haveCastagnoli) != 0 && tab == castagnoliTable:
+	case haveCastagnoli.Load() && tab == castagnoliTable:
 		return updateCastagnoli(crc, p)
 	case tab == IEEETable:
 		// Unfortunately, because IEEETable is exported, IEEE may be used without a
@@ -222,7 +222,7 @@ func Update(crc uint32, tab *Table, p []byte) uint32 {
 
 func (d *digest) Write(p []byte) (n int, err error) {
 	switch {
-	case atomic.LoadUint32(&haveCastagnoli) != 0 && d.tab == castagnoliTable:
+	case haveCastagnoli.Load() && d.tab == castagnoliTable:
 		d.crc = updateCastagnoli(d.crc, p)
 	case d.tab == IEEETable:
 		// We only create digest objects through New() which takes care of
