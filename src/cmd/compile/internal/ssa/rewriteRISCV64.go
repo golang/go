@@ -5495,6 +5495,7 @@ func rewriteValueRISCV64_OpRISCV64SRLI(v *Value) bool {
 func rewriteValueRISCV64_OpRISCV64SUB(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
 	// match: (SUB x (MOVDconst [val]))
 	// cond: is32Bit(-val)
 	// result: (ADDI [-val] x)
@@ -5510,6 +5511,26 @@ func rewriteValueRISCV64_OpRISCV64SUB(v *Value) bool {
 		v.reset(OpRISCV64ADDI)
 		v.AuxInt = int64ToAuxInt(-val)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SUB <t> (MOVDconst [val]) y)
+	// cond: is32Bit(-val)
+	// result: (NEG (ADDI <t> [-val] y))
+	for {
+		t := v.Type
+		if v_0.Op != OpRISCV64MOVDconst {
+			break
+		}
+		val := auxIntToInt64(v_0.AuxInt)
+		y := v_1
+		if !(is32Bit(-val)) {
+			break
+		}
+		v.reset(OpRISCV64NEG)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ADDI, t)
+		v0.AuxInt = int64ToAuxInt(-val)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 	// match: (SUB x (MOVDconst [0]))

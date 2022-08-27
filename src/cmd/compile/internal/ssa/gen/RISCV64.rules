@@ -748,8 +748,9 @@
 (SRL x (MOVDconst [val])) => (SRLI [int64(val&63)] x)
 (SRA x (MOVDconst [val])) => (SRAI [int64(val&63)] x)
 
-// Convert subtraction of a const into ADDI with negative immediate, where possible.
+// Convert const subtraction into ADDI with negative immediate, where possible.
 (SUB x (MOVDconst [val])) && is32Bit(-val) => (ADDI [-val] x)
+(SUB <t> (MOVDconst [val]) y) && is32Bit(-val) => (NEG (ADDI <t> [-val] y))
 
 // Subtraction of zero.
 (SUB  x (MOVDconst [0])) => x
