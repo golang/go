@@ -620,6 +620,12 @@
 (BEQZ (NEG x) yes no) => (BEQZ x yes no)
 (BNEZ (NEG x) yes no) => (BNEZ x yes no)
 
+// Negate comparision with FNES/FNED.
+(BEQZ (FNES <t> x y) yes no) => (BNEZ (FEQS <t> x y) yes no)
+(BNEZ (FNES <t> x y) yes no) => (BEQZ (FEQS <t> x y) yes no)
+(BEQZ (FNED <t> x y) yes no) => (BNEZ (FEQD <t> x y) yes no)
+(BNEZ (FNED <t> x y) yes no) => (BEQZ (FEQD <t> x y) yes no)
+
 // Convert BEQZ/BNEZ into more optimal branch conditions.
 (BEQZ (SUB x y) yes no) => (BEQ x y yes no)
 (BNEZ (SUB x y) yes no) => (BNE x y yes no)
