@@ -22,6 +22,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -338,13 +339,12 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 type resolverConfig struct {
 	initOnce sync.Once // guards init of resolverConfig
 
-	// ch is used as a semaphore that only allows one lookup at a
+	// guard is used as a semaphore that only allows one lookup at a
 	// time to recheck resolv.conf.
-	ch          chan struct{} // guards lastChecked and modTime
-	lastChecked time.Time     // last time resolv.conf was checked
+	guard       atomic.Bool // guards lastChecked and modTime
+	lastChecked time.Time   // last time resolv.conf was checked
 
-	mu        sync.RWMutex // protects dnsConfig
-	dnsConfig *dnsConfig   // parsed resolv.conf structure used in lookups
+	dnsConfig atomic.Pointer[dnsConfig] // parsed resolv.conf structure used in lookups
 }
 
 var resolvConf resolverConfig
@@ -353,15 +353,11 @@ var resolvConf resolverConfig
 func (conf *resolverConfig) init() {
 	// Set dnsConfig and lastChecked so we don't parse
 	// resolv.conf twice the first time.
-	conf.dnsConfig = systemConf().resolv
-	if conf.dnsConfig == nil {
-		conf.dnsConfig = dnsReadConfig("/etc/resolv.conf")
+	conf.dnsConfig.Store(systemConf().resolv)
+	if conf.dnsConfig.Load() == nil {
+		conf.dnsConfig.Store(dnsReadConfig("/etc/resolv.conf"))
 	}
 	conf.lastChecked = time.Now()
-
-	// Prepare ch so that only one update of resolverConfig may
-	// run at once.
-	conf.ch = make(chan struct{}, 1)
 }
 
 // tryUpdate tries to update conf with the named resolv.conf file.
@@ -371,10 +367,10 @@ func (conf *resolverConfig) tryUpdate(name string) {
 	conf.initOnce.Do(conf.init)
 
 	// Ensure only one update at a time checks resolv.conf.
-	if !conf.tryAcquireSema() {
+	if !conf.guard.CompareAndSwap(false, true) {
 		return
 	}
-	defer conf.releaseSema()
+	defer conf.guard.Store(false)
 
 	now := time.Now()
 	if conf.lastChecked.After(now.Add(-5 * time.Second)) {
@@ -394,28 +390,13 @@ func (conf *resolverConfig) tryUpdate(name string) {
 		if fi, err := os.Stat(name); err == nil {
 			mtime = fi.ModTime()
 		}
-		if mtime.Equal(conf.dnsConfig.mtime) {
+		if mtime.Equal(conf.dnsConfig.Load().mtime) {
 			return
 		}
 	}
 
 	dnsConf := dnsReadConfig(name)
-	conf.mu.Lock()
-	conf.dnsConfig = dnsConf
-	conf.mu.Unlock()
-}
-
-func (conf *resolverConfig) tryAcquireSema() bool {
-	select {
-	case conf.ch <- struct{}{}:
-		return true
-	default:
-		return false
-	}
-}
-
-func (conf *resolverConfig) releaseSema() {
-	<-conf.ch
+	conf.dnsConfig.Store(dnsConf)
 }
 
 func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type) (dnsmessage.Parser, string, error) {
@@ -428,9 +409,7 @@ func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Typ
 		return dnsmessage.Parser{}, "", &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
 	}
 	resolvConf.tryUpdate("/etc/resolv.conf")
-	resolvConf.mu.RLock()
-	conf := resolvConf.dnsConfig
-	resolvConf.mu.RUnlock()
+	conf := resolvConf.dnsConfig.Load()
 	var (
 		p      dnsmessage.Parser
 		server string
@@ -605,9 +584,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 		return nil, dnsmessage.Name{}, &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
 	}
 	resolvConf.tryUpdate("/etc/resolv.conf")
-	resolvConf.mu.RLock()
-	conf := resolvConf.dnsConfig
-	resolvConf.mu.RUnlock()
+	conf := resolvConf.dnsConfig.Load()
 	type result struct {
 		p      dnsmessage.Parser
 		server string
