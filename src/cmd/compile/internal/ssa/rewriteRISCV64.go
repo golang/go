@@ -3160,6 +3160,86 @@ func rewriteValueRISCV64_OpRISCV64MOVBUload(v *Value) bool {
 func rewriteValueRISCV64_OpRISCV64MOVBUreg(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
+	// match: (MOVBUreg x:(FLES _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpRISCV64FLES {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(FLTS _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpRISCV64FLTS {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(FEQS _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpRISCV64FEQS {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(FNES _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpRISCV64FNES {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(FLED _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpRISCV64FLED {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(FLTD _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpRISCV64FLTD {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(FEQD _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpRISCV64FEQD {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(FNED _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpRISCV64FNED {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	// match: (MOVBUreg x:(SEQZ _))
 	// result: x
 	for {

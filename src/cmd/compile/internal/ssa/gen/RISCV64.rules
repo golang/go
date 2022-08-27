@@ -630,6 +630,8 @@
 (MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVDstorezero [off] {sym} ptr mem)
 
 // Boolean ops are already extended.
+(MOVBUreg x:((FLES|FLTS|FEQS|FNES) _ _)) => x
+(MOVBUreg x:((FLED|FLTD|FEQD|FNED) _ _)) => x
 (MOVBUreg x:((SEQZ|SNEZ) _)) => x
 (MOVBUreg x:((SLT|SLTU) _ _)) => x
 
