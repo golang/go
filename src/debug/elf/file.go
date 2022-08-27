@@ -377,6 +377,12 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				Align:  ph.Align,
 			}
 		}
+		if int64(p.Off) < 0 {
+			return nil, &FormatError{off, "invalid program header offset", p.Off}
+		}
+		if int64(p.Filesz) < 0 {
+			return nil, &FormatError{off, "invalid program header file size", p.Filesz}
+		}
 		p.sr = io.NewSectionReader(r, int64(p.Off), int64(p.Filesz))
 		p.ReaderAt = p.sr
 		f.Progs[i] = p
