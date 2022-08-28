@@ -188,7 +188,7 @@ func writePkgStub(noders []*noder) string {
 		scope := pkg.Scope()
 		names := scope.Names()
 		w.Len(len(names))
-		for _, name := range scope.Names() {
+		for _, name := range names {
 			w.obj(scope.Lookup(name), nil)
 		}
 
