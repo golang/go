@@ -342,7 +342,7 @@ func init() {
 type cancelCtx struct {
 	Context
 
-	mu       sync.Mutex            // protects following fields
+	mu       sync.RWMutex          // protects following fields
 	done     atomic.Value          // of chan struct{}, created lazily, closed by first cancel call
 	children map[canceler]struct{} // set to nil by the first cancel call
 	err      error                 // set to non-nil by the first cancel call
@@ -371,9 +371,9 @@ func (c *cancelCtx) Done() <-chan struct{} {
 }
 
 func (c *cancelCtx) Err() error {
-	c.mu.Lock()
+	c.mu.RLock()
 	err := c.err
-	c.mu.Unlock()
+	c.mu.RUnlock()
 	return err
 }
 
