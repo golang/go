@@ -31,7 +31,8 @@ const (
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
 
-	_MADV_FREE = 0x5
+	_MADV_DONTNEED = 0x4
+	_MADV_FREE     = 0x5
 
 	_SA_SIGINFO = 0x40
 	_SA_RESTART = 0x2
