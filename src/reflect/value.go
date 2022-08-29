@@ -3270,14 +3270,6 @@ func (v Value) Comparable() bool {
 	case Invalid:
 		return false
 
-	case Bool,
-		Int, Int8, Int16, Int32, Int64,
-		Uint, Uint8, Uint16, Uint32, Uint64,
-		Uintptr,
-		Float32, Float64, Complex64, Complex128,
-		Chan:
-		return true
-
 	case Array:
 		switch v.Type().Elem().Kind() {
 		case Interface, Array, Struct:
@@ -3286,26 +3278,12 @@ func (v Value) Comparable() bool {
 					return false
 				}
 			}
+			return true
 		}
 		return v.Type().Comparable()
 
-	case Func:
-		return false
-
 	case Interface:
 		return v.Elem().Comparable()
-
-	case Map:
-		return false
-
-	case Pointer:
-		return true
-
-	case Slice:
-		return false
-
-	case String:
-		return true
 
 	case Struct:
 		for i := 0; i < v.NumField(); i++ {
@@ -3315,11 +3293,8 @@ func (v Value) Comparable() bool {
 		}
 		return true
 
-	case UnsafePointer:
-		return true
-
 	default:
-		return false
+		return v.Type().Comparable()
 	}
 }
 
