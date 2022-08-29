@@ -71,6 +71,8 @@ outer:
 		}
 
 		// Get the end position of the error.
+		// (This heuristic assumes that the buffer is formatted,
+		// at least up to the end position of the error.)
 		var buf bytes.Buffer
 		if err := format.Node(&buf, pass.Fset, file); err != nil {
 			continue
@@ -156,11 +158,16 @@ outer:
 		fixed := make([]ast.Expr, len(enclosingFunc.Results.List))
 
 		// For each value in the return function declaration, find the leftmost element
-		// in the return statement that has the desired type. If no such element exits,
+		// in the return statement that has the desired type. If no such element exists,
 		// fill in the missing value with the appropriate "zero" value.
+		// Beware that type information may be incomplete.
 		var retTyps []types.Type
 		for _, ret := range enclosingFunc.Results.List {
-			retTyps = append(retTyps, info.TypeOf(ret.Type))
+			retTyp := info.TypeOf(ret.Type)
+			if retTyp == nil {
+				return nil, nil
+			}
+			retTyps = append(retTyps, retTyp)
 		}
 		matches :=
 			analysisinternal.FindMatchingIdents(retTyps, file, ret.Pos(), info, pass.Pkg)
@@ -168,10 +175,7 @@ outer:
 			var match ast.Expr
 			var idx int
 			for j, val := range remaining {
-				// TODO(adonovan): if TypeOf returns nil (as it may, since we
-				// RunDespiteErrors), then matchingTypes will panic in
-				// types.AssignableTo. Fix it, and audit for other instances.
-				if !matchingTypes(info.TypeOf(val), retTyp) {
+				if t := info.TypeOf(val); t == nil || !matchingTypes(t, retTyp) {
 					continue
 				}
 				if !analysisinternal.IsZeroValue(val) {

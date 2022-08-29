@@ -1868,37 +1868,6 @@ package main
 	})
 }
 
-// Tests golang/go#45075: A panic in fillreturns broke diagnostics.
-// Expect an error log indicating that fillreturns panicked, as well type
-// errors for the broken code.
-func TestFillReturnsPanic(t *testing.T) {
-	// At tip, the panic no longer reproduces.
-	testenv.SkipAfterGo1Point(t, 16)
-
-	const files = `
--- go.mod --
-module mod.com
-
-go 1.15
--- main.go --
-package main
-
-func foo() int {
-	return x, nil
-}
-`
-	Run(t, files, func(t *testing.T, env *Env) {
-		env.OpenFile("main.go")
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				LogMatching(protocol.Error, `.*analysis fillreturns.*panicked.*`, 1, true),
-				env.DiagnosticAtRegexpWithMessage("main.go", `return x`, "wrong number of return values"),
-			),
-		)
-	})
-}
-
 // This test confirms that the view does not reinitialize when a go.mod file is
 // opened.
 func TestNoReinitialize(t *testing.T) {
