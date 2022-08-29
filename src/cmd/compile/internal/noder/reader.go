@@ -817,7 +817,22 @@ func (dict *readerDict) mangle(sym *types.Sym) *types.Sym {
 // If basic is true, then the type argument is used to instantiate a
 // type parameter whose constraint is a basic interface.
 func shapify(targ *types.Type, basic bool) *types.Type {
-	base.Assertf(targ.Kind() != types.TFORW, "%v is missing its underlying type", targ)
+	if targ.Kind() == types.TFORW {
+		if targ.IsFullyInstantiated() {
+			// For recursive instantiated type argument, it may  still be a TFORW
+			// when shapifying happens. If we don't have targ's underlying type,
+			// shapify won't work. The worst case is we end up not reusing code
+			// optimally in some tricky cases.
+			if base.Debug.Shapify != 0 {
+				base.Warn("skipping shaping of recursive type %v", targ)
+			}
+			if targ.HasShape() {
+				return targ
+			}
+		} else {
+			base.Fatalf("%v is missing its underlying type", targ)
+		}
+	}
 
 	// When a pointer type is used to instantiate a type parameter
 	// constrained by a basic interface, we know the pointer's element
