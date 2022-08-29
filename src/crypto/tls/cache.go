@@ -39,6 +39,8 @@ type certCache struct {
 	sync.Map
 }
 
+var clientCertCache = new(certCache)
+
 // activeCert is a handle to a certificate held in the cache. Once there are
 // no alive activeCerts for a given certificate, the certificate is removed
 // from the cache by a finalizer.
