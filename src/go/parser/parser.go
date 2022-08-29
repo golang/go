@@ -1867,11 +1867,7 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 		} else {
 			y = p.parseList(true)
 		}
-		as := &ast.AssignStmt{Lhs: x, TokPos: pos, Tok: tok, Rhs: y}
-		if tok == token.DEFINE {
-			p.checkAssignStmt(as)
-		}
-		return as, isRange
+		return &ast.AssignStmt{Lhs: x, TokPos: pos, Tok: tok, Rhs: y}, isRange
 	}
 
 	if len(x) > 1 {
@@ -1916,14 +1912,6 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 
 	// expression
 	return &ast.ExprStmt{X: x[0]}, false
-}
-
-func (p *parser) checkAssignStmt(as *ast.AssignStmt) {
-	for _, x := range as.Lhs {
-		if _, isIdent := x.(*ast.Ident); !isIdent {
-			p.errorExpected(x.Pos(), "identifier on left side of :=")
-		}
-	}
 }
 
 func (p *parser) parseCallExpr(callType string) *ast.CallExpr {
@@ -2245,11 +2233,7 @@ func (p *parser) parseCommClause() *ast.CommClause {
 				pos := p.pos
 				p.next()
 				rhs := p.parseRhs()
-				as := &ast.AssignStmt{Lhs: lhs, TokPos: pos, Tok: tok, Rhs: []ast.Expr{rhs}}
-				if tok == token.DEFINE {
-					p.checkAssignStmt(as)
-				}
-				comm = as
+				comm = &ast.AssignStmt{Lhs: lhs, TokPos: pos, Tok: tok, Rhs: []ast.Expr{rhs}}
 			} else {
 				// lhs must be single receive operation
 				if len(lhs) > 1 {

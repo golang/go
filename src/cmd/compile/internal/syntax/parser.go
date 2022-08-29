@@ -2487,8 +2487,6 @@ func (p *parser) commClause() *CommClause {
 		//
 		// All these (and more) are recognized by simpleStmt and invalid
 		// syntax trees are flagged later, during type checking.
-		// TODO(gri) eventually may want to restrict valid syntax trees
-		// here.
 
 	case _Default:
 		p.next()

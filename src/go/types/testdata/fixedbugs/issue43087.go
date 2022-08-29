@@ -24,7 +24,7 @@ func _() {
 
 func _() {
 	var a []int
-	a /* ERROR expected identifier */ /* ERROR non-name .* on left side of := */ [0], b := 1, 2
+	a /* ERROR non-name .* on left side of := */ [0], b := 1, 2
 	_ = a
 	_ = b
 }
