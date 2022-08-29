@@ -10,13 +10,15 @@
 
 package p
 
-type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */ ] struct{}
+type T[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */] struct{}
 
 // for init (and main, but we're not in package main) we should only get one error
-func init[P /* ERROR func init must have no type parameters */ any /* ERROR predeclared any requires go1\.18 or later */ ]()   {}
-func main[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */ ]() {}
+func init[P /* ERROR func init must have no type parameters */ any /* ERROR predeclared any requires go1\.18 or later */]() {
+}
+func main[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */]() {
+}
 
-func f[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */ ](x P) {
+func f[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */](x P) {
 	var _ T[ /* ERROR type instantiation requires go1\.18 or later */ int]
 	var _ (T[ /* ERROR type instantiation requires go1\.18 or later */ int])
 	_ = T[ /* ERROR type instantiation requires go1\.18 or later */ int]{}

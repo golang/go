@@ -383,7 +383,7 @@ func (check *Checker) collectObjects() {
 				}
 			case typeDecl:
 				if d.spec.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) {
-					check.softErrorf(d.spec.TypeParams.List[0], _UnsupportedFeature, "type parameters require go1.18 or later")
+					check.softErrorf(d.spec.TypeParams.List[0], _UnsupportedFeature, "type parameter requires go1.18 or later")
 				}
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
@@ -441,7 +441,7 @@ func (check *Checker) collectObjects() {
 					check.recordDef(d.decl.Name, obj)
 				}
 				if d.decl.Type.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
-					check.softErrorf(d.decl.Type.TypeParams.List[0], _UnsupportedFeature, "type parameters require go1.18 or later")
+					check.softErrorf(d.decl.Type.TypeParams.List[0], _UnsupportedFeature, "type parameter requires go1.18 or later")
 				}
 				info := &declInfo{file: fileScope, fdecl: d.decl}
 				// Methods are not package-level objects but we still track them in the
