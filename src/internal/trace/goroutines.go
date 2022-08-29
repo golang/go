@@ -172,7 +172,7 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 			// of the active region. For ease handling of this
 			// case, we create a fake region description with the
 			// task id. This isn't strictly necessary as this
-			// goroutine may not be assosciated with the task, but
+			// goroutine may not be associated with the task, but
 			// it can be convenient to see all children created
 			// during a region.
 			if creatorG := gs[ev.G]; creatorG != nil && len(creatorG.gdesc.activeRegions) > 0 {
