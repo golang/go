@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unicode"
@@ -38,6 +39,36 @@ type (
 	renamedComplex64  complex64
 	renamedComplex128 complex128
 )
+
+func newAtomicInt32(val int32) *atomic.Int32 {
+	var r atomic.Int32
+	r.Store(val)
+	return &r
+}
+
+func newAtomicUint32(val uint32) *atomic.Uint32 {
+	var r atomic.Uint32
+	r.Store(val)
+	return &r
+}
+
+func newAtomicInt64(val int64) *atomic.Int64 {
+	var r atomic.Int64
+	r.Store(val)
+	return &r
+}
+
+func newAtomicUint64(val uint64) *atomic.Uint64 {
+	var r atomic.Uint64
+	r.Store(val)
+	return &r
+}
+
+func newAtomicBool(val bool) *atomic.Bool {
+	var r atomic.Bool
+	r.Store(val)
+	return &r
+}
 
 func TestFmtInterface(t *testing.T) {
 	var i1 any
@@ -1081,6 +1112,32 @@ var fmtTests = []struct {
 	{"%☠", SI{&[]any{I(1), G(2)}}, "{%!☠(*[]interface {}=&[1 2])}"},
 	{"%☠", reflect.Value{}, "<invalid reflect.Value>"},
 	{"%☠", map[float64]int{NaN: 1}, "map[%!☠(float64=NaN):%!☠(int=1)]"},
+
+	// atomics
+	{"%d", newAtomicInt32(25), "25"},
+	{"%d", newAtomicInt32(math.MaxInt32), "2147483647"},
+	{"%d", newAtomicInt32(-5), "-5"},
+	{"%d", newAtomicInt32(math.MinInt32), "-2147483648"},
+
+	{"%d", newAtomicUint32(19), "19"},
+	{"%d", newAtomicUint32(math.MaxUint32), "4294967295"},
+
+	{"%d", newAtomicInt64(99), "99"},
+	{"%d", newAtomicInt64(math.MaxInt64), "9223372036854775807"},
+	{"%d", newAtomicInt64(-7), "-7"},
+	{"%d", newAtomicInt64(math.MinInt64), "-9223372036854775808"},
+
+	{"%d", newAtomicUint64(12), "12"},
+	{"%d", newAtomicUint64(math.MaxUint64), "18446744073709551615"},
+
+	{"%t", newAtomicBool(true), "true"},
+	{"%t", newAtomicBool(false), "false"},
+
+	{"%v", newAtomicInt32(42), "42"},
+	{"%v", newAtomicUint32(4242), "4242"},
+	{"%v", newAtomicInt64(424242), "424242"},
+	{"%v", newAtomicUint64(42424242), "42424242"},
+	{"%v", newAtomicBool(true), "true"},
 }
 
 // zeroFill generates zero-filled strings of the specified width. The length

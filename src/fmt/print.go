@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"unicode/utf8"
 )
 
@@ -747,6 +748,26 @@ func (p *pp) printArg(arg any, verb rune) {
 		p.fmtInteger(f, unsigned, verb)
 	case uintptr:
 		p.fmtInteger(uint64(f), unsigned, verb)
+	case atomic.Int32:
+		p.fmtInteger(uint64(f.Load()), signed, verb)
+	case *atomic.Int32:
+		p.fmtInteger(uint64(f.Load()), signed, verb)
+	case atomic.Int64:
+		p.fmtInteger(uint64(f.Load()), signed, verb)
+	case *atomic.Int64:
+		p.fmtInteger(uint64(f.Load()), signed, verb)
+	case atomic.Uint32:
+		p.fmtInteger(uint64(f.Load()), unsigned, verb)
+	case *atomic.Uint32:
+		p.fmtInteger(uint64(f.Load()), unsigned, verb)
+	case atomic.Uint64:
+		p.fmtInteger(uint64(f.Load()), unsigned, verb)
+	case *atomic.Uint64:
+		p.fmtInteger(uint64(f.Load()), unsigned, verb)
+	case atomic.Bool:
+		p.fmtBool(f.Load(), verb)
+	case *atomic.Bool:
+		p.fmtBool(f.Load(), verb)
 	case string:
 		p.fmtString(f, verb)
 	case []byte:
