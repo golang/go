@@ -1904,14 +1904,14 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	// the TOC to the appropriate value for that module. But if it returns
 	// directly to the wrapper's caller, nothing will reset it to the correct
 	// value for that function.
+	var call *ir.CallExpr
 	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !generic {
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+		call = ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
 		call.Args = ir.ParamNames(fn.Type())
 		call.IsDDD = fn.Type().IsVariadic()
 		fn.Body.Append(ir.NewTailCallStmt(base.Pos, call))
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
-		var call *ir.CallExpr
 
 		if generic && dot.X != nthis {
 			// If there is embedding involved, then we should do the
@@ -1996,7 +1996,22 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	typecheck.Stmts(fn.Body)
 
 	if AfterGlobalEscapeAnalysis {
-		inline.InlineCalls(fn)
+		// Inlining the method may reveal closures, which require walking all function bodies
+		// to decide whether to capture free variables by value or by ref. So we only do inline
+		// if the method do not contain any closures, otherwise, the escape analysis may make
+		// dead variables resurrected, and causing liveness analysis confused, see issue #53702.
+		var canInline bool
+		switch x := call.X.(type) {
+		case *ir.Name:
+			canInline = len(x.Func.Closures) == 0
+		case *ir.SelectorExpr:
+			if x.Op() == ir.OMETHEXPR {
+				canInline = x.FuncName().Func != nil && len(x.FuncName().Func.Closures) == 0
+			}
+		}
+		if canInline {
+			inline.InlineCalls(fn)
+		}
 		escape.Batch([]*ir.Func{fn}, false)
 	}
 
