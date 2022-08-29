@@ -140,14 +140,20 @@ func eqStructFieldCost(t *types.Type, i int) (int64, int64, int) {
 	size = ft.Size()
 	next = i + 1
 
-	switch ft.Kind() {
+	return calculateCostForType(ft), size, next
+}
+
+func calculateCostForType(t *types.Type) int64 {
+	var cost int64
+	switch t.Kind() {
 	case types.TSTRUCT:
-		return EqStructCost(ft), size, next
+		return EqStructCost(t)
 	case types.TSLICE:
-		// Cost of 3 for ptr, len, and cap.
-		cost = 3
+		// Slices are not comparable.
+		base.Fatalf("eqStructFieldCost: unexpected slice type")
 	case types.TARRAY:
-		cost = ft.NumElem()
+		elemCost := calculateCostForType(t.Elem())
+		cost = t.NumElem() * elemCost
 	case types.TSTRING, types.TINTER, types.TCOMPLEX64, types.TCOMPLEX128:
 		cost = 2
 	case types.TINT64, types.TUINT64:
@@ -155,8 +161,7 @@ func eqStructFieldCost(t *types.Type, i int) (int64, int64, int) {
 	default:
 		cost = 1
 	}
-
-	return cost, size, next
+	return cost
 }
 
 // EqStruct compares two structs np and nq for equality.

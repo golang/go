@@ -29,8 +29,8 @@ func TestEqStructCost(t *testing.T) {
 		f.Offset = offset
 		return f
 	}
-	newUint16ArrayField := func(parent *types.Type, offset int64, len int64) *types.Field {
-		f := types.NewField(src.XPos{}, parent.Sym(), types.NewArray(types.Types[types.TUINT16], len))
+	newArrayField := func(parent *types.Type, offset int64, len int64, kind types.Kind) *types.Field {
+		f := types.NewField(src.XPos{}, parent.Sym(), types.NewArray(types.Types[kind], len))
 		// Call Type.Size here to force the size calculation to be done. If not done here the size returned later is incorrect.
 		f.Type.Size()
 		f.Offset = offset
@@ -140,7 +140,17 @@ func TestEqStructCost(t *testing.T) {
 			func() *types.Type {
 				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
 				fields := []*types.Field{
-					newUint16ArrayField(parent, 0, 101),
+					newArrayField(parent, 0, 101, types.TUINT16),
+				}
+				parent.SetFields(fields)
+				return parent
+			},
+		},
+		{"struct with string array field", 4, 4,
+			func() *types.Type {
+				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				fields := []*types.Field{
+					newArrayField(parent, 0, 2, types.TSTRING),
 				}
 				parent.SetFields(fields)
 				return parent
