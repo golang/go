@@ -33,7 +33,8 @@ var knownOS = map[string]bool{
 
 // unixOS is the set of GOOS values matched by the "unix" build tag.
 // This is not used for filename matching.
-// This list also appears in cmd/dist/build.go.
+// This list also appears in cmd/dist/build.go and
+// cmd/go/internal/imports/build.go.
 var unixOS = map[string]bool{
 	"aix":       true,
 	"android":   true,
