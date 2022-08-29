@@ -142,14 +142,7 @@
 (Round32F ...) => (Copy ...)
 (Round64F ...) => (Copy ...)
 
-// From genericOps.go:
-// "0 if arg0 == 0, -1 if arg0 > 0, undef if arg0<0"
-//
-// Like other arches, we compute ~((x-1) >> 63), with arithmetic right shift.
-// For positive x, bit 63 of x-1 is always 0, so the result is -1.
-// For zero x, bit 63 of x-1 is 1, so the result is 0.
-//
-(Slicemask <t> x) => (NOT (SRAI <t> [63] (ADDI <t> [-1] x)))
+(Slicemask <t> x) => (SRAI [63] (NEG <t> x))
 
 // Truncations
 // We ignore the unused high parts of registers, so truncates are just copies.

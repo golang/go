@@ -7329,17 +7329,14 @@ func rewriteValueRISCV64_OpSlicemask(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Slicemask <t> x)
-	// result: (NOT (SRAI <t> [63] (ADDI <t> [-1] x)))
+	// result: (SRAI [63] (NEG <t> x))
 	for {
 		t := v.Type
 		x := v_0
-		v.reset(OpRISCV64NOT)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SRAI, t)
-		v0.AuxInt = int64ToAuxInt(63)
-		v1 := b.NewValue0(v.Pos, OpRISCV64ADDI, t)
-		v1.AuxInt = int64ToAuxInt(-1)
-		v1.AddArg(x)
-		v0.AddArg(v1)
+		v.reset(OpRISCV64SRAI)
+		v.AuxInt = int64ToAuxInt(63)
+		v0 := b.NewValue0(v.Pos, OpRISCV64NEG, t)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
