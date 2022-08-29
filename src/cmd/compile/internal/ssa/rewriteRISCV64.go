@@ -3609,6 +3609,51 @@ func rewriteValueRISCV64_OpRISCV64MOVBUreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBUreg x:(Select0 (LoweredAtomicLoad8 _ _)))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpSelect0 {
+			break
+		}
+		x_0 := x.Args[0]
+		if x_0.Op != OpRISCV64LoweredAtomicLoad8 {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(Select0 (LoweredAtomicCas32 _ _ _ _)))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpSelect0 {
+			break
+		}
+		x_0 := x.Args[0]
+		if x_0.Op != OpRISCV64LoweredAtomicCas32 {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(Select0 (LoweredAtomicCas64 _ _ _ _)))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpSelect0 {
+			break
+		}
+		x_0 := x.Args[0]
+		if x_0.Op != OpRISCV64LoweredAtomicCas64 {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVBUreg x:(MOVBUreg _))
 	// result: (MOVDreg x)
 	for {
