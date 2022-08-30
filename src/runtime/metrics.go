@@ -40,7 +40,7 @@ func metricsLock() {
 	// Acquire the metricsSema but with handoff. Operations are typically
 	// expensive enough that queueing up goroutines and handing off between
 	// them will be noticeably better-behaved.
-	semacquire1(&metricsSema, true, 0, 0)
+	semacquire1(&metricsSema, true, 0, 0, waitReasonSemacquire)
 	if raceenabled {
 		raceacquire(unsafe.Pointer(&metricsSema))
 	}

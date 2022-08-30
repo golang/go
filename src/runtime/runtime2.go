@@ -1054,7 +1054,9 @@ const (
 	waitReasonSemacquire                              // "semacquire"
 	waitReasonSleep                                   // "sleep"
 	waitReasonSyncCondWait                            // "sync.Cond.Wait"
-	waitReasonTimerGoroutineIdle                      // "timer goroutine (idle)"
+	waitReasonSyncMutexLock                           // "sync.Mutex.Lock"
+	waitReasonSyncRWMutexRLock                        // "sync.RWMutex.RLock"
+	waitReasonSyncRWMutexLock                         // "sync.RWMutex.Lock"
 	waitReasonTraceReaderBlocked                      // "trace reader (blocked)"
 	waitReasonWaitForGCCycle                          // "wait for GC cycle"
 	waitReasonGCWorkerIdle                            // "GC worker (idle)"
@@ -1084,7 +1086,9 @@ var waitReasonStrings = [...]string{
 	waitReasonSemacquire:            "semacquire",
 	waitReasonSleep:                 "sleep",
 	waitReasonSyncCondWait:          "sync.Cond.Wait",
-	waitReasonTimerGoroutineIdle:    "timer goroutine (idle)",
+	waitReasonSyncMutexLock:         "sync.Mutex.Lock",
+	waitReasonSyncRWMutexRLock:      "sync.RWMutex.RLock",
+	waitReasonSyncRWMutexLock:       "sync.RWMutex.Lock",
 	waitReasonTraceReaderBlocked:    "trace reader (blocked)",
 	waitReasonWaitForGCCycle:        "wait for GC cycle",
 	waitReasonGCWorkerIdle:          "GC worker (idle)",

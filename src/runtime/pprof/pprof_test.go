@@ -1089,7 +1089,7 @@ func blockMutex(t *testing.T) {
 	var mu sync.Mutex
 	mu.Lock()
 	go func() {
-		awaitBlockedGoroutine(t, "semacquire", "blockMutex")
+		awaitBlockedGoroutine(t, "sync.Mutex.Lock", "blockMutex")
 		mu.Unlock()
 	}()
 	// Note: Unlock releases mu before recording the mutex event,

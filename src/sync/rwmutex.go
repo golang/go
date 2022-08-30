@@ -68,7 +68,7 @@ func (rw *RWMutex) RLock() {
 	}
 	if rw.readerCount.Add(1) < 0 {
 		// A writer is pending, wait for it.
-		runtime_SemacquireMutex(&rw.readerSem, false, 0)
+		runtime_SemacquireRWMutexR(&rw.readerSem, false, 0)
 	}
 	if race.Enabled {
 		race.Enable()
@@ -149,7 +149,7 @@ func (rw *RWMutex) Lock() {
 	r := rw.readerCount.Add(-rwmutexMaxReaders) + rwmutexMaxReaders
 	// Wait for active readers.
 	if r != 0 && rw.readerWait.Add(r) != 0 {
-		runtime_SemacquireMutex(&rw.writerSem, false, 0)
+		runtime_SemacquireRWMutex(&rw.writerSem, false, 0)
 	}
 	if race.Enabled {
 		race.Enable()
