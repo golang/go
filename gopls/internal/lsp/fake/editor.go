@@ -16,10 +16,11 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 )
@@ -39,7 +40,7 @@ type Editor struct {
 
 	mu                 sync.Mutex                  // guards config, buffers, serverCapabilities
 	config             EditorConfig                // editor configuration
-	buffers            map[string]buffer           // open buffers
+	buffers            map[string]buffer           // open buffers (relative path -> buffer content)
 	serverCapabilities protocol.ServerCapabilities // capabilities / options
 
 	// Call metrics for the purpose of expectations. This is done in an ad-hoc
@@ -50,16 +51,18 @@ type Editor struct {
 	calls   CallCounts
 }
 
+// CallCounts tracks the number of protocol notifications of different types.
 type CallCounts struct {
 	DidOpen, DidChange, DidSave, DidChangeWatchedFiles, DidClose uint64
 }
 
+// buffer holds information about an open buffer in the editor.
 type buffer struct {
-	windowsLineEndings bool
-	version            int
-	path               string
-	lines              []string
-	dirty              bool
+	windowsLineEndings bool     // use windows line endings when merging lines
+	version            int      // monotonic version; incremented on edits
+	path               string   // relative path in the workspace
+	lines              []string // line content
+	dirty              bool     // if true, content is unsaved (TODO(rfindley): rename this field)
 }
 
 func (b buffer) text() string {
@@ -374,7 +377,6 @@ func (e *Editor) CreateBuffer(ctx context.Context, path, content string) error {
 
 func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, content string) error {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 
 	buf := buffer{
 		windowsLineEndings: e.config.WindowsLineEndings,
@@ -385,13 +387,25 @@ func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, cont
 	}
 	e.buffers[path] = buf
 
-	item := protocol.TextDocumentItem{
+	item := e.textDocumentItem(buf)
+	e.mu.Unlock()
+
+	return e.sendDidOpen(ctx, item)
+}
+
+// textDocumentItem builds a protocol.TextDocumentItem for the given buffer.
+//
+// Precondition: e.mu must be held.
+func (e *Editor) textDocumentItem(buf buffer) protocol.TextDocumentItem {
+	return protocol.TextDocumentItem{
 		URI:        e.sandbox.Workdir.URI(buf.path),
 		LanguageID: languageID(buf.path, e.config.FileAssociations),
 		Version:    int32(buf.version),
 		Text:       buf.text(),
 	}
+}
 
+func (e *Editor) sendDidOpen(ctx context.Context, item protocol.TextDocumentItem) error {
 	if e.Server != nil {
 		if err := e.Server.DidOpen(ctx, &protocol.DidOpenTextDocumentParams{
 			TextDocument: item,
@@ -451,9 +465,13 @@ func (e *Editor) CloseBuffer(ctx context.Context, path string) error {
 	delete(e.buffers, path)
 	e.mu.Unlock()
 
+	return e.sendDidClose(ctx, e.TextDocumentIdentifier(path))
+}
+
+func (e *Editor) sendDidClose(ctx context.Context, doc protocol.TextDocumentIdentifier) error {
 	if e.Server != nil {
 		if err := e.Server.DidClose(ctx, &protocol.DidCloseTextDocumentParams{
-			TextDocument: e.TextDocumentIdentifier(path),
+			TextDocument: doc,
 		}); err != nil {
 			return fmt.Errorf("DidClose: %w", err)
 		}
@@ -1157,16 +1175,91 @@ func (e *Editor) Rename(ctx context.Context, path string, pos Pos, newName strin
 		return err
 	}
 	for _, change := range wsEdits.DocumentChanges {
-		if change.TextDocumentEdit != nil {
-			if err := e.applyProtocolEdit(ctx, *change.TextDocumentEdit); err != nil {
-				return err
-			}
+		if err := e.applyDocumentChange(ctx, change); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func (e *Editor) applyProtocolEdit(ctx context.Context, change protocol.TextDocumentEdit) error {
+func (e *Editor) RenameFile(ctx context.Context, oldPath, newPath string) error {
+	closed, opened, err := e.renameBuffers(ctx, oldPath, newPath)
+	if err != nil {
+		return err
+	}
+
+	for _, c := range closed {
+		if err := e.sendDidClose(ctx, c); err != nil {
+			return err
+		}
+	}
+	for _, o := range opened {
+		if err := e.sendDidOpen(ctx, o); err != nil {
+			return err
+		}
+	}
+
+	// Finally, perform the renaming on disk.
+	return e.sandbox.Workdir.RenameFile(ctx, oldPath, newPath)
+}
+
+// renameBuffers renames in-memory buffers affected by the renaming of
+// oldPath->newPath, returning the resulting text documents that must be closed
+// and opened over the LSP.
+func (e *Editor) renameBuffers(ctx context.Context, oldPath, newPath string) (closed []protocol.TextDocumentIdentifier, opened []protocol.TextDocumentItem, _ error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// In case either oldPath or newPath is absolute, convert to absolute paths
+	// before checking for containment.
+	oldAbs := e.sandbox.Workdir.AbsPath(oldPath)
+	newAbs := e.sandbox.Workdir.AbsPath(newPath)
+
+	// Collect buffers that are affected by the given file or directory renaming.
+	buffersToRename := make(map[string]string) // old path -> new path
+
+	for path := range e.buffers {
+		abs := e.sandbox.Workdir.AbsPath(path)
+		if oldAbs == abs || source.InDirLex(oldAbs, abs) {
+			rel, err := filepath.Rel(oldAbs, abs)
+			if err != nil {
+				return nil, nil, fmt.Errorf("filepath.Rel(%q, %q): %v", oldAbs, abs, err)
+			}
+			nabs := filepath.Join(newAbs, rel)
+			newPath := e.sandbox.Workdir.RelPath(nabs)
+			buffersToRename[path] = newPath
+		}
+	}
+
+	// Update buffers, and build protocol changes.
+	for old, new := range buffersToRename {
+		buf := e.buffers[old]
+		delete(e.buffers, old)
+		buf.version = 1
+		buf.path = new
+		e.buffers[new] = buf
+
+		closed = append(closed, e.TextDocumentIdentifier(old))
+		opened = append(opened, e.textDocumentItem(buf))
+	}
+
+	return closed, opened, nil
+}
+
+func (e *Editor) applyDocumentChange(ctx context.Context, change protocol.DocumentChanges) error {
+	if change.RenameFile != nil {
+		oldPath := e.sandbox.Workdir.URIToPath(change.RenameFile.OldURI)
+		newPath := e.sandbox.Workdir.URIToPath(change.RenameFile.NewURI)
+
+		return e.RenameFile(ctx, oldPath, newPath)
+	}
+	if change.TextDocumentEdit != nil {
+		return e.applyTextDocumentEdit(ctx, *change.TextDocumentEdit)
+	}
+	panic("Internal error: one of RenameFile or TextDocumentEdit must be set")
+}
+
+func (e *Editor) applyTextDocumentEdit(ctx context.Context, change protocol.TextDocumentEdit) error {
 	path := e.sandbox.Workdir.URIToPath(change.TextDocument.URI)
 	if ver := int32(e.BufferVersion(path)); ver != change.TextDocument.Version {
 		return fmt.Errorf("buffer versions for %q do not match: have %d, editing %d", path, ver, change.TextDocument.Version)

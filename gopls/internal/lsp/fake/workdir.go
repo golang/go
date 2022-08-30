@@ -315,13 +315,39 @@ func (w *Workdir) writeFile(ctx context.Context, path, content string) (FileEven
 	if err := WriteFileData(path, []byte(content), w.RelativeTo); err != nil {
 		return FileEvent{}, err
 	}
+	return w.fileEvent(path, changeType), nil
+}
+
+func (w *Workdir) fileEvent(path string, changeType protocol.FileChangeType) FileEvent {
 	return FileEvent{
 		Path: path,
 		ProtocolEvent: protocol.FileEvent{
 			URI:  w.URI(path),
 			Type: changeType,
 		},
-	}, nil
+	}
+}
+
+// RenameFile performs an on disk-renaming of the workdir-relative oldPath to
+// workdir-relative newPath.
+func (w *Workdir) RenameFile(ctx context.Context, oldPath, newPath string) error {
+	oldAbs := w.AbsPath(oldPath)
+	newAbs := w.AbsPath(newPath)
+
+	if err := os.Rename(oldAbs, newAbs); err != nil {
+		return err
+	}
+
+	// Send synthetic file events for the renaming. Renamed files are handled as
+	// Delete+Create events:
+	// https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#fileChangeType
+	events := []FileEvent{
+		w.fileEvent(oldPath, protocol.Deleted),
+		w.fileEvent(newPath, protocol.Created),
+	}
+	w.sendEvents(ctx, events)
+
+	return nil
 }
 
 // listFiles lists files in the given directory, returning a map of relative

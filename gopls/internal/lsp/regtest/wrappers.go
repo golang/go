@@ -400,9 +400,18 @@ func (e *Env) References(path string, pos fake.Pos) []protocol.Location {
 	return locations
 }
 
+// Rename wraps Editor.Rename, calling t.Fatal on any error.
 func (e *Env) Rename(path string, pos fake.Pos, newName string) {
 	e.T.Helper()
 	if err := e.Editor.Rename(e.Ctx, path, pos, newName); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
+// RenameFile wraps Editor.RenameFile, calling t.Fatal on any error.
+func (e *Env) RenameFile(oldPath, newPath string) {
+	e.T.Helper()
+	if err := e.Editor.RenameFile(e.Ctx, oldPath, newPath); err != nil {
 		e.T.Fatal(err)
 	}
 }
