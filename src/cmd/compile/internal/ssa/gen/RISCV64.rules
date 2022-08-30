@@ -534,8 +534,8 @@
 // Boolean ops; 0=false, 1=true
 (AndB ...) => (AND ...)
 (OrB  ...) => (OR  ...)
-(EqB  x y) => (SEQZ (XOR <typ.Bool> x y))
-(NeqB ...) => (XOR ...)
+(EqB  x y) => (SEQZ (SUB <typ.Bool> x y))
+(NeqB x y) => (SNEZ (SUB <typ.Bool> x y))
 (Not  ...) => (SEQZ ...)
 
 // Lowering pointer arithmetic

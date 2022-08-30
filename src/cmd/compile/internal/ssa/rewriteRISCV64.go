@@ -406,8 +406,7 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpNeq8:
 		return rewriteValueRISCV64_OpNeq8(v)
 	case OpNeqB:
-		v.Op = OpRISCV64XOR
-		return true
+		return rewriteValueRISCV64_OpNeqB(v)
 	case OpNeqPtr:
 		return rewriteValueRISCV64_OpNeqPtr(v)
 	case OpNilCheck:
@@ -1121,12 +1120,12 @@ func rewriteValueRISCV64_OpEqB(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (EqB x y)
-	// result: (SEQZ (XOR <typ.Bool> x y))
+	// result: (SEQZ (SUB <typ.Bool> x y))
 	for {
 		x := v_0
 		y := v_1
 		v.reset(OpRISCV64SEQZ)
-		v0 := b.NewValue0(v.Pos, OpRISCV64XOR, typ.Bool)
+		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, typ.Bool)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -2966,6 +2965,23 @@ func rewriteValueRISCV64_OpNeq8(v *Value) bool {
 		v2 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v2.AddArg(y)
 		v0.AddArg2(v1, v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueRISCV64_OpNeqB(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (NeqB x y)
+	// result: (SNEZ (SUB <typ.Bool> x y))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpRISCV64SNEZ)
+		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, typ.Bool)
+		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
 	}
