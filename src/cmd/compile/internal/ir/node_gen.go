@@ -259,6 +259,7 @@ func (n *CaseClause) copy() Node {
 	c := *n
 	c.init = copyNodes(c.init)
 	c.List = copyNodes(c.List)
+	c.RTypes = copyNodes(c.RTypes)
 	c.Body = copyNodes(c.Body)
 	return &c
 }
@@ -272,6 +273,9 @@ func (n *CaseClause) doChildren(do func(Node) bool) bool {
 	if doNodes(n.List, do) {
 		return true
 	}
+	if doNodes(n.RTypes, do) {
+		return true
+	}
 	if doNodes(n.Body, do) {
 		return true
 	}
@@ -283,6 +287,7 @@ func (n *CaseClause) editChildren(edit func(Node) Node) {
 		n.Var = edit(n.Var).(*Name)
 	}
 	editNodes(n.List, edit)
+	editNodes(n.RTypes, edit)
 	editNodes(n.Body, edit)
 }
 
@@ -458,6 +463,9 @@ func (n *DynamicTypeAssertExpr) doChildren(do func(Node) bool) bool {
 	if n.X != nil && do(n.X) {
 		return true
 	}
+	if n.SrcRType != nil && do(n.SrcRType) {
+		return true
+	}
 	if n.RType != nil && do(n.RType) {
 		return true
 	}
@@ -470,6 +478,9 @@ func (n *DynamicTypeAssertExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
+	}
+	if n.SrcRType != nil {
+		n.SrcRType = edit(n.SrcRType).(Node)
 	}
 	if n.RType != nil {
 		n.RType = edit(n.RType).(Node)
