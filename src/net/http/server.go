@@ -2002,10 +2002,18 @@ func (c *conn) serve(ctx context.Context) {
 
 		if d := c.server.idleTimeout(); d != 0 {
 			c.rwc.SetReadDeadline(time.Now().Add(d))
-			if _, err := c.bufr.Peek(4); err != nil {
-				return
-			}
+		} else {
+			c.rwc.SetReadDeadline(time.Time{})
 		}
+
+		// Wait for the connection to become readable again before trying to
+		// read the next request. This prevents a ReadHeaderTimeout or
+		// ReadTimeout from starting until the first bytes of the next request
+		// have been received.
+		if _, err := c.bufr.Peek(4); err != nil {
+			return
+		}
+
 		c.rwc.SetReadDeadline(time.Time{})
 	}
 }
