@@ -18,12 +18,12 @@ import (
 	"golang.org/x/tools/internal/lsp/bug"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/diff"
-	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/source/completion"
 	"golang.org/x/tools/internal/lsp/tests"
+	"golang.org/x/tools/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -370,7 +370,7 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data s
 			return []byte(got), nil
 		}))
 
-		if diff := tests.Diff(t, want, got); diff != "" {
+		if diff := compare.Text(want, got); diff != "" {
 			t.Errorf("%s: foldingRanges failed for %s, diff:\n%v", tag, uri.Filename(), diff)
 		}
 	}
@@ -397,7 +397,7 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data s
 				return []byte(got), nil
 			}))
 
-			if diff := tests.Diff(t, want, got); diff != "" {
+			if diff := compare.Text(want, got); diff != "" {
 				t.Errorf("%s: failed for %s, diff:\n%v", tag, uri.Filename(), diff)
 			}
 		}
@@ -526,12 +526,8 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	want := string(r.data.Golden("goimports", spn.URI().Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
-	if want != got {
-		d, err := myers.ComputeEdits(spn.URI(), want, got)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Errorf("import failed for %s: %s", spn.URI().Filename(), diff.ToUnified("want", "got", want, d))
+	if d := compare.Text(got, want); d != "" {
+		t.Errorf("import failed for %s:\n%s", spn.URI().Filename(), d)
 	}
 }
 
@@ -920,8 +916,8 @@ func (r *runner) callWorkspaceSymbols(t *testing.T, uri span.URI, query string, 
 	want := string(r.data.Golden(fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
-	if diff := tests.Diff(t, want, got); diff != "" {
-		t.Error(diff)
+	if d := compare.Text(want, got); d != "" {
+		t.Error(d)
 	}
 }
 

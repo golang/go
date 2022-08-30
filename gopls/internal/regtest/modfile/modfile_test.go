@@ -13,9 +13,9 @@ import (
 	"golang.org/x/tools/gopls/internal/hooks"
 	"golang.org/x/tools/internal/lsp/bug"
 	. "golang.org/x/tools/internal/lsp/regtest"
+	"golang.org/x/tools/internal/lsp/tests/compare"
 
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -101,7 +101,7 @@ func main() {
 				),
 			)
 			if got := env.ReadWorkspaceFile("a/go.mod"); got != goModContent {
-				t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(t, goModContent, got))
+				t.Fatalf("go.mod changed on disk:\n%s", compare.Text(goModContent, got))
 			}
 			// Save the buffer, which will format and organize imports.
 			// Confirm that the go.mod file still does not change.
@@ -110,7 +110,7 @@ func main() {
 				env.DiagnosticAtRegexp("a/main.go", "\"example.com/blah\""),
 			)
 			if got := env.ReadWorkspaceFile("a/go.mod"); got != goModContent {
-				t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(t, goModContent, got))
+				t.Fatalf("go.mod changed on disk:\n%s", compare.Text(goModContent, got))
 			}
 		})
 	})
@@ -154,7 +154,7 @@ func main() {
 				),
 			)
 			if got := env.ReadWorkspaceFile("a/go.mod"); got != goModContent {
-				t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(t, goModContent, got))
+				t.Fatalf("go.mod changed on disk:\n%s", compare.Text(goModContent, got))
 			}
 		})
 	})
@@ -206,7 +206,7 @@ require example.com v1.2.3
 		}
 		env.ApplyQuickFixes("a/main.go", []protocol.Diagnostic{goGetDiag})
 		if got := env.ReadWorkspaceFile("a/go.mod"); got != want {
-			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(t, want, got))
+			t.Fatalf("unexpected go.mod content:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -256,7 +256,7 @@ require random.org v1.2.3
 		}
 		env.ApplyQuickFixes("a/main.go", []protocol.Diagnostic{randomDiag})
 		if got := env.ReadWorkspaceFile("a/go.mod"); got != want {
-			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(t, want, got))
+			t.Fatalf("unexpected go.mod content:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -312,7 +312,7 @@ require random.org v1.2.3
 		}
 		env.ApplyQuickFixes("a/main.go", []protocol.Diagnostic{randomDiag})
 		if got := env.ReadWorkspaceFile("a/go.mod"); got != want {
-			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(t, want, got))
+			t.Fatalf("unexpected go.mod content:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -359,7 +359,7 @@ require example.com v1.2.3
 		)
 		env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
 		if got := env.Editor.BufferText("a/go.mod"); got != want {
-			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(t, want, got))
+			t.Fatalf("unexpected go.mod content:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -404,7 +404,7 @@ go 1.14
 		)
 		env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
 		if got := env.Editor.BufferText("a/go.mod"); got != want {
-			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(t, want, got))
+			t.Fatalf("unexpected go.mod content:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -476,7 +476,7 @@ require (
 )
 `
 		if got := env.ReadWorkspaceFile("a/go.mod"); got != want {
-			t.Fatalf("TestNewDepWithUnusedDep failed:\n%s", tests.Diff(t, want, got))
+			t.Fatalf("TestNewDepWithUnusedDep failed:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -585,7 +585,7 @@ require (
 		env.SaveBuffer("a/go.mod")
 		env.Await(EmptyDiagnostics("a/main.go"))
 		if got := env.Editor.BufferText("a/go.mod"); got != want {
-			t.Fatalf("suggested fixes failed:\n%s", tests.Diff(t, want, got))
+			t.Fatalf("suggested fixes failed:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -773,7 +773,7 @@ func main() {
 		)
 		got := env.ReadWorkspaceFile("go.mod")
 		if got != original {
-			t.Fatalf("go.mod file modified:\n%s", tests.Diff(t, original, got))
+			t.Fatalf("go.mod file modified:\n%s", compare.Text(original, got))
 		}
 		env.RunGoCommand("get", "example.com/blah@v1.2.3")
 		env.RunGoCommand("mod", "tidy")
@@ -1026,7 +1026,7 @@ go 1.12
 `
 			env.ApplyQuickFixes("go.mod", d.Diagnostics)
 			if got := env.Editor.BufferText("go.mod"); got != want {
-				t.Fatalf("unexpected content in go.mod:\n%s", tests.Diff(t, want, got))
+				t.Fatalf("unexpected content in go.mod:\n%s", compare.Text(want, got))
 			}
 		})
 	})
@@ -1079,7 +1079,7 @@ require random.com v1.2.3
 			}
 			env.ApplyQuickFixes("go.mod", diagnostics)
 			if got := env.Editor.BufferText("go.mod"); got != want {
-				t.Fatalf("unexpected content in go.mod:\n%s", tests.Diff(t, want, got))
+				t.Fatalf("unexpected content in go.mod:\n%s", compare.Text(want, got))
 			}
 		})
 	})
@@ -1125,7 +1125,7 @@ func main() {
 example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 `
 		if got := env.ReadWorkspaceFile("go.sum"); got != want {
-			t.Fatalf("unexpected go.sum contents:\n%s", tests.Diff(t, want, got))
+			t.Fatalf("unexpected go.sum contents:\n%s", compare.Text(want, got))
 		}
 	})
 }

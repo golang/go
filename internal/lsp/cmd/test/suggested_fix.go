@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/tests"
+	"golang.org/x/tools/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -32,6 +33,6 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, suggestedFixes []test
 		return []byte(got), nil
 	}))
 	if want != got {
-		t.Errorf("suggested fixes failed for %s:\n%s", filename, tests.Diff(t, want, got))
+		t.Errorf("suggested fixes failed for %s:\n%s", filename, compare.Text(want, got))
 	}
 }

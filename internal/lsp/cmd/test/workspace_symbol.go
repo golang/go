@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
+	"golang.org/x/tools/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -48,6 +49,6 @@ func (r *runner) runWorkspaceSymbols(t *testing.T, uri span.URI, matcher, query 
 	}))
 
 	if expect != got {
-		t.Errorf("workspace_symbol failed for %s:\n%s", query, tests.Diff(t, expect, got))
+		t.Errorf("workspace_symbol failed for %s:\n%s", query, compare.Text(expect, got))
 	}
 }

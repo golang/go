@@ -11,7 +11,7 @@ import (
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/protocol"
 	. "golang.org/x/tools/internal/lsp/regtest"
-	"golang.org/x/tools/internal/lsp/tests"
+	"golang.org/x/tools/internal/lsp/tests/compare"
 )
 
 func TestAddImport(t *testing.T) {
@@ -51,7 +51,7 @@ func main() {
 		}, nil)
 		got := env.Editor.BufferText("main.go")
 		if got != want {
-			t.Fatalf("gopls.add_import failed\n%s", tests.Diff(t, want, got))
+			t.Fatalf("gopls.add_import failed\n%s", compare.Text(want, got))
 		}
 	})
 }

@@ -19,10 +19,10 @@ import (
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/diff"
-	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
+	"golang.org/x/tools/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -469,12 +469,9 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	want := string(r.data.Golden("goimports", filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
-	if want != got {
-		d, err := myers.ComputeEdits(uri, want, got)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Errorf("import failed for %s: %s", filename, diff.ToUnified("want", "got", want, d))
+
+	if d := compare.Text(want, got); d != "" {
+		t.Errorf("import failed for %s:\n%s", filename, d)
 	}
 }
 
@@ -572,7 +569,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []tests.S
 			return []byte(got), nil
 		}))
 		if want != got {
-			t.Errorf("suggested fixes failed for %s:\n%s", u.Filename(), tests.Diff(t, want, got))
+			t.Errorf("suggested fixes failed for %s:\n%s", u.Filename(), compare.Text(want, got))
 		}
 	}
 }
@@ -624,7 +621,7 @@ func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span
 			return []byte(got), nil
 		}))
 		if want != got {
-			t.Errorf("function extraction failed for %s:\n%s", u.Filename(), tests.Diff(t, want, got))
+			t.Errorf("function extraction failed for %s:\n%s", u.Filename(), compare.Text(want, got))
 		}
 	}
 }
@@ -676,7 +673,7 @@ func (r *runner) MethodExtraction(t *testing.T, start span.Span, end span.Span) 
 			return []byte(got), nil
 		}))
 		if want != got {
-			t.Errorf("method extraction failed for %s:\n%s", u.Filename(), tests.Diff(t, want, got))
+			t.Errorf("method extraction failed for %s:\n%s", u.Filename(), compare.Text(want, got))
 		}
 	}
 }
@@ -1041,7 +1038,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		return []byte(got), nil
 	}))
 	if want != got {
-		t.Errorf("rename failed for %s:\n%s", newText, tests.Diff(t, want, got))
+		t.Errorf("rename failed for %s:\n%s", newText, compare.Text(want, got))
 	}
 }
 
@@ -1186,7 +1183,7 @@ func (r *runner) callWorkspaceSymbols(t *testing.T, uri span.URI, query string, 
 	want := string(r.data.Golden(fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
-	if diff := tests.Diff(t, want, got); diff != "" {
+	if diff := compare.Text(want, got); diff != "" {
 		t.Error(diff)
 	}
 }
@@ -1299,7 +1296,7 @@ func (r *runner) AddImport(t *testing.T, uri span.URI, expectedImport string) {
 	if want == nil {
 		t.Fatalf("golden file %q not found", uri.Filename())
 	}
-	if diff := tests.Diff(t, got, string(want)); diff != "" {
+	if diff := compare.Text(got, string(want)); diff != "" {
 		t.Errorf("%s mismatch\n%s", command.AddImport, diff)
 	}
 }

@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	. "golang.org/x/tools/internal/lsp/regtest"
+	"golang.org/x/tools/internal/lsp/tests/compare"
 
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/tests"
 )
 
 // A basic test for fillstruct, now that it uses a command.
@@ -56,7 +56,7 @@ func Foo() {
 }
 `
 		if got := env.Editor.BufferText("main.go"); got != want {
-			t.Fatalf("TestFillStruct failed:\n%s", tests.Diff(t, want, got))
+			t.Fatalf("TestFillStruct failed:\n%s", compare.Text(want, got))
 		}
 	})
 }

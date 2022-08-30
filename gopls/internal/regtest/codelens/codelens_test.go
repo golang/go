@@ -11,10 +11,10 @@ import (
 	"golang.org/x/tools/gopls/internal/hooks"
 	"golang.org/x/tools/internal/lsp/bug"
 	. "golang.org/x/tools/internal/lsp/regtest"
+	"golang.org/x/tools/internal/lsp/tests/compare"
 
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -187,10 +187,10 @@ require golang.org/x/hello v1.2.3
 				}
 				env.Await(env.DoneWithChangeWatchedFiles())
 				if got := env.Editor.BufferText("a/go.mod"); got != wantGoModA {
-					t.Fatalf("a/go.mod upgrade failed:\n%s", tests.Diff(t, wantGoModA, got))
+					t.Fatalf("a/go.mod upgrade failed:\n%s", compare.Text(wantGoModA, got))
 				}
 				if got := env.Editor.BufferText("b/go.mod"); got != wantGoModB {
-					t.Fatalf("b/go.mod changed unexpectedly:\n%s", tests.Diff(t, wantGoModB, got))
+					t.Fatalf("b/go.mod changed unexpectedly:\n%s", compare.Text(wantGoModB, got))
 				}
 			})
 		})
@@ -220,10 +220,10 @@ require golang.org/x/hello v1.2.3
 				env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
 				env.Await(env.DoneWithChangeWatchedFiles())
 				if got := env.Editor.BufferText("a/go.mod"); got != wantGoModA {
-					t.Fatalf("a/go.mod upgrade failed:\n%s", tests.Diff(t, wantGoModA, got))
+					t.Fatalf("a/go.mod upgrade failed:\n%s", compare.Text(wantGoModA, got))
 				}
 				if got := env.Editor.BufferText("b/go.mod"); got != wantGoModB {
-					t.Fatalf("b/go.mod changed unexpectedly:\n%s", tests.Diff(t, wantGoModB, got))
+					t.Fatalf("b/go.mod changed unexpectedly:\n%s", compare.Text(wantGoModB, got))
 				}
 			})
 		})
@@ -285,7 +285,7 @@ go 1.14
 require golang.org/x/hello v1.0.0
 `
 		if got != wantGoMod {
-			t.Fatalf("go.mod tidy failed:\n%s", tests.Diff(t, wantGoMod, got))
+			t.Fatalf("go.mod tidy failed:\n%s", compare.Text(wantGoMod, got))
 		}
 	})
 }

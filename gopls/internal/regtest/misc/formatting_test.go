@@ -9,8 +9,7 @@ import (
 	"testing"
 
 	. "golang.org/x/tools/internal/lsp/regtest"
-
-	"golang.org/x/tools/internal/lsp/tests"
+	"golang.org/x/tools/internal/lsp/tests/compare"
 )
 
 const unformattedProgram = `
@@ -37,7 +36,7 @@ func TestFormatting(t *testing.T) {
 		got := env.Editor.BufferText("main.go")
 		want := env.ReadWorkspaceFile("main.go.golden")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
+			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -59,7 +58,7 @@ func f() {}
 		got := env.Editor.BufferText("a.go")
 		want := env.ReadWorkspaceFile("a.go.formatted")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
+			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -83,7 +82,7 @@ func f() { fmt.Println() }
 		got := env.Editor.BufferText("a.go")
 		want := env.ReadWorkspaceFile("a.go.imported")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
+			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -104,7 +103,7 @@ func f() {}
 		got := env.Editor.BufferText("a.go")
 		want := env.ReadWorkspaceFile("a.go.imported")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
+			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -150,7 +149,7 @@ func TestOrganizeImports(t *testing.T) {
 		got := env.Editor.BufferText("main.go")
 		want := env.ReadWorkspaceFile("main.go.organized")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
+			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -162,7 +161,7 @@ func TestFormattingOnSave(t *testing.T) {
 		got := env.Editor.BufferText("main.go")
 		want := env.ReadWorkspaceFile("main.go.formatted")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
+			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
 		}
 	})
 }
@@ -262,7 +261,7 @@ func main() {
 				got := env.Editor.BufferText("main.go")
 				got = strings.ReplaceAll(got, "\r\n", "\n") // convert everything to LF for simplicity
 				if tt.want != got {
-					t.Errorf("unexpected content after save:\n%s", tests.Diff(t, tt.want, got))
+					t.Errorf("unexpected content after save:\n%s", compare.Text(tt.want, got))
 				}
 			})
 		})
@@ -361,7 +360,7 @@ const Bar = 42
 		got := env.Editor.BufferText("foo.go")
 		want := env.ReadWorkspaceFile("foo.go.formatted")
 		if got != want {
-			t.Errorf("unexpected formatting result:\n%s", tests.Diff(t, want, got))
+			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
 		}
 	})
 }

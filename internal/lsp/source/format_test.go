@@ -5,12 +5,10 @@
 package source
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/diff"
-	"golang.org/x/tools/internal/lsp/diff/myers"
+	"golang.org/x/tools/internal/lsp/tests/compare"
 )
 
 func TestImportPrefix(t *testing.T) {
@@ -39,8 +37,8 @@ func TestImportPrefix(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got != tt.want {
-			t.Errorf("%d: failed for %q:\n%s", i, tt.input, diffStr(t, tt.want, got))
+		if d := compare.Text(tt.want, got); d != "" {
+			t.Errorf("%d: failed for %q:\n%s", i, tt.input, d)
 		}
 	}
 }
@@ -70,22 +68,8 @@ Hi description
 			t.Fatal(err)
 		}
 		want := strings.ReplaceAll(tt.want, "\n", "\r\n")
-		if got != want {
-			t.Errorf("%d: failed for %q:\n%s", i, tt.input, diffStr(t, want, got))
+		if d := compare.Text(want, got); d != "" {
+			t.Errorf("%d: failed for %q:\n%s", i, tt.input, d)
 		}
 	}
-}
-
-func diffStr(t *testing.T, want, got string) string {
-	if want == got {
-		return ""
-	}
-	// Add newlines to avoid newline messages in diff.
-	want += "\n"
-	got += "\n"
-	d, err := myers.ComputeEdits("", want, got)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return fmt.Sprintf("%q", diff.ToUnified("want", "got", want, d))
 }

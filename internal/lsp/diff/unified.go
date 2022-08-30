@@ -75,10 +75,10 @@ const (
 
 // ToUnified takes a file contents and a sequence of edits, and calculates
 // a unified diff that represents those edits.
-func ToUnified(from, to string, content string, edits []TextEdit) Unified {
+func ToUnified(fromName, toName string, content string, edits []TextEdit) Unified {
 	u := Unified{
-		From: from,
-		To:   to,
+		From: fromName,
+		To:   toName,
 	}
 	if len(edits) == 0 {
 		return u
@@ -160,14 +160,25 @@ func addEqualLines(h *Hunk, lines []string, start, end int) int {
 	return delta
 }
 
-// Format converts a unified diff to the standard textual form for that diff.
-// The output of this function can be passed to tools like patch.
+// Format write a textual representation of u to f (see the String method).
+//
+// TODO(rfindley): investigate (and possibly remove) this method. It's not
+// clear why Unified implements fmt.Formatter, since the formatting rune is not
+// used. Probably it is sufficient to only implement Stringer, but this method
+// was left here defensively.
 func (u Unified) Format(f fmt.State, r rune) {
+	fmt.Fprintf(f, "%s", u.String())
+}
+
+// String converts a unified diff to the standard textual form for that diff.
+// The output of this function can be passed to tools like patch.
+func (u Unified) String() string {
 	if len(u.Hunks) == 0 {
-		return
+		return ""
 	}
-	fmt.Fprintf(f, "--- %s\n", u.From)
-	fmt.Fprintf(f, "+++ %s\n", u.To)
+	b := new(strings.Builder)
+	fmt.Fprintf(b, "--- %s\n", u.From)
+	fmt.Fprintf(b, "+++ %s\n", u.To)
 	for _, hunk := range u.Hunks {
 		fromCount, toCount := 0, 0
 		for _, l := range hunk.Lines {
@@ -181,30 +192,31 @@ func (u Unified) Format(f fmt.State, r rune) {
 				toCount++
 			}
 		}
-		fmt.Fprint(f, "@@")
+		fmt.Fprint(b, "@@")
 		if fromCount > 1 {
-			fmt.Fprintf(f, " -%d,%d", hunk.FromLine, fromCount)
+			fmt.Fprintf(b, " -%d,%d", hunk.FromLine, fromCount)
 		} else {
-			fmt.Fprintf(f, " -%d", hunk.FromLine)
+			fmt.Fprintf(b, " -%d", hunk.FromLine)
 		}
 		if toCount > 1 {
-			fmt.Fprintf(f, " +%d,%d", hunk.ToLine, toCount)
+			fmt.Fprintf(b, " +%d,%d", hunk.ToLine, toCount)
 		} else {
-			fmt.Fprintf(f, " +%d", hunk.ToLine)
+			fmt.Fprintf(b, " +%d", hunk.ToLine)
 		}
-		fmt.Fprint(f, " @@\n")
+		fmt.Fprint(b, " @@\n")
 		for _, l := range hunk.Lines {
 			switch l.Kind {
 			case Delete:
-				fmt.Fprintf(f, "-%s", l.Content)
+				fmt.Fprintf(b, "-%s", l.Content)
 			case Insert:
-				fmt.Fprintf(f, "+%s", l.Content)
+				fmt.Fprintf(b, "+%s", l.Content)
 			default:
-				fmt.Fprintf(f, " %s", l.Content)
+				fmt.Fprintf(b, " %s", l.Content)
 			}
 			if !strings.HasSuffix(l.Content, "\n") {
-				fmt.Fprintf(f, "\n\\ No newline at end of file\n")
+				fmt.Fprintf(b, "\n\\ No newline at end of file\n")
 			}
 		}
 	}
+	return b.String()
 }

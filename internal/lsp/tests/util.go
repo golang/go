@@ -569,20 +569,6 @@ func WorkspaceSymbolsTestTypeToMatcher(typ WorkspaceSymbolsTestType) source.Symb
 	}
 }
 
-func Diff(t *testing.T, want, got string) string {
-	if want == got {
-		return ""
-	}
-	// Add newlines to avoid newline messages in diff.
-	want += "\n"
-	got += "\n"
-	d, err := myers.ComputeEdits("", want, got)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return fmt.Sprintf("%q", diff.ToUnified("want", "got", want, d))
-}
-
 // StripSubscripts removes type parameter id subscripts.
 //
 // TODO(rfindley): remove this function once subscripts are removed from the

@@ -11,10 +11,10 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	. "golang.org/x/tools/internal/lsp/regtest"
+	"golang.org/x/tools/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/testenv"
 
 	"golang.org/x/tools/internal/lsp/fake"
-	"golang.org/x/tools/internal/lsp/tests"
 )
 
 const internalDefinition = `
@@ -133,7 +133,7 @@ func main() {
 		}
 		want := "```go\nfunc (error).Error() string\n```"
 		if content.Value != want {
-			t.Fatalf("hover failed:\n%s", tests.Diff(t, want, content.Value))
+			t.Fatalf("hover failed:\n%s", compare.Text(want, content.Value))
 		}
 	})
 }
