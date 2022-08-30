@@ -167,7 +167,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		// We can compare several elements at once with 2/4/8 byte integer compares
 		inline = t.NumElem() <= 1 || (types.IsSimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Size()*t.NumElem() <= maxcmpsize))
 	case types.TSTRUCT:
-		inline = t.NumComponents(types.IgnoreBlankFields) <= 4
+		inline = compare.EqStructCost(t) <= 4
 	}
 
 	cmpl := n.X
