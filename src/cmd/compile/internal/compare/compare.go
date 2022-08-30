@@ -106,13 +106,11 @@ func EqStructCost(t *types.Type) int64 {
 }
 
 // eqStructFieldCost returns the cost of an equality comparison of two struct fields.
-// t is the parent struct type, and i is the index of the first field in the run.
-// next is the index just after the end of the run.
-// The cost is determined using an algorithm which takes into consideration
-// the size of the registers in the current architecture and the size of the
-// memory-only fields in the struct.
-// The return values are the cost of the comparison, the size of the memory run, and the index
-// just after the end of the memory run.
+// t is the parent struct type, and i is the index of the field in the parent struct type.
+// eqStructFieldCost may compute the cost of several adjacent fields at once. It returns
+// the cost, the size of the set of fields it computed the cost for (in bytes), and the
+// index of the first field not part of the set of fields for which the cost
+// has already been calculated.
 func eqStructFieldCost(t *types.Type, i int) (int64, int64, int) {
 	var (
 		cost    = int64(0)
