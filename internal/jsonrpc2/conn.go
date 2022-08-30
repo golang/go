@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/label"
-	"golang.org/x/tools/internal/lsp/debug/tag"
+	"golang.org/x/tools/internal/event/tag"
 )
 
 // Conn is the common interface to jsonrpc clients and servers.

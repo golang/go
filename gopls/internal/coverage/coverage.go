@@ -12,9 +12,13 @@
 // -o controls where the coverage file is written, defaulting to /tmp/cover.out
 // -i coverage-file will generate the report from an existing coverage file
 // -v controls verbosity (0: only report coverage, 1: report as each directory is finished,
-//      2: report on each test, 3: more details, 4: too much)
+//
+//	2: report on each test, 3: more details, 4: too much)
+//
 // -t tests only tests packages in the given comma-separated list of directories in gopls.
-//      The names should start with ., as in ./internal/regtest/bench
+//
+//	The names should start with ., as in ./internal/regtest/bench
+//
 // -run tests. If set, -run tests is passed on to the go test command.
 //
 // Despite gopls' use of goroutines, the counts are almost deterministic.
@@ -60,7 +64,7 @@ func main() {
 	tests = realTestName(tests)
 
 	// report coverage for packages under internal/lsp
-	parg := "golang.org/x/tools/internal/lsp/..."
+	parg := "golang.org/x/tools/gopls/internal/lsp/..."
 
 	accum := []string{}
 	seen := make(map[string]bool)

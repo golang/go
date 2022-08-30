@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/hooks"
-	"golang.org/x/tools/internal/lsp/bug"
-	cmdtest "golang.org/x/tools/internal/lsp/cmd/test"
-	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/tests"
+	cmdtest "golang.org/x/tools/gopls/internal/lsp/cmd/test"
+	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/lsp/tests"
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/testenv"
 )
 

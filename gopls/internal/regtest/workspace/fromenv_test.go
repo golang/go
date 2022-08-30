@@ -7,7 +7,7 @@ package workspace
 import (
 	"testing"
 
-	. "golang.org/x/tools/internal/lsp/regtest"
+	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
 
 // Test that setting go.work via environment variables or settings works.

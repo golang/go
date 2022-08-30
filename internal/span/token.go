@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"go/token"
 
-	"golang.org/x/tools/internal/lsp/bug"
+	"golang.org/x/tools/internal/bug"
 )
 
 // Range represents a source code range in token.Pos form.

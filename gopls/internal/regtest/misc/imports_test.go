@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	. "golang.org/x/tools/internal/lsp/regtest"
+	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 
-	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
 )
 

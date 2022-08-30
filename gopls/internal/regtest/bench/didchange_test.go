@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/fake"
+	"golang.org/x/tools/gopls/internal/lsp/fake"
 )
 
 // BenchmarkDidChange benchmarks modifications of a single file by making

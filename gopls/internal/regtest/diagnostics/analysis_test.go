@@ -7,8 +7,8 @@ package diagnostics
 import (
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/protocol"
-	. "golang.org/x/tools/internal/lsp/regtest"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
 
 // Test for the timeformat analyzer, following golang/vscode-go#2406.

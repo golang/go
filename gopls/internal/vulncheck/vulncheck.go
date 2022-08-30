@@ -13,7 +13,7 @@ import (
 	"errors"
 
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/lsp/command"
+	"golang.org/x/tools/gopls/internal/lsp/command"
 )
 
 // Govulncheck runs the in-process govulncheck implementation.

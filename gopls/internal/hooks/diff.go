@@ -20,7 +20,7 @@ import (
 	"unicode"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
-	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/span"
 )
 

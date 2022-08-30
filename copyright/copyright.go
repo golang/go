@@ -94,7 +94,7 @@ func checkFile(toolsDir, filename string) (bool, error) {
 	return shouldAddCopyright, nil
 }
 
-// Copied from golang.org/x/tools/internal/lsp/source/util.go.
+// Copied from golang.org/x/tools/gopls/internal/lsp/source/util.go.
 // Matches cgo generated comment as well as the proposed standard:
 //
 //	https://golang.org/s/generatedcode

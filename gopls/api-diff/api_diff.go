@@ -21,10 +21,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/tools/gopls/internal/lsp/source"
+	difflib "golang.org/x/tools/internal/diff"
+	"golang.org/x/tools/internal/diff/myers"
 	"golang.org/x/tools/internal/gocommand"
-	difflib "golang.org/x/tools/internal/lsp/diff"
-	"golang.org/x/tools/internal/lsp/diff/myers"
-	"golang.org/x/tools/internal/lsp/source"
 )
 
 var (

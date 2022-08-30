@@ -1,6 +1,6 @@
 # Settings
 
-<!--TODO: Generate this file from the documentation in golang/org/x/tools/internal/lsp/source/options.go.-->
+<!--TODO: Generate this file from the documentation in golang.org/x/tools/gopls/internal/lsp/source/options.go.-->
 
 This document describes the global settings for `gopls` inside the editor.
 The settings block will be called `"gopls"` and contains a collection of

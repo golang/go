@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/protocol"
-	. "golang.org/x/tools/internal/lsp/regtest"
-	"golang.org/x/tools/internal/lsp/tests/compare"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	. "golang.org/x/tools/gopls/internal/lsp/regtest"
+	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/testenv"
 
-	"golang.org/x/tools/internal/lsp/fake"
+	"golang.org/x/tools/gopls/internal/lsp/fake"
 )
 
 const internalDefinition = `

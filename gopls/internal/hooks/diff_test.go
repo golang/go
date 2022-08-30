@@ -11,7 +11,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"golang.org/x/tools/internal/lsp/diff/difftest"
+	"golang.org/x/tools/internal/diff/difftest"
 )
 
 func TestDiff(t *testing.T) {

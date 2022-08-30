@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/tools/internal/testenv"
 
-	. "golang.org/x/tools/internal/lsp/regtest"
+	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
 
 func TestStaticcheckGenerics(t *testing.T) {

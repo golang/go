@@ -21,9 +21,9 @@ import (
 
 	"github.com/jba/templatecheck"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/lsp/cache"
-	"golang.org/x/tools/internal/lsp/debug"
-	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/lsp/cache"
+	"golang.org/x/tools/gopls/internal/lsp/debug"
+	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -90,7 +90,7 @@ func TestTemplates(t *testing.T) {
 	cfg := &packages.Config{
 		Mode: packages.NeedTypesInfo | packages.LoadAllSyntax, // figure out what's necessary PJW
 	}
-	pkgs, err := packages.Load(cfg, "golang.org/x/tools/internal/lsp/debug")
+	pkgs, err := packages.Load(cfg, "golang.org/x/tools/gopls/internal/lsp/debug")
 	if err != nil {
 		t.Fatal(err)
 	}

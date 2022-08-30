@@ -10,9 +10,9 @@ package hooks // import "golang.org/x/tools/gopls/internal/hooks"
 import (
 	"context"
 
+	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/vulncheck"
-	"golang.org/x/tools/internal/lsp/diff"
-	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/diff"
 	"mvdan.cc/gofumpt/format"
 	"mvdan.cc/xurls/v2"
 )

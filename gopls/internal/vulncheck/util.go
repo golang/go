@@ -15,7 +15,7 @@ import (
 	"os/exec"
 
 	gvc "golang.org/x/tools/gopls/internal/govulncheck"
-	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/vuln/osv"
 	"golang.org/x/vuln/vulncheck"
 )

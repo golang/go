@@ -18,7 +18,7 @@ claiming it.
 
 ## Getting started
 
-Most of the `gopls` logic is actually in the `golang.org/x/tools/internal/lsp`
+Most of the `gopls` logic is actually in the `golang.org/x/tools/gopls/internal/lsp`
 directory, so you are most likely to develop in the golang.org/x/tools module.
 
 ## Build

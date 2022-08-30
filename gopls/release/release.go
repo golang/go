@@ -135,7 +135,7 @@ func validateHardcodedVersion(wd string, version string) error {
 		Mode: packages.NeedName | packages.NeedFiles |
 			packages.NeedCompiledGoFiles | packages.NeedImports |
 			packages.NeedTypes | packages.NeedTypesSizes,
-	}, "golang.org/x/tools/internal/lsp/debug")
+	}, "golang.org/x/tools/gopls/internal/lsp/debug")
 	if err != nil {
 		return err
 	}
