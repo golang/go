@@ -19,13 +19,8 @@ import (
 	"golang.org/x/tools/internal/testenv"
 )
 
-var from, to string
-
 func TestApplyFixes(t *testing.T) {
 	testenv.NeedsGoPackages(t)
-
-	from = "bar"
-	to = "baz"
 
 	files := map[string]string{
 		"rename/test.go": `package rename
@@ -75,6 +70,10 @@ var analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	const (
+		from = "bar"
+		to   = "baz"
+	)
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{(*ast.Ident)(nil)}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {

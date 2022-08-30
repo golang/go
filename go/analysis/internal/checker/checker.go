@@ -147,7 +147,11 @@ func Run(args []string, analyzers []*analysis.Analyzer) (exitcode int) {
 	roots := analyze(initial, analyzers)
 
 	if Fix {
-		applyFixes(roots)
+		if err := applyFixes(roots); err != nil {
+			// Fail when applying fixes failed.
+			log.Print(err)
+			return 1
+		}
 	}
 	return printDiagnostics(roots)
 }
@@ -305,7 +309,7 @@ func analyze(pkgs []*packages.Package, analyzers []*analysis.Analyzer) []*action
 	return roots
 }
 
-func applyFixes(roots []*action) {
+func applyFixes(roots []*action) error {
 	visited := make(map[*action]bool)
 	var apply func(*action) error
 	var visitAll func(actions []*action) error
@@ -313,7 +317,9 @@ func applyFixes(roots []*action) {
 		for _, act := range actions {
 			if !visited[act] {
 				visited[act] = true
-				visitAll(act.deps)
+				if err := visitAll(act.deps); err != nil {
+					return err
+				}
 				if err := apply(act); err != nil {
 					return err
 				}
@@ -332,6 +338,10 @@ func applyFixes(roots []*action) {
 		edit        offsetedit
 		left, right *node
 	}
+	// Edits x and y are equivalent.
+	equiv := func(x, y offsetedit) bool {
+		return x.start == y.start && x.end == y.end && bytes.Equal(x.newText, y.newText)
+	}
 
 	var insert func(tree **node, edit offsetedit) error
 	insert = func(treeptr **node, edit offsetedit) error {
@@ -344,6 +354,13 @@ func applyFixes(roots []*action) {
 			return insert(&tree.left, edit)
 		} else if edit.start >= tree.edit.end {
 			return insert(&tree.right, edit)
+		}
+		if equiv(edit, tree.edit) { // equivalent edits?
+			// We skip over equivalent edits without considering them
+			// an error. This handles identical edits coming from the
+			// multiple ways of loading a package into a
+			// *go/packages.Packages for testing, e.g. packages "p" and "p [p.test]".
+			return nil
 		}
 
 		// Overlapping text edit.
@@ -384,14 +401,16 @@ func applyFixes(roots []*action) {
 		return nil
 	}
 
-	visitAll(roots)
+	if err := visitAll(roots); err != nil {
+		return err
+	}
 
 	fset := token.NewFileSet() // Shared by parse calls below
 	// Now we've got a set of valid edits for each file. Get the new file contents.
 	for f, tree := range editsForFile {
 		contents, err := ioutil.ReadFile(f.Name())
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		cur := 0 // current position in the file
@@ -432,8 +451,11 @@ func applyFixes(roots []*action) {
 			}
 		}
 
-		ioutil.WriteFile(f.Name(), out.Bytes(), 0644)
+		if err := ioutil.WriteFile(f.Name(), out.Bytes(), 0644); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // printDiagnostics prints the diagnostics for the root packages in either
