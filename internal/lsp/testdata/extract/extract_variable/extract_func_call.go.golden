@@ -1,15 +1,3 @@
--- suggestedfix_extract_func_call_6_7 --
-package extract
-
-import "strconv"
-
-func _() {
-	x0 := append([]int{}, 1)
-	a := x0 //@suggestedfix("append([]int{}, 1)", "refactor.extract", "")
-	str := "1"
-	b, err := strconv.Atoi(str) //@suggestedfix("strconv.Atoi(str)", "refactor.extract", "")
-}
-
 -- suggestedfix_extract_func_call_6_8 --
 package extract
 

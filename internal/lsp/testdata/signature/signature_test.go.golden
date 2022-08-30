@@ -1,30 +1,9 @@
 -- AliasMap(a map[*sig.Alias]sig.StringAlias) (b map[*sig.Alias]sig.StringAlias, c map[*sig.Alias]sig.StringAlias)-signature --
 AliasMap(a map[*sig.Alias]sig.StringAlias) (b map[*sig.Alias]sig.StringAlias, c map[*sig.Alias]sig.StringAlias)
 
--- AliasMap(a map[*signature.Alias]signature.StringAlias) (b map[*signature.Alias]signature.StringAlias, c map[*signature.Alias]signature.StringAlias)-signature --
-AliasMap(a map[*signature.Alias]signature.StringAlias) (b map[*signature.Alias]signature.StringAlias, c map[*signature.Alias]signature.StringAlias)
-
 -- AliasSlice(a []*sig.Alias) (b sig.Alias)-signature --
 AliasSlice(a []*sig.Alias) (b sig.Alias)
 
--- AliasSlice(a []*signature.Alias) (b signature.Alias)-signature --
-AliasSlice(a []*signature.Alias) (b signature.Alias)
-
--- GetAlias() signature.Alias-signature --
-GetAlias() signature.Alias
-
--- GetAliasPtr() *signature.Alias-signature --
-GetAliasPtr() *signature.Alias
-
 -- OtherAliasMap(a map[sig.Alias]sig.OtherAlias, b map[sig.Alias]sig.OtherAlias) map[sig.Alias]sig.OtherAlias-signature --
 OtherAliasMap(a map[sig.Alias]sig.OtherAlias, b map[sig.Alias]sig.OtherAlias) map[sig.Alias]sig.OtherAlias
-
--- OtherAliasMap(a map[signature.Alias]signature.OtherAlias, b map[signature.Alias]signature.OtherAlias) map[signature.Alias]signature.OtherAlias-signature --
-OtherAliasMap(a map[signature.Alias]signature.OtherAlias, b map[signature.Alias]signature.OtherAlias) map[signature.Alias]signature.OtherAlias
-
--- SetAliasSlice(a []*signature.Alias)-signature --
-SetAliasSlice(a []*signature.Alias)
-
--- SetOtherAliasMap(a map[*signature.Alias]signature.OtherAlias)-signature --
-SetOtherAliasMap(a map[*signature.Alias]signature.OtherAlias)
 

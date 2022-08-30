@@ -10,12 +10,6 @@ Bar(float64, ...byte)
 -- Foo(a string, b int) (c bool)-signature --
 Foo(a string, b int) (c bool)
 
--- GetAlias() Alias-signature --
-GetAlias() Alias
-
--- GetAliasPtr() *Alias-signature --
-GetAliasPtr() *Alias
-
 -- Next(n int) []byte-signature --
 Next(n int) []byte
 
@@ -23,12 +17,6 @@ Next returns a slice containing the next n bytes from the buffer, advancing the 
 
 -- OtherAliasMap(a map[Alias]OtherAlias, b map[Alias]OtherAlias) map[Alias]OtherAlias-signature --
 OtherAliasMap(a map[Alias]OtherAlias, b map[Alias]OtherAlias) map[Alias]OtherAlias
-
--- SetAliasSlice(a []*Alias)-signature --
-SetAliasSlice(a []*Alias)
-
--- SetOtherAliasMap(a map[*Alias]OtherAlias)-signature --
-SetOtherAliasMap(a map[*Alias]OtherAlias)
 
 -- fn(hi string, there string) func(i int) rune-signature --
 fn(hi string, there string) func(i int) rune
