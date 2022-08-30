@@ -9,6 +9,8 @@ package big
 import (
 	"fmt"
 	"math"
+	"math/big"
+	"strconv"
 )
 
 // A Rat represents a quotient a/b of arbitrary precision.
@@ -524,6 +526,52 @@ func (z *Rat) Mul(x, y *Rat) *Rat {
 	z.a.Mul(&x.a, &y.a)
 	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
 	return z.norm()
+}
+
+// Log10 sets z to log(x) (the decimal logarithm of x) and returns z.
+func (z *Rat) Log10(x *Rat) *Rat {
+	if !isOverflow(x) {
+		v, _ := x.Float64()
+		z = NewRat(0, 1).SetFloat64(math.Log10(v))
+		return z
+	}
+
+	thRoot := big.NewFloat(0).Sqrt(big.NewFloat(0).SetRat(x))
+	numMul := 2
+
+	for isOverflow(thRoot) {
+		thRoot.Sqrt(thRoot)
+		numMul = numMul << 1
+	}
+
+	v, _ := thRoot.Float64()
+	bigNumLog := math.Log10(v) * float64(numMul)
+
+	z = NewRat(0, 1).SetFloat64(bigNumLog)
+
+	return z
+}
+
+// isOverflow checks if bigNum is too big to be handled by a type float64.
+func isOverflow(bigNum interface{}) bool {
+	switch bigNum := bigNum.(type) {
+	case *big.Float:
+		_, acc := bigNum.Float64()
+		if acc == big.Exact {
+			return false
+		} else {
+			return true
+		}
+	case *Rat:
+		f, _ := bigNum.Float64()
+		if strconv.FormatFloat(f, 'E', -1, 64) == "+Inf" {
+			return true
+		} else {
+			return false
+		}
+	default:
+		return false
+	}
 }
 
 // Quo sets z to the quotient x/y and returns z.

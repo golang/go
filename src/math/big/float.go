@@ -331,6 +331,40 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 	return z
 }
 
+// Log10 sets z to log(x) (the decimal logarithm of x) and returns z.
+func (z *Float) Log10(x *Float) *Float {
+	if !isOverflow(x) {
+		v, _ := x.Float64()
+		z = NewFloat(math.Log10(v))
+		return z
+	}
+
+	x.Sqrt(x)
+	numMul := 2
+
+	for isOverflow(x) {
+		x.Sqrt(x)
+		numMul = numMul << 1
+	}
+
+	v, _ := x.Float64()
+	bigNumLog := math.Log10(v) * float64(numMul)
+
+	z = NewFloat(bigNumLog)
+
+	return z
+}
+
+// isOverflow checks if bigNum is too big to be handled by a type float64.
+func isOverflow(bigNum *Float) bool {
+	_, acc := bigNum.Float64()
+	if acc == Exact {
+		return false
+	} else {
+		return true
+	}
+}
+
 // Signbit reports whether x is negative or negative zero.
 func (x *Float) Signbit() bool {
 	return x.neg
