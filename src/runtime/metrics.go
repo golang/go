@@ -200,6 +200,7 @@ func initMetrics() {
 				for i := range memstats.gcPauseDist.counts {
 					hist.counts[i+1] = memstats.gcPauseDist.counts[i].Load()
 				}
+				hist.counts[len(hist.counts)-1] = memstats.gcPauseDist.overflow.Load()
 			},
 		},
 		"/gc/stack/starting-size:bytes": {
@@ -330,6 +331,7 @@ func initMetrics() {
 				for i := range sched.timeToRun.counts {
 					hist.counts[i+1] = sched.timeToRun.counts[i].Load()
 				}
+				hist.counts[len(hist.counts)-1] = sched.timeToRun.overflow.Load()
 			},
 		},
 	}
