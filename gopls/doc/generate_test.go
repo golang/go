@@ -16,7 +16,7 @@ import (
 func TestGenerated(t *testing.T) {
 	testenv.NeedsGoBuild(t) // This is a lie. We actually need the source code.
 
-	ok, err := doMain("../..", false)
+	ok, err := doMain(false)
 	if err != nil {
 		t.Fatal(err)
 	}

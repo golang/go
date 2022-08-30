@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -39,35 +40,55 @@ import (
 )
 
 func main() {
-	if _, err := doMain("..", true); err != nil {
+	if _, err := doMain(true); err != nil {
 		fmt.Fprintf(os.Stderr, "Generation failed: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func doMain(baseDir string, write bool) (bool, error) {
+func doMain(write bool) (bool, error) {
 	api, err := loadAPI()
 	if err != nil {
 		return false, err
 	}
 
-	if ok, err := rewriteFile(filepath.Join(baseDir, "internal/lsp/source/api_json.go"), api, write, rewriteAPI); !ok || err != nil {
+	sourceDir, err := pkgDir("golang.org/x/tools/internal/lsp/source")
+	if err != nil {
+		return false, err
+	}
+
+	if ok, err := rewriteFile(filepath.Join(sourceDir, "api_json.go"), api, write, rewriteAPI); !ok || err != nil {
 		return ok, err
 	}
-	if ok, err := rewriteFile(filepath.Join(baseDir, "gopls/doc/settings.md"), api, write, rewriteSettings); !ok || err != nil {
+
+	goplsDir, err := pkgDir("golang.org/x/tools/gopls")
+	if err != nil {
+		return false, err
+	}
+
+	if ok, err := rewriteFile(filepath.Join(goplsDir, "doc", "settings.md"), api, write, rewriteSettings); !ok || err != nil {
 		return ok, err
 	}
-	if ok, err := rewriteFile(filepath.Join(baseDir, "gopls/doc/commands.md"), api, write, rewriteCommands); !ok || err != nil {
+	if ok, err := rewriteFile(filepath.Join(goplsDir, "doc", "commands.md"), api, write, rewriteCommands); !ok || err != nil {
 		return ok, err
 	}
-	if ok, err := rewriteFile(filepath.Join(baseDir, "gopls/doc/analyzers.md"), api, write, rewriteAnalyzers); !ok || err != nil {
+	if ok, err := rewriteFile(filepath.Join(goplsDir, "doc", "analyzers.md"), api, write, rewriteAnalyzers); !ok || err != nil {
 		return ok, err
 	}
-	if ok, err := rewriteFile(filepath.Join(baseDir, "gopls/doc/inlayHints.md"), api, write, rewriteInlayHints); !ok || err != nil {
+	if ok, err := rewriteFile(filepath.Join(goplsDir, "doc", "inlayHints.md"), api, write, rewriteInlayHints); !ok || err != nil {
 		return ok, err
 	}
 
 	return true, nil
+}
+
+// pkgDir returns the directory corresponding to the import path pkgPath.
+func pkgDir(pkgPath string) (string, error) {
+	out, err := exec.Command("go", "list", "-f", "{{.Dir}}", pkgPath).Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func loadAPI() (*source.APIJSON, error) {
