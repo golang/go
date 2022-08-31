@@ -2425,11 +2425,11 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Tok
 
 	var ident *ast.Ident
 	switch p.tok {
+	case token.IDENT:
+		ident = p.parseIdent()
 	case token.PERIOD:
 		ident = &ast.Ident{NamePos: p.pos, Name: "."}
 		p.next()
-	case token.IDENT:
-		ident = p.parseIdent()
 	}
 
 	pos := p.pos
@@ -2437,8 +2437,15 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Tok
 	if p.tok == token.STRING {
 		path = p.lit
 		p.next()
+	} else if p.tok.IsLiteral() {
+		p.error(pos, "import path must be a string")
+		p.next()
 	} else {
-		p.expect(token.STRING) // use expect() error handling
+		p.error(pos, "missing import path")
+		// don't advance if we're at a semicolon or closing parenthesis
+		if p.tok != token.SEMICOLON && p.tok != token.RPAREN {
+			p.next()
+		}
 	}
 	p.expectSemi() // call before accessing p.linecomment
 
