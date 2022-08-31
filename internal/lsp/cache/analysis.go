@@ -329,11 +329,9 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 	}
 	analysisinternal.SetTypeErrors(pass, pkg.typeErrors)
 
-	// We never run analyzers on ill-typed code,
-	// even those marked RunDespiteErrors=true.
-	if pkg.IsIllTyped() {
-		return nil, fmt.Errorf("analysis skipped due to errors in package")
-	}
+	// TODO(adonovan): fix: don't run analyzers on packages
+	// containing type errors unless the analyzers have
+	// RunDespiteErrors=true.
 
 	// Recover from panics (only) within the analyzer logic.
 	// (Use an anonymous function to limit the recover scope.)

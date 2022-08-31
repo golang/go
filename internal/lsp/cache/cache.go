@@ -226,13 +226,8 @@ func (c *Cache) PackageStats(withNames bool) template.HTML {
 			if v.pkg == nil {
 				break
 			}
-			var typsCost, typInfoCost int64
-			if v.pkg.types != nil {
-				typsCost = typesCost(v.pkg.types.Scope())
-			}
-			if v.pkg.typesInfo != nil {
-				typInfoCost = typesInfoCost(v.pkg.typesInfo)
-			}
+			typsCost := typesCost(v.pkg.types.Scope())
+			typInfoCost := typesInfoCost(v.pkg.typesInfo)
 			stat := packageStat{
 				id:        v.pkg.m.ID,
 				mode:      v.pkg.mode,

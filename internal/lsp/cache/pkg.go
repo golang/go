@@ -93,10 +93,6 @@ func (p *pkg) GetTypesSizes() types.Sizes {
 	return p.typesSizes
 }
 
-func (p *pkg) IsIllTyped() bool {
-	return p.types == nil || p.typesInfo == nil || p.typesSizes == nil
-}
-
 func (p *pkg) ForTest() string {
 	return string(p.m.ForTest)
 }

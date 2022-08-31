@@ -158,7 +158,7 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 		return nil, err
 	}
 
-	obj, pkg := qos[0].obj, qos[0].pkg
+	obj := qos[0].obj
 
 	if err := checkRenamable(obj); err != nil {
 		return nil, err
@@ -168,9 +168,6 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	}
 	if !isValidIdentifier(newName) {
 		return nil, fmt.Errorf("invalid identifier to rename: %q", newName)
-	}
-	if pkg == nil || pkg.IsIllTyped() {
-		return nil, fmt.Errorf("package for %s is ill typed", f.URI())
 	}
 	refs, err := references(ctx, s, qos, true, false, true)
 	if err != nil {

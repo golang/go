@@ -639,7 +639,6 @@ type Package interface {
 	GetTypes() *types.Package
 	GetTypesInfo() *types.Info
 	GetTypesSizes() types.Sizes
-	IsIllTyped() bool
 	ForTest() string
 	GetImport(pkgPath string) (Package, error)
 	MissingDependencies() []string
