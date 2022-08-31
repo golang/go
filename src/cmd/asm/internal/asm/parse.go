@@ -1017,9 +1017,7 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			if scale != 0 && scale != 1 && (p.arch.Family == sys.ARM64 ||
 				p.arch.Family == sys.PPC64) {
 				// Support (R1)(R2) (no scaling) and (R1)(R2*1).
-				if p.arch.Family != sys.PPC64 {
-					p.errorf("%s doesn't support scaled register format", p.arch.Name)
-				}
+				p.errorf("%s doesn't support scaled register format", p.arch.Name)
 			} else {
 				a.Scale = int16(scale)
 			}
