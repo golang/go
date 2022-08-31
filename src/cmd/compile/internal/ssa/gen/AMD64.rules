@@ -563,6 +563,12 @@
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
 
+// lowering rotates
+(RotateLeft8  ...) => (ROLB ...)
+(RotateLeft16 ...) => (ROLW ...)
+(RotateLeft32 ...) => (ROLL ...)
+(RotateLeft64 ...) => (ROLQ ...)
+
 // ***************************
 // Above: lowering rules
 // Below: optimizations
@@ -852,11 +858,6 @@
 ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGL <t> (ADDLconst [c] y))) && c & 31 == 0  => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGL <t> y))
 ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (ANDLconst [c] y)) && c & 31 == 31 => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x y)
 ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGL <t> (ANDLconst [c] y))) && c & 31 == 31 => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGL <t> y))
-
-(RotateLeft8  ...) => (ROLB ...)
-(RotateLeft16 ...) => (ROLW ...)
-(RotateLeft32 ...) => (ROLL ...)
-(RotateLeft64 ...) => (ROLQ ...)
 
 // rotate left negative = rotate right
 (ROLQ x (NEG(Q|L) y)) => (RORQ x y)
