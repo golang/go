@@ -1117,7 +1117,7 @@ loop:
 					p.syntaxError("expected operand")
 					i = p.badExpr()
 				} else {
-					i, comma = p.typeList()
+					i, comma = p.typeList(false)
 				}
 				if comma || p.tok == _Rbrack {
 					p.want(_Rbrack)
@@ -1401,7 +1401,7 @@ func (p *parser) typeInstance(typ Expr) Expr {
 		p.syntaxError("expected type argument list")
 		x.Index = p.badExpr()
 	} else {
-		x.Index, _ = p.typeList()
+		x.Index, _ = p.typeList(true)
 	}
 	p.want(_Rbrack)
 	return x
@@ -1670,7 +1670,7 @@ func (p *parser) arrayOrTArgs() Expr {
 	}
 
 	// x [n]E or x[n,], x[n1, n2], ...
-	n, comma := p.typeList()
+	n, comma := p.typeList(false)
 	p.want(_Rbrack)
 	if !comma {
 		if elem := p.typeOrNil(); elem != nil {
@@ -2752,21 +2752,25 @@ func (p *parser) exprList() Expr {
 	return x
 }
 
-// typeList parses a non-empty, comma-separated list of expressions,
-// optionally followed by a comma. The first list element may be any
-// expression, all other list elements must be type expressions.
+// typeList parses a non-empty, comma-separated list of types,
+// optionally followed by a comma. If strict is set to false,
+// the first element may also be a (non-type) expression.
 // If there is more than one argument, the result is a *ListExpr.
 // The comma result indicates whether there was a (separating or
 // trailing) comma.
 //
 // typeList = arg { "," arg } [ "," ] .
-func (p *parser) typeList() (x Expr, comma bool) {
+func (p *parser) typeList(strict bool) (x Expr, comma bool) {
 	if trace {
 		defer p.trace("typeList")()
 	}
 
 	p.xnest++
-	x = p.expr()
+	if strict {
+		x = p.type_()
+	} else {
+		x = p.expr()
+	}
 	if p.got(_Comma) {
 		comma = true
 		if t := p.typeOrNil(); t != nil {

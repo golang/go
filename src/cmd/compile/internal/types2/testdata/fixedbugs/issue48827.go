@@ -15,5 +15,5 @@ type (
 
 // The example from the issue.
 func _() {
-	_ = &([10]bool /* ERROR "invalid operation.*bool is not a generic type" */ [1]{})
+	_ = &([10]bool /* ERROR "invalid operation.*bool is not a generic type" */ [1 /* ERROR expected type */ ]{})
 }
