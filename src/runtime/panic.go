@@ -457,7 +457,7 @@ func deferreturn() {
 			return
 		}
 		if d.openDefer {
-			done := runOpenDeferFrame(gp, d)
+			done := runOpenDeferFrame(d)
 			if !done {
 				throw("unfinished open-coded defers in deferreturn")
 			}
@@ -519,7 +519,7 @@ func Goexit() {
 		d.started = true
 		d._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
 		if d.openDefer {
-			done := runOpenDeferFrame(gp, d)
+			done := runOpenDeferFrame(d)
 			if !done {
 				// We should always run all defers in the frame,
 				// since there is no panic associated with this
@@ -744,7 +744,7 @@ func readvarintUnsafe(fd unsafe.Pointer) (uint32, unsafe.Pointer) {
 // d. It normally processes all active defers in the frame, but stops immediately
 // if a defer does a successful recover. It returns true if there are no
 // remaining defers to run in the frame.
-func runOpenDeferFrame(gp *g, d *_defer) bool {
+func runOpenDeferFrame(d *_defer) bool {
 	done := true
 	fd := d.fd
 
@@ -881,7 +881,7 @@ func gopanic(e any) {
 
 		done := true
 		if d.openDefer {
-			done = runOpenDeferFrame(gp, d)
+			done = runOpenDeferFrame(d)
 			if done && !d._panic.recovered {
 				addOneOpenDeferFrame(gp, 0, nil)
 			}
