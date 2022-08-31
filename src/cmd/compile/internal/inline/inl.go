@@ -689,9 +689,9 @@ var inlgen int
 // when producing output for debugging the compiler itself.
 var SSADumpInline = func(*ir.Func) {}
 
-// NewInline allows the inliner implementation to be overridden.
+// InlineCall allows the inliner implementation to be overridden.
 // If it returns nil, the function will not be inlined.
-var NewInline = oldInline
+var InlineCall = oldInlineCall
 
 // If n is a OCALLFUNC node, and fn is an ONAME node for a
 // function with an inlinable body, return an OINLCALL node that can replace n.
@@ -817,9 +817,9 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
 	}
 
-	res := NewInline(n, fn, inlIndex)
+	res := InlineCall(n, fn, inlIndex)
 	if res == nil {
-		return n
+		base.FatalfAt(n.Pos(), "inlining call to %v failed", fn)
 	}
 
 	if base.Flag.LowerM > 2 {
@@ -855,11 +855,11 @@ func CalleeEffects(init *ir.Nodes, callee ir.Node) {
 	}
 }
 
-// oldInline creates an InlinedCallExpr to replace the given call
+// oldInlineCall creates an InlinedCallExpr to replace the given call
 // expression. fn is the callee function to be inlined. inlIndex is
 // the inlining tree position index, for use with src.NewInliningBase
 // when rewriting positions.
-func oldInline(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+func oldInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
 	if base.Debug.TypecheckInl == 0 {
 		typecheck.ImportedBody(fn)
 	}

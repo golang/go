@@ -69,7 +69,8 @@ var localPkgReader *pkgReader
 // In other words, we have all the necessary information to build the generic IR form
 // (see writer.captureVars for an example).
 func unified(noders []*noder) {
-	inline.NewInline = InlineCall
+	inline.InlineCall = unifiedInlineCall
+	typecheck.HaveInlineBody = unifiedHaveInlineBody
 
 	data := writePkgStub(noders)
 

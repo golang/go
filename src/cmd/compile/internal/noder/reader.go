@@ -3374,22 +3374,28 @@ func (r *reader) pkgObjs(target *ir.Package) []*ir.Name {
 
 // @@@ Inlining
 
+// unifiedHaveInlineBody reports whether we have the function body for
+// fn, so we can inline it.
+func unifiedHaveInlineBody(fn *ir.Func) bool {
+	if fn.Inl == nil {
+		return false
+	}
+
+	_, ok := bodyReaderFor(fn)
+	return ok
+}
+
 var inlgen = 0
 
-// InlineCall implements inline.NewInline by re-reading the function
+// unifiedInlineCall implements inline.NewInline by re-reading the function
 // body from its Unified IR export data.
-func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
 	// TODO(mdempsky): Turn callerfn into an explicit parameter.
 	callerfn := ir.CurFunc
 
 	pri, ok := bodyReaderFor(fn)
 	if !ok {
-		// TODO(mdempsky): Reconsider this diagnostic's wording, if it's
-		// to be included in Go 1.20.
-		if base.Flag.LowerM != 0 {
-			base.WarnfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
-		}
-		return nil
+		base.FatalfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
 	}
 
 	if fn.Inl.Body == nil {

@@ -83,15 +83,12 @@ func ImportBody(fn *ir.Func) {
 
 // HaveInlineBody reports whether we have fn's inline body available
 // for inlining.
-func HaveInlineBody(fn *ir.Func) bool {
+//
+// It's a function literal so that it can be overriden for
+// GOEXPERIMENT=unified.
+var HaveInlineBody = func(fn *ir.Func) bool {
 	if fn.Inl == nil {
 		return false
-	}
-
-	// Unified IR is much more conservative about pruning unreachable
-	// methods (at the cost of increased build artifact size).
-	if base.Debug.Unified != 0 {
-		return true
 	}
 
 	if fn.Inl.Body != nil {
