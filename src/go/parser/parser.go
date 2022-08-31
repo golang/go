@@ -897,7 +897,7 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 			}
 		}
 		if tparams {
-			p.error(pos, "all type parameters must be named")
+			p.error(pos, "type parameters must be named")
 		}
 	} else if named != len(list) {
 		// some named => all must be named
@@ -925,7 +925,7 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 		}
 		if !ok {
 			if tparams {
-				p.error(missingName, "all type parameters must be named")
+				p.error(missingName, "type parameters must be named")
 			} else {
 				p.error(pos, "mixed named and unnamed parameters")
 			}

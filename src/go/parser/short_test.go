@@ -196,10 +196,9 @@ var invalids = []string{
 	`package p; func _[]/* ERROR "empty type parameter list" */()`,
 
 	// TODO(rfindley) a better location would be after the ']'
-	`package p; type _[A /* ERROR "all type parameters must be named" */ ,] struct{ A }`,
+	`package p; type _[A /* ERROR "type parameters must be named" */ ,] struct{ A }`,
 
-	// TODO(rfindley) this error is confusing.
-	`package p; func _[type /* ERROR "all type parameters must be named" */ P, *Q interface{}]()`,
+	`package p; func _[type /* ERROR "found 'type'" */ P, *Q interface{}]()`,
 
 	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B any](a A) B`,
 	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B C](a A) B`,
