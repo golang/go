@@ -364,6 +364,9 @@ func (b *B) ReportMetric(n float64, unit string) {
 	if strings.IndexFunc(unit, unicode.IsSpace) >= 0 {
 		panic("metric unit must not contain whitespace")
 	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.extra[unit] = n
 }
 
