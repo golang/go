@@ -399,9 +399,10 @@ var stmtStart = map[token.Token]bool{
 }
 
 var declStart = map[token.Token]bool{
-	token.CONST: true,
-	token.TYPE:  true,
-	token.VAR:   true,
+	token.IMPORT: true,
+	token.CONST:  true,
+	token.TYPE:   true,
+	token.VAR:    true,
 }
 
 var exprEnd = map[token.Token]bool{
@@ -2416,9 +2417,9 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-type parseSpecFunction func(doc *ast.CommentGroup, pos token.Pos, keyword token.Token, iota int) ast.Spec
+type parseSpecFunction func(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec
 
-func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token, _ int) ast.Spec {
+func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ImportSpec"))
 	}
@@ -2442,10 +2443,7 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Tok
 		p.next()
 	} else {
 		p.error(pos, "missing import path")
-		// don't advance if we're at a semicolon or closing parenthesis
-		if p.tok != token.SEMICOLON && p.tok != token.RPAREN {
-			p.next()
-		}
+		p.advance(exprEnd)
 	}
 	p.expectSemi() // call before accessing p.linecomment
 
@@ -2461,7 +2459,7 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Tok
 	return spec
 }
 
-func (p *parser) parseValueSpec(doc *ast.CommentGroup, _ token.Pos, keyword token.Token, iota int) ast.Spec {
+func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, keyword.String()+"Spec"))
 	}
@@ -2520,7 +2518,7 @@ func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *
 	spec.Type = p.parseType()
 }
 
-func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token, _ int) ast.Spec {
+func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "TypeSpec"))
 	}
@@ -2673,12 +2671,12 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 		lparen = p.pos
 		p.next()
 		for iota := 0; p.tok != token.RPAREN && p.tok != token.EOF; iota++ {
-			list = append(list, f(p.leadComment, pos, keyword, iota))
+			list = append(list, f(p.leadComment, keyword, iota))
 		}
 		rparen = p.expect(token.RPAREN)
 		p.expectSemi()
 	} else {
-		list = append(list, f(nil, pos, keyword, 0))
+		list = append(list, f(nil, keyword, 0))
 	}
 
 	return &ast.GenDecl{
@@ -2754,6 +2752,9 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 
 	var f parseSpecFunction
 	switch p.tok {
+	case token.IMPORT:
+		f = p.parseImportSpec
+
 	case token.CONST, token.VAR:
 		f = p.parseValueSpec
 
@@ -2813,7 +2814,14 @@ func (p *parser) parseFile() *ast.File {
 
 		if p.mode&ImportsOnly == 0 {
 			// rest of package body
+			prev := token.IMPORT
 			for p.tok != token.EOF {
+				// Continue to accept import declarations for error tolerance, but complain.
+				if p.tok == token.IMPORT && prev != token.IMPORT {
+					p.error(p.pos, "imports must appear before other declarations")
+				}
+				prev = p.tok
+
 				decls = append(decls, p.parseDecl(declStart))
 			}
 		}
