@@ -285,6 +285,33 @@ const (
 	// LUI + I-type instruction sequence.
 	R_RISCV_TLS_LE
 
+	// R_RISCV_GOT_HI20 resolves the high 20 bits of a 32-bit PC-relative GOT
+	// address.
+	R_RISCV_GOT_HI20
+
+	// R_RISCV_PCREL_HI20 resolves the high 20 bits of a 32-bit PC-relative
+	// address.
+	R_RISCV_PCREL_HI20
+
+	// R_RISCV_PCREL_LO12_I resolves the low 12 bits of a 32-bit PC-relative
+	// address using an I-type instruction.
+	R_RISCV_PCREL_LO12_I
+
+	// R_RISCV_PCREL_LO12_S resolves the low 12 bits of a 32-bit PC-relative
+	// address using an S-type instruction.
+	R_RISCV_PCREL_LO12_S
+
+	// R_RISCV_BRANCH resolves a 12-bit PC-relative branch offset.
+	R_RISCV_BRANCH
+
+	// R_RISCV_RVC_BRANCH resolves an 8-bit PC-relative offset for a CB-type
+	// instruction.
+	R_RISCV_RVC_BRANCH
+
+	// R_RISCV_RVC_JUMP resolves an 11-bit PC-relative offset for a CJ-type
+	// instruction.
+	R_RISCV_RVC_JUMP
+
 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
 	R_PCRELDBL

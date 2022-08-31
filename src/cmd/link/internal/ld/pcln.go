@@ -15,6 +15,7 @@ import (
 	"internal/buildcfg"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const funcSize = 11 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
@@ -99,6 +100,19 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
 }
 
 func emitPcln(ctxt *Link, s loader.Sym, container loader.Bitmap) bool {
+	if ctxt.Target.IsRISCV64() {
+		// Avoid adding local symbols to the pcln table - RISC-V
+		// linking generates a very large number of these, particularly
+		// for HI20 symbols (which we need to load in order to be able
+		// to resolve relocations). Unnecessarily including all of
+		// these symbols quickly blows out the size of the pcln table
+		// and overflows hash buckets.
+		symName := ctxt.loader.SymName(s)
+		if symName == "" || strings.HasPrefix(symName, ".L") {
+			return false
+		}
+	}
+
 	// We want to generate func table entries only for the "lowest
 	// level" symbols, not containers of subsymbols.
 	return !container.Has(s)

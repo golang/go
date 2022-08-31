@@ -584,27 +584,41 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 		sect = &elfobj.sect[elfsym.shndx]
 		if sect.sym == 0 {
-			if strings.HasPrefix(elfsym.name, ".Linfo_string") { // clang does this
+			if elfsym.type_ == 0 {
+				if strings.HasPrefix(sect.name, ".debug_") && elfsym.name == "" {
+					// clang on arm and riscv64.
+					// This reportedly happens with clang 3.7 on ARM.
+					// See issue 13139.
+					continue
+				}
+				if strings.HasPrefix(elfsym.name, ".Ldebug_") || elfsym.name == ".L0 " {
+					// gcc on riscv64.
+					continue
+				}
+				if elfsym.name == ".Lline_table_start0" {
+					// clang on riscv64.
+					continue
+				}
+
+				if strings.HasPrefix(elfsym.name, "$d") && sect.name == ".debug_frame" {
+					// "$d" is a marker, not a real symbol.
+					// This happens with gcc on ARM64.
+					// See https://sourceware.org/bugzilla/show_bug.cgi?id=21809
+					continue
+				}
+			}
+
+			if strings.HasPrefix(elfsym.name, ".Linfo_string") {
+				// clang does this
 				continue
 			}
 
-			if elfsym.name == "" && elfsym.type_ == 0 && sect.name == ".debug_str" {
-				// This reportedly happens with clang 3.7 on ARM.
-				// See issue 13139.
+			if strings.HasPrefix(elfsym.name, ".LASF") || strings.HasPrefix(elfsym.name, ".LLRL") || strings.HasPrefix(elfsym.name, ".LLST") {
+				// gcc on s390x and riscv64 does this.
 				continue
 			}
 
-			if strings.HasPrefix(elfsym.name, "$d") && elfsym.type_ == 0 && sect.name == ".debug_frame" {
-				// "$d" is a marker, not a real symbol.
-				// This happens with gcc on ARM64.
-				// See https://sourceware.org/bugzilla/show_bug.cgi?id=21809
-				continue
-			}
-
-			if strings.HasPrefix(elfsym.name, ".LASF") { // gcc on s390x does this
-				continue
-			}
-			return errorf("%v: sym#%d (%s): ignoring symbol in section %d (type %d)", elfsym.sym, i, elfsym.name, elfsym.shndx, elfsym.type_)
+			return errorf("%v: sym#%d (%q): ignoring symbol in section %d (%q) (type %d)", elfsym.sym, i, elfsym.name, elfsym.shndx, sect.name, elfsym.type_)
 		}
 
 		s := elfsym.sym

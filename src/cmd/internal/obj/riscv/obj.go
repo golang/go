@@ -1181,6 +1181,12 @@ func validateRaw(ctxt *obj.Link, ins *instruction) {
 	}
 }
 
+// extractBitAndShift extracts the specified bit from the given immediate,
+// before shifting it to the requested position and returning it.
+func extractBitAndShift(imm uint32, bit, pos int) uint32 {
+	return ((imm >> bit) & 1) << pos
+}
+
 // encodeR encodes an R-type RISC-V instruction.
 func encodeR(as obj.As, rs1, rs2, rd, funct3, funct7 uint32) uint32 {
 	enc := encode(as)
@@ -1272,6 +1278,11 @@ func encodeSF(ins *instruction) uint32 {
 	return encodeS(ins.as, regI(ins.rd), regF(ins.rs1), uint32(ins.imm))
 }
 
+// encodeBImmediate encodes an immediate for a B-type RISC-V instruction.
+func encodeBImmediate(imm uint32) uint32 {
+	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7
+}
+
 // encodeB encodes a B-type RISC-V instruction.
 func encodeB(ins *instruction) uint32 {
 	imm := immI(ins.as, ins.imm, 13)
@@ -1281,7 +1292,7 @@ func encodeB(ins *instruction) uint32 {
 	if enc == nil {
 		panic("encodeB: could not encode instruction")
 	}
-	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7 | enc.opcode
+	return encodeBImmediate(imm) | rs2<<20 | rs1<<15 | enc.funct3<<12 | enc.opcode
 }
 
 // encodeU encodes a U-type RISC-V instruction.
@@ -1315,6 +1326,37 @@ func encodeJ(ins *instruction) uint32 {
 	return encodeJImmediate(imm) | rd<<7 | enc.opcode
 }
 
+// encodeCBImmediate encodes an immediate for a CB-type RISC-V instruction.
+func encodeCBImmediate(imm uint32) uint32 {
+	// Bit order - [8|4:3|7:6|2:1|5]
+	bits := extractBitAndShift(imm, 8, 7)
+	bits |= extractBitAndShift(imm, 4, 6)
+	bits |= extractBitAndShift(imm, 3, 5)
+	bits |= extractBitAndShift(imm, 7, 4)
+	bits |= extractBitAndShift(imm, 6, 3)
+	bits |= extractBitAndShift(imm, 2, 2)
+	bits |= extractBitAndShift(imm, 1, 1)
+	bits |= extractBitAndShift(imm, 5, 0)
+	return (bits>>5)<<10 | (bits&0x1f)<<2
+}
+
+// encodeCJImmediate encodes an immediate for a CJ-type RISC-V instruction.
+func encodeCJImmediate(imm uint32) uint32 {
+	// Bit order - [11|4|9:8|10|6|7|3:1|5]
+	bits := extractBitAndShift(imm, 11, 10)
+	bits |= extractBitAndShift(imm, 4, 9)
+	bits |= extractBitAndShift(imm, 9, 8)
+	bits |= extractBitAndShift(imm, 8, 7)
+	bits |= extractBitAndShift(imm, 10, 6)
+	bits |= extractBitAndShift(imm, 6, 5)
+	bits |= extractBitAndShift(imm, 7, 4)
+	bits |= extractBitAndShift(imm, 3, 3)
+	bits |= extractBitAndShift(imm, 2, 2)
+	bits |= extractBitAndShift(imm, 1, 1)
+	bits |= extractBitAndShift(imm, 5, 0)
+	return bits << 2
+}
+
 func encodeRawIns(ins *instruction) uint32 {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
@@ -1322,6 +1364,43 @@ func encodeRawIns(ins *instruction) uint32 {
 		panic(fmt.Sprintf("immediate %d cannot fit in 32 bits", ins.imm))
 	}
 	return uint32(ins.imm)
+}
+
+func EncodeBImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 13) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 13 bits", imm)
+	}
+	if imm&1 != 0 {
+		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	}
+	return int64(encodeBImmediate(uint32(imm))), nil
+}
+
+func EncodeCBImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 9) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 9 bits", imm)
+	}
+	if imm&1 != 0 {
+		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	}
+	return int64(encodeCBImmediate(uint32(imm))), nil
+}
+
+func EncodeCJImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 12) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	}
+	if imm&1 != 0 {
+		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	}
+	return int64(encodeCJImmediate(uint32(imm))), nil
+}
+
+func EncodeIImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 12) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	}
+	return imm << 20, nil
 }
 
 func EncodeJImmediate(imm int64) (int64, error) {
@@ -1332,13 +1411,6 @@ func EncodeJImmediate(imm int64) (int64, error) {
 		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
 	}
 	return int64(encodeJImmediate(uint32(imm))), nil
-}
-
-func EncodeIImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 12) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
-	}
-	return imm << 20, nil
 }
 
 func EncodeSImmediate(imm int64) (int64, error) {
