@@ -5,7 +5,7 @@
 package p
 
 func _() {
-	NewS( /* ERROR cannot infer T */ ) .M()
+	NewS /* ERROR cannot infer T */ ().M()
 }
 
 type S struct {}

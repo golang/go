@@ -11,5 +11,5 @@ func _() {
         _ = f[[ /* ERROR \[\]int does not implement int */ ]int]
 
         f(0)
-        f( /* ERROR \[\]int does not implement int */ []int{})
+        f/* ERROR \[\]int does not implement int */ ([]int{})
 }

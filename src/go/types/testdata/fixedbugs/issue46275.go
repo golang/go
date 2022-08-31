@@ -5,23 +5,22 @@
 package issue46275
 
 type N[T any] struct {
-        *N[T]
-        t T
+	*N[T]
+	t T
 }
 
 func (n *N[T]) Elem() T {
-        return n.t
+	return n.t
 }
 
 type I interface {
-        Elem() string
+	Elem() string
 }
 
 func _() {
-        var n1 *N[string]
-        var _ I = n1
-        type NS N[string]
-        var n2 *NS
-        var _ I = n2
+	var n1 *N[string]
+	var _ I = n1
+	type NS N[string]
+	var n2 *NS
+	var _ I = n2
 }
-

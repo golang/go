@@ -87,4 +87,4 @@ func F26[Z any]() T26 { return F26[] /* ERROR operand */ }
 
 // crash 27
 func e27[T any]() interface{ x27 /* ERROR not a type */ } { panic(0) }
-func x27() { e27( /* ERROR cannot infer T */ ) }
+func x27() { e27 /* ERROR cannot infer T */ () }

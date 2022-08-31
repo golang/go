@@ -7,7 +7,7 @@ package p
 // Do not report a duplicate type error for this term list.
 // (Check types after interfaces have been completed.)
 type _ interface {
-	// TODO(gri) Once we have full type sets we can enable this again.
+	// TODO(rfindley) Once we have full type sets we can enable this again.
 	// Fow now we don't permit interfaces in term lists.
 	// type interface{ Error() string }, interface{ String() string }
 }

@@ -39,7 +39,7 @@ func NewSetFromSlice[T comparable](items []T) *Set[T] {
 type T struct{ x any }
 
 func main() {
-	NewSetFromSlice( /* ERROR T does not implement comparable */ []T{
+	NewSetFromSlice /* ERROR T does not implement comparable */ ([]T{
 		{"foo"},
 		{5},
 	})

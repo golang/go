@@ -10,7 +10,7 @@ func main() {
 
 type N[T any] struct{}
 
-var _ N[] /* ERROR expected type */
+var _ N [] // ERROR expected type argument list
 
 type I interface {
 	~[]int
@@ -18,14 +18,14 @@ type I interface {
 
 func _[T I](i, j int) {
 	var m map[int]int
-	_ = m[i, j /* ERROR more than one index */ ]
+	_ = m[i, j /* ERROR "more than one index" */ ]
 
 	var a [3]int
-	_ = a[i, j /* ERROR more than one index */ ]
+	_ = a[i, j /* ERROR "more than one index" */ ]
 
 	var s []int
-	_ = s[i, j /* ERROR more than one index */ ]
+	_ = s[i, j /* ERROR "more than one index" */ ]
 
 	var t T
-	_ = t[i, j /* ERROR more than one index */ ]
+	_ = t[i, j /* ERROR "more than one index" */ ]
 }

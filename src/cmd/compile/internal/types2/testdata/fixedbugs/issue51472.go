@@ -49,6 +49,6 @@ func f[T interface{comparable; []byte|string}](x T) {
 }
 
 func _(s []byte) {
-	f( /* ERROR \[\]byte does not implement interface{comparable; \[\]byte\|string} */ s)
+	f /* ERROR \[\]byte does not implement interface{comparable; \[\]byte\|string} */ (s)
         _ = f[[ /* ERROR does not implement */ ]byte]
 }

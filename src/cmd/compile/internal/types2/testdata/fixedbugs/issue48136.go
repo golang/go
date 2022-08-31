@@ -12,12 +12,12 @@ func f5[P interface{ func(P) }]() {}
 func f6[P interface { *Tree[P] }, Q any ]() {}
 
 func _() {
-        f1( /* ERROR cannot infer P */ )
-        f2( /* ERROR cannot infer P */ )
-        f3( /* ERROR cannot infer P */ )
-        f4( /* ERROR cannot infer P */ )
-        f5( /* ERROR cannot infer P */ )
-        f6( /* ERROR cannot infer P */ )
+        f1 /* ERROR cannot infer P */ ()
+        f2 /* ERROR cannot infer P */ ()
+        f3 /* ERROR cannot infer P */ ()
+        f4 /* ERROR cannot infer P */ ()
+        f5 /* ERROR cannot infer P */ ()
+        f6 /* ERROR cannot infer P */ ()
 }
 
 type Tree[P any] struct {
@@ -32,5 +32,5 @@ func foo[Src interface { func() Src }]() Src {
 }
 
 func _() {
-        foo( /* ERROR cannot infer Src */ )
+        foo /* ERROR cannot infer Src */ ()
 }

@@ -4,7 +4,7 @@
 
 package p
 
-func g[P interface{~func(T) P}, T any](P) {}
+func g[P ~func(T) P, T any](P) {}
 
 func _() {
 	type F func(int) F

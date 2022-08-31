@@ -9,5 +9,5 @@ func app[S interface{ ~[]T }, T any](s S, e T) S {
 }
 
 func _() {
-	_ = app[/* ERROR "S does not match" */int]
+	_ = app/* ERROR "S does not match" */[int]
 }

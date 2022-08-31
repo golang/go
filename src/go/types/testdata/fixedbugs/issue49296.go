@@ -9,7 +9,6 @@ func _[
         T1 []int,
         T2 ~float64 | ~complex128 | chan int,
 ]() {
-	// TODO(rfindley): the types2 error here is clearer.
         _ = T0(nil /* ERROR cannot convert nil to T0 */ )
         _ = T1(1 /* ERROR cannot convert 1 .* to T1 */ )
         _ = T2(2 /* ERROR cannot convert 2 .* to T2 */ )

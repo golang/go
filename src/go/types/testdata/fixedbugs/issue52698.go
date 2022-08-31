@@ -4,7 +4,7 @@
 
 package p
 
-// sanity check
+// correctness check: ensure that cycles through generic instantiations are detected
 type T[P any] struct {
 	_ P
 }
@@ -13,18 +13,30 @@ type S /* ERROR illegal cycle */ struct {
 	_ T[S]
 }
 
-// simplified test
-var _ B[A]
+// simplified test 1
 
-type A struct {
-	_ B[string]
+var _ A1[A1[string]]
+
+type A1[P any] struct {
+	_ B1[P]
 }
 
-type B[P any] struct {
-	_ C[P]
+type B1[P any] struct {
+	_ P
 }
 
-type C[P any] struct {
+// simplified test 2
+var _ B2[A2]
+
+type A2 struct {
+	_ B2[string]
+}
+
+type B2[P any] struct {
+	_ C2[P]
+}
+
+type C2[P any] struct {
 	_ P
 }
 

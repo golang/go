@@ -10,12 +10,12 @@ type Number1 interface {
 	float64
 }
 
-func Add[T Number1](a, b T) T {
+func Add1[T Number1](a, b T) T {
 	return a /* ERROR not defined */ + b
 }
 
 type Number2 interface {
-	int|float64
+	int | float64
 }
 
 func Add2[T Number2](a, b T) T {

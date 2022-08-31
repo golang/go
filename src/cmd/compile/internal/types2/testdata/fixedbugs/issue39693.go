@@ -15,7 +15,7 @@ func Add1[T Number1](a, b T) T {
 }
 
 type Number2 interface {
-	int|float64
+	int | float64
 }
 
 func Add2[T Number2](a, b T) T {

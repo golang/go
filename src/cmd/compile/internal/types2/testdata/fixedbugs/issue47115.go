@@ -12,11 +12,11 @@ type C4 interface{ chan int | chan<- int }
 type C5[T any] interface{ ~chan T | chan<- T }
 
 func _[T any](ch T) {
-	ch /* ERROR cannot send to ch .* no core type */ <- 0
+	ch <- /* ERROR cannot send to ch .* no core type */ 0
 }
 
 func _[T C0](ch T) {
-	ch /* ERROR cannot send to non-channel */ <- 0
+	ch <- /* ERROR cannot send to non-channel */ 0
 }
 
 func _[T C1](ch T) {
@@ -24,11 +24,11 @@ func _[T C1](ch T) {
 }
 
 func _[T C2](ch T) {
-	ch /* ERROR cannot send to receive-only channel */ <- 0
+	ch  <-/* ERROR cannot send to receive-only channel */ 0
 }
 
 func _[T C3](ch T) {
-	ch /* ERROR cannot send to ch .* no core type */ <- 0
+	ch <- /* ERROR cannot send to ch .* no core type */ 0
 }
 
 func _[T C4](ch T) {
