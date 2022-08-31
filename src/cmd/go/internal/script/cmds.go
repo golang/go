@@ -43,6 +43,7 @@ func DefaultCmds() map[string]Cmd {
 		"mkdir":   Mkdir(),
 		"mv":      Mv(),
 		"rm":      Rm(),
+		"replace": Replace(),
 		"sleep":   Sleep(),
 		"stderr":  Stderr(),
 		"stdout":  Stdout(),
@@ -864,6 +865,43 @@ func Program(name string, interrupt os.Signal, gracePeriod time.Duration) Cmd {
 				return nil, pathErr
 			}
 			return startCommand(s, shortName, path, args, interrupt, gracePeriod)
+		})
+}
+
+// Replace replaces all occurrences of a string in a file with another string.
+func Replace() Cmd {
+	return Command(
+		CmdUsage{
+			Summary: "replace strings in a file",
+			Args:    "[old new]... file",
+			Detail: []string{
+				"The 'old' and 'new' arguments are unquoted as if in quoted Go strings.",
+			},
+		},
+		func(s *State, args ...string) (WaitFunc, error) {
+			if len(args)%2 != 1 {
+				return nil, ErrUsage
+			}
+
+			oldNew := make([]string, 0, len(args)-1)
+			for _, arg := range args[:len(args)-1] {
+				s, err := strconv.Unquote(`"` + arg + `"`)
+				if err != nil {
+					return nil, err
+				}
+				oldNew = append(oldNew, s)
+			}
+
+			r := strings.NewReplacer(oldNew...)
+			file := s.Path(args[len(args)-1])
+
+			data, err := os.ReadFile(file)
+			if err != nil {
+				return nil, err
+			}
+			replaced := r.Replace(string(data))
+
+			return nil, os.WriteFile(file, []byte(replaced), 0666)
 		})
 }
 

@@ -321,6 +321,8 @@ stdout '"Reuse": true'
 ! stdout '"(Dir|Info|GoMod|Zip)"'
 
 # reuse attempt with stale hash should reinvoke git, not report reuse
+cp tagtestsv022.json tagtestsv022badhash.json
+replace '57952' '56952XXX' tagtestsv022badhash.json
 go mod download -reuse=tagtestsv022badhash.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
 stderr 'git fetch'
 ! stdout '"Reuse": true'
@@ -337,6 +339,8 @@ stdout '"GoMod"'
 stdout '"Zip"'
 
 # reuse with stale repo URL
+cp tagtestsv022.json tagtestsv022badurl.json
+replace 'git/tagtests\"' 'git/tagtestsXXX\"' tagtestsv022badurl.json
 go mod download -reuse=tagtestsv022badurl.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
 ! stdout '"Reuse": true'
 stdout '"URL": "https://vcs-test.golang.org/git/tagtests"'
@@ -346,80 +350,22 @@ stdout '"GoMod"'
 stdout '"Zip"'
 
 # reuse with stale VCS
+cp tagtestsv022.json tagtestsv022badvcs.json
+replace '\"git\"' '\"gitXXX\"' tagtestsv022badvcs.json
 go mod download -reuse=tagtestsv022badvcs.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
 ! stdout '"Reuse": true'
 stdout '"URL": "https://vcs-test.golang.org/git/tagtests"'
 
 # reuse with stale Dir
+cp tagtestsv022.json tagtestsv022baddir.json
+replace '\t\t\"Ref\":' '\t\t\"Subdir\": \"subdir\",\n\t\t\"Ref\":' tagtestsv022baddir.json
 go mod download -reuse=tagtestsv022baddir.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
 ! stdout '"Reuse": true'
 stdout '"URL": "https://vcs-test.golang.org/git/tagtests"'
 
 # reuse with stale TagSum
+cp tagtests.json tagtestsbadtagsum.json
+replace 'sMEOGo=' 'sMEoGo=XXX' tagtestsbadtagsum.json
 go mod download -reuse=tagtestsbadtagsum.json -x -json vcs-test.golang.org/git/tagtests.git@latest
 ! stdout '"Reuse": true'
 stdout '"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo="'
-
--- tagtestsv022badhash.json --
-{
-	"Path": "vcs-test.golang.org/git/tagtests.git",
-	"Version": "v0.2.2",
-	"Origin": {
-		"VCS": "git",
-		"URL": "https://vcs-test.golang.org/git/tagtests",
-		"Ref": "refs/tags/v0.2.2",
-		"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952XXX"
-	}
-}
-
--- tagtestsbadtagsum.json --
-{
-	"Path": "vcs-test.golang.org/git/tagtests.git",
-	"Version": "v0.2.2",
-	"Query": "latest",
-	"Origin": {
-		"VCS": "git",
-		"URL": "https://vcs-test.golang.org/git/tagtests",
-		"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo=XXX",
-		"Ref": "refs/tags/v0.2.2",
-		"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"
-	},
-	"Reuse": true
-}
-
--- tagtestsv022badvcs.json --
-{
-	"Path": "vcs-test.golang.org/git/tagtests.git",
-	"Version": "v0.2.2",
-	"Origin": {
-		"VCS": "gitXXX",
-		"URL": "https://vcs-test.golang.org/git/tagtests",
-		"Ref": "refs/tags/v0.2.2",
-		"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"
-	}
-}
-
--- tagtestsv022baddir.json --
-{
-	"Path": "vcs-test.golang.org/git/tagtests.git",
-	"Version": "v0.2.2",
-	"Origin": {
-		"VCS": "git",
-		"URL": "https://vcs-test.golang.org/git/tagtests",
-		"Subdir": "subdir",
-		"Ref": "refs/tags/v0.2.2",
-		"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"
-	}
-}
-
--- tagtestsv022badurl.json --
-{
-	"Path": "vcs-test.golang.org/git/tagtests.git",
-	"Version": "v0.2.2",
-	"Origin": {
-		"VCS": "git",
-		"URL": "https://vcs-test.golang.org/git/tagtestsXXX",
-		"Ref": "refs/tags/v0.2.2",
-		"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"
-	}
-}

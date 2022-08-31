@@ -5,7 +5,6 @@
 package main_test
 
 import (
-	"bytes"
 	"cmd/go/internal/script"
 	"cmd/go/internal/script/scripttest"
 	"cmd/go/internal/work"
@@ -30,41 +29,12 @@ func scriptCommands(interrupt os.Signal, gracePeriod time.Duration) map[string]s
 		cmds[name] = cmd
 	}
 
-	add("addcrlf", scriptAddCRLF())
 	add("cc", scriptCC(cmdExec))
 	cmdGo := scriptGo(interrupt, gracePeriod)
 	add("go", cmdGo)
 	add("stale", scriptStale(cmdGo))
 
 	return cmds
-}
-
-// scriptAddCRLF adds CRLF line endings to the named files.
-func scriptAddCRLF() script.Cmd {
-	return script.Command(
-		script.CmdUsage{
-			Summary: "convert line endings to CRLF",
-			Args:    "file...",
-		},
-		func(s *script.State, args ...string) (script.WaitFunc, error) {
-			if len(args) == 0 {
-				return nil, script.ErrUsage
-			}
-
-			for _, file := range args {
-				file = s.Path(file)
-				data, err := os.ReadFile(file)
-				if err != nil {
-					return nil, err
-				}
-				err = os.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			return nil, nil
-		})
 }
 
 // scriptCC runs the C compiler along with platform specific options.

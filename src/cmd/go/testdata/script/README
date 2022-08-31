@@ -204,10 +204,6 @@ for manual debugging of failing tests:
 	$
 
 The available commands are:
-addcrlf file...
-	convert line endings to CRLF
-
-
 cat files...
 	concatenate files and print to the script's stdout buffer
 
@@ -303,6 +299,12 @@ mv old new
 
 	OS-specific restrictions may apply when old and new are in
 	different directories.
+
+replace [old new]... file
+	replace strings in a file
+
+	The 'old' and 'new' arguments are unquoted as if in quoted
+	Go strings.
 
 rm path...
 	remove a file or directory
