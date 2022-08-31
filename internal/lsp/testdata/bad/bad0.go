@@ -3,7 +3,7 @@
 
 package bad
 
-import _ "golang.org/x/tools/internal/lsp/assign/internal/secret" //@diag("\"golang.org/x/tools/internal/lsp/assign/internal/secret\"", "compiler", "could not import golang.org/x/tools/internal/lsp/assign/internal/secret \\(invalid use of internal package golang.org/x/tools/internal/lsp/assign/internal/secret\\)", "error")
+import _ "golang.org/lsptests/assign/internal/secret" //@diag("\"golang.org/lsptests/assign/internal/secret\"", "compiler", "could not import golang.org/lsptests/assign/internal/secret \\(invalid use of internal package golang.org/lsptests/assign/internal/secret\\)", "error")
 
 func stuff() { //@item(stuff, "stuff", "func()", "func")
 	x := "heeeeyyyy"

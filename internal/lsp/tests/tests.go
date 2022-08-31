@@ -42,7 +42,12 @@ const (
 	overlayFileSuffix = ".overlay"
 	goldenFileSuffix  = ".golden"
 	inFileSuffix      = ".in"
-	testModule        = "golang.org/x/tools/internal/lsp"
+
+	// The module path containing the testdata packages.
+	//
+	// Warning: the length of this module path matters, as we have bumped up
+	// against command-line limitations on windows (golang/go#54800).
+	testModule = "golang.org/lsptests"
 )
 
 var summaryFile = "summary.txt"

@@ -3,7 +3,7 @@ package signature_test
 import (
 	"testing"
 
-	sig "golang.org/x/tools/internal/lsp/signature"
+	sig "golang.org/lsptests/signature"
 )
 
 func TestSignature(t *testing.T) {

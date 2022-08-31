@@ -1,16 +1,16 @@
 package importedcomplit
 
 import (
-	"golang.org/x/tools/internal/lsp/foo"
+	"golang.org/lsptests/foo"
 
 	// import completions
 	"fm" //@complete("\" //", fmtImport)
 	"go/pars" //@complete("\" //", parserImport)
-	"golang.org/x/tools/internal/lsp/signa" //@complete("na\" //", signatureImport)
-	"golang.org/x/too" //@complete("\" //", toolsImport)
+	"golang.org/lsptests/signa" //@complete("na\" //", signatureImport)
+	"golang.org/lspte" //@complete("\" //", lsptestsImport)
 	"crypto/elli" //@complete("\" //", cryptoImport)
-	"golang.org/x/tools/internal/lsp/sign" //@complete("\" //", signatureImport)
-	"golang.org/x/tools/internal/lsp/sign" //@complete("ols", toolsImport)
+	"golang.org/lsptests/sign" //@complete("\" //", signatureImport)
+	"golang.org/lsptests/sign" //@complete("ests", lsptestsImport)
 	namedParser "go/pars" //@complete("\" //", parserImport)
 )
 
@@ -37,6 +37,6 @@ func _() {
 
 /* "fmt" */ //@item(fmtImport, "fmt", "\"fmt\"", "package")
 /* "go/parser" */ //@item(parserImport, "parser", "\"go/parser\"", "package")
-/* "golang.org/x/tools/internal/lsp/signature" */ //@item(signatureImport, "signature", "\"golang.org/x/tools/internal/lsp/signature\"", "package")
-/* "golang.org/x/tools/" */ //@item(toolsImport, "tools/", "\"golang.org/x/tools/\"", "package")
+/* "golang.org/lsptests/signature" */ //@item(signatureImport, "signature", "\"golang.org/lsptests/signature\"", "package")
+/* "golang.org/lsptests/" */ //@item(lsptestsImport, "lsptests/", "\"golang.org/lsptests/\"", "package")
 /* "crypto/elliptic" */ //@item(cryptoImport, "elliptic", "\"crypto/elliptic\"", "package")

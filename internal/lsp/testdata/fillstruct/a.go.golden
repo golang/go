@@ -2,7 +2,7 @@
 package fillstruct
 
 import (
-	"golang.org/x/tools/internal/lsp/fillstruct/data"
+	"golang.org/lsptests/fillstruct/data"
 )
 
 type basicStruct struct {
@@ -33,7 +33,7 @@ var _ = data.B{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 package fillstruct
 
 import (
-	"golang.org/x/tools/internal/lsp/fillstruct/data"
+	"golang.org/lsptests/fillstruct/data"
 )
 
 type basicStruct struct {
@@ -65,7 +65,7 @@ var _ = data.B{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 package fillstruct
 
 import (
-	"golang.org/x/tools/internal/lsp/fillstruct/data"
+	"golang.org/lsptests/fillstruct/data"
 )
 
 type basicStruct struct {
@@ -97,7 +97,7 @@ var _ = data.B{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 package fillstruct
 
 import (
-	"golang.org/x/tools/internal/lsp/fillstruct/data"
+	"golang.org/lsptests/fillstruct/data"
 )
 
 type basicStruct struct {

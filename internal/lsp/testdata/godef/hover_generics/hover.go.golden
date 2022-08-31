@@ -14,7 +14,7 @@ field Q int
 @mark(ValueQfield, "Q"),hoverdef("Q", ValueQfield)
 
 
-[`(hover.Value).Q` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/hover_generics#Value.Q)
+[`(hover.Value).Q` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/hover_generics#Value.Q)
 -- ValueTdecl-hoverdef --
 ```go
 type parameter T any

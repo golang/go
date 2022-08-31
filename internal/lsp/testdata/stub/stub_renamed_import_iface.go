@@ -1,7 +1,7 @@
 package stub
 
 import (
-	"golang.org/x/tools/internal/lsp/stub/other"
+	"golang.org/lsptests/stub/other"
 )
 
 // This file tests that if an interface

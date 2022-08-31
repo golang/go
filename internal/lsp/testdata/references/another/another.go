@@ -2,7 +2,7 @@
 package another
 
 import (
-	other "golang.org/x/tools/internal/lsp/references/other"
+	other "golang.org/lsptests/references/other"
 )
 
 func _() {

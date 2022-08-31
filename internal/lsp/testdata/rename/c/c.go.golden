@@ -24,7 +24,7 @@ func Goodbye() {} //@rename("Hello", "Goodbye")
 c.go:
 package c
 
-import "golang.org/x/tools/internal/lsp/rename/b"
+import "golang.org/lsptests/rename/b"
 
 func _() {
 	b.Goodbye() //@rename("Hello", "Goodbye")

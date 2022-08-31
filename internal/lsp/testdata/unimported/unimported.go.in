@@ -14,7 +14,7 @@ func _() {
 
 /* ring.Ring */ //@item(ringring, "Ring", "(from \"container/ring\")", "var")
 
-/* signature.Foo */ //@item(signaturefoo, "Foo", "func(a string, b int) (c bool) (from \"golang.org/x/tools/internal/lsp/signature\")", "func")
+/* signature.Foo */ //@item(signaturefoo, "Foo", "func(a string, b int) (c bool) (from \"golang.org/lsptests/signature\")", "func")
 
 /* context.Background */ //@item(contextBackground, "Background", "func() context.Context (from \"context\")", "func")
 /* context.Background().Err */ //@item(contextBackgroundErr, "Background().Err", "func() error (from \"context\")", "method")

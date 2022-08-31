@@ -1,6 +1,6 @@
 package danglingstmt
 
-import "golang.org/x/tools/internal/lsp/foo"
+import "golang.org/lsptests/foo"
 
 func _() {
 	foo. //@rank(" //", Foo)

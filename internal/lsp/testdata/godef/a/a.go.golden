@@ -21,7 +21,7 @@ godef/a/random.go:3:6-12: defined here as ```go
 func Random() int
 ```
 
-[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
+[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Random)
 -- Random-definition-json --
 {
 	"span": {
@@ -37,7 +37,7 @@ func Random() int
 			"offset": 22
 		}
 	},
-	"description": "```go\nfunc Random() int\n```\n\n[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)"
+	"description": "```go\nfunc Random() int\n```\n\n[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Random)"
 }
 
 -- Random-hoverdef --
@@ -45,13 +45,13 @@ func Random() int
 func Random() int
 ```
 
-[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
+[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Random)
 -- Random2-definition --
 godef/a/random.go:8:6-13: defined here as ```go
 func Random2(y int) int
 ```
 
-[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
+[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Random2)
 -- Random2-definition-json --
 {
 	"span": {
@@ -67,7 +67,7 @@ func Random2(y int) int
 			"offset": 78
 		}
 	},
-	"description": "```go\nfunc Random2(y int) int\n```\n\n[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)"
+	"description": "```go\nfunc Random2(y int) int\n```\n\n[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Random2)"
 }
 
 -- Random2-hoverdef --
@@ -75,7 +75,7 @@ func Random2(y int) int
 func Random2(y int) int
 ```
 
-[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
+[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Random2)
 -- aPackage-hoverdef --
 Package a is a package for testing go to definition.
 

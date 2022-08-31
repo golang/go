@@ -3,7 +3,7 @@
 func AStuff()
 ```
 
-[`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#AStuff)
+[`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#AStuff)
 -- AVariable-hoverdef --
 ```go
 var _ A

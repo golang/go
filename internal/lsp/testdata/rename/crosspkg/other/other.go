@@ -1,6 +1,6 @@
 package other
 
-import "golang.org/x/tools/internal/lsp/rename/crosspkg"
+import "golang.org/lsptests/rename/crosspkg"
 
 func Other() {
 	crosspkg.Bar

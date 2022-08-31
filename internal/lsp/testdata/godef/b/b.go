@@ -1,8 +1,8 @@
 package b
 
 import (
-	myFoo "golang.org/x/tools/internal/lsp/foo" //@mark(myFoo, "myFoo"),godef("myFoo", myFoo)
-	"golang.org/x/tools/internal/lsp/godef/a"   //@mark(AImport, re"\".*\"")
+	myFoo "golang.org/lsptests/foo" //@mark(myFoo, "myFoo"),godef("myFoo", myFoo)
+	"golang.org/lsptests/godef/a"   //@mark(AImport, re"\".*\"")
 )
 
 type Embed struct {

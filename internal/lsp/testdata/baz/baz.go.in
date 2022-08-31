@@ -3,9 +3,9 @@
 package baz
 
 import (
-	"golang.org/x/tools/internal/lsp/bar"
+	"golang.org/lsptests/bar"
 
-	f "golang.org/x/tools/internal/lsp/foo"
+	f "golang.org/lsptests/foo"
 )
 
 var FooStruct f.StructFoo

@@ -3,7 +3,7 @@ godef/a/random.go:24:15-18: defined here as ```go
 func (*Pos).Sum() int
 ```
 
-[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Pos.Sum)
+[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Pos.Sum)
 -- PosSum-definition-json --
 {
 	"span": {
@@ -19,7 +19,7 @@ func (*Pos).Sum() int
 			"offset": 416
 		}
 	},
-	"description": "```go\nfunc (*Pos).Sum() int\n```\n\n[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Pos.Sum)"
+	"description": "```go\nfunc (*Pos).Sum() int\n```\n\n[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Pos.Sum)"
 }
 
 -- PosSum-hoverdef --
@@ -27,7 +27,7 @@ func (*Pos).Sum() int
 func (*Pos).Sum() int
 ```
 
-[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Pos.Sum)
+[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Pos.Sum)
 -- PosX-definition --
 godef/a/random.go:13:2-3: defined here as ```go
 field x int
