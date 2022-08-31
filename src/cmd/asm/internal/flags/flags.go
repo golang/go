@@ -73,8 +73,7 @@ func Usage() {
 }
 
 func Parse() {
-	flag.Usage = Usage
-	flag.Parse()
+	objabi.Flagparse(Usage)
 	if flag.NArg() == 0 {
 		flag.Usage()
 	}

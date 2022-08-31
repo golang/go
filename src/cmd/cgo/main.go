@@ -252,8 +252,7 @@ var gccBaseCmd []string
 
 func main() {
 	objabi.AddVersionFlag() // -V
-	flag.Usage = usage
-	flag.Parse()
+	objabi.Flagparse(usage)
 
 	if *dynobj != "" {
 		// cgo -dynimport is essentially a separate helper command

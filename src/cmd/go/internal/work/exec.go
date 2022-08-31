@@ -3407,10 +3407,10 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 func useResponseFile(path string, argLen int) bool {
 	// Unless the program uses objabi.Flagparse, which understands
 	// response files, don't use response files.
-	// TODO: do we need more commands? asm? cgo? For now, no.
+	// TODO: Note that other toolchains like CC are missing here for now.
 	prog := strings.TrimSuffix(filepath.Base(path), ".exe")
 	switch prog {
-	case "compile", "link":
+	case "compile", "link", "cgo", "asm":
 	default:
 		return false
 	}
