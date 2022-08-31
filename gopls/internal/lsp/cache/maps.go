@@ -212,5 +212,5 @@ func actionKeyLessInterface(a, b interface{}) bool {
 	if x.analyzer.Name != y.analyzer.Name {
 		return x.analyzer.Name < y.analyzer.Name
 	}
-	return packageKeyLess(x.pkg, y.pkg)
+	return x.pkgid < y.pkgid
 }

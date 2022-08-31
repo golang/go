@@ -10,14 +10,16 @@ import (
 	"go/ast"
 	"go/types"
 	"reflect"
+	"runtime/debug"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
-	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 )
@@ -60,7 +62,7 @@ func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.A
 }
 
 type actionKey struct {
-	pkg      packageKey
+	pkgid    PackageID
 	analyzer *analysis.Analyzer
 }
 
@@ -102,11 +104,7 @@ type packageFactKey struct {
 }
 
 func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.Analyzer) (*actionHandle, error) {
-	const mode = source.ParseFull
-	key := actionKey{
-		pkg:      packageKey{id: id, mode: mode},
-		analyzer: a,
-	}
+	key := actionKey{id, a}
 
 	s.mu.Lock()
 	entry, hit := s.actions.Get(key)
@@ -126,7 +124,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	// use of concurrency would lead to an exponential amount of duplicated
 	// work. We should instead use an atomically updated future cache
 	// and a parallel graph traversal.
-	ph, err := s.buildPackageHandle(ctx, id, mode)
+	ph, err := s.buildPackageHandle(ctx, id, source.ParseFull)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +136,8 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	// Add a dependency on each required analyzer.
 	var deps []*actionHandle
 	for _, req := range a.Requires {
+		// TODO(adonovan): opt: there's no need to repeat the package-handle
+		// portion of the recursion here, since we have the pkg already.
 		reqActionHandle, err := s.actionHandle(ctx, id, req)
 		if err != nil {
 			return nil, err
@@ -227,7 +227,8 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 				// in-memory outputs of prerequisite analyzers
 				// become inputs to this analysis pass.
 				inputs[dep.analyzer] = data.result
-			} else if dep.analyzer == analyzer { // (always true)
+
+			} else if dep.analyzer == analyzer {
 				// Same analysis, different package (vertical edge):
 				// serialized facts produced by prerequisite analysis
 				// become available to this analysis pass.
@@ -246,12 +247,34 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 					// to prevent side channels.
 					packageFacts[key] = fact
 				}
+
+			} else {
+				// Edge is neither vertical nor horizontal.
+				// This should never happen, yet an assertion here was
+				// observed to fail due to an edge (bools, p) -> (inspector, p')
+				// where p and p' are distinct packages with the
+				// same ID ("command-line-arguments:file=.../main.go").
+				//
+				// It is not yet clear whether the command-line-arguments
+				// package is significant, but it is clear that package
+				// loading (the mapping from ID to *pkg) is inconsistent
+				// within a single graph.
+
+				// Use the bug package so that we detect whether our tests
+				// discover this problem in regular packages.
+				// For command-line-arguments we quietly abort the analysis
+				// for now since we already know there is a bug.
+				errorf := bug.Errorf // report this discovery
+				if source.IsCommandLineArguments(pkg.ID()) {
+					errorf = fmt.Errorf // suppress reporting
+				}
+				return errorf("internal error: unexpected analysis dependency %s@%s -> %s", analyzer.Name, pkg.ID(), dep)
 			}
 			return nil
 		})
 	}
 	if err := g.Wait(); err != nil {
-		return nil, err // e.g. cancelled
+		return nil, err // cancelled, or dependency failed
 	}
 
 	// Now run the (pkg, analyzer) analysis.
@@ -338,13 +361,19 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 	var result interface{}
 	var err error
 	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				// TODO(adonovan): use bug.Errorf here so that we
-				// detect crashes covered by our test suite.
-				err = fmt.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath(), r)
-			}
-		}()
+		// Set this flag temporarily when debugging crashes.
+		// See https://github.com/golang/go/issues/54762.
+		const norecover = false
+		if norecover {
+			debug.SetTraceback("all") // show all goroutines
+		} else {
+			defer func() {
+				if r := recover(); r != nil {
+					// Use bug.Errorf so that we detect panics during testing.
+					err = bug.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath(), r)
+				}
+			}()
+		}
 		result, err = pass.Analyzer.Run(pass)
 	}()
 	if err != nil {
@@ -414,13 +443,14 @@ func factType(fact analysis.Fact) reflect.Type {
 
 func (s *snapshot) DiagnosePackage(ctx context.Context, spkg source.Package) (map[span.URI][]*source.Diagnostic, error) {
 	pkg := spkg.(*pkg)
-	// Apply type error analyzers. They augment type error diagnostics with their own fixes.
-	var analyzers []*source.Analyzer
-	for _, a := range s.View().Options().TypeErrorAnalyzers {
-		analyzers = append(analyzers, a)
-	}
 	var errorAnalyzerDiag []*source.Diagnostic
 	if pkg.HasTypeErrors() {
+		// Apply type error analyzers.
+		// They augment type error diagnostics with their own fixes.
+		var analyzers []*source.Analyzer
+		for _, a := range s.View().Options().TypeErrorAnalyzers {
+			analyzers = append(analyzers, a)
+		}
 		var err error
 		errorAnalyzerDiag, err = s.Analyze(ctx, pkg.ID(), analyzers)
 		if err != nil {

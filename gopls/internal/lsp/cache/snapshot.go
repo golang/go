@@ -1880,7 +1880,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	var actionsToDelete []actionKey
 	s.actions.Range(func(k, _ interface{}) {
 		key := k.(actionKey)
-		if _, ok := idsToInvalidate[key.pkg.id]; ok {
+		if _, ok := idsToInvalidate[key.pkgid]; ok {
 			actionsToDelete = append(actionsToDelete, key)
 		}
 	})
