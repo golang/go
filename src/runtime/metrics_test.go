@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"reflect"
 	"runtime"
 	"runtime/metrics"
 	"sort"
@@ -156,7 +157,7 @@ func TestReadMetricsConsistency(t *testing.T) {
 	// Tests whether readMetrics produces consistent, sensible values.
 	// The values are read concurrently with the runtime doing other
 	// things (e.g. allocating) so what we read can't reasonably compared
-	// to runtime values.
+	// to other runtime values (e.g. MemStats).
 
 	// Run a few GC cycles to get some of the stats to be non-zero.
 	runtime.GC()
@@ -485,4 +486,128 @@ func TestReadMetricsCumulative(t *testing.T) {
 
 func withinEpsilon(v1, v2, e float64) bool {
 	return v2-v2*e <= v1 && v1 <= v2+v2*e
+}
+
+func TestMutexWaitTimeMetric(t *testing.T) {
+	var sample [1]metrics.Sample
+	sample[0].Name = "/sync/mutex/wait/total:seconds"
+
+	locks := []locker2{
+		new(mutex),
+		new(rwmutexWrite),
+		new(rwmutexReadWrite),
+		new(rwmutexWriteRead),
+	}
+	for _, lock := range locks {
+		t.Run(reflect.TypeOf(lock).Elem().Name(), func(t *testing.T) {
+			metrics.Read(sample[:])
+			before := time.Duration(sample[0].Value.Float64() * 1e9)
+
+			minMutexWaitTime := generateMutexWaitTime(lock)
+
+			metrics.Read(sample[:])
+			after := time.Duration(sample[0].Value.Float64() * 1e9)
+
+			if wt := after - before; wt < minMutexWaitTime {
+				t.Errorf("too little mutex wait time: got %s, want %s", wt, minMutexWaitTime)
+			}
+		})
+	}
+}
+
+// locker2 represents an API surface of two concurrent goroutines
+// locking the same resource, but through different APIs. It's intended
+// to abstract over the relationship of two Lock calls or an RLock
+// and a Lock call.
+type locker2 interface {
+	Lock1()
+	Unlock1()
+	Lock2()
+	Unlock2()
+}
+
+type mutex struct {
+	mu sync.Mutex
+}
+
+func (m *mutex) Lock1()   { m.mu.Lock() }
+func (m *mutex) Unlock1() { m.mu.Unlock() }
+func (m *mutex) Lock2()   { m.mu.Lock() }
+func (m *mutex) Unlock2() { m.mu.Unlock() }
+
+type rwmutexWrite struct {
+	mu sync.RWMutex
+}
+
+func (m *rwmutexWrite) Lock1()   { m.mu.Lock() }
+func (m *rwmutexWrite) Unlock1() { m.mu.Unlock() }
+func (m *rwmutexWrite) Lock2()   { m.mu.Lock() }
+func (m *rwmutexWrite) Unlock2() { m.mu.Unlock() }
+
+type rwmutexReadWrite struct {
+	mu sync.RWMutex
+}
+
+func (m *rwmutexReadWrite) Lock1()   { m.mu.RLock() }
+func (m *rwmutexReadWrite) Unlock1() { m.mu.RUnlock() }
+func (m *rwmutexReadWrite) Lock2()   { m.mu.Lock() }
+func (m *rwmutexReadWrite) Unlock2() { m.mu.Unlock() }
+
+type rwmutexWriteRead struct {
+	mu sync.RWMutex
+}
+
+func (m *rwmutexWriteRead) Lock1()   { m.mu.Lock() }
+func (m *rwmutexWriteRead) Unlock1() { m.mu.Unlock() }
+func (m *rwmutexWriteRead) Lock2()   { m.mu.RLock() }
+func (m *rwmutexWriteRead) Unlock2() { m.mu.RUnlock() }
+
+// generateMutexWaitTime causes a couple of goroutines
+// to block a whole bunch of times on a sync.Mutex, returning
+// the minimum amount of time that should be visible in the
+// /sync/mutex-wait:seconds metric.
+func generateMutexWaitTime(mu locker2) time.Duration {
+	// Set up the runtime to always track casgstatus transitions for metrics.
+	*runtime.CasGStatusAlwaysTrack = true
+
+	mu.Lock1()
+
+	// Start up a goroutine to wait on the lock.
+	gc := make(chan *runtime.G)
+	done := make(chan bool)
+	go func() {
+		gc <- runtime.Getg()
+
+		for {
+			mu.Lock2()
+			mu.Unlock2()
+			if <-done {
+				return
+			}
+		}
+	}()
+	gp := <-gc
+
+	// Set the block time high enough so that it will always show up, even
+	// on systems with coarse timer granularity.
+	const blockTime = 100 * time.Millisecond
+
+	// Make sure the goroutine spawned above actually blocks on the lock.
+	for {
+		if runtime.GIsWaitingOnMutex(gp) {
+			break
+		}
+		runtime.Gosched()
+	}
+
+	// Let some amount of time pass.
+	time.Sleep(blockTime)
+
+	// Let the other goroutine acquire the lock.
+	mu.Unlock1()
+	done <- true
+
+	// Reset flag.
+	*runtime.CasGStatusAlwaysTrack = false
+	return blockTime
 }

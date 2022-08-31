@@ -468,7 +468,7 @@ type g struct {
 	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
 	tracking       bool     // whether we're tracking this G for sched latency statistics
 	trackingSeq    uint8    // used to decide whether to track this G
-	runnableStamp  int64    // timestamp of when the G last became runnable, only used when tracking
+	trackingStamp  int64    // timestamp of when the G last started being tracked
 	runnableTime   int64    // the amount of time spent runnable, cleared when running, only used when tracking
 	sysexitticks   int64    // cputicks when syscall has returned (for tracing)
 	traceseq       uint64   // trace event sequencer
@@ -843,6 +843,10 @@ type schedt struct {
 	//
 	// Reset on each GC cycle.
 	idleTime atomic.Int64
+
+	// totalMutexWaitTime is the sum of time goroutines have spent in _Gwaiting
+	// with a waitreason of the form waitReasonSync{RW,}Mutex{R,}Lock.
+	totalMutexWaitTime atomic.Int64
 }
 
 // Values for the flags field of a sigTabT.
@@ -1107,6 +1111,12 @@ func (w waitReason) String() string {
 		return "unknown wait reason"
 	}
 	return waitReasonStrings[w]
+}
+
+func (w waitReason) isMutexWait() bool {
+	return w == waitReasonSyncMutexLock ||
+		w == waitReasonSyncRWMutexRLock ||
+		w == waitReasonSyncRWMutexLock
 }
 
 var (

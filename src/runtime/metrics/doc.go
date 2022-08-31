@@ -272,5 +272,12 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/sched/latencies:seconds
 		Distribution of the time goroutines have spent in the scheduler
 		in a runnable state before actually running.
+
+	/sync/mutex/wait/total:seconds
+		Approximate cumulative time goroutines have spent blocked on a
+		sync.Mutex or sync.RWMutex. This metric is useful for identifying
+		global changes in lock contention. Collect a mutex or block
+		profile using the runtime/pprof package for more detailed
+		contention data.
 */
 package metrics

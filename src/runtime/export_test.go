@@ -525,6 +525,12 @@ func Getg() *G {
 	return getg()
 }
 
+func GIsWaitingOnMutex(gp *G) bool {
+	return readgstatus(gp) == _Gwaiting && gp.waitreason.isMutexWait()
+}
+
+var CasGStatusAlwaysTrack = &casgstatusAlwaysTrack
+
 //go:noinline
 func PanicForTesting(b []byte, i int) byte {
 	return unexportedPanicForTesting(b, i)
@@ -1617,3 +1623,5 @@ func (s *ScavengeIndex) Mark(base, limit uintptr) {
 func (s *ScavengeIndex) Clear(ci ChunkIdx) {
 	s.i.clear(chunkIdx(ci))
 }
+
+const GTrackingPeriod = gTrackingPeriod

@@ -954,6 +954,10 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 	panic("not reached")
 }
 
+// casgstatusAlwaysTrack is a debug flag that causes casgstatus to always track
+// various latencies on every transition instead of sampling them.
+var casgstatusAlwaysTrack = false
+
 // If asked to move to or from a Gscanstatus this will throw. Use the castogscanstatus
 // and casfrom_Gscanstatus instead.
 // casgstatus will loop if the g->atomicstatus is in a Gscan status until the routine that
@@ -994,36 +998,65 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		}
 	}
 
-	// Handle tracking for scheduling latencies.
 	if oldval == _Grunning {
-		// Track every 8th time a goroutine transitions out of running.
-		if gp.trackingSeq%gTrackingPeriod == 0 {
+		// Track every gTrackingPeriod time a goroutine transitions out of running.
+		if casgstatusAlwaysTrack || gp.trackingSeq%gTrackingPeriod == 0 {
 			gp.tracking = true
 		}
 		gp.trackingSeq++
 	}
-	if gp.tracking {
-		if oldval == _Grunnable {
-			// We transitioned out of runnable, so measure how much
-			// time we spent in this state and add it to
-			// runnableTime.
-			now := nanotime()
-			gp.runnableTime += now - gp.runnableStamp
-			gp.runnableStamp = 0
+	if !gp.tracking {
+		return
+	}
+
+	// Handle various kinds of tracking.
+	//
+	// Currently:
+	// - Time spent in runnable.
+	// - Time spent blocked on a sync.Mutex or sync.RWMutex.
+	switch oldval {
+	case _Grunnable:
+		// We transitioned out of runnable, so measure how much
+		// time we spent in this state and add it to
+		// runnableTime.
+		now := nanotime()
+		gp.runnableTime += now - gp.trackingStamp
+		gp.trackingStamp = 0
+	case _Gwaiting:
+		if !gp.waitreason.isMutexWait() {
+			// Not blocking on a lock.
+			break
 		}
-		if newval == _Grunnable {
-			// We just transitioned into runnable, so record what
-			// time that happened.
-			now := nanotime()
-			gp.runnableStamp = now
-		} else if newval == _Grunning {
-			// We're transitioning into running, so turn off
-			// tracking and record how much time we spent in
-			// runnable.
-			gp.tracking = false
-			sched.timeToRun.record(gp.runnableTime)
-			gp.runnableTime = 0
+		// Blocking on a lock, measure it. Note that because we're
+		// sampling, we have to multiply by our sampling period to get
+		// a more representative estimate of the absolute value.
+		// gTrackingPeriod also represents an accurate sampling period
+		// because we can only enter this state from _Grunning.
+		now := nanotime()
+		sched.totalMutexWaitTime.Add((now - gp.trackingStamp) * gTrackingPeriod)
+		gp.trackingStamp = 0
+	}
+	switch newval {
+	case _Gwaiting:
+		if !gp.waitreason.isMutexWait() {
+			// Not blocking on a lock.
+			break
 		}
+		// Blocking on a lock. Write down the timestamp.
+		now := nanotime()
+		gp.trackingStamp = now
+	case _Grunnable:
+		// We just transitioned into runnable, so record what
+		// time that happened.
+		now := nanotime()
+		gp.trackingStamp = now
+	case _Grunning:
+		// We're transitioning into running, so turn off
+		// tracking and record how much time we spent in
+		// runnable.
+		gp.tracking = false
+		sched.timeToRun.record(gp.runnableTime)
+		gp.runnableTime = 0
 	}
 }
 
@@ -1031,6 +1064,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
 //
 // Use this over casgstatus when possible to ensure that a waitreason is set.
 func casGToWaiting(gp *g, old uint32, reason waitReason) {
+	// Set the wait reason before calling casgstatus, because casgstatus will use it.
 	gp.waitreason = reason
 	casgstatus(gp, old, _Gwaiting)
 }
