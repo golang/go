@@ -401,15 +401,20 @@ func (p *parser) fileOrNil() *File {
 		return nil
 	}
 
-	// { ImportDecl ";" }
-	for p.got(_Import) {
-		f.DeclList = p.appendGroup(f.DeclList, p.importDecl)
-		p.want(_Semi)
-	}
-
-	// { TopLevelDecl ";" }
+	// Accept import declarations anywhere for error tolerance, but complain.
+	// { ( ImportDecl | TopLevelDecl ) ";" }
+	prev := _Import
 	for p.tok != _EOF {
+		if p.tok == _Import && prev != _Import {
+			p.syntaxError("imports must appear before other declarations")
+		}
+		prev = p.tok
+
 		switch p.tok {
+		case _Import:
+			p.next()
+			f.DeclList = p.appendGroup(f.DeclList, p.importDecl)
+
 		case _Const:
 			p.next()
 			f.DeclList = p.appendGroup(f.DeclList, p.constDecl)
@@ -435,7 +440,7 @@ func (p *parser) fileOrNil() *File {
 			} else {
 				p.syntaxError("non-declaration statement outside function body")
 			}
-			p.advance(_Const, _Type, _Var, _Func)
+			p.advance(_Import, _Const, _Type, _Var, _Func)
 			continue
 		}
 
@@ -445,7 +450,7 @@ func (p *parser) fileOrNil() *File {
 
 		if p.tok != _EOF && !p.got(_Semi) {
 			p.syntaxError("after top level declaration")
-			p.advance(_Const, _Type, _Var, _Func)
+			p.advance(_Import, _Const, _Type, _Var, _Func)
 		}
 	}
 	// p.tok == _EOF
@@ -543,7 +548,7 @@ func (p *parser) importDecl(group *Group) Decl {
 		return d
 	}
 	if !d.Path.Bad && d.Path.Kind != StringLit {
-		p.syntaxError("import path must be a string")
+		p.syntaxErrorAt(d.Path.Pos(), "import path must be a string")
 		d.Path.Bad = true
 	}
 	// d.Path.Bad || d.Path.Kind == StringLit
