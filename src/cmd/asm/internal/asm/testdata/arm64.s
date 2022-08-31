@@ -1113,6 +1113,7 @@ next:
 	MSR	$1, SPSel                          // bf4100d5
 	MSR	$9, DAIFSet                        // df4903d5
 	MSR	$6, DAIFClr                        // ff4603d5
+	MSR	$0, CPACR_EL1                      // 5f1018d5
 	MRS	ELR_EL1, R8                        // 284038d5
 	MSR	R16, ELR_EL1                       // 304018d5
 	MSR	R2, ACTLR_EL1                      // 221018d5
