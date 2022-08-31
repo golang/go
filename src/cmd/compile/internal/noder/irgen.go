@@ -6,6 +6,7 @@ package noder
 
 import (
 	"fmt"
+	"sort"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/dwarfgen"
@@ -62,6 +63,31 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 	}
 
 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+
+	// Implementation restriction: we don't allow not-in-heap types to
+	// be used as type arguments (#54765).
+	{
+		type nihTarg struct {
+			pos src.XPos
+			typ types2.Type
+		}
+		var nihTargs []nihTarg
+
+		for name, inst := range info.Instances {
+			for i := 0; i < inst.TypeArgs.Len(); i++ {
+				if targ := inst.TypeArgs.At(i); isNotInHeap(targ) {
+					nihTargs = append(nihTargs, nihTarg{m.makeXPos(name.Pos()), targ})
+				}
+			}
+		}
+		sort.Slice(nihTargs, func(i, j int) bool {
+			ti, tj := nihTargs[i], nihTargs[j]
+			return ti.pos.Before(tj.pos)
+		})
+		for _, targ := range nihTargs {
+			base.ErrorfAt(targ.pos, "cannot use incomplete (or unallocatable) type as a type argument: %v", targ.typ)
+		}
+	}
 
 	base.ExitIfErrors()
 	if err != nil {

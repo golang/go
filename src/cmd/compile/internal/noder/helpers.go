@@ -256,3 +256,28 @@ func isTypeParam(t types2.Type) bool {
 	_, ok := t.(*types2.TypeParam)
 	return ok
 }
+
+// isNotInHeap reports whether typ is or contains an element of type
+// runtime/internal/sys.NotInHeap.
+func isNotInHeap(typ types2.Type) bool {
+	if named, ok := typ.(*types2.Named); ok {
+		if obj := named.Obj(); obj.Name() == "nih" && obj.Pkg().Path() == "runtime/internal/sys" {
+			return true
+		}
+		typ = named.Underlying()
+	}
+
+	switch typ := typ.(type) {
+	case *types2.Array:
+		return isNotInHeap(typ.Elem())
+	case *types2.Struct:
+		for i := 0; i < typ.NumFields(); i++ {
+			if isNotInHeap(typ.Field(i).Type()) {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
+	}
+}
