@@ -1151,22 +1151,23 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		rs, err := tidyRoots(ctx, ld.requirements, ld.pkgs)
 		if err != nil {
 			ld.errorf("go: %v\n", err)
-		}
-
-		if ld.requirements.pruning == pruned {
-			// We continuously add tidy roots to ld.requirements during loading, so at
-			// this point the tidy roots should be a subset of the roots of
-			// ld.requirements, ensuring that no new dependencies are brought inside
-			// the graph-pruning horizon.
-			// If that is not the case, there is a bug in the loading loop above.
-			for _, m := range rs.rootModules {
-				if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
-					ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
-					base.ExitIfErrors()
+			base.ExitIfErrors()
+		} else {
+			if ld.requirements.pruning == pruned {
+				// We continuously add tidy roots to ld.requirements during loading, so at
+				// this point the tidy roots should be a subset of the roots of
+				// ld.requirements, ensuring that no new dependencies are brought inside
+				// the graph-pruning horizon.
+				// If that is not the case, there is a bug in the loading loop above.
+				for _, m := range rs.rootModules {
+					if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
+						ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
+						base.ExitIfErrors()
+					}
 				}
 			}
+			ld.requirements = rs
 		}
-		ld.requirements = rs
 	}
 
 	// Report errors, if any.

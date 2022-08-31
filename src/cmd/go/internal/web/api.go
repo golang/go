@@ -54,12 +54,16 @@ func (e *HTTPError) Error() string {
 		return fmt.Sprintf("reading %s: %v\n\tserver response:%s%s", e.URL, e.Status, detailSep, e.Detail)
 	}
 
-	if err := e.Err; err != nil {
-		if pErr, ok := e.Err.(*fs.PathError); ok && strings.HasSuffix(e.URL, pErr.Path) {
-			// Remove the redundant copy of the path.
-			err = pErr.Err
+	if eErr := e.Err; eErr != nil {
+		if pErr, ok := e.Err.(*fs.PathError); ok {
+			if u, err := url.Parse(e.URL); err == nil {
+				if fp, err := urlToFilePath(u); err == nil && pErr.Path == fp {
+					// Remove the redundant copy of the path.
+					eErr = pErr.Err
+				}
+			}
 		}
-		return fmt.Sprintf("reading %s: %v", e.URL, err)
+		return fmt.Sprintf("reading %s: %v", e.URL, eErr)
 	}
 
 	return fmt.Sprintf("reading %s: %v", e.URL, e.Status)
