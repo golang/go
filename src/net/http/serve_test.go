@@ -5843,6 +5843,58 @@ func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
 	})
 }
 
+// Issue 54784: test that the Server's ReadHeaderTimeout only starts once the
+// beginning of a request has been received, rather than including time the
+// connection spent idle.
+func TestServerCancelsReadHeaderTimeoutWhenIdle(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	runTimeSensitiveTest(t, []time.Duration{
+		10 * time.Millisecond,
+		50 * time.Millisecond,
+		250 * time.Millisecond,
+		time.Second,
+		2 * time.Second,
+	}, func(t *testing.T, timeout time.Duration) error {
+		ts := httptest.NewUnstartedServer(serve(200))
+		ts.Config.ReadHeaderTimeout = timeout
+		ts.Config.IdleTimeout = 0 // disable idle timeout
+		ts.Start()
+		defer ts.Close()
+
+		// rather than using an http.Client, create a single connection, so that
+		// we can ensure this connection is not closed.
+		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+		if err != nil {
+			t.Fatalf("dial failed: %v", err)
+		}
+		br := bufio.NewReader(conn)
+		defer conn.Close()
+
+		if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")); err != nil {
+			t.Fatalf("writing first request failed: %v", err)
+		}
+
+		if _, err := ReadResponse(br, nil); err != nil {
+			t.Fatalf("first response (before timeout) failed: %v", err)
+		}
+
+		// wait for longer than the server's ReadHeaderTimeout, and then send
+		// another request
+		time.Sleep(timeout + 10*time.Millisecond)
+
+		if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")); err != nil {
+			t.Fatalf("writing second request failed: %v", err)
+		}
+
+		if _, err := ReadResponse(br, nil); err != nil {
+			t.Fatalf("second response (after timeout) failed: %v", err)
+		}
+
+		return nil
+	})
+}
+
 // runTimeSensitiveTest runs test with the provided durations until one passes.
 // If they all fail, t.Fatal is called with the last one's duration and error value.
 func runTimeSensitiveTest(t *testing.T, durations []time.Duration, test func(t *testing.T, d time.Duration) error) {
