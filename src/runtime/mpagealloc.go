@@ -676,7 +676,7 @@ nextLevel:
 
 		// Determine j0, the first index we should start iterating from.
 		// The searchAddr may help us eliminate iterations if we followed the
-		// searchAddr on the previous level or we're on the root leve, in which
+		// searchAddr on the previous level or we're on the root level, in which
 		// case the searchAddr should be the same as i after levelShift.
 		j0 := 0
 		if searchIdx := offAddrToLevelIndex(l, p.searchAddr); searchIdx&^(entriesPerBlock-1) == i {
