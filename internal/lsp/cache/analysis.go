@@ -40,20 +40,21 @@ func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.A
 		roots = append(roots, ah)
 	}
 
-	// Check if the context has been canceled before running the analyses.
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
+	// Run and wait for all analyzers, and report diagnostics
+	// only from those that succeed. Ignore the others.
 	var results []*source.Diagnostic
 	for _, ah := range roots {
-		diagnostics, _, err := ah.analyze(ctx, s)
+		v, err := s.awaitPromise(ctx, ah.promise)
 		if err != nil {
-			// Keep going if a single analyzer failed.
-			event.Error(ctx, fmt.Sprintf("analyzer %q failed", ah.analyzer.Name), err)
-			continue
+			return nil, err // wait was cancelled
 		}
-		results = append(results, diagnostics...)
+
+		res := v.(actionResult)
+		if res.err != nil {
+			continue // analysis failed; ignore it.
+		}
+
+		results = append(results, res.data.diagnostics...)
 	}
 	return results, nil
 }
@@ -70,18 +71,24 @@ type actionHandleKey source.Hash
 // package (as different analyzers are applied, either in sequence or
 // parallel), and across packages (as dependencies are analyzed).
 type actionHandle struct {
-	promise *memoize.Promise
+	promise *memoize.Promise // [actionResult]
 
 	analyzer *analysis.Analyzer
 	pkg      *pkg
 }
 
+// actionData is the successful result of analyzing a package.
 type actionData struct {
 	diagnostics  []*source.Diagnostic
 	result       interface{}
 	objectFacts  map[objectFactKey]analysis.Fact
 	packageFacts map[packageFactKey]analysis.Fact
-	err          error
+}
+
+// actionResult holds the result of a call to actionImpl.
+type actionResult struct {
+	data *actionData
+	err  error
 }
 
 type objectFactKey struct {
@@ -156,15 +163,8 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	}
 
 	promise, release := s.store.Promise(buildActionKey(a, ph), func(ctx context.Context, arg interface{}) interface{} {
-		snapshot := arg.(*snapshot)
-		// Analyze dependencies first.
-		results, err := execAll(ctx, snapshot, deps)
-		if err != nil {
-			return &actionData{
-				err: err,
-			}
-		}
-		return runAnalysis(ctx, snapshot, a, pkg, results)
+		res, err := actionImpl(ctx, arg.(*snapshot), deps, a, pkg)
+		return actionResult{res, err}
 	})
 
 	ah := &actionHandle{
@@ -187,21 +187,6 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	return ah, nil
 }
 
-func (act *actionHandle) analyze(ctx context.Context, snapshot *snapshot) ([]*source.Diagnostic, interface{}, error) {
-	d, err := snapshot.awaitPromise(ctx, act.promise)
-	if err != nil {
-		return nil, nil, err
-	}
-	data, ok := d.(*actionData)
-	if !ok {
-		return nil, nil, fmt.Errorf("unexpected type for %s:%s", act.pkg.ID(), act.analyzer.Name)
-	}
-	if data == nil {
-		return nil, nil, fmt.Errorf("unexpected nil analysis for %s:%s", act.pkg.ID(), act.analyzer.Name)
-	}
-	return data.diagnostics, data.result, data.err
-}
-
 func buildActionKey(a *analysis.Analyzer, ph *packageHandle) actionHandleKey {
 	return actionHandleKey(source.Hashf("%p%s", a, ph.key[:]))
 }
@@ -210,80 +195,71 @@ func (act *actionHandle) String() string {
 	return fmt.Sprintf("%s@%s", act.analyzer, act.pkg.PkgPath())
 }
 
-func execAll(ctx context.Context, snapshot *snapshot, actions []*actionHandle) (map[*actionHandle]*actionData, error) {
-	var mu sync.Mutex
-	results := make(map[*actionHandle]*actionData)
-
+// actionImpl runs the analysis for action node (analyzer, pkg),
+// whose direct dependencies are deps.
+func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, analyzer *analysis.Analyzer, pkg *pkg) (*actionData, error) {
+	// Run action dependencies first, and plumb the results and
+	// facts of each dependency into the inputs of this action.
+	var (
+		mu           sync.Mutex
+		inputs       = make(map[*analysis.Analyzer]interface{})
+		objectFacts  = make(map[objectFactKey]analysis.Fact)
+		packageFacts = make(map[packageFactKey]analysis.Fact)
+	)
 	g, ctx := errgroup.WithContext(ctx)
-	for _, act := range actions {
-		act := act
+	for _, dep := range deps {
+		dep := dep
 		g.Go(func() error {
-			v, err := snapshot.awaitPromise(ctx, act.promise)
+			v, err := snapshot.awaitPromise(ctx, dep.promise)
 			if err != nil {
-				return err
+				return err // e.g. cancelled
 			}
-			data, ok := v.(*actionData)
-			if !ok {
-				return fmt.Errorf("unexpected type for %s: %T", act, v)
+			res := v.(actionResult)
+			if res.err != nil {
+				return res.err // analysis of dependency failed
 			}
+			data := res.data
 
 			mu.Lock()
 			defer mu.Unlock()
-			results[act] = data
-
+			if dep.pkg == pkg {
+				// Same package, different analysis (horizontal edge):
+				// in-memory outputs of prerequisite analyzers
+				// become inputs to this analysis pass.
+				inputs[dep.analyzer] = data.result
+			} else if dep.analyzer == analyzer { // (always true)
+				// Same analysis, different package (vertical edge):
+				// serialized facts produced by prerequisite analysis
+				// become available to this analysis pass.
+				for key, fact := range data.objectFacts {
+					// Filter out facts related to objects
+					// that are irrelevant downstream
+					// (equivalently: not in the compiler export data).
+					if !exportedFrom(key.obj, dep.pkg.types) {
+						continue
+					}
+					objectFacts[key] = fact
+				}
+				for key, fact := range data.packageFacts {
+					// TODO: filter out facts that belong to
+					// packages not mentioned in the export data
+					// to prevent side channels.
+					packageFacts[key] = fact
+				}
+			}
 			return nil
 		})
 	}
-	return results, g.Wait()
-}
-
-func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Analyzer, pkg *pkg, deps map[*actionHandle]*actionData) (data *actionData) {
-	data = &actionData{
-		objectFacts:  make(map[objectFactKey]analysis.Fact),
-		packageFacts: make(map[packageFactKey]analysis.Fact),
+	if err := g.Wait(); err != nil {
+		return nil, err // e.g. cancelled
 	}
 
-	// Plumb the output values of the dependencies
-	// into the inputs of this action.  Also facts.
-	inputs := make(map[*analysis.Analyzer]interface{})
-
-	for depHandle, depData := range deps {
-		if depHandle.pkg == pkg {
-			// Same package, different analysis (horizontal edge):
-			// in-memory outputs of prerequisite analyzers
-			// become inputs to this analysis pass.
-			inputs[depHandle.analyzer] = depData.result
-		} else if depHandle.analyzer == analyzer { // (always true)
-			// Same analysis, different package (vertical edge):
-			// serialized facts produced by prerequisite analysis
-			// become available to this analysis pass.
-			for key, fact := range depData.objectFacts {
-				// Filter out facts related to objects
-				// that are irrelevant downstream
-				// (equivalently: not in the compiler export data).
-				if !exportedFrom(key.obj, depHandle.pkg.types) {
-					continue
-				}
-				data.objectFacts[key] = fact
-			}
-			for key, fact := range depData.packageFacts {
-				// TODO: filter out facts that belong to
-				// packages not mentioned in the export data
-				// to prevent side channels.
-
-				data.packageFacts[key] = fact
-			}
-		}
-	}
-
+	// Now run the (pkg, analyzer) analysis.
 	var syntax []*ast.File
 	for _, cgf := range pkg.compiledGoFiles {
 		syntax = append(syntax, cgf.File)
 	}
-
-	var diagnostics []*analysis.Diagnostic
-
-	// Run the analysis.
+	var rawDiagnostics []analysis.Diagnostic
 	pass := &analysis.Pass{
 		Analyzer:   analyzer,
 		Fset:       snapshot.FileSet(),
@@ -299,7 +275,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 			} else {
 				d.Category = analyzer.Name + "." + d.Category
 			}
-			diagnostics = append(diagnostics, &d)
+			rawDiagnostics = append(rawDiagnostics, d)
 		},
 		ImportObjectFact: func(obj types.Object, ptr analysis.Fact) bool {
 			if obj == nil {
@@ -307,7 +283,7 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 			}
 			key := objectFactKey{obj, factType(ptr)}
 
-			if v, ok := data.objectFacts[key]; ok {
+			if v, ok := objectFacts[key]; ok {
 				reflect.ValueOf(ptr).Elem().Set(reflect.ValueOf(v).Elem())
 				return true
 			}
@@ -319,14 +295,14 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 					analyzer, pkg.ID(), obj, fact))
 			}
 			key := objectFactKey{obj, factType(fact)}
-			data.objectFacts[key] = fact // clobber any existing entry
+			objectFacts[key] = fact // clobber any existing entry
 		},
 		ImportPackageFact: func(pkg *types.Package, ptr analysis.Fact) bool {
 			if pkg == nil {
 				panic("nil package")
 			}
 			key := packageFactKey{pkg, factType(ptr)}
-			if v, ok := data.packageFacts[key]; ok {
+			if v, ok := packageFacts[key]; ok {
 				reflect.ValueOf(ptr).Elem().Set(reflect.ValueOf(v).Elem())
 				return true
 			}
@@ -334,52 +310,53 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 		},
 		ExportPackageFact: func(fact analysis.Fact) {
 			key := packageFactKey{pkg.types, factType(fact)}
-			data.packageFacts[key] = fact // clobber any existing entry
+			packageFacts[key] = fact // clobber any existing entry
 		},
 		AllObjectFacts: func() []analysis.ObjectFact {
-			facts := make([]analysis.ObjectFact, 0, len(data.objectFacts))
-			for k := range data.objectFacts {
-				facts = append(facts, analysis.ObjectFact{Object: k.obj, Fact: data.objectFacts[k]})
+			facts := make([]analysis.ObjectFact, 0, len(objectFacts))
+			for k := range objectFacts {
+				facts = append(facts, analysis.ObjectFact{Object: k.obj, Fact: objectFacts[k]})
 			}
 			return facts
 		},
 		AllPackageFacts: func() []analysis.PackageFact {
-			facts := make([]analysis.PackageFact, 0, len(data.packageFacts))
-			for k := range data.packageFacts {
-				facts = append(facts, analysis.PackageFact{Package: k.pkg, Fact: data.packageFacts[k]})
+			facts := make([]analysis.PackageFact, 0, len(packageFacts))
+			for k := range packageFacts {
+				facts = append(facts, analysis.PackageFact{Package: k.pkg, Fact: packageFacts[k]})
 			}
 			return facts
 		},
 	}
 	analysisinternal.SetTypeErrors(pass, pkg.typeErrors)
 
+	// We never run analyzers on ill-typed code,
+	// even those marked RunDespiteErrors=true.
 	if pkg.IsIllTyped() {
-		data.err = fmt.Errorf("analysis skipped due to errors in package")
-		return data
+		return nil, fmt.Errorf("analysis skipped due to errors in package")
 	}
 
 	// Recover from panics (only) within the analyzer logic.
 	// (Use an anonymous function to limit the recover scope.)
+	var result interface{}
+	var err error
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
 				// TODO(adonovan): use bug.Errorf here so that we
 				// detect crashes covered by our test suite.
-				// e.g.
-				data.err = fmt.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath(), r)
+				err = fmt.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath(), r)
 			}
 		}()
-		data.result, data.err = pass.Analyzer.Run(pass)
+		result, err = pass.Analyzer.Run(pass)
 	}()
-	if data.err != nil {
-		return data
+	if err != nil {
+		return nil, err
 	}
 
-	if got, want := reflect.TypeOf(data.result), pass.Analyzer.ResultType; got != want {
-		data.err = fmt.Errorf(
+	if got, want := reflect.TypeOf(result), pass.Analyzer.ResultType; got != want {
+		return nil, fmt.Errorf(
 			"internal error: on package %s, analyzer %s returned a result of type %v, but declared ResultType %v",
 			pass.Pkg.Path(), pass.Analyzer, got, want)
-		return data
 	}
 
 	// disallow calls after Run
@@ -390,19 +367,21 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 		panic(fmt.Sprintf("%s:%s: Pass.ExportPackageFact(%T) called after Run", analyzer.Name, pkg.PkgPath(), fact))
 	}
 
-	for _, diag := range diagnostics {
-		srcDiags, err := analysisDiagnosticDiagnostics(snapshot, pkg, analyzer, diag)
+	var diagnostics []*source.Diagnostic
+	for _, diag := range rawDiagnostics {
+		srcDiags, err := analysisDiagnosticDiagnostics(snapshot, pkg, analyzer, &diag)
 		if err != nil {
 			event.Error(ctx, "unable to compute analysis error position", err, tag.Category.Of(diag.Category), tag.Package.Of(pkg.ID()))
 			continue
 		}
-		if ctx.Err() != nil {
-			data.err = ctx.Err()
-			return data
-		}
-		data.diagnostics = append(data.diagnostics, srcDiags...)
+		diagnostics = append(diagnostics, srcDiags...)
 	}
-	return data
+	return &actionData{
+		diagnostics:  diagnostics,
+		result:       result,
+		objectFacts:  objectFacts,
+		packageFacts: packageFacts,
+	}, nil
 }
 
 // exportedFrom reports whether obj may be visible to a package that imports pkg.
