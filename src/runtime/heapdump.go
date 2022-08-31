@@ -691,8 +691,7 @@ func writeheapdump_m(fd uintptr, m *MemStats) {
 	assertWorldStopped()
 
 	gp := getg()
-	casgstatus(gp.m.curg, _Grunning, _Gwaiting)
-	gp.waitreason = waitReasonDumpingHeap
+	casGToWaiting(gp.m.curg, _Grunning, waitReasonDumpingHeap)
 
 	// Set dump file.
 	dumpfd = fd

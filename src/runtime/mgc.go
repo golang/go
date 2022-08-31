@@ -810,7 +810,7 @@ top:
 		// Otherwise, our attempt to force all P's to a safepoint could
 		// result in a deadlock as we attempt to preempt a worker that's
 		// trying to preempt us (e.g. for a stack scan).
-		casgstatus(gp, _Grunning, _Gwaiting)
+		casGToWaiting(gp, _Grunning, waitReasonGCMarkTermination)
 		forEachP(func(pp *p) {
 			// Flush the write barrier buffer, since this may add
 			// work to the gcWork.
@@ -931,8 +931,7 @@ func gcMarkTermination() {
 	mp.preemptoff = "gcing"
 	mp.traceback = 2
 	curgp := mp.curg
-	casgstatus(curgp, _Grunning, _Gwaiting)
-	curgp.waitreason = waitReasonGarbageCollection
+	casGToWaiting(curgp, _Grunning, waitReasonGarbageCollection)
 
 	// Run gc on the g0 stack. We do this so that the g stack
 	// we're currently running on will no longer change. Cuts
@@ -1332,7 +1331,7 @@ func gcBgMarkWorker() {
 			// the G stack. However, stack shrinking is
 			// disabled for mark workers, so it is safe to
 			// read from the G stack.
-			casgstatus(gp, _Grunning, _Gwaiting)
+			casGToWaiting(gp, _Grunning, waitReasonGCWorkerActive)
 			switch pp.gcMarkWorkerMode {
 			default:
 				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")

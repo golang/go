@@ -1027,6 +1027,14 @@ func casgstatus(gp *g, oldval, newval uint32) {
 	}
 }
 
+// casGToWaiting transitions gp from old to _Gwaiting, and sets the wait reason.
+//
+// Use this over casgstatus when possible to ensure that a waitreason is set.
+func casGToWaiting(gp *g, old uint32, reason waitReason) {
+	gp.waitreason = reason
+	casgstatus(gp, old, _Gwaiting)
+}
+
 // casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
 // Returns old status. Cannot call casgstatus directly, because we are racing with an
 // async wakeup that might come in from netpoll. If we see Gwaiting from the readgstatus,
@@ -1066,6 +1074,7 @@ func casGFromPreempted(gp *g, old, new uint32) bool {
 	if old != _Gpreempted || new != _Gwaiting {
 		throw("bad g transition")
 	}
+	gp.waitreason = waitReasonPreempted
 	return gp.atomicstatus.CompareAndSwap(_Gpreempted, _Gwaiting)
 }
 
@@ -1098,7 +1107,8 @@ func stopTheWorld(reason string) {
 		// must have preempted all goroutines, including any attempting
 		// to scan our stack, in which case, any stack shrinking will
 		// have already completed by the time we exit.
-		casgstatus(gp, _Grunning, _Gwaiting)
+		// Don't provide a wait reason because we're still executing.
+		casGToWaiting(gp, _Grunning, waitReasonStoppingTheWorld)
 		stopTheWorldWithSema()
 		casgstatus(gp, _Gwaiting, _Grunning)
 	})
@@ -3395,6 +3405,8 @@ func park_m(gp *g) {
 		traceGoPark(mp.waittraceev, mp.waittraceskip)
 	}
 
+	// N.B. Not using casGToWaiting here because the waitreason is
+	// set by park_m's caller.
 	casgstatus(gp, _Grunning, _Gwaiting)
 	dropg()
 
@@ -3468,7 +3480,6 @@ func preemptPark(gp *g) {
 		dumpgstatus(gp)
 		throw("bad g status")
 	}
-	gp.waitreason = waitReasonPreempted
 
 	if gp.asyncSafePoint {
 		// Double-check that async preemption does not
@@ -3545,7 +3556,7 @@ func goexit0(gp *g) {
 	gp._defer = nil // should be true already but just in case.
 	gp._panic = nil // non-nil for Goexit during panic. points at stack-allocated data.
 	gp.writebuf = nil
-	gp.waitreason = 0
+	gp.waitreason = waitReasonZero
 	gp.param = nil
 	gp.labels = nil
 	gp.timer = nil

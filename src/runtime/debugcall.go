@@ -158,11 +158,10 @@ func debugCallWrap(dispatch uintptr) {
 		gp.schedlink = 0
 
 		// Park the calling goroutine.
-		gp.waitreason = waitReasonDebugCall
 		if trace.enabled {
 			traceGoPark(traceEvGoBlock, 1)
 		}
-		casgstatus(gp, _Grunning, _Gwaiting)
+		casGToWaiting(gp, _Grunning, waitReasonDebugCall)
 		dropg()
 
 		// Directly execute the new goroutine. The debug
