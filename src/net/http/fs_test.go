@@ -218,6 +218,27 @@ func TestServeFileDirPanicEmptyPath(t *testing.T) {
 	}
 }
 
+// Tests that ranges are ignored with serving empty content. (Issue 54794)
+func TestServeContentWithEmptyContentIgnoreRanges(t *testing.T) {
+	for _, r := range []string{
+		"bytes=0-128",
+		"bytes=1-",
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("Range", r)
+		ServeContent(rec, req, "nothing", time.Now(), bytes.NewReader(nil))
+		res := rec.Result()
+		if res.StatusCode != 200 {
+			t.Errorf("code = %v; want 200", res.Status)
+		}
+		bodyLen := rec.Body.Len()
+		if bodyLen != 0 {
+			t.Errorf("body.Len() = %v; want 0", res.Status)
+		}
+	}
+}
+
 var fsRedirectTestData = []struct {
 	original, redirect string
 }{
