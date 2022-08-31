@@ -172,6 +172,28 @@ func experimentTags() []string {
 	return list
 }
 
+// GOGOARCH returns the name and value of the GO$GOARCH setting.
+// For example, if GOARCH is "amd64" it might return "GOAMD64", "v2".
+func GOGOARCH() (name, value string) {
+	switch GOARCH {
+	case "386":
+		return "GO386", GO386
+	case "amd64":
+		return "GOAMD64", fmt.Sprintf("v%d", GOAMD64)
+	case "arm":
+		return "GOARM", fmt.Sprintf("%d", GOARM)
+	case "mips", "mipsle":
+		return "GOMIPS", GOMIPS
+	case "mips64", "mips64le":
+		return "GOMIPS64", GOMIPS64
+	case "ppc64", "ppc64le":
+		return "GOPPC64", fmt.Sprintf("power%d", GOPPC64)
+	case "wasm":
+		return "GOWASM", GOWASM.String()
+	}
+	return "", ""
+}
+
 func gogoarchTags() []string {
 	switch GOARCH {
 	case "386":
