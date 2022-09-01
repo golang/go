@@ -2109,7 +2109,7 @@ func F[T any](_ T) {
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
 			OnceMet(
-				env.DiagnosticAtRegexpWithMessage("main.go", `T any`, "type parameters require"),
+				env.DiagnosticAtRegexpWithMessage("main.go", `T any`, "type parameter"),
 				ReadDiagnostics("main.go", &d),
 			),
 		)
@@ -2143,7 +2143,7 @@ func F[T any](_ T) {
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
 			OnceMet(
-				env.DiagnosticAtRegexpWithMessage("main.go", `T any`, "type parameters require"),
+				env.DiagnosticAtRegexpWithMessage("main.go", `T any`, "type parameter"),
 				ReadDiagnostics("main.go", &d),
 			),
 		)
