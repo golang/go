@@ -157,7 +157,7 @@ func (i IsolationLevel) String() string {
 	}
 }
 
-var _ fmt.Stringer = LevelDefault
+var _ fmt.Stringer = (*IsolationLevel)(nil)
 
 // TxOptions holds the transaction options to be used in DB.BeginTx.
 type TxOptions struct {
