@@ -1794,14 +1794,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		if tv.IsType() {
 			assert(len(expr.ArgList) == 1)
 			assert(!expr.HasDots)
-
-			w.Code(exprConvert)
-			w.Bool(false) // explicit
-			w.typ(tv.Type)
-			w.pos(expr)
-			w.convRTTI(w.p.typeOf(expr.ArgList[0]), tv.Type)
-			w.Bool(isTypeParam(tv.Type))
-			w.expr(expr.ArgList[0])
+			w.convertExpr(tv.Type, expr.ArgList[0], false)
 			break
 		}
 
@@ -2069,19 +2062,29 @@ func (w *writer) multiExpr(pos poser, dstType func(int) types2.Type, exprs []syn
 // from expr's type, then an implicit conversion operation is inserted
 // at expr's position.
 func (w *writer) implicitConvExpr(dst types2.Type, expr syntax.Expr) {
+	w.convertExpr(dst, expr, true)
+}
+
+func (w *writer) convertExpr(dst types2.Type, expr syntax.Expr, implicit bool) {
 	src := w.p.typeOf(expr)
-	if dst != nil && !types2.Identical(src, dst) {
-		if !types2.AssignableTo(src, dst) {
-			w.p.fatalf(expr.Pos(), "%v is not assignable to %v", src, dst)
-		}
-		w.Code(exprConvert)
-		w.Bool(true) // implicit
-		w.typ(dst)
-		w.pos(expr)
-		w.convRTTI(src, dst)
-		w.Bool(isTypeParam(dst))
-		// fallthrough
+
+	// Omit implicit no-op conversions.
+	identical := dst == nil || types2.Identical(src, dst)
+	if implicit && identical {
+		w.expr(expr)
+		return
 	}
+
+	if implicit && !types2.AssignableTo(src, dst) {
+		w.p.fatalf(expr, "%v is not assignable to %v", src, dst)
+	}
+
+	w.Code(exprConvert)
+	w.Bool(implicit)
+	w.typ(dst)
+	w.pos(expr)
+	w.convRTTI(src, dst)
+	w.Bool(isTypeParam(dst))
 	w.expr(expr)
 }
 
