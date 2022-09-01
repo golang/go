@@ -852,3 +852,13 @@ func TestPanicOnUnsafeSlice(t *testing.T) {
 		t.Errorf("output does not contain %q:\n%s", want, output)
 	}
 }
+
+// golang.org/issues/54786
+func TestPrintLockDeadLock(t *testing.T) {
+	output := runTestProg(t, "testprog", "PrintLockDeadlock")
+	want := "exited correctly\n"
+	if !strings.Contains(output, want) {
+		t.Errorf("output must not contain %q:\n%s", want, output)
+		return
+	}
+}

@@ -64,20 +64,34 @@ var debuglock mutex
 
 func printlock() {
 	mp := getg().m
+	// ensure other grountines scheduled on this mp can't enter printlock/printunlock
+	// while there is a grountine that is during calling to printlock/printunlock
+	// this is very similar to readers–writers problems:
+	// https://en.wikipedia.org/wiki/Readers%E2%80%93writers_problem
+	for mp.printlockMutex != 0 {
+		Gosched()
+	}
+	mp.printlockMutex++
 	mp.locks++ // do not reschedule between printlock++ and lock(&debuglock).
 	mp.printlock++
 	if mp.printlock == 1 {
 		lock(&debuglock)
 	}
 	mp.locks-- // now we know debuglock is held and holding up mp.locks for us.
+	mp.printlockMutex--
 }
 
 func printunlock() {
 	mp := getg().m
+	for mp.printlockMutex != 0 {
+		Gosched()
+	}
+	mp.printlockMutex++
 	mp.printlock--
 	if mp.printlock == 0 {
 		unlock(&debuglock)
 	}
+	mp.printlockMutex--
 }
 
 // write to goroutine-local buffer if diverting output,

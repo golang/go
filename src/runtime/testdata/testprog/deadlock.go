@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"runtime"
 	"runtime/debug"
+	"sync"
 	"time"
 )
 
@@ -39,6 +40,7 @@ func init() {
 	register("GoschedInPanic", GoschedInPanic)
 	register("SyscallInPanic", SyscallInPanic)
 	register("PanicLoop", PanicLoop)
+	register("PrintLockDeadlock", PrintLockDeadlock)
 }
 
 func SimpleDeadlock() {
@@ -360,4 +362,27 @@ func (*panicError) Error() string {
 
 func PanicLoop() {
 	panic(&panicError{})
+}
+
+func PrintLockDeadlock() {
+
+	for i := 1; i <= runtime.NumCPU(); i++ {
+		concurrentPrint(i)
+	}
+	print("exited correctly\n")
+}
+
+func concurrentPrint(i int) {
+	runtime.GOMAXPROCS(i)
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 20000; i++ {
+				print("hello world\n")
+			}
+		}()
+	}
+	wg.Wait()
 }
