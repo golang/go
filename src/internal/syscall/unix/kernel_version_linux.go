@@ -13,17 +13,17 @@ import (
 // or parsed.
 //
 // Currently only implemented for Linux.
-func KernelVersion() (major int, minor int) {
+func KernelVersion() (major, minor int) {
 	var uname syscall.Utsname
 	if err := syscall.Uname(&uname); err != nil {
 		return
 	}
 
-	rl := uname.Release
-	var values [2]int
-	vi := 0
-	value := 0
-	for _, c := range rl {
+	var (
+		values    [2]int
+		value, vi int
+	)
+	for _, c := range uname.Release {
 		if '0' <= c && c <= '9' {
 			value = (value * 10) + int(c-'0')
 		} else {
