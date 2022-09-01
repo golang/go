@@ -208,6 +208,9 @@ func TestPSSSigning(t *testing.T) {
 		{PSSSaltLengthEqualsHash, 8, false},
 		{PSSSaltLengthAuto, PSSSaltLengthEqualsHash, false},
 		{8, 8, true},
+		{PSSSaltLengthAuto, 42, true},
+		{PSSSaltLengthAuto, 20, false},
+		{PSSSaltLengthAuto, -2, false},
 	}
 
 	hash := crypto.SHA1
@@ -272,4 +275,29 @@ func fromHex(hexStr string) []byte {
 		panic(err)
 	}
 	return s
+}
+
+func TestInvalidPSSSaltLength(t *testing.T) {
+	key, err := GenerateKey(rand.Reader, 245)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	digest := sha256.Sum256([]byte("message"))
+	// We don't check the exact error matches, because crypto/rsa and crypto/internal/boring
+	// return two different error variables, which have the same content but are not equal.
+	if _, err := SignPSS(rand.Reader, key, crypto.SHA256, digest[:], &PSSOptions{
+		SaltLength: -2,
+		Hash:       crypto.SHA256,
+	}); err.Error() != invalidSaltLenErr.Error() {
+		t.Fatalf("SignPSS unexpected error: got %v, want %v", err, invalidSaltLenErr)
+	}
+
+	// We don't check the specific error here, because crypto/rsa and crypto/internal/boring
+	// return different errors, so we just check that _an error_ was returned.
+	if err := VerifyPSS(&key.PublicKey, crypto.SHA256, []byte{1, 2, 3}, make([]byte, 31), &PSSOptions{
+		SaltLength: -2,
+	}); err == nil {
+		t.Fatal("VerifyPSS unexpected success")
+	}
 }

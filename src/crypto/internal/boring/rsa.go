@@ -245,14 +245,28 @@ func encrypt(ctx *C.GO_EVP_PKEY_CTX, out *C.uint8_t, outLen *C.size_t, in *C.uin
 	return C._goboringcrypto_EVP_PKEY_encrypt(ctx, out, outLen, in, inLen)
 }
 
+var invalidSaltLenErr = errors.New("crypto/rsa: PSSOptions.SaltLength cannot be negative")
+
 func SignRSAPSS(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte, saltLen int) ([]byte, error) {
 	md := cryptoHashToMD(h)
 	if md == nil {
 		return nil, errors.New("crypto/rsa: unsupported hash function")
 	}
-	if saltLen == 0 {
-		saltLen = -1
+
+	// A salt length of -2 is valid in BoringSSL, but not in crypto/rsa, so reject
+	// it, and lengths < -2, before we convert to the BoringSSL sentinel values.
+	if saltLen <= -2 {
+		return nil, invalidSaltLenErr
 	}
+
+	// BoringSSL uses sentinel salt length values like we do, but the values don't
+	// fully match what we use. We both use -1 for salt length equal to hash length,
+	// but BoringSSL uses -2 to mean maximal size where we use 0. In the latter
+	// case convert to the BoringSSL version.
+	if saltLen == 0 {
+		saltLen = -2
+	}
+
 	var out []byte
 	var outLen C.size_t
 	if priv.withKey(func(key *C.GO_RSA) C.int {
@@ -271,9 +285,21 @@ func VerifyRSAPSS(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte, saltLen 
 	if md == nil {
 		return errors.New("crypto/rsa: unsupported hash function")
 	}
-	if saltLen == 0 {
-		saltLen = -2 // auto-recover
+
+	// A salt length of -2 is valid in BoringSSL, but not in crypto/rsa, so reject
+	// it, and lengths < -2, before we convert to the BoringSSL sentinel values.
+	if saltLen <= -2 {
+		return invalidSaltLenErr
 	}
+
+	// BoringSSL uses sentinel salt length values like we do, but the values don't
+	// fully match what we use. We both use -1 for salt length equal to hash length,
+	// but BoringSSL uses -2 to mean maximal size where we use 0. In the latter
+	// case convert to the BoringSSL version.
+	if saltLen == 0 {
+		saltLen = -2
+	}
+
 	if pub.withKey(func(key *C.GO_RSA) C.int {
 		return C._goboringcrypto_RSA_verify_pss_mgf1(key, base(hashed), C.size_t(len(hashed)),
 			md, nil, C.int(saltLen), base(sig), C.size_t(len(sig)))

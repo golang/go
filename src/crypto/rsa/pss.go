@@ -249,8 +249,8 @@ const (
 
 // PSSOptions contains options for creating and verifying PSS signatures.
 type PSSOptions struct {
-	// SaltLength controls the length of the salt used in the PSS
-	// signature. It can either be a number of bytes, or one of the special
+	// SaltLength controls the length of the salt used in the PSS signature. It
+	// can either be a positive number of bytes, or one of the special
 	// PSSSaltLength constants.
 	SaltLength int
 
@@ -272,12 +272,23 @@ func (opts *PSSOptions) saltLength() int {
 	return opts.SaltLength
 }
 
+var invalidSaltLenErr = errors.New("crypto/rsa: PSSOptions.SaltLength cannot be negative")
+
 // SignPSS calculates the signature of digest using PSS.
 //
 // digest must be the result of hashing the input message using the given hash
 // function. The opts argument may be nil, in which case sensible defaults are
 // used. If opts.Hash is set, it overrides hash.
 func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, opts *PSSOptions) ([]byte, error) {
+	if boring.Enabled && rand == boring.RandReader {
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		return boring.SignRSAPSS(bkey, hash, digest, opts.saltLength())
+	}
+	boring.UnreachableExceptTests()
+
 	if opts != nil && opts.Hash != 0 {
 		hash = opts.Hash
 	}
@@ -288,17 +299,13 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 		saltLength = (priv.N.BitLen()-1+7)/8 - 2 - hash.Size()
 	case PSSSaltLengthEqualsHash:
 		saltLength = hash.Size()
-	}
-
-	if boring.Enabled && rand == boring.RandReader {
-		bkey, err := boringPrivateKey(priv)
-		if err != nil {
-			return nil, err
+	default:
+		// If we get here saltLength is either > 0 or < -1, in the
+		// latter case we fail out.
+		if saltLength <= 0 {
+			return nil, invalidSaltLenErr
 		}
-		return boring.SignRSAPSS(bkey, hash, digest, saltLength)
 	}
-	boring.UnreachableExceptTests()
-
 	salt := make([]byte, saltLength)
 	if _, err := io.ReadFull(rand, salt); err != nil {
 		return nil, err
@@ -325,6 +332,12 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 	}
 	if len(sig) != pub.Size() {
 		return ErrVerification
+	}
+	// Salt length must be either one of the special constants (-1 or 0)
+	// or otherwise positive. If it is < PSSSaltLengthEqualsHash (-1)
+	// we return an error.
+	if opts.saltLength() < PSSSaltLengthEqualsHash {
+		return invalidSaltLenErr
 	}
 	s := new(big.Int).SetBytes(sig)
 	m := encrypt(new(big.Int), pub, s)
