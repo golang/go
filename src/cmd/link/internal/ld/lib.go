@@ -1295,6 +1295,18 @@ func (ctxt *Link) archive() {
 }
 
 func (ctxt *Link) hostlink() {
+	// Determine if we are using Clang for MSVC.
+	// Some args for the linker of Mingw can not be passed to the linker of MSVC,
+	// and some args for the linker of MSVC are defferent from that of Mingw.
+	extld := ctxt.extld()
+	name := extld[0]
+	usingClangForMSVC := false
+	if out, err := exec.Command(name, "--version").CombinedOutput(); err == nil {
+		if bytes.Contains(out, []byte("msvc")) {
+			usingClangForMSVC = true
+		}
+	}
+
 	if ctxt.LinkMode != LinkExternal || nerrors > 0 {
 		return
 	}
@@ -1392,6 +1404,13 @@ func (ctxt *Link) hostlink() {
 		heon := "--high-entropy-va"
 		dboff := "--disable-dynamicbase"
 		heoff := "--disable-high-entropy-va"
+		// These flags for MSVC are defferent.
+		if usingClangForMSVC {
+			dbon = "/DYNAMICBASE"
+			heon = "/HIGHENTROPYVA"
+			dboff = "/DYNAMICBASE:NO"
+			heoff = "/HIGHENTROPYVA:NO"
+		}
 		if val {
 			dbopt = dbon
 			heopt = heon
@@ -1720,7 +1739,7 @@ func (ctxt *Link) hostlink() {
 
 		// use gcc linker script to work around gcc bug
 		// (see https://golang.org/issue/20183 for details).
-		if !usingLLD {
+		if !usingLLD && !usingClangForMSVC {
 			p := writeGDBLinkerScript()
 			argv = append(argv, "-Wl,-T,"+p)
 		}
@@ -1729,9 +1748,13 @@ func (ctxt *Link) hostlink() {
 				argv = append(argv, "-lsynchronization")
 			}
 		}
-		// libmingw32 and libmingwex have some inter-dependencies,
-		// so must use linker groups.
-		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
+
+		// MSVC don't have these libs.
+		if !usingClangForMSVC {
+			// libmingw32 and libmingwex have some inter-dependencies,
+			// so must use linker groups.
+			argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
+		}
 		argv = append(argv, peimporteddlls()...)
 	}
 
