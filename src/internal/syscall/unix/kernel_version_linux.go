@@ -37,13 +37,6 @@ func KernelVersion() (major int, minor int) {
 			value = 0
 		}
 	}
-	switch vi {
-	case 0:
-		return 0, 0
-	case 1:
-		return values[0], 0
-	case 2:
-		return values[0], values[1]
-	}
-	return
+
+	return values[0], values[1]
 }
