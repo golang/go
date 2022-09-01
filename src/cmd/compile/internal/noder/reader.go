@@ -2432,6 +2432,7 @@ func (r *reader) expr() (res ir.Node) {
 		pos := r.pos()
 		typeWord, srcRType := r.convRTTI(pos)
 		dstTypeParam := r.Bool()
+		identical := r.Bool()
 		x := r.expr()
 
 		// TODO(mdempsky): Stop constructing expressions of untyped type.
@@ -2460,8 +2461,10 @@ func (r *reader) expr() (res ir.Node) {
 		// Should this be moved down into typecheck.{Assign,Convert}op?
 		// This would be a non-issue if itabs were unique for each
 		// *underlying* interface type instead.
-		if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OCONVNOP && n.Type().IsInterface() && !n.Type().IsEmptyInterface() && (n.Type().HasShape() || n.X.Type().HasShape()) {
-			n.SetOp(ir.OCONVIFACE)
+		if !identical {
+			if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OCONVNOP && n.Type().IsInterface() && !n.Type().IsEmptyInterface() && (n.Type().HasShape() || n.X.Type().HasShape()) {
+				n.SetOp(ir.OCONVIFACE)
+			}
 		}
 
 		// spec: "If the type is a type parameter, the constant is converted

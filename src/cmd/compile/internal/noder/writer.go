@@ -2085,6 +2085,7 @@ func (w *writer) convertExpr(dst types2.Type, expr syntax.Expr, implicit bool) {
 	w.pos(expr)
 	w.convRTTI(src, dst)
 	w.Bool(isTypeParam(dst))
+	w.Bool(identical)
 	w.expr(expr)
 }
 
