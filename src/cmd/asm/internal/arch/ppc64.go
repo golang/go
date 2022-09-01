@@ -21,28 +21,6 @@ func jumpPPC64(word string) bool {
 	return false
 }
 
-// IsPPC64RLD reports whether the op (as defined by an ppc64.A* constant) is
-// one of the RLD-like instructions that require special handling.
-// The FMADD-like instructions behave similarly.
-func IsPPC64RLD(op obj.As) bool {
-	switch op {
-	case ppc64.ARLDC, ppc64.ARLDCCC, ppc64.ARLDCL, ppc64.ARLDCLCC,
-		ppc64.ARLDCR, ppc64.ARLDCRCC, ppc64.ARLDMI, ppc64.ARLDMICC,
-		ppc64.ARLWMI, ppc64.ARLWMICC, ppc64.ARLWNM, ppc64.ARLWNMCC:
-		return true
-	case ppc64.AFMADD, ppc64.AFMADDCC, ppc64.AFMADDS, ppc64.AFMADDSCC,
-		ppc64.AFMSUB, ppc64.AFMSUBCC, ppc64.AFMSUBS, ppc64.AFMSUBSCC,
-		ppc64.AFNMADD, ppc64.AFNMADDCC, ppc64.AFNMADDS, ppc64.AFNMADDSCC,
-		ppc64.AFNMSUB, ppc64.AFNMSUBCC, ppc64.AFNMSUBS, ppc64.AFNMSUBSCC:
-		return true
-	}
-	return false
-}
-
-func IsPPC64ISEL(op obj.As) bool {
-	return op == ppc64.AISEL
-}
-
 // IsPPC64CMP reports whether the op (as defined by an ppc64.A* constant) is
 // one of the CMP instructions that require special handling.
 func IsPPC64CMP(op obj.As) bool {

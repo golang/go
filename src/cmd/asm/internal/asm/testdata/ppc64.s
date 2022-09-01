@@ -162,6 +162,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADD $1234567, R5                // 641f001263ffd6877cbf2a14
 	ADD $1234567, R5, R6            // 641f001263ffd6877cdf2a14
 	ADDEX R3, R5, $3, R6            // 7cc32f54
+	ADDEX R3, $3, R5, R6            // 7cc32f54
 	ADDIS $8, R3                    // 3c630008
 	ADDIS $1000, R3, R4             // 3c8303e8
 
@@ -784,7 +785,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VNCIPHERLAST V1, V2, V3         // 10611549
 	VSBOX V1, V2                    // 104105c8
 	VSHASIGMAW $1, V1, $15, V2      // 10418e82
+	VSHASIGMAW $1, $15, V1, V2      // 10418e82
 	VSHASIGMAD $2, V1, $15, V2      // 104196c2
+	VSHASIGMAD $2, $15, V1, V2      // 104196c2
 
 	LXVD2X (R3)(R4), VS1            // 7c241e98
 	LXVD2X (R3)(R0), VS1            // 7c201e98
@@ -876,7 +879,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XXPERM VS1, VS2, VS3            // f06110d0
 	XXSLDWI VS1, VS2, $1, VS3       // f0611110
 	XXSLDWI V1, V2, $1, V3          // f0611117
+	XXSLDWI V1, $1, V2, V3          // f0611117
 	XXSLDWI VS33, VS34, $1, VS35    // f0611117
+	XXSLDWI VS33, $1, VS34, VS35    // f0611117
+	XXPERMDI VS33, VS34, $1, VS35   // f0611157
+	XXPERMDI VS33, $1, VS34, VS35   // f0611157
 	XSCVDPSP VS1, VS2               // f0400c24
 	XVCVDPSP VS1, VS2               // f0400e24
 	XSCVSXDDP VS1, VS2              // f0400de0
