@@ -5,7 +5,6 @@
 package objabi
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
@@ -179,8 +178,7 @@ func DecodeArg(arg string) string {
 		return arg
 	}
 
-	// We can't use strings.Builder as this must work at bootstrap.
-	var b bytes.Buffer
+	var b strings.Builder
 	var wasBS bool
 	for _, r := range arg {
 		if wasBS {
