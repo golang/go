@@ -7,9 +7,9 @@
 package types2
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
+	"strings"
 )
 
 const useConstraintTypeInference = true
@@ -338,8 +338,7 @@ func typeParamsString(list []*TypeParam) string {
 	}
 
 	// general case (n > 2)
-	// Would like to use strings.Builder but it's not available in Go 1.4.
-	var b bytes.Buffer
+	var b strings.Builder
 	for i, tname := range list[:n-1] {
 		if i > 0 {
 			b.WriteString(", ")
