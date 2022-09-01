@@ -300,8 +300,7 @@ func posFor(at poser) syntax.Pos {
 
 // stripAnnotations removes internal (type) annotations from s.
 func stripAnnotations(s string) string {
-	// Would like to use strings.Builder but it's not available in Go 1.4.
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, r := range s {
 		// strip #'s and subscript digits
 		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
