@@ -249,8 +249,8 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if f.Magic == Magic64 {
 		offset = fileHeaderSize64
 	}
-	dat := make([]byte, f.Cmdsz)
-	if _, err := r.ReadAt(dat, offset); err != nil {
+	dat, err := saferio.ReadDataAt(r, uint64(f.Cmdsz), offset)
+	if err != nil {
 		return nil, err
 	}
 	c := saferio.SliceCap([]Load{}, uint64(f.Ncmd))
