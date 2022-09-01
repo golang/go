@@ -684,8 +684,12 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		// Add R_XCOFFREF relocation to prevent ld's garbage collection of
 		// the following symbols. They might not be referenced in the program.
 		addRef := func(name string) {
+			s := ldr.Lookup(name, 0)
+			if s == 0 {
+				return
+			}
 			r, _ := moduledata.AddRel(objabi.R_XCOFFREF)
-			r.SetSym(ldr.Lookup(name, 0))
+			r.SetSym(s)
 			r.SetSiz(uint8(ctxt.Arch.PtrSize))
 		}
 		addRef("runtime.rodata")

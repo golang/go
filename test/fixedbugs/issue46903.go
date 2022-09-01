@@ -1,5 +1,5 @@
 // run
-//go:build goexperiment.unified && cgo && !aix
+//go:build goexperiment.unified && cgo
 
 // TODO(mdempsky): Enable test unconditionally. This test should pass
 // for non-unified mode too.
