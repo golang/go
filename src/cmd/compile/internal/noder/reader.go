@@ -1386,27 +1386,18 @@ func (pr *pkgReader) dictNameOf(dict *readerDict) *ir.Name {
 		reflectdata.MarkTypeUsedInInterface(typ, lsym)
 	}
 
-	// For each (typ, iface) pair, we write *runtime._type pointers
-	// for typ and iface, as well as the *runtime.itab pointer for the
-	// pair. This is wasteful, but it simplifies worrying about tricky
-	// cases like instantiating type parameters with interface types.
-	//
-	// TODO(mdempsky): Add the needed *runtime._type pointers into the
-	// rtypes section above instead, and omit itabs entries when we
-	// statically know it won't be needed.
+	// For each (typ, iface) pair, we write the *runtime.itab pointer
+	// for the pair. For pairs that don't actually require an itab
+	// (i.e., typ is an interface, or iface is an empty interface), we
+	// write a nil pointer instead. This is wasteful, but rare in
+	// practice (e.g., instantiating a type parameter with an interface
+	// type).
 	assertOffset("itabs", dict.itabsOffset())
 	for _, info := range dict.itabs {
 		typ := pr.typIdx(info.typ, dict, true)
 		iface := pr.typIdx(info.iface, dict, true)
 
-		if !iface.IsInterface() {
-			ot += 3 * types.PtrSize
-			continue
-		}
-
-		ot = objw.SymPtr(lsym, ot, reflectdata.TypeLinksym(typ), 0)
-		ot = objw.SymPtr(lsym, ot, reflectdata.TypeLinksym(iface), 0)
-		if !typ.IsInterface() && !iface.IsEmptyInterface() {
+		if !typ.IsInterface() && iface.IsInterface() && !iface.IsEmptyInterface() {
 			ot = objw.SymPtr(lsym, ot, reflectdata.ITabLsym(typ, iface), 0)
 		} else {
 			ot += types.PtrSize
@@ -1452,7 +1443,7 @@ func (dict *readerDict) itabsOffset() int {
 // numWords returns the total number of words that comprise dict's
 // runtime dictionary variable.
 func (dict *readerDict) numWords() int64 {
-	return int64(dict.itabsOffset() + 3*len(dict.itabs))
+	return int64(dict.itabsOffset() + len(dict.itabs))
 }
 
 // varType returns the type of dict's runtime dictionary variable.
@@ -3152,28 +3143,35 @@ func (r *reader) varDictIndex(name *ir.Name) {
 	}
 }
 
+// itab returns a (typ, iface) pair of types.
+//
+// typRType and ifaceRType are expressions that evaluate to the
+// *runtime._type for typ and iface, respectively.
+//
+// If typ is a concrete type and iface is a non-empty interface type,
+// then itab is an expression that evaluates to the *runtime.itab for
+// the pair. Otherwise, itab is nil.
 func (r *reader) itab(pos src.XPos) (typ *types.Type, typRType ir.Node, iface *types.Type, ifaceRType ir.Node, itab ir.Node) {
-	if r.Bool() { // derived types
-		idx := r.Len()
-		info := r.dict.itabs[idx]
-		typ = r.p.typIdx(info.typ, r.dict, true)
-		typRType = r.rttiWord(pos, r.dict.itabsOffset()+3*idx)
-		iface = r.p.typIdx(info.iface, r.dict, true)
-		ifaceRType = r.rttiWord(pos, r.dict.itabsOffset()+3*idx+1)
-		itab = r.rttiWord(pos, r.dict.itabsOffset()+3*idx+2)
-		return
+	typ, typRType = r.rtype0(pos)
+	iface, ifaceRType = r.rtype0(pos)
+
+	idx := -1
+	if r.Bool() {
+		idx = r.Len()
 	}
 
-	typ = r.typ()
-	iface = r.typ()
-	if iface.IsInterface() {
-		typRType = reflectdata.TypePtrAt(pos, typ)
-		ifaceRType = reflectdata.TypePtrAt(pos, iface)
-		if !typ.IsInterface() && !iface.IsEmptyInterface() {
+	if !typ.IsInterface() && iface.IsInterface() && !iface.IsEmptyInterface() {
+		if idx >= 0 {
+			itab = r.rttiWord(pos, r.dict.itabsOffset()+idx)
+		} else {
+			base.AssertfAt(!typ.HasShape(), pos, "%v is a shape type", typ)
+			base.AssertfAt(!iface.HasShape(), pos, "%v is a shape type", iface)
+
 			lsym := reflectdata.ITabLsym(typ, iface)
 			itab = typecheck.LinksymAddr(pos, lsym, types.Types[types.TUINT8])
 		}
 	}
+
 	return
 }
 
@@ -3215,9 +3213,7 @@ func (r *reader) exprType() ir.Node {
 
 	if r.Bool() {
 		typ, rtype, _, _, itab = r.itab(pos)
-		if typ.IsInterface() {
-			itab = nil
-		} else {
+		if !typ.IsInterface() {
 			rtype = nil // TODO(mdempsky): Leave set?
 		}
 	} else {

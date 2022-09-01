@@ -2183,9 +2183,13 @@ func (w *writer) exprs(exprs []syntax.Expr) {
 func (w *writer) rtype(typ types2.Type) {
 	typ = types2.Default(typ)
 
+	info := w.p.typIdx(typ, w.dict)
+	w.rtypeInfo(info)
+}
+
+func (w *writer) rtypeInfo(info typeInfo) {
 	w.Sync(pkgbits.SyncRType)
 
-	info := w.p.typIdx(typ, w.dict)
 	if w.Bool(info.derived) {
 		w.Len(w.dict.rtypeIdx(info))
 	} else {
@@ -2218,11 +2222,11 @@ func (w *writer) itab(typ, iface types2.Type) {
 
 	typInfo := w.p.typIdx(typ, w.dict)
 	ifaceInfo := w.p.typIdx(iface, w.dict)
+
+	w.rtypeInfo(typInfo)
+	w.rtypeInfo(ifaceInfo)
 	if w.Bool(typInfo.derived || ifaceInfo.derived) {
 		w.Len(w.dict.itabIdx(typInfo, ifaceInfo))
-	} else {
-		w.typInfo(typInfo)
-		w.typInfo(ifaceInfo)
 	}
 }
 
