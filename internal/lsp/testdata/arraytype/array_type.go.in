@@ -9,7 +9,8 @@ func _() {
 		val string //@item(atVal, "val", "string", "var")
 	)
 
-	[] //@complete(" //", PackageFoo)
+	// disabled - see issue #54822
+	[] // complete(" //", PackageFoo)
 
 	[]val //@complete(" //")
 
@@ -33,7 +34,8 @@ func _() {
 
 	var s []myInt //@item(atS, "s", "[]myInt", "var")
 	s = []m //@complete(" //", atMyInt)
-	s = [] //@complete(" //", atMyInt, PackageFoo)
+	// disabled - see issue #54822
+	s = [] // complete(" //", atMyInt, PackageFoo)
 
 	var a [1]myInt
 	a = [1]m //@complete(" //", atMyInt)
