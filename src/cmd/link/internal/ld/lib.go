@@ -1356,20 +1356,34 @@ func (ctxt *Link) hostlink() {
 	case objabi.Hwindows:
 		if windowsgui {
 			argv = append(argv, "-mwindows")
+			if usingClangForMSVC {
+				argv = append(argv, "-Wl,/SUBSYSTEM:WINDOWS")
+			}
 		} else {
 			argv = append(argv, "-mconsole")
+			if usingClangForMSVC {
+				argv = append(argv, "-Wl,/SUBSYSTEM:CONSOLE")
+			}
 		}
-		// Mark as having awareness of terminal services, to avoid
-		// ancient compatibility hacks.
-		argv = append(argv, "-Wl,--tsaware")
+		// The linker of MSVC have defferent flags from the linker of Mingw/GCC,
+		// and some flags for Mingw/GCC are not supported by MSVC.
+		if usingClangForMSVC {
+			argv = append(argv, "-Wl,/TSAWARE")
+			argv = append(argv, "-Wl,/NXCOMPAT")
+		} else {
+			// Mark as having awareness of terminal services, to avoid
+			// ancient compatibility hacks.
+			argv = append(argv, "-Wl,--tsaware")
 
-		// Enable DEP
-		argv = append(argv, "-Wl,--nxcompat")
+			// Enable DEP
+			argv = append(argv, "-Wl,--nxcompat")
 
-		argv = append(argv, fmt.Sprintf("-Wl,--major-os-version=%d", PeMinimumTargetMajorVersion))
-		argv = append(argv, fmt.Sprintf("-Wl,--minor-os-version=%d", PeMinimumTargetMinorVersion))
-		argv = append(argv, fmt.Sprintf("-Wl,--major-subsystem-version=%d", PeMinimumTargetMajorVersion))
-		argv = append(argv, fmt.Sprintf("-Wl,--minor-subsystem-version=%d", PeMinimumTargetMinorVersion))
+			argv = append(argv, fmt.Sprintf("-Wl,--major-os-version=%d", PeMinimumTargetMajorVersion))
+			argv = append(argv, fmt.Sprintf("-Wl,--minor-os-version=%d", PeMinimumTargetMinorVersion))
+			argv = append(argv, fmt.Sprintf("-Wl,--major-subsystem-version=%d", PeMinimumTargetMajorVersion))
+			argv = append(argv, fmt.Sprintf("-Wl,--minor-subsystem-version=%d", PeMinimumTargetMinorVersion))
+		}
+
 	case objabi.Haix:
 		argv = append(argv, "-pthread")
 		// prevent ld to reorder .text functions to keep the same
