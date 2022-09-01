@@ -843,14 +843,16 @@ func (e *Editor) ApplyQuickFixes(ctx context.Context, path string, rng *protocol
 // ApplyCodeAction applies the given code action.
 func (e *Editor) ApplyCodeAction(ctx context.Context, action protocol.CodeAction) error {
 	for _, change := range action.Edit.DocumentChanges {
-		path := e.sandbox.Workdir.URIToPath(change.TextDocument.URI)
-		if int32(e.buffers[path].version) != change.TextDocument.Version {
-			// Skip edits for old versions.
-			continue
-		}
-		edits := convertEdits(change.Edits)
-		if err := e.EditBuffer(ctx, path, edits); err != nil {
-			return fmt.Errorf("editing buffer %q: %w", path, err)
+		if change.TextDocumentEdit != nil {
+			path := e.sandbox.Workdir.URIToPath(change.TextDocumentEdit.TextDocument.URI)
+			if int32(e.buffers[path].version) != change.TextDocumentEdit.TextDocument.Version {
+				// Skip edits for old versions.
+				continue
+			}
+			edits := convertEdits(change.TextDocumentEdit.Edits)
+			if err := e.EditBuffer(ctx, path, edits); err != nil {
+				return fmt.Errorf("editing buffer %q: %w", path, err)
+			}
 		}
 	}
 	// Execute any commands. The specification says that commands are
@@ -1155,8 +1157,10 @@ func (e *Editor) Rename(ctx context.Context, path string, pos Pos, newName strin
 		return err
 	}
 	for _, change := range wsEdits.DocumentChanges {
-		if err := e.applyProtocolEdit(ctx, change); err != nil {
-			return err
+		if change.TextDocumentEdit != nil {
+			if err := e.applyProtocolEdit(ctx, *change.TextDocumentEdit); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

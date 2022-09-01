@@ -74,8 +74,10 @@ func (t *imports) Run(ctx context.Context, args ...string) error {
 			continue
 		}
 		for _, c := range a.Edit.DocumentChanges {
-			if fileURI(c.TextDocument.URI) == uri {
-				edits = append(edits, c.Edits...)
+			if c.TextDocumentEdit != nil {
+				if fileURI(c.TextDocumentEdit.TextDocument.URI) == uri {
+					edits = append(edits, c.TextDocumentEdit.Edits...)
+				}
 			}
 		}
 	}

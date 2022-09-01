@@ -121,8 +121,14 @@ func (c *Client) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceE
 		return &protocol.ApplyWorkspaceEditResult{FailureReason: "Edit.Changes is unsupported"}, nil
 	}
 	for _, change := range params.Edit.DocumentChanges {
-		if err := c.editor.applyProtocolEdit(ctx, change); err != nil {
-			return nil, err
+		// Todo: Add a handler for RenameFile edits
+		if change.RenameFile != nil {
+			panic("Fake editor does not support the RenameFile edits.")
+		}
+		if change.TextDocumentEdit != nil {
+			if err := c.editor.applyProtocolEdit(ctx, *change.TextDocumentEdit); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return &protocol.ApplyWorkspaceEditResult{Applied: true}, nil

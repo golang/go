@@ -22,7 +22,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 		return nil, err
 	}
 
-	var docChanges []protocol.TextDocumentEdit
+	var docChanges []protocol.DocumentChanges
 	for uri, e := range edits {
 		fh, err := snapshot.GetVersionedFile(ctx, uri)
 		if err != nil {

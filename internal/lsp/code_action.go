@@ -338,16 +338,18 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 	return actions, nil
 }
 
-func documentChanges(fh source.VersionedFileHandle, edits []protocol.TextEdit) []protocol.TextDocumentEdit {
-	return []protocol.TextDocumentEdit{
+func documentChanges(fh source.VersionedFileHandle, edits []protocol.TextEdit) []protocol.DocumentChanges {
+	return []protocol.DocumentChanges{
 		{
-			TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
-				Version: fh.Version(),
-				TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-					URI: protocol.URIFromSpanURI(fh.URI()),
+			TextDocumentEdit: &protocol.TextDocumentEdit{
+				TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
+					Version: fh.Version(),
+					TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+						URI: protocol.URIFromSpanURI(fh.URI()),
+					},
 				},
+				Edits: edits,
 			},
-			Edits: edits,
 		},
 	}
 }
@@ -378,20 +380,22 @@ func codeActionsMatchingDiagnostics(ctx context.Context, snapshot source.Snapsho
 func codeActionsForDiagnostic(ctx context.Context, snapshot source.Snapshot, sd *source.Diagnostic, pd *protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	var actions []protocol.CodeAction
 	for _, fix := range sd.SuggestedFixes {
-		var changes []protocol.TextDocumentEdit
+		var changes []protocol.DocumentChanges
 		for uri, edits := range fix.Edits {
 			fh, err := snapshot.GetVersionedFile(ctx, uri)
 			if err != nil {
 				return nil, err
 			}
-			changes = append(changes, protocol.TextDocumentEdit{
-				TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
-					Version: fh.Version(),
-					TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-						URI: protocol.URIFromSpanURI(uri),
+			changes = append(changes, protocol.DocumentChanges{
+				TextDocumentEdit: &protocol.TextDocumentEdit{
+					TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
+						Version: fh.Version(),
+						TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+							URI: protocol.URIFromSpanURI(fh.URI()),
+						},
 					},
+					Edits: edits,
 				},
-				Edits: edits,
 			})
 		}
 		action := protocol.CodeAction{

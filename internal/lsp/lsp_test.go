@@ -1086,27 +1086,29 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 	}
 }
 
-func applyTextDocumentEdits(r *runner, edits []protocol.TextDocumentEdit) (map[span.URI]string, error) {
+func applyTextDocumentEdits(r *runner, edits []protocol.DocumentChanges) (map[span.URI]string, error) {
 	res := map[span.URI]string{}
 	for _, docEdits := range edits {
-		uri := docEdits.TextDocument.URI.SpanURI()
-		var m *protocol.ColumnMapper
-		// If we have already edited this file, we use the edited version (rather than the
-		// file in its original state) so that we preserve our initial changes.
-		if content, ok := res[uri]; ok {
-			m = protocol.NewColumnMapper(uri, []byte(content))
-		} else {
-			var err error
-			if m, err = r.data.Mapper(uri); err != nil {
+		if docEdits.TextDocumentEdit != nil {
+			uri := docEdits.TextDocumentEdit.TextDocument.URI.SpanURI()
+			var m *protocol.ColumnMapper
+			// If we have already edited this file, we use the edited version (rather than the
+			// file in its original state) so that we preserve our initial changes.
+			if content, ok := res[uri]; ok {
+				m = protocol.NewColumnMapper(uri, []byte(content))
+			} else {
+				var err error
+				if m, err = r.data.Mapper(uri); err != nil {
+					return nil, err
+				}
+			}
+			res[uri] = string(m.Content)
+			sedits, err := source.FromProtocolEdits(m, docEdits.TextDocumentEdit.Edits)
+			if err != nil {
 				return nil, err
 			}
+			res[uri] = applyEdits(res[uri], sedits)
 		}
-		res[uri] = string(m.Content)
-		sedits, err := source.FromProtocolEdits(m, docEdits.Edits)
-		if err != nil {
-			return nil, err
-		}
-		res[uri] = applyEdits(res[uri], sedits)
 	}
 	return res, nil
 }

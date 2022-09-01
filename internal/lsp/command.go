@@ -144,9 +144,15 @@ func (c *commandHandler) ApplyFix(ctx context.Context, args command.ApplyFixArgs
 		if err != nil {
 			return err
 		}
+		var changes []protocol.DocumentChanges
+		for _, edit := range edits {
+			changes = append(changes, protocol.DocumentChanges{
+				TextDocumentEdit: &edit,
+			})
+		}
 		r, err := c.s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
 			Edit: protocol.WorkspaceEdit{
-				DocumentChanges: edits,
+				DocumentChanges: changes,
 			},
 		})
 		if err != nil {
@@ -322,15 +328,19 @@ func (c *commandHandler) RemoveDependency(ctx context.Context, args command.Remo
 		}
 		response, err := c.s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
 			Edit: protocol.WorkspaceEdit{
-				DocumentChanges: []protocol.TextDocumentEdit{{
-					TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
-						Version: deps.fh.Version(),
-						TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-							URI: protocol.URIFromSpanURI(deps.fh.URI()),
+				DocumentChanges: []protocol.DocumentChanges{
+					{
+						TextDocumentEdit: &protocol.TextDocumentEdit{
+							TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
+								Version: deps.fh.Version(),
+								TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+									URI: protocol.URIFromSpanURI(deps.fh.URI()),
+								},
+							},
+							Edits: edits,
 						},
 					},
-					Edits: edits,
-				}},
+				},
 			},
 		})
 		if err != nil {
@@ -544,9 +554,15 @@ func (s *Server) runGoModUpdateCommands(ctx context.Context, snapshot source.Sna
 	if len(changes) == 0 {
 		return nil
 	}
+	var documentChanges []protocol.DocumentChanges
+	for _, change := range changes {
+		documentChanges = append(documentChanges, protocol.DocumentChanges{
+			TextDocumentEdit: &change,
+		})
+	}
 	response, err := s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
 		Edit: protocol.WorkspaceEdit{
-			DocumentChanges: changes,
+			DocumentChanges: documentChanges,
 		},
 	})
 	if err != nil {

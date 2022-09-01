@@ -103,8 +103,10 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 		}
 		if !from.HasPosition() {
 			for _, c := range a.Edit.DocumentChanges {
-				if fileURI(c.TextDocument.URI) == uri {
-					edits = append(edits, c.Edits...)
+				if c.TextDocumentEdit != nil {
+					if fileURI(c.TextDocumentEdit.TextDocument.URI) == uri {
+						edits = append(edits, c.TextDocumentEdit.Edits...)
+					}
 				}
 			}
 			continue
@@ -118,8 +120,10 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 			}
 			if span.ComparePoint(from.Start(), spn.Start()) == 0 {
 				for _, c := range a.Edit.DocumentChanges {
-					if fileURI(c.TextDocument.URI) == uri {
-						edits = append(edits, c.Edits...)
+					if c.TextDocumentEdit != nil {
+						if fileURI(c.TextDocumentEdit.TextDocument.URI) == uri {
+							edits = append(edits, c.TextDocumentEdit.Edits...)
+						}
 					}
 				}
 				break
@@ -129,8 +133,10 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 		// If suggested fix is not a diagnostic, still must collect edits.
 		if len(a.Diagnostics) == 0 {
 			for _, c := range a.Edit.DocumentChanges {
-				if fileURI(c.TextDocument.URI) == uri {
-					edits = append(edits, c.Edits...)
+				if c.TextDocumentEdit != nil {
+					if fileURI(c.TextDocumentEdit.TextDocument.URI) == uri {
+						edits = append(edits, c.TextDocumentEdit.Edits...)
+					}
 				}
 			}
 		}

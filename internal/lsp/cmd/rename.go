@@ -81,9 +81,12 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 	var orderedURIs []string
 	edits := map[span.URI][]protocol.TextEdit{}
 	for _, c := range edit.DocumentChanges {
-		uri := fileURI(c.TextDocument.URI)
-		edits[uri] = append(edits[uri], c.Edits...)
-		orderedURIs = append(orderedURIs, string(uri))
+		// Todo: Add handler for RenameFile edits
+		if c.TextDocumentEdit != nil {
+			uri := fileURI(c.TextDocumentEdit.TextDocument.URI)
+			edits[uri] = append(edits[uri], c.TextDocumentEdit.Edits...)
+			orderedURIs = append(orderedURIs, string(uri))
+		}
 	}
 	sort.Strings(orderedURIs)
 	changeCount := len(orderedURIs)
