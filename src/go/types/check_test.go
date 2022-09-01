@@ -362,6 +362,7 @@ func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "t
 func TestSpec(t *testing.T)      { testDirFiles(t, "testdata/spec", false) }
 func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
 func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
+func TestLocal(t *testing.T)     { testDirFiles(t, "testdata/local", false) }
 
 func testDirFiles(t *testing.T, dir string, manual bool) {
 	testenv.MustHaveGoBuild(t)
