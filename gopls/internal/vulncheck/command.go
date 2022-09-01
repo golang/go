@@ -175,7 +175,10 @@ func toVulns(ci *gvc.CallInfo, unaffectedMods map[string][]*osv.Entry) ([]Vuln, 
 		for _, v := range vg {
 			if css := ci.CallStacks[v]; len(css) > 0 {
 				vuln.CallStacks = append(vuln.CallStacks, toCallStack(css[0]))
-				vuln.CallStackSummaries = append(vuln.CallStackSummaries, gvc.SummarizeCallStack(css[0], ci.TopPackages, v.PkgPath))
+				// TODO(hyangah):  https://go-review.googlesource.com/c/vuln/+/425183 added position info
+				// in the summary but we don't need the info. Allow SummarizeCallStack to skip it optionally.
+				sum := trimPosPrefix(gvc.SummarizeCallStack(css[0], ci.TopPackages, v.PkgPath))
+				vuln.CallStackSummaries = append(vuln.CallStackSummaries, sum)
 			}
 		}
 		vulns = append(vulns, vuln)
@@ -195,4 +198,12 @@ func toVulns(ci *gvc.CallInfo, unaffectedMods map[string][]*osv.Entry) ([]Vuln, 
 		}
 	}
 	return vulns, nil
+}
+
+func trimPosPrefix(summary string) string {
+	_, after, found := strings.Cut(summary, ": ")
+	if !found {
+		return summary
+	}
+	return after
 }

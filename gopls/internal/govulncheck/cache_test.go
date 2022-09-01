@@ -93,7 +93,7 @@ func TestConcurrency(t *testing.T) {
 		i := i
 		g.Go(func() error {
 			id := i % 5
-			p := fmt.Sprintf("package%d", id)
+			p := fmt.Sprintf("example.com/package%d", id)
 
 			entries, err := cache.ReadEntries(dbName, p)
 			if err != nil {
@@ -115,7 +115,7 @@ func TestConcurrency(t *testing.T) {
 	// sanity checking
 	for i := 0; i < 5; i++ {
 		id := fmt.Sprint(i)
-		p := fmt.Sprintf("package%s", id)
+		p := fmt.Sprintf("example.com/package%s", id)
 
 		es, err := cache.ReadEntries(dbName, p)
 		if err != nil {

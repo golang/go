@@ -61,7 +61,7 @@ import (
 )
 
 func main() {
-        _, err := zip.OpenReader("file.zip")  // vulnerability GO-0000-001
+        _, err := zip.OpenReader("file.zip")  // vulnerability id: STD
         fmt.Println(err)
 }
 `
@@ -111,7 +111,7 @@ func main() {
 		env.Await(
 			CompletedWork("govulncheck", 1, true),
 			// TODO(hyangah): once the diagnostics are published, wait for diagnostics.
-			ShownMessage("Found GO-0000-001"),
+			ShownMessage("Found STD"),
 		)
 	})
 }

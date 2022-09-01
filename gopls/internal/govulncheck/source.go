@@ -25,7 +25,7 @@ func (e *PackageError) Error() string {
 	var b strings.Builder
 	fmt.Fprintln(&b, "Packages contain errors:")
 	for _, e := range e.Errors {
-		fmt.Println(&b, e)
+		fmt.Fprintln(&b, e)
 	}
 	return b.String()
 }

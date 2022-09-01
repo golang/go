@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"golang.org/x/mod/semver"
+	isem "golang.org/x/tools/gopls/internal/govulncheck/semver"
 	"golang.org/x/vuln/osv"
 	"golang.org/x/vuln/vulncheck"
 )
@@ -24,7 +25,8 @@ func LatestFixed(as []osv.Affected) string {
 		for _, r := range a.Ranges {
 			if r.Type == osv.TypeSemver {
 				for _, e := range r.Events {
-					if e.Fixed != "" && (v == "" || semver.Compare(e.Fixed, v) > 0) {
+					if e.Fixed != "" && (v == "" ||
+						semver.Compare(isem.CanonicalizeSemverPrefix(e.Fixed), isem.CanonicalizeSemverPrefix(v)) > 0) {
 						v = e.Fixed
 					}
 				}
@@ -60,12 +62,16 @@ func SummarizeCallStack(cs vulncheck.CallStack, topPkgs map[string]bool, vulnPkg
 	}
 	iVuln += iTop + 1 // adjust for slice in call to highest.
 	topName := FuncName(cs[iTop].Function)
+	topPos := AbsRelShorter(FuncPos(cs[iTop].Call))
+	if topPos != "" {
+		topPos += ": "
+	}
 	vulnName := FuncName(cs[iVuln].Function)
 	if iVuln == iTop+1 {
-		return fmt.Sprintf("%s calls %s", topName, vulnName)
+		return fmt.Sprintf("%s%s calls %s", topPos, topName, vulnName)
 	}
-	return fmt.Sprintf("%s calls %s, which eventually calls %s",
-		topName, FuncName(cs[iTop+1].Function), vulnName)
+	return fmt.Sprintf("%s%s calls %s, which eventually calls %s",
+		topPos, topName, FuncName(cs[iTop+1].Function), vulnName)
 }
 
 // highest returns the highest (one with the smallest index) entry in the call
@@ -106,4 +112,12 @@ func PkgPath(fn *vulncheck.FuncNode) string {
 // to remove pointer annotations.
 func FuncName(fn *vulncheck.FuncNode) string {
 	return strings.TrimPrefix(fn.String(), "*")
+}
+
+// FuncPos returns the function position from call.
+func FuncPos(call *vulncheck.CallSite) string {
+	if call != nil && call.Pos != nil {
+		return call.Pos.String()
+	}
+	return ""
 }

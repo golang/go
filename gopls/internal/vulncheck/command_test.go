@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -41,6 +42,13 @@ func TestCmd_Run(t *testing.T) {
 		var got []report
 		for _, v := range result {
 			got = append(got, toReport(v))
+		}
+		// drop the workspace root directory path included in the summary.
+		cwd := cfg.Dir
+		for _, g := range got {
+			for i, summary := range g.CallStackSummaries {
+				g.CallStackSummaries[i] = strings.ReplaceAll(summary, cwd, ".")
+			}
 		}
 
 		var want = []report{
@@ -232,9 +240,13 @@ var testClient1 = &mockClient{
 					},
 				},
 				Affected: []osv.Affected{{
-					Package:           osv.Package{Name: "golang.org/amod/avuln"},
-					Ranges:            osv.Affects{{Type: osv.TypeSemver, Events: []osv.RangeEvent{{Introduced: "1.0.0"}, {Fixed: "1.0.4"}, {Introduced: "1.1.2"}}}},
-					EcosystemSpecific: osv.EcosystemSpecific{Symbols: []string{"VulnData.Vuln1", "VulnData.Vuln2"}},
+					Package: osv.Package{Name: "golang.org/amod"},
+					Ranges:  osv.Affects{{Type: osv.TypeSemver, Events: []osv.RangeEvent{{Introduced: "1.0.0"}, {Fixed: "1.0.4"}, {Introduced: "1.1.2"}}}},
+					EcosystemSpecific: osv.EcosystemSpecific{
+						Imports: []osv.EcosystemSpecificImport{{
+							Path:    "golang.org/amod/avuln",
+							Symbols: []string{"VulnData.Vuln1", "VulnData.Vuln2"}}},
+					},
 				}},
 			},
 			{
@@ -247,9 +259,13 @@ var testClient1 = &mockClient{
 					},
 				},
 				Affected: []osv.Affected{{
-					Package:           osv.Package{Name: "golang.org/amod/avuln"},
-					Ranges:            osv.Affects{{Type: osv.TypeSemver, Events: []osv.RangeEvent{{Introduced: "1.0.0"}, {Fixed: "1.0.4"}, {Introduced: "1.1.2"}}}},
-					EcosystemSpecific: osv.EcosystemSpecific{Symbols: []string{"nonExisting"}},
+					Package: osv.Package{Name: "golang.org/amod"},
+					Ranges:  osv.Affects{{Type: osv.TypeSemver, Events: []osv.RangeEvent{{Introduced: "1.0.0"}, {Fixed: "1.0.4"}, {Introduced: "1.1.2"}}}},
+					EcosystemSpecific: osv.EcosystemSpecific{
+						Imports: []osv.EcosystemSpecificImport{{
+							Path:    "golang.org/amod/avuln",
+							Symbols: []string{"nonExisting"}}},
+					},
 				}},
 			},
 		},
@@ -257,9 +273,13 @@ var testClient1 = &mockClient{
 			{
 				ID: "GO-2022-02",
 				Affected: []osv.Affected{{
-					Package:           osv.Package{Name: "golang.org/bmod/bvuln"},
-					Ranges:            osv.Affects{{Type: osv.TypeSemver}},
-					EcosystemSpecific: osv.EcosystemSpecific{Symbols: []string{"Vuln"}},
+					Package: osv.Package{Name: "golang.org/bmod"},
+					Ranges:  osv.Affects{{Type: osv.TypeSemver}},
+					EcosystemSpecific: osv.EcosystemSpecific{
+						Imports: []osv.EcosystemSpecificImport{{
+							Path:    "golang.org/bmod/bvuln",
+							Symbols: []string{"Vuln"}}},
+					},
 				}},
 			},
 		},
