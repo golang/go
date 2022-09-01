@@ -165,6 +165,7 @@ func DefaultOptions() *Options {
 				CompletionDocumentation: true,
 				DeepCompletion:          true,
 				ChattyDiagnostics:       true,
+				NewDiff:                 "both",
 			},
 			Hooks: Hooks{
 				// TODO(adonovan): switch to new diff.Strings implementation.
@@ -822,7 +823,6 @@ func (o *Options) EnableAllExperiments() {
 	o.SemanticTokens = true
 	o.ExperimentalUseInvalidMetadata = true
 	o.ExperimentalWatchedFileDelay = 50 * time.Millisecond
-	o.NewDiff = "checked"
 }
 
 func (o *Options) enableAllExperimentMaps() {
