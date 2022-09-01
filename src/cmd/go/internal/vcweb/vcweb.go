@@ -134,6 +134,7 @@ func NewServer(scriptDir, workDir string, logger *log.Logger) (*Server, error) {
 			"git":      new(gitHandler),
 			"hg":       new(hgHandler),
 			"insecure": new(insecureHandler),
+			"svn":      &svnHandler{svnRoot: workDir, logger: logger},
 		},
 	}
 
@@ -153,6 +154,18 @@ func NewServer(scriptDir, workDir string, logger *log.Logger) (*Server, error) {
 	}
 
 	return s, nil
+}
+
+func (s *Server) Close() error {
+	var firstErr error
+	for _, h := range s.vcsHandlers {
+		if c, ok := h.(io.Closer); ok {
+			if closeErr := c.Close(); firstErr == nil {
+				firstErr = closeErr
+			}
+		}
+	}
+	return firstErr
 }
 
 // gitConfig contains a ~/.gitconfg file that attempts to provide

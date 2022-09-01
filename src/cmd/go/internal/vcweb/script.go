@@ -42,6 +42,7 @@ func newScriptEngine() *script.Engine {
 	cmds["hg"] = script.Program("hg", interrupt, gracePeriod)
 	cmds["handle"] = scriptHandle()
 	cmds["modzip"] = scriptModzip()
+	cmds["svnadmin"] = script.Program("svnadmin", interrupt, gracePeriod)
 	cmds["svn"] = script.Program("svn", interrupt, gracePeriod)
 	cmds["unquote"] = scriptUnquote()
 

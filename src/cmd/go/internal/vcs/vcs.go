@@ -1212,9 +1212,6 @@ func interceptVCSTest(repo string, vcs *Cmd, security web.SecurityMode) (repoURL
 		// requests will be intercepted at a lower level (in cmd/go/internal/web).
 		return "", false
 	}
-	if vcs == vcsSvn {
-		return "", false // Will be implemented in CL 427914.
-	}
 
 	if scheme, path, ok := strings.Cut(repo, "://"); ok {
 		if security == web.SecureOnly && !vcs.isSecureScheme(scheme) {
@@ -1226,7 +1223,27 @@ func interceptVCSTest(repo string, vcs *Cmd, security web.SecurityMode) (repoURL
 		if !str.HasPathPrefix(repo, host) {
 			continue
 		}
-		return VCSTestRepoURL + strings.TrimPrefix(repo, host), true
+
+		httpURL := VCSTestRepoURL + strings.TrimPrefix(repo, host)
+
+		if vcs == vcsSvn {
+			// Ping the vcweb HTTP server to tell it to initialize the SVN repository
+			// and get the SVN server URL.
+			u, err := urlpkg.Parse(httpURL + "?vcwebsvn=1")
+			if err != nil {
+				panic(fmt.Sprintf("invalid vcs-test repo URL: %v", err))
+			}
+			svnURL, err := web.GetBytes(u)
+			svnURL = bytes.TrimSpace(svnURL)
+			if err == nil && len(svnURL) > 0 {
+				return string(svnURL) + strings.TrimPrefix(repo, host), true
+			}
+
+			// vcs-test doesn't have a svn handler for the given path,
+			// so resolve the repo to HTTPS instead.
+		}
+
+		return httpURL, true
 	}
 	return "", false
 }
