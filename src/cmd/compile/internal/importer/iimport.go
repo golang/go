@@ -233,10 +233,7 @@ func (p *iimporter) doDecl(pkg *types2.Package, name string) {
 	}
 
 	r := &importReader{p: p, currPkg: pkg}
-	// Reader.Reset is not available in Go 1.4.
-	// Use bytes.NewReader for now.
-	// r.declReader.Reset(p.declData[off:])
-	r.declReader = *strings.NewReader(p.declData[off:])
+	r.declReader.Reset(p.declData[off:])
 
 	r.obj(name)
 }
@@ -282,10 +279,7 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
 	}
 
 	r := &importReader{p: p}
-	// Reader.Reset is not available in Go 1.4.
-	// Use bytes.NewReader for now.
-	// r.declReader.Reset(p.declData[off-predeclReserved:])
-	r.declReader = *strings.NewReader(p.declData[off-predeclReserved:])
+	r.declReader.Reset(p.declData[off-predeclReserved:])
 	t := r.doType(base)
 
 	if canReuse(base, t) {

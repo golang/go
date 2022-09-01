@@ -280,9 +280,7 @@ func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
 		p:       p,
 		currPkg: pkg,
 	}
-	// (*strings.Reader).Reset wasn't added until Go 1.7, and we
-	// need to build with Go 1.4.
-	r.Reader = *strings.NewReader(p.declData[off:])
+	r.Reader.Reset(p.declData[off:])
 	return r
 }
 
