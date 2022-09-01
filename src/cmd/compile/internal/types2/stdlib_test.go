@@ -197,6 +197,15 @@ func TestStdFixed(t *testing.T) {
 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue49767.go",  // go/types does not have constraints on channel element size
 		"issue49814.go",  // go/types does not have constraints on array size
+
+		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+		// However, types2 does not know about build constraints.
+		"bug514.go",
+		"issue40954.go",
+		"issue42032.go",
+		"issue42076.go",
+		"issue46903.go",
+		"issue51733.go",
 	)
 }
 
