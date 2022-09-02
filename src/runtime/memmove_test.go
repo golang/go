@@ -244,23 +244,23 @@ func TestMemmoveAtomicity(t *testing.T) {
 					dst[i] = nil
 				}
 
-				var ready uint32
+				var ready atomic.Uint32
 				go func() {
 					sp := unsafe.Pointer(&src[0])
 					dp := unsafe.Pointer(&dst[0])
-					atomic.StoreUint32(&ready, 1)
+					ready.Store(1)
 					for i := 0; i < 10000; i++ {
 						Memmove(dp, sp, sz)
 						MemclrNoHeapPointers(dp, sz)
 					}
-					atomic.StoreUint32(&ready, 2)
+					ready.Store(2)
 				}()
 
-				for atomic.LoadUint32(&ready) == 0 {
+				for ready.Load() == 0 {
 					Gosched()
 				}
 
-				for atomic.LoadUint32(&ready) != 2 {
+				for ready.Load() != 2 {
 					for i := range dst {
 						p := dst[i]
 						if p != nil && p != &x {
