@@ -338,16 +338,16 @@ func typeParamsString(list []*TypeParam) string {
 	}
 
 	// general case (n > 2)
-	var b strings.Builder
+	var buf strings.Builder
 	for i, tname := range list[:n-1] {
 		if i > 0 {
-			b.WriteString(", ")
+			buf.WriteString(", ")
 		}
-		b.WriteString(tname.obj.name)
+		buf.WriteString(tname.obj.name)
 	}
-	b.WriteString(", and ")
-	b.WriteString(list[n-1].obj.name)
-	return b.String()
+	buf.WriteString(", and ")
+	buf.WriteString(list[n-1].obj.name)
+	return buf.String()
 }
 
 // isParameterized reports whether typ contains any of the type parameters of tparams.

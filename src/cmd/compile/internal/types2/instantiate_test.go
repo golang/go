@@ -233,15 +233,15 @@ var _ T[int]
 
 // Copied from errors.go.
 func stripAnnotations(s string) string {
-	var b strings.Builder
+	var buf strings.Builder
 	for _, r := range s {
 		// strip #'s and subscript digits
 		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
-			b.WriteRune(r)
+			buf.WriteRune(r)
 		}
 	}
-	if b.Len() < len(s) {
-		return b.String()
+	if buf.Len() < len(s) {
+		return buf.String()
 	}
 	return s
 }

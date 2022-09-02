@@ -24,10 +24,10 @@
 package types2
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
+	"strings"
 )
 
 // An Error describes a type-checking error; it implements the error interface.
@@ -388,7 +388,7 @@ type Initializer struct {
 }
 
 func (init *Initializer) String() string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i, lhs := range init.Lhs {
 		if i > 0 {
 			buf.WriteString(", ")

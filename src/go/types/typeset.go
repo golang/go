@@ -5,10 +5,10 @@
 package types
 
 import (
-	"bytes"
 	"fmt"
 	"go/token"
 	"sort"
+	"strings"
 )
 
 // ----------------------------------------------------------------------------
@@ -71,7 +71,7 @@ func (s *_TypeSet) String() string {
 	hasMethods := len(s.methods) > 0
 	hasTerms := s.hasTerms()
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	buf.WriteByte('{')
 	if s.comparable {
 		buf.WriteString("comparable")

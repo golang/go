@@ -7,7 +7,6 @@
 package types2
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"runtime"
@@ -64,7 +63,7 @@ func (err *error_) msg(qf Qualifier) string {
 	if err.empty() {
 		return "no error"
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i := range err.desc {
 		p := &err.desc[i]
 		if i > 0 {
@@ -106,7 +105,7 @@ func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) strin
 		case syntax.Expr:
 			arg = syntax.String(a)
 		case []syntax.Expr:
-			var buf bytes.Buffer
+			var buf strings.Builder
 			buf.WriteByte('[')
 			for i, x := range a {
 				if i > 0 {
@@ -121,7 +120,7 @@ func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) strin
 		case Type:
 			arg = typeString(a, qf, debug)
 		case []Type:
-			var buf bytes.Buffer
+			var buf strings.Builder
 			buf.WriteByte('[')
 			for i, x := range a {
 				if i > 0 {
@@ -132,7 +131,7 @@ func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) strin
 			buf.WriteByte(']')
 			arg = buf.String()
 		case []*TypeParam:
-			var buf bytes.Buffer
+			var buf strings.Builder
 			buf.WriteByte('[')
 			for i, x := range a {
 				if i > 0 {
@@ -300,15 +299,15 @@ func posFor(at poser) syntax.Pos {
 
 // stripAnnotations removes internal (type) annotations from s.
 func stripAnnotations(s string) string {
-	var b strings.Builder
+	var buf strings.Builder
 	for _, r := range s {
 		// strip #'s and subscript digits
 		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
-			b.WriteRune(r)
+			buf.WriteRune(r)
 		}
 	}
-	if b.Len() < len(s) {
-		return b.String()
+	if buf.Len() < len(s) {
+		return buf.String()
 	}
 	return s
 }

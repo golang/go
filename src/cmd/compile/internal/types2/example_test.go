@@ -17,7 +17,6 @@ package types2_test
 // from source, use golang.org/x/tools/go/loader.
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 	"fmt"
@@ -68,7 +67,7 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
 
 	// Print the tree of scopes.
 	// For determinism, we redact addresses.
-	var buf bytes.Buffer
+	var buf strings.Builder
 	pkg.Scope().WriteTo(&buf, 0, true)
 	rx := regexp.MustCompile(` 0x[a-fA-F0-9]*`)
 	fmt.Println(rx.ReplaceAllString(buf.String(), ""))
@@ -173,7 +172,7 @@ func fib(x int) int {
 	// fmt.Println("Types and Values of each expression:")
 	// items = nil
 	// for expr, tv := range info.Types {
-	// 	var buf bytes.Buffer
+	// 	var buf strings.Builder
 	// 	posn := expr.Pos()
 	// 	tvstr := tv.Type.String()
 	// 	if tv.Value != nil {

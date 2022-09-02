@@ -4,7 +4,7 @@
 
 package types2
 
-import "bytes"
+import "strings"
 
 // A termlist represents the type set represented by the union
 // t1 ∪ y2 ∪ ... tn of the type sets of the terms t1 to tn.
@@ -25,7 +25,7 @@ func (xl termlist) String() string {
 	if len(xl) == 0 {
 		return "∅"
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i, x := range xl {
 		if i > 0 {
 			buf.WriteString(termSep)
