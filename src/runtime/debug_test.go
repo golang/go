@@ -224,7 +224,7 @@ func TestDebugCallGrowStack(t *testing.T) {
 }
 
 //go:nosplit
-func debugCallUnsafePointWorker(gpp **runtime.G, ready, stop *uint32) {
+func debugCallUnsafePointWorker(gpp **runtime.G, ready, stop *atomic.Bool) {
 	// The nosplit causes this function to not contain safe-points
 	// except at calls.
 	runtime.LockOSThread()
@@ -232,8 +232,8 @@ func debugCallUnsafePointWorker(gpp **runtime.G, ready, stop *uint32) {
 
 	*gpp = runtime.Getg()
 
-	for atomic.LoadUint32(stop) == 0 {
-		atomic.StoreUint32(ready, 1)
+	for !stop.Load() {
+		ready.Store(true)
 	}
 }
 
@@ -253,10 +253,10 @@ func TestDebugCallUnsafePoint(t *testing.T) {
 
 	// Test that the runtime refuses call injection at unsafe points.
 	var g *runtime.G
-	var ready, stop uint32
-	defer atomic.StoreUint32(&stop, 1)
+	var ready, stop atomic.Bool
+	defer stop.Store(true)
 	go debugCallUnsafePointWorker(&g, &ready, &stop)
-	for atomic.LoadUint32(&ready) == 0 {
+	for !ready.Load() {
 		runtime.Gosched()
 	}
 
