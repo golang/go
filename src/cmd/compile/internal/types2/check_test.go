@@ -299,12 +299,14 @@ func TestManual(t *testing.T) {
 
 func TestCheck(t *testing.T) {
 	DefPredeclaredTestFuncs()
-	testDirFiles(t, "../../../../go/types/testdata/check", 55, false) // TODO(gri) narrow column tolerance
+	testDirFiles(t, "../../../../internal/types/testdata/check", 55, false) // TODO(gri) narrow column tolerance
 }
-func TestSpec(t *testing.T)     { testDirFiles(t, "../../../../go/types/testdata/spec", 0, false) }
-func TestExamples(t *testing.T) { testDirFiles(t, "../../../../go/types/testdata/examples", 45, false) } // TODO(gri) narrow column tolerance
+func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 0, false) }
+func TestExamples(t *testing.T) {
+	testDirFiles(t, "../../../../internal/types/testdata/examples", 45, false)
+} // TODO(gri) narrow column tolerance
 func TestFixedbugs(t *testing.T) {
-	testDirFiles(t, "../../../../go/types/testdata/fixedbugs", 100, false)
+	testDirFiles(t, "../../../../internal/types/testdata/fixedbugs", 100, false)
 }                            // TODO(gri) narrow column tolerance
 func TestLocal(t *testing.T) { testDirFiles(t, "testdata/local", 0, false) }
 
