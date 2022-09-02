@@ -299,7 +299,7 @@ func TestManual(t *testing.T) {
 
 func TestCheck(t *testing.T) {
 	DefPredeclaredTestFuncs()
-	testDirFiles(t, "../../../../internal/types/testdata/check", 55, false) // TODO(gri) narrow column tolerance
+	testDirFiles(t, "../../../../internal/types/testdata/check", 50, false) // TODO(gri) narrow column tolerance
 }
 func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 0, false) }
 func TestExamples(t *testing.T) {

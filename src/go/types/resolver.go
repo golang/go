@@ -411,7 +411,7 @@ func (check *Checker) collectObjects() {
 						}
 						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
 							// TODO(rFindley) Should this be a hard error?
-							check.softErrorf(d.decl, code, "func %s must have no arguments and no return values", name)
+							check.softErrorf(d.decl.Name, code, "func %s must have no arguments and no return values", name)
 						}
 					}
 					if name == "init" {

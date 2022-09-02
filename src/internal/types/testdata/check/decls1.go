@@ -140,7 +140,7 @@ func (x *T) m3() {}
 
 // Initialization functions
 func init() {}
-func /* ERROR "no arguments and no return values" */ init(int) {}
-func /* ERROR "no arguments and no return values" */ init() int { return 0 }
-func /* ERROR "no arguments and no return values" */ init(int) int { return 0 }
+func init /* ERROR "no arguments and no return values" */ (int) {}
+func init /* ERROR "no arguments and no return values" */ () int { return 0 }
+func init /* ERROR "no arguments and no return values" */ (int) int { return 0 }
 func (T) init(int) int { return 0 }

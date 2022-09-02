@@ -421,7 +421,7 @@ func (check *Checker) collectObjects() {
 							hasTParamError = true
 						}
 						if t := s.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
-							check.softErrorf(s, "func %s must have no arguments and no return values", name)
+							check.softErrorf(s.Name, "func %s must have no arguments and no return values", name)
 						}
 					}
 					// don't declare init functions in the package scope - they are invisible
