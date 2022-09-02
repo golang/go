@@ -2141,17 +2141,27 @@ func F[T any](_ T) {
 `
 	Run(t, files, func(_ *testing.T, env *Env) { // Create a new workspace-level directory and empty file.
 		var d protocol.PublishDiagnosticsParams
+
+		// Once the initial workspace load is complete, we should have a diagnostic
+		// because generics are not supported at 1.16.
 		env.Await(
 			OnceMet(
+				InitialWorkspaceLoad,
 				env.DiagnosticAtRegexpWithMessage("main.go", `T any`, "type parameter"),
 				ReadDiagnostics("main.go", &d),
 			),
 		)
 
+		// This diagnostic should have a quick fix to edit the go version.
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 
+		// Once the edit is applied, the problematic diagnostics should be
+		// resolved.
 		env.Await(
-			EmptyDiagnostics("main.go"),
+			OnceMet(
+				env.DoneWithChangeWatchedFiles(), // go.mod should have been quick-fixed
+				EmptyDiagnostics("main.go"),
+			),
 		)
 	})
 }
