@@ -8,6 +8,7 @@
 package p
 
 import ; // ERROR missing import path
+import "" // ERROR invalid import path \(empty string\)
 import
 var /* ERROR missing import path */ _ int
 import .; //  ERROR missing import path
