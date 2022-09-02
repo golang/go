@@ -206,6 +206,8 @@ func TestStdFixed(t *testing.T) {
 		"issue42076.go",
 		"issue46903.go",
 		"issue51733.go",
+		"notinheap2.go",
+		"notinheap3.go",
 	)
 }
 
