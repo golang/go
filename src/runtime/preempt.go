@@ -418,7 +418,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		inltree := (*[1 << 20]inlinedCall)(inldata)
 		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil)
 		if ix >= 0 {
-			name = funcnameFromNameoff(f, inltree[ix].func_)
+			name = funcnameFromNameoff(f, inltree[ix].nameOff)
 		}
 	}
 	if hasPrefix(name, "runtime.") ||

@@ -116,7 +116,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 			if ix >= 0 {
 				// Note: entry is not modified. It always refers to a real frame, not an inlined one.
 				f = nil
-				name = funcnameFromNameoff(funcInfo, inltree[ix].func_)
+				name = funcnameFromNameoff(funcInfo, inltree[ix].nameOff)
 				// File/line from funcline1 below are already correct.
 			}
 		}
@@ -726,7 +726,7 @@ func FuncForPC(pc uintptr) *Func {
 		// The runtime currently doesn't have function end info, alas.
 		if ix := pcdatavalue1(f, _PCDATA_InlTreeIndex, pc, nil, false); ix >= 0 {
 			inltree := (*[1 << 20]inlinedCall)(inldata)
-			name := funcnameFromNameoff(f, inltree[ix].func_)
+			name := funcnameFromNameoff(f, inltree[ix].nameOff)
 			file, line := funcline(f, pc)
 			fi := &funcinl{
 				ones:  ^uint32(0),
@@ -1174,6 +1174,6 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
 type inlinedCall struct {
 	funcID   funcID // type of the called function
 	_        [3]byte
-	func_    int32 // offset into pclntab for name of called function
+	nameOff  int32 // offset into pclntab for name of called function
 	parentPc int32 // position of an instruction whose source position is the call site (offset from entry)
 }
