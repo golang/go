@@ -6,8 +6,8 @@
 package str
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -49,7 +49,7 @@ func ToFold(s string) string {
 	return s
 
 Slow:
-	var buf bytes.Buffer
+	var b strings.Builder
 	for _, r := range s {
 		// SimpleFold(x) cycles to the next equivalent rune > x
 		// or wraps around to smaller values. Iterate until it wraps,
@@ -65,9 +65,9 @@ Slow:
 		if 'A' <= r && r <= 'Z' {
 			r += 'a' - 'A'
 		}
-		buf.WriteRune(r)
+		b.WriteRune(r)
 	}
-	return buf.String()
+	return b.String()
 }
 
 // FoldDup reports a pair of strings from the list that are
