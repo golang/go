@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -171,6 +172,14 @@ func TestLookupPTR(t *testing.T) {
 	for _, addr := range lookupTestIPs {
 		names, err := LookupAddr(addr)
 		if err != nil {
+			// The DNSError type stores the error as a string, so it cannot wrap the
+			// original error code and we cannot check for it here. However, we can at
+			// least use its error string to identify the correct localized text for
+			// the error to skip.
+			var DNS_ERROR_RCODE_SERVER_FAILURE syscall.Errno = 9002
+			if strings.HasSuffix(err.Error(), DNS_ERROR_RCODE_SERVER_FAILURE.Error()) {
+				testenv.SkipFlaky(t, 38111)
+			}
 			t.Errorf("failed %s: %s", addr, err)
 		}
 		if len(names) == 0 {
