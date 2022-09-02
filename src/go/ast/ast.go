@@ -1036,17 +1036,24 @@ func (*FuncDecl) declNode() {}
 // and Comment comments directly associated with nodes, the remaining comments
 // are "free-floating" (see also issues #18593, #20744).
 type File struct {
-	Doc        *CommentGroup   // associated documentation; or nil
-	Package    token.Pos       // position of "package" keyword
-	Name       *Ident          // package name
-	Decls      []Decl          // top-level declarations; or nil
-	Scope      *Scope          // package scope (this file only)
-	Imports    []*ImportSpec   // imports in this file
-	Unresolved []*Ident        // unresolved identifiers in this file
-	Comments   []*CommentGroup // list of all comments in the source file
+	Doc     *CommentGroup // associated documentation; or nil
+	Package token.Pos     // position of "package" keyword
+	Name    *Ident        // package name
+	Decls   []Decl        // top-level declarations; or nil
+
+	FileStart, FileEnd token.Pos       // start and end of entire file
+	Scope              *Scope          // package scope (this file only)
+	Imports            []*ImportSpec   // imports in this file
+	Unresolved         []*Ident        // unresolved identifiers in this file
+	Comments           []*CommentGroup // list of all comments in the source file
 }
 
+// Pos returns the position of the package declaration.
+// (Use FileStart for the start of the entire file.)
 func (f *File) Pos() token.Pos { return f.Package }
+
+// End returns the end of the last declaration in the file.
+// (Use FileEnd for the end of the entire file.)
 func (f *File) End() token.Pos {
 	if n := len(f.Decls); n > 0 {
 		return f.Decls[n-1].End()

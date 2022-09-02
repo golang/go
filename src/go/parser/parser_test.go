@@ -488,6 +488,34 @@ func TestIssue9979(t *testing.T) {
 	}
 }
 
+func TestFileStartEndPos(t *testing.T) {
+	const src = `// Copyright
+
+//+build tag
+
+// Package p doc comment.
+package p
+
+var lastDecl int
+
+/* end of file */
+`
+	fset := token.NewFileSet()
+	f, err := ParseFile(fset, "file.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// File{Start,End} spans the entire file, not just the declarations.
+	if got, want := fset.Position(f.FileStart).String(), "file.go:1:1"; got != want {
+		t.Errorf("for File.FileStart, got %s, want %s", got, want)
+	}
+	// The end position is the newline at the end of the /* end of file */ line.
+	if got, want := fset.Position(f.FileEnd).String(), "file.go:10:19"; got != want {
+		t.Errorf("for File.FileEnd, got %s, want %s", got, want)
+	}
+}
+
 // TestIncompleteSelection ensures that an incomplete selector
 // expression is parsed as a (blank) *ast.SelectorExpr, not a
 // *ast.BadExpr.

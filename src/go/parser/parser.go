@@ -2836,12 +2836,14 @@ func (p *parser) parseFile() *ast.File {
 	}
 
 	f := &ast.File{
-		Doc:      doc,
-		Package:  pos,
-		Name:     ident,
-		Decls:    decls,
-		Imports:  p.imports,
-		Comments: p.comments,
+		Doc:       doc,
+		Package:   pos,
+		Name:      ident,
+		Decls:     decls,
+		FileStart: token.Pos(p.file.Base()),
+		FileEnd:   token.Pos(p.file.Base() + p.file.Size()),
+		Imports:   p.imports,
+		Comments:  p.comments,
 	}
 	var declErr func(token.Pos, string)
 	if p.mode&DeclarationErrors != 0 {

@@ -126,15 +126,17 @@ func main() {
 	//     47  .  .  .  }
 	//     48  .  .  }
 	//     49  .  }
-	//     50  .  Scope: *ast.Scope {
-	//     51  .  .  Objects: map[string]*ast.Object (len = 1) {
-	//     52  .  .  .  "main": *(obj @ 11)
-	//     53  .  .  }
-	//     54  .  }
-	//     55  .  Unresolved: []*ast.Ident (len = 1) {
-	//     56  .  .  0: *(obj @ 29)
-	//     57  .  }
-	//     58  }
+	//     50  .  FileStart: 1:1
+	//     51  .  FileEnd: 5:3
+	//     52  .  Scope: *ast.Scope {
+	//     53  .  .  Objects: map[string]*ast.Object (len = 1) {
+	//     54  .  .  .  "main": *(obj @ 11)
+	//     55  .  .  }
+	//     56  .  }
+	//     57  .  Unresolved: []*ast.Ident (len = 1) {
+	//     58  .  .  0: *(obj @ 29)
+	//     59  .  }
+	//     60  }
 }
 
 // This example illustrates how to remove a variable declaration
