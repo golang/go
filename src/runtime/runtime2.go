@@ -873,6 +873,28 @@ type _func struct {
 	flag      funcFlag
 	_         [1]byte // pad
 	nfuncdata uint8   // must be last, must end on a uint32-aligned boundary
+
+	// The end of the struct is followed immediately by two variable-length
+	// arrays that reference the pcdata and funcdata locations for this
+	// function.
+
+	// pcdata contains the offset into moduledata.pctab for the start of
+	// that index's table. e.g.,
+	// &moduledata.pctab[_func.pcdata[_PCDATA_UnsafePoint]] is the start of
+	// the unsafe point table.
+	//
+	// An offset of 0 indicates that there is no table.
+	//
+	// pcdata [npcdata]uint32
+
+	// funcdata contains the offset past moduledata.gofunc which contains a
+	// pointer to that index's funcdata. e.g.,
+	// *(moduledata.gofunc +  _func.funcdata[_FUNCDATA_ArgsPointerMaps]) is
+	// the argument pointer map.
+	//
+	// An offset of ^uint32(0) indicates that there is no entry.
+	//
+	// funcdata [nfuncdata]uint32
 }
 
 // Pseudo-Func that is returned for PCs that occur in inlined code.
