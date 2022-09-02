@@ -455,12 +455,10 @@ Host: foo
 Content-Length: 5`)},
 
 	// golang.org/issue/22464
-	{"leading_space_in_header", reqBytes(`HEAD / HTTP/1.1
- Host: foo
-Content-Length: 5`)},
-	{"leading_tab_in_header", reqBytes(`HEAD / HTTP/1.1
-\tHost: foo
-Content-Length: 5`)},
+	{"leading_space_in_header", reqBytes(`GET / HTTP/1.1
+ Host: foo`)},
+	{"leading_tab_in_header", reqBytes(`GET / HTTP/1.1
+` + "\t" + `Host: foo`)},
 }
 
 func TestReadRequest_Bad(t *testing.T) {
