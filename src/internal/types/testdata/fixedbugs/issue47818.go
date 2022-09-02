@@ -39,7 +39,7 @@ type C2 interface {
 	comparable // ERROR predeclared comparable requires go1\.18 or later
 	int        // ERROR embedding non-interface type int requires go1\.18 or later
 	~ /* ERROR embedding interface element ~int requires go1\.18 or later */ int
-	int /* ERROR embedding interface element int\|~string requires go1\.18 or later */ | ~string
+	int /* ERROR embedding interface element int \| ~string requires go1\.18 or later */ | ~string
 }
 
 type _ interface {

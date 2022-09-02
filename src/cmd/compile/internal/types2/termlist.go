@@ -17,6 +17,9 @@ type termlist []*term
 // It is in normal form.
 var allTermlist = termlist{new(term)}
 
+// termSep is the separator used between individual terms.
+const termSep = " | "
+
 // String prints the termlist exactly (without normalization).
 func (xl termlist) String() string {
 	if len(xl) == 0 {
@@ -25,7 +28,7 @@ func (xl termlist) String() string {
 	var buf bytes.Buffer
 	for i, x := range xl {
 		if i > 0 {
-			buf.WriteString(" | ")
+			buf.WriteString(termSep)
 		}
 		buf.WriteString(x.String())
 	}

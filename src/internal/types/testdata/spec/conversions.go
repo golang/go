@@ -109,14 +109,14 @@ func _[X Float, T Float](x X) T    { return T(x) }
 
 func _[X, T Integer | Unsigned | Float](x X) T { return T(x) }
 func _[X, T Integer | ~string](x X) T {
-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer\|~string\) to T\n\tcannot convert string \(in X\) to int \(in T\) */)
+	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~string\) to T\n\tcannot convert string \(in X\) to int \(in T\) */)
 }
 
 // "x's type and T are both complex types"
 
 func _[X, T Complex](x X) T { return T(x) }
 func _[X, T Float | Complex](x X) T {
-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Float\|Complex\) to T\n\tcannot convert float32 \(in X\) to complex64 \(in T\) */)
+	return T(x /* ERROR cannot convert x \(variable of type X constrained by Float \| Complex\) to T\n\tcannot convert float32 \(in X\) to complex64 \(in T\) */)
 }
 
 // "x is an integer or a slice of bytes or runes and T is a string type"
@@ -138,7 +138,7 @@ func _[X ~[]byte, T ~string](x X) T                     { return T(x) }
 func _[X ~[]rune, T ~string](x X) T                     { return T(x) }
 func _[X Integer | ~[]byte | ~[]rune, T ~string](x X) T { return T(x) }
 func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer\|~\[\]byte\|~\[\]rune\) to T\n\tcannot convert int \(in X\) to \*string \(in T\) */)
+	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~\[\]byte \| ~\[\]rune\) to T\n\tcannot convert int \(in X\) to \*string \(in T\) */)
 }
 
 // "x is a string and T is a slice of bytes or runes"

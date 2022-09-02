@@ -13,9 +13,9 @@ type myFloat float64
 
 func _() {
 	_ = f1[int]
-	_ = f1[myInt /* ERROR possibly missing ~ for int in constraint int\|string */]
+	_ = f1[myInt /* ERROR possibly missing ~ for int in constraint int \| string */]
 	_ = f2[myInt]
-	_ = f2[myFloat /* ERROR possibly missing ~ for float64 in constraint int\|string|float64 */]
+	_ = f2[myFloat /* ERROR possibly missing ~ for float64 in constraint ~int \| string \| float64 */]
 	var x myInt
 	f3 /* ERROR myInt does not implement int \(possibly missing ~ for int in constraint int\) */ (x)
 }

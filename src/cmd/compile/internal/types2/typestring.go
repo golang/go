@@ -191,7 +191,7 @@ func (w *typeWriter) typ(typ Type) {
 		}
 		for i, t := range t.terms {
 			if i > 0 {
-				w.byte('|')
+				w.string(termSep)
 			}
 			if t.tilde {
 				w.byte('~')
