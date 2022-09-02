@@ -390,3 +390,19 @@ func (g *irgen) unhandled(what string, p poser) {
 func (g *irgen) delayTransform() bool {
 	return g.topFuncIsGeneric
 }
+
+func (g *irgen) typeAndValue(x syntax.Expr) types2.TypeAndValue {
+	tv, ok := g.info.Types[x]
+	if !ok {
+		base.FatalfAt(g.pos(x), "missing type for %v (%T)", x, x)
+	}
+	return tv
+}
+
+func (g *irgen) type2(x syntax.Expr) types2.Type {
+	tv, ok := g.info.Types[x]
+	if !ok {
+		base.FatalfAt(g.pos(x), "missing type for %v (%T)", x, x)
+	}
+	return tv.Type
+}

@@ -120,12 +120,21 @@ func (pw *pkgWriter) unexpected(what string, p poser) {
 	pw.fatalf(p, "unexpected %s: %v (%T)", what, p, p)
 }
 
+func (pw *pkgWriter) typeAndValue(x syntax.Expr) types2.TypeAndValue {
+	tv, ok := pw.info.Types[x]
+	if !ok {
+		pw.fatalf(x, "missing Types entry: %v", syntax.String(x))
+	}
+	return tv
+}
+func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (types2.TypeAndValue, bool) {
+	tv, ok := pw.info.Types[x]
+	return tv, ok
+}
+
 // typeOf returns the Type of the given value expression.
 func (pw *pkgWriter) typeOf(expr syntax.Expr) types2.Type {
-	tv, ok := pw.info.Types[expr]
-	if !ok {
-		pw.fatalf(expr, "missing Types entry: %v", syntax.String(expr))
-	}
+	tv := pw.typeAndValue(expr)
 	if !tv.IsValue() {
 		pw.fatalf(expr, "expected value: %v", syntax.String(expr))
 	}
@@ -811,8 +820,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 //
 // TODO(mdempsky): Document how this differs from exprType.
 func (w *writer) typExpr(expr syntax.Expr) {
-	tv, ok := w.p.info.Types[expr]
-	assert(ok)
+	tv := w.p.typeAndValue(expr)
 	assert(tv.IsType())
 	w.typ(tv.Type)
 }
@@ -1533,7 +1541,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		if iface != nil {
 			w.Len(len(cases))
 			for _, cas := range cases {
-				if w.Bool(isNil(w.p.info, cas)) {
+				if w.Bool(isNil(w.p, cas)) {
 					continue
 				}
 				w.exprType(iface, cas)
@@ -1598,10 +1606,10 @@ func (w *writer) expr(expr syntax.Expr) {
 
 	expr = unparen(expr) // skip parens; unneeded after typecheck
 
-	obj, inst := lookupObj(w.p.info, expr)
+	obj, inst := lookupObj(w.p, expr)
 	targs := inst.TypeArgs
 
-	if tv, ok := w.p.info.Types[expr]; ok {
+	if tv, ok := w.p.maybeTypeAndValue(expr); ok {
 		if tv.IsType() {
 			w.p.fatalf(expr, "unexpected type expression %v", syntax.String(expr))
 		}
@@ -1698,8 +1706,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		case types2.MethodExpr:
 			w.Code(exprMethodExpr)
 
-			tv, ok := w.p.info.Types[expr.X]
-			assert(ok)
+			tv := w.p.typeAndValue(expr.X)
 			assert(tv.IsType())
 
 			index := sel.Index()
@@ -1793,8 +1800,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.implicitConvExpr(commonType, expr.Y)
 
 	case *syntax.CallExpr:
-		tv, ok := w.p.info.Types[expr.Fun]
-		assert(ok)
+		tv := w.p.typeAndValue(expr.Fun)
 		if tv.IsType() {
 			assert(len(expr.ArgList) == 1)
 			assert(!expr.HasDots)
@@ -1804,7 +1810,7 @@ func (w *writer) expr(expr syntax.Expr) {
 
 		var rtype types2.Type
 		if tv.IsBuiltin() {
-			switch obj, _ := lookupObj(w.p.info, expr.Fun); obj.Name() {
+			switch obj, _ := lookupObj(w.p, expr.Fun); obj.Name() {
 			case "make":
 				assert(len(expr.ArgList) >= 1)
 				assert(!expr.HasDots)
@@ -1870,7 +1876,7 @@ func (w *writer) expr(expr syntax.Expr) {
 
 			w.Bool(false) // not a method call (i.e., normal function call)
 
-			if obj, inst := lookupObj(w.p.info, fun); w.Bool(obj != nil && inst.TypeArgs.Len() != 0) {
+			if obj, inst := lookupObj(w.p, fun); w.Bool(obj != nil && inst.TypeArgs.Len() != 0) {
 				obj := obj.(*types2.Func)
 
 				w.pos(fun)
@@ -2244,8 +2250,7 @@ func (w *writer) convRTTI(src, dst types2.Type) {
 func (w *writer) exprType(iface types2.Type, typ syntax.Expr) {
 	base.Assertf(iface == nil || isInterface(iface), "%v must be nil or an interface type", iface)
 
-	tv, ok := w.p.info.Types[typ]
-	assert(ok)
+	tv := w.p.typeAndValue(typ)
 	assert(tv.IsType())
 
 	w.Sync(pkgbits.SyncExprType)
@@ -2597,12 +2602,11 @@ func isGlobal(obj types2.Object) bool {
 // lookupObj returns the object that expr refers to, if any. If expr
 // is an explicit instantiation of a generic object, then the instance
 // object is returned as well.
-func lookupObj(info *types2.Info, expr syntax.Expr) (obj types2.Object, inst types2.Instance) {
+func lookupObj(p *pkgWriter, expr syntax.Expr) (obj types2.Object, inst types2.Instance) {
 	if index, ok := expr.(*syntax.IndexExpr); ok {
 		args := unpackListExpr(index.Index)
 		if len(args) == 1 {
-			tv, ok := info.Types[args[0]]
-			assert(ok)
+			tv := p.typeAndValue(args[0])
 			if tv.IsValue() {
 				return // normal index expression
 			}
@@ -2613,15 +2617,15 @@ func lookupObj(info *types2.Info, expr syntax.Expr) (obj types2.Object, inst typ
 
 	// Strip package qualifier, if present.
 	if sel, ok := expr.(*syntax.SelectorExpr); ok {
-		if !isPkgQual(info, sel) {
+		if !isPkgQual(p.info, sel) {
 			return // normal selector expression
 		}
 		expr = sel.Sel
 	}
 
 	if name, ok := expr.(*syntax.Name); ok {
-		obj = info.Uses[name]
-		inst = info.Instances[name]
+		obj = p.info.Uses[name]
+		inst = p.info.Instances[name]
 	}
 	return
 }
@@ -2636,24 +2640,10 @@ func isPkgQual(info *types2.Info, sel *syntax.SelectorExpr) bool {
 	return false
 }
 
-// isMultiValueExpr reports whether expr is a function call expression
-// that yields multiple values.
-func isMultiValueExpr(info *types2.Info, expr syntax.Expr) bool {
-	tv, ok := info.Types[expr]
-	assert(ok)
-	assert(tv.IsValue())
-	if tuple, ok := tv.Type.(*types2.Tuple); ok {
-		assert(tuple.Len() > 1)
-		return true
-	}
-	return false
-}
-
 // isNil reports whether expr is a (possibly parenthesized) reference
 // to the predeclared nil value.
-func isNil(info *types2.Info, expr syntax.Expr) bool {
-	tv, ok := info.Types[expr]
-	assert(ok)
+func isNil(p *pkgWriter, expr syntax.Expr) bool {
+	tv := p.typeAndValue(expr)
 	return tv.IsNil()
 }
 

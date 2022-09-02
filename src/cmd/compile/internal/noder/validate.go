@@ -53,7 +53,7 @@ func (g *irgen) match(t1 *types.Type, t2 types2.Type, hasOK bool) bool {
 func (g *irgen) validate(n syntax.Node) {
 	switch n := n.(type) {
 	case *syntax.CallExpr:
-		tv := g.info.Types[n.Fun]
+		tv := g.typeAndValue(n.Fun)
 		if tv.IsBuiltin() {
 			fun := n.Fun
 			for {
@@ -81,7 +81,7 @@ func (g *irgen) validateBuiltin(name string, call *syntax.CallExpr) {
 		// Check that types2+gcSizes calculates sizes the same
 		// as cmd/compile does.
 
-		tv := g.info.Types[call]
+		tv := g.typeAndValue(call)
 		if !tv.IsValue() {
 			base.FatalfAt(g.pos(call), "expected a value")
 		}
@@ -106,9 +106,9 @@ func (g *irgen) validateBuiltin(name string, call *syntax.CallExpr) {
 func (g *irgen) unsafeExpr(name string, arg syntax.Expr) int64 {
 	switch name {
 	case "Alignof":
-		return g.typ(g.info.Types[arg].Type).Alignment()
+		return g.typ(g.type2(arg)).Alignment()
 	case "Sizeof":
-		return g.typ(g.info.Types[arg].Type).Size()
+		return g.typ(g.type2(arg)).Size()
 	}
 
 	// Offsetof
@@ -116,7 +116,7 @@ func (g *irgen) unsafeExpr(name string, arg syntax.Expr) int64 {
 	sel := arg.(*syntax.SelectorExpr)
 	selection := g.info.Selections[sel]
 
-	typ := g.typ(g.info.Types[sel.X].Type)
+	typ := g.typ(g.type2(sel.X))
 	typ = deref(typ)
 
 	var offset int64
