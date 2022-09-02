@@ -10,6 +10,8 @@ type Value[T any] struct { //@mark(ValueTdecl, "T"),hoverdef("T",ValueTdecl)
 	Q   int //@mark(ValueQfield, "Q"),hoverdef("Q", ValueQfield)
 }
 
-func F[P interface{ ~int | string }]() { //@mark(Pparam, "P"),hoverdef("P",Pparam)
-	var _ P //@mark(Pvar, "P"),hoverdef("P",Pvar)
+// disabled - see issue #54822
+func F[P interface{ ~int | string }]() { // mark(Pparam, "P"),hoverdef("P",Pparam)
+	// disabled - see issue #54822
+	var _ P // mark(Pvar, "P"),hoverdef("P",Pvar)
 }

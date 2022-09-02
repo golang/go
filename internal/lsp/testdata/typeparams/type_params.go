@@ -42,7 +42,8 @@ func returnTP[A int | float64](a A) A { //@item(returnTP, "returnTP", "something
 }
 
 func _() {
-	var _ int = returnTP //@snippet(" //", returnTP, "returnTP[${1:}](${2:})", "returnTP[${1:A int|float64}](${2:a A})")
+	// disabled - see issue #54822
+	var _ int = returnTP // snippet(" //", returnTP, "returnTP[${1:}](${2:})", "returnTP[${1:A int|float64}](${2:a A})")
 
 	var aa int //@item(tpInt, "aa", "int", "var")
 	var ab float64 //@item(tpFloat, "ab", "float64", "var")
