@@ -669,7 +669,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 			// We asked for recursion, so it should have included all the
 			// answers we need in this one packet.
 			//
-			// Further, RFC 1035 section 4.3.1 says that "the recursive
+			// Further, RFC 1034 section 4.3.1 says that "the recursive
 			// response to a query will be... The answer to the query,
 			// possibly preface by one or more CNAME RRs that specify
 			// aliases encountered on the way to an answer."
