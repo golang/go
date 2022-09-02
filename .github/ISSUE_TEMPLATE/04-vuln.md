@@ -2,7 +2,7 @@
 name: Go vulnerability management - bugs and feature requests
 about: Issues or feature requests about Go vulnerability management
 title: "x/vuln: "
-labels: x/vuln
+labels: vulncheck or vulndb
 ---
 
 <!--
