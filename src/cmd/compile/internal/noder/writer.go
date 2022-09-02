@@ -120,16 +120,16 @@ func (pw *pkgWriter) unexpected(what string, p poser) {
 	pw.fatalf(p, "unexpected %s: %v (%T)", what, p, p)
 }
 
-func (pw *pkgWriter) typeAndValue(x syntax.Expr) types2.TypeAndValue {
-	tv, ok := pw.info.Types[x]
-	if !ok {
+func (pw *pkgWriter) typeAndValue(x syntax.Expr) syntax.TypeAndValue {
+	tv := x.GetTypeInfo()
+	if tv.Type == nil {
 		pw.fatalf(x, "missing Types entry: %v", syntax.String(x))
 	}
 	return tv
 }
-func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (types2.TypeAndValue, bool) {
-	tv, ok := pw.info.Types[x]
-	return tv, ok
+func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (syntax.TypeAndValue, bool) {
+	tv := x.GetTypeInfo()
+	return tv, tv.Type != nil
 }
 
 // typeOf returns the Type of the given value expression.

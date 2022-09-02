@@ -132,6 +132,7 @@ func NewName(pos Pos, value string) *Name {
 type (
 	Expr interface {
 		Node
+		typeInfo
 		aExpr()
 	}
 
@@ -308,7 +309,10 @@ type (
 	}
 )
 
-type expr struct{ node }
+type expr struct {
+	node
+	typeAndValue // After typechecking, contains the results of typechecking this expression.
+}
 
 func (*expr) aExpr() {}
 

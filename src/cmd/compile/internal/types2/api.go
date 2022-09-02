@@ -197,6 +197,12 @@ type Info struct {
 	// qualified identifiers are collected in the Uses map.
 	Types map[syntax.Expr]TypeAndValue
 
+	// If StoreTypesInSyntax is set, type information identical to
+	// that which would be put in the Types map, will be set in
+	// syntax.Expr.TypeAndValue (independently of whether Types
+	// is nil or not).
+	StoreTypesInSyntax bool
+
 	// Instances maps identifiers denoting generic types or functions to their
 	// type arguments and instantiated type.
 	//
@@ -276,12 +282,24 @@ type Info struct {
 	InitOrder []*Initializer
 }
 
+func (info *Info) recordTypes() bool {
+	return info.Types != nil || info.StoreTypesInSyntax
+}
+
 // TypeOf returns the type of expression e, or nil if not found.
-// Precondition: the Types, Uses and Defs maps are populated.
+// Precondition 1: the Types map is populated or StoreTypesInSynax is set.
+// Precondition 2: Uses and Defs maps are populated.
 func (info *Info) TypeOf(e syntax.Expr) Type {
-	if t, ok := info.Types[e]; ok {
-		return t.Type
+	if info.Types != nil {
+		if t, ok := info.Types[e]; ok {
+			return t.Type
+		}
+	} else if info.StoreTypesInSyntax {
+		if tv := e.GetTypeInfo(); tv.Type != nil {
+			return tv.Type
+		}
 	}
+
 	if id, _ := e.(*syntax.Name); id != nil {
 		if obj := info.ObjectOf(id); obj != nil {
 			return obj.Type()

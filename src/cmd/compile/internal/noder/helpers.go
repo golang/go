@@ -9,6 +9,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
@@ -222,7 +223,7 @@ func IncDec(pos src.XPos, op ir.Op, x ir.Node) *ir.AssignOpStmt {
 	return ir.NewAssignOpStmt(pos, op, x, bl)
 }
 
-func idealType(tv types2.TypeAndValue) types2.Type {
+func idealType(tv syntax.TypeAndValue) types2.Type {
 	// The gc backend expects all expressions to have a concrete type, and
 	// types2 mostly satisfies this expectation already. But there are a few
 	// cases where the Go spec doesn't require converting to concrete type,

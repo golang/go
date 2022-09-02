@@ -115,7 +115,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 					return
 				}
 				if t := coreString(x.typ); t != nil && isString(t) {
-					if check.Types != nil {
+					if check.recordTypes() {
 						sig := makeSig(S, S, x.typ)
 						sig.variadic = true
 						check.recordBuiltinType(call.Fun, sig)
@@ -147,7 +147,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		x.mode = value
 		x.typ = S
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, sig)
 		}
 
@@ -223,7 +223,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		// record the signature before changing x.typ
-		if check.Types != nil && mode != constant_ {
+		if check.recordTypes() && mode != constant_ {
 			check.recordBuiltinType(call.Fun, makeSig(Typ[Int], x.typ))
 		}
 
@@ -248,7 +248,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 		x.mode = novalue
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(nil, x.typ))
 		}
 
@@ -340,7 +340,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			x.mode = value
 		}
 
-		if check.Types != nil && x.mode != constant_ {
+		if check.recordTypes() && x.mode != constant_ {
 			check.recordBuiltinType(call.Fun, makeSig(resTyp, x.typ, x.typ))
 		}
 
@@ -371,7 +371,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(Typ[Int], x.typ, y.typ))
 		}
 		x.mode = value
@@ -410,7 +410,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		x.mode = novalue
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(nil, map_, key))
 		}
 
@@ -476,7 +476,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			x.mode = value
 		}
 
-		if check.Types != nil && x.mode != constant_ {
+		if check.recordTypes() && x.mode != constant_ {
 			check.recordBuiltinType(call.Fun, makeSig(resTyp, x.typ))
 		}
 
@@ -525,7 +525,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 		x.mode = value
 		x.typ = T
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, types...))
 		}
 
@@ -539,7 +539,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		x.mode = value
 		x.typ = &Pointer{base: T}
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, T))
 		}
 
@@ -564,7 +564,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		x.mode = novalue
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(nil, &emptyInterface))
 		}
 
@@ -588,7 +588,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		x.mode = novalue
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(nil, params...))
 		}
 
@@ -596,7 +596,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// recover() interface{}
 		x.mode = value
 		x.typ = &emptyInterface
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ))
 		}
 
@@ -620,7 +620,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		x.mode = value
 		x.typ = Typ[UnsafePointer]
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, x.typ, y.typ))
 		}
 
@@ -633,7 +633,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		if hasVarSize(x.typ, nil) {
 			x.mode = value
-			if check.Types != nil {
+			if check.recordTypes() {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
 			}
 		} else {
@@ -697,7 +697,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// arranging struct fields if it wanted to.
 		if hasVarSize(base, nil) {
 			x.mode = value
-			if check.Types != nil {
+			if check.recordTypes() {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], obj.Type()))
 			}
 		} else {
@@ -716,7 +716,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		if hasVarSize(x.typ, nil) {
 			x.mode = value
-			if check.Types != nil {
+			if check.recordTypes() {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
 			}
 		} else {
@@ -747,7 +747,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		x.mode = value
 		x.typ = NewSlice(ptr.base)
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, ptr, y.typ))
 		}
 
@@ -766,7 +766,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		x.mode = value
 		x.typ = NewPointer(slice.elem)
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, slice))
 		}
 
@@ -790,7 +790,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		x.mode = value
 		x.typ = Typ[String]
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, NewPointer(universeByte), y.typ))
 		}
 
@@ -808,7 +808,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		x.mode = value
 		x.typ = NewPointer(universeByte)
-		if check.Types != nil {
+		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, Typ[String]))
 		}
 
