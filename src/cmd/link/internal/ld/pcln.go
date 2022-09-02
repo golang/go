@@ -162,26 +162,22 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 	ninl := fi.NumInlTree()
 	for i := 0; i < int(ninl); i++ {
 		call := fi.InlTree(i)
-		val := call.File
 		nameoff, ok := nameOffsets[call.Func]
 		if !ok {
 			panic("couldn't find function name offset")
 		}
 
-		inlTreeSym.SetUint16(arch, int64(i*20+0), uint16(call.Parent))
 		inlFunc := ldr.FuncInfo(call.Func)
-
 		var funcID objabi.FuncID
 		if inlFunc.Valid() {
 			funcID = inlFunc.FuncID()
 		}
-		inlTreeSym.SetUint8(arch, int64(i*20+2), uint8(funcID))
-
-		// byte 3 is unused
-		inlTreeSym.SetUint32(arch, int64(i*20+4), uint32(val))
-		inlTreeSym.SetUint32(arch, int64(i*20+8), uint32(call.Line))
-		inlTreeSym.SetUint32(arch, int64(i*20+12), uint32(nameoff))
-		inlTreeSym.SetUint32(arch, int64(i*20+16), uint32(call.ParentPC))
+		// Construct runtime.inlinedCall value.
+		const size = 12
+		inlTreeSym.SetUint8(arch, int64(i*size+0), uint8(funcID))
+		// Bytes 1-3 are unused.
+		inlTreeSym.SetUint32(arch, int64(i*size+4), uint32(nameoff))
+		inlTreeSym.SetUint32(arch, int64(i*size+8), uint32(call.ParentPC))
 	}
 	return its
 }
