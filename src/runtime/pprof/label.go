@@ -57,8 +57,8 @@ func (l *labelMap) String() string {
 // WithLabels returns a new context.Context with the given labels added.
 // A label overwrites a prior label with the same key.
 func WithLabels(ctx context.Context, labels LabelSet) context.Context {
-	childLabels := make(labelMap)
 	parentLabels := labelValue(ctx)
+	childLabels := make(labelMap, len(parentLabels))
 	// TODO(matloob): replace the map implementation with something
 	// more efficient so creating a child context WithLabels doesn't need
 	// to clone the map.
