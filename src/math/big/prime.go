@@ -141,7 +141,7 @@ NextRandom:
 //
 // Jacobsen, "Pseudoprime Statistics, Tables, and Data", http://ntheory.org/pseudoprimes.html.
 //
-// Nicely, "The Baillie-PSW Primality Test", http://www.trnicely.net/misc/bpsw.html.
+// Nicely, "The Baillie-PSW Primality Test", https://web.archive.org/web/20191121062007/http://www.trnicely.net/misc/bpsw.html.
 // (Note that Nicely's definition of the "extra strong" test gives the wrong Jacobi condition,
 // as pointed out by Jacobsen.)
 //
