@@ -1004,6 +1004,33 @@ func TestIssue12594(t *testing.T) {
 	}
 }
 
+func TestWriteLongHeader(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		h    *Header
+	}{{
+		name: "name too long",
+		h:    &Header{Name: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "linkname too long",
+		h:    &Header{Linkname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "uname too long",
+		h:    &Header{Uname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "gname too long",
+		h:    &Header{Gname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "PAX header too long",
+		h:    &Header{PAXRecords: map[string]string{"GOLANG.x": strings.Repeat("a", maxSpecialFileSize)}},
+	}} {
+		w := NewWriter(io.Discard)
+		if err := w.WriteHeader(test.h); err != ErrFieldTooLong {
+			t.Errorf("%v: w.WriteHeader() = %v, want ErrFieldTooLong", test.name, err)
+		}
+	}
+}
+
 // testNonEmptyWriter wraps an io.Writer and ensures that
 // Write is never called with an empty buffer.
 type testNonEmptyWriter struct{ io.Writer }
