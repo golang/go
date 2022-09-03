@@ -660,8 +660,7 @@ func TestMap(t *testing.T) {
 	}
 	orig := "Input string that we expect not to be copied."
 	m = Map(identity, orig)
-	if (*reflect.StringHeader)(unsafe.Pointer(&orig)).Data !=
-		(*reflect.StringHeader)(unsafe.Pointer(&m)).Data {
+	if unsafe.StringData(orig) != unsafe.StringData(m) {
 		t.Error("unexpected copy during identity map")
 	}
 
