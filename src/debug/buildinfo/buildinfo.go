@@ -394,13 +394,13 @@ type xcoffExe struct {
 
 func (x *xcoffExe) ReadData(addr, size uint64) ([]byte, error) {
 	for _, sect := range x.f.Sections {
-		if uint64(sect.VirtualAddress) <= addr && addr <= uint64(sect.VirtualAddress+sect.Size-1) {
-			n := uint64(sect.VirtualAddress+sect.Size) - addr
+		if sect.VirtualAddress <= addr && addr <= sect.VirtualAddress+sect.Size-1 {
+			n := sect.VirtualAddress + sect.Size - addr
 			if n > size {
 				n = size
 			}
 			data := make([]byte, n)
-			_, err := sect.ReadAt(data, int64(addr-uint64(sect.VirtualAddress)))
+			_, err := sect.ReadAt(data, int64(addr-sect.VirtualAddress))
 			if err != nil {
 				return nil, err
 			}
