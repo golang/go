@@ -3174,6 +3174,24 @@ func rewriteValueRISCV64_OpRISCV64ADDI(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(x + y)
 		return true
 	}
+	// match: (ADDI [x] (ADDI [y] z))
+	// cond: is32Bit(x + y)
+	// result: (ADDI [x + y] z)
+	for {
+		x := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpRISCV64ADDI {
+			break
+		}
+		y := auxIntToInt64(v_0.AuxInt)
+		z := v_0.Args[0]
+		if !(is32Bit(x + y)) {
+			break
+		}
+		v.reset(OpRISCV64ADDI)
+		v.AuxInt = int64ToAuxInt(x + y)
+		v.AddArg(z)
+		return true
+	}
 	return false
 }
 func rewriteValueRISCV64_OpRISCV64AND(v *Value) bool {
@@ -3233,6 +3251,20 @@ func rewriteValueRISCV64_OpRISCV64ANDI(v *Value) bool {
 		y := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpRISCV64MOVDconst)
 		v.AuxInt = int64ToAuxInt(x & y)
+		return true
+	}
+	// match: (ANDI [x] (ANDI [y] z))
+	// result: (ANDI [x & y] z)
+	for {
+		x := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpRISCV64ANDI {
+			break
+		}
+		y := auxIntToInt64(v_0.AuxInt)
+		z := v_0.Args[0]
+		v.reset(OpRISCV64ANDI)
+		v.AuxInt = int64ToAuxInt(x & y)
+		v.AddArg(z)
 		return true
 	}
 	return false
@@ -5437,6 +5469,20 @@ func rewriteValueRISCV64_OpRISCV64ORI(v *Value) bool {
 		y := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpRISCV64MOVDconst)
 		v.AuxInt = int64ToAuxInt(x | y)
+		return true
+	}
+	// match: (ORI [x] (ORI [y] z))
+	// result: (ORI [x | y] z)
+	for {
+		x := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpRISCV64ORI {
+			break
+		}
+		y := auxIntToInt64(v_0.AuxInt)
+		z := v_0.Args[0]
+		v.reset(OpRISCV64ORI)
+		v.AuxInt = int64ToAuxInt(x | y)
+		v.AddArg(z)
 		return true
 	}
 	return false

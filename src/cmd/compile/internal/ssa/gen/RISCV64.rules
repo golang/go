@@ -788,6 +788,11 @@
 (ORI [-1] x) => (MOVDconst [-1])
 (ORI [x] (MOVDconst [y])) => (MOVDconst [x | y])
 
+// Combine operations with immediate.
+(ADDI [x] (ADDI [y] z)) && is32Bit(x + y) => (ADDI [x + y] z)
+(ANDI [x] (ANDI [y] z)) => (ANDI [x & y] z)
+(ORI  [x] (ORI  [y] z)) => (ORI  [x | y] z)
+
 // Negation of a constant.
 (NEG  (MOVDconst [x])) => (MOVDconst [-x])
 (NEGW (MOVDconst [x])) => (MOVDconst [int64(int32(-x))])
