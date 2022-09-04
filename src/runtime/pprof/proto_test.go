@@ -315,7 +315,7 @@ func TestProcSelfMaps(t *testing.T) {
 			if len(out) > 0 && out[len(out)-1] != '\n' {
 				out += "\n"
 			}
-			var buf bytes.Buffer
+			var buf strings.Builder
 			parseProcSelfMaps([]byte(in), func(lo, hi, offset uint64, file, buildID string) {
 				fmt.Fprintf(&buf, "%08x %08x %08x %s\n", lo, hi, offset, file)
 			})

@@ -74,7 +74,6 @@ package pprof
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"internal/abi"
 	"io"
@@ -402,7 +401,7 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler fun
 // The profile will be in compressed proto format unless debug is nonzero.
 func printCountProfile(w io.Writer, debug int, name string, p countProfile) error {
 	// Build count of each stack.
-	var buf bytes.Buffer
+	var buf strings.Builder
 	key := func(stk []uintptr, lbls *labelMap) string {
 		buf.Reset()
 		fmt.Fprintf(&buf, "@")

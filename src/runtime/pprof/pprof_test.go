@@ -528,7 +528,7 @@ func profileOk(t *testing.T, matches profileMatchFunc, prof bytes.Buffer, durati
 	ok = true
 
 	var samples uintptr
-	var buf bytes.Buffer
+	var buf strings.Builder
 	p := parseProfile(t, prof.Bytes(), func(count uintptr, stk []*profile.Location, labels map[string][]string) {
 		fmt.Fprintf(&buf, "%d:", count)
 		fprintStack(&buf, stk)
@@ -718,7 +718,7 @@ func TestGoroutineSwitch(t *testing.T) {
 			// The place we'd see it would be the inner most frame.
 			name := stk[0].Line[0].Function.Name
 			if name == "gogo" {
-				var buf bytes.Buffer
+				var buf strings.Builder
 				fprintStack(&buf, stk)
 				t.Fatalf("found profile entry for gogo:\n%s", buf.String())
 			}
@@ -922,7 +922,7 @@ func TestBlockProfile(t *testing.T) {
 	}
 
 	t.Run("debug=1", func(t *testing.T) {
-		var w bytes.Buffer
+		var w strings.Builder
 		Lookup("block").WriteTo(&w, 1)
 		prof := w.String()
 
@@ -1194,7 +1194,7 @@ func TestMutexProfile(t *testing.T) {
 	blockMutex(t)
 
 	t.Run("debug=1", func(t *testing.T) {
-		var w bytes.Buffer
+		var w strings.Builder
 		Lookup("mutex").WriteTo(&w, 1)
 		prof := w.String()
 		t.Logf("received profile: %v", prof)
@@ -1417,7 +1417,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 				go func() {
 					defer wg.Done()
 					for ctx.Err() == nil {
-						var w bytes.Buffer
+						var w strings.Builder
 						goroutineProf.WriteTo(&w, 1)
 						prof := w.String()
 						count := profilerCalls(prof)
@@ -1435,7 +1435,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 	// The finalizer goroutine should not show up in most profiles, since it's
 	// marked as a system goroutine when idle.
 	t.Run("finalizer not present", func(t *testing.T) {
-		var w bytes.Buffer
+		var w strings.Builder
 		goroutineProf.WriteTo(&w, 1)
 		prof := w.String()
 		if includesFinalizer(prof) {
@@ -1463,7 +1463,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 				runtime.GC()
 			}
 		}
-		var w bytes.Buffer
+		var w strings.Builder
 		goroutineProf.WriteTo(&w, 1)
 		prof := w.String()
 		if !includesFinalizer(prof) {
@@ -1677,7 +1677,7 @@ func TestEmptyCallStack(t *testing.T) {
 	emptyCallStackTestRun++
 
 	t.Parallel()
-	var buf bytes.Buffer
+	var buf strings.Builder
 	p := NewProfile(name)
 
 	p.Add("foo", 47674)
@@ -1757,7 +1757,7 @@ func TestGoroutineProfileLabelRace(t *testing.T) {
 		go func() {
 			goroutineProf := Lookup("goroutine")
 			for ctx.Err() == nil {
-				var w bytes.Buffer
+				var w strings.Builder
 				goroutineProf.WriteTo(&w, 1)
 				prof := w.String()
 				if strings.Contains(prof, "loop-i") {
@@ -1870,17 +1870,17 @@ func TestLabelSystemstack(t *testing.T) {
 			mayBeLabeled = false
 		}
 		if mustBeLabeled && !isLabeled {
-			var buf bytes.Buffer
+			var buf strings.Builder
 			fprintStack(&buf, s.Location)
 			t.Errorf("Sample labeled got false want true: %s", buf.String())
 		}
 		if mustNotBeLabeled && isLabeled {
-			var buf bytes.Buffer
+			var buf strings.Builder
 			fprintStack(&buf, s.Location)
 			t.Errorf("Sample labeled got true want false: %s", buf.String())
 		}
 		if isLabeled && !(mayBeLabeled || mustBeLabeled) {
-			var buf bytes.Buffer
+			var buf strings.Builder
 			fprintStack(&buf, s.Location)
 			t.Errorf("Sample labeled got true want false: %s", buf.String())
 		}
