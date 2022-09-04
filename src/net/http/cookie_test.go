@@ -5,7 +5,6 @@
 package http
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -151,7 +150,7 @@ var writeSetCookiesTests = []struct {
 
 func TestWriteSetCookies(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
-	var logbuf bytes.Buffer
+	var logbuf strings.Builder
 	log.SetOutput(&logbuf)
 
 	for i, tt := range writeSetCookiesTests {
@@ -482,7 +481,7 @@ func TestSetCookieDoubleQuotes(t *testing.T) {
 
 func TestCookieSanitizeValue(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
-	var logbuf bytes.Buffer
+	var logbuf strings.Builder
 	log.SetOutput(&logbuf)
 
 	tests := []struct {
@@ -514,7 +513,7 @@ func TestCookieSanitizeValue(t *testing.T) {
 
 func TestCookieSanitizePath(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
-	var logbuf bytes.Buffer
+	var logbuf strings.Builder
 	log.SetOutput(&logbuf)
 
 	tests := []struct {

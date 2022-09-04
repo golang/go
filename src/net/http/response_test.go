@@ -596,7 +596,7 @@ func TestReadResponse(t *testing.T) {
 		rbody := resp.Body
 		resp.Body = nil
 		diff(t, fmt.Sprintf("#%d Response", i), resp, &tt.Resp)
-		var bout bytes.Buffer
+		var bout strings.Builder
 		if rbody != nil {
 			_, err = io.Copy(&bout, rbody)
 			if err != nil {
@@ -809,7 +809,7 @@ func TestResponseStatusStutter(t *testing.T) {
 		ProtoMajor: 1,
 		ProtoMinor: 3,
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	r.Write(&buf)
 	if strings.Contains(buf.String(), "123 123") {
 		t.Errorf("stutter in status: %s", buf.String())
@@ -829,7 +829,7 @@ func TestResponseContentLengthShortBody(t *testing.T) {
 	if res.ContentLength != 123 {
 		t.Fatalf("Content-Length = %d; want 123", res.ContentLength)
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	n, err := io.Copy(&buf, res.Body)
 	if n != int64(len(shortBody)) {
 		t.Errorf("Copied %d bytes; want %d, len(%q)", n, len(shortBody), shortBody)
@@ -989,7 +989,7 @@ func TestResponseWritesOnlySingleConnectionClose(t *testing.T) {
 		t.Fatalf("ReadResponse failed %v", err)
 	}
 
-	var buf2 bytes.Buffer
+	var buf2 strings.Builder
 	if err = res.Write(&buf2); err != nil {
 		t.Fatalf("Write failed %v", err)
 	}

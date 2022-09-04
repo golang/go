@@ -5,7 +5,6 @@
 package http
 
 import (
-	"bytes"
 	"io"
 	"strings"
 	"testing"
@@ -276,7 +275,7 @@ func TestResponseWrite(t *testing.T) {
 
 	for i := range respWriteTests {
 		tt := &respWriteTests[i]
-		var braw bytes.Buffer
+		var braw strings.Builder
 		err := tt.Resp.Write(&braw)
 		if err != nil {
 			t.Errorf("error writing #%d: %s", i, err)

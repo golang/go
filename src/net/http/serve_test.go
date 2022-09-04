@@ -148,7 +148,7 @@ func newHandlerTest(h Handler) handlerTest {
 
 func (ht *handlerTest) rawResponse(req string) string {
 	reqb := reqBytes(req)
-	var output bytes.Buffer
+	var output strings.Builder
 	conn := &rwTestConn{
 		Reader: bytes.NewReader(reqb),
 		Writer: &output,
@@ -3742,7 +3742,7 @@ func TestAcceptMaxFds(t *testing.T) {
 
 func TestWriteAfterHijack(t *testing.T) {
 	req := reqBytes("GET / HTTP/1.1\nHost: golang.org")
-	var buf bytes.Buffer
+	var buf strings.Builder
 	wrotec := make(chan bool, 1)
 	conn := &rwTestConn{
 		Reader: bytes.NewReader(req),
@@ -4544,7 +4544,7 @@ func TestNoContentLengthIfTransferEncoding(t *testing.T) {
 		t.Fatal(err)
 	}
 	bs := bufio.NewScanner(c)
-	var got bytes.Buffer
+	var got strings.Builder
 	for bs.Scan() {
 		if strings.TrimSpace(bs.Text()) == "" {
 			break
@@ -4633,7 +4633,7 @@ GET /should-be-ignored HTTP/1.1
 Host: foo
 
 `)
-	var buf bytes.Buffer
+	var buf strings.Builder
 	conn := &rwTestConn{
 		Reader: bytes.NewReader(req),
 		Writer: &buf,
@@ -6511,7 +6511,7 @@ func TestTimeoutHandlerSuperfluousLogs(t *testing.T) {
 				exitHandler <- true
 			}
 
-			logBuf := new(bytes.Buffer)
+			logBuf := new(strings.Builder)
 			srvLog := log.New(logBuf, "", 0)
 			// When expecting to timeout, we'll keep the duration short.
 			dur := 20 * time.Millisecond
@@ -6721,7 +6721,7 @@ func testQuerySemicolon(t *testing.T, query string, wantX string, allowSemicolon
 	}
 
 	ts := httptest.NewUnstartedServer(h)
-	logBuf := &bytes.Buffer{}
+	logBuf := &strings.Builder{}
 	ts.Config.ErrorLog = log.New(logBuf, "", 0)
 	ts.Start()
 	defer ts.Close()
