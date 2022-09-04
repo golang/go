@@ -5,7 +5,6 @@
 package os_test
 
 import (
-	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -1167,7 +1166,7 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 	}
 	w.Close()
 
-	var b bytes.Buffer
+	var b strings.Builder
 	io.Copy(&b, r)
 	output := b.String()
 
@@ -1718,7 +1717,7 @@ func runBinHostname(t *testing.T) string {
 	}
 	w.Close()
 
-	var b bytes.Buffer
+	var b strings.Builder
 	io.Copy(&b, r)
 	_, err = p.Wait()
 	if err != nil {
