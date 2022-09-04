@@ -43,6 +43,15 @@ func stopTimer(*runtimeTimer) bool
 func resetTimer(*runtimeTimer, int64) bool
 func modTimer(t *runtimeTimer, when, period int64, f func(any, uintptr), arg any, seq uintptr)
 
+// NewTimer creates a new Timer that will send
+// the current time on its channel after at least duration d.
+func NewTimer(d Duration) *Timer {
+	var t Timer
+	t.Init()
+	t.Start(d)
+	return &t
+}
+
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
 // unless the Timer was created by AfterFunc.
@@ -50,6 +59,24 @@ func modTimer(t *runtimeTimer, when, period int64, f func(any, uintptr), arg any
 type Timer struct {
 	C <-chan Time
 	r runtimeTimer
+}
+
+// Init initialize the Timer.
+// It must call before call Start() or Reset() methods
+func (t *Timer) Init() {
+	var c = make(chan Time, 1)
+	t.C = c
+	t.r = runtimeTimer{
+		f:   sendTime,
+		arg: c,
+	}
+}
+
+// Start start the timer that will send
+// the current time on its channel after at least duration d.
+func (t *Timer) Start(d Duration) {
+	t.r.when = when(d)
+	startTimer(&t.r)
 }
 
 // Stop prevents the Timer from firing.
@@ -79,22 +106,6 @@ func (t *Timer) Stop() bool {
 		panic("time: Stop called on uninitialized Timer")
 	}
 	return stopTimer(&t.r)
-}
-
-// NewTimer creates a new Timer that will send
-// the current time on its channel after at least duration d.
-func NewTimer(d Duration) *Timer {
-	c := make(chan Time, 1)
-	t := &Timer{
-		C: c,
-		r: runtimeTimer{
-			when: when(d),
-			f:    sendTime,
-			arg:  c,
-		},
-	}
-	startTimer(&t.r)
-	return t
 }
 
 // Reset changes the timer to expire after duration d.
