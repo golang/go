@@ -5,7 +5,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"go/build"
@@ -152,7 +151,7 @@ func TestCompareAPI(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception, true)
 		if gotok != tt.ok {
 			t.Errorf("%s: ok = %v; want %v", tt.name, gotok, tt.ok)
