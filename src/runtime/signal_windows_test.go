@@ -93,8 +93,8 @@ func TestCtrlHandler(t *testing.T) {
 
 	// run test program
 	cmd = exec.Command(exe)
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
+	var stdout strings.Builder
+	var stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	inPipe, err := cmd.StdinPipe()

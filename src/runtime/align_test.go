@@ -5,7 +5,6 @@
 package runtime_test
 
 import (
-	"bytes"
 	"go/ast"
 	"go/build"
 	"go/importer"
@@ -180,7 +179,7 @@ func (v *Visitor) checkAddr(n ast.Node) {
 }
 
 func (v *Visitor) print(n ast.Node) string {
-	var b bytes.Buffer
+	var b strings.Builder
 	printer.Fprint(&b, v.fset, n)
 	return b.String()
 }

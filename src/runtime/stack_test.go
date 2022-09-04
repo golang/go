@@ -5,7 +5,6 @@
 package runtime_test
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -778,7 +777,7 @@ func TestTracebackSystemstack(t *testing.T) {
 	// and that we see TestTracebackSystemstack.
 	countIn, countOut := 0, 0
 	frames := CallersFrames(pcs)
-	var tb bytes.Buffer
+	var tb strings.Builder
 	for {
 		frame, more := frames.Next()
 		fmt.Fprintf(&tb, "\n%s+0x%x %s:%d", frame.Function, frame.PC-frame.Entry, frame.File, frame.Line)

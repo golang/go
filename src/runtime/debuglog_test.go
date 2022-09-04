@@ -23,7 +23,6 @@
 package runtime_test
 
 import (
-	"bytes"
 	"fmt"
 	"regexp"
 	"runtime"
@@ -94,7 +93,7 @@ func TestDebugLogInterleaving(t *testing.T) {
 		}
 		wg.Done()
 	}()
-	var want bytes.Buffer
+	var want strings.Builder
 	for i := 0; i < 1000; i++ {
 		runtime.Dlog().I(i).End()
 		fmt.Fprintf(&want, "[] %d\n", i)
@@ -122,7 +121,7 @@ func TestDebugLogWraparound(t *testing.T) {
 
 	runtime.ResetDebugLog()
 	var longString = strings.Repeat("a", 128)
-	var want bytes.Buffer
+	var want strings.Builder
 	for i, j := 0, 0; j < 2*runtime.DebugLogBytes; i, j = i+1, j+len(longString) {
 		runtime.Dlog().I(i).S(longString).End()
 		fmt.Fprintf(&want, "[] %d %s\n", i, longString)
