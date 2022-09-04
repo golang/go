@@ -42,7 +42,7 @@ false
 
 func TestEncoder(t *testing.T) {
 	for i := 0; i <= len(streamTest); i++ {
-		var buf bytes.Buffer
+		var buf strings.Builder
 		enc := NewEncoder(&buf)
 		// Check that enc.SetIndent("", "") turns off indentation.
 		enc.SetIndent(">", ".")
@@ -115,7 +115,7 @@ false
 `
 
 func TestEncoderIndent(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	enc := NewEncoder(&buf)
 	enc.SetIndent(">", ".")
 	for _, v := range streamTest {
@@ -185,7 +185,7 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 			`{"bar":"\"<html>foobar</html>\""}`,
 		},
 	} {
-		var buf bytes.Buffer
+		var buf strings.Builder
 		enc := NewEncoder(&buf)
 		if err := enc.Encode(tt.v); err != nil {
 			t.Errorf("Encode(%s): %s", tt.name, err)

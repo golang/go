@@ -1467,7 +1467,7 @@ func TestFuzzOneByte(t *testing.T) {
 		t.Skipf("disabled; run with -gob.fuzz to enable")
 	}
 
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	Register(OnTheFly{})
 	dt := newDT()
 	if err := NewEncoder(buf).Encode(dt); err != nil {
