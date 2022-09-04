@@ -269,7 +269,7 @@ func errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
 	if len(errs) == 1 {
 		return errs[0]
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	fmt.Fprintf(&buf, "\n")
 	for _, err := range errs {
 		fmt.Fprintf(&buf, "%s\n", err.Error())
