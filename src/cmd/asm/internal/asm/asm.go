@@ -5,9 +5,9 @@
 package asm
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 	"text/scanner"
 
 	"cmd/asm/internal/arch"
@@ -22,7 +22,7 @@ import (
 
 // TODO: configure the architecture
 
-var testOut *bytes.Buffer // Gathers output when testing.
+var testOut *strings.Builder // Gathers output when testing.
 
 // append adds the Prog to the end of the program-thus-far.
 // If doLabel is set, it also defines the labels collect for this Prog.

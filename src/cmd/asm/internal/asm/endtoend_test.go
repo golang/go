@@ -34,7 +34,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	parser := NewParser(ctxt, architecture, lexer, false)
 	pList := new(obj.Plist)
 	var ok bool
-	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+	testOut = new(strings.Builder) // The assembler writes test output to this buffer.
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
@@ -277,7 +277,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	parser := NewParser(ctxt, architecture, lexer, false)
 	pList := new(obj.Plist)
 	var ok bool
-	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+	testOut = new(strings.Builder) // The assembler writes test output to this buffer.
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
