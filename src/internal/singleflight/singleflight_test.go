@@ -44,9 +44,9 @@ func TestDoDupSuppress(t *testing.T) {
 	var g Group
 	var wg1, wg2 sync.WaitGroup
 	c := make(chan string, 1)
-	var calls int32
+	var calls atomic.Int32
 	fn := func() (any, error) {
-		if atomic.AddInt32(&calls, 1) == 1 {
+		if calls.Add(1) == 1 {
 			// First invocation.
 			wg1.Done()
 		}
@@ -81,7 +81,7 @@ func TestDoDupSuppress(t *testing.T) {
 	// least reached the line before the Do.
 	c <- "bar"
 	wg2.Wait()
-	if got := atomic.LoadInt32(&calls); got <= 0 || got >= n {
+	if got := calls.Load(); got <= 0 || got >= n {
 		t.Errorf("number of calls = %d; want over 0 and less than %d", got, n)
 	}
 }
