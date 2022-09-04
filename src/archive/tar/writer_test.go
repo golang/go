@@ -1252,7 +1252,7 @@ func TestFileWriter(t *testing.T) {
 
 	for i, v := range vectors {
 		var wantStr string
-		bb := new(bytes.Buffer)
+		bb := new(strings.Builder)
 		w := testNonEmptyWriter{bb}
 		var fw fileWriter
 		switch maker := v.maker.(type) {
