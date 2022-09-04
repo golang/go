@@ -45,7 +45,7 @@ func runBug(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	work.BuildInit()
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	buf.WriteString(bugHeader)
 	printGoVersion(&buf)
 	buf.WriteString("### Does this issue reproduce with the latest release?\n\n\n")

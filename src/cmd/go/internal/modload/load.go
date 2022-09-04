@@ -94,7 +94,6 @@ package modload
 // if those packages are not found in existing dependencies of the main module.
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -2152,7 +2151,7 @@ func (pkg *loadPkg) stackText() string {
 		stack = append(stack, p)
 	}
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i := len(stack) - 1; i >= 0; i-- {
 		p := stack[i]
 		fmt.Fprint(&buf, p.path)

@@ -2159,7 +2159,7 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...any) ([
 // output unambiguous.
 // TODO: See issue 5279. The printing of commands needs a complete redo.
 func joinUnambiguously(a []string) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i, s := range a {
 		if i > 0 {
 			buf.WriteByte(' ')

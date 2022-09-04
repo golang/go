@@ -160,12 +160,12 @@ func (b *Builder) toolID(name string) string {
 
 	cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if stderr.Len() > 0 {
-			os.Stderr.Write(stderr.Bytes())
+			os.Stderr.WriteString(stderr.String())
 		}
 		base.Fatalf("go: error obtaining buildID for %s: %v", desc, err)
 	}

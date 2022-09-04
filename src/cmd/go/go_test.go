@@ -1421,7 +1421,7 @@ func TestLdFlagsLongArgumentsIssue42295(t *testing.T) {
 			print(extern)
 		}`)
 	testStr := "test test test test test \n\\ "
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for buf.Len() < sys.ExecArgLengthLimit+1 {
 		buf.WriteString(testStr)
 	}
