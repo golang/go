@@ -1123,7 +1123,7 @@ func TestModifyResponseClosesBody(t *testing.T) {
 	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
 	req.RemoteAddr = "1.2.3.4:56789"
 	closeCheck := new(checkCloser)
-	logBuf := new(bytes.Buffer)
+	logBuf := new(strings.Builder)
 	outErr := errors.New("ModifyResponse error")
 	rp := &ReverseProxy{
 		Director: func(req *http.Request) {},

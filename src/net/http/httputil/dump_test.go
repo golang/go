@@ -523,7 +523,7 @@ func TestDumpRequestOutIssue38352(t *testing.T) {
 		select {
 		case <-out:
 		case <-time.After(timeout):
-			b := &bytes.Buffer{}
+			b := &strings.Builder{}
 			fmt.Fprintf(b, "deadlock detected on iteration %d after %s with delay: %v\n", i, timeout, delay)
 			pprof.Lookup("goroutine").WriteTo(b, 1)
 			t.Fatal(b.String())
