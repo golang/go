@@ -2085,7 +2085,7 @@ func runSelect(cases []SelectCase, info []caseInfo) (chosen int, recv Value, rec
 
 // fmtSelect formats the information about a single select test.
 func fmtSelect(info []caseInfo) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	fmt.Fprintf(&buf, "\nselect {\n")
 	for i, cas := range info {
 		fmt.Fprintf(&buf, "%d: %s", i, cas.desc)
@@ -3705,7 +3705,7 @@ func TestSetLenCap(t *testing.T) {
 }
 
 func TestVariadic(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	V := ValueOf
 
 	b.Reset()
