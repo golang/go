@@ -477,7 +477,7 @@ func TestTRun(t *T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
 			ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
-			buf := &bytes.Buffer{}
+			buf := &strings.Builder{}
 			root := &T{
 				common: common{
 					signal:  make(chan bool),
@@ -664,7 +664,7 @@ func TestBRun(t *T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
 			var ok bool
-			buf := &bytes.Buffer{}
+			buf := &strings.Builder{}
 			// This is almost like the Benchmark function, except that we override
 			// the benchtime and catch the failure result of the subbenchmark.
 			root := &B{

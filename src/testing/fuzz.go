@@ -5,7 +5,6 @@
 package testing
 
 import (
-	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -379,7 +379,7 @@ func (f *F) Fuzz(ff any) {
 			// fuzz worker. This would become very verbose, particularly during
 			// minimization. Return the error instead, and let the caller deal
 			// with the output.
-			var buf bytes.Buffer
+			var buf strings.Builder
 			if ok := run(&buf, e); !ok {
 				return errors.New(buf.String())
 			}

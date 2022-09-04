@@ -5,13 +5,12 @@
 package testing
 
 import (
-	"bytes"
 	"regexp"
 	"strings"
 )
 
 func TestTBHelper(t *T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
 	t1 := &T{
 		common: common{
@@ -55,7 +54,7 @@ helperfuncs_test.go:67: 10
 }
 
 func TestTBHelperParallel(t *T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
 	t1 := &T{
 		common: common{
