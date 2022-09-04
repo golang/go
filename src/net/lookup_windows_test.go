@@ -5,7 +5,6 @@
 package net
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -216,8 +215,8 @@ func (s byHost) Less(i, j int) bool { return s[i].Host < s[j].Host }
 func (s byHost) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func nslookup(qtype, name string) (string, error) {
-	var out bytes.Buffer
-	var err bytes.Buffer
+	var out strings.Builder
+	var err strings.Builder
 	cmd := exec.Command("nslookup", "-querytype="+qtype, name)
 	cmd.Stdout = &out
 	cmd.Stderr = &err
