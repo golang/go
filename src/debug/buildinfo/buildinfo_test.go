@@ -80,13 +80,13 @@ func TestReadFile(t *testing.T) {
 		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath, "-buildmode="+buildmode)
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOOS="+goos, "GOARCH="+goarch)
-		stderr := &bytes.Buffer{}
+		stderr := &strings.Builder{}
 		cmd.Stderr = stderr
 		if err := cmd.Run(); err != nil {
 			if badmodeMsg := badmode(goos, goarch, buildmode); strings.Contains(stderr.String(), badmodeMsg) {
 				t.Skip(badmodeMsg)
 			}
-			t.Fatalf("failed building test file: %v\n%s", err, stderr.Bytes())
+			t.Fatalf("failed building test file: %v\n%s", err, stderr.String())
 		}
 		return outPath
 	}
@@ -106,13 +106,13 @@ func TestReadFile(t *testing.T) {
 		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath, "-buildmode="+buildmode)
 		cmd.Dir = pkgDir
 		cmd.Env = append(os.Environ(), "GO111MODULE=off", "GOPATH="+gopathDir, "GOOS="+goos, "GOARCH="+goarch)
-		stderr := &bytes.Buffer{}
+		stderr := &strings.Builder{}
 		cmd.Stderr = stderr
 		if err := cmd.Run(); err != nil {
 			if badmodeMsg := badmode(goos, goarch, buildmode); strings.Contains(stderr.String(), badmodeMsg) {
 				t.Skip(badmodeMsg)
 			}
-			t.Fatalf("failed building test file: %v\n%s", err, stderr.Bytes())
+			t.Fatalf("failed building test file: %v\n%s", err, stderr.String())
 		}
 		return outPath
 	}
