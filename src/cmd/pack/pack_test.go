@@ -6,7 +6,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"cmd/internal/archive"
 	"fmt"
 	"internal/testenv"
@@ -15,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -28,7 +28,7 @@ func testCreate(t *testing.T, dir string) {
 	ar.a.File().Close()
 	// Now check it.
 	ar = openArchive(name, os.O_RDONLY, []string{helloFile.name})
-	var buf bytes.Buffer
+	var buf strings.Builder
 	stdout = &buf
 	verbose = true
 	defer func() {
@@ -72,7 +72,7 @@ func TestTableOfContents(t *testing.T) {
 	ar.a.File().Close()
 
 	// Now print it.
-	var buf bytes.Buffer
+	var buf strings.Builder
 	stdout = &buf
 	verbose = true
 	defer func() {
