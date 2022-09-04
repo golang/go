@@ -141,7 +141,7 @@ func gofmtFile(f *ast.File) ([]byte, error) {
 func processFile(filename string, useStdin bool) error {
 	var f *os.File
 	var err error
-	var fixlog bytes.Buffer
+	var fixlog strings.Builder
 
 	if useStdin {
 		f = os.Stdin
@@ -240,7 +240,7 @@ func processFile(filename string, useStdin bool) error {
 }
 
 func gofmt(n any) string {
-	var gofmtBuf bytes.Buffer
+	var gofmtBuf strings.Builder
 	if err := format.Node(&gofmtBuf, fset, n); err != nil {
 		return "<" + err.Error() + ">"
 	}
