@@ -2915,7 +2915,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	// Minimum alignment for a struct is 1 byte.
 	align = 1
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	buf.WriteString("struct {")
 	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1) // enough for padding around every field
 	sizes := make([]int64, 0, 2*len(dt.Field)+1)

@@ -43,7 +43,7 @@ func (p *Package) writeDefs() {
 	}
 	fm := creat(*objDir + "_cgo_main.c")
 
-	var gccgoInit bytes.Buffer
+	var gccgoInit strings.Builder
 
 	fflg := creat(*objDir + "_cgo_flags")
 	for k, v := range p.CgoFlags {
@@ -438,7 +438,7 @@ func checkImportSymName(s string) {
 // Also assumes that gc convention is to word-align the
 // input and output parameters.
 func (p *Package) structType(n *Name) (string, int64) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	fmt.Fprint(&buf, "struct {\n")
 	off := int64(0)
 	for i, t := range n.FuncType.Params {
@@ -1114,7 +1114,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		fn := exp.Func
 		fntype := fn.Type
 
-		cdeclBuf := new(bytes.Buffer)
+		cdeclBuf := new(strings.Builder)
 		resultCount := 0
 		forFieldList(fntype.Results,
 			func(i int, aname string, atype ast.Expr) { resultCount++ })
@@ -1146,7 +1146,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 
 		cRet := cdeclBuf.String()
 
-		cdeclBuf = new(bytes.Buffer)
+		cdeclBuf = new(strings.Builder)
 		fmt.Fprintf(cdeclBuf, "(")
 		if fn.Recv != nil {
 			fmt.Fprintf(cdeclBuf, "%s recv", p.cgoType(fn.Recv.List[0].Type).C.String())
