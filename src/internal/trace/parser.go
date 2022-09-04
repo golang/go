@@ -973,7 +973,7 @@ func PrintEvent(ev *Event) {
 
 func (ev *Event) String() string {
 	desc := EventDescriptions[ev.Type]
-	w := new(bytes.Buffer)
+	w := new(strings.Builder)
 	fmt.Fprintf(w, "%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
 	for i, a := range desc.Args {
 		fmt.Fprintf(w, " %v=%v", a, ev.Args[i])
