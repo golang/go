@@ -400,7 +400,7 @@ func TestCoverHTML(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out bytes.Buffer
+	var out strings.Builder
 	scan := bufio.NewScanner(bytes.NewReader(entireHTML))
 	in := false
 	for scan.Scan() {
