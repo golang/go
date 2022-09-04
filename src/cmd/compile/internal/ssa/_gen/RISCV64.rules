@@ -2,13 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Optimizations TODO:
-// * Use SLTI and SLTIU for comparisons to constants, instead of SLT/SLTU with constants in registers
-// * Use the zero register instead of moving 0 into a register.
-// * Add rules to avoid generating a temp bool value for (If (SLT[U] ...) ...).
-// * Arrange for non-trivial Zero and Move lowerings to use aligned loads and stores.
-// * Avoid using Neq32 for writeBarrier.enabled checks.
-
 // Lowering arithmetic
 (Add64 ...) => (ADD ...)
 (AddPtr ...) => (ADD ...)
@@ -626,6 +619,10 @@
 (BNEZ (SLT x y) yes no) => (BLT x y yes no)
 (BEQZ (SLTU x y) yes no) => (BGEU x y yes no)
 (BNEZ (SLTU x y) yes no) => (BLTU x y yes no)
+(BEQZ (SLTI [x] y) yes no) => (BGE y (MOVDconst [x]) yes no)
+(BNEZ (SLTI [x] y) yes no) => (BLT y (MOVDconst [x]) yes no)
+(BEQZ (SLTIU [x] y) yes no) => (BGEU y (MOVDconst [x]) yes no)
+(BNEZ (SLTIU [x] y) yes no) => (BLTU y (MOVDconst [x]) yes no)
 
 // Convert branch with zero to more optimal branch zero.
 (BEQ (MOVDconst [0]) cond yes no) => (BEQZ cond yes no)
@@ -763,9 +760,11 @@
 (AND (MOVDconst [val]) x) && is32Bit(val) => (ANDI [val] x)
 (OR  (MOVDconst [val]) x) && is32Bit(val) => (ORI  [val] x)
 (XOR (MOVDconst [val]) x) && is32Bit(val) => (XORI [val] x)
-(SLL x (MOVDconst [val])) => (SLLI [int64(val&63)] x)
-(SRL x (MOVDconst [val])) => (SRLI [int64(val&63)] x)
-(SRA x (MOVDconst [val])) => (SRAI [int64(val&63)] x)
+(SLL  x (MOVDconst [val])) => (SLLI [int64(val&63)] x)
+(SRL  x (MOVDconst [val])) => (SRLI [int64(val&63)] x)
+(SRA  x (MOVDconst [val])) => (SRAI [int64(val&63)] x)
+(SLT  x (MOVDconst [val])) && val >= -2048 && val <= 2047 => (SLTI  [val] x)
+(SLTU x (MOVDconst [val])) && val >= -2048 && val <= 2047 => (SLTIU [val] x)
 
 // Convert const subtraction into ADDI with negative immediate, where possible.
 (SUB x (MOVDconst [val])) && is32Bit(-val) => (ADDI [-val] x)
