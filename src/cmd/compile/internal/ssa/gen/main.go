@@ -94,7 +94,7 @@ type regInfo struct {
 type regMask uint64
 
 func (a arch) regMaskComment(r regMask) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i := uint64(0); r != 0; i++ {
 		if r&1 != 0 {
 			if buf.Len() == 0 {
