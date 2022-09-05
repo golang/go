@@ -6,13 +6,6 @@ package time
 
 import "errors"
 
-// A Ticker holds a channel that delivers “ticks” of a clock
-// at intervals.
-type Ticker struct {
-	C <-chan Time // The channel on which the ticks are delivered.
-	r runtimeTimer
-}
-
 // NewTicker returns a new Ticker containing a channel that will send
 // the current time on the channel after each tick. The period of the
 // ticks is specified by the duration argument. The ticker will adjust
@@ -20,24 +13,42 @@ type Ticker struct {
 // The duration d must be greater than zero; if not, NewTicker will
 // panic. Stop the ticker to release associated resources.
 func NewTicker(d Duration) *Ticker {
-	if d <= 0 {
-		panic(errors.New("non-positive interval for NewTicker"))
-	}
+	var t Ticker
+	t.Init()
+	t.Tick(d)
+	return &t
+}
+
+// A Ticker holds a channel that delivers “ticks” of a clock
+// at intervals.
+type Ticker struct {
+	C <-chan Time // The channel on which the ticks are delivered.
+	r runtimeTimer
+}
+
+// Init initialize the Ticker.
+// It must call before call Tick() or Reset() methods
+func (t *Ticker) Init() {
 	// Give the channel a 1-element time buffer.
 	// If the client falls behind while reading, we drop ticks
 	// on the floor until the client catches up.
-	c := make(chan Time, 1)
-	t := &Ticker{
-		C: c,
-		r: runtimeTimer{
-			when:   when(d),
-			period: int64(d),
-			f:      sendTime,
-			arg:    c,
-		},
+	var c = make(chan Time, 1)
+	t.C = c
+	t.r = runtimeTimer{
+		f:   sendTime,
+		arg: c,
 	}
+}
+
+// Tick start the timer that will send
+// the current time on its channel after each tick.
+func (t *Ticker) Tick(d Duration) {
+	if d <= 0 {
+		panic(errors.New("non-positive interval for NewTicker"))
+	}
+	t.r.when = when(d)
+	t.r.period= int64(d)
 	startTimer(&t.r)
-	return t
 }
 
 // Stop turns off a ticker. After Stop, no more ticks will be sent.
