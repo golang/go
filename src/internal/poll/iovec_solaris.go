@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build illumos
-
 package poll
 
 import (
-	"internal/syscall/unix"
 	"syscall"
+	"unsafe"
 )
 
-func writev(fd int, iovecs []syscall.Iovec) (uintptr, error) {
-	return unix.Writev(fd, iovecs)
+func newIovecWithBase(base *byte) syscall.Iovec {
+	return syscall.Iovec{Base: (*int8)(unsafe.Pointer(base))}
 }
