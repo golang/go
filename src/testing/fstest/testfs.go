@@ -201,13 +201,13 @@ func (t *fsTester) checkDir(dir string) {
 	if d = t.openDir(dir); d == nil {
 		return
 	}
-	defer d.Close()
 	list2, err = d.ReadDir(-1)
 	if err != nil {
 		t.errorf("%s: second Open+ReadDir(-1): %v", dir, err)
 		return
 	}
 	t.checkDirList(dir, "first Open+ReadDir(-1) vs second Open+ReadDir(-1)", list, list2)
+	d.Close()
 
 	// Reopen directory, read a third time in pieces, make sure contents match.
 	if d = t.openDir(dir); d == nil {
