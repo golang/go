@@ -810,12 +810,12 @@ func (f funcInfo) _Func() *Func {
 
 // isInlined reports whether f should be re-interpreted as a *funcinl.
 func (f *_func) isInlined() bool {
-	return f.entryoff == ^uint32(0) // see comment for funcinl.ones
+	return f.entryOff == ^uint32(0) // see comment for funcinl.ones
 }
 
 // entry returns the entry PC for f.
 func (f funcInfo) entry() uintptr {
-	return f.datap.textAddr(f.entryoff)
+	return f.datap.textAddr(f.entryOff)
 }
 
 // findfunc looks up function metadata for a PC.
