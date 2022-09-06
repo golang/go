@@ -627,6 +627,7 @@ func Add64MPanicOnOverflowGT(a, b [2]uint64) [2]uint64 {
 func Sub(x, y, ci uint) (r, co uint) {
 	// amd64:"NEGL","SBBQ","NEGQ"
 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
+	// loong64:"SUBV","SGTU"
 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
@@ -637,6 +638,7 @@ func Sub(x, y, ci uint) (r, co uint) {
 func SubC(x, ci uint) (r, co uint) {
 	// amd64:"NEGL","SBBQ","NEGQ"
 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
+	// loong64:"SUBV","SGTU"
 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
@@ -647,6 +649,7 @@ func SubC(x, ci uint) (r, co uint) {
 func SubZ(x, y uint) (r, co uint) {
 	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
 	// arm64:"SUBS","NGC","NEG",-"SBCS",-"ADD",-"SUB\t",-"CMP"
+	// loong64:"SUBV","SGTU"
 	// ppc64:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// s390x:"SUBC"
@@ -657,6 +660,7 @@ func SubZ(x, y uint) (r, co uint) {
 func SubR(x, y, ci uint) uint {
 	// amd64:"NEGL","SBBQ",-"NEGQ"
 	// arm64:"NEGS","SBCS",-"NGC",-"NEG\t",-"ADD",-"SUB",-"CMP"
+	// loong64:"SUBV",-"SGTU"
 	// ppc64:"SUBC", "SUBE", -"SUBZE", -"NEG"
 	// ppc64le:"SUBC", "SUBE", -"SUBZE", -"NEG"
 	// s390x:"SUBE"
@@ -679,6 +683,7 @@ func SubM(p, q, r *[3]uint) {
 func Sub64(x, y, ci uint64) (r, co uint64) {
 	// amd64:"NEGL","SBBQ","NEGQ"
 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
+	// loong64:"SUBV","SGTU"
 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
@@ -689,6 +694,7 @@ func Sub64(x, y, ci uint64) (r, co uint64) {
 func Sub64C(x, ci uint64) (r, co uint64) {
 	// amd64:"NEGL","SBBQ","NEGQ"
 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
+	// loong64:"SUBV","SGTU"
 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
@@ -699,6 +705,7 @@ func Sub64C(x, ci uint64) (r, co uint64) {
 func Sub64Z(x, y uint64) (r, co uint64) {
 	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
 	// arm64:"SUBS","NGC","NEG",-"SBCS",-"ADD",-"SUB\t",-"CMP"
+	// loong64:"SUBV","SGTU"
 	// ppc64:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// ppc64le:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// s390x:"SUBC"
@@ -709,6 +716,7 @@ func Sub64Z(x, y uint64) (r, co uint64) {
 func Sub64R(x, y, ci uint64) uint64 {
 	// amd64:"NEGL","SBBQ",-"NEGQ"
 	// arm64:"NEGS","SBCS",-"NGC",-"NEG\t",-"ADD",-"SUB",-"CMP"
+	// loong64:"SUBV",-"SGTU"
 	// ppc64:"SUBC", "SUBE", -"SUBZE", -"NEG"
 	// ppc64le:"SUBC", "SUBE", -"SUBZE", -"NEG"
 	// s390x:"SUBE"

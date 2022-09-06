@@ -6844,6 +6844,22 @@ func rewriteValueLOONG64_OpSelect0(v *Value) bool {
 		v.AddArg2(v0, c)
 		return true
 	}
+	// match: (Select0 <t> (Sub64borrow x y c))
+	// result: (SUBV (SUBV <t> x y) c)
+	for {
+		t := v.Type
+		if v_0.Op != OpSub64borrow {
+			break
+		}
+		c := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpLOONG64SUBV)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SUBV, t)
+		v0.AddArg2(x, y)
+		v.AddArg2(v0, c)
+		return true
+	}
 	// match: (Select0 (DIVVU _ (MOVVconst [1])))
 	// result: (MOVVconst [0])
 	for {
@@ -6975,6 +6991,28 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
 		v3 := b.NewValue0(v.Pos, OpLOONG64ADDV, t)
 		v3.AddArg2(s, c)
 		v2.AddArg2(s, v3)
+		v.AddArg2(v0, v2)
+		return true
+	}
+	// match: (Select1 <t> (Sub64borrow x y c))
+	// result: (OR (SGTU <t> s:(SUBV <t> x y) x) (SGTU <t> (SUBV <t> s c) s))
+	for {
+		t := v.Type
+		if v_0.Op != OpSub64borrow {
+			break
+		}
+		c := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpLOONG64OR)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SGTU, t)
+		s := b.NewValue0(v.Pos, OpLOONG64SUBV, t)
+		s.AddArg2(x, y)
+		v0.AddArg2(s, x)
+		v2 := b.NewValue0(v.Pos, OpLOONG64SGTU, t)
+		v3 := b.NewValue0(v.Pos, OpLOONG64SUBV, t)
+		v3.AddArg2(s, c)
+		v2.AddArg2(v3, s)
 		v.AddArg2(v0, v2)
 		return true
 	}
