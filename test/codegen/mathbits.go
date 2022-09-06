@@ -451,6 +451,7 @@ func Add(x, y, ci uint) (r, co uint) {
 func AddC(x, ci uint) (r, co uint) {
 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+	// loong64: "ADDV", "SGTU"
 	// ppc64: "ADDC", "ADDE", "ADDZE"
 	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
@@ -461,6 +462,7 @@ func AddC(x, ci uint) (r, co uint) {
 func AddZ(x, y uint) (r, co uint) {
 	// arm64:"ADDS","ADC",-"ADCS",-"ADD\t",-"CMP"
 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
+	// loong64: "ADDV", "SGTU"
 	// ppc64: "ADDC", -"ADDE", "ADDZE"
 	// ppc64le: "ADDC", -"ADDE", "ADDZE"
 	// s390x:"ADDC",-"ADDC\t[$]-1,"
@@ -471,6 +473,7 @@ func AddZ(x, y uint) (r, co uint) {
 func AddR(x, y, ci uint) uint {
 	// arm64:"ADDS","ADCS",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
+	// loong64: "ADDV", -"SGTU"
 	// ppc64: "ADDC", "ADDE", -"ADDZE"
 	// ppc64le: "ADDC", "ADDE", -"ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
@@ -492,6 +495,7 @@ func AddM(p, q, r *[3]uint) {
 func Add64(x, y, ci uint64) (r, co uint64) {
 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+	// loong64: "ADDV", "SGTU"
 	// ppc64: "ADDC", "ADDE", "ADDZE"
 	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
@@ -502,6 +506,7 @@ func Add64(x, y, ci uint64) (r, co uint64) {
 func Add64C(x, ci uint64) (r, co uint64) {
 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+	// loong64: "ADDV", "SGTU"
 	// ppc64: "ADDC", "ADDE", "ADDZE"
 	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
@@ -512,6 +517,7 @@ func Add64C(x, ci uint64) (r, co uint64) {
 func Add64Z(x, y uint64) (r, co uint64) {
 	// arm64:"ADDS","ADC",-"ADCS",-"ADD\t",-"CMP"
 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
+	// loong64: "ADDV", "SGTU"
 	// ppc64: "ADDC", -"ADDE", "ADDZE"
 	// ppc64le: "ADDC", -"ADDE", "ADDZE"
 	// s390x:"ADDC",-"ADDC\t[$]-1,"
@@ -522,6 +528,7 @@ func Add64Z(x, y uint64) (r, co uint64) {
 func Add64R(x, y, ci uint64) uint64 {
 	// arm64:"ADDS","ADCS",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
+	// loong64: "ADDV", -"SGTU"
 	// ppc64: "ADDC", "ADDE", -"ADDZE"
 	// ppc64le: "ADDC", "ADDE", -"ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
