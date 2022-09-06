@@ -159,7 +159,10 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		if frame.fp == 0 {
 			// Jump over system stack transitions. If we're on g0 and there's a user
 			// goroutine, try to jump. Otherwise this is a regular call.
-			if flags&_TraceJumpStack != 0 && gp == gp.m.g0 && gp.m.curg != nil {
+			// We also defensively check that this won't switch M's on us,
+			// which could happen at critical points in the scheduler.
+			// This ensures gp.m doesn't change from a stack jump.
+			if flags&_TraceJumpStack != 0 && gp == gp.m.g0 && gp.m.curg != nil && gp.m.curg.m == gp.m {
 				switch f.funcID {
 				case funcID_morestack:
 					// morestack does not return normally -- newstack()
