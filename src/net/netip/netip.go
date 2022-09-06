@@ -701,19 +701,23 @@ func (ip Addr) As4() (a4 [4]byte) {
 
 // AsSlice returns an IPv4 or IPv6 address in its respective 4-byte or 16-byte representation.
 func (ip Addr) AsSlice() []byte {
-	switch ip.z {
-	case z0:
+	if ip.z == z0 {
 		return nil
-	case z4:
-		var ret [4]byte
-		bePutUint32(ret[:], uint32(ip.addr.lo))
-		return ret[:]
-	default:
-		var ret [16]byte
-		bePutUint64(ret[:8], ip.addr.hi)
-		bePutUint64(ret[8:], ip.addr.lo)
-		return ret[:]
 	}
+
+	var ret [16]byte
+	return ip.asSlice(&ret)
+}
+
+func (ip Addr) asSlice(ret *[16]byte) []byte {
+	if ip.z == z4 {
+		bePutUint32(ret[:], uint32(ip.addr.lo))
+		return ret[:4]
+	}
+
+	bePutUint64(ret[:8], ip.addr.hi)
+	bePutUint64(ret[8:], ip.addr.lo)
+	return ret[:]
 }
 
 // Next returns the address following ip.
