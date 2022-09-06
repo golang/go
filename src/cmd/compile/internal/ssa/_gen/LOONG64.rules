@@ -42,6 +42,10 @@
 (Select1 <t> (Add64carry x y c)) =>
 	(OR (SGTU <t> x s:(ADDV <t> x y)) (SGTU <t> s (ADDV <t> s c)))
 
+(Select0 <t> (Sub64borrow x y c)) => (SUBV (SUBV <t> x y) c)
+(Select1 <t> (Sub64borrow x y c)) =>
+	(OR (SGTU <t> s:(SUBV <t> x y) x) (SGTU <t> (SUBV <t> s c) s))
+
 // (x + y) / 2 with x>=y => (x - y) / 2 + y
 (Avg64u <t> x y) => (ADDV (SRLVconst <t> (SUBV <t> x y) [1]) y)
 
