@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin
+//go:build darwin || (openbsd && !mips64)
 
 package poll
 
@@ -11,7 +11,5 @@ import (
 	_ "unsafe" // for go:linkname
 )
 
-// Implemented in syscall/syscall_darwin.go.
-//
 //go:linkname writev syscall.writev
 func writev(fd int, iovecs []syscall.Iovec) (uintptr, error)

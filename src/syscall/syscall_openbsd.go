@@ -209,6 +209,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 //sys	Unlink(path string) (err error)
 //sys	Unmount(path string, flags int) (err error)
 //sys	write(fd int, p []byte) (n int, err error)
+//sys	writev(fd int, iovecs []Iovec) (n uintptr, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys	munmap(addr uintptr, length uintptr) (err error)
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
