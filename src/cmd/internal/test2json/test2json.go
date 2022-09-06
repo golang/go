@@ -138,10 +138,12 @@ func (c *Converter) Exited(err error) {
 
 var (
 	// printed by test on successful run.
-	bigPass = []byte("PASS\n")
+	bigPass     = []byte("PASS\n")
+	bigPassCRLN = []byte("PASS\r\n")
 
 	// printed by test after a normal test failure.
-	bigFail = []byte("FAIL\n")
+	bigFail     = []byte("FAIL\n")
+	bigFailCRLN = []byte("FAIL\r\n")
 
 	// printed by 'go test' along with an error if the test binary terminates
 	// with an error.
@@ -171,10 +173,11 @@ var (
 // before or after emitting other events.
 func (c *Converter) handleInputLine(line []byte) {
 	// Final PASS or FAIL.
-	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) || bytes.HasPrefix(line, bigFailErrorPrefix) {
+	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigPassCRLN) ||
+		bytes.Equal(line, bigFail) || bytes.Equal(line, bigFailCRLN) || bytes.HasPrefix(line, bigFailErrorPrefix) {
 		c.flushReport(0)
 		c.output.write(line)
-		if bytes.Equal(line, bigPass) {
+		if bytes.Equal(line, bigPass) || bytes.Equal(line, bigPassCRLN) {
 			c.result = "pass"
 		} else {
 			c.result = "fail"

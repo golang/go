@@ -1,0 +1,6 @@
+{"Action":"run","Test":"Test1"}
+{"Action":"output","Test":"Test1","Output":"=== RUN   Test1\r\n"}
+{"Action":"output","Test":"Test1","Output":"--- PASS: Test1 (0.00s)\r\n"}
+{"Action":"pass","Test":"Test1"}
+{"Action":"output","Output":"PASS\r\n"}
+{"Action":"pass"}
