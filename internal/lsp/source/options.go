@@ -402,6 +402,7 @@ type DiagnosticOptions struct {
 	Analyses map[string]bool
 
 	// Staticcheck enables additional analyses from staticcheck.io.
+	// These analyses are documented at [here](https://staticcheck.io/docs/checks/).
 	Staticcheck bool `status:"experimental"`
 
 	// Annotations specifies the various kinds of optimization diagnostics

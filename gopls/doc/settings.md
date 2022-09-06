@@ -307,6 +307,7 @@ Default: `{}`.
 **This setting is experimental and may be deleted.**
 
 staticcheck enables additional analyses from staticcheck.io.
+These analyses are documented at [here](https://staticcheck.io/docs/checks/).
 
 Default: `false`.
 

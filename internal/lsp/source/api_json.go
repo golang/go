@@ -461,7 +461,7 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name:      "staticcheck",
 				Type:      "bool",
-				Doc:       "staticcheck enables additional analyses from staticcheck.io.\n",
+				Doc:       "staticcheck enables additional analyses from staticcheck.io.\nThese analyses are documented at [here](https://staticcheck.io/docs/checks/).\n",
 				Default:   "false",
 				Status:    "experimental",
 				Hierarchy: "ui.diagnostic",
