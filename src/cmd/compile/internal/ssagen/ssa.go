@@ -1692,12 +1692,12 @@ func (s *state) stmt(n ir.Node) {
 			// Currently doesn't really work because (*p)[:len(*p)] appears here as:
 			//    tmp = len(*p)
 			//    (*p)[:tmp]
-			//if j != nil && (j.Op == OLEN && SameSafeExpr(j.Left, n.Left)) {
+			// if j != nil && (j.Op == OLEN && SameSafeExpr(j.Left, n.Left)) {
 			//      j = nil
-			//}
-			//if k != nil && (k.Op == OCAP && SameSafeExpr(k.Left, n.Left)) {
+			// }
+			// if k != nil && (k.Op == OCAP && SameSafeExpr(k.Left, n.Left)) {
 			//      k = nil
-			//}
+			// }
 			if i == nil {
 				skip |= skipPtr
 				if j == nil {
@@ -4730,8 +4730,8 @@ func InitTables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64)
-	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchPPC64LE, sys.ArchS390X, sys.ArchRISCV64)
+		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64)
+	alias("math/bits", "Add", "math/bits", "Add64", p8...)
 	addF("math/bits", "Sub64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
