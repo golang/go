@@ -34,7 +34,7 @@ func init() {
 type reader struct {
 	f    io.Reader
 	mu   sync.Mutex
-	used uint32 // Atomic: 0 - never used, 1 - used, but f == nil, 2 - used, and f != nil
+	used atomic.Uint32 // Atomic: 0 - never used, 1 - used, but f == nil, 2 - used, and f != nil
 }
 
 // altGetRandom if non-nil specifies an OS-specific function to get
@@ -47,7 +47,7 @@ func warnBlocked() {
 
 func (r *reader) Read(b []byte) (n int, err error) {
 	boring.Unreachable()
-	if atomic.CompareAndSwapUint32(&r.used, 0, 1) {
+	if r.used.CompareAndSwap(0, 1) {
 		// First use of randomness. Start timer to warn about
 		// being blocked on entropy not being available.
 		t := time.AfterFunc(time.Minute, warnBlocked)
@@ -56,16 +56,16 @@ func (r *reader) Read(b []byte) (n int, err error) {
 	if altGetRandom != nil && altGetRandom(b) == nil {
 		return len(b), nil
 	}
-	if atomic.LoadUint32(&r.used) != 2 {
+	if r.used.Load() != 2 {
 		r.mu.Lock()
-		if atomic.LoadUint32(&r.used) != 2 {
+		if r.used.Load() != 2 {
 			f, err := os.Open(urandomDevice)
 			if err != nil {
 				r.mu.Unlock()
 				return 0, err
 			}
 			r.f = hideAgainReader{f}
-			atomic.StoreUint32(&r.used, 2)
+			r.used.Store(2)
 		}
 		r.mu.Unlock()
 	}
