@@ -1837,7 +1837,7 @@ func (ld *loader) computePatternAll() (all []string) {
 func (ld *loader) checkMultiplePaths() {
 	mods := ld.requirements.rootModules
 	if cached := ld.requirements.graph.Load(); cached != nil {
-		if mg := cached.(cachedGraph).mg; mg != nil {
+		if mg := cached.mg; mg != nil {
 			mods = mg.BuildList()
 		}
 	}
