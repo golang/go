@@ -162,7 +162,7 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 	ninl := fi.NumInlTree()
 	for i := 0; i < int(ninl); i++ {
 		call := fi.InlTree(i)
-		nameoff, ok := nameOffsets[call.Func]
+		nameOff, ok := nameOffsets[call.Func]
 		if !ok {
 			panic("couldn't find function name offset")
 		}
@@ -176,7 +176,7 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 		const size = 12
 		inlTreeSym.SetUint8(arch, int64(i*size+0), uint8(funcID))
 		// Bytes 1-3 are unused.
-		inlTreeSym.SetUint32(arch, int64(i*size+4), uint32(nameoff))
+		inlTreeSym.SetUint32(arch, int64(i*size+4), uint32(nameOff))
 		inlTreeSym.SetUint32(arch, int64(i*size+8), uint32(call.ParentPC))
 	}
 	return its
@@ -639,19 +639,19 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		}
 
 		off := int64(startLocations[i])
-		// entry uintptr (offset of func entry PC from textStart)
+		// entryOff uint32 (offset of func entry PC from textStart)
 		entryOff := ldr.SymValue(s) - textStart
 		if entryOff < 0 {
 			panic(fmt.Sprintf("expected func %s(%x) to be placed before or at textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
 		}
 		off = sb.SetUint32(ctxt.Arch, off, uint32(entryOff))
 
-		// name int32
-		nameoff, ok := nameOffsets[s]
+		// nameOff int32
+		nameOff, ok := nameOffsets[s]
 		if !ok {
 			panic("couldn't find function name offset")
 		}
-		off = sb.SetUint32(ctxt.Arch, off, uint32(nameoff))
+		off = sb.SetUint32(ctxt.Arch, off, uint32(nameOff))
 
 		// args int32
 		// TODO: Move into funcinfo.
