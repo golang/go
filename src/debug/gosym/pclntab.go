@@ -314,7 +314,7 @@ func (t *LineTable) go12Funcs() []Func {
 		syms[i] = Sym{
 			Value:     f.Entry,
 			Type:      'T',
-			Name:      t.funcName(info.nameoff()),
+			Name:      t.funcName(info.nameOff()),
 			GoType:    0,
 			Func:      f,
 			goVersion: t.version,
@@ -456,7 +456,7 @@ func (f *funcData) entryPC() uint64 {
 	return f.t.uintptr(f.data)
 }
 
-func (f funcData) nameoff() uint32     { return f.field(1) }
+func (f funcData) nameOff() uint32     { return f.field(1) }
 func (f funcData) deferreturn() uint32 { return f.field(3) }
 func (f funcData) pcfile() uint32      { return f.field(5) }
 func (f funcData) pcln() uint32        { return f.field(6) }
