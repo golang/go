@@ -3798,10 +3798,32 @@ VLOVx0i+/Q7fikp3hbN1JwuMTU0v2KL/IKoUcZc02+5xiYrnOIt5
 func TestDuplicateExtensionsCSR(t *testing.T) {
 	b, _ := pem.Decode([]byte(dupExtCSR))
 	if b == nil {
-		t.Fatalf("couldn't decode test certificate")
+		t.Fatalf("couldn't decode test CSR")
 	}
 	_, err := ParseCertificateRequest(b.Bytes)
 	if err == nil {
-		t.Fatal("ParseCertificate should fail when parsing certificate with duplicate extensions")
+		t.Fatal("ParseCertificateRequest should fail when parsing CSR with duplicate extensions")
+	}
+}
+
+const dupAttCSR = `-----BEGIN CERTIFICATE REQUEST-----
+MIIBbDCB1gIBADAPMQ0wCwYDVQQDEwR0ZXN0MIGfMA0GCSqGSIb3DQEBAQUAA4GN
+ADCBiQKBgQCj5Po3PKO/JNuxr+B+WNfMIzqqYztdlv+mTQhT0jOR5rTkUvxeeHH8
+YclryES2dOISjaUOTmOAr5GQIIdQl4Ql33Cp7ZR/VWcRn+qvTak0Yow+xVsDo0n4
+7IcvvP6CJ7FRoYBUakVczeXLxCjLwdyK16VGJM06eRzDLykPxpPwLQIDAQABoB4w
+DQYCKgMxBwwFdGVzdDEwDQYCKgMxBwwFdGVzdDIwDQYJKoZIhvcNAQELBQADgYEA
+UJ8hsHxtnIeqb2ufHnQFJO+wEJhx2Uxm/BTuzHOeffuQkwATez4skZ7SlX9exgb7
+6jRMRilqb4F7f8w+uDoqxRrA9zc8mwY16zPsyBhRet+ZGbj/ilgvGmtZ21qZZ/FU
+0pJFJIVLM3l49Onr5uIt5+hCWKwHlgE0nGpjKLR3cMg=
+-----END CERTIFICATE REQUEST-----`
+
+func TestDuplicateAttributesCSR(t *testing.T) {
+	b, _ := pem.Decode([]byte(dupAttCSR))
+	if b == nil {
+		t.Fatalf("couldn't decode test CSR")
+	}
+	_, err := ParseCertificateRequest(b.Bytes)
+	if err != nil {
+		t.Fatal("ParseCertificateRequest should succeed when parsing CSR with duplicate attributes")
 	}
 }

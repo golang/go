@@ -1831,18 +1831,13 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
 	}
 
 	var ret []pkix.Extension
-	seenExts := make(map[string]bool)
+	requestedExts := make(map[string]bool)
 	for _, rawAttr := range rawAttributes {
 		var attr pkcs10Attribute
 		if rest, err := asn1.Unmarshal(rawAttr.FullBytes, &attr); err != nil || len(rest) != 0 || len(attr.Values) == 0 {
 			// Ignore attributes that don't parse.
 			continue
 		}
-		oidStr := attr.Id.String()
-		if seenExts[oidStr] {
-			return nil, errors.New("x509: certificate request contains duplicate extensions")
-		}
-		seenExts[oidStr] = true
 
 		if !attr.Id.Equal(oidExtensionRequest) {
 			continue
@@ -1852,7 +1847,6 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
 		if _, err := asn1.Unmarshal(attr.Values[0].FullBytes, &extensions); err != nil {
 			return nil, err
 		}
-		requestedExts := make(map[string]bool)
 		for _, ext := range extensions {
 			oidStr := ext.Id.String()
 			if requestedExts[oidStr] {
