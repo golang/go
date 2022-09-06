@@ -187,7 +187,7 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 							continue
 						}
 						ctx.pc = f.Entry() + uintptr(inltree[ix].parentPc) // "caller" pc
-						ctx.fn = cfuncnameFromNameoff(fi, inltree[ix].nameOff)
+						ctx.fn = cfuncnameFromNameOff(fi, inltree[ix].nameOff)
 						ctx.line = uintptr(line)
 						ctx.file = &bytes(file)[0] // assume NUL-terminated
 						ctx.off = pc - f.Entry()

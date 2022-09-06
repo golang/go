@@ -405,7 +405,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 
 					// Create a fake _func for the
 					// inlined function.
-					inlFunc.nameoff = inltree[ix].nameOff
+					inlFunc.nameOff = inltree[ix].nameOff
 					inlFunc.funcID = inltree[ix].funcID
 
 					if (flags&_TraceRuntimeFrames) != 0 || showframe(inlFuncInfo, gp, nprint == 0, inlFuncInfo.funcID, lastFuncID) {
@@ -808,7 +808,7 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
 		inltree := (*[1 << 20]inlinedCall)(inldata)
 		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil)
 		if ix >= 0 {
-			name = funcnameFromNameoff(f, inltree[ix].nameOff)
+			name = funcnameFromNameOff(f, inltree[ix].nameOff)
 		}
 	}
 	file, line := funcline(f, pc)
@@ -852,7 +852,7 @@ func showframe(f funcInfo, gp *g, firstFrame bool, funcID, childID funcID) bool 
 // be printed during a traceback.
 func showfuncinfo(f funcInfo, firstFrame bool, funcID, childID funcID) bool {
 	// Note that f may be a synthesized funcInfo for an inlined
-	// function, in which case only nameoff and funcID are set.
+	// function, in which case only nameOff and funcID are set.
 
 	level, _, _ := gotraceback()
 	if level > 1 {

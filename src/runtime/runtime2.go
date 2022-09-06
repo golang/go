@@ -859,7 +859,7 @@ const (
 // and with package debug/gosym and with symtab.go in package runtime.
 type _func struct {
 	entryoff uint32 // start pc, as offset from moduledata.text/pcHeader.textStart
-	nameoff  int32  // function name
+	nameOff  int32  // function name, as index into moduledata.funcnametab.
 
 	args        int32  // in/out args size
 	deferreturn uint32 // offset of start of a deferreturn call instruction from entry, if any.
