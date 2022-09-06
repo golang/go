@@ -309,6 +309,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockRISCV64
 		c.lowerValue = rewriteValueRISCV64
+		c.lateLowerValue = rewriteValueRISCV64latelower
 		c.registers = registersRISCV64[:]
 		c.gpRegMask = gpRegMaskRISCV64
 		c.fpRegMask = fpRegMaskRISCV64
