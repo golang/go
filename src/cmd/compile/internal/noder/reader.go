@@ -1957,7 +1957,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 		pos := r.pos()
 		if r.Bool() {
 			pos := r.pos()
-			sym := typecheck.Lookup(r.String())
+			_, sym := r.localIdent()
 			ident = ir.NewIdent(pos, sym)
 		}
 		x := r.expr()

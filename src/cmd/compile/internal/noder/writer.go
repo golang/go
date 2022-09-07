@@ -1484,6 +1484,10 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		w.pos(guard)
 		if tag := guard.Lhs; w.Bool(tag != nil) {
 			w.pos(tag)
+
+			// Like w.localIdent, but we don't have a types2.Object.
+			w.Sync(pkgbits.SyncLocalIdent)
+			w.pkg(w.p.curpkg)
 			w.String(tag.Value)
 		}
 		w.expr(guard.X)

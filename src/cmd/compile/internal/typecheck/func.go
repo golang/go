@@ -105,7 +105,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 			if pkg == nil {
 				pkg = v.Sym().Pkg
 			} else if pkg != v.Sym().Pkg {
-				base.Fatalf("Closure variables from multiple packages")
+				base.Fatalf("Closure variables from multiple packages: %+v", clo)
 			}
 		}
 	}
