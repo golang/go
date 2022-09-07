@@ -5,7 +5,6 @@
 package windows
 
 import (
-	"internal/unsafeheader"
 	"sync"
 	"syscall"
 	"unicode/utf16"
@@ -26,11 +25,7 @@ func UTF16PtrToString(p *uint16) string {
 		n++
 	}
 	// Turn *uint16 into []uint16.
-	var s []uint16
-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(p)
-	hdr.Cap = n
-	hdr.Len = n
+	s := unsafe.Slice((*uint16)(unsafe.Pointer(p)), n)
 	// Decode []uint16 into string.
 	return string(utf16.Decode(s))
 }
