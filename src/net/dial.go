@@ -421,6 +421,13 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 	var primaries, fallbacks addrList
 	if d.dualStack() && network == "tcp" {
 		primaries, fallbacks = addrs.partition(isIPv4)
+
+		// when fallbacks is not empty, ensure primaries
+		// are ipv6 addresses as per happy eyeballs spec
+		if len(fallbacks) > 0 && !isIPv4(fallbacks[0]) {
+			primaries, fallbacks = fallbacks, primaries
+		}
+
 	} else {
 		primaries = addrs
 	}
