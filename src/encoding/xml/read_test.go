@@ -9,7 +9,6 @@ import (
 	"errors"
 	"io"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1084,8 +1083,8 @@ func TestUnmarshalWhitespaceAttrs(t *testing.T) {
 }
 
 func TestCVE202230633(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
-		t.Skip("causes memory exhaustion on js/wasm")
+	if testing.Short() {
+		t.Skip("test requires significant memory")
 	}
 	defer func() {
 		p := recover()

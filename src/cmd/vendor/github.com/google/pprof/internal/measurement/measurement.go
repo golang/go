@@ -110,10 +110,15 @@ func compatibleValueTypes(v1, v2 *profile.ValueType) bool {
 		return false
 	}
 
-	return v1.Unit == v2.Unit ||
-		(timeUnits.sniffUnit(v1.Unit) != nil && timeUnits.sniffUnit(v2.Unit) != nil) ||
-		(memoryUnits.sniffUnit(v1.Unit) != nil && memoryUnits.sniffUnit(v2.Unit) != nil) ||
-		(gcuUnits.sniffUnit(v1.Unit) != nil && gcuUnits.sniffUnit(v2.Unit) != nil)
+	if v1.Unit == v2.Unit {
+		return true
+	}
+	for _, ut := range unitTypes {
+		if ut.sniffUnit(v1.Unit) != nil && ut.sniffUnit(v2.Unit) != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // Scale a measurement from an unit to a different unit and returns
@@ -125,14 +130,10 @@ func Scale(value int64, fromUnit, toUnit string) (float64, string) {
 		v, u := Scale(-value, fromUnit, toUnit)
 		return -v, u
 	}
-	if m, u, ok := memoryUnits.convertUnit(value, fromUnit, toUnit); ok {
-		return m, u
-	}
-	if t, u, ok := timeUnits.convertUnit(value, fromUnit, toUnit); ok {
-		return t, u
-	}
-	if g, u, ok := gcuUnits.convertUnit(value, fromUnit, toUnit); ok {
-		return g, u
+	for _, ut := range unitTypes {
+		if v, u, ok := ut.convertUnit(value, fromUnit, toUnit); ok {
+			return v, u
+		}
 	}
 	// Skip non-interesting units.
 	switch toUnit {
@@ -257,7 +258,7 @@ func (ut unitType) convertUnit(value int64, fromUnitStr, toUnitStr string) (floa
 	return v / toUnit.factor, toUnit.canonicalName, true
 }
 
-var memoryUnits = unitType{
+var unitTypes = []unitType{{
 	units: []unit{
 		{"B", []string{"b", "byte"}, 1},
 		{"kB", []string{"kb", "kbyte", "kilobyte"}, float64(1 << 10)},
@@ -267,9 +268,7 @@ var memoryUnits = unitType{
 		{"PB", []string{"pb", "pbyte", "petabyte"}, float64(1 << 50)},
 	},
 	defaultUnit: unit{"B", []string{"b", "byte"}, 1},
-}
-
-var timeUnits = unitType{
+}, {
 	units: []unit{
 		{"ns", []string{"ns", "nanosecond"}, float64(time.Nanosecond)},
 		{"us", []string{"μs", "us", "microsecond"}, float64(time.Microsecond)},
@@ -278,9 +277,7 @@ var timeUnits = unitType{
 		{"hrs", []string{"hour", "hr"}, float64(time.Hour)},
 	},
 	defaultUnit: unit{"s", []string{}, float64(time.Second)},
-}
-
-var gcuUnits = unitType{
+}, {
 	units: []unit{
 		{"n*GCU", []string{"nanogcu"}, 1e-9},
 		{"u*GCU", []string{"microgcu"}, 1e-6},
@@ -293,4 +290,4 @@ var gcuUnits = unitType{
 		{"P*GCU", []string{"petagcu"}, 1e15},
 	},
 	defaultUnit: unit{"GCU", []string{}, 1.0},
-}
+}}

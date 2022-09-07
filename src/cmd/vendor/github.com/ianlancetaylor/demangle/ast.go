@@ -1451,6 +1451,34 @@ func (ft *FixedType) goString(indent int, field string) string {
 		ft.Base.goString(indent+2, "Base: "))
 }
 
+// BinaryFP is a binary floating-point type.
+type BinaryFP struct {
+	Bits int
+}
+
+func (bfp *BinaryFP) print(ps *printState) {
+	fmt.Fprintf(&ps.buf, "_Float%d", bfp.Bits)
+}
+
+func (bfp *BinaryFP) Traverse(fn func(AST) bool) {
+	fn(bfp)
+}
+
+func (bfp *BinaryFP) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(bfp) {
+		return nil
+	}
+	return fn(bfp)
+}
+
+func (bfp *BinaryFP) GoString() string {
+	return bfp.goString(0, "")
+}
+
+func (bfp *BinaryFP) goString(indent int, field string) string {
+	return fmt.Sprintf("%*s%sBinaryFP: %d", indent, "", field, bfp.Bits)
+}
+
 // VectorType is a vector type.
 type VectorType struct {
 	Dimension AST
@@ -2492,6 +2520,7 @@ func (u *Unary) print(ps *printState) {
 	}
 
 	if !u.Suffix {
+		isDelete := op != nil && (op.Name == "delete " || op.Name == "delete[] ")
 		if op != nil && op.Name == "::" {
 			// Don't use parentheses after ::.
 			ps.print(expr)
@@ -2506,11 +2535,11 @@ func (u *Unary) print(ps *printState) {
 			ps.print(expr)
 			ps.writeByte(')')
 		} else if ps.llvmStyle {
-			if op == nil || op.Name != `operator"" ` {
+			if op == nil || (op.Name != `operator"" ` && !isDelete) {
 				ps.writeByte('(')
 			}
 			ps.print(expr)
-			if op == nil || op.Name != `operator"" ` {
+			if op == nil || (op.Name != `operator"" ` && !isDelete) {
 				ps.writeByte(')')
 			}
 		} else {
@@ -2652,6 +2681,9 @@ func (b *Binary) print(ps *printState) {
 		switch op.Name {
 		case ".", "->":
 			skipBothParens = true
+			addSpaces = false
+		case "->*":
+			skipParens = true
 			addSpaces = false
 		}
 	}
@@ -3115,8 +3147,20 @@ type New struct {
 }
 
 func (n *New) print(ps *printState) {
-	// Op doesn't really matter for printing--we always print "new".
-	ps.writeString("new ")
+	if !ps.llvmStyle {
+		// Op doesn't really matter for printing--we always print "new".
+		ps.writeString("new ")
+	} else {
+		op, _ := n.Op.(*Operator)
+		if op != nil {
+			ps.writeString(op.Name)
+			if n.Place == nil {
+				ps.writeByte(' ')
+			}
+		} else {
+			ps.print(n.Op)
+		}
+	}
 	if n.Place != nil {
 		parenthesize(ps, n.Place)
 		ps.writeByte(' ')

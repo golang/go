@@ -14,6 +14,7 @@ package unix
 import (
 	"encoding/binary"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -131,8 +132,10 @@ func Pipe2(p []int, flags int) error {
 	}
 	var pp [2]_C_int
 	err := pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return err
 }
 
@@ -247,6 +250,13 @@ func Getwd() (wd string, err error) {
 	if n < 1 || n > len(buf) || buf[n-1] != 0 {
 		return "", EINVAL
 	}
+	// In some cases, Linux can return a path that starts with the
+	// "(unreachable)" prefix, which can potentially be a valid relative
+	// path. To work around that, return ENOENT if path is not absolute.
+	if buf[0] != '/' {
+		return "", ENOENT
+	}
+
 	return string(buf[0 : n-1]), nil
 }
 
@@ -2312,11 +2322,56 @@ type RemoteIovec struct {
 //sys	shmdt(addr uintptr) (err error)
 //sys	shmget(key int, size int, flag int) (id int, err error)
 
+//sys	getitimer(which int, currValue *Itimerval) (err error)
+//sys	setitimer(which int, newValue *Itimerval, oldValue *Itimerval) (err error)
+
+// MakeItimerval creates an Itimerval from interval and value durations.
+func MakeItimerval(interval, value time.Duration) Itimerval {
+	return Itimerval{
+		Interval: NsecToTimeval(interval.Nanoseconds()),
+		Value:    NsecToTimeval(value.Nanoseconds()),
+	}
+}
+
+// A value which may be passed to the which parameter for Getitimer and
+// Setitimer.
+type ItimerWhich int
+
+// Possible which values for Getitimer and Setitimer.
+const (
+	ItimerReal    ItimerWhich = ITIMER_REAL
+	ItimerVirtual ItimerWhich = ITIMER_VIRTUAL
+	ItimerProf    ItimerWhich = ITIMER_PROF
+)
+
+// Getitimer wraps getitimer(2) to return the current value of the timer
+// specified by which.
+func Getitimer(which ItimerWhich) (Itimerval, error) {
+	var it Itimerval
+	if err := getitimer(int(which), &it); err != nil {
+		return Itimerval{}, err
+	}
+
+	return it, nil
+}
+
+// Setitimer wraps setitimer(2) to arm or disarm the timer specified by which.
+// It returns the previous value of the timer.
+//
+// If the Itimerval argument is the zero value, the timer will be disarmed.
+func Setitimer(which ItimerWhich, it Itimerval) (Itimerval, error) {
+	var prev Itimerval
+	if err := setitimer(int(which), &it, &prev); err != nil {
+		return Itimerval{}, err
+	}
+
+	return prev, nil
+}
+
 /*
  * Unimplemented
  */
 // AfsSyscall
-// Alarm
 // ArchPrctl
 // Brk
 // ClockNanosleep
@@ -2332,7 +2387,6 @@ type RemoteIovec struct {
 // GetMempolicy
 // GetRobustList
 // GetThreadArea
-// Getitimer
 // Getpmsg
 // IoCancel
 // IoDestroy
