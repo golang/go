@@ -61,9 +61,9 @@ func fromStringData(s string) unsafe.Pointer { // ERROR "leaking param: s to res
 }
 
 func toSliceData(s *[]int, p unsafe.Pointer) { // ERROR "s does not escape" "leaking param: p$"
-	(*reflect.SliceHeader)(unsafe.Pointer(s)).Data = uintptr(p)
+	unsafe.SliceData(*s) = uintptr(p)
 }
 
 func toStringData(s *string, p unsafe.Pointer) { // ERROR "s does not escape" "leaking param: p$"
-	(*reflect.SliceHeader)(unsafe.Pointer(s)).Data = uintptr(p)
+	unsafe.SliceData(*s) = uintptr(p)
 }
