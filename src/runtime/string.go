@@ -537,7 +537,7 @@ func findnull(s *byte) int {
 	safeLen := int(pageSize - uintptr(ptr)%pageSize)
 
 	for {
-		t := *(*string)(unsafe.Pointer(&stringStruct{ptr, safeLen}))
+		t := unsafe.String((*byte)(ptr), safeLen)
 		// Check one page at a time.
 		if i := bytealg.IndexByteString(t, 0); i != -1 {
 			return offset + i
@@ -563,9 +563,7 @@ func findnullw(s *uint16) int {
 
 //go:nosplit
 func gostringnocopy(str *byte) string {
-	ss := stringStruct{str: unsafe.Pointer(str), len: findnull(str)}
-	s := *(*string)(unsafe.Pointer(&ss))
-	return s
+	return unsafe.String((*byte)(unsafe.Pointer(str)), findnull(str))
 }
 
 func gostringw(strw *uint16) string {
