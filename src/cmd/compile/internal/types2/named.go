@@ -104,7 +104,7 @@ type Named struct {
 	inst *instance
 
 	mu         sync.Mutex     // guards all fields below
-	state_     uint32         // the current state of this type; must only be accessed atomically
+	state_     atomic.Uint32  // the current state of this type; must only be accessed atomically
 	underlying Type           // possibly a *Named during setup; never a *Named once set up completely
 	tparams    *TypeParamList // type parameters, or nil
 
@@ -215,13 +215,13 @@ func (n *Named) resolve() *Named {
 
 // state atomically accesses the current state of the receiver.
 func (n *Named) state() namedState {
-	return namedState(atomic.LoadUint32(&n.state_))
+	return namedState(n.state_.Load())
 }
 
 // setState atomically stores the given state for n.
 // Must only be called while holding n.mu.
 func (n *Named) setState(state namedState) {
-	atomic.StoreUint32(&n.state_, uint32(state))
+	n.state_.Store(uint32(state))
 }
 
 // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
