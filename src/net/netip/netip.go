@@ -712,7 +712,7 @@ func (ip Addr) AsSlice() []byte {
 func (ip Addr) asSlice(ret *[16]byte) []byte {
 	if ip.z == z4 {
 		bePutUint32(ret[:], uint32(ip.addr.lo))
-		return ret[:4]
+		return ret[:4:4]
 	}
 
 	bePutUint64(ret[:8], ip.addr.hi)
