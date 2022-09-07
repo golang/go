@@ -97,10 +97,7 @@ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
 }
 
 func gofmtPath() string {
-	gofmt := "gofmt"
-	if base.ToolIsWindows {
-		gofmt += base.ToolWindowsExtension
-	}
+	gofmt := "gofmt" + cfg.ToolExeSuffix()
 
 	gofmtPath := filepath.Join(cfg.GOBIN, gofmt)
 	if _, err := os.Stat(gofmtPath); err == nil {

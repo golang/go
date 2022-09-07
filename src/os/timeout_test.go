@@ -58,6 +58,7 @@ var readTimeoutTests = []struct {
 	{50 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
 }
 
+// There is a very similar copy of this in net/timeout_test.go.
 func TestReadTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -98,6 +99,7 @@ func TestReadTimeout(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in net/timeout_test.go.
 func TestReadTimeoutMustNotReturn(t *testing.T) {
 	t.Parallel()
 
@@ -149,6 +151,7 @@ var writeTimeoutTests = []struct {
 	{10 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
 }
 
+// There is a very similar copy of this in net/timeout_test.go.
 func TestWriteTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -186,6 +189,7 @@ func TestWriteTimeout(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in net/timeout_test.go.
 func TestWriteTimeoutMustNotReturn(t *testing.T) {
 	t.Parallel()
 
@@ -230,28 +234,60 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 	}
 }
 
-func timeoutReader(r *os.File, d, min, max time.Duration, ch chan<- error) {
-	var err error
-	defer func() { ch <- err }()
+const (
+	// minDynamicTimeout is the minimum timeout to attempt for
+	// tests that automatically increase timeouts until success.
+	//
+	// Lower values may allow tests to succeed more quickly if the value is close
+	// to the true minimum, but may require more iterations (and waste more time
+	// and CPU power on failed attempts) if the timeout is too low.
+	minDynamicTimeout = 1 * time.Millisecond
 
-	t0 := time.Now()
-	if err = r.SetReadDeadline(time.Now().Add(d)); err != nil {
-		return
+	// maxDynamicTimeout is the maximum timeout to attempt for
+	// tests that automatically increase timeouts until succeess.
+	//
+	// This should be a strict upper bound on the latency required to hit a
+	// timeout accurately, even on a slow or heavily-loaded machine. If a test
+	// would increase the timeout beyond this value, the test fails.
+	maxDynamicTimeout = 4 * time.Second
+)
+
+// timeoutUpperBound returns the maximum time that we expect a timeout of
+// duration d to take to return the caller.
+func timeoutUpperBound(d time.Duration) time.Duration {
+	switch runtime.GOOS {
+	case "openbsd", "netbsd":
+		// NetBSD and OpenBSD seem to be unable to reliably hit deadlines even when
+		// the absolute durations are long.
+		// In https://build.golang.org/log/c34f8685d020b98377dd4988cd38f0c5bd72267e,
+		// we observed that an openbsd-amd64-68 builder took 4.090948779s for a
+		// 2.983020682s timeout (37.1% overhead).
+		// (See https://go.dev/issue/50189 for further detail.)
+		// Give them lots of slop to compensate.
+		return d * 3 / 2
 	}
-	b := make([]byte, 256)
-	var n int
-	n, err = r.Read(b)
-	t1 := time.Now()
-	if n != 0 || err == nil || !isDeadlineExceeded(err) {
-		err = fmt.Errorf("Read did not return (0, timeout): (%d, %v)", n, err)
-		return
-	}
-	if dt := t1.Sub(t0); min > dt || dt > max && !testing.Short() {
-		err = fmt.Errorf("Read took %s; expected %s", dt, d)
-		return
-	}
+	// Other platforms seem to hit their deadlines more reliably,
+	// at least when they are long enough to cover scheduling jitter.
+	return d * 11 / 10
 }
 
+// nextTimeout returns the next timeout to try after an operation took the given
+// actual duration with a timeout shorter than that duration.
+func nextTimeout(actual time.Duration) (next time.Duration, ok bool) {
+	if actual >= maxDynamicTimeout {
+		return maxDynamicTimeout, false
+	}
+	// Since the previous attempt took actual, we can't expect to beat that
+	// duration by any significant margin. Try the next attempt with an arbitrary
+	// factor above that, so that our growth curve is at least exponential.
+	next = actual * 5 / 4
+	if next > maxDynamicTimeout {
+		return maxDynamicTimeout, true
+	}
+	return next, true
+}
+
+// There is a very similar copy of this in net/timeout_test.go.
 func TestReadTimeoutFluctuation(t *testing.T) {
 	t.Parallel()
 
@@ -262,47 +298,47 @@ func TestReadTimeoutFluctuation(t *testing.T) {
 	defer r.Close()
 	defer w.Close()
 
-	max := time.NewTimer(time.Second)
-	defer max.Stop()
-	ch := make(chan error)
-	go timeoutReader(r, 100*time.Millisecond, 50*time.Millisecond, 250*time.Millisecond, ch)
-
-	select {
-	case <-max.C:
-		t.Fatal("Read took over 1s; expected 0.1s")
-	case err := <-ch:
-		if !isDeadlineExceeded(err) {
-			t.Fatal(err)
-		}
-	}
-}
-
-func timeoutWriter(w *os.File, d, min, max time.Duration, ch chan<- error) {
-	var err error
-	defer func() { ch <- err }()
-
-	t0 := time.Now()
-	if err = w.SetWriteDeadline(time.Now().Add(d)); err != nil {
-		return
-	}
-	var n int
+	d := minDynamicTimeout
+	b := make([]byte, 256)
 	for {
-		n, err = w.Write([]byte("TIMEOUT WRITER"))
-		if err != nil {
-			break
+		t.Logf("SetReadDeadline(+%v)", d)
+		t0 := time.Now()
+		deadline := t0.Add(d)
+		if err = r.SetReadDeadline(deadline); err != nil {
+			t.Fatalf("SetReadDeadline(%v): %v", deadline, err)
 		}
-	}
-	t1 := time.Now()
-	if err == nil || !isDeadlineExceeded(err) {
-		err = fmt.Errorf("Write did not return (any, timeout): (%d, %v)", n, err)
-		return
-	}
-	if dt := t1.Sub(t0); min > dt || dt > max && !testing.Short() {
-		err = fmt.Errorf("Write took %s; expected %s", dt, d)
-		return
+		var n int
+		n, err = r.Read(b)
+		t1 := time.Now()
+
+		if n != 0 || err == nil || !isDeadlineExceeded(err) {
+			t.Errorf("Read did not return (0, timeout): (%d, %v)", n, err)
+		}
+
+		actual := t1.Sub(t0)
+		if t1.Before(deadline) {
+			t.Errorf("Read took %s; expected at least %s", actual, d)
+		}
+		if t.Failed() {
+			return
+		}
+		if want := timeoutUpperBound(d); actual > want {
+			next, ok := nextTimeout(actual)
+			if !ok {
+				t.Fatalf("Read took %s; expected at most %v", actual, want)
+			}
+			// Maybe this machine is too slow to reliably schedule goroutines within
+			// the requested duration. Increase the timeout and try again.
+			t.Logf("Read took %s (expected %s); trying with longer timeout", actual, d)
+			d = next
+			continue
+		}
+
+		break
 	}
 }
 
+// There is a very similar copy of this in net/timeout_test.go.
 func TestWriteTimeoutFluctuation(t *testing.T) {
 	t.Parallel()
 
@@ -313,27 +349,71 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 	defer r.Close()
 	defer w.Close()
 
-	d := time.Second
-	max := time.NewTimer(d)
-	defer max.Stop()
-	ch := make(chan error)
-	go timeoutWriter(w, 100*time.Millisecond, 50*time.Millisecond, 250*time.Millisecond, ch)
-
-	select {
-	case <-max.C:
-		t.Fatalf("Write took over %v; expected 0.1s", d)
-	case err := <-ch:
-		if !isDeadlineExceeded(err) {
-			t.Fatal(err)
+	d := minDynamicTimeout
+	for {
+		t.Logf("SetWriteDeadline(+%v)", d)
+		t0 := time.Now()
+		deadline := t0.Add(d)
+		if err = w.SetWriteDeadline(deadline); err != nil {
+			t.Fatalf("SetWriteDeadline(%v): %v", deadline, err)
 		}
+		var n int64
+		for {
+			var dn int
+			dn, err = w.Write([]byte("TIMEOUT TRANSMITTER"))
+			n += int64(dn)
+			if err != nil {
+				break
+			}
+		}
+		t1 := time.Now()
+
+		if err == nil || !isDeadlineExceeded(err) {
+			t.Fatalf("Write did not return (any, timeout): (%d, %v)", n, err)
+		}
+
+		actual := t1.Sub(t0)
+		if t1.Before(deadline) {
+			t.Errorf("Write took %s; expected at least %s", actual, d)
+		}
+		if t.Failed() {
+			return
+		}
+		if want := timeoutUpperBound(d); actual > want {
+			if n > 0 {
+				// SetWriteDeadline specifies a time “after which I/O operations fail
+				// instead of blocking”. However, the kernel's send buffer is not yet
+				// full, we may be able to write some arbitrary (but finite) number of
+				// bytes to it without blocking.
+				t.Logf("Wrote %d bytes into send buffer; retrying until buffer is full", n)
+				if d <= maxDynamicTimeout/2 {
+					// We don't know how long the actual write loop would have taken if
+					// the buffer were full, so just guess and double the duration so that
+					// the next attempt can make twice as much progress toward filling it.
+					d *= 2
+				}
+			} else if next, ok := nextTimeout(actual); !ok {
+				t.Fatalf("Write took %s; expected at most %s", actual, want)
+			} else {
+				// Maybe this machine is too slow to reliably schedule goroutines within
+				// the requested duration. Increase the timeout and try again.
+				t.Logf("Write took %s (expected %s); trying with longer timeout", actual, d)
+				d = next
+			}
+			continue
+		}
+
+		break
 	}
 }
 
+// There is a very similar copy of this in net/timeout_test.go.
 func TestVariousDeadlines(t *testing.T) {
 	t.Parallel()
 	testVariousDeadlines(t)
 }
 
+// There is a very similar copy of this in net/timeout_test.go.
 func TestVariousDeadlines1Proc(t *testing.T) {
 	// Cannot use t.Parallel - modifies global GOMAXPROCS.
 	if testing.Short() {
@@ -343,6 +423,7 @@ func TestVariousDeadlines1Proc(t *testing.T) {
 	testVariousDeadlines(t)
 }
 
+// There is a very similar copy of this in net/timeout_test.go.
 func TestVariousDeadlines4Proc(t *testing.T) {
 	// Cannot use t.Parallel - modifies global GOMAXPROCS.
 	if testing.Short() {
@@ -454,6 +535,7 @@ func testVariousDeadlines(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in net/timeout_test.go.
 func TestReadWriteDeadlineRace(t *testing.T) {
 	t.Parallel()
 

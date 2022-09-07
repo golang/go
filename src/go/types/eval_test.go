@@ -12,7 +12,6 @@ import (
 	"go/importer"
 	"go/parser"
 	"go/token"
-	"internal/goexperiment"
 	"internal/testenv"
 	"strings"
 	"testing"
@@ -209,7 +208,7 @@ func TestCheckExpr(t *testing.T) {
 	// expr is an identifier or selector expression that is passed
 	// to CheckExpr at the position of the comment, and object is
 	// the string form of the object it denotes.
-	src := `
+	const src = `
 package p
 
 import "fmt"
@@ -235,13 +234,6 @@ func f(a int, s string) S {
 
 	return S{}
 }`
-
-	// The unified IR importer always sets interface method receiver
-	// parameters to point to the Interface type, rather than the Named.
-	// See #49906.
-	if goexperiment.Unified {
-		src = strings.ReplaceAll(src, "func (fmt.Stringer).", "func (interface).")
-	}
 
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "p", src, parser.ParseComments)

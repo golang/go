@@ -25,6 +25,7 @@ import (
 
 func cmdtest() {
 	gogcflags = os.Getenv("GO_GCFLAGS")
+	setNoOpt()
 
 	var t tester
 
@@ -290,7 +291,7 @@ func (t *tester) maybeLogMetadata() error {
 	//
 	// TODO(prattmic): If we split dist bootstrap and dist test then this
 	// could be simplified to directly use internal/sysinfo here.
-	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), "go", []string{"run", "."}).Run()
+	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), "go", []string{"run", "main.go"}).Run()
 }
 
 // short returns a -short flag value to use with 'go test'
@@ -325,10 +326,17 @@ func (t *tester) goTest() []string {
 }
 
 func (t *tester) tags() string {
-	if t.iOS() {
+	ios := t.iOS()
+	switch {
+	case ios && noOpt:
+		return "-tags=lldb,noopt"
+	case ios:
 		return "-tags=lldb"
+	case noOpt:
+		return "-tags=noopt"
+	default:
+		return "-tags="
 	}
-	return "-tags="
 }
 
 // timeoutDuration converts the provided number of seconds into a
@@ -542,7 +550,7 @@ func (t *tester) registerTests() {
 			name:    testName,
 			heading: "GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",
 			fn: func(dt *distTest) error {
-				cmd := t.addCmd(dt, "src", t.goTest(), t.timeout(300), "runtime", "-cpu=1,2,4", "-quick")
+				cmd := t.addCmd(dt, "src", t.goTest(), "-short=true", t.timeout(300), "runtime", "-cpu=1,2,4", "-quick")
 				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
 				// creation of first goroutines and first garbage collections in the parallel setting.
 				setEnv(cmd, "GOMAXPROCS", "2")
@@ -700,18 +708,23 @@ func (t *tester) registerTests() {
 		})
 	}
 
+	// Stub out following test on alpine until 54354 resolved.
+	builderName := os.Getenv("GO_BUILDER_NAME")
+	disablePIE := strings.HasSuffix(builderName, "-alpine")
+
 	// Test internal linking of PIE binaries where it is supported.
-	if t.internalLinkPIE() {
+	if t.internalLinkPIE() && !disablePIE {
 		t.tests = append(t.tests, distTest{
 			name:    "pie_internal",
 			heading: "internal linking of -buildmode=pie",
 			fn: func(dt *distTest) error {
-				t.addCmd(dt, "src", t.goTest(), "reflect", "-buildmode=pie", "-ldflags=-linkmode=internal", t.timeout(60))
+				cmd := t.addCmd(dt, "src", t.goTest(), "reflect", "-buildmode=pie", "-ldflags=-linkmode=internal", t.timeout(60))
+				setEnv(cmd, "CGO_ENABLED", "0")
 				return nil
 			},
 		})
 		// Also test a cgo package.
-		if t.cgoEnabled && t.internalLink() {
+		if t.cgoEnabled && t.internalLink() && !disablePIE {
 			t.tests = append(t.tests, distTest{
 				name:    "pie_internal_cgo",
 				heading: "internal linking of -buildmode=pie",
@@ -766,7 +779,7 @@ func (t *tester) registerTests() {
 				name:    "swig_stdio",
 				heading: "../misc/swig/stdio",
 				fn: func(dt *distTest) error {
-					t.addCmd(dt, "misc/swig/stdio", t.goTest())
+					t.addCmd(dt, "misc/swig/stdio", t.goTest(), ".")
 					return nil
 				},
 			})
@@ -776,7 +789,7 @@ func (t *tester) registerTests() {
 						name:    "swig_callback",
 						heading: "../misc/swig/callback",
 						fn: func(dt *distTest) error {
-							t.addCmd(dt, "misc/swig/callback", t.goTest())
+							t.addCmd(dt, "misc/swig/callback", t.goTest(), ".")
 							return nil
 						},
 					},
@@ -784,7 +797,7 @@ func (t *tester) registerTests() {
 						name:    "swig_callback_lto",
 						heading: "../misc/swig/callback",
 						fn: func(dt *distTest) error {
-							cmd := t.addCmd(dt, "misc/swig/callback", t.goTest())
+							cmd := t.addCmd(dt, "misc/swig/callback", t.goTest(), ".")
 							setEnv(cmd, "CGO_CFLAGS", "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option")
 							setEnv(cmd, "CGO_CXXFLAGS", "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option")
 							setEnv(cmd, "CGO_LDFLAGS", "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option")
@@ -824,12 +837,11 @@ func (t *tester) registerTests() {
 		if t.supportedBuildmode("plugin") {
 			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600), ".")
 		}
-		if gohostos == "linux" && goarch == "amd64" {
+		if gohostos == "linux" && (goarch == "amd64" || goarch == "ppc64le") {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
 		}
-		if goos == "linux" && goarch != "ppc64le" {
+		if goos == "linux" {
 			// because syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only built on linux.
-			// Some inconsistent failures happen on ppc64le so disable for now.
 			t.registerHostTest("testsanitizers", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
@@ -866,12 +878,12 @@ func (t *tester) registerTests() {
 			})
 		}
 	}
-	// Only run the API check on fast development platforms. Android, iOS, and JS
-	// are always cross-compiled, and the filesystems on our only plan9 builders
-	// are too slow to complete in a reasonable timeframe. Every platform checks
-	// the API on every GOOS/GOARCH/CGO_ENABLED combination anyway, so we really
-	// only need to run this check once anywhere to get adequate coverage.
-	if goos != "android" && !t.iOS() && goos != "js" && goos != "plan9" {
+	// Only run the API check on fast development platforms.
+	// Every platform checks the API on every GOOS/GOARCH/CGO_ENABLED combination anyway,
+	// so we really only need to run this check once anywhere to get adequate coverage.
+	// To help developers avoid trybot-only failures, we try to run on typical developer machines
+	// which is darwin/linux/windows and amd64/arm64.
+	if (goos == "darwin" || goos == "linux" || goos == "windows") && (goarch == "amd64" || goarch == "arm64") {
 		t.tests = append(t.tests, distTest{
 			name:    "api",
 			heading: "API check",
@@ -1185,11 +1197,15 @@ func (t *tester) runHostTest(dir, pkg string) error {
 }
 
 func (t *tester) cgoTest(dt *distTest) error {
-	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
+	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), ".")
 	setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=auto")
 
+	// Stub out various buildmode=pie tests  on alpine until 54354 resolved.
+	builderName := os.Getenv("GO_BUILDER_NAME")
+	disablePIE := strings.HasSuffix(builderName, "-alpine")
+
 	if t.internalLink() {
-		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal")
+		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal", ".")
 		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=internal")
 	}
 
@@ -1201,15 +1217,16 @@ func (t *tester) cgoTest(dt *distTest) error {
 		if !t.extLink() {
 			break
 		}
-		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
+		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), ".")
 		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=external")
 
-		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s")
+		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s", ".")
 
-		if t.supportedBuildmode("pie") {
-			t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
+		if t.supportedBuildmode("pie") && !disablePIE {
+
+			t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", ".")
 			if t.internalLink() && t.internalLinkPIE() {
-				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie")
+				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie", ".")
 			}
 		}
 
@@ -1221,14 +1238,14 @@ func (t *tester) cgoTest(dt *distTest) error {
 		"netbsd-386", "netbsd-amd64",
 		"openbsd-386", "openbsd-amd64", "openbsd-arm", "openbsd-arm64", "openbsd-mips64":
 
-		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
+		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), ".")
 		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=external")
 		// cgo should be able to cope with both -g arguments and colored
 		// diagnostics.
 		setEnv(cmd, "CGO_CFLAGS", "-g0 -fdiagnostics-color")
 
-		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=auto")
-		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=external")
+		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=auto", ".")
+		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=external", ".")
 
 		switch pair {
 		case "aix-ppc64", "netbsd-386", "netbsd-amd64":
@@ -1247,28 +1264,28 @@ func (t *tester) cgoTest(dt *distTest) error {
 				fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
 			} else {
 				if goos != "android" {
-					t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+					t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", `-linkmode=external -extldflags "-static -pthread"`, ".")
 				}
-				t.addCmd(dt, "misc/cgo/nocgo", t.goTest())
-				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external`)
+				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), ".")
+				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external`, ".")
 				if goos != "android" {
-					t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
-					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+					t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external -extldflags "-static -pthread"`, ".")
+					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`, ".")
 					// -static in CGO_LDFLAGS triggers a different code path
 					// than -static in -extldflags, so test both.
 					// See issue #16651.
-					cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static")
+					cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static", ".")
 					setEnv(cmd, "CGO_LDFLAGS", "-static -pthread")
 				}
 			}
 
-			if t.supportedBuildmode("pie") {
-				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
+			if t.supportedBuildmode("pie") && !disablePIE {
+				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", ".")
 				if t.internalLink() && t.internalLinkPIE() {
-					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie")
+					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie", ".")
 				}
-				t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-buildmode=pie")
-				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-buildmode=pie")
+				t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-buildmode=pie", ".")
+				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-buildmode=pie", ".")
 			}
 		}
 	}
@@ -1720,7 +1737,7 @@ func (t *tester) runPrecompiledStdTest(timeout time.Duration) error {
 func raceDetectorSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
-		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
+		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64" || goarch == "s390x"
 	case "darwin":
 		return goarch == "amd64" || goarch == "arm64"
 	case "freebsd", "netbsd", "openbsd", "windows":

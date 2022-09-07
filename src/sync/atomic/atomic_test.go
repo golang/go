@@ -32,16 +32,6 @@ const (
 	magic64 = 0xdeddeadbeefbeef
 )
 
-// Do the 64-bit functions panic? If so, don't bother testing.
-var test64err = func() (err any) {
-	defer func() {
-		err = recover()
-	}()
-	var x int64
-	AddInt64(&x, 1)
-	return nil
-}()
-
 func TestSwapInt32(t *testing.T) {
 	var x struct {
 		before int32
@@ -127,9 +117,6 @@ func TestSwapUint32Method(t *testing.T) {
 }
 
 func TestSwapInt64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      int64
@@ -152,9 +139,6 @@ func TestSwapInt64(t *testing.T) {
 }
 
 func TestSwapInt64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      Int64
@@ -177,9 +161,6 @@ func TestSwapInt64Method(t *testing.T) {
 }
 
 func TestSwapUint64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      uint64
@@ -202,9 +183,6 @@ func TestSwapUint64(t *testing.T) {
 }
 
 func TestSwapUint64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      Uint64
@@ -420,9 +398,6 @@ func TestAddUint32Method(t *testing.T) {
 }
 
 func TestAddInt64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      int64
@@ -445,9 +420,6 @@ func TestAddInt64(t *testing.T) {
 }
 
 func TestAddInt64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      Int64
@@ -470,9 +442,6 @@ func TestAddInt64Method(t *testing.T) {
 }
 
 func TestAddUint64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      uint64
@@ -495,9 +464,6 @@ func TestAddUint64(t *testing.T) {
 }
 
 func TestAddUint64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      Uint64
@@ -682,9 +648,6 @@ func TestCompareAndSwapUint32Method(t *testing.T) {
 }
 
 func TestCompareAndSwapInt64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      int64
@@ -715,9 +678,6 @@ func TestCompareAndSwapInt64(t *testing.T) {
 }
 
 func TestCompareAndSwapInt64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      Int64
@@ -748,9 +708,6 @@ func TestCompareAndSwapInt64Method(t *testing.T) {
 }
 
 func testCompareAndSwapUint64(t *testing.T, cas func(*uint64, uint64, uint64) bool) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      uint64
@@ -785,9 +742,6 @@ func TestCompareAndSwapUint64(t *testing.T) {
 }
 
 func TestCompareAndSwapUint64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      Uint64
@@ -1027,9 +981,6 @@ func TestLoadUint32Method(t *testing.T) {
 }
 
 func TestLoadInt64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      int64
@@ -1051,9 +1002,6 @@ func TestLoadInt64(t *testing.T) {
 }
 
 func TestLoadInt64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      Int64
@@ -1077,9 +1025,6 @@ func TestLoadInt64Method(t *testing.T) {
 }
 
 func TestLoadUint64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      uint64
@@ -1101,9 +1046,6 @@ func TestLoadUint64(t *testing.T) {
 }
 
 func TestLoadUint64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      Uint64
@@ -1302,9 +1244,6 @@ func TestStoreUint32Method(t *testing.T) {
 }
 
 func TestStoreInt64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      int64
@@ -1349,9 +1288,6 @@ func TestStoreInt64Method(t *testing.T) {
 }
 
 func TestStoreUint64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      uint64
@@ -1374,9 +1310,6 @@ func TestStoreUint64(t *testing.T) {
 }
 
 func TestStoreUint64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      Uint64
@@ -1997,9 +1930,6 @@ func hammerCompareAndSwapUintptr64Method(uaddr *uint64, count int) {
 }
 
 func TestHammer64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	const p = 4
 	n := 100000
 	if testing.Short() {
@@ -2252,16 +2182,13 @@ func hammerStoreLoadPointerMethod(t *testing.T, paddr unsafe.Pointer) {
 }
 
 func TestHammerStoreLoad(t *testing.T) {
-	var tests []func(*testing.T, unsafe.Pointer)
-	tests = append(tests, hammerStoreLoadInt32, hammerStoreLoadUint32,
+	tests := []func(*testing.T, unsafe.Pointer){
+		hammerStoreLoadInt32, hammerStoreLoadUint32,
 		hammerStoreLoadUintptr, hammerStoreLoadPointer,
 		hammerStoreLoadInt32Method, hammerStoreLoadUint32Method,
 		hammerStoreLoadUintptrMethod, hammerStoreLoadPointerMethod,
-	)
-	if test64err == nil {
-		tests = append(tests, hammerStoreLoadInt64, hammerStoreLoadUint64,
-			hammerStoreLoadInt64Method, hammerStoreLoadUint64Method,
-		)
+		hammerStoreLoadInt64, hammerStoreLoadUint64,
+		hammerStoreLoadInt64Method, hammerStoreLoadUint64Method,
 	}
 	n := int(1e6)
 	if testing.Short() {
@@ -2336,9 +2263,6 @@ func TestStoreLoadSeqCst32(t *testing.T) {
 func TestStoreLoadSeqCst64(t *testing.T) {
 	if runtime.NumCPU() == 1 {
 		t.Skipf("Skipping test on %v processor machine", runtime.NumCPU())
-	}
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 	N := int64(1e3)
@@ -2427,9 +2351,6 @@ func TestStoreLoadRelAcq32(t *testing.T) {
 func TestStoreLoadRelAcq64(t *testing.T) {
 	if runtime.NumCPU() == 1 {
 		t.Skipf("Skipping test on %v processor machine", runtime.NumCPU())
-	}
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 	N := int64(1e3)

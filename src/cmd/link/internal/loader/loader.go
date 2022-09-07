@@ -14,6 +14,7 @@ import (
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
+	"io"
 	"log"
 	"math/bits"
 	"os"
@@ -721,9 +722,9 @@ func (l *Loader) checkdup(name string, r *oReader, li uint32, dup Sym) {
 	// here is that we get different line numbers on formal
 	// params; I am guessing that the pos is being inherited
 	// from the spot where the wrapper is needed.
-	allowed := strings.HasPrefix(name, "go.info.go.interface") ||
-		strings.HasPrefix(name, "go.info.go.builtin") ||
-		strings.HasPrefix(name, "go.debuglines")
+	allowed := strings.HasPrefix(name, "go:info.go.interface") ||
+		strings.HasPrefix(name, "go:info.go.builtin") ||
+		strings.HasPrefix(name, "go:debuglines")
 	if !allowed {
 		l.strictDupMsgs++
 	}
@@ -1610,13 +1611,8 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
 	if l.SymType(fnSymIdx) != sym.STEXT {
 		log.Fatalf("error: non-function sym %d/%s t=%s passed to GetFuncDwarfAuxSyms", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
 	}
-	if l.IsExternal(fnSymIdx) {
-		// Current expectation is that any external function will
-		// not have auxsyms.
-		return
-	}
-	r, li := l.toLocal(fnSymIdx)
-	auxs := r.Auxs(li)
+	r, auxs := l.auxs(fnSymIdx)
+
 	for i := range auxs {
 		a := &auxs[i]
 		switch a.Type() {
@@ -1703,7 +1699,7 @@ func (l *Loader) OuterSym(i Sym) Sym {
 // SubSym gets the subsymbol for host object loaded symbols.
 func (l *Loader) SubSym(i Sym) Sym {
 	// NB: note -- no check for l.isExternal(), since I am pretty sure
-	// that later phases in the linker set subsym for "type." syms
+	// that later phases in the linker set subsym for "type:" syms
 	return l.sub[i]
 }
 
@@ -1716,7 +1712,7 @@ func (l *Loader) SubSym(i Sym) Sym {
 // emits named string symbols (type SGOSTRING) when compiling a
 // package; after being deduplicated, these symbols are collected into
 // a single unit by assigning them a new carrier symbol named
-// "go.string.*" (which appears in the final symbol table for the
+// "go:string.*" (which appears in the final symbol table for the
 // output load module).
 func (l *Loader) SetCarrierSym(s Sym, c Sym) {
 	if c == 0 {
@@ -2081,7 +2077,7 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
 	l.addObj(lib.Pkg, or)
 
 	// The caller expects us consuming all the data
-	f.MustSeek(length, os.SEEK_CUR)
+	f.MustSeek(length, io.SeekCurrent)
 
 	return r.Fingerprint()
 }
@@ -2132,7 +2128,7 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 			l.SetAttrUsedInIface(gi, true)
 		}
 		if strings.HasPrefix(name, "runtime.") ||
-			(loadingRuntimePkg && strings.HasPrefix(name, "type.")) {
+			(loadingRuntimePkg && strings.HasPrefix(name, "type:")) {
 			if bi := goobj.BuiltinIdx(name, int(osym.ABI())); bi != -1 {
 				// This is a definition of a builtin symbol. Record where it is.
 				l.builtinSyms[bi] = gi

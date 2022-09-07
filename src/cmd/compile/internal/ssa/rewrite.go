@@ -1362,7 +1362,8 @@ func zeroUpper56Bits(x *Value, depth int) bool {
 
 // isInlinableMemmove reports whether the given arch performs a Move of the given size
 // faster than memmove. It will only return true if replacing the memmove with a Move is
-// safe, either because Move is small or because the arguments are disjoint.
+// safe, either because Move will do all of its loads before any of its stores, or
+// because the arguments are known to be disjoint.
 // This is used as a check for replacing memmove with Move ops.
 func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	// It is always safe to convert memmove into Move when its arguments are disjoint.
@@ -1381,6 +1382,9 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	}
 	return false
 }
+func IsInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
+	return isInlinableMemmove(dst, src, sz, c)
+}
 
 // logLargeCopy logs the occurrence of a large copy.
 // The best place to do this is in the rewrite rules where the size of the move is easy to find.
@@ -1393,6 +1397,14 @@ func logLargeCopy(v *Value, s int64) bool {
 		logopt.LogOpt(v.Pos, "copy", "lower", v.Block.Func.Name, fmt.Sprintf("%d bytes", s))
 	}
 	return true
+}
+func LogLargeCopy(funcName string, pos src.XPos, s int64) {
+	if s < 128 {
+		return
+	}
+	if logopt.Enabled() {
+		logopt.LogOpt(pos, "copy", "lower", funcName, fmt.Sprintf("%d bytes", s))
+	}
 }
 
 // hasSmallRotate reports whether the architecture has rotate instructions
@@ -1632,7 +1644,7 @@ func sizeof(t interface{}) int64 {
 // a register. It assumes float64 values will always fit into registers
 // even if that isn't strictly true.
 func registerizable(b *Block, typ *types.Type) bool {
-	if typ.IsPtrShaped() || typ.IsFloat() {
+	if typ.IsPtrShaped() || typ.IsFloat() || typ.IsBoolean() {
 		return true
 	}
 	if typ.IsInteger() {
@@ -1764,6 +1776,9 @@ func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
 
 // sequentialAddresses reports true if it can prove that x + n == y
 func sequentialAddresses(x, y *Value, n int64) bool {
+	if x == y && n == 0 {
+		return true
+	}
 	if x.Op == Op386ADDL && y.Op == Op386LEAL1 && y.AuxInt == n && y.Aux == nil &&
 		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
 			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
@@ -1959,5 +1974,23 @@ func logicFlags32(x int32) flagConstant {
 func makeJumpTableSym(b *Block) *obj.LSym {
 	s := base.Ctxt.Lookup(fmt.Sprintf("%s.jump%d", b.Func.fe.LSym(), b.ID))
 	s.Set(obj.AttrDuplicateOK, true)
+	s.Set(obj.AttrLocal, true)
 	return s
+}
+
+// canRotate reports whether the architecture supports
+// rotates of integer registers with the given number of bits.
+func canRotate(c *Config, bits int64) bool {
+	if bits > c.PtrSize*8 {
+		// Don't rewrite to rotates bigger than the machine word.
+		return false
+	}
+	switch c.arch {
+	case "386", "amd64", "arm64":
+		return true
+	case "arm", "s390x", "ppc64", "ppc64le", "wasm", "loong64":
+		return bits >= 32
+	default:
+		return false
+	}
 }

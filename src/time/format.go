@@ -53,10 +53,10 @@ import "errors"
 // verbatim in the input to Parse.
 //
 //	Year: "2006" "06"
-//	Month: "Jan" "January"
-//	Textual day of the week: "Mon" "Monday"
-//	Numeric day of the month: "2" "_2" "02"
-//	Numeric day of the year: "__2" "002"
+//	Month: "Jan" "January" "01" "1"
+//	Day of the week: "Mon" "Monday"
+//	Day of the month: "2" "_2" "02"
+//	Day of the year: "__2" "002"
 //	Hour: "15" "3" "03" (PM or AM)
 //	Minute: "4" "04"
 //	Second: "5" "05"
@@ -116,6 +116,9 @@ const (
 	StampMilli = "Jan _2 15:04:05.000"
 	StampMicro = "Jan _2 15:04:05.000000"
 	StampNano  = "Jan _2 15:04:05.000000000"
+	DateTime   = "2006-01-02 15:04:05"
+	DateOnly   = "2006-01-02"
+	TimeOnly   = "15:04:05"
 )
 
 const (
@@ -537,26 +540,29 @@ func (t Time) String() string {
 // GoString implements fmt.GoStringer and formats t to be printed in Go source
 // code.
 func (t Time) GoString() string {
-	buf := make([]byte, 0, 70)
+	abs := t.abs()
+	year, month, day, _ := absDate(abs, true)
+	hour, minute, second := absClock(abs)
+
+	buf := make([]byte, 0, len("time.Date(9999, time.September, 31, 23, 59, 59, 999999999, time.Local)"))
 	buf = append(buf, "time.Date("...)
-	buf = appendInt(buf, t.Year(), 0)
-	month := t.Month()
+	buf = appendInt(buf, year, 0)
 	if January <= month && month <= December {
 		buf = append(buf, ", time."...)
-		buf = append(buf, t.Month().String()...)
+		buf = append(buf, longMonthNames[month-1]...)
 	} else {
 		// It's difficult to construct a time.Time with a date outside the
 		// standard range but we might as well try to handle the case.
 		buf = appendInt(buf, int(month), 0)
 	}
 	buf = append(buf, ", "...)
-	buf = appendInt(buf, t.Day(), 0)
+	buf = appendInt(buf, day, 0)
 	buf = append(buf, ", "...)
-	buf = appendInt(buf, t.Hour(), 0)
+	buf = appendInt(buf, hour, 0)
 	buf = append(buf, ", "...)
-	buf = appendInt(buf, t.Minute(), 0)
+	buf = appendInt(buf, minute, 0)
 	buf = append(buf, ", "...)
-	buf = appendInt(buf, t.Second(), 0)
+	buf = appendInt(buf, second, 0)
 	buf = append(buf, ", "...)
 	buf = appendInt(buf, t.Nanosecond(), 0)
 	buf = append(buf, ", "...)
@@ -582,8 +588,8 @@ func (t Time) GoString() string {
 		// Of these, Location(loc.name) is the least disruptive. This is an edge
 		// case we hope not to hit too often.
 		buf = append(buf, `time.Location(`...)
-		buf = append(buf, []byte(quote(loc.name))...)
-		buf = append(buf, `)`...)
+		buf = append(buf, quote(loc.name)...)
+		buf = append(buf, ')')
 	}
 	buf = append(buf, ')')
 	return string(buf)
@@ -612,6 +618,17 @@ func (t Time) Format(layout string) string {
 // AppendFormat is like Format but appends the textual
 // representation to b and returns the extended buffer.
 func (t Time) AppendFormat(b []byte, layout string) []byte {
+	switch layout {
+	case RFC3339:
+		return t.appendFormatRFC3339(b, false)
+	case RFC3339Nano:
+		return t.appendFormatRFC3339(b, true)
+	default:
+		return t.appendFormat(b, layout)
+	}
+}
+
+func (t Time) appendFormat(b []byte, layout string) []byte {
 	var (
 		name, offset, abs = t.locabs()
 
@@ -623,6 +640,7 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		min   int
 		sec   int
 	)
+
 	// Each iteration generates one std value.
 	for layout != "" {
 		prefix, std, suffix := nextStdChunk(layout)
@@ -775,6 +793,50 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 			b = formatNano(b, uint(t.Nanosecond()), std)
 		}
 	}
+	return b
+}
+
+func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
+	_, offset, abs := t.locabs()
+
+	// Format date.
+	year, month, day, _ := absDate(abs, true)
+	b = appendInt(b, year, 4)
+	b = append(b, '-')
+	b = appendInt(b, int(month), 2)
+	b = append(b, '-')
+	b = appendInt(b, day, 2)
+
+	b = append(b, 'T')
+
+	// Format time.
+	hour, min, sec := absClock(abs)
+	b = appendInt(b, hour, 2)
+	b = append(b, ':')
+	b = appendInt(b, min, 2)
+	b = append(b, ':')
+	b = appendInt(b, sec, 2)
+
+	if nanos {
+		std := stdFracSecond(stdFracSecond9, 9, '.')
+		b = formatNano(b, uint(t.Nanosecond()), std)
+	}
+
+	if offset == 0 {
+		return append(b, 'Z')
+	}
+
+	// Format zone.
+	zone := offset / 60 // convert to minutes
+	if zone < 0 {
+		b = append(b, '-')
+		zone = -zone
+	} else {
+		b = append(b, '+')
+	}
+	b = appendInt(b, zone/60, 2)
+	b = append(b, ':')
+	b = appendInt(b, zone%60, 2)
 	return b
 }
 
@@ -1078,6 +1140,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			}
 		case stdSecond, stdZeroSecond:
 			sec, value, err = getnum(value, std == stdZeroSecond)
+			if err != nil {
+				break
+			}
 			if sec < 0 || 60 <= sec {
 				rangeErrString = "second"
 				break
@@ -1173,12 +1238,12 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 				sign, hour, min, seconds, value = value[0:1], value[1:3], value[3:5], "00", value[5:]
 			}
 			var hr, mm, ss int
-			hr, err = atoi(hour)
+			hr, _, err = getnum(hour, true)
 			if err == nil {
-				mm, err = atoi(min)
+				mm, _, err = getnum(min, true)
 			}
 			if err == nil {
-				ss, err = atoi(seconds)
+				ss, _, err = getnum(seconds, true)
 			}
 			zoneOffset = (hr*60+mm)*60 + ss // offset is in seconds
 			switch sign[0] {
@@ -1221,7 +1286,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			// Take any number of digits, even more than asked for,
 			// because it is what the stdSecond case would do.
 			i := 0
-			for i < 9 && i+1 < len(value) && '0' <= value[i+1] && value[i+1] <= '9' {
+			for i+1 < len(value) && '0' <= value[i+1] && value[i+1] <= '9' {
 				i++
 			}
 			nsec, rangeErrString, err = parseNanoseconds(value, 1+i)

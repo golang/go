@@ -263,7 +263,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    MOVKW $(3905<<0), R21                      // MOVKW $3905, R21              // 35e88172
    MOVKW $(3905<<16), R21                     // MOVKW $255918080, R21         // 35e8a172
    MOVK $(3905<<32), R21                      // MOVK $16771847290880, R21     // 35e8c1f2
-   MOVD $0, R5                                // 050080d2
+   MOVD $0, R5                                // e5031faa
    MSR $1, SPSel                              // bf4100d5
    MSR $9, DAIFSet                            // df4903d5
    MSR $6, DAIFClr                            // ff4603d5

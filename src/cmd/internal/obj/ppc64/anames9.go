@@ -39,6 +39,7 @@ var cnames9 = []string{
 	"ZOREG",
 	"SOREG",
 	"LOREG",
+	"XOREG",
 	"FPSCR",
 	"XER",
 	"LR",

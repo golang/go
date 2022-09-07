@@ -844,3 +844,11 @@ func TestPanicWhilePanicking(t *testing.T) {
 		}
 	}
 }
+
+func TestPanicOnUnsafeSlice(t *testing.T) {
+	output := runTestProg(t, "testprog", "panicOnNilAndEleSizeIsZero")
+	want := "panic: runtime error: unsafe.Slice: ptr is nil and len is not zero"
+	if !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+}

@@ -7,7 +7,14 @@
 stderr 'pattern ./...: directory prefix . does not contain modules listed in go.work or their selected dependencies'
 
 ! go list ./a/c
-stderr 'directory a[\\/]c is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using go work use a'
+stderr 'directory a[\\/]c is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use a'
+
+! go install ./a/c
+stderr 'directory a[\\/]c is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use a'
+
+cd a/c
+! go run .
+stderr 'directory . is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use \.\.'
 
 -- go.work --
 go 1.18
@@ -20,7 +27,7 @@ go 1.18
 -- a/a.go --
 package a
 -- a/c/c.go --
-package c
+package main
 -- b/go.mod --
 module example.com/b
 

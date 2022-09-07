@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !boringcrypto || !linux || !amd64 || !cgo || android || cmd_go_bootstrap || msan
-// +build !boringcrypto !linux !amd64 !cgo android cmd_go_bootstrap msan
+//go:build !(boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan && cgo)
 
 package boring
 
@@ -50,6 +49,7 @@ func SHA512([]byte) [64]byte { panic("boringcrypto: not available") }
 func NewHMAC(h func() hash.Hash, key []byte) hash.Hash { panic("boringcrypto: not available") }
 
 func NewAESCipher(key []byte) (cipher.Block, error) { panic("boringcrypto: not available") }
+func NewGCMTLS(cipher.Block) (cipher.AEAD, error)   { panic("boringcrypto: not available") }
 
 type PublicKeyECDSA struct{ _ int }
 type PrivateKeyECDSA struct{ _ int }

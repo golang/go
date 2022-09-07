@@ -66,18 +66,16 @@ const (
 // It is an HDR histogram with exponentially-distributed
 // buckets and linearly distributed sub-buckets.
 //
-// Counts in the histogram are updated atomically, so it is safe
-// for concurrent use. It is also safe to read all the values
-// atomically.
+// The histogram is safe for concurrent reads and writes.
 type timeHistogram struct {
-	counts [timeHistNumSuperBuckets * timeHistNumSubBuckets]uint64
+	counts [timeHistNumSuperBuckets * timeHistNumSubBuckets]atomic.Uint64
 
 	// underflow counts all the times we got a negative duration
 	// sample. Because of how time works on some platforms, it's
 	// possible to measure negative durations. We could ignore them,
 	// but we record them anyway because it's better to have some
 	// signal that it's happening than just missing samples.
-	underflow uint64
+	underflow atomic.Uint64
 }
 
 // record adds the given duration to the distribution.
@@ -88,7 +86,7 @@ type timeHistogram struct {
 //go:nosplit
 func (h *timeHistogram) record(duration int64) {
 	if duration < 0 {
-		atomic.Xadd64(&h.underflow, 1)
+		h.underflow.Add(1)
 		return
 	}
 	// The index of the exponential bucket is just the index
@@ -116,7 +114,7 @@ func (h *timeHistogram) record(duration int64) {
 	} else {
 		subBucket = uint(duration)
 	}
-	atomic.Xadd64(&h.counts[superBucket*timeHistNumSubBuckets+subBucket], 1)
+	h.counts[superBucket*timeHistNumSubBuckets+subBucket].Add(1)
 }
 
 const (

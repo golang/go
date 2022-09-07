@@ -39,7 +39,7 @@ func dse(f *Func) {
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
 						storeUse.add(a.ID)
-						if v.Op != OpStore && v.Op != OpZero && v.Op != OpVarDef && v.Op != OpVarKill {
+						if v.Op != OpStore && v.Op != OpZero && v.Op != OpVarDef {
 							// CALL, DUFFCOPY, etc. are both
 							// reads and writes.
 							loadUse.add(a.ID)
@@ -156,7 +156,7 @@ func elimDeadAutosGeneric(f *Func) {
 				changed = true
 			}
 			return
-		case OpVarDef, OpVarKill:
+		case OpVarDef:
 			// v should be eliminated if we eliminate the auto.
 			n, ok := v.Aux.(*ir.Name)
 			if !ok || n.Class != ir.PAUTO {

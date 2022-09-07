@@ -109,7 +109,11 @@ func (check *Checker) overflow(x *operand) {
 	// Untyped integer values must not grow arbitrarily.
 	const prec = 512 // 512 is the constant precision
 	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
-		check.errorf(opPos(x.expr), "constant %s overflow", opName(x.expr))
+		op := opName(x.expr)
+		if op != "" {
+			op += " "
+		}
+		check.errorf(opPos(x.expr), "constant %soverflow", op)
 		x.val = constant.MakeUnknown()
 	}
 }
@@ -783,6 +787,12 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 
 // If switchCase is true, the operator op is ignored.
 func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase bool) {
+	// Avoid spurious errors if any of the operands has an invalid type (issue #54405).
+	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
+		x.mode = invalid
+		return
+	}
+
 	if switchCase {
 		op = syntax.Eql
 	}
@@ -1338,6 +1348,9 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			check.errorf(e, "malformed constant: %s", e.Value)
 			goto Error
 		}
+		// Ensure that integer values don't overflow (issue #54280).
+		x.expr = e // make sure that check.overflow below has an error position
+		check.overflow(x)
 
 	case *syntax.FuncLit:
 		if sig, ok := check.typ(e.Type).(*Signature); ok {

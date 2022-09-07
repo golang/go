@@ -151,6 +151,7 @@ const (
 	BIOCSETF                       = 0x80084267
 	BIOCSETFNR                     = 0x80084282
 	BIOCSETIF                      = 0x8020426c
+	BIOCSETVLANPCP                 = 0x80044285
 	BIOCSETWF                      = 0x8008427b
 	BIOCSETZBUF                    = 0x800c4281
 	BIOCSHDRCMPLT                  = 0x80044275
@@ -447,7 +448,7 @@ const (
 	DLT_IEEE802_16_MAC_CPS_RADIO   = 0xc1
 	DLT_INFINIBAND                 = 0xf7
 	DLT_IPFILTER                   = 0x74
-	DLT_IPMB                       = 0xc7
+	DLT_IPMB_KONTRON               = 0xc7
 	DLT_IPMB_LINUX                 = 0xd1
 	DLT_IPMI_HPM_2                 = 0x104
 	DLT_IPNET                      = 0xe2
@@ -487,10 +488,11 @@ const (
 	DLT_LINUX_LAPD                 = 0xb1
 	DLT_LINUX_PPP_WITHDIRECTION    = 0xa6
 	DLT_LINUX_SLL                  = 0x71
+	DLT_LINUX_SLL2                 = 0x114
 	DLT_LOOP                       = 0x6c
 	DLT_LORATAP                    = 0x10e
 	DLT_LTALK                      = 0x72
-	DLT_MATCHING_MAX               = 0x113
+	DLT_MATCHING_MAX               = 0x114
 	DLT_MATCHING_MIN               = 0x68
 	DLT_MFR                        = 0xb6
 	DLT_MOST                       = 0xd3
@@ -734,6 +736,7 @@ const (
 	IPPROTO_CMTP                   = 0x26
 	IPPROTO_CPHB                   = 0x49
 	IPPROTO_CPNX                   = 0x48
+	IPPROTO_DCCP                   = 0x21
 	IPPROTO_DDP                    = 0x25
 	IPPROTO_DGP                    = 0x56
 	IPPROTO_DIVERT                 = 0x102
@@ -814,7 +817,6 @@ const (
 	IPPROTO_SCTP                   = 0x84
 	IPPROTO_SDRP                   = 0x2a
 	IPPROTO_SEND                   = 0x103
-	IPPROTO_SEP                    = 0x21
 	IPPROTO_SHIM6                  = 0x8c
 	IPPROTO_SKIP                   = 0x39
 	IPPROTO_SPACER                 = 0x7fff
@@ -911,6 +913,7 @@ const (
 	IPV6_V6ONLY                    = 0x1b
 	IPV6_VERSION                   = 0x60
 	IPV6_VERSION_MASK              = 0xf0
+	IPV6_VLAN_PCP                  = 0x4b
 	IP_ADD_MEMBERSHIP              = 0xc
 	IP_ADD_SOURCE_MEMBERSHIP       = 0x46
 	IP_BINDANY                     = 0x18
@@ -989,8 +992,12 @@ const (
 	IP_TOS                         = 0x3
 	IP_TTL                         = 0x4
 	IP_UNBLOCK_SOURCE              = 0x49
+	IP_VLAN_PCP                    = 0x4b
 	ISIG                           = 0x80
 	ISTRIP                         = 0x20
+	ITIMER_PROF                    = 0x2
+	ITIMER_REAL                    = 0x0
+	ITIMER_VIRTUAL                 = 0x1
 	IXANY                          = 0x800
 	IXOFF                          = 0x400
 	IXON                           = 0x200
@@ -1000,7 +1007,6 @@ const (
 	KERN_VERSION                   = 0x4
 	LOCAL_CONNWAIT                 = 0x4
 	LOCAL_CREDS                    = 0x2
-	LOCAL_CREDS_PERSISTENT         = 0x3
 	LOCAL_PEERCRED                 = 0x1
 	LOCAL_VENDOR                   = 0x80000000
 	LOCK_EX                        = 0x2
@@ -1179,6 +1185,8 @@ const (
 	O_NONBLOCK                     = 0x4
 	O_RDONLY                       = 0x0
 	O_RDWR                         = 0x2
+	O_RESOLVE_BENEATH              = 0x800000
+	O_SEARCH                       = 0x40000
 	O_SHLOCK                       = 0x10
 	O_SYNC                         = 0x80
 	O_TRUNC                        = 0x400
@@ -1189,6 +1197,10 @@ const (
 	PARMRK                         = 0x8
 	PARODD                         = 0x2000
 	PENDIN                         = 0x20000000
+	PIOD_READ_D                    = 0x1
+	PIOD_READ_I                    = 0x3
+	PIOD_WRITE_D                   = 0x2
+	PIOD_WRITE_I                   = 0x4
 	PRIO_PGRP                      = 0x1
 	PRIO_PROCESS                   = 0x0
 	PRIO_USER                      = 0x2
@@ -1196,6 +1208,60 @@ const (
 	PROT_NONE                      = 0x0
 	PROT_READ                      = 0x1
 	PROT_WRITE                     = 0x2
+	PTRACE_DEFAULT                 = 0x1
+	PTRACE_EXEC                    = 0x1
+	PTRACE_FORK                    = 0x8
+	PTRACE_LWP                     = 0x10
+	PTRACE_SCE                     = 0x2
+	PTRACE_SCX                     = 0x4
+	PTRACE_SYSCALL                 = 0x6
+	PTRACE_VFORK                   = 0x20
+	PT_ATTACH                      = 0xa
+	PT_CLEARSTEP                   = 0x10
+	PT_CONTINUE                    = 0x7
+	PT_DETACH                      = 0xb
+	PT_FIRSTMACH                   = 0x40
+	PT_FOLLOW_FORK                 = 0x17
+	PT_GETDBREGS                   = 0x25
+	PT_GETFPREGS                   = 0x23
+	PT_GETFSBASE                   = 0x47
+	PT_GETGSBASE                   = 0x49
+	PT_GETLWPLIST                  = 0xf
+	PT_GETNUMLWPS                  = 0xe
+	PT_GETREGS                     = 0x21
+	PT_GETXMMREGS                  = 0x40
+	PT_GETXSTATE                   = 0x45
+	PT_GETXSTATE_INFO              = 0x44
+	PT_GET_EVENT_MASK              = 0x19
+	PT_GET_SC_ARGS                 = 0x1b
+	PT_GET_SC_RET                  = 0x1c
+	PT_IO                          = 0xc
+	PT_KILL                        = 0x8
+	PT_LWPINFO                     = 0xd
+	PT_LWP_EVENTS                  = 0x18
+	PT_READ_D                      = 0x2
+	PT_READ_I                      = 0x1
+	PT_RESUME                      = 0x13
+	PT_SETDBREGS                   = 0x26
+	PT_SETFPREGS                   = 0x24
+	PT_SETFSBASE                   = 0x48
+	PT_SETGSBASE                   = 0x4a
+	PT_SETREGS                     = 0x22
+	PT_SETSTEP                     = 0x11
+	PT_SETXMMREGS                  = 0x41
+	PT_SETXSTATE                   = 0x46
+	PT_SET_EVENT_MASK              = 0x1a
+	PT_STEP                        = 0x9
+	PT_SUSPEND                     = 0x12
+	PT_SYSCALL                     = 0x16
+	PT_TO_SCE                      = 0x14
+	PT_TO_SCX                      = 0x15
+	PT_TRACE_ME                    = 0x0
+	PT_VM_ENTRY                    = 0x29
+	PT_VM_TIMESTAMP                = 0x28
+	PT_WRITE_D                     = 0x5
+	PT_WRITE_I                     = 0x4
+	P_ZONEID                       = 0xc
 	RLIMIT_AS                      = 0xa
 	RLIMIT_CORE                    = 0x4
 	RLIMIT_CPU                     = 0x0
@@ -1320,10 +1386,12 @@ const (
 	SIOCGHWADDR                    = 0xc020693e
 	SIOCGI2C                       = 0xc020693d
 	SIOCGIFADDR                    = 0xc0206921
+	SIOCGIFALIAS                   = 0xc044692d
 	SIOCGIFBRDADDR                 = 0xc0206923
 	SIOCGIFCAP                     = 0xc020691f
 	SIOCGIFCONF                    = 0xc0086924
 	SIOCGIFDESCR                   = 0xc020692a
+	SIOCGIFDOWNREASON              = 0xc058699a
 	SIOCGIFDSTADDR                 = 0xc0206922
 	SIOCGIFFIB                     = 0xc020695c
 	SIOCGIFFLAGS                   = 0xc0206911
@@ -1414,6 +1482,7 @@ const (
 	SO_RCVBUF                      = 0x1002
 	SO_RCVLOWAT                    = 0x1004
 	SO_RCVTIMEO                    = 0x1006
+	SO_RERROR                      = 0x20000
 	SO_REUSEADDR                   = 0x4
 	SO_REUSEPORT                   = 0x200
 	SO_REUSEPORT_LB                = 0x10000
@@ -1472,22 +1541,40 @@ const (
 	TCOFLUSH                       = 0x2
 	TCOOFF                         = 0x1
 	TCOON                          = 0x2
+	TCPOPT_EOL                     = 0x0
+	TCPOPT_FAST_OPEN               = 0x22
+	TCPOPT_MAXSEG                  = 0x2
+	TCPOPT_NOP                     = 0x1
+	TCPOPT_PAD                     = 0x0
+	TCPOPT_SACK                    = 0x5
+	TCPOPT_SACK_PERMITTED          = 0x4
+	TCPOPT_SIGNATURE               = 0x13
+	TCPOPT_TIMESTAMP               = 0x8
+	TCPOPT_WINDOW                  = 0x3
 	TCP_BBR_ACK_COMP_ALG           = 0x448
+	TCP_BBR_ALGORITHM              = 0x43b
 	TCP_BBR_DRAIN_INC_EXTRA        = 0x43c
 	TCP_BBR_DRAIN_PG               = 0x42e
 	TCP_BBR_EXTRA_GAIN             = 0x449
+	TCP_BBR_EXTRA_STATE            = 0x453
+	TCP_BBR_FLOOR_MIN_TSO          = 0x454
+	TCP_BBR_HDWR_PACE              = 0x451
+	TCP_BBR_HOLD_TARGET            = 0x436
 	TCP_BBR_IWINTSO                = 0x42b
 	TCP_BBR_LOWGAIN_FD             = 0x436
 	TCP_BBR_LOWGAIN_HALF           = 0x435
 	TCP_BBR_LOWGAIN_THRESH         = 0x434
 	TCP_BBR_MAX_RTO                = 0x439
 	TCP_BBR_MIN_RTO                = 0x438
+	TCP_BBR_MIN_TOPACEOUT          = 0x455
 	TCP_BBR_ONE_RETRAN             = 0x431
 	TCP_BBR_PACE_CROSS             = 0x442
 	TCP_BBR_PACE_DEL_TAR           = 0x43f
+	TCP_BBR_PACE_OH                = 0x435
 	TCP_BBR_PACE_PER_SEC           = 0x43e
 	TCP_BBR_PACE_SEG_MAX           = 0x440
 	TCP_BBR_PACE_SEG_MIN           = 0x441
+	TCP_BBR_POLICER_DETECT         = 0x457
 	TCP_BBR_PROBE_RTT_GAIN         = 0x44d
 	TCP_BBR_PROBE_RTT_INT          = 0x430
 	TCP_BBR_PROBE_RTT_LEN          = 0x44e
@@ -1496,12 +1583,18 @@ const (
 	TCP_BBR_REC_OVER_HPTS          = 0x43a
 	TCP_BBR_RETRAN_WTSO            = 0x44b
 	TCP_BBR_RWND_IS_APP            = 0x42f
+	TCP_BBR_SEND_IWND_IN_TSO       = 0x44f
 	TCP_BBR_STARTUP_EXIT_EPOCH     = 0x43d
 	TCP_BBR_STARTUP_LOSS_EXIT      = 0x432
 	TCP_BBR_STARTUP_PG             = 0x42d
+	TCP_BBR_TMR_PACE_OH            = 0x448
+	TCP_BBR_TSLIMITS               = 0x434
+	TCP_BBR_TSTMP_RAISES           = 0x456
 	TCP_BBR_UNLIMITED              = 0x43b
 	TCP_BBR_USEDEL_RATE            = 0x437
 	TCP_BBR_USE_LOWGAIN            = 0x433
+	TCP_BBR_USE_RACK_CHEAT         = 0x450
+	TCP_BBR_UTTER_MAX_TSO          = 0x452
 	TCP_CA_NAME_MAX                = 0x10
 	TCP_CCALGOOPT                  = 0x41
 	TCP_CONGESTION                 = 0x40
@@ -1541,6 +1634,7 @@ const (
 	TCP_PCAP_OUT                   = 0x800
 	TCP_RACK_EARLY_RECOV           = 0x423
 	TCP_RACK_EARLY_SEG             = 0x424
+	TCP_RACK_GP_INCREASE           = 0x446
 	TCP_RACK_IDLE_REDUCE_HIGH      = 0x444
 	TCP_RACK_MIN_PACE              = 0x445
 	TCP_RACK_MIN_PACE_SEG          = 0x446
@@ -1554,7 +1648,6 @@ const (
 	TCP_RACK_PRR_SENDALOT          = 0x421
 	TCP_RACK_REORD_FADE            = 0x426
 	TCP_RACK_REORD_THRESH          = 0x425
-	TCP_RACK_SESS_CWV              = 0x42a
 	TCP_RACK_TLP_INC_VAR           = 0x429
 	TCP_RACK_TLP_REDUCE            = 0x41c
 	TCP_RACK_TLP_THRESH            = 0x427
@@ -1694,12 +1787,13 @@ const (
 	EIDRM           = syscall.Errno(0x52)
 	EILSEQ          = syscall.Errno(0x56)
 	EINPROGRESS     = syscall.Errno(0x24)
+	EINTEGRITY      = syscall.Errno(0x61)
 	EINTR           = syscall.Errno(0x4)
 	EINVAL          = syscall.Errno(0x16)
 	EIO             = syscall.Errno(0x5)
 	EISCONN         = syscall.Errno(0x38)
 	EISDIR          = syscall.Errno(0x15)
-	ELAST           = syscall.Errno(0x60)
+	ELAST           = syscall.Errno(0x61)
 	ELOOP           = syscall.Errno(0x3e)
 	EMFILE          = syscall.Errno(0x18)
 	EMLINK          = syscall.Errno(0x1f)
@@ -1842,7 +1936,7 @@ var errorList = [...]struct {
 	{32, "EPIPE", "broken pipe"},
 	{33, "EDOM", "numerical argument out of domain"},
 	{34, "ERANGE", "result too large"},
-	{35, "EAGAIN", "resource temporarily unavailable"},
+	{35, "EWOULDBLOCK", "resource temporarily unavailable"},
 	{36, "EINPROGRESS", "operation now in progress"},
 	{37, "EALREADY", "operation already in progress"},
 	{38, "ENOTSOCK", "socket operation on non-socket"},
@@ -1904,6 +1998,7 @@ var errorList = [...]struct {
 	{94, "ECAPMODE", "not permitted in capability mode"},
 	{95, "ENOTRECOVERABLE", "state not recoverable"},
 	{96, "EOWNERDEAD", "previous owner died"},
+	{97, "EINTEGRITY", "integrity check failed"},
 }
 
 // Signal table

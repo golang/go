@@ -48,8 +48,11 @@ func (m substMap) lookup(tpar *TypeParam) Type {
 // incoming type. If a substitution took place, the result type is different
 // from the incoming type.
 //
-// If the given context is non-nil, it is used in lieu of check.Config.Context.
-func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, ctxt *Context) Type {
+// If expanding is non-nil, it is the instance type currently being expanded.
+// One of expanding or ctxt must be non-nil.
+func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, expanding *Named, ctxt *Context) Type {
+	assert(expanding != nil || ctxt != nil)
+
 	if smap.empty() {
 		return typ
 	}
@@ -64,19 +67,21 @@ func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, ctxt *Conte
 
 	// general case
 	subst := subster{
-		pos:   pos,
-		smap:  smap,
-		check: check,
-		ctxt:  check.bestContext(ctxt),
+		pos:       pos,
+		smap:      smap,
+		check:     check,
+		expanding: expanding,
+		ctxt:      ctxt,
 	}
 	return subst.typ(typ)
 }
 
 type subster struct {
-	pos   syntax.Pos
-	smap  substMap
-	check *Checker // nil if called via Instantiate
-	ctxt  *Context
+	pos       syntax.Pos
+	smap      substMap
+	check     *Checker // nil if called via Instantiate
+	expanding *Named   // if non-nil, the instance that is being expanded
+	ctxt      *Context
 }
 
 func (subst *subster) typ(typ Type) Type {
@@ -176,7 +181,7 @@ func (subst *subster) typ(typ Type) Type {
 			// In this case the interface will not be substituted here, because its
 			// method signatures do not depend on the type parameter P, but we still
 			// need to create new interface methods to hold the instantiated
-			// receiver. This is handled by expandNamed.
+			// receiver. This is handled by Named.expandUnderlying.
 			iface.methods, _ = replaceRecvType(methods, t, iface)
 			return iface
 		}
@@ -207,19 +212,20 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-		// subst is called by expandNamed, so in this function we need to be
+		// subst is called during expansion, so in this function we need to be
 		// careful not to call any methods that would cause t to be expanded: doing
 		// so would result in deadlock.
 		//
-		// So we call t.orig.TypeParams() rather than t.TypeParams() here and
-		// below.
-		if t.orig.TypeParams().Len() == 0 {
+		// So we call t.Origin().TypeParams() rather than t.TypeParams().
+		orig := t.Origin()
+		n := orig.TypeParams().Len()
+		if n == 0 {
 			dump(">>> %s is not parameterized", t)
 			return t // type is not parameterized
 		}
 
 		var newTArgs []Type
-		if t.targs.Len() != t.orig.TypeParams().Len() {
+		if t.TypeArgs().Len() != n {
 			return Typ[Invalid] // error reported elsewhere
 		}
 
@@ -228,14 +234,14 @@ func (subst *subster) typ(typ Type) Type {
 		// For each (existing) type argument targ, determine if it needs
 		// to be substituted; i.e., if it is or contains a type parameter
 		// that has a type argument for it.
-		for i, targ := range t.targs.list() {
+		for i, targ := range t.TypeArgs().list() {
 			dump(">>> %d targ = %s", i, targ)
 			new_targ := subst.typ(targ)
 			if new_targ != targ {
 				dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
 				if newTArgs == nil {
-					newTArgs = make([]Type, t.orig.TypeParams().Len())
-					copy(newTArgs, t.targs.list())
+					newTArgs = make([]Type, n)
+					copy(newTArgs, t.TypeArgs().list())
 				}
 				newTArgs[i] = new_targ
 			}
@@ -246,25 +252,11 @@ func (subst *subster) typ(typ Type) Type {
 			return t // nothing to substitute
 		}
 
-		// before creating a new named type, check if we have this one already
-		h := subst.ctxt.instanceHash(t.orig, newTArgs)
-		dump(">>> new type hash: %s", h)
-		if named := subst.ctxt.lookup(h, t.orig, newTArgs); named != nil {
-			dump(">>> found %s", named)
-			return named
-		}
-
 		// Create a new instance and populate the context to avoid endless
 		// recursion. The position used here is irrelevant because validation only
 		// occurs on t (we don't call validType on named), but we use subst.pos to
 		// help with debugging.
-		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.ctxt)
-
-		// Note that if we were to expose substitution more generally (not just in
-		// the context of a declaration), we'd have to substitute in
-		// named.underlying as well.
-		//
-		// But this is unnecessary for now.
+		return subst.check.instance(subst.pos, orig, newTArgs, subst.expanding, subst.ctxt)
 
 	case *TypeParam:
 		return subst.smap.lookup(t)

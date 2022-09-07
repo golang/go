@@ -258,9 +258,6 @@ func tcFor(n *ir.ForStmt) ir.Node {
 		}
 	}
 	n.Post = Stmt(n.Post)
-	if n.Op() == ir.OFORUNTIL {
-		Stmts(n.Late)
-	}
 	Stmts(n.Body)
 	return n
 }

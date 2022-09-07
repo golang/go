@@ -19,7 +19,6 @@ import (
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
-	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -411,8 +410,8 @@ func dimportpath(p *types.Pkg) {
 		return
 	}
 
-	s := base.Ctxt.Lookup("type..importpath." + p.Prefix + ".")
-	ot := dnameData(s, 0, p.Path, "", nil, false)
+	s := base.Ctxt.Lookup("type:.importpath." + p.Prefix + ".")
+	ot := dnameData(s, 0, p.Path, "", nil, false, false)
 	objw.Global(s, int32(ot), obj.DUPOK|obj.RODATA)
 	s.Set(obj.AttrContentAddressable, true)
 	p.Pathsym = s
@@ -426,10 +425,10 @@ func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
-		// type..importpath.""., which the linker will rewrite using the correct import path.
+		// type:.importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := base.Ctxt.Lookup(`type..importpath."".`)
+		ns := base.Ctxt.Lookup(`type:.importpath."".`)
 		return objw.SymPtr(s, ot, ns, 0)
 	}
 
@@ -445,10 +444,10 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
-		// type..importpath.""., which the linker will rewrite using the correct import path.
+		// type:.importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := base.Ctxt.Lookup(`type..importpath."".`)
+		ns := base.Ctxt.Lookup(`type:.importpath."".`)
 		return objw.SymPtrOff(s, ot, ns)
 	}
 
@@ -461,12 +460,12 @@ func dnameField(lsym *obj.LSym, ot int, spkg *types.Pkg, ft *types.Field) int {
 	if !types.IsExported(ft.Sym.Name) && ft.Sym.Pkg != spkg {
 		base.Fatalf("package mismatch for %v", ft.Sym)
 	}
-	nsym := dname(ft.Sym.Name, ft.Note, nil, types.IsExported(ft.Sym.Name))
+	nsym := dname(ft.Sym.Name, ft.Note, nil, types.IsExported(ft.Sym.Name), ft.Embedded != 0)
 	return objw.SymPtr(lsym, ot, nsym, 0)
 }
 
 // dnameData writes the contents of a reflect.name into s at offset ot.
-func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported bool) int {
+func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported, embedded bool) int {
 	if len(name) >= 1<<29 {
 		base.Fatalf("name too long: %d %s...", len(name), name[:1024])
 	}
@@ -491,6 +490,9 @@ func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported b
 	if pkg != nil {
 		bits |= 1 << 2
 	}
+	if embedded {
+		bits |= 1 << 3
+	}
 	b := make([]byte, l)
 	b[0] = bits
 	copy(b[1:], nameLen[:nameLenLen])
@@ -513,12 +515,12 @@ func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported b
 var dnameCount int
 
 // dname creates a reflect.name for a struct field or method.
-func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
-	// Write out data as "type.." to signal two things to the
+func dname(name, tag string, pkg *types.Pkg, exported, embedded bool) *obj.LSym {
+	// Write out data as "type:." to signal two things to the
 	// linker, first that when dynamically linking, the symbol
 	// should be moved to a relro section, and second that the
 	// contents should not be decoded as a type.
-	sname := "type..namedata."
+	sname := "type:.namedata."
 	if pkg == nil {
 		// In the common case, share data with other packages.
 		if name == "" {
@@ -538,11 +540,14 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
 		sname = fmt.Sprintf(`%s"".%d`, sname, dnameCount)
 		dnameCount++
 	}
+	if embedded {
+		sname += ".embedded"
+	}
 	s := base.Ctxt.Lookup(sname)
 	if len(s.P) > 0 {
 		return s
 	}
-	ot := dnameData(s, 0, name, tag, pkg, exported)
+	ot := dnameData(s, 0, name, tag, pkg, exported, embedded)
 	objw.Global(s, int32(ot), obj.DUPOK|obj.RODATA)
 	s.Set(obj.AttrContentAddressable, true)
 	return s
@@ -556,7 +561,7 @@ func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
 	if t.Sym() == nil && len(m) == 0 {
 		return ot
 	}
-	noff := int(types.Rnd(int64(ot), int64(types.PtrSize)))
+	noff := int(types.RoundUp(int64(ot), int64(types.PtrSize)))
 	if noff != ot {
 		base.Fatalf("unexpected alignment in dextratype for %v", t)
 	}
@@ -610,7 +615,7 @@ func dextratypeData(lsym *obj.LSym, ot int, t *types.Type) int {
 		if !exported && a.name.Pkg != typePkg(t) {
 			pkg = a.name.Pkg
 		}
-		nsym := dname(a.name.Name, "", pkg, exported)
+		nsym := dname(a.name.Name, "", pkg, exported, false)
 
 		ot = objw.SymPtrOff(lsym, ot, nsym)
 		ot = dmethodptrOff(lsym, ot, writeType(a.mtype))
@@ -775,7 +780,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	}
 	ot = objw.SymPtr(lsym, ot, gcsym, 0) // gcdata
 
-	nsym := dname(p, "", nil, exported)
+	nsym := dname(p, "", nil, exported, false)
 	ot = objw.SymPtrOff(lsym, ot, nsym) // str
 	// ptrToThis
 	if sptr == nil {
@@ -792,7 +797,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 // TrackSym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
 func TrackSym(t *types.Type, f *types.Field) *obj.LSym {
-	return base.PkgLinksym("go.track", t.LinkString()+"."+f.Sym.Name, obj.ABI0)
+	return base.PkgLinksym("go:track", t.LinkString()+"."+f.Sym.Name, obj.ABI0)
 }
 
 func TypeSymPrefix(prefix string, t *types.Type) *types.Sym {
@@ -836,9 +841,15 @@ func TypeLinksym(t *types.Type) *obj.LSym {
 	return TypeSym(t).Linksym()
 }
 
+// Deprecated: Use TypePtrAt instead.
 func TypePtr(t *types.Type) *ir.AddrExpr {
-	n := ir.NewLinksymExpr(base.Pos, TypeLinksym(t), types.Types[types.TUINT8])
-	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
+	return TypePtrAt(base.Pos, t)
+}
+
+// TypePtrAt returns an expression that evaluates to the
+// *runtime._type value for t.
+func TypePtrAt(pos src.XPos, t *types.Type) *ir.AddrExpr {
+	return typecheck.LinksymAddr(pos, TypeLinksym(t), types.Types[types.TUINT8])
 }
 
 // ITabLsym returns the LSym representing the itab for concrete type typ implementing
@@ -858,9 +869,15 @@ func ITabLsym(typ, iface *types.Type) *obj.LSym {
 	return lsym
 }
 
-// ITabAddr returns an expression representing a pointer to the itab
-// for concrete type typ implementing interface iface.
+// Deprecated: Use ITabAddrAt instead.
 func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
+	return ITabAddrAt(base.Pos, typ, iface)
+}
+
+// ITabAddrAt returns an expression that evaluates to the
+// *runtime.itab value for concrete type typ implementing interface
+// iface.
+func ITabAddrAt(pos src.XPos, typ, iface *types.Type) *ir.AddrExpr {
 	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
 	lsym := s.Linksym()
 
@@ -868,8 +885,7 @@ func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
 		writeITab(lsym, typ, iface, false)
 	}
 
-	n := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
-	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
+	return typecheck.LinksymAddr(pos, lsym, types.Types[types.TUINT8])
 }
 
 // needkeyupdate reports whether map updates with t as a key
@@ -1074,7 +1090,7 @@ func writeType(t *types.Type) *obj.LSym {
 			if !exported && a.name.Pkg != tpkg {
 				pkg = a.name.Pkg
 			}
-			nsym := dname(a.name.Name, "", pkg, exported)
+			nsym := dname(a.name.Name, "", pkg, exported, false)
 
 			ot = objw.SymPtrOff(lsym, ot, nsym)
 			ot = objw.SymPtrOff(lsym, ot, writeType(a.type_))
@@ -1180,14 +1196,7 @@ func writeType(t *types.Type) *obj.LSym {
 			// ../../../../runtime/type.go:/structField
 			ot = dnameField(lsym, ot, spkg, f)
 			ot = objw.SymPtr(lsym, ot, writeType(f.Type), 0)
-			offsetAnon := uint64(f.Offset) << 1
-			if offsetAnon>>1 != uint64(f.Offset) {
-				base.Fatalf("%v: bad field offset for %s", t, f.Sym.Name)
-			}
-			if f.Embedded != 0 {
-				offsetAnon |= 1
-			}
-			ot = objw.Uintptr(lsym, ot, offsetAnon)
+			ot = objw.Uintptr(lsym, ot, uint64(f.Offset))
 		}
 	}
 
@@ -1348,7 +1357,7 @@ func WriteTabs() {
 	// process ptabs
 	if types.LocalPkg.Name == "main" && len(ptabs) > 0 {
 		ot := 0
-		s := base.Ctxt.Lookup("go.plugin.tabs")
+		s := base.Ctxt.Lookup("go:plugin.tabs")
 		for _, p := range ptabs {
 			// Dump ptab symbol into go.pluginsym package.
 			//
@@ -1356,7 +1365,7 @@ func WriteTabs() {
 			//	name nameOff
 			//	typ  typeOff // pointer to symbol
 			// }
-			nsym := dname(p.Sym().Name, "", nil, true)
+			nsym := dname(p.Sym().Name, "", nil, true, false)
 			t := p.Type()
 			if p.Class != ir.PFUNC {
 				t = types.NewPtr(t)
@@ -1371,7 +1380,7 @@ func WriteTabs() {
 		objw.Global(s, int32(ot), int16(obj.RODATA))
 
 		ot = 0
-		s = base.Ctxt.Lookup("go.plugin.exports")
+		s = base.Ctxt.Lookup("go:plugin.exports")
 		for _, p := range ptabs {
 			ot = objw.SymPtr(s, ot, p.Linksym(), 0)
 		}
@@ -1539,7 +1548,11 @@ func dgcsym(t *types.Type, write bool) (lsym *obj.LSym, useGCProg bool, ptrdata 
 
 // dgcptrmask emits and returns the symbol containing a pointer mask for type t.
 func dgcptrmask(t *types.Type, write bool) *obj.LSym {
-	ptrmask := make([]byte, (types.PtrDataSize(t)/int64(types.PtrSize)+7)/8)
+	// Bytes we need for the ptrmask.
+	n := (types.PtrDataSize(t)/int64(types.PtrSize) + 7) / 8
+	// Runtime wants ptrmasks padded to a multiple of uintptr in size.
+	n = (n + int64(types.PtrSize) - 1) &^ (int64(types.PtrSize) - 1)
+	ptrmask := make([]byte, n)
 	fillptrmask(t, ptrmask)
 	p := fmt.Sprintf("runtime.gcbits.%x", ptrmask)
 
@@ -1701,7 +1714,7 @@ func ZeroAddr(size int64) ir.Node {
 	if ZeroSize < size {
 		ZeroSize = size
 	}
-	lsym := base.PkgLinksym("go.map", "zero", obj.ABI0)
+	lsym := base.PkgLinksym("go:map", "zero", obj.ABI0)
 	x := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
 	return typecheck.Expr(typecheck.NodAddr(x))
 }
@@ -1891,14 +1904,14 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	// the TOC to the appropriate value for that module. But if it returns
 	// directly to the wrapper's caller, nothing will reset it to the correct
 	// value for that function.
+	var call *ir.CallExpr
 	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !generic {
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+		call = ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
 		call.Args = ir.ParamNames(fn.Type())
 		call.IsDDD = fn.Type().IsVariadic()
 		fn.Body.Append(ir.NewTailCallStmt(base.Pos, call))
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
-		var call *ir.CallExpr
 
 		if generic && dot.X != nthis {
 			// If there is embedding involved, then we should do the
@@ -1983,7 +1996,22 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	typecheck.Stmts(fn.Body)
 
 	if AfterGlobalEscapeAnalysis {
-		inline.InlineCalls(fn)
+		// Inlining the method may reveal closures, which require walking all function bodies
+		// to decide whether to capture free variables by value or by ref. So we only do inline
+		// if the method do not contain any closures, otherwise, the escape analysis may make
+		// dead variables resurrected, and causing liveness analysis confused, see issue #53702.
+		var canInline bool
+		switch x := call.X.(type) {
+		case *ir.Name:
+			canInline = len(x.Func.Closures) == 0
+		case *ir.SelectorExpr:
+			if x.Op() == ir.OMETHEXPR {
+				canInline = x.FuncName().Func != nil && len(x.FuncName().Func.Closures) == 0
+			}
+		}
+		if canInline {
+			inline.InlineCalls(fn)
+		}
 		escape.Batch([]*ir.Func{fn}, false)
 	}
 
@@ -2047,8 +2075,15 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 		// of the method for matching.
 		r := obj.Addrel(ir.CurFunc.LSym)
 		// We use a separate symbol just to tell the linker the method name.
-		// (The symbol itself is not needed in the final binary.)
-		r.Sym = staticdata.StringSym(src.NoXPos, dot.Sel.Name)
+		// (The symbol itself is not needed in the final binary. Do not use
+		// staticdata.StringSym, which creates a content addessable symbol,
+		// which may have trailing zero bytes. This symbol doesn't need to
+		// be deduplicated anyway.)
+		name := dot.Sel.Name
+		var nameSym obj.LSym
+		nameSym.WriteString(base.Ctxt, 0, len(name), name)
+		objw.Global(&nameSym, int32(len(name)), obj.RODATA)
+		r.Sym = &nameSym
 		r.Type = objabi.R_USEGENERICIFACEMETHOD
 		return
 	}

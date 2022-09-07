@@ -5,7 +5,6 @@
 package types2_test
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 	"errors"
@@ -22,7 +21,7 @@ func checkMono(t *testing.T, body string) error {
 	}
 	files := []*syntax.File{file}
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	conf := types2.Config{
 		Error:    func(err error) { fmt.Fprintln(&buf, err) },
 		Importer: defaultImporter(),

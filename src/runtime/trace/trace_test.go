@@ -634,15 +634,29 @@ func TestTraceCPUProfile(t *testing.T) {
 	pprofStacks := make(map[string]int)
 	for _, s := range prof.Sample {
 		if s.Label["tracing"] != nil {
-			samples := int(s.Value[0])
-			pprofSamples += samples
 			var fns []string
+			var leaf string
 			for _, loc := range s.Location {
 				for _, line := range loc.Line {
 					fns = append(fns, fmt.Sprintf("%s:%d", line.Function.Name, line.Line))
+					leaf = line.Function.Name
 				}
 			}
+			// runtime.sigprof synthesizes call stacks when "normal traceback is
+			// impossible or has failed", using particular placeholder functions
+			// to represent common failure cases. Look for those functions in
+			// the leaf position as a sign that the call stack and its
+			// symbolization are more complex than this test can handle.
+			//
+			// TODO: Make the symbolization done by the execution tracer and CPU
+			// profiler match up even in these harder cases. See #53378.
+			switch leaf {
+			case "runtime._System", "runtime._GC", "runtime._ExternalCode", "runtime._VDSO":
+				continue
+			}
 			stack := strings.Join(fns, " ")
+			samples := int(s.Value[0])
+			pprofSamples += samples
 			pprofStacks[stack] += samples
 		}
 	}

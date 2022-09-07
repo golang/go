@@ -36,8 +36,6 @@ const (
 		ir.Nowritebarrier |
 		ir.Nowritebarrierrec |
 		ir.Yeswritebarrierrec
-
-	typePragmas = ir.NotInHeap
 )
 
 func pragmaFlag(verb string) ir.PragmaFlag {
@@ -77,8 +75,6 @@ func pragmaFlag(verb string) ir.PragmaFlag {
 		return ir.UintptrEscapes | ir.UintptrKeepAlive // implies UintptrKeepAlive
 	case "go:registerparams": // TODO(register args) remove after register abi is working
 		return ir.RegisterParams
-	case "go:notinheap":
-		return ir.NotInHeap
 	}
 	return 0
 }

@@ -339,3 +339,44 @@ func TestLineStart(t *testing.T) {
 		}
 	}
 }
+
+func TestRemoveFile(t *testing.T) {
+	contentA := []byte("this\nis\nfileA")
+	contentB := []byte("this\nis\nfileB")
+	fset := NewFileSet()
+	a := fset.AddFile("fileA", -1, len(contentA))
+	a.SetLinesForContent(contentA)
+	b := fset.AddFile("fileB", -1, len(contentB))
+	b.SetLinesForContent(contentB)
+
+	checkPos := func(pos Pos, want string) {
+		if got := fset.Position(pos).String(); got != want {
+			t.Errorf("Position(%d) = %s, want %s", pos, got, want)
+		}
+	}
+	checkNumFiles := func(want int) {
+		got := 0
+		fset.Iterate(func(*File) bool { got++; return true })
+		if got != want {
+			t.Errorf("Iterate called %d times, want %d", got, want)
+		}
+	}
+
+	apos3 := a.Pos(3)
+	bpos3 := b.Pos(3)
+	checkPos(apos3, "fileA:1:4")
+	checkPos(bpos3, "fileB:1:4")
+	checkNumFiles(2)
+
+	// After removal, queries on fileA fail.
+	fset.RemoveFile(a)
+	checkPos(apos3, "-")
+	checkPos(bpos3, "fileB:1:4")
+	checkNumFiles(1)
+
+	// idempotent / no effect
+	fset.RemoveFile(a)
+	checkPos(apos3, "-")
+	checkPos(bpos3, "fileB:1:4")
+	checkNumFiles(1)
+}

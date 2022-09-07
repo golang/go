@@ -385,7 +385,7 @@ func Adddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym)
 func fieldtrack(arch *sys.Arch, l *loader.Loader) {
 	var buf bytes.Buffer
 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
-		if name := l.SymName(i); strings.HasPrefix(name, "go.track.") {
+		if name := l.SymName(i); strings.HasPrefix(name, "go:track.") {
 			if l.AttrReachable(i) {
 				l.SetAttrSpecial(i, true)
 				l.SetAttrNotInSymbolTable(i, true)

@@ -1,5 +1,3 @@
-// UNREVIEWED
-
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -31,10 +29,25 @@ type pkgReader struct {
 	// laterFns holds functions that need to be invoked at the end of
 	// import reading.
 	laterFns []func()
+	// laterFors is used in case of 'type A B' to ensure that B is processed before A.
+	laterFors map[types.Type]int
+
+	// ifaces holds a list of constructed Interfaces, which need to have
+	// Complete called after importing is done.
+	ifaces []*types.Interface
 }
 
 // later adds a function to be invoked at the end of import reading.
 func (pr *pkgReader) later(fn func()) {
+	pr.laterFns = append(pr.laterFns, fn)
+}
+
+// laterFor adds a function to be invoked at the end of import reading, and records the type that function is finishing.
+func (pr *pkgReader) laterFor(t types.Type, fn func()) {
+	if pr.laterFors == nil {
+		pr.laterFors = make(map[types.Type]int)
+	}
+	pr.laterFors[t] = len(pr.laterFns)
 	pr.laterFns = append(pr.laterFns, fn)
 }
 
@@ -60,7 +73,7 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
 
 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 	pkg := r.pkg()
-	r.Bool() // has init
+	r.Bool() // TODO(mdempsky): Remove; was "has init"
 
 	for i, n := 0, r.Len(); i < n; i++ {
 		// As if r.obj(), but avoiding the Scope.Lookup call,
@@ -75,6 +88,10 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
 
 	for _, fn := range pr.laterFns {
 		fn()
+	}
+
+	for _, iface := range pr.ifaces {
+		iface.Complete()
 	}
 
 	pkg.MarkComplete()
@@ -198,19 +215,47 @@ func (r *reader) doPkg() *types.Package {
 	}
 
 	name := r.String()
-	height := r.Len()
 
-	// Was: "pkg := types.NewPackageHeight(path, name, height)"
-	pkg, _ := types.NewPackage(path, name), height
+	pkg := types.NewPackage(path, name)
 	r.p.imports[path] = pkg
 
 	imports := make([]*types.Package, r.Len())
 	for i := range imports {
 		imports[i] = r.pkg()
 	}
-	pkg.SetImports(imports)
+
+	// The documentation for (*types.Package).Imports requires
+	// flattening the import graph when reading from export data, as
+	// obviously incorrect as that is.
+	//
+	// TODO(mdempsky): Remove this if go.dev/issue/54096 is accepted.
+	pkg.SetImports(flattenImports(imports))
 
 	return pkg
+}
+
+// flattenImports returns the transitive closure of all imported
+// packages rooted from pkgs.
+func flattenImports(pkgs []*types.Package) []*types.Package {
+	var res []*types.Package
+
+	seen := make(map[*types.Package]bool)
+	var add func(pkg *types.Package)
+	add = func(pkg *types.Package) {
+		if seen[pkg] {
+			return
+		}
+		seen[pkg] = true
+		res = append(res, pkg)
+		for _, imp := range pkg.Imports() {
+			add(imp)
+		}
+	}
+
+	for _, pkg := range pkgs {
+		add(pkg)
+	}
+	return res
 }
 
 // @@@ Types
@@ -349,6 +394,16 @@ func (r *reader) interfaceType() *types.Interface {
 	if implicit {
 		iface.MarkImplicit()
 	}
+
+	// We need to call iface.Complete(), but if there are any embedded
+	// defined types, then we may not have set their underlying
+	// interface type yet. So we need to defer calling Complete until
+	// after we've called SetUnderlying everywhere.
+	//
+	// TODO(mdempsky): After CL 424876 lands, it should be safe to call
+	// iface.Complete() immediately.
+	r.p.ifaces = append(r.p.ifaces, iface)
+
 	return iface
 }
 
@@ -454,13 +509,41 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 
 			named.SetTypeParams(r.typeParamNames())
 
-			// TODO(mdempsky): Rewrite receiver types to underlying is an
-			// Interface? The go/types importer does this (I think because
-			// unit tests expected that), but cmd/compile doesn't care
-			// about it, so maybe we can avoid worrying about that here.
 			rhs := r.typ()
-			r.p.later(func() {
+			pk := r.p
+			pk.laterFor(named, func() {
+				// First be sure that the rhs is initialized, if it needs to be initialized.
+				delete(pk.laterFors, named) // prevent cycles
+				if i, ok := pk.laterFors[rhs]; ok {
+					f := pk.laterFns[i]
+					pk.laterFns[i] = func() {} // function is running now, so replace it with a no-op
+					f()                        // initialize RHS
+				}
 				underlying := rhs.Underlying()
+
+				// If the underlying type is an interface, we need to
+				// duplicate its methods so we can replace the receiver
+				// parameter's type (#49906).
+				if iface, ok := underlying.(*types.Interface); ok && iface.NumExplicitMethods() != 0 {
+					methods := make([]*types.Func, iface.NumExplicitMethods())
+					for i := range methods {
+						fn := iface.ExplicitMethod(i)
+						sig := fn.Type().(*types.Signature)
+
+						recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
+						methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
+					}
+
+					embeds := make([]types.Type, iface.NumEmbeddeds())
+					for i := range embeds {
+						embeds[i] = iface.EmbeddedType(i)
+					}
+
+					newIface := types.NewInterfaceType(methods, embeds)
+					r.p.ifaces = append(r.p.ifaces, newIface)
+					underlying = newIface
+				}
+
 				named.SetUnderlying(underlying)
 			})
 

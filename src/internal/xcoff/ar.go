@@ -123,7 +123,7 @@ func NewArchive(r io.ReaderAt) (*Archive, error) {
 	}
 
 	var fhdr bigarFileHeader
-	if _, err := sr.Seek(0, os.SEEK_SET); err != nil {
+	if _, err := sr.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	if err := binary.Read(sr, binary.BigEndian, &fhdr); err != nil {
@@ -151,7 +151,7 @@ func NewArchive(r io.ReaderAt) (*Archive, error) {
 		// The member header is normally 2 bytes larger. But it's easier
 		// to read the name if the header is read without _ar_nam.
 		// However, AIAFMAG must be read afterward.
-		if _, err := sr.Seek(off, os.SEEK_SET); err != nil {
+		if _, err := sr.Seek(off, io.SeekStart); err != nil {
 			return nil, err
 		}
 
@@ -183,7 +183,7 @@ func NewArchive(r io.ReaderAt) (*Archive, error) {
 		fileoff := off + AR_HSZ_BIG + namlen
 		if fileoff&1 != 0 {
 			fileoff++
-			if _, err := sr.Seek(1, os.SEEK_CUR); err != nil {
+			if _, err := sr.Seek(1, io.SeekCurrent); err != nil {
 				return nil, err
 			}
 		}

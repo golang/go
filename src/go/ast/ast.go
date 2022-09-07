@@ -754,6 +754,7 @@ type (
 		Key, Value Expr        // Key, Value may be nil
 		TokPos     token.Pos   // position of Tok; invalid if Key == nil
 		Tok        token.Token // ILLEGAL if Key == nil, ASSIGN, DEFINE
+		Range      token.Pos   // position of "range" keyword
 		X          Expr        // value to range over
 		Body       *BlockStmt
 	}

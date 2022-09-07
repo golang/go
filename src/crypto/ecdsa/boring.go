@@ -9,8 +9,8 @@ package ecdsa
 import (
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
+	"crypto/internal/boring/bcache"
 	"math/big"
-	"unsafe"
 )
 
 // Cached conversions from Go PublicKey/PrivateKey to BoringCrypto.
@@ -26,8 +26,8 @@ import (
 // still matches before using the cached key. The theory is that the real
 // operations are significantly more expensive than the comparison.
 
-var pubCache boring.Cache
-var privCache boring.Cache
+var pubCache bcache.Cache[PublicKey, boringPub]
+var privCache bcache.Cache[PrivateKey, boringPriv]
 
 func init() {
 	pubCache.Register()
@@ -40,7 +40,7 @@ type boringPub struct {
 }
 
 func boringPublicKey(pub *PublicKey) (*boring.PublicKeyECDSA, error) {
-	b := (*boringPub)(pubCache.Get(unsafe.Pointer(pub)))
+	b := pubCache.Get(pub)
 	if b != nil && publicKeyEqual(&b.orig, pub) {
 		return b.key, nil
 	}
@@ -52,7 +52,7 @@ func boringPublicKey(pub *PublicKey) (*boring.PublicKeyECDSA, error) {
 		return nil, err
 	}
 	b.key = key
-	pubCache.Put(unsafe.Pointer(pub), unsafe.Pointer(b))
+	pubCache.Put(pub, b)
 	return key, nil
 }
 
@@ -62,7 +62,7 @@ type boringPriv struct {
 }
 
 func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyECDSA, error) {
-	b := (*boringPriv)(privCache.Get(unsafe.Pointer(priv)))
+	b := privCache.Get(priv)
 	if b != nil && privateKeyEqual(&b.orig, priv) {
 		return b.key, nil
 	}
@@ -74,7 +74,7 @@ func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyECDSA, error) {
 		return nil, err
 	}
 	b.key = key
-	privCache.Put(unsafe.Pointer(priv), unsafe.Pointer(b))
+	privCache.Put(priv, b)
 	return key, nil
 }
 

@@ -91,7 +91,7 @@ func testWriter(t *testing.T, binary bool) {
 	}
 
 	for _, tt := range tests {
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		w := NewWriter(buf)
 
 		want := tt.want

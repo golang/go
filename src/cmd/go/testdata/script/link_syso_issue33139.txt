@@ -1,8 +1,10 @@
 # Test that we can use the external linker with a host syso file that is
 # embedded in a package, that is referenced by a Go assembly function.
 # See issue 33139.
+
 [!gc] skip
 [!cgo] skip
+[short] skip 'invokes system C compiler'
 
 # External linking is not supported on linux/ppc64.
 # See: https://github.com/golang/go/issues/8912

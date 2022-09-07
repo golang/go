@@ -63,9 +63,10 @@ var CalcSizeDisabled bool
 // the size of a pointer, set in gc.Main (see ../gc/main.go).
 var defercalc int
 
-func Rnd(o int64, r int64) int64 {
+// RoundUp rounds o to a multiple of r, r is a power of 2.
+func RoundUp(o int64, r int64) int64 {
 	if r < 1 || r > 8 || r&(r-1) != 0 {
-		base.Fatalf("rnd %d", r)
+		base.Fatalf("Round %d", r)
 	}
 	return (o + r - 1) &^ (r - 1)
 }
@@ -169,6 +170,8 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 	}
 	// Special case: sync/atomic.align64 is an empty struct we recognize
 	// as a signal that the struct it contains must be 64-bit-aligned.
+	//
+	// This logic is duplicated in go/types and cmd/compile/internal/types2.
 	if isStruct && t.NumFields() == 0 && t.Sym() != nil && t.Sym().Name == "align64" && isAtomicStdPkg(t.Sym().Pkg) {
 		maxalign = 8
 	}
@@ -181,11 +184,18 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 		}
 
 		CalcSize(f.Type)
+		// If type T contains a field F marked as not-in-heap,
+		// then T must also be a not-in-heap type. Otherwise,
+		// you could heap allocate T and then get a pointer F,
+		// which would be a heap pointer to a not-in-heap type.
+		if f.Type.NotInHeap() {
+			t.SetNotInHeap(true)
+		}
 		if int32(f.Type.align) > maxalign {
 			maxalign = int32(f.Type.align)
 		}
 		if f.Type.align > 0 {
-			o = Rnd(o, int64(f.Type.align))
+			o = RoundUp(o, int64(f.Type.align))
 		}
 		if isStruct { // For receiver/args/results, do not set, it depends on ABI
 			f.Offset = o
@@ -221,7 +231,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 
 	// final width is rounded
 	if flag != 0 {
-		o = Rnd(o, int64(maxalign))
+		o = RoundUp(o, int64(maxalign))
 	}
 	t.align = uint8(maxalign)
 
@@ -388,6 +398,7 @@ func CalcSize(t *Type) {
 		}
 
 		CalcSize(t.Elem())
+		t.SetNotInHeap(t.Elem().NotInHeap())
 		if t.Elem().width != 0 {
 			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().width)
 			if uint64(t.NumElem()) > cap {
@@ -408,6 +419,10 @@ func CalcSize(t *Type) {
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
 			base.Fatalf("CalcSize fn struct %v", t)
+		}
+		// Recognize and mark runtime/internal/sys.nih as not-in-heap.
+		if sym := t.Sym(); sym != nil && sym.Pkg.Path == "runtime/internal/sys" && sym.Name == "nih" {
+			t.SetNotInHeap(true)
 		}
 		w = calcStructOffset(t, t, 0, 1)
 
@@ -587,6 +602,12 @@ func PtrDataSize(t *Type) int64 {
 			if size := PtrDataSize(fs[i].Type); size > 0 {
 				return fs[i].Offset + size
 			}
+		}
+		return 0
+
+	case TSSA:
+		if t != TypeInt128 {
+			base.Fatalf("PtrDataSize: unexpected ssa type %v", t)
 		}
 		return 0
 

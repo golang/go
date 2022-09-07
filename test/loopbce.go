@@ -3,6 +3,8 @@
 
 package main
 
+import "math"
+
 func f0a(a []int) int {
 	x := 0
 	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
@@ -47,7 +49,7 @@ func f2(a []int) int {
 
 func f4(a [10]int) int {
 	x := 0
-	for i := 0; i < len(a); i += 2 { // ERROR "Induction variable: limits \[0,10\), increment 2$"
+	for i := 0; i < len(a); i += 2 { // ERROR "Induction variable: limits \[0,8\], increment 2$"
 		x += a[i] // ERROR "(\([0-9]+\) )?Proved IsInBounds$"
 	}
 	return x
@@ -55,7 +57,7 @@ func f4(a [10]int) int {
 
 func f5(a [10]int) int {
 	x := 0
-	for i := -10; i < len(a); i += 2 { // ERROR "Induction variable: limits \[-10,10\), increment 2$"
+	for i := -10; i < len(a); i += 2 { // ERROR "Induction variable: limits \[-10,8\], increment 2$"
 		x += a[i]
 	}
 	return x
@@ -119,7 +121,7 @@ func g0f(a string) int {
 func g1() int {
 	a := "evenlength"
 	x := 0
-	for i := 0; i < len(a); i += 2 { // ERROR "Induction variable: limits \[0,10\), increment 2$"
+	for i := 0; i < len(a); i += 2 { // ERROR "Induction variable: limits \[0,8\], increment 2$"
 		x += int(a[i]) // ERROR "(\([0-9]+\) )?Proved IsInBounds$"
 	}
 	return x
@@ -128,7 +130,7 @@ func g1() int {
 func g2() int {
 	a := "evenlength"
 	x := 0
-	for i := 0; i < len(a); i += 2 { // ERROR "Induction variable: limits \[0,10\), increment 2$"
+	for i := 0; i < len(a); i += 2 { // ERROR "Induction variable: limits \[0,8\], increment 2$"
 		j := i
 		if a[i] == 'e' { // ERROR "(\([0-9]+\) )?Proved IsInBounds$"
 			j = j + 1
@@ -140,9 +142,11 @@ func g2() int {
 
 func g3a() {
 	a := "this string has length 25"
-	for i := 0; i < len(a); i += 5 { // ERROR "Induction variable: limits \[0,25\), increment 5$"
+	for i := 0; i < len(a); i += 5 { // ERROR "Induction variable: limits \[0,20\], increment 5$"
 		useString(a[i:]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
-		useString(a[:i+3])
+		useString(a[:i+3]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+		useString(a[:i+5]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+		useString(a[:i+6])
 	}
 }
 
@@ -281,8 +285,8 @@ func d2(a [100]int) [100]int {
 
 func d3(a [100]int) [100]int {
 	for i := 0; i <= 99; i++ { // ERROR "Induction variable: limits \[0,99\], increment 1$"
-		for j := 0; j <= i-1; j++ { // ERROR "Induction variable: limits \[0,\?\], increment 1$"
-			a[j] = 0   // ERROR "Proved IsInBounds$"
+		for j := 0; j <= i-1; j++ {
+			a[j] = 0
 			a[j+1] = 0 // ERROR "Proved IsInBounds$"
 			a[j+2] = 0
 		}
@@ -290,7 +294,61 @@ func d3(a [100]int) [100]int {
 	return a
 }
 
-func nobce1() {
+func d4() {
+	for i := int64(math.MaxInt64 - 9); i < math.MaxInt64-2; i += 4 { // ERROR "Induction variable: limits \[9223372036854775798,9223372036854775802\], increment 4$"
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 8); i < math.MaxInt64-2; i += 4 { // ERROR "Induction variable: limits \[9223372036854775799,9223372036854775803\], increment 4$"
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 7); i < math.MaxInt64-2; i += 4 {
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 6); i < math.MaxInt64-2; i += 4 { // ERROR "Induction variable: limits \[9223372036854775801,9223372036854775801\], increment 4$"
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 9); i <= math.MaxInt64-2; i += 4 { // ERROR "Induction variable: limits \[9223372036854775798,9223372036854775802\], increment 4$"
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 8); i <= math.MaxInt64-2; i += 4 { // ERROR "Induction variable: limits \[9223372036854775799,9223372036854775803\], increment 4$"
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 7); i <= math.MaxInt64-2; i += 4 {
+		useString("foo")
+	}
+	for i := int64(math.MaxInt64 - 6); i <= math.MaxInt64-2; i += 4 {
+		useString("foo")
+	}
+}
+
+func d5() {
+	for i := int64(math.MinInt64 + 9); i > math.MinInt64+2; i -= 4 { // ERROR "Induction variable: limits \[-9223372036854775803,-9223372036854775799\], increment 4"
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 8); i > math.MinInt64+2; i -= 4 { // ERROR "Induction variable: limits \[-9223372036854775804,-9223372036854775800\], increment 4"
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 7); i > math.MinInt64+2; i -= 4 {
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 6); i > math.MinInt64+2; i -= 4 { // ERROR "Induction variable: limits \[-9223372036854775802,-9223372036854775802\], increment 4"
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 9); i >= math.MinInt64+2; i -= 4 { // ERROR "Induction variable: limits \[-9223372036854775803,-9223372036854775799\], increment 4"
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 8); i >= math.MinInt64+2; i -= 4 { // ERROR "Induction variable: limits \[-9223372036854775804,-9223372036854775800\], increment 4"
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 7); i >= math.MinInt64+2; i -= 4 {
+		useString("foo")
+	}
+	for i := int64(math.MinInt64 + 6); i >= math.MinInt64+2; i -= 4 {
+		useString("foo")
+	}
+}
+
+func bce1() {
 	// tests overflow of max-min
 	a := int64(9223372036854774057)
 	b := int64(-1547)
@@ -300,8 +358,7 @@ func nobce1() {
 		panic("invalid test: modulos should differ")
 	}
 
-	for i := b; i < a; i += z {
-		// No induction variable is possible because i will overflow a first iteration.
+	for i := b; i < a; i += z { // ERROR "Induction variable: limits \[-1547,9223372036854772720\], increment 1337"
 		useString("foobar")
 	}
 }
@@ -343,6 +400,22 @@ func issue26116a(a []int) {
 	for i := 7; i < 3; i-- {
 		a[i] = 1
 	}
+}
+
+func stride1(x *[7]int) int {
+	s := 0
+	for i := 0; i <= 8; i += 3 { // ERROR "Induction variable: limits \[0,6\], increment 3"
+		s += x[i] // ERROR "Proved IsInBounds"
+	}
+	return s
+}
+
+func stride2(x *[7]int) int {
+	s := 0
+	for i := 0; i < 9; i += 3 { // ERROR "Induction variable: limits \[0,6\], increment 3"
+		s += x[i] // ERROR "Proved IsInBounds"
+	}
+	return s
 }
 
 //go:noinline

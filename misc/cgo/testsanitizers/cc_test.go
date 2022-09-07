@@ -202,16 +202,16 @@ func compilerVersion() (version, error) {
 			var match [][]byte
 			if bytes.HasPrefix(out, []byte("gcc")) {
 				compiler.name = "gcc"
-				cmd, err := cc("-v")
+				cmd, err := cc("-dumpfullversion", "-dumpversion")
 				if err != nil {
 					return err
 				}
-				out, err := cmd.CombinedOutput()
+				out, err := cmd.Output()
 				if err != nil {
 					// gcc, but does not support gcc's "-v" flag?!
 					return err
 				}
-				gccRE := regexp.MustCompile(`gcc version (\d+)\.(\d+)`)
+				gccRE := regexp.MustCompile(`(\d+)\.(\d+)`)
 				match = gccRE.FindSubmatch(out)
 			} else {
 				clangRE := regexp.MustCompile(`clang version (\d+)\.(\d+)`)
@@ -252,14 +252,30 @@ func compilerSupportsLocation() bool {
 	}
 }
 
+// compilerRequiredTsanVersion reports whether the compiler is the version required by Tsan.
+// Only restrictions for ppc64le are known; otherwise return true.
+func compilerRequiredTsanVersion(goos, goarch string) bool {
+	compiler, err := compilerVersion()
+	if err != nil {
+		return false
+	}
+	if compiler.name == "gcc" && goarch == "ppc64le" {
+		return compiler.major >= 9
+	}
+	return true
+}
+
 // compilerRequiredAsanVersion reports whether the compiler is the version required by Asan.
-func compilerRequiredAsanVersion() bool {
+func compilerRequiredAsanVersion(goos, goarch string) bool {
 	compiler, err := compilerVersion()
 	if err != nil {
 		return false
 	}
 	switch compiler.name {
 	case "gcc":
+		if goarch == "ppc64le" {
+			return compiler.major >= 9
+		}
 		return compiler.major >= 7
 	case "clang":
 		return compiler.major >= 9
@@ -511,7 +527,7 @@ func mSanSupported(goos, goarch string) bool {
 func aSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
-		return goarch == "amd64" || goarch == "arm64" || goarch == "riscv64"
+		return goarch == "amd64" || goarch == "arm64" || goarch == "riscv64" || goarch == "ppc64le"
 	default:
 		return false
 	}

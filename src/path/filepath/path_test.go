@@ -638,6 +638,64 @@ func TestWalkSkipDirOnFile(t *testing.T) {
 	})
 }
 
+func TestWalkSkipAllOnFile(t *testing.T) {
+	td := t.TempDir()
+
+	if err := os.MkdirAll(filepath.Join(td, "dir", "subdir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(td, "dir2"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	touch(t, filepath.Join(td, "dir", "foo1"))
+	touch(t, filepath.Join(td, "dir", "foo2"))
+	touch(t, filepath.Join(td, "dir", "subdir", "foo3"))
+	touch(t, filepath.Join(td, "dir", "foo4"))
+	touch(t, filepath.Join(td, "dir2", "bar"))
+	touch(t, filepath.Join(td, "last"))
+
+	remainingWereSkipped := true
+	walker := func(path string) error {
+		if strings.HasSuffix(path, "foo2") {
+			return filepath.SkipAll
+		}
+
+		if strings.HasSuffix(path, "foo3") ||
+			strings.HasSuffix(path, "foo4") ||
+			strings.HasSuffix(path, "bar") ||
+			strings.HasSuffix(path, "last") {
+			remainingWereSkipped = false
+		}
+		return nil
+	}
+
+	walkFn := func(path string, _ fs.FileInfo, _ error) error { return walker(path) }
+	walkDirFn := func(path string, _ fs.DirEntry, _ error) error { return walker(path) }
+
+	check := func(t *testing.T, walk func(root string) error, root string) {
+		t.Helper()
+		remainingWereSkipped = true
+		if err := walk(root); err != nil {
+			t.Fatal(err)
+		}
+		if !remainingWereSkipped {
+			t.Errorf("SkipAll on file foo2 did not block processing of remaining files and directories")
+		}
+	}
+
+	t.Run("Walk", func(t *testing.T) {
+		Walk := func(_ string) error { return filepath.Walk(td, walkFn) }
+		check(t, Walk, td)
+		check(t, Walk, filepath.Join(td, "dir"))
+	})
+	t.Run("WalkDir", func(t *testing.T) {
+		WalkDir := func(_ string) error { return filepath.WalkDir(td, walkDirFn) }
+		check(t, WalkDir, td)
+		check(t, WalkDir, filepath.Join(td, "dir"))
+	})
+}
+
 func TestWalkFileError(t *testing.T) {
 	td := t.TempDir()
 

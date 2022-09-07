@@ -178,8 +178,7 @@ func (r *Region) End() {
 // The information is advisory only. The tracing status
 // may have changed by the time this function returns.
 func IsEnabled() bool {
-	enabled := atomic.LoadInt32(&tracing.enabled)
-	return enabled == 1
+	return tracing.enabled.Load()
 }
 
 //

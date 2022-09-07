@@ -40,5 +40,5 @@ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
 	MOVV	trap+0(FP), R11	// syscall entry
 	SYSCALL
 	MOVV	R4, r1+32(FP)
-	MOVV	R5, r2+40(FP)
+	MOVV	R0, r2+40(FP)	// r2 is not used. Always set to 0.
 	RET

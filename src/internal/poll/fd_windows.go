@@ -500,8 +500,7 @@ func (fd *FD) readConsole(b []byte) (int, error) {
 					}
 				}
 			}
-			n := utf8.EncodeRune(buf[len(buf):cap(buf)], r)
-			buf = buf[:len(buf)+n]
+			buf = utf8.AppendRune(buf, r)
 		}
 		fd.readbyte = buf
 		fd.readbyteOffset = 0

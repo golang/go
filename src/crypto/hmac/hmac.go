@@ -22,11 +22,10 @@ timing side-channels:
 package hmac
 
 import (
+	"crypto/internal/boring"
 	"crypto/subtle"
 	"hash"
 )
-
-import "crypto/internal/boring"
 
 // FIPS 198-1:
 // https://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf

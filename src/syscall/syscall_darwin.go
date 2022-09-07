@@ -310,12 +310,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 			break
 		}
 		// Copy entry into return buffer.
-		s := struct {
-			ptr unsafe.Pointer
-			siz int
-			cap int
-		}{ptr: unsafe.Pointer(&entry), siz: reclen, cap: reclen}
-		copy(buf, *(*[]byte)(unsafe.Pointer(&s)))
+		copy(buf, unsafe.Slice((*byte)(unsafe.Pointer(&entry)), reclen))
 		buf = buf[reclen:]
 		n += reclen
 		cnt++

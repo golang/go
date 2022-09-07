@@ -6,27 +6,19 @@ package syscall
 
 import "unsafe"
 
-const _SYS_setgroups = SYS_SETGROUPS
-
-func EpollCreate(size int) (fd int, err error) {
-	if size <= 0 {
-		return -1, EINVAL
-	}
-	return EpollCreate1(0)
-}
+const (
+	_SYS_setgroups  = SYS_SETGROUPS
+	_SYS_faccessat2 = 439
+)
 
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
 //sys	Fchown(fd int, uid int, gid int) (err error)
-//sys	Fstat(fd int, stat *Stat_t) (err error)
-//sys	Fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
-//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error)
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (euid int)
 //sysnb	Getgid() (gid int)
 //sysnb	Getuid() (uid int)
-//sysnb Getrlimit(resource int, rlim *Rlimit) (err error)
 //sys	Listen(s int, n int) (err error)
 //sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
@@ -35,12 +27,63 @@ func EpollCreate(size int) (fd int, err error) {
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
-//sys   Setrlimit(resource int, rlim *Rlimit) (err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+//sys	statx(dirfd int, path string, flags int, mask int, stat *statx_t) (err error)
+
+// makedev makes C dev_t from major and minor numbers the glibc way:
+// 0xMMMM_MMMM 0xmmmm_mmmm -> 0xMMMM_Mmmm_mmmM_MMmm
+func makedev(major uint32, minor uint32) uint64 {
+	majorH := uint64(major >> 12)
+	majorL := uint64(major & 0xfff)
+	minorH := uint64(minor >> 8)
+	minorL := uint64(minor & 0xff)
+	return (majorH << 44) | (minorH << 20) | (majorL << 8) | minorL
+}
+
+func timespecFromStatxTimestamp(x statxTimestamp) Timespec {
+	return Timespec{
+		Sec:  x.Sec,
+		Nsec: int64(x.Nsec),
+	}
+}
+
+func fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) {
+	var r statx_t
+	// Do it the glibc way, add AT_NO_AUTOMOUNT.
+	if err = statx(dirfd, path, _AT_NO_AUTOMOUNT|flags, _STATX_BASIC_STATS, &r); err != nil {
+		return err
+	}
+
+	stat.Dev = makedev(r.Dev_major, r.Dev_minor)
+	stat.Ino = r.Ino
+	stat.Mode = uint32(r.Mode)
+	stat.Nlink = r.Nlink
+	stat.Uid = r.Uid
+	stat.Gid = r.Gid
+	stat.Rdev = makedev(r.Rdev_major, r.Rdev_minor)
+	// hope we don't get to process files so large to overflow these size
+	// fields...
+	stat.Size = int64(r.Size)
+	stat.Blksize = int32(r.Blksize)
+	stat.Blocks = int64(r.Blocks)
+	stat.Atim = timespecFromStatxTimestamp(r.Atime)
+	stat.Mtim = timespecFromStatxTimestamp(r.Mtime)
+	stat.Ctim = timespecFromStatxTimestamp(r.Ctime)
+
+	return nil
+}
+
+func Fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+	return fstatat(fd, path, stat, flags)
+}
+
+func Fstat(fd int, stat *Stat_t) (err error) {
+	return fstatat(fd, "", stat, _AT_EMPTY_PATH)
+}
 
 func Stat(path string, stat *Stat_t) (err error) {
-	return Fstatat(_AT_FDCWD, path, stat, 0)
+	return fstatat(_AT_FDCWD, path, stat, 0)
 }
 
 func Lchown(path string, uid int, gid int) (err error) {
@@ -48,18 +91,16 @@ func Lchown(path string, uid int, gid int) (err error) {
 }
 
 func Lstat(path string, stat *Stat_t) (err error) {
-	return Fstatat(_AT_FDCWD, path, stat, _AT_SYMLINK_NOFOLLOW)
+	return fstatat(_AT_FDCWD, path, stat, _AT_SYMLINK_NOFOLLOW)
 }
 
 //sys	Statfs(path string, buf *Statfs_t) (err error)
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
 //sys	Truncate(path string, length int64) (err error)
-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
 //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
 //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
 //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
 //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
-//sysnb	setgroups(n int, list *_Gid_t) (err error)
 //sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
 //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
 //sysnb	socket(domain int, typ int, proto int) (fd int, err error)

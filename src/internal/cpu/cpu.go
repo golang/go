@@ -37,6 +37,7 @@ var X86 struct {
 	HasPCLMULQDQ bool
 	HasPOPCNT    bool
 	HasRDTSCP    bool
+	HasSHA       bool
 	HasSSE3      bool
 	HasSSSE3     bool
 	HasSSE41     bool
@@ -61,6 +62,7 @@ var ARM64 struct {
 	HasPMULL     bool
 	HasSHA1      bool
 	HasSHA2      bool
+	HasSHA512    bool
 	HasCRC32     bool
 	HasATOMICS   bool
 	HasCPUID     bool

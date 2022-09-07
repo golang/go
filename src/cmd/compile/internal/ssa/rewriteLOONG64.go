@@ -291,6 +291,10 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpLOONG64OR(v)
 	case OpLOONG64ORconst:
 		return rewriteValueLOONG64_OpLOONG64ORconst(v)
+	case OpLOONG64ROTR:
+		return rewriteValueLOONG64_OpLOONG64ROTR(v)
+	case OpLOONG64ROTRV:
+		return rewriteValueLOONG64_OpLOONG64ROTRV(v)
 	case OpLOONG64SGT:
 		return rewriteValueLOONG64_OpLOONG64SGT(v)
 	case OpLOONG64SGTU:
@@ -3307,6 +3311,42 @@ func rewriteValueLOONG64_OpLOONG64ORconst(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueLOONG64_OpLOONG64ROTR(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ROTR x (MOVVconst [c]))
+	// result: (ROTRconst x [c&31])
+	for {
+		x := v_0
+		if v_1.Op != OpLOONG64MOVVconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpLOONG64ROTRconst)
+		v.AuxInt = int64ToAuxInt(c & 31)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueLOONG64_OpLOONG64ROTRV(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ROTRV x (MOVVconst [c]))
+	// result: (ROTRVconst x [c&63])
+	for {
+		x := v_0
+		if v_1.Op != OpLOONG64MOVVconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpLOONG64ROTRVconst)
+		v.AuxInt = int64ToAuxInt(c & 63)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValueLOONG64_OpLOONG64SGT(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -5827,57 +5867,33 @@ func rewriteValueLOONG64_OpRotateLeft32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateLeft32 <t> x (MOVVconst [c]))
-	// result: (Or32 (Lsh32x64 <t> x (MOVVconst [c&31])) (Rsh32Ux64 <t> x (MOVVconst [-c&31])))
+	// match: (RotateLeft32 x y)
+	// result: (ROTR x (NEGV <y.Type> y))
 	for {
-		t := v.Type
 		x := v_0
-		if v_1.Op != OpLOONG64MOVVconst {
-			break
-		}
-		c := auxIntToInt64(v_1.AuxInt)
-		v.reset(OpOr32)
-		v0 := b.NewValue0(v.Pos, OpLsh32x64, t)
-		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
-		v1.AuxInt = int64ToAuxInt(c & 31)
-		v0.AddArg2(x, v1)
-		v2 := b.NewValue0(v.Pos, OpRsh32Ux64, t)
-		v3 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
-		v3.AuxInt = int64ToAuxInt(-c & 31)
-		v2.AddArg2(x, v3)
-		v.AddArg2(v0, v2)
+		y := v_1
+		v.reset(OpLOONG64ROTR)
+		v0 := b.NewValue0(v.Pos, OpLOONG64NEGV, y.Type)
+		v0.AddArg(y)
+		v.AddArg2(x, v0)
 		return true
 	}
-	return false
 }
 func rewriteValueLOONG64_OpRotateLeft64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateLeft64 <t> x (MOVVconst [c]))
-	// result: (Or64 (Lsh64x64 <t> x (MOVVconst [c&63])) (Rsh64Ux64 <t> x (MOVVconst [-c&63])))
+	// match: (RotateLeft64 x y)
+	// result: (ROTRV x (NEGV <y.Type> y))
 	for {
-		t := v.Type
 		x := v_0
-		if v_1.Op != OpLOONG64MOVVconst {
-			break
-		}
-		c := auxIntToInt64(v_1.AuxInt)
-		v.reset(OpOr64)
-		v0 := b.NewValue0(v.Pos, OpLsh64x64, t)
-		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
-		v1.AuxInt = int64ToAuxInt(c & 63)
-		v0.AddArg2(x, v1)
-		v2 := b.NewValue0(v.Pos, OpRsh64Ux64, t)
-		v3 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
-		v3.AuxInt = int64ToAuxInt(-c & 63)
-		v2.AddArg2(x, v3)
-		v.AddArg2(v0, v2)
+		y := v_1
+		v.reset(OpLOONG64ROTRV)
+		v0 := b.NewValue0(v.Pos, OpLOONG64NEGV, y.Type)
+		v0.AddArg(y)
+		v.AddArg2(x, v0)
 		return true
 	}
-	return false
 }
 func rewriteValueLOONG64_OpRotateLeft8(v *Value) bool {
 	v_1 := v.Args[1]

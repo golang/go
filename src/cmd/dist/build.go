@@ -55,6 +55,7 @@ var (
 
 	rebuildall   bool
 	defaultclang bool
+	noOpt        bool
 
 	vflag int // verbosity
 )
@@ -938,7 +939,8 @@ func packagefile(pkg string) string {
 }
 
 // unixOS is the set of GOOS values matched by the "unix" build tag.
-// This is the same list as in go/build/syslist.go.
+// This is the same list as in go/build/syslist.go and
+// cmd/go/internal/imports/build.go.
 var unixOS = map[string]bool{
 	"aix":       true,
 	"android":   true,
@@ -1325,6 +1327,7 @@ func cmdbootstrap() {
 	}
 
 	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
+	setNoOpt()
 	goldflags = os.Getenv("GO_LDFLAGS") // we were using $BOOT_GO_LDFLAGS until now
 	goBootstrap := pathf("%s/go_bootstrap", tooldir)
 	cmdGo := pathf("%s/go", gorootBin)
@@ -1510,6 +1513,9 @@ func appendCompilerFlags(args []string) []string {
 
 func goCmd(goBinary string, cmd string, args ...string) {
 	goCmd := []string{goBinary, cmd}
+	if noOpt {
+		goCmd = append(goCmd, "-tags=noopt")
+	}
 	goCmd = appendCompilerFlags(goCmd)
 	if vflag > 0 {
 		goCmd = append(goCmd, "-v")
@@ -1525,6 +1531,9 @@ func goCmd(goBinary string, cmd string, args ...string) {
 
 func checkNotStale(goBinary string, targets ...string) {
 	goCmd := []string{goBinary, "list"}
+	if noOpt {
+		goCmd = append(goCmd, "-tags=noopt")
+	}
 	goCmd = appendCompilerFlags(goCmd)
 	goCmd = append(goCmd, "-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}")
 
@@ -1630,7 +1639,13 @@ func checkCC() {
 	if !needCC() {
 		return
 	}
-	if output, err := exec.Command(defaultcc[""], "--help").CombinedOutput(); err != nil {
+	cc, err := quotedSplit(defaultcc[""])
+	if err != nil {
+		fatalf("split CC: %v", err)
+	}
+	var ccHelp = append(cc, "--help")
+
+	if output, err := exec.Command(ccHelp[0], ccHelp[1:]...).CombinedOutput(); err != nil {
 		outputHdr := ""
 		if len(output) > 0 {
 			outputHdr = "\nCommand output:\n\n"
@@ -1638,7 +1653,7 @@ func checkCC() {
 		fatalf("cannot invoke C compiler %q: %v\n\n"+
 			"Go needs a system C compiler for use with cgo.\n"+
 			"To set a C compiler, set CC=the-compiler.\n"+
-			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
+			"To disable cgo, set CGO_ENABLED=0.\n%s%s", cc, err, outputHdr, output)
 	}
 }
 
@@ -1793,4 +1808,13 @@ func IsRuntimePackagePath(pkgpath string) bool {
 		rval = strings.HasPrefix(pkgpath, "runtime/internal")
 	}
 	return rval
+}
+
+func setNoOpt() {
+	for _, gcflag := range strings.Split(gogcflags, " ") {
+		if gcflag == "-N" || gcflag == "-l" {
+			noOpt = true
+			break
+		}
+	}
 }

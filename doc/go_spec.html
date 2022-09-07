@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 12, 2022",
+	"Subtitle": "Version of June 29, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -263,7 +263,7 @@ continue     for          import       return       var
 
 <p>
 The following character sequences represent <a href="#Operators">operators</a>
-(including <a href="#Assignments">assignment operators</a>) and punctuation:
+(including <a href="#Assignment_statements">assignment operators</a>) and punctuation:
 </p>
 <pre class="grammar">
 +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
@@ -502,8 +502,9 @@ After a backslash, certain single-character escapes represent special values:
 </pre>
 
 <p>
-All other sequences starting with a backslash are illegal inside rune literals.
+An unrecognized character following a backslash in a rune literal is illegal.
 </p>
+
 <pre class="ebnf">
 rune_lit         = "'" ( unicode_value | byte_value ) "'" .
 unicode_value    = unicode_char | little_u_value | big_u_value | escaped_char .
@@ -530,6 +531,7 @@ escaped_char     = `\` ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | `\` | "'" | `
 '\U00101234'
 '\''         // rune literal containing single quote character
 'aa'         // illegal: too many characters
+'\k'         // illegal: k is not recognized after a backslash
 '\xa'        // illegal: too few hexadecimal digits
 '\0'         // illegal: too few octal digits
 '\400'       // illegal: octal value over 255
@@ -674,7 +676,7 @@ containing only untyped constant operands are untyped.
 A constant may be given a type explicitly by a <a href="#Constant_declarations">constant declaration</a>
 or <a href="#Conversions">conversion</a>, or implicitly when used in a
 <a href="#Variable_declarations">variable declaration</a> or an
-<a href="#Assignments">assignment</a> or as an
+<a href="#Assignment_statements">assignment statement</a> or as an
 operand in an <a href="#Expressions">expression</a>.
 It is an error if the constant value
 cannot be <a href="#Representability">represented</a> as a value of the respective type.
@@ -778,7 +780,7 @@ x = v              // x has value (*T)(nil) and dynamic type *T
 <p>
 A variable's value is retrieved by referring to the variable in an
 <a href="#Expressions">expression</a>; it is the most recent value
-<a href="#Assignments">assigned</a> to the variable.
+<a href="#Assignment_statements">assigned</a> to the variable.
 If a variable has not yet been assigned a value, its value is the
 <a href="#The_zero_value">zero value</a> for its type.
 </p>
@@ -800,7 +802,7 @@ TypeName  = identifier | QualifiedIdent .
 TypeArgs  = "[" TypeList [ "," ] "]" .
 TypeList  = Type { "," Type } .
 TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
-	    SliceType | MapType | ChannelType .
+            SliceType | MapType | ChannelType .
 </pre>
 
 <p>
@@ -1025,7 +1027,7 @@ be <a href="#Uniqueness_of_identifiers">unique</a>.
 <pre class="ebnf">
 StructType    = "struct" "{" { FieldDecl ";" } "}" .
 FieldDecl     = (IdentifierList Type | EmbeddedField) [ Tag ] .
-EmbeddedField = [ "*" ] TypeName .
+EmbeddedField = [ "*" ] TypeName [ TypeArgs ] .
 Tag           = string_lit .
 </pre>
 
@@ -1589,7 +1591,7 @@ The number of map elements is called its length.
 For a map <code>m</code>, it can be discovered using the
 built-in function <a href="#Length_and_capacity"><code>len</code></a>
 and may change during execution. Elements may be added during execution
-using <a href="#Assignments">assignments</a> and retrieved with
+using <a href="#Assignment_statements">assignments</a> and retrieved with
 <a href="#Index_expressions">index expressions</a>; they may be removed with the
 <a href="#Deletion_of_map_elements"><code>delete</code></a> built-in function.
 </p>
@@ -1632,7 +1634,7 @@ The optional <code>&lt;-</code> operator specifies the channel <i>direction</i>,
 <i>send</i> or <i>receive</i>. If a direction is given, the channel is <i>directional</i>,
 otherwise it is <i>bidirectional</i>.
 A channel may be constrained only to send or only to receive by
-<a href="#Assignments">assignment</a> or
+<a href="#Assignment_statements">assignment</a> or
 explicit <a href="#Conversions">conversion</a>.
 </p>
 
@@ -1808,6 +1810,31 @@ interface{ Celsius|float64 }              // no single underlying type
 interface{ chan int | chan&lt;- string }     // channels have different element types
 interface{ &lt;-chan int | chan&lt;- int }      // directional channels have different directions
 </pre>
+
+<p>
+Some operations (<a href="#Slice_expressions">slice expressions</a>,
+<a href="#Appending_and_copying_slices"><code>append</code> and <code>copy</code></a>)
+rely on a slightly more loose form of core types which accept byte slices and strings.
+Specifically, if there are exactly two types, <code>[]byte</code> and <code>string</code>,
+which are the underlying types of all types in the type set of interface <code>T</code>,
+the core type of <code>T</code> is called <code>bytestring</code>.
+</p>
+
+<p>
+Examples of interfaces with <code>bytestring</code> core types:
+</p>
+
+<pre>
+interface{ int }                          // int (same as ordinary core type)
+interface{ []byte | string }              // bytestring
+interface{ ~[]byte | myString }           // bytestring
+</pre>
+
+<p>
+Note that <code>bytestring</code> is not a real type; it cannot be used to declare
+variables are compose other types. It exists solely to describe the behavior of some
+operations that read from a sequence of bytes, which may be a byte slice or a string.
+</p>
 
 <h3 id="Type_identity">Type identity</h3>
 
@@ -2214,7 +2241,7 @@ the body of any nested function.
 The <i>blank identifier</i> is represented by the underscore character <code>_</code>.
 It serves as an anonymous placeholder instead of a regular (non-blank)
 identifier and has special meaning in <a href="#Declarations_and_scope">declarations</a>,
-as an <a href="#Operands">operand</a>, and in <a href="#Assignments">assignments</a>.
+as an <a href="#Operands">operand</a>, and in <a href="#Assignment_statements">assignment statements</a>.
 </p>
 
 
@@ -2721,7 +2748,7 @@ var _, found = entries[name]  // map lookup; only interested in "found"
 
 <p>
 If a list of expressions is given, the variables are initialized
-with the expressions following the rules for <a href="#Assignments">assignments</a>.
+with the expressions following the rules for <a href="#Assignment_statements">assignment statements</a>.
 Otherwise, each variable is initialized to its <a href="#The_zero_value">zero value</a>.
 </p>
 
@@ -2984,7 +3011,7 @@ resulting operand is an <a href="#Instantiations">instantiated</a> function.
 
 <p>
 The <a href="#Blank_identifier">blank identifier</a> may appear as an
-operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
+operand only on the left-hand side of an <a href="#Assignment_statements">assignment statement</a>.
 </p>
 
 <p>
@@ -3015,7 +3042,7 @@ declared in the <a href="#Blocks">package block</a> of that package.
 </p>
 
 <pre>
-math.Sin	// denotes the Sin function in package math
+math.Sin // denotes the Sin function in package math
 </pre>
 
 <h3 id="Composite_literals">Composite literals</h3>
@@ -3029,7 +3056,7 @@ Each element may optionally be preceded by a corresponding key.
 <pre class="ebnf">
 CompositeLit  = LiteralType LiteralValue .
 LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
-                SliceType | MapType | TypeName .
+                SliceType | MapType | TypeName [ TypeArgs ] .
 LiteralValue  = "{" [ ElementList [ "," ] ] "}" .
 ElementList   = KeyedElement { "," KeyedElement } .
 KeyedElement  = [ Key ":" ] Element .
@@ -3794,7 +3821,7 @@ Otherwise <code>a[x]</code> is illegal.
 
 <p>
 An index expression on a map <code>a</code> of type <code>map[K]V</code>
-used in an <a href="#Assignments">assignment</a> or initialization of the special form
+used in an <a href="#Assignment_statements">assignment statement</a> or initialization of the special form
 </p>
 
 <pre>
@@ -3835,7 +3862,8 @@ a[low : high]
 
 <p>
 constructs a substring or slice. The <a href="#Core_types">core type</a> of
-<code>a</code> must be a string, array, pointer to array, or slice.
+<code>a</code> must be a string, array, pointer to array, slice, or a
+<a href="#Core_types"><code>bytestring</code></a>.
 The <i>indices</i> <code>low</code> and
 <code>high</code> select which elements of operand <code>a</code> appear
 in the result. The result has indices starting at 0 and length equal to
@@ -4009,7 +4037,7 @@ func f(y I) {
 </pre>
 
 <p>
-A type assertion used in an <a href="#Assignments">assignment</a> or initialization of the special form
+A type assertion used in an <a href="#Assignment_statements">assignment statement</a> or initialization of the special form
 </p>
 
 <pre>
@@ -4841,7 +4869,7 @@ due to two's-complement <a href="#Integer_overflow">integer overflow</a>:
 </p>
 
 <pre>
-			 x, q
+                         x, q
 int8                     -128
 int16                  -32768
 int32             -2147483648
@@ -5166,7 +5194,7 @@ f(&lt;-ch)
 </pre>
 
 <p>
-A receive expression used in an <a href="#Assignments">assignment</a> or initialization of the special form
+A receive expression used in an <a href="#Assignment_statements">assignment statement</a> or initialization of the special form
 </p>
 
 <pre>
@@ -5245,7 +5273,7 @@ float32(0.49999999)      // 0.5 of type float32
 float64(-1e-1000)        // 0.0 of type float64
 string('x')              // "x" of type string
 string(0x266c)           // "♬" of type string
-MyString("foo" + "bar")  // "foobar" of type MyString
+myString("foo" + "bar")  // "foobar" of type myString
 string([]byte{'a'})      // not a constant: []byte{'a'} is not a constant
 (*int)(nil)              // not a constant: nil is not a constant, *int is not a boolean, numeric, or string type
 int(1.2)                 // illegal: 1.2 cannot be represented as an int
@@ -5428,8 +5456,9 @@ the range of valid Unicode code points are converted to <code>"\uFFFD"</code>.
 string('a')       // "a"
 string(-1)        // "\ufffd" == "\xef\xbf\xbd"
 string(0xf8)      // "\u00f8" == "ø" == "\xc3\xb8"
-type MyString string
-MyString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
+
+type myString string
+myString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
 </pre>
 </li>
 
@@ -5442,8 +5471,12 @@ string([]byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'})   // "hellø"
 string([]byte{})                                     // ""
 string([]byte(nil))                                  // ""
 
-type MyBytes []byte
-string(MyBytes{'h', 'e', 'l', 'l', '\xc3', '\xb8'})  // "hellø"
+type bytes []byte
+string(bytes{'h', 'e', 'l', 'l', '\xc3', '\xb8'})    // "hellø"
+
+type myByte byte
+string([]myByte{'w', 'o', 'r', 'l', 'd', '!'})       // "world!"
+myString([]myByte{'\xf0', '\x9f', '\x8c', '\x8d'})   // "🌍"
 </pre>
 </li>
 
@@ -5457,8 +5490,12 @@ string([]rune{0x767d, 0x9d6c, 0x7fd4})   // "\u767d\u9d6c\u7fd4" == "白鵬翔"
 string([]rune{})                         // ""
 string([]rune(nil))                      // ""
 
-type MyRunes []rune
-string(MyRunes{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+type runes []rune
+string(runes{0x767d, 0x9d6c, 0x7fd4})    // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+
+type myRune rune
+string([]myRune{0x266b, 0x266c})         // "\u266b\u266c" == "♫♬"
+myString([]myRune{0x1f30e})              // "\U0001f30e" == "🌎"
 </pre>
 </li>
 
@@ -5467,10 +5504,13 @@ Converting a value of a string type to a slice of bytes type
 yields a slice whose successive elements are the bytes of the string.
 
 <pre>
-[]byte("hellø")   // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
-[]byte("")        // []byte{}
+[]byte("hellø")             // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+[]byte("")                  // []byte{}
 
-MyBytes("hellø")  // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+bytes("hellø")              // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+
+[]myByte("world!")          // []myByte{'w', 'o', 'r', 'l', 'd', '!'}
+[]myByte(myString("🌏"))    // []myByte{'\xf0', '\x9f', '\x8c', '\x8f'}
 </pre>
 </li>
 
@@ -5479,10 +5519,13 @@ Converting a value of a string type to a slice of runes type
 yields a slice containing the individual Unicode code points of the string.
 
 <pre>
-[]rune(MyString("白鵬翔"))  // []rune{0x767d, 0x9d6c, 0x7fd4}
-[]rune("")                 // []rune{}
+[]rune(myString("白鵬翔"))   // []rune{0x767d, 0x9d6c, 0x7fd4}
+[]rune("")                  // []rune{}
 
-MyRunes("白鵬翔")           // []rune{0x767d, 0x9d6c, 0x7fd4}
+runes("白鵬翔")              // []rune{0x767d, 0x9d6c, 0x7fd4}
+
+[]myRune("♫♬")              // []myRune{0x266b, 0x266c}
+[]myRune(myString("🌐"))    // []myRune{0x1f310}
 </pre>
 </li>
 </ol>
@@ -5899,7 +5942,7 @@ IncDecStmt = Expression ( "++" | "--" ) .
 </pre>
 
 <p>
-The following <a href="#Assignments">assignment statements</a> are semantically
+The following <a href="#Assignment_statements">assignment statements</a> are semantically
 equivalent:
 </p>
 
@@ -5910,7 +5953,14 @@ x--                 x -= 1
 </pre>
 
 
-<h3 id="Assignments">Assignments</h3>
+<h3 id="Assignment_statements">Assignment statements</h3>
+
+<p>
+An <i>assignment</i> replaces the current value stored in a <a href="#Variables">variable</a>
+with a new value specified by an <a href="#Expressions">expression</a>.
+An assignment statement may assign a single value to a single variable, or multiple values to a
+matching number of variables.
+</p>
 
 <pre class="ebnf">
 Assignment = ExpressionList assign_op ExpressionList .
@@ -6479,7 +6529,7 @@ is <code>nil</code>, the range expression blocks forever.
 
 <p>
 The iteration values are assigned to the respective
-iteration variables as in an <a href="#Assignments">assignment statement</a>.
+iteration variables as in an <a href="#Assignment_statements">assignment statement</a>.
 </p>
 
 <p>
@@ -7141,7 +7191,7 @@ A constant size argument must be non-negative and <a href="#Representability">re
 by a value of type <code>int</code>; if it is an untyped constant it is given type <code>int</code>.
 If both <code>n</code> and <code>m</code> are provided and are constant, then
 <code>n</code> must be no larger than <code>m</code>.
-If <code>n</code> is negative or larger than <code>m</code> at run time,
+For slices and channels, if <code>n</code> is negative or larger than <code>m</code> at run time,
 a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
 
@@ -7180,8 +7230,9 @@ The values <code>x</code> are passed to a parameter of type <code>...E</code>
 and the respective <a href="#Passing_arguments_to_..._parameters">parameter
 passing rules</a> apply.
 As a special case, if the core type of <code>s</code> is <code>[]byte</code>,
-<code>append</code> also accepts a second argument with core type <code>string</code>
-followed by <code>...</code>. This form appends the bytes of the string.
+<code>append</code> also accepts a second argument with core type
+<a href="#Core_types"><code>bytestring</code></a> followed by <code>...</code>.
+This form appends the bytes of the byte slice or string.
 </p>
 
 <pre class="grammar">
@@ -7218,8 +7269,9 @@ with <a href="#Type_identity">identical</a> element type.
 The number of elements copied is the minimum of
 <code>len(src)</code> and <code>len(dst)</code>.
 As a special case, if the destination's core type is <code>[]byte</code>,
-<code>copy</code> also accepts a source argument with core type <code>string</code>.
-This form copies the bytes from the string into the byte slice.
+<code>copy</code> also accepts a source argument with core type
+</a> <a href="#Core_types"><code>bytestring</code></a>.
+This form copies the bytes from the byte slice or string into the byte slice.
 </p>
 
 <pre class="grammar">
@@ -7533,7 +7585,7 @@ and the Unicode replacement character U+FFFD.
 </p>
 
 <p>
-Assume we have compiled a package containing the package clause
+Consider a compiled a package containing the package clause
 <code>package math</code>, which exports function <code>Sin</code>, and
 installed the compiled package in the file identified by
 <code>"lib/math"</code>.

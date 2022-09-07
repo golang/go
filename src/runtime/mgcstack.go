@@ -96,6 +96,7 @@ package runtime
 
 import (
 	"internal/goarch"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -103,17 +104,15 @@ const stackTraceDebug = false
 
 // Buffer for pointers found during stack tracing.
 // Must be smaller than or equal to workbuf.
-//
-//go:notinheap
 type stackWorkBuf struct {
+	_ sys.NotInHeap
 	stackWorkBufHdr
 	obj [(_WorkbufSize - unsafe.Sizeof(stackWorkBufHdr{})) / goarch.PtrSize]uintptr
 }
 
 // Header declaration must come after the buf declaration above, because of issue #14620.
-//
-//go:notinheap
 type stackWorkBufHdr struct {
+	_ sys.NotInHeap
 	workbufhdr
 	next *stackWorkBuf // linked list of workbufs
 	// Note: we could theoretically repurpose lfnode.next as this next pointer.
@@ -123,15 +122,14 @@ type stackWorkBufHdr struct {
 
 // Buffer for stack objects found on a goroutine stack.
 // Must be smaller than or equal to workbuf.
-//
-//go:notinheap
 type stackObjectBuf struct {
+	_ sys.NotInHeap
 	stackObjectBufHdr
 	obj [(_WorkbufSize - unsafe.Sizeof(stackObjectBufHdr{})) / unsafe.Sizeof(stackObject{})]stackObject
 }
 
-//go:notinheap
 type stackObjectBufHdr struct {
+	_ sys.NotInHeap
 	workbufhdr
 	next *stackObjectBuf
 }
@@ -147,9 +145,8 @@ func init() {
 
 // A stackObject represents a variable on the stack that has had
 // its address taken.
-//
-//go:notinheap
 type stackObject struct {
+	_     sys.NotInHeap
 	off   uint32             // offset above stack.lo
 	size  uint32             // size of object
 	r     *stackObjectRecord // info of the object (for ptr/nonptr bits). nil if object has been scanned.

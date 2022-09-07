@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/goarch"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -320,8 +321,8 @@ type workbufhdr struct {
 	nobj int
 }
 
-//go:notinheap
 type workbuf struct {
+	_ sys.NotInHeap
 	workbufhdr
 	// account for the above fields
 	obj [(_WorkbufSize - unsafe.Sizeof(workbufhdr{})) / goarch.PtrSize]uintptr

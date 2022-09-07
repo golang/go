@@ -230,12 +230,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	init = append(init, fnInit...)
 	init = append(init, typecheck.Stmt(r))
 
-	// selv and order are no longer alive after selectgo.
-	init = append(init, ir.NewUnaryExpr(base.Pos, ir.OVARKILL, selv))
-	init = append(init, ir.NewUnaryExpr(base.Pos, ir.OVARKILL, order))
-	if base.Flag.Race {
-		init = append(init, ir.NewUnaryExpr(base.Pos, ir.OVARKILL, pcs))
-	}
+	// selv, order, and pcs (if race) are no longer alive after selectgo.
 
 	// dispatch cases
 	dispatch := func(cond ir.Node, cas *ir.CommClause) {

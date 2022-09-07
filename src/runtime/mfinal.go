@@ -10,6 +10,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -19,9 +20,8 @@ import (
 // finblock is allocated from non-GC'd memory, so any heap pointers
 // must be specially handled. GC currently assumes that the finalizer
 // queue does not grow during marking (but it can shrink).
-//
-//go:notinheap
 type finblock struct {
+	_       sys.NotInHeap
 	alllink *finblock
 	next    *finblock
 	cnt     uint32
@@ -29,13 +29,23 @@ type finblock struct {
 	fin     [(_FinBlockSize - 2*goarch.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
 }
 
+var fingStatus atomic.Uint32
+
+// finalizer goroutine status.
+const (
+	fingUninitialized uint32 = iota
+	fingCreated       uint32 = 1 << (iota - 1)
+	fingRunningFinalizer
+	fingWait
+	fingWake
+)
+
 var finlock mutex  // protects the following variables
 var fing *g        // goroutine that runs finalizers
 var finq *finblock // list of finalizers that are to be executed
 var finc *finblock // cache of free blocks
 var finptrmask [_FinBlockSize / goarch.PtrSize / 8]byte
-var fingwait bool
-var fingwake bool
+
 var allfin *finblock // list of all blocks
 
 // NOTE: Layout known to queuefinalizer.
@@ -73,6 +83,12 @@ var finalizer1 = [...]byte{
 	1<<0 | 0<<1 | 1<<2 | 1<<3 | 1<<4 | 1<<5 | 0<<6 | 1<<7,
 	1<<0 | 1<<1 | 1<<2 | 0<<3 | 1<<4 | 1<<5 | 1<<6 | 1<<7,
 	0<<0 | 1<<1 | 1<<2 | 1<<3 | 1<<4 | 0<<5 | 1<<6 | 1<<7,
+}
+
+// lockRankMayQueueFinalizer records the lock ranking effects of a
+// function that may call queuefinalizer.
+func lockRankMayQueueFinalizer() {
+	lockWithRankMayAcquire(&finlock, getLockRank(&finlock))
 }
 
 func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot *ptrtype) {
@@ -120,8 +136,8 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 	f.fint = fint
 	f.ot = ot
 	f.arg = p
-	fingwake = true
 	unlock(&finlock)
+	fingStatus.Or(fingWake)
 }
 
 //go:nowritebarrier
@@ -135,27 +151,25 @@ func iterate_finq(callback func(*funcval, unsafe.Pointer, uintptr, *_type, *ptrt
 }
 
 func wakefing() *g {
-	var res *g
-	lock(&finlock)
-	if fingwait && fingwake {
-		fingwait = false
-		fingwake = false
-		res = fing
+	if ok := fingStatus.CompareAndSwap(fingCreated|fingWait|fingWake, fingCreated); ok {
+		return fing
 	}
-	unlock(&finlock)
-	return res
+	return nil
 }
-
-var (
-	fingCreate  uint32
-	fingRunning bool
-)
 
 func createfing() {
 	// start the finalizer goroutine exactly once
-	if fingCreate == 0 && atomic.Cas(&fingCreate, 0, 1) {
+	if fingStatus.Load() == fingUninitialized && fingStatus.CompareAndSwap(fingUninitialized, fingCreated) {
 		go runfinq()
 	}
+}
+
+func finalizercommit(gp *g, lock unsafe.Pointer) bool {
+	unlock((*mutex)(lock))
+	// fingStatus should be modified after fing is put into a waiting state
+	// to avoid waking fing in running state, even if it is about to be parked.
+	fingStatus.Or(fingWait)
+	return true
 }
 
 // This is the goroutine that runs all of the finalizers
@@ -176,8 +190,7 @@ func runfinq() {
 		fb := finq
 		finq = nil
 		if fb == nil {
-			fingwait = true
-			goparkunlock(&finlock, waitReasonFinalizerWait, traceEvGoBlock, 1)
+			gopark(finalizercommit, unsafe.Pointer(&finlock), waitReasonFinalizerWait, traceEvGoBlock, 1)
 			continue
 		}
 		argRegs = intArgRegs
@@ -238,9 +251,9 @@ func runfinq() {
 				default:
 					throw("bad kind in runfinq")
 				}
-				fingRunning = true
+				fingStatus.Or(fingRunningFinalizer)
 				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz), uint32(framesz), &regs)
-				fingRunning = false
+				fingStatus.And(^fingRunningFinalizer)
 
 				// Drop finalizer queue heap references
 				// before hiding them from markroot.
@@ -321,11 +334,23 @@ func runfinq() {
 // closing p.d, causing syscall.Write to fail because it is writing to
 // a closed file descriptor (or, worse, to an entirely different
 // file descriptor opened by a different goroutine). To avoid this problem,
-// call runtime.KeepAlive(p) after the call to syscall.Write.
+// call KeepAlive(p) after the call to syscall.Write.
 //
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
 // a new goroutine.
+//
+// In the terminology of the Go memory model, a call
+// SetFinalizer(x, f) “synchronizes before” the finalization call f(x).
+// However, there is no guarantee that KeepAlive(x) or any other use of x
+// “synchronizes before” f(x), so in general a finalizer should use a mutex
+// or other synchronization mechanism if it needs to access mutable state in x.
+// For example, consider a finalizer that inspects a mutable field in x
+// that is modified from time to time in the main program before x
+// becomes unreachable and the finalizer is invoked.
+// The modifications in the main program and the inspection in the finalizer
+// need to use appropriate synchronization, such as mutexes or atomic updates,
+// to avoid read-write races.
 func SetFinalizer(obj any, finalizer any) {
 	if debug.sbrk != 0 {
 		// debug.sbrk never frees memory, so no finalizers run

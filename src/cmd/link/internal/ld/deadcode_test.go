@@ -23,7 +23,7 @@ func TestDeadcode(t *testing.T) {
 		pos, neg string // positive and negative patterns
 	}{
 		{"reflectcall", "", "main.T.M"},
-		{"typedesc", "", "type.main.T"},
+		{"typedesc", "", "type:main.T"},
 		{"ifacemethod", "", "main.T.M"},
 		{"ifacemethod2", "main.T.M", ""},
 		{"ifacemethod3", "main.S.M", ""},

@@ -150,7 +150,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 					// recvTPar.bound is (possibly) parameterized in the context of the
 					// receiver type declaration. Substitute parameters for the current
 					// context.
-					tpar.bound = check.subst(tpar.obj.pos, recvTPar.bound, smap, nil)
+					tpar.bound = check.subst(tpar.obj.pos, recvTPar.bound, smap, nil, check.context())
 				}
 			} else if len(tparams) < len(recvTParams) {
 				// Reporting an error here is a stop-gap measure to avoid crashes in the
@@ -196,7 +196,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			recv = NewParam(token.NoPos, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
-			check.error(recvList[len(recvList)-1], _InvalidRecv, "method must have exactly one receiver")
+			check.error(recvList[len(recvList)-1], _InvalidRecv, "method has multiple receivers")
 			fallthrough // continue with first receiver
 		case 1:
 			recv = recvList[0]

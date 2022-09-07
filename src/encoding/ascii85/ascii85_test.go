@@ -75,7 +75,7 @@ func TestEncode(t *testing.T) {
 
 func TestEncoder(t *testing.T) {
 	for _, p := range pairs {
-		bb := &bytes.Buffer{}
+		bb := &strings.Builder{}
 		encoder := NewEncoder(bb)
 		encoder.Write([]byte(p.decoded))
 		encoder.Close()
@@ -86,7 +86,7 @@ func TestEncoder(t *testing.T) {
 func TestEncoderBuffering(t *testing.T) {
 	input := []byte(bigtest.decoded)
 	for bs := 1; bs <= 12; bs++ {
-		bb := &bytes.Buffer{}
+		bb := &strings.Builder{}
 		encoder := NewEncoder(bb)
 		for pos := 0; pos < len(input); pos += bs {
 			end := pos + bs

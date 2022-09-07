@@ -760,6 +760,42 @@ func TestWalkSkipDir(t *testing.T) {
 	}
 }
 
+func TestWalkSkipAll(t *testing.T) {
+	initOverlay(t, `
+{
+	"Replace": {
+		"dir/subdir1/foo1": "dummy.txt",
+		"dir/subdir1/foo2": "dummy.txt",
+		"dir/subdir1/foo3": "dummy.txt",
+		"dir/subdir2/foo4": "dummy.txt",
+		"dir/zzlast": "dummy.txt"
+	}
+}
+-- dummy.txt --
+`)
+
+	var seen []string
+	Walk("dir", func(path string, info fs.FileInfo, err error) error {
+		seen = append(seen, filepath.ToSlash(path))
+		if info.Name() == "foo2" {
+			return filepath.SkipAll
+		}
+		return nil
+	})
+
+	wantSeen := []string{"dir", "dir/subdir1", "dir/subdir1/foo1", "dir/subdir1/foo2"}
+
+	if len(seen) != len(wantSeen) {
+		t.Errorf("paths seen in walk: got %v entries; want %v entries", len(seen), len(wantSeen))
+	}
+
+	for i := 0; i < len(seen) && i < len(wantSeen); i++ {
+		if seen[i] != wantSeen[i] {
+			t.Errorf("path %#v seen walking tree: got %q, want %q", i, seen[i], wantSeen[i])
+		}
+	}
+}
+
 func TestWalkError(t *testing.T) {
 	initOverlay(t, "{}")
 

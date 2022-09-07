@@ -108,6 +108,15 @@ func testMain(m *testing.M) (int, error) {
 		defer os.RemoveAll(workDir)
 	}
 
+	// -buildmode=shared fundamentally does not work in module mode.
+	// (It tries to share package dependencies across builds, but in module mode
+	// each module has its own distinct set of dependency versions.)
+	// We would like to eliminate it (see https://go.dev/issue/47788),
+	// but first need to figure out a replacement that covers the small subset
+	// of use-cases where -buildmode=shared still works today.
+	// For now, run the tests in GOPATH mode only.
+	os.Setenv("GO111MODULE", "off")
+
 	// Some tests need to edit the source in GOPATH, so copy this directory to a
 	// temporary directory and chdir to that.
 	gopath := filepath.Join(workDir, "gopath")
@@ -519,6 +528,9 @@ func checkPIE(t *testing.T, name string) {
 }
 
 func TestTrivialPIE(t *testing.T) {
+	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-alpine") {
+		t.Skip("skipping on alpine until issue #54354 resolved")
+	}
 	name := "trivial_pie"
 	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./trivial")
 	defer os.Remove(name)
@@ -580,12 +592,12 @@ func testABIHashNote(t *testing.T, f *elf.File, note *note) {
 		return
 	}
 	for _, sym := range symbols {
-		if sym.Name == "go.link.abihashbytes" {
+		if sym.Name == "go:link.abihashbytes" {
 			hashbytes = sym
 		}
 	}
 	if hashbytes.Name == "" {
-		t.Errorf("no symbol called go.link.abihashbytes")
+		t.Errorf("no symbol called go:link.abihashbytes")
 		return
 	}
 	if elf.ST_BIND(hashbytes.Info) != elf.STB_LOCAL {

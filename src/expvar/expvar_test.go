@@ -261,6 +261,29 @@ func TestMapCounter(t *testing.T) {
 	}
 }
 
+func TestMapNil(t *testing.T) {
+	RemoveAll()
+	const key = "key"
+	m := NewMap("issue527719")
+	m.Set(key, nil)
+	s := m.String()
+	var j any
+	if err := json.Unmarshal([]byte(s), &j); err != nil {
+		t.Fatalf("m.String() == %q isn't valid JSON: %v", s, err)
+	}
+	m2, ok := j.(map[string]any)
+	if !ok {
+		t.Fatalf("m.String() produced %T, wanted a map", j)
+	}
+	v, ok := m2[key]
+	if !ok {
+		t.Fatalf("missing %q in %v", key, m2)
+	}
+	if v != nil {
+		t.Fatalf("m[%q] = %v, want nil", key, v)
+	}
+}
+
 func BenchmarkMapSet(b *testing.B) {
 	m := new(Map).Init()
 

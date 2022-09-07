@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix
+//go:build !js
 
 // DNS client: see RFC 1035.
 // Has to be linked into package net for Dial.
@@ -20,6 +20,7 @@ import (
 	"internal/itoa"
 	"io"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -53,7 +54,6 @@ var (
 func newRequest(q dnsmessage.Question, ad bool) (id uint16, udpReq, tcpReq []byte, err error) {
 	id = uint16(randInt())
 	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true, AuthenticData: ad})
-	b.EnableCompression()
 	if err := b.StartQuestions(); err != nil {
 		return 0, nil, nil, err
 	}
@@ -381,12 +381,21 @@ func (conf *resolverConfig) tryUpdate(name string) {
 	}
 	conf.lastChecked = now
 
-	var mtime time.Time
-	if fi, err := os.Stat(name); err == nil {
-		mtime = fi.ModTime()
-	}
-	if mtime.Equal(conf.dnsConfig.mtime) {
-		return
+	switch runtime.GOOS {
+	case "windows":
+		// There's no file on disk, so don't bother checking
+		// and failing.
+		//
+		// The Windows implementation of dnsReadConfig (called
+		// below) ignores the name.
+	default:
+		var mtime time.Time
+		if fi, err := os.Stat(name); err == nil {
+			mtime = fi.ModTime()
+		}
+		if mtime.Equal(conf.dnsConfig.mtime) {
+			return
+		}
 	}
 
 	dnsConf := dnsReadConfig(name)
@@ -472,7 +481,7 @@ func (conf *dnsConfig) nameList(name string) []string {
 	// Check name length (see isDomainName).
 	l := len(name)
 	rooted := l > 0 && name[l-1] == '.'
-	if l > 254 || l == 254 && rooted {
+	if l > 254 || l == 254 && !rooted {
 		return nil
 	}
 
@@ -660,7 +669,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 			// We asked for recursion, so it should have included all the
 			// answers we need in this one packet.
 			//
-			// Further, RFC 1035 section 4.3.1 says that "the recursive
+			// Further, RFC 1034 section 4.3.1 says that "the recursive
 			// response to a query will be... The answer to the query,
 			// possibly preface by one or more CNAME RRs that specify
 			// aliases encountered on the way to an answer."

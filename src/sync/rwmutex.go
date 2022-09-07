@@ -25,6 +25,14 @@ import (
 // recursive read locking. This is to ensure that the lock eventually becomes
 // available; a blocked Lock call excludes new readers from acquiring the
 // lock.
+//
+// In the terminology of the Go memory model,
+// the n'th call to Unlock “synchronizes before” the m'th call to Lock
+// for any n < m, just as for Mutex.
+// For any call to RLock, there exists an n such that
+// the n'th call to Unlock “synchronizes before” that call to RLock,
+// and the corresponding call to RUnlock “synchronizes before”
+// the n+1'th call to Lock.
 type RWMutex struct {
 	w           Mutex  // held if there are pending writers
 	writerSem   uint32 // semaphore for writers to wait for completing readers

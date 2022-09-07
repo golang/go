@@ -106,7 +106,7 @@ DATA	runtime·mainPC+0(SB)/8,$runtime·main<ABIInternal>(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
 TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
-	MOVD	R0, 0(R0) // TODO: TD
+	TW	$31, R0, R0
 	RET
 
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
@@ -334,6 +334,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	UNDEF
 
 TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
+	// Force SPWRITE. This function doesn't actually write SP,
+	// but it is called with a special calling convention where
+	// the caller doesn't save LR on stack but passes it as a
+	// register (R5), and the unwinder currently doesn't understand.
+	// Make it SPWRITE to stop unwinding. (See issue 54332)
+	MOVD	R1, R1
+
 	MOVD	R0, R11
 	BR	runtime·morestack(SB)
 

@@ -151,11 +151,10 @@ and test commands:
 		For example, when building with a non-standard configuration,
 		use -pkgdir to keep generated packages in a separate location.
 	-tags tag,list
-		a comma-separated list of build tags to consider satisfied during the
-		build. For more information about build tags, see the description of
-		build constraints in the documentation for the go/build package.
-		(Earlier versions of Go used a space-separated list, and that form
-		is deprecated but still recognized.)
+		a comma-separated list of additional build tags to consider satisfied
+		during the build. For more information about build tags, see
+		'go help buildconstraint'. (Earlier versions of Go used a
+		space-separated list, and that form is deprecated but still recognized.)
 	-trimpath
 		remove all file system paths from the resulting executable.
 		Instead of absolute file system paths, the recorded file names
@@ -404,10 +403,14 @@ var RuntimeVersion = runtime.Version()
 func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 	BuildInit()
-	var b Builder
-	b.Init()
+	b := NewBuilder("")
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}()
 
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: true}, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{AutoVCS: true}, args)
 	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
@@ -637,7 +640,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 
 	modload.InitWorkfile()
 	BuildInit()
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: true}, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{AutoVCS: true}, args)
 	if cfg.ModulesEnabled && !modload.HasModRoot() {
 		haveErrors := false
 		allMissingErrors := true
@@ -729,8 +732,13 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 	}
 	base.ExitIfErrors()
 
-	var b Builder
-	b.Init()
+	b := NewBuilder("")
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}()
+
 	depMode := ModeBuild
 	if cfg.BuildI {
 		depMode = ModeInstall

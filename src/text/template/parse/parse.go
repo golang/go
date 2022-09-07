@@ -224,8 +224,6 @@ func (t *Tree) startParse(funcs []map[string]any, lex *lexer, treeSet map[string
 	t.vars = []string{"$"}
 	t.funcs = funcs
 	t.treeSet = treeSet
-	lex.breakOK = !t.hasFunction("break")
-	lex.continueOK = !t.hasFunction("continue")
 }
 
 // stopParse terminates parsing.
@@ -244,7 +242,10 @@ func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tre
 	defer t.recover(&err)
 	t.ParseName = t.Name
 	emitComment := t.Mode&ParseComments != 0
-	t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim, emitComment), treeSet)
+	breakOK := !t.hasFunction("break")
+	continueOK := !t.hasFunction("continue")
+	lexer := lex(t.Name, text, leftDelim, rightDelim, emitComment, breakOK, continueOK)
+	t.startParse(funcs, lexer, treeSet)
 	t.text = text
 	t.parse()
 	t.add()

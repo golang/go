@@ -187,6 +187,10 @@ type proxyRepo struct {
 	url         *url.URL
 	path        string
 	redactedURL string
+
+	listLatestOnce sync.Once
+	listLatest     *RevInfo
+	listLatestErr  error
 }
 
 func newProxyRepo(baseURL, path string) (Repo, error) {
@@ -214,11 +218,17 @@ func newProxyRepo(baseURL, path string) (Repo, error) {
 	redactedURL := base.Redacted()
 	base.Path = strings.TrimSuffix(base.Path, "/") + "/" + enc
 	base.RawPath = strings.TrimSuffix(base.RawPath, "/") + "/" + pathEscape(enc)
-	return &proxyRepo{base, path, redactedURL}, nil
+	return &proxyRepo{base, path, redactedURL, sync.Once{}, nil, nil}, nil
 }
 
 func (p *proxyRepo) ModulePath() string {
 	return p.path
+}
+
+var errProxyReuse = fmt.Errorf("proxy does not support CheckReuse")
+
+func (p *proxyRepo) CheckReuse(old *codehost.Origin) error {
+	return errProxyReuse
 }
 
 // versionError returns err wrapped in a ModuleError for p.path.
@@ -275,48 +285,59 @@ func (p *proxyRepo) getBody(path string) (r io.ReadCloser, err error) {
 	return resp.Body, nil
 }
 
-func (p *proxyRepo) Versions(prefix string) ([]string, error) {
+func (p *proxyRepo) Versions(prefix string) (*Versions, error) {
 	data, err := p.getBytes("@v/list")
 	if err != nil {
+		p.listLatestOnce.Do(func() {
+			p.listLatest, p.listLatestErr = nil, p.versionError("", err)
+		})
 		return nil, p.versionError("", err)
 	}
 	var list []string
-	for _, line := range strings.Split(string(data), "\n") {
+	allLine := strings.Split(string(data), "\n")
+	for _, line := range allLine {
 		f := strings.Fields(line)
 		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) && !module.IsPseudoVersion(f[0]) {
 			list = append(list, f[0])
 		}
 	}
+	p.listLatestOnce.Do(func() {
+		p.listLatest, p.listLatestErr = p.latestFromList(allLine)
+	})
 	semver.Sort(list)
-	return list, nil
+	return &Versions{List: list}, nil
 }
 
 func (p *proxyRepo) latest() (*RevInfo, error) {
-	data, err := p.getBytes("@v/list")
-	if err != nil {
-		return nil, p.versionError("", err)
-	}
+	p.listLatestOnce.Do(func() {
+		data, err := p.getBytes("@v/list")
+		if err != nil {
+			p.listLatestErr = p.versionError("", err)
+			return
+		}
+		list := strings.Split(string(data), "\n")
+		p.listLatest, p.listLatestErr = p.latestFromList(list)
+	})
+	return p.listLatest, p.listLatestErr
+}
 
+func (p *proxyRepo) latestFromList(allLine []string) (*RevInfo, error) {
 	var (
-		bestTime             time.Time
-		bestTimeIsFromPseudo bool
-		bestVersion          string
+		bestTime    time.Time
+		bestVersion string
 	)
-
-	for _, line := range strings.Split(string(data), "\n") {
+	for _, line := range allLine {
 		f := strings.Fields(line)
 		if len(f) >= 1 && semver.IsValid(f[0]) {
 			// If the proxy includes timestamps, prefer the timestamp it reports.
 			// Otherwise, derive the timestamp from the pseudo-version.
 			var (
-				ft             time.Time
-				ftIsFromPseudo = false
+				ft time.Time
 			)
 			if len(f) >= 2 {
 				ft, _ = time.Parse(time.RFC3339, f[1])
 			} else if module.IsPseudoVersion(f[0]) {
 				ft, _ = module.PseudoVersionTime(f[0])
-				ftIsFromPseudo = true
 			} else {
 				// Repo.Latest promises that this method is only called where there are
 				// no tagged versions. Ignore any tagged versions that were added in the
@@ -325,7 +346,6 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 			}
 			if bestTime.Before(ft) {
 				bestTime = ft
-				bestTimeIsFromPseudo = ftIsFromPseudo
 				bestVersion = f[0]
 			}
 		}
@@ -334,22 +354,8 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 		return nil, p.versionError("", codehost.ErrNoCommits)
 	}
 
-	if bestTimeIsFromPseudo {
-		// We parsed bestTime from the pseudo-version, but that's in UTC and we're
-		// supposed to report the timestamp as reported by the VCS.
-		// Stat the selected version to canonicalize the timestamp.
-		//
-		// TODO(bcmills): Should we also stat other versions to ensure that we
-		// report the correct Name and Short for the revision?
-		return p.Stat(bestVersion)
-	}
-
-	return &RevInfo{
-		Version: bestVersion,
-		Name:    bestVersion,
-		Short:   bestVersion,
-		Time:    bestTime,
-	}, nil
+	// Call Stat to get all the other fields, including Origin information.
+	return p.Stat(bestVersion)
 }
 
 func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {

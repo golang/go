@@ -117,8 +117,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 				// Note: entry is not modified. It always refers to a real frame, not an inlined one.
 				f = nil
 				name = funcnameFromNameoff(funcInfo, inltree[ix].func_)
-				// File/line is already correct.
-				// TODO: remove file/line from InlinedCall?
+				// File/line from funcline1 below are already correct.
 			}
 		}
 		ci.frames = append(ci.frames, Frame{
@@ -393,7 +392,7 @@ const (
 
 // pcHeader holds data used by the pclntab lookups.
 type pcHeader struct {
-	magic          uint32  // 0xFFFFFFF0
+	magic          uint32  // 0xFFFFFFF1
 	pad1, pad2     uint8   // 0,0
 	minLC          uint8   // min instruction size
 	ptrSize        uint8   // size of a ptr in bytes
@@ -599,7 +598,7 @@ const debugPcln = false
 func moduledataverify1(datap *moduledata) {
 	// Check that the pclntab's format is valid.
 	hdr := datap.pcHeader
-	if hdr.magic != 0xfffffff0 || hdr.pad1 != 0 || hdr.pad2 != 0 ||
+	if hdr.magic != 0xfffffff1 || hdr.pad1 != 0 || hdr.pad2 != 0 ||
 		hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize || hdr.textStart != datap.text {
 		println("runtime: pcHeader: magic=", hex(hdr.magic), "pad1=", hdr.pad1, "pad2=", hdr.pad2,
 			"minLC=", hdr.minLC, "ptrSize=", hdr.ptrSize, "pcHeader.textStart=", hex(hdr.textStart),
@@ -902,7 +901,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 	}
 
 	if !f.valid() {
-		if strict && panicking == 0 {
+		if strict && panicking.Load() == 0 {
 			println("runtime: no module data for", hex(f.entry()))
 			throw("no module data")
 		}
@@ -945,7 +944,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 
 	// If there was a table, it should have covered all program counters.
 	// If not, something is wrong.
-	if panicking != 0 || !strict {
+	if panicking.Load() != 0 || !strict {
 		return -1, 0
 	}
 
@@ -1173,11 +1172,8 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
 
 // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
 type inlinedCall struct {
-	parent   int16  // index of parent in the inltree, or < 0
 	funcID   funcID // type of the called function
-	_        byte
-	file     int32 // perCU file index for inlined call. See cmd/link:pcln.go
-	line     int32 // line number of the call site
+	_        [3]byte
 	func_    int32 // offset into pclntab for name of called function
 	parentPc int32 // position of an instruction whose source position is the call site (offset from entry)
 }

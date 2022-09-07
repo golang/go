@@ -17,10 +17,10 @@ import (
 	"testing"
 )
 
-func parallelReader(m *RWMutex, clocked chan bool, cunlock *uint32, cdone chan bool) {
+func parallelReader(m *RWMutex, clocked chan bool, cunlock *atomic.Bool, cdone chan bool) {
 	m.RLock()
 	clocked <- true
-	for atomic.LoadUint32(cunlock) == 0 {
+	for !cunlock.Load() {
 	}
 	m.RUnlock()
 	cdone <- true
@@ -30,7 +30,7 @@ func doTestParallelReaders(numReaders int) {
 	GOMAXPROCS(numReaders + 1)
 	var m RWMutex
 	clocked := make(chan bool, numReaders)
-	var cunlock uint32
+	var cunlock atomic.Bool
 	cdone := make(chan bool)
 	for i := 0; i < numReaders; i++ {
 		go parallelReader(&m, clocked, &cunlock, cdone)
@@ -39,7 +39,7 @@ func doTestParallelReaders(numReaders int) {
 	for i := 0; i < numReaders; i++ {
 		<-clocked
 	}
-	atomic.StoreUint32(&cunlock, 1)
+	cunlock.Store(true)
 	// Wait for the goroutines to finish.
 	for i := 0; i < numReaders; i++ {
 		<-cdone

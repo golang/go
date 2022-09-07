@@ -18,8 +18,19 @@ The GOGC variable sets the initial garbage collection target percentage.
 A collection is triggered when the ratio of freshly allocated data to live data
 remaining after the previous collection reaches this percentage. The default
 is GOGC=100. Setting GOGC=off disables the garbage collector entirely.
-The runtime/debug package's SetGCPercent function allows changing this
-percentage at run time. See https://golang.org/pkg/runtime/debug/#SetGCPercent.
+[runtime/debug.SetGCPercent] allows changing this percentage at run time.
+
+The GOMEMLIMIT variable sets a soft memory limit for the runtime. This memory limit
+includes the Go heap and all other memory managed by the runtime, and excludes
+external memory sources such as mappings of the binary itself, memory managed in
+other languages, and memory held by the operating system on behalf of the Go
+program. GOMEMLIMIT is a numeric value in bytes with an optional unit suffix.
+The supported suffixes include B, KiB, MiB, GiB, and TiB. These suffixes
+represent quantities of bytes as defined by the IEC 80000-13 standard. That is,
+they are based on powers of two: KiB means 2^10 bytes, MiB means 2^20 bytes,
+and so on. The default setting is math.MaxInt64, which effectively disables the
+memory limit. [runtime/debug.SetMemoryLimit] allows changing this limit at run
+time.
 
 The GODEBUG variable controls debugging variables within the runtime.
 It is a comma-separated list of name=val pairs setting these named variables:
@@ -30,6 +41,12 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	clobberfree: setting clobberfree=1 causes the garbage collector to
 	clobber the memory content of an object with bad content when it frees
 	the object.
+
+	cpu.*: cpu.all=off disables the use of all optional instruction set extensions.
+	cpu.extension=off disables use of instructions from the specified instruction set extension.
+	extension is the lower case name for the instruction set extension such as sse41 or avx
+	as listed in internal/cpu package. As an example cpu.avx=off disables runtime detection
+	and thereby use of AVX instructions.
 
 	cgocheck: setting cgocheck=0 disables all checks for packages
 	using cgo to incorrectly pass Go pointers to non-Go code.
@@ -62,7 +79,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	error at each collection, summarizing the amount of memory collected and the
 	length of the pause. The format of this line is subject to change.
 	Currently, it is:
-		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # P
+		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # MB stacks, #MB globals, # P
 	where the fields are as follows:
 		gc #         the GC number, incremented at each GC
 		@#s          time in seconds since program start
@@ -101,7 +118,10 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	madvdontneed: setting madvdontneed=0 will use MADV_FREE
 	instead of MADV_DONTNEED on Linux when returning memory to the
 	kernel. This is more efficient, but means RSS numbers will
-	drop only when the OS is under memory pressure.
+	drop only when the OS is under memory pressure. On the BSDs and
+	Illumos/Solaris, setting madvdontneed=1 will use MADV_DONTNEED instead
+	of MADV_FREE. This is less efficient, but causes RSS numbers to drop
+	more quickly.
 
 	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
 	When set to 0 memory profiling is disabled.  Refer to the description of

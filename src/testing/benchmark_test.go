@@ -176,5 +176,8 @@ func ExampleB_ReportMetric() {
 		// This metric is per-operation, so divide by b.N and
 		// report it as a "/op" unit.
 		b.ReportMetric(float64(compares)/float64(b.N), "compares/op")
+		// This metric is per-time, so divide by b.Elapsed and
+		// report it as a "/ns" unit.
+		b.ReportMetric(float64(compares)/float64(b.Elapsed().Nanoseconds()), "compares/ns")
 	})
 }

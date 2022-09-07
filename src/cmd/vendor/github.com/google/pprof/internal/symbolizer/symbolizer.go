@@ -205,49 +205,64 @@ func Demangle(prof *profile.Profile, force bool, demanglerMode string) {
 		}
 	}
 
-	var options []demangle.Option
+	options := demanglerModeToOptions(demanglerMode)
+	for _, fn := range prof.Function {
+		demangleSingleFunction(fn, options)
+	}
+}
+
+func demanglerModeToOptions(demanglerMode string) []demangle.Option {
 	switch demanglerMode {
 	case "": // demangled, simplified: no parameters, no templates, no return type
-		options = []demangle.Option{demangle.NoParams, demangle.NoTemplateParams}
+		return []demangle.Option{demangle.NoParams, demangle.NoTemplateParams}
 	case "templates": // demangled, simplified: no parameters, no return type
-		options = []demangle.Option{demangle.NoParams}
+		return []demangle.Option{demangle.NoParams}
 	case "full":
-		options = []demangle.Option{demangle.NoClones}
+		return []demangle.Option{demangle.NoClones}
 	case "none": // no demangling
-		return
+		return []demangle.Option{}
 	}
 
+	panic(fmt.Sprintf("unknown demanglerMode %s", demanglerMode))
+}
+
+func demangleSingleFunction(fn *profile.Function, options []demangle.Option) {
+	if fn.Name != "" && fn.SystemName != fn.Name {
+		return // Already demangled.
+	}
 	// Copy the options because they may be updated by the call.
 	o := make([]demangle.Option, len(options))
-	for _, fn := range prof.Function {
-		if fn.Name != "" && fn.SystemName != fn.Name {
-			continue // Already demangled.
-		}
-		copy(o, options)
-		if demangled := demangle.Filter(fn.SystemName, o...); demangled != fn.SystemName {
-			fn.Name = demangled
-			continue
-		}
-		// Could not demangle. Apply heuristics in case the name is
-		// already demangled.
-		name := fn.SystemName
-		if looksLikeDemangledCPlusPlus(name) {
-			if demanglerMode == "" || demanglerMode == "templates" {
+	copy(o, options)
+	if demangled := demangle.Filter(fn.SystemName, o...); demangled != fn.SystemName {
+		fn.Name = demangled
+		return
+	}
+	// Could not demangle. Apply heuristics in case the name is
+	// already demangled.
+	name := fn.SystemName
+	if looksLikeDemangledCPlusPlus(name) {
+		for _, o := range options {
+			switch o {
+			case demangle.NoParams:
 				name = removeMatching(name, '(', ')')
-			}
-			if demanglerMode == "" {
+			case demangle.NoTemplateParams:
 				name = removeMatching(name, '<', '>')
 			}
 		}
-		fn.Name = name
 	}
+	fn.Name = name
 }
 
 // looksLikeDemangledCPlusPlus is a heuristic to decide if a name is
 // the result of demangling C++. If so, further heuristics will be
 // applied to simplify the name.
 func looksLikeDemangledCPlusPlus(demangled string) bool {
-	if strings.Contains(demangled, ".<") { // Skip java names of the form "class.<init>"
+	// Skip java names of the form "class.<init>".
+	if strings.Contains(demangled, ".<") {
+		return false
+	}
+	// Skip Go names of the form "foo.(*Bar[...]).Method".
+	if strings.Contains(demangled, "]).") {
 		return false
 	}
 	return strings.ContainsAny(demangled, "<>[]") || strings.Contains(demangled, "::")

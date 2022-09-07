@@ -419,9 +419,10 @@ const (
 	C_SBRA     /* A short offset argument to a branching instruction */
 	C_LBRA     /* A long offset argument to a branching instruction */
 	C_LBRAPIC  /* Like C_LBRA, but requires an extra NOP for potential TOC restore by the linker. */
-	C_ZOREG    /* An reg+reg memory arg, or a $0+reg memory op */
+	C_ZOREG    /* An $0+reg memory op */
 	C_SOREG    /* An $n+reg memory arg where n is a 16 bit signed offset */
 	C_LOREG    /* An $n+reg memory arg where n is a 32 bit signed offset */
+	C_XOREG    /* An reg+reg memory arg */
 	C_FPSCR    /* The fpscr register */
 	C_XER      /* The xer, holds the carry bit */
 	C_LR       /* The link register */

@@ -40,7 +40,7 @@ func MSanSupported(goos, goarch string) bool {
 func ASanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
-		return goarch == "arm64" || goarch == "amd64" || goarch == "riscv64"
+		return goarch == "arm64" || goarch == "amd64" || goarch == "riscv64" || goarch == "ppc64le"
 	default:
 		return false
 	}

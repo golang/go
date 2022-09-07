@@ -6,19 +6,7 @@
 
 package osinfo
 
-import (
-	"bytes"
-
-	"golang.org/x/sys/unix"
-)
-
-func utsString(b []byte) string {
-	i := bytes.IndexByte(b, 0)
-	if i == -1 {
-		return string(b)
-	}
-	return string(b[:i])
-}
+import "golang.org/x/sys/unix"
 
 // Version returns the OS version name/number.
 func Version() (string, error) {
@@ -27,10 +15,10 @@ func Version() (string, error) {
 		return "", err
 	}
 
-	sysname := utsString(uts.Sysname[:])
-	release := utsString(uts.Release[:])
-	version := utsString(uts.Version[:])
-	machine := utsString(uts.Machine[:])
+	sysname := unix.ByteSliceToString(uts.Sysname[:])
+	release := unix.ByteSliceToString(uts.Release[:])
+	version := unix.ByteSliceToString(uts.Version[:])
+	machine := unix.ByteSliceToString(uts.Machine[:])
 
 	return sysname + " " + release + " " + version + " " + machine, nil
 }

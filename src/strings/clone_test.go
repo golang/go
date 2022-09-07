@@ -5,7 +5,6 @@
 package strings_test
 
 import (
-	"reflect"
 	"strings"
 	"testing"
 	"unsafe"
@@ -27,15 +26,12 @@ func TestClone(t *testing.T) {
 			t.Errorf("Clone(%q) = %q; want %q", input, clone, input)
 		}
 
-		inputHeader := (*reflect.StringHeader)(unsafe.Pointer(&input))
-		cloneHeader := (*reflect.StringHeader)(unsafe.Pointer(&clone))
-		if len(input) != 0 && cloneHeader.Data == inputHeader.Data {
+		if len(input) != 0 && unsafe.StringData(clone) == unsafe.StringData(input) {
 			t.Errorf("Clone(%q) return value should not reference inputs backing memory.", input)
 		}
 
-		emptyHeader := (*reflect.StringHeader)(unsafe.Pointer(&emptyString))
-		if len(input) == 0 && cloneHeader.Data != emptyHeader.Data {
-			t.Errorf("Clone(%#v) return value should be equal to empty string.", inputHeader)
+		if len(input) == 0 && unsafe.StringData(clone) != unsafe.StringData(emptyString) {
+			t.Errorf("Clone(%#v) return value should be equal to empty string.", unsafe.StringData(input))
 		}
 	}
 }

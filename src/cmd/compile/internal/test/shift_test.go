@@ -1039,3 +1039,25 @@ func BenchmarkShiftArithmeticRight(b *testing.B) {
 	}
 	shiftSink64 = x
 }
+
+//go:noinline
+func incorrectRotate1(x, c uint64) uint64 {
+	// This should not compile to a rotate instruction.
+	return x<<c | x>>(64-c)
+}
+
+//go:noinline
+func incorrectRotate2(x uint64) uint64 {
+	var c uint64 = 66
+	// This should not compile to a rotate instruction.
+	return x<<c | x>>(64-c)
+}
+
+func TestIncorrectRotate(t *testing.T) {
+	if got := incorrectRotate1(1, 66); got != 0 {
+		t.Errorf("got %x want 0", got)
+	}
+	if got := incorrectRotate2(1); got != 0 {
+		t.Errorf("got %x want 0", got)
+	}
+}

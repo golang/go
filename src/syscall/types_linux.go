@@ -87,7 +87,7 @@ struct my_sockaddr_un {
 
 #ifdef __ARM_EABI__
 typedef struct user_regs PtraceRegs;
-#elif defined(__aarch64__) || defined(__loongarch64)
+#elif defined(__aarch64__)
 typedef struct user_pt_regs PtraceRegs;
 #elif defined(__powerpc64__)
 typedef struct pt_regs PtraceRegs;
@@ -182,6 +182,10 @@ type _Gid_t C.gid_t
 // Files
 
 type Stat_t C.struct_stat
+
+type statxTimestamp C.struct_statx_timestamp
+
+type statx_t C.struct_statx
 
 type Statfs_t C.struct_statfs
 
@@ -416,6 +420,9 @@ const (
 	_AT_REMOVEDIR        = C.AT_REMOVEDIR
 	_AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
 	_AT_EACCESS          = C.AT_EACCESS
+	_AT_EMPTY_PATH       = C.AT_EMPTY_PATH
+	_AT_NO_AUTOMOUNT     = C.AT_NO_AUTOMOUNT
+	_STATX_BASIC_STATS   = C.STATX_BASIC_STATS
 )
 
 type pollFd C.struct_pollfd

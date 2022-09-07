@@ -9,6 +9,7 @@ package net
 import (
 	"errors"
 	"internal/testenv"
+	"net/netip"
 	"os"
 	"reflect"
 	"runtime"
@@ -463,12 +464,9 @@ func TestAllocs(t *testing.T) {
 		// Plan9 wasn't optimized.
 		t.Skipf("skipping on %v", runtime.GOOS)
 	}
-	builder := os.Getenv("GO_BUILDER_NAME")
-	switch builder {
-	case "linux-amd64-noopt":
-		// Optimizations are required to remove the allocs.
-		t.Skipf("skipping on %v", builder)
-	}
+	// Optimizations are required to remove the allocs.
+	testenv.SkipIfOptimizationOff(t)
+
 	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
 	if err != nil {
 		t.Fatal(err)
@@ -620,5 +618,49 @@ func TestUDPIPVersionReadMsg(t *testing.T) {
 	}
 	if len(soldaddr.IP) != 4 {
 		t.Error("returned UDPAddr is not IPv4")
+	}
+}
+
+// TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion verifies that
+// WriteMsgUDPAddrPort accepts IPv4, IPv4-mapped IPv6, and IPv6 target addresses
+// on a UDPConn listening on "::".
+func TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
+	if !supportsIPv6() {
+		t.Skip("IPv6 is not supported")
+	}
+
+	switch runtime.GOOS {
+	case "dragonfly", "openbsd":
+		// DragonflyBSD's IPv6 sockets are always IPv6-only, according to the man page:
+		// https://www.dragonflybsd.org/cgi/web-man?command=ip6 (search for IPV6_V6ONLY).
+		// OpenBSD's IPv6 sockets are always IPv6-only, according to the man page:
+		// https://man.openbsd.org/ip6#IPV6_V6ONLY
+		t.Skipf("skipping on %v", runtime.GOOS)
+	}
+
+	conn, err := ListenUDP("udp", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	daddr4 := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 12345)
+	daddr4in6 := netip.AddrPortFrom(netip.MustParseAddr("::ffff:127.0.0.1"), 12345)
+	daddr6 := netip.AddrPortFrom(netip.MustParseAddr("::1"), 12345)
+	buf := make([]byte, 8)
+
+	_, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr4)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr4in6)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr6)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

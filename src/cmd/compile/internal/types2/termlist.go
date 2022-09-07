@@ -4,7 +4,7 @@
 
 package types2
 
-import "bytes"
+import "strings"
 
 // A termlist represents the type set represented by the union
 // t1 ∪ y2 ∪ ... tn of the type sets of the terms t1 to tn.
@@ -17,15 +17,18 @@ type termlist []*term
 // It is in normal form.
 var allTermlist = termlist{new(term)}
 
+// termSep is the separator used between individual terms.
+const termSep = " | "
+
 // String prints the termlist exactly (without normalization).
 func (xl termlist) String() string {
 	if len(xl) == 0 {
 		return "∅"
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i, x := range xl {
 		if i > 0 {
-			buf.WriteString(" ∪ ")
+			buf.WriteString(termSep)
 		}
 		buf.WriteString(x.String())
 	}

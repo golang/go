@@ -90,6 +90,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		IMAGE_FILE_MACHINE_ARM64,
 		IMAGE_FILE_MACHINE_ARMNT,
 		IMAGE_FILE_MACHINE_I386,
+		IMAGE_FILE_MACHINE_RISCV32,
+		IMAGE_FILE_MACHINE_RISCV64,
+		IMAGE_FILE_MACHINE_RISCV128,
 		IMAGE_FILE_MACHINE_UNKNOWN:
 		// ok
 	default:
@@ -322,7 +325,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
 		return nil, nil
 	}
 
-	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64 || f.Machine == IMAGE_FILE_MACHINE_ARM64
+	_, pe64 := f.OptionalHeader.(*OptionalHeader64)
 
 	// grab the number of data directory entries
 	var dd_length uint32
@@ -600,8 +603,8 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
 // its size and number of data directories as seen in optional header.
 // It parses the given size of bytes and returns given number of data directories.
 func readDataDirectories(r io.ReadSeeker, sz uint16, n uint32) ([]DataDirectory, error) {
-	ddSz := binary.Size(DataDirectory{})
-	if uint32(sz) != n*uint32(ddSz) {
+	ddSz := uint64(binary.Size(DataDirectory{}))
+	if uint64(sz) != uint64(n)*ddSz {
 		return nil, fmt.Errorf("size of data directories(%d) is inconsistent with number of data directories(%d)", sz, n)
 	}
 

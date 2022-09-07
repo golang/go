@@ -246,6 +246,15 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "some input objects have an unrecognized file format"
 	}
 
+	if len(dynimportfail) > 0 {
+		// This error means that we were unable to generate
+		// the _cgo_import.go file for some packages.
+		// This typically means that there are some dependencies
+		// that the cgo tool could not figure out.
+		// See issue #52863.
+		return true, fmt.Sprintf("some packages could not be built to support internal linking (%v)", dynimportfail)
+	}
+
 	return false, ""
 }
 

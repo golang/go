@@ -60,7 +60,7 @@ func TestEncode(t *testing.T) {
 
 func TestEncoder(t *testing.T) {
 	for _, p := range pairs {
-		bb := &bytes.Buffer{}
+		bb := &strings.Builder{}
 		encoder := NewEncoder(StdEncoding, bb)
 		encoder.Write([]byte(p.decoded))
 		encoder.Close()
@@ -71,7 +71,7 @@ func TestEncoder(t *testing.T) {
 func TestEncoderBuffering(t *testing.T) {
 	input := []byte(bigtest.decoded)
 	for bs := 1; bs <= 12; bs++ {
-		bb := &bytes.Buffer{}
+		bb := &strings.Builder{}
 		encoder := NewEncoder(StdEncoding, bb)
 		for pos := 0; pos < len(input); pos += bs {
 			end := pos + bs
@@ -737,7 +737,7 @@ func TestWithoutPaddingClose(t *testing.T) {
 	for _, encoding := range encodings {
 		for _, testpair := range pairs {
 
-			var buf bytes.Buffer
+			var buf strings.Builder
 			encoder := NewEncoder(encoding, &buf)
 			encoder.Write([]byte(testpair.decoded))
 			encoder.Close()

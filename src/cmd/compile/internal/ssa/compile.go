@@ -5,7 +5,6 @@
 package ssa
 
 import (
-	"bytes"
 	"cmd/internal/src"
 	"fmt"
 	"hash/crc32"
@@ -152,7 +151,7 @@ func Compile(f *Func) {
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		fmt.Fprintf(buf, "%s: ", f.Name)
 		for _, key := range keys {
 			fmt.Fprintf(buf, "%s=%d ", key, f.ruleMatches[key])

@@ -447,7 +447,7 @@ class GoroutinesCmd(gdb.Command):
 		# args = gdb.string_to_argv(arg)
 		vp = gdb.lookup_type('void').pointer()
 		for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
-			if ptr['atomicstatus'] == G_DEAD:
+			if ptr['atomicstatus']['value'] == G_DEAD:
 				continue
 			s = ' '
 			if ptr['m']:
@@ -455,7 +455,7 @@ class GoroutinesCmd(gdb.Command):
 			pc = ptr['sched']['pc'].cast(vp)
 			pc = pc_to_int(pc)
 			blk = gdb.block_for_pc(pc)
-			status = int(ptr['atomicstatus'])
+			status = int(ptr['atomicstatus']['value'])
 			st = sts.get(status, "unknown(%d)" % status)
 			print(s, ptr['goid'], "{0:8s}".format(st), blk.function)
 
@@ -472,7 +472,7 @@ def find_goroutine(goid):
 	"""
 	vp = gdb.lookup_type('void').pointer()
 	for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
-		if ptr['atomicstatus'] == G_DEAD:
+		if ptr['atomicstatus']['value'] == G_DEAD:
 			continue
 		if ptr['goid'] == goid:
 			break
@@ -480,7 +480,7 @@ def find_goroutine(goid):
 		return None, None
 	# Get the goroutine's saved state.
 	pc, sp = ptr['sched']['pc'], ptr['sched']['sp']
-	status = ptr['atomicstatus']&~G_SCAN
+	status = ptr['atomicstatus']['value']&~G_SCAN
 	# Goroutine is not running nor in syscall, so use the info in goroutine
 	if status != G_RUNNING and status != G_SYSCALL:
 		return pc.cast(vp), sp.cast(vp)

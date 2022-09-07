@@ -156,7 +156,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 	fns := make([]*wasmFunc, len(ctxt.Textp))
 	for i, fn := range ctxt.Textp {
 		wfn := new(bytes.Buffer)
-		if ldr.SymName(fn) == "go.buildid" {
+		if ldr.SymName(fn) == "go:buildid" {
 			writeUleb128(wfn, 0) // number of sets of locals
 			writeI32Const(wfn, 0)
 			wfn.WriteByte(0x0b) // end
@@ -248,7 +248,7 @@ func writeSecSize(ctxt *ld.Link, sizeOffset int64) {
 
 func writeBuildID(ctxt *ld.Link, buildid []byte) {
 	sizeOffset := writeSecHeader(ctxt, sectionCustom)
-	writeName(ctxt.Out, "go.buildid")
+	writeName(ctxt.Out, "go:buildid")
 	ctxt.Out.Write(buildid)
 	writeSecSize(ctxt, sizeOffset)
 }

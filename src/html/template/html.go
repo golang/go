@@ -176,7 +176,7 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 // stripTags takes a snippet of HTML and returns only the text content.
 // For example, `<b>&iexcl;Hi!</b> <script>...</script>` -> `&iexcl;Hi! `.
 func stripTags(html string) string {
-	var b bytes.Buffer
+	var b strings.Builder
 	s, c, i, allText := []byte(html), context{}, 0, true
 	// Using the transition funcs helps us avoid mangling
 	// `<div title="1>2">` or `I <3 Ponies!`.

@@ -15,6 +15,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"internal/buildcfg"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -1530,7 +1531,7 @@ func (ctxt *Link) doelf() {
 	if ctxt.IsShared() {
 		// The go.link.abihashbytes symbol will be pointed at the appropriate
 		// part of the .note.go.abihash section in data.go:func address().
-		s := ldr.LookupOrCreateSym("go.link.abihashbytes", 0)
+		s := ldr.LookupOrCreateSym("go:link.abihashbytes", 0)
 		sb := ldr.MakeSymbolUpdater(s)
 		ldr.SetAttrLocal(s, true)
 		sb.SetType(sym.SRODATA)
@@ -1782,6 +1783,16 @@ func asmbElf(ctxt *Link) {
 					}
 				} else {
 					interpreter = thearch.Linuxdynld
+					// If interpreter does not exist, try musl instead.
+					// This lets the same cmd/link binary work on
+					// both glibc-based and musl-based systems.
+					if _, err := os.Stat(interpreter); err != nil {
+						if musl := thearch.LinuxdynldMusl; musl != "" {
+							if _, err := os.Stat(musl); err == nil {
+								interpreter = musl
+							}
+						}
+					}
 				}
 
 			case objabi.Hfreebsd:

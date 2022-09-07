@@ -27,8 +27,8 @@ func TestASAN(t *testing.T) {
 	// -asan option must use a compatible version of ASan library, which requires that
 	// the gcc version is not less than 7 and the clang version is not less than 9,
 	// otherwise a segmentation fault will occur.
-	if !compilerRequiredAsanVersion() {
-		t.Skipf("skipping: too old version of compiler")
+	if !compilerRequiredAsanVersion(goos, goarch) {
+		t.Skipf("skipping on %s/%s: too old version of compiler", goos, goarch)
 	}
 
 	t.Parallel()

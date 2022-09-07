@@ -116,6 +116,7 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modindex"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
@@ -606,7 +607,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 	if pkg == "" {
 		if inWorkspaceMode() {
 			if mr := findModuleRoot(absDir); mr != "" {
-				return "", fmt.Errorf("directory %s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using go work use %s", base.ShortPath(absDir), base.ShortPath(mr))
+				return "", fmt.Errorf("directory %s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use %s", base.ShortPath(absDir), base.ShortPath(mr))
 			}
 			return "", fmt.Errorf("directory %s outside modules listed in go.work or their selected dependencies", base.ShortPath(absDir))
 		}
@@ -764,28 +765,6 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
 	}
 
 	return ".", module.Version{}
-}
-
-// ImportMap returns the actual package import path
-// for an import path found in source code.
-// If the given import path does not appear in the source code
-// for the packages that have been loaded, ImportMap returns the empty string.
-func ImportMap(path string) string {
-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
-	if !ok {
-		return ""
-	}
-	return pkg.path
-}
-
-// PackageDir returns the directory containing the source code
-// for the package named by the import path.
-func PackageDir(path string) string {
-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
-	if !ok {
-		return ""
-	}
-	return pkg.dir
 }
 
 // PackageModule returns the module providing the package named by the import path.
@@ -953,7 +932,7 @@ func (f loadPkgFlags) has(cond loadPkgFlags) bool {
 // An atomicLoadPkgFlags stores a loadPkgFlags for which individual flags can be
 // added atomically.
 type atomicLoadPkgFlags struct {
-	bits int32
+	bits atomic.Int32
 }
 
 // update sets the given flags in af (in addition to any flags already set).
@@ -962,9 +941,9 @@ type atomicLoadPkgFlags struct {
 // flags were newly-set.
 func (af *atomicLoadPkgFlags) update(flags loadPkgFlags) (old loadPkgFlags) {
 	for {
-		old := atomic.LoadInt32(&af.bits)
+		old := af.bits.Load()
 		new := old | int32(flags)
-		if new == old || atomic.CompareAndSwapInt32(&af.bits, old, new) {
+		if new == old || af.bits.CompareAndSwap(old, new) {
 			return loadPkgFlags(old)
 		}
 	}
@@ -972,7 +951,7 @@ func (af *atomicLoadPkgFlags) update(flags loadPkgFlags) (old loadPkgFlags) {
 
 // has reports whether all of the flags in cond are set in af.
 func (af *atomicLoadPkgFlags) has(cond loadPkgFlags) bool {
-	return loadPkgFlags(atomic.LoadInt32(&af.bits))&cond == cond
+	return loadPkgFlags(af.bits.Load())&cond == cond
 }
 
 // isTest reports whether pkg is a test of another package.
@@ -1401,7 +1380,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 				//
 				// In some sense, we can think of this as ‘upgraded the module providing
 				// pkg.path from "none" to a version higher than "none"’.
-				if _, _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
+				if _, _, _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
 					changed = true
 					break
 				}
@@ -1612,7 +1591,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 			// If the main module is tidy and the package is in "all" — or if we're
 			// lucky — we can identify all of its imports without actually loading the
 			// full module graph.
-			m, _, _, err := importFromModules(ctx, path, ld.requirements, nil)
+			m, _, _, _, err := importFromModules(ctx, path, ld.requirements, nil)
 			if err != nil {
 				var missing *ImportMissingError
 				if errors.As(err, &missing) && ld.ResolveMissingImports {
@@ -1699,7 +1678,8 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 		}
 	}
 
-	pkg.mod, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
+	var modroot string
+	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
 	if pkg.dir == "" {
 		return
 	}
@@ -1729,7 +1709,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 		// We can't scan standard packages for gccgo.
 	} else {
 		var err error
-		imports, testImports, err = scanDir(pkg.dir, ld.Tags)
+		imports, testImports, err = scanDir(modroot, pkg.dir, ld.Tags)
 		if err != nil {
 			pkg.err = err
 			return
@@ -1958,7 +1938,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 		pkg := pkg
 		ld.work.Add(func() {
-			mod, _, _, err := importFromModules(ctx, pkg.path, rs, mg)
+			mod, _, _, _, err := importFromModules(ctx, pkg.path, rs, mg)
 			if mod != pkg.mod {
 				mismatches := <-mismatchMu
 				mismatches[pkg] = mismatch{mod: mod, err: err}
@@ -2099,8 +2079,16 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 // during "go vendor", we look into "// +build appengine" files and
 // may see these legacy imports. We drop them so that the module
 // search does not look for modules to try to satisfy them.
-func scanDir(dir string, tags map[string]bool) (imports_, testImports []string, err error) {
+func scanDir(modroot string, dir string, tags map[string]bool) (imports_, testImports []string, err error) {
+	if ip, mierr := modindex.GetPackage(modroot, dir); mierr == nil {
+		imports_, testImports, err = ip.ScanDir(tags)
+		goto Happy
+	} else if !errors.Is(mierr, modindex.ErrNotIndexed) {
+		return nil, nil, mierr
+	}
+
 	imports_, testImports, err = imports.ScanDir(dir, tags)
+Happy:
 
 	filter := func(x []string) []string {
 		w := 0

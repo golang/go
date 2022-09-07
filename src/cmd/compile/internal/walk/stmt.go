@@ -89,10 +89,7 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.ODCL,
 		ir.ODCLCONST,
 		ir.ODCLTYPE,
-		ir.OCHECKNIL,
-		ir.OVARDEF,
-		ir.OVARKILL,
-		ir.OVARLIVE:
+		ir.OCHECKNIL:
 		return n
 
 	case ir.OBLOCK:
@@ -124,7 +121,7 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.GoDeferStmt)
 		return walkGoDefer(n)
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OFOR:
 		n := n.(*ir.ForStmt)
 		return walkFor(n)
 
@@ -178,7 +175,7 @@ func walkStmtList(s []ir.Node) {
 	}
 }
 
-// walkFor walks an OFOR or OFORUNTIL node.
+// walkFor walks an OFOR node.
 func walkFor(n *ir.ForStmt) ir.Node {
 	if n.Cond != nil {
 		init := ir.TakeInit(n.Cond)
@@ -188,9 +185,6 @@ func walkFor(n *ir.ForStmt) ir.Node {
 	}
 
 	n.Post = walkStmt(n.Post)
-	if n.Op() == ir.OFORUNTIL {
-		walkStmtList(n.Late)
-	}
 	walkStmtList(n.Body)
 	return n
 }

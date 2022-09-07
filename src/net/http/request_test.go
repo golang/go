@@ -815,7 +815,7 @@ func TestStarRequest(t *testing.T) {
 	clientReq := *req
 	clientReq.Body = nil
 
-	var out bytes.Buffer
+	var out strings.Builder
 	if err := clientReq.Write(&out); err != nil {
 		t.Fatal(err)
 	}
@@ -823,7 +823,7 @@ func TestStarRequest(t *testing.T) {
 	if strings.Contains(out.String(), "chunked") {
 		t.Error("wrote chunked request; want no body")
 	}
-	back, err := ReadRequest(bufio.NewReader(bytes.NewReader(out.Bytes())))
+	back, err := ReadRequest(bufio.NewReader(strings.NewReader(out.String())))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -835,7 +835,7 @@ func TestStarRequest(t *testing.T) {
 		t.Errorf("Original request doesn't match Request read back.")
 		t.Logf("Original: %#v", req)
 		t.Logf("Original.URL: %#v", req.URL)
-		t.Logf("Wrote: %s", out.Bytes())
+		t.Logf("Wrote: %s", out.String())
 		t.Logf("Read back (doesn't match Original): %#v", back)
 	}
 }
@@ -979,6 +979,12 @@ func TestMaxBytesReaderDifferentLimits(t *testing.T) {
 		9: {
 			limit:   100,
 			lenP:    6,
+			wantN:   len(testStr),
+			wantErr: false,
+		},
+		10: { /* Issue 54408 */
+			limit:   int64(1<<63 - 1),
+			lenP:    len(testStr),
 			wantN:   len(testStr),
 			wantErr: false,
 		},
@@ -1166,7 +1172,7 @@ func testMultipartFile(t *testing.T, req *Request, key, expectFilename, expectCo
 	if fh.Filename != expectFilename {
 		t.Errorf("filename = %q, want %q", fh.Filename, expectFilename)
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	_, err = io.Copy(&b, f)
 	if err != nil {
 		t.Fatal("copying contents:", err)
@@ -1175,6 +1181,47 @@ func testMultipartFile(t *testing.T, req *Request, key, expectFilename, expectCo
 		t.Errorf("contents = %q, want %q", g, expectContent)
 	}
 	return f
+}
+
+// Issue 53181: verify Request.Cookie return the correct Cookie.
+// Return ErrNoCookie instead of the first cookie when name is "".
+func TestRequestCookie(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		value       string
+		expectedErr error
+	}{
+		{
+			name:        "foo",
+			value:       "bar",
+			expectedErr: nil,
+		},
+		{
+			name:        "",
+			expectedErr: ErrNoCookie,
+		},
+	} {
+		req, err := NewRequest("GET", "http://example.com/", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.AddCookie(&Cookie{Name: tt.name, Value: tt.value})
+		c, err := req.Cookie(tt.name)
+		if err != tt.expectedErr {
+			t.Errorf("got %v, want %v", err, tt.expectedErr)
+		}
+
+		// skip if error occured.
+		if err != nil {
+			continue
+		}
+		if c.Value != tt.value {
+			t.Errorf("got %v, want %v", c.Value, tt.value)
+		}
+		if c.Name != tt.name {
+			t.Errorf("got %s, want %v", tt.name, c.Name)
+		}
+	}
 }
 
 const (

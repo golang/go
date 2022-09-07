@@ -241,6 +241,9 @@ Consequently, Facts must be serializable. The API requires that drivers
 use the gob encoding, an efficient, robust, self-describing binary
 protocol. A fact type may implement the GobEncoder/GobDecoder interfaces
 if the default encoding is unsuitable. Facts should be stateless.
+Because serialized facts may appear within build outputs, the gob encoding
+of a fact must be deterministic, to avoid spurious cache misses in
+build systems that use content-addressable caches.
 
 The Pass type has functions to import and export facts,
 associated either with an object or with a package:

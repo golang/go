@@ -126,6 +126,9 @@ func header(arch string) {
 		fmt.Fprintf(out, "//go:build %s || %sle\n\n", base, base)
 	}
 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
+	if arch == "amd64" {
+		fmt.Fprintf(out, "#include \"asm_amd64.h\"\n")
+	}
 	fmt.Fprintf(out, "#include \"textflag.h\"\n\n")
 	fmt.Fprintf(out, "TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0\n")
 }
@@ -267,8 +270,10 @@ func genAMD64() {
 	// Clear the upper bits to get to a clean state. See issue #37174.
 	// It is safe here as Go code don't use the upper bits of Y registers.
 	p("#ifdef GOOS_darwin")
+	p("#ifndef hasAVX")
 	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $0")
 	p("JE 2(PC)")
+	p("#endif")
 	p("VZEROUPPER")
 	p("#endif")
 

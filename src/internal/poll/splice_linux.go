@@ -5,10 +5,8 @@
 package poll
 
 import (
-	"internal/syscall/unix"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
@@ -19,7 +17,9 @@ const (
 
 	// maxSpliceSize is the maximum amount of data Splice asks
 	// the kernel to move in a single call to splice(2).
-	maxSpliceSize = 4 << 20
+	// We use 1MB as Splice writes data through a pipe, and 1MB is the default maximum pipe buffer size,
+	// which is determined by /proc/sys/fs/pipe-max-size.
+	maxSpliceSize = 1 << 20
 )
 
 // Splice transfers at most remain bytes of data from src to dst, using the
@@ -207,40 +207,21 @@ func putPipe(p *splicePipe) {
 	splicePipePool.Put(p)
 }
 
-var disableSplice unsafe.Pointer
-
 // newPipe sets up a pipe for a splice operation.
-func newPipe() (sp *splicePipe) {
-	p := (*bool)(atomic.LoadPointer(&disableSplice))
-	if p != nil && *p {
-		return nil
-	}
-
+func newPipe() *splicePipe {
 	var fds [2]int
-	// pipe2 was added in 2.6.27 and our minimum requirement is 2.6.23, so it
-	// might not be implemented. Falling back to pipe is possible, but prior to
-	// 2.6.29 splice returns -EAGAIN instead of 0 when the connection is
-	// closed.
-	const flags = syscall.O_CLOEXEC | syscall.O_NONBLOCK
-	if err := syscall.Pipe2(fds[:], flags); err != nil {
+	if err := syscall.Pipe2(fds[:], syscall.O_CLOEXEC|syscall.O_NONBLOCK); err != nil {
 		return nil
 	}
 
-	sp = &splicePipe{splicePipeFields: splicePipeFields{rfd: fds[0], wfd: fds[1]}}
+	// Splice will loop writing maxSpliceSize bytes from the source to the pipe,
+	// and then write those bytes from the pipe to the destination.
+	// Set the pipe buffer size to maxSpliceSize to optimize that.
+	// Ignore errors here, as a smaller buffer size will work,
+	// although it will require more system calls.
+	fcntl(fds[0], syscall.F_SETPIPE_SZ, maxSpliceSize)
 
-	if p == nil {
-		p = new(bool)
-		defer atomic.StorePointer(&disableSplice, unsafe.Pointer(p))
-
-		// F_GETPIPE_SZ was added in 2.6.35, which does not have the -EAGAIN bug.
-		if _, _, errno := syscall.Syscall(unix.FcntlSyscall, uintptr(fds[0]), syscall.F_GETPIPE_SZ, 0); errno != 0 {
-			*p = true
-			destroyPipe(sp)
-			return nil
-		}
-	}
-
-	return
+	return &splicePipe{splicePipeFields: splicePipeFields{rfd: fds[0], wfd: fds[1]}}
 }
 
 // destroyPipe destroys a pipe.

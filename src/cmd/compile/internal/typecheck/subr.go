@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
@@ -117,6 +118,13 @@ func ComputeAddrtaken(top []ir.Node) {
 		}
 		ir.Visit(n, doVisit)
 	}
+}
+
+// LinksymAddr returns a new expression that evaluates to the address
+// of lsym. typ specifies the type of the addressed memory.
+func LinksymAddr(pos src.XPos, lsym *obj.LSym, typ *types.Type) *ir.AddrExpr {
+	n := ir.NewLinksymExpr(pos, lsym, typ)
+	return Expr(NodAddrAt(pos, n)).(*ir.AddrExpr)
 }
 
 func NodNil() ir.Node {
@@ -293,24 +301,14 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 
 	n = convlit1(n, t, false, context)
 	if n.Type() == nil {
-		return n
+		base.Fatalf("cannot assign %v to %v", n, t)
+	}
+	if n.Type().IsUntyped() {
+		base.Fatalf("%L has untyped type", n)
 	}
 	if t.Kind() == types.TBLANK {
 		return n
 	}
-
-	// Convert ideal bool from comparison to plain bool
-	// if the next step is non-bool (like interface{}).
-	if n.Type() == types.UntypedBool && !t.IsBoolean() {
-		if n.Op() == ir.ONAME || n.Op() == ir.OLITERAL {
-			r := ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, n)
-			r.SetType(types.Types[types.TBOOL])
-			r.SetTypecheck(1)
-			r.SetImplicit(true)
-			n = r
-		}
-	}
-
 	if types.Identical(n.Type(), t) {
 		return n
 	}
@@ -382,6 +380,11 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
 			// Shape types implement things they have already
 			// been typechecked to implement, even if they
 			// don't have the methods for them.
+			return ir.OCONVIFACE, ""
+		}
+		if base.Debug.Unified != 0 && src.HasShape() {
+			// Unified IR uses OCONVIFACE for converting all derived types
+			// to interface type, not just type arguments themselves.
 			return ir.OCONVIFACE, ""
 		}
 		if implements(src, dst, &missing, &have, &ptr) {
@@ -468,15 +471,15 @@ func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 		return ir.OXXX, ""
 	}
 
-	// Conversions from regular to go:notinheap are not allowed
+	// Conversions from regular to not-in-heap are not allowed
 	// (unless it's unsafe.Pointer). These are runtime-specific
 	// rules.
-	// (a) Disallow (*T) to (*U) where T is go:notinheap but U isn't.
+	// (a) Disallow (*T) to (*U) where T is not-in-heap but U isn't.
 	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
 		why := fmt.Sprintf(":\n\t%v is incomplete (or unallocatable), but %v is not", dst.Elem(), src.Elem())
 		return ir.OXXX, why
 	}
-	// (b) Disallow string to []T where T is go:notinheap.
+	// (b) Disallow string to []T where T is not-in-heap.
 	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Kind() == types.ByteType.Kind() || dst.Elem().Kind() == types.RuneType.Kind()) {
 		why := fmt.Sprintf(":\n\t%v is incomplete (or unallocatable)", dst.Elem())
 		return ir.OXXX, why

@@ -24,10 +24,10 @@
 package types2
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
+	"strings"
 )
 
 // An Error describes a type-checking error; it implements the error interface.
@@ -128,9 +128,8 @@ type Config struct {
 	//          Do not use casually!
 	FakeImportC bool
 
-	// If IgnoreLabels is set, correct label use is not checked.
-	// TODO(gri) Consolidate label checking and remove this flag.
-	IgnoreLabels bool
+	// If IgnoreBranchErrors is set, branch/label errors are ignored.
+	IgnoreBranchErrors bool
 
 	// If CompilerErrorMessages is set, errors are reported using
 	// cmd/compile error strings to match $GOROOT/test errors.
@@ -389,7 +388,7 @@ type Initializer struct {
 }
 
 func (init *Initializer) String() string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i, lhs := range init.Lhs {
 		if i > 0 {
 			buf.WriteString(", ")
@@ -419,7 +418,8 @@ func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Packa
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
 //
-// The behavior of AssertableTo is undefined in two cases:
+// The behavior of AssertableTo is unspecified in three cases:
+//   - if T is Typ[Invalid]
 //   - if V is a generalized interface; i.e., an interface that may only be used
 //     as a type constraint in Go code
 //   - if T is an uninstantiated generic type
@@ -429,14 +429,14 @@ func AssertableTo(V *Interface, T Type) bool {
 	if T.Underlying() == Typ[Invalid] {
 		return false
 	}
-	return (*Checker)(nil).newAssertableTo(V, T) == nil
+	return (*Checker)(nil).newAssertableTo(V, T)
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable
 // of type T.
 //
-// The behavior of AssignableTo is undefined if V or T is an uninstantiated
-// generic type.
+// The behavior of AssignableTo is unspecified if V or T is Typ[Invalid] or an
+// uninstantiated generic type.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
 	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
@@ -446,8 +446,8 @@ func AssignableTo(V, T Type) bool {
 // ConvertibleTo reports whether a value of type V is convertible to a value of
 // type T.
 //
-// The behavior of ConvertibleTo is undefined if V or T is an uninstantiated
-// generic type.
+// The behavior of ConvertibleTo is unspecified if V or T is Typ[Invalid] or an
+// uninstantiated generic type.
 func ConvertibleTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
 	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
@@ -455,8 +455,8 @@ func ConvertibleTo(V, T Type) bool {
 
 // Implements reports whether type V implements interface T.
 //
-// The behavior of Implements is undefined if V is an uninstantiated generic
-// type.
+// The behavior of Implements is unspecified if V is Typ[Invalid] or an uninstantiated
+// generic type.
 func Implements(V Type, T *Interface) bool {
 	if T.Empty() {
 		// All types (even Typ[Invalid]) implement the empty interface.
@@ -467,7 +467,7 @@ func Implements(V Type, T *Interface) bool {
 	if V.Underlying() == Typ[Invalid] {
 		return false
 	}
-	return (*Checker)(nil).implements(V, T) == nil
+	return (*Checker)(nil).implements(V, T, nil)
 }
 
 // Identical reports whether x and y are identical types.

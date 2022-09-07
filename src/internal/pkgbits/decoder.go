@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"io"
 	"math/big"
 	"os"
 	"runtime"
@@ -18,6 +19,12 @@ import (
 // A PkgDecoder provides methods for decoding a package's Unified IR
 // export data.
 type PkgDecoder struct {
+	// version is the file format version.
+	version uint32
+
+	// sync indicates whether the file uses sync markers.
+	sync bool
+
 	// pkgPath is the package path for the package to be decoded.
 	//
 	// TODO(mdempsky): Remove; unneeded since CL 391014.
@@ -52,6 +59,9 @@ type PkgDecoder struct {
 // TODO(mdempsky): Remove; unneeded since CL 391014.
 func (pr *PkgDecoder) PkgPath() string { return pr.pkgPath }
 
+// SyncMarkers reports whether pr uses sync markers.
+func (pr *PkgDecoder) SyncMarkers() bool { return pr.sync }
+
 // NewPkgDecoder returns a PkgDecoder initialized to read the Unified
 // IR export data from input. pkgPath is the package path for the
 // compilation unit that produced the export data.
@@ -67,16 +77,25 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
 
 	r := strings.NewReader(input)
 
-	var version uint32
-	assert(binary.Read(r, binary.LittleEndian, &version) == nil)
-	assert(version == 0)
+	assert(binary.Read(r, binary.LittleEndian, &pr.version) == nil)
+
+	switch pr.version {
+	default:
+		panic(fmt.Errorf("unsupported version: %v", pr.version))
+	case 0:
+		// no flags
+	case 1:
+		var flags uint32
+		assert(binary.Read(r, binary.LittleEndian, &flags) == nil)
+		pr.sync = flags&flagSyncMarkers != 0
+	}
 
 	assert(binary.Read(r, binary.LittleEndian, pr.elemEndsEnds[:]) == nil)
 
 	pr.elemEnds = make([]uint32, pr.elemEndsEnds[len(pr.elemEndsEnds)-1])
 	assert(binary.Read(r, binary.LittleEndian, pr.elemEnds[:]) == nil)
 
-	pos, err := r.Seek(0, os.SEEK_CUR)
+	pos, err := r.Seek(0, io.SeekCurrent)
 	assert(err == nil)
 
 	pr.elemData = input[pos:]
@@ -156,9 +175,7 @@ func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx Index) Decoder {
 		Idx:    idx,
 	}
 
-	// TODO(mdempsky) r.data.Reset(...) after #44505 is resolved.
-	r.Data = *strings.NewReader(pr.DataIdx(k, idx))
-
+	r.Data.Reset(pr.DataIdx(k, idx))
 	r.Sync(SyncRelocs)
 	r.Relocs = make([]RelocEnt, r.Len())
 	for i := range r.Relocs {
@@ -215,11 +232,11 @@ func (r *Decoder) rawReloc(k RelocKind, idx int) Index {
 //
 // If EnableSync is false, then Sync is a no-op.
 func (r *Decoder) Sync(mWant SyncMarker) {
-	if !EnableSync {
+	if !r.common.sync {
 		return
 	}
 
-	pos, _ := r.Data.Seek(0, os.SEEK_CUR) // TODO(mdempsky): io.SeekCurrent after #44505 is resolved
+	pos, _ := r.Data.Seek(0, io.SeekCurrent)
 	mHave := SyncMarker(r.rawUvarint())
 	writerPCs := make([]int, r.rawUvarint())
 	for i := range writerPCs {

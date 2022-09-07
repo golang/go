@@ -22,7 +22,7 @@
 // Calls C function fn from libFuzzer and passes 2 arguments to it after
 // manipulating the return address so that libfuzzer's integer compare hooks
 // work.
-// The problem statment and solution are documented in detail in libfuzzer_amd64.s.
+// The problem statement and solution are documented in detail in libfuzzer_amd64.s.
 // See commentary there.
 TEXT	runtime·libfuzzerCallTraceIntCmp(SB), NOSPLIT, $8-32
 	MOVD	fn+0(FP), R9
@@ -43,8 +43,8 @@ TEXT	runtime·libfuzzerCallTraceIntCmp(SB), NOSPLIT, $8-32
 	MOVD	R12, RSP
 call:
 	// Load address of the ret sled into the default register for the return
-	// address (offset of four instructions, which means 16 bytes).
-	ADR	$16, R30
+	// address.
+	ADR	ret_sled, R30
 	// Clear the lowest 2 bits of fakePC. All ARM64 instructions are four
 	// bytes long, so we cannot get better return address granularity than
 	// multiples of 4.
@@ -60,8 +60,9 @@ call:
 // has the same byte length of 4 * 128 = 512 as the x86_64 sled, but
 // coarser granularity.
 #define RET_SLED \
-	JMP end_of_function;
+	JMP	end_of_function;
 
+ret_sled:
 	REPEAT_128(RET_SLED);
 
 end_of_function:

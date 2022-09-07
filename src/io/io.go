@@ -111,7 +111,8 @@ type Closer interface {
 // interpreted according to whence:
 // SeekStart means relative to the start of the file,
 // SeekCurrent means relative to the current offset, and
-// SeekEnd means relative to the end.
+// SeekEnd means relative to the end
+// (for example, offset = -2 specifies the penultimate byte of the file).
 // Seek returns the new offset relative to the start of the
 // file or an error, if any.
 //
@@ -455,26 +456,20 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 // LimitReader returns a Reader that reads from r
 // but stops with EOF after n bytes.
 // The underlying implementation is a *LimitedReader.
-func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n, nil} }
+func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
 
 // A LimitedReader reads from R but limits the amount of
 // data returned to just N bytes. Each call to Read
 // updates N to reflect the new amount remaining.
-// Read returns Err when N <= 0.
-// If Err is nil, it returns EOF instead.
+// Read returns EOF when N <= 0 or when the underlying R returns EOF.
 type LimitedReader struct {
-	R   Reader // underlying reader
-	N   int64  // max bytes remaining
-	Err error  // error to return on reaching the limit
+	R Reader // underlying reader
+	N int64  // max bytes remaining
 }
 
 func (l *LimitedReader) Read(p []byte) (n int, err error) {
 	if l.N <= 0 {
-		err := l.Err
-		if err == nil {
-			err = EOF
-		}
-		return 0, err
+		return 0, EOF
 	}
 	if int64(len(p)) > l.N {
 		p = p[0:l.N]
@@ -559,6 +554,46 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
 
 // Size returns the size of the section in bytes.
 func (s *SectionReader) Size() int64 { return s.limit - s.base }
+
+// An OffsetWriter maps writes at offset base to offset base+off in the underlying writer.
+type OffsetWriter struct {
+	w    WriterAt
+	base int64 // the original offset
+	off  int64 // the current offset
+}
+
+// NewOffsetWriter returns an OffsetWriter that writes to w
+// starting at offset off.
+func NewOffsetWriter(w WriterAt, off int64) *OffsetWriter {
+	return &OffsetWriter{w, off, off}
+}
+
+func (o *OffsetWriter) Write(p []byte) (n int, err error) {
+	n, err = o.w.WriteAt(p, o.off)
+	o.off += int64(n)
+	return
+}
+
+func (o *OffsetWriter) WriteAt(p []byte, off int64) (n int, err error) {
+	off += o.base
+	return o.w.WriteAt(p, off)
+}
+
+func (o *OffsetWriter) Seek(offset int64, whence int) (int64, error) {
+	switch whence {
+	default:
+		return 0, errWhence
+	case SeekStart:
+		offset += o.base
+	case SeekCurrent:
+		offset += o.off
+	}
+	if offset < o.base {
+		return 0, errOffset
+	}
+	o.off = offset
+	return offset - o.base, nil
+}
 
 // TeeReader returns a Reader that writes to w what it reads from r.
 // All reads from r performed through it are matched with

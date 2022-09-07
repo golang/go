@@ -12,7 +12,7 @@ import (
 )
 
 func TestP256PrecomputedTable(t *testing.T) {
-	base := NewP256Generator()
+	base := NewP256Point().SetGenerator()
 
 	for i := 0; i < 43; i++ {
 		t.Run(fmt.Sprintf("table[%d]", i), func(t *testing.T) {

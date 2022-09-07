@@ -24,7 +24,7 @@ func (out *OutBuf) fallocate(size uint64) error {
 	}
 	// F_PEOFPOSMODE allocates from the end of the file, so we want the size difference.
 	// Apparently, it uses the end of the allocation, instead of the logical end of the
-	// the file.
+	// file.
 	cursize := uint64(stat.Sys().(*syscall.Stat_t).Blocks * 512) // allocated size
 	if size <= cursize {
 		return nil

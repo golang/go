@@ -61,7 +61,7 @@ func InitSliceBytes(nam *ir.Name, off int64, s string) {
 }
 
 const (
-	stringSymPrefix  = "go.string."
+	stringSymPrefix  = "go:string."
 	stringSymPattern = ".gostring.%d.%s"
 )
 

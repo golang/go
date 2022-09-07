@@ -314,15 +314,8 @@ func defaultContext() Context {
 	}
 	c.GOPATH = envOr("GOPATH", defaultGOPATH())
 	c.Compiler = runtime.Compiler
+	c.ToolTags = append(c.ToolTags, buildcfg.ToolTags...)
 
-	// For each experiment that has been enabled in the toolchain, define a
-	// build tag with the same name but prefixed by "goexperiment." which can be
-	// used for compiling alternative files for the experiment. This allows
-	// changes for the experiment, like extra struct fields in the runtime,
-	// without affecting the base non-experiment code at all.
-	for _, exp := range buildcfg.Experiment.Enabled() {
-		c.ToolTags = append(c.ToolTags, "goexperiment."+exp)
-	}
 	defaultToolTags = append([]string{}, c.ToolTags...) // our own private copy
 
 	// Each major Go release in the Go 1.x series adds a new
@@ -715,6 +708,9 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				tried.goroot = dir
 			}
 			if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
+				// TODO(bcmills): Setting p.Dir here is misleading, because gccgo
+				// doesn't actually load its standard-library packages from this
+				// directory. See if we can leave it unset.
 				p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
 				p.Goroot = true
 				p.Root = ctxt.GOROOT
@@ -1883,11 +1879,13 @@ func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
 //	cgo (if cgo is enabled)
 //	$GOOS
 //	$GOARCH
-//	boringcrypto
 //	ctxt.Compiler
 //	linux (if GOOS = android)
 //	solaris (if GOOS = illumos)
-//	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
+//	darwin (if GOOS = ios)
+//	unix (if this is a Unix GOOS)
+//	boringcrypto (if GOEXPERIMENT=boringcrypto is enabled)
+//	tag (if tag is listed in ctxt.BuildTags, ctxt.ToolTags, or ctxt.ReleaseTags)
 //
 // It records all consulted tags in allTags.
 func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {

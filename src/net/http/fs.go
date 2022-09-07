@@ -541,6 +541,7 @@ func writeNotModified(w ResponseWriter) {
 	h := w.Header()
 	delete(h, "Content-Type")
 	delete(h, "Content-Length")
+	delete(h, "Content-Encoding")
 	if h.Get("Etag") != "" {
 		delete(h, "Last-Modified")
 	}
@@ -817,6 +818,7 @@ func (f ioFile) Readdir(count int) ([]fs.FileInfo, error) {
 
 // FS converts fsys to a FileSystem implementation,
 // for use with FileServer and NewFileTransport.
+// The files provided by fsys must implement io.Seeker.
 func FS(fsys fs.FS) FileSystem {
 	return ioFS{fsys}
 }
@@ -841,12 +843,22 @@ func FileServer(root FileSystem) Handler {
 }
 
 func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
-	upath := r.URL.Path
-	if !strings.HasPrefix(upath, "/") {
-		upath = "/" + upath
-		r.URL.Path = upath
+	const options = MethodOptions + ", " + MethodGet + ", " + MethodHead
+
+	switch r.Method {
+	case MethodGet, MethodHead:
+		if !strings.HasPrefix(r.URL.Path, "/") {
+			r.URL.Path = "/" + r.URL.Path
+		}
+		serveFile(w, r, f.root, path.Clean(r.URL.Path), true)
+
+	case MethodOptions:
+		w.Header().Set("Allow", options)
+
+	default:
+		w.Header().Set("Allow", options)
+		Error(w, "read-only", StatusMethodNotAllowed)
 	}
-	serveFile(w, r, f.root, path.Clean(upath), true)
 }
 
 // httpRange specifies the byte range to be sent to the client.

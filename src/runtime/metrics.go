@@ -7,14 +7,16 @@ package runtime
 // Metrics implementation exported to runtime/metrics.
 
 import (
-	"runtime/internal/atomic"
 	"unsafe"
 )
 
 var (
-	// metrics is a map of runtime/metrics keys to
-	// data used by the runtime to sample each metric's
-	// value.
+	// metrics is a map of runtime/metrics keys to data used by the runtime
+	// to sample each metric's value. metricsInit indicates it has been
+	// initialized.
+	//
+	// These fields are protected by metricsSema which should be
+	// locked/unlocked with metricsLock() / metricsUnlock().
 	metricsSema uint32 = 1
 	metricsInit bool
 	metrics     map[string]metricData
@@ -32,6 +34,23 @@ type metricData struct {
 	// compute is a function that populates a metricValue
 	// given a populated statAggregate structure.
 	compute func(in *statAggregate, out *metricValue)
+}
+
+func metricsLock() {
+	// Acquire the metricsSema but with handoff. Operations are typically
+	// expensive enough that queueing up goroutines and handing off between
+	// them will be noticeably better-behaved.
+	semacquire1(&metricsSema, true, 0, 0)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&metricsSema))
+	}
+}
+
+func metricsUnlock() {
+	if raceenabled {
+		racerelease(unsafe.Pointer(&metricsSema))
+	}
+	semrelease(&metricsSema)
 }
 
 // initMetrics initializes the metrics map if it hasn't been yet.
@@ -177,9 +196,9 @@ func initMetrics() {
 				// The bottom-most bucket, containing negative values, is tracked
 				// as a separately as underflow, so fill that in manually and then
 				// iterate over the rest.
-				hist.counts[0] = atomic.Load64(&memstats.gcPauseDist.underflow)
+				hist.counts[0] = memstats.gcPauseDist.underflow.Load()
 				for i := range memstats.gcPauseDist.counts {
-					hist.counts[i+1] = atomic.Load64(&memstats.gcPauseDist.counts[i])
+					hist.counts[i+1] = memstats.gcPauseDist.counts[i].Load()
 				}
 			},
 		},
@@ -307,9 +326,9 @@ func initMetrics() {
 		"/sched/latencies:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(timeHistBuckets)
-				hist.counts[0] = atomic.Load64(&sched.timeToRun.underflow)
+				hist.counts[0] = sched.timeToRun.underflow.Load()
 				for i := range sched.timeToRun.counts {
-					hist.counts[i+1] = atomic.Load64(&sched.timeToRun.counts[i])
+					hist.counts[i+1] = sched.timeToRun.counts[i].Load()
 				}
 			},
 		},
@@ -570,10 +589,7 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
 	sl := slice{samplesp, len, cap}
 	samples := *(*[]metricSample)(unsafe.Pointer(&sl))
 
-	// Acquire the metricsSema but with handoff. This operation
-	// is expensive enough that queueing up goroutines and handing
-	// off between them will be noticeably better-behaved.
-	semacquire1(&metricsSema, true, 0, 0)
+	metricsLock()
 
 	// Ensure the map is initialized.
 	initMetrics()
@@ -597,5 +613,5 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
 		data.compute(&agg, &sample.value)
 	}
 
-	semrelease(&metricsSema)
+	metricsUnlock()
 }

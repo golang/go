@@ -179,7 +179,27 @@ loop:
 	return
 }
 
-func (r *Resolver) lookupIP(ctx context.Context, _, host string) (addrs []IPAddr, err error) {
+// preferGoOverPlan9 reports whether the resolver should use the
+// "PreferGo" implementation rather than asking plan9 services
+// for the answers.
+func (r *Resolver) preferGoOverPlan9() bool {
+	conf := systemConf()
+	order := conf.hostLookupOrder(r, "") // name is unused
+
+	// TODO(bradfitz): for now we only permit use of the PreferGo
+	// implementation when there's a non-nil Resolver with a
+	// non-nil Dialer. This is a sign that they the code is trying
+	// to use their DNS-speaking net.Conn (such as an in-memory
+	// DNS cache) and they don't want to actually hit the network.
+	// Once we add support for looking the default DNS servers
+	// from plan9, though, then we can relax this.
+	return order != hostLookupCgo && r != nil && r.Dial != nil
+}
+
+func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
+	if r.preferGoOverPlan9() {
+		return r.goLookupIP(ctx, network, host)
+	}
 	lits, err := r.lookupHost(ctx, host)
 	if err != nil {
 		return
@@ -223,7 +243,10 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 	return 0, unknownPortError
 }
 
-func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+	if r.preferGoOverPlan9() {
+		return r.goLookupCNAME(ctx, name)
+	}
 	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
 		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
@@ -240,7 +263,10 @@ func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, er
 	return "", errors.New("bad response from ndb/dns")
 }
 
-func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
+func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
+	if r.preferGoOverPlan9() {
+		return r.goLookupSRV(ctx, service, proto, name)
+	}
 	var target string
 	if service == "" && proto == "" {
 		target = name
@@ -269,7 +295,10 @@ func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cn
 	return
 }
 
-func (*Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
+func (r *Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
+	if r.preferGoOverPlan9() {
+		return r.goLookupMX(ctx, name)
+	}
 	lines, err := queryDNS(ctx, name, "mx")
 	if err != nil {
 		return
@@ -287,7 +316,10 @@ func (*Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error
 	return
 }
 
-func (*Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
+func (r *Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
+	if r.preferGoOverPlan9() {
+		return r.goLookupNS(ctx, name)
+	}
 	lines, err := queryDNS(ctx, name, "ns")
 	if err != nil {
 		return
@@ -302,7 +334,10 @@ func (*Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error
 	return
 }
 
-func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err error) {
+func (r *Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err error) {
+	if r.preferGoOverPlan9() {
+		return r.goLookupTXT(ctx, name)
+	}
 	lines, err := queryDNS(ctx, name, "txt")
 	if err != nil {
 		return
@@ -315,7 +350,10 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err 
 	return
 }
 
-func (*Resolver) lookupAddr(ctx context.Context, addr string) (name []string, err error) {
+func (r *Resolver) lookupAddr(ctx context.Context, addr string) (name []string, err error) {
+	if r.preferGoOverPlan9() {
+		return r.goLookupPTR(ctx, addr)
+	}
 	arpa, err := reverseaddr(addr)
 	if err != nil {
 		return

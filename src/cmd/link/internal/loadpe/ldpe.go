@@ -551,7 +551,13 @@ func (state *peLoaderState) readpesym(pesym *pe.COFFSymbol) (*loader.SymbolBuild
 				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
 			}
 		}
-		if state.arch.Family == sys.I386 && name[0] == '_' {
+		// A note on the "_main" exclusion below: the main routine
+		// defined by the Go runtime is named "_main", not "main", so
+		// when reading references to _main from a host object we want
+		// to avoid rewriting "_main" to "main" in this specific
+		// instance. See #issuecomment-1143698749 on #35006 for more
+		// details on this problem.
+		if state.arch.Family == sys.I386 && name[0] == '_' && name != "_main" {
 			name = name[1:] // _Name => Name
 		}
 	}

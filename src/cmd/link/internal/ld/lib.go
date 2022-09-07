@@ -183,6 +183,7 @@ type Arch struct {
 
 	Androiddynld   string
 	Linuxdynld     string
+	LinuxdynldMusl string
 	Freebsddynld   string
 	Netbsddynld    string
 	Openbsddynld   string
@@ -343,6 +344,11 @@ var (
 	// the host compiler that is not from a package that is known
 	// to support internal linking mode.
 	externalobj = false
+
+	// dynimportfail is a list of packages for which generating
+	// the dynimport file, _cgo_import.go, failed. If there are
+	// any of these objects, we must link externally. Issue 52863.
+	dynimportfail []string
 
 	// unknownObjFormat is set to true if we see an object whose
 	// format we don't recognize.
@@ -647,6 +653,11 @@ func loadWindowsHostArchives(ctxt *Link) {
 				hostObject(ctxt, "crt2", p)
 			}
 		}
+		if *flagRace {
+			if p := ctxt.findLibPath("libsynchronization.a"); p != "none" {
+				hostArchive(ctxt, p)
+			}
+		}
 		if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
 			hostArchive(ctxt, p)
 		}
@@ -915,24 +926,24 @@ func (ctxt *Link) mangleTypeSym() {
 
 // typeSymbolMangle mangles the given symbol name into something shorter.
 //
-// Keep the type.. prefix, which parts of the linker (like the
+// Keep the type:. prefix, which parts of the linker (like the
 // DWARF generator) know means the symbol is not decodable.
-// Leave type.runtime. symbols alone, because other parts of
+// Leave type:runtime. symbols alone, because other parts of
 // the linker manipulates them.
 func typeSymbolMangle(name string) string {
-	if !strings.HasPrefix(name, "type.") {
+	if !strings.HasPrefix(name, "type:") {
 		return name
 	}
-	if strings.HasPrefix(name, "type.runtime.") {
+	if strings.HasPrefix(name, "type:runtime.") {
 		return name
 	}
 	if len(name) <= 14 && !strings.Contains(name, "@") { // Issue 19529
 		return name
 	}
 	hash := notsha256.Sum256([]byte(name))
-	prefix := "type."
+	prefix := "type:"
 	if name[5] == '.' {
-		prefix = "type.."
+		prefix = "type:."
 	}
 	return prefix + base64.StdEncoding.EncodeToString(hash[:6])
 }
@@ -1028,6 +1039,10 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 		// build modes.
 		if arhdr.name == pkgdef {
 			continue
+		}
+
+		if arhdr.name == "dynimportfail" {
+			dynimportfail = append(dynimportfail, lib.Pkg)
 		}
 
 		// Skip other special (non-object-file) sections that
@@ -1412,10 +1427,23 @@ func (ctxt *Link) hostlink() {
 				argv = append(argv, "-Wl,-pagezero_size,4000000")
 			}
 		}
+		if *flagRace && ctxt.HeadType == objabi.Hwindows {
+			// Current windows/amd64 race detector tsan support
+			// library can't handle PIE mode (see #53539 for more details).
+			// For now, explicitly disable PIE (since some compilers
+			// default to it) if -race is in effect.
+			argv = addASLRargs(argv, false)
+		}
 	case BuildModePIE:
 		switch ctxt.HeadType {
 		case objabi.Hdarwin, objabi.Haix:
 		case objabi.Hwindows:
+			if *flagAslr && *flagRace {
+				// Current windows/amd64 race detector tsan support
+				// library can't handle PIE mode (see #53539 for more details).
+				// Disable alsr if -race in effect.
+				*flagAslr = false
+			}
 			argv = addASLRargs(argv, *flagAslr)
 		default:
 			// ELF.
@@ -1463,12 +1491,12 @@ func (ctxt *Link) hostlink() {
 		// We force all symbol resolution to be done at program startup
 		// because lazy PLT resolution can use large amounts of stack at
 		// times we cannot allow it to do so.
-		argv = append(argv, "-Wl,-znow")
+		argv = append(argv, "-Wl,-z,now")
 
 		// Do not let the host linker generate COPY relocations. These
 		// can move symbols out of sections that rely on stable offsets
 		// from the beginning of the section (like sym.STYPE).
-		argv = append(argv, "-Wl,-znocopyreloc")
+		argv = append(argv, "-Wl,-z,nocopyreloc")
 
 		if buildcfg.GOOS == "android" {
 			// Use lld to avoid errors from default linker (issue #38838)
@@ -1695,6 +1723,11 @@ func (ctxt *Link) hostlink() {
 		if !usingLLD {
 			p := writeGDBLinkerScript()
 			argv = append(argv, "-Wl,-T,"+p)
+		}
+		if *flagRace {
+			if p := ctxt.findLibPath("libsynchronization.a"); p != "libsynchronization.a" {
+				argv = append(argv, "-lsynchronization")
+			}
 		}
 		// libmingw32 and libmingwex have some inter-dependencies,
 		// so must use linker groups.
@@ -2286,11 +2319,11 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			continue
 		}
 
-		// Symbols whose names start with "type." are compiler
-		// generated, so make functions with that prefix internal.
+		// Symbols whose names start with "type:" are compiler generated,
+		// so make functions with that prefix internal.
 		ver := 0
 		symname := elfsym.Name // (unmangled) symbol name
-		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
+		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type:") {
 			ver = abiInternalVer
 		} else if buildcfg.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
 			// Demangle the ABI name. Keep in sync with symtab.go:mangleABIName.
@@ -2324,7 +2357,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			// The decodetype_* functions in decodetype.go need access to
 			// the type data.
 			sname := l.SymName(s)
-			if strings.HasPrefix(sname, "type.") && !strings.HasPrefix(sname, "type..") {
+			if strings.HasPrefix(sname, "type:") && !strings.HasPrefix(sname, "type:.") {
 				su.SetData(readelfsymboldata(ctxt, f, &elfsym))
 			}
 		}

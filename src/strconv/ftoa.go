@@ -138,6 +138,9 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 				prec = 1
 			}
 			digits = prec
+		default:
+			// Invalid mode.
+			digits = 1
 		}
 		var buf [24]byte
 		if bitSize == 32 && digits <= 9 {

@@ -1,0 +1,1 @@
+pkg go/ast, type RangeStmt struct, Range token.Pos #50429

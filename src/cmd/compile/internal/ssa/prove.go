@@ -463,15 +463,23 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			if parent.Func.pass.debug > 1 {
 				parent.Func.Warnl(parent.Pos, "x+d %s w; x:%v %v delta:%v w:%v d:%v", r, x, parent.String(), delta, w.AuxInt, d)
 			}
+			underflow := true
+			if l, has := ft.limits[x.ID]; has && delta < 0 {
+				if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
+					(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
+					underflow = false
+				}
+			}
+			if delta < 0 && !underflow {
+				// If delta < 0 and x+delta cannot underflow then x > x+delta (that is, x > v)
+				ft.update(parent, x, v, signed, gt)
+			}
 			if !w.isGenericIntConst() {
 				// If we know that x+delta > w but w is not constant, we can derive:
-				//    if delta < 0 and x > MinInt - delta, then x > w (because x+delta cannot underflow)
+				//    if delta < 0 and x+delta cannot underflow, then x > w
 				// This is useful for loops with bounds "len(slice)-K" (delta = -K)
-				if l, has := ft.limits[x.ID]; has && delta < 0 {
-					if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
-						(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
-						ft.update(parent, x, w, signed, r)
-					}
+				if delta < 0 && !underflow {
+					ft.update(parent, x, w, signed, r)
 				}
 			} else {
 				// With w,delta constants, we want to derive: x+delta > w  ⇒  x > w-delta
@@ -834,6 +842,9 @@ func prove(f *Func) {
 			case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 				ft.update(b, v, v.Args[1], unsigned, lt|eq)
 				ft.update(b, v, v.Args[0], unsigned, lt|eq)
+			case OpOr64, OpOr32, OpOr16, OpOr8:
+				ft.update(b, v, v.Args[1], unsigned, gt|eq)
+				ft.update(b, v, v.Args[0], unsigned, gt|eq)
 			}
 		}
 	}
@@ -1099,8 +1110,7 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 // addLocalInductiveFacts adds inductive facts when visiting b, where
 // b is a join point in a loop. In contrast with findIndVar, this
 // depends on facts established for b, which is why it happens when
-// visiting b. addLocalInductiveFacts specifically targets the pattern
-// created by OFORUNTIL, which isn't detected by findIndVar.
+// visiting b.
 //
 // TODO: It would be nice to combine this with findIndVar.
 func addLocalInductiveFacts(ft *factsTable, b *Block) {

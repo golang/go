@@ -21,6 +21,7 @@ if [ ! -f ../bin/go ]; then
 	exit 1
 fi
 
+export GOENV=off
 eval $(../bin/go tool dist env)
 export GOROOT   # The api test requires GOROOT to be set, so set it to match ../bin/go.
 

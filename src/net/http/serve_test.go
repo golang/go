@@ -20,6 +20,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"mime/multipart"
 	"net"
 	. "net/http"
 	"net/http/httptest"
@@ -147,7 +148,7 @@ func newHandlerTest(h Handler) handlerTest {
 
 func (ht *handlerTest) rawResponse(req string) string {
 	reqb := reqBytes(req)
-	var output bytes.Buffer
+	var output strings.Builder
 	conn := &rwTestConn{
 		Reader: bytes.NewReader(reqb),
 		Writer: &output,
@@ -3491,6 +3492,37 @@ func TestOptions(t *testing.T) {
 	}
 }
 
+func TestOptionsHandler(t *testing.T) {
+	rc := make(chan *Request, 1)
+
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		rc <- r
+	}))
+	ts.Config.DisableGeneralOptionsHandler = true
+	ts.Start()
+	defer ts.Close()
+
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	_, err = conn.Write([]byte("OPTIONS * HTTP/1.1\r\nHost: foo.com\r\n\r\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case got := <-rc:
+		if got.Method != "OPTIONS" || got.RequestURI != "*" {
+			t.Errorf("Expected OPTIONS * request, got %v", got)
+		}
+	case <-time.After(5 * time.Second):
+		t.Error("timeout")
+	}
+}
+
 // Tests regarding the ordering of Write, WriteHeader, Header, and
 // Flush calls. In Go 1.0, rw.WriteHeader immediately flushed the
 // (*response).header to the wire. In Go 1.1, the actual wire flush is
@@ -3710,7 +3742,7 @@ func TestAcceptMaxFds(t *testing.T) {
 
 func TestWriteAfterHijack(t *testing.T) {
 	req := reqBytes("GET / HTTP/1.1\nHost: golang.org")
-	var buf bytes.Buffer
+	var buf strings.Builder
 	wrotec := make(chan bool, 1)
 	conn := &rwTestConn{
 		Reader: bytes.NewReader(req),
@@ -4512,7 +4544,7 @@ func TestNoContentLengthIfTransferEncoding(t *testing.T) {
 		t.Fatal(err)
 	}
 	bs := bufio.NewScanner(c)
-	var got bytes.Buffer
+	var got strings.Builder
 	for bs.Scan() {
 		if strings.TrimSpace(bs.Text()) == "" {
 			break
@@ -4601,7 +4633,7 @@ GET /should-be-ignored HTTP/1.1
 Host: foo
 
 `)
-	var buf bytes.Buffer
+	var buf strings.Builder
 	conn := &rwTestConn{
 		Reader: bytes.NewReader(req),
 		Writer: &buf,
@@ -5811,6 +5843,58 @@ func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
 	})
 }
 
+// Issue 54784: test that the Server's ReadHeaderTimeout only starts once the
+// beginning of a request has been received, rather than including time the
+// connection spent idle.
+func TestServerCancelsReadHeaderTimeoutWhenIdle(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	runTimeSensitiveTest(t, []time.Duration{
+		10 * time.Millisecond,
+		50 * time.Millisecond,
+		250 * time.Millisecond,
+		time.Second,
+		2 * time.Second,
+	}, func(t *testing.T, timeout time.Duration) error {
+		ts := httptest.NewUnstartedServer(serve(200))
+		ts.Config.ReadHeaderTimeout = timeout
+		ts.Config.IdleTimeout = 0 // disable idle timeout
+		ts.Start()
+		defer ts.Close()
+
+		// rather than using an http.Client, create a single connection, so that
+		// we can ensure this connection is not closed.
+		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+		if err != nil {
+			t.Fatalf("dial failed: %v", err)
+		}
+		br := bufio.NewReader(conn)
+		defer conn.Close()
+
+		if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")); err != nil {
+			t.Fatalf("writing first request failed: %v", err)
+		}
+
+		if _, err := ReadResponse(br, nil); err != nil {
+			t.Fatalf("first response (before timeout) failed: %v", err)
+		}
+
+		// wait for longer than the server's ReadHeaderTimeout, and then send
+		// another request
+		time.Sleep(timeout + 10*time.Millisecond)
+
+		if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")); err != nil {
+			t.Fatalf("writing second request failed: %v", err)
+		}
+
+		if _, err := ReadResponse(br, nil); err != nil {
+			t.Fatalf("second response (after timeout) failed: %v", err)
+		}
+
+		return nil
+	})
+}
+
 // runTimeSensitiveTest runs test with the provided durations until one passes.
 // If they all fail, t.Fatal is called with the last one's duration and error value.
 func runTimeSensitiveTest(t *testing.T, durations []time.Duration, test func(t *testing.T, d time.Duration) error) {
@@ -6245,6 +6329,7 @@ func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
 		"fugazi",
 		"foo-bar",
 		"unknown",
+		"\rchunked",
 	}
 
 	for _, badTE := range unsupportedTEs {
@@ -6426,7 +6511,7 @@ func TestTimeoutHandlerSuperfluousLogs(t *testing.T) {
 				exitHandler <- true
 			}
 
-			logBuf := new(bytes.Buffer)
+			logBuf := new(strings.Builder)
 			srvLog := log.New(logBuf, "", 0)
 			// When expecting to timeout, we'll keep the duration short.
 			dur := 20 * time.Millisecond
@@ -6636,7 +6721,7 @@ func testQuerySemicolon(t *testing.T, query string, wantX string, allowSemicolon
 	}
 
 	ts := httptest.NewUnstartedServer(h)
-	logBuf := &bytes.Buffer{}
+	logBuf := &strings.Builder{}
 	ts.Config.ErrorLog = log.New(logBuf, "", 0)
 	ts.Start()
 	defer ts.Close()
@@ -6755,5 +6840,70 @@ func TestProcessing(t *testing.T) {
 	expected := "HTTP/1.1 102 Processing\r\n\r\nHTTP/1.1 200 OK\r\nDate: " // dynamic content expected
 	if !strings.Contains(got, expected) {
 		t.Errorf("unexpected response; got %q; should start by %q", got, expected)
+	}
+}
+
+func TestParseFormCleanup_h1(t *testing.T) { testParseFormCleanup(t, h1Mode) }
+func TestParseFormCleanup_h2(t *testing.T) {
+	t.Skip("https://go.dev/issue/20253")
+	testParseFormCleanup(t, h2Mode)
+}
+
+func testParseFormCleanup(t *testing.T, h2 bool) {
+	const maxMemory = 1024
+	const key = "file"
+
+	if runtime.GOOS == "windows" {
+		// Windows sometimes refuses to remove a file that was just closed.
+		t.Skip("https://go.dev/issue/25965")
+	}
+
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		r.ParseMultipartForm(maxMemory)
+		f, _, err := r.FormFile(key)
+		if err != nil {
+			t.Errorf("r.FormFile(%q) = %v", key, err)
+			return
+		}
+		of, ok := f.(*os.File)
+		if !ok {
+			t.Errorf("r.FormFile(%q) returned type %T, want *os.File", key, f)
+			return
+		}
+		w.Write([]byte(of.Name()))
+	}))
+	defer cst.close()
+
+	fBuf := new(bytes.Buffer)
+	mw := multipart.NewWriter(fBuf)
+	mf, err := mw.CreateFormFile(key, "myfile.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mf.Write(bytes.Repeat([]byte("A"), maxMemory*2)); err != nil {
+		t.Fatal(err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req, err := NewRequest("POST", cst.ts.URL, fBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	fname, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cst.close()
+	if _, err := os.Stat(string(fname)); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("file %q exists after HTTP handler returned", string(fname))
 	}
 }

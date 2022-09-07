@@ -993,6 +993,9 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 	}
 	mainModulePaths := make(map[string]bool)
 	for _, m := range ms {
+		if mainModulePaths[m.Path] {
+			base.Errorf("go: module %s appears multiple times in workspace", m.Path)
+		}
 		mainModulePaths[m.Path] = true
 	}
 	replacedByWorkFile := make(map[string]bool)

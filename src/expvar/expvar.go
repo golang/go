@@ -118,7 +118,12 @@ func (v *Map) String() string {
 		if !first {
 			fmt.Fprintf(&b, ", ")
 		}
-		fmt.Fprintf(&b, "%q: %v", kv.Key, kv.Value)
+		fmt.Fprintf(&b, "%q: ", kv.Key)
+		if kv.Value != nil {
+			fmt.Fprintf(&b, "%v", kv.Value)
+		} else {
+			fmt.Fprint(&b, "null")
+		}
 		first = false
 	})
 	fmt.Fprintf(&b, "}")
@@ -224,7 +229,8 @@ func (v *Map) Do(f func(KeyValue)) {
 	defer v.keysMu.RUnlock()
 	for _, k := range v.keys {
 		i, _ := v.m.Load(k)
-		f(KeyValue{k, i.(Var)})
+		val, _ := i.(Var)
+		f(KeyValue{k, val})
 	}
 }
 

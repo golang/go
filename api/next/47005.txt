@@ -1,2 +1,0 @@
-pkg net/url, func JoinPath(string, ...string) (string, error) #47005
-pkg net/url, method (*URL) JoinPath(...string) *URL #47005

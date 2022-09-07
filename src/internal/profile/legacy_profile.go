@@ -192,14 +192,6 @@ func (p *Profile) remapMappingIDs() {
 		}
 	}
 
-	// Subtract the offset from the start of the main mapping if it
-	// ends up at a recognizable start address.
-	const expectedStart = 0x400000
-	if m := p.Mapping[0]; m.Start-m.Offset == expectedStart {
-		m.Start = expectedStart
-		m.Offset = 0
-	}
-
 	for _, l := range p.Location {
 		if a := l.Address; a != 0 {
 			for _, m := range p.Mapping {

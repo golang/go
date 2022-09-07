@@ -5,8 +5,6 @@
 package io_test
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -240,7 +238,7 @@ func ExampleSeeker_Seek() {
 func ExampleMultiWriter() {
 	r := strings.NewReader("some io.Reader stream to be read\n")
 
-	var buf1, buf2 bytes.Buffer
+	var buf1, buf2 strings.Builder
 	w := io.MultiWriter(&buf1, &buf2)
 
 	if _, err := io.Copy(w, r); err != nil {
@@ -283,17 +281,4 @@ func ExampleReadAll() {
 
 	// Output:
 	// Go is a general-purpose language designed with systems programming in mind.
-}
-
-func ExampleLimitedReader() {
-	r := strings.NewReader("some io.Reader stream to be read\n")
-	sentinel := errors.New("reached read limit")
-	lr := &io.LimitedReader{R: r, N: 4, Err: sentinel}
-
-	if _, err := io.Copy(os.Stdout, lr); err != sentinel {
-		log.Fatal(err)
-	}
-
-	// Output:
-	// some
 }

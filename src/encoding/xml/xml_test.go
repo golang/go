@@ -894,7 +894,7 @@ func TestEscapeTextInvalidChar(t *testing.T) {
 	input := []byte("A \x00 terminated string.")
 	expected := "A \uFFFD terminated string."
 
-	buff := new(bytes.Buffer)
+	buff := new(strings.Builder)
 	if err := EscapeText(buff, input); err != nil {
 		t.Fatalf("have %v, want nil", err)
 	}

@@ -691,10 +691,6 @@
 (RLLG x (MOVDconst [c])) => (RISBGZ x {s390x.NewRotateParams(0, 63, uint8(c&63))})
 (RLL  x (MOVDconst [c])) => (RLLconst x [uint8(c&31)])
 
-// Match rotate by constant pattern.
-((ADD|OR|XOR)  (SLDconst x [c]) (SRDconst x [64-c])) => (RISBGZ x {s390x.NewRotateParams(0, 63, c)})
-((ADD|OR|XOR)W (SLWconst x [c]) (SRWconst x [32-c])) => (RLLconst x [c])
-
 // Signed 64-bit comparison with immediate.
 (CMP x (MOVDconst [c])) && is32Bit(c) => (CMPconst x [int32(c)])
 (CMP (MOVDconst [c]) x) && is32Bit(c) => (InvertFlags (CMPconst x [int32(c)]))

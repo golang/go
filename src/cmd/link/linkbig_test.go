@@ -97,7 +97,7 @@ func TestLargeText(t *testing.T) {
 	}
 
 	// Build and run with external linking
-	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", "bigtext", "-ldflags", "'-linkmode=external'")
+	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", "bigtext", "-ldflags", "-linkmode=external")
 	cmd.Dir = tmpdir
 	out, err = cmd.CombinedOutput()
 	if err != nil {

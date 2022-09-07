@@ -12,7 +12,7 @@ package fiat
 func (e *P521Element) Invert(x *P521Element) *P521Element {
 	// Inversion is implemented as exponentiation with exponent p − 2.
 	// The sequence of 13 multiplications and 520 squarings is derived from the
-	// following addition chain generated with github.com/mmcloughlin/addchain v0.3.0.
+	// following addition chain generated with github.com/mmcloughlin/addchain v0.4.0.
 	//
 	//	_10       = 2*1
 	//	_11       = 1 + _10

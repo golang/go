@@ -13,6 +13,8 @@ package atomic
 // on this thread can be observed to occur before it.
 //
 // WARNING: Use sparingly and with great care.
+//
+//go:nosplit
 func (u *Uint64) LoadAcquire() uint64 {
 	return LoadAcq64(&u.value)
 }
@@ -24,6 +26,8 @@ func (u *Uint64) LoadAcquire() uint64 {
 // on this thread can be observed to occur after it.
 //
 // WARNING: Use sparingly and with great care.
+//
+//go:nosplit
 func (u *Uint64) StoreRelease(value uint64) {
 	StoreRel64(&u.value, value)
 }

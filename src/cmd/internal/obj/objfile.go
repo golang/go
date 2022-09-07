@@ -321,14 +321,14 @@ func (w *writer) Sym(s *LSym) {
 	if s.ReflectMethod() {
 		flag |= goobj.SymFlagReflectMethod
 	}
-	if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
+	if strings.HasPrefix(s.Name, "type:") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
 		flag |= goobj.SymFlagGoType
 	}
 	flag2 := uint8(0)
 	if s.UsedInIface() {
 		flag2 |= goobj.SymFlagUsedInIface
 	}
-	if strings.HasPrefix(s.Name, "go.itab.") && s.Type == objabi.SRODATA {
+	if strings.HasPrefix(s.Name, "go:itab.") && s.Type == objabi.SRODATA {
 		flag2 |= goobj.SymFlagItab
 	}
 	if strings.HasPrefix(s.Name, w.ctxt.Pkgpath) && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath):], ".") && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath)+1:], objabi.GlobalDictPrefix) {
@@ -351,10 +351,9 @@ func (w *writer) Sym(s *LSym) {
 		// TODO: maybe the compiler could set the alignment for all
 		// data symbols more carefully.
 		switch {
-		case strings.HasPrefix(s.Name, "go.string."),
-			strings.HasPrefix(name, "type..namedata."),
-			strings.HasPrefix(name, "type..importpath."),
-			strings.HasPrefix(name, "runtime.gcbits."),
+		case strings.HasPrefix(s.Name, "go:string."),
+			strings.HasPrefix(name, "type:.namedata."),
+			strings.HasPrefix(name, "type:.importpath."),
 			strings.HasSuffix(name, ".opendefer"),
 			strings.HasSuffix(name, ".arginfo0"),
 			strings.HasSuffix(name, ".arginfo1"),
@@ -430,9 +429,9 @@ func contentHashSection(s *LSym) byte {
 		strings.HasSuffix(name, ".wrapinfo") ||
 		strings.HasSuffix(name, ".args_stackmap") ||
 		strings.HasSuffix(name, ".stkobj") {
-		return 'F' // go.func.* or go.funcrel.*
+		return 'F' // go:func.* or go:funcrel.*
 	}
-	if strings.HasPrefix(name, "type.") {
+	if strings.HasPrefix(name, "type:") {
 		return 'T'
 	}
 	return 0
@@ -698,7 +697,6 @@ func nAuxSym(s *LSym) int {
 // generate symbols for FuncInfo.
 func genFuncInfoSyms(ctxt *Link) {
 	infosyms := make([]*LSym, 0, len(ctxt.Text))
-	hashedsyms := make([]*LSym, 0, 4*len(ctxt.Text))
 	var b bytes.Buffer
 	symidx := int32(len(ctxt.defs))
 	for _, s := range ctxt.Text {
@@ -760,7 +758,6 @@ func genFuncInfoSyms(ctxt *Link) {
 		}
 	}
 	ctxt.defs = append(ctxt.defs, infosyms...)
-	ctxt.hasheddefs = append(ctxt.hasheddefs, hashedsyms...)
 }
 
 func writeAuxSymDebug(ctxt *Link, par *LSym, aux *LSym) {

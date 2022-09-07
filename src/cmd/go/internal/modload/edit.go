@@ -509,7 +509,7 @@ func (l *versionLimiter) UpgradeToward(ctx context.Context, m module.Version) er
 	}
 
 	if l.check(m, l.pruning).isDisqualified() {
-		candidates, err := versions(ctx, m.Path, CheckAllowed)
+		candidates, _, err := versions(ctx, m.Path, CheckAllowed)
 		if err != nil {
 			// This is likely a transient error reaching the repository,
 			// rather than a permanent error with the retrieved version.

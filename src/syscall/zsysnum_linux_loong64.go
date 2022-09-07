@@ -82,8 +82,6 @@ const (
 	SYS_SPLICE                  = 76
 	SYS_TEE                     = 77
 	SYS_READLINKAT              = 78
-	SYS_FSTATAT                 = 79
-	SYS_FSTAT                   = 80
 	SYS_SYNC                    = 81
 	SYS_FSYNC                   = 82
 	SYS_FDATASYNC               = 83
@@ -305,4 +303,5 @@ const (
 	SYS_LANDLOCK_RESTRICT_SELF  = 446
 	SYS_PROCESS_MRELEASE        = 448
 	SYS_FUTEX_WAITV             = 449
+	SYS_SET_MEMPOLICY_HOME_NODE = 450
 )

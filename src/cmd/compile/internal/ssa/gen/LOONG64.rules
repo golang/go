@@ -111,8 +111,8 @@
 // rotates
 (RotateLeft8 <t> x (MOVVconst [c])) => (Or8 (Lsh8x64 <t> x (MOVVconst [c&7])) (Rsh8Ux64 <t> x (MOVVconst [-c&7])))
 (RotateLeft16 <t> x (MOVVconst [c])) => (Or16 (Lsh16x64 <t> x (MOVVconst [c&15])) (Rsh16Ux64 <t> x (MOVVconst [-c&15])))
-(RotateLeft32 <t> x (MOVVconst [c])) => (Or32 (Lsh32x64 <t> x (MOVVconst [c&31])) (Rsh32Ux64 <t> x (MOVVconst [-c&31])))
-(RotateLeft64 <t> x (MOVVconst [c])) => (Or64 (Lsh64x64 <t> x (MOVVconst [c&63])) (Rsh64Ux64 <t> x (MOVVconst [-c&63])))
+(RotateLeft32 x y) => (ROTR  x (NEGV <y.Type> y))
+(RotateLeft64 x y) => (ROTRV x (NEGV <y.Type> y))
 
 // unary ops
 (Neg(64|32|16|8) ...) => (NEGV ...)
@@ -572,6 +572,8 @@
 (SLLV x (MOVVconst [c])) => (SLLVconst x [c])
 (SRLV x (MOVVconst [c])) => (SRLVconst x [c])
 (SRAV x (MOVVconst [c])) => (SRAVconst x [c])
+(ROTR x (MOVVconst [c]))  => (ROTRconst x [c&31])
+(ROTRV x (MOVVconst [c])) => (ROTRVconst x [c&63])
 
 (SGT  (MOVVconst [c]) x) && is32Bit(c) => (SGTconst  [c] x)
 (SGTU (MOVVconst [c]) x) && is32Bit(c) => (SGTUconst [c] x)

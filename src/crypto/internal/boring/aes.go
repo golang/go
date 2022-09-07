@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
-// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
+//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
 
 package boring
 
@@ -72,9 +71,6 @@ type extraModes interface {
 	NewCBCDecrypter(iv []byte) cipher.BlockMode
 	NewCTR(iv []byte) cipher.Stream
 	NewGCM(nonceSize, tagSize int) (cipher.AEAD, error)
-
-	// Invented for BoringCrypto.
-	NewGCMTLS() (cipher.AEAD, error)
 }
 
 var _ extraModes = (*aesCipher)(nil)
@@ -235,8 +231,8 @@ func (c *aesCipher) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 	return c.newGCM(false)
 }
 
-func (c *aesCipher) NewGCMTLS() (cipher.AEAD, error) {
-	return c.newGCM(true)
+func NewGCMTLS(c cipher.Block) (cipher.AEAD, error) {
+	return c.(*aesCipher).newGCM(true)
 }
 
 func (c *aesCipher) newGCM(tls bool) (cipher.AEAD, error) {

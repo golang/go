@@ -24,7 +24,15 @@ import (
 	"sync"
 )
 
+var buildInitStarted = false
+
 func BuildInit() {
+	if buildInitStarted {
+		base.Fatalf("go: internal error: work.BuildInit called more than once")
+	}
+	buildInitStarted = true
+	base.AtExit(closeBuilders)
+
 	modload.Init()
 	instrumentInit()
 	buildModeInit()
@@ -211,7 +219,11 @@ func buildModeInit() {
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
 		case "windows":
-			ldBuildmode = "pie"
+			if cfg.BuildRace {
+				ldBuildmode = "exe"
+			} else {
+				ldBuildmode = "pie"
+			}
 		case "ios":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"

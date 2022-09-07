@@ -1908,10 +1908,10 @@ func TestAddrStringAllocs(t *testing.T) {
 		{"ipv4-in-ipv6", MustParseAddr("::ffff:192.168.1.1"), 1},
 		{"ipv4-in-ipv6+zone", MustParseAddr("::ffff:192.168.1.1%eth0"), 1},
 	}
-	isNooptBuilder := strings.HasSuffix(testenv.Builder(), "-noopt")
+	optimizationOff := testenv.OptimizationOff()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if isNooptBuilder && strings.HasPrefix(tc.name, "ipv4-in-ipv6") {
+			if optimizationOff && strings.HasPrefix(tc.name, "ipv4-in-ipv6") {
 				// Optimizations are required to remove some allocs.
 				t.Skipf("skipping on %v", testenv.Builder())
 			}

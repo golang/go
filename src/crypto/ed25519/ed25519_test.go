@@ -12,6 +12,7 @@ import (
 	"crypto/internal/boring"
 	"crypto/rand"
 	"encoding/hex"
+	"internal/testenv"
 	"os"
 	"strings"
 	"testing"
@@ -190,9 +191,8 @@ func TestAllocations(t *testing.T) {
 	if boring.Enabled {
 		t.Skip("skipping allocations test with BoringCrypto")
 	}
-	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
-		t.Skip("skipping allocations test without relevant optimizations")
-	}
+	testenv.SkipIfOptimizationOff(t)
+
 	if allocs := testing.AllocsPerRun(100, func() {
 		seed := make([]byte, SeedSize)
 		message := []byte("Hello, world!")

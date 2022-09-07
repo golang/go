@@ -8,12 +8,11 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/subtle"
+	"crypto/internal/alias"
+	"crypto/internal/boring"
 	"internal/cpu"
 	"internal/goarch"
 )
-
-import "crypto/internal/boring"
 
 // defined in asm_*.s
 
@@ -76,7 +75,7 @@ func (c *aesCipherAsm) Encrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
 	encryptBlockAsm(len(c.enc)/4-1, &c.enc[0], &dst[0], &src[0])
@@ -90,7 +89,7 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
 	decryptBlockAsm(len(c.dec)/4-1, &c.dec[0], &dst[0], &src[0])

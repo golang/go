@@ -945,6 +945,9 @@ type PerfEventAttr struct {
 	Aux_watermark      uint32
 	Sample_max_stack   uint16
 	_                  uint16
+	Aux_sample_size    uint32
+	_                  uint32
+	Sig_data           uint64
 }
 
 type PerfEventMmapPage struct {
@@ -1127,7 +1130,9 @@ const (
 	PERF_BR_SYSRET                        = 0x8
 	PERF_BR_COND_CALL                     = 0x9
 	PERF_BR_COND_RET                      = 0xa
-	PERF_BR_MAX                           = 0xb
+	PERF_BR_ERET                          = 0xb
+	PERF_BR_IRQ                           = 0xc
+	PERF_BR_MAX                           = 0xd
 	PERF_SAMPLE_REGS_ABI_NONE             = 0x0
 	PERF_SAMPLE_REGS_ABI_32               = 0x1
 	PERF_SAMPLE_REGS_ABI_64               = 0x2
@@ -1461,6 +1466,11 @@ const (
 	IFLA_ALT_IFNAME                            = 0x35
 	IFLA_PERM_ADDRESS                          = 0x36
 	IFLA_PROTO_DOWN_REASON                     = 0x37
+	IFLA_PARENT_DEV_NAME                       = 0x38
+	IFLA_PARENT_DEV_BUS_NAME                   = 0x39
+	IFLA_GRO_MAX_SIZE                          = 0x3a
+	IFLA_TSO_MAX_SIZE                          = 0x3b
+	IFLA_TSO_MAX_SEGS                          = 0x3c
 	IFLA_PROTO_DOWN_REASON_UNSPEC              = 0x0
 	IFLA_PROTO_DOWN_REASON_MASK                = 0x1
 	IFLA_PROTO_DOWN_REASON_VALUE               = 0x2
@@ -2969,7 +2979,7 @@ const (
 	DEVLINK_CMD_TRAP_POLICER_NEW                       = 0x47
 	DEVLINK_CMD_TRAP_POLICER_DEL                       = 0x48
 	DEVLINK_CMD_HEALTH_REPORTER_TEST                   = 0x49
-	DEVLINK_CMD_MAX                                    = 0x4d
+	DEVLINK_CMD_MAX                                    = 0x51
 	DEVLINK_PORT_TYPE_NOTSET                           = 0x0
 	DEVLINK_PORT_TYPE_AUTO                             = 0x1
 	DEVLINK_PORT_TYPE_ETH                              = 0x2
@@ -3198,7 +3208,7 @@ const (
 	DEVLINK_ATTR_RATE_NODE_NAME                        = 0xa8
 	DEVLINK_ATTR_RATE_PARENT_NODE_NAME                 = 0xa9
 	DEVLINK_ATTR_REGION_MAX_SNAPSHOTS                  = 0xaa
-	DEVLINK_ATTR_MAX                                   = 0xaa
+	DEVLINK_ATTR_MAX                                   = 0xae
 	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_NONE              = 0x0
 	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_IFINDEX           = 0x1
 	DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT               = 0x0
@@ -3638,7 +3648,11 @@ const (
 	ETHTOOL_A_RINGS_RX_MINI                   = 0x7
 	ETHTOOL_A_RINGS_RX_JUMBO                  = 0x8
 	ETHTOOL_A_RINGS_TX                        = 0x9
-	ETHTOOL_A_RINGS_MAX                       = 0xa
+	ETHTOOL_A_RINGS_RX_BUF_LEN                = 0xa
+	ETHTOOL_A_RINGS_TCP_DATA_SPLIT            = 0xb
+	ETHTOOL_A_RINGS_CQE_SIZE                  = 0xc
+	ETHTOOL_A_RINGS_TX_PUSH                   = 0xd
+	ETHTOOL_A_RINGS_MAX                       = 0xd
 	ETHTOOL_A_CHANNELS_UNSPEC                 = 0x0
 	ETHTOOL_A_CHANNELS_HEADER                 = 0x1
 	ETHTOOL_A_CHANNELS_RX_MAX                 = 0x2
@@ -4323,7 +4337,7 @@ const (
 	NL80211_ATTR_MAC_HINT                                   = 0xc8
 	NL80211_ATTR_MAC_MASK                                   = 0xd7
 	NL80211_ATTR_MAX_AP_ASSOC_STA                           = 0xca
-	NL80211_ATTR_MAX                                        = 0x135
+	NL80211_ATTR_MAX                                        = 0x137
 	NL80211_ATTR_MAX_CRIT_PROT_DURATION                     = 0xb4
 	NL80211_ATTR_MAX_CSA_COUNTERS                           = 0xce
 	NL80211_ATTR_MAX_MATCH_SETS                             = 0x85
@@ -4549,7 +4563,7 @@ const (
 	NL80211_BAND_IFTYPE_ATTR_HE_CAP_PHY                     = 0x3
 	NL80211_BAND_IFTYPE_ATTR_HE_CAP_PPE                     = 0x5
 	NL80211_BAND_IFTYPE_ATTR_IFTYPES                        = 0x1
-	NL80211_BAND_IFTYPE_ATTR_MAX                            = 0x7
+	NL80211_BAND_IFTYPE_ATTR_MAX                            = 0xb
 	NL80211_BAND_S1GHZ                                      = 0x4
 	NL80211_BITRATE_ATTR_2GHZ_SHORTPREAMBLE                 = 0x2
 	NL80211_BITRATE_ATTR_MAX                                = 0x2
@@ -4887,7 +4901,7 @@ const (
 	NL80211_FREQUENCY_ATTR_GO_CONCURRENT                    = 0xf
 	NL80211_FREQUENCY_ATTR_INDOOR_ONLY                      = 0xe
 	NL80211_FREQUENCY_ATTR_IR_CONCURRENT                    = 0xf
-	NL80211_FREQUENCY_ATTR_MAX                              = 0x19
+	NL80211_FREQUENCY_ATTR_MAX                              = 0x1b
 	NL80211_FREQUENCY_ATTR_MAX_TX_POWER                     = 0x6
 	NL80211_FREQUENCY_ATTR_NO_10MHZ                         = 0x11
 	NL80211_FREQUENCY_ATTR_NO_160MHZ                        = 0xc
@@ -5254,7 +5268,7 @@ const (
 	NL80211_RATE_INFO_HE_RU_ALLOC_52                        = 0x1
 	NL80211_RATE_INFO_HE_RU_ALLOC_996                       = 0x5
 	NL80211_RATE_INFO_HE_RU_ALLOC                           = 0x11
-	NL80211_RATE_INFO_MAX                                   = 0x11
+	NL80211_RATE_INFO_MAX                                   = 0x16
 	NL80211_RATE_INFO_MCS                                   = 0x2
 	NL80211_RATE_INFO_SHORT_GI                              = 0x4
 	NL80211_RATE_INFO_VHT_MCS                               = 0x6
@@ -5587,4 +5601,9 @@ const (
 	FR_ACT_BLACKHOLE       = 0x6
 	FR_ACT_UNREACHABLE     = 0x7
 	FR_ACT_PROHIBIT        = 0x8
+)
+
+const (
+	AUDIT_NLGRP_NONE    = 0x0
+	AUDIT_NLGRP_READLOG = 0x1
 )

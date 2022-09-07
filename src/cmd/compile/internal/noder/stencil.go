@@ -208,9 +208,15 @@ func (g *genInst) scanForGenCalls(decl ir.Node) {
 
 			st := g.getInstantiation(gf, targs, true).fun
 			dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, gf, targs, true)
-			// We have to be using a subdictionary, since this is
-			// a generic method call.
-			assert(usingSubdict)
+			if hasShapeTypes(targs) {
+				// We have to be using a subdictionary, since this is
+				// a generic method call.
+				assert(usingSubdict)
+			} else {
+				// We should use main dictionary, because the receiver is
+				// an instantiation already, see issue #53406.
+				assert(!usingSubdict)
+			}
 
 			// Transform to a function call, by appending the
 			// dictionary and the receiver to the args.
@@ -328,10 +334,6 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	} else { // ir.OMETHEXPR or ir.METHVALUE
 		// Method expression T.M where T is a generic type.
 		se := x.(*ir.SelectorExpr)
-		targs := deref(se.X.Type()).RParams()
-		if len(targs) == 0 {
-			panic("bad")
-		}
 		if x.Op() == ir.OMETHVALUE {
 			rcvrValue = se.X
 		}
@@ -342,7 +344,8 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 		// of se.Selection, since that will be the type that actually has
 		// the method.
 		recv := deref(se.Selection.Type.Recv().Type)
-		if len(recv.RParams()) == 0 {
+		targs := recv.RParams()
+		if len(targs) == 0 {
 			// The embedded type that actually has the method is not
 			// actually generic, so no need to build a closure.
 			return x
@@ -407,6 +410,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 
 	// Make a new internal function.
 	fn, formalParams, formalResults := startClosure(pos, outer, typ)
+	fn.SetWrapper(true) // See issue 52237
 
 	// This is the dictionary we want to use.
 	// It may be a constant, it may be the outer functions's dictionary, or it may be
@@ -616,7 +620,7 @@ func checkFetchBody(nameNode *ir.Name) {
 	}
 }
 
-// getInstantiation gets the instantiantion and dictionary of the function or method nameNode
+// getInstantiation gets the instantiation and dictionary of the function or method nameNode
 // with the type arguments shapes. If the instantiated function is not already
 // cached, then it calls genericSubst to create the new instantiation.
 func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth bool) *instInfo {
@@ -720,11 +724,12 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
 // Struct containing info needed for doing the substitution as we create the
 // instantiation of a generic function with specified type arguments.
 type subster struct {
-	g        *genInst
-	isMethod bool     // If a method is being instantiated
-	newf     *ir.Func // Func node for the new stenciled function
-	ts       typecheck.Tsubster
-	info     *instInfo // Place to put extra info in the instantiation
+	g           *genInst
+	isMethod    bool     // If a method is being instantiated
+	newf        *ir.Func // Func node for the new stenciled function
+	ts          typecheck.Tsubster
+	info        *instInfo // Place to put extra info in the instantiation
+	skipClosure bool      // Skip substituting closures
 
 	// Map from non-nil, non-ONAME node n to slice of all m, where m.Defn = n
 	defnMap map[ir.Node][]**ir.Name
@@ -977,7 +982,20 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			}
 		}
 
+		old := subst.skipClosure
+		// For unsafe.{Alignof,Offsetof,Sizeof}, subster will transform them to OLITERAL nodes,
+		// and discard their arguments. However, their children nodes were already process before,
+		// thus if they contain any closure, the closure was still be added to package declarations
+		// queue for processing later. Thus, genInst will fail to generate instantiation for the
+		// closure because of lacking dictionary information, see issue #53390.
+		if call, ok := m.(*ir.CallExpr); ok && call.X.Op() == ir.ONAME {
+			switch call.X.Name().BuiltinOp {
+			case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+				subst.skipClosure = true
+			}
+		}
 		ir.EditChildren(m, edit)
+		subst.skipClosure = old
 
 		m.SetTypecheck(1)
 
@@ -1122,6 +1140,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			}
 
 		case ir.OCLOSURE:
+			if subst.skipClosure {
+				break
+			}
 			// We're going to create a new closure from scratch, so clear m
 			// to avoid using the ir.Copy by accident until we reassign it.
 			m = nil
@@ -1190,7 +1211,10 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			if m.Tag != nil && m.Tag.Op() == ir.OTYPESW {
 				break // Nothing to do here for type switches.
 			}
-			if m.Tag != nil && !m.Tag.Type().IsInterface() && m.Tag.Type().HasShape() {
+			if m.Tag != nil && !types.IsComparable(m.Tag.Type()) {
+				break // Nothing to do here for un-comparable types.
+			}
+			if m.Tag != nil && !m.Tag.Type().IsEmptyInterface() && m.Tag.Type().HasShape() {
 				// To implement a switch on a value that is or has a type parameter, we first convert
 				// that thing we're switching on to an interface{}.
 				m.Tag = assignconvfn(m.Tag, types.Types[types.TINTER])
@@ -1199,7 +1223,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				for i, x := range c.List {
 					// If we have a case that is or has a type parameter, convert that case
 					// to an interface{}.
-					if !x.Type().IsInterface() && x.Type().HasShape() {
+					if !x.Type().IsEmptyInterface() && x.Type().HasShape() {
 						c.List[i] = assignconvfn(x, types.Types[types.TINTER])
 					}
 				}
@@ -1325,14 +1349,17 @@ func (g *genInst) dictPass(info *instInfo) {
 			mce := m.(*ir.ConvExpr)
 			// Note: x's argument is still typed as a type parameter.
 			// m's argument now has an instantiated type.
-			if mce.X.Type().HasShape() || m.Type().HasShape() {
+			if mce.X.Type().HasShape() || (m.Type().HasShape() && !m.Type().IsEmptyInterface()) {
 				m = convertUsingDictionary(info, info.dictParam, m.Pos(), mce.X, m, m.Type())
 			}
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
-			if !m.Type().HasShape() {
+			dt := m.(*ir.TypeAssertExpr)
+			if dt.Type().IsEmptyInterface() || (dt.Type().IsInterface() && !dt.Type().HasShape()) {
 				break
 			}
-			dt := m.(*ir.TypeAssertExpr)
+			if !dt.Type().HasShape() && !(dt.X.Type().HasShape() && !dt.X.Type().IsEmptyInterface()) {
+				break
+			}
 			var rtype, itab ir.Node
 			if dt.Type().IsInterface() || dt.X.Type().IsEmptyInterface() {
 				// TODO(mdempsky): Investigate executing this block unconditionally.
@@ -1422,7 +1449,7 @@ func findDictType(info *instInfo, t *types.Type) int {
 // instantiated node of the CONVIFACE node or XDOT node (for a bound method call) that is causing the
 // conversion.
 func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v ir.Node, in ir.Node, dst *types.Type) ir.Node {
-	assert(v.Type().HasShape() || in.Type().HasShape())
+	assert(v.Type().HasShape() || (in.Type().HasShape() && !in.Type().IsEmptyInterface()))
 	assert(dst.IsInterface())
 
 	if v.Type().IsInterface() {
@@ -1629,13 +1656,17 @@ func (g *genInst) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool
 				var nameNode *ir.Name
 				se := call.X.(*ir.SelectorExpr)
 				if se.X.Type().IsShape() {
-					// This is a method call enabled by a type bound.
-
-					// We need this extra check for method expressions,
-					// which don't add in the implicit XDOTs.
-					tmpse := ir.NewSelectorExpr(src.NoXPos, ir.OXDOT, se.X, se.Sel)
-					tmpse = typecheck.AddImplicitDots(tmpse)
-					tparam := tmpse.X.Type()
+					tparam := se.X.Type()
+					// Ensure methods on all instantiating types are computed.
+					typecheck.CalcMethods(tparam)
+					if typecheck.Lookdot1(nil, se.Sel, tparam, tparam.AllMethods(), 0) != nil {
+						// This is a method call enabled by a type bound.
+						// We need this extra check for method expressions,
+						// which don't add in the implicit XDOTs.
+						tmpse := ir.NewSelectorExpr(src.NoXPos, ir.OXDOT, se.X, se.Sel)
+						tmpse = typecheck.AddImplicitDots(tmpse)
+						tparam = tmpse.X.Type()
+					}
 					if !tparam.IsShape() {
 						// The method expression is not
 						// really on a typeparam.

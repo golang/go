@@ -162,7 +162,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
 		} else {
 			t.Errorf("%s:%s: unexpected error: %s", filename, orig, e.Msg)
 		}
-	}, nil, 0)
+	}, nil, CheckBranches)
 
 	if *print {
 		fmt.Println()

@@ -1813,7 +1813,7 @@ func (b *Builder) copyFile(dst, src string, perm fs.FileMode, force bool) error 
 	}
 
 	// On Windows, remove lingering ~ file from last attempt.
-	if base.ToolIsWindows {
+	if runtime.GOOS == "windows" {
 		if _, err := os.Stat(dst + "~"); err == nil {
 			os.Remove(dst + "~")
 		}
@@ -1821,7 +1821,7 @@ func (b *Builder) copyFile(dst, src string, perm fs.FileMode, force bool) error 
 
 	mayberemovefile(dst)
 	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
-	if err != nil && base.ToolIsWindows {
+	if err != nil && runtime.GOOS == "windows" {
 		// Windows does not allow deletion of a binary file
 		// while it is executing. Try to move it out of the way.
 		// If the move fails, which is likely, we'll try again the
@@ -2405,6 +2405,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files.
+// Any error output is only displayed for BuildN or BuildX.
 func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flags []string, objs []string) error {
 	var cmd []string
 	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
@@ -2450,11 +2451,8 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
 			save = append(save, line)
 		}
 		out = bytes.Join(save, nil)
-		if len(out) > 0 {
+		if len(out) > 0 && (cfg.BuildN || cfg.BuildX) {
 			b.showOutput(nil, dir, p.ImportPath, b.processOutput(out))
-			if err != nil {
-				err = errPrintedOutput
-			}
 		}
 	}
 	return err
@@ -2528,6 +2526,13 @@ func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []strin
 		a = append(a, "-Qunused-arguments")
 	}
 
+	// zig cc passes --gc-sections to the underlying linker, which then causes
+	// undefined symbol errors when compiling with cgo but without C code.
+	// https://github.com/golang/go/issues/52690
+	if b.gccSupportsFlag(compiler, "-Wl,--no-gc-sections") {
+		a = append(a, "-Wl,--no-gc-sections")
+	}
+
 	// disable word wrapping in error messages
 	a = append(a, "-fmessage-length=0")
 
@@ -2584,7 +2589,12 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	}
 
 	tmp := os.DevNull
-	if runtime.GOOS == "windows" {
+
+	// On the iOS builder the command
+	//   $CC -Wl,--no-gc-sections -x c - -o /dev/null < /dev/null
+	// is failing with:
+	//   Unable to remove existing file: Invalid argument
+	if runtime.GOOS == "windows" || runtime.GOOS == "ios" {
 		f, err := os.CreateTemp(b.WorkDir, "")
 		if err != nil {
 			return false
@@ -2594,13 +2604,21 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 		defer os.Remove(tmp)
 	}
 
-	// We used to write an empty C file, but that gets complicated with
-	// go build -n. We tried using a file that does not exist, but that
-	// fails on systems with GCC version 4.2.1; that is the last GPLv2
-	// version of GCC, so some systems have frozen on it.
-	// Now we pass an empty file on stdin, which should work at least for
-	// GCC and clang.
-	cmdArgs := str.StringList(compiler, flag, "-c", "-x", "c", "-", "-o", tmp)
+	// We used to write an empty C file, but that gets complicated with go
+	// build -n. We tried using a file that does not exist, but that fails on
+	// systems with GCC version 4.2.1; that is the last GPLv2 version of GCC,
+	// so some systems have frozen on it. Now we pass an empty file on stdin,
+	// which should work at least for GCC and clang.
+	//
+	// If the argument is "-Wl,", then it's testing the linker. In that case,
+	// skip "-c". If it's not "-Wl,", then we are testing the compiler and
+	// can emit the linking step with "-c".
+	cmdArgs := str.StringList(compiler, flag)
+	if !strings.HasPrefix(flag, "-Wl,") /* linker flag */ {
+		cmdArgs = append(cmdArgs, "-c")
+	}
+	cmdArgs = append(cmdArgs, "-x", "c", "-", "-o", tmp)
+
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
 		if cfg.BuildN {
@@ -2613,12 +2631,16 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	out, _ := cmd.CombinedOutput()
 	// GCC says "unrecognized command line option".
 	// clang says "unknown argument".
+	// tcc says "unsupported"
+	// AIX says "not recognized"
 	// Older versions of GCC say "unrecognised debug output level".
 	// For -fsplit-stack GCC says "'-fsplit-stack' is not supported".
 	supported := !bytes.Contains(out, []byte("unrecognized")) &&
 		!bytes.Contains(out, []byte("unknown")) &&
 		!bytes.Contains(out, []byte("unrecognised")) &&
-		!bytes.Contains(out, []byte("is not supported"))
+		!bytes.Contains(out, []byte("is not supported")) &&
+		!bytes.Contains(out, []byte("not recognized")) &&
+		!bytes.Contains(out, []byte("unsupported"))
 	b.flagCache[key] = supported
 	return supported
 }
@@ -2889,10 +2911,16 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	switch cfg.BuildToolchainName {
 	case "gc":
 		importGo := objdir + "_cgo_import.go"
-		if err := b.dynimport(a, p, objdir, importGo, cgoExe, cflags, cgoLDFLAGS, outObj); err != nil {
+		dynOutGo, dynOutObj, err := b.dynimport(a, p, objdir, importGo, cgoExe, cflags, cgoLDFLAGS, outObj)
+		if err != nil {
 			return nil, nil, err
 		}
-		outGo = append(outGo, importGo)
+		if dynOutGo != "" {
+			outGo = append(outGo, dynOutGo)
+		}
+		if dynOutObj != "" {
+			outObj = append(outObj, dynOutObj)
+		}
 
 	case "gccgo":
 		defunC := objdir + "_cgo_defun.c"
@@ -2987,11 +3015,13 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 // dynimport creates a Go source file named importGo containing
 // //go:cgo_import_dynamic directives for each symbol or library
 // dynamically imported by the object files outObj.
-func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe string, cflags, cgoLDFLAGS, outObj []string) error {
+// dynOutGo, if not empty, is a new Go file to build as part of the package.
+// dynOutObj, if not empty, is a new file to add to the generated archive.
+func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe string, cflags, cgoLDFLAGS, outObj []string) (dynOutGo, dynOutObj string, err error) {
 	cfile := objdir + "_cgo_main.c"
 	ofile := objdir + "_cgo_main.o"
 	if err := b.gcc(a, p, objdir, ofile, cflags, cfile); err != nil {
-		return err
+		return "", "", err
 	}
 
 	// Gather .syso files from this package and all (transitive) dependencies.
@@ -3036,7 +3066,22 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 		}
 	}
 	if err := b.gccld(a, p, objdir, dynobj, ldflags, linkobj); err != nil {
-		return err
+		// We only need this information for internal linking.
+		// If this link fails, mark the object as requiring
+		// external linking. This link can fail for things like
+		// syso files that have unexpected dependencies.
+		// cmd/link explicitly looks for the name "dynimportfail".
+		// See issue #52863.
+		fail := objdir + "dynimportfail"
+		if cfg.BuildN || cfg.BuildX {
+			b.Showcmd("", "echo > %s", fail)
+		}
+		if !cfg.BuildN {
+			if err := os.WriteFile(fail, nil, 0666); err != nil {
+				return "", "", err
+			}
+		}
+		return "", fail, nil
 	}
 
 	// cgo -dynimport
@@ -3044,7 +3089,11 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
 	}
-	return b.run(a, base.Cwd(), p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+	err = b.run(a, base.Cwd(), p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+	if err != nil {
+		return "", "", err
+	}
+	return importGo, "", nil
 }
 
 // Run SWIG on all SWIG input files.
@@ -3358,10 +3407,10 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 func useResponseFile(path string, argLen int) bool {
 	// Unless the program uses objabi.Flagparse, which understands
 	// response files, don't use response files.
-	// TODO: do we need more commands? asm? cgo? For now, no.
+	// TODO: Note that other toolchains like CC are missing here for now.
 	prog := strings.TrimSuffix(filepath.Base(path), ".exe")
 	switch prog {
-	case "compile", "link":
+	case "compile", "link", "cgo", "asm":
 	default:
 		return false
 	}

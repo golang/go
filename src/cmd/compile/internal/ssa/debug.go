@@ -613,7 +613,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 	// This would probably be better as an output from stackframe.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op == OpVarDef || v.Op == OpVarKill {
+			if v.Op == OpVarDef {
 				n := v.Aux.(*ir.Name)
 				if ir.IsSynthetic(n) {
 					continue
@@ -1080,7 +1080,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 	}
 
 	switch {
-	case v.Op == OpVarDef, v.Op == OpVarKill:
+	case v.Op == OpVarDef:
 		n := v.Aux.(*ir.Name)
 		if ir.IsSynthetic(n) {
 			break

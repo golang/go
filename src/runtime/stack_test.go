@@ -109,13 +109,14 @@ func TestStackGrowth(t *testing.T) {
 
 	// in finalizer
 	var finalizerStart time.Time
-	var started, progress uint32
+	var started atomic.Bool
+	var progress atomic.Uint32
 	wg.Add(1)
 	s := new(string) // Must be of a type that avoids the tiny allocator, or else the finalizer might not run.
 	SetFinalizer(s, func(ss *string) {
 		defer wg.Done()
 		finalizerStart = time.Now()
-		atomic.StoreUint32(&started, 1)
+		started.Store(true)
 		growStack(&progress)
 	})
 	setFinalizerTime := time.Now()
@@ -128,10 +129,10 @@ func TestStackGrowth(t *testing.T) {
 			// Panic — instead of calling t.Error and returning from the test — so
 			// that we get a useful goroutine dump if the test times out, especially
 			// if GOTRACEBACK=system or GOTRACEBACK=crash is set.
-			if atomic.LoadUint32(&started) == 0 {
+			if !started.Load() {
 				panic("finalizer did not start")
 			} else {
-				panic(fmt.Sprintf("finalizer started %s ago (%s after registration) and ran %d iterations, but did not return", time.Since(finalizerStart), finalizerStart.Sub(setFinalizerTime), atomic.LoadUint32(&progress)))
+				panic(fmt.Sprintf("finalizer started %s ago (%s after registration) and ran %d iterations, but did not return", time.Since(finalizerStart), finalizerStart.Sub(setFinalizerTime), progress.Load()))
 			}
 		})
 		defer timer.Stop()
@@ -139,7 +140,7 @@ func TestStackGrowth(t *testing.T) {
 
 	GC()
 	wg.Wait()
-	t.Logf("finalizer started after %s and ran %d iterations in %v", finalizerStart.Sub(setFinalizerTime), atomic.LoadUint32(&progress), time.Since(finalizerStart))
+	t.Logf("finalizer started after %s and ran %d iterations in %v", finalizerStart.Sub(setFinalizerTime), progress.Load(), time.Since(finalizerStart))
 }
 
 // ... and in init
@@ -147,7 +148,7 @@ func TestStackGrowth(t *testing.T) {
 //	growStack()
 //}
 
-func growStack(progress *uint32) {
+func growStack(progress *atomic.Uint32) {
 	n := 1 << 10
 	if testing.Short() {
 		n = 1 << 8
@@ -159,7 +160,7 @@ func growStack(progress *uint32) {
 			panic("stack is corrupted")
 		}
 		if progress != nil {
-			atomic.StoreUint32(progress, uint32(i))
+			progress.Store(uint32(i))
 		}
 	}
 	GC()

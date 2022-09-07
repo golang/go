@@ -132,7 +132,7 @@ test caching explicitly is to use -count=1. Tests that open files within
 the package's source root (usually $GOPATH) or that consult environment
 variables only match future runs in which the files and environment
 variables are unchanged. A cached test result is treated as executing
-in no time at all,so a successful package test result will be cached and
+in no time at all, so a successful package test result will be cached and
 reused regardless of -timeout setting.
 
 In addition to the build flags, the flags handled by 'go test' itself are:
@@ -744,8 +744,12 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	var b work.Builder
-	b.Init()
+	b := work.NewBuilder("")
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}()
 
 	if cfg.BuildI {
 		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
@@ -800,7 +804,19 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		if !testC || a.Failed {
 			return
 		}
-		b.Init()
+
+		// TODO(bcmills): I have no idea why the Builder must be reset here, but
+		// without this reset dance, TestGoTestDashIDashOWritesBinary fails with
+		// lots of "vet config not found" errors. This was added in CL 5699088,
+		// which had almost no public discussion, a very short commit description,
+		// and left no comment in the code to explain what is going on here. 🤯
+		//
+		// Maybe this has the effect of removing actions that were registered by the
+		// call to CompileAction above?
+		if err := b.Close(); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+		b = work.NewBuilder("")
 	}
 
 	var builds, runs, prints []*work.Action
@@ -916,7 +932,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			ensureImport(p, "sync/atomic")
 		}
 
-		buildTest, runTest, printTest, err := builderTest(&b, ctx, pkgOpts, p, allImports[p])
+		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p])
 		if err != nil {
 			str := err.Error()
 			str = strings.TrimPrefix(str, "\n")

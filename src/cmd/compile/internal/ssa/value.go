@@ -520,7 +520,7 @@ func (v *Value) LackingPos() bool {
 	// The exact definition of LackingPos is somewhat heuristically defined and may change
 	// in the future, for example if some of these operations are generated more carefully
 	// with respect to their source position.
-	return v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive || v.Op == OpPhi ||
+	return v.Op == OpVarDef || v.Op == OpVarLive || v.Op == OpPhi ||
 		(v.Op == OpFwdRef || v.Op == OpCopy) && v.Type == types.TypeMem
 }
 

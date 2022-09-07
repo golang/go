@@ -1,0 +1,13 @@
+-- input --
+
+	1. This list
+	2. Starts the comment
+	3. And also has a blank line before it.
+
+All of which is a little weird.
+-- gofmt --
+ 1. This list
+ 2. Starts the comment
+ 3. And also has a blank line before it.
+
+All of which is a little weird.

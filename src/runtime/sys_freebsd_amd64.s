@@ -11,13 +11,49 @@
 #include "textflag.h"
 #include "cgo/abi_amd64.h"
 
+#define CLOCK_REALTIME		0
+#define CLOCK_MONOTONIC		4
+#define FD_CLOEXEC		1
+#define F_SETFD			2
+#define AMD64_SET_FSBASE	129
+
+#define SYS_exit		1
+#define SYS_read		3
+#define SYS_write		4
+#define SYS_open		5
+#define SYS_close		6
+#define SYS_getpid		20
+#define SYS_kill		37
+#define SYS_sigaltstack		53
+#define SYS_munmap		73
+#define SYS_madvise		75
+#define SYS_setitimer		83
+#define SYS_fcntl		92
+#define SYS_sysarch		165
+#define SYS___sysctl		202
+#define SYS_clock_gettime	232
+#define SYS_nanosleep		240
+#define SYS_sched_yield		331
+#define SYS_sigprocmask		340
+#define SYS_kqueue		362
+#define SYS_kevent		363
+#define SYS_sigaction		416
+#define SYS_thr_exit		431
+#define SYS_thr_self		432
+#define SYS_thr_kill		433
+#define SYS__umtx_op		454
+#define SYS_thr_new		455
+#define SYS_mmap		477
+#define SYS_cpuset_getaffinity	487
+#define SYS_pipe2 		542
+
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVQ addr+0(FP), DI
 	MOVL mode+8(FP), SI
 	MOVL val+12(FP), DX
 	MOVQ uaddr1+16(FP), R10
 	MOVQ ut+24(FP), R8
-	MOVL $454, AX
+	MOVL $SYS__umtx_op, AX
 	SYSCALL
 	JCC	2(PC)
 	NEGQ	AX
@@ -27,7 +63,7 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 TEXT runtime·thr_new(SB),NOSPLIT,$0
 	MOVQ param+0(FP), DI
 	MOVL size+8(FP), SI
-	MOVL $455, AX
+	MOVL $SYS_thr_new, AX
 	SYSCALL
 	JCC	2(PC)
 	NEGQ	AX
@@ -55,7 +91,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVL	code+0(FP), DI		// arg 1 exit status
-	MOVL	$1, AX
+	MOVL	$SYS_exit, AX
 	SYSCALL
 	MOVL	$0xf1, 0xf1  // crash
 	RET
@@ -66,7 +102,7 @@ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
 	// We're done using the stack.
 	MOVL	$0, (AX)
 	MOVL	$0, DI		// arg 1 long *state
-	MOVL	$431, AX	// thr_exit
+	MOVL	$SYS_thr_exit, AX
 	SYSCALL
 	MOVL	$0xf1, 0xf1  // crash
 	JMP	0(PC)
@@ -75,7 +111,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVQ	name+0(FP), DI		// arg 1 pathname
 	MOVL	mode+8(FP), SI		// arg 2 flags
 	MOVL	perm+12(FP), DX		// arg 3 mode
-	MOVL	$5, AX
+	MOVL	$SYS_open, AX
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$-1, AX
@@ -84,7 +120,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 
 TEXT runtime·closefd(SB),NOSPLIT,$-8
 	MOVL	fd+0(FP), DI		// arg 1 fd
-	MOVL	$6, AX
+	MOVL	$SYS_close, AX
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$-1, AX
@@ -95,7 +131,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVL	fd+0(FP), DI		// arg 1 fd
 	MOVQ	p+8(FP), SI		// arg 2 buf
 	MOVL	n+16(FP), DX		// arg 3 count
-	MOVL	$3, AX
+	MOVL	$SYS_read, AX
 	SYSCALL
 	JCC	2(PC)
 	NEGQ	AX			// caller expects negative errno
@@ -106,7 +142,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 TEXT runtime·pipe2(SB),NOSPLIT,$0-20
 	LEAQ	r+8(FP), DI
 	MOVL	flags+0(FP), SI
-	MOVL	$542, AX
+	MOVL	$SYS_pipe2, AX
 	SYSCALL
 	JCC	2(PC)
 	NEGQ	AX
@@ -117,7 +153,7 @@ TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVQ	fd+0(FP), DI		// arg 1 fd
 	MOVQ	p+8(FP), SI		// arg 2 buf
 	MOVL	n+16(FP), DX		// arg 3 count
-	MOVL	$4, AX
+	MOVL	$SYS_write, AX
 	SYSCALL
 	JCC	2(PC)
 	NEGQ	AX			// caller expects negative errno
@@ -127,7 +163,7 @@ TEXT runtime·write1(SB),NOSPLIT,$-8
 TEXT runtime·thr_self(SB),NOSPLIT,$0-8
 	// thr_self(&0(FP))
 	LEAQ	ret+0(FP), DI	// arg 1
-	MOVL	$432, AX
+	MOVL	$SYS_thr_self, AX
 	SYSCALL
 	RET
 
@@ -135,18 +171,18 @@ TEXT runtime·thr_kill(SB),NOSPLIT,$0-16
 	// thr_kill(tid, sig)
 	MOVQ	tid+0(FP), DI	// arg 1 id
 	MOVQ	sig+8(FP), SI	// arg 2 sig
-	MOVL	$433, AX
+	MOVL	$SYS_thr_kill, AX
 	SYSCALL
 	RET
 
 TEXT runtime·raiseproc(SB),NOSPLIT,$0
 	// getpid
-	MOVL	$20, AX
+	MOVL	$SYS_getpid, AX
 	SYSCALL
 	// kill(self, sig)
 	MOVQ	AX, DI		// arg 1 pid
 	MOVL	sig+0(FP), SI	// arg 2 sig
-	MOVL	$37, AX
+	MOVL	$SYS_kill, AX
 	SYSCALL
 	RET
 
@@ -154,14 +190,14 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
 	MOVL	mode+0(FP), DI
 	MOVQ	new+8(FP), SI
 	MOVQ	old+16(FP), DX
-	MOVL	$83, AX
+	MOVL	$SYS_setitimer, AX
 	SYSCALL
 	RET
 
 // func fallback_walltime() (sec int64, nsec int32)
 TEXT runtime·fallback_walltime(SB), NOSPLIT, $32-12
-	MOVL	$232, AX	// clock_gettime
-	MOVQ	$0, DI		// CLOCK_REALTIME
+	MOVL	$SYS_clock_gettime, AX
+	MOVQ	$CLOCK_REALTIME, DI
 	LEAQ	8(SP), SI
 	SYSCALL
 	MOVQ	8(SP), AX	// sec
@@ -173,8 +209,8 @@ TEXT runtime·fallback_walltime(SB), NOSPLIT, $32-12
 	RET
 
 TEXT runtime·fallback_nanotime(SB), NOSPLIT, $32-8
-	MOVL	$232, AX
-	MOVQ	$4, DI		// CLOCK_MONOTONIC
+	MOVL	$SYS_clock_gettime, AX
+	MOVQ	$CLOCK_MONOTONIC, DI
 	LEAQ	8(SP), SI
 	SYSCALL
 	MOVQ	8(SP), AX	// sec
@@ -191,7 +227,7 @@ TEXT runtime·asmSigaction(SB),NOSPLIT,$0
 	MOVQ	sig+0(FP), DI		// arg 1 sig
 	MOVQ	new+8(FP), SI		// arg 2 act
 	MOVQ	old+16(FP), DX		// arg 3 oact
-	MOVL	$416, AX
+	MOVL	$SYS_sigaction, AX
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$-1, AX
@@ -356,7 +392,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	flags+20(FP), R10		// arg 4 flags
 	MOVL	fd+24(FP), R8		// arg 5 fid
 	MOVL	off+28(FP), R9		// arg 6 offset
-	MOVL	$477, AX
+	MOVL	$SYS_mmap, AX
 	SYSCALL
 	JCC	ok
 	MOVQ	$0, p+32(FP)
@@ -370,7 +406,7 @@ ok:
 TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI		// arg 1 addr
 	MOVQ	n+8(FP), SI		// arg 2 len
-	MOVL	$73, AX
+	MOVL	$SYS_munmap, AX
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
@@ -380,7 +416,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI
 	MOVQ	n+8(FP), SI
 	MOVL	flags+16(FP), DX
-	MOVQ	$75, AX	// madvise
+	MOVQ	$SYS_madvise, AX
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$-1, AX
@@ -390,7 +426,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVQ	new+0(FP), DI
 	MOVQ	old+8(FP), SI
-	MOVQ	$53, AX
+	MOVQ	$SYS_sigaltstack, AX
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
@@ -408,7 +444,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 
 	MOVQ	SP, DI			// arg 1 - rqtp
 	MOVQ	$0, SI			// arg 2 - rmtp
-	MOVL	$240, AX		// sys_nanosleep
+	MOVL	$SYS_nanosleep, AX
 	SYSCALL
 	RET
 
@@ -417,8 +453,8 @@ TEXT runtime·settls(SB),NOSPLIT,$8
 	ADDQ	$8, DI	// adjust for ELF: wants to use -8(FS) for g and m
 	MOVQ	DI, 0(SP)
 	MOVQ	SP, SI
-	MOVQ	$129, DI	// AMD64_SET_FSBASE
-	MOVQ	$165, AX	// sysarch
+	MOVQ	$AMD64_SET_FSBASE, DI
+	MOVQ	$SYS_sysarch, AX
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
@@ -431,7 +467,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVQ	size+24(FP), R10		// arg 4 - oldlenp
 	MOVQ	dst+32(FP), R8		// arg 5 - newp
 	MOVQ	ndst+40(FP), R9		// arg 6 - newlen
-	MOVQ	$202, AX		// sys___sysctl
+	MOVQ	$SYS___sysctl, AX
 	SYSCALL
 	JCC 4(PC)
 	NEGQ	AX
@@ -442,7 +478,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·osyield(SB),NOSPLIT,$-4
-	MOVL	$331, AX		// sys_sched_yield
+	MOVL	$SYS_sched_yield, AX
 	SYSCALL
 	RET
 
@@ -450,7 +486,7 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVL	how+0(FP), DI		// arg 1 - how
 	MOVQ	new+8(FP), SI		// arg 2 - set
 	MOVQ	old+16(FP), DX		// arg 3 - oset
-	MOVL	$340, AX		// sys_sigprocmask
+	MOVL	$SYS_sigprocmask, AX
 	SYSCALL
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
@@ -461,7 +497,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVQ	$0, DI
 	MOVQ	$0, SI
 	MOVQ	$0, DX
-	MOVL	$362, AX
+	MOVL	$SYS_kqueue, AX
 	SYSCALL
 	JCC	2(PC)
 	NEGQ	AX
@@ -476,7 +512,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVQ	ev+24(FP), R10
 	MOVL	nev+32(FP), R8
 	MOVQ	ts+40(FP), R9
-	MOVL	$363, AX
+	MOVL	$SYS_kevent, AX
 	SYSCALL
 	JCC	2(PC)
 	NEGQ	AX
@@ -486,9 +522,9 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 // void runtime·closeonexec(int32 fd);
 TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), DI	// fd
-	MOVQ	$2, SI		// F_SETFD
-	MOVQ	$1, DX		// FD_CLOEXEC
-	MOVL	$92, AX		// fcntl
+	MOVQ	$F_SETFD, SI
+	MOVQ	$FD_CLOEXEC, DX
+	MOVL	$SYS_fcntl, AX
 	SYSCALL
 	RET
 
@@ -499,7 +535,7 @@ TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-44
 	MOVQ	id+16(FP), DX
 	MOVQ	size+24(FP), R10
 	MOVQ	mask+32(FP), R8
-	MOVL	$487, AX
+	MOVL	$SYS_cpuset_getaffinity, AX
 	SYSCALL
 	JCC	2(PC)
 	NEGQ	AX

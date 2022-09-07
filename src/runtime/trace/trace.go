@@ -134,7 +134,7 @@ func Start(w io.Writer) error {
 			w.Write(data)
 		}
 	}()
-	atomic.StoreInt32(&tracing.enabled, 1)
+	tracing.enabled.Store(true)
 	return nil
 }
 
@@ -143,12 +143,12 @@ func Start(w io.Writer) error {
 func Stop() {
 	tracing.Lock()
 	defer tracing.Unlock()
-	atomic.StoreInt32(&tracing.enabled, 0)
+	tracing.enabled.Store(false)
 
 	runtime.StopTrace()
 }
 
 var tracing struct {
-	sync.Mutex       // gate mutators (Start, Stop)
-	enabled    int32 // accessed via atomic
+	sync.Mutex // gate mutators (Start, Stop)
+	enabled    atomic.Bool
 }

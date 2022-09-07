@@ -80,15 +80,6 @@ import (
 // the liveness analysis work on single-word values as well, although
 // there are complications around interface values, slices, and strings,
 // all of which cannot be treated as individual words.
-//
-// OpVarKill is the opposite of OpVarDef: it marks a value as no longer needed,
-// even if its address has been taken. That is, an OpVarKill annotation asserts
-// that its argument is certainly dead, for use when the liveness analysis
-// would not otherwise be able to deduce that fact.
-
-// TODO: get rid of OpVarKill here. It's useful for stack frame allocation
-// so the compiler can allocate two temps to the same location. Here it's now
-// useless, since the implementation of stack objects.
 
 // blockEffects summarizes the liveness effects on an SSA block.
 type blockEffects struct {
@@ -269,7 +260,7 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	// OpVarFoo pseudo-ops. Ignore them to prevent "lost track of
 	// variable" ICEs (issue 19632).
 	switch v.Op {
-	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
+	case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
 		if !n.Used() {
 			return -1, 0
 		}
@@ -334,7 +325,7 @@ func affectedVar(v *ssa.Value) (*ir.Name, ssa.SymEffect) {
 
 	case ssa.OpVarLive:
 		return v.Aux.(*ir.Name), ssa.SymRead
-	case ssa.OpVarDef, ssa.OpVarKill:
+	case ssa.OpVarDef:
 		return v.Aux.(*ir.Name), ssa.SymWrite
 	case ssa.OpKeepAlive:
 		n, _ := ssa.AutoVar(v.Args[0])

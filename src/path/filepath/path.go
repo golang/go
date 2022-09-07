@@ -352,6 +352,11 @@ func Rel(basepath, targpath string) (string, error) {
 // as an error by any function.
 var SkipDir error = fs.SkipDir
 
+// SkipAll is used as a return value from WalkFuncs to indicate that
+// all remaining files and directories are to be skipped. It is not returned
+// as an error by any function.
+var SkipAll error = fs.SkipAll
+
 // WalkFunc is the type of the function called by Walk to visit each
 // file or directory.
 //
@@ -370,8 +375,9 @@ var SkipDir error = fs.SkipDir
 // The error result returned by the function controls how Walk continues.
 // If the function returns the special value SkipDir, Walk skips the
 // current directory (path if info.IsDir() is true, otherwise path's
-// parent directory). Otherwise, if the function returns a non-nil error,
-// Walk stops entirely and returns that error.
+// parent directory). If the function returns the special value SkipAll,
+// Walk skips all remaining files and directories. Otherwise, if the function
+// returns a non-nil error, Walk stops entirely and returns that error.
 //
 // The err argument reports an error related to path, signaling that Walk
 // will not walk into that directory. The function can decide how to
@@ -441,7 +447,7 @@ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
 	if err != nil || err1 != nil {
 		// The caller's behavior is controlled by the return value, which is decided
 		// by walkFn. walkFn may ignore err and return nil.
-		// If walkFn returns SkipDir, it will be handled by the caller.
+		// If walkFn returns SkipDir or SkipAll, it will be handled by the caller.
 		// So walk should return whatever walkFn returns.
 		return err1
 	}
@@ -483,7 +489,7 @@ func WalkDir(root string, fn fs.WalkDirFunc) error {
 	} else {
 		err = walkDir(root, &statDirEntry{info}, fn)
 	}
-	if err == SkipDir {
+	if err == SkipDir || err == SkipAll {
 		return nil
 	}
 	return err
@@ -519,7 +525,7 @@ func Walk(root string, fn WalkFunc) error {
 	} else {
 		err = walk(root, info, fn)
 	}
-	if err == SkipDir {
+	if err == SkipDir || err == SkipAll {
 		return nil
 	}
 	return err

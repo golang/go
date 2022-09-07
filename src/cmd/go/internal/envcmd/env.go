@@ -96,7 +96,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
-		{Name: "GOTOOLDIR", Value: base.ToolDir},
+		{Name: "GOTOOLDIR", Value: build.ToolDir},
 		{Name: "GOVCS", Value: cfg.GOVCS},
 		{Name: "GOVERSION", Value: runtime.Version()},
 	}
@@ -174,8 +174,13 @@ func ExtraEnvVars() []cfg.EnvVar {
 // ExtraEnvVarsCostly returns environment variables that should not leak into child processes
 // but are costly to evaluate.
 func ExtraEnvVarsCostly() []cfg.EnvVar {
-	var b work.Builder
-	b.Init()
+	b := work.NewBuilder("")
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}()
+
 	cppflags, cflags, cxxflags, fflags, ldflags, err := b.CFlags(&load.Package{})
 	if err != nil {
 		// Should not happen - b.CFlags was given an empty package.
@@ -272,6 +277,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 	if needCostly {
+		work.BuildInit()
 		env = append(env, ExtraEnvVarsCostly()...)
 	}
 

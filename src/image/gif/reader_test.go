@@ -379,7 +379,7 @@ func TestLoopCount(t *testing.T) {
 
 func TestUnexpectedEOF(t *testing.T) {
 	for i := len(testGIF) - 1; i >= 0; i-- {
-		_, err := Decode(bytes.NewReader(testGIF[:i]))
+		_, err := DecodeAll(bytes.NewReader(testGIF[:i]))
 		if err == errNotEnough {
 			continue
 		}

@@ -380,7 +380,14 @@ func MakeUnknown() Value { return unknownVal{} }
 func MakeBool(b bool) Value { return boolVal(b) }
 
 // MakeString returns the String value for s.
-func MakeString(s string) Value { return &stringVal{s: s} }
+func MakeString(s string) Value {
+	if s == "" {
+		return &emptyString // common case
+	}
+	return &stringVal{s: s}
+}
+
+var emptyString stringVal
 
 // MakeInt64 returns the Int value for x.
 func MakeInt64(x int64) Value { return int64Val(x) }

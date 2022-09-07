@@ -574,7 +574,7 @@ func TestWriteInvalidRune(t *testing.T) {
 	// Invalid runes, including negative ones, should be written as the
 	// replacement character.
 	for _, r := range []rune{-1, utf8.MaxRune + 1} {
-		var buf bytes.Buffer
+		var buf strings.Builder
 		w := NewWriter(&buf)
 		w.WriteRune(r)
 		w.Flush()
@@ -1001,7 +1001,7 @@ func TestReadAfterLines(t *testing.T) {
 	line1 := "this is line1"
 	restData := "this is line2\nthis is line 3\n"
 	inbuf := bytes.NewReader([]byte(line1 + "\n" + restData))
-	outbuf := new(bytes.Buffer)
+	outbuf := new(strings.Builder)
 	maxLineLength := len(line1) + len(restData)/2
 	l := NewReaderSize(inbuf, maxLineLength)
 	line, isPrefix, err := l.ReadLine()
@@ -1173,7 +1173,7 @@ func TestWriterReadFrom(t *testing.T) {
 	for ri, rfunc := range rs {
 		for wi, wfunc := range ws {
 			input := createTestInput(8192)
-			b := new(bytes.Buffer)
+			b := new(strings.Builder)
 			w := NewWriter(wfunc(b))
 			r := rfunc(bytes.NewReader(input))
 			if n, err := w.ReadFrom(r); err != nil || n != int64(len(input)) {
@@ -1510,7 +1510,7 @@ func TestReaderReset(t *testing.T) {
 }
 
 func TestWriterReset(t *testing.T) {
-	var buf1, buf2, buf3 bytes.Buffer
+	var buf1, buf2, buf3 strings.Builder
 	w := NewWriter(&buf1)
 	w.WriteString("foo")
 

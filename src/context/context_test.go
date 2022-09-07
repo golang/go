@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -723,17 +722,17 @@ func (d *myDoneCtx) Done() <-chan struct{} {
 }
 
 func XTestCustomContextGoroutines(t testingT) {
-	g := atomic.LoadInt32(&goroutines)
+	g := goroutines.Load()
 	checkNoGoroutine := func() {
 		t.Helper()
-		now := atomic.LoadInt32(&goroutines)
+		now := goroutines.Load()
 		if now != g {
 			t.Fatalf("%d goroutines created", now-g)
 		}
 	}
 	checkCreatedGoroutine := func() {
 		t.Helper()
-		now := atomic.LoadInt32(&goroutines)
+		now := goroutines.Load()
 		if now != g+1 {
 			t.Fatalf("%d goroutines created, want 1", now-g)
 		}

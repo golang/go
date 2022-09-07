@@ -91,6 +91,11 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 				continue
 			}
 			apdecls = append(apdecls, n)
+			if n.Type().Kind() == types.TSSA {
+				// Can happen for TypeInt128 types. This only happens for
+				// spill locations, so not a huge deal.
+				continue
+			}
 			fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
 		}
 	}
@@ -466,7 +471,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 
 	gotype := reflectdata.TypeLinksym(n.Type())
 	delete(fnsym.Func().Autot, gotype)
-	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+	typename := dwarf.InfoPrefix + gotype.Name[len("type:"):]
 	inlIndex := 0
 	if base.Flag.GenDwarfInl > 1 {
 		if n.InlFormal() || n.InlLocal() {

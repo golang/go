@@ -394,7 +394,7 @@ var lexTests = []lexTest{
 
 // collect gathers the emitted items into a slice.
 func collect(t *lexTest, left, right string) (items []item) {
-	l := lex(t.name, t.input, left, right, true)
+	l := lex(t.name, t.input, left, right, true, true, true)
 	for {
 		item := l.nextItem()
 		items = append(items, item)
@@ -550,7 +550,7 @@ func TestPos(t *testing.T) {
 func TestShutdown(t *testing.T) {
 	// We need to duplicate template.Parse here to hold on to the lexer.
 	const text = "erroneous{{define}}{{else}}1234"
-	lexer := lex("foo", text, "{{", "}}", false)
+	lexer := lex("foo", text, "{{", "}}", false, true, true)
 	_, err := New("root").parseLexer(lexer)
 	if err == nil {
 		t.Fatalf("expected error")

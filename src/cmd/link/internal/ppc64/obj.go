@@ -38,9 +38,14 @@ import (
 )
 
 func Init() (*sys.Arch, ld.Arch) {
-	arch := sys.ArchPPC64
-	if buildcfg.GOARCH == "ppc64le" {
-		arch = sys.ArchPPC64LE
+	arch := sys.ArchPPC64LE
+	dynld := "/lib64/ld64.so.2"
+	musl := "/lib/ld-musl-powerpc64le.so.1"
+
+	if buildcfg.GOARCH == "ppc64" {
+		arch = sys.ArchPPC64
+		dynld = "/lib64/ld64.so.1"
+		musl = "/lib/ld-musl-powerpc64.so.1"
 	}
 
 	theArch := ld.Arch{
@@ -64,8 +69,8 @@ func Init() (*sys.Arch, ld.Arch) {
 		Machoreloc1:      machoreloc1,
 		Xcoffreloc1:      xcoffreloc1,
 
-		// TODO(austin): ABI v1 uses /usr/lib/ld.so.1,
-		Linuxdynld: "/lib64/ld64.so.1",
+		Linuxdynld:     dynld,
+		LinuxdynldMusl: musl,
 
 		Freebsddynld:   "XXX",
 		Openbsddynld:   "XXX",

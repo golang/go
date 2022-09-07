@@ -35,13 +35,13 @@ var traceback_env uint32
 //
 //go:nosplit
 func gotraceback() (level int32, all, crash bool) {
-	_g_ := getg()
+	gp := getg()
 	t := atomic.Load(&traceback_cache)
 	crash = t&tracebackCrash != 0
-	all = _g_.m.throwing >= throwTypeUser || t&tracebackAll != 0
-	if _g_.m.traceback != 0 {
-		level = int32(_g_.m.traceback)
-	} else if _g_.m.throwing >= throwTypeRuntime {
+	all = gp.m.throwing >= throwTypeUser || t&tracebackAll != 0
+	if gp.m.traceback != 0 {
+		level = int32(gp.m.traceback)
+	} else if gp.m.throwing >= throwTypeRuntime {
 		// Always include runtime frames in runtime throws unless
 		// otherwise overridden by m.traceback.
 		level = 2
@@ -474,18 +474,18 @@ func timediv(v int64, div int32, rem *int32) int32 {
 
 //go:nosplit
 func acquirem() *m {
-	_g_ := getg()
-	_g_.m.locks++
-	return _g_.m
+	gp := getg()
+	gp.m.locks++
+	return gp.m
 }
 
 //go:nosplit
 func releasem(mp *m) {
-	_g_ := getg()
+	gp := getg()
 	mp.locks--
-	if mp.locks == 0 && _g_.preempt {
+	if mp.locks == 0 && gp.preempt {
 		// restore the preemption request in case we've cleared it in newstack
-		_g_.stackguard0 = stackPreempt
+		gp.stackguard0 = stackPreempt
 	}
 }
 

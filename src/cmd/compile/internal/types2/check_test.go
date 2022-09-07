@@ -86,7 +86,7 @@ func delta(x, y uint) uint {
 
 // parseFlags parses flags from the first line of the given source
 // (from src if present, or by reading from the file) if the line
-// starts with "//" (line comment) followed by "-" (possiby with
+// starts with "//" (line comment) followed by "-" (possibly with
 // spaces between). Otherwise the line is ignored.
 func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
 	// If there is no src, read from the file.
@@ -297,10 +297,18 @@ func TestManual(t *testing.T) {
 
 // TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
 
-func TestCheck(t *testing.T)     { testDirFiles(t, "testdata/check", 55, false) } // TODO(gri) narrow column tolerance
-func TestSpec(t *testing.T)      { testDirFiles(t, "testdata/spec", 0, false) }
-func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", 0, false) }
-func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 0, false) }
+func TestCheck(t *testing.T) {
+	DefPredeclaredTestFuncs()
+	testDirFiles(t, "../../../../internal/types/testdata/check", 50, false) // TODO(gri) narrow column tolerance
+}
+func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 0, false) }
+func TestExamples(t *testing.T) {
+	testDirFiles(t, "../../../../internal/types/testdata/examples", 45, false)
+} // TODO(gri) narrow column tolerance
+func TestFixedbugs(t *testing.T) {
+	testDirFiles(t, "../../../../internal/types/testdata/fixedbugs", 100, false)
+}                            // TODO(gri) narrow column tolerance
+func TestLocal(t *testing.T) { testDirFiles(t, "testdata/local", 0, false) }
 
 func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
 	testenv.MustHaveGoBuild(t)

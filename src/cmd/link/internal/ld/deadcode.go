@@ -72,11 +72,11 @@ func (d *deadcodePass) init() {
 	// We redirect unreachable methods to it.
 	names = append(names, "runtime.unreachableMethod")
 	if d.ctxt.BuildMode == BuildModePlugin {
-		names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
+		names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go:plugin.tabs")
 
 		// We don't keep the go.plugin.exports symbol,
 		// but we do keep the symbols it refers to.
-		exportsIdx := d.ldr.Lookup("go.plugin.exports", 0)
+		exportsIdx := d.ldr.Lookup("go:plugin.exports", 0)
 		if exportsIdx != 0 {
 			relocs := d.ldr.Relocs(exportsIdx)
 			for i := 0; i < relocs.Count(); i++ {

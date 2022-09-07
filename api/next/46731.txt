@@ -1,0 +1,14 @@
+pkg runtime/cgo (darwin-amd64-cgo), type Incomplete struct #46731
+pkg runtime/cgo (freebsd-386-cgo), type Incomplete struct #46731
+pkg runtime/cgo (freebsd-amd64-cgo), type Incomplete struct #46731
+pkg runtime/cgo (freebsd-arm-cgo), type Incomplete struct #46731
+pkg runtime/cgo (linux-386-cgo), type Incomplete struct #46731
+pkg runtime/cgo (linux-amd64-cgo), type Incomplete struct #46731
+pkg runtime/cgo (linux-arm-cgo), type Incomplete struct #46731
+pkg runtime/cgo (netbsd-386-cgo), type Incomplete struct #46731
+pkg runtime/cgo (netbsd-amd64-cgo), type Incomplete struct #46731
+pkg runtime/cgo (netbsd-arm-cgo), type Incomplete struct #46731
+pkg runtime/cgo (netbsd-arm64-cgo), type Incomplete struct #46731
+pkg runtime/cgo (openbsd-386-cgo), type Incomplete struct #46731
+pkg runtime/cgo (openbsd-amd64-cgo), type Incomplete struct #46731
+pkg runtime/cgo, type Incomplete struct #46731

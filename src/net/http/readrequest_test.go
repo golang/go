@@ -416,7 +416,7 @@ func TestReadRequest(t *testing.T) {
 		req.Body = nil
 		testName := fmt.Sprintf("Test %d (%q)", i, tt.Raw)
 		diff(t, testName, req, tt.Req)
-		var bout bytes.Buffer
+		var bout strings.Builder
 		if rbody != nil {
 			_, err := io.Copy(&bout, rbody)
 			if err != nil {

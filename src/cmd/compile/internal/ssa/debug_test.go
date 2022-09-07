@@ -5,7 +5,6 @@
 package ssa_test
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"internal/testenv"
@@ -298,7 +297,7 @@ func runDbgr(dbg dbgr, maxNext int) *nextHist {
 }
 
 func runGo(t *testing.T, dir string, args ...string) string {
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr strings.Builder
 	cmd := exec.Command(testenv.GoToolPath(t), args...)
 	cmd.Dir = dir
 	if *dryrun {

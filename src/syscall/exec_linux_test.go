@@ -65,6 +65,10 @@ func skipUnprivilegedUserClone(t *testing.T) {
 	// Skip the test if the sysctl that prevents unprivileged user
 	// from creating user namespaces is enabled.
 	data, errRead := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+	if os.IsNotExist(errRead) {
+		// This file is only available in some Debian/Ubuntu kernels.
+		return
+	}
 	if errRead != nil || len(data) < 1 || data[0] == '0' {
 		t.Skip("kernel prohibits user namespace in unprivileged process")
 	}

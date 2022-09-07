@@ -38,6 +38,8 @@ type VCSError struct {
 
 func (e *VCSError) Error() string { return e.Err.Error() }
 
+func (e *VCSError) Unwrap() error { return e.Err }
+
 func vcsErrorf(format string, a ...any) error {
 	return &VCSError{Err: fmt.Errorf(format, a...)}
 }
@@ -290,7 +292,11 @@ func (r *vcsRepo) loadBranches() {
 	}
 }
 
-func (r *vcsRepo) Tags(prefix string) ([]string, error) {
+func (r *vcsRepo) CheckReuse(old *Origin, subdir string) error {
+	return fmt.Errorf("vcs %s: CheckReuse: %w", r.cmd.vcs, ErrUnsupported)
+}
+
+func (r *vcsRepo) Tags(prefix string) (*Tags, error) {
 	unlock, err := r.mu.Lock()
 	if err != nil {
 		return nil, err
@@ -298,14 +304,24 @@ func (r *vcsRepo) Tags(prefix string) ([]string, error) {
 	defer unlock()
 
 	r.tagsOnce.Do(r.loadTags)
-
-	tags := []string{}
+	tags := &Tags{
+		// None of the other VCS provide a reasonable way to compute TagSum
+		// without downloading the whole repo, so we only include VCS and URL
+		// in the Origin.
+		Origin: &Origin{
+			VCS: r.cmd.vcs,
+			URL: r.remote,
+		},
+		List: []Tag{},
+	}
 	for tag := range r.tags {
 		if strings.HasPrefix(tag, prefix) {
-			tags = append(tags, tag)
+			tags.List = append(tags.List, Tag{tag, ""})
 		}
 	}
-	sort.Strings(tags)
+	sort.Slice(tags.List, func(i, j int) bool {
+		return tags.List[i].Name < tags.List[j].Name
+	})
 	return tags, nil
 }
 
@@ -352,7 +368,16 @@ func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
 	if err != nil {
 		return nil, &UnknownRevisionError{Rev: rev}
 	}
-	return r.cmd.parseStat(rev, string(out))
+	info, err := r.cmd.parseStat(rev, string(out))
+	if err != nil {
+		return nil, err
+	}
+	if info.Origin == nil {
+		info.Origin = new(Origin)
+	}
+	info.Origin.VCS = r.cmd.vcs
+	info.Origin.URL = r.remote
+	return info, nil
 }
 
 func (r *vcsRepo) Latest() (*RevInfo, error) {
@@ -392,7 +417,7 @@ func (r *vcsRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag 
 	}
 	defer unlock()
 
-	return "", vcsErrorf("RecentTag not implemented")
+	return "", vcsErrorf("vcs %s: RecentTag: %w", r.cmd.vcs, ErrUnsupported)
 }
 
 func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
@@ -402,12 +427,12 @@ func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
 	}
 	defer unlock()
 
-	return false, vcsErrorf("DescendsFrom not implemented")
+	return false, vcsErrorf("vcs %s: DescendsFrom: %w", r.cmd.vcs, ErrUnsupported)
 }
 
 func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
 	if r.cmd.readZip == nil && r.cmd.doReadZip == nil {
-		return nil, vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
+		return nil, vcsErrorf("vcs %s: ReadZip: %w", r.cmd.vcs, ErrUnsupported)
 	}
 
 	unlock, err := r.mu.Lock()
@@ -491,6 +516,9 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
 	sort.Strings(tags)
 
 	info := &RevInfo{
+		Origin: &Origin{
+			Hash: hash,
+		},
 		Name:    hash,
 		Short:   ShortenSHA1(hash),
 		Time:    time.Unix(t, 0).UTC(),
@@ -569,6 +597,9 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
 				version = hash // extend to full hash
 			}
 			info := &RevInfo{
+				Origin: &Origin{
+					Hash: hash,
+				},
 				Name:    hash,
 				Short:   ShortenSHA1(hash),
 				Time:    t,

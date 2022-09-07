@@ -30,7 +30,8 @@ const (
 	_MAP_FIXED   = 0x10
 	_MAP_STACK   = 0x4000
 
-	_MADV_FREE = 0x6
+	_MADV_DONTNEED = 0x4
+	_MADV_FREE     = 0x6
 
 	_SA_SIGINFO = 0x40
 	_SA_RESTART = 0x2

@@ -7,7 +7,6 @@
 package net
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"internal/testenv"
@@ -718,7 +717,7 @@ func testDots(t *testing.T, mode string) {
 }
 
 func mxString(mxs []*MX) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	sep := ""
 	fmt.Fprintf(&buf, "[")
 	for _, mx := range mxs {
@@ -730,7 +729,7 @@ func mxString(mxs []*MX) string {
 }
 
 func nsString(nss []*NS) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	sep := ""
 	fmt.Fprintf(&buf, "[")
 	for _, ns := range nss {
@@ -742,7 +741,7 @@ func nsString(nss []*NS) string {
 }
 
 func srvString(srvs []*SRV) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	sep := ""
 	fmt.Fprintf(&buf, "[")
 	for _, srv := range srvs {
@@ -1206,6 +1205,17 @@ func TestLookupIPAddrConcurrentCallsForNetworks(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+// Issue 53995: Resolver.LookupIP should return error for empty host name.
+func TestResolverLookupIPWithEmptyHost(t *testing.T) {
+	_, err := DefaultResolver.LookupIP(context.Background(), "ip", "")
+	if err == nil {
+		t.Fatal("DefaultResolver.LookupIP for empty host success, want no host error")
+	}
+	if !strings.HasSuffix(err.Error(), errNoSuchHost.Error()) {
+		t.Fatalf("lookup error = %v, want %v", err, errNoSuchHost)
+	}
 }
 
 func TestWithUnexpiredValuesPreserved(t *testing.T) {

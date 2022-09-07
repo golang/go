@@ -672,8 +672,8 @@ func (w *wireType) string() string {
 
 type typeInfo struct {
 	id      typeId
-	encInit sync.Mutex   // protects creation of encoder
-	encoder atomic.Value // *encEngine
+	encInit sync.Mutex // protects creation of encoder
+	encoder atomic.Pointer[encEngine]
 	wire    *wireType
 }
 

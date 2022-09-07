@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/profile"
+	"internal/syscall/unix"
 	"internal/testenv"
 	"io"
 	"math"
@@ -116,11 +117,8 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 
 	// Linux [5.9,5.16) has a kernel bug that can break CPU timers on newly
 	// created threads, breaking our CPU accounting.
-	major, minor, patch, err := linuxKernelVersion()
-	if err != nil {
-		t.Errorf("Error determining kernel version: %v", err)
-	}
-	t.Logf("Running on Linux %d.%d.%d", major, minor, patch)
+	major, minor := unix.KernelVersion()
+	t.Logf("Running on Linux %d.%d", major, minor)
 	defer func() {
 		if t.Failed() {
 			t.Logf("Failure of this test may indicate that your system suffers from a known Linux kernel bug fixed on newer kernels. See https://golang.org/issue/49065.")
@@ -1319,13 +1317,13 @@ func TestGoroutineCounts(t *testing.T) {
 		t.Errorf("protobuf profile is invalid: %v", err)
 	}
 	expectedLabels := map[int64]map[string]string{
-		50: map[string]string{},
-		44: map[string]string{"label": "value"},
-		40: map[string]string{},
-		36: map[string]string{"label": "value"},
-		10: map[string]string{},
-		9:  map[string]string{"label": "value"},
-		1:  map[string]string{},
+		50: {},
+		44: {"label": "value"},
+		40: {},
+		36: {"label": "value"},
+		10: {},
+		9:  {"label": "value"},
+		1:  {},
 	}
 	if !containsCountsLabels(p, expectedLabels) {
 		t.Errorf("expected count profile to contain goroutines with counts and labels %v, got %v",

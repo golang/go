@@ -4,6 +4,10 @@
 
 package build
 
+// Note that this file is read by internal/goarch/gengoarch.go and by
+// internal/goos/gengoos.go. If you change this file, look at those
+// files as well.
+
 // knownOS is the list of past, present, and future known GOOS values.
 // Do not remove from this list, as it is used for filename matching.
 // If you add an entry to this list, look at unixOS, below.
@@ -29,7 +33,8 @@ var knownOS = map[string]bool{
 
 // unixOS is the set of GOOS values matched by the "unix" build tag.
 // This is not used for filename matching.
-// This list also appears in cmd/dist/build.go.
+// This list also appears in cmd/dist/build.go and
+// cmd/go/internal/imports/build.go.
 var unixOS = map[string]bool{
 	"aix":       true,
 	"android":   true,

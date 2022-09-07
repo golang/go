@@ -5,6 +5,7 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -302,30 +303,43 @@ loop:
 // cycleError reports a declaration cycle starting with
 // the object in cycle that is "first" in the source.
 func (check *Checker) cycleError(cycle []Object) {
+	// name returns the (possibly qualified) object name.
+	// This is needed because with generic types, cycles
+	// may refer to imported types. See issue #50788.
+	// TODO(gri) Thus functionality is used elsewhere. Factor it out.
+	name := func(obj Object) string {
+		var buf bytes.Buffer
+		writePackage(&buf, obj.Pkg(), check.qualifier)
+		buf.WriteString(obj.Name())
+		return buf.String()
+	}
+
 	// TODO(gri) Should we start with the last (rather than the first) object in the cycle
 	//           since that is the earliest point in the source where we start seeing the
 	//           cycle? That would be more consistent with other error messages.
 	i := firstInSrc(cycle)
 	obj := cycle[i]
+	objName := name(obj)
 	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
 	tname, _ := obj.(*TypeName)
 	if tname != nil && tname.IsAlias() {
 		check.validAlias(tname, Typ[Invalid])
 	}
 	if tname != nil && compilerErrorMessages {
-		check.errorf(obj, _InvalidDeclCycle, "invalid recursive type %s", obj.Name())
+		check.errorf(obj, _InvalidDeclCycle, "invalid recursive type %s", objName)
 	} else {
-		check.errorf(obj, _InvalidDeclCycle, "illegal cycle in declaration of %s", obj.Name())
+		check.errorf(obj, _InvalidDeclCycle, "illegal cycle in declaration of %s", objName)
 	}
 	for range cycle {
-		check.errorf(obj, _InvalidDeclCycle, "\t%s refers to", obj.Name()) // secondary error, \t indented
+		check.errorf(obj, _InvalidDeclCycle, "\t%s refers to", objName) // secondary error, \t indented
 		i++
 		if i >= len(cycle) {
 			i = 0
 		}
 		obj = cycle[i]
+		objName = name(obj)
 	}
-	check.errorf(obj, _InvalidDeclCycle, "\t%s", obj.Name())
+	check.errorf(obj, _InvalidDeclCycle, "\t%s", objName)
 }
 
 // firstInSrc reports the index of the object with the "smallest"
@@ -565,7 +579,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	}
 
 	// type definition or generic type declaration
-	named := check.newNamed(obj, nil, nil, nil)
+	named := check.newNamed(obj, nil, nil)
 	def.setUnderlying(named)
 
 	if tdecl.TypeParams != nil {
@@ -579,8 +593,8 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	assert(rhs != nil)
 	named.fromRHS = rhs
 
-	// If the underlying was not set while type-checking the right-hand side, it
-	// is invalid and an error should have been reported elsewhere.
+	// If the underlying type was not set while type-checking the right-hand
+	// side, it is invalid and an error should have been reported elsewhere.
 	if named.underlying == nil {
 		named.underlying = Typ[Invalid]
 	}
@@ -711,7 +725,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 	// and field names must be distinct."
 	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
 	if base != nil {
-		assert(base.targs.Len() == 0) // collectMethods should not be called on an instantiated type
+		assert(base.TypeArgs().Len() == 0) // collectMethods should not be called on an instantiated type
 
 		// See issue #52529: we must delay the expansion of underlying here, as
 		// base may not be fully set-up.
@@ -722,8 +736,8 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		// Checker.Files may be called multiple times; additional package files
 		// may add methods to already type-checked types. Add pre-existing methods
 		// so that we can detect redeclarations.
-		for i := 0; i < base.methods.Len(); i++ {
-			m := base.methods.At(i, nil)
+		for i := 0; i < base.NumMethods(); i++ {
+			m := base.Method(i)
 			assert(m.name != "_")
 			assert(mset.insert(m) == nil)
 		}
@@ -749,8 +763,8 @@ func (check *Checker) collectMethods(obj *TypeName) {
 func (check *Checker) checkFieldUniqueness(base *Named) {
 	if t, _ := base.under().(*Struct); t != nil {
 		var mset objset
-		for i := 0; i < base.methods.Len(); i++ {
-			m := base.methods.At(i, nil)
+		for i := 0; i < base.NumMethods(); i++ {
+			m := base.Method(i)
 			assert(m.name != "_")
 			assert(mset.insert(m) == nil)
 		}

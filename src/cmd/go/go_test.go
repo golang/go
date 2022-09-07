@@ -55,6 +55,11 @@ var (
 	fuzzInstrumented = false // whether fuzzing uses instrumentation
 )
 
+var (
+	goHostOS, goHostArch string
+	cgoEnabled           string // raw value from 'go env CGO_ENABLED'
+)
+
 var exeSuffix string = func() string {
 	if runtime.GOOS == "windows" {
 		return ".exe"
@@ -96,6 +101,8 @@ func TestMain(m *testing.M) {
 	// run the main func exported via export_test.go, and exit.
 	// We set CMDGO_TEST_RUN_MAIN via os.Setenv and testScript.setup.
 	if os.Getenv("CMDGO_TEST_RUN_MAIN") != "" {
+		cfg.SetGOROOT(cfg.GOROOT, true)
+
 		if v := os.Getenv("TESTGO_VERSION"); v != "" {
 			work.RuntimeVersion = v
 		}
@@ -204,13 +211,16 @@ func TestMain(m *testing.M) {
 		// which will cause many tests to do unnecessary rebuilds and some
 		// tests to attempt to overwrite the installed standard library.
 		// Bail out entirely in this case.
-		hostGOOS := goEnv("GOHOSTOS")
-		hostGOARCH := goEnv("GOHOSTARCH")
-		if hostGOOS != runtime.GOOS || hostGOARCH != runtime.GOARCH {
-			fmt.Fprintf(os.Stderr, "testing: warning: no tests to run\n") // magic string for cmd/go
-			fmt.Printf("cmd/go test is not compatible with GOOS/GOARCH != GOHOSTOS/GOHOSTARCH (%s/%s != %s/%s)\n", runtime.GOOS, runtime.GOARCH, hostGOOS, hostGOARCH)
-			fmt.Printf("SKIP\n")
-			return
+		goHostOS = goEnv("GOHOSTOS")
+		os.Setenv("TESTGO_GOHOSTOS", goHostOS)
+		goHostArch = goEnv("GOHOSTARCH")
+		os.Setenv("TESTGO_GOHOSTARCH", goHostArch)
+
+		cgoEnabled = goEnv("CGO_ENABLED")
+		canCgo, err = strconv.ParseBool(cgoEnabled)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "can't parse go env CGO_ENABLED output: %q\n", strings.TrimSpace(cgoEnabled))
+			os.Exit(2)
 		}
 
 		// Duplicate the test executable into the path at testGo, for $PATH.
@@ -241,18 +251,6 @@ func TestMain(m *testing.M) {
 			}
 		}
 
-		cmd := exec.Command(testGo, "env", "CGO_ENABLED")
-		cmd.Stderr = new(strings.Builder)
-		if out, err := cmd.Output(); err != nil {
-			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n%s", err, cmd.Stderr)
-			os.Exit(2)
-		} else {
-			canCgo, err = strconv.ParseBool(strings.TrimSpace(string(out)))
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "can't parse go env CGO_ENABLED output: %v\n", strings.TrimSpace(string(out)))
-			}
-		}
-
 		out, err := exec.Command(gotool, "env", "GOCACHE").CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "could not find testing GOCACHE: %v\n%s", err, out)
@@ -272,6 +270,7 @@ func TestMain(m *testing.M) {
 		canFuzz = sys.FuzzSupported(runtime.GOOS, runtime.GOARCH)
 		fuzzInstrumented = sys.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
 	}
+
 	// Don't let these environment variables confuse the test.
 	os.Setenv("GOENV", "off")
 	os.Unsetenv("GOFLAGS")
@@ -285,6 +284,14 @@ func TestMain(m *testing.M) {
 	os.Setenv("CCACHE_DISABLE", "1")
 	if cfg.Getenv("GOCACHE") == "" {
 		os.Setenv("GOCACHE", testGOCACHE) // because $HOME is gone
+	}
+
+	if testenv.Builder() != "" || os.Getenv("GIT_TRACE_CURL") == "1" {
+		// To help diagnose https://go.dev/issue/52545,
+		// enable tracing for Git HTTPS requests.
+		os.Setenv("GIT_TRACE_CURL", "1")
+		os.Setenv("GIT_TRACE_CURL_NO_DATA", "1")
+		os.Setenv("GIT_REDACT_COOKIES", "o,SSO,GSSO_Uberproxy")
 	}
 
 	r := m.Run()
@@ -878,7 +885,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		"src/math/bits",
 		"src/unsafe",
 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
-		filepath.Join("pkg/tool", runtime.GOOS+"_"+runtime.GOARCH),
+		filepath.Join("pkg/tool", goHostOS+"_"+goHostArch),
 		"pkg/include",
 	} {
 		srcdir := filepath.Join(testGOROOT, copydir)
@@ -983,21 +990,6 @@ func TestIssue10952(t *testing.T) {
 	tg.run("get", "-d", "-u", importPath)
 }
 
-func TestIssue16471(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.must(os.MkdirAll(tg.path("src/rsc.io/go-get-issue-10952"), 0755))
-	tg.runGit(tg.path("src/rsc.io"), "clone", "https://github.com/zombiezen/go-get-issue-10952")
-	tg.runFail("get", "-u", "rsc.io/go-get-issue-10952")
-	tg.grepStderr("rsc.io/go-get-issue-10952 is a custom import path for https://github.com/rsc/go-get-issue-10952, but .* is checked out from https://github.com/zombiezen/go-get-issue-10952", "did not detect updated import path")
-}
-
 // Test git clone URL that uses SCP-like syntax and custom import path checking.
 func TestIssue11457(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
@@ -1047,29 +1039,6 @@ func TestGetGitDefaultBranch(t *testing.T) {
 	tg.run("get", "-d", "-u", importPath)
 	tg.runGit(repoDir, "branch", "--contains", "HEAD")
 	tg.grepStdout(`\* another-branch`, "not on correct default branch")
-}
-
-// Security issue. Don't disable. See golang.org/issue/22125.
-func TestAccidentalGitCheckout(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-	testenv.MustHaveExecPath(t, "svn")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src")
-
-	tg.setenv("GOPATH", tg.path("."))
-
-	tg.runFail("get", "-u", "vcs-test.golang.org/go/test1-svn-git")
-	tg.grepStderr("src[\\\\/]vcs-test.* uses git, but parent .*src[\\\\/]vcs-test.* uses svn", "get did not fail for right reason")
-
-	if _, err := os.Stat(tg.path("SrC")); err == nil {
-		// This case only triggers on a case-insensitive file system.
-		tg.runFail("get", "-u", "vcs-test.golang.org/go/test2-svn-git/test2main")
-		tg.grepStderr("src[\\\\/]vcs-test.* uses git, but parent .*src[\\\\/]vcs-test.* uses svn", "get did not fail for right reason")
-	}
 }
 
 func TestPackageMainTestCompilerFlags(t *testing.T) {
@@ -1352,6 +1321,15 @@ func tempEnvName() string {
 		return "TMPDIR" // actually plan 9 doesn't have one at all but this is fine
 	default:
 		return "TMPDIR"
+	}
+}
+
+func pathEnvName() string {
+	switch runtime.GOOS {
+	case "plan9":
+		return "path"
+	default:
+		return "PATH"
 	}
 }
 
@@ -2145,6 +2123,10 @@ func TestBuildmodePIE(t *testing.T) {
 	default:
 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
 	}
+	// Skip on alpine until https://go.dev/issues/54354 resolved.
+	if strings.HasSuffix(testenv.Builder(), "-alpine") {
+		t.Skip("skipping PIE tests on alpine; see https://go.dev/issues/54354")
+	}
 	t.Run("non-cgo", func(t *testing.T) {
 		testBuildmodePIE(t, false, true)
 	})
@@ -2393,6 +2375,8 @@ func TestIssue22588(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
+
+	tg.wantNotStale("runtime", "", "must be non-stale to compare staleness under -toolexec")
 
 	if _, err := os.Stat("/usr/bin/time"); err != nil {
 		t.Skip(err)

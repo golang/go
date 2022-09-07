@@ -155,16 +155,10 @@ func schedule(f *Func) {
 				// VARDEF ops are scheduled before the corresponding LEA.
 				score[v.ID] = ScoreMemory
 			case v.Op == OpSelect0 || v.Op == OpSelect1 || v.Op == OpSelectN:
-				// Schedule the pseudo-op of reading part of a tuple
-				// immediately after the tuple-generating op, since
-				// this value is already live. This also removes its
-				// false dependency on the other part of the tuple.
-				// Also ensures tuple is never spilled.
-				if (v.Op == OpSelect1 || v.Op == OpSelect0) && v.Args[0].Op.isCarry() {
-					// Score tuple ops of carry ops later to ensure they do not
-					// delay scheduling the tuple-generating op. If such tuple ops
-					// are not placed more readily, unrelated carry clobbering ops
-					// may be placed inbetween two carry-dependent operations.
+				if (v.Op == OpSelect1 || v.Op == OpSelect0) && (v.Args[0].Op.isCarry() || v.Type.IsFlags()) {
+					// When the Select pseudo op is being used for a carry or flag from
+					// a tuple then score it as ScoreFlags so it happens later. This
+					// prevents the bit from being clobbered before it is used.
 					score[v.ID] = ScoreFlags
 				} else {
 					score[v.ID] = ScoreReadTuple
@@ -179,7 +173,7 @@ func schedule(f *Func) {
 					// scored CarryChainTail (and prove w is not a tail).
 					score[w.ID] = ScoreFlags
 				}
-				// Verify v has not been scored. If v has not been visited, v may be the
+				// Verify v has not been scored. If v has not been visited, v may be
 				// the final (tail) operation in a carry chain. If v is not, v will be
 				// rescored above when v's carry-using op is scored. When scoring is done,
 				// only tail operations will retain the CarryChainTail score.

@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"sync/atomic"
 	"time"
 )
 
@@ -615,7 +614,7 @@ func fRunner(f *F, fn func(*F)) {
 		// the original panic should still be
 		// clear.
 		if f.Failed() {
-			atomic.AddUint32(&numFailed, 1)
+			numFailed.Add(1)
 		}
 		err := recover()
 		if err == nil {

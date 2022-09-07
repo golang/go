@@ -5,7 +5,9 @@
 package time_test
 
 import (
+	"bytes"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -115,7 +117,17 @@ var formatTests = []FormatTest{
 	{"StampMilli", StampMilli, "Feb  4 21:00:57.012"},
 	{"StampMicro", StampMicro, "Feb  4 21:00:57.012345"},
 	{"StampNano", StampNano, "Feb  4 21:00:57.012345600"},
+	{"DateTime", DateTime, "2009-02-04 21:00:57"},
+	{"DateOnly", DateOnly, "2009-02-04"},
+	{"TimeOnly", TimeOnly, "21:00:57"},
 	{"YearDay", "Jan  2 002 __2 2", "Feb  4 035  35 4"},
+	{"Year", "2006 6 06 _6 __6 ___6", "2009 6 09 _6 __6 ___6"},
+	{"Month", "Jan January 1 01 _1", "Feb February 2 02 _2"},
+	{"DayOfMonth", "2 02 _2 __2", "4 04  4  35"},
+	{"DayOfWeek", "Mon Monday", "Wed Wednesday"},
+	{"Hour", "15 3 03 _3", "21 9 09 _9"},
+	{"Minute", "4 04 _4", "0 00 _0"},
+	{"Second", "5 05 _5", "57 57 _57"},
 }
 
 func TestFormat(t *testing.T) {
@@ -581,6 +593,8 @@ var parseErrorTests = []ParseErrorTest{
 	{RFC3339, "2006-01-02T15:04:05Z_abc", `parsing time "2006-01-02T15:04:05Z_abc": extra text: "_abc"`},
 	// invalid second followed by optional fractional seconds
 	{RFC3339, "2010-02-04T21:00:67.012345678-08:00", "second out of range"},
+	// issue 54569
+	{RFC3339, "0000-01-01T00:00:.0+00:00", `parsing time "0000-01-01T00:00:.0+00:00" as "2006-01-02T15:04:05Z07:00": cannot parse ".0+00:00" as "05"`},
 	// issue 21113
 	{"_2 Jan 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
 	{"_2 January 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
@@ -592,6 +606,10 @@ var parseErrorTests = []ParseErrorTest{
 	// issue 45391.
 	{`"2006-01-02T15:04:05Z07:00"`, "0", `parsing time "0" as "\"2006-01-02T15:04:05Z07:00\"": cannot parse "0" as "\""`},
 	{RFC3339, "\"", `parsing time "\"" as "2006-01-02T15:04:05Z07:00": cannot parse "\"" as "2006"`},
+
+	// issue 54570
+	{RFC3339, "0000-01-01T00:00:00+00:+0", `parsing time "0000-01-01T00:00:00+00:+0" as "2006-01-02T15:04:05Z07:00": cannot parse "" as "Z07:00"`},
+	{RFC3339, "0000-01-01T00:00:00+-0:00", `parsing time "0000-01-01T00:00:00+-0:00" as "2006-01-02T15:04:05Z07:00": cannot parse "" as "Z07:00"`},
 }
 
 func TestParseErrors(t *testing.T) {
@@ -853,7 +871,7 @@ func TestFormatFractionalSecondSeparators(t *testing.T) {
 	}
 }
 
-// Issue 48685
+// Issue 48685 and 54567.
 func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
 	tests := []struct {
 		s    string
@@ -883,13 +901,57 @@ func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tm, err := Parse(RFC3339, tt.s)
-		if err != nil {
-			t.Errorf("Unexpected error: %v", err)
-			continue
-		}
-		if got := tm.Nanosecond(); got != tt.want {
-			t.Errorf("Parse(%q) = got %d, want %d", tt.s, got, tt.want)
+		for _, format := range []string{RFC3339, RFC3339Nano} {
+			tm, err := Parse(format, tt.s)
+			if err != nil {
+				t.Errorf("Parse(%q, %q) error: %v", format, tt.s, err)
+				continue
+			}
+			if got := tm.Nanosecond(); got != tt.want {
+				t.Errorf("Parse(%q, %q) = got %d, want %d", format, tt.s, got, tt.want)
+			}
 		}
 	}
+}
+
+func FuzzFormatRFC3339(f *testing.F) {
+	for _, ts := range [][2]int64{
+		{math.MinInt64, math.MinInt64}, // 292277026304-08-26T15:42:51Z
+		{-62167219200, 0},              // 0000-01-01T00:00:00Z
+		{1661201140, 676836973},        // 2022-08-22T20:45:40.676836973Z
+		{253402300799, 999999999},      // 9999-12-31T23:59:59.999999999Z
+		{math.MaxInt64, math.MaxInt64}, // -292277022365-05-08T08:17:07Z
+	} {
+		f.Add(ts[0], ts[1], true, false, 0)
+		f.Add(ts[0], ts[1], false, true, 0)
+		for _, offset := range []int{0, 60, 60 * 60, 99*60*60 + 99*60, 123456789} {
+			f.Add(ts[0], ts[1], false, false, -offset)
+			f.Add(ts[0], ts[1], false, false, +offset)
+		}
+	}
+
+	f.Fuzz(func(t *testing.T, sec, nsec int64, useUTC, useLocal bool, tzOffset int) {
+		var loc *Location
+		switch {
+		case useUTC:
+			loc = UTC
+		case useLocal:
+			loc = Local
+		default:
+			loc = FixedZone("", tzOffset)
+		}
+		ts := Unix(sec, nsec).In(loc)
+
+		got := AppendFormatRFC3339(ts, nil, false)
+		want := AppendFormatAny(ts, nil, RFC3339)
+		if !bytes.Equal(got, want) {
+			t.Errorf("Format(%s, RFC3339) mismatch:\n\tgot:  %s\n\twant: %s", ts, got, want)
+		}
+
+		gotNanos := AppendFormatRFC3339(ts, nil, true)
+		wantNanos := AppendFormatAny(ts, nil, RFC3339Nano)
+		if !bytes.Equal(got, want) {
+			t.Errorf("Format(%s, RFC3339Nano) mismatch:\n\tgot:  %s\n\twant: %s", ts, gotNanos, wantNanos)
+		}
+	})
 }

@@ -406,6 +406,8 @@ var splittests = []SplitTest{
 	{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
 	{"1 2", " ", 3, []string{"1", "2"}},
 	{"", "T", math.MaxInt / 4, []string{""}},
+	{"\xff-\xff", "", -1, []string{"\xff", "-", "\xff"}},
+	{"\xff-\xff", "-", -1, []string{"\xff", "\xff"}},
 }
 
 func TestSplit(t *testing.T) {
@@ -547,6 +549,7 @@ var upperTests = []StringTest{
 	{"AbC123", "ABC123"},
 	{"azAZ09_", "AZAZ09_"},
 	{"longStrinGwitHmixofsmaLLandcAps", "LONGSTRINGWITHMIXOFSMALLANDCAPS"},
+	{"RENAN BASTOS 93 AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO", "RENAN BASTOS 93 AOSDAJDJAIDJAIDAJIAIDSJJAIDIJADSJIADJIOOKKO"},
 	{"long\u0250string\u0250with\u0250nonascii\u2C6Fchars", "LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS"},
 	{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
 	{"a\u0080\U0010FFFF", "A\u0080\U0010FFFF"},                           // test utf8.RuneSelf and utf8.MaxRune
@@ -558,6 +561,7 @@ var lowerTests = []StringTest{
 	{"AbC123", "abc123"},
 	{"azAZ09_", "azaz09_"},
 	{"longStrinGwitHmixofsmaLLandcAps", "longstringwithmixofsmallandcaps"},
+	{"renan bastos 93 AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO", "renan bastos 93 aosdajdjaidjaidajiaidsjjaidijadsjiadjiookko"},
 	{"LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS", "long\u0250string\u0250with\u0250nonascii\u0250chars"},
 	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"}, // shrinks one byte per char
 	{"A\u0080\U0010FFFF", "a\u0080\U0010FFFF"},                           // test utf8.RuneSelf and utf8.MaxRune
@@ -656,8 +660,7 @@ func TestMap(t *testing.T) {
 	}
 	orig := "Input string that we expect not to be copied."
 	m = Map(identity, orig)
-	if (*reflect.StringHeader)(unsafe.Pointer(&orig)).Data !=
-		(*reflect.StringHeader)(unsafe.Pointer(&m)).Data {
+	if unsafe.StringData(orig) != unsafe.StringData(m) {
 		t.Error("unexpected copy during identity map")
 	}
 
@@ -1605,6 +1608,48 @@ func TestCut(t *testing.T) {
 	for _, tt := range cutTests {
 		if before, after, found := Cut(tt.s, tt.sep); before != tt.before || after != tt.after || found != tt.found {
 			t.Errorf("Cut(%q, %q) = %q, %q, %v, want %q, %q, %v", tt.s, tt.sep, before, after, found, tt.before, tt.after, tt.found)
+		}
+	}
+}
+
+var cutPrefixTests = []struct {
+	s, sep string
+	after  string
+	found  bool
+}{
+	{"abc", "a", "bc", true},
+	{"abc", "abc", "", true},
+	{"abc", "", "abc", true},
+	{"abc", "d", "abc", false},
+	{"", "d", "", false},
+	{"", "", "", true},
+}
+
+func TestCutPrefix(t *testing.T) {
+	for _, tt := range cutPrefixTests {
+		if after, found := CutPrefix(tt.s, tt.sep); after != tt.after || found != tt.found {
+			t.Errorf("CutPrefix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
+		}
+	}
+}
+
+var cutSuffixTests = []struct {
+	s, sep string
+	after  string
+	found  bool
+}{
+	{"abc", "bc", "a", true},
+	{"abc", "abc", "", true},
+	{"abc", "", "abc", true},
+	{"abc", "d", "abc", false},
+	{"", "d", "", false},
+	{"", "", "", true},
+}
+
+func TestCutSuffix(t *testing.T) {
+	for _, tt := range cutSuffixTests {
+		if after, found := CutSuffix(tt.s, tt.sep); after != tt.after || found != tt.found {
+			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
 		}
 	}
 }

@@ -482,6 +482,7 @@ func TestAddrClassifier(t *testing.T) {
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_PARAM, Offset: BIG}, C_LOREG},
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_PARAM, Offset: -BIG - 33}, C_LOREG}, // 33 is FixedFrameSize-1
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE}, C_ZOREG},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE, Index: REG_R4}, C_XOREG},
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE, Offset: 1}, C_SOREG},
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE, Offset: BIG}, C_LOREG},
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE, Offset: -BIG - 33}, C_LOREG},

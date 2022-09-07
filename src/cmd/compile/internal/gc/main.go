@@ -75,14 +75,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	types.LocalPkg = types.NewPkg(base.Ctxt.Pkgpath, "")
 
-	// We won't know localpkg's height until after import
-	// processing. In the mean time, set to MaxPkgHeight to ensure
-	// height comparisons at least work until then.
-	types.LocalPkg.Height = types.MaxPkgHeight
-
 	// pseudo-package, for scoping
 	types.BuiltinPkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
-	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
+	types.BuiltinPkg.Prefix = "go:builtin"
 
 	// pseudo-package, accessed by import "unsafe"
 	types.UnsafePkg = types.NewPkg("unsafe", "unsafe")
@@ -97,7 +92,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	// pseudo-packages used in symbol tables
 	ir.Pkgs.Itab = types.NewPkg("go.itab", "go.itab")
-	ir.Pkgs.Itab.Prefix = "go.itab" // not go%2eitab
+	ir.Pkgs.Itab.Prefix = "go:itab"
 
 	// pseudo-package used for methods with anonymous receivers
 	ir.Pkgs.Go = types.NewPkg("go", "")

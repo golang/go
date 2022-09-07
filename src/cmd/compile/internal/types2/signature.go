@@ -130,7 +130,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 				// Also: Don't report an error via genericType since it will be reported
 				//       again when we type-check the signature.
 				// TODO(gri) maybe the receiver should be marked as invalid instead?
-				if recv, _ := check.genericType(rname, false).(*Named); recv != nil {
+				if recv, _ := check.genericType(rname, nil).(*Named); recv != nil {
 					recvTParams = recv.TypeParams().list()
 				}
 			}
@@ -143,7 +143,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 					// recvTPar.bound is (possibly) parameterized in the context of the
 					// receiver type declaration. Substitute parameters for the current
 					// context.
-					tpar.bound = check.subst(tpar.obj.pos, recvTPar.bound, smap, nil)
+					tpar.bound = check.subst(tpar.obj.pos, recvTPar.bound, smap, nil, check.context())
 				}
 			} else if len(tparams) < len(recvTParams) {
 				// Reporting an error here is a stop-gap measure to avoid crashes in the

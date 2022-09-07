@@ -196,12 +196,16 @@ func init() {
 		{name: "SQRTF", argLength: 1, reg: fp11, asm: "SQRTF"}, // sqrt(arg0), float32
 
 		// shifts
-		{name: "SLLV", argLength: 2, reg: gp21, asm: "SLLV"},                    // arg0 << arg1, shift amount is mod 64
-		{name: "SLLVconst", argLength: 1, reg: gp11, asm: "SLLV", aux: "Int64"}, // arg0 << auxInt
-		{name: "SRLV", argLength: 2, reg: gp21, asm: "SRLV"},                    // arg0 >> arg1, unsigned, shift amount is mod 64
-		{name: "SRLVconst", argLength: 1, reg: gp11, asm: "SRLV", aux: "Int64"}, // arg0 >> auxInt, unsigned
-		{name: "SRAV", argLength: 2, reg: gp21, asm: "SRAV"},                    // arg0 >> arg1, signed, shift amount is mod 64
-		{name: "SRAVconst", argLength: 1, reg: gp11, asm: "SRAV", aux: "Int64"}, // arg0 >> auxInt, signed
+		{name: "SLLV", argLength: 2, reg: gp21, asm: "SLLV"},                      // arg0 << arg1, shift amount is mod 64
+		{name: "SLLVconst", argLength: 1, reg: gp11, asm: "SLLV", aux: "Int64"},   // arg0 << auxInt
+		{name: "SRLV", argLength: 2, reg: gp21, asm: "SRLV"},                      // arg0 >> arg1, unsigned, shift amount is mod 64
+		{name: "SRLVconst", argLength: 1, reg: gp11, asm: "SRLV", aux: "Int64"},   // arg0 >> auxInt, unsigned
+		{name: "SRAV", argLength: 2, reg: gp21, asm: "SRAV"},                      // arg0 >> arg1, signed, shift amount is mod 64
+		{name: "SRAVconst", argLength: 1, reg: gp11, asm: "SRAV", aux: "Int64"},   // arg0 >> auxInt, signed
+		{name: "ROTR", argLength: 2, reg: gp21, asm: "ROTR"},                      // arg0 right rotate by (arg1 mod 32) bits
+		{name: "ROTRV", argLength: 2, reg: gp21, asm: "ROTRV"},                    // arg0 right rotate by (arg1 mod 64) bits
+		{name: "ROTRconst", argLength: 1, reg: gp11, asm: "ROTR", aux: "Int64"},   // uint32(arg0) right rotate by auxInt bits, auxInt should be in the range 0 to 31.
+		{name: "ROTRVconst", argLength: 1, reg: gp11, asm: "ROTRV", aux: "Int64"}, // arg0 right rotate by auxInt bits, auxInt should be in the range 0 to 63.
 
 		// comparisons
 		{name: "SGT", argLength: 2, reg: gp21, asm: "SGT", typ: "Bool"},                      // 1 if arg0 > arg1 (signed), 0 otherwise

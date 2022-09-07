@@ -1020,16 +1020,16 @@ func machoShouldExport(ctxt *Link, ldr *loader.Loader, s loader.Sym) bool {
 		return true
 	}
 	name := ldr.SymName(s)
-	if strings.HasPrefix(name, "go.itab.") {
+	if strings.HasPrefix(name, "go:itab.") {
 		return true
 	}
-	if strings.HasPrefix(name, "type.") && !strings.HasPrefix(name, "type..") {
+	if strings.HasPrefix(name, "type:") && !strings.HasPrefix(name, "type:.") {
 		// reduce runtime typemap pressure, but do not
-		// export alg functions (type..*), as these
+		// export alg functions (type:.*), as these
 		// appear in pclntable.
 		return true
 	}
-	if strings.HasPrefix(name, "go.link.pkghash") {
+	if strings.HasPrefix(name, "go:link.pkghash") {
 		return true
 	}
 	return ldr.SymType(s) >= sym.SFirstWritable // only writable sections

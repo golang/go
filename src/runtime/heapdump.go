@@ -327,7 +327,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 
 	// Record arg info for parent.
 	child.argoff = s.argp - s.fp
-	child.arglen = s.arglen
+	child.arglen = s.argBytes()
 	child.sp = (*uint8)(unsafe.Pointer(s.sp))
 	child.depth++
 	stkmap = (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
@@ -354,7 +354,7 @@ func dumpgoroutine(gp *g) {
 	dumpint(tagGoroutine)
 	dumpint(uint64(uintptr(unsafe.Pointer(gp))))
 	dumpint(uint64(sp))
-	dumpint(uint64(gp.goid))
+	dumpint(gp.goid)
 	dumpint(uint64(gp.gopc))
 	dumpint(uint64(readgstatus(gp)))
 	dumpbool(isSystemGoroutine(gp, false))
@@ -693,9 +693,9 @@ func mdump(m *MemStats) {
 func writeheapdump_m(fd uintptr, m *MemStats) {
 	assertWorldStopped()
 
-	_g_ := getg()
-	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
-	_g_.waitreason = waitReasonDumpingHeap
+	gp := getg()
+	casgstatus(gp.m.curg, _Grunning, _Gwaiting)
+	gp.waitreason = waitReasonDumpingHeap
 
 	// Set dump file.
 	dumpfd = fd
@@ -710,7 +710,7 @@ func writeheapdump_m(fd uintptr, m *MemStats) {
 		tmpbuf = nil
 	}
 
-	casgstatus(_g_.m.curg, _Gwaiting, _Grunning)
+	casgstatus(gp.m.curg, _Gwaiting, _Grunning)
 }
 
 // dumpint() the kind & offset of each field in an object.
@@ -737,16 +737,16 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	for i := uintptr(0); i < nptr/8+1; i++ {
 		tmpbuf[i] = 0
 	}
-	i := uintptr(0)
-	hbits := heapBitsForAddr(p)
-	for ; i < nptr; i++ {
-		if !hbits.morePointers() {
-			break // end of object
+
+	hbits := heapBitsForAddr(p, size)
+	for {
+		var addr uintptr
+		hbits, addr = hbits.next()
+		if addr == 0 {
+			break
 		}
-		if hbits.isPointer() {
-			tmpbuf[i/8] |= 1 << (i % 8)
-		}
-		hbits = hbits.next()
+		i := (addr - p) / goarch.PtrSize
+		tmpbuf[i/8] |= 1 << (i % 8)
 	}
-	return bitvector{int32(i), &tmpbuf[0]}
+	return bitvector{int32(nptr), &tmpbuf[0]}
 }

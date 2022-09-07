@@ -206,7 +206,6 @@ func downloadPaths(patterns []string) []string {
 	for _, arg := range patterns {
 		if strings.Contains(arg, "@") {
 			base.Fatalf("go: can only use path@version syntax with 'go get' and 'go install' in module-aware mode")
-			continue
 		}
 
 		// Guard against 'go get x.go', a common mistake.

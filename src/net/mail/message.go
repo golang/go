@@ -829,18 +829,18 @@ func isQtext(r rune) bool {
 
 // quoteString renders a string as an RFC 5322 quoted-string.
 func quoteString(s string) string {
-	var buf strings.Builder
-	buf.WriteByte('"')
+	var b strings.Builder
+	b.WriteByte('"')
 	for _, r := range s {
 		if isQtext(r) || isWSP(r) {
-			buf.WriteRune(r)
+			b.WriteRune(r)
 		} else if isVchar(r) {
-			buf.WriteByte('\\')
-			buf.WriteRune(r)
+			b.WriteByte('\\')
+			b.WriteRune(r)
 		}
 	}
-	buf.WriteByte('"')
-	return buf.String()
+	b.WriteByte('"')
+	return b.String()
 }
 
 // isVchar reports whether r is an RFC 5322 VCHAR character.

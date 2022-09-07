@@ -14,6 +14,7 @@ import (
 	"debug/macho"
 	"errors"
 	"fmt"
+	"go/build"
 	"internal/testenv"
 	"io"
 	"math"
@@ -36,10 +37,10 @@ func TestGoAMD64v1(t *testing.T) {
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		t.Skip("test only works on elf or macho platforms")
 	}
-	if v := os.Getenv("GOAMD64"); v != "" && v != "v1" {
-		// Test runs only on v1 (which is the default).
-		// TODO: use build tags from #45454 instead.
-		t.Skip("GOAMD64 already set")
+	for _, tag := range build.Default.ToolTags {
+		if tag == "amd64.v2" {
+			t.Skip("compiling for GOAMD64=v2 or higher")
+		}
 	}
 	if os.Getenv("TESTGOAMD64V1") != "" {
 		t.Skip("recursive call")
@@ -242,12 +243,31 @@ var featureToOpcodes = map[string][]string{
 	// go tool objdump doesn't include a [QL] on popcnt instructions, until CL 351889
 	// native objdump doesn't include [QL] on linux.
 	"popcnt": {"popcntq", "popcntl", "popcnt"},
-	"bmi1":   {"andnq", "andnl", "andn", "blsiq", "blsil", "blsi", "blsmskq", "blsmskl", "blsmsk", "blsrq", "blsrl", "blsr", "tzcntq", "tzcntl", "tzcnt"},
-	"bmi2":   {"sarxq", "sarxl", "sarx", "shlxq", "shlxl", "shlx", "shrxq", "shrxl", "shrx"},
-	"sse41":  {"roundsd"},
-	"fma":    {"vfmadd231sd"},
-	"movbe":  {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
-	"lzcnt":  {"lzcntq", "lzcntl", "lzcnt"},
+	"bmi1": {
+		"andnq", "andnl", "andn",
+		"blsiq", "blsil", "blsi",
+		"blsmskq", "blsmskl", "blsmsk",
+		"blsrq", "blsrl", "blsr",
+		"tzcntq", "tzcntl", "tzcnt",
+	},
+	"bmi2": {
+		"sarxq", "sarxl", "sarx",
+		"shlxq", "shlxl", "shlx",
+		"shrxq", "shrxl", "shrx",
+	},
+	"sse41": {
+		"roundsd",
+		"pinsrq", "pinsrl", "pinsrd", "pinsrb", "pinsr",
+		"pextrq", "pextrl", "pextrd", "pextrb", "pextr",
+		"pminsb", "pminsd", "pminuw", "pminud", // Note: ub and sw are ok.
+		"pmaxsb", "pmaxsd", "pmaxuw", "pmaxud",
+		"pmovzxbw", "pmovzxbd", "pmovzxbq", "pmovzxwd", "pmovzxwq", "pmovzxdq",
+		"pmovsxbw", "pmovsxbd", "pmovsxbq", "pmovsxwd", "pmovsxwq", "pmovsxdq",
+		"pblendvb",
+	},
+	"fma":   {"vfmadd231sd"},
+	"movbe": {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
+	"lzcnt": {"lzcntq", "lzcntl", "lzcnt"},
 }
 
 // Test to use POPCNT instruction, if available

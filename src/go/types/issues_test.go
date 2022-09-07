@@ -7,7 +7,6 @@
 package types_test
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/importer"
@@ -429,7 +428,7 @@ func TestIssue29029(t *testing.T) {
 
 	// printInfo prints the *Func definitions recorded in info, one *Func per line.
 	printInfo := func(info *Info) string {
-		var buf bytes.Buffer
+		var buf strings.Builder
 		for _, obj := range info.Defs {
 			if fn, ok := obj.(*Func); ok {
 				fmt.Fprintln(&buf, fn)

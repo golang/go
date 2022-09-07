@@ -189,7 +189,7 @@ func (obj *object) sameId(pkg *Package, name string) bool {
 //
 // Objects are ordered nil before non-nil, exported before
 // non-exported, then by name, and finally (for non-exported
-// functions) by package height and path.
+// functions) by package path.
 func (a *object) less(b *object) bool {
 	if a == b {
 		return false
@@ -215,9 +215,6 @@ func (a *object) less(b *object) bool {
 		return a.name < b.name
 	}
 	if !ea {
-		if a.pkg.height != b.pkg.height {
-			return a.pkg.height < b.pkg.height
-		}
 		return a.pkg.path < b.pkg.path
 	}
 
@@ -279,19 +276,7 @@ func NewTypeName(pos syntax.Pos, pkg *Package, name string, typ Type) *TypeName 
 // lazily calls resolve to finish constructing the Named object.
 func NewTypeNameLazy(pos syntax.Pos, pkg *Package, name string, load func(named *Named) (tparams []*TypeParam, underlying Type, methods []*Func)) *TypeName {
 	obj := NewTypeName(pos, pkg, name, nil)
-
-	resolve := func(_ *Context, t *Named) (*TypeParamList, Type, *methodList) {
-		tparams, underlying, methods := load(t)
-
-		switch underlying.(type) {
-		case nil, *Named:
-			panic(fmt.Sprintf("invalid underlying type %T", t.underlying))
-		}
-
-		return bindTParams(tparams), underlying, newMethodList(methods)
-	}
-
-	NewNamed(obj, nil, nil).resolver = resolve
+	NewNamed(obj, nil, nil).loader = load
 	return obj
 }
 

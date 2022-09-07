@@ -15,9 +15,6 @@
 //	LR = return address
 // The function returns with CS true if the swap happened.
 // http://lxr.linux.no/linux+v2.6.37.2/arch/arm/kernel/entry-armv.S#L850
-// On older kernels (before 2.6.24) the function can incorrectly
-// report a conflict, so we have to double-check the compare ourselves
-// and retry if necessary.
 //
 // https://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
 //
@@ -37,20 +34,13 @@ TEXT kernelcas<>(SB),NOSPLIT,$0
 	// because we don't know how to traceback through __kuser_cmpxchg
 	MOVW    (R2), R0
 	MOVW	old+4(FP), R0
-loop:
 	MOVW	new+8(FP), R1
 	BL	cas<>(SB)
-	BCC	check
+	BCC	ret0
 	MOVW	$1, R0
 	MOVB	R0, ret+12(FP)
 	RET
-check:
-	// Kernel lies; double-check.
-	MOVW	ptr+0(FP), R2
-	MOVW	old+4(FP), R0
-	MOVW	0(R2), R3
-	CMP	R0, R3
-	BEQ	loop
+ret0:
 	MOVW	$0, R0
 	MOVB	R0, ret+12(FP)
 	RET

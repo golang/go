@@ -8,6 +8,7 @@ package tool
 import (
 	"context"
 	"fmt"
+	"go/build"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -115,7 +116,7 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 
 // listTools prints a list of the available tools in the tools directory.
 func listTools() {
-	f, err := os.Open(base.ToolDir)
+	f, err := os.Open(build.ToolDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go: no tool directory: %s\n", err)
 		base.SetExitStatus(2)
@@ -132,11 +133,9 @@ func listTools() {
 	sort.Strings(names)
 	for _, name := range names {
 		// Unify presentation by going to lower case.
-		name = strings.ToLower(name)
 		// If it's windows, don't show the .exe suffix.
-		if base.ToolIsWindows && strings.HasSuffix(name, base.ToolWindowsExtension) {
-			name = name[:len(name)-len(base.ToolWindowsExtension)]
-		}
+		name = strings.TrimSuffix(strings.ToLower(name), cfg.ToolExeSuffix())
+
 		// The tool directory used by gccgo will have other binaries
 		// in addition to go tools. Only display go tools here.
 		if cfg.BuildToolchainName == "gccgo" && !isGccgoTool(name) {

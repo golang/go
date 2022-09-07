@@ -177,6 +177,8 @@ func TestImportTypeparamTests(t *testing.T) {
 		"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
 		"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
 		"issue50417.go": "inconsistent interface member sorting",
+		"issue53419.go": "fails to compile",
+		"issue53477.go": "fails to compile",
 	}
 
 	for _, entry := range list {
@@ -459,14 +461,6 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 		return // not an interface
 	}
 
-	// The unified IR importer always sets interface method receiver
-	// parameters to point to the Interface type, rather than the Named.
-	// See #49906.
-	var want types.Type = named
-	if goexperiment.Unified {
-		want = iface
-	}
-
 	// check explicitly declared methods
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
 		m := iface.ExplicitMethod(i)
@@ -475,8 +469,8 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 			t.Errorf("%s: missing receiver type", m)
 			continue
 		}
-		if recv.Type() != want {
-			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), want)
+		if recv.Type() != named {
+			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), named)
 		}
 	}
 
@@ -579,6 +573,30 @@ func TestIssue13566(t *testing.T) {
 			t.Errorf("no name for %s package", imp.Path())
 		}
 	}
+}
+
+func TestTypeNamingOrder(t *testing.T) {
+	skipSpecialPlatforms(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+	}
+
+	// On windows, we have to set the -D option for the compiler to avoid having a drive
+	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+	if runtime.GOOS == "windows" {
+		t.Skip("avoid dealing with relative paths/drive letters on windows")
+	}
+
+	tmpdir := mktmpdir(t)
+	defer os.RemoveAll(tmpdir)
+	testoutdir := filepath.Join(tmpdir, "testdata")
+
+	compile(t, "testdata", "g.go", testoutdir)
+
+	// import must succeed (test for issue at hand)
+	_ = importPkg(t, "./testdata/g", tmpdir)
 }
 
 func TestIssue13898(t *testing.T) {

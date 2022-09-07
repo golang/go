@@ -1272,6 +1272,9 @@ func testClientTimeout(t *testing.T, h2 bool) {
 				t.Logf("timeout before response received")
 				continue
 			}
+			if runtime.GOOS == "windows" && strings.HasPrefix(runtime.GOARCH, "arm") {
+				testenv.SkipFlaky(t, 43120)
+			}
 			t.Fatal(err)
 		}
 

@@ -152,8 +152,8 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
 	}
 	switch ver {
 	case 1005, 1007, 1008, 1009, 1010, 1011, 1019:
-		// Note: When adding a new version, add canned traces
-		// from the old version to the test suite using mkcanned.bash.
+		// Note: When adding a new version, confirm that canned traces from the
+		// old version are part of the test suite. Add them using mkcanned.bash.
 		break
 	default:
 		err = fmt.Errorf("unsupported trace file version %v.%v (update Go toolchain) %v", ver/1000, ver%1000, ver)
@@ -973,7 +973,7 @@ func PrintEvent(ev *Event) {
 
 func (ev *Event) String() string {
 	desc := EventDescriptions[ev.Type]
-	w := new(bytes.Buffer)
+	w := new(strings.Builder)
 	fmt.Fprintf(w, "%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
 	for i, a := range desc.Args {
 		fmt.Fprintf(w, " %v=%v", a, ev.Args[i])

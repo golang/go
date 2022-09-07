@@ -87,13 +87,11 @@ func toSymbolV1(ppath string) string {
 
 // toSymbolV2 converts a package path using the second mangling scheme.
 func toSymbolV2(ppath string) string {
-	// This has to build at boostrap time, so it has to build
-	// with Go 1.4, so we don't use strings.Builder.
-	bsl := make([]byte, 0, len(ppath))
+	var bsl strings.Builder
 	changed := false
 	for _, c := range ppath {
 		if ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') || c == '_' {
-			bsl = append(bsl, byte(c))
+			bsl.WriteByte(byte(c))
 			continue
 		}
 		var enc string
@@ -107,13 +105,13 @@ func toSymbolV2(ppath string) string {
 		default:
 			enc = fmt.Sprintf("..U%08x", c)
 		}
-		bsl = append(bsl, enc...)
+		bsl.WriteString(enc)
 		changed = true
 	}
 	if !changed {
 		return ppath
 	}
-	return string(bsl)
+	return bsl.String()
 }
 
 // v3UnderscoreCodes maps from a character that supports an underscore
@@ -137,19 +135,18 @@ var v3UnderscoreCodes = map[byte]byte{
 
 // toSymbolV3 converts a package path using the third mangling scheme.
 func toSymbolV3(ppath string) string {
-	// This has to build at boostrap time, so it has to build
-	// with Go 1.4, so we don't use strings.Builder.
-	bsl := make([]byte, 0, len(ppath))
+	var bsl strings.Builder
 	changed := false
 	for _, c := range ppath {
 		if ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') {
-			bsl = append(bsl, byte(c))
+			bsl.WriteByte(byte(c))
 			continue
 		}
 
 		if c < 0x80 {
 			if u, ok := v3UnderscoreCodes[byte(c)]; ok {
-				bsl = append(bsl, '_', u)
+				bsl.WriteByte('_')
+				bsl.WriteByte(u)
 				changed = true
 				continue
 			}
@@ -164,11 +161,11 @@ func toSymbolV3(ppath string) string {
 		default:
 			enc = fmt.Sprintf("_U%08x", c)
 		}
-		bsl = append(bsl, enc...)
+		bsl.WriteString(enc)
 		changed = true
 	}
 	if !changed {
 		return ppath
 	}
-	return string(bsl)
+	return bsl.String()
 }

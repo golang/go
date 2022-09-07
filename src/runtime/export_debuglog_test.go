@@ -25,11 +25,11 @@ func (l *dlogger) S(x string) *dlogger   { return l.s(x) }
 func (l *dlogger) PC(x uintptr) *dlogger { return l.pc(x) }
 
 func DumpDebugLog() string {
-	g := getg()
-	g.writebuf = make([]byte, 0, 1<<20)
+	gp := getg()
+	gp.writebuf = make([]byte, 0, 1<<20)
 	printDebugLog()
-	buf := g.writebuf
-	g.writebuf = nil
+	buf := gp.writebuf
+	gp.writebuf = nil
 
 	return string(buf)
 }

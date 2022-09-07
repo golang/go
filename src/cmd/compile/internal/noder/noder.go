@@ -27,8 +27,6 @@ import (
 func LoadPackage(filenames []string) {
 	base.Timer.Start("fe", "parse")
 
-	mode := syntax.CheckBranches
-
 	// Limit the number of simultaneously open files.
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
 
@@ -58,7 +56,7 @@ func LoadPackage(filenames []string) {
 				}
 				defer f.Close()
 
-				p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, mode) // errors are tracked via p.error
+				p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
 			}()
 		}
 	}()

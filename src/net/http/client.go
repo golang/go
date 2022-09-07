@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -391,7 +392,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	}
 
 	timer := time.NewTimer(time.Until(deadline))
-	var timedOut atomicBool
+	var timedOut atomic.Bool
 
 	go func() {
 		select {
@@ -399,14 +400,14 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 			doCancel()
 			timer.Stop()
 		case <-timer.C:
-			timedOut.setTrue()
+			timedOut.Store(true)
 			doCancel()
 		case <-stopTimerCh:
 			timer.Stop()
 		}
 	}()
 
-	return stopTimer, timedOut.isSet
+	return stopTimer, timedOut.Load
 }
 
 // See 2 (end of page 4) https://www.ietf.org/rfc/rfc2617.txt
@@ -896,7 +897,7 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
 //	307 (Temporary Redirect)
 //	308 (Permanent Redirect)
 //
-// # Head is a wrapper around DefaultClient.Head
+// Head is a wrapper around DefaultClient.Head.
 //
 // To make a request with a specified context.Context, use NewRequestWithContext
 // and DefaultClient.Do.

@@ -37,14 +37,16 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Failed to start command: %v", err)
 	}
+
+	waiting := false
 	doneCh := make(chan error, 1)
-	go func() {
-		doneCh <- cmd.Wait()
-		close(doneCh)
-	}()
 	t.Cleanup(func() {
 		cmd.Process.Kill()
-		<-doneCh
+		if waiting {
+			<-doneCh
+		} else {
+			cmd.Wait()
+		}
 	})
 
 	// Wait for After1 to close its stdout so that we know the runtime's SIGIO
@@ -56,6 +58,19 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error reading from testprog: %v", err)
 	}
+
+	// Wait for child exit.
+	//
+	// Note that we must do this after waiting for the write/child end of
+	// stdout to close. Wait closes the read/parent end of stdout, so
+	// starting this goroutine prior to io.ReadAll introduces a race
+	// condition where ReadAll may get fs.ErrClosed if the child exits too
+	// quickly.
+	waiting = true
+	go func() {
+		doneCh <- cmd.Wait()
+		close(doneCh)
+	}()
 
 	// Wait for an arbitrary timeout longer than one second. The subprocess itself
 	// attempts to sleep for one second, but if the machine running the test is

@@ -62,10 +62,13 @@ var (
 	procGetFinalPathNameByHandleW    = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetModuleFileNameW           = modkernel32.NewProc("GetModuleFileNameW")
 	procLockFileEx                   = modkernel32.NewProc("LockFileEx")
+	procModule32FirstW               = modkernel32.NewProc("Module32FirstW")
+	procModule32NextW                = modkernel32.NewProc("Module32NextW")
 	procMoveFileExW                  = modkernel32.NewProc("MoveFileExW")
 	procMultiByteToWideChar          = modkernel32.NewProc("MultiByteToWideChar")
 	procSetFileInformationByHandle   = modkernel32.NewProc("SetFileInformationByHandle")
 	procUnlockFileEx                 = modkernel32.NewProc("UnlockFileEx")
+	procVirtualQuery                 = modkernel32.NewProc("VirtualQuery")
 	procNetShareAdd                  = modnetapi32.NewProc("NetShareAdd")
 	procNetShareDel                  = modnetapi32.NewProc("NetShareDel")
 	procNetUserGetLocalGroups        = modnetapi32.NewProc("NetUserGetLocalGroups")
@@ -224,6 +227,22 @@ func LockFileEx(file syscall.Handle, flags uint32, reserved uint32, bytesLow uin
 	return
 }
 
+func Module32First(snapshot syscall.Handle, moduleEntry *ModuleEntry32) (err error) {
+	r1, _, e1 := syscall.Syscall(procModule32FirstW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(moduleEntry)), 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func Module32Next(snapshot syscall.Handle, moduleEntry *ModuleEntry32) (err error) {
+	r1, _, e1 := syscall.Syscall(procModule32NextW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(moduleEntry)), 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procMoveFileExW.Addr(), 3, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), uintptr(flags))
 	if r1 == 0 {
@@ -251,6 +270,14 @@ func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint
 
 func UnlockFileEx(file syscall.Handle, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) {
 	r1, _, e1 := syscall.Syscall6(procUnlockFileEx.Addr(), 5, uintptr(file), uintptr(reserved), uintptr(bytesLow), uintptr(bytesHigh), uintptr(unsafe.Pointer(overlapped)), 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) {
+	r1, _, e1 := syscall.Syscall(procVirtualQuery.Addr(), 3, uintptr(address), uintptr(unsafe.Pointer(buffer)), uintptr(length))
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

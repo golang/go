@@ -43,6 +43,18 @@ func TestEncode(t *testing.T) {
 	}
 }
 
+func TestAppendRune(t *testing.T) {
+	for _, tt := range encodeTests {
+		var out []uint16
+		for _, u := range tt.in {
+			out = AppendRune(out, u)
+		}
+		if !reflect.DeepEqual(out, tt.out) {
+			t.Errorf("AppendRune(%x) = %x; want %x", tt.in, out, tt.out)
+		}
+	}
+}
+
 func TestEncodeRune(t *testing.T) {
 	for i, tt := range encodeTests {
 		j := 0
@@ -190,6 +202,28 @@ func BenchmarkEncodeValidJapaneseChars(b *testing.B) {
 	data := []rune{'日', '本', '語'}
 	for i := 0; i < b.N; i++ {
 		Encode(data)
+	}
+}
+
+func BenchmarkAppendRuneValidASCII(b *testing.B) {
+	data := []rune{'h', 'e', 'l', 'l', 'o'}
+	a := make([]uint16, 0, len(data)*2)
+	for i := 0; i < b.N; i++ {
+		for _, u := range data {
+			a = AppendRune(a, u)
+		}
+		a = a[:0]
+	}
+}
+
+func BenchmarkAppendRuneValidJapaneseChars(b *testing.B) {
+	data := []rune{'日', '本', '語'}
+	a := make([]uint16, 0, len(data)*2)
+	for i := 0; i < b.N; i++ {
+		for _, u := range data {
+			a = AppendRune(a, u)
+		}
+		a = a[:0]
 	}
 }
 

@@ -417,6 +417,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	GetModuleInformation(process Handle, module Handle, modinfo *ModuleInfo, cb uint32) (err error) = psapi.GetModuleInformation
 //sys	GetModuleFileNameEx(process Handle, module Handle, filename *uint16, size uint32) (err error) = psapi.GetModuleFileNameExW
 //sys	GetModuleBaseName(process Handle, module Handle, baseName *uint16, size uint32) (err error) = psapi.GetModuleBaseNameW
+//sys   QueryWorkingSetEx(process Handle, pv uintptr, cb uint32) (err error) = psapi.QueryWorkingSetEx
 
 // NT Native APIs
 //sys	rtlNtStatusToDosErrorNoTeb(ntstatus NTStatus) (ret syscall.Errno) = ntdll.RtlNtStatusToDosErrorNoTeb
@@ -861,6 +862,7 @@ const socket_error = uintptr(^uint32(0))
 //sys	GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
 //sys	GetACP() (acp uint32) = kernel32.GetACP
 //sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
+//sys	getBestInterfaceEx(sockaddr unsafe.Pointer, pdwBestIfIndex *uint32) (errcode error) = iphlpapi.GetBestInterfaceEx
 
 // For testing: clients can set this flag to force
 // creation of IPv6 sockets to return EAFNOSUPPORT.
@@ -970,6 +972,32 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, int32, error) {
 	return unsafe.Pointer(&sa.raw), sl, nil
 }
 
+type RawSockaddrBth struct {
+	AddressFamily  [2]byte
+	BtAddr         [8]byte
+	ServiceClassId [16]byte
+	Port           [4]byte
+}
+
+type SockaddrBth struct {
+	BtAddr         uint64
+	ServiceClassId GUID
+	Port           uint32
+
+	raw RawSockaddrBth
+}
+
+func (sa *SockaddrBth) sockaddr() (unsafe.Pointer, int32, error) {
+	family := AF_BTH
+	sa.raw = RawSockaddrBth{
+		AddressFamily:  *(*[2]byte)(unsafe.Pointer(&family)),
+		BtAddr:         *(*[8]byte)(unsafe.Pointer(&sa.BtAddr)),
+		Port:           *(*[4]byte)(unsafe.Pointer(&sa.Port)),
+		ServiceClassId: *(*[16]byte)(unsafe.Pointer(&sa.ServiceClassId)),
+	}
+	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
+}
+
 func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
 	switch rsa.Addr.Family {
 	case AF_UNIX:
@@ -1043,6 +1071,14 @@ func Connect(fd Handle, sa Sockaddr) (err error) {
 		return err
 	}
 	return connect(fd, ptr, n)
+}
+
+func GetBestInterfaceEx(sa Sockaddr, pdwBestIfIndex *uint32) (err error) {
+	ptr, _, err := sa.sockaddr()
+	if err != nil {
+		return err
+	}
+	return getBestInterfaceEx(ptr, pdwBestIfIndex)
 }
 
 func Getsockname(fd Handle) (sa Sockaddr, err error) {
@@ -1697,4 +1733,72 @@ func LoadResourceData(module, resInfo Handle) (data []byte, err error) {
 	h.Len = int(size)
 	h.Cap = int(size)
 	return
+}
+
+// PSAPI_WORKING_SET_EX_BLOCK contains extended working set information for a page.
+type PSAPI_WORKING_SET_EX_BLOCK uint64
+
+// Valid returns the validity of this page.
+// If this bit is 1, the subsequent members are valid; otherwise they should be ignored.
+func (b PSAPI_WORKING_SET_EX_BLOCK) Valid() bool {
+	return (b & 1) == 1
+}
+
+// ShareCount is the number of processes that share this page. The maximum value of this member is 7.
+func (b PSAPI_WORKING_SET_EX_BLOCK) ShareCount() uint64 {
+	return b.intField(1, 3)
+}
+
+// Win32Protection is the memory protection attributes of the page. For a list of values, see
+// https://docs.microsoft.com/en-us/windows/win32/memory/memory-protection-constants
+func (b PSAPI_WORKING_SET_EX_BLOCK) Win32Protection() uint64 {
+	return b.intField(4, 11)
+}
+
+// Shared returns the shared status of this page.
+// If this bit is 1, the page can be shared.
+func (b PSAPI_WORKING_SET_EX_BLOCK) Shared() bool {
+	return (b & (1 << 15)) == 1
+}
+
+// Node is the NUMA node. The maximum value of this member is 63.
+func (b PSAPI_WORKING_SET_EX_BLOCK) Node() uint64 {
+	return b.intField(16, 6)
+}
+
+// Locked returns the locked status of this page.
+// If this bit is 1, the virtual page is locked in physical memory.
+func (b PSAPI_WORKING_SET_EX_BLOCK) Locked() bool {
+	return (b & (1 << 22)) == 1
+}
+
+// LargePage returns the large page status of this page.
+// If this bit is 1, the page is a large page.
+func (b PSAPI_WORKING_SET_EX_BLOCK) LargePage() bool {
+	return (b & (1 << 23)) == 1
+}
+
+// Bad returns the bad status of this page.
+// If this bit is 1, the page is has been reported as bad.
+func (b PSAPI_WORKING_SET_EX_BLOCK) Bad() bool {
+	return (b & (1 << 31)) == 1
+}
+
+// intField extracts an integer field in the PSAPI_WORKING_SET_EX_BLOCK union.
+func (b PSAPI_WORKING_SET_EX_BLOCK) intField(start, length int) uint64 {
+	var mask PSAPI_WORKING_SET_EX_BLOCK
+	for pos := start; pos < start+length; pos++ {
+		mask |= (1 << pos)
+	}
+
+	masked := b & mask
+	return uint64(masked >> start)
+}
+
+// PSAPI_WORKING_SET_EX_INFORMATION contains extended working set information for a process.
+type PSAPI_WORKING_SET_EX_INFORMATION struct {
+	// The virtual address.
+	VirtualAddress Pointer
+	// A PSAPI_WORKING_SET_EX_BLOCK union that indicates the attributes of the page at VirtualAddress.
+	VirtualAttributes PSAPI_WORKING_SET_EX_BLOCK
 }

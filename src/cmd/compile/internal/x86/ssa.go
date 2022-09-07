@@ -158,6 +158,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.Op386SHLL,
 		ssa.Op386SHRL, ssa.Op386SHRW, ssa.Op386SHRB,
 		ssa.Op386SARL, ssa.Op386SARW, ssa.Op386SARB,
+		ssa.Op386ROLL, ssa.Op386ROLW, ssa.Op386ROLB,
 		ssa.Op386ADDSS, ssa.Op386ADDSD, ssa.Op386SUBSS, ssa.Op386SUBSD,
 		ssa.Op386MULSS, ssa.Op386MULSD, ssa.Op386DIVSS, ssa.Op386DIVSD,
 		ssa.Op386PXOR,

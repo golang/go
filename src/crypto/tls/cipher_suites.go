@@ -4,14 +4,13 @@
 
 package tls
 
-import "crypto/internal/boring"
-
 import (
 	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/des"
 	"crypto/hmac"
+	"crypto/internal/boring"
 	"crypto/rc4"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -517,12 +516,9 @@ func aeadAESGCM(key, noncePrefix []byte) aead {
 	if err != nil {
 		panic(err)
 	}
-	type gcmtls interface {
-		NewGCMTLS() (cipher.AEAD, error)
-	}
 	var aead cipher.AEAD
-	if aesTLS, ok := aes.(gcmtls); ok {
-		aead, err = aesTLS.NewGCMTLS()
+	if boring.Enabled {
+		aead, err = boring.NewGCMTLS(aes)
 	} else {
 		boring.Unreachable()
 		aead, err = cipher.NewGCM(aes)

@@ -41,7 +41,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 
 	check.stmtList(0, body.List)
 
-	if check.hasLabel && !check.conf.IgnoreLabels {
+	if check.hasLabel && !check.conf.IgnoreBranchErrors {
 		check.labels(body)
 	}
 
@@ -165,7 +165,13 @@ func (check *Checker) closeScope() {
 	check.scope = check.scope.Parent()
 }
 
-func (check *Checker) suspendedCall(keyword string, call *syntax.CallExpr) {
+func (check *Checker) suspendedCall(keyword string, call syntax.Expr) {
+	if _, ok := call.(*syntax.CallExpr); !ok {
+		check.errorf(call, "expression in %s must be function call", keyword)
+		check.use(call)
+		return
+	}
+
 	var x operand
 	var msg string
 	switch check.rawExpr(&x, call, nil, false) {
@@ -504,22 +510,17 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			check.hasLabel = true
 			break // checked in 2nd pass (check.labels)
 		}
+		if check.conf.IgnoreBranchErrors {
+			break
+		}
 		switch s.Tok {
 		case syntax.Break:
 			if ctxt&breakOk == 0 {
-				if check.conf.CompilerErrorMessages {
-					check.error(s, "break is not in a loop, switch, or select statement")
-				} else {
-					check.error(s, "break not in for, switch, or select statement")
-				}
+				check.error(s, "break not in for, switch, or select statement")
 			}
 		case syntax.Continue:
 			if ctxt&continueOk == 0 {
-				if check.conf.CompilerErrorMessages {
-					check.error(s, "continue is not in a loop")
-				} else {
-					check.error(s, "continue not in for statement")
-				}
+				check.error(s, "continue not in for statement")
 			}
 		case syntax.Fallthrough:
 			if ctxt&fallthroughOk == 0 {

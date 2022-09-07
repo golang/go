@@ -43,7 +43,13 @@ func UTF16FromString(s string) ([]uint16, error) {
 	if bytealg.IndexByteString(s, 0) != -1 {
 		return nil, EINVAL
 	}
-	return utf16.Encode([]rune(s + "\x00")), nil
+	// In the worst case all characters require two uint16.
+	// Also account for the terminating NULL character.
+	buf := make([]uint16, 0, len(s)*2+1)
+	for _, r := range s {
+		buf = utf16.AppendRune(buf, r)
+	}
+	return utf16.AppendRune(buf, '\x00'), nil
 }
 
 // UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,

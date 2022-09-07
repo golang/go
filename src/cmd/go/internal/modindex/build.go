@@ -9,6 +9,7 @@ package modindex
 
 import (
 	"bytes"
+	"cmd/go/internal/fsys"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -16,7 +17,6 @@ import (
 	"go/token"
 	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -130,9 +130,9 @@ func (ctxt *Context) isAbsPath(path string) bool {
 	return filepath.IsAbs(path)
 }
 
-// isDir calls ctxt.IsDir (if not nil) or else uses os.Stat.
+// isDir calls ctxt.IsDir (if not nil) or else uses fsys.Stat.
 func isDir(path string) bool {
-	fi, err := os.Stat(path)
+	fi, err := fsys.Stat(path)
 	return err == nil && fi.IsDir()
 }
 
@@ -175,6 +175,37 @@ func hasSubdir(root, dir string) (rel string, ok bool) {
 		return "", false
 	}
 	return filepath.ToSlash(dir[len(root):]), true
+}
+
+// gopath returns the list of Go path directories.
+func (ctxt *Context) gopath() []string {
+	var all []string
+	for _, p := range ctxt.splitPathList(ctxt.GOPATH) {
+		if p == "" || p == ctxt.GOROOT {
+			// Empty paths are uninteresting.
+			// If the path is the GOROOT, ignore it.
+			// People sometimes set GOPATH=$GOROOT.
+			// Do not get confused by this common mistake.
+			continue
+		}
+		if strings.HasPrefix(p, "~") {
+			// Path segments starting with ~ on Unix are almost always
+			// users who have incorrectly quoted ~ while setting GOPATH,
+			// preventing it from expanding to $HOME.
+			// The situation is made more confusing by the fact that
+			// bash allows quoted ~ in $PATH (most shells do not).
+			// Do not get confused by this, and do not try to use the path.
+			// It does not exist, and printing errors about it confuses
+			// those users even more, because they think "sure ~ exists!".
+			// The go command diagnoses this situation and prints a
+			// useful error.
+			// On Windows, ~ is used in short names, such as c:\progra~1
+			// for c:\program files.
+			continue
+		}
+		all = append(all, p)
+	}
+	return all
 }
 
 var defaultToolTags, defaultReleaseTags []string
@@ -476,7 +507,7 @@ func getFileInfo(dir, name string, fset *token.FileSet) (*fileInfo, error) {
 		return info, nil
 	}
 
-	f, err := os.Open(info.name)
+	f, err := fsys.Open(info.name)
 	if err != nil {
 		return nil, err
 	}
@@ -887,8 +918,8 @@ func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
 //	$GOARCH
 //	boringcrypto
 //	ctxt.Compiler
-//	linux (if GOOS = android)
-//	solaris (if GOOS = illumos)
+//	linux (if GOOS == android)
+//	solaris (if GOOS == illumos)
 //	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
 //
 // It records all consulted tags in allTags.

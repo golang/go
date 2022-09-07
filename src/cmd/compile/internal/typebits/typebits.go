@@ -18,7 +18,7 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
 		base.Fatalf("typebits.Set: invalid initial alignment: type %v has alignment %d, but offset is %v", t, uint8(t.Alignment()), off)
 	}
 	if !t.HasPointers() {
-		// Note: this case ensures that pointers to go:notinheap types
+		// Note: this case ensures that pointers to not-in-heap types
 		// are not considered pointers by garbage collection and stack copying.
 		return
 	}

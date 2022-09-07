@@ -249,14 +249,19 @@ var genericOps = []opData{
 	{name: "BitRev32", argLength: 1}, // Reverse the bits in arg[0]
 	{name: "BitRev64", argLength: 1}, // Reverse the bits in arg[0]
 
-	{name: "PopCount8", argLength: 1},    // Count bits in arg[0]
-	{name: "PopCount16", argLength: 1},   // Count bits in arg[0]
-	{name: "PopCount32", argLength: 1},   // Count bits in arg[0]
-	{name: "PopCount64", argLength: 1},   // Count bits in arg[0]
-	{name: "RotateLeft8", argLength: 2},  // Rotate bits in arg[0] left by arg[1]
-	{name: "RotateLeft16", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
-	{name: "RotateLeft32", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
-	{name: "RotateLeft64", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+	{name: "PopCount8", argLength: 1},  // Count bits in arg[0]
+	{name: "PopCount16", argLength: 1}, // Count bits in arg[0]
+	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
+	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
+
+	// RotateLeftX instructions rotate the X bits of arg[0] to the left
+	// by the low lg_2(X) bits of arg[1], interpreted as an unsigned value.
+	// Note that this works out regardless of the bit width or signedness of
+	// arg[1]. In particular, RotateLeft by x is the same as RotateRight by -x.
+	{name: "RotateLeft64", argLength: 2},
+	{name: "RotateLeft32", argLength: 2},
+	{name: "RotateLeft16", argLength: 2},
+	{name: "RotateLeft8", argLength: 2},
 
 	// Square root.
 	// Special cases:
@@ -355,7 +360,9 @@ var genericOps = []opData{
 	{name: "Load", argLength: 2},                          // Load from arg0.  arg1=memory
 	{name: "Dereference", argLength: 2},                   // Load from arg0.  arg1=memory.  Helper op for arg/result passing, result is an otherwise not-SSA-able "value".
 	{name: "Store", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	// The source and destination of Move may overlap in some cases. See e.g.
+	// Normally we require that the source and destination of Move do not overlap.
+	// There is an exception when we know all the loads will happen before all
+	// the stores. In that case, overlap is ok. See
 	// memmove inlining in generic.rules. When inlineablememmovesize (in ../rewrite.go)
 	// returns true, we must do all loads before all stores, when lowering Move.
 	// The type of Move is used for the write barrier pass to insert write barriers
@@ -528,7 +535,6 @@ var genericOps = []opData{
 	{name: "Unknown"},
 
 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
-	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},                             // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
 	// TODO: what's the difference between VarLive and KeepAlive?
 	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
 	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                  // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem

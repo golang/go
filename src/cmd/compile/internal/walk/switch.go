@@ -85,8 +85,12 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 			defaultGoto = jmp
 		}
 
-		for _, n1 := range ncase.List {
-			s.Add(ncase.Pos(), n1, jmp)
+		for i, n1 := range ncase.List {
+			var rtype ir.Node
+			if i < len(ncase.RTypes) {
+				rtype = ncase.RTypes[i]
+			}
+			s.Add(ncase.Pos(), n1, rtype, jmp)
 		}
 
 		// Process body.
@@ -124,11 +128,12 @@ type exprSwitch struct {
 type exprClause struct {
 	pos    src.XPos
 	lo, hi ir.Node
+	rtype  ir.Node // *runtime._type for OEQ node
 	jmp    ir.Node
 }
 
-func (s *exprSwitch) Add(pos src.XPos, expr, jmp ir.Node) {
-	c := exprClause{pos: pos, lo: expr, hi: expr, jmp: jmp}
+func (s *exprSwitch) Add(pos src.XPos, expr, rtype, jmp ir.Node) {
+	c := exprClause{pos: pos, lo: expr, hi: expr, rtype: rtype, jmp: jmp}
 	if types.IsOrdered[s.exprname.Type().Kind()] && expr.Op() == ir.OLITERAL {
 		s.clauses = append(s.clauses, c)
 		return
@@ -185,10 +190,6 @@ func (s *exprSwitch) flush() {
 		}
 		runs = append(runs, cc[start:])
 
-		if len(runs) == 1 {
-			s.search(runs[0], &s.done)
-			return
-		}
 		// We have strings of more than one length. Generate an
 		// outer switch which switches on the length of the string
 		// and an inner switch in each case which resolves all the
@@ -227,13 +228,13 @@ func (s *exprSwitch) flush() {
 			// Search within this run of same-length strings.
 			pos := run[0].pos
 			s.done.Append(ir.NewLabelStmt(pos, label))
-			s.search(run, &s.done)
+			stringSearch(s.exprname, run, &s.done)
 			s.done.Append(ir.NewBranchStmt(pos, ir.OGOTO, endLabel))
 
 			// Add length case to outer switch.
 			cas := ir.NewBasicLit(pos, constant.MakeInt64(runLen(run)))
 			jmp := ir.NewBranchStmt(pos, ir.OGOTO, label)
-			outer.Add(pos, cas, jmp)
+			outer.Add(pos, cas, nil, jmp)
 		}
 		s.done.Append(ir.NewLabelStmt(s.pos, outerLabel))
 		outer.Emit(&s.done)
@@ -342,7 +343,9 @@ func (c *exprClause) test(exprname ir.Node) ir.Node {
 		}
 	}
 
-	return ir.NewBinaryExpr(c.pos, ir.OEQ, exprname, c.lo)
+	n := ir.NewBinaryExpr(c.pos, ir.OEQ, exprname, c.lo)
+	n.RType = c.rtype
+	return n
 }
 
 func allCaseExprsAreSideEffectFree(sw *ir.SwitchStmt) bool {
@@ -365,19 +368,10 @@ func allCaseExprsAreSideEffectFree(sw *ir.SwitchStmt) bool {
 
 // endsInFallthrough reports whether stmts ends with a "fallthrough" statement.
 func endsInFallthrough(stmts []ir.Node) (bool, src.XPos) {
-	// Search backwards for the index of the fallthrough
-	// statement. Do not assume it'll be in the last
-	// position, since in some cases (e.g. when the statement
-	// list contains autotmp_ variables), one or more OVARKILL
-	// nodes will be at the end of the list.
-
-	i := len(stmts) - 1
-	for i >= 0 && stmts[i].Op() == ir.OVARKILL {
-		i--
-	}
-	if i < 0 {
+	if len(stmts) == 0 {
 		return false, src.NoXPos
 	}
+	i := len(stmts) - 1
 	return stmts[i].Op() == ir.OFALL, stmts[i].Pos()
 }
 
@@ -679,4 +673,90 @@ func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i in
 	}
 
 	do(0, n, out)
+}
+
+func stringSearch(expr ir.Node, cc []exprClause, out *ir.Nodes) {
+	if len(cc) < 4 {
+		// Short list, just do brute force equality checks.
+		for _, c := range cc {
+			nif := ir.NewIfStmt(base.Pos.WithNotStmt(), typecheck.DefaultLit(typecheck.Expr(c.test(expr)), nil), []ir.Node{c.jmp}, nil)
+			out.Append(nif)
+			out = &nif.Else
+		}
+		return
+	}
+
+	// The strategy here is to find a simple test to divide the set of possible strings
+	// that might match expr approximately in half.
+	// The test we're going to use is to do an ordered comparison of a single byte
+	// of expr to a constant. We will pick the index of that byte and the value we're
+	// comparing against to make the split as even as possible.
+	//   if expr[3] <= 'd' { ... search strings with expr[3] at 'd' or lower  ... }
+	//   else              { ... search strings with expr[3] at 'e' or higher ... }
+	//
+	// To add complication, we will do the ordered comparison in the signed domain.
+	// The reason for this is to prevent CSE from merging the load used for the
+	// ordered comparison with the load used for the later equality check.
+	//   if expr[3] <= 'd' { ... if expr[0] == 'f' && expr[1] == 'o' && expr[2] == 'o' && expr[3] == 'd' { ... } }
+	// If we did both expr[3] loads in the unsigned domain, they would be CSEd, and that
+	// would in turn defeat the combining of expr[0]...expr[3] into a single 4-byte load.
+	// See issue 48222.
+	// By using signed loads for the ordered comparison and unsigned loads for the
+	// equality comparison, they don't get CSEd and the equality comparisons will be
+	// done using wider loads.
+
+	n := len(ir.StringVal(cc[0].lo)) // Length of the constant strings.
+	bestScore := int64(0)            // measure of how good the split is.
+	bestIdx := 0                     // split using expr[bestIdx]
+	bestByte := int8(0)              // compare expr[bestIdx] against bestByte
+	for idx := 0; idx < n; idx++ {
+		for b := int8(-128); b < 127; b++ {
+			le := 0
+			for _, c := range cc {
+				s := ir.StringVal(c.lo)
+				if int8(s[idx]) <= b {
+					le++
+				}
+			}
+			score := int64(le) * int64(len(cc)-le)
+			if score > bestScore {
+				bestScore = score
+				bestIdx = idx
+				bestByte = b
+			}
+		}
+	}
+
+	// The split must be at least 1:n-1 because we have at least 2 distinct strings; they
+	// have to be different somewhere.
+	// TODO: what if the best split is still pretty bad?
+	if bestScore == 0 {
+		base.Fatalf("unable to split string set")
+	}
+
+	// Convert expr to a []int8
+	slice := ir.NewConvExpr(base.Pos, ir.OSTR2BYTESTMP, types.NewSlice(types.Types[types.TINT8]), expr)
+	slice.SetTypecheck(1) // legacy typechecker doesn't handle this op
+	// Load the byte we're splitting on.
+	load := ir.NewIndexExpr(base.Pos, slice, ir.NewInt(int64(bestIdx)))
+	// Compare with the value we're splitting on.
+	cmp := ir.Node(ir.NewBinaryExpr(base.Pos, ir.OLE, load, ir.NewInt(int64(bestByte))))
+	cmp = typecheck.DefaultLit(typecheck.Expr(cmp), nil)
+	nif := ir.NewIfStmt(base.Pos, cmp, nil, nil)
+
+	var le []exprClause
+	var gt []exprClause
+	for _, c := range cc {
+		s := ir.StringVal(c.lo)
+		if int8(s[bestIdx]) <= bestByte {
+			le = append(le, c)
+		} else {
+			gt = append(gt, c)
+		}
+	}
+	stringSearch(expr, le, &nif.Body)
+	stringSearch(expr, gt, &nif.Else)
+	out.Append(nif)
+
+	// TODO: if expr[bestIdx] has enough different possible values, use a jump table.
 }
