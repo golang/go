@@ -43,7 +43,6 @@ import (
 	"errors"
 	"internal/poll"
 	"internal/testlog"
-	"internal/unsafeheader"
 	"io"
 	"io/fs"
 	"runtime"
@@ -247,11 +246,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 // WriteString is like Write, but writes the contents of string s rather than
 // a slice of bytes.
 func (f *File) WriteString(s string) (n int, err error) {
-	var b []byte
-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
-	hdr.Data = (*unsafeheader.String)(unsafe.Pointer(&s)).Data
-	hdr.Cap = len(s)
-	hdr.Len = len(s)
+	b := unsafe.Slice(unsafe.StringData(s), len(s))
 	return f.Write(b)
 }
 
