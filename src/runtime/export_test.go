@@ -1696,3 +1696,7 @@ func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
 	}
 	return false
 }
+
+func FrameStartLine(f *Frame) int {
+	return f.startLine
+}

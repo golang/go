@@ -472,16 +472,17 @@ type LSym struct {
 
 // A FuncInfo contains extra fields for STEXT symbols.
 type FuncInfo struct {
-	Args     int32
-	Locals   int32
-	Align    int32
-	FuncID   objabi.FuncID
-	FuncFlag objabi.FuncFlag
-	Text     *Prog
-	Autot    map[*LSym]struct{}
-	Pcln     Pcln
-	InlMarks []InlMark
-	spills   []RegSpill
+	Args      int32
+	Locals    int32
+	Align     int32
+	FuncID    objabi.FuncID
+	FuncFlag  objabi.FuncFlag
+	StartLine int32
+	Text      *Prog
+	Autot     map[*LSym]struct{}
+	Pcln      Pcln
+	InlMarks  []InlMark
+	spills    []RegSpill
 
 	dwarfInfoSym       *LSym
 	dwarfLocSym        *LSym

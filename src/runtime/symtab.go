@@ -49,6 +49,15 @@ type Frame struct {
 	File string
 	Line int
 
+	// startLine is the line number of the beginning of the function in
+	// this frame. Specifically, it is the line number of the func keyword
+	// for Go functions. Note that //line directives can change the
+	// filename and/or line number arbitrarily within a function, meaning
+	// that the Line - startLine offset is not always meaningful.
+	//
+	// This may be zero if not known.
+	startLine int
+
 	// Entry point program counter for the function; may be zero
 	// if not known. If Func is not nil then Entry ==
 	// Func.Entry().
@@ -108,6 +117,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 			pc--
 		}
 		name := funcname(funcInfo)
+		startLine := f.startLine()
 		if inldata := funcdata(funcInfo, _FUNCDATA_InlTree); inldata != nil {
 			inltree := (*[1 << 20]inlinedCall)(inldata)
 			// Non-strict as cgoTraceback may have added bogus PCs
@@ -116,16 +126,19 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 			if ix >= 0 {
 				// Note: entry is not modified. It always refers to a real frame, not an inlined one.
 				f = nil
-				name = funcnameFromNameOff(funcInfo, inltree[ix].nameOff)
+				ic := inltree[ix]
+				name = funcnameFromNameOff(funcInfo, ic.nameOff)
+				startLine = ic.startLine
 				// File/line from funcline1 below are already correct.
 			}
 		}
 		ci.frames = append(ci.frames, Frame{
-			PC:       pc,
-			Func:     f,
-			Function: name,
-			Entry:    entry,
-			funcInfo: funcInfo,
+			PC:        pc,
+			Func:      f,
+			Function:  name,
+			Entry:     entry,
+			startLine: int(startLine),
+			funcInfo:  funcInfo,
 			// Note: File,Line set below
 		})
 	}
@@ -727,14 +740,16 @@ func FuncForPC(pc uintptr) *Func {
 		// The runtime currently doesn't have function end info, alas.
 		if ix := pcdatavalue1(f, _PCDATA_InlTreeIndex, pc, nil, false); ix >= 0 {
 			inltree := (*[1 << 20]inlinedCall)(inldata)
-			name := funcnameFromNameOff(f, inltree[ix].nameOff)
+			ic := inltree[ix]
+			name := funcnameFromNameOff(f, ic.nameOff)
 			file, line := funcline(f, pc)
 			fi := &funcinl{
-				ones:  ^uint32(0),
-				entry: f.entry(), // entry of the real (the outermost) function.
-				name:  name,
-				file:  file,
-				line:  int(line),
+				ones:      ^uint32(0),
+				entry:     f.entry(), // entry of the real (the outermost) function.
+				name:      name,
+				file:      file,
+				line:      line,
+				startLine: ic.startLine,
 			}
 			return (*Func)(unsafe.Pointer(fi))
 		}
@@ -773,12 +788,23 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	fn := f.raw()
 	if fn.isInlined() { // inlined version
 		fi := (*funcinl)(unsafe.Pointer(fn))
-		return fi.file, fi.line
+		return fi.file, int(fi.line)
 	}
 	// Pass strict=false here, because anyone can call this function,
 	// and they might just be wrong about targetpc belonging to f.
 	file, line32 := funcline1(f.funcInfo(), pc, false)
 	return file, int(line32)
+}
+
+// startLine returns the starting line number of the function. i.e., the line
+// number of the func keyword.
+func (f *Func) startLine() int32 {
+	fn := f.raw()
+	if fn.isInlined() { // inlined version
+		fi := (*funcinl)(unsafe.Pointer(fn))
+		return fi.startLine
+	}
+	return fn.funcInfo().startLine
 }
 
 // findmoduledatap looks up the moduledata for a PC.
@@ -1173,8 +1199,9 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
 
 // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
 type inlinedCall struct {
-	funcID   funcID // type of the called function
-	_        [3]byte
-	nameOff  int32 // offset into pclntab for name of called function
-	parentPc int32 // position of an instruction whose source position is the call site (offset from entry)
+	funcID    funcID // type of the called function
+	_         [3]byte
+	nameOff   int32 // offset into pclntab for name of called function
+	parentPc  int32 // position of an instruction whose source position is the call site (offset from entry)
+	startLine int32 // line number of start of function (func keyword/TEXT directive)
 }

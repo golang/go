@@ -74,5 +74,5 @@ func setupTextLSym(f *Func, flag int) {
 		}
 	}
 
-	base.Ctxt.InitTextSym(f.LSym, flag)
+	base.Ctxt.InitTextSym(f.LSym, flag, f.Pos())
 }

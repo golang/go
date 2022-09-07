@@ -879,6 +879,7 @@ type _func struct {
 	pcln      uint32
 	npcdata   uint32
 	cuOffset  uint32 // runtime.cutab offset of this function's CU
+	startLine int32  // line number of start of function (func keyword/TEXT directive)
 	funcID    funcID // set for certain special runtime functions
 	flag      funcFlag
 	_         [1]byte // pad
@@ -911,11 +912,12 @@ type _func struct {
 // A *Func can be either a *_func or a *funcinl, and they are distinguished
 // by the first uintptr.
 type funcinl struct {
-	ones  uint32  // set to ^0 to distinguish from _func
-	entry uintptr // entry of the real (the "outermost") frame
-	name  string
-	file  string
-	line  int
+	ones      uint32  // set to ^0 to distinguish from _func
+	entry     uintptr // entry of the real (the "outermost") frame
+	name      string
+	file      string
+	line      int32
+	startLine int32
 }
 
 // layout of Itab known to compilers
