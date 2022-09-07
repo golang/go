@@ -718,7 +718,7 @@ func (p *pageAlloc) scavengeOne(ci chunkIdx, searchIdx uint, max uintptr) uintpt
 	if p.summary[len(p.summary)-1][ci].max() >= uint(minPages) {
 		// We only bother looking for a candidate if there at least
 		// minPages free pages at all.
-		base, npages := p.chunkOf(ci).findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
+		base, npages := p.chunkOf(ci).findScavengeCandidate(searchIdx, minPages, maxPages)
 
 		// If we found something, scavenge it and return!
 		if npages != 0 {
