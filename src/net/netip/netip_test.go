@@ -19,6 +19,36 @@ import (
 	"testing"
 )
 
+func BenchmarkAsSliceAddrv4(b *testing.B) {
+	addr := MustParseAddr("192.0.2.1")
+	for i := 0; i < b.N; i++ {
+		addr.AsSlice()
+	}
+}
+
+func BenchmarkAsSliceAddrv6(b *testing.B) {
+	addr := MustParseAddr("2001:db8::1")
+	for i := 0; i < b.N; i++ {
+		addr.AsSlice()
+	}
+}
+
+var asSliceOut []byte
+
+func BenchmarkAsSliceAddrv4Escapes(b *testing.B) {
+	addr := MustParseAddr("192.0.2.1")
+	for i := 0; i < b.N; i++ {
+		asSliceOut = addr.AsSlice()
+	}
+}
+
+func BenchmarkAsSliceAddrv6Escapes(b *testing.B) {
+	addr := MustParseAddr("2001:db8::1")
+	for i := 0; i < b.N; i++ {
+		asSliceOut = addr.AsSlice()
+	}
+}
+
 var long = flag.Bool("long", false, "run long tests")
 
 type uint128 = Uint128
