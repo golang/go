@@ -182,7 +182,7 @@ for input_exe need to allow writing.
 		oldsym := symtab.Syms[ii]
 		newsymtab.Syms = append(newsymtab.Syms, oldsym)
 
-		linkeditsyms = append(linkeditsyms, macho.Nlist64{Name: uint32(linkeditstringcur),
+		linkeditsyms = append(linkeditsyms, macho.Nlist64{Name: linkeditstringcur,
 			Type: oldsym.Type, Sect: oldsym.Sect, Desc: oldsym.Desc, Value: oldsym.Value})
 		linkeditstringcur += uint32(len(oldsym.Name)) + 1
 		linkeditstrings = append(linkeditstrings, oldsym.Name)

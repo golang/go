@@ -190,7 +190,7 @@ func (b *block) min(take bool) int {
 			if take {
 				b.bits[i] = w &^ (1 << uint(tz))
 			}
-			return b.offset + int(i*bitsPerWord) + tz
+			return b.offset + i*bitsPerWord + tz
 		}
 	}
 	panic("BUG: empty block")
