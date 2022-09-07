@@ -672,12 +672,13 @@ func (s *formatState) parseIndex() bool {
 	s.scanNum()
 	ok := true
 	if s.nbytes == len(s.format) || s.nbytes == start || s.format[s.nbytes] != ']' {
-		ok = false
-		s.nbytes = strings.Index(s.format, "]")
+		ok = false // syntax error is either missing "]" or invalid index.
+		s.nbytes = strings.Index(s.format[start:], "]")
 		if s.nbytes < 0 {
 			s.pass.ReportRangef(s.call, "%s format %s is missing closing ]", s.name, s.format)
 			return false
 		}
+		s.nbytes = s.nbytes + start
 	}
 	arg32, err := strconv.ParseInt(s.format[start:s.nbytes], 10, 32)
 	if err != nil || !ok || arg32 <= 0 || arg32 > int64(len(s.call.Args)-s.firstArg) {
