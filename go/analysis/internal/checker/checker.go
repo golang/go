@@ -408,6 +408,8 @@ func applyFixes(roots []*action) {
 			if edit.start > cur {
 				out.Write(contents[cur:edit.start])
 				out.Write(edit.newText)
+			} else if cur == 0 && edit.start == 0 { // edit starts at first character?
+				out.Write(edit.newText)
 			}
 			cur = edit.end
 
