@@ -5,7 +5,6 @@
 package parser
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -298,7 +297,7 @@ type s3b struct { a, b *s3b; c []float }
 		"float " // s3a
 
 	// collect unresolved identifiers
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for _, u := range f.Unresolved {
 		buf.WriteString(u.Name)
 		buf.WriteByte(' ')
@@ -382,7 +381,7 @@ func getField(file *ast.File, fieldname string) *ast.Field {
 
 // Don't use ast.CommentGroup.Text() - we want to see exact comment text.
 func commentText(c *ast.CommentGroup) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	if c != nil {
 		for _, c := range c.List {
 			buf.WriteString(c.Text)
