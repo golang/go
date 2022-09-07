@@ -50,27 +50,27 @@ func BadFunc() {
 	var t Tlock
 	var tp *Tlock
 	tp = &t
-	*tp = t // want `assignment copies lock value to \*tp: a.Tlock contains sync.Once contains sync.Mutex`
-	t = *tp // want "assignment copies lock value to t: a.Tlock contains sync.Once contains sync.Mutex"
+	*tp = t // want `assignment copies lock value to \*tp: a.Tlock contains sync.Once contains sync\b.*`
+	t = *tp // want `assignment copies lock value to t: a.Tlock contains sync.Once contains sync\b.*`
 
 	y := *x   // want "assignment copies lock value to y: sync.Mutex"
-	var z = t // want "variable declaration copies lock value to z: a.Tlock contains sync.Once contains sync.Mutex"
+	var z = t // want `variable declaration copies lock value to z: a.Tlock contains sync.Once contains sync\b.*`
 
 	w := struct{ L sync.Mutex }{
 		L: *x, // want `literal copies lock value from \*x: sync.Mutex`
 	}
 	var q = map[int]Tlock{
-		1: t,   // want "literal copies lock value from t: a.Tlock contains sync.Once contains sync.Mutex"
-		2: *tp, // want `literal copies lock value from \*tp: a.Tlock contains sync.Once contains sync.Mutex`
+		1: t,   // want `literal copies lock value from t: a.Tlock contains sync.Once contains sync\b.*`
+		2: *tp, // want `literal copies lock value from \*tp: a.Tlock contains sync.Once contains sync\b.*`
 	}
 	yy := []Tlock{
-		t,   // want "literal copies lock value from t: a.Tlock contains sync.Once contains sync.Mutex"
-		*tp, // want `literal copies lock value from \*tp: a.Tlock contains sync.Once contains sync.Mutex`
+		t,   // want `literal copies lock value from t: a.Tlock contains sync.Once contains sync\b.*`
+		*tp, // want `literal copies lock value from \*tp: a.Tlock contains sync.Once contains sync\b.*`
 	}
 
 	// override 'new' keyword
 	new := func(interface{}) {}
-	new(t) // want "call of new copies lock value: a.Tlock contains sync.Once contains sync.Mutex"
+	new(t) // want `call of new copies lock value: a.Tlock contains sync.Once contains sync\b.*`
 
 	// copy of array of locks
 	var muA [5]sync.Mutex
@@ -193,9 +193,9 @@ func SyncTypesCheck() {
 	var onceX sync.Once
 	var onceXX = sync.Once{}
 	onceX1 := new(sync.Once)
-	onceY := onceX     // want "assignment copies lock value to onceY: sync.Once contains sync.Mutex"
-	onceY = onceX      // want "assignment copies lock value to onceY: sync.Once contains sync.Mutex"
-	var onceYY = onceX // want "variable declaration copies lock value to onceYY: sync.Once contains sync.Mutex"
+	onceY := onceX     // want `assignment copies lock value to onceY: sync.Once contains sync\b.*`
+	onceY = onceX      // want `assignment copies lock value to onceY: sync.Once contains sync\b.*`
+	var onceYY = onceX // want `variable declaration copies lock value to onceYY: sync.Once contains sync\b.*`
 	onceP := &onceX
 	onceZ := &sync.Once{}
 }

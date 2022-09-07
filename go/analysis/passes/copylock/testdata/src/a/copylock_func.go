@@ -126,7 +126,7 @@ func AcceptedCases() {
 // sync.Mutex gets called out, but without any reference to the sync.Once.
 type LocalOnce sync.Once
 
-func (LocalOnce) Bad() {} // want "Bad passes lock by value: a.LocalOnce contains sync.Mutex"
+func (LocalOnce) Bad() {} // want `Bad passes lock by value: a.LocalOnce contains sync.\b.*`
 
 // False negative:
 // LocalMutex doesn't have a Lock method.
