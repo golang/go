@@ -176,13 +176,11 @@ func _[X unsafe.Pointer](x X) int64 {
 	return int64(x /* ERROR cannot convert x \(variable of type X constrained by unsafe\.Pointer\) to int64\n\tcannot convert unsafe\.Pointer \(in X\) to int64 */)
 }
 
-// "x is a slice, T is a pointer-to-array type,
+// "x is a slice, T is an array or pointer-to-array type,
 // and the slice and array types have identical element types."
 
+func _[X ~[]E, T ~[10]E, E any](x X) T  { return T(x) }
 func _[X ~[]E, T ~*[10]E, E any](x X) T { return T(x) }
-func _[X ~[]E, T ~[10]E, E any](x X) T {
-	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\[\]E\) to T\n\tcannot convert \[\]E \(in X\) to \[10\]E \(in T\) */)
-}
 
 // ----------------------------------------------------------------------------
 // The following declarations can be replaced by the exported types of the

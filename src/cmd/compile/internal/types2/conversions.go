@@ -188,11 +188,27 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		return true
 	}
 
-	// "V a slice, T is a pointer-to-array type,
+	// "V is a slice, T is an array or pointer-to-array type,
 	// and the slice and array types have identical element types."
 	if s, _ := Vu.(*Slice); s != nil {
-		if p, _ := Tu.(*Pointer); p != nil {
-			if a, _ := under(p.Elem()).(*Array); a != nil {
+		switch a := Tu.(type) {
+		case *Array:
+			if Identical(s.Elem(), a.Elem()) {
+				if check == nil || check.allowVersion(check.pkg, 1, 20) {
+					return true
+				}
+				// check != nil
+				if cause != nil {
+					// TODO(gri) consider restructuring versionErrorf so we can use it here and below
+					*cause = "conversion of slices to arrays requires go1.20 or later"
+					if check.conf.CompilerErrorMessages {
+						*cause += fmt.Sprintf(" (-lang was set to %s; check go.mod)", check.conf.GoVersion)
+					}
+				}
+				return false
+			}
+		case *Pointer:
+			if a, _ := under(a.Elem()).(*Array); a != nil {
 				if Identical(s.Elem(), a.Elem()) {
 					if check == nil || check.allowVersion(check.pkg, 1, 17) {
 						return true
