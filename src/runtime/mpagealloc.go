@@ -393,14 +393,13 @@ func (p *pageAlloc) grow(base, size uintptr) {
 	for c := chunkIndex(base); c < chunkIndex(limit); c++ {
 		if p.chunks[c.l1()] == nil {
 			// Create the necessary l2 entry.
-			//
-			// Store it atomically to avoid races with readers which
-			// don't acquire the heap lock.
 			r := sysAlloc(unsafe.Sizeof(*p.chunks[0]), p.sysStat)
 			if r == nil {
 				throw("pageAlloc: out of memory")
 			}
-			atomic.StorepNoWB(unsafe.Pointer(&p.chunks[c.l1()]), r)
+			// Store the new chunk block but avoid a write barrier.
+			// grow is used in call chains that disallow write barriers.
+			*(*uintptr)(unsafe.Pointer(&p.chunks[c.l1()])) = uintptr(r)
 		}
 		p.chunkOf(c).scavenged.setRange(0, pallocChunkPages)
 	}
