@@ -214,7 +214,7 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name: "analyses",
 				Type: "map[string]bool",
-				Doc:  "analyses specify analyses that the user would like to enable or disable.\nA map of the names of analysis passes that should be enabled/disabled.\nA full list of analyzers that gopls uses can be found\n[here](https://github.com/golang/tools/blob/master/gopls/doc/analyzers.md).\n\nExample Usage:\n\n```json5\n...\n\"analyses\": {\n  \"unreachable\": false, // Disable the unreachable analyzer.\n  \"unusedparams\": true  // Enable the unusedparams analyzer.\n}\n...\n```\n",
+				Doc:  "analyses specify analyses that the user would like to enable or disable.\nA map of the names of analysis passes that should be enabled/disabled.\nA full list of analyzers that gopls uses can be found in\n[analyzers.md](https://github.com/golang/tools/blob/master/gopls/doc/analyzers.md).\n\nExample Usage:\n\n```json5\n...\n\"analyses\": {\n  \"unreachable\": false, // Disable the unreachable analyzer.\n  \"unusedparams\": true  // Enable the unusedparams analyzer.\n}\n...\n```\n",
 				EnumKeys: EnumKeys{
 					ValueType: "bool",
 					Keys: []EnumKey{
@@ -461,7 +461,7 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name:      "staticcheck",
 				Type:      "bool",
-				Doc:       "staticcheck enables additional analyses from staticcheck.io.\nThese analyses are documented at [here](https://staticcheck.io/docs/checks/).\n",
+				Doc:       "staticcheck enables additional analyses from staticcheck.io.\nThese analyses are documented on\n[Staticcheck's website](https://staticcheck.io/docs/checks/).\n",
 				Default:   "false",
 				Status:    "experimental",
 				Hierarchy: "ui.diagnostic",
@@ -518,7 +518,7 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name: "hints",
 				Type: "map[string]bool",
-				Doc:  "hints specify inlay hints that users want to see.\nA full list of hints that gopls uses can be found\n[here](https://github.com/golang/tools/blob/master/gopls/doc/inlayHints.md).\n",
+				Doc:  "hints specify inlay hints that users want to see. A full list of hints\nthat gopls uses can be found in\n[inlayHints.md](https://github.com/golang/tools/blob/master/gopls/doc/inlayHints.md).\n",
 				EnumKeys: EnumKeys{Keys: []EnumKey{
 					{
 						Name:    "\"assignVariableTypes\"",

@@ -65,9 +65,9 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/analysis/unusedvariable"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/useany"
 	"golang.org/x/tools/gopls/internal/lsp/command"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/diff/myers"
-	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
 var (
@@ -386,8 +386,8 @@ type FormattingOptions struct {
 type DiagnosticOptions struct {
 	// Analyses specify analyses that the user would like to enable or disable.
 	// A map of the names of analysis passes that should be enabled/disabled.
-	// A full list of analyzers that gopls uses can be found
-	// [here](https://github.com/golang/tools/blob/master/gopls/doc/analyzers.md).
+	// A full list of analyzers that gopls uses can be found in
+	// [analyzers.md](https://github.com/golang/tools/blob/master/gopls/doc/analyzers.md).
 	//
 	// Example Usage:
 	//
@@ -402,7 +402,8 @@ type DiagnosticOptions struct {
 	Analyses map[string]bool
 
 	// Staticcheck enables additional analyses from staticcheck.io.
-	// These analyses are documented at [here](https://staticcheck.io/docs/checks/).
+	// These analyses are documented on
+	// [Staticcheck's website](https://staticcheck.io/docs/checks/).
 	Staticcheck bool `status:"experimental"`
 
 	// Annotations specifies the various kinds of optimization diagnostics
@@ -428,9 +429,9 @@ type DiagnosticOptions struct {
 }
 
 type InlayHintOptions struct {
-	// Hints specify inlay hints that users want to see.
-	// A full list of hints that gopls uses can be found
-	// [here](https://github.com/golang/tools/blob/master/gopls/doc/inlayHints.md).
+	// Hints specify inlay hints that users want to see. A full list of hints
+	// that gopls uses can be found in
+	// [inlayHints.md](https://github.com/golang/tools/blob/master/gopls/doc/inlayHints.md).
 	Hints map[string]bool `status:"experimental"`
 }
 
