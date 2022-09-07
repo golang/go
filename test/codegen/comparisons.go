@@ -665,3 +665,52 @@ func equalVarString8(a string) bool {
 	// ppc64le:-".*memequal"
 	return a[:8] == b
 }
+
+func cmpToCmn(a, b, c, d int) int {
+	var c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11 int
+	// arm64:`CMN`,-`CMP`
+	if a < -8 {
+		c1 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a+1 == 0 {
+		c2 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a+3 != 0 {
+		c3 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a+b == 0 {
+		c4 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if b+c != 0 {
+		c5 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a == -c {
+		c6 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if b != -d {
+		c7 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a*b+c == 0 {
+		c8 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a*c+b != 0 {
+		c9 = 1
+	}
+	// arm64:`CMP`,-`CMN`
+	if b*c-a == 0 {
+		c10 = 1
+	}
+	// arm64:`CMP`,-`CMN`
+	if a*d-b != 0 {
+		c11 = 1
+	}
+	return c1 + c2 + c3 + c4 + c5 + c6 + c7 + c8 + c9 + c10 + c11
+}

@@ -742,9 +742,46 @@
 (EQ (CMP x z:(NEG y)) yes no) && z.Uses == 1 => (EQ (CMN x y) yes no)
 (NE (CMP x z:(NEG y)) yes no) && z.Uses == 1 => (NE (CMN x y) yes no)
 
+(Equal (CMP x z:(NEG y))) && z.Uses == 1 => (Equal (CMN x y))
+(NotEqual (CMP x z:(NEG y))) && z.Uses == 1 => (NotEqual (CMN x y))
+
 // CMPW(x,-y) -> CMNW(x,y) is only valid for unordered comparison, if y can be -1<<31
 (EQ (CMPW x z:(NEG y)) yes no) && z.Uses == 1 => (EQ (CMNW x y) yes no)
 (NE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 => (NE (CMNW x y) yes no)
+
+(Equal (CMPW x z:(NEG y))) && z.Uses == 1 => (Equal (CMNW x y))
+(NotEqual (CMPW x z:(NEG y))) && z.Uses == 1 => (NotEqual (CMNW x y))
+
+// For conditional instructions such as CSET, CSEL.
+// TODO: add support for LT, LE, GT, GE, overflow needs to be considered.
+(Equal (CMPconst [0] x:(ADDconst [c] y))) && x.Uses == 1 => (Equal (CMNconst [c] y))
+(NotEqual (CMPconst [0] x:(ADDconst [c] y))) && x.Uses == 1 => (NotEqual (CMNconst [c] y))
+
+(Equal (CMPWconst [0] x:(ADDconst [c] y))) && x.Uses == 1 => (Equal (CMNWconst [int32(c)] y))
+(NotEqual (CMPWconst [0] x:(ADDconst [c] y))) && x.Uses == 1 => (NotEqual (CMNWconst [int32(c)] y))
+
+(Equal (CMPconst [0] z:(ADD x y))) && z.Uses == 1 => (Equal (CMN x y))
+(NotEqual (CMPconst [0] z:(ADD x y))) && z.Uses == 1 => (NotEqual (CMN x y))
+
+(Equal (CMPWconst [0] z:(ADD x y))) && z.Uses == 1 => (Equal (CMNW x y))
+(NotEqual (CMPWconst [0] z:(ADD x y))) && z.Uses == 1 => (NotEqual (CMNW x y))
+
+(Equal (CMPconst [0] z:(MADD a x y))) && z.Uses==1 => (Equal (CMN a (MUL <x.Type> x y)))
+(NotEqual (CMPconst [0] z:(MADD a x y))) && z.Uses==1 => (NotEqual (CMN a (MUL <x.Type> x y)))
+
+(Equal (CMPconst [0] z:(MSUB a x y))) && z.Uses==1 => (Equal (CMP a (MUL <x.Type> x y)))
+(NotEqual (CMPconst [0] z:(MSUB a x y))) && z.Uses==1 => (NotEqual (CMP a (MUL <x.Type> x y)))
+
+(Equal (CMPWconst [0] z:(MADDW a x y))) && z.Uses==1 => (Equal (CMNW a (MULW <x.Type> x y)))
+(NotEqual (CMPWconst [0] z:(MADDW a x y))) && z.Uses==1 => (NotEqual (CMNW a (MULW <x.Type> x y)))
+
+(Equal (CMPWconst [0] z:(MSUBW a x y))) && z.Uses==1 => (Equal (CMPW a (MULW <x.Type> x y)))
+(NotEqual (CMPWconst [0] z:(MSUBW a x y))) && z.Uses==1 => (NotEqual (CMPW a (MULW <x.Type> x y)))
+
+(CMPconst [c] y) && c < 0 && c != -1<<63 => (CMNconst [-c] y)
+(CMPWconst [c] y) && c < 0 && c != -1<<31 => (CMNWconst [-c] y)
+(CMNconst [c] y) && c < 0 && c != -1<<63 => (CMPconst [-c] y)
+(CMNWconst [c] y) && c < 0 && c != -1<<31 => (CMPWconst [-c] y)
 
 (EQ (CMPconst [0] x) yes no) => (Z x yes no)
 (NE (CMPconst [0] x) yes no) => (NZ x yes no)

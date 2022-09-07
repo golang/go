@@ -45,10 +45,6 @@ var complements = []obj.As{
 	AADDW: ASUBW,
 	ASUB:  AADD,
 	ASUBW: AADDW,
-	ACMP:  ACMN,
-	ACMPW: ACMNW,
-	ACMN:  ACMP,
-	ACMNW: ACMPW,
 }
 
 // zrReplace is the set of instructions for which $0 in the From operand
@@ -382,12 +378,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// Rewrite negative immediates as positive immediates with
 	// complementary instruction.
 	switch p.As {
-	case AADD, ASUB, ACMP, ACMN:
+	case AADD, ASUB:
 		if p.From.Type == obj.TYPE_CONST && p.From.Offset < 0 && p.From.Offset != -1<<63 {
 			p.From.Offset = -p.From.Offset
 			p.As = complements[p.As]
 		}
-	case AADDW, ASUBW, ACMPW, ACMNW:
+	case AADDW, ASUBW:
 		if p.From.Type == obj.TYPE_CONST && p.From.Offset < 0 && int32(p.From.Offset) != -1<<31 {
 			p.From.Offset = -p.From.Offset
 			p.As = complements[p.As]
