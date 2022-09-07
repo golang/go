@@ -267,8 +267,6 @@ type pageAlloc struct {
 	// All access is protected by the mheapLock.
 	inUse addrRanges
 
-	_ uint32 // Align scav so it's easier to reason about alignment within scav.
-
 	// scav stores the scavenger state.
 	scav struct {
 		// index is an efficient index of chunks that have pages available to
