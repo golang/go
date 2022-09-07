@@ -292,21 +292,19 @@ func (l *dlogger) s(x string) *dlogger {
 	if !dlogEnabled {
 		return l
 	}
-	str := stringStructOf(&x)
+
+	strData := unsafe.StringData(x)
 	datap := &firstmoduledata
-	if len(x) > 4 && datap.etext <= uintptr(str.str) && uintptr(str.str) < datap.end {
+	if len(x) > 4 && datap.etext <= uintptr(unsafe.Pointer(strData)) && uintptr(unsafe.Pointer(strData)) < datap.end {
 		// String constants are in the rodata section, which
 		// isn't recorded in moduledata. But it has to be
 		// somewhere between etext and end.
 		l.w.byte(debugLogConstString)
-		l.w.uvarint(uint64(str.len))
-		l.w.uvarint(uint64(uintptr(str.str) - datap.etext))
+		l.w.uvarint(uint64(len(x)))
+		l.w.uvarint(uint64(uintptr(unsafe.Pointer(strData)) - datap.etext))
 	} else {
 		l.w.byte(debugLogString)
-		var b []byte
-		bb := (*slice)(unsafe.Pointer(&b))
-		bb.array = str.str
-		bb.len, bb.cap = str.len, str.len
+		b := unsafe.Slice(strData, len(x))
 		if len(b) > debugLogStringLimit {
 			b = b[:debugLogStringLimit]
 		}

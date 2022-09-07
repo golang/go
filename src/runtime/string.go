@@ -78,7 +78,7 @@ func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
 // n is the length of the slice.
 // Buf is a fixed-size buffer for the result,
 // it is not nil if the result does not escape.
-func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
+func slicebytetostring(buf *tmpBuf, ptr *byte, n int) string {
 	if n == 0 {
 		// Turns out to be a relatively common case.
 		// Consider that you want to parse out data between parens in "foo()bar",
@@ -102,9 +102,7 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
 		if goarch.BigEndian {
 			p = add(p, 7)
 		}
-		stringStructOf(&str).str = p
-		stringStructOf(&str).len = 1
-		return
+		return unsafe.String((*byte)(p), 1)
 	}
 
 	var p unsafe.Pointer
@@ -113,16 +111,14 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
 	} else {
 		p = mallocgc(uintptr(n), nil, false)
 	}
-	stringStructOf(&str).str = p
-	stringStructOf(&str).len = n
 	memmove(p, unsafe.Pointer(ptr), uintptr(n))
-	return
+	return unsafe.String((*byte)(p), n)
 }
 
 // stringDataOnStack reports whether the string's data is
 // stored on the current goroutine's stack.
 func stringDataOnStack(s string) bool {
-	ptr := uintptr(stringStructOf(&s).str)
+	ptr := uintptr(unsafe.Pointer(unsafe.StringData(s)))
 	stk := getg().stack
 	return stk.lo <= ptr && ptr < stk.hi
 }
@@ -151,7 +147,7 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
 //     where k is []byte, T1 to Tn is a nesting of struct and array literals.
 //   - Used for "<"+string(b)+">" concatenation where b is []byte.
 //   - Used for string(b)=="foo" comparison where b is []byte.
-func slicebytetostringtmp(ptr *byte, n int) (str string) {
+func slicebytetostringtmp(ptr *byte, n int) string {
 	if raceenabled && n > 0 {
 		racereadrangepc(unsafe.Pointer(ptr),
 			uintptr(n),
@@ -164,9 +160,7 @@ func slicebytetostringtmp(ptr *byte, n int) (str string) {
 	if asanenabled && n > 0 {
 		asanread(unsafe.Pointer(ptr), uintptr(n))
 	}
-	stringStructOf(&str).str = unsafe.Pointer(ptr)
-	stringStructOf(&str).len = n
-	return
+	return unsafe.String(ptr, n)
 }
 
 func stringtoslicebyte(buf *tmpBuf, s string) []byte {
@@ -271,13 +265,7 @@ func intstring(buf *[4]byte, v int64) (s string) {
 // b to set the string contents and then drop b.
 func rawstring(size int) (s string, b []byte) {
 	p := mallocgc(uintptr(size), nil, false)
-
-	stringStructOf(&s).str = p
-	stringStructOf(&s).len = size
-
-	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, size}
-
-	return
+	return unsafe.String((*byte)(p), size), unsafe.Slice((*byte)(p), size)
 }
 
 // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.

@@ -156,8 +156,7 @@ func dumpslice(b []byte) {
 }
 
 func dumpstr(s string) {
-	sp := stringStructOf(&s)
-	dumpmemrange(sp.str, uintptr(sp.len))
+	dumpmemrange(unsafe.Pointer(unsafe.StringData(s)), uintptr(len(s)))
 }
 
 // dump information for a type
@@ -197,14 +196,12 @@ func dumptype(t *_type) {
 	if x := t.uncommon(); x == nil || t.nameOff(x.pkgpath).name() == "" {
 		dumpstr(t.string())
 	} else {
-		pkgpathstr := t.nameOff(x.pkgpath).name()
-		pkgpath := stringStructOf(&pkgpathstr)
-		namestr := t.name()
-		name := stringStructOf(&namestr)
-		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
-		dwrite(pkgpath.str, uintptr(pkgpath.len))
+		pkgpath := t.nameOff(x.pkgpath).name()
+		name := t.name()
+		dumpint(uint64(uintptr(len(pkgpath)) + 1 + uintptr(len(name))))
+		dwrite(unsafe.Pointer(unsafe.StringData(pkgpath)), uintptr(len(pkgpath)))
 		dwritebyte('.')
-		dwrite(name.str, uintptr(name.len))
+		dwrite(unsafe.Pointer(unsafe.StringData(name)), uintptr(len(name)))
 	}
 	dumpbool(t.kind&kindDirectIface == 0 || t.ptrdata != 0)
 }
