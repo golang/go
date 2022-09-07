@@ -697,6 +697,16 @@
 (MOVBUreg x:(Select0 (LoweredAtomicCas32 _ _ _ _))) => (MOVDreg x)
 (MOVBUreg x:(Select0 (LoweredAtomicCas64 _ _ _ _))) => (MOVDreg x)
 
+// Avoid sign extension after word arithmetic.
+(MOVWreg x:(ADDIW   _)) => (MOVDreg x)
+(MOVWreg x:(SUBW  _ _)) => (MOVDreg x)
+(MOVWreg x:(NEGW    _)) => (MOVDreg x)
+(MOVWreg x:(MULW  _ _)) => (MOVDreg x)
+(MOVWreg x:(DIVW  _ _)) => (MOVDreg x)
+(MOVWreg x:(DIVUW _ _)) => (MOVDreg x)
+(MOVWreg x:(REMW  _ _)) => (MOVDreg x)
+(MOVWreg x:(REMUW _ _)) => (MOVDreg x)
+
 // Fold double extensions.
 (MOVBreg  x:(MOVBreg  _)) => (MOVDreg x)
 (MOVHreg  x:(MOVBreg  _)) => (MOVDreg x)

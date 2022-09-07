@@ -5027,6 +5027,94 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVWreg x:(ADDIW _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpRISCV64ADDIW {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(SUBW _ _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpRISCV64SUBW {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(NEGW _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpRISCV64NEGW {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MULW _ _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpRISCV64MULW {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(DIVW _ _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpRISCV64DIVW {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(DIVUW _ _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpRISCV64DIVUW {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(REMW _ _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpRISCV64REMW {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(REMUW _ _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpRISCV64REMUW {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVWreg x:(MOVBreg _))
 	// result: (MOVDreg x)
 	for {
