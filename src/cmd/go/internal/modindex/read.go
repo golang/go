@@ -14,7 +14,6 @@ import (
 	"go/token"
 	"internal/godebug"
 	"internal/goroot"
-	"internal/unsafeheader"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -948,14 +947,7 @@ func (sf *sourceFile) embeds() []embed {
 }
 
 func asString(b []byte) string {
-	p := (*unsafeheader.Slice)(unsafe.Pointer(&b)).Data
-
-	var s string
-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = p
-	hdr.Len = len(b)
-
-	return s
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 // A decoder helps decode the index format.
