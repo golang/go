@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 29, 2022",
+	"Subtitle": "Version of September 8, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -5530,16 +5530,23 @@ runes("白鵬翔")              // []rune{0x767d, 0x9d6c, 0x7fd4}
 </li>
 </ol>
 
-<h4 id="Conversions_from_slice_to_array_pointer">Conversions from slice to array pointer</h4>
+<h4 id="Conversions_from_slice_to_array_or_array_pointer">Conversions from slice to array or array pointer</h4>
 
 <p>
-Converting a slice to an array pointer yields a pointer to the underlying array of the slice.
-If the <a href="#Length_and_capacity">length</a> of the slice is less than the length of the array,
+Converting a slice to an array yields an array containing the elements of the underlying array of the slice.
+Similarly, converting a slice to an array pointer yields a pointer to the underlying array of the slice.
+In both cases, if the <a href="#Length_and_capacity">length</a> of the slice is less than the length of the array,
 a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
 
 <pre>
 s := make([]byte, 2, 4)
+
+a0 := ([0]byte)(s)
+a1 := ([1]byte)(s[1:])   // a1[0] == s[1]
+a2 := ([2]byte)(s)       // a2[0] == s[0]
+a4 := ([4]byte)(s)       // panics: len([4]byte) > len(s)
+
 s0 := (*[0]byte)(s)      // s0 != nil
 s1 := (*[1]byte)(s[1:])  // &amp;s1[0] == &amp;s[1]
 s2 := (*[2]byte)(s)      // &amp;s2[0] == &amp;s[0]
