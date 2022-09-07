@@ -5,12 +5,12 @@
 package ast_test
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
+	"strings"
 )
 
 // This example demonstrates how to inspect the AST of a Go program.
@@ -186,11 +186,11 @@ func main() {
 	f.Comments = cmap.Filter(f).Comments()
 
 	// Print the modified AST.
-	var buf bytes.Buffer
+	var buf strings.Builder
 	if err := format.Node(&buf, fset, f); err != nil {
 		panic(err)
 	}
-	fmt.Printf("%s", buf.Bytes())
+	fmt.Printf("%s", buf.String())
 
 	// Output:
 	// // This is the package comment.
