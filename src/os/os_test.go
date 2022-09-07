@@ -314,12 +314,8 @@ func TestReadClosed(t *testing.T) {
 	_, err = file.Read(b)
 
 	e, ok := err.(*PathError)
-	if !ok {
-		t.Fatalf("Read: %T(%v), want PathError", e, e)
-	}
-
-	if e.Err != ErrClosed {
-		t.Errorf("Read: %v, want PathError(ErrClosed)", e)
+	if !ok || e.Err != ErrClosed {
+		t.Fatalf("Read: got %T(%v), want %T(%v)", err, err, e, ErrClosed)
 	}
 }
 
