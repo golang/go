@@ -23,10 +23,8 @@ func TestFindExecutableVsNoexec(t *testing.T) {
 	// Create a tmpfs mount.
 	err := syscall.Mount("tmpfs", tmp, "tmpfs", 0, "")
 	if err != nil {
-		if os.Geteuid() == 0 {
-			t.Fatalf("tmpfs mount failed: %v", err)
-		}
-		// Requires root or CAP_SYS_ADMIN.
+		// Usually this means lack of CAP_SYS_ADMIN, but there might be
+		// other reasons, expecially in restricted test environments.
 		t.Skipf("requires ability to mount tmpfs (%v)", err)
 	}
 	t.Cleanup(func() {
