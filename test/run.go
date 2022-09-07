@@ -2021,6 +2021,8 @@ var unifiedFailures = setOf(
 	"closure3.go", // unified IR numbers closures differently than -d=inlfuncswithclosures
 	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
 
+	"fixedbugs/issue54912.go", // ICE when inlined type switch case variable captured in function literal
+
 	"typeparam/issue47631.go", // unified IR can handle local type declarations
 )
 
