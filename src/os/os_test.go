@@ -2539,9 +2539,9 @@ func testDoubleCloseError(t *testing.T, path string) {
 	if err := file.Close(); err == nil {
 		t.Error("second Close did not fail")
 	} else if pe, ok := err.(*PathError); !ok {
-		t.Errorf("second Close returned unexpected error type %T; expected fs.PathError", pe)
+		t.Errorf("second Close: got %T, want %T", err, pe)
 	} else if pe.Err != ErrClosed {
-		t.Errorf("second Close returned %q, wanted %q", err, ErrClosed)
+		t.Errorf("second Close: got %q, want %q", pe.Err, ErrClosed)
 	} else {
 		t.Logf("second close returned expected error %q", err)
 	}
