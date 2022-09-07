@@ -620,7 +620,7 @@ func cpuinit() {
 
 		for i := int32(0); i < n; i++ {
 			p := argv_index(argv, argc+1+i)
-			s := *(*string)(unsafe.Pointer(&stringStruct{unsafe.Pointer(p), findnull(p)}))
+			s := unsafe.String(p, findnull(p))
 
 			if hasPrefix(s, prefix) {
 				env = gostring(p)[len(prefix):]

@@ -2444,7 +2444,7 @@ func TestTransportCancelRequestInDial(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in -short mode")
 	}
-	var logbuf bytes.Buffer
+	var logbuf strings.Builder
 	eventLog := log.New(&logbuf, "", 0)
 
 	unblockDial := make(chan bool)
@@ -2931,7 +2931,7 @@ func TestTransportIgnore1xxResponses(t *testing.T) {
 	defer cst.close()
 	cst.tr.DisableKeepAlives = true // prevent log spam; our test server is hanging up anyway
 
-	var got bytes.Buffer
+	var got strings.Builder
 
 	req, _ := NewRequest("GET", cst.ts.URL, nil)
 	req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
@@ -2949,7 +2949,7 @@ func TestTransportIgnore1xxResponses(t *testing.T) {
 	res.Write(&got)
 	want := "1xx: code=123, header=map[Foo:[bar]]\nHTTP/1.1 200 OK\r\nContent-Length: 5\r\nBar: baz\r\n\r\nHello"
 	if got.String() != want {
-		t.Errorf(" got: %q\nwant: %q\n", got.Bytes(), want)
+		t.Errorf(" got: %q\nwant: %q\n", got.String(), want)
 	}
 }
 
@@ -3015,7 +3015,7 @@ type proxyFromEnvTest struct {
 }
 
 func (t proxyFromEnvTest) String() string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	space := func() {
 		if buf.Len() > 0 {
 			buf.WriteByte(' ')
@@ -3537,7 +3537,7 @@ func TestRetryRequestsOnError(t *testing.T) {
 
 			var (
 				mu     sync.Mutex
-				logbuf bytes.Buffer
+				logbuf strings.Builder
 			)
 			logf := func(format string, args ...any) {
 				mu.Lock()
@@ -4515,7 +4515,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	cst.tr.ExpectContinueTimeout = 1 * time.Second
 
 	var mu sync.Mutex // guards buf
-	var buf bytes.Buffer
+	var buf strings.Builder
 	logf := func(format string, args ...any) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -4674,7 +4674,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 
 func TestTransportEventTraceTLSVerify(t *testing.T) {
 	var mu sync.Mutex
-	var buf bytes.Buffer
+	var buf strings.Builder
 	logf := func(format string, args ...any) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -4760,7 +4760,7 @@ func TestTransportEventTraceRealDNS(t *testing.T) {
 	c := &Client{Transport: tr}
 
 	var mu sync.Mutex // guards buf
-	var buf bytes.Buffer
+	var buf strings.Builder
 	logf := func(format string, args ...any) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -5978,7 +5978,7 @@ func TestTransportIgnores408(t *testing.T) {
 	// Not parallel. Relies on mutating the log package's global Output.
 	defer log.SetOutput(log.Writer())
 
-	var logout bytes.Buffer
+	var logout strings.Builder
 	log.SetOutput(&logout)
 
 	defer afterTest(t)

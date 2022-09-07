@@ -142,14 +142,7 @@
 (Round32F ...) => (Copy ...)
 (Round64F ...) => (Copy ...)
 
-// From genericOps.go:
-// "0 if arg0 == 0, -1 if arg0 > 0, undef if arg0<0"
-//
-// Like other arches, we compute ~((x-1) >> 63), with arithmetic right shift.
-// For positive x, bit 63 of x-1 is always 0, so the result is -1.
-// For zero x, bit 63 of x-1 is 1, so the result is 0.
-//
-(Slicemask <t> x) => (NOT (SRAI <t> [63] (ADDI <t> [-1] x)))
+(Slicemask <t> x) => (SRAI [63] (NEG <t> x))
 
 // Truncations
 // We ignore the unused high parts of registers, so truncates are just copies.
@@ -616,7 +609,7 @@
 (BNEZ (SEQZ x) yes no) => (BEQZ x yes no)
 (BNEZ (SNEZ x) yes no) => (BNEZ x yes no)
 
-// Absorb NEG into branch.
+// Remove redundant NEG from BEQZ/BNEZ.
 (BEQZ (NEG x) yes no) => (BEQZ x yes no)
 (BNEZ (NEG x) yes no) => (BNEZ x yes no)
 
@@ -644,11 +637,17 @@
 (BGE (MOVDconst [0]) cond yes no) => (BLEZ cond yes no)
 (BGE cond (MOVDconst [0]) yes no) => (BGEZ cond yes no)
 
-// Remove NEG when used with SEQZ/SNEZ.
+// Remove redundant NEG from SEQZ/SNEZ.
 (SEQZ (NEG x)) => (SEQZ x)
 (SNEZ (NEG x)) => (SNEZ x)
 
-// Store zero
+// Remove redundant SEQZ/SNEZ.
+(SEQZ (SEQZ x)) => (SNEZ x)
+(SEQZ (SNEZ x)) => (SEQZ x)
+(SNEZ (SEQZ x)) => (SEQZ x)
+(SNEZ (SNEZ x)) => (SNEZ x)
+
+// Store zero.
 (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
 (MOVHstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
 (MOVWstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVWstorezero [off] {sym} ptr mem)
@@ -692,6 +691,11 @@
 (MOVWUreg x:(MOVBUload _ _)) => (MOVDreg x)
 (MOVWUreg x:(MOVHUload _ _)) => (MOVDreg x)
 (MOVWUreg x:(MOVWUload _ _)) => (MOVDreg x)
+
+// Avoid zero extension after properly typed atomic operation.
+(MOVBUreg x:(Select0 (LoweredAtomicLoad8 _ _))) => (MOVDreg x)
+(MOVBUreg x:(Select0 (LoweredAtomicCas32 _ _ _ _))) => (MOVDreg x)
+(MOVBUreg x:(Select0 (LoweredAtomicCas64 _ _ _ _))) => (MOVDreg x)
 
 // Fold double extensions.
 (MOVBreg  x:(MOVBreg  _)) => (MOVDreg x)

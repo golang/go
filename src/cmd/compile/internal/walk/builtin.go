@@ -26,20 +26,20 @@ import (
 //
 // For race detector, expand append(src, a [, b]* ) to
 //
-//	  init {
-//	    s := src
-//	    const argc = len(args) - 1
-//	    newLen := s.len + argc
-//	    if uint(newLen) <= uint(s.cap) {
-//	      s = s[:newLen]
-//	    } else {
-//	      s = growslice(s.ptr, newLen, s.cap, argc, elemType)
-//	    }
-//	    s[s.len - argc] = a
-//	    s[s.len - argc + 1] = b
-//	    ...
+//	init {
+//	  s := src
+//	  const argc = len(args) - 1
+//	  newLen := s.len + argc
+//	  if uint(newLen) <= uint(s.cap) {
+//	    s = s[:newLen]
+//	  } else {
+//	    s = growslice(s.ptr, newLen, s.cap, argc, elemType)
 //	  }
-//	  s
+//	  s[s.len - argc] = a
+//	  s[s.len - argc + 1] = b
+//	  ...
+//	}
+//	s
 func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 	if !ir.SameSafeExpr(dst, n.Args[0]) {
 		n.Args[0] = safeExpr(n.Args[0], init)

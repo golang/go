@@ -815,7 +815,7 @@ func TestStarRequest(t *testing.T) {
 	clientReq := *req
 	clientReq.Body = nil
 
-	var out bytes.Buffer
+	var out strings.Builder
 	if err := clientReq.Write(&out); err != nil {
 		t.Fatal(err)
 	}
@@ -823,7 +823,7 @@ func TestStarRequest(t *testing.T) {
 	if strings.Contains(out.String(), "chunked") {
 		t.Error("wrote chunked request; want no body")
 	}
-	back, err := ReadRequest(bufio.NewReader(bytes.NewReader(out.Bytes())))
+	back, err := ReadRequest(bufio.NewReader(strings.NewReader(out.String())))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -835,7 +835,7 @@ func TestStarRequest(t *testing.T) {
 		t.Errorf("Original request doesn't match Request read back.")
 		t.Logf("Original: %#v", req)
 		t.Logf("Original.URL: %#v", req.URL)
-		t.Logf("Wrote: %s", out.Bytes())
+		t.Logf("Wrote: %s", out.String())
 		t.Logf("Read back (doesn't match Original): %#v", back)
 	}
 }
@@ -983,7 +983,7 @@ func TestMaxBytesReaderDifferentLimits(t *testing.T) {
 			wantErr: false,
 		},
 		10: { /* Issue 54408 */
-			limit:   int64(1<<63-1),
+			limit:   int64(1<<63 - 1),
 			lenP:    len(testStr),
 			wantN:   len(testStr),
 			wantErr: false,
@@ -1172,7 +1172,7 @@ func testMultipartFile(t *testing.T, req *Request, key, expectFilename, expectCo
 	if fh.Filename != expectFilename {
 		t.Errorf("filename = %q, want %q", fh.Filename, expectFilename)
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	_, err = io.Copy(&b, f)
 	if err != nil {
 		t.Fatal("copying contents:", err)

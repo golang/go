@@ -657,11 +657,7 @@ func (r *debugLogReader) printVal() bool {
 	case debugLogConstString:
 		len, ptr := int(r.uvarint()), uintptr(r.uvarint())
 		ptr += firstmoduledata.etext
-		str := stringStruct{
-			str: unsafe.Pointer(ptr),
-			len: len,
-		}
-		s := *(*string)(unsafe.Pointer(&str))
+		s := unsafe.String((*byte)(unsafe.Pointer(ptr)), len)
 		print(s)
 
 	case debugLogStringOverflow:

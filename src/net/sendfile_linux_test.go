@@ -59,7 +59,7 @@ func (bench sendFileBench) benchSendFile(b *testing.B) {
 func createTempFile(b *testing.B, size int) *os.File {
 	f, err := os.CreateTemp("", "linux-sendfile-test")
 	if err != nil {
-		b.Fatalf("failed to create tmp directory: %v", err)
+		b.Fatalf("failed to create temporary file: %v", err)
 	}
 
 	data := make([]byte, size)

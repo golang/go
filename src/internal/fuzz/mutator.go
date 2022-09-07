@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"reflect"
 	"unsafe"
 )
 
@@ -265,9 +264,7 @@ var byteSliceMutators = []byteSliceMutator{
 func (m *mutator) mutateBytes(ptrB *[]byte) {
 	b := *ptrB
 	defer func() {
-		oldHdr := (*reflect.SliceHeader)(unsafe.Pointer(ptrB))
-		newHdr := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-		if oldHdr.Data != newHdr.Data {
+		if unsafe.SliceData(*ptrB) != unsafe.SliceData(b) {
 			panic("data moved to new address")
 		}
 		*ptrB = b

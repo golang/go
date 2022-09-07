@@ -117,8 +117,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 				// Note: entry is not modified. It always refers to a real frame, not an inlined one.
 				f = nil
 				name = funcnameFromNameoff(funcInfo, inltree[ix].func_)
-				// File/line is already correct.
-				// TODO: remove file/line from InlinedCall?
+				// File/line from funcline1 below are already correct.
 			}
 		}
 		ci.frames = append(ci.frames, Frame{
@@ -1173,11 +1172,8 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
 
 // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
 type inlinedCall struct {
-	parent   int16  // index of parent in the inltree, or < 0
 	funcID   funcID // type of the called function
-	_        byte
-	file     int32 // perCU file index for inlined call. See cmd/link:pcln.go
-	line     int32 // line number of the call site
+	_        [3]byte
 	func_    int32 // offset into pclntab for name of called function
 	parentPc int32 // position of an instruction whose source position is the call site (offset from entry)
 }

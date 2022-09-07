@@ -45,7 +45,7 @@ func (b *Builder) copyCheck() {
 
 // String returns the accumulated string.
 func (b *Builder) String() string {
-	return *(*string)(unsafe.Pointer(&b.buf))
+	return unsafe.String(unsafe.SliceData(b.buf), len(b.buf))
 }
 
 // Len returns the number of accumulated bytes; b.Len() == len(b.String()).

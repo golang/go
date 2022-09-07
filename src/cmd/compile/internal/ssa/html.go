@@ -848,7 +848,7 @@ func (w *HTMLWriter) WriteSources(phase string, all []*FuncLines) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	fmt.Fprint(&buf, "<div class=\"lines\" style=\"width: 8%\">")
 	filename := ""
 	for _, fl := range all {
@@ -890,7 +890,7 @@ func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
 		return // avoid generating HTML just to discard it
 	}
 	lines := strings.Split(buf.String(), "\n")
-	var out bytes.Buffer
+	var out strings.Builder
 
 	fmt.Fprint(&out, "<div>")
 	for _, l := range lines {
@@ -1053,7 +1053,7 @@ func (b *Block) LongHTML() string {
 }
 
 func (f *Func) HTML(phase string, dot *dotWriter) string {
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	if dot != nil {
 		dot.writeFuncSVG(buf, phase, f)
 	}
@@ -1082,7 +1082,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 	}
 	buf := new(bytes.Buffer)
 	cmd.Stdout = buf
-	bufErr := new(bytes.Buffer)
+	bufErr := new(strings.Builder)
 	cmd.Stderr = bufErr
 	err = cmd.Start()
 	if err != nil {

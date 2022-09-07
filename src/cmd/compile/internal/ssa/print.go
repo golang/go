@@ -5,9 +5,9 @@
 package ssa
 
 import (
-	"bytes"
 	"fmt"
 	"io"
+	"strings"
 
 	"cmd/internal/notsha256"
 	"cmd/internal/src"
@@ -25,7 +25,7 @@ func hashFunc(f *Func) []byte {
 }
 
 func (f *Func) String() string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	p := stringFuncPrinter{w: &buf, printDead: true}
 	fprintFunc(p, f)
 	return buf.String()

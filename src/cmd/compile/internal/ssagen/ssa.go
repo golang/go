@@ -7249,7 +7249,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		}
 	}
 	if f.HTMLWriter != nil { // spew to ssa.html
-		var buf bytes.Buffer
+		var buf strings.Builder
 		buf.WriteString("<code>")
 		buf.WriteString("<dl class=\"ssa-gen\">")
 		filename := ""

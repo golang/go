@@ -7,7 +7,6 @@
 package net
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"internal/testenv"
@@ -718,7 +717,7 @@ func testDots(t *testing.T, mode string) {
 }
 
 func mxString(mxs []*MX) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	sep := ""
 	fmt.Fprintf(&buf, "[")
 	for _, mx := range mxs {
@@ -730,7 +729,7 @@ func mxString(mxs []*MX) string {
 }
 
 func nsString(nss []*NS) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	sep := ""
 	fmt.Fprintf(&buf, "[")
 	for _, ns := range nss {
@@ -742,7 +741,7 @@ func nsString(nss []*NS) string {
 }
 
 func srvString(srvs []*SRV) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	sep := ""
 	fmt.Fprintf(&buf, "[")
 	for _, srv := range srvs {

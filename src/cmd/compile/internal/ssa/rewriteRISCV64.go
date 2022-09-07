@@ -3609,6 +3609,51 @@ func rewriteValueRISCV64_OpRISCV64MOVBUreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBUreg x:(Select0 (LoweredAtomicLoad8 _ _)))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpSelect0 {
+			break
+		}
+		x_0 := x.Args[0]
+		if x_0.Op != OpRISCV64LoweredAtomicLoad8 {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(Select0 (LoweredAtomicCas32 _ _ _ _)))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpSelect0 {
+			break
+		}
+		x_0 := x.Args[0]
+		if x_0.Op != OpRISCV64LoweredAtomicCas32 {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(Select0 (LoweredAtomicCas64 _ _ _ _)))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpSelect0 {
+			break
+		}
+		x_0 := x.Args[0]
+		if x_0.Op != OpRISCV64LoweredAtomicCas64 {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVBUreg x:(MOVBUreg _))
 	// result: (MOVDreg x)
 	for {
@@ -5305,6 +5350,28 @@ func rewriteValueRISCV64_OpRISCV64SEQZ(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SEQZ (SEQZ x))
+	// result: (SNEZ x)
+	for {
+		if v_0.Op != OpRISCV64SEQZ {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpRISCV64SNEZ)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SEQZ (SNEZ x))
+	// result: (SEQZ x)
+	for {
+		if v_0.Op != OpRISCV64SNEZ {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpRISCV64SEQZ)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueRISCV64_OpRISCV64SLL(v *Value) bool {
@@ -5415,6 +5482,28 @@ func rewriteValueRISCV64_OpRISCV64SNEZ(v *Value) bool {
 	// result: (SNEZ x)
 	for {
 		if v_0.Op != OpRISCV64NEG {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpRISCV64SNEZ)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SNEZ (SEQZ x))
+	// result: (SEQZ x)
+	for {
+		if v_0.Op != OpRISCV64SEQZ {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpRISCV64SEQZ)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SNEZ (SNEZ x))
+	// result: (SNEZ x)
+	for {
+		if v_0.Op != OpRISCV64SNEZ {
 			break
 		}
 		x := v_0.Args[0]
@@ -7329,17 +7418,14 @@ func rewriteValueRISCV64_OpSlicemask(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Slicemask <t> x)
-	// result: (NOT (SRAI <t> [63] (ADDI <t> [-1] x)))
+	// result: (SRAI [63] (NEG <t> x))
 	for {
 		t := v.Type
 		x := v_0
-		v.reset(OpRISCV64NOT)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SRAI, t)
-		v0.AuxInt = int64ToAuxInt(63)
-		v1 := b.NewValue0(v.Pos, OpRISCV64ADDI, t)
-		v1.AuxInt = int64ToAuxInt(-1)
-		v1.AddArg(x)
-		v0.AddArg(v1)
+		v.reset(OpRISCV64SRAI)
+		v.AuxInt = int64ToAuxInt(63)
+		v0 := b.NewValue0(v.Pos, OpRISCV64NEG, t)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}

@@ -5,9 +5,9 @@
 package pkginit
 
 import (
-	"bytes"
 	"container/heap"
 	"fmt"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -236,7 +236,7 @@ func reportInitLoopAndExit(l []*ir.Name) {
 	// TODO(mdempsky): Method values are printed as "T.m-fm"
 	// rather than "T.m". Figure out how to avoid that.
 
-	var msg bytes.Buffer
+	var msg strings.Builder
 	fmt.Fprintf(&msg, "initialization loop:\n")
 	for _, n := range l {
 		fmt.Fprintf(&msg, "\t%v: %v refers to\n", ir.Line(n), n)

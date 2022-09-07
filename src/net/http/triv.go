@@ -7,7 +7,6 @@
 package main
 
 import (
-	"bytes"
 	"expvar"
 	"flag"
 	"fmt"
@@ -17,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -49,7 +49,7 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	case "GET":
 		ctr.n++
 	case "POST":
-		buf := new(bytes.Buffer)
+		var buf strings.Builder
 		io.Copy(buf, req.Body)
 		body := buf.String()
 		if n, err := strconv.Atoi(body); err != nil {

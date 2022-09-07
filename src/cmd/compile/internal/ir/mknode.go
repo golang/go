@@ -254,9 +254,9 @@ func processType(t *ast.TypeSpec) {
 		}
 	}
 	// Process fields.
-	var copyBody bytes.Buffer
-	var doChildrenBody bytes.Buffer
-	var editChildrenBody bytes.Buffer
+	var copyBody strings.Builder
+	var doChildrenBody strings.Builder
+	var editChildrenBody strings.Builder
 	for _, f := range fields {
 		if f.Tag != nil {
 			tag := f.Tag.Value[1 : len(f.Tag.Value)-1]

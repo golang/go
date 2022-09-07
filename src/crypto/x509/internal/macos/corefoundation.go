@@ -12,7 +12,6 @@ package macOS
 import (
 	"errors"
 	"internal/abi"
-	"reflect"
 	"runtime"
 	"time"
 	"unsafe"
@@ -64,7 +63,7 @@ const kCFStringEncodingUTF8 = 0x08000100
 //go:cgo_import_dynamic x509_CFDataCreate CFDataCreate "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 
 func BytesToCFData(b []byte) CFRef {
-	p := unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data)
+	p := unsafe.Pointer(unsafe.SliceData(b))
 	ret := syscall(abi.FuncPCABI0(x509_CFDataCreate_trampoline), kCFAllocatorDefault, uintptr(p), uintptr(len(b)), 0, 0, 0)
 	runtime.KeepAlive(p)
 	return CFRef(ret)
@@ -75,7 +74,7 @@ func x509_CFDataCreate_trampoline()
 
 // StringToCFString returns a copy of the UTF-8 contents of s as a new CFString.
 func StringToCFString(s string) CFString {
-	p := unsafe.Pointer((*reflect.StringHeader)(unsafe.Pointer(&s)).Data)
+	p := unsafe.Pointer(unsafe.StringData(s))
 	ret := syscall(abi.FuncPCABI0(x509_CFStringCreateWithBytes_trampoline), kCFAllocatorDefault, uintptr(p),
 		uintptr(len(s)), uintptr(kCFStringEncodingUTF8), 0 /* isExternalRepresentation */, 0)
 	runtime.KeepAlive(p)

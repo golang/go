@@ -804,7 +804,7 @@ func TestExtraFiles(t *testing.T) {
 	}
 
 	c = exec.CommandContext(ctx, exe)
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr strings.Builder
 	c.Stdout = &stdout
 	c.Stderr = &stderr
 	c.ExtraFiles = []*os.File{tf}
@@ -822,7 +822,7 @@ func TestExtraFiles(t *testing.T) {
 	}
 	err = c.Run()
 	if err != nil {
-		t.Fatalf("Run: %v\n--- stdout:\n%s--- stderr:\n%s", err, stdout.Bytes(), stderr.Bytes())
+		t.Fatalf("Run: %v\n--- stdout:\n%s--- stderr:\n%s", err, stdout.String(), stderr.String())
 	}
 	if stdout.String() != text {
 		t.Errorf("got stdout %q, stderr %q; want %q on stdout", stdout.String(), stderr.String(), text)
@@ -904,7 +904,7 @@ func TestIgnorePipeErrorOnSuccess(t *testing.T) {
 	testWith := func(r io.Reader) func(*testing.T) {
 		return func(t *testing.T) {
 			cmd := helperCommand(t, "echo", "foo")
-			var out bytes.Buffer
+			var out strings.Builder
 			cmd.Stdin = r
 			cmd.Stdout = &out
 			if err := cmd.Run(); err != nil {

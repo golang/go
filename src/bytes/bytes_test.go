@@ -2186,9 +2186,7 @@ func TestClone(t *testing.T) {
 			t.Errorf("Clone(%#v) return value should not be equal to nil slice.", input)
 		}
 
-		inputHeader := (*reflect.SliceHeader)(unsafe.Pointer(&input))
-		cloneHeader := (*reflect.SliceHeader)(unsafe.Pointer(&clone))
-		if cap(input) != 0 && cloneHeader.Data == inputHeader.Data {
+		if cap(input) != 0 && unsafe.SliceData(input) == unsafe.SliceData(clone) {
 			t.Errorf("Clone(%q) return value should not reference inputs backing memory.", input)
 		}
 	}
