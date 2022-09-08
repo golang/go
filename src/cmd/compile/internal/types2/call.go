@@ -32,7 +32,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	sig := x.typ.(*Signature)
 	got, want := len(targs), sig.TypeParams().Len()
 	if !useConstraintTypeInference && got != want || got > want {
-		check.errorf(xlist[got-1], "got %d type arguments but want %d", got, want)
+		check.errorf(xlist[got-1], _WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
 		x.expr = inst
 		return
@@ -84,7 +84,7 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
 			if i < len(xlist) {
 				pos = syntax.StartPos(xlist[i])
 			}
-			check.softErrorf(pos, "%s", err)
+			check.softErrorf(pos, _InvalidTypeArg, "%s", err)
 		} else {
 			check.mono.recordInstance(check.pkg, pos, tparams, targs, xlist)
 		}
@@ -126,25 +126,25 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		x.mode = invalid
 		switch n := len(call.ArgList); n {
 		case 0:
-			check.errorf(call, "missing argument in conversion to %s", T)
+			check.errorf(call, _WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
 			check.expr(x, call.ArgList[0])
 			if x.mode != invalid {
 				if t, _ := under(T).(*Interface); t != nil && !isTypeParam(T) {
 					if !t.IsMethodSet() {
-						check.errorf(call, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
+						check.errorf(call, _MisplacedConstraintIface, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
 						break
 					}
 				}
 				if call.HasDots {
-					check.errorf(call.ArgList[0], "invalid use of ... in conversion to %s", T)
+					check.errorf(call.ArgList[0], _BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
 				}
 				check.conversion(x, T)
 			}
 		default:
 			check.use(call.ArgList...)
-			check.errorf(call.ArgList[n-1], "too many arguments in conversion to %s", T)
+			check.errorf(call.ArgList[n-1], _WrongArgCount, "too many arguments in conversion to %s", T)
 		}
 		x.expr = call
 		return conversion
@@ -170,7 +170,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	// a type parameter may be "called" if all types have the same signature
 	sig, _ := coreType(x.typ).(*Signature)
 	if sig == nil {
-		check.errorf(x, invalidOp+"cannot call non-function %s", x)
+		check.errorf(x, _InvalidCall, invalidOp+"cannot call non-function %s", x)
 		x.mode = invalid
 		x.expr = call
 		return statement
@@ -193,7 +193,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		// check number of type arguments (got) vs number of type parameters (want)
 		got, want := len(targs), sig.TypeParams().Len()
 		if got > want {
-			check.errorf(xlist[want], "got %d type arguments but want %d", got, want)
+			check.errorf(xlist[want], _WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 			check.use(call.ArgList...)
 			x.mode = invalid
 			x.expr = call
@@ -286,7 +286,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	for _, a := range args {
 		switch a.mode {
 		case typexpr:
-			check.errorf(a, "%s used as value", a)
+			check.errorf(a, 0, "%s used as value", a)
 			return
 		case invalid:
 			return
@@ -315,7 +315,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 			if len(call.ArgList) == 1 && nargs > 1 {
 				// f()... is not permitted if f() is multi-valued
 				//check.errorf(call.Ellipsis, "cannot use ... with %d-valued %s", nargs, call.ArgList[0])
-				check.errorf(call, "cannot use ... with %d-valued %s", nargs, call.ArgList[0])
+				check.errorf(call, _InvalidDotDotDot, "cannot use ... with %d-valued %s", nargs, call.ArgList[0])
 				return
 			}
 		} else {
@@ -343,7 +343,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		if ddd {
 			// standard_func(a, b, c...)
 			//check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
-			check.errorf(call, "cannot use ... in call to non-variadic %s", call.Fun)
+			check.errorf(call, _NonVariadicDotDotDot, "cannot use ... in call to non-variadic %s", call.Fun)
 			return
 		}
 		// standard_func(a, b, c)
@@ -464,7 +464,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 					}
 				}
 				if exp == nil {
-					check.errorf(e.Sel, "%s not declared by package C", sel)
+					check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package C", sel)
 					goto Error
 				}
 				check.objDecl(exp, nil)
@@ -473,15 +473,15 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 				if exp == nil {
 					if !pkg.fake {
 						if check.conf.CompilerErrorMessages {
-							check.errorf(e.Sel, "undefined: %s.%s", pkg.name, sel)
+							check.errorf(e.Sel, _UndeclaredImportedName, "undefined: %s.%s", pkg.name, sel)
 						} else {
-							check.errorf(e.Sel, "%s not declared by package %s", sel, pkg.name)
+							check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package %s", sel, pkg.name)
 						}
 					}
 					goto Error
 				}
 				if !exp.Exported() {
-					check.errorf(e.Sel, "%s not exported by package %s", sel, pkg.name)
+					check.errorf(e.Sel, _UnexportedName, "%s not exported by package %s", sel, pkg.name)
 					// ok to continue
 				}
 			}
@@ -533,7 +533,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 			goto Error
 		}
 	case builtin:
-		check.errorf(e.Pos(), "cannot select on %s", x)
+		check.errorf(e.Pos(), _UncalledBuiltin, "cannot select on %s", x)
 		goto Error
 	case invalid:
 		goto Error
@@ -548,12 +548,12 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 
 		if index != nil {
 			// TODO(gri) should provide actual type where the conflict happens
-			check.errorf(e.Sel, "ambiguous selector %s.%s", x.expr, sel)
+			check.errorf(e.Sel, _AmbiguousSelector, "ambiguous selector %s.%s", x.expr, sel)
 			goto Error
 		}
 
 		if indirect {
-			check.errorf(e.Sel, "cannot call pointer method %s on %s", sel, x.typ)
+			check.errorf(e.Sel, _InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ)
 			goto Error
 		}
 
@@ -577,7 +577,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 				}
 			}
 		}
-		check.errorf(e.Sel, "%s.%s undefined (%s)", x.expr, sel, why)
+		check.errorf(e.Sel, _MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error
 	}
 
@@ -591,7 +591,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 		m, _ := obj.(*Func)
 		if m == nil {
 			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
-			check.errorf(e.Sel, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
+			check.errorf(e.Sel, _MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
 			goto Error
 		}
 
@@ -599,7 +599,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 
 		sig := m.typ.(*Signature)
 		if sig.recv == nil {
-			check.error(e, "illegal cycle in method declaration")
+			check.error(e, _InvalidDeclCycle, "illegal cycle in method declaration")
 			goto Error
 		}
 

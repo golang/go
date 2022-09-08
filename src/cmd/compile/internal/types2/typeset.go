@@ -421,7 +421,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos syn
 		allTerms = allTerms.union(terms)
 		if len(allTerms) > maxTermCount {
 			if check != nil {
-				check.errorf(pos, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+				check.errorf(pos, _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
 			}
 			unionSets[utyp] = &invalidTypeSet
 			return unionSets[utyp]

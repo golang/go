@@ -216,16 +216,20 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 				}
 			}
 			if allFailed {
-				check.errorf(arg, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
+				check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
 				return
 			}
 		}
 		smap := makeSubstMap(tparams, targs)
 		inferred := check.subst(arg.Pos(), tpar, smap, nil, check.context())
+		// _CannotInferTypeArgs indicates a failure of inference, though the actual
+		// error may be better attributed to a user-provided type argument (hence
+		// _InvalidTypeArg). We can't differentiate these cases, so fall back on
+		// the more general _CannotInferTypeArgs.
 		if inferred != tpar {
-			check.errorf(arg, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
+			check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
 		} else {
-			check.errorf(arg, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
+			check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
 		}
 	}
 
@@ -319,7 +323,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// At least one type argument couldn't be inferred.
 	assert(targs != nil && index >= 0 && targs[index] == nil)
 	tpar := tparams[index]
-	check.errorf(pos, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
+	check.errorf(pos, _CannotInferTypeArgs, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
 	return nil
 }
 
@@ -532,7 +536,7 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 						if core.tilde {
 							tilde = "~"
 						}
-						check.errorf(pos, "%s does not match %s%s", tpar, tilde, core.typ)
+						check.errorf(pos, _InvalidTypeArg, "%s does not match %s%s", tpar, tilde, core.typ)
 						return nil, 0
 					}
 

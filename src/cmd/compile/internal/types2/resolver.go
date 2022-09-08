@@ -52,17 +52,18 @@ func (check *Checker) arity(pos syntax.Pos, names []*syntax.Name, inits []syntax
 	l := len(names)
 	r := len(inits)
 
+	const code = _WrongAssignCount
 	switch {
 	case l < r:
 		n := inits[l]
 		if inherited {
-			check.errorf(pos, "extra init expr at %s", n.Pos())
+			check.errorf(pos, code, "extra init expr at %s", n.Pos())
 		} else {
-			check.errorf(n, "extra init expr %s", n)
+			check.errorf(n, code, "extra init expr %s", n)
 		}
 	case l > r && (constDecl || r != 1): // if r == 1 it may be a multi-valued function and we can't say anything yet
 		n := names[r]
-		check.errorf(n, "missing init expr for %s", n.Value)
+		check.errorf(n, code, "missing init expr for %s", n.Value)
 	}
 }
 
@@ -91,14 +92,14 @@ func (check *Checker) declarePkgObj(ident *syntax.Name, obj Object, d *declInfo)
 	// spec: "A package-scope or file-scope identifier with name init
 	// may only be declared to be a function with this (func()) signature."
 	if ident.Value == "init" {
-		check.error(ident, "cannot declare init - must be func")
+		check.error(ident, _InvalidInitDecl, "cannot declare init - must be func")
 		return
 	}
 
 	// spec: "The main package must have package name main and declare
 	// a function main that takes no arguments and returns no value."
 	if ident.Value == "main" && check.pkg.name == "main" {
-		check.error(ident, "cannot declare main - must be func")
+		check.error(ident, _InvalidMainDecl, "cannot declare main - must be func")
 		return
 	}
 
@@ -158,7 +159,7 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 			imp = nil // create fake package below
 		}
 		if err != nil {
-			check.errorf(pos, "could not import %s (%s)", path, err)
+			check.errorf(pos, _BrokenImport, "could not import %s (%s)", path, err)
 			if imp == nil {
 				// create a new fake package
 				// come up with a sensible package name (heuristic)
@@ -245,7 +246,7 @@ func (check *Checker) collectObjects() {
 				}
 				path, err := validatedImportPath(s.Path.Value)
 				if err != nil {
-					check.errorf(s.Path, "invalid import path (%s)", err)
+					check.errorf(s.Path, _BadImportPath, "invalid import path (%s)", err)
 					continue
 				}
 
@@ -260,13 +261,13 @@ func (check *Checker) collectObjects() {
 					name = s.LocalPkgName.Value
 					if path == "C" {
 						// match 1.17 cmd/compile (not prescribed by spec)
-						check.error(s.LocalPkgName, `cannot rename import "C"`)
+						check.error(s.LocalPkgName, _ImportCRenamed, `cannot rename import "C"`)
 						continue
 					}
 				}
 
 				if name == "init" {
-					check.error(s, "cannot import package as init - init must be a func")
+					check.error(s, _InvalidInitDecl, "cannot import package as init - init must be a func")
 					continue
 				}
 
@@ -416,12 +417,16 @@ func (check *Checker) collectObjects() {
 				if s.Recv == nil {
 					// regular function
 					if name == "init" || name == "main" && pkg.name == "main" {
+						code := _InvalidInitDecl
+						if name == "main" {
+							code = _InvalidMainDecl
+						}
 						if len(s.TParamList) != 0 {
-							check.softErrorf(s.TParamList[0], "func %s must have no type parameters", name)
+							check.softErrorf(s.TParamList[0], code, "func %s must have no type parameters", name)
 							hasTParamError = true
 						}
 						if t := s.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
-							check.softErrorf(s.Name, "func %s must have no arguments and no return values", name)
+							check.softErrorf(s.Name, code, "func %s must have no arguments and no return values", name)
 						}
 					}
 					// don't declare init functions in the package scope - they are invisible
@@ -431,7 +436,7 @@ func (check *Checker) collectObjects() {
 						// init functions must have a body
 						if s.Body == nil {
 							// TODO(gri) make this error message consistent with the others above
-							check.softErrorf(obj.pos, "missing function body")
+							check.softErrorf(obj.pos, _MissingInitBody, "missing function body")
 						}
 					} else {
 						check.declare(pkg.scope, s.Name, obj, nopos)
@@ -460,7 +465,7 @@ func (check *Checker) collectObjects() {
 				obj.setOrder(uint32(len(check.objMap)))
 
 			default:
-				check.errorf(s, invalidAST+"unknown syntax.Decl node %T", s)
+				check.errorf(s, 0, invalidAST+"unknown syntax.Decl node %T", s)
 			}
 		}
 	}
@@ -471,6 +476,7 @@ func (check *Checker) collectObjects() {
 			if alt := pkg.scope.Lookup(name); alt != nil {
 				obj = resolve(name, obj)
 				var err error_
+				err.code = _DuplicateDecl
 				if pkg, ok := obj.(*PkgName); ok {
 					err.errorf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
 					err.recordAltDecl(pkg)
@@ -542,9 +548,9 @@ L: // unpack receiver type
 				case *syntax.BadExpr:
 					// ignore - error already reported by parser
 				case nil:
-					check.error(ptyp, invalidAST+"parameterized receiver contains nil parameters")
+					check.error(ptyp, 0, invalidAST+"parameterized receiver contains nil parameters")
 				default:
-					check.errorf(arg, "receiver type parameter %s must be an identifier", arg)
+					check.errorf(arg, _BadDecl, "receiver type parameter %s must be an identifier", arg)
 				}
 				if par == nil {
 					par = syntax.NewName(arg.Pos(), "_")
@@ -721,15 +727,15 @@ func (check *Checker) errorUnusedPkg(obj *PkgName) {
 	}
 	if obj.name == "" || obj.name == "." || obj.name == elem {
 		if check.conf.CompilerErrorMessages {
-			check.softErrorf(obj, "imported and not used: %q", path)
+			check.softErrorf(obj, _UnusedImport, "imported and not used: %q", path)
 		} else {
-			check.softErrorf(obj, "%q imported but not used", path)
+			check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
 		}
 	} else {
 		if check.conf.CompilerErrorMessages {
-			check.softErrorf(obj, "imported and not used: %q as %s", path, obj.name)
+			check.softErrorf(obj, _UnusedImport, "imported and not used: %q as %s", path, obj.name)
 		} else {
-			check.softErrorf(obj, "%q imported but not used as %s", path, obj.name)
+			check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
 		}
 	}
 }
