@@ -604,7 +604,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Add:
 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
 		if !check.allowVersion(check.pkg, 1, 17) {
-			check.errorf(call.Fun, _InvalidUnsafeAdd, "unsafe.Add requires go1.17 or later")
+			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.Add requires go1.17 or later")
 			return
 		}
 
@@ -730,7 +730,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Slice:
 		// unsafe.Slice(ptr *T, len IntegerType) []T
 		if !check.allowVersion(check.pkg, 1, 17) {
-			check.errorf(call.Fun, _InvalidUnsafeSlice, "unsafe.Slice requires go1.17 or later")
+			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.Slice requires go1.17 or later")
 			return
 		}
 
@@ -755,7 +755,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _SliceData:
 		// unsafe.SliceData(slice []T) *T
 		if !check.allowVersion(check.pkg, 1, 20) {
-			check.errorf(call.Fun, _InvalidUnsafeSliceData, "unsafe.SliceData requires go1.20 or later")
+			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.SliceData requires go1.20 or later")
 			return
 		}
 
@@ -774,7 +774,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _String:
 		// unsafe.String(ptr *byte, len IntegerType) string
 		if !check.allowVersion(check.pkg, 1, 20) {
-			check.errorf(call.Fun, _InvalidUnsafeString, "unsafe.String requires go1.20 or later")
+			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.String requires go1.20 or later")
 			return
 		}
 
@@ -798,7 +798,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _StringData:
 		// unsafe.StringData(str string) *byte
 		if !check.allowVersion(check.pkg, 1, 20) {
-			check.errorf(call.Fun, _InvalidUnsafeStringData, "unsafe.StringData requires go1.20 or later")
+			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.StringData requires go1.20 or later")
 			return
 		}
 
