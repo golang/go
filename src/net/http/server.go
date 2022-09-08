@@ -2905,12 +2905,12 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 	}
 
 	if req.URL != nil && strings.Contains(req.URL.RawQuery, ";") {
-		var allowQuerySemicolonsInUse int32
+		var allowQuerySemicolonsInUse atomic.Bool
 		req = req.WithContext(context.WithValue(req.Context(), silenceSemWarnContextKey, func() {
-			atomic.StoreInt32(&allowQuerySemicolonsInUse, 1)
+			allowQuerySemicolonsInUse.Store(true)
 		}))
 		defer func() {
-			if atomic.LoadInt32(&allowQuerySemicolonsInUse) == 0 {
+			if !allowQuerySemicolonsInUse.Load() {
 				sh.srv.logf("http: URL query contains semicolon, which is no longer a supported separator; parts of the query may be stripped when parsed; see golang.org/issue/25192")
 			}
 		}()
