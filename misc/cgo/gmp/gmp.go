@@ -269,7 +269,7 @@ func (z *Int) Mod(x, y *Int) *Int {
 	x.doinit()
 	y.doinit()
 	z.doinit()
-	C.mpz_tdiv_r(&z.i[0], &x.i[0], &y.i[0])
+	C.mpz_mod(&z.i[0], &x.i[0], &y.i[0])
 	return z
 }
 
@@ -292,13 +292,13 @@ func (z *Int) Rsh(x *Int, s uint) *Int {
 // Exp sets z = x^y % m and returns z.
 // If m == nil, Exp sets z = x^y.
 func (z *Int) Exp(x, y, m *Int) *Int {
-	m.doinit()
 	x.doinit()
 	y.doinit()
 	z.doinit()
 	if m == nil {
 		C.mpz_pow_ui(&z.i[0], &x.i[0], C.mpz_get_ui(&y.i[0]))
 	} else {
+		m.doinit()
 		C.mpz_powm(&z.i[0], &x.i[0], &y.i[0], &m.i[0])
 	}
 	return z
