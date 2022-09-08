@@ -808,6 +808,20 @@ type ParseError struct {
 	Message    string
 }
 
+// newParseError creates a new ParseError.
+// The provided value and valueElem are cloned to avoid escaping their values.
+func newParseError(layout, value, layoutElem, valueElem, message string) *ParseError {
+	valueCopy := cloneString(value)
+	valueElemCopy := cloneString(valueElem)
+	return &ParseError{layout, valueCopy, layoutElem, valueElemCopy, message}
+}
+
+// cloneString returns a string copy of s.
+// Do not use strings.Clone to avoid dependency on strings package.
+func cloneString(s string) string {
+	return string([]byte(s))
+}
+
 // These are borrowed from unicode/utf8 and strconv and replicate behavior in
 // that package, since we can't take a dependency on either.
 const (
@@ -1027,11 +1041,11 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		stdstr := layout[len(prefix) : len(layout)-len(suffix)]
 		value, err = skip(value, prefix)
 		if err != nil {
-			return Time{}, &ParseError{alayout, avalue, prefix, value, ""}
+			return Time{}, newParseError(alayout, avalue, prefix, value, "")
 		}
 		if std == 0 {
 			if len(value) != 0 {
-				return Time{}, &ParseError{alayout, avalue, "", value, ": extra text: " + quote(value)}
+				return Time{}, newParseError(alayout, avalue, "", value, ": extra text: "+quote(value))
 			}
 			break
 		}
@@ -1262,10 +1276,10 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			value = value[1+i:]
 		}
 		if rangeErrString != "" {
-			return Time{}, &ParseError{alayout, avalue, stdstr, value, ": " + rangeErrString + " out of range"}
+			return Time{}, newParseError(alayout, avalue, stdstr, value, ": "+rangeErrString+" out of range")
 		}
 		if err != nil {
-			return Time{}, &ParseError{alayout, avalue, stdstr, value, ""}
+			return Time{}, newParseError(alayout, avalue, stdstr, value, "")
 		}
 	}
 	if pmSet && hour < 12 {
@@ -1287,7 +1301,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			}
 		}
 		if yday < 1 || yday > 365 {
-			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year out of range"}
+			return Time{}, newParseError(alayout, avalue, "", value, ": day-of-year out of range")
 		}
 		if m == 0 {
 			m = (yday-1)/31 + 1
@@ -1299,11 +1313,11 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		// If month, day already seen, yday's m, d must match.
 		// Otherwise, set them from m, d.
 		if month >= 0 && month != m {
-			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year does not match month"}
+			return Time{}, newParseError(alayout, avalue, "", value, ": day-of-year does not match month")
 		}
 		month = m
 		if day >= 0 && day != d {
-			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year does not match day"}
+			return Time{}, newParseError(alayout, avalue, "", value, ": day-of-year does not match day")
 		}
 		day = d
 	} else {
@@ -1317,7 +1331,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 
 	// Validate the day of the month.
 	if day < 1 || day > daysIn(Month(month), year) {
-		return Time{}, &ParseError{alayout, avalue, "", value, ": day out of range"}
+		return Time{}, newParseError(alayout, avalue, "", value, ": day out of range")
 	}
 
 	if z != nil {
@@ -1337,7 +1351,8 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		}
 
 		// Otherwise create fake zone to record offset.
-		t.setLoc(FixedZone(zoneName, zoneOffset))
+		zoneNameCopy := cloneString(zoneName) // avoid leaking the input value
+		t.setLoc(FixedZone(zoneNameCopy, zoneOffset))
 		return t, nil
 	}
 
@@ -1357,7 +1372,8 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
 			offset *= 3600
 		}
-		t.setLoc(FixedZone(zoneName, offset))
+		zoneNameCopy := cloneString(zoneName) // avoid leaking the input value
+		t.setLoc(FixedZone(zoneNameCopy, offset))
 		return t, nil
 	}
 

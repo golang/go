@@ -1446,15 +1446,35 @@ func BenchmarkParse(b *testing.B) {
 	}
 }
 
+const testdataRFC3339UTC = "2020-08-22T11:27:43.123456789Z"
+
 func BenchmarkParseRFC3339UTC(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Parse(RFC3339, "2020-08-22T11:27:43.123456789Z")
+		Parse(RFC3339, testdataRFC3339UTC)
 	}
 }
 
+var testdataRFC3339UTCBytes = []byte(testdataRFC3339UTC)
+
+func BenchmarkParseRFC3339UTCBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Parse(RFC3339, string(testdataRFC3339UTCBytes))
+	}
+}
+
+const testdataRFC3339TZ = "2020-08-22T11:27:43.123456789-02:00"
+
 func BenchmarkParseRFC3339TZ(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Parse(RFC3339, "2020-08-22T11:27:43.123456789-02:00")
+		Parse(RFC3339, testdataRFC3339TZ)
+	}
+}
+
+var testdataRFC3339TZBytes = []byte(testdataRFC3339TZ)
+
+func BenchmarkParseRFC3339TZBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Parse(RFC3339, string(testdataRFC3339TZBytes))
 	}
 }
 
@@ -1558,6 +1578,16 @@ func TestMarshalBinaryVersion2(t *testing.T) {
 		if !t1.Equal(t2) {
 			t.Errorf("The result t2: %+v after Unmarshal is not matched original t1: %+v", t2, t1)
 		}
+	}
+}
+
+func TestUnmarshalTextAllocations(t *testing.T) {
+	in := []byte(testdataRFC3339UTC) // short enough to be stack allocated
+	if allocs := testing.AllocsPerRun(100, func() {
+		var t Time
+		t.UnmarshalText(in)
+	}); allocs != 0 {
+		t.Errorf("got %v allocs, want 0 allocs", allocs)
 	}
 }
 
