@@ -62,8 +62,9 @@ func getPos(fset *token.FileSet, filename string, offset int) token.Pos {
 // a regular expression that matches the expected error message.
 // The special form /* ERROR HERE "rx" */ must be used for error
 // messages that appear immediately after a token, rather than at
-// a token's position.
-var errRx = regexp.MustCompile(`^/\* *ERROR *(HERE)? *"([^"]*)" *\*/$`)
+// a token's position, and ERROR AFTER means after the comment
+// (e.g. at end of line).
+var errRx = regexp.MustCompile(`^/\* *ERROR *(HERE|AFTER)? *"([^"]*)" *\*/$`)
 
 // expectedErrors collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
@@ -86,9 +87,12 @@ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.
 		case token.COMMENT:
 			s := errRx.FindStringSubmatch(lit)
 			if len(s) == 3 {
-				pos := prev
 				if s[1] == "HERE" {
-					pos = here
+					pos = here // start of comment
+				} else if s[1] == "AFTER" {
+					pos += token.Pos(len(lit)) // end of comment
+				} else {
+					pos = prev // token prior to comment
 				}
 				errors[pos] = s[2]
 			}
