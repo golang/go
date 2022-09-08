@@ -32,15 +32,17 @@ go build -o fortune.exe rsc.io/fortune
 go version fortune.exe
 stdout '^fortune.exe: .+'
 go version -m fortune.exe
+stdout -buildmode=exe
 stdout '^\tpath\trsc.io/fortune'
 stdout '^\tmod\trsc.io/fortune\tv1.0.0'
 
 # Check the build info of a binary built from $GOROOT/src/cmd
 go build -o test2json.exe cmd/test2json
 go version -m test2json.exe
+stdout -buildmode=exe
 stdout '^test2json.exe: .+'
 stdout '^\tpath\tcmd/test2json$'
-! stdout 'mod'
+! stdout 'mod[^e]'
 
 # Repeat the test with -buildmode=pie.
 [!buildmode:pie] stop
@@ -48,6 +50,7 @@ go build -buildmode=pie -o external.exe rsc.io/fortune
 go version external.exe
 stdout '^external.exe: .+'
 go version -m external.exe
+stdout -buildmode=pie
 stdout '^\tpath\trsc.io/fortune'
 stdout '^\tmod\trsc.io/fortune\tv1.0.0'
 
@@ -59,6 +62,7 @@ go build -buildmode=pie -ldflags=-linkmode=internal -o internal.exe rsc.io/fortu
 go version internal.exe
 stdout '^internal.exe: .+'
 go version -m internal.exe
+stdout -buildmode=pie
 stdout '^\tpath\trsc.io/fortune'
 stdout '^\tmod\trsc.io/fortune\tv1.0.0'
 
