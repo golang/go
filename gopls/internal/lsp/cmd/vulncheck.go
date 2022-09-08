@@ -71,7 +71,7 @@ func (v *vulncheck) Run(ctx context.Context, args ...string) error {
 	opts := source.DefaultOptions().Clone()
 	v.app.options(opts) // register hook
 	if opts == nil || opts.Hooks.Govulncheck == nil {
-		return tool.CommandLineErrorf("vulncheck feature is not available")
+		return fmt.Errorf("vulncheck feature is not available")
 	}
 
 	loadCfg := &packages.Config{
@@ -83,11 +83,11 @@ func (v *vulncheck) Run(ctx context.Context, args ...string) error {
 
 	res, err := opts.Hooks.Govulncheck(ctx, loadCfg, pattern)
 	if err != nil {
-		return tool.CommandLineErrorf("govulncheck failed: %v", err)
+		return fmt.Errorf("vulncheck failed: %v", err)
 	}
 	data, err := json.MarshalIndent(res, " ", " ")
 	if err != nil {
-		return tool.CommandLineErrorf("failed to decode results: %v", err)
+		return fmt.Errorf("vulncheck failed to encode result: %v", err)
 	}
 	fmt.Printf("%s", data)
 	return nil
