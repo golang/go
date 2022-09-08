@@ -279,12 +279,34 @@ func bgsweep(c chan int) {
 	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
 
 	for {
+		// bgsweep attempts to be a "low priority" goroutine by intentionally
+		// yielding time. It's OK if it doesn't run, because goroutines allocating
+		// memory will sweep and ensure that all spans are swept before the next
+		// GC cycle. We really only want to run when we're idle.
+		//
+		// However, calling Gosched after each span swept produces a tremendous
+		// amount of tracing events, sometimes up to 50% of events in a trace. It's
+		// also inefficient to call into the scheduler so much because sweeping a
+		// single span is in general a very fast operation, taking as little as 30 ns
+		// on modern hardware. (See #54767.)
+		//
+		// As a result, bgsweep sweeps in batches, and only calls into the scheduler
+		// at the end of every batch. Furthermore, it only yields its time if there
+		// isn't spare idle time available on other cores. If there's available idle
+		// time, helping to sweep can reduce allocation latencies by getting ahead of
+		// the proportional sweeper and having spans ready to go for allocation.
+		const sweepBatchSize = 10
+		nSwept := 0
 		for sweepone() != ^uintptr(0) {
 			sweep.nbgsweep++
-			Gosched()
+			nSwept++
+			if nSwept%sweepBatchSize == 0 {
+				goschedIfBusy()
+			}
 		}
 		for freeSomeWbufs(true) {
-			Gosched()
+			// N.B. freeSomeWbufs is already batched internally.
+			goschedIfBusy()
 		}
 		lock(&sweep.lock)
 		if !isSweepDone() {

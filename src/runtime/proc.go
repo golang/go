@@ -326,6 +326,18 @@ func goschedguarded() {
 	mcall(goschedguarded_m)
 }
 
+// goschedIfBusy yields the processor like gosched, but only does so if
+// there are no idle Ps or if we're on the only P and there's nothing in
+// the run queue. In both cases, there is freely available idle time.
+//
+//go:nosplit
+func goschedIfBusy() {
+	if sched.npidle.Load() > 0 {
+		return
+	}
+	mcall(gosched_m)
+}
+
 // Puts the current goroutine into a waiting state and calls unlockf on the
 // system stack.
 //
