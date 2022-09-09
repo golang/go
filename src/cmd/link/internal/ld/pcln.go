@@ -171,7 +171,18 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 		var funcID objabi.FuncID
 		if inlFunc.Valid() {
 			funcID = inlFunc.FuncID()
+		} else if !ctxt.linkShared {
+			// Inlined functions are always Go functions, and thus
+			// must have FuncInfo.
+			//
+			// Unfortunately, with -linkshared, the inlined
+			// function may be external symbols (from another
+			// shared library), and we don't load FuncInfo from the
+			// shared library. We will report potentially incorrect
+			// FuncID in this case. See https://go.dev/issue/55954.
+			panic(fmt.Sprintf("inlined function %s missing func info", ldr.SymName(call.Func)))
 		}
+
 		// Construct runtime.inlinedCall value.
 		const size = 12
 		inlTreeSym.SetUint8(arch, int64(i*size+0), uint8(funcID))
