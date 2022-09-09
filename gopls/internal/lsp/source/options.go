@@ -164,6 +164,7 @@ func DefaultOptions() *Options {
 				CompleteUnimported:      true,
 				CompletionDocumentation: true,
 				DeepCompletion:          true,
+				ChattyDiagnostics:       true,
 			},
 			Hooks: Hooks{
 				ComputeEdits:         myers.ComputeEdits,
@@ -587,11 +588,6 @@ type InternalOptions struct {
 	// ChattyDiagnostics controls whether to report file diagnostics for each
 	// file change. If unset, gopls only reports diagnostics when they change, or
 	// when a file is opened or closed.
-	//
-	// TODO(rfindley): is seems that for many clients this should be true by
-	// default. For example, coc.nvim seems to get confused if diagnostics are
-	// not re-published. Switch the default to true after some period of internal
-	// testing.
 	ChattyDiagnostics bool
 }
 
@@ -824,7 +820,6 @@ func (o *Options) EnableAllExperiments() {
 	o.ExperimentalUseInvalidMetadata = true
 	o.ExperimentalWatchedFileDelay = 50 * time.Millisecond
 	o.NewDiff = "checked"
-	o.ChattyDiagnostics = true
 }
 
 func (o *Options) enableAllExperimentMaps() {
