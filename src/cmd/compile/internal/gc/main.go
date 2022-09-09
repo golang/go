@@ -17,6 +17,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/noder"
+	"cmd/compile/internal/pgo"
 	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
@@ -249,10 +250,26 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		typecheck.AllImportedBodies()
 	}
 
+	// Read profile file and build profile-graph and weighted-call-graph.
+	base.Timer.Start("fe", "pgoprofile")
+	if base.Flag.PgoProfile != "" {
+		pgo.BuildProfileGraph(base.Flag.PgoProfile)
+		pgo.BuildWeightedCallGraph()
+	}
+
 	// Inlining
 	base.Timer.Start("fe", "inlining")
 	if base.Flag.LowerL != 0 {
+		if pgo.WeightedCG != nil {
+			inline.InlinePrologue()
+		}
 		inline.InlinePackage()
+		if pgo.WeightedCG != nil {
+			inline.InlineEpilogue()
+			// Delete the graphs as no other optimization uses this currently.
+			pgo.WeightedCG = nil
+			pgo.ProfileGraph = nil
+		}
 	}
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 
