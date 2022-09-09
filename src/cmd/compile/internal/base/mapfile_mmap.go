@@ -8,8 +8,8 @@
 package base
 
 import (
+	"internal/unsafeheader"
 	"os"
-	"reflect"
 	"runtime"
 	"syscall"
 	"unsafe"
@@ -34,10 +34,10 @@ func MapFile(f *os.File, offset, length int64) (string, error) {
 	}
 
 	buf = buf[x:]
-	pSlice := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	pSlice := (*unsafeheader.Slice)(unsafe.Pointer(&buf))
 
 	var res string
-	pString := (*reflect.StringHeader)(unsafe.Pointer(&res))
+	pString := (*unsafeheader.String)(unsafe.Pointer(&res))
 
 	pString.Data = pSlice.Data
 	pString.Len = pSlice.Len
