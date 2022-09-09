@@ -16,6 +16,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/noder"
+	"cmd/compile/internal/pgo"
 	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
@@ -29,6 +30,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/buildcfg"
+	"internal/profile"
 	"log"
 	"os"
 	"runtime"
@@ -232,10 +234,28 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		typecheck.AllImportedBodies()
 	}
 
+	// Read cpu profile file and build cross-package pprof-graph and per-package weighted-call-graph.
+	base.Timer.Start("fe", "profileuse")
+	if base.Flag.ProfileUse != "" {
+		if pgo.PProfGraph == nil {
+			pgo.PProfGraph = pgo.BuildPProfGraph(base.Flag.ProfileUse, &profile.Options{
+				CallTree:    false,
+				SampleValue: func(v []int64) int64 { return v[1] },
+			})
+		}
+		pgo.WeightedCG = pgo.BuildWeightedCallGraph()
+	}
+
 	// Inlining
 	base.Timer.Start("fe", "inlining")
 	if base.Flag.LowerL != 0 {
+		if pgo.WeightedCG != nil {
+			inline.InlinePrologue()
+		}
 		inline.InlinePackage()
+		if pgo.WeightedCG != nil {
+			inline.InlineEpilogue()
+		}
 	}
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 

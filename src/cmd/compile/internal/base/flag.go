@@ -121,6 +121,9 @@ type CmdFlags struct {
 	TraceProfile       string       "help:\"write an execution trace to `file`\""
 	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
 	WB                 bool         "help:\"enable write barrier\"" // TODO: remove
+	ProfileUse         string       "help:\"read profile from `file`\""
+	InlineHotThreshold string       "help:\"threshold percentage for determining hot methods and callsites for inlining\""
+	InlineHotBudget    int          "help:\"inline budget for hot methods\""
 
 	// Configuration derived from flags; not a flag itself.
 	Cfg struct {

@@ -64,6 +64,7 @@ var bootstrapDirs = []string{
 	"internal/goexperiment",
 	"internal/goversion",
 	"internal/pkgbits",
+	"internal/profile",
 	"internal/race",
 	"internal/saferio",
 	"internal/unsafeheader",

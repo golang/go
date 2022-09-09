@@ -244,6 +244,13 @@ pkg net/url, type URL struct, OmitHost bool #46059
 pkg os/exec, method (*Cmd) Environ() []string #50599
 pkg os/exec, type Cmd struct, Err error #43724
 pkg os/exec, var ErrDot error #43724
+pkg pgo/inline, func A() #43724
+pkg pgo/inline, func D(uint) int #43724
+pkg pgo/inline, func N(uint) *BS #43724
+pkg pgo/inline, func T(uint64) uint #43724
+pkg pgo/inline, type BS struct #43724
+pkg pgo/inline, method (*BS) NS(uint) (uint, bool) #43724
+pkg pgo/inline, method (*BS) S(uint) *BS #43724
 pkg regexp/syntax, const ErrNestingDepth = "expression nests too deeply" #51684
 pkg regexp/syntax, const ErrNestingDepth ErrorCode #51684
 pkg runtime/debug, func SetMemoryLimit(int64) int64 #48409
