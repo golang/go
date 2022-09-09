@@ -25,7 +25,7 @@ func UTF16PtrToString(p *uint16) string {
 		n++
 	}
 	// Turn *uint16 into []uint16.
-	s := unsafe.Slice((*uint16)(unsafe.Pointer(p)), n)
+	s := unsafe.Slice(p, n)
 	// Decode []uint16 into string.
 	return string(utf16.Decode(s))
 }
