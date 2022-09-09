@@ -474,8 +474,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ALBAR,
 			ASTBCCC,
 			ASTWCCC,
-			AECIWX,
-			AECOWX,
 			AEIEIO,
 			AICBI,
 			AISYNC,

@@ -342,7 +342,6 @@ var optab = []Optab{
 	{as: AFTSQRT, a1: C_FREG, a6: C_SCON, type_: 93, size: 4},                     /* floating test for sw square root, x-form */
 	{as: ACOPY, a1: C_REG, a6: C_REG, type_: 92, size: 4},                         /* copy/paste facility, x-form */
 	{as: ADARN, a1: C_SCON, a6: C_REG, type_: 92, size: 4},                        /* deliver random number, x-form */
-	{as: ALDMX, a1: C_XOREG, a6: C_REG, type_: 45, size: 4},                       /* load doubleword monitored, x-form */
 	{as: AMADDHD, a1: C_REG, a2: C_REG, a3: C_REG, a6: C_REG, type_: 83, size: 4}, /* multiply-add high/low doubleword, va-form */
 	{as: AADDEX, a1: C_REG, a2: C_REG, a3: C_SCON, a6: C_REG, type_: 94, size: 4}, /* add extended using alternate carry, z23-form */
 	{as: ACRAND, a1: C_CRBIT, a2: C_CRBIT, a6: C_CRBIT, type_: 2, size: 4},        /* logical ops for condition register bits xl-form */
@@ -350,10 +349,10 @@ var optab = []Optab{
 	/* Vector instructions */
 
 	/* Vector load */
-	{as: ALV, a1: C_XOREG, a6: C_VREG, type_: 45, size: 4}, /* vector load, x-form */
+	{as: ALVEBX, a1: C_XOREG, a6: C_VREG, type_: 45, size: 4}, /* vector load, x-form */
 
 	/* Vector store */
-	{as: ASTV, a1: C_VREG, a6: C_XOREG, type_: 44, size: 4}, /* vector store, x-form */
+	{as: ASTVEBX, a1: C_VREG, a6: C_XOREG, type_: 44, size: 4}, /* vector store, x-form */
 
 	/* Vector logical */
 	{as: AVAND, a1: C_VREG, a2: C_VREG, a6: C_VREG, type_: 82, size: 4}, /* vector and, vx-form */
@@ -510,10 +509,8 @@ var optab = []Optab{
 	{as: ADCBF, a1: C_XOREG, a2: C_REG, a6: C_SCON, type_: 43, size: 4},
 	{as: ADCBF, a1: C_SOREG, a6: C_SCON, type_: 43, size: 4},
 	{as: ADCBF, a1: C_XOREG, a6: C_SCON, type_: 43, size: 4},
-	{as: AECOWX, a1: C_REG, a2: C_REG, a6: C_XOREG, type_: 44, size: 4},
-	{as: AECIWX, a1: C_XOREG, a2: C_REG, a6: C_REG, type_: 45, size: 4},
-	{as: AECOWX, a1: C_REG, a6: C_XOREG, type_: 44, size: 4},
-	{as: AECIWX, a1: C_XOREG, a6: C_REG, type_: 45, size: 4},
+	{as: ASTDCCC, a1: C_REG, a2: C_REG, a6: C_XOREG, type_: 44, size: 4},
+	{as: ASTDCCC, a1: C_REG, a6: C_XOREG, type_: 44, size: 4},
 	{as: ALDAR, a1: C_XOREG, a6: C_REG, type_: 45, size: 4},
 	{as: ALDAR, a1: C_XOREG, a3: C_ANDCON, a6: C_REG, type_: 45, size: 4},
 	{as: AEIEIO, type_: 46, size: 4},
@@ -1307,11 +1304,10 @@ func buildop(ctxt *obj.Link) {
 			opset(ADCBZ, r0)
 			opset(AICBI, r0)
 
-		case AECOWX: /* indexed store: op s,(b+a); op s,(b) */
+		case ASTDCCC: /* indexed store: op s,(b+a); op s,(b) */
 			opset(ASTWCCC, r0)
 			opset(ASTHCCC, r0)
 			opset(ASTBCCC, r0)
-			opset(ASTDCCC, r0)
 
 		case AREM: /* macro */
 			opset(AREM, r0)
@@ -1411,8 +1407,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AMOVDU, r0)
 			opset(AMOVMW, r0)
 
-		case ALV: /* lvebx, lvehx, lvewx, lvx, lvxl, lvsl, lvsr */
-			opset(ALVEBX, r0)
+		case ALVEBX: /* lvebx, lvehx, lvewx, lvx, lvxl, lvsl, lvsr */
 			opset(ALVEHX, r0)
 			opset(ALVEWX, r0)
 			opset(ALVX, r0)
@@ -1420,8 +1415,7 @@ func buildop(ctxt *obj.Link) {
 			opset(ALVSL, r0)
 			opset(ALVSR, r0)
 
-		case ASTV: /* stvebx, stvehx, stvewx, stvx, stvxl */
-			opset(ASTVEBX, r0)
+		case ASTVEBX: /* stvebx, stvehx, stvewx, stvx, stvxl */
 			opset(ASTVEHX, r0)
 			opset(ASTVEWX, r0)
 			opset(ASTVX, r0)
@@ -2046,11 +2040,9 @@ func buildop(ctxt *obj.Link) {
 			AWORD,
 			ADWORD,
 			ADARN,
-			ALDMX,
 			AVMSUMUDM,
 			AADDEX,
 			ACMPEQB,
-			AECIWX,
 			ACLRLSLWI,
 			AMTVSRDD,
 			APNOP,
@@ -5142,8 +5134,6 @@ func (c *ctxt9) oploadx(a obj.As) uint32 {
 		return OPVCC(31, 279, 0, 0) /* lhzx */
 	case AMOVHZU:
 		return OPVCC(31, 311, 0, 0) /* lhzux */
-	case AECIWX:
-		return OPVCC(31, 310, 0, 0) /* eciwx */
 	case ALBAR:
 		return OPVCC(31, 52, 0, 0) /* lbarx */
 	case ALHAR:
@@ -5158,8 +5148,6 @@ func (c *ctxt9) oploadx(a obj.As) uint32 {
 		return OPVCC(31, 21, 0, 0) /* ldx */
 	case AMOVDU:
 		return OPVCC(31, 53, 0, 0) /* ldux */
-	case ALDMX:
-		return OPVCC(31, 309, 0, 0) /* ldmx */
 
 	/* Vector (VMX/Altivec) instructions */
 	case ALVEBX:
@@ -5304,8 +5292,6 @@ func (c *ctxt9) opstorex(a obj.As) uint32 {
 		return OPVCC(31, 150, 0, 1) /* stwcx. */
 	case ASTDCCC:
 		return OPVCC(31, 214, 0, 1) /* stwdx. */
-	case AECOWX:
-		return OPVCC(31, 438, 0, 0) /* ecowx */
 	case AMOVD:
 		return OPVCC(31, 149, 0, 0) /* stdx */
 	case AMOVDU:
