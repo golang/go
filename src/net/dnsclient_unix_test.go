@@ -79,7 +79,7 @@ func TestDNSTransportFallback(t *testing.T) {
 	for _, tt := range dnsTransportFallbackTests {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		_, h, err := r.exchange(ctx, tt.server, tt.question, time.Second, useUDPOrTCP)
+		_, h, err := r.exchange(ctx, tt.server, tt.question, time.Second, useUDPOrTCP, false)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -135,7 +135,7 @@ func TestSpecialDomainName(t *testing.T) {
 	for _, tt := range specialDomainNameTests {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		_, h, err := r.exchange(ctx, server, tt.question, 3*time.Second, useUDPOrTCP)
+		_, h, err := r.exchange(ctx, server, tt.question, 3*time.Second, useUDPOrTCP, false)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -1593,7 +1593,7 @@ func TestDNSDialTCP(t *testing.T) {
 	}
 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 	ctx := context.Background()
-	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useUDPOrTCP)
+	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useUDPOrTCP, false)
 	if err != nil {
 		t.Fatal("exhange failed:", err)
 	}
@@ -1746,7 +1746,7 @@ func TestDNSUseTCP(t *testing.T) {
 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useTCPOnly)
+	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useTCPOnly, false)
 	if err != nil {
 		t.Fatal("exchange failed:", err)
 	}
@@ -2342,5 +2342,70 @@ func TestLongDNSNames(t *testing.T) {
 				t.Errorf("%v: Lookup%v: unexpected error: %v", i, testName, err)
 			}
 		}
+	}
+}
+
+func TestDNSTrustAD(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			if q.Questions[0].Name.String() == "notrustad.go.dev." && q.Header.AuthenticData {
+				t.Error("unexpected AD bit")
+			}
+
+			if q.Questions[0].Name.String() == "trustad.go.dev." && !q.Header.AuthenticData {
+				t.Error("expected AD bit")
+			}
+
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeSuccess,
+				},
+				Questions: q.Questions,
+			}
+			if q.Questions[0].Type == dnsmessage.TypeA {
+				r.Answers = []dnsmessage.Resource{
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:   q.Questions[0].Name,
+							Type:   dnsmessage.TypeA,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.AResource{
+							A: TestAddr,
+						},
+					},
+				}
+			}
+
+			return r, nil
+		}}
+
+	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+
+	err = conf.writeAndUpdate([]string{"nameserver 127.0.0.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := r.LookupIPAddr(context.Background(), "notrustad.go.dev"); err != nil {
+		t.Errorf("lookup failed: %v", err)
+	}
+
+	err = conf.writeAndUpdate([]string{"nameserver 127.0.0.1", "options trust-ad"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := r.LookupIPAddr(context.Background(), "trustad.go.dev"); err != nil {
+		t.Errorf("lookup failed: %v", err)
 	}
 }

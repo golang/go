@@ -29,6 +29,7 @@ type dnsConfig struct {
 	soffset       uint32        // used by serverOffset
 	singleRequest bool          // use sequential A and AAAA queries instead of parallel queries
 	useTCP        bool          // force usage of TCP for DNS resolutions
+	trustAD       bool          // add AD flag to queries
 }
 
 // serverOffset returns an offset that can be used to determine

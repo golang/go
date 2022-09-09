@@ -113,6 +113,8 @@ func dnsReadConfig(filename string) *dnsConfig {
 					// https://www.freebsd.org/cgi/man.cgi?query=resolv.conf&sektion=5&manpath=freebsd-release-ports
 					// https://man.openbsd.org/resolv.conf.5
 					conf.useTCP = true
+				case s == "trust-ad":
+					conf.trustAD = true
 				case s == "edns0":
 					// We use EDNS by default.
 					// Ignore this option.
