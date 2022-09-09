@@ -778,6 +778,13 @@
 (SUB  (MOVDconst [0]) x) => (NEG x)
 (SUBW (MOVDconst [0]) x) => (NEGW x)
 
+// Fold negation into subtraction.
+(NEG (SUB x y)) => (SUB y x)
+(NEG <t> s:(ADDI [val] (SUB x y))) && s.Uses == 1 && is32Bit(-val) => (ADDI [-val] (SUB <t> y x))
+
+// Double negation.
+(NEG (NEG x)) => x
+
 // Addition of zero or two constants.
 (ADDI [0] x) => x
 (ADDI [x] (MOVDconst [y])) && is32Bit(x + y) => (MOVDconst [x + y])
