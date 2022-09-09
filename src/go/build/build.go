@@ -1483,10 +1483,7 @@ func ImportDir(dir string, mode ImportMode) (*Package, error) {
 }
 
 var (
-	bSlashSlash = []byte(slashSlash)
-	bStarSlash  = []byte(starSlash)
-	bSlashStar  = []byte(slashStar)
-	bPlusBuild  = []byte("+build")
+	plusBuild = []byte("+build")
 
 	goBuildComment = []byte("//go:build")
 
@@ -1555,7 +1552,7 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shoul
 				p = p[len(p):]
 			}
 			line = bytes.TrimSpace(line)
-			if !bytes.HasPrefix(line, bSlashSlash) || !bytes.Contains(line, bPlusBuild) {
+			if !bytes.HasPrefix(line, slashSlash) || !bytes.Contains(line, plusBuild) {
 				continue
 			}
 			text := string(line)
@@ -1624,12 +1621,12 @@ Lines:
 				}
 				continue Lines
 			}
-			if bytes.HasPrefix(line, bSlashSlash) {
+			if bytes.HasPrefix(line, slashSlash) {
 				continue Lines
 			}
-			if bytes.HasPrefix(line, bSlashStar) {
+			if bytes.HasPrefix(line, slashStar) {
 				inSlashStar = true
-				line = bytes.TrimSpace(line[len(bSlashStar):])
+				line = bytes.TrimSpace(line[len(slashStar):])
 				continue Comments
 			}
 			// Found non-comment text.
