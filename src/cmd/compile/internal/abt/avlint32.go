@@ -339,7 +339,7 @@ func (t *T) String() string {
 		}
 		b.WriteString(strconv.FormatInt(int64(k), 10))
 		b.WriteString(":")
-		b.WriteString(fmt.Sprint(v))
+		fmt.Fprint(&b, v)
 	}
 	return b.String()
 }

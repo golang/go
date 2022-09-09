@@ -577,7 +577,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 		} else {
 			b.WriteString("tp")
 			// Print out the pointer value for now to disambiguate type params
-			b.WriteString(fmt.Sprintf("%p", t))
+			fmt.Fprintf(b, "%p", t)
 		}
 
 	case TUNION:

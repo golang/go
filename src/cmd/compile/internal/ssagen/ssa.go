@@ -7271,7 +7271,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			}
 			buf.WriteString("</dt>")
 			buf.WriteString("<dd class=\"ssa-prog\">")
-			buf.WriteString(fmt.Sprintf("%.5d <span class=\"l%v line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString())))
+			fmt.Fprintf(&buf, "%.5d <span class=\"l%v line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString()))
 			buf.WriteString("</dd>")
 		}
 		buf.WriteString("</dl>")
