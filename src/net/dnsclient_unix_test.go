@@ -2385,12 +2385,13 @@ func TestDNSTrustAD(t *testing.T) {
 
 	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
 
-	d, err := newResolvConfTest()
+	conf, err := newResolvConfTest()
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer conf.teardown()
 
-	err = d.writeAndUpdate([]string{"nameserver 127.0.0.1"})
+	err = conf.writeAndUpdate([]string{"nameserver 127.0.0.1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2399,7 +2400,7 @@ func TestDNSTrustAD(t *testing.T) {
 		t.Errorf("lookup failed: %v", err)
 	}
 
-	err = d.writeAndUpdate([]string{"nameserver 127.0.0.1", "options trust-ad"})
+	err = conf.writeAndUpdate([]string{"nameserver 127.0.0.1", "options trust-ad"})
 	if err != nil {
 		t.Fatal(err)
 	}
