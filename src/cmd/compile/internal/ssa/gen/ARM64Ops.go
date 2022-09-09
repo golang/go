@@ -593,7 +593,7 @@ func init() {
 			name:      "LoweredMove",
 			argLength: 4,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R17"), buildReg("R16"), gp},
+				inputs:   []regMask{buildReg("R17"), buildReg("R16"), gp &^ buildReg("R25")},
 				clobbers: buildReg("R16 R17 R25"),
 			},
 			clobberFlags:   true,
