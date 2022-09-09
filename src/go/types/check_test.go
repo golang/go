@@ -50,7 +50,7 @@ var (
 var fset = token.NewFileSet()
 
 // Positioned errors are of the form filename:line:column: message .
-var posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(?s)(.*)`)
+var posMsgRx = regexp.MustCompile(`^(.*:\d+:\d+): *(?s)(.*)`)
 
 // splitError splits an error's error message into a position string
 // and the actual error message. If there's no position information,

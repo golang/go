@@ -520,7 +520,7 @@ func writeProducerSec(ctxt *ld.Link) {
 	writeSecSize(ctxt, sizeOffset)
 }
 
-var nameRegexp = regexp.MustCompile(`[^\w\.]`)
+var nameRegexp = regexp.MustCompile(`[^\w.]`)
 
 // writeNameSec writes an optional section that assigns names to the functions declared by the "func" section.
 // The names are only used by WebAssembly stack traces, debuggers and decompilers.
