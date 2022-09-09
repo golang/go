@@ -5437,6 +5437,55 @@ func rewriteValueRISCV64_OpRISCV64MOVWstorezero(v *Value) bool {
 }
 func rewriteValueRISCV64_OpRISCV64NEG(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	// match: (NEG (SUB x y))
+	// result: (SUB y x)
+	for {
+		if v_0.Op != OpRISCV64SUB {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpRISCV64SUB)
+		v.AddArg2(y, x)
+		return true
+	}
+	// match: (NEG <t> s:(ADDI [val] (SUB x y)))
+	// cond: s.Uses == 1 && is32Bit(-val)
+	// result: (ADDI [-val] (SUB <t> y x))
+	for {
+		t := v.Type
+		s := v_0
+		if s.Op != OpRISCV64ADDI {
+			break
+		}
+		val := auxIntToInt64(s.AuxInt)
+		s_0 := s.Args[0]
+		if s_0.Op != OpRISCV64SUB {
+			break
+		}
+		y := s_0.Args[1]
+		x := s_0.Args[0]
+		if !(s.Uses == 1 && is32Bit(-val)) {
+			break
+		}
+		v.reset(OpRISCV64ADDI)
+		v.AuxInt = int64ToAuxInt(-val)
+		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, t)
+		v0.AddArg2(y, x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (NEG (NEG x))
+	// result: x
+	for {
+		if v_0.Op != OpRISCV64NEG {
+			break
+		}
+		x := v_0.Args[0]
+		v.copyOf(x)
+		return true
+	}
 	// match: (NEG (MOVDconst [x]))
 	// result: (MOVDconst [-x])
 	for {
