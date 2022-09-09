@@ -837,6 +837,48 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 
 	inlIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
 
+	closureInitLSym := func(n *ir.CallExpr, fn *ir.Func) {
+		// The linker needs FuncInfo metadata for all inlined
+		// functions. This is typically handled by gc.enqueueFunc
+		// calling ir.InitLSym for all function declarations in
+		// typecheck.Target.Decls (ir.UseClosure adds all closures to
+		// Decls).
+		//
+		// However, non-trivial closures in Decls are ignored, and are
+		// insteaded enqueued when walk of the calling function
+		// discovers them.
+		//
+		// This presents a problem for direct calls to closures.
+		// Inlining will replace the entire closure definition with its
+		// body, which hides the closure from walk and thus suppresses
+		// symbol creation.
+		//
+		// Explicitly create a symbol early in this edge case to ensure
+		// we keep this metadata.
+		//
+		// TODO: Refactor to keep a reference so this can all be done
+		// by enqueueFunc.
+
+		if n.Op() != ir.OCALLFUNC {
+			// Not a standard call.
+			return
+		}
+		if n.X.Op() != ir.OCLOSURE {
+			// Not a direct closure call.
+			return
+		}
+
+		clo := n.X.(*ir.ClosureExpr)
+		if ir.IsTrivialClosure(clo) {
+			// enqueueFunc will handle trivial closures anyways.
+			return
+		}
+
+		ir.InitLSym(fn, true)
+	}
+
+	closureInitLSym(n, fn)
+
 	if base.Flag.GenDwarfInl > 0 {
 		if !sym.WasInlined() {
 			base.Ctxt.DwFixups.SetPrecursorFunc(sym, fn)
