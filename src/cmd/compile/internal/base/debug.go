@@ -16,35 +16,39 @@ var Debug DebugFlags
 // The -d option takes a comma-separated list of settings.
 // Each setting is name=value; for ints, name is short for name=1.
 type DebugFlags struct {
-	Append               int    `help:"print information about append compilation"`
-	Checkptr             int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation"`
-	Closure              int    `help:"print information about closure compilation"`
-	DclStack             int    `help:"run internal dclstack check"`
-	Defer                int    `help:"print information about defer compilation"`
-	DisableNil           int    `help:"disable nil checks"`
-	DumpPtrs             int    `help:"show Node pointers values in dump output"`
-	DwarfInl             int    `help:"print information about DWARF inlined function creation"`
-	Export               int    `help:"print export data"`
-	GCProg               int    `help:"print dump of GC programs"`
-	InlFuncsWithClosures int    `help:"allow functions with closures to be inlined"`
-	Libfuzzer            int    `help:"enable coverage instrumentation for libfuzzer"`
-	LocationLists        int    `help:"print information about DWARF location list creation"`
-	Nil                  int    `help:"print information about nil checks"`
-	NoOpenDefer          int    `help:"disable open-coded defers"`
-	NoRefName            int    `help:"do not include referenced symbol names in object file"`
-	PCTab                string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
-	Panic                int    `help:"show all compiler panics"`
-	Reshape              int    `help:"print information about expression reshaping"`
-	Shapify              int    `help:"print information about shaping recursive types"`
-	Slice                int    `help:"print information about slice compilation"`
-	SoftFloat            int    `help:"force compiler to emit soft-float code"`
-	SyncFrames           int    `help:"how many writer stack frames to include at sync points in unified export data"`
-	TypeAssert           int    `help:"print information about type assertion inlining"`
-	TypecheckInl         int    `help:"eager typechecking of inline function bodies"`
-	Unified              int    `help:"enable unified IR construction"`
-	WB                   int    `help:"print information about write barriers"`
-	ABIWrap              int    `help:"print information about ABI wrapper generation"`
-	MayMoreStack         string `help:"call named function before all stack growth checks"`
+	Append                     int    `help:"print information about append compilation"`
+	Checkptr                   int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation"`
+	Closure                    int    `help:"print information about closure compilation"`
+	DclStack                   int    `help:"run internal dclstack check"`
+	Defer                      int    `help:"print information about defer compilation"`
+	DisableNil                 int    `help:"disable nil checks"`
+	DumpPtrs                   int    `help:"show Node pointers values in dump output"`
+	DwarfInl                   int    `help:"print information about DWARF inlined function creation"`
+	Export                     int    `help:"print export data"`
+	GCProg                     int    `help:"print dump of GC programs"`
+	InlFuncsWithClosures       int    `help:"allow functions with closures to be inlined"`
+	Libfuzzer                  int    `help:"enable coverage instrumentation for libfuzzer"`
+	LocationLists              int    `help:"print information about DWARF location list creation"`
+	Nil                        int    `help:"print information about nil checks"`
+	NoOpenDefer                int    `help:"disable open-coded defers"`
+	NoRefName                  int    `help:"do not include referenced symbol names in object file"`
+	PCTab                      string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
+	Panic                      int    `help:"show all compiler panics"`
+	Reshape                    int    `help:"print information about expression reshaping"`
+	Shapify                    int    `help:"print information about shaping recursive types"`
+	Slice                      int    `help:"print information about slice compilation"`
+	SoftFloat                  int    `help:"force compiler to emit soft-float code"`
+	SyncFrames                 int    `help:"how many writer stack frames to include at sync points in unified export data"`
+	TypeAssert                 int    `help:"print information about type assertion inlining"`
+	TypecheckInl               int    `help:"eager typechecking of inline function bodies"`
+	Unified                    int    `help:"enable unified IR construction"`
+	WB                         int    `help:"print information about write barriers"`
+	ABIWrap                    int    `help:"print information about ABI wrapper generation"`
+	MayMoreStack               string `help:"call named function before all stack growth checks"`
+	InlineHotFuncThreshold     string `help:"threshold percentage for determining functions as hot candidates for inlining"`
+	InlineHotCallSiteThreshold string `help:"threshold percentage for determining call sites as hot candidates for inlining"`
+	InlineHotBudget            int    `help:"inline budget for hot functions"`
+	PGOInline                  int    `help:"debug profile-guided inlining"`
 
 	Any bool // set when any of the debug flags have been set
 }
