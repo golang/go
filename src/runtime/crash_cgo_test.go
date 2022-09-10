@@ -722,4 +722,8 @@ func TestCgoTraceParser(t *testing.T) {
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)
 	}
+	output = runTestProg(t, "testprogcgo", "CgoTraceParser", "GOMAXPROCS=1")
+	if output != want {
+		t.Fatalf("GOMAXPROCS=1, want %s, got %s\n", want, output)
+	}
 }
