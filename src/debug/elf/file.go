@@ -103,6 +103,9 @@ type Section struct {
 // Even if the section is stored compressed in the ELF file,
 // Data returns uncompressed data.
 func (s *Section) Data() ([]byte, error) {
+	if s.Type == SHT_NOBITS {
+		return make([]byte, s.Size), nil
+	}
 	return saferio.ReadData(s.Open(), s.Size)
 }
 
