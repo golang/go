@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"runtime"
 	"testing"
+	"time"
 )
 
 type fileTest struct {
@@ -1198,5 +1199,55 @@ func TestIssue10996(t *testing.T) {
 	_, err := NewFile(bytes.NewReader(data))
 	if err == nil {
 		t.Fatalf("opening invalid ELF file unexpectedly succeeded")
+	}
+}
+
+// TestInvalidBssSection is a regression test for golang.org/issue/54967.
+//
+// (*Section).Data should not use safeio to read data from the SHT_NOBITS
+// section. Otherwise, when the section size is an incorrect huge value,
+// it will result in OOM.
+func TestInvalidBssSection(t *testing.T) {
+	c := make(chan error)
+	go func() {
+		defer func() {
+			switch err := recover().(type) {
+			case nil:
+				c <- nil
+			case error:
+				c <- err
+			default:
+				c <- fmt.Errorf("unexpected panic value: %T(%v)", err, err)
+			}
+		}()
+
+		size := uint64(3349099659509720927)
+		s := new(Section)
+		s.SectionHeader = SectionHeader{
+			Name:      ".bss",
+			Type:      SHT_NOBITS,
+			Flags:     SHF_WRITE + SHF_ALLOC,
+			Addr:      0x80496d4,
+			Offset:    0x6d4,
+			Size:      size,
+			Link:      0x0,
+			Info:      0x0,
+			Addralign: 0x4,
+			Entsize:   0x0,
+			FileSize:  size,
+		}
+		_, _ = s.Data()
+	}()
+
+	select {
+	case err := <-c:
+		wantErr := "runtime error: makeslice: len out of range"
+		if err == nil {
+			t.Errorf("got error nil; want error %q", wantErr)
+		} else if errMsg := err.Error(); errMsg != wantErr {
+			t.Errorf("got error %q; want error %q", errMsg, wantErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("test timed out (saferio.ReadData is called?)")
 	}
 }
