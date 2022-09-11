@@ -117,11 +117,23 @@ func ExampleParseIP() {
 }
 
 func ExampleIP_DefaultMask() {
-	ip := net.ParseIP("192.0.2.1")
+	ip := net.ParseIP("")
+	fmt.Println(ip.DefaultMask())
+
+	ip = net.ParseIP("192.0.2.1")
+	fmt.Println(ip.DefaultMask())
+
+	ip = net.ParseIP("127.0.0.1")
+	fmt.Println(ip.DefaultMask())
+
+	ip = net.ParseIP("130.0.0.1")
 	fmt.Println(ip.DefaultMask())
 
 	// Output:
+	// <nil>
 	// ffffff00
+	// ff000000
+	// ffff0000
 }
 
 func ExampleIP_Equal() {
