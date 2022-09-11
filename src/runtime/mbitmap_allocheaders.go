@@ -14,29 +14,45 @@
 // as "pointer"). A "0" bit means the word should be ignored by GC
 // (referred to as "scalar", though it could be a dead pointer value).
 //
-// Heap bitmap
+// Heap bitmaps
 //
 // The heap bitmap comprises 1 bit for each pointer-sized word in the heap,
 // recording whether a pointer is stored in that word or not. This bitmap
-// is stored in the heapArena metadata backing each heap arena.
-// That is, if ha is the heapArena for the arena starting at "start",
-// then ha.bitmap[0] holds the 64 bits for the 64 words "start"
-// through start+63*ptrSize, ha.bitmap[1] holds the entries for
-// start+64*ptrSize through start+127*ptrSize, and so on.
-// Bits correspond to words in little-endian order. ha.bitmap[0]&1 represents
-// the word at "start", ha.bitmap[0]>>1&1 represents the word at start+8, etc.
-// (For 32-bit platforms, s/64/32/.)
+// is stored at the end of a span for small objects and is unrolled at
+// runtime from type metadata for all larger objects. Objects without
+// pointers have neither a bitmap nor associated type metadata.
 //
-// We also keep a noMorePtrs bitmap which allows us to stop scanning
-// the heap bitmap early in certain situations. If ha.noMorePtrs[i]>>j&1
-// is 1, then the object containing the last word described by ha.bitmap[8*i+j]
-// has no more pointers beyond those described by ha.bitmap[8*i+j].
-// If ha.noMorePtrs[i]>>j&1 is set, the entries in ha.bitmap[8*i+j+1] and
-// beyond must all be zero until the start of the next object.
+// Bits in all cases correspond to words in little-endian order.
 //
-// The bitmap for noscan spans is set to all zero at span allocation time.
+// For small objects, if s is the mspan for the span starting at "start",
+// then s.heapBits() returns a slice containing the bitmap for the whole span.
+// That is, s.heapBits()[0] holds the goarch.PtrSize*8 bits for the first
+// goarch.PtrSize*8 words from "start" through "start+63*ptrSize" in the span.
+// On a related note, small objects are always small enough that their bitmap
+// fits in goarch.PtrSize*8 bits, so writing out bitmap data takes two bitmap
+// writes at most (because object boundaries don't generally lie on
+// s.heapBits()[i] boundaries).
 //
-// The bitmap for unallocated objects in scannable spans is not maintained
+// For larger objects, if t is the type for the object starting at "start",
+// within some span whose mspan is s, then the bitmap at t.GCData is "tiled"
+// from "start" through "start+s.elemsize".
+// Specifically, the first bit of t.GCData corresponds to the word at "start",
+// the second to the word after "start", and so on up to t.PtrBytes. At t.PtrBytes,
+// we skip to "start+t.Size_" and begin again from there. This process is
+// repeated until we hit "start+s.elemsize".
+// This tiling algorithm supports array data, since the type always refers to
+// the element type of the array. Single objects are considered the same as
+// single-element arrays.
+// The tiling algorithm may scan data past the end of the compiler-recognized
+// object, but any unused data within the allocation slot (i.e. within s.elemsize)
+// is zeroed, so the GC just observes nil pointers.
+// Note that this "tiled" bitmap isn't stored anywhere; it is generated on-the-fly.
+//
+// For objects without their own span, the type metadata is stored in the first
+// word before the object at the beginning of the allocation slot. For objects
+// with their own span, the type metadata is stored in the mspan.
+//
+// The bitmap for small unallocated objects in scannable spans is not maintained
 // (can be junk).
 
 package runtime
@@ -47,153 +63,291 @@ import (
 	"unsafe"
 )
 
+const (
+	// A malloc header is functionally a single type pointer, but
+	// we need to use 8 here to ensure 8-byte alignment of allocations
+	// on 32-bit platforms. It's wasteful, but a lot of code relies on
+	// 8-byte alignment for 8-byte atomics.
+	mallocHeaderSize = 8
+
+	// The minimum object size that has a malloc header, exclusive.
+	//
+	// The size of this value controls overheads from the malloc header.
+	// The minimum size is bound by writeHeapBitsSmall, which assumes that the
+	// pointer bitmap for objects of a size smaller than this doesn't cross
+	// more than one pointer-word boundary. This sets an upper-bound on this
+	// value at the number of bits in a uintptr, multiplied by the pointer
+	// size in bytes.
+	//
+	// We choose a value here that has a natural cutover point in terms of memory
+	// overheads. This value just happens to be the maximum possible value this
+	// can be.
+	//
+	// A span with heap bits in it will have 128 bytes of heap bits on 64-bit
+	// platforms, and 256 bytes of heap bits on 32-bit platforms. The first size
+	// class where malloc headers match this overhead for 64-bit platforms is
+	// 512 bytes (8 KiB / 512 bytes * 8 bytes-per-header = 128 bytes of overhead).
+	// On 32-bit platforms, this same point is the 256 byte size class
+	// (8 KiB / 256 bytes * 8 bytes-per-header = 256 bytes of overhead).
+	//
+	// Guaranteed to be exactly at a size class boundary. The reason this value is
+	// an exclusive minimum is subtle. Suppose we're allocating a 504-byte object
+	// and its rounded up to 512 bytes for the size class. If minSizeForMallocHeader
+	// is 512 and an inclusive minimum, then a comparison against minSizeForMallocHeader
+	// by the two values would produce different results. In other words, the comparison
+	// would not be invariant to size-class rounding. Eschewing this property means a
+	// more complex check or possibly storing additional state to determine whether a
+	// span has malloc headers.
+	minSizeForMallocHeader = goarch.PtrSize * ptrBits
+)
+
+// heapBitsInSpan returns true if the size of an object implies its ptr/scalar
+// data is stored at the end of the span, and is accessible via span.heapBits.
+//
+// Note: this works for both rounded-up sizes (span.elemsize) and unrounded
+// type sizes because minSizeForMallocHeader is guaranteed to be at a size
+// class boundary.
+//
+//go:nosplit
+func heapBitsInSpan(userSize uintptr) bool {
+	// N.B. minSizeForMallocHeader is an exclusive minimum so that this function is
+	// invariant under size-class rounding on its input.
+	return userSize <= minSizeForMallocHeader
+}
+
 // heapArenaPtrScalar contains the per-heapArena pointer/scalar metadata for the GC.
 type heapArenaPtrScalar struct {
-	// bitmap stores the pointer/scalar bitmap for the words in
-	// this arena. See mbitmap.go for a description.
-	// This array uses 1 bit per word of heap, or 1.6% of the heap size (for 64-bit).
-	bitmap [heapArenaBitmapWords]uintptr
-
-	// If the ith bit of noMorePtrs is true, then there are no more
-	// pointers for the object containing the word described by the
-	// high bit of bitmap[i].
-	// In that case, bitmap[i+1], ... must be zero until the start
-	// of the next object.
-	// We never operate on these entries using bit-parallel techniques,
-	// so it is ok if they are small. Also, they can't be bigger than
-	// uint16 because at that size a single noMorePtrs entry
-	// represents 8K of memory, the minimum size of a span. Any larger
-	// and we'd have to worry about concurrent updates.
-	// This array uses 1 bit per word of bitmap, or .024% of the heap size (for 64-bit).
-	noMorePtrs [heapArenaBitmapWords / 8]uint8
+	// N.B. This is no longer necessary with allocation headers.
 }
 
-// heapBits provides access to the bitmap bits for a single heap word.
-// The methods on heapBits take value receivers so that the compiler
-// can more easily inline calls to those methods and registerize the
-// struct fields independently.
-type heapBits struct {
-	// heapBits will report on pointers in the range [addr,addr+size).
-	// The low bit of mask contains the pointerness of the word at addr
-	// (assuming valid>0).
-	addr, size uintptr
+// typePointers is an iterator over the pointers in a heap object.
+//
+// Iteration through this type implements the tiling algorithm described at the
+// top of this file.
+type typePointers struct {
+	// elem is the address of the current array element of type typ being iterated over.
+	// Objects that are not arrays are treated as single-element arrays, in which case
+	// this value does not change.
+	elem uintptr
 
-	// The next few pointer bits representing words starting at addr.
-	// Those bits already returned by next() are zeroed.
+	// addr is the address the iterator is currently working from and describes
+	// the address of the first word referenced by mask.
+	addr uintptr
+
+	// mask is a bitmask where each bit corresponds to pointer-words after addr.
+	// Bit 0 is the pointer-word at addr, Bit 1 is the next word, and so on.
+	// If a bit is 1, then there is a pointer at that word.
+	// nextFast and next mask out bits in this mask as their pointers are processed.
 	mask uintptr
-	// Number of bits in mask that are valid. mask is always less than 1<<valid.
-	valid uintptr
+
+	// typ is a pointer to the type information for the heap object's type.
+	// This may be nil if the object is in a span where heapBitsInSpan(span.elemsize) is true.
+	typ *_type
 }
 
-// heapBitsForAddr returns the heapBits for the address addr.
-// The caller must ensure [addr,addr+size) is in an allocated span.
-// In particular, be careful not to point past the end of an object.
+// typePointersOf returns an iterator over all heap pointers in the range [addr, addr+size).
+//
+// addr and addr+size must be in the range [span.base(), span.limit).
+//
+// Note: addr+size must be passed as the limit argument to the iterator's next method on
+// each iteration. This slightly awkward API is to allow typePointers to be destructured
+// by the compiler.
 //
 // nosplit because it is used during write barriers and must not be preempted.
 //
 //go:nosplit
-func heapBitsForAddr(addr, size uintptr) heapBits {
-	// Find arena
-	ai := arenaIndex(addr)
-	ha := mheap_.arenas[ai.l1()][ai.l2()]
+func (span *mspan) typePointersOf(addr, size uintptr) typePointers {
+	base := span.objBase(addr)
+	tp := span.typePointersOfUnchecked(base)
+	if base == addr && size == span.elemsize {
+		return tp
+	}
+	return tp.fastForward(addr-tp.addr, addr+size)
+}
 
-	// Word index in arena.
-	word := addr / goarch.PtrSize % heapArenaWords
+// typePointersOfUnchecked is like typePointersOf, but assumes addr is the base
+// pointer of an object in span. It returns an iterator that generates all pointers
+// in the range [addr, addr+span.elemsize).
+//
+// nosplit because it is used during write barriers and must not be preempted.
+//
+//go:nosplit
+func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
+	const doubleCheck = false
+	if doubleCheck && span.objBase(addr) != addr {
+		print("runtime: addr=", addr, " base=", span.objBase(addr), "\n")
+		throw("typePointersOfUnchecked consisting of non-base-address for object")
+	}
 
-	// Word index and bit offset in bitmap array.
-	idx := word / ptrBits
-	off := word % ptrBits
+	spc := span.spanclass
+	if spc.noscan() {
+		return typePointers{}
+	}
+	if heapBitsInSpan(span.elemsize) {
+		// Handle header-less objects.
+		return typePointers{elem: addr, addr: addr, mask: span.heapBitsSmallForAddr(addr)}
+	}
 
-	// Grab relevant bits of bitmap.
-	mask := ha.bitmap[idx] >> off
-	valid := ptrBits - off
-
-	// Process depending on where the object ends.
-	nptr := size / goarch.PtrSize
-	if nptr < valid {
-		// Bits for this object end before the end of this bitmap word.
-		// Squash bits for the following objects.
-		mask &= 1<<(nptr&(ptrBits-1)) - 1
-		valid = nptr
-	} else if nptr == valid {
-		// Bits for this object end at exactly the end of this bitmap word.
-		// All good.
+	// All of these objects have a header.
+	var typ *_type
+	if spc.sizeclass() != 0 {
+		// Pull the allocation header from the first word of the object.
+		typ = *(**_type)(unsafe.Pointer(addr))
+		addr += mallocHeaderSize
 	} else {
-		// Bits for this object extend into the next bitmap word. See if there
-		// may be any pointers recorded there.
-		if uintptr(ha.noMorePtrs[idx/8])>>(idx%8)&1 != 0 {
-			// No more pointers in this object after this bitmap word.
-			// Update size so we know not to look there.
-			size = valid * goarch.PtrSize
-		}
+		typ = span.largeType
 	}
-
-	return heapBits{addr: addr, size: size, mask: mask, valid: valid}
+	gcdata := typ.GCData
+	return typePointers{elem: addr, addr: addr, mask: readUintptr(gcdata), typ: typ}
 }
 
-// Returns the (absolute) address of the next known pointer and
-// a heapBits iterator representing any remaining pointers.
-// If there are no more pointers, returns address 0.
-// Note that next does not modify h. The caller must record the result.
+// nextFast is the fast path of next. nextFast is written to be inlineable and,
+// as the name implies, fast.
+//
+// Callers that are performance-critical should iterate using the following
+// pattern:
+//
+//	for {
+//		var addr uintptr
+//		if tp, addr = tp.nextFast(); addr == 0 {
+//			if tp, addr = tp.next(limit); addr == 0 {
+//				break
+//			}
+//		}
+//		// Use addr.
+//		...
+//	}
 //
 // nosplit because it is used during write barriers and must not be preempted.
 //
 //go:nosplit
-func (h heapBits) next() (heapBits, uintptr) {
-	for {
-		if h.mask != 0 {
-			var i int
-			if goarch.PtrSize == 8 {
-				i = sys.TrailingZeros64(uint64(h.mask))
-			} else {
-				i = sys.TrailingZeros32(uint32(h.mask))
-			}
-			h.mask ^= uintptr(1) << (i & (ptrBits - 1))
-			return h, h.addr + uintptr(i)*goarch.PtrSize
-		}
-
-		// Skip words that we've already processed.
-		h.addr += h.valid * goarch.PtrSize
-		h.size -= h.valid * goarch.PtrSize
-		if h.size == 0 {
-			return h, 0 // no more pointers
-		}
-
-		// Grab more bits and try again.
-		h = heapBitsForAddr(h.addr, h.size)
-	}
-}
-
-// nextFast is like next, but can return 0 even when there are more pointers
-// to be found. Callers should call next if nextFast returns 0 as its second
-// return value.
-//
-//	if addr, h = h.nextFast(); addr == 0 {
-//	    if addr, h = h.next(); addr == 0 {
-//	        ... no more pointers ...
-//	    }
-//	}
-//	... process pointer at addr ...
-//
-// nextFast is designed to be inlineable.
-//
-//go:nosplit
-func (h heapBits) nextFast() (heapBits, uintptr) {
+func (tp typePointers) nextFast() (typePointers, uintptr) {
 	// TESTQ/JEQ
-	if h.mask == 0 {
-		return h, 0
+	if tp.mask == 0 {
+		return tp, 0
 	}
 	// BSFQ
 	var i int
 	if goarch.PtrSize == 8 {
-		i = sys.TrailingZeros64(uint64(h.mask))
+		i = sys.TrailingZeros64(uint64(tp.mask))
 	} else {
-		i = sys.TrailingZeros32(uint32(h.mask))
+		i = sys.TrailingZeros32(uint32(tp.mask))
 	}
 	// BTCQ
-	h.mask ^= uintptr(1) << (i & (ptrBits - 1))
+	tp.mask ^= uintptr(1) << (i & (ptrBits - 1))
 	// LEAQ (XX)(XX*8)
-	return h, h.addr + uintptr(i)*goarch.PtrSize
+	return tp, tp.addr + uintptr(i)*goarch.PtrSize
+}
+
+// next advances the pointers iterator, returning the updated iterator and
+// the address of the next pointer.
+//
+// limit must be the same each time it is passed to next.
+//
+// nosplit because it is used during write barriers and must not be preempted.
+//
+//go:nosplit
+func (tp typePointers) next(limit uintptr) (typePointers, uintptr) {
+	for {
+		if tp.mask != 0 {
+			return tp.nextFast()
+		}
+
+		// Stop if we don't actually have type information.
+		if tp.typ == nil {
+			return typePointers{}, 0
+		}
+
+		// Advance to the next element if necessary.
+		if tp.addr+goarch.PtrSize*ptrBits >= tp.elem+tp.typ.PtrBytes {
+			tp.elem += tp.typ.Size_
+			tp.addr = tp.elem
+		} else {
+			tp.addr += ptrBits * goarch.PtrSize
+		}
+
+		// Check if we've exceeded the limit with the last update.
+		if tp.addr >= limit {
+			return typePointers{}, 0
+		}
+
+		// Grab more bits and try again.
+		tp.mask = readUintptr(addb(tp.typ.GCData, (tp.addr-tp.elem)/goarch.PtrSize/8))
+		if tp.addr+goarch.PtrSize*ptrBits > limit {
+			bits := (tp.addr + goarch.PtrSize*ptrBits - limit) / goarch.PtrSize
+			tp.mask &^= ((1 << (bits)) - 1) << (ptrBits - bits)
+		}
+	}
+}
+
+// fastForward moves the iterator forward by n bytes. n must be a multiple
+// of goarch.PtrSize. limit must be the same limit passed to next for this
+// iterator.
+//
+// nosplit because it is used during write barriers and must not be preempted.
+//
+//go:nosplit
+func (tp typePointers) fastForward(n, limit uintptr) typePointers {
+	// Basic bounds check.
+	target := tp.addr + n
+	if target >= limit {
+		return typePointers{}
+	}
+	if tp.typ == nil {
+		// Handle small objects.
+		// Clear any bits before the target address.
+		tp.mask &^= (1 << ((target - tp.addr) / goarch.PtrSize)) - 1
+		// Clear any bits past the limit.
+		if tp.addr+goarch.PtrSize*ptrBits > limit {
+			bits := (tp.addr + goarch.PtrSize*ptrBits - limit) / goarch.PtrSize
+			tp.mask &^= ((1 << (bits)) - 1) << (ptrBits - bits)
+		}
+		return tp
+	}
+
+	// Move up elem and addr.
+	// Offsets within an element are always at a ptrBits*goarch.PtrSize boundary.
+	if n >= tp.typ.Size_ {
+		// elem needs to be moved to the element containing
+		// tp.addr + n.
+		oldelem := tp.elem
+		tp.elem += (tp.addr - tp.elem + n) / tp.typ.Size_ * tp.typ.Size_
+		tp.addr = tp.elem + alignDown(n-(tp.elem-oldelem), ptrBits*goarch.PtrSize)
+	} else {
+		tp.addr += alignDown(n, ptrBits*goarch.PtrSize)
+	}
+
+	if tp.addr-tp.elem >= tp.typ.PtrBytes {
+		// We're starting in the non-pointer area of an array.
+		// Move up to the next element.
+		tp.elem += tp.typ.Size_
+		tp.addr = tp.elem
+		tp.mask = readUintptr(tp.typ.GCData)
+
+		// We may have exceeded the limit after this. Bail just like next does.
+		if tp.addr >= limit {
+			return typePointers{}
+		}
+	} else {
+		// Grab the mask, but then clear any bits before the target address and any
+		// bits over the limit.
+		tp.mask = readUintptr(addb(tp.typ.GCData, (tp.addr-tp.elem)/goarch.PtrSize/8))
+		tp.mask &^= (1 << ((target - tp.addr) / goarch.PtrSize)) - 1
+	}
+	if tp.addr+goarch.PtrSize*ptrBits > limit {
+		bits := (tp.addr + goarch.PtrSize*ptrBits - limit) / goarch.PtrSize
+		tp.mask &^= ((1 << (bits)) - 1) << (ptrBits - bits)
+	}
+	return tp
+}
+
+// objBase returns the base pointer for the object containing addr in span.
+//
+// Assumes that addr points into a valid part of span (span.base() <= addr < span.limit).
+//
+//go:nosplit
+func (span *mspan) objBase(addr uintptr) uintptr {
+	return span.base() + span.objIndex(addr)*span.elemsize
 }
 
 // bulkBarrierPreWrite executes a write barrier
@@ -230,7 +384,8 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 	if !writeBarrier.enabled {
 		return
 	}
-	if s := spanOf(dst); s == nil {
+	s := spanOf(dst)
+	if s == nil {
 		// If dst is a global, use the data or BSS bitmaps to
 		// execute write barriers.
 		for _, datap := range activeModules() {
@@ -255,13 +410,13 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 		// though that should never have.
 		return
 	}
-
 	buf := &getg().m.p.ptr().wbBuf
-	h := heapBitsForAddr(dst, size)
+
+	tp := s.typePointersOf(dst, size)
 	if src == 0 {
 		for {
 			var addr uintptr
-			if h, addr = h.next(); addr == 0 {
+			if tp, addr = tp.next(dst + size); addr == 0 {
 				break
 			}
 			dstx := (*uintptr)(unsafe.Pointer(addr))
@@ -271,7 +426,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 	} else {
 		for {
 			var addr uintptr
-			if h, addr = h.next(); addr == 0 {
+			if tp, addr = tp.next(dst + size); addr == 0 {
 				break
 			}
 			dstx := (*uintptr)(unsafe.Pointer(addr))
@@ -301,10 +456,10 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
 		return
 	}
 	buf := &getg().m.p.ptr().wbBuf
-	h := heapBitsForAddr(dst, size)
+	tp := spanOf(dst).typePointersOf(dst, size)
 	for {
 		var addr uintptr
-		if h, addr = h.next(); addr == 0 {
+		if tp, addr = tp.next(dst + size); addr == 0 {
 			break
 		}
 		srcx := (*uintptr)(unsafe.Pointer(addr - dst + src))
@@ -314,47 +469,36 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
 }
 
 // initHeapBits initializes the heap bitmap for a span.
-// If this is a span of single pointer allocations, it initializes all
-// words to pointer. If force is true, clears all bits.
+//
+// TODO(mknyszek): This should set the heap bits for single pointer
+// allocations eagerly to avoid calling heapSetType at allocation time,
+// just to write one bit.
 func (s *mspan) initHeapBits(forceClear bool) {
-	if forceClear || s.spanclass.noscan() {
-		// Set all the pointer bits to zero. We do this once
-		// when the span is allocated so we don't have to do it
-		// for each object allocation.
-		base := s.base()
-		size := s.npages * pageSize
-		h := writeHeapBitsForAddr(base)
-		h.flush(base, size)
-		return
+	if (!s.spanclass.noscan() && heapBitsInSpan(s.elemsize)) || s.isUserArenaChunk {
+		b := s.heapBits()
+		for i := range b {
+			b[i] = 0
+		}
 	}
-	isPtrs := goarch.PtrSize == 8 && s.elemsize == goarch.PtrSize
-	if !isPtrs {
-		return // nothing to do
-	}
-	h := writeHeapBitsForAddr(s.base())
-	size := s.npages * pageSize
-	nptrs := size / goarch.PtrSize
-	for i := uintptr(0); i < nptrs; i += ptrBits {
-		h = h.write(^uintptr(0), ptrBits)
-	}
-	h.flush(s.base(), size)
 }
 
 type writeHeapBits struct {
-	addr  uintptr // address that the low bit of mask represents the pointer state of.
-	mask  uintptr // some pointer bits starting at the address addr.
-	valid uintptr // number of bits in buf that are valid (including low)
-	low   uintptr // number of low-order bits to not overwrite
+	offset uintptr // offset in span that the low bit of mask represents the pointer state of.
+	mask   uintptr // some pointer bits starting at the address addr.
+	valid  uintptr // number of bits in buf that are valid (including low)
+	low    uintptr // number of low-order bits to not overwrite
 }
 
-func writeHeapBitsForAddr(addr uintptr) (h writeHeapBits) {
+func (s *mspan) writeHeapBits(addr uintptr) (h writeHeapBits) {
+	offset := addr - s.base()
+
 	// We start writing bits maybe in the middle of a heap bitmap word.
 	// Remember how many bits into the word we started, so we can be sure
 	// not to overwrite the previous bits.
-	h.low = addr / goarch.PtrSize % ptrBits
+	h.low = offset / goarch.PtrSize % ptrBits
 
 	// round down to heap word that starts the bitmap word.
-	h.addr = addr - h.low*goarch.PtrSize
+	h.offset = offset - h.low*goarch.PtrSize
 
 	// We don't have any bits yet.
 	h.mask = 0
@@ -365,7 +509,7 @@ func writeHeapBitsForAddr(addr uintptr) (h writeHeapBits) {
 
 // write appends the pointerness of the next valid pointer slots
 // using the low valid bits of bits. 1=pointer, 0=scalar.
-func (h writeHeapBits) write(bits, valid uintptr) writeHeapBits {
+func (h writeHeapBits) write(s *mspan, bits, valid uintptr) writeHeapBits {
 	if h.valid+valid <= ptrBits {
 		// Fast path - just accumulate the bits.
 		h.mask |= bits << h.valid
@@ -380,48 +524,43 @@ func (h writeHeapBits) write(bits, valid uintptr) writeHeapBits {
 	h.valid += valid - ptrBits           // have h.valid+valid bits, writing ptrBits of them
 
 	// Flush mask to the memory bitmap.
-	// TODO: figure out how to cache arena lookup.
-	ai := arenaIndex(h.addr)
-	ha := mheap_.arenas[ai.l1()][ai.l2()]
-	idx := h.addr / (ptrBits * goarch.PtrSize) % heapArenaBitmapWords
+	idx := h.offset / (ptrBits * goarch.PtrSize)
 	m := uintptr(1)<<h.low - 1
-	ha.bitmap[idx] = ha.bitmap[idx]&m | data
+	bitmap := s.heapBits()
+	bitmap[idx] = bitmap[idx]&m | data
 	// Note: no synchronization required for this write because
 	// the allocator has exclusive access to the page, and the bitmap
 	// entries are all for a single page. Also, visibility of these
 	// writes is guaranteed by the publication barrier in mallocgc.
 
-	// Clear noMorePtrs bit, since we're going to be writing bits
-	// into the following word.
-	ha.noMorePtrs[idx/8] &^= uint8(1) << (idx % 8)
-	// Note: same as above
-
 	// Move to next word of bitmap.
-	h.addr += ptrBits * goarch.PtrSize
+	h.offset += ptrBits * goarch.PtrSize
 	h.low = 0
 	return h
 }
 
 // Add padding of size bytes.
-func (h writeHeapBits) pad(size uintptr) writeHeapBits {
+func (h writeHeapBits) pad(s *mspan, size uintptr) writeHeapBits {
 	if size == 0 {
 		return h
 	}
 	words := size / goarch.PtrSize
 	for words > ptrBits {
-		h = h.write(0, ptrBits)
+		h = h.write(s, 0, ptrBits)
 		words -= ptrBits
 	}
-	return h.write(0, words)
+	return h.write(s, 0, words)
 }
 
 // Flush the bits that have been written, and add zeros as needed
 // to cover the full object [addr, addr+size).
-func (h writeHeapBits) flush(addr, size uintptr) {
+func (h writeHeapBits) flush(s *mspan, addr, size uintptr) {
+	offset := addr - s.base()
+
 	// zeros counts the number of bits needed to represent the object minus the
 	// number of bits we've already written. This is the number of 0 bits
 	// that need to be added.
-	zeros := (addr+size-h.addr)/goarch.PtrSize - h.valid
+	zeros := (offset+size-h.offset)/goarch.PtrSize - h.valid
 
 	// Add zero bits up to the bitmap word boundary
 	if zeros > 0 {
@@ -434,26 +573,21 @@ func (h writeHeapBits) flush(addr, size uintptr) {
 	}
 
 	// Find word in bitmap that we're going to write.
-	ai := arenaIndex(h.addr)
-	ha := mheap_.arenas[ai.l1()][ai.l2()]
-	idx := h.addr / (ptrBits * goarch.PtrSize) % heapArenaBitmapWords
+	bitmap := s.heapBits()
+	idx := h.offset / (ptrBits * goarch.PtrSize)
 
 	// Write remaining bits.
 	if h.valid != h.low {
 		m := uintptr(1)<<h.low - 1      // don't clear existing bits below "low"
 		m |= ^(uintptr(1)<<h.valid - 1) // don't clear existing bits above "valid"
-		ha.bitmap[idx] = ha.bitmap[idx]&m | h.mask
+		bitmap[idx] = bitmap[idx]&m | h.mask
 	}
 	if zeros == 0 {
 		return
 	}
 
-	// Record in the noMorePtrs map that there won't be any more 1 bits,
-	// so readers can stop early.
-	ha.noMorePtrs[idx/8] |= uint8(1) << (idx % 8)
-
 	// Advance to next bitmap word.
-	h.addr += ptrBits * goarch.PtrSize
+	h.offset += ptrBits * goarch.PtrSize
 
 	// Continue on writing zeros for the rest of the object.
 	// For standard use of the ptr bits this is not required, as
@@ -462,213 +596,395 @@ func (h writeHeapBits) flush(addr, size uintptr) {
 	// start mid-object, so these writes are still required.
 	for {
 		// Write zero bits.
-		ai := arenaIndex(h.addr)
-		ha := mheap_.arenas[ai.l1()][ai.l2()]
-		idx := h.addr / (ptrBits * goarch.PtrSize) % heapArenaBitmapWords
+		idx := h.offset / (ptrBits * goarch.PtrSize)
 		if zeros < ptrBits {
-			ha.bitmap[idx] &^= uintptr(1)<<zeros - 1
+			bitmap[idx] &^= uintptr(1)<<zeros - 1
 			break
 		} else if zeros == ptrBits {
-			ha.bitmap[idx] = 0
+			bitmap[idx] = 0
 			break
 		} else {
-			ha.bitmap[idx] = 0
+			bitmap[idx] = 0
 			zeros -= ptrBits
 		}
-		ha.noMorePtrs[idx/8] |= uint8(1) << (idx % 8)
-		h.addr += ptrBits * goarch.PtrSize
+		h.offset += ptrBits * goarch.PtrSize
 	}
 }
 
-// heapBitsSetType records that the new allocation [x, x+size)
+// heapBits returns the heap ptr/scalar bits stored at the end of the span for
+// small object spans.
+//
+// heapBitsInSpan(span.elemsize) or span.isUserArenaChunk must be true.
+//
+//go:nosplit
+func (span *mspan) heapBits() []uintptr {
+	const doubleCheck = false
+
+	if doubleCheck && !span.isUserArenaChunk {
+		if span.spanclass.noscan() {
+			throw("heapBits called for noscan")
+		}
+		if span.elemsize > minSizeForMallocHeader {
+			throw("heapBits called for span class that should have a malloc header")
+		}
+	}
+	// Find the bitmap at the end of the span.
+	//
+	// Nearly every span with heap bits is exactly one page in size. Arenas are the only exception.
+	if span.npages == 1 {
+		// This will be inlined and constant-folded down.
+		return heapBitsSlice(span.base(), pageSize)
+	}
+	return heapBitsSlice(span.base(), span.npages*pageSize)
+}
+
+// Helper for constructing a slice for the span's heap bits.
+//
+//go:nosplit
+func heapBitsSlice(spanBase, spanSize uintptr) []uintptr {
+	bitmapSize := spanSize / goarch.PtrSize / 8
+	elems := int(bitmapSize / goarch.PtrSize)
+	var sl notInHeapSlice
+	sl = notInHeapSlice{(*notInHeap)(unsafe.Pointer(spanBase + spanSize - bitmapSize)), elems, elems}
+	return *(*[]uintptr)(unsafe.Pointer(&sl))
+}
+
+// heapBitsSmallForAddr loads the heap bits for the object stored at addr from span.heapBits.
+//
+// addr must be the base pointer of an object in the span. heapBitsInSpan(span.elemsize)
+// must be true.
+//
+//go:nosplit
+func (span *mspan) heapBitsSmallForAddr(addr uintptr) uintptr {
+	spanSize := span.npages * pageSize
+	bitmapSize := spanSize / goarch.PtrSize / 8
+	hbits := (*byte)(unsafe.Pointer(span.base() + spanSize - bitmapSize))
+
+	// These objects are always small enough that their bitmaps
+	// fit in a single word, so just load the word or two we need.
+	//
+	// Mirrors mspan.writeHeapBitsSmall.
+	//
+	// We should be using heapBits(), but unfortunately it introduces
+	// both bounds checks panics and throw which causes us to exceed
+	// the nosplit limit in quite a few cases.
+	i := (addr - span.base()) / goarch.PtrSize / ptrBits
+	j := (addr - span.base()) / goarch.PtrSize % ptrBits
+	bits := span.elemsize / goarch.PtrSize
+	word0 := (*uintptr)(unsafe.Pointer(addb(hbits, goarch.PtrSize*(i+0))))
+	word1 := (*uintptr)(unsafe.Pointer(addb(hbits, goarch.PtrSize*(i+1))))
+
+	var read uintptr
+	if j+bits > ptrBits {
+		// Two reads.
+		bits0 := ptrBits - j
+		bits1 := bits - bits0
+		read = *word0 >> j
+		read |= (*word1 & ((1 << bits1) - 1)) << bits0
+	} else {
+		// One read.
+		read = (*word0 >> j) & ((1 << bits) - 1)
+	}
+	return read
+}
+
+// writeHeapBitsSmall writes the heap bits for small objects whose ptr/scalar data is
+// stored as a bitmap at the end of the span.
+//
+// Assumes dataSize is <= ptrBits*goarch.PtrSize. x must be a pointer into the span.
+// heapBitsInSpan(dataSize) must be true. dataSize must be >= typ.Size_.
+//
+//go:nosplit
+func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize uintptr) {
+	// The objects here are always really small, so a single load is sufficient.
+	src0 := readUintptr(typ.GCData)
+
+	// Create repetitions of the bitmap if we have a small array.
+	bits := span.elemsize / goarch.PtrSize
+	scanSize = typ.PtrBytes
+	src := src0
+	switch typ.Size_ {
+	case goarch.PtrSize:
+		src = (1 << (dataSize / goarch.PtrSize)) - 1
+	default:
+		for i := typ.Size_; i < dataSize; i += typ.Size_ {
+			src |= src0 << (i / goarch.PtrSize)
+			scanSize += typ.Size_
+		}
+	}
+
+	// Since we're never writing more than one uintptr's worth of bits, we're either going
+	// to do one or two writes.
+	dst := span.heapBits()
+	o := (x - span.base()) / goarch.PtrSize
+	i := o / ptrBits
+	j := o % ptrBits
+	if j+bits > ptrBits {
+		// Two writes.
+		bits0 := ptrBits - j
+		bits1 := bits - bits0
+		dst[i+0] = dst[i+0]&(^uintptr(0)>>bits0) | (src << j)
+		dst[i+1] = dst[i+1]&^((1<<bits1)-1) | (src >> bits0)
+	} else {
+		// One write.
+		dst[i] = (dst[i] &^ (((1 << bits) - 1) << j)) | (src << j)
+	}
+
+	const doubleCheck = false
+	if doubleCheck {
+		srcRead := span.heapBitsSmallForAddr(x)
+		if srcRead != src {
+			print("runtime: x=", hex(x), " i=", i, " j=", j, " bits=", bits, "\n")
+			print("runtime: dataSize=", dataSize, " typ.Size_=", typ.Size_, " typ.PtrBytes=", typ.PtrBytes, "\n")
+			print("runtime: src0=", hex(src0), " src=", hex(src), " srcRead=", hex(srcRead), "\n")
+			throw("bad pointer bits written for small object")
+		}
+	}
+	return
+}
+
+// For !goexperiment.AllocHeaders.
+func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+}
+
+// heapSetType records that the new allocation [x, x+size)
 // holds in [x, x+dataSize) one or more values of type typ.
 // (The number of values is given by dataSize / typ.Size.)
 // If dataSize < size, the fragment [x+dataSize, x+size) is
 // recorded as non-pointer data.
 // It is known that the type has pointers somewhere;
-// malloc does not call heapBitsSetType when there are no pointers,
-// because all free objects are marked as noscan during
-// heapBitsSweepSpan.
+// malloc does not call heapSetType when there are no pointers.
 //
-// There can only be one allocation from a given span active at a time,
-// and the bitmap for a span always falls on word boundaries,
-// so there are no write-write races for access to the heap bitmap.
-// Hence, heapBitsSetType can access the bitmap without atomics.
-//
-// There can be read-write races between heapBitsSetType and things
-// that read the heap bitmap like scanobject. However, since
-// heapBitsSetType is only used for objects that have not yet been
+// There can be read-write races between heapSetType and things
+// that read the heap metadata like scanobject. However, since
+// heapSetType is only used for objects that have not yet been
 // made reachable, readers will ignore bits being modified by this
 // function. This does mean this function cannot transiently modify
-// bits that belong to neighboring objects. Also, on weakly-ordered
+// shared memory that belongs to neighboring objects. Also, on weakly-ordered
 // machines, callers must execute a store/store (publication) barrier
 // between calling this function and making the object reachable.
-func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
-	const doubleCheck = false // slow but helpful; enable to test modifications to this code
+func heapSetType(x, dataSize uintptr, typ *_type, header **_type, span *mspan) (scanSize uintptr) {
+	const doubleCheck = false
 
-	if doubleCheck && dataSize%typ.Size_ != 0 {
-		throw("heapBitsSetType: dataSize not a multiple of typ.Size")
-	}
-
-	if goarch.PtrSize == 8 && size == goarch.PtrSize {
-		// It's one word and it has pointers, it must be a pointer.
-		// Since all allocated one-word objects are pointers
-		// (non-pointers are aggregated into tinySize allocations),
-		// (*mspan).initHeapBits sets the pointer bits for us.
-		// Nothing to do here.
-		if doubleCheck {
-			h, addr := heapBitsForAddr(x, size).next()
-			if addr != x {
-				throw("heapBitsSetType: pointer bit missing")
-			}
-			_, addr = h.next()
-			if addr != 0 {
-				throw("heapBitsSetType: second pointer bit found")
-			}
+	gctyp := typ
+	if header == nil {
+		if doubleCheck && (!heapBitsInSpan(dataSize) || !heapBitsInSpan(span.elemsize)) {
+			throw("tried to write heap bits, but no heap bits in span")
 		}
-		return
-	}
-
-	h := writeHeapBitsForAddr(x)
-
-	// Handle GC program.
-	if typ.Kind_&kindGCProg != 0 {
-		// Expand the gc program into the storage we're going to use for the actual object.
-		obj := (*uint8)(unsafe.Pointer(x))
-		n := runGCProg(addb(typ.GCData, 4), obj)
-		// Use the expanded program to set the heap bits.
-		for i := uintptr(0); true; i += typ.Size_ {
-			// Copy expanded program to heap bitmap.
-			p := obj
-			j := n
-			for j > 8 {
-				h = h.write(uintptr(*p), 8)
-				p = add1(p)
-				j -= 8
+		// Handle the case where we have no malloc header.
+		scanSize = span.writeHeapBitsSmall(x, dataSize, typ)
+	} else {
+		if typ.Kind_&kindGCProg != 0 {
+			// Allocate space to unroll the gcprog. This space will consist of
+			// a dummy _type value and the unrolled gcprog. The dummy _type will
+			// refer to the bitmap, and the mspan will refer to the dummy _type.
+			if span.spanclass.sizeclass() != 0 {
+				throw("GCProg for type that isn't large")
 			}
-			h = h.write(uintptr(*p), j)
+			spaceNeeded := alignUp(unsafe.Sizeof(_type{}), goarch.PtrSize)
+			heapBitsOff := spaceNeeded
+			spaceNeeded += alignUp(typ.PtrBytes/goarch.PtrSize/8, goarch.PtrSize)
+			npages := alignUp(spaceNeeded, pageSize) / pageSize
+			var progSpan *mspan
+			systemstack(func() {
+				progSpan = mheap_.allocManual(npages, spanAllocPtrScalarBits)
+				memclrNoHeapPointers(unsafe.Pointer(progSpan.base()), progSpan.npages*pageSize)
+			})
+			// Write a dummy _type in the new space.
+			//
+			// We only need to write size, PtrBytes, and GCData, since that's all
+			// the GC cares about.
+			gctyp = (*_type)(unsafe.Pointer(progSpan.base()))
+			gctyp.Kind_ |= kindGCProg
+			gctyp.Size_ = typ.Size_
+			gctyp.PtrBytes = typ.PtrBytes
+			gctyp.GCData = (*byte)(add(unsafe.Pointer(progSpan.base()), heapBitsOff))
 
-			if i+typ.Size_ == dataSize {
-				break // no padding after last element
-			}
-
-			// Pad with zeros to the start of the next element.
-			h = h.pad(typ.Size_ - n*goarch.PtrSize)
+			// Expand the GC program into space reserved at the end of the object.
+			runGCProg(addb(typ.GCData, 4), gctyp.GCData)
 		}
 
-		h.flush(x, size)
-
-		// Erase the expanded GC program.
-		memclrNoHeapPointers(unsafe.Pointer(obj), (n+7)/8)
-		return
+		// Write out the header.
+		*header = gctyp
+		scanSize = span.elemsize
 	}
-
-	// Note about sizes:
-	//
-	// typ.Size is the number of words in the object,
-	// and typ.PtrBytes is the number of words in the prefix
-	// of the object that contains pointers. That is, the final
-	// typ.Size - typ.PtrBytes words contain no pointers.
-	// This allows optimization of a common pattern where
-	// an object has a small header followed by a large scalar
-	// buffer. If we know the pointers are over, we don't have
-	// to scan the buffer's heap bitmap at all.
-	// The 1-bit ptrmasks are sized to contain only bits for
-	// the typ.PtrBytes prefix, zero padded out to a full byte
-	// of bitmap. If there is more room in the allocated object,
-	// that space is pointerless. The noMorePtrs bitmap will prevent
-	// scanning large pointerless tails of an object.
-	//
-	// Replicated copies are not as nice: if there is an array of
-	// objects with scalar tails, all but the last tail does have to
-	// be initialized, because there is no way to say "skip forward".
-
-	ptrs := typ.PtrBytes / goarch.PtrSize
-	if typ.Size_ == dataSize { // Single element
-		if ptrs <= ptrBits { // Single small element
-			m := readUintptr(typ.GCData)
-			h = h.write(m, ptrs)
-		} else { // Single large element
-			p := typ.GCData
-			for {
-				h = h.write(readUintptr(p), ptrBits)
-				p = addb(p, ptrBits/8)
-				ptrs -= ptrBits
-				if ptrs <= ptrBits {
-					break
-				}
-			}
-			m := readUintptr(p)
-			h = h.write(m, ptrs)
-		}
-	} else { // Repeated element
-		words := typ.Size_ / goarch.PtrSize // total words, including scalar tail
-		if words <= ptrBits {               // Repeated small element
-			n := dataSize / typ.Size_
-			m := readUintptr(typ.GCData)
-			// Make larger unit to repeat
-			for words <= ptrBits/2 {
-				if n&1 != 0 {
-					h = h.write(m, words)
-				}
-				n /= 2
-				m |= m << words
-				ptrs += words
-				words *= 2
-				if n == 1 {
-					break
-				}
-			}
-			for n > 1 {
-				h = h.write(m, words)
-				n--
-			}
-			h = h.write(m, ptrs)
-		} else { // Repeated large element
-			for i := uintptr(0); true; i += typ.Size_ {
-				p := typ.GCData
-				j := ptrs
-				for j > ptrBits {
-					h = h.write(readUintptr(p), ptrBits)
-					p = addb(p, ptrBits/8)
-					j -= ptrBits
-				}
-				m := readUintptr(p)
-				h = h.write(m, j)
-				if i+typ.Size_ == dataSize {
-					break // don't need the trailing nonptr bits on the last element.
-				}
-				// Pad with zeros to the start of the next element.
-				h = h.pad(typ.Size_ - typ.PtrBytes)
-			}
-		}
-	}
-	h.flush(x, size)
 
 	if doubleCheck {
-		h := heapBitsForAddr(x, size)
-		for i := uintptr(0); i < size; i += goarch.PtrSize {
-			// Compute the pointer bit we want at offset i.
-			want := false
-			if i < dataSize {
-				off := i % typ.Size_
-				if off < typ.PtrBytes {
-					j := off / goarch.PtrSize
-					want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
-				}
-			}
-			if want {
-				var addr uintptr
-				h, addr = h.next()
-				if addr != x+i {
-					throw("heapBitsSetType: pointer entry not correct")
-				}
+		doubleCheckHeapPointers(x, dataSize, gctyp, header, span)
+
+		// To exercise the less common path more often, generate
+		// a random interior pointer and make sure iterating from
+		// that point works correctly too.
+		maxIterBytes := span.elemsize
+		if header == nil {
+			maxIterBytes = dataSize
+		}
+		off := alignUp(uintptr(fastrand())%dataSize, goarch.PtrSize)
+		size := dataSize - off
+		if size == 0 {
+			off -= goarch.PtrSize
+			size += goarch.PtrSize
+		}
+		interior := x + off
+		size -= alignDown(uintptr(fastrand())%size, goarch.PtrSize)
+		if size == 0 {
+			size = goarch.PtrSize
+		}
+		// Round up the type to the size of the type.
+		size = (size + gctyp.Size_ - 1) / gctyp.Size_ * gctyp.Size_
+		if interior+size > x+maxIterBytes {
+			size = x + maxIterBytes - interior
+		}
+		doubleCheckHeapPointersInterior(x, interior, size, dataSize, gctyp, header, span)
+	}
+	return
+}
+
+func doubleCheckHeapPointers(x, dataSize uintptr, typ *_type, header **_type, span *mspan) {
+	// Check that scanning the full object works.
+	tp := span.typePointersOfUnchecked(span.objBase(x))
+	maxIterBytes := span.elemsize
+	if header == nil {
+		maxIterBytes = dataSize
+	}
+	bad := false
+	for i := uintptr(0); i < maxIterBytes; i += goarch.PtrSize {
+		// Compute the pointer bit we want at offset i.
+		want := false
+		if i < span.elemsize {
+			off := i % typ.Size_
+			if off < typ.PtrBytes {
+				j := off / goarch.PtrSize
+				want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
 			}
 		}
-		if _, addr := h.next(); addr != 0 {
-			throw("heapBitsSetType: extra pointer")
+		if want {
+			var addr uintptr
+			tp, addr = tp.next(x + span.elemsize)
+			if addr == 0 {
+				println("runtime: found bad iterator")
+			}
+			if addr != x+i {
+				print("runtime: addr=", hex(addr), " x+i=", hex(x+i), "\n")
+				bad = true
+			}
 		}
 	}
+	if !bad {
+		var addr uintptr
+		tp, addr = tp.next(x + span.elemsize)
+		if addr == 0 {
+			return
+		}
+		println("runtime: extra pointer:", hex(addr))
+	}
+	print("runtime: hasHeader=", header != nil, " typ.Size_=", typ.Size_, " hasGCProg=", typ.Kind_&kindGCProg != 0, "\n")
+	print("runtime: x=", hex(x), " dataSize=", dataSize, " elemsize=", span.elemsize, "\n")
+	print("runtime: typ=", unsafe.Pointer(typ), " typ.PtrBytes=", typ.PtrBytes, "\n")
+	print("runtime: limit=", hex(x+span.elemsize), "\n")
+	tp = span.typePointersOfUnchecked(x)
+	dumpTypePointers(tp)
+	for {
+		var addr uintptr
+		if tp, addr = tp.next(x + span.elemsize); addr == 0 {
+			println("runtime: would've stopped here")
+			dumpTypePointers(tp)
+			break
+		}
+		print("runtime: addr=", hex(addr), "\n")
+		dumpTypePointers(tp)
+	}
+	throw("heapSetType: pointer entry not correct")
+}
+
+func doubleCheckHeapPointersInterior(x, interior, size, dataSize uintptr, typ *_type, header **_type, span *mspan) {
+	bad := false
+	if interior < x {
+		print("runtime: interior=", hex(interior), " x=", hex(x), "\n")
+		throw("found bad interior pointer")
+	}
+	off := interior - x
+	tp := span.typePointersOf(interior, size)
+	for i := off; i < off+size; i += goarch.PtrSize {
+		// Compute the pointer bit we want at offset i.
+		want := false
+		if i < span.elemsize {
+			off := i % typ.Size_
+			if off < typ.PtrBytes {
+				j := off / goarch.PtrSize
+				want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
+			}
+		}
+		if want {
+			var addr uintptr
+			tp, addr = tp.next(interior + size)
+			if addr == 0 {
+				println("runtime: found bad iterator")
+				bad = true
+			}
+			if addr != x+i {
+				print("runtime: addr=", hex(addr), " x+i=", hex(x+i), "\n")
+				bad = true
+			}
+		}
+	}
+	if !bad {
+		var addr uintptr
+		tp, addr = tp.next(interior + size)
+		if addr == 0 {
+			return
+		}
+		println("runtime: extra pointer:", hex(addr))
+	}
+	print("runtime: hasHeader=", header != nil, " typ.Size_=", typ.Size_, "\n")
+	print("runtime: x=", hex(x), " dataSize=", dataSize, " elemsize=", span.elemsize, " interior=", hex(interior), " size=", size, "\n")
+	print("runtime: limit=", hex(interior+size), "\n")
+	tp = span.typePointersOf(interior, size)
+	dumpTypePointers(tp)
+	for {
+		var addr uintptr
+		if tp, addr = tp.next(interior + size); addr == 0 {
+			println("runtime: would've stopped here")
+			dumpTypePointers(tp)
+			break
+		}
+		print("runtime: addr=", hex(addr), "\n")
+		dumpTypePointers(tp)
+	}
+
+	print("runtime: want: ")
+	for i := off; i < off+size; i += goarch.PtrSize {
+		// Compute the pointer bit we want at offset i.
+		want := false
+		if i < dataSize {
+			off := i % typ.Size_
+			if off < typ.PtrBytes {
+				j := off / goarch.PtrSize
+				want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
+			}
+		}
+		if want {
+			print("1")
+		} else {
+			print("0")
+		}
+	}
+	println()
+
+	throw("heapSetType: pointer entry not correct")
+}
+
+func dumpTypePointers(tp typePointers) {
+	print("runtime: tp.elem=", hex(tp.elem), " tp.typ=", unsafe.Pointer(tp.typ), "\n")
+	print("runtime: tp.addr=", hex(tp.addr), " tp.mask=")
+	for i := uintptr(0); i < ptrBits; i++ {
+		if tp.mask&(uintptr(1)<<i) != 0 {
+			print("1")
+		} else {
+			print("0")
+		}
+	}
+	println()
 }
 
 // Testing.
@@ -712,16 +1028,33 @@ func getgcmask(ep any) (mask []byte) {
 		if s.spanclass.noscan() {
 			return nil
 		}
-		n := s.elemsize
-		hbits := heapBitsForAddr(base, n)
-		mask = make([]byte, n/goarch.PtrSize)
+		limit := base + s.elemsize
+
+		// Move the base up to the iterator's start, because
+		// we want to hide evidence of a malloc header from the
+		// caller.
+		tp := s.typePointersOfUnchecked(base)
+		base = tp.addr
+
+		// Unroll the full bitmap the GC would actually observe.
+		mask = make([]byte, (limit-base)/goarch.PtrSize)
 		for {
 			var addr uintptr
-			if hbits, addr = hbits.next(); addr == 0 {
+			if tp, addr = tp.next(limit); addr == 0 {
 				break
 			}
 			mask[(addr-base)/goarch.PtrSize] = 1
 		}
+
+		// Double-check that every part of the ptr/scalar we're not
+		// showing the caller is zeroed. This keeps us honest that
+		// that information is actually irrelevant.
+		for i := limit; i < s.elemsize; i++ {
+			if *(*byte)(unsafe.Pointer(i)) != 0 {
+				throw("found non-zeroed tail of allocation")
+			}
+		}
+
 		// Callers expect this mask to end at the last pointer.
 		for len(mask) > 0 && mask[len(mask)-1] == 0 {
 			mask = mask[:len(mask)-1]
@@ -761,40 +1094,13 @@ func getgcmask(ep any) (mask []byte) {
 	return
 }
 
-// userArenaHeapBitsSetType is the equivalent of heapBitsSetType but for
+// userArenaHeapBitsSetType is the equivalent of heapSetType but for
 // non-slice-backing-store Go values allocated in a user arena chunk. It
-// sets up the heap bitmap for the value with type typ allocated at address ptr.
+// sets up the type metadata for the value with type typ allocated at address ptr.
 // base is the base address of the arena chunk.
-func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
-	h := writeHeapBitsForAddr(uintptr(ptr))
-
-	// Our last allocation might have ended right at a noMorePtrs mark,
-	// which we would not have erased. We need to erase that mark here,
-	// because we're going to start adding new heap bitmap bits.
-	// We only need to clear one mark, because below we make sure to
-	// pad out the bits with zeroes and only write one noMorePtrs bit
-	// for each new object.
-	// (This is only necessary at noMorePtrs boundaries, as noMorePtrs
-	// marks within an object allocated with newAt will be erased by
-	// the normal writeHeapBitsForAddr mechanism.)
-	//
-	// Note that we skip this if this is the first allocation in the
-	// arena because there's definitely no previous noMorePtrs mark
-	// (in fact, we *must* do this, because we're going to try to back
-	// up a pointer to fix this up).
-	if uintptr(ptr)%(8*goarch.PtrSize*goarch.PtrSize) == 0 && uintptr(ptr) != base {
-		// Back up one pointer and rewrite that pointer. That will
-		// cause the writeHeapBits implementation to clear the
-		// noMorePtrs bit we need to clear.
-		r := heapBitsForAddr(uintptr(ptr)-goarch.PtrSize, goarch.PtrSize)
-		_, p := r.next()
-		b := uintptr(0)
-		if p == uintptr(ptr)-goarch.PtrSize {
-			b = 1
-		}
-		h = writeHeapBitsForAddr(uintptr(ptr) - goarch.PtrSize)
-		h = h.write(b, 1)
-	}
+func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
+	base := s.base()
+	h := s.writeHeapBits(uintptr(ptr))
 
 	p := typ.GCData // start of 1-bit pointer mask (or GC program)
 	var gcProgBits uintptr
@@ -810,7 +1116,7 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
 		if k > ptrBits {
 			k = ptrBits
 		}
-		h = h.write(readUintptr(addb(p, i/8)), k)
+		h = h.write(s, readUintptr(addb(p, i/8)), k)
 	}
 	// Note: we call pad here to ensure we emit explicit 0 bits
 	// for the pointerless tail of the object. This ensures that
@@ -818,40 +1124,51 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
 	// to clear. We don't need to do this to clear stale noMorePtrs
 	// markers from previous uses because arena chunk pointer bitmaps
 	// are always fully cleared when reused.
-	h = h.pad(typ.Size_ - typ.PtrBytes)
-	h.flush(uintptr(ptr), typ.Size_)
+	h = h.pad(s, typ.Size_-typ.PtrBytes)
+	h.flush(s, uintptr(ptr), typ.Size_)
 
 	if typ.Kind_&kindGCProg != 0 {
 		// Zero out temporary ptrmask buffer inside object.
 		memclrNoHeapPointers(ptr, (gcProgBits+7)/8)
 	}
 
+	// Update the PtrBytes value in the type information. After this
+	// point, the GC will observe the new bitmap.
+	s.largeType.PtrBytes = uintptr(ptr) - base + typ.PtrBytes
+
 	// Double-check that the bitmap was written out correctly.
-	//
-	// Derived from heapBitsSetType.
 	const doubleCheck = false
 	if doubleCheck {
-		size := typ.Size_
-		x := uintptr(ptr)
-		h := heapBitsForAddr(x, size)
-		for i := uintptr(0); i < size; i += goarch.PtrSize {
-			// Compute the pointer bit we want at offset i.
-			want := false
-			off := i % typ.Size_
-			if off < typ.PtrBytes {
-				j := off / goarch.PtrSize
-				want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
-			}
-			if want {
-				var addr uintptr
-				h, addr = h.next()
-				if addr != x+i {
-					throw("userArenaHeapBitsSetType: pointer entry not correct")
-				}
-			}
-		}
-		if _, addr := h.next(); addr != 0 {
-			throw("userArenaHeapBitsSetType: extra pointer")
-		}
+		doubleCheckHeapPointersInterior(uintptr(ptr), uintptr(ptr), typ.Size_, typ.Size_, typ, &s.largeType, s)
 	}
+}
+
+// For !goexperiment.AllocHeaders, to pass TestIntendedInlining.
+func writeHeapBitsForAddr() {
+	panic("not implemented")
+}
+
+// For !goexperiment.AllocHeaders.
+type heapBits struct {
+}
+
+// For !goexperiment.AllocHeaders.
+//
+//go:nosplit
+func heapBitsForAddr(addr, size uintptr) heapBits {
+	panic("not implemented")
+}
+
+// For !goexperiment.AllocHeaders.
+//
+//go:nosplit
+func (h heapBits) next() (heapBits, uintptr) {
+	panic("not implemented")
+}
+
+// For !goexperiment.AllocHeaders.
+//
+//go:nosplit
+func (h heapBits) nextFast() (heapBits, uintptr) {
+	panic("not implemented")
 }

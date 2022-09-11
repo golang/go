@@ -47,6 +47,19 @@ import (
 	"unsafe"
 )
 
+const (
+	// For compatibility with the allocheaders GOEXPERIMENT.
+	mallocHeaderSize       = 0
+	minSizeForMallocHeader = ^uintptr(0)
+)
+
+// For compatibility with the allocheaders GOEXPERIMENT.
+//
+//go:nosplit
+func heapBitsInSpan(_ uintptr) bool {
+	return false
+}
+
 // heapArenaPtrScalar contains the per-heapArena pointer/scalar metadata for the GC.
 type heapArenaPtrScalar struct {
 	// bitmap stores the pointer/scalar bitmap for the words in
@@ -671,6 +684,11 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	}
 }
 
+// For goexperiment.AllocHeaders
+func heapSetType(x, dataSize uintptr, typ *_type, header **_type, span *mspan) (scanSize uintptr) {
+	return 0
+}
+
 // Testing.
 
 // Returns GC type info for the pointer stored in ep for testing.
@@ -765,7 +783,8 @@ func getgcmask(ep any) (mask []byte) {
 // non-slice-backing-store Go values allocated in a user arena chunk. It
 // sets up the heap bitmap for the value with type typ allocated at address ptr.
 // base is the base address of the arena chunk.
-func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
+func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
+	base := s.base()
 	h := writeHeapBitsForAddr(uintptr(ptr))
 
 	// Our last allocation might have ended right at a noMorePtrs mark,
@@ -854,4 +873,54 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
 			throw("userArenaHeapBitsSetType: extra pointer")
 		}
 	}
+}
+
+// For goexperiment.AllocHeaders.
+type typePointers struct {
+	addr uintptr
+}
+
+// For goexperiment.AllocHeaders.
+//
+//go:nosplit
+func (span *mspan) typePointersOf(addr, size uintptr) typePointers {
+	panic("not implemented")
+}
+
+// For goexperiment.AllocHeaders.
+//
+//go:nosplit
+func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
+	panic("not implemented")
+}
+
+// For goexperiment.AllocHeaders.
+//
+//go:nosplit
+func (tp typePointers) nextFast() (typePointers, uintptr) {
+	panic("not implemented")
+}
+
+// For goexperiment.AllocHeaders.
+//
+//go:nosplit
+func (tp typePointers) next(limit uintptr) (typePointers, uintptr) {
+	panic("not implemented")
+}
+
+// For goexperiment.AllocHeaders.
+//
+//go:nosplit
+func (tp typePointers) fastForward(n, limit uintptr) typePointers {
+	panic("not implemented")
+}
+
+// For goexperiment.AllocHeaders, to pass TestIntendedInlining.
+func (s *mspan) writeHeapBits() {
+	panic("not implemented")
+}
+
+// For goexperiment.AllocHeaders, to pass TestIntendedInlining.
+func heapBitsSlice() {
+	panic("not implemented")
 }

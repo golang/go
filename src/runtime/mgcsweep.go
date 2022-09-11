@@ -25,6 +25,7 @@
 package runtime
 
 import (
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -785,6 +786,15 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 				sysFault(unsafe.Pointer(s.base()), size)
 			} else {
 				mheap_.freeSpan(s)
+			}
+			if goexperiment.AllocHeaders && s.largeType != nil && s.largeType.Kind_&kindGCProg != 0 {
+				// In the allocheaders experiment, the unrolled GCProg bitmap is allocated separately.
+				// Free the space for the unrolled bitmap.
+				systemstack(func() {
+					s := spanOf(uintptr(unsafe.Pointer(s.largeType)))
+					mheap_.freeManual(s, spanAllocPtrScalarBits)
+				})
+				s.largeType = nil
 			}
 
 			// Count the free in the consistent, external stats.

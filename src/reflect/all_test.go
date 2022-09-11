@@ -7030,10 +7030,18 @@ func verifyGCBits(t *testing.T, typ Type, bits []byte) {
 	// e.g. with rep(2, lit(1, 0)).
 	bits = trimBitmap(bits)
 
-	if !bytes.Equal(heapBits, bits) {
-		_, _, line, _ := runtime.Caller(1)
-		t.Errorf("line %d: heapBits incorrect for %v\nhave %v\nwant %v", line, typ, heapBits, bits)
+	if bytes.HasPrefix(heapBits, bits) {
+		// Just the prefix matching is OK.
+		//
+		// The Go runtime's pointer/scalar iterator generates pointers beyond
+		// the size of the type, up to the size of the size class. This space
+		// is safe for the GC to scan since it's zero, and GCBits checks to
+		// make sure that's true. But we need to handle the fact that the bitmap
+		// may be larger than we expect.
+		return
 	}
+	_, _, line, _ := runtime.Caller(1)
+	t.Errorf("line %d: heapBits incorrect for %v\nhave %v\nwant %v", line, typ, heapBits, bits)
 }
 
 func verifyGCBitsSlice(t *testing.T, typ Type, cap int, bits []byte) {
@@ -7042,15 +7050,20 @@ func verifyGCBitsSlice(t *testing.T, typ Type, cap int, bits []byte) {
 	// repeat a bitmap for a small array or executing a repeat in
 	// a GC program.
 	val := MakeSlice(typ, 0, cap)
-	data := NewAt(ArrayOf(cap, typ.Elem()), val.UnsafePointer())
+	data := NewAt(typ.Elem(), val.UnsafePointer())
 	heapBits := GCBits(data.Interface())
 	// Repeat the bitmap for the slice size, trimming scalars in
 	// the last element.
 	bits = trimBitmap(rep(cap, bits))
-	if !bytes.Equal(heapBits, bits) {
-		_, _, line, _ := runtime.Caller(1)
-		t.Errorf("line %d: heapBits incorrect for make(%v, 0, %v)\nhave %v\nwant %v", line, typ, cap, heapBits, bits)
+	if bytes.Equal(heapBits, bits) {
+		return
 	}
+	if len(heapBits) > len(bits) && bytes.Equal(heapBits[:len(bits)], bits) {
+		// Just the prefix matching is OK.
+		return
+	}
+	_, _, line, _ := runtime.Caller(1)
+	t.Errorf("line %d: heapBits incorrect for make(%v, 0, %v)\nhave %v\nwant %v", line, typ, cap, heapBits, bits)
 }
 
 func TestGCBits(t *testing.T) {

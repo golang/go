@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -326,6 +327,14 @@ func BenchSetTypeSlice[T any](n int, resetTimer func(), len int) {
 // no valid racectx, but if we're instantiated in the runtime_test package,
 // we might accidentally cause runtime code to be incorrectly instrumented.
 func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type) {
+	// This benchmark doesn't work with the allocheaders experiment. It sets up
+	// an elaborate scenario to be able to benchmark the function safely, but doing
+	// this work for the allocheaders' version of the function would be complex.
+	// Just fail instead and rely on the test code making sure we never get here.
+	if goexperiment.AllocHeaders {
+		panic("called benchSetType with allocheaders experiment enabled")
+	}
+
 	// Compute the input sizes.
 	size := t.Size() * uintptr(len)
 
@@ -340,7 +349,7 @@ func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type)
 
 	// Round up the size to the size class to make the benchmark a little more
 	// realistic. However, validate it, to make sure this is safe.
-	allocSize := roundupsize(size)
+	allocSize := roundupsize(size, t.PtrBytes == 0)
 	if s.npages*pageSize < allocSize {
 		panic("backing span not large enough for benchmark")
 	}

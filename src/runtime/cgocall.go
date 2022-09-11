@@ -664,19 +664,32 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 		if base == 0 {
 			return
 		}
-		n := span.elemsize
-		hbits := heapBitsForAddr(base, n)
-		for {
-			var addr uintptr
-			if hbits, addr = hbits.next(); addr == 0 {
-				break
+		if goexperiment.AllocHeaders {
+			tp := span.typePointersOfUnchecked(base)
+			for {
+				var addr uintptr
+				if tp, addr = tp.next(base + span.elemsize); addr == 0 {
+					break
+				}
+				pp := *(*unsafe.Pointer)(unsafe.Pointer(addr))
+				if cgoIsGoPointer(pp) && !isPinned(pp) {
+					panic(errorString(msg))
+				}
 			}
-			pp := *(*unsafe.Pointer)(unsafe.Pointer(addr))
-			if cgoIsGoPointer(pp) && !isPinned(pp) {
-				panic(errorString(msg))
+		} else {
+			n := span.elemsize
+			hbits := heapBitsForAddr(base, n)
+			for {
+				var addr uintptr
+				if hbits, addr = hbits.next(); addr == 0 {
+					break
+				}
+				pp := *(*unsafe.Pointer)(unsafe.Pointer(addr))
+				if cgoIsGoPointer(pp) && !isPinned(pp) {
+					panic(errorString(msg))
+				}
 			}
 		}
-
 		return
 	}
 
