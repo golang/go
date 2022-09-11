@@ -20,13 +20,14 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
 	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/vulncheck"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 )
@@ -829,7 +830,10 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 	}, func(ctx context.Context, deps commandDeps) error {
 		view := deps.snapshot.View()
 		opts := view.Options()
-		if opts == nil || opts.Hooks.Govulncheck == nil {
+		// quickly test if gopls is compiled to support govulncheck
+		// by checking vulncheck.Govulncheck. Alternatively, we can continue and
+		// let the `gopls vulncheck` command fail. This is lighter-weight.
+		if vulncheck.Govulncheck == nil {
 			return errors.New("vulncheck feature is not available")
 		}
 

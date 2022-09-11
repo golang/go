@@ -10,7 +10,6 @@ package vulncheck
 
 import (
 	"context"
-	"errors"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/lsp/command"
@@ -18,6 +17,4 @@ import (
 
 // Govulncheck runs the in-process govulncheck implementation.
 // With go1.18+, this is swapped with the real implementation.
-var Govulncheck = func(ctx context.Context, cfg *packages.Config, patterns string) (res command.VulncheckResult, _ error) {
-	return res, errors.New("not implemented")
-}
+var Govulncheck func(ctx context.Context, cfg *packages.Config, patterns string) (res command.VulncheckResult, _ error) = nil
