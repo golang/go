@@ -636,3 +636,40 @@ func TestIssue50646(t *testing.T) {
 		t.Errorf("comparable not assignable to any")
 	}
 }
+
+func TestIssue55030(t *testing.T) {
+	// makeSig makes the signature func(typ...)
+	makeSig := func(typ Type) {
+		par := NewVar(nopos, nil, "", typ)
+		params := NewTuple(par)
+		NewSignatureType(nil, nil, nil, params, nil, true)
+	}
+
+	// makeSig must not panic for the following (example) types:
+	// []int
+	makeSig(NewSlice(Typ[Int]))
+
+	// string
+	makeSig(Typ[String])
+
+	// P where P's core type is string
+	{
+		P := NewTypeName(nopos, nil, "P", nil) // [P string]
+		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Typ[String]})))
+	}
+
+	// P where P's core type is an (unnamed) slice
+	{
+		P := NewTypeName(nopos, nil, "P", nil) // [P []int]
+		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{NewSlice(Typ[Int])})))
+	}
+
+	// P where P's core type is bytestring (i.e., string or []byte)
+	{
+		t1 := NewTerm(true, Typ[String])          // ~string
+		t2 := NewTerm(false, NewSlice(Typ[Byte])) // []byte
+		u := NewUnion([]*Term{t1, t2})            // ~string | []byte
+		P := NewTypeName(nopos, nil, "P", nil)    // [P ~string | []byte]
+		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{u})))
+	}
+}
