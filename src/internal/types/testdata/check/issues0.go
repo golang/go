@@ -139,21 +139,21 @@ func issue10260() {
 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
 	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
 
-	_ = i2 /* ERROR impossible type assertion: i2\.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ .(*T1)
+	_ = i2 /* ERROR impossible type assertion: i2\.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\) */ .(*T1)
 
 	i1 = i0 /* ERROR cannot use i0 .* as I1 value in assignment: I0 does not implement I1 \(missing method foo\) */
 	i1 = t0 /* ERROR .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\) */
-	i1 = i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */
-	i1 = t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */
-	i2 = i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */
-	i2 = t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */
+	i1 = i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\) */
+	i1 = t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\) */
+	i2 = i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\) */
+	i2 = t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\) */
 
 	_ = func() I1 { return i0 /* ERROR cannot use i0 .* as I1 value in return statement: I0 does not implement I1 \(missing method foo\) */ }
 	_ = func() I1 { return t0 /* ERROR .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\) */ }
-	_ = func() I1 { return i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
-	_ = func() I1 { return t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
-	_ = func() I2 { return i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ }
-	_ = func() I2 { return t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ }
+	_ = func() I1 { return i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\) */ }
+	_ = func() I1 { return t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\) */ }
+	_ = func() I2 { return i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\) */ }
+	_ = func() I2 { return t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\) */ }
 
 	// a few more - less exhaustive now
 
@@ -161,7 +161,7 @@ func issue10260() {
 	f(i0 /* ERROR missing method foo */ , i1 /* ERROR wrong type for method foo */ )
 
 	_ = [...]I1{i0 /* ERROR cannot use i0 .* as I1 value in array or slice literal: I0 does not implement I1 \(missing method foo\) */ }
-	_ = [...]I1{i2 /* ERROR cannot use i2 .* as I1 value in array or slice literal: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
+	_ = [...]I1{i2 /* ERROR cannot use i2 .* as I1 value in array or slice literal: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\) */ }
 	_ = []I1{i0 /* ERROR missing method foo */ }
 	_ = []I1{i2 /* ERROR wrong type for method foo */ }
 	_ = map[int]I1{0: i0 /* ERROR missing method foo */ }

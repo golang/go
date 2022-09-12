@@ -424,7 +424,9 @@ func (check *Checker) funcString(f *Func) string {
 	if check != nil {
 		qf = check.qualifier
 	}
-	WriteSignature(buf, f.typ.(*Signature), qf)
+	w := newTypeWriter(buf, qf)
+	w.paramNames = false
+	w.signature(f.typ.(*Signature))
 	return buf.String()
 }
 

@@ -46,14 +46,8 @@ func RelativeTo(pkg *Package) Qualifier {
 // The Qualifier controls the printing of
 // package-level objects, and may be nil.
 func TypeString(typ Type, qf Qualifier) string {
-	return typeString(typ, qf, false)
-}
-
-func typeString(typ Type, qf Qualifier, debug bool) string {
 	var buf bytes.Buffer
-	w := newTypeWriter(&buf, qf)
-	w.debug = debug
-	w.typ(typ)
+	WriteType(&buf, typ, qf)
 	return buf.String()
 }
 
@@ -73,21 +67,22 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
 }
 
 type typeWriter struct {
-	buf     *bytes.Buffer
-	seen    map[Type]bool
-	qf      Qualifier
-	ctxt    *Context       // if non-nil, we are type hashing
-	tparams *TypeParamList // local type parameters
-	debug   bool           // if true, write debug annotations
+	buf          *bytes.Buffer
+	seen         map[Type]bool
+	qf           Qualifier
+	ctxt         *Context       // if non-nil, we are type hashing
+	tparams      *TypeParamList // local type parameters
+	paramNames   bool           // if set, write function parameter names, otherwise, write types only
+	tpSubscripts bool           // if set, write type parameter indices as subscripts
 }
 
 func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
-	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, false}
+	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, true, false}
 }
 
 func newTypeHasher(buf *bytes.Buffer, ctxt *Context) *typeWriter {
 	assert(ctxt != nil)
-	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false}
+	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false, false}
 }
 
 func (w *typeWriter) byte(b byte) {
@@ -305,7 +300,7 @@ func (w *typeWriter) typ(typ Type) {
 			w.string(fmt.Sprintf("$%d", i))
 		} else {
 			w.string(t.obj.name)
-			if w.debug || w.ctxt != nil {
+			if w.tpSubscripts || w.ctxt != nil {
 				w.string(subscript(t.id))
 			}
 		}
@@ -408,7 +403,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
 				w.byte(',')
 			}
 			// parameter names are ignored for type identity and thus type hashes
-			if w.ctxt == nil && v.name != "" {
+			if w.ctxt == nil && v.name != "" && w.paramNames {
 				w.string(v.name)
 				w.byte(' ')
 			}
