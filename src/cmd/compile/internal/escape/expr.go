@@ -126,6 +126,10 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	case ir.OITAB, ir.OIDATA, ir.OSPTR:
 		n := n.(*ir.UnaryExpr)
 		e.expr(k, n.X)
+	case ir.OSLICE2ARR:
+		// Converting a slice to array is effectively a deref.
+		n := n.(*ir.ConvExpr)
+		e.expr(k.deref(n, "slice-to-array"), n.X)
 	case ir.OSLICE2ARRPTR:
 		// the slice pointer flows directly to the result
 		n := n.(*ir.ConvExpr)

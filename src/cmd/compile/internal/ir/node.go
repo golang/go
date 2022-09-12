@@ -134,6 +134,7 @@ const (
 	OSTR2BYTES    // Type(X) (Type is []byte, X is a string)
 	OSTR2BYTESTMP // Type(X) (Type is []byte, X is a string, ephemeral)
 	OSTR2RUNES    // Type(X) (Type is []rune, X is a string)
+	OSLICE2ARR    // Type(X) (Type is [N]T, X is a []T)
 	OSLICE2ARRPTR // Type(X) (Type is *[N]T, X is a []T)
 	// X = Y or (if Def=true) X := Y
 	// If Def, then Init includes a DCL node for X.

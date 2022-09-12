@@ -503,3 +503,21 @@ func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
 	return cheap
 }
+
+// walkSliceToArray walks an OSLICE2ARR expression.
+func walkSliceToArray(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+	// Replace T(x) with *(*T)(x).
+	conv := typecheck.Expr(ir.NewConvExpr(base.Pos, ir.OCONV, types.NewPtr(n.Type()), n.X)).(*ir.ConvExpr)
+	deref := typecheck.Expr(ir.NewStarExpr(base.Pos, conv)).(*ir.StarExpr)
+
+	// The OSLICE2ARRPTR conversion handles checking the slice length,
+	// so the dereference can't fail.
+	//
+	// However, this is more than just an optimization: if T is a
+	// zero-length array, then x (and thus (*T)(x)) can be nil, but T(x)
+	// should *not* panic. So suppressing the nil check here is
+	// necessary for correctness in that case.
+	deref.SetBounded(true)
+
+	return walkExpr(deref, init)
+}
