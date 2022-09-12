@@ -109,6 +109,15 @@ func TestBuilderGrow(t *testing.T) {
 			t.Errorf("growLen=%d: got %d allocs during Write; want %v", growLen, g, w)
 		}
 	}
+	// when growLen < 0, should panic
+	var a Builder
+	n := -1
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("a.Grow(%d) should panic()", n)
+		}
+	}()
+	a.Grow(n)
 }
 
 func TestBuilderWrite2(t *testing.T) {
