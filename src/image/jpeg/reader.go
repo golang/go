@@ -301,34 +301,56 @@ func (d *decoder) ignore(n int) error {
 }
 
 // Specified in section B.2.2.
-func (d *decoder) processSOF(n int) error {
+func (d *decoder) processSOF(n int, configOnly bool) error {
 	if d.nComp != 0 {
 		return FormatError("multiple SOF markers")
 	}
-	switch n {
-	case 6 + 3*1: // Grayscale image.
-		d.nComp = 1
-	case 6 + 3*3: // YCbCr or RGB image.
-		d.nComp = 3
-	case 6 + 3*4: // YCbCrK or CMYK image.
-		d.nComp = 4
-	default:
-		return UnsupportedError("number of components")
+
+	if n < 6+3 {
+		return FormatError("SOF has wrong length")
+	}
+
+	l := n
+	if l > len(d.tmp) {
+		l = len(d.tmp)
 	}
 	if err := d.readFull(d.tmp[:n]); err != nil {
 		return err
 	}
-	// We only support 8-bit precision.
-	if d.tmp[0] != 8 {
-		return UnsupportedError("precision")
+
+	p := d.tmp[0]
+	// Valid precision values for the three supported markers:
+	//   - sof0Marker: 8
+	//   - sof1Marker: 8,12
+	//   - sof2Marker: 8,12
+	switch {
+	case p == 8:
+	case p == 12 && !d.baseline:
+	default:
+		return FormatError("SOF has wrong precision")
 	}
+
 	d.height = int(d.tmp[1])<<8 + int(d.tmp[2])
 	d.width = int(d.tmp[3])<<8 + int(d.tmp[4])
-	if int(d.tmp[5]) != d.nComp {
+
+	d.nComp = int(d.tmp[5])
+	// Valid precision values for the three supported markers:
+	//   - sof0Marker: 1~255
+	//   - sof1Marker: 1~255
+	//   - sof2Marker: 1~4
+	if d.nComp == 0 || (d.progressive && d.nComp > 4) {
+		return FormatError("SOF has wrong number of components")
+	}
+	if n != 6+3*d.nComp {
 		return FormatError("SOF has wrong length")
 	}
 
-	for i := 0; i < d.nComp; i++ {
+	// to parse at most len(d.comp) components
+	nComp := d.nComp
+	if nComp > len(d.comp) {
+		nComp = len(d.comp)
+	}
+	for i := 0; i < nComp; i++ {
 		d.comp[i].c = d.tmp[6+3*i]
 		// Section B.2.2 states that "the value of C_i shall be different from
 		// the values of C_1 through C_(i-1)".
@@ -348,11 +370,7 @@ func (d *decoder) processSOF(n int) error {
 		if h < 1 || 4 < h || v < 1 || 4 < v {
 			return FormatError("luma/chroma subsampling ratio")
 		}
-		if h == 3 || v == 3 {
-			return errUnsupportedSubsamplingRatio
-		}
-		switch d.nComp {
-		case 1:
+		if d.nComp == 1 {
 			// If a JPEG image has only one component, section A.2 says "this data
 			// is non-interleaved by definition" and section A.2.2 says "[in this
 			// case...] the order of data units within a scan shall be left-to-right
@@ -365,62 +383,91 @@ func (d *decoder) processSOF(n int) error {
 			// the nominal (h, v) is (2, 1), a 20x5 image is encoded in three 8x8
 			// MCUs, not two 16x8 MCUs.
 			h, v = 1, 1
-
-		case 3:
-			// For YCbCr images, we only support 4:4:4, 4:4:0, 4:2:2, 4:2:0,
-			// 4:1:1 or 4:1:0 chroma subsampling ratios. This implies that the
-			// (h, v) values for the Y component are either (1, 1), (1, 2),
-			// (2, 1), (2, 2), (4, 1) or (4, 2), and the Y component's values
-			// must be a multiple of the Cb and Cr component's values. We also
-			// assume that the two chroma components have the same subsampling
-			// ratio.
-			switch i {
-			case 0: // Y.
-				// We have already verified, above, that h and v are both
-				// either 1, 2 or 4, so invalid (h, v) combinations are those
-				// with v == 4.
-				if v == 4 {
-					return errUnsupportedSubsamplingRatio
-				}
-			case 1: // Cb.
-				if d.comp[0].h%h != 0 || d.comp[0].v%v != 0 {
-					return errUnsupportedSubsamplingRatio
-				}
-			case 2: // Cr.
-				if d.comp[1].h != h || d.comp[1].v != v {
-					return errUnsupportedSubsamplingRatio
-				}
-			}
-
-		case 4:
-			// For 4-component images (either CMYK or YCbCrK), we only support two
-			// hv vectors: [0x11 0x11 0x11 0x11] and [0x22 0x11 0x11 0x22].
-			// Theoretically, 4-component JPEG images could mix and match hv values
-			// but in practice, those two combinations are the only ones in use,
-			// and it simplifies the applyBlack code below if we can assume that:
-			//	- for CMYK, the C and K channels have full samples, and if the M
-			//	  and Y channels subsample, they subsample both horizontally and
-			//	  vertically.
-			//	- for YCbCrK, the Y and K channels have full samples.
-			switch i {
-			case 0:
-				if hv != 0x11 && hv != 0x22 {
-					return errUnsupportedSubsamplingRatio
-				}
-			case 1, 2:
-				if hv != 0x11 {
-					return errUnsupportedSubsamplingRatio
-				}
-			case 3:
-				if d.comp[0].h != h || d.comp[0].v != v {
-					return errUnsupportedSubsamplingRatio
-				}
-			}
 		}
 
 		d.comp[i].h = h
 		d.comp[i].v = v
 	}
+
+	if configOnly {
+		// bypass support checking
+		return nil
+	}
+
+	switch d.nComp {
+	case 1: // Grayscale image.
+	case 3: // YCbCr or RGB image.
+	case 4: // YCbCrK or CMYK image.
+	default:
+		return UnsupportedError("number of components")
+	}
+
+	// We only support 8-bit precision.
+	if p != 8 {
+		return UnsupportedError("precision")
+	}
+
+	for i := 0; i < nComp; i++ {
+		h, v := d.comp[i].h, d.comp[i].v
+		if h == 3 || v == 3 {
+			return errUnsupportedSubsamplingRatio
+		}
+	}
+
+	switch d.nComp {
+	case 3:
+		// For YCbCr images, we only support 4:4:4, 4:4:0, 4:2:2, 4:2:0,
+		// 4:1:1 or 4:1:0 chroma subsampling ratios. This implies that the
+		// (h, v) values for the Y component are either (1, 1), (1, 2),
+		// (2, 1), (2, 2), (4, 1) or (4, 2), and the Y component's values
+		// must be a multiple of the Cb and Cr component's values. We also
+		// assume that the two chroma components have the same subsampling
+		// ratio.
+
+		// Y
+		if d.comp[0].v == 4 {
+			// We have already verified, above, that h and v are both
+			// either 1, 2 or 4, so invalid (h, v) combinations are those
+			// with v == 4.
+			return errUnsupportedSubsamplingRatio
+		}
+		// Cb
+		if d.comp[0].h%d.comp[1].h != 0 || d.comp[0].v%d.comp[1].v != 0 {
+			return errUnsupportedSubsamplingRatio
+		}
+
+		// Cr
+		if d.comp[2].h != d.comp[1].h || d.comp[2].v != d.comp[1].v {
+			return errUnsupportedSubsamplingRatio
+		}
+
+	case 4:
+		// For 4-component images (either CMYK or YCbCrK), we only support two
+		// hv vectors: [0x11 0x11 0x11 0x11] and [0x22 0x11 0x11 0x22].
+		// Theoretically, 4-component JPEG images could mix and match hv values
+		// but in practice, those two combinations are the only ones in use,
+		// and it simplifies the applyBlack code below if we can assume that:
+		//	- for CMYK, the C and K channels have full samples, and if the M
+		//	  and Y channels subsample, they subsample both horizontally and
+		//	  vertically.
+		//	- for YCbCrK, the Y and K channels have full samples.
+
+		h, v := d.comp[0].h, d.comp[0].v
+		hv := h<<4 | v
+		if hv != 0x11 && hv != 0x22 {
+			return errUnsupportedSubsamplingRatio
+		}
+		if d.comp[1].h != 1 || d.comp[1].v != 1 {
+			return errUnsupportedSubsamplingRatio
+		}
+		if d.comp[2].h != 1 || d.comp[2].v != 1 {
+			return errUnsupportedSubsamplingRatio
+		}
+		if d.comp[3].h != h || d.comp[2].v != v {
+			return errUnsupportedSubsamplingRatio
+		}
+	}
+
 	return nil
 }
 
@@ -604,7 +651,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 		case sof0Marker, sof1Marker, sof2Marker:
 			d.baseline = marker == sof0Marker
 			d.progressive = marker == sof2Marker
-			err = d.processSOF(n)
+			err = d.processSOF(n, configOnly)
 			if configOnly && d.jfif {
 				return nil, err
 			}

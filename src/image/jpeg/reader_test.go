@@ -490,6 +490,59 @@ func TestExtraneousData(t *testing.T) {
 	}
 }
 
+// TestDecodeConfig tests that DecodeConfig can return the correct config for
+// images that is not supported by Decode.
+//
+// This is a regression test for https://golang.org/issues/54997.
+func TestDecodeConfig(t *testing.T) {
+	testCases := []struct {
+		file string
+		want color.Model
+	}{
+		{
+			file: "../testdata/video-001.221112.jpeg",
+			want: color.YCbCrModel,
+		},
+		{
+			file: "../testdata/video-001.221211.jpeg",
+			want: color.YCbCrModel,
+		},
+		{
+			file: "../testdata/video-001.221112-rgb.jpeg",
+			want: color.RGBAModel,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.file, func(t *testing.T) {
+			tc := tc
+			t.Parallel()
+			config, err := decodeConfigFile(tc.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// All of the video-*.jpeg files are 150x103.
+			if config.Width != 150 || config.Height != 103 {
+				t.Fatalf("bad bounds: %vx%v", config.Width, config.Height)
+			}
+
+			if config.ColorModel != tc.want {
+				t.Fatal("color models differ")
+			}
+		})
+	}
+}
+
+func decodeConfigFile(filename string) (image.Config, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return image.Config{}, err
+	}
+	defer f.Close()
+	return DecodeConfig(f)
+}
+
 func benchmarkDecode(b *testing.B, filename string) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
