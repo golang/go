@@ -2956,7 +2956,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		case AROTL:
 			a = int(0)
 			op = OP_RLDICL
-		case AEXTSWSLI:
+		case AEXTSWSLI, AEXTSWSLICC:
 			a = int(v)
 		default:
 			c.ctxt.Diag("unexpected op in sldi case\n%v", p)

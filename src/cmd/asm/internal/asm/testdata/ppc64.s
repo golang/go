@@ -228,6 +228,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADD R3, R4, R5                  // 7ca41a14
 	ADDC R3, R4                     // 7c841814
 	ADDC R3, R4, R5                 // 7ca41814
+	ADDCC R3, R4, R5                // 7ca41a15
 	ADDE R3, R4                     // 7c841914
 	ADDECC R3, R4                   // 7c841915
 	ADDEV R3, R4                    // 7c841d14
@@ -257,10 +258,12 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	AND R3, R4, R5                  // 7c851838
 	ANDN R3, R4, R5                 // 7c851878
 	ANDCC R3, R4, R5                // 7c851839
+	ANDNCC R3, R4, R5               // 7c851879
 	OR R3, R4                       // 7c841b78
 	OR R3, R4, R5                   // 7c851b78
 	ORN R3, R4, R5                  // 7c851b38
 	ORCC R3, R4, R5                 // 7c851b79
+	ORNCC R3, R4, R5                // 7c851b39
 	XOR R3, R4                      // 7c841a78
 	XOR R3, R4, R5                  // 7c851a78
 	XORCC R3, R4, R5                // 7c851a79
@@ -275,6 +278,17 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	SUB R3, R4, R5                  // 7ca32050
 	SUBC R3, R4                     // 7c832010
 	SUBC R3, R4, R5                 // 7ca32010
+	SUBCC R3, R4, R5                // 7ca32051
+	SUBVCC R3, R4, R5               // 7ca32451
+	SUBCCC R3, R4, R5               // 7ca32011
+	SUBCV R3, R4, R5                // 7ca32410
+	SUBCVCC R3, R4, R5              // 7ca32411
+	SUBMEVCC R3, R4                 // 7c8305d1
+	SUBV R3, R4, R5                 // 7ca32450
+	SUBE R3, R4, R5                 // 7ca32110
+	SUBECC R3, R4, R5               // 7ca32111
+	SUBEV R3, R4, R5                // 7ca32510
+	SUBEVCC R3, R4, R5              // 7ca32511
 
 	MULLW R3, R4                    // 7c8419d6
 	MULLW R3, R4, R5                // 7ca419d6
@@ -293,6 +307,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MULLDCC R3, R4, R5              // 7ca419d3
 	MULHD R3, R4, R5                // 7ca41892
 	MULHDCC R3, R4, R5              // 7ca41893
+	MULHDU R3, R4, R5               // 7ca41812
+	MULHDUCC R3, R4, R5             // 7ca41813
 
 	MULLWV R3, R4                   // 7c841dd6
 	MULLWV R3, R4, R5               // 7ca41dd6
@@ -303,13 +319,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 
 	DIVD R3,R4                      // 7c841bd2
 	DIVD R3, R4, R5                 // 7ca41bd2
+	DIVW R3, R4                     // 7c841bd6
+	DIVW R3, R4, R5                 // 7ca41bd6
 	DIVDCC R3,R4, R5                // 7ca41bd3
+	DIVWCC R3,R4, R5                // 7ca41bd7
 	DIVDU R3, R4, R5                // 7ca41b92
+	DIVWU R3, R4, R5                // 7ca41b96
 	DIVDV R3, R4, R5                // 7ca41fd2
+	DIVWV R3, R4, R5                // 7ca41fd6
 	DIVDUCC R3, R4, R5              // 7ca41b93
+	DIVWUCC R3, R4, R5              // 7ca41b97
 	DIVDVCC R3, R4, R5              // 7ca41fd3
+	DIVWVCC R3, R4, R5              // 7ca41fd7
 	DIVDUV R3, R4, R5               // 7ca41f92
 	DIVDUVCC R3, R4, R5             // 7ca41f93
+	DIVWUVCC R3, R4, R5             // 7ca41f97
+	DIVWUV   R3, R4, R5             // 7ca41f96
 	DIVDE R3, R4, R5                // 7ca41b52
 	DIVDECC R3, R4, R5              // 7ca41b53
 	DIVDEU R3, R4, R5               // 7ca41b12
@@ -349,7 +374,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	SRDCC R3, R4                    // 7c841c37
 	ROTLW $16, R3, R4               // 5464803e
 	ROTLW R3, R4, R5                // 5c85183e
+	ROTL $16, R3, R4                // 78648000
 	EXTSWSLI $3, R4, R5             // 7c851ef4
+	EXTSWSLICC $16, R3, R4          // 7c6486f5
+	EXTSB R3, R4                    // 7c640774
+	EXTSBCC R3, R4                  // 7c640775
+	EXTSH R3, R4                    // 7c640734
+	EXTSHCC R3, R4                  // 7c640735
+	EXTSW R3, R4                    // 7c6407b4
+	EXTSWCC R3, R4                  // 7c6407b5
 	RLWMI $7, R3, $65535, R6        // 50663c3e
 	RLWMI $7, R3, $16, $31, R6      // 50663c3e
 	RLWMICC $7, R3, $65535, R6      // 50663c3f
@@ -382,6 +415,18 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	CLRLSLDI $24, R4, $2, R3        // 78831588
 	RLDCR	$1, R1, $-16, R1        // 78210ee4
 	RLDCRCC	$1, R1, $-16, R1        // 78210ee5
+	CNTLZW R3,R4                    // 7c640034
+	CNTLZWCC R3,R4                  // 7c640035
+	CNTLZD R3, R4                   // 7c640074
+	CNTLZDCC R3, R4                 // 7c640075
+	CNTTZW R3,R4                    // 7c640434
+	CNTTZWCC R3,R4                  // 7c640435
+	CNTTZD R3,R4                    // 7c640474
+	CNTTZDCC R3,R4                  // 7c640475
+	NEG R3, R4                      // 7c8300d0
+	NEGCC R3, R4                    // 7c8300d1
+	NEGV R3, R4                     // 7c8304d0
+	NEGVCC R3, R4                   // 7c8304d1
 
 	BEQ 0(PC)                       // 41820000
 	BEQ CR1,0(PC)                   // 41860000
@@ -395,6 +440,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	BLT CR5,0(PC)                   // 41940000
 	BNE 0(PC)                       // 40820000
 	BLT CR6,0(PC)                   // 41980000
+	BVC 0(PC)                       // 40830000
+	BVS 0(PC)                       // 41830000
 	JMP 8(PC)                       // 48000010
 
 	NOP
@@ -471,7 +518,20 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	SYNC                            // 7c0004ac
 	ISYNC                           // 4c00012c
 	LWSYNC                          // 7c2004ac
+	EIEIO                           // 7c0006ac
+	PTESYNC                         // 7c4004ac
+	TLBIE R3                        // 7c001a64
+	TLBIEL R3                       // 7c001a24
+	TLBSYNC                         // 7c00046c
+	HRFID                           // 4c000224
+	SLBIA                           // 7c0003e4
+	SLBIE R3                        // 7c001b64
+	SLBMFEE R3, R4                  // 7c801f26
+	SLBMFEV R3, R4                  // 7c801ea6
+	SLBMTE R3, R4                   // 7c801b24
 
+	TW $31, R0, R0                  // 7fe00008
+	TD $31, R0, R0                  // 7fe00088
 	DARN $1, R5                     // 7ca105e6
 
 	DCBF (R3)(R4)                   // 7c0418ac
@@ -540,6 +600,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FADD F1, F2                     // fc42082a
 	FADD F1, F2, F3                 // fc62082a
 	FADDCC F1, F2, F3               // fc62082b
+	FMOVDCC F1, F2                  // fc400891
 	FADDS F1, F2                    // ec42082a
 	FADDS F1, F2, F3                // ec62082a
 	FADDSCC F1, F2, F3              // ec62082b
@@ -549,6 +610,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FSUBS F1, F2                    // ec420828
 	FSUBS F1, F2, F3                // ec620828
 	FSUBCC F1, F2, F3               // fc620829
+	FSUBSCC F1, F2, F3              // ec620829
 	FMUL F1, F2                     // fc420072
 	FMUL F1, F2, F3                 // fc620072
 	FMULCC F1, F2, F3               // fc620073
@@ -561,6 +623,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FDIVS F1, F2                    // ec420824
 	FDIVS F1, F2, F3                // ec620824
 	FDIVSCC F1, F2, F3              // ec620825
+	FTDIV F1, F2, $2                // fd011100
+	FTSQRT F1, $2	                // fd000940
 	FMADD F1, F2, F3, F4            // fc8110fa
 	FMADDCC F1, F2, F3, F4          // fc8110fb
 	FMADDS F1, F2, F3, F4           // ec8110fa
@@ -580,8 +644,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FSEL F1, F2, F3, F4             // fc8110ee
 	FSELCC F1, F2, F3, F4           // fc8110ef
 	FABS F1, F2                     // fc400a10
+	FNABS F1, F2                    // fc400910
 	FABSCC F1, F2                   // fc400a11
+	FNABSCC F1, F2                  // fc400911
 	FNEG F1, F2                     // fc400850
+	FNEGCC F1, F2                   // fc400851
 	FABSCC F1, F2                   // fc400a11
 	FRSP F1, F2                     // fc400818
 	FRSPCC F1, F2                   // fc400819
@@ -674,6 +741,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VADDUBS V1, V2, V3              // 10611200
 	VADDUHS V1, V2, V3              // 10611240
 	VADDUWS V1, V2, V3              // 10611280
+	VADDSBS V1, V2, V3              // 10611300
+	VADDSHS V1, V2, V3              // 10611340
+	VADDSWS V1, V2, V3              // 10611380
+	VADDEUQM V1, V2, V3, V4         // 108110fc
+	VADDECUQ V1, V2, V3, V4         // 108110fd
 	VSUBUBM V1, V2, V3              // 10611400
 	VSUBUHM V1, V2, V3              // 10611440
 	VSUBUWM V1, V2, V3              // 10611480
@@ -690,6 +762,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VSUBEUQM V1, V2, V3, V4         // 108110fe
 	VSUBECUQ V1, V2, V3, V4         // 108110ff
 	VMULESB V1, V2, V3              // 10611308
+	VMULESW V1, V2, V3              // 10611388
 	VMULOSB V1, V2, V3              // 10611108
 	VMULEUB V1, V2, V3              // 10611208
 	VMULOUB V1, V2, V3              // 10611008
@@ -719,6 +792,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	VSRB V1, V2, V3                 // 10611204
 	VSRH V1, V2, V3                 // 10611244
 	VSRW V1, V2, V3                 // 10611284
+	VSRD V1, V2, V3                 // 106116c4
 	VSR V1, V2, V3                  // 106112c4
 	VSRO V1, V2, V3                 // 1061144c
 	VSLD V1, V2, V3                 // 106115c4
@@ -819,6 +893,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	STXVD2X VS1, (R3)(R4)           // 7c241f98
 	STXVD2X VS1, (R3)(R0)           // 7c201f98
 	STXVD2X VS1, (R3)               // 7c201f98
+	STXVW4X VS1, (R3)(R4)           // 7c241f18
+	STXVW4X VS1, (R3)(R0)           // 7c201f18
+	STXVW4X VS1, (R3)               // 7c201f18
 	STXV VS1,16(R3)                 // f4230015
 	STXV VS1,(R3)                   // f4230005
 	STXVL VS1, R3, R4               // 7c23231a
@@ -836,6 +913,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	LXSIWAX (R3)(R4), VS1           // 7c241898
 	LXSIWAX (R3)(R0), VS1           // 7c201898
 	LXSIWAX (R3), VS1               // 7c201898
+	LXSIWZX (R3)(R4), VS1           // 7c241818
+	LXSIWZX (R3)(R0), VS1           // 7c201818
+	LXSIWZX (R3), VS1               // 7c201818
 	STXSIWX VS1, (R3)(R4)           // 7c241918
 	STXSIWX VS1, (R3)(R0)           // 7c201918
 	STXSIWX VS1, (R3)               // 7c201918
@@ -854,6 +934,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MTVSRWA R4, VS31                // 7fe401a6
 	MTVSRWS R4, VS32                // 7c040327
 	MTVSRWZ R4, VS63                // 7fe401e7
+	MTFSB0 $2                       // fc40008c
+	MTFSB0CC $2                     // fc40008d
+	MTFSB1 $2                       // fc40004c
+	MTFSB1CC $2                     // fc40004d
+	XXBRQ VS0, VS1                  // f03f076c
 	XXBRD VS0, VS1                  // f037076c
 	XXBRW VS1, VS2                  // f04f0f6c
 	XXBRH VS2, VS3                  // f067176c
@@ -940,6 +1025,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVFL R1, $1                    // 7c301120
 	MOVFL R1, $128                  // 7c380120
 	MOVFL R1, $3                    // 7c203120
+	MOVMW 4(R3), R4                 // b8830004
+
 
 	// Verify supported bdnz/bdz encodings.
 	BC 16,0,0(PC)                   // BC $16, CR0LT, 0(PC) // 42000000
@@ -988,5 +1075,6 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVD XER, 4(R1)                 // 7fe102a6fbe10004
 	MOVD 4(R1), SPR(3)              // ebe100047fe303a6
 	MOVD 4(R1), XER                 // ebe100047fe103a6
+	PNOP                            // 0700000000000000
 
 	RET
