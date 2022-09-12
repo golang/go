@@ -4265,7 +4265,7 @@ to be inferred. Loosely speaking, type arguments may be omitted from "right to l
 </p>
 
 <pre>
-func apply[S ~[]E, E any](s S, f(E) E) S { … }
+func apply[S ~[]E, E any](s S, f func(E) E) S { … }
 
 f0 := apply[]                  // illegal: type argument list cannot be empty
 f1 := apply[[]int]             // type argument for S explicitly provided, type argument for E inferred
