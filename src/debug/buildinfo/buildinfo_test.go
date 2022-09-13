@@ -7,6 +7,8 @@ package buildinfo_test
 import (
 	"bytes"
 	"debug/buildinfo"
+	"debug/pe"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"internal/testenv"
@@ -241,6 +243,74 @@ func TestReadFile(t *testing.T) {
 						})
 					}
 				})
+			}
+		})
+	}
+}
+
+// TestIssue54968 is a regression test for golang.org/issue/54968.
+//
+// The cause of issue 54968 is when the first buildInfoMagic is invalid, it
+// enters an infinite loop.
+func TestIssue54968(t *testing.T) {
+	t.Parallel()
+
+	const (
+		paddingSize    = 200
+		buildInfoAlign = 16
+	)
+	buildInfoMagic := []byte("\xff Go buildinf:")
+
+	// Construct a valid PE header.
+	var buf bytes.Buffer
+
+	buf.Write([]byte{'M', 'Z'})
+	buf.Write(bytes.Repeat([]byte{0}, 0x3c-2))
+	// At location 0x3c, the stub has the file offset to the PE signature.
+	binary.Write(&buf, binary.LittleEndian, int32(0x3c+4))
+
+	buf.Write([]byte{'P', 'E', 0, 0})
+
+	binary.Write(&buf, binary.LittleEndian, pe.FileHeader{NumberOfSections: 1})
+
+	sh := pe.SectionHeader32{
+		Name:             [8]uint8{'t', 0},
+		SizeOfRawData:    uint32(paddingSize + len(buildInfoMagic)),
+		PointerToRawData: uint32(buf.Len()),
+	}
+	sh.PointerToRawData = uint32(buf.Len() + binary.Size(sh))
+
+	binary.Write(&buf, binary.LittleEndian, sh)
+
+	start := buf.Len()
+	buf.Write(bytes.Repeat([]byte{0}, paddingSize+len(buildInfoMagic)))
+	data := buf.Bytes()
+
+	if _, err := pe.NewFile(bytes.NewReader(data)); err != nil {
+		t.Fatalf("need a valid PE header for the misaligned buildInfoMagic test: %s", err)
+	}
+
+	// Place buildInfoMagic after the header.
+	for i := 1; i < paddingSize-len(buildInfoMagic); i++ {
+		// Test only misaligned buildInfoMagic.
+		if i%buildInfoAlign == 0 {
+			continue
+		}
+
+		t.Run(fmt.Sprintf("start_at_%d", i), func(t *testing.T) {
+			d := data[:start]
+			// Construct intentionally-misaligned buildInfoMagic.
+			d = append(d, bytes.Repeat([]byte{0}, i)...)
+			d = append(d, buildInfoMagic...)
+			d = append(d, bytes.Repeat([]byte{0}, paddingSize-i)...)
+
+			_, err := buildinfo.Read(bytes.NewReader(d))
+
+			wantErr := "not a Go executable"
+			if err == nil {
+				t.Errorf("got error nil; want error containing %q", wantErr)
+			} else if errMsg := err.Error(); !strings.Contains(errMsg, wantErr) {
+				t.Errorf("got error %q; want error containing %q", errMsg, wantErr)
 			}
 		})
 	}
