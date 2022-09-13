@@ -287,7 +287,7 @@ func TestIssue54968(t *testing.T) {
 	data := buf.Bytes()
 
 	if _, err := pe.NewFile(bytes.NewReader(data)); err != nil {
-		t.Skipf("skipping invalid PE header: %s", err)
+		t.Fatalf("need a valid PE header for the misaligned buildInfoMagic test: %s", err)
 	}
 
 	// Place buildInfoMagic after the header.
