@@ -2435,6 +2435,10 @@ func Entryvalue(ctxt *Link) int64 {
 	}
 	ldr := ctxt.loader
 	s := ldr.Lookup(a, 0)
+	if s == 0 {
+		Errorf(nil, "missing entry symbol %q", a)
+		return 0
+	}
 	st := ldr.SymType(s)
 	if st == 0 {
 		return *FlagTextAddr
