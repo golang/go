@@ -15,7 +15,7 @@ package main
 extern void* callbackTraceParser(void*);
 typedef void* (*cbTraceParser)(void*);
 
-static void testCallbackTraceParser(cb cb) {
+static void testCallbackTraceParser(cbTraceParser cb) {
 	pthread_t thread_id;
 	pthread_create(&thread_id, NULL, cb, NULL);
 	pthread_join(thread_id, NULL);
