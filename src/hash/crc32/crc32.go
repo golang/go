@@ -128,8 +128,9 @@ func MakeTable(poly uint32) *Table {
 	case Castagnoli:
 		castagnoliOnce.Do(castagnoliInit)
 		return castagnoliTable
+	default:
+		return simpleMakeTable(poly)
 	}
-	return simpleMakeTable(poly)
 }
 
 // digest represents the partial evaluation of a checksum.
