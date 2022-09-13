@@ -3245,10 +3245,14 @@ func (v Value) CanConvert(t Type) bool {
 	if !vt.ConvertibleTo(t) {
 		return false
 	}
-	// Currently the only conversion that is OK in terms of type
-	// but that can panic depending on the value is converting
-	// from slice to pointer-to-array.
-	if vt.Kind() == Slice && t.Kind() == Pointer && t.Elem().Kind() == Array {
+	// Converting from slice to array or to pointer-to-array can panic
+	// depending on the value.
+	switch {
+	case vt.Kind() == Slice && t.Kind() == Array:
+		if t.Len() > v.Len() {
+			return false
+		}
+	case vt.Kind() == Slice && t.Kind() == Pointer && t.Elem().Kind() == Array:
 		n := t.Elem().Len()
 		if n > v.Len() {
 			return false
@@ -3400,6 +3404,11 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 		// and the slice and array types have identical element types."
 		if dst.Kind() == Pointer && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
 			return cvtSliceArrayPtr
+		}
+		// "x is a slice, T is a array type,
+		// and the slice and array types have identical element types."
+		if dst.Kind() == Array && src.Elem() == dst.Elem() {
+			return cvtSliceArray
 		}
 
 	case Chan:
@@ -3602,6 +3611,22 @@ func cvtSliceArrayPtr(v Value, t Type) Value {
 	}
 	h := (*unsafeheader.Slice)(v.ptr)
 	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Pointer)}
+}
+
+// convertOp: []T -> [N]T
+func cvtSliceArray(v Value, t Type) Value {
+	n := t.Len()
+	if n > v.Len() {
+		panic("reflect: cannot convert slice with length " + itoa.Itoa(v.Len()) + " to array with length " + itoa.Itoa(n))
+	}
+	h := (*unsafeheader.Slice)(v.ptr)
+	typ := t.common()
+	ptr := h.Data
+	c := unsafe_New(typ)
+	typedmemmove(typ, c, ptr)
+	ptr = c
+
+	return Value{typ, ptr, v.flag&^(flagAddr|flagKindMask) | flag(Array)}
 }
 
 // convertOp: direct copy

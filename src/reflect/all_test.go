@@ -4323,6 +4323,25 @@ var convertTests = []struct {
 	{V(MyString("runes♝")), V(MyRunes("runes♝"))},
 	{V(MyRunes("runes♕")), V(MyString("runes♕"))},
 
+	// slice to array
+	{V([]byte(nil)), V([0]byte{})},
+	{V([]byte{}), V([0]byte{})},
+	{V([]byte{1}), V([1]byte{1})},
+	{V([]byte{1, 2}), V([2]byte{1, 2})},
+	{V([]byte{1, 2, 3}), V([3]byte{1, 2, 3})},
+	{V(MyBytes([]byte(nil))), V([0]byte{})},
+	{V(MyBytes{}), V([0]byte{})},
+	{V(MyBytes{1}), V([1]byte{1})},
+	{V(MyBytes{1, 2}), V([2]byte{1, 2})},
+	{V(MyBytes{1, 2, 3}), V([3]byte{1, 2, 3})},
+	{V([]byte(nil)), V(MyBytesArray0{})},
+	{V([]byte{}), V(MyBytesArray0([0]byte{}))},
+	{V([]byte{1, 2, 3, 4}), V(MyBytesArray([4]byte{1, 2, 3, 4}))},
+	{V(MyBytes{}), V(MyBytesArray0([0]byte{}))},
+	{V(MyBytes{5, 6, 7, 8}), V(MyBytesArray([4]byte{5, 6, 7, 8}))},
+	{V([]MyByte{}), V([0]MyByte{})},
+	{V([]MyByte{1, 2}), V([2]MyByte{1, 2})},
+
 	// slice to array pointer
 	{V([]byte(nil)), V((*[0]byte)(nil))},
 	{V([]byte{}), V(new([0]byte))},
@@ -4399,6 +4418,8 @@ var convertTests = []struct {
 	// cannot convert mismatched array sizes
 	{V([2]byte{}), V([2]byte{})},
 	{V([3]byte{}), V([3]byte{})},
+	{V(MyBytesArray0{}), V([0]byte{})},
+	{V([0]byte{}), V(MyBytesArray0{})},
 
 	// cannot convert other instances
 	{V((**byte)(nil)), V((**byte)(nil))},
@@ -4574,6 +4595,34 @@ func TestConvertPanic(t *testing.T) {
 	shouldPanic("reflect: cannot convert slice with length 4 to pointer to array with length 8", func() {
 		_ = v.Convert(pt)
 	})
+
+	if v.CanConvert(pt.Elem()) {
+		t.Errorf("slice with length 4 should not be convertible to [8]byte")
+	}
+	shouldPanic("reflect: cannot convert slice with length 4 to array with length 8", func() {
+		_ = v.Convert(pt.Elem())
+	})
+}
+
+func TestConvertSlice2Array(t *testing.T) {
+	s := make([]int, 4)
+	p := [4]int{}
+	pt := TypeOf(p)
+	ov := ValueOf(s)
+	v := ov.Convert(pt)
+	// Converting a slice to non-empty array needs to return
+	// a non-addressable copy of the original memory.
+	if v.CanAddr() {
+		t.Fatalf("convert slice to non-empty array returns a addressable copy array")
+	}
+	for i := range s {
+		ov.Index(i).Set(ValueOf(i + 1))
+	}
+	for i := range s {
+		if v.Index(i).Int() != 0 {
+			t.Fatalf("slice (%v) mutation visible in converted result (%v)", ov, v)
+		}
+	}
 }
 
 var gFloat32 float32
