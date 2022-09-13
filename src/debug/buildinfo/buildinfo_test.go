@@ -261,7 +261,7 @@ func TestIssue54968(t *testing.T) {
 	)
 	buildInfoMagic := []byte("\xff Go buildinf:")
 
-	// to construct a valid PE header
+	// Construct a valid PE header.
 	var buf bytes.Buffer
 
 	buf.Write([]byte{'M', 'Z'})
@@ -282,20 +282,24 @@ func TestIssue54968(t *testing.T) {
 
 	binary.Write(&buf, binary.LittleEndian, sh)
 
-	// to place buildInfoMagic after the header
 	start := buf.Len()
 	buf.Write(bytes.Repeat([]byte{0}, paddingSize+len(buildInfoMagic)))
 	data := buf.Bytes()
 
+	if _, err := pe.NewFile(bytes.NewReader(data)); err != nil {
+		t.Skipf("skipping invalid PE header: %s", err)
+	}
+
+	// Place buildInfoMagic after the header.
 	for i := 1; i < paddingSize-len(buildInfoMagic); i++ {
-		// just test the case that the buildInfoMagic is not started at
-		// multiple of buildInfoAlign
+		// Test only misaligned buildInfoMagic.
 		if i%buildInfoAlign == 0 {
 			continue
 		}
 
 		t.Run(fmt.Sprintf("start_at_%d", i), func(t *testing.T) {
 			d := data[:start]
+			// Construct intentionally-misaligned buildInfoMagic.
 			d = append(d, bytes.Repeat([]byte{0}, i)...)
 			d = append(d, buildInfoMagic...)
 			d = append(d, bytes.Repeat([]byte{0}, paddingSize-i)...)
