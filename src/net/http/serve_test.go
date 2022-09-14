@@ -5872,23 +5872,23 @@ func TestServerCancelsReadHeaderTimeoutWhenIdle(t *testing.T) {
 		defer conn.Close()
 
 		if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")); err != nil {
-			t.Fatalf("writing first request failed: %v", err)
+			return fmt.Errorf("writing first request failed: %v", err)
 		}
 
 		if _, err := ReadResponse(br, nil); err != nil {
-			t.Fatalf("first response (before timeout) failed: %v", err)
+			return fmt.Errorf("first response (before timeout) failed: %v", err)
 		}
 
 		// wait for longer than the server's ReadHeaderTimeout, and then send
 		// another request
-		time.Sleep(timeout + 10*time.Millisecond)
+		time.Sleep(timeout * 3 / 2)
 
 		if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")); err != nil {
-			t.Fatalf("writing second request failed: %v", err)
+			return fmt.Errorf("writing second request failed: %v", err)
 		}
 
 		if _, err := ReadResponse(br, nil); err != nil {
-			t.Fatalf("second response (after timeout) failed: %v", err)
+			return fmt.Errorf("second response (after timeout) failed: %v", err)
 		}
 
 		return nil
