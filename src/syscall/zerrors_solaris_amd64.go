@@ -276,7 +276,6 @@ const (
 	F_CHKFL                       = 0x8
 	F_COMPAT                      = 0x8
 	F_DUP2FD                      = 0x9
-	F_DUP2FD_CLOEXEC              = 0x24
 	F_DUPFD                       = 0x0
 	F_DUPFD_CLOEXEC               = 0x25
 	F_FREESP                      = 0xb

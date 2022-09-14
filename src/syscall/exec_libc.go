@@ -199,7 +199,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
 		switch runtime.GOOS {
-		case "illumos":
+		case "illumos", "solaris":
 			_, err1 = fcntl1(uintptr(pipe), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
 		default:
 			_, err1 = dup2child(uintptr(pipe), uintptr(nextfd))
@@ -220,7 +220,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 				nextfd++
 			}
 			switch runtime.GOOS {
-			case "illumos":
+			case "illumos", "solaris":
 				_, err1 = fcntl1(uintptr(fd[i]), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
 			default:
 				_, err1 = dup2child(uintptr(fd[i]), uintptr(nextfd))
