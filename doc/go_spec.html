@@ -3934,6 +3934,9 @@ var a [10]int
 s1 := a[3:7]   // underlying array of s1 is array a; &amp;s1[2] == &amp;a[5]
 s2 := s1[1:4]  // underlying array of s2 is underlying array of s1 which is array a; &amp;s2[1] == &amp;a[5]
 s2[1] = 42     // s2[1] == s1[2] == a[5] == 42; they all refer to the same underlying array element
+
+var s []int
+s3 := s[:0]    // s3 == nil
 </pre>
 
 
