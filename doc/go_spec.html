@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 8, 2022",
+	"Subtitle": "Version of September 21, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -5542,10 +5542,10 @@ a <a href="#Run_time_panics">run-time panic</a> occurs.
 <pre>
 s := make([]byte, 2, 4)
 
-a0 := ([0]byte)(s)
-a1 := ([1]byte)(s[1:])   // a1[0] == s[1]
-a2 := ([2]byte)(s)       // a2[0] == s[0]
-a4 := ([4]byte)(s)       // panics: len([4]byte) > len(s)
+a0 := [0]byte(s)
+a1 := [1]byte(s[1:])     // a1[0] == s[1]
+a2 := [2]byte(s)         // a2[0] == s[0]
+a4 := [4]byte(s)         // panics: len([4]byte) > len(s)
 
 s0 := (*[0]byte)(s)      // s0 != nil
 s1 := (*[1]byte)(s[1:])  // &amp;s1[0] == &amp;s[1]
@@ -5553,8 +5553,9 @@ s2 := (*[2]byte)(s)      // &amp;s2[0] == &amp;s[0]
 s4 := (*[4]byte)(s)      // panics: len([4]byte) > len(s)
 
 var t []string
-t0 := (*[0]string)(t)    // t0 == nil
-t1 := (*[1]string)(t)    // panics: len([1]string) > len(t)
+t0 := [0]string(t)       // ok for nil slice t
+t1 := (*[0]string)(t)    // t1 == nil
+t2 := (*[1]string)(t)    // panics: len([1]string) > len(t)
 
 u := make([]byte, 0)
 u0 := (*[0]byte)(u)      // u0 != nil
