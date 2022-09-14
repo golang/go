@@ -1324,7 +1324,6 @@ func (ctxt *Link) hostlink() {
 		if ctxt.HeadType == objabi.Hdarwin {
 			if machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64() {
 				argv = append(argv, "-Wl,-no_pie")
-				argv = append(argv, "-Wl,-pagezero_size,4000000")
 			}
 		}
 	case BuildModePIE:
