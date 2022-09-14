@@ -1826,6 +1826,14 @@ func isCommonNetReadError(err error) bool {
 	return false
 }
 
+type tlsConn interface {
+	net.Conn
+	ConnectionState() tls.ConnectionState
+	HandshakeContext(ctx context.Context) error
+}
+
+var _ tlsConn = &tls.Conn{}
+
 // Serve a new connection.
 func (c *conn) serve(ctx context.Context) {
 	c.remoteAddr = c.rwc.RemoteAddr().String()
@@ -1851,7 +1859,7 @@ func (c *conn) serve(ctx context.Context) {
 		}
 	}()
 
-	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
+	if tlsConn, ok := c.rwc.(tlsConn); ok {
 		tlsTO := c.server.tlsHandshakeTimeout()
 		if tlsTO > 0 {
 			dl := time.Now().Add(tlsTO)
@@ -1884,7 +1892,11 @@ func (c *conn) serve(ctx context.Context) {
 				// from being run on these connections. This prevents closeIdleConns from
 				// closing such connections. See issue https://golang.org/issue/39776.
 				c.setState(c.rwc, StateActive, skipHooks)
-				fn(c.server, tlsConn, h)
+				if realTLSConn, ok := c.rwc.(*tls.Conn); ok {
+					fn(c.server, realTLSConn, h)
+				} else if proto == http2NextProtoTLS {
+					c.server.h2ProtoHandler(c.server, tlsConn, h)
+				}
 			}
 			return
 		}
@@ -2691,6 +2703,8 @@ type Server struct {
 	onShutdown []func()
 
 	listenerGroup sync.WaitGroup
+
+	h2ProtoHandler func(hs *Server, c tlsConn, h Handler)
 }
 
 // Close immediately closes all active net.Listeners and any
@@ -3502,7 +3516,7 @@ func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
 // Requests come from ALPN protocol handlers.
 type initALPNRequest struct {
 	ctx context.Context
-	c   *tls.Conn
+	c   tlsConn
 	h   serverHandler
 }
 
