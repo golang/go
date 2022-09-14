@@ -14,6 +14,7 @@
 package adler32
 
 import (
+	"encoding/binary"
 	"errors"
 	"hash"
 )
@@ -75,18 +76,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 }
 
 func appendUint32(b []byte, x uint32) []byte {
-	a := [4]byte{
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
-	return append(b, a[:]...)
+	return binary.BigEndian.AppendUint32(b, x)
 }
 
 func readUint32(b []byte) uint32 {
-	_ = b[3]
-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+	return binary.BigEndian.Uint32(b)
 }
 
 // Add p to the running checksum d.

@@ -13,6 +13,7 @@
 package crc32
 
 import (
+	"encoding/binary"
 	"errors"
 	"hash"
 	"sync"
@@ -191,18 +192,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 }
 
 func appendUint32(b []byte, x uint32) []byte {
-	a := [4]byte{
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
-	return append(b, a[:]...)
+	return binary.BigEndian.AppendUint32(b, x)
 }
 
 func readUint32(b []byte) uint32 {
-	_ = b[3]
-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+	return binary.BigEndian.Uint32(b)
 }
 
 // Update returns the result of adding the bytes in p to the crc.
@@ -238,7 +232,7 @@ func (d *digest) Sum32() uint32 { return d.crc }
 
 func (d *digest) Sum(in []byte) []byte {
 	s := d.Sum32()
-	return append(in, byte(s>>24), byte(s>>16), byte(s>>8), byte(s))
+	return binary.BigEndian.AppendUint32(in, s)
 }
 
 // Checksum returns the CRC-32 checksum of data

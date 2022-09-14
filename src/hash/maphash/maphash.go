@@ -13,6 +13,7 @@
 package maphash
 
 import (
+	"encoding/binary"
 	"unsafe"
 )
 
@@ -290,15 +291,7 @@ func runtime_memhash(p unsafe.Pointer, seed, s uintptr) uintptr
 // For direct calls, it is more efficient to use Sum64.
 func (h *Hash) Sum(b []byte) []byte {
 	x := h.Sum64()
-	return append(b,
-		byte(x>>0),
-		byte(x>>8),
-		byte(x>>16),
-		byte(x>>24),
-		byte(x>>32),
-		byte(x>>40),
-		byte(x>>48),
-		byte(x>>56))
+	return binary.LittleEndian.AppendUint64(b, x)
 }
 
 // Size returns h's hash value size, 8 bytes.

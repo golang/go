@@ -8,6 +8,7 @@
 package crc64
 
 import (
+	"encoding/binary"
 	"errors"
 	"hash"
 	"sync"
@@ -133,23 +134,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 }
 
 func appendUint64(b []byte, x uint64) []byte {
-	a := [8]byte{
-		byte(x >> 56),
-		byte(x >> 48),
-		byte(x >> 40),
-		byte(x >> 32),
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
-	return append(b, a[:]...)
+	return binary.BigEndian.AppendUint64(b, x)
 }
 
 func readUint64(b []byte) uint64 {
-	_ = b[7]
-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+	return binary.BigEndian.Uint64(b)
 }
 
 func update(crc uint64, tab *Table, p []byte) uint64 {
@@ -204,7 +193,7 @@ func (d *digest) Sum64() uint64 { return d.crc }
 
 func (d *digest) Sum(in []byte) []byte {
 	s := d.Sum64()
-	return append(in, byte(s>>56), byte(s>>48), byte(s>>40), byte(s>>32), byte(s>>24), byte(s>>16), byte(s>>8), byte(s))
+	return binary.BigEndian.AppendUint64(in, s)
 }
 
 // Checksum returns the CRC-64 checksum of data

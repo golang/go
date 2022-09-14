@@ -13,6 +13,7 @@
 package fnv
 
 import (
+	"encoding/binary"
 	"errors"
 	"hash"
 	"math/bits"
@@ -178,36 +179,32 @@ func (s *sum128a) BlockSize() int { return 1 }
 
 func (s *sum32) Sum(in []byte) []byte {
 	v := uint32(*s)
-	return append(in, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return binary.BigEndian.AppendUint32(in, v)
 }
 
 func (s *sum32a) Sum(in []byte) []byte {
 	v := uint32(*s)
-	return append(in, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return binary.BigEndian.AppendUint32(in, v)
 }
 
 func (s *sum64) Sum(in []byte) []byte {
 	v := uint64(*s)
-	return append(in, byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return binary.BigEndian.AppendUint64(in, v)
 }
 
 func (s *sum64a) Sum(in []byte) []byte {
 	v := uint64(*s)
-	return append(in, byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return binary.BigEndian.AppendUint64(in, v)
 }
 
 func (s *sum128) Sum(in []byte) []byte {
-	return append(in,
-		byte(s[0]>>56), byte(s[0]>>48), byte(s[0]>>40), byte(s[0]>>32), byte(s[0]>>24), byte(s[0]>>16), byte(s[0]>>8), byte(s[0]),
-		byte(s[1]>>56), byte(s[1]>>48), byte(s[1]>>40), byte(s[1]>>32), byte(s[1]>>24), byte(s[1]>>16), byte(s[1]>>8), byte(s[1]),
-	)
+	in = binary.BigEndian.AppendUint64(in, s[0])
+	return binary.BigEndian.AppendUint64(in, s[1])
 }
 
 func (s *sum128a) Sum(in []byte) []byte {
-	return append(in,
-		byte(s[0]>>56), byte(s[0]>>48), byte(s[0]>>40), byte(s[0]>>32), byte(s[0]>>24), byte(s[0]>>16), byte(s[0]>>8), byte(s[0]),
-		byte(s[1]>>56), byte(s[1]>>48), byte(s[1]>>40), byte(s[1]>>32), byte(s[1]>>24), byte(s[1]>>16), byte(s[1]>>8), byte(s[1]),
-	)
+	in = binary.BigEndian.AppendUint64(in, s[0])
+	return binary.BigEndian.AppendUint64(in, s[1])
 }
 
 const (
@@ -336,36 +333,17 @@ func (s *sum128a) UnmarshalBinary(b []byte) error {
 }
 
 func readUint32(b []byte) uint32 {
-	_ = b[3]
-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+	return binary.BigEndian.Uint32(b)
 }
 
 func appendUint32(b []byte, x uint32) []byte {
-	a := [4]byte{
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
-	return append(b, a[:]...)
+	return binary.BigEndian.AppendUint32(b, x)
 }
 
 func appendUint64(b []byte, x uint64) []byte {
-	a := [8]byte{
-		byte(x >> 56),
-		byte(x >> 48),
-		byte(x >> 40),
-		byte(x >> 32),
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
-	return append(b, a[:]...)
+	return binary.BigEndian.AppendUint64(b, x)
 }
 
 func readUint64(b []byte) uint64 {
-	_ = b[7]
-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+	return binary.BigEndian.Uint64(b)
 }
