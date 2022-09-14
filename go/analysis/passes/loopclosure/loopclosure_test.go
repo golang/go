@@ -5,8 +5,10 @@
 package loopclosure_test
 
 import (
-	"golang.org/x/tools/internal/typeparams"
 	"testing"
+
+	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/typeparams"
 
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/passes/loopclosure"
@@ -19,4 +21,12 @@ func Test(t *testing.T) {
 		tests = append(tests, "typeparams")
 	}
 	analysistest.Run(t, testdata, loopclosure.Analyzer, tests...)
+
+	// Enable checking of parallel subtests.
+	defer func(parallelSubtest bool) {
+		analysisinternal.LoopclosureParallelSubtests = parallelSubtest
+	}(analysisinternal.LoopclosureParallelSubtests)
+	analysisinternal.LoopclosureParallelSubtests = true
+
+	analysistest.Run(t, testdata, loopclosure.Analyzer, "subtests")
 }

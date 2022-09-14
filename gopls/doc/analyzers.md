@@ -218,11 +218,15 @@ inferred from function arguments, or from other type arguments:
 
 check references to loop variables from within nested functions
 
-This analyzer checks for references to loop variables from within a
-function literal inside the loop body. It checks only instances where
-the function literal is called in a defer or go statement that is the
-last statement in the loop body, as otherwise we would need whole
-program analysis.
+This analyzer checks for references to loop variables from within a function
+literal inside the loop body. It checks for patterns where access to a loop
+variable is known to escape the current loop iteration:
+ 1. a call to go or defer at the end of the loop body
+ 2. a call to golang.org/x/sync/errgroup.Group.Go at the end of the loop body
+
+The analyzer only considers references in the last statement of the loop body
+as it is not deep enough to understand the effects of subsequent statements
+which might render the reference benign.
 
 For example:
 

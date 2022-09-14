@@ -6,7 +6,9 @@
 
 package testdata
 
-import "golang.org/x/sync/errgroup"
+import (
+	"golang.org/x/sync/errgroup"
+)
 
 func _() {
 	var s []int
@@ -91,9 +93,9 @@ func _() {
 	}
 }
 
-// Group is used to test that loopclosure does not match on any type named "Group".
-// The checker only matches on methods "(*...errgroup.Group).Go".
-type Group struct{};
+// Group is used to test that loopclosure only matches Group.Go when Group is
+// from the golang.org/x/sync/errgroup package.
+type Group struct{}
 
 func (g *Group) Go(func() error) {}
 
