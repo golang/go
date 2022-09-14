@@ -594,6 +594,7 @@ const (
 	MAP_ALIGN                     = 0x200
 	MAP_ANON                      = 0x100
 	MAP_ANONYMOUS                 = 0x100
+	MAP_FILE                      = 0x0
 	MAP_FIXED                     = 0x10
 	MAP_INITDATA                  = 0x800
 	MAP_NORESERVE                 = 0x40
