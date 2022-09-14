@@ -558,6 +558,12 @@ func (e *ValueError) Error() string {
 // It panics if src is not an Uint8Array or Uint8ClampedArray.
 // It returns the number of bytes copied, which will be the minimum of the lengths of src and dst.
 func CopyBytesToGo(dst []byte, src Value) int {
+	// Avoid host function call overhead when len == zero.
+	// This is needed because js returns zero instead of io.EOF.
+	if len(dst) == 0 {
+		return 0
+	}
+
 	n, ok := copyBytesToGo(dst, src.ref)
 	runtime.KeepAlive(src)
 	if !ok {
