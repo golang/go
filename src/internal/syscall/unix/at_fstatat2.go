@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build linux && loong64
+//go:build freebsd || (linux && loong64)
 
 package unix
 
-import (
-	"syscall"
-)
+import "syscall"
 
 func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
 	return syscall.Fstatat(dirfd, path, stat, flags)
