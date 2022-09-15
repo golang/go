@@ -12,7 +12,6 @@ import (
 )
 
 func Unlinkat(dirfd int, path string, flags int) error {
-	var p *byte
 	p, err := syscall.BytePtrFromString(path)
 	if err != nil {
 		return err
@@ -27,7 +26,6 @@ func Unlinkat(dirfd int, path string, flags int) error {
 }
 
 func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
-	var p *byte
 	p, err := syscall.BytePtrFromString(path)
 	if err != nil {
 		return 0, err
