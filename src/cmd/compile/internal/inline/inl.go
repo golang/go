@@ -381,6 +381,15 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 	case ir.OAPPEND:
 		v.budget -= inlineExtraAppendCost
 
+	case ir.OADDR:
+		n := n.(*ir.AddrExpr)
+		// Make "&s.f" cost 0 when f's offset is zero.
+		if dot, ok := n.X.(*ir.SelectorExpr); ok && (dot.Op() == ir.ODOT || dot.Op() == ir.ODOTPTR) {
+			if _, ok := dot.X.(*ir.Name); ok && dot.Selection.Offset == 0 {
+				v.budget += 2 // undo ir.OADDR+ir.ODOT/ir.ODOTPTR
+			}
+		}
+
 	case ir.ODEREF:
 		// *(*X)(unsafe.Pointer(&x)) is low-cost
 		n := n.(*ir.StarExpr)
