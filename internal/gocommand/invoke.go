@@ -276,18 +276,21 @@ func runCmdContext(ctx context.Context, cmd *exec.Cmd) error {
 		return err
 	case <-time.After(time.Second):
 	}
+
 	// Didn't shut down in response to interrupt. Kill it hard.
+	// TODO(rfindley): per advice from bcmills@, it may be better to send SIGQUIT
+	// on certain platforms, such as unix.
 	if err := cmd.Process.Kill(); err != nil && DebugHangingGoCommands {
 		// Don't panic here as this reliably fails on windows with EINVAL.
 		log.Printf("error killing the Go command: %v", err)
 	}
 
-	// See above: only wait for a minute if we're debugging hanging Go commands.
+	// See above: don't wait indefinitely if we're debugging hanging Go commands.
 	if DebugHangingGoCommands {
 		select {
 		case err := <-resChan:
 			return err
-		case <-time.After(1 * time.Minute):
+		case <-time.After(10 * time.Second): // a shorter wait as resChan should return quickly following Kill
 			HandleHangingGoCommand()
 		}
 	}
