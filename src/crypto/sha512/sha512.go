@@ -153,17 +153,17 @@ func (d *digest) MarshalBinary() ([]byte, error) {
 	default:
 		return nil, errors.New("crypto/sha512: invalid hash function")
 	}
-	b = appendUint64(b, d.h[0])
-	b = appendUint64(b, d.h[1])
-	b = appendUint64(b, d.h[2])
-	b = appendUint64(b, d.h[3])
-	b = appendUint64(b, d.h[4])
-	b = appendUint64(b, d.h[5])
-	b = appendUint64(b, d.h[6])
-	b = appendUint64(b, d.h[7])
+	b = binary.BigEndian.AppendUint64(b, d.h[0])
+	b = binary.BigEndian.AppendUint64(b, d.h[1])
+	b = binary.BigEndian.AppendUint64(b, d.h[2])
+	b = binary.BigEndian.AppendUint64(b, d.h[3])
+	b = binary.BigEndian.AppendUint64(b, d.h[4])
+	b = binary.BigEndian.AppendUint64(b, d.h[5])
+	b = binary.BigEndian.AppendUint64(b, d.h[6])
+	b = binary.BigEndian.AppendUint64(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
 	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
-	b = appendUint64(b, d.len)
+	b = binary.BigEndian.AppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -195,12 +195,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	b, d.len = consumeUint64(b)
 	d.nx = int(d.len % chunk)
 	return nil
-}
-
-func appendUint64(b []byte, x uint64) []byte {
-	var a [8]byte
-	binary.BigEndian.PutUint64(a[:], x)
-	return append(b, a[:]...)
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
