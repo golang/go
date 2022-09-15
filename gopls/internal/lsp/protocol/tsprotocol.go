@@ -297,7 +297,7 @@ type CodeAction struct { // line 5401
 	 *
 	 * @since 3.16.0
 	 */
-	Disabled PDisabledMsg_textDocument_codeAction `json:"disabled,omitempty"`
+	Disabled *PDisabledMsg_textDocument_codeAction `json:"disabled,omitempty"`
 	// The workspace edit this code action performs.
 	Edit WorkspaceEdit `json:"edit,omitempty"`
 	/*
