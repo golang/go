@@ -481,7 +481,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 	shstr := f.Sections[shstrndx]
 	if shstr.Type != SHT_STRTAB {
-		return nil, &FormatError{0, "invalid (pointing to non SHT_STRTAB section) ELF shstrndx", shstrndx}
+		return nil, &FormatError{shoff + int64(shstrndx*shentsize), "invalid ELF section name string table type", shstr.Type}
 	}
 	shstrtab, err := shstr.Data()
 	if err != nil {
