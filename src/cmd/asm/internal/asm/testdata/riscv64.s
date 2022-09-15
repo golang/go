@@ -354,6 +354,14 @@ start:
 	MOVD	F0, 4(X5)				// 27b20200
 	MOVD	F0, F1					// d3000022
 
+	// TLS load with local-exec (LUI + ADDIW + ADD of TP + load)
+	MOV	tls(SB), X5				// b70f00009b8f0f00b38f4f0083b20f00
+	MOVB	tls(SB), X5				// b70f00009b8f0f00b38f4f0083820f00
+
+	// TLS store with local-exec (LUI + ADDIW + ADD of TP + store)
+	MOV	X5, tls(SB)				// b70f00009b8f0f00b38f4f0023b05f00
+	MOVB	X5, tls(SB)				// b70f00009b8f0f00b38f4f0023805f00
+
 	// NOT pseudo-instruction
 	NOT	X5					// 93c2f2ff
 	NOT	X5, X6					// 13c3f2ff
@@ -407,3 +415,5 @@ start:
 	FLTD	F0, F1, X5				// d39200a2
 	FLED	F0, F1, X5				// d38200a2
 	FEQD	F0, F1, X5				// d3a200a2
+
+GLOBL tls(SB), TLSBSS, $8

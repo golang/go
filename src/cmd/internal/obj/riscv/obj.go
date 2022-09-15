@@ -1827,6 +1827,53 @@ func instructionsForStore(p *obj.Prog, as obj.As, rd int16) []*instruction {
 	return []*instruction{insLUI, insADD, ins}
 }
 
+func instructionsForTLS(p *obj.Prog, ins *instruction) []*instruction {
+	insAddTP := &instruction{as: AADD, rd: REG_TMP, rs1: REG_TMP, rs2: REG_TP}
+
+	var inss []*instruction
+	if p.Ctxt.Flag_shared {
+		// TLS initial-exec mode - load TLS offset from GOT, add the thread pointer
+		// register, then load from or store to the resulting memory location.
+		insAUIPC := &instruction{as: AAUIPC, rd: REG_TMP}
+		insLoadTLSOffset := &instruction{as: ALD, rd: REG_TMP, rs1: REG_TMP}
+		inss = []*instruction{insAUIPC, insLoadTLSOffset, insAddTP, ins}
+	} else {
+		// TLS local-exec mode - load upper TLS offset, add the lower TLS offset,
+		// add the thread pointer register, then load from or store to the resulting
+		// memory location. Note that this differs from the suggested three
+		// instruction sequence, as the Go linker does not currently have an
+		// easy way to handle relocation across 12 bytes of machine code.
+		insLUI := &instruction{as: ALUI, rd: REG_TMP}
+		insADDIW := &instruction{as: AADDIW, rd: REG_TMP, rs1: REG_TMP}
+		inss = []*instruction{insLUI, insADDIW, insAddTP, ins}
+	}
+	return inss
+}
+
+func instructionsForTLSLoad(p *obj.Prog) []*instruction {
+	if p.From.Sym.Type != objabi.STLSBSS {
+		p.Ctxt.Diag("%v: %v is not a TLS symbol", p, p.From.Sym)
+		return nil
+	}
+
+	ins := instructionForProg(p)
+	ins.as, ins.rs1, ins.rs2, ins.imm = movToLoad(p.As), REG_TMP, obj.REG_NONE, 0
+
+	return instructionsForTLS(p, ins)
+}
+
+func instructionsForTLSStore(p *obj.Prog) []*instruction {
+	if p.To.Sym.Type != objabi.STLSBSS {
+		p.Ctxt.Diag("%v: %v is not a TLS symbol", p, p.To.Sym)
+		return nil
+	}
+
+	ins := instructionForProg(p)
+	ins.as, ins.rd, ins.rs1, ins.rs2, ins.imm = movToStore(p.As), REG_TMP, uint32(p.From.Reg), obj.REG_NONE, 0
+
+	return instructionsForTLS(p, ins)
+}
+
 // instructionsForMOV returns the machine instructions for an *obj.Prog that
 // uses a MOV pseudo-instruction.
 func instructionsForMOV(p *obj.Prog) []*instruction {
@@ -1939,6 +1986,10 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			inss = instructionsForLoad(p, movToLoad(p.As), addrToReg(p.From))
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			if p.From.Sym.Type == objabi.STLSBSS {
+				return instructionsForTLSLoad(p)
+			}
+
 			// Note that the values for $off_hi and $off_lo are currently
 			// zero and will be assigned during relocation.
 			//
@@ -1966,6 +2017,10 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			inss = instructionsForStore(p, movToStore(p.As), addrToReg(p.To))
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			if p.To.Sym.Type == objabi.STLSBSS {
+				return instructionsForTLSStore(p)
+			}
+
 			// Note that the values for $off_hi and $off_lo are currently
 			// zero and will be assigned during relocation.
 			//
@@ -2244,10 +2299,10 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 			if addr.Sym.Type == objabi.STLSBSS {
-				if rt == objabi.R_RISCV_PCREL_ITYPE {
-					rt = objabi.R_RISCV_TLS_IE_ITYPE
-				} else if rt == objabi.R_RISCV_PCREL_STYPE {
-					rt = objabi.R_RISCV_TLS_IE_STYPE
+				if ctxt.Flag_shared {
+					rt = objabi.R_RISCV_TLS_IE
+				} else {
+					rt = objabi.R_RISCV_TLS_LE
 				}
 			}
 
