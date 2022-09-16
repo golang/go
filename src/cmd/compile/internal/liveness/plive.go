@@ -434,7 +434,7 @@ func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, loc
 				if node.FrameOffset() < 0 {
 					lv.f.Fatalf("Node %v has frameoffset %d\n", node.Sym().Name, node.FrameOffset())
 				}
-				typebits.Set(node.Type(), node.FrameOffset(), args)
+				typebits.SetNoCheck(node.Type(), node.FrameOffset(), args)
 				break
 			}
 			fallthrough // PPARAMOUT in registers acts memory-allocates like an AUTO
@@ -1507,7 +1507,7 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
 	bv := bitvec.New(int32(nptr) * 2)
 
 	for _, p := range abiInfo.InParams() {
-		typebits.Set(p.Type, p.FrameOffset(abiInfo), bv)
+		typebits.SetNoCheck(p.Type, p.FrameOffset(abiInfo), bv)
 	}
 
 	nbitmap := 1
@@ -1522,7 +1522,7 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
 	if fn.Type().NumResults() > 0 {
 		for _, p := range abiInfo.OutParams() {
 			if len(p.Registers) == 0 {
-				typebits.Set(p.Type, p.FrameOffset(abiInfo), bv)
+				typebits.SetNoCheck(p.Type, p.FrameOffset(abiInfo), bv)
 			}
 		}
 		off = objw.BitVec(lsym, off, bv)
