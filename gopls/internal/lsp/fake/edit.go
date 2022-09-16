@@ -110,17 +110,23 @@ func inText(p Pos, content []string) bool {
 // invalid for the current content.
 //
 // TODO(rfindley): this function does not handle non-ascii text correctly.
+// TODO(rfindley): replace this with diff.ApplyEdits: we should not be
+// maintaining an additional representation of edits.
 func editContent(content []string, edits []Edit) ([]string, error) {
 	newEdits := make([]Edit, len(edits))
 	copy(newEdits, edits)
-	sort.Slice(newEdits, func(i, j int) bool {
-		if newEdits[i].Start.Line < newEdits[j].Start.Line {
-			return true
+	sort.SliceStable(newEdits, func(i, j int) bool {
+		ei := newEdits[i]
+		ej := newEdits[j]
+
+		// Sort by edit start position followed by end position. Given an edit
+		// 3:1-3:1 followed by an edit 3:1-3:15, we must process the empty edit
+		// first.
+		if cmp := comparePos(ei.Start, ej.Start); cmp != 0 {
+			return cmp < 0
 		}
-		if newEdits[i].Start.Line > newEdits[j].Start.Line {
-			return false
-		}
-		return newEdits[i].Start.Column < newEdits[j].Start.Column
+
+		return comparePos(ei.End, ej.End) < 0
 	})
 
 	// Validate edits.
@@ -156,4 +162,21 @@ func editContent(content []string, edits []Edit) ([]string, error) {
 	}
 	advance(len(content)-1, len([]rune(content[len(content)-1])))
 	return strings.Split(b.String(), "\n"), nil
+}
+
+// comparePos returns -1 if left < right, 0 if left == right, and 1 if left > right.
+func comparePos(left, right Pos) int {
+	if left.Line < right.Line {
+		return -1
+	}
+	if left.Line > right.Line {
+		return 1
+	}
+	if left.Column < right.Column {
+		return -1
+	}
+	if left.Column > right.Column {
+		return 1
+	}
+	return 0
 }
