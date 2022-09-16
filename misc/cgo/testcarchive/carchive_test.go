@@ -402,7 +402,7 @@ func checkELFArchive(t *testing.T, arname string) {
 		}
 
 		off += size
-		if _, err := f.Seek(off, os.SEEK_SET); err != nil {
+		if _, err := f.Seek(off, io.SeekStart); err != nil {
 			t.Errorf("%s: failed to seek to %d: %v", arname, off, err)
 		}
 	}
