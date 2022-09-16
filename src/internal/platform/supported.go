@@ -245,7 +245,7 @@ func DefaultPIE(goos, goarch string, isRace bool) bool {
 		}
 		return true
 	case "darwin":
-		return goarch == "arm64"
+		return true
 	}
 	return false
 }
