@@ -389,11 +389,22 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	// Read section headers
-	f.Sections = make([]*Section, shnum)
-	names := make([]uint32, shnum)
+	if shoff == 0 {
+		// If the file has no section header table, shoff holds zero.
+		f.Sections = make([]*Section, 0)
+	} else if shnum == 0 {
+		// If the number of sections is greater than or equal to SHN_LORESERVE
+		// (0xff00), shnum has the value zero and the actual number of section
+		// header table entries is contained in the sh_size field of the section
+		// header at index 0. Let's give it a temporary value first and correct
+		// it later when reading section header at index 0.
+		shnum = int(SHN_LORESERVE)
+	}
+	var names []uint32
 	for i := 0; i < shnum; i++ {
 		off := shoff + int64(i)*int64(shentsize)
 		sr.Seek(off, seekStart)
+		var name uint32
 		s := new(Section)
 		switch f.Class {
 		case ELFCLASS32:
@@ -401,7 +412,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			if err := binary.Read(sr, f.ByteOrder, sh); err != nil {
 				return nil, err
 			}
-			names[i] = sh.Name
+			name = sh.Name
 			s.SectionHeader = SectionHeader{
 				Type:      SectionType(sh.Type),
 				Flags:     SectionFlag(sh.Flags),
@@ -418,7 +429,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			if err := binary.Read(sr, f.ByteOrder, sh); err != nil {
 				return nil, err
 			}
-			names[i] = sh.Name
+			name = sh.Name
 			s.SectionHeader = SectionHeader{
 				Type:      SectionType(sh.Type),
 				Flags:     SectionFlag(sh.Flags),
@@ -466,6 +477,35 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			}
 		}
 
+		if i == 0 {
+			if s.Type != SHT_NULL {
+				return nil, &FormatError{off, "invalid type of the initial section", s.Type}
+			}
+
+			if shnum == int(SHN_LORESERVE) {
+				shnum = int(s.Size)
+				if shnum <= int(SHN_LORESERVE) {
+					return nil, &FormatError{shoff, "invalid ELF shnum contained in sh_size", shnum}
+				}
+			}
+
+			// If the section name string table section index is greater than or
+			// equal to SHN_LORESERVE (0xff00), this member has the value
+			// SHN_XINDEX (0xffff) and the actual index of the section name
+			// string table section is contained in the sh_link field of the
+			// section header at index 0.
+			if shstrndx == int(SHN_XINDEX) {
+				shstrndx = int(s.Link)
+				if shstrndx <= int(SHN_LORESERVE) {
+					return nil, &FormatError{shoff, "invalid ELF shstrndx contained in sh_link", shnum}
+				}
+			}
+
+			names = make([]uint32, shnum)
+			f.Sections = make([]*Section, shnum)
+		}
+
+		names[i] = name
 		f.Sections[i] = s
 	}
 
