@@ -447,12 +447,6 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		outreq.Header.Set("User-Agent", "")
 	}
 
-	if _, ok := outreq.Header["User-Agent"]; !ok {
-		// If the outbound request doesn't have a User-Agent header set,
-		// don't send the default Go HTTP client User-Agent.
-		outreq.Header.Set("User-Agent", "")
-	}
-
 	trace := &httptrace.ClientTrace{
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
 			h := rw.Header()
