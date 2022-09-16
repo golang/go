@@ -1987,6 +1987,7 @@ var go118Failures = setOf(
 	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
 	"typeparam/issue54456.go",  // 1.18 compiler fails to distinguish local generic types
 	"typeparam/issue54497.go",  // 1.18 compiler is more conservative about inlining due to repeated issues
+	"typeparam/issue55101.go",  // 1.18 compiler ICEs writing export data
 	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions
 	"typeparam/mdempsky/17.go", // 1.18 compiler mishandles implicit conversions from range loops
 	"typeparam/mdempsky/18.go", // 1.18 compiler mishandles implicit conversions in select statements

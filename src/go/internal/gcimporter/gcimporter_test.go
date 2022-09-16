@@ -179,6 +179,7 @@ func TestImportTypeparamTests(t *testing.T) {
 		"issue50417.go": "inconsistent interface member sorting",
 		"issue53419.go": "fails to compile",
 		"issue53477.go": "fails to compile",
+		"issue55101.go": "fails to compile",
 	}
 
 	for _, entry := range list {
