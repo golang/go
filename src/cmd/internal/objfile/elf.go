@@ -68,16 +68,35 @@ func (f *elfFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
 	if sect := f.elf.Section(".text"); sect != nil {
 		textStart = sect.Addr
 	}
-	if sect := f.elf.Section(".gosymtab"); sect != nil {
+
+	sect := f.elf.Section(".gosymtab")
+	if sect == nil {
+		// try .data.rel.ro.gosymtab, for PIE binaries
+		sect = f.elf.Section(".data.rel.ro.gosymtab")
+	}
+	if sect != nil {
 		if symtab, err = sect.Data(); err != nil {
 			return 0, nil, nil, err
 		}
+	} else {
+		// if both sections failed, try the symbol
+		symtab = f.symbolData("runtime.symtab", "runtime.esymtab")
 	}
-	if sect := f.elf.Section(".gopclntab"); sect != nil {
+
+	sect = f.elf.Section(".gopclntab")
+	if sect == nil {
+		// try .data.rel.ro.gopclntab, for PIE binaries
+		sect = f.elf.Section(".data.rel.ro.gopclntab")
+	}
+	if sect != nil {
 		if pclntab, err = sect.Data(); err != nil {
 			return 0, nil, nil, err
 		}
+	} else {
+		// if both sections failed, try the symbol
+		pclntab = f.symbolData("runtime.pclntab", "runtime.epclntab")
 	}
+
 	return textStart, symtab, pclntab, nil
 }
 
@@ -123,4 +142,36 @@ func (f *elfFile) loadAddress() (uint64, error) {
 
 func (f *elfFile) dwarf() (*dwarf.Data, error) {
 	return f.elf.DWARF()
+}
+
+func (f *elfFile) symbolData(start, end string) []byte {
+	elfSyms, err := f.elf.Symbols()
+	if err != nil {
+		return nil
+	}
+	var addr, eaddr uint64
+	for _, s := range elfSyms {
+		if s.Name == start {
+			addr = s.Value
+		} else if s.Name == end {
+			eaddr = s.Value
+		}
+		if addr != 0 && eaddr != 0 {
+			break
+		}
+	}
+	if addr == 0 || eaddr < addr {
+		return nil
+	}
+	size := eaddr - addr
+	data := make([]byte, size)
+	for _, prog := range f.elf.Progs {
+		if prog.Vaddr <= addr && addr+size-1 <= prog.Vaddr+prog.Filesz-1 {
+			if _, err := prog.ReadAt(data, int64(addr-prog.Vaddr)); err != nil {
+				return nil
+			}
+			return data
+		}
+	}
+	return nil
 }

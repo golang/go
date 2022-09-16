@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmd/internal/notsha256"
+	"cmd/internal/sys"
 	"flag"
 	"fmt"
 	"go/build"
@@ -99,6 +100,12 @@ var ppcNeed = []string{
 	"RET",
 }
 
+var ppcPIENeed = []string{
+	"BR",
+	"CALL",
+	"RET",
+}
+
 var ppcGnuNeed = []string{
 	"mflr",
 	"lbz",
@@ -178,7 +185,21 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 	case "arm64":
 		need = append(need, arm64Need...)
 	case "ppc64", "ppc64le":
-		need = append(need, ppcNeed...)
+		var pie bool
+		for _, flag := range flags {
+			if flag == "-buildmode=pie" {
+				pie = true
+				break
+			}
+		}
+		if pie {
+			// In PPC64 PIE binaries we use a "local entry point" which is
+			// function symbol address + 8. Currently we don't symbolize that.
+			// Expect a different output.
+			need = append(need, ppcPIENeed...)
+		} else {
+			need = append(need, ppcNeed...)
+		}
 	}
 
 	if printGnuAsm {
@@ -263,6 +284,14 @@ func TestDisasmExtld(t *testing.T) {
 	}
 	t.Parallel()
 	testDisasm(t, "fmthello.go", false, false, "-ldflags=-linkmode=external")
+}
+
+func TestDisasmPIE(t *testing.T) {
+	if !sys.BuildModeSupported("gc", "pie", runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s, PIE buildmode not supported", runtime.GOOS, runtime.GOARCH)
+	}
+	t.Parallel()
+	testDisasm(t, "fmthello.go", false, false, "-buildmode=pie")
 }
 
 func TestDisasmGoobj(t *testing.T) {
