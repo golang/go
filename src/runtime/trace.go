@@ -272,7 +272,7 @@ func StartTrace() error {
 			gp.traceseq++
 			traceEvent(traceEvGoInSyscall, -1, gp.goid)
 		} else if status == _Gdead && gp.m != nil && gp.m.isextra {
-			// trigger two trace events for the dead g in the extra m,
+			// Trigger two trace events for the dead g in the extra m,
 			// since the next event of the g will be traceEvGoSysExit in exitsyscall,
 			// while calling from C thread to Go.
 			gp.traceseq = 0

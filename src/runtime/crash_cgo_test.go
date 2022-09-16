@@ -713,10 +713,7 @@ func TestCgoTracebackGoroutineProfile(t *testing.T) {
 
 func TestCgoTraceParser(t *testing.T) {
 	// Test issue 29707.
-	switch runtime.GOOS {
-	case "windows", "plan9":
-		t.Skipf("skipping cgo trace parser test on %s", runtime.GOOS)
-	}
+	testenv.MustHaveCGO(t)
 	output := runTestProg(t, "testprogcgo", "CgoTraceParser")
 	want := "OK\n"
 	if output != want {
@@ -726,10 +723,7 @@ func TestCgoTraceParser(t *testing.T) {
 
 func TestCgoTraceParserWithOneProc(t *testing.T) {
 	// Test issue 29707.
-	switch runtime.GOOS {
-	case "windows", "plan9":
-		t.Skipf("skipping cgo trace parser test on %s", runtime.GOOS)
-	}
+	testenv.MustHaveCGO(t)
 	output := runTestProg(t, "testprogcgo", "CgoTraceParser", "GOMAXPROCS=1")
 	want := "OK\n"
 	if output != want {
