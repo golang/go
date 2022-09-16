@@ -5,7 +5,7 @@
 package protocol
 
 // Code generated from version 3.17.0 of protocol/metaModel.json.
-// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of Tue Sep 13 10:45:25 2022)
+// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of Fri Sep 16 13:04:31 2022)
 // Code generated; DO NOT EDIT.
 
 import "encoding/json"
@@ -240,7 +240,7 @@ type ClientCapabilities struct { // line 9700
 	 *
 	 * @since 3.17.0
 	 */
-	NotebookDocument NotebookDocumentClientCapabilities `json:"notebookDocument,omitempty"`
+	NotebookDocument *NotebookDocumentClientCapabilities `json:"notebookDocument,omitempty"`
 	// Window specific client capabilities.
 	Window WindowClientCapabilities `json:"window,omitempty"`
 	/*
@@ -248,7 +248,7 @@ type ClientCapabilities struct { // line 9700
 	 *
 	 * @since 3.16.0
 	 */
-	General GeneralClientCapabilities `json:"general,omitempty"`
+	General *GeneralClientCapabilities `json:"general,omitempty"`
 	// Experimental client capabilities.
 	Experimental interface{} `json:"experimental,omitempty"`
 }
@@ -353,7 +353,7 @@ type CodeActionClientCapabilities struct { // line 11747
 	 *
 	 * @since 3.16.0
 	 */
-	ResolveSupport PResolveSupportPCodeAction `json:"resolveSupport,omitempty"`
+	ResolveSupport *PResolveSupportPCodeAction `json:"resolveSupport,omitempty"`
 	/*
 	 * Whether the client honors the change annotations in
 	 * text edits and resource operations returned via the
@@ -533,7 +533,7 @@ type ColorPresentation struct { // line 2343
 	 * this presentation for the color.  When `falsy` the [label](#ColorPresentation.label)
 	 * is used.
 	 */
-	TextEdit TextEdit `json:"textEdit,omitempty"`
+	TextEdit *TextEdit `json:"textEdit,omitempty"`
 	/*
 	 * An optional array of additional [text edits](#TextEdit) that are applied when
 	 * selecting this color presentation. Edits must not overlap with the main [edit](#ColorPresentation.textEdit) nor with themselves.
@@ -579,8 +579,8 @@ type CompletionClientCapabilities struct { // line 11194
 	 * The client supports the following `CompletionItem` specific
 	 * capabilities.
 	 */
-	CompletionItem     PCompletionItemPCompletion     `json:"completionItem,omitempty"`
-	CompletionItemKind PCompletionItemKindPCompletion `json:"completionItemKind,omitempty"`
+	CompletionItem     PCompletionItemPCompletion      `json:"completionItem,omitempty"`
+	CompletionItemKind *PCompletionItemKindPCompletion `json:"completionItemKind,omitempty"`
 	/*
 	 * Defines how the client handles whitespace and indentation
 	 * when accepting a completion item that uses multi line
@@ -600,7 +600,7 @@ type CompletionClientCapabilities struct { // line 11194
 	 *
 	 * @since 3.17.0
 	 */
-	CompletionList PCompletionListPCompletion `json:"completionList,omitempty"`
+	CompletionList *PCompletionListPCompletion `json:"completionList,omitempty"`
 }
 
 // Contains additional information about the context in which a completion request is triggered.
@@ -634,7 +634,7 @@ type CompletionItem struct { // line 4550
 	 *
 	 * @since 3.17.0
 	 */
-	LabelDetails CompletionItemLabelDetails `json:"labelDetails,omitempty"`
+	LabelDetails *CompletionItemLabelDetails `json:"labelDetails,omitempty"`
 	/*
 	 * The kind of this completion item. Based of the kind
 	 * an icon is chosen by the editor.
@@ -819,7 +819,7 @@ type CompletionList struct { // line 4758
 	 *
 	 * @since 3.17.0
 	 */
-	ItemDefaults PItemDefaultsMsg_textDocument_completion `json:"itemDefaults,omitempty"`
+	ItemDefaults *PItemDefaultsMsg_textDocument_completion `json:"itemDefaults,omitempty"`
 	// The completion items.
 	Items []CompletionItem `json:"items"`
 }
@@ -859,7 +859,7 @@ type CompletionOptions struct { // line 8727
 	 *
 	 * @since 3.17.0
 	 */
-	CompletionItem PCompletionItemPCompletionProvider `json:"completionItem,omitempty"`
+	CompletionItem *PCompletionItemPCompletionProvider `json:"completionItem,omitempty"`
 	WorkDoneProgressOptions
 }
 
@@ -900,7 +900,7 @@ type CreateFile struct { // line 6717
 	// The resource to create.
 	URI DocumentURI `json:"uri"`
 	// Additional options
-	Options CreateFileOptions `json:"options,omitempty"`
+	Options *CreateFileOptions `json:"options,omitempty"`
 	ResourceOperation
 }
 
@@ -1014,7 +1014,7 @@ type DeleteFile struct { // line 6799
 	// The file to delete.
 	URI DocumentURI `json:"uri"`
 	// Delete options.
-	Options DeleteFileOptions `json:"options,omitempty"`
+	Options *DeleteFileOptions `json:"options,omitempty"`
 	ResourceOperation
 }
 
@@ -1186,7 +1186,7 @@ type DidChangeConfigurationParams struct { // line 4166
 	Settings interface{} `json:"settings"`
 }
 type DidChangeConfigurationRegistrationOptions struct { // line 4180
-	Section OrPSection_workspace_didChangeConfiguration `json:"section,omitempty"`
+	Section *OrPSection_workspace_didChangeConfiguration `json:"section,omitempty"`
 }
 
 /*
@@ -1656,7 +1656,7 @@ type DocumentSymbolClientCapabilities struct { // line 11665
 	 * Specific capabilities for the `SymbolKind` in the
 	 * `textDocument/documentSymbol` request.
 	 */
-	SymbolKind PSymbolKindPDocumentSymbol `json:"symbolKind,omitempty"`
+	SymbolKind *PSymbolKindPDocumentSymbol `json:"symbolKind,omitempty"`
 	// The client supports hierarchical document symbols.
 	HierarchicalDocumentSymbolSupport bool `json:"hierarchicalDocumentSymbolSupport,omitempty"`
 	/*
@@ -1666,7 +1666,7 @@ type DocumentSymbolClientCapabilities struct { // line 11665
 	 *
 	 * @since 3.16.0
 	 */
-	TagSupport PTagSupportPDocumentSymbol `json:"tagSupport,omitempty"`
+	TagSupport *PTagSupportPDocumentSymbol `json:"tagSupport,omitempty"`
 	/*
 	 * The client supports an additional label presented in the UI when
 	 * registering a document symbol provider.
@@ -1745,7 +1745,7 @@ type ExecutionSummary struct { // line 10188
 
 // created for Literal
 type FCellsPNotebookSelector struct { // line 9857
-	Language string `json:"Language"`
+	Language string `json:"language"`
 }
 
 // created for Literal
@@ -1756,13 +1756,13 @@ type FCodeActionKindPCodeActionLiteralSupport struct { // line 11768
 	 * handle values outside its set gracefully and falls back
 	 * to a default value when unknown.
 	 */
-	ValueSet []CodeActionKind `json:"ValueSet"`
+	ValueSet []CodeActionKind `json:"valueSet"`
 }
 
 // created for Literal
 type FEditRangePItemDefaults struct { // line 4797
-	Insert  Range `json:"Insert"`
-	Replace Range `json:"Replace"`
+	Insert  Range `json:"insert"`
+	Replace Range `json:"replace"`
 }
 
 // created for Literal
@@ -1771,12 +1771,12 @@ type FFullPRequests struct { // line 12230
 	 * The client will send the `textDocument/semanticTokens/full/delta` request if
 	 * the server provides a corresponding handler.
 	 */
-	Delta bool `json:"Delta"`
+	Delta bool `json:"delta"`
 }
 
 // created for Literal
 type FInsertTextModeSupportPCompletionItem struct { // line 11321
-	ValueSet []InsertTextMode `json:"ValueSet"`
+	ValueSet []InsertTextMode `json:"valueSet"`
 }
 
 // created for Literal
@@ -1787,7 +1787,7 @@ type FParameterInformationPSignatureInformation struct { // line 11487
 	 *
 	 * @since 3.14.0
 	 */
-	LabelOffsetSupport bool `json:"LabelOffsetSupport"`
+	LabelOffsetSupport bool `json:"labelOffsetSupport"`
 }
 
 // created for Literal
@@ -1797,29 +1797,29 @@ type FRangePRequests struct { // line 12210
 // created for Literal
 type FResolveSupportPCompletionItem struct { // line 11297
 	// The properties that a client can resolve lazily.
-	Properties []string `json:"Properties"`
+	Properties []string `json:"properties"`
 }
 
 // created for Literal
 type FStructurePCells struct { // line 7492
 	// The change to the cell array.
-	Array NotebookCellArrayChange `json:"Array"`
+	Array NotebookCellArrayChange `json:"array"`
 	// Additional opened cell text documents.
-	DidOpen []TextDocumentItem `json:"DidOpen"`
+	DidOpen []TextDocumentItem `json:"didOpen"`
 	// Additional closed cell text documents.
-	DidClose []TextDocumentIdentifier `json:"DidClose"`
+	DidClose []TextDocumentIdentifier `json:"didClose"`
 }
 
 // created for Literal
 type FTagSupportPCompletionItem struct { // line 11263
 	// The tags supported by the client.
-	ValueSet []CompletionItemTag `json:"ValueSet"`
+	ValueSet []CompletionItemTag `json:"valueSet"`
 }
 
 // created for Literal
 type FTextContentPCells struct { // line 7550
-	Document VersionedTextDocumentIdentifier  `json:"Document"`
-	Changes  []TextDocumentContentChangeEvent `json:"Changes"`
+	Document VersionedTextDocumentIdentifier  `json:"document"`
+	Changes  []TextDocumentContentChangeEvent `json:"changes"`
 }
 type FailureHandlingKind string // line 13719
 type FileChangeType uint32      // line 13480
@@ -1896,17 +1896,17 @@ type FileOperationFilter struct { // line 6869
  */
 type FileOperationOptions struct { // line 9991
 	// The server is interested in receiving didCreateFiles notifications.
-	DidCreate FileOperationRegistrationOptions `json:"didCreate,omitempty"`
+	DidCreate *FileOperationRegistrationOptions `json:"didCreate,omitempty"`
 	// The server is interested in receiving willCreateFiles requests.
-	WillCreate FileOperationRegistrationOptions `json:"willCreate,omitempty"`
+	WillCreate *FileOperationRegistrationOptions `json:"willCreate,omitempty"`
 	// The server is interested in receiving didRenameFiles notifications.
-	DidRename FileOperationRegistrationOptions `json:"didRename,omitempty"`
+	DidRename *FileOperationRegistrationOptions `json:"didRename,omitempty"`
 	// The server is interested in receiving willRenameFiles requests.
-	WillRename FileOperationRegistrationOptions `json:"willRename,omitempty"`
+	WillRename *FileOperationRegistrationOptions `json:"willRename,omitempty"`
 	// The server is interested in receiving didDeleteFiles file notifications.
-	DidDelete FileOperationRegistrationOptions `json:"didDelete,omitempty"`
+	DidDelete *FileOperationRegistrationOptions `json:"didDelete,omitempty"`
 	// The server is interested in receiving willDeleteFiles file requests.
-	WillDelete FileOperationRegistrationOptions `json:"willDelete,omitempty"`
+	WillDelete *FileOperationRegistrationOptions `json:"willDelete,omitempty"`
 }
 
 /*
@@ -1933,7 +1933,7 @@ type FileOperationPattern struct { // line 9509
 	 */
 	Matches FileOperationPatternKind `json:"matches,omitempty"`
 	// Additional options used during matching.
-	Options FileOperationPatternOptions `json:"options,omitempty"`
+	Options *FileOperationPatternOptions `json:"options,omitempty"`
 }
 type FileOperationPatternKind string // line 13653
 /*
@@ -2041,13 +2041,13 @@ type FoldingRangeClientCapabilities struct { // line 12004
 	 *
 	 * @since 3.17.0
 	 */
-	FoldingRangeKind PFoldingRangeKindPFoldingRange `json:"foldingRangeKind,omitempty"`
+	FoldingRangeKind *PFoldingRangeKindPFoldingRange `json:"foldingRangeKind,omitempty"`
 	/*
 	 * Specific options for the folding range.
 	 *
 	 * @since 3.17.0
 	 */
-	FoldingRange PFoldingRangePFoldingRange `json:"foldingRange,omitempty"`
+	FoldingRange *PFoldingRangePFoldingRange `json:"foldingRange,omitempty"`
 }
 type FoldingRangeKind string      // line 12841
 type FoldingRangeOptions struct { // line 6486
@@ -2125,19 +2125,19 @@ type GeneralClientCapabilities struct { // line 10690
 	 *
 	 * @since 3.17.0
 	 */
-	StaleRequestSupport PStaleRequestSupportPGeneral `json:"staleRequestSupport,omitempty"`
+	StaleRequestSupport *PStaleRequestSupportPGeneral `json:"staleRequestSupport,omitempty"`
 	/*
 	 * Client capabilities specific to regular expressions.
 	 *
 	 * @since 3.16.0
 	 */
-	RegularExpressions RegularExpressionsClientCapabilities `json:"regularExpressions,omitempty"`
+	RegularExpressions *RegularExpressionsClientCapabilities `json:"regularExpressions,omitempty"`
 	/*
 	 * Client capabilities specific to the client's markdown parser.
 	 *
 	 * @since 3.16.0
 	 */
-	Markdown MarkdownClientCapabilities `json:"markdown,omitempty"`
+	Markdown *MarkdownClientCapabilities `json:"markdown,omitempty"`
 	/*
 	 * The position encodings supported by the client. Client and server
 	 * have to agree on the same position encoding to ensure that offsets
@@ -2294,7 +2294,7 @@ type InlayHint struct { // line 3667
 	 */
 	TextEdits []TextEdit `json:"textEdits,omitempty"`
 	// The tooltip text when you hover over this item.
-	Tooltip OrPTooltip_textDocument_inlayHint `json:"tooltip,omitempty"`
+	Tooltip *OrPTooltip_textDocument_inlayHint `json:"tooltip,omitempty"`
 	/*
 	 * Render padding before the hint.
 	 *
@@ -2330,7 +2330,7 @@ type InlayHintClientCapabilities struct { // line 12395
 	 * Indicates which properties a client can resolve lazily on an inlay
 	 * hint.
 	 */
-	ResolveSupport PResolveSupportPInlayHint `json:"resolveSupport,omitempty"`
+	ResolveSupport *PResolveSupportPInlayHint `json:"resolveSupport,omitempty"`
 }
 type InlayHintKind uint32 // line 13059
 /*
@@ -2347,7 +2347,7 @@ type InlayHintLabelPart struct { // line 7067
 	 * the client capability `inlayHint.resolveSupport` clients might resolve
 	 * this property late using the resolve request.
 	 */
-	Tooltip OrPTooltipPLabel `json:"tooltip,omitempty"`
+	Tooltip *OrPTooltipPLabel `json:"tooltip,omitempty"`
 	/*
 	 * An optional source code location that represents this
 	 * label part.
@@ -2361,14 +2361,14 @@ type InlayHintLabelPart struct { // line 7067
 	 * Depending on the client capability `inlayHint.resolveSupport` clients
 	 * might resolve this property late using the resolve request.
 	 */
-	Location Location `json:"location,omitempty"`
+	Location *Location `json:"location,omitempty"`
 	/*
 	 * An optional command for this label part.
 	 *
 	 * Depending on the client capability `inlayHint.resolveSupport` clients
 	 * might resolve this property late using the resolve request.
 	 */
-	Command Command `json:"command,omitempty"`
+	Command *Command `json:"command,omitempty"`
 }
 
 /*
@@ -2664,7 +2664,7 @@ type LocationLink struct { // line 6277
 	 * Used as the underlined span for mouse interaction. Defaults to the word range at
 	 * the definition position.
 	 */
-	OriginSelectionRange Range `json:"originSelectionRange,omitempty"`
+	OriginSelectionRange *Range `json:"originSelectionRange,omitempty"`
 	// The target resource identifier of this link.
 	TargetURI DocumentURI `json:"targetUri"`
 	/*
@@ -2811,56 +2811,56 @@ type MonikerRegistrationOptions struct { // line 3400
 
 // created for Literal
 type Msg_MarkedString struct { // line 14093
-	Language string `json:"Language"`
-	Value    string `json:"Value"`
+	Language string `json:"language"`
+	Value    string `json:"value"`
 }
 
 // created for Literal
 type Msg_NotebookDocumentFilter struct { // line 14268
 	// The type of the enclosing notebook.
-	NotebookType string `json:"NotebookType"`
+	NotebookType string `json:"notebookType"`
 	// A Uri [scheme](#Uri.scheme), like `file` or `untitled`.
-	Scheme string `json:"Scheme"`
+	Scheme string `json:"scheme"`
 	// A glob pattern.
-	Pattern string `json:"Pattern"`
+	Pattern string `json:"pattern"`
 }
 
 // created for Literal
 type Msg_PrepareRename2Gn struct { // line 13936
-	Range       Range  `json:"Range"`
-	Placeholder string `json:"Placeholder"`
+	Range       Range  `json:"range"`
+	Placeholder string `json:"placeholder"`
 }
 
 // created for Literal
 type Msg_TextDocumentContentChangeEvent struct { // line 14033
 	// The range of the document that changed.
-	Range *Range `json:"Range"`
+	Range *Range `json:"range"`
 	/*
 	 * The optional length of the range that got replaced.
 	 *
 	 * @deprecated use range instead.
 	 */
-	RangeLength uint32 `json:"RangeLength"`
+	RangeLength uint32 `json:"rangeLength"`
 	// The new text for the provided range.
-	Text string `json:"Text"`
+	Text string `json:"text"`
 }
 
 // created for Literal
 type Msg_TextDocumentFilter struct { // line 14159
 	// A language id, like `typescript`.
-	Language string `json:"Language"`
+	Language string `json:"language"`
 	// A Uri [scheme](#Uri.scheme), like `file` or `untitled`.
-	Scheme string `json:"Scheme"`
+	Scheme string `json:"scheme"`
 	// A glob pattern, like `*.{ts,js}`.
-	Pattern string `json:"Pattern"`
+	Pattern string `json:"pattern"`
 }
 
 // created for Literal
 type Msg_XInitializeParams_clientInfo struct { // line 7678
 	// The name of the client as defined by the client.
-	Name string `json:"Name"`
+	Name string `json:"name"`
 	// The client's version as defined by the client.
-	Version string `json:"Version"`
+	Version string `json:"version"`
 }
 
 /*
@@ -2885,12 +2885,12 @@ type NotebookCell struct { // line 9624
 	 *
 	 * Note: should always be an object literal (e.g. LSPObject)
 	 */
-	Metadata LSPObject `json:"metadata,omitempty"`
+	Metadata *LSPObject `json:"metadata,omitempty"`
 	/*
 	 * Additional execution summary information
 	 * if supported by the client.
 	 */
-	ExecutionSummary ExecutionSummary `json:"executionSummary,omitempty"`
+	ExecutionSummary *ExecutionSummary `json:"executionSummary,omitempty"`
 }
 
 /*
@@ -2952,7 +2952,7 @@ type NotebookDocument struct { // line 7359
 	 *
 	 * Note: should always be an object literal (e.g. LSPObject)
 	 */
-	Metadata LSPObject `json:"metadata,omitempty"`
+	Metadata *LSPObject `json:"metadata,omitempty"`
 	// The cells of a notebook.
 	Cells []NotebookCell `json:"cells"`
 }
@@ -2968,9 +2968,9 @@ type NotebookDocumentChangeEvent struct { // line 7471
 	 *
 	 * Note: should always be an object literal (e.g. LSPObject)
 	 */
-	Metadata LSPObject `json:"metadata,omitempty"`
+	Metadata *LSPObject `json:"metadata,omitempty"`
 	// Changes to cells
-	Cells PCellsPChange `json:"cells,omitempty"`
+	Cells *PCellsPChange `json:"cells,omitempty"`
 }
 
 /*
@@ -3072,72 +3072,72 @@ type OptionalVersionedTextDocumentIdentifier struct { // line 9363
 
 // created for Or [Range FEditRangePItemDefaults]
 type OrFEditRangePItemDefaults struct { // line 4791
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [string NotebookDocumentFilter]
 type OrFNotebookPNotebookSelector struct { // line 9838
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [Location PLocationMsg_workspace_symbol]
 type OrPLocation_workspace_symbol struct { // line 5540
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [string []string]
 type OrPSection_workspace_didChangeConfiguration struct { // line 4186
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [string MarkupContent]
 type OrPTooltipPLabel struct { // line 7081
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [string MarkupContent]
 type OrPTooltip_textDocument_inlayHint struct { // line 3722
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [Location []Location]
 type Or_Definition struct { // line 13780
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [RelatedFullDocumentDiagnosticReport RelatedUnchangedDocumentDiagnosticReport]
 type Or_DocumentDiagnosticReport struct { // line 13912
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [TextDocumentFilter NotebookCellTextDocumentFilter]
 type Or_DocumentFilter struct { // line 14121
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [InlineValueText InlineValueVariableLookup InlineValueEvaluatableExpression]
 type Or_InlineValue struct { // line 13890
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [string Msg_MarkedString]
 type Or_MarkedString struct { // line 14087
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [WorkspaceFolder URI]
 type Or_RelativePattern_baseUri struct { // line 10768
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [WorkspaceFullDocumentDiagnosticReport WorkspaceUnchangedDocumentDiagnosticReport]
 type Or_WorkspaceDocumentDiagnosticReport struct { // line 14013
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Or [Declaration []DeclarationLink ]
 type Or_textDocument_declaration struct { // line 257
-	Value interface{} `json:"Value"`
+	Value interface{} `json:"value"`
 }
 
 // created for Literal
@@ -3146,14 +3146,14 @@ type PCellsPChange struct { // line 7486
 	 * Changes to the cell structure to add or
 	 * remove cells.
 	 */
-	Structure FStructurePCells `json:"Structure"`
+	Structure FStructurePCells `json:"structure"`
 	/*
 	 * Changes to notebook cells properties like its
 	 * kind, execution summary or metadata.
 	 */
-	Data []NotebookCell `json:"Data"`
+	Data []NotebookCell `json:"data"`
 	// Changes to the text content of notebook cells.
-	TextContent []FTextContentPCells `json:"TextContent"`
+	TextContent []FTextContentPCells `json:"textContent"`
 }
 
 // created for Literal
@@ -3163,7 +3163,7 @@ type PChangeAnnotationSupportPWorkspaceEdit struct { // line 10842
 	 * for instance all edits labelled with \"Changes in Strings\" would
 	 * be a tree node.
 	 */
-	GroupsOnLabel bool `json:"GroupsOnLabel"`
+	GroupsOnLabel bool `json:"groupsOnLabel"`
 }
 
 // created for Literal
@@ -3172,7 +3172,7 @@ type PCodeActionLiteralSupportPCodeAction struct { // line 11762
 	 * The code action kind is support with the following value
 	 * set.
 	 */
-	CodeActionKind FCodeActionKindPCodeActionLiteralSupport `json:"CodeActionKind"`
+	CodeActionKind FCodeActionKindPCodeActionLiteralSupport `json:"codeActionKind"`
 }
 
 // created for Literal
@@ -3187,7 +3187,7 @@ type PCompletionItemKindPCompletion struct { // line 11360
 	 * the completion items kinds from `Text` to `Reference` as defined in
 	 * the initial version of the protocol.
 	 */
-	ValueSet []CompletionItemKind `json:"ValueSet"`
+	ValueSet []CompletionItemKind `json:"valueSet"`
 }
 
 // created for Literal
@@ -3200,18 +3200,18 @@ type PCompletionItemPCompletion struct { // line 11209
 	 * the end of the snippet. Placeholders with equal identifiers are linked,
 	 * that is typing in one will update others too.
 	 */
-	SnippetSupport bool `json:"SnippetSupport"`
+	SnippetSupport bool `json:"snippetSupport"`
 	// Client supports commit characters on a completion item.
-	CommitCharactersSupport bool `json:"CommitCharactersSupport"`
+	CommitCharactersSupport bool `json:"commitCharactersSupport"`
 	/*
 	 * Client supports the following content formats for the documentation
 	 * property. The order describes the preferred format of the client.
 	 */
-	DocumentationFormat []MarkupKind `json:"DocumentationFormat"`
+	DocumentationFormat []MarkupKind `json:"documentationFormat"`
 	// Client supports the deprecated property on a completion item.
-	DeprecatedSupport bool `json:"DeprecatedSupport"`
+	DeprecatedSupport bool `json:"deprecatedSupport"`
 	// Client supports the preselect property on a completion item.
-	PreselectSupport bool `json:"PreselectSupport"`
+	PreselectSupport bool `json:"preselectSupport"`
 	/*
 	 * Client supports the tag property on a completion item. Clients supporting
 	 * tags have to handle unknown tags gracefully. Clients especially need to
@@ -3220,14 +3220,14 @@ type PCompletionItemPCompletion struct { // line 11209
 	 *
 	 * @since 3.15.0
 	 */
-	TagSupport FTagSupportPCompletionItem `json:"TagSupport"`
+	TagSupport FTagSupportPCompletionItem `json:"tagSupport"`
 	/*
 	 * Client support insert replace edit to control different behavior if a
 	 * completion item is inserted in the text or should replace text.
 	 *
 	 * @since 3.16.0
 	 */
-	InsertReplaceSupport bool `json:"InsertReplaceSupport"`
+	InsertReplaceSupport bool `json:"insertReplaceSupport"`
 	/*
 	 * Indicates which properties a client can resolve lazily on a completion
 	 * item. Before version 3.16.0 only the predefined properties `documentation`
@@ -3235,7 +3235,7 @@ type PCompletionItemPCompletion struct { // line 11209
 	 *
 	 * @since 3.16.0
 	 */
-	ResolveSupport FResolveSupportPCompletionItem `json:"ResolveSupport"`
+	ResolveSupport FResolveSupportPCompletionItem `json:"resolveSupport"`
 	/*
 	 * The client supports the `insertTextMode` property on
 	 * a completion item to override the whitespace handling mode
@@ -3243,14 +3243,14 @@ type PCompletionItemPCompletion struct { // line 11209
 	 *
 	 * @since 3.16.0
 	 */
-	InsertTextModeSupport FInsertTextModeSupportPCompletionItem `json:"InsertTextModeSupport"`
+	InsertTextModeSupport FInsertTextModeSupportPCompletionItem `json:"insertTextModeSupport"`
 	/*
 	 * The client has support for completion item label
 	 * details (see also `CompletionItemLabelDetails`).
 	 *
 	 * @since 3.17.0
 	 */
-	LabelDetailsSupport bool `json:"LabelDetailsSupport"`
+	LabelDetailsSupport bool `json:"labelDetailsSupport"`
 }
 
 // created for Literal
@@ -3262,7 +3262,7 @@ type PCompletionItemPCompletionProvider struct { // line 8767
 	 *
 	 * @since 3.17.0
 	 */
-	LabelDetailsSupport bool `json:"LabelDetailsSupport"`
+	LabelDetailsSupport bool `json:"labelDetailsSupport"`
 }
 
 // created for Literal
@@ -3277,7 +3277,7 @@ type PCompletionListPCompletion struct { // line 11402
 	 *
 	 * @since 3.17.0
 	 */
-	ItemDefaults []string `json:"ItemDefaults"`
+	ItemDefaults []string `json:"itemDefaults"`
 }
 
 // created for Literal
@@ -3287,7 +3287,7 @@ type PDisabledMsg_textDocument_codeAction struct { // line 5446
 	 *
 	 * This is displayed in the code actions UI.
 	 */
-	Reason string `json:"Reason"`
+	Reason string `json:"reason"`
 }
 
 // created for Literal
@@ -3298,7 +3298,7 @@ type PFoldingRangeKindPFoldingRange struct { // line 12037
 	 * handle values outside its set gracefully and falls back
 	 * to a default value when unknown.
 	 */
-	ValueSet []FoldingRangeKind `json:"ValueSet"`
+	ValueSet []FoldingRangeKind `json:"valueSet"`
 }
 
 // created for Literal
@@ -3309,13 +3309,13 @@ type PFoldingRangePFoldingRange struct { // line 12062
 	 *
 	 * @since 3.17.0
 	 */
-	CollapsedText bool `json:"CollapsedText"`
+	CollapsedText bool `json:"collapsedText"`
 }
 
 // created for Literal
 type PFullESemanticTokensOptions struct { // line 6591
 	// The server supports deltas for full documents.
-	Delta bool `json:"Delta"`
+	Delta bool `json:"delta"`
 }
 
 // created for Literal
@@ -3325,36 +3325,36 @@ type PItemDefaultsMsg_textDocument_completion struct { // line 4772
 	 *
 	 * @since 3.17.0
 	 */
-	CommitCharacters []string `json:"CommitCharacters"`
+	CommitCharacters []string `json:"commitCharacters"`
 	/*
 	 * A default edit range.
 	 *
 	 * @since 3.17.0
 	 */
-	EditRange OrFEditRangePItemDefaults `json:"EditRange"`
+	EditRange OrFEditRangePItemDefaults `json:"editRange"`
 	/*
 	 * A default insert text format.
 	 *
 	 * @since 3.17.0
 	 */
-	InsertTextFormat InsertTextFormat `json:"InsertTextFormat"`
+	InsertTextFormat InsertTextFormat `json:"insertTextFormat"`
 	/*
 	 * A default insert text mode.
 	 *
 	 * @since 3.17.0
 	 */
-	InsertTextMode InsertTextMode `json:"InsertTextMode"`
+	InsertTextMode InsertTextMode `json:"insertTextMode"`
 	/*
 	 * A default data value.
 	 *
 	 * @since 3.17.0
 	 */
-	Data interface{} `json:"Data"`
+	Data interface{} `json:"data"`
 }
 
 // created for Literal
 type PLocationMsg_workspace_symbol struct { // line 5546
-	URI DocumentURI `json:"Uri"`
+	URI DocumentURI `json:"uri"`
 }
 
 // created for Literal
@@ -3364,7 +3364,7 @@ type PMessageActionItemPShowMessage struct { // line 12490
 	 * are preserved and send back to the server in the
 	 * request's response.
 	 */
-	AdditionalPropertiesSupport bool `json:"AdditionalPropertiesSupport"`
+	AdditionalPropertiesSupport bool `json:"additionalPropertiesSupport"`
 }
 
 // created for Literal
@@ -3374,9 +3374,9 @@ type PNotebookSelectorPNotebookDocumentSync struct { // line 9831
 	 * value is provided it matches against the
 	 * notebook type. '*' matches every notebook.
 	 */
-	Notebook OrFNotebookPNotebookSelector `json:"Notebook"`
+	Notebook OrFNotebookPNotebookSelector `json:"notebook"`
 	// The cells of the matching notebook to be synced.
-	Cells []FCellsPNotebookSelector `json:"Cells"`
+	Cells []FCellsPNotebookSelector `json:"cells"`
 }
 
 // created for Literal
@@ -3389,24 +3389,24 @@ type PRequestsPSemanticTokens struct { // line 12198
 	 * The client will send the `textDocument/semanticTokens/range` request if
 	 * the server provides a corresponding handler.
 	 */
-	Range bool `json:"Range"`
+	Range bool `json:"range"`
 	/*
 	 * The client will send the `textDocument/semanticTokens/full` request if
 	 * the server provides a corresponding handler.
 	 */
-	Full interface{} `json:"Full"`
+	Full interface{} `json:"full"`
 }
 
 // created for Literal
 type PResolveSupportPCodeAction struct { // line 11827
 	// The properties that a client can resolve lazily.
-	Properties []string `json:"Properties"`
+	Properties []string `json:"properties"`
 }
 
 // created for Literal
 type PResolveSupportPInlayHint struct { // line 12410
 	// The properties that a client can resolve lazily.
-	Properties []string `json:"Properties"`
+	Properties []string `json:"properties"`
 }
 
 // created for Literal
@@ -3415,15 +3415,15 @@ type PResolveSupportPSymbol struct { // line 10964
 	 * The properties that a client can resolve lazily. Usually
 	 * `location.range`
 	 */
-	Properties []string `json:"Properties"`
+	Properties []string `json:"properties"`
 }
 
 // created for Literal
 type PServerInfoMsg_initialize struct { // line 4118
 	// The name of the server as defined by the server.
-	Name string `json:"Name"`
+	Name string `json:"name"`
 	// The server's version as defined by the server.
-	Version string `json:"Version"`
+	Version string `json:"version"`
 }
 
 // created for Literal
@@ -3432,28 +3432,28 @@ type PSignatureInformationPSignatureHelp struct { // line 11469
 	 * Client supports the following content formats for the documentation
 	 * property. The order describes the preferred format of the client.
 	 */
-	DocumentationFormat []MarkupKind `json:"DocumentationFormat"`
+	DocumentationFormat []MarkupKind `json:"documentationFormat"`
 	// Client capabilities specific to parameter information.
-	ParameterInformation FParameterInformationPSignatureInformation `json:"ParameterInformation"`
+	ParameterInformation FParameterInformationPSignatureInformation `json:"parameterInformation"`
 	/*
 	 * The client supports the `activeParameter` property on `SignatureInformation`
 	 * literal.
 	 *
 	 * @since 3.16.0
 	 */
-	ActiveParameterSupport bool `json:"ActiveParameterSupport"`
+	ActiveParameterSupport bool `json:"activeParameterSupport"`
 }
 
 // created for Literal
 type PStaleRequestSupportPGeneral struct { // line 10696
 	// The client will actively cancel the request.
-	Cancel bool `json:"Cancel"`
+	Cancel bool `json:"cancel"`
 	/*
 	 * The list of requests for which the client
 	 * will retry the request if it receives a
 	 * response with error code `ContentModified`
 	 */
-	RetryOnContentModified []string `json:"RetryOnContentModified"`
+	RetryOnContentModified []string `json:"retryOnContentModified"`
 }
 
 // created for Literal
@@ -3468,7 +3468,7 @@ type PSymbolKindPDocumentSymbol struct { // line 11680
 	 * the symbol kinds from `File` to `Array` as defined in
 	 * the initial version of the protocol.
 	 */
-	ValueSet []SymbolKind `json:"ValueSet"`
+	ValueSet []SymbolKind `json:"valueSet"`
 }
 
 // created for Literal
@@ -3483,25 +3483,25 @@ type PSymbolKindPSymbol struct { // line 10916
 	 * the symbol kinds from `File` to `Array` as defined in
 	 * the initial version of the protocol.
 	 */
-	ValueSet []SymbolKind `json:"ValueSet"`
+	ValueSet []SymbolKind `json:"valueSet"`
 }
 
 // created for Literal
 type PTagSupportPDocumentSymbol struct { // line 11713
 	// The tags supported by the client.
-	ValueSet []SymbolTag `json:"ValueSet"`
+	ValueSet []SymbolTag `json:"valueSet"`
 }
 
 // created for Literal
 type PTagSupportPPublishDiagnostics struct { // line 12113
 	// The tags supported by the client.
-	ValueSet []DiagnosticTag `json:"ValueSet"`
+	ValueSet []DiagnosticTag `json:"valueSet"`
 }
 
 // created for Literal
 type PTagSupportPSymbol struct { // line 10940
 	// The tags supported by the client.
-	ValueSet []SymbolTag `json:"ValueSet"`
+	ValueSet []SymbolTag `json:"valueSet"`
 }
 
 // The parameters of a configuration request.
@@ -3659,7 +3659,7 @@ type PublishDiagnosticsClientCapabilities struct { // line 12098
 	 *
 	 * @since 3.15.0
 	 */
-	TagSupport PTagSupportPPublishDiagnostics `json:"tagSupport,omitempty"`
+	TagSupport *PTagSupportPPublishDiagnostics `json:"tagSupport,omitempty"`
 	/*
 	 * Whether the client interprets the version property of the
 	 * `textDocument/publishDiagnostics` notification's parameter.
@@ -3873,7 +3873,7 @@ type RenameFile struct { // line 6754
 	// The new location.
 	NewURI DocumentURI `json:"newUri"`
 	// Rename options.
-	Options RenameFileOptions `json:"options,omitempty"`
+	Options *RenameFileOptions `json:"options,omitempty"`
 	ResourceOperation
 }
 
@@ -4210,7 +4210,7 @@ type ServerCapabilities struct { // line 7829
 	 */
 	CodeActionProvider interface{} `json:"codeActionProvider,omitempty"`
 	// The server provides code lens.
-	CodeLensProvider CodeLensOptions `json:"codeLensProvider,omitempty"`
+	CodeLensProvider *CodeLensOptions `json:"codeLensProvider,omitempty"`
 	// The server provides document link support.
 	DocumentLinkProvider DocumentLinkOptions `json:"documentLinkProvider,omitempty"`
 	// The server provides color provider support.
@@ -4222,7 +4222,7 @@ type ServerCapabilities struct { // line 7829
 	// The server provides document range formatting.
 	DocumentRangeFormattingProvider bool `json:"documentRangeFormattingProvider,omitempty"`
 	// The server provides document formatting on typing.
-	DocumentOnTypeFormattingProvider DocumentOnTypeFormattingOptions `json:"documentOnTypeFormattingProvider,omitempty"`
+	DocumentOnTypeFormattingProvider *DocumentOnTypeFormattingOptions `json:"documentOnTypeFormattingProvider,omitempty"`
 	/*
 	 * The server provides rename support. RenameOptions may only be
 	 * specified if the client states that it supports
@@ -4332,7 +4332,7 @@ type ShowDocumentParams struct { // line 3077
 	 * external program is started or the file is not a text
 	 * file.
 	 */
-	Selection Range `json:"selection,omitempty"`
+	Selection *Range `json:"selection,omitempty"`
 }
 
 /*
@@ -4356,7 +4356,7 @@ type ShowMessageParams struct { // line 4205
 // Show message request client capabilities
 type ShowMessageRequestClientCapabilities struct { // line 12484
 	// Capabilities specific to the `MessageActionItem` type.
-	MessageActionItem PMessageActionItemPShowMessage `json:"messageActionItem,omitempty"`
+	MessageActionItem *PMessageActionItemPShowMessage `json:"messageActionItem,omitempty"`
 }
 type ShowMessageRequestParams struct { // line 4227
 	// The message type. See {@link MessageType}
@@ -4407,7 +4407,7 @@ type SignatureHelpClientCapabilities struct { // line 11454
 	 * The client supports the following `SignatureInformation`
 	 * specific properties.
 	 */
-	SignatureInformation PSignatureInformationPSignatureHelp `json:"signatureInformation,omitempty"`
+	SignatureInformation *PSignatureInformationPSignatureHelp `json:"signatureInformation,omitempty"`
 	/*
 	 * The client supports to send additional context information for a
 	 * `textDocument/signatureHelp` request. A client that opts into
@@ -4446,7 +4446,7 @@ type SignatureHelpContext struct { // line 8807
 	 * The `activeSignatureHelp` has its `SignatureHelp.activeSignature` field updated based on
 	 * the user navigating through available signatures.
 	 */
-	ActiveSignatureHelp SignatureHelp `json:"activeSignatureHelp,omitempty"`
+	ActiveSignatureHelp *SignatureHelp `json:"activeSignatureHelp,omitempty"`
 }
 
 // Server Capabilities for a [SignatureHelpRequest](#SignatureHelpRequest).
@@ -4473,7 +4473,7 @@ type SignatureHelpParams struct { // line 4961
 	 *
 	 * @since 3.15.0
 	 */
-	Context SignatureHelpContext `json:"context,omitempty"`
+	Context *SignatureHelpContext `json:"context,omitempty"`
 	TextDocumentPositionParams
 	WorkDoneProgressParams
 }
@@ -4577,58 +4577,58 @@ type TextDocumentChangeRegistrationOptions struct { // line 4334
 // Text document specific client capabilities.
 type TextDocumentClientCapabilities struct { // line 10349
 	// Defines which synchronization capabilities the client supports.
-	Synchronization TextDocumentSyncClientCapabilities `json:"synchronization,omitempty"`
+	Synchronization *TextDocumentSyncClientCapabilities `json:"synchronization,omitempty"`
 	// Capabilities specific to the `textDocument/completion` request.
 	Completion CompletionClientCapabilities `json:"completion,omitempty"`
 	// Capabilities specific to the `textDocument/hover` request.
 	Hover HoverClientCapabilities `json:"hover,omitempty"`
 	// Capabilities specific to the `textDocument/signatureHelp` request.
-	SignatureHelp SignatureHelpClientCapabilities `json:"signatureHelp,omitempty"`
+	SignatureHelp *SignatureHelpClientCapabilities `json:"signatureHelp,omitempty"`
 	/*
 	 * Capabilities specific to the `textDocument/declaration` request.
 	 *
 	 * @since 3.14.0
 	 */
-	Declaration DeclarationClientCapabilities `json:"declaration,omitempty"`
+	Declaration *DeclarationClientCapabilities `json:"declaration,omitempty"`
 	// Capabilities specific to the `textDocument/definition` request.
-	Definition DefinitionClientCapabilities `json:"definition,omitempty"`
+	Definition *DefinitionClientCapabilities `json:"definition,omitempty"`
 	/*
 	 * Capabilities specific to the `textDocument/typeDefinition` request.
 	 *
 	 * @since 3.6.0
 	 */
-	TypeDefinition TypeDefinitionClientCapabilities `json:"typeDefinition,omitempty"`
+	TypeDefinition *TypeDefinitionClientCapabilities `json:"typeDefinition,omitempty"`
 	/*
 	 * Capabilities specific to the `textDocument/implementation` request.
 	 *
 	 * @since 3.6.0
 	 */
-	Implementation ImplementationClientCapabilities `json:"implementation,omitempty"`
+	Implementation *ImplementationClientCapabilities `json:"implementation,omitempty"`
 	// Capabilities specific to the `textDocument/references` request.
-	References ReferenceClientCapabilities `json:"references,omitempty"`
+	References *ReferenceClientCapabilities `json:"references,omitempty"`
 	// Capabilities specific to the `textDocument/documentHighlight` request.
-	DocumentHighlight DocumentHighlightClientCapabilities `json:"documentHighlight,omitempty"`
+	DocumentHighlight *DocumentHighlightClientCapabilities `json:"documentHighlight,omitempty"`
 	// Capabilities specific to the `textDocument/documentSymbol` request.
 	DocumentSymbol DocumentSymbolClientCapabilities `json:"documentSymbol,omitempty"`
 	// Capabilities specific to the `textDocument/codeAction` request.
 	CodeAction CodeActionClientCapabilities `json:"codeAction,omitempty"`
 	// Capabilities specific to the `textDocument/codeLens` request.
-	CodeLens CodeLensClientCapabilities `json:"codeLens,omitempty"`
+	CodeLens *CodeLensClientCapabilities `json:"codeLens,omitempty"`
 	// Capabilities specific to the `textDocument/documentLink` request.
-	DocumentLink DocumentLinkClientCapabilities `json:"documentLink,omitempty"`
+	DocumentLink *DocumentLinkClientCapabilities `json:"documentLink,omitempty"`
 	/*
 	 * Capabilities specific to the `textDocument/documentColor` and the
 	 * `textDocument/colorPresentation` request.
 	 *
 	 * @since 3.6.0
 	 */
-	ColorProvider DocumentColorClientCapabilities `json:"colorProvider,omitempty"`
+	ColorProvider *DocumentColorClientCapabilities `json:"colorProvider,omitempty"`
 	// Capabilities specific to the `textDocument/formatting` request.
-	Formatting DocumentFormattingClientCapabilities `json:"formatting,omitempty"`
+	Formatting *DocumentFormattingClientCapabilities `json:"formatting,omitempty"`
 	// Capabilities specific to the `textDocument/rangeFormatting` request.
-	RangeFormatting DocumentRangeFormattingClientCapabilities `json:"rangeFormatting,omitempty"`
+	RangeFormatting *DocumentRangeFormattingClientCapabilities `json:"rangeFormatting,omitempty"`
 	// Capabilities specific to the `textDocument/onTypeFormatting` request.
-	OnTypeFormatting DocumentOnTypeFormattingClientCapabilities `json:"onTypeFormatting,omitempty"`
+	OnTypeFormatting *DocumentOnTypeFormattingClientCapabilities `json:"onTypeFormatting,omitempty"`
 	// Capabilities specific to the `textDocument/rename` request.
 	Rename RenameClientCapabilities `json:"rename,omitempty"`
 	/*
@@ -4642,7 +4642,7 @@ type TextDocumentClientCapabilities struct { // line 10349
 	 *
 	 * @since 3.15.0
 	 */
-	SelectionRange SelectionRangeClientCapabilities `json:"selectionRange,omitempty"`
+	SelectionRange *SelectionRangeClientCapabilities `json:"selectionRange,omitempty"`
 	// Capabilities specific to the `textDocument/publishDiagnostics` notification.
 	PublishDiagnostics PublishDiagnosticsClientCapabilities `json:"publishDiagnostics,omitempty"`
 	/*
@@ -4650,7 +4650,7 @@ type TextDocumentClientCapabilities struct { // line 10349
 	 *
 	 * @since 3.16.0
 	 */
-	CallHierarchy CallHierarchyClientCapabilities `json:"callHierarchy,omitempty"`
+	CallHierarchy *CallHierarchyClientCapabilities `json:"callHierarchy,omitempty"`
 	/*
 	 * Capabilities specific to the various semantic token request.
 	 *
@@ -4662,37 +4662,37 @@ type TextDocumentClientCapabilities struct { // line 10349
 	 *
 	 * @since 3.16.0
 	 */
-	LinkedEditingRange LinkedEditingRangeClientCapabilities `json:"linkedEditingRange,omitempty"`
+	LinkedEditingRange *LinkedEditingRangeClientCapabilities `json:"linkedEditingRange,omitempty"`
 	/*
 	 * Client capabilities specific to the `textDocument/moniker` request.
 	 *
 	 * @since 3.16.0
 	 */
-	Moniker MonikerClientCapabilities `json:"moniker,omitempty"`
+	Moniker *MonikerClientCapabilities `json:"moniker,omitempty"`
 	/*
 	 * Capabilities specific to the various type hierarchy requests.
 	 *
 	 * @since 3.17.0
 	 */
-	TypeHierarchy TypeHierarchyClientCapabilities `json:"typeHierarchy,omitempty"`
+	TypeHierarchy *TypeHierarchyClientCapabilities `json:"typeHierarchy,omitempty"`
 	/*
 	 * Capabilities specific to the `textDocument/inlineValue` request.
 	 *
 	 * @since 3.17.0
 	 */
-	InlineValue InlineValueClientCapabilities `json:"inlineValue,omitempty"`
+	InlineValue *InlineValueClientCapabilities `json:"inlineValue,omitempty"`
 	/*
 	 * Capabilities specific to the `textDocument/inlayHint` request.
 	 *
 	 * @since 3.17.0
 	 */
-	InlayHint InlayHintClientCapabilities `json:"inlayHint,omitempty"`
+	InlayHint *InlayHintClientCapabilities `json:"inlayHint,omitempty"`
 	/*
 	 * Capabilities specific to the diagnostic pull model.
 	 *
 	 * @since 3.17.0
 	 */
-	Diagnostic DiagnosticClientCapabilities `json:"diagnostic,omitempty"`
+	Diagnostic *DiagnosticClientCapabilities `json:"diagnostic,omitempty"`
 }
 
 /*
@@ -4969,8 +4969,8 @@ type TypeHierarchySupertypesParams struct { // line 3531
 
 // created for Tuple
 type UIntCommaUInt struct { // line 10101
-	Fld0 uint32 `json:"Fld0"`
-	Fld1 uint32 `json:"Fld1"`
+	Fld0 uint32 `json:"fld0"`
+	Fld1 uint32 `json:"fld1"`
 }
 type URI = string // (alias) line 0
 /*
@@ -5052,13 +5052,13 @@ type WindowClientCapabilities struct { // line 10655
 	 *
 	 * @since 3.16.0
 	 */
-	ShowMessage ShowMessageRequestClientCapabilities `json:"showMessage,omitempty"`
+	ShowMessage *ShowMessageRequestClientCapabilities `json:"showMessage,omitempty"`
 	/*
 	 * Capabilities specific to the showDocument request.
 	 *
 	 * @since 3.16.0
 	 */
-	ShowDocument ShowDocumentClientCapabilities `json:"showDocument,omitempty"`
+	ShowDocument *ShowDocumentClientCapabilities `json:"showDocument,omitempty"`
 }
 type WorkDoneProgressBegin struct { // line 6059
 	Kind string `json:"kind"`
@@ -5157,13 +5157,13 @@ type Workspace6Gn struct { // line 8424
 	 *
 	 * @since 3.6.0
 	 */
-	WorkspaceFolders WorkspaceFolders5Gn `json:"WorkspaceFolders"`
+	WorkspaceFolders WorkspaceFolders5Gn `json:"workspaceFolders"`
 	/*
 	 * The server is interested in notifications/requests for operations on files.
 	 *
 	 * @since 3.16.0
 	 */
-	FileOperations FileOperationOptions `json:"FileOperations"`
+	FileOperations FileOperationOptions `json:"fileOperations"`
 }
 
 // Workspace specific client capabilities.
@@ -5181,9 +5181,9 @@ type WorkspaceClientCapabilities struct { // line 10210
 	// Capabilities specific to the `workspace/didChangeWatchedFiles` notification.
 	DidChangeWatchedFiles DidChangeWatchedFilesClientCapabilities `json:"didChangeWatchedFiles,omitempty"`
 	// Capabilities specific to the `workspace/symbol` request.
-	Symbol WorkspaceSymbolClientCapabilities `json:"symbol,omitempty"`
+	Symbol *WorkspaceSymbolClientCapabilities `json:"symbol,omitempty"`
 	// Capabilities specific to the `workspace/executeCommand` request.
-	ExecuteCommand ExecuteCommandClientCapabilities `json:"executeCommand,omitempty"`
+	ExecuteCommand *ExecuteCommandClientCapabilities `json:"executeCommand,omitempty"`
 	/*
 	 * The client has support for workspace folders.
 	 *
@@ -5202,41 +5202,41 @@ type WorkspaceClientCapabilities struct { // line 10210
 	 *
 	 * @since 3.16.0.
 	 */
-	SemanticTokens SemanticTokensWorkspaceClientCapabilities `json:"semanticTokens,omitempty"`
+	SemanticTokens *SemanticTokensWorkspaceClientCapabilities `json:"semanticTokens,omitempty"`
 	/*
 	 * Capabilities specific to the code lens requests scoped to the
 	 * workspace.
 	 *
 	 * @since 3.16.0.
 	 */
-	CodeLens CodeLensWorkspaceClientCapabilities `json:"codeLens,omitempty"`
+	CodeLens *CodeLensWorkspaceClientCapabilities `json:"codeLens,omitempty"`
 	/*
 	 * The client has support for file notifications/requests for user operations on files.
 	 *
 	 * Since 3.16.0
 	 */
-	FileOperations FileOperationClientCapabilities `json:"fileOperations,omitempty"`
+	FileOperations *FileOperationClientCapabilities `json:"fileOperations,omitempty"`
 	/*
 	 * Capabilities specific to the inline values requests scoped to the
 	 * workspace.
 	 *
 	 * @since 3.17.0.
 	 */
-	InlineValue InlineValueWorkspaceClientCapabilities `json:"inlineValue,omitempty"`
+	InlineValue *InlineValueWorkspaceClientCapabilities `json:"inlineValue,omitempty"`
 	/*
 	 * Capabilities specific to the inlay hint requests scoped to the
 	 * workspace.
 	 *
 	 * @since 3.17.0.
 	 */
-	InlayHint InlayHintWorkspaceClientCapabilities `json:"inlayHint,omitempty"`
+	InlayHint *InlayHintWorkspaceClientCapabilities `json:"inlayHint,omitempty"`
 	/*
 	 * Capabilities specific to the diagnostic requests scoped to the
 	 * workspace.
 	 *
 	 * @since 3.17.0.
 	 */
-	Diagnostics DiagnosticWorkspaceClientCapabilities `json:"diagnostics,omitempty"`
+	Diagnostics *DiagnosticWorkspaceClientCapabilities `json:"diagnostics,omitempty"`
 }
 
 /*
@@ -5353,7 +5353,7 @@ type WorkspaceEditClientCapabilities struct { // line 10794
 	 *
 	 * @since 3.16.0
 	 */
-	ChangeAnnotationSupport PChangeAnnotationSupportPWorkspaceEdit `json:"changeAnnotationSupport,omitempty"`
+	ChangeAnnotationSupport *PChangeAnnotationSupportPWorkspaceEdit `json:"changeAnnotationSupport,omitempty"`
 }
 
 // A workspace folder inside a client.
@@ -5460,14 +5460,14 @@ type WorkspaceSymbolClientCapabilities struct { // line 10901
 	// Symbol request supports dynamic registration.
 	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
 	// Specific capabilities for the `SymbolKind` in the `workspace/symbol` request.
-	SymbolKind PSymbolKindPSymbol `json:"symbolKind,omitempty"`
+	SymbolKind *PSymbolKindPSymbol `json:"symbolKind,omitempty"`
 	/*
 	 * The client supports tags on `SymbolInformation`.
 	 * Clients supporting tags have to handle unknown tags gracefully.
 	 *
 	 * @since 3.16.0
 	 */
-	TagSupport PTagSupportPSymbol `json:"tagSupport,omitempty"`
+	TagSupport *PTagSupportPSymbol `json:"tagSupport,omitempty"`
 	/*
 	 * The client support partial workspace symbols. The client will send the
 	 * request `workspaceSymbol/resolve` to the server to resolve additional
@@ -5475,7 +5475,7 @@ type WorkspaceSymbolClientCapabilities struct { // line 10901
 	 *
 	 * @since 3.17.0
 	 */
-	ResolveSupport PResolveSupportPSymbol `json:"resolveSupport,omitempty"`
+	ResolveSupport *PResolveSupportPSymbol `json:"resolveSupport,omitempty"`
 }
 
 // Server capabilities for a [WorkspaceSymbolRequest](#WorkspaceSymbolRequest).
@@ -5587,7 +5587,7 @@ type _InitializeParams struct { // line 7655
 	 *
 	 * @since 3.15.0
 	 */
-	ClientInfo Msg_XInitializeParams_clientInfo `json:"clientInfo,omitempty"`
+	ClientInfo *Msg_XInitializeParams_clientInfo `json:"clientInfo,omitempty"`
 	/*
 	 * The locale the client is currently showing the user interface
 	 * in. This must not necessarily be the locale of the operating

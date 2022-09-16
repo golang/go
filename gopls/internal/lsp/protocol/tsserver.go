@@ -5,7 +5,7 @@
 package protocol
 
 // Code generated from version 3.17.0 of protocol/metaModel.json.
-// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of Tue Sep 13 10:45:25 2022)
+// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of Fri Sep 16 13:04:31 2022)
 // Code generated; DO NOT EDIT.
 
 import (
