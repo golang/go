@@ -173,13 +173,14 @@ func TestImportTypeparamTests(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	skip := map[string]string{
-		"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
-		"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
-		"issue50417.go": "inconsistent interface member sorting",
-		"issue53419.go": "fails to compile",
-		"issue53477.go": "fails to compile",
-		"issue55101.go": "fails to compile",
+	var skip map[string]string
+	if !goexperiment.Unified {
+		// The Go 1.18 frontend still fails several cases.
+		skip = map[string]string{
+			"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
+			"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
+			"issue55101.go": "fails to compile",
+		}
 	}
 
 	for _, entry := range list {

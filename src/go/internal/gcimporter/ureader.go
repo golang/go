@@ -469,6 +469,11 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 		return objPkg, objName
 	}
 
+	// Ignore local types promoted to global scope (#55110).
+	if _, suffix := splitVargenSuffix(objName); suffix != "" {
+		return objPkg, objName
+	}
+
 	if objPkg.Scope().Lookup(objName) == nil {
 		dict := pr.objDictIdx(idx)
 
