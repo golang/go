@@ -516,6 +516,20 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 					vmin = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, min)
 					vmax = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, max)
 
+				case 2:
+					min = int64(int16(w.AuxInt) - int16(delta))
+					max = int64(int16(^uint16(0)>>1) - int16(delta))
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst16, parent.Func.Config.Types.Int16, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst16, parent.Func.Config.Types.Int16, max)
+
+				case 1:
+					min = int64(int8(w.AuxInt) - int8(delta))
+					max = int64(int8(^uint8(0)>>1) - int8(delta))
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst8, parent.Func.Config.Types.Int8, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst8, parent.Func.Config.Types.Int8, max)
+
 				default:
 					panic("unimplemented")
 				}
@@ -1520,16 +1534,20 @@ func isConstDelta(v *Value) (w *Value, delta int64) {
 	switch v.Op {
 	case OpAdd32, OpSub32:
 		cop = OpConst32
+	case OpAdd16, OpSub16:
+		cop = OpConst16
+	case OpAdd8, OpSub8:
+		cop = OpConst8
 	}
 	switch v.Op {
-	case OpAdd64, OpAdd32:
+	case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
 		if v.Args[0].Op == cop {
 			return v.Args[1], v.Args[0].AuxInt
 		}
 		if v.Args[1].Op == cop {
 			return v.Args[0], v.Args[1].AuxInt
 		}
-	case OpSub64, OpSub32:
+	case OpSub64, OpSub32, OpSub16, OpSub8:
 		if v.Args[1].Op == cop {
 			aux := v.Args[1].AuxInt
 			if aux != -aux { // Overflow; too bad
