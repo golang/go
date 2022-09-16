@@ -1766,12 +1766,13 @@ func (m *M) Run() (code int) {
 		m.stopAlarm()
 		if !testRan && !exampleRan && !fuzzTargetsRan && *matchBenchmarks == "" && *matchFuzz == "" {
 			fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
-			if testingTesting {
+			if testingTesting && *match != "^$" {
 				// If this happens during testing of package testing it could be that
 				// package testing's own logic for when to run a test is broken,
 				// in which case every test will run nothing and succeed,
 				// with no obvious way to detect this problem (since no tests are running).
 				// So make 'no tests to run' a hard failure when testing package testing itself.
+				// The compile-only builders use -run=^$ to run no tests, so allow that.
 				fmt.Println("FAIL: package testing must run tests")
 				testOk = false
 			}
