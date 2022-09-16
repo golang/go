@@ -828,9 +828,8 @@ func (t *tester) registerTests() {
 
 	if goos != "android" && !t.iOS() {
 		// There are no tests in this directory, only benchmarks.
-		// Check that the test binary builds but don't bother running it.
-		// (It has init-time work to set up for the benchmarks that is not worth doing unnecessarily.)
-		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), "-c", "-o="+os.DevNull)
+		// Check that the test binary builds.
+		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), ".")
 	}
 	if goos != "android" && !t.iOS() {
 		// Only start multiple test dir shards on builders,
