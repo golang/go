@@ -383,11 +383,25 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
 }
 
 func BenchmarkEncodeRGBA(b *testing.B) {
-	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+	const width, height = 640, 480
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			percent := (x + y) % 100
+			switch {
+			case percent < 10: // 10% of pixels are translucent (have alpha >0 and <255)
+				img.Set(x, y, color.NRGBA{uint8(x), uint8(y), uint8(x * y), uint8(percent)})
+			case percent < 40: // 30% of pixels are transparent (have alpha == 0)
+				img.Set(x, y, color.NRGBA{uint8(x), uint8(y), uint8(x * y), 0})
+			default: // 60% of pixels are opaque (have alpha == 255)
+				img.Set(x, y, color.NRGBA{uint8(x), uint8(y), uint8(x * y), 255})
+			}
+		}
+	}
 	if img.Opaque() {
 		b.Fatal("expected image not to be opaque")
 	}
-	b.SetBytes(640 * 480 * 4)
+	b.SetBytes(width * height * 4)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
