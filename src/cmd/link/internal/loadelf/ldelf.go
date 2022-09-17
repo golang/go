@@ -1086,8 +1086,16 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		S390X | uint32(elf.R_390_PLT64)<<16:
 		return 8, 8, nil
 
+	case RISCV64 | uint32(elf.R_RISCV_SET6)<<16,
+		RISCV64 | uint32(elf.R_RISCV_SUB6)<<16,
+		RISCV64 | uint32(elf.R_RISCV_SET8)<<16,
+		RISCV64 | uint32(elf.R_RISCV_SUB8)<<16:
+		return 1, 1, nil
+
 	case RISCV64 | uint32(elf.R_RISCV_RVC_BRANCH)<<16,
-		RISCV64 | uint32(elf.R_RISCV_RVC_JUMP)<<16:
+		RISCV64 | uint32(elf.R_RISCV_RVC_JUMP)<<16,
+		RISCV64 | uint32(elf.R_RISCV_SET16)<<16,
+		RISCV64 | uint32(elf.R_RISCV_SUB16)<<16:
 		return 2, 2, nil
 
 	case RISCV64 | uint32(elf.R_RISCV_32)<<16,
@@ -1099,6 +1107,10 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		RISCV64 | uint32(elf.R_RISCV_PCREL_HI20)<<16,
 		RISCV64 | uint32(elf.R_RISCV_PCREL_LO12_I)<<16,
 		RISCV64 | uint32(elf.R_RISCV_PCREL_LO12_S)<<16,
+		RISCV64 | uint32(elf.R_RISCV_ADD32)<<16,
+		RISCV64 | uint32(elf.R_RISCV_SET32)<<16,
+		RISCV64 | uint32(elf.R_RISCV_SUB32)<<16,
+		RISCV64 | uint32(elf.R_RISCV_32_PCREL)<<16,
 		RISCV64 | uint32(elf.R_RISCV_RELAX)<<16:
 		return 4, 4, nil
 
