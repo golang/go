@@ -1744,7 +1744,7 @@ var cgoEnabled = map[string]bool{
 	"openbsd/arm64":   true,
 	"openbsd/mips64":  true,
 	"openbsd/ppc64":   false,
-	"openbsd/riscv64": false,
+	"openbsd/riscv64": true,
 	"plan9/386":       false,
 	"plan9/amd64":     false,
 	"plan9/arm":       false,
