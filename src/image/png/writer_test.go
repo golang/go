@@ -394,3 +394,47 @@ func BenchmarkEncodeRGBA(b *testing.B) {
 		Encode(io.Discard, img)
 	}
 }
+
+func TestWriteRGBA(t *testing.T) {
+	const width, height = 640, 480
+	transparentImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	opaqueImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	mixedImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	translucentImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			opaqueColor := color.RGBA{uint8(x), uint8(y), uint8(y + x), 255}
+			transparentColor := color.RGBA{uint8(x) % 127, uint8(y) % 127, uint8(y+x) % 127, 128}
+			opaqueImg.Set(x, y, opaqueColor)
+			translucentImg.Set(x, y, transparentColor)
+			if y%2 == 0 {
+				mixedImg.Set(x, y, opaqueColor)
+			}
+		}
+	}
+
+	testCases := []struct {
+		name         string
+		img          image.Image
+		expectedLoss float64
+	}{
+		{"Transparent RGBA", transparentImg, 0},
+		{"Opaque RGBA", opaqueImg, 0},
+		{"50/50 Transparent/Opaque RGBA", mixedImg, 0},
+		{"RGBA with variable alpha", translucentImg, 1.51},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m0 := tc.img
+			m1, err := encodeDecode(m0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = diff(m0, m1, tc.expectedLoss)
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
