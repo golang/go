@@ -453,6 +453,19 @@ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) erro
 			} else {
 				// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
 				for x := b.Min.X; x < b.Max.X; x++ {
+					if rgba != nil {
+						// If it's RGBA, fully opaque and fully transparent pixels are two common cases to be optimized
+						a := rgba.Pix[rgba.PixOffset(x, y)+3]
+						if a == 0 { // keep next 4 bites as 0, it's a transparent pixel
+							i += 4
+							continue
+						}
+						if a == 0xff { // opaque pixel, no need to un-premultiply
+							copy(cr[0][i:i+4], rgba.Pix[rgba.PixOffset(x, y):rgba.PixOffset(x, y)+4])
+							i += 4
+							continue
+						}
+					}
 					c := color.NRGBAModel.Convert(m.At(x, y)).(color.NRGBA)
 					cr[0][i+0] = c.R
 					cr[0][i+1] = c.G
