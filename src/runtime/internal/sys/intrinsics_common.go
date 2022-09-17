@@ -45,6 +45,10 @@ var ntz8tab = [256]uint8{
 }
 
 // len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+//
+// nosplit because this is used in src/runtime/histogram.go, which make run in sensitive contexts.
+//
+//go:nosplit
 func Len64(x uint64) (n int) {
 	if x >= 1<<32 {
 		x >>= 32
