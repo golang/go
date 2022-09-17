@@ -42,8 +42,8 @@ TEXT memequal<>(SB),NOSPLIT|NOFRAME,$0
 	BLT	X12, X23, loop4_check
 
 	// Check alignment - if alignment differs we have to do one byte at a time.
-	AND	$3, X10, X9
-	AND	$3, X11, X19
+	AND	$7, X10, X9
+	AND	$7, X11, X19
 	BNE	X9, X19, loop4_check
 	BEQZ	X9, loop32_check
 

@@ -58,8 +58,8 @@ use_a_len:
 	BLT	X5, X6, loop4_check
 
 	// Check alignment - if alignment differs we have to do one byte at a time.
-	AND	$3, X10, X7
-	AND	$3, X12, X8
+	AND	$7, X10, X7
+	AND	$7, X12, X8
 	BNE	X7, X8, loop4_check
 	BEQZ	X7, loop32_check
 
