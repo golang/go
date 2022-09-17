@@ -15,7 +15,38 @@ import (
 	"testing"
 )
 
-func diff(m0, m1 image.Image) error {
+// totalLoss returns the total difference between two colors, in the range [0, 257*4]
+// 0 means the colors are identical
+// Difference between opaque black and white is 257*3
+// Difference between NRGBA{10, 20, 30, 255}, NRGBA{11, 22, 33, 255} ≈ 6
+func totalLoss(c0, c1 color.Color) float64 {
+	var loss uint32
+	r0, g0, b0, a0 := c0.RGBA()
+	r1, g1, b1, a1 := c1.RGBA()
+	s0 := []uint32{r0, g0, b0, a0}
+	s1 := []uint32{r1, g1, b1, a1}
+	for i := 0; i < 4; i++ {
+		if s0[i] > s1[i] {
+			loss += s0[i] - s1[i]
+		} else {
+			loss += s1[i] - s0[i]
+		}
+	}
+	return float64(loss) / 255.0
+}
+
+func assertAlmostEqual(c0, c1 color.Color, expectedLoss float64) error {
+	r0, g0, b0, a0 := c0.RGBA()
+	r1, g1, b1, a1 := c1.RGBA()
+	loss := totalLoss(c0, c1)
+	if loss > expectedLoss {
+		return fmt.Errorf("%T%v vs %T%v ({%d %d %d %d} vs {%d %d %d %d}), expected loss: %.2f, actual: %.2f",
+			c0, c0, c1, c1, r0, g0, b0, a0, r1, g1, b1, a1, expectedLoss, loss)
+	}
+	return nil
+}
+
+func diff(m0, m1 image.Image, expectedLoss float64) error {
 	b0, b1 := m0.Bounds(), m1.Bounds()
 	if !b0.Size().Eq(b1.Size()) {
 		return fmt.Errorf("dimensions differ: %v vs %v", b0, b1)
@@ -26,10 +57,9 @@ func diff(m0, m1 image.Image) error {
 		for x := b0.Min.X; x < b0.Max.X; x++ {
 			c0 := m0.At(x, y)
 			c1 := m1.At(x+dx, y+dy)
-			r0, g0, b0, a0 := c0.RGBA()
-			r1, g1, b1, a1 := c1.RGBA()
-			if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {
-				return fmt.Errorf("colors differ at (%d, %d): %v vs %v", x, y, c0, c1)
+			if err := assertAlmostEqual(c0, c1, expectedLoss); err != nil {
+				//fmt.Printf("colors differ at (%d, %d): %v\n", x, y, err)
+				return fmt.Errorf("colors differ at (%d, %d): %w", x, y, err)
 			}
 		}
 	}
@@ -43,6 +73,30 @@ func encodeDecode(m image.Image) (image.Image, error) {
 		return nil, err
 	}
 	return Decode(&b)
+}
+
+// Test for test
+func TestLossCalculation(t *testing.T) {
+	const uncertainty = 0.05
+	testCases := []struct {
+		c0, c1       color.Color
+		expectedLoss float64
+	}{
+		{color.Black, color.White, 257 * 3},
+		{color.Transparent, color.White, 257 * 4},
+		{color.NRGBA{11, 222, 33, 255}, color.RGBA{11, 222, 33, 255}, 0},
+		{color.NRGBA{2, 4, 8, 127}, color.RGBA{1, 2, 4, 127}, uncertainty},
+		{color.NRGBA{10, 20, 30, 255}, color.NRGBA{11, 22, 33, 255}, 6},
+	}
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%T%v vs %T%v", tc.c0, tc.c0, tc.c1, tc.c1), func(t *testing.T) {
+			loss := totalLoss(tc.c0, tc.c1)
+			if loss < tc.expectedLoss-uncertainty || loss > tc.expectedLoss+uncertainty {
+				t.Errorf("expected loss to be %.2f±%.2f, got %.2f",
+					tc.expectedLoss, uncertainty, loss)
+			}
+		})
+	}
 }
 
 func TestWriter(t *testing.T) {
@@ -71,7 +125,7 @@ func TestWriter(t *testing.T) {
 			continue
 		}
 		// Compare the two.
-		err = diff(m0, m2)
+		err = diff(m0, m2, 0)
 		if err != nil {
 			t.Error(fn, err)
 			continue
@@ -220,7 +274,7 @@ func TestSubImage(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = diff(m0, m1)
+	err = diff(m0, m1, 0)
 	if err != nil {
 		t.Error(err)
 		return
