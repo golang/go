@@ -2112,7 +2112,13 @@
 
 // Inline small or disjoint runtime.memmove calls with constant length.
 // See the comment in op Move in genericOps.go for discussion of the type.
-
+//
+// Note that we've lost any knowledge of the type and alignment requirements
+// of the source and destination. We only know the size, and that the type
+// contains no pointers.
+// The type of the move is not necessarily v.Args[0].Type().Elem()!
+// See issue 55122 for details.
+//
 // Because expand calls runs after prove, constants useful to this pattern may not appear.
 // Both versions need to exist; the memory and register variants.
 //
@@ -2120,31 +2126,28 @@
 (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem)))))
 	&& sz >= 0
 	&& isSameCall(sym, "runtime.memmove")
-	&& t.IsPtr() // avoids TUNSAFEPTR, see issue 30061
 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
 	&& isInlinableMemmove(dst, src, int64(sz), config)
 	&& clobber(s1, s2, s3, call)
-	=> (Move {t.Elem()} [int64(sz)] dst src mem)
+	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 
 // Match post-expansion calls, register version.
 (SelectN [0] call:(StaticCall {sym} dst src (Const(64|32) [sz]) mem))
 	&& sz >= 0
 	&& call.Uses == 1 // this will exclude all calls with results
 	&& isSameCall(sym, "runtime.memmove")
-	&& dst.Type.IsPtr() // avoids TUNSAFEPTR, see issue 30061
 	&& isInlinableMemmove(dst, src, int64(sz), config)
 	&& clobber(call)
-	=> (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
+	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 
 // Match pre-expansion calls.
 (SelectN [0] call:(StaticLECall {sym} dst src (Const(64|32) [sz]) mem))
 	&& sz >= 0
 	&& call.Uses == 1 // this will exclude all calls with results
 	&& isSameCall(sym, "runtime.memmove")
-	&& dst.Type.IsPtr() // avoids TUNSAFEPTR, see issue 30061
 	&& isInlinableMemmove(dst, src, int64(sz), config)
 	&& clobber(call)
-	=> (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
+	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 
 // De-virtualize late-expanded interface calls into late-expanded static calls.
 // Note that (ITab (IMake)) doesn't get rewritten until after the first opt pass,
