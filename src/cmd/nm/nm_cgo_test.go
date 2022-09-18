@@ -19,7 +19,7 @@ func canInternalLink() bool {
 		return false
 	case "freebsd":
 		switch runtime.GOARCH {
-		case "arm64":
+		case "arm64", "riscv64":
 			return false
 		}
 	case "linux":
