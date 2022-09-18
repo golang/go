@@ -5,6 +5,7 @@
 package flag_test
 
 import (
+	"bytes"
 	. "flag"
 	"fmt"
 	"internal/testenv"
@@ -352,6 +353,31 @@ func TestUserDefinedBool(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected error; got none")
+	}
+}
+
+func TestUserDefinedBoolUsage(t *testing.T) {
+	var flags FlagSet
+	flags.Init("test", ContinueOnError)
+	var buf bytes.Buffer
+	flags.SetOutput(&buf)
+	var b boolFlagVar
+	flags.Var(&b, "b", "X")
+	b.count = 0
+	// b.IsBoolFlag() will return true and usage will look boolean.
+	flags.PrintDefaults()
+	got := buf.String()
+	want := "  -b\tX\n"
+	if got != want {
+		t.Errorf("false: want %q; got %q", want, got)
+	}
+	b.count = 4
+	// b.IsBoolFlag() will return false and usage will look non-boolean.
+	flags.PrintDefaults()
+	got = buf.String()
+	want = "  -b\tX\n  -b value\n    \tX\n"
+	if got != want {
+		t.Errorf("false: want %q; got %q", want, got)
 	}
 }
 
