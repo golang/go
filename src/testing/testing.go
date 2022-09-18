@@ -547,6 +547,7 @@ type common struct {
 	hasSub     atomic.Bool    // whether there are sub-benchmarks.
 	raceErrors int            // Number of races detected during test.
 	runner     string         // Function name of tRunner running the test.
+	isParallel bool           // Whether the test is parallel.
 
 	parent   *common
 	level    int       // Nesting depth of test or benchmark.
@@ -823,9 +824,8 @@ var _ TB = (*B)(nil)
 // may be called simultaneously from multiple goroutines.
 type T struct {
 	common
-	isParallel bool
-	isEnvSet   bool
-	context    *testContext // For running tests and subtests.
+	isEnvSet bool
+	context  *testContext // For running tests and subtests.
 }
 
 func (c *common) private() {}
@@ -1326,7 +1326,19 @@ func (t *T) Parallel() {
 //
 // This cannot be used in parallel tests.
 func (t *T) Setenv(key, value string) {
-	if t.isParallel {
+	// Non-parallel subtests that have parallel ancestors may still
+	// run in parallel with other tests: they are only non-parallel
+	// with respect to the other subtests of the same parent.
+	// Since SetEnv affects the whole process, we need to disallow it
+	// if the current test or any parent is parallel.
+	isParallel := false
+	for c := &t.common; c != nil; c = c.parent {
+		if c.isParallel {
+			isParallel = true
+			break
+		}
+	}
+	if isParallel {
 		panic("testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests")
 	}
 
