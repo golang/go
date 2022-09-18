@@ -143,6 +143,10 @@ func main() {
 			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM64_") {
 				gohostarch = "arm64"
 			}
+		case gohostos == "freebsd":
+			if strings.Contains(run("", CheckExit, "uname", "-p"), "riscv64") {
+				gohostarch = "riscv64"
+			}
 		case gohostos == "openbsd":
 			if strings.Contains(run("", CheckExit, "uname", "-p"), "mips64") {
 				gohostarch = "mips64"
