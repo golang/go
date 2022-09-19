@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rsa
+package rsa_test
 
 import (
 	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -50,7 +51,7 @@ func ExampleDecryptPKCS1v15SessionKey() {
 
 	rsaCiphertext, _ := hex.DecodeString("aabbccddeeff")
 
-	if err := DecryptPKCS1v15SessionKey(rng, rsaPrivateKey, rsaCiphertext, key); err != nil {
+	if err := rsa.DecryptPKCS1v15SessionKey(rng, rsaPrivateKey, rsaCiphertext, key); err != nil {
 		// Any errors that result will be “public” – meaning that they
 		// can be determined without any secret information. (For
 		// instance, if the length of key is impossible given the RSA
@@ -99,7 +100,7 @@ func ExampleSignPKCS1v15() {
 	// of writing (2016).
 	hashed := sha256.Sum256(message)
 
-	signature, err := SignPKCS1v15(rng, rsaPrivateKey, crypto.SHA256, hashed[:])
+	signature, err := rsa.SignPKCS1v15(rng, rsaPrivateKey, crypto.SHA256, hashed[:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error from signing: %s\n", err)
 		return
@@ -119,7 +120,7 @@ func ExampleVerifyPKCS1v15() {
 	// of writing (2016).
 	hashed := sha256.Sum256(message)
 
-	err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.SHA256, hashed[:], signature)
+	err := rsa.VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.SHA256, hashed[:], signature)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error from verification: %s\n", err)
 		return
@@ -136,7 +137,7 @@ func ExampleEncryptOAEP() {
 	// encryption function.
 	rng := rand.Reader
 
-	ciphertext, err := EncryptOAEP(sha256.New(), rng, &test2048Key.PublicKey, secretMessage, label)
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rng, &test2048Key.PublicKey, secretMessage, label)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error from encryption: %s\n", err)
 		return
@@ -155,7 +156,7 @@ func ExampleDecryptOAEP() {
 	// operation.
 	rng := rand.Reader
 
-	plaintext, err := DecryptOAEP(sha256.New(), rng, test2048Key, ciphertext, label)
+	plaintext, err := rsa.DecryptOAEP(sha256.New(), rng, test2048Key, ciphertext, label)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error from decryption: %s\n", err)
 		return

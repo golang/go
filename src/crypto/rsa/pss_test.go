@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rsa
+package rsa_test
 
 import (
 	"bufio"
@@ -10,6 +10,7 @@ import (
 	"compress/bzip2"
 	"crypto"
 	"crypto/rand"
+	. "crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
@@ -60,7 +61,7 @@ func TestEMSAPSS(t *testing.T) {
 	hash.Write(msg)
 	hashed := hash.Sum(nil)
 
-	encoded, err := emsaPSSEncode(hashed, 1023, salt, sha1.New())
+	encoded, err := EMSAPSSEncode(hashed, 1023, salt, sha1.New())
 	if err != nil {
 		t.Errorf("Error from emsaPSSEncode: %s\n", err)
 	}
@@ -68,7 +69,7 @@ func TestEMSAPSS(t *testing.T) {
 		t.Errorf("Bad encoding. got %x, want %x", encoded, expected)
 	}
 
-	if err = emsaPSSVerify(hashed, encoded, 1023, len(salt), sha1.New()); err != nil {
+	if err = EMSAPSSVerify(hashed, encoded, 1023, len(salt), sha1.New()); err != nil {
 		t.Errorf("Bad verification: %s", err)
 	}
 }
@@ -289,8 +290,8 @@ func TestInvalidPSSSaltLength(t *testing.T) {
 	if _, err := SignPSS(rand.Reader, key, crypto.SHA256, digest[:], &PSSOptions{
 		SaltLength: -2,
 		Hash:       crypto.SHA256,
-	}); err.Error() != invalidSaltLenErr.Error() {
-		t.Fatalf("SignPSS unexpected error: got %v, want %v", err, invalidSaltLenErr)
+	}); err.Error() != InvalidSaltLenErr.Error() {
+		t.Fatalf("SignPSS unexpected error: got %v, want %v", err, InvalidSaltLenErr)
 	}
 
 	// We don't check the specific error here, because crypto/rsa and crypto/internal/boring
