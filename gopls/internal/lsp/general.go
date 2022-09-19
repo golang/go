@@ -137,6 +137,7 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 		Capabilities: protocol.ServerCapabilities{
 			CallHierarchyProvider: true,
 			CodeActionProvider:    codeActionProvider,
+			CodeLensProvider:      &protocol.CodeLensOptions{}, // must be non-nil to enable the code lens capability
 			CompletionProvider: protocol.CompletionOptions{
 				TriggerCharacters: []string{"."},
 			},
