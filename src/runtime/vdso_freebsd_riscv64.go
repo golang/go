@@ -4,7 +4,18 @@
 
 package runtime
 
+const (
+	_VDSO_TH_ALGO_RISCV_RDTIME = 1
+)
+
+func getCntxct() uint32
+
 //go:nosplit
 func (th *vdsoTimehands) getTimecounter() (uint32, bool) {
-	return 0, false
+	switch th.algo {
+	case _VDSO_TH_ALGO_RISCV_RDTIME:
+		return getCntxct(), true
+	default:
+		return 0, false
+	}
 }
