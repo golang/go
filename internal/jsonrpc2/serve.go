@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"net"
 	"os"
 	"time"
@@ -100,7 +101,7 @@ func Serve(ctx context.Context, ln net.Listener, server StreamServer, idleTimeou
 	}()
 
 	// Max duration: ~290 years; surely that's long enough.
-	const forever = 1<<63 - 1
+	const forever = math.MaxInt64
 	if idleTimeout <= 0 {
 		idleTimeout = forever
 	}

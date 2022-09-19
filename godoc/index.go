@@ -50,6 +50,7 @@ import (
 	"index/suffixarray"
 	"io"
 	"log"
+	"math"
 	"os"
 	pathpkg "path"
 	"path/filepath"
@@ -161,7 +162,7 @@ func newKindRun(h RunList) interface{} {
 		// bit is always the same for all infos in one
 		// list we can simply compare the entire info.
 		k := 0
-		prev := SpotInfo(1<<32 - 1) // an unlikely value
+		prev := SpotInfo(math.MaxUint32) // an unlikely value
 		for _, x := range run {
 			if x != prev {
 				run[k] = x
