@@ -13,9 +13,9 @@ import (
 	"go/types"
 	"sort"
 
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -59,23 +59,48 @@ var ErrNotAType = errors.New("not a type name or method")
 
 // implementations returns the concrete implementations of the specified
 // interface, or the interfaces implemented by the specified concrete type.
+// It populates only the definition-related fields of qualifiedObject.
+// (Arguably it should return a smaller data type.)
 func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]qualifiedObject, error) {
+	// Find all named types, even local types
+	// (which can have methods due to promotion).
 	var (
-		impls []qualifiedObject
-		seen  = make(map[token.Position]bool)
-		fset  = s.FileSet()
+		allNamed []*types.Named
+		pkgs     = make(map[*types.Package]Package)
 	)
+	knownPkgs, err := s.KnownPackages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, pkg := range knownPkgs {
+		pkgs[pkg.GetTypes()] = pkg
+		for _, obj := range pkg.GetTypesInfo().Defs {
+			obj, ok := obj.(*types.TypeName)
+			// We ignore aliases 'type M = N' to avoid duplicate reporting
+			// of the Named type N.
+			if !ok || obj.IsAlias() {
+				continue
+			}
+			if named, ok := obj.Type().(*types.Named); ok {
+				allNamed = append(allNamed, named)
+			}
+		}
+	}
 
 	qos, err := qualifiedObjsAtProtocolPos(ctx, s, f.URI(), pp)
 	if err != nil {
 		return nil, err
 	}
+	var (
+		impls []qualifiedObject
+		seen  = make(map[token.Position]bool)
+	)
 	for _, qo := range qos {
+		// Ascertain the query identifier (type or method).
 		var (
 			queryType   types.Type
 			queryMethod *types.Func
 		)
-
 		switch obj := qo.obj.(type) {
 		case *types.Func:
 			queryMethod = obj
@@ -92,32 +117,6 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 
 		if types.NewMethodSet(queryType).Len() == 0 {
 			return nil, nil
-		}
-
-		// Find all named types, even local types (which can have methods
-		// due to promotion).
-		var (
-			allNamed []*types.Named
-			pkgs     = make(map[*types.Package]Package)
-		)
-		knownPkgs, err := s.KnownPackages(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, pkg := range knownPkgs {
-			pkgs[pkg.GetTypes()] = pkg
-			info := pkg.GetTypesInfo()
-			for _, obj := range info.Defs {
-				obj, ok := obj.(*types.TypeName)
-				// We ignore aliases 'type M = N' to avoid duplicate reporting
-				// of the Named type N.
-				if !ok || obj.IsAlias() {
-					continue
-				}
-				if named, ok := obj.Type().(*types.Named); ok {
-					allNamed = append(allNamed, named)
-				}
-			}
 		}
 
 		// Find all the named types that match our query.
@@ -146,7 +145,7 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 				candObj = sel.Obj()
 			}
 
-			pos := fset.Position(candObj.Pos())
+			pos := s.FileSet().Position(candObj.Pos())
 			if candObj == queryMethod || seen[pos] {
 				continue
 			}
@@ -155,7 +154,7 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 
 			impls = append(impls, qualifiedObject{
 				obj: candObj,
-				pkg: pkgs[candObj.Pkg()],
+				pkg: pkgs[candObj.Pkg()], // may be nil (e.g. error)
 			})
 		}
 	}
@@ -192,17 +191,16 @@ func ensurePointer(T types.Type) types.Type {
 	return T
 }
 
+// A qualifiedObject is the result of resolving a reference from an
+// identifier to an object.
 type qualifiedObject struct {
-	obj types.Object
+	// definition
+	obj types.Object // the referenced object
+	pkg Package      // the Package that defines the object (nil => universe)
 
-	// pkg is the Package that contains obj's definition.
-	pkg Package
-
-	// node is the *ast.Ident or *ast.ImportSpec we followed to find obj, if any.
-	node ast.Node
-
-	// sourcePkg is the Package that contains node, if any.
-	sourcePkg Package
+	// reference (optional)
+	node      ast.Node // the reference (*ast.Ident or *ast.ImportSpec) to the object
+	sourcePkg Package  // the Package containing node
 }
 
 var (
