@@ -428,3 +428,9 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOV	$SYS_fcntl, T0
 	ECALL
 	RET
+
+// func getCntxct() uint32
+TEXT runtime·getCntxct(SB),NOSPLIT|NOFRAME,$0
+	RDTIME	A0
+	MOVW	A0, ret+0(FP)
+	RET
