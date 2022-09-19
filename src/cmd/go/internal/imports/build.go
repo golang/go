@@ -36,8 +36,7 @@ var (
 
 	goBuildComment = []byte("//go:build")
 
-	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
-	errMultipleGoBuild     = errors.New("multiple //go:build comments")
+	errMultipleGoBuild = errors.New("multiple //go:build comments")
 )
 
 func isGoBuildComment(line []byte) bool {
