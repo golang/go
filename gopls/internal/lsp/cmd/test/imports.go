@@ -16,7 +16,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 	filename := uri.Filename()
 	got, _ := r.NormalizeGoplsCmd(t, "imports", filename)
-	want := string(r.data.Golden("goimports", filename, func() ([]byte, error) {
+	want := string(r.data.Golden(t, "goimports", filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 	if want != got {

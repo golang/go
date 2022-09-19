@@ -6,12 +6,13 @@ package cmdtest
 
 import (
 	"bytes"
-	exec "golang.org/x/sys/execabs"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
+
+	exec "golang.org/x/sys/execabs"
 
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
@@ -21,7 +22,7 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 	tag := "gofmt"
 	uri := spn.URI()
 	filename := uri.Filename()
-	expect := string(r.data.Golden(tag, filename, func() ([]byte, error) {
+	expect := string(r.data.Golden(t, tag, filename, func() ([]byte, error) {
 		cmd := exec.Command("gofmt", filename)
 		contents, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
 		contents = []byte(r.Normalize(fixFileHeader(string(contents))))

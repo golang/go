@@ -18,7 +18,7 @@ func (r *runner) SemanticTokens(t *testing.T, spn span.Span) {
 	if stderr != "" {
 		t.Fatalf("%s: %q", filename, stderr)
 	}
-	want := string(r.data.Golden("semantic", filename, func() ([]byte, error) {
+	want := string(r.data.Golden(t, "semantic", filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 	if want != got {

@@ -45,7 +45,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 		if mode&jsonGoDef != 0 && runtime.GOOS == "windows" {
 			got = strings.Replace(got, "file:///", "file://", -1)
 		}
-		expect := strings.TrimSpace(string(r.data.Golden(tag, uri.Filename(), func() ([]byte, error) {
+		expect := strings.TrimSpace(string(r.data.Golden(t, tag, uri.Filename(), func() ([]byte, error) {
 			return []byte(got), nil
 		})))
 		if expect != "" && !strings.HasPrefix(got, expect) {

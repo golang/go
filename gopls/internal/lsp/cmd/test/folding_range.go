@@ -15,7 +15,7 @@ func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 	filename := uri.Filename()
 	got, _ := r.NormalizeGoplsCmd(t, "folding_ranges", filename)
-	expect := string(r.data.Golden(goldenTag, filename, func() ([]byte, error) {
+	expect := string(r.data.Golden(t, goldenTag, filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 

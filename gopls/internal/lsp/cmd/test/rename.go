@@ -17,7 +17,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	loc := fmt.Sprintf("%v", spn)
 	got, err := r.NormalizeGoplsCmd(t, "rename", loc, newText)
 	got += err
-	expect := string(r.data.Golden(goldenTag, filename, func() ([]byte, error) {
+	expect := string(r.data.Golden(t, goldenTag, filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 	if expect != got {

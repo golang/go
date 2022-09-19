@@ -1013,7 +1013,7 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
 	fmt.Fprintf(buf, "ImplementationsCount = %v\n", len(data.Implementations))
 
-	want := string(data.Golden("summary", summaryFile, func() ([]byte, error) {
+	want := string(data.Golden(t, "summary", summaryFile, func() ([]byte, error) {
 		return buf.Bytes(), nil
 	}))
 	got := buf.String()
@@ -1039,19 +1039,19 @@ func (data *Data) Mapper(uri span.URI) (*protocol.ColumnMapper, error) {
 	return data.mappers[uri], nil
 }
 
-func (data *Data) Golden(tag string, target string, update func() ([]byte, error)) []byte {
-	data.t.Helper()
+func (data *Data) Golden(t *testing.T, tag, target string, update func() ([]byte, error)) []byte {
+	t.Helper()
 	fragment, found := data.fragments[target]
 	if !found {
 		if filepath.IsAbs(target) {
-			data.t.Fatalf("invalid golden file fragment %v", target)
+			t.Fatalf("invalid golden file fragment %v", target)
 		}
 		fragment = target
 	}
 	golden := data.golden[fragment]
 	if golden == nil {
 		if !*UpdateGolden {
-			data.t.Fatalf("could not find golden file %v: %v", fragment, tag)
+			t.Fatalf("could not find golden file %v: %v", fragment, tag)
 		}
 		golden = &Golden{
 			Filename: filepath.Join(data.dir, fragment+goldenFileSuffix),
@@ -1077,14 +1077,14 @@ func (data *Data) Golden(tag string, target string, update func() ([]byte, error
 		}
 		contents, err := update()
 		if err != nil {
-			data.t.Fatalf("could not update golden file %v: %v", fragment, err)
+			t.Fatalf("could not update golden file %v: %v", fragment, err)
 		}
 		file.Data = append(contents, '\n') // add trailing \n for txtar
 		golden.Modified = true
 
 	}
 	if file == nil {
-		data.t.Fatalf("could not find golden contents %v: %v", fragment, tag)
+		t.Fatalf("could not find golden contents %v: %v", fragment, tag)
 	}
 	if len(file.Data) == 0 {
 		return file.Data

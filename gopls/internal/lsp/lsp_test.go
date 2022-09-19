@@ -287,7 +287,7 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, ranges
 			continue
 		}
 		tag := fmt.Sprintf("%s-%d", prefix, i)
-		want := string(r.data.Golden(tag, uri.Filename(), func() ([]byte, error) {
+		want := string(r.data.Golden(t, tag, uri.Filename(), func() ([]byte, error) {
 			return []byte(got), nil
 		}))
 
@@ -314,7 +314,7 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, ranges
 				continue
 			}
 			tag := fmt.Sprintf("%s-%s-%d", prefix, kind, i)
-			want := string(r.data.Golden(tag, uri.Filename(), func() ([]byte, error) {
+			want := string(r.data.Golden(t, tag, uri.Filename(), func() ([]byte, error) {
 				return []byte(got), nil
 			}))
 
@@ -388,7 +388,7 @@ func foldRanges(m *protocol.ColumnMapper, contents string, ranges []protocol.Fol
 func (r *runner) Format(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 	filename := uri.Filename()
-	gofmted := string(r.data.Golden("gofmt", filename, func() ([]byte, error) {
+	gofmted := string(r.data.Golden(t, "gofmt", filename, func() ([]byte, error) {
 		cmd := exec.Command("gofmt", filename)
 		out, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
 		return out, nil
@@ -475,7 +475,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		}
 		got = res[uri]
 	}
-	want := string(r.data.Golden("goimports", filename, func() ([]byte, error) {
+	want := string(r.data.Golden(t, "goimports", filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 
@@ -574,7 +574,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []tests.S
 		}
 	}
 	for u, got := range res {
-		want := string(r.data.Golden("suggestedfix_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
+		want := string(r.data.Golden(t, "suggestedfix_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
 			return []byte(got), nil
 		}))
 		if want != got {
@@ -626,7 +626,7 @@ func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span
 	}
 	res := <-r.editRecv
 	for u, got := range res {
-		want := string(r.data.Golden("functionextraction_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
+		want := string(r.data.Golden(t, "functionextraction_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
 			return []byte(got), nil
 		}))
 		if want != got {
@@ -678,7 +678,7 @@ func (r *runner) MethodExtraction(t *testing.T, start span.Span, end span.Span) 
 	}
 	res := <-r.editRecv
 	for u, got := range res {
-		want := string(r.data.Golden("methodextraction_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
+		want := string(r.data.Golden(t, "methodextraction_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
 			return []byte(got), nil
 		}))
 		if want != got {
@@ -730,7 +730,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if hover != nil {
 		didSomething = true
 		tag := fmt.Sprintf("%s-hoverdef", d.Name)
-		expectHover := string(r.data.Golden(tag, d.Src.URI().Filename(), func() ([]byte, error) {
+		expectHover := string(r.data.Golden(t, tag, d.Src.URI().Filename(), func() ([]byte, error) {
 			return []byte(hover.Contents.Value), nil
 		}))
 		got := tests.StripSubscripts(hover.Contents.Value)
@@ -982,7 +982,7 @@ func (r *runner) InlayHints(t *testing.T, spn span.Span) {
 	}
 	got := diff.ApplyEdits(string(m.Content), sedits)
 
-	withinlayHints := string(r.data.Golden("inlayHint", filename, func() ([]byte, error) {
+	withinlayHints := string(r.data.Golden(t, "inlayHint", filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 
@@ -1013,7 +1013,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		NewName:  newText,
 	})
 	if err != nil {
-		renamed := string(r.data.Golden(tag, filename, func() ([]byte, error) {
+		renamed := string(r.data.Golden(t, tag, filename, func() ([]byte, error) {
 			return []byte(err.Error()), nil
 		}))
 		if err.Error() != renamed {
@@ -1043,7 +1043,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		val := res[uri]
 		got += val
 	}
-	want := string(r.data.Golden(tag, filename, func() ([]byte, error) {
+	want := string(r.data.Golden(t, tag, filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 	if want != got {
@@ -1191,7 +1191,7 @@ func (r *runner) callWorkspaceSymbols(t *testing.T, uri span.URI, query string, 
 		t.Fatal(err)
 	}
 	got = filepath.ToSlash(tests.Normalize(got, r.normalizers))
-	want := string(r.data.Golden(fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
+	want := string(r.data.Golden(t, fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 	if diff := compare.Text(want, got); diff != "" {
@@ -1301,7 +1301,7 @@ func (r *runner) AddImport(t *testing.T, uri span.URI, expectedImport string) {
 		t.Fatal(err)
 	}
 	got := (<-r.editRecv)[uri]
-	want := r.data.Golden("addimport", uri.Filename(), func() ([]byte, error) {
+	want := r.data.Golden(t, "addimport", uri.Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	})
 	if want == nil {

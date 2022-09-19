@@ -25,7 +25,7 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.Signa
 		return
 	}
 	goldenTag := want.Signatures[0].Label + "-signature"
-	expect := string(r.data.Golden(goldenTag, filename, func() ([]byte, error) {
+	expect := string(r.data.Golden(t, goldenTag, filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 	if tests.NormalizeAny(expect) != tests.NormalizeAny(got) {

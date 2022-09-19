@@ -44,7 +44,7 @@ func (r *runner) runWorkspaceSymbols(t *testing.T, uri span.URI, matcher, query 
 	sort.Strings(filtered)
 	got := r.Normalize(strings.Join(filtered, "\n") + "\n")
 
-	expect := string(r.data.Golden(fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
+	expect := string(r.data.Golden(t, fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 

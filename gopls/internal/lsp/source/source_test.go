@@ -15,15 +15,15 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
-	"golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/fuzzy"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
+	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/diff"
+	"golang.org/x/tools/internal/fuzzy"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -366,7 +366,7 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data s
 			continue
 		}
 		tag := fmt.Sprintf("%s-%d", prefix, i)
-		want := string(r.data.Golden(tag, uri.Filename(), func() ([]byte, error) {
+		want := string(r.data.Golden(t, tag, uri.Filename(), func() ([]byte, error) {
 			return []byte(got), nil
 		}))
 
@@ -393,7 +393,7 @@ func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, data s
 				continue
 			}
 			tag := fmt.Sprintf("%s-%s-%d", prefix, kind, i)
-			want := string(r.data.Golden(tag, uri.Filename(), func() ([]byte, error) {
+			want := string(r.data.Golden(t, tag, uri.Filename(), func() ([]byte, error) {
 				return []byte(got), nil
 			}))
 
@@ -463,7 +463,7 @@ func foldRanges(contents string, ranges []*source.FoldingRangeInfo) (string, err
 }
 
 func (r *runner) Format(t *testing.T, spn span.Span) {
-	gofmted := string(r.data.Golden("gofmt", spn.URI().Filename(), func() ([]byte, error) {
+	gofmted := string(r.data.Golden(t, "gofmt", spn.URI().Filename(), func() ([]byte, error) {
 		cmd := exec.Command("gofmt", spn.URI().Filename())
 		out, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
 		return out, nil
@@ -523,7 +523,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		t.Error(err)
 	}
 	got := diff.ApplyEdits(string(data), diffEdits)
-	want := string(r.data.Golden("goimports", spn.URI().Filename(), func() ([]byte, error) {
+	want := string(r.data.Golden(t, "goimports", spn.URI().Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 	if d := compare.Text(got, want); d != "" {
@@ -567,7 +567,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if hover != "" {
 		didSomething = true
 		tag := fmt.Sprintf("%s-hoverdef", d.Name)
-		expectHover := string(r.data.Golden(tag, d.Src.URI().Filename(), func() ([]byte, error) {
+		expectHover := string(r.data.Golden(t, tag, d.Src.URI().Filename(), func() ([]byte, error) {
 			return []byte(hover), nil
 		}))
 		hover = tests.StripSubscripts(hover)
@@ -768,7 +768,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	}
 	changes, err := source.Rename(r.ctx, r.snapshot, fh, srcRng.Start, newText)
 	if err != nil {
-		renamed := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
+		renamed := string(r.data.Golden(t, tag, spn.URI().Filename(), func() ([]byte, error) {
 			return []byte(err.Error()), nil
 		}))
 		if err.Error() != renamed {
@@ -814,7 +814,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		got += val
 	}
 
-	renamed := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
+	renamed := string(r.data.Golden(t, tag, spn.URI().Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 
@@ -913,7 +913,7 @@ func (r *runner) callWorkspaceSymbols(t *testing.T, uri span.URI, query string, 
 		t.Fatal(err)
 	}
 	got = filepath.ToSlash(tests.Normalize(got, r.normalizers))
-	want := string(r.data.Golden(fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
+	want := string(r.data.Golden(t, fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 	if d := compare.Text(want, got); d != "" {

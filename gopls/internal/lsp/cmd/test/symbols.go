@@ -14,7 +14,7 @@ import (
 func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.DocumentSymbol) {
 	filename := uri.Filename()
 	got, _ := r.NormalizeGoplsCmd(t, "symbols", filename)
-	expect := string(r.data.Golden("symbols", filename, func() ([]byte, error) {
+	expect := string(r.data.Golden(t, "symbols", filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 	if expect != got {
