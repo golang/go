@@ -460,11 +460,17 @@ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) erro
 						// opaque pixel, no need to un-premultiply
 						copy(cr[0][i:i+4], rgba.Pix[rgba.PixOffset(x, y):rgba.PixOffset(x, y)+4])
 					} else {
-						c := color.NRGBAModel.Convert(m.At(x, y)).(color.NRGBA)
-						cr[0][i+0] = c.R
-						cr[0][i+1] = c.G
-						cr[0][i+2] = c.B
-						cr[0][i+3] = c.A
+						// This code does the same as color.NRGBAModel.Convert(m.At(x, y)).(color.NRGBA),
+						// with no extra memory allocations.
+						a32 := uint32(a) | uint32(a)<<8
+						// Iterate over r, g, b channels
+						for j := 0; j < 3; j++ {
+							ch := uint32(rgba.Pix[offset+j])
+							ch |= ch << 8
+							ch = (ch * 0xffff) / a32
+							cr[0][i+j] = uint8(ch >> 8)
+						}
+						cr[0][i+3] = a
 					}
 					i += 4
 				}
