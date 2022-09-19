@@ -362,10 +362,17 @@ type mSpanStateBox struct {
 	s atomic.Uint8
 }
 
+// It is nosplit to match get, below.
+
+//go:nosplit
 func (b *mSpanStateBox) set(s mSpanState) {
 	b.s.Store(uint8(s))
 }
 
+// It is nosplit because it's called indirectly by typedmemclr,
+// which must not be preempted.
+
+//go:nosplit
 func (b *mSpanStateBox) get() mSpanState {
 	return mSpanState(b.s.Load())
 }

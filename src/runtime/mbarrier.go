@@ -311,6 +311,8 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 // If the caller knows that typ has pointers, it can alternatively
 // call memclrHasPointers.
 //
+// TODO: A "go:nosplitrec" annotation would be perfect for this.
+//
 //go:nosplit
 func typedmemclr(typ *_type, ptr unsafe.Pointer) {
 	if writeBarrier.needed && typ.ptrdata != 0 {
