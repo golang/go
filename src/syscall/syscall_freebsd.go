@@ -12,26 +12,12 @@
 
 package syscall
 
-import (
-	"sync"
-	"unsafe"
-)
+import "unsafe"
 
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
-
-// See https://www.freebsd.org/doc/en_US.ISO8859-1/books/porters-handbook/versions.html.
-var (
-	osreldateOnce sync.Once
-	osreldate     uint32
-)
-
-func supportsABI(ver uint32) bool {
-	osreldateOnce.Do(func() { osreldate, _ = SysctlUint32("kern.osreldate") })
-	return osreldate >= ver
-}
 
 type SockaddrDatalink struct {
 	Len    uint8
