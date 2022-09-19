@@ -634,10 +634,16 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 
 		if elf.Machine(elfobj.machine) == elf.EM_PPC64 {
 			flag := int(elfsym.other) >> 5
-			if 2 <= flag && flag <= 6 {
-				l.SetSymLocalentry(s, 1<<uint(flag-2))
-			} else if flag == 7 {
+			switch flag {
+			case 0:
+				// No local entry. R2 is preserved.
+			case 1:
+				// These require R2 be saved and restored by the caller. This isn't supported today.
+				return errorf("%s: unable to handle local entry type 1", sb.Name())
+			case 7:
 				return errorf("%s: invalid sym.other 0x%x", sb.Name(), elfsym.other)
+			default:
+				l.SetSymLocalentry(s, 4<<uint(flag-2))
 			}
 		}
 	}
