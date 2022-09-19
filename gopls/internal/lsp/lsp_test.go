@@ -15,14 +15,15 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/command"
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
+	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/diff"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -30,6 +31,14 @@ import (
 func TestMain(m *testing.M) {
 	bug.PanicOnBugs = true
 	testenv.ExitIfSmallMachine()
+
+	// Set the global exporter to nil so that we don't log to stderr. This avoids
+	// a lot of misleading noise in test output.
+	//
+	// TODO(rfindley): investigate whether we can/should capture logs scoped to
+	// individual tests by passing in a context with a local exporter.
+	event.SetExporter(nil)
+
 	os.Exit(m.Run())
 }
 
