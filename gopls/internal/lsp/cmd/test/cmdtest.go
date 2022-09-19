@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"sync"
 	"testing"
 
-	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/cmd"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
@@ -23,6 +23,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
+	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
 )
@@ -37,8 +38,8 @@ type runner struct {
 
 func TestCommandLine(t *testing.T, testdata string, options func(*source.Options)) {
 	// On Android, the testdata directory is not copied to the runner.
-	if stat, err := os.Stat(testdata); err != nil || !stat.IsDir() {
-		t.Skip("testdata directory not present")
+	if runtime.GOOS == "android" {
+		t.Skip("testdata directory not present on android")
 	}
 	tests.RunTests(t, testdata, false, func(t *testing.T, datum *tests.Data) {
 		ctx := tests.Context(t)

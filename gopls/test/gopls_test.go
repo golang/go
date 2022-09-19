@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCommandLine(t *testing.T) {
-	cmdtest.TestCommandLine(t, "../../internal/lsp/testdata", commandLineOptions)
+	cmdtest.TestCommandLine(t, "../internal/lsp/testdata", commandLineOptions)
 }
 
 func commandLineOptions(options *source.Options) {
