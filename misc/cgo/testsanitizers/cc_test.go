@@ -83,9 +83,24 @@ func goEnv(key string) (string, error) {
 // replaceEnv sets the key environment variable to value in cmd.
 func replaceEnv(cmd *exec.Cmd, key, value string) {
 	if cmd.Env == nil {
-		cmd.Env = os.Environ()
+		cmd.Env = cmd.Environ()
 	}
 	cmd.Env = append(cmd.Env, key+"="+value)
+}
+
+// appendExperimentEnv appends comma-separated experiments to GOEXPERIMENT.
+func appendExperimentEnv(cmd *exec.Cmd, experiments []string) {
+	if cmd.Env == nil {
+		cmd.Env = cmd.Environ()
+	}
+	exps := strings.Join(experiments, ",")
+	for _, evar := range cmd.Env {
+		c := strings.SplitN(evar, "=", 2)
+		if c[0] == "GOEXPERIMENT" {
+			exps = c[1] + "," + exps
+		}
+	}
+	cmd.Env = append(cmd.Env, "GOEXPERIMENT="+exps)
 }
 
 // mustRun executes t and fails cmd with a well-formatted message if it fails.
@@ -352,11 +367,19 @@ func configure(sanitizer string) *config {
 // goCmd returns a Cmd that executes "go $subcommand $args" with appropriate
 // additional flags and environment.
 func (c *config) goCmd(subcommand string, args ...string) *exec.Cmd {
+	return c.goCmdWithExperiments(subcommand, args, nil)
+}
+
+// goCmdWithExperiments returns a Cmd that executes
+// "GOEXPERIMENT=$experiments go $subcommand $args" with appropriate
+// additional flags and CGO-related environment variables.
+func (c *config) goCmdWithExperiments(subcommand string, args []string, experiments []string) *exec.Cmd {
 	cmd := exec.Command("go", subcommand)
 	cmd.Args = append(cmd.Args, c.goFlags...)
 	cmd.Args = append(cmd.Args, args...)
 	replaceEnv(cmd, "CGO_CFLAGS", strings.Join(c.cFlags, " "))
 	replaceEnv(cmd, "CGO_LDFLAGS", strings.Join(c.ldFlags, " "))
+	appendExperimentEnv(cmd, experiments)
 	return cmd
 }
 
