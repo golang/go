@@ -39,3 +39,10 @@ func coverReport2() {
 		os.Exit(2)
 	}
 }
+
+// testGoCoverDir returns the value passed to the -test.gocoverdir
+// flag by the Go command, if goexperiment.CoverageRedesign is
+// in effect.
+func testGoCoverDir() string {
+	return *gocoverdir
+}

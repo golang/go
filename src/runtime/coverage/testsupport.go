@@ -13,6 +13,7 @@ import (
 	"internal/coverage/decodecounter"
 	"internal/coverage/decodemeta"
 	"internal/coverage/pods"
+	"io"
 	"os"
 )
 
@@ -21,6 +22,12 @@ import (
 // intended to be used other than internally by the Go command's
 // generated code.
 func processCoverTestDir(dir string, cfile string, cm string, cpkg string) error {
+	return processCoverTestDirInternal(dir, cfile, cm, cpkg, os.Stdout)
+}
+
+// processCoverTestDirInternal is an io.Writer version of processCoverTestDir,
+// exposed for unit testing.
+func processCoverTestDirInternal(dir string, cfile string, cm string, cpkg string, w io.Writer) error {
 	cmode := coverage.ParseCounterMode(cm)
 	if cmode == coverage.CtrModeInvalid {
 		return fmt.Errorf("invalid counter mode %q", cm)
@@ -80,7 +87,7 @@ func processCoverTestDir(dir string, cfile string, cm string, cpkg string) error
 	}
 
 	// Emit percent.
-	if err := ts.cf.EmitPercent(os.Stdout, cpkg, true); err != nil {
+	if err := ts.cf.EmitPercent(w, cpkg, true); err != nil {
 		return err
 	}
 
