@@ -30,7 +30,6 @@ func diff(m0, m1 image.Image) error {
 			r0, g0, b0, a0 := c0.RGBA()
 			r1, g1, b1, a1 := c1.RGBA()
 			if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {
-				//return fmt.Errorf("colors differ at (%d, %d): %v vs %v", x, y, c0, c1)
 				return fmt.Errorf("colors differ at (%v, %v): %T%v vs %T%v", x, y, c0, c0, c1, c1)
 			}
 		}
@@ -373,9 +372,9 @@ func TestWriteRGBA(t *testing.T) {
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			opaqueColor := color.RGBA{uint8(x), uint8(y), uint8(y + x), 255}
-			transparentColor := color.RGBA{uint8(x) % 127, uint8(y) % 127, uint8(y+x) % 127, 128}
+			translucentColor := color.RGBA{uint8(x) % 128, uint8(y) % 128, uint8(y+x) % 128, 128}
 			opaqueImg.Set(x, y, opaqueColor)
-			translucentImg.Set(x, y, transparentColor)
+			translucentImg.Set(x, y, translucentColor)
 			if y%2 == 0 {
 				mixedImg.Set(x, y, opaqueColor)
 			}
