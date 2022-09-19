@@ -18,6 +18,7 @@ type GCStats struct {
 	Pause          []time.Duration // pause history, most recent first
 	PauseEnd       []time.Time     // pause end times history, most recent first
 	PauseQuantiles []time.Duration
+	AssistTotal    time.Duration // total assist across all collections
 }
 
 // ReadGCStats reads statistics about garbage collection into stats.
@@ -35,8 +36,8 @@ func ReadGCStats(stats *GCStats) {
 	// for end times history and as a temporary buffer for
 	// computing quantiles.
 	const maxPause = len(((*runtime.MemStats)(nil)).PauseNs)
-	if cap(stats.Pause) < 2*maxPause+3 {
-		stats.Pause = make([]time.Duration, 2*maxPause+3)
+	if cap(stats.Pause) < 2*maxPause+4 {
+		stats.Pause = make([]time.Duration, 2*maxPause+4)
 	}
 
 	// readGCStats fills in the pause and end times histories (up to
@@ -46,10 +47,11 @@ func ReadGCStats(stats *GCStats) {
 	// nanoseconds, so the pauses and the total pause time do not need
 	// any conversion.
 	readGCStats(&stats.Pause)
-	n := len(stats.Pause) - 3
+	n := len(stats.Pause) - 4
 	stats.LastGC = time.Unix(0, int64(stats.Pause[n]))
 	stats.NumGC = int64(stats.Pause[n+1])
 	stats.PauseTotal = stats.Pause[n+2]
+	stats.AssistTotal = stats.Pause[n+3]
 	n /= 2 // buffer holds pauses and end times
 	stats.Pause = stats.Pause[:n]
 

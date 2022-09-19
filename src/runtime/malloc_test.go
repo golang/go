@@ -62,7 +62,7 @@ func TestMemStats(t *testing.T) {
 			return fmt.Errorf("want %v", x)
 		}
 	}
-	// Of the uint fields, HeapReleased, HeapIdle can be 0.
+	// Of the uint fields, HeapReleased, HeapIdle, AssistTotalNs can be 0.
 	// PauseTotalNs can be 0 if timer resolution is poor.
 	fields := map[string][]func(any) error{
 		"Alloc": {nz, le(1e10)}, "TotalAlloc": {nz, le(1e11)}, "Sys": {nz, le(1e10)},
@@ -74,7 +74,7 @@ func TestMemStats(t *testing.T) {
 		"MCacheInuse": {nz, le(1e10)}, "MCacheSys": {nz, le(1e10)},
 		"BuckHashSys": {nz, le(1e10)}, "GCSys": {nz, le(1e10)}, "OtherSys": {nz, le(1e10)},
 		"NextGC": {nz, le(1e10)}, "LastGC": {nz},
-		"PauseTotalNs": {le(1e11)}, "PauseNs": nil, "PauseEnd": nil,
+		"PauseTotalNs": {le(1e11)}, "PauseNs": nil, "PauseEnd": nil, "AssistTotalNs": {le(1e10)},
 		"NumGC": {nz, le(1e9)}, "NumForcedGC": {nz, le(1e9)},
 		"GCCPUFraction": {le(0.99)}, "EnableGC": {eq(true)}, "DebugGC": {eq(false)},
 		"BySize": nil,

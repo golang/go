@@ -636,8 +636,10 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 
 	fmt.Fprintf(w, "# NextGC = %d\n", s.NextGC)
 	fmt.Fprintf(w, "# LastGC = %d\n", s.LastGC)
+	fmt.Fprintf(w, "# PauseTotalNs = %d\n", s.PauseTotalNs)
 	fmt.Fprintf(w, "# PauseNs = %d\n", s.PauseNs)
 	fmt.Fprintf(w, "# PauseEnd = %d\n", s.PauseEnd)
+	fmt.Fprintf(w, "# AssistTotalNs = %d\n", s.AssistTotalNs)
 	fmt.Fprintf(w, "# NumGC = %d\n", s.NumGC)
 	fmt.Fprintf(w, "# NumForcedGC = %d\n", s.NumForcedGC)
 	fmt.Fprintf(w, "# GCCPUFraction = %v\n", s.GCCPUFraction)

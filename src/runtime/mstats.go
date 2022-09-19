@@ -36,6 +36,7 @@ type mstats struct {
 	pause_total_ns  uint64
 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
 	pause_end       [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
+	assist_total_ns uint64
 	numgc           uint32
 	numforcedgc     uint32  // number of user-forced GCs
 	gc_cpu_fraction float64 // fraction of CPU time used by GC
@@ -274,6 +275,16 @@ type MemStats struct {
 	// multiple pauses per GC cycle; this records the end of the
 	// last pause in a cycle.
 	PauseEnd [256]uint64
+
+	// AssistTotalNs is the cumulative nanoseconds in GC assist since
+	// the program started.
+	//
+	// During GC assist, user goroutines yield some of their time to
+	// assist the GC with scanning and marking in response to a high
+	// allocation rate. A large amount of cumulative time spent here
+	// indicates that the application is likely out-pacing the GC
+	// with respect to how fast it is allocating.
+	AssistTotalNs uint64
 
 	// NumGC is the number of completed GC cycles.
 	NumGC uint32
@@ -530,6 +541,7 @@ func readmemstats_m(stats *MemStats) {
 	stats.PauseTotalNs = memstats.pause_total_ns
 	stats.PauseNs = memstats.pause_ns
 	stats.PauseEnd = memstats.pause_end
+	stats.AssistTotalNs = memstats.assist_total_ns
 	stats.NumGC = memstats.numgc
 	stats.NumForcedGC = memstats.numforcedgc
 	stats.GCCPUFraction = memstats.gc_cpu_fraction
@@ -556,7 +568,7 @@ func readGCStats(pauses *[]uint64) {
 func readGCStats_m(pauses *[]uint64) {
 	p := *pauses
 	// Calling code in runtime/debug should make the slice large enough.
-	if cap(p) < len(memstats.pause_ns)+3 {
+	if cap(p) < len(memstats.pause_ns)+4 {
 		throw("short slice passed to readGCStats")
 	}
 
@@ -582,8 +594,9 @@ func readGCStats_m(pauses *[]uint64) {
 	p[n+n] = memstats.last_gc_unix
 	p[n+n+1] = uint64(memstats.numgc)
 	p[n+n+2] = memstats.pause_total_ns
+	p[n+n+3] = memstats.assist_total_ns
 	unlock(&mheap_.lock)
-	*pauses = p[:n+n+3]
+	*pauses = p[:n+n+4]
 }
 
 // flushmcache flushes the mcache of allp[i].

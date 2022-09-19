@@ -36,6 +36,9 @@ func TestReadGCStats(t *testing.T) {
 	if stats.PauseTotal != time.Duration(mstats.PauseTotalNs) {
 		t.Errorf("stats.PauseTotal = %d, but mstats.PauseTotalNs = %d", stats.PauseTotal, mstats.PauseTotalNs)
 	}
+	if stats.AssistTotal != time.Duration(mstats.AssistTotalNs) {
+		t.Errorf("stats.AssistTotal = %d, but mstats.AssistTotalNs = %d", stats.AssistTotal, mstats.AssistTotalNs)
+	}
 	if stats.LastGC.UnixNano() != int64(mstats.LastGC) {
 		t.Errorf("stats.LastGC.UnixNano = %d, but mstats.LastGC = %d", stats.LastGC.UnixNano(), mstats.LastGC)
 	}
