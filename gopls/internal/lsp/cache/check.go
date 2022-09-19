@@ -21,11 +21,11 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/bug"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
@@ -355,8 +355,6 @@ func typeCheckImpl(ctx context.Context, snapshot *snapshot, goFiles, compiledGoF
 			missing, unexpected = filter.ProcessErrors(pkg.typeErrors)
 		}
 		if len(unexpected) != 0 || len(missing) != 0 {
-			// TODO(rfindley): remove this distracting log
-			event.Log(ctx, fmt.Sprintf("falling back to safe trimming due to type errors: %v or still-missing identifiers: %v", unexpected, missing), tag.Package.Of(string(m.ID)))
 			pkg, err = doTypeCheck(ctx, snapshot, goFiles, compiledGoFiles, m, mode, deps, nil)
 			if err != nil {
 				return nil, err
