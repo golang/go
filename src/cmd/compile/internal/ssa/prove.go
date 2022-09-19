@@ -859,10 +859,55 @@ func prove(f *Func) {
 			case OpOr64, OpOr32, OpOr16, OpOr8:
 				ft.update(b, v, v.Args[1], unsigned, gt|eq)
 				ft.update(b, v, v.Args[0], unsigned, gt|eq)
+			case OpPhi:
+				// Determine the min and max value of OpPhi composed entirely of integer constants.
+				//
+				// For example, for an OpPhi:
+				//
+				// v1 = OpConst64 [13]
+				// v2 = OpConst64 [7]
+				// v3 = OpConst64 [42]
+				//
+				// v4 = OpPhi(v1, v2, v3)
+				//
+				// We can prove:
+				//
+				// v4 >= 7 && v4 <= 42
+				//
+				// TODO(jake-ciolek): Handle nested constant OpPhi's
+				sameConstOp := true
+				min := 0
+				max := 0
+
+				if !v.Args[min].isGenericIntConst() {
+					break
+				}
+
+				for k := range v.Args {
+					if v.Args[k].Op != v.Args[min].Op {
+						sameConstOp = false
+						break
+					}
+					if v.Args[k].AuxInt < v.Args[min].AuxInt {
+						min = k
+					}
+					if v.Args[k].AuxInt > v.Args[max].AuxInt {
+						max = k
+					}
+				}
+
+				if sameConstOp {
+					ft.update(b, v, v.Args[min], signed, gt|eq)
+					ft.update(b, v, v.Args[max], signed, lt|eq)
+				}
+				// One might be tempted to create a v >= ft.zero relation for
+				// all OpPhi's composed of only provably-positive values
+				// but that bloats up the facts table for a very neglible gain.
+				// In Go itself, very few functions get improved (< 5) at a cost of 5-7% total increase
+				// of compile time.
 			}
 		}
 	}
-
 	// Find induction variables. Currently, findIndVars
 	// is limited to one induction variable per block.
 	var indVars map[*Block]indVar
