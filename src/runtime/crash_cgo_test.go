@@ -603,14 +603,8 @@ func TestSegv(t *testing.T) {
 		t.Skipf("no signals on %s", runtime.GOOS)
 	}
 
-	for _, test := range []string{"Segv", "SegvInCgo", "TgkillSegv", "TgkillSegvInCgo"} {
+	for _, test := range []string{"Segv", "SegvInCgo"} {
 		test := test
-
-		// The tgkill variants only run on Linux.
-		if runtime.GOOS != "linux" && strings.HasPrefix(test, "Tgkill") {
-			continue
-		}
-
 		t.Run(test, func(t *testing.T) {
 			t.Parallel()
 			got := runTestProg(t, "testprogcgo", test)
@@ -621,15 +615,6 @@ func TestSegv(t *testing.T) {
 					testenv.SkipFlaky(t, 39457)
 				}
 				t.Errorf("did not see %q in output", want)
-			}
-
-			doNotWant := "fatal error:"
-			if strings.Contains(got, doNotWant) {
-				if runtime.GOOS == "darwin" && strings.Contains(got, "0xb01dfacedebac1e") {
-					// See the comment in signal_darwin_amd64.go.
-					t.Skip("skipping due to Darwin handling of malformed addresses")
-				}
-				t.Errorf("saw %q in output", doNotWant)
 			}
 
 			// No runtime errors like "runtime: unknown pc".
