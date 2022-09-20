@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"io"
 	"math/big"
 	"os"
 	"runtime"
@@ -94,7 +95,7 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
 	pr.elemEnds = make([]uint32, pr.elemEndsEnds[len(pr.elemEndsEnds)-1])
 	assert(binary.Read(r, binary.LittleEndian, pr.elemEnds[:]) == nil)
 
-	pos, err := r.Seek(0, os.SEEK_CUR)
+	pos, err := r.Seek(0, io.SeekCurrent)
 	assert(err == nil)
 
 	pr.elemData = input[pos:]
@@ -237,7 +238,7 @@ func (r *Decoder) Sync(mWant SyncMarker) {
 		return
 	}
 
-	pos, _ := r.Data.Seek(0, os.SEEK_CUR) // TODO(mdempsky): io.SeekCurrent after #44505 is resolved
+	pos, _ := r.Data.Seek(0, io.SeekCurrent)
 	mHave := SyncMarker(r.rawUvarint())
 	writerPCs := make([]int, r.rawUvarint())
 	for i := range writerPCs {
