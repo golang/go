@@ -41,6 +41,10 @@ type ImportMissingError struct {
 	// modules.
 	isStd bool
 
+	// importerGoVersion is the version the module containing the import error
+	// specified. It is only set when isStd is true.
+	importerGoVersion string
+
 	// replaced the highest replaced version of the module where the replacement
 	// contains the package. replaced is only set if the replacement is unused.
 	replaced module.Version
@@ -53,7 +57,11 @@ type ImportMissingError struct {
 func (e *ImportMissingError) Error() string {
 	if e.Module.Path == "" {
 		if e.isStd {
-			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
+			msg := fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
+			if e.importerGoVersion != "" {
+				msg += fmt.Sprintf("\nnote: imported by a module that requires go %s", e.importerGoVersion)
+			}
+			return msg
 		}
 		if e.QueryErr != nil && e.QueryErr != ErrNoModRoot {
 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
