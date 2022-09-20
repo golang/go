@@ -150,46 +150,32 @@ func (e *entry) load() (value any, ok bool) {
 
 // Store sets the value for a key.
 func (m *Map) Store(key, value any) {
-	read := m.loadReadOnly()
-	if e, ok := read.m[key]; ok && e.tryStore(&value) {
-		return
-	}
-
-	m.mu.Lock()
-	read = m.loadReadOnly()
-	if e, ok := read.m[key]; ok {
-		if e.unexpungeLocked() {
-			// The entry was previously expunged, which implies that there is a
-			// non-nil dirty map and this entry is not in it.
-			m.dirty[key] = e
-		}
-		e.storeLocked(&value)
-	} else if e, ok := m.dirty[key]; ok {
-		e.storeLocked(&value)
-	} else {
-		if !read.amended {
-			// We're adding the first new key to the dirty map.
-			// Make sure it is allocated and mark the read-only map as incomplete.
-			m.dirtyLocked()
-			m.read.Store(&readOnly{m: read.m, amended: true})
-		}
-		m.dirty[key] = newEntry(value)
-	}
-	m.mu.Unlock()
+	_, _ = m.Swap(key, value)
 }
 
-// tryStore stores a value if the entry has not been expunged.
+// tryCompareAndSwap compare the entry with the given old value and swaps
+// it with a new value if the entry is equal to the old value, and the entry
+// has not been expunged.
 //
-// If the entry is expunged, tryStore returns false and leaves the entry
-// unchanged.
-func (e *entry) tryStore(i *any) bool {
+// If the entry is expunged, tryCompareAndSwap returns false and leaves
+// the entry unchanged.
+func (e *entry) tryCompareAndSwap(old, new any) bool {
+	p := e.p.Load()
+	if p == nil || p == expunged || *p != old {
+		return false
+	}
+
+	// Copy the interface after the first load to make this method more amenable
+	// to escape analysis: if the comparison fails from the start, we shouldn't
+	// bother heap-allocating an interface value to store.
+	nc := new
 	for {
-		p := e.p.Load()
-		if p == expunged {
-			return false
-		}
-		if e.p.CompareAndSwap(p, i) {
+		if e.p.CompareAndSwap(p, &nc) {
 			return true
+		}
+		p = e.p.Load()
+		if p == nil || p == expunged || *p != old {
+			return false
 		}
 	}
 }
@@ -202,11 +188,11 @@ func (e *entry) unexpungeLocked() (wasExpunged bool) {
 	return e.p.CompareAndSwap(expunged, nil)
 }
 
-// storeLocked unconditionally stores a value to the entry.
+// swapLocked unconditionally swaps a value into the entry.
 //
 // The entry must be known not to be expunged.
-func (e *entry) storeLocked(i *any) {
-	e.p.Store(i)
+func (e *entry) swapLocked(i *any) *any {
+	return e.p.Swap(i)
 }
 
 // LoadOrStore returns the existing value for the key if present.
@@ -319,6 +305,132 @@ func (e *entry) delete() (value any, ok bool) {
 			return *p, true
 		}
 	}
+}
+
+// trySwap swaps a value if the entry has not been expunged.
+//
+// If the entry is expunged, trySwap returns false and leaves the entry
+// unchanged.
+func (e *entry) trySwap(i *any) (*any, bool) {
+	for {
+		p := e.p.Load()
+		if p == expunged {
+			return nil, false
+		}
+		if e.p.CompareAndSwap(p, i) {
+			return p, true
+		}
+	}
+}
+
+// Swap swaps the value for a key and returns the previous value if any.
+// The loaded result reports whether the key was present.
+func (m *Map) Swap(key, value any) (previous any, loaded bool) {
+	read := m.loadReadOnly()
+	if e, ok := read.m[key]; ok {
+		if v, ok := e.trySwap(&value); ok {
+			if v == nil {
+				return nil, false
+			}
+			return *v, true
+		}
+	}
+
+	m.mu.Lock()
+	read = m.loadReadOnly()
+	if e, ok := read.m[key]; ok {
+		if e.unexpungeLocked() {
+			// The entry was previously expunged, which implies that there is a
+			// non-nil dirty map and this entry is not in it.
+			m.dirty[key] = e
+		}
+		if v := e.swapLocked(&value); v != nil {
+			loaded = true
+			previous = *v
+		}
+	} else if e, ok := m.dirty[key]; ok {
+		if v := e.swapLocked(&value); v != nil {
+			loaded = true
+			previous = *v
+		}
+	} else {
+		if !read.amended {
+			// We're adding the first new key to the dirty map.
+			// Make sure it is allocated and mark the read-only map as incomplete.
+			m.dirtyLocked()
+			m.read.Store(&readOnly{m: read.m, amended: true})
+		}
+		m.dirty[key] = newEntry(value)
+	}
+	m.mu.Unlock()
+	return previous, loaded
+}
+
+// CompareAndSwap swaps the old and new values for key
+// if the value stored in the map is equal to old.
+// The old value must be of a comparable type.
+func (m *Map) CompareAndSwap(key, old, new any) bool {
+	read := m.loadReadOnly()
+	if e, ok := read.m[key]; ok {
+		return e.tryCompareAndSwap(old, new)
+	} else if !read.amended {
+		return false // No existing value for key.
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	read = m.loadReadOnly()
+	swapped := false
+	if e, ok := read.m[key]; ok {
+		swapped = e.tryCompareAndSwap(old, new)
+	} else if e, ok := m.dirty[key]; ok {
+		swapped = e.tryCompareAndSwap(old, new)
+		// We needed to lock mu in order to load the entry for key,
+		// and the operation didn't change the set of keys in the map
+		// (so it would be made more efficient by promoting the dirty
+		// map to read-only).
+		// Count it as a miss so that we will eventually switch to the
+		// more efficient steady state.
+		m.missLocked()
+	}
+	return swapped
+}
+
+// CompareAndDelete deletes the entry for key if its value is equal to old.
+// The old value must be of a comparable type.
+//
+// If there is no current value for key in the map, CompareAndDelete
+// returns false (even if the old value is the nil interface value).
+func (m *Map) CompareAndDelete(key, old any) (deleted bool) {
+	read := m.loadReadOnly()
+	e, ok := read.m[key]
+	if !ok && read.amended {
+		m.mu.Lock()
+		read = m.loadReadOnly()
+		e, ok = read.m[key]
+		if !ok && read.amended {
+			e, ok = m.dirty[key]
+			// Don't delete key from m.dirty: we still need to do the “compare” part
+			// of the operation. The entry will eventually be expunged when the
+			// dirty map is promoted to the read map.
+			//
+			// Regardless of whether the entry was present, record a miss: this key
+			// will take the slow path until the dirty map is promoted to the read
+			// map.
+			m.missLocked()
+		}
+		m.mu.Unlock()
+	}
+	for ok {
+		p := e.p.Load()
+		if p == nil || p == expunged || *p != old {
+			return false
+		}
+		if e.p.CompareAndSwap(p, nil) {
+			return true
+		}
+	}
+	return false
 }
 
 // Range calls f sequentially for each key and value present in the map.
