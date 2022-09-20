@@ -1,9 +1,6 @@
-// Copyright 2020 The Go Authors. All rights reserved.
+// Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-
-//go:build unix
-// +build unix
 
 package main
 
@@ -14,30 +11,29 @@ import "C"
 import "syscall"
 
 func init() {
-	register("Segv", Segv)
-	register("SegvInCgo", SegvInCgo)
+	register("TgkillSegv", TgkillSegv)
+	register("TgkillSegvInCgo", TgkillSegvInCgo)
 }
 
-var Sum int
-
-func Segv() {
+func TgkillSegv() {
 	c := make(chan bool)
 	go func() {
 		close(c)
 		for i := 0; ; i++ {
+			// Sum defined in segv.go.
 			Sum += i
 		}
 	}()
 
 	<-c
 
-	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
+	syscall.Tgkill(syscall.Getpid(), syscall.Gettid(), syscall.SIGSEGV)
 
 	// Wait for the OS to deliver the signal.
 	C.pause()
 }
 
-func SegvInCgo() {
+func TgkillSegvInCgo() {
 	c := make(chan bool)
 	go func() {
 		close(c)
@@ -48,7 +44,7 @@ func SegvInCgo() {
 
 	<-c
 
-	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
+	syscall.Tgkill(syscall.Getpid(), syscall.Gettid(), syscall.SIGSEGV)
 
 	// Wait for the OS to deliver the signal.
 	C.pause()

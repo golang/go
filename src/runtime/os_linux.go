@@ -886,3 +886,17 @@ func runPerThreadSyscall() {
 
 	gp.m.needPerThreadSyscall.Store(0)
 }
+
+const (
+	_SI_USER  = 0
+	_SI_TKILL = -6
+)
+
+// sigFromUser reports whether the signal was sent because of a call
+// to kill or tgkill.
+//
+//go:nosplit
+func (c *sigctxt) sigFromUser() bool {
+	code := int32(c.sigcode())
+	return code == _SI_USER || code == _SI_TKILL
+}
