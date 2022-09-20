@@ -1899,11 +1899,11 @@ type Name struct {
 
 // NewName creates a new Name from a string.
 func NewName(name string) (Name, error) {
-	if len([]byte(name)) > nameLen {
+	if len(name) > nameLen {
 		return Name{}, errCalcLen
 	}
 	n := Name{Length: uint8(len(name))}
-	copy(n.Data[:], []byte(name))
+	copy(n.Data[:], name)
 	return n, nil
 }
 

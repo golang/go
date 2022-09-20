@@ -4592,9 +4592,7 @@ func (sc *http2serverConn) serve() {
 
 	// Each connection starts with initialWindowSize inflow tokens.
 	// If a higher value is configured, we add more tokens.
-	if diff := sc.srv.initialConnRecvWindowSize() - http2initialWindowSize; diff > 0 {
-		sc.sendWindowUpdate(nil, int(diff))
-	}
+	sc.sendWindowUpdate(nil)
 
 	if err := sc.readPreface(); err != nil {
 		sc.condlogf(err, "http2: server: error reading preface from client %v: %v", sc.conn.RemoteAddr(), err)
@@ -5313,7 +5311,7 @@ func (sc *http2serverConn) closeStream(st *http2stream, err error) {
 	if p := st.body; p != nil {
 		// Return any buffered unread bytes worth of conn-level flow control.
 		// See golang.org/issue/16481
-		sc.sendWindowUpdate(nil, p.Len())
+		sc.sendWindowUpdate(nil)
 
 		p.CloseWithError(err)
 	}
@@ -5461,7 +5459,7 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
 		// sendWindowUpdate, which also schedules sending the
 		// frames.
 		sc.inflow.take(int32(f.Length))
-		sc.sendWindowUpdate(nil, int(f.Length)) // conn-level
+		sc.sendWindowUpdate(nil) // conn-level
 
 		if st != nil && st.resetQueued {
 			// Already have a stream error in flight. Don't send another.
@@ -5479,7 +5477,7 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
 			return sc.countError("data_flow", http2streamError(id, http2ErrCodeFlowControl))
 		}
 		sc.inflow.take(int32(f.Length))
-		sc.sendWindowUpdate(nil, int(f.Length)) // conn-level
+		sc.sendWindowUpdate(nil) // conn-level
 
 		st.body.CloseWithError(fmt.Errorf("sender tried to send more than declared Content-Length of %d bytes", st.declBodyBytes))
 		// RFC 7540, sec 8.1.2.6: A request or response is also malformed if the
@@ -5497,7 +5495,7 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
 		if len(data) > 0 {
 			wrote, err := st.body.Write(data)
 			if err != nil {
-				sc.sendWindowUpdate(nil, int(f.Length)-wrote)
+				sc.sendWindowUpdate32(nil, int32(f.Length)-int32(wrote))
 				return sc.countError("body_write_err", http2streamError(id, http2ErrCodeStreamClosed))
 			}
 			if wrote != len(data) {
@@ -5824,12 +5822,6 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
 		return nil, nil, sc.countError("bad_path_method", http2streamError(f.StreamID, http2ErrCodeProtocol))
 	}
 
-	bodyOpen := !f.StreamEnded()
-	if rp.method == "HEAD" && bodyOpen {
-		// HEAD requests can't have bodies
-		return nil, nil, sc.countError("head_body", http2streamError(f.StreamID, http2ErrCodeProtocol))
-	}
-
 	rp.header = make(Header)
 	for _, hf := range f.RegularFields() {
 		rp.header.Add(sc.canonicalHeader(hf.Name), hf.Value)
@@ -5842,6 +5834,7 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
 	if err != nil {
 		return nil, nil, err
 	}
+	bodyOpen := !f.StreamEnded()
 	if bodyOpen {
 		if vv, ok := rp.header["Content-Length"]; ok {
 			if cl, err := strconv.ParseUint(vv[0], 10, 63); err == nil {
@@ -6054,17 +6047,32 @@ func (sc *http2serverConn) noteBodyReadFromHandler(st *http2stream, n int, err e
 
 func (sc *http2serverConn) noteBodyRead(st *http2stream, n int) {
 	sc.serveG.check()
-	sc.sendWindowUpdate(nil, n) // conn-level
+	sc.sendWindowUpdate(nil) // conn-level
 	if st.state != http2stateHalfClosedRemote && st.state != http2stateClosed {
 		// Don't send this WINDOW_UPDATE if the stream is closed
 		// remotely.
-		sc.sendWindowUpdate(st, n)
+		sc.sendWindowUpdate(st)
 	}
 }
 
 // st may be nil for conn-level
-func (sc *http2serverConn) sendWindowUpdate(st *http2stream, n int) {
+func (sc *http2serverConn) sendWindowUpdate(st *http2stream) {
 	sc.serveG.check()
+
+	var n int32
+	if st == nil {
+		if avail, windowSize := sc.inflow.available(), sc.srv.initialConnRecvWindowSize(); avail > windowSize/2 {
+			return
+		} else {
+			n = windowSize - avail
+		}
+	} else {
+		if avail, windowSize := st.inflow.available(), sc.srv.initialStreamRecvWindowSize(); avail > windowSize/2 {
+			return
+		} else {
+			n = windowSize - avail
+		}
+	}
 	// "The legal range for the increment to the flow control
 	// window is 1 to 2^31-1 (2,147,483,647) octets."
 	// A Go Read call on 64-bit machines could in theory read
@@ -6230,6 +6238,10 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 		rws.writeHeader(200)
 	}
 
+	if rws.handlerDone {
+		rws.promoteUndeclaredTrailers()
+	}
+
 	isHeadResp := rws.req.Method == "HEAD"
 	if !rws.sentHeader {
 		rws.sentHeader = true
@@ -6299,10 +6311,6 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 	}
 	if len(p) == 0 && !rws.handlerDone {
 		return 0, nil
-	}
-
-	if rws.handlerDone {
-		rws.promoteUndeclaredTrailers()
 	}
 
 	// only send trailers if they have actually been defined by the
@@ -7077,7 +7085,8 @@ func (t *http2Transport) initConnPool() {
 // HTTP/2 server.
 type http2ClientConn struct {
 	t             *http2Transport
-	tconn         net.Conn             // usually *tls.Conn, except specialized impls
+	tconn         net.Conn // usually *tls.Conn, except specialized impls
+	tconnClosed   bool
 	tlsState      *tls.ConnectionState // nil only for specialized impls
 	reused        uint32               // whether conn is being reused; atomic
 	singleUse     bool                 // whether being used for a single http.Request
@@ -7741,10 +7750,10 @@ func (cc *http2ClientConn) onIdleTimeout() {
 	cc.closeIfIdle()
 }
 
-func (cc *http2ClientConn) closeConn() error {
+func (cc *http2ClientConn) closeConn() {
 	t := time.AfterFunc(250*time.Millisecond, cc.forceCloseConn)
 	defer t.Stop()
-	return cc.tconn.Close()
+	cc.tconn.Close()
 }
 
 // A tls.Conn.Close can hang for a long time if the peer is unresponsive.
@@ -7810,7 +7819,8 @@ func (cc *http2ClientConn) Shutdown(ctx context.Context) error {
 	http2shutdownEnterWaitStateHook()
 	select {
 	case <-done:
-		return cc.closeConn()
+		cc.closeConn()
+		return nil
 	case <-ctx.Done():
 		cc.mu.Lock()
 		// Free the goroutine above
@@ -7847,7 +7857,7 @@ func (cc *http2ClientConn) sendGoAway() error {
 
 // closes the client connection immediately. In-flight requests are interrupted.
 // err is sent to streams.
-func (cc *http2ClientConn) closeForError(err error) error {
+func (cc *http2ClientConn) closeForError(err error) {
 	cc.mu.Lock()
 	cc.closed = true
 	for _, cs := range cc.streams {
@@ -7855,7 +7865,7 @@ func (cc *http2ClientConn) closeForError(err error) error {
 	}
 	cc.cond.Broadcast()
 	cc.mu.Unlock()
-	return cc.closeConn()
+	cc.closeConn()
 }
 
 // Close closes the client connection immediately.
@@ -7863,16 +7873,17 @@ func (cc *http2ClientConn) closeForError(err error) error {
 // In-flight requests are interrupted. For a graceful shutdown, use Shutdown instead.
 func (cc *http2ClientConn) Close() error {
 	err := errors.New("http2: client connection force closed via ClientConn.Close")
-	return cc.closeForError(err)
+	cc.closeForError(err)
+	return nil
 }
 
 // closes the client connection immediately. In-flight requests are interrupted.
-func (cc *http2ClientConn) closeForLostPing() error {
+func (cc *http2ClientConn) closeForLostPing() {
 	err := errors.New("http2: client connection lost")
 	if f := cc.t.CountError; f != nil {
 		f("conn_close_lost_ping")
 	}
-	return cc.closeForError(err)
+	cc.closeForError(err)
 }
 
 // errRequestCanceled is a copy of net/http's errRequestCanceled because it's not
@@ -8825,7 +8836,7 @@ func (cc *http2ClientConn) forgetStreamID(id uint32) {
 	// wake up RoundTrip if there is a pending request.
 	cc.cond.Broadcast()
 
-	closeOnIdle := cc.singleUse || cc.doNotReuse || cc.t.disableKeepAlives()
+	closeOnIdle := cc.singleUse || cc.doNotReuse || cc.t.disableKeepAlives() || cc.goAway != nil
 	if closeOnIdle && cc.streamsReserved == 0 && len(cc.streams) == 0 {
 		if http2VerboseLogs {
 			cc.vlogf("http2: Transport closing idle conn %p (forSingleUse=%v, maxStream=%v)", cc, cc.singleUse, cc.nextStreamID-2)
@@ -9494,7 +9505,6 @@ func (rl *http2clientConnReadLoop) processGoAway(f *http2GoAwayFrame) error {
 		if fn := cc.t.CountError; fn != nil {
 			fn("recv_goaway_" + f.ErrCode.stringToken())
 		}
-
 	}
 	cc.setGoAway(f)
 	return nil
