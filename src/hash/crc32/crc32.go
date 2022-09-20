@@ -13,6 +13,7 @@
 package crc32
 
 import (
+	"encoding/binary"
 	"errors"
 	"hash"
 	"sync"
@@ -172,8 +173,8 @@ const (
 func (d *digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize)
 	b = append(b, magic...)
-	b = appendUint32(b, tableSum(d.tab))
-	b = appendUint32(b, d.crc)
+	b = binary.BigEndian.AppendUint32(b, tableSum(d.tab))
+	b = binary.BigEndian.AppendUint32(b, d.crc)
 	return b, nil
 }
 
@@ -189,16 +190,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	}
 	d.crc = readUint32(b[8:])
 	return nil
-}
-
-func appendUint32(b []byte, x uint32) []byte {
-	a := [4]byte{
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
-	return append(b, a[:]...)
 }
 
 func readUint32(b []byte) uint32 {
@@ -258,7 +249,7 @@ func tableSum(t *Table) uint32 {
 	b := a[:0]
 	if t != nil {
 		for _, x := range t {
-			b = appendUint32(b, x)
+			b = binary.BigEndian.AppendUint32(b, x)
 		}
 	}
 	return ChecksumIEEE(b)

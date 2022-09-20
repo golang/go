@@ -8,6 +8,7 @@
 package crc64
 
 import (
+	"encoding/binary"
 	"errors"
 	"hash"
 	"sync"
@@ -113,8 +114,8 @@ const (
 func (d *digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize)
 	b = append(b, magic...)
-	b = appendUint64(b, tableSum(d.tab))
-	b = appendUint64(b, d.crc)
+	b = binary.BigEndian.AppendUint64(b, tableSum(d.tab))
+	b = binary.BigEndian.AppendUint64(b, d.crc)
 	return b, nil
 }
 
@@ -130,20 +131,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	}
 	d.crc = readUint64(b[12:])
 	return nil
-}
-
-func appendUint64(b []byte, x uint64) []byte {
-	a := [8]byte{
-		byte(x >> 56),
-		byte(x >> 48),
-		byte(x >> 40),
-		byte(x >> 32),
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
-	return append(b, a[:]...)
 }
 
 func readUint64(b []byte) uint64 {
@@ -217,7 +204,7 @@ func tableSum(t *Table) uint64 {
 	b := a[:0]
 	if t != nil {
 		for _, x := range t {
-			b = appendUint64(b, x)
+			b = binary.BigEndian.AppendUint64(b, x)
 		}
 	}
 	return Checksum(b, MakeTable(ISO))

@@ -14,6 +14,7 @@
 package adler32
 
 import (
+	"encoding/binary"
 	"errors"
 	"hash"
 )
@@ -59,7 +60,7 @@ const (
 func (d *digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize)
 	b = append(b, magic...)
-	b = appendUint32(b, uint32(*d))
+	b = binary.BigEndian.AppendUint32(b, uint32(*d))
 	return b, nil
 }
 
@@ -72,16 +73,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	}
 	*d = digest(readUint32(b[len(magic):]))
 	return nil
-}
-
-func appendUint32(b []byte, x uint32) []byte {
-	a := [4]byte{
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
-	return append(b, a[:]...)
 }
 
 func readUint32(b []byte) uint32 {
