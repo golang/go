@@ -556,26 +556,37 @@ func mallocinit() {
 // heapArenaBytes. sysAlloc returns nil on failure.
 // There is no corresponding free function.
 //
+// hintList is a list of hint addresses for where to allocate new
+// heap arenas. It must be non-nil.
+//
+// register indicates whether the heap arena should be registered
+// in allArenas.
+//
 // sysAlloc returns a memory region in the Reserved state. This region must
 // be transitioned to Prepared and then Ready before use.
 //
 // h must be locked.
-func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, register bool) (v unsafe.Pointer, size uintptr) {
 	assertLockHeld(&h.lock)
 
 	n = alignUp(n, heapArenaBytes)
 
-	// First, try the arena pre-reservation.
-	// Newly-used mappings are considered released.
-	v = h.arena.alloc(n, heapArenaBytes, &gcController.heapReleased)
-	if v != nil {
-		size = n
-		goto mapped
+	if hintList == &h.arenaHints {
+		// First, try the arena pre-reservation.
+		// Newly-used mappings are considered released.
+		//
+		// Only do this if we're using the regular heap arena hints.
+		// This behavior is only for the heap.
+		v = h.arena.alloc(n, heapArenaBytes, &gcController.heapReleased)
+		if v != nil {
+			size = n
+			goto mapped
+		}
 	}
 
 	// Try to grow the heap at a hint address.
-	for h.arenaHints != nil {
-		hint := h.arenaHints
+	for *hintList != nil {
+		hint := *hintList
 		p := hint.addr
 		if hint.down {
 			p -= n
@@ -607,7 +618,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 		if v != nil {
 			sysFreeOS(v, n)
 		}
-		h.arenaHints = hint.next
+		*hintList = hint.next
 		h.arenaHintAlloc.free(unsafe.Pointer(hint))
 	}
 
@@ -692,26 +703,28 @@ mapped:
 			}
 		}
 
-		// Add the arena to the arenas list.
-		if len(h.allArenas) == cap(h.allArenas) {
-			size := 2 * uintptr(cap(h.allArenas)) * goarch.PtrSize
-			if size == 0 {
-				size = physPageSize
+		// Register the arena in allArenas if requested.
+		if register {
+			if len(h.allArenas) == cap(h.allArenas) {
+				size := 2 * uintptr(cap(h.allArenas)) * goarch.PtrSize
+				if size == 0 {
+					size = physPageSize
+				}
+				newArray := (*notInHeap)(persistentalloc(size, goarch.PtrSize, &memstats.gcMiscSys))
+				if newArray == nil {
+					throw("out of memory allocating allArenas")
+				}
+				oldSlice := h.allArenas
+				*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / goarch.PtrSize)}
+				copy(h.allArenas, oldSlice)
+				// Do not free the old backing array because
+				// there may be concurrent readers. Since we
+				// double the array each time, this can lead
+				// to at most 2x waste.
 			}
-			newArray := (*notInHeap)(persistentalloc(size, goarch.PtrSize, &memstats.gcMiscSys))
-			if newArray == nil {
-				throw("out of memory allocating allArenas")
-			}
-			oldSlice := h.allArenas
-			*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / goarch.PtrSize)}
-			copy(h.allArenas, oldSlice)
-			// Do not free the old backing array because
-			// there may be concurrent readers. Since we
-			// double the array each time, this can lead
-			// to at most 2x waste.
+			h.allArenas = h.allArenas[:len(h.allArenas)+1]
+			h.allArenas[len(h.allArenas)-1] = ri
 		}
-		h.allArenas = h.allArenas[:len(h.allArenas)+1]
-		h.allArenas[len(h.allArenas)-1] = ri
 
 		// Store atomically just in case an object from the
 		// new heap arena becomes visible before the heap lock
