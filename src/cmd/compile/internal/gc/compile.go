@@ -126,20 +126,38 @@ func compileFunctions() {
 	}
 
 	if nWorkers := base.Flag.LowerC; nWorkers > 1 {
-		// For concurrent builds, we create a goroutine per task, but
-		// require them to hold a unique worker ID while performing work
-		// to limit parallelism.
-		workerIDs := make(chan int, nWorkers)
-		for i := 0; i < nWorkers; i++ {
-			workerIDs <- i
-		}
-
+		// For concurrent builds, we allow the work queue
+		// to grow arbitrarily large, but only nWorkers work items
+		// can be running concurrently.
+		workq := make(chan func(int))
+		done := make(chan int)
+		go func() {
+			ids := make([]int, nWorkers)
+			for i := range ids {
+				ids[i] = i
+			}
+			var pending []func(int)
+			for {
+				select {
+				case work := <-workq:
+					pending = append(pending, work)
+				case id := <-done:
+					ids = append(ids, id)
+				}
+				for len(pending) > 0 && len(ids) > 0 {
+					work := pending[len(pending)-1]
+					id := ids[len(ids)-1]
+					pending = pending[:len(pending)-1]
+					ids = ids[:len(ids)-1]
+					go func() {
+						work(id)
+						done <- id
+					}()
+				}
+			}
+		}()
 		queue = func(work func(int)) {
-			go func() {
-				worker := <-workerIDs
-				work(worker)
-				workerIDs <- worker
-			}()
+			workq <- work
 		}
 	}
 
