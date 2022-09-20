@@ -676,7 +676,7 @@ func adjustRangeForCommentsAndWhiteSpace(rng span.Range, tok *token.File, conten
 		prevStart = start
 		// If start is within a comment, move start to the end
 		// of the comment group.
-		if file.Comments[startComment].Pos() <= start && start < file.Comments[startComment].End() {
+		if startComment < len(file.Comments) && file.Comments[startComment].Pos() <= start && start < file.Comments[startComment].End() {
 			start = file.Comments[startComment].End()
 			startComment++
 		}
@@ -697,11 +697,16 @@ func adjustRangeForCommentsAndWhiteSpace(rng span.Range, tok *token.File, conten
 		// Find the index for the first comment that ends after the range end.
 		return file.Comments[i].End() >= rng.End
 	})
+	// Search will return n if not found, so we need to adjust if there are no
+	// comments that would match.
+	if endComment == len(file.Comments) {
+		endComment = -1
+	}
 	for prevEnd != end {
 		prevEnd = end
 		// If end is within a comment, move end to the start
 		// of the comment group.
-		if file.Comments[endComment].Pos() < end && end <= file.Comments[endComment].End() {
+		if endComment >= 0 && file.Comments[endComment].Pos() < end && end <= file.Comments[endComment].End() {
 			end = file.Comments[endComment].Pos()
 			endComment--
 		}
