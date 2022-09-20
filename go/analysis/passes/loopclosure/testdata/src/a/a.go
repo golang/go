@@ -10,6 +10,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var A int
+
 func _() {
 	var s []int
 	for i, v := range s {
@@ -49,6 +51,19 @@ func _() {
 		i, v := i, v
 		go func() {
 			println(i, v)
+		}()
+	}
+
+	// iteration variable declared outside the loop
+	for A = range s {
+		go func() {
+			println(A) // want "loop variable A captured by func literal"
+		}()
+	}
+	// iteration variable declared in a different file
+	for B = range s {
+		go func() {
+			println(B) // want "loop variable B captured by func literal"
 		}()
 	}
 	// If the key of the range statement is not an identifier

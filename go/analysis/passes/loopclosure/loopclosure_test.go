@@ -7,11 +7,10 @@ package loopclosure_test
 import (
 	"testing"
 
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/typeparams"
-
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/passes/loopclosure"
+	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func Test(t *testing.T) {

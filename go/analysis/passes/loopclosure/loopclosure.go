@@ -59,10 +59,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		// Find the variables updated by the loop statement.
-		var vars []*ast.Ident
+		var vars []types.Object
 		addVar := func(expr ast.Expr) {
-			if id, ok := expr.(*ast.Ident); ok {
-				vars = append(vars, id)
+			if id, _ := expr.(*ast.Ident); id != nil {
+				if obj := pass.TypesInfo.ObjectOf(id); obj != nil {
+					vars = append(vars, obj)
+				}
 			}
 		}
 		var body *ast.BlockStmt
@@ -132,17 +134,16 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 			ast.Inspect(lit.Body, func(n ast.Node) bool {
 				id, ok := n.(*ast.Ident)
-				if !ok || id.Obj == nil {
+				if !ok {
 					return true
 				}
-				if pass.TypesInfo.Types[id].Type == nil {
-					// Not referring to a variable (e.g. struct field name)
+				obj := pass.TypesInfo.Uses[id]
+				if obj == nil {
 					return true
 				}
 				for _, v := range vars {
-					if v.Obj == id.Obj {
-						pass.ReportRangef(id, "loop variable %s captured by func literal",
-							id.Name)
+					if v == obj {
+						pass.ReportRangef(id, "loop variable %s captured by func literal", id.Name)
 					}
 				}
 				return true
