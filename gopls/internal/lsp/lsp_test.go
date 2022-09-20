@@ -1074,7 +1074,12 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 		t.Errorf("prepare rename failed for %v: got error: %v", src, err)
 		return
 	}
-	// we all love typed nils
+
+	// TODO(rfindley): can we consolidate on a single representation for
+	// PrepareRename results, and use cmp.Diff here?
+
+	// PrepareRename may fail with no error if there was no object found at the
+	// position.
 	if got == nil {
 		if want.Text != "" { // expected an ident.
 			t.Errorf("prepare rename failed for %v: got nil", src)
@@ -1088,7 +1093,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 			t.Errorf("prepare rename failed: incorrect point, got %v want %v", got.Range.Start, want.Range.Start)
 		}
 	} else {
-		if protocol.CompareRange(got.Range, want.Range) != 0 {
+		if got.Range != want.Range {
 			t.Errorf("prepare rename failed: incorrect range got %v want %v", got.Range, want.Range)
 		}
 	}

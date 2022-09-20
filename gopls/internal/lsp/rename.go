@@ -35,6 +35,12 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	}, nil
 }
 
+// prepareRename implements the textDocument/prepareRename handler. It may
+// return (nil, nil) if there is no rename at the cursor position, but it is
+// not desirable to display an error to the user.
+//
+// TODO(rfindley): why wouldn't we want to show an error to the user, if the
+// user initiated a rename request at the cursor?
 func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (*protocol.PrepareRename2Gn, error) {
 	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
 	defer release()

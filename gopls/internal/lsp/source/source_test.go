@@ -839,43 +839,7 @@ func applyEdits(contents string, edits []diff.TextEdit) string {
 }
 
 func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.PrepareItem) {
-	_, srcRng, err := spanToRange(r.data, src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Find the identifier at the position.
-	fh, err := r.snapshot.GetFile(r.ctx, src.URI())
-	if err != nil {
-		t.Fatal(err)
-	}
-	item, _, err := source.PrepareRename(r.ctx, r.snapshot, fh, srcRng.Start)
-	if err != nil {
-		if want.Text != "" { // expected an ident.
-			t.Errorf("prepare rename failed for %v: got error: %v", src, err)
-		}
-		return
-	}
-	if item == nil {
-		if want.Text != "" {
-			t.Errorf("prepare rename failed for %v: got nil", src)
-		}
-		return
-	}
-	if want.Text == "" {
-		t.Errorf("prepare rename failed for %v: expected nil, got %v", src, item)
-		return
-	}
-	if item.Range.Start == item.Range.End {
-		// Special case for 0-length ranges. Marks can't specify a 0-length range,
-		// so just compare the start.
-		if item.Range.Start != want.Range.Start {
-			t.Errorf("prepare rename failed: incorrect point, got %v want %v", item.Range.Start, want.Range.Start)
-		}
-	} else {
-		if protocol.CompareRange(item.Range, want.Range) != 0 {
-			t.Errorf("prepare rename failed: incorrect range got %v want %v", item.Range, want.Range)
-		}
-	}
+	// Removed in favor of just using the lsp_test implementation. See ../lsp_test.go
 }
 
 func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.DocumentSymbol) {

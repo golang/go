@@ -1365,22 +1365,9 @@ func (data *Data) collectRenames(src span.Span, newText string) {
 	data.Renames[src] = newText
 }
 
-func (data *Data) collectPrepareRenames(src span.Span, rng span.Range, placeholder string) {
-	m, err := data.Mapper(src.URI())
-	if err != nil {
-		data.t.Fatal(err)
-	}
-	// Convert range to span and then to protocol.Range.
-	spn, err := rng.Span()
-	if err != nil {
-		data.t.Fatal(err)
-	}
-	prng, err := m.Range(spn)
-	if err != nil {
-		data.t.Fatal(err)
-	}
+func (data *Data) collectPrepareRenames(src, spn span.Span, placeholder string) {
 	data.PrepareRenames[src] = &source.PrepareItem{
-		Range: prng,
+		Range: data.mustRange(spn),
 		Text:  placeholder,
 	}
 }
