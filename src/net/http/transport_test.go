@@ -4429,8 +4429,19 @@ func testTransportReuseConnection_Gzip(t *testing.T, chunked bool) {
 	defer ts.Close()
 	c := ts.Client()
 
+	trace := &httptrace.ClientTrace{
+		GetConn:      func(hostPort string) { t.Logf("GetConn(%q)", hostPort) },
+		GotConn:      func(ci httptrace.GotConnInfo) { t.Logf("GotConn(%+v)", ci) },
+		PutIdleConn:  func(err error) { t.Logf("PutIdleConn(%v)", err) },
+		ConnectStart: func(network, addr string) { t.Logf("ConnectStart(%q, %q)", network, addr) },
+		ConnectDone:  func(network, addr string, err error) { t.Logf("ConnectDone(%q, %q, %v)", network, addr, err) },
+	}
+	ctx := httptrace.WithClientTrace(context.Background(), trace)
+
 	for i := 0; i < 2; i++ {
-		res, err := c.Get(ts.URL)
+		req, _ := NewRequest("GET", ts.URL, nil)
+		req = req.WithContext(ctx)
+		res, err := c.Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}
