@@ -15,6 +15,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/module"
 )
@@ -165,8 +166,8 @@ func newQuery(raw string) (*query, error) {
 		version:        version,
 	}
 	if strings.Contains(q.pattern, "...") {
-		q.matchWildcard = search.MatchPattern(q.pattern)
-		q.canMatchWildcardInModule = search.TreeCanMatchPattern(q.pattern)
+		q.matchWildcard = pkgpattern.MatchPattern(q.pattern)
+		q.canMatchWildcardInModule = pkgpattern.TreeCanMatchPattern(q.pattern)
 	}
 	if err := q.validate(); err != nil {
 		return q, err

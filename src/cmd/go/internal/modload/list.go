@@ -20,6 +20,7 @@ import (
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/search"
+	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/module"
 )
@@ -225,7 +226,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 		if arg == "all" {
 			match = func(string) bool { return true }
 		} else if strings.Contains(arg, "...") {
-			match = search.MatchPattern(arg)
+			match = pkgpattern.MatchPattern(arg)
 		} else {
 			var v string
 			if mg == nil {

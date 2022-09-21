@@ -24,6 +24,7 @@ import (
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/trace"
+	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/module"
 )
@@ -47,8 +48,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	isMatch := func(string) bool { return true }
 	treeCanMatch := func(string) bool { return true }
 	if !m.IsMeta() {
-		isMatch = search.MatchPattern(m.Pattern())
-		treeCanMatch = search.TreeCanMatchPattern(m.Pattern())
+		isMatch = pkgpattern.MatchPattern(m.Pattern())
+		treeCanMatch = pkgpattern.TreeCanMatchPattern(m.Pattern())
 	}
 
 	var mu sync.Mutex

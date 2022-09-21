@@ -41,6 +41,7 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/vcs"
+	"cmd/internal/pkgpattern"
 	"cmd/internal/sys"
 
 	"golang.org/x/mod/modfile"
@@ -3201,7 +3202,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 	matchers := make([]func(string) bool, len(patterns))
 	for i, p := range patterns {
 		if strings.Contains(p, "...") {
-			matchers[i] = search.MatchPattern(p)
+			matchers[i] = pkgpattern.MatchPattern(p)
 		}
 	}
 	return pkgs, nil
