@@ -6,8 +6,8 @@ import "sort"
 func IncorrectSort() {
 	i := 5
 	sortFn := func(i, j int) bool { return false }
-	sort.Slice(i, sortFn) // want "sort.Slice's argument must be a slice; is called with int"
-	sort.SliceStable(i, sortFn) // want "sort.SliceStable's argument must be a slice; is called with int"
+	sort.Slice(i, sortFn)         // want "sort.Slice's argument must be a slice; is called with int"
+	sort.SliceStable(i, sortFn)   // want "sort.SliceStable's argument must be a slice; is called with int"
 	sort.SliceIsSorted(i, sortFn) // want "sort.SliceIsSorted's argument must be a slice; is called with int"
 }
 
@@ -61,4 +61,24 @@ func UnderlyingSlice() {
 	sort.Slice(s, sortFn)
 	sort.SliceStable(s, sortFn)
 	sort.SliceIsSorted(s, sortFn)
+}
+
+// FunctionResultsAsArguments passes a function which returns two values
+// that satisfy sort.Slice signature. It should not produce a diagnostic.
+func FunctionResultsAsArguments() {
+	s := []string{"a", "z", "ooo"}
+	sort.Slice(less(s))
+	sort.Slice(lessPtr(s)) // want `sort.Slice's argument must be a slice; is called with \(\*\[\]string,.*`
+}
+
+func less(s []string) ([]string, func(i, j int) bool) {
+	return s, func(i, j int) bool {
+		return s[i] < s[j]
+	}
+}
+
+func lessPtr(s []string) (*[]string, func(i, j int) bool) {
+	return &s, func(i, j int) bool {
+		return s[i] < s[j]
+	}
 }
