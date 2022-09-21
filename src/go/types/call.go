@@ -469,7 +469,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
 					}
 				}
 				if exp == nil {
-					check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package C", sel)
+					check.errorf(e.Sel, _UndeclaredImportedName, "undefined: %s", ast.Expr(e)) // cast to ast.Expr to silence vet
 					goto Error
 				}
 				check.objDecl(exp, nil)
@@ -477,7 +477,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
 				exp = pkg.scope.Lookup(sel)
 				if exp == nil {
 					if !pkg.fake {
-						check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package %s", sel, pkg.name)
+						check.errorf(e.Sel, _UndeclaredImportedName, "undefined: %s", ast.Expr(e))
 					}
 					goto Error
 				}

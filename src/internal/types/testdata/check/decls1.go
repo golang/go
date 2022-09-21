@@ -64,7 +64,7 @@ var (
 	t13 int = a /* ERROR "shifted operand" */ << d
 	t14 int = i << j
 	t15 math /* ERROR "not in selector" */
-	t16 math.xxx /* ERROR "not declared" */
+	t16 math.xxx /* ERROR "undefined" */
 	t17 math /* ERROR "not a type" */ .Pi
 	t18 float64 = math.Pi * 10.0
 	t19 int = t1 /* ERROR "cannot call" */ ()
