@@ -320,7 +320,7 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
 	if len(lhs) != len(rhs) {
 		// invalidate lhs
 		for _, obj := range lhs {
-			obj.used = true // avoid declared but not used errors
+			obj.used = true // avoid declared and not used errors
 			if obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}

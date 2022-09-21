@@ -204,7 +204,7 @@ func issue15755() {
 	_ = v
 }
 
-// Test that we don't get "declared but not used"
+// Test that we don't get "declared and not used"
 // errors in the context of invalid/C objects.
 func issue20358() {
 	var F C /* ERROR "undefined" */ .F

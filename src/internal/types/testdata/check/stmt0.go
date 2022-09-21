@@ -222,7 +222,7 @@ func selects() {
 	ch2 := make(chan int)
 	select {
 	case <-ch1:
-		var ch2 /* ERROR ch2 declared but not used */ chan bool
+		var ch2 /* ERROR ch2 declared and not used */ chan bool
 	case i := <-ch2:
 		print(i + 1)
 	}
@@ -688,7 +688,7 @@ func typeswitches() {
 	default /* ERROR "multiple defaults" */ :
 	}
 
-	switch x /* ERROR "declared but not used" */ := x.(type) {}
+	switch x /* ERROR "declared and not used" */ := x.(type) {}
 	switch _ /* ERROR "no new variable on left side of :=" */ := x.(type) {}
 
 	switch x := x.(type) {
@@ -697,7 +697,7 @@ func typeswitches() {
 		_ = y
 	}
 
-	switch x /* ERROR "x declared but not used" */ := i /* ERROR "not an interface" */ .(type) {}
+	switch x /* ERROR "x declared and not used" */ := i /* ERROR "not an interface" */ .(type) {}
 
 	switch t := x.(type) {
 	case nil:
@@ -950,7 +950,7 @@ func issue6766b() {
 // the loop body is still type-checked (and thus
 // errors reported).
 func issue10148() {
-	for y /* ERROR declared but not used */ := range "" {
+	for y /* ERROR declared and not used */ := range "" {
 		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
 	}
 	for range 1 /* ERROR cannot range over 1 */ {

@@ -1154,7 +1154,7 @@ const (
 	//  }
 	_MisplacedLabel
 
-	// _UnusedLabel occurs when a label is declared but not used.
+	// _UnusedLabel occurs when a label is declared and not used.
 	//
 	// Example:
 	//  func f() {

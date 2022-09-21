@@ -69,11 +69,11 @@ func (check *Checker) arityMatch(s, init *ast.ValueSpec) {
 			// init exprs from s
 			n := s.Values[l]
 			check.errorf(n, code, "extra init expr %s", n)
-			// TODO(gri) avoid declared but not used error here
+			// TODO(gri) avoid declared and not used error here
 		} else {
 			// init exprs "inherited"
 			check.errorf(s, code, "extra init expr at %s", check.fset.Position(init.Pos()))
-			// TODO(gri) avoid declared but not used error here
+			// TODO(gri) avoid declared and not used error here
 		}
 	case l > r && (init != nil || r != 1):
 		n := s.Names[r]
@@ -706,9 +706,9 @@ func (check *Checker) errorUnusedPkg(obj *PkgName) {
 		elem = elem[i+1:]
 	}
 	if obj.name == "" || obj.name == "." || obj.name == elem {
-		check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
+		check.softErrorf(obj, _UnusedImport, "%q imported and not used", path)
 	} else {
-		check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
+		check.softErrorf(obj, _UnusedImport, "%q imported as %s and not used", path, obj.name)
 	}
 }
 

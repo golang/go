@@ -285,11 +285,11 @@ func TestIssue22525(t *testing.T) {
 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
 	conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // do not crash
 	want := `
-:1:27: a declared but not used
-:1:30: b declared but not used
-:1:33: c declared but not used
-:1:36: d declared but not used
-:1:39: e declared but not used
+:1:27: a declared and not used
+:1:30: b declared and not used
+:1:33: c declared and not used
+:1:36: d declared and not used
+:1:39: e declared and not used
 `
 	if got != want {
 		t.Errorf("got: %swant: %s", got, want)

@@ -142,7 +142,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 		}
 		// Note: This was reverted in go/types (https://golang.org/cl/292751).
 		// TODO(gri): decide what to do (also affects test/run.go exclusion list)
-		lhs.used = true // avoid follow-on "declared but not used" errors
+		lhs.used = true // avoid follow-on "declared and not used" errors
 		return nil
 	}
 
@@ -163,7 +163,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 
 	check.assignment(x, lhs.typ, context)
 	if x.mode == invalid {
-		lhs.used = true // avoid follow-on "declared but not used" errors
+		lhs.used = true // avoid follow-on "declared and not used" errors
 		return nil
 	}
 
@@ -325,7 +325,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 	if len(lhs) != len(rhs) {
 		// invalidate lhs
 		for _, obj := range lhs {
-			obj.used = true // avoid declared but not used errors
+			obj.used = true // avoid declared and not used errors
 			if obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
@@ -382,7 +382,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 		}
 	}
 
-	// avoid follow-on "declared but not used" errors if any initialization failed
+	// avoid follow-on "declared and not used" errors if any initialization failed
 	if !ok {
 		for _, lhs := range lhs {
 			lhs.used = true
@@ -425,7 +425,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 		}
 	}
 
-	// avoid follow-on "declared but not used" errors if any assignment failed
+	// avoid follow-on "declared and not used" errors if any assignment failed
 	if !ok {
 		// don't call check.use to avoid re-evaluation of the lhs expressions
 		for _, lhs := range lhs {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Ensure there is no "imported but not used" error
+// Ensure there is no "imported and not used" error
 // if a package wasn't imported in the first place.
 
 package p

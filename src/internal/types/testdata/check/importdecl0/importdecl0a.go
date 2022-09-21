@@ -13,16 +13,16 @@ import (
 	init /* ERROR "cannot import package as init" */ "fmt"
 	// reflect defines a type "flag" which shows up in the gc export data
 	"reflect"
-	. /* ERROR "imported but not used" */ "reflect"
+	. /* ERROR "imported and not used" */ "reflect"
 )
 
-import "math" /* ERROR "imported but not used" */
-import m /* ERROR "imported but not used as m" */ "math"
+import "math" /* ERROR "imported and not used" */
+import m /* ERROR "imported as m and not used" */ "math"
 import _ "math"
 
 import (
-	"math/big" /* ERROR "imported but not used" */
-	b /* ERROR "imported but not used" */ "math/big"
+	"math/big" /* ERROR "imported and not used" */
+	b /* ERROR "imported as b and not used" */ "math/big"
 	_ "math/big"
 )
 

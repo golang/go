@@ -10,19 +10,19 @@ package labels
 var x int
 
 func f0() {
-L1 /* ERROR "label L1 declared but not used" */ :
+L1 /* ERROR "label L1 declared and not used" */ :
 	for {
 	}
-L2 /* ERROR "label L2 declared but not used" */ :
+L2 /* ERROR "label L2 declared and not used" */ :
 	select {
 	}
-L3 /* ERROR "label L3 declared but not used" */ :
+L3 /* ERROR "label L3 declared and not used" */ :
 	switch {
 	}
-L4 /* ERROR "label L4 declared but not used" */ :
+L4 /* ERROR "label L4 declared and not used" */ :
 	if true {
 	}
-L5 /* ERROR "label L5 declared but not used" */ :
+L5 /* ERROR "label L5 declared and not used" */ :
 	f0()
 L6:
 	f0()
@@ -41,7 +41,7 @@ L7:
 // A label must be directly associated with a switch, select, or
 // for statement; it cannot be the label of a labeled statement.
 
-L7a /* ERROR "declared but not used" */ : L7b:
+L7a /* ERROR "declared and not used" */ : L7b:
 	for {
 		break L7a /* ERROR "invalid break label L7a" */
 		continue L7a /* ERROR "invalid continue label L7a" */
@@ -60,7 +60,7 @@ L9:
 	switch {
 	case true:
 		break L9
-	defalt /* ERROR "label defalt declared but not used" */ :
+	defalt /* ERROR "label defalt declared and not used" */ :
 	}
 
 L10:
@@ -157,7 +157,7 @@ L5:
 // Additional tests not in the original files.
 
 func f2() {
-L1 /* ERROR "label L1 declared but not used" */ :
+L1 /* ERROR "label L1 declared and not used" */ :
 	if x == 0 {
 		for {
 			continue L1 /* ERROR "invalid continue label L1" */
