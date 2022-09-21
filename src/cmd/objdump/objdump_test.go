@@ -297,8 +297,11 @@ func TestDisasmPIE(t *testing.T) {
 func TestDisasmGoobj(t *testing.T) {
 	mustHaveDisasm(t)
 
+	importcfgfile := filepath.Join(tmp, "hello.importcfg")
+	testenv.WriteImportcfg(t, importcfgfile, nil)
+
 	hello := filepath.Join(tmp, "hello.o")
-	args := []string{"tool", "compile", "-p=main", "-o", hello}
+	args := []string{"tool", "compile", "-p=main", "-importcfg=" + importcfgfile, "-o", hello}
 	args = append(args, "testdata/fmthello.go")
 	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
 	if err != nil {
