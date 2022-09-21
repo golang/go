@@ -130,7 +130,6 @@ type Data struct {
 	AddImport                AddImport
 	Hovers                   Hovers
 
-	t         testing.TB
 	fragments map[string]string
 	dir       string
 	golden    map[string]*Golden
@@ -337,7 +336,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		AddImport:                make(AddImport),
 		Hovers:                   make(Hovers),
 
-		t:         t,
 		dir:       dir,
 		fragments: map[string]string{},
 		golden:    map[string]*Golden{},
@@ -1187,15 +1185,9 @@ func (data *Data) collectCompletions(typ CompletionTestType) func(span.Span, []t
 	}
 }
 
-func (data *Data) collectCompletionItems(pos token.Pos, args []string) {
-	if len(args) < 3 {
-		loc := data.Exported.ExpectFileSet.Position(pos)
-		data.t.Fatalf("%s:%d: @item expects at least 3 args, got %d",
-			loc.Filename, loc.Line, len(args))
-	}
-	label, detail, kind := args[0], args[1], args[2]
+func (data *Data) collectCompletionItems(pos token.Pos, label, detail, kind string, args []string) {
 	var documentation string
-	if len(args) == 4 {
+	if len(args) > 3 {
 		documentation = args[3]
 	}
 	data.CompletionItems[pos] = &completion.CompletionItem{
@@ -1354,14 +1346,12 @@ func (data *Data) collectSymbols(name string, selectionRng span.Span, kind, deta
 	})
 }
 
-// mustRange converts spn into a protocol.Range, calling t.Fatal on any error.
+// mustRange converts spn into a protocol.Range, panicking on any error.
 func (data *Data) mustRange(spn span.Span) protocol.Range {
 	m, err := data.Mapper(spn.URI())
 	rng, err := m.Range(spn)
 	if err != nil {
-		// TODO(rfindley): this can probably just be a panic, at which point we
-		// don't need to close over t.
-		data.t.Fatal(err)
+		panic(fmt.Sprintf("converting span %s to range: %v", spn, err))
 	}
 	return rng
 }
