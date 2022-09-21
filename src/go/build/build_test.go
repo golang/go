@@ -675,7 +675,9 @@ func TestImportDirTarget(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
 	ctxt.GOPATH = ""
-	p, err := ctxt.ImportDir(filepath.Join(testenv.GOROOT(t), "src/path"), 0)
+	// In GOROOT only a handful of packages have install targets. Most stdlib packages will
+	// only be built and placed in the build cache.
+	p, err := ctxt.ImportDir(filepath.Join(testenv.GOROOT(t), "src/runtime/cgo"), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

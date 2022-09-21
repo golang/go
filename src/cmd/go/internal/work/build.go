@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"internal/buildinternal"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -723,8 +724,6 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 	for _, p := range pkgs {
 		if p.Target == "" {
 			switch {
-			case p.Standard && p.ImportPath == "unsafe":
-				// unsafe is a built-in package, has no target
 			case p.Name != "main" && p.Internal.Local && p.ConflictDir == "":
 				// Non-executables outside GOPATH need not have a target:
 				// we can use the cache to hold the built package archive for use in future builds.
@@ -732,6 +731,11 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 				// or else something is wrong and worth reporting (like a ConflictDir).
 			case p.Name != "main" && p.Module != nil:
 				// Non-executables have no target (except the cache) when building with modules.
+			case p.Name != "main" && p.Standard && !buildinternal.NeedsInstalledDotA(p.ImportPath):
+				// Most packages in std do not need an installed .a, because they can be
+				// rebuilt and used directly from the build cache.
+				// A few targets (notably those using cgo) still do need to be installed
+				// in case the user's environment lacks a C compiler.			case p.Internal.GobinSubdir:
 			case p.Internal.GobinSubdir:
 				base.Errorf("go: cannot install cross-compiled binaries when GOBIN is set")
 			case p.Internal.CmdlineFiles:

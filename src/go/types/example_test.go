@@ -5,7 +5,7 @@
 // Only run where builders (build.golang.org) have
 // access to compiled packages for import.
 //
-//go:build !arm && !arm64
+//go:build !android && !ios && !js
 
 package types_test
 

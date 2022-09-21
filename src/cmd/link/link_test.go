@@ -1104,6 +1104,8 @@ func TestUnlinkableObj(t *testing.T) {
 	xObj := filepath.Join(tmpdir, "x.o")
 	pObj := filepath.Join(tmpdir, "p.o")
 	exe := filepath.Join(tmpdir, "x.exe")
+	importcfgfile := filepath.Join(tmpdir, "importcfg")
+	testenv.WriteImportcfg(t, importcfgfile, map[string]string{"p": pObj})
 	err := os.WriteFile(xSrc, []byte("package main\nimport _ \"p\"\nfunc main() {}\n"), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
@@ -1112,17 +1114,17 @@ func TestUnlinkableObj(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", pObj, pSrc) // without -p
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-o", pObj, pSrc) // without -p
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("compile p.go failed: %v. output:\n%s", err, out)
 	}
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-p=main", "-o", xObj, xSrc)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-p=main", "-o", xObj, xSrc)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("compile x.go failed: %v. output:\n%s", err, out)
 	}
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, xObj)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-importcfg="+importcfgfile, "-o", exe, xObj)
 	out, err = cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("link did not fail")
@@ -1132,17 +1134,18 @@ func TestUnlinkableObj(t *testing.T) {
 	}
 
 	// It is okay to omit -p for (only) main package.
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", pObj, pSrc)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", pObj, pSrc)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("compile p.go failed: %v. output:\n%s", err, out)
 	}
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", xObj, xSrc) // without -p
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-o", xObj, xSrc) // without -p
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("compile failed: %v. output:\n%s", err, out)
 	}
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, xObj)
+
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-importcfg="+importcfgfile, "-o", exe, xObj)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("link failed: %v. output:\n%s", err, out)
