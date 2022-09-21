@@ -9,9 +9,11 @@ import (
 	"bufio"
 	"fmt"
 	"go/build"
+	"internal/goroot"
 	"internal/pkgbits"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -21,7 +23,26 @@ import (
 // debugging/development support
 const debug = false
 
-var pkgExts = [...]string{".a", ".o"}
+func lookupGorootExport(pkgpath, srcRoot, srcDir string) (string, bool) {
+	pkgpath = filepath.ToSlash(pkgpath)
+	m, err := goroot.PkgfileMap()
+	if err != nil {
+		return "", false
+	}
+	if export, ok := m[pkgpath]; ok {
+		return export, true
+	}
+	vendorPrefix := "vendor"
+	if strings.HasPrefix(srcDir, filepath.Join(srcRoot, "cmd")) {
+		vendorPrefix = path.Join("cmd", vendorPrefix)
+	}
+	pkgpath = path.Join(vendorPrefix, pkgpath)
+	fmt.Fprintln(os.Stderr, "looking up ", pkgpath)
+	export, ok := m[pkgpath]
+	return export, ok
+}
+
+var pkgExts = [...]string{".a", ".o"} // a file from the build cache will have no extension
 
 // FindPkg returns the filename and unique package id for an import
 // path based on package information provided by build.Import (using
@@ -43,11 +64,18 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		}
 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
 		if bp.PkgObj == "" {
-			id = path // make sure we have an id to print in error message
-			return
+			var ok bool
+			if bp.Goroot {
+				filename, ok = lookupGorootExport(path, bp.SrcRoot, srcDir)
+			}
+			if !ok {
+				id = path // make sure we have an id to print in error message
+				return
+			}
+		} else {
+			noext = strings.TrimSuffix(bp.PkgObj, ".a")
+			id = bp.ImportPath
 		}
-		noext = strings.TrimSuffix(bp.PkgObj, ".a")
-		id = bp.ImportPath
 
 	case build.IsLocalImport(path):
 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
@@ -68,6 +96,11 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		}
 	}
 
+	if filename != "" {
+		if f, err := os.Stat(filename); err == nil && !f.IsDir() {
+			return
+		}
+	}
 	// try extensions
 	for _, ext := range pkgExts {
 		filename = noext + ext

@@ -25,15 +25,12 @@ func TestForCompiler(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	const thePackage = "math/big"
-	out, err := exec.Command(testenv.GoToolPath(t), "list", "-f={{context.Compiler}}:{{.Target}}", thePackage).CombinedOutput()
+	out, err := exec.Command(testenv.GoToolPath(t), "list", "-export", "-f={{context.Compiler}}:{{.Export}}", thePackage).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go list %s: %v\n%s", thePackage, err, out)
 	}
-	target := strings.TrimSpace(string(out))
-	compiler, target, _ := strings.Cut(target, ":")
-	if !strings.HasSuffix(target, ".a") {
-		t.Fatalf("unexpected package %s target %q (not *.a)", thePackage, target)
-	}
+	export := strings.TrimSpace(string(out))
+	compiler, target, _ := strings.Cut(export, ":")
 
 	if compiler == "gccgo" {
 		t.Skip("golang.org/issue/22500")
