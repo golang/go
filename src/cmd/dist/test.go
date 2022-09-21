@@ -161,6 +161,10 @@ func (t *tester) run() {
 			// Instead, we can just check that it is not stale, which may be less
 			// expensive (and is also more likely to catch bugs in the builder
 			// implementation).
+			// The cache used by dist when building is different from that used when
+			// running dist test, so rebuild (but don't install) std and cmd to make
+			// sure packages without install targets are cached so they are not stale.
+			goCmd("go", "build", "std", "cmd") // make sure dependencies of targets are cached
 			checkNotStale("go", "std", "cmd")
 		}
 	}

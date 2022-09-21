@@ -74,8 +74,8 @@ func FindPkg(path, srcDir string) (filename, id string) {
 			}
 		} else {
 			noext = strings.TrimSuffix(bp.PkgObj, ".a")
-			id = bp.ImportPath
 		}
+		id = bp.ImportPath
 
 	case build.IsLocalImport(path):
 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
