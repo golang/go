@@ -8,9 +8,9 @@
 package p
 
 var x struct {
-	f *NotAType /* ERROR undeclared name */
+	f *NotAType /* ERROR undefined */
 }
 var _ = x.f == nil // no error expected here
 
-var y *NotAType  /* ERROR undeclared name */
+var y *NotAType  /* ERROR undefined */
 var _ = y == nil // no error expected here

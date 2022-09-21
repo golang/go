@@ -31,19 +31,19 @@ func issue8066() {
 
 // Check that a missing identifier doesn't lead to a spurious error cascade.
 func issue8799a() {
-	x, ok := missing /* ERROR undeclared */ ()
+	x, ok := missing /* ERROR undefined */ ()
 	_ = !ok
 	_ = x
 }
 
 func issue8799b(x int, ok bool) {
-	x, ok = missing /* ERROR undeclared */ ()
+	x, ok = missing /* ERROR undefined */ ()
 	_ = !ok
 	_ = x
 }
 
 func issue9182() {
-	type Point C /* ERROR undeclared */ .Point
+	type Point C /* ERROR undefined */ .Point
 	// no error for composite literal based on unknown type
 	_ = Point{x: 1, y: 2}
 }
@@ -88,13 +88,13 @@ func issue10979() {
 		T /* ERROR non-interface type T */
 	}
 	type _ interface {
-		nosuchtype /* ERROR undeclared name: nosuchtype */
+		nosuchtype /* ERROR undefined: nosuchtype */
 	}
 	type _ interface {
 		fmt.Nosuchtype /* ERROR Nosuchtype not declared by package fmt */
 	}
 	type _ interface {
-		nosuchpkg /* ERROR undeclared name: nosuchpkg */ .Nosuchtype
+		nosuchpkg /* ERROR undefined: nosuchpkg */ .Nosuchtype
 	}
 	type I interface {
 		I.m /* ERROR no field or method m */
@@ -207,11 +207,11 @@ func issue15755() {
 // Test that we don't get "declared but not used"
 // errors in the context of invalid/C objects.
 func issue20358() {
-	var F C /* ERROR "undeclared" */ .F
-	var A C /* ERROR "undeclared" */ .A
-	var S C /* ERROR "undeclared" */ .S
-	type T C /* ERROR "undeclared" */ .T
-	type P C /* ERROR "undeclared" */ .P
+	var F C /* ERROR "undefined" */ .F
+	var A C /* ERROR "undefined" */ .A
+	var S C /* ERROR "undefined" */ .S
+	type T C /* ERROR "undefined" */ .T
+	type P C /* ERROR "undefined" */ .P
 
 	// these variables must be "used" even though
 	// the LHS expressions/types below in which
@@ -240,7 +240,7 @@ func issue24026() {
 	// b and c must not be visible inside function literal
 	a := 0
 	a, b, c := func() (int, int, int) {
-		return a, b /* ERROR undeclared */ , c /* ERROR undeclared */
+		return a, b /* ERROR undefined */ , c /* ERROR undefined */
 	}()
 	_, _ = b, c
 }
@@ -313,7 +313,7 @@ type allocator struct {
 
 // Test that we don't crash when type-checking composite literals
 // containing errors in the type.
-var issue27346 = [][n /* ERROR undeclared */ ]int{
+var issue27346 = [][n /* ERROR undefined */ ]int{
 	0: {},
 }
 

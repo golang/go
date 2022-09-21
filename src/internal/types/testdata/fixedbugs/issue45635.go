@@ -5,7 +5,7 @@
 package main
 
 func main() {
-	some /* ERROR "undeclared name" */ [int, int]()
+	some /* ERROR "undefined" */ [int, int]()
 }
 
 type N[T any] struct{}

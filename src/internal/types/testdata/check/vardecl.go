@@ -158,9 +158,9 @@ func _() {
 // Invalid variable declarations must not lead to "declared but not used errors".
 // TODO(gri) enable these tests once go/types follows types2 logic for declared but not used variables
 // func _() {
-//	var a x                        // DISABLED_ERROR undeclared name: x
-//	var b = x                      // DISABLED_ERROR undeclared name: x
-//	var c int = x                  // DISABLED_ERROR undeclared name: x
+//	var a x                        // DISABLED_ERROR undefined: x
+//	var b = x                      // DISABLED_ERROR undefined: x
+//	var c int = x                  // DISABLED_ERROR undefined: x
 //	var d, e, f x                  /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
 //	var g, h, i = x, x, x          /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
 //	var j, k, l float32 = x, x, x  /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
@@ -204,11 +204,11 @@ var A /* ERROR initialization cycle */ = func() int { return A }()
 
 func _() {
 	// The function literal below must not see a.
-	var a = func() int { return a /* ERROR "undeclared name" */ }()
+	var a = func() int { return a /* ERROR "undefined" */ }()
 	var _ = func() int { return a }()
 
 	// The function literal below must not see x, y, or z.
-	var x, y, z = 0, 1, func() int { return x /* ERROR "undeclared name" */ + y /* ERROR "undeclared name" */ + z /* ERROR "undeclared name" */ }()
+	var x, y, z = 0, 1, func() int { return x /* ERROR "undefined" */ + y /* ERROR "undefined" */ + z /* ERROR "undefined" */ }()
 	_, _, _ = x, y, z
 }
 

@@ -9,9 +9,9 @@
 package p
 
 // crash 1
-type nt1[_ any]interface{g /* ERROR undeclared name */ }
-type ph1[e nt1[e],g(d /* ERROR undeclared name */ )]s /* ERROR undeclared name */
-func(*ph1[e,e /* ERROR redeclared */ ])h(d /* ERROR undeclared name */ )
+type nt1[_ any]interface{g /* ERROR undefined */ }
+type ph1[e nt1[e],g(d /* ERROR undefined */ )]s /* ERROR undefined */
+func(*ph1[e,e /* ERROR redeclared */ ])h(d /* ERROR undefined */ )
 
 // crash 2
 // Disabled: empty []'s are now syntax errors. This example leads to too many follow-on errors.
@@ -39,11 +39,11 @@ type foo9[A any] interface { foo9 /* ERROR invalid recursive type */ [A] }
 func _() { var _ = new(foo9[int]) }
 
 // crash 12
-var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undeclared */ /* ERROR undeclared */
+var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undefined */ /* ERROR undefined */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undefined */ /* ERROR undefined */
 
 // crash 15
 func y15() { var a /* ERROR declared but not used */ interface{ p() } = G15[string]{} }
-type G15[X any] s /* ERROR undeclared name */
+type G15[X any] s /* ERROR undefined */
 func (G15 /* ERROR generic type .* without instantiation */ ) p()
 
 // crash 16
@@ -62,7 +62,7 @@ func F17[T Z17](T) {}
 type o18[T any] []func(_ o18[[]_ /* ERROR cannot use _ */ ])
 
 // crash 19
-type Z19 [][[]Z19{}[0][0]]c19 /* ERROR undeclared */
+type Z19 [][[]Z19{}[0][0]]c19 /* ERROR undefined */
 
 // crash 20
 type Z20 /* ERROR invalid recursive type */ interface{ Z20 }

@@ -31,7 +31,7 @@ func TestIssue5770(t *testing.T) {
 	f := mustParse(t, `package p; type S struct{T}`)
 	conf := Config{Importer: importer.Default()}
 	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
-	want := "undeclared name: T"
+	const want = "undefined: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("got: %v; want: %s", err, want)
 	}

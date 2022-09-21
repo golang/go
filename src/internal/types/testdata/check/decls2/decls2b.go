@@ -38,19 +38,19 @@ func f_double /* ERROR "redeclared" */ () {}
 
 // Blank methods need to be type-checked.
 // Verify by checking that errors are reported.
-func (T /* ERROR "undeclared" */ ) _() {}
-func (T1) _(undeclared /* ERROR "undeclared" */ ) {}
+func (T /* ERROR "undefined" */ ) _() {}
+func (T1) _(undefined /* ERROR "undefined" */ ) {}
 func (T1) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
 
-// Methods with undeclared receiver type can still be checked.
+// Methods with undefined receiver type can still be checked.
 // Verify by checking that errors are reported.
-func (Foo /* ERROR "undeclared" */ ) m() {}
-func (Foo /* ERROR "undeclared" */ ) m(undeclared /* ERROR "undeclared" */ ) {}
-func (Foo /* ERROR "undeclared" */ ) m() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+func (Foo /* ERROR "undefined" */ ) m() {}
+func (Foo /* ERROR "undefined" */ ) m(undefined /* ERROR "undefined" */ ) {}
+func (Foo /* ERROR "undefined" */ ) m() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
 
-func (Foo /* ERROR "undeclared" */ ) _() {}
-func (Foo /* ERROR "undeclared" */ ) _(undeclared /* ERROR "undeclared" */ ) {}
-func (Foo /* ERROR "undeclared" */ ) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+func (Foo /* ERROR "undefined" */ ) _() {}
+func (Foo /* ERROR "undefined" */ ) _(undefined /* ERROR "undefined" */ ) {}
+func (Foo /* ERROR "undefined" */ ) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
 
 // Receiver declarations are regular parameter lists;
 // receiver types may use parentheses, and the list

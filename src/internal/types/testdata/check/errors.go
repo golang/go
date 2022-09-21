@@ -53,7 +53,7 @@ func _() {
 // Don't report spurious errors as a consequence of earlier errors.
 // Add more tests as needed.
 func _() {
-	if err := foo /* ERROR undeclared */ (); err != nil /* no error here */ {}
+	if err := foo /* ERROR undefined */ (); err != nil /* no error here */ {}
 }
 
 // Use unqualified names for package-local objects.
@@ -61,6 +61,6 @@ type T struct{}
 var _ int = T /* ERROR value of type T */ {} // use T in error message rather then errors.T
 
 // Don't report errors containing "invalid type" (issue #24182).
-func _(x *missing /* ERROR undeclared name: missing */ ) {
+func _(x *missing /* ERROR undefined: missing */ ) {
 	x.m() // there shouldn't be an error here referring to *invalid type
 }

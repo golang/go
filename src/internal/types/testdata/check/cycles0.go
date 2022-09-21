@@ -86,8 +86,8 @@ func _() {
 		t1 /* ERROR invalid recursive type */ t1
 		t2 *t2
 
-		t3 t4 /* ERROR undeclared */
-		t4 t5 /* ERROR undeclared */
+		t3 t4 /* ERROR undefined */
+		t4 t5 /* ERROR undefined */
 		t5 t3
 
 		// arrays

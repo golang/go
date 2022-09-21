@@ -309,7 +309,7 @@ func slice_literals() {
 	const index1 = 1
 	_ = S0{index1: 1}
 	_ = S0{index2: 2}
-	_ = S0{index3 /* ERROR "undeclared name" */ : 3}
+	_ = S0{index3 /* ERROR "undefined" */ : 3}
 
 	// indices must be integer constants
 	i := 1
@@ -385,7 +385,7 @@ func map_literals() {
 	key1 := "foo"
 	_ = M0{key1: 1}
 	_ = M0{key2: 2}
-	_ = M0{key3 /* ERROR "undeclared name" */ : 2}
+	_ = M0{key3 /* ERROR "undefined" */ : 2}
 
 	var value int
 	_ = M1{true: 1, false: 0}

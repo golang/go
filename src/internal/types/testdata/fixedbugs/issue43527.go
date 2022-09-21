@@ -8,7 +8,7 @@ const L = 10
 
 type (
 	_        [L]struct{}
-	_        [A /* ERROR undeclared name A for array length */ ]struct{}
+	_        [A /* ERROR undefined A for array length */ ]struct{}
 	_        [B /* ERROR invalid array length B */ ]struct{}
 	_[A any] struct{}
 

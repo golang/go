@@ -28,7 +28,7 @@ func TestIssue5770(t *testing.T) {
 	f := mustParse(t, `package p; type S struct{T}`)
 	var conf Config
 	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // do not crash
-	want := "undeclared name: T"
+	const want = "undefined: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("got: %v; want: %s", err, want)
 	}

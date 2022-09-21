@@ -37,11 +37,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 				check.error(e, _InvalidBlank, "cannot use _ as value or type")
 			}
 		} else {
-			if check.conf.CompilerErrorMessages {
-				check.errorf(e, _UndeclaredName, "undefined: %s", e.Value)
-			} else {
-				check.errorf(e, _UndeclaredName, "undeclared name: %s", e.Value)
-			}
+			check.errorf(e, _UndeclaredName, "undefined: %s", e.Value)
 		}
 		return
 	case universeAny, universeComparable:
@@ -482,7 +478,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 	if name, _ := e.(*syntax.Name); name != nil {
 		obj := check.lookup(name.Value)
 		if obj == nil {
-			check.errorf(name, _InvalidArrayLen, "undeclared name %s for array length", name.Value)
+			check.errorf(name, _InvalidArrayLen, "undefined %s for array length", name.Value)
 			return -1
 		}
 		if _, ok := obj.(*Const); !ok {

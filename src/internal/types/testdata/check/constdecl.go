@@ -87,7 +87,7 @@ func _() {
 // Caused panic because the constant value was not set up (gri - 7/8/2014).
 func _() {
 	const (
-	    x string = missing /* ERROR "undeclared name" */
+	    x string = missing /* ERROR "undefined" */
 	    y = x + ""
 	)
 }
@@ -97,11 +97,11 @@ const A /* ERROR initialization cycle */ = unsafe.Sizeof(func() { _ = A })
 
 func _() {
 	// The function literal below must not see a.
-	const a = unsafe.Sizeof(func() { _ = a /* ERROR "undeclared name" */ })
+	const a = unsafe.Sizeof(func() { _ = a /* ERROR "undefined" */ })
 	const b = unsafe.Sizeof(func() { _ = a })
 
 	// The function literal below must not see x, y, or z.
-	const x, y, z = 0, 1, unsafe.Sizeof(func() { _ = x /* ERROR "undeclared name" */ + y /* ERROR "undeclared name" */ + z /* ERROR "undeclared name" */ })
+	const x, y, z = 0, 1, unsafe.Sizeof(func() { _ = x /* ERROR "undefined" */ + y /* ERROR "undefined" */ + z /* ERROR "undefined" */ })
 }
 
 // Test cases for errors in inherited constant initialization expressions.

@@ -65,7 +65,7 @@ func assignments1() {
 	var u64 uint64
 	u64 += 1<<u64
 
-	undeclared /* ERROR "undeclared" */ = 991
+	undefined /* ERROR "undefined" */ = 991
 
 	// test cases for issue 5800
 	var (

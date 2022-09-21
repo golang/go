@@ -47,8 +47,8 @@ type T2 struct {
 }
 
 // Methods declared without a declared type.
-func (undeclared /* ERROR "undeclared" */) m() {}
-func (x *undeclared /* ERROR "undeclared" */) m() {}
+func (undefined /* ERROR "undefined" */) m() {}
+func (x *undefined /* ERROR "undefined" */) m() {}
 
 func (pi /* ERROR "not a type" */) m1() {}
 func (x pi /* ERROR "not a type" */) m2() {}

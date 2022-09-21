@@ -8,11 +8,11 @@ type T1 interface{ M() }
 
 func F1() T1
 
-var _ = F1().(*X1 /* ERROR undeclared name: X1 */)
+var _ = F1().(*X1 /* ERROR undefined: X1 */)
 
 func _() {
 	switch F1().(type) {
-	case *X1 /* ERROR undeclared name: X1 */ :
+	case *X1 /* ERROR undefined: X1 */ :
 	}
 }
 

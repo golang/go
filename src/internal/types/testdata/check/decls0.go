@@ -13,7 +13,7 @@ import "unsafe"
 const pi = 3.1415
 
 type (
-	N undeclared /* ERROR "undeclared" */
+	N undefined /* ERROR "undefined" */
 	B bool
 	I int32
 	A [10]P
