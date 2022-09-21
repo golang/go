@@ -38,10 +38,10 @@ if [ "$pattern" = "" ]; then
 fi
 
 targets="$(go tool dist list; echo linux/386/softfloat)"
-targets="$(echo "$targets" | tr '/' '-' | sort | egrep "$pattern" | egrep -v 'android-arm|darwin-arm')"
+targets="$(echo "$targets" | tr '/' '-' | sort | grep -E "$pattern" | grep -E -v 'android-arm|darwin-arm')"
 
 # put linux first in the target list to get all the architectures up front.
-targets="$(echo "$targets" | egrep 'linux') $(echo "$targets" | egrep -v 'linux')"
+targets="$(echo "$targets" | grep -E 'linux') $(echo "$targets" | grep -E -v 'linux')"
 
 if [ "$sete" = true ]; then
 	set -e

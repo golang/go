@@ -27,7 +27,7 @@ mods=$(go list -deps -f '{{with .Module}}{{.Path}}{{end}}' golang.org/x/tools/go
 for mod in $mods; do
   # Find the license file, either LICENSE or COPYING, and add it to the result.
   dir=$(go list -m -f {{.Dir}} $mod)
-  license=$(ls -1 $dir | egrep -i '^(LICENSE|COPYING)$')
+  license=$(ls -1 $dir | grep -E -i '^(LICENSE|COPYING)$')
   echo "-- $mod $license --" >> $tempfile
   echo >> $tempfile
   sed 's/^-- / &/' $dir/$license >> $tempfile
