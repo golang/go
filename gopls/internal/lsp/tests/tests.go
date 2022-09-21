@@ -1123,19 +1123,8 @@ func (data *Data) Golden(t *testing.T, tag, target string, update func() ([]byte
 }
 
 func (data *Data) collectCodeLens(spn span.Span, title, cmd string) {
-	if _, ok := data.CodeLens[spn.URI()]; !ok {
-		data.CodeLens[spn.URI()] = []protocol.CodeLens{}
-	}
-	m, err := data.Mapper(spn.URI())
-	if err != nil {
-		data.t.Fatalf("Mapper: %v", err)
-	}
-	rng, err := m.Range(spn)
-	if err != nil {
-		data.t.Fatalf("Range: %v", err)
-	}
 	data.CodeLens[spn.URI()] = append(data.CodeLens[spn.URI()], protocol.CodeLens{
-		Range: rng,
+		Range: data.mustRange(spn),
 		Command: protocol.Command{
 			Title:   title,
 			Command: cmd,
@@ -1144,15 +1133,6 @@ func (data *Data) collectCodeLens(spn span.Span, title, cmd string) {
 }
 
 func (data *Data) collectDiagnostics(spn span.Span, msgSource, msgPattern, msgSeverity string) {
-	m, err := data.Mapper(spn.URI())
-	if err != nil {
-		data.t.Fatalf("Mapper: %v", err)
-	}
-	rng, err := m.Range(spn)
-	if err != nil {
-		data.t.Fatalf("Range: %v", err)
-	}
-
 	severity := protocol.SeverityError
 	switch msgSeverity {
 	case "error":
@@ -1166,7 +1146,7 @@ func (data *Data) collectDiagnostics(spn span.Span, msgSource, msgPattern, msgSe
 	}
 
 	data.Diagnostics[spn.URI()] = append(data.Diagnostics[spn.URI()], &source.Diagnostic{
-		Range:    rng,
+		Range:    data.mustRange(spn),
 		Severity: severity,
 		Source:   source.DiagnosticSource(msgSource),
 		Message:  msgPattern,
@@ -1275,14 +1255,7 @@ func (data *Data) collectImplementations(src span.Span, targets []span.Span) {
 
 func (data *Data) collectIncomingCalls(src span.Span, calls []span.Span) {
 	for _, call := range calls {
-		m, err := data.Mapper(call.URI())
-		if err != nil {
-			data.t.Fatal(err)
-		}
-		rng, err := m.Range(call)
-		if err != nil {
-			data.t.Fatal(err)
-		}
+		rng := data.mustRange(call)
 		// we're only comparing protocol.range
 		if data.CallHierarchy[src] != nil {
 			data.CallHierarchy[src].IncomingCalls = append(data.CallHierarchy[src].IncomingCalls,
@@ -1305,19 +1278,11 @@ func (data *Data) collectOutgoingCalls(src span.Span, calls []span.Span) {
 		data.CallHierarchy[src] = &CallHierarchyResult{}
 	}
 	for _, call := range calls {
-		m, err := data.Mapper(call.URI())
-		if err != nil {
-			data.t.Fatal(err)
-		}
-		rng, err := m.Range(call)
-		if err != nil {
-			data.t.Fatal(err)
-		}
 		// we're only comparing protocol.range
 		data.CallHierarchy[src].OutgoingCalls = append(data.CallHierarchy[src].OutgoingCalls,
 			protocol.CallHierarchyItem{
 				URI:   protocol.DocumentURI(call.URI()),
-				Range: rng,
+				Range: data.mustRange(call),
 			})
 	}
 }
