@@ -13,12 +13,20 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/testenv"
 )
 
 func TestMain(m *testing.M) {
 	bug.PanicOnBugs = true
 	testenv.ExitIfSmallMachine()
+
+	// Set the global exporter to nil so that we don't log to stderr. This avoids
+	// a lot of misleading noise in test output.
+	//
+	// See also ../internal/lsp/lsp_test.go.
+	event.SetExporter(nil)
+
 	os.Exit(m.Run())
 }
 
