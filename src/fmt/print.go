@@ -139,8 +139,8 @@ type pp struct {
 	erroring bool
 	// wrapErrs is set when the format string may contain a %w verb.
 	wrapErrs bool
-	// wrappedErr records the target of the %w verb.
-	wrappedErr error
+	// wrappedErrs records the targets of the %w verb.
+	wrappedErrs []int
 }
 
 var ppFree = sync.Pool{
@@ -171,10 +171,13 @@ func (p *pp) free() {
 	} else {
 		p.buf = p.buf[:0]
 	}
+	if cap(p.wrappedErrs) > 8 {
+		p.wrappedErrs = nil
+	}
 
 	p.arg = nil
 	p.value = reflect.Value{}
-	p.wrappedErr = nil
+	p.wrappedErrs = p.wrappedErrs[:0]
 	ppFree.Put(p)
 }
 
@@ -620,16 +623,12 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 		return
 	}
 	if verb == 'w' {
-		// It is invalid to use %w other than with Errorf, more than once,
-		// or with a non-error arg.
-		err, ok := p.arg.(error)
-		if !ok || !p.wrapErrs || p.wrappedErr != nil {
-			p.wrappedErr = nil
-			p.wrapErrs = false
+		// It is invalid to use %w other than with Errorf or with a non-error arg.
+		_, ok := p.arg.(error)
+		if !ok || !p.wrapErrs {
 			p.badVerb(verb)
 			return true
 		}
-		p.wrappedErr = err
 		// If the arg is a Formatter, pass 'v' as the verb to it.
 		verb = 'v'
 	}
@@ -1063,7 +1062,11 @@ formatLoop:
 				// Fast path for common case of ascii lower case simple verbs
 				// without precision or width or argument indices.
 				if 'a' <= c && c <= 'z' && argNum < len(a) {
-					if c == 'v' {
+					switch c {
+					case 'w':
+						p.wrappedErrs = append(p.wrappedErrs, argNum)
+						fallthrough
+					case 'v':
 						// Go syntax
 						p.fmt.sharpV = p.fmt.sharp
 						p.fmt.sharp = false
@@ -1158,6 +1161,9 @@ formatLoop:
 			p.badArgNum(verb)
 		case argNum >= len(a): // No argument left over to print for the current verb.
 			p.missingArg(verb)
+		case verb == 'w':
+			p.wrappedErrs = append(p.wrappedErrs, argNum)
+			fallthrough
 		case verb == 'v':
 			// Go syntax
 			p.fmt.sharpV = p.fmt.sharp

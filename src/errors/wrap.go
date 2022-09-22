@@ -11,6 +11,8 @@ import (
 // Unwrap returns the result of calling the Unwrap method on err, if err's
 // type contains an Unwrap method returning error.
 // Otherwise, Unwrap returns nil.
+//
+// Unwrap returns nil if the Unwrap method returns []error.
 func Unwrap(err error) error {
 	u, ok := err.(interface {
 		Unwrap() error
@@ -21,10 +23,11 @@ func Unwrap(err error) error {
 	return u.Unwrap()
 }
 
-// Is reports whether any error in err's chain matches target.
+// Is reports whether any error in err's tree matches target.
 //
-// The chain consists of err itself followed by the sequence of errors obtained by
-// repeatedly calling Unwrap.
+// The tree consists of err itself, followed by the errors obtained by repeatedly
+// calling Unwrap. When err wraps multiple errors, Is examines err followed by a
+// depth-first traversal of its children.
 //
 // An error is considered to match a target if it is equal to that target or if
 // it implements a method Is(error) bool such that Is(target) returns true.
@@ -50,20 +53,31 @@ func Is(err, target error) bool {
 		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(target) {
 			return true
 		}
-		// TODO: consider supporting target.Is(err). This would allow
-		// user-definable predicates, but also may allow for coping with sloppy
-		// APIs, thereby making it easier to get away with them.
-		if err = Unwrap(err); err == nil {
+		switch x := err.(type) {
+		case interface{ Unwrap() error }:
+			err = x.Unwrap()
+			if err == nil {
+				return false
+			}
+		case interface{ Unwrap() []error }:
+			for _, err := range x.Unwrap() {
+				if Is(err, target) {
+					return true
+				}
+			}
+			return false
+		default:
 			return false
 		}
 	}
 }
 
-// As finds the first error in err's chain that matches target, and if one is found, sets
+// As finds the first error in err's tree that matches target, and if one is found, sets
 // target to that error value and returns true. Otherwise, it returns false.
 //
-// The chain consists of err itself followed by the sequence of errors obtained by
-// repeatedly calling Unwrap.
+// The tree consists of err itself, followed by the errors obtained by repeatedly
+// calling Unwrap. When err wraps multiple errors, As examines err followed by a
+// depth-first traversal of its children.
 //
 // An error matches target if the error's concrete value is assignable to the value
 // pointed to by target, or if the error has a method As(interface{}) bool such that
@@ -76,6 +90,9 @@ func Is(err, target error) bool {
 // As panics if target is not a non-nil pointer to either a type that implements
 // error, or to any interface type.
 func As(err error, target any) bool {
+	if err == nil {
+		return false
+	}
 	if target == nil {
 		panic("errors: target cannot be nil")
 	}
@@ -88,7 +105,7 @@ func As(err error, target any) bool {
 	if targetType.Kind() != reflectlite.Interface && !targetType.Implements(errorType) {
 		panic("errors: *target must be interface or implement error")
 	}
-	for err != nil {
+	for {
 		if reflectlite.TypeOf(err).AssignableTo(targetType) {
 			val.Elem().Set(reflectlite.ValueOf(err))
 			return true
@@ -96,9 +113,23 @@ func As(err error, target any) bool {
 		if x, ok := err.(interface{ As(any) bool }); ok && x.As(target) {
 			return true
 		}
-		err = Unwrap(err)
+		switch x := err.(type) {
+		case interface{ Unwrap() error }:
+			err = x.Unwrap()
+			if err == nil {
+				return false
+			}
+		case interface{ Unwrap() []error }:
+			for _, err := range x.Unwrap() {
+				if As(err, target) {
+					return true
+				}
+			}
+			return false
+		default:
+			return false
+		}
 	}
-	return false
 }
 
 var errorType = reflectlite.TypeOf((*error)(nil)).Elem()
