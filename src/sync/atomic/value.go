@@ -17,8 +17,8 @@ type Value struct {
 	v any
 }
 
-// ifaceWords is interface{} internal representation.
-type ifaceWords struct {
+// efaceWords is interface{} internal representation.
+type efaceWords struct {
 	typ  unsafe.Pointer
 	data unsafe.Pointer
 }
@@ -26,14 +26,14 @@ type ifaceWords struct {
 // Load returns the value set by the most recent Store.
 // It returns nil if there has been no call to Store for this Value.
 func (v *Value) Load() (val any) {
-	vp := (*ifaceWords)(unsafe.Pointer(v))
+	vp := (*efaceWords)(unsafe.Pointer(v))
 	typ := LoadPointer(&vp.typ)
 	if typ == nil || typ == unsafe.Pointer(&firstStoreInProgress) {
 		// First store not yet completed.
 		return nil
 	}
 	data := LoadPointer(&vp.data)
-	vlp := (*ifaceWords)(unsafe.Pointer(&val))
+	vlp := (*efaceWords)(unsafe.Pointer(&val))
 	vlp.typ = typ
 	vlp.data = data
 	return
@@ -48,8 +48,8 @@ func (v *Value) Store(val any) {
 	if val == nil {
 		panic("sync/atomic: store of nil value into Value")
 	}
-	vp := (*ifaceWords)(unsafe.Pointer(v))
-	vlp := (*ifaceWords)(unsafe.Pointer(&val))
+	vp := (*efaceWords)(unsafe.Pointer(v))
+	vlp := (*efaceWords)(unsafe.Pointer(&val))
 	for {
 		typ := LoadPointer(&vp.typ)
 		if typ == nil {
@@ -91,8 +91,8 @@ func (v *Value) Swap(new any) (old any) {
 	if new == nil {
 		panic("sync/atomic: swap of nil value into Value")
 	}
-	vp := (*ifaceWords)(unsafe.Pointer(v))
-	np := (*ifaceWords)(unsafe.Pointer(&new))
+	vp := (*efaceWords)(unsafe.Pointer(v))
+	np := (*efaceWords)(unsafe.Pointer(&new))
 	for {
 		typ := LoadPointer(&vp.typ)
 		if typ == nil {
@@ -121,7 +121,7 @@ func (v *Value) Swap(new any) (old any) {
 		if typ != np.typ {
 			panic("sync/atomic: swap of inconsistently typed value into Value")
 		}
-		op := (*ifaceWords)(unsafe.Pointer(&old))
+		op := (*efaceWords)(unsafe.Pointer(&old))
 		op.typ, op.data = np.typ, SwapPointer(&vp.data, np.data)
 		return old
 	}
@@ -136,9 +136,9 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 	if new == nil {
 		panic("sync/atomic: compare and swap of nil value into Value")
 	}
-	vp := (*ifaceWords)(unsafe.Pointer(v))
-	np := (*ifaceWords)(unsafe.Pointer(&new))
-	op := (*ifaceWords)(unsafe.Pointer(&old))
+	vp := (*efaceWords)(unsafe.Pointer(v))
+	np := (*efaceWords)(unsafe.Pointer(&new))
+	op := (*efaceWords)(unsafe.Pointer(&old))
 	if op.typ != nil && np.typ != op.typ {
 		panic("sync/atomic: compare and swap of inconsistently typed values")
 	}
@@ -180,8 +180,8 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 		// has not changed since LoadPointer.
 		data := LoadPointer(&vp.data)
 		var i any
-		(*ifaceWords)(unsafe.Pointer(&i)).typ = typ
-		(*ifaceWords)(unsafe.Pointer(&i)).data = data
+		(*efaceWords)(unsafe.Pointer(&i)).typ = typ
+		(*efaceWords)(unsafe.Pointer(&i)).data = data
 		if i != old {
 			return false
 		}
