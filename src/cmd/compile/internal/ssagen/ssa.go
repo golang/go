@@ -1588,18 +1588,16 @@ func (s *state) stmt(n ir.Node) {
 		}
 
 		// mayOverlap keeps track of whether the LHS and RHS might
-		// refer to overlapping memory.
-		mayOverlap := true
-		if n.Y == nil {
-			// Not a move at all, mayOverlap is not relevant.
-		} else if n.Def {
-			// A variable being defined cannot overlap anything else.
-			mayOverlap = false
-		} else if n.X.Op() == ir.ONAME && n.Y.Op() == ir.ONAME {
-			// Two named things never overlap.
-			// (Or they are identical, which we treat as nonoverlapping.)
-			mayOverlap = false
-		} else if n.Y.Op() == ir.ODEREF {
+		// refer to partially overlapping memory. Partial overlapping can
+		// only happen for arrays, see the comment in moveWhichMayOverlap.
+		//
+		// If both sides of the assignment are not dereferences, then partial
+		// overlap can't happen. Partial overlap can only occur only when the
+		// arrays referenced are strictly smaller parts of the same base array.
+		// If one side of the assignment is a full array, then partial overlap
+		// can't happen. (The arrays are either disjoint or identical.)
+		mayOverlap := n.X.Op() == ir.ODEREF && (n.Y != nil && n.Y.Op() == ir.ODEREF)
+		if n.Y != nil && n.Y.Op() == ir.ODEREF {
 			p := n.Y.(*ir.StarExpr).X
 			for p.Op() == ir.OCONVNOP {
 				p = p.(*ir.ConvExpr).X
@@ -1609,12 +1607,6 @@ func (s *state) stmt(n ir.Node) {
 				// That memory can't overlap with the memory being written.
 				mayOverlap = false
 			}
-		} else if n.Y.Op() == ir.ORESULT || n.Y.Op() == ir.OCALLFUNC || n.Y.Op() == ir.OCALLINTER {
-			// When copying values out of the return area of a call, we know
-			// the source and destination don't overlap. Importantly, we must
-			// set mayOverlap so we don't introduce a call to memmove while
-			// we still have live data in the argument area.
-			mayOverlap = false
 		}
 
 		// Evaluate RHS.
