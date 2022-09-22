@@ -7,7 +7,6 @@
 package types2
 
 import (
-	"fmt"
 	"go/constant"
 	"unicode"
 )
@@ -201,9 +200,6 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 				if cause != nil {
 					// TODO(gri) consider restructuring versionErrorf so we can use it here and below
 					*cause = "conversion of slices to arrays requires go1.20 or later"
-					if check.conf.CompilerErrorMessages {
-						*cause += fmt.Sprintf(" (-lang was set to %s; check go.mod)", check.conf.GoVersion)
-					}
 				}
 				return false
 			}
@@ -216,9 +212,6 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 					// check != nil
 					if cause != nil {
 						*cause = "conversion of slices to array pointers requires go1.17 or later"
-						if check.conf.CompilerErrorMessages {
-							*cause += fmt.Sprintf(" (-lang was set to %s; check go.mod)", check.conf.GoVersion)
-						}
 					}
 					return false
 				}

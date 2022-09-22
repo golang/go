@@ -286,11 +286,7 @@ func (check *Checker) softErrorf(at poser, code errorCode, format string, args .
 
 func (check *Checker) versionErrorf(at poser, goVersion string, format string, args ...interface{}) {
 	msg := check.sprintf(format, args...)
-	if check.conf.CompilerErrorMessages {
-		msg = fmt.Sprintf("%s requires %s or later (-lang was set to %s; check go.mod)", msg, goVersion, check.conf.GoVersion)
-	} else {
-		msg = fmt.Sprintf("%s requires %s or later", msg, goVersion)
-	}
+	msg = fmt.Sprintf("%s requires %s or later", msg, goVersion)
 	check.err(at, _UnsupportedFeature, msg, true)
 }
 

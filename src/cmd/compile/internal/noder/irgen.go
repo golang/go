@@ -6,6 +6,7 @@ package noder
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 
 	"cmd/compile/internal/base"
@@ -17,6 +18,8 @@ import (
 	"cmd/compile/internal/types2"
 	"cmd/internal/src"
 )
+
+var versionErrorRx = regexp.MustCompile(`requires go[0-9]+\.[0-9]+ or later`)
 
 // checkFiles configures and runs the types2 checker on the given
 // parsed source files and then returns the result.
@@ -46,7 +49,12 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
 		Error: func(err error) {
 			terr := err.(types2.Error)
-			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", terr.Msg)
+			msg := terr.Msg
+			// if we have a version error, hint at the -lang setting
+			if versionErrorRx.MatchString(msg) {
+				msg = fmt.Sprintf("%s (-lang was set to %s; check go.mod)", msg, base.Flag.Lang)
+			}
+			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", msg)
 		},
 		Importer: &importer,
 		Sizes:    &gcSizes{},
