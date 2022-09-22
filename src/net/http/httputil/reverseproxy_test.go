@@ -1753,3 +1753,98 @@ func Test1xxResponses(t *testing.T) {
 		t.Errorf("Read body %q; want Hello", body)
 	}
 }
+
+const (
+	testWantsCleanQuery = true
+	testWantsRawQuery   = false
+)
+
+func TestReverseProxyQueryParameterSmugglingDirectorDoesNotParseForm(t *testing.T) {
+	testReverseProxyQueryParameterSmuggling(t, testWantsRawQuery, func(u *url.URL) *ReverseProxy {
+		proxyHandler := NewSingleHostReverseProxy(u)
+		oldDirector := proxyHandler.Director
+		proxyHandler.Director = func(r *http.Request) {
+			oldDirector(r)
+		}
+		return proxyHandler
+	})
+}
+
+func TestReverseProxyQueryParameterSmugglingDirectorParsesForm(t *testing.T) {
+	testReverseProxyQueryParameterSmuggling(t, testWantsCleanQuery, func(u *url.URL) *ReverseProxy {
+		proxyHandler := NewSingleHostReverseProxy(u)
+		oldDirector := proxyHandler.Director
+		proxyHandler.Director = func(r *http.Request) {
+			// Parsing the form causes ReverseProxy to remove unparsable
+			// query parameters before forwarding.
+			r.FormValue("a")
+			oldDirector(r)
+		}
+		return proxyHandler
+	})
+}
+
+func TestReverseProxyQueryParameterSmugglingRewrite(t *testing.T) {
+	testReverseProxyQueryParameterSmuggling(t, testWantsCleanQuery, func(u *url.URL) *ReverseProxy {
+		return &ReverseProxy{
+			Rewrite: func(r *ProxyRequest) {
+				r.SetURL(u)
+			},
+		}
+	})
+}
+
+func TestReverseProxyQueryParameterSmugglingRewritePreservesRawQuery(t *testing.T) {
+	testReverseProxyQueryParameterSmuggling(t, testWantsRawQuery, func(u *url.URL) *ReverseProxy {
+		return &ReverseProxy{
+			Rewrite: func(r *ProxyRequest) {
+				r.SetURL(u)
+				r.Out.URL.RawQuery = r.In.URL.RawQuery
+			},
+		}
+	})
+}
+
+func testReverseProxyQueryParameterSmuggling(t *testing.T, wantCleanQuery bool, newProxy func(*url.URL) *ReverseProxy) {
+	const content = "response_content"
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(r.URL.RawQuery))
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := newProxy(backendURL)
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	// Don't spam output with logs of queries containing semicolons.
+	backend.Config.ErrorLog = log.New(io.Discard, "", 0)
+	frontend.Config.ErrorLog = log.New(io.Discard, "", 0)
+
+	for _, test := range []struct {
+		rawQuery   string
+		cleanQuery string
+	}{{
+		rawQuery:   "a=1&a=2;b=3",
+		cleanQuery: "a=1",
+	}, {
+		rawQuery:   "a=1&a=%zz&b=3",
+		cleanQuery: "a=1&b=3",
+	}} {
+		res, err := frontend.Client().Get(frontend.URL + "?" + test.rawQuery)
+		if err != nil {
+			t.Fatalf("Get: %v", err)
+		}
+		defer res.Body.Close()
+		body, _ := io.ReadAll(res.Body)
+		wantQuery := test.rawQuery
+		if wantCleanQuery {
+			wantQuery = test.cleanQuery
+		}
+		if got, want := string(body), wantQuery; got != want {
+			t.Errorf("proxy forwarded raw query %q as %q, want %q", test.rawQuery, got, want)
+		}
+	}
+}

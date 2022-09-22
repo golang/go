@@ -113,6 +113,14 @@ type ReverseProxy struct {
 	// outbound request before Rewrite is called. See also
 	// the ProxyRequest.SetXForwarded method.
 	//
+	// Unparsable query parameters are removed from the
+	// outbound request before Rewrite is called.
+	// The Rewrite function may copy the inbound URL's
+	// RawQuery to the outbound URL to preserve the original
+	// parameter string. Note that this can lead to security
+	// issues if the proxy's interpretation of query parameters
+	// does not match that of the downstream server.
+	//
 	// At most one of Rewrite or Director may be set.
 	Rewrite func(*ProxyRequest)
 
@@ -139,6 +147,9 @@ type ReverseProxy struct {
 	// Director returns, which can remove headers added by
 	// Director. Use a Rewrite function instead to ensure
 	// modifications to the request are preserved.
+	//
+	// Unparsable query parameters are removed from the outbound
+	// request if Request.Form is set after Director returns.
 	//
 	// At most one of Rewrite or Director may be set.
 	Director func(*http.Request)
@@ -374,6 +385,9 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	if p.Director != nil {
 		p.Director(outreq)
+		if outreq.Form != nil {
+			outreq.URL.RawQuery = cleanQueryParams(outreq.URL.RawQuery)
+		}
 	}
 	outreq.Close = false
 
@@ -408,6 +422,9 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		outreq.Header.Del("X-Forwarded-For")
 		outreq.Header.Del("X-Forwarded-Host")
 		outreq.Header.Del("X-Forwarded-Proto")
+
+		// Remove unparsable query parameters from the outbound request.
+		outreq.URL.RawQuery = cleanQueryParams(outreq.URL.RawQuery)
 
 		pr := &ProxyRequest{
 			In:  req,
@@ -796,4 +813,37 @@ func (c switchProtocolCopier) copyFromBackend(errc chan<- error) {
 func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
 	_, err := io.Copy(c.backend, c.user)
 	errc <- err
+}
+
+func cleanQueryParams(s string) string {
+	reencode := func(s string) string {
+		v, _ := url.ParseQuery(s)
+		return v.Encode()
+	}
+	for i := 0; i < len(s); {
+		switch s[i] {
+		case ';':
+			return reencode(s)
+		case '%':
+			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
+				return reencode(s)
+			}
+			i += 3
+		default:
+			i++
+		}
+	}
+	return s
+}
+
+func ishex(c byte) bool {
+	switch {
+	case '0' <= c && c <= '9':
+		return true
+	case 'a' <= c && c <= 'f':
+		return true
+	case 'A' <= c && c <= 'F':
+		return true
+	}
+	return false
 }
