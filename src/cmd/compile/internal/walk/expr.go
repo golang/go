@@ -842,19 +842,14 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
 	n.High = walkExpr(n.High, init)
 	n.Max = walkExpr(n.Max, init)
 
-	if n.Op().IsSlice3() {
-		if n.Max != nil && n.Max.Op() == ir.OCAP && ir.SameSafeExpr(n.X, n.Max.(*ir.UnaryExpr).X) {
-			// Reduce x[i:j:cap(x)] to x[i:j].
-			if n.Op() == ir.OSLICE3 {
-				n.SetOp(ir.OSLICE)
-			} else {
-				n.SetOp(ir.OSLICEARR)
-			}
-			return reduceSlice(n)
+	if (n.Op() == ir.OSLICE || n.Op() == ir.OSLICESTR) && n.Low == nil && n.High == nil {
+		// Reduce x[:] to x.
+		if base.Debug.Slice > 0 {
+			base.Warn("slice: omit slice operation")
 		}
-		return n
+		return n.X
 	}
-	return reduceSlice(n)
+	return n
 }
 
 // walkSliceHeader walks an OSLICEHEADER node.
@@ -869,22 +864,6 @@ func walkSliceHeader(n *ir.SliceHeaderExpr, init *ir.Nodes) ir.Node {
 func walkStringHeader(n *ir.StringHeaderExpr, init *ir.Nodes) ir.Node {
 	n.Ptr = walkExpr(n.Ptr, init)
 	n.Len = walkExpr(n.Len, init)
-	return n
-}
-
-// TODO(josharian): combine this with its caller and simplify
-func reduceSlice(n *ir.SliceExpr) ir.Node {
-	if n.High != nil && n.High.Op() == ir.OLEN && ir.SameSafeExpr(n.X, n.High.(*ir.UnaryExpr).X) {
-		// Reduce x[i:len(x)] to x[i:].
-		n.High = nil
-	}
-	if (n.Op() == ir.OSLICE || n.Op() == ir.OSLICESTR) && n.Low == nil && n.High == nil {
-		// Reduce x[:] to x.
-		if base.Debug.Slice > 0 {
-			base.Warn("slice: omit slice operation")
-		}
-		return n.X
-	}
 	return n
 }
 
