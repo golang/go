@@ -74,19 +74,9 @@ func (check *Checker) conversion(x *operand, T Type) {
 	if !ok {
 		var err error_
 		err.code = _InvalidConversion
-		if compilerErrorMessages {
-			if cause != "" {
-				// Add colon at end of line if we have a following cause.
-				err.errorf(x.Pos(), "cannot convert %s to type %s:", x, T)
-				err.errorf(token.NoPos, cause)
-			} else {
-				err.errorf(x.Pos(), "cannot convert %s to type %s", x, T)
-			}
-		} else {
-			err.errorf(x.Pos(), "cannot convert %s to %s", x, T)
-			if cause != "" {
-				err.errorf(token.NoPos, cause)
-			}
+		err.errorf(x.Pos(), "cannot convert %s to type %s", x, T)
+		if cause != "" {
+			err.errorf(token.NoPos, cause)
 		}
 		check.report(&err)
 		x.mode = invalid
