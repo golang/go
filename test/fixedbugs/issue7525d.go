@@ -10,6 +10,6 @@ package main
 
 import "unsafe"
 
-var x struct { // GC_ERROR "initialization loop for x"
+var x struct { // GC_ERROR "initialization cycle for x"
 	b [unsafe.Offsetof(x.b)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
 }

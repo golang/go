@@ -15,4 +15,4 @@ func (*T) pm() int {
 	return 0
 }
 
-var x = (*T).pm // ERROR "initialization loop|depends upon itself"
+var x = (*T).pm // ERROR "initialization cycle|depends upon itself"
