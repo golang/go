@@ -473,7 +473,15 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
 // extld returns the current external linker.
 func (ctxt *Link) extld() []string {
 	if len(flagExtld) == 0 {
-		flagExtld = []string{"gcc"}
+		// Return the default external linker for the platform.
+		// This only matters when link tool is called directly without explicit -extld,
+		// go tool already passes the correct linker in other cases.
+		switch buildcfg.GOOS {
+		case "darwin", "freebsd", "openbsd":
+			flagExtld = []string{"clang"}
+		default:
+			flagExtld = []string{"gcc"}
+		}
 	}
 	return flagExtld
 }
