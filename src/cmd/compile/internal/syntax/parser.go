@@ -1506,8 +1506,7 @@ func (p *parser) structType() *StructType {
 	return typ
 }
 
-// InterfaceType = "interface" "{" { ( MethodDecl | EmbeddedElem | TypeList ) ";" } "}" .
-// TypeList      = "type" Type { "," Type } .
+// InterfaceType = "interface" "{" { ( MethodDecl | EmbeddedElem ) ";" } "}" .
 func (p *parser) interfaceType() *InterfaceType {
 	if trace {
 		defer p.trace("interfaceType")()
