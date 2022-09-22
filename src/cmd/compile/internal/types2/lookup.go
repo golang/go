@@ -371,12 +371,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 // it may have a pointer receiver, or it may have the correct name except wrong case.
 // check may be nil.
 func (check *Checker) missingMethodReason(V, T Type, m, alt *Func) string {
-	var mname string
-	if check != nil && check.conf.CompilerErrorMessages {
-		mname = m.Name() + " method"
-	} else {
-		mname = "method " + m.Name()
-	}
+	mname := "method " + m.Name()
 
 	if alt != nil {
 		if m.Name() != alt.Name() {

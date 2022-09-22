@@ -43,11 +43,11 @@ func main() {
 	// neither of these can work,
 	// because i has an extra method
 	// that t does not, so i cannot contain a t.
-	i = t // ERROR "incompatible|missing M method"
+	i = t // ERROR "incompatible|missing method M"
 	t = i // ERROR "incompatible|assignment$"
 
 	i = i2 // ok
-	i2 = i // ERROR "incompatible|missing N method"
+	i2 = i // ERROR "incompatible|missing method N"
 
 	i = I(i2)  // ok
 	i2 = I2(i) // ERROR "invalid|missing N method|cannot convert"
@@ -81,7 +81,7 @@ var ii int
 var jj Int
 
 var m1 M = ii // ERROR "incompatible|missing"
-var m2 M = jj // ERROR "incompatible|wrong type for M method"
+var m2 M = jj // ERROR "incompatible|wrong type for method M"
 
 var m3 = M(ii) // ERROR "invalid|missing|cannot convert"
 var m4 = M(jj) // ERROR "invalid|wrong type for M method|cannot convert"
