@@ -4,4 +4,4 @@
 
 package p
 
-type T /* ERROR illegal cycle */ T.x
+type T /* ERROR invalid recursive type */ T.x

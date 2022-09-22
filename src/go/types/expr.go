@@ -1371,7 +1371,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			// Prevent crash if the struct referred to is not yet set up.
 			// See analogous comment for *Array.
 			if utyp.fields == nil {
-				check.error(e, _InvalidDeclCycle, "illegal cycle in type declaration")
+				check.error(e, _InvalidTypeCycle, "invalid recursive type")
 				goto Error
 			}
 			if len(e.Elts) == 0 {
@@ -1445,7 +1445,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			// This is a stop-gap solution. Should use Checker.objPath to report entire
 			// path starting with earliest declaration in the source. TODO(gri) fix this.
 			if utyp.elem == nil {
-				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
+				check.error(e, _InvalidTypeCycle, "invalid recursive type")
 				goto Error
 			}
 			n := check.indexedElts(e.Elts, utyp.elem, utyp.len)
@@ -1472,7 +1472,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			// Prevent crash if the slice referred to is not yet set up.
 			// See analogous comment for *Array.
 			if utyp.elem == nil {
-				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
+				check.error(e, _InvalidTypeCycle, "invalid recursive type")
 				goto Error
 			}
 			check.indexedElts(e.Elts, utyp.elem, -1)
@@ -1481,7 +1481,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			// Prevent crash if the map referred to is not yet set up.
 			// See analogous comment for *Array.
 			if utyp.key == nil || utyp.elem == nil {
-				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
+				check.error(e, _InvalidTypeCycle, "invalid recursive type")
 				goto Error
 			}
 			// If the map key type is an interface (but not a type parameter),

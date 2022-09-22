@@ -98,12 +98,12 @@ var _ = err.Error()
 
 type (
 	T1 interface { T2 }
-	T2 /* ERROR cycle */ T2
+	T2 /* ERROR invalid recursive type */ T2
 )
 
 type (
 	T3 interface { T4 }
-	T4 /* ERROR cycle */ T5
+	T4 /* ERROR invalid recursive type */ T5
 	T5 = T6
 	T6 = T7
 	T7 = T4
@@ -121,8 +121,8 @@ type I interface {
 
 // test cases for varias alias cycles
 
-type T10 /* ERROR cycle */ = *T10                 // issue #25141
-type T11 /* ERROR cycle */ = interface{ f(T11) }  // issue #23139
+type T10 /* ERROR invalid recursive type */ = *T10                 // issue #25141
+type T11 /* ERROR invalid recursive type */ = interface{ f(T11) }  // issue #23139
 
 // issue #18640
 type (
@@ -154,7 +154,7 @@ type (
 )
 
 // issue #8699
-type T12 /* ERROR cycle */ [len(a12)]int
+type T12 /* ERROR invalid recursive type */ [len(a12)]int
 var a12 = makeArray()
 func makeArray() (res T12) { return }
 
@@ -170,7 +170,7 @@ func f() [len(arr)]int
 func ff(ff /* ERROR not a type */ )
 func gg((gg /* ERROR not a type */ ))
 
-type T13 /* ERROR cycle */ [len(b13)]int
+type T13 /* ERROR invalid recursive type */ [len(b13)]int
 var b13 T13
 
 func g1() [unsafe.Sizeof(g1)]int
@@ -190,7 +190,7 @@ var c14 /* ERROR cycle */ T14
 type T14 [uintptr(unsafe.Sizeof(&c14))]byte
 
 // issue #34333
-type T15 /* ERROR cycle */ struct {
+type T15 /* ERROR invalid recursive type */ struct {
 	f func() T16
 	b T16
 }

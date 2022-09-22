@@ -325,10 +325,10 @@ func (check *Checker) cycleError(cycle []Object) {
 	if tname != nil && tname.IsAlias() {
 		check.validAlias(tname, Typ[Invalid])
 	}
-	if tname != nil && compilerErrorMessages {
+	if tname != nil {
 		check.errorf(obj, _InvalidDeclCycle, "invalid recursive type %s", objName)
 	} else {
-		check.errorf(obj, _InvalidDeclCycle, "illegal cycle in declaration of %s", objName)
+		check.errorf(obj, _InvalidDeclCycle, "invalid cycle in declaration of %s", objName)
 	}
 	for range cycle {
 		check.errorf(obj, _InvalidDeclCycle, "\t%s refers to", objName) // secondary error, \t indented

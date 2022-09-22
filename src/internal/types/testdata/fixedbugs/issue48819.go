@@ -6,7 +6,7 @@ package p
 
 import "unsafe"
 
-type T /* ERROR illegal cycle in declaration of T */ struct {
+type T /* ERROR invalid recursive type T */ struct {
 	T
 }
 

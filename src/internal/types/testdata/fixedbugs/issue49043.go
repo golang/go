@@ -6,13 +6,13 @@ package p
 
 // The example from the issue.
 type (
-	N[P any] M /* ERROR illegal cycle */ [P]
-	M[P any] N /* ERROR illegal cycle */ [P]
+	N[P any] M /* ERROR invalid recursive type */ [P]
+	M[P any] N /* ERROR invalid recursive type */ [P]
 )
 
 // A slightly more complicated case.
 type (
-	A[P any] B /* ERROR illegal cycle */ [P]
+	A[P any] B /* ERROR invalid recursive type */ [P]
 	B[P any] C[P]
 	C[P any] A[P]
 )

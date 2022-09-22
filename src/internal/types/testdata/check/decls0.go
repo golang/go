@@ -71,10 +71,10 @@ type (
 type (
 	Pi pi /* ERROR "not a type" */
 
-	a /* ERROR "illegal cycle" */ a
+	a /* ERROR "invalid recursive type" */ a
 	a /* ERROR "redeclared" */ int
 
-	b /* ERROR "illegal cycle" */ c
+	b /* ERROR "invalid recursive type" */ c
 	c d
 	d e
 	e b
@@ -101,10 +101,10 @@ type (
 	S3 struct {
 		x S2
 	}
-	S4/* ERROR "illegal cycle" */ struct {
+	S4/* ERROR "invalid recursive type" */ struct {
 		S4
 	}
-	S5 /* ERROR "illegal cycle" */ struct {
+	S5 /* ERROR "invalid recursive type" */ struct {
 		S6
 	}
 	S6 struct {
@@ -118,8 +118,8 @@ type (
 	L2 []int
 
 	A1 [10.0]int
-	A2 /* ERROR "illegal cycle" */ [10]A2
-	A3 /* ERROR "illegal cycle" */ [10]struct {
+	A2 /* ERROR "invalid recursive type" */ [10]A2
+	A3 /* ERROR "invalid recursive type" */ [10]struct {
 		x A4
 	}
 	A4 [10]A3
@@ -154,10 +154,10 @@ type (
 		I1
 		I1
 	}
-	I8 /* ERROR "illegal cycle" */ interface {
+	I8 /* ERROR "invalid recursive type" */ interface {
 		I8
 	}
-	I9 /* ERROR "illegal cycle" */ interface {
+	I9 /* ERROR "invalid recursive type" */ interface {
 		I10
 	}
 	I10 interface {

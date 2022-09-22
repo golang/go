@@ -100,7 +100,7 @@ func (V1) n() {}
 
 // alias receiver types (invalid due to cycles)
 type (
-	W0 /* ERROR illegal cycle */ = W1
+	W0 /* ERROR invalid recursive type */ = W1
 	W1 = (W2)
 	W2 = ((W0))
 )
@@ -120,14 +120,14 @@ func (B1 /* ERROR cannot define new methods on non-local type int */ ) n() {}
 
 // cycles
 type (
-	C2 /* ERROR illegal cycle */ = C2
-	C3 /* ERROR illegal cycle */ = C4
+	C2 /* ERROR invalid recursive type */ = C2
+	C3 /* ERROR invalid recursive type */ = C4
 	C4 = C3
 	C5 struct {
 		f *C6
 	}
 	C6 = C5
-	C7 /* ERROR illegal cycle */  struct {
+	C7 /* ERROR invalid recursive type */  struct {
 		f C8
 	}
 	C8 = C7

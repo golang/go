@@ -8,10 +8,10 @@ import "unsafe"
 
 type (
 	T0 int
-	T1 /* ERROR cycle */ T1
+	T1 /* ERROR invalid recursive type */ T1
 	T2 *T2
 
-	T3 /* ERROR cycle */ T4
+	T3 /* ERROR invalid recursive type */ T4
 	T4 T5
 	T5 T3
 
@@ -20,10 +20,10 @@ type (
 	T8 T6
 
 	// arrays
-	A0 /* ERROR cycle */ [10]A0
+	A0 /* ERROR invalid recursive type */ [10]A0
 	A1 [10]*A1
 
-	A2 /* ERROR cycle */ [10]A3
+	A2 /* ERROR invalid recursive type */ [10]A3
 	A3 [10]A4
 	A4 A2
 
@@ -34,12 +34,12 @@ type (
 	L0 []L0
 
 	// structs
-	S0 /* ERROR cycle */ struct{ _ S0 }
-	S1 /* ERROR cycle */ struct{ S1 }
+	S0 /* ERROR invalid recursive type */ struct{ _ S0 }
+	S1 /* ERROR invalid recursive type */ struct{ S1 }
 	S2 struct{ _ *S2 }
 	S3 struct{ *S3 }
 
-	S4 /* ERROR cycle */ struct{ S5 }
+	S4 /* ERROR invalid recursive type */ struct{ S5 }
 	S5 struct{ S6 }
 	S6 S4
 
@@ -53,9 +53,9 @@ type (
 	F2 func(F2) F2
 
 	// interfaces
-	I0 /* ERROR cycle */ interface{ I0 }
+	I0 /* ERROR invalid recursive type */ interface{ I0 }
 
-	I1 /* ERROR cycle */ interface{ I2 }
+	I1 /* ERROR invalid recursive type */ interface{ I2 }
 	I2 interface{ I3 }
 	I3 interface{ I1 }
 
@@ -74,7 +74,7 @@ type (
 
 // test case for issue #34771
 type (
-	AA /* ERROR cycle */ B
+	AA /* ERROR invalid recursive type */ B
 	B C
 	C [10]D
 	D E
@@ -83,7 +83,7 @@ type (
 
 func _() {
 	type (
-		t1 /* ERROR cycle */ t1
+		t1 /* ERROR invalid recursive type */ t1
 		t2 *t2
 
 		t3 t4 /* ERROR undeclared */
@@ -91,15 +91,15 @@ func _() {
 		t5 t3
 
 		// arrays
-		a0 /* ERROR cycle */ [10]a0
+		a0 /* ERROR invalid recursive type */ [10]a0
 		a1 [10]*a1
 
 		// slices
 		l0 []l0
 
 		// structs
-		s0 /* ERROR cycle */ struct{ _ s0 }
-		s1 /* ERROR cycle */ struct{ s1 }
+		s0 /* ERROR invalid recursive type */ struct{ _ s0 }
+		s1 /* ERROR invalid recursive type */ struct{ s1 }
 		s2 struct{ _ *s2 }
 		s3 struct{ *s3 }
 
@@ -112,7 +112,7 @@ func _() {
 		f2 func(f2) f2
 
 		// interfaces
-		i0 /* ERROR cycle */ interface{ i0 }
+		i0 /* ERROR invalid recursive type */ interface{ i0 }
 
 		// maps
 		m0 map[m0 /* ERROR invalid map key */ ]m0
@@ -135,32 +135,32 @@ type S struct {
 
 type (
 	P1 *T9
-	T9 /* ERROR cycle */ T9
+	T9 /* ERROR invalid recursive type */ T9
 
-	T10 /* ERROR cycle */ T10
+	T10 /* ERROR invalid recursive type */ T10
 	P2 *T10
 )
 
 func (T11) m() {}
 
-type T11 /* ERROR cycle */ struct{ T11 }
+type T11 /* ERROR invalid recursive type */ struct{ T11 }
 
-type T12 /* ERROR cycle */ struct{ T12 }
+type T12 /* ERROR invalid recursive type */ struct{ T12 }
 
 func (*T12) m() {}
 
 type (
 	P3 *T13
-	T13 /* ERROR cycle */ T13
+	T13 /* ERROR invalid recursive type */ T13
 )
 
 // test cases for issue 18643
 // (type cycle detection when non-type expressions are involved)
 type (
-	T14 [len(T14 /* ERROR cycle */ {})]int
-	T15 [][len(T15 /* ERROR cycle */ {})]int
-	T16 map[[len(T16 /* ERROR cycle */ {1:2})]int]int
-	T17 map[int][len(T17 /* ERROR cycle */ {1:2})]int
+	T14 [len(T14 /* ERROR invalid recursive type */ {})]int
+	T15 [][len(T15 /* ERROR invalid recursive type */ {})]int
+	T16 map[[len(T16 /* ERROR invalid recursive type */ {1:2})]int]int
+	T17 map[int][len(T17 /* ERROR invalid recursive type */ {1:2})]int
 )
 
 // Test case for types depending on function literals (see also #22992).
@@ -169,7 +169,7 @@ type T22 = chan [unsafe.Sizeof(func(ch T20){ _ = <-ch })]byte
 
 func _() {
 	type T0 func(T0)
-	type T1 /* ERROR cycle */ = func(T1)
+	type T1 /* ERROR invalid recursive type */ = func(T1)
 	type T2 chan [unsafe.Sizeof(func(ch T2){ _ = <-ch })]byte
-	type T3 /* ERROR cycle */ = chan [unsafe.Sizeof(func(ch T3){ _ = <-ch })]byte
+	type T3 /* ERROR invalid recursive type */ = chan [unsafe.Sizeof(func(ch T3){ _ = <-ch })]byte
 }

@@ -6,7 +6,7 @@ package p
 
 // Test case from issue.
 
-type Nat /* ERROR cycle */ interface {
+type Nat /* ERROR invalid recursive type */ interface {
 	Zero|Succ
 }
 

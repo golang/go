@@ -277,7 +277,7 @@ type E = interface {
 
 // Test case from issue.
 // cmd/compile reports a cycle as well.
-type issue25301b /* ERROR cycle */ = interface {
+type issue25301b /* ERROR invalid recursive type */ = interface {
 	m() interface{ issue25301b }
 }
 

@@ -35,7 +35,7 @@ type foo8[A any] interface { ~A /* ERROR cannot be a type parameter */ }
 func bar8[A foo8[A]](a A) {}
 
 // crash 9
-type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
+type foo9[A any] interface { foo9 /* ERROR invalid recursive type */ [A] }
 func _() { var _ = new(foo9[int]) }
 
 // crash 12
@@ -65,11 +65,11 @@ type o18[T any] []func(_ o18[[]_ /* ERROR cannot use _ */ ])
 type Z19 [][[]Z19{}[0][0]]c19 /* ERROR undeclared */
 
 // crash 20
-type Z20 /* ERROR illegal cycle */ interface{ Z20 }
+type Z20 /* ERROR invalid recursive type */ interface{ Z20 }
 func F20[t Z20]() { F20(t /* ERROR invalid composite literal type */ {}) }
 
 // crash 21
-type Z21 /* ERROR illegal cycle */ interface{ Z21 }
+type Z21 /* ERROR invalid recursive type */ interface{ Z21 }
 func F21[T Z21]() { ( /* ERROR not used */ F21[Z21]) }
 
 // crash 24

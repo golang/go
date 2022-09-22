@@ -7,7 +7,7 @@ package p
 import "unsafe"
 
 type T[P any] struct {
-	T /* ERROR illegal cycle */ [P]
+	T /* ERROR   invalid recursive type */ [P]
 }
 
 func _[P any]() {

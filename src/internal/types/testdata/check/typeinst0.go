@@ -58,5 +58,5 @@ var _ T3[int] = T3[int](List[int]{1, 2, 3})
 
 // Self-recursive generic types are not permitted
 
-type self1[P any] self1 /* ERROR illegal cycle */ [P]
+type self1[P any] self1 /* ERROR invalid recursive type */ [P]
 type self2[P any] *self2[P] // this is ok
