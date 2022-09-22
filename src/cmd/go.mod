@@ -9,7 +9,7 @@ require (
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	golang.org/x/sys v0.0.0-20220804214406-8e32c043e418
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
-	golang.org/x/tools v0.1.13-0.20220804200503-81c7dc4e4efa
+	golang.org/x/tools v0.1.13-0.20220922232058-1877b5f33c7f
 )
 
 require (

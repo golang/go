@@ -24,7 +24,7 @@
 //		inspect.Preorder(nil, func(n ast.Node) {
 //			...
 //		})
-//		return nil
+//		return nil, nil
 //	}
 package inspect
 

@@ -14,8 +14,13 @@ import (
 	"strconv"
 )
 
-// Flag to gate diagnostics for fuzz tests in 1.18.
+// DiagnoseFuzzTests controls whether the 'tests' analyzer diagnoses fuzz tests
+// in Go 1.18+.
 var DiagnoseFuzzTests bool = false
+
+// LoopclosureParallelSubtests controls whether the 'loopclosure' analyzer
+// diagnoses loop variables references in parallel subtests.
+var LoopclosureParallelSubtests = false
 
 var (
 	GetTypeErrors func(p interface{}) []types.Error
