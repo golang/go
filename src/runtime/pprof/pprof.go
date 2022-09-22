@@ -592,10 +592,24 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 	// Technically the rate is MemProfileRate not 2*MemProfileRate,
 	// but early versions of the C++ heap profiler reported 2*MemProfileRate,
 	// so that's what pprof has come to expect.
+	rate := 2 * runtime.MemProfileRate
+
+	// pprof reads a profile with alloc == inuse as being a "2-column" profile
+	// (objects and bytes, not distinguishing alloc from inuse),
+	// but then such a profile can't be merged using pprof *.prof with
+	// other 4-column profiles where alloc != inuse.
+	// The easiest way to avoid this bug is to adjust allocBytes so it's never == inuseBytes.
+	// pprof doesn't use these header values anymore except for checking equality.
+	inUseBytes := total.InUseBytes()
+	allocBytes := total.AllocBytes
+	if inUseBytes == allocBytes {
+		allocBytes++
+	}
+
 	fmt.Fprintf(w, "heap profile: %d: %d [%d: %d] @ heap/%d\n",
-		total.InUseObjects(), total.InUseBytes(),
-		total.AllocObjects, total.AllocBytes,
-		2*runtime.MemProfileRate)
+		total.InUseObjects(), inUseBytes,
+		total.AllocObjects, allocBytes,
+		rate)
 
 	for i := range p {
 		r := &p[i]
