@@ -780,7 +780,7 @@ func TestUSTARLongName(t *testing.T) {
 	// Test that we can get a long name back out of the archive.
 	reader := NewReader(&buf)
 	hdr, err = reader.Next()
-	if err != nil {
+	if err != nil && err != ErrInsecurePath {
 		t.Fatal(err)
 	}
 	if hdr.Name != longName {
@@ -995,7 +995,7 @@ func TestIssue12594(t *testing.T) {
 
 		tr := NewReader(&b)
 		hdr, err := tr.Next()
-		if err != nil {
+		if err != nil && err != ErrInsecurePath {
 			t.Errorf("test %d, unexpected Next error: %v", i, err)
 		}
 		if hdr.Name != name {

@@ -281,8 +281,33 @@ proxyHandler := &httputil.ReverseProxy{
   TODO: complete this section
 </p>
 
+<dl id="archive/tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/55356 -->
+      <code>(*Reader).Next</code> will now return the error <code>ErrInsecurePath</code>
+      when opening an archive which contains file names that are absolute,
+      refer to a location outside the current directory, contain invalid
+      characters, or (on Windows) are reserved names such as <code>NUL</code>.
+    </p>
+    <p>
+      Programs that want to operate on archives containing insecure file names may
+      ignore this error.
+    </p>
+  </dd>
+</dl><!-- archive/tar -->
+
 <dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
   <dd>
+    <p><!-- https://go.dev/issue/55356 -->
+      <code>NewReader</code> will now return the error <code>ErrInsecurePath</code>
+      when opening an archive which contains file names that are absolute,
+      refer to a location outside the current directory, contain invalid
+      characters, or (on Windows) are reserved names such as <code>NUL</code>.
+    </p>
+    <p>
+      Programs that want to operate on archives containing insecure file names may
+      ignore this error.
+    </p>
     <p><!-- CL 449955 -->
       Reading from a directory file that contains file data will now return an error.
       The zip specification does not permit directory files to contain file data,

@@ -14,6 +14,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -21,9 +22,10 @@ import (
 )
 
 var (
-	ErrFormat    = errors.New("zip: not a valid zip file")
-	ErrAlgorithm = errors.New("zip: unsupported compression algorithm")
-	ErrChecksum  = errors.New("zip: checksum error")
+	ErrFormat       = errors.New("zip: not a valid zip file")
+	ErrAlgorithm    = errors.New("zip: unsupported compression algorithm")
+	ErrChecksum     = errors.New("zip: checksum error")
+	ErrInsecurePath = errors.New("zip: insecure file path")
 )
 
 // A Reader serves content from a ZIP archive.
@@ -82,6 +84,17 @@ func OpenReader(name string) (*ReadCloser, error) {
 
 // NewReader returns a new Reader reading from r, which is assumed to
 // have the given size in bytes.
+//
+// ErrInsecurePath and a valid *Reader are returned if the names of any
+// files in the archive:
+//
+//   - are absolute;
+//   - are a relative path escaping the current directory, such as "../a";
+//   - contain a backslash (\) character; or
+//   - on Windows, are a reserved file name such as "NUL".
+//
+// The caller may ignore the ErrInsecurePath error,
+// but is then responsible for sanitizing paths as appropriate.
 func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	if size < 0 {
 		return nil, errors.New("zip: size cannot be negative")
@@ -89,6 +102,17 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	zr := new(Reader)
 	if err := zr.init(r, size); err != nil {
 		return nil, err
+	}
+	for _, f := range zr.File {
+		if f.Name == "" {
+			// Zip permits an empty file name field.
+			continue
+		}
+		// The zip specification states that names must use forward slashes,
+		// so consider any backslashes in the name insecure.
+		if !filepath.IsLocal(f.Name) || strings.Contains(f.Name, `\`) {
+			return zr, ErrInsecurePath
+		}
 	}
 	return zr, nil
 }

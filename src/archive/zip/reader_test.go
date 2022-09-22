@@ -1315,7 +1315,7 @@ func TestCVE202127919(t *testing.T) {
 		0x00, 0x00, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
-	if err != nil {
+	if err != ErrInsecurePath {
 		t.Fatalf("Error reading the archive: %v", err)
 	}
 	_, err = r.Open("test.txt")
@@ -1484,7 +1484,7 @@ func TestCVE202141772(t *testing.T) {
 		0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
-	if err != nil {
+	if err != ErrInsecurePath {
 		t.Fatalf("Error reading the archive: %v", err)
 	}
 	entryNames := []string{`/`, `//`, `\`, `/test.txt`}
@@ -1581,6 +1581,38 @@ func TestIssue54801(t *testing.T) {
 					t.Fatalf("Error mismatch, got: %d, %v, want: %v", n, got, ErrFormat)
 				}
 			})
+		}
+	}
+}
+
+func TestInsecurePaths(t *testing.T) {
+	for _, path := range []string{
+		"../foo",
+		"/foo",
+		"a/b/../../../c",
+		`a\b`,
+	} {
+		var buf bytes.Buffer
+		zw := NewWriter(&buf)
+		_, err := zw.Create(path)
+		if err != nil {
+			t.Errorf("zw.Create(%q) = %v", path, err)
+			continue
+		}
+		zw.Close()
+
+		zr, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+		if err != ErrInsecurePath {
+			t.Errorf("NewReader for archive with file %q: got err %v, want ErrInsecurePath", path, err)
+			continue
+		}
+		var gotPaths []string
+		for _, f := range zr.File {
+			gotPaths = append(gotPaths, f.Name)
+		}
+		if !reflect.DeepEqual(gotPaths, []string{path}) {
+			t.Errorf("NewReader for archive with file %q: got files %q", path, gotPaths)
+			continue
 		}
 	}
 }
