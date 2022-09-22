@@ -583,7 +583,6 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 	argNum := firstArg
 	maxArgNum := firstArg
 	anyIndex := false
-	anyW := false
 	for i, w := 0, 0; i < len(format); i += w {
 		w = 1
 		if format[i] != '%' {
@@ -606,11 +605,6 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 				pass.Reportf(call.Pos(), "%s does not support error-wrapping directive %%w", state.name)
 				return
 			}
-			if anyW {
-				pass.Reportf(call.Pos(), "%s call has more than one error-wrapping directive %%w", state.name)
-				return
-			}
-			anyW = true
 		}
 		if len(state.argNums) > 0 {
 			// Continue with the next sequential argument.

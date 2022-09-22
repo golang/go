@@ -342,7 +342,7 @@ func PrintfTests() {
 	_ = fmt.Errorf("%[2]w %[1]s", "x", err) // OK
 	_ = fmt.Errorf("%[2]w %[1]s", e, "x")   // want `fmt.Errorf format %\[2\]w has arg "x" of wrong type string`
 	_ = fmt.Errorf("%w", "x")               // want `fmt.Errorf format %w has arg "x" of wrong type string`
-	_ = fmt.Errorf("%w %w", err, err)       // want `fmt.Errorf call has more than one error-wrapping directive %w`
+	_ = fmt.Errorf("%w %w", err, err)       // OK
 	_ = fmt.Errorf("%w", interface{}(nil))  // want `fmt.Errorf format %w has arg interface{}\(nil\) of wrong type interface{}`
 	_ = fmt.Errorf("%w", errorTestOK(0))    // concrete value implements error
 	_ = fmt.Errorf("%w", errSubset)         // interface value implements error
