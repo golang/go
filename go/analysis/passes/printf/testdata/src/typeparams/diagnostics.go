@@ -121,3 +121,25 @@ func TestTermReduction[T1 interface{ ~int | string }, T2 interface {
 	fmt.Printf("%d", t2)
 	fmt.Printf("%s", t2) // want "wrong type.*contains typeparams.myInt"
 }
+
+type U[T any] struct{}
+
+func (u U[T]) String() string {
+	fmt.Println(u) // want `fmt.Println arg u causes recursive call to \(typeparams.U\[T\]\).String method`
+	return ""
+}
+
+type S[T comparable] struct {
+	t T
+}
+
+func (s S[T]) String() T {
+	fmt.Println(s) // Not flagged. We currently do not consider String() T to implement fmt.Stringer (see #55928).
+	return s.t
+}
+
+func TestInstanceStringer() {
+	// Tests String method with nil Scope (#55350)
+	fmt.Println(&S[string]{})
+	fmt.Println(&U[string]{})
+}
