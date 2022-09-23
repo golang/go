@@ -855,7 +855,7 @@ func Slice1() {
 	unsafe.Slice(1, 2, 3) // ERROR too many arguments
 	unsafe.Slice(1 /* ERROR is not a pointer */ , 2)
 	unsafe.Slice(nil /* ERROR nil is not a pointer */ , 0)
-	unsafe.Slice(&x, "foo" /* ERROR cannot convert .* to int */ )
+	unsafe.Slice(&x, "foo" /* ERROR cannot convert .* to type int */ )
 	unsafe.Slice(&x, 1.2 /* ERROR truncated to int */ )
 	unsafe.Slice(&x, - /* ERROR must not be negative */ 1)
 	unsafe /* ERROR not used */ .Slice(&x, 0)
@@ -881,7 +881,7 @@ func String1() {
 	unsafe.String()        // ERROR not enough arguments
 	unsafe.String(1, 2, 3) // ERROR too many arguments
 	unsafe.String(1 /* ERROR cannot use 1 */ , 2)
-	unsafe.String(&b, "foo" /* ERROR cannot convert .* to int */ )
+	unsafe.String(&b, "foo" /* ERROR cannot convert .* to type int */ )
 	unsafe.String(&b, 1.2 /* ERROR truncated to int */ )
 	unsafe.String(&b, - /* ERROR must not be negative */ 1)
 	unsafe /* ERROR not used */ .String(&b, 0)

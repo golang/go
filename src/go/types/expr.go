@@ -463,7 +463,7 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, er
 }
 
 func (check *Checker) invalidConversion(code errorCode, x *operand, target Type) {
-	msg := "cannot convert %s to %s"
+	msg := "cannot convert %s to type %s"
 	switch code {
 	case _TruncatedFloat:
 		msg = "%s truncated to %s"

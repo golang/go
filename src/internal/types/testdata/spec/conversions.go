@@ -19,7 +19,7 @@ func _[T ~byte]() {
 
 func _[T ~string]() T                { return T('a') }
 func _[T ~int | ~string]() T         { return T('a') }
-func _[T ~byte | ~int | ~string]() T { return T(256 /* ERROR cannot convert 256 .* to T */) }
+func _[T ~byte | ~int | ~string]() T { return T(256 /* ERROR cannot convert 256 .* to type T */) }
 
 // implicit conversions never convert to string
 func _[T ~string]() {
@@ -34,10 +34,10 @@ func _[
 	T3 ~int | ~float64 | ~bool,
 	T4 ~int | ~string,
 ]() {
-	_ = T1(0 /* ERROR cannot convert 0 .* to T1\n\tT1 does not contain specific types */)
-	_ = T2(1 /* ERROR cannot convert 1 .* to T2\n\tT2 does not contain specific types */)
-	_ = T3(2 /* ERROR cannot convert 2 .* to T3\n\tcannot convert 2 .* to bool \(in T3\) */)
-	_ = T4(3.14 /* ERROR cannot convert 3.14 .* to T4\n\tcannot convert 3.14 .* to int \(in T4\) */)
+	_ = T1(0 /* ERROR cannot convert 0 .* to type T1:\n\tT1 does not contain specific types */)
+	_ = T2(1 /* ERROR cannot convert 1 .* to type T2:\n\tT2 does not contain specific types */)
+	_ = T3(2 /* ERROR cannot convert 2 .* to type T3:\n\tcannot convert 2 .* to type bool \(in T3\) */)
+	_ = T4(3.14 /* ERROR cannot convert 3.14 .* to type T4:\n\tcannot convert 3.14 .* to type int \(in T4\) */)
 }
 
 // "x is assignable to T"
@@ -66,7 +66,7 @@ func _[X Foo, T Bar](x X) T       { return T(x) }
 func _[X Foo | Bar, T Bar](x X) T { return T(x) }
 func _[X Foo, T Foo | Bar](x X) T { return T(x) }
 func _[X Foo, T Far](x X) T {
-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Foo\) to T\n\tcannot convert Foo \(in X\) to Far \(in T\) */)
+	return T(x /* ERROR cannot convert x \(variable of type X constrained by Foo\) to type T:\n\tcannot convert Foo \(in X\) to type Far \(in T\) */)
 }
 
 // "x's type and T are unnamed pointer types and their pointer base types
@@ -76,7 +76,7 @@ func _[X ~*Foo, T ~*Bar](x X) T         { return T(x) }
 func _[X ~*Foo | ~*Bar, T ~*Bar](x X) T { return T(x) }
 func _[X ~*Foo, T ~*Foo | ~*Bar](x X) T { return T(x) }
 func _[X ~*Foo, T ~*Far](x X) T {
-	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*Foo\) to T\n\tcannot convert \*Foo \(in X\) to \*Far \(in T\) */)
+	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*Foo\) to type T:\n\tcannot convert \*Foo \(in X\) to type \*Far \(in T\) */)
 }
 
 // Verify that the defined types in constraints are considered for the rule above.
@@ -109,14 +109,14 @@ func _[X Float, T Float](x X) T    { return T(x) }
 
 func _[X, T Integer | Unsigned | Float](x X) T { return T(x) }
 func _[X, T Integer | ~string](x X) T {
-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~string\) to T\n\tcannot convert string \(in X\) to int \(in T\) */)
+	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~string\) to type T:\n\tcannot convert string \(in X\) to type int \(in T\) */)
 }
 
 // "x's type and T are both complex types"
 
 func _[X, T Complex](x X) T { return T(x) }
 func _[X, T Float | Complex](x X) T {
-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Float \| Complex\) to T\n\tcannot convert float32 \(in X\) to complex64 \(in T\) */)
+	return T(x /* ERROR cannot convert x \(variable of type X constrained by Float \| Complex\) to type T:\n\tcannot convert float32 \(in X\) to type complex64 \(in T\) */)
 }
 
 // "x is an integer or a slice of bytes or runes and T is a string type"
@@ -129,7 +129,7 @@ func _[T ~string](x myInt) T    { return T(x) }
 func _[X Integer](x X) string   { return string(x) }
 func _[X Integer](x X) myString { return myString(x) }
 func _[X Integer](x X) *string {
-	return (*string)(x /* ERROR cannot convert x \(variable of type X constrained by Integer\) to \*string\n\tcannot convert int \(in X\) to \*string */)
+	return (*string)(x /* ERROR cannot convert x \(variable of type X constrained by Integer\) to type \*string:\n\tcannot convert int \(in X\) to type \*string */)
 }
 
 func _[T ~string](x []byte) T                           { return T(x) }
@@ -138,7 +138,7 @@ func _[X ~[]byte, T ~string](x X) T                     { return T(x) }
 func _[X ~[]rune, T ~string](x X) T                     { return T(x) }
 func _[X Integer | ~[]byte | ~[]rune, T ~string](x X) T { return T(x) }
 func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~\[\]byte \| ~\[\]rune\) to T\n\tcannot convert int \(in X\) to \*string \(in T\) */)
+	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~\[\]byte \| ~\[\]rune\) to type T:\n\tcannot convert int \(in X\) to type \*string \(in T\) */)
 }
 
 // "x is a string and T is a slice of bytes or runes"
@@ -146,14 +146,14 @@ func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
 func _[T ~[]byte](x string) T { return T(x) }
 func _[T ~[]rune](x string) T { return T(x) }
 func _[T ~[]rune](x *string) T {
-	return T(x /* ERROR cannot convert x \(variable of type \*string\) to T\n\tcannot convert \*string to \[\]rune \(in T\) */)
+	return T(x /* ERROR cannot convert x \(variable of type \*string\) to type T:\n\tcannot convert \*string to type \[\]rune \(in T\) */)
 }
 
 func _[X ~string, T ~[]byte](x X) T           { return T(x) }
 func _[X ~string, T ~[]rune](x X) T           { return T(x) }
 func _[X ~string, T ~[]byte | ~[]rune](x X) T { return T(x) }
 func _[X ~*string, T ~[]byte | ~[]rune](x X) T {
-	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*string\) to T\n\tcannot convert \*string \(in X\) to \[\]byte \(in T\) */)
+	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*string\) to type T:\n\tcannot convert \*string \(in X\) to type \[\]byte \(in T\) */)
 }
 
 // package unsafe:
@@ -164,7 +164,7 @@ type myUintptr uintptr
 func _[X ~uintptr](x X) unsafe.Pointer  { return unsafe.Pointer(x) }
 func _[T unsafe.Pointer](x myUintptr) T { return T(x) }
 func _[T unsafe.Pointer](x int64) T {
-	return T(x /* ERROR cannot convert x \(variable of type int64\) to T\n\tcannot convert int64 to unsafe\.Pointer \(in T\) */)
+	return T(x /* ERROR cannot convert x \(variable of type int64\) to type T:\n\tcannot convert int64 to type unsafe\.Pointer \(in T\) */)
 }
 
 // "and vice versa"
@@ -173,7 +173,7 @@ func _[T ~uintptr](x unsafe.Pointer) T  { return T(x) }
 func _[X unsafe.Pointer](x X) uintptr   { return uintptr(x) }
 func _[X unsafe.Pointer](x X) myUintptr { return myUintptr(x) }
 func _[X unsafe.Pointer](x X) int64 {
-	return int64(x /* ERROR cannot convert x \(variable of type X constrained by unsafe\.Pointer\) to int64\n\tcannot convert unsafe\.Pointer \(in X\) to int64 */)
+	return int64(x /* ERROR cannot convert x \(variable of type X constrained by unsafe\.Pointer\) to type int64:\n\tcannot convert unsafe\.Pointer \(in X\) to type int64 */)
 }
 
 // "x is a slice, T is an array or pointer-to-array type,
