@@ -94,7 +94,9 @@ func (g *Group) doCall(c *call, key string, fn func() (any, error)) {
 	c.wg.Done()
 
 	g.mu.Lock()
-	delete(g.m, key)
+	if g.m[key] == c {
+		delete(g.m, key)
+	}
 	for _, ch := range c.chans {
 		ch <- Result{c.val, c.err, c.dups > 0}
 	}
