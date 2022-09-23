@@ -561,7 +561,7 @@ func fossilStatus(vcsFossil *Cmd, rootDir string) (Status, error) {
 	}
 	rev := checkout[:i]
 
-	commitTime, err := time.ParseInLocation("2006-01-02 15:04:05", checkout[i+1:], time.UTC)
+	commitTime, err := time.ParseInLocation(time.DateTime, checkout[i+1:], time.UTC)
 	if err != nil {
 		return Status{}, fmt.Errorf("%v: %v", errFossilInfo, err)
 	}
