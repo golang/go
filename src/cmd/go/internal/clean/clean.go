@@ -340,16 +340,14 @@ func clean(p *load.Package) {
 			continue
 		}
 
-		if strings.HasSuffix(name, "_test.go") {
-			base := name[:len(name)-len("_test.go")]
+		if base, found := strings.CutSuffix(name, "_test.go"); found {
 			allRemove = append(allRemove, base+".test", base+".test.exe")
 		}
 
-		if strings.HasSuffix(name, ".go") {
+		if base, found := strings.CutSuffix(name, ".go"); found {
 			// TODO(adg,rsc): check that this .go file is actually
 			// in "package main", and therefore capable of building
 			// to an executable file.
-			base := name[:len(name)-len(".go")]
 			allRemove = append(allRemove, base, base+".exe")
 		}
 	}
