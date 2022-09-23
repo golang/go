@@ -109,14 +109,19 @@ func ReadDataAt(r io.ReaderAt, n uint64, off int64) ([]byte, error) {
 //
 // A negative result means that the value is always too big.
 //
-// The element type is described by passing a value of that type.
+// The element type is described by passing a pointer to a value of that type.
 // This would ideally use generics, but this code is built with
 // the bootstrap compiler which need not support generics.
+// We use a pointer so that we can handle slices of interface type.
 func SliceCap(v any, c uint64) int {
 	if int64(c) < 0 || c != uint64(int(c)) {
 		return -1
 	}
-	size := reflect.TypeOf(v).Size()
+	typ := reflect.TypeOf(v)
+	if typ.Kind() != reflect.Ptr {
+		panic("SliceCap called with non-pointer type")
+	}
+	size := typ.Elem().Size()
 	if uintptr(c)*size > chunk {
 		c = uint64(chunk / size)
 		if c == 0 {

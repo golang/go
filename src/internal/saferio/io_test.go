@@ -105,14 +105,14 @@ func TestReadDataAt(t *testing.T) {
 
 func TestSliceCap(t *testing.T) {
 	t.Run("small", func(t *testing.T) {
-		c := SliceCap(0, 10)
+		c := SliceCap((*int)(nil), 10)
 		if c != 10 {
 			t.Errorf("got capacity %d, want %d", c, 10)
 		}
 	})
 
 	t.Run("large", func(t *testing.T) {
-		c := SliceCap(byte(0), 1<<30)
+		c := SliceCap((*byte)(nil), 1<<30)
 		if c < 0 {
 			t.Error("SliceCap failed unexpectedly")
 		} else if c == 1<<30 {
@@ -121,7 +121,7 @@ func TestSliceCap(t *testing.T) {
 	})
 
 	t.Run("maxint", func(t *testing.T) {
-		c := SliceCap(byte(0), 1<<63)
+		c := SliceCap((*byte)(nil), 1<<63)
 		if c >= 0 {
 			t.Errorf("SliceCap returned %d, expected failure", c)
 		}

@@ -9,6 +9,7 @@ package gob
 import (
 	"encoding"
 	"errors"
+	"internal/saferio"
 	"io"
 	"math"
 	"math/bits"
@@ -514,9 +515,21 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, 
 	}
 	instr := &decInstr{elemOp, 0, nil, ovfl}
 	isPtr := value.Type().Elem().Kind() == reflect.Pointer
+	ln := value.Len()
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= ln {
+			// This is a slice that we only partially allocated.
+			// Grow it using append, up to length.
+			value = reflect.Append(value, reflect.Zero(value.Type().Elem()))
+			cp := value.Cap()
+			if cp > length {
+				cp = length
+			}
+			value.SetLen(cp)
+			ln = cp
 		}
 		v := value.Index(i)
 		if isPtr {
@@ -618,7 +631,11 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
 		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 	}
 	if value.Cap() < n {
-		value.Set(reflect.MakeSlice(typ, n, n))
+		safe := saferio.SliceCap(reflect.Zero(reflect.PtrTo(typ.Elem())).Interface(), uint64(n))
+		if safe < 0 {
+			errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
+		}
+		value.Set(reflect.MakeSlice(typ, safe, safe))
 	} else {
 		value.SetLen(n)
 	}
