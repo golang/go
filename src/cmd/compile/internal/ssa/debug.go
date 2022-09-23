@@ -38,6 +38,8 @@ type FuncDebug struct {
 	// Register-resident output parameters for the function. This is filled in at
 	// SSA generation time.
 	RegOutputParams []*ir.Name
+	// Variable declarations that were removed during optimization
+	OptDcl []*ir.Name
 
 	// Filled in by the user. Translates Block and Value ID to PC.
 	GetPC func(ID, ID) int64
