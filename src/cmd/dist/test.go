@@ -889,7 +889,7 @@ func (t *tester) isRegisteredTestName(testName string) bool {
 	return false
 }
 
-func (t *tester) registerTest1(seq bool, name, dirBanner string, cmdline ...interface{}) {
+func (t *tester) registerTest(name, dirBanner string, cmdline ...interface{}) {
 	bin, args := flattenCmdline(cmdline)
 	if bin == "time" && !t.haveTime {
 		bin, args = args[0], args[1:]
@@ -901,24 +901,10 @@ func (t *tester) registerTest1(seq bool, name, dirBanner string, cmdline ...inte
 		name:    name,
 		heading: dirBanner,
 		fn: func(dt *distTest) error {
-			if seq {
-				t.runPending(dt)
-				timelog("start", name)
-				defer timelog("end", name)
-				return t.dirCmd(filepath.Join(goroot, "src", dirBanner), bin, args).Run()
-			}
 			t.addCmd(dt, filepath.Join(goroot, "src", dirBanner), bin, args)
 			return nil
 		},
 	})
-}
-
-func (t *tester) registerTest(name, dirBanner string, cmdline ...interface{}) {
-	t.registerTest1(false, name, dirBanner, cmdline...)
-}
-
-func (t *tester) registerSeqTest(name, dirBanner string, cmdline ...interface{}) {
-	t.registerTest1(true, name, dirBanner, cmdline...)
 }
 
 // bgDirCmd constructs a Cmd intended to be run in the background as
