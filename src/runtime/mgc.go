@@ -1069,6 +1069,12 @@ func gcMarkTermination() {
 	injectglist(&work.sweepWaiters.list)
 	unlock(&work.sweepWaiters.lock)
 
+	// Increment the scavenge generation now.
+	//
+	// This moment represents peak heap in use because we're
+	// about to start sweeping.
+	mheap_.pages.scav.index.nextGen()
+
 	// Release the CPU limiter.
 	gcCPULimiter.finishGCTransition(now)
 

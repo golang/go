@@ -12,7 +12,6 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -58,10 +57,10 @@ var levelLogPages = [summaryLevels]uint{
 
 // scavengeIndexArray is the backing store for p.scav.index.chunks.
 // On 32-bit platforms, it's small enough to just be a global.
-var scavengeIndexArray [((1 << heapAddrBits) / pallocChunkBytes) / 8]atomic.Uint8
+var scavengeIndexArray [(1 << heapAddrBits) / pallocChunkBytes]atomicScavChunkData
 
 // See mpagealloc_64bit.go for details.
-func (p *pageAlloc) sysInit() {
+func (p *pageAlloc) sysInit(test bool) {
 	// Calculate how much memory all our entries will take up.
 	//
 	// This should be around 12 KiB or less.
@@ -95,8 +94,17 @@ func (p *pageAlloc) sysInit() {
 		reservation = add(reservation, uintptr(entries)*pallocSumBytes)
 	}
 
-	// Set up the scavenge index.
-	p.scav.index.chunks = scavengeIndexArray[:]
+	if test {
+		// Set up the scavenge index via sysAlloc so the test can free it later.
+		scavIndexSize := uintptr(len(scavengeIndexArray)) * unsafe.Sizeof(atomicScavChunkData{})
+		p.scav.index.chunks = ((*[(1 << heapAddrBits) / pallocChunkBytes]atomicScavChunkData)(sysAlloc(scavIndexSize, p.sysStat)))[:]
+		p.summaryMappedReady += scavIndexSize
+	} else {
+		// Set up the scavenge index.
+		p.scav.index.chunks = scavengeIndexArray[:]
+	}
+	p.scav.index.min.Store(1) // The 0th chunk is never going to be mapped for the heap.
+	p.scav.index.max.Store(uintptr(len(p.scav.index.chunks)))
 }
 
 // See mpagealloc_64bit.go for details.

@@ -257,11 +257,9 @@ type pageAlloc struct {
 	// known by the page allocator to be currently in-use (passed
 	// to grow).
 	//
-	// This field is currently unused on 32-bit architectures but
-	// is harmless to track. We care much more about having a
-	// contiguous heap in these cases and take additional measures
-	// to ensure that, so in nearly all cases this should have just
-	// 1 element.
+	// We care much more about having a contiguous heap in these cases
+	// and take additional measures to ensure that, so in nearly all
+	// cases this should have just 1 element.
 	//
 	// All access is protected by the mheapLock.
 	inUse addrRanges
@@ -300,7 +298,7 @@ type pageAlloc struct {
 	test bool
 }
 
-func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat) {
+func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat, test bool) {
 	if levelLogPages[0] > logMaxPackedValue {
 		// We can't represent 1<<levelLogPages[0] pages, the maximum number
 		// of pages we need to represent at the root level, in a summary, which
@@ -315,13 +313,17 @@ func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat) {
 	p.inUse.init(sysStat)
 
 	// System-dependent initialization.
-	p.sysInit()
+	p.sysInit(test)
 
 	// Start with the searchAddr in a state indicating there's no free memory.
 	p.searchAddr = maxSearchAddr()
 
 	// Set the mheapLock.
 	p.mheapLock = mheapLock
+
+	// Set if we're in a test.
+	p.test = test
+	p.scav.index.test = test
 }
 
 // tryChunkOf returns the bitmap data for the given chunk.
@@ -415,6 +417,11 @@ func (p *pageAlloc) grow(base, size uintptr) {
 	// we need to ensure this newly-free memory is visible in the
 	// summaries.
 	p.update(base, size/pageSize, true, false)
+
+	// Mark all new memory as huge page eligible.
+	if !p.test {
+		sysHugePage(unsafe.Pointer(base), size)
+	}
 }
 
 // enableChunkHugePages enables huge pages for the chunk bitmap mappings (disabled by default).
@@ -568,19 +575,23 @@ func (p *pageAlloc) allocRange(base, npages uintptr) uintptr {
 		chunk := p.chunkOf(sc)
 		scav += chunk.scavenged.popcntRange(si, ei+1-si)
 		chunk.allocRange(si, ei+1-si)
+		p.scav.index.alloc(sc, ei+1-si)
 	} else {
 		// The range crosses at least one chunk boundary.
 		chunk := p.chunkOf(sc)
 		scav += chunk.scavenged.popcntRange(si, pallocChunkPages-si)
 		chunk.allocRange(si, pallocChunkPages-si)
+		p.scav.index.alloc(sc, pallocChunkPages-si)
 		for c := sc + 1; c < ec; c++ {
 			chunk := p.chunkOf(c)
 			scav += chunk.scavenged.popcntRange(0, pallocChunkPages)
 			chunk.allocAll()
+			p.scav.index.alloc(c, pallocChunkPages)
 		}
 		chunk = p.chunkOf(ec)
 		scav += chunk.scavenged.popcntRange(0, ei+1)
 		chunk.allocRange(0, ei+1)
+		p.scav.index.alloc(ec, ei+1)
 	}
 	p.update(base, npages, true, true)
 	return uintptr(scav) * pageSize
@@ -914,7 +925,7 @@ Found:
 // Must run on the system stack because p.mheapLock must be held.
 //
 //go:systemstack
-func (p *pageAlloc) free(base, npages uintptr, scavenged bool) {
+func (p *pageAlloc) free(base, npages uintptr) {
 	assertLockHeld(p.mheapLock)
 
 	// If we're freeing pages below the p.searchAddr, update searchAddr.
@@ -922,14 +933,13 @@ func (p *pageAlloc) free(base, npages uintptr, scavenged bool) {
 		p.searchAddr = b
 	}
 	limit := base + npages*pageSize - 1
-	if !scavenged {
-		p.scav.index.mark(base, limit+1)
-	}
 	if npages == 1 {
 		// Fast path: we're clearing a single bit, and we know exactly
 		// where it is, so mark it directly.
 		i := chunkIndex(base)
-		p.chunkOf(i).free1(chunkPageIndex(base))
+		pi := chunkPageIndex(base)
+		p.chunkOf(i).free1(pi)
+		p.scav.index.free(i, pi, 1)
 	} else {
 		// Slow path: we're clearing more bits so we may need to iterate.
 		sc, ec := chunkIndex(base), chunkIndex(limit)
@@ -938,13 +948,17 @@ func (p *pageAlloc) free(base, npages uintptr, scavenged bool) {
 		if sc == ec {
 			// The range doesn't cross any chunk boundaries.
 			p.chunkOf(sc).free(si, ei+1-si)
+			p.scav.index.free(sc, si, ei+1-si)
 		} else {
 			// The range crosses at least one chunk boundary.
 			p.chunkOf(sc).free(si, pallocChunkPages-si)
+			p.scav.index.free(sc, si, pallocChunkPages-si)
 			for c := sc + 1; c < ec; c++ {
 				p.chunkOf(c).freeAll()
+				p.scav.index.free(c, 0, pallocChunkPages)
 			}
 			p.chunkOf(ec).free(0, ei+1)
+			p.scav.index.free(ec, 0, ei+1)
 		}
 	}
 	p.update(base, npages, true, false)

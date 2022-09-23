@@ -260,9 +260,11 @@ func finishsweep_m() {
 		c.fullUnswept(sg).reset()
 	}
 
-	// Sweeping is done, so if the scavenger isn't already awake,
-	// wake it up. There's definitely work for it to do at this
-	// point.
+	// Sweeping is done, so there won't be any new memory to
+	// scavenge for a bit.
+	//
+	// If the scavenger isn't already awake, wake it up. There's
+	// definitely work for it to do at this point.
 	scavenger.wake()
 
 	nextMarkBitArenaEpoch()

@@ -9,12 +9,14 @@
 // fragmentation and reduce the RSS of Go applications.
 //
 // Scavenging in Go happens on two fronts: there's the background
-// (asynchronous) scavenger and the heap-growth (synchronous) scavenger.
+// (asynchronous) scavenger and the allocation-time (synchronous) scavenger.
 //
 // The former happens on a goroutine much like the background sweeper which is
 // soft-capped at using scavengePercent of the mutator's time, based on
-// order-of-magnitude estimates of the costs of scavenging. The background
-// scavenger's primary goal is to bring the estimated heap RSS of the
+// order-of-magnitude estimates of the costs of scavenging. The latter happens
+// when allocating pages from the heap.
+//
+// The scavenger's primary goal is to bring the estimated heap RSS of the
 // application down to a goal.
 //
 // Before we consider what this looks like, we need to split the world into two
@@ -61,11 +63,30 @@
 //
 // The goals are updated after each GC.
 //
-// The synchronous heap-growth scavenging happens whenever the heap grows in
-// size, for some definition of heap-growth. The intuition behind this is that
-// the application had to grow the heap because existing fragments were
-// not sufficiently large to satisfy a page-level memory allocation, so we
-// scavenge those fragments eagerly to offset the growth in RSS that results.
+// Synchronous scavenging happens for one of two reasons: if an allocation would
+// exceed the memory limit or whenever the heap grows in size, for some
+// definition of heap-growth. The intuition behind this second reason is that the
+// application had to grow the heap because existing fragments were not sufficiently
+// large to satisfy a page-level memory allocation, so we scavenge those fragments
+// eagerly to offset the growth in RSS that results.
+//
+// Lastly, not all pages are available for scavenging at all times and in all cases.
+// The background scavenger and heap-growth scavenger only release memory in chunks
+// that have not been densely-allocated for at least 1 full GC cycle. The reason
+// behind this is likelihood of reuse: the Go heap is allocated in a first-fit order
+// and by the end of the GC mark phase, the heap tends to be densely packed. Releasing
+// memory in these densely packed chunks while they're being packed is counter-productive,
+// and worse, it breaks up huge pages on systems that support them. The scavenger (invoked
+// during memory allocation) further ensures that chunks it identifies as "dense" are
+// immediately eligible for being backed by huge pages. Note that for the most part these
+// density heuristics are best-effort heuristics. It's totally possible (but unlikely)
+// that a chunk that just became dense is scavenged in the case of a race between memory
+// allocation and scavenging.
+//
+// When synchronously scavenging for the memory limit or for debug.FreeOSMemory, these
+// "dense" packing heuristics are ignored (in other words, scavenging is "forced") because
+// in these scenarios returning memory to the OS is more important than keeping CPU
+// overheads low.
 
 package runtime
 
@@ -118,6 +139,11 @@ const (
 	// This ratio is used as part of multiplicative factor to help the scavenger account
 	// for the additional costs of using scavenged memory in its pacing.
 	scavengeCostRatio = 0.7 * (goos.IsDarwin + goos.IsIos)
+
+	// scavChunkHiOcFrac indicates the fraction of pages that need to be allocated
+	// in the chunk in a single GC cycle for it to be considered high density.
+	scavChunkHiOccFrac  = 0.96875
+	scavChunkHiOccPages = uint16(scavChunkHiOccFrac * pallocChunkPages)
 )
 
 // heapRetained returns an estimate of the current heap RSS.
@@ -366,7 +392,7 @@ func (s *scavengerState) init() {
 	if s.scavenge == nil {
 		s.scavenge = func(n uintptr) (uintptr, int64) {
 			start := nanotime()
-			r := mheap_.pages.scavenge(n, nil)
+			r := mheap_.pages.scavenge(n, nil, false)
 			end := nanotime()
 			if start >= end {
 				return r, 0
@@ -639,17 +665,17 @@ func bgscavenge(c chan int) {
 
 // scavenge scavenges nbytes worth of free pages, starting with the
 // highest address first. Successive calls continue from where it left
-// off until the heap is exhausted. Call scavengeStartGen to bring it
-// back to the top of the heap.
+// off until the heap is exhausted. force makes all memory available to
+// scavenge, ignoring huge page heuristics.
 //
 // Returns the amount of memory scavenged in bytes.
 //
 // scavenge always tries to scavenge nbytes worth of memory, and will
 // only fail to do so if the heap is exhausted for now.
-func (p *pageAlloc) scavenge(nbytes uintptr, shouldStop func() bool) uintptr {
+func (p *pageAlloc) scavenge(nbytes uintptr, shouldStop func() bool, force bool) uintptr {
 	released := uintptr(0)
 	for released < nbytes {
-		ci, pageIdx := p.scav.index.find()
+		ci, pageIdx := p.scav.index.find(force)
 		if ci == 0 {
 			break
 		}
@@ -737,10 +763,14 @@ func (p *pageAlloc) scavengeOne(ci chunkIdx, searchIdx uint, max uintptr) uintpt
 
 			// Mark the range we're about to scavenge as allocated, because
 			// we don't want any allocating goroutines to grab it while
-			// the scavenging is in progress.
-			if scav := p.allocRange(addr, uintptr(npages)); scav != 0 {
-				throw("double scavenge")
-			}
+			// the scavenging is in progress. Be careful here -- just do the
+			// bare minimum to avoid stepping on our own scavenging stats.
+			p.chunkOf(ci).allocRange(base, npages)
+			p.update(addr, uintptr(npages), true, true)
+
+			// Grab whether the chunk is hugepage backed and if it is,
+			// clear it. We're about to break up this huge page.
+			shouldNoHugePage := p.scav.index.setNoHugePage(ci)
 
 			// With that done, it's safe to unlock.
 			unlock(p.mheapLock)
@@ -748,13 +778,16 @@ func (p *pageAlloc) scavengeOne(ci chunkIdx, searchIdx uint, max uintptr) uintpt
 			if !p.test {
 				pageTraceScav(getg().m.p.ptr(), 0, addr, uintptr(npages))
 
-				// Only perform the actual scavenging if we're not in a test.
+				// Only perform sys* operations if we're not in a test.
 				// It's dangerous to do so otherwise.
+				if shouldNoHugePage {
+					sysNoHugePage(unsafe.Pointer(chunkBase(ci)), pallocChunkBytes)
+				}
 				sysUnused(unsafe.Pointer(addr), uintptr(npages)*pageSize)
 
 				// Update global accounting only when not in test, otherwise
 				// the runtime's accounting will be wrong.
-				nbytes := int64(npages) * pageSize
+				nbytes := int64(npages * pageSize)
 				gcController.heapReleased.add(nbytes)
 				gcController.heapFree.add(-nbytes)
 
@@ -767,7 +800,11 @@ func (p *pageAlloc) scavengeOne(ci chunkIdx, searchIdx uint, max uintptr) uintpt
 			// Relock the heap, because now we need to make these pages
 			// available allocation. Free them back to the page allocator.
 			lock(p.mheapLock)
-			p.free(addr, uintptr(npages), true)
+			if b := (offAddr{addr}); b.lessThan(p.searchAddr) {
+				p.searchAddr = b
+			}
+			p.chunkOf(ci).free(base, npages)
+			p.update(addr, uintptr(npages), true, false)
 
 			// Mark the range as scavenged.
 			p.chunkOf(ci).scavenged.setRange(base, npages)
@@ -777,7 +814,7 @@ func (p *pageAlloc) scavengeOne(ci chunkIdx, searchIdx uint, max uintptr) uintpt
 		}
 	}
 	// Mark this chunk as having no free pages.
-	p.scav.index.clear(ci)
+	p.scav.index.setEmpty(ci)
 	unlock(p.mheapLock)
 
 	return 0
@@ -965,27 +1002,33 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
 // scavengeIndex is a structure for efficiently managing which pageAlloc chunks have
 // memory available to scavenge.
 type scavengeIndex struct {
-	// chunks is a bitmap representing the entire address space. Each bit represents
-	// a single chunk, and a 1 value indicates the presence of pages available for
-	// scavenging. Updates to the bitmap are serialized by the pageAlloc lock.
+	// chunks is a scavChunkData-per-chunk structure that indicates the presence of pages
+	// available for scavenging. Updates to the index are serialized by the pageAlloc lock.
 	//
-	// The underlying storage of chunks is platform dependent and may not even be
-	// totally mapped read/write. min and max reflect the extent that is safe to access.
-	// min is inclusive, max is exclusive.
+	// It tracks chunk occupancy and a generation counter per chunk. If a chunk's occupancy
+	// never exceeds pallocChunkDensePages over the course of a single GC cycle, the chunk
+	// becomes eligible for scavenging on the next cycle. If a chunk ever hits this density
+	// threshold it immediately becomes unavailable for scavenging in the current cycle as
+	// well as the next.
 	//
-	// searchAddr is the maximum address (in the offset address space, so we have a linear
+	// For a chunk size of 4 MiB this structure will only use 2 MiB for a 1 TiB contiguous heap.
+	chunks   []atomicScavChunkData
+	min, max atomic.Uintptr
+
+	// searchAddr* is the maximum address (in the offset address space, so we have a linear
 	// view of the address space; see mranges.go:offAddr) containing memory available to
 	// scavenge. It is a hint to the find operation to avoid O(n^2) behavior in repeated lookups.
 	//
-	// searchAddr is always inclusive and should be the base address of the highest runtime
+	// searchAddr* is always inclusive and should be the base address of the highest runtime
 	// page available for scavenging.
 	//
-	// searchAddr is managed by both find and mark.
+	// searchAddrForce is managed by find and free.
+	// searchAddrBg is managed by find and nextGen.
 	//
-	// Normally, find monotonically decreases searchAddr as it finds no more free pages to
+	// Normally, find monotonically decreases searchAddr* as it finds no more free pages to
 	// scavenge. However, mark, when marking a new chunk at an index greater than the current
 	// searchAddr, sets searchAddr to the *negative* index into chunks of that page. The trick here
-	// is that concurrent calls to find will fail to monotonically decrease searchAddr, and so they
+	// is that concurrent calls to find will fail to monotonically decrease searchAddr*, and so they
 	// won't barge over new memory becoming available to scavenge. Furthermore, this ensures
 	// that some future caller of find *must* observe the new high index. That caller
 	// (or any other racing with it), then makes searchAddr positive before continuing, bringing
@@ -994,47 +1037,52 @@ type scavengeIndex struct {
 	// A pageAlloc lock serializes updates between min, max, and searchAddr, so abs(searchAddr)
 	// is always guaranteed to be >= min and < max (converted to heap addresses).
 	//
-	// TODO(mknyszek): Ideally we would use something bigger than a uint8 for faster
-	// iteration like uint32, but we lack the bit twiddling intrinsics. We'd need to either
-	// copy them from math/bits or fix the fact that we can't import math/bits' code from
-	// the runtime due to compiler instrumentation.
-	searchAddr atomicOffAddr
-	chunks     []atomic.Uint8
-	minHeapIdx atomic.Int32
-	min, max   atomic.Int32
+	// searchAddrBg is increased only on each new generation and is mainly used by the
+	// background scavenger and heap-growth scavenging. searchAddrForce is increased continuously
+	// as memory gets freed and is mainly used by eager memory reclaim such as debug.FreeOSMemory
+	// and scavenging to maintain the memory limit.
+	searchAddrBg    atomicOffAddr
+	searchAddrForce atomicOffAddr
+
+	// freeHWM is the highest address (in offset address space) that was freed
+	// this generation.
+	freeHWM offAddr
+
+	// Generation counter. Updated by nextGen at the end of each mark phase.
+	gen uint32
+
+	// test indicates whether or not we're in a test.
+	test bool
 }
 
 // find returns the highest chunk index that may contain pages available to scavenge.
 // It also returns an offset to start searching in the highest chunk.
-func (s *scavengeIndex) find() (chunkIdx, uint) {
-	searchAddr, marked := s.searchAddr.Load()
+func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
+	cursor := &s.searchAddrBg
+	if force {
+		cursor = &s.searchAddrForce
+	}
+	searchAddr, marked := cursor.Load()
 	if searchAddr == minOffAddr.addr() {
 		// We got a cleared search addr.
 		return 0, 0
 	}
 
-	// Starting from searchAddr's chunk, and moving down to minHeapIdx,
-	// iterate until we find a chunk with pages to scavenge.
-	min := s.minHeapIdx.Load()
-	searchChunk := chunkIndex(uintptr(searchAddr))
-	start := int32(searchChunk / 8)
+	// Starting from searchAddr's chunk, iterate until we find a chunk with pages to scavenge.
+	gen := s.gen
+	min := chunkIdx(s.min.Load())
+	start := chunkIndex(uintptr(searchAddr))
 	for i := start; i >= min; i-- {
-		// Skip over irrelevant address space.
-		chunks := s.chunks[i].Load()
-		if chunks == 0 {
+		// Skip over chunks.
+		if !s.chunks[i].load().shouldScavenge(gen, force) {
 			continue
 		}
-		// Note that we can't have 8 leading zeroes here because
-		// we necessarily skipped that case. So, what's left is
-		// an index. If there are no zeroes, we want the 7th
-		// index, if 1 zero, the 6th, and so on.
-		n := 7 - sys.LeadingZeros8(chunks)
-		ci := chunkIdx(uint(i)*8 + uint(n))
-		if searchChunk == ci {
-			return ci, chunkPageIndex(uintptr(searchAddr))
+		// We're still scavenging this chunk.
+		if i == start {
+			return i, chunkPageIndex(uintptr(searchAddr))
 		}
 		// Try to reduce searchAddr to newSearchAddr.
-		newSearchAddr := chunkBase(ci) + pallocChunkBytes - pageSize
+		newSearchAddr := chunkBase(i) + pallocChunkBytes - pageSize
 		if marked {
 			// Attempt to be the first one to decrease the searchAddr
 			// after an increase. If we fail, that means there was another
@@ -1042,78 +1090,273 @@ func (s *scavengeIndex) find() (chunkIdx, uint) {
 			// it doesn't matter. We may lose some performance having an
 			// incorrect search address, but it's far more important that
 			// we don't miss updates.
-			s.searchAddr.StoreUnmark(searchAddr, newSearchAddr)
+			cursor.StoreUnmark(searchAddr, newSearchAddr)
 		} else {
 			// Decrease searchAddr.
-			s.searchAddr.StoreMin(newSearchAddr)
+			cursor.StoreMin(newSearchAddr)
 		}
-		return ci, pallocChunkPages - 1
+		return i, pallocChunkPages - 1
 	}
 	// Clear searchAddr, because we've exhausted the heap.
-	s.searchAddr.Clear()
+	cursor.Clear()
 	return 0, 0
 }
 
-// mark sets the inclusive range of chunks between indices start and end as
-// containing pages available to scavenge.
+// alloc updates metadata for chunk at index ci with the fact that
+// an allocation of npages occurred.
 //
-// Must be serialized with other mark, markRange, and clear calls.
-func (s *scavengeIndex) mark(base, limit uintptr) {
-	start, end := chunkIndex(base), chunkIndex(limit-pageSize)
-	if start == end {
-		// Within a chunk.
-		mask := uint8(1 << (start % 8))
-		s.chunks[start/8].Or(mask)
-	} else if start/8 == end/8 {
-		// Within the same byte in the index.
-		mask := uint8(uint16(1<<(end-start+1))-1) << (start % 8)
-		s.chunks[start/8].Or(mask)
-	} else {
-		// Crosses multiple bytes in the index.
-		startAligned := chunkIdx(alignUp(uintptr(start), 8))
-		endAligned := chunkIdx(alignDown(uintptr(end), 8))
-
-		// Do the end of the first byte first.
-		if width := startAligned - start; width > 0 {
-			mask := uint8(uint16(1<<width)-1) << (start % 8)
-			s.chunks[start/8].Or(mask)
-		}
-		// Do the middle aligned sections that take up a whole
-		// byte.
-		for ci := startAligned; ci < endAligned; ci += 8 {
-			s.chunks[ci/8].Store(^uint8(0))
-		}
-		// Do the end of the last byte.
-		//
-		// This width check doesn't match the one above
-		// for start because aligning down into the endAligned
-		// block means we always have at least one chunk in this
-		// block (note that end is *inclusive*). This also means
-		// that if end == endAligned+n, then what we really want
-		// is to fill n+1 chunks, i.e. width n+1. By induction,
-		// this is true for all n.
-		if width := end - endAligned + 1; width > 0 {
-			mask := uint8(uint16(1<<width) - 1)
-			s.chunks[end/8].Or(mask)
+// alloc may only run concurrently with find.
+func (s *scavengeIndex) alloc(ci chunkIdx, npages uint) {
+	sc := s.chunks[ci].load()
+	sc.alloc(npages, s.gen)
+	if !sc.isHugePage() && sc.inUse > scavChunkHiOccPages {
+		// Mark dense chunks as specifically backed by huge pages.
+		sc.setHugePage()
+		if !s.test {
+			sysHugePage(unsafe.Pointer(chunkBase(ci)), pallocChunkBytes)
 		}
 	}
-	newSearchAddr := limit - pageSize
-	searchAddr, _ := s.searchAddr.Load()
-	// N.B. Because mark is serialized, it's not necessary to do a
-	// full CAS here. mark only ever increases searchAddr, while
+	s.chunks[ci].store(sc)
+}
+
+// free updates metadata for chunk at index ci with the fact that
+// a free of npages occurred.
+//
+// free may only run concurrently with find.
+func (s *scavengeIndex) free(ci chunkIdx, page, npages uint) {
+	sc := s.chunks[ci].load()
+	sc.free(npages, s.gen)
+	s.chunks[ci].store(sc)
+
+	// Update scavenge search addresses.
+	addr := chunkBase(ci) + uintptr(page+npages-1)*pageSize
+	if s.freeHWM.lessThan(offAddr{addr}) {
+		s.freeHWM = offAddr{addr}
+	}
+	// N.B. Because free is serialized, it's not necessary to do a
+	// full CAS here. free only ever increases searchAddr, while
 	// find only ever decreases it. Since we only ever race with
 	// decreases, even if the value we loaded is stale, the actual
 	// value will never be larger.
-	if (offAddr{searchAddr}).lessThan(offAddr{newSearchAddr}) {
-		s.searchAddr.StoreMarked(newSearchAddr)
+	searchAddr, _ := s.searchAddrForce.Load()
+	if (offAddr{searchAddr}).lessThan(offAddr{addr}) {
+		s.searchAddrForce.StoreMarked(addr)
 	}
 }
 
-// clear sets the chunk at index ci as not containing pages available to scavenge.
+// nextGen moves the scavenger forward one generation. Must be called
+// once per GC cycle, but may be called more often to force more memory
+// to be released.
 //
-// Must be serialized with other mark, markRange, and clear calls.
-func (s *scavengeIndex) clear(ci chunkIdx) {
-	s.chunks[ci/8].And(^uint8(1 << (ci % 8)))
+// nextGen may only run concurrently with find.
+func (s *scavengeIndex) nextGen() {
+	s.gen++
+	searchAddr, _ := s.searchAddrBg.Load()
+	if (offAddr{searchAddr}).lessThan(s.freeHWM) {
+		s.searchAddrBg.StoreMarked(s.freeHWM.addr())
+	}
+	s.freeHWM = minOffAddr
+}
+
+// setEmpty marks that the scavenger has finished looking at ci
+// for now to prevent the scavenger from getting stuck looking
+// at the same chunk.
+//
+// setEmpty may only run concurrently with find.
+func (s *scavengeIndex) setEmpty(ci chunkIdx) {
+	val := s.chunks[ci].load()
+	val.setEmpty()
+	s.chunks[ci].store(val)
+}
+
+// setNoHugePage updates the backed-by-hugepages status of a particular chunk.
+// Returns true if the set was successful (not already backed by huge pages).
+//
+// setNoHugePage may only run concurrently with find.
+func (s *scavengeIndex) setNoHugePage(ci chunkIdx) bool {
+	val := s.chunks[ci].load()
+	if !val.isHugePage() {
+		return false
+	}
+	val.setNoHugePage()
+	s.chunks[ci].store(val)
+	return true
+}
+
+// atomicScavChunkData is an atomic wrapper around a scavChunkData
+// that stores it in its packed form.
+type atomicScavChunkData struct {
+	value atomic.Uint64
+}
+
+// load loads and unpacks a scavChunkData.
+func (sc *atomicScavChunkData) load() scavChunkData {
+	return unpackScavChunkData(sc.value.Load())
+}
+
+// store packs and writes a new scavChunkData. store must be serialized
+// with other calls to store.
+func (sc *atomicScavChunkData) store(ssc scavChunkData) {
+	sc.value.Store(ssc.pack())
+}
+
+// scavChunkData tracks information about a palloc chunk for
+// scavenging. It packs well into 64 bits.
+//
+// The zero value always represents a valid newly-grown chunk.
+type scavChunkData struct {
+	// inUse indicates how many pages in this chunk are currently
+	// allocated.
+	//
+	// Only the first 10 bits are used.
+	inUse uint16
+
+	// lastInUse indicates how many pages in this chunk were allocated
+	// when we transitioned from gen-1 to gen.
+	//
+	// Only the first 10 bits are used.
+	lastInUse uint16
+
+	// gen is the generation counter from a scavengeIndex from the
+	// last time this scavChunkData was updated.
+	gen uint32
+
+	// scavChunkFlags represents additional flags
+	//
+	// Note: only 6 bits are available.
+	scavChunkFlags
+}
+
+// unpackScavChunkData unpacks a scavChunkData from a uint64.
+func unpackScavChunkData(sc uint64) scavChunkData {
+	return scavChunkData{
+		inUse:          uint16(sc),
+		lastInUse:      uint16(sc>>16) & scavChunkInUseMask,
+		gen:            uint32(sc >> 32),
+		scavChunkFlags: scavChunkFlags(uint8(sc>>(16+logScavChunkInUseMax)) & scavChunkFlagsMask),
+	}
+}
+
+// pack returns sc packed into a uint64.
+func (sc scavChunkData) pack() uint64 {
+	return uint64(sc.inUse) |
+		(uint64(sc.lastInUse) << 16) |
+		(uint64(sc.scavChunkFlags) << (16 + logScavChunkInUseMax)) |
+		(uint64(sc.gen) << 32)
+}
+
+const (
+	// scavChunkHasFree indicates whether the chunk has anything left to
+	// scavenge. This is the opposite of "empty," used elsewhere in this
+	// file. The reason we say "HasFree" here is so the zero value is
+	// correct for a newly-grown chunk. (New memory is scavenged.)
+	scavChunkHasFree scavChunkFlags = 1 << iota
+	// scavChunkNoHugePage indicates whether this chunk has been marked
+	// sysNoHugePage. If not set, it means the chunk is marked sysHugePage.
+	// The negative here is unfortunate, but necessary to make it so that
+	// the zero value of scavChunkData accurately represents the state of
+	// a newly-grown chunk. (New memory is marked as backed by huge pages.)
+	scavChunkNoHugePage
+
+	// scavChunkMaxFlags is the maximum number of flags we can have, given how
+	// a scavChunkData is packed into 8 bytes.
+	scavChunkMaxFlags  = 6
+	scavChunkFlagsMask = (1 << scavChunkMaxFlags) - 1
+
+	// logScavChunkInUseMax is the number of bits needed to represent the number
+	// of pages allocated in a single chunk. This is 1 more than log2 of the
+	// number of pages in the chunk because we need to represent a fully-allocated
+	// chunk.
+	logScavChunkInUseMax = logPallocChunkPages + 1
+	scavChunkInUseMask   = (1 << logScavChunkInUseMax) - 1
+)
+
+// scavChunkFlags is a set of bit-flags for the scavenger for each palloc chunk.
+type scavChunkFlags uint8
+
+// isEmpty returns true if the hasFree flag is unset.
+func (sc *scavChunkFlags) isEmpty() bool {
+	return (*sc)&scavChunkHasFree == 0
+}
+
+// setEmpty clears the hasFree flag.
+func (sc *scavChunkFlags) setEmpty() {
+	*sc &^= scavChunkHasFree
+}
+
+// setNonEmpty sets the hasFree flag.
+func (sc *scavChunkFlags) setNonEmpty() {
+	*sc |= scavChunkHasFree
+}
+
+// isHugePage returns false if the noHugePage flag is set.
+func (sc *scavChunkFlags) isHugePage() bool {
+	return (*sc)&scavChunkNoHugePage == 0
+}
+
+// setHugePage clears the noHugePage flag.
+func (sc *scavChunkFlags) setHugePage() {
+	*sc &^= scavChunkNoHugePage
+}
+
+// setNoHugePage sets the noHugePage flag.
+func (sc *scavChunkFlags) setNoHugePage() {
+	*sc |= scavChunkNoHugePage
+}
+
+// shouldScavenge returns true if the corresponding chunk should be interrogated
+// by the scavenger.
+func (sc scavChunkData) shouldScavenge(currGen uint32, force bool) bool {
+	if sc.isEmpty() {
+		// Nothing to scavenge.
+		return false
+	}
+	if force {
+		// We're forcing the memory to be scavenged.
+		return true
+	}
+	if sc.gen == currGen {
+		// In the current generation, if either the current or last generation
+		// is dense, then skip scavenging. Inverting that, we should scavenge
+		// if both the current and last generation were not dense.
+		return sc.inUse < scavChunkHiOccPages && sc.lastInUse < scavChunkHiOccPages
+	}
+	// If we're one or more generations ahead, we know inUse represents the current
+	// state of the chunk, since otherwise it would've been updated already.
+	return sc.inUse < scavChunkHiOccPages
+}
+
+// alloc updates sc given that npages were allocated in the corresponding chunk.
+func (sc *scavChunkData) alloc(npages uint, newGen uint32) {
+	if uint(sc.inUse)+npages > pallocChunkPages {
+		print("runtime: inUse=", sc.inUse, " npages=", npages, "\n")
+		throw("too many pages allocated in chunk?")
+	}
+	if sc.gen != newGen {
+		sc.lastInUse = sc.inUse
+		sc.gen = newGen
+	}
+	sc.inUse += uint16(npages)
+	if sc.inUse == pallocChunkPages {
+		// There's nothing for the scavenger to take from here.
+		sc.setEmpty()
+	}
+}
+
+// free updates sc given that npages was freed in the corresponding chunk.
+func (sc *scavChunkData) free(npages uint, newGen uint32) {
+	if uint(sc.inUse) < npages {
+		print("runtime: inUse=", sc.inUse, " npages=", npages, "\n")
+		throw("allocated pages below zero?")
+	}
+	if sc.gen != newGen {
+		sc.lastInUse = sc.inUse
+		sc.gen = newGen
+	}
+	sc.inUse -= uint16(npages)
+	// The scavenger can no longer be done with this chunk now that
+	// new memory has been freed into it.
+	sc.setNonEmpty()
 }
 
 type piController struct {

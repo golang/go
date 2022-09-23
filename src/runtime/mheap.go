@@ -773,7 +773,7 @@ func (h *mheap) init() {
 		h.central[i].mcentral.init(spanClass(i))
 	}
 
-	h.pages.init(&h.lock, &memstats.gcMiscSys)
+	h.pages.init(&h.lock, &memstats.gcMiscSys, false)
 }
 
 // reclaim sweeps and reclaims at least npage pages into the heap.
@@ -1274,6 +1274,7 @@ HaveSpan:
 	// pages not to get touched until we return. Simultaneously, it's important
 	// to do this before calling sysUsed because that may commit address space.
 	bytesToScavenge := uintptr(0)
+	forceScavenge := false
 	if limit := gcController.memoryLimit.Load(); !gcCPULimiter.limiting() {
 		// Assist with scavenging to maintain the memory limit by the amount
 		// that we expect to page in.
@@ -1282,6 +1283,7 @@ HaveSpan:
 		// someone can set a really big memory limit that isn't maxInt64.
 		if uint64(scav)+inuse > uint64(limit) {
 			bytesToScavenge = uintptr(uint64(scav) + inuse - uint64(limit))
+			forceScavenge = true
 		}
 	}
 	if goal := scavenge.gcPercentGoal.Load(); goal != ^uint64(0) && growth > 0 {
@@ -1323,7 +1325,7 @@ HaveSpan:
 		// Scavenge, but back out if the limiter turns on.
 		h.pages.scavenge(bytesToScavenge, func() bool {
 			return gcCPULimiter.limiting()
-		})
+		}, forceScavenge)
 
 		// Finish up accounting.
 		now = nanotime()
@@ -1629,7 +1631,7 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 	memstats.heapStats.release()
 
 	// Mark the space as free.
-	h.pages.free(s.base(), s.npages, false)
+	h.pages.free(s.base(), s.npages)
 
 	// Free the span structure. We no longer have a use for it.
 	s.state.set(mSpanDead)
@@ -1639,6 +1641,10 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 // scavengeAll acquires the heap lock (blocking any additional
 // manipulation of the page allocator) and iterates over the whole
 // heap, scavenging every free page available.
+//
+// Must run on the system stack because it acquires the heap lock.
+//
+//go:systemstack
 func (h *mheap) scavengeAll() {
 	// Disallow malloc or panic while holding the heap lock. We do
 	// this here because this is a non-mallocgc entry-point to
@@ -1646,7 +1652,8 @@ func (h *mheap) scavengeAll() {
 	gp := getg()
 	gp.m.mallocing++
 
-	released := h.pages.scavenge(^uintptr(0), nil)
+	// Force scavenge everything.
+	released := h.pages.scavenge(^uintptr(0), nil, true)
 
 	gp.m.mallocing--
 
