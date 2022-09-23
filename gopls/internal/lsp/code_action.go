@@ -81,6 +81,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			if err != nil {
 				return nil, err
 			}
+			// TODO(suzmue): get upgrades code actions from vulnerabilities.
 			quickFixes, err := codeActionsMatchingDiagnostics(ctx, snapshot, diagnostics, append(diags, udiags...))
 			if err != nil {
 				return nil, err

@@ -38,6 +38,7 @@ const (
 	orphanedSource
 	workSource
 	modCheckUpgradesSource
+	modVulncheckSource
 )
 
 // A diagnosticReport holds results for a single diagnostic source.
@@ -255,6 +256,21 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 			continue
 		}
 		s.storeDiagnostics(snapshot, id.URI, modCheckUpgradesSource, diags)
+	}
+	vulnerabilityReports, vulnErr := mod.VulnerabilityDiagnostics(ctx, snapshot)
+	if ctx.Err() != nil {
+		log.Trace.Log(ctx, "diagnose cancelled")
+		return
+	}
+	if vulnErr != nil {
+		event.Error(ctx, "warning: checking vulnerabilities", vulnErr, tag.Directory.Of(snapshot.View().Folder().Filename()), tag.Snapshot.Of(snapshot.ID()))
+	}
+	for id, diags := range vulnerabilityReports {
+		if id.URI == "" {
+			event.Error(ctx, "missing URI for module diagnostics", fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
+			continue
+		}
+		s.storeDiagnostics(snapshot, id.URI, modVulncheckSource, diags)
 	}
 
 	// Diagnose the go.work file, if it exists.

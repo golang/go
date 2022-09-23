@@ -21,6 +21,7 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
@@ -268,6 +269,15 @@ type View interface {
 
 	// ClearModuleUpgrades clears all upgrades for the modules in modfile.
 	ClearModuleUpgrades(modfile span.URI)
+
+	// Vulnerabilites returns known vulnerabilities for the given modfile.
+	// TODO(suzmue): replace command.Vuln with a different type, maybe
+	// https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck/govulnchecklib#Summary?
+	Vulnerabilities(modfile span.URI) []command.Vuln
+
+	// SetVulnerabilities resets the list of vulnerabilites that exists for the given modules
+	// required by modfile.
+	SetVulnerabilities(modfile span.URI, vulnerabilities []command.Vuln)
 
 	// FileKind returns the type of a file
 	FileKind(FileHandle) FileKind
@@ -638,6 +648,7 @@ const (
 	ModTidyError             DiagnosticSource = "go mod tidy"
 	OptimizationDetailsError DiagnosticSource = "optimizer details"
 	UpgradeNotification      DiagnosticSource = "upgrade available"
+	Vulncheck                DiagnosticSource = "govulncheck"
 	TemplateError            DiagnosticSource = "template"
 	WorkFileError            DiagnosticSource = "go.work file"
 )

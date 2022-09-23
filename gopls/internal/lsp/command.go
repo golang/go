@@ -207,10 +207,12 @@ func (c *commandHandler) ResetGoModDiagnostics(ctx context.Context, uri command.
 		forURI: uri.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
 		deps.snapshot.View().ClearModuleUpgrades(uri.URI.SpanURI())
-		// Clear all diagnostics coming from the upgrade check source.
+		deps.snapshot.View().SetVulnerabilities(uri.URI.SpanURI(), nil)
+		// Clear all diagnostics coming from the upgrade check source and vulncheck.
 		// This will clear the diagnostics in all go.mod files, but they
 		// will be re-calculated when the snapshot is diagnosed again.
 		c.s.clearDiagnosticSource(modCheckUpgradesSource)
+		c.s.clearDiagnosticSource(modVulncheckSource)
 
 		// Re-diagnose the snapshot to remove the diagnostics.
 		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
@@ -889,10 +891,9 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 			return fmt.Errorf("failed to parse govulncheck output: %v", err)
 		}
 
-		// TODO(jamalc,suzmue): convert the results to diagnostics & code actions.
-		// Or should we just write to a file (*.vulncheck.json) or text format
-		// and send "Show Document" request? If *.vulncheck.json is open,
-		// VSCode Go extension will open its custom editor.
+		deps.snapshot.View().SetVulnerabilities(args.URI.SpanURI(), vulns.Vuln)
+		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
+
 		set := make(map[string]bool)
 		for _, v := range vulns.Vuln {
 			if len(v.CallStackSummaries) > 0 {

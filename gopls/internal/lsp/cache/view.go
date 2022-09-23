@@ -24,6 +24,7 @@ import (
 	"golang.org/x/mod/semver"
 	exec "golang.org/x/sys/execabs"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/bug"
@@ -59,6 +60,8 @@ type View struct {
 	// moduleUpgrades tracks known upgrades for module paths in each modfile.
 	// Each modfile has a map of module name to upgrade version.
 	moduleUpgrades map[span.URI]map[string]string
+
+	vulns map[span.URI][]command.Vuln
 
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
@@ -1001,18 +1004,18 @@ func (v *View) IsGoPrivatePath(target string) bool {
 	return globsMatchPath(v.goprivate, target)
 }
 
-func (v *View) ModuleUpgrades(uri span.URI) map[string]string {
+func (v *View) ModuleUpgrades(modfile span.URI) map[string]string {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
 	upgrades := map[string]string{}
-	for mod, ver := range v.moduleUpgrades[uri] {
+	for mod, ver := range v.moduleUpgrades[modfile] {
 		upgrades[mod] = ver
 	}
 	return upgrades
 }
 
-func (v *View) RegisterModuleUpgrades(uri span.URI, upgrades map[string]string) {
+func (v *View) RegisterModuleUpgrades(modfile span.URI, upgrades map[string]string) {
 	// Return early if there are no upgrades.
 	if len(upgrades) == 0 {
 		return
@@ -1021,10 +1024,10 @@ func (v *View) RegisterModuleUpgrades(uri span.URI, upgrades map[string]string) 
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	m := v.moduleUpgrades[uri]
+	m := v.moduleUpgrades[modfile]
 	if m == nil {
 		m = make(map[string]string)
-		v.moduleUpgrades[uri] = m
+		v.moduleUpgrades[modfile] = m
 	}
 	for mod, ver := range upgrades {
 		m[mod] = ver
@@ -1035,7 +1038,23 @@ func (v *View) ClearModuleUpgrades(modfile span.URI) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	v.moduleUpgrades[modfile] = nil
+	delete(v.moduleUpgrades, modfile)
+}
+
+func (v *View) Vulnerabilities(modfile span.URI) []command.Vuln {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	vulns := make([]command.Vuln, len(v.vulns[modfile]))
+	copy(vulns, v.vulns[modfile])
+	return vulns
+}
+
+func (v *View) SetVulnerabilities(modfile span.URI, vulns []command.Vuln) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	v.vulns[modfile] = vulns
 }
 
 // Copied from

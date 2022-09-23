@@ -1,0 +1,34 @@
+[
+	{
+		"id":"GO-2022-01",
+		"details": "vuln in amod",
+		"affected":[
+			{
+				"package":{"name":"golang.org/amod","ecosystem":"Go"},
+				"ranges":[{"type":"SEMVER","events":[{"introduced":"1.0.0"},{"fixed":"1.0.4"}, {"introduced": "1.1.2"}]}],
+				"ecosystem_specific":{
+					"imports":[{"path":"golang.org/amod/avuln","symbols":["VulnData.Vuln1", "VulnData.Vuln2"]}]
+				}
+			}
+		],
+		"references":[
+			{"type":"href","url":"pkg.go.dev/vuln/GO-2022-01"}
+		]
+	},
+	{
+		"id":"GO-2022-03",
+		"details": "unaffecting vulnerability",
+		"affected":[
+			{
+				"package":{"name":"golang.org/amod","ecosystem":"Go"},
+				"ranges":[{"type":"SEMVER","events":[{"introduced":"1.0.0"},{"fixed":"1.0.4"}]}],
+				"ecosystem_specific":{
+					"imports":[{"path":"golang.org/amod/avuln","symbols":["nonExisting"]}]
+				}
+			}
+		],
+		"references":[
+			{"type":"href","url":"pkg.go.dev/vuln/GO-2022-03"}
+		]
+	}
+]

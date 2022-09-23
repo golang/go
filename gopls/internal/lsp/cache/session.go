@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/event"
@@ -238,6 +239,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		name:                 name,
 		folder:               folder,
 		moduleUpgrades:       map[span.URI]map[string]string{},
+		vulns:                map[span.URI][]command.Vuln{},
 		filesByURI:           map[span.URI]*fileBase{},
 		filesByBase:          map[string][]*fileBase{},
 		rootURI:              root,

@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 
+	"golang.org/x/mod/semver"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -17,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/event/tag"
 )
 
+// Diagnostics returns diagnostics for the modules in the workspace.
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
 	ctx, done := event.Start(ctx, "mod.Diagnostics", tag.Snapshot.Of(snapshot.ID()))
 	defer done()
@@ -24,11 +26,22 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 	return collectDiagnostics(ctx, snapshot, ModDiagnostics)
 }
 
+// UpgradeDiagnostics returns upgrade diagnostics for the modules in the
+// workspace with known upgrades.
 func UpgradeDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
 	ctx, done := event.Start(ctx, "mod.UpgradeDiagnostics", tag.Snapshot.Of(snapshot.ID()))
 	defer done()
 
 	return collectDiagnostics(ctx, snapshot, ModUpgradeDiagnostics)
+}
+
+// VulnerabilityDiagnostics returns vulnerability diagnostics for the active modules in the
+// workspace with known vulnerabilites.
+func VulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
+	ctx, done := event.Start(ctx, "mod.VulnerabilityDiagnostics", tag.Snapshot.Of(snapshot.ID()))
+	defer done()
+
+	return collectDiagnostics(ctx, snapshot, ModVulnerabilityDiagnostics)
 }
 
 func collectDiagnostics(ctx context.Context, snapshot source.Snapshot, diagFn func(context.Context, source.Snapshot, source.FileHandle) ([]*source.Diagnostic, error)) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
@@ -103,10 +116,12 @@ func ModDiagnostics(ctx context.Context, snapshot source.Snapshot, fh source.Fil
 func ModUpgradeDiagnostics(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) (upgradeDiagnostics []*source.Diagnostic, err error) {
 	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {
-		if pm == nil || len(pm.ParseErrors) == 0 {
-			return nil, err
+		// Don't return an error if there are parse error diagnostics to be shown, but also do not
+		// continue since we won't be able to show the upgrade diagnostics.
+		if pm != nil && len(pm.ParseErrors) != 0 {
+			return nil, nil
 		}
-		return nil, nil
+		return nil, err
 	}
 
 	upgrades := snapshot.View().ModuleUpgrades(fh.URI())
@@ -140,4 +155,62 @@ func ModUpgradeDiagnostics(ctx context.Context, snapshot source.Snapshot, fh sou
 	}
 
 	return upgradeDiagnostics, nil
+}
+
+// ModVulnerabilityDiagnostics adds diagnostics for vulnerabilities in individual modules
+// if the vulnerability is recorded in the view.
+func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) (vulnDiagnostics []*source.Diagnostic, err error) {
+	pm, err := snapshot.ParseMod(ctx, fh)
+	if err != nil {
+		// Don't return an error if there are parse error diagnostics to be shown, but also do not
+		// continue since we won't be able to show the vulnerability diagnostics.
+		if pm != nil && len(pm.ParseErrors) != 0 {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	vs := snapshot.View().Vulnerabilities(fh.URI())
+	// TODO(suzmue): should we just store the vulnerabilities like this?
+	vulns := make(map[string][]command.Vuln)
+	for _, v := range vs {
+		vulns[v.ModPath] = append(vulns[v.ModPath], v)
+	}
+
+	for _, req := range pm.File.Require {
+		vulnList, ok := vulns[req.Mod.Path]
+		if !ok {
+			continue
+		}
+		rng, err := source.LineToRange(pm.Mapper, fh.URI(), req.Syntax.Start, req.Syntax.End)
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range vulnList {
+			// Only show the diagnostic if the vulnerability was calculated
+			// for the module at the current version.
+			if semver.Compare(req.Mod.Version, v.CurrentVersion) != 0 {
+				continue
+			}
+
+			severity := protocol.SeverityInformation
+			if len(v.CallStacks) > 0 {
+				severity = protocol.SeverityWarning
+			}
+
+			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
+				URI:      fh.URI(),
+				Range:    rng,
+				Severity: severity,
+				Source:   source.Vulncheck,
+				Code:     v.ID,
+				CodeHref: v.URL,
+				// TODO(suzmue): replace the newlines in v.Details to allow the editor to handle formatting.
+				Message: v.Details,
+			})
+		}
+
+	}
+
+	return vulnDiagnostics, nil
 }
