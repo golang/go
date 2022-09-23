@@ -491,6 +491,23 @@ func TestDelimsAlphaNumeric(t *testing.T) {
 	}
 }
 
+func TestDelimsAndMarkers(t *testing.T) {
+	test := lexTest{"delims that look like markers", "{{- .x -}} {{- - .x - -}}", []item{
+		mkItem(itemLeftDelim, "{{- "),
+		mkItem(itemField, ".x"),
+		mkItem(itemRightDelim, " -}}"),
+		mkItem(itemLeftDelim, "{{- "),
+		mkItem(itemField, ".x"),
+		mkItem(itemRightDelim, " -}}"),
+		tEOF,
+	}}
+	items := collect(&test, "{{- ", " -}}")
+
+	if !equal(items, test.items, false) {
+		t.Errorf("%s: got\n\t%v\nexpected\n\t%v", test.name, items, test.items)
+	}
+}
+
 var lexPosTests = []lexTest{
 	{"empty", "", []item{{itemEOF, 0, "", 1}}},
 	{"punctuation", "{{,@%#}}", []item{

@@ -369,7 +369,7 @@ func lexComment(l *lexer) stateFn {
 
 // lexRightDelim scans the right delimiter, which is known to be present, possibly with a trim marker.
 func lexRightDelim(l *lexer) stateFn {
-	trimSpace := hasRightTrimMarker(l.input[l.pos:])
+	_, trimSpace := l.atRightDelim()
 	if trimSpace {
 		l.pos += trimMarkerLen
 		l.ignore()
