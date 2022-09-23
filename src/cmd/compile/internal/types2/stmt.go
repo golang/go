@@ -263,6 +263,7 @@ L:
 			for _, vt := range seen[val] {
 				if Identical(v.typ, vt.typ) {
 					var err error_
+					err.code = _DuplicateCase
 					err.errorf(&v, "duplicate case %s in expression switch", &v)
 					err.errorf(vt.pos, "previous case")
 					check.report(&err)
@@ -309,6 +310,7 @@ L:
 					Ts = TypeString(T, check.qualifier)
 				}
 				var err error_
+				err.code = _DuplicateCase
 				err.errorf(e, "duplicate case %s in type switch", Ts)
 				err.errorf(other, "previous case")
 				check.report(&err)
@@ -351,6 +353,7 @@ L:
 // 				Ts = TypeString(T, check.qualifier)
 // 			}
 // 			var err error_
+//			err.code = _DuplicateCase
 // 			err.errorf(e, "duplicate case %s in type switch", Ts)
 // 			err.errorf(other, "previous case")
 // 			check.report(&err)
@@ -501,6 +504,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			for _, obj := range res.vars {
 				if alt := check.lookup(obj.name); alt != nil && alt != obj {
 					var err error_
+					err.code = _OutOfScopeResult
 					err.errorf(s, "result parameter %s not in scope at return", obj.name)
 					err.errorf(alt, "inner declaration of %s", obj)
 					check.report(&err)

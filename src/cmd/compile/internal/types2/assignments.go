@@ -346,6 +346,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 				at = rhs[len(rhs)-1].expr // report at last value
 			}
 			var err error_
+			err.code = _WrongResultCount
 			err.errorf(at, "%s return values", qualifier)
 			err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
 			err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))

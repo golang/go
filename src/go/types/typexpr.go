@@ -43,7 +43,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		return
 	case universeAny, universeComparable:
 		if !check.allowVersion(check.pkg, 1, 18) {
-			check.versionErrorf(e, _UndeclaredName, "go1.18", "predeclared %s", e.Name)
+			check.versionErrorf(e, "go1.18", "predeclared %s", e.Name)
 			return // avoid follow-on errors
 		}
 	}

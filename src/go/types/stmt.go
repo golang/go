@@ -344,6 +344,7 @@ L:
 // 				Ts = TypeString(T, check.qualifier)
 // 			}
 // 			var err error_
+//			err.code = _DuplicateCase
 // 			err.errorf(e, "duplicate case %s in type switch", Ts)
 // 			err.errorf(other, "previous case")
 // 			check.report(&err)

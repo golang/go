@@ -71,6 +71,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 
 	if !ok {
 		var err error_
+		err.code = _InvalidConversion
 		if check.conf.CompilerErrorMessages {
 			if cause != "" {
 				// Add colon at end of line if we have a following cause.

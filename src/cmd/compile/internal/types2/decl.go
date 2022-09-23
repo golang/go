@@ -28,6 +28,7 @@ func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syn
 	if obj.Name() != "_" {
 		if alt := scope.Insert(obj); alt != nil {
 			var err error_
+			err.code = _DuplicateDecl
 			err.errorf(obj, "%s redeclared in this block", obj.Name())
 			err.recordAltDecl(alt)
 			check.report(&err)

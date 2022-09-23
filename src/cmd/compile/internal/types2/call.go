@@ -365,6 +365,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 			params = sig.params.vars
 		}
 		var err error_
+		err.code = _WrongArgCount
 		err.errorf(at, "%s arguments in call to %s", qualifier, call.Fun)
 		err.errorf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
 		err.errorf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))

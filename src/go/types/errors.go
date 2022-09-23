@@ -292,10 +292,10 @@ func (check *Checker) softErrorf(at positioner, code errorCode, format string, a
 	check.report(err)
 }
 
-func (check *Checker) versionErrorf(at positioner, code errorCode, goVersion string, format string, args ...interface{}) {
+func (check *Checker) versionErrorf(at positioner, goVersion string, format string, args ...interface{}) {
 	msg := check.sprintf(format, args...)
 	var err *error_
-	err = newErrorf(at, code, "%s requires %s or later", msg, goVersion)
+	err = newErrorf(at, _UnsupportedFeature, "%s requires %s or later", msg, goVersion)
 	check.report(err)
 }
 

@@ -314,6 +314,7 @@ func (check *Checker) collectObjects() {
 							// concurrently. See issue #32154.)
 							if alt := fileScope.Lookup(name); alt != nil {
 								var err error_
+								err.code = _DuplicateDecl
 								err.errorf(s.LocalPkgName, "%s redeclared in this block", alt.Name())
 								err.recordAltDecl(alt)
 								check.report(&err)

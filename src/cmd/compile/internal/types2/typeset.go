@@ -226,6 +226,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			}
 			// check != nil
 			var err error_
+			err.code = _DuplicateDecl
 			err.errorf(pos, "duplicate method %s", m.name)
 			err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
 			check.report(&err)
@@ -244,6 +245,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			check.later(func() {
 				if !check.allowVersion(m.pkg, 1, 14) || !Identical(m.typ, other.Type()) {
 					var err error_
+					err.code = _DuplicateDecl
 					err.errorf(pos, "duplicate method %s", m.name)
 					err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
 					check.report(&err)
