@@ -1917,3 +1917,56 @@ func main() {
 		t.Errorf("no LPT entries for test.go")
 	}
 }
+
+func TestZeroSizedVariable(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	t.Parallel()
+
+	// This test verifies that the compiler emits DIEs for zero sized variables
+	// (for example variables of type 'struct {}').
+	// See go.dev/issues/54615.
+
+	const prog = `
+package main
+
+import (
+	"fmt"
+)
+
+func main() {
+	zeroSizedVariable := struct{}{}
+	fmt.Println(zeroSizedVariable)
+}
+`
+
+	for _, opt := range []string{NoOpt, DefaultOpt} {
+		dir := t.TempDir()
+		f := gobuild(t, dir, prog, opt)
+		defer f.Close()
+		defer os.RemoveAll(dir)
+
+		d, err := f.DWARF()
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+
+		rdr := d.Reader()
+		ex := dwtest.Examiner{}
+		if err := ex.Populate(rdr); err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+
+		// Locate the main.zeroSizedVariable DIE
+		abcs := ex.Named("zeroSizedVariable")
+		if len(abcs) == 0 {
+			t.Fatalf("unable to locate DIE for zeroSizedVariable")
+		}
+		if len(abcs) != 1 {
+			t.Fatalf("more than one zeroSizedVariable DIE")
+		}
+	}
+}

@@ -151,6 +151,21 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	} else {
 		decls, vars, selected = createSimpleVars(fnsym, apDecls)
 	}
+	if fn.DebugInfo != nil {
+		// Recover zero sized variables eliminated by the stackframe pass
+		for _, n := range fn.DebugInfo.(*ssa.FuncDebug).OptDcl {
+			if n.Class != ir.PAUTO {
+				continue
+			}
+			types.CalcSize(n.Type())
+			if n.Type().Size() == 0 {
+				decls = append(decls, n)
+				vars = append(vars, createSimpleVar(fnsym, n))
+				vars[len(vars)-1].StackOffset = 0
+				fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
+			}
+		}
+	}
 
 	dcl := apDecls
 	if fnsym.WasInlined() {

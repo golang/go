@@ -140,6 +140,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			continue
 		}
 		if !n.Used() {
+			fn.DebugInfo.(*ssa.FuncDebug).OptDcl = fn.Dcl[i:]
 			fn.Dcl = fn.Dcl[:i]
 			break
 		}
