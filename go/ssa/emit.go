@@ -177,7 +177,6 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	if types.Identical(t_src, typ) {
 		return val
 	}
-
 	ut_dst := typ.Underlying()
 	ut_src := t_src.Underlying()
 
@@ -229,11 +228,31 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 
 	// Conversion from slice to array pointer?
 	if slice, ok := ut_src.(*types.Slice); ok {
-		if ptr, ok := ut_dst.(*types.Pointer); ok {
+		switch t := ut_dst.(type) {
+		case *types.Pointer:
+			ptr := t
 			if arr, ok := ptr.Elem().Underlying().(*types.Array); ok && types.Identical(slice.Elem(), arr.Elem()) {
 				c := &SliceToArrayPointer{X: val}
-				c.setType(ut_dst)
+				// TODO(taking): Check if this should be ut_dst or ptr.
+				c.setType(ptr)
 				return f.emit(c)
+			}
+		case *types.Array:
+			arr := t
+			if arr.Len() == 0 {
+				return zeroValue(f, arr)
+			}
+			if types.Identical(slice.Elem(), arr.Elem()) {
+				c := &SliceToArrayPointer{X: val}
+				c.setType(types.NewPointer(arr))
+				x := f.emit(c)
+				unOp := &UnOp{
+					Op:      token.MUL,
+					X:       x,
+					CommaOk: false,
+				}
+				unOp.setType(typ)
+				return f.emit(unOp)
 			}
 		}
 	}

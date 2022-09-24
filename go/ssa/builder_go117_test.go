@@ -57,8 +57,6 @@ func TestBuildPackageFailuresGo117(t *testing.T) {
 		importer types.Importer
 	}{
 		{"slice to array pointer - source is not a slice", "package p; var s [4]byte; var _ = (*[4]byte)(s)", nil},
-		// TODO(taking) re-enable test below for Go versions < Go 1.20 - see issue #54822
-		// {"slice to array pointer - dest is not a pointer", "package p; var s []byte; var _ = ([4]byte)(s)", nil},
 		{"slice to array pointer - dest pointer elem is not an array", "package p; var s []byte; var _ = (*byte)(s)", nil},
 	}
 

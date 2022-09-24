@@ -669,6 +669,8 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 					y.pos = e.Lparen
 				case *SliceToArrayPointer:
 					y.pos = e.Lparen
+				case *UnOp: // conversion from slice to array.
+					y.pos = e.Lparen
 				}
 			}
 			return y
