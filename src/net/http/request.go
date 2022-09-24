@@ -1030,6 +1030,8 @@ func ReadRequest(b *bufio.Reader) (*Request, error) {
 
 func readRequest(b *bufio.Reader) (req *Request, err error) {
 	tp := newTextprotoReader(b)
+	defer putTextprotoReader(tp)
+
 	req = new(Request)
 
 	// First line: GET /index.html HTTP/1.0
@@ -1038,7 +1040,6 @@ func readRequest(b *bufio.Reader) (req *Request, err error) {
 		return nil, err
 	}
 	defer func() {
-		putTextprotoReader(tp)
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
