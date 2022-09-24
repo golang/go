@@ -721,3 +721,29 @@ func TestCgoTracebackGoroutineProfile(t *testing.T) {
 		t.Fatalf("want %s, got %s\n", want, output)
 	}
 }
+
+func TestCgoTraceParser(t *testing.T) {
+	// Test issue 29707.
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	output := runTestProg(t, "testprogcgo", "CgoTraceParser")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+func TestCgoTraceParserWithOneProc(t *testing.T) {
+	// Test issue 29707.
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	output := runTestProg(t, "testprogcgo", "CgoTraceParser", "GOMAXPROCS=1")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("GOMAXPROCS=1, want %s, got %s\n", want, output)
+	}
+}
