@@ -403,24 +403,46 @@ func appendInt(b []byte, x int, width int) []byte {
 		u = uint(-x)
 	}
 
-	// Assemble decimal in reverse order.
-	var buf [20]byte
-	i := len(buf)
-	for u >= 10 {
-		i--
-		q := u / 10
-		buf[i] = byte('0' + u - q*10)
-		u = q
+	// 2-digit and 4-digit fields are the most common in time formats.
+	utod := func(u uint) byte { return '0' + byte(u) }
+	switch {
+	case width == 2 && u < 1e2:
+		return append(b, utod(u/1e1), utod(u%1e1))
+	case width == 4 && u < 1e4:
+		return append(b, utod(u/1e3), utod(u/1e2%1e1), utod(u/1e1%1e1), utod(u%1e1))
 	}
-	i--
-	buf[i] = byte('0' + u)
+
+	// Compute the number of decimal digits.
+	var n int
+	if u == 0 {
+		n = 1
+	}
+	for u2 := u; u2 > 0; u2 /= 10 {
+		n++
+	}
 
 	// Add 0-padding.
-	for w := len(buf) - i; w < width; w++ {
+	for pad := width - n; pad > 0; pad-- {
 		b = append(b, '0')
 	}
 
-	return append(b, buf[i:]...)
+	// Ensure capacity.
+	if len(b)+n <= cap(b) {
+		b = b[:len(b)+n]
+	} else {
+		b = append(b, make([]byte, n)...)
+	}
+
+	// Assemble decimal in reverse order.
+	i := len(b) - 1
+	for u >= 10 && i > 0 {
+		q := u / 10
+		b[i] = utod(u - q*10)
+		u = q
+		i--
+	}
+	b[i] = utod(u)
+	return b
 }
 
 // Never printed, just needs to be non-nil for return by atoi.
@@ -444,7 +466,7 @@ func atoi[bytes []byte | string](s bytes) (x int, err error) {
 	return x, nil
 }
 
-// The "std" value passed to formatNano contains two packed fields: the number of
+// The "std" value passed to appendNano contains two packed fields: the number of
 // digits after the decimal and the separator character (period or comma).
 // These functions pack and unpack that variable.
 func stdFracSecond(code, n, c int) int {
@@ -466,35 +488,29 @@ func separator(std int) byte {
 	return ','
 }
 
-// formatNano appends a fractional second, as nanoseconds, to b
-// and returns the result.
-func formatNano(b []byte, nanosec uint, std int) []byte {
-	var (
-		n         = digitsLen(std)
-		separator = separator(std)
-		trim      = std&stdMask == stdFracSecond9
-	)
-	u := nanosec
-	var buf [9]byte
-	for start := len(buf); start > 0; {
-		start--
-		buf[start] = byte(u%10 + '0')
-		u /= 10
+// appendNano appends a fractional second, as nanoseconds, to b
+// and returns the result. The nanosec must be within [0, 999999999].
+func appendNano(b []byte, nanosec int, std int) []byte {
+	trim := std&stdMask == stdFracSecond9
+	n := digitsLen(std)
+	if trim && (n == 0 || nanosec == 0) {
+		return b
 	}
-
-	if n > 9 {
-		n = 9
+	dot := separator(std)
+	b = append(b, dot)
+	b = appendInt(b, nanosec, 9)
+	if n < 9 {
+		b = b[:len(b)-9+n]
 	}
 	if trim {
-		for n > 0 && buf[n-1] == '0' {
-			n--
+		for len(b) > 0 && b[len(b)-1] == '0' {
+			b = b[:len(b)-1]
 		}
-		if n == 0 {
-			return b
+		if len(b) > 0 && b[len(b)-1] == dot {
+			b = b[:len(b)-1]
 		}
 	}
-	b = append(b, separator)
-	return append(b, buf[:n]...)
+	return b
 }
 
 // String returns the time formatted using the format string
@@ -791,7 +807,7 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 			b = appendInt(b, zone/60, 2)
 			b = appendInt(b, zone%60, 2)
 		case stdFracSecond0, stdFracSecond9:
-			b = formatNano(b, uint(t.Nanosecond()), std)
+			b = appendNano(b, t.Nanosecond(), std)
 		}
 	}
 	return b
