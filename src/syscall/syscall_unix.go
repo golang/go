@@ -437,11 +437,17 @@ func sendtoInet6(fd int, p []byte, flags int, to *SockaddrInet6) (err error) {
 }
 
 func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
-	ptr, n, err := to.sockaddr()
-	if err != nil {
-		return err
+	var (
+		ptr   unsafe.Pointer
+		salen _Socklen
+	)
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return err
+		}
 	}
-	return sendto(fd, p, flags, ptr, n)
+	return sendto(fd, p, flags, ptr, salen)
 }
 
 func SetsockoptByte(fd, level, opt int, value byte) (err error) {
