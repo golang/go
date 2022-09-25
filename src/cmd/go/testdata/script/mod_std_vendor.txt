@@ -22,8 +22,9 @@ cd broken
 ! go build -mod=readonly
 stderr 'disabled by -mod=readonly'
 ! go build -mod=vendor
-stderr 'cannot find package'
-stderr 'hpack'
+stderr 'go: finding module for package golang.org/x/net/http2/hpack'
+stderr 'http.go:5:2: cannot query module due to -mod=vendor'
+
 
 # ...even if they explicitly use the "cmd/vendor/" or "vendor/" prefix.
 cd ../importcmd
