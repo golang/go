@@ -1167,7 +1167,7 @@ func TestLargeNumberOfSections(t *testing.T) {
 		Type:      ET_REL,
 		Machine:   EM_386,
 	}
-	if !reflect.DeepEqual(f.FileHeader, wantFileHeader) {
+	if f.FileHeader != wantFileHeader {
 		t.Errorf("\nhave %#v\nwant %#v\n", f.FileHeader, wantFileHeader)
 	}
 
@@ -1185,7 +1185,7 @@ func TestLargeNumberOfSections(t *testing.T) {
 		Addralign: 0x4,
 		FileSize:  0x4,
 	}
-	if !reflect.DeepEqual(f.Sections[10].SectionHeader, wantSectionHeader) {
+	if f.Sections[10].SectionHeader != wantSectionHeader {
 		t.Errorf("\nhave %#v\nwant %#v\n", f.Sections[10].SectionHeader, wantSectionHeader)
 	}
 }

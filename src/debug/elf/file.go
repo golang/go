@@ -417,7 +417,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			return nil, &FormatError{shoff, "invalid type of the initial section", SectionType(typ)}
 		}
 
-		if shnum <= int(SHN_LORESERVE) {
+		if shnum < int(SHN_LORESERVE) {
 			return nil, &FormatError{shoff, "invalid ELF shnum contained in sh_size", shnum}
 		}
 
@@ -428,7 +428,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		// section header at index 0.
 		if shstrndx == int(SHN_XINDEX) {
 			shstrndx = int(link)
-			if shstrndx <= int(SHN_LORESERVE) {
+			if shstrndx < int(SHN_LORESERVE) {
 				return nil, &FormatError{shoff, "invalid ELF shstrndx contained in sh_link", shstrndx}
 			}
 		}
