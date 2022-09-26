@@ -64,6 +64,18 @@ func (Thing).Method(i int) string
 ```
 
 [`(a.Thing).Method` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#Thing.Method)
+-- NextThing-hoverdef --
+```go
+type NextThing struct {
+	Thing
+	Value int
+}
+
+func (*NextThing).Method3() int
+func (NextThing).another() string
+```
+
+[`a.NextThing` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#NextThing)
 -- Other-definition --
 godef/a/d.go:9:5-10: defined here as ```go
 var Other Thing
@@ -177,15 +189,3 @@ func Things(val []string) []Thing
 -- a-hoverdef --
 Package a is a package for testing go to definition.
 
--- NextThing-hoverdef --
-```go
-type NextThing struct {
-	Thing
-	Value int
-}
-
-func (*NextThing).Method3() int
-func (NextThing).another() string
-```
-
-[`a.NextThing` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#NextThing)

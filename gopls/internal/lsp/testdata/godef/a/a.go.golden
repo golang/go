@@ -1,3 +1,28 @@
+-- H-hoverdef --
+```go
+type H interface {
+	Goodbye() //@mark(AGoodbye, "Goodbye")
+}
+```
+
+[`a.H` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#H)
+-- I-hoverdef --
+```go
+type I interface {
+	B() //@mark(AB, "B")
+	J
+}
+```
+
+[`a.I` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#I)
+-- J-hoverdef --
+```go
+type J interface {
+	Hello() //@mark(AHello, "Hello")
+}
+```
+
+[`a.J` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#J)
 -- Lock-hoverdef --
 ```go
 func (*sync.Mutex).Lock()
@@ -165,31 +190,6 @@ const h untyped int = 2
 
 Constant block.
 
--- H-hoverdef --
-```go
-type H interface {
-	Goodbye() //@mark(AGoodbye, "Goodbye")
-}
-```
-
-[`a.H` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#H)
--- I-hoverdef --
-```go
-type I interface {
-	B() //@mark(AB, "B")
-	J
-}
-```
-
-[`a.I` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#I)
--- J-hoverdef --
-```go
-type J interface {
-	Hello() //@mark(AHello, "Hello")
-}
-```
-
-[`a.J` on pkg.go.dev](https://pkg.go.dev/golang.org/lsptests/godef/a#J)
 -- make-hoverdef --
 ```go
 func make(t Type, size ...int) Type

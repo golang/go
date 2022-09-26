@@ -1,11 +1,3 @@
--- Pparam-hoverdef --
-```go
-type parameter P interface{~int|string}
-```
--- Pvar-hoverdef --
-```go
-type parameter P interface{~int|string}
-```
 -- ValueQfield-hoverdef --
 ```go
 field Q int
