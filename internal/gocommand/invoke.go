@@ -258,7 +258,7 @@ func runCmdContext(ctx context.Context, cmd *exec.Cmd) error {
 		case err := <-resChan:
 			return err
 		case <-time.After(1 * time.Minute):
-			HandleHangingGoCommand()
+			HandleHangingGoCommand(cmd.Process)
 		case <-ctx.Done():
 		}
 	} else {
@@ -291,13 +291,13 @@ func runCmdContext(ctx context.Context, cmd *exec.Cmd) error {
 		case err := <-resChan:
 			return err
 		case <-time.After(10 * time.Second): // a shorter wait as resChan should return quickly following Kill
-			HandleHangingGoCommand()
+			HandleHangingGoCommand(cmd.Process)
 		}
 	}
 	return <-resChan
 }
 
-func HandleHangingGoCommand() {
+func HandleHangingGoCommand(proc *os.Process) {
 	switch runtime.GOOS {
 	case "linux", "darwin", "freebsd", "netbsd":
 		fmt.Fprintln(os.Stderr, `DETECTED A HANGING GO COMMAND
@@ -330,7 +330,7 @@ See golang/go#54461 for more details.`)
 			panic(fmt.Sprintf("running %s: %v", listFiles, err))
 		}
 	}
-	panic("detected hanging go command: see golang/go#54461 for more details")
+	panic(fmt.Sprintf("detected hanging go command (pid %d): see golang/go#54461 for more details", proc.Pid))
 }
 
 func cmdDebugStr(cmd *exec.Cmd) string {
