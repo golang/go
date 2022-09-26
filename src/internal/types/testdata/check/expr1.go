@@ -120,8 +120,8 @@ func _(x, y string, z mystring) {
 func f() (a, b int) { return }
 
 func _(x int) {
-	_ = f /* ERROR 2-valued f */ () + 1
-	_ = x + f /* ERROR 2-valued f */ ()
-	_ = f /* ERROR 2-valued f */ () + f
-	_ = f /* ERROR 2-valued f */ () + f /* ERROR 2-valued f */ ()
+	_ = f /* ERROR multiple-value f */ () + 1
+	_ = x + f /* ERROR multiple-value f */ ()
+	_ = f /* ERROR multiple-value f */ () + f
+	_ = f /* ERROR multiple-value f */ () + f /* ERROR multiple-value f */ ()
 }

@@ -39,7 +39,7 @@ var _ = f(0 /* ERROR cannot use 0 .* as \[\]chan int */ )
 
 func swap[A, B any](a A, b B) (B, A) { return b, a }
 
-var _ = swap /* ERROR single value is expected */ [int, float32](1, 2)
+var _ = swap /* ERROR multiple-value */ [int, float32](1, 2)
 var f32, i = swap[int, float32](swap[float32, int](1, 2))
 var _ float32 = f32
 var _ int = i

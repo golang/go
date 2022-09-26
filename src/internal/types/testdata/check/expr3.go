@@ -554,7 +554,7 @@ func _calls() {
 	fi(1, 2.0, x, 3.14, "foo")
 	fi(g2())
 	fi(0, g2)
-	fi(0, g2 /* ERROR "2-valued g2" */ ())
+	fi(0, g2 /* ERROR "multiple-value g2" */ ())
 }
 
 func issue6344() {

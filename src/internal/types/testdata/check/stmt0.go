@@ -650,14 +650,14 @@ func issue11667() {
 
 func issue11687() {
 	f := func() (_, _ int) { return }
-	switch f /* ERROR "2-valued f" */ () {
+	switch f /* ERROR "multiple-value f" */ () {
 	}
 	var x int
-	switch f /* ERROR "2-valued f" */ () {
+	switch f /* ERROR "multiple-value f" */ () {
 	case x:
 	}
 	switch x {
-	case f /* ERROR "2-valued f" */ ():
+	case f /* ERROR "multiple-value f" */ ():
 	}
 }
 

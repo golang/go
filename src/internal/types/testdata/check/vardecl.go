@@ -28,7 +28,7 @@ var _ = 1, 2 /* ERROR "extra init expr 2" */
 var _, _ = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
 var _, _, _ /* ERROR "missing init expr for _" */ = 1, 2
 
-var _ = g /* ERROR "2-valued g" */ ()
+var _ = g /* ERROR "multiple-value g" */ ()
 var _, _ = g()
 var _, _, _ = g /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ()
 
@@ -47,7 +47,7 @@ var (
 	_, _ = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
 	_, _, _ /* ERROR "missing init expr for _" */ = 1, 2
 
-	_ = g /* ERROR "2-valued g" */ ()
+	_ = g /* ERROR "multiple-value g" */ ()
 	_, _ = g()
 	_, _, _ = g /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ()
 

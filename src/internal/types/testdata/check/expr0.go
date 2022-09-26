@@ -175,8 +175,8 @@ var (
 func g() (a, b int) { return }
 
 func _() {
-	_ = -g /* ERROR 2-valued g */ ()
-	_ = <-g /* ERROR 2-valued g */ ()
+	_ = -g /* ERROR multiple-value g */ ()
+	_ = <-g /* ERROR multiple-value g */ ()
 }
 
 // ~ is accepted as unary operator only permitted in interface type elements
