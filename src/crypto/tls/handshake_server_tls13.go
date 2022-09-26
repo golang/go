@@ -719,8 +719,6 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 		verifyData: hs.clientFinished,
 	}
 
-
-
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Manual serialization //////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -773,31 +771,49 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 	rtw1InHalfConnCipher := reflect.NewAt(rt1InHalfConnCipher.Type(), unsafe.Pointer(rt1InHalfConnCipher.UnsafeAddr())).Elem()
 	rtw1InHalfConnCipher.Set(rf1InHalfConnCipher)
 
-	rf2InHalfConnCipher := rsInHalfConnCipher.Field(1).Elem().Elem()
+	switch rsInHalfConnCipher.Field(1).Elem().Elem().Type().Name() {
+	case "gcmAsm":
+		{
+			rf2InHalfConnCipher := rsInHalfConnCipher.Field(1).Elem().Elem()
+			rf2InHalfConnCipherKs := rf2InHalfConnCipher.Field(0)
 
-	rf2InHalfConnCipherKs := rf2InHalfConnCipher.Field(0)
-	rf2InHalfConnCipherKs = reflect.NewAt(rf2InHalfConnCipherKs.Type(), unsafe.Pointer(rf2InHalfConnCipherKs.UnsafeAddr())).Elem()
-	rt2InHalfConnCipherKs := reflect.ValueOf(&c.InHalfConn.AEAD.Ks).Elem()
-	rtw2InHalfConnCipherKs := reflect.NewAt(rt2InHalfConnCipherKs.Type(), unsafe.Pointer(rt2InHalfConnCipherKs.UnsafeAddr())).Elem()
-	rtw2InHalfConnCipherKs.Set(rf2InHalfConnCipherKs)
+			rf2InHalfConnCipherKs = reflect.NewAt(rf2InHalfConnCipherKs.Type(), unsafe.Pointer(rf2InHalfConnCipherKs.UnsafeAddr())).Elem()
+			rt2InHalfConnCipherKs := reflect.ValueOf(&c.InHalfConn.AEADAesGCM.Ks).Elem()
+			rtw2InHalfConnCipherKs := reflect.NewAt(rt2InHalfConnCipherKs.Type(), unsafe.Pointer(rt2InHalfConnCipherKs.UnsafeAddr())).Elem()
+			rtw2InHalfConnCipherKs.Set(rf2InHalfConnCipherKs)
 
-	rf2InHalfConnCipherProductTable := rf2InHalfConnCipher.Field(1)
-	rf2InHalfConnCipherProductTable = reflect.NewAt(rf2InHalfConnCipherProductTable.Type(), unsafe.Pointer(rf2InHalfConnCipherProductTable.UnsafeAddr())).Elem()
-	rt2InHalfConnCipherProductTable := reflect.ValueOf(&c.InHalfConn.AEAD.ProductTable).Elem()
-	rtw2InHalfConnCipherProductTable := reflect.NewAt(rt2InHalfConnCipherProductTable.Type(), unsafe.Pointer(rt2InHalfConnCipherProductTable.UnsafeAddr())).Elem()
-	rtw2InHalfConnCipherProductTable.Set(rf2InHalfConnCipherProductTable)
+			rf2InHalfConnCipherProductTable := rf2InHalfConnCipher.Field(1)
+			rf2InHalfConnCipherProductTable = reflect.NewAt(rf2InHalfConnCipherProductTable.Type(), unsafe.Pointer(rf2InHalfConnCipherProductTable.UnsafeAddr())).Elem()
+			rt2InHalfConnCipherProductTable := reflect.ValueOf(&c.InHalfConn.AEADAesGCM.ProductTable).Elem()
+			rtw2InHalfConnCipherProductTable := reflect.NewAt(rt2InHalfConnCipherProductTable.Type(), unsafe.Pointer(rt2InHalfConnCipherProductTable.UnsafeAddr())).Elem()
+			rtw2InHalfConnCipherProductTable.Set(rf2InHalfConnCipherProductTable)
 
-	rf2InHalfConnCipherNonceSize := rf2InHalfConnCipher.Field(2)
-	rf2InHalfConnCipherNonceSize = reflect.NewAt(rf2InHalfConnCipherNonceSize.Type(), unsafe.Pointer(rf2InHalfConnCipherNonceSize.UnsafeAddr())).Elem()
-	rt2InHalfConnCipherNonceSize := reflect.ValueOf(&c.InHalfConn.AEAD.NonceSize).Elem()
-	rtw2InHalfConnCipherNonceSize := reflect.NewAt(rt2InHalfConnCipherNonceSize.Type(), unsafe.Pointer(rt2InHalfConnCipherNonceSize.UnsafeAddr())).Elem()
-	rtw2InHalfConnCipherNonceSize.Set(rf2InHalfConnCipherNonceSize)
+			rf2InHalfConnCipherNonceSize := rf2InHalfConnCipher.Field(2)
+			rf2InHalfConnCipherNonceSize = reflect.NewAt(rf2InHalfConnCipherNonceSize.Type(), unsafe.Pointer(rf2InHalfConnCipherNonceSize.UnsafeAddr())).Elem()
+			rt2InHalfConnCipherNonceSize := reflect.ValueOf(&c.InHalfConn.AEADAesGCM.NonceSize).Elem()
+			rtw2InHalfConnCipherNonceSize := reflect.NewAt(rt2InHalfConnCipherNonceSize.Type(), unsafe.Pointer(rt2InHalfConnCipherNonceSize.UnsafeAddr())).Elem()
+			rtw2InHalfConnCipherNonceSize.Set(rf2InHalfConnCipherNonceSize)
 
-	rf2InHalfConnCipherTagSize := rf2InHalfConnCipher.Field(3)
-	rf2InHalfConnCipherTagSize = reflect.NewAt(rf2InHalfConnCipherTagSize.Type(), unsafe.Pointer(rf2InHalfConnCipherTagSize.UnsafeAddr())).Elem()
-	rt2InHalfConnCipherTagSize := reflect.ValueOf(&c.InHalfConn.AEAD.TagSize).Elem()
-	rtw2InHalfConnCipherTagSize := reflect.NewAt(rt2InHalfConnCipherTagSize.Type(), unsafe.Pointer(rt2InHalfConnCipherTagSize.UnsafeAddr())).Elem()
-	rtw2InHalfConnCipherTagSize.Set(rf2InHalfConnCipherTagSize)
+			rf2InHalfConnCipherTagSize := rf2InHalfConnCipher.Field(3)
+			rf2InHalfConnCipherTagSize = reflect.NewAt(rf2InHalfConnCipherTagSize.Type(), unsafe.Pointer(rf2InHalfConnCipherTagSize.UnsafeAddr())).Elem()
+			rt2InHalfConnCipherTagSize := reflect.ValueOf(&c.InHalfConn.AEADAesGCM.TagSize).Elem()
+			rtw2InHalfConnCipherTagSize := reflect.NewAt(rt2InHalfConnCipherTagSize.Type(), unsafe.Pointer(rt2InHalfConnCipherTagSize.UnsafeAddr())).Elem()
+			rtw2InHalfConnCipherTagSize.Set(rf2InHalfConnCipherTagSize)
+		}
+
+	case "chacha20poly1305":
+		{
+			rf2InHalfConnCipher := rsInHalfConnCipher.Field(1).Elem().Elem()
+			rf2InHalfConnCipherKey := rf2InHalfConnCipher.Field(0)
+
+			rf2InHalfConnCipherKey = reflect.NewAt(rf2InHalfConnCipherKey.Type(), unsafe.Pointer(rf2InHalfConnCipherKey.UnsafeAddr())).Elem()
+			rt2InHalfConnCipherKey := reflect.ValueOf(&c.InHalfConn.AEADChaCha.Key).Elem()
+			rtw2InHalfConnCipherKey := reflect.NewAt(rt2InHalfConnCipherKey.Type(), unsafe.Pointer(rt2InHalfConnCipherKey.UnsafeAddr())).Elem()
+			rtw2InHalfConnCipherKey.Set(rf2InHalfConnCipherKey)
+		}
+	default:
+		// Unhandled
+	}
 
 	// Serialize the Out halfconn
 	rsOutHalfConnCipher := reflect.ValueOf(c.Out.Cipher).Elem()
@@ -807,39 +823,48 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 	rtw1OutHalfConnCipher := reflect.NewAt(rt1OutHalfConnCipher.Type(), unsafe.Pointer(rt1OutHalfConnCipher.UnsafeAddr())).Elem()
 	rtw1OutHalfConnCipher.Set(rf1OutHalfConnCipher)
 
-	rf2OutHalfConnCipher := rsOutHalfConnCipher.Field(1).Elem().Elem()
+	switch rsOutHalfConnCipher.Field(1).Elem().Elem().Type().Name() {
+	case "gcmAsm":
+		{
+			rf2OutHalfConnCipher := rsOutHalfConnCipher.Field(1).Elem().Elem()
+			rf2OutHalfConnCipherKs := rf2OutHalfConnCipher.Field(0)
 
-	rf2OutHalfConnCipherKs := rf2OutHalfConnCipher.Field(0)
-	rf2OutHalfConnCipherKs = reflect.NewAt(rf2OutHalfConnCipherKs.Type(), unsafe.Pointer(rf2OutHalfConnCipherKs.UnsafeAddr())).Elem()
-	rt2OutHalfConnCipherKs := reflect.ValueOf(&c.OutHalfConn.AEAD.Ks).Elem()
-	rtw2OutHalfConnCipherKs := reflect.NewAt(rt2OutHalfConnCipherKs.Type(), unsafe.Pointer(rt2OutHalfConnCipherKs.UnsafeAddr())).Elem()
-	rtw2OutHalfConnCipherKs.Set(rf2OutHalfConnCipherKs)
+			rf2OutHalfConnCipherKs = reflect.NewAt(rf2OutHalfConnCipherKs.Type(), unsafe.Pointer(rf2OutHalfConnCipherKs.UnsafeAddr())).Elem()
+			rt2OutHalfConnCipherKs := reflect.ValueOf(&c.OutHalfConn.AEADAesGCM.Ks).Elem()
+			rtw2OutHalfConnCipherKs := reflect.NewAt(rt2OutHalfConnCipherKs.Type(), unsafe.Pointer(rt2OutHalfConnCipherKs.UnsafeAddr())).Elem()
+			rtw2OutHalfConnCipherKs.Set(rf2OutHalfConnCipherKs)
 
-	rf2OutHalfConnCipherProductTable := rf2OutHalfConnCipher.Field(1)
-	rf2OutHalfConnCipherProductTable = reflect.NewAt(rf2OutHalfConnCipherProductTable.Type(), unsafe.Pointer(rf2OutHalfConnCipherProductTable.UnsafeAddr())).Elem()
-	rt2OutHalfConnCipherProductTable := reflect.ValueOf(&c.OutHalfConn.AEAD.ProductTable).Elem()
-	rtw2OutHalfConnCipherProductTable := reflect.NewAt(rt2OutHalfConnCipherProductTable.Type(), unsafe.Pointer(rt2OutHalfConnCipherProductTable.UnsafeAddr())).Elem()
-	rtw2OutHalfConnCipherProductTable.Set(rf2OutHalfConnCipherProductTable)
+			rf2OutHalfConnCipherProductTable := rf2OutHalfConnCipher.Field(1)
+			rf2OutHalfConnCipherProductTable = reflect.NewAt(rf2OutHalfConnCipherProductTable.Type(), unsafe.Pointer(rf2OutHalfConnCipherProductTable.UnsafeAddr())).Elem()
+			rt2OutHalfConnCipherProductTable := reflect.ValueOf(&c.OutHalfConn.AEADAesGCM.ProductTable).Elem()
+			rtw2OutHalfConnCipherProductTable := reflect.NewAt(rt2OutHalfConnCipherProductTable.Type(), unsafe.Pointer(rt2OutHalfConnCipherProductTable.UnsafeAddr())).Elem()
+			rtw2OutHalfConnCipherProductTable.Set(rf2OutHalfConnCipherProductTable)
 
-	rf2OutHalfConnCipherNonceSize := rf2OutHalfConnCipher.Field(2)
-	rf2OutHalfConnCipherNonceSize = reflect.NewAt(rf2OutHalfConnCipherNonceSize.Type(), unsafe.Pointer(rf2OutHalfConnCipherNonceSize.UnsafeAddr())).Elem()
-	rt2OutHalfConnCipherNonceSize := reflect.ValueOf(&c.OutHalfConn.AEAD.NonceSize).Elem()
-	rtw2OutHalfConnCipherNonceSize := reflect.NewAt(rt2OutHalfConnCipherNonceSize.Type(), unsafe.Pointer(rt2OutHalfConnCipherNonceSize.UnsafeAddr())).Elem()
-	rtw2OutHalfConnCipherNonceSize.Set(rf2OutHalfConnCipherNonceSize)
+			rf2OutHalfConnCipherNonceSize := rf2OutHalfConnCipher.Field(2)
+			rf2OutHalfConnCipherNonceSize = reflect.NewAt(rf2OutHalfConnCipherNonceSize.Type(), unsafe.Pointer(rf2OutHalfConnCipherNonceSize.UnsafeAddr())).Elem()
+			rt2OutHalfConnCipherNonceSize := reflect.ValueOf(&c.OutHalfConn.AEADAesGCM.NonceSize).Elem()
+			rtw2OutHalfConnCipherNonceSize := reflect.NewAt(rt2OutHalfConnCipherNonceSize.Type(), unsafe.Pointer(rt2OutHalfConnCipherNonceSize.UnsafeAddr())).Elem()
+			rtw2OutHalfConnCipherNonceSize.Set(rf2OutHalfConnCipherNonceSize)
 
-	rf2OutHalfConnCipherTagSize := rf2OutHalfConnCipher.Field(3)
-	rf2OutHalfConnCipherTagSize = reflect.NewAt(rf2OutHalfConnCipherTagSize.Type(), unsafe.Pointer(rf2OutHalfConnCipherTagSize.UnsafeAddr())).Elem()
-	rt2OutHalfConnCipherTagSize := reflect.ValueOf(&c.OutHalfConn.AEAD.TagSize).Elem()
-	rtw2OutHalfConnCipherTagSize := reflect.NewAt(rt2OutHalfConnCipherTagSize.Type(), unsafe.Pointer(rt2OutHalfConnCipherTagSize.UnsafeAddr())).Elem()
-	rtw2OutHalfConnCipherTagSize.Set(rf2OutHalfConnCipherTagSize)
+			rf2OutHalfConnCipherTagSize := rf2OutHalfConnCipher.Field(3)
+			rf2OutHalfConnCipherTagSize = reflect.NewAt(rf2OutHalfConnCipherTagSize.Type(), unsafe.Pointer(rf2OutHalfConnCipherTagSize.UnsafeAddr())).Elem()
+			rt2OutHalfConnCipherTagSize := reflect.ValueOf(&c.OutHalfConn.AEADAesGCM.TagSize).Elem()
+			rtw2OutHalfConnCipherTagSize := reflect.NewAt(rt2OutHalfConnCipherTagSize.Type(), unsafe.Pointer(rt2OutHalfConnCipherTagSize.UnsafeAddr())).Elem()
+			rtw2OutHalfConnCipherTagSize.Set(rf2OutHalfConnCipherTagSize)
+		}
+	case "chacha20poly1305":
+		{
+			rf2OutHalfConnCipher := rsOutHalfConnCipher.Field(1).Elem().Elem()
+			rf2OutHalfConnCipherKey := rf2OutHalfConnCipher.Field(0)
 
-
-
-
-
+			rf2OutHalfConnCipherKey = reflect.NewAt(rf2OutHalfConnCipherKey.Type(), unsafe.Pointer(rf2OutHalfConnCipherKey.UnsafeAddr())).Elem()
+			rt2OutHalfConnCipherKey := reflect.ValueOf(&c.OutHalfConn.AEADChaCha.Key).Elem()
+			rtw2OutHalfConnCipherKey := reflect.NewAt(rt2OutHalfConnCipherKey.Type(), unsafe.Pointer(rt2OutHalfConnCipherKey.UnsafeAddr())).Elem()
+			rtw2OutHalfConnCipherKey.Set(rf2OutHalfConnCipherKey)
+		}
+	}
 
 	hs.transcript.Write(finishedMsg.marshal())
-
 
 	if !hs.shouldSendSessionTickets() {
 		return nil
@@ -874,7 +899,6 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 	if _, err := c.writeRecord(recordTypeHandshake, m.marshal()); err != nil {
 		return err
 	}
-
 
 	return nil
 }
@@ -985,7 +1009,5 @@ func (hs *serverHandshakeStateTLS13) readClientFinished() error {
 
 	c.In.setTrafficSecret(hs.suite, hs.trafficSecret)
 
-
 	return nil
 }
-

@@ -147,14 +147,19 @@ type serializedHS struct {
 
 type serializedHalfConn struct {
 	NonceMask [12]uint8
-	AEAD serializedAEAD
+	AEADAesGCM serializedAEADAESGCM
+	AEADChaCha serializedAEADChaCha
 }
 
-type serializedAEAD struct {
+type serializedAEADAESGCM struct {
 	Ks []uint32 `json:"ks"`
 	ProductTable [256]uint8 `json:"product_table"`
 	NonceSize int `json:"nonce_size"`
 	TagSize int `json:"tag_size"`
+}
+
+type serializedAEADChaCha struct {
+	Key [32]uint8 `json:"key"`
 }
 
 // Access to net.conn methods.
