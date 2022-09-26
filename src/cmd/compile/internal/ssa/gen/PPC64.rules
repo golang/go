@@ -32,7 +32,8 @@
 
 (Mul64 ...) => (MULLD ...)
 (Mul(32|16|8) ...) => (MULLW ...)
-(Mul64uhilo ...) => (LoweredMuluhilo ...)
+(Select0 (Mul64uhilo x y)) => (MULHDU x y)
+(Select1 (Mul64uhilo x y)) => (MULLD x y)
 
 (Div64 [false] x y) => (DIVD x y)
 (Div64u ...) => (DIVDU ...)

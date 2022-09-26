@@ -368,9 +368,6 @@ func rewriteValuePPC64(v *Value) bool {
 	case OpMul64F:
 		v.Op = OpPPC64FMUL
 		return true
-	case OpMul64uhilo:
-		v.Op = OpPPC64LoweredMuluhilo
-		return true
 	case OpMul8:
 		v.Op = OpPPC64MULLW
 		return true
@@ -16225,6 +16222,18 @@ func rewriteValuePPC64_OpSelect0(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Select0 (Mul64uhilo x y))
+	// result: (MULHDU x y)
+	for {
+		if v_0.Op != OpMul64uhilo {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpPPC64MULHDU)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Select0 (Add64carry x y c))
 	// result: (Select0 <typ.UInt64> (ADDE x y (Select1 <typ.UInt64> (ADDCconst c [-1]))))
 	for {
@@ -16573,6 +16582,18 @@ func rewriteValuePPC64_OpSelect1(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Select1 (Mul64uhilo x y))
+	// result: (MULLD x y)
+	for {
+		if v_0.Op != OpMul64uhilo {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpPPC64MULLD)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Select1 (Add64carry x y c))
 	// result: (ADDZEzero (Select1 <typ.UInt64> (ADDE x y (Select1 <typ.UInt64> (ADDCconst c [-1])))))
 	for {
