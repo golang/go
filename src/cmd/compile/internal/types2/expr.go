@@ -1418,11 +1418,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 					}
 					i := fieldIndex(utyp.fields, check.pkg, key.Value)
 					if i < 0 {
-						if check.conf.CompilerErrorMessages {
-							check.errorf(kv.Key, _MissingLitField, "unknown field '%s' in struct literal of type %s", key.Value, base)
-						} else {
-							check.errorf(kv.Key, _MissingLitField, "unknown field %s in struct literal", key.Value)
-						}
+						check.errorf(kv.Key, _MissingLitField, "unknown field %s in struct literal of type %s", key.Value, base)
 						continue
 					}
 					fld := fields[i]
