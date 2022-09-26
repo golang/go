@@ -618,7 +618,7 @@ func main() {
 			env.RegexpReplace("x/x.go", `package x`, `package main`)
 			env.Await(OnceMet(
 				env.DoneWithChange(),
-				env.DiagnosticAtRegexpWithMessage("x/main.go", `fmt`, "undeclared name")))
+				env.DiagnosticAtRegexp("x/main.go", `fmt`)))
 		}
 	})
 }
@@ -1800,7 +1800,7 @@ var Bar = Foo
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo.go")
-		env.Await(env.DiagnosticAtRegexpWithMessage("bar.go", `Foo`, "undeclared name"))
+		env.Await(env.DiagnosticAtRegexp("bar.go", `Foo`))
 		env.RegexpReplace("foo.go", `\+build`, "")
 		env.Await(EmptyDiagnostics("bar.go"))
 	})
@@ -1831,15 +1831,15 @@ package main
 		env.OpenFile("main.go")
 		env.OpenFile("other.go")
 		env.Await(
-			env.DiagnosticAtRegexpWithMessage("main.go", "asdf", "undeclared name"),
-			env.DiagnosticAtRegexpWithMessage("main.go", "fdas", "undeclared name"),
+			env.DiagnosticAtRegexp("main.go", "asdf"),
+			env.DiagnosticAtRegexp("main.go", "fdas"),
 		)
 		env.SetBufferContent("other.go", "package main\n\nasdf")
 		// The new diagnostic in other.go should not suppress diagnostics in main.go.
 		env.Await(
 			OnceMet(
 				env.DiagnosticAtRegexpWithMessage("other.go", "asdf", "expected declaration"),
-				env.DiagnosticAtRegexpWithMessage("main.go", "asdf", "undeclared name"),
+				env.DiagnosticAtRegexp("main.go", "asdf"),
 			),
 		)
 	})
@@ -2082,7 +2082,7 @@ func F[T C](_ T) {
 		var d protocol.PublishDiagnosticsParams
 		env.Await(
 			OnceMet(
-				env.DiagnosticAtRegexpWithMessage("main.go", `C`, "undeclared name"),
+				env.DiagnosticAtRegexp("main.go", `C`),
 				ReadDiagnostics("main.go", &d),
 			),
 		)

@@ -261,6 +261,12 @@ func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic
 			if ident == fix.IdentName {
 				results = append(results, diagnostic)
 			}
+		// "undefined: X" may be an unresolved import at Go 1.20+.
+		case strings.HasPrefix(diagnostic.Message, "undefined: "):
+			ident := strings.TrimPrefix(diagnostic.Message, "undefined: ")
+			if ident == fix.IdentName {
+				results = append(results, diagnostic)
+			}
 		// "could not import: X" may be an invalid import.
 		case strings.HasPrefix(diagnostic.Message, "could not import: "):
 			ident := strings.TrimPrefix(diagnostic.Message, "could not import: ")

@@ -1157,8 +1157,8 @@ func (Server) Foo() {}
 		// as invalid. So we need to wait for the metadata of main_test.go to be
 		// updated before moving other_test.go back to the main_test package.
 		env.Await(
-			env.DiagnosticAtRegexpWithMessage("other_test.go", "Server", "undeclared"),
-			env.DiagnosticAtRegexpWithMessage("main_test.go", "otherConst", "undeclared"),
+			env.DiagnosticAtRegexp("other_test.go", "Server"),
+			env.DiagnosticAtRegexp("main_test.go", "otherConst"),
 		)
 		env.RegexpReplace("other_test.go", "main", "main_test")
 		env.Await(
