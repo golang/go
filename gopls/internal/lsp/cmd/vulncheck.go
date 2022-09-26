@@ -18,8 +18,9 @@ import (
 
 // vulncheck implements the vulncheck command.
 type vulncheck struct {
-	Config bool `flag:"config" help:"If true, the command reads a JSON-encoded package load configuration from stdin"`
-	app    *Application
+	Config    bool `flag:"config" help:"If true, the command reads a JSON-encoded package load configuration from stdin"`
+	AsSummary bool `flag:"summary" help:"If true, outputs a JSON-encoded govulnchecklib.Summary JSON"`
+	app       *Application
 }
 
 type pkgLoadConfig struct {
@@ -58,6 +59,7 @@ func (v *vulncheck) Run(ctx context.Context, args ...string) error {
 		return fmt.Errorf("vulncheck command is available only in gopls compiled with go1.18 or newer")
 	}
 
+	// TODO(hyangah): what's wrong with allowing multiple targets?
 	if len(args) > 1 {
 		return tool.CommandLineErrorf("vulncheck accepts at most one package pattern")
 	}
@@ -65,25 +67,27 @@ func (v *vulncheck) Run(ctx context.Context, args ...string) error {
 	if len(args) == 1 {
 		pattern = args[0]
 	}
+
 	var cfg pkgLoadConfig
 	if v.Config {
 		if err := json.NewDecoder(os.Stdin).Decode(&cfg); err != nil {
 			return tool.CommandLineErrorf("failed to parse cfg: %v", err)
 		}
 	}
-
-	if vulnchecklib.Govulncheck == nil {
-		return fmt.Errorf("vulncheck feature is not available")
-	}
-
-	loadCfg := &packages.Config{
+	loadCfg := packages.Config{
 		Context:    ctx,
 		Tests:      cfg.Tests,
 		BuildFlags: cfg.BuildFlags,
 		// inherit the current process's cwd and env.
 	}
 
-	res, err := vulnchecklib.Govulncheck(ctx, loadCfg, pattern)
+	if v.AsSummary {
+		// vulnchecklib.Main calls os.Exit and never returns.
+		vulnchecklib.Main(loadCfg, args...)
+		return nil
+	}
+	// TODO(hyangah): delete.
+	res, err := vulnchecklib.Govulncheck(ctx, &loadCfg, pattern)
 	if err != nil {
 		return fmt.Errorf("vulncheck failed: %v", err)
 	}

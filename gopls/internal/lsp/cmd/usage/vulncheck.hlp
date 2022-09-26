@@ -13,3 +13,5 @@ Usage:
 
   -config
     	If true, the command reads a JSON-encoded package load configuration from stdin
+  -summary
+    	If true, outputs a JSON-encoded govulnchecklib.Summary JSON

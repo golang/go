@@ -19,6 +19,7 @@ import (
 	gvc "golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/vuln/client"
+	gvcapi "golang.org/x/vuln/exp/govulncheck"
 	"golang.org/x/vuln/osv"
 	"golang.org/x/vuln/vulncheck"
 )
@@ -207,4 +208,27 @@ func trimPosPrefix(summary string) string {
 		return summary
 	}
 	return after
+}
+
+// GoVersionForVulnTest is an internal environment variable used in gopls
+// testing to examine govulncheck behavior with a go version different
+// than what `go version` returns in the system.
+const GoVersionForVulnTest = "_GOPLS_TEST_VULNCHECK_GOVERSION"
+
+func init() {
+	Main = func(cfg packages.Config, patterns ...string) {
+		// never return
+		err := gvcapi.Main(gvcapi.Config{
+			AnalysisType:     "source",
+			OutputType:       "summary",
+			Patterns:         patterns,
+			SourceLoadConfig: &cfg,
+			GoVersion:        os.Getenv(GoVersionForVulnTest),
+		})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 }

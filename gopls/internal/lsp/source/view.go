@@ -21,7 +21,7 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/gopls/internal/lsp/command"
+	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/gocommand"
@@ -271,11 +271,11 @@ type View interface {
 	// Vulnerabilites returns known vulnerabilities for the given modfile.
 	// TODO(suzmue): replace command.Vuln with a different type, maybe
 	// https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck/govulnchecklib#Summary?
-	Vulnerabilities(modfile span.URI) []command.Vuln
+	Vulnerabilities(modfile span.URI) []govulncheck.Vuln
 
 	// SetVulnerabilities resets the list of vulnerabilites that exists for the given modules
 	// required by modfile.
-	SetVulnerabilities(modfile span.URI, vulnerabilities []command.Vuln)
+	SetVulnerabilities(modfile span.URI, vulnerabilities []govulncheck.Vuln)
 
 	// FileKind returns the type of a file
 	FileKind(FileHandle) FileKind

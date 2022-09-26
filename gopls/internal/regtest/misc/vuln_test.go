@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
+	"golang.org/x/tools/gopls/internal/vulncheck"
 	"golang.org/x/tools/gopls/internal/vulncheck/vulntest"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -139,9 +140,7 @@ func main() {
 			// When fetchinging stdlib package vulnerability info,
 			// behave as if our go version is go1.18 for this testing.
 			// The default behavior is to run `go env GOVERSION` (which isn't mutable env var).
-			// See gopls/internal/vulncheck.goVersion
-			// which follows the convention used in golang.org/x/vuln/cmd/govulncheck.
-			"GOVERSION":                       "go1.18",
+			vulncheck.GoVersionForVulnTest:    "go1.18",
 			"_GOPLS_TEST_BINARY_RUN_AS_GOPLS": "true", // needed to run `gopls vulncheck`.
 		},
 		Settings{
@@ -301,9 +300,7 @@ func TestRunVulncheckExp(t *testing.T) {
 			// When fetching stdlib package vulnerability info,
 			// behave as if our go version is go1.18 for this testing.
 			// The default behavior is to run `go env GOVERSION` (which isn't mutable env var).
-			// See gopls/internal/vulncheck.goVersion
-			// which follows the convention used in golang.org/x/vuln/cmd/govulncheck.
-			"GOVERSION":                       "go1.18",
+			vulncheck.GoVersionForVulnTest:    "go1.18",
 			"_GOPLS_TEST_BINARY_RUN_AS_GOPLS": "true", // needed to run `gopls vulncheck`.
 		},
 		Settings{

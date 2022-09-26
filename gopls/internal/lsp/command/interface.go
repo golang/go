@@ -336,6 +336,7 @@ type StackEntry struct {
 }
 
 // Vuln models an osv.Entry and representative call stacks.
+// TODO: deprecate
 type Vuln struct {
 	// ID is the vulnerability ID (osv.Entry.ID).
 	// https://ossf.github.io/osv-schema/#id-modified-fields

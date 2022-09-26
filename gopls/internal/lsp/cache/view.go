@@ -24,7 +24,7 @@ import (
 	"golang.org/x/mod/semver"
 	exec "golang.org/x/sys/execabs"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/gopls/internal/lsp/command"
+	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
@@ -61,7 +61,7 @@ type View struct {
 	// Each modfile has a map of module name to upgrade version.
 	moduleUpgrades map[span.URI]map[string]string
 
-	vulns map[span.URI][]command.Vuln
+	vulns map[span.URI][]govulncheck.Vuln
 
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
@@ -1032,16 +1032,16 @@ func (v *View) ClearModuleUpgrades(modfile span.URI) {
 	delete(v.moduleUpgrades, modfile)
 }
 
-func (v *View) Vulnerabilities(modfile span.URI) []command.Vuln {
+func (v *View) Vulnerabilities(modfile span.URI) []govulncheck.Vuln {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	vulns := make([]command.Vuln, len(v.vulns[modfile]))
+	vulns := make([]govulncheck.Vuln, len(v.vulns[modfile]))
 	copy(vulns, v.vulns[modfile])
 	return vulns
 }
 
-func (v *View) SetVulnerabilities(modfile span.URI, vulns []command.Vuln) {
+func (v *View) SetVulnerabilities(modfile span.URI, vulns []govulncheck.Vuln) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
