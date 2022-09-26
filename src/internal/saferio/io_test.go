@@ -126,4 +126,11 @@ func TestSliceCap(t *testing.T) {
 			t.Errorf("SliceCap returned %d, expected failure", c)
 		}
 	})
+
+	t.Run("overflow", func(t *testing.T) {
+		c := SliceCap((*int64)(nil), 1<<62)
+		if c >= 0 {
+			t.Errorf("SliceCap returned %d, expected failure", c)
+		}
+	})
 }
