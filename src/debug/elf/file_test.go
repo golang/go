@@ -231,7 +231,7 @@ func TestOpen(t *testing.T) {
 			continue
 		}
 		defer f.Close()
-		if !reflect.DeepEqual(f.FileHeader, tt.hdr) {
+		if f.FileHeader != tt.hdr {
 			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr)
 			continue
 		}
@@ -239,18 +239,18 @@ func TestOpen(t *testing.T) {
 			if i >= len(tt.sections) {
 				break
 			}
-			sh := &tt.sections[i]
-			if !reflect.DeepEqual(&s.SectionHeader, sh) {
-				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, &s.SectionHeader, sh)
+			sh := tt.sections[i]
+			if s.SectionHeader != sh {
+				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, s.SectionHeader, sh)
 			}
 		}
 		for i, p := range f.Progs {
 			if i >= len(tt.progs) {
 				break
 			}
-			ph := &tt.progs[i]
-			if !reflect.DeepEqual(&p.ProgHeader, ph) {
-				t.Errorf("open %s, program %d:\n\thave %#v\n\twant %#v\n", tt.file, i, &p.ProgHeader, ph)
+			ph := tt.progs[i]
+			if p.ProgHeader != ph {
+				t.Errorf("open %s, program %d:\n\thave %#v\n\twant %#v\n", tt.file, i, p.ProgHeader, ph)
 			}
 		}
 		tn := len(tt.sections)
