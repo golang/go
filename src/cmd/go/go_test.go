@@ -159,6 +159,8 @@ func TestMain(m *testing.M) {
 	}
 	if !*testWork {
 		defer removeAll(topTmpdir)
+	} else {
+		fmt.Fprintf(os.Stderr, "TESTWORK: preserving top level tempdir %s\n", topTmpdir)
 	}
 	os.Setenv(tempEnvName(), topTmpdir)
 
@@ -826,7 +828,9 @@ var testWork = flag.Bool("testwork", false, "")
 func (tg *testgoData) cleanup() {
 	tg.t.Helper()
 	if *testWork {
-		tg.t.Logf("TESTWORK=%s\n", tg.path("."))
+		if tg.tempdir != "" {
+			tg.t.Logf("TESTWORK=%s\n", tg.path("."))
+		}
 		return
 	}
 	for _, path := range tg.temps {
