@@ -266,6 +266,9 @@ type BuildOptions struct {
 
 	// ExperimentalWorkspaceModule opts a user into the experimental support
 	// for multi-module workspaces.
+	//
+	// Deprecated: this feature is deprecated and will be removed in a future
+	// version of gopls (https://go.dev/issue/55331).
 	ExperimentalWorkspaceModule bool `status:"experimental"`
 
 	// ExperimentalPackageCacheKey controls whether to use a coarser cache key
@@ -288,8 +291,10 @@ type BuildOptions struct {
 
 	// ExperimentalUseInvalidMetadata enables gopls to fall back on outdated
 	// package metadata to provide editor features if the go command fails to
-	// load packages for some reason (like an invalid go.mod file). This will
-	// eventually be the default behavior, and this setting will be removed.
+	// load packages for some reason (like an invalid go.mod file).
+	//
+	// Deprecated: this setting is deprecated and will be removed in a future
+	// version of gopls (https://go.dev/issue/55333).
 	ExperimentalUseInvalidMetadata bool `status:"experimental"`
 }
 
@@ -425,6 +430,9 @@ type DiagnosticOptions struct {
 	// file system notifications.
 	//
 	// This option must be set to a valid duration string, for example `"100ms"`.
+	//
+	// Deprecated: this setting is deprecated and will be removed in a future
+	// version of gopls (https://go.dev/issue/55332)
 	ExperimentalWatchedFileDelay time.Duration `status:"experimental"`
 }
 
@@ -865,7 +873,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 	result := OptionResult{Name: name, Value: value}
 	if _, ok := seen[name]; ok {
-		result.errorf("duplicate configuration for %s", name)
+		result.parseErrorf("duplicate configuration for %s", name)
 	}
 	seen[name] = struct{}{}
 
@@ -873,7 +881,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 	case "env":
 		menv, ok := value.(map[string]interface{})
 		if !ok {
-			result.errorf("invalid type %T, expect map", value)
+			result.parseErrorf("invalid type %T, expect map", value)
 			break
 		}
 		if o.Env == nil {
@@ -886,7 +894,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 	case "buildFlags":
 		iflags, ok := value.([]interface{})
 		if !ok {
-			result.errorf("invalid type %T, expect list", value)
+			result.parseErrorf("invalid type %T, expect list", value)
 			break
 		}
 		flags := make([]string, 0, len(iflags))
@@ -897,14 +905,14 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 	case "directoryFilters":
 		ifilters, ok := value.([]interface{})
 		if !ok {
-			result.errorf("invalid type %T, expect list", value)
+			result.parseErrorf("invalid type %T, expect list", value)
 			break
 		}
 		var filters []string
 		for _, ifilter := range ifilters {
 			filter, err := validateDirectoryFilter(fmt.Sprintf("%v", ifilter))
 			if err != nil {
-				result.errorf(err.Error())
+				result.parseErrorf("%v", err)
 				return result
 			}
 			filters = append(filters, strings.TrimRight(filepath.FromSlash(filter), "/"))
@@ -1048,7 +1056,12 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 	case "experimentalPostfixCompletions":
 		result.setBool(&o.ExperimentalPostfixCompletions)
 
-	case "experimentalWorkspaceModule": // TODO(rfindley): suggest go.work on go1.18+
+	case "experimentalWorkspaceModule":
+		const msg = "The experimentalWorkspaceModule feature has been replaced by go workspaces, " +
+			"and will be removed in a future version of gopls (https://go.dev/issue/55331). " +
+			"Please see https://github.com/golang/tools/blob/master/gopls/doc/workspace.md " +
+			"for information on setting up multi-module workspaces using go.work files."
+		result.softErrorf(msg)
 		result.setBool(&o.ExperimentalWorkspaceModule)
 
 	case "experimentalTemplateSupport": // TODO(pjw): remove after June 2022
@@ -1067,14 +1080,18 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 			o.TemplateExtensions = nil
 			break
 		}
-		result.errorf(fmt.Sprintf("unexpected type %T not []string", value))
-	case "experimentalDiagnosticsDelay", "diagnosticsDelay":
-		if name == "experimentalDiagnosticsDelay" {
-			result.deprecated("diagnosticsDelay")
-		}
+		result.parseErrorf("unexpected type %T not []string", value)
+
+	case "experimentalDiagnosticsDelay":
+		result.deprecated("diagnosticsDelay")
+
+	case "diagnosticsDelay":
 		result.setDuration(&o.DiagnosticsDelay)
 
 	case "experimentalWatchedFileDelay":
+		const msg = "The experimentalWatchedFileDelay setting is deprecated, and will " +
+			"be removed in a future version of gopls (https://go.dev/issue/55332)."
+		result.softErrorf(msg)
 		result.setDuration(&o.ExperimentalWatchedFileDelay)
 
 	case "experimentalPackageCacheKey":
@@ -1087,6 +1104,9 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.setBool(&o.AllowImplicitNetworkAccess)
 
 	case "experimentalUseInvalidMetadata":
+		const msg = "The experimentalUseInvalidMetadata setting is deprecated, and will be removed" +
+			"in a future version of gopls (https://go.dev/issue/55333)."
+		result.softErrorf(msg)
 		result.setBool(&o.ExperimentalUseInvalidMetadata)
 
 	case "allExperiments":
@@ -1140,7 +1160,11 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 	return result
 }
 
-func (r *OptionResult) errorf(msg string, values ...interface{}) {
+// parseErrorf reports an error parsing the current configuration value.
+func (r *OptionResult) parseErrorf(msg string, values ...interface{}) {
+	if false {
+		_ = fmt.Sprintf(msg, values...) // this causes vet to check this like printf
+	}
 	prefix := fmt.Sprintf("parsing setting %q: ", r.Name)
 	r.Error = fmt.Errorf(prefix+msg, values...)
 }
@@ -1154,6 +1178,16 @@ func (e *SoftError) Error() string {
 	return e.msg
 }
 
+// softErrorf reports an error that does not affect the functionality of gopls
+// (a warning in the UI).
+// The formatted message will be shown to the user unmodified.
+func (r *OptionResult) softErrorf(format string, values ...interface{}) {
+	msg := fmt.Sprintf(format, values...)
+	r.Error = &SoftError{msg}
+}
+
+// deprecated reports the current setting as deprecated. If 'replacement' is
+// non-nil, it is suggested to the user.
 func (r *OptionResult) deprecated(replacement string) {
 	msg := fmt.Sprintf("gopls setting %q is deprecated", r.Name)
 	if replacement != "" {
@@ -1162,6 +1196,7 @@ func (r *OptionResult) deprecated(replacement string) {
 	r.Error = &SoftError{msg}
 }
 
+// unexpected reports that the current setting is not known to gopls.
 func (r *OptionResult) unexpected() {
 	r.Error = fmt.Errorf("unexpected gopls setting %q", r.Name)
 }
@@ -1169,7 +1204,7 @@ func (r *OptionResult) unexpected() {
 func (r *OptionResult) asBool() (bool, bool) {
 	b, ok := r.Value.(bool)
 	if !ok {
-		r.errorf("invalid type %T, expect bool", r.Value)
+		r.parseErrorf("invalid type %T, expect bool", r.Value)
 		return false, false
 	}
 	return b, true
@@ -1185,7 +1220,7 @@ func (r *OptionResult) setDuration(d *time.Duration) {
 	if v, ok := r.asString(); ok {
 		parsed, err := time.ParseDuration(v)
 		if err != nil {
-			r.errorf("failed to parse duration %q: %v", v, err)
+			r.parseErrorf("failed to parse duration %q: %v", v, err)
 			return
 		}
 		*d = parsed
@@ -1217,18 +1252,18 @@ func (r *OptionResult) setAnnotationMap(bm *map[Annotation]bool) {
 			switch k {
 			case "noEscape":
 				m[Escape] = false
-				r.errorf(`"noEscape" is deprecated, set "Escape: false" instead`)
+				r.parseErrorf(`"noEscape" is deprecated, set "Escape: false" instead`)
 			case "noNilcheck":
 				m[Nil] = false
-				r.errorf(`"noNilcheck" is deprecated, set "Nil: false" instead`)
+				r.parseErrorf(`"noNilcheck" is deprecated, set "Nil: false" instead`)
 			case "noInline":
 				m[Inline] = false
-				r.errorf(`"noInline" is deprecated, set "Inline: false" instead`)
+				r.parseErrorf(`"noInline" is deprecated, set "Inline: false" instead`)
 			case "noBounds":
 				m[Bounds] = false
-				r.errorf(`"noBounds" is deprecated, set "Bounds: false" instead`)
+				r.parseErrorf(`"noBounds" is deprecated, set "Bounds: false" instead`)
 			default:
-				r.errorf(err.Error())
+				r.parseErrorf("%v", err)
 			}
 			continue
 		}
@@ -1240,7 +1275,7 @@ func (r *OptionResult) setAnnotationMap(bm *map[Annotation]bool) {
 func (r *OptionResult) asBoolMap() map[string]bool {
 	all, ok := r.Value.(map[string]interface{})
 	if !ok {
-		r.errorf("invalid type %T for map[string]bool option", r.Value)
+		r.parseErrorf("invalid type %T for map[string]bool option", r.Value)
 		return nil
 	}
 	m := make(map[string]bool)
@@ -1248,7 +1283,7 @@ func (r *OptionResult) asBoolMap() map[string]bool {
 		if enabled, ok := enabled.(bool); ok {
 			m[a] = enabled
 		} else {
-			r.errorf("invalid type %T for map key %q", enabled, a)
+			r.parseErrorf("invalid type %T for map key %q", enabled, a)
 			return m
 		}
 	}
@@ -1258,7 +1293,7 @@ func (r *OptionResult) asBoolMap() map[string]bool {
 func (r *OptionResult) asString() (string, bool) {
 	b, ok := r.Value.(string)
 	if !ok {
-		r.errorf("invalid type %T, expect string", r.Value)
+		r.parseErrorf("invalid type %T, expect string", r.Value)
 		return "", false
 	}
 	return b, true
@@ -1271,7 +1306,7 @@ func (r *OptionResult) asOneOf(options ...string) (string, bool) {
 	}
 	s, err := asOneOf(s, options...)
 	if err != nil {
-		r.errorf(err.Error())
+		r.parseErrorf("%v", err)
 	}
 	return s, err == nil
 }

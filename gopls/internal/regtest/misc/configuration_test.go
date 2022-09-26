@@ -71,6 +71,30 @@ var FooErr = errors.New("foo")
 	WithOptions(
 		Settings{"staticcheck": true},
 	).Run(t, files, func(t *testing.T, env *Env) {
-		env.Await(ShownMessage("staticcheck is not supported"))
+		env.Await(
+			OnceMet(
+				InitialWorkspaceLoad,
+				ShownMessage("staticcheck is not supported"),
+			),
+		)
+	})
+}
+
+func TestDeprecatedSettings(t *testing.T) {
+	WithOptions(
+		Settings{
+			"experimentalUseInvalidMetadata": true,
+			"experimentalWatchedFileDelay":   "1s",
+			"experimentalWorkspaceModule":    true,
+		},
+	).Run(t, "", func(t *testing.T, env *Env) {
+		env.Await(
+			OnceMet(
+				InitialWorkspaceLoad,
+				ShownMessage("experimentalWorkspaceModule"),
+				ShownMessage("experimentalUseInvalidMetadata"),
+				ShownMessage("experimentalWatchedFileDelay"),
+			),
+		)
 	})
 }

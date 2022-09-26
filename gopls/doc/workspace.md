@@ -44,7 +44,11 @@ go work use tools tools/gopls
 
 ...followed by opening the `$WORK` directory in our editor.
 
-#### Experimental workspace module (Go 1.17 and earlier)
+#### DEPRECATED: Experimental workspace module (Go 1.17 and earlier)
+
+**This feature is deprecated and will be removed in future versions of gopls.
+Please see [issue #52897](https://go.dev/issue/52897) for additional
+information.**
 
 With earlier versions of Go, `gopls` can simulate multi-module workspaces by
 creating a synthetic module requiring the modules in the workspace root.

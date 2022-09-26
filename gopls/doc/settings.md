@@ -123,6 +123,9 @@ Default: `true`.
 experimentalWorkspaceModule opts a user into the experimental support
 for multi-module workspaces.
 
+Deprecated: this feature is deprecated and will be removed in a future
+version of gopls (https://go.dev/issue/55331).
+
 Default: `false`.
 
 #### **experimentalPackageCacheKey** *bool*
@@ -164,8 +167,10 @@ Default: `false`.
 
 experimentalUseInvalidMetadata enables gopls to fall back on outdated
 package metadata to provide editor features if the go command fails to
-load packages for some reason (like an invalid go.mod file). This will
-eventually be the default behavior, and this setting will be removed.
+load packages for some reason (like an invalid go.mod file).
+
+Deprecated: this setting is deprecated and will be removed in a future
+version of gopls (https://go.dev/issue/55333).
 
 Default: `false`.
 
@@ -352,6 +357,9 @@ intended for use by LSP clients that don't support their own batching of
 file system notifications.
 
 This option must be set to a valid duration string, for example `"100ms"`.
+
+Deprecated: this setting is deprecated and will be removed in a future
+version of gopls (https://go.dev/issue/55332)
 
 Default: `"0s"`.
 

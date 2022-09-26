@@ -59,7 +59,7 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name:      "experimentalWorkspaceModule",
 				Type:      "bool",
-				Doc:       "experimentalWorkspaceModule opts a user into the experimental support\nfor multi-module workspaces.\n",
+				Doc:       "experimentalWorkspaceModule opts a user into the experimental support\nfor multi-module workspaces.\n\nDeprecated: this feature is deprecated and will be removed in a future\nversion of gopls (https://go.dev/issue/55331).\n",
 				Default:   "false",
 				Status:    "experimental",
 				Hierarchy: "build",
@@ -91,7 +91,7 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name:      "experimentalUseInvalidMetadata",
 				Type:      "bool",
-				Doc:       "experimentalUseInvalidMetadata enables gopls to fall back on outdated\npackage metadata to provide editor features if the go command fails to\nload packages for some reason (like an invalid go.mod file). This will\neventually be the default behavior, and this setting will be removed.\n",
+				Doc:       "experimentalUseInvalidMetadata enables gopls to fall back on outdated\npackage metadata to provide editor features if the go command fails to\nload packages for some reason (like an invalid go.mod file).\n\nDeprecated: this setting is deprecated and will be removed in a future\nversion of gopls (https://go.dev/issue/55333).\n",
 				Default:   "false",
 				Status:    "experimental",
 				Hierarchy: "build",
@@ -510,7 +510,7 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name:      "experimentalWatchedFileDelay",
 				Type:      "time.Duration",
-				Doc:       "experimentalWatchedFileDelay controls the amount of time that gopls waits\nfor additional workspace/didChangeWatchedFiles notifications to arrive,\nbefore processing all such notifications in a single batch. This is\nintended for use by LSP clients that don't support their own batching of\nfile system notifications.\n\nThis option must be set to a valid duration string, for example `\"100ms\"`.\n",
+				Doc:       "experimentalWatchedFileDelay controls the amount of time that gopls waits\nfor additional workspace/didChangeWatchedFiles notifications to arrive,\nbefore processing all such notifications in a single batch. This is\nintended for use by LSP clients that don't support their own batching of\nfile system notifications.\n\nThis option must be set to a valid duration string, for example `\"100ms\"`.\n\nDeprecated: this setting is deprecated and will be removed in a future\nversion of gopls (https://go.dev/issue/55332)\n",
 				Default:   "\"0s\"",
 				Status:    "experimental",
 				Hierarchy: "ui.diagnostic",
