@@ -68,7 +68,6 @@ type tester struct {
 
 	cgoEnabled bool
 	partial    bool
-	haveTime   bool // the 'time' binary is available
 
 	tests        []distTest
 	timeoutScale int
@@ -110,12 +109,6 @@ func (t *tester) run() {
 	}
 
 	t.runNames = flag.Args()
-
-	if t.hasBash() {
-		if _, err := exec.LookPath("time"); err == nil {
-			t.haveTime = true
-		}
-	}
 
 	// Set GOTRACEBACK to system if the user didn't set a level explicitly.
 	// Since we're running tests for Go, we want as much detail as possible
@@ -891,9 +884,6 @@ func (t *tester) isRegisteredTestName(testName string) bool {
 
 func (t *tester) registerTest(name, dirBanner string, cmdline ...interface{}) {
 	bin, args := flattenCmdline(cmdline)
-	if bin == "time" && !t.haveTime {
-		bin, args = args[0], args[1:]
-	}
 	if t.isRegisteredTestName(name) {
 		panic("duplicate registered test name " + name)
 	}
