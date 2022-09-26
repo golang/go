@@ -7,5 +7,5 @@ package undeclared
 type T struct{}
 
 func literals() {
-	undefinedLiterals("hey compiler", T{}, &T{}) // want "undeclared name: undefinedLiterals"
+	undefinedLiterals("hey compiler", T{}, &T{}) // want "(undeclared name|undefined): undefinedLiterals"
 }

@@ -513,7 +513,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []tests.S
 			break
 		}
 	}
-	codeActionKinds := []protocol.CodeActionKind{}
+	var codeActionKinds []protocol.CodeActionKind
 	for _, k := range actionKinds {
 		codeActionKinds = append(codeActionKinds, protocol.CodeActionKind(k.ActionKind))
 	}
@@ -541,12 +541,11 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []tests.S
 
 	}
 	if len(actions) != expectedActions {
-		// Hack: We assume that we only get one code action per range.
-		var cmds []string
+		var summaries []string
 		for _, a := range actions {
-			cmds = append(cmds, fmt.Sprintf("%s (%s)", a.Command, a.Title))
+			summaries = append(summaries, fmt.Sprintf("%q (%s)", a.Title, a.Kind))
 		}
-		t.Fatalf("unexpected number of code actions, want %d, got %d: %v", expectedActions, len(actions), cmds)
+		t.Fatalf("CodeAction(...): got %d code actions (%v), want %d", len(actions), summaries, expectedActions)
 	}
 	action := actions[0]
 	var match bool
@@ -557,7 +556,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []tests.S
 		}
 	}
 	if !match {
-		t.Fatalf("unexpected kind for code action %s, expected one of %v, got %v", action.Title, codeActionKinds, action.Kind)
+		t.Fatalf("unexpected kind for code action %s, got %v, want one of %v", action.Title, action.Kind, codeActionKinds)
 	}
 	var res map[span.URI]string
 	if cmd := action.Command; cmd != nil {

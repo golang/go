@@ -5,7 +5,7 @@
 package undeclared
 
 func tuple() {
-	undefinedTuple(b()) // want "undeclared name: undefinedTuple"
+	undefinedTuple(b()) // want "(undeclared name|undefined): undefinedTuple"
 }
 
 func b() (string, error) {

@@ -6,5 +6,5 @@ package undeclared
 
 func selector() {
 	m := map[int]bool{}
-	undefinedSelector(m[1]) // want "undeclared name: undefinedSelector"
+	undefinedSelector(m[1]) // want "(undeclared name|undefined): undefinedSelector"
 }

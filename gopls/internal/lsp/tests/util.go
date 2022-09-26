@@ -86,20 +86,19 @@ func DiffDiagnostics(uri span.URI, want, got []*source.Diagnostic) string {
 	}
 	for i, w := range want {
 		g := got[i]
-		if match, err := regexp.MatchString(w.Message, g.Message); err != nil {
-			return summarizeDiagnostics(i, uri, want, got, "invalid regular expression %q: %v", w.Message, err)
-
-		} else if !match {
-			return summarizeDiagnostics(i, uri, want, got, "got Message %q, want match for pattern %q", g.Message, w.Message)
-		}
-		if w.Severity != g.Severity {
-			return summarizeDiagnostics(i, uri, want, got, "got Severity %v, want %v", g.Severity, w.Severity)
-		}
-		if w.Source != g.Source {
-			return summarizeDiagnostics(i, uri, want, got, "got Source %v, want %v", g.Source, w.Source)
-		}
 		if !rangeOverlaps(g.Range, w.Range) {
 			return summarizeDiagnostics(i, uri, want, got, "got Range %v, want overlap with %v", g.Range, w.Range)
+		}
+		if match, err := regexp.MatchString(w.Message, g.Message); err != nil {
+			return summarizeDiagnostics(i, uri, want, got, "%s: invalid regular expression %q: %v", w.Range.Start, w.Message, err)
+		} else if !match {
+			return summarizeDiagnostics(i, uri, want, got, "%s: got Message %q, want match for pattern %q", g.Range.Start, g.Message, w.Message)
+		}
+		if w.Severity != g.Severity {
+			return summarizeDiagnostics(i, uri, want, got, "%s: got Severity %v, want %v", g.Range.Start, g.Severity, w.Severity)
+		}
+		if w.Source != g.Source {
+			return summarizeDiagnostics(i, uri, want, got, "%s: got Source %v, want %v", g.Range.Start, g.Source, w.Source)
 		}
 	}
 	return ""

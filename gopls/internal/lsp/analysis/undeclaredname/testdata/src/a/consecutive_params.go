@@ -6,5 +6,5 @@ package undeclared
 
 func consecutiveParams() {
 	var s string
-	undefinedConsecutiveParams(s, s) // want "undeclared name: undefinedConsecutiveParams"
+	undefinedConsecutiveParams(s, s) // want "(undeclared name|undefined): undefinedConsecutiveParams"
 }

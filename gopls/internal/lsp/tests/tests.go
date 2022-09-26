@@ -1404,6 +1404,8 @@ func uriName(uri span.URI) string {
 	return filepath.Base(strings.TrimSuffix(uri.Filename(), ".go"))
 }
 
+// TODO(golang/go#54845): improve the formatting here to match standard
+// line:column position formatting.
 func SpanName(spn span.Span) string {
 	return fmt.Sprintf("%v_%v_%v", uriName(spn.URI()), spn.Start().Line(), spn.Start().Column())
 }

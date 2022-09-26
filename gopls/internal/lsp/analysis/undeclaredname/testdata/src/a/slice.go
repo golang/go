@@ -5,5 +5,5 @@
 package undeclared
 
 func slice() {
-	undefinedSlice([]int{1, 2}) // want "undeclared name: undefinedSlice"
+	undefinedSlice([]int{1, 2}) // want "(undeclared name|undefined): undefinedSlice"
 }

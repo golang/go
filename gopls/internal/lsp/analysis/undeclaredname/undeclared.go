@@ -45,7 +45,7 @@ var Analyzer = &analysis.Analyzer{
 	RunDespiteErrors: true,
 }
 
-const undeclaredNamePrefix = "undeclared name: "
+var undeclaredNamePrefixes = []string{"undeclared name: ", "undefined: "}
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	for _, err := range analysisinternal.GetTypeErrors(pass) {
@@ -55,10 +55,16 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func runForError(pass *analysis.Pass, err types.Error) {
-	if !strings.HasPrefix(err.Msg, undeclaredNamePrefix) {
+	var name string
+	for _, prefix := range undeclaredNamePrefixes {
+		if !strings.HasPrefix(err.Msg, prefix) {
+			continue
+		}
+		name = strings.TrimPrefix(err.Msg, prefix)
+	}
+	if name == "" {
 		return
 	}
-	name := strings.TrimPrefix(err.Msg, undeclaredNamePrefix)
 	var file *ast.File
 	for _, f := range pass.Files {
 		if f.Pos() <= err.Pos && err.Pos < f.End() {

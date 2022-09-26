@@ -6,5 +6,5 @@ package undeclared
 
 func errorParam() {
 	var err error
-	undefinedErrorParam(err) // want "undeclared name: undefinedErrorParam"
+	undefinedErrorParam(err) // want "(undeclared name|undefined): undefinedErrorParam"
 }

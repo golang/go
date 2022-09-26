@@ -5,7 +5,7 @@
 package undeclared
 
 func channels(s string) {
-	undefinedChannels(c()) // want "undeclared name: undefinedChannels"
+	undefinedChannels(c()) // want "(undeclared name|undefined): undefinedChannels"
 }
 
 func c() (<-chan string, chan string) {

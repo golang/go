@@ -6,22 +6,22 @@ package undeclared
 
 func x() int {
 	var z int
-	z = y // want "undeclared name: y"
+	z = y // want "(undeclared name|undefined): y"
 
-	if z == m { // want "undeclared name: m"
+	if z == m { // want "(undeclared name|undefined): m"
 		z = 1
 	}
 
 	if z == 1 {
 		z = 1
-	} else if z == n+1 { // want "undeclared name: n"
+	} else if z == n+1 { // want "(undeclared name|undefined): n"
 		z = 1
 	}
 
 	switch z {
 	case 10:
 		z = 1
-	case a: // want "undeclared name: a"
+	case a: // want "(undeclared name|undefined): a"
 		z = 1
 	}
 	return z

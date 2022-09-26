@@ -7,5 +7,5 @@ package undeclared
 func uniqueArguments() {
 	var s string
 	var i int
-	undefinedUniqueArguments(s, i, s) // want "undeclared name: undefinedUniqueArguments"
+	undefinedUniqueArguments(s, i, s) // want "(undeclared name|undefined): undefinedUniqueArguments"
 }
