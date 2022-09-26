@@ -121,12 +121,11 @@ func SliceCap(v any, c uint64) int {
 	if typ.Kind() != reflect.Ptr {
 		panic("SliceCap called with non-pointer type")
 	}
-	size := typ.Elem().Size()
-	total := uintptr(c) * size
-	if size > 0 && total/size != uintptr(c) {
+	size := uint64(typ.Elem().Size())
+	if size > 0 && c > (1<<64-1)/size {
 		return -1
 	}
-	if total > chunk {
+	if c*size > chunk {
 		c = uint64(chunk / size)
 		if c == 0 {
 			c = 1
