@@ -32,11 +32,11 @@ var (
 
 var (
 	hexRe                 = regexp.MustCompile("0x[a-zA-Z0-9]+")
-	numRe                 = regexp.MustCompile("-?[0-9]+")
+	numRe                 = regexp.MustCompile("-?\\d+")
 	stringRe              = regexp.MustCompile("\"([^\\\"]|(\\.))*\"")
-	leadingDollarNumberRe = regexp.MustCompile("^[$][0-9]+")
+	leadingDollarNumberRe = regexp.MustCompile("^[$]\\d+")
 	optOutGdbRe           = regexp.MustCompile("[<]optimized out[>]")
-	numberColonRe         = regexp.MustCompile("^ *[0-9]+:")
+	numberColonRe         = regexp.MustCompile("^ *\\d+:")
 )
 
 var gdb = "gdb"      // Might be "ggdb" on Darwin, because gdb no longer part of XCode

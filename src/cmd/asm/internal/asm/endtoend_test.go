@@ -261,7 +261,7 @@ func isHexes(s string) bool {
 // the standard file:line: prefix,
 // but that's not where we are today.
 // It might be at the beginning but it might be in the middle of the printed instruction.
-var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][0-9a-z]+\.s:[0-9]+)(?:$|\)|:)`)
+var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][\da-z]+\.s:\d+)(?:$|\)|:)`)
 
 // Same as in test/run.go
 var (

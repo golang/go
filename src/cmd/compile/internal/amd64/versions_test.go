@@ -113,7 +113,7 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 		if err := cmd.Start(); err != nil {
 			t.Fatal(err)
 		}
-		re = regexp.MustCompile(`^[^:]*:[-0-9]+\s+0x([0-9a-f]+)\s+([0-9a-f]+)\s+([A-Z]+)`)
+		re = regexp.MustCompile(`^[^:]*:[-\d]+\s+0x([\da-f]+)\s+([\da-f]+)\s+([A-Z]+)`)
 	} else {
 		// TODO: we're depending on platform-native objdump here. Hence the Skipf
 		// below if it doesn't run for some reason.
@@ -129,7 +129,7 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 			}
 			t.Fatal(err)
 		}
-		re = regexp.MustCompile(`^\s*([0-9a-f]+):\s*((?:[0-9a-f][0-9a-f] )+)\s*([a-z0-9]+)`)
+		re = regexp.MustCompile(`^\s*([\da-f]+):\s*((?:[\da-f][\da-f] )+)\s*([a-z\d]+)`)
 	}
 
 	// Find all the instruction addresses we need to edit.

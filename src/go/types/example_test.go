@@ -73,7 +73,7 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
 	// For determinism, we redact addresses.
 	var buf strings.Builder
 	pkg.Scope().WriteTo(&buf, 0, true)
-	rx := regexp.MustCompile(` 0x[a-fA-F0-9]*`)
+	rx := regexp.MustCompile(` 0x[a-fA-F\d]*`)
 	fmt.Println(rx.ReplaceAllString(buf.String(), ""))
 
 	// Output:

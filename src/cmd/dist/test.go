@@ -1414,7 +1414,7 @@ func (t *tester) hasSwig() bool {
 		return false
 	}
 
-	re := regexp.MustCompile(`[vV]ersion +([\d]+)([.][\d]+)?([.][\d]+)?`)
+	re := regexp.MustCompile(`[vV]ersion +(\d+)([.]\d+)?([.]\d+)?`)
 	matches := re.FindSubmatch(out)
 	if matches == nil {
 		// Can't find version number; hope for the best.

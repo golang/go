@@ -1282,7 +1282,7 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
 	// They aren't useful for people using the header file,
 	// and they mean that the header files change based on the
 	// exact location of GOPATH.
-	re := regexp.MustCompile(`(?m)^(#line\s+[0-9]+\s+")[^"]*[/\\]([^"]*")`)
+	re := regexp.MustCompile(`(?m)^(#line\s+\d+\s+")[^"]*[/\\]([^"]*")`)
 	preamble := re.ReplaceAllString(p.Preamble, "$1$2")
 
 	fmt.Fprintf(fgcch, "/* Start of preamble from import \"C\" comments.  */\n\n")

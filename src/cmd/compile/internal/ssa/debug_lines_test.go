@@ -24,14 +24,14 @@ import (
 )
 
 // Matches lines in genssa output that are marked "isstmt", and the parenthesized plus-prefixed line number is a submatch
-var asmLine *regexp.Regexp = regexp.MustCompile(`^\s[vb][0-9]+\s+[0-9]+\s\(\+([0-9]+)\)`)
+var asmLine *regexp.Regexp = regexp.MustCompile(`^\s[vb]\d+\s+\d+\s\(\+(\d+)\)`)
 
 // this matches e.g.                            `   v123456789   000007   (+9876654310) MOVUPS	X15, ""..autotmp_2-32(SP)`
 
 // Matches lines in genssa output that describe an inlined file.
 // Note it expects an unadventurous choice of basename.
 var sepRE = regexp.QuoteMeta(string(filepath.Separator))
-var inlineLine *regexp.Regexp = regexp.MustCompile(`^#\s.*` + sepRE + `[-a-zA-Z0-9_]+\.go:([0-9]+)`)
+var inlineLine *regexp.Regexp = regexp.MustCompile(`^#\s.*` + sepRE + `[-\w]+\.go:(\d+)`)
 
 // this matches e.g.                                 #  /pa/inline-dumpxxxx.go:6
 

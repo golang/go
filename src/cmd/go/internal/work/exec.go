@@ -3147,7 +3147,7 @@ func (b *Builder) swigDoVersionCheck() error {
 	if err != nil {
 		return err
 	}
-	re := regexp.MustCompile(`[vV]ersion +([\d]+)([.][\d]+)?([.][\d]+)?`)
+	re := regexp.MustCompile(`[vV]ersion +(\d+)([.]\d+)?([.]\d+)?`)
 	matches := re.FindSubmatch(out)
 	if matches == nil {
 		// Can't find version number; hope for the best.

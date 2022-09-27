@@ -1427,7 +1427,7 @@ func (t *test) updateErrors(out, file string) {
 	}
 	// Parse new errors.
 	errors := make(map[int]map[string]bool)
-	tmpRe := regexp.MustCompile(`autotmp_[0-9]+`)
+	tmpRe := regexp.MustCompile(`autotmp_\d+`)
 	for _, errStr := range splitOutput(out, false) {
 		errFile, rest, ok := strings.Cut(errStr, ":")
 		if !ok || errFile != file {
@@ -1520,7 +1520,7 @@ var (
 	errRx       = regexp.MustCompile(`// (?:GC_)?ERROR (.*)`)
 	errAutoRx   = regexp.MustCompile(`// (?:GC_)?ERRORAUTO (.*)`)
 	errQuotesRx = regexp.MustCompile(`"([^"]*)"`)
-	lineRx      = regexp.MustCompile(`LINE(([+-])([0-9]+))?`)
+	lineRx      = regexp.MustCompile(`LINE(([+-])(\d+))?`)
 )
 
 func (t *test) wantedErrors(file, short string) (errs []wantedError) {

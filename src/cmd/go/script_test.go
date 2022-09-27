@@ -238,7 +238,7 @@ func (ts *testScript) setup() {
 func goVersion() (string, error) {
 	tags := build.Default.ReleaseTags
 	version := tags[len(tags)-1]
-	if !regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`).MatchString(version) {
+	if !regexp.MustCompile(`^go([1-9]\d*)\.(0|[1-9]\d*)$`).MatchString(version) {
 		return "", fmt.Errorf("invalid go version %q", version)
 	}
 	return version[2:], nil
