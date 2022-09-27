@@ -262,8 +262,8 @@ func (r *gitRepo) loadRefs() (map[string]string, error) {
 			}
 		}
 		for ref, hash := range refs {
-			if strings.HasSuffix(ref, "^{}") { // record unwrapped annotated tag as value of tag
-				refs[strings.TrimSuffix(ref, "^{}")] = hash
+			if k, found := strings.CutSuffix(ref, "^{}"); found { // record unwrapped annotated tag as value of tag
+				refs[k] = hash
 				delete(refs, ref)
 			}
 		}

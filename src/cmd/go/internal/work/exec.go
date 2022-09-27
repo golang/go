@@ -642,12 +642,12 @@ OverlayLoop:
 			var sourceFile string
 			var coverFile string
 			var key string
-			if strings.HasSuffix(file, ".cgo1.go") {
+			if base, found := strings.CutSuffix(file, ".cgo1.go"); found {
 				// cgo files have absolute paths
-				base := filepath.Base(file)
+				base = filepath.Base(base)
 				sourceFile = file
-				coverFile = objdir + base
-				key = strings.TrimSuffix(base, ".cgo1.go") + ".go"
+				coverFile = objdir + base + ".cgo1.go"
+				key = base + ".go"
 			} else {
 				sourceFile = filepath.Join(p.Dir, file)
 				coverFile = objdir + file
