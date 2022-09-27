@@ -18,8 +18,8 @@ pkg debug/elf, const R_PPC64_D34_HI30 = 130 #54345
 pkg debug/elf, const R_PPC64_D34_HI30 R_PPC64 #54345
 pkg debug/elf, const R_PPC64_D34_LO = 129 #54345
 pkg debug/elf, const R_PPC64_D34_LO R_PPC64 #54345
-pkg debug/elf, const R_PPC64_DTPREL28 = 147 #54345
-pkg debug/elf, const R_PPC64_DTPREL28 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_DTPREL34 = 147 #54345
+pkg debug/elf, const R_PPC64_DTPREL34 R_PPC64 #54345
 pkg debug/elf, const R_PPC64_GLOB_DAT = 20 #54345
 pkg debug/elf, const R_PPC64_GLOB_DAT R_PPC64 #54345
 pkg debug/elf, const R_PPC64_GNU_VTENTRY = 254 #54345
@@ -98,8 +98,8 @@ pkg debug/elf, const R_PPC64_SECTOFF_HI = 35 #54345
 pkg debug/elf, const R_PPC64_SECTOFF_HI R_PPC64 #54345
 pkg debug/elf, const R_PPC64_SECTOFF_LO = 34 #54345
 pkg debug/elf, const R_PPC64_SECTOFF_LO R_PPC64 #54345
-pkg debug/elf, const R_PPC64_TPREL28 = 146 #54345
-pkg debug/elf, const R_PPC64_TPREL28 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_TPREL34 = 146 #54345
+pkg debug/elf, const R_PPC64_TPREL34 R_PPC64 #54345
 pkg debug/elf, const R_PPC64_UADDR16 = 25 #54345
 pkg debug/elf, const R_PPC64_UADDR16 R_PPC64 #54345
 pkg debug/elf, const R_PPC64_UADDR32 = 24 #54345
