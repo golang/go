@@ -6,6 +6,7 @@ package pkgbits
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"go/constant"
 	"go/token"
@@ -246,10 +247,38 @@ func (r *Decoder) checkErr(err error) {
 }
 
 func (r *Decoder) rawUvarint() uint64 {
-	x, err := binary.ReadUvarint(&r.Data)
+	x, err := readUvarint(&r.Data)
 	r.checkErr(err)
 	return x
 }
+
+// readUvarint is a type-specialized copy of encoding/binary.ReadUvarint.
+// This avoids the interface conversion and thus has better escape properties,
+// which flows up the stack.
+func readUvarint(r *strings.Reader) (uint64, error) {
+	var x uint64
+	var s uint
+	for i := 0; i < binary.MaxVarintLen64; i++ {
+		b, err := r.ReadByte()
+		if err != nil {
+			if i > 0 && err == io.EOF {
+				err = io.ErrUnexpectedEOF
+			}
+			return x, err
+		}
+		if b < 0x80 {
+			if i == binary.MaxVarintLen64-1 && b > 1 {
+				return x, overflow
+			}
+			return x | uint64(b)<<s, nil
+		}
+		x |= uint64(b&0x7f) << s
+		s += 7
+	}
+	return x, overflow
+}
+
+var overflow = errors.New("pkgbits: readUvarint overflows a 64-bit integer")
 
 func (r *Decoder) rawVarint() int64 {
 	ux := r.rawUvarint()
