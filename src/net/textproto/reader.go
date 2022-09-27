@@ -42,9 +42,7 @@ func (r *Reader) ReadLine() (string, error) {
 func (r *Reader) ReadLineBytes() ([]byte, error) {
 	line, err := r.readLineSlice()
 	if line != nil {
-		buf := make([]byte, len(line))
-		copy(buf, line)
-		line = buf
+		line = bytes.Clone(line)
 	}
 	return line, err
 }
@@ -111,9 +109,7 @@ func trim(s []byte) []byte {
 func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
 	line, err := r.readContinuedLineSlice(noValidation)
 	if line != nil {
-		buf := make([]byte, len(line))
-		copy(buf, line)
-		line = buf
+		line = bytes.Clone(line)
 	}
 	return line, err
 }
