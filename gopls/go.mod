@@ -13,6 +13,7 @@ require (
 	golang.org/x/text v0.3.7
 	golang.org/x/tools v0.1.13-0.20220928184430-f80e98464e27
 	golang.org/x/vuln v0.0.0-20221004232641-2aa0553d353b
+	gopkg.in/yaml.v3 v3.0.1
 	honnef.co/go/tools v0.3.3
 	mvdan.cc/gofumpt v0.3.1
 	mvdan.cc/xurls/v2 v2.4.0
