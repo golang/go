@@ -60,6 +60,7 @@ func (r *responseDeduper) addAll(dr *driverResponse) {
 	for _, root := range dr.Roots {
 		r.addRoot(root)
 	}
+	r.dr.GoVersion = dr.GoVersion
 }
 
 func (r *responseDeduper) addPackage(p *Package) {
@@ -454,11 +455,14 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 	if err != nil {
 		return nil, err
 	}
+
 	seen := make(map[string]*jsonPackage)
 	pkgs := make(map[string]*Package)
 	additionalErrors := make(map[string][]Error)
 	// Decode the JSON and convert it to Package form.
-	var response driverResponse
+	response := &driverResponse{
+		GoVersion: goVersion,
+	}
 	for dec := json.NewDecoder(buf); dec.More(); {
 		p := new(jsonPackage)
 		if err := dec.Decode(p); err != nil {
@@ -730,7 +734,7 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 	}
 	sort.Slice(response.Packages, func(i, j int) bool { return response.Packages[i].ID < response.Packages[j].ID })
 
-	return &response, nil
+	return response, nil
 }
 
 func (state *golistState) shouldAddFilenameFromError(p *jsonPackage) bool {
@@ -756,6 +760,7 @@ func (state *golistState) shouldAddFilenameFromError(p *jsonPackage) bool {
 	return len(p.Error.ImportStack) == 0 || p.Error.ImportStack[len(p.Error.ImportStack)-1] == p.ImportPath
 }
 
+// getGoVersion returns the effective minor version of the go command.
 func (state *golistState) getGoVersion() (int, error) {
 	state.goVersionOnce.Do(func() {
 		state.goVersion, state.goVersionError = gocommand.GoVersion(state.ctx, state.cfgInvocation(), state.cfg.gocmdRunner)

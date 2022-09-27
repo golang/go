@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -233,6 +234,11 @@ type driverResponse struct {
 	// Imports will be connected and then type and syntax information added in a
 	// later pass (see refine).
 	Packages []*Package
+
+	// GoVersion is the minor version number used by the driver
+	// (e.g. the go command on the PATH) when selecting .go files.
+	// Zero means unknown.
+	GoVersion int
 }
 
 // Load loads and returns the Go packages named by the given patterns.
@@ -256,7 +262,7 @@ func Load(cfg *Config, patterns ...string) ([]*Package, error) {
 		return nil, err
 	}
 	l.sizes = response.Sizes
-	return l.refine(response.Roots, response.Packages...)
+	return l.refine(response)
 }
 
 // defaultDriver is a driver that implements go/packages' fallback behavior.
@@ -532,6 +538,7 @@ type loaderPackage struct {
 	needsrc      bool  // load from source (Mode >= LoadTypes)
 	needtypes    bool  // type information is either requested or depended on
 	initial      bool  // package was matched by a pattern
+	goVersion    int   // minor version number of go command on PATH
 }
 
 // loader holds the working state of a single call to load.
@@ -618,7 +625,8 @@ func newLoader(cfg *Config) *loader {
 
 // refine connects the supplied packages into a graph and then adds type and
 // and syntax information as requested by the LoadMode.
-func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
+func (ld *loader) refine(response *driverResponse) ([]*Package, error) {
+	roots := response.Roots
 	rootMap := make(map[string]int, len(roots))
 	for i, root := range roots {
 		rootMap[root] = i
@@ -626,7 +634,7 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 	ld.pkgs = make(map[string]*loaderPackage)
 	// first pass, fixup and build the map and roots
 	var initial = make([]*loaderPackage, len(roots))
-	for _, pkg := range list {
+	for _, pkg := range response.Packages {
 		rootIndex := -1
 		if i, found := rootMap[pkg.ID]; found {
 			rootIndex = i
@@ -648,6 +656,7 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 			Package:   pkg,
 			needtypes: needtypes,
 			needsrc:   needsrc,
+			goVersion: response.GoVersion,
 		}
 		ld.pkgs[lpkg.ID] = lpkg
 		if rootIndex >= 0 {
@@ -921,6 +930,33 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 		}
 
 		lpkg.Errors = append(lpkg.Errors, errs...)
+	}
+
+	// If the go command on the PATH is newer than the runtime,
+	// then the go/{scanner,ast,parser,types} packages from the
+	// standard library may be unable to process the files
+	// selected by go list.
+	//
+	// There is currently no way to downgrade the effective
+	// version of the go command (see issue 52078), so we proceed
+	// with the newer go command but, in case of parse or type
+	// errors, we emit an additional diagnostic.
+	//
+	// See:
+	// - golang.org/issue/52078 (flag to set release tags)
+	// - golang.org/issue/50825 (gopls legacy version support)
+	// - golang.org/issue/55883 (go/packages confusing error)
+	var runtimeVersion int
+	if _, err := fmt.Sscanf(runtime.Version(), "go1.%d", &runtimeVersion); err == nil && runtimeVersion < lpkg.goVersion {
+		defer func() {
+			if len(lpkg.Errors) > 0 {
+				appendError(Error{
+					Pos:  "-",
+					Msg:  fmt.Sprintf("This application uses version go1.%d of the source-processing packages but runs version go1.%d of 'go list'. It may fail to process source files that rely on newer language features. If so, rebuild the application using a newer version of Go.", runtimeVersion, lpkg.goVersion),
+					Kind: UnknownError,
+				})
+			}
+		}()
 	}
 
 	if ld.Config.Mode&NeedTypes != 0 && len(lpkg.CompiledGoFiles) == 0 && lpkg.ExportFile != "" {
