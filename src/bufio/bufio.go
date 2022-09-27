@@ -454,8 +454,7 @@ func (b *Reader) collectFragments(delim byte) (fullBuffers [][]byte, finalFragme
 		}
 
 		// Make a copy of the buffer.
-		buf := make([]byte, len(frag))
-		copy(buf, frag)
+		buf := bytes.Clone(frag)
 		fullBuffers = append(fullBuffers, buf)
 		totalLen += len(buf)
 	}
