@@ -10,8 +10,6 @@ import (
 	_ "unsafe"
 )
 
-import "C"
-
 var modeflag = flag.String("mode", "", "mode to run in")
 
 func main() {
