@@ -18,6 +18,11 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if !testenv.HasExec() {
+		os.Stdout.WriteString("skipping test: platform cannot exec")
+		os.Exit(0)
+	}
+
 	flag.Parse()
 	for _, c := range contexts {
 		c.Compiler = build.Default.Compiler
