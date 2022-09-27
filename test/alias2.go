@@ -36,9 +36,9 @@ type (
 
 // Methods can be declared on the original named type and the alias.
 func (T0) m1()  {} // GCCGO_ERROR "previous"
-func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|T0\.m1 redeclared in this block|redefinition of .m1."
-func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
-func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
+func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|T0\.m1 already declared|redefinition of .m1."
+func (A0) m1()  {} // ERROR "T0\.m1 already declared|redefinition of .m1."
+func (A0) m1()  {} // ERROR "T0\.m1 already declared|redefinition of .m1."
 func (A0) m2()  {}
 
 // Type aliases and the original type name can be used interchangeably.

@@ -749,8 +749,11 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		// to it must be unique."
 		assert(m.name != "_")
 		if alt := mset.insert(m); alt != nil {
-			check.errorf(m, _DuplicateMethod, "method %s already declared for %s", m.name, obj)
-			check.reportAltDecl(alt)
+			if alt.Pos().IsValid() {
+				check.errorf(m, _DuplicateMethod, "method %s.%s already declared at %s", obj.Name(), m.name, alt.Pos())
+			} else {
+				check.errorf(m, _DuplicateMethod, "method %s.%s already declared", obj.Name(), m.name)
+			}
 			continue
 		}
 
