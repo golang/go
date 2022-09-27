@@ -945,6 +945,30 @@ func TestNoSectionOverlaps(t *testing.T) {
 	}
 }
 
+func TestNobitsSection(t *testing.T) {
+	const testdata = "testdata/gcc-amd64-linux-exec"
+	f, err := Open(testdata)
+	if err != nil {
+		t.Fatalf("could not read %s: %v", testdata, err)
+	}
+	defer f.Close()
+
+	wantError := "unexpected read from SHT_NOBITS section"
+	bss := f.Section(".bss")
+
+	_, err = bss.Data()
+	if err == nil || err.Error() != wantError {
+		t.Fatalf("bss.Data() got error %q, want error %q", err, wantError)
+	}
+
+	r := bss.Open()
+	p := make([]byte, 1)
+	_, err = r.Read(p)
+	if err == nil || err.Error() != wantError {
+		t.Fatalf("r.Read(p) got error %q, want error %q", err, wantError)
+	}
+}
+
 // TestLargeNumberOfSections tests the case that a file has greater than or
 // equal to 65280 (0xff00) sections.
 func TestLargeNumberOfSections(t *testing.T) {

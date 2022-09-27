@@ -102,6 +102,8 @@ type Section struct {
 // Data reads and returns the contents of the ELF section.
 // Even if the section is stored compressed in the ELF file,
 // Data returns uncompressed data.
+//
+// For an SHT_NOBITS section, Data always returns a non-nil error.
 func (s *Section) Data() ([]byte, error) {
 	return saferio.ReadData(s.Open(), s.Size)
 }
@@ -118,9 +120,12 @@ func (f *File) stringTable(link uint32) ([]byte, error) {
 // Open returns a new ReadSeeker reading the ELF section.
 // Even if the section is stored compressed in the ELF file,
 // the ReadSeeker reads uncompressed data.
+//
+// For an SHT_NOBITS section, all calls to the opened reader
+// will return a non-nil error.
 func (s *Section) Open() io.ReadSeeker {
 	if s.Type == SHT_NOBITS {
-		return io.NewSectionReader(&zeroReader{}, 0, int64(s.Size))
+		return io.NewSectionReader(&nobitsSectionReader{}, 0, int64(s.Size))
 	}
 	if s.Flags&SHF_COMPRESSED == 0 {
 		return io.NewSectionReader(s.sr, 0, 1<<63-1)
@@ -1602,11 +1607,8 @@ func (f *File) DynString(tag DynTag) ([]string, error) {
 	return all, nil
 }
 
-type zeroReader struct{}
+type nobitsSectionReader struct{}
 
-func (*zeroReader) ReadAt(p []byte, off int64) (n int, err error) {
-	for i := range p {
-		p[i] = 0
-	}
-	return len(p), nil
+func (*nobitsSectionReader) ReadAt(p []byte, off int64) (n int, err error) {
+	return 0, errors.New("unexpected read from SHT_NOBITS section")
 }
