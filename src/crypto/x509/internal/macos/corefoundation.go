@@ -30,7 +30,7 @@ type CFRef uintptr
 func CFDataToSlice(data CFRef) []byte {
 	length := CFDataGetLength(data)
 	ptr := CFDataGetBytePtr(data)
-	src := (*[1 << 20]byte)(unsafe.Pointer(ptr))[:length:length]
+	src := unsafe.Slice((*byte)(unsafe.Pointer(ptr)), length)
 	out := make([]byte, length)
 	copy(out, src)
 	return out
