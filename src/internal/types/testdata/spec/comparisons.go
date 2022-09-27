@@ -40,10 +40,10 @@ func _() {
 	_ = m /* ERROR map can only be compared to nil */ == m
 	_ = c == c
 
-	_ = b /* ERROR mismatched types */ == nil
-	_ = a /* ERROR mismatched types */ == nil
+	_ = b == nil /* ERROR mismatched types */
+	_ = a == nil /* ERROR mismatched types */
 	_ = l == nil
-	_ = s /* ERROR mismatched types */ == nil
+	_ = s == nil /* ERROR mismatched types */
 	_ = p == nil
 	_ = f == nil
 	_ = i == nil
@@ -96,14 +96,14 @@ func _[
 	_ = m /* ERROR incomparable types in type set */ == m
 	_ = c == c
 
-	_ = b /* ERROR mismatched types */ == nil
-	_ = a /* ERROR mismatched types */ == nil
+	_ = b == nil /* ERROR mismatched types */
+	_ = a == nil /* ERROR mismatched types */
 	_ = l == nil
-	_ = s /* ERROR mismatched types */ == nil
+	_ = s == nil /* ERROR mismatched types */
 	_ = p == nil
 	_ = f == nil
-	_ = i /* ERROR mismatched types */ == nil
-	_ = j /* ERROR mismatched types */ == nil
+	_ = i == nil /* ERROR mismatched types */
+	_ = j == nil /* ERROR mismatched types */
 	_ = m == nil
 	_ = c == nil
 

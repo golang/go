@@ -27,7 +27,7 @@ const (
 	ub1 = true
 	ub2 = 2 < 1
 	ub3 = ui1 == uf1
-	ub4 = true /* ERROR "mismatched types untyped bool and untyped int" */ == 0
+	ub4 = true == 0 /* ERROR "mismatched types untyped bool and untyped int" */
 
 	// integer values
 	ui0 = 0
@@ -110,7 +110,7 @@ const (
 	tb0 bool = false
 	tb1 bool = true
 	tb2 mybool = 2 < 1
-	tb3 mybool = ti1 /* ERROR "mismatched types" */ == tf1
+	tb3 mybool = ti1 == tf1 /* ERROR "mismatched types" */
 
 	// integer values
 	ti0 int8 = ui0

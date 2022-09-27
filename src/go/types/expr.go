@@ -765,11 +765,6 @@ func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool)
 		// know after seeing the 2nd operand whether we have
 		// a type mismatch.
 		errOp = y
-		// For now, if we're not running the compiler, use the
-		// position of x to minimize changes to existing tests.
-		if !compilerErrorMessages {
-			errOp = x
-		}
 		cause = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
 		goto Error
 	}

@@ -10,7 +10,7 @@ func _bool() {
 	const t = true == true
 	const f = true == false
 	_ = t /* ERROR cannot compare */ < f
-	_ = 0 /* ERROR mismatched types untyped int and untyped bool */ == t
+	_ = 0 == t /* ERROR mismatched types untyped int and untyped bool */
 	var b bool
 	var x, y float32
 	b = x < y
@@ -29,7 +29,7 @@ func arrays() {
 	_ = a == b
 	_ = a != b
 	_ = a /* ERROR < not defined */ < b
-	_ = a /* ERROR cannot compare.*mismatched types */ == nil
+	_ = a == nil /* ERROR cannot compare.*mismatched types */
 
 	type C [10]int
 	var c C
@@ -37,7 +37,7 @@ func arrays() {
 
 	type D [10]int
 	var d D
-	_ = c /* ERROR mismatched types */ == d
+	_ = c == d /* ERROR mismatched types */
 
 	var e [10]func() int
 	_ = e /* ERROR \[10\]func\(\) int cannot be compared */ == e
@@ -53,7 +53,7 @@ func structs() {
 	_ = s == t
 	_ = s != t
 	_ = s /* ERROR < not defined */ < t
-	_ = s /* ERROR cannot compare.*mismatched types */ == nil
+	_ = s == nil /* ERROR cannot compare.*mismatched types */
 
 	type S struct {
 		x int
@@ -68,7 +68,7 @@ func structs() {
 	var ss S
 	var tt T
 	_ = s == ss
-	_ = ss /* ERROR mismatched types */ == tt
+	_ = ss == tt /* ERROR mismatched types */
 
 	var u struct {
 		x int
@@ -115,11 +115,11 @@ func pointers() {
 		p2 P2
 	)
 	_ = ps1 == ps1
-	_ = ps1 /* ERROR mismatched types */ == ps2
-	_ = ps2 /* ERROR mismatched types */ == ps1
+	_ = ps1 == ps2 /* ERROR mismatched types */
+	_ = ps2 == ps1 /* ERROR mismatched types */
 
 	_ = p1 == p1
-	_ = p1 /* ERROR mismatched types */ == p2
+	_ = p1 == p2 /* ERROR mismatched types */
 
 	_ = p1 == ps1
 }
@@ -147,13 +147,13 @@ func channels() {
 		c2 C2
 	)
 	_ = c1 == c1
-	_ = c1 /* ERROR mismatched types */ == c1r
-	_ = c1 /* ERROR mismatched types */ == c1s
-	_ = c1r /* ERROR mismatched types */ == c1s
+	_ = c1 == c1r /* ERROR mismatched types */
+	_ = c1 == c1s /* ERROR mismatched types */
+	_ = c1r == c1s /* ERROR mismatched types */
 	_ = c1 == c1a
 	_ = c1a == c1
-	_ = c1 /* ERROR mismatched types */ == c2
-	_ = c1a /* ERROR mismatched types */ == c2
+	_ = c1 == c2 /* ERROR mismatched types */
+	_ = c1a == c2 /* ERROR mismatched types */
 
 	// various element types (unnamed types)
 	var (
@@ -166,11 +166,11 @@ func channels() {
 	_ = d1 == d1
 	_ = d1 == d1r
 	_ = d1 == d1s
-	_ = d1r /* ERROR mismatched types */ == d1s
+	_ = d1r == d1s /* ERROR mismatched types */
 	_ = d1 == d1a
 	_ = d1a == d1
-	_ = d1 /* ERROR mismatched types */ == d2
-	_ = d1a /* ERROR mismatched types */ == d2
+	_ = d1 == d2 /* ERROR mismatched types */
+	_ = d1a == d2 /* ERROR mismatched types */
 }
 
 // for interfaces test
@@ -194,7 +194,7 @@ func interfaces() {
 	var ii interface { m() int; n() }
 	var k interface { m() float32 }
 	_ = i == ii
-	_ = i /* ERROR mismatched types */ == k
+	_ = i == k /* ERROR mismatched types */
 
 	// interfaces vs values
 	var s1 S1
@@ -202,12 +202,12 @@ func interfaces() {
 	var s2 S2
 
 	_ = i == 0 /* ERROR cannot convert */
-	_ = i /* ERROR mismatched types */ == s1
+	_ = i == s1 /* ERROR mismatched types */
 	_ = i == &s1
 	_ = i == &s11
 
-	_ = i /* ERROR mismatched types */ == s2
-	_ = i /* ERROR mismatched types */ == &s2
+	_ = i == s2 /* ERROR mismatched types */
+	_ = i == & /* ERROR mismatched types */ s2
 
 	// issue #28164
 	// testcase from issue
