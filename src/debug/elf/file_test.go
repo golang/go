@@ -9,6 +9,7 @@ import (
 	"compress/gzip"
 	"debug/dwarf"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
