@@ -80,21 +80,15 @@ type EndElement struct {
 // the characters they represent.
 type CharData []byte
 
-func makeCopy(b []byte) []byte {
-	b1 := make([]byte, len(b))
-	copy(b1, b)
-	return b1
-}
-
 // Copy creates a new copy of CharData.
-func (c CharData) Copy() CharData { return CharData(makeCopy(c)) }
+func (c CharData) Copy() CharData { return CharData(bytes.Clone(c)) }
 
 // A Comment represents an XML comment of the form <!--comment-->.
 // The bytes do not include the <!-- and --> comment markers.
 type Comment []byte
 
 // Copy creates a new copy of Comment.
-func (c Comment) Copy() Comment { return Comment(makeCopy(c)) }
+func (c Comment) Copy() Comment { return Comment(bytes.Clone(c)) }
 
 // A ProcInst represents an XML processing instruction of the form <?target inst?>
 type ProcInst struct {
@@ -104,7 +98,7 @@ type ProcInst struct {
 
 // Copy creates a new copy of ProcInst.
 func (p ProcInst) Copy() ProcInst {
-	p.Inst = makeCopy(p.Inst)
+	p.Inst = bytes.Clone(p.Inst)
 	return p
 }
 
@@ -113,7 +107,7 @@ func (p ProcInst) Copy() ProcInst {
 type Directive []byte
 
 // Copy creates a new copy of Directive.
-func (d Directive) Copy() Directive { return Directive(makeCopy(d)) }
+func (d Directive) Copy() Directive { return Directive(bytes.Clone(d)) }
 
 // CopyToken returns a copy of a Token.
 func CopyToken(t Token) Token {
