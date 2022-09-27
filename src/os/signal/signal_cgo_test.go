@@ -89,7 +89,7 @@ func TestTerminalSignal(t *testing.T) {
 	// Start an interactive shell.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bash, "--norc", "--noprofile", "-i")
+	cmd := exec.CommandContext(ctx, bash, "--norc", "--noprofile", "--noediting", "-i")
 	// Clear HISTFILE so that we don't read or clobber the user's bash history.
 	cmd.Env = append(os.Environ(), "HISTFILE=")
 	cmd.Stdin = procTTY
