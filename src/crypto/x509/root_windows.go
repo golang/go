@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"bytes"
 	"errors"
 	"syscall"
 	"unsafe"
@@ -76,8 +77,7 @@ func extractSimpleChain(simpleChain **syscall.CertSimpleChain, count int) (chain
 		// Copy the buf, since ParseCertificate does not create its own copy.
 		cert := elements[i].CertContext
 		encodedCert := unsafe.Slice(cert.EncodedCert, cert.Length)
-		buf := make([]byte, cert.Length)
-		copy(buf, encodedCert)
+		buf := bytes.Clone(encodedCert)
 		parsedCert, err := ParseCertificate(buf)
 		if err != nil {
 			return nil, err

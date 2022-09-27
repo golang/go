@@ -72,9 +72,7 @@ func (priv PrivateKey) Equal(x crypto.PrivateKey) bool {
 // interoperability with RFC 8032. RFC 8032's private keys correspond to seeds
 // in this package.
 func (priv PrivateKey) Seed() []byte {
-	seed := make([]byte, SeedSize)
-	copy(seed, priv[:32])
-	return seed
+	return bytes.Clone(priv[:SeedSize])
 }
 
 // Sign signs the given message with priv.

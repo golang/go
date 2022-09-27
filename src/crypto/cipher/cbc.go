@@ -12,6 +12,7 @@
 package cipher
 
 import (
+	"bytes"
 	"crypto/internal/alias"
 	"crypto/subtle"
 )
@@ -27,7 +28,7 @@ func newCBC(b Block, iv []byte) *cbc {
 	return &cbc{
 		b:         b,
 		blockSize: b.BlockSize(),
-		iv:        dup(iv),
+		iv:        bytes.Clone(iv),
 		tmp:       make([]byte, b.BlockSize()),
 	}
 }

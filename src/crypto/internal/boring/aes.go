@@ -44,6 +44,7 @@ int EVP_AEAD_CTX_open_wrapper(const GO_EVP_AEAD_CTX *ctx, uint8_t *out,
 */
 import "C"
 import (
+	"bytes"
 	"crypto/cipher"
 	"errors"
 	"runtime"
@@ -76,8 +77,7 @@ type extraModes interface {
 var _ extraModes = (*aesCipher)(nil)
 
 func NewAESCipher(key []byte) (cipher.Block, error) {
-	c := &aesCipher{key: make([]byte, len(key))}
-	copy(c.key, key)
+	c := &aesCipher{key: bytes.Clone(key)}
 	// Note: 0 is success, contradicting the usual BoringCrypto convention.
 	if C._goboringcrypto_AES_set_decrypt_key((*C.uint8_t)(unsafe.Pointer(&c.key[0])), C.uint(8*len(c.key)), &c.dec) != 0 ||
 		C._goboringcrypto_AES_set_encrypt_key((*C.uint8_t)(unsafe.Pointer(&c.key[0])), C.uint(8*len(c.key)), &c.enc) != 0 {

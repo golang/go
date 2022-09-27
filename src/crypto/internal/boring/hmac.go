@@ -9,6 +9,7 @@ package boring
 // #include "goboringcrypto.h"
 import "C"
 import (
+	"bytes"
 	"crypto"
 	"hash"
 	"runtime"
@@ -67,8 +68,7 @@ func NewHMAC(h func() hash.Hash, key []byte) hash.Hash {
 	}
 
 	// Note: Could hash down long keys here using EVP_Digest.
-	hkey := make([]byte, len(key))
-	copy(hkey, key)
+	hkey := bytes.Clone(key)
 	hmac := &boringHMAC{
 		md:        md,
 		size:      ch.Size(),

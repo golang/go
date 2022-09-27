@@ -10,6 +10,7 @@
 package macOS
 
 import (
+	"bytes"
 	"errors"
 	"internal/abi"
 	"runtime"
@@ -31,9 +32,7 @@ func CFDataToSlice(data CFRef) []byte {
 	length := CFDataGetLength(data)
 	ptr := CFDataGetBytePtr(data)
 	src := unsafe.Slice((*byte)(unsafe.Pointer(ptr)), length)
-	out := make([]byte, length)
-	copy(out, src)
-	return out
+	return bytes.Clone(src)
 }
 
 // CFStringToString returns a Go string representation of the passed

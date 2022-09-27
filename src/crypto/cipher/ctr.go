@@ -13,6 +13,7 @@
 package cipher
 
 import (
+	"bytes"
 	"crypto/internal/alias"
 	"crypto/subtle"
 )
@@ -48,7 +49,7 @@ func NewCTR(block Block, iv []byte) Stream {
 	}
 	return &ctr{
 		b:       block,
-		ctr:     dup(iv),
+		ctr:     bytes.Clone(iv),
 		out:     make([]byte, 0, bufSize),
 		outUsed: 0,
 	}
