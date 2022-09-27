@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/go/analysis/passes/assign"
 	"golang.org/x/tools/go/analysis/passes/findcall"
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/unitchecker"
@@ -41,6 +42,7 @@ func main() {
 	unitchecker.Main(
 		findcall.Analyzer,
 		printf.Analyzer,
+		assign.Analyzer,
 	)
 }
 
@@ -75,6 +77,13 @@ func _() {
 
 func MyFunc123() {}
 `,
+			"c/c.go": `package c
+
+func _() {
+    i := 5
+    i = i
+}
+`,
 		}}})
 	defer exported.Cleanup()
 
@@ -85,19 +94,59 @@ func MyFunc123() {}
 ([/._\-a-zA-Z0-9]+[\\/]fake[\\/])?b/b.go:6:13: call of MyFunc123\(...\)
 ([/._\-a-zA-Z0-9]+[\\/]fake[\\/])?b/b.go:7:11: call of MyFunc123\(...\)
 `
+	const wantC = `# golang.org/fake/c
+([/._\-a-zA-Z0-9]+[\\/]fake[\\/])?c/c.go:5:5: self-assignment of i to i
+`
 	const wantAJSON = `# golang.org/fake/a
 \{
 	"golang.org/fake/a": \{
 		"findcall": \[
 			\{
 				"posn": "([/._\-a-zA-Z0-9]+[\\/]fake[\\/])?a/a.go:4:11",
-				"message": "call of MyFunc123\(...\)"
+				"message": "call of MyFunc123\(...\)",
+				"suggested_fixes": \[
+					\{
+						"message": "Add '_TEST_'",
+						"edits": \[
+							\{
+								"filename": "([/._\-a-zA-Z0-9]+[\\/]fake[\\/])?a/a.go",
+								"start": 32,
+								"end": 32,
+								"new": "_TEST_"
+							\}
+						\]
+					\}
+				\]
 			\}
 		\]
 	\}
 \}
 `
-
+	const wantCJSON = `# golang.org/fake/c
+\{
+	"golang.org/fake/c": \{
+		"assign": \[
+			\{
+				"posn": "([/._\-a-zA-Z0-9]+[\\/]fake[\\/])?c/c.go:5:5",
+				"message": "self-assignment of i to i",
+				"suggested_fixes": \[
+					\{
+						"message": "Remove",
+						"edits": \[
+							\{
+								"filename": "([/._\-a-zA-Z0-9]+[\\/]fake[\\/])?c/c.go",
+								"start": 37,
+								"end": 42,
+								"new": ""
+							\}
+						\]
+					\}
+				\]
+			\}
+		\]
+	\}
+\}
+`
 	for _, test := range []struct {
 		args     string
 		wantOut  string
@@ -105,8 +154,10 @@ func MyFunc123() {}
 	}{
 		{args: "golang.org/fake/a", wantOut: wantA, wantExit: 2},
 		{args: "golang.org/fake/b", wantOut: wantB, wantExit: 2},
+		{args: "golang.org/fake/c", wantOut: wantC, wantExit: 2},
 		{args: "golang.org/fake/a golang.org/fake/b", wantOut: wantA + wantB, wantExit: 2},
 		{args: "-json golang.org/fake/a", wantOut: wantAJSON, wantExit: 0},
+		{args: "-json golang.org/fake/c", wantOut: wantCJSON, wantExit: 0},
 		{args: "-c=0 golang.org/fake/a", wantOut: wantA + "4		MyFunc123\\(\\)\n", wantExit: 2},
 	} {
 		cmd := exec.Command("go", "vet", "-vettool="+os.Args[0], "-findcall.name=MyFunc123")
@@ -125,7 +176,7 @@ func MyFunc123() {}
 
 		matched, err := regexp.Match(test.wantOut, out)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("regexp.Match(<<%s>>): %v", test.wantOut, err)
 		}
 		if !matched {
 			t.Errorf("%s: got <<%s>>, want match of regexp <<%s>>", test.args, out, test.wantOut)
