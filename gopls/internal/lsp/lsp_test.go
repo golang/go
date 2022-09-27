@@ -223,9 +223,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 	v := r.server.session.View(r.data.Config.Dir)
 	r.collectDiagnostics(v)
 	got := append([]*source.Diagnostic(nil), r.diagnostics[uri]...) // copy
-	if diff := tests.DiffDiagnostics(uri, want, got); diff != "" {
-		t.Error(diff)
-	}
+	tests.CompareDiagnostics(t, uri, want, got)
 }
 
 func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
@@ -416,8 +414,8 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 		t.Error(err)
 	}
 	got := diff.ApplyEdits(string(m.Content), sedits)
-	if gofmted != got {
-		t.Errorf("format failed for %s, expected:\n%v\ngot:\n%v", filename, gofmted, got)
+	if diff := compare.Text(gofmted, got); diff != "" {
+		t.Errorf("format failed for %s (-want +got):\n%s", filename, diff)
 	}
 }
 

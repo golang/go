@@ -34,15 +34,18 @@ var Analyzer = &analysis.Analyzer{
 
 type fixesForError map[types.Error][]analysis.SuggestedFix
 
-const unusedVariableSuffix = " declared but not used"
+// The suffix for this error message changed in Go 1.20.
+var unusedVariableSuffixes = []string{" declared and not used", " declared but not used"}
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	for _, typeErr := range analysisinternal.GetTypeErrors(pass) {
-		if strings.HasSuffix(typeErr.Msg, unusedVariableSuffix) {
-			varName := strings.TrimSuffix(typeErr.Msg, unusedVariableSuffix)
-			err := runForError(pass, typeErr, varName)
-			if err != nil {
-				return nil, err
+		for _, suffix := range unusedVariableSuffixes {
+			if strings.HasSuffix(typeErr.Msg, suffix) {
+				varName := strings.TrimSuffix(typeErr.Msg, suffix)
+				err := runForError(pass, typeErr, varName)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}

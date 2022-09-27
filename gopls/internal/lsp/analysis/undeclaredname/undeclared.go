@@ -45,6 +45,7 @@ var Analyzer = &analysis.Analyzer{
 	RunDespiteErrors: true,
 }
 
+// The prefix for this error message changed in Go 1.20.
 var undeclaredNamePrefixes = []string{"undeclared name: ", "undefined: "}
 
 func run(pass *analysis.Pass) (interface{}, error) {

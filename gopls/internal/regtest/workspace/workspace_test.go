@@ -1215,7 +1215,7 @@ import (
 		env.Await(
 			OnceMet(
 				env.DoneWithOpen(),
-				env.DiagnosticAtRegexpWithMessage("a/main.go", "V", "declared but not used"),
+				env.DiagnosticAtRegexpWithMessage("a/main.go", "V", "not used"),
 			),
 		)
 		env.CloseBuffer("a/main.go")

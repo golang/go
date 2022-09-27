@@ -156,9 +156,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := tests.DiffDiagnostics(fileID.URI, want, got); diff != "" {
-		t.Error(diff)
-	}
+	tests.CompareDiagnostics(t, fileID.URI, want, got)
 }
 
 func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {

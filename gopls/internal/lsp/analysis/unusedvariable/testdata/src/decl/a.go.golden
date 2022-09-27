@@ -5,7 +5,7 @@
 package decl
 
 func a() {
-	var c bool // want `b declared but not used`
+	var c bool // want `b declared (and|but) not used`
 	panic(c)
 
 	if 1 == 1 {

@@ -5,17 +5,17 @@
 package decl
 
 func a() {
-	var b, c bool // want `b declared but not used`
+	var b, c bool // want `b declared (and|but) not used`
 	panic(c)
 
 	if 1 == 1 {
-		var s string // want `s declared but not used`
+		var s string // want `s declared (and|but) not used`
 	}
 }
 
 func b() {
 	// b is a variable
-	var b bool // want `b declared but not used`
+	var b bool // want `b declared (and|but) not used`
 }
 
 func c() {
@@ -23,7 +23,7 @@ func c() {
 		d string
 
 		// some comment for c
-		c bool // want `c declared but not used`
+		c bool // want `c declared (and|but) not used`
 	)
 
 	panic(d)

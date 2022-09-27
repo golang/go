@@ -59,7 +59,5 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 		diag.Severity = 0
 	}
 
-	if diff := tests.DiffDiagnostics(uri, want, got); diff != "" {
-		t.Error(diff)
-	}
+	tests.CompareDiagnostics(t, uri, want, got)
 }

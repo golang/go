@@ -9,7 +9,7 @@ func stuff() { //@item(stuff, "stuff", "func()", "func")
 	x := "heeeeyyyy"
 	random2(x) //@diag("x", "compiler", "cannot use x \\(variable of type string\\) as int value in argument to random2", "error")
 	random2(1) //@complete("dom", random, random2, random3)
-	y := 3     //@diag("y", "compiler", "y declared but not used", "error")
+	y := 3     //@diag("y", "compiler", "y declared (and|but) not used", "error")
 }
 
 type bob struct { //@item(bob, "bob", "struct{...}", "struct")

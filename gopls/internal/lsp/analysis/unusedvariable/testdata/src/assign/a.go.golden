@@ -24,26 +24,26 @@ func noOtherStmtsInBlock() {
 }
 
 func partOfMultiAssignment() {
-	_, err := os.Open("file") // want `f declared but not used`
+	_, err := os.Open("file") // want `f declared (and|but) not used`
 	panic(err)
 }
 
 func sideEffects(cBool chan bool, cInt chan int) {
-	<-c            // want `b declared but not used`
-	fmt.Sprint("") // want `s declared but not used`
-	A{             // want `a declared but not used`
+	<-c            // want `b declared (and|but) not used`
+	fmt.Sprint("") // want `s declared (and|but) not used`
+	A{             // want `a declared (and|but) not used`
 		b: func() int {
 			return 1
 		}(),
 	}
-	A{<-cInt}          // want `c declared but not used`
-	fInt() + <-cInt    // want `d declared but not used`
-	fBool() && <-cBool // want `e declared but not used`
-	map[int]int{       // want `f declared but not used`
+	A{<-cInt}          // want `c declared (and|but) not used`
+	fInt() + <-cInt    // want `d declared (and|but) not used`
+	fBool() && <-cBool // want `e declared (and|but) not used`
+	map[int]int{       // want `f declared (and|but) not used`
 		fInt(): <-cInt,
 	}
-	[]int{<-cInt}       // want `g declared but not used`
-	func(s string) {}() // want `i declared but not used`
+	[]int{<-cInt}       // want `g declared (and|but) not used`
+	func(s string) {}() // want `i declared (and|but) not used`
 }
 
 func commentAbove() {
