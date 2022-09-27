@@ -1095,14 +1095,16 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 			}
 			topPrefix = zf.Name[:i+1]
 		}
-		if !strings.HasPrefix(zf.Name, topPrefix) {
+		var name string
+		var found bool
+		if name, found = strings.CutPrefix(zf.Name, topPrefix); !found {
 			return fmt.Errorf("zip file contains more than one top-level directory")
 		}
-		name := strings.TrimPrefix(zf.Name, topPrefix)
-		if !strings.HasPrefix(name, subdir) {
+
+		if name, found = strings.CutPrefix(name, subdir); !found {
 			continue
 		}
-		name = strings.TrimPrefix(name, subdir)
+
 		if name == "" || strings.HasSuffix(name, "/") {
 			continue
 		}

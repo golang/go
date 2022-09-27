@@ -453,8 +453,8 @@ func printEnvAsJSON(env []cfg.EnvVar) {
 
 func getOrigEnv(key string) string {
 	for _, v := range cfg.OrigEnv {
-		if strings.HasPrefix(v, key+"=") {
-			return strings.TrimPrefix(v, key+"=")
+		if v, found := strings.CutPrefix(v, key+"="); found {
+			return v
 		}
 	}
 	return ""

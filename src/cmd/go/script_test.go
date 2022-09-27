@@ -448,8 +448,7 @@ Script:
 					}).(bool)
 					break
 				}
-				if strings.HasPrefix(cond.tag, "GODEBUG:") {
-					value := strings.TrimPrefix(cond.tag, "GODEBUG:")
+				if value, found := strings.CutPrefix(cond.tag, "GODEBUG:"); found {
 					parts := strings.Split(os.Getenv("GODEBUG"), ",")
 					for _, p := range parts {
 						if strings.TrimSpace(p) == value {
@@ -459,8 +458,7 @@ Script:
 					}
 					break
 				}
-				if strings.HasPrefix(cond.tag, "buildmode:") {
-					value := strings.TrimPrefix(cond.tag, "buildmode:")
+				if value, found := strings.CutPrefix(cond.tag, "buildmode:"); found {
 					ok = sys.BuildModeSupported(runtime.Compiler, value, runtime.GOOS, runtime.GOARCH)
 					break
 				}

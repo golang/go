@@ -548,13 +548,12 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 		modRoot := MainModules.ModRoot(mainModule)
 		if modRoot != "" && strings.HasPrefix(absDir, modRoot+string(filepath.Separator)) && !strings.Contains(absDir[len(modRoot):], "@") {
 			suffix := filepath.ToSlash(absDir[len(modRoot):])
-			if strings.HasPrefix(suffix, "/vendor/") {
+			if pkg, found := strings.CutPrefix(suffix, "/vendor/"); found {
 				if cfg.BuildMod != "vendor" {
 					return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
 				}
 
 				readVendorList(mainModule)
-				pkg := strings.TrimPrefix(suffix, "/vendor/")
 				if _, ok := vendorPkgModule[pkg]; !ok {
 					return "", fmt.Errorf("directory %s is not a package listed in vendor/modules.txt", absDir)
 				}

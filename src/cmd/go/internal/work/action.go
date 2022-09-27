@@ -372,8 +372,8 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 		scanner := bufio.NewScanner(bytes.NewBuffer(data))
 		for scanner.Scan() {
 			t := scanner.Text()
-			if strings.HasPrefix(t, "pkgpath ") {
-				t = strings.TrimPrefix(t, "pkgpath ")
+			var found bool
+			if t, found = strings.CutPrefix(t, "pkgpath "); found {
 				t = strings.TrimSuffix(t, ";")
 				pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd(), nil, &stk, nil, 0))
 			}
