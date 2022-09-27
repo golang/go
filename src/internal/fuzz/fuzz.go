@@ -8,6 +8,7 @@
 package fuzz
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -775,8 +776,7 @@ func (c *coordinator) peekInput() (fuzzInput, bool) {
 		warmup:  c.warmupRun(),
 	}
 	if c.coverageMask != nil {
-		input.coverageData = make([]byte, len(c.coverageMask))
-		copy(input.coverageData, c.coverageMask)
+		input.coverageData = bytes.Clone(c.coverageMask)
 	}
 	if input.warmup {
 		// No fuzzing will occur, but it should count toward the limit set by

@@ -9,6 +9,7 @@ package encodemeta
 // instrumentation is turned on.
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
@@ -82,8 +83,7 @@ func (b *CoverageMetaDataBuilder) AddFunc(f coverage.FuncDesc) uint {
 		lit = 1
 	}
 	b.tmp = uleb128.AppendUleb128(b.tmp, lit)
-	fd.encoded = make([]byte, len(b.tmp))
-	copy(fd.encoded, b.tmp)
+	fd.encoded = bytes.Clone(b.tmp)
 	rv := uint(len(b.funcs))
 	b.funcs = append(b.funcs, fd)
 	return rv

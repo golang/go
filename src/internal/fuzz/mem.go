@@ -5,6 +5,7 @@
 package fuzz
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"unsafe"
@@ -102,9 +103,7 @@ func (m *sharedMem) valueRef() []byte {
 // valueCopy returns a copy of the value stored in shared memory.
 func (m *sharedMem) valueCopy() []byte {
 	ref := m.valueRef()
-	b := make([]byte, len(ref))
-	copy(b, ref)
-	return b
+	return bytes.Clone(ref)
 }
 
 // setValue copies the data in b into the shared memory buffer and sets
