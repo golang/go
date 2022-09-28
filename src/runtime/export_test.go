@@ -540,6 +540,10 @@ func Getg() *G {
 	return getg()
 }
 
+func Goid() uint64 {
+	return getg().goid
+}
+
 func GIsWaitingOnMutex(gp *G) bool {
 	return readgstatus(gp) == _Gwaiting && gp.waitreason.isMutexWait()
 }

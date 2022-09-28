@@ -6,9 +6,12 @@ package runtime_test
 
 import (
 	"bytes"
+	"fmt"
 	"internal/abi"
 	"internal/testenv"
 	"runtime"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -419,4 +422,24 @@ func testTracebackArgs11b(a, b, c, d int32) int {
 //go:noinline
 func poisonStack() [20]int {
 	return [20]int{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
+}
+
+func TestTracebackParentChildGoroutines(t *testing.T) {
+	parent := fmt.Sprintf("goroutine %d", runtime.Goid())
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		buf := make([]byte, 1<<10)
+		// We collect the stack only for this goroutine (by passing
+		// false to runtime.Stack). We expect to see the current
+		// goroutine ID, and the parent goroutine ID in a message like
+		// "created by ... in goroutine N".
+		stack := string(buf[:runtime.Stack(buf, false)])
+		child := fmt.Sprintf("goroutine %d", runtime.Goid())
+		if !strings.Contains(stack, parent) || !strings.Contains(stack, child) {
+			t.Errorf("did not see parent (%s) and child (%s) IDs in stack, got %s", parent, child, stack)
+		}
+	}()
+	wg.Wait()
 }
