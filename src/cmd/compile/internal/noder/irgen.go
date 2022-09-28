@@ -43,10 +43,9 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 		packages: make(map[string]*types2.Package),
 	}
 	conf := types2.Config{
-		Context:               ctxt,
-		GoVersion:             base.Flag.Lang,
-		IgnoreBranchErrors:    true, // parser already checked via syntax.CheckBranches mode
-		CompilerErrorMessages: true, // use error strings matching existing compiler errors
+		Context:            ctxt,
+		GoVersion:          base.Flag.Lang,
+		IgnoreBranchErrors: true, // parser already checked via syntax.CheckBranches mode
 		Error: func(err error) {
 			terr := err.(types2.Error)
 			msg := terr.Msg
