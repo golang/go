@@ -642,7 +642,6 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 			defer ff.Close()
 			dd, err := ff.Stat()
 			if err == nil {
-				name = index
 				d = dd
 				f = ff
 			}
