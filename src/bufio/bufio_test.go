@@ -746,7 +746,7 @@ func TestNewWriterSizeIdempotent(t *testing.T) {
 
 func TestWriteString(t *testing.T) {
 	const BufSize = 8
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	b := NewWriterSize(buf, BufSize)
 	b.WriteString("0")                         // easy
 	b.WriteString("123456")                    // still easy
@@ -757,8 +757,8 @@ func TestWriteString(t *testing.T) {
 		t.Error("WriteString", err)
 	}
 	s := "01234567890abcdefghijklmnopqrstuvwxyz"
-	if string(buf.Bytes()) != s {
-		t.Errorf("WriteString wants %q gets %q", s, string(buf.Bytes()))
+	if buf.String() != s {
+		t.Errorf("WriteString wants %q gets %q", s, buf.String())
 	}
 }
 
@@ -1389,7 +1389,7 @@ func TestWriterReadFromUntilEOF(t *testing.T) {
 		t.Fatalf("ReadFrom returned (%v, %v), want (4, nil)", n2, err)
 	}
 	w.Flush()
-	if got, want := string(buf.Bytes()), "0123abcd"; got != want {
+	if got, want := buf.String(), "0123abcd"; got != want {
 		t.Fatalf("buf.Bytes() returned %q, want %q", got, want)
 	}
 }
