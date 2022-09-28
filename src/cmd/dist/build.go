@@ -1427,10 +1427,6 @@ func cmdbootstrap() {
 		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
 	}
 	targets := []string{"std", "cmd"}
-	if goos == "js" && goarch == "wasm" {
-		// Skip the cmd tools for js/wasm. They're not usable.
-		targets = targets[:1]
-	}
 	goInstall(goBootstrap, targets...)
 	checkNotStale(goBootstrap, targets...)
 	checkNotStale(cmdGo, targets...)

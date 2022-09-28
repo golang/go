@@ -162,11 +162,7 @@ func (t *tester) run() {
 			// Instead, we can just check that it is not stale, which may be less
 			// expensive (and is also more likely to catch bugs in the builder
 			// implementation).
-			willTest := []string{"std"}
-			if t.shouldTestCmd() {
-				willTest = append(willTest, "cmd")
-			}
-			checkNotStale("go", willTest...)
+			checkNotStale("go", "std", "cmd")
 		}
 	}
 
@@ -490,10 +486,7 @@ func (t *tester) registerTests() {
 		if t.race {
 			cmd.Args = append(cmd.Args, "-tags=race")
 		}
-		cmd.Args = append(cmd.Args, "std")
-		if t.shouldTestCmd() {
-			cmd.Args = append(cmd.Args, "cmd")
-		}
+		cmd.Args = append(cmd.Args, "std", "cmd")
 		cmd.Stderr = new(bytes.Buffer)
 		all, err := cmd.Output()
 		if err != nil {
@@ -1680,14 +1673,6 @@ func (t *tester) shouldUsePrecompiledStdTest() bool {
 	}
 	_, err := os.Stat(bin)
 	return err == nil
-}
-
-func (t *tester) shouldTestCmd() bool {
-	if goos == "js" && goarch == "wasm" {
-		// Issues 25911, 35220
-		return false
-	}
-	return true
 }
 
 // prebuiltGoPackageTestBinary returns the path where we'd expect
