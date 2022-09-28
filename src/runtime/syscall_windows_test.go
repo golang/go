@@ -5,7 +5,6 @@
 package runtime_test
 
 import (
-	"bytes"
 	"fmt"
 	"internal/abi"
 	"internal/syscall/windows/sysdll"
@@ -1044,7 +1043,7 @@ func TestNumCPU(t *testing.T) {
 
 	cmd := exec.Command(os.Args[0], "-test.run=TestNumCPU")
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
-	var buf bytes.Buffer
+	var buf strings.Builder
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: _CREATE_SUSPENDED}
@@ -1054,7 +1053,7 @@ func TestNumCPU(t *testing.T) {
 	}
 	defer func() {
 		err = cmd.Wait()
-		childOutput := string(buf.Bytes())
+		childOutput := buf.String()
 		if err != nil {
 			t.Fatalf("child failed: %v: %v", err, childOutput)
 		}
