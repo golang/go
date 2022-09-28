@@ -238,9 +238,16 @@ type Cmd struct {
 	// These should be closed when Wait completes.
 	userPipes []io.Closer
 
-	goroutine     []func() error
-	goroutineErrs <-chan error // one receive per goroutine
-	ctxErr        <-chan error // if non nil, receives the error from watchCtx exactly once
+	// goroutine holds a set of closures to execute to copy data
+	// to and/or from the command's I/O pipes.
+	goroutine []func() error
+
+	// If goroutineErr is non-nil, it receives the first error from a copying
+	// goroutine once all such goroutines have completed.
+	// goroutineErr is set to nil once its error has been received.
+	goroutineErr <-chan error
+
+	ctxErr <-chan error // if non nil, receives the error from watchCtx exactly once
 
 	// For a security release long ago, we created x/sys/execabs,
 	// which manipulated the unexported lookPathErr error field
@@ -567,20 +574,68 @@ func (c *Cmd) Start() error {
 	}
 	started = true
 
-	// Don't allocate the goroutineErrs channel unless there are goroutines to fire.
+	// Don't allocate the goroutineErr channel unless there are goroutines to start.
 	if len(c.goroutine) > 0 {
-		errc := make(chan error, len(c.goroutine))
-		c.goroutineErrs = errc
+		goroutineErr := make(chan error, 1)
+		c.goroutineErr = goroutineErr
+
+		type goroutineStatus struct {
+			running  int
+			firstErr error
+		}
+		statusc := make(chan goroutineStatus, 1)
+		statusc <- goroutineStatus{running: len(c.goroutine)}
 		for _, fn := range c.goroutine {
 			go func(fn func() error) {
-				errc <- fn()
+				err := fn()
+
+				status := <-statusc
+				if status.firstErr == nil {
+					status.firstErr = err
+				}
+				status.running--
+				if status.running == 0 {
+					goroutineErr <- status.firstErr
+				} else {
+					statusc <- status
+				}
 			}(fn)
 		}
+		c.goroutine = nil // Allow the goroutines' closures to be GC'd when they complete.
 	}
 
-	c.ctxErr = c.watchCtx()
+	if c.ctx != nil && c.ctx.Done() != nil {
+		errc := make(chan error)
+		c.ctxErr = errc
+		go c.watchCtx(errc)
+	}
 
 	return nil
+}
+
+// watchCtx watches c.ctx until it is able to send a result to errc.
+//
+// If c.ctx is done before a result can be sent, watchCtx terminates c.Process.
+func (c *Cmd) watchCtx(errc chan<- error) {
+	select {
+	case errc <- nil:
+		return
+	case <-c.ctx.Done():
+	}
+
+	var err error
+	if killErr := c.Process.Kill(); killErr == nil {
+		// We appear to have killed the process. c.Process.Wait should return a
+		// non-nil error to c.Wait unless the Kill signal races with a successful
+		// exit, and if that does happen we shouldn't report a spurious error,
+		// so don't set err to anything here.
+	} else if !errors.Is(killErr, os.ErrProcessDone) {
+		err = wrappedError{
+			prefix: "exec: error sending signal to Cmd",
+			err:    killErr,
+		}
+	}
+	errc <- err
 }
 
 // An ExitError reports an unsuccessful exit by a command.
@@ -628,77 +683,38 @@ func (c *Cmd) Wait() error {
 	if c.ProcessState != nil {
 		return errors.New("exec: Wait was already called")
 	}
+
 	state, err := c.Process.Wait()
 	if err == nil && !state.Success() {
 		err = &ExitError{ProcessState: state}
 	}
 	c.ProcessState = state
 
-	// Wait for the pipe-copying goroutines to complete.
-	var copyError error
-	for range c.goroutine {
-		if err := <-c.goroutineErrs; err != nil && copyError == nil {
-			copyError = err
-		}
-	}
-	c.goroutine = nil      // Allow the goroutines' closures to be GC'd.
-	c.goroutinePipes = nil // Already closed by their respective goroutines.
-
 	if c.ctxErr != nil {
 		interruptErr := <-c.ctxErr
 		// If c.Process.Wait returned an error, prefer that.
 		// Otherwise, report any error from the interrupt goroutine.
-		if interruptErr != nil && err == nil {
+		if err == nil {
 			err = interruptErr
 		}
 	}
-	// Report errors from the copying goroutines only if the program otherwise
-	// exited normally on its own. Otherwise, the copying error may be due to the
-	// abnormal termination.
-	if err == nil {
-		err = copyError
+
+	// Wait for the pipe-copying goroutines to complete.
+	if c.goroutineErr != nil {
+		// Report an error from the copying goroutines only if the program otherwise
+		// exited normally on its own. Otherwise, the copying error may be due to the
+		// abnormal termination.
+		copyErr := <-c.goroutineErr
+		if err == nil {
+			err = copyErr
+		}
 	}
+	c.goroutinePipes = nil // Already closed by their respective goroutines.
 
 	c.closeDescriptors(c.userPipes)
 	c.userPipes = nil
 
 	return err
-}
-
-// watchCtx conditionally starts a goroutine that waits until either c.ctx is
-// done or c.Process.Wait has completed (called from Wait).
-// If c.ctx is done first, the goroutine terminates c.Process.
-//
-// If a goroutine was started, watchCtx returns a channel on which its result
-// must be received.
-func (c *Cmd) watchCtx() <-chan error {
-	if c.ctx == nil {
-		return nil
-	}
-
-	errc := make(chan error)
-	go func() {
-		select {
-		case errc <- nil:
-			return
-		case <-c.ctx.Done():
-		}
-
-		var err error
-		if killErr := c.Process.Kill(); killErr == nil {
-			// We appear to have successfully delivered a kill signal, so any
-			// program behavior from this point may be due to ctx.
-			err = c.ctx.Err()
-		} else if !errors.Is(killErr, os.ErrProcessDone) {
-			err = wrappedError{
-				prefix: "exec: error sending signal to Cmd",
-				err:    killErr,
-			}
-		}
-		errc <- err
-	}()
-
-	return errc
 }
 
 // Output runs the command and returns its standard output.
