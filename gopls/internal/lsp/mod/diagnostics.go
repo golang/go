@@ -222,7 +222,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 				Code:     v.ID,
 				CodeHref: v.URL,
 				// TODO(suzmue): replace the newlines in v.Details to allow the editor to handle formatting.
-				Message:        v.Details,
+				Message:        fmt.Sprintf("%s has a known vulnerability: %s", v.ModPath, v.Details),
 				SuggestedFixes: fixes,
 			})
 		}
