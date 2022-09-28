@@ -13,11 +13,11 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"golang.org/x/tools/gopls/internal/lsp/progress"
+	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/gopls/internal/lsp/progress"
-	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/persistent"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
@@ -120,26 +120,31 @@ func (c *closedFile) Version() int32 {
 	return 0
 }
 
+// ID returns the unique identifier for this session on this server.
 func (s *Session) ID() string     { return s.id }
 func (s *Session) String() string { return s.id }
 
+// Options returns a copy of the SessionOptions for this session.
 func (s *Session) Options() *source.Options {
 	s.optionsMu.Lock()
 	defer s.optionsMu.Unlock()
 	return s.options
 }
 
+// SetOptions sets the options of this session to new values.
 func (s *Session) SetOptions(options *source.Options) {
 	s.optionsMu.Lock()
 	defer s.optionsMu.Unlock()
 	s.options = options
 }
 
+// SetProgressTracker sets the progress tracker for the session.
 func (s *Session) SetProgressTracker(tracker *progress.Tracker) {
 	// The progress tracker should be set before any view is initialized.
 	s.progress = tracker
 }
 
+// Shutdown the session and all views it has created.
 func (s *Session) Shutdown(ctx context.Context) {
 	var views []*View
 	s.viewMu.Lock()
@@ -153,10 +158,16 @@ func (s *Session) Shutdown(ctx context.Context) {
 	event.Log(ctx, "Shutdown session", KeyShutdownSession.Of(s))
 }
 
-func (s *Session) Cache() interface{} {
+// Cache returns the cache that created this session, for debugging only.
+func (s *Session) Cache() *Cache {
 	return s.cache
 }
 
+// NewView creates a new View, returning it and its first snapshot. If a
+// non-empty tempWorkspace directory is provided, the View will record a copy
+// of its gopls workspace module in that directory, so that client tooling
+// can execute in the same main module.  On success it also returns a release
+// function that must be called when the Snapshot is no longer needed.
 func (s *Session) NewView(ctx context.Context, name string, folder span.URI, options *source.Options) (source.View, source.Snapshot, func(), error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
@@ -292,7 +303,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	return v, snapshot, snapshot.Acquire(), nil
 }
 
-// View returns the view by name.
+// View returns a view with a matching name, if the session has one.
 func (s *Session) View(name string) source.View {
 	s.viewMu.RLock()
 	defer s.viewMu.RUnlock()
@@ -446,6 +457,11 @@ type fileChange struct {
 	isUnchanged bool
 }
 
+// DidModifyFiles reports a file modification to the session. It returns
+// the new snapshots after the modifications have been applied, paired with
+// the affected file URIs for those snapshots.
+// On success, it returns a release function that
+// must be called when the snapshots are no longer needed.
 func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) (map[source.Snapshot][]span.URI, func(), error) {
 	s.viewMu.RLock()
 	defer s.viewMu.RUnlock()
@@ -556,6 +572,9 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	return snapshotURIs, release, nil
 }
 
+// ExpandModificationsToDirectories returns the set of changes with the
+// directory changes removed and expanded to include all of the files in
+// the directory.
 func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes []source.FileModification) []source.FileModification {
 	s.viewMu.RLock()
 	defer s.viewMu.RUnlock()
@@ -731,6 +750,7 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 	return overlays, nil
 }
 
+// GetFile returns a handle for the specified file.
 func (s *Session) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
 	if overlay := s.readOverlay(uri); overlay != nil {
 		return overlay, nil
@@ -749,6 +769,7 @@ func (s *Session) readOverlay(uri span.URI) *overlay {
 	return nil
 }
 
+// Overlays returns a slice of file overlays for the session.
 func (s *Session) Overlays() []source.Overlay {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
@@ -760,6 +781,9 @@ func (s *Session) Overlays() []source.Overlay {
 	return overlays
 }
 
+// FileWatchingGlobPatterns returns glob patterns to watch every directory
+// known by the view. For views within a module, this is the module root,
+// any directory in the module root, and any replace targets.
 func (s *Session) FileWatchingGlobPatterns(ctx context.Context) map[string]struct{} {
 	s.viewMu.RLock()
 	defer s.viewMu.RUnlock()

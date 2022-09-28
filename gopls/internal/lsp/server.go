@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"sync"
 
+	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -21,7 +22,7 @@ const concurrentAnalyses = 1
 
 // NewServer creates an LSP server and binds it to handle incoming client
 // messages on on the supplied stream.
-func NewServer(session source.Session, client protocol.ClientCloser) *Server {
+func NewServer(session *cache.Session, client protocol.ClientCloser) *Server {
 	tracker := progress.NewTracker(client)
 	session.SetProgressTracker(tracker)
 	return &Server{
@@ -70,7 +71,7 @@ type Server struct {
 	// notifications generated before serverInitialized
 	notifications []*protocol.ShowMessageParams
 
-	session source.Session
+	session *cache.Session
 
 	tempDir string
 

@@ -26,6 +26,10 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/tools/gopls/internal/lsp/cache"
+	"golang.org/x/tools/gopls/internal/lsp/debug/log"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export"
@@ -34,12 +38,7 @@ import (
 	"golang.org/x/tools/internal/event/export/prometheus"
 	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
-	"golang.org/x/tools/internal/bug"
-	"golang.org/x/tools/gopls/internal/lsp/cache"
-	"golang.org/x/tools/gopls/internal/lsp/debug/log"
 	"golang.org/x/tools/internal/event/tag"
-	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/gopls/internal/lsp/source"
 )
 
 type contextKeyType int
@@ -88,10 +87,7 @@ func (st *State) Caches() []*cache.Cache {
 	var caches []*cache.Cache
 	seen := make(map[string]struct{})
 	for _, client := range st.Clients() {
-		cache, ok := client.Session.Cache().(*cache.Cache)
-		if !ok {
-			continue
-		}
+		cache := client.Session.Cache()
 		if _, found := seen[cache.ID()]; found {
 			continue
 		}
@@ -208,7 +204,7 @@ func (st *State) addClient(session *cache.Session) {
 }
 
 // DropClient removes a client from the set being served.
-func (st *State) dropClient(session source.Session) {
+func (st *State) dropClient(session *cache.Session) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	for i, c := range st.clients {

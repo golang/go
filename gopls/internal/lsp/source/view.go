@@ -21,7 +21,6 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
@@ -330,68 +329,6 @@ type Metadata interface {
 
 	// ModuleInfo returns the go/packages module information for the given package.
 	ModuleInfo() *packages.Module
-}
-
-// Session represents a single connection from a client.
-// This is the level at which things like open files are maintained on behalf
-// of the client.
-// A session may have many active views at any given time.
-type Session interface {
-	// ID returns the unique identifier for this session on this server.
-	ID() string
-	// NewView creates a new View, returning it and its first snapshot. If a
-	// non-empty tempWorkspace directory is provided, the View will record a copy
-	// of its gopls workspace module in that directory, so that client tooling
-	// can execute in the same main module.  On success it also returns a release
-	// function that must be called when the Snapshot is no longer needed.
-	NewView(ctx context.Context, name string, folder span.URI, options *Options) (View, Snapshot, func(), error)
-
-	// Cache returns the cache that created this session, for debugging only.
-	Cache() interface{}
-
-	// View returns a view with a matching name, if the session has one.
-	View(name string) View
-
-	// ViewOf returns a view corresponding to the given URI.
-	ViewOf(uri span.URI) (View, error)
-
-	// Views returns the set of active views built by this session.
-	Views() []View
-
-	// Shutdown the session and all views it has created.
-	Shutdown(ctx context.Context)
-
-	// GetFile returns a handle for the specified file.
-	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
-
-	// DidModifyFile reports a file modification to the session. It returns
-	// the new snapshots after the modifications have been applied, paired with
-	// the affected file URIs for those snapshots.
-	// On success, it returns a release function that
-	// must be called when the snapshots are no longer needed.
-	DidModifyFiles(ctx context.Context, changes []FileModification) (map[Snapshot][]span.URI, func(), error)
-
-	// ExpandModificationsToDirectories returns the set of changes with the
-	// directory changes removed and expanded to include all of the files in
-	// the directory.
-	ExpandModificationsToDirectories(ctx context.Context, changes []FileModification) []FileModification
-
-	// Overlays returns a slice of file overlays for the session.
-	Overlays() []Overlay
-
-	// Options returns a copy of the SessionOptions for this session.
-	Options() *Options
-
-	// SetOptions sets the options of this session to new values.
-	SetOptions(*Options)
-
-	// FileWatchingGlobPatterns returns glob patterns to watch every directory
-	// known by the view. For views within a module, this is the module root,
-	// any directory in the module root, and any replace targets.
-	FileWatchingGlobPatterns(ctx context.Context) map[string]struct{}
-
-	// SetProgressTracker sets the progress tracker for the session.
-	SetProgressTracker(tracker *progress.Tracker)
 }
 
 var ErrViewExists = errors.New("view already exists for session")
