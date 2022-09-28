@@ -431,7 +431,7 @@ func checkIfUnmodifiedSince(r *Request, modtime time.Time) condResult {
 	// The Last-Modified header truncates sub-second precision so
 	// the modtime needs to be truncated too.
 	modtime = modtime.Truncate(time.Second)
-	if modtime.Before(t) || modtime.Equal(t) {
+	if ret := modtime.Compare(t); ret <= 0 {
 		return condTrue
 	}
 	return condFalse
@@ -482,7 +482,7 @@ func checkIfModifiedSince(r *Request, modtime time.Time) condResult {
 	// The Last-Modified header truncates sub-second precision so
 	// the modtime needs to be truncated too.
 	modtime = modtime.Truncate(time.Second)
-	if modtime.Before(t) || modtime.Equal(t) {
+	if ret := modtime.Compare(t); ret <= 0 {
 		return condFalse
 	}
 	return condTrue
