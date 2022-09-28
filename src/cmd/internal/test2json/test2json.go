@@ -343,7 +343,7 @@ func (c *Converter) writeEvent(e *event) {
 	js, err := json.Marshal(e)
 	if err != nil {
 		// Should not happen - event is valid for json.Marshal.
-		c.w.Write([]byte(fmt.Sprintf("testjson internal error: %v\n", err)))
+		fmt.Fprintf(c.w, "testjson internal error: %v\n", err)
 		return
 	}
 	js = append(js, '\n')
