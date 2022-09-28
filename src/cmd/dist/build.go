@@ -488,6 +488,16 @@ func setup() {
 	xmkdirall(p)
 	xatexit(func() { xremoveall(p) })
 
+	// Create alternate driectory for intermediate
+	// standard library .a's to be placed rather than
+	// the final build's install locations.
+	p = pathf("%s/pkg/obj/go-bootstrap", goroot)
+	if rebuildall {
+		xremoveall(p)
+	}
+	xmkdirall(p)
+	xatexit(func() { xremoveall(p) })
+
 	// Create tool directory.
 	// We keep it in pkg/, just like the object directory above.
 	if rebuildall {
@@ -651,6 +661,7 @@ func runInstall(pkg string, ch chan struct{}) {
 			link = append(link, goldflags)
 		}
 		link = append(link, "-extld="+compilerEnvLookup(defaultcc, goos, goarch))
+		link = append(link, "-L="+pathf("%s/pkg/obj/go-bootstrap/%s_%s", goroot, goos, goarch))
 		link = append(link, "-o", pathf("%s/%s%s", tooldir, elem, exe))
 		targ = len(link) - 1
 	}
@@ -934,7 +945,7 @@ func runInstall(pkg string, ch chan struct{}) {
 // packagefile returns the path to a compiled .a file for the given package
 // path. Paths may need to be resolved with resolveVendor first.
 func packagefile(pkg string) string {
-	return pathf("%s/pkg/%s_%s/%s.a", goroot, goos, goarch, pkg)
+	return pathf("%s/pkg/obj/go-bootstrap/%s_%s/%s.a", goroot, goos, goarch, pkg)
 }
 
 // unixOS is the set of GOOS values matched by the "unix" build tag.
