@@ -70,15 +70,11 @@ func (check *Checker) conversion(x *operand, T Type) {
 	}
 
 	if !ok {
-		var err error_
-		err.code = _InvalidConversion
 		if cause != "" {
-			err.errorf(x, "cannot convert %s to type %s:", x, T)
-			err.errorf(nopos, cause)
+			check.errorf(x, _InvalidConversion, "cannot convert %s to type %s: %s", x, T, cause)
 		} else {
-			err.errorf(x, "cannot convert %s to type %s", x, T)
+			check.errorf(x, _InvalidConversion, "cannot convert %s to type %s", x, T)
 		}
-		check.report(&err)
 		x.mode = invalid
 		return
 	}
