@@ -627,9 +627,7 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 // writeOutput creates stubs for a specific source file to be compiled by gc
 func (p *Package) writeOutput(f *File, srcfile string) {
 	base := srcfile
-	if strings.HasSuffix(base, ".go") {
-		base = base[0 : len(base)-3]
-	}
+	base = strings.TrimSuffix(base, ".go")
 	base = filepath.Base(base)
 	fgo1 := creat(*objDir + base + ".cgo1.go")
 	fgcc := creat(*objDir + base + ".cgo2.c")
