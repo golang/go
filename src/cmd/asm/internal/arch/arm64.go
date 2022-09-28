@@ -12,7 +12,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
 	"errors"
-	"fmt"
 )
 
 var arm64LS = map[string]uint8{
@@ -66,8 +65,7 @@ func GetARM64SpecialOperand(name string) arm64.SpecialOperand {
 		// Generate the mapping automatically when the first time the function is called.
 		arm64SpecialOperand = map[string]arm64.SpecialOperand{}
 		for opd := arm64.SPOP_BEGIN; opd < arm64.SPOP_END; opd++ {
-			s := fmt.Sprintf("%s", opd)
-			arm64SpecialOperand[s] = opd
+			arm64SpecialOperand[opd.String()] = opd
 		}
 
 		// Handle some special cases.
