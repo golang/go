@@ -353,11 +353,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 			check.report(&err)
 			return
 		}
-		if check.conf.CompilerErrorMessages {
-			check.assignError(orig_rhs, len(lhs), len(rhs))
-		} else {
-			check.errorf(rhs[0], _WrongAssignCount, "cannot initialize %d variables with %d values", len(lhs), len(rhs))
-		}
+		check.assignError(orig_rhs, len(lhs), len(rhs))
 		return
 	}
 
@@ -401,11 +397,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 				return
 			}
 		}
-		if check.conf.CompilerErrorMessages {
-			check.assignError(orig_rhs, len(lhs), len(rhs))
-		} else {
-			check.errorf(rhs[0], _WrongAssignCount, "cannot assign %d values to %d variables", len(rhs), len(lhs))
-		}
+		check.assignError(orig_rhs, len(lhs), len(rhs))
 		return
 	}
 

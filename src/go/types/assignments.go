@@ -346,11 +346,7 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
 			check.report(err)
 			return
 		}
-		if compilerErrorMessages {
-			check.assignError(origRHS, len(lhs), len(rhs))
-		} else {
-			check.errorf(rhs[0], _WrongAssignCount, "cannot initialize %d variables with %d values", len(lhs), len(rhs))
-		}
+		check.assignError(origRHS, len(lhs), len(rhs))
 		return
 	}
 
@@ -384,11 +380,7 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
 				return
 			}
 		}
-		if compilerErrorMessages {
-			check.assignError(origRHS, len(lhs), len(rhs))
-		} else {
-			check.errorf(rhs[0], _WrongAssignCount, "cannot assign %d values to %d variables", len(rhs), len(lhs))
-		}
+		check.assignError(origRHS, len(lhs), len(rhs))
 		return
 	}
 

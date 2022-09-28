@@ -15,19 +15,19 @@ func assignments0() (int, int) {
 	f3 := func() (int, int, int) { return 1, 2, 3 }
 
 	a, b, c = 1, 2, 3
-	a, b, c = 1 /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ , 2
-	a, b, c = 1 /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ , 2, 3, 4
+	a, b, c = 1 /* ERROR "assignment mismatch: 3 variables but 2 values" */ , 2
+	a, b, c = 1 /* ERROR "assignment mismatch: 3 variables but 4 values" */ , 2, 3, 4
 	_, _, _ = a, b, c
 
 	a = f0 /* ERROR "used as value" */ ()
 	a = f1()
-	a = f2 /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ ()
+	a = f2 /* ERROR "assignment mismatch: 1 variable but f2 returns 2 values" */ ()
 	a, b = f2()
-	a, b, c = f2 /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ ()
+	a, b, c = f2 /* ERROR "assignment mismatch: 3 variables but f2 returns 2 values" */ ()
 	a, b, c = f3()
-	a, b = f3 /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ ()
+	a, b = f3 /* ERROR "assignment mismatch: 2 variables but f3 returns 3 values" */ ()
 
-	a, b, c = <- /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ ch
+	a, b, c = <- /* ERROR "assignment mismatch: 3 variables but 1 value" */ ch
 
 	return /* ERROR "not enough return values\n\thave \(\)\n\twant \(int, int\)" */
 	return 1 /* ERROR "not enough return values\n\thave \(number\)\n\twant \(int, int\)" */
@@ -43,7 +43,7 @@ func assignments1() {
 	c = s /* ERROR "cannot use .* in assignment" */
 	s = b /* ERROR "cannot use .* in assignment" */
 
-	v0, v1, v2 := 1 /* ERROR "cannot initialize" */ , 2, 3, 4
+	v0, v1, v2 := 1 /* ERROR "assignment mismatch" */ , 2, 3, 4
 	_, _, _ = v0, v1, v2
 
 	b = true
@@ -108,7 +108,7 @@ func assignments2() {
 	s, b = m["foo"]
 	_, d = m["bar"]
 	m["foo"] = nil
-	m["foo"] = nil /* ERROR cannot assign [1-9]+ values to [1-9]+ variables */ , false
+	m["foo"] = nil /* ERROR assignment mismatch: 1 variable but 2 values */ , false
 	_ = append(m["foo"])
 	_ = append(m["foo"], true)
 
@@ -116,12 +116,12 @@ func assignments2() {
 	_, b = <-c
 	_, d = <-c
 	<- /* ERROR cannot assign */ c = 0
-	<-c = 0 /* ERROR cannot assign [1-9]+ values to [1-9]+ variables */ , false
+	<-c = 0 /* ERROR assignment mismatch: 1 variable but 2 values */ , false
 
 	var x interface{}
 	_, b = x.(int)
 	x /* ERROR cannot assign */ .(int) = 0
-	x.(int) = 0 /* ERROR cannot assign [1-9]+ values to [1-9]+ variables */ , false
+	x.(int) = 0 /* ERROR assignment mismatch: 1 variable but 2 values */ , false
 
 	assignments2 /* ERROR used as value */ () = nil
 	int /* ERROR not an expression */ = 0
