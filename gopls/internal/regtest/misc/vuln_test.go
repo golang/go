@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
+	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -126,12 +127,12 @@ go 1.18
 require golang.org/cmod v1.1.3
 
 require (
-	golang.org/amod v1.1.3 // indirect
+	golang.org/amod v1.0.0 // indirect
 	golang.org/bmod v0.5.0 // indirect
 )
 -- go.sum --
-golang.org/amod v1.1.3 h1:E9ohW9ayc6iCFrT/VNq8tCI4hgYM+tEbo8txbtbyS3o=
-golang.org/amod v1.1.3/go.mod h1:yvny5/2OtYFomKt8ax+WJGvN6pfN1pqjGnn7DQLUi6E=
+golang.org/amod v1.0.0 h1:EUQOI2m5NhQZijXZf8WimSnnWubaFNrrKUH/PopTN8k=
+golang.org/amod v1.0.0/go.mod h1:yvny5/2OtYFomKt8ax+WJGvN6pfN1pqjGnn7DQLUi6E=
 golang.org/bmod v0.5.0 h1:0kt1EI53298Ta9w4RPEAzNUQjtDoHUA6cc0c7Rwxhlk=
 golang.org/bmod v0.5.0/go.mod h1:f6o+OhF66nz/0BBc/sbCsshyPRKMSxZIlG50B/bsM4c=
 golang.org/cmod v1.1.3 h1:PJ7rZFTk7xGAunBRDa0wDe7rZjZ9R/vr1S2QkVVCngQ=
@@ -188,16 +189,27 @@ func C1() I {
 func C2() func() {
 	return bvuln.Vuln
 }
--- golang.org/amod@v1.1.3/go.mod --
+-- golang.org/amod@v1.0.0/go.mod --
 module golang.org/amod
 
 go 1.14
--- golang.org/amod@v1.1.3/avuln/avuln.go --
+-- golang.org/amod@v1.0.0/avuln/avuln.go --
 package avuln
 
 type VulnData struct {}
 func (v VulnData) Vuln1() {}
 func (v VulnData) Vuln2() {}
+-- golang.org/amod@v1.0.4/go.mod --
+module golang.org/amod
+
+go 1.14
+-- golang.org/amod@v1.0.4/avuln/avuln.go --
+package avuln
+
+type VulnData struct {}
+func (v VulnData) Vuln1() {}
+func (v VulnData) Vuln2() {}
+
 -- golang.org/bmod@v0.5.0/go.mod --
 module golang.org/bmod
 
@@ -234,13 +246,35 @@ func TestRunVulncheckExp(t *testing.T) {
 		},
 	).Run(t, workspace1, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		env.ExecuteCodeLensCommand("go.mod", command.RunVulncheckExp)
+		env.ExecuteCodeLensCommand("go.mod", command.Tidy)
 
+		env.ExecuteCodeLensCommand("go.mod", command.RunVulncheckExp)
+		d := &protocol.PublishDiagnosticsParams{}
 		env.Await(
 			CompletedWork("govulncheck", 1, true),
 			ShownMessage("Found"),
-			env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/amod`, "vuln in amod"),
-			env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/bmod`, "vuln in bmod"),
+			OnceMet(
+				env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/amod`, "vuln in amod"),
+				env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/bmod`, "vuln in bmod"),
+				ReadDiagnostics("go.mod", d),
+			),
 		)
+
+		env.ApplyQuickFixes("go.mod", d.Diagnostics)
+		env.Await(env.DoneWithChangeWatchedFiles())
+		wantGoMod := `module golang.org/entry
+
+go 1.18
+
+require golang.org/cmod v1.1.3
+
+require (
+	golang.org/amod v1.0.4 // indirect
+	golang.org/bmod v0.5.0 // indirect
+)
+`
+		if got := env.Editor.BufferText("go.mod"); got != wantGoMod {
+			t.Fatalf("go.mod vulncheck fix failed:\n%s", compare.Text(wantGoMod, got))
+		}
 	})
 }

@@ -193,6 +193,22 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 				continue
 			}
 
+			// Upgrade to the exact version we offer the user, not the most recent.
+			// TODO(suzmue): Add an upgrade for module@latest.
+			var fixes []source.SuggestedFix
+			if fixedVersion := v.FixedVersion; semver.IsValid(fixedVersion) && semver.Compare(req.Mod.Version, fixedVersion) < 0 {
+				title := fmt.Sprintf("Upgrade to %v", fixedVersion)
+				cmd, err := command.NewUpgradeDependencyCommand(title, command.DependencyArgs{
+					URI:        protocol.URIFromSpanURI(fh.URI()),
+					AddRequire: false,
+					GoCmdArgs:  []string{req.Mod.Path + "@" + fixedVersion},
+				})
+				if err != nil {
+					return nil, err
+				}
+				fixes = append(fixes, source.SuggestedFixFromCommand(cmd, protocol.QuickFix))
+			}
+
 			severity := protocol.SeverityInformation
 			if len(v.CallStacks) > 0 {
 				severity = protocol.SeverityWarning
@@ -206,7 +222,8 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 				Code:     v.ID,
 				CodeHref: v.URL,
 				// TODO(suzmue): replace the newlines in v.Details to allow the editor to handle formatting.
-				Message: v.Details,
+				Message:        v.Details,
+				SuggestedFixes: fixes,
 			})
 		}
 

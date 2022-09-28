@@ -21,7 +21,7 @@
 		"affected":[
 			{
 				"package":{"name":"golang.org/amod","ecosystem":"Go"},
-				"ranges":[{"type":"SEMVER","events":[{"introduced":"1.0.0"},{"fixed":"1.0.4"}]}],
+				"ranges":[{"type":"SEMVER","events":[{"introduced":"1.0.0"},{"fixed":"1.0.6"}]}],
 				"ecosystem_specific":{
 					"imports":[{"path":"golang.org/amod/avuln","symbols":["nonExisting"]}]
 				}

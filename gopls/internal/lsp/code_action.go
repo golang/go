@@ -81,8 +81,12 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			if err != nil {
 				return nil, err
 			}
-			// TODO(suzmue): get upgrades code actions from vulnerabilities.
-			quickFixes, err := codeActionsMatchingDiagnostics(ctx, snapshot, diagnostics, append(diags, udiags...))
+			vdiags, err := mod.ModVulnerabilityDiagnostics(ctx, snapshot, fh)
+			if err != nil {
+				return nil, err
+			}
+			// TODO(suzmue): Consider deduping upgrades from ModUpgradeDiagnostics and ModVulnerabilityDiagnostics.
+			quickFixes, err := codeActionsMatchingDiagnostics(ctx, snapshot, diagnostics, append(append(diags, udiags...), vdiags...))
 			if err != nil {
 				return nil, err
 			}
@@ -426,7 +430,8 @@ func codeActionsForDiagnostic(ctx context.Context, snapshot source.Snapshot, sd 
 }
 
 func sameDiagnostic(pd protocol.Diagnostic, sd *source.Diagnostic) bool {
-	return pd.Message == sd.Message && protocol.CompareRange(pd.Range, sd.Range) == 0 && pd.Source == string(sd.Source)
+	return pd.Message == strings.TrimSpace(sd.Message) && // extra space may have been trimmed when converting to protocol.Diagnostic
+		protocol.CompareRange(pd.Range, sd.Range) == 0 && pd.Source == string(sd.Source)
 }
 
 func goTest(ctx context.Context, snapshot source.Snapshot, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
