@@ -1338,7 +1338,7 @@ func (c *Config) writeKeyLog(label string, clientRandom, secret []byte) error {
 		return nil
 	}
 
-	logLine := []byte(fmt.Sprintf("%s %x %x\n", label, clientRandom, secret))
+	logLine := fmt.Appendf(nil, "%s %x %x\n", label, clientRandom, secret)
 
 	writerMutex.Lock()
 	_, err := c.KeyLogWriter.Write(logLine)
