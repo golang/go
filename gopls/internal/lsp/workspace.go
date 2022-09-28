@@ -69,6 +69,9 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 		}()
 	}
 
+	// An options change may have affected the detected Go version.
+	s.checkViewGoVersions()
+
 	registration := semanticTokenRegistration(options.SemanticTypes, options.SemanticMods)
 	// Update any session-specific registrations or unregistrations.
 	if !semanticTokensRegistered && options.SemanticTokens {

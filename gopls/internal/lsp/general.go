@@ -202,6 +202,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 		return err
 	}
 	s.pendingFolders = nil
+	s.checkViewGoVersions()
 
 	var registrations []protocol.Registration
 	if options.ConfigurationSupported && options.DynamicConfigurationSupported {
@@ -221,6 +222,34 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 		}
 	}
 	return nil
+}
+
+// OldestSupportedGoVersion is the last X in Go 1.X that we support.
+//
+// Mutable for testing, since we won't otherwise run CI on unsupported Go
+// versions.
+var OldestSupportedGoVersion = 16
+
+// checkViewGoVersions checks whether any Go version used by a view is too old,
+// raising a showMessage notification if so.
+//
+// It should be called after views change.
+func (s *Server) checkViewGoVersions() {
+	oldestVersion := -1
+	for _, view := range s.session.Views() {
+		viewVersion := view.GoVersion()
+		if oldestVersion == -1 || viewVersion < oldestVersion {
+			oldestVersion = viewVersion
+		}
+	}
+
+	if oldestVersion >= 0 && oldestVersion < OldestSupportedGoVersion {
+		msg := fmt.Sprintf("Found Go version 1.%d, which is unsupported. Please upgrade to Go 1.%d or later.", oldestVersion, OldestSupportedGoVersion)
+		s.eventuallyShowMessage(context.Background(), &protocol.ShowMessageParams{
+			Type:    protocol.Error,
+			Message: msg,
+		})
+	}
 }
 
 func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFolder) error {

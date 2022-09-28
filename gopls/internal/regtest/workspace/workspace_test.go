@@ -5,15 +5,18 @@
 package workspace
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/hooks"
+	"golang.org/x/tools/gopls/internal/lsp"
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/testenv"
 
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
@@ -1233,4 +1236,78 @@ import (
 			),
 		)
 	})
+}
+
+// Test that we don't get a version warning when the Go version in PATH is
+// supported.
+func TestOldGoNotification_SupportedVersion(t *testing.T) {
+	v := goVersion(t)
+	if v < lsp.OldestSupportedGoVersion {
+		t.Skipf("go version 1.%d is unsupported", v)
+	}
+
+	Run(t, "", func(t *testing.T, env *Env) {
+		env.Await(
+			OnceMet(
+				InitialWorkspaceLoad,
+				NoShownMessage("upgrade"),
+			),
+		)
+	})
+}
+
+// Test that we do get a version warning when the Go version in PATH is
+// unsupported, though this test may never execute if we stop running CI at
+// legacy Go versions (see also TestOldGoNotification_Fake)
+func TestOldGoNotification_UnsupportedVersion(t *testing.T) {
+	v := goVersion(t)
+	if v >= lsp.OldestSupportedGoVersion {
+		t.Skipf("go version 1.%d is supported", v)
+	}
+
+	Run(t, "", func(t *testing.T, env *Env) {
+		env.Await(
+			OnceMet(
+				InitialWorkspaceLoad,
+				ShownMessage("Please upgrade"),
+			),
+		)
+	})
+}
+
+func TestOldGoNotification_Fake(t *testing.T) {
+	// Get the Go version from path, and make sure it's unsupported.
+	//
+	// In the future we'll stop running CI on legacy Go versions. By mutating the
+	// oldest supported Go version here, we can at least ensure that the
+	// ShowMessage pop-up works.
+	ctx := context.Background()
+	goversion, err := gocommand.GoVersion(ctx, gocommand.Invocation{}, &gocommand.Runner{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func(v int) {
+		lsp.OldestSupportedGoVersion = v
+	}(lsp.OldestSupportedGoVersion)
+	lsp.OldestSupportedGoVersion = goversion + 1
+
+	Run(t, "", func(t *testing.T, env *Env) {
+		env.Await(
+			OnceMet(
+				InitialWorkspaceLoad,
+				ShownMessage("Please upgrade"),
+			),
+		)
+	})
+}
+
+// goVersion returns the version of the Go command in PATH.
+func goVersion(t *testing.T) int {
+	t.Helper()
+	ctx := context.Background()
+	goversion, err := gocommand.GoVersion(ctx, gocommand.Invocation{}, &gocommand.Runner{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return goversion
 }

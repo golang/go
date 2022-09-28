@@ -317,15 +317,6 @@ func (v *View) SetOptions(ctx context.Context, options *source.Options) (source.
 	return newView, err
 }
 
-func (v *View) Rebuild(ctx context.Context) (source.Snapshot, func(), error) {
-	newView, err := v.session.updateView(ctx, v, v.Options())
-	if err != nil {
-		return nil, func() {}, err
-	}
-	snapshot, release := newView.Snapshot(ctx)
-	return snapshot, release, nil
-}
-
 func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
 	s.view.optionsMu.Lock()
 	env := s.view.options.EnvSlice()
@@ -1055,6 +1046,10 @@ func (v *View) SetVulnerabilities(modfile span.URI, vulns []command.Vuln) {
 	defer v.mu.Unlock()
 
 	v.vulns[modfile] = vulns
+}
+
+func (v *View) GoVersion() int {
+	return v.workspaceInformation.goversion
 }
 
 // Copied from

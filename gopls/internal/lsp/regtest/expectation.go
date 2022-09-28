@@ -162,17 +162,19 @@ func NoOutstandingWork() SimpleExpectation {
 	}
 }
 
-// NoShowMessage asserts that the editor has not received a ShowMessage.
-func NoShowMessage() SimpleExpectation {
+// NoShownMessage asserts that the editor has not received a ShowMessage.
+func NoShownMessage(subString string) SimpleExpectation {
 	check := func(s State) Verdict {
-		if len(s.showMessage) == 0 {
-			return Met
+		for _, m := range s.showMessage {
+			if strings.Contains(m.Message, subString) {
+				return Unmeetable
+			}
 		}
-		return Unmeetable
+		return Met
 	}
 	return SimpleExpectation{
 		check:       check,
-		description: "no ShowMessage received",
+		description: fmt.Sprintf("no ShowMessage received containing %q", subString),
 	}
 }
 

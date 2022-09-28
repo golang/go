@@ -253,11 +253,6 @@ type View interface {
 	// no longer needed.
 	Snapshot(ctx context.Context) (Snapshot, func())
 
-	// Rebuild rebuilds the current view, replacing the original
-	// view in its session.  It returns a Snapshot and a release
-	// function that must be called when the Snapshot is no longer needed.
-	Rebuild(ctx context.Context) (Snapshot, func(), error)
-
 	// IsGoPrivatePath reports whether target is a private import path, as identified
 	// by the GOPRIVATE environment variable.
 	IsGoPrivatePath(path string) bool
@@ -284,6 +279,9 @@ type View interface {
 
 	// FileKind returns the type of a file
 	FileKind(FileHandle) FileKind
+
+	// GoVersion returns the configured Go version for this view.
+	GoVersion() int
 }
 
 // A FileSource maps uris to FileHandles. This abstraction exists both for
