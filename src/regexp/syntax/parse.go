@@ -91,15 +91,49 @@ const (
 // until we've allocated at least maxHeight Regexp structures.
 const maxHeight = 1000
 
+// maxSize is the maximum size of a compiled regexp in Insts.
+// It too is somewhat arbitrarily chosen, but the idea is to be large enough
+// to allow significant regexps while at the same time small enough that
+// the compiled form will not take up too much memory.
+// 128 MB is enough for a 3.3 million Inst structures, which roughly
+// corresponds to a 3.3 MB regexp.
+const (
+	maxSize  = 128 << 20 / instSize
+	instSize = 5 * 8 // byte, 2 uint32, slice is 5 64-bit words
+)
+
+// maxRunes is the maximum number of runes allowed in a regexp tree
+// counting the runes in all the nodes.
+// Ignoring character classes p.numRunes is always less than the length of the regexp.
+// Character classes can make it much larger: each \pL adds 1292 runes.
+// 128 MB is enough for 32M runes, which is over 26k \pL instances.
+// Note that repetitions do not make copies of the rune slices,
+// so \pL{1000} is only one rune slice, not 1000.
+// We could keep a cache of character classes we've seen,
+// so that all the \pL we see use the same rune list,
+// but that doesn't remove the problem entirely:
+// consider something like [\pL01234][\pL01235][\pL01236]...[\pL^&*()].
+// And because the Rune slice is exposed directly in the Regexp,
+// there is not an opportunity to change the representation to allow
+// partial sharing between different character classes.
+// So the limit is the best we can do.
+const (
+	maxRunes = 128 << 20 / runeSize
+	runeSize = 4 // rune is int32
+)
+
 type parser struct {
 	flags       Flags     // parse mode flags
 	stack       []*Regexp // stack of parsed expressions
 	free        *Regexp
 	numCap      int // number of capturing groups seen
 	wholeRegexp string
-	tmpClass    []rune          // temporary char class work space
-	numRegexp   int             // number of regexps allocated
-	height      map[*Regexp]int // regexp height for height limit check
+	tmpClass    []rune            // temporary char class work space
+	numRegexp   int               // number of regexps allocated
+	numRunes    int               // number of runes in char classes
+	repeats     int64             // product of all repetitions seen
+	height      map[*Regexp]int   // regexp height, for height limit check
+	size        map[*Regexp]int64 // regexp compiled size, for size limit check
 }
 
 func (p *parser) newRegexp(op Op) *Regexp {
@@ -121,6 +155,104 @@ func (p *parser) reuse(re *Regexp) {
 	}
 	re.Sub0[0] = p.free
 	p.free = re
+}
+
+func (p *parser) checkLimits(re *Regexp) {
+	if p.numRunes > maxRunes {
+		panic(ErrInternalError)
+	}
+	p.checkSize(re)
+	p.checkHeight(re)
+}
+
+func (p *parser) checkSize(re *Regexp) {
+	if p.size == nil {
+		// We haven't started tracking size yet.
+		// Do a relatively cheap check to see if we need to start.
+		// Maintain the product of all the repeats we've seen
+		// and don't track if the total number of regexp nodes
+		// we've seen times the repeat product is in budget.
+		if p.repeats == 0 {
+			p.repeats = 1
+		}
+		if re.Op == OpRepeat {
+			n := re.Max
+			if n == -1 {
+				n = re.Min
+			}
+			if n <= 0 {
+				n = 1
+			}
+			if int64(n) > maxSize/p.repeats {
+				p.repeats = maxSize
+			} else {
+				p.repeats *= int64(n)
+			}
+		}
+		if int64(p.numRegexp) < maxSize/p.repeats {
+			return
+		}
+
+		// We need to start tracking size.
+		// Make the map and belatedly populate it
+		// with info about everything we've constructed so far.
+		p.size = make(map[*Regexp]int64)
+		for _, re := range p.stack {
+			p.checkSize(re)
+		}
+	}
+
+	if p.calcSize(re, true) > maxSize {
+		panic(ErrInternalError)
+	}
+}
+
+func (p *parser) calcSize(re *Regexp, force bool) int64 {
+	if !force {
+		if size, ok := p.size[re]; ok {
+			return size
+		}
+	}
+
+	var size int64
+	switch re.Op {
+	case OpLiteral:
+		size = int64(len(re.Rune))
+	case OpCapture, OpStar:
+		// star can be 1+ or 2+; assume 2 pessimistically
+		size = 2 + p.calcSize(re.Sub[0], false)
+	case OpPlus, OpQuest:
+		size = 1 + p.calcSize(re.Sub[0], false)
+	case OpConcat:
+		for _, sub := range re.Sub {
+			size += p.calcSize(sub, false)
+		}
+	case OpAlternate:
+		for _, sub := range re.Sub {
+			size += p.calcSize(sub, false)
+		}
+		if len(re.Sub) > 1 {
+			size += int64(len(re.Sub)) - 1
+		}
+	case OpRepeat:
+		sub := p.calcSize(re.Sub[0], false)
+		if re.Max == -1 {
+			if re.Min == 0 {
+				size = 2 + sub // x*
+			} else {
+				size = 1 + int64(re.Min)*sub // xxx+
+			}
+			break
+		}
+		// x{2,5} = xx(x(x(x)?)?)?
+		size = int64(re.Max)*sub + int64(re.Max-re.Min)
+	}
+
+	if size < 1 {
+		size = 1
+	}
+	p.size[re] = size
+	return size
 }
 
 func (p *parser) checkHeight(re *Regexp) {
@@ -159,6 +291,7 @@ func (p *parser) calcHeight(re *Regexp, force bool) int {
 
 // push pushes the regexp re onto the parse stack and returns the regexp.
 func (p *parser) push(re *Regexp) *Regexp {
+	p.numRunes += len(re.Rune)
 	if re.Op == OpCharClass && len(re.Rune) == 2 && re.Rune[0] == re.Rune[1] {
 		// Single rune.
 		if p.maybeConcat(re.Rune[0], p.flags&^FoldCase) {
@@ -190,7 +323,7 @@ func (p *parser) push(re *Regexp) *Regexp {
 	}
 
 	p.stack = append(p.stack, re)
-	p.checkHeight(re)
+	p.checkLimits(re)
 	return re
 }
 
@@ -300,7 +433,7 @@ func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (
 	re.Sub = re.Sub0[:1]
 	re.Sub[0] = sub
 	p.stack[n-1] = re
-	p.checkHeight(re)
+	p.checkLimits(re)
 
 	if op == OpRepeat && (min >= 2 || max >= 2) && !repeatIsValid(re, 1000) {
 		return "", &Error{ErrInvalidRepeatSize, before[:len(before)-len(after)]}
@@ -508,6 +641,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 
 			for j := start; j < i; j++ {
 				sub[j] = p.removeLeadingString(sub[j], len(str))
+				p.checkLimits(sub[j])
 			}
 			suffix := p.collapse(sub[start:i], OpAlternate) // recurse
 
@@ -565,6 +699,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 			for j := start; j < i; j++ {
 				reuse := j != start // prefix came from sub[start]
 				sub[j] = p.removeLeadingRegexp(sub[j], reuse)
+				p.checkLimits(sub[j])
 			}
 			suffix := p.collapse(sub[start:i], OpAlternate) // recurse
 
@@ -762,6 +897,8 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			panic(r)
 		case nil:
 			// ok
+		case ErrInternalError: // too big
+			err = &Error{Code: ErrInternalError, Expr: s}
 		case ErrNestingDepth:
 			err = &Error{Code: ErrNestingDepth, Expr: s}
 		}
