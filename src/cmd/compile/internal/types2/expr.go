@@ -616,11 +616,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 		// We already know from the shift check that it is representable
 		// as an integer if it is a constant.
 		if !allInteger(typ) {
-			if check.conf.CompilerErrorMessages {
-				check.errorf(x, _InvalidShiftOperand, invalidOp+"%s (shift of type %s)", parent, typ)
-			} else {
-				check.errorf(x, _InvalidShiftOperand, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
-			}
+			check.errorf(x, _InvalidShiftOperand, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
 			return
 		}
 		// Even if we have an integer, if the value is a constant we
