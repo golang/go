@@ -158,6 +158,9 @@ and test commands:
 		include path must be in the same directory as the Go package they are
 		included from, and overlays will not appear when binaries and tests are
 		run through go run and go test respectively.
+	-pgo file
+		specify the file path of a profile for profile-guided optimization (PGO).
+		Special name "off" turns off PGO.
 	-pkgdir dir
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,
@@ -312,6 +315,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
+	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "", "")
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")

@@ -200,6 +200,9 @@
 //		include path must be in the same directory as the Go package they are
 //		included from, and overlays will not appear when binaries and tests are
 //		run through go run and go test respectively.
+//	-pgo file
+//		specify the file path of a profile for profile-guided optimization (PGO).
+//		Special name "off" turns off PGO.
 //	-pkgdir dir
 //		install and load all packages from dir instead of the usual locations.
 //		For example, when building with a non-standard configuration,

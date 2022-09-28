@@ -145,6 +145,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if p.Internal.CoverageCfg != "" {
 		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.CoverageCfg)
 	}
+	if cfg.BuildPGOFile != "" {
+		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+cfg.BuildPGOFile)
+	}
 	if symabis != "" {
 		defaultGcFlags = append(defaultGcFlags, "-symabis", symabis)
 	}
