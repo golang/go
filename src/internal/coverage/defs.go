@@ -363,7 +363,7 @@ func Round4(x int) int {
 // where "numCtrs" is the number of blocks / coverable units within the
 // function, "pkgid" is the unique index assigned to this package by
 // the runtime, "funcid" is the index of this function within its containing
-// packge, and "counterArray" stores the actual counters.
+// package, and "counterArray" stores the actual counters.
 //
 // The counter variable itself is created not as a struct but as a flat
 // array of uint32's; we then use the offsets below to index into it.

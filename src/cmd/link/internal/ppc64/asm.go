@@ -143,7 +143,7 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
 			if r := relocs.At(i); r.Type() == objabi.ElfRelocOffset+objabi.RelocType(elf.R_PPC64_REL24) {
 				switch ldr.SymType(r.Sym()) {
 				case sym.SDYNIMPORT:
-					// This call goes throught the PLT, generate and call through a PLT stub.
+					// This call goes through the PLT, generate and call through a PLT stub.
 					if sym, firstUse := genpltstub(ctxt, ldr, r, s); firstUse {
 						stubs = append(stubs, sym)
 					}

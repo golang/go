@@ -24,7 +24,7 @@ func TestFindExecutableVsNoexec(t *testing.T) {
 	err := syscall.Mount("tmpfs", tmp, "tmpfs", 0, "")
 	if err != nil {
 		// Usually this means lack of CAP_SYS_ADMIN, but there might be
-		// other reasons, expecially in restricted test environments.
+		// other reasons, especially in restricted test environments.
 		t.Skipf("requires ability to mount tmpfs (%v)", err)
 	}
 	t.Cleanup(func() {
