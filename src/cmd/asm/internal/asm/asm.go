@@ -897,13 +897,6 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 	p.append(prog, cond, true)
 }
 
-// newAddr returns a new(Addr) initialized to x.
-func newAddr(x obj.Addr) *obj.Addr {
-	p := new(obj.Addr)
-	*p = x
-	return p
-}
-
 // symbolName returns the symbol name, or an error string if none if available.
 func symbolName(addr *obj.Addr) string {
 	if addr.Sym != nil {
