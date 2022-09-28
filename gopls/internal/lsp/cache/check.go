@@ -347,7 +347,6 @@ func typeCheckImpl(ctx context.Context, snapshot *snapshot, goFiles, compiledGoF
 		// time keeping those names.
 		missing, unexpected := filter.ProcessErrors(pkg.typeErrors)
 		if len(unexpected) == 0 && len(missing) != 0 {
-			event.Log(ctx, fmt.Sprintf("discovered missing identifiers: %v", missing), tag.Package.Of(string(m.ID)))
 			pkg, err = doTypeCheck(ctx, snapshot, goFiles, compiledGoFiles, m, mode, deps, filter)
 			if err != nil {
 				return nil, err
