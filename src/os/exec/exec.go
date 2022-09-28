@@ -490,6 +490,12 @@ func lookExtensions(path, dir string) (string, error) {
 // After a successful call to Start the Wait method must be called in
 // order to release associated system resources.
 func (c *Cmd) Start() error {
+	// Check for doubled Start calls before we defer failure cleanup. If the prior
+	// call to Start succeeded, we don't want to spuriously close its pipes.
+	if c.Process != nil {
+		return errors.New("exec: already started")
+	}
+
 	started := false
 	defer func() {
 		c.closeDescriptors(c.childIOFiles)
@@ -518,9 +524,6 @@ func (c *Cmd) Start() error {
 			return err
 		}
 		c.Path = lp
-	}
-	if c.Process != nil {
-		return errors.New("exec: already started")
 	}
 	if c.ctx != nil {
 		select {

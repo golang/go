@@ -1094,3 +1094,46 @@ func TestNoPath(t *testing.T) {
 		t.Errorf("new(Cmd).Start() = %v, want %q", err, want)
 	}
 }
+
+// TestDoubleStartLeavesPipesOpen checks for a regression in which calling
+// Start twice, which returns an error on the second call, would spuriously
+// close the pipes established in the first call.
+func TestDoubleStartLeavesPipesOpen(t *testing.T) {
+	cmd := helperCommand(t, "pipetest")
+	in, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Start(); err == nil || !strings.HasSuffix(err.Error(), "already started") {
+		t.Fatalf("second call to Start returned a nil; want an 'already started' error")
+	}
+
+	outc := make(chan []byte, 1)
+	go func() {
+		b, err := io.ReadAll(out)
+		if err != nil {
+			t.Error(err)
+		}
+		outc <- b
+	}()
+
+	const msg = "O:Hello, pipe!\n"
+
+	_, err = io.WriteString(in, msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.Close()
+
+	b := <-outc
+	if !bytes.Equal(b, []byte(msg)) {
+		t.Fatalf("read %q from stdout pipe; want %q", b, msg)
+	}
+}
