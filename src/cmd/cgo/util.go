@@ -105,30 +105,10 @@ func error_(pos token.Pos, msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
-// isName reports whether s is a valid C identifier
-func isName(s string) bool {
-	for i, v := range s {
-		if v != '_' && (v < 'A' || v > 'Z') && (v < 'a' || v > 'z') && (v < '0' || v > '9') {
-			return false
-		}
-		if i == 0 && '0' <= v && v <= '9' {
-			return false
-		}
-	}
-	return s != ""
-}
-
 func creat(name string) *os.File {
 	f, err := os.Create(name)
 	if err != nil {
 		fatalf("%s", err)
 	}
 	return f
-}
-
-func slashToUnderscore(c rune) rune {
-	if c == '/' || c == '\\' || c == ':' {
-		c = '_'
-	}
-	return c
 }
