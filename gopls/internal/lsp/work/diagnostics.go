@@ -73,7 +73,7 @@ func DiagnosticsForWork(ctx context.Context, snapshot source.Snapshot, fh source
 				URI:      fh.URI(),
 				Range:    rng,
 				Severity: protocol.SeverityError,
-				Source:   source.UnknownError, // Do we need a new source for this?
+				Source:   source.WorkFileError,
 				Message:  fmt.Sprintf("directory %v does not contain a module", use.Path),
 			})
 		}
