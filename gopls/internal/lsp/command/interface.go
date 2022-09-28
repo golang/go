@@ -272,21 +272,6 @@ type PackageImport struct {
 	Path string
 }
 
-type WorkspaceMetadataArgs struct {
-}
-
-type WorkspaceMetadataResult struct {
-	// All workspaces for this session.
-	Workspaces []Workspace
-}
-
-type Workspace struct {
-	// The workspace name.
-	Name string
-	// The workspace module directory.
-	ModuleDir string
-}
-
 type DebuggingArgs struct {
 	// Optional: the address (including port) for the debug server to listen on.
 	// If not provided, the debug server will bind to "localhost:0", and the

@@ -38,17 +38,6 @@ type ServerVersion struct {
 	Version string
 }
 
-type Module struct {
-	ModuleVersion
-	Replace *ModuleVersion `json:"replace,omitempty"`
-}
-
-type ModuleVersion struct {
-	Path    string `json:"path,omitempty"`
-	Version string `json:"version,omitempty"`
-	Sum     string `json:"sum,omitempty"`
-}
-
 // VersionInfo returns the build info for the gopls process. If it was not
 // built in module mode, we return a GOPATH-specific message with the
 // hardcoded version.

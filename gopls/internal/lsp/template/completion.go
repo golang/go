@@ -285,17 +285,3 @@ func weakMatch(choice, pattern string) float64 {
 	}
 	return 1
 }
-
-// for debug printing
-func strContext(c protocol.CompletionContext) string {
-	switch c.TriggerKind {
-	case protocol.Invoked:
-		return "invoked"
-	case protocol.TriggerCharacter:
-		return fmt.Sprintf("triggered(%s)", c.TriggerCharacter)
-	case protocol.TriggerForIncompleteCompletions:
-		// gopls doesn't seem to handle these explicitly anywhere
-		return "incomplete"
-	}
-	return fmt.Sprintf("?%v", c)
-}

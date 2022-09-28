@@ -32,8 +32,6 @@ var Analyzer = &analysis.Analyzer{
 	RunDespiteErrors: true, // an unusedvariable diagnostic is a compile error
 }
 
-type fixesForError map[types.Error][]analysis.SuggestedFix
-
 // The suffix for this error message changed in Go 1.20.
 var unusedVariableSuffixes = []string{" declared and not used", " declared but not used"}
 

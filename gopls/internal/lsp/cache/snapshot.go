@@ -31,11 +31,11 @@ import (
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/tools/internal/bug"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/persistent"
@@ -1610,15 +1610,6 @@ func (s *snapshot) orphanedFiles() []source.VersionedFileHandle {
 		}
 	})
 	return files
-}
-
-func contains(views []*View, view *View) bool {
-	for _, v := range views {
-		if v == view {
-			return true
-		}
-	}
-	return false
 }
 
 // TODO(golang/go#53756): this function needs to consider more than just the

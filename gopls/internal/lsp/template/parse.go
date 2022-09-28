@@ -24,9 +24,9 @@ import (
 	"text/template/parse"
 	"unicode/utf8"
 
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -490,15 +490,6 @@ func (wr wrNode) writeNode(n parse.Node, indent string) {
 		fmt.Fprintf(wr.w, "%sWithNode at %s\n", indent, at(x.Pos))
 		wr.writeNode(&x.BranchNode, indent+". ")
 	}
-}
-
-// short prints at most 40 bytes of node.String(), for debugging
-func short(n parse.Node) string {
-	s := fmt.Sprint(n) // recovers from panic
-	if len(s) > 40 {
-		return s[:40] + "..."
-	}
-	return s
 }
 
 var kindNames = []string{"", "File", "Module", "Namespace", "Package", "Class", "Method", "Property",

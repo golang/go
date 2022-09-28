@@ -678,14 +678,6 @@ func (e *Env) NoDiagnosticAtRegexp(name, re string) DiagnosticExpectation {
 	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: false}
 }
 
-// NoDiagnosticAt asserts that there is no diagnostic entry at the position
-// specified by line and col, for the workdir-relative path name.
-// This should only be used in combination with OnceMet for a given condition,
-// otherwise it may always succeed.
-func NoDiagnosticAt(name string, line, col int) DiagnosticExpectation {
-	return DiagnosticExpectation{path: name, pos: &fake.Pos{Line: line, Column: col}, present: false}
-}
-
 // NoDiagnosticWithMessage asserts that there is no diagnostic entry with the
 // given message.
 //

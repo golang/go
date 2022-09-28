@@ -87,7 +87,6 @@ type References = map[span.Span][]span.Span
 type Renames = map[span.Span]string
 type PrepareRenames = map[span.Span]*source.PrepareItem
 type Symbols = map[span.URI][]*symbol
-type SymbolInformation = map[span.Span]protocol.SymbolInformation
 type InlayHints = []span.Span
 type WorkspaceSymbols = map[WorkspaceSymbolsTestType]map[span.URI][]string
 type Signatures = map[span.Span]*protocol.SignatureHelp

@@ -682,16 +682,6 @@ type OptionResult struct {
 	Error error
 }
 
-type OptionState int
-
-const (
-	OptionHandled = OptionState(iota)
-	OptionDeprecated
-	OptionUnexpected
-)
-
-type LinkTarget string
-
 func SetOptions(options *Options, opts interface{}) OptionResults {
 	var results OptionResults
 	switch opts := opts.(type) {
