@@ -4,6 +4,8 @@
 
 package time
 
+import "errors"
+
 // RFC 3339 is the most commonly used format.
 //
 // It is implicitly used by the Time.(Marshal|Unmarshal)(Text|JSON) methods.
@@ -57,13 +59,33 @@ func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 	return b
 }
 
-func parseRFC3339(s string, local *Location) (Time, bool) {
+func (t Time) appendStrictRFC3339(b []byte) ([]byte, error) {
+	n0 := len(b)
+	b = t.appendFormatRFC3339(b, true)
+
+	// Not all valid Go timestamps can be serialized as valid RFC 3339.
+	// Explicitly check for these edge cases.
+	// See https://go.dev/issue/4556 and https://go.dev/issue/54580.
+	num2 := func(b []byte) byte { return 10*(b[0]-'0') + (b[1] - '0') }
+	switch {
+	case b[n0+len("9999")] != '-': // year must be exactly 4 digits wide
+		return b, errors.New("year outside of range [0,9999]")
+	case b[len(b)-1] != 'Z':
+		c := b[len(b)-len("Z07:00")]
+		if ('0' <= c && c <= '9') || num2(b[len(b)-len("07:00"):]) >= 24 {
+			return b, errors.New("timezone hour outside of range [0,23]")
+		}
+	}
+	return b, nil
+}
+
+func parseRFC3339[bytes []byte | string](s bytes, local *Location) (Time, bool) {
 	// parseUint parses s as an unsigned decimal integer and
 	// verifies that it is within some range.
 	// If it is invalid or out-of-range,
 	// it sets ok to false and returns the min value.
 	ok := true
-	parseUint := func(s string, min, max int) (x int) {
+	parseUint := func(s bytes, min, max int) (x int) {
 		for _, c := range []byte(s) {
 			if c < '0' || '9' < c {
 				ok = false
@@ -105,7 +127,7 @@ func parseRFC3339(s string, local *Location) (Time, bool) {
 
 	// Parse the time zone.
 	t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
-	if s != "Z" {
+	if len(s) != 1 || s[0] != 'Z' {
 		if len(s) != len("-07:00") {
 			return Time{}, false
 		}
@@ -128,4 +150,34 @@ func parseRFC3339(s string, local *Location) (Time, bool) {
 		}
 	}
 	return t, true
+}
+
+func parseStrictRFC3339(b []byte) (Time, error) {
+	t, ok := parseRFC3339(b, Local)
+	if !ok {
+		if _, err := Parse(RFC3339, string(b)); err != nil {
+			return Time{}, err
+		}
+
+		// The parse template syntax cannot correctly validate RFC 3339.
+		// Explicitly check for cases that Parse is unable to validate for.
+		// See https://go.dev/issue/54580.
+		num2 := func(b []byte) byte { return 10*(b[0]-'0') + (b[1] - '0') }
+		switch {
+		case b[len("2006-01-02T")+1] == ':': // hour must be two digits
+			return Time{}, &ParseError{RFC3339, string(b), "15", string(b[len("2006-01-02T"):][:1]), ""}
+		case b[len("2006-01-02T15:04:05")] == ',': // sub-second separator must be a period
+			return Time{}, &ParseError{RFC3339, string(b), ".", ",", ""}
+		case b[len(b)-1] != 'Z':
+			switch {
+			case num2(b[len(b)-len("07:00"):]) >= 24: // timezone hour must be in range
+				return Time{}, &ParseError{RFC3339, string(b), "Z07:00", string(b[len(b)-len("Z07:00"):]), ": timezone hour out of range"}
+			case num2(b[len(b)-len("00"):]) >= 60: // timezone minute must be in range
+				return Time{}, &ParseError{RFC3339, string(b), "Z07:00", string(b[len(b)-len("Z07:00"):]), ": timezone minute out of range"}
+			}
+		default: // unknown error; should not occur
+			return Time{}, &ParseError{RFC3339, string(b), RFC3339, string(b), ""}
+		}
+	}
+	return t, nil
 }
