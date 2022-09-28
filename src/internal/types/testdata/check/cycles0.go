@@ -8,7 +8,7 @@ import "unsafe"
 
 type (
 	T0 int
-	T1 /* ERROR invalid recursive type */ T1
+	T1 /* ERROR invalid recursive type: T1 refers to itself */ T1
 	T2 *T2
 
 	T3 /* ERROR invalid recursive type */ T4
@@ -34,8 +34,8 @@ type (
 	L0 []L0
 
 	// structs
-	S0 /* ERROR invalid recursive type */ struct{ _ S0 }
-	S1 /* ERROR invalid recursive type */ struct{ S1 }
+	S0 /* ERROR invalid recursive type: S0 refers to itself */ struct{ _ S0 }
+	S1 /* ERROR invalid recursive type: S1 refers to itself */ struct{ S1 }
 	S2 struct{ _ *S2 }
 	S3 struct{ *S3 }
 
@@ -53,7 +53,7 @@ type (
 	F2 func(F2) F2
 
 	// interfaces
-	I0 /* ERROR invalid recursive type */ interface{ I0 }
+	I0 /* ERROR invalid recursive type: I0 refers to itself */ interface{ I0 }
 
 	I1 /* ERROR invalid recursive type */ interface{ I2 }
 	I2 interface{ I3 }
@@ -83,7 +83,7 @@ type (
 
 func _() {
 	type (
-		t1 /* ERROR invalid recursive type */ t1
+		t1 /* ERROR invalid recursive type: t1 refers to itself */ t1
 		t2 *t2
 
 		t3 t4 /* ERROR undefined */
@@ -91,15 +91,15 @@ func _() {
 		t5 t3
 
 		// arrays
-		a0 /* ERROR invalid recursive type */ [10]a0
+		a0 /* ERROR invalid recursive type: a0 refers to itself */ [10]a0
 		a1 [10]*a1
 
 		// slices
 		l0 []l0
 
 		// structs
-		s0 /* ERROR invalid recursive type */ struct{ _ s0 }
-		s1 /* ERROR invalid recursive type */ struct{ s1 }
+		s0 /* ERROR invalid recursive type: s0 refers to itself */ struct{ _ s0 }
+		s1 /* ERROR invalid recursive type: s1 refers to itself */ struct{ s1 }
 		s2 struct{ _ *s2 }
 		s3 struct{ *s3 }
 
@@ -112,7 +112,7 @@ func _() {
 		f2 func(f2) f2
 
 		// interfaces
-		i0 /* ERROR invalid recursive type */ interface{ i0 }
+		i0 /* ERROR invalid recursive type: i0 refers to itself */ interface{ i0 }
 
 		// maps
 		m0 map[m0 /* ERROR invalid map key */ ]m0
@@ -135,17 +135,17 @@ type S struct {
 
 type (
 	P1 *T9
-	T9 /* ERROR invalid recursive type */ T9
+	T9 /* ERROR invalid recursive type: T9 refers to itself */ T9
 
-	T10 /* ERROR invalid recursive type */ T10
+	T10 /* ERROR invalid recursive type: T10 refers to itself */ T10
 	P2 *T10
 )
 
 func (T11) m() {}
 
-type T11 /* ERROR invalid recursive type */ struct{ T11 }
+type T11 /* ERROR invalid recursive type: T11 refers to itself */ struct{ T11 }
 
-type T12 /* ERROR invalid recursive type */ struct{ T12 }
+type T12 /* ERROR invalid recursive type: T12 refers to itself */ struct{ T12 }
 
 func (*T12) m() {}
 

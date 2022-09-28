@@ -152,6 +152,13 @@ func findPath(objMap map[Object]*declInfo, from, to Object, seen map[Object]bool
 // reportCycle reports an error for the given cycle.
 func (check *Checker) reportCycle(cycle []Object) {
 	obj := cycle[0]
+
+	// report a more concise error for self references
+	if len(cycle) == 1 {
+		check.errorf(obj, _InvalidInitCycle, "initialization cycle: %s refers to itself", obj.Name())
+		return
+	}
+
 	var err error_
 	err.code = _InvalidInitCycle
 	err.errorf(obj, "initialization cycle for %s", obj.Name())

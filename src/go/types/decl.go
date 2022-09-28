@@ -325,6 +325,17 @@ func (check *Checker) cycleError(cycle []Object) {
 	if tname != nil && tname.IsAlias() {
 		check.validAlias(tname, Typ[Invalid])
 	}
+
+	// report a more concise error for self references
+	if len(cycle) == 1 {
+		if tname != nil {
+			check.errorf(obj, _InvalidDeclCycle, "invalid recursive type: %s refers to itself", objName)
+		} else {
+			check.errorf(obj, _InvalidDeclCycle, "invalid cycle in declaration: %s refers to itself", objName)
+		}
+		return
+	}
+
 	if tname != nil {
 		check.errorf(obj, _InvalidDeclCycle, "invalid recursive type %s", objName)
 	} else {

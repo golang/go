@@ -308,7 +308,7 @@ func (check *Checker) cycleError(cycle []Object) {
 	// name returns the (possibly qualified) object name.
 	// This is needed because with generic types, cycles
 	// may refer to imported types. See issue #50788.
-	// TODO(gri) Thus functionality is used elsewhere. Factor it out.
+	// TODO(gri) This functionality is used elsewhere. Factor it out.
 	name := func(obj Object) string {
 		var buf bytes.Buffer
 		writePackage(&buf, obj.Pkg(), check.qualifier)
@@ -327,6 +327,17 @@ func (check *Checker) cycleError(cycle []Object) {
 	if tname != nil && tname.IsAlias() {
 		check.validAlias(tname, Typ[Invalid])
 	}
+
+	// report a more concise error for self references
+	if len(cycle) == 1 {
+		if tname != nil {
+			check.errorf(obj, _InvalidDeclCycle, "invalid recursive type: %s refers to itself", objName)
+		} else {
+			check.errorf(obj, _InvalidDeclCycle, "invalid cycle in declaration: %s refers to itself", objName)
+		}
+		return
+	}
+
 	var err error_
 	err.code = _InvalidDeclCycle
 	if tname != nil {

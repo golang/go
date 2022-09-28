@@ -9,5 +9,5 @@
 package p
 
 func _() {
-	type T = T // ERROR "T uses T|invalid recursive type T"
+	type T = T // ERROR "invalid recursive type: T refers to itself"
 }

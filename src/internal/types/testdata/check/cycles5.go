@@ -159,7 +159,7 @@ var a12 = makeArray()
 func makeArray() (res T12) { return }
 
 // issue #20770
-var r /* ERROR cycle */ = newReader()
+var r /* ERROR invalid cycle in declaration of r */ = newReader()
 func newReader() r
 
 // variations of the theme of #8699 and #20770
@@ -170,7 +170,7 @@ func f() [len(arr)]int
 func ff(ff /* ERROR not a type */ )
 func gg((gg /* ERROR not a type */ ))
 
-type T13 /* ERROR invalid recursive type */ [len(b13)]int
+type T13 /* ERROR invalid recursive type T13 */ [len(b13)]int
 var b13 T13
 
 func g1() [unsafe.Sizeof(g1)]int
@@ -190,7 +190,7 @@ var c14 /* ERROR cycle */ T14
 type T14 [uintptr(unsafe.Sizeof(&c14))]byte
 
 // issue #34333
-type T15 /* ERROR invalid recursive type */ struct {
+type T15 /* ERROR invalid recursive type T15 */ struct {
 	f func() T16
 	b T16
 }
