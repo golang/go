@@ -26,6 +26,7 @@ type DebugFlags struct {
 	DwarfInl                      int    `help:"print information about DWARF inlined function creation"`
 	Export                        int    `help:"print export data"`
 	Fmahash                       string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
+	GCAdjust                      int    `help:"log adjustments to GOGC" concurrent:"ok"`
 	GCProg                        int    `help:"print dump of GC programs"`
 	Gossahash                     string `help:"hash value for use in debugging the compiler"`
 	InlFuncsWithClosures          int    `help:"allow functions with closures to be inlined"`
