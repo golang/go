@@ -84,9 +84,7 @@ func Parse() {
 			flag.Usage()
 		}
 		input := filepath.Base(flag.Arg(0))
-		if strings.HasSuffix(input, ".s") {
-			input = input[:len(input)-2]
-		}
+		input = strings.TrimSuffix(input, ".s")
 		*OutputFile = fmt.Sprintf("%s.o", input)
 	}
 }
