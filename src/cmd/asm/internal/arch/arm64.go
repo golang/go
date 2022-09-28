@@ -118,10 +118,7 @@ func IsARM64STLXR(op obj.As) bool {
 		return true
 	}
 	// LDADDx/SWPx/CASx atomic instructions
-	if arm64.IsAtomicInstruction(op) {
-		return true
-	}
-	return false
+	return arm64.IsAtomicInstruction(op)
 }
 
 // IsARM64TBL reports whether the op (as defined by an arm64.A*
