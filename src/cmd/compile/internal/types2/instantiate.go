@@ -174,9 +174,9 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 		// need to instantiate it with the type arguments with which we instantiated
 		// the parameterized type.
 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
-		var reason string
-		if !check.implements(targs[i], bound, &reason) {
-			return i, errors.New(reason)
+		var cause string
+		if !check.implements(targs[i], bound, &cause) {
+			return i, errors.New(cause)
 		}
 	}
 	return -1, nil
@@ -185,9 +185,9 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 // implements checks if V implements T. The receiver may be nil if implements
 // is called through an exported API call such as AssignableTo.
 //
-// If the provided reason is non-nil, it may be set to an error string
+// If the provided cause is non-nil, it may be set to an error string
 // explaining why V does not implement T.
-func (check *Checker) implements(V, T Type, reason *string) bool {
+func (check *Checker) implements(V, T Type, cause *string) bool {
 	Vu := under(V)
 	Tu := under(T)
 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
@@ -199,14 +199,14 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
 
 	Ti, _ := Tu.(*Interface)
 	if Ti == nil {
-		var cause string
+		var detail string
 		if isInterfacePtr(Tu) {
-			cause = check.sprintf("type %s is pointer to interface, not interface", T)
+			detail = check.sprintf("type %s is pointer to interface, not interface", T)
 		} else {
-			cause = check.sprintf("%s is not an interface", T)
+			detail = check.sprintf("%s is not an interface", T)
 		}
-		if reason != nil {
-			*reason = check.sprintf("%s does not implement %s (%s)", V, T, cause)
+		if cause != nil {
+			*cause = check.sprintf("%s does not implement %s (%s)", V, T, detail)
 		}
 		return false
 	}
@@ -227,16 +227,16 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
 
 	// No type with non-empty type set satisfies the empty type set.
 	if Ti.typeSet().IsEmpty() {
-		if reason != nil {
-			*reason = check.sprintf("cannot implement %s (empty type set)", T)
+		if cause != nil {
+			*cause = check.sprintf("cannot implement %s (empty type set)", T)
 		}
 		return false
 	}
 
 	// V must implement T's methods, if any.
 	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
-		if reason != nil {
-			*reason = check.sprintf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
+		if cause != nil {
+			*cause = check.sprintf("%s does not implement %s %s", V, T, check.missingMethodCause(V, T, m, wrong))
 		}
 		return false
 	}
@@ -245,8 +245,8 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
 	checkComparability := func() bool {
 		// If T is comparable, V must be comparable.
 		if Ti.IsComparable() && !comparable(V, false, nil, nil) {
-			if reason != nil {
-				*reason = check.sprintf("%s does not implement comparable", V)
+			if cause != nil {
+				*cause = check.sprintf("%s does not implement comparable", V)
 			}
 			return false
 		}
@@ -265,8 +265,8 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
 	if Vi != nil {
 		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
 			// TODO(gri) report which type is missing
-			if reason != nil {
-				*reason = check.sprintf("%s does not implement %s", V, T)
+			if cause != nil {
+				*cause = check.sprintf("%s does not implement %s", V, T)
 			}
 			return false
 		}
@@ -291,11 +291,11 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
 		}
 		return false
 	}) {
-		if reason != nil {
+		if cause != nil {
 			if alt != nil {
-				*reason = check.sprintf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
+				*cause = check.sprintf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
 			} else {
-				*reason = check.sprintf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
+				*cause = check.sprintf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
 			}
 		}
 		return false

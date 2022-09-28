@@ -1764,7 +1764,7 @@ func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitc
 		return // success
 	}
 
-	cause := check.missingMethodReason(T, x.typ, method, alt)
+	cause := check.missingMethodCause(T, x.typ, method, alt)
 
 	if typeSwitch {
 		check.errorf(e, _ImpossibleAssert, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)

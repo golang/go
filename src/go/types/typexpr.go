@@ -188,14 +188,14 @@ func (check *Checker) definedType(e ast.Expr, def *Named) Type {
 }
 
 // genericType is like typ but the type must be an (uninstantiated) generic
-// type. If reason is non-nil and the type expression was a valid type but not
-// generic, reason will be populated with a message describing the error.
-func (check *Checker) genericType(e ast.Expr, reason *string) Type {
+// type. If cause is non-nil and the type expression was a valid type but not
+// generic, cause will be populated with a message describing the error.
+func (check *Checker) genericType(e ast.Expr, cause *string) Type {
 	typ := check.typInternal(e, nil)
 	assert(isTyped(typ))
 	if typ != Typ[Invalid] && !isGeneric(typ) {
-		if reason != nil {
-			*reason = check.sprintf("%s is not a generic type", typ)
+		if cause != nil {
+			*cause = check.sprintf("%s is not a generic type", typ)
 		}
 		typ = Typ[Invalid]
 	}
@@ -404,10 +404,10 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 		}()
 	}
 
-	var reason string
-	gtyp := check.genericType(ix.X, &reason)
-	if reason != "" {
-		check.invalidOp(ix.Orig, _NotAGenericType, "%s (%s)", ix.Orig, reason)
+	var cause string
+	gtyp := check.genericType(ix.X, &cause)
+	if cause != "" {
+		check.invalidOp(ix.Orig, _NotAGenericType, "%s (%s)", ix.Orig, cause)
 	}
 	if gtyp == Typ[Invalid] {
 		return gtyp // error already reported
