@@ -84,7 +84,7 @@ func ImportBody(fn *ir.Func) {
 // HaveInlineBody reports whether we have fn's inline body available
 // for inlining.
 //
-// It's a function literal so that it can be overriden for
+// It's a function literal so that it can be overridden for
 // GOEXPERIMENT=unified.
 var HaveInlineBody = func(fn *ir.Func) bool {
 	if fn.Inl == nil {

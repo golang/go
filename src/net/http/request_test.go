@@ -1207,7 +1207,7 @@ func TestRequestCookie(t *testing.T) {
 			t.Errorf("got %v, want %v", err, tt.expectedErr)
 		}
 
-		// skip if error occured.
+		// skip if error occurred.
 		if err != nil {
 			continue
 		}

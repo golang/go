@@ -52,7 +52,7 @@ call:
 // manipulating the return address so that libfuzzer's integer compare hooks
 // work
 // libFuzzer's compare hooks obtain the caller's address from the compiler
-// builtin __builtin_return_adress. Since we invoke the hooks always
+// builtin __builtin_return_address. Since we invoke the hooks always
 // from the same native function, this builtin would always return the same
 // value. Internally, the libFuzzer hooks call through to the always inlined
 // HandleCmp and thus can't be mimicked without patching libFuzzer.
