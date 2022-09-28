@@ -559,9 +559,6 @@ func TestIPProperties(t *testing.T) {
 		private4b = mustIP("172.16.0.1")
 		private4c = mustIP("192.168.1.1")
 		private6  = mustIP("fd00::1")
-
-		unspecified4 = AddrFrom4([4]byte{})
-		unspecified6 = IPv6Unspecified()
 	)
 
 	tests := []struct {
@@ -686,12 +683,12 @@ func TestIPProperties(t *testing.T) {
 		},
 		{
 			name:        "unspecified v4Addr",
-			ip:          unspecified4,
+			ip:          IPv4Unspecified(),
 			unspecified: true,
 		},
 		{
 			name:        "unspecified v6Addr",
-			ip:          unspecified6,
+			ip:          IPv6Unspecified(),
 			unspecified: true,
 		},
 	}
