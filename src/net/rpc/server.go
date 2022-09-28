@@ -138,6 +138,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -151,11 +152,10 @@ const (
 var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
 
 type methodType struct {
-	sync.Mutex // protects counters
-	method     reflect.Method
-	ArgType    reflect.Type
-	ReplyType  reflect.Type
-	numCalls   uint
+	method    reflect.Method
+	ArgType   reflect.Type
+	ReplyType reflect.Type
+	numCalls  uint64
 }
 
 type service struct {
@@ -363,20 +363,15 @@ func (server *Server) sendResponse(sending *sync.Mutex, req *Request, reply any,
 	server.freeResponse(resp)
 }
 
-func (m *methodType) NumCalls() (n uint) {
-	m.Lock()
-	n = m.numCalls
-	m.Unlock()
-	return n
+func (m *methodType) NumCalls() (n uint64) {
+	return atomic.LoadUint64(&m.numCalls)
 }
 
 func (s *service) call(server *Server, sending *sync.Mutex, wg *sync.WaitGroup, mtype *methodType, req *Request, argv, replyv reflect.Value, codec ServerCodec) {
 	if wg != nil {
 		defer wg.Done()
 	}
-	mtype.Lock()
-	mtype.numCalls++
-	mtype.Unlock()
+	atomic.AddUint64(&mtype.numCalls, 1)
 	function := mtype.method.Func
 	// Invoke the method, providing a new value for the reply.
 	returnValues := function.Call([]reflect.Value{s.rcvr, argv, replyv})
