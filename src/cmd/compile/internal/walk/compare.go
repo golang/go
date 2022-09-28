@@ -186,11 +186,15 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 			base.Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
 		}
 
-		fn, needsize := eqFor(t)
+		// Should only arrive here with large memory or
+		// a struct/array containing a non-memory field/element.
+		// Small memory is handled inline, and single non-memory
+		// is handled by walkCompare.
+		fn, needsLength := reflectdata.EqFor(t)
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 		call.Args.Append(typecheck.NodAddr(cmpl))
 		call.Args.Append(typecheck.NodAddr(cmpr))
-		if needsize {
+		if needsLength {
 			call.Args.Append(ir.NewInt(t.Size()))
 		}
 		res := ir.Node(call)
