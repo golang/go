@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"internal/coverage"
-	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
@@ -437,7 +436,7 @@ func readImportCfg(file string) {
 
 func readCoverageCfg(file string) {
 	var cfg coverage.CoverFixupConfig
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-coveragecfg: %v", err)
 	}
