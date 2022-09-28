@@ -179,7 +179,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 	case token.ARROW:
 		u := coreType(x.typ)
 		if u == nil {
-			check.invalidOp(x, _InvalidReceive, "cannot receive from %s: no core type", x)
+			check.invalidOp(x, _InvalidReceive, "cannot receive from %s (no core type)", x)
 			x.mode = invalid
 			return
 		}
@@ -852,11 +852,7 @@ Error:
 	if switchCase {
 		check.errorf(x, code, "invalid case %s in switch on %s (%s)", x.expr, y.expr, cause) // error position always at 1st operand
 	} else {
-		if compilerErrorMessages {
-			check.invalidOp(errOp, code, "%s %s %s (%s)", x.expr, op, y.expr, cause)
-		} else {
-			check.invalidOp(errOp, code, "cannot compare %s %s %s (%s)", x.expr, op, y.expr, cause)
-		}
+		check.invalidOp(errOp, code, "%s %s %s (%s)", x.expr, op, y.expr, cause)
 	}
 	x.mode = invalid
 }
@@ -1351,7 +1347,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			typ = hint
 			base, _ = deref(coreType(typ)) // *T implies &T{}
 			if base == nil {
-				check.errorf(e, _InvalidLit, "invalid composite literal element type %s: no core type", typ)
+				check.errorf(e, _InvalidLit, "invalid composite literal element type %s (no core type)", typ)
 				goto Error
 			}
 

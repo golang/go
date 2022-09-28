@@ -9,7 +9,7 @@ package expr2
 func _bool() {
 	const t = true == true
 	const f = true == false
-	_ = t /* ERROR cannot compare */ < f
+	_ = t /* ERROR operator .* not defined */ < f
 	_ = 0 == t /* ERROR mismatched types untyped int and untyped bool */
 	var b bool
 	var x, y float32
@@ -29,7 +29,7 @@ func arrays() {
 	_ = a == b
 	_ = a != b
 	_ = a /* ERROR < not defined */ < b
-	_ = a == nil /* ERROR cannot compare.*mismatched types */
+	_ = a == nil /* ERROR mismatched types */
 
 	type C [10]int
 	var c C
@@ -53,7 +53,7 @@ func structs() {
 	_ = s == t
 	_ = s != t
 	_ = s /* ERROR < not defined */ < t
-	_ = s == nil /* ERROR cannot compare.*mismatched types */
+	_ = s == nil /* ERROR mismatched types */
 
 	type S struct {
 		x int
@@ -74,7 +74,7 @@ func structs() {
 		x int
 		a [10]map[string]int
 	}
-	_ = u /* ERROR cannot compare */ == u
+	_ = u /* ERROR cannot be compared */ == u
 }
 
 func pointers() {

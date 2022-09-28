@@ -21,17 +21,17 @@ func _[T interface{comparable; ~int}](x T) {
 }
 
 func _[T interface{comparable; ~[]byte}](x T) {
-        _ = x /* ERROR cannot compare */ == x
+        _ = x /* ERROR empty type set */ == x
 }
 
 // TODO(gri) The error message here should be better. See issue #51525.
 func _[T interface{comparable; ~int; ~string}](x T) {
-        _ = x /* ERROR cannot compare */ == x
+        _ = x /* ERROR empty type set */ == x
 }
 
 // TODO(gri) The error message here should be better. See issue #51525.
 func _[T interface{~int; ~string}](x T) {
-        _ = x /* ERROR cannot compare */ == x
+        _ = x /* ERROR empty type set */ == x
 }
 
 func _[T interface{comparable; interface{~int}; interface{int|float64}}](x T) {
@@ -39,7 +39,7 @@ func _[T interface{comparable; interface{~int}; interface{int|float64}}](x T) {
 }
 
 func _[T interface{interface{comparable; ~int}; interface{~float64; comparable; m()}}](x T) {
-        _ = x /* ERROR cannot compare */ == x
+        _ = x /* ERROR empty type set */ == x
 }
 
 // test case from issue
