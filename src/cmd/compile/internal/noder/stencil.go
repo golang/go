@@ -2265,7 +2265,7 @@ func parameterizedBy1(t *types.Type, params []*types.Type, visited map[*types.Ty
 	}
 }
 
-// startClosures starts creation of a closure that has the function type typ. It
+// startClosure starts creation of a closure that has the function type typ. It
 // creates all the formal params and results according to the type typ. On return,
 // the body and closure variables of the closure must still be filled in, and
 // ir.UseClosure() called.

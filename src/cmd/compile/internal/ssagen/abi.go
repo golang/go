@@ -364,7 +364,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	ir.CurFunc = savedcurfn
 }
 
-// setupTextLsym initializes the LSym for a with-body text symbol.
+// setupTextLSym initializes the LSym for a with-body text symbol.
 func setupTextLSym(f *ir.Func, flag int) {
 	if f.Dupok() {
 		flag |= obj.DUPOK
