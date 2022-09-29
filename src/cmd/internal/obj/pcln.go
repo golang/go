@@ -294,9 +294,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 		inlMarkProgs[inlMark.p] = struct{}{}
 	}
 	for p := fn.Text; p != nil; p = p.Link {
-		if _, ok := inlMarkProgs[p]; ok {
-			delete(inlMarkProgs, p)
-		}
+		delete(inlMarkProgs, p)
 	}
 	if len(inlMarkProgs) > 0 {
 		ctxt.Diag("one or more instructions used as inline markers are no longer reachable")
