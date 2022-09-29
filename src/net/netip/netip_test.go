@@ -301,6 +301,41 @@ func TestParseAddr(t *testing.T) {
 	}
 }
 
+func TestAddrFromSlice(t *testing.T) {
+	tests := []struct {
+		ip       []byte
+		wantAddr Addr
+		wantOK   bool
+	}{
+		{
+			ip:       []byte{10, 0, 0, 1},
+			wantAddr: mustIP("10.0.0.1"),
+			wantOK:   true,
+		},
+		{
+			ip:       []byte{0xfe, 0x80, 15: 0x01},
+			wantAddr: mustIP("fe80::01"),
+			wantOK:   true,
+		},
+		{
+			ip:       []byte{0, 1, 2},
+			wantAddr: Addr{},
+			wantOK:   false,
+		},
+		{
+			ip:       nil,
+			wantAddr: Addr{},
+			wantOK:   false,
+		},
+	}
+	for _, tt := range tests {
+		addr, ok := AddrFromSlice(tt.ip)
+		if ok != tt.wantOK || addr != tt.wantAddr {
+			t.Errorf("AddrFromSlice(%#v) = %#v, %v, want %#v, %v", tt.ip, addr, ok, tt.wantAddr, tt.wantOK)
+		}
+	}
+}
+
 func TestIPv4Constructors(t *testing.T) {
 	if AddrFrom4([4]byte{1, 2, 3, 4}) != MustParseAddr("1.2.3.4") {
 		t.Errorf("don't match")
