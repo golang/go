@@ -423,12 +423,15 @@ func compilerRequiredAsanVersion() error {
 
 	switch compiler.name {
 	case "gcc":
+		if runtime.GOARCH == "ppc64le" && compiler.major < 9 {
+			return fmt.Errorf("-asan is not supported with %s compiler %d.%d\n", compiler.name, compiler.major, compiler.minor)
+		}
 		if compiler.major < 7 {
-			return fmt.Errorf("-asan is not supported with C compiler %d.%d\n", compiler.major, compiler.minor)
+			return fmt.Errorf("-asan is not supported with %s compiler %d.%d\n", compiler.name, compiler.major, compiler.minor)
 		}
 	case "clang":
 		if compiler.major < 9 {
-			return fmt.Errorf("-asan is not supported with C compiler %d.%d\n", compiler.major, compiler.minor)
+			return fmt.Errorf("-asan is not supported with %s compiler %d.%d\n", compiler.name, compiler.major, compiler.minor)
 		}
 	default:
 		return fmt.Errorf("-asan: C compiler is not gcc or clang")
