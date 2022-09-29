@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build gen
-// +build gen
 
 // This program generates Go code that applies rewrite rules to a Value.
 // The generated code implements a function of type func (v *Value) bool
