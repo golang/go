@@ -547,7 +547,7 @@ func (g *genInst) instantiateMethods() {
 			// Lookup the method on the base generic type, since methods may
 			// not be set on imported instantiated types.
 			baseType := typ.OrigType()
-			for j, _ := range typ.Methods().Slice() {
+			for j := range typ.Methods().Slice() {
 				if baseType.Methods().Slice()[j].Nointerface() {
 					typ.Methods().Slice()[j].SetNointerface(true)
 				}
