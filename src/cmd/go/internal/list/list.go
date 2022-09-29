@@ -409,7 +409,7 @@ var nl = []byte{'\n'}
 func runList(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 
-	if *listFmt != "" && listJson == true {
+	if *listFmt != "" && listJson {
 		base.Fatalf("go list -f cannot be used with -json")
 	}
 	if *listReuse != "" && !*listM {
