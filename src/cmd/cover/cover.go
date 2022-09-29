@@ -1026,10 +1026,10 @@ func (d *sliceWriteSeeker) Write(p []byte) (n int, err error) {
 }
 
 func (d *sliceWriteSeeker) Seek(offset int64, whence int) (int64, error) {
-	if whence == os.SEEK_SET {
+	if whence == io.SeekStart {
 		d.off = offset
 		return offset, nil
-	} else if whence == os.SEEK_CUR {
+	} else if whence == io.SeekCurrent {
 		d.off += offset
 		return d.off, nil
 	}
