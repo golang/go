@@ -63,7 +63,7 @@ func runPkgCover(t *testing.T, outdir string, tag string, incfg string, mode str
 	outfiles, outfilelist := writeOutFileList(t, infiles, outdir, tag)
 	args := []string{"-pkgcfg", incfg, "-mode=" + mode, "-var=var" + tag, "-outfilelist", outfilelist}
 	args = append(args, infiles...)
-	cmd := exec.Command(testcover, args...)
+	cmd := exec.Command(testcover(t), args...)
 	if errExpected {
 		errmsg := runExpectingError(cmd, t)
 		return nil, "", errmsg

@@ -23,8 +23,16 @@ import (
 	"testing"
 )
 
-// Path to unit test executable to be used as standin for 'go tool covdata'
-var testcovdata string
+// testcovdata returns the path to the unit test executable to be used as
+// standin for 'go tool covdata'.
+func testcovdata(t testing.TB) string {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Helper()
+		t.Fatal(err)
+	}
+	return exe
+}
 
 // Top level tempdir for test.
 var testTempDir string
@@ -56,11 +64,6 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "debug: preserving tmpdir %s\n", topTmpdir)
 	}
 	os.Setenv("CMDCOVDATA_TEST_RUN_MAIN", "true")
-	testExe, err := os.Executable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	testcovdata = testExe
 	os.Exit(m.Run())
 }
 
@@ -111,7 +114,6 @@ func emitFile(t *testing.T, dst, src string) {
 }
 
 func buildProg(t *testing.T, prog string, dir string, tag string, flags []string) (string, string) {
-
 	// Create subdirs.
 	subdir := filepath.Join(dir, prog+"dir"+tag)
 	if err := os.Mkdir(subdir, 0777); err != nil {
@@ -182,7 +184,7 @@ func TestCovTool(t *testing.T) {
 	s.exepath3, s.exedir3 = buildProg(t, "prog1", dir, "atomic", flags)
 
 	// Reuse unit test executable as tool to be tested.
-	s.tool = testcovdata
+	s.tool = testcovdata(t)
 
 	// Create a few coverage output dirs.
 	for i := 0; i < 4; i++ {

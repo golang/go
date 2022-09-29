@@ -29,15 +29,20 @@ const (
 	testdata = "testdata"
 )
 
-var (
-	// The cmd/cover binary that we are going to test. At one point
-	// this was created via "go build"; we now reuse the unit test
-	// executable itself.
-	testcover string
+// testcover returns the path to the cmd/cover binary that we are going to
+// test. At one point this was created via "go build"; we now reuse the unit
+// test executable itself.
+func testcover(t testing.TB) string {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Helper()
+		t.Fatal(err)
+	}
+	return exe
+}
 
-	// testTempDir is a temporary directory created in TestMain.
-	testTempDir string
-)
+// testTempDir is a temporary directory created in TestMain.
+var testTempDir string
 
 // If set, this will preserve all the tmpdir files from the test run.
 var debug = flag.Bool("debug", false, "keep tmpdir files for debugging")
@@ -87,11 +92,6 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "debug: preserving tmpdir %s\n", topTmpdir)
 	}
 	os.Setenv("CMDCOVER_TEST_RUN_MAIN", "normal")
-	testExe, err := os.Executable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	testcover = testExe
 	os.Exit(m.Run())
 }
 
@@ -113,8 +113,9 @@ func tempDir(t *testing.T) string {
 // "-toolexec" wrapper program to invoke the cover test executable
 // itself via "go test -cover".
 func TestCoverWithToolExec(t *testing.T) {
+	testenv.MustHaveExec(t)
 
-	toolexecArg := "-toolexec=" + testcover
+	toolexecArg := "-toolexec=" + testcover(t)
 
 	t.Run("CoverHTML", func(t *testing.T) {
 		testCoverHTML(t, toolexecArg)
@@ -134,10 +135,8 @@ func TestCoverWithToolExec(t *testing.T) {
 //	go run ./testdata/main.go ./testdata/test.go
 func TestCover(t *testing.T) {
 	testenv.MustHaveGoRun(t)
-
-	dir := tempDir(t)
-
 	t.Parallel()
+	dir := tempDir(t)
 
 	// Read in the test file (testTest) and write it, with LINEs specified, to coverInput.
 	testTest := filepath.Join(testdata, "test.go")
@@ -167,10 +166,10 @@ func TestCover(t *testing.T) {
 
 	// testcover -mode=count -var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest -o ./testdata/test_cover.go testdata/test_line.go
 	coverOutput := filepath.Join(dir, "test_cover.go")
-	cmd := exec.Command(testcover, "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
+	cmd := exec.Command(testcover(t), "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
 	run(cmd, t)
 
-	cmd = exec.Command(testcover, "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
+	cmd = exec.Command(testcover(t), "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
 	err = cmd.Run()
 	if err == nil {
 		t.Error("Expected cover to fail with an error")
@@ -217,7 +216,7 @@ func TestCover(t *testing.T) {
 // above those declarations, even if they are not part of the block of
 // documentation comments.
 func TestDirectives(t *testing.T) {
-
+	testenv.MustHaveExec(t)
 	t.Parallel()
 
 	// Read the source file and find all the directives. We'll keep
@@ -230,7 +229,7 @@ func TestDirectives(t *testing.T) {
 	sourceDirectives := findDirectives(source)
 
 	// testcover -mode=atomic ./testdata/directives.go
-	cmd := exec.Command(testcover, "-mode=atomic", testDirectives)
+	cmd := exec.Command(testcover(t), "-mode=atomic", testDirectives)
 	cmd.Stderr = os.Stderr
 	output, err := cmd.Output()
 	if err != nil {
@@ -336,11 +335,11 @@ func findDirectives(source []byte) []directiveInfo {
 // Makes sure that `cover -func=profile.cov` reports accurate coverage.
 // Issue #20515.
 func TestCoverFunc(t *testing.T) {
-	t.Parallel()
+	testenv.MustHaveExec(t)
 
 	// testcover -func ./testdata/profile.cov
 	coverProfile := filepath.Join(testdata, "profile.cov")
-	cmd := exec.Command(testcover, "-func", coverProfile)
+	cmd := exec.Command(testcover(t), "-func", coverProfile)
 	out, err := cmd.Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
@@ -370,7 +369,7 @@ func testCoverHTML(t *testing.T, toolexecArg string) {
 	run(cmd, t)
 	// testcover -html testdata/html/html.cov -o testdata/html/html.html
 	htmlHTML := filepath.Join(dir, "html.html")
-	cmd = exec.Command(testcover, "-html", htmlProfile, "-o", htmlHTML)
+	cmd = exec.Command(testcover(t), "-html", htmlProfile, "-o", htmlHTML)
 	run(cmd, t)
 
 	// Extract the parts of the HTML with comment markers,
@@ -473,7 +472,7 @@ lab:
 	run(cmd, t)
 
 	// testcover -html TMPDIR/htmlunformatted.cov -o unformatted.html
-	cmd = exec.Command(testcover, "-html", htmlUProfile, "-o", htmlUHTML)
+	cmd = exec.Command(testcover(t), "-html", htmlUProfile, "-o", htmlUHTML)
 	cmd.Dir = htmlUDir
 	run(cmd, t)
 }
@@ -549,7 +548,7 @@ func testFuncWithDuplicateLines(t *testing.T, toolexecArg string) {
 	run(cmd, t)
 
 	// testcover -func=TMPDIR/linedup.out
-	cmd = exec.Command(testcover, "-func", lineDupProfile)
+	cmd = exec.Command(testcover(t), "-func", lineDupProfile)
 	cmd.Dir = lineDupDir
 	run(cmd, t)
 }
