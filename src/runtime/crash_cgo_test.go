@@ -730,7 +730,10 @@ func TestCgoTraceParser(t *testing.T) {
 	}
 	output := runTestProg(t, "testprogcgo", "CgoTraceParser")
 	want := "OK\n"
-	if output != want {
+	ErrTimeOrder := "ErrTimeOrder\n"
+	if output == ErrTimeOrder {
+		t.Skipf("skipping due to golang.org/issue/16755: %v", output)
+	} else if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)
 	}
 }
@@ -743,7 +746,10 @@ func TestCgoTraceParserWithOneProc(t *testing.T) {
 	}
 	output := runTestProg(t, "testprogcgo", "CgoTraceParser", "GOMAXPROCS=1")
 	want := "OK\n"
-	if output != want {
+	ErrTimeOrder := "ErrTimeOrder\n"
+	if output == ErrTimeOrder {
+		t.Skipf("skipping due to golang.org/issue/16755: %v", output)
+	} else if output != want {
 		t.Fatalf("GOMAXPROCS=1, want %s, got %s\n", want, output)
 	}
 }
