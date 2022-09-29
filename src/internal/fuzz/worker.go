@@ -792,7 +792,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 
 func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp minimizeResponse) {
 	start := time.Now()
-	defer func() { resp.Duration = time.Now().Sub(start) }()
+	defer func() { resp.Duration = time.Since(start) }()
 	mem := <-ws.memMu
 	defer func() { ws.memMu <- mem }()
 	vals, err := unmarshalCorpusFile(mem.valueCopy())
