@@ -10,6 +10,10 @@ package math
 //
 //	Abs(±Inf) = +Inf
 //	Abs(NaN) = NaN
-func Abs(x float64) float64 {
-	return Float64frombits(Float64bits(x) &^ (1 << 63))
+type number interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~float32 | ~float64
+}
+
+func Abs[T number](x T) T {
+	return T(Float64frombits(Float64bits(float64(x)) &^ (1 << 63)))
 }
