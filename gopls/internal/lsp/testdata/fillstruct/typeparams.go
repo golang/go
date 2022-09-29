@@ -5,7 +5,7 @@ package fillstruct
 
 type emptyStructWithTypeParams[A any] struct{}
 
-var _ = emptyStructWithTypeParams[int]{}
+var _ = emptyStructWithTypeParams[int]{} // no suggested fix
 
 type basicStructWithTypeParams[T any] struct {
 	foo T
@@ -29,10 +29,9 @@ type nestedStructWithTypeParams struct {
 	basic basicStructWithTypeParams[int]
 }
 
-var _ = nestedStructWithTypeParams{}
+var _ = nestedStructWithTypeParams{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 func _[T any]() {
 	type S struct{ t T }
-	x := S{}
-	_ = x
+	_ = S{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }

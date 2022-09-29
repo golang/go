@@ -4,6 +4,12 @@
 
 // Package fillstruct defines an Analyzer that automatically
 // fills in a struct declaration with zero value elements for each field.
+//
+// The analyzer's diagnostic is merely a prompt.
+// The actual fix is created by a separate direct call from gopls to
+// the SuggestedFixes function.
+// Tests of Analyzer.Run can be found in ./testdata/src.
+// Tests of the SuggestedFixes logic live in ../../testdata/fillstruct.
 package fillstruct
 
 import (
@@ -46,12 +52,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{(*ast.CompositeLit)(nil)}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		info := pass.TypesInfo
-		if info == nil {
-			return
-		}
 		expr := n.(*ast.CompositeLit)
 
+		// Find enclosing file.
+		// TODO(adonovan): use inspect.WithStack?
 		var file *ast.File
 		for _, f := range pass.Files {
 			if f.Pos() <= expr.Pos() && expr.Pos() <= f.End() {
@@ -63,65 +67,49 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
-		typ := info.TypeOf(expr)
+		typ := pass.TypesInfo.TypeOf(expr)
 		if typ == nil {
 			return
 		}
 
 		// Find reference to the type declaration of the struct being initialized.
-		for {
-			p, ok := typ.Underlying().(*types.Pointer)
-			if !ok {
-				break
-			}
-			typ = p.Elem()
-		}
-		typ = typ.Underlying()
-
-		obj, ok := typ.(*types.Struct)
+		typ = deref(typ)
+		tStruct, ok := typ.Underlying().(*types.Struct)
 		if !ok {
 			return
 		}
-		fieldCount := obj.NumFields()
+		// Inv: typ is the possibly-named struct type.
+
+		fieldCount := tStruct.NumFields()
 
 		// Skip any struct that is already populated or that has no fields.
 		if fieldCount == 0 || fieldCount == len(expr.Elts) {
 			return
 		}
 
-		var fillable bool
+		// Are any fields in need of filling?
 		var fillableFields []string
 		for i := 0; i < fieldCount; i++ {
-			field := obj.Field(i)
+			field := tStruct.Field(i)
 			// Ignore fields that are not accessible in the current package.
 			if field.Pkg() != nil && field.Pkg() != pass.Pkg && !field.Exported() {
 				continue
 			}
-			// Ignore structs containing fields that have type parameters for now.
-			// TODO: support type params.
-			if typ, ok := field.Type().(*types.Named); ok {
-				if tparams := typeparams.ForNamed(typ); tparams != nil && tparams.Len() > 0 {
-					return
-				}
-			}
-			if _, ok := field.Type().(*typeparams.TypeParam); ok {
-				return
-			}
-			fillable = true
 			fillableFields = append(fillableFields, fmt.Sprintf("%s: %s", field.Name(), field.Type().String()))
 		}
-		if !fillable {
+		if len(fillableFields) == 0 {
 			return
 		}
+
+		// Derive a name for the struct type.
 		var name string
-		switch typ := expr.Type.(type) {
-		case *ast.Ident:
-			name = typ.Name
-		case *ast.SelectorExpr:
-			name = fmt.Sprintf("%s.%s", typ.X, typ.Sel.Name)
-		default:
+		if typ != tStruct {
+			// named struct type (e.g. pkg.S[T])
+			name = types.TypeString(typ, types.RelativeTo(pass.Pkg))
+		} else {
+			// anonymous struct type
 			totalFields := len(fillableFields)
-			maxLen := 20
+			const maxLen = 20
 			// Find the index to cut off printing of fields.
 			var i, fieldLen int
 			for i = range fillableFields {
@@ -145,7 +133,13 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
+// SuggestedFix computes the suggested fix for the kinds of
+// diagnostics produced by the Analyzer above.
 func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
+	if info == nil {
+		return nil, fmt.Errorf("nil types.Info")
+	}
+
 	pos := rng.Start // don't use the end
 
 	// TODO(rstambler): Using ast.Inspect would probably be more efficient than
@@ -162,37 +156,29 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 		}
 	}
 
-	if info == nil {
-		return nil, fmt.Errorf("nil types.Info")
-	}
 	typ := info.TypeOf(expr)
 	if typ == nil {
 		return nil, fmt.Errorf("no composite literal")
 	}
 
 	// Find reference to the type declaration of the struct being initialized.
-	for {
-		p, ok := typ.Underlying().(*types.Pointer)
-		if !ok {
-			break
-		}
-		typ = p.Elem()
-	}
-	typ = typ.Underlying()
-
-	obj, ok := typ.(*types.Struct)
+	typ = deref(typ)
+	tStruct, ok := typ.Underlying().(*types.Struct)
 	if !ok {
-		return nil, fmt.Errorf("unexpected type %v (%T), expected *types.Struct", typ, typ)
+		return nil, fmt.Errorf("%s is not a (pointer to) struct type",
+			types.TypeString(typ, types.RelativeTo(pkg)))
 	}
-	fieldCount := obj.NumFields()
+	// Inv: typ is the the possibly-named struct type.
+
+	fieldCount := tStruct.NumFields()
 
 	// Check which types have already been filled in. (we only want to fill in
 	// the unfilled types, or else we'll blat user-supplied details)
-	prefilledTypes := map[string]ast.Expr{}
+	prefilledFields := map[string]ast.Expr{}
 	for _, e := range expr.Elts {
 		if kv, ok := e.(*ast.KeyValueExpr); ok {
 			if key, ok := kv.Key.(*ast.Ident); ok {
-				prefilledTypes[key.Name] = kv.Value
+				prefilledFields[key.Name] = kv.Value
 			}
 		}
 	}
@@ -202,14 +188,16 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 	// each field we're going to set. format.Node only cares about line
 	// numbers, so we don't need to set columns, and each line can be
 	// 1 byte long.
+	// TODO(adonovan): why is this necessary? The position information
+	// is going to be wrong for the existing trees in prefilledFields.
+	// Can't the formatter just do its best with an empty fileset?
 	fakeFset := token.NewFileSet()
 	tok := fakeFset.AddFile("", -1, fieldCount+2)
 
 	line := 2 // account for 1-based lines and the left brace
-	var elts []ast.Expr
 	var fieldTyps []types.Type
 	for i := 0; i < fieldCount; i++ {
-		field := obj.Field(i)
+		field := tStruct.Field(i)
 		// Ignore fields that are not accessible in the current package.
 		if field.Pkg() != nil && field.Pkg() != pkg && !field.Exported() {
 			fieldTyps = append(fieldTyps, nil)
@@ -217,11 +205,13 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 		}
 		fieldTyps = append(fieldTyps, field.Type())
 	}
-	matches := analysisinternal.FindMatchingIdents(fieldTyps, file, rng.Start, info, pkg)
+	matches := analysisinternal.MatchingIdents(fieldTyps, file, rng.Start, info, pkg)
+	var elts []ast.Expr
 	for i, fieldTyp := range fieldTyps {
 		if fieldTyp == nil {
-			continue
+			continue // TODO(adonovan): is this reachable?
 		}
+		fieldName := tStruct.Field(i).Name()
 
 		tok.AddLine(line - 1) // add 1 byte per line
 		if line > tok.LineCount() {
@@ -232,30 +222,28 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 		kv := &ast.KeyValueExpr{
 			Key: &ast.Ident{
 				NamePos: pos,
-				Name:    obj.Field(i).Name(),
+				Name:    fieldName,
 			},
 			Colon: pos,
 		}
-		if expr, ok := prefilledTypes[obj.Field(i).Name()]; ok {
+		if expr, ok := prefilledFields[fieldName]; ok {
 			kv.Value = expr
 		} else {
-			idents, ok := matches[fieldTyp]
+			names, ok := matches[fieldTyp]
 			if !ok {
 				return nil, fmt.Errorf("invalid struct field type: %v", fieldTyp)
 			}
 
-			// Find the identifier whose name is most similar to the name of the field's key.
-			// If we do not find any identifier that matches the pattern, generate a new value.
+			// Find the name most similar to the field name.
+			// If no name matches the pattern, generate a zero value.
 			// NOTE: We currently match on the name of the field key rather than the field type.
-			value := fuzzy.FindBestMatch(obj.Field(i).Name(), idents)
-			if value == nil {
-				value = populateValue(file, pkg, fieldTyp)
-			}
-			if value == nil {
+			if best := fuzzy.BestMatch(fieldName, names); best != "" {
+				kv.Value = ast.NewIdent(best)
+			} else if v := populateValue(file, pkg, fieldTyp); v != nil {
+				kv.Value = v
+			} else {
 				return nil, nil
 			}
-
-			kv.Value = value
 		}
 		elts = append(elts, kv)
 		line++
@@ -299,7 +287,7 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 	}
 	sug := indent(formatBuf.Bytes(), whitespace)
 
-	if len(prefilledTypes) > 0 {
+	if len(prefilledFields) > 0 {
 		// Attempt a second pass through the formatter to line up columns.
 		sourced, err := format.Source(sug)
 		if err == nil {
@@ -343,16 +331,12 @@ func indent(str, ind []byte) []byte {
 //
 // When the type of a struct field is a basic literal or interface, we return
 // default values. For other types, such as maps, slices, and channels, we create
-// expressions rather than using default values.
+// empty expressions such as []T{} or make(chan T) rather than using default values.
 //
 // The reasoning here is that users will call fillstruct with the intention of
 // initializing the struct, in which case setting these fields to nil has no effect.
 func populateValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
-	under := typ
-	if n, ok := typ.(*types.Named); ok {
-		under = n.Underlying()
-	}
-	switch u := under.(type) {
+	switch u := typ.Underlying().(type) {
 	case *types.Basic:
 		switch {
 		case u.Info()&types.IsNumeric != 0:
@@ -366,6 +350,7 @@ func populateValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 		default:
 			panic("unknown basic type")
 		}
+
 	case *types.Map:
 		k := analysisinternal.TypeExpr(f, pkg, u.Key())
 		v := analysisinternal.TypeExpr(f, pkg, u.Elem())
@@ -388,6 +373,7 @@ func populateValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 				Elt: s,
 			},
 		}
+
 	case *types.Array:
 		a := analysisinternal.TypeExpr(f, pkg, u.Elem())
 		if a == nil {
@@ -401,6 +387,7 @@ func populateValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 				},
 			},
 		}
+
 	case *types.Chan:
 		v := analysisinternal.TypeExpr(f, pkg, u.Elem())
 		if v == nil {
@@ -419,6 +406,7 @@ func populateValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 				},
 			},
 		}
+
 	case *types.Struct:
 		s := analysisinternal.TypeExpr(f, pkg, typ)
 		if s == nil {
@@ -427,6 +415,7 @@ func populateValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 		return &ast.CompositeLit{
 			Type: s,
 		}
+
 	case *types.Signature:
 		var params []*ast.Field
 		for i := 0; i < u.Params().Len(); i++ {
@@ -464,6 +453,7 @@ func populateValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 			},
 			Body: &ast.BlockStmt{},
 		}
+
 	case *types.Pointer:
 		switch u.Elem().(type) {
 		case *types.Basic:
@@ -483,8 +473,34 @@ func populateValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 				X:  populateValue(f, pkg, u.Elem()),
 			}
 		}
+
 	case *types.Interface:
+		if param, ok := typ.(*typeparams.TypeParam); ok {
+			// *new(T) is the zero value of a type parameter T.
+			// TODO(adonovan): one could give a more specific zero
+			// value if the type has a core type that is, say,
+			// always a number or a pointer. See go/ssa for details.
+			return &ast.StarExpr{
+				X: &ast.CallExpr{
+					Fun: ast.NewIdent("new"),
+					Args: []ast.Expr{
+						ast.NewIdent(param.Obj().Name()),
+					},
+				},
+			}
+		}
+
 		return ast.NewIdent("nil")
 	}
 	return nil
+}
+
+func deref(t types.Type) types.Type {
+	for {
+		ptr, ok := t.Underlying().(*types.Pointer)
+		if !ok {
+			return t
+		}
+		t = ptr.Elem()
+	}
 }

@@ -19,16 +19,16 @@ type basicStruct struct {
 	foo int
 }
 
-var _ = basicStruct{} // want ""
+var _ = basicStruct{} // want `Fill basicStruct`
 
 type twoArgStruct struct {
 	foo int
 	bar string
 }
 
-var _ = twoArgStruct{} // want ""
+var _ = twoArgStruct{} // want `Fill twoArgStruct`
 
-var _ = twoArgStruct{ // want ""
+var _ = twoArgStruct{ // want `Fill twoArgStruct`
 	bar: "bar",
 }
 
@@ -37,9 +37,9 @@ type nestedStruct struct {
 	basic basicStruct
 }
 
-var _ = nestedStruct{} // want ""
+var _ = nestedStruct{} // want `Fill nestedStruct`
 
-var _ = data.B{} // want ""
+var _ = data.B{} // want `Fill b.B`
 
 type typedStruct struct {
 	m  map[string]int
@@ -49,25 +49,25 @@ type typedStruct struct {
 	a  [2]string
 }
 
-var _ = typedStruct{} // want ""
+var _ = typedStruct{} // want `Fill typedStruct`
 
 type funStruct struct {
 	fn func(i int) int
 }
 
-var _ = funStruct{} // want ""
+var _ = funStruct{} // want `Fill funStruct`
 
-type funStructCompex struct {
+type funStructComplex struct {
 	fn func(i int, s string) (string, int)
 }
 
-var _ = funStructCompex{} // want ""
+var _ = funStructComplex{} // want `Fill funStructComplex`
 
 type funStructEmpty struct {
 	fn func()
 }
 
-var _ = funStructEmpty{} // want ""
+var _ = funStructEmpty{} // want `Fill funStructEmpty`
 
 type Foo struct {
 	A int
@@ -78,7 +78,7 @@ type Bar struct {
 	Y *Foo
 }
 
-var _ = Bar{} // want ""
+var _ = Bar{} // want `Fill Bar`
 
 type importedStruct struct {
 	m  map[*ast.CompositeLit]ast.Field
@@ -89,7 +89,7 @@ type importedStruct struct {
 	st ast.CompositeLit
 }
 
-var _ = importedStruct{} // want ""
+var _ = importedStruct{} // want `Fill importedStruct`
 
 type pointerBuiltinStruct struct {
 	b *bool
@@ -97,17 +97,17 @@ type pointerBuiltinStruct struct {
 	i *int
 }
 
-var _ = pointerBuiltinStruct{} // want ""
+var _ = pointerBuiltinStruct{} // want `Fill pointerBuiltinStruct`
 
 var _ = []ast.BasicLit{
-	{}, // want ""
+	{}, // want `Fill go/ast.BasicLit`
 }
 
-var _ = []ast.BasicLit{{}, // want ""
+var _ = []ast.BasicLit{{}, // want "go/ast.BasicLit"
 }
 
 type unsafeStruct struct {
 	foo unsafe.Pointer
 }
 
-var _ = unsafeStruct{} // want ""
+var _ = unsafeStruct{} // want `Fill unsafeStruct`

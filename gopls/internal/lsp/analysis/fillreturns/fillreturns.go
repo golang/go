@@ -169,8 +169,7 @@ outer:
 			}
 			retTyps = append(retTyps, retTyp)
 		}
-		matches :=
-			analysisinternal.FindMatchingIdents(retTyps, file, ret.Pos(), info, pass.Pkg)
+		matches := analysisinternal.MatchingIdents(retTyps, file, ret.Pos(), info, pass.Pkg)
 		for i, retTyp := range retTyps {
 			var match ast.Expr
 			var idx int
@@ -192,21 +191,19 @@ outer:
 				fixed[i] = match
 				remaining = append(remaining[:idx], remaining[idx+1:]...)
 			} else {
-				idents, ok := matches[retTyp]
+				names, ok := matches[retTyp]
 				if !ok {
 					return nil, fmt.Errorf("invalid return type: %v", retTyp)
 				}
-				// Find the identifier whose name is most similar to the return type.
-				// If we do not find any identifier that matches the pattern,
-				// generate a zero value.
-				value := fuzzy.FindBestMatch(retTyp.String(), idents)
-				if value == nil {
-					value = analysisinternal.ZeroValue(file, pass.Pkg, retTyp)
-				}
-				if value == nil {
+				// Find the identifier most similar to the return type.
+				// If no identifier matches the pattern, generate a zero value.
+				if best := fuzzy.BestMatch(retTyp.String(), names); best != "" {
+					fixed[i] = ast.NewIdent(best)
+				} else if zero := analysisinternal.ZeroValue(file, pass.Pkg, retTyp); zero != nil {
+					fixed[i] = zero
+				} else {
 					return nil, nil
 				}
-				fixed[i] = value
 			}
 		}
 

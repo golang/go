@@ -8,7 +8,6 @@ package fuzzy
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 )
 
 const (
@@ -407,29 +406,29 @@ func (m *Matcher) poorMatch() bool {
 	return false
 }
 
-// FindBestMatch employs fuzzy matching to evaluate the similarity of each given identifier to the
-// given pattern. We return the identifier whose name is most similar to the pattern.
-func FindBestMatch(pattern string, idents []*ast.Ident) ast.Expr {
+// BestMatch returns the name most similar to the
+// pattern, using fuzzy matching, or the empty string.
+func BestMatch(pattern string, names []string) string {
 	fuzz := NewMatcher(pattern)
-	var bestFuzz ast.Expr
+	best := ""
 	highScore := float32(0) // minimum score is 0 (no match)
-	for _, ident := range idents {
+	for _, name := range names {
 		// TODO: Improve scoring algorithm.
-		score := fuzz.Score(ident.Name)
+		score := fuzz.Score(name)
 		if score > highScore {
 			highScore = score
-			bestFuzz = ident
+			best = name
 		} else if score == 0 {
 			// Order matters in the fuzzy matching algorithm. If we find no match
 			// when matching the target to the identifier, try matching the identifier
 			// to the target.
-			revFuzz := NewMatcher(ident.Name)
+			revFuzz := NewMatcher(name)
 			revScore := revFuzz.Score(pattern)
 			if revScore > highScore {
 				highScore = revScore
-				bestFuzz = ident
+				best = name
 			}
 		}
 	}
-	return bestFuzz
+	return best
 }

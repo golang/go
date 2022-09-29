@@ -83,6 +83,9 @@ func IsZeroValue(expr ast.Expr) bool {
 	}
 }
 
+// TypeExpr returns syntax for the specified type. References to
+// named types from packages other than pkg are qualified by an appropriate
+// package name, as defined by the import environment of file.
 func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 	switch t := typ.(type) {
 	case *types.Basic:
@@ -312,19 +315,21 @@ func WalkASTWithParent(n ast.Node, f func(n ast.Node, parent ast.Node) bool) {
 	})
 }
 
-// FindMatchingIdents finds all identifiers in 'node' that match any of the given types.
+// MatchingIdents finds the names of all identifiers in 'node' that match any of the given types.
 // 'pos' represents the position at which the identifiers may be inserted. 'pos' must be within
 // the scope of each of identifier we select. Otherwise, we will insert a variable at 'pos' that
 // is unrecognized.
-func FindMatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *types.Info, pkg *types.Package) map[types.Type][]*ast.Ident {
-	matches := map[types.Type][]*ast.Ident{}
+func MatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *types.Info, pkg *types.Package) map[types.Type][]string {
+
 	// Initialize matches to contain the variable types we are searching for.
+	matches := make(map[types.Type][]string)
 	for _, typ := range typs {
 		if typ == nil {
-			continue
+			continue // TODO(adonovan): is this reachable?
 		}
-		matches[typ] = []*ast.Ident{}
+		matches[typ] = nil // create entry
 	}
+
 	seen := map[types.Object]struct{}{}
 	ast.Inspect(node, func(n ast.Node) bool {
 		if n == nil {
@@ -336,8 +341,7 @@ func FindMatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *t
 		//
 		// x := fakeStruct{f0: x}
 		//
-		assignment, ok := n.(*ast.AssignStmt)
-		if ok && pos > assignment.Pos() && pos <= assignment.End() {
+		if assign, ok := n.(*ast.AssignStmt); ok && pos > assign.Pos() && pos <= assign.End() {
 			return false
 		}
 		if n.End() > pos {
@@ -370,17 +374,17 @@ func FindMatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *t
 			return true
 		}
 		// The object must match one of the types that we are searching for.
-		if idents, ok := matches[obj.Type()]; ok {
-			matches[obj.Type()] = append(idents, ast.NewIdent(ident.Name))
-		}
-		// If the object type does not exactly match any of the target types, greedily
-		// find the first target type that the object type can satisfy.
-		for typ := range matches {
-			if obj.Type() == typ {
-				continue
-			}
-			if equivalentTypes(obj.Type(), typ) {
-				matches[typ] = append(matches[typ], ast.NewIdent(ident.Name))
+		// TODO(adonovan): opt: use typeutil.Map?
+		if names, ok := matches[obj.Type()]; ok {
+			matches[obj.Type()] = append(names, ident.Name)
+		} else {
+			// If the object type does not exactly match
+			// any of the target types, greedily find the first
+			// target type that the object type can satisfy.
+			for typ := range matches {
+				if equivalentTypes(obj.Type(), typ) {
+					matches[typ] = append(matches[typ], ident.Name)
+				}
 			}
 		}
 		return true
@@ -389,7 +393,7 @@ func FindMatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *t
 }
 
 func equivalentTypes(want, got types.Type) bool {
-	if want == got || types.Identical(want, got) {
+	if types.Identical(want, got) {
 		return true
 	}
 	// Code segment to help check for untyped equality from (golang/go#32146).

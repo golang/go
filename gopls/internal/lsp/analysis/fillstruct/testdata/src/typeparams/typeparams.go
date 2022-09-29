@@ -12,16 +12,16 @@ type basicStruct[T any] struct {
 	foo T
 }
 
-var _ = basicStruct[int]{} // want ""
+var _ = basicStruct[int]{} // want `Fill basicStruct\[int\]`
 
 type twoArgStruct[F, B any] struct {
 	foo F
 	bar B
 }
 
-var _ = twoArgStruct[string, int]{} // want ""
+var _ = twoArgStruct[string, int]{} // want `Fill twoArgStruct\[string, int\]`
 
-var _ = twoArgStruct[int, string]{ // want ""
+var _ = twoArgStruct[int, string]{ // want `Fill twoArgStruct\[int, string\]`
 	bar: "bar",
 }
 
@@ -30,10 +30,21 @@ type nestedStruct struct {
 	basic basicStruct[int]
 }
 
-var _ = nestedStruct{}
+var _ = nestedStruct{} // want "Fill nestedStruct"
 
 func _[T any]() {
 	type S struct{ t T }
-	x := S{}
+	x := S{} // want "Fill S"
 	_ = x
+}
+
+func Test() {
+	var tests = []struct {
+		a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p string
+	}{
+		{}, // want "Fill anonymous struct { a: string, b: string, c: string, ... }"
+	}
+	for _, test := range tests {
+		_ = test
+	}
 }

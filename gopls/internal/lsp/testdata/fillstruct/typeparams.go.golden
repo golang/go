@@ -6,7 +6,7 @@ package fillstruct
 
 type emptyStructWithTypeParams[A any] struct{}
 
-var _ = emptyStructWithTypeParams[int]{}
+var _ = emptyStructWithTypeParams[int]{} // no suggested fix
 
 type basicStructWithTypeParams[T any] struct {
 	foo T
@@ -32,12 +32,11 @@ type nestedStructWithTypeParams struct {
 	basic basicStructWithTypeParams[int]
 }
 
-var _ = nestedStructWithTypeParams{}
+var _ = nestedStructWithTypeParams{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 func _[T any]() {
 	type S struct{ t T }
-	x := S{}
-	_ = x
+	_ = S{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 
 -- suggestedfix_typeparams_21_49 --
@@ -48,7 +47,7 @@ package fillstruct
 
 type emptyStructWithTypeParams[A any] struct{}
 
-var _ = emptyStructWithTypeParams[int]{}
+var _ = emptyStructWithTypeParams[int]{} // no suggested fix
 
 type basicStructWithTypeParams[T any] struct {
 	foo T
@@ -75,12 +74,11 @@ type nestedStructWithTypeParams struct {
 	basic basicStructWithTypeParams[int]
 }
 
-var _ = nestedStructWithTypeParams{}
+var _ = nestedStructWithTypeParams{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 func _[T any]() {
 	type S struct{ t T }
-	x := S{}
-	_ = x
+	_ = S{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 
 -- suggestedfix_typeparams_25_1 --
@@ -91,7 +89,7 @@ package fillstruct
 
 type emptyStructWithTypeParams[A any] struct{}
 
-var _ = emptyStructWithTypeParams[int]{}
+var _ = emptyStructWithTypeParams[int]{} // no suggested fix
 
 type basicStructWithTypeParams[T any] struct {
 	foo T
@@ -116,11 +114,93 @@ type nestedStructWithTypeParams struct {
 	basic basicStructWithTypeParams[int]
 }
 
-var _ = nestedStructWithTypeParams{}
+var _ = nestedStructWithTypeParams{} //@suggestedfix("}", "refactor.rewrite", "Fill")
 
 func _[T any]() {
 	type S struct{ t T }
-	x := S{}
-	_ = x
+	_ = S{} //@suggestedfix("}", "refactor.rewrite", "Fill")
+}
+
+-- suggestedfix_typeparams_32_36 --
+//go:build go1.18
+// +build go1.18
+
+package fillstruct
+
+type emptyStructWithTypeParams[A any] struct{}
+
+var _ = emptyStructWithTypeParams[int]{} // no suggested fix
+
+type basicStructWithTypeParams[T any] struct {
+	foo T
+}
+
+var _ = basicStructWithTypeParams[int]{} //@suggestedfix("}", "refactor.rewrite", "Fill")
+
+type twoArgStructWithTypeParams[F, B any] struct {
+	foo F
+	bar B
+}
+
+var _ = twoArgStructWithTypeParams[string, int]{} //@suggestedfix("}", "refactor.rewrite", "Fill")
+
+var _ = twoArgStructWithTypeParams[int, string]{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite", "Fill")
+
+type nestedStructWithTypeParams struct {
+	bar   string
+	basic basicStructWithTypeParams[int]
+}
+
+var _ = nestedStructWithTypeParams{
+	bar:   "",
+	basic: basicStructWithTypeParams{},
+} //@suggestedfix("}", "refactor.rewrite", "Fill")
+
+func _[T any]() {
+	type S struct{ t T }
+	_ = S{} //@suggestedfix("}", "refactor.rewrite", "Fill")
+}
+
+-- suggestedfix_typeparams_36_8 --
+//go:build go1.18
+// +build go1.18
+
+package fillstruct
+
+type emptyStructWithTypeParams[A any] struct{}
+
+var _ = emptyStructWithTypeParams[int]{} // no suggested fix
+
+type basicStructWithTypeParams[T any] struct {
+	foo T
+}
+
+var _ = basicStructWithTypeParams[int]{} //@suggestedfix("}", "refactor.rewrite", "Fill")
+
+type twoArgStructWithTypeParams[F, B any] struct {
+	foo F
+	bar B
+}
+
+var _ = twoArgStructWithTypeParams[string, int]{} //@suggestedfix("}", "refactor.rewrite", "Fill")
+
+var _ = twoArgStructWithTypeParams[int, string]{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite", "Fill")
+
+type nestedStructWithTypeParams struct {
+	bar   string
+	basic basicStructWithTypeParams[int]
+}
+
+var _ = nestedStructWithTypeParams{} //@suggestedfix("}", "refactor.rewrite", "Fill")
+
+func _[T any]() {
+	type S struct{ t T }
+	_ = S{
+		t: *new(T),
+	} //@suggestedfix("}", "refactor.rewrite", "Fill")
 }
 
