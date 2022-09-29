@@ -858,7 +858,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From = fromAddr
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-		break
 
 	case ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload, ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload:
 		p := s.Prog(v.Op.Asm())
