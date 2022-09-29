@@ -141,3 +141,46 @@ func TestForgetUnshared(t *testing.T) {
 		t.Errorf("We should receive result produced by second call, expected: 2, got %d", result.Val)
 	}
 }
+
+func TestDoAndForgetUnsharedRace(t *testing.T) {
+	t.Parallel()
+
+	var g Group
+	key := "key"
+	d := time.Millisecond
+	for {
+		var calls, shared atomic.Int64
+		const n = 1000
+		var wg sync.WaitGroup
+		wg.Add(n)
+		for i := 0; i < n; i++ {
+			go func() {
+				g.Do(key, func() (interface{}, error) {
+					time.Sleep(d)
+					return calls.Add(1), nil
+				})
+				if !g.ForgetUnshared(key) {
+					shared.Add(1)
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+
+		if calls.Load() != 1 {
+			// The goroutines didn't park in g.Do in time,
+			// so the key was re-added and may have been shared after the call.
+			// Try again with more time to park.
+			d *= 2
+			continue
+		}
+
+		// All of the Do calls ended up sharing the first
+		// invocation, so the key should have been unused
+		// (and therefore unshared) when they returned.
+		if shared.Load() > 0 {
+			t.Errorf("after a single shared Do, ForgetUnshared returned false %d times", shared.Load())
+		}
+		break
+	}
+}
