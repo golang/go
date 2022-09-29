@@ -9,7 +9,6 @@ package misc
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/command"
@@ -310,7 +309,6 @@ func TestRunVulncheckExp(t *testing.T) {
 		},
 	).Run(t, workspace1, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		env.ExecuteCodeLensCommand("go.mod", command.Tidy)
 
 		env.ExecuteCodeLensCommand("go.mod", command.RunVulncheckExp)
 		d := &protocol.PublishDiagnosticsParams{}
@@ -318,20 +316,117 @@ func TestRunVulncheckExp(t *testing.T) {
 			CompletedWork("govulncheck", 1, true),
 			ShownMessage("Found"),
 			OnceMet(
-				env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/amod`, "golang.org/amod has a known vulnerability: vuln in amod"),
-				env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/amod`, "golang.org/amod has a known vulnerability: unaffecting vulnerability"),
-				env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/bmod`, "golang.org/bmod has a known vulnerability: vuln in bmod\n\nThis is a long description of this vulnerability."),
+				env.DiagnosticAtRegexp("go.mod", `golang.org/amod`),
 				ReadDiagnostics("go.mod", d),
 			),
 		)
 
-		var toFix []protocol.Diagnostic
-		for _, diag := range d.Diagnostics {
-			if strings.Contains(diag.Message, "vuln in ") {
-				toFix = append(toFix, diag)
-			}
+		type diagnostic struct {
+			msg      string
+			severity protocol.DiagnosticSeverity
+			// codeActions is a list titles of code actions that we get with this
+			// diagnostics as the context.
+			codeActions []string
 		}
-		env.ApplyQuickFixes("go.mod", toFix)
+		// wantDiagnostics maps a module path in the require
+		// section of a go.mod to diagnostics that will be returned
+		// when running vulncheck.
+		wantDiagnostics := map[string]struct {
+			// applyAction is the title of the code action to run for this module.
+			// If empty, no code actions will be executed.
+			applyAction string
+			// diagnostics is the list of diagnostics we expect at the require line for
+			// the module path.
+			diagnostics []diagnostic
+			// codeActions is a list titles of code actions that we get with context
+			// diagnostics.
+			codeActions []string
+		}{
+			"golang.org/amod": {
+				applyAction: "Upgrade to v1.0.4",
+				diagnostics: []diagnostic{
+					{
+						msg:      "golang.org/amod has a known vulnerability: vuln in amod",
+						severity: protocol.SeverityWarning,
+						codeActions: []string{
+							"Upgrade to latest",
+							"Upgrade to v1.0.4",
+						},
+					},
+					{
+						msg:      "golang.org/amod has a known vulnerability: unaffecting vulnerability",
+						severity: protocol.SeverityInformation,
+						codeActions: []string{
+							"Upgrade to latest",
+							"Upgrade to v1.0.6",
+						},
+					},
+				},
+				codeActions: []string{
+					"Upgrade to latest",
+					"Upgrade to v1.0.6",
+					"Upgrade to v1.0.4",
+				},
+			},
+			"golang.org/bmod": {
+				diagnostics: []diagnostic{
+					{
+						msg:      "golang.org/bmod has a known vulnerability: vuln in bmod\n\nThis is a long description of this vulnerability.",
+						severity: protocol.SeverityWarning,
+					},
+				},
+			},
+		}
+
+		for mod, want := range wantDiagnostics {
+			pos := env.RegexpSearch("go.mod", mod)
+			var modPathDiagnostics []protocol.Diagnostic
+			for _, w := range want.diagnostics {
+				// Find the diagnostics at pos.
+				var diag *protocol.Diagnostic
+				for _, g := range d.Diagnostics {
+					g := g
+					if g.Range.Start == pos.ToProtocolPosition() && w.msg == g.Message {
+						modPathDiagnostics = append(modPathDiagnostics, g)
+						diag = &g
+						break
+					}
+				}
+				if diag == nil {
+					t.Errorf("no diagnostic at %q matching %q found\n", mod, w.msg)
+					continue
+				}
+				if diag.Severity != w.severity {
+					t.Errorf("incorrect severity for %q, expected %s got %s\n", w.msg, w.severity, diag.Severity)
+				}
+
+				gotActions := env.CodeAction("go.mod", []protocol.Diagnostic{*diag})
+				if !sameCodeActions(gotActions, w.codeActions) {
+					t.Errorf("code actions for %q do not match, expected %v, got %v\n", w.msg, w.codeActions, gotActions)
+					continue
+				}
+			}
+
+			// Check that the actions we get when including all diagnostics at a location return the same result
+			gotActions := env.CodeAction("go.mod", modPathDiagnostics)
+			if !sameCodeActions(gotActions, want.codeActions) {
+				t.Errorf("code actions for %q do not match, expected %v, got %v\n", mod, want.codeActions, gotActions)
+				continue
+			}
+
+			// Apply the code action matching applyAction.
+			if want.applyAction == "" {
+				continue
+			}
+			for _, action := range gotActions {
+				if action.Title == want.applyAction {
+					env.ApplyCodeAction(action)
+					break
+				}
+			}
+
+		}
+
 		env.Await(env.DoneWithChangeWatchedFiles())
 		wantGoMod := `module golang.org/entry
 
@@ -348,4 +443,20 @@ require (
 			t.Fatalf("go.mod vulncheck fix failed:\n%s", compare.Text(wantGoMod, got))
 		}
 	})
+}
+
+func sameCodeActions(gotActions []protocol.CodeAction, want []string) bool {
+	gotTitles := make([]string, len(gotActions))
+	for i, ca := range gotActions {
+		gotTitles[i] = ca.Title
+	}
+	if len(gotTitles) != len(want) {
+		return false
+	}
+	for i := range want {
+		if gotTitles[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }
