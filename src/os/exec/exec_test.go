@@ -38,6 +38,13 @@ import (
 var haveUnexpectedFDs bool
 
 func init() {
+	godebug := os.Getenv("GODEBUG")
+	if godebug != "" {
+		godebug += ","
+	}
+	godebug += "execwait=2"
+	os.Setenv("GODEBUG", godebug)
+
 	if os.Getenv("GO_EXEC_TEST_PID") != "" {
 		return
 	}
@@ -76,6 +83,14 @@ func TestMain(m *testing.M) {
 				}
 			}
 		}
+
+		if !testing.Short() {
+			// Run a couple of GC cycles to increase the odds of detecting
+			// process leaks using the finalizers installed by GODEBUG=execwait=2.
+			runtime.GC()
+			runtime.GC()
+		}
+
 		os.Exit(code)
 	}
 

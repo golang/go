@@ -58,7 +58,7 @@ func TestLookPath(t *testing.T) {
 	// And try to trick it with "../testdir" too.
 	for _, errdot := range []string{"1", "0"} {
 		t.Run("GODEBUG=execerrdot="+errdot, func(t *testing.T) {
-			t.Setenv("GODEBUG", "execerrdot="+errdot)
+			t.Setenv("GODEBUG", "execerrdot="+errdot+",execwait=2")
 			for _, dir := range []string{".", "../testdir"} {
 				t.Run(pathVar+"="+dir, func(t *testing.T) {
 					t.Setenv(pathVar, dir+string(filepath.ListSeparator)+origPath)

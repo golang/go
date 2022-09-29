@@ -94,6 +94,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"internal/godebug"
 	"internal/syscall/execenv"
 	"io"
 	"os"
@@ -243,6 +244,10 @@ type Cmd struct {
 
 	ctxErr <-chan error // if non nil, receives the error from watchCtx exactly once
 
+	// The stack saved when the Command was created, if GODEBUG contains
+	// execwait=2. Used for debugging leaks.
+	createdByStack []byte
+
 	// For a security release long ago, we created x/sys/execabs,
 	// which manipulated the unexported lookPathErr error field
 	// in this struct. For Go 1.19 we exported the field as Err error,
@@ -290,6 +295,43 @@ func Command(name string, arg ...string) *Cmd {
 		Path: name,
 		Args: append([]string{name}, arg...),
 	}
+
+	if execwait := godebug.Get("execwait"); execwait != "" {
+		if execwait == "2" {
+			// Obtain the caller stack. (This is equivalent to runtime/debug.Stack,
+			// copied to avoid importing the whole package.)
+			stack := make([]byte, 1024)
+			for {
+				n := runtime.Stack(stack, false)
+				if n < len(stack) {
+					stack = stack[:n]
+					break
+				}
+				stack = make([]byte, 2*len(stack))
+			}
+
+			if i := bytes.Index(stack, []byte("\nos/exec.Command(")); i >= 0 {
+				stack = stack[i+1:]
+			}
+			cmd.createdByStack = stack
+		}
+
+		runtime.SetFinalizer(cmd, func(c *Cmd) {
+			if c.Process != nil && c.ProcessState == nil {
+				debugHint := ""
+				if c.createdByStack == nil {
+					debugHint = " (set GODEBUG=execwait=2 to capture stacks for debugging)"
+				} else {
+					os.Stderr.WriteString("GODEBUG=execwait=2 detected a leaked exec.Cmd created by:\n")
+					os.Stderr.Write(c.createdByStack)
+					os.Stderr.WriteString("\n")
+					debugHint = ""
+				}
+				panic("exec: Cmd started a Process but leaked without a call to Wait" + debugHint)
+			}
+		})
+	}
+
 	if filepath.Base(name) == name {
 		lp, err := LookPath(name)
 		if lp != "" {
