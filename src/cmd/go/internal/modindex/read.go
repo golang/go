@@ -769,7 +769,7 @@ func shouldBuild(sf *sourceFile, tags map[string]bool) bool {
 	plusBuildConstraints := sf.plusBuildConstraints()
 	for _, text := range plusBuildConstraints {
 		if x, err := constraint.Parse(text); err == nil {
-			if imports.Eval(x, tags, true) == false {
+			if !imports.Eval(x, tags, true) {
 				return false
 			}
 		}
