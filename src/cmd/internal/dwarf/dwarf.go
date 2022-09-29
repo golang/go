@@ -1592,7 +1592,6 @@ func determineVarAbbrev(v *Var, fnabbrev int) (int, bool, bool) {
 	switch fnabbrev {
 	case DW_ABRV_FUNCTION, DW_ABRV_WRAPPER:
 		concrete = false
-		break
 	case DW_ABRV_FUNCTION_CONCRETE, DW_ABRV_WRAPPER_CONCRETE:
 		// If we're emitting a concrete subprogram DIE and the variable
 		// in question is not part of the corresponding abstract function DIE,
