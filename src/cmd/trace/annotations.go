@@ -446,9 +446,7 @@ func (task *taskDesc) descendants() []*taskDesc {
 	res := []*taskDesc{task}
 	for i := 0; len(res[i:]) > 0; i++ {
 		t := res[i]
-		for _, c := range t.children {
-			res = append(res, c)
-		}
+		res = append(res, t.children...)
 	}
 	return res
 }
