@@ -3951,10 +3951,7 @@ func isax(a *obj.Addr) bool {
 		return true
 	}
 
-	if a.Index == REG_AX {
-		return true
-	}
-	return false
+	return a.Index == REG_AX
 }
 
 func subreg(p *obj.Prog, from int, to int) {
