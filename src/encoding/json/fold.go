@@ -97,10 +97,7 @@ func equalFoldRight(s, t []byte) bool {
 		t = t[size:]
 
 	}
-	if len(t) > 0 {
-		return false
-	}
-	return true
+	return len(t) == 0
 }
 
 // asciiEqualFold is a specialization of bytes.EqualFold for use when
