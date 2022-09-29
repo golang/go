@@ -824,7 +824,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	obj.color_ = saved
 
 	if fdecl.Type.TypeParams.NumFields() > 0 && fdecl.Body == nil {
-		check.softErrorf(fdecl.Name, _BadDecl, "parameterized function is missing function body")
+		check.softErrorf(fdecl.Name, _BadDecl, "generic function is missing function body")
 	}
 
 	// function body must be type-checked after global declarations

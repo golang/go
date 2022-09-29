@@ -214,6 +214,6 @@ func _() {
 	h /* ERROR cannot index */ [] /* ERROR operand */ ()
 }
 
-// Parameterized functions must have a function body.
+// Generic functions must have a function body.
 
-func _ /* ERROR missing function body */ [P any]()
+func _ /* ERROR generic function is missing function body */ [P any]()

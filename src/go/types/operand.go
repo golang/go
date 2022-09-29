@@ -161,7 +161,7 @@ func operandString(x *operand, qf Qualifier) string {
 		if x.typ != Typ[Invalid] {
 			var intro string
 			if isGeneric(x.typ) {
-				intro = " of parameterized type "
+				intro = " of generic type "
 			} else {
 				intro = " of type "
 			}
