@@ -396,7 +396,7 @@ func expandPseudoForm(form uint8) uint8 {
 	return uint8(expandedForm)
 }
 
-// Abbrevs() returns the finalized abbrev array for the platform,
+// Abbrevs returns the finalized abbrev array for the platform,
 // expanding any DW_FORM pseudo-ops to real values.
 func Abbrevs() []dwAbbrev {
 	if abbrevsFinalized {
@@ -1719,7 +1719,7 @@ func (s byChildIndex) Len() int           { return len(s) }
 func (s byChildIndex) Less(i, j int) bool { return s[i].ChildIndex < s[j].ChildIndex }
 func (s byChildIndex) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-// IsDWARFEnabledOnAIX returns true if DWARF is possible on the
+// IsDWARFEnabledOnAIXLd returns true if DWARF is possible on the
 // current extld.
 // AIX ld doesn't support DWARF with -bnoobjreorder with version
 // prior to 7.2.2.

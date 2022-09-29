@@ -369,7 +369,7 @@ type PCIter struct {
 	Done    bool
 }
 
-// newPCIter creates a PCIter with a scale factor for the PC step size.
+// NewPCIter creates a PCIter with a scale factor for the PC step size.
 func NewPCIter(pcScale uint32) *PCIter {
 	it := new(PCIter)
 	it.PCScale = pcScale

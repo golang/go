@@ -235,7 +235,7 @@ func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version
 	return path, version, nil
 }
 
-// flagReplace implements the -replace flag.
+// flagEditworkReplace implements the -replace flag.
 func flagEditworkReplace(arg string) {
 	var i int
 	if i = strings.Index(arg, "="); i < 0 {
@@ -264,7 +264,7 @@ func flagEditworkReplace(arg string) {
 	})
 }
 
-// flagDropReplace implements the -dropreplace flag.
+// flagEditworkDropReplace implements the -dropreplace flag.
 func flagEditworkDropReplace(arg string) {
 	path, version, err := parsePathVersionOptional("old", arg, true)
 	if err != nil {
