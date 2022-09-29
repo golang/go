@@ -1108,9 +1108,16 @@ func TestDoubleStartLeavesPipesOpen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if err := cmd.Wait(); err != nil {
+			t.Error(err)
+		}
+	})
+
 	if err := cmd.Start(); err == nil || !strings.HasSuffix(err.Error(), "already started") {
 		t.Fatalf("second call to Start returned a nil; want an 'already started' error")
 	}
