@@ -318,11 +318,10 @@ func runEnvW(args []string) {
 	}
 	add := make(map[string]string)
 	for _, arg := range args {
-		i := strings.Index(arg, "=")
-		if i < 0 {
+		key, val, found := strings.Cut(arg, "=")
+		if !found {
 			base.Fatalf("go: arguments must be KEY=VALUE: invalid argument: %s", arg)
 		}
-		key, val := arg[:i], arg[i+1:]
 		if err := checkEnvWrite(key, val); err != nil {
 			base.Fatalf("go: %v", err)
 		}

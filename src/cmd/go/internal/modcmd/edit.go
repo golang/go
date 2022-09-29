@@ -262,11 +262,11 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 
 // parsePathVersion parses -flag=arg expecting arg to be path@version.
 func parsePathVersion(flag, arg string) (path, version string) {
-	i := strings.Index(arg, "@")
-	if i < 0 {
+	before, after, found := strings.Cut(arg, "@")
+	if !found {
 		base.Fatalf("go: -%s=%s: need path@version", flag, arg)
 	}
-	path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+	path, version = strings.TrimSpace(before), strings.TrimSpace(after)
 	if err := module.CheckImportPath(path); err != nil {
 		base.Fatalf("go: -%s=%s: invalid path: %v", flag, arg, err)
 	}
@@ -293,10 +293,11 @@ func parsePath(flag, arg string) (path string) {
 // parsePathVersionOptional parses path[@version], using adj to
 // describe any errors.
 func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version string, err error) {
-	if i := strings.Index(arg, "@"); i < 0 {
+	before, after, found := strings.Cut(arg, "@")
+	if !found {
 		path = arg
 	} else {
-		path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+		path, version = strings.TrimSpace(before), strings.TrimSpace(after)
 	}
 	if err := module.CheckImportPath(path); err != nil {
 		if !allowDirPath || !modfile.IsDirectoryPath(path) {
@@ -324,12 +325,12 @@ func parseVersionInterval(arg string) (modfile.VersionInterval, error) {
 		return modfile.VersionInterval{}, fmt.Errorf("invalid version interval: %q", arg)
 	}
 	s := arg[1 : len(arg)-1]
-	i := strings.Index(s, ",")
-	if i < 0 {
+	before, after, found := strings.Cut(s, ",")
+	if !found {
 		return modfile.VersionInterval{}, fmt.Errorf("invalid version interval: %q", arg)
 	}
-	low := strings.TrimSpace(s[:i])
-	high := strings.TrimSpace(s[i+1:])
+	low := strings.TrimSpace(before)
+	high := strings.TrimSpace(after)
 	if !allowedVersionArg(low) || !allowedVersionArg(high) {
 		return modfile.VersionInterval{}, fmt.Errorf("invalid version interval: %q", arg)
 	}
@@ -387,11 +388,11 @@ func flagDropExclude(arg string) {
 
 // flagReplace implements the -replace flag.
 func flagReplace(arg string) {
-	var i int
-	if i = strings.Index(arg, "="); i < 0 {
+	before, after, found := strings.Cut(arg, "=")
+	if !found {
 		base.Fatalf("go: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
 	}
-	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+	old, new := strings.TrimSpace(before), strings.TrimSpace(after)
 	if strings.HasPrefix(new, ">") {
 		base.Fatalf("go: -replace=%s: separator between old and new is =, not =>", arg)
 	}

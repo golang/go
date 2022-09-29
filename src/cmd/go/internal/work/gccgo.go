@@ -157,10 +157,7 @@ func buildImportcfgSymlinks(b *Builder, root string, importcfg []byte) error {
 		} else {
 			verb, args = line[:i], strings.TrimSpace(line[i+1:])
 		}
-		var before, after string
-		if i := strings.Index(args, "="); i >= 0 {
-			before, after = args[:i], args[i+1:]
-		}
+		before, after, _ := strings.Cut(args, "=")
 		switch verb {
 		default:
 			base.Fatalf("importcfg:%d: unknown directive %q", lineNum, verb)
