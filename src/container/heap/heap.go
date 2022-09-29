@@ -23,7 +23,7 @@ import "sort"
 // min-heap with the following invariants (established after
 // Init has been called or if the data is empty or sorted):
 //
-//	!h.Less(j, i) for 0 <= i < h.Len() and 2*i+1 <= j <= 2*i+2 and j < h.Len()
+//	h.Less(i, j) for 0 <= i < h.Len() and 2*i+1 <= j <= 2*i+2 and j < h.Len()
 //
 // Note that Push and Pop in this interface are for package heap's
 // implementation to call. To add and remove things from the heap,
@@ -89,7 +89,7 @@ func Fix(h Interface, i int) {
 func up(h Interface, j int) {
 	for {
 		i := (j - 1) / 2 // parent
-		if i == j || !h.Less(j, i) {
+		if i == j || h.Less(i, j) {
 			break
 		}
 		h.Swap(i, j)
@@ -108,7 +108,7 @@ func down(h Interface, i0, n int) bool {
 		if j2 := j1 + 1; j2 < n && h.Less(j2, j1) {
 			j = j2 // = 2*i + 2  // right child
 		}
-		if !h.Less(j, i) {
+		if h.Less(i, j) {
 			break
 		}
 		h.Swap(i, j)
