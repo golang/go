@@ -255,7 +255,7 @@ func TestRunVulncheckExp(t *testing.T) {
 			ShownMessage("Found"),
 			OnceMet(
 				env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/amod`, "golang.org/amod has a known vulnerability: vuln in amod"),
-				env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/bmod`, "golang.org/bmod has a known vulnerability: vuln in bmod"),
+				env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/bmod`, "golang.org/bmod has a known vulnerability: vuln in bmod\n\nThis is a long description of this vulnerability."),
 				ReadDiagnostics("go.mod", d),
 			),
 		)

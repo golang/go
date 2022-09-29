@@ -7,6 +7,7 @@
 package mod
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -215,14 +216,13 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 			}
 
 			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
-				URI:      fh.URI(),
-				Range:    rng,
-				Severity: severity,
-				Source:   source.Vulncheck,
-				Code:     v.ID,
-				CodeHref: v.URL,
-				// TODO(suzmue): replace the newlines in v.Details to allow the editor to handle formatting.
-				Message:        fmt.Sprintf("%s has a known vulnerability: %s", v.ModPath, v.Details),
+				URI:            fh.URI(),
+				Range:          rng,
+				Severity:       severity,
+				Source:         source.Vulncheck,
+				Code:           v.ID,
+				CodeHref:       v.URL,
+				Message:        formatMessage(&v),
 				SuggestedFixes: fixes,
 			})
 		}
@@ -230,4 +230,15 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 	}
 
 	return vulnDiagnostics, nil
+}
+
+func formatMessage(v *command.Vuln) string {
+	details := []byte(v.Details)
+	// Remove any new lines that are not preceded or followed by a new line.
+	for i, r := range details {
+		if r == '\n' && i > 0 && details[i-1] != '\n' && i+1 < len(details) && details[i+1] != '\n' {
+			details[i] = ' '
+		}
+	}
+	return fmt.Sprintf("%s has a known vulnerability: %s", v.ModPath, string(bytes.TrimSpace(details)))
 }

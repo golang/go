@@ -1,7 +1,7 @@
 [
 	{
 		"id":"GO-2022-99",
-		"details": "vuln in bmod",
+		"details": "vuln in bmod\n\nThis is a long description\nof this vulnerability.\n",
 		"affected":[
 			{
 				"package":{"name":"golang.org/bmod","ecosystem":"Go"},
