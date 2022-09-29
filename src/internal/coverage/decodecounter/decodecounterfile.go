@@ -63,7 +63,7 @@ func NewCounterDataReader(fn string, rs io.ReadSeeker) (*CounterDataReader, erro
 	}
 	// Seek back to just past the file header.
 	hsz := int64(unsafe.Sizeof(cdr.hdr))
-	if _, err := cdr.mr.Seek(hsz, os.SEEK_SET); err != nil {
+	if _, err := cdr.mr.Seek(hsz, io.SeekStart); err != nil {
 		return nil, err
 	}
 	// Read preamble for first segment.

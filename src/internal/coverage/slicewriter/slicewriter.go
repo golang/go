@@ -6,7 +6,7 @@ package slicewriter
 
 import (
 	"fmt"
-	"os"
+	"io"
 )
 
 // WriteSeeker is a helper object that implements the io.WriteSeeker
@@ -37,20 +37,20 @@ func (sws *WriteSeeker) Write(p []byte) (n int, err error) {
 // the slice will result in an error.
 func (sws *WriteSeeker) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
-	case os.SEEK_SET:
+	case io.SeekStart:
 		if sws.off != offset && (offset < 0 || offset >= int64(len(sws.payload))) {
 			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", offset, len(sws.payload))
 		}
 		sws.off = offset
 		return offset, nil
-	case os.SEEK_CUR:
+	case io.SeekCurrent:
 		newoff := sws.off + offset
 		if newoff != sws.off && (newoff < 0 || newoff >= int64(len(sws.payload))) {
 			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", newoff, len(sws.payload))
 		}
 		sws.off += offset
 		return sws.off, nil
-	case os.SEEK_END:
+	case io.SeekEnd:
 		newoff := int64(len(sws.payload)) + offset
 		if newoff != sws.off && (newoff < 0 || newoff >= int64(len(sws.payload))) {
 			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", newoff, len(sws.payload))

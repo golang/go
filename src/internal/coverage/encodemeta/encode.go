@@ -175,7 +175,7 @@ func (b *CoverageMetaDataBuilder) Emit(w io.WriteSeeker) ([16]byte, error) {
 
 	// Back-patch the length.
 	totalLength := uint32(off)
-	if _, err := w.Seek(0, os.SEEK_SET); err != nil {
+	if _, err := w.Seek(0, io.SeekStart); err != nil {
 		return digest, err
 	}
 	b.wrUint32(w, totalLength)
