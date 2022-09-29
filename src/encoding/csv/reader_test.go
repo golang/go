@@ -595,7 +595,7 @@ func benchmarkRead(b *testing.B, initReader func(*Reader), rows string) {
 	}
 	for {
 		_, err := r.Read()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

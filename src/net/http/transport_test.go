@@ -2832,7 +2832,7 @@ func TestTransportReading100Continue(t *testing.T) {
 		for {
 			n++
 			req, err := ReadRequest(br)
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return
 			}
 			if err != nil {

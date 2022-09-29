@@ -261,7 +261,7 @@ func readUvarint(r *strings.Reader) (uint64, error) {
 	for i := 0; i < binary.MaxVarintLen64; i++ {
 		b, err := r.ReadByte()
 		if err != nil {
-			if i > 0 && err == io.EOF {
+			if i > 0 && errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			return x, err

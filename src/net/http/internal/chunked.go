@@ -82,7 +82,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 					break
 				}
 			} else {
-				if cr.err == io.EOF {
+				if errors.Is(cr.err, io.EOF) {
 					cr.err = io.ErrUnexpectedEOF
 				}
 				break
@@ -114,7 +114,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 		// bytes to verify they are "\r\n".
 		if cr.n == 0 && cr.err == nil {
 			cr.checkEnd = true
-		} else if cr.err == io.EOF {
+		} else if errors.Is(cr.err, io.EOF) {
 			cr.err = io.ErrUnexpectedEOF
 		}
 	}
@@ -130,7 +130,7 @@ func readChunkLine(b *bufio.Reader) ([]byte, error) {
 	if err != nil {
 		// We always know when EOF is coming.
 		// If the caller asked for a line, there should be a line.
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = io.ErrUnexpectedEOF
 		} else if err == bufio.ErrBufferFull {
 			err = ErrLineTooLong

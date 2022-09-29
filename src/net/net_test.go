@@ -557,7 +557,7 @@ func TestNotTemporaryRead(t *testing.T) {
 	_, err = ss.Read([]byte{0})
 	if err == nil {
 		t.Fatal("Read succeeded unexpectedly")
-	} else if err == io.EOF {
+	} else if errors.Is(err, io.EOF) {
 		// This happens on Plan 9, but for some reason (prior to CL 385314) it was
 		// accepted everywhere else too.
 		if runtime.GOOS == "plan9" {

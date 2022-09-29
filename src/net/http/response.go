@@ -160,7 +160,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 	// Parse the first line of the response.
 	line, err := tp.ReadLine()
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = io.ErrUnexpectedEOF
 		}
 		return nil, err
@@ -187,7 +187,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 	// Parse the response headers.
 	mimeHeader, err := tp.ReadMIMEHeader()
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = io.ErrUnexpectedEOF
 		}
 		return nil, err

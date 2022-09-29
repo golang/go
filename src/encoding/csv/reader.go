@@ -233,7 +233,7 @@ type position struct {
 func (r *Reader) ReadAll() (records [][]string, err error) {
 	for {
 		record, err := r.readRecord(nil)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return records, nil
 		}
 		if err != nil {
@@ -258,7 +258,7 @@ func (r *Reader) readLine() ([]byte, error) {
 		line = r.rawBuffer
 	}
 	readSize := len(line)
-	if readSize > 0 && err == io.EOF {
+	if readSize > 0 && errors.Is(err, io.EOF) {
 		err = nil
 		// For backwards compatibility, drop trailing \r before EOF.
 		if line[readSize-1] == '\r' {

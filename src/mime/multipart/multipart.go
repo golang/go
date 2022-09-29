@@ -15,6 +15,7 @@ package multipart
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -182,7 +183,7 @@ func (pr partReader) Read(d []byte) (int, error) {
 		if p.n == 0 && p.err == nil {
 			// Force buffered I/O to read more into buffer.
 			_, p.readErr = br.Peek(len(peek) + 1)
-			if p.readErr == io.EOF {
+			if errors.Is(p.readErr, io.EOF) {
 				p.readErr = io.ErrUnexpectedEOF
 			}
 		}
@@ -351,7 +352,7 @@ func (r *Reader) nextPart(rawPart bool) (*Part, error) {
 	for {
 		line, err := r.bufReader.ReadSlice('\n')
 
-		if err == io.EOF && r.isFinalBoundary(line) {
+		if errors.Is(err, io.EOF) && r.isFinalBoundary(line) {
 			// If the buffer ends in "--boundary--" without the
 			// trailing "\r\n", ReadSlice will return an error
 			// (since it's missing the '\n'), but this is a valid

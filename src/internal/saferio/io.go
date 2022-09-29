@@ -10,6 +10,7 @@
 package saferio
 
 import (
+	"errors"
 	"io"
 	"reflect"
 )
@@ -50,7 +51,7 @@ func ReadData(r io.Reader, n uint64) ([]byte, error) {
 		}
 		_, err := io.ReadFull(r, buf1[:next])
 		if err != nil {
-			if len(buf) > 0 && err == io.EOF {
+			if len(buf) > 0 && errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			return nil, err

@@ -695,7 +695,7 @@ func TestReadStdin(t *testing.T) {
 					for {
 						n, err := testConsole.Read(chunk)
 						buf = append(buf, chunk[:n]...)
-						if err == io.EOF {
+						if errors.Is(err, io.EOF) {
 							all = append(all, string(buf))
 							if len(all) >= 5 {
 								break

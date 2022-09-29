@@ -84,7 +84,7 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
 		return 0, syscall.EINVAL
 	}
 	n, err = fd.pfd.Read(fd.data.Read, b)
-	if fd.net == "udp" && err == io.EOF {
+	if fd.net == "udp" && errors.Is(err, io.EOF) {
 		n = 0
 		err = nil
 	}

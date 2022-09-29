@@ -6,6 +6,7 @@ package big
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/bits"
@@ -240,7 +241,7 @@ func TestScanBase(t *testing.T) {
 			t.Errorf("scan%+v\n\tgot count = %d; want %d", a, count, a.count)
 		}
 		next, _, err := r.ReadRune()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			next = 0
 			err = nil
 		}

@@ -9,6 +9,7 @@ package flate
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"math/bits"
 	"strconv"
@@ -352,7 +353,7 @@ func (f *decompressor) Read(b []byte) (int, error) {
 }
 
 func (f *decompressor) Close() error {
-	if f.err == io.EOF {
+	if errors.Is(f.err, io.EOF) {
 		return nil
 	}
 	return f.err

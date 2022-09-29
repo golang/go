@@ -6,6 +6,7 @@ package decodecounter
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"internal/coverage"
 	"internal/coverage/slicereader"
@@ -345,7 +346,7 @@ func (cdr *CounterDataReader) NextFunc(p *FuncPayload) (bool, error) {
 	if supportDeadFunctionsInCounterData {
 		for {
 			nc, err = rdu32()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return false, io.EOF
 			} else if err != nil {
 				break

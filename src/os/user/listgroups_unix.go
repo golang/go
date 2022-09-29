@@ -42,7 +42,7 @@ func listGroupsFromReader(u *User, r io.Reader) ([]string, error) {
 	for !done {
 		line, err := rd.ReadBytes('\n')
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				done = true
 			} else {
 				return groups, err

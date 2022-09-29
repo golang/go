@@ -784,7 +784,7 @@ func (r *atLeastReader) Read(p []byte) (int, error) {
 	}
 	n, err := r.R.Read(p)
 	r.N -= int64(n) // won't underflow unless len(p) >= n > 9223372036854775809
-	if r.N > 0 && err == io.EOF {
+	if r.N > 0 && errors.Is(err, io.EOF) {
 		return n, io.ErrUnexpectedEOF
 	}
 	if r.N <= 0 && err == nil {

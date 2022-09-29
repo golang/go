@@ -5,8 +5,12 @@
 package ld
 
 import (
+	intdwarf "cmd/internal/dwarf"
+	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
+	"cmd/link/internal/dwtest"
 	"debug/dwarf"
 	"debug/pe"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -19,10 +23,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	intdwarf "cmd/internal/dwarf"
-	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
-	"cmd/link/internal/dwtest"
 )
 
 const (
@@ -1141,7 +1141,7 @@ func main() {
 			var lne dwarf.LineEntry
 			for {
 				err := lnrdr.Next(&lne)
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				if err != nil {
@@ -1220,7 +1220,7 @@ func TestIssue38192(t *testing.T) {
 			var lne dwarf.LineEntry
 			for {
 				err := lnrdr.Next(&lne)
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				if err != nil {
@@ -1359,7 +1359,7 @@ func TestIssue39757(t *testing.T) {
 	var lne dwarf.LineEntry
 	for {
 		err := lnrdr.Next(&lne)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		rows = append(rows, lne)
@@ -1434,7 +1434,7 @@ func TestIssue42484(t *testing.T) {
 			var lne dwarf.LineEntry
 			for {
 				err := lnrdr.Next(&lne)
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				if err != nil {
@@ -1898,7 +1898,7 @@ func main() {
 	found = false
 	for {
 		if err := lr.Next(&le); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			t.Fatalf("error reading linentry: %v", err)

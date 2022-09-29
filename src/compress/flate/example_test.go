@@ -7,6 +7,7 @@ package flate_test
 import (
 	"bytes"
 	"compress/flate"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -208,7 +209,7 @@ func Example_synchronization() {
 			// This is guaranteed to return for every corresponding
 			// Flush and Close on the transmitter side.
 			if _, err := io.ReadFull(zr, b[:1]); err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break // The transmitter closed the stream
 				}
 				log.Fatal(err)

@@ -5,6 +5,7 @@
 package ssa_test
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"internal/testenv"
@@ -802,7 +803,7 @@ func newIoState(cmd *exec.Cmd) *ioState {
 			if n > 0 {
 				s.outChan <- string(buffer[0:n])
 			}
-			if err == io.EOF || n == 0 {
+			if errors.Is(err, io.EOF) || n == 0 {
 				break
 			}
 			if err != nil {
@@ -821,7 +822,7 @@ func newIoState(cmd *exec.Cmd) *ioState {
 			if n > 0 {
 				s.errChan <- string(buffer[0:n])
 			}
-			if err == io.EOF || n == 0 {
+			if errors.Is(err, io.EOF) || n == 0 {
 				break
 			}
 			if err != nil {

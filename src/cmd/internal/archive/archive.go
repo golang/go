@@ -136,7 +136,7 @@ func (r *objReader) init(f *os.File) {
 // about the earlier error.
 func (r *objReader) error(err error) error {
 	if r.err == nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = io.ErrUnexpectedEOF
 		}
 		r.err = err
@@ -178,7 +178,7 @@ func (r *objReader) readByte() byte {
 	}
 	b, err := r.b.ReadByte()
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = io.ErrUnexpectedEOF
 		}
 		r.error(err)
@@ -247,7 +247,7 @@ func Parse(f *os.File, verbose bool) (*Archive, error) {
 	r.init(f)
 	t, err := r.peek(8)
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = io.ErrUnexpectedEOF
 		}
 		return nil, err

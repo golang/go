@@ -103,7 +103,7 @@ func (z *reader) Read(p []byte) (int, error) {
 
 	// Finished file; check checksum.
 	if _, err := io.ReadFull(z.r, z.scratch[0:4]); err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = io.ErrUnexpectedEOF
 		}
 		z.err = err
@@ -140,7 +140,7 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
 	// Read the header (RFC 1950 section 2.2.).
 	_, z.err = io.ReadFull(z.r, z.scratch[0:2])
 	if z.err != nil {
-		if z.err == io.EOF {
+		if errors.Is(z.err, io.EOF) {
 			z.err = io.ErrUnexpectedEOF
 		}
 		return z.err
@@ -154,7 +154,7 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
 	if haveDict {
 		_, z.err = io.ReadFull(z.r, z.scratch[0:4])
 		if z.err != nil {
-			if z.err == io.EOF {
+			if errors.Is(z.err, io.EOF) {
 				z.err = io.ErrUnexpectedEOF
 			}
 			return z.err

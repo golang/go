@@ -224,7 +224,7 @@ func scanExponent(r io.ByteScanner, base2ok, sepOk bool) (exp int64, base int, e
 	// one char look-ahead
 	ch, err := r.ReadByte()
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = nil
 		}
 		return 0, 10, err
@@ -280,7 +280,7 @@ func scanExponent(r io.ByteScanner, base2ok, sepOk bool) (exp int64, base int, e
 		ch, err = r.ReadByte()
 	}
 
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		err = nil
 	}
 	if err == nil && !hasDigits {

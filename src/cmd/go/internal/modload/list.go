@@ -51,7 +51,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 		for {
 			var m modinfo.ModulePublic
 			if err := dec.Decode(&m); err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				return nil, fmt.Errorf("parsing %s: %v", reuseFile, err)

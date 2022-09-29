@@ -226,7 +226,7 @@ func (t *fsTester) checkDir(dir string) {
 			return
 		}
 		list2 = append(list2, frag...)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

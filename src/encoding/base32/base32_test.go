@@ -803,7 +803,7 @@ func TestDecodeSmallBuffer(t *testing.T) {
 					buf := make([]byte, bufferSize)
 					n, err := decoder.Read(buf)
 					allRead = append(allRead, buf[0:n]...)
-					if err == io.EOF {
+					if errors.Is(err, io.EOF) {
 						break
 					}
 					if err != nil {

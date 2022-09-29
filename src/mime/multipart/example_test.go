@@ -5,6 +5,7 @@
 package multipart_test
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -32,7 +33,7 @@ func ExampleNewReader() {
 		mr := multipart.NewReader(msg.Body, params["boundary"])
 		for {
 			p, err := mr.NextPart()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return
 			}
 			if err != nil {

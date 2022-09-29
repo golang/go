@@ -13,6 +13,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
+	"errors"
 	"hash"
 	"io"
 	"math/big"
@@ -201,7 +202,7 @@ func TestVectors(t *testing.T) {
 	for {
 		line, err := buf.ReadString('\n')
 		if len(line) == 0 {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			t.Fatalf("error reading from input: %s", err)

@@ -150,7 +150,7 @@ func (client *Client) input() {
 	client.mutex.Lock()
 	client.shutdown = true
 	closing := client.closing
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		if closing {
 			err = ErrShutdown
 		} else {

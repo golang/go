@@ -8,6 +8,7 @@
 package jpeg
 
 import (
+	"errors"
 	"image"
 	"image/color"
 	"image/internal/imageutil"
@@ -261,7 +262,7 @@ func (d *decoder) readFull(p []byte) error {
 			break
 		}
 		if err := d.fill(); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			return err
@@ -291,7 +292,7 @@ func (d *decoder) ignore(n int) error {
 			break
 		}
 		if err := d.fill(); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			return err

@@ -6,6 +6,7 @@ package json
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"log"
 	"net"
@@ -447,7 +448,7 @@ func TestDecodeInStream(t *testing.T) {
 					t.Errorf("case %v: Expected error %#v in %q, but was %#v", ci, experr, tcase.json, err)
 				}
 				break
-			} else if err == io.EOF {
+			} else if errors.Is(err, io.EOF) {
 				t.Errorf("case %v: Unexpected EOF in %q", ci, tcase.json)
 				break
 			} else if err != nil {

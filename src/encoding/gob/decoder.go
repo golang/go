@@ -102,7 +102,7 @@ func (dec *Decoder) readMessage(nbytes int) {
 	var buf []byte
 	buf, dec.err = saferio.ReadData(dec.r, uint64(nbytes))
 	dec.buf.SetBytes(buf)
-	if dec.err == io.EOF {
+	if errors.Is(dec.err, io.EOF) {
 		dec.err = io.ErrUnexpectedEOF
 	}
 }
@@ -150,7 +150,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 				// If we read one or more type spec messages,
 				// require a data item message to follow.
 				// If we hit an EOF before that, then give ErrUnexpectedEOF.
-				if !firstMessage && dec.err == io.EOF {
+				if !firstMessage && errors.Is(dec.err, io.EOF) {
 					dec.err = io.ErrUnexpectedEOF
 				}
 				break

@@ -5,6 +5,7 @@
 package fmt_test
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -50,7 +51,7 @@ func ExampleFscanln() {
 	var c float64
 	for {
 		n, err := fmt.Fscanln(r, &a, &b, &c)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

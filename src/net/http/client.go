@@ -956,7 +956,7 @@ func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
 	if err == nil {
 		return n, nil
 	}
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		return n, err
 	}
 	if b.reqDidTimeout() {

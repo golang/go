@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -300,7 +301,7 @@ func (g *Generator) run() (ok bool) {
 
 		if err != nil {
 			// Check for marker at EOF without final \n.
-			if err == io.EOF && isGoGenerate(buf) {
+			if errors.Is(err, io.EOF) && isGoGenerate(buf) {
 				err = io.ErrUnexpectedEOF
 			}
 			break

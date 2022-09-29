@@ -636,7 +636,7 @@ func TestReader(t *testing.T) {
 				var hdr *Header
 				hdr, err = tr.Next()
 				if err != nil {
-					if err == io.EOF {
+					if errors.Is(err, io.EOF) {
 						err = nil // Expected error
 					}
 					break
@@ -892,7 +892,7 @@ func TestReadHeaderOnly(t *testing.T) {
 	tr := NewReader(f)
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

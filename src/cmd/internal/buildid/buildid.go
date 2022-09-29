@@ -119,7 +119,7 @@ func readGccgoArchive(name string, f *os.File) (string, error) {
 		// here and in cmd/link.
 		var hdr [60]byte
 		if _, err := io.ReadFull(f, hdr[:]); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				// No more entries, no build ID.
 				return "", nil
 			}

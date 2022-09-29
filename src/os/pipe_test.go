@@ -11,6 +11,7 @@ package os_test
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -383,7 +384,7 @@ func TestPipeEOF(t *testing.T) {
 		rbuf := bufio.NewReader(r)
 		for {
 			b, err := rbuf.ReadBytes('\n')
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			if err != nil {

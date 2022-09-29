@@ -6,6 +6,7 @@ package tar
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"testing"
 )
@@ -40,7 +41,7 @@ func FuzzReader(f *testing.F) {
 		files := []file{}
 		for {
 			hdr, err := r.Next()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			if err != nil {

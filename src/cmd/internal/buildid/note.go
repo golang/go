@@ -9,6 +9,7 @@ import (
 	"debug/elf"
 	"debug/macho"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -41,7 +42,7 @@ func ReadELFNote(filename, name string, typ int32) ([]byte, error) {
 			var namesize, descsize, noteType int32
 			err = binary.Read(r, f.ByteOrder, &namesize)
 			if err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				return nil, fmt.Errorf("read namesize failed: %v", err)

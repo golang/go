@@ -7,6 +7,7 @@ package multipart
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/textproto"
@@ -902,7 +903,7 @@ Cases:
 		got := []headerBody{}
 		for {
 			p, err := r.NextPart()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			if err != nil {
@@ -935,7 +936,7 @@ func partsFromReader(r *Reader) ([]headerBody, error) {
 	got := []headerBody{}
 	for {
 		p, err := r.NextPart()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return got, nil
 		}
 		if err != nil {

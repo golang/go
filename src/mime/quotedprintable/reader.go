@@ -9,6 +9,7 @@ package quotedprintable
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -95,7 +96,7 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 				rightStripped := wholeLine[len(r.line):]
 				r.line = r.line[:len(r.line)-1]
 				if !bytes.HasPrefix(rightStripped, lf) && !bytes.HasPrefix(rightStripped, crlf) &&
-					!(len(rightStripped) == 0 && len(r.line) > 0 && r.rerr == io.EOF) {
+					!(len(rightStripped) == 0 && len(r.line) > 0 && errors.Is(r.rerr, io.EOF)) {
 					r.rerr = fmt.Errorf("quotedprintable: invalid bytes after =: %q", rightStripped)
 				}
 			} else if hasLF {

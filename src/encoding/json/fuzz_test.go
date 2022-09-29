@@ -6,6 +6,7 @@ package json
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"testing"
 )
@@ -73,7 +74,7 @@ func FuzzDecoderToken(f *testing.F) {
 		for {
 			_, err := d.Token()
 			if err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				return

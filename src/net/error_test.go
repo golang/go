@@ -422,7 +422,7 @@ func parseReadError(nestedErr error) error {
 		nestedErr = err.Err
 		goto second
 	}
-	if nestedErr == io.EOF {
+	if errors.Is(nestedErr, io.EOF) {
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)

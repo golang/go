@@ -1932,7 +1932,7 @@ func testRaceRead(t *testing.T, pread bool) {
 				in <- b[:n]
 			}
 		}
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = nil
 		}
 	}()

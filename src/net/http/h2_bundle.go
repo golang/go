@@ -4453,7 +4453,7 @@ func (sc *http2serverConn) condlogf(err error, format string, args ...interface{
 	if err == nil {
 		return
 	}
-	if err == io.EOF || err == io.ErrUnexpectedEOF || http2isClosedConnError(err) || err == http2errPrefaceTimeout {
+	if errors.Is(err, io.EOF) || err == io.ErrUnexpectedEOF || http2isClosedConnError(err) || err == http2errPrefaceTimeout {
 		// Boring, expected errors.
 		sc.vlogf(format, args...)
 	} else {
@@ -5129,7 +5129,7 @@ func (sc *http2serverConn) processFrameFromReader(res http2readFrameResult) bool
 			sc.goAway(http2ErrCodeFrameSize)
 			return true // goAway will close the loop
 		}
-		clientGone := err == io.EOF || err == io.ErrUnexpectedEOF || http2isClosedConnError(err)
+		clientGone := errors.Is(err, io.EOF) || err == io.ErrUnexpectedEOF || http2isClosedConnError(err)
 		if clientGone {
 			// TODO: could we also get into this state if
 			// the peer does a half close
@@ -6144,7 +6144,7 @@ func (b *http2requestBody) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 	n, err = b.pipe.Read(p)
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		b.sawEOF = true
 	}
 	if b.conn == nil && http2inTests {
@@ -8450,7 +8450,7 @@ func (cs *http2clientStream) writeRequestBody(req *Request) (err error) {
 			switch {
 			case bodyClosed:
 				return http2errStopReqBodyWrite
-			case err == io.EOF:
+			case errors.Is(err, io.EOF):
 				sawEOF = true
 				err = nil
 			default:
@@ -8880,7 +8880,7 @@ func (e http2GoAwayError) Error() string {
 }
 
 func http2isEOFOrNetReadError(err error) bool {
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		return true
 	}
 	ne, ok := err.(*net.OpError)
@@ -8908,7 +8908,7 @@ func (rl *http2clientConnReadLoop) cleanup() {
 			ErrCode:      cc.goAway.ErrCode,
 			DebugData:    cc.goAwayDebug,
 		}
-	} else if err == io.EOF {
+	} else if errors.Is(err, io.EOF) {
 		err = io.ErrUnexpectedEOF
 	}
 	cc.closed = true
@@ -9257,7 +9257,7 @@ func (b http2transportResponseBody) Read(p []byte) (n int, err error) {
 			return int(cs.bytesRemain), err
 		}
 		cs.bytesRemain -= int64(n)
-		if err == io.EOF && cs.bytesRemain > 0 {
+		if errors.Is(err, io.EOF) && cs.bytesRemain > 0 {
 			err = io.ErrUnexpectedEOF
 			cs.readErr = err
 			return n, err

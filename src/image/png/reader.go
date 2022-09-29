@@ -10,6 +10,7 @@ package png
 import (
 	"compress/zlib"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash"
 	"hash/crc32"
@@ -517,7 +518,7 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 		// Read the decompressed bytes.
 		_, err := io.ReadFull(r, cr)
 		if err != nil {
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
+			if errors.Is(err, io.EOF) || err == io.ErrUnexpectedEOF {
 				return nil, FormatError("not enough pixel data")
 			}
 			return nil, err
@@ -979,14 +980,14 @@ func Decode(r io.Reader) (image.Image, error) {
 		crc: crc32.NewIEEE(),
 	}
 	if err := d.checkHeader(); err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = io.ErrUnexpectedEOF
 		}
 		return nil, err
 	}
 	for d.stage != dsSeenIEND {
 		if err := d.parseChunk(false); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			return nil, err
@@ -1003,7 +1004,7 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 		crc: crc32.NewIEEE(),
 	}
 	if err := d.checkHeader(); err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = io.ErrUnexpectedEOF
 		}
 		return image.Config{}, err
@@ -1011,7 +1012,7 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 
 	for {
 		if err := d.parseChunk(true); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			return image.Config{}, err

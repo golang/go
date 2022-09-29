@@ -567,7 +567,7 @@ func smallReaddirnames(file *File, length int, t *testing.T) []string {
 	count := 0
 	for {
 		d, err := file.Readdirnames(1)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

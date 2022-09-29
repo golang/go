@@ -5,6 +5,7 @@
 package jpeg
 
 import (
+	"errors"
 	"io"
 )
 
@@ -49,7 +50,7 @@ func (d *decoder) ensureNBits(n int32) error {
 	for {
 		c, err := d.readByteStuffedByte()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return errShortHuffmanData
 			}
 			return err

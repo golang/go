@@ -9,6 +9,7 @@ package os_test
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -81,7 +82,7 @@ func TestFifoEOF(t *testing.T) {
 		rbuf := bufio.NewReader(r)
 		for {
 			b, err := rbuf.ReadBytes('\n')
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			if err != nil {

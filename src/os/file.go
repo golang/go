@@ -362,7 +362,7 @@ func fixCount(n int, err error) (int, error) {
 // It passes io.EOF through unchanged, otherwise converts
 // poll.ErrFileClosing to ErrClosed and wraps the error in a PathError.
 func (f *File) wrapErr(op string, err error) error {
-	if err == nil || err == io.EOF {
+	if err == nil || errors.Is(err, io.EOF) {
 		return err
 	}
 	if err == poll.ErrFileClosing {
@@ -697,7 +697,7 @@ func ReadFile(name string) ([]byte, error) {
 		n, err := f.Read(data[len(data):cap(data)])
 		data = data[:len(data)+n]
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = nil
 			}
 			return data, err

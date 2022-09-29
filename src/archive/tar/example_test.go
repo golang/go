@@ -7,6 +7,7 @@ package tar_test
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -45,7 +46,7 @@ func Example_minimal() {
 	tr := tar.NewReader(&buf)
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break // End of archive
 		}
 		if err != nil {

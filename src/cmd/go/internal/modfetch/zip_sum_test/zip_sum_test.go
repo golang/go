@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"encoding/csv"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"internal/testenv"
@@ -194,7 +195,7 @@ func readZipSumTests() ([]zipSumTest, error) {
 	var tests []zipSumTest
 	for {
 		line, err := r.Read()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
 			return nil, err

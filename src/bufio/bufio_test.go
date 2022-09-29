@@ -49,7 +49,7 @@ func readBytes(buf *Reader) string {
 	nb := 0
 	for {
 		c, err := buf.ReadByte()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err == nil {
@@ -94,7 +94,7 @@ func readLines(b *Reader) string {
 	s := ""
 	for {
 		s1, err := b.ReadString('\n')
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil && err != iotest.ErrTimeout {
@@ -112,7 +112,7 @@ func reads(buf *Reader, m int) string {
 	for {
 		n, err := buf.Read(b[nb : nb+m])
 		nb += n
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 	}

@@ -279,7 +279,7 @@ func (d *Decoder) Token() (Token, error) {
 		d.nextToken = nil
 	} else {
 		if t, err = d.rawToken(); t == nil && err != nil {
-			if err == io.EOF && d.stk != nil && d.stk.kind != stkEOF {
+			if errors.Is(err, io.EOF) && d.stk != nil && d.stk.kind != stkEOF {
 				err = d.syntaxError("unexpected EOF")
 			}
 			return nil, err
@@ -950,7 +950,7 @@ func (d *Decoder) savedOffset() int {
 // and return ok==false
 func (d *Decoder) mustgetc() (b byte, ok bool) {
 	if b, ok = d.getc(); !ok {
-		if d.err == io.EOF {
+		if errors.Is(d.err, io.EOF) {
 			d.err = d.syntaxError("unexpected EOF")
 		}
 	}
@@ -987,7 +987,7 @@ Input:
 		b, ok := d.getc()
 		if !ok {
 			if cdata {
-				if d.err == io.EOF {
+				if errors.Is(d.err, io.EOF) {
 					d.err = d.syntaxError("unexpected EOF in CDATA section")
 				}
 				return nil

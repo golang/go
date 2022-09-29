@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -851,7 +852,7 @@ type delayedEOFReader struct {
 
 func (dr delayedEOFReader) Read(p []byte) (n int, err error) {
 	n, err = dr.r.Read(p)
-	if n > 0 && err == io.EOF {
+	if n > 0 && errors.Is(err, io.EOF) {
 		err = nil
 	}
 	return

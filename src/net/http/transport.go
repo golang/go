@@ -1927,7 +1927,7 @@ func (pc *persistConn) Read(p []byte) (n int, err error) {
 		p = p[:pc.readLimit]
 	}
 	n, err = pc.conn.Read(p)
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		pc.sawEOF = true
 	}
 	pc.readLimit -= int64(n)
@@ -2179,7 +2179,7 @@ func (pc *persistConn) readLoop() {
 
 			},
 			fn: func(err error) error {
-				isEOF := err == io.EOF
+				isEOF := errors.Is(err, io.EOF)
 				waitForBodyRead <- isEOF
 				if isEOF {
 					<-eofc // see comment above eofc declaration
@@ -2248,7 +2248,7 @@ func (pc *persistConn) readLoopPeekFailLocked(peekErr error) {
 			log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v", buf, peekErr)
 		}
 	}
-	if peekErr == io.EOF {
+	if errors.Is(peekErr, io.EOF) {
 		// common case.
 		pc.closeLocked(errServerClosedIdle)
 	} else {

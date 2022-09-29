@@ -10,6 +10,7 @@ package profile
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -84,7 +85,7 @@ func parseGoCount(b []byte) (*Profile, error) {
 	for {
 		line, err = r.ReadString('\n')
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, err

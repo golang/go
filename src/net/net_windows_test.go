@@ -54,7 +54,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
 
 		b := make([]byte, 100)
 		n, err := c.Read(b)
-		if err == nil || err == io.EOF {
+		if err == nil || errors.Is(err, io.EOF) {
 			return string(b[:n]), nil
 		}
 		errno, ok := toErrno(err)

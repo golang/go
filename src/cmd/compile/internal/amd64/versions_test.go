@@ -202,7 +202,7 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 	done := 0
 	for {
 		b, err := r.ReadByte()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

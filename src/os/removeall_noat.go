@@ -7,6 +7,7 @@
 package os
 
 import (
+	"errors"
 	"io"
 	"runtime"
 	"syscall"
@@ -89,7 +90,7 @@ func removeAll(path string) error {
 		// directory. See issue 20841.
 		fd.Close()
 
-		if readErr == io.EOF {
+		if errors.Is(readErr, io.EOF) {
 			break
 		}
 		// If Readdirnames returned an error, use it.

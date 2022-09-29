@@ -4,7 +4,10 @@
 
 package fs
 
-import "io"
+import (
+	"errors"
+	"io"
+)
 
 // ReadFileFS is the interface implemented by a file system
 // that provides an optimized implementation of ReadFile.
@@ -57,7 +60,7 @@ func ReadFile(fsys FS, name string) ([]byte, error) {
 		n, err := file.Read(data[len(data):cap(data)])
 		data = data[:len(data)+n]
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = nil
 			}
 			return data, err

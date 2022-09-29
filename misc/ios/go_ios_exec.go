@@ -409,7 +409,7 @@ func parsePlistDict(dict []byte) (map[string]string, error) {
 	var hasKey bool
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

@@ -6,6 +6,7 @@ package xml
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -953,7 +954,7 @@ func TestIssue12417(t *testing.T) {
 		for {
 			_, err = d.Token()
 			if err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					err = nil
 				}
 				break
@@ -1063,7 +1064,7 @@ func testRoundTrip(t *testing.T, input string) {
 	e := NewEncoder(&buf)
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -1081,7 +1082,7 @@ func testRoundTrip(t *testing.T, input string) {
 	d = NewDecoder(&buf)
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -1152,7 +1153,7 @@ func TestParseErrors(t *testing.T) {
 			}
 			continue
 		}
-		if err == nil || err == io.EOF {
+		if err == nil || errors.Is(err, io.EOF) {
 			t.Errorf("parse %s: have no error, expected a non-nil error", test.src)
 			continue
 		}
@@ -1183,7 +1184,7 @@ func BenchmarkHTMLAutoClose(b *testing.B) {
 			for {
 				_, err := d.Token()
 				if err != nil {
-					if err == io.EOF {
+					if errors.Is(err, io.EOF) {
 						break
 					}
 					b.Fatalf("unexpected error: %v", err)
@@ -1243,7 +1244,7 @@ func TestHTMLAutoClose(t *testing.T) {
 	for {
 		tok, err := d.Token()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			t.Fatalf("unexpected error: %v", err)

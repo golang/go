@@ -3145,7 +3145,7 @@ func TestServerGracefulClose(t *testing.T) {
 	lineNum := 0
 	for {
 		line, err := br.ReadString('\n')
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

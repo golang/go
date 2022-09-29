@@ -397,7 +397,7 @@ func readNotes(f *elf.File) ([]*note, error) {
 			var namesize, descsize, tag int32
 			err := binary.Read(r, f.ByteOrder, &namesize)
 			if err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				return nil, fmt.Errorf("read namesize failed: %v", err)

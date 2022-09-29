@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"internal/poll"
@@ -214,7 +215,7 @@ func cmdPipeTest(...string) {
 	bufr := bufio.NewReader(os.Stdin)
 	for {
 		line, _, err := bufr.ReadLine()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
 			os.Exit(1)

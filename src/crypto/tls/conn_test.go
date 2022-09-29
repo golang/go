@@ -155,7 +155,7 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 
 		for {
 			n, err := io.ReadFull(clientConn, recordHeader[:])
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			if err != nil || n != len(recordHeader) {

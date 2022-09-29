@@ -254,7 +254,7 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
 	if err == nil {
 		return
 	}
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		if r.nread != r.f.UncompressedSize64 {
 			return 0, io.ErrUnexpectedEOF
 		}

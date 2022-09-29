@@ -6,6 +6,7 @@ package bzip2
 
 import (
 	"bufio"
+	"errors"
 	"io"
 )
 
@@ -36,7 +37,7 @@ func newBitReader(r io.Reader) bitReader {
 func (br *bitReader) ReadBits64(bits uint) (n uint64) {
 	for bits > br.bits {
 		b, err := br.r.ReadByte()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = io.ErrUnexpectedEOF
 		}
 		if err != nil {

@@ -906,7 +906,7 @@ func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 		w.writeContinueMu.Unlock()
 	}
 	n, err = ecr.readCloser.Read(p)
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		ecr.sawEOF.Store(true)
 	}
 	return
@@ -1814,7 +1814,7 @@ var ErrAbortHandler = errors.New("net/http: abort Handler")
 // client has gone away or had its read fail somehow. This is used to
 // determine which logs are interesting enough to log about.
 func isCommonNetReadError(err error) bool {
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		return true
 	}
 	if neterr, ok := err.(net.Error); ok && neterr.Timeout() {

@@ -14,6 +14,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -247,7 +248,7 @@ func (w *writer) writeFile(ctxt *Link, file *FileInfo) {
 		n, err := f.Read(buf)
 		w.Bytes(buf[:n])
 		written += int64(n)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

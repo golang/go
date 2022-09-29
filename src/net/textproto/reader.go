@@ -7,6 +7,7 @@ package textproto
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -332,7 +333,7 @@ func (d *dotReader) Read(b []byte) (n int, err error) {
 		var c byte
 		c, err = br.ReadByte()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			break
@@ -437,7 +438,7 @@ func (r *Reader) ReadDotLines() ([]string, error) {
 		var line string
 		line, err = r.ReadLine()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			break

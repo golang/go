@@ -45,7 +45,7 @@ func readColonFile(r io.Reader, fn lineFunc, readCols int) (v any, err error) {
 			if err != nil {
 				// We should return (nil, nil) if EOF is reached
 				// without a match.
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					err = nil
 				}
 				return nil, err
@@ -83,7 +83,7 @@ func readColonFile(r io.Reader, fn lineFunc, readCols int) (v any, err error) {
 		for ; isPrefix; _, isPrefix, err = rd.ReadLine() {
 			if err != nil {
 				// We should return (nil, nil) if EOF is reached without a match.
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					err = nil
 				}
 				return nil, err

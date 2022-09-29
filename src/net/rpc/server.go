@@ -588,7 +588,7 @@ func (server *Server) readRequestHeader(codec ServerCodec) (svc *service, mtype 
 	err = codec.ReadRequestHeader(req)
 	if err != nil {
 		req = nil
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
+		if errors.Is(err, io.EOF) || err == io.ErrUnexpectedEOF {
 			return
 		}
 		err = errors.New("rpc: server cannot decode request: " + err.Error())

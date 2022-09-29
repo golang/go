@@ -6,6 +6,7 @@ package dwarf_test
 
 import (
 	. "debug/dwarf"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -162,7 +163,7 @@ func TestLineSeek(t *testing.T) {
 
 		err := lr.Next(&line)
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			t.Fatal("lr.Next:", err)
@@ -251,7 +252,7 @@ func testLineTable(t *testing.T, want []LineEntry, files [][]*LineFile, d *Data)
 			var line LineEntry
 			err := lr.Next(&line)
 			if err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				t.Fatal("lr.Next:", err)

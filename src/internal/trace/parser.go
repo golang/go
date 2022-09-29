@@ -7,6 +7,7 @@ package trace
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -167,7 +168,7 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
 		off0 := off
 		var n int
 		n, err = r.Read(buf[:1])
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = nil
 			break
 		}

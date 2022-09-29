@@ -116,7 +116,7 @@ func run(exePath string) ([]string, error) {
 		var le dwarf.LineEntry
 		for {
 			if err := lr.Next(&le); err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				return nil, err

@@ -5,6 +5,7 @@
 package tar
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -610,7 +611,7 @@ func (sw *sparseFileWriter) ReadFrom(r io.Reader) (n int64, err error) {
 
 	n = sw.pos - pos0
 	switch {
-	case err == io.EOF:
+	case errors.Is(err, io.EOF):
 		return n, io.ErrUnexpectedEOF
 	case err == ErrWriteTooLong:
 		return n, errMissData // Not possible; implies bug in validation logic
@@ -648,7 +649,7 @@ func ensureEOF(r io.Reader) error {
 	switch {
 	case n > 0:
 		return ErrWriteTooLong
-	case err == io.EOF:
+	case errors.Is(err, io.EOF):
 		return nil
 	default:
 		return err

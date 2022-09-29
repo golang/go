@@ -142,7 +142,7 @@ loop:
 	for {
 		code, err := r.read(r)
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			r.err = err

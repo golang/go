@@ -65,7 +65,7 @@ const (
 
 func readFull(r io.Reader, b []byte) error {
 	_, err := io.ReadFull(r, b)
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		err = io.ErrUnexpectedEOF
 	}
 	return err
@@ -73,7 +73,7 @@ func readFull(r io.Reader, b []byte) error {
 
 func readByte(r io.ByteReader) (byte, error) {
 	b, err := r.ReadByte()
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		err = io.ErrUnexpectedEOF
 	}
 	return b, err
@@ -182,7 +182,7 @@ func (b *blockReader) Read(p []byte) (int, error) {
 // These accommodations allow us to support GIFs created by less strict encoders.
 // See https://golang.org/issue/16146.
 func (b *blockReader) close() error {
-	if b.err == io.EOF {
+	if errors.Is(b.err, io.EOF) {
 		// A clean block-sequence terminator was encountered while reading.
 		return nil
 	} else if b.err != nil {
@@ -194,7 +194,7 @@ func (b *blockReader) close() error {
 		// We reached the end of a sub block reading LZW data. We'll allow at
 		// most one more sub block of data with a length of 1 byte.
 		b.fill()
-		if b.err == io.EOF {
+		if b.errors.Is(err, io.EOF) {
 			return nil
 		} else if b.err != nil {
 			return b.err
@@ -206,7 +206,7 @@ func (b *blockReader) close() error {
 	// Part of a sub-block remains buffered. We expect that the next attempt to
 	// buffer a sub-block will reach the block terminator.
 	b.fill()
-	if b.err == io.EOF {
+	if b.errors.Is(err, io.EOF) {
 		return nil
 	} else if b.err != nil {
 		return b.err

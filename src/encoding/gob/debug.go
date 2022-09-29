@@ -249,7 +249,7 @@ func (deb *debugger) delimitedMessage(indent tab) bool {
 func (deb *debugger) loadBlock(eofOK bool) int {
 	n64, w, err := decodeUintReader(deb.r, deb.tmp) // deb.uint64 will error at EOF
 	if err != nil {
-		if eofOK && err == io.EOF {
+		if eofOK && errors.Is(err, io.EOF) {
 			return -1
 		}
 		errorf("debug: unexpected error: %s", err)

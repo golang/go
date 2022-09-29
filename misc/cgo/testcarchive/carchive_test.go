@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"debug/elf"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -343,7 +344,7 @@ func checkELFArchive(t *testing.T, arname string) {
 		if off&1 != 0 {
 			var b [1]byte
 			if _, err := f.Read(b[:]); err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				t.Errorf("%s: error skipping alignment byte at %d: %v", arname, off, err)
@@ -353,7 +354,7 @@ func checkELFArchive(t *testing.T, arname string) {
 
 		var hdrbuf [hdrlen]byte
 		if _, err := io.ReadFull(f, hdrbuf[:]); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			t.Errorf("%s: error reading archive header at %d: %v", arname, off, err)

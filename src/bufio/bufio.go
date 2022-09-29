@@ -542,7 +542,7 @@ func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
 		b.fill() // buffer is empty
 	}
 
-	if b.err == io.EOF {
+	if errors.Is(b.err, io.EOF) {
 		b.err = nil
 	}
 
@@ -802,7 +802,7 @@ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 			break
 		}
 	}
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		// If we filled the buffer exactly, flush preemptively.
 		if b.Available() == 0 {
 			err = b.Flush()

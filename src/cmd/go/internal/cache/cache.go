@@ -163,7 +163,7 @@ func (c *Cache) get(id ActionID) (Entry, error) {
 	if n, err := io.ReadFull(f, entry); n > entrySize {
 		return missing(errors.New("too long"))
 	} else if err != io.ErrUnexpectedEOF {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return missing(errors.New("file is empty"))
 		}
 		return missing(err)

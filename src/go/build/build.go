@@ -1161,7 +1161,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 				buf := make([]byte, 100)
 				_, err := f.Read(buf)
 				f.Close()
-				if err == nil || err == io.EOF {
+				if err == nil || errors.Is(err, io.EOF) {
 					// go.mod exists and is readable (is a file, not a directory).
 					break
 				}

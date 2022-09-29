@@ -7,6 +7,7 @@ import (
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"internal/xcoff"
@@ -102,7 +103,7 @@ func TestStmtLines(t *testing.T) {
 
 		for {
 			err := lrdr.Next(&le)
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			must(err)

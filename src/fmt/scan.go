@@ -192,7 +192,7 @@ func (s *ss) ReadRune() (r rune, size int, err error) {
 		if s.nlIsEnd && r == '\n' {
 			s.atEOF = true
 		}
-	} else if err == io.EOF {
+	} else if errors.Is(err, io.EOF) {
 		s.atEOF = true
 	}
 	return
@@ -210,7 +210,7 @@ func (s *ss) Width() (wid int, ok bool) {
 func (s *ss) getRune() (r rune) {
 	r, _, err := s.ReadRune()
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return eof
 		}
 		s.error(err)
@@ -349,7 +349,7 @@ func (r *readRune) ReadRune() (rr rune, size int, err error) {
 	for n = 1; !utf8.FullRune(r.buf[:n]); n++ {
 		r.buf[n], err = r.readByte()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = nil
 				break
 			}
@@ -957,7 +957,7 @@ func (s *ss) scanOne(verb rune, arg any) {
 	if v, ok := arg.(Scanner); ok {
 		err = v.Scan(s, verb)
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			s.error(err)

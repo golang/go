@@ -47,7 +47,7 @@ func pedanticReadAll(r io.Reader) (b []byte, err error) {
 			return nil, fmt.Errorf("Read: n=0 with err=nil")
 		}
 		b = append(b, buf[:n]...)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			n, err := r.Read(buf)
 			if n != 0 || err != io.EOF {
 				return nil, fmt.Errorf("Read: n=%d err=%#v after EOF", n, err)

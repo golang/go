@@ -205,7 +205,7 @@ func (bz2 *reader) read(buf []byte) (int, error) {
 				br.ReadBits(br.bits % 8)
 			}
 			b, err := br.r.ReadByte()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				br.err = io.EOF
 				bz2.eof = true
 				return 0, io.EOF
@@ -216,7 +216,7 @@ func (bz2 *reader) read(buf []byte) (int, error) {
 			}
 			z, err := br.r.ReadByte()
 			if err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					err = io.ErrUnexpectedEOF
 				}
 				br.err = err

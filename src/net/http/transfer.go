@@ -219,7 +219,7 @@ func (t *transferWriter) probeRequestBody() {
 	select {
 	case rres := <-t.ByteReadCh:
 		timer.Stop()
-		if rres.n == 0 && rres.err == io.EOF {
+		if rres.n == 0 && errors.Is(rres.err, io.EOF) {
 			// It was empty.
 			t.Body = nil
 			t.ContentLength = 0
@@ -838,7 +838,7 @@ func (b *body) readLocked(p []byte) (n int, err error) {
 	}
 	n, err = b.src.Read(p)
 
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		b.sawEOF = true
 		// Chunked case. Read the trailer.
 		if b.hdr != nil {
@@ -930,7 +930,7 @@ func (b *body) readTrailer() error {
 
 	hdr, err := textproto.NewReader(b.r).ReadMIMEHeader()
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return errTrailerEOF
 		}
 		return err
@@ -989,7 +989,7 @@ func (b *body) Close() error {
 			// Consume the body, or, which will also lead to us reading
 			// the trailer headers after the body, if present.
 			n, err = io.CopyN(io.Discard, bodyLocked{b}, maxPostHandlerReadBytes)
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = nil
 			}
 			if n == maxPostHandlerReadBytes {

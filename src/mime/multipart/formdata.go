@@ -50,7 +50,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 	}
 	for {
 		p, err := r.NextPart()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

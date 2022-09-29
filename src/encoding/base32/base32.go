@@ -6,6 +6,7 @@
 package base32
 
 import (
+	"errors"
 	"io"
 	"strconv"
 )
@@ -408,13 +409,13 @@ func readEncodedData(r io.Reader, buf []byte, min int, expectsPadding bool) (n i
 		n += nn
 	}
 	// data was read, less than min bytes could be read
-	if n < min && n > 0 && err == io.EOF {
+	if n < min && n > 0 && errors.Is(err, io.EOF) {
 		err = io.ErrUnexpectedEOF
 	}
 	// no data was read, the buffer already contains some data
 	// when padding is disabled this is not an error, as the message can be of
 	// any length
-	if expectsPadding && min < 8 && n == 0 && err == io.EOF {
+	if expectsPadding && min < 8 && n == 0 && errors.Is(err, io.EOF) {
 		err = io.ErrUnexpectedEOF
 	}
 	return
@@ -486,7 +487,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		d.buf[i] = d.buf[i+nr]
 	}
 
-	if err != nil && (d.err == nil || d.err == io.EOF) {
+	if err != nil && (d.err == nil || d.errors.Is(err, io.EOF)) {
 		d.err = err
 	}
 

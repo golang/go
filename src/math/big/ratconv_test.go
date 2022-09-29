@@ -6,6 +6,7 @@ package big
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -76,7 +77,7 @@ func TestScanExponent(t *testing.T) {
 			t.Errorf("scanExponent%+v\n\tgot b = %d; want %d", a, b, a.b)
 		}
 		next, _, err := r.ReadRune()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			next = 0
 			err = nil
 		}

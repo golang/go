@@ -7,6 +7,7 @@ package gzip_test
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -104,7 +105,7 @@ func ExampleReader_Multistream() {
 		fmt.Print("\n\n")
 
 		err = zr.Reset(&buf)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

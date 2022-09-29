@@ -11,6 +11,7 @@ package flate
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -326,7 +327,7 @@ func TestReaderEarlyEOF(t *testing.T) {
 			r := NewReader(&buf)
 			for {
 				n, err := r.Read(readBuf)
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					// If the availWrite == windowSize, then that means that the
 					// previous Read returned because the write buffer was full
 					// and it just so happened that the stream had no more data.

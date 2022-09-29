@@ -1035,7 +1035,7 @@ func scanInts(r *RecursiveInt, b *bytes.Buffer) (err error) {
 	}
 	c, _, err := b.ReadRune()
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = nil
 		}
 		return

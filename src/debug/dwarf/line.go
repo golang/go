@@ -763,7 +763,7 @@ func (r *LineReader) SeekPC(pc uint64, entry *LineEntry) error {
 		var next LineEntry
 		pos := r.Tell()
 		if err := r.Next(&next); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return ErrUnknownPC
 			}
 			return err

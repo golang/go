@@ -29,7 +29,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 			d.bufp, d.nbuf = 0, nb
 
 			if err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				return names, dirents, infos, &PathError{Op: "readdir", Path: file.name, Err: err}

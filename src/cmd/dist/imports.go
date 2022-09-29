@@ -56,7 +56,7 @@ func (r *importReader) readByte() byte {
 		}
 	}
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			r.eof = true
 		} else if r.err == nil {
 			r.err = err

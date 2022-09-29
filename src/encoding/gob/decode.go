@@ -128,7 +128,7 @@ func decodeUintReader(r io.Reader, buf []byte) (x uint64, width int, err error) 
 	}
 	width, err = io.ReadFull(r, buf[0:n])
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = io.ErrUnexpectedEOF
 		}
 		return

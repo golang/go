@@ -632,7 +632,7 @@ type MyCharData struct {
 func (m *MyCharData) UnmarshalXML(d *Decoder, start StartElement) error {
 	for {
 		t, err := d.Token()
-		if err == io.EOF { // found end of element
+		if errors.Is(err, io.EOF) { // found end of element
 			break
 		}
 		if err != nil {

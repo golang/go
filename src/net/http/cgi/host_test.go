@@ -8,6 +8,7 @@ package cgi
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -54,7 +55,7 @@ readlines:
 	for {
 		line, err := rw.Body.ReadString('\n')
 		switch {
-		case err == io.EOF:
+		case errors.Is(err, io.EOF):
 			break readlines
 		case err != nil:
 			t.Fatalf("unexpected error reading from CGI: %v", err)
