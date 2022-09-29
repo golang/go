@@ -582,7 +582,7 @@ func (p *Package) annotateFile(name string, fd io.Writer, last bool) {
 	}
 	if pkgconfig.PkgName == "main" {
 		file.edit.Insert(file.offset(file.astFile.Name.End()),
-			fmt.Sprintf("; import _ \"runtime/coverage\""))
+			"; import _ \"runtime/coverage\"")
 	}
 
 	if counterStmt != nil {
