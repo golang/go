@@ -453,7 +453,7 @@ func srcToPkgLinkFunc(relpath string) string {
 	return fmt.Sprintf(`<a href="/%s">%s</a>`, relpath, relpath[len("pkg/"):])
 }
 
-// srcBreadcrumbFun converts each segment of relpath to a HTML <a>.
+// srcBreadcrumbFunc converts each segment of relpath to a HTML <a>.
 // Each segment links to its corresponding src directories.
 func srcBreadcrumbFunc(relpath string) string {
 	segments := strings.Split(relpath, "/")
@@ -663,7 +663,7 @@ func (p *Presentation) example_suffixFunc(name string) string {
 	return suffix
 }
 
-// implements_html returns the "> Implements" toggle for a package-level named type.
+// implements_htmlFunc returns the "> Implements" toggle for a package-level named type.
 // Its contents are populated from JSON data by client-side JS at load time.
 func (p *Presentation) implements_htmlFunc(info *PageInfo, typeName string) string {
 	if p.ImplementsHTML == nil {
@@ -681,7 +681,7 @@ func (p *Presentation) implements_htmlFunc(info *PageInfo, typeName string) stri
 	return buf.String()
 }
 
-// methodset_html returns the "> Method set" toggle for a package-level named type.
+// methodset_htmlFunc returns the "> Method set" toggle for a package-level named type.
 // Its contents are populated from JSON data by client-side JS at load time.
 func (p *Presentation) methodset_htmlFunc(info *PageInfo, typeName string) string {
 	if p.MethodSetHTML == nil {
@@ -699,7 +699,7 @@ func (p *Presentation) methodset_htmlFunc(info *PageInfo, typeName string) strin
 	return buf.String()
 }
 
-// callgraph_html returns the "> Call graph" toggle for a package-level func.
+// callgraph_htmlFunc returns the "> Call graph" toggle for a package-level func.
 // Its contents are populated from JSON data by client-side JS at load time.
 func (p *Presentation) callgraph_htmlFunc(info *PageInfo, recv, name string) string {
 	if p.CallGraphHTML == nil {
