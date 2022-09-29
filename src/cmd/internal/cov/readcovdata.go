@@ -11,6 +11,7 @@ import (
 	"internal/coverage/decodecounter"
 	"internal/coverage/decodemeta"
 	"internal/coverage/pods"
+	"io"
 	"os"
 )
 
@@ -191,7 +192,7 @@ func (r *CovDataReader) visitPod(p pods.Pod) error {
 		return r.fatal("unable to stat metafile %s: %v", p.MetaFile, err)
 	}
 	fileView := br.SliceRO(uint64(fi.Size()))
-	br.MustSeek(0, os.SEEK_SET)
+	br.MustSeek(0, io.SeekStart)
 
 	r.verb(1, "fileView for pod is length %d", len(fileView))
 

@@ -72,12 +72,12 @@ func (r *MReader) Seek(offset int64, whence int) (int64, error) {
 		return r.rdr.MustSeek(offset, whence), nil
 	}
 	switch whence {
-	case os.SEEK_SET:
+	case io.SeekStart:
 		r.off = offset
 		return offset, nil
-	case os.SEEK_CUR:
+	case io.SeekCurrent:
 		return r.off, nil
-	case os.SEEK_END:
+	case io.SeekEnd:
 		r.off = int64(len(r.fileView)) + offset
 		return r.off, nil
 	}
