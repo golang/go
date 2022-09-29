@@ -99,7 +99,7 @@ func (c *cipherSuiteTLS13) exportKeyingMaterial(masterSecret []byte, transcript 
 	}
 }
 
-// generateECDHEParameters returns a PrivateKey that implements Diffie-Hellman
+// generateECDHEKey returns a PrivateKey that implements Diffie-Hellman
 // according to RFC 8446, Section 4.2.8.2.
 func generateECDHEKey(rand io.Reader, curveID CurveID) (*ecdh.PrivateKey, error) {
 	curve, ok := curveForCurveID(curveID)
