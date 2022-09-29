@@ -116,7 +116,7 @@ func mkbuiltin(w io.Writer) {
 	fmt.Fprintln(w, "}")
 }
 
-// addBasicTypes returns the symbol names for basic types that are
+// enumerateBasicTypes returns the symbol names for basic types that are
 // defined in the runtime and referenced in other packages.
 // Needs to be kept in sync with reflect.go:WriteBasicTypes() and
 // reflect.go:writeType() in the compiler.

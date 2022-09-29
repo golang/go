@@ -94,7 +94,7 @@ func (n *node) isDeleted() bool {
 var overlay map[string]*node // path -> file or directory node
 var cwd string               // copy of base.Cwd() to avoid dependency
 
-// Canonicalize a path for looking it up in the overlay.
+// canonicalize a path for looking it up in the overlay.
 // Important: filepath.Join(cwd, path) doesn't always produce
 // the correct absolute path if path is relative, because on
 // Windows producing the correct absolute path requires making
@@ -507,7 +507,7 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
 	return err
 }
 
-// lstat implements a version of os.Lstat that operates on the overlay filesystem.
+// Lstat implements a version of os.Lstat that operates on the overlay filesystem.
 func Lstat(path string) (fs.FileInfo, error) {
 	Trace("Lstat", path)
 	return overlayStat(path, os.Lstat, "lstat")

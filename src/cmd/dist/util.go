@@ -309,7 +309,7 @@ func xreaddir(dir string) []string {
 	return names
 }
 
-// xreaddir replaces dst with a list of the names of the files in dir.
+// xreaddirfiles replaces dst with a list of the names of the files in dir.
 // The names are relative to dir; they are not full paths.
 func xreaddirfiles(dir string) []string {
 	f, err := os.Open(dir)
