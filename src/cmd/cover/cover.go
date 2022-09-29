@@ -44,10 +44,12 @@ Display coverage percentages to stdout for each function:
 Finally, to generate modified source code with coverage annotations
 for a package (what go test -cover does):
 	go tool cover -mode=set -var=CoverageVariableName \
-		-pkgcfg=<config> -o=<outputfiles> file1.go ... fileN.go
+		-pkgcfg=<config> -outfilelist=<file> file1.go ... fileN.go
 
 where -pkgcfg points to a file containing the package path,
-package name, module path, and related info from "go build".
+package name, module path, and related info from "go build",
+and -outfilelist points to a file containing the filenames
+of the instrumented output files (one per input file).
 See https://pkg.go.dev/internal/coverage#CoverPkgConfig for
 more on the package config.
 `
@@ -61,15 +63,18 @@ func usage() {
 }
 
 var (
-	mode    = flag.String("mode", "", "coverage mode: set, count, atomic")
-	varVar  = flag.String("var", "GoCover", "name of coverage variable to generate")
-	output  = flag.String("o", "", fmt.Sprintf("file(s) for output (if multiple inputs, this is a %q-separated list); defaults to stdout if omitted.", string(os.PathListSeparator)))
-	htmlOut = flag.String("html", "", "generate HTML representation of coverage profile")
-	funcOut = flag.String("func", "", "output coverage profile information for each function")
-	pkgcfg  = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
+	mode        = flag.String("mode", "", "coverage mode: set, count, atomic")
+	varVar      = flag.String("var", "GoCover", "name of coverage variable to generate")
+	output      = flag.String("o", "", "file for output")
+	outfilelist = flag.String("outfilelist", "", "file containing list of output files (one per line) if -pkgcfg is in use")
+	htmlOut     = flag.String("html", "", "generate HTML representation of coverage profile")
+	funcOut     = flag.String("func", "", "output coverage profile information for each function")
+	pkgcfg      = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
 )
 
 var pkgconfig coverage.CoverPkgConfig
+
+var outputfiles []string // set whe -pkgcfg is in use
 
 var profile string // The profile to read; the value of -html or -func
 
@@ -153,11 +158,15 @@ func parseFlags() error {
 			return fmt.Errorf("missing source file(s)")
 		} else {
 			if *pkgcfg != "" {
-				if *output == "" {
-					return fmt.Errorf("supply output file(s) with -o")
+				if *output != "" {
+					return fmt.Errorf("please use '-outfilelist' flag instead of '-o'")
+				}
+				var err error
+				if outputfiles, err = readOutFileList(*outfilelist); err != nil {
+					return err
 				}
 				numInputs := len(flag.Args())
-				numOutputs := len(strings.Split(*output, string(os.PathListSeparator)))
+				numOutputs := len(outputfiles)
 				if numOutputs != numInputs {
 					return fmt.Errorf("number of output files (%d) not equal to number of input files (%d)", numOutputs, numInputs)
 				}
@@ -165,6 +174,10 @@ func parseFlags() error {
 					return err
 				}
 				return nil
+			} else {
+				if *outfilelist != "" {
+					return fmt.Errorf("'-outfilelist' flag applicable only when -pkgcfg used")
+				}
 			}
 			if flag.NArg() == 1 {
 				return nil
@@ -174,6 +187,14 @@ func parseFlags() error {
 		return nil
 	}
 	return fmt.Errorf("too many arguments")
+}
+
+func readOutFileList(path string) ([]string, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("error reading -outfilelist file %q: %v", path, err)
+	}
+	return strings.Split(strings.TrimSpace(string(data)), "\n"), nil
 }
 
 func readPackageConfig(path string) error {
@@ -495,7 +516,6 @@ func annotate(names []string) {
 		}
 	}
 	// TODO: process files in parallel here if it matters.
-	outfiles := strings.Split(*output, string(os.PathListSeparator))
 	for k, name := range names {
 		last := false
 		if k == len(names)-1 {
@@ -506,7 +526,7 @@ func annotate(names []string) {
 		isStdout := true
 		if *pkgcfg != "" {
 			var err error
-			fd, err = os.Create(outfiles[k])
+			fd, err = os.Create(outputfiles[k])
 			if err != nil {
 				log.Fatalf("cover: %s", err)
 			}

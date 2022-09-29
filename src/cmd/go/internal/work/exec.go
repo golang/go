@@ -691,7 +691,8 @@ OverlayLoop:
 					panic("covermode should be set at this point")
 				}
 				pkgcfg := a.Objdir + "pkgcfg.txt"
-				if err := b.cover2(a, pkgcfg, infiles, outfiles, coverVar, mode); err != nil {
+				covoutfiles := a.Objdir + "coveroutfiles.txt"
+				if err := b.cover2(a, pkgcfg, covoutfiles, infiles, outfiles, coverVar, mode); err != nil {
 					return err
 				}
 			} else {
@@ -1943,22 +1944,22 @@ func (b *Builder) cover(a *Action, dst, src string, varName string) error {
 // cover2 runs, in effect,
 //
 //	go tool cover -pkgcfg=<config file> -mode=b.coverMode -var="varName" -o <outfiles> <infiles>
-func (b *Builder) cover2(a *Action, pkgcfg string, infiles, outfiles []string, varName string, mode string) error {
-	if err := b.writeCoverPkgCfg(a, pkgcfg); err != nil {
+func (b *Builder) cover2(a *Action, pkgcfg, covoutputs string, infiles, outfiles []string, varName string, mode string) error {
+	if err := b.writeCoverPkgInputs(a, pkgcfg, covoutputs, outfiles); err != nil {
 		return err
 	}
 	args := []string{base.Tool("cover"),
 		"-pkgcfg", pkgcfg,
 		"-mode", mode,
 		"-var", varName,
-		"-o", strings.Join(outfiles, string(os.PathListSeparator)),
+		"-outfilelist", covoutputs,
 	}
 	args = append(args, infiles...)
 	return b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
 		cfg.BuildToolexec, args)
 }
 
-func (b *Builder) writeCoverPkgCfg(a *Action, file string) error {
+func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
 	p := a.Package
 	p.Internal.CoverageCfg = a.Objdir + "coveragecfg"
 	pcfg := coverage.CoverPkgConfig{
@@ -1978,7 +1979,14 @@ func (b *Builder) writeCoverPkgCfg(a *Action, file string) error {
 	if err != nil {
 		return err
 	}
-	return b.writeFile(file, data)
+	if err := b.writeFile(pconfigfile, data); err != nil {
+		return err
+	}
+	var sb strings.Builder
+	for i := range outfiles {
+		fmt.Fprintf(&sb, "%s\n", outfiles[i])
+	}
+	return b.writeFile(covoutputsfile, []byte(sb.String()))
 }
 
 var objectMagic = [][]byte{
