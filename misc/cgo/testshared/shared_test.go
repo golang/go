@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"debug/elf"
 	"encoding/binary"
+	"errors"
 	"flag"
 	"fmt"
 	"go/build"
