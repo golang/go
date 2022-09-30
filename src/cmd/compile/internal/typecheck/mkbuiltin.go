@@ -80,7 +80,7 @@ func params(tlist ...*types.Type) []*types.Field {
 
 func mkbuiltin(w io.Writer, name string) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, filepath.Join("builtin", name+".go"), nil, 0)
+	f, err := parser.ParseFile(fset, filepath.Join("_builtin", name+".go"), nil, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
