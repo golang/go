@@ -690,6 +690,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	needStale := (listJson && listJsonFields.needAny("Stale", "StaleReason")) || strings.Contains(*listFmt, ".Stale")
 	if needStale || *listExport || *listCompiled {
 		b := work.NewBuilder("")
+		if *listE {
+			b.AllowErrors = true
+		}
 		b.IsCmdList = true
 		b.NeedExport = *listExport
 		b.NeedCompiledGoFiles = *listCompiled

@@ -35,12 +35,9 @@ stderr 'package example: invalid package directory .*uh-oh'
 [!cgo] ! go test -v main_nocgo.go main_test.go
 stderr 'package command-line-arguments: invalid package directory .*uh-oh'
 
-	# Note: this command fails on release-branch.go1.19 but succeeds
-	# on release-branch.go1.20 and later. I (bcmills) suspect it may
-	# have been fixed by CL 437298.
-! go list -compiled -e -f '{{with .CompiledGoFiles}}{{.}}{{end}}' .
-stderr 'package example: invalid package directory .*uh-oh'
+go list -compiled -e -f '{{with .CompiledGoFiles}}{{.}}{{end}}' .
 ! stdout .
+! stderr .
 ! exists obj_
 
 # The cgo tool should only accept the source file if the working directory
