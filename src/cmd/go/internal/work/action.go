@@ -43,6 +43,7 @@ type Builder struct {
 	NeedError           bool // list needs p.Error
 	NeedExport          bool // list needs p.Export
 	NeedCompiledGoFiles bool // list needs p.CompiledGoFiles
+	AllowErrors         bool // errors don't immediately exit the program
 
 	objdirSeq int // counter for NewObjdir
 	pkgSeq    int
