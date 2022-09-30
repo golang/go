@@ -1081,6 +1081,8 @@ var internalpkg = []string{
 	"os/user",
 	"runtime/cgo",
 	"runtime/race",
+	"runtime/race/internal/amd64v1",
+	"runtime/race/internal/amd64v3",
 	"runtime/msan",
 	"runtime/asan",
 }
