@@ -7,6 +7,7 @@
 // to avoid depending on having a working compiler binary.
 
 //go:build ignore
+// +build ignore
 
 package runtime
 

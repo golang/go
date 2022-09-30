@@ -6,6 +6,7 @@
 // access to compiled packages for import.
 //
 //go:build !arm && !arm64
+// +build !arm,!arm64
 
 package types2_test
 

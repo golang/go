@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
+// +build ignore
 
 // Note: this program must be run in this directory.
 //   go run mknode.go

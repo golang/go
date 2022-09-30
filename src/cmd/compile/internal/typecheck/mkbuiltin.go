@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
+// +build ignore
 
 // Generate builtin.go from builtin/runtime.go.
 
