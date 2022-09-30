@@ -9,7 +9,7 @@ import (
 	"math/bits"
 )
 
-// ResetCovereage sets all of the counters for each edge of the instrumented
+// ResetCoverage sets all of the counters for each edge of the instrumented
 // source code to 0.
 func ResetCoverage() {
 	cov := coverage()
