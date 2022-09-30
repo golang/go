@@ -207,7 +207,7 @@ func strequal(p, q unsafe.Pointer) bool
 func interequal(p, q unsafe.Pointer) bool
 func nilinterequal(p, q unsafe.Pointer) bool
 
-func memhash(p unsafe.Pointer, h uintptr, size uintptr) uintptr
+func memhash(x *any, h uintptr, size uintptr) uintptr
 func memhash0(p unsafe.Pointer, h uintptr) uintptr
 func memhash8(p unsafe.Pointer, h uintptr) uintptr
 func memhash16(p unsafe.Pointer, h uintptr) uintptr

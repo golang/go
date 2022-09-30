@@ -595,17 +595,7 @@ func anyCall(fn *ir.Func) bool {
 }
 
 func hashmem(t *types.Type) ir.Node {
-	sym := ir.Pkgs.Runtime.Lookup("memhash")
-
-	// TODO(austin): This creates an ir.Name with a nil Func.
-	n := typecheck.NewName(sym)
-	ir.MarkFunc(n)
-	n.SetType(types.NewSignature(nil, []*types.Field{
-		types.NewField(base.Pos, nil, types.NewPtr(t)),
-		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
-		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
-	}, []*types.Field{
-		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
-	}))
+	n := typecheck.LookupRuntime("memhash")
+	n = typecheck.SubstArgTypes(n, t)
 	return n
 }
