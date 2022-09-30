@@ -64,6 +64,16 @@ func ContainsAny(s, chars string) bool {
 	return IndexAny(s, chars) >= 0
 }
 
+// ContainsAll reports whether all Unicode code points in chars are within s.
+func ContainsAll(s string, chars string) bool {
+	for _, letter := range chars {
+		if !Contains(s, string(letter)) {
+			return false
+		}
+	}
+	return true
+}
+
 // ContainsRune reports whether the Unicode code point r is within s.
 func ContainsRune(s string, r rune) bool {
 	return IndexRune(s, r) >= 0

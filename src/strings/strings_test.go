@@ -1506,6 +1506,32 @@ func TestContainsAny(t *testing.T) {
 	}
 }
 
+var ContainsAllTests = []struct {
+	str, substr string
+	expected    bool
+}{
+	{"", "", false},
+	{"", "a", false},
+	{"", "abc", false},
+	{"a", "", false},
+	{"a", "a", true},
+	{"aaa", "a", true},
+	{"abc", "abc", true},
+	{"abc", "xcz", false},
+	{"a☺b☻c☹d", "☹☻", true},
+	{"aRegExp*", ".(|)*+?^$[]", false},
+	{dots + dots + dots, " ", false},
+}
+
+func TestContainsAll(t *testing.T) {
+	for _, ct := range ContainsAnyTests {
+		if ContainsAll(ct.str, ct.substr) != ct.expected {
+			t.Errorf("ContainsAny(%s, %s) = %v, want %v",
+				ct.str, ct.substr, !ct.expected, ct.expected)
+		}
+	}
+}
+
 var ContainsRuneTests = []struct {
 	str      string
 	r        rune
