@@ -375,7 +375,7 @@ func BenchmarkReadMetricsLatency(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		start := time.Now()
 		metrics.Read(samples)
-		latencies = append(latencies, time.Now().Sub(start))
+		latencies = append(latencies, time.Since(start))
 	}
 	// Make sure to stop the timer before we wait! The load created above
 	// is very heavy-weight and not easy to stop, so we could end up

@@ -171,7 +171,7 @@ func dialClosedPort(t *testing.T) (dialLatency time.Duration) {
 	if err == nil {
 		c.Close()
 	}
-	elapsed := time.Now().Sub(startTime)
+	elapsed := time.Since(startTime)
 	t.Logf("dialClosedPort: measured delay %v", elapsed)
 	return elapsed
 }
@@ -366,7 +366,7 @@ func TestDialerFallbackDelay(t *testing.T) {
 
 		startTime := time.Now()
 		c, err := d.Dial("tcp", JoinHostPort("slow6loopback4", dss.port))
-		elapsed := time.Now().Sub(startTime)
+		elapsed := time.Since(startTime)
 		if err == nil {
 			c.Close()
 		} else if tt.dualstack {
