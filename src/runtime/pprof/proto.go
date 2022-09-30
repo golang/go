@@ -590,6 +590,7 @@ func (b *profileBuilder) emitLocation() uint64 {
 	type newFunc struct {
 		id         uint64
 		name, file string
+		startLine  int64
 	}
 	newFuncs := make([]newFunc, 0, 8)
 
@@ -610,7 +611,12 @@ func (b *profileBuilder) emitLocation() uint64 {
 		if funcID == 0 {
 			funcID = uint64(len(b.funcs)) + 1
 			b.funcs[frame.Function] = int(funcID)
-			newFuncs = append(newFuncs, newFunc{funcID, frame.Function, frame.File})
+			newFuncs = append(newFuncs, newFunc{
+				id:        funcID,
+				name:      frame.Function,
+				file:      frame.File,
+				startLine: int64(runtime_FrameStartLine(&frame)),
+			})
 		}
 		b.pbLine(tagLocation_Line, funcID, int64(frame.Line))
 	}
@@ -633,6 +639,7 @@ func (b *profileBuilder) emitLocation() uint64 {
 		b.pb.int64Opt(tagFunction_Name, b.stringIndex(fn.name))
 		b.pb.int64Opt(tagFunction_SystemName, b.stringIndex(fn.name))
 		b.pb.int64Opt(tagFunction_Filename, b.stringIndex(fn.file))
+		b.pb.int64Opt(tagFunction_StartLine, fn.startLine)
 		b.pb.endMessage(tagProfile_Function, start)
 	}
 
