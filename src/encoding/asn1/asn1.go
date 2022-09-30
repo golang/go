@@ -111,7 +111,7 @@ func parseInt64(bytes []byte) (ret int64, err error) {
 	return
 }
 
-// parseInt treats the given bytes as a big-endian, signed integer and returns
+// parseInt32 treats the given bytes as a big-endian, signed integer and returns
 // the result.
 func parseInt32(bytes []byte) (int32, error) {
 	if err := checkInteger(bytes); err != nil {
