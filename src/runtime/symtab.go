@@ -170,6 +170,13 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 	return
 }
 
+// runtime_FrameStartLine returns the start line of the function in a Frame.
+//
+//go:linkname runtime_FrameStartLine runtime/pprof.runtime_FrameStartLine
+func runtime_FrameStartLine(f *Frame) int {
+	return f.startLine
+}
+
 // runtime_expandFinalInlineFrame expands the final pc in stk to include all
 // "callers" if pc is inline.
 //
