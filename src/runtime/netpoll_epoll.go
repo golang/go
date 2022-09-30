@@ -8,9 +8,18 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
-	"runtime/internal/syscall"
 	"unsafe"
 )
+
+func epollcreate(size int32) int32
+func epollcreate1(flags int32) int32
+
+//go:noescape
+func epollctl(epfd, op, fd int32, ev *epollevent) int32
+
+//go:noescape
+func epollwait(epfd int32, ev *epollevent, nev, timeout int32) int32
+func closeonexec(fd int32)
 
 var (
 	epfd int32 = -1 // epoll descriptor
@@ -21,24 +30,27 @@ var (
 )
 
 func netpollinit() {
-	var errno uintptr
-	epfd, errno = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
-	if errno != 0 {
-		println("runtime: epollcreate failed with", errno)
-		throw("runtime: netpollinit failed")
+	epfd = epollcreate1(_EPOLL_CLOEXEC)
+	if epfd < 0 {
+		epfd = epollcreate(1024)
+		if epfd < 0 {
+			println("runtime: epollcreate failed with", -epfd)
+			throw("runtime: netpollinit failed")
+		}
+		closeonexec(epfd)
 	}
-	r, w, errpipe := nonblockingPipe()
-	if errpipe != 0 {
-		println("runtime: pipe failed with", -errpipe)
+	r, w, errno := nonblockingPipe()
+	if errno != 0 {
+		println("runtime: pipe failed with", -errno)
 		throw("runtime: pipe failed")
 	}
-	ev := syscall.EpollEvent{
-		Events: syscall.EPOLLIN,
+	ev := epollevent{
+		events: _EPOLLIN,
 	}
-	*(**uintptr)(unsafe.Pointer(&ev.Data)) = &netpollBreakRd
-	errno = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, r, &ev)
+	*(**uintptr)(unsafe.Pointer(&ev.data)) = &netpollBreakRd
+	errno = epollctl(epfd, _EPOLL_CTL_ADD, r, &ev)
 	if errno != 0 {
-		println("runtime: epollctl failed with", errno)
+		println("runtime: epollctl failed with", -errno)
 		throw("runtime: epollctl failed")
 	}
 	netpollBreakRd = uintptr(r)
@@ -49,16 +61,16 @@ func netpollIsPollDescriptor(fd uintptr) bool {
 	return fd == uintptr(epfd) || fd == netpollBreakRd || fd == netpollBreakWr
 }
 
-func netpollopen(fd uintptr, pd *pollDesc) uintptr {
-	var ev syscall.EpollEvent
-	ev.Events = syscall.EPOLLIN | syscall.EPOLLOUT | syscall.EPOLLRDHUP | syscall.EPOLLET
-	*(**pollDesc)(unsafe.Pointer(&ev.Data)) = pd
-	return syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, int32(fd), &ev)
+func netpollopen(fd uintptr, pd *pollDesc) int32 {
+	var ev epollevent
+	ev.events = _EPOLLIN | _EPOLLOUT | _EPOLLRDHUP | _EPOLLET
+	*(**pollDesc)(unsafe.Pointer(&ev.data)) = pd
+	return -epollctl(epfd, _EPOLL_CTL_ADD, int32(fd), &ev)
 }
 
-func netpollclose(fd uintptr) uintptr {
-	var ev syscall.EpollEvent
-	return syscall.EpollCtl(epfd, syscall.EPOLL_CTL_DEL, int32(fd), &ev)
+func netpollclose(fd uintptr) int32 {
+	var ev epollevent
+	return -epollctl(epfd, _EPOLL_CTL_DEL, int32(fd), &ev)
 }
 
 func netpollarm(pd *pollDesc, mode int) {
@@ -112,12 +124,12 @@ func netpoll(delay int64) gList {
 		// 1e9 ms == ~11.5 days.
 		waitms = 1e9
 	}
-	var events [128]syscall.EpollEvent
+	var events [128]epollevent
 retry:
-	n, errno := syscall.EpollWait(epfd, events[:], int32(len(events)), waitms)
-	if errno != 0 {
-		if errno != _EINTR {
-			println("runtime: epollwait on fd", epfd, "failed with", errno)
+	n := epollwait(epfd, &events[0], int32(len(events)), waitms)
+	if n < 0 {
+		if n != -_EINTR {
+			println("runtime: epollwait on fd", epfd, "failed with", -n)
 			throw("runtime: netpoll failed")
 		}
 		// If a timed sleep was interrupted, just return to
@@ -129,14 +141,14 @@ retry:
 	}
 	var toRun gList
 	for i := int32(0); i < n; i++ {
-		ev := events[i]
-		if ev.Events == 0 {
+		ev := &events[i]
+		if ev.events == 0 {
 			continue
 		}
 
-		if *(**uintptr)(unsafe.Pointer(&ev.Data)) == &netpollBreakRd {
-			if ev.Events != syscall.EPOLLIN {
-				println("runtime: netpoll: break fd ready for", ev.Events)
+		if *(**uintptr)(unsafe.Pointer(&ev.data)) == &netpollBreakRd {
+			if ev.events != _EPOLLIN {
+				println("runtime: netpoll: break fd ready for", ev.events)
 				throw("runtime: netpoll: break fd ready for something unexpected")
 			}
 			if delay != 0 {
@@ -151,15 +163,15 @@ retry:
 		}
 
 		var mode int32
-		if ev.Events&(syscall.EPOLLIN|syscall.EPOLLRDHUP|syscall.EPOLLHUP|syscall.EPOLLERR) != 0 {
+		if ev.events&(_EPOLLIN|_EPOLLRDHUP|_EPOLLHUP|_EPOLLERR) != 0 {
 			mode += 'r'
 		}
-		if ev.Events&(syscall.EPOLLOUT|syscall.EPOLLHUP|syscall.EPOLLERR) != 0 {
+		if ev.events&(_EPOLLOUT|_EPOLLHUP|_EPOLLERR) != 0 {
 			mode += 'w'
 		}
 		if mode != 0 {
-			pd := *(**pollDesc)(unsafe.Pointer(&ev.Data))
-			pd.setEventErr(ev.Events == syscall.EPOLLERR)
+			pd := *(**pollDesc)(unsafe.Pointer(&ev.data))
+			pd.setEventErr(ev.events == _EPOLLERR)
 			netpollready(&toRun, pd, mode)
 		}
 	}
