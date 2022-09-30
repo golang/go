@@ -227,7 +227,7 @@ func init() {
 
 func fdopendir(fd int) (dir uintptr, err error) {
 	r0, _, e1 := syscallPtr(abi.FuncPCABI0(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
-	dir = uintptr(r0)
+	dir = r0
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
