@@ -235,6 +235,12 @@ func genhash(t *types.Type) *obj.LSym {
 	return closure
 }
 
+func runtimeHashFor(name string, t *types.Type) *ir.Name {
+	n := typecheck.LookupRuntime(name)
+	n = typecheck.SubstArgTypes(n, t)
+	return n
+}
+
 func hashfor(t *types.Type) ir.Node {
 	var sym *types.Sym
 
@@ -242,19 +248,19 @@ func hashfor(t *types.Type) ir.Node {
 	case types.AMEM:
 		base.Fatalf("hashfor with AMEM type")
 	case types.AINTER:
-		sym = ir.Pkgs.Runtime.Lookup("interhash")
+		return runtimeHashFor("interhash", t)
 	case types.ANILINTER:
-		sym = ir.Pkgs.Runtime.Lookup("nilinterhash")
+		return runtimeHashFor("nilinterhash", t)
 	case types.ASTRING:
-		sym = ir.Pkgs.Runtime.Lookup("strhash")
+		return runtimeHashFor("strhash", t)
 	case types.AFLOAT32:
-		sym = ir.Pkgs.Runtime.Lookup("f32hash")
+		return runtimeHashFor("f32hash", t)
 	case types.AFLOAT64:
-		sym = ir.Pkgs.Runtime.Lookup("f64hash")
+		return runtimeHashFor("f64hash", t)
 	case types.ACPLX64:
-		sym = ir.Pkgs.Runtime.Lookup("c64hash")
+		return runtimeHashFor("c64hash", t)
 	case types.ACPLX128:
-		sym = ir.Pkgs.Runtime.Lookup("c128hash")
+		return runtimeHashFor("c128hash", t)
 	default:
 		// Note: the caller of hashfor ensured that this symbol
 		// exists and has a body by calling genhash for t.
