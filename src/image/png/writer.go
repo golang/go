@@ -451,28 +451,34 @@ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) erro
 				offset := (y - b.Min.Y) * nrgba.Stride
 				copy(cr[0][1:], nrgba.Pix[offset:offset+b.Dx()*4])
 			} else if rgba != nil {
-				for x := b.Min.X; x < b.Max.X; x++ {
-					offset := rgba.PixOffset(x, y)
-					a := rgba.Pix[offset+3]
-					if a == 0 {
-						// Do nothing, keep next 4 bites as 0, it's a transparent pixel
-					} else if a == 0xff {
-						// opaque pixel, no need to un-premultiply
-						copy(cr[0][i:i+4], rgba.Pix[rgba.PixOffset(x, y):rgba.PixOffset(x, y)+4])
+				dst := cr[0][1:]
+				src := rgba.Pix[rgba.PixOffset(b.Min.X, y):rgba.PixOffset(b.Max.X, y)]
+				for ; len(src) >= 4; dst, src = dst[4:], src[4:] {
+					d := (*[4]byte)(dst)
+					s := (*[4]byte)(src)
+					if s[3] == 0x00 {
+						d[0] = 0
+						d[1] = 0
+						d[2] = 0
+						d[3] = 0
+					} else if s[3] == 0xff {
+						copy(d[:], s[:])
 					} else {
-						// This code does the same as color.NRGBAModel.Convert(m.At(x, y)).(color.NRGBA),
-						// with no extra memory allocations.
-						a32 := uint32(a) | uint32(a)<<8
-						// Iterate over r, g, b channels
-						for j := 0; j < 3; j++ {
-							ch := uint32(rgba.Pix[offset+j])
-							ch |= ch << 8
-							ch = (ch * 0xffff) / a32
-							cr[0][i+j] = uint8(ch >> 8)
-						}
-						cr[0][i+3] = a
+						// This code does the same as color.NRGBAModel.Convert(
+						// rgba.At(x, y)).(color.NRGBA) but with no extra memory
+						// allocations or interface/function call overhead.
+						//
+						// The multiplier m combines 0x101 (which converts
+						// 8-bit color to 16-bit color) and 0xffff (which, when
+						// combined with the division-by-a, converts from
+						// alpha-premultiplied to non-alpha-premultiplied).
+						const m = 0x101 * 0xffff
+						a := uint32(s[3]) * 0x101
+						d[0] = uint8((uint32(s[0]) * m / a) >> 8)
+						d[1] = uint8((uint32(s[1]) * m / a) >> 8)
+						d[2] = uint8((uint32(s[2]) * m / a) >> 8)
+						d[3] = s[3]
 					}
-					i += 4
 				}
 			} else {
 				// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
