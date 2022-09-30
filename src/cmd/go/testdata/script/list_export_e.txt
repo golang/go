@@ -1,0 +1,19 @@
+go list -e -export ./...
+! stderr '.'
+go list -e -export -json ...
+
+-- go.mod --
+module example.com
+-- p1/p1.go --
+package p1
+
+const Name = "p1"
+-- p2/main.go --
+package main
+
+import "fmt"
+import "example.com/p1"
+
+func main() {
+        fmt.Println(p1.Name == 5)
+}
