@@ -2020,8 +2020,7 @@ var _ = setOf(
 )
 
 var unifiedFailures = setOf(
-	"closure3.go", // unified IR numbers closures differently than -d=inlfuncswithclosures
-	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
+	"escape4.go", // unified IR can inline f5 and f6; test doesn't expect this
 )
 
 func setOf(keys ...string) map[string]bool {
