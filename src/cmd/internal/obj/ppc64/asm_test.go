@@ -547,7 +547,7 @@ func TestAddrClassifier(t *testing.T) {
 		case int:
 			expect = []int{tst.output.(int), tst.output.(int), tst.output.(int), tst.output.(int)}
 		}
-		for i, _ := range ctxts {
+		for i := range ctxts {
 			if output := ctxts[i].aclass(&tst.arg); output != expect[i] {
 				t.Errorf("%s.aclass(%v) = %v, expected %v\n", name[i], tst.arg, DRconv(output), DRconv(expect[i]))
 			}
