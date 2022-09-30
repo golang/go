@@ -235,6 +235,49 @@ func TestSubImage(t *testing.T) {
 	}
 }
 
+func TestWriteRGBA(t *testing.T) {
+	const width, height = 640, 480
+	transparentImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	opaqueImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	mixedImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	translucentImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			opaqueColor := color.RGBA{uint8(x), uint8(y), uint8(y + x), 255}
+			translucentColor := color.RGBA{uint8(x) % 128, uint8(y) % 128, uint8(y+x) % 128, 128}
+			opaqueImg.Set(x, y, opaqueColor)
+			translucentImg.Set(x, y, translucentColor)
+			if y%2 == 0 {
+				mixedImg.Set(x, y, opaqueColor)
+			}
+		}
+	}
+
+	testCases := []struct {
+		name string
+		img  image.Image
+	}{
+		{"Transparent RGBA", transparentImg},
+		{"Opaque RGBA", opaqueImg},
+		{"50/50 Transparent/Opaque RGBA", mixedImg},
+		{"RGBA with variable alpha", translucentImg},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m0 := tc.img
+			m1, err := encodeDecode(m0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = diff(convertToNRGBA(m0), m1)
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
+
 func BenchmarkEncodeGray(b *testing.B) {
 	img := image.NewGray(image.Rect(0, 0, 640, 480))
 	b.SetBytes(640 * 480 * 1)
@@ -360,48 +403,5 @@ func BenchmarkEncodeRGBA(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Encode(io.Discard, img)
-	}
-}
-
-func TestWriteRGBA(t *testing.T) {
-	const width, height = 640, 480
-	transparentImg := image.NewRGBA(image.Rect(0, 0, width, height))
-	opaqueImg := image.NewRGBA(image.Rect(0, 0, width, height))
-	mixedImg := image.NewRGBA(image.Rect(0, 0, width, height))
-	translucentImg := image.NewRGBA(image.Rect(0, 0, width, height))
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			opaqueColor := color.RGBA{uint8(x), uint8(y), uint8(y + x), 255}
-			translucentColor := color.RGBA{uint8(x) % 128, uint8(y) % 128, uint8(y+x) % 128, 128}
-			opaqueImg.Set(x, y, opaqueColor)
-			translucentImg.Set(x, y, translucentColor)
-			if y%2 == 0 {
-				mixedImg.Set(x, y, opaqueColor)
-			}
-		}
-	}
-
-	testCases := []struct {
-		name string
-		img  image.Image
-	}{
-		{"Transparent RGBA", transparentImg},
-		{"Opaque RGBA", opaqueImg},
-		{"50/50 Transparent/Opaque RGBA", mixedImg},
-		{"RGBA with variable alpha", translucentImg},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			m0 := tc.img
-			m1, err := encodeDecode(m0)
-			if err != nil {
-				t.Fatal(err)
-			}
-			err = diff(convertToNRGBA(m0), m1)
-			if err != nil {
-				t.Error(err)
-			}
-		})
 	}
 }
