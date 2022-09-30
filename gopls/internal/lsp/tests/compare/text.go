@@ -5,8 +5,6 @@
 package compare
 
 import (
-	"fmt"
-
 	"golang.org/x/tools/internal/diff"
 )
 
@@ -24,17 +22,8 @@ func Text(want, got string) string {
 	want += "\n"
 	got += "\n"
 
-	d, err := diff.NComputeEdits("", want, got)
-
-	// Panic on errors.
-	//
-	// TODO(rfindley): refactor so that this function doesn't need to panic.
-	// Computing diffs should never fail.
-	if err != nil {
-		panic(fmt.Sprintf("computing edits failed: %v", err))
-	}
-
-	diff := diff.ToUnified("want", "got", want, d).String()
+	edits := diff.Strings("irrelevant", want, got)
+	diff := diff.Unified("want", "got", want, edits)
 
 	// Defensively assert that we get an actual diff, so that we guarantee the
 	// invariant that we return "" if and only if want == got.

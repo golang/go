@@ -390,10 +390,7 @@ func dropDependency(snapshot source.Snapshot, pm *source.ParsedModule, modulePat
 		return nil, err
 	}
 	// Calculate the edits to be made due to the change.
-	diff, err := snapshot.View().Options().ComputeEdits(pm.URI, string(pm.Mapper.Content), string(newContent))
-	if err != nil {
-		return nil, err
-	}
+	diff := snapshot.View().Options().ComputeEdits(pm.URI, string(pm.Mapper.Content), string(newContent))
 	return source.ToProtocolEdits(pm.Mapper, diff)
 }
 
@@ -615,10 +612,7 @@ func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI,
 	}
 
 	m := protocol.NewColumnMapper(fh.URI(), oldContent)
-	diff, err := snapshot.View().Options().ComputeEdits(uri, string(oldContent), string(newContent))
-	if err != nil {
-		return nil, err
-	}
+	diff := snapshot.View().Options().ComputeEdits(uri, string(oldContent), string(newContent))
 	edits, err := source.ToProtocolEdits(m, diff)
 	if err != nil {
 		return nil, err

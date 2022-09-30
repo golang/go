@@ -22,7 +22,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/diff/myers"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/memoize"
@@ -158,13 +157,9 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 			// it is likely we got stuck in a loop somehow. Log out a diff
 			// of the last changes we made to aid in debugging.
 			if i == 9 {
-				edits, err := myers.ComputeEdits(fh.URI(), string(src), string(newSrc))
-				if err != nil {
-					event.Error(ctx, "error generating fixSrc diff", err, tag.File.Of(tok.Name()))
-				} else {
-					unified := diff.ToUnified("before", "after", string(src), edits)
-					event.Log(ctx, fmt.Sprintf("fixSrc loop - last diff:\n%v", unified), tag.File.Of(tok.Name()))
-				}
+				edits := diff.Strings(fh.URI(), string(src), string(newSrc))
+				unified := diff.Unified("before", "after", string(src), edits)
+				event.Log(ctx, fmt.Sprintf("fixSrc loop - last diff:\n%v", unified), tag.File.Of(tok.Name()))
 			}
 
 			newFile, _ := parser.ParseFile(fset, fh.URI().Filename(), newSrc, parserMode)

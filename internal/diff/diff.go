@@ -12,16 +12,25 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
+// TODO(adonovan): simplify this package to just:
+//
+//   package diff
+//   type Edit struct { Start, End int; New string }
+//   func Strings(old, new string) []Edit
+//   func Unified(oldLabel, newLabel string, old string, edits []Edit) string
+//   func Apply(old string, edits []Edit) (string, error)
+//
+// and move everything else into gopls, including the concepts of filenames and spans.
+// Observe that TextEdit.URI is irrelevant to Unified.
+// - delete LineEdits? (used only by Unified and test)
+// - delete Lines (unused except by its test)
+
 // TextEdit represents a change to a section of a document.
 // The text within the specified span should be replaced by the supplied new text.
 type TextEdit struct {
 	Span    span.Span
 	NewText string
 }
-
-// ComputeEdits is the type for a function that produces a set of edits that
-// convert from the before content to the after content.
-type ComputeEdits func(uri span.URI, before, after string) ([]TextEdit, error)
 
 // SortTextEdits attempts to order all edits by their starting points.
 // The sort is stable so that edits with the same starting point will not
@@ -37,6 +46,9 @@ func SortTextEdits(d []TextEdit) {
 // content.
 // It may panic or produce garbage if the edits are not valid for the provided
 // before content.
+// TODO(adonovan): this function must not panic! Make it either cope
+// or report an error. We should not trust that (e.g.) patches supplied
+// as RPC inputs to gopls are consistent.
 func ApplyEdits(before string, edits []TextEdit) string {
 	// Preconditions:
 	//   - all of the edits apply to before

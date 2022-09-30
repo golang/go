@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
 )
@@ -94,7 +94,7 @@ func (t *imports) Run(ctx context.Context, args ...string) error {
 			ioutil.WriteFile(filename, []byte(newContent), 0644)
 		}
 	case t.Diff:
-		diffs := diff.ToUnified(filename+".orig", filename, string(file.mapper.Content), sedits)
+		diffs := diff.Unified(filename+".orig", filename, string(file.mapper.Content), sedits)
 		fmt.Print(diffs)
 	default:
 		fmt.Print(string(newContent))

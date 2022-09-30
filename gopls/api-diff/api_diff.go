@@ -22,8 +22,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	difflib "golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/diff/myers"
+	diffpkg "golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/gocommand"
 )
 
@@ -125,7 +124,7 @@ func diff[T JSON](b *strings.Builder, previous, new []T, kind string, uniqueKey 
 		c, p := bytes.NewBuffer(nil), bytes.NewBuffer(nil)
 		prev.Write(p)
 		current.Write(c)
-		if diff, err := diffStr(p.String(), c.String()); err == nil && diff != "" {
+		if diff := diffStr(p.String(), c.String()); diff != "" {
 			diffFunc(b, prev, current)
 			b.WriteString("\n--\n")
 		}
@@ -225,11 +224,8 @@ func diffLenses(b *strings.Builder, previous, current *source.LensJSON) {
 func diffOptions(b *strings.Builder, previous, current *source.OptionJSON) {
 	b.WriteString(fmt.Sprintf("Changes to option %s:\n\n", current.Name))
 	if previous.Doc != current.Doc {
-		diff, err := diffStr(previous.Doc, current.Doc)
-		if err != nil {
-			panic(err)
-		}
-		b.WriteString(fmt.Sprintf("Documentation changed:\n%s\n", diff))
+		diff := diffStr(previous.Doc, current.Doc)
+		fmt.Fprintf(b, "Documentation changed:\n%s\n", diff)
 	}
 	if previous.Default != current.Default {
 		b.WriteString(fmt.Sprintf("Default changed from %q to %q\n", previous.Default, current.Default))
@@ -259,16 +255,13 @@ func formatBlock(str string) string {
 	return "\n```\n" + str + "\n```\n"
 }
 
-func diffStr(before, after string) (string, error) {
+func diffStr(before, after string) string {
 	// Add newlines to avoid newline messages in diff.
 	if before == after {
-		return "", nil
+		return ""
 	}
 	before += "\n"
 	after += "\n"
-	d, err := myers.ComputeEdits("", before, after)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%q", difflib.ToUnified("previous", "current", before, d)), err
+	edits := diffpkg.Strings("irrelevant", before, after)
+	return fmt.Sprintf("%q", diffpkg.Unified("previous", "current", before, edits))
 }

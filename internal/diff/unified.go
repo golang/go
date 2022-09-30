@@ -9,28 +9,34 @@ import (
 	"strings"
 )
 
-// Unified represents a set of edits as a unified diff.
-type Unified struct {
+// Unified applies the edits to oldContent and presents a unified diff.
+// The two labels are the names of the old and new files.
+func Unified(oldLabel, newLabel string, oldContent string, edits []TextEdit) string {
+	return toUnified(oldLabel, newLabel, oldContent, edits).String()
+}
+
+// unified represents a set of edits as a unified diff.
+type unified struct {
 	// From is the name of the original file.
 	From string
 	// To is the name of the modified file.
 	To string
 	// Hunks is the set of edit hunks needed to transform the file content.
-	Hunks []*Hunk
+	Hunks []*hunk
 }
 
 // Hunk represents a contiguous set of line edits to apply.
-type Hunk struct {
+type hunk struct {
 	// The line in the original source where the hunk starts.
 	FromLine int
 	// The line in the original source where the hunk finishes.
 	ToLine int
 	// The set of line based edits to apply.
-	Lines []Line
+	Lines []line
 }
 
 // Line represents a single line operation to apply as part of a Hunk.
-type Line struct {
+type line struct {
 	// Kind is the type of line this represents, deletion, insertion or copy.
 	Kind OpKind
 	// Content is the content of this line.
@@ -40,6 +46,7 @@ type Line struct {
 }
 
 // OpKind is used to denote the type of operation a line represents.
+// TODO(adonovan): hide this once the myers package no longer references it.
 type OpKind int
 
 const (
@@ -73,10 +80,10 @@ const (
 	gap  = edge * 2
 )
 
-// ToUnified takes a file contents and a sequence of edits, and calculates
+// toUnified takes a file contents and a sequence of edits, and calculates
 // a unified diff that represents those edits.
-func ToUnified(fromName, toName string, content string, edits []TextEdit) Unified {
-	u := Unified{
+func toUnified(fromName, toName string, content string, edits []TextEdit) unified {
+	u := unified{
 		From: fromName,
 		To:   toName,
 	}
@@ -88,7 +95,7 @@ func ToUnified(fromName, toName string, content string, edits []TextEdit) Unifie
 		edits = lineEdits(content, edits)
 	}
 	lines := splitLines(content)
-	var h *Hunk
+	var h *hunk
 	last := 0
 	toLine := 0
 	for _, edit := range edits {
@@ -108,7 +115,7 @@ func ToUnified(fromName, toName string, content string, edits []TextEdit) Unifie
 				u.Hunks = append(u.Hunks, h)
 			}
 			toLine += start - last
-			h = &Hunk{
+			h = &hunk{
 				FromLine: start + 1,
 				ToLine:   toLine + 1,
 			}
@@ -119,12 +126,12 @@ func ToUnified(fromName, toName string, content string, edits []TextEdit) Unifie
 		}
 		last = start
 		for i := start; i < end; i++ {
-			h.Lines = append(h.Lines, Line{Kind: Delete, Content: lines[i]})
+			h.Lines = append(h.Lines, line{Kind: Delete, Content: lines[i]})
 			last++
 		}
 		if edit.NewText != "" {
-			for _, line := range splitLines(edit.NewText) {
-				h.Lines = append(h.Lines, Line{Kind: Insert, Content: line})
+			for _, content := range splitLines(edit.NewText) {
+				h.Lines = append(h.Lines, line{Kind: Insert, Content: content})
 				toLine++
 			}
 		}
@@ -145,7 +152,7 @@ func splitLines(text string) []string {
 	return lines
 }
 
-func addEqualLines(h *Hunk, lines []string, start, end int) int {
+func addEqualLines(h *hunk, lines []string, start, end int) int {
 	delta := 0
 	for i := start; i < end; i++ {
 		if i < 0 {
@@ -154,25 +161,15 @@ func addEqualLines(h *Hunk, lines []string, start, end int) int {
 		if i >= len(lines) {
 			return delta
 		}
-		h.Lines = append(h.Lines, Line{Kind: Equal, Content: lines[i]})
+		h.Lines = append(h.Lines, line{Kind: Equal, Content: lines[i]})
 		delta++
 	}
 	return delta
 }
 
-// Format write a textual representation of u to f (see the String method).
-//
-// TODO(rfindley): investigate (and possibly remove) this method. It's not
-// clear why Unified implements fmt.Formatter, since the formatting rune is not
-// used. Probably it is sufficient to only implement Stringer, but this method
-// was left here defensively.
-func (u Unified) Format(f fmt.State, r rune) {
-	fmt.Fprintf(f, "%s", u.String())
-}
-
 // String converts a unified diff to the standard textual form for that diff.
 // The output of this function can be passed to tools like patch.
-func (u Unified) String() string {
+func (u unified) String() string {
 	if len(u.Hunks) == 0 {
 		return ""
 	}

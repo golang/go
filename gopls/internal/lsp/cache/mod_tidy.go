@@ -16,13 +16,12 @@ import (
 	"strings"
 
 	"golang.org/x/mod/modfile"
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/gopls/internal/lsp/command"
-	"golang.org/x/tools/internal/event/tag"
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 )
@@ -313,7 +312,7 @@ func unusedDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, onlyDiagno
 
 // directnessDiagnostic extracts errors when a dependency is labeled indirect when
 // it should be direct and vice versa.
-func directnessDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, computeEdits diff.ComputeEdits) (*source.Diagnostic, error) {
+func directnessDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, computeEdits source.DiffFunction) (*source.Diagnostic, error) {
 	rng, err := rangeFromPositions(m, req.Syntax.Start, req.Syntax.End)
 	if err != nil {
 		return nil, err
@@ -386,7 +385,7 @@ func missingModuleDiagnostic(pm *source.ParsedModule, req *modfile.Require) (*so
 
 // switchDirectness gets the edits needed to change an indirect dependency to
 // direct and vice versa.
-func switchDirectness(req *modfile.Require, m *protocol.ColumnMapper, computeEdits diff.ComputeEdits) ([]protocol.TextEdit, error) {
+func switchDirectness(req *modfile.Require, m *protocol.ColumnMapper, computeEdits source.DiffFunction) ([]protocol.TextEdit, error) {
 	// We need a private copy of the parsed go.mod file, since we're going to
 	// modify it.
 	copied, err := modfile.Parse("", m.Content, nil)
@@ -420,11 +419,8 @@ func switchDirectness(req *modfile.Require, m *protocol.ColumnMapper, computeEdi
 		return nil, err
 	}
 	// Calculate the edits to be made due to the change.
-	diff, err := computeEdits(m.URI, string(m.Content), string(newContent))
-	if err != nil {
-		return nil, err
-	}
-	return source.ToProtocolEdits(m, diff)
+	edits := computeEdits(m.URI, string(m.Content), string(newContent))
+	return source.ToProtocolEdits(m, edits)
 }
 
 // missingModuleForImport creates an error for a given import path that comes

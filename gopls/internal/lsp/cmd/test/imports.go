@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/diff/myers"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -20,10 +19,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		return []byte(got), nil
 	}))
 	if want != got {
-		d, err := myers.ComputeEdits(uri, want, got)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Errorf("imports failed for %s, expected:\n%s", filename, diff.ToUnified("want", "got", want, d))
+		edits := diff.Strings(uri, want, got)
+		t.Errorf("imports failed for %s, expected:\n%s", filename, diff.Unified("want", "got", want, edits))
 	}
 }

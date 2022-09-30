@@ -25,7 +25,6 @@ import (
 	"golang.org/x/tools/go/analysis/internal/checker"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/diff/myers"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
@@ -201,11 +200,8 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 								continue
 							}
 							if want != string(formatted) {
-								d, err := myers.ComputeEdits("", want, string(formatted))
-								if err != nil {
-									t.Errorf("failed to compute suggested fix diff: %v", err)
-								}
-								t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.ToUnified(fmt.Sprintf("%s.golden [%s]", file.Name(), sf), "actual", want, d))
+								edits := diff.Strings("", want, string(formatted))
+								t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.Unified(fmt.Sprintf("%s.golden [%s]", file.Name(), sf), "actual", want, edits))
 							}
 							break
 						}
@@ -231,11 +227,8 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 					continue
 				}
 				if want != string(formatted) {
-					d, err := myers.ComputeEdits("", want, string(formatted))
-					if err != nil {
-						t.Errorf("%s: failed to compute suggested fix diff: %s", file.Name(), err)
-					}
-					t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.ToUnified(file.Name()+".golden", "actual", want, d))
+					edits := diff.Strings("", want, string(formatted))
+					t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.Unified(file.Name()+".golden", "actual", want, edits))
 				}
 			}
 		}

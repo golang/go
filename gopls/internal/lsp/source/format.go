@@ -16,12 +16,12 @@ import (
 	"strings"
 	"text/scanner"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/gopls/internal/lsp/lsppos"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/internal/diff"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/imports"
 )
 
 // Format formats a file with a given range.
@@ -199,10 +199,7 @@ func computeFixEdits(snapshot Snapshot, pgf *ParsedGoFile, options *imports.Opti
 	if fixedData == nil || fixedData[len(fixedData)-1] != '\n' {
 		fixedData = append(fixedData, '\n') // ApplyFixes may miss the newline, go figure.
 	}
-	edits, err := snapshot.View().Options().ComputeEdits(pgf.URI, left, string(fixedData))
-	if err != nil {
-		return nil, err
-	}
+	edits := snapshot.View().Options().ComputeEdits(pgf.URI, left, string(fixedData))
 	return ProtocolEditsFromSource([]byte(left), edits, pgf.Mapper.TokFile)
 }
 
@@ -312,10 +309,7 @@ func computeTextEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile,
 	_, done := event.Start(ctx, "source.computeTextEdits")
 	defer done()
 
-	edits, err := snapshot.View().Options().ComputeEdits(pgf.URI, string(pgf.Src), formatted)
-	if err != nil {
-		return nil, err
-	}
+	edits := snapshot.View().Options().ComputeEdits(pgf.URI, string(pgf.Src), formatted)
 	return ToProtocolEdits(pgf.Mapper, edits)
 }
 

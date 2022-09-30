@@ -8,7 +8,6 @@
 package difftest
 
 import (
-	"fmt"
 	"testing"
 
 	"golang.org/x/tools/internal/diff"
@@ -246,15 +245,12 @@ func init() {
 	}
 }
 
-func DiffTest(t *testing.T, compute diff.ComputeEdits) {
+func DiffTest(t *testing.T, compute func(uri span.URI, before, after string) []diff.TextEdit) {
 	for _, test := range TestCases {
 		t.Run(test.Name, func(t *testing.T) {
-			edits, err := compute(span.URIFromPath("/"+test.Name), test.In, test.Out)
-			if err != nil {
-				t.Fatal(err)
-			}
+			edits := compute(span.URIFromPath("/"+test.Name), test.In, test.Out)
 			got := diff.ApplyEdits(test.In, edits)
-			unified := fmt.Sprint(diff.ToUnified(FileA, FileB, test.In, edits))
+			unified := diff.Unified(FileA, FileB, test.In, edits)
 			if got != test.Out {
 				t.Errorf("Apply: got patched:\n%v\nfrom diff:\n%v\nexpected:\n%v", got, unified, test.Out)
 			}

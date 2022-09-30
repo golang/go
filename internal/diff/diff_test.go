@@ -33,10 +33,7 @@ func TestApplyEdits(t *testing.T) {
 func TestNEdits(t *testing.T) {
 	for i, tc := range difftest.TestCases {
 		sp := fmt.Sprintf("file://%s.%d", tc.Name, i)
-		edits, err := diff.NComputeEdits(span.URI(sp), tc.In, tc.Out)
-		if err != nil {
-			t.Fatal(err)
-		}
+		edits := diff.Strings(span.URI(sp), tc.In, tc.Out)
 		got := diff.ApplyEdits(tc.In, edits)
 		if got != tc.Out {
 			t.Fatalf("%s: got %q wanted %q", tc.Name, got, tc.Out)
@@ -53,10 +50,7 @@ func TestNRandom(t *testing.T) {
 		fname := fmt.Sprintf("file://%x", i)
 		a := randstr("abω", 16)
 		b := randstr("abωc", 16)
-		edits, err := diff.NComputeEdits(span.URI(fname), a, b)
-		if err != nil {
-			t.Fatalf("%q,%q %v", a, b, err)
-		}
+		edits := diff.Strings(span.URI(fname), a, b)
 		got := diff.ApplyEdits(a, edits)
 		if got != b {
 			t.Fatalf("%d: got %q, wanted %q, starting with %q", i, got, b, a)
@@ -84,10 +78,7 @@ func TestNLinesRandom(t *testing.T) {
 			y = y[:len(y)-1]
 		}
 		a, b := strings.SplitAfter(x, "\n"), strings.SplitAfter(y, "\n")
-		edits, err := diff.NComputeLineEdits(span.URI(fname), a, b)
-		if err != nil {
-			t.Fatalf("%q,%q %v", a, b, err)
-		}
+		edits := diff.Lines(span.URI(fname), a, b)
 		got := diff.ApplyEdits(x, edits)
 		if got != y {
 			t.Fatalf("%d: got\n%q, wanted\n%q, starting with %q", i, got, y, a)
@@ -113,12 +104,12 @@ func TestLineEdits(t *testing.T) {
 func TestUnified(t *testing.T) {
 	for _, tc := range difftest.TestCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			unified := fmt.Sprint(diff.ToUnified(difftest.FileA, difftest.FileB, tc.In, tc.Edits))
+			unified := diff.Unified(difftest.FileA, difftest.FileB, tc.In, tc.Edits)
 			if unified != tc.Unified {
 				t.Errorf("Unified(Edits): got diff:\n%v\nexpected:\n%v", unified, tc.Unified)
 			}
 			if tc.LineEdits != nil {
-				unified := fmt.Sprint(diff.ToUnified(difftest.FileA, difftest.FileB, tc.In, tc.LineEdits))
+				unified := diff.Unified(difftest.FileA, difftest.FileB, tc.In, tc.LineEdits)
 				if unified != tc.Unified {
 					t.Errorf("Unified(LineEdits): got diff:\n%v\nexpected:\n%v", unified, tc.Unified)
 				}
@@ -131,10 +122,7 @@ func TestRegressionOld001(t *testing.T) {
 	a := "// Copyright 2019 The Go Authors. All rights reserved.\n// Use of this source code is governed by a BSD-style\n// license that can be found in the LICENSE file.\n\npackage diff_test\n\nimport (\n\t\"fmt\"\n\t\"math/rand\"\n\t\"strings\"\n\t\"testing\"\n\n\t\"golang.org/x/tools/gopls/internal/lsp/diff\"\n\t\"golang.org/x/tools/internal/diff/difftest\"\n\t\"golang.org/x/tools/internal/span\"\n)\n"
 
 	b := "// Copyright 2019 The Go Authors. All rights reserved.\n// Use of this source code is governed by a BSD-style\n// license that can be found in the LICENSE file.\n\npackage diff_test\n\nimport (\n\t\"fmt\"\n\t\"math/rand\"\n\t\"strings\"\n\t\"testing\"\n\n\t\"github.com/google/safehtml/template\"\n\t\"golang.org/x/tools/gopls/internal/lsp/diff\"\n\t\"golang.org/x/tools/internal/diff/difftest\"\n\t\"golang.org/x/tools/internal/span\"\n)\n"
-	diffs, err := diff.NComputeEdits(span.URI("file://one"), a, b)
-	if err != nil {
-		t.Error(err)
-	}
+	diffs := diff.Strings(span.URI("file://one"), a, b)
 	got := diff.ApplyEdits(a, diffs)
 	if got != b {
 		i := 0
@@ -148,10 +136,7 @@ func TestRegressionOld001(t *testing.T) {
 func TestRegressionOld002(t *testing.T) {
 	a := "n\"\n)\n"
 	b := "n\"\n\t\"golang.org/x//nnal/stack\"\n)\n"
-	diffs, err := diff.NComputeEdits(span.URI("file://two"), a, b)
-	if err != nil {
-		t.Error(err)
-	}
+	diffs := diff.Strings(span.URI("file://two"), a, b)
 	got := diff.ApplyEdits(a, diffs)
 	if got != b {
 		i := 0

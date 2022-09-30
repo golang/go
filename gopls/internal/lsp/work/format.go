@@ -8,9 +8,9 @@ import (
 	"context"
 
 	"golang.org/x/mod/modfile"
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
 )
 
 func Format(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.TextEdit, error) {
@@ -23,9 +23,6 @@ func Format(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle)
 	}
 	formatted := modfile.Format(pw.File.Syntax)
 	// Calculate the edits to be made due to the change.
-	diff, err := snapshot.View().Options().ComputeEdits(fh.URI(), string(pw.Mapper.Content), string(formatted))
-	if err != nil {
-		return nil, err
-	}
-	return source.ToProtocolEdits(pw.Mapper, diff)
+	diffs := snapshot.View().Options().ComputeEdits(fh.URI(), string(pw.Mapper.Content), string(formatted))
+	return source.ToProtocolEdits(pw.Mapper, diffs)
 }

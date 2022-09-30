@@ -23,7 +23,7 @@ func Options(options *source.Options) {
 		case "old":
 			options.ComputeEdits = ComputeEdits
 		case "new":
-			options.ComputeEdits = diff.NComputeEdits
+			options.ComputeEdits = diff.Strings
 		default:
 			options.ComputeEdits = BothDiffs
 		}

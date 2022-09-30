@@ -21,7 +21,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
 	"golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/diff/myers"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -231,11 +230,8 @@ func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) (string, e
 	w := want.Signatures[0]
 	if NormalizeAny(w.Label) != NormalizeAny(g.Label) {
 		wLabel := w.Label + "\n"
-		d, err := myers.ComputeEdits("", wLabel, g.Label+"\n")
-		if err != nil {
-			return "", err
-		}
-		return decorate("mismatched labels:\n%q", diff.ToUnified("want", "got", wLabel, d)), err
+		edits := diff.Strings("", wLabel, g.Label+"\n")
+		return decorate("mismatched labels:\n%q", diff.Unified("want", "got", wLabel, edits)), nil
 	}
 	var paramParts []string
 	for _, p := range g.Parameters {
