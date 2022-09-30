@@ -342,9 +342,7 @@ func (t *test) initExpectFail() {
 		failureSets = append(failureSets, types2Failures32Bit)
 	}
 
-	if unifiedEnabled {
-		failureSets = append(failureSets, unifiedFailures)
-	} else {
+	if !unifiedEnabled {
 		failureSets = append(failureSets, go118Failures)
 	}
 
@@ -2017,10 +2015,6 @@ var _ = setOf(
 	"fixedbugs/issue7525d.go", // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525e.go", // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525.go",  // types2 reports init cycle error on different line - ok otherwise
-)
-
-var unifiedFailures = setOf(
-	"escape4.go", // unified IR can inline f5 and f6; test doesn't expect this
 )
 
 func setOf(keys ...string) map[string]bool {
