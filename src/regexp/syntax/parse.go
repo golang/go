@@ -1800,7 +1800,7 @@ func appendClass(r []rune, x []rune) []rune {
 	return r
 }
 
-// appendFolded returns the result of appending the case folding of the class x to the class r.
+// appendFoldedClass returns the result of appending the case folding of the class x to the class r.
 func appendFoldedClass(r []rune, x []rune) []rune {
 	for i := 0; i < len(x); i += 2 {
 		r = appendFoldedRange(r, x[i], x[i+1])
