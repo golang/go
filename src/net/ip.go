@@ -562,11 +562,11 @@ func (n *IPNet) String() string {
 // Parse IPv4 address (d.d.d.d).
 func parseIPv4(s string) IP {
 	var p [IPv4len]byte
+	if len(s) == 0 {
+	      // Missing octets.
+	      return nil
+	}
 	for i := 0; i < IPv4len; i++ {
-		if len(s) == 0 {
-			// Missing octets.
-			return nil
-		}
 		if i > 0 {
 			if s[0] != '.' {
 				return nil
@@ -719,6 +719,9 @@ func ParseIP(s string) IP {
 // parseIPZone parses s as an IP address, return it and its associated zone
 // identifier (IPv6 only).
 func parseIPZone(s string) (IP, string) {
+	if len(s) == 0 {
+		return nil, ""
+	}
 	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '.':
