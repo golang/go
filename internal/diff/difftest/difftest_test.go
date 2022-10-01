@@ -23,7 +23,6 @@ func TestVerifyUnified(t *testing.T) {
 	testenv.NeedsTool(t, "diff")
 	for _, test := range difftest.TestCases {
 		t.Run(test.Name, func(t *testing.T) {
-			t.Helper()
 			if test.NoDiff {
 				t.Skip("diff tool produces expected different results")
 			}

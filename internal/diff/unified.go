@@ -195,6 +195,9 @@ func (u Unified) String() string {
 		fmt.Fprint(b, "@@")
 		if fromCount > 1 {
 			fmt.Fprintf(b, " -%d,%d", hunk.FromLine, fromCount)
+		} else if hunk.FromLine == 1 && fromCount == 0 {
+			// Match odd GNU diff -u behavior adding to empty file.
+			fmt.Fprintf(b, " -0,0")
 		} else {
 			fmt.Fprintf(b, " -%d", hunk.FromLine)
 		}

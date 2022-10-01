@@ -115,35 +115,64 @@ var TestCases = []struct {
 `[1:],
 	Edits: []diff.TextEdit{{Span: newSpan(0, 1), NewText: "B"}},
 }, {
-	Name: "add_end",
-	In:   "A",
-	Out:  "AB",
+	Name: "append_empty",
+	In:   "", // GNU diff -u special case: -0,0
+	Out:  "AB\nC",
 	Unified: UnifiedPrefix + `
+@@ -0,0 +1,2 @@
++AB
++C
+\ No newline at end of file
+`[1:],
+	Edits:     []diff.TextEdit{{Span: newSpan(0, 0), NewText: "AB\nC"}},
+	LineEdits: []diff.TextEdit{{Span: newSpan(0, 0), NewText: "AB\nC"}},
+},
+	// TODO(adonovan): fix this test: GNU diff -u prints "+1,2", Unifies prints "+1,3".
+	// 	{
+	// 		Name: "add_start",
+	// 		In:   "A",
+	// 		Out:  "B\nCA",
+	// 		Unified: UnifiedPrefix + `
+	// @@ -1 +1,2 @@
+	// -A
+	// \ No newline at end of file
+	// +B
+	// +CA
+	// \ No newline at end of file
+	// `[1:],
+	// 		Edits:     []diff.TextEdit{{Span: newSpan(0, 0), NewText: "B\nC"}},
+	// 		LineEdits: []diff.TextEdit{{Span: newSpan(0, 0), NewText: "B\nC"}},
+	// 	},
+	{
+		Name: "add_end",
+		In:   "A",
+		Out:  "AB",
+		Unified: UnifiedPrefix + `
 @@ -1 +1 @@
 -A
 \ No newline at end of file
 +AB
 \ No newline at end of file
 `[1:],
-	Edits:     []diff.TextEdit{{Span: newSpan(1, 1), NewText: "B"}},
-	LineEdits: []diff.TextEdit{{Span: newSpan(0, 1), NewText: "AB"}},
-}, {
-	Name: "add_newline",
-	In:   "A",
-	Out:  "A\n",
-	Unified: UnifiedPrefix + `
+		Edits:     []diff.TextEdit{{Span: newSpan(1, 1), NewText: "B"}},
+		LineEdits: []diff.TextEdit{{Span: newSpan(0, 1), NewText: "AB"}},
+	}, {
+		Name: "add_newline",
+		In:   "A",
+		Out:  "A\n",
+		Unified: UnifiedPrefix + `
 @@ -1 +1 @@
 -A
 \ No newline at end of file
 +A
 `[1:],
-	Edits:     []diff.TextEdit{{Span: newSpan(1, 1), NewText: "\n"}},
-	LineEdits: []diff.TextEdit{{Span: newSpan(0, 1), NewText: "A\n"}},
-}, {
-	Name: "delete_front",
-	In:   "A\nB\nC\nA\nB\nB\nA\n",
-	Out:  "C\nB\nA\nB\nA\nC\n",
-	Unified: UnifiedPrefix + `
+		Edits:     []diff.TextEdit{{Span: newSpan(1, 1), NewText: "\n"}},
+		LineEdits: []diff.TextEdit{{Span: newSpan(0, 1), NewText: "A\n"}},
+	}, {
+		Name: "delete_front",
+		In:   "A\nB\nC\nA\nB\nB\nA\n",
+		Out:  "C\nB\nA\nB\nA\nC\n",
+		Unified: UnifiedPrefix + `
 @@ -1,7 +1,6 @@
 -A
 -B
@@ -155,14 +184,14 @@ var TestCases = []struct {
  A
 +C
 `[1:],
-	Edits: []diff.TextEdit{
-		{Span: newSpan(0, 4), NewText: ""},
-		{Span: newSpan(6, 6), NewText: "B\n"},
-		{Span: newSpan(10, 12), NewText: ""},
-		{Span: newSpan(14, 14), NewText: "C\n"},
+		Edits: []diff.TextEdit{
+			{Span: newSpan(0, 4), NewText: ""},
+			{Span: newSpan(6, 6), NewText: "B\n"},
+			{Span: newSpan(10, 12), NewText: ""},
+			{Span: newSpan(14, 14), NewText: "C\n"},
+		},
+		NoDiff: true, // diff algorithm produces different delete/insert pattern
 	},
-	NoDiff: true, // diff algorithm produces different delete/insert pattern
-},
 	{
 		Name: "replace_last_line",
 		In:   "A\nB\n",
@@ -218,10 +247,8 @@ func init() {
 }
 
 func DiffTest(t *testing.T, compute diff.ComputeEdits) {
-	t.Helper()
 	for _, test := range TestCases {
 		t.Run(test.Name, func(t *testing.T) {
-			t.Helper()
 			edits, err := compute(span.URIFromPath("/"+test.Name), test.In, test.Out)
 			if err != nil {
 				t.Fatal(err)
@@ -229,10 +256,10 @@ func DiffTest(t *testing.T, compute diff.ComputeEdits) {
 			got := diff.ApplyEdits(test.In, edits)
 			unified := fmt.Sprint(diff.ToUnified(FileA, FileB, test.In, edits))
 			if got != test.Out {
-				t.Errorf("got patched:\n%v\nfrom diff:\n%v\nexpected:\n%v", got, unified, test.Out)
+				t.Errorf("Apply: got patched:\n%v\nfrom diff:\n%v\nexpected:\n%v", got, unified, test.Out)
 			}
 			if !test.NoDiff && unified != test.Unified {
-				t.Errorf("got diff:\n%v\nexpected:\n%v", unified, test.Unified)
+				t.Errorf("Unified: got diff:\n%v\nexpected:\n%v", unified, test.Unified)
 			}
 		})
 	}
