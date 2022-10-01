@@ -80,17 +80,14 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 	if err != nil {
 		return nil, fmt.Errorf("format.Node: %w", err)
 	}
-	diffs := snapshot.View().Options().ComputeEdits(parsedConcreteFile.URI, string(parsedConcreteFile.Src), source.String())
+	diffs := snapshot.View().Options().ComputeEdits(string(parsedConcreteFile.Src), source.String())
+	tf := parsedConcreteFile.Mapper.TokFile
 	var edits []analysis.TextEdit
 	for _, edit := range diffs {
-		rng, err := edit.Span.Range(parsedConcreteFile.Mapper.TokFile)
-		if err != nil {
-			return nil, err
-		}
 		edits = append(edits, analysis.TextEdit{
-			Pos:     rng.Start,
-			End:     rng.End,
-			NewText: []byte(edit.NewText),
+			Pos:     tf.Pos(edit.Start),
+			End:     tf.Pos(edit.End),
+			NewText: []byte(edit.New),
 		})
 	}
 	return &analysis.SuggestedFix{

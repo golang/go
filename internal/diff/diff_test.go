@@ -5,25 +5,25 @@
 package diff_test
 
 import (
-	"fmt"
 	"math/rand"
+	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/diff/difftest"
-	"golang.org/x/tools/internal/span"
 )
 
-func TestApplyEdits(t *testing.T) {
+func TestApply(t *testing.T) {
 	for _, tc := range difftest.TestCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			if got := diff.ApplyEdits(tc.In, tc.Edits); got != tc.Out {
-				t.Errorf("ApplyEdits(Edits): got %q, want %q", got, tc.Out)
+			if got := diff.Apply(tc.In, tc.Edits); got != tc.Out {
+				t.Errorf("Apply(Edits): got %q, want %q", got, tc.Out)
 			}
 			if tc.LineEdits != nil {
-				if got := diff.ApplyEdits(tc.In, tc.LineEdits); got != tc.Out {
-					t.Errorf("ApplyEdits(LineEdits): got %q, want %q", got, tc.Out)
+				if got := diff.Apply(tc.In, tc.LineEdits); got != tc.Out {
+					t.Errorf("Apply(LineEdits): got %q, want %q", got, tc.Out)
 				}
 			}
 		})
@@ -31,10 +31,9 @@ func TestApplyEdits(t *testing.T) {
 }
 
 func TestNEdits(t *testing.T) {
-	for i, tc := range difftest.TestCases {
-		sp := fmt.Sprintf("file://%s.%d", tc.Name, i)
-		edits := diff.Strings(span.URI(sp), tc.In, tc.Out)
-		got := diff.ApplyEdits(tc.In, edits)
+	for _, tc := range difftest.TestCases {
+		edits := diff.Strings(tc.In, tc.Out)
+		got := diff.Apply(tc.In, edits)
 		if got != tc.Out {
 			t.Fatalf("%s: got %q wanted %q", tc.Name, got, tc.Out)
 		}
@@ -47,21 +46,33 @@ func TestNEdits(t *testing.T) {
 func TestNRandom(t *testing.T) {
 	rand.Seed(1)
 	for i := 0; i < 1000; i++ {
-		fname := fmt.Sprintf("file://%x", i)
 		a := randstr("abω", 16)
 		b := randstr("abωc", 16)
-		edits := diff.Strings(span.URI(fname), a, b)
-		got := diff.ApplyEdits(a, edits)
+		edits := diff.Strings(a, b)
+		got := diff.Apply(a, edits)
 		if got != b {
 			t.Fatalf("%d: got %q, wanted %q, starting with %q", i, got, b, a)
 		}
 	}
 }
 
+// $ go test -fuzz=FuzzRoundTrip ./internal/diff
+func FuzzRoundTrip(f *testing.F) {
+	f.Fuzz(func(t *testing.T, a, b string) {
+		if !utf8.ValidString(a) || !utf8.ValidString(b) {
+			return // inputs must be text
+		}
+		edits := diff.Strings(a, b)
+		got := diff.Apply(a, edits)
+		if got != b {
+			t.Fatalf("applying diff(%q, %q) gives %q; edits=%v", a, b, got, edits)
+		}
+	})
+}
+
 func TestNLinesRandom(t *testing.T) {
 	rand.Seed(2)
 	for i := 0; i < 1000; i++ {
-		fname := fmt.Sprintf("file://%x", i)
 		x := randlines("abω", 4) // avg line length is 6, want a change every 3rd line or so
 		v := []rune(x)
 		for i := 0; i < len(v); i++ {
@@ -78,8 +89,8 @@ func TestNLinesRandom(t *testing.T) {
 			y = y[:len(y)-1]
 		}
 		a, b := strings.SplitAfter(x, "\n"), strings.SplitAfter(y, "\n")
-		edits := diff.Lines(span.URI(fname), a, b)
-		got := diff.ApplyEdits(x, edits)
+		edits := diff.Lines(a, b)
+		got := diff.Apply(x, edits)
 		if got != y {
 			t.Fatalf("%d: got\n%q, wanted\n%q, starting with %q", i, got, y, a)
 		}
@@ -122,8 +133,8 @@ func TestRegressionOld001(t *testing.T) {
 	a := "// Copyright 2019 The Go Authors. All rights reserved.\n// Use of this source code is governed by a BSD-style\n// license that can be found in the LICENSE file.\n\npackage diff_test\n\nimport (\n\t\"fmt\"\n\t\"math/rand\"\n\t\"strings\"\n\t\"testing\"\n\n\t\"golang.org/x/tools/gopls/internal/lsp/diff\"\n\t\"golang.org/x/tools/internal/diff/difftest\"\n\t\"golang.org/x/tools/internal/span\"\n)\n"
 
 	b := "// Copyright 2019 The Go Authors. All rights reserved.\n// Use of this source code is governed by a BSD-style\n// license that can be found in the LICENSE file.\n\npackage diff_test\n\nimport (\n\t\"fmt\"\n\t\"math/rand\"\n\t\"strings\"\n\t\"testing\"\n\n\t\"github.com/google/safehtml/template\"\n\t\"golang.org/x/tools/gopls/internal/lsp/diff\"\n\t\"golang.org/x/tools/internal/diff/difftest\"\n\t\"golang.org/x/tools/internal/span\"\n)\n"
-	diffs := diff.Strings(span.URI("file://one"), a, b)
-	got := diff.ApplyEdits(a, diffs)
+	diffs := diff.Strings(a, b)
+	got := diff.Apply(a, diffs)
 	if got != b {
 		i := 0
 		for ; i < len(a) && i < len(b) && got[i] == b[i]; i++ {
@@ -136,8 +147,8 @@ func TestRegressionOld001(t *testing.T) {
 func TestRegressionOld002(t *testing.T) {
 	a := "n\"\n)\n"
 	b := "n\"\n\t\"golang.org/x//nnal/stack\"\n)\n"
-	diffs := diff.Strings(span.URI("file://two"), a, b)
-	got := diff.ApplyEdits(a, diffs)
+	diffs := diff.Strings(a, b)
+	got := diff.Apply(a, diffs)
 	if got != b {
 		i := 0
 		for ; i < len(a) && i < len(b) && got[i] == b[i]; i++ {
@@ -147,20 +158,8 @@ func TestRegressionOld002(t *testing.T) {
 	}
 }
 
-func diffEdits(got, want []diff.TextEdit) bool {
-	if len(got) != len(want) {
-		return true
-	}
-	for i, w := range want {
-		g := got[i]
-		if span.Compare(w.Span, g.Span) != 0 {
-			return true
-		}
-		if w.NewText != g.NewText {
-			return true
-		}
-	}
-	return false
+func diffEdits(got, want []diff.Edit) bool {
+	return !reflect.DeepEqual(got, want)
 }
 
 // return a random string of length n made of characters from s

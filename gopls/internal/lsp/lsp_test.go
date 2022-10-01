@@ -413,7 +413,7 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Error(err)
 	}
-	got := diff.ApplyEdits(string(m.Content), sedits)
+	got := diff.Apply(string(m.Content), sedits)
 	if diff := compare.Text(gofmted, got); diff != "" {
 		t.Errorf("format failed for %s (-want +got):\n%s", filename, diff)
 	}
@@ -979,7 +979,7 @@ func (r *runner) InlayHints(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Error(err)
 	}
-	got := diff.ApplyEdits(string(m.Content), sedits)
+	got := diff.Apply(string(m.Content), sedits)
 
 	withinlayHints := string(r.data.Golden(t, "inlayHint", filename, func() ([]byte, error) {
 		return []byte(got), nil
@@ -1126,17 +1126,14 @@ func applyTextDocumentEdits(r *runner, edits []protocol.DocumentChanges) (map[sp
 	return res, nil
 }
 
-func applyEdits(contents string, edits []diff.TextEdit) string {
+func applyEdits(contents string, edits []diff.Edit) string {
 	res := contents
 
 	// Apply the edits from the end of the file forward
 	// to preserve the offsets
 	for i := len(edits) - 1; i >= 0; i-- {
 		edit := edits[i]
-		start := edit.Span.Start().Offset()
-		end := edit.Span.End().Offset()
-		tmp := res[0:start] + edit.NewText
-		res = tmp + res[end:]
+		res = res[:edit.Start] + edit.New + res[edit.End:]
 	}
 	return res
 }

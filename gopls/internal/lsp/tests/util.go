@@ -230,7 +230,7 @@ func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) (string, e
 	w := want.Signatures[0]
 	if NormalizeAny(w.Label) != NormalizeAny(g.Label) {
 		wLabel := w.Label + "\n"
-		edits := diff.Strings("", wLabel, g.Label+"\n")
+		edits := diff.Strings(wLabel, g.Label+"\n")
 		return decorate("mismatched labels:\n%q", diff.Unified("want", "got", wLabel, edits)), nil
 	}
 	var paramParts []string

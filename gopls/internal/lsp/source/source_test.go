@@ -489,7 +489,7 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Error(err)
 	}
-	got := diff.ApplyEdits(string(data), diffEdits)
+	got := diff.Apply(string(data), diffEdits)
 	if gofmted != got {
 		t.Errorf("format failed for %s, expected:\n%v\ngot:\n%v", spn.URI().Filename(), gofmted, got)
 	}
@@ -520,7 +520,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Error(err)
 	}
-	got := diff.ApplyEdits(string(data), diffEdits)
+	got := diff.Apply(string(data), diffEdits)
 	want := string(r.data.Golden(t, "goimports", spn.URI().Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
@@ -821,17 +821,14 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	}
 }
 
-func applyEdits(contents string, edits []diff.TextEdit) string {
+func applyEdits(contents string, edits []diff.Edit) string {
 	res := contents
 
 	// Apply the edits from the end of the file forward
 	// to preserve the offsets
 	for i := len(edits) - 1; i >= 0; i-- {
 		edit := edits[i]
-		start := edit.Span.Start().Offset()
-		end := edit.Span.End().Offset()
-		tmp := res[0:start] + edit.NewText
-		res = tmp + res[end:]
+		res = res[:edit.Start] + edit.New + res[edit.End:]
 	}
 	return res
 }

@@ -34,7 +34,7 @@ func TestVerifyUnified(t *testing.T) {
 				diff = difftest.UnifiedPrefix + diff
 			}
 			if diff != test.Unified {
-				t.Errorf("unified:\n%q\ndiff -u:\n%q", test.Unified, diff)
+				t.Errorf("unified:\n%s\ndiff -u:\n%s", test.Unified, diff)
 			}
 		})
 	}

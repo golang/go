@@ -10,9 +10,10 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -311,14 +312,18 @@ func isBasicKind(t types.Type, k types.BasicInfo) bool {
 }
 
 func (c *completer) editText(from, to token.Pos, newText string) ([]protocol.TextEdit, error) {
-	rng := source.NewMappedRange(c.tokFile, c.mapper, from, to)
-	spn, err := rng.Span()
+	start, err := safetoken.Offset(c.tokFile, from)
 	if err != nil {
-		return nil, err
+		return nil, err // can't happen: from came from c
 	}
-	return source.ToProtocolEdits(c.mapper, []diff.TextEdit{{
-		Span:    spn,
-		NewText: newText,
+	end, err := safetoken.Offset(c.tokFile, to)
+	if err != nil {
+		return nil, err // can't happen: to came from c
+	}
+	return source.ToProtocolEdits(c.mapper, []diff.Edit{{
+		Start: start,
+		End:   end,
+		New:   newText,
 	}})
 }
 

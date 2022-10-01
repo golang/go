@@ -262,6 +262,6 @@ func diffStr(before, after string) string {
 	}
 	before += "\n"
 	after += "\n"
-	edits := diffpkg.Strings("irrelevant", before, after)
+	edits := diffpkg.Strings(before, after)
 	return fmt.Sprintf("%q", diffpkg.Unified("previous", "current", before, edits))
 }

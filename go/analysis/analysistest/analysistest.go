@@ -25,7 +25,6 @@ import (
 	"golang.org/x/tools/go/analysis/internal/checker"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
 )
@@ -113,7 +112,7 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 	// should match up.
 	for _, act := range r {
 		// file -> message -> edits
-		fileEdits := make(map[*token.File]map[string][]diff.TextEdit)
+		fileEdits := make(map[*token.File]map[string][]diff.Edit)
 		fileContents := make(map[*token.File][]byte)
 
 		// Validate edits, prepare the fileEdits map and read the file contents.
@@ -141,17 +140,13 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 						}
 						fileContents[file] = contents
 					}
-					spn, err := span.NewRange(file, edit.Pos, edit.End).Span()
-					if err != nil {
-						t.Errorf("error converting edit to span %s: %v", file.Name(), err)
-					}
-
 					if _, ok := fileEdits[file]; !ok {
-						fileEdits[file] = make(map[string][]diff.TextEdit)
+						fileEdits[file] = make(map[string][]diff.Edit)
 					}
-					fileEdits[file][sf.Message] = append(fileEdits[file][sf.Message], diff.TextEdit{
-						Span:    spn,
-						NewText: string(edit.NewText),
+					fileEdits[file][sf.Message] = append(fileEdits[file][sf.Message], diff.Edit{
+						Start: file.Offset(edit.Pos),
+						End:   file.Offset(edit.End),
+						New:   string(edit.NewText),
 					})
 				}
 			}
@@ -188,7 +183,7 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 					for _, vf := range ar.Files {
 						if vf.Name == sf {
 							found = true
-							out := diff.ApplyEdits(string(orig), edits)
+							out := diff.Apply(string(orig), edits)
 							// the file may contain multiple trailing
 							// newlines if the user places empty lines
 							// between files in the archive. normalize
@@ -200,7 +195,7 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 								continue
 							}
 							if want != string(formatted) {
-								edits := diff.Strings("", want, string(formatted))
+								edits := diff.Strings(want, string(formatted))
 								t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.Unified(fmt.Sprintf("%s.golden [%s]", file.Name(), sf), "actual", want, edits))
 							}
 							break
@@ -213,12 +208,12 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 			} else {
 				// all suggested fixes are represented by a single file
 
-				var catchallEdits []diff.TextEdit
+				var catchallEdits []diff.Edit
 				for _, edits := range fixes {
 					catchallEdits = append(catchallEdits, edits...)
 				}
 
-				out := diff.ApplyEdits(string(orig), catchallEdits)
+				out := diff.Apply(string(orig), catchallEdits)
 				want := string(ar.Comment)
 
 				formatted, err := format.Source([]byte(out))
@@ -227,7 +222,7 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 					continue
 				}
 				if want != string(formatted) {
-					edits := diff.Strings("", want, string(formatted))
+					edits := diff.Strings(want, string(formatted))
 					t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.Unified(file.Name()+".golden", "actual", want, edits))
 				}
 			}

@@ -67,7 +67,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/diff/myers"
-	"golang.org/x/tools/internal/span"
 )
 
 var (
@@ -501,7 +500,7 @@ func (u *UserOptions) SetEnvSlice(env []string) {
 
 // DiffFunction is the type for a function that produces a set of edits that
 // convert from the before content to the after content.
-type DiffFunction func(uri span.URI, before, after string) []diff.TextEdit
+type DiffFunction func(before, after string) []diff.Edit
 
 // Hooks contains configuration that is provided to the Gopls command by the
 // main package.

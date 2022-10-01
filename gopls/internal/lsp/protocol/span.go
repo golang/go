@@ -70,6 +70,35 @@ func (m *ColumnMapper) Range(s span.Span) (Range, error) {
 	return Range{Start: start, End: end}, nil
 }
 
+// OffsetRange returns a Range for the byte-offset interval Content[start:end],
+func (m *ColumnMapper) OffsetRange(start, end int) (Range, error) {
+	// TODO(adonovan): this can surely be simplified by expressing
+	// it terms of more primitive operations.
+
+	// We use span.ToPosition for its "line+1 at EOF" workaround.
+	startLine, startCol, err := span.ToPosition(m.TokFile, start)
+	if err != nil {
+		return Range{}, fmt.Errorf("start line/col: %v", err)
+	}
+	startPoint := span.NewPoint(startLine, startCol, start)
+	startPosition, err := m.Position(startPoint)
+	if err != nil {
+		return Range{}, fmt.Errorf("start position: %v", err)
+	}
+
+	endLine, endCol, err := span.ToPosition(m.TokFile, end)
+	if err != nil {
+		return Range{}, fmt.Errorf("end line/col: %v", err)
+	}
+	endPoint := span.NewPoint(endLine, endCol, end)
+	endPosition, err := m.Position(endPoint)
+	if err != nil {
+		return Range{}, fmt.Errorf("end position: %v", err)
+	}
+
+	return Range{Start: startPosition, End: endPosition}, nil
+}
+
 func (m *ColumnMapper) Position(p span.Point) (Position, error) {
 	chr, err := span.ToUTF16Column(p, m.Content)
 	if err != nil {

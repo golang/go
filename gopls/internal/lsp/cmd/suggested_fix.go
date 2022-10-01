@@ -146,7 +146,7 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return fmt.Errorf("%v: %v", edits, err)
 	}
-	newContent := diff.ApplyEdits(string(file.mapper.Content), sedits)
+	newContent := diff.Apply(string(file.mapper.Content), sedits)
 
 	filename := file.uri.Filename()
 	switch {

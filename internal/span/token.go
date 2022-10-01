@@ -141,7 +141,7 @@ func position(tf *token.File, pos token.Pos) (string, int, int, error) {
 
 func positionFromOffset(tf *token.File, offset int) (string, int, int, error) {
 	if offset > tf.Size() {
-		return "", 0, 0, fmt.Errorf("offset %v is past the end of the file %v", offset, tf.Size())
+		return "", 0, 0, fmt.Errorf("offset %d is beyond EOF (%d) in file %s", offset, tf.Size(), tf.Name())
 	}
 	pos := tf.Pos(offset)
 	p := tf.Position(pos)

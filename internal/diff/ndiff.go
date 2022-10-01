@@ -5,13 +5,10 @@
 package diff
 
 import (
-	"go/token"
-	"log"
 	"strings"
 	"unicode/utf8"
 
 	"golang.org/x/tools/internal/diff/lcs"
-	"golang.org/x/tools/internal/span"
 )
 
 // maxDiffs is a limit on how deeply the lcs algorithm should search
@@ -23,59 +20,39 @@ const maxDiffs = 30
 // is why the arguments are strings, not []bytes.)
 // TODO(adonovan): opt: consider switching everything to []bytes, if
 // that's the more common type in practice. Or provide both flavors?
-func Strings(uri span.URI, before, after string) []TextEdit {
+func Strings(before, after string) []Edit {
 	if before == after {
 		// very frequently true
 		return nil
 	}
-	// the diffs returned by the lcs package use indexes into whatever slice
-	// was passed in. TextEdits need a span.Span which is computed with
-	// byte offsets, so rune or line offsets need to be converted.
+	// The diffs returned by the lcs package use indexes into
+	// whatever slice was passed in. Edits use byte offsets, so
+	// rune or line offsets need to be converted.
 	// TODO(adonovan): opt: eliminate all the unnecessary allocations.
-	if needrunes(before) || needrunes(after) {
-		diffs, _ := lcs.Compute([]rune(before), []rune(after), maxDiffs/2)
+	var diffs []lcs.Diff
+	if !isASCII(before) || !isASCII(after) {
+		diffs, _ = lcs.Compute([]rune(before), []rune(after), maxDiffs/2)
 		diffs = runeOffsets(diffs, []rune(before))
-		return convertDiffs(uri, diffs, []byte(before))
 	} else {
-		diffs, _ := lcs.Compute([]byte(before), []byte(after), maxDiffs/2)
-		return convertDiffs(uri, diffs, []byte(before))
+		// Common case: pure ASCII. Avoid expansion to []rune slice.
+		diffs, _ = lcs.Compute([]byte(before), []byte(after), maxDiffs/2)
 	}
+	return convertDiffs(diffs)
 }
 
 // Lines computes the differences between two list of lines.
 // TODO(adonovan): unused except by its test. Do we actually need it?
-func Lines(uri span.URI, before, after []string) []TextEdit {
+func Lines(before, after []string) []Edit {
 	diffs, _ := lcs.Compute(before, after, maxDiffs/2)
 	diffs = lineOffsets(diffs, before)
-	return convertDiffs(uri, diffs, []byte(strJoin(before)))
+	return convertDiffs(diffs)
 	// the code is not coping with possible missing \ns at the ends
 }
 
-// convert diffs with byte offsets into diffs with line and column
-func convertDiffs(uri span.URI, diffs []lcs.Diff, src []byte) []TextEdit {
-	ans := make([]TextEdit, len(diffs))
-
-	// Reuse the machinery of go/token to convert (content, offset) to (line, column).
-	tf := token.NewFileSet().AddFile("", -1, len(src))
-	tf.SetLinesForContent(src)
-
-	offsetToPoint := func(offset int) span.Point {
-		// Re-use span.ToPosition's EOF workaround.
-		// It is infallible if the diffs are consistent with src.
-		line, col, err := span.ToPosition(tf, offset)
-		if err != nil {
-			log.Fatalf("invalid offset: %v", err)
-		}
-		return span.NewPoint(line, col, offset)
-	}
-
+func convertDiffs(diffs []lcs.Diff) []Edit {
+	ans := make([]Edit, len(diffs))
 	for i, d := range diffs {
-		start := offsetToPoint(d.Start)
-		end := start
-		if d.End != d.Start {
-			end = offsetToPoint(d.End)
-		}
-		ans[i] = TextEdit{span.New(uri, start, end), d.Text}
+		ans[i] = Edit{d.Start, d.End, d.Text}
 	}
 	return ans
 }
@@ -131,13 +108,12 @@ func strJoin(elems []string) string {
 	return b.String()
 }
 
-// need runes is true if the string needs to be converted to []rune
-// for random access
-func needrunes(s string) bool {
+// isASCII reports whether s contains only ASCII.
+func isASCII(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] >= utf8.RuneSelf {
-			return true
+			return false
 		}
 	}
-	return false
+	return true
 }

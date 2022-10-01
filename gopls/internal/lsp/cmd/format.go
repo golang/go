@@ -80,7 +80,7 @@ func (c *format) Run(ctx context.Context, args ...string) error {
 		if err != nil {
 			return fmt.Errorf("%v: %v", spn, err)
 		}
-		formatted := diff.ApplyEdits(string(file.mapper.Content), sedits)
+		formatted := diff.Apply(string(file.mapper.Content), sedits)
 		printIt := true
 		if c.List {
 			printIt = false

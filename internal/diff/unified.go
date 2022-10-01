@@ -9,10 +9,12 @@ import (
 	"strings"
 )
 
-// Unified applies the edits to oldContent and presents a unified diff.
-// The two labels are the names of the old and new files.
-func Unified(oldLabel, newLabel string, oldContent string, edits []TextEdit) string {
-	return toUnified(oldLabel, newLabel, oldContent, edits).String()
+// TODO(adonovan): API: hide all but func Unified.
+
+// Unified applies the edits to content and presents a unified diff.
+// The old and new labels are the names of the content and result files.
+func Unified(oldLabel, newLabel string, content string, edits []Edit) string {
+	return toUnified(oldLabel, newLabel, content, edits).String()
 }
 
 // unified represents a set of edits as a unified diff.
@@ -82,7 +84,7 @@ const (
 
 // toUnified takes a file contents and a sequence of edits, and calculates
 // a unified diff that represents those edits.
-func toUnified(fromName, toName string, content string, edits []TextEdit) unified {
+func toUnified(fromName, toName string, content string, edits []Edit) unified {
 	u := unified{
 		From: fromName,
 		To:   toName,
@@ -90,17 +92,20 @@ func toUnified(fromName, toName string, content string, edits []TextEdit) unifie
 	if len(edits) == 0 {
 		return u
 	}
-	edits, partial := prepareEdits(content, edits)
-	if partial {
-		edits = lineEdits(content, edits)
-	}
+	edits = LineEdits(content, edits) // expand to whole lines
 	lines := splitLines(content)
 	var h *hunk
 	last := 0
 	toLine := 0
 	for _, edit := range edits {
-		start := edit.Span.Start().Line() - 1
-		end := edit.Span.End().Line() - 1
+		// Compute the zero-based line numbers of the edit start and end.
+		// TODO(adonovan): opt: compute incrementally, avoid O(n^2).
+		start := strings.Count(content[:edit.Start], "\n")
+		end := strings.Count(content[:edit.End], "\n")
+		if edit.End == len(content) && len(content) > 0 && content[len(content)-1] != '\n' {
+			end++ // EOF counts as an implicit newline
+		}
+
 		switch {
 		case h != nil && start == last:
 			//direct extension
@@ -129,8 +134,8 @@ func toUnified(fromName, toName string, content string, edits []TextEdit) unifie
 			h.Lines = append(h.Lines, line{Kind: Delete, Content: lines[i]})
 			last++
 		}
-		if edit.NewText != "" {
-			for _, content := range splitLines(edit.NewText) {
+		if edit.New != "" {
+			for _, content := range splitLines(edit.New) {
 				h.Lines = append(h.Lines, line{Kind: Insert, Content: content})
 				toLine++
 			}

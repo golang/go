@@ -100,7 +100,7 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 		if err != nil {
 			return fmt.Errorf("%v: %v", edits, err)
 		}
-		newContent := diff.ApplyEdits(string(cmdFile.mapper.Content), renameEdits)
+		newContent := diff.Apply(string(cmdFile.mapper.Content), renameEdits)
 
 		switch {
 		case r.Write:

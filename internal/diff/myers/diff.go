@@ -9,26 +9,36 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/span"
 )
 
 // Sources:
 // https://blog.jcoglan.com/2017/02/17/the-myers-diff-algorithm-part-3/
 // https://www.codeproject.com/Articles/42279/%2FArticles%2F42279%2FInvestigating-Myers-diff-algorithm-Part-1-of-2
 
-func ComputeEdits(uri span.URI, before, after string) []diff.TextEdit {
-	ops := operations(splitLines(before), splitLines(after))
-	edits := make([]diff.TextEdit, 0, len(ops))
+func ComputeEdits(before, after string) []diff.Edit {
+	beforeLines := splitLines(before)
+	ops := operations(beforeLines, splitLines(after))
+
+	// Build a table mapping line number to offset.
+	lineOffsets := make([]int, 0, len(beforeLines)+1)
+	total := 0
+	for i := range beforeLines {
+		lineOffsets = append(lineOffsets, total)
+		total += len(beforeLines[i])
+	}
+	lineOffsets = append(lineOffsets, total) // EOF
+
+	edits := make([]diff.Edit, 0, len(ops))
 	for _, op := range ops {
-		s := span.New(uri, span.NewPoint(op.I1+1, 1, 0), span.NewPoint(op.I2+1, 1, 0))
+		start, end := lineOffsets[op.I1], lineOffsets[op.I2]
 		switch op.Kind {
 		case diff.Delete:
-			// Delete: unformatted[i1:i2] is deleted.
-			edits = append(edits, diff.TextEdit{Span: s})
+			// Delete: before[I1:I2] is deleted.
+			edits = append(edits, diff.Edit{Start: start, End: end})
 		case diff.Insert:
-			// Insert: formatted[j1:j2] is inserted at unformatted[i1:i1].
+			// Insert: after[J1:J2] is inserted at before[I1:I1].
 			if content := strings.Join(op.Content, ""); content != "" {
-				edits = append(edits, diff.TextEdit{Span: s, NewText: content})
+				edits = append(edits, diff.Edit{Start: start, End: end, New: content})
 			}
 		}
 	}

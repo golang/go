@@ -42,7 +42,7 @@ var Invalid = Span{v: span{Start: invalidPoint.v, End: invalidPoint.v}}
 
 var invalidPoint = Point{v: point{Line: 0, Column: 0, Offset: -1}}
 
-func New(uri URI, start Point, end Point) Span {
+func New(uri URI, start, end Point) Span {
 	s := Span{v: span{URI: uri, Start: start.v, End: end.v}}
 	s.v.clean()
 	return s

@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/span"
@@ -445,8 +446,7 @@ func renameObj(ctx context.Context, s Snapshot, newName string, qos []qualifiedO
 			return nil, err
 		}
 		m := protocol.NewColumnMapper(uri, data)
-		// Sort the edits first.
-		diff.SortTextEdits(edits)
+		diff.SortEdits(edits)
 		protocolEdits, err := ToProtocolEdits(m, edits)
 		if err != nil {
 			return nil, err
@@ -457,8 +457,8 @@ func renameObj(ctx context.Context, s Snapshot, newName string, qos []qualifiedO
 }
 
 // Rename all references to the identifier.
-func (r *renamer) update() (map[span.URI][]diff.TextEdit, error) {
-	result := make(map[span.URI][]diff.TextEdit)
+func (r *renamer) update() (map[span.URI][]diff.Edit, error) {
+	result := make(map[span.URI][]diff.Edit)
 	seen := make(map[span.Span]bool)
 
 	docRegexp, err := regexp.Compile(`\b` + r.from + `\b`)
@@ -487,9 +487,10 @@ func (r *renamer) update() (map[span.URI][]diff.TextEdit, error) {
 		}
 
 		// Replace the identifier with r.to.
-		edit := diff.TextEdit{
-			Span:    refSpan,
-			NewText: r.to,
+		edit := diff.Edit{
+			Start: refSpan.Start().Offset(),
+			End:   refSpan.End().Offset(),
+			New:   r.to,
 		}
 
 		result[refSpan.URI()] = append(result[refSpan.URI()], edit)
@@ -510,23 +511,26 @@ func (r *renamer) update() (map[span.URI][]diff.TextEdit, error) {
 			if isDirective(comment.Text) {
 				continue
 			}
+			// TODO(adonovan): why are we looping over lines?
+			// Just run the loop body once over the entire multiline comment.
 			lines := strings.Split(comment.Text, "\n")
 			tokFile := r.fset.File(comment.Pos())
 			commentLine := tokFile.Line(comment.Pos())
+			uri := span.URIFromPath(tokFile.Name())
 			for i, line := range lines {
 				lineStart := comment.Pos()
 				if i > 0 {
 					lineStart = tokFile.LineStart(commentLine + i)
 				}
 				for _, locs := range docRegexp.FindAllIndex([]byte(line), -1) {
-					rng := span.NewRange(tokFile, lineStart+token.Pos(locs[0]), lineStart+token.Pos(locs[1]))
-					spn, err := rng.Span()
-					if err != nil {
-						return nil, err
-					}
-					result[spn.URI()] = append(result[spn.URI()], diff.TextEdit{
-						Span:    spn,
-						NewText: r.to,
+					// The File.Offset static check complains
+					// even though these uses are manifestly safe.
+					start, _ := safetoken.Offset(tokFile, lineStart+token.Pos(locs[0]))
+					end, _ := safetoken.Offset(tokFile, lineStart+token.Pos(locs[1]))
+					result[uri] = append(result[uri], diff.Edit{
+						Start: start,
+						End:   end,
+						New:   r.to,
 					})
 				}
 			}
@@ -588,7 +592,7 @@ func (r *renamer) docComment(pkg Package, id *ast.Ident) *ast.CommentGroup {
 
 // updatePkgName returns the updates to rename a pkgName in the import spec by
 // only modifying the package name portion of the import declaration.
-func (r *renamer) updatePkgName(pkgName *types.PkgName) (*diff.TextEdit, error) {
+func (r *renamer) updatePkgName(pkgName *types.PkgName) (*diff.Edit, error) {
 	// Modify ImportSpec syntax to add or remove the Name as needed.
 	pkg := r.packages[pkgName.Pkg()]
 	_, tokFile, path, _ := pathEnclosingInterval(r.fset, pkg, pkgName.Pos(), pkgName.Pos())
@@ -614,8 +618,9 @@ func (r *renamer) updatePkgName(pkgName *types.PkgName) (*diff.TextEdit, error) 
 		return nil, err
 	}
 
-	return &diff.TextEdit{
-		Span:    spn,
-		NewText: newText,
+	return &diff.Edit{
+		Start: spn.Start().Offset(),
+		End:   spn.End().Offset(),
+		New:   newText,
 	}, nil
 }

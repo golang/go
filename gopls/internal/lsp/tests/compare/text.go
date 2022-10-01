@@ -22,7 +22,7 @@ func Text(want, got string) string {
 	want += "\n"
 	got += "\n"
 
-	edits := diff.Strings("irrelevant", want, got)
+	edits := diff.Strings(want, got)
 	diff := diff.Unified("want", "got", want, edits)
 
 	// Defensively assert that we get an actual diff, so that we guarantee the

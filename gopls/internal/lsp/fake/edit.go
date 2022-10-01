@@ -110,7 +110,7 @@ func inText(p Pos, content []string) bool {
 // invalid for the current content.
 //
 // TODO(rfindley): this function does not handle non-ascii text correctly.
-// TODO(rfindley): replace this with diff.ApplyEdits: we should not be
+// TODO(rfindley): replace this with diff.Apply: we should not be
 // maintaining an additional representation of edits.
 func editContent(content []string, edits []Edit) ([]string, error) {
 	newEdits := make([]Edit, len(edits))

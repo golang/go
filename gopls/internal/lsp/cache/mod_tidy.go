@@ -419,7 +419,7 @@ func switchDirectness(req *modfile.Require, m *protocol.ColumnMapper, computeEdi
 		return nil, err
 	}
 	// Calculate the edits to be made due to the change.
-	edits := computeEdits(m.URI, string(m.Content), string(newContent))
+	edits := computeEdits(string(m.Content), string(newContent))
 	return source.ToProtocolEdits(m, edits)
 }
 
