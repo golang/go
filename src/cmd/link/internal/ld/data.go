@@ -2732,7 +2732,7 @@ func (ctxt *Link) address() []*sym.Segment {
 		if gotAddr := ldr.SymValue(ctxt.GOT); gotAddr != 0 {
 			tocAddr = gotAddr + 0x8000
 		}
-		for i, _ := range ctxt.DotTOC {
+		for i := range ctxt.DotTOC {
 			if i >= sym.SymVerABICount && i < sym.SymVerStatic { // these versions are not used currently
 				continue
 			}
