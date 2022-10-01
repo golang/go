@@ -56,6 +56,7 @@ func emitToNonexistentDir() {
 	want := []string{
 		"no such file or directory",             // linux-ish
 		"system cannot find the file specified", // windows
+		"does not exist",                        // plan9
 	}
 
 	checkWant := func(which string, got string) {
