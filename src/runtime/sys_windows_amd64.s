@@ -116,6 +116,7 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
 	// Make stack space for the rest of the function.
 	ADJSP	$48
 
+	MOVQ	CX, R13	// save exception address
 	MOVQ	AX, R15	// save handler address
 
 	// find g
@@ -153,14 +154,16 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	DI, SP
 
 g0:
-	MOVQ	0(CX), BX // ExceptionRecord*
-	MOVQ	8(CX), CX // Context*
+	MOVQ	0(R13), BX // ExceptionRecord*
+	MOVQ	8(R13), CX // Context*
 	MOVQ	BX, 0(SP)
 	MOVQ	CX, 8(SP)
 	MOVQ	DX, 16(SP)
 	CALL	R15	// call handler
 	// AX is set to report result back to Windows
 	MOVL	24(SP), AX
+
+	MOVQ	SP, DI // save g0 SP
 
 	// switch back to original stack and g
 	// no-op if we never left.
@@ -169,11 +172,53 @@ g0:
 	get_tls(BP)
 	MOVQ	DX, g(BP)
 
+	// if return value is CONTINUE_SEARCH, do not set up control
+	// flow guard workaround.
+	CMPQ	AX, $0
+	JEQ	done
+
+	// Check if we need to set up the control flow guard workaround.
+	// On Windows, the stack pointer in the context must lie within
+	// system stack limits when we resume from exception.
+	// Store the resume SP and PC in alternate registers
+	// and return to sigresume on the g0 stack.
+	// sigresume makes no use of the stack at all,
+	// loading SP from R8 and jumping to R9.
+	// Note that smashing R8 and R9 is only safe because we know sigpanic
+	// will not actually return to the original frame, so the registers
+	// are effectively dead. But this does mean we can't use the
+	// same mechanism for async preemption.
+	MOVQ	8(R13), CX
+	MOVQ	$sigresume<>(SB), BX
+	CMPQ	BX, context_rip(CX)
+	JEQ	done			// do not clobber saved SP/PC
+
+	// Save resume SP and PC into R8, R9.
+	MOVQ	context_rsp(CX), BX
+	MOVQ	BX, context_r8(CX)
+	MOVQ	context_rip(CX), BX
+	MOVQ	BX, context_r9(CX)
+
+	// Set up context record to return to sigresume on g0 stack
+	MOVD	DI, BX
+	MOVD	BX, context_rsp(CX)
+	MOVD	$sigresume<>(SB), BX
+	MOVD	BX, context_rip(CX)
+
 done:
 	ADJSP	$-48
 	POP_REGS_HOST_TO_ABI0()
 
 	RET
+
+// Trampoline to resume execution from exception handler.
+// This is part of the control flow guard workaround.
+// It switches stacks and jumps to the continuation address.
+// R8 and R9 are set above at the end of sigtramp<>
+// in the context that starts executing at sigresume<>.
+TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
+	MOVQ	R8, SP
+	JMP	R9
 
 TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	$runtime·exceptionhandler(SB), AX
