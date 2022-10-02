@@ -364,7 +364,7 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 	return
 }
 
-// verifyNotInHeapPtr reports whether converting the not-in-heap pointer into a unsafe.Pointer is ok.
+// reflect_verifyNotInHeapPtr reports whether converting the not-in-heap pointer into a unsafe.Pointer is ok.
 //
 //go:linkname reflect_verifyNotInHeapPtr reflect.verifyNotInHeapPtr
 func reflect_verifyNotInHeapPtr(p uintptr) bool {
@@ -1409,7 +1409,7 @@ func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
 	return true
 }
 
-// gcbits returns the GC type info for x, for testing.
+// reflect_gcbits returns the GC type info for x, for testing.
 // The result is the bitmap entries (0 or 1), one entry per byte.
 //
 //go:linkname reflect_gcbits reflect.gcbits
