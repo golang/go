@@ -102,7 +102,7 @@ func TestParseInt32(t *testing.T) {
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
-		if test.ok && int32(ret) != test.out {
+		if test.ok && ret != test.out {
 			t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out)
 		}
 	}

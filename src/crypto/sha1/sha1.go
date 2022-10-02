@@ -56,7 +56,7 @@ func (d *digest) MarshalBinary() ([]byte, error) {
 	b = binary.BigEndian.AppendUint32(b, d.h[3])
 	b = binary.BigEndian.AppendUint32(b, d.h[4])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+	b = b[:len(b)+len(d.x)-d.nx] // already zero
 	b = binary.BigEndian.AppendUint64(b, d.len)
 	return b, nil
 }
