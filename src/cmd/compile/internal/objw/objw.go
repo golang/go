@@ -73,7 +73,7 @@ func Global(s *obj.LSym, width int32, flags int16) {
 	base.Ctxt.Globl(s, int64(width), int(flags))
 }
 
-// Bitvec writes the contents of bv into s as sequence of bytes
+// BitVec writes the contents of bv into s as sequence of bytes
 // in little-endian order, and returns the next unused offset.
 func BitVec(s *obj.LSym, off int, bv bitvec.BitVec) int {
 	// Runtime reads the bitmaps as byte arrays. Oblige.

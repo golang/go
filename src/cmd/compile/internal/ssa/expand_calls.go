@@ -1786,7 +1786,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 
 }
 
-// argOpAndRegisterFor converts an abi register index into an ssa Op and corresponding
+// ArgOpAndRegisterFor converts an abi register index into an ssa Op and corresponding
 // arg register index.
 func ArgOpAndRegisterFor(r abi.RegIndex, abiConfig *abi.ABIConfig) (Op, int64) {
 	i := abiConfig.FloatIndexFor(r)

@@ -712,7 +712,7 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	return n
 }
 
-// walkDynamicdotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
+// walkDynamicDotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
 func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
 	n.RType = walkExpr(n.RType, init)
