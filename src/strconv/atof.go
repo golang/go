@@ -563,6 +563,8 @@ func atofHex(s string, flt *floatInfo, mantissa uint64, exp int, neg, trunc bool
 
 const fnParseFloat = "ParseFloat"
 
+// atof32 tries to convert the string to a float32 using pure floating-point
+// arithmetic, and if that fails, it uses the Eisel-Lemire algorithm
 func atof32(s string) (f float32, n int, err error) {
 	if val, n, ok := special(s); ok {
 		return float32(val), n, nil
