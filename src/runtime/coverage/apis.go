@@ -9,6 +9,7 @@ import (
 	"internal/coverage"
 	"io"
 	"reflect"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -151,7 +152,7 @@ func ClearCoverageCounters() error {
 	// inconsistency when reading the counter array from the thread
 	// running ClearCoverageCounters.
 
-	var sd []uint32
+	var sd []atomic.Uint32
 
 	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
 	for _, c := range cl {
@@ -160,13 +161,14 @@ func ClearCoverageCounters() error {
 		bufHdr.Cap = int(c.Len)
 		for i := 0; i < len(sd); i++ {
 			// Skip ahead until the next non-zero value.
-			if sd[i] == 0 {
+			sdi := sd[i].Load()
+			if sdi == 0 {
 				continue
 			}
 			// We found a function that was executed; clear its counters.
-			nCtrs := sd[i]
+			nCtrs := sdi
 			for j := 0; j < int(nCtrs); j++ {
-				sd[i+coverage.FirstCtrOffset+j] = 0
+				sd[i+coverage.FirstCtrOffset+j].Store(0)
 			}
 			// Move to next function.
 			i += coverage.FirstCtrOffset + int(nCtrs) - 1

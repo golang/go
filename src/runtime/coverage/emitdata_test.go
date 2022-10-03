@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"internal/coverage"
 	"internal/goexperiment"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -400,5 +402,34 @@ func TestApisOnNocoverBinary(t *testing.T) {
 	const want = "not built with -cover"
 	if !strings.Contains(output, want) {
 		t.Errorf("error output does not contain %q: %s", want, output)
+	}
+}
+
+func TestIssue56006EmitDataRaceCoverRunningGoroutine(t *testing.T) {
+	// This test requires "go test -race -cover", meaning that we need
+	// go build, go run, and "-race" support.
+	testenv.MustHaveGoRun(t)
+	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) ||
+		!testenv.HasCGO() {
+		t.Skip("skipped due to lack of race detector support / CGO")
+	}
+
+	// This will run a program with -cover and -race where we have a
+	// goroutine still running (and updating counters) at the point where
+	// the test runtime is trying to write out counter data.
+	cmd := exec.Command(testenv.GoToolPath(t), "test", "-cover", "-race")
+	cmd.Dir = filepath.Join("testdata", "issue56006")
+	b, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go test -cover -race failed: %v", err)
+	}
+
+	// Don't want to see any data races in output.
+	avoid := []string{"DATA RACE"}
+	for _, no := range avoid {
+		if strings.Contains(string(b), no) {
+			t.Logf("%s\n", string(b))
+			t.Fatalf("found %s in test output, not permitted", no)
+		}
 	}
 }
