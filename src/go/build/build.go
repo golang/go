@@ -45,11 +45,11 @@ type Context struct {
 	Dir string
 
 	CgoEnabled  bool   // whether cgo files are included
-	UseAllFiles bool   // use files regardless of +build lines, file names
+	UseAllFiles bool   // use files regardless of go:build lines, file names
 	Compiler    string // compiler to assume when computing target paths
 
 	// The build, tool, and release tags specify build constraints
-	// that should be considered satisfied when processing +build lines.
+	// that should be considered satisfied when processing go:build lines.
 	// Clients creating a new context may customize BuildTags, which
 	// defaults to empty, but it is usually an error to customize ToolTags or ReleaseTags.
 	// ToolTags defaults to build tags appropriate to the current Go toolchain configuration.
@@ -322,9 +322,9 @@ func defaultContext() Context {
 	// Each major Go release in the Go 1.x series adds a new
 	// "go1.x" release tag. That is, the go1.x tag is present in
 	// all releases >= Go 1.x. Code that requires Go 1.x or later
-	// should say "+build go1.x", and code that should only be
+	// should say "go:build go1.x", and code that should only be
 	// built before Go 1.x (perhaps it is the stub to use in that
-	// case) should say "+build !go1.x".
+	// case) should say "go:build !go1.x".
 	// The last element in ReleaseTags is the current release.
 	for i := 1; i <= goversion.Version; i++ {
 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))
@@ -1398,7 +1398,7 @@ type fileEmbed struct {
 // If name denotes a Go program, matchFile reads until the end of the
 // imports and returns that section of the file in the fileInfo's header field,
 // even though it only considers text until the first non-comment
-// for +build lines.
+// for go:build lines.
 //
 // If allTags is non-nil, matchFile records any encountered build tag
 // by setting allTags[tag] = true.
@@ -1448,7 +1448,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 		return nil, fmt.Errorf("read %s: %v", info.name, err)
 	}
 
-	// Look for +build comments to accept or reject the file.
+	// Look for go:build comments to accept or reject the file.
 	ok, sawBinaryOnly, err := ctxt.shouldBuild(info.header, allTags)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", name, err)
@@ -1509,12 +1509,12 @@ var binaryOnlyComment = []byte("//go:binary-only-package")
 // The rule is that in the file's leading run of // comments
 // and blank lines, which must be followed by a blank line
 // (to avoid including a Go package clause doc comment),
-// lines beginning with '// +build' are taken as build directives.
+// lines beginning with '//go:build' are taken as build directives.
 //
 // The file is accepted only if each such line lists something
 // matching the file. For example:
 //
-//	// +build windows linux
+//	//go:build windows linux
 //
 // marks the file as applicable only on Windows and Linux.
 //
@@ -1573,7 +1573,7 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shoul
 func parseFileHeader(content []byte) (trimmed, goBuild []byte, sawBinaryOnly bool, err error) {
 	end := 0
 	p := content
-	ended := false       // found non-blank, non-// line, so stopped accepting // +build lines
+	ended := false       // found non-blank, non-// line, so stopped accepting //go:build lines
 	inSlashStar := false // in /* */ comment
 
 Lines:
@@ -1589,7 +1589,7 @@ Lines:
 			// Remember position of most recent blank line.
 			// When we find the first non-blank, non-// line,
 			// this "end" position marks the latest file position
-			// where a // +build line can appear.
+			// where a //go:build line can appear.
 			// (It must appear _before_ a blank line before the non-blank, non-// line.
 			// Yes, that's confusing, which is part of why we moved to //go:build lines.)
 			// Note that ended==false here means that inSlashStar==false,
