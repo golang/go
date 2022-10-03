@@ -24,12 +24,12 @@ func isInf(f float64) bool {
 	return !isNaN(f) && !isFinite(f)
 }
 
-// Abs returns the absolute value of x.
+// abs returns the absolute value of x.
 //
 // Special cases are:
 //
-//	Abs(±Inf) = +Inf
-//	Abs(NaN) = NaN
+//	abs(±Inf) = +Inf
+//	abs(NaN) = NaN
 func abs(x float64) float64 {
 	const sign = 1 << 63
 	return float64frombits(float64bits(x) &^ sign)
@@ -42,12 +42,12 @@ func copysign(x, y float64) float64 {
 	return float64frombits(float64bits(x)&^sign | float64bits(y)&sign)
 }
 
-// Float64bits returns the IEEE 754 binary representation of f.
+// float64bits returns the IEEE 754 binary representation of f.
 func float64bits(f float64) uint64 {
 	return *(*uint64)(unsafe.Pointer(&f))
 }
 
-// Float64frombits returns the floating point number corresponding
+// float64frombits returns the floating point number corresponding
 // the IEEE 754 binary representation b.
 func float64frombits(b uint64) float64 {
 	return *(*float64)(unsafe.Pointer(&b))
