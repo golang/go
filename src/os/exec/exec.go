@@ -214,8 +214,9 @@ type Cmd struct {
 	// Process is the underlying process, once started.
 	Process *os.Process
 
-	// ProcessState contains information about an exited process,
-	// available after a call to Wait or Run.
+	// ProcessState contains information about an exited process.
+	// If the process was started successfully, Wait or Run will
+	// populate its ProcessState when the command completes.
 	ProcessState *os.ProcessState
 
 	ctx context.Context // nil means none
