@@ -15,6 +15,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"net"
 	"os"
 	. "reflect"
 	"reflect/internal/example1"
@@ -8239,4 +8240,21 @@ func TestValue_Equal(t *testing.T) {
 			t.Errorf("%s == %s got %t, want %t", v.Type(), u.Type(), r, test.eq)
 		}
 	}
+}
+
+func TestInitFuncTypes(t *testing.T) {
+	n := 100
+	var wg sync.WaitGroup
+
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func() {
+			defer wg.Done()
+			ipT := TypeOf(net.IP{})
+			for i := 0; i < ipT.NumMethod(); i++ {
+				_ = ipT.Method(i)
+			}
+		}()
+	}
+	wg.Wait()
 }
