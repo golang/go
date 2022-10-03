@@ -8,7 +8,23 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
+	"math/big"
 )
+
+
+// This example uses 1 to ensure the output is 0.
+func ExampleInt() {
+	a, err := rand.Int(rand.Reader, big.NewInt(1))
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	// The output is a signed multi-precision integer.
+	fmt.Println(a.Int64())
+
+	// Output:
+	// 0
+}
 
 // This example reads 10 cryptographically secure pseudorandom numbers from
 // rand.Reader and writes them to a byte slice.
