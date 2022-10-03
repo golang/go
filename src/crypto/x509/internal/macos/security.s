@@ -13,8 +13,6 @@ TEXT ·x509_SecTrustSettingsCopyCertificates_trampoline(SB),NOSPLIT,$0-0
 	JMP	x509_SecTrustSettingsCopyCertificates(SB)
 TEXT ·x509_SecTrustSettingsCopyTrustSettings_trampoline(SB),NOSPLIT,$0-0
 	JMP	x509_SecTrustSettingsCopyTrustSettings(SB)
-TEXT ·x509_SecPolicyCopyProperties_trampoline(SB),NOSPLIT,$0-0
-	JMP	x509_SecPolicyCopyProperties(SB)
 TEXT ·x509_SecTrustCreateWithCertificates_trampoline(SB),NOSPLIT,$0-0
 	JMP x509_SecTrustCreateWithCertificates(SB)
 TEXT ·x509_SecCertificateCreateWithData_trampoline(SB),NOSPLIT,$0-0

@@ -109,14 +109,6 @@ func SecTrustSettingsCopyTrustSettings(cert CFRef, domain SecTrustSettingsDomain
 }
 func x509_SecTrustSettingsCopyTrustSettings_trampoline()
 
-//go:cgo_import_dynamic x509_SecPolicyCopyProperties SecPolicyCopyProperties "/System/Library/Frameworks/Security.framework/Versions/A/Security"
-
-func SecPolicyCopyProperties(policy CFRef) CFRef {
-	ret := syscall(abi.FuncPCABI0(x509_SecPolicyCopyProperties_trampoline), uintptr(policy), 0, 0, 0, 0, 0)
-	return CFRef(ret)
-}
-func x509_SecPolicyCopyProperties_trampoline()
-
 //go:cgo_import_dynamic x509_SecTrustCreateWithCertificates SecTrustCreateWithCertificates "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecTrustCreateWithCertificates(certs CFRef, policies CFRef) (CFRef, error) {
@@ -147,14 +139,17 @@ func x509_SecCertificateCreateWithData_trampoline()
 
 //go:cgo_import_dynamic x509_SecPolicyCreateSSL SecPolicyCreateSSL "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
-func SecPolicyCreateSSL(name string) CFRef {
+func SecPolicyCreateSSL(name string) (CFRef, error) {
 	var hostname CFString
 	if name != "" {
 		hostname = StringToCFString(name)
 		defer CFRelease(CFRef(hostname))
 	}
 	ret := syscall(abi.FuncPCABI0(x509_SecPolicyCreateSSL_trampoline), 1 /* true */, uintptr(hostname), 0, 0, 0, 0)
-	return CFRef(ret)
+	if ret == 0 {
+		return 0, OSStatus{"SecPolicyCreateSSL", int32(ret)}
+	}
+	return CFRef(ret), nil
 }
 func x509_SecPolicyCreateSSL_trampoline()
 
@@ -220,9 +215,12 @@ func x509_SecTrustGetCertificateCount_trampoline()
 
 //go:cgo_import_dynamic x509_SecTrustGetCertificateAtIndex SecTrustGetCertificateAtIndex "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
-func SecTrustGetCertificateAtIndex(trustObj CFRef, i int) CFRef {
+func SecTrustGetCertificateAtIndex(trustObj CFRef, i int) (CFRef, error) {
 	ret := syscall(abi.FuncPCABI0(x509_SecTrustGetCertificateAtIndex_trampoline), uintptr(trustObj), uintptr(i), 0, 0, 0, 0)
-	return CFRef(ret)
+	if ret == 0 {
+		return 0, OSStatus{"SecTrustGetCertificateAtIndex", int32(ret)}
+	}
+	return CFRef(ret), nil
 }
 func x509_SecTrustGetCertificateAtIndex_trampoline()
 
