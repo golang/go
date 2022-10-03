@@ -68,13 +68,11 @@ var ServeFileRangeTests = []struct {
 	{r: "bytes=100-1000", code: StatusRequestedRangeNotSatisfiable},
 }
 
-func TestServeFile(t *testing.T) {
-	setParallel(t)
-	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestServeFile(t *testing.T) { run(t, testServeFile) }
+func testServeFile(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ServeFile(w, r, "testdata/file")
-	}))
-	defer ts.Close()
+	})).ts
 	c := ts.Client()
 
 	var err error
@@ -228,13 +226,12 @@ var fsRedirectTestData = []struct {
 	{"/test/testdata/file/", "/test/testdata/file"},
 }
 
-func TestFSRedirect(t *testing.T) {
-	defer afterTest(t)
-	ts := httptest.NewServer(StripPrefix("/test", FileServer(Dir("."))))
-	defer ts.Close()
+func TestFSRedirect(t *testing.T) { run(t, testFSRedirect) }
+func testFSRedirect(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, StripPrefix("/test", FileServer(Dir(".")))).ts
 
 	for _, data := range fsRedirectTestData {
-		res, err := Get(ts.URL + data.original)
+		res, err := ts.Client().Get(ts.URL + data.original)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -278,8 +275,8 @@ func TestFileServerCleans(t *testing.T) {
 	}
 }
 
-func TestFileServerEscapesNames(t *testing.T) {
-	defer afterTest(t)
+func TestFileServerEscapesNames(t *testing.T) { run(t, testFileServerEscapesNames) }
+func testFileServerEscapesNames(t *testing.T, mode testMode) {
 	const dirListPrefix = "<pre>\n"
 	const dirListSuffix = "\n</pre>\n"
 	tests := []struct {
@@ -304,11 +301,10 @@ func TestFileServerEscapesNames(t *testing.T) {
 		fs[fmt.Sprintf("/%d/%s", i, test.name)] = testFile
 	}
 
-	ts := httptest.NewServer(FileServer(&fs))
-	defer ts.Close()
+	ts := newClientServerTest(t, mode, FileServer(&fs)).ts
 	for i, test := range tests {
 		url := fmt.Sprintf("%s/%d", ts.URL, i)
-		res, err := Get(url)
+		res, err := ts.Client().Get(url)
 		if err != nil {
 			t.Fatalf("test %q: Get: %v", test.name, err)
 		}
@@ -327,8 +323,8 @@ func TestFileServerEscapesNames(t *testing.T) {
 	}
 }
 
-func TestFileServerSortsNames(t *testing.T) {
-	defer afterTest(t)
+func TestFileServerSortsNames(t *testing.T) { run(t, testFileServerSortsNames) }
+func testFileServerSortsNames(t *testing.T, mode testMode) {
 	const contents = "I am a fake file"
 	dirMod := time.Unix(123, 0).UTC()
 	fileMod := time.Unix(1000000000, 0).UTC()
@@ -351,10 +347,9 @@ func TestFileServerSortsNames(t *testing.T) {
 		},
 	}
 
-	ts := httptest.NewServer(FileServer(&fs))
-	defer ts.Close()
+	ts := newClientServerTest(t, mode, FileServer(&fs)).ts
 
-	res, err := Get(ts.URL)
+	res, err := ts.Client().Get(ts.URL)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -377,16 +372,15 @@ func mustRemoveAll(dir string) {
 	}
 }
 
-func TestFileServerImplicitLeadingSlash(t *testing.T) {
-	defer afterTest(t)
+func TestFileServerImplicitLeadingSlash(t *testing.T) { run(t, testFileServerImplicitLeadingSlash) }
+func testFileServerImplicitLeadingSlash(t *testing.T, mode testMode) {
 	tempDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tempDir, "foo.txt"), []byte("Hello world"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
-	ts := httptest.NewServer(StripPrefix("/bar/", FileServer(Dir(tempDir))))
-	defer ts.Close()
+	ts := newClientServerTest(t, mode, StripPrefix("/bar/", FileServer(Dir(tempDir)))).ts
 	get := func(suffix string) string {
-		res, err := Get(ts.URL + suffix)
+		res, err := ts.Client().Get(ts.URL + suffix)
 		if err != nil {
 			t.Fatalf("Get %s: %v", suffix, err)
 		}
@@ -405,11 +399,10 @@ func TestFileServerImplicitLeadingSlash(t *testing.T) {
 	}
 }
 
-func TestFileServerMethodOptions(t *testing.T) {
-	defer afterTest(t)
+func TestFileServerMethodOptions(t *testing.T) { run(t, testFileServerMethodOptions) }
+func testFileServerMethodOptions(t *testing.T, mode testMode) {
 	const want = "GET, HEAD, OPTIONS"
-	ts := httptest.NewServer(FileServer(Dir(".")))
-	defer ts.Close()
+	ts := newClientServerTest(t, mode, FileServer(Dir("."))).ts
 
 	tests := []struct {
 		method     string
@@ -496,10 +489,10 @@ func TestEmptyDirOpenCWD(t *testing.T) {
 	test(Dir("./"))
 }
 
-func TestServeFileContentType(t *testing.T) {
-	defer afterTest(t)
+func TestServeFileContentType(t *testing.T) { run(t, testServeFileContentType) }
+func testServeFileContentType(t *testing.T, mode testMode) {
 	const ctype = "icecream/chocolate"
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		switch r.FormValue("override") {
 		case "1":
 			w.Header().Set("Content-Type", ctype)
@@ -508,10 +501,9 @@ func TestServeFileContentType(t *testing.T) {
 			w.Header()["Content-Type"] = []string{}
 		}
 		ServeFile(w, r, "testdata/file")
-	}))
-	defer ts.Close()
+	})).ts
 	get := func(override string, want []string) {
-		resp, err := Get(ts.URL + "?override=" + override)
+		resp, err := ts.Client().Get(ts.URL + "?override=" + override)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -525,13 +517,12 @@ func TestServeFileContentType(t *testing.T) {
 	get("2", nil)
 }
 
-func TestServeFileMimeType(t *testing.T) {
-	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestServeFileMimeType(t *testing.T) { run(t, testServeFileMimeType) }
+func testServeFileMimeType(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ServeFile(w, r, "testdata/style.css")
-	}))
-	defer ts.Close()
-	resp, err := Get(ts.URL)
+	})).ts
+	resp, err := ts.Client().Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -542,13 +533,12 @@ func TestServeFileMimeType(t *testing.T) {
 	}
 }
 
-func TestServeFileFromCWD(t *testing.T) {
-	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestServeFileFromCWD(t *testing.T) { run(t, testServeFileFromCWD) }
+func testServeFileFromCWD(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ServeFile(w, r, "fs_test.go")
-	}))
-	defer ts.Close()
-	r, err := Get(ts.URL)
+	})).ts
+	r, err := ts.Client().Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -559,14 +549,13 @@ func TestServeFileFromCWD(t *testing.T) {
 }
 
 // Issue 13996
-func TestServeDirWithoutTrailingSlash(t *testing.T) {
+func TestServeDirWithoutTrailingSlash(t *testing.T) { run(t, testServeDirWithoutTrailingSlash) }
+func testServeDirWithoutTrailingSlash(t *testing.T, mode testMode) {
 	e := "/testdata/"
-	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ServeFile(w, r, ".")
-	}))
-	defer ts.Close()
-	r, err := Get(ts.URL + "/testdata")
+	})).ts
+	r, err := ts.Client().Get(ts.URL + "/testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -578,11 +567,9 @@ func TestServeDirWithoutTrailingSlash(t *testing.T) {
 
 // Tests that ServeFile doesn't add a Content-Length if a Content-Encoding is
 // specified.
-func TestServeFileWithContentEncoding_h1(t *testing.T) { testServeFileWithContentEncoding(t, h1Mode) }
-func TestServeFileWithContentEncoding_h2(t *testing.T) { testServeFileWithContentEncoding(t, h2Mode) }
-func testServeFileWithContentEncoding(t *testing.T, h2 bool) {
-	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestServeFileWithContentEncoding(t *testing.T) { run(t, testServeFileWithContentEncoding) }
+func testServeFileWithContentEncoding(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Encoding", "foo")
 		ServeFile(w, r, "testdata/file")
 
@@ -595,7 +582,6 @@ func testServeFileWithContentEncoding(t *testing.T, h2 bool) {
 		// Content-Length and test ServeFile only, flush here.
 		w.(Flusher).Flush()
 	}))
-	defer cst.close()
 	resp, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -608,11 +594,9 @@ func testServeFileWithContentEncoding(t *testing.T, h2 bool) {
 
 // Tests that ServeFile does not generate representation metadata when
 // file has not been modified, as per RFC 7232 section 4.1.
-func TestServeFileNotModified_h1(t *testing.T) { testServeFileNotModified(t, h1Mode) }
-func TestServeFileNotModified_h2(t *testing.T) { testServeFileNotModified(t, h2Mode) }
-func testServeFileNotModified(t *testing.T, h2 bool) {
-	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestServeFileNotModified(t *testing.T) { run(t, testServeFileNotModified) }
+func testServeFileNotModified(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Content-Encoding", "foo")
 		w.Header().Set("Etag", `"123"`)
@@ -627,7 +611,6 @@ func testServeFileNotModified(t *testing.T, h2 bool) {
 		// Content-Length and test ServeFile only, flush here.
 		w.(Flusher).Flush()
 	}))
-	defer cst.close()
 	req, err := NewRequest("GET", cst.ts.URL, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -660,9 +643,8 @@ func testServeFileNotModified(t *testing.T, h2 bool) {
 	}
 }
 
-func TestServeIndexHtml(t *testing.T) {
-	defer afterTest(t)
-
+func TestServeIndexHtml(t *testing.T) { run(t, testServeIndexHtml) }
+func testServeIndexHtml(t *testing.T, mode testMode) {
 	for i := 0; i < 2; i++ {
 		var h Handler
 		var name string
@@ -676,11 +658,10 @@ func TestServeIndexHtml(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			const want = "index.html says hello\n"
-			ts := httptest.NewServer(h)
-			defer ts.Close()
+			ts := newClientServerTest(t, mode, h).ts
 
 			for _, path := range []string{"/testdata/", "/testdata/index.html"} {
-				res, err := Get(ts.URL + path)
+				res, err := ts.Client().Get(ts.URL + path)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -697,14 +678,14 @@ func TestServeIndexHtml(t *testing.T) {
 	}
 }
 
-func TestServeIndexHtmlFS(t *testing.T) {
-	defer afterTest(t)
+func TestServeIndexHtmlFS(t *testing.T) { run(t, testServeIndexHtmlFS) }
+func testServeIndexHtmlFS(t *testing.T, mode testMode) {
 	const want = "index.html says hello\n"
-	ts := httptest.NewServer(FileServer(Dir(".")))
+	ts := newClientServerTest(t, mode, FileServer(Dir("."))).ts
 	defer ts.Close()
 
 	for _, path := range []string{"/testdata/", "/testdata/index.html"} {
-		res, err := Get(ts.URL + path)
+		res, err := ts.Client().Get(ts.URL + path)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -719,10 +700,9 @@ func TestServeIndexHtmlFS(t *testing.T) {
 	}
 }
 
-func TestFileServerZeroByte(t *testing.T) {
-	defer afterTest(t)
-	ts := httptest.NewServer(FileServer(Dir(".")))
-	defer ts.Close()
+func TestFileServerZeroByte(t *testing.T) { run(t, testFileServerZeroByte) }
+func testFileServerZeroByte(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, FileServer(Dir("."))).ts
 
 	c, err := net.Dial("tcp", ts.Listener.Addr().String())
 	if err != nil {
@@ -809,8 +789,8 @@ func (fsys fakeFS) Open(name string) (File, error) {
 	return &fakeFile{ReadSeeker: strings.NewReader(f.contents), fi: f, path: name}, nil
 }
 
-func TestDirectoryIfNotModified(t *testing.T) {
-	defer afterTest(t)
+func TestDirectoryIfNotModified(t *testing.T) { run(t, testDirectoryIfNotModified) }
+func testDirectoryIfNotModified(t *testing.T, mode testMode) {
 	const indexContents = "I am a fake index.html file"
 	fileMod := time.Unix(1000000000, 0).UTC()
 	fileModStr := fileMod.Format(TimeFormat)
@@ -829,10 +809,9 @@ func TestDirectoryIfNotModified(t *testing.T) {
 		"/index.html": indexFile,
 	}
 
-	ts := httptest.NewServer(FileServer(fs))
-	defer ts.Close()
+	ts := newClientServerTest(t, mode, FileServer(fs)).ts
 
-	res, err := Get(ts.URL)
+	res, err := ts.Client().Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -884,8 +863,8 @@ func mustStat(t *testing.T, fileName string) fs.FileInfo {
 	return fi
 }
 
-func TestServeContent(t *testing.T) {
-	defer afterTest(t)
+func TestServeContent(t *testing.T) { run(t, testServeContent) }
+func testServeContent(t *testing.T, mode testMode) {
 	type serveParam struct {
 		name        string
 		modtime     time.Time
@@ -894,7 +873,7 @@ func TestServeContent(t *testing.T) {
 		etag        string
 	}
 	servec := make(chan serveParam, 1)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		p := <-servec
 		if p.etag != "" {
 			w.Header().Set("ETag", p.etag)
@@ -903,8 +882,7 @@ func TestServeContent(t *testing.T) {
 			w.Header().Set("Content-Type", p.contentType)
 		}
 		ServeContent(w, r, p.name, p.modtime, p.content)
-	}))
-	defer ts.Close()
+	})).ts
 
 	type testCase struct {
 		// One of file or content must be set:
@@ -1213,8 +1191,8 @@ type issue12991File struct{ File }
 func (issue12991File) Stat() (fs.FileInfo, error) { return nil, fs.ErrPermission }
 func (issue12991File) Close() error               { return nil }
 
-func TestServeContentErrorMessages(t *testing.T) {
-	defer afterTest(t)
+func TestServeContentErrorMessages(t *testing.T) { run(t, testServeContentErrorMessages) }
+func testServeContentErrorMessages(t *testing.T, mode testMode) {
 	fs := fakeFS{
 		"/500": &fakeFileInfo{
 			err: errors.New("random error"),
@@ -1223,8 +1201,7 @@ func TestServeContentErrorMessages(t *testing.T) {
 			err: &fs.PathError{Err: fs.ErrPermission},
 		},
 	}
-	ts := httptest.NewServer(FileServer(fs))
-	defer ts.Close()
+	ts := newClientServerTest(t, mode, FileServer(fs)).ts
 	c := ts.Client()
 	for _, code := range []int{403, 404, 500} {
 		res, err := c.Get(fmt.Sprintf("%s/%d", ts.URL, code))
@@ -1342,20 +1319,20 @@ func TestLinuxSendfileChild(*testing.T) {
 
 // Issues 18984, 49552: tests that requests for paths beyond files return not-found errors
 func TestFileServerNotDirError(t *testing.T) {
-	defer afterTest(t)
-	t.Run("Dir", func(t *testing.T) {
-		testFileServerNotDirError(t, func(path string) FileSystem { return Dir(path) })
-	})
-	t.Run("FS", func(t *testing.T) {
-		testFileServerNotDirError(t, func(path string) FileSystem { return FS(os.DirFS(path)) })
+	run(t, func(t *testing.T, mode testMode) {
+		t.Run("Dir", func(t *testing.T) {
+			testFileServerNotDirError(t, mode, func(path string) FileSystem { return Dir(path) })
+		})
+		t.Run("FS", func(t *testing.T) {
+			testFileServerNotDirError(t, mode, func(path string) FileSystem { return FS(os.DirFS(path)) })
+		})
 	})
 }
 
-func testFileServerNotDirError(t *testing.T, newfs func(string) FileSystem) {
-	ts := httptest.NewServer(FileServer(newfs("testdata")))
-	defer ts.Close()
+func testFileServerNotDirError(t *testing.T, mode testMode, newfs func(string) FileSystem) {
+	ts := newClientServerTest(t, mode, FileServer(newfs("testdata"))).ts
 
-	res, err := Get(ts.URL + "/index.html/not-a-file")
+	res, err := ts.Client().Get(ts.URL + "/index.html/not-a-file")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1459,19 +1436,11 @@ func Test_scanETag(t *testing.T) {
 
 // Issue 40940: Ensure that we only accept non-negative suffix-lengths
 // in "Range": "bytes=-N", and should reject "bytes=--2".
-func TestServeFileRejectsInvalidSuffixLengths_h1(t *testing.T) {
-	testServeFileRejectsInvalidSuffixLengths(t, h1Mode)
+func TestServeFileRejectsInvalidSuffixLengths(t *testing.T) {
+	run(t, testServeFileRejectsInvalidSuffixLengths, []testMode{http1Mode, https1Mode, http2Mode})
 }
-func TestServeFileRejectsInvalidSuffixLengths_h2(t *testing.T) {
-	testServeFileRejectsInvalidSuffixLengths(t, h2Mode)
-}
-
-func testServeFileRejectsInvalidSuffixLengths(t *testing.T, h2 bool) {
-	defer afterTest(t)
-	cst := httptest.NewUnstartedServer(FileServer(Dir("testdata")))
-	cst.EnableHTTP2 = h2
-	cst.StartTLS()
-	defer cst.Close()
+func testServeFileRejectsInvalidSuffixLengths(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, FileServer(Dir("testdata"))).ts
 
 	tests := []struct {
 		r        string

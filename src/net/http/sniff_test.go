@@ -88,13 +88,9 @@ func TestDetectContentType(t *testing.T) {
 	}
 }
 
-func TestServerContentType_h1(t *testing.T) { testServerContentType(t, h1Mode) }
-func TestServerContentType_h2(t *testing.T) { testServerContentType(t, h2Mode) }
-
-func testServerContentType(t *testing.T, h2 bool) {
-	setParallel(t)
-	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestServerContentTypeSniff(t *testing.T) { run(t, testServerContentTypeSniff) }
+func testServerContentTypeSniff(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		i, _ := strconv.Atoi(r.FormValue("i"))
 		tt := sniffTests[i]
 		n, err := w.Write(tt.data)
@@ -134,15 +130,12 @@ func testServerContentType(t *testing.T, h2 bool) {
 
 // Issue 5953: shouldn't sniff if the handler set a Content-Type header,
 // even if it's the empty string.
-func TestServerIssue5953_h1(t *testing.T) { testServerIssue5953(t, h1Mode) }
-func TestServerIssue5953_h2(t *testing.T) { testServerIssue5953(t, h2Mode) }
-func testServerIssue5953(t *testing.T, h2 bool) {
-	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestServerIssue5953(t *testing.T) { run(t, testServerIssue5953) }
+func testServerIssue5953(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header()["Content-Type"] = []string{""}
 		fmt.Fprintf(w, "<html><head></head><body>hi</body></html>")
 	}))
-	defer cst.close()
 
 	resp, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
@@ -173,11 +166,8 @@ func (b *byteAtATimeReader) Read(p []byte) (n int, err error) {
 	return 1, nil
 }
 
-func TestContentTypeWithVariousSources_h1(t *testing.T) { testContentTypeWithVariousSources(t, h1Mode) }
-func TestContentTypeWithVariousSources_h2(t *testing.T) { testContentTypeWithVariousSources(t, h2Mode) }
-func testContentTypeWithVariousSources(t *testing.T, h2 bool) {
-	defer afterTest(t)
-
+func TestContentTypeWithVariousSources(t *testing.T) { run(t, testContentTypeWithVariousSources) }
+func testContentTypeWithVariousSources(t *testing.T, mode testMode) {
 	const (
 		input    = "\n<html>\n\t<head>\n"
 		expected = "text/html; charset=utf-8"
@@ -239,8 +229,7 @@ func testContentTypeWithVariousSources(t *testing.T, h2 bool) {
 		},
 	}} {
 		t.Run(test.name, func(t *testing.T) {
-			cst := newClientServerTest(t, h2, HandlerFunc(test.handler))
-			defer cst.close()
+			cst := newClientServerTest(t, mode, HandlerFunc(test.handler))
 
 			resp, err := cst.c.Get(cst.ts.URL)
 			if err != nil {
@@ -265,12 +254,9 @@ func testContentTypeWithVariousSources(t *testing.T, h2 bool) {
 	}
 }
 
-func TestSniffWriteSize_h1(t *testing.T) { testSniffWriteSize(t, h1Mode) }
-func TestSniffWriteSize_h2(t *testing.T) { testSniffWriteSize(t, h2Mode) }
-func testSniffWriteSize(t *testing.T, h2 bool) {
-	setParallel(t)
-	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestSniffWriteSize(t *testing.T) { run(t, testSniffWriteSize) }
+func testSniffWriteSize(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		size, _ := strconv.Atoi(r.FormValue("size"))
 		written, err := io.WriteString(w, strings.Repeat("a", size))
 		if err != nil {
@@ -281,7 +267,6 @@ func testSniffWriteSize(t *testing.T, h2 bool) {
 			t.Errorf("write of %d bytes wrote %d bytes", size, written)
 		}
 	}))
-	defer cst.close()
 	for _, size := range []int{0, 1, 200, 600, 999, 1000, 1023, 1024, 512 << 10, 1 << 20} {
 		res, err := cst.c.Get(fmt.Sprintf("%s/?size=%d", cst.ts.URL, size))
 		if err != nil {
