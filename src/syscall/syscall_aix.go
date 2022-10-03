@@ -642,6 +642,7 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sys	Unlink(path string) (err error)
 //sysnb	Uname(buf *Utsname) (err error)
 //sys	write(fd int, p []byte) (n int, err error)
+//sys	writev(fd int, iovecs []Iovec) (n uintptr, err error)
 
 //sys	gettimeofday(tv *Timeval, tzp *Timezone) (err error)
 
