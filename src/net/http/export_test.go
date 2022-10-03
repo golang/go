@@ -60,7 +60,7 @@ func init() {
 	}
 }
 
-func CondSkipHTTP2(t *testing.T) {
+func CondSkipHTTP2(t testing.TB) {
 	if omitBundledHTTP2 {
 		t.Skip("skipping HTTP/2 test when nethttpomithttp2 build tag in use")
 	}
@@ -72,8 +72,6 @@ var (
 )
 
 func SetReadLoopBeforeNextReadHook(f func()) {
-	testHookMu.Lock()
-	defer testHookMu.Unlock()
 	unnilTestHook(&f)
 	testHookReadLoopBeforeNextRead = f
 }
