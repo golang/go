@@ -202,6 +202,8 @@
 //		run through go run and go test respectively.
 //	-pgo file
 //		specify the file path of a profile for profile-guided optimization (PGO).
+//		Special name "auto" lets the go command select a file named
+//		"default.pgo" in the main package's directory if that file exists.
 //		Special name "off" turns off PGO.
 //	-pkgdir dir
 //		install and load all packages from dir instead of the usual locations.

@@ -2807,7 +2807,9 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
 			// We need to test whether the path is an actual Go file and not a
 			// package path or pattern ending in '.go' (see golang.org/issue/34653).
 			if fi, err := fsys.Stat(p); err == nil && !fi.IsDir() {
-				return []*Package{GoFilesPackage(ctx, opts, patterns)}
+				pkgs := []*Package{GoFilesPackage(ctx, opts, patterns)}
+				setPGOProfilePath(pkgs)
+				return pkgs
 			}
 		}
 	}
@@ -2886,7 +2888,58 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
 	// their dependencies).
 	setToolFlags(pkgs...)
 
+	setPGOProfilePath(pkgs)
+
 	return pkgs
+}
+
+// setPGOProfilePath sets cfg.BuildPGOFile to the PGO profile path.
+// In -pgo=auto mode, it finds the default PGO profile.
+func setPGOProfilePath(pkgs []*Package) {
+	switch cfg.BuildPGO {
+	case "":
+		fallthrough // default to "off"
+	case "off":
+		return
+
+	case "auto":
+		// Locate PGO profile from the main package.
+
+		setError := func(p *Package) {
+			if p.Error == nil {
+				p.Error = &PackageError{Err: errors.New("-pgo=auto requires exactly one main package")}
+			}
+		}
+
+		var mainpkg *Package
+		for _, p := range pkgs {
+			if p.Name == "main" {
+				if mainpkg != nil {
+					setError(p)
+					setError(mainpkg)
+					continue
+				}
+				mainpkg = p
+			}
+		}
+		if mainpkg == nil {
+			// No main package, no default.pgo to look for.
+			return
+		}
+		file := filepath.Join(mainpkg.Dir, "default.pgo")
+		if fi, err := os.Stat(file); err == nil && !fi.IsDir() {
+			cfg.BuildPGOFile = file
+		}
+
+	default:
+		// Profile specified from the command line.
+		// Make it absolute path, as the compiler runs on various directories.
+		if p, err := filepath.Abs(cfg.BuildPGO); err != nil {
+			base.Fatalf("fail to get absolute path of PGO file %s: %v", cfg.BuildPGO, err)
+		} else {
+			cfg.BuildPGOFile = p
+		}
+	}
 }
 
 // CheckPackageErrors prints errors encountered loading pkgs and their
