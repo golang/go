@@ -21053,8 +21053,8 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))
-	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)
-	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
+	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)
+	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if auxIntToInt64(v.AuxInt) != 0 {
 			break
@@ -21084,21 +21084,20 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		if s3.Op != OpStore {
 			break
 		}
-		t := auxToType(s3.Aux)
 		mem := s3.Args[2]
 		dst := s3.Args[1]
-		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)) {
+		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)) {
 			break
 		}
 		v.reset(OpMove)
 		v.AuxInt = int64ToAuxInt(int64(sz))
-		v.Aux = typeToAux(t.Elem())
+		v.Aux = typeToAux(types.Types[types.TUINT8])
 		v.AddArg3(dst, src, mem)
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))
-	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)
-	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
+	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)
+	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if auxIntToInt64(v.AuxInt) != 0 {
 			break
@@ -21128,21 +21127,20 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		if s3.Op != OpStore {
 			break
 		}
-		t := auxToType(s3.Aux)
 		mem := s3.Args[2]
 		dst := s3.Args[1]
-		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)) {
+		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)) {
 			break
 		}
 		v.reset(OpMove)
 		v.AuxInt = int64ToAuxInt(int64(sz))
-		v.Aux = typeToAux(t.Elem())
+		v.Aux = typeToAux(types.Types[types.TUINT8])
 		v.AddArg3(dst, src, mem)
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} dst src (Const64 [sz]) mem))
-	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
-	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
+	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
+	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if auxIntToInt64(v.AuxInt) != 0 {
 			break
@@ -21160,18 +21158,18 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 			break
 		}
 		sz := auxIntToInt64(call_2.AuxInt)
-		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
+		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
 			break
 		}
 		v.reset(OpMove)
 		v.AuxInt = int64ToAuxInt(int64(sz))
-		v.Aux = typeToAux(dst.Type.Elem())
+		v.Aux = typeToAux(types.Types[types.TUINT8])
 		v.AddArg3(dst, src, mem)
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} dst src (Const32 [sz]) mem))
-	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
-	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
+	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
+	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if auxIntToInt64(v.AuxInt) != 0 {
 			break
@@ -21189,18 +21187,18 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 			break
 		}
 		sz := auxIntToInt32(call_2.AuxInt)
-		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
+		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
 			break
 		}
 		v.reset(OpMove)
 		v.AuxInt = int64ToAuxInt(int64(sz))
-		v.Aux = typeToAux(dst.Type.Elem())
+		v.Aux = typeToAux(types.Types[types.TUINT8])
 		v.AddArg3(dst, src, mem)
 		return true
 	}
 	// match: (SelectN [0] call:(StaticLECall {sym} dst src (Const64 [sz]) mem))
-	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
-	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
+	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
+	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if auxIntToInt64(v.AuxInt) != 0 {
 			break
@@ -21218,18 +21216,18 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 			break
 		}
 		sz := auxIntToInt64(call_2.AuxInt)
-		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
+		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
 			break
 		}
 		v.reset(OpMove)
 		v.AuxInt = int64ToAuxInt(int64(sz))
-		v.Aux = typeToAux(dst.Type.Elem())
+		v.Aux = typeToAux(types.Types[types.TUINT8])
 		v.AddArg3(dst, src, mem)
 		return true
 	}
 	// match: (SelectN [0] call:(StaticLECall {sym} dst src (Const32 [sz]) mem))
-	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
-	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
+	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
+	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if auxIntToInt64(v.AuxInt) != 0 {
 			break
@@ -21247,12 +21245,12 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 			break
 		}
 		sz := auxIntToInt32(call_2.AuxInt)
-		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
+		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
 			break
 		}
 		v.reset(OpMove)
 		v.AuxInt = int64ToAuxInt(int64(sz))
-		v.Aux = typeToAux(dst.Type.Elem())
+		v.Aux = typeToAux(types.Types[types.TUINT8])
 		v.AddArg3(dst, src, mem)
 		return true
 	}

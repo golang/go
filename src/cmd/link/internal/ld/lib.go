@@ -1325,7 +1325,6 @@ func (ctxt *Link) hostlink() {
 		if ctxt.HeadType == objabi.Hdarwin {
 			if machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64() {
 				argv = append(argv, "-Wl,-no_pie")
-				argv = append(argv, "-Wl,-pagezero_size,4000000")
 			}
 		}
 	case BuildModePIE:
@@ -1661,6 +1660,13 @@ func (ctxt *Link) hostlink() {
 	if len(out) > 0 {
 		// always print external output even if the command is successful, so that we don't
 		// swallow linker warnings (see https://golang.org/issue/17935).
+		if ctxt.IsDarwin() && ctxt.IsAMD64() {
+			const noPieWarning = "ld: warning: -no_pie is deprecated when targeting new OS versions\n"
+			if i := bytes.Index(out, []byte(noPieWarning)); i >= 0 {
+				// swallow -no_pie deprecation warning, issue 54482
+				out = append(out[:i], out[i+len(noPieWarning):]...)
+			}
+		}
 		ctxt.Logf("%s", out)
 	}
 
