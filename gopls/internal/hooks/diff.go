@@ -113,7 +113,7 @@ func disaster(before, after string) string {
 	fname := fmt.Sprintf("%s/gopls-failed-%x", os.TempDir(), os.Getpid())
 	fd, err := os.Create(fname)
 	defer fd.Close()
-	_, err = fd.Write([]byte(fmt.Sprintf("%s\n%s\n", string(first), string(second))))
+	_, err = fmt.Fprintf(fd, "%s\n%s\n", first, second)
 	if err != nil {
 		// what do we tell the user?
 		return ""

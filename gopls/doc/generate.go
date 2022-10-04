@@ -621,7 +621,7 @@ func rewriteSettings(doc []byte, api *source.APIJSON) ([]byte, error) {
 			writeTitle(section, h.final, level)
 			for _, opt := range h.options {
 				header := strMultiply("#", level+1)
-				section.Write([]byte(fmt.Sprintf("%s ", header)))
+				fmt.Fprintf(section, "%s ", header)
 				opt.Write(section)
 			}
 		}
