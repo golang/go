@@ -42,10 +42,10 @@ type Source64 interface {
 // safe for concurrent use by multiple goroutines.
 // The returned Source implements Source64.
 func NewSource(seed int64) Source {
-	return newSource64(seed)
+	return newSource(seed)
 }
 
-func newSource64(seed int64) Source64 {
+func newSource(seed int64) *rngSource {
 	var rng rngSource
 	rng.Seed(seed)
 	return &rng
@@ -295,10 +295,7 @@ func read(p []byte, src Source, readVal *int64, readPos *int8) (n int, err error
  * Top-level convenience functions
  */
 
-var globalRand = New(&lockedSource{src: NewSource(1).(*rngSource)})
-
-// Type assert that globalRand's source is a lockedSource whose src is a *rngSource.
-var _ *rngSource = globalRand.src.(*lockedSource).src
+var globalRand = New(new(lockedSource))
 
 // Seed uses the provided seed value to initialize the default Source to a
 // deterministic state. If Seed is not called, the generator behaves as
@@ -383,42 +380,61 @@ func NormFloat64() float64 { return globalRand.NormFloat64() }
 func ExpFloat64() float64 { return globalRand.ExpFloat64() }
 
 type lockedSource struct {
-	lk  sync.Mutex
-	src *rngSource
+	lk sync.Mutex
+	s  *rngSource // nil if not yet allocated
+}
+
+// source returns r.s, allocating and seeding it if needed.
+// The caller must have locked r.
+func (r *lockedSource) source() *rngSource {
+	if r.s == nil {
+		r.s = newSource(1)
+	}
+	return r.s
 }
 
 func (r *lockedSource) Int63() (n int64) {
 	r.lk.Lock()
-	n = r.src.Int63()
+	n = r.source().Int63()
 	r.lk.Unlock()
 	return
 }
 
 func (r *lockedSource) Uint64() (n uint64) {
 	r.lk.Lock()
-	n = r.src.Uint64()
+	n = r.source().Uint64()
 	r.lk.Unlock()
 	return
 }
 
 func (r *lockedSource) Seed(seed int64) {
 	r.lk.Lock()
-	r.src.Seed(seed)
+	r.seed(seed)
 	r.lk.Unlock()
 }
 
 // seedPos implements Seed for a lockedSource without a race condition.
 func (r *lockedSource) seedPos(seed int64, readPos *int8) {
 	r.lk.Lock()
-	r.src.Seed(seed)
+	r.seed(seed)
 	*readPos = 0
 	r.lk.Unlock()
+}
+
+// seed seeds the underlying source.
+// The caller must have locked r.lk.
+func (r *lockedSource) seed(seed int64) {
+	if r.s == nil {
+		r.s = newSource(seed)
+	} else {
+		r.s.Seed(seed)
+	}
 }
 
 // read implements Read for a lockedSource without a race condition.
 func (r *lockedSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
 	r.lk.Lock()
-	n, err = read(p, r.src, readVal, readPos)
+	n, err = read(p, r.source(), readVal, readPos)
 	r.lk.Unlock()
 	return
 }
