@@ -554,47 +554,27 @@ var depsRules = `
 	FMT
 	< internal/diff, internal/txtar;
 
-	FMT, os
-	< internal/coverage/slicewriter;
+	FMT, crypto/md5, encoding/binary, regexp, sort, text/tabwriter, unsafe,
+	internal/coverage, internal/coverage/uleb128
+	< internal/coverage/cmerge,
+	  internal/coverage/pods,
+	  internal/coverage/slicereader,
+	  internal/coverage/slicewriter;
 
-	encoding/binary, internal/unsafeheader, unsafe
-	< internal/coverage/slicereader;
+	internal/coverage/slicereader, internal/coverage/slicewriter
+	< internal/coverage/stringtab
+	< internal/coverage/decodecounter, internal/coverage/decodemeta,
+	  internal/coverage/encodecounter, internal/coverage/encodemeta;
 
-	FMT, math, internal/coverage
-	< internal/coverage/cmerge;
-
-	FMT, math, internal/coverage, internal/coverage/cmerge, text/tabwriter
+	internal/coverage/cmerge
 	< internal/coverage/cformat;
 
-	FMT, io, internal/coverage/slicereader, internal/coverage/uleb128
-	< internal/coverage/stringtab;
-
-	FMT, encoding/binary, internal/coverage, internal/coverage/stringtab,
-	io, os, bufio, crypto/md5
-	< internal/coverage/encodemeta;
-
-	FMT, bufio, encoding/binary, internal/coverage,
-	internal/coverage/stringtab, internal/coverage/slicewriter, os, unsafe
-	< internal/coverage/encodecounter;
-
-	FMT, encoding/binary, internal/coverage, io, os,
-	internal/coverage/slicereader, internal/coverage/stringtab
-	< internal/coverage/decodecounter;
-
-	FMT, encoding/binary, internal/coverage, io, os,
-	crypto/md5, internal/coverage/stringtab
-	< internal/coverage/decodemeta;
-
-	FMT, internal/coverage, os,
-	path/filepath, regexp, sort, strconv
-	< internal/coverage/pods;
-
-	FMT, bufio, crypto/md5, encoding/binary, runtime/debug,
-	internal/coverage, internal/coverage/cmerge,
-	internal/coverage/cformat, internal/coverage/calloc,
+	runtime/debug,
+	internal/coverage/calloc,
+	internal/coverage/cformat,
 	internal/coverage/decodecounter, internal/coverage/decodemeta,
 	internal/coverage/encodecounter, internal/coverage/encodemeta,
-	internal/coverage/pods, os, path/filepath, reflect, time, unsafe
+	internal/coverage/pods
 	< runtime/coverage;
 `
 
