@@ -103,7 +103,7 @@ type Context struct {
 
 	// ReadDir returns a slice of fs.FileInfo, sorted by Name,
 	// describing the content of the named directory.
-	// If ReadDir is nil, Import uses ioutil.ReadDir.
+	// If ReadDir is nil, Import uses os.ReadDir.
 	ReadDir func(dir string) ([]fs.FileInfo, error)
 
 	// OpenFile opens a file (not a directory) for reading.
