@@ -56,7 +56,11 @@ func dirstat(arg any) (*syscall.Dir, error) {
 		switch a := arg.(type) {
 		case *File:
 			name = a.name
+			if err := a.incref("fstat"); err != nil {
+				return nil, err
+			}
 			n, err = syscall.Fstat(a.fd, buf)
+			a.decref()
 		case string:
 			name = a
 			n, err = syscall.Stat(a, buf)
