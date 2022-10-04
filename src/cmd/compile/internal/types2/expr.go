@@ -562,7 +562,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 				// see commented out code for StarExpr above
 				// TODO(gri) needs cleanup
 				if debug {
-					unimplemented()
+					panic("unimplemented")
 				}
 				return
 			}

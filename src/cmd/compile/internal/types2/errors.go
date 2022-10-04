@@ -15,10 +15,6 @@ import (
 	"strings"
 )
 
-func unimplemented() {
-	panic("unimplemented")
-}
-
 func assert(p bool) {
 	if !p {
 		msg := "assertion failed"
