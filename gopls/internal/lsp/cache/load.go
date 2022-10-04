@@ -17,11 +17,11 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 )
@@ -504,12 +504,6 @@ func buildMetadata(ctx context.Context, pkgPath PackagePath, pkg *packages.Packa
 	}
 	updates[id] = m
 
-	// Identify intermediate test variants for later filtering. See the
-	// documentation of IsIntermediateTestVariant for more information.
-	if m.ForTest != "" && m.ForTest != m.PkgPath && m.ForTest+"_test" != m.PkgPath {
-		m.IsIntermediateTestVariant = true
-	}
-
 	for _, err := range pkg.Errors {
 		// Filter out parse errors from go list. We'll get them when we
 		// actually parse, and buggy overlay support may generate spurious
@@ -686,6 +680,9 @@ func computeWorkspacePackagesLocked(s *snapshot, meta *metadataGraph) map[Packag
 		case m.ForTest == m.PkgPath, m.ForTest+"_test" == m.PkgPath:
 			// The test variant of some workspace package or its x_test.
 			// To load it, we need to load the non-test variant with -test.
+			//
+			// Notably, this excludes intermediate test variants from workspace
+			// packages.
 			workspacePackages[m.ID] = m.ForTest
 		}
 	}

@@ -39,34 +39,6 @@ type Metadata struct {
 
 	// Config is the *packages.Config associated with the loaded package.
 	Config *packages.Config
-
-	// IsIntermediateTestVariant reports whether the given package is an
-	// intermediate test variant, e.g.
-	// "golang.org/x/tools/gopls/internal/lsp/cache [golang.org/x/tools/gopls/internal/lsp/source.test]".
-	//
-	// Such test variants arise when an x_test package (in this case source_test)
-	// imports a package (in this case cache) that itself imports the the
-	// non-x_test package (in this case source).
-	//
-	// This is done so that the forward transitive closure of source_test has
-	// only one package for the "golang.org/x/tools/gopls/internal/lsp/source" import.
-	// The intermediate test variant exists to hold the test variant import:
-	//
-	// golang.org/x/tools/gopls/internal/lsp/source_test [golang.org/x/tools/gopls/internal/lsp/source.test]
-	//  | "golang.org/x/tools/gopls/internal/lsp/cache" -> golang.org/x/tools/gopls/internal/lsp/cache [golang.org/x/tools/gopls/internal/lsp/source.test]
-	//  | "golang.org/x/tools/gopls/internal/lsp/source" -> golang.org/x/tools/gopls/internal/lsp/source [golang.org/x/tools/gopls/internal/lsp/source.test]
-	//  | ...
-	//
-	// golang.org/x/tools/gopls/internal/lsp/cache [golang.org/x/tools/gopls/internal/lsp/source.test]
-	//  | "golang.org/x/tools/gopls/internal/lsp/source" -> golang.org/x/tools/gopls/internal/lsp/source [golang.org/x/tools/gopls/internal/lsp/source.test]
-	//  | ...
-	//
-	// We filter these variants out in certain places. For example, there is
-	// generally no reason to run diagnostics or analysis on them.
-	//
-	// TODO(rfindley): this can probably just be a method, since it is derived
-	// from other fields.
-	IsIntermediateTestVariant bool
 }
 
 // Name implements the source.Metadata interface.
@@ -77,6 +49,40 @@ func (m *Metadata) PackageName() string {
 // PkgPath implements the source.Metadata interface.
 func (m *Metadata) PackagePath() string {
 	return string(m.PkgPath)
+}
+
+// IsIntermediateTestVariant reports whether the given package is an
+// intermediate test variant, e.g. "net/http [net/url.test]".
+//
+// Such test variants arise when an x_test package (in this case net/url_test)
+// imports a package (in this case net/http) that itself imports the the
+// non-x_test package (in this case net/url).
+//
+// This is done so that the forward transitive closure of net/url_test has
+// only one package for the "net/url" import.
+// The intermediate test variant exists to hold the test variant import:
+//
+// net/url_test [net/url.test]
+//
+//	| "net/http" -> net/http [net/url.test]
+//	| "net/url" -> net/url [net/url.test]
+//	| ...
+//
+// net/http [net/url.test]
+//
+//	| "net/url" -> net/url [net/url.test]
+//	| ...
+//
+// This restriction propagates throughout the import graph of net/http: for
+// every package imported by net/http that imports net/url, there must be an
+// intermediate test variant that instead imports "net/url [net/url.test]".
+//
+// As one can see from the example of net/url and net/http, intermediate test
+// variants can result in many additional packages that are essentially (but
+// not quite) identical. For this reason, we filter these variants wherever
+// possible.
+func (m *Metadata) IsIntermediateTestVariant() bool {
+	return m.ForTest != "" && m.ForTest != m.PkgPath && m.ForTest+"_test" != m.PkgPath
 }
 
 // ModuleInfo implements the source.Metadata interface.

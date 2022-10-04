@@ -695,7 +695,7 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	for _, id := range knownIDs {
 		// Filter out any intermediate test variants. We typically aren't
 		// interested in these packages for file= style queries.
-		if m := s.getMetadata(id); m != nil && m.IsIntermediateTestVariant && !withIntermediateTestVariants {
+		if m := s.getMetadata(id); m != nil && m.IsIntermediateTestVariant() && !withIntermediateTestVariants {
 			continue
 		}
 		var parseModes []source.ParseMode
