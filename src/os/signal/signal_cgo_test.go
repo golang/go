@@ -11,52 +11,72 @@
 package signal_test
 
 import (
-	"bufio"
-	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
-	"io"
-	"io/fs"
 	"os"
 	"os/exec"
+	"os/signal"
 	ptypkg "os/signal/internal/pty"
+	"runtime"
 	"strconv"
-	"strings"
-	"sync"
 	"syscall"
+	"unsafe"
 	"testing"
 	"time"
 )
 
+const (
+	ptyFD     = 3  // child end of pty.
+	controlFD = 4  // child end of control pipe.
+)
+
+// TestTerminalSignal tests that read from a pseudo-terminal does not return an
+// error if the process is SIGSTOP'd and put in the background during the read.
+//
+// This test simulates stopping a Go process running in a shell with ^Z and
+// then resuming with `fg`.
+//
+// This is a regression test for https://go.dev/issue/22838. On Darwin, PTY
+// reads return EINTR when this occurs, and Go should automatically retry.
 func TestTerminalSignal(t *testing.T) {
-	const enteringRead = "test program entering read"
-	if os.Getenv("GO_TEST_TERMINAL_SIGNALS") != "" {
-		var b [1]byte
-		fmt.Println(enteringRead)
-		n, err := os.Stdin.Read(b[:])
-		if n == 1 {
-			if b[0] == '\n' {
-				// This is what we expect
-				fmt.Println("read newline")
-			} else {
-				fmt.Printf("read 1 byte: %q\n", b)
-			}
-		} else {
-			fmt.Printf("read %d bytes\n", n)
-		}
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}
+	// This test simulates stopping a Go process running in a shell with ^Z
+	// and then resuming with `fg`. This sounds simple, but is actually
+	// quite complicated.
+	//
+	// In principle, what we are doing is:
+	// 1. Creating a new PTY parent/child FD pair.
+	// 2. Create a child that is in the foreground process group of the PTY, and read() from that process.
+	// 3. Stop the child with ^Z.
+	// 4. Take over as foreground process group of the PTY from the parent.
+	// 5. Make the child foreground process group again.
+	// 6. Continue the child.
+	//
+	// On Darwin, step 4 results in the read() returning EINTR once the
+	// process continues. internal/poll should automatically retry the
+	// read.
+	//
+	// These steps are complicated by the rules around foreground process
+	// groups. A process group cannot be foreground if it is "orphaned",
+	// unless it masks SIGTTOU.  i.e., to be foreground the process group
+	// must have a parent process group in the same session or mask SIGTTOU
+	// (which we do). An orphaned process group cannot receive
+	// terminal-generated SIGTSTP at all.
+	//
+	// Achieving this requires three processes total:
+	// - Top-level process: this is the main test process and creates the
+	// pseudo-terminal.
+	// - GO_TEST_TERMINAL_SIGNALS=1: This process creates a new process
+	// group and session. The PTY is the controlling terminal for this
+	// session. This process masks SIGTTOU, making it eligible to be a
+	// foreground process group. This process will take over as foreground
+	// from subprocess 2 (step 4 above).
+	// - GO_TEST_TERMINAL_SIGNALS=2: This process create a child process
+	// group of subprocess 1, and is the original foreground process group
+	// for the PTY. This subprocess is the one that is SIGSTOP'd.
 
-	t.Parallel()
-
-	// The test requires a shell that uses job control.
-	bash, err := exec.LookPath("bash")
-	if err != nil {
-		t.Skipf("could not find bash: %v", err)
+	if runtime.GOOS == "dragonfly" {
+		t.Skip("skipping: wait hangs on dragonfly; see https://go.dev/issue/56132")
 	}
 
 	scale := 1
@@ -66,10 +86,24 @@ func TestTerminalSignal(t *testing.T) {
 		}
 	}
 	pause := time.Duration(scale) * 10 * time.Millisecond
-	wait := time.Duration(scale) * 5 * time.Second
 
-	// The test only fails when using a "slow device," in this
-	// case a pseudo-terminal.
+	lvl := os.Getenv("GO_TEST_TERMINAL_SIGNALS")
+	switch lvl {
+	case "":
+		// Main test process, run code below.
+		break
+	case "1":
+		runSessionLeader(pause)
+		panic("unreachable")
+	case "2":
+		runStoppingChild()
+		panic("unreachable")
+	default:
+		fmt.Fprintf(os.Stderr, "unknown subprocess level %s", lvl)
+		os.Exit(1)
+	}
+
+	t.Parallel()
 
 	pty, procTTYName, err := ptypkg.Open()
 	if err != nil {
@@ -86,19 +120,26 @@ func TestTerminalSignal(t *testing.T) {
 	}
 	defer procTTY.Close()
 
-	// Start an interactive shell.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Control pipe. GO_TEST_TERMINAL_SIGNALS=2 send the PID of
+	// GO_TEST_TERMINAL_SIGNALS=3 here. After SIGSTOP, it also writes a
+	// byte to indicate that the foreground cycling is complete.
+	controlR, controlW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bash, "--norc", "--noprofile", "--noediting", "-i")
-	// Clear HISTFILE so that we don't read or clobber the user's bash history.
-	cmd.Env = append(os.Environ(), "HISTFILE=")
-	cmd.Stdin = procTTY
-	cmd.Stdout = procTTY
-	cmd.Stderr = procTTY
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestTerminalSignal")
+	cmd.Env = append(os.Environ(), "GO_TEST_TERMINAL_SIGNALS=1")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout // for logging
+	cmd.Stderr = os.Stderr
+	cmd.ExtraFiles = []*os.File{procTTY, controlW}
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setsid:  true,
 		Setctty: true,
-		Ctty:    0,
+		Ctty:    ptyFD,
 	}
 
 	if err := cmd.Start(); err != nil {
@@ -109,78 +150,31 @@ func TestTerminalSignal(t *testing.T) {
 		t.Errorf("closing procTTY: %v", err)
 	}
 
-	progReady := make(chan bool)
-	sawPrompt := make(chan bool, 10)
-	const prompt = "prompt> "
-
-	// Read data from pty in the background.
-	var wg sync.WaitGroup
-	wg.Add(1)
-	defer wg.Wait()
-	go func() {
-		defer wg.Done()
-		input := bufio.NewReader(pty)
-		var line, handled []byte
-		for {
-			b, err := input.ReadByte()
-			if err != nil {
-				if len(line) > 0 || len(handled) > 0 {
-					t.Logf("%q", append(handled, line...))
-				}
-				if perr, ok := err.(*fs.PathError); ok {
-					err = perr.Err
-				}
-				// EOF means pty is closed.
-				// EIO means child process is done.
-				// "file already closed" means deferred close of pty has happened.
-				if err != io.EOF && err != syscall.EIO && !strings.Contains(err.Error(), "file already closed") {
-					t.Logf("error reading from pty: %v", err)
-				}
-				return
-			}
-
-			line = append(line, b)
-
-			if b == '\n' {
-				t.Logf("%q", append(handled, line...))
-				line = nil
-				handled = nil
-				continue
-			}
-
-			if bytes.Contains(line, []byte(enteringRead)) {
-				close(progReady)
-				handled = append(handled, line...)
-				line = nil
-			} else if bytes.Contains(line, []byte(prompt)) && !bytes.Contains(line, []byte("PS1=")) {
-				sawPrompt <- true
-				handled = append(handled, line...)
-				line = nil
-			}
-		}
-	}()
-
-	// Set the bash prompt so that we can see it.
-	if _, err := pty.Write([]byte("PS1='" + prompt + "'\n")); err != nil {
-		t.Fatalf("setting prompt: %v", err)
-	}
-	select {
-	case <-sawPrompt:
-	case <-time.After(wait):
-		t.Fatal("timed out waiting for shell prompt")
+	if err := controlW.Close(); err != nil {
+		t.Errorf("closing controlW: %v", err)
 	}
 
-	// Start a small program that reads from stdin
-	// (namely the code at the top of this function).
-	if _, err := pty.Write([]byte("GO_TEST_TERMINAL_SIGNALS=1 " + os.Args[0] + " -test.run=TestTerminalSignal\n")); err != nil {
-		t.Fatal(err)
+	// Wait for first child to send the second child's PID.
+	b := make([]byte, 8)
+	n, err := controlR.Read(b)
+	if err != nil {
+		t.Fatalf("error reading child pid: %v\n", err)
+	}
+	if n != 8 {
+		t.Fatalf("unexpected short read n = %d\n", n)
+	}
+	pid := binary.LittleEndian.Uint64(b[:])
+	process, err := os.FindProcess(int(pid))
+	if err != nil {
+		t.Fatalf("unable to find child process: %v", err)
 	}
 
-	// Wait for the program to print that it is starting.
-	select {
-	case <-progReady:
-	case <-time.After(wait):
-		t.Fatal("timed out waiting for program to start")
+	// Wait for the third child to write a byte indicating that it is
+	// entering the read.
+	b = make([]byte, 1)
+	_, err = pty.Read(b)
+	if err != nil {
+		t.Fatalf("error reading from child: %v", err)
 	}
 
 	// Give the program time to enter the read call.
@@ -189,51 +183,168 @@ func TestTerminalSignal(t *testing.T) {
 	// will pass.
 	time.Sleep(pause)
 
+	t.Logf("Sending ^Z...")
+
 	// Send a ^Z to stop the program.
 	if _, err := pty.Write([]byte{26}); err != nil {
 		t.Fatalf("writing ^Z to pty: %v", err)
 	}
 
-	// Wait for the program to stop and return to the shell.
-	select {
-	case <-sawPrompt:
-	case <-time.After(wait):
-		t.Fatal("timed out waiting for shell prompt")
+	// Wait for subprocess 1 to cycle the foreground process group.
+	if _, err := controlR.Read(b); err != nil {
+		t.Fatalf("error reading readiness: %v", err)
 	}
+
+	t.Logf("Sending SIGCONT...")
 
 	// Restart the stopped program.
-	if _, err := pty.Write([]byte("fg\n")); err != nil {
-		t.Fatalf("writing %q to pty: %v", "fg", err)
+	if err := process.Signal(syscall.SIGCONT); err != nil {
+		t.Fatalf("Signal(SIGCONT) got err %v want nil", err)
 	}
 
-	// Give the process time to restart.
-	// This is potentially racy: if the process does not restart
-	// quickly enough then the byte we send will go to bash rather
-	// than the program. Unfortunately there isn't anything we can
-	// look for to know that the program is running again.
-	// bash will print the program name, but that happens before it
-	// restarts the program.
-	time.Sleep(10 * pause)
-
-	// Write some data for the program to read,
-	// which should cause it to exit.
+	// Write some data for the program to read, which should cause it to
+	// exit.
 	if _, err := pty.Write([]byte{'\n'}); err != nil {
 		t.Fatalf("writing %q to pty: %v", "\n", err)
 	}
 
-	// Wait for the program to exit.
-	select {
-	case <-sawPrompt:
-	case <-time.After(wait):
-		t.Fatal("timed out waiting for shell prompt")
-	}
-
-	// Exit the shell with the program's exit status.
-	if _, err := pty.Write([]byte("exit $?\n")); err != nil {
-		t.Fatalf("writing %q to pty: %v", "exit", err)
-	}
+	t.Logf("Waiting for exit...")
 
 	if err = cmd.Wait(); err != nil {
 		t.Errorf("subprogram failed: %v", err)
 	}
+}
+
+// GO_TEST_TERMINAL_SIGNALS=1 subprocess above.
+func runSessionLeader(pause time.Duration) {
+	// "Attempts to use tcsetpgrp() from a process which is a
+	// member of a background process group on a fildes associated
+	// with its controlling terminal shall cause the process group
+	// to be sent a SIGTTOU signal. If the calling thread is
+	// blocking SIGTTOU signals or the process is ignoring SIGTTOU
+	// signals, the process shall be allowed to perform the
+	// operation, and no signal is sent."
+	//  -https://pubs.opengroup.org/onlinepubs/9699919799/functions/tcsetpgrp.html
+	//
+	// We are changing the terminal to put us in the foreground, so
+	// we must ignore SIGTTOU. We are also an orphaned process
+	// group (see above), so we must mask SIGTTOU to be eligible to
+	// become foreground at all.
+	signal.Ignore(syscall.SIGTTOU)
+
+	pty := os.NewFile(ptyFD, "pty")
+	controlW := os.NewFile(controlFD, "control-pipe")
+
+	// Slightly shorter timeout than in the parent.
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestTerminalSignal")
+	cmd.Env = append(os.Environ(), "GO_TEST_TERMINAL_SIGNALS=2")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.ExtraFiles = []*os.File{pty}
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Foreground: true,
+		Ctty:       ptyFD,
+	}
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "error starting second subprocess: %v\n", err)
+		os.Exit(1)
+	}
+
+	fn := func() error {
+		var b [8]byte
+		binary.LittleEndian.PutUint64(b[:], uint64(cmd.Process.Pid))
+		_, err := controlW.Write(b[:])
+		if err != nil {
+			return fmt.Errorf("error writing child pid: %w", err)
+		}
+
+		// Wait for stop.
+		var status syscall.WaitStatus
+		var errno syscall.Errno
+		for {
+			_, _, errno = syscall.Syscall6(syscall.SYS_WAIT4, uintptr(cmd.Process.Pid), uintptr(unsafe.Pointer(&status)), syscall.WUNTRACED, 0, 0, 0)
+			if errno != syscall.EINTR {
+				break
+			}
+		}
+		if errno != 0 {
+			return fmt.Errorf("error waiting for stop: %w", errno)
+		}
+
+		if !status.Stopped() {
+			return fmt.Errorf("unexpected wait status: %v", status)
+		}
+
+		// Take TTY.
+		pgrp := syscall.Getpgrp()
+		_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, ptyFD, syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&pgrp)))
+		if errno != 0 {
+			return fmt.Errorf("error setting tty process group: %w", errno)
+		}
+
+		// Give the kernel time to potentially wake readers and have
+		// them return EINTR (darwin does this).
+		time.Sleep(pause)
+
+		// Give TTY back.
+		pid := uint64(cmd.Process.Pid)
+		_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, ptyFD, syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&pid)))
+		if errno != 0 {
+			return fmt.Errorf("error setting tty process group back: %w", errno)
+		}
+
+		// Report that we are done and SIGCONT can be sent. Note that
+		// the actual byte we send doesn't matter.
+		if _, err := controlW.Write(b[:1]); err != nil {
+			return fmt.Errorf("error writing readiness: %w", err)
+		}
+
+		return nil
+	}
+
+	err := fn()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "session leader error: %v", err)
+		cmd.Process.Kill()
+		// Wait for exit below.
+	}
+
+	werr := cmd.Wait()
+	if werr != nil {
+		fmt.Fprintf(os.Stderr, "error running second subprocess: %v\n", err)
+	}
+
+	if err != nil || werr != nil {
+		os.Exit(1)
+	}
+
+	os.Exit(0)
+}
+
+// GO_TEST_TERMINAL_SIGNALS=2 subprocess above.
+func runStoppingChild() {
+	pty := os.NewFile(ptyFD, "pty")
+
+	var b [1]byte
+	if _, err := pty.Write(b[:]); err != nil {
+		fmt.Fprintf(os.Stderr, "error writing byte to PTY: %v", err)
+		os.Exit(1)
+	}
+
+	_, err := pty.Read(b[:])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if b[0] == '\n' {
+		// This is what we expect
+		fmt.Println("read newline")
+	} else {
+		fmt.Fprintf(os.Stderr, "read 1 unexpected byte: %q\n", b)
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
