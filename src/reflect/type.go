@@ -2005,13 +2005,15 @@ var funcTypesMutex sync.Mutex
 func initFuncTypes(n int) Type {
 	funcTypesMutex.Lock()
 	defer funcTypesMutex.Unlock()
-	if n < len(funcTypes) && funcTypes[n] != nil {
+	if n >= len(funcTypes) {
+		newFuncTypes := make([]Type, n+1)
+		copy(newFuncTypes, funcTypes)
+		funcTypes = newFuncTypes
+	}
+	if funcTypes[n] != nil {
 		return funcTypes[n]
 	}
 
-	newFuncTypes := make([]Type, n+1)
-	copy(newFuncTypes, funcTypes)
-	funcTypes = newFuncTypes
 	funcTypes[n] = StructOf([]StructField{
 		{
 			Name: "FuncType",
