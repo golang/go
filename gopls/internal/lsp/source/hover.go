@@ -22,10 +22,10 @@ import (
 
 	"golang.org/x/text/unicode/runenames"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -237,7 +237,7 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 		return 0, MappedRange{}, ErrNoRuneFound
 	}
 
-	mappedRange, err := posToMappedRange(snapshot, pkg, start, end)
+	mappedRange, err := posToMappedRange(snapshot.FileSet(), pkg, start, end)
 	if err != nil {
 		return 0, MappedRange{}, err
 	}

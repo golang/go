@@ -138,7 +138,10 @@ type Snapshot interface {
 
 	// PackagesForFile returns an unordered list of packages that contain
 	// the file denoted by uri, type checked in the specified mode.
-	PackagesForFile(ctx context.Context, uri span.URI, mode TypecheckMode, includeTestVariants bool) ([]Package, error)
+	//
+	// If withIntermediateTestVariants is set, the resulting package set includes
+	// intermediate test variants.
+	PackagesForFile(ctx context.Context, uri span.URI, mode TypecheckMode, withIntermediateTestVariants bool) ([]Package, error)
 
 	// PackageForFile returns a single package that this file belongs to,
 	// checked in mode and filtered by the package policy.

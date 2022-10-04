@@ -671,7 +671,7 @@ func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source
 	return ph.await(ctx, s)
 }
 
-func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, includeTestVariants bool) ([]*packageHandle, error) {
+func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, withIntermediateTestVariants bool) ([]*packageHandle, error) {
 	// TODO(rfindley): why can't/shouldn't we awaitLoaded here? It seems that if
 	// we ask for package handles for a file, we should wait for pending loads.
 	// Else we will reload orphaned files before the initial load completes.
@@ -695,7 +695,7 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	for _, id := range knownIDs {
 		// Filter out any intermediate test variants. We typically aren't
 		// interested in these packages for file= style queries.
-		if m := s.getMetadata(id); m != nil && m.IsIntermediateTestVariant && !includeTestVariants {
+		if m := s.getMetadata(id); m != nil && m.IsIntermediateTestVariant && !withIntermediateTestVariants {
 			continue
 		}
 		var parseModes []source.ParseMode

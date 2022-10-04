@@ -13,12 +13,12 @@ import (
 	"go/types"
 	"strings"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/snippet"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -80,7 +80,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		if _, ok := obj.Type().(*types.Struct); ok {
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
-			detail = source.FormatVarType(ctx, c.snapshot, c.pkg, obj, c.qf)
+			detail = source.FormatVarType(c.snapshot.FileSet(), c.pkg, obj, c.qf)
 		}
 		if obj.IsField() {
 			kind = protocol.FieldCompletion
@@ -237,7 +237,7 @@ Suffixes:
 	uri := span.URIFromPath(pos.Filename)
 
 	// Find the source file of the candidate.
-	pkg, err := source.FindPackageFromPos(ctx, c.snapshot, obj.Pos())
+	pkg, err := source.FindPackageFromPos(c.snapshot.FileSet(), c.pkg, obj.Pos())
 	if err != nil {
 		return item, nil
 	}

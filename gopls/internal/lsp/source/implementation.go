@@ -32,7 +32,7 @@ func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 		if impl.pkg == nil || len(impl.pkg.CompiledGoFiles()) == 0 {
 			continue
 		}
-		rng, err := objToMappedRange(snapshot, impl.pkg, impl.obj)
+		rng, err := objToMappedRange(snapshot.FileSet(), impl.pkg, impl.obj)
 		if err != nil {
 			return nil, err
 		}

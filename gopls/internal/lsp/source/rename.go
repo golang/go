@@ -117,7 +117,7 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 }
 
 func computePrepareRenameResp(snapshot Snapshot, pkg Package, node ast.Node, text string) (*PrepareItem, error) {
-	mr, err := posToMappedRange(snapshot, pkg, node.Pos(), node.End())
+	mr, err := posToMappedRange(snapshot.FileSet(), pkg, node.Pos(), node.End())
 	if err != nil {
 		return nil, err
 	}
@@ -163,11 +163,16 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	}
 
 	if inPackageName {
-		pkgs, err := s.PackagesForFile(ctx, f.URI(), TypecheckAll, true)
+		// Since we only take one package below, no need to include test variants.
+		//
+		// TODO(rfindley): but is this correct? What about x_test packages that
+		// import the renaming package?
+		const includeTestVariants = false
+		pkgs, err := s.PackagesForFile(ctx, f.URI(), TypecheckAll, includeTestVariants)
 		if err != nil {
 			return nil, true, err
 		}
-		var pkg Package
+		var pkg Package // TODO(rfindley): we should consider all packages, so that we get the full reverse transitive closure.
 		for _, p := range pkgs {
 			// pgf.File.Name must not be nil, else this will panic.
 			if pgf.File.Name.Name == p.Name() {

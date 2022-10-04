@@ -206,7 +206,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 					continue
 				}
 				seen[key] = true
-				rng, err := posToMappedRange(snapshot, pkg, ident.Pos(), ident.End())
+				rng, err := posToMappedRange(snapshot.FileSet(), pkg, ident.Pos(), ident.End())
 				if err != nil {
 					return nil, err
 				}
