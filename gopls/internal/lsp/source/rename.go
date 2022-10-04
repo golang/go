@@ -76,7 +76,7 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 			err := errors.New("can't rename package: LSP client does not support file renaming")
 			return nil, err, err
 		}
-		renamingPkg, err := snapshot.PackageForFile(ctx, f.URI(), TypecheckAll, NarrowestPackage)
+		renamingPkg, err := snapshot.PackageForFile(ctx, f.URI(), TypecheckWorkspace, NarrowestPackage)
 		if err != nil {
 			return nil, err, err
 		}
@@ -169,7 +169,7 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 		// TODO(rfindley): but is this correct? What about x_test packages that
 		// import the renaming package?
 		const includeTestVariants = false
-		pkgs, err := s.PackagesForFile(ctx, f.URI(), TypecheckAll, includeTestVariants)
+		pkgs, err := s.PackagesForFile(ctx, f.URI(), TypecheckWorkspace, includeTestVariants)
 		if err != nil {
 			return nil, true, err
 		}

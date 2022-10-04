@@ -437,16 +437,11 @@ var AllParseModes = []ParseMode{ParseHeader, ParseExported, ParseFull}
 type TypecheckMode int
 
 const (
-	// Invalid default value.
-	TypecheckUnknown TypecheckMode = iota
 	// TypecheckFull means to use ParseFull.
-	TypecheckFull
+	TypecheckFull TypecheckMode = iota
 	// TypecheckWorkspace means to use ParseFull for workspace packages, and
 	// ParseExported for others.
 	TypecheckWorkspace
-	// TypecheckAll means ParseFull for workspace packages, and both Full and
-	// Exported for others. Only valid for some functions.
-	TypecheckAll
 )
 
 type VersionedFileHandle interface {

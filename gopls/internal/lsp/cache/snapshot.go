@@ -698,27 +698,16 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 		if m := s.getMetadata(id); m != nil && m.IsIntermediateTestVariant() && !withIntermediateTestVariants {
 			continue
 		}
-		var parseModes []source.ParseMode
-		switch mode {
-		case source.TypecheckAll:
-			if s.workspaceParseMode(id) == source.ParseFull {
-				parseModes = []source.ParseMode{source.ParseFull}
-			} else {
-				parseModes = []source.ParseMode{source.ParseExported, source.ParseFull}
-			}
-		case source.TypecheckFull:
-			parseModes = []source.ParseMode{source.ParseFull}
-		case source.TypecheckWorkspace:
-			parseModes = []source.ParseMode{s.workspaceParseMode(id)}
+		parseMode := source.ParseFull
+		if mode == source.TypecheckWorkspace {
+			parseMode = s.workspaceParseMode(id)
 		}
 
-		for _, parseMode := range parseModes {
-			ph, err := s.buildPackageHandle(ctx, id, parseMode)
-			if err != nil {
-				return nil, err
-			}
-			phs = append(phs, ph)
+		ph, err := s.buildPackageHandle(ctx, id, parseMode)
+		if err != nil {
+			return nil, err
 		}
+		phs = append(phs, ph)
 	}
 	return phs, nil
 }

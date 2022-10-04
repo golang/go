@@ -1137,7 +1137,8 @@ func (e *Editor) InlayHint(ctx context.Context, path string) ([]protocol.InlayHi
 	return hints, nil
 }
 
-// References executes a reference request on the server.
+// References returns references to the object at (path, pos), as returned by
+// the connected LSP server. If no server is connected, it returns (nil, nil).
 func (e *Editor) References(ctx context.Context, path string, pos Pos) ([]protocol.Location, error) {
 	if e.Server == nil {
 		return nil, nil
@@ -1164,6 +1165,8 @@ func (e *Editor) References(ctx context.Context, path string, pos Pos) ([]protoc
 	return locations, nil
 }
 
+// Rename performs a rename of the object at (path, pos) to newName, using the
+// connected LSP server. If no server is connected, it returns nil.
 func (e *Editor) Rename(ctx context.Context, path string, pos Pos, newName string) error {
 	if e.Server == nil {
 		return nil
@@ -1183,6 +1186,28 @@ func (e *Editor) Rename(ctx context.Context, path string, pos Pos, newName strin
 		}
 	}
 	return nil
+}
+
+// Implementations returns implementations for the object at (path, pos), as
+// returned by the connected LSP server. If no server is connected, it returns
+// (nil, nil).
+func (e *Editor) Implementations(ctx context.Context, path string, pos Pos) ([]protocol.Location, error) {
+	if e.Server == nil {
+		return nil, nil
+	}
+	e.mu.Lock()
+	_, ok := e.buffers[path]
+	e.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("buffer %q is not open", path)
+	}
+	params := &protocol.ImplementationParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: e.TextDocumentIdentifier(path),
+			Position:     pos.ToProtocolPosition(),
+		},
+	}
+	return e.Server.Implementation(ctx, params)
 }
 
 func (e *Editor) RenameFile(ctx context.Context, oldPath, newPath string) error {

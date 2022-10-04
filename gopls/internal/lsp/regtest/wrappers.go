@@ -389,8 +389,7 @@ func (e *Env) WorkspaceSymbol(sym string) []protocol.SymbolInformation {
 	return ans
 }
 
-// References calls textDocument/references for the given path at the given
-// position.
+// References wraps Editor.References, calling t.Fatal on any error.
 func (e *Env) References(path string, pos fake.Pos) []protocol.Location {
 	e.T.Helper()
 	locations, err := e.Editor.References(e.Ctx, path, pos)
@@ -406,6 +405,16 @@ func (e *Env) Rename(path string, pos fake.Pos, newName string) {
 	if err := e.Editor.Rename(e.Ctx, path, pos, newName); err != nil {
 		e.T.Fatal(err)
 	}
+}
+
+// Implementations wraps Editor.Implementations, calling t.Fatal on any error.
+func (e *Env) Implementations(path string, pos fake.Pos) []protocol.Location {
+	e.T.Helper()
+	locations, err := e.Editor.Implementations(e.Ctx, path, pos)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return locations
 }
 
 // RenameFile wraps Editor.RenameFile, calling t.Fatal on any error.

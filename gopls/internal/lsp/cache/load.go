@@ -655,6 +655,7 @@ func computeWorkspacePackagesLocked(s *snapshot, meta *metadataGraph) map[Packag
 		if !m.Valid {
 			continue
 		}
+
 		if !containsPackageLocked(s, m.Metadata) {
 			continue
 		}

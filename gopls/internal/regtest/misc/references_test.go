@@ -6,9 +6,12 @@ package misc
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
 
@@ -165,6 +168,122 @@ func main() {
 				if !hasBase {
 					t.Fatalf("got [%v], want reference ends with \"%v\"", strings.Join(refURIs, ","), base)
 				}
+			}
+		}
+	})
+}
+
+// Test for golang/go#43144.
+//
+// Verify that we search for references and implementations in intermediate
+// test variants.
+func TestReferencesInTestVariants(t *testing.T) {
+	const files = `
+-- go.mod --
+module foo.mod
+
+go 1.12
+-- foo/foo.go --
+package foo
+
+import "foo.mod/bar"
+
+const Foo = 42
+
+type T int
+type Interface interface{ M() }
+
+func _() {
+	_ = bar.Blah
+}
+
+-- bar/bar.go --
+package bar
+
+var Blah = 123
+
+-- bar/bar_test.go --
+package bar
+
+type Mer struct{}
+func (Mer) M() {}
+
+func TestBar() {
+	_ = Blah
+}
+-- bar/bar_x_test.go --
+package bar_test
+
+import (
+	"foo.mod/bar"
+	"foo.mod/foo"
+)
+
+type Mer struct{}
+func (Mer) M() {}
+
+func _() {
+	_ = bar.Blah
+	_ = foo.Foo
+}
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("foo/foo.go")
+
+		// Helper to map locations relative file paths.
+		fileLocations := func(locs []protocol.Location) []string {
+			var got []string
+			for _, loc := range locs {
+				got = append(got, env.Sandbox.Workdir.URIToPath(loc.URI))
+			}
+			sort.Strings(got)
+			return got
+		}
+
+		refTests := []struct {
+			re       string
+			wantRefs []string
+		}{
+			// Blah is referenced:
+			// - inside the foo.mod/bar (ordinary) package
+			// - inside the foo.mod/bar [foo.mod/bar.test] test variant package
+			// - from the foo.mod/bar_test [foo.mod/bar.test] x_test package
+			// - from the foo.mod/foo package
+			{"Blah", []string{"bar/bar.go", "bar/bar_test.go", "bar/bar_x_test.go", "foo/foo.go"}},
+
+			// Foo is referenced in bar_x_test.go via the intermediate test variant
+			// foo.mod/foo [foo.mod/bar.test].
+			{"Foo", []string{"bar/bar_x_test.go", "foo/foo.go"}},
+		}
+
+		for _, test := range refTests {
+			pos := env.RegexpSearch("foo/foo.go", test.re)
+			refs := env.References("foo/foo.go", pos)
+
+			got := fileLocations(refs)
+			if diff := cmp.Diff(test.wantRefs, got); diff != "" {
+				t.Errorf("References(%q) returned unexpected diff (-want +got):\n%s", test.re, diff)
+			}
+		}
+
+		implTests := []struct {
+			re        string
+			wantImpls []string
+		}{
+			// Interface is implemented both in foo.mod/bar [foo.mod/bar.test] (which
+			// doesn't import foo), and in foo.mod/bar_test [foo.mod/bar.test], which
+			// imports the test variant of foo.
+			{"Interface", []string{"bar/bar_test.go", "bar/bar_x_test.go"}},
+		}
+
+		for _, test := range implTests {
+			pos := env.RegexpSearch("foo/foo.go", test.re)
+			refs := env.Implementations("foo/foo.go", pos)
+
+			got := fileLocations(refs)
+			if diff := cmp.Diff(test.wantImpls, got); diff != "" {
+				t.Errorf("Implementations(%q) returned unexpected diff (-want +got):\n%s", test.re, diff)
 			}
 		}
 	})
