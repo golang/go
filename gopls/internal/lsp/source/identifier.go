@@ -12,7 +12,6 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	"sort"
 	"strconv"
 
 	"golang.org/x/tools/go/ast/astutil"
@@ -81,42 +80,22 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, position 
 	ctx, done := event.Start(ctx, "source.Identifier")
 	defer done()
 
-	// TODO(rfindley): Why isn't this PackageForFile? A single package should
-	// suffice to find identifier info.
-	pkgs, err := snapshot.PackagesForFile(ctx, fh.URI(), TypecheckAll, false)
+	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), TypecheckFull, NarrowestPackage)
 	if err != nil {
 		return nil, err
 	}
-	if len(pkgs) == 0 {
-		return nil, fmt.Errorf("no packages for file %v", fh.URI())
+	pgf, err := pkg.File(fh.URI())
+	if err != nil {
+		// We shouldn't get a package from PackagesForFile that doesn't actually
+		// contain the file.
+		bug.Report("missing package file", bug.Data{"pkg": pkg.ID(), "file": fh.URI()})
+		return nil, err
 	}
-	sort.Slice(pkgs, func(i, j int) bool {
-		// Prefer packages with a more complete parse mode.
-		if pkgs[i].ParseMode() != pkgs[j].ParseMode() {
-			return pkgs[i].ParseMode() > pkgs[j].ParseMode()
-		}
-		return len(pkgs[i].CompiledGoFiles()) < len(pkgs[j].CompiledGoFiles())
-	})
-	var findErr error
-	for _, pkg := range pkgs {
-		pgf, err := pkg.File(fh.URI())
-		if err != nil {
-			// We shouldn't get a package from PackagesForFile that doesn't actually
-			// contain the file.
-			bug.Report("missing package file", bug.Data{"pkg": pkg.ID(), "file": fh.URI()})
-			return nil, err
-		}
-		pos, err := pgf.Mapper.Pos(position)
-		if err != nil {
-			return nil, err
-		}
-		var ident *IdentifierInfo
-		ident, findErr = findIdentifier(ctx, snapshot, pkg, pgf, pos)
-		if findErr == nil {
-			return ident, nil
-		}
+	pos, err := pgf.Mapper.Pos(position)
+	if err != nil {
+		return nil, err
 	}
-	return nil, findErr
+	return findIdentifier(ctx, snapshot, pkg, pgf, pos)
 }
 
 // ErrNoIdentFound is error returned when no identifier is found at a particular position
