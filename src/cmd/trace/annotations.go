@@ -1095,7 +1095,7 @@ Search log text: <form onsubmit="window.location.search+='&logtext='+window.logt
 `))
 
 func elapsed(d time.Duration) string {
-	b := []byte(fmt.Sprintf("%.9f", d.Seconds()))
+	b := fmt.Appendf(nil, "%.9f", d.Seconds())
 
 	// For subsecond durations, blank all zeros before decimal point,
 	// and all zeros between the decimal point and the first non-zero digit.

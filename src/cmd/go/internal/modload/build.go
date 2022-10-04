@@ -431,12 +431,12 @@ func ModInfoProg(info string, isgccgo bool) []byte {
 	// look at the module info in their init functions (see issue 29628),
 	// which won't work. See also issue 30344.
 	if isgccgo {
-		return []byte(fmt.Sprintf(`package main
+		return fmt.Appendf(nil, `package main
 import _ "unsafe"
 //go:linkname __set_debug_modinfo__ runtime.setmodinfo
 func __set_debug_modinfo__(string)
 func init() { __set_debug_modinfo__(%q) }
-`, ModInfoData(info)))
+`, ModInfoData(info))
 	}
 	return nil
 }
