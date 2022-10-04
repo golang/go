@@ -808,9 +808,8 @@ func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
 	}
 	c.Stdout = pw
 	c.childIOFiles = append(c.childIOFiles, pw)
-	rc := &closeOnce{File: pr}
-	c.parentIOPipes = append(c.parentIOPipes, rc)
-	return rc, nil
+	c.parentIOPipes = append(c.parentIOPipes, pr)
+	return pr, nil
 }
 
 // StderrPipe returns a pipe that will be connected to the command's
@@ -834,9 +833,8 @@ func (c *Cmd) StderrPipe() (io.ReadCloser, error) {
 	}
 	c.Stderr = pw
 	c.childIOFiles = append(c.childIOFiles, pw)
-	rc := &closeOnce{File: pr}
-	c.parentIOPipes = append(c.parentIOPipes, rc)
-	return rc, nil
+	c.parentIOPipes = append(c.parentIOPipes, pr)
+	return pr, nil
 }
 
 // prefixSuffixSaver is an io.Writer which retains the first N bytes
