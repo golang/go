@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sys
+package platform
 
 // RaceDetectorSupported reports whether goos/goarch supports the race
 // detector. There is a copy of this function in cmd/dist/test.go.
@@ -70,7 +70,6 @@ func FuzzInstrumented(goos, goarch string) bool {
 }
 
 // MustLinkExternal reports whether goos/goarch requires external linking.
-// (This is the opposite of internal/testenv.CanInternalLink. Keep them in sync.)
 func MustLinkExternal(goos, goarch string) bool {
 	switch goos {
 	case "android":

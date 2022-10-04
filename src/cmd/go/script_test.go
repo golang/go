@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"go/build"
 	"internal/buildcfg"
+	"internal/platform"
 	"internal/testenv"
 	"internal/txtar"
 	"io/fs"
@@ -35,7 +36,6 @@ import (
 	"cmd/go/internal/par"
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/work"
-	"cmd/internal/sys"
 )
 
 var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set, TestScript generates a go.sum file at the beginning of each test and updates test files if they pass.`)
@@ -459,7 +459,7 @@ Script:
 					break
 				}
 				if value, found := strings.CutPrefix(cond.tag, "buildmode:"); found {
-					ok = sys.BuildModeSupported(runtime.Compiler, value, runtime.GOOS, runtime.GOARCH)
+					ok = platform.BuildModeSupported(runtime.Compiler, value, runtime.GOOS, runtime.GOARCH)
 					break
 				}
 				if strings.HasPrefix(cond.tag, "GOEXPERIMENT:") {

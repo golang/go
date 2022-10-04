@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/platform"
 	"io"
 	"log"
 	"os"
@@ -22,7 +23,6 @@ import (
 	"cmd/go/internal/str"
 	"cmd/internal/objabi"
 	"cmd/internal/quoted"
-	"cmd/internal/sys"
 	"crypto/sha1"
 )
 
@@ -640,7 +640,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 		// linker's build id, which will cause our build id to not
 		// match the next time the tool is built.
 		// Rely on the external build id instead.
-		if !sys.MustLinkExternal(cfg.Goos, cfg.Goarch) {
+		if !platform.MustLinkExternal(cfg.Goos, cfg.Goarch) {
 			ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.buildID)
 		}
 	}

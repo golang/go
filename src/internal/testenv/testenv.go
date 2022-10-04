@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/cfg"
+	"internal/platform"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -295,19 +296,8 @@ func MustHaveCGO(t testing.TB) {
 
 // CanInternalLink reports whether the current system can link programs with
 // internal linking.
-// (This is the opposite of cmd/internal/sys.MustLinkExternal. Keep them in sync.)
 func CanInternalLink() bool {
-	switch runtime.GOOS {
-	case "android":
-		if runtime.GOARCH != "arm64" {
-			return false
-		}
-	case "ios":
-		if runtime.GOARCH == "arm64" {
-			return false
-		}
-	}
-	return true
+	return !platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH)
 }
 
 // MustInternalLink checks that the current system can link programs with internal

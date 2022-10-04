@@ -1711,7 +1711,7 @@ func (t *tester) runPrecompiledStdTest(timeout time.Duration) error {
 }
 
 // raceDetectorSupported is a copy of the function
-// cmd/internal/sys.RaceDetectorSupported, which can't be used here
+// internal/platform.RaceDetectorSupported, which can't be used here
 // because cmd/dist has to be buildable by Go 1.4.
 // The race detector only supports 48-bit VMA on arm64. But we don't have
 // a good solution to check VMA size(See https://golang.org/issue/29948)

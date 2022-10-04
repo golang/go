@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"go/format"
 	"internal/godebug"
+	"internal/platform"
 	"internal/testenv"
 	"io"
 	"io/fs"
@@ -260,17 +261,17 @@ func TestMain(m *testing.M) {
 		}
 		testGOCACHE = strings.TrimSpace(string(out))
 
-		canMSan = canCgo && sys.MSanSupported(runtime.GOOS, runtime.GOARCH)
-		canASan = canCgo && sys.ASanSupported(runtime.GOOS, runtime.GOARCH)
-		canRace = canCgo && sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
+		canMSan = canCgo && platform.MSanSupported(runtime.GOOS, runtime.GOARCH)
+		canASan = canCgo && platform.ASanSupported(runtime.GOOS, runtime.GOARCH)
+		canRace = canCgo && platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
 		// The race detector doesn't work on Alpine Linux:
 		// golang.org/issue/14481
 		// gccgo does not support the race detector.
 		if isAlpineLinux() || runtime.Compiler == "gccgo" {
 			canRace = false
 		}
-		canFuzz = sys.FuzzSupported(runtime.GOOS, runtime.GOARCH)
-		fuzzInstrumented = sys.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
+		canFuzz = platform.FuzzSupported(runtime.GOOS, runtime.GOARCH)
+		fuzzInstrumented = platform.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
 	}
 
 	// Don't let these environment variables confuse the test.
