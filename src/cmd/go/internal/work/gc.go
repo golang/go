@@ -30,16 +30,17 @@ import (
 const trimPathGoRootFinal string = "$GOROOT"
 
 var runtimePackages = map[string]struct{}{
-	"internal/abi":            struct{}{},
-	"internal/bytealg":        struct{}{},
-	"internal/coverage/rtcov": struct{}{},
-	"internal/cpu":            struct{}{},
-	"internal/goarch":         struct{}{},
-	"internal/goos":           struct{}{},
-	"runtime":                 struct{}{},
-	"runtime/internal/atomic": struct{}{},
-	"runtime/internal/math":   struct{}{},
-	"runtime/internal/sys":    struct{}{},
+	"internal/abi":             struct{}{},
+	"internal/bytealg":         struct{}{},
+	"internal/coverage/rtcov":  struct{}{},
+	"internal/cpu":             struct{}{},
+	"internal/goarch":          struct{}{},
+	"internal/goos":            struct{}{},
+	"runtime":                  struct{}{},
+	"runtime/internal/atomic":  struct{}{},
+	"runtime/internal/math":    struct{}{},
+	"runtime/internal/sys":     struct{}{},
+	"runtime/internal/syscall": struct{}{},
 }
 
 // The Go toolchain.
