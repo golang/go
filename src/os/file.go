@@ -644,6 +644,13 @@ func (dir dirFS) Open(name string) (fs.File, error) {
 	}
 	f, err := Open(dir.join(name))
 	if err != nil {
+		if runtime.GOOS == "windows" {
+			// Undo the backslash conversion done by dir.join.
+			perr := err.(*PathError)
+			if containsAny(perr.Path, `\`) {
+				perr.Path = string(dir) + "/" + name
+			}
+		}
 		return nil, err // nil fs.File
 	}
 	return f, nil

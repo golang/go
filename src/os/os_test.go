@@ -2712,13 +2712,25 @@ func TestDirFS(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := fstest.TestFS(DirFS("./testdata/dirfs"), "a", "b", "dir/x"); err != nil {
+	fs := DirFS("./testdata/dirfs")
+	if err := fstest.TestFS(fs, "a", "b", "dir/x"); err != nil {
 		t.Fatal(err)
+	}
+
+	// Test that the error message does not contain a backslash.
+	const nonesuch = "dir/nonesuch"
+	_, err := fs.Open(nonesuch)
+	if err == nil {
+		t.Error("fs.Open of nonexistent file succeeded")
+	} else {
+		if !strings.Contains(err.Error(), nonesuch) {
+			t.Errorf("error %q does not contain %q", err, nonesuch)
+		}
 	}
 
 	// Test that Open does not accept backslash as separator.
 	d := DirFS(".")
-	_, err := d.Open(`testdata\dirfs`)
+	_, err = d.Open(`testdata\dirfs`)
 	if err == nil {
 		t.Fatalf(`Open testdata\dirfs succeeded`)
 	}
