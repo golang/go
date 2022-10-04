@@ -2799,3 +2799,115 @@ func TestWriteStringAlloc(t *testing.T) {
 		t.Errorf("expected 0 allocs for File.WriteString, got %v", allocs)
 	}
 }
+
+// Test that it's OK to have parallel I/O and Close on a pipe.
+func TestPipeIOCloseRace(t *testing.T) {
+	// Skip on wasm, which doesn't have pipes.
+	if runtime.GOOS == "js" {
+		t.Skip("skipping on js: no pipes")
+	}
+
+	r, w, err := Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+		for {
+			n, err := w.Write([]byte("hi"))
+			if err != nil {
+				// We look at error strings as the
+				// expected errors are OS-specific.
+				switch {
+				case errors.Is(err, ErrClosed),
+					strings.Contains(err.Error(), "broken pipe"),
+					strings.Contains(err.Error(), "pipe is being closed"),
+					strings.Contains(err.Error(), "hungup channel"):
+					// Ignore an expected error.
+				default:
+					// Unexpected error.
+					t.Error(err)
+				}
+				return
+			}
+			if n != 2 {
+				t.Errorf("wrote %d bytes, expected 2", n)
+				return
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for {
+			var buf [2]byte
+			n, err := r.Read(buf[:])
+			if err != nil {
+				if err != io.EOF && !errors.Is(err, ErrClosed) {
+					t.Error(err)
+				}
+				return
+			}
+			if n != 2 {
+				t.Errorf("read %d bytes, want 2", n)
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		// Let the other goroutines start. This is just to get
+		// a better test, the test will still pass if they
+		// don't start.
+		time.Sleep(time.Millisecond)
+
+		if err := r.Close(); err != nil {
+			t.Error(err)
+		}
+		if err := w.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	wg.Wait()
+}
+
+// Test that it's OK to call Close concurrently on a pipe.
+func TestPipeCloseRace(t *testing.T) {
+	// Skip on wasm, which doesn't have pipes.
+	if runtime.GOOS == "js" {
+		t.Skip("skipping on js: no pipes")
+	}
+
+	r, w, err := Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	c := make(chan error, 4)
+	f := func() {
+		defer wg.Done()
+		c <- r.Close()
+		c <- w.Close()
+	}
+	wg.Add(2)
+	go f()
+	go f()
+	nils, errs := 0, 0
+	for i := 0; i < 4; i++ {
+		err := <-c
+		if err == nil {
+			nils++
+		} else {
+			errs++
+		}
+	}
+	if nils != 2 || errs != 2 {
+		t.Errorf("got nils %d errs %d, want 2 2", nils, errs)
+	}
+}
