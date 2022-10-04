@@ -13,27 +13,27 @@ import (
 	"unsafe"
 )
 
-// EmitMetaDataToDir writes a coverage meta-data file for the
-// currently running program to the directory specified in 'dir'. An
-// error will be returned if the operation can't be completed
-// successfully (for example, if the currently running program was not
-// built with "-cover", or if the directory does not exist).
-func EmitMetaDataToDir(dir string) error {
+// WriteMetaDir writes a coverage meta-data file for the currently
+// running program to the directory specified in 'dir'. An error will
+// be returned if the operation can't be completed successfully (for
+// example, if the currently running program was not built with
+// "-cover", or if the directory does not exist).
+func WriteMetaDir(dir string) error {
 	if !finalHashComputed {
 		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
 	}
 	return emitMetaDataToDirectory(dir, getCovMetaList())
 }
 
-// EmitMetaDataToWriter writes the meta-data content (the payload that
-// would normally be emitted to a meta-data file) for currently
-// running program to the the writer 'w'. An error will be returned if
-// the operation can't be completed successfully (for example, if the
+// WriteMeta writes the meta-data content (the payload that would
+// normally be emitted to a meta-data file) for the currently running
+// program to the the writer 'w'. An error will be returned if the
+// operation can't be completed successfully (for example, if the
 // currently running program was not built with "-cover", or if a
 // write fails).
-func EmitMetaDataToWriter(w io.Writer) error {
+func WriteMeta(w io.Writer) error {
 	if w == nil {
-		return fmt.Errorf("error: nil writer in EmitMetaDataToWriter")
+		return fmt.Errorf("error: nil writer in WriteMeta")
 	}
 	if !finalHashComputed {
 		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
@@ -42,26 +42,26 @@ func EmitMetaDataToWriter(w io.Writer) error {
 	return writeMetaData(w, ml, cmode, cgran, finalHash)
 }
 
-// EmitCounterDataToDir writes a coverage counter-data file for the
+// WriteCountersDir writes a coverage counter-data file for the
 // currently running program to the directory specified in 'dir'. An
 // error will be returned if the operation can't be completed
 // successfully (for example, if the currently running program was not
 // built with "-cover", or if the directory does not exist). The
 // counter data written will be a snapshot taken at the point of the
 // call.
-func EmitCounterDataToDir(dir string) error {
+func WriteCountersDir(dir string) error {
 	return emitCounterDataToDirectory(dir)
 }
 
-// EmitCounterDataToWriter writes coverage counter-data content for
+// WriteCounters writes coverage counter-data content for
 // the currently running program to the writer 'w'. An error will be
 // returned if the operation can't be completed successfully (for
 // example, if the currently running program was not built with
 // "-cover", or if a write fails). The counter data written will be a
 // snapshot taken at the point of the invocation.
-func EmitCounterDataToWriter(w io.Writer) error {
+func WriteCounters(w io.Writer) error {
 	if w == nil {
-		return fmt.Errorf("error: nil writer in EmitCounterDataToWriter")
+		return fmt.Errorf("error: nil writer in WriteCounters")
 	}
 	// Ask the runtime for the list of coverage counter symbols.
 	cl := getCovCounterList()
@@ -80,19 +80,19 @@ func EmitCounterDataToWriter(w io.Writer) error {
 	return s.emitCounterDataToWriter(w)
 }
 
-// ClearCoverageCounters clears/resets all coverage counter variables
-// in the currently running program. It returns an error if the
-// program in question was not built with the "-cover" flag. Clearing
-// of coverage counters is also not supported for programs not using
-// atomic counter mode (see more detailed comments below for the
-// rationale here).
-func ClearCoverageCounters() error {
+// ClearCounters clears/resets all coverage counter variables in the
+// currently running program. It returns an error if the program in
+// question was not built with the "-cover" flag. Clearing of coverage
+// counters is also not supported for programs not using atomic
+// counter mode (see more detailed comments below for the rationale
+// here).
+func ClearCounters() error {
 	cl := getCovCounterList()
 	if len(cl) == 0 {
 		return fmt.Errorf("program not built with -cover")
 	}
 	if cmode != coverage.CtrModeAtomic {
-		return fmt.Errorf("ClearCoverageCounters invoked for program build with -covermode=%s (please use -covermode=atomic)", cmode.String())
+		return fmt.Errorf("ClearCounters invoked for program build with -covermode=%s (please use -covermode=atomic)", cmode.String())
 	}
 
 	// Implementation note: this function would be faster and simpler
@@ -101,19 +101,19 @@ func ClearCoverageCounters() error {
 	// corresponding to the counter values. We do this to avoid the
 	// following bad scenario: suppose that a user builds their Go
 	// program with "-cover", and that program has a function (call it
-	// main.XYZ) that invokes ClearCoverageCounters:
+	// main.XYZ) that invokes ClearCounters:
 	//
 	//     func XYZ() {
 	//       ... do some stuff ...
-	//       coverage.ClearCoverageCounters()
+	//       coverage.ClearCounters()
 	//       if someCondition {   <<--- HERE
 	//         ...
 	//       }
 	//     }
 	//
-	// At the point where ClearCoverageCounters executes, main.XYZ has
-	// not yet finished running, thus as soon as the call returns the
-	// line marked "HERE" above will trigger the writing of a non-zero
+	// At the point where ClearCounters executes, main.XYZ has not yet
+	// finished running, thus as soon as the call returns the line
+	// marked "HERE" above will trigger the writing of a non-zero
 	// value into main.XYZ's counter slab. However since we've just
 	// finished clearing the entire counter segment, we will have lost
 	// the values in the prolog portion of main.XYZ's counter slab
@@ -121,14 +121,14 @@ func ClearCoverageCounters() error {
 	// program execution as we walk through the entire counter array
 	// for the program looking for executed functions, we'll zoom past
 	// main.XYZ's prolog (which was zero'd) and hit the non-zero
-	// counter value corresponding to the "HERE" block, which will then
-	// be interpreted as the start of another live function. Things
-	// will go downhill from there.
+	// counter value corresponding to the "HERE" block, which will
+	// then be interpreted as the start of another live function.
+	// Things will go downhill from there.
 	//
 	// This same scenario is also a potential risk if the program is
-	// running on an architecture that permits reordering of writes/stores,
-	// since the inconsistency described above could arise here. Example
-	// scenario:
+	// running on an architecture that permits reordering of
+	// writes/stores, since the inconsistency described above could
+	// arise here. Example scenario:
 	//
 	//     func ABC() {
 	//       ...                    // prolog
@@ -150,7 +150,7 @@ func ClearCoverageCounters() error {
 	// will always be observed to happen in exactly that order by
 	// another thread". Thus we can be sure that there will be no
 	// inconsistency when reading the counter array from the thread
-	// running ClearCoverageCounters.
+	// running ClearCounters.
 
 	var sd []atomic.Uint32
 

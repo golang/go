@@ -23,16 +23,16 @@ var outdirflag = flag.String("o", "", "Output dir into which to emit")
 func emitToWriter() {
 	log.SetPrefix("emitToWriter: ")
 	var slwm slicewriter.WriteSeeker
-	if err := coverage.EmitMetaDataToWriter(&slwm); err != nil {
-		log.Fatalf("error: EmitMetaDataToWriter returns %v", err)
+	if err := coverage.WriteMeta(&slwm); err != nil {
+		log.Fatalf("error: WriteMeta returns %v", err)
 	}
 	mf := filepath.Join(*outdirflag, "covmeta.0abcdef")
 	if err := ioutil.WriteFile(mf, slwm.BytesWritten(), 0666); err != nil {
 		log.Fatalf("error: writing %s: %v", mf, err)
 	}
 	var slwc slicewriter.WriteSeeker
-	if err := coverage.EmitCounterDataToWriter(&slwc); err != nil {
-		log.Fatalf("error: EmitCounterDataToWriter returns %v", err)
+	if err := coverage.WriteCounters(&slwc); err != nil {
+		log.Fatalf("error: WriteCounters returns %v", err)
 	}
 	cf := filepath.Join(*outdirflag, "covcounters.0abcdef.99.77")
 	if err := ioutil.WriteFile(cf, slwc.BytesWritten(), 0666); err != nil {
@@ -42,11 +42,11 @@ func emitToWriter() {
 
 func emitToDir() {
 	log.SetPrefix("emitToDir: ")
-	if err := coverage.EmitMetaDataToDir(*outdirflag); err != nil {
-		log.Fatalf("error: EmitMetaDataToDir returns %v", err)
+	if err := coverage.WriteMetaDir(*outdirflag); err != nil {
+		log.Fatalf("error: WriteMetaDir returns %v", err)
 	}
-	if err := coverage.EmitCounterDataToDir(*outdirflag); err != nil {
-		log.Fatalf("error: EmitCounterDataToDir returns %v", err)
+	if err := coverage.WriteCountersDir(*outdirflag); err != nil {
+		log.Fatalf("error: WriteCountersDir returns %v", err)
 	}
 }
 
@@ -74,15 +74,15 @@ func emitToNonexistentDir() {
 
 	// Mangle the output directory to produce something nonexistent.
 	mangled := *outdirflag + "_MANGLED"
-	if err := coverage.EmitMetaDataToDir(mangled); err == nil {
-		log.Fatal("expected error from EmitMetaDataToDir to nonexistent dir")
+	if err := coverage.WriteMetaDir(mangled); err == nil {
+		log.Fatal("expected error from WriteMetaDir to nonexistent dir")
 	} else {
 		got := fmt.Sprintf("%v", err)
 		checkWant("meta data", got)
 	}
 
 	// Now try to emit counter data file to a bad dir.
-	if err := coverage.EmitCounterDataToDir(mangled); err == nil {
+	if err := coverage.WriteCountersDir(mangled); err == nil {
 		log.Fatal("expected error emitting counter data to bad dir")
 	} else {
 		got := fmt.Sprintf("%v", err)
@@ -95,8 +95,8 @@ func emitToUnwritableDir() {
 
 	want := "permission denied"
 
-	if err := coverage.EmitMetaDataToDir(*outdirflag); err == nil {
-		log.Fatal("expected error from EmitMetaDataToDir to unwritable dir")
+	if err := coverage.WriteMetaDir(*outdirflag); err == nil {
+		log.Fatal("expected error from WriteMetaDir to unwritable dir")
 	} else {
 		got := fmt.Sprintf("%v", err)
 		if !strings.Contains(got, want) {
@@ -105,7 +105,7 @@ func emitToUnwritableDir() {
 	}
 
 	// Similarly with writing counter data.
-	if err := coverage.EmitCounterDataToDir(*outdirflag); err == nil {
+	if err := coverage.WriteCountersDir(*outdirflag); err == nil {
 		log.Fatal("expected error emitting counter data to unwritable dir")
 	} else {
 		got := fmt.Sprintf("%v", err)
@@ -119,7 +119,7 @@ func emitToNilWriter() {
 	log.SetPrefix("emitToWriter: ")
 	want := "nil writer"
 	var bad io.WriteSeeker
-	if err := coverage.EmitMetaDataToWriter(bad); err == nil {
+	if err := coverage.WriteMeta(bad); err == nil {
 		log.Fatal("expected error passing nil writer for meta emit")
 	} else {
 		got := fmt.Sprintf("%v", err)
@@ -128,7 +128,7 @@ func emitToNilWriter() {
 		}
 	}
 
-	if err := coverage.EmitCounterDataToWriter(bad); err == nil {
+	if err := coverage.WriteCounters(bad); err == nil {
 		log.Fatal("expected error passing nil writer for counter emit")
 	} else {
 		got := fmt.Sprintf("%v", err)
@@ -201,25 +201,25 @@ func emitToFailingWriter() {
 	log.SetPrefix("emitToFailingWriter: ")
 
 	writeStressTest("emit-meta", func(f *failingWriter) error {
-		return coverage.EmitMetaDataToWriter(f)
+		return coverage.WriteMeta(f)
 	})
 	writeStressTest("emit-counter", func(f *failingWriter) error {
-		return coverage.EmitCounterDataToWriter(f)
+		return coverage.WriteCounters(f)
 	})
 }
 
 func emitWithCounterClear() {
 	log.SetPrefix("emitWitCounterClear: ")
 	preClear()
-	if err := coverage.ClearCoverageCounters(); err != nil {
+	if err := coverage.ClearCounters(); err != nil {
 		log.Fatalf("clear failed: %v", err)
 	}
 	postClear()
-	if err := coverage.EmitMetaDataToDir(*outdirflag); err != nil {
-		log.Fatalf("error: EmitMetaDataToDir returns %v", err)
+	if err := coverage.WriteMetaDir(*outdirflag); err != nil {
+		log.Fatalf("error: WriteMetaDir returns %v", err)
 	}
-	if err := coverage.EmitCounterDataToDir(*outdirflag); err != nil {
-		log.Fatalf("error: EmitCounterDataToDir returns %v", err)
+	if err := coverage.WriteCountersDir(*outdirflag); err != nil {
+		log.Fatalf("error: WriteCountersDir returns %v", err)
 	}
 }
 
