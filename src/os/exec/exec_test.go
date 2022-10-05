@@ -180,16 +180,15 @@ var exeOnce struct {
 var helperCommandUsed sync.Map
 
 var helperCommands = map[string]func(...string){
-	"echo":               cmdEcho,
-	"echoenv":            cmdEchoEnv,
-	"cat":                cmdCat,
-	"pipetest":           cmdPipeTest,
-	"stdinClose":         cmdStdinClose,
-	"exit":               cmdExit,
-	"describefiles":      cmdDescribeFiles,
-	"extraFilesAndPipes": cmdExtraFilesAndPipes,
-	"stderrfail":         cmdStderrFail,
-	"yes":                cmdYes,
+	"echo":          cmdEcho,
+	"echoenv":       cmdEchoEnv,
+	"cat":           cmdCat,
+	"pipetest":      cmdPipeTest,
+	"stdinClose":    cmdStdinClose,
+	"exit":          cmdExit,
+	"describefiles": cmdDescribeFiles,
+	"stderrfail":    cmdStderrFail,
+	"yes":           cmdYes,
 }
 
 func cmdEcho(args ...string) {
@@ -270,25 +269,6 @@ func cmdDescribeFiles(args ...string) {
 		fmt.Printf("fd3: listener %s\n", ln.Addr())
 		ln.Close()
 	}
-}
-
-func cmdExtraFilesAndPipes(args ...string) {
-	n, _ := strconv.Atoi(args[0])
-	pipes := make([]*os.File, n)
-	for i := 0; i < n; i++ {
-		pipes[i] = os.NewFile(uintptr(3+i), strconv.Itoa(i))
-	}
-	response := ""
-	for i, r := range pipes {
-		buf := make([]byte, 10)
-		n, err := r.Read(buf)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Child: read error: %v on pipe %d\n", err, i)
-			os.Exit(1)
-		}
-		response = response + string(buf[:n])
-	}
-	fmt.Fprintf(os.Stderr, "child: %s", response)
 }
 
 func cmdStderrFail(...string) {
@@ -627,93 +607,6 @@ func TestPipeLookPathLeak(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("set of open file descriptors changed: got %v, want %v", got, want)
 	}
-}
-
-func TestExtraFilesFDShuffle(t *testing.T) {
-	maySkipHelperCommand("extraFilesAndPipes")
-	testenv.SkipFlaky(t, 5780)
-	switch runtime.GOOS {
-	case "windows":
-		t.Skip("no operating system support; skipping")
-	}
-
-	// syscall.StartProcess maps all the FDs passed to it in
-	// ProcAttr.Files (the concatenation of stdin,stdout,stderr and
-	// ExtraFiles) into consecutive FDs in the child, that is:
-	// Files{11, 12, 6, 7, 9, 3} should result in the file
-	// represented by FD 11 in the parent being made available as 0
-	// in the child, 12 as 1, etc.
-	//
-	// We want to test that FDs in the child do not get overwritten
-	// by one another as this shuffle occurs. The original implementation
-	// was buggy in that in some data dependent cases it would overwrite
-	// stderr in the child with one of the ExtraFile members.
-	// Testing for this case is difficult because it relies on using
-	// the same FD values as that case. In particular, an FD of 3
-	// must be at an index of 4 or higher in ProcAttr.Files and
-	// the FD of the write end of the Stderr pipe (as obtained by
-	// StderrPipe()) must be the same as the size of ProcAttr.Files;
-	// therefore we test that the read end of this pipe (which is what
-	// is returned to the parent by StderrPipe() being one less than
-	// the size of ProcAttr.Files, i.e. 3+len(cmd.ExtraFiles).
-	//
-	// Moving this test case around within the overall tests may
-	// affect the FDs obtained and hence the checks to catch these cases.
-	npipes := 2
-	c := helperCommand(t, "extraFilesAndPipes", strconv.Itoa(npipes+1))
-	rd, wr, _ := os.Pipe()
-	defer rd.Close()
-	if rd.Fd() != 3 {
-		t.Errorf("bad test value for test pipe: fd %d", rd.Fd())
-	}
-	stderr, _ := c.StderrPipe()
-	wr.WriteString("_LAST")
-	wr.Close()
-
-	pipes := make([]struct {
-		r, w *os.File
-	}, npipes)
-	data := []string{"a", "b"}
-
-	for i := 0; i < npipes; i++ {
-		r, w, err := os.Pipe()
-		if err != nil {
-			t.Fatalf("unexpected error creating pipe: %s", err)
-		}
-		pipes[i].r = r
-		pipes[i].w = w
-		w.WriteString(data[i])
-		c.ExtraFiles = append(c.ExtraFiles, pipes[i].r)
-		defer func() {
-			r.Close()
-			w.Close()
-		}()
-	}
-	// Put fd 3 at the end.
-	c.ExtraFiles = append(c.ExtraFiles, rd)
-
-	stderrFd := int(stderr.(*os.File).Fd())
-	if stderrFd != ((len(c.ExtraFiles) + 3) - 1) {
-		t.Errorf("bad test value for stderr pipe")
-	}
-
-	expected := "child: " + strings.Join(data, "") + "_LAST"
-
-	err := c.Start()
-	if err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-
-	buf := make([]byte, 512)
-	n, err := stderr.Read(buf)
-	if err != nil {
-		t.Errorf("Read: %s", err)
-	} else {
-		if m := string(buf[:n]); m != expected {
-			t.Errorf("Read: '%s' not '%s'", m, expected)
-		}
-	}
-	c.Wait()
 }
 
 func TestExtraFiles(t *testing.T) {
