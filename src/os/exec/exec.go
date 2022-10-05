@@ -102,7 +102,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 )
 
@@ -809,25 +808,8 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
 	}
 	c.Stdin = pr
 	c.childIOFiles = append(c.childIOFiles, pr)
-	wc := &closeOnce{File: pw}
-	c.parentIOPipes = append(c.parentIOPipes, wc)
-	return wc, nil
-}
-
-type closeOnce struct {
-	*os.File
-
-	once sync.Once
-	err  error
-}
-
-func (c *closeOnce) Close() error {
-	c.once.Do(c.close)
-	return c.err
-}
-
-func (c *closeOnce) close() {
-	c.err = c.File.Close()
+	c.parentIOPipes = append(c.parentIOPipes, pw)
+	return pw, nil
 }
 
 // StdoutPipe returns a pipe that will be connected to the command's

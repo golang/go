@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"internal/poll"
@@ -548,12 +549,22 @@ func TestStdinClose(t *testing.T) {
 		t.Error("can't access methods of underlying *os.File")
 	}
 	check("Start", cmd.Start())
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Wait()
 	go func() {
+		defer wg.Done()
+
 		_, err := io.Copy(stdin, strings.NewReader(stdinCloseTestString))
 		check("Copy", err)
+
 		// Before the fix, this next line would race with cmd.Wait.
-		check("Close", stdin.Close())
+		if err := stdin.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			t.Errorf("Close: %v", err)
+		}
 	}()
+
 	check("Wait", cmd.Wait())
 }
 
@@ -573,8 +584,15 @@ func TestStdinCloseRace(t *testing.T) {
 	}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
+
 	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	defer wg.Wait()
+
 	go func() {
+		defer wg.Done()
 		// We don't check the error return of Kill. It is
 		// possible that the process has already exited, in
 		// which case Kill will return an error "process
@@ -583,17 +601,20 @@ func TestStdinCloseRace(t *testing.T) {
 		// doesn't matter whether this Kill succeeds or not.
 		cmd.Process.Kill()
 	}()
+
 	go func() {
+		defer wg.Done()
 		// Send the wrong string, so that the child fails even
 		// if the other goroutine doesn't manage to kill it first.
 		// This test is to check that the race detector does not
 		// falsely report an error, so it doesn't matter how the
 		// child process fails.
 		io.Copy(stdin, strings.NewReader("unexpected string"))
-		if err := stdin.Close(); err != nil {
+		if err := stdin.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
 			t.Errorf("stdin.Close: %v", err)
 		}
 	}()
+
 	if err := cmd.Wait(); err == nil {
 		t.Fatalf("Wait: succeeded unexpectedly")
 	}
