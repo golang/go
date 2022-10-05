@@ -37,7 +37,7 @@ import (
 //
 // while flags Ldate | Ltime | Lmicroseconds | Llongfile produce,
 //
-//	2009/01/23 01:23:23.123123 /a/b/c/d.go:23: message
+//	2009/01/23 01:23:23.123123 /a/b/c/d.go:23 message
 const (
 	Ldate         = 1 << iota     // the date in the local time zone: 2009/01/23
 	Ltime                         // the time in the local time zone: 01:23:23
@@ -155,7 +155,7 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 		*buf = append(*buf, file...)
 		*buf = append(*buf, ':')
 		itoa(buf, line, -1)
-		*buf = append(*buf, ": "...)
+		*buf = append(*buf, " "...)
 	}
 	if l.flag&Lmsgprefix != 0 {
 		*buf = append(*buf, l.prefix...)
