@@ -244,6 +244,14 @@ func Bar[P Constraint[P]]() {}
 func Baz[Q any]() {} // The underlying type of Constraint[P] is any.
 // But Quux is not.
 func Quux[Q interface{ quux() }]() {}
+
+
+type Issue56048_I interface{ m() interface { Issue56048_I } }
+var Issue56048 = Issue56048_I.m
+
+type Issue56048_Ib interface{ m() chan []*interface { Issue56048_Ib } }
+var Issue56048b = Issue56048_Ib.m
+
 `
 
 	fset := token.NewFileSet()
@@ -296,12 +304,14 @@ func Quux[Q interface{ quux() }]() {}
 		ME1Type = scope.Lookup("ME1Type").Type()
 		ME2     = scope.Lookup("ME2").Type()
 
-		Constraint = scope.Lookup("Constraint").Type()
-		Foo        = scope.Lookup("Foo").Type()
-		Fn         = scope.Lookup("Fn").Type()
-		Bar        = scope.Lookup("Foo").Type()
-		Baz        = scope.Lookup("Foo").Type()
-		Quux       = scope.Lookup("Quux").Type()
+		Constraint  = scope.Lookup("Constraint").Type()
+		Foo         = scope.Lookup("Foo").Type()
+		Fn          = scope.Lookup("Fn").Type()
+		Bar         = scope.Lookup("Foo").Type()
+		Baz         = scope.Lookup("Foo").Type()
+		Quux        = scope.Lookup("Quux").Type()
+		Issue56048  = scope.Lookup("Issue56048").Type()
+		Issue56048b = scope.Lookup("Issue56048b").Type()
 	)
 
 	tmap := new(typeutil.Map)
@@ -371,6 +381,9 @@ func Quux[Q interface{ quux() }]() {}
 		{Bar, "Bar", false},
 		{Baz, "Baz", false},
 		{Quux, "Quux", true},
+
+		{Issue56048, "Issue56048", true},   // (not actually about generics)
+		{Issue56048b, "Issue56048b", true}, // (not actually about generics)
 	}
 
 	for _, step := range steps {
