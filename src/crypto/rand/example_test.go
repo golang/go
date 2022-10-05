@@ -12,9 +12,9 @@ import (
 )
 
 
-// This example uses 1 to ensure the output is 0.
+// This example returns a different number each run.
 func ExampleInt() {
-	a, err := rand.Int(rand.Reader, big.NewInt(1))
+	a, err := rand.Int(rand.Reader, big.NewInt(100))
 	if err != nil {
 		fmt.Println("error:", err)
 		return
@@ -23,7 +23,7 @@ func ExampleInt() {
 	fmt.Println(a.Int64())
 
 	// Output:
-	// 0
+	//
 }
 
 // This example reads 10 cryptographically secure pseudorandom numbers from
