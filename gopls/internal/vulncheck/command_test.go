@@ -24,13 +24,22 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
-	"golang.org/x/vuln/client"
-	"golang.org/x/vuln/osv"
+	"golang.org/x/tools/gopls/internal/vulncheck/vulntest"
 )
 
 func TestCmd_Run(t *testing.T) {
 	runTest(t, workspace1, proxy1, func(ctx context.Context, snapshot source.Snapshot) {
-		cmd := &cmd{Client: testClient1}
+		db, err := vulntest.NewDatabase(ctx, []byte(vulnsData))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer db.Clean()
+		cli, err := vulntest.NewClient(db)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		cmd := &cmd{Client: cli}
 		cfg := packagesCfg(ctx, snapshot)
 		result, err := cmd.Run(ctx, cfg, "./...")
 		if err != nil {
@@ -55,6 +64,7 @@ func TestCmd_Run(t *testing.T) {
 			{
 				Vuln: Vuln{
 					ID:             "GO-2022-01",
+					Details:        "Something.\n",
 					Symbol:         "VulnData.Vuln1",
 					PkgPath:        "golang.org/amod/avuln",
 					ModPath:        "golang.org/amod",
@@ -92,7 +102,7 @@ func TestCmd_Run(t *testing.T) {
 			{
 				Vuln: Vuln{
 					ID:           "GO-2022-03",
-					Details:      "unaffecting vulnerability",
+					Details:      "unaffecting vulnerability.\n",
 					ModPath:      "golang.org/amod",
 					URL:          "https://pkg.go.dev/vuln/GO-2022-03",
 					FixedVersion: "v1.0.4",
@@ -224,76 +234,46 @@ func Vuln() {
 }
 `
 
-// testClient contains the following test vulnerabilities
-//
-//	golang.org/amod/avuln.{VulnData.Vuln1, vulnData.Vuln2}
-//	golang.org/bmod/bvuln.{Vuln}
-var testClient1 = &mockClient{
-	ret: map[string][]*osv.Entry{
-		"golang.org/amod": {
-			{
-				ID: "GO-2022-01",
-				References: []osv.Reference{
-					{
-						Type: "href",
-						URL:  "pkg.go.dev/vuln/GO-2022-01",
-					},
-				},
-				Affected: []osv.Affected{{
-					Package: osv.Package{Name: "golang.org/amod"},
-					Ranges:  osv.Affects{{Type: osv.TypeSemver, Events: []osv.RangeEvent{{Introduced: "1.0.0"}, {Fixed: "1.0.4"}, {Introduced: "1.1.2"}}}},
-					EcosystemSpecific: osv.EcosystemSpecific{
-						Imports: []osv.EcosystemSpecificImport{{
-							Path:    "golang.org/amod/avuln",
-							Symbols: []string{"VulnData.Vuln1", "VulnData.Vuln2"}}},
-					},
-				}},
-			},
-			{
-				ID:      "GO-2022-03",
-				Details: "unaffecting vulnerability",
-				References: []osv.Reference{
-					{
-						Type: "href",
-						URL:  "pkg.go.dev/vuln/GO-2022-01",
-					},
-				},
-				Affected: []osv.Affected{{
-					Package: osv.Package{Name: "golang.org/amod"},
-					Ranges:  osv.Affects{{Type: osv.TypeSemver, Events: []osv.RangeEvent{{Introduced: "1.0.0"}, {Fixed: "1.0.4"}, {Introduced: "1.1.2"}}}},
-					EcosystemSpecific: osv.EcosystemSpecific{
-						Imports: []osv.EcosystemSpecificImport{{
-							Path:    "golang.org/amod/avuln",
-							Symbols: []string{"nonExisting"}}},
-					},
-				}},
-			},
-		},
-		"golang.org/bmod": {
-			{
-				ID: "GO-2022-02",
-				Affected: []osv.Affected{{
-					Package: osv.Package{Name: "golang.org/bmod"},
-					Ranges:  osv.Affects{{Type: osv.TypeSemver}},
-					EcosystemSpecific: osv.EcosystemSpecific{
-						Imports: []osv.EcosystemSpecificImport{{
-							Path:    "golang.org/bmod/bvuln",
-							Symbols: []string{"Vuln"}}},
-					},
-				}},
-			},
-		},
-	},
-}
+const vulnsData = `
+-- GO-2022-01.yaml --
+modules:
+  - module: golang.org/amod
+    versions:
+      - introduced: 1.0.0
+      - fixed: 1.0.4
+      - introduced: 1.1.2
+    packages:
+      - package: golang.org/amod/avuln
+        symbols:
+          - VulnData.Vuln1
+          - VulnData.Vuln2
+description: |
+    Something.
+references:
+  - href: pkg.go.dev/vuln/GO-2022-01
 
-type mockClient struct {
-	client.Client
-	ret map[string][]*osv.Entry
-}
+-- GO-2022-03.yaml --
+modules:
+  - module: golang.org/amod
+    versions:
+      - introduced: 1.0.0
+      - fixed: 1.0.4
+      - introduced: 1.1.2
+    packages:
+      - package: golang.org/amod/avuln
+        symbols:
+          - nonExisting
+description: |
+    unaffecting vulnerability.
 
-func (mc *mockClient) GetByModule(ctx context.Context, a string) ([]*osv.Entry, error) {
-	return mc.ret[a], nil
-}
+-- GO-2022-02.yaml --
+modules:
+  - module: golang.org/bmod
+    packages:
+      - package: golang.org/bmod/bvuln
+        symbols:
+          - Vuln
+`
 
 func runTest(t *testing.T, workspaceData, proxyData string, test func(context.Context, source.Snapshot)) {
 	ws, err := fake.NewSandbox(&fake.SandboxConfig{
