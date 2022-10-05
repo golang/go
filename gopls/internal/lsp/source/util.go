@@ -120,7 +120,7 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 		for _, comment := range commentGroup.List {
 			if matched := generatedRx.MatchString(comment.Text); matched {
 				// Check if comment is at the beginning of the line in source.
-				if pgf.Tok.Position(comment.Slash).Column == 1 {
+				if pgf.Tok.PositionFor(comment.Slash, false).Column == 1 {
 					return true
 				}
 			}
@@ -164,7 +164,8 @@ func posToMappedRange(pkg Package, pos, end token.Pos) (MappedRange, error) {
 	// Subtle: it is not safe to simplify this to tokFile.Name
 	// because, due to //line directives, a Position within a
 	// token.File may have a different filename than the File itself.
-	logicalFilename := tokFile.Position(pos).Filename
+	// BUT, things have changed, and we're ignoring line directives
+	logicalFilename := tokFile.PositionFor(pos, false).Filename
 	pgf, _, err := findFileInDeps(pkg, span.URIFromPath(logicalFilename))
 	if err != nil {
 		return MappedRange{}, err

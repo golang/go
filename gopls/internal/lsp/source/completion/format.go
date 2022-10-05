@@ -227,7 +227,7 @@ Suffixes:
 	if !c.opts.documentation {
 		return item, nil
 	}
-	pos := c.pkg.FileSet().Position(obj.Pos())
+	pos := c.pkg.FileSet().PositionFor(obj.Pos(), false)
 
 	// We ignore errors here, because some types, like "unsafe" or "error",
 	// may not have valid positions that we can use to get documentation.

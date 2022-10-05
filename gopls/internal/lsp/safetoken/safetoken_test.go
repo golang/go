@@ -61,7 +61,7 @@ func TestTokenOffset(t *testing.T) {
 			if safeOffset.Pos() <= ident.Pos() && ident.Pos() <= safeOffset.Scope().End() {
 				continue // accepted usage
 			}
-			t.Errorf(`%s: Unexpected use of (*go/token.File).Offset. Please use golang.org/x/tools/gopls/internal/lsp/safetoken.Offset instead.`, fset.Position(ident.Pos()))
+			t.Errorf(`%s: Unexpected use of (*go/token.File).Offset. Please use golang.org/x/tools/gopls/internal/lsp/safetoken.Offset instead.`, fset.PositionFor(ident.Pos(), false))
 		}
 	}
 }

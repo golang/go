@@ -47,7 +47,7 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 	}
 
 	// Parse the file defining the concrete type.
-	concreteFilename := snapshot.FileSet().Position(si.Concrete.Obj().Pos()).Filename
+	concreteFilename := snapshot.FileSet().PositionFor(si.Concrete.Obj().Pos(), false).Filename
 	concreteFH, err := snapshot.GetFile(ctx, span.URIFromPath(concreteFilename))
 	if err != nil {
 		return nil, nil, err
@@ -261,7 +261,7 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 		return nil, fmt.Errorf("expected %v to be an interface but got %T", iface, ifaceObj.Type().Underlying())
 	}
 	// Parse the imports from the file that declares the interface.
-	ifaceFilename := snapshot.FileSet().Position(ifaceObj.Pos()).Filename
+	ifaceFilename := snapshot.FileSet().PositionFor(ifaceObj.Pos(), false).Filename
 	ifaceFH, err := snapshot.GetFile(ctx, span.URIFromPath(ifaceFilename))
 	if err != nil {
 		return nil, err

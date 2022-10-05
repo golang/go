@@ -1368,7 +1368,7 @@ func (data *Data) collectWorkspaceSymbols(typ WorkspaceSymbolsTestType) func(*ex
 		if data.WorkspaceSymbols[typ] == nil {
 			data.WorkspaceSymbols[typ] = make(map[span.URI][]string)
 		}
-		pos := data.Exported.ExpectFileSet.Position(note.Pos)
+		pos := data.Exported.ExpectFileSet.PositionFor(note.Pos, false)
 		uri := span.URIFromPath(pos.Filename)
 		data.WorkspaceSymbols[typ][uri] = append(data.WorkspaceSymbols[typ][uri], query)
 	}
@@ -1398,7 +1398,7 @@ func (data *Data) collectCompletionSnippets(spn span.Span, item token.Pos, plain
 }
 
 func (data *Data) collectLinks(spn span.Span, link string, note *expect.Note, fset *token.FileSet) {
-	position := fset.Position(note.Pos)
+	position := fset.PositionFor(note.Pos, false)
 	uri := spn.URI()
 	data.Links[uri] = append(data.Links[uri], Link{
 		Src:          spn,

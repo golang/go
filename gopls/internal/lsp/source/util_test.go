@@ -14,7 +14,9 @@ import (
 	"golang.org/x/tools/gopls/internal/span"
 )
 
+// TODO: still need to test that NewMappedRange is working correctly
 func TestMappedRangeAdjustment(t *testing.T) {
+	t.Skip("line directives not supported")
 	// Test that mapped range adjusts positions in compiled files to positions in
 	// the corresponding edited file.
 

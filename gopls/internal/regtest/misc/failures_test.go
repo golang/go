@@ -13,6 +13,7 @@ import (
 // This test passes (TestHoverOnError in definition_test.go) without
 // the //line directive
 func TestHoverFailure(t *testing.T) {
+	t.Skip("line directives //line ")
 	const mod = `
 -- go.mod --
 module mod.com
@@ -42,6 +43,7 @@ func main() {
 // This test demonstrates a case where gopls is confused by line directives,
 // and fails to surface type checking errors.
 func TestFailingDiagnosticClearingOnEdit(t *testing.T) {
+	t.Skip("line directives //line ")
 	// badPackageDup contains a duplicate definition of the 'a' const.
 	// this is from diagnostics_test.go,
 	const badPackageDup = `

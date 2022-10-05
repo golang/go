@@ -265,8 +265,8 @@ func importPrefix(src []byte) (string, error) {
 			if end, err := safetoken.Offset(tok, c.End()); err != nil {
 				return "", err
 			} else if end > importEnd {
-				startLine := tok.Position(c.Pos()).Line
-				endLine := tok.Position(c.End()).Line
+				startLine := tok.PositionFor(c.Pos(), false).Line
+				endLine := tok.PositionFor(c.End(), false).Line
 
 				// Work around golang/go#41197 by checking if the comment might
 				// contain "\r", and if so, find the actual end position of the

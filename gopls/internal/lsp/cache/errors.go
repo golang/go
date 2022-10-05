@@ -372,7 +372,7 @@ func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, span.Sp
 	if fset != terr.Fset {
 		return 0, span.Span{}, bug.Errorf("wrong FileSet for type error")
 	}
-	posn := fset.Position(start)
+	posn := fset.PositionFor(start, false)
 	if !posn.IsValid() {
 		return 0, span.Span{}, fmt.Errorf("position %d of type error %q (code %q) not found in FileSet", start, start, terr)
 	}

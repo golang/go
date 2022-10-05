@@ -153,7 +153,8 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 				candObj = sel.Obj()
 			}
 
-			if candObj == queryMethod {
+			pos := s.FileSet().PositionFor(candObj.Pos(), false)
+			if candObj == queryMethod || seen[pos] {
 				continue
 			}
 
@@ -165,7 +166,7 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 
 			var posn token.Position
 			if pkg != nil {
-				posn = pkg.FileSet().Position(candObj.Pos())
+				posn = pkg.FileSet().PositionFor(candObj.Pos(), false)
 			}
 			if seen[posn] {
 				continue

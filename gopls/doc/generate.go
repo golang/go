@@ -555,7 +555,7 @@ func upperFirst(x string) string {
 func fileForPos(pkg *packages.Package, pos token.Pos) (*ast.File, error) {
 	fset := pkg.Fset
 	for _, f := range pkg.Syntax {
-		if fset.Position(f.Pos()).Filename == fset.Position(pos).Filename {
+		if fset.PositionFor(f.Pos(), false).Filename == fset.PositionFor(pos, false).Filename {
 			return f, nil
 		}
 	}

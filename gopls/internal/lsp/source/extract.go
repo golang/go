@@ -28,7 +28,7 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	tokFile := fset.File(file.Pos())
 	expr, path, ok, err := CanExtractVariable(rng, file)
 	if !ok {
-		return nil, fmt.Errorf("extractVariable: cannot extract %s: %v", fset.Position(rng.Start), err)
+		return nil, fmt.Errorf("extractVariable: cannot extract %s: %v", fset.PositionFor(rng.Start, false), err)
 	}
 
 	// Create new AST node for extracted code.
@@ -224,7 +224,7 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 	p, ok, methodOk, err := CanExtractFunction(tok, rng, src, file)
 	if (!ok && !isMethod) || (!methodOk && isMethod) {
 		return nil, fmt.Errorf("%s: cannot extract %s: %v", errorPrefix,
-			fset.Position(rng.Start), err)
+			fset.PositionFor(rng.Start, false), err)
 	}
 	tok, path, rng, outer, start := p.tok, p.path, p.rng, p.outer, p.start
 	fileScope := info.Scopes[file]

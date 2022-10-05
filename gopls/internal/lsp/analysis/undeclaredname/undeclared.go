@@ -112,7 +112,7 @@ func runForError(pass *analysis.Pass, err types.Error) {
 	if tok == nil {
 		return
 	}
-	offset := pass.Fset.Position(err.Pos).Offset
+	offset := pass.Fset.PositionFor(err.Pos, false).Offset
 	end := tok.Pos(offset + len(name))
 	pass.Report(analysis.Diagnostic{
 		Pos:     err.Pos,
@@ -146,7 +146,7 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 		return nil, fmt.Errorf("could not locate insertion point")
 	}
 
-	insertBefore := fset.Position(insertBeforeStmt.Pos()).Offset
+	insertBefore := fset.PositionFor(insertBeforeStmt.Pos(), false).Offset
 
 	// Get the indent to add on the line after the new statement.
 	// Since this will have a parse error, we can not use format.Source().

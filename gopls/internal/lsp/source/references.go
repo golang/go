@@ -173,7 +173,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 	}
 	// Inv: qos[0].pkg != nil, since Pos is valid.
 	// Inv: qos[*].pkg != nil, since all qos are logically the same declaration.
-	filename := qos[0].pkg.FileSet().File(pos).Name()
+	filename := qos[0].pkg.FileSet().PositionFor(pos, false).Filename
 	pgf, err := qos[0].pkg.File(span.URIFromPath(filename))
 	if err != nil {
 		return nil, err
