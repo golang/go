@@ -29,3 +29,31 @@ func (s *ST) SetX(x int, ch chan int) {
 }
 
 func num() int { return 2 }
+
+func Index() {
+	s := []int{1}
+	s[0] = s[0] // want "self-assignment"
+
+	var a [5]int
+	a[0] = a[0] // want "self-assignment"
+
+	pa := &[2]int{1, 2}
+	pa[1] = pa[1] // want "self-assignment"
+
+	var pss *struct { // report self assignment despite nil dereference
+		s []int
+	}
+	pss.s[0] = pss.s[0] // want "self-assignment"
+
+	m := map[int]string{1: "a"}
+	m[0] = m[0]     // bail on map self-assignments due to side effects
+	m[1] = m[1]     // not modeling what elements must be in the map
+	(m[2]) = (m[2]) // even with parens
+	type Map map[string]bool
+	named := make(Map)
+	named["s"] = named["s"] // even on named maps.
+	var psm *struct {
+		m map[string]int
+	}
+	psm.m["key"] = psm.m["key"] // handles dereferences
+}
