@@ -6,7 +6,6 @@ package misc
 
 import (
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 
@@ -14,6 +13,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
+	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -69,10 +69,11 @@ func main() {
 `
 
 	cwd, _ := os.Getwd()
+	uri := span.URIFromPath(filepath.Join(cwd, "testdata", "vulndb"))
 	WithOptions(
 		EnvVars{
 			// Let the analyzer read vulnerabilities data from the testdata/vulndb.
-			"GOVULNDB": "file://" + path.Join(filepath.ToSlash(cwd), "testdata", "vulndb"),
+			"GOVULNDB": string(uri),
 			// When fetchinging stdlib package vulnerability info,
 			// behave as if our go version is go1.18 for this testing.
 			// The default behavior is to run `go env GOVERSION` (which isn't mutable env var).
@@ -226,11 +227,12 @@ func TestRunVulncheckExp(t *testing.T) {
 	testenv.NeedsGo1Point(t, 18)
 
 	cwd, _ := os.Getwd()
+	uri := span.URIFromPath(filepath.Join(cwd, "testdata", "vulndb"))
 	WithOptions(
 		ProxyFiles(proxy1),
 		EnvVars{
 			// Let the analyzer read vulnerabilities data from the testdata/vulndb.
-			"GOVULNDB": "file://" + path.Join(filepath.ToSlash(cwd), "testdata", "vulndb"),
+			"GOVULNDB": string(uri),
 			// When fetching stdlib package vulnerability info,
 			// behave as if our go version is go1.18 for this testing.
 			// The default behavior is to run `go env GOVERSION` (which isn't mutable env var).

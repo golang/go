@@ -10,7 +10,7 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/frankban/quicktest v1.14.2 h1:SPb1KFFmM+ybpEjPUhCCkZOM5xlovT5UbrMvWnXyBns=
 github.com/frankban/quicktest v1.14.2/go.mod h1:mgiwOwqx65TmIk1wJ6Q7wvnVMocbUorkibMOrVTHZps=
-github.com/google/go-cmdtest v0.4.0/go.mod h1:apVn/GCasLZUVpAJ6oWAuyP7Ne7CEsQbTnc0plM3m+o=
+github.com/google/go-cmdtest v0.4.1-0.20220921163831-55ab3332a786/go.mod h1:apVn/GCasLZUVpAJ6oWAuyP7Ne7CEsQbTnc0plM3m+o=
 github.com/google/go-cmp v0.3.1/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/google/go-cmp v0.5.7/go.mod h1:n+brtR0CgQNWTVd5ZUFpTBC8YFBDLK/h/bpaJ8/DtOE=
 github.com/google/go-cmp v0.5.8 h1:e6P7q2lk1O+qJJb4BtCQXlK8vWEO8V1ZeuEdJNOqZyg=
@@ -69,10 +69,8 @@ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuX
 golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
 golang.org/x/text v0.3.7 h1:olpwvP2KacW1ZWvsR7uQhoyTYvKAupfQrRGBFM352Gk=
 golang.org/x/text v0.3.7/go.mod h1:u+2+/6zg+i71rQMx5EYifcz6MCKuco9NR6JIITiCfzQ=
-golang.org/x/vuln v0.0.0-20220901221904-62b0186a1058 h1:YnB27EXBD8XxB0JcaOeluuvhF2kS4DrH0k+lpopG2xc=
-golang.org/x/vuln v0.0.0-20220901221904-62b0186a1058/go.mod h1:7tDfEDtOLlzHQRi4Yzfg5seVBSvouUIjyPzBx4q5CxQ=
-golang.org/x/vuln v0.0.0-20220919155316-41b1fc70d0a6 h1:tQFrcJZ95V1wiLLPoAIaEuEVXJ7JkhbZI4Hws7Fx69c=
-golang.org/x/vuln v0.0.0-20220919155316-41b1fc70d0a6/go.mod h1:7tDfEDtOLlzHQRi4Yzfg5seVBSvouUIjyPzBx4q5CxQ=
+golang.org/x/vuln v0.0.0-20221004232641-2aa0553d353b h1:8Tu9pgIV7kt8ulNtzidzpLl9E9l1i+U4QLdKG0ZzHyE=
+golang.org/x/vuln v0.0.0-20221004232641-2aa0553d353b/go.mod h1:F12iebNzxRMpJsm4W7ape+r/KdnXiSy3VC94WsyCG68=
 golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
