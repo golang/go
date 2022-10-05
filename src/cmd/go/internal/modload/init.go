@@ -1154,7 +1154,7 @@ func setDefaultBuildMod() {
 		return
 	}
 
-	if len(modRoots) == 1 {
+	if len(modRoots) == 1 && !inWorkspaceMode() {
 		index := MainModules.GetSingleIndexOrNil()
 		if fi, err := fsys.Stat(filepath.Join(modRoots[0], "vendor")); err == nil && fi.IsDir() {
 			modGo := "unspecified"
