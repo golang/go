@@ -6,14 +6,16 @@ package fake
 
 import (
 	"fmt"
-	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/diff"
 )
 
-// Pos represents a position in a text buffer. Both Line and Column are
-// 0-indexed.
+// Pos represents a position in a text buffer.
+// Both Line and Column are 0-indexed.
+// Column counts runes.
 type Pos struct {
 	Line, Column int
 }
@@ -105,78 +107,51 @@ func inText(p Pos, content []string) bool {
 	return true
 }
 
-// editContent implements a simplistic, inefficient algorithm for applying text
-// edits to our buffer representation. It returns an error if the edit is
-// invalid for the current content.
-//
-// TODO(rfindley): this function does not handle non-ascii text correctly.
-// TODO(rfindley): replace this with diff.Apply: we should not be
-// maintaining an additional representation of edits.
-func editContent(content []string, edits []Edit) ([]string, error) {
-	newEdits := make([]Edit, len(edits))
-	copy(newEdits, edits)
-	sort.SliceStable(newEdits, func(i, j int) bool {
-		ei := newEdits[i]
-		ej := newEdits[j]
+// applyEdits applies the edits to a file with the specified lines,
+// and returns a new slice containing the lines of the patched file.
+// It is a wrapper around diff.Apply; see that function for preconditions.
+func applyEdits(lines []string, edits []Edit) ([]string, error) {
+	src := strings.Join(lines, "\n")
 
-		// Sort by edit start position followed by end position. Given an edit
-		// 3:1-3:1 followed by an edit 3:1-3:15, we must process the empty edit
-		// first.
-		if cmp := comparePos(ei.Start, ej.Start); cmp != 0 {
-			return cmp < 0
-		}
+	// Build a table of byte offset of start of each line.
+	lineOffset := make([]int, len(lines)+1)
+	offset := 0
+	for i, line := range lines {
+		lineOffset[i] = offset
+		offset += len(line) + len("\n")
+	}
+	lineOffset[len(lines)] = offset // EOF
 
-		return comparePos(ei.End, ej.End) < 0
-	})
-
-	// Validate edits.
-	for _, edit := range newEdits {
-		if edit.End.Line < edit.Start.Line || (edit.End.Line == edit.Start.Line && edit.End.Column < edit.Start.Column) {
-			return nil, fmt.Errorf("invalid edit: end %v before start %v", edit.End, edit.Start)
+	var badCol error
+	posToOffset := func(pos Pos) int {
+		offset := lineOffset[pos.Line]
+		// Convert pos.Column (runes) to a UTF-8 byte offset.
+		if pos.Line < len(lines) {
+			for i := 0; i < pos.Column; i++ {
+				r, sz := utf8.DecodeRuneInString(src[offset:])
+				if r == '\n' && badCol == nil {
+					badCol = fmt.Errorf("bad column")
+				}
+				offset += sz
+			}
 		}
-		if !inText(edit.Start, content) {
-			return nil, fmt.Errorf("start position %v is out of bounds", edit.Start)
-		}
-		if !inText(edit.End, content) {
-			return nil, fmt.Errorf("end position %v is out of bounds", edit.End)
-		}
+		return offset
 	}
 
-	var (
-		b            strings.Builder
-		line, column int
-	)
-	advance := func(toLine, toColumn int) {
-		for ; line < toLine; line++ {
-			b.WriteString(string([]rune(content[line])[column:]) + "\n")
-			column = 0
+	// Convert fake.Edits to diff.Edits
+	diffEdits := make([]diff.Edit, len(edits))
+	for i, edit := range edits {
+		diffEdits[i] = diff.Edit{
+			Start: posToOffset(edit.Start),
+			End:   posToOffset(edit.End),
+			New:   edit.Text,
 		}
-		b.WriteString(string([]rune(content[line])[column:toColumn]))
-		column = toColumn
 	}
-	for _, edit := range newEdits {
-		advance(edit.Start.Line, edit.Start.Column)
-		b.WriteString(edit.Text)
-		line = edit.End.Line
-		column = edit.End.Column
-	}
-	advance(len(content)-1, len([]rune(content[len(content)-1])))
-	return strings.Split(b.String(), "\n"), nil
-}
 
-// comparePos returns -1 if left < right, 0 if left == right, and 1 if left > right.
-func comparePos(left, right Pos) int {
-	if left.Line < right.Line {
-		return -1
+	patched, err := diff.Apply(src, diffEdits)
+	if err != nil {
+		return nil, err
 	}
-	if left.Line > right.Line {
-		return 1
-	}
-	if left.Column < right.Column {
-		return -1
-	}
-	if left.Column > right.Column {
-		return 1
-	}
-	return 0
+
+	return strings.Split(patched, "\n"), badCol
 }

@@ -76,11 +76,10 @@ func (c *format) Run(ctx context.Context, args ...string) error {
 		if err != nil {
 			return fmt.Errorf("%v: %v", spn, err)
 		}
-		sedits, err := source.FromProtocolEdits(file.mapper, edits)
+		formatted, sedits, err := source.ApplyProtocolEdits(file.mapper, edits)
 		if err != nil {
 			return fmt.Errorf("%v: %v", spn, err)
 		}
-		formatted := diff.Apply(string(file.mapper.Content), sedits)
 		printIt := true
 		if c.List {
 			printIt = false

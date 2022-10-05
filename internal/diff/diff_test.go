@@ -18,11 +18,19 @@ import (
 func TestApply(t *testing.T) {
 	for _, tc := range difftest.TestCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			if got := diff.Apply(tc.In, tc.Edits); got != tc.Out {
+			got, err := diff.Apply(tc.In, tc.Edits)
+			if err != nil {
+				t.Fatalf("Apply(Edits) failed: %v", err)
+			}
+			if got != tc.Out {
 				t.Errorf("Apply(Edits): got %q, want %q", got, tc.Out)
 			}
 			if tc.LineEdits != nil {
-				if got := diff.Apply(tc.In, tc.LineEdits); got != tc.Out {
+				got, err := diff.Apply(tc.In, tc.LineEdits)
+				if err != nil {
+					t.Fatalf("Apply(LineEdits) failed: %v", err)
+				}
+				if got != tc.Out {
 					t.Errorf("Apply(LineEdits): got %q, want %q", got, tc.Out)
 				}
 			}
@@ -33,7 +41,10 @@ func TestApply(t *testing.T) {
 func TestNEdits(t *testing.T) {
 	for _, tc := range difftest.TestCases {
 		edits := diff.Strings(tc.In, tc.Out)
-		got := diff.Apply(tc.In, edits)
+		got, err := diff.Apply(tc.In, edits)
+		if err != nil {
+			t.Fatalf("Apply failed: %v", err)
+		}
 		if got != tc.Out {
 			t.Fatalf("%s: got %q wanted %q", tc.Name, got, tc.Out)
 		}
@@ -49,7 +60,10 @@ func TestNRandom(t *testing.T) {
 		a := randstr("abω", 16)
 		b := randstr("abωc", 16)
 		edits := diff.Strings(a, b)
-		got := diff.Apply(a, edits)
+		got, err := diff.Apply(a, edits)
+		if err != nil {
+			t.Fatalf("Apply failed: %v", err)
+		}
 		if got != b {
 			t.Fatalf("%d: got %q, wanted %q, starting with %q", i, got, b, a)
 		}
@@ -63,7 +77,10 @@ func FuzzRoundTrip(f *testing.F) {
 			return // inputs must be text
 		}
 		edits := diff.Strings(a, b)
-		got := diff.Apply(a, edits)
+		got, err := diff.Apply(a, edits)
+		if err != nil {
+			t.Fatalf("Apply failed: %v", err)
+		}
 		if got != b {
 			t.Fatalf("applying diff(%q, %q) gives %q; edits=%v", a, b, got, edits)
 		}
@@ -90,7 +107,10 @@ func TestNLinesRandom(t *testing.T) {
 		}
 		a, b := strings.SplitAfter(x, "\n"), strings.SplitAfter(y, "\n")
 		edits := diff.Lines(a, b)
-		got := diff.Apply(x, edits)
+		got, err := diff.Apply(x, edits)
+		if err != nil {
+			t.Fatalf("Apply failed: %v", err)
+		}
 		if got != y {
 			t.Fatalf("%d: got\n%q, wanted\n%q, starting with %q", i, got, y, a)
 		}
@@ -134,7 +154,10 @@ func TestRegressionOld001(t *testing.T) {
 
 	b := "// Copyright 2019 The Go Authors. All rights reserved.\n// Use of this source code is governed by a BSD-style\n// license that can be found in the LICENSE file.\n\npackage diff_test\n\nimport (\n\t\"fmt\"\n\t\"math/rand\"\n\t\"strings\"\n\t\"testing\"\n\n\t\"github.com/google/safehtml/template\"\n\t\"golang.org/x/tools/gopls/internal/lsp/diff\"\n\t\"golang.org/x/tools/internal/diff/difftest\"\n\t\"golang.org/x/tools/internal/span\"\n)\n"
 	diffs := diff.Strings(a, b)
-	got := diff.Apply(a, diffs)
+	got, err := diff.Apply(a, diffs)
+	if err != nil {
+		t.Fatalf("Apply failed: %v", err)
+	}
 	if got != b {
 		i := 0
 		for ; i < len(a) && i < len(b) && got[i] == b[i]; i++ {
@@ -148,7 +171,10 @@ func TestRegressionOld002(t *testing.T) {
 	a := "n\"\n)\n"
 	b := "n\"\n\t\"golang.org/x//nnal/stack\"\n)\n"
 	diffs := diff.Strings(a, b)
-	got := diff.Apply(a, diffs)
+	got, err := diff.Apply(a, diffs)
+	if err != nil {
+		t.Fatalf("Apply failed: %v", err)
+	}
 	if got != b {
 		i := 0
 		for ; i < len(a) && i < len(b) && got[i] == b[i]; i++ {

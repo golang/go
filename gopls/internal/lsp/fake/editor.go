@@ -710,9 +710,7 @@ func (e *Editor) editBufferLocked(ctx context.Context, path string, edits []Edit
 	if !ok {
 		return fmt.Errorf("unknown buffer %q", path)
 	}
-	content := make([]string, len(buf.lines))
-	copy(content, buf.lines)
-	content, err := editContent(content, edits)
+	content, err := applyEdits(buf.lines, edits)
 	if err != nil {
 		return err
 	}

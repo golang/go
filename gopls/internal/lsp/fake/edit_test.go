@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestApplyEdit(t *testing.T) {
+func TestApplyEdits(t *testing.T) {
 	tests := []struct {
 		label   string
 		content string
@@ -82,7 +82,7 @@ func TestApplyEdit(t *testing.T) {
 		test := test
 		t.Run(test.label, func(t *testing.T) {
 			lines := strings.Split(test.content, "\n")
-			newLines, err := editContent(lines, test.edits)
+			newLines, err := applyEdits(lines, test.edits)
 			if (err != nil) != test.wantErr {
 				t.Errorf("got err %v, want error: %t", err, test.wantErr)
 			}

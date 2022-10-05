@@ -24,7 +24,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/bug"
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
@@ -409,11 +408,10 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sedits, err := source.FromProtocolEdits(m, edits)
+	got, _, err := source.ApplyProtocolEdits(m, edits)
 	if err != nil {
 		t.Error(err)
 	}
-	got := diff.Apply(string(m.Content), sedits)
 	if diff := compare.Text(gofmted, got); diff != "" {
 		t.Errorf("format failed for %s (-want +got):\n%s", filename, diff)
 	}
@@ -975,11 +973,10 @@ func (r *runner) InlayHints(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sedits, err := source.FromProtocolEdits(m, edits)
+	got, _, err := source.ApplyProtocolEdits(m, edits)
 	if err != nil {
 		t.Error(err)
 	}
-	got := diff.Apply(string(m.Content), sedits)
 
 	withinlayHints := string(r.data.Golden(t, "inlayHint", filename, func() ([]byte, error) {
 		return []byte(got), nil
@@ -1115,27 +1112,14 @@ func applyTextDocumentEdits(r *runner, edits []protocol.DocumentChanges) (map[sp
 					return nil, err
 				}
 			}
-			res[uri] = string(m.Content)
-			sedits, err := source.FromProtocolEdits(m, docEdits.TextDocumentEdit.Edits)
+			patched, _, err := source.ApplyProtocolEdits(m, docEdits.TextDocumentEdit.Edits)
 			if err != nil {
 				return nil, err
 			}
-			res[uri] = applyEdits(res[uri], sedits)
+			res[uri] = patched
 		}
 	}
 	return res, nil
-}
-
-func applyEdits(contents string, edits []diff.Edit) string {
-	res := contents
-
-	// Apply the edits from the end of the file forward
-	// to preserve the offsets
-	for i := len(edits) - 1; i >= 0; i-- {
-		edit := edits[i]
-		res = res[:edit.Start] + edit.New + res[edit.End:]
-	}
-	return res
 }
 
 func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.DocumentSymbol) {

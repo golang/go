@@ -162,8 +162,8 @@ func BothDiffs(before, after string) (edits []diff.Edit) {
 	newedits := diff.Strings(before, after)
 	stat.Newedits = len(newedits)
 	stat.Newtime = time.Now().Sub(now)
-	got := diff.Apply(before, newedits)
-	if got != after {
+	got, err := diff.Apply(before, newedits)
+	if err != nil || got != after {
 		stat.Msg += "FAIL"
 		disaster(before, after)
 		stat.save()

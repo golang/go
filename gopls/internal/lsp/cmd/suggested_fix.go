@@ -142,11 +142,10 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 		}
 	}
 
-	sedits, err := source.FromProtocolEdits(file.mapper, edits)
+	newContent, sedits, err := source.ApplyProtocolEdits(file.mapper, edits)
 	if err != nil {
 		return fmt.Errorf("%v: %v", edits, err)
 	}
-	newContent := diff.Apply(string(file.mapper.Content), sedits)
 
 	filename := file.uri.Filename()
 	switch {

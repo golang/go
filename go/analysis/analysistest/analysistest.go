@@ -183,7 +183,11 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 					for _, vf := range ar.Files {
 						if vf.Name == sf {
 							found = true
-							out := diff.Apply(string(orig), edits)
+							out, err := diff.Apply(string(orig), edits)
+							if err != nil {
+								t.Errorf("%s: error applying fixes: %v", file.Name(), err)
+								continue
+							}
 							// the file may contain multiple trailing
 							// newlines if the user places empty lines
 							// between files in the archive. normalize
@@ -213,7 +217,11 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 					catchallEdits = append(catchallEdits, edits...)
 				}
 
-				out := diff.Apply(string(orig), catchallEdits)
+				out, err := diff.Apply(string(orig), catchallEdits)
+				if err != nil {
+					t.Errorf("%s: error applying fixes: %v", file.Name(), err)
+					continue
+				}
 				want := string(ar.Comment)
 
 				formatted, err := format.Source([]byte(out))

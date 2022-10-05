@@ -95,12 +95,10 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 		cmdFile := conn.AddFile(ctx, uri)
 		filename := cmdFile.uri.Filename()
 
-		// convert LSP-style edits to []diff.TextEdit cuz Spans are handy
-		renameEdits, err := source.FromProtocolEdits(cmdFile.mapper, edits[uri])
+		newContent, renameEdits, err := source.ApplyProtocolEdits(cmdFile.mapper, edits[uri])
 		if err != nil {
 			return fmt.Errorf("%v: %v", edits, err)
 		}
-		newContent := diff.Apply(string(cmdFile.mapper.Content), renameEdits)
 
 		switch {
 		case r.Write:

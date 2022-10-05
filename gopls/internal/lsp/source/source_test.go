@@ -22,7 +22,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/bug"
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/fuzzy"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
@@ -477,19 +476,14 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 		}
 		return
 	}
-	data, err := fh.Read()
-	if err != nil {
-		t.Fatal(err)
-	}
 	m, err := r.data.Mapper(spn.URI())
 	if err != nil {
 		t.Fatal(err)
 	}
-	diffEdits, err := source.FromProtocolEdits(m, edits)
+	got, _, err := source.ApplyProtocolEdits(m, edits)
 	if err != nil {
 		t.Error(err)
 	}
-	got := diff.Apply(string(data), diffEdits)
 	if gofmted != got {
 		t.Errorf("format failed for %s, expected:\n%v\ngot:\n%v", spn.URI().Filename(), gofmted, got)
 	}
@@ -508,19 +502,14 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Error(err)
 	}
-	data, err := fh.Read()
-	if err != nil {
-		t.Fatal(err)
-	}
 	m, err := r.data.Mapper(fh.URI())
 	if err != nil {
 		t.Fatal(err)
 	}
-	diffEdits, err := source.FromProtocolEdits(m, edits)
+	got, _, err := source.ApplyProtocolEdits(m, edits)
 	if err != nil {
 		t.Error(err)
 	}
-	got := diff.Apply(string(data), diffEdits)
 	want := string(r.data.Golden(t, "goimports", spn.URI().Filename(), func() ([]byte, error) {
 		return []byte(got), nil
 	}))
@@ -781,19 +770,14 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		data, err := fh.Read()
-		if err != nil {
-			t.Fatal(err)
-		}
 		m, err := r.data.Mapper(fh.URI())
 		if err != nil {
 			t.Fatal(err)
 		}
-		diffEdits, err := source.FromProtocolEdits(m, edits)
+		contents, _, err := source.ApplyProtocolEdits(m, edits)
 		if err != nil {
 			t.Fatal(err)
 		}
-		contents := applyEdits(string(data), diffEdits)
 		if len(changes) > 1 {
 			filename := filepath.Base(editURI.Filename())
 			contents = fmt.Sprintf("%s:\n%s", filename, contents)
@@ -819,18 +803,6 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	if renamed != got {
 		t.Errorf("rename failed for %s, expected:\n%v\ngot:\n%v", newText, renamed, got)
 	}
-}
-
-func applyEdits(contents string, edits []diff.Edit) string {
-	res := contents
-
-	// Apply the edits from the end of the file forward
-	// to preserve the offsets
-	for i := len(edits) - 1; i >= 0; i-- {
-		edit := edits[i]
-		res = res[:edit.Start] + edit.New + res[edit.End:]
-	}
-	return res
 }
 
 func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.PrepareItem) {
