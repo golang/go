@@ -334,12 +334,21 @@ var lookPathTests = []lookPathTest{
 }
 
 func TestLookPathWindows(t *testing.T) {
+	if testing.Short() {
+		maySkipHelperCommand("lookpath")
+		t.Skipf("skipping test in short mode that would build a helper binary")
+	}
+	t.Parallel()
+
 	tmp := t.TempDir()
 	printpathExe := buildPrintPathExe(t, tmp)
 
 	// Run all tests.
 	for i, test := range lookPathTests {
+		i, test := i, test
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			t.Parallel()
+
 			dir := filepath.Join(tmp, "d"+strconv.Itoa(i))
 			err := os.Mkdir(dir, 0700)
 			if err != nil {
@@ -524,17 +533,28 @@ var commandTests = []commandTest{
 }
 
 func TestCommand(t *testing.T) {
+	if testing.Short() {
+		maySkipHelperCommand("exec")
+		t.Skipf("skipping test in short mode that would build a helper binary")
+	}
+	t.Parallel()
+
 	tmp := t.TempDir()
 	printpathExe := buildPrintPathExe(t, tmp)
 
 	// Run all tests.
 	for i, test := range commandTests {
-		dir := filepath.Join(tmp, "d"+strconv.Itoa(i))
-		err := os.Mkdir(dir, 0700)
-		if err != nil {
-			t.Fatal("Mkdir failed: ", err)
-		}
-		test.run(t, dir, printpathExe)
+		i, test := i, test
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			t.Parallel()
+
+			dir := filepath.Join(tmp, "d"+strconv.Itoa(i))
+			err := os.Mkdir(dir, 0700)
+			if err != nil {
+				t.Fatal("Mkdir failed: ", err)
+			}
+			test.run(t, dir, printpathExe)
+		})
 	}
 }
 

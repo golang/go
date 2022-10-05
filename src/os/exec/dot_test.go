@@ -24,6 +24,7 @@ var pathVar string = func() string {
 
 func TestLookPath(t *testing.T) {
 	testenv.MustHaveExec(t)
+	// Not parallel: uses os.Chdir and t.Setenv.
 
 	tmpDir := filepath.Join(t.TempDir(), "testdir")
 	if err := os.Mkdir(tmpDir, 0777); err != nil {
