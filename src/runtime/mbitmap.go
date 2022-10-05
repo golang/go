@@ -147,7 +147,7 @@ func (s *mspan) nextFreeIndex() uintptr {
 
 	aCache := s.allocCache
 
-	bitIndex := sys.Ctz64(aCache)
+	bitIndex := sys.TrailingZeros64(aCache)
 	for bitIndex == 64 {
 		// Move index to start of next cached bits.
 		sfreeindex = (sfreeindex + 64) &^ (64 - 1)
@@ -159,7 +159,7 @@ func (s *mspan) nextFreeIndex() uintptr {
 		// Refill s.allocCache with the next 64 alloc bits.
 		s.refillAllocCache(whichByte)
 		aCache = s.allocCache
-		bitIndex = sys.Ctz64(aCache)
+		bitIndex = sys.TrailingZeros64(aCache)
 		// nothing available in cached bits
 		// grab the next 8 bytes and try again.
 	}
@@ -452,9 +452,9 @@ func (h heapBits) next() (heapBits, uintptr) {
 		if h.mask != 0 {
 			var i int
 			if goarch.PtrSize == 8 {
-				i = sys.Ctz64(uint64(h.mask))
+				i = sys.TrailingZeros64(uint64(h.mask))
 			} else {
-				i = sys.Ctz32(uint32(h.mask))
+				i = sys.TrailingZeros32(uint32(h.mask))
 			}
 			h.mask ^= uintptr(1) << (i & (ptrBits - 1))
 			return h, h.addr + uintptr(i)*goarch.PtrSize
@@ -494,9 +494,9 @@ func (h heapBits) nextFast() (heapBits, uintptr) {
 	// BSFQ
 	var i int
 	if goarch.PtrSize == 8 {
-		i = sys.Ctz64(uint64(h.mask))
+		i = sys.TrailingZeros64(uint64(h.mask))
 	} else {
-		i = sys.Ctz32(uint32(h.mask))
+		i = sys.TrailingZeros32(uint32(h.mask))
 	}
 	// BTCQ
 	h.mask ^= uintptr(1) << (i & (ptrBits - 1))
