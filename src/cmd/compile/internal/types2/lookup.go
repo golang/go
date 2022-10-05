@@ -395,6 +395,11 @@ func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
 		return "(" + check.interfacePtrError(T) + ")"
 	}
 
+	obj, _, _ := lookupFieldOrMethod(V, true /* auto-deref */, m.pkg, m.name, false)
+	if fld, _ := obj.(*Var); fld != nil {
+		return check.sprintf("(%s.%s is a field, not a method)", V, fld.Name())
+	}
+
 	return check.sprintf("(missing %s)", mname)
 }
 
