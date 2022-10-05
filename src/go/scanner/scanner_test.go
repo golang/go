@@ -666,7 +666,7 @@ func TestInit(t *testing.T) {
 	}
 }
 
-func TestStdErrorHander(t *testing.T) {
+func TestStdErrorHandler(t *testing.T) {
 	const src = "@\n" + // illegal character, cause an error
 		"@ @\n" + // two errors on the same line
 		"//line File2:20\n" +
