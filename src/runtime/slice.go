@@ -225,9 +225,9 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 		var shift uintptr
 		if goarch.PtrSize == 8 {
 			// Mask shift for better code generation.
-			shift = uintptr(sys.Ctz64(uint64(et.size))) & 63
+			shift = uintptr(sys.TrailingZeros64(uint64(et.size))) & 63
 		} else {
-			shift = uintptr(sys.Ctz32(uint32(et.size))) & 31
+			shift = uintptr(sys.TrailingZeros32(uint32(et.size))) & 31
 		}
 		lenmem = uintptr(oldLen) << shift
 		newlenmem = uintptr(newLen) << shift

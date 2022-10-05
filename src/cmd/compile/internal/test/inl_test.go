@@ -212,19 +212,19 @@ func TestIntendedInlining(t *testing.T) {
 	}
 
 	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
-		// nextFreeFast calls sys.Ctz64, which on 386 is implemented in asm and is not inlinable.
+		// nextFreeFast calls sys.TrailingZeros64, which on 386 is implemented in asm and is not inlinable.
 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
-		// On loong64, mips64x and riscv64, Ctz64 is not intrinsified and causes nextFreeFast too expensive
-		// to inline (Issue 22239).
+		// On loong64, mips64x and riscv64, TrailingZeros64 is not intrinsified and causes nextFreeFast
+		// too expensive to inline (Issue 22239).
 		want["runtime"] = append(want["runtime"], "nextFreeFast")
 		// Same behavior for heapBits.nextFast.
 		want["runtime"] = append(want["runtime"], "heapBits.nextFast")
 	}
 	if runtime.GOARCH != "386" {
-		// As explained above, Ctz64 and Ctz32 are not Go code on 386.
+		// As explained above, TrailingZeros64 and TrailingZeros32 are not Go code on 386.
 		// The same applies to Bswap32.
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Ctz64")
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Ctz32")
+		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros64")
+		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros32")
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
 	}
 	if bits.UintSize == 64 {

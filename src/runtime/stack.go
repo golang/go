@@ -617,7 +617,7 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f 
 		}
 		b := *(addb(bv.bytedata, i/8))
 		for b != 0 {
-			j := uintptr(sys.Ctz8(b))
+			j := uintptr(sys.TrailingZeros8(b))
 			b &= b - 1
 			pp := (*uintptr)(add(scanp, (i+j)*goarch.PtrSize))
 		retry:

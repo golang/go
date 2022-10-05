@@ -23,26 +23,26 @@ func logf(f string, args ...interface{}) {
 }
 
 func test(i int, x uint64) {
-	t := T.Ctz64(x) // ERROR "intrinsic substitution for Ctz64"
+	t := T.TrailingZeros64(x) // ERROR "intrinsic substitution for TrailingZeros64"
 	if i != t {
-		logf("Ctz64(0x%x) expected %d but got %d\n", x, i, t)
+		logf("TrailingZeros64(0x%x) expected %d but got %d\n", x, i, t)
 	}
 	x = -x
-	t = T.Ctz64(x) // ERROR "intrinsic substitution for Ctz64"
+	t = T.TrailingZeros64(x) // ERROR "intrinsic substitution for TrailingZeros64"
 	if i != t {
-		logf("Ctz64(0x%x) expected %d but got %d\n", x, i, t)
+		logf("TrailingZeros64(0x%x) expected %d but got %d\n", x, i, t)
 	}
 
 	if i <= 32 {
 		x32 := uint32(x)
-		t32 := T.Ctz32(x32) // ERROR "intrinsic substitution for Ctz32"
+		t32 := T.TrailingZeros32(x32) // ERROR "intrinsic substitution for TrailingZeros32"
 		if i != t32 {
-			logf("Ctz32(0x%x) expected %d but got %d\n", x32, i, t32)
+			logf("TrailingZeros32(0x%x) expected %d but got %d\n", x32, i, t32)
 		}
 		x32 = -x32
-		t32 = T.Ctz32(x32) // ERROR "intrinsic substitution for Ctz32"
+		t32 = T.TrailingZeros32(x32) // ERROR "intrinsic substitution for TrailingZeros32"
 		if i != t32 {
-			logf("Ctz32(0x%x) expected %d but got %d\n", x32, i, t32)
+			logf("TrailingZeros32(0x%x) expected %d but got %d\n", x32, i, t32)
 		}
 	}
 }
@@ -76,11 +76,11 @@ func main() {
 	}
 
 	// Zero is a special case, be sure it is done right.
-	if T.Ctz32(0) != 32 { // ERROR "intrinsic substitution for Ctz32"
-		logf("ctz32(0) != 32")
+	if T.TrailingZeros32(0) != 32 { // ERROR "intrinsic substitution for TrailingZeros32"
+		logf("TrailingZeros32(0) != 32")
 	}
-	if T.Ctz64(0) != 64 { // ERROR "intrinsic substitution for Ctz64"
-		logf("ctz64(0) != 64")
+	if T.TrailingZeros64(0) != 64 { // ERROR "intrinsic substitution for TrailingZeros64"
+		logf("TrailingZeros64(0) != 64")
 	}
 
 	for i := 0; i <= 64; i++ {
