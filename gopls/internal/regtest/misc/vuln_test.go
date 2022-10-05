@@ -2,18 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build go1.18
+// +build go1.18
+
 package misc
 
 import (
-	"os"
-	"path/filepath"
+	"context"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/vulncheck/vulntest"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -47,6 +49,62 @@ package foo
 	})
 }
 
+const vulnsData = `
+-- GO-2022-01.yaml --
+modules:
+  - module: golang.org/amod
+    versions:
+      - introduced: 1.0.0
+      - fixed: 1.0.4
+      - introduced: 1.1.2
+    packages:
+      - package: golang.org/amod/avuln
+        symbols:
+          - VulnData.Vuln1
+          - VulnData.Vuln2
+description: >
+    vuln in amod
+references:
+  - href: pkg.go.dev/vuln/GO-2022-01
+-- GO-2022-03.yaml --
+modules:
+  - module: golang.org/amod
+    versions:
+      - introduced: 1.0.0
+      - fixed: 1.0.6
+    packages:
+      - package: golang.org/amod/avuln
+        symbols:
+          - nonExisting
+description: >
+  unaffecting vulnerability  
+-- GO-2022-02.yaml --
+modules:
+  - module: golang.org/bmod
+    packages:
+      - package: golang.org/bmod/bvuln
+        symbols:
+          - Vuln
+description: |
+    vuln in bmod
+    
+    This is a long description
+    of this vulnerability.
+references:
+  - href: pkg.go.dev/vuln/GO-2022-03
+-- STD.yaml --
+modules:
+  - module: stdlib
+    versions:
+      - introduced: 1.18.0
+    packages:
+      - package: archive/zip
+        symbols:
+          - OpenReader
+references:
+  - href: pkg.go.dev/vuln/STD
+`
+
 func TestRunVulncheckExpStd(t *testing.T) {
 	testenv.NeedsGo1Point(t, 18)
 	const files = `
@@ -68,12 +126,15 @@ func main() {
 }
 `
 
-	cwd, _ := os.Getwd()
-	uri := span.URIFromPath(filepath.Join(cwd, "testdata", "vulndb"))
+	db, err := vulntest.NewDatabase(context.Background(), []byte(vulnsData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Clean()
 	WithOptions(
 		EnvVars{
 			// Let the analyzer read vulnerabilities data from the testdata/vulndb.
-			"GOVULNDB": string(uri),
+			"GOVULNDB": db.URI(),
 			// When fetchinging stdlib package vulnerability info,
 			// behave as if our go version is go1.18 for this testing.
 			// The default behavior is to run `go env GOVERSION` (which isn't mutable env var).
@@ -226,13 +287,16 @@ func Vuln() {
 func TestRunVulncheckExp(t *testing.T) {
 	testenv.NeedsGo1Point(t, 18)
 
-	cwd, _ := os.Getwd()
-	uri := span.URIFromPath(filepath.Join(cwd, "testdata", "vulndb"))
+	db, err := vulntest.NewDatabase(context.Background(), []byte(vulnsData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Clean()
 	WithOptions(
 		ProxyFiles(proxy1),
 		EnvVars{
 			// Let the analyzer read vulnerabilities data from the testdata/vulndb.
-			"GOVULNDB": string(uri),
+			"GOVULNDB": db.URI(),
 			// When fetching stdlib package vulnerability info,
 			// behave as if our go version is go1.18 for this testing.
 			// The default behavior is to run `go env GOVERSION` (which isn't mutable env var).
