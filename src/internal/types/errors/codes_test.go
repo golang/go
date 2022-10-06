@@ -69,7 +69,7 @@ func walkCodes(t *testing.T, f func(string, int, *ast.ValueSpec)) {
 				continue
 			}
 			obj := info.ObjectOf(spec.Names[0])
-			if named, ok := obj.Type().(*Named); ok && named.Obj().Name() == "errorCode" {
+			if named, ok := obj.Type().(*Named); ok && named.Obj().Name() == "Code" {
 				if len(spec.Names) != 1 {
 					t.Fatalf("bad Code declaration for %q: got %d names, want exactly 1", spec.Names[0].Name, len(spec.Names))
 				}
@@ -154,13 +154,8 @@ func TestErrorCodeStyle(t *testing.T) {
 		if len(name) > len(longestName) {
 			longestName = name
 		}
-		if token.IsExported(name) {
-			// This is an experimental API, and errorCode values should not be
-			// exported.
-			t.Errorf("%q is exported", name)
-		}
-		if name[0] != '_' || !token.IsExported(name[1:]) {
-			t.Errorf("%q should start with _, followed by an exported identifier", name)
+		if !token.IsExported(name) {
+			t.Errorf("%q is not exported", name)
 		}
 		lower := strings.ToLower(name)
 		for _, bad := range forbiddenInIdent {
