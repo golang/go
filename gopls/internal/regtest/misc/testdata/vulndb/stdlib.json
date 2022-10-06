@@ -1,1 +1,0 @@
-[{"id":"STD","affected":[{"package":{"name":"stdlib"},"ranges":[{"type":"SEMVER","events":[{"introduced":"1.18.0"}]}],"ecosystem_specific":{"imports":[{"path":"archive/zip","symbols":["OpenReader"]}]}}]}]
