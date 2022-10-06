@@ -138,12 +138,12 @@ const (
 	//  const c *int = 4
 	InvalidConstType
 
-	// UntypedNil occurs when the predeclared (untyped) value nil is used to
+	// UntypedNilUse occurs when the predeclared (untyped) value nil is used to
 	// initialize a variable declared without an explicit type.
 	//
 	// Example:
 	//  var x = nil
-	UntypedNil
+	UntypedNilUse
 
 	// WrongAssignCount occurs when the number of values on the right-hand side
 	// of an assignment or initialization expression does not match the number
