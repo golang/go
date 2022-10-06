@@ -93,9 +93,9 @@
 	const decoder = new TextDecoder("utf-8");
 
 	globalThis.Go = class {
-		constructor() {
+		constructor(env = {}) {
 			this.argv = ["js"];
-			this.env = {};
+			this.env = env;
 			this.exit = (code) => {
 				if (code !== 0) {
 					console.warn("exit code:", code);
