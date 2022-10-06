@@ -469,7 +469,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 	if name, _ := e.(*ast.Ident); name != nil {
 		obj := check.lookup(name.Name)
 		if obj == nil {
-			check.errorf(name, _InvalidArrayLen, "undefined %s for array length", name.Name)
+			check.errorf(name, _InvalidArrayLen, "undefined array length %s or missing type constraint", name.Name)
 			return -1
 		}
 		if _, ok := obj.(*Const); !ok {
