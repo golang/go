@@ -87,36 +87,6 @@ func FuzzRoundTrip(f *testing.F) {
 	})
 }
 
-func TestNLinesRandom(t *testing.T) {
-	rand.Seed(2)
-	for i := 0; i < 1000; i++ {
-		x := randlines("abω", 4) // avg line length is 6, want a change every 3rd line or so
-		v := []rune(x)
-		for i := 0; i < len(v); i++ {
-			if rand.Float64() < .05 {
-				v[i] = 'N'
-			}
-		}
-		y := string(v)
-		// occasionally remove the trailing \n
-		if rand.Float64() < .1 {
-			x = x[:len(x)-1]
-		}
-		if rand.Float64() < .1 {
-			y = y[:len(y)-1]
-		}
-		a, b := strings.SplitAfter(x, "\n"), strings.SplitAfter(y, "\n")
-		edits := diff.Lines(a, b)
-		got, err := diff.Apply(x, edits)
-		if err != nil {
-			t.Fatalf("Apply failed: %v", err)
-		}
-		if got != y {
-			t.Fatalf("%d: got\n%q, wanted\n%q, starting with %q", i, got, y, a)
-		}
-	}
-}
-
 func TestLineEdits(t *testing.T) {
 	for _, tc := range difftest.TestCases {
 		t.Run(tc.Name, func(t *testing.T) {

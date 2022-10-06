@@ -5,111 +5,104 @@
 package diff
 
 import (
-	"strings"
+	"bytes"
 	"unicode/utf8"
 
 	"golang.org/x/tools/internal/diff/lcs"
 )
 
+// Strings computes the differences between two strings.
+// The resulting edits respect rune boundaries.
+func Strings(before, after string) []Edit {
+	if before == after {
+		return nil // common case
+	}
+
+	if stringIsASCII(before) && stringIsASCII(after) {
+		return diffASCII([]byte(before), []byte(after))
+	}
+	return diffRunes([]rune(before), []rune(after))
+}
+
+// Bytes computes the differences between two byte slices.
+// The resulting edits respect rune boundaries.
+func Bytes(before, after []byte) []Edit {
+	if bytes.Equal(before, after) {
+		return nil // common case
+	}
+
+	if bytesIsASCII(before) && bytesIsASCII(after) {
+		return diffASCII(before, after)
+	}
+	return diffRunes(runes(before), runes(after))
+}
+
+func diffASCII(before, after []byte) []Edit {
+	diffs, _ := lcs.Compute(before, after, maxDiffs/2)
+
+	// Convert from LCS diffs.
+	res := make([]Edit, len(diffs))
+	for i, d := range diffs {
+		res[i] = Edit{d.Start, d.End, d.Text}
+	}
+	return res
+}
+
+func diffRunes(before, after []rune) []Edit {
+	diffs, _ := lcs.Compute(before, after, maxDiffs/2)
+
+	// The diffs returned by the lcs package use indexes
+	// into whatever slice was passed in.
+	// Convert rune offsets to byte offsets.
+	res := make([]Edit, len(diffs))
+	lastEnd := 0
+	utf8Len := 0
+	for i, d := range diffs {
+		utf8Len += runesLen(before[lastEnd:d.Start]) // text between edits
+		start := utf8Len
+		utf8Len += runesLen(before[d.Start:d.End]) // text deleted by this edit
+		res[i] = Edit{start, utf8Len, d.Text}
+		lastEnd = d.End
+	}
+	return res
+}
+
 // maxDiffs is a limit on how deeply the lcs algorithm should search
 // the value is just a guess
 const maxDiffs = 30
 
-// Strings computes the differences between two strings.
-// (Both it and the diff in the myers package have type ComputeEdits, which
-// is why the arguments are strings, not []bytes.)
-// TODO(adonovan): opt: consider switching everything to []bytes, if
-// that's the more common type in practice. Or provide both flavors?
-func Strings(before, after string) []Edit {
-	if before == after {
-		// very frequently true
-		return nil
+// runes is like []rune(string(bytes)) without the duplicate allocation.
+func runes(bytes []byte) []rune {
+	n := utf8.RuneCount(bytes)
+	runes := make([]rune, n)
+	for i := 0; i < n; i++ {
+		r, sz := utf8.DecodeRune(bytes)
+		bytes = bytes[sz:]
+		runes[i] = r
 	}
-	// The diffs returned by the lcs package use indexes into
-	// whatever slice was passed in. Edits use byte offsets, so
-	// rune or line offsets need to be converted.
-	// TODO(adonovan): opt: eliminate all the unnecessary allocations.
-	var diffs []lcs.Diff
-	if !isASCII(before) || !isASCII(after) {
-		diffs, _ = lcs.Compute([]rune(before), []rune(after), maxDiffs/2)
-		diffs = runeOffsets(diffs, []rune(before))
-	} else {
-		// Common case: pure ASCII. Avoid expansion to []rune slice.
-		diffs, _ = lcs.Compute([]byte(before), []byte(after), maxDiffs/2)
-	}
-	return convertDiffs(diffs)
+	return runes
 }
 
-// Lines computes the differences between two list of lines.
-// TODO(adonovan): unused except by its test. Do we actually need it?
-func Lines(before, after []string) []Edit {
-	diffs, _ := lcs.Compute(before, after, maxDiffs/2)
-	diffs = lineOffsets(diffs, before)
-	return convertDiffs(diffs)
-	// the code is not coping with possible missing \ns at the ends
-}
-
-func convertDiffs(diffs []lcs.Diff) []Edit {
-	ans := make([]Edit, len(diffs))
-	for i, d := range diffs {
-		ans[i] = Edit{d.Start, d.End, d.Text}
+// runesLen returns the length in bytes of the UTF-8 encoding of runes.
+func runesLen(runes []rune) (len int) {
+	for _, r := range runes {
+		len += utf8.RuneLen(r)
 	}
-	return ans
-}
-
-// convert diffs with rune offsets into diffs with byte offsets
-func runeOffsets(diffs []lcs.Diff, src []rune) []lcs.Diff {
-	var idx int
-	var tmp strings.Builder // string because []byte([]rune) is illegal
-	for i, d := range diffs {
-		tmp.WriteString(string(src[idx:d.Start]))
-		v := tmp.Len()
-		tmp.WriteString(string(src[d.Start:d.End]))
-		d.Start = v
-		idx = d.End
-		d.End = tmp.Len()
-		diffs[i] = d
-	}
-	return diffs
-}
-
-// convert diffs with line offsets into diffs with byte offsets
-func lineOffsets(diffs []lcs.Diff, src []string) []lcs.Diff {
-	var idx int
-	var tmp strings.Builder // bytes/
-	for i, d := range diffs {
-		tmp.WriteString(strJoin(src[idx:d.Start]))
-		v := tmp.Len()
-		tmp.WriteString(strJoin(src[d.Start:d.End]))
-		d.Start = v
-		idx = d.End
-		d.End = tmp.Len()
-		diffs[i] = d
-	}
-	return diffs
-}
-
-// join lines. (strings.Join doesn't add a trailing separator)
-func strJoin(elems []string) string {
-	if len(elems) == 0 {
-		return ""
-	}
-	n := 0
-	for i := 0; i < len(elems); i++ {
-		n += len(elems[i])
-	}
-
-	var b strings.Builder
-	b.Grow(n)
-	for _, s := range elems {
-		b.WriteString(s)
-		//b.WriteByte('\n')
-	}
-	return b.String()
+	return len
 }
 
 // isASCII reports whether s contains only ASCII.
-func isASCII(s string) bool {
+// TODO(adonovan): combine when x/tools allows generics.
+func stringIsASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
+}
+
+func bytesIsASCII(s []byte) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] >= utf8.RuneSelf {
 			return false

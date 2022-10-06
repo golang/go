@@ -9,8 +9,6 @@ import (
 	"strings"
 )
 
-// TODO(adonovan): API: hide all but func Unified.
-
 // Unified applies the edits to content and presents a unified diff.
 // The old and new labels are the names of the content and result files.
 func Unified(oldLabel, newLabel string, content string, edits []Edit) string {
@@ -92,7 +90,7 @@ func toUnified(fromName, toName string, content string, edits []Edit) unified {
 	if len(edits) == 0 {
 		return u
 	}
-	edits = LineEdits(content, edits) // expand to whole lines
+	edits = lineEdits(content, edits) // expand to whole lines
 	lines := splitLines(content)
 	var h *hunk
 	last := 0

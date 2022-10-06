@@ -157,7 +157,7 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 			// it is likely we got stuck in a loop somehow. Log out a diff
 			// of the last changes we made to aid in debugging.
 			if i == 9 {
-				edits := diff.Strings(string(src), string(newSrc))
+				edits := diff.Bytes(src, newSrc)
 				unified := diff.Unified("before", "after", string(src), edits)
 				event.Log(ctx, fmt.Sprintf("fixSrc loop - last diff:\n%v", unified), tag.File.Of(tok.Name()))
 			}

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package diff computes differences between files or strings.
+// Package diff computes differences between text files or strings.
 package diff
 
 import (
@@ -11,13 +11,7 @@ import (
 	"strings"
 )
 
-// TODO(adonovan): switch to []byte throughout.
-// But make clear that the operation is defined on runes, not bytes.
-// Also:
-// - delete LineEdits? (used only by Unified and test)
-// - delete Lines (unused except by its test)
-
-// An Edit describes the replacement of a portion of a file.
+// An Edit describes the replacement of a portion of a text file.
 type Edit struct {
 	Start, End int    // byte offsets of the region to replace
 	New        string // the replacement
@@ -88,15 +82,9 @@ func (a editsSort) Less(i, j int) bool {
 }
 func (a editsSort) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
-// LineEdits expands and merges a sequence of edits so that each
+// lineEdits expands and merges a sequence of edits so that each
 // resulting edit replaces one or more complete lines.
-//
-// It may panic or produce garbage if the edits
-// are overlapping, out of bounds of src, or out of order.
-// TODO(adonovan): see consistency note at Apply.
-// We could hide this from the API so that we can enforce
-// the precondition... but it seems like a reasonable feature.
-func LineEdits(src string, edits []Edit) []Edit {
+func lineEdits(src string, edits []Edit) []Edit {
 	sortEdits(edits) // TODO(adonovan): is this necessary? Move burden to caller?
 
 	// Do all edits begin and end at the start of a line?
