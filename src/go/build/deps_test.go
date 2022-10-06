@@ -182,6 +182,7 @@ var depsRules = `
 	< html,
 	  internal/dag,
 	  internal/goroot,
+	  internal/types/errors,
 	  mime/quotedprintable,
 	  net/internal/socktest,
 	  net/url,
@@ -273,7 +274,7 @@ var depsRules = `
 	math/big, go/token
 	< go/constant;
 
-	container/heap, go/constant, go/parser, regexp
+	container/heap, go/constant, go/parser, internal/types/errors, regexp
 	< go/types;
 
 	FMT, internal/goexperiment

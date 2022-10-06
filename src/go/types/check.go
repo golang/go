@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	. "internal/types/errors"
 )
 
 // debugging/development support
@@ -271,7 +272,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			if name != "_" {
 				pkg.name = name
 			} else {
-				check.errorf(file.Name, _BlankPkgName, "invalid package name _")
+				check.errorf(file.Name, BlankPkgName, "invalid package name _")
 			}
 			fallthrough
 
@@ -279,7 +280,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			check.files = append(check.files, file)
 
 		default:
-			check.errorf(atPos(file.Package), _MismatchedPkgName, "package %s; expected %s", name, pkg.name)
+			check.errorf(atPos(file.Package), MismatchedPkgName, "package %s; expected %s", name, pkg.name)
 			// ignore this file
 		}
 	}

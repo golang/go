@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	. "internal/types/errors"
 )
 
 // Instantiate instantiates the type orig with the given type arguments targs.
@@ -156,7 +157,7 @@ func (check *Checker) validateTArgLen(pos token.Pos, ntparams, ntargs int) bool 
 	if ntargs != ntparams {
 		// TODO(gri) provide better error message
 		if check != nil {
-			check.errorf(atPos(pos), _WrongTypeArgCount, "got %d arguments but %d type parameters", ntargs, ntparams)
+			check.errorf(atPos(pos), WrongTypeArgCount, "got %d arguments but %d type parameters", ntargs, ntparams)
 			return false
 		}
 		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, ntargs, ntparams))

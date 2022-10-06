@@ -7,6 +7,7 @@ package types
 import (
 	"fmt"
 	"go/token"
+	. "internal/types/errors"
 	"sort"
 	"strings"
 )
@@ -229,8 +230,8 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 				panic(fmt.Sprintf("%v: duplicate method %s", m.pos, m.name))
 			}
 			// check != nil
-			check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
-			check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
+			check.errorf(atPos(pos), DuplicateDecl, "duplicate method %s", m.name)
+			check.errorf(atPos(mpos[other.(*Func)]), DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
 		default:
 			// We have a duplicate method name in an embedded (not explicitly declared) method.
 			// Check method signatures after all types are computed (issue #33656).
@@ -245,8 +246,8 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			// check != nil
 			check.later(func() {
 				if !check.allowVersion(m.pkg, 1, 14) || !Identical(m.typ, other.Type()) {
-					check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
-					check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
+					check.errorf(atPos(pos), DuplicateDecl, "duplicate method %s", m.name)
+					check.errorf(atPos(mpos[other.(*Func)]), DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
 				}
 			}).describef(atPos(pos), "duplicate method check for %s", m.name)
 		}
@@ -276,7 +277,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			tset := computeInterfaceTypeSet(check, pos, u)
 			// If typ is local, an error was already reported where typ is specified/defined.
 			if check != nil && check.isImportedConstraint(typ) && !check.allowVersion(check.pkg, 1, 18) {
-				check.errorf(atPos(pos), _UnsupportedFeature, "embedding constraint interface %s requires go1.18 or later", typ)
+				check.errorf(atPos(pos), UnsupportedFeature, "embedding constraint interface %s requires go1.18 or later", typ)
 				continue
 			}
 			comparable = tset.comparable
@@ -286,7 +287,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			terms = tset.terms
 		case *Union:
 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
-				check.errorf(atPos(pos), _UnsupportedFeature, "embedding interface element %s requires go1.18 or later", u)
+				check.errorf(atPos(pos), UnsupportedFeature, "embedding interface element %s requires go1.18 or later", u)
 				continue
 			}
 			tset := computeUnionTypeSet(check, unionSets, pos, u)
@@ -301,7 +302,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 				continue
 			}
 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
-				check.errorf(atPos(pos), _UnsupportedFeature, "embedding non-interface type %s requires go1.18 or later", typ)
+				check.errorf(atPos(pos), UnsupportedFeature, "embedding non-interface type %s requires go1.18 or later", typ)
 				continue
 			}
 			terms = termlist{{false, typ}}
@@ -421,7 +422,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos tok
 		allTerms = allTerms.union(terms)
 		if len(allTerms) > maxTermCount {
 			if check != nil {
-				check.errorf(atPos(pos), _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+				check.errorf(atPos(pos), InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
 			}
 			unionSets[utyp] = &invalidTypeSet
 			return unionSets[utyp]

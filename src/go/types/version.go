@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	. "internal/types/errors"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,7 +23,7 @@ func (check *Checker) langCompat(lit *ast.BasicLit) {
 	}
 	// len(s) > 2
 	if strings.Contains(s, "_") {
-		check.errorf(lit, _UnsupportedFeature, "underscores in numeric literals requires go1.13 or later")
+		check.errorf(lit, UnsupportedFeature, "underscores in numeric literals requires go1.13 or later")
 		return
 	}
 	if s[0] != '0' {
@@ -30,15 +31,15 @@ func (check *Checker) langCompat(lit *ast.BasicLit) {
 	}
 	radix := s[1]
 	if radix == 'b' || radix == 'B' {
-		check.errorf(lit, _UnsupportedFeature, "binary literals requires go1.13 or later")
+		check.errorf(lit, UnsupportedFeature, "binary literals requires go1.13 or later")
 		return
 	}
 	if radix == 'o' || radix == 'O' {
-		check.errorf(lit, _UnsupportedFeature, "0o/0O-style octal literals requires go1.13 or later")
+		check.errorf(lit, UnsupportedFeature, "0o/0O-style octal literals requires go1.13 or later")
 		return
 	}
 	if lit.Kind != token.INT && (radix == 'x' || radix == 'X') {
-		check.errorf(lit, _UnsupportedFeature, "hexadecimal floating-point literals requires go1.13 or later")
+		check.errorf(lit, UnsupportedFeature, "hexadecimal floating-point literals requires go1.13 or later")
 	}
 }
 

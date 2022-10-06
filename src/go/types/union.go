@@ -7,6 +7,7 @@ package types
 import (
 	"go/ast"
 	"go/token"
+	. "internal/types/errors"
 )
 
 // ----------------------------------------------------------------------------
@@ -67,7 +68,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 		}
 		if len(terms) >= maxTermCount {
 			if u != Typ[Invalid] {
-				check.errorf(x, _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+				check.errorf(x, InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
 				u = Typ[Invalid]
 			}
 		} else {
@@ -97,12 +98,12 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 			f, _ := u.(*Interface)
 			if t.tilde {
 				if f != nil {
-					check.errorf(tlist[i], _InvalidUnion, "invalid use of ~ (%s is an interface)", t.typ)
+					check.errorf(tlist[i], InvalidUnion, "invalid use of ~ (%s is an interface)", t.typ)
 					continue // don't report another error for t
 				}
 
 				if !Identical(u, t.typ) {
-					check.errorf(tlist[i], _InvalidUnion, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
+					check.errorf(tlist[i], InvalidUnion, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
 					continue
 				}
 			}
@@ -115,11 +116,11 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 				tset := f.typeSet()
 				switch {
 				case tset.NumMethods() != 0:
-					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s contains methods)", t, t)
+					check.errorf(tlist[i], InvalidUnion, "cannot use %s in union (%s contains methods)", t, t)
 				case t.typ == universeComparable.Type():
-					check.error(tlist[i], _InvalidUnion, "cannot use comparable in union")
+					check.error(tlist[i], InvalidUnion, "cannot use comparable in union")
 				case tset.comparable:
-					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s embeds comparable)", t, t)
+					check.errorf(tlist[i], InvalidUnion, "cannot use %s in union (%s embeds comparable)", t, t)
 				}
 				continue // terms with interface types are not subject to the no-overlap rule
 			}
@@ -127,7 +128,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 			// Report overlapping (non-disjoint) terms such as
 			// a|a, a|~a, ~a|~a, and ~a|A (where under(A) == a).
 			if j := overlappingTerm(terms[:i], t); j >= 0 {
-				check.softErrorf(tlist[i], _InvalidUnion, "overlapping terms %s and %s", t, terms[j])
+				check.softErrorf(tlist[i], InvalidUnion, "overlapping terms %s and %s", t, terms[j])
 			}
 		}
 	}).describef(uexpr, "check term validity %s", uexpr)
@@ -150,9 +151,9 @@ func parseTilde(check *Checker, tx ast.Expr) *Term {
 	// and since the underlying type is an interface the embedding is well defined.
 	if isTypeParam(typ) {
 		if tilde {
-			check.errorf(x, _MisplacedTypeParam, "type in term %s cannot be a type parameter", tx)
+			check.errorf(x, MisplacedTypeParam, "type in term %s cannot be a type parameter", tx)
 		} else {
-			check.error(x, _MisplacedTypeParam, "term cannot be a type parameter")
+			check.error(x, MisplacedTypeParam, "term cannot be a type parameter")
 		}
 		typ = Typ[Invalid]
 	}
