@@ -132,6 +132,15 @@ func (v Value) IsNaN() bool {
 // Global returns the JavaScript global object, usually "window" or "global".
 func Global() Value {
 	return valueGlobal
+<<<<<<< HEAD
+=======
+}
+
+// Scope returns the JavaScript object attached to the Go constructor.
+// If nothing has been explicitely set, this is usually "window", or "global".
+func Scope() Value {
+	return valueScope
+>>>>>>> feee2fae7e (Still expose value to global)
 }
 
 // ValueOf returns x as a JavaScript value:
