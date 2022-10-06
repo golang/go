@@ -714,12 +714,18 @@ func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, e
 		mod = r
 	}
 
-	if HasModRoot() && cfg.BuildMod == "readonly" && !inWorkspaceMode() && !modfetch.HaveSum(mod) {
+	if mustHaveSums() && !modfetch.HaveSum(mod) {
 		return "", false, module.VersionError(mod, &sumMissingError{})
 	}
 
 	dir, err = modfetch.Download(ctx, mod)
 	return dir, false, err
+}
+
+// mustHaveSums reports whether we require that all checksums
+// needed to load or build packages are already present in the go.sum file.
+func mustHaveSums() bool {
+	return HasModRoot() && cfg.BuildMod == "readonly" && !inWorkspaceMode()
 }
 
 type sumMissingError struct {
