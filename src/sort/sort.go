@@ -97,9 +97,15 @@ func Reverse(data Interface) Interface {
 
 // IsSorted reports whether data is sorted.
 func IsSorted(data Interface) bool {
-	n := data.Len()
-	for i := n - 1; i > 0; i-- {
+	n := (data.Len() >> 1) + 1
+	for i := 1; i < n; i++ {
 		if data.Less(i, i-1) {
+			return false
+		}
+
+		tailOff := n - i
+
+		if data.Less(tailOff, tailOff-1) {
 			return false
 		}
 	}

@@ -42,9 +42,15 @@ func SliceStable(x any, less func(i, j int) bool) {
 // It panics if x is not a slice.
 func SliceIsSorted(x any, less func(i, j int) bool) bool {
 	rv := reflectlite.ValueOf(x)
-	n := rv.Len()
-	for i := n - 1; i > 0; i-- {
+	n := (rv.Len() >> 1) + 1
+	for i := 1; i < n; i++ {
 		if less(i, i-1) {
+			return false
+		}
+
+		tailOff := n - i
+
+		if less(tailOff, tailOff-1) {
 			return false
 		}
 	}
