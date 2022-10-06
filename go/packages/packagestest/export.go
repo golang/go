@@ -79,7 +79,6 @@ import (
 
 	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -129,7 +128,7 @@ type Exported struct {
 	primary  string                       // the first non GOROOT module that was exported
 	written  map[string]map[string]string // the full set of exported files
 	notes    []*expect.Note               // The list of expectations extracted from go source files
-	markers  map[string]span.Range        // The set of markers extracted from go source files
+	markers  map[string]Range             // The set of markers extracted from go source files
 }
 
 // Exporter implementations are responsible for converting from the generic description of some

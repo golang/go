@@ -10,7 +10,6 @@ import (
 
 	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/packages/packagestest"
-	"golang.org/x/tools/internal/span"
 )
 
 func TestExpect(t *testing.T) {
@@ -43,7 +42,7 @@ func TestExpect(t *testing.T) {
 			}
 		},
 		"directNote": func(n *expect.Note) {},
-		"range": func(r span.Range) {
+		"range": func(r packagestest.Range) {
 			if r.Start == token.NoPos || r.Start == 0 {
 				t.Errorf("Range had no valid starting position")
 			}

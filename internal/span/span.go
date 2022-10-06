@@ -275,3 +275,13 @@ func (p *point) updateOffset(tf *token.File) error {
 	p.Offset = offset
 	return nil
 }
+
+// SetRange implements packagestest.rangeSetter, allowing
+// gopls' test suites to use Spans instead of Range in parameters.
+func (span *Span) SetRange(file *token.File, start, end token.Pos) {
+	point := func(pos token.Pos) Point {
+		posn := file.Position(pos)
+		return NewPoint(posn.Line, posn.Column, posn.Offset)
+	}
+	*span = New(URIFromPath(file.Name()), point(start), point(end))
+}
