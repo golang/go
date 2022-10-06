@@ -7,6 +7,7 @@ package types
 import (
 	"go/ast"
 	"go/token"
+	. "internal/types/errors"
 )
 
 // ----------------------------------------------------------------------------
@@ -173,7 +174,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		// We have a method with name f.Names[0].
 		name := f.Names[0]
 		if name.Name == "_" {
-			check.errorf(name, _BlankIfaceMethod, "methods must have a unique non-blank name")
+			check.errorf(name, BlankIfaceMethod, "methods must have a unique non-blank name")
 			continue // ignore
 		}
 
@@ -194,7 +195,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TypeParams != nil {
 				at = ftyp.TypeParams
 			}
-			check.errorf(at, _InvalidMethodTypeParams, "methods cannot have type parameters")
+			check.errorf(at, InvalidMethodTypeParams, "methods cannot have type parameters")
 		}
 
 		// use named receiver type if available (for better error messages)

@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	. "internal/types/errors"
 )
 
 // builtin type-checks a call to the built-in specified by id and
@@ -21,7 +22,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	bin := predeclaredFuncs[id]
 	if call.Ellipsis.IsValid() && id != _Append {
 		check.invalidOp(atPos(call.Ellipsis),
-			_InvalidDotDotDot,
+			InvalidDotDotDot,
 			"invalid use of ... with built-in %s", bin.name)
 		check.use(call.Args...)
 		return
@@ -68,7 +69,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			msg = "too many"
 		}
 		if msg != "" {
-			check.invalidOp(inNode(call, call.Rparen), _WrongArgCount, "%s arguments for %s (expected %d, found %d)", msg, call, bin.nargs, nargs)
+			check.invalidOp(inNode(call, call.Rparen), WrongArgCount, "%s arguments for %s (expected %d, found %d)", msg, call, bin.nargs, nargs)
 			return
 		}
 	}
@@ -99,7 +100,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				cause = check.sprintf("have %s", x)
 			}
 			// don't use Checker.invalidArg here as it would repeat "argument" in the error message
-			check.errorf(x, _InvalidAppend, "first argument to append must be a slice; %s", cause)
+			check.errorf(x, InvalidAppend, "first argument to append must be a slice; %s", cause)
 			return
 		}
 
@@ -215,9 +216,9 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		if mode == invalid && under(x.typ) != Typ[Invalid] {
-			code := _InvalidCap
+			code := InvalidCap
 			if id == _Len {
-				code = _InvalidLen
+				code = InvalidLen
 			}
 			check.invalidArg(x, code, "%s for %s", x, bin.name)
 			return
@@ -237,11 +238,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if !underIs(x.typ, func(u Type) bool {
 			uch, _ := u.(*Chan)
 			if uch == nil {
-				check.invalidOp(x, _InvalidClose, "cannot close non-channel %s", x)
+				check.invalidOp(x, InvalidClose, "cannot close non-channel %s", x)
 				return false
 			}
 			if uch.dir == RecvOnly {
-				check.invalidOp(x, _InvalidClose, "cannot close receive-only channel %s", x)
+				check.invalidOp(x, InvalidClose, "cannot close receive-only channel %s", x)
 				return false
 			}
 			return true
@@ -308,7 +309,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		// both argument types must be identical
 		if !Identical(x.typ, y.typ) {
-			check.invalidArg(x, _InvalidComplex, "mismatched types %s and %s", x.typ, y.typ)
+			check.invalidArg(x, InvalidComplex, "mismatched types %s and %s", x.typ, y.typ)
 			return
 		}
 
@@ -330,7 +331,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 		resTyp := check.applyTypeFunc(f, x, id)
 		if resTyp == nil {
-			check.invalidArg(x, _InvalidComplex, "arguments have type %s, expected floating-point", x.typ)
+			check.invalidArg(x, InvalidComplex, "arguments have type %s, expected floating-point", x.typ)
 			return
 		}
 
@@ -363,12 +364,12 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		src, _ := src0.(*Slice)
 
 		if dst == nil || src == nil {
-			check.invalidArg(x, _InvalidCopy, "copy expects slice arguments; found %s and %s", x, &y)
+			check.invalidArg(x, InvalidCopy, "copy expects slice arguments; found %s and %s", x, &y)
 			return
 		}
 
 		if !Identical(dst.elem, src.elem) {
-			check.errorf(x, _InvalidCopy, "arguments to copy %s and %s have different element types %s and %s", x, &y, dst.elem, src.elem)
+			check.errorf(x, InvalidCopy, "arguments to copy %s and %s have different element types %s and %s", x, &y, dst.elem, src.elem)
 			return
 		}
 
@@ -387,11 +388,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if !underIs(map_, func(u Type) bool {
 			map_, _ := u.(*Map)
 			if map_ == nil {
-				check.invalidArg(x, _InvalidDelete, "%s is not a map", x)
+				check.invalidArg(x, InvalidDelete, "%s is not a map", x)
 				return false
 			}
 			if key != nil && !Identical(map_.key, key) {
-				check.invalidArg(x, _InvalidDelete, "maps of %s must have identical key types", x)
+				check.invalidArg(x, InvalidDelete, "maps of %s must have identical key types", x)
 				return false
 			}
 			key = map_.key
@@ -458,9 +459,9 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 		resTyp := check.applyTypeFunc(f, x, id)
 		if resTyp == nil {
-			code := _InvalidImag
+			code := InvalidImag
 			if id == _Real {
-				code = _InvalidReal
+				code = InvalidReal
 			}
 			check.invalidArg(x, code, "argument has type %s, expected complex type", x.typ)
 			return
@@ -500,14 +501,14 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		case *Map, *Chan:
 			min = 1
 		case nil:
-			check.errorf(arg0, _InvalidMake, "cannot make %s: no core type", arg0)
+			check.errorf(arg0, InvalidMake, "cannot make %s: no core type", arg0)
 			return
 		default:
-			check.invalidArg(arg0, _InvalidMake, "cannot make %s; type must be slice, map, or channel", arg0)
+			check.invalidArg(arg0, InvalidMake, "cannot make %s; type must be slice, map, or channel", arg0)
 			return
 		}
 		if nargs < min || min+1 < nargs {
-			check.invalidOp(call, _WrongArgCount, "%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
+			check.invalidOp(call, WrongArgCount, "%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
 			return
 		}
 
@@ -521,7 +522,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 		}
 		if len(sizes) == 2 && sizes[0] > sizes[1] {
-			check.invalidArg(call.Args[1], _SwappedMakeArgs, "length and capacity swapped")
+			check.invalidArg(call.Args[1], SwappedMakeArgs, "length and capacity swapped")
 			// safe to continue
 		}
 		x.mode = value
@@ -604,7 +605,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Add:
 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
 		if !check.allowVersion(check.pkg, 1, 17) {
-			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.Add requires go1.17 or later")
+			check.errorf(call.Fun, UnsupportedFeature, "unsafe.Add requires go1.17 or later")
 			return
 		}
 
@@ -615,7 +616,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		var y operand
 		arg(&y, 1)
-		if !check.isValidIndex(&y, _InvalidUnsafeAdd, "length", true) {
+		if !check.isValidIndex(&y, InvalidUnsafeAdd, "length", true) {
 			return
 		}
 
@@ -650,7 +651,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		arg0 := call.Args[0]
 		selx, _ := unparen(arg0).(*ast.SelectorExpr)
 		if selx == nil {
-			check.invalidArg(arg0, _BadOffsetofSyntax, "%s is not a selector expression", arg0)
+			check.invalidArg(arg0, BadOffsetofSyntax, "%s is not a selector expression", arg0)
 			check.use(arg0)
 			return
 		}
@@ -665,18 +666,18 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
 		switch obj.(type) {
 		case nil:
-			check.invalidArg(x, _MissingFieldOrMethod, "%s has no single field %s", base, sel)
+			check.invalidArg(x, MissingFieldOrMethod, "%s has no single field %s", base, sel)
 			return
 		case *Func:
 			// TODO(gri) Using derefStructPtr may result in methods being found
 			// that don't actually exist. An error either way, but the error
 			// message is confusing. See: https://play.golang.org/p/al75v23kUy ,
 			// but go/types reports: "invalid argument: x.m is a method value".
-			check.invalidArg(arg0, _InvalidOffsetof, "%s is a method value", arg0)
+			check.invalidArg(arg0, InvalidOffsetof, "%s is a method value", arg0)
 			return
 		}
 		if indirect {
-			check.invalidArg(x, _InvalidOffsetof, "field %s is embedded via a pointer in %s", sel, base)
+			check.invalidArg(x, InvalidOffsetof, "field %s is embedded via a pointer in %s", sel, base)
 			return
 		}
 
@@ -730,19 +731,19 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Slice:
 		// unsafe.Slice(ptr *T, len IntegerType) []T
 		if !check.allowVersion(check.pkg, 1, 17) {
-			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.Slice requires go1.17 or later")
+			check.errorf(call.Fun, UnsupportedFeature, "unsafe.Slice requires go1.17 or later")
 			return
 		}
 
 		ptr, _ := under(x.typ).(*Pointer) // TODO(gri) should this be coreType rather than under?
 		if ptr == nil {
-			check.invalidArg(x, _InvalidUnsafeSlice, "%s is not a pointer", x)
+			check.invalidArg(x, InvalidUnsafeSlice, "%s is not a pointer", x)
 			return
 		}
 
 		var y operand
 		arg(&y, 1)
-		if !check.isValidIndex(&y, _InvalidUnsafeSlice, "length", false) {
+		if !check.isValidIndex(&y, InvalidUnsafeSlice, "length", false) {
 			return
 		}
 
@@ -755,13 +756,13 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _SliceData:
 		// unsafe.SliceData(slice []T) *T
 		if !check.allowVersion(check.pkg, 1, 20) {
-			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.SliceData requires go1.20 or later")
+			check.errorf(call.Fun, UnsupportedFeature, "unsafe.SliceData requires go1.20 or later")
 			return
 		}
 
 		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
 		if slice == nil {
-			check.invalidArg(x, _InvalidUnsafeSliceData, "%s is not a slice", x)
+			check.invalidArg(x, InvalidUnsafeSliceData, "%s is not a slice", x)
 			return
 		}
 
@@ -774,7 +775,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _String:
 		// unsafe.String(ptr *byte, len IntegerType) string
 		if !check.allowVersion(check.pkg, 1, 20) {
-			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.String requires go1.20 or later")
+			check.errorf(call.Fun, UnsupportedFeature, "unsafe.String requires go1.20 or later")
 			return
 		}
 
@@ -785,7 +786,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		var y operand
 		arg(&y, 1)
-		if !check.isValidIndex(&y, _InvalidUnsafeString, "length", false) {
+		if !check.isValidIndex(&y, InvalidUnsafeString, "length", false) {
 			return
 		}
 
@@ -798,7 +799,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _StringData:
 		// unsafe.StringData(str string) *byte
 		if !check.allowVersion(check.pkg, 1, 20) {
-			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.StringData requires go1.20 or later")
+			check.errorf(call.Fun, UnsupportedFeature, "unsafe.StringData requires go1.20 or later")
 			return
 		}
 
@@ -818,15 +819,15 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// The result of assert is the value of pred if there is no error.
 		// Note: assert is only available in self-test mode.
 		if x.mode != constant_ || !isBoolean(x.typ) {
-			check.invalidArg(x, _Test, "%s is not a boolean constant", x)
+			check.invalidArg(x, Test, "%s is not a boolean constant", x)
 			return
 		}
 		if x.val.Kind() != constant.Bool {
-			check.errorf(x, _Test, "internal error: value of %s should be a boolean constant", x)
+			check.errorf(x, Test, "internal error: value of %s should be a boolean constant", x)
 			return
 		}
 		if !constant.BoolVal(x.val) {
-			check.errorf(call, _Test, "%v failed", call)
+			check.errorf(call, Test, "%v failed", call)
 			// compile-time assertion failure - safe to continue
 		}
 		// result is constant - no need to record signature
@@ -924,14 +925,14 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 		// type parameter for the result. It's not clear what the API
 		// implications are here. Report an error for 1.18 (see #50912),
 		// but continue type-checking.
-		var code errorCode
+		var code Code
 		switch id {
 		case _Real:
-			code = _InvalidReal
+			code = InvalidReal
 		case _Imag:
-			code = _InvalidImag
+			code = InvalidImag
 		case _Complex:
-			code = _InvalidComplex
+			code = InvalidComplex
 		default:
 			unreachable()
 		}

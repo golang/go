@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	. "internal/types/errors"
 )
 
 func (check *Checker) reportAltDecl(obj Object) {
@@ -17,7 +18,7 @@ func (check *Checker) reportAltDecl(obj Object) {
 		// We use "other" rather than "previous" here because
 		// the first declaration seen may not be textually
 		// earlier in the source.
-		check.errorf(obj, _DuplicateDecl, "\tother declaration of %s", obj.Name()) // secondary error, \t indented
+		check.errorf(obj, DuplicateDecl, "\tother declaration of %s", obj.Name()) // secondary error, \t indented
 	}
 }
 
@@ -28,7 +29,7 @@ func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token
 	// binding."
 	if obj.Name() != "_" {
 		if alt := scope.Insert(obj); alt != nil {
-			check.errorf(obj, _DuplicateDecl, "%s redeclared in this block", obj.Name())
+			check.errorf(obj, DuplicateDecl, "%s redeclared in this block", obj.Name())
 			check.reportAltDecl(alt)
 			return
 		}
@@ -329,20 +330,20 @@ func (check *Checker) cycleError(cycle []Object) {
 	// report a more concise error for self references
 	if len(cycle) == 1 {
 		if tname != nil {
-			check.errorf(obj, _InvalidDeclCycle, "invalid recursive type: %s refers to itself", objName)
+			check.errorf(obj, InvalidDeclCycle, "invalid recursive type: %s refers to itself", objName)
 		} else {
-			check.errorf(obj, _InvalidDeclCycle, "invalid cycle in declaration: %s refers to itself", objName)
+			check.errorf(obj, InvalidDeclCycle, "invalid cycle in declaration: %s refers to itself", objName)
 		}
 		return
 	}
 
 	if tname != nil {
-		check.errorf(obj, _InvalidDeclCycle, "invalid recursive type %s", objName)
+		check.errorf(obj, InvalidDeclCycle, "invalid recursive type %s", objName)
 	} else {
-		check.errorf(obj, _InvalidDeclCycle, "invalid cycle in declaration of %s", objName)
+		check.errorf(obj, InvalidDeclCycle, "invalid cycle in declaration of %s", objName)
 	}
 	for range cycle {
-		check.errorf(obj, _InvalidDeclCycle, "\t%s refers to", objName) // secondary error, \t indented
+		check.errorf(obj, InvalidDeclCycle, "\t%s refers to", objName) // secondary error, \t indented
 		i++
 		if i >= len(cycle) {
 			i = 0
@@ -350,7 +351,7 @@ func (check *Checker) cycleError(cycle []Object) {
 		obj = cycle[i]
 		objName = name(obj)
 	}
-	check.errorf(obj, _InvalidDeclCycle, "\t%s", objName)
+	check.errorf(obj, InvalidDeclCycle, "\t%s", objName)
 }
 
 // firstInSrc reports the index of the object with the "smallest"
@@ -460,7 +461,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr, inherited bool) 
 			// don't report an error if the type is an invalid C (defined) type
 			// (issue #22090)
 			if under(t) != Typ[Invalid] {
-				check.errorf(typ, _InvalidConstType, "invalid constant type %s", t)
+				check.errorf(typ, InvalidConstType, "invalid constant type %s", t)
 			}
 			obj.typ = Typ[Invalid]
 			return
@@ -565,7 +566,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		}
 		// If typ is local, an error was already reported where typ is specified/defined.
 		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
-			check.errorf(tdecl.Type, _UnsupportedFeature, "using type constraint %s requires go1.18 or later", rhs)
+			check.errorf(tdecl.Type, UnsupportedFeature, "using type constraint %s requires go1.18 or later", rhs)
 		}
 	}).describef(obj, "validType(%s)", obj.Name())
 
@@ -573,14 +574,14 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	if alias && tdecl.TypeParams.NumFields() != 0 {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
-		check.error(atPos(tdecl.Assign), _BadDecl, "generic type cannot be alias")
+		check.error(atPos(tdecl.Assign), BadDecl, "generic type cannot be alias")
 		alias = false
 	}
 
 	// alias declaration
 	if alias {
 		if !check.allowVersion(check.pkg, 1, 9) {
-			check.errorf(atPos(tdecl.Assign), _UnsupportedFeature, "type aliases requires go1.9 or later")
+			check.errorf(atPos(tdecl.Assign), UnsupportedFeature, "type aliases requires go1.9 or later")
 		}
 
 		check.brokenAlias(obj)
@@ -616,7 +617,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	// use its underlying type (like we do for any RHS in a type declaration), and its
 	// underlying type is an interface and the type declaration is well defined.
 	if isTypeParam(rhs) {
-		check.error(tdecl.Type, _MisplacedTypeParam, "cannot use a type parameter as RHS in type declaration")
+		check.error(tdecl.Type, MisplacedTypeParam, "cannot use a type parameter as RHS in type declaration")
 		named.underlying = Typ[Invalid]
 	}
 }
@@ -660,7 +661,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 				// the underlying type and thus type set of a type parameter is.
 				// But we may need some additional form of cycle detection within
 				// type parameter lists.
-				check.error(f.Type, _MisplacedTypeParam, "cannot use a type parameter as constraint")
+				check.error(f.Type, MisplacedTypeParam, "cannot use a type parameter as constraint")
 				bound = Typ[Invalid]
 			}
 		} else {
@@ -761,9 +762,9 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		assert(m.name != "_")
 		if alt := mset.insert(m); alt != nil {
 			if alt.Pos().IsValid() {
-				check.errorf(m, _DuplicateMethod, "method %s.%s already declared at %s", obj.Name(), m.name, alt.Pos())
+				check.errorf(m, DuplicateMethod, "method %s.%s already declared at %s", obj.Name(), m.name, alt.Pos())
 			} else {
-				check.errorf(m, _DuplicateMethod, "method %s.%s already declared", obj.Name(), m.name)
+				check.errorf(m, DuplicateMethod, "method %s.%s already declared", obj.Name(), m.name)
 			}
 			continue
 		}
@@ -794,7 +795,7 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
 
 					// For historical consistency, we report the primary error on the
 					// method, and the alt decl on the field.
-					check.errorf(alt, _DuplicateFieldAndMethod, "field and method with the same name %s", fld.name)
+					check.errorf(alt, DuplicateFieldAndMethod, "field and method with the same name %s", fld.name)
 					check.reportAltDecl(fld)
 				}
 			}
@@ -824,7 +825,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	obj.color_ = saved
 
 	if fdecl.Type.TypeParams.NumFields() > 0 && fdecl.Body == nil {
-		check.softErrorf(fdecl.Name, _BadDecl, "generic function is missing function body")
+		check.softErrorf(fdecl.Name, BadDecl, "generic function is missing function body")
 	}
 
 	// function body must be type-checked after global declarations
