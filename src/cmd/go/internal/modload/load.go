@@ -753,6 +753,7 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
 				suffix := filepath.ToSlash(dir[len(modRoot):])
 				if strings.HasPrefix(suffix, "/vendor/") {
 					longestPrefixPath = strings.TrimPrefix(suffix, "/vendor/")
+					continue
 				}
 				longestPrefixPath = mms.PathPrefix(v) + suffix
 			}

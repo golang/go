@@ -180,16 +180,15 @@ var exeOnce struct {
 var helperCommandUsed sync.Map
 
 var helperCommands = map[string]func(...string){
-	"echo":               cmdEcho,
-	"echoenv":            cmdEchoEnv,
-	"cat":                cmdCat,
-	"pipetest":           cmdPipeTest,
-	"stdinClose":         cmdStdinClose,
-	"exit":               cmdExit,
-	"describefiles":      cmdDescribeFiles,
-	"extraFilesAndPipes": cmdExtraFilesAndPipes,
-	"stderrfail":         cmdStderrFail,
-	"yes":                cmdYes,
+	"echo":          cmdEcho,
+	"echoenv":       cmdEchoEnv,
+	"cat":           cmdCat,
+	"pipetest":      cmdPipeTest,
+	"stdinClose":    cmdStdinClose,
+	"exit":          cmdExit,
+	"describefiles": cmdDescribeFiles,
+	"stderrfail":    cmdStderrFail,
+	"yes":           cmdYes,
 }
 
 func cmdEcho(args ...string) {
@@ -272,25 +271,6 @@ func cmdDescribeFiles(args ...string) {
 	}
 }
 
-func cmdExtraFilesAndPipes(args ...string) {
-	n, _ := strconv.Atoi(args[0])
-	pipes := make([]*os.File, n)
-	for i := 0; i < n; i++ {
-		pipes[i] = os.NewFile(uintptr(3+i), strconv.Itoa(i))
-	}
-	response := ""
-	for i, r := range pipes {
-		buf := make([]byte, 10)
-		n, err := r.Read(buf)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Child: read error: %v on pipe %d\n", err, i)
-			os.Exit(1)
-		}
-		response = response + string(buf[:n])
-	}
-	fmt.Fprintf(os.Stderr, "child: %s", response)
-}
-
 func cmdStderrFail(...string) {
 	fmt.Fprintf(os.Stderr, "some stderr text\n")
 	os.Exit(1)
@@ -310,6 +290,8 @@ func cmdYes(args ...string) {
 }
 
 func TestEcho(t *testing.T) {
+	t.Parallel()
+
 	bs, err := helperCommand(t, "echo", "foo bar", "baz").Output()
 	if err != nil {
 		t.Errorf("echo: %v", err)
@@ -320,6 +302,8 @@ func TestEcho(t *testing.T) {
 }
 
 func TestCommandRelativeName(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "echo", "foo")
 
 	// Run our own binary as a relative path
@@ -348,6 +332,8 @@ func TestCommandRelativeName(t *testing.T) {
 }
 
 func TestCatStdin(t *testing.T) {
+	t.Parallel()
+
 	// Cat, testing stdin and stdout.
 	input := "Input string\nLine 2"
 	p := helperCommand(t, "cat")
@@ -363,6 +349,8 @@ func TestCatStdin(t *testing.T) {
 }
 
 func TestEchoFileRace(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "echo")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -383,6 +371,8 @@ func TestEchoFileRace(t *testing.T) {
 }
 
 func TestCatGoodAndBadFile(t *testing.T) {
+	t.Parallel()
+
 	// Testing combined output and error values.
 	bs, err := helperCommand(t, "cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
 	if _, ok := err.(*exec.ExitError); !ok {
@@ -401,6 +391,8 @@ func TestCatGoodAndBadFile(t *testing.T) {
 }
 
 func TestNoExistExecutable(t *testing.T) {
+	t.Parallel()
+
 	// Can't run a non-existent executable
 	err := exec.Command("/no-exist-executable").Run()
 	if err == nil {
@@ -409,6 +401,8 @@ func TestNoExistExecutable(t *testing.T) {
 }
 
 func TestExitStatus(t *testing.T) {
+	t.Parallel()
+
 	// Test that exit values are returned correctly
 	cmd := helperCommand(t, "exit", "42")
 	err := cmd.Run()
@@ -427,6 +421,8 @@ func TestExitStatus(t *testing.T) {
 }
 
 func TestExitCode(t *testing.T) {
+	t.Parallel()
+
 	// Test that exit code are returned correctly
 	cmd := helperCommand(t, "exit", "42")
 	cmd.Run()
@@ -479,6 +475,8 @@ func TestExitCode(t *testing.T) {
 }
 
 func TestPipes(t *testing.T) {
+	t.Parallel()
+
 	check := func(what string, err error) {
 		if err != nil {
 			t.Fatalf("%s: %v", what, err)
@@ -533,6 +531,8 @@ const stdinCloseTestString = "Some test string."
 
 // Issue 6270.
 func TestStdinClose(t *testing.T) {
+	t.Parallel()
+
 	check := func(what string, err error) {
 		if err != nil {
 			t.Fatalf("%s: %v", what, err)
@@ -564,6 +564,8 @@ func TestStdinClose(t *testing.T) {
 // This test is run by cmd/dist under the race detector to verify that
 // the race detector no longer reports any problems.
 func TestStdinCloseRace(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "stdinClose")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -602,6 +604,7 @@ func TestPipeLookPathLeak(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("we don't currently suppore counting open handles on windows")
 	}
+	// Not parallel: checks for leaked file descriptors
 
 	openFDs := func() []uintptr {
 		var fds []uintptr
@@ -629,94 +632,11 @@ func TestPipeLookPathLeak(t *testing.T) {
 	}
 }
 
-func TestExtraFilesFDShuffle(t *testing.T) {
-	maySkipHelperCommand("extraFilesAndPipes")
-	testenv.SkipFlaky(t, 5780)
-	switch runtime.GOOS {
-	case "windows":
-		t.Skip("no operating system support; skipping")
-	}
-
-	// syscall.StartProcess maps all the FDs passed to it in
-	// ProcAttr.Files (the concatenation of stdin,stdout,stderr and
-	// ExtraFiles) into consecutive FDs in the child, that is:
-	// Files{11, 12, 6, 7, 9, 3} should result in the file
-	// represented by FD 11 in the parent being made available as 0
-	// in the child, 12 as 1, etc.
-	//
-	// We want to test that FDs in the child do not get overwritten
-	// by one another as this shuffle occurs. The original implementation
-	// was buggy in that in some data dependent cases it would overwrite
-	// stderr in the child with one of the ExtraFile members.
-	// Testing for this case is difficult because it relies on using
-	// the same FD values as that case. In particular, an FD of 3
-	// must be at an index of 4 or higher in ProcAttr.Files and
-	// the FD of the write end of the Stderr pipe (as obtained by
-	// StderrPipe()) must be the same as the size of ProcAttr.Files;
-	// therefore we test that the read end of this pipe (which is what
-	// is returned to the parent by StderrPipe() being one less than
-	// the size of ProcAttr.Files, i.e. 3+len(cmd.ExtraFiles).
-	//
-	// Moving this test case around within the overall tests may
-	// affect the FDs obtained and hence the checks to catch these cases.
-	npipes := 2
-	c := helperCommand(t, "extraFilesAndPipes", strconv.Itoa(npipes+1))
-	rd, wr, _ := os.Pipe()
-	defer rd.Close()
-	if rd.Fd() != 3 {
-		t.Errorf("bad test value for test pipe: fd %d", rd.Fd())
-	}
-	stderr, _ := c.StderrPipe()
-	wr.WriteString("_LAST")
-	wr.Close()
-
-	pipes := make([]struct {
-		r, w *os.File
-	}, npipes)
-	data := []string{"a", "b"}
-
-	for i := 0; i < npipes; i++ {
-		r, w, err := os.Pipe()
-		if err != nil {
-			t.Fatalf("unexpected error creating pipe: %s", err)
-		}
-		pipes[i].r = r
-		pipes[i].w = w
-		w.WriteString(data[i])
-		c.ExtraFiles = append(c.ExtraFiles, pipes[i].r)
-		defer func() {
-			r.Close()
-			w.Close()
-		}()
-	}
-	// Put fd 3 at the end.
-	c.ExtraFiles = append(c.ExtraFiles, rd)
-
-	stderrFd := int(stderr.(*os.File).Fd())
-	if stderrFd != ((len(c.ExtraFiles) + 3) - 1) {
-		t.Errorf("bad test value for stderr pipe")
-	}
-
-	expected := "child: " + strings.Join(data, "") + "_LAST"
-
-	err := c.Start()
-	if err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-
-	buf := make([]byte, 512)
-	n, err := stderr.Read(buf)
-	if err != nil {
-		t.Errorf("Read: %s", err)
-	} else {
-		if m := string(buf[:n]); m != expected {
-			t.Errorf("Read: '%s' not '%s'", m, expected)
-		}
-	}
-	c.Wait()
-}
-
 func TestExtraFiles(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping test in short mode that would build a helper binary")
+	}
+
 	if haveUnexpectedFDs {
 		// The point of this test is to make sure that any
 		// descriptors we open are marked close-on-exec.
@@ -849,6 +769,8 @@ func TestExtraFilesRace(t *testing.T) {
 		maySkipHelperCommand("describefiles")
 		t.Skip("no operating system support; skipping")
 	}
+	t.Parallel()
+
 	listen := func() net.Listener {
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
@@ -900,7 +822,6 @@ func TestExtraFilesRace(t *testing.T) {
 		for _, f := range cb.ExtraFiles {
 			f.Close()
 		}
-
 	}
 }
 
@@ -916,8 +837,12 @@ func (delayedInfiniteReader) Read(b []byte) (int, error) {
 
 // Issue 9173: ignore stdin pipe writes if the program completes successfully.
 func TestIgnorePipeErrorOnSuccess(t *testing.T) {
+	t.Parallel()
+
 	testWith := func(r io.Reader) func(*testing.T) {
 		return func(t *testing.T) {
+			t.Parallel()
+
 			cmd := helperCommand(t, "echo", "foo")
 			var out strings.Builder
 			cmd.Stdin = r
@@ -941,6 +866,8 @@ func (w *badWriter) Write(data []byte) (int, error) {
 }
 
 func TestClosePipeOnCopyError(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "yes")
 	cmd.Stdout = new(badWriter)
 	err := cmd.Run()
@@ -950,6 +877,8 @@ func TestClosePipeOnCopyError(t *testing.T) {
 }
 
 func TestOutputStderrCapture(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "stderrfail")
 	_, err := cmd.Output()
 	ee, ok := err.(*exec.ExitError)
@@ -964,6 +893,8 @@ func TestOutputStderrCapture(t *testing.T) {
 }
 
 func TestContext(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	c := helperCommandContext(t, ctx, "pipetest")
 	stdin, err := c.StdinPipe()
@@ -1057,6 +988,8 @@ func TestContextCancel(t *testing.T) {
 
 // test that environment variables are de-duped.
 func TestDedupEnvEcho(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "echoenv", "FOO")
 	cmd.Env = append(cmd.Environ(), "FOO=bad", "FOO=good")
 	out, err := cmd.CombinedOutput()
@@ -1069,6 +1002,8 @@ func TestDedupEnvEcho(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
+	t.Parallel()
+
 	echoPath, err := exec.LookPath("echo")
 	if err != nil {
 		t.Skip(err)
@@ -1091,10 +1026,13 @@ func TestString(t *testing.T) {
 }
 
 func TestStringPathNotResolved(t *testing.T) {
+	t.Parallel()
+
 	_, err := exec.LookPath("makemeasandwich")
 	if err == nil {
 		t.Skip("wow, thanks")
 	}
+
 	cmd := exec.Command("makemeasandwich", "-lettuce")
 	want := "makemeasandwich -lettuce"
 	if got := cmd.String(); got != want {
@@ -1114,6 +1052,8 @@ func TestNoPath(t *testing.T) {
 // Start twice, which returns an error on the second call, would spuriously
 // close the pipes established in the first call.
 func TestDoubleStartLeavesPipesOpen(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "pipetest")
 	in, err := cmd.StdinPipe()
 	if err != nil {
