@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
+	. "internal/types/errors"
 )
 
 func (err *error_) recordAltDecl(obj Object) {
@@ -28,7 +29,7 @@ func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syn
 	if obj.Name() != "_" {
 		if alt := scope.Insert(obj); alt != nil {
 			var err error_
-			err.code = _DuplicateDecl
+			err.code = DuplicateDecl
 			err.errorf(obj, "%s redeclared in this block", obj.Name())
 			err.recordAltDecl(alt)
 			check.report(&err)
@@ -331,15 +332,15 @@ func (check *Checker) cycleError(cycle []Object) {
 	// report a more concise error for self references
 	if len(cycle) == 1 {
 		if tname != nil {
-			check.errorf(obj, _InvalidDeclCycle, "invalid recursive type: %s refers to itself", objName)
+			check.errorf(obj, InvalidDeclCycle, "invalid recursive type: %s refers to itself", objName)
 		} else {
-			check.errorf(obj, _InvalidDeclCycle, "invalid cycle in declaration: %s refers to itself", objName)
+			check.errorf(obj, InvalidDeclCycle, "invalid cycle in declaration: %s refers to itself", objName)
 		}
 		return
 	}
 
 	var err error_
-	err.code = _InvalidDeclCycle
+	err.code = InvalidDeclCycle
 	if tname != nil {
 		err.errorf(obj, "invalid recursive type %s", objName)
 	} else {
@@ -391,7 +392,7 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited boo
 			// don't report an error if the type is an invalid C (defined) type
 			// (issue #22090)
 			if under(t) != Typ[Invalid] {
-				check.errorf(typ, _InvalidConstType, "invalid constant type %s", t)
+				check.errorf(typ, InvalidConstType, "invalid constant type %s", t)
 			}
 			obj.typ = Typ[Invalid]
 			return
@@ -518,7 +519,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	if alias && tdecl.TParamList != nil {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
-		check.error(tdecl, _BadDecl, "generic type cannot be alias")
+		check.error(tdecl, BadDecl, "generic type cannot be alias")
 		alias = false
 	}
 
@@ -561,7 +562,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	// use its underlying type (like we do for any RHS in a type declaration), and its
 	// underlying type is an interface and the type declaration is well defined.
 	if isTypeParam(rhs) {
-		check.error(tdecl.Type, _MisplacedTypeParam, "cannot use a type parameter as RHS in type declaration")
+		check.error(tdecl.Type, MisplacedTypeParam, "cannot use a type parameter as RHS in type declaration")
 		named.underlying = Typ[Invalid]
 	}
 }
@@ -607,7 +608,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 				// the underlying type and thus type set of a type parameter is.
 				// But we may need some additional form of cycle detection within
 				// type parameter lists.
-				check.error(f.Type, _MisplacedTypeParam, "cannot use a type parameter as constraint")
+				check.error(f.Type, MisplacedTypeParam, "cannot use a type parameter as constraint")
 				bound = Typ[Invalid]
 			}
 		}
@@ -687,9 +688,9 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		assert(m.name != "_")
 		if alt := mset.insert(m); alt != nil {
 			if alt.Pos().IsKnown() {
-				check.errorf(m.pos, _DuplicateMethod, "method %s.%s already declared at %s", obj.Name(), m.name, alt.Pos())
+				check.errorf(m.pos, DuplicateMethod, "method %s.%s already declared at %s", obj.Name(), m.name, alt.Pos())
 			} else {
-				check.errorf(m.pos, _DuplicateMethod, "method %s.%s already declared", obj.Name(), m.name)
+				check.errorf(m.pos, DuplicateMethod, "method %s.%s already declared", obj.Name(), m.name)
 			}
 			continue
 		}
@@ -721,7 +722,7 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
 					// For historical consistency, we report the primary error on the
 					// method, and the alt decl on the field.
 					var err error_
-					err.code = _DuplicateFieldAndMethod
+					err.code = DuplicateFieldAndMethod
 					err.errorf(alt, "field and method with the same name %s", fld.name)
 					err.recordAltDecl(fld)
 					check.report(&err)
@@ -753,7 +754,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	obj.color_ = saved
 
 	if len(fdecl.TParamList) > 0 && fdecl.Body == nil {
-		check.softErrorf(fdecl, _BadDecl, "generic function is missing function body")
+		check.softErrorf(fdecl, BadDecl, "generic function is missing function body")
 	}
 
 	// function body must be type-checked after global declarations

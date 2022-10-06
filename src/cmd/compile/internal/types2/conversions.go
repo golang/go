@@ -8,6 +8,7 @@ package types2
 
 import (
 	"go/constant"
+	. "internal/types/errors"
 	"unicode"
 )
 
@@ -71,9 +72,9 @@ func (check *Checker) conversion(x *operand, T Type) {
 
 	if !ok {
 		if cause != "" {
-			check.errorf(x, _InvalidConversion, "cannot convert %s to type %s: %s", x, T, cause)
+			check.errorf(x, InvalidConversion, "cannot convert %s to type %s: %s", x, T, cause)
 		} else {
-			check.errorf(x, _InvalidConversion, "cannot convert %s to type %s", x, T)
+			check.errorf(x, InvalidConversion, "cannot convert %s to type %s", x, T)
 		}
 		x.mode = invalid
 		return

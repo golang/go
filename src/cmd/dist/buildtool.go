@@ -68,6 +68,7 @@ var bootstrapDirs = []string{
 	"internal/race",
 	"internal/saferio",
 	"internal/platform",
+	"internal/types/errors",
 	"internal/unsafeheader",
 	"internal/xcoff",
 	"math/big",
