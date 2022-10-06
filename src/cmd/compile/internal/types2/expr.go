@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	. "internal/types/errors"
 	"math"
 )
 
@@ -73,7 +74,7 @@ func init() {
 func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
 	if pred := m[op]; pred != nil {
 		if !pred(x.typ) {
-			check.errorf(x, _UndefinedOp, invalidOp+"operator %s not defined on %s", op, x)
+			check.errorf(x, UndefinedOp, invalidOp+"operator %s not defined on %s", op, x)
 			return false
 		}
 	} else {
@@ -93,7 +94,7 @@ func (check *Checker) overflow(x *operand) {
 		// TODO(gri) We should report exactly what went wrong. At the
 		//           moment we don't have the (go/constant) API for that.
 		//           See also TODO in go/constant/value.go.
-		check.error(opPos(x.expr), _InvalidConstVal, "constant result is not representable")
+		check.error(opPos(x.expr), InvalidConstVal, "constant result is not representable")
 		return
 	}
 
@@ -113,7 +114,7 @@ func (check *Checker) overflow(x *operand) {
 		if op != "" {
 			op += " "
 		}
-		check.errorf(opPos(x.expr), _InvalidConstVal, "constant %soverflow", op)
+		check.errorf(opPos(x.expr), InvalidConstVal, "constant %soverflow", op)
 		x.val = constant.MakeUnknown()
 	}
 }
@@ -182,7 +183,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
 		if _, ok := unparen(e.X).(*syntax.CompositeLit); !ok && x.mode != variable {
-			check.errorf(x, _UnaddressableOperand, invalidOp+"cannot take address of %s", x)
+			check.errorf(x, UnaddressableOperand, invalidOp+"cannot take address of %s", x)
 			x.mode = invalid
 			return
 		}
@@ -193,18 +194,18 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 	case syntax.Recv:
 		u := coreType(x.typ)
 		if u == nil {
-			check.errorf(x, _InvalidReceive, invalidOp+"cannot receive from %s (no core type)", x)
+			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from %s (no core type)", x)
 			x.mode = invalid
 			return
 		}
 		ch, _ := u.(*Chan)
 		if ch == nil {
-			check.errorf(x, _InvalidReceive, invalidOp+"cannot receive from non-channel %s", x)
+			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from non-channel %s", x)
 			x.mode = invalid
 			return
 		}
 		if ch.dir == SendOnly {
-			check.errorf(x, _InvalidReceive, invalidOp+"cannot receive from send-only channel %s", x)
+			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from send-only channel %s", x)
 			x.mode = invalid
 			return
 		}
@@ -215,7 +216,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 
 	case syntax.Tilde:
 		// Provide a better error position and message than what check.op below could do.
-		check.error(e, _UndefinedOp, "cannot use ~ outside of interface or type constraint")
+		check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint")
 		x.mode = invalid
 		return
 	}
@@ -452,7 +453,7 @@ func (check *Checker) representable(x *operand, typ *Basic) {
 // basic type typ.
 //
 // If no such representation is possible, it returns a non-zero error code.
-func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, errorCode) {
+func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, Code) {
 	assert(x.mode == constant_)
 	v := x.val
 	if !representableConst(x.val, check, typ, &v) {
@@ -465,22 +466,22 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, er
 			// float   -> float   : overflows
 			//
 			if !isInteger(x.typ) && isInteger(typ) {
-				return nil, _TruncatedFloat
+				return nil, TruncatedFloat
 			} else {
-				return nil, _NumericOverflow
+				return nil, NumericOverflow
 			}
 		}
-		return nil, _InvalidConstVal
+		return nil, InvalidConstVal
 	}
 	return v, 0
 }
 
-func (check *Checker) invalidConversion(code errorCode, x *operand, target Type) {
+func (check *Checker) invalidConversion(code Code, x *operand, target Type) {
 	msg := "cannot convert %s to type %s"
 	switch code {
-	case _TruncatedFloat:
+	case TruncatedFloat:
 		msg = "%s truncated to %s"
-	case _NumericOverflow:
+	case NumericOverflow:
 		msg = "%s overflows %s"
 	}
 	check.errorf(x, code, msg, x, target)
@@ -616,7 +617,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 		// We already know from the shift check that it is representable
 		// as an integer if it is a constant.
 		if !allInteger(typ) {
-			check.errorf(x, _InvalidShiftOperand, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
+			check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
 			return
 		}
 		// Even if we have an integer, if the value is a constant we
@@ -672,7 +673,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 //
 // If x is a constant operand, the returned constant.Value will be the
 // representation of x in this context.
-func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, errorCode) {
+func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, Code) {
 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
 		return x.typ, nil, 0
 	}
@@ -686,7 +687,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 				return target, nil, 0
 			}
 		} else if xkind != tkind {
-			return nil, nil, _InvalidUntypedConversion
+			return nil, nil, InvalidUntypedConversion
 		}
 		return x.typ, nil, 0
 	}
@@ -696,7 +697,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		if hasNil(target) {
 			return target, nil, 0
 		}
-		return nil, nil, _InvalidUntypedConversion
+		return nil, nil, InvalidUntypedConversion
 	}
 
 	switch u := under(target).(type) {
@@ -715,21 +716,21 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		switch x.typ.(*Basic).kind {
 		case UntypedBool:
 			if !isBoolean(target) {
-				return nil, nil, _InvalidUntypedConversion
+				return nil, nil, InvalidUntypedConversion
 			}
 		case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
 			if !isNumeric(target) {
-				return nil, nil, _InvalidUntypedConversion
+				return nil, nil, InvalidUntypedConversion
 			}
 		case UntypedString:
 			// Non-constant untyped string values are not permitted by the spec and
 			// should not occur during normal typechecking passes, but this path is
 			// reachable via the AssignableTo API.
 			if !isString(target) {
-				return nil, nil, _InvalidUntypedConversion
+				return nil, nil, InvalidUntypedConversion
 			}
 		default:
-			return nil, nil, _InvalidUntypedConversion
+			return nil, nil, InvalidUntypedConversion
 		}
 	case *Interface:
 		if isTypeParam(target) {
@@ -740,7 +741,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 				t, _, _ := check.implicitTypeAndValue(x, u)
 				return t != nil
 			}) {
-				return nil, nil, _InvalidUntypedConversion
+				return nil, nil, InvalidUntypedConversion
 			}
 			break
 		}
@@ -748,11 +749,11 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		// (interface) type: values must have concrete dynamic types.
 		// Untyped nil was handled upfront.
 		if !u.Empty() {
-			return nil, nil, _InvalidUntypedConversion // cannot assign untyped values to non-empty interfaces
+			return nil, nil, InvalidUntypedConversion // cannot assign untyped values to non-empty interfaces
 		}
 		return Default(x.typ), nil, 0 // default type for nil is nil
 	default:
-		return nil, nil, _InvalidUntypedConversion
+		return nil, nil, InvalidUntypedConversion
 	}
 	return target, nil, 0
 }
@@ -774,7 +775,7 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase b
 
 	// spec: "In any comparison, the first operand must be assignable
 	// to the type of the second operand, or vice versa."
-	code := _MismatchedTypes
+	code := MismatchedTypes
 	ok, _ := x.assignableTo(check, y.typ, nil)
 	if !ok {
 		ok, _ = y.assignableTo(check, x.typ, nil)
@@ -789,7 +790,7 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase b
 	}
 
 	// check if comparison is defined for operands
-	code = _UndefinedOp
+	code = UndefinedOp
 	switch op {
 	case syntax.Eql, syntax.Neq:
 		// spec: "The equality operators == and != apply to operands that are comparable."
@@ -932,7 +933,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 		// as an integer. Nothing to do.
 	} else {
 		// shift has no chance
-		check.errorf(x, _InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
+		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
 		x.mode = invalid
 		return
 	}
@@ -946,7 +947,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 		// Provide a good error message for negative shift counts.
 		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
 		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
-			check.errorf(y, _InvalidShiftCount, invalidOp+"negative shift count %s", y)
+			check.errorf(y, InvalidShiftCount, invalidOp+"negative shift count %s", y)
 			x.mode = invalid
 			return
 		}
@@ -978,7 +979,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 				return
 			}
 		default:
-			check.errorf(y, _InvalidShiftCount, invalidOp+"shift count %s must be integer", y)
+			check.errorf(y, InvalidShiftCount, invalidOp+"shift count %s must be integer", y)
 			x.mode = invalid
 			return
 		}
@@ -999,7 +1000,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
 			s, ok := constant.Uint64Val(y.val)
 			if !ok || s > shiftBound {
-				check.errorf(y, _InvalidShiftCount, invalidOp+"invalid shift count %s", y)
+				check.errorf(y, InvalidShiftCount, invalidOp+"invalid shift count %s", y)
 				x.mode = invalid
 				return
 			}
@@ -1050,7 +1051,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 
 	// non-constant shift - lhs must be an integer
 	if !allInteger(x.typ) {
-		check.errorf(x, _InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
+		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
 		x.mode = invalid
 		return
 	}
@@ -1142,9 +1143,9 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 		// (otherwise we had an error reported elsewhere already)
 		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
 			if e != nil {
-				check.errorf(x, _MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
+				check.errorf(x, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
 			} else {
-				check.errorf(x, _MismatchedTypes, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
+				check.errorf(x, MismatchedTypes, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
 			}
 		}
 		x.mode = invalid
@@ -1159,7 +1160,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 	if op == syntax.Div || op == syntax.Rem {
 		// check for zero divisor
 		if (x.mode == constant_ || allInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
-			check.error(&y, _DivByZero, invalidOp+"division by zero")
+			check.error(&y, DivByZero, invalidOp+"division by zero")
 			x.mode = invalid
 			return
 		}
@@ -1169,7 +1170,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 			re, im := constant.Real(y.val), constant.Imag(y.val)
 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
 			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
-				check.error(&y, _DivByZero, invalidOp+"division by zero")
+				check.error(&y, DivByZero, invalidOp+"division by zero")
 				x.mode = invalid
 				return
 			}
@@ -1252,7 +1253,7 @@ func (check *Checker) nonGeneric(x *operand) {
 		}
 	}
 	if what != "" {
-		check.errorf(x.expr, _WrongTypeArgCount, "cannot use generic %s %s without instantiation", what, x.expr)
+		check.errorf(x.expr, WrongTypeArgCount, "cannot use generic %s %s without instantiation", what, x.expr)
 		x.mode = invalid
 		x.typ = Typ[Invalid]
 	}
@@ -1279,7 +1280,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 	case *syntax.DotsType:
 		// dots are handled explicitly where they are legal
 		// (array composite literals and parameter lists)
-		check.error(e, _BadDotDotDotSyntax, "invalid use of '...'")
+		check.error(e, BadDotDotDotSyntax, "invalid use of '...'")
 		goto Error
 
 	case *syntax.BasicLit:
@@ -1300,7 +1301,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			// allows for separators between all digits.
 			const limit = 10000
 			if len(e.Value) > limit {
-				check.errorf(e, _InvalidConstVal, "excessively long constant: %s... (%d chars)", e.Value[:10], len(e.Value))
+				check.errorf(e, InvalidConstVal, "excessively long constant: %s... (%d chars)", e.Value[:10], len(e.Value))
 				goto Error
 			}
 		}
@@ -1310,7 +1311,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			// If we reach here it's because of number under-/overflow.
 			// TODO(gri) setConst (and in turn the go/constant package)
 			// should return an error describing the issue.
-			check.errorf(e, _InvalidConstVal, "malformed constant: %s", e.Value)
+			check.errorf(e, InvalidConstVal, "malformed constant: %s", e.Value)
 			goto Error
 		}
 		// Ensure that integer values don't overflow (issue #54280).
@@ -1364,13 +1365,13 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			typ = hint
 			base, _ = deref(coreType(typ)) // *T implies &T{}
 			if base == nil {
-				check.errorf(e, _InvalidLit, "invalid composite literal element type %s (no core type)", typ)
+				check.errorf(e, InvalidLit, "invalid composite literal element type %s (no core type)", typ)
 				goto Error
 			}
 
 		default:
 			// TODO(gri) provide better error messages depending on context
-			check.error(e, _UntypedLit, "missing type in composite literal")
+			check.error(e, UntypedLit, "missing type in composite literal")
 			goto Error
 		}
 
@@ -1379,7 +1380,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			// Prevent crash if the struct referred to is not yet set up.
 			// See analogous comment for *Array.
 			if utyp.fields == nil {
-				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+				check.error(e, InvalidTypeCycle, "invalid recursive type")
 				goto Error
 			}
 			if len(e.ElemList) == 0 {
@@ -1395,7 +1396,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 				for _, e := range e.ElemList {
 					kv, _ := e.(*syntax.KeyValueExpr)
 					if kv == nil {
-						check.error(e, _MixedStructLit, "mixture of field:value and value elements in struct literal")
+						check.error(e, MixedStructLit, "mixture of field:value and value elements in struct literal")
 						continue
 					}
 					key, _ := kv.Key.(*syntax.Name)
@@ -1403,12 +1404,12 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 					// so we don't drop information on the floor
 					check.expr(x, kv.Value)
 					if key == nil {
-						check.errorf(kv, _InvalidLitField, "invalid field name %s in struct literal", kv.Key)
+						check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 						continue
 					}
 					i := fieldIndex(utyp.fields, check.pkg, key.Value)
 					if i < 0 {
-						check.errorf(kv.Key, _MissingLitField, "unknown field %s in struct literal of type %s", key.Value, base)
+						check.errorf(kv.Key, MissingLitField, "unknown field %s in struct literal of type %s", key.Value, base)
 						continue
 					}
 					fld := fields[i]
@@ -1417,7 +1418,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 					check.assignment(x, etyp, "struct literal")
 					// 0 <= i < len(fields)
 					if visited[i] {
-						check.errorf(kv, _DuplicateLitField, "duplicate field name %s in struct literal", key.Value)
+						check.errorf(kv, DuplicateLitField, "duplicate field name %s in struct literal", key.Value)
 						continue
 					}
 					visited[i] = true
@@ -1426,25 +1427,25 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 				// no element must have a key
 				for i, e := range e.ElemList {
 					if kv, _ := e.(*syntax.KeyValueExpr); kv != nil {
-						check.error(kv, _MixedStructLit, "mixture of field:value and value elements in struct literal")
+						check.error(kv, MixedStructLit, "mixture of field:value and value elements in struct literal")
 						continue
 					}
 					check.expr(x, e)
 					if i >= len(fields) {
-						check.errorf(x, _InvalidStructLit, "too many values in struct literal of type %s", base)
+						check.errorf(x, InvalidStructLit, "too many values in struct literal of type %s", base)
 						break // cannot continue
 					}
 					// i < len(fields)
 					fld := fields[i]
 					if !fld.Exported() && fld.pkg != check.pkg {
-						check.errorf(x, _UnexportedLitField, "implicit assignment to unexported field %s in struct literal of type %s", fld.name, base)
+						check.errorf(x, UnexportedLitField, "implicit assignment to unexported field %s in struct literal of type %s", fld.name, base)
 						continue
 					}
 					etyp := fld.typ
 					check.assignment(x, etyp, "struct literal")
 				}
 				if len(e.ElemList) < len(fields) {
-					check.errorf(e.Rbrace, _InvalidStructLit, "too few values in struct literal of type %s", base)
+					check.errorf(e.Rbrace, InvalidStructLit, "too few values in struct literal of type %s", base)
 					// ok to continue
 				}
 			}
@@ -1454,7 +1455,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			// This is a stop-gap solution. Should use Checker.objPath to report entire
 			// path starting with earliest declaration in the source. TODO(gri) fix this.
 			if utyp.elem == nil {
-				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+				check.error(e, InvalidTypeCycle, "invalid recursive type")
 				goto Error
 			}
 			n := check.indexedElts(e.ElemList, utyp.elem, utyp.len)
@@ -1481,7 +1482,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			// Prevent crash if the slice referred to is not yet set up.
 			// See analogous comment for *Array.
 			if utyp.elem == nil {
-				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+				check.error(e, InvalidTypeCycle, "invalid recursive type")
 				goto Error
 			}
 			check.indexedElts(e.ElemList, utyp.elem, -1)
@@ -1490,7 +1491,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			// Prevent crash if the map referred to is not yet set up.
 			// See analogous comment for *Array.
 			if utyp.key == nil || utyp.elem == nil {
-				check.error(e, _InvalidTypeCycle, "invalid recursive type")
+				check.error(e, InvalidTypeCycle, "invalid recursive type")
 				goto Error
 			}
 			// If the map key type is an interface (but not a type parameter),
@@ -1501,7 +1502,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			for _, e := range e.ElemList {
 				kv, _ := e.(*syntax.KeyValueExpr)
 				if kv == nil {
-					check.error(e, _MissingLitKey, "missing key in map literal")
+					check.error(e, MissingLitKey, "missing key in map literal")
 					continue
 				}
 				check.exprWithHint(x, kv.Key, utyp.key)
@@ -1525,7 +1526,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 						visited[xkey] = nil
 					}
 					if duplicate {
-						check.errorf(x, _DuplicateLitKey, "duplicate key %s in map literal", x.val)
+						check.errorf(x, DuplicateLitKey, "duplicate key %s in map literal", x.val)
 						continue
 					}
 				}
@@ -1547,7 +1548,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			}
 			// if utyp is invalid, an error was reported before
 			if utyp != Typ[Invalid] {
-				check.errorf(e, _InvalidLit, "invalid composite literal type %s", typ)
+				check.errorf(e, InvalidLit, "invalid composite literal type %s", typ)
 				goto Error
 			}
 		}
@@ -1584,11 +1585,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		}
 		// TODO(gri) we may want to permit type assertions on type parameter values at some point
 		if isTypeParam(x.typ) {
-			check.errorf(x, _InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
+			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
 			goto Error
 		}
 		if _, ok := under(x.typ).(*Interface); !ok {
-			check.errorf(x, _InvalidAssert, invalidOp+"%s is not an interface", x)
+			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
 			goto Error
 		}
 		// x.(type) expressions are encoded via TypeSwitchGuards
@@ -1654,11 +1655,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 					if !underIs(x.typ, func(u Type) bool {
 						p, _ := u.(*Pointer)
 						if p == nil {
-							check.errorf(x, _InvalidIndirection, invalidOp+"cannot indirect %s", x)
+							check.errorf(x, InvalidIndirection, invalidOp+"cannot indirect %s", x)
 							return false
 						}
 						if base != nil && !Identical(p.base, base) {
-							check.errorf(x, _InvalidIndirection, invalidOp+"pointers of %s must have identical base types", x)
+							check.errorf(x, InvalidIndirection, invalidOp+"pointers of %s must have identical base types", x)
 							return false
 						}
 						base = p.base
@@ -1770,11 +1771,11 @@ func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitc
 	cause := check.missingMethodCause(T, x.typ, method, alt)
 
 	if typeSwitch {
-		check.errorf(e, _ImpossibleAssert, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)
+		check.errorf(e, ImpossibleAssert, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)
 		return
 	}
 
-	check.errorf(e, _ImpossibleAssert, "impossible type assertion: %s\n\t%s does not implement %s %s", e, T, x.typ, cause)
+	check.errorf(e, ImpossibleAssert, "impossible type assertion: %s\n\t%s does not implement %s %s", e, T, x.typ, cause)
 }
 
 // expr typechecks expression e and initializes x with the expression value.
@@ -1817,7 +1818,7 @@ func (check *Checker) exprOrType(x *operand, e syntax.Expr, allowGeneric bool) {
 func (check *Checker) exclude(x *operand, modeset uint) {
 	if modeset&(1<<x.mode) != 0 {
 		var msg string
-		var code errorCode
+		var code Code
 		switch x.mode {
 		case novalue:
 			if modeset&(1<<typexpr) != 0 {
@@ -1825,13 +1826,13 @@ func (check *Checker) exclude(x *operand, modeset uint) {
 			} else {
 				msg = "%s used as value or type"
 			}
-			code = _TooManyValues
+			code = TooManyValues
 		case builtin:
 			msg = "%s must be called"
-			code = _UncalledBuiltin
+			code = UncalledBuiltin
 		case typexpr:
 			msg = "%s is not an expression"
-			code = _NotAnExpr
+			code = NotAnExpr
 		default:
 			unreachable()
 		}
@@ -1846,7 +1847,7 @@ func (check *Checker) singleValue(x *operand) {
 		// tuple types are never named - no need for underlying type below
 		if t, ok := x.typ.(*Tuple); ok {
 			assert(t.Len() != 1)
-			check.errorf(x, _TooManyValues, "multiple-value %s in single-value context", x)
+			check.errorf(x, TooManyValues, "multiple-value %s in single-value context", x)
 			x.mode = invalid
 		}
 	}
