@@ -93,9 +93,10 @@
 	const decoder = new TextDecoder("utf-8");
 
 	globalThis.Go = class {
-		constructor(env = {}) {
+		constructor(env = {}, scope = globalThis) {
 			this.argv = ["js"];
 			this.env = env;
+			this.scope = scope;
 			this.exit = (code) => {
 				if (code !== 0) {
 					console.warn("exit code:", code);
@@ -468,6 +469,7 @@
 				true,
 				false,
 				globalThis,
+				this.scope,
 				this,
 			];
 			this._goRefCounts = new Array(this._values.length).fill(Infinity); // number of references that Go has to a JS value, indexed by reference id
@@ -477,7 +479,8 @@
 				[true, 3],
 				[false, 4],
 				[globalThis, 5],
-				[this, 6],
+				[this.scope, 6],
+				[this, 7],
 			]);
 			this._idPool = [];   // unused ids that have been garbage collected
 			this.exited = false; // whether the Go program has exited

@@ -93,7 +93,8 @@ var (
 	valueTrue      = predefValue(3, typeFlagNone)
 	valueFalse     = predefValue(4, typeFlagNone)
 	valueGlobal    = predefValue(5, typeFlagObject)
-	jsGo           = predefValue(6, typeFlagObject) // instance of the Go class in JavaScript
+	valueScope     = predefValue(6, typeFlagObject)
+	jsGo           = predefValue(7, typeFlagObject) // instance of the Go class in JavaScript
 
 	objectConstructor = valueGlobal.Get("Object")
 	arrayConstructor  = valueGlobal.Get("Array")
@@ -130,7 +131,9 @@ func (v Value) IsNaN() bool {
 }
 
 // Global returns the JavaScript global object, usually "window" or "global".
+// If scope has been provided to the Go constructor, it is returned instead.
 func Global() Value {
+<<<<<<< HEAD
 	return valueGlobal
 <<<<<<< HEAD
 =======
@@ -141,6 +144,9 @@ func Global() Value {
 func Scope() Value {
 	return valueScope
 >>>>>>> feee2fae7e (Still expose value to global)
+=======
+	return valueScope
+>>>>>>> cc41a1c96a (Pass scope as optional argument to Go constructor)
 }
 
 // ValueOf returns x as a JavaScript value:
