@@ -1,5 +1,5 @@
 ! go list .
-stderr '^go: cannot load module added to go\.work file: open .+go\.mod: no such file or directory$'
+stderr '^go: cannot load module listed in go\.work file: open .+go\.mod: no such file or directory$'
 
 -- go.work --
 use ./y
