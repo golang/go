@@ -95,8 +95,11 @@ func (c *format) Run(ctx context.Context, args ...string) error {
 		}
 		if c.Diff {
 			printIt = false
-			u := diff.Unified(filename+".orig", filename, string(file.mapper.Content), sedits)
-			fmt.Print(u)
+			unified, err := diff.ToUnified(filename+".orig", filename, string(file.mapper.Content), sedits)
+			if err != nil {
+				return err
+			}
+			fmt.Print(unified)
 		}
 		if printIt {
 			fmt.Print(formatted)

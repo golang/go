@@ -154,7 +154,10 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 			ioutil.WriteFile(filename, []byte(newContent), 0644)
 		}
 	case s.Diff:
-		diffs := diff.Unified(filename+".orig", filename, string(file.mapper.Content), sedits)
+		diffs, err := diff.ToUnified(filename+".orig", filename, string(file.mapper.Content), sedits)
+		if err != nil {
+			return err
+		}
 		fmt.Print(diffs)
 	default:
 		fmt.Print(string(newContent))

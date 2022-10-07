@@ -1223,11 +1223,7 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.Signa
 	if got == nil {
 		t.Fatalf("expected %v, got nil", want)
 	}
-	diff, err := tests.DiffSignatures(spn, want, got)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if diff != "" {
+	if diff := tests.DiffSignatures(spn, want, got); diff != "" {
 		t.Error(diff)
 	}
 }

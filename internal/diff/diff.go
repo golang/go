@@ -24,28 +24,14 @@ type Edit struct {
 // Apply returns an error if any edit is out of bounds,
 // or if any pair of edits is overlapping.
 func Apply(src string, edits []Edit) (string, error) {
-	if !sort.IsSorted(editsSort(edits)) {
-		edits = append([]Edit(nil), edits...)
-		sortEdits(edits)
-	}
-
-	// Check validity of edits and compute final size.
-	size := len(src)
-	lastEnd := 0
-	for _, edit := range edits {
-		if !(0 <= edit.Start && edit.Start <= edit.End && edit.End <= len(src)) {
-			return "", fmt.Errorf("diff has out-of-bounds edits")
-		}
-		if edit.Start < lastEnd {
-			return "", fmt.Errorf("diff has overlapping edits")
-		}
-		size += len(edit.New) + edit.Start - edit.End
-		lastEnd = edit.End
+	edits, size, err := validate(src, edits)
+	if err != nil {
+		return "", err
 	}
 
 	// Apply edits.
 	out := make([]byte, 0, size)
-	lastEnd = 0
+	lastEnd := 0
 	for _, edit := range edits {
 		if lastEnd < edit.Start {
 			out = append(out, src[lastEnd:edit.Start]...)
@@ -60,6 +46,32 @@ func Apply(src string, edits []Edit) (string, error) {
 	}
 
 	return string(out), nil
+}
+
+// validate checks that edits are consistent with src,
+// and returns the size of the patched output.
+// It may return a different slice.
+func validate(src string, edits []Edit) ([]Edit, int, error) {
+	if !sort.IsSorted(editsSort(edits)) {
+		edits = append([]Edit(nil), edits...)
+		sortEdits(edits)
+	}
+
+	// Check validity of edits and compute final size.
+	size := len(src)
+	lastEnd := 0
+	for _, edit := range edits {
+		if !(0 <= edit.Start && edit.Start <= edit.End && edit.End <= len(src)) {
+			return nil, 0, fmt.Errorf("diff has out-of-bounds edits")
+		}
+		if edit.Start < lastEnd {
+			return nil, 0, fmt.Errorf("diff has overlapping edits")
+		}
+		size += len(edit.New) + edit.Start - edit.End
+		lastEnd = edit.End
+	}
+
+	return edits, size, nil
 }
 
 // sortEdits orders edits by (start, end) offset.
@@ -84,8 +96,12 @@ func (a editsSort) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
 // lineEdits expands and merges a sequence of edits so that each
 // resulting edit replaces one or more complete lines.
-func lineEdits(src string, edits []Edit) []Edit {
-	sortEdits(edits) // TODO(adonovan): is this necessary? Move burden to caller?
+// See ApplyEdits for preconditions.
+func lineEdits(src string, edits []Edit) ([]Edit, error) {
+	edits, _, err := validate(src, edits)
+	if err != nil {
+		return nil, err
+	}
 
 	// Do all edits begin and end at the start of a line?
 	// TODO(adonovan): opt: is this fast path necessary?
@@ -97,7 +113,7 @@ func lineEdits(src string, edits []Edit) []Edit {
 			goto expand
 		}
 	}
-	return edits // aligned
+	return edits, nil // aligned
 
 expand:
 	expanded := make([]Edit, 0, len(edits)) // a guess
@@ -116,7 +132,7 @@ expand:
 			prev = edit
 		}
 	}
-	return append(expanded, expandEdit(prev, src)) // flush final edit
+	return append(expanded, expandEdit(prev, src)), nil // flush final edit
 }
 
 // expandEdit returns edit expanded to complete whole lines.

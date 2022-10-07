@@ -249,7 +249,10 @@ func DiffTest(t *testing.T, compute func(before, after string) []diff.Edit) {
 			if err != nil {
 				t.Fatalf("Apply failed: %v", err)
 			}
-			unified := diff.Unified(FileA, FileB, test.In, edits)
+			unified, err := diff.ToUnified(FileA, FileB, test.In, edits)
+			if err != nil {
+				t.Fatalf("ToUnified: %v", err)
+			}
 			if got != test.Out {
 				t.Errorf("Apply: got patched:\n%v\nfrom diff:\n%v\nexpected:\n%v", got, unified, test.Out)
 			}

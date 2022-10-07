@@ -92,8 +92,11 @@ func (t *imports) Run(ctx context.Context, args ...string) error {
 			ioutil.WriteFile(filename, []byte(newContent), 0644)
 		}
 	case t.Diff:
-		diffs := diff.Unified(filename+".orig", filename, string(file.mapper.Content), sedits)
-		fmt.Print(diffs)
+		unified, err := diff.ToUnified(filename+".orig", filename, string(file.mapper.Content), sedits)
+		if err != nil {
+			return err
+		}
+		fmt.Print(unified)
 	default:
 		fmt.Print(string(newContent))
 	}

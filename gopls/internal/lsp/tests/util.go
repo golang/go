@@ -20,8 +20,8 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
+	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/diff"
 )
 
 // DiffLinks takes the links we got and checks if they are located within the source or a Note.
@@ -213,25 +213,23 @@ func summarizeCodeLens(i int, uri span.URI, want, got []protocol.CodeLens, reaso
 	return msg.String()
 }
 
-func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) (string, error) {
+func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) string {
 	decorate := func(f string, args ...interface{}) string {
 		return fmt.Sprintf("invalid signature at %s: %s", spn, fmt.Sprintf(f, args...))
 	}
 	if len(got.Signatures) != 1 {
-		return decorate("wanted 1 signature, got %d", len(got.Signatures)), nil
+		return decorate("wanted 1 signature, got %d", len(got.Signatures))
 	}
 	if got.ActiveSignature != 0 {
-		return decorate("wanted active signature of 0, got %d", int(got.ActiveSignature)), nil
+		return decorate("wanted active signature of 0, got %d", int(got.ActiveSignature))
 	}
 	if want.ActiveParameter != got.ActiveParameter {
-		return decorate("wanted active parameter of %d, got %d", want.ActiveParameter, int(got.ActiveParameter)), nil
+		return decorate("wanted active parameter of %d, got %d", want.ActiveParameter, int(got.ActiveParameter))
 	}
 	g := got.Signatures[0]
 	w := want.Signatures[0]
-	if NormalizeAny(w.Label) != NormalizeAny(g.Label) {
-		wLabel := w.Label + "\n"
-		edits := diff.Strings(wLabel, g.Label+"\n")
-		return decorate("mismatched labels:\n%q", diff.Unified("want", "got", wLabel, edits)), nil
+	if diff := compare.Text(NormalizeAny(w.Label), NormalizeAny(g.Label)); diff != "" {
+		return decorate("mismatched labels:\n%s", diff)
 	}
 	var paramParts []string
 	for _, p := range g.Parameters {
@@ -239,9 +237,9 @@ func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) (string, e
 	}
 	paramsStr := strings.Join(paramParts, ", ")
 	if !strings.Contains(g.Label, paramsStr) {
-		return decorate("expected signature %q to contain params %q", g.Label, paramsStr), nil
+		return decorate("expected signature %q to contain params %q", g.Label, paramsStr)
 	}
-	return "", nil
+	return ""
 }
 
 // NormalizeAny replaces occurrences of interface{} in input with any.

@@ -95,22 +95,32 @@ func TestLineEdits(t *testing.T) {
 			if edits == nil {
 				edits = tc.Edits
 			}
-			if got := diff.LineEdits(tc.In, tc.Edits); diffEdits(got, edits) {
+			got, err := diff.LineEdits(tc.In, tc.Edits)
+			if err != nil {
+				t.Fatalf("LineEdits: %v", err)
+			}
+			if !reflect.DeepEqual(got, edits) {
 				t.Errorf("LineEdits got %q, want %q", got, edits)
 			}
 		})
 	}
 }
 
-func TestUnified(t *testing.T) {
+func TestToUnified(t *testing.T) {
 	for _, tc := range difftest.TestCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			unified := diff.Unified(difftest.FileA, difftest.FileB, tc.In, tc.Edits)
+			unified, err := diff.ToUnified(difftest.FileA, difftest.FileB, tc.In, tc.Edits)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if unified != tc.Unified {
 				t.Errorf("Unified(Edits): got diff:\n%v\nexpected:\n%v", unified, tc.Unified)
 			}
 			if tc.LineEdits != nil {
-				unified := diff.Unified(difftest.FileA, difftest.FileB, tc.In, tc.LineEdits)
+				unified, err := diff.ToUnified(difftest.FileA, difftest.FileB, tc.In, tc.LineEdits)
+				if err != nil {
+					t.Fatal(err)
+				}
 				if unified != tc.Unified {
 					t.Errorf("Unified(LineEdits): got diff:\n%v\nexpected:\n%v", unified, tc.Unified)
 				}
@@ -152,10 +162,6 @@ func TestRegressionOld002(t *testing.T) {
 		t.Errorf("oops %vd\n%q\n%q", diffs, got, b)
 		t.Errorf("\n%q\n%q", got[i:], b[i:])
 	}
-}
-
-func diffEdits(got, want []diff.Edit) bool {
-	return !reflect.DeepEqual(got, want)
 }
 
 // return a random string of length n made of characters from s

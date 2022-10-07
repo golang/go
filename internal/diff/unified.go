@@ -6,13 +6,32 @@ package diff
 
 import (
 	"fmt"
+	"log"
 	"strings"
 )
 
-// Unified applies the edits to content and presents a unified diff.
+// Unified returns a unified diff of the old and new strings.
+// The old and new labels are the names of the old and new files.
+// If the strings are equal, it returns the empty string.
+func Unified(oldLabel, newLabel, old, new string) string {
+	edits := Strings(old, new)
+	unified, err := ToUnified(oldLabel, newLabel, old, edits)
+	if err != nil {
+		// Can't happen: edits are consistent.
+		log.Fatalf("internal error in diff.Unified: %v", err)
+	}
+	return unified
+}
+
+// ToUnified applies the edits to content and returns a unified diff.
 // The old and new labels are the names of the content and result files.
-func Unified(oldLabel, newLabel string, content string, edits []Edit) string {
-	return toUnified(oldLabel, newLabel, content, edits).String()
+// It returns an error if the edits are inconsistent; see ApplyEdits.
+func ToUnified(oldLabel, newLabel, content string, edits []Edit) (string, error) {
+	u, err := toUnified(oldLabel, newLabel, content, edits)
+	if err != nil {
+		return "", err
+	}
+	return u.String(), nil
 }
 
 // unified represents a set of edits as a unified diff.
@@ -82,15 +101,19 @@ const (
 
 // toUnified takes a file contents and a sequence of edits, and calculates
 // a unified diff that represents those edits.
-func toUnified(fromName, toName string, content string, edits []Edit) unified {
+func toUnified(fromName, toName string, content string, edits []Edit) (unified, error) {
 	u := unified{
 		From: fromName,
 		To:   toName,
 	}
 	if len(edits) == 0 {
-		return u
+		return u, nil
 	}
-	edits = lineEdits(content, edits) // expand to whole lines
+	var err error
+	edits, err = lineEdits(content, edits) // expand to whole lines
+	if err != nil {
+		return u, err
+	}
 	lines := splitLines(content)
 	var h *hunk
 	last := 0
@@ -144,7 +167,7 @@ func toUnified(fromName, toName string, content string, edits []Edit) unified {
 		addEqualLines(h, lines, last, last+edge)
 		u.Hunks = append(u.Hunks, h)
 	}
-	return u
+	return u, nil
 }
 
 func splitLines(text string) []string {

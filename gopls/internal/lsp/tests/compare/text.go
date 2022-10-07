@@ -19,19 +19,15 @@ func Text(want, got string) string {
 	}
 
 	// Add newlines to avoid verbose newline messages ("No newline at end of file").
-	want += "\n"
-	got += "\n"
-
-	edits := diff.Strings(want, got)
-	diff := diff.Unified("want", "got", want, edits)
+	unified := diff.Unified("want", "got", want+"\n", got+"\n")
 
 	// Defensively assert that we get an actual diff, so that we guarantee the
 	// invariant that we return "" if and only if want == got.
 	//
 	// This is probably unnecessary, but convenient.
-	if diff == "" {
+	if unified == "" {
 		panic("empty diff for non-identical input")
 	}
 
-	return diff
+	return unified
 }

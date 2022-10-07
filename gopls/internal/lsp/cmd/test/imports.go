@@ -19,7 +19,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		return []byte(got), nil
 	}))
 	if want != got {
-		edits := diff.Strings(want, got)
-		t.Errorf("imports failed for %s, expected:\n%s", filename, diff.Unified("want", "got", want, edits))
+		unified := diff.Unified("want", "got", want, got)
+		t.Errorf("imports failed for %s, expected:\n%s", filename, unified)
 	}
 }

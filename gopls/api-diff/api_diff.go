@@ -256,12 +256,10 @@ func formatBlock(str string) string {
 }
 
 func diffStr(before, after string) string {
-	// Add newlines to avoid newline messages in diff.
 	if before == after {
 		return ""
 	}
-	before += "\n"
-	after += "\n"
-	edits := diffpkg.Strings(before, after)
-	return fmt.Sprintf("%q", diffpkg.Unified("previous", "current", before, edits))
+	// Add newlines to avoid newline messages in diff.
+	unified := diffpkg.Unified("previous", "current", before+"\n", after+"\n")
+	return fmt.Sprintf("%q", unified)
 }
