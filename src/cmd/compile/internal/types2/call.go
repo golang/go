@@ -287,7 +287,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	for _, a := range args {
 		switch a.mode {
 		case typexpr:
-			check.errorf(a, 0, "%s used as value", a)
+			check.errorf(a, NotAnExpr, "%s used as value", a)
 			return
 		case invalid:
 			return

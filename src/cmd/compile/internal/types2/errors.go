@@ -221,6 +221,10 @@ func (check *Checker) dump(format string, args ...interface{}) {
 }
 
 func (check *Checker) err(at poser, code Code, msg string, soft bool) {
+	if code == 0 {
+		panic("no error code provided")
+	}
+
 	// Cheap trick: Don't report errors with messages containing
 	// "invalid operand" or "invalid type" as those tend to be
 	// follow-on errors which don't add useful information. Only
