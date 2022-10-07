@@ -718,7 +718,11 @@ func LoadModFile(ctx context.Context) *Requirements {
 		var fixed bool
 		data, f, err := ReadModFile(gomod, fixVersion(ctx, &fixed))
 		if err != nil {
-			base.Fatalf("go: %v", err)
+			if inWorkspaceMode() {
+				base.Fatalf("go: cannot load module listed in go.work file: %v", err)
+			} else {
+				base.Fatalf("go: %v", err)
+			}
 		}
 
 		modFiles = append(modFiles, f)
