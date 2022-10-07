@@ -31,6 +31,11 @@ type Code int
 // problem with types.
 
 const (
+	// InvalidSyntaxTree occurs if an invalid syntax tree is provided
+	// to the type checker. It should never happen.
+	InvalidSyntaxTree Code = -1
+
+	// The zero Code value indicates an unset (invalid) error code.
 	_ Code = iota
 
 	// Test is reserved for errors that only apply while in self-test mode.
@@ -40,6 +45,9 @@ const (
 	//
 	// Per the spec:
 	//  "The PackageName must not be the blank identifier."
+	//
+	// Example:
+	//  package _
 	BlankPkgName
 
 	// MismatchedPkgName occurs when a file's package name doesn't match the
