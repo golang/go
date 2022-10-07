@@ -20,8 +20,8 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/span"
 )
 
 // DiffLinks takes the links we got and checks if they are located within the source or a Note.

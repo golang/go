@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/tests"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 type godefMode int

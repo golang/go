@@ -16,12 +16,12 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/memoize"
-	"golang.org/x/tools/internal/span"
 )
 
 func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {

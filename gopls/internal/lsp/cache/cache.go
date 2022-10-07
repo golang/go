@@ -20,12 +20,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/memoize"
-	"golang.org/x/tools/internal/span"
 )
 
 // New Creates a new cache for gopls operation results, using the given file

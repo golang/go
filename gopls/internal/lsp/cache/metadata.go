@@ -8,8 +8,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/packagesinternal"
-	"golang.org/x/tools/internal/span"
 )
 
 // Declare explicit types for package paths, names, and IDs to ensure that we

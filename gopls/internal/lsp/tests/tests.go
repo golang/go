@@ -32,7 +32,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/txtar"

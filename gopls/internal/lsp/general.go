@@ -18,10 +18,10 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/debug"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/span"
 )
 
 func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitialize) (*protocol.InitializeResult, error) {

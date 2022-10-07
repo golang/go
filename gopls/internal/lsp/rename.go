@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*protocol.WorkspaceEdit, error) {

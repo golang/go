@@ -18,8 +18,8 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/span"
 )
 
 const Doc = `suggested fixes for "undeclared name: <>"

@@ -19,7 +19,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 // generate semantic tokens and interpolate them in the file

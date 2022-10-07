@@ -15,8 +15,8 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/span"
 )
 
 func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position) ([]protocol.Location, error) {

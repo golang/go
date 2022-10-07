@@ -14,10 +14,10 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/mod"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/internal/span"
 )
 
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {

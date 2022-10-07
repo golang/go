@@ -25,10 +25,10 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/gopls/internal/vulncheck"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 )
 

@@ -21,9 +21,9 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/fuzzy"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 )
 

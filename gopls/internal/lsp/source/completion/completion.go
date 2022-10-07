@@ -23,13 +23,13 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/internal/fuzzy"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/snippet"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/fuzzy"
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/typeparams"
 )
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 // The funny character below is 4 bytes long in UTF-8; two UTF-16 code points

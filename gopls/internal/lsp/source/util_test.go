@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 func TestMappedRangeAdjustment(t *testing.T) {

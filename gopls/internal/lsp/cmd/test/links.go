@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {

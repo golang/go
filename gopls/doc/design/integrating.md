@@ -20,7 +20,7 @@ Many LSP requests pass position or range information. This is described in the [
 
 This means that integrators will need to calculate UTF-16 based column offsets.
 
-[`golang.org/x/tools/internal/span`] has the code to do this in go.
+[`golang.org/x/tools/gopls/internal/span`] has the code to do this in go.
 [#31080] tracks making `span` and other useful packages non-internal.
 
 ## Edits
@@ -63,7 +63,7 @@ This is currently being added to gopls by a community member, and tracked in [#3
 
 [InitializeResult]: https://pkg.go.dev/golang.org/x/tools/gopls/internal/lsp/protocol#InitializeResult
 [ServerCapabilities]: https://pkg.go.dev/golang.org/x/tools/gopls/internal/lsp/protocol#ServerCapabilities
-[`golang.org/x/tools/internal/span`]: https://pkg.go.dev/golang.org/x/tools/internal/span#NewPoint
+[`golang.org/x/tools/gopls/internal/span`]: https://pkg.go.dev/golang.org/x/tools/internal/span#NewPoint
 
 [LSP specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-3-14/
 [lsp-response]: https://github.com/Microsoft/language-server-protocol/blob/gh-pages/_specifications/specification-3-14.md#response-message

@@ -12,7 +12,7 @@ import (
 	"go/token"
 	"unicode/utf8"
 
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 // A ColumnMapper maps between UTF-8 oriented positions (e.g. token.Pos,

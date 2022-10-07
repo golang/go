@@ -12,8 +12,8 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/diff"
-	"golang.org/x/tools/internal/span"
 )
 
 // format implements the format verb for gopls.

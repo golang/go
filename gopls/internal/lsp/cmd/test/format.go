@@ -14,7 +14,7 @@ import (
 
 	exec "golang.org/x/sys/execabs"
 
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/testenv"
 )
 

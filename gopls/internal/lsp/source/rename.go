@@ -20,9 +20,9 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/refactor/satisfy"
 )
 

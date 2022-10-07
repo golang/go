@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 func (r *runner) SuggestedFix(t *testing.T, spn span.Span, suggestedFixes []tests.SuggestedFix, expectedActions int) {

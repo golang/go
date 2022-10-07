@@ -16,9 +16,9 @@ import (
 	"strconv"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/span"
 )
 
 // ReferenceInfo holds information about reference to an identifier in Go source.

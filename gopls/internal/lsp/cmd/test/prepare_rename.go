@@ -11,7 +11,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/cmd"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.PrepareItem) {

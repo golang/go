@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 type SuggestedFix struct {

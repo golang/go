@@ -16,11 +16,11 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/persistent"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 )
 

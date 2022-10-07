@@ -14,10 +14,10 @@ import (
 	"path/filepath"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
-	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/internal/span"
 )
 
 // PrepareCallHierarchy returns an array of CallHierarchyItem for a file and the position within the file.

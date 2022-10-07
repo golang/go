@@ -14,9 +14,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/gocommand"
 )
 
 type Annotation string

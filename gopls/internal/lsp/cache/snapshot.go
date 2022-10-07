@@ -32,6 +32,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
@@ -39,7 +40,6 @@ import (
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/persistent"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typesinternal"
 )
 

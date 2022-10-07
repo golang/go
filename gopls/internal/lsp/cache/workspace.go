@@ -15,9 +15,9 @@ import (
 	"sync"
 
 	"golang.org/x/mod/modfile"
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/xcontext"
 )
 

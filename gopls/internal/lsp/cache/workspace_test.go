@@ -14,7 +14,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 // osFileSource is a fileSource that just reads from the operating system.

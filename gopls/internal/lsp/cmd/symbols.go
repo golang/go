@@ -12,7 +12,7 @@ import (
 	"sort"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/tool"
 )
 

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/gopls/internal/span"
 )
 
 func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {

@@ -19,11 +19,11 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/memoize"
-	"golang.org/x/tools/internal/span"
 )
 
 // ModTidy returns the go.mod file that would be obtained by running
