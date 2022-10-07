@@ -1009,17 +1009,6 @@ func (e *PackageNotInModuleError) ImportPath() string {
 	return ""
 }
 
-// moduleHasRootPackage returns whether module m contains a package m.Path.
-func moduleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
-	needSum := false
-	root, isLocal, err := fetch(ctx, m, needSum)
-	if err != nil {
-		return false, err
-	}
-	_, ok, err := dirInModule(m.Path, m.Path, root, isLocal)
-	return ok, err
-}
-
 // versionHasGoMod returns whether a version has a go.mod file.
 //
 // versionHasGoMod fetches the go.mod file (possibly a fake) and true if it
