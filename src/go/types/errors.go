@@ -220,6 +220,10 @@ func (check *Checker) report(errp *error_) {
 		panic("empty error details")
 	}
 
+	if errp.code == 0 {
+		panic("no error code provided")
+	}
+
 	span := spanOf(errp.desc[0].posn)
 	e := Error{
 		Fset:       check.fset,
@@ -301,7 +305,7 @@ func (check *Checker) versionErrorf(at positioner, goVersion string, format stri
 }
 
 func (check *Checker) invalidAST(at positioner, format string, args ...any) {
-	check.errorf(at, 0, "invalid AST: "+format, args...)
+	check.errorf(at, InvalidSyntaxTree, "invalid AST: "+format, args...)
 }
 
 func (check *Checker) invalidArg(at positioner, code Code, format string, args ...any) {

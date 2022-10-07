@@ -450,7 +450,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if s.Rhs == nil {
 			// x++ or x--
 			if len(lhs) != 1 {
-				check.errorf(s, 0, invalidAST+"%s%s requires one operand", s.Op, s.Op)
+				check.errorf(s, InvalidSyntaxTree, invalidAST+"%s%s requires one operand", s.Op, s.Op)
 				return
 			}
 			var x operand
@@ -554,7 +554,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			// goto's must have labels, should have been caught above
 			fallthrough
 		default:
-			check.errorf(s, 0, invalidAST+"branch statement: %s", s.Tok)
+			check.errorf(s, InvalidSyntaxTree, invalidAST+"branch statement: %s", s.Tok)
 		}
 
 	case *syntax.BlockStmt:
@@ -582,7 +582,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		case *syntax.IfStmt, *syntax.BlockStmt:
 			check.stmt(inner, s.Else)
 		default:
-			check.error(s.Else, 0, invalidAST+"invalid else branch in if statement")
+			check.error(s.Else, InvalidSyntaxTree, invalidAST+"invalid else branch in if statement")
 		}
 
 	case *syntax.SwitchStmt:
@@ -674,7 +674,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.stmt(inner, s.Body)
 
 	default:
-		check.error(s, 0, invalidAST+"invalid statement")
+		check.error(s, InvalidSyntaxTree, invalidAST+"invalid statement")
 	}
 }
 
@@ -710,7 +710,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 	seen := make(valueMap) // map of seen case values to positions and types
 	for i, clause := range s.Body {
 		if clause == nil {
-			check.error(clause, 0, invalidAST+"incorrect expression switch case")
+			check.error(clause, InvalidSyntaxTree, invalidAST+"incorrect expression switch case")
 			continue
 		}
 		end := s.Rbrace
@@ -773,7 +773,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	seen := make(map[Type]syntax.Expr) // map of seen types to positions
 	for i, clause := range s.Body {
 		if clause == nil {
-			check.error(s, 0, invalidAST+"incorrect type switch case")
+			check.error(s, InvalidSyntaxTree, invalidAST+"incorrect type switch case")
 			continue
 		}
 		end := s.Rbrace
@@ -836,7 +836,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	var sValue, sExtra syntax.Expr
 	if p, _ := sKey.(*syntax.ListExpr); p != nil {
 		if len(p.ElemList) < 2 {
-			check.error(s, 0, invalidAST+"invalid lhs in range clause")
+			check.error(s, InvalidSyntaxTree, invalidAST+"invalid lhs in range clause")
 			return
 		}
 		// len(p.ElemList) >= 2
@@ -918,7 +918,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 					vars = append(vars, obj)
 				}
 			} else {
-				check.errorf(lhs, 0, invalidAST+"cannot declare %s", lhs)
+				check.errorf(lhs, InvalidSyntaxTree, invalidAST+"cannot declare %s", lhs)
 				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
 			}
 

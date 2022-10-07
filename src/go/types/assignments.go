@@ -29,7 +29,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// ok
 	default:
 		// we may get here because of other problems (issue #39634, crash 12)
-		check.errorf(x, 0, "cannot assign %s to %s in %s", x, T, context)
+		// TODO(gri) do we need a new "generic" error code here?
+		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
 		return
 	}
 
