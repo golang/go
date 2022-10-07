@@ -1598,7 +1598,10 @@ func (v Value) IsZero() bool {
 			if v.flag&flagIndir == 0 {
 				return v.ptr == nil
 			}
-			return v.typ().Equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
+			// v.ptr doesn't escape, as Equal functions are compiler generated
+			// and never escape. The escape analysis doesn't know, as it is a
+			// function pointer call.
+			return v.typ().Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
 
 		n := v.Len()
@@ -1618,7 +1621,8 @@ func (v Value) IsZero() bool {
 			if v.flag&flagIndir == 0 {
 				return v.ptr == nil
 			}
-			return v.typ().Equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
+			// See noescape justification above.
+			return v.typ().Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
 
 		n := v.NumField()
