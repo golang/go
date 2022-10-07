@@ -76,8 +76,7 @@ func PackageModRoot(ctx context.Context, pkgpath string) string {
 	if !ok {
 		return ""
 	}
-	const needSum = true
-	root, _, err := fetch(ctx, m, needSum)
+	root, _, err := fetch(ctx, m)
 	if err != nil {
 		return ""
 	}

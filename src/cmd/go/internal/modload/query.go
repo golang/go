@@ -729,8 +729,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 				return r, err
 			}
 			r.Mod.Version = r.Rev.Version
-			needSum := true
-			root, isLocal, err := fetch(ctx, r.Mod, needSum)
+			root, isLocal, err := fetch(ctx, r.Mod)
 			if err != nil {
 				return r, err
 			}
