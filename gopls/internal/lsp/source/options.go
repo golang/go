@@ -1052,10 +1052,10 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.setBool(&o.ExperimentalPostfixCompletions)
 
 	case "experimentalWorkspaceModule":
-		const msg = "The experimentalWorkspaceModule feature has been replaced by go workspaces, " +
-			"and will be removed in a future version of gopls (https://go.dev/issue/55331). " +
-			"Please see https://github.com/golang/tools/blob/master/gopls/doc/workspace.md " +
-			"for information on setting up multi-module workspaces using go.work files."
+		const msg = "experimentalWorkspaceModule has been replaced by go workspaces, " +
+			"and will be removed in a future version of gopls (https://go.dev/issue/55331) -- " +
+			"see https://github.com/golang/tools/blob/master/gopls/doc/workspace.md " +
+			"for information on setting up multi-module workspaces using go.work files"
 		result.softErrorf(msg)
 		result.setBool(&o.ExperimentalWorkspaceModule)
 
@@ -1084,8 +1084,8 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.setDuration(&o.DiagnosticsDelay)
 
 	case "experimentalWatchedFileDelay":
-		const msg = "The experimentalWatchedFileDelay setting is deprecated, and will " +
-			"be removed in a future version of gopls (https://go.dev/issue/55332)."
+		const msg = "experimentalWatchedFileDelay is deprecated, and will " +
+			"be removed in a future version of gopls (https://go.dev/issue/55332)"
 		result.softErrorf(msg)
 		result.setDuration(&o.ExperimentalWatchedFileDelay)
 
@@ -1099,8 +1099,8 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.setBool(&o.AllowImplicitNetworkAccess)
 
 	case "experimentalUseInvalidMetadata":
-		const msg = "The experimentalUseInvalidMetadata setting is deprecated, and will be removed" +
-			"in a future version of gopls (https://go.dev/issue/55333)."
+		const msg = "experimentalUseInvalidMetadata is deprecated, and will be removed " +
+			"in a future version of gopls (https://go.dev/issue/55333)"
 		result.softErrorf(msg)
 		result.setBool(&o.ExperimentalUseInvalidMetadata)
 

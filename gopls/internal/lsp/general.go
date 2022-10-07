@@ -13,6 +13,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/gopls/internal/lsp/debug"
@@ -459,28 +461,46 @@ func (s *Server) eventuallyShowMessage(ctx context.Context, msg *protocol.ShowMe
 }
 
 func (s *Server) handleOptionResults(ctx context.Context, results source.OptionResults) error {
+	var warnings, errors []string
 	for _, result := range results {
-		var msg *protocol.ShowMessageParams
 		switch result.Error.(type) {
 		case nil:
 			// nothing to do
 		case *source.SoftError:
-			msg = &protocol.ShowMessageParams{
-				Type:    protocol.Warning,
-				Message: result.Error.Error(),
-			}
+			warnings = append(warnings, result.Error.Error())
 		default:
-			msg = &protocol.ShowMessageParams{
-				Type:    protocol.Error,
-				Message: result.Error.Error(),
-			}
-		}
-		if msg != nil {
-			if err := s.eventuallyShowMessage(ctx, msg); err != nil {
-				return err
-			}
+			errors = append(errors, result.Error.Error())
 		}
 	}
+
+	// Sort messages, but put errors first.
+	//
+	// Having stable content for the message allows clients to de-duplicate. This
+	// matters because we may send duplicate warnings for clients that support
+	// dynamic configuration: one for the initial settings, and then more for the
+	// individual view settings.
+	var msgs []string
+	msgType := protocol.Warning
+	if len(errors) > 0 {
+		msgType = protocol.Error
+		sort.Strings(errors)
+		msgs = append(msgs, errors...)
+	}
+	if len(warnings) > 0 {
+		sort.Strings(warnings)
+		msgs = append(msgs, warnings...)
+	}
+
+	if len(msgs) > 0 {
+		// Settings
+		combined := "Invalid settings: " + strings.Join(msgs, "; ")
+		params := &protocol.ShowMessageParams{
+			Type:    msgType,
+			Message: combined,
+		}
+		return s.eventuallyShowMessage(ctx, params)
+	}
+
 	return nil
 }
 

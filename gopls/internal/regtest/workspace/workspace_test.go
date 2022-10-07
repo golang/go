@@ -1267,10 +1267,9 @@ func TestOldGoNotification_UnsupportedVersion(t *testing.T) {
 
 	Run(t, "", func(t *testing.T, env *Env) {
 		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				ShownMessage("Please upgrade"),
-			),
+			// Note: cannot use OnceMet(InitialWorkspaceLoad, ...) here, as the
+			// upgrade message may race with the IWL.
+			ShownMessage("Please upgrade"),
 		)
 	})
 }
@@ -1293,10 +1292,9 @@ func TestOldGoNotification_Fake(t *testing.T) {
 
 	Run(t, "", func(t *testing.T, env *Env) {
 		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				ShownMessage("Please upgrade"),
-			),
+			// Note: cannot use OnceMet(InitialWorkspaceLoad, ...) here, as the
+			// upgrade message may race with the IWL.
+			ShownMessage("Please upgrade"),
 		)
 	})
 }
