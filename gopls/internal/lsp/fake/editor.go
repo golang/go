@@ -1203,7 +1203,10 @@ func (e *Editor) RenameFile(ctx context.Context, oldPath, newPath string) error 
 	}
 
 	// Finally, perform the renaming on disk.
-	return e.sandbox.Workdir.RenameFile(ctx, oldPath, newPath)
+	if err := e.sandbox.Workdir.RenameFile(ctx, oldPath, newPath); err != nil {
+		return fmt.Errorf("renaming sandbox file: %w", err)
+	}
+	return nil
 }
 
 // renameBuffers renames in-memory buffers affected by the renaming of

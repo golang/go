@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/robustio"
 	"golang.org/x/tools/gopls/internal/span"
 )
 
@@ -62,6 +63,8 @@ func WriteFileData(path string, content []byte, rel RelativeTo) error {
 	for {
 		err := ioutil.WriteFile(fp, []byte(content), 0644)
 		if err != nil {
+			// This lock file violation is not handled by the robustio package, as it
+			// indicates a real race condition that could be avoided.
 			if isWindowsErrLockViolation(err) {
 				time.Sleep(backoff)
 				backoff *= 2
@@ -76,10 +79,6 @@ func WriteFileData(path string, content []byte, rel RelativeTo) error {
 // isWindowsErrLockViolation reports whether err is ERROR_LOCK_VIOLATION
 // on Windows.
 var isWindowsErrLockViolation = func(err error) bool { return false }
-
-// isWindowsRetryable reports whether err is a Windows error code
-// that may be fixed by retrying a failed filesystem operation.
-var isWindowsRetryable = func(err error) bool { return false }
 
 // Workdir is a temporary working directory for tests. It exposes file
 // operations in terms of relative paths, and fakes file watching by triggering
@@ -334,7 +333,7 @@ func (w *Workdir) RenameFile(ctx context.Context, oldPath, newPath string) error
 	oldAbs := w.AbsPath(oldPath)
 	newAbs := w.AbsPath(newPath)
 
-	if err := os.Rename(oldAbs, newAbs); err != nil {
+	if err := robustio.Rename(oldAbs, newAbs); err != nil {
 		return err
 	}
 
