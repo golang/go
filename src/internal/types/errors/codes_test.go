@@ -24,7 +24,7 @@ func TestErrorCodeExamples(t *testing.T) {
 			doc := spec.Doc.Text()
 			examples := strings.Split(doc, "Example:")
 			for i := 1; i < len(examples); i++ {
-				example := examples[i]
+				example := strings.TrimSpace(examples[i])
 				err := checkExample(t, example)
 				if err == nil {
 					t.Fatalf("no error in example #%d", i)
@@ -89,8 +89,10 @@ func readCode(err Error) int {
 func checkExample(t *testing.T, example string) error {
 	t.Helper()
 	fset := token.NewFileSet()
-	src := fmt.Sprintf("package p\n\n%s", example)
-	file, err := parser.ParseFile(fset, "example.go", src, 0)
+	if !strings.HasPrefix(example, "package") {
+		example = "package p\n\n" + example
+	}
+	file, err := parser.ParseFile(fset, "example.go", example, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
