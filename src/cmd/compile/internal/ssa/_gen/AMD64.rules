@@ -208,11 +208,6 @@
 (Rsh16x(64|32|16|8) x y) && shiftIsBounded(v) => (SARW x y)
 (Rsh8x(64|32|16|8) x y)  && shiftIsBounded(v) => (SARB x y)
 
-// Prefer SARX/SHLX/SHRX instruction because it has less register restriction on the shift input.
-(SAR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SARX(Q|L) x y)
-(SHL(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHLX(Q|L) x y)
-(SHR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHRX(Q|L) x y)
-
 // Lowering integer comparisons
 (Less(64|32|16|8)      x y) => (SETL  (CMP(Q|L|W|B)     x y))
 (Less(64|32|16|8)U     x y) => (SETB  (CMP(Q|L|W|B)     x y))
@@ -605,8 +600,6 @@
 // mutandis, for UGE and SETAE, and CC and SETCC.
 ((NE|EQ) (TESTL (SHLL (MOVLconst [1]) x) y)) => ((ULT|UGE) (BTL x y))
 ((NE|EQ) (TESTQ (SHLQ (MOVQconst [1]) x) y)) => ((ULT|UGE) (BTQ x y))
-((NE|EQ) (TESTL (SHLXL (MOVLconst [1]) x) y)) => ((ULT|UGE) (BTL x y))
-((NE|EQ) (TESTQ (SHLXQ (MOVQconst [1]) x) y)) => ((ULT|UGE) (BTQ x y))
 ((NE|EQ) (TESTLconst [c] x)) && isUint32PowerOfTwo(int64(c))
     => ((ULT|UGE) (BTLconst [int8(log32(c))] x))
 ((NE|EQ) (TESTQconst [c] x)) && isUint64PowerOfTwo(int64(c))
@@ -615,8 +608,6 @@
     => ((ULT|UGE) (BTQconst [int8(log64(c))] x))
 (SET(NE|EQ) (TESTL (SHLL (MOVLconst [1]) x) y)) => (SET(B|AE)  (BTL x y))
 (SET(NE|EQ) (TESTQ (SHLQ (MOVQconst [1]) x) y)) => (SET(B|AE)  (BTQ x y))
-(SET(NE|EQ) (TESTL (SHLXL (MOVLconst [1]) x) y)) => (SET(B|AE)  (BTL x y))
-(SET(NE|EQ) (TESTQ (SHLXQ (MOVQconst [1]) x) y)) => (SET(B|AE)  (BTQ x y))
 (SET(NE|EQ) (TESTLconst [c] x)) && isUint32PowerOfTwo(int64(c))
     => (SET(B|AE)  (BTLconst [int8(log32(c))] x))
 (SET(NE|EQ) (TESTQconst [c] x)) && isUint64PowerOfTwo(int64(c))
@@ -627,10 +618,6 @@
 (SET(NE|EQ)store [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem)
     => (SET(B|AE)store  [off] {sym} ptr (BTL x y) mem)
 (SET(NE|EQ)store [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem)
-    => (SET(B|AE)store  [off] {sym} ptr (BTQ x y) mem)
-(SET(NE|EQ)store [off] {sym} ptr (TESTL (SHLXL (MOVLconst [1]) x) y) mem)
-    => (SET(B|AE)store  [off] {sym} ptr (BTL x y) mem)
-(SET(NE|EQ)store [off] {sym} ptr (TESTQ (SHLXQ (MOVQconst [1]) x) y) mem)
     => (SET(B|AE)store  [off] {sym} ptr (BTQ x y) mem)
 (SET(NE|EQ)store [off] {sym} ptr (TESTLconst [c] x) mem) && isUint32PowerOfTwo(int64(c))
     => (SET(B|AE)store  [off] {sym} ptr (BTLconst [int8(log32(c))] x) mem)
@@ -644,7 +631,6 @@
 (BT(Q|L)const [c] (SHRQconst [d] x)) && (c+d)<64 => (BTQconst [c+d] x)
 (BT(Q|L)const [c] (SHLQconst [d] x)) && c>d      => (BT(Q|L)const [c-d] x)
 (BT(Q|L)const [0] s:(SHRQ x y)) => (BTQ y x)
-(BT(Q|L)const [0] s:(SHRXQ x y)) => (BTQ y x)
 (BTLconst [c] (SHRLconst [d] x)) && (c+d)<32 => (BTLconst [c+d] x)
 (BTLconst [c] (SHLLconst [d] x)) && c>d      => (BTLconst [c-d] x)
 (BTLconst [0] s:(SHR(L|XL) x y)) => (BTL y x)
@@ -659,8 +645,6 @@
 // Recognize bit setting (a |= 1<<b) and toggling (a ^= 1<<b)
 (OR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) => (BTS(Q|L) x y)
 (XOR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) => (BTC(Q|L) x y)
-(OR(Q|L) (SHLX(Q|L) (MOV(Q|L)const [1]) y) x) => (BTS(Q|L) x y)
-(XOR(Q|L) (SHLX(Q|L) (MOV(Q|L)const [1]) y) x) => (BTC(Q|L) x y)
 
 // Convert ORconst into BTS, if the code gets smaller, with boundary being
 // (ORL $40,AX is 3 bytes, ORL $80,AX is 6 bytes).
@@ -676,8 +660,6 @@
 // Recognize bit clearing: a &^= 1<<b
 (AND(Q|L) (NOT(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y)) x) => (BTR(Q|L) x y)
 (ANDN(Q|L) x (SHL(Q|L) (MOV(Q|L)const [1]) y)) => (BTR(Q|L) x y)
-(AND(Q|L) (NOT(Q|L) (SHLX(Q|L) (MOV(Q|L)const [1]) y)) x) => (BTR(Q|L) x y)
-(ANDN(Q|L) x (SHLX(Q|L) (MOV(Q|L)const [1]) y)) => (BTR(Q|L) x y)
 (ANDQconst [c] x) && isUint64PowerOfTwo(int64(^c)) && uint64(^c) >= 128
     => (BTRQconst [int8(log32(^c))] x)
 (ANDLconst [c] x) && isUint32PowerOfTwo(int64(^c)) && uint64(^c) >= 128
@@ -819,8 +801,6 @@
 
 (SHLQ x (MOV(Q|L)const [c])) => (SHLQconst [int8(c&63)] x)
 (SHLL x (MOV(Q|L)const [c])) => (SHLLconst [int8(c&31)] x)
-(SHLXQ x (MOV(Q|L)const [c])) => (SHLQconst [int8(c&63)] x)
-(SHLXL x (MOV(Q|L)const [c])) => (SHLLconst [int8(c&31)] x)
 
 (SHRQ x (MOV(Q|L)const [c])) => (SHRQconst [int8(c&63)] x)
 (SHRL x (MOV(Q|L)const [c])) => (SHRLconst [int8(c&31)] x)
@@ -828,36 +808,32 @@
 (SHRW _ (MOV(Q|L)const [c])) && c&31 >= 16 => (MOVLconst [0])
 (SHRB x (MOV(Q|L)const [c])) && c&31 < 8 => (SHRBconst [int8(c&31)] x)
 (SHRB _ (MOV(Q|L)const [c])) && c&31 >= 8 => (MOVLconst [0])
-(SHRXQ x (MOV(Q|L)const [c])) => (SHRQconst [int8(c&63)] x)
-(SHRXL x (MOV(Q|L)const [c])) => (SHRLconst [int8(c&31)] x)
 
 (SARQ x (MOV(Q|L)const [c])) => (SARQconst [int8(c&63)] x)
 (SARL x (MOV(Q|L)const [c])) => (SARLconst [int8(c&31)] x)
 (SARW x (MOV(Q|L)const [c])) => (SARWconst [int8(min(int64(c)&31,15))] x)
 (SARB x (MOV(Q|L)const [c])) => (SARBconst [int8(min(int64(c)&31,7))] x)
-(SARXQ x (MOV(Q|L)const [c])) => (SARQconst [int8(c&63)] x)
-(SARXL x (MOV(Q|L)const [c])) => (SARLconst [int8(c&31)] x)
 
 // Operations which don't affect the low 6/5 bits of the shift amount are NOPs.
-((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (ADDQconst [c] y)) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x y)
-((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (NEGQ <t> (ADDQconst [c] y))) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (NEGQ <t> y))
-((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (ANDQconst [c] y)) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x y)
-((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (NEGQ <t> (ANDQconst [c] y))) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (NEGQ <t> y))
+((SHLQ|SHRQ|SARQ) x (ADDQconst [c] y)) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ) x y)
+((SHLQ|SHRQ|SARQ) x (NEGQ <t> (ADDQconst [c] y))) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ) x (NEGQ <t> y))
+((SHLQ|SHRQ|SARQ) x (ANDQconst [c] y)) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ) x y)
+((SHLQ|SHRQ|SARQ) x (NEGQ <t> (ANDQconst [c] y))) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ) x (NEGQ <t> y))
 
-((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (ADDQconst [c] y)) && c & 31 == 0  => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x y)
-((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGQ <t> (ADDQconst [c] y))) && c & 31 == 0  => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGQ <t> y))
-((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (ANDQconst [c] y)) && c & 31 == 31 => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x y)
-((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGQ <t> (ANDQconst [c] y))) && c & 31 == 31 => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGQ <t> y))
+((SHLL|SHRL|SARL) x (ADDQconst [c] y)) && c & 31 == 0  => ((SHLL|SHRL|SARL) x y)
+((SHLL|SHRL|SARL) x (NEGQ <t> (ADDQconst [c] y))) && c & 31 == 0  => ((SHLL|SHRL|SARL) x (NEGQ <t> y))
+((SHLL|SHRL|SARL) x (ANDQconst [c] y)) && c & 31 == 31 => ((SHLL|SHRL|SARL) x y)
+((SHLL|SHRL|SARL) x (NEGQ <t> (ANDQconst [c] y))) && c & 31 == 31 => ((SHLL|SHRL|SARL) x (NEGQ <t> y))
 
-((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (ADDLconst [c] y)) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x y)
-((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (NEGL <t> (ADDLconst [c] y))) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (NEGL <t> y))
-((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (ANDLconst [c] y)) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x y)
-((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (NEGL <t> (ANDLconst [c] y))) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ|SHLXQ|SHRXQ|SARXQ) x (NEGL <t> y))
+((SHLQ|SHRQ|SARQ) x (ADDLconst [c] y)) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ) x y)
+((SHLQ|SHRQ|SARQ) x (NEGL <t> (ADDLconst [c] y))) && c & 63 == 0  => ((SHLQ|SHRQ|SARQ) x (NEGL <t> y))
+((SHLQ|SHRQ|SARQ) x (ANDLconst [c] y)) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ) x y)
+((SHLQ|SHRQ|SARQ) x (NEGL <t> (ANDLconst [c] y))) && c & 63 == 63 => ((SHLQ|SHRQ|SARQ) x (NEGL <t> y))
 
-((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (ADDLconst [c] y)) && c & 31 == 0  => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x y)
-((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGL <t> (ADDLconst [c] y))) && c & 31 == 0  => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGL <t> y))
-((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (ANDLconst [c] y)) && c & 31 == 31 => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x y)
-((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGL <t> (ANDLconst [c] y))) && c & 31 == 31 => ((SHLL|SHRL|SARL|SHLXL|SHRXL|SARXL) x (NEGL <t> y))
+((SHLL|SHRL|SARL) x (ADDLconst [c] y)) && c & 31 == 0  => ((SHLL|SHRL|SARL) x y)
+((SHLL|SHRL|SARL) x (NEGL <t> (ADDLconst [c] y))) && c & 31 == 0  => ((SHLL|SHRL|SARL) x (NEGL <t> y))
+((SHLL|SHRL|SARL) x (ANDLconst [c] y)) && c & 31 == 31 => ((SHLL|SHRL|SARL) x y)
+((SHLL|SHRL|SARL) x (NEGL <t> (ANDLconst [c] y))) && c & 31 == 31 => ((SHLL|SHRL|SARL) x (NEGL <t> y))
 
 // rotate left negative = rotate right
 (ROLQ x (NEG(Q|L) y)) => (RORQ x y)
@@ -2231,9 +2207,9 @@
   && clobber(x0, x1, sh)
   => @mergePoint(b,x0,x1) (MOVBEQload [i] {s} p1 mem)
 
-(SARX(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && canMergeLoad(v, l) && clobber(l) => (SARX(Q|L)load [off] {sym} ptr x mem)
-(SHLX(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && canMergeLoad(v, l) && clobber(l) => (SHLX(Q|L)load [off] {sym} ptr x mem)
-(SHRX(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && canMergeLoad(v, l) && clobber(l) => (SHRX(Q|L)load [off] {sym} ptr x mem)
+(SAR(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l) => (SARX(Q|L)load [off] {sym} ptr x mem)
+(SHL(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l) => (SHLX(Q|L)load [off] {sym} ptr x mem)
+(SHR(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l) => (SHRX(Q|L)load [off] {sym} ptr x mem)
 
 ((SHL|SHR|SAR)XQload [off] {sym} ptr (MOVQconst [c]) mem) => ((SHL|SHR|SAR)Qconst [int8(c&63)] (MOVQload [off] {sym} ptr mem))
 ((SHL|SHR|SAR)XQload [off] {sym} ptr (MOVLconst [c]) mem) => ((SHL|SHR|SAR)Qconst [int8(c&63)] (MOVQload [off] {sym} ptr mem))
