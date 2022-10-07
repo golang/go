@@ -17,7 +17,6 @@
 #define SYS_getpid               20
 #define SYS_kill                 37
 #define SYS_brk			 45
-#define SYS_fcntl                55
 #define SYS_mmap                 90
 #define SYS_munmap               91
 #define SYS_setitimer           104
@@ -35,15 +34,11 @@
 #define SYS_sched_getaffinity   240
 #define SYS_tgkill              241
 #define SYS_exit_group          248
-#define SYS_epoll_create        249
-#define SYS_epoll_ctl           250
-#define SYS_epoll_wait          251
 #define SYS_timer_create        254
 #define SYS_timer_settime       255
 #define SYS_timer_delete        258
 #define SYS_clock_gettime       260
 #define SYS_pipe2		325
-#define SYS_epoll_create1       327
 
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R2
@@ -587,53 +582,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$SYS_sched_getaffinity, R1
 	SYSCALL
 	MOVW	R2, ret+24(FP)
-	RET
-
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
-	MOVW    size+0(FP), R2
-	MOVW	$SYS_epoll_create, R1
-	SYSCALL
-	MOVW	R2, ret+8(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	flags+0(FP), R2
-	MOVW	$SYS_epoll_create1, R1
-	SYSCALL
-	MOVW	R2, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R2
-	MOVW	op+4(FP), R3
-	MOVW	fd+8(FP), R4
-	MOVD	ev+16(FP), R5
-	MOVW	$SYS_epoll_ctl, R1
-	SYSCALL
-	MOVW	R2, ret+24(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R2
-	MOVD	ev+8(FP), R3
-	MOVW	nev+16(FP), R4
-	MOVW	timeout+20(FP), R5
-	MOVW	$SYS_epoll_wait, R1
-	SYSCALL
-	MOVW	R2, ret+24(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
-	MOVW    fd+0(FP), R2  // fd
-	MOVD    $2, R3  // F_SETFD
-	MOVD    $1, R4  // FD_CLOEXEC
-	MOVW	$SYS_fcntl, R1
-	SYSCALL
 	RET
 
 // func sbrk0() uintptr
