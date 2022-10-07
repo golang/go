@@ -33,24 +33,19 @@
 #define SYS_clone		56
 #define SYS_exit		60
 #define SYS_kill		62
-#define SYS_fcntl		72
 #define SYS_sigaltstack 	131
 #define SYS_arch_prctl		158
 #define SYS_gettid		186
 #define SYS_futex		202
 #define SYS_sched_getaffinity	204
-#define SYS_epoll_create	213
 #define SYS_timer_create	222
 #define SYS_timer_settime	223
 #define SYS_timer_delete	226
 #define SYS_clock_gettime	228
 #define SYS_exit_group		231
-#define SYS_epoll_ctl		233
 #define SYS_tgkill		234
 #define SYS_openat		257
 #define SYS_faccessat		269
-#define SYS_epoll_pwait		281
-#define SYS_epoll_create1	291
 #define SYS_pipe2		293
 
 TEXT runtime·exit(SB),NOSPLIT,$0-4
@@ -664,55 +659,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVL	$SYS_sched_getaffinity, AX
 	SYSCALL
 	MOVL	AX, ret+24(FP)
-	RET
-
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT,$0
-	MOVL    size+0(FP), DI
-	MOVL    $SYS_epoll_create, AX
-	SYSCALL
-	MOVL	AX, ret+8(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT,$0
-	MOVL	flags+0(FP), DI
-	MOVL	$SYS_epoll_create1, AX
-	SYSCALL
-	MOVL	AX, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT,$0
-	MOVL	epfd+0(FP), DI
-	MOVL	op+4(FP), SI
-	MOVL	fd+8(FP), DX
-	MOVQ	ev+16(FP), R10
-	MOVL	$SYS_epoll_ctl, AX
-	SYSCALL
-	MOVL	AX, ret+24(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT,$0
-	// This uses pwait instead of wait, because Android O blocks wait.
-	MOVL	epfd+0(FP), DI
-	MOVQ	ev+8(FP), SI
-	MOVL	nev+16(FP), DX
-	MOVL	timeout+20(FP), R10
-	MOVQ	$0, R8
-	MOVL	$SYS_epoll_pwait, AX
-	SYSCALL
-	MOVL	AX, ret+24(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVL    fd+0(FP), DI  // fd
-	MOVQ    $2, SI  // F_SETFD
-	MOVQ    $1, DX  // FD_CLOEXEC
-	MOVL	$SYS_fcntl, AX
-	SYSCALL
 	RET
 
 // int access(const char *name, int mode)

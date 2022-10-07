@@ -41,15 +41,10 @@
 #define SYS_nanosleep (SYS_BASE + 162)
 #define SYS_sched_getaffinity (SYS_BASE + 242)
 #define SYS_clock_gettime (SYS_BASE + 263)
-#define SYS_epoll_create (SYS_BASE + 250)
-#define SYS_epoll_ctl (SYS_BASE + 251)
-#define SYS_epoll_wait (SYS_BASE + 252)
 #define SYS_timer_create (SYS_BASE + 257)
 #define SYS_timer_settime (SYS_BASE + 258)
 #define SYS_timer_delete (SYS_BASE + 261)
-#define SYS_epoll_create1 (SYS_BASE + 357)
 #define SYS_pipe2 (SYS_BASE + 359)
-#define SYS_fcntl (SYS_BASE + 55)
 #define SYS_access (SYS_BASE + 33)
 #define SYS_connect (SYS_BASE + 283)
 #define SYS_socket (SYS_BASE + 281)
@@ -614,53 +609,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVW	$SYS_sched_getaffinity, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
-	RET
-
-// int32 runtime·epollcreate(int32 size)
-TEXT runtime·epollcreate(SB),NOSPLIT,$0
-	MOVW	size+0(FP), R0
-	MOVW	$SYS_epoll_create, R7
-	SWI	$0
-	MOVW	R0, ret+4(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags)
-TEXT runtime·epollcreate1(SB),NOSPLIT,$0
-	MOVW	flags+0(FP), R0
-	MOVW	$SYS_epoll_create1, R7
-	SWI	$0
-	MOVW	R0, ret+4(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT,$0
-	MOVW	epfd+0(FP), R0
-	MOVW	op+4(FP), R1
-	MOVW	fd+8(FP), R2
-	MOVW	ev+12(FP), R3
-	MOVW	$SYS_epoll_ctl, R7
-	SWI	$0
-	MOVW	R0, ret+16(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout)
-TEXT runtime·epollwait(SB),NOSPLIT,$0
-	MOVW	epfd+0(FP), R0
-	MOVW	ev+4(FP), R1
-	MOVW	nev+8(FP), R2
-	MOVW	timeout+12(FP), R3
-	MOVW	$SYS_epoll_wait, R7
-	SWI	$0
-	MOVW	R0, ret+16(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW	fd+0(FP), R0	// fd
-	MOVW	$2, R1	// F_SETFD
-	MOVW	$1, R2	// FD_CLOEXEC
-	MOVW	$SYS_fcntl, R7
-	SWI	$0
 	RET
 
 // b __kuser_get_tls @ 0xffff0fe0
