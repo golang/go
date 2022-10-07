@@ -365,8 +365,10 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 			if r := recover(); r != nil {
 				// An Analyzer crashed. This is often merely a symptom
 				// of a problem in package loading.
-				if bug.PanicOnBugs {
+				if bug.PanicOnBugs && analyzer.Name != "fact_purity" {
 					// During testing, crash. See issues 54762, 56035.
+					// But ignore analyzers with known crash bugs:
+					// - fact_purity (dominikh/go-tools#1327)
 					debug.SetTraceback("all") // show all goroutines
 					panic(r)
 				} else {
