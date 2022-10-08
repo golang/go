@@ -243,6 +243,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 					// confuses about variables lifetime. So making sure those expressions
 					// are ordered correctly here. See issue #52673.
 					orderBlock(&sinit, map[string][]*ir.Name{})
+					walkStmtList(sinit)
 				}
 				init.Append(sinit...)
 				continue
