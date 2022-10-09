@@ -1165,10 +1165,13 @@ is <code>nil</code>.
 <pre class="ebnf">
 FunctionType   = "func" Signature .
 Signature      = Parameters [ Result ] .
-Result         = Parameters | Type .
+Result         = Results | Type .
 Parameters     = "(" [ ParameterList [ "," ] ] ")" .
 ParameterList  = ParameterDecl { "," ParameterDecl } .
 ParameterDecl  = [ IdentifierList ] [ "..." ] Type .
+Results        = "(" [ ResultList [ "," ] ] ")" .
+ResultList     = ResultDecl { "," ResultDecl } .
+ResultDecl     = [ IdentifierList ] Type .
 </pre>
 
 <p>
