@@ -42,6 +42,8 @@ import (
 	"cmd/internal/sys"
 )
 
+const defaultCFlags = "-O2 -g"
+
 // actionList returns the list of actions in the dag rooted at root
 // as visited in a depth-first post-order traversal.
 func actionList(root *Action) []*Action {
@@ -2702,13 +2704,27 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	// so some systems have frozen on it. Now we pass an empty file on stdin,
 	// which should work at least for GCC and clang.
 	//
-	// If the argument is "-Wl,", then it's testing the linker. In that case,
-	// skip "-c". If it's not "-Wl,", then we are testing the compiler and
-	// can emit the linking step with "-c".
+	// If the argument is "-Wl,", then it is testing the linker. In that case,
+	// skip "-c". If it's not "-Wl,", then we are testing the compiler and can
+	// omit the linking step with "-c".
+	//
+	// Using the same CFLAGS/LDFLAGS here and for building the program.
 	cmdArgs := str.StringList(compiler, flag)
-	if !strings.HasPrefix(flag, "-Wl,") /* linker flag */ {
+	if strings.HasPrefix(flag, "-Wl,") /* linker flag */ {
+		ldflags, err := buildFlags("LDFLAGS", defaultCFlags, nil, checkLinkerFlags)
+		if err != nil {
+			return false
+		}
+		cmdArgs = append(cmdArgs, ldflags...)
+	} else { /* compiler flag, add "-c" */
+		cflags, err := buildFlags("CFLAGS", defaultCFlags, nil, checkCompilerFlags)
+		if err != nil {
+			return false
+		}
+		cmdArgs = append(cmdArgs, cflags...)
 		cmdArgs = append(cmdArgs, "-c")
 	}
+
 	cmdArgs = append(cmdArgs, "-x", "c", "-", "-o", tmp)
 
 	if cfg.BuildN || cfg.BuildX {
@@ -2799,21 +2815,19 @@ func envList(key, def string) []string {
 
 // CFlags returns the flags to use when invoking the C, C++ or Fortran compilers, or cgo.
 func (b *Builder) CFlags(p *load.Package) (cppflags, cflags, cxxflags, fflags, ldflags []string, err error) {
-	defaults := "-g -O2"
-
 	if cppflags, err = buildFlags("CPPFLAGS", "", p.CgoCPPFLAGS, checkCompilerFlags); err != nil {
 		return
 	}
-	if cflags, err = buildFlags("CFLAGS", defaults, p.CgoCFLAGS, checkCompilerFlags); err != nil {
+	if cflags, err = buildFlags("CFLAGS", defaultCFlags, p.CgoCFLAGS, checkCompilerFlags); err != nil {
 		return
 	}
-	if cxxflags, err = buildFlags("CXXFLAGS", defaults, p.CgoCXXFLAGS, checkCompilerFlags); err != nil {
+	if cxxflags, err = buildFlags("CXXFLAGS", defaultCFlags, p.CgoCXXFLAGS, checkCompilerFlags); err != nil {
 		return
 	}
-	if fflags, err = buildFlags("FFLAGS", defaults, p.CgoFFLAGS, checkCompilerFlags); err != nil {
+	if fflags, err = buildFlags("FFLAGS", defaultCFlags, p.CgoFFLAGS, checkCompilerFlags); err != nil {
 		return
 	}
-	if ldflags, err = buildFlags("LDFLAGS", defaults, p.CgoLDFLAGS, checkLinkerFlags); err != nil {
+	if ldflags, err = buildFlags("LDFLAGS", defaultCFlags, p.CgoLDFLAGS, checkLinkerFlags); err != nil {
 		return
 	}
 

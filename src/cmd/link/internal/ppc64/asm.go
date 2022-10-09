@@ -140,7 +140,9 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
 	for _, s := range ctxt.Textp {
 		relocs := ldr.Relocs(s)
 		for i := 0; i < relocs.Count(); i++ {
-			if r := relocs.At(i); r.Type() == objabi.ElfRelocOffset+objabi.RelocType(elf.R_PPC64_REL24) {
+			r := relocs.At(i)
+			switch r.Type() {
+			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24):
 				switch ldr.SymType(r.Sym()) {
 				case sym.SDYNIMPORT:
 					// This call goes through the PLT, generate and call through a PLT stub.
@@ -158,6 +160,34 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
 							abifuncs = append(abifuncs, sym)
 						}
 					}
+				}
+
+			// Handle objects compiled with -fno-plt. Rewrite local calls to avoid indirect calling.
+			// These are 0 sized relocs. They mark the mtctr r12, or bctrl + ld r2,24(r1).
+			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_PLTSEQ):
+				if ldr.SymType(r.Sym()) == sym.STEXT {
+					// This should be an mtctr instruction. Turn it into a nop.
+					su := ldr.MakeSymbolUpdater(s)
+					const OP_MTCTR = 31<<26 | 0x9<<16 | 467<<1
+					const MASK_OP_MTCTR = 63<<26 | 0x3FF<<11 | 0x1FF<<1
+					rewritetonop(&ctxt.Target, ldr, su, int64(r.Off()), MASK_OP_MTCTR, OP_MTCTR)
+				}
+			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_PLTCALL):
+				if ldr.SymType(r.Sym()) == sym.STEXT {
+					// This relocation should point to a bctrl followed by a ld r2, 24(41)
+					const OP_BL = 0x48000001         // bl 0
+					const OP_TOCRESTORE = 0xe8410018 // ld r2,24(r1)
+					const OP_BCTRL = 0x4e800421      // bctrl
+
+					// Convert the bctrl into a bl.
+					su := ldr.MakeSymbolUpdater(s)
+					rewritetoinsn(&ctxt.Target, ldr, su, int64(r.Off()), 0xFFFFFFFF, OP_BCTRL, OP_BL)
+
+					// Turn this reloc into an R_CALLPOWER, and convert the TOC restore into a nop.
+					su.SetRelocType(i, objabi.R_CALLPOWER)
+					su.SetRelocAdd(i, r.Add()+int64(ldr.SymLocalentry(r.Sym())))
+					r.SetSiz(4)
+					rewritetonop(&ctxt.Target, ldr, su, int64(r.Off()+4), 0xFFFFFFFF, OP_TOCRESTORE)
 				}
 			}
 		}
@@ -347,6 +377,24 @@ func gencallstub(ctxt *ld.Link, ldr *loader.Loader, abicase int, stub *loader.Sy
 	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
 }
 
+// Rewrite the instruction at offset into newinsn. Also, verify the
+// existing instruction under mask matches the check value.
+func rewritetoinsn(target *ld.Target, ldr *loader.Loader, su *loader.SymbolBuilder, offset int64, mask, check, newinsn uint32) {
+	su.MakeWritable()
+	op := target.Arch.ByteOrder.Uint32(su.Data()[offset:])
+	if op&mask != check {
+		ldr.Errorf(su.Sym(), "Rewrite offset 0x%x to 0x%08X failed check (0x%08X&0x%08X != 0x%08X)", offset, newinsn, op, mask, check)
+	}
+	su.SetUint32(target.Arch, offset, newinsn)
+}
+
+// Rewrite the instruction at offset into a hardware nop instruction. Also, verify the
+// existing instruction under mask matches the check value.
+func rewritetonop(target *ld.Target, ldr *loader.Loader, su *loader.SymbolBuilder, offset int64, mask, check uint32) {
+	const NOP = 0x60000000
+	rewritetoinsn(target, ldr, su, offset, mask, check, NOP)
+}
+
 func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
 	if target.IsElf() {
 		return addelfdynrel(target, ldr, syms, s, r, rIdx)
@@ -504,21 +552,19 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 			su.SetRelocSym(rIdx, syms.GOT)
 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
 		} else if targType == sym.STEXT {
-			// This is the half-way solution to transforming a PLT sequence into nops + bl targ
-			// We turn it into an indirect call by transforming step 2 into an addi.
-			// Fixing up the whole sequence is a bit more involved.
 			if isPLT16_LO_DS {
+				// Expect an ld opcode to nop
 				const MASK_OP_LD = 63<<26 | 0x3
 				const OP_LD = 58 << 26
-				const OP_ADDI = 14 << 26
-				op := target.Arch.ByteOrder.Uint32(su.Data()[r.Off():])
-				if op&MASK_OP_LD != OP_LD {
-					ldr.Errorf(s, "relocation R_PPC64_PLT16_LO_DS expected an ld opcode. Found non-ld opcode %08X.", op)
-				}
-				op = (op &^ MASK_OP_LD) | OP_ADDI
-				su.MakeWritable()
-				su.SetUint32(target.Arch, int64(r.Off()), op)
+				rewritetonop(target, ldr, su, int64(r.Off()), MASK_OP_LD, OP_LD)
+			} else {
+				// Expect an addis opcode to nop
+				const MASK_OP_ADDIS = 63 << 26
+				const OP_ADDIS = 15 << 26
+				rewritetonop(target, ldr, su, int64(r.Off()), MASK_OP_ADDIS, OP_ADDIS)
 			}
+			// And we can ignore this reloc now.
+			su.SetRelocType(rIdx, objabi.ElfRelocOffset)
 		} else {
 			ldr.Errorf(s, "unexpected PLT relocation target symbol type %s", targType.String())
 		}

@@ -10,6 +10,14 @@ func lower(f *Func) {
 	applyRewrite(f, f.Config.lowerBlock, f.Config.lowerValue, removeDeadValues)
 }
 
+// lateLower applies those rules that need to be run after the general lower rules.
+func lateLower(f *Func) {
+	// repeat rewrites until we find no more rewrites
+	if f.Config.lateLowerValue != nil {
+		applyRewrite(f, f.Config.lowerBlock, f.Config.lateLowerValue, removeDeadValues)
+	}
+}
+
 // checkLower checks for unlowered opcodes and fails if we find one.
 func checkLower(f *Func) {
 	// Needs to be a separate phase because it must run after both

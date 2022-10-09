@@ -10,6 +10,8 @@ import (
 )
 
 func TestDedupEnv(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		noCase bool
 		in     []string

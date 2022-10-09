@@ -50,7 +50,7 @@ func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
 	return args
 }
 
-// newname returns a new ONAME Node associated with symbol s.
+// NewName returns a new ONAME Node associated with symbol s.
 func NewName(s *types.Sym) *ir.Name {
 	n := ir.NewNameAt(base.Pos, s)
 	n.Curfn = ir.CurFunc
@@ -62,7 +62,7 @@ func NodAddr(n ir.Node) *ir.AddrExpr {
 	return NodAddrAt(base.Pos, n)
 }
 
-// nodAddrPos returns a node representing &n at position pos.
+// NodAddrAt returns a node representing &n at position pos.
 func NodAddrAt(pos src.XPos, n ir.Node) *ir.AddrExpr {
 	n = markAddrOf(n)
 	return ir.NewAddrExpr(pos, n)
@@ -1419,7 +1419,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
 	return t
 }
 
-// genericSym returns the name of the base generic type for the type named by
+// genericTypeName returns the name of the base generic type for the type named by
 // sym. It simply returns the name obtained by removing everything after the
 // first bracket ("[").
 func genericTypeName(sym *types.Sym) string {

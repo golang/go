@@ -1364,6 +1364,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			if len(e.Elts) == 0 {
 				break
 			}
+			// Convention for error messages on invalid struct literals:
+			// we mention the struct type only if it clarifies the error
+			// (e.g., a duplicate field error doesn't need the struct type).
 			fields := utyp.fields
 			if _, ok := e.Elts[0].(*ast.KeyValueExpr); ok {
 				// all elements must have keys
@@ -1407,7 +1410,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					}
 					check.expr(x, e)
 					if i >= len(fields) {
-						check.errorf(x, _InvalidStructLit, "too many values in %s{…}", base)
+						check.errorf(x, _InvalidStructLit, "too many values in struct literal of type %s", base)
 						break // cannot continue
 					}
 					// i < len(fields)
@@ -1415,14 +1418,14 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					if !fld.Exported() && fld.pkg != check.pkg {
 						check.errorf(x,
 							_UnexportedLitField,
-							"implicit assignment to unexported field %s in %s literal", fld.name, typ)
+							"implicit assignment to unexported field %s in struct literal of type %s", fld.name, base)
 						continue
 					}
 					etyp := fld.typ
 					check.assignment(x, etyp, "struct literal")
 				}
 				if len(e.Elts) < len(fields) {
-					check.errorf(inNode(e, e.Rbrace), _InvalidStructLit, "too few values in %s{…}", base)
+					check.errorf(inNode(e, e.Rbrace), _InvalidStructLit, "too few values in struct literal of type %s", base)
 					// ok to continue
 				}
 			}

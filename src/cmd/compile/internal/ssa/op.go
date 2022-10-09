@@ -478,7 +478,7 @@ const (
 	BoundsKindCount
 )
 
-// boundsAPI determines which register arguments a bounds check call should use. For an [a:b:c] slice, we do:
+// boundsABI determines which register arguments a bounds check call should use. For an [a:b:c] slice, we do:
 //
 //	CMPQ c, cap
 //	JA   fail1

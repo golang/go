@@ -20,7 +20,6 @@
 #define SYS_close		5003
 #define SYS_getpid		5038
 #define SYS_kill		5060
-#define SYS_fcntl		5070
 #define SYS_mmap		5009
 #define SYS_munmap		5011
 #define SYS_setitimer		5036
@@ -37,16 +36,12 @@
 #define SYS_futex		5194
 #define SYS_sched_getaffinity	5196
 #define SYS_exit_group		5205
-#define SYS_epoll_create	5207
-#define SYS_epoll_ctl		5208
 #define SYS_timer_create	5216
 #define SYS_timer_settime	5217
 #define SYS_timer_delete	5220
 #define SYS_tgkill		5225
 #define SYS_openat		5247
-#define SYS_epoll_pwait		5272
 #define SYS_clock_gettime	5222
-#define SYS_epoll_create1	5285
 #define SYS_brk			5012
 #define SYS_pipe2		5287
 
@@ -566,62 +561,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	BEQ	R7, 2(PC)
 	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
-	RET
-
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
-	MOVW    size+0(FP), R4
-	MOVV	$SYS_epoll_create, R2
-	SYSCALL
-	BEQ	R7, 2(PC)
-	SUBVU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, ret+8(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	flags+0(FP), R4
-	MOVV	$SYS_epoll_create1, R2
-	SYSCALL
-	BEQ	R7, 2(PC)
-	SUBVU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R4
-	MOVW	op+4(FP), R5
-	MOVW	fd+8(FP), R6
-	MOVV	ev+16(FP), R7
-	MOVV	$SYS_epoll_ctl, R2
-	SYSCALL
-	SUBVU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, ret+24(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
-	// This uses pwait instead of wait, because Android O blocks wait.
-	MOVW	epfd+0(FP), R4
-	MOVV	ev+8(FP), R5
-	MOVW	nev+16(FP), R6
-	MOVW	timeout+20(FP), R7
-	MOVV	$0, R8
-	MOVV	$SYS_epoll_pwait, R2
-	SYSCALL
-	BEQ	R7, 2(PC)
-	SUBVU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, ret+24(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
-	MOVW    fd+0(FP), R4  // fd
-	MOVV    $2, R5  // F_SETFD
-	MOVV    $1, R6  // FD_CLOEXEC
-	MOVV	$SYS_fcntl, R2
-	SYSCALL
 	RET
 
 // func sbrk0() uintptr

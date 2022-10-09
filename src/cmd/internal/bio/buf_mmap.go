@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris,go1.20
 
 package bio
 

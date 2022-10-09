@@ -765,10 +765,8 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 	// Display task and its regions if we are in task-oriented presentation mode.
 	if ctx.mode&modeTaskOriented != 0 {
 		// sort tasks based on the task start time.
-		sortedTask := make([]*taskDesc, 0, len(ctx.tasks))
-		for _, task := range ctx.tasks {
-			sortedTask = append(sortedTask, task)
-		}
+		sortedTask := make([]*taskDesc, len(ctx.tasks))
+		copy(sortedTask, ctx.tasks)
 		sort.SliceStable(sortedTask, func(i, j int) bool {
 			ti, tj := sortedTask[i], sortedTask[j]
 			if ti.firstTimestamp() == tj.firstTimestamp() {

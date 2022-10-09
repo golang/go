@@ -33,7 +33,7 @@ func InitLSym(f *Func, hasBody bool) {
 	}
 }
 
-// setupTextLsym initializes the LSym for a with-body text symbol.
+// setupTextLSym initializes the LSym for a with-body text symbol.
 func setupTextLSym(f *Func, flag int) {
 	if f.Dupok() {
 		flag |= obj.DUPOK

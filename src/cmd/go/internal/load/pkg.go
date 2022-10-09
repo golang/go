@@ -15,6 +15,7 @@ import (
 	"go/build"
 	"go/scanner"
 	"go/token"
+	"internal/platform"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -43,7 +44,6 @@ import (
 	"cmd/go/internal/trace"
 	"cmd/go/internal/vcs"
 	"cmd/internal/pkgpattern"
-	"cmd/internal/sys"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -2604,7 +2604,7 @@ func externalLinkingForced(p *Package) bool {
 	// -ldflags=-linkmode=external. External linking mode forces
 	// an import of runtime/cgo.
 	// If there are multiple -linkmode options, the last one wins.
-	pieCgo := cfg.BuildBuildmode == "pie" && !sys.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH)
+	pieCgo := cfg.BuildBuildmode == "pie" && !platform.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH)
 	linkmodeExternal := false
 	if p != nil {
 		ldflags := BuildLdflags.For(p)

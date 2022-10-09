@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"internal/platform"
 	"internal/testenv"
 	"os/exec"
 	"runtime"
@@ -14,12 +15,13 @@ import (
 
 func TestExitHooks(t *testing.T) {
 	bmodes := []string{""}
-	// Race detector is not supported everywhere -- limit to just
-	// linux/amd64 to keep things simple. Note the HasCGO() test
-	// below; this is to prevent the test running if CGO_ENABLED=0
-	// is in effect.
-	if !testing.Short() && runtime.GOARCH == "amd64" &&
-		runtime.GOOS == "linux" && testenv.HasCGO() {
+	if testing.Short() {
+		t.Skip("skipping due to -short")
+	}
+	// Note the HasCGO() test below; this is to prevent the test
+	// running if CGO_ENABLED=0 is in effect.
+	haverace := platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
+	if haverace && testenv.HasCGO() {
 		bmodes = append(bmodes, "-race")
 	}
 	for _, bmode := range bmodes {

@@ -319,7 +319,7 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
 func Divisible(n1 uint, n2 int) (bool, bool, bool, bool) {
 	// amd64:"MOVQ\t[$]-6148914691236517205","IMULQ","ROLQ\t[$]63",-"DIVQ"
 	// 386:"IMUL3L\t[$]-1431655765","ROLL\t[$]31",-"DIVQ"
-	// arm64:"MOVD\t[$]-6148914691236517205","MUL","ROR",-"DIV"
+	// arm64:"MOVD\t[$]-6148914691236517205","MOVD\t[$]3074457345618258602","MUL","ROR",-"DIV"
 	// arm:"MUL","CMP\t[$]715827882",-".*udiv"
 	// ppc64:"MULLD","ROTL\t[$]63"
 	// ppc64le:"MULLD","ROTL\t[$]63"
@@ -335,7 +335,7 @@ func Divisible(n1 uint, n2 int) (bool, bool, bool, bool) {
 
 	// amd64:"IMULQ","ADD","ROLQ\t[$]63",-"DIVQ"
 	// 386:"IMUL3L\t[$]-1431655765","ADDL\t[$]715827882","ROLL\t[$]31",-"DIVQ"
-	// arm64:"MUL","ADD\t[$]3074457345618258602","ROR",-"DIV"
+	// arm64:"MUL","ADD\tR","ROR",-"DIV"
 	// arm:"MUL","ADD\t[$]715827882",-".*udiv"
 	// ppc64/power8:"MULLD","ADD","ROTL\t[$]63"
 	// ppc64le/power8:"MULLD","ADD","ROTL\t[$]63"
@@ -345,7 +345,7 @@ func Divisible(n1 uint, n2 int) (bool, bool, bool, bool) {
 
 	// amd64:"IMULQ","ADD",-"ROLQ",-"DIVQ"
 	// 386:"IMUL3L\t[$]678152731","ADDL\t[$]113025455",-"ROLL",-"DIVQ"
-	// arm64:"MUL","ADD\t[$]485440633518672410",-"ROR",-"DIV"
+	// arm64:"MUL","MOVD\t[$]485440633518672410","ADD",-"ROR",-"DIV"
 	// arm:"MUL","ADD\t[$]113025455",-".*udiv"
 	// ppc64/power8:"MULLD","ADD",-"ROTL"
 	// ppc64/power9:"MADDLD",-"ROTL"

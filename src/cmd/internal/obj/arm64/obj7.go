@@ -40,13 +40,6 @@ import (
 	"math"
 )
 
-var complements = []obj.As{
-	AADD:  ASUB,
-	AADDW: ASUBW,
-	ASUB:  AADD,
-	ASUBW: AADDW,
-}
-
 // zrReplace is the set of instructions for which $0 in the From operand
 // should be replaced with REGZERO.
 var zrReplace = map[obj.As]bool{
@@ -373,21 +366,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 
 		break
-	}
-
-	// Rewrite negative immediates as positive immediates with
-	// complementary instruction.
-	switch p.As {
-	case AADD, ASUB:
-		if p.From.Type == obj.TYPE_CONST && p.From.Offset < 0 && p.From.Offset != -1<<63 {
-			p.From.Offset = -p.From.Offset
-			p.As = complements[p.As]
-		}
-	case AADDW, ASUBW:
-		if p.From.Type == obj.TYPE_CONST && p.From.Offset < 0 && int32(p.From.Offset) != -1<<31 {
-			p.From.Offset = -p.From.Offset
-			p.As = complements[p.As]
-		}
 	}
 
 	if c.ctxt.Flag_dynlink {

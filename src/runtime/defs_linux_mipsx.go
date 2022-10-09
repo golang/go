@@ -90,17 +90,6 @@ const (
 	_CLOCK_THREAD_CPUTIME_ID = 0x3
 
 	_SIGEV_THREAD_ID = 0x4
-
-	_EPOLLIN       = 0x1
-	_EPOLLOUT      = 0x4
-	_EPOLLERR      = 0x8
-	_EPOLLHUP      = 0x10
-	_EPOLLRDHUP    = 0x2000
-	_EPOLLET       = 0x80000000
-	_EPOLL_CLOEXEC = 0x80000
-	_EPOLL_CTL_ADD = 0x1
-	_EPOLL_CTL_DEL = 0x2
-	_EPOLL_CTL_MOD = 0x3
 )
 
 type timespec struct {
@@ -170,12 +159,6 @@ type sigevent struct {
 
 	// Pad struct to the max size in the kernel.
 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
-}
-
-type epollevent struct {
-	events    uint32
-	pad_cgo_0 [4]byte
-	data      uint64
 }
 
 const (

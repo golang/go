@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"internal/platform"
 	"io"
 	"io/fs"
 	"os"
@@ -30,7 +31,6 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
-	"cmd/internal/sys"
 	"cmd/internal/test2json"
 
 	"golang.org/x/mod/module"
@@ -664,7 +664,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("cannot use -o flag with multiple packages")
 	}
 	if testFuzz != "" {
-		if !sys.FuzzSupported(cfg.Goos, cfg.Goarch) {
+		if !platform.FuzzSupported(cfg.Goos, cfg.Goarch) {
 			base.Fatalf("-fuzz flag is not supported on %s/%s", cfg.Goos, cfg.Goarch)
 		}
 		if len(pkgs) != 1 {
@@ -1507,15 +1507,13 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 			continue
 		}
 		s := string(line)
-		i := strings.Index(s, " ")
-		if i < 0 {
+		op, name, found := strings.Cut(s, " ")
+		if !found {
 			if cache.DebugTest {
 				fmt.Fprintf(os.Stderr, "testcache: %s: input list malformed (%q)\n", a.Package.ImportPath, line)
 			}
 			return cache.ActionID{}, errBadTestInputs
 		}
-		op := s[:i]
-		name := s[i+1:]
 		switch op {
 		default:
 			if cache.DebugTest {

@@ -140,9 +140,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			}
 			continue
 		}
-		if i := strings.Index(arg, "@"); i >= 0 {
-			path := arg[:i]
-			vers := arg[i+1:]
+		if path, vers, found := strings.Cut(arg, "@"); found {
 			if vers == "upgrade" || vers == "patch" {
 				if _, ok := rs.rootSelected(path); !ok || rs.pruning == unpruned {
 					needFullGraph = true
@@ -168,10 +166,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 
 	matchedModule := map[module.Version]bool{}
 	for _, arg := range args {
-		if i := strings.Index(arg, "@"); i >= 0 {
-			path := arg[:i]
-			vers := arg[i+1:]
-
+		if path, vers, found := strings.Cut(arg, "@"); found {
 			var current string
 			if mg == nil {
 				current, _ = rs.rootSelected(path)

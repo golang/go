@@ -6,10 +6,10 @@ package main
 
 import (
 	"cmd/internal/notsha256"
-	"cmd/internal/sys"
 	"flag"
 	"fmt"
 	"go/build"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -287,7 +287,7 @@ func TestDisasmExtld(t *testing.T) {
 }
 
 func TestDisasmPIE(t *testing.T) {
-	if !sys.BuildModeSupported("gc", "pie", runtime.GOOS, runtime.GOARCH) {
+	if !platform.BuildModeSupported("gc", "pie", runtime.GOOS, runtime.GOARCH) {
 		t.Skipf("skipping on %s/%s, PIE buildmode not supported", runtime.GOOS, runtime.GOARCH)
 	}
 	t.Parallel()

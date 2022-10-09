@@ -396,7 +396,7 @@ func gcMemoryLimit(gcPercent int) {
 		// should do considerably better than this bound.
 		bound := int64(myLimit + 16<<20)
 		start := time.Now()
-		for time.Now().Sub(start) < 200*time.Millisecond {
+		for time.Since(start) < 200*time.Millisecond {
 			metrics.Read(m[:])
 			retained := int64(m[0].Value.Uint64() - m[1].Value.Uint64())
 			if retained > bound {

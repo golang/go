@@ -49,6 +49,7 @@ func TestCredentialNoSetGroups(t *testing.T) {
 		maySkipHelperCommand("echo")
 		t.Skip("unsupported on Android")
 	}
+	t.Parallel()
 
 	u, err := user.Current()
 	if err != nil {
@@ -186,6 +187,8 @@ func TestImplicitPWD(t *testing.T) {
 // (This checks that the implementation for https://go.dev/issue/50599 doesn't
 // break existing users who may have explicitly mismatched the PWD variable.)
 func TestExplicitPWD(t *testing.T) {
+	t.Parallel()
+
 	maySkipHelperCommand("pwd")
 	testenv.MustHaveSymlink(t)
 

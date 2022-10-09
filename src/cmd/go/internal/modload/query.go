@@ -729,8 +729,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 				return r, err
 			}
 			r.Mod.Version = r.Rev.Version
-			needSum := true
-			root, isLocal, err := fetch(ctx, r.Mod, needSum)
+			root, isLocal, err := fetch(ctx, r.Mod)
 			if err != nil {
 				return r, err
 			}
@@ -1007,17 +1006,6 @@ func (e *PackageNotInModuleError) ImportPath() string {
 		return e.Pattern
 	}
 	return ""
-}
-
-// moduleHasRootPackage returns whether module m contains a package m.Path.
-func moduleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
-	needSum := false
-	root, isLocal, err := fetch(ctx, m, needSum)
-	if err != nil {
-		return false, err
-	}
-	_, ok, err := dirInModule(m.Path, m.Path, root, isLocal)
-	return ok, err
 }
 
 // versionHasGoMod returns whether a version has a go.mod file.

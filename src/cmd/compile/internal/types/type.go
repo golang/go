@@ -1805,7 +1805,7 @@ func fieldsHasShape(fields []*Field) bool {
 	return false
 }
 
-// NewBasic returns a new basic type of the given kind.
+// newBasic returns a new basic type of the given kind.
 func newBasic(kind Kind, obj Object) *Type {
 	t := newType(kind)
 	t.obj = obj

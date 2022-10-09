@@ -268,7 +268,7 @@ func TestReaderEOF(t *testing.T) {
 		decoder := NewDecoder(StdEncoding, &br)
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(input)))
 		n, err := decoder.Read(dbuf)
-		testEqual(t, "Decoding of %q err = %v, expected %v", string(input), err, error(nil))
+		testEqual(t, "Decoding of %q err = %v, expected %v", input, err, error(nil))
 		n, err = decoder.Read(dbuf)
 		testEqual(t, "Read after EOF, n = %d, expected %d", n, 0)
 		testEqual(t, "Read after EOF, err = %v, expected %v", err, io.EOF)

@@ -18,7 +18,6 @@
 #define SYS_close		57
 #define SYS_getpid		172
 #define SYS_kill		129
-#define SYS_fcntl		25
 #define SYS_mmap		222
 #define SYS_munmap		215
 #define SYS_setitimer		103
@@ -35,12 +34,9 @@
 #define SYS_futex		98
 #define SYS_sched_getaffinity	123
 #define SYS_exit_group		94
-#define SYS_epoll_ctl		21
 #define SYS_tgkill		131
 #define SYS_openat		56
-#define SYS_epoll_pwait		22
 #define SYS_clock_gettime	113
-#define SYS_epoll_create1	20
 #define SYS_brk			214
 #define SYS_pipe2		59
 #define SYS_timer_create	107
@@ -532,54 +528,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	MOVV	$SYS_sched_getaffinity, R11
 	SYSCALL
 	MOVW	R4, ret+24(FP)
-	RET
-
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
-	MOVW	size+0(FP), R4
-	MOVV	$SYS_epoll_create1, R11
-	SYSCALL
-	MOVW	R4, ret+8(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	flags+0(FP), R4
-	MOVV	$SYS_epoll_create1, R11
-	SYSCALL
-	MOVW	R4, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R4
-	MOVW	op+4(FP), R5
-	MOVW	fd+8(FP), R6
-	MOVV	ev+16(FP), R7
-	MOVV	$SYS_epoll_ctl, R11
-	SYSCALL
-	MOVW	R4, ret+24(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R4
-	MOVV	ev+8(FP), R5
-	MOVW	nev+16(FP), R6
-	MOVW	timeout+20(FP), R7
-	MOVV	$0, R8
-	MOVV	$SYS_epoll_pwait, R11
-	SYSCALL
-	MOVW	R4, ret+24(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
-	MOVW	fd+0(FP), R4  // fd
-	MOVV	$2, R5	// F_SETFD
-	MOVV	$1, R6	// FD_CLOEXEC
-	MOVV	$SYS_fcntl, R11
-	SYSCALL
 	RET
 
 // func sbrk0() uintptr

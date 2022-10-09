@@ -14,10 +14,10 @@ const (
 	ScorePhi = iota // towards top of block
 	ScoreArg
 	ScoreNilCheck
-	ScoreCarryChainTail
 	ScoreReadTuple
 	ScoreVarDef
 	ScoreMemory
+	ScoreCarryChainTail
 	ScoreReadFlags
 	ScoreDefault
 	ScoreFlags
@@ -155,7 +155,7 @@ func schedule(f *Func) {
 				// VARDEF ops are scheduled before the corresponding LEA.
 				score[v.ID] = ScoreMemory
 			case v.Op == OpSelect0 || v.Op == OpSelect1 || v.Op == OpSelectN:
-				if (v.Op == OpSelect1 || v.Op == OpSelect0) && (v.Args[0].Op.isCarry() || v.Type.IsFlags()) {
+				if (v.Op == OpSelect1 || v.Op == OpSelect0) && (v.Args[0].isCarry() || v.Type.IsFlags()) {
 					// When the Select pseudo op is being used for a carry or flag from
 					// a tuple then score it as ScoreFlags so it happens later. This
 					// prevents the bit from being clobbered before it is used.
@@ -163,8 +163,8 @@ func schedule(f *Func) {
 				} else {
 					score[v.ID] = ScoreReadTuple
 				}
-			case v.Op.isCarry():
-				if w := v.getCarryProducer(); w != nil {
+			case v.isCarry():
+				if w := v.getCarryInput(); w != nil && w.Block == b {
 					// The producing op is not the final user of the carry bit. Its
 					// current score is one of unscored, Flags, or CarryChainTail.
 					// These occur if the producer has not been scored, another user
@@ -183,7 +183,7 @@ func schedule(f *Func) {
 					// one chain to be scheduled, if possible.
 					score[v.ID] = ScoreCarryChainTail
 				}
-			case v.Type.IsFlags() || v.Type.IsTuple() && v.Type.FieldType(1).IsFlags():
+			case v.isFlagOp():
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
@@ -192,7 +192,7 @@ func schedule(f *Func) {
 				score[v.ID] = ScoreDefault
 				// If we're reading flags, schedule earlier to keep flag lifetime short.
 				for _, a := range v.Args {
-					if a.Type.IsFlags() {
+					if a.isFlagOp() {
 						score[v.ID] = ScoreReadFlags
 					}
 				}
@@ -263,7 +263,6 @@ func schedule(f *Func) {
 					}
 				}
 			}
-
 		}
 
 		// To put things into a priority queue
@@ -287,7 +286,7 @@ func schedule(f *Func) {
 
 			v := heap.Pop(priq).(*Value)
 
-			if f.pass.debug > 1 && score[v.ID] == ScoreCarryChainTail && v.Op.isCarry() {
+			if f.pass.debug > 1 && score[v.ID] == ScoreCarryChainTail && v.isCarry() {
 				// Add some debugging noise if the chain of carrying ops will not
 				// likely be scheduled without potential carry flag clobbers.
 				if !isCarryChainReady(v, uses) {
@@ -551,42 +550,74 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	return order
 }
 
-// Return whether all dependent carry ops can be scheduled after this.
+// isFlagOp reports if v is an OP with the flag type.
+func (v *Value) isFlagOp() bool {
+	return v.Type.IsFlags() || v.Type.IsTuple() && v.Type.FieldType(1).IsFlags()
+}
+
+// isCarryChainReady reports whether all dependent carry ops can be scheduled after this.
 func isCarryChainReady(v *Value, uses []int32) bool {
 	// A chain can be scheduled in it's entirety if
 	// the use count of each dependent op is 1. If none,
 	// schedule the first.
 	j := 1 // The first op uses[k.ID] == 0. Dependent ops are always >= 1.
-	for k := v; k != nil; k = k.getCarryProducer() {
+	for k := v; k != nil; k = k.getCarryInput() {
 		j += int(uses[k.ID]) - 1
 	}
 	return j == 0
 }
 
-// Return whether op is an operation which produces a carry bit value, but does not consume it.
-func (op Op) isCarryCreator() bool {
-	switch op {
-	case OpPPC64SUBC, OpPPC64ADDC, OpPPC64SUBCconst, OpPPC64ADDCconst:
-		return true
-	}
-	return false
+// isCarryInput reports whether v accepts a carry value as input.
+func (v *Value) isCarryInput() bool {
+	return v.getCarryInput() != nil
 }
 
-// Return whether op consumes or creates a carry a bit value.
-func (op Op) isCarry() bool {
-	switch op {
-	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZEzero:
-		return true
+// isCarryOutput reports whether v generates a carry as output.
+func (v *Value) isCarryOutput() bool {
+	// special cases for PPC64 which put their carry values in XER instead of flags
+	switch v.Block.Func.Config.arch {
+	case "ppc64", "ppc64le":
+		switch v.Op {
+		case OpPPC64SUBC, OpPPC64ADDC, OpPPC64SUBCconst, OpPPC64ADDCconst:
+			return true
+		}
+		return false
 	}
-	return op.isCarryCreator()
+	return v.isFlagOp() && v.Op != OpSelect1
 }
 
-// Return the producing *Value of the carry bit of this op, or nil if none.
-func (v *Value) getCarryProducer() *Value {
-	if v.Op.isCarry() && !v.Op.isCarryCreator() {
-		// PPC64 carry dependencies are conveyed through their final argument.
-		// Likewise, there is always an OpSelect1 between them.
-		return v.Args[len(v.Args)-1].Args[0]
+// isCarryCreator reports whether op is an operation which produces a carry bit value,
+// but does not consume it.
+func (v *Value) isCarryCreator() bool {
+	return v.isCarryOutput() && !v.isCarryInput()
+}
+
+// isCarry reports whether op consumes or creates a carry a bit value.
+func (v *Value) isCarry() bool {
+	return v.isCarryOutput() || v.isCarryInput()
+}
+
+// getCarryInput returns the producing *Value of the carry bit of this op, or nil if none.
+func (v *Value) getCarryInput() *Value {
+	// special cases for PPC64 which put their carry values in XER instead of flags
+	switch v.Block.Func.Config.arch {
+	case "ppc64", "ppc64le":
+		switch v.Op {
+		case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZEzero:
+			// PPC64 carry dependencies are conveyed through their final argument.
+			// Likewise, there is always an OpSelect1 between them.
+			return v.Args[len(v.Args)-1].Args[0]
+		}
+		return nil
+	}
+	for _, a := range v.Args {
+		if !a.isFlagOp() {
+			continue
+		}
+		if a.Op == OpSelect1 {
+			a = a.Args[0]
+		}
+		return a
 	}
 	return nil
 }

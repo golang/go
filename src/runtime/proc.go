@@ -723,6 +723,14 @@ func schedinit() {
 	parsedebugvars()
 	gcinit()
 
+	// if disableMemoryProfiling is set, update MemProfileRate to 0 to turn off memprofile.
+	// Note: parsedebugvars may update MemProfileRate, but when disableMemoryProfiling is
+	// set to true by the linker, it means that nothing is consuming the profile, it is
+	// safe to set MemProfileRate to 0.
+	if disableMemoryProfiling {
+		MemProfileRate = 0
+	}
+
 	lock(&sched.lock)
 	sched.lastpoll.Store(nanotime())
 	procs := ncpu

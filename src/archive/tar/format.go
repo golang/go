@@ -143,6 +143,10 @@ const (
 	blockSize  = 512 // Size of each block in a tar stream
 	nameSize   = 100 // Max length of the name field in USTAR format
 	prefixSize = 155 // Max length of the prefix field in USTAR format
+
+	// Max length of a special file (PAX header, GNU long name or link).
+	// This matches the limit used by libarchive.
+	maxSpecialFileSize = 1 << 20
 )
 
 // blockPadding computes the number of bytes needed to pad offset up to the

@@ -44,7 +44,7 @@ var depsRules = `
 	  internal/coverage/uleb128, internal/coverage/calloc,
       internal/cpu, internal/goarch,
 	  internal/goexperiment, internal/goos,
-	  internal/goversion, internal/nettrace,
+	  internal/goversion, internal/nettrace, internal/platform,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
@@ -529,7 +529,7 @@ var depsRules = `
 	internal/fuzz, internal/testlog, runtime/pprof, regexp
 	< testing/internal/testdeps;
 
-	OS, flag, testing, internal/cfg
+	OS, flag, testing, internal/cfg, internal/platform
 	< internal/testenv;
 
 	OS, encoding/base64

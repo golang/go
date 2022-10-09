@@ -161,7 +161,7 @@ func UpdateErrorDot(line string, name, expr string) {
 	}
 }
 
-// Warnf reports a formatted warning at the current line.
+// Warn reports a formatted warning at the current line.
 // In general the Go compiler does NOT generate warnings,
 // so this should be used only when the user has opted in
 // to additional output by setting a particular flag.
