@@ -25,7 +25,6 @@ type CounterDataReader struct {
 	osargs   []string
 	goarch   string // GOARCH setting from run that produced counter data
 	goos     string // GOOS setting from run that produced counter data
-	nsegs    int
 	mr       io.ReadSeeker
 	hdr      coverage.CounterFileHeader
 	ftr      coverage.CounterFileFooter
@@ -71,17 +70,6 @@ func NewCounterDataReader(fn string, rs io.ReadSeeker) (*CounterDataReader, erro
 		return nil, err
 	}
 	return cdr, nil
-}
-
-func (cdr *CounterDataReader) readBytes(b []byte) error {
-	nr, err := cdr.mr.Read(b)
-	if err != nil {
-		return err
-	}
-	if nr != len(b) {
-		return io.EOF
-	}
-	return nil
 }
 
 func checkMagic(v [4]byte) bool {
