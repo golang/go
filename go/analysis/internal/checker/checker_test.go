@@ -128,6 +128,18 @@ func Foo(s string) int {
 		RunDespiteErrors: true,
 	}
 
+	// A no-op analyzer that should finish regardless of
+	// parse or type errors in the code.
+	noopWithFact := &analysis.Analyzer{
+		Name:     "noopfact",
+		Requires: []*analysis.Analyzer{inspect.Analyzer},
+		Run: func(pass *analysis.Pass) (interface{}, error) {
+			return nil, nil
+		},
+		RunDespiteErrors: true,
+		FactTypes:        []analysis.Fact{&EmptyFact{}},
+	}
+
 	for _, test := range []struct {
 		name      string
 		pattern   []string
@@ -136,7 +148,17 @@ func Foo(s string) int {
 	}{
 		// parse/type errors
 		{name: "skip-error", pattern: []string{"file=" + path}, analyzers: []*analysis.Analyzer{analyzer}, code: 1},
-		{name: "despite-error", pattern: []string{"file=" + path}, analyzers: []*analysis.Analyzer{noop}, code: 0},
+		// RunDespiteErrors allows a driver to run an Analyzer even after parse/type errors.
+		//
+		// The noop analyzer doesn't use facts, so the driver loads only the root
+		// package from source. For the rest, it asks 'go list' for export data,
+		// which fails because the compiler encounters the type error.  Since the
+		// errors come from 'go list', the driver doesn't run the analyzer.
+		{name: "despite-error", pattern: []string{"file=" + path}, analyzers: []*analysis.Analyzer{noop}, code: 1},
+		// The noopfact analyzer does use facts, so the driver loads source for
+		// all dependencies, does type checking itself, recognizes the error as a
+		// type error, and runs the analyzer.
+		{name: "despite-error-fact", pattern: []string{"file=" + path}, analyzers: []*analysis.Analyzer{noopWithFact}, code: 0},
 		// combination of parse/type errors and no errors
 		{name: "despite-error-and-no-error", pattern: []string{"file=" + path, "sort"}, analyzers: []*analysis.Analyzer{analyzer, noop}, code: 1},
 		// non-existing package error
@@ -150,6 +172,9 @@ func Foo(s string) int {
 		// no errors
 		{name: "no-errors", pattern: []string{"sort"}, analyzers: []*analysis.Analyzer{analyzer, noop}, code: 0},
 	} {
+		if test.name == "despite-error" { // TODO(matloob): once CL 437298 is submitted, add the condition testenv.Go1Point() < 20
+			continue
+		}
 		if got := checker.Run(test.pattern, test.analyzers); got != test.code {
 			t.Errorf("got incorrect exit code %d for test %s; want %d", got, test.name, test.code)
 		}
@@ -157,3 +182,7 @@ func Foo(s string) int {
 
 	defer cleanup()
 }
+
+type EmptyFact struct{}
+
+func (f *EmptyFact) AFact() {}

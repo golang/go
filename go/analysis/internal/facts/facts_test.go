@@ -148,7 +148,7 @@ func TestEncodeDecode(t *testing.T) {
 				  type N4[T a.T4|int8] func() T
 				  type N5[T interface{Bar() a.T5} ] func() T
 		
-				  type t5 struct{}; func (t5) Bar() a.T5
+				  type t5 struct{}; func (t5) Bar() a.T5 { return 0 }
 		
 				  var G1 N1[a.T1]
 				  var G2 func() N2[a.T2]

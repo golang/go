@@ -148,17 +148,17 @@ func _() {
 \}
 `
 	for _, test := range []struct {
-		args     string
-		wantOut  string
-		wantExit int
+		args          string
+		wantOut       string
+		wantExitError bool
 	}{
-		{args: "golang.org/fake/a", wantOut: wantA, wantExit: 2},
-		{args: "golang.org/fake/b", wantOut: wantB, wantExit: 2},
-		{args: "golang.org/fake/c", wantOut: wantC, wantExit: 2},
-		{args: "golang.org/fake/a golang.org/fake/b", wantOut: wantA + wantB, wantExit: 2},
-		{args: "-json golang.org/fake/a", wantOut: wantAJSON, wantExit: 0},
-		{args: "-json golang.org/fake/c", wantOut: wantCJSON, wantExit: 0},
-		{args: "-c=0 golang.org/fake/a", wantOut: wantA + "4		MyFunc123\\(\\)\n", wantExit: 2},
+		{args: "golang.org/fake/a", wantOut: wantA, wantExitError: true},
+		{args: "golang.org/fake/b", wantOut: wantB, wantExitError: true},
+		{args: "golang.org/fake/c", wantOut: wantC, wantExitError: true},
+		{args: "golang.org/fake/a golang.org/fake/b", wantOut: wantA + wantB, wantExitError: true},
+		{args: "-json golang.org/fake/a", wantOut: wantAJSON, wantExitError: false},
+		{args: "-json golang.org/fake/c", wantOut: wantCJSON, wantExitError: false},
+		{args: "-c=0 golang.org/fake/a", wantOut: wantA + "4		MyFunc123\\(\\)\n", wantExitError: true},
 	} {
 		cmd := exec.Command("go", "vet", "-vettool="+os.Args[0], "-findcall.name=MyFunc123")
 		cmd.Args = append(cmd.Args, strings.Fields(test.args)...)
@@ -170,8 +170,12 @@ func _() {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitcode = exitErr.ExitCode()
 		}
-		if exitcode != test.wantExit {
-			t.Errorf("%s: got exit code %d, want %d", test.args, exitcode, test.wantExit)
+		if (exitcode != 0) != test.wantExitError {
+			want := "zero"
+			if test.wantExitError {
+				want = "nonzero"
+			}
+			t.Errorf("%s: got exit code %d, want %s", test.args, exitcode, want)
 		}
 
 		matched, err := regexp.Match(test.wantOut, out)
