@@ -157,12 +157,15 @@ func doMain() error {
 		// Build SSA for all packages.
 		prog.Build()
 
-		// The interpreter needs the runtime package.
-		// It is a limitation of go/packages that
-		// we cannot add "runtime" to its initial set,
-		// we can only check that it is present.
-		if prog.ImportedPackage("runtime") == nil {
-			return fmt.Errorf("-run: program does not depend on runtime")
+		// Earlier versions of the interpreter needed the runtime
+		// package; however, interp cannot handle unsafe constructs
+		// used during runtime's package initialization at the moment.
+		// The key construct blocking support is:
+		//    *((*T)(unsafe.Pointer(p)))
+		// Unfortunately, this means only trivial programs can be
+		// interpreted by ssadump.
+		if prog.ImportedPackage("runtime") != nil {
+			return fmt.Errorf("-run: program depends on runtime package (interpreter can run only trivial programs)")
 		}
 
 		if runtime.GOARCH != build.Default.GOARCH {
