@@ -376,7 +376,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		case ast.RECV:
 			dir = RecvOnly
 		default:
-			check.errorf(e, InvalidSyntaxTree, invalidAST+"unknown channel direction %d", e.Dir)
+			check.errorf(e, InvalidSyntaxTree, "unknown channel direction %d", e.Dir)
 			// ok to continue
 		}
 

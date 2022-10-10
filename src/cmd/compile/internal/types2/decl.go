@@ -899,7 +899,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			check.pop().setColor(black)
 
 		default:
-			check.errorf(s, InvalidSyntaxTree, invalidAST+"unknown syntax.Decl node %T", s)
+			check.errorf(s, InvalidSyntaxTree, "unknown syntax.Decl node %T", s)
 		}
 	}
 }

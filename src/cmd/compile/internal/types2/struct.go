@@ -130,7 +130,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			pos := syntax.StartPos(f.Type)
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
-				check.errorf(pos, InvalidSyntaxTree, invalidAST+"invalid embedded field type %s", f.Type)
+				check.errorf(pos, InvalidSyntaxTree, "invalid embedded field type %s", f.Type)
 				name = &syntax.Name{Value: "_"} // TODO(gri) need to set position to pos
 				addInvalid(name, pos)
 				continue
@@ -217,7 +217,7 @@ func (check *Checker) tag(t *syntax.BasicLit) string {
 				return val
 			}
 		}
-		check.errorf(t, InvalidSyntaxTree, invalidAST+"incorrect tag syntax: %q", t.Value)
+		check.errorf(t, InvalidSyntaxTree, "incorrect tag syntax: %q", t.Value)
 	}
 	return ""
 }
