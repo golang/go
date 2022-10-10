@@ -354,7 +354,7 @@ func ToProtocolEdits(m *protocol.ColumnMapper, edits []diff.Edit) ([]protocol.Te
 	return result, nil
 }
 
-// ToProtocolEdits converts LSP TextEdits to diff.Edits.
+// FromProtocolEdits converts LSP TextEdits to diff.Edits.
 // See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textEditArray
 func FromProtocolEdits(m *protocol.ColumnMapper, edits []protocol.TextEdit) ([]diff.Edit, error) {
 	if edits == nil {

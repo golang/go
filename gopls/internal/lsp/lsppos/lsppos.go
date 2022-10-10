@@ -118,7 +118,7 @@ func (m *Mapper) Range(start, end int) (protocol.Range, error) {
 	return protocol.Range{Start: startPos, End: endPos}, nil
 }
 
-// UTF16Len returns the UTF-16 length of the UTF-8 encoded content, were it to
+// UTF16len returns the UTF-16 length of the UTF-8 encoded content, were it to
 // be re-encoded as UTF-16.
 func UTF16len(buf []byte) int {
 	// This function copies buf, but microbenchmarks showed it to be faster than

@@ -25,7 +25,7 @@ type TokenMapper struct {
 	mapper *Mapper
 }
 
-// NewMapper creates a new TokenMapper for the given content, using the
+// NewTokenMapper creates a new TokenMapper for the given content, using the
 // provided file to compute offsets.
 func NewTokenMapper(content []byte, file *token.File) *TokenMapper {
 	return &TokenMapper{

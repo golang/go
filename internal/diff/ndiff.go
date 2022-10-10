@@ -91,7 +91,7 @@ func runesLen(runes []rune) (len int) {
 	return len
 }
 
-// isASCII reports whether s contains only ASCII.
+// stringIsASCII reports whether s contains only ASCII.
 // TODO(adonovan): combine when x/tools allows generics.
 func stringIsASCII(s string) bool {
 	for i := 0; i < len(s); i++ {

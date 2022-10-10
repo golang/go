@@ -33,7 +33,7 @@ func daemonizePosix(cmd *exec.Cmd) {
 	}
 }
 
-// autoNetworkAddress resolves an id on the 'auto' pseduo-network to a
+// autoNetworkAddressPosix resolves an id on the 'auto' pseduo-network to a
 // real network and address. On unix, this uses unix domain sockets.
 func autoNetworkAddressPosix(goplsPath, id string) (network string, address string) {
 	// Especially when doing local development or testing, it's important that

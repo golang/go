@@ -276,7 +276,7 @@ func computeImportRenamingEdits(ctx context.Context, s Snapshot, renamingPkg Pac
 	return result, nil
 }
 
-// computeImportRenamingEdits computes all edits to files within the renming packages.
+// computePackageNameRenamingEdits computes all edits to files within the renming packages.
 func computePackageNameRenamingEdits(renamingPkg Package, newName string) (map[span.URI][]protocol.TextEdit, error) {
 	result := make(map[span.URI][]protocol.TextEdit)
 	// Rename internal references to the package in the renaming package.

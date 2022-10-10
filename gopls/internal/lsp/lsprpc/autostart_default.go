@@ -24,7 +24,7 @@ func runRemote(cmd *exec.Cmd) error {
 	return nil
 }
 
-// autoNetworkAddress returns the default network and address for the
+// autoNetworkAddressDefault returns the default network and address for the
 // automatically-started gopls remote. See autostart_posix.go for more
 // information.
 func autoNetworkAddressDefault(goplsPath, id string) (network string, address string) {

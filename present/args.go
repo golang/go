@@ -18,7 +18,7 @@ import (
 // regular expressions. That is the only change to the code from codewalk.go.
 // See http://9p.io/sys/doc/sam/sam.html Table II for details on the syntax.
 
-// addrToByte evaluates the given address starting at offset start in data.
+// addrToByteRange evaluates the given address starting at offset start in data.
 // It returns the lo and hi byte offset of the matched region within data.
 func addrToByteRange(addr string, start int, data []byte) (lo, hi int, err error) {
 	if addr == "" {

@@ -303,7 +303,7 @@ func sanityCheckDomTree(f *Function) {
 
 // Printing functions ----------------------------------------
 
-// printDomTree prints the dominator tree as text, using indentation.
+// printDomTreeText prints the dominator tree as text, using indentation.
 func printDomTreeText(buf *bytes.Buffer, v *BasicBlock, indent int) {
 	fmt.Fprintf(buf, "%*s%s\n", 4*indent, "", v)
 	for _, child := range v.dom.children {

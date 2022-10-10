@@ -80,7 +80,7 @@ func ContainingPackage(ctxt *build.Context, dir, filename string) (*build.Packag
 
 // (go/build.Context defines these as methods, but does not export them.)
 
-// hasSubdir calls ctxt.HasSubdir (if not nil) or else uses
+// HasSubdir calls ctxt.HasSubdir (if not nil) or else uses
 // the local file system to answer the question.
 func HasSubdir(ctxt *build.Context, root, dir string) (rel string, ok bool) {
 	if f := ctxt.HasSubdir; f != nil {

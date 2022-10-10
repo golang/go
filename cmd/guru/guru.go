@@ -207,7 +207,7 @@ func pkgContainsFile(bp *build.Package, filename string) byte {
 	return 0 // not found
 }
 
-// ParseQueryPos parses the source query position pos and returns the
+// parseQueryPos parses the source query position pos and returns the
 // AST node of the loaded program lprog that it identifies.
 // If needExact, it must identify a single AST subtree;
 // this is appropriate for queries that allow fairly arbitrary syntax,

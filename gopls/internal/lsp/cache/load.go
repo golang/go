@@ -616,7 +616,7 @@ func containsOpenFileLocked(s *snapshot, m *KnownMetadata) bool {
 	return false
 }
 
-// containsFileInWorkspace reports whether m contains any file inside the
+// containsFileInWorkspaceLocked reports whether m contains any file inside the
 // workspace of the snapshot s.
 //
 // s.mu must be held while calling this function.
