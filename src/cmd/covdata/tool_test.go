@@ -11,7 +11,6 @@ import (
 	"internal/coverage/pods"
 	"internal/goexperiment"
 	"internal/testenv"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -104,11 +103,11 @@ func gobuild(t *testing.T, indir string, bargs []string) {
 }
 
 func emitFile(t *testing.T, dst, src string) {
-	payload, err := ioutil.ReadFile(src)
+	payload, err := os.ReadFile(src)
 	if err != nil {
 		t.Fatalf("error reading %q: %v", src, err)
 	}
-	if err := ioutil.WriteFile(dst, payload, 0666); err != nil {
+	if err := os.WriteFile(dst, payload, 0666); err != nil {
 		t.Fatalf("writing %q: %v", dst, err)
 	}
 }
@@ -134,8 +133,8 @@ func buildProg(t *testing.T, prog string, dir string, tag string, flags []string
 
 	// Emit go.mod.
 	mod := filepath.Join(subdir, "go.mod")
-	modsrc := fmt.Sprintf("\nmodule prog\n\ngo 1.19\n")
-	if err := ioutil.WriteFile(mod, []byte(modsrc), 0666); err != nil {
+	modsrc := "\nmodule prog\n\ngo 1.19\n"
+	if err := os.WriteFile(mod, []byte(modsrc), 0666); err != nil {
 		t.Fatal(err)
 	}
 	exepath := filepath.Join(subdir, prog+".exe")
@@ -418,7 +417,7 @@ func testTextfmt(t *testing.T, s state) {
 	}
 
 	// Open and read the first few bits of the file.
-	payload, err := ioutil.ReadFile(outf)
+	payload, err := os.ReadFile(outf)
 	if err != nil {
 		t.Errorf("opening %s: %v\n", outf, err)
 	}
@@ -616,7 +615,6 @@ func testMergeSelect(t *testing.T, s state, indir1, indir2 string, tag string) {
 			}
 			want[line] = 1
 			continue
-		} else {
 		}
 		// no other functions or packages expected.
 		if strings.HasPrefix(line, "Func:") || strings.HasPrefix(line, "Package path:") {
