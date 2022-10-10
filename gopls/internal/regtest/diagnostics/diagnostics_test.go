@@ -1334,8 +1334,8 @@ package a
 func main() {
 	var x int
 }
--- a/a_ignore.go --
-// +build ignore
+-- a/a_exclude.go --
+// +build exclude
 
 package a
 
@@ -1348,9 +1348,9 @@ func _() {
 		env.Await(
 			env.DiagnosticAtRegexp("a/a.go", "x"),
 		)
-		env.OpenFile("a/a_ignore.go")
+		env.OpenFile("a/a_exclude.go")
 		env.Await(
-			DiagnosticAt("a/a_ignore.go", 2, 8),
+			DiagnosticAt("a/a_exclude.go", 2, 8),
 		)
 	})
 }

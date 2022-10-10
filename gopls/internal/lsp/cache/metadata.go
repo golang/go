@@ -41,6 +41,11 @@ type Metadata struct {
 	Config *packages.Config
 }
 
+// PackageID implements the source.Metadata interface.
+func (m *Metadata) PackageID() string {
+	return string(m.ID)
+}
+
 // Name implements the source.Metadata interface.
 func (m *Metadata) PackageName() string {
 	return string(m.Name)

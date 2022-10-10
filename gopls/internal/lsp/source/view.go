@@ -331,7 +331,12 @@ type TidiedModule struct {
 }
 
 // Metadata represents package metadata retrieved from go/packages.
+//
+// TODO(rfindley): move the strongly typed strings from the cache package here.
 type Metadata interface {
+	// PackageID is the unique package id.
+	PackageID() string
+
 	// PackageName is the package name.
 	PackageName() string
 
@@ -652,10 +657,6 @@ const (
 func AnalyzerErrorKind(name string) DiagnosticSource {
 	return DiagnosticSource(name)
 }
-
-var (
-	PackagesLoadError = errors.New("packages.Load error")
-)
 
 // WorkspaceModuleVersion is the nonexistent pseudoversion suffix used in the
 // construction of the workspace module. It is exported so that we can make

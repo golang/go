@@ -174,6 +174,29 @@ version of gopls (https://go.dev/issue/55333).
 
 Default: `false`.
 
+#### **standaloneTags** *[]string*
+
+standaloneTags specifies a set of build constraints that identify
+individual Go source files that make up the entire main package of an
+executable.
+
+A common example of standalone main files is the convention of using the
+directive `//go:build ignore` to denote files that are not intended to be
+included in any package, for example because they are invoked directly by
+the developer using `go run`.
+
+Gopls considers a file to be a standalone main file if and only if it has
+package name "main" and has a build directive of the exact form
+"//go:build tag" or "// +build tag", where tag is among the list of tags
+configured by this setting. Notably, if the build constraint is more
+complicated than a simple tag (such as the composite constraint
+`//go:build tag && go1.18`), the file is not considered to be a standalone
+main file.
+
+This setting is only supported when gopls is built with Go 1.16 or later.
+
+Default: `["ignore"]`.
+
 ### Formatting
 
 #### **local** *string*

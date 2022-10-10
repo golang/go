@@ -291,6 +291,9 @@ func minorOptionsChange(a, b *source.Options) bool {
 	if !reflect.DeepEqual(a.DirectoryFilters, b.DirectoryFilters) {
 		return false
 	}
+	if !reflect.DeepEqual(a.StandaloneTags, b.StandaloneTags) {
+		return false
+	}
 	if a.MemoryMode != b.MemoryMode {
 		return false
 	}
@@ -665,7 +668,7 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 
 	// Collect module paths to load by parsing go.mod files. If a module fails to
 	// parse, capture the parsing failure as a critical diagnostic.
-	var scopes []interface{}                // scopes to load
+	var scopes []loadScope                  // scopes to load
 	var modDiagnostics []*source.Diagnostic // diagnostics for broken go.mod files
 	addError := func(uri span.URI, err error) {
 		modDiagnostics = append(modDiagnostics, &source.Diagnostic{
@@ -709,7 +712,7 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 	// since it provides fake definitions (and documentation)
 	// for types like int that are used everywhere.
 	if len(scopes) > 0 {
-		scopes = append(scopes, PackagePath("builtin"))
+		scopes = append(scopes, packageLoadScope("builtin"))
 	}
 	err := s.load(ctx, true, scopes...)
 

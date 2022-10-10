@@ -712,51 +712,94 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	return phs, nil
 }
 
+// getOrLoadIDsForURI returns package IDs associated with the file uri. If no
+// such packages exist or if they are known to be stale, it reloads the file.
+//
+// If experimentalUseInvalidMetadata is set, this function may return package
+// IDs with invalid metadata.
 func (s *snapshot) getOrLoadIDsForURI(ctx context.Context, uri span.URI) ([]PackageID, error) {
+	useInvalidMetadata := s.useInvalidMetadata()
+
 	s.mu.Lock()
+
+	// Start with the set of package associations derived from the last load.
 	ids := s.meta.ids[uri]
-	reload := len(ids) == 0
+
+	hasValidID := false // whether we have any valid package metadata containing uri
+	shouldLoad := false // whether any packages containing uri are marked 'shouldLoad'
 	for _, id := range ids {
-		// If the file is part of a package that needs reloading, reload it now to
-		// improve our responsiveness.
-		if len(s.shouldLoad[id]) > 0 {
-			reload = true
-			break
+		// TODO(rfindley): remove the defensiveness here. s.meta.metadata[id] must
+		// exist.
+		if m, ok := s.meta.metadata[id]; ok && m.Valid {
+			hasValidID = true
 		}
-		// TODO(golang/go#36918): Previously, we would reload any package with
-		// missing dependencies. This is expensive and results in too many
-		// calls to packages.Load. Determine what we should do instead.
+		if len(s.shouldLoad[id]) > 0 {
+			shouldLoad = true
+		}
 	}
+
+	// Check if uri is known to be unloadable.
+	//
+	// TODO(rfindley): shouldn't we also mark uri as unloadable if the load below
+	// fails? Otherwise we endlessly load files with no packages.
+	_, unloadable := s.unloadableFiles[uri]
+
 	s.mu.Unlock()
 
-	if reload {
-		scope := fileURI(uri)
+	// Special case: if experimentalUseInvalidMetadata is set and we have any
+	// ids, just return them.
+	//
+	// This is arguably wrong: if the metadata is invalid we should try reloading
+	// it. However, this was the pre-existing behavior, and
+	// experimentalUseInvalidMetadata will be removed in a future release.
+	if !shouldLoad && useInvalidMetadata && len(ids) > 0 {
+		return ids, nil
+	}
+
+	// Reload if loading is likely to improve the package associations for uri:
+	//  - uri is not contained in any valid packages
+	//  - ...or one of the packages containing uri is marked 'shouldLoad'
+	//  - ...but uri is not unloadable
+	if (shouldLoad || !hasValidID) && !unloadable {
+		scope := fileLoadScope(uri)
 		err := s.load(ctx, false, scope)
 
-		// As in reloadWorkspace, we must clear scopes after loading.
+		// Guard against failed loads due to context cancellation.
 		//
-		// TODO(rfindley): simply call reloadWorkspace here, first, to avoid this
-		// duplication.
-		if !errors.Is(err, context.Canceled) {
-			s.clearShouldLoad(scope)
+		// Return the context error here as the current operation is no longer
+		// valid.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
 		}
 
-		// TODO(rfindley): this doesn't look right. If we don't reload, we use
-		// invalid metadata anyway, but if we DO reload and it fails, we don't?
-		if !s.useInvalidMetadata() && err != nil {
-			return nil, err
-		}
+		// We must clear scopes after loading.
+		//
+		// TODO(rfindley): unlike reloadWorkspace, this is simply marking loaded
+		// packages as loaded. We could do this from snapshot.load and avoid
+		// raciness.
+		s.clearShouldLoad(scope)
 
-		s.mu.Lock()
-		ids = s.meta.ids[uri]
-		s.mu.Unlock()
-
-		// We've tried to reload and there are still no known IDs for the URI.
-		// Return the load error, if there was one.
-		if len(ids) == 0 {
-			return nil, err
+		// Don't return an error here, as we may still return stale IDs.
+		// Furthermore, the result of getOrLoadIDsForURI should be consistent upon
+		// subsequent calls, even if the file is marked as unloadable.
+		if err != nil && !errors.Is(err, errNoPackages) {
+			event.Error(ctx, "getOrLoadIDsForURI", err)
 		}
 	}
+
+	s.mu.Lock()
+	ids = s.meta.ids[uri]
+	if !useInvalidMetadata {
+		var validIDs []PackageID
+		for _, id := range ids {
+			// TODO(rfindley): remove the defensiveness here as well.
+			if m, ok := s.meta.metadata[id]; ok && m.Valid {
+				validIDs = append(validIDs, id)
+			}
+		}
+		ids = validIDs
+	}
+	s.mu.Unlock()
 
 	return ids, nil
 }
@@ -1206,17 +1249,18 @@ func (s *snapshot) getMetadata(id PackageID) *KnownMetadata {
 
 // clearShouldLoad clears package IDs that no longer need to be reloaded after
 // scopes has been loaded.
-func (s *snapshot) clearShouldLoad(scopes ...interface{}) {
+func (s *snapshot) clearShouldLoad(scopes ...loadScope) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for _, scope := range scopes {
 		switch scope := scope.(type) {
-		case PackagePath:
+		case packageLoadScope:
+			scopePath := PackagePath(scope)
 			var toDelete []PackageID
 			for id, pkgPaths := range s.shouldLoad {
 				for _, pkgPath := range pkgPaths {
-					if pkgPath == scope {
+					if pkgPath == scopePath {
 						toDelete = append(toDelete, id)
 					}
 				}
@@ -1224,7 +1268,7 @@ func (s *snapshot) clearShouldLoad(scopes ...interface{}) {
 			for _, id := range toDelete {
 				delete(s.shouldLoad, id)
 			}
-		case fileURI:
+		case fileLoadScope:
 			uri := span.URI(scope)
 			ids := s.meta.ids[uri]
 			for _, id := range ids {
@@ -1481,7 +1525,7 @@ func (s *snapshot) AwaitInitialized(ctx context.Context) {
 
 // reloadWorkspace reloads the metadata for all invalidated workspace packages.
 func (s *snapshot) reloadWorkspace(ctx context.Context) error {
-	var scopes []interface{}
+	var scopes []loadScope
 	var seen map[PackagePath]bool
 	s.mu.Lock()
 	for _, pkgPaths := range s.shouldLoad {
@@ -1493,7 +1537,7 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 				continue
 			}
 			seen[pkgPath] = true
-			scopes = append(scopes, pkgPath)
+			scopes = append(scopes, packageLoadScope(pkgPath))
 		}
 	}
 	s.mu.Unlock()
@@ -1505,7 +1549,7 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 	// If the view's build configuration is invalid, we cannot reload by
 	// package path. Just reload the directory instead.
 	if !s.ValidBuildConfiguration() {
-		scopes = []interface{}{viewLoadScope("LOAD_INVALID_VIEW")}
+		scopes = []loadScope{viewLoadScope("LOAD_INVALID_VIEW")}
 	}
 
 	err := s.load(ctx, false, scopes...)
@@ -1527,7 +1571,7 @@ func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 	files := s.orphanedFiles()
 
 	// Files without a valid package declaration can't be loaded. Don't try.
-	var scopes []interface{}
+	var scopes []loadScope
 	for _, file := range files {
 		pgf, err := s.ParseGo(ctx, file, source.ParseHeader)
 		if err != nil {
@@ -1536,7 +1580,8 @@ func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 		if !pgf.File.Package.IsValid() {
 			continue
 		}
-		scopes = append(scopes, fileURI(file.URI()))
+
+		scopes = append(scopes, fileLoadScope(file.URI()))
 	}
 
 	if len(scopes) == 0 {
@@ -1560,7 +1605,7 @@ func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 		event.Error(ctx, "reloadOrphanedFiles: failed to load", err, tag.Query.Of(scopes))
 		s.mu.Lock()
 		for _, scope := range scopes {
-			uri := span.URI(scope.(fileURI))
+			uri := span.URI(scope.(fileLoadScope))
 			if s.noValidMetadataForURILocked(uri) {
 				s.unloadableFiles[uri] = struct{}{}
 			}

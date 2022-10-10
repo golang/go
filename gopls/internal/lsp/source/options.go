@@ -120,6 +120,7 @@ func DefaultOptions() *Options {
 					MemoryMode:                  ModeNormal,
 					DirectoryFilters:            []string{"-**/node_modules"},
 					TemplateExtensions:          []string{},
+					StandaloneTags:              []string{"ignore"},
 				},
 				UIOptions: UIOptions{
 					DiagnosticOptions: DiagnosticOptions{
@@ -298,6 +299,26 @@ type BuildOptions struct {
 	// Deprecated: this setting is deprecated and will be removed in a future
 	// version of gopls (https://go.dev/issue/55333).
 	ExperimentalUseInvalidMetadata bool `status:"experimental"`
+
+	// StandaloneTags specifies a set of build constraints that identify
+	// individual Go source files that make up the entire main package of an
+	// executable.
+	//
+	// A common example of standalone main files is the convention of using the
+	// directive `//go:build ignore` to denote files that are not intended to be
+	// included in any package, for example because they are invoked directly by
+	// the developer using `go run`.
+	//
+	// Gopls considers a file to be a standalone main file if and only if it has
+	// package name "main" and has a build directive of the exact form
+	// "//go:build tag" or "// +build tag", where tag is among the list of tags
+	// configured by this setting. Notably, if the build constraint is more
+	// complicated than a simple tag (such as the composite constraint
+	// `//go:build tag && go1.18`), the file is not considered to be a standalone
+	// main file.
+	//
+	// This setting is only supported when gopls is built with Go 1.16 or later.
+	StandaloneTags []string
 }
 
 type UIOptions struct {
@@ -760,6 +781,8 @@ func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 }
 
 func (o *Options) Clone() *Options {
+	// TODO(rfindley): has this function gone stale? It appears that there are
+	// settings that are incorrectly cloned here (such as TemplateExtensions).
 	result := &Options{
 		ClientOptions:   o.ClientOptions,
 		InternalOptions: o.InternalOptions,
@@ -793,6 +816,7 @@ func (o *Options) Clone() *Options {
 	result.SetEnvSlice(o.EnvSlice())
 	result.BuildFlags = copySlice(o.BuildFlags)
 	result.DirectoryFilters = copySlice(o.DirectoryFilters)
+	result.StandaloneTags = copySlice(o.StandaloneTags)
 
 	copyAnalyzerMap := func(src map[string]*Analyzer) map[string]*Analyzer {
 		dst := make(map[string]*Analyzer)
@@ -887,6 +911,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		}
 
 	case "buildFlags":
+		// TODO(rfindley): use asStringSlice.
 		iflags, ok := value.([]interface{})
 		if !ok {
 			result.parseErrorf("invalid type %T, expect list", value)
@@ -897,7 +922,9 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 			flags = append(flags, fmt.Sprintf("%s", flag))
 		}
 		o.BuildFlags = flags
+
 	case "directoryFilters":
+		// TODO(rfindley): use asStringSlice.
 		ifilters, ok := value.([]interface{})
 		if !ok {
 			result.parseErrorf("invalid type %T, expect list", value)
@@ -913,6 +940,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 			filters = append(filters, strings.TrimRight(filepath.FromSlash(filter), "/"))
 		}
 		o.DirectoryFilters = filters
+
 	case "memoryMode":
 		if s, ok := result.asOneOf(
 			string(ModeNormal),
@@ -1104,6 +1132,9 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.softErrorf(msg)
 		result.setBool(&o.ExperimentalUseInvalidMetadata)
 
+	case "standaloneTags":
+		result.setStringSlice(&o.StandaloneTags)
+
 	case "allExperiments":
 		// This setting should be handled before all of the other options are
 		// processed, so do nothing here.
@@ -1294,6 +1325,24 @@ func (r *OptionResult) asString() (string, bool) {
 	return b, true
 }
 
+func (r *OptionResult) asStringSlice() ([]string, bool) {
+	iList, ok := r.Value.([]interface{})
+	if !ok {
+		r.parseErrorf("invalid type %T, expect list", r.Value)
+		return nil, false
+	}
+	var list []string
+	for _, elem := range iList {
+		s, ok := elem.(string)
+		if !ok {
+			r.parseErrorf("invalid element type %T, expect string", elem)
+			return nil, false
+		}
+		list = append(list, s)
+	}
+	return list, true
+}
+
 func (r *OptionResult) asOneOf(options ...string) (string, bool) {
 	s, ok := r.asString()
 	if !ok {
@@ -1318,6 +1367,12 @@ func asOneOf(str string, options ...string) (string, error) {
 
 func (r *OptionResult) setString(s *string) {
 	if v, ok := r.asString(); ok {
+		*s = v
+	}
+}
+
+func (r *OptionResult) setStringSlice(s *[]string) {
+	if v, ok := r.asStringSlice(); ok {
 		*s = v
 	}
 }

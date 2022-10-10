@@ -98,6 +98,12 @@ func fullyQualifiedSymbolMatch(space []string, name string, pkg Metadata, matche
 }
 
 func dynamicSymbolMatch(space []string, name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
+	if IsCommandLineArguments(pkg.PackageID()) {
+		// command-line-arguments packages have a non-sensical package path, so
+		// just use their package name.
+		return packageSymbolMatch(space, name, pkg, matcher)
+	}
+
 	var score float64
 
 	endsInPkgName := strings.HasSuffix(pkg.PackagePath(), pkg.PackageName())

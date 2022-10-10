@@ -7,6 +7,7 @@ package cache
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -28,12 +29,15 @@ import (
 
 var loadID uint64 // atomic identifier for loads
 
+// errNoPackages indicates that a load query matched no packages.
+var errNoPackages = errors.New("no packages returned")
+
 // load calls packages.Load for the given scopes, updating package metadata,
 // import graph, and mapped files with the result.
 //
 // The resulting error may wrap the moduleErrorMap error type, representing
 // errors associated with specific modules.
-func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interface{}) (err error) {
+func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadScope) (err error) {
 	id := atomic.AddUint64(&loadID, 1)
 	eventName := fmt.Sprintf("go/packages.Load #%d", id) // unique name for logging
 
@@ -45,7 +49,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	moduleQueries := make(map[string]string)
 	for _, scope := range scopes {
 		switch scope := scope.(type) {
-		case PackagePath:
+		case packageLoadScope:
 			if source.IsCommandLineArguments(string(scope)) {
 				panic("attempted to load command-line-arguments")
 			}
@@ -53,14 +57,24 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 			// partial workspace load. In those cases, the paths came back from
 			// go list and should already be GOPATH-vendorized when appropriate.
 			query = append(query, string(scope))
-		case fileURI:
+
+		case fileLoadScope:
 			uri := span.URI(scope)
-			// Don't try to load a file that doesn't exist.
 			fh := s.FindFile(uri)
 			if fh == nil || s.View().FileKind(fh) != source.Go {
+				// Don't try to load a file that doesn't exist, or isn't a go file.
 				continue
 			}
-			query = append(query, fmt.Sprintf("file=%s", uri.Filename()))
+			contents, err := fh.Read()
+			if err != nil {
+				continue
+			}
+			if isStandaloneFile(contents, s.view.Options().StandaloneTags) {
+				query = append(query, uri.Filename())
+			} else {
+				query = append(query, fmt.Sprintf("file=%s", uri.Filename()))
+			}
+
 		case moduleLoadScope:
 			switch scope {
 			case "std", "cmd":
@@ -70,6 +84,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 				query = append(query, modQuery)
 				moduleQueries[modQuery] = string(scope)
 			}
+
 		case viewLoadScope:
 			// If we are outside of GOPATH, a module, or some other known
 			// build system, don't load subdirectories.
@@ -78,6 +93,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 			} else {
 				query = append(query, "./...")
 			}
+
 		default:
 			panic(fmt.Sprintf("unknown scope type %T", scope))
 		}
@@ -136,9 +152,9 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 
 	if len(pkgs) == 0 {
 		if err == nil {
-			err = fmt.Errorf("no packages returned")
+			err = errNoPackages
 		}
-		return fmt.Errorf("%v: %w", err, source.PackagesLoadError)
+		return fmt.Errorf("packages.Load error: %w", err)
 	}
 
 	moduleErrs := make(map[string][]packages.Error) // module path -> errors

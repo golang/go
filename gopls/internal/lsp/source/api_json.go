@@ -97,6 +97,13 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy: "build",
 			},
 			{
+				Name:      "standaloneTags",
+				Type:      "[]string",
+				Doc:       "standaloneTags specifies a set of build constraints that identify\nindividual Go source files that make up the entire main package of an\nexecutable.\n\nA common example of standalone main files is the convention of using the\ndirective `//go:build ignore` to denote files that are not intended to be\nincluded in any package, for example because they are invoked directly by\nthe developer using `go run`.\n\nGopls considers a file to be a standalone main file if and only if it has\npackage name \"main\" and has a build directive of the exact form\n\"//go:build tag\" or \"// +build tag\", where tag is among the list of tags\nconfigured by this setting. Notably, if the build constraint is more\ncomplicated than a simple tag (such as the composite constraint\n`//go:build tag && go1.18`), the file is not considered to be a standalone\nmain file.\n\nThis setting is only supported when gopls is built with Go 1.16 or later.\n",
+				Default:   "[\"ignore\"]",
+				Hierarchy: "build",
+			},
+			{
 				Name: "hoverKind",
 				Type: "enum",
 				Doc:  "hoverKind controls the information that appears in the hover text.\nSingleLine and Structured are intended for use only by authors of editor plugins.\n",

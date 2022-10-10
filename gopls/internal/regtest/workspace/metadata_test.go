@@ -45,7 +45,7 @@ const C = 42
 // Test that moving ignoring a file via build constraints causes diagnostics to
 // be resolved.
 func TestIgnoreFile(t *testing.T) {
-	testenv.NeedsGo1Point(t, 16) // needs native overlays
+	testenv.NeedsGo1Point(t, 17) // needs native overlays and support for go:build directives
 
 	const src = `
 -- go.mod --
@@ -81,8 +81,9 @@ func main() {}
 				env.DiagnosticAtRegexp("bar.go", "func (main)"),
 			),
 		)
+
 		// Ignore bar.go. This should resolve diagnostics.
-		env.RegexpReplace("bar.go", "package main", "// +build ignore\n\npackage main")
+		env.RegexpReplace("bar.go", "package main", "//go:build ignore\n\npackage main")
 
 		// To make this test pass with experimentalUseInvalidMetadata, we could make
 		// an arbitrary edit that invalidates the snapshot, at which point the
@@ -95,8 +96,18 @@ func main() {}
 			OnceMet(
 				env.DoneWithChange(),
 				EmptyDiagnostics("foo.go"),
+				EmptyDiagnostics("bar.go"),
+			),
+		)
+
+		// If instead of 'ignore' (which gopls treats as a standalone package) we
+		// used a different build tag, we should get a warning about having no
+		// packages for bar.go
+		env.RegexpReplace("bar.go", "ignore", "excluded")
+		env.Await(
+			OnceMet(
+				env.DoneWithChange(),
 				env.DiagnosticAtRegexpWithMessage("bar.go", "package (main)", "No packages"),
-				env.NoDiagnosticAtRegexp("bar.go", "func (main)"),
 			),
 		)
 	})

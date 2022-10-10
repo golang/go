@@ -535,7 +535,7 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 		return nil
 	}
 	pkgs, err := snapshot.PackagesForFile(ctx, fh.URI(), source.TypecheckWorkspace, false)
-	if len(pkgs) > 0 || err == nil {
+	if len(pkgs) > 0 {
 		return nil
 	}
 	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseHeader)

@@ -26,13 +26,14 @@ go 1.17
 package p
 
 const C1 = "a.go"
--- ignore.go --
+-- exclude.go --
 
-// +build ignore
+//go:build exclude
+// +build exclude
 
-package ignore
+package exclude
 
-const C2 = "ignore.go"
+const C2 = "exclude.go"
 `
 
 	Run(t, files, func(t *testing.T, env *Env) {
@@ -44,7 +45,7 @@ const C2 = "ignore.go"
 
 		// Opening up an ignored file will result in an overlay with missing
 		// metadata, but this shouldn't break workspace symbols requests.
-		env.OpenFile("ignore.go")
+		env.OpenFile("exclude.go")
 		syms = env.WorkspaceSymbol("C")
 		if got, want := len(syms), 1; got != want {
 			t.Errorf("got %d symbols, want %d", got, want)

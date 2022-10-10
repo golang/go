@@ -32,12 +32,23 @@ type pkg struct {
 	hasFixedFiles   bool // if true, AST was sufficiently mangled that we should hide type errors
 }
 
-// Declare explicit types for files and directories to distinguish between the two.
+// A loadScope defines a package loading scope for use with go/packages.
+type loadScope interface {
+	aScope()
+}
+
 type (
-	fileURI         span.URI
-	moduleLoadScope string
-	viewLoadScope   span.URI
+	fileLoadScope    span.URI // load packages containing a file (including command-line-arguments)
+	packageLoadScope string   // load a specific package
+	moduleLoadScope  string   // load packages in a specific module
+	viewLoadScope    span.URI // load the workspace
 )
+
+// Implement the loadScope interface.
+func (fileLoadScope) aScope()    {}
+func (packageLoadScope) aScope() {}
+func (moduleLoadScope) aScope()  {}
+func (viewLoadScope) aScope()    {}
 
 func (p *pkg) ID() string {
 	return string(p.m.ID)
