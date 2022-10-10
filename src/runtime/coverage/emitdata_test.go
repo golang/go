@@ -406,6 +406,13 @@ func TestApisOnNocoverBinary(t *testing.T) {
 }
 
 func TestIssue56006EmitDataRaceCoverRunningGoroutine(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping test: too long for short mode")
+	}
+	if !goexperiment.CoverageRedesign {
+		t.Skipf("skipping new coverage tests (experiment not enabled)")
+	}
+
 	// This test requires "go test -race -cover", meaning that we need
 	// go build, go run, and "-race" support.
 	testenv.MustHaveGoRun(t)

@@ -7,6 +7,7 @@ package test
 import (
 	"bufio"
 	"internal/buildcfg"
+	"internal/goexperiment"
 	"internal/testenv"
 	"io"
 	"math/bits"
@@ -330,5 +331,59 @@ func TestIntendedInlining(t *testing.T) {
 	}
 	for fullName, reason := range notInlinedReason {
 		t.Errorf("%s was not inlined: %s", fullName, reason)
+	}
+}
+
+func collectInlCands(msgs string) map[string]struct{} {
+	rv := make(map[string]struct{})
+	lines := strings.Split(msgs, "\n")
+	re := regexp.MustCompile(`^\S+\s+can\s+inline\s+(\S+)`)
+	for _, line := range lines {
+		m := re.FindStringSubmatch(line)
+		if m != nil {
+			rv[m[1]] = struct{}{}
+		}
+	}
+	return rv
+}
+
+func TestIssue56044(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping test: too long for short mode")
+	}
+	if !goexperiment.CoverageRedesign {
+		t.Skipf("skipping new coverage tests (experiment not enabled)")
+	}
+
+	testenv.MustHaveGoBuild(t)
+
+	modes := []string{"-covermode=set", "-covermode=atomic"}
+
+	for _, mode := range modes {
+		// Build the Go runtime with "-m", capturing output.
+		args := []string{"build", "-gcflags=runtime=-m", "runtime"}
+		cmd := exec.Command(testenv.GoToolPath(t), args...)
+		b, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build failed (%v): %s", err, b)
+		}
+		mbase := collectInlCands(string(b))
+
+		// Redo the build with -cover, also with "-m".
+		args = []string{"build", "-gcflags=runtime=-m", mode, "runtime"}
+		cmd = exec.Command(testenv.GoToolPath(t), args...)
+		b, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build failed (%v): %s", err, b)
+		}
+		mcov := collectInlCands(string(b))
+
+		// Make sure that there aren't any functions that are marked
+		// as inline candidates at base but not with coverage.
+		for k := range mbase {
+			if _, ok := mcov[k]; !ok {
+				t.Errorf("error: did not find %s in coverage -m output", k)
+			}
+		}
 	}
 }
