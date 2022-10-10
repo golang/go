@@ -37,7 +37,6 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -284,6 +283,19 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 					break
 				}
 			}
+			// Special case for coverage counter updates; although
+			// these correspond to real operations, we treat them as
+			// zero cost for the moment. This is due to the existence
+			// of tests that are sensitive to inlining-- if the
+			// insertion of coverage instrumentation happens to tip a
+			// given function over the threshold and move it from
+			// "inlinable" to "not-inlinable", this can cause changes
+			// in allocation behavior, which can then result in test
+			// failures (a good example is the TestAllocations in
+			// crypto/ed25519).
+			if isAtomicCoverageCounterUpdate(n) {
+				break
+			}
 		}
 		if n.X.Op() == ir.OMETHEXPR {
 			if meth := ir.MethodExprName(n.X); meth != nil {
@@ -485,14 +497,8 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// then result in test failures (a good example is the
 		// TestAllocations in crypto/ed25519).
 		n := n.(*ir.AssignStmt)
-		if n.X.Op() == ir.OINDEX {
-			n := n.X.(*ir.IndexExpr)
-			if n.X.Op() == ir.ONAME && n.X.Type().IsArray() {
-				n := n.X.(*ir.Name)
-				if n.Linksym().Type == objabi.SCOVERAGE_COUNTER {
-					return false
-				}
-			}
+		if n.X.Op() == ir.OINDEX && isIndexingCoverageCounter(n) {
+			return false
 		}
 	}
 
@@ -1538,4 +1544,41 @@ func doList(list []ir.Node, do func(ir.Node) bool) bool {
 		}
 	}
 	return false
+}
+
+// isIndexingCoverageCounter returns true if the specified node 'n' is indexing
+// into a coverage counter array.
+func isIndexingCoverageCounter(n ir.Node) bool {
+	if n.Op() != ir.OINDEX {
+		return false
+	}
+	ixn := n.(*ir.IndexExpr)
+	if ixn.X.Op() != ir.ONAME || !ixn.X.Type().IsArray() {
+		return false
+	}
+	nn := ixn.X.(*ir.Name)
+	return nn.CoverageCounter()
+}
+
+// isAtomicCoverageCounterUpdate examines the specified node to
+// determine whether it represents a call to sync/atomic.AddUint32 to
+// increment a coverage counter.
+func isAtomicCoverageCounterUpdate(cn *ir.CallExpr) bool {
+	if cn.X.Op() != ir.ONAME {
+		return false
+	}
+	name := cn.X.(*ir.Name)
+	if name.Class != ir.PFUNC {
+		return false
+	}
+	fn := name.Sym().Name
+	if name.Sym().Pkg.Path != "sync/atomic" || fn != "AddUint32" {
+		return false
+	}
+	if len(cn.Args) != 2 || cn.Args[0].Op() != ir.OADDR {
+		return false
+	}
+	adn := cn.Args[0].(*ir.AddrExpr)
+	v := isIndexingCoverageCounter(adn.X)
+	return v
 }
