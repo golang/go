@@ -125,7 +125,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			pos := f.Type.Pos()
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
-				check.invalidAST(f.Type, "embedded field type %s has no name", f.Type)
+				check.errorf(f.Type, InvalidSyntaxTree, invalidAST+"embedded field type %s has no name", f.Type)
 				name = ast.NewIdent("_")
 				name.NamePos = pos
 				addInvalid(name, pos)
@@ -212,7 +212,7 @@ func (check *Checker) tag(t *ast.BasicLit) string {
 				return val
 			}
 		}
-		check.invalidAST(t, "incorrect tag syntax: %q", t.Value)
+		check.errorf(t, InvalidSyntaxTree, invalidAST+"incorrect tag syntax: %q", t.Value)
 	}
 	return ""
 }

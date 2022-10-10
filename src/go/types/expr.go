@@ -75,11 +75,11 @@ func init() {
 func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
 	if pred := m[op]; pred != nil {
 		if !pred(x.typ) {
-			check.invalidOp(x, UndefinedOp, "operator %s not defined on %s", op, x)
+			check.errorf(x, UndefinedOp, invalidOp+"operator %s not defined on %s", op, x)
 			return false
 		}
 	} else {
-		check.invalidAST(x, "unknown operator %s", op)
+		check.errorf(x, InvalidSyntaxTree, invalidAST+"unknown operator %s", op)
 		return false
 	}
 	return true
@@ -169,7 +169,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
 		if _, ok := unparen(e.X).(*ast.CompositeLit); !ok && x.mode != variable {
-			check.invalidOp(x, UnaddressableOperand, "cannot take address of %s", x)
+			check.errorf(x, UnaddressableOperand, invalidOp+"cannot take address of %s", x)
 			x.mode = invalid
 			return
 		}
@@ -180,18 +180,18 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 	case token.ARROW:
 		u := coreType(x.typ)
 		if u == nil {
-			check.invalidOp(x, InvalidReceive, "cannot receive from %s (no core type)", x)
+			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from %s (no core type)", x)
 			x.mode = invalid
 			return
 		}
 		ch, _ := u.(*Chan)
 		if ch == nil {
-			check.invalidOp(x, InvalidReceive, "cannot receive from non-channel %s", x)
+			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from non-channel %s", x)
 			x.mode = invalid
 			return
 		}
 		if ch.dir == SendOnly {
-			check.invalidOp(x, InvalidReceive, "cannot receive from send-only channel %s", x)
+			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from send-only channel %s", x)
 			x.mode = invalid
 			return
 		}
@@ -580,7 +580,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool) 
 		// We already know from the shift check that it is representable
 		// as an integer if it is a constant.
 		if !allInteger(typ) {
-			check.invalidOp(x, InvalidShiftOperand, "shifted operand %s (type %s) must be integer", x, typ)
+			check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
 			return
 		}
 		// Even if we have an integer, if the value is a constant we
@@ -849,7 +849,7 @@ Error:
 	if switchCase {
 		check.errorf(x, code, "invalid case %s in switch on %s (%s)", x.expr, y.expr, cause) // error position always at 1st operand
 	} else {
-		check.invalidOp(errOp, code, "%s %s %s (%s)", x.expr, op, y.expr, cause)
+		check.errorf(errOp, code, invalidOp+"%s %s %s (%s)", x.expr, op, y.expr, cause)
 	}
 	x.mode = invalid
 }
@@ -910,7 +910,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 		// as an integer. Nothing to do.
 	} else {
 		// shift has no chance
-		check.invalidOp(x, InvalidShiftOperand, "shifted operand %s must be integer", x)
+		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
 		x.mode = invalid
 		return
 	}
@@ -924,7 +924,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 		// Provide a good error message for negative shift counts.
 		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
 		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
-			check.invalidOp(y, InvalidShiftCount, "negative shift count %s", y)
+			check.errorf(y, InvalidShiftCount, invalidOp+"negative shift count %s", y)
 			x.mode = invalid
 			return
 		}
@@ -943,7 +943,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 		switch {
 		case allInteger(y.typ):
 			if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
-				check.invalidOp(y, UnsupportedFeature, "signed shift count %s requires go1.13 or later", y)
+				check.errorf(y, UnsupportedFeature, invalidOp+"signed shift count %s requires go1.13 or later", y)
 				x.mode = invalid
 				return
 			}
@@ -956,7 +956,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 				return
 			}
 		default:
-			check.invalidOp(y, InvalidShiftCount, "shift count %s must be integer", y)
+			check.errorf(y, InvalidShiftCount, invalidOp+"shift count %s must be integer", y)
 			x.mode = invalid
 			return
 		}
@@ -977,7 +977,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
 			s, ok := constant.Uint64Val(y.val)
 			if !ok || s > shiftBound {
-				check.invalidOp(y, InvalidShiftCount, "invalid shift count %s", y)
+				check.errorf(y, InvalidShiftCount, invalidOp+"invalid shift count %s", y)
 				x.mode = invalid
 				return
 			}
@@ -1032,7 +1032,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 
 	// non-constant shift - lhs must be an integer
 	if !allInteger(x.typ) {
-		check.invalidOp(x, InvalidShiftOperand, "shifted operand %s must be integer", x)
+		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
 		x.mode = invalid
 		return
 	}
@@ -1128,9 +1128,9 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 				posn = e
 			}
 			if e != nil {
-				check.invalidOp(posn, MismatchedTypes, "%s (mismatched types %s and %s)", e, x.typ, y.typ)
+				check.errorf(posn, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
 			} else {
-				check.invalidOp(posn, MismatchedTypes, "%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
+				check.errorf(posn, MismatchedTypes, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
 			}
 		}
 		x.mode = invalid
@@ -1145,7 +1145,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 	if op == token.QUO || op == token.REM {
 		// check for zero divisor
 		if (x.mode == constant_ || allInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
-			check.invalidOp(&y, DivByZero, "division by zero")
+			check.errorf(&y, DivByZero, invalidOp+"division by zero")
 			x.mode = invalid
 			return
 		}
@@ -1155,7 +1155,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 			re, im := constant.Real(y.val), constant.Imag(y.val)
 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
 			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
-				check.invalidOp(&y, DivByZero, "division by zero")
+				check.errorf(&y, DivByZero, invalidOp+"division by zero")
 				x.mode = invalid
 				return
 			}
@@ -1314,7 +1314,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			x.mode = value
 			x.typ = sig
 		} else {
-			check.invalidAST(e, "invalid function literal %s", e)
+			check.errorf(e, InvalidSyntaxTree, invalidAST+"invalid function literal %s", e)
 			goto Error
 		}
 
@@ -1567,11 +1567,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 		// TODO(gri) we may want to permit type assertions on type parameter values at some point
 		if isTypeParam(x.typ) {
-			check.invalidOp(x, InvalidAssert, "cannot use type assertion on type parameter value %s", x)
+			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
 			goto Error
 		}
 		if _, ok := under(x.typ).(*Interface); !ok {
-			check.invalidOp(x, InvalidAssert, "%s is not an interface", x)
+			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
 			goto Error
 		}
 		// x.(type) expressions are handled explicitly in type switches
@@ -1605,11 +1605,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			if !underIs(x.typ, func(u Type) bool {
 				p, _ := u.(*Pointer)
 				if p == nil {
-					check.invalidOp(x, InvalidIndirection, "cannot indirect %s", x)
+					check.errorf(x, InvalidIndirection, invalidOp+"cannot indirect %s", x)
 					return false
 				}
 				if base != nil && !Identical(p.base, base) {
-					check.invalidOp(x, InvalidIndirection, "pointers of %s must have identical base types", x)
+					check.errorf(x, InvalidIndirection, invalidOp+"pointers of %s must have identical base types", x)
 					return false
 				}
 				base = p.base
@@ -1639,7 +1639,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 	case *ast.KeyValueExpr:
 		// key:value expressions are handled in composite literals
-		check.invalidAST(e, "no key:value expected")
+		check.errorf(e, InvalidSyntaxTree, invalidAST+"no key:value expected")
 		goto Error
 
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType,

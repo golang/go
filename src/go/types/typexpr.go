@@ -376,7 +376,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		case ast.RECV:
 			dir = RecvOnly
 		default:
-			check.invalidAST(e, "unknown channel direction %d", e.Dir)
+			check.errorf(e, InvalidSyntaxTree, invalidAST+"unknown channel direction %d", e.Dir)
 			// ok to continue
 		}
 
@@ -408,7 +408,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 	var cause string
 	gtyp := check.genericType(ix.X, &cause)
 	if cause != "" {
-		check.invalidOp(ix.Orig, NotAGenericType, "%s (%s)", ix.Orig, cause)
+		check.errorf(ix.Orig, NotAGenericType, invalidOp+"%s (%s)", ix.Orig, cause)
 	}
 	if gtyp == Typ[Invalid] {
 		return gtyp // error already reported
