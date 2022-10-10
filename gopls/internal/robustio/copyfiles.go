@@ -30,7 +30,7 @@ func main() {
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		log.Fatal("reading the robustio dir: %v", err)
+		log.Fatalf("reading the robustio dir: %v", err)
 	}
 
 	// Collect file content so that we can validate before copying.
@@ -103,7 +103,7 @@ func addPlusBuildConstraints(src []byte) []byte {
 			if c, err := constraint.Parse(lit); err == nil {
 				plusBuild, err := constraint.PlusBuildLines(c)
 				if err != nil {
-					log.Fatal("computing +build constraint for %q: %v", lit, err)
+					log.Fatalf("computing +build constraint for %q: %v", lit, err)
 				}
 				insertAt := file.Offset(pos) + len(lit)
 				result = append(result, src[lastInsertion:insertAt]...)
