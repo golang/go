@@ -3022,6 +3022,7 @@ const (
 	OpStoreWB
 	OpMoveWB
 	OpZeroWB
+	OpWBend
 	OpWB
 	OpHasCPUFeature
 	OpPanicBounds
@@ -38926,6 +38927,11 @@ var opcodeTable = [...]opInfo{
 		name:    "ZeroWB",
 		auxType: auxTypSize,
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "WBend",
+		argLen:  1,
 		generic: true,
 	},
 	{

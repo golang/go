@@ -197,8 +197,6 @@ func writebarrier(f *Func) {
 
 		// order values in store order
 		b.Values = storeOrder(b.Values, sset, storeNumber)
-
-		firstSplit := true
 	again:
 		// find the start and end of the last contiguous WB store sequence.
 		// a branch will be inserted there. values after it will be moved
@@ -374,17 +372,19 @@ func writebarrier(f *Func) {
 		}
 
 		// merge memory
-		// Splice memory Phi into the last memory of the original sequence,
-		// which may be used in subsequent blocks. Other memories in the
-		// sequence must be dead after this block since there can be only
-		// one memory live.
+		mem = bEnd.NewValue2(pos, OpPhi, types.TypeMem, memThen, memElse)
+		// The last store becomes the WBend marker. This marker is used by the liveness
+		// pass to determine what parts of the code are preemption-unsafe.
+		// All subsequent memory operations use this memory, so we have to sacrifice the
+		// previous last memory op to become this new value.
 		bEnd.Values = append(bEnd.Values, last)
 		last.Block = bEnd
-		last.reset(OpPhi)
+		last.reset(OpWBend)
 		last.Pos = last.Pos.WithNotStmt()
 		last.Type = types.TypeMem
-		last.AddArg(memThen)
-		last.AddArg(memElse)
+		last.AddArg(mem)
+
+		// Free all the old stores, except last which became the WBend marker.
 		for _, w := range stores {
 			if w != last {
 				w.resetArgs()
@@ -400,23 +400,6 @@ func writebarrier(f *Func) {
 		bEnd.Values = append(bEnd.Values, after...)
 		for _, w := range after {
 			w.Block = bEnd
-		}
-
-		// Preemption is unsafe between loading the write
-		// barrier-enabled flag and performing the write
-		// because that would allow a GC phase transition,
-		// which would invalidate the flag. Remember the
-		// conditional block so liveness analysis can disable
-		// safe-points. This is somewhat subtle because we're
-		// splitting b bottom-up.
-		if firstSplit {
-			// Add b itself.
-			b.Func.WBLoads = append(b.Func.WBLoads, b)
-			firstSplit = false
-		} else {
-			// We've already split b, so we just pushed a
-			// write barrier test into bEnd.
-			b.Func.WBLoads = append(b.Func.WBLoads, bEnd)
 		}
 
 		// if we have more stores in this block, do this block again

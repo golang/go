@@ -469,81 +469,123 @@ func (lv *liveness) markUnsafePoints() {
 		}
 	}
 
-	// Mark write barrier unsafe points.
-	for _, wbBlock := range lv.f.WBLoads {
-		if wbBlock.Kind == ssa.BlockPlain && len(wbBlock.Values) == 0 {
-			// The write barrier block was optimized away
-			// but we haven't done dead block elimination.
-			// (This can happen in -N mode.)
-			continue
-		}
-		// Check that we have the expected diamond shape.
-		if len(wbBlock.Succs) != 2 {
-			lv.f.Fatalf("expected branch at write barrier block %v", wbBlock)
-		}
-		s0, s1 := wbBlock.Succs[0].Block(), wbBlock.Succs[1].Block()
-		if s0 == s1 {
-			// There's no difference between write barrier on and off.
-			// Thus there's no unsafe locations. See issue 26024.
-			continue
-		}
-		if s0.Kind != ssa.BlockPlain || s1.Kind != ssa.BlockPlain {
-			lv.f.Fatalf("expected successors of write barrier block %v to be plain", wbBlock)
-		}
-		if s0.Succs[0].Block() != s1.Succs[0].Block() {
-			lv.f.Fatalf("expected successors of write barrier block %v to converge", wbBlock)
-		}
-
-		// Flow backwards from the control value to find the
-		// flag load. We don't know what lowered ops we're
-		// looking for, but all current arches produce a
-		// single op that does the memory load from the flag
-		// address, so we look for that.
-		var load *ssa.Value
-		v := wbBlock.Controls[0]
-		for {
-			if sym, ok := v.Aux.(*obj.LSym); ok && sym == ir.Syms.WriteBarrier {
-				load = v
-				break
+	for _, b := range lv.f.Blocks {
+		for _, v := range b.Values {
+			if v.Op != ssa.OpWBend {
+				continue
 			}
-			switch v.Op {
-			case ssa.Op386TESTL:
-				// 386 lowers Neq32 to (TESTL cond cond),
-				if v.Args[0] == v.Args[1] {
+			// WBend appears at the start of a block, like this:
+			//    ...
+			//    if wbEnabled: goto C else D
+			// C:
+			//    ... some write barrier enabled code ...
+			//    goto B
+			// D:
+			//    ... some write barrier disabled code ...
+			//    goto B
+			// B:
+			//    m1 = Phi mem_C mem_D
+			//    m2 = store operation ... m1
+			//    m3 = store operation ... m2
+			//    m4 = WBend m3
+			//
+			// (For now m2 and m3 won't be present.)
+
+			// Find first memory op in the block, which should be a Phi.
+			m := v
+			for {
+				m = m.MemoryArg()
+				if m.Block != b {
+					lv.f.Fatalf("can't find Phi before write barrier end mark %v", v)
+				}
+				if m.Op == ssa.OpPhi {
+					break
+				}
+			}
+			// Find the two predecessor blocks (write barrier on and write barrier off)
+			if len(m.Args) != 2 {
+				lv.f.Fatalf("phi before write barrier end mark has %d args, want 2", len(m.Args))
+			}
+			c := b.Preds[0].Block()
+			d := b.Preds[1].Block()
+
+			// Find their common predecessor block (the one that branches based on wb on/off).
+			// It might be a diamond pattern, or one of the blocks in the diamond pattern might
+			// be missing.
+			var decisionBlock *ssa.Block
+			if len(c.Preds) == 1 && c.Preds[0].Block() == d {
+				decisionBlock = d
+			} else if len(d.Preds) == 1 && d.Preds[0].Block() == c {
+				decisionBlock = c
+			} else if len(c.Preds) == 1 && len(d.Preds) == 1 && c.Preds[0].Block() == d.Preds[0].Block() {
+				decisionBlock = c.Preds[0].Block()
+			} else {
+				lv.f.Fatalf("can't find write barrier pattern %v", v)
+			}
+			if len(decisionBlock.Succs) != 2 {
+				lv.f.Fatalf("common predecessor block the wrong type %s", decisionBlock.Kind)
+			}
+
+			// Flow backwards from the control value to find the
+			// flag load. We don't know what lowered ops we're
+			// looking for, but all current arches produce a
+			// single op that does the memory load from the flag
+			// address, so we look for that.
+			var load *ssa.Value
+			v := decisionBlock.Controls[0]
+			for {
+				if sym, ok := v.Aux.(*obj.LSym); ok && sym == ir.Syms.WriteBarrier {
+					load = v
+					break
+				}
+				switch v.Op {
+				case ssa.Op386TESTL:
+					// 386 lowers Neq32 to (TESTL cond cond),
+					if v.Args[0] == v.Args[1] {
+						v = v.Args[0]
+						continue
+					}
+				case ssa.Op386MOVLload, ssa.OpARM64MOVWUload, ssa.OpPPC64MOVWZload, ssa.OpWasmI64Load32U:
+					// Args[0] is the address of the write
+					// barrier control. Ignore Args[1],
+					// which is the mem operand.
+					// TODO: Just ignore mem operands?
 					v = v.Args[0]
 					continue
 				}
-			case ssa.Op386MOVLload, ssa.OpARM64MOVWUload, ssa.OpPPC64MOVWZload, ssa.OpWasmI64Load32U:
-				// Args[0] is the address of the write
-				// barrier control. Ignore Args[1],
-				// which is the mem operand.
-				// TODO: Just ignore mem operands?
+				// Common case: just flow backwards.
+				if len(v.Args) != 1 {
+					v.Fatalf("write barrier control value has more than one argument: %s", v.LongString())
+				}
 				v = v.Args[0]
-				continue
 			}
-			// Common case: just flow backwards.
-			if len(v.Args) != 1 {
-				v.Fatalf("write barrier control value has more than one argument: %s", v.LongString())
-			}
-			v = v.Args[0]
-		}
 
-		// Mark everything after the load unsafe.
-		found := false
-		for _, v := range wbBlock.Values {
-			found = found || v == load
-			if found {
-				lv.unsafePoints.Set(int32(v.ID))
+			// Mark everything after the load unsafe.
+			found := false
+			for _, v := range decisionBlock.Values {
+				found = found || v == load
+				if found {
+					lv.unsafePoints.Set(int32(v.ID))
+				}
 			}
-		}
 
-		// Mark the two successor blocks unsafe. These come
-		// back together immediately after the direct write in
-		// one successor and the last write barrier call in
-		// the other, so there's no need to be more precise.
-		for _, succ := range wbBlock.Succs {
-			for _, v := range succ.Block().Values {
+			// Mark the write barrier on/off blocks as unsafe.
+			for _, e := range decisionBlock.Succs {
+				x := e.Block()
+				if x == b {
+					continue
+				}
+				for _, v := range x.Values {
+					lv.unsafePoints.Set(int32(v.ID))
+				}
+			}
+
+			// Mark from the join point up to the WBend as unsafe.
+			for _, v := range b.Values {
 				lv.unsafePoints.Set(int32(v.ID))
+				if v.Op == ssa.OpWBend {
+					break
+				}
 			}
 		}
 	}

@@ -64,12 +64,6 @@ type Func struct {
 	// AuxCall describing parameters and results for this function.
 	OwnAux *AuxCall
 
-	// WBLoads is a list of Blocks that branch on the write
-	// barrier flag. Safe-points are disabled from the OpLoad that
-	// reads the write-barrier flag until the control flow rejoins
-	// below the two successors of this block.
-	WBLoads []*Block
-
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
