@@ -425,18 +425,18 @@ func (check *Checker) walkDecl(d ast.Decl, f func(decl)) {
 					check.arityMatch(s, nil)
 					f(varDecl{s})
 				default:
-					check.errorf(s, InvalidSyntaxTree, invalidAST+"invalid token %s", d.Tok)
+					check.errorf(s, InvalidSyntaxTree, "invalid token %s", d.Tok)
 				}
 			case *ast.TypeSpec:
 				f(typeDecl{s})
 			default:
-				check.errorf(s, InvalidSyntaxTree, invalidAST+"unknown ast.Spec node %T", s)
+				check.errorf(s, InvalidSyntaxTree, "unknown ast.Spec node %T", s)
 			}
 		}
 	case *ast.FuncDecl:
 		f(funcDecl{d})
 	default:
-		check.errorf(d, InvalidSyntaxTree, invalidAST+"unknown ast.Decl node %T", d)
+		check.errorf(d, InvalidSyntaxTree, "unknown ast.Decl node %T", d)
 	}
 }
 
@@ -935,7 +935,7 @@ func (check *Checker) declStmt(d ast.Decl) {
 			check.typeDecl(obj, d.spec, nil)
 			check.pop().setColor(black)
 		default:
-			check.errorf(d.node(), InvalidSyntaxTree, invalidAST+"unknown ast.Decl node %T", d.node())
+			check.errorf(d.node(), InvalidSyntaxTree, "unknown ast.Decl node %T", d.node())
 		}
 	})
 }

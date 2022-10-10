@@ -220,7 +220,11 @@ func (check *Checker) report(errp *error_) {
 		panic("empty error details")
 	}
 
-	if errp.code == 0 {
+	msg := errp.msg(check.fset, check.qualifier)
+	switch errp.code {
+	case InvalidSyntaxTree:
+		msg = "invalid AST: " + msg
+	case 0:
 		panic("no error code provided")
 	}
 
@@ -228,7 +232,7 @@ func (check *Checker) report(errp *error_) {
 	e := Error{
 		Fset:       check.fset,
 		Pos:        span.pos,
-		Msg:        errp.msg(check.fset, check.qualifier),
+		Msg:        msg,
 		Soft:       errp.soft,
 		go116code:  errp.code,
 		go116start: span.start,
@@ -276,7 +280,6 @@ func (check *Checker) report(errp *error_) {
 }
 
 const (
-	invalidAST = "invalid AST: "
 	invalidArg = "invalid argument: "
 	invalidOp  = "invalid operation: "
 )

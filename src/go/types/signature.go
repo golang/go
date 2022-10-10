@@ -286,7 +286,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 			// named parameter
 			for _, name := range field.Names {
 				if name.Name == "" {
-					check.error(name, InvalidSyntaxTree, invalidAST+"anonymous parameter")
+					check.error(name, InvalidSyntaxTree, "anonymous parameter")
 					// ok to continue
 				}
 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
@@ -304,7 +304,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	}
 
 	if named && anonymous {
-		check.error(list, InvalidSyntaxTree, invalidAST+"list contains both named and anonymous parameters")
+		check.error(list, InvalidSyntaxTree, "list contains both named and anonymous parameters")
 		// ok to continue
 	}
 

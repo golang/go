@@ -79,7 +79,7 @@ func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
 			return false
 		}
 	} else {
-		check.errorf(x, InvalidSyntaxTree, invalidAST+"unknown operator %s", op)
+		check.errorf(x, InvalidSyntaxTree, "unknown operator %s", op)
 		return false
 	}
 	return true
@@ -1314,7 +1314,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			x.mode = value
 			x.typ = sig
 		} else {
-			check.errorf(e, InvalidSyntaxTree, invalidAST+"invalid function literal %s", e)
+			check.errorf(e, InvalidSyntaxTree, "invalid function literal %s", e)
 			goto Error
 		}
 
@@ -1639,7 +1639,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 	case *ast.KeyValueExpr:
 		// key:value expressions are handled in composite literals
-		check.error(e, InvalidSyntaxTree, invalidAST+"no key:value expected")
+		check.error(e, InvalidSyntaxTree, "no key:value expected")
 		goto Error
 
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType,

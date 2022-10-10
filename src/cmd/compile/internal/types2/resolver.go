@@ -467,7 +467,7 @@ func (check *Checker) collectObjects() {
 				obj.setOrder(uint32(len(check.objMap)))
 
 			default:
-				check.errorf(s, InvalidSyntaxTree, invalidAST+"unknown syntax.Decl node %T", s)
+				check.errorf(s, InvalidSyntaxTree, "unknown syntax.Decl node %T", s)
 			}
 		}
 	}
@@ -550,7 +550,7 @@ L: // unpack receiver type
 				case *syntax.BadExpr:
 					// ignore - error already reported by parser
 				case nil:
-					check.error(ptyp, InvalidSyntaxTree, invalidAST+"parameterized receiver contains nil parameters")
+					check.error(ptyp, InvalidSyntaxTree, "parameterized receiver contains nil parameters")
 				default:
 					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
 				}

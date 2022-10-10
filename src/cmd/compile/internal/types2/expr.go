@@ -78,7 +78,7 @@ func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
 			return false
 		}
 	} else {
-		check.errorf(x, InvalidSyntaxTree, invalidAST+"unknown operator %s", op)
+		check.errorf(x, InvalidSyntaxTree, "unknown operator %s", op)
 		return false
 	}
 	return true
@@ -1337,7 +1337,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			x.mode = value
 			x.typ = sig
 		} else {
-			check.errorf(e, InvalidSyntaxTree, invalidAST+"invalid function literal %v", e)
+			check.errorf(e, InvalidSyntaxTree, "invalid function literal %v", e)
 			goto Error
 		}
 
@@ -1594,7 +1594,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		}
 		// x.(type) expressions are encoded via TypeSwitchGuards
 		if e.Type == nil {
-			check.error(e, InvalidSyntaxTree, invalidAST+"invalid use of AssertExpr")
+			check.error(e, InvalidSyntaxTree, "invalid use of AssertExpr")
 			goto Error
 		}
 		T := check.varType(e.Type)
@@ -1607,7 +1607,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 
 	case *syntax.TypeSwitchGuard:
 		// x.(type) expressions are handled explicitly in type switches
-		check.error(e, InvalidSyntaxTree, invalidAST+"use of .(type) outside type switch")
+		check.error(e, InvalidSyntaxTree, "use of .(type) outside type switch")
 		goto Error
 
 	case *syntax.CallExpr:
@@ -1615,7 +1615,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 
 	case *syntax.ListExpr:
 		// catch-all for unexpected expression lists
-		check.error(e, InvalidSyntaxTree, invalidAST+"unexpected list of expressions")
+		check.error(e, InvalidSyntaxTree, "unexpected list of expressions")
 		goto Error
 
 	// case *syntax.UnaryExpr:
@@ -1692,7 +1692,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 
 	case *syntax.KeyValueExpr:
 		// key:value expressions are handled in composite literals
-		check.error(e, InvalidSyntaxTree, invalidAST+"no key:value expected")
+		check.error(e, InvalidSyntaxTree, "no key:value expected")
 		goto Error
 
 	case *syntax.ArrayType, *syntax.SliceType, *syntax.StructType, *syntax.FuncType,

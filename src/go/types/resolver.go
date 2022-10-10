@@ -530,7 +530,7 @@ L: // unpack receiver type
 				case *ast.BadExpr:
 					// ignore - error already reported by parser
 				case nil:
-					check.error(ix.Orig, InvalidSyntaxTree, invalidAST+"parameterized receiver contains nil parameters")
+					check.error(ix.Orig, InvalidSyntaxTree, "parameterized receiver contains nil parameters")
 				default:
 					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
 				}

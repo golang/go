@@ -276,7 +276,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 
 	// spec: "Only the first index may be omitted; it defaults to 0."
 	if e.Slice3 && (e.High == nil || e.Max == nil) {
-		check.error(inNode(e, e.Rbrack), InvalidSyntaxTree, invalidAST+"2nd and 3rd index required in 3-index slice")
+		check.error(inNode(e, e.Rbrack), InvalidSyntaxTree, "2nd and 3rd index required in 3-index slice")
 		x.mode = invalid
 		return
 	}
@@ -331,7 +331,7 @@ L:
 // is reported and the result is nil.
 func (check *Checker) singleIndex(expr *typeparams.IndexExpr) ast.Expr {
 	if len(expr.Indices) == 0 {
-		check.errorf(expr.Orig, InvalidSyntaxTree, invalidAST+"index expression %v with 0 indices", expr)
+		check.errorf(expr.Orig, InvalidSyntaxTree, "index expression %v with 0 indices", expr)
 		return nil
 	}
 	if len(expr.Indices) > 1 {
