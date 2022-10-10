@@ -85,7 +85,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		}
 		if obj == universeIota {
 			if check.iota == nil {
-				check.errorf(e, InvalidIota, "cannot use iota outside constant declaration")
+				check.error(e, InvalidIota, "cannot use iota outside constant declaration")
 				return
 			}
 			x.val = check.iota

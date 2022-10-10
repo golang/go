@@ -139,7 +139,7 @@ func (check *Checker) multipleDefaults(list []ast.Stmt) {
 				d = s
 			}
 		default:
-			check.errorf(s, InvalidSyntaxTree, invalidAST+"case/communication clause expected")
+			check.error(s, InvalidSyntaxTree, invalidAST+"case/communication clause expected")
 		}
 		if d != nil {
 			if first != nil {
@@ -469,7 +469,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		switch s.Tok {
 		case token.ASSIGN, token.DEFINE:
 			if len(s.Lhs) == 0 {
-				check.errorf(s, InvalidSyntaxTree, invalidAST+"missing lhs in assignment")
+				check.error(s, InvalidSyntaxTree, invalidAST+"missing lhs in assignment")
 				return
 			}
 			if s.Tok == token.DEFINE {
@@ -583,7 +583,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		case *ast.IfStmt, *ast.BlockStmt:
 			check.stmt(inner, s.Else)
 		default:
-			check.errorf(s.Else, InvalidSyntaxTree, invalidAST+"invalid else branch in if statement")
+			check.error(s.Else, InvalidSyntaxTree, invalidAST+"invalid else branch in if statement")
 		}
 
 	case *ast.SwitchStmt:
@@ -617,7 +617,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		for i, c := range s.Body.List {
 			clause, _ := c.(*ast.CaseClause)
 			if clause == nil {
-				check.errorf(c, InvalidSyntaxTree, invalidAST+"incorrect expression switch case")
+				check.error(c, InvalidSyntaxTree, invalidAST+"incorrect expression switch case")
 				continue
 			}
 			check.caseValues(&x, clause.List, seen)
@@ -654,13 +654,13 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			rhs = guard.X
 		case *ast.AssignStmt:
 			if len(guard.Lhs) != 1 || guard.Tok != token.DEFINE || len(guard.Rhs) != 1 {
-				check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+				check.error(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
 				return
 			}
 
 			lhs, _ = guard.Lhs[0].(*ast.Ident)
 			if lhs == nil {
-				check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+				check.error(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
 				return
 			}
 
@@ -675,14 +675,14 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			rhs = guard.Rhs[0]
 
 		default:
-			check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+			check.error(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
 			return
 		}
 
 		// rhs must be of the form: expr.(type) and expr must be an ordinary interface
 		expr, _ := rhs.(*ast.TypeAssertExpr)
 		if expr == nil || expr.Type != nil {
-			check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+			check.error(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
 			return
 		}
 		var x operand
@@ -709,7 +709,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		for _, s := range s.Body.List {
 			clause, _ := s.(*ast.CaseClause)
 			if clause == nil {
-				check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect type switch case")
+				check.error(s, InvalidSyntaxTree, invalidAST+"incorrect type switch case")
 				continue
 			}
 			// Check each type in this type switch case.
@@ -936,7 +936,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.stmt(inner, s.Body)
 
 	default:
-		check.errorf(s, InvalidSyntaxTree, invalidAST+"invalid statement")
+		check.error(s, InvalidSyntaxTree, invalidAST+"invalid statement")
 	}
 }
 

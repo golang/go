@@ -63,7 +63,7 @@ func (check *Checker) arityMatch(s, init *ast.ValueSpec) {
 	case init == nil && r == 0:
 		// var decl w/o init expr
 		if s.Type == nil {
-			check.errorf(s, code, "missing type or init expr")
+			check.error(s, code, "missing type or init expr")
 		}
 	case l < r:
 		if l < len(s.Values) {
@@ -107,14 +107,14 @@ func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
 	// spec: "A package-scope or file-scope identifier with name init
 	// may only be declared to be a function with this (func()) signature."
 	if ident.Name == "init" {
-		check.errorf(ident, InvalidInitDecl, "cannot declare init - must be func")
+		check.error(ident, InvalidInitDecl, "cannot declare init - must be func")
 		return
 	}
 
 	// spec: "The main package must have package name main and declare
 	// a function main that takes no arguments and returns no value."
 	if ident.Name == "main" && check.pkg.name == "main" {
-		check.errorf(ident, InvalidMainDecl, "cannot declare main - must be func")
+		check.error(ident, InvalidMainDecl, "cannot declare main - must be func")
 		return
 	}
 
@@ -275,13 +275,13 @@ func (check *Checker) collectObjects() {
 					name = d.spec.Name.Name
 					if path == "C" {
 						// match 1.17 cmd/compile (not prescribed by spec)
-						check.errorf(d.spec.Name, ImportCRenamed, `cannot rename import "C"`)
+						check.error(d.spec.Name, ImportCRenamed, `cannot rename import "C"`)
 						return
 					}
 				}
 
 				if name == "init" {
-					check.errorf(d.spec, InvalidInitDecl, "cannot import package as init - init must be a func")
+					check.error(d.spec, InvalidInitDecl, "cannot import package as init - init must be a func")
 					return
 				}
 
@@ -530,7 +530,7 @@ L: // unpack receiver type
 				case *ast.BadExpr:
 					// ignore - error already reported by parser
 				case nil:
-					check.errorf(ix.Orig, InvalidSyntaxTree, invalidAST+"parameterized receiver contains nil parameters")
+					check.error(ix.Orig, InvalidSyntaxTree, invalidAST+"parameterized receiver contains nil parameters")
 				default:
 					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
 				}

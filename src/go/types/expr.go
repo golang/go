@@ -95,7 +95,7 @@ func (check *Checker) overflow(x *operand, opPos token.Pos) {
 		// TODO(gri) We should report exactly what went wrong. At the
 		//           moment we don't have the (go/constant) API for that.
 		//           See also TODO in go/constant/value.go.
-		check.errorf(atPos(opPos), InvalidConstVal, "constant result is not representable")
+		check.error(atPos(opPos), InvalidConstVal, "constant result is not representable")
 		return
 	}
 
@@ -1145,7 +1145,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 	if op == token.QUO || op == token.REM {
 		// check for zero divisor
 		if (x.mode == constant_ || allInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
-			check.errorf(&y, DivByZero, invalidOp+"division by zero")
+			check.error(&y, DivByZero, invalidOp+"division by zero")
 			x.mode = invalid
 			return
 		}
@@ -1155,7 +1155,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 			re, im := constant.Real(y.val), constant.Imag(y.val)
 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
 			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
-				check.errorf(&y, DivByZero, invalidOp+"division by zero")
+				check.error(&y, DivByZero, invalidOp+"division by zero")
 				x.mode = invalid
 				return
 			}
@@ -1639,7 +1639,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 	case *ast.KeyValueExpr:
 		// key:value expressions are handled in composite literals
-		check.errorf(e, InvalidSyntaxTree, invalidAST+"no key:value expected")
+		check.error(e, InvalidSyntaxTree, invalidAST+"no key:value expected")
 		goto Error
 
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType,

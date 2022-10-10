@@ -139,7 +139,7 @@ func (check *Checker) reportInstanceLoop(v int) {
 	// TODO(mdempsky): Pivot stack so we report the cycle from the top?
 
 	obj0 := check.mono.vertices[v].obj
-	check.errorf(obj0, InvalidInstanceCycle, "instantiation cycle:")
+	check.error(obj0, InvalidInstanceCycle, "instantiation cycle:")
 
 	qf := RelativeTo(check.pkg)
 	for _, v := range stack {
