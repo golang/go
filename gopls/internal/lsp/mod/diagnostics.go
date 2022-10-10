@@ -190,7 +190,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		for _, v := range vulnList {
 			// Only show the diagnostic if the vulnerability was calculated
 			// for the module at the current version.
-			if semver.Compare(req.Mod.Version, v.CurrentVersion) != 0 {
+			if semver.IsValid(v.CurrentVersion) && semver.Compare(req.Mod.Version, v.CurrentVersion) != 0 {
 				continue
 			}
 

@@ -9,6 +9,7 @@ package misc
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/command"
@@ -321,12 +322,19 @@ func TestRunVulncheckExp(t *testing.T) {
 			ShownMessage("Found"),
 			OnceMet(
 				env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/amod`, "golang.org/amod has a known vulnerability: vuln in amod"),
+				env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/amod`, "golang.org/amod has a known vulnerability: unaffecting vulnerability"),
 				env.DiagnosticAtRegexpWithMessage("go.mod", `golang.org/bmod`, "golang.org/bmod has a known vulnerability: vuln in bmod\n\nThis is a long description of this vulnerability."),
 				ReadDiagnostics("go.mod", d),
 			),
 		)
 
-		env.ApplyQuickFixes("go.mod", d.Diagnostics)
+		var toFix []protocol.Diagnostic
+		for _, diag := range d.Diagnostics {
+			if strings.Contains(diag.Message, "vuln in ") {
+				toFix = append(toFix, diag)
+			}
+		}
+		env.ApplyQuickFixes("go.mod", toFix)
 		env.Await(env.DoneWithChangeWatchedFiles())
 		wantGoMod := `module golang.org/entry
 
