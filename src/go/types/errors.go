@@ -275,6 +275,12 @@ func (check *Checker) report(errp *error_) {
 	f(err)
 }
 
+const (
+	invalidAST = "invalid AST: "
+	invalidArg = "invalid argument: "
+	invalidOp  = "invalid operation: "
+)
+
 // newErrorf creates a new error_ for later reporting with check.report.
 func newErrorf(at positioner, code Code, format string, args ...any) *error_ {
 	return &error_{
@@ -302,18 +308,6 @@ func (check *Checker) versionErrorf(at positioner, goVersion string, format stri
 	var err *error_
 	err = newErrorf(at, UnsupportedFeature, "%s requires %s or later", msg, goVersion)
 	check.report(err)
-}
-
-func (check *Checker) invalidAST(at positioner, format string, args ...any) {
-	check.errorf(at, InvalidSyntaxTree, "invalid AST: "+format, args...)
-}
-
-func (check *Checker) invalidArg(at positioner, code Code, format string, args ...any) {
-	check.errorf(at, code, "invalid argument: "+format, args...)
-}
-
-func (check *Checker) invalidOp(at positioner, code Code, format string, args ...any) {
-	check.errorf(at, code, "invalid operation: "+format, args...)
 }
 
 // The positioner interface is used to extract the position of type-checker

@@ -174,7 +174,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	// a type parameter may be "called" if all types have the same signature
 	sig, _ := coreType(x.typ).(*Signature)
 	if sig == nil {
-		check.invalidOp(x, InvalidCall, "cannot call non-function %s", x)
+		check.errorf(x, InvalidCall, invalidOp+"cannot call non-function %s", x)
 		x.mode = invalid
 		x.expr = call
 		return statement

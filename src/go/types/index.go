@@ -185,7 +185,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 
 	if !valid {
 		// types2 uses the position of '[' for the error
-		check.invalidOp(x, NonIndexableOperand, "cannot index %s", x)
+		check.errorf(x, NonIndexableOperand, invalidOp+"cannot index %s", x)
 		x.mode = invalid
 		return false
 	}
@@ -218,7 +218,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	length := int64(-1) // valid if >= 0
 	switch u := coreString(x.typ).(type) {
 	case nil:
-		check.invalidOp(x, NonSliceableOperand, "cannot slice %s: %s has no core type", x, x.typ)
+		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s: %s has no core type", x, x.typ)
 		x.mode = invalid
 		return
 
@@ -229,7 +229,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 				if at == nil {
 					at = e // e.Index[2] should be present but be careful
 				}
-				check.invalidOp(at, InvalidSliceExpr, "3-index slice of string")
+				check.errorf(at, InvalidSliceExpr, invalidOp+"3-index slice of string")
 				x.mode = invalid
 				return
 			}
@@ -248,7 +248,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 		valid = true
 		length = u.len
 		if x.mode != variable {
-			check.invalidOp(x, NonSliceableOperand, "cannot slice %s (value not addressable)", x)
+			check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s (value not addressable)", x)
 			x.mode = invalid
 			return
 		}
@@ -267,7 +267,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	}
 
 	if !valid {
-		check.invalidOp(x, NonSliceableOperand, "cannot slice %s", x)
+		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s", x)
 		x.mode = invalid
 		return
 	}
@@ -276,7 +276,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 
 	// spec: "Only the first index may be omitted; it defaults to 0."
 	if e.Slice3 && (e.High == nil || e.Max == nil) {
-		check.invalidAST(inNode(e, e.Rbrack), "2nd and 3rd index required in 3-index slice")
+		check.errorf(inNode(e, e.Rbrack), InvalidSyntaxTree, invalidAST+"2nd and 3rd index required in 3-index slice")
 		x.mode = invalid
 		return
 	}
@@ -331,12 +331,12 @@ L:
 // is reported and the result is nil.
 func (check *Checker) singleIndex(expr *typeparams.IndexExpr) ast.Expr {
 	if len(expr.Indices) == 0 {
-		check.invalidAST(expr.Orig, "index expression %v with 0 indices", expr)
+		check.errorf(expr.Orig, InvalidSyntaxTree, invalidAST+"index expression %v with 0 indices", expr)
 		return nil
 	}
 	if len(expr.Indices) > 1 {
 		// TODO(rFindley) should this get a distinct error code?
-		check.invalidOp(expr.Indices[1], InvalidIndex, "more than one index")
+		check.errorf(expr.Indices[1], InvalidIndex, invalidOp+"more than one index")
 	}
 	return expr.Indices[0]
 }
@@ -366,7 +366,7 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 	v, ok := constant.Int64Val(x.val)
 	assert(ok)
 	if max >= 0 && v >= max {
-		check.invalidArg(&x, InvalidIndex, "index %s out of bounds [0:%d]", x.val.String(), max)
+		check.errorf(&x, InvalidIndex, invalidArg+"index %s out of bounds [0:%d]", x.val.String(), max)
 		return
 	}
 
@@ -387,20 +387,20 @@ func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNega
 
 	// spec: "the index x must be of integer type or an untyped constant"
 	if !allInteger(x.typ) {
-		check.invalidArg(x, code, "%s %s must be integer", what, x)
+		check.errorf(x, code, invalidArg+"%s %s must be integer", what, x)
 		return false
 	}
 
 	if x.mode == constant_ {
 		// spec: "a constant index must be non-negative ..."
 		if !allowNegative && constant.Sign(x.val) < 0 {
-			check.invalidArg(x, code, "%s %s must not be negative", what, x)
+			check.errorf(x, code, invalidArg+"%s %s must not be negative", what, x)
 			return false
 		}
 
 		// spec: "... and representable by a value of type int"
 		if !representableConst(x.val, check, Typ[Int], &x.val) {
-			check.invalidArg(x, code, "%s %s overflows int", what, x)
+			check.errorf(x, code, invalidArg+"%s %s overflows int", what, x)
 			return false
 		}
 	}

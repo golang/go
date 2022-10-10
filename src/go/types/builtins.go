@@ -21,9 +21,9 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	// append is the only built-in that permits the use of ... for the last argument
 	bin := predeclaredFuncs[id]
 	if call.Ellipsis.IsValid() && id != _Append {
-		check.invalidOp(atPos(call.Ellipsis),
+		check.errorf(atPos(call.Ellipsis),
 			InvalidDotDotDot,
-			"invalid use of ... with built-in %s", bin.name)
+			invalidOp+"invalid use of ... with built-in %s", bin.name)
 		check.use(call.Args...)
 		return
 	}
@@ -69,7 +69,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			msg = "too many"
 		}
 		if msg != "" {
-			check.invalidOp(inNode(call, call.Rparen), WrongArgCount, "%s arguments for %s (expected %d, found %d)", msg, call, bin.nargs, nargs)
+			check.errorf(inNode(call, call.Rparen), WrongArgCount, invalidOp+"%s arguments for %s (expected %d, found %d)", msg, call, bin.nargs, nargs)
 			return
 		}
 	}
@@ -220,7 +220,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			if id == _Len {
 				code = InvalidLen
 			}
-			check.invalidArg(x, code, "%s for %s", x, bin.name)
+			check.errorf(x, code, invalidArg+"%s for %s", x, bin.name)
 			return
 		}
 
@@ -238,11 +238,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if !underIs(x.typ, func(u Type) bool {
 			uch, _ := u.(*Chan)
 			if uch == nil {
-				check.invalidOp(x, InvalidClose, "cannot close non-channel %s", x)
+				check.errorf(x, InvalidClose, invalidOp+"cannot close non-channel %s", x)
 				return false
 			}
 			if uch.dir == RecvOnly {
-				check.invalidOp(x, InvalidClose, "cannot close receive-only channel %s", x)
+				check.errorf(x, InvalidClose, invalidOp+"cannot close receive-only channel %s", x)
 				return false
 			}
 			return true
@@ -309,7 +309,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		// both argument types must be identical
 		if !Identical(x.typ, y.typ) {
-			check.invalidArg(x, InvalidComplex, "mismatched types %s and %s", x.typ, y.typ)
+			check.errorf(x, InvalidComplex, invalidArg+"mismatched types %s and %s", x.typ, y.typ)
 			return
 		}
 
@@ -331,7 +331,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 		resTyp := check.applyTypeFunc(f, x, id)
 		if resTyp == nil {
-			check.invalidArg(x, InvalidComplex, "arguments have type %s, expected floating-point", x.typ)
+			check.errorf(x, InvalidComplex, invalidArg+"arguments have type %s, expected floating-point", x.typ)
 			return
 		}
 
@@ -364,7 +364,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		src, _ := src0.(*Slice)
 
 		if dst == nil || src == nil {
-			check.invalidArg(x, InvalidCopy, "copy expects slice arguments; found %s and %s", x, &y)
+			check.errorf(x, InvalidCopy, invalidArg+"copy expects slice arguments; found %s and %s", x, &y)
 			return
 		}
 
@@ -388,11 +388,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if !underIs(map_, func(u Type) bool {
 			map_, _ := u.(*Map)
 			if map_ == nil {
-				check.invalidArg(x, InvalidDelete, "%s is not a map", x)
+				check.errorf(x, InvalidDelete, invalidArg+"%s is not a map", x)
 				return false
 			}
 			if key != nil && !Identical(map_.key, key) {
-				check.invalidArg(x, InvalidDelete, "maps of %s must have identical key types", x)
+				check.errorf(x, InvalidDelete, invalidArg+"maps of %s must have identical key types", x)
 				return false
 			}
 			key = map_.key
@@ -463,7 +463,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			if id == _Real {
 				code = InvalidReal
 			}
-			check.invalidArg(x, code, "argument has type %s, expected complex type", x.typ)
+			check.errorf(x, code, invalidArg+"argument has type %s, expected complex type", x.typ)
 			return
 		}
 
@@ -504,11 +504,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.errorf(arg0, InvalidMake, "cannot make %s: no core type", arg0)
 			return
 		default:
-			check.invalidArg(arg0, InvalidMake, "cannot make %s; type must be slice, map, or channel", arg0)
+			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
 			return
 		}
 		if nargs < min || min+1 < nargs {
-			check.invalidOp(call, WrongArgCount, "%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
+			check.errorf(call, WrongArgCount, invalidOp+"%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
 			return
 		}
 
@@ -522,7 +522,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 		}
 		if len(sizes) == 2 && sizes[0] > sizes[1] {
-			check.invalidArg(call.Args[1], SwappedMakeArgs, "length and capacity swapped")
+			check.errorf(call.Args[1], SwappedMakeArgs, invalidArg+"length and capacity swapped")
 			// safe to continue
 		}
 		x.mode = value
@@ -651,7 +651,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		arg0 := call.Args[0]
 		selx, _ := unparen(arg0).(*ast.SelectorExpr)
 		if selx == nil {
-			check.invalidArg(arg0, BadOffsetofSyntax, "%s is not a selector expression", arg0)
+			check.errorf(arg0, BadOffsetofSyntax, invalidArg+"%s is not a selector expression", arg0)
 			check.use(arg0)
 			return
 		}
@@ -666,18 +666,18 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
 		switch obj.(type) {
 		case nil:
-			check.invalidArg(x, MissingFieldOrMethod, "%s has no single field %s", base, sel)
+			check.errorf(x, MissingFieldOrMethod, invalidArg+"%s has no single field %s", base, sel)
 			return
 		case *Func:
 			// TODO(gri) Using derefStructPtr may result in methods being found
 			// that don't actually exist. An error either way, but the error
 			// message is confusing. See: https://play.golang.org/p/al75v23kUy ,
 			// but go/types reports: "invalid argument: x.m is a method value".
-			check.invalidArg(arg0, InvalidOffsetof, "%s is a method value", arg0)
+			check.errorf(arg0, InvalidOffsetof, invalidArg+"%s is a method value", arg0)
 			return
 		}
 		if indirect {
-			check.invalidArg(x, InvalidOffsetof, "field %s is embedded via a pointer in %s", sel, base)
+			check.errorf(x, InvalidOffsetof, invalidArg+"field %s is embedded via a pointer in %s", sel, base)
 			return
 		}
 
@@ -737,7 +737,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		ptr, _ := under(x.typ).(*Pointer) // TODO(gri) should this be coreType rather than under?
 		if ptr == nil {
-			check.invalidArg(x, InvalidUnsafeSlice, "%s is not a pointer", x)
+			check.errorf(x, InvalidUnsafeSlice, invalidArg+"%s is not a pointer", x)
 			return
 		}
 
@@ -762,7 +762,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
 		if slice == nil {
-			check.invalidArg(x, InvalidUnsafeSliceData, "%s is not a slice", x)
+			check.errorf(x, InvalidUnsafeSliceData, invalidArg+"%s is not a slice", x)
 			return
 		}
 
@@ -819,7 +819,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// The result of assert is the value of pred if there is no error.
 		// Note: assert is only available in self-test mode.
 		if x.mode != constant_ || !isBoolean(x.typ) {
-			check.invalidArg(x, Test, "%s is not a boolean constant", x)
+			check.errorf(x, Test, invalidArg+"%s is not a boolean constant", x)
 			return
 		}
 		if x.val.Kind() != constant.Bool {
