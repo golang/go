@@ -576,6 +576,12 @@ func arenaBase(i arenaIdx) uintptr {
 
 type arenaIdx uint
 
+// l1 returns the "l1" portion of an arenaIdx.
+//
+// Marked nosplit because it's called by spanOf and other nosplit
+// functions.
+//
+//go:nosplit
 func (i arenaIdx) l1() uint {
 	if arenaL1Bits == 0 {
 		// Let the compiler optimize this away if there's no
@@ -586,6 +592,12 @@ func (i arenaIdx) l1() uint {
 	}
 }
 
+// l2 returns the "l2" portion of an arenaIdx.
+//
+// Marked nosplit because it's called by spanOf and other nosplit funcs.
+// functions.
+//
+//go:nosplit
 func (i arenaIdx) l2() uint {
 	if arenaL1Bits == 0 {
 		return uint(i)
