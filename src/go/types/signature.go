@@ -173,7 +173,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)
 		if recvPar != nil {
-			check.errorf(ftyp.TypeParams, InvalidMethodTypeParams, "methods cannot have type parameters")
+			check.error(ftyp.TypeParams, InvalidMethodTypeParams, "methods cannot have type parameters")
 		}
 	}
 
@@ -286,7 +286,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 			// named parameter
 			for _, name := range field.Names {
 				if name.Name == "" {
-					check.errorf(name, InvalidSyntaxTree, invalidAST+"anonymous parameter")
+					check.error(name, InvalidSyntaxTree, invalidAST+"anonymous parameter")
 					// ok to continue
 				}
 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
@@ -304,7 +304,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	}
 
 	if named && anonymous {
-		check.errorf(list, InvalidSyntaxTree, invalidAST+"list contains both named and anonymous parameters")
+		check.error(list, InvalidSyntaxTree, invalidAST+"list contains both named and anonymous parameters")
 		// ok to continue
 	}
 

@@ -229,7 +229,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 				if at == nil {
 					at = e // e.Index[2] should be present but be careful
 				}
-				check.errorf(at, InvalidSliceExpr, invalidOp+"3-index slice of string")
+				check.error(at, InvalidSliceExpr, invalidOp+"3-index slice of string")
 				x.mode = invalid
 				return
 			}
@@ -276,7 +276,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 
 	// spec: "Only the first index may be omitted; it defaults to 0."
 	if e.Slice3 && (e.High == nil || e.Max == nil) {
-		check.errorf(inNode(e, e.Rbrack), InvalidSyntaxTree, invalidAST+"2nd and 3rd index required in 3-index slice")
+		check.error(inNode(e, e.Rbrack), InvalidSyntaxTree, invalidAST+"2nd and 3rd index required in 3-index slice")
 		x.mode = invalid
 		return
 	}
@@ -336,7 +336,7 @@ func (check *Checker) singleIndex(expr *typeparams.IndexExpr) ast.Expr {
 	}
 	if len(expr.Indices) > 1 {
 		// TODO(rFindley) should this get a distinct error code?
-		check.errorf(expr.Indices[1], InvalidIndex, invalidOp+"more than one index")
+		check.error(expr.Indices[1], InvalidIndex, invalidOp+"more than one index")
 	}
 	return expr.Indices[0]
 }

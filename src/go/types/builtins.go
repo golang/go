@@ -522,7 +522,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 		}
 		if len(sizes) == 2 && sizes[0] > sizes[1] {
-			check.errorf(call.Args[1], SwappedMakeArgs, invalidArg+"length and capacity swapped")
+			check.error(call.Args[1], SwappedMakeArgs, invalidArg+"length and capacity swapped")
 			// safe to continue
 		}
 		x.mode = value
@@ -605,7 +605,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Add:
 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
 		if !check.allowVersion(check.pkg, 1, 17) {
-			check.errorf(call.Fun, UnsupportedFeature, "unsafe.Add requires go1.17 or later")
+			check.error(call.Fun, UnsupportedFeature, "unsafe.Add requires go1.17 or later")
 			return
 		}
 
@@ -731,7 +731,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Slice:
 		// unsafe.Slice(ptr *T, len IntegerType) []T
 		if !check.allowVersion(check.pkg, 1, 17) {
-			check.errorf(call.Fun, UnsupportedFeature, "unsafe.Slice requires go1.17 or later")
+			check.error(call.Fun, UnsupportedFeature, "unsafe.Slice requires go1.17 or later")
 			return
 		}
 
@@ -756,7 +756,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _SliceData:
 		// unsafe.SliceData(slice []T) *T
 		if !check.allowVersion(check.pkg, 1, 20) {
-			check.errorf(call.Fun, UnsupportedFeature, "unsafe.SliceData requires go1.20 or later")
+			check.error(call.Fun, UnsupportedFeature, "unsafe.SliceData requires go1.20 or later")
 			return
 		}
 
@@ -775,7 +775,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _String:
 		// unsafe.String(ptr *byte, len IntegerType) string
 		if !check.allowVersion(check.pkg, 1, 20) {
-			check.errorf(call.Fun, UnsupportedFeature, "unsafe.String requires go1.20 or later")
+			check.error(call.Fun, UnsupportedFeature, "unsafe.String requires go1.20 or later")
 			return
 		}
 
@@ -799,7 +799,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _StringData:
 		// unsafe.StringData(str string) *byte
 		if !check.allowVersion(check.pkg, 1, 20) {
-			check.errorf(call.Fun, UnsupportedFeature, "unsafe.StringData requires go1.20 or later")
+			check.error(call.Fun, UnsupportedFeature, "unsafe.StringData requires go1.20 or later")
 			return
 		}
 
