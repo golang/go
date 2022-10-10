@@ -172,7 +172,8 @@ func Foo(s string) int {
 		// no errors
 		{name: "no-errors", pattern: []string{"sort"}, analyzers: []*analysis.Analyzer{analyzer, noop}, code: 0},
 	} {
-		if test.name == "despite-error" { // TODO(matloob): once CL 437298 is submitted, add the condition testenv.Go1Point() < 20
+		if test.name == "despite-error" && testenv.Go1Point() < 20 {
+			// The behavior in the comment on the despite-error test only occurs for Go 1.20+.
 			continue
 		}
 		if got := checker.Run(test.pattern, test.analyzers); got != test.code {
