@@ -58,6 +58,15 @@ Do not send CLs removing the interior tags from such phrases.
   the <code>GOPATH</code> install targets to unexpectedly remain in effect.)
 </p>
 
+<h4 id="go-version"><code>go</code> <code>version</code></h4>
+
+<p><!-- https://go.dev/issue/48187 -->
+  The <code>go</code> <code>version</code> <code>-m</code> command
+  now supports reading more types of Go binaries, most notably, Windows DLLs
+  built with <code>go</code> <code>build</code> <code>-buildmode=c-shared</code>
+  and Linux binaries without execute permission.
+</p>
+
 <h3 id="vet">Vet</h3>
 
 <p><!-- https://go.dev/issue/48801, CL 354010 -->
