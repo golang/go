@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"golang.org/x/mod/modfile"
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
 )
 
 func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, position protocol.Position) (*protocol.Hover, error) {
@@ -78,7 +78,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}
 
 	// Get the range to highlight for the hover.
-	rng, err := source.ByteOffsetsToRange(pm.Mapper, fh.URI(), startPos, endPos)
+	rng, err := pm.Mapper.OffsetRange(startPos, endPos)
 	if err != nil {
 		return nil, err
 	}

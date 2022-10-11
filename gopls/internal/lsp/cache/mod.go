@@ -79,7 +79,7 @@ func parseModImpl(ctx context.Context, fh source.FileHandle) (*source.ParsedModu
 			return nil, fmt.Errorf("unexpected parse error type %v", parseErr)
 		}
 		for _, mfErr := range mfErrList {
-			rng, err := rangeFromPositions(m, mfErr.Pos, mfErr.Pos)
+			rng, err := m.OffsetRange(mfErr.Pos.Byte, mfErr.Pos.Byte)
 			if err != nil {
 				return nil, err
 			}
@@ -155,7 +155,7 @@ func parseWorkImpl(ctx context.Context, fh source.FileHandle) (*source.ParsedWor
 			return nil, fmt.Errorf("unexpected parse error type %v", parseErr)
 		}
 		for _, mfErr := range mfErrList {
-			rng, err := rangeFromPositions(m, mfErr.Pos, mfErr.Pos)
+			rng, err := m.OffsetRange(mfErr.Pos.Byte, mfErr.Pos.Byte)
 			if err != nil {
 				return nil, err
 			}

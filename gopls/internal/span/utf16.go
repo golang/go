@@ -13,6 +13,9 @@ import (
 // supplied file contents.
 // This is used to convert from the native (always in bytes) column
 // representation and the utf16 counts used by some editors.
+//
+// TODO(adonovan): this function is unused except by its test. Delete,
+// or consolidate with (*protocol.ColumnMapper).utf16Column.
 func ToUTF16Column(p Point, content []byte) (int, error) {
 	if !p.HasPosition() {
 		return -1, fmt.Errorf("ToUTF16Column: point is missing position")

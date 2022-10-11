@@ -209,7 +209,8 @@ func (s Span) Format(f fmt.State, c rune) {
 	}
 }
 
-func (s Span) WithPosition(tf *token.File) (Span, error) {
+// (Currently unused, but we gain little yet by deleting it.)
+func (s Span) withPosition(tf *token.File) (Span, error) {
 	if err := s.update(tf, true, false); err != nil {
 		return Span{}, err
 	}

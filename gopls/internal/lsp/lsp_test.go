@@ -360,26 +360,18 @@ func foldRanges(m *protocol.ColumnMapper, contents string, ranges []protocol.Fol
 	res := contents
 	// Apply the edits from the end of the file forward
 	// to preserve the offsets
+	// TODO(adonovan): factor to use diff.ApplyEdits, which validates the input.
 	for i := len(ranges) - 1; i >= 0; i-- {
-		fRange := ranges[i]
-		spn, err := m.RangeSpan(protocol.Range{
-			Start: protocol.Position{
-				Line:      fRange.StartLine,
-				Character: fRange.StartCharacter,
-			},
-			End: protocol.Position{
-				Line:      fRange.EndLine,
-				Character: fRange.EndCharacter,
-			},
-		})
+		r := ranges[i]
+		start, err := m.Point(protocol.Position{r.StartLine, r.StartCharacter})
 		if err != nil {
 			return "", err
 		}
-		start := spn.Start().Offset()
-		end := spn.End().Offset()
-
-		tmp := res[0:start] + foldedText
-		res = tmp + res[end:]
+		end, err := m.Point(protocol.Position{r.EndLine, r.EndCharacter})
+		if err != nil {
+			return "", err
+		}
+		res = res[:start.Offset()] + foldedText + res[end.Offset():]
 	}
 	return res, nil
 }

@@ -17,7 +17,6 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
@@ -26,6 +25,9 @@ import (
 
 // MappedRange provides mapped protocol.Range for a span.Range, accounting for
 // UTF-16 code points.
+//
+// TOOD(adonovan): stop treating //line directives specially, and
+// eliminate this type. All callers need either m, or a protocol.Range.
 type MappedRange struct {
 	spanRange span.Range             // the range in the compiled source (package.CompiledGoFiles)
 	m         *protocol.ColumnMapper // a mapper of the edited source (package.GoFiles)
@@ -553,26 +555,6 @@ func IsValidImport(pkgPath, importPkgPath string) bool {
 // TODO(rfindley): this should accept a PackageID.
 func IsCommandLineArguments(s string) bool {
 	return strings.Contains(s, "command-line-arguments")
-}
-
-// LineToRange creates a Range spanning start and end.
-func LineToRange(m *protocol.ColumnMapper, uri span.URI, start, end modfile.Position) (protocol.Range, error) {
-	return ByteOffsetsToRange(m, uri, start.Byte, end.Byte)
-}
-
-// ByteOffsetsToRange creates a range spanning start and end.
-func ByteOffsetsToRange(m *protocol.ColumnMapper, uri span.URI, start, end int) (protocol.Range, error) {
-	line, col, err := span.ToPosition(m.TokFile, start)
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	s := span.NewPoint(line, col, start)
-	line, col, err = span.ToPosition(m.TokFile, end)
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	e := span.NewPoint(line, col, end)
-	return m.Range(span.New(uri, s, e))
 }
 
 // RecvIdent returns the type identifier of a method receiver.

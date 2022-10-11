@@ -136,7 +136,7 @@ func ModUpgradeDiagnostics(ctx context.Context, snapshot source.Snapshot, fh sou
 		if !ok || req.Mod.Version == ver {
 			continue
 		}
-		rng, err := source.LineToRange(pm.Mapper, fh.URI(), req.Syntax.Start, req.Syntax.End)
+		rng, err := pm.Mapper.OffsetRange(req.Syntax.Start.Byte, req.Syntax.End.Byte)
 		if err != nil {
 			return nil, err
 		}
@@ -205,7 +205,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		if !ok {
 			continue
 		}
-		rng, err := source.LineToRange(pm.Mapper, fh.URI(), req.Syntax.Start, req.Syntax.End)
+		rng, err := pm.Mapper.OffsetRange(req.Syntax.Start.Byte, req.Syntax.End.Byte)
 		if err != nil {
 			return nil, err
 		}

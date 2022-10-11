@@ -134,7 +134,7 @@ func moduleStmtRange(fh source.FileHandle, pm *source.ParsedModule) (protocol.Ra
 		return protocol.Range{}, fmt.Errorf("no module statement in %s", fh.URI())
 	}
 	syntax := pm.File.Module.Syntax
-	return source.LineToRange(pm.Mapper, fh.URI(), syntax.Start, syntax.End)
+	return pm.Mapper.OffsetRange(syntax.Start.Byte, syntax.End.Byte)
 }
 
 // firstRequireRange returns the range for the first "require" in the given
@@ -155,7 +155,7 @@ func firstRequireRange(fh source.FileHandle, pm *source.ParsedModule) (protocol.
 	if start.Byte == 0 || firstRequire.Start.Byte < start.Byte {
 		start, end = firstRequire.Start, firstRequire.End
 	}
-	return source.LineToRange(pm.Mapper, fh.URI(), start, end)
+	return pm.Mapper.OffsetRange(start.Byte, end.Byte)
 }
 
 func vulncheckLenses(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.CodeLens, error) {

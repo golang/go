@@ -93,15 +93,11 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 		if !end.IsValid() {
 			end = edit.Pos
 		}
-		spn, err := span.NewRange(tokFile, edit.Pos, end).Span()
+		fh, err := snapshot.GetVersionedFile(ctx, span.URIFromPath(tokFile.Name()))
 		if err != nil {
 			return nil, err
 		}
-		fh, err := snapshot.GetVersionedFile(ctx, spn.URI())
-		if err != nil {
-			return nil, err
-		}
-		te, ok := editsPerFile[spn.URI()]
+		te, ok := editsPerFile[fh.URI()]
 		if !ok {
 			te = &protocol.TextDocumentEdit{
 				TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
@@ -111,13 +107,13 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 					},
 				},
 			}
-			editsPerFile[spn.URI()] = te
+			editsPerFile[fh.URI()] = te
 		}
 		_, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
 		if err != nil {
 			return nil, err
 		}
-		rng, err := pgf.Mapper.Range(spn)
+		rng, err := pgf.Mapper.PosRange(edit.Pos, end)
 		if err != nil {
 			return nil, err
 		}

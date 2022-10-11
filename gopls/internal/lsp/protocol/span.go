@@ -4,6 +4,34 @@
 
 // this file contains protocol<->span converters
 
+// Here's a handy guide for your tour of the location zoo:
+//
+// Imports: source  --> lsppos  -->  protocol  -->  span  -->  token
+//
+// source.MappedRange = (span.Range, protocol.ColumnMapper)
+//
+// lsppos.TokenMapper = (token.File, lsppos.Mapper)
+// lsppos.Mapper = (line offset table, content)
+//
+// protocol.ColumnMapper = (URI, token.File, content)
+// protocol.Location = (URI, protocol.Range)
+// protocol.Range = (start, end Position)
+// protocol.Position = (line, char uint32) 0-based UTF-16
+//
+// span.Point = (line?, col?, offset?) 1-based UTF-8
+// span.Span = (uri URI, start, end span.Point)
+// span.Range = (file token.File, start, end token.Pos)
+//
+// token.Pos
+// token.FileSet
+// offset int
+//
+// TODO(adonovan): simplify this picture. Eliminate the optionality of
+// span.{Span,Point}'s position and offset fields: work internally in
+// terms of offsets (like span.Range), and require a mapper to convert
+// them to protocol (UTF-16) line/col form. Stop honoring //line
+// directives.
+
 package protocol
 
 import (
@@ -12,6 +40,7 @@ import (
 	"go/token"
 	"unicode/utf8"
 
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 )
 
@@ -67,7 +96,7 @@ func (m *ColumnMapper) Range(s span.Span) (Range, error) {
 	if span.CompareURI(m.URI, s.URI()) != 0 {
 		return Range{}, fmt.Errorf("column mapper is for file %q instead of %q", m.URI, s.URI())
 	}
-	s, err := s.WithAll(m.TokFile)
+	s, err := s.WithOffset(m.TokFile)
 	if err != nil {
 		return Range{}, err
 	}
@@ -95,6 +124,19 @@ func (m *ColumnMapper) OffsetRange(start, end int) (Range, error) {
 	}
 
 	return Range{Start: startPosition, End: endPosition}, nil
+}
+
+// PosRange returns a protocol Range for the token.Pos interval Content[start:end].
+func (m *ColumnMapper) PosRange(start, end token.Pos) (Range, error) {
+	startOffset, err := safetoken.Offset(m.TokFile, start)
+	if err != nil {
+		return Range{}, fmt.Errorf("start: %v", err)
+	}
+	endOffset, err := safetoken.Offset(m.TokFile, end)
+	if err != nil {
+		return Range{}, fmt.Errorf("end: %v", err)
+	}
+	return m.OffsetRange(startOffset, endOffset)
 }
 
 // Position returns the protocol position for the specified point,
@@ -163,6 +205,8 @@ func (m *ColumnMapper) Span(l Location) (span.Span, error) {
 	return m.RangeSpan(l.Range)
 }
 
+// RangeSpan converts a UTF-16 range to a Span with both the
+// position (line/col) and offset fields populated.
 func (m *ColumnMapper) RangeSpan(r Range) (span.Span, error) {
 	start, err := m.Point(r.Start)
 	if err != nil {
@@ -183,22 +227,13 @@ func (m *ColumnMapper) RangeToSpanRange(r Range) (span.Range, error) {
 	return spn.Range(m.TokFile)
 }
 
-// Pos returns the token.Pos of p within the mapped file.
+// Pos returns the token.Pos of protocol position p within the mapped file.
 func (m *ColumnMapper) Pos(p Position) (token.Pos, error) {
 	start, err := m.Point(p)
 	if err != nil {
 		return token.NoPos, err
 	}
-	// TODO: refactor the span package to avoid creating this unnecessary end position.
-	spn, err := span.New(m.URI, start, start).WithAll(m.TokFile)
-	if err != nil {
-		return token.NoPos, err
-	}
-	rng, err := spn.Range(m.TokFile)
-	if err != nil {
-		return token.NoPos, err
-	}
-	return rng.Start, nil
+	return safetoken.Pos(m.TokFile, start.Offset())
 }
 
 // Offset returns the utf-8 byte offset of p within the mapped file.
@@ -210,10 +245,12 @@ func (m *ColumnMapper) Offset(p Position) (int, error) {
 	return start.Offset(), nil
 }
 
-// Point returns a span.Point for p within the mapped file. The resulting point
-// always has an Offset.
+// Point returns a span.Point for the protocol position p within the mapped file.
+// The resulting point has a valid Position and Offset.
 func (m *ColumnMapper) Point(p Position) (span.Point, error) {
 	line := int(p.Line) + 1
+
+	// Find byte offset of start of containing line.
 	offset, err := span.ToOffset(m.TokFile, line, 1)
 	if err != nil {
 		return span.Point{}, err

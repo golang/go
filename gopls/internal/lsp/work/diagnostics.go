@@ -59,7 +59,7 @@ func DiagnosticsForWork(ctx context.Context, snapshot source.Snapshot, fh source
 	// Add diagnostic if a directory does not contain a module.
 	var diagnostics []*source.Diagnostic
 	for _, use := range pw.File.Use {
-		rng, err := source.LineToRange(pw.Mapper, fh.URI(), use.Syntax.Start, use.Syntax.End)
+		rng, err := pw.Mapper.OffsetRange(use.Syntax.Start.Byte, use.Syntax.End.Byte)
 		if err != nil {
 			return nil, err
 		}

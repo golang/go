@@ -729,7 +729,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 			if reference == nil {
 				continue
 			}
-			rng, err := rangeFromPositions(pm.Mapper, reference.Start, reference.End)
+			rng, err := pm.Mapper.OffsetRange(reference.Start.Byte, reference.End.Byte)
 			if err != nil {
 				return nil, err
 			}

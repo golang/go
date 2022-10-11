@@ -392,8 +392,8 @@ func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, fi
 			}
 		case source.Mod:
 			if pmf, err := s.ParseMod(ctx, fh); err == nil {
-				if pmf.File.Module != nil && pmf.File.Module.Syntax != nil {
-					rng, _ = rangeFromPositions(pmf.Mapper, pmf.File.Module.Syntax.Start, pmf.File.Module.Syntax.End)
+				if mod := pmf.File.Module; mod != nil && mod.Syntax != nil {
+					rng, _ = pmf.Mapper.OffsetRange(mod.Syntax.Start.Byte, mod.Syntax.End.Byte)
 				}
 			}
 		}
