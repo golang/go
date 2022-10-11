@@ -54,7 +54,7 @@ func Apply(src string, edits []Edit) (string, error) {
 func validate(src string, edits []Edit) ([]Edit, int, error) {
 	if !sort.IsSorted(editsSort(edits)) {
 		edits = append([]Edit(nil), edits...)
-		sortEdits(edits)
+		SortEdits(edits)
 	}
 
 	// Check validity of edits and compute final size.
@@ -74,13 +74,13 @@ func validate(src string, edits []Edit) ([]Edit, int, error) {
 	return edits, size, nil
 }
 
-// sortEdits orders edits by (start, end) offset.
-// This ordering puts insertions (end=start) before deletions
-// (end>start) at the same point, but uses a stable sort to preserve
+// SortEdits orders a slice of Edits by (start, end) offset.
+// This ordering puts insertions (end = start) before deletions
+// (end > start) at the same point, but uses a stable sort to preserve
 // the order of multiple insertions at the same point.
 // (Apply detects multiple deletions at the same point as an error.)
-func sortEdits(edits editsSort) {
-	sort.Stable(edits)
+func SortEdits(edits []Edit) {
+	sort.Stable(editsSort(edits))
 }
 
 type editsSort []Edit

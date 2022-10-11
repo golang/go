@@ -340,6 +340,12 @@ func protocolEditsFromSource(src []byte, edits []diff.Edit, tf *token.File) ([]p
 // ToProtocolEdits converts diff.Edits to LSP TextEdits.
 // See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textEditArray
 func ToProtocolEdits(m *protocol.ColumnMapper, edits []diff.Edit) ([]protocol.TextEdit, error) {
+	// LSP doesn't require TextEditArray to be sorted:
+	// this is the receiver's concern. But govim, and perhaps
+	// other clients have historically relied on the order.
+	edits = append([]diff.Edit(nil), edits...)
+	diff.SortEdits(edits)
+
 	result := make([]protocol.TextEdit, len(edits))
 	for i, edit := range edits {
 		rng, err := m.OffsetRange(edit.Start, edit.End)
