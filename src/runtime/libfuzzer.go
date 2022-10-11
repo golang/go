@@ -20,49 +20,49 @@ const retSledSize = 512
 // This may result in these functions having callers that are nosplit. That is why they must be nosplit.
 //
 //go:nosplit
-func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC int) {
+func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC uint) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp1, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
 //go:nosplit
-func libfuzzerTraceCmp2(arg0, arg1 uint16, fakePC int) {
+func libfuzzerTraceCmp2(arg0, arg1 uint16, fakePC uint) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp2, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
 //go:nosplit
-func libfuzzerTraceCmp4(arg0, arg1 uint32, fakePC int) {
+func libfuzzerTraceCmp4(arg0, arg1 uint32, fakePC uint) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp4, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
 //go:nosplit
-func libfuzzerTraceCmp8(arg0, arg1 uint64, fakePC int) {
+func libfuzzerTraceCmp8(arg0, arg1 uint64, fakePC uint) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp8, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
 //go:nosplit
-func libfuzzerTraceConstCmp1(arg0, arg1 uint8, fakePC int) {
+func libfuzzerTraceConstCmp1(arg0, arg1 uint8, fakePC uint) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp1, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
 //go:nosplit
-func libfuzzerTraceConstCmp2(arg0, arg1 uint16, fakePC int) {
+func libfuzzerTraceConstCmp2(arg0, arg1 uint16, fakePC uint) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp2, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
 //go:nosplit
-func libfuzzerTraceConstCmp4(arg0, arg1 uint32, fakePC int) {
+func libfuzzerTraceConstCmp4(arg0, arg1 uint32, fakePC uint) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp4, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
 
 //go:nosplit
-func libfuzzerTraceConstCmp8(arg0, arg1 uint64, fakePC int) {
+func libfuzzerTraceConstCmp8(arg0, arg1 uint64, fakePC uint) {
 	fakePC = fakePC % retSledSize
 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp8, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
 }
