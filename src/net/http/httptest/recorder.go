@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"net/textproto"
 	"strconv"
 	"strings"
@@ -41,6 +42,9 @@ type ResponseRecorder struct {
 
 	// Flushed is whether the Handler called Flush.
 	Flushed bool
+
+	// ClientTrace is used to trace 1XX responses
+	ClientTrace *httptrace.ClientTrace
 
 	result      *http.Response // cache of Result's return value
 	snapHeader  http.Header    // snapshot of HeaderMap at first Write
@@ -146,6 +150,20 @@ func (rw *ResponseRecorder) WriteHeader(code int) {
 	}
 
 	checkWriteHeaderCode(code)
+
+	if rw.ClientTrace != nil && code >= 100 && code < 200 {
+		if code == 100 {
+			rw.ClientTrace.Got100Continue()
+		}
+		// treat 101 as a terminal status, see issue 26161
+		if code != http.StatusSwitchingProtocols {
+			if err := rw.ClientTrace.Got1xxResponse(code, textproto.MIMEHeader(rw.HeaderMap)); err != nil {
+				panic(err)
+			}
+			return
+		}
+	}
+
 	rw.Code = code
 	rw.wroteHeader = true
 	if rw.HeaderMap == nil {
