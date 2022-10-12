@@ -33,42 +33,42 @@ func Baz(f func()) {
 //        t2 = *t1
 //        *t2 = Baz$1
 //        t3 = local A (a)
-//        t4 = &t3.foo [#0]
-//        t5 = *t1
-//        t6 = *t5
-//        *t4 = t6
+//        t4 = *t1
+//        t5 = *t4
+//        t6 = &t3.foo [#0]
+//        *t6 = t5
 //        t7 = &t3.foo [#0]
 //        t8 = *t7
 //        t9 = t8()
-//        t10 = &t3.do [#1]                                                 *Doer
-//        t11 = &t3.foo [#0]                                              *func()
-//        t12 = *t11                                                       func()
-//        t13 = changetype Doer <- func() (t12)                              Doer
-//        *t10 = t13
+//        t10 = &t3.foo [#0]                                              *func()
+//        t11 = *t10                                                       func()
+//        t12 = &t3.do [#1]                                                 *Doer
+//        t13 = changetype Doer <- func() (t11)                              Doer
+//        *t12 = t13
 //        t14 = &t3.do [#1]                                                 *Doer
 //        t15 = *t14                                                         Doer
 //        t16 = t15()                                                          ()
 
 // Flow chain showing that Baz$1 reaches t8():
-//   Baz$1 -> t2 <-> PtrFunction(func()) <-> t5 -> t6 -> t4 <-> Field(testdata.A:foo) <-> t7 -> t8
+//   Baz$1 -> t2 <-> PtrFunction(func()) <-> t4 -> t5 -> t6 <-> Field(testdata.A:foo) <-> t7 -> t8
 // Flow chain showing that Baz$1 reaches t15():
-//  Field(testdata.A:foo) <-> t11 -> t12 -> t13 -> t10 <-> Field(testdata.A:do) <-> t14 -> t15
+//  Field(testdata.A:foo) <-> t10 -> t11 -> t13 -> t12 <-> Field(testdata.A:do) <-> t14 -> t15
 
 // WANT:
 // Local(f) -> Local(t0)
 // Local(t0) -> PtrFunction(func())
 // Function(Baz$1) -> Local(t2)
-// PtrFunction(func()) -> Local(t0), Local(t2), Local(t5)
+// PtrFunction(func()) -> Local(t0), Local(t2), Local(t4)
 // Local(t2) -> PtrFunction(func())
-// Local(t4) -> Field(testdata.A:foo)
-// Local(t5) -> Local(t6), PtrFunction(func())
-// Local(t6) -> Local(t4)
+// Local(t6) -> Field(testdata.A:foo)
+// Local(t4) -> Local(t5), PtrFunction(func())
+// Local(t5) -> Local(t6)
 // Local(t7) -> Field(testdata.A:foo), Local(t8)
-// Field(testdata.A:foo) -> Local(t11), Local(t4), Local(t7)
-// Local(t4) -> Field(testdata.A:foo)
-// Field(testdata.A:do) -> Local(t10), Local(t14)
-// Local(t10) -> Field(testdata.A:do)
-// Local(t11) -> Field(testdata.A:foo), Local(t12)
-// Local(t12) -> Local(t13)
-// Local(t13) -> Local(t10)
+// Field(testdata.A:foo) -> Local(t10), Local(t6), Local(t7)
+// Local(t6) -> Field(testdata.A:foo)
+// Field(testdata.A:do) -> Local(t12), Local(t14)
+// Local(t12) -> Field(testdata.A:do)
+// Local(t10) -> Field(testdata.A:foo), Local(t11)
+// Local(t11) -> Local(t13)
+// Local(t13) -> Local(t12)
 // Local(t14) -> Field(testdata.A:do), Local(t15)

@@ -453,12 +453,16 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		}
 		wantAddr := true
 		v := b.receiver(fn, e.X, wantAddr, escaping, sel)
-		last := len(sel.index) - 1
-		return &address{
-			addr: emitFieldSelection(fn, v, sel.index[last], true, e.Sel),
-			pos:  e.Sel.Pos(),
-			expr: e.Sel,
+		index := sel.index[len(sel.index)-1]
+		fld := typeparams.CoreType(deref(v.Type())).(*types.Struct).Field(index)
+
+		// Due to the two phases of resolving AssignStmt, a panic from x.f = p()
+		// when x is nil is required to come after the side-effects of
+		// evaluating x and p().
+		emit := func(fn *Function) Value {
+			return emitFieldSelection(fn, v, index, true, e.Sel)
 		}
+		return &lazyAddress{addr: emit, t: fld.Type(), pos: e.Sel.Pos(), expr: e.Sel}
 
 	case *ast.IndexExpr:
 		var x Value
@@ -487,13 +491,19 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		if isUntyped(index.Type()) {
 			index = emitConv(fn, index, tInt)
 		}
-		v := &IndexAddr{
-			X:     x,
-			Index: index,
+		// Due to the two phases of resolving AssignStmt, a panic from x[i] = p()
+		// when x is nil or i is out-of-bounds is required to come after the
+		// side-effects of evaluating x, i and p().
+		emit := func(fn *Function) Value {
+			v := &IndexAddr{
+				X:     x,
+				Index: index,
+			}
+			v.setPos(e.Lbrack)
+			v.setType(et)
+			return fn.emit(v)
 		}
-		v.setPos(e.Lbrack)
-		v.setType(et)
-		return &address{addr: fn.emit(v), pos: e.Lbrack, expr: e}
+		return &lazyAddress{addr: emit, t: deref(et), pos: e.Lbrack, expr: e}
 
 	case *ast.StarExpr:
 		return &address{addr: b.expr(fn, e.X), pos: e.Star, expr: e}

@@ -127,6 +127,7 @@ var testdataTests = []string{
 	"width32.go",
 
 	"fixedbugs/issue52342.go",
+	"fixedbugs/issue55086.go",
 }
 
 func init() {
