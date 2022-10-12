@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -988,6 +989,7 @@ func TestContextCancel(t *testing.T) {
 		if time.Since(start) > time.Minute {
 			// Panic instead of calling t.Fatal so that we get a goroutine dump.
 			// We want to know exactly what the os/exec goroutines got stuck on.
+			debug.SetTraceback("system")
 			panic("canceling context did not stop program")
 		}
 
