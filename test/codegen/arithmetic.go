@@ -174,7 +174,7 @@ func AddAddSubSimplify(a, b, c int) int {
 }
 
 func NegToInt32(a int) int {
-	// riscv64: "NEG","MOVW"
+	// riscv64: "NEGW",-"MOVW"
 	r := int(int32(-a))
 	return r
 }

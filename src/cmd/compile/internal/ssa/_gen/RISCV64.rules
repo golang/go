@@ -589,6 +589,9 @@
 (MOVHUreg (ANDI [c] x)) && c < 0 => (ANDI [int64(uint16(c))] x)
 (MOVWUreg (ANDI [c] x)) && c < 0 => (AND (MOVDconst [int64(uint32(c))]) x)
 
+// Combine negation and sign extension.
+(MOVWreg (NEG x)) => (NEGW x)
+
 // Avoid sign/zero extension for consts.
 (MOVBreg  (MOVDconst [c])) => (MOVDconst [int64(int8(c))])
 (MOVHreg  (MOVDconst [c])) => (MOVDconst [int64(int16(c))])

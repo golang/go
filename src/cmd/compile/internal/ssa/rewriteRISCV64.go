@@ -5644,6 +5644,17 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
+	// match: (MOVWreg (NEG x))
+	// result: (NEGW x)
+	for {
+		if v_0.Op != OpRISCV64NEG {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpRISCV64NEGW)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVWreg (MOVDconst [c]))
 	// result: (MOVDconst [int64(int32(c))])
 	for {
