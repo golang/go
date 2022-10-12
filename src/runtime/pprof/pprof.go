@@ -371,8 +371,7 @@ type countProfile interface {
 // as the pprof-proto format output. Translations from cycle count to time duration
 // are done because The proto expects count and time (nanoseconds) instead of count
 // and the number of cycles for block, contention profiles.
-// Possible 'scaler' functions are scaleBlockProfile and scaleMutexProfile.
-func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler func(int64, float64) (int64, float64), records []runtime.BlockProfileRecord) error {
+func printCountCycleProfile(w io.Writer, countName, cycleName string, records []runtime.BlockProfileRecord) error {
 	// Output profile in protobuf form.
 	b := newProfileBuilder(w)
 	b.pbValueType(tagProfile_PeriodType, countName, "count")
@@ -385,9 +384,8 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler fun
 	values := []int64{0, 0}
 	var locs []uint64
 	for _, r := range records {
-		count, nanosec := scaler(r.Count, float64(r.Cycles)/cpuGHz)
-		values[0] = count
-		values[1] = int64(nanosec)
+		values[0] = r.Count
+		values[1] = int64(float64(r.Cycles) / cpuGHz)
 		// For count profiles, all stack addresses are
 		// return PCs, which is what appendLocsForStack expects.
 		locs = b.appendLocsForStack(locs[:0], r.Stack())
@@ -855,24 +853,16 @@ func countMutex() int {
 
 // writeBlock writes the current blocking profile to w.
 func writeBlock(w io.Writer, debug int) error {
-	return writeProfileInternal(w, debug, "contention", runtime.BlockProfile, scaleBlockProfile)
-}
-
-func scaleBlockProfile(cnt int64, ns float64) (int64, float64) {
-	// Do nothing.
-	// The current way of block profile sampling makes it
-	// hard to compute the unsampled number. The legacy block
-	// profile parse doesn't attempt to scale or unsample.
-	return cnt, ns
+	return writeProfileInternal(w, debug, "contention", runtime.BlockProfile)
 }
 
 // writeMutex writes the current mutex profile to w.
 func writeMutex(w io.Writer, debug int) error {
-	return writeProfileInternal(w, debug, "mutex", runtime.MutexProfile, scaleMutexProfile)
+	return writeProfileInternal(w, debug, "mutex", runtime.MutexProfile)
 }
 
 // writeProfileInternal writes the current blocking or mutex profile depending on the passed parameters
-func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile func([]runtime.BlockProfileRecord) (int, bool), scaleProfile func(int64, float64) (int64, float64)) error {
+func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile func([]runtime.BlockProfileRecord) (int, bool)) error {
 	var p []runtime.BlockProfileRecord
 	n, ok := runtimeProfile(nil)
 	for {
@@ -887,7 +877,7 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
 	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
 
 	if debug <= 0 {
-		return printCountCycleProfile(w, "contentions", "delay", scaleProfile, p)
+		return printCountCycleProfile(w, "contentions", "delay", p)
 	}
 
 	b := bufio.NewWriter(w)
@@ -915,11 +905,6 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
 		tw.Flush()
 	}
 	return b.Flush()
-}
-
-func scaleMutexProfile(cnt int64, ns float64) (int64, float64) {
-	period := runtime.SetMutexProfileFraction(-1)
-	return cnt * int64(period), ns * float64(period)
 }
 
 func runtime_cyclesPerSecond() int64

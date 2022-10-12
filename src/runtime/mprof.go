@@ -510,10 +510,18 @@ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
 	bp := b.bp()
 
 	lock(&profBlockLock)
+	// We want to up-scale the count and cycles according to the
+	// probability that the event was sampled. For block profile events,
+	// the sample probability is 1 if cycles >= rate, and cycles / rate
+	// otherwise. For mutex profile events, the sample probability is 1 / rate.
+	// We scale the events by 1 / (probability the event was sampled).
 	if which == blockProfile && cycles < rate {
 		// Remove sampling bias, see discussion on http://golang.org/cl/299991.
 		bp.count += float64(rate) / float64(cycles)
 		bp.cycles += rate
+	} else if which == mutexProfile {
+		bp.count += float64(rate)
+		bp.cycles += rate * cycles
 	} else {
 		bp.count++
 		bp.cycles += cycles
