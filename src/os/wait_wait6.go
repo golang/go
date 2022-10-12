@@ -11,7 +11,10 @@ import (
 	"syscall"
 )
 
-const _P_PID = 0
+const (
+	_P_PID        = 0 // everywhere except for NetBSD?
+	_P_PID_NETBSD = 1 // on NetBSD, 0 is P_ALL
+)
 
 // blockUntilWaitable attempts to block until a call to p.Wait will
 // succeed immediately, and reports whether it has done so.
@@ -26,6 +29,8 @@ func (p *Process) blockUntilWaitable() (bool, error) {
 			_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0, 0)
 		} else if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
 			_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, 0, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0)
+		} else if runtime.GOOS == "netbsd" {
+			_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID_NETBSD, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
 		} else {
 			_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
 		}
