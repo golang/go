@@ -9,6 +9,7 @@ import (
 	"go/importer"
 	"go/parser"
 	"go/token"
+	"internal/testenv"
 	"path"
 	"path/filepath"
 	"testing"
@@ -18,6 +19,8 @@ import (
 )
 
 func TestSelf(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
+
 	fset := token.NewFileSet()
 	files, err := pkgFiles(fset, ".")
 	if err != nil {
@@ -32,6 +35,8 @@ func TestSelf(t *testing.T) {
 }
 
 func BenchmarkCheck(b *testing.B) {
+	testenv.MustHaveGoBuild(b) // The Go command is needed for the importer to determine the locations of stdlib .a files.
+
 	for _, p := range []string{
 		"net/http",
 		"go/parser",
