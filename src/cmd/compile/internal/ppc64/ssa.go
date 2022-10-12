@@ -963,18 +963,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 
-	case ssa.OpPPC64ISEL, ssa.OpPPC64ISELB:
-		// ISEL, ISELB
-		// AuxInt value indicates condition: 0=LT 1=GT 2=EQ 4=GE 5=LE 6=NE
-		// ISEL only accepts 0, 1, 2 condition values but the others can be
-		// achieved by swapping operand order.
-		// arg0 ? arg1 : arg2 with conditions LT, GT, EQ
-		// arg0 ? arg2 : arg1 for conditions GE, LE, NE
-		// ISELB is used when a boolean result is needed, returning 0 or 1
+	case ssa.OpPPC64ISEL, ssa.OpPPC64ISELB, ssa.OpPPC64ISELZ:
+		// ISEL  AuxInt ? arg0 : arg1
+		// ISELB is a special case of ISEL where AuxInt ? $1 (arg0) : $0.
+		// ISELZ is a special case of ISEL where arg1 is implicitly $0.
+		//
+		// AuxInt value indicates conditions 0=LT 1=GT 2=EQ 3=SO 4=GE 5=LE 6=NE 7=NSO.
+		// ISEL accepts a CR bit argument, not a condition as expressed by AuxInt.
+		// Convert the condition to a CR bit argument by the following conversion:
+		//
+		// AuxInt&3 ? arg0 : arg1 for conditions LT, GT, EQ, SO
+		// AuxInt&3 ? arg1 : arg0 for conditions GE, LE, NE, NSO
 		p := s.Prog(ppc64.AISEL)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-		// For ISELB, boolean result 0 or 1. Use R0 for 0 operand to avoid load.
+		// For ISELB/ISELZ Use R0 for 0 operand to avoid load.
 		r := obj.Addr{Type: obj.TYPE_REG, Reg: ppc64.REG_R0}
 		if v.Op == ssa.OpPPC64ISEL {
 			r.Reg = v.Args[1].Reg()

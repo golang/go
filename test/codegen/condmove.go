@@ -440,3 +440,27 @@ func cmovzero2(c bool) int {
 	// loong64:"MASKNEZ", -"MASKEQZ"
 	return x
 }
+
+// Conditionally selecting between a value or 0 can be done without
+// an extra load of 0 to a register on PPC64 by using R0 (which always
+// holds the value $0) instead. Verify both cases where either arg1
+// or arg2 is zero.
+func cmovzeroreg0(a, b int) int {
+	x := 0
+	if a == b {
+		x = a
+	}
+	// ppc64:"ISEL\t[$]2, R[0-9]+, R0, R[0-9]+"
+	// ppc64le:"ISEL\t[$]2, R[0-9]+, R0, R[0-9]+"
+	return x
+}
+
+func cmovzeroreg1(a, b int) int {
+	x := a
+	if a == b {
+		x = 0
+	}
+	// ppc64:"ISEL\t[$]2, R0, R[0-9]+, R[0-9]+"
+	// ppc64le:"ISEL\t[$]2, R0, R[0-9]+, R[0-9]+"
+	return x
+}

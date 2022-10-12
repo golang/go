@@ -2240,6 +2240,7 @@ const (
 	OpPPC64CMPWUconst
 	OpPPC64ISEL
 	OpPPC64ISELB
+	OpPPC64ISELZ
 	OpPPC64Equal
 	OpPPC64NotEqual
 	OpPPC64LessThan
@@ -30059,6 +30060,20 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ISELB",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     ppc64.AISEL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:    "ISELZ",
 		auxType: auxInt32,
 		argLen:  2,
 		asm:     ppc64.AISEL,

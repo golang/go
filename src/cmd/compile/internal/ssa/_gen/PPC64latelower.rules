@@ -3,3 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // This file contains rules used by the laterLower pass.
+
+// Simplify ISEL x $0 z into ISELZ
+(ISEL [a] x (MOVDconst [0]) z) => (ISELZ [a] x z)
+// Simplify ISEL $0 y z into ISELZ by inverting comparison and reversing arguments.
+(ISEL [a] (MOVDconst [0]) y z) => (ISELZ [a^0x4] y z)

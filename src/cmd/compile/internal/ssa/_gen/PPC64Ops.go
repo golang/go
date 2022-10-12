@@ -404,11 +404,14 @@ func init() {
 		{name: "CMPWconst", argLength: 1, reg: gp1cr, asm: "CMPW", aux: "Int32", typ: "Flags"},
 		{name: "CMPWUconst", argLength: 1, reg: gp1cr, asm: "CMPWU", aux: "Int32", typ: "Flags"},
 
-		// ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
-		// ISEL auxInt values 4=GE 5=LE 6=NE   !arg2 ? arg1 : arg0
-		// ISELB special case where arg0, arg1 values are 0, 1 for boolean result
-		{name: "ISEL", argLength: 3, reg: crgp21, asm: "ISEL", aux: "Int32", typ: "Int32"},  // see above
-		{name: "ISELB", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32", typ: "Int32"}, // see above
+		// ISEL  arg2 ? arg0 : arg1
+		// ISELB arg1 ? arg0 : $0. arg0 is some register holding $1.
+		// ISELZ arg1 ? arg0 : $0
+		// auxInt values 0=LT 1=GT 2=EQ 3=SO (summary overflow/unordered) 4=GE 5=LE 6=NE 7=NSO (not summary overflow/not unordered)
+		// Note, auxInt^4 inverts the comparison condition. For example, LT^4 becomes GE, and "ISEL [a] x y z" is equivalent to ISEL [a^4] y x z".
+		{name: "ISEL", argLength: 3, reg: crgp21, asm: "ISEL", aux: "Int32", typ: "Int32"},
+		{name: "ISELB", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32", typ: "Int32"},
+		{name: "ISELZ", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32"},
 
 		// pseudo-ops
 		{name: "Equal", argLength: 1, reg: crgp},         // bool, true flags encode x==y false otherwise.
