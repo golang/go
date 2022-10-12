@@ -125,6 +125,7 @@ var dependentTestTypes = []testEntry{
 }
 
 func TestTypeString(t *testing.T) {
+	// The Go command is needed for the importer to determine the locations of stdlib .a files.
 	testenv.MustHaveGoBuild(t)
 
 	var tests []testEntry

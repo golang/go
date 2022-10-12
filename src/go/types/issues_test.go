@@ -578,6 +578,8 @@ func TestIssue44515(t *testing.T) {
 func TestIssue43124(t *testing.T) {
 	// TODO(rFindley) move this to testdata by enhancing support for importing.
 
+	testenv.MustHaveGoBuild(t) // The go command is needed for the importer to determine the locations of stdlib .a files.
+
 	// All involved packages have the same name (template). Error messages should
 	// disambiguate between text/template and html/template by printing the full
 	// path.
