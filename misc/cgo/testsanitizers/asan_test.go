@@ -5,6 +5,7 @@
 package sanitizers_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -96,4 +97,45 @@ func TestASAN(t *testing.T) {
 			mustRun(t, cmd)
 		})
 	}
+}
+
+func TestASANLinkerX(t *testing.T) {
+	// Test ASAN with linker's -X flag (see issue 56175).
+	goos, err := goEnv("GOOS")
+	if err != nil {
+		t.Fatal(err)
+	}
+	goarch, err := goEnv("GOARCH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The asan tests require support for the -asan option.
+	if !aSanSupported(goos, goarch) {
+		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
+	}
+	if !compilerRequiredAsanVersion(goos, goarch) {
+		t.Skipf("skipping on %s/%s: too old version of compiler", goos, goarch)
+	}
+
+	t.Parallel()
+	requireOvercommit(t)
+	config := configure("address")
+	config.skipIfCSanitizerBroken(t)
+
+	dir := newTempDir(t)
+	defer dir.RemoveAll(t)
+
+	var ldflags string
+	for i := 1; i <= 10; i++ {
+		ldflags += fmt.Sprintf("-X=main.S%d=%d -X=misc/cgo/testsanitizers/testdata/asan_linkerx/p.S%d=%d ", i, i, i, i)
+	}
+
+	// build the binary
+	outPath := dir.Join("main.exe")
+	cmd := config.goCmd("build", "-ldflags="+ldflags, "-o", outPath)
+	cmd.Dir = srcPath("asan_linkerx")
+	mustRun(t, cmd)
+
+	// run the binary
+	mustRun(t, hangProneCmd(outPath))
 }

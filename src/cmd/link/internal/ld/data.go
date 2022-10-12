@@ -1127,12 +1127,14 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
 	sbld.Addstring(value)
 	sbld.SetType(sym.SRODATA)
 
-	bld.SetSize(0)
-	bld.SetData(make([]byte, 0, arch.PtrSize*2))
+	// Don't reset the variable's size. String variable usually has size of
+	// 2*PtrSize, but in ASAN build it can be larger due to red zone.
+	// (See issue 56175.)
+	bld.SetData(make([]byte, arch.PtrSize*2))
 	bld.SetReadOnly(false)
 	bld.ResetRelocs()
-	bld.AddAddrPlus(arch, sbld.Sym(), 0)
-	bld.AddUint(arch, uint64(len(value)))
+	bld.SetAddrPlus(arch, 0, sbld.Sym(), 0)
+	bld.SetUint(arch, int64(arch.PtrSize), uint64(len(value)))
 }
 
 func (ctxt *Link) dostrdata() {
