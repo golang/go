@@ -31,7 +31,7 @@ func dnsReadConfig(ignoredFilename string) (conf *dnsConfig) {
 	for _, aa := range aas {
 		for dns := aa.FirstDnsServerAddress; dns != nil; dns = dns.Next {
 			// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
-			if aa.OperStatus == 0x01 {
+			if aa.OperStatus != 0x01 {
 				continue
 			}
 			sa, err := dns.Address.Sockaddr.Sockaddr()
