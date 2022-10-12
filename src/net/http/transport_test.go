@@ -1751,6 +1751,10 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
 	run(t, testTransportPersistConnLeakShortBody, testNotParallel)
 }
 func testTransportPersistConnLeakShortBody(t *testing.T, mode testMode) {
+	if mode == http2Mode {
+		t.Skip("flaky in HTTP/2")
+	}
+
 	// Not parallel: measures goroutines.
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 	})).ts
@@ -4465,14 +4469,14 @@ func testTransportResponseHeaderLength(t *testing.T, mode testMode) {
 func TestTransportEventTrace(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
 		testTransportEventTrace(t, mode, false)
-	})
+	}, testNotParallel)
 }
 
 // test a non-nil httptrace.ClientTrace but with all hooks set to zero.
 func TestTransportEventTrace_NoHooks(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
 		testTransportEventTrace(t, mode, true)
-	})
+	}, testNotParallel)
 }
 
 func testTransportEventTrace(t *testing.T, mode testMode, noHooks bool) {
@@ -5970,7 +5974,9 @@ func TestIs408(t *testing.T) {
 	}
 }
 
-func TestTransportIgnores408(t *testing.T) { run(t, testTransportIgnores408, []testMode{http1Mode}) }
+func TestTransportIgnores408(t *testing.T) {
+	run(t, testTransportIgnores408, []testMode{http1Mode}, testNotParallel)
+}
 func testTransportIgnores408(t *testing.T, mode testMode) {
 	// Not parallel. Relies on mutating the log package's global Output.
 	defer log.SetOutput(log.Writer())
