@@ -73,14 +73,14 @@ type actionHandleKey source.Hash
 // package (as different analyzers are applied, either in sequence or
 // parallel), and across packages (as dependencies are analyzed).
 type actionHandle struct {
+	key     actionKey        // just for String()
 	promise *memoize.Promise // [actionResult]
-
-	analyzer *analysis.Analyzer
-	pkg      *pkg
 }
 
 // actionData is the successful result of analyzing a package.
 type actionData struct {
+	analyzer     *analysis.Analyzer
+	pkgTypes     *types.Package // types only; don't keep syntax live
 	diagnostics  []*source.Diagnostic
 	result       interface{}
 	objectFacts  map[objectFactKey]analysis.Fact
@@ -168,9 +168,8 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	})
 
 	ah := &actionHandle{
-		analyzer: a,
-		pkg:      pkg,
-		promise:  promise,
+		key:     key,
+		promise: promise,
 	}
 
 	s.mu.Lock()
@@ -191,8 +190,12 @@ func buildActionKey(a *analysis.Analyzer, ph *packageHandle) actionHandleKey {
 	return actionHandleKey(source.Hashf("%p%s", a, ph.key[:]))
 }
 
+func (key actionKey) String() string {
+	return fmt.Sprintf("%s@%s", key.analyzer, key.pkgid)
+}
+
 func (act *actionHandle) String() string {
-	return fmt.Sprintf("%s@%s", act.analyzer, act.pkg.PkgPath())
+	return act.key.String()
 }
 
 // actionImpl runs the analysis for action node (analyzer, pkg),
@@ -222,29 +225,20 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 
 			mu.Lock()
 			defer mu.Unlock()
-			if dep.pkg == pkg {
+			if data.pkgTypes == pkg.types {
 				// Same package, different analysis (horizontal edge):
 				// in-memory outputs of prerequisite analyzers
 				// become inputs to this analysis pass.
-				inputs[dep.analyzer] = data.result
+				inputs[data.analyzer] = data.result
 
-			} else if dep.analyzer == analyzer {
+			} else if data.analyzer == analyzer {
 				// Same analysis, different package (vertical edge):
 				// serialized facts produced by prerequisite analysis
 				// become available to this analysis pass.
 				for key, fact := range data.objectFacts {
-					// Filter out facts related to objects
-					// that are irrelevant downstream
-					// (equivalently: not in the compiler export data).
-					if !exportedFrom(key.obj, dep.pkg.types) {
-						continue
-					}
 					objectFacts[key] = fact
 				}
 				for key, fact := range data.packageFacts {
-					// TODO: filter out facts that belong to
-					// packages not mentioned in the export data
-					// to prevent side channels.
 					packageFacts[key] = fact
 				}
 
@@ -268,7 +262,11 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 				if source.IsCommandLineArguments(pkg.ID()) {
 					errorf = fmt.Errorf // suppress reporting
 				}
-				return errorf("internal error: unexpected analysis dependency %s@%s -> %s", analyzer.Name, pkg.ID(), dep)
+				err := errorf("internal error: unexpected analysis dependency %s@%s -> %s", analyzer.Name, pkg.ID(), dep)
+				// Log the event in any case, as the ultimate
+				// consumer of actionResult ignores errors.
+				event.Error(ctx, "analysis", err)
+				return err
 			}
 			return nil
 		})
@@ -401,6 +399,16 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 		panic(fmt.Sprintf("%s:%s: Pass.ExportPackageFact(%T) called after Run", analyzer.Name, pkg.PkgPath(), fact))
 	}
 
+	// Filter out facts related to objects that are irrelevant downstream
+	// (equivalently: not in the compiler export data).
+	for key := range objectFacts {
+		if !exportedFrom(key.obj, pkg.types) {
+			delete(objectFacts, key)
+		}
+	}
+	// TODO: filter out facts that belong to packages not
+	// mentioned in the export data to prevent side channels.
+
 	var diagnostics []*source.Diagnostic
 	for _, diag := range rawDiagnostics {
 		srcDiags, err := analysisDiagnosticDiagnostics(snapshot, pkg, analyzer, &diag)
@@ -411,6 +419,8 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 		diagnostics = append(diagnostics, srcDiags...)
 	}
 	return &actionData{
+		analyzer:     analyzer,
+		pkgTypes:     pkg.types,
 		diagnostics:  diagnostics,
 		result:       result,
 		objectFacts:  objectFacts,
@@ -434,8 +444,10 @@ func exportedFrom(obj types.Object, pkg *types.Package) bool {
 	case *types.Var:
 		return obj.Exported() && obj.Pkg() == pkg ||
 			obj.IsField()
-	case *types.TypeName, *types.Const:
+	case *types.TypeName:
 		return true
+	case *types.Const:
+		return obj.Exported() && obj.Pkg() == pkg
 	}
 	return false // Nil, Builtin, Label, or PkgName
 }
