@@ -316,7 +316,6 @@ func (f *F) Fuzz(ff any) {
 		}
 		t.w = indenter{&t.common}
 		if t.chatty != nil {
-			// TODO(#48132): adjust this to work with test2json.
 			t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
 		}
 		f.common.inFuzzFn, f.inFuzzFn = true, true
@@ -336,6 +335,9 @@ func (f *F) Fuzz(ff any) {
 			fn.Call(args)
 		})
 		<-t.signal
+		if t.chatty != nil && t.chatty.json {
+			t.chatty.Updatef(t.parent.name, "=== NAME  %s\n", t.parent.name)
+		}
 		f.common.inFuzzFn, f.inFuzzFn = false, false
 		return !t.Failed()
 	}
@@ -512,12 +514,13 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 		}
 		f.w = indenter{&f.common}
 		if f.chatty != nil {
-			// TODO(#48132): adjust this to work with test2json.
 			f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
 		}
-
 		go fRunner(f, ft.Fn)
 		<-f.signal
+		if f.chatty != nil && f.chatty.json {
+			f.chatty.Updatef(f.parent.name, "=== NAME  %s\n", f.parent.name)
+		}
 	}
 	return root.ran, !root.Failed()
 }
@@ -583,11 +586,13 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 	}
 	f.w = indenter{&f.common}
 	if f.chatty != nil {
-		// TODO(#48132): adjust this to work with test2json.
-		f.chatty.Updatef(f.name, "=== FUZZ  %s\n", f.name)
+		f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
 	}
 	go fRunner(f, fuzzTest.Fn)
 	<-f.signal
+	if f.chatty != nil {
+		f.chatty.Updatef(f.parent.name, "=== NAME  %s\n", f.parent.name)
+	}
 	return !f.failed
 }
 

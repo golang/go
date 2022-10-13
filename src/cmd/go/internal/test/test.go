@@ -536,9 +536,40 @@ var (
 	testOutputDir    outputdirFlag                     // -outputdir flag
 	testShuffle      shuffleFlag                       // -shuffle flag
 	testTimeout      time.Duration                     // -timeout flag
-	testV            bool                              // -v flag
+	testV            testVFlag                         // -v flag
 	testVet          = vetFlag{flags: defaultVetFlags} // -vet flag
 )
+
+type testVFlag struct {
+	on   bool // -v is set in some form
+	json bool // -v=test2json is set, to make output better for test2json
+}
+
+func (*testVFlag) IsBoolFlag() bool { return true }
+
+func (f *testVFlag) Set(arg string) error {
+	if v, err := strconv.ParseBool(arg); err == nil {
+		f.on = v
+		f.json = false
+		return nil
+	}
+	if arg == "test2json" {
+		f.on = true
+		f.json = arg == "test2json"
+		return nil
+	}
+	return fmt.Errorf("invalid flag -test.v=%s", arg)
+}
+
+func (f *testVFlag) String() string {
+	if f.json {
+		return "test2json"
+	}
+	if f.on {
+		return "true"
+	}
+	return "false"
+}
 
 var (
 	testArgs []string
@@ -592,7 +623,7 @@ func testNeedBinary() bool {
 
 // testShowPass reports whether the output for a passing test should be shown.
 func testShowPass() bool {
-	return testV || (testList != "") || testHelp
+	return testV.on || testList != "" || testHelp
 }
 
 var defaultVetFlags = []string{
@@ -1309,7 +1340,11 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		// not a pipe.
 		// TODO(golang.org/issue/29062): tests that exit with status 0 without
 		// printing a final result should fail.
-		fmt.Fprintf(cmd.Stdout, "FAIL\t%s\t%s\n", a.Package.ImportPath, t)
+		prefix := ""
+		if testJSON || testV.json {
+			prefix = "\x16"
+		}
+		fmt.Fprintf(cmd.Stdout, "%sFAIL\t%s\t%s\n", prefix, a.Package.ImportPath, t)
 	}
 
 	if cmd.Stdout != &buf {
