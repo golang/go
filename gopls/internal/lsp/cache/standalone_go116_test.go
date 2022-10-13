@@ -31,6 +31,12 @@ func TestIsStandaloneFile(t *testing.T) {
 			true,
 		},
 		{
+			"multiple tags",
+			"//go:build ignore\n\npackage main\n",
+			[]string{"exclude", "ignore"},
+			true,
+		},
+		{
 			"invalid tag",
 			"// +build ignore\n\npackage main\n",
 			[]string{"script"},

@@ -214,7 +214,7 @@ func main() {}
 
 	WithOptions(
 		Settings{
-			"standaloneTags": []string{"standalone"},
+			"standaloneTags": []string{"standalone", "script"},
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("ignore.go")

@@ -534,7 +534,7 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 	if snapshot.IsBuiltin(ctx, fh.URI()) {
 		return nil
 	}
-	pkgs, err := snapshot.PackagesForFile(ctx, fh.URI(), source.TypecheckWorkspace, false)
+	pkgs, _ := snapshot.PackagesForFile(ctx, fh.URI(), source.TypecheckWorkspace, false)
 	if len(pkgs) > 0 {
 		return nil
 	}
