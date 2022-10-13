@@ -921,6 +921,9 @@ func (t *tester) registerSeqTest(name, dirBanner string, cmdline ...interface{})
 	t.registerTest1(true, name, dirBanner, cmdline...)
 }
 
+// bgDirCmd constructs a Cmd intended to be run in the background as
+// part of the worklist. The worklist runner will buffer its output
+// and replay it sequentially. The command will be run in dir.
 func (t *tester) bgDirCmd(dir, bin string, args ...string) *exec.Cmd {
 	cmd := exec.Command(bin, args...)
 	if filepath.IsAbs(dir) {
@@ -931,6 +934,9 @@ func (t *tester) bgDirCmd(dir, bin string, args ...string) *exec.Cmd {
 	return cmd
 }
 
+// dirCmd constructs a Cmd intended to be run in the foreground.
+// The command will be run in dir, and Stdout and Stderr will go to os.Stdout
+// and os.Stderr.
 func (t *tester) dirCmd(dir string, cmdline ...interface{}) *exec.Cmd {
 	bin, args := flattenCmdline(cmdline)
 	cmd := t.bgDirCmd(dir, bin, args...)
@@ -990,6 +996,9 @@ func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
 	return bin, list[1:]
 }
 
+// addCmd adds a command to the worklist. Commands can be run in
+// parallel, but their output will be buffered and replayed in the
+// order they were added to worklist.
 func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.Cmd {
 	bin, args := flattenCmdline(cmdline)
 	w := &work{
