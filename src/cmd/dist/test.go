@@ -909,8 +909,8 @@ func (t *tester) registerTests() {
 	if t.cgoEnabled && gogcflags == "" {
 		t.registerHostTest("testgodefs", "../misc/cgo/testgodefs", "misc/cgo/testgodefs", ".")
 
-		t.registerTest("testso", "../misc/cgo/testso", t.goTest(), t.timeout(600), ".")
-		t.registerTest("testsovar", "../misc/cgo/testsovar", t.goTest(), t.timeout(600), ".")
+		t.registerTest("testso", "", &goTest{dir: "../misc/cgo/testso", timeout: 600 * time.Second})
+		t.registerTest("testsovar", "", &goTest{dir: "../misc/cgo/testsovar", timeout: 600 * time.Second})
 		if t.supportedBuildmode("c-archive") {
 			t.registerHostTest("testcarchive", "../misc/cgo/testcarchive", "misc/cgo/testcarchive", ".")
 		}
@@ -918,10 +918,10 @@ func (t *tester) registerTests() {
 			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", ".")
 		}
 		if t.supportedBuildmode("shared") {
-			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600), ".")
+			t.registerTest("testshared", "", &goTest{dir: "../misc/cgo/testshared", timeout: 600 * time.Second})
 		}
 		if t.supportedBuildmode("plugin") {
-			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600), ".")
+			t.registerTest("testplugin", "", &goTest{dir: "../misc/cgo/testplugin", timeout: 600 * time.Second})
 		}
 		if goos == "linux" || (goos == "freebsd" && goarch == "amd64") {
 			// because Pdeathsig of syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only
@@ -936,7 +936,7 @@ func (t *tester) registerTests() {
 	if goos != "android" && !t.iOS() {
 		// There are no tests in this directory, only benchmarks.
 		// Check that the test binary builds.
-		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), ".")
+		t.registerTest("bench_go1", "", &goTest{dir: "../test/bench/go1"})
 	}
 	if goos != "android" && !t.iOS() {
 		// Only start multiple test dir shards on builders,
@@ -996,16 +996,60 @@ func (t *tester) isRegisteredTestName(testName string) bool {
 	return false
 }
 
-func (t *tester) registerTest(name, dirBanner string, cmdline ...interface{}) {
-	bin, args := flattenCmdline(cmdline)
+type registerTestOpt interface {
+	isRegisterTestOpt()
+}
+
+// rtSequential is a registerTest option that causes the registered test to run
+// sequentially.
+type rtSequential struct{}
+
+func (rtSequential) isRegisterTestOpt() {}
+
+// rtPreFunc is a registerTest option that runs a pre function before running
+// the test.
+type rtPreFunc struct {
+	pre func(*distTest) bool // Return false to skip the test
+}
+
+func (rtPreFunc) isRegisterTestOpt() {}
+
+// registerTest registers a test that runs the given goTest.
+//
+// If heading is "", it uses test.dir as the heading.
+func (t *tester) registerTest(name, heading string, test *goTest, opts ...registerTestOpt) {
+	seq := false
+	var preFunc func(*distTest) bool
+	for _, opt := range opts {
+		switch opt := opt.(type) {
+		case rtSequential:
+			seq = true
+		case rtPreFunc:
+			preFunc = opt.pre
+		}
+	}
 	if t.isRegisteredTestName(name) {
 		panic("duplicate registered test name " + name)
 	}
+	if heading == "" {
+		heading = test.dir
+	}
 	t.tests = append(t.tests, distTest{
 		name:    name,
-		heading: dirBanner,
+		heading: heading,
 		fn: func(dt *distTest) error {
-			t.addCmd(dt, filepath.Join(goroot, "src", dirBanner), bin, args)
+			if preFunc != nil && !preFunc(dt) {
+				return nil
+			}
+			if seq {
+				t.runPending(dt)
+				return test.run(t)
+			}
+			w := &work{
+				dt:  dt,
+				cmd: test.bgCommand(t),
+			}
+			t.worklist = append(t.worklist, w)
 			return nil
 		},
 	})
