@@ -1,0 +1,6 @@
+=== RUN   TestAscii
+=== RUN   TestNotReally
+--- PASS: TestAscii
+    i can eat glass, and it doesn't hurt me. i can eat glass, and it doesn't hurt me.
+FAIL
+PASS

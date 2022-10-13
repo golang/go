@@ -80,10 +80,14 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
 		}
 	}
 	if fail != "" || !finished || recovered != nil {
-		fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
+		fmt.Printf("%s--- FAIL: %s (%s)\n%s", chatty.prefix(), eg.Name, dstr, fail)
 		passed = false
-	} else if *chatty {
-		fmt.Printf("--- PASS: %s (%s)\n", eg.Name, dstr)
+	} else if chatty.on {
+		fmt.Printf("%s--- PASS: %s (%s)\n", chatty.prefix(), eg.Name, dstr)
+	}
+
+	if chatty.on && chatty.json {
+		fmt.Printf("%s=== NAME   %s\n", chatty.prefix(), "")
 	}
 
 	if recovered != nil {
