@@ -963,9 +963,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 
-	case ssa.OpPPC64ISEL, ssa.OpPPC64ISELB, ssa.OpPPC64ISELZ:
+	case ssa.OpPPC64ISEL, ssa.OpPPC64ISELZ:
 		// ISEL  AuxInt ? arg0 : arg1
-		// ISELB is a special case of ISEL where AuxInt ? $1 (arg0) : $0.
 		// ISELZ is a special case of ISEL where arg1 is implicitly $0.
 		//
 		// AuxInt value indicates conditions 0=LT 1=GT 2=EQ 3=SO 4=GE 5=LE 6=NE 7=NSO.
@@ -974,24 +973,18 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		//
 		// AuxInt&3 ? arg0 : arg1 for conditions LT, GT, EQ, SO
 		// AuxInt&3 ? arg1 : arg0 for conditions GE, LE, NE, NSO
-		p := s.Prog(ppc64.AISEL)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-		// For ISELB/ISELZ Use R0 for 0 operand to avoid load.
-		r := obj.Addr{Type: obj.TYPE_REG, Reg: ppc64.REG_R0}
+		p := s.Prog(v.Op.Asm())
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+		p.Reg = v.Args[0].Reg()
+		p.SetFrom3Reg(ppc64.REG_R0)
 		if v.Op == ssa.OpPPC64ISEL {
-			r.Reg = v.Args[1].Reg()
+			p.SetFrom3Reg(v.Args[1].Reg())
 		}
 		// AuxInt values 4,5,6 implemented with reverse operand order from 0,1,2
 		if v.AuxInt > 3 {
-			p.Reg = r.Reg
-			p.SetFrom3Reg(v.Args[0].Reg())
-		} else {
-			p.Reg = v.Args[0].Reg()
-			p.SetFrom3(r)
+			p.Reg, p.GetFrom3().Reg = p.GetFrom3().Reg, p.Reg
 		}
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt & 3
+		p.From.SetConst(v.AuxInt & 3)
 
 	case ssa.OpPPC64SETBC, ssa.OpPPC64SETBCR:
 		p := s.Prog(v.Op.Asm())
