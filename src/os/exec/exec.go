@@ -467,9 +467,23 @@ func (c *Cmd) writerDescriptor(w io.Writer) (*os.File, error) {
 	c.childIOFiles = append(c.childIOFiles, pw)
 	c.parentIOPipes = append(c.parentIOPipes, pr)
 	c.goroutine = append(c.goroutine, func() error {
-		_, err := io.Copy(w, pr)
-		pr.Close() // in case io.Copy stopped due to write error
-		return err
+		copyErr := make(chan error)
+		go func() {
+			_, err := io.Copy(w, pr)
+			pr.Close() // in case io.Copy stopped due to write error
+			copyErr <- err
+		}()
+		var ctxDone <-chan struct{}
+		if c.ctx != nil {
+			ctxDone = c.ctx.Done()
+		}
+		select {
+		case err := <-copyErr:
+			return err
+		case <-ctxDone:
+			//pr.Close()
+			return c.ctx.Err()
+		}
 	})
 	return pw, nil
 }
