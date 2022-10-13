@@ -22,7 +22,7 @@ func BenchmarkLookupFieldOrMethod(b *testing.B) {
 	path := filepath.Join(runtime.GOROOT(), "src", "net", "http")
 
 	fset := token.NewFileSet()
-	files, err := pkgFiles(fset, path, 0)
+	files, err := pkgFiles(fset, path)
 	if err != nil {
 		b.Fatal(err)
 	}
