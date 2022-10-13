@@ -16,7 +16,7 @@ const errorfMinArgCount = 4
 // errorfMinArgCount arguments (otherwise we should use check.error).
 func TestErrorCalls(t *testing.T) {
 	fset := token.NewFileSet()
-	files, err := pkgFiles(fset, ".", 0)
+	files, err := pkgFiles(fset, ".")
 	if err != nil {
 		t.Fatal(err)
 	}
