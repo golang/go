@@ -8,7 +8,6 @@
 package cache
 
 import (
-	"fmt"
 	"go/build/constraint"
 	"go/parser"
 	"go/token"
@@ -35,7 +34,6 @@ func isStandaloneFile(src []byte, standaloneTags []string) bool {
 			continue
 		}
 		for _, comment := range cg.List {
-			fmt.Println(comment.Text)
 			if c, err := constraint.Parse(comment.Text); err == nil {
 				if tag, ok := c.(*constraint.TagExpr); ok {
 					for _, t := range standaloneTags {
