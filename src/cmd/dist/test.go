@@ -823,9 +823,6 @@ func (t *tester) registerTests() {
 		if t.supportedBuildmode("plugin") {
 			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600), ".")
 		}
-		if gohostos == "linux" && (goarch == "amd64" || goarch == "ppc64le") {
-			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
-		}
 		if goos == "linux" || (goos == "freebsd" && goarch == "amd64") {
 			// because Pdeathsig of syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only
 			// supported on Linux and FreeBSD.
