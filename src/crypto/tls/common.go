@@ -99,6 +99,7 @@ const (
 	extensionCertificateAuthorities  uint16 = 47
 	extensionSignatureAlgorithmsCert uint16 = 50
 	extensionKeyShare                uint16 = 51
+	extensionQUICTransportParameters uint16 = 57
 	extensionRenegotiationInfo       uint16 = 0xff01
 )
 

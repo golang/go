@@ -218,7 +218,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 		c.serverName = hs.clientHello.serverName
 	}
 
-	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols)
+	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols, false)
 	if err != nil {
 		c.sendAlert(alertNoApplicationProtocol)
 		return err
@@ -279,8 +279,12 @@ func (hs *serverHandshakeState) processClientHello() error {
 // negotiateALPN picks a shared ALPN protocol that both sides support in server
 // preference order. If ALPN is not configured or the peer doesn't support it,
 // it returns "" and no error.
-func negotiateALPN(serverProtos, clientProtos []string) (string, error) {
+func negotiateALPN(serverProtos, clientProtos []string, quic bool) (string, error) {
 	if len(serverProtos) == 0 || len(clientProtos) == 0 {
+		if quic && len(serverProtos) != 0 {
+			// RFC 9001, Section 8.1
+			return "", fmt.Errorf("tls: client did not request an application protocol")
+		}
 		return "", nil
 	}
 	var http11fallback bool

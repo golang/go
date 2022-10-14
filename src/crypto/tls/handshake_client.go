@@ -71,7 +71,6 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 		vers:                         clientHelloVersion,
 		compressionMethods:           []uint8{compressionNone},
 		random:                       make([]byte, 32),
-		sessionId:                    make([]byte, 32),
 		ocspStapling:                 true,
 		scts:                         true,
 		serverName:                   hostnameInSNI(config.ServerName),
@@ -114,8 +113,13 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 	// A random session ID is used to detect when the server accepted a ticket
 	// and is resuming a session (see RFC 5077). In TLS 1.3, it's always set as
 	// a compatibility measure (see RFC 8446, Section 4.1.2).
-	if _, err := io.ReadFull(config.rand(), hello.sessionId); err != nil {
-		return nil, nil, errors.New("tls: short read from Rand: " + err.Error())
+	//
+	// The session ID is not set for QUIC connections (see RFC 9001, Section 8.4).
+	if c.quic == nil {
+		hello.sessionId = make([]byte, 32)
+		if _, err := io.ReadFull(config.rand(), hello.sessionId); err != nil {
+			return nil, nil, errors.New("tls: short read from Rand: " + err.Error())
+		}
 	}
 
 	if hello.vers >= VersionTLS12 {
@@ -142,6 +146,17 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 			return nil, nil, err
 		}
 		hello.keyShares = []keyShare{{group: curveID, data: key.PublicKey().Bytes()}}
+	}
+
+	if c.quic != nil {
+		p, err := c.quicGetTransportParameters()
+		if err != nil {
+			return nil, nil, err
+		}
+		if p == nil {
+			p = []byte{}
+		}
+		hello.quicTransportParameters = p
 	}
 
 	return hello, key, nil
@@ -271,7 +286,10 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (cacheKey string,
 	}
 
 	// Try to resume a previously negotiated TLS session, if available.
-	cacheKey = clientSessionCacheKey(c.conn.RemoteAddr(), c.config)
+	cacheKey = c.clientSessionCacheKey()
+	if cacheKey == "" {
+		return "", nil, nil, nil, nil
+	}
 	session, ok := c.config.ClientSessionCache.Get(cacheKey)
 	if !ok || session == nil {
 		return cacheKey, nil, nil, nil, nil
@@ -722,7 +740,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		}
 	}
 
-	if err := checkALPN(hs.hello.alpnProtocols, hs.serverHello.alpnProtocol); err != nil {
+	if err := checkALPN(hs.hello.alpnProtocols, hs.serverHello.alpnProtocol, false); err != nil {
 		c.sendAlert(alertUnsupportedExtension)
 		return false, err
 	}
@@ -760,8 +778,12 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 
 // checkALPN ensure that the server's choice of ALPN protocol is compatible with
 // the protocols that we advertised in the Client Hello.
-func checkALPN(clientProtos []string, serverProto string) error {
+func checkALPN(clientProtos []string, serverProto string, quic bool) error {
 	if serverProto == "" {
+		if quic && len(clientProtos) > 0 {
+			// RFC 9001, Section 8.1
+			return errors.New("tls: server did not select an ALPN protocol")
+		}
 		return nil
 	}
 	if len(clientProtos) == 0 {
@@ -1003,11 +1025,14 @@ func (c *Conn) getClientCertificate(cri *CertificateRequestInfo) (*Certificate, 
 
 // clientSessionCacheKey returns a key used to cache sessionTickets that could
 // be used to resume previously negotiated TLS sessions with a server.
-func clientSessionCacheKey(serverAddr net.Addr, config *Config) string {
-	if len(config.ServerName) > 0 {
-		return config.ServerName
+func (c *Conn) clientSessionCacheKey() string {
+	if len(c.config.ServerName) > 0 {
+		return c.config.ServerName
 	}
-	return serverAddr.String()
+	if c.conn != nil {
+		return c.conn.RemoteAddr().String()
+	}
+	return ""
 }
 
 // hostnameInSNI converts name into an appropriate hostname for SNI.

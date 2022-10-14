@@ -198,6 +198,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		m.pskBinders = append(m.pskBinders, randomBytes(rand.Intn(50)+32, rand))
 	}
 	if rand.Intn(10) > 5 {
+		m.quicTransportParameters = randomBytes(rand.Intn(500), rand)
+	}
+	if rand.Intn(10) > 5 {
 		m.earlyData = true
 	}
 

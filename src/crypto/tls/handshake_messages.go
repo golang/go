@@ -93,6 +93,7 @@ type clientHelloMsg struct {
 	pskModes                         []uint8
 	pskIdentities                    []pskIdentity
 	pskBinders                       [][]byte
+	quicTransportParameters          []byte
 }
 
 func (m *clientHelloMsg) marshal() ([]byte, error) {
@@ -244,6 +245,13 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
 			exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
 				exts.AddBytes(m.pskModes)
 			})
+		})
+	}
+	if m.quicTransportParameters != nil { // marshal zero-length parameters when present
+		// RFC 9001, Section 8.2
+		exts.AddUint16(extensionQUICTransportParameters)
+		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+			exts.AddBytes(m.quicTransportParameters)
 		})
 	}
 	if len(m.pskIdentities) > 0 { // pre_shared_key must be the last extension
@@ -560,6 +568,11 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 			if !readUint8LengthPrefixed(&extData, &m.pskModes) {
 				return false
 			}
+		case extensionQUICTransportParameters:
+			m.quicTransportParameters = make([]byte, len(extData))
+			if !extData.CopyBytes(m.quicTransportParameters) {
+				return false
+			}
 		case extensionPreSharedKey:
 			// RFC 8446, Section 4.2.11
 			if !extensions.Empty() {
@@ -860,8 +873,9 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 }
 
 type encryptedExtensionsMsg struct {
-	raw          []byte
-	alpnProtocol string
+	raw                     []byte
+	alpnProtocol            string
+	quicTransportParameters []byte
 }
 
 func (m *encryptedExtensionsMsg) marshal() ([]byte, error) {
@@ -881,6 +895,13 @@ func (m *encryptedExtensionsMsg) marshal() ([]byte, error) {
 							b.AddBytes([]byte(m.alpnProtocol))
 						})
 					})
+				})
+			}
+			if m.quicTransportParameters != nil { // marshal zero-length parameters when present
+				// draft-ietf-quic-tls-32, Section 8.2
+				b.AddUint16(extensionQUICTransportParameters)
+				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+					b.AddBytes(m.quicTransportParameters)
 				})
 			}
 		})
@@ -921,6 +942,11 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
 				return false
 			}
 			m.alpnProtocol = string(proto)
+		case extensionQUICTransportParameters:
+			m.quicTransportParameters = make([]byte, len(extData))
+			if !extData.CopyBytes(m.quicTransportParameters) {
+				return false
+			}
 		default:
 			// Ignore unknown extensions.
 			continue
