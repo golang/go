@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "funcdata.h"
 #include "textflag.h"
 
 // Assembly function for runtime_test.TestStartLineAsm.
@@ -20,6 +21,7 @@
 // callerStartLine since it is in a different package.
 
 TEXT	·AsmFunc<ABIInternal>(SB),NOSPLIT,$8-0
+	NO_LOCAL_POINTERS
 	MOVQ	$0, AX // wantInlined
 	CALL    runtime_test·callerStartLine<ABIInternal>(SB)
 	RET

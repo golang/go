@@ -13,7 +13,7 @@ import (
 // is only tested on amd64 to avoid the need for a proliferation of per-arch
 // copies of this function.
 func TestStartLineAsm(t *testing.T) {
-	const wantLine = 22
+	const wantLine = 23
 	got := startlinetest.AsmFunc()
 	if got != wantLine {
 		t.Errorf("start line got %d want %d", got, wantLine)
