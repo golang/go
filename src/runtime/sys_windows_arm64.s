@@ -147,10 +147,15 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	g, R17 			// saved R28 (callee-save from Windows, not really g)
 
 	BL      runtime·load_g(SB)	// smashes R0, R27, R28 (g)
-	CMP	$0, g			// is there a current g?
-	BNE	2(PC)
-	BL	runtime·badsignal2(SB)
+	CMP	$0,	g		// is there a current g?
+	BNE	g_ok
+	MOVD	R7, LR
+	MOVD	R16, R27	// restore R27
+	MOVD	R17, g		// restore R28
+	MOVD	$0, R0		// continue 
+	RET
 
+g_ok:
 	// Do we need to switch to the g0 stack?
 	MOVD	g, R3			// R3 = oldg (for sigtramp_g0)
 	MOVD	g_m(g), R2		// R2 = m

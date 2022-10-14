@@ -17,6 +17,61 @@ import (
 	"testing"
 )
 
+func TestVectoredHandlerExceptionInNonGoThread(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveExecPath(t, "g++")
+	testprog.Lock()
+	defer testprog.Unlock()
+	dir := t.TempDir()
+
+	// build c program
+	dll := filepath.Join(dir, "veh.dll")
+	cmd := exec.Command("g++", "-shared", "-o", dll, "testdata/testwinlibthrow/veh.cpp", "-static", "-lstdc++")
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build c exe: %s\n%s", err, out)
+	}
+
+	// build go exe
+	exe := filepath.Join(dir, "test.exe")
+	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "testdata/testwinlibthrow/main.go")
+	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build go library: %s\n%s", err, out)
+	}
+
+	// run test program in same thread
+	cmd = exec.Command(exe)
+	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err == nil {
+		t.Fatal("error expected")
+	}
+	if _, ok := err.(*exec.ExitError); ok && len(out) > 0 {
+		if !bytes.Contains(out, []byte("Exception 0x2a")) {
+			t.Fatalf("unexpected failure while running executable: %s\n%s", err, out)
+		}
+	} else {
+		t.Fatalf("unexpected error while running executable: %s\n%s", err, out)
+	}
+	// run test program in a new thread
+	cmd = exec.Command(exe, "thread")
+	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err == nil {
+		t.Fatal("error expected")
+	}
+	if err, ok := err.(*exec.ExitError); ok {
+		if err.ExitCode() != 42 {
+			t.Fatalf("unexpected failure while running executable: %s\n%s", err, out)
+		}
+	} else {
+		t.Fatalf("unexpected error while running executable: %s\n%s", err, out)
+	}
+}
+
 func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 	if *flagQuick {
 		t.Skip("-quick")
