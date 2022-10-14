@@ -17,8 +17,11 @@ import (
 #include <stdio.h>
 #include <string.h>
 
+sig_atomic_t expectCSigsegv;
 int *sigfwdP;
+
 static void sigsegv() {
+	expectCSigsegv = 1;
 	*sigfwdP = 1;
 	fprintf(stderr, "ERROR: C SIGSEGV not thrown on caught?.\n");
 	exit(2);
@@ -26,6 +29,10 @@ static void sigsegv() {
 
 static void segvhandler(int signum) {
 	if (signum == SIGSEGV) {
+		if (expectCSigsegv == 0) {
+			fprintf(stderr, "SIGSEGV caught in C unexpectedly\n");
+			exit(1);
+		}
 		fprintf(stdout, "OK\n");
 		exit(0);  // success
 	}
