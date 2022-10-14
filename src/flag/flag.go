@@ -1057,7 +1057,7 @@ func (f *FlagSet) parseOne() (bool, error) {
 		}
 	}
 
-	flag, ok := f.formal[name] 
+	flag, ok := f.formal[name]
 	if !ok {
 		if name == "help" || name == "h" { // special case for nice help message.
 			f.usage()
