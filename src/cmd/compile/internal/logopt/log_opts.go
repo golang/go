@@ -405,6 +405,9 @@ func uriIfy(f string) DocumentURI {
 // Return filename, replacing a first occurrence of $GOROOT with the
 // actual value of the GOROOT (because LSP does not speak "$GOROOT").
 func uprootedPath(filename string) string {
+	if filename == "" {
+		return "__unnamed__"
+	}
 	if buildcfg.GOROOT == "" || !strings.HasPrefix(filename, "$GOROOT/") {
 		return filename
 	}
