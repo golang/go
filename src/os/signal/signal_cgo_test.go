@@ -99,7 +99,7 @@ func TestTerminalSignal(t *testing.T) {
 		runStoppingChild()
 		panic("unreachable")
 	default:
-		fmt.Fprintf(os.Stderr, "unknown subprocess level %s", lvl)
+		fmt.Fprintf(os.Stderr, "unknown subprocess level %s\n", lvl)
 		os.Exit(1)
 	}
 
@@ -307,7 +307,7 @@ func runSessionLeader(pause time.Duration) {
 
 	err := fn()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "session leader error: %v", err)
+		fmt.Fprintf(os.Stderr, "session leader error: %v\n", err)
 		cmd.Process.Kill()
 		// Wait for exit below.
 	}
@@ -330,7 +330,7 @@ func runStoppingChild() {
 
 	var b [1]byte
 	if _, err := pty.Write(b[:]); err != nil {
-		fmt.Fprintf(os.Stderr, "error writing byte to PTY: %v", err)
+		fmt.Fprintf(os.Stderr, "error writing byte to PTY: %v\n", err)
 		os.Exit(1)
 	}
 
