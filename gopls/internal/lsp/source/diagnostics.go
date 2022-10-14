@@ -66,11 +66,11 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeCon
 // as used by the "gopls check" command.
 //
 // TODO(adonovan): factor in common with (*Server).codeAction, which
-// executes { PackageForFile; DiagnosePackage; Analyze } too?
+// executes { PackageForFile; Analyze } too?
 //
 // TODO(adonovan): opt: this function is called in a loop from the
 // "gopls/diagnoseFiles" nonstandard request handler. It would be more
-// efficient to compute the set of packages and DiagnosePackage and
+// efficient to compute the set of packages and TypeCheck and
 // Analyze them all at once.
 func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (VersionedFileIdentity, []*Diagnostic, error) {
 	fh, err := snapshot.GetVersionedFile(ctx, uri)
@@ -130,7 +130,6 @@ func CombineDiagnostics(pkg Package, uri span.URI, analysisDiagnostics map[span.
 			copy := *tdiags[i]
 			copy.SuggestedFixes = diag.SuggestedFixes
 			copy.Tags = diag.Tags
-			copy.Analyzer = diag.Analyzer
 			tdiags[i] = &copy
 			continue
 		}

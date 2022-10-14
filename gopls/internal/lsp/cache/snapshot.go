@@ -109,9 +109,10 @@ type snapshot struct {
 	// It may be invalidated when metadata changes or a new file is opened or closed.
 	isActivePackageCache isActivePackageCacheMap
 
-	// actions maps an actionKey to the handle for the future
-	// result of execution an analysis pass on a package.
-	actions *persistent.Map // from actionKey to *actionHandle
+	// analyses maps an analysisKey (which identifies a package
+	// and a set of analyzers) to the handle for the future result
+	// of loading the package and analyzing it.
+	analyses *persistent.Map // from analysisKey to analysisHandle
 
 	// workspacePackages contains the workspace's packages, which are loaded
 	// when the view is created.
@@ -222,7 +223,7 @@ func (s *snapshot) destroy(destroyedBy string) {
 
 	s.packages.Destroy()
 	s.isActivePackageCache.Destroy()
-	s.actions.Destroy()
+	s.analyses.Destroy()
 	s.files.Destroy()
 	s.parsedGoFiles.Destroy()
 	s.parseKeysByURI.Destroy()
@@ -833,12 +834,6 @@ func (s *snapshot) ReverseDependencies(ctx context.Context, id PackageID) (map[P
 	delete(rdeps, id)
 
 	return rdeps, nil
-}
-
-func (s *snapshot) getImportedBy(id PackageID) []PackageID {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.meta.importedBy[id]
 }
 
 func (s *snapshot) workspaceMetadata() (meta []*source.Metadata) {
@@ -1667,7 +1662,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		initializedErr:       s.initializedErr,
 		packages:             s.packages.Clone(),
 		isActivePackageCache: s.isActivePackageCache.Clone(),
-		actions:              s.actions.Clone(),
+		analyses:             s.analyses.Clone(),
 		files:                s.files.Clone(),
 		parsedGoFiles:        s.parsedGoFiles.Clone(),
 		parseKeysByURI:       s.parseKeysByURI.Clone(),
@@ -1882,15 +1877,15 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	}
 
 	// Delete invalidated analysis actions.
-	var actionsToDelete []actionKey
-	result.actions.Range(func(k, _ interface{}) {
-		key := k.(actionKey)
+	var actionsToDelete []analysisKey
+	result.analyses.Range(func(k, _ interface{}) {
+		key := k.(analysisKey)
 		if _, ok := idsToInvalidate[key.pkgid]; ok {
 			actionsToDelete = append(actionsToDelete, key)
 		}
 	})
 	for _, key := range actionsToDelete {
-		result.actions.Delete(key)
+		result.analyses.Delete(key)
 	}
 
 	// If a file has been deleted, we must delete metadata for all packages

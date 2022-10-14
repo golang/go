@@ -149,11 +149,12 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 	if delay > 0 {
 		// 2-phase diagnostics.
 		//
-		// The first phase just parses and checks packages that have been
-		// affected by file modifications (no analysis).
+		// The first phase just parses and type-checks (but
+		// does not analyze) packages directly affected by
+		// file modifications.
 		//
-		// The second phase does everything, and is debounced by the configured
-		// delay.
+		// The second phase runs analysis on the entire snapshot,
+		// and is debounced by the configured delay.
 		s.diagnoseChangedFiles(ctx, snapshot, changedURIs, onDisk)
 		s.publishDiagnostics(ctx, false, snapshot)
 
@@ -323,6 +324,11 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	// Run go/analysis diagnosis of packages in parallel.
 	// TODO(adonovan): opt: it may be more efficient to
 	// have diagnosePkg take a set of packages.
+	//
+	// TODO(adonovan): opt: since the new analysis driver does its
+	// own type checking, we could strength-reduce pkg to
+	// PackageID and get this step started as soon as the set of
+	// active package IDs are known, without waiting for them to load.
 	var (
 		wg   sync.WaitGroup
 		seen = map[span.URI]struct{}{}

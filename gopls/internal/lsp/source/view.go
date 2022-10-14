@@ -678,7 +678,7 @@ type Analyzer struct {
 
 func (a *Analyzer) String() string { return a.Analyzer.String() }
 
-// Enabled reports whether this analyzer is enabled by the given options.
+// IsEnabled reports whether this analyzer is enabled by the given options.
 func (a Analyzer) IsEnabled(options *Options) bool {
 	// Staticcheck analyzers can only be enabled when staticcheck is on.
 	if _, ok := options.StaticcheckAnalyzers[a.Analyzer.Name]; ok {
@@ -764,7 +764,6 @@ type Diagnostic struct {
 	// Fields below are used internally to generate quick fixes. They aren't
 	// part of the LSP spec and don't leave the server.
 	SuggestedFixes []SuggestedFix
-	Analyzer       *Analyzer
 }
 
 func (d *Diagnostic) String() string {

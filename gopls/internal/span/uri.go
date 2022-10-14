@@ -73,6 +73,8 @@ slow:
 	return u.Path, nil
 }
 
+// TODO(adonovan): document this function, and any invariants of
+// span.URI that it is supposed to establish.
 func URIFromURI(s string) URI {
 	if !strings.HasPrefix(s, "file://") {
 		return URI(s)

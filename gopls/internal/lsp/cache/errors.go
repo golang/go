@@ -4,16 +4,20 @@
 
 package cache
 
+// This file defines routines to convert diagnostics from go list, go
+// get, go/packages, parsing, type checking, and analysis into
+// source.Diagnostic form, and suggesting quick fixes.
+
 import (
 	"fmt"
 	"go/scanner"
 	"go/token"
 	"go/types"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -192,55 +196,26 @@ func editGoDirectiveQuickFix(snapshot *snapshot, uri span.URI, version string) (
 	return []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)}, nil
 }
 
-func analysisDiagnosticDiagnostics(options *source.Options, pkg *pkg, a *analysis.Analyzer, e *analysis.Diagnostic) ([]*source.Diagnostic, error) {
-	var srcAnalyzer *source.Analyzer
-	// Find the analyzer that generated this diagnostic.
-	for _, sa := range source.EnabledAnalyzers(options) {
-		if a == sa.Analyzer {
-			srcAnalyzer = sa
-			break
-		}
-	}
-	tokFile := pkg.fset.File(e.Pos)
-	if tokFile == nil {
-		return nil, bug.Errorf("no file for position of %q diagnostic", e.Category)
-	}
-	end := e.End
-	if !end.IsValid() {
-		end = e.Pos
-	}
-	spn, err := span.NewRange(tokFile, e.Pos, end).Span()
-	if err != nil {
-		return nil, err
-	}
-	rng, err := spanToRange(pkg, spn)
-	if err != nil {
-		return nil, err
-	}
+// toSourceDiagnostic converts a gobDiagnostic to "source" form.
+func toSourceDiagnostic(srcAnalyzer *source.Analyzer, gobDiag *gobDiagnostic) *source.Diagnostic {
 	kinds := srcAnalyzer.ActionKind
 	if len(srcAnalyzer.ActionKind) == 0 {
 		kinds = append(kinds, protocol.QuickFix)
 	}
-	fixes, err := suggestedAnalysisFixes(pkg, e, kinds)
-	if err != nil {
-		return nil, err
-	}
+	fixes := suggestedAnalysisFixes(gobDiag, kinds)
 	if srcAnalyzer.Fix != "" {
-		cmd, err := command.NewApplyFixCommand(e.Message, command.ApplyFixArgs{
-			URI:   protocol.URIFromSpanURI(spn.URI()),
-			Range: rng,
+		cmd, err := command.NewApplyFixCommand(gobDiag.Message, command.ApplyFixArgs{
+			URI:   gobDiag.Location.URI,
+			Range: gobDiag.Location.Range,
 			Fix:   srcAnalyzer.Fix,
 		})
 		if err != nil {
-			return nil, err
+			// JSON marshalling of these argument values cannot fail.
+			log.Fatalf("internal error in NewApplyFixCommand: %v", err)
 		}
 		for _, kind := range kinds {
 			fixes = append(fixes, source.SuggestedFixFromCommand(cmd, kind))
 		}
-	}
-	related, err := relatedInformation(pkg, e)
-	if err != nil {
-		return nil, err
 	}
 
 	severity := srcAnalyzer.Severity
@@ -248,20 +223,20 @@ func analysisDiagnosticDiagnostics(options *source.Options, pkg *pkg, a *analysi
 		severity = protocol.SeverityWarning
 	}
 	diag := &source.Diagnostic{
-		URI:            spn.URI(),
-		Range:          rng,
+		// TODO(adonovan): is this sound? See dual conversion in posToLocation.
+		URI:            span.URI(gobDiag.Location.URI),
+		Range:          gobDiag.Location.Range,
 		Severity:       severity,
-		Source:         source.AnalyzerErrorKind(e.Category),
-		Message:        e.Message,
-		Related:        related,
+		Source:         source.AnalyzerErrorKind(gobDiag.Category),
+		Message:        gobDiag.Message,
+		Related:        relatedInformation(gobDiag),
 		SuggestedFixes: fixes,
-		Analyzer:       srcAnalyzer,
 	}
 	// If the fixes only delete code, assume that the diagnostic is reporting dead code.
 	if onlyDeletions(fixes) {
 		diag.Tags = []protocol.DiagnosticTag{protocol.Unnecessary}
 	}
-	return []*source.Diagnostic{diag}, nil
+	return diag
 }
 
 // onlyDeletions returns true if all of the suggested fixes are deletions.
@@ -289,29 +264,14 @@ func typesCodeHref(snapshot *snapshot, code typesinternal.ErrorCode) string {
 	return source.BuildLink(target, "golang.org/x/tools/internal/typesinternal", code.String())
 }
 
-func suggestedAnalysisFixes(pkg *pkg, diag *analysis.Diagnostic, kinds []protocol.CodeActionKind) ([]source.SuggestedFix, error) {
+func suggestedAnalysisFixes(diag *gobDiagnostic, kinds []protocol.CodeActionKind) []source.SuggestedFix {
 	var fixes []source.SuggestedFix
 	for _, fix := range diag.SuggestedFixes {
 		edits := make(map[span.URI][]protocol.TextEdit)
 		for _, e := range fix.TextEdits {
-			tokFile := pkg.fset.File(e.Pos)
-			if tokFile == nil {
-				return nil, bug.Errorf("no file for edit position")
-			}
-			end := e.End
-			if !end.IsValid() {
-				end = e.Pos
-			}
-			spn, err := span.NewRange(tokFile, e.Pos, end).Span()
-			if err != nil {
-				return nil, err
-			}
-			rng, err := spanToRange(pkg, spn)
-			if err != nil {
-				return nil, err
-			}
-			edits[spn.URI()] = append(edits[spn.URI()], protocol.TextEdit{
-				Range:   rng,
+			uri := span.URI(e.Location.URI)
+			edits[uri] = append(edits[uri], protocol.TextEdit{
+				Range:   e.Location.Range,
 				NewText: string(e.NewText),
 			})
 		}
@@ -324,35 +284,19 @@ func suggestedAnalysisFixes(pkg *pkg, diag *analysis.Diagnostic, kinds []protoco
 		}
 
 	}
-	return fixes, nil
+	return fixes
 }
 
-func relatedInformation(pkg *pkg, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
+func relatedInformation(diag *gobDiagnostic) []source.RelatedInformation {
 	var out []source.RelatedInformation
 	for _, related := range diag.Related {
-		tokFile := pkg.fset.File(related.Pos)
-		if tokFile == nil {
-			return nil, bug.Errorf("no file for %q diagnostic position", diag.Category)
-		}
-		end := related.End
-		if !end.IsValid() {
-			end = related.Pos
-		}
-		spn, err := span.NewRange(tokFile, related.Pos, end).Span()
-		if err != nil {
-			return nil, err
-		}
-		rng, err := spanToRange(pkg, spn)
-		if err != nil {
-			return nil, err
-		}
 		out = append(out, source.RelatedInformation{
-			URI:     spn.URI(),
-			Range:   rng,
+			URI:     span.URI(related.Location.URI),
+			Range:   related.Location.Range,
 			Message: related.Message,
 		})
 	}
-	return out, nil
+	return out
 }
 
 func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, span.Span, error) {

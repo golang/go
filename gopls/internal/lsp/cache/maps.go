@@ -5,6 +5,8 @@
 package cache
 
 import (
+	"strings"
+
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/persistent"
@@ -205,12 +207,12 @@ func (s knownDirsSet) Remove(key span.URI) {
 	s.impl.Delete(key)
 }
 
-// actionKeyLessInterface is the less-than relation for actionKey
+// analysisKeyLessInterface is the less-than relation for analysisKey
 // values wrapped in an interface.
-func actionKeyLessInterface(a, b interface{}) bool {
-	x, y := a.(actionKey), b.(actionKey)
-	if x.analyzer.Name != y.analyzer.Name {
-		return x.analyzer.Name < y.analyzer.Name
+func analysisKeyLessInterface(a, b interface{}) bool {
+	x, y := a.(analysisKey), b.(analysisKey)
+	if cmp := strings.Compare(x.analyzerNames, y.analyzerNames); cmp != 0 {
+		return cmp < 0
 	}
 	return x.pkgid < y.pkgid
 }

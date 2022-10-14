@@ -1994,3 +1994,111 @@ func F[T any](_ T) {
 		)
 	})
 }
+
+// This test demonstrates that analysis facts are correctly propagated
+// across packages.
+func TestInterpackageAnalysis(t *testing.T) {
+	const src = `
+-- go.mod --
+module example.com
+-- a/a.go --
+package a
+
+import "example.com/b"
+
+func _() {
+	new(b.B).Printf("%d", "s") // printf error
+}
+
+-- b/b.go --
+package b
+
+import "example.com/c"
+
+type B struct{}
+
+func (B) Printf(format string, args ...interface{}) {
+	c.MyPrintf(format, args...)
+}
+
+-- c/c.go --
+package c
+
+import "fmt"
+
+func MyPrintf(format string, args ...interface{}) {
+	fmt.Printf(format, args...)
+}
+`
+	Run(t, src, func(t *testing.T, env *Env) {
+		env.OpenFile("a/a.go")
+		env.AfterChange(
+			env.DiagnosticAtRegexpWithMessage("a/a.go", "new.*Printf",
+				"format %d has arg \"s\" of wrong type string"))
+	})
+}
+
+// This test ensures that only Analyzers with RunDespiteErrors=true
+// are invoked on a package that would not compile, even if the errors
+// are distant and localized.
+func TestErrorsThatPreventAnalysis(t *testing.T) {
+	const src = `
+-- go.mod --
+module example.com
+-- a/a.go --
+package a
+
+import "fmt"
+import "sync"
+import _ "example.com/b"
+
+func _() {
+	// The copylocks analyzer (RunDespiteErrors, FactTypes={}) does run.
+	var mu sync.Mutex
+	mu2 := mu // copylocks error, reported
+	_ = &mu2
+
+	// The printf analyzer (!RunDespiteErrors, FactTypes!={}) does not run:
+	//  (c, printf) failed because of type error in c
+	//  (b, printf) and (a, printf) do not run because of failed prerequisites.
+	fmt.Printf("%d", "s") // printf error, unreported
+
+	// The bools analyzer (!RunDespiteErrors, FactTypes={}) does not run:
+	var cond bool
+	_ = cond != true && cond != true // bools error, unreported
+}
+
+-- b/b.go --
+package b
+
+import _ "example.com/c"
+
+-- c/c.go --
+package c
+
+var _ = 1 / "" // type error
+
+`
+	Run(t, src, func(t *testing.T, env *Env) {
+		var diags protocol.PublishDiagnosticsParams
+		env.OpenFile("a/a.go")
+		env.AfterChange(
+			env.DiagnosticAtRegexpWithMessage("a/a.go", "mu2 := (mu)", "assignment copies lock value"),
+			ReadDiagnostics("a/a.go", &diags))
+
+		// Assert that there were no other diagnostics.
+		// In particular:
+		// - "fmt.Printf" does not trigger a [printf] finding;
+		// - "cond != true" does not trigger a [bools] finding.
+		//
+		// We use this check in preference to NoDiagnosticAtRegexp
+		// as it is robust in case of minor mistakes in the position
+		// regexp, and because it reports unexpected diagnostics.
+		if got, want := len(diags.Diagnostics), 1; got != want {
+			t.Errorf("got %d diagnostics in a/a.go, want %d:", got, want)
+			for i, diag := range diags.Diagnostics {
+				t.Logf("Diagnostics[%d] = %+v", i, diag)
+			}
+		}
+	})
+}

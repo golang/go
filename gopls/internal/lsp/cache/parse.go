@@ -43,6 +43,10 @@ type parseKey struct {
 // which is not safe for values from a shared cache.
 // TODO(adonovan): opt: shouldn't parseGoImpl do the trimming?
 // Then we can cache the result since it would never change.
+//
+// TODO(adonovan): in the absence of any way to add existing an
+// token.File to a new FileSet (see go.dev/issue/53200), caching ASTs
+// implies a global FileSet.
 func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
 	if mode == source.ParseExported {
 		panic("only type checking should use Exported")
@@ -168,7 +172,7 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 	// If there were parse errors, attempt to fix them up.
 	if parseErr != nil {
 		// Fix any badly parsed parts of the AST.
-		fixed = fixAST(ctx, file, tok, src)
+		fixed = fixAST(file, tok, src)
 
 		for i := 0; i < 10; i++ {
 			// Fix certain syntax errors that render the file unparseable.
@@ -192,7 +196,7 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 				src = newSrc
 				tok = fset.File(file.Pos())
 
-				fixed = fixAST(ctx, file, tok, src)
+				fixed = fixAST(file, tok, src)
 			}
 		}
 	}
@@ -552,14 +556,14 @@ func arrayLength(array *ast.CompositeLit) (int, bool) {
 //
 // If fixAST returns true, the resulting AST is considered "fixed", meaning
 // positions have been mangled, and type checker errors may not make sense.
-func fixAST(ctx context.Context, n ast.Node, tok *token.File, src []byte) (fixed bool) {
+func fixAST(n ast.Node, tok *token.File, src []byte) (fixed bool) {
 	var err error
 	walkASTWithParent(n, func(n, parent ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.BadStmt:
 			if fixed = fixDeferOrGoStmt(n, parent, tok, src); fixed {
 				// Recursively fix in our fixed node.
-				_ = fixAST(ctx, parent, tok, src)
+				_ = fixAST(parent, tok, src)
 			} else {
 				err = fmt.Errorf("unable to parse defer or go from *ast.BadStmt: %v", err)
 			}
@@ -567,7 +571,7 @@ func fixAST(ctx context.Context, n ast.Node, tok *token.File, src []byte) (fixed
 		case *ast.BadExpr:
 			if fixed = fixArrayType(n, parent, tok, src); fixed {
 				// Recursively fix in our fixed node.
-				_ = fixAST(ctx, parent, tok, src)
+				_ = fixAST(parent, tok, src)
 				return false
 			}
 
