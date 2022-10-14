@@ -11,7 +11,6 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"math"
-	"os"
 	"strings"
 )
 
@@ -774,8 +773,7 @@ func (f *Func) invalidateCFG() {
 // environment variable GOSSAHASH is set, in which case "it depends".
 // See [base.DebugHashMatch] for more information.
 func (f *Func) DebugHashMatch() bool {
-	evhash := os.Getenv(base.GOSSAHASH)
-	if evhash == "" {
+	if !base.HasDebugHash() {
 		return true
 	}
 	name := f.fe.MyImportPath() + "." + f.Name

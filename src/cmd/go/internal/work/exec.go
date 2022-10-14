@@ -341,29 +341,12 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 			"GOCLOBBERDEADHASH",
 			"GOSSAFUNC",
 			"GOSSADIR",
-			"GOSSAHASH",
+			"GOCOMPILEDEBUG",
 		}
 		for _, env := range magic {
 			if x := os.Getenv(env); x != "" {
 				fmt.Fprintf(h, "magic %s=%s\n", env, x)
 			}
-		}
-		if os.Getenv("GOSSAHASH") != "" {
-			for i := 0; ; i++ {
-				env := fmt.Sprintf("GOSSAHASH%d", i)
-				x := os.Getenv(env)
-				if x == "" {
-					break
-				}
-				fmt.Fprintf(h, "magic %s=%s\n", env, x)
-			}
-		}
-		if os.Getenv("GSHS_LOGFILE") != "" {
-			// Clumsy hack. Compiler writes to this log file,
-			// so do not allow use of cache at all.
-			// We will still write to the cache but it will be
-			// essentially unfindable.
-			fmt.Fprintf(h, "nocache %d\n", time.Now().UnixNano())
 		}
 
 	case "gccgo":

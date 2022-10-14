@@ -180,6 +180,16 @@ func ParseFlags() {
 	registerFlags()
 	objabi.Flagparse(usage)
 
+	if gcd := os.Getenv("GOCOMPILEDEBUG"); gcd != "" {
+		// This will only override the flags set in gcd;
+		// any others set on the command line remain set.
+		Flag.LowerD.Set(gcd)
+	}
+
+	if Debug.Gossahash != "" {
+		hashDebug = NewHashDebug("gosshash", Debug.Gossahash, nil)
+	}
+
 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
 		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
 	}
