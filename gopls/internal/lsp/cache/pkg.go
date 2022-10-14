@@ -13,6 +13,7 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/memoize"
 )
 
 // pkg contains the type information needed by the source package.
@@ -30,6 +31,8 @@ type pkg struct {
 	typesInfo       *types.Info
 	typesSizes      types.Sizes
 	hasFixedFiles   bool // if true, AST was sufficiently mangled that we should hide type errors
+
+	analyses memoize.Store // maps analyzer.Name to Promise[actionResult]
 }
 
 // A loadScope defines a package loading scope for use with go/packages.

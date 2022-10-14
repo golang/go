@@ -66,8 +66,6 @@ type actionKey struct {
 	analyzer *analysis.Analyzer
 }
 
-type actionHandleKey source.Hash
-
 // An action represents one unit of analysis work: the application of
 // one analysis to one package. Actions form a DAG, both within a
 // package (as different analyzers are applied, either in sequence or
@@ -162,7 +160,16 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 		}
 	}
 
-	promise, release := s.store.Promise(buildActionKey(a, ph), func(ctx context.Context, arg interface{}) interface{} {
+	// The promises are kept in a store on the package,
+	// so the key need only include the analyzer name.
+	//
+	// (Since type-checking and analysis depend on the identity
+	// of packages--distinct packages produced by the same
+	// recipe are not fungible--we must in effect use the package
+	// itself as part of the key. Rather than actually use a pointer
+	// in the key, we get a simpler object graph if we shard the
+	// store by packages.)
+	promise, release := pkg.analyses.Promise(a.Name, func(ctx context.Context, arg interface{}) interface{} {
 		res, err := actionImpl(ctx, arg.(*snapshot), deps, a, pkg)
 		return actionResult{res, err}
 	})
@@ -184,10 +191,6 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	s.actions.Set(key, ah, func(_, _ interface{}) { release() })
 
 	return ah, nil
-}
-
-func buildActionKey(a *analysis.Analyzer, ph *packageHandle) actionHandleKey {
-	return actionHandleKey(source.Hashf("%p%s", a, ph.key[:]))
 }
 
 func (key actionKey) String() string {
