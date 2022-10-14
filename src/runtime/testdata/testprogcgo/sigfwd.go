@@ -2,9 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux
+
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 /*
 #include <signal.h>
@@ -12,21 +17,25 @@ import "fmt"
 #include <stdio.h>
 #include <string.h>
 
-int *p;
+int *sigfwdP;
 static void sigsegv() {
-	*p = 1;
+	*sigfwdP = 1;
 	fprintf(stderr, "ERROR: C SIGSEGV not thrown on caught?.\n");
 	exit(2);
 }
 
 static void segvhandler(int signum) {
 	if (signum == SIGSEGV) {
-		fprintf(stdout, "ok\ttestsigfwd\n");
+		fprintf(stdout, "OK\n");
 		exit(0);  // success
 	}
 }
 
 static void __attribute__ ((constructor)) sigsetup(void) {
+	if (getenv("GO_TEST_CGOSIGFWD") == NULL) {
+		return;
+	}
+
 	struct sigaction act;
 
 	memset(&act, 0, sizeof act);
@@ -36,7 +45,11 @@ static void __attribute__ ((constructor)) sigsetup(void) {
 */
 import "C"
 
-var p *byte
+func init() {
+	register("CgoSigfwd", CgoSigfwd)
+}
+
+var nilPtr *byte
 
 func f() (ret bool) {
 	defer func() {
@@ -46,14 +59,19 @@ func f() (ret bool) {
 		}
 		ret = true
 	}()
-	*p = 1
+	*nilPtr = 1
 	return false
 }
 
-func main() {
+func CgoSigfwd() {
+	if os.Getenv("GO_TEST_CGOSIGFWD") == "" {
+		fmt.Fprintf(os.Stderr, "test must be run with GO_TEST_CGOSIGFWD set\n")
+		os.Exit(1)
+	}
+
 	// Test that the signal originating in Go is handled (and recovered) by Go.
 	if !f() {
-		fmt.Errorf("couldn't recover from SIGSEGV in Go.")
+		fmt.Fprintf(os.Stderr, "couldn't recover from SIGSEGV in Go.\n")
 		C.exit(2)
 	}
 
