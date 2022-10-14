@@ -60,16 +60,19 @@ func (c Func) Release() {
 }
 
 // setEventHandler is defined in the runtime package.
-func setEventHandler(fn func())
+func setEventHandler(fn func() bool)
 
 func init() {
 	setEventHandler(handleEvent)
 }
 
-func handleEvent() {
+// handleEvent retrieves the pending event (window._pendingEvent) and calls the js.Func on it.
+// It returns true if an event was handled.
+func handleEvent() bool {
+	// Retrieve the event from js
 	cb := jsGo.Get("_pendingEvent")
 	if cb.IsNull() {
-		return
+		return false
 	}
 	jsGo.Set("_pendingEvent", Null())
 
@@ -77,14 +80,17 @@ func handleEvent() {
 	if id == 0 { // zero indicates deadlock
 		select {}
 	}
+
+	// Retrieve the associated js.Func
 	funcsMu.Lock()
 	f, ok := funcs[id]
 	funcsMu.Unlock()
 	if !ok {
 		Global().Get("console").Call("error", "call to released function")
-		return
+		return true
 	}
 
+	// Call the js.Func with arguments
 	this := cb.Get("this")
 	argsObj := cb.Get("args")
 	args := make([]Value, argsObj.Length())
@@ -92,5 +98,8 @@ func handleEvent() {
 		args[i] = argsObj.Index(i)
 	}
 	result := f(this, args)
+
+	// Return the result to js
 	cb.Set("result", result)
+	return true
 }

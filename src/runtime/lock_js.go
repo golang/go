@@ -117,7 +117,6 @@ func notetsleepg(n *note, ns int64) bool {
 		gopark(nil, nil, waitReasonSleep, traceBlockSleep, 1)
 
 		clearTimeoutEvent(id) // note might have woken early, clear timeout
-		clearIdleID()
 
 		mp = acquirem()
 		delete(notes, n)
@@ -169,8 +168,36 @@ type event struct {
 	returned bool
 }
 
+type timeoutEvent struct {
+	id int32
+	// The time when this timeout will be triggered.
+	time int64
+}
+
+// diff calculates the difference of the event's trigger time and x.
+func (e *timeoutEvent) diff(x int64) int64 {
+	if e == nil {
+		return 0
+	}
+
+	diff := x - idleTimeout.time
+	if diff < 0 {
+		diff = -diff
+	}
+	return diff
+}
+
+// clear cancels this timeout event.
+func (e *timeoutEvent) clear() {
+	if e == nil {
+		return
+	}
+
+	clearTimeoutEvent(e.id)
+}
+
 // The timeout event started by beforeIdle.
-var idleID int32
+var idleTimeout *timeoutEvent
 
 // beforeIdle gets called by the scheduler if no goroutine is awake.
 // If we are not already handling an event, then we pause for an async event.
@@ -183,21 +210,23 @@ var idleID int32
 func beforeIdle(now, pollUntil int64) (gp *g, otherReady bool) {
 	delay := int64(-1)
 	if pollUntil != 0 {
-		delay = pollUntil - now
-	}
-
-	if delay > 0 {
-		clearIdleID()
-		if delay < 1e6 {
-			delay = 1
-		} else if delay < 1e15 {
-			delay = delay / 1e6
-		} else {
+		// round up to prevent setTimeout being called early
+		delay = (pollUntil-now-1)/1e6 + 1
+		if delay > 1e9 {
 			// An arbitrary cap on how long to wait for a timer.
 			// 1e9 ms == ~11.5 days.
 			delay = 1e9
 		}
-		idleID = scheduleTimeoutEvent(delay)
+	}
+
+	if delay > 0 && (idleTimeout == nil || idleTimeout.diff(pollUntil) > 1e6) {
+		// If the difference is larger than 1 ms, we should reschedule the timeout.
+		idleTimeout.clear()
+
+		idleTimeout = &timeoutEvent{
+			id:   scheduleTimeoutEvent(delay),
+			time: pollUntil,
+		}
 	}
 
 	if len(events) == 0 {
@@ -217,12 +246,10 @@ func handleAsyncEvent() {
 	pause(getcallersp() - 16)
 }
 
-// clearIdleID clears our record of the timeout started by beforeIdle.
-func clearIdleID() {
-	if idleID != 0 {
-		clearTimeoutEvent(idleID)
-		idleID = 0
-	}
+// clearIdleTimeout clears our record of the timeout started by beforeIdle.
+func clearIdleTimeout() {
+	idleTimeout.clear()
+	idleTimeout = nil
 }
 
 // pause sets SP to newsp and pauses the execution of Go's WebAssembly code until an event is triggered.
@@ -250,9 +277,10 @@ func handleEvent() {
 	}
 	events = append(events, e)
 
-	eventHandler()
-
-	clearIdleID()
+	if !eventHandler() {
+		// If we did not handle a window event, the idle timeout was triggered, so we can clear it.
+		clearIdleTimeout()
+	}
 
 	// wait until all goroutines are idle
 	e.returned = true
@@ -265,9 +293,11 @@ func handleEvent() {
 	pause(getcallersp() - 16)
 }
 
-var eventHandler func()
+// eventHandler retrieves and executes handlers for pending JavaScript events.
+// It returns true if an event was handled.
+var eventHandler func() bool
 
 //go:linkname setEventHandler syscall/js.setEventHandler
-func setEventHandler(fn func()) {
+func setEventHandler(fn func() bool) {
 	eventHandler = fn
 }
