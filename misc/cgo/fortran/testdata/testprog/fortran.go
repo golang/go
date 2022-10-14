@@ -2,11 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package fortran
+package main
 
 // int the_answer();
 import "C"
+import "os"
 
 func TheAnswer() int {
 	return int(C.the_answer())
+}
+
+func main() {
+	if a := TheAnswer(); a != 42 {
+		println("Unexpected result for The Answer. Got:", a, " Want: 42")
+		os.Exit(1)
+	}
+	println("ok")
 }
