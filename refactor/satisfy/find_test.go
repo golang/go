@@ -7,6 +7,7 @@ package satisfy_test
 import (
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -26,6 +27,8 @@ func TestGenericCoreOperations(t *testing.T) {
 	}
 
 	const src = `package foo
+
+import "unsafe"
 
 type I interface { f() }
 
@@ -53,6 +56,7 @@ type R struct{impl}
 type S struct{impl}
 type T struct{impl}
 type U struct{impl}
+type V struct{impl}
 
 type Generic[T any] struct{impl}
 func (Generic[T]) g(T) {}
@@ -153,8 +157,13 @@ func  _[T any]() {
 type Gen2[T any] struct{}
 func (f Gen2[T]) g(string) { global = f } // GI[string] <- Gen2[T]
 
-var global GI[string] 
+var global GI[string]
 
+func _() {
+	var x [3]V
+	// golang/go#56227: the finder should visit calls in the unsafe package.
+	_ = unsafe.Slice(&x[0], func() int { var _ I = x[0]; return 3 }()) // I <- V
+}
 `
 	got := constraints(t, src)
 	want := []string{
@@ -184,6 +193,7 @@ var global GI[string]
 		"p.I <- p.S",
 		"p.I <- p.T",
 		"p.I <- p.U",
+		"p.I <- p.V",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("found unexpected constraints: got %s, want %s", got, want)
@@ -209,7 +219,9 @@ func constraints(t *testing.T, src string) []string {
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
 	typeparams.InitInstanceInfo(info)
-	conf := types.Config{}
+	conf := types.Config{
+		Importer: importer.Default(),
+	}
 	if _, err := conf.Check("p", fset, files, info); err != nil {
 		t.Fatal(err) // type error
 	}

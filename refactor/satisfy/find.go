@@ -198,7 +198,8 @@ func (f *Finder) call(sig *types.Signature, args []ast.Expr) {
 	}
 }
 
-func (f *Finder) builtin(obj *types.Builtin, sig *types.Signature, args []ast.Expr, T types.Type) types.Type {
+// builtin visits the arguments of a builtin type with signature sig.
+func (f *Finder) builtin(obj *types.Builtin, sig *types.Signature, args []ast.Expr) {
 	switch obj.Name() {
 	case "make", "new":
 		// skip the type operand
@@ -228,8 +229,6 @@ func (f *Finder) builtin(obj *types.Builtin, sig *types.Signature, args []ast.Ex
 		// ordinary call
 		f.call(sig, args)
 	}
-
-	return T
 }
 
 func (f *Finder) extract(tuple types.Type, i int) types.Type {
@@ -439,12 +438,27 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 			f.assign(tvFun.Type, arg0)
 		} else {
 			// function call
+
+			// unsafe call. Treat calls to functions in unsafe like ordinary calls,
+			// except that their signature cannot be determined by their func obj.
+			// Without this special handling, f.expr(e.Fun) would fail below.
+			if s, ok := unparen(e.Fun).(*ast.SelectorExpr); ok {
+				if obj, ok := f.info.Uses[s.Sel].(*types.Builtin); ok && obj.Pkg().Path() == "unsafe" {
+					sig := f.info.Types[e.Fun].Type.(*types.Signature)
+					f.call(sig, e.Args)
+					return tv.Type
+				}
+			}
+
+			// builtin call
 			if id, ok := unparen(e.Fun).(*ast.Ident); ok {
 				if obj, ok := f.info.Uses[id].(*types.Builtin); ok {
 					sig := f.info.Types[id].Type.(*types.Signature)
-					return f.builtin(obj, sig, e.Args, tv.Type)
+					f.builtin(obj, sig, e.Args)
+					return tv.Type
 				}
 			}
+
 			// ordinary call
 			f.call(coreType(f.expr(e.Fun)).(*types.Signature), e.Args)
 		}

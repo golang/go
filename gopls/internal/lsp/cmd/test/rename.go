@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"testing"
 
+	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/gopls/internal/span"
 )
 
@@ -17,13 +18,13 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	loc := fmt.Sprintf("%v", spn)
 	got, err := r.NormalizeGoplsCmd(t, "rename", loc, newText)
 	got += err
-	expect := string(r.data.Golden(t, goldenTag, filename, func() ([]byte, error) {
+	want := string(r.data.Golden(t, goldenTag, filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
-	if expect != got {
-		t.Errorf("rename failed with %v %v\nexpected:\n%s\ngot:\n%s", loc, newText, expect, got)
+	if diff := compare.Text(want, got); diff != "" {
+		t.Errorf("rename failed with %v %v (-want +got):\n%s", loc, newText, diff)
 	}
 	// now check we can build a valid unified diff
 	unified, _ := r.NormalizeGoplsCmd(t, "rename", "-d", loc, newText)
-	checkUnified(t, filename, expect, unified)
+	checkUnified(t, filename, want, unified)
 }

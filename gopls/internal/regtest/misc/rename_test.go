@@ -52,6 +52,36 @@ func main() {
 	})
 }
 
+// Test case for golang/go#56227
+func TestRenameWithUnsafeSlice(t *testing.T) {
+	testenv.NeedsGo1Point(t, 17) // unsafe.Slice was added in Go 1.17
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.18
+-- p.go --
+package p
+
+import "unsafe"
+
+type T struct{}
+
+func (T) M() {}
+
+func _() {
+	x := [3]int{1, 2, 3}
+	ptr := unsafe.Pointer(&x)
+	_ = unsafe.Slice((*int)(ptr), 3)
+}
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("p.go")
+		env.Rename("p.go", env.RegexpSearch("p.go", "M"), "N") // must not panic
+	})
+}
+
 func TestPrepareRenameWithNoPackageDeclaration(t *testing.T) {
 	testenv.NeedsGo1Point(t, 15)
 	const files = `
