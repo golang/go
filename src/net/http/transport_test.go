@@ -1680,6 +1680,9 @@ func TestTransportPersistConnLeak(t *testing.T) {
 	run(t, testTransportPersistConnLeak, testNotParallel)
 }
 func testTransportPersistConnLeak(t *testing.T, mode testMode) {
+	if mode == http2Mode {
+		t.Skip("flaky in HTTP/2")
+	}
 	// Not parallel: counts goroutines
 
 	const numReq = 25
