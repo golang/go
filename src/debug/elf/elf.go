@@ -735,7 +735,7 @@ const (
 )
 
 var compressionStrings = []intName{
-	{0, "COMPRESS_ZLIB"},
+	{1, "COMPRESS_ZLIB"},
 	{0x60000000, "COMPRESS_LOOS"},
 	{0x6fffffff, "COMPRESS_HIOS"},
 	{0x70000000, "COMPRESS_LOPROC"},
