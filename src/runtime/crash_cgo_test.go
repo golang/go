@@ -757,8 +757,8 @@ func TestCgoTraceParserWithOneProc(t *testing.T) {
 
 func TestCgoSigfwd(t *testing.T) {
 	t.Parallel()
-	if goos.IsLinux == 0 {
-		t.Skipf("only supported on Linux")
+	if !goos.IsUnix {
+		t.Skipf("no signals on %s", runtime.GOOS)
 	}
 
 	got := runTestProg(t, "testprogcgo", "CgoSigfwd", "GO_TEST_CGOSIGFWD=1")
