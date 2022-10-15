@@ -49,7 +49,7 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byt
 	// 3.  If emLen < hLen + sLen + 2, output "encoding error" and stop.
 
 	if emLen < hLen+sLen+2 {
-		return nil, errors.New("crypto/rsa: key size too small for PSS signature")
+		return nil, ErrMessageTooLong
 	}
 
 	em := make([]byte, emLen)

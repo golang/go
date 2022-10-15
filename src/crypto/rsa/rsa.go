@@ -424,9 +424,10 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 	}
 }
 
-// ErrMessageTooLong is returned when attempting to encrypt a message which is
-// too large for the size of the public key.
-var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA public key size")
+// ErrMessageTooLong is returned when attempting to encrypt or sign a message
+// which is too large for the size of the key. When using SignPSS, this can also
+// be returned if the size of the salt is too large.
+var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key size")
 
 func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
 	boring.Unreachable()
