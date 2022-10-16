@@ -113,7 +113,8 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$16-0
 	MOVD	$runtime·badsignalmsg(SB), R1	// lpBuffer
 	MOVD	$runtime·badsignallen(SB), R2	// lpNumberOfBytesToWrite
 	MOVD	(R2), R2
-	MOVD	R13, R3		// lpNumberOfBytesWritten
+	// point R3 to stack local that will receive number of bytes written
+	ADD	$16, RSP, R3		// lpNumberOfBytesWritten
 	MOVD	$0, R4			// lpOverlapped
 	MOVD	runtime·_WriteFile(SB), R12
 	SUB	$16, RSP	// skip over saved frame pointer below RSP

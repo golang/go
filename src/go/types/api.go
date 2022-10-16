@@ -31,6 +31,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	. "internal/types/errors"
 )
 
 // An Error describes a type-checking error; it implements the error interface.
@@ -48,7 +49,7 @@ type Error struct {
 	// to preview this feature may read go116code using reflection (see
 	// errorcodes_test.go), but beware that there is no guarantee of future
 	// compatibility.
-	go116code  errorCode
+	go116code  Code
 	go116start token.Pos
 	go116end   token.Pos
 }

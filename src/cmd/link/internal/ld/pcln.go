@@ -17,7 +17,7 @@ import (
 	"strings"
 )
 
-const funcSize = 10 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
+const funcSize = 11 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
 
 // pclntab holds the state needed for pclntab generation.
 type pclntab struct {
@@ -169,15 +169,29 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 
 		inlFunc := ldr.FuncInfo(call.Func)
 		var funcID objabi.FuncID
+		startLine := int32(0)
 		if inlFunc.Valid() {
 			funcID = inlFunc.FuncID()
+			startLine = inlFunc.StartLine()
+		} else if !ctxt.linkShared {
+			// Inlined functions are always Go functions, and thus
+			// must have FuncInfo.
+			//
+			// Unfortunately, with -linkshared, the inlined
+			// function may be external symbols (from another
+			// shared library), and we don't load FuncInfo from the
+			// shared library. We will report potentially incorrect
+			// FuncID in this case. See https://go.dev/issue/55954.
+			panic(fmt.Sprintf("inlined function %s missing func info", ldr.SymName(call.Func)))
 		}
+
 		// Construct runtime.inlinedCall value.
-		const size = 12
+		const size = 16
 		inlTreeSym.SetUint8(arch, int64(i*size+0), uint8(funcID))
 		// Bytes 1-3 are unused.
 		inlTreeSym.SetUint32(arch, int64(i*size+4), uint32(nameOff))
 		inlTreeSym.SetUint32(arch, int64(i*size+8), uint32(call.ParentPC))
+		inlTreeSym.SetUint32(arch, int64(i*size+12), uint32(startLine))
 	}
 	return its
 }
@@ -632,10 +646,12 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 
 	// Write the individual func objects.
 	for i, s := range funcs {
+		startLine := int32(0)
 		fi := ldr.FuncInfo(s)
 		if fi.Valid() {
 			fi.Preload()
 			pcsp, pcfile, pcline, pcinline, pcdata = ldr.PcdataAuxs(s, pcdata)
+			startLine = fi.StartLine()
 		}
 
 		off := int64(startLocations[i])
@@ -681,6 +697,9 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 			cuIdx = cuOffsets[cu.PclnIndex]
 		}
 		off = sb.SetUint32(ctxt.Arch, off, cuIdx)
+
+		// startLine int32
+		off = sb.SetUint32(ctxt.Arch, off, uint32(startLine))
 
 		// funcID uint8
 		var funcID objabi.FuncID

@@ -6,6 +6,7 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	. "internal/types/errors"
 )
 
 // This file implements a check to validate that a Go package doesn't
@@ -137,7 +138,7 @@ func (check *Checker) reportInstanceLoop(v int) {
 	// TODO(mdempsky): Pivot stack so we report the cycle from the top?
 
 	var err error_
-	err.code = _InvalidInstanceCycle
+	err.code = InvalidInstanceCycle
 	obj0 := check.mono.vertices[v].obj
 	err.errorf(obj0, "instantiation cycle:")
 

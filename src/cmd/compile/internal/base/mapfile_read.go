@@ -3,13 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20)
-// +build !darwin
-// +build !dragonfly
-// +build !freebsd
-// +build !linux
-// +build !netbsd
-// +build !openbsd
-// +build !solaris !go1.20
 
 package base
 

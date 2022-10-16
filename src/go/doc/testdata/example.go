@@ -59,7 +59,7 @@ func RunExamples(examples []InternalExample) (ok bool) {
 		// run example
 		t0 := time.Now()
 		eg.F()
-		dt := time.Now().Sub(t0)
+		dt := time.Since(t0)
 
 		// close pipe, restore stdout/stderr, get output
 		w.Close()

@@ -2002,17 +2002,16 @@ func MapOf(key, elem Type) Type {
 var funcTypes []Type
 var funcTypesMutex sync.Mutex
 
-func initFuncTypes(n int) {
+func initFuncTypes(n int) Type {
 	funcTypesMutex.Lock()
 	defer funcTypesMutex.Unlock()
-	if n < len(funcTypes) {
-		if funcTypes[n] != nil {
-			return
-		}
-	} else {
+	if n >= len(funcTypes) {
 		newFuncTypes := make([]Type, n+1)
 		copy(newFuncTypes, funcTypes)
 		funcTypes = newFuncTypes
+	}
+	if funcTypes[n] != nil {
+		return funcTypes[n]
 	}
 
 	funcTypes[n] = StructOf([]StructField{
@@ -2025,6 +2024,7 @@ func initFuncTypes(n int) {
 			Type: ArrayOf(n, TypeOf(&rtype{})),
 		},
 	})
+	return funcTypes[n]
 }
 
 // FuncOf returns the function type with the given argument and result types.
@@ -2044,17 +2044,13 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	prototype := *(**funcType)(unsafe.Pointer(&ifunc))
 	n := len(in) + len(out)
 
-	var ft *funcType
-	var args []*rtype
-	if n <= 128 {
-		initFuncTypes(n)
-		o := New(funcTypes[n]).Elem()
-		ft = (*funcType)(unsafe.Pointer(o.Field(0).Addr().Pointer()))
-		args = unsafe.Slice((**rtype)(unsafe.Pointer(o.Field(1).Addr().Pointer())), n)[0:0:n]
-	} else {
+	if n > 128 {
 		panic("reflect.FuncOf: too many arguments")
 	}
 
+	o := New(initFuncTypes(n)).Elem()
+	ft := (*funcType)(unsafe.Pointer(o.Field(0).Addr().Pointer()))
+	args := unsafe.Slice((**rtype)(unsafe.Pointer(o.Field(1).Addr().Pointer())), n)[0:0:n]
 	*ft = *prototype
 
 	// Build a hash and minimally populate ft.

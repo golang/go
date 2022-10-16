@@ -32,7 +32,10 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 
 	policies := macOS.CFArrayCreateMutable()
 	defer macOS.ReleaseCFArray(policies)
-	sslPolicy := macOS.SecPolicyCreateSSL(opts.DNSName)
+	sslPolicy, err := macOS.SecPolicyCreateSSL(opts.DNSName)
+	if err != nil {
+		return nil, err
+	}
 	macOS.CFArrayAppendValue(policies, sslPolicy)
 
 	trustObj, err := macOS.SecTrustCreateWithCertificates(certs, policies)
@@ -61,7 +64,10 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 	chain := [][]*Certificate{{}}
 	numCerts := macOS.SecTrustGetCertificateCount(trustObj)
 	for i := 0; i < numCerts; i++ {
-		certRef := macOS.SecTrustGetCertificateAtIndex(trustObj, i)
+		certRef, err := macOS.SecTrustGetCertificateAtIndex(trustObj, i)
+		if err != nil {
+			return nil, err
+		}
 		cert, err := exportCertificate(certRef)
 		if err != nil {
 			return nil, err

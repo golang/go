@@ -753,6 +753,7 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
 				suffix := filepath.ToSlash(dir[len(modRoot):])
 				if strings.HasPrefix(suffix, "/vendor/") {
 					longestPrefixPath = strings.TrimPrefix(suffix, "/vendor/")
+					continue
 				}
 				longestPrefixPath = mms.PathPrefix(v) + suffix
 			}
@@ -983,7 +984,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	if ld.GoVersion == "" {
 		ld.GoVersion = MainModules.GoVersion()
 
-		if ld.Tidy && semver.Compare("v"+ld.GoVersion, "v"+LatestGoVersion()) > 0 {
+		if ld.Tidy && versionLess(LatestGoVersion(), ld.GoVersion) {
 			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, LatestGoVersion())
 			base.ExitIfErrors()
 		}
@@ -992,7 +993,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	if ld.Tidy {
 		if ld.TidyCompatibleVersion == "" {
 			ld.TidyCompatibleVersion = priorGoVersion(ld.GoVersion)
-		} else if semver.Compare("v"+ld.TidyCompatibleVersion, "v"+ld.GoVersion) > 0 {
+		} else if versionLess(ld.GoVersion, ld.TidyCompatibleVersion) {
 			// Each version of the Go toolchain knows how to interpret go.mod and
 			// go.sum files produced by all previous versions, so a compatibility
 			// version higher than the go.mod version adds nothing.
@@ -1150,22 +1151,23 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		rs, err := tidyRoots(ctx, ld.requirements, ld.pkgs)
 		if err != nil {
 			ld.errorf("go: %v\n", err)
-		}
-
-		if ld.requirements.pruning == pruned {
-			// We continuously add tidy roots to ld.requirements during loading, so at
-			// this point the tidy roots should be a subset of the roots of
-			// ld.requirements, ensuring that no new dependencies are brought inside
-			// the graph-pruning horizon.
-			// If that is not the case, there is a bug in the loading loop above.
-			for _, m := range rs.rootModules {
-				if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
-					ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
-					base.ExitIfErrors()
+			base.ExitIfErrors()
+		} else {
+			if ld.requirements.pruning == pruned {
+				// We continuously add tidy roots to ld.requirements during loading, so at
+				// this point the tidy roots should be a subset of the roots of
+				// ld.requirements, ensuring that no new dependencies are brought inside
+				// the graph-pruning horizon.
+				// If that is not the case, there is a bug in the loading loop above.
+				for _, m := range rs.rootModules {
+					if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
+						ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
+						base.ExitIfErrors()
+					}
 				}
 			}
+			ld.requirements = rs
 		}
-		ld.requirements = rs
 	}
 
 	// Report errors, if any.
@@ -1183,11 +1185,19 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			}
 		}
 
-		if ld.SilencePackageErrors {
-			continue
+		if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) && stdErr.isStd {
+			// Add importer go version information to import errors of standard
+			// library packages arising from newer releases.
+			if importer := pkg.stack; importer != nil {
+				if v, ok := rawGoVersion.Load(importer.mod); ok && versionLess(LatestGoVersion(), v.(string)) {
+					stdErr.importerGoVersion = v.(string)
+				}
+			}
+			if ld.SilenceMissingStdImports {
+				continue
+			}
 		}
-		if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) &&
-			stdErr.isStd && ld.SilenceMissingStdImports {
+		if ld.SilencePackageErrors {
 			continue
 		}
 		if ld.SilenceNoGoErrors && errors.Is(pkg.err, imports.ErrNoGo) {
@@ -1199,6 +1209,12 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 
 	ld.checkMultiplePaths()
 	return ld
+}
+
+// versionLess returns whether a < b according to semantic version precedence.
+// Both strings are interpreted as go version strings, e.g. "1.19".
+func versionLess(a, b string) bool {
+	return semver.Compare("v"+a, "v"+b) < 0
 }
 
 // updateRequirements ensures that ld.requirements is consistent with the

@@ -87,17 +87,6 @@ const (
 
 	_SIGEV_THREAD_ID = 0x4
 
-	_EPOLLIN       = 0x1
-	_EPOLLOUT      = 0x4
-	_EPOLLERR      = 0x8
-	_EPOLLHUP      = 0x10
-	_EPOLLRDHUP    = 0x2000
-	_EPOLLET       = 0x80000000
-	_EPOLL_CLOEXEC = 0x80000
-	_EPOLL_CTL_ADD = 0x1
-	_EPOLL_CTL_DEL = 0x2
-	_EPOLL_CTL_MOD = 0x3
-
 	_AF_UNIX    = 0x1
 	_SOCK_DGRAM = 0x2
 )
@@ -206,12 +195,6 @@ type sigactiont struct {
 	sa_flags    uint32
 	sa_restorer uintptr
 	sa_mask     uint64
-}
-
-type epollevent struct {
-	events uint32
-	_pad   uint32
-	data   [8]byte // to match amd64
 }
 
 type sockaddr_un struct {

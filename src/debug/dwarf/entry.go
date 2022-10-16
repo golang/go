@@ -1104,7 +1104,7 @@ func (d *Data) baseAddressForEntry(e *Entry) (*Entry, uint64, error) {
 }
 
 func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
-	if ranges > int64(len(d.ranges)) {
+	if ranges < 0 || ranges > int64(len(d.ranges)) {
 		return nil, fmt.Errorf("invalid range offset %d (max %d)", ranges, len(d.ranges))
 	}
 	buf := makeBuf(d, u, "ranges", Offset(ranges), d.ranges[ranges:])
@@ -1129,7 +1129,7 @@ func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64)
 // dwarf5Ranges interprets a debug_rnglists sequence, see DWARFv5 section
 // 2.17.3 (page 53).
 func (d *Data) dwarf5Ranges(u *unit, cu *Entry, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
-	if ranges > int64(len(d.rngLists)) {
+	if ranges < 0 || ranges > int64(len(d.rngLists)) {
 		return nil, fmt.Errorf("invalid rnglist offset %d (max %d)", ranges, len(d.ranges))
 	}
 	var addrBase int64

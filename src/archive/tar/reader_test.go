@@ -6,6 +6,7 @@ package tar
 
 import (
 	"bytes"
+	"compress/bzip2"
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -243,6 +244,9 @@ func TestReader(t *testing.T) {
 	}, {
 		file: "testdata/pax-bad-hdr-file.tar",
 		err:  ErrHeader,
+	}, {
+		file: "testdata/pax-bad-hdr-large.tar.bz2",
+		err:  ErrFieldTooLong,
 	}, {
 		file: "testdata/pax-bad-mtime-file.tar",
 		err:  ErrHeader,
@@ -625,9 +629,14 @@ func TestReader(t *testing.T) {
 			}
 			defer f.Close()
 
+			var fr io.Reader = f
+			if strings.HasSuffix(v.file, ".bz2") {
+				fr = bzip2.NewReader(fr)
+			}
+
 			// Capture all headers and checksums.
 			var (
-				tr      = NewReader(f)
+				tr      = NewReader(fr)
 				hdrs    []*Header
 				chksums []string
 				rdbuf   = make([]byte, 8)

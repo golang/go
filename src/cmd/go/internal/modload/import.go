@@ -41,6 +41,10 @@ type ImportMissingError struct {
 	// modules.
 	isStd bool
 
+	// importerGoVersion is the version the module containing the import error
+	// specified. It is only set when isStd is true.
+	importerGoVersion string
+
 	// replaced the highest replaced version of the module where the replacement
 	// contains the package. replaced is only set if the replacement is unused.
 	replaced module.Version
@@ -53,7 +57,11 @@ type ImportMissingError struct {
 func (e *ImportMissingError) Error() string {
 	if e.Module.Path == "" {
 		if e.isStd {
-			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
+			msg := fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
+			if e.importerGoVersion != "" {
+				msg += fmt.Sprintf("\nnote: imported by a module that requires go %s", e.importerGoVersion)
+			}
+			return msg
 		}
 		if e.QueryErr != nil && e.QueryErr != ErrNoModRoot {
 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
@@ -355,8 +363,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 			}
 			m := module.Version{Path: prefix, Version: v}
 
-			needSum := true
-			root, isLocal, err := fetch(ctx, m, needSum)
+			root, isLocal, err := fetch(ctx, m)
 			if err != nil {
 				if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
 					// We are missing a sum needed to fetch a module in the build list.
@@ -483,8 +490,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 		return len(mods[i].Path) > len(mods[j].Path)
 	})
 	for _, m := range mods {
-		needSum := true
-		root, isLocal, err := fetch(ctx, m, needSum)
+		root, isLocal, err := fetch(ctx, m)
 		if err != nil {
 			if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
 				return module.Version{}, &ImportMissingSumError{importPath: path}
@@ -676,14 +682,9 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 // fetch downloads the given module (or its replacement)
 // and returns its location.
 //
-// needSum indicates whether the module may be downloaded in readonly mode
-// without a go.sum entry. It should only be false for modules fetched
-// speculatively (for example, for incompatible version filtering). The sum
-// will still be verified normally.
-//
 // The isLocal return value reports whether the replacement,
 // if any, is local to the filesystem.
-func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, isLocal bool, err error) {
+func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, err error) {
 	if modRoot := MainModules.ModRoot(mod); modRoot != "" {
 		return modRoot, true, nil
 	}
@@ -713,12 +714,18 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
 		mod = r
 	}
 
-	if HasModRoot() && cfg.BuildMod == "readonly" && !inWorkspaceMode() && needSum && !modfetch.HaveSum(mod) {
+	if mustHaveSums() && !modfetch.HaveSum(mod) {
 		return "", false, module.VersionError(mod, &sumMissingError{})
 	}
 
 	dir, err = modfetch.Download(ctx, mod)
 	return dir, false, err
+}
+
+// mustHaveSums reports whether we require that all checksums
+// needed to load or build packages are already present in the go.sum file.
+func mustHaveSums() bool {
+	return HasModRoot() && cfg.BuildMod == "readonly" && !inWorkspaceMode()
 }
 
 type sumMissingError struct {

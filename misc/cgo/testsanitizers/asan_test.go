@@ -5,6 +5,7 @@
 package sanitizers_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -42,6 +43,7 @@ func TestASAN(t *testing.T) {
 		src               string
 		memoryAccessError string
 		errorLocation     string
+		experiments       []string
 	}{
 		{src: "asan1_fail.go", memoryAccessError: "heap-use-after-free", errorLocation: "asan1_fail.go:25"},
 		{src: "asan2_fail.go", memoryAccessError: "heap-buffer-overflow", errorLocation: "asan2_fail.go:31"},
@@ -57,6 +59,7 @@ func TestASAN(t *testing.T) {
 		{src: "asan_global3_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global3_fail.go:13"},
 		{src: "asan_global4_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global4_fail.go:21"},
 		{src: "asan_global5.go"},
+		{src: "arena_fail.go", memoryAccessError: "use-after-poison", errorLocation: "arena_fail.go:26", experiments: []string{"arenas"}},
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -68,7 +71,7 @@ func TestASAN(t *testing.T) {
 			defer dir.RemoveAll(t)
 
 			outPath := dir.Join(name)
-			mustRun(t, config.goCmd("build", "-o", outPath, srcPath(tc.src)))
+			mustRun(t, config.goCmdWithExperiments("build", []string{"-o", outPath, srcPath(tc.src)}, tc.experiments))
 
 			cmd := hangProneCmd(outPath)
 			if tc.memoryAccessError != "" {
@@ -94,4 +97,45 @@ func TestASAN(t *testing.T) {
 			mustRun(t, cmd)
 		})
 	}
+}
+
+func TestASANLinkerX(t *testing.T) {
+	// Test ASAN with linker's -X flag (see issue 56175).
+	goos, err := goEnv("GOOS")
+	if err != nil {
+		t.Fatal(err)
+	}
+	goarch, err := goEnv("GOARCH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The asan tests require support for the -asan option.
+	if !aSanSupported(goos, goarch) {
+		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
+	}
+	if !compilerRequiredAsanVersion(goos, goarch) {
+		t.Skipf("skipping on %s/%s: too old version of compiler", goos, goarch)
+	}
+
+	t.Parallel()
+	requireOvercommit(t)
+	config := configure("address")
+	config.skipIfCSanitizerBroken(t)
+
+	dir := newTempDir(t)
+	defer dir.RemoveAll(t)
+
+	var ldflags string
+	for i := 1; i <= 10; i++ {
+		ldflags += fmt.Sprintf("-X=main.S%d=%d -X=misc/cgo/testsanitizers/testdata/asan_linkerx/p.S%d=%d ", i, i, i, i)
+	}
+
+	// build the binary
+	outPath := dir.Join("main.exe")
+	cmd := config.goCmd("build", "-ldflags="+ldflags, "-o", outPath)
+	cmd.Dir = srcPath("asan_linkerx")
+	mustRun(t, cmd)
+
+	// run the binary
+	mustRun(t, hangProneCmd(outPath))
 }

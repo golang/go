@@ -19,7 +19,7 @@ import "unsafe"
 
 func CompareString1(s string) bool {
 	// amd64:`CMPW\t\(.*\), [$]`
-	// arm64:`MOVHU\t\(.*\), [R]`,`CMPW\t[$]`
+	// arm64:`MOVHU\t\(.*\), [R]`,`MOVD\t[$]`,`CMPW\tR`
 	// ppc64le:`MOVHZ\t\(.*\), [R]`,`CMPW\t.*, [$]`
 	// s390x:`MOVHBR\t\(.*\), [R]`,`CMPW\t.*, [$]`
 	return s == "xx"
@@ -327,12 +327,12 @@ func CmpToZero_ex1(a int64, e int32) int {
 		return 3
 	}
 
-	// arm64:`CMP|CMN`,-`(ADD|SUB)`,`(BMI|BPL)`
+	// arm64:`SUB`,`TBZ`
 	if a-11 >= 0 {
 		return 4
 	}
 
-	// arm64:`CMP|CMN`,-`(ADD|SUB)`,`BEQ`,`(BMI|BPL)`
+	// arm64:`SUB`,`CMP`,`BGT`
 	if a-19 > 0 {
 		return 4
 	}
@@ -355,7 +355,7 @@ func CmpToZero_ex1(a int64, e int32) int {
 		return 7
 	}
 
-	// arm64:`CMPW|CMNW`,`(BMI|BPL)`
+	// arm64:`SUB`,`TBNZ`
 	// arm:`CMP|CMN`, -`(ADD|SUB)`, `(BMI|BPL)`
 	if e-11 >= 0 {
 		return 8

@@ -4,7 +4,10 @@
 
 package types2
 
-import "cmd/compile/internal/syntax"
+import (
+	"cmd/compile/internal/syntax"
+	. "internal/types/errors"
+)
 
 // ----------------------------------------------------------------------------
 // API
@@ -132,7 +135,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 		// We have a method with name f.Name.
 		name := f.Name.Value
 		if name == "_" {
-			check.error(f.Name, _BlankIfaceMethod, "methods must have a unique non-blank name")
+			check.error(f.Name, BlankIfaceMethod, "methods must have a unique non-blank name")
 			continue // ignore
 		}
 
@@ -140,7 +143,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 		sig, _ := typ.(*Signature)
 		if sig == nil {
 			if typ != Typ[Invalid] {
-				check.errorf(f.Type, 0, invalidAST+"%s is not a method signature", typ)
+				check.errorf(f.Type, InvalidSyntaxTree, "%s is not a method signature", typ)
 			}
 			continue // ignore
 		}

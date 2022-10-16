@@ -1307,8 +1307,7 @@ func (p *parser) tryIdentOrType() ast.Expr {
 	case token.MUL:
 		return p.parsePointerType()
 	case token.FUNC:
-		typ := p.parseFuncType()
-		return typ
+		return p.parseFuncType()
 	case token.INTERFACE:
 		return p.parseInterfaceType()
 	case token.MAP:

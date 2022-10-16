@@ -210,7 +210,10 @@ func importRaw(modroot, reldir string) *rawPackage {
 			continue
 		}
 		info, err := getFileInfo(absdir, name, fset)
-		if err != nil {
+		if err == errNonSource {
+			// not a source or object file. completely ignore in the index
+			continue
+		} else if err != nil {
 			p.sourceFiles = append(p.sourceFiles, &rawFile{name: name, error: err.Error()})
 			continue
 		} else if info == nil {

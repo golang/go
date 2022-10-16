@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sync/atomic"
 	"time"
 	"unsafe"
 )
@@ -462,7 +463,7 @@ func writeMetaData(w io.Writer, metalist []rtcov.CovMetaBlob, cmode coverage.Cou
 }
 
 func (s *emitState) NumFuncs() (int, error) {
-	var sd []uint32
+	var sd []atomic.Uint32
 	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
 
 	totalFuncs := 0
@@ -472,12 +473,13 @@ func (s *emitState) NumFuncs() (int, error) {
 		bufHdr.Cap = int(c.Len)
 		for i := 0; i < len(sd); i++ {
 			// Skip ahead until the next non-zero value.
-			if sd[i] == 0 {
+			sdi := sd[i].Load()
+			if sdi == 0 {
 				continue
 			}
 
 			// We found a function that was executed.
-			nCtrs := sd[i]
+			nCtrs := sdi
 
 			// Check to make sure that we have at least one live
 			// counter. See the implementation note in ClearCoverageCounters
@@ -486,7 +488,7 @@ func (s *emitState) NumFuncs() (int, error) {
 			st := i + coverage.FirstCtrOffset
 			counters := sd[st : st+int(nCtrs)]
 			for i := 0; i < len(counters); i++ {
-				if counters[i] != 0 {
+				if counters[i].Load() != 0 {
 					isLive = true
 					break
 				}
@@ -507,8 +509,17 @@ func (s *emitState) NumFuncs() (int, error) {
 }
 
 func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
-	var sd []uint32
+	var sd []atomic.Uint32
+	var tcounters []uint32
 	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
+
+	rdCounters := func(actrs []atomic.Uint32, ctrs []uint32) []uint32 {
+		ctrs = ctrs[:0]
+		for i := range actrs {
+			ctrs = append(ctrs, actrs[i].Load())
+		}
+		return ctrs
+	}
 
 	dpkg := uint32(0)
 	for _, c := range s.counterlist {
@@ -517,14 +528,15 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 		bufHdr.Cap = int(c.Len)
 		for i := 0; i < len(sd); i++ {
 			// Skip ahead until the next non-zero value.
-			if sd[i] == 0 {
+			sdi := sd[i].Load()
+			if sdi == 0 {
 				continue
 			}
 
 			// We found a function that was executed.
-			nCtrs := sd[i+coverage.NumCtrsOffset]
-			pkgId := sd[i+coverage.PkgIdOffset]
-			funcId := sd[i+coverage.FuncIdOffset]
+			nCtrs := sd[i+coverage.NumCtrsOffset].Load()
+			pkgId := sd[i+coverage.PkgIdOffset].Load()
+			funcId := sd[i+coverage.FuncIdOffset].Load()
 			cst := i + coverage.FirstCtrOffset
 			counters := sd[cst : cst+int(nCtrs)]
 
@@ -533,7 +545,7 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 			// for a description of why this is needed.
 			isLive := false
 			for i := 0; i < len(counters); i++ {
-				if counters[i] != 0 {
+				if counters[i].Load() != 0 {
 					isLive = true
 					break
 				}
@@ -579,7 +591,8 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 				pkgId--
 			}
 
-			if err := f(pkgId, funcId, counters); err != nil {
+			tcounters = rdCounters(counters, tcounters)
+			if err := f(pkgId, funcId, tcounters); err != nil {
 				return err
 			}
 

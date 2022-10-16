@@ -44,12 +44,12 @@ func ParseGopkgLock(file string, data []byte) (*modfile.File, error) {
 		if r == nil {
 			continue
 		}
-		i := strings.Index(line, "=")
-		if i < 0 {
+		before, after, found := strings.Cut(line, "=")
+		if !found {
 			continue
 		}
-		key := strings.TrimSpace(line[:i])
-		val := strings.TrimSpace(line[i+1:])
+		key := strings.TrimSpace(before)
+		val := strings.TrimSpace(after)
 		if len(val) >= 2 && val[0] == '"' && val[len(val)-1] == '"' {
 			q, err := strconv.Unquote(val) // Go unquoting, but close enough for now
 			if err != nil {

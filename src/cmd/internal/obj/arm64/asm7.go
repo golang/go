@@ -7450,7 +7450,7 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
 	case ALDP, ALDPW, ALDPSW:
 		c.checkUnpredictable(p, true, wback, p.From.Reg, p.To.Reg, int16(p.To.Offset))
 	case ASTP, ASTPW:
-		if wback == true {
+		if wback {
 			c.checkUnpredictable(p, false, true, p.To.Reg, p.From.Reg, int16(p.From.Offset))
 		}
 	case AFLDPD, AFLDPQ, AFLDPS:

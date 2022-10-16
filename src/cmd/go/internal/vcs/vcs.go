@@ -880,11 +880,11 @@ func parseGOVCS(s string) (govcsConfig, error) {
 		if item == "" {
 			return nil, fmt.Errorf("empty entry in GOVCS")
 		}
-		i := strings.Index(item, ":")
-		if i < 0 {
+		pattern, list, found := strings.Cut(item, ":")
+		if !found {
 			return nil, fmt.Errorf("malformed entry in GOVCS (missing colon): %q", item)
 		}
-		pattern, list := strings.TrimSpace(item[:i]), strings.TrimSpace(item[i+1:])
+		pattern, list = strings.TrimSpace(pattern), strings.TrimSpace(list)
 		if pattern == "" {
 			return nil, fmt.Errorf("empty pattern in GOVCS: %q", item)
 		}

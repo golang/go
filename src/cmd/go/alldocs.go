@@ -97,9 +97,6 @@
 // ends with a slash or backslash, then any resulting executables
 // will be written to that directory.
 //
-// The -i flag installs the packages that are dependencies of the target.
-// The -i flag is deprecated. Compiled packages are cached automatically.
-//
 // The build flags are shared by the build, clean, get, install, list, run,
 // and test commands:
 //
@@ -117,9 +114,9 @@
 //		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
 //	-msan
 //		enable interoperation with memory sanitizer.
-//		Supported only on linux/amd64, linux/arm64
+//		Supported only on linux/amd64, linux/arm64, freebsd/amd64
 //		and only with Clang/LLVM as the host C compiler.
-//		On linux/arm64, pie build mode will be used.
+//		PIE build mode will be used on all platforms except linux/amd64.
 //	-asan
 //		enable interoperation with address sanitizer.
 //		Supported only on linux/arm64, linux/amd64.
@@ -743,9 +740,6 @@
 // When module-aware mode is disabled, other packages are installed in the
 // directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
 // other packages are built and cached but not installed.
-//
-// The -i flag installs the dependencies of the named packages as well.
-// The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // For more about the build flags, see 'go help build'.
 // For more about specifying packages, see 'go help packages'.
@@ -1744,11 +1738,6 @@
 //	    Run the test binary using xprog. The behavior is the same as
 //	    in 'go run'. See 'go help run' for details.
 //
-//	-i
-//	    Install packages that are dependencies of the test.
-//	    Do not run the test.
-//	    The -i flag is deprecated. Compiled packages are cached automatically.
-//
 //	-json
 //	    Convert test output to JSON suitable for automated processing.
 //	    See 'go doc test2json' for the encoding details.
@@ -1785,10 +1774,9 @@
 //
 //	go version [-m] [-v] [file ...]
 //
-// Version prints the build information for Go executables.
+// Version prints the build information for Go binary files.
 //
-// Go version reports the Go version used to build each of the named
-// executable files.
+// Go version reports the Go version used to build each of the named files.
 //
 // If no files are named on the command line, go version prints its own
 // version information.
@@ -1798,7 +1786,7 @@
 // By default, go version does not report unrecognized files found
 // during a directory scan. The -v flag causes it to report unrecognized files.
 //
-// The -m flag causes go version to print each executable's embedded
+// The -m flag causes go version to print each file's embedded
 // module version information, when available. In the output, the module
 // information consists of multiple lines following the version line, each
 // indented by a leading tab character.
@@ -1825,7 +1813,7 @@
 // or additional checks.
 // For example, the 'shadow' analyzer can be built and run using these commands:
 //
-//	go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+//	go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow@latest
 //	go vet -vettool=$(which shadow)
 //
 // The build flags supported by go vet are those that control package resolution

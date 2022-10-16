@@ -123,8 +123,8 @@ func (o Op) Format(s fmt.State, verb rune) {
 
 // Node
 
-// FmtNode implements formatting for a Node n.
-// Every Node implementation must define a Format method that calls FmtNode.
+// fmtNode implements formatting for a Node n.
+// Every Node implementation must define a Format method that calls fmtNode.
 // The valid formats are:
 //
 //	%v	Go syntax

@@ -2780,42 +2780,61 @@ func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Po
 	return add(p, uintptr(i)*eltSize, "i < len")
 }
 
-// grow grows the slice s so that it can hold extra more values, allocating
-// more capacity if needed. It also returns the old and new slice lengths.
-func grow(s Value, extra int) (Value, int, int) {
-	i0 := s.Len()
-	i1 := i0 + extra
-	if i1 < i0 {
-		panic("reflect.Append: slice overflow")
+// Grow increases the slice's capacity, if necessary, to guarantee space for
+// another n elements. After Grow(n), at least n elements can be appended
+// to the slice without another allocation.
+//
+// It panics if v's Kind is not a Slice or if n is negative or too large to
+// allocate the memory.
+func (v Value) Grow(n int) {
+	v.mustBeAssignable()
+	v.mustBe(Slice)
+	v.grow(n)
+}
+
+// grow is identical to Grow but does not check for assignability.
+func (v Value) grow(n int) {
+	p := (*unsafeheader.Slice)(v.ptr)
+	switch {
+	case n < 0:
+		panic("reflect.Value.Grow: negative len")
+	case p.Len+n < 0:
+		panic("reflect.Value.Grow: slice overflow")
+	case p.Len+n > p.Cap:
+		t := v.typ.Elem().(*rtype)
+		*p = growslice(t, *p, n)
 	}
-	m := s.Cap()
-	if i1 <= m {
-		return s.Slice(0, i1), i0, i1
-	}
-	if m == 0 {
-		m = extra
-	} else {
-		const threshold = 256
-		for m < i1 {
-			if i0 < threshold {
-				m += m
-			} else {
-				m += (m + 3*threshold) / 4
-			}
-		}
-	}
-	t := MakeSlice(s.Type(), i1, m)
-	Copy(t, s)
-	return t, i0, i1
+}
+
+// extendSlice extends a slice by n elements.
+//
+// Unlike Value.grow, which modifies the slice in place and
+// does not change the length of the slice in place,
+// extendSlice returns a new slice value with the length
+// incremented by the number of specified elements.
+func (v Value) extendSlice(n int) Value {
+	v.mustBeExported()
+	v.mustBe(Slice)
+
+	// Shallow copy the slice header to avoid mutating the source slice.
+	sh := *(*unsafeheader.Slice)(v.ptr)
+	s := &sh
+	v.ptr = unsafe.Pointer(s)
+	v.flag = flagIndir | flag(Slice) // equivalent flag to MakeSlice
+
+	v.grow(n) // fine to treat as assignable since we allocate a new slice header
+	s.Len += n
+	return v
 }
 
 // Append appends the values x to a slice s and returns the resulting slice.
 // As in Go, each x's value must be assignable to the slice's element type.
 func Append(s Value, x ...Value) Value {
 	s.mustBe(Slice)
-	s, i0, i1 := grow(s, len(x))
-	for i, j := i0, 0; i < i1; i, j = i+1, j+1 {
-		s.Index(i).Set(x[j])
+	n := s.Len()
+	s = s.extendSlice(len(x))
+	for i, v := range x {
+		s.Index(n + i).Set(v)
 	}
 	return s
 }
@@ -2826,8 +2845,10 @@ func AppendSlice(s, t Value) Value {
 	s.mustBe(Slice)
 	t.mustBe(Slice)
 	typesMustMatch("reflect.AppendSlice", s.Type().Elem(), t.Type().Elem())
-	s, i0, i1 := grow(s, t.Len())
-	Copy(s.Slice(i0, i1), t)
+	ns := s.Len()
+	nt := t.Len()
+	s = s.extendSlice(nt)
+	Copy(s.Slice(ns, ns+nt), t)
 	return s
 }
 
@@ -3763,6 +3784,9 @@ func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
 func typehash(t *rtype, p unsafe.Pointer, h uintptr) uintptr
 
 func verifyNotInHeapPtr(p uintptr) bool
+
+//go:noescape
+func growslice(t *rtype, old unsafeheader.Slice, num int) unsafeheader.Slice
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that

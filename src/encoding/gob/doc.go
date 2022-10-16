@@ -279,10 +279,11 @@ https://blog.golang.org/gobs-of-data
 
 # Security
 
-This package is not designed to be hardened against adversarial inputs. In
-particular, the Decoder does only basic sanity checking on decoded input sizes,
-and its limits are not configurable. Care should be taken when decoding gob data
-from untrusted sources, which may consume significant resources.
+This package is not designed to be hardened against adversarial inputs, and is
+outside the scope of https://go.dev/security/policy. In particular, the Decoder
+does only basic sanity checking on decoded input sizes, and its limits are not
+configurable. Care should be taken when decoding gob data from untrusted
+sources, which may consume significant resources.
 */
 package gob
 

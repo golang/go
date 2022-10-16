@@ -164,6 +164,12 @@ signal, and raises it again, to invoke any non-Go handler or default
 system handler. If the program does not exit, the Go handler then
 reinstalls itself and continues execution of the program.
 
+If a SIGPIPE signal is received, the Go program will invoke the
+special handling described above if the SIGPIPE is received on a Go
+thread.  If the SIGPIPE is received on a non-Go thread the signal will
+be forwarded to the non-Go handler, if any; if there is none the
+default system handler will cause the program to terminate.
+
 # Non-Go programs that call Go code
 
 When Go code is built with options like -buildmode=c-shared, it will

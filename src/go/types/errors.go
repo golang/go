@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	. "internal/types/errors"
 	"runtime"
 	"strconv"
 	"strings"
@@ -36,7 +37,7 @@ func unreachable() {
 // To report an error_, call Checker.report.
 type error_ struct {
 	desc []errorDesc
-	code errorCode
+	code Code
 	soft bool // TODO(gri) eventually determine this from an error code
 }
 
@@ -219,11 +220,19 @@ func (check *Checker) report(errp *error_) {
 		panic("empty error details")
 	}
 
+	msg := errp.msg(check.fset, check.qualifier)
+	switch errp.code {
+	case InvalidSyntaxTree:
+		msg = "invalid AST: " + msg
+	case 0:
+		panic("no error code provided")
+	}
+
 	span := spanOf(errp.desc[0].posn)
 	e := Error{
 		Fset:       check.fset,
 		Pos:        span.pos,
-		Msg:        errp.msg(check.fset, check.qualifier),
+		Msg:        msg,
 		Soft:       errp.soft,
 		go116code:  errp.code,
 		go116start: span.start,
@@ -270,23 +279,28 @@ func (check *Checker) report(errp *error_) {
 	f(err)
 }
 
+const (
+	invalidArg = "invalid argument: "
+	invalidOp  = "invalid operation: "
+)
+
 // newErrorf creates a new error_ for later reporting with check.report.
-func newErrorf(at positioner, code errorCode, format string, args ...any) *error_ {
+func newErrorf(at positioner, code Code, format string, args ...any) *error_ {
 	return &error_{
 		desc: []errorDesc{{at, format, args}},
 		code: code,
 	}
 }
 
-func (check *Checker) error(at positioner, code errorCode, msg string) {
+func (check *Checker) error(at positioner, code Code, msg string) {
 	check.report(newErrorf(at, code, msg))
 }
 
-func (check *Checker) errorf(at positioner, code errorCode, format string, args ...any) {
+func (check *Checker) errorf(at positioner, code Code, format string, args ...any) {
 	check.report(newErrorf(at, code, format, args...))
 }
 
-func (check *Checker) softErrorf(at positioner, code errorCode, format string, args ...any) {
+func (check *Checker) softErrorf(at positioner, code Code, format string, args ...any) {
 	err := newErrorf(at, code, format, args...)
 	err.soft = true
 	check.report(err)
@@ -295,20 +309,8 @@ func (check *Checker) softErrorf(at positioner, code errorCode, format string, a
 func (check *Checker) versionErrorf(at positioner, goVersion string, format string, args ...interface{}) {
 	msg := check.sprintf(format, args...)
 	var err *error_
-	err = newErrorf(at, _UnsupportedFeature, "%s requires %s or later", msg, goVersion)
+	err = newErrorf(at, UnsupportedFeature, "%s requires %s or later", msg, goVersion)
 	check.report(err)
-}
-
-func (check *Checker) invalidAST(at positioner, format string, args ...any) {
-	check.errorf(at, 0, "invalid AST: "+format, args...)
-}
-
-func (check *Checker) invalidArg(at positioner, code errorCode, format string, args ...any) {
-	check.errorf(at, code, "invalid argument: "+format, args...)
-}
-
-func (check *Checker) invalidOp(at positioner, code errorCode, format string, args ...any) {
-	check.errorf(at, code, "invalid operation: "+format, args...)
 }
 
 // The positioner interface is used to extract the position of type-checker

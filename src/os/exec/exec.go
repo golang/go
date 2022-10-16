@@ -94,6 +94,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"internal/godebug"
 	"internal/syscall/execenv"
 	"io"
 	"os"
@@ -101,7 +102,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 )
 
@@ -213,8 +213,9 @@ type Cmd struct {
 	// Process is the underlying process, once started.
 	Process *os.Process
 
-	// ProcessState contains information about an exited process,
-	// available after a call to Wait or Run.
+	// ProcessState contains information about an exited process.
+	// If the process was started successfully, Wait or Run will
+	// populate its ProcessState when the command completes.
 	ProcessState *os.ProcessState
 
 	ctx context.Context // nil means none
@@ -226,17 +227,11 @@ type Cmd struct {
 	// are inherited by the child process.
 	childIOFiles []io.Closer
 
-	// goroutinePipes holds closers for the parent's end of any pipes
+	// parentIOPipes holds closers for the parent's end of any pipes
 	// connected to the child's stdin, stdout, and/or stderr streams
-	// that are pumped (and ultimately closed) by goroutines controlled by
-	// the Cmd itself (not supplied by or returned to the caller).
-	goroutinePipes []io.Closer
-
-	// userPipes holds closers for the parent's end of any pipes
-	// connected to the child's stdin, stdout and/or stderr streams
-	// that were opened and returned by the Cmd's Pipe methods.
-	// These should be closed when Wait completes.
-	userPipes []io.Closer
+	// that were opened by the Cmd itself (not supplied by the caller).
+	// These should be closed after Wait sees the command exit.
+	parentIOPipes []io.Closer
 
 	// goroutine holds a set of closures to execute to copy data
 	// to and/or from the command's I/O pipes.
@@ -248,6 +243,10 @@ type Cmd struct {
 	goroutineErr <-chan error
 
 	ctxErr <-chan error // if non nil, receives the error from watchCtx exactly once
+
+	// The stack saved when the Command was created, if GODEBUG contains
+	// execwait=2. Used for debugging leaks.
+	createdByStack []byte
 
 	// For a security release long ago, we created x/sys/execabs,
 	// which manipulated the unexported lookPathErr error field
@@ -296,6 +295,43 @@ func Command(name string, arg ...string) *Cmd {
 		Path: name,
 		Args: append([]string{name}, arg...),
 	}
+
+	if execwait := godebug.Get("execwait"); execwait != "" {
+		if execwait == "2" {
+			// Obtain the caller stack. (This is equivalent to runtime/debug.Stack,
+			// copied to avoid importing the whole package.)
+			stack := make([]byte, 1024)
+			for {
+				n := runtime.Stack(stack, false)
+				if n < len(stack) {
+					stack = stack[:n]
+					break
+				}
+				stack = make([]byte, 2*len(stack))
+			}
+
+			if i := bytes.Index(stack, []byte("\nos/exec.Command(")); i >= 0 {
+				stack = stack[i+1:]
+			}
+			cmd.createdByStack = stack
+		}
+
+		runtime.SetFinalizer(cmd, func(c *Cmd) {
+			if c.Process != nil && c.ProcessState == nil {
+				debugHint := ""
+				if c.createdByStack == nil {
+					debugHint = " (set GODEBUG=execwait=2 to capture stacks for debugging)"
+				} else {
+					os.Stderr.WriteString("GODEBUG=execwait=2 detected a leaked exec.Cmd created by:\n")
+					os.Stderr.Write(c.createdByStack)
+					os.Stderr.WriteString("\n")
+					debugHint = ""
+				}
+				panic("exec: Cmd started a Process but leaked without a call to Wait" + debugHint)
+			}
+		})
+	}
+
 	if filepath.Base(name) == name {
 		lp, err := LookPath(name)
 		if lp != "" {
@@ -380,7 +416,7 @@ func (c *Cmd) childStdin() (*os.File, error) {
 	}
 
 	c.childIOFiles = append(c.childIOFiles, pr)
-	c.goroutinePipes = append(c.goroutinePipes, pw)
+	c.parentIOPipes = append(c.parentIOPipes, pw)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(pw, c.Stdin)
 		if skipStdinCopyError(err) {
@@ -429,7 +465,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (*os.File, error) {
 	}
 
 	c.childIOFiles = append(c.childIOFiles, pw)
-	c.goroutinePipes = append(c.goroutinePipes, pr)
+	c.parentIOPipes = append(c.parentIOPipes, pr)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(w, pr)
 		pr.Close() // in case io.Copy stopped due to write error
@@ -438,7 +474,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (*os.File, error) {
 	return pw, nil
 }
 
-func (c *Cmd) closeDescriptors(closers []io.Closer) {
+func closeDescriptors(closers []io.Closer) {
 	for _, fd := range closers {
 		fd.Close()
 	}
@@ -505,14 +541,12 @@ func (c *Cmd) Start() error {
 
 	started := false
 	defer func() {
-		c.closeDescriptors(c.childIOFiles)
+		closeDescriptors(c.childIOFiles)
 		c.childIOFiles = nil
 
 		if !started {
-			c.closeDescriptors(c.goroutinePipes)
-			c.goroutinePipes = nil
-			c.closeDescriptors(c.userPipes)
-			c.userPipes = nil
+			closeDescriptors(c.parentIOPipes)
+			c.parentIOPipes = nil
 		}
 	}()
 
@@ -709,10 +743,8 @@ func (c *Cmd) Wait() error {
 			err = copyErr
 		}
 	}
-	c.goroutinePipes = nil // Already closed by their respective goroutines.
-
-	c.closeDescriptors(c.userPipes)
-	c.userPipes = nil
+	closeDescriptors(c.parentIOPipes)
+	c.parentIOPipes = nil
 
 	return err
 }
@@ -776,25 +808,8 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
 	}
 	c.Stdin = pr
 	c.childIOFiles = append(c.childIOFiles, pr)
-	wc := &closeOnce{File: pw}
-	c.userPipes = append(c.userPipes, wc)
-	return wc, nil
-}
-
-type closeOnce struct {
-	*os.File
-
-	once sync.Once
-	err  error
-}
-
-func (c *closeOnce) Close() error {
-	c.once.Do(c.close)
-	return c.err
-}
-
-func (c *closeOnce) close() {
-	c.err = c.File.Close()
+	c.parentIOPipes = append(c.parentIOPipes, pw)
+	return pw, nil
 }
 
 // StdoutPipe returns a pipe that will be connected to the command's
@@ -818,7 +833,7 @@ func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
 	}
 	c.Stdout = pw
 	c.childIOFiles = append(c.childIOFiles, pw)
-	c.userPipes = append(c.userPipes, pr)
+	c.parentIOPipes = append(c.parentIOPipes, pr)
 	return pr, nil
 }
 
@@ -843,7 +858,7 @@ func (c *Cmd) StderrPipe() (io.ReadCloser, error) {
 	}
 	c.Stderr = pw
 	c.childIOFiles = append(c.childIOFiles, pw)
-	c.userPipes = append(c.userPipes, pr)
+	c.parentIOPipes = append(c.parentIOPipes, pr)
 	return pr, nil
 }
 

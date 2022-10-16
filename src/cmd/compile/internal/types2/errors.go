@@ -10,14 +10,11 @@ import (
 	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
+	. "internal/types/errors"
 	"runtime"
 	"strconv"
 	"strings"
 )
-
-func unimplemented() {
-	panic("unimplemented")
-}
 
 func assert(p bool) {
 	if !p {
@@ -39,7 +36,7 @@ func unreachable() {
 // To report an error_, call Checker.report.
 type error_ struct {
 	desc []errorDesc
-	code errorCode
+	code Code
 	soft bool // TODO(gri) eventually determine this from an error code
 }
 
@@ -223,7 +220,14 @@ func (check *Checker) dump(format string, args ...interface{}) {
 	fmt.Println(sprintf(check.qualifier, true, format, args...))
 }
 
-func (check *Checker) err(at poser, code errorCode, msg string, soft bool) {
+func (check *Checker) err(at poser, code Code, msg string, soft bool) {
+	switch code {
+	case InvalidSyntaxTree:
+		msg = "invalid syntax tree: " + msg
+	case 0:
+		panic("no error code provided")
+	}
+
 	// Cheap trick: Don't report errors with messages containing
 	// "invalid operand" or "invalid type" as those tend to be
 	// follow-on errors which don't add useful information. Only
@@ -263,7 +267,6 @@ func (check *Checker) err(at poser, code errorCode, msg string, soft bool) {
 }
 
 const (
-	invalidAST = "invalid AST: "
 	invalidArg = "invalid argument: "
 	invalidOp  = "invalid operation: "
 )
@@ -272,22 +275,22 @@ type poser interface {
 	Pos() syntax.Pos
 }
 
-func (check *Checker) error(at poser, code errorCode, msg string) {
+func (check *Checker) error(at poser, code Code, msg string) {
 	check.err(at, code, msg, false)
 }
 
-func (check *Checker) errorf(at poser, code errorCode, format string, args ...interface{}) {
+func (check *Checker) errorf(at poser, code Code, format string, args ...interface{}) {
 	check.err(at, code, check.sprintf(format, args...), false)
 }
 
-func (check *Checker) softErrorf(at poser, code errorCode, format string, args ...interface{}) {
+func (check *Checker) softErrorf(at poser, code Code, format string, args ...interface{}) {
 	check.err(at, code, check.sprintf(format, args...), true)
 }
 
 func (check *Checker) versionErrorf(at poser, goVersion string, format string, args ...interface{}) {
 	msg := check.sprintf(format, args...)
 	msg = fmt.Sprintf("%s requires %s or later", msg, goVersion)
-	check.err(at, _UnsupportedFeature, msg, true)
+	check.err(at, UnsupportedFeature, msg, true)
 }
 
 // posFor reports the left (= start) position of at.

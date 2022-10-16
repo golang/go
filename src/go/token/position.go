@@ -245,7 +245,7 @@ func (f *File) AddLineInfo(offset int, filename string, line int) {
 // information for line directives such as //line filename:line:column.
 func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) {
 	f.mutex.Lock()
-	if i := len(f.infos); i == 0 || f.infos[i-1].Offset < offset && offset < f.size {
+	if i := len(f.infos); (i == 0 || f.infos[i-1].Offset < offset) && offset < f.size {
 		f.infos = append(f.infos, lineInfo{offset, filename, line, column})
 	}
 	f.mutex.Unlock()

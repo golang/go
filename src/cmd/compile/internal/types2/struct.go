@@ -6,6 +6,7 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	. "internal/types/errors"
 	"strconv"
 )
 
@@ -129,7 +130,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			pos := syntax.StartPos(f.Type)
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
-				check.errorf(pos, 0, invalidAST+"invalid embedded field type %s", f.Type)
+				check.errorf(pos, InvalidSyntaxTree, "invalid embedded field type %s", f.Type)
 				name = &syntax.Name{Value: "_"} // TODO(gri) need to set position to pos
 				addInvalid(name, pos)
 				continue
@@ -152,20 +153,20 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 					}
 					// unsafe.Pointer is treated like a regular pointer
 					if u.kind == UnsafePointer {
-						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be unsafe.Pointer")
+						check.error(embeddedPos, InvalidPtrEmbed, "embedded field type cannot be unsafe.Pointer")
 					}
 				case *Pointer:
-					check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer")
+					check.error(embeddedPos, InvalidPtrEmbed, "embedded field type cannot be a pointer")
 				case *Interface:
 					if isTypeParam(t) {
 						// The error code here is inconsistent with other error codes for
 						// invalid embedding, because this restriction may be relaxed in the
 						// future, and so it did not warrant a new error code.
-						check.error(embeddedPos, _MisplacedTypeParam, "embedded field type cannot be a (pointer to a) type parameter")
+						check.error(embeddedPos, MisplacedTypeParam, "embedded field type cannot be a (pointer to a) type parameter")
 						break
 					}
 					if isPtr {
-						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
+						check.error(embeddedPos, InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
 					}
 				}
 			}).describef(embeddedPos, "check embedded type %s", embeddedTyp)
@@ -199,7 +200,7 @@ func embeddedFieldIdent(e syntax.Expr) *syntax.Name {
 func (check *Checker) declareInSet(oset *objset, pos syntax.Pos, obj Object) bool {
 	if alt := oset.insert(obj); alt != nil {
 		var err error_
-		err.code = _DuplicateDecl
+		err.code = DuplicateDecl
 		err.errorf(pos, "%s redeclared", obj.Name())
 		err.recordAltDecl(alt)
 		check.report(&err)
@@ -216,7 +217,7 @@ func (check *Checker) tag(t *syntax.BasicLit) string {
 				return val
 			}
 		}
-		check.errorf(t, 0, invalidAST+"incorrect tag syntax: %q", t.Value)
+		check.errorf(t, InvalidSyntaxTree, "incorrect tag syntax: %q", t.Value)
 	}
 	return ""
 }

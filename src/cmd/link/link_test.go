@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"debug/macho"
 	"internal/buildcfg"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -17,8 +18,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-
-	"cmd/internal/sys"
 )
 
 var AuthorPaidByTheColumnInch struct {
@@ -976,7 +975,7 @@ func main() {
 func TestIssue42396(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if !sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
 		t.Skip("no race detector support")
 	}
 

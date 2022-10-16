@@ -34,21 +34,21 @@ func rshConst64x64(v int64) int64 {
 func lshConst32x64(v int32) int32 {
 	// ppc64:"SLW"
 	// ppc64le:"SLW"
-	// riscv64:"SLLI",-"AND",-"SLTIU"
+	// riscv64:"SLLI",-"AND",-"SLTIU", -"MOVW"
 	return v << uint64(29)
 }
 
 func rshConst32Ux64(v uint32) uint32 {
 	// ppc64:"SRW"
 	// ppc64le:"SRW"
-	// riscv64:"SRLI",-"AND",-"SLTIU"
+	// riscv64:"SRLI",-"AND",-"SLTIU", -"MOVW"
 	return v >> uint64(29)
 }
 
 func rshConst32x64(v int32) int32 {
 	// ppc64:"SRAW"
 	// ppc64le:"SRAW"
-	// riscv64:"SRAI",-"OR",-"SLTIU"
+	// riscv64:"SRAI",-"OR",-"SLTIU", -"MOVW"
 	return v >> uint64(29)
 }
 

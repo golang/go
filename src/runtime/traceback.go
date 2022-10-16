@@ -182,6 +182,17 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				case funcID_systemstack:
 					// systemstack returns normally, so just follow the
 					// stack transition.
+					if usesLR && funcspdelta(f, frame.pc, &cache) == 0 {
+						// We're at the function prologue and the stack
+						// switch hasn't happened, or epilogue where we're
+						// about to return. Just unwind normally.
+						// Do this only on LR machines because on x86
+						// systemstack doesn't have an SP delta (the CALL
+						// instruction opens the frame), therefore no way
+						// to check.
+						flag &^= funcFlag_SPWRITE
+						break
+					}
 					gp = gp.m.curg
 					frame.sp = gp.sched.sp
 					stack = gp.stack
@@ -407,6 +418,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					// inlined function.
 					inlFunc.nameOff = inltree[ix].nameOff
 					inlFunc.funcID = inltree[ix].funcID
+					inlFunc.startLine = inltree[ix].startLine
 
 					if (flags&_TraceRuntimeFrames) != 0 || showframe(inlFuncInfo, gp, nprint == 0, inlFuncInfo.funcID, lastFuncID) {
 						name := funcname(inlFuncInfo)

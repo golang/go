@@ -245,7 +245,7 @@ dirloop:
 		nextfd++
 	}
 	for i = 0; i < len(fd); i++ {
-		if fd[i] >= 0 && fd[i] < int(i) {
+		if fd[i] >= 0 && fd[i] < i {
 			if nextfd == pipe { // don't stomp on pipe
 				nextfd++
 			}
@@ -265,7 +265,7 @@ dirloop:
 			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
 			continue
 		}
-		if fd[i] == int(i) {
+		if fd[i] == i {
 			continue
 		}
 		r1, _, _ = RawSyscall(SYS_DUP, uintptr(fd[i]), uintptr(i), 0)

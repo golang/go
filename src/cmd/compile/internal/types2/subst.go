@@ -6,7 +6,9 @@
 
 package types2
 
-import "cmd/compile/internal/syntax"
+import (
+	"cmd/compile/internal/syntax"
+)
 
 type substMap map[*TypeParam]Type
 
@@ -262,7 +264,7 @@ func (subst *subster) typ(typ Type) Type {
 		return subst.smap.lookup(t)
 
 	default:
-		unimplemented()
+		unreachable()
 	}
 
 	return typ

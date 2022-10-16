@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/coverage"
 	"internal/coverage/pods"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -29,7 +28,7 @@ func TestPodCollection(t *testing.T) {
 
 	mkfile := func(d string, fn string) string {
 		fp := filepath.Join(d, fn)
-		if err := ioutil.WriteFile(fp, []byte("foo"), 0666); err != nil {
+		if err := os.WriteFile(fp, []byte("foo"), 0666); err != nil {
 			t.Fatal(err)
 		}
 		return fp

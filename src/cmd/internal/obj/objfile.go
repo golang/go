@@ -705,10 +705,11 @@ func genFuncInfoSyms(ctxt *Link) {
 			continue
 		}
 		o := goobj.FuncInfo{
-			Args:     uint32(fn.Args),
-			Locals:   uint32(fn.Locals),
-			FuncID:   fn.FuncID,
-			FuncFlag: fn.FuncFlag,
+			Args:      uint32(fn.Args),
+			Locals:    uint32(fn.Locals),
+			FuncID:    fn.FuncID,
+			FuncFlag:  fn.FuncFlag,
+			StartLine: fn.StartLine,
 		}
 		pc := &fn.Pcln
 		i := 0

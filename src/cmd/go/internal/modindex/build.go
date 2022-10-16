@@ -477,6 +477,8 @@ type fileEmbed struct {
 	pos     token.Position
 }
 
+var errNonSource = errors.New("non source file")
+
 // getFileInfo extracts the information needed from each go file for the module
 // index.
 //
@@ -484,6 +486,9 @@ type fileEmbed struct {
 // Imports and returns that section of the file in the FileInfo's Header field,
 // even though it only considers text until the first non-comment
 // for +build lines.
+//
+// getFileInfo will return errNonSource if the file is not a source or object
+// file and shouldn't even be added to IgnoredFiles.
 func getFileInfo(dir, name string, fset *token.FileSet) (*fileInfo, error) {
 	if strings.HasPrefix(name, "_") ||
 		strings.HasPrefix(name, ".") {
@@ -498,7 +503,7 @@ func getFileInfo(dir, name string, fset *token.FileSet) (*fileInfo, error) {
 
 	if ext != ".go" && fileListForExt(&dummyPkg, ext) == nil {
 		// skip
-		return nil, nil
+		return nil, errNonSource
 	}
 
 	info := &fileInfo{name: filepath.Join(dir, name), fset: fset}

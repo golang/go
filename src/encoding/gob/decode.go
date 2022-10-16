@@ -450,11 +450,10 @@ func (dec *Decoder) decodeStruct(engine *decEngine, value reflect.Value) {
 		if delta == 0 { // struct terminator is zero delta fieldnum
 			break
 		}
-		fieldnum := state.fieldnum + delta
-		if fieldnum >= len(engine.instr) {
+		if state.fieldnum >= len(engine.instr)-delta { // subtract to compare without overflow
 			error_(errRange)
-			break
 		}
+		fieldnum := state.fieldnum + delta
 		instr := &engine.instr[fieldnum]
 		var field reflect.Value
 		if instr.index != nil {

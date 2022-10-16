@@ -44,7 +44,7 @@ type orderState struct {
 	edit func(ir.Node) ir.Node // cached closure of o.exprNoLHS
 }
 
-// Order rewrites fn.Nbody to apply the ordering constraints
+// order rewrites fn.Nbody to apply the ordering constraints
 // described in the comment at the top of the file.
 func order(fn *ir.Func) {
 	if base.Flag.W > 1 {

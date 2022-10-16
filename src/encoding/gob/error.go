@@ -24,7 +24,7 @@ func errorf(format string, args ...any) {
 	error_(fmt.Errorf("gob: "+format, args...))
 }
 
-// error wraps the argument error and uses it as the argument to panic.
+// error_ wraps the argument error and uses it as the argument to panic.
 func error_(err error) {
 	panic(gobError{err})
 }

@@ -44,7 +44,7 @@ func enqueueFunc(fn *ir.Func) {
 
 	if len(fn.Body) == 0 {
 		// Initialize ABI wrappers if necessary.
-		ssagen.InitLSym(fn, false)
+		ir.InitLSym(fn, false)
 		types.CalcSize(fn.Type())
 		a := ssagen.AbiForBodylessFuncStackMap(fn)
 		abiInfo := a.ABIAnalyzeFuncType(fn.Type().FuncType()) // abiInfo has spill/home locations for wrapper
@@ -82,7 +82,7 @@ func prepareFunc(fn *ir.Func) {
 	// Set up the function's LSym early to avoid data races with the assemblers.
 	// Do this before walk, as walk needs the LSym to set attributes/relocations
 	// (e.g. in MarkTypeUsedInInterface).
-	ssagen.InitLSym(fn, true)
+	ir.InitLSym(fn, true)
 
 	// Calculate parameter offsets.
 	types.CalcSize(fn.Type())

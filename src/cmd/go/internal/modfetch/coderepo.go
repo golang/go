@@ -962,7 +962,7 @@ func (r *codeRepo) GoMod(version string) (data []byte, err error) {
 // for dependencies in the middle of a build, impossible to
 // correct. So we stopped.
 func LegacyGoMod(modPath string) []byte {
-	return []byte(fmt.Sprintf("module %s\n", modfile.AutoQuote(modPath)))
+	return fmt.Appendf(nil, "module %s\n", modfile.AutoQuote(modPath))
 }
 
 func (r *codeRepo) modPrefix(rev string) string {

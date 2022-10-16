@@ -8,6 +8,7 @@ import (
 	"cmd/internal/sys"
 	"fmt"
 	"internal/buildcfg"
+	"internal/platform"
 )
 
 // A BuildMode indicates the sort of object we are building.
@@ -185,7 +186,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		}()
 	}
 
-	if sys.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH) {
+	if platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH) {
 		return true, fmt.Sprintf("%s/%s requires external linking", buildcfg.GOOS, buildcfg.GOARCH)
 	}
 

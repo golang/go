@@ -42,7 +42,7 @@ The -vettool=prog flag selects a different analysis tool with alternative
 or additional checks.
 For example, the 'shadow' analyzer can be built and run using these commands:
 
-  go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+  go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow@latest
   go vet -vettool=$(which shadow)
 
 The build flags supported by go vet are those that control package resolution

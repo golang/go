@@ -116,7 +116,7 @@ func (b *protobuf) bool(tag int, x bool) {
 }
 
 func (b *protobuf) boolOpt(tag int, x bool) {
-	if x == false {
+	if !x {
 		return
 	}
 	b.bool(tag, x)

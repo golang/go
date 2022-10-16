@@ -167,7 +167,7 @@ func TestCoverWithCfg(t *testing.T) {
 
 	// Expect err if config file contains unknown stuff.
 	t.Logf("mangling in config")
-	writeFile(t, incfg, []byte(fmt.Sprintf("blah=foo\n")))
+	writeFile(t, incfg, []byte("blah=foo\n"))
 	_, _, errmsg = runPkgCover(t, instdira, tag, incfg, mode,
 		pfiles("a"), errExpected)
 	want = "error reading pkgconfig file"
@@ -177,7 +177,7 @@ func TestCoverWithCfg(t *testing.T) {
 
 	// Expect error on empty config file.
 	t.Logf("writing empty config")
-	writeFile(t, incfg, []byte(fmt.Sprintf("\n")))
+	writeFile(t, incfg, []byte("\n"))
 	_, _, errmsg = runPkgCover(t, instdira, tag, incfg, mode,
 		pfiles("a"), errExpected)
 	if !strings.Contains(errmsg, want) {

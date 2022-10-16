@@ -611,7 +611,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = r2
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = ppc64.REGTMP // result is not needed
+		p.To.Reg = v.Reg0()
 
 	case ssa.OpPPC64ROTLconst, ssa.OpPPC64ROTLWconst:
 		p := s.Prog(v.Op.Asm())

@@ -91,10 +91,12 @@ func (g *Group) DoChan(key string, fn func() (any, error)) <-chan Result {
 // doCall handles the single call for a key.
 func (g *Group) doCall(c *call, key string, fn func() (any, error)) {
 	c.val, c.err = fn()
-	c.wg.Done()
 
 	g.mu.Lock()
-	delete(g.m, key)
+	c.wg.Done()
+	if g.m[key] == c {
+		delete(g.m, key)
+	}
 	for _, ch := range c.chans {
 		ch <- Result{c.val, c.err, c.dups > 0}
 	}

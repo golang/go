@@ -3,13 +3,13 @@
 // license that can be found in the LICENSE file.
 
 //go:build dragonfly || freebsd || linux || netbsd || openbsd
-// +build dragonfly freebsd linux netbsd openbsd
 
 package main
 
 import (
 	"debug/elf"
 	"fmt"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -19,8 +19,6 @@ import (
 	"sync"
 	"testing"
 	"text/template"
-
-	"cmd/internal/sys"
 )
 
 func getCCAndCCFLAGS(t *testing.T, env []string) (string, []string) {
@@ -206,8 +204,8 @@ func TestMergeNoteSections(t *testing.T) {
 	expected := 1
 
 	switch runtime.GOOS {
-	case "linux", "freebsd", "dragonfly":
-	case "openbsd", "netbsd":
+	case "linux", "dragonfly":
+	case "openbsd", "netbsd", "freebsd":
 		// These OSes require independent segment
 		expected = 2
 	default:
@@ -280,7 +278,7 @@ func TestPIESize(t *testing.T) {
 	// always skip the test if cgo is not supported.
 	testenv.MustHaveCGO(t)
 
-	if !sys.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
+	if !platform.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
 		t.Skip("-buildmode=pie not supported")
 	}
 

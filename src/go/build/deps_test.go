@@ -42,9 +42,9 @@ var depsRules = `
 	< constraints, container/list, container/ring,
 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
 	  internal/coverage/uleb128, internal/coverage/calloc,
-      internal/cpu, internal/goarch,
+	  internal/cpu, internal/goarch,
 	  internal/goexperiment, internal/goos,
-	  internal/goversion, internal/nettrace,
+	  internal/goversion, internal/nettrace, internal/platform,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
@@ -54,7 +54,7 @@ var depsRules = `
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi, internal/cpu, internal/goarch,
-    internal/coverage/rtcov, internal/goexperiment, internal/goos, unsafe
+	internal/coverage/rtcov, internal/goexperiment, internal/goos, unsafe
 	< internal/bytealg
 	< internal/itoa
 	< internal/unsafeheader
@@ -77,6 +77,9 @@ var depsRules = `
 
 	RUNTIME
 	< io;
+
+	RUNTIME
+	< arena;
 
 	syscall !< io;
 	reflect !< sort;
@@ -165,7 +168,7 @@ var depsRules = `
 
 	# FMT is OS (which includes string routines) plus reflect and fmt.
 	# It does not include package log, which should be avoided in core packages.
-	strconv, unicode
+	arena, strconv, unicode
 	< reflect;
 
 	os, reflect
@@ -182,6 +185,7 @@ var depsRules = `
 	< html,
 	  internal/dag,
 	  internal/goroot,
+	  internal/types/errors,
 	  mime/quotedprintable,
 	  net/internal/socktest,
 	  net/url,
@@ -273,7 +277,7 @@ var depsRules = `
 	math/big, go/token
 	< go/constant;
 
-	container/heap, go/constant, go/parser, regexp
+	container/heap, go/constant, go/parser, internal/types/errors, regexp
 	< go/types;
 
 	FMT, internal/goexperiment
@@ -529,7 +533,7 @@ var depsRules = `
 	internal/fuzz, internal/testlog, runtime/pprof, regexp
 	< testing/internal/testdeps;
 
-	OS, flag, testing, internal/cfg
+	OS, flag, testing, internal/cfg, internal/platform
 	< internal/testenv;
 
 	OS, encoding/base64
@@ -550,48 +554,28 @@ var depsRules = `
 	FMT
 	< internal/diff, internal/txtar;
 
-    FMT, os
-    < internal/coverage/slicewriter;
+	FMT, crypto/md5, encoding/binary, regexp, sort, text/tabwriter, unsafe,
+	internal/coverage, internal/coverage/uleb128
+	< internal/coverage/cmerge,
+	  internal/coverage/pods,
+	  internal/coverage/slicereader,
+	  internal/coverage/slicewriter;
 
-    encoding/binary, internal/unsafeheader, unsafe
-    < internal/coverage/slicereader;
+	internal/coverage/slicereader, internal/coverage/slicewriter
+	< internal/coverage/stringtab
+	< internal/coverage/decodecounter, internal/coverage/decodemeta,
+	  internal/coverage/encodecounter, internal/coverage/encodemeta;
 
-    FMT, math, internal/coverage
-    < internal/coverage/cmerge;
+	internal/coverage/cmerge
+	< internal/coverage/cformat;
 
-    FMT, math, internal/coverage, internal/coverage/cmerge, text/tabwriter
-    < internal/coverage/cformat;
-
-    FMT, io, internal/coverage/slicereader, internal/coverage/uleb128
-    < internal/coverage/stringtab;
-
-    FMT, encoding/binary, internal/coverage, internal/coverage/stringtab,
-    io, os, bufio, crypto/md5
-    < internal/coverage/encodemeta;
-
-    FMT, bufio, encoding/binary, internal/coverage,
-    internal/coverage/stringtab, internal/coverage/slicewriter, os, unsafe
-    < internal/coverage/encodecounter;
-
-    FMT, encoding/binary, internal/coverage, io, os,
-    internal/coverage/slicereader, internal/coverage/stringtab
-    < internal/coverage/decodecounter;
-
-    FMT, encoding/binary, internal/coverage, io, os,
-    crypto/md5, internal/coverage/stringtab
-    < internal/coverage/decodemeta;
-
-    FMT, internal/coverage, os,
-    path/filepath, regexp, sort, strconv
-    < internal/coverage/pods;
-
-    FMT, bufio, crypto/md5, encoding/binary, runtime/debug,
-    internal/coverage, internal/coverage/cmerge,
-    internal/coverage/cformat, internal/coverage/calloc,
-    internal/coverage/decodecounter, internal/coverage/decodemeta,
-    internal/coverage/encodecounter, internal/coverage/encodemeta,
-    internal/coverage/pods, os, path/filepath, reflect, time, unsafe
-    < runtime/coverage;
+	runtime/debug,
+	internal/coverage/calloc,
+	internal/coverage/cformat,
+	internal/coverage/decodecounter, internal/coverage/decodemeta,
+	internal/coverage/encodecounter, internal/coverage/encodemeta,
+	internal/coverage/pods
+	< runtime/coverage;
 `
 
 // listStdPkgs returns the same list of packages as "go list std".

@@ -10,6 +10,7 @@ package types
 import (
 	"fmt"
 	"go/token"
+	. "internal/types/errors"
 	"strings"
 )
 
@@ -216,7 +217,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				}
 			}
 			if allFailed {
-				check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
+				check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
 				return
 			}
 		}
@@ -228,9 +229,9 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		// _InvalidTypeArg). We can't differentiate these cases, so fall back on
 		// the more general _CannotInferTypeArgs.
 		if inferred != tpar {
-			check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
+			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
 		} else {
-			check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
+			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
 		}
 	}
 
@@ -320,7 +321,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// At least one type argument couldn't be inferred.
 	assert(index >= 0 && targs[index] == nil)
 	tpar := tparams[index]
-	check.errorf(posn, _CannotInferTypeArgs, "cannot infer %s (%v)", tpar.obj.name, tpar.obj.pos)
+	check.errorf(posn, CannotInferTypeArgs, "cannot infer %s (%v)", tpar.obj.name, tpar.obj.pos)
 	return nil
 }
 
@@ -533,7 +534,7 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 						if core.tilde {
 							tilde = "~"
 						}
-						check.errorf(posn, _InvalidTypeArg, "%s does not match %s%s", tpar, tilde, core.typ)
+						check.errorf(posn, InvalidTypeArg, "%s does not match %s%s", tpar, tilde, core.typ)
 						return nil, 0
 					}
 

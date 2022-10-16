@@ -34,6 +34,7 @@ import (
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -297,6 +298,11 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 			}
 		}
 	}
+}
+
+func readCode(err Error) int {
+	v := reflect.ValueOf(err)
+	return int(v.FieldByName("go116code").Int())
 }
 
 // TestManual is for manual testing of a package - either provided

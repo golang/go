@@ -12,6 +12,8 @@ import (
 )
 
 func TestLookPathUnixEmptyPath(t *testing.T) {
+	// Not parallel: uses os.Chdir.
+
 	tmp, err := os.MkdirTemp("", "TestLookPathUnixEmptyPath")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)

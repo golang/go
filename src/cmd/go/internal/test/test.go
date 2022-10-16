@@ -9,14 +9,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go/build"
+	"internal/platform"
 	"io"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,7 +31,6 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
-	"cmd/internal/sys"
 	"cmd/internal/test2json"
 
 	"golang.org/x/mod/module"
@@ -149,11 +147,6 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 	-exec xprog
 	    Run the test binary using xprog. The behavior is the same as
 	    in 'go run'. See 'go help run' for details.
-
-	-i
-	    Install packages that are dependencies of the test.
-	    Do not run the test.
-	    The -i flag is deprecated. Compiled packages are cached automatically.
 
 	-json
 	    Convert test output to JSON suitable for automated processing.
@@ -671,7 +664,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("cannot use -o flag with multiple packages")
 	}
 	if testFuzz != "" {
-		if !sys.FuzzSupported(cfg.Goos, cfg.Goarch) {
+		if !platform.FuzzSupported(cfg.Goos, cfg.Goarch) {
 			base.Fatalf("-fuzz flag is not supported on %s/%s", cfg.Goos, cfg.Goarch)
 		}
 		if len(pkgs) != 1 {
@@ -732,11 +725,6 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		testKillTimeout = testTimeout + 1*time.Minute
 	}
 
-	// For 'go test -i -o x.test', we want to build x.test. Imply -c to make the logic easier.
-	if cfg.BuildI && testO != "" {
-		testC = true
-	}
-
 	// Read testcache expiration time, if present.
 	// (We implement go clean -testcache by writing an expiration date
 	// instead of searching out and deleting test result cache entries.)
@@ -754,74 +742,6 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go: %v", err)
 		}
 	}()
-
-	if cfg.BuildI {
-		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
-		cfg.BuildV = testV
-
-		deps := make(map[string]bool)
-		for _, dep := range load.TestMainDeps {
-			deps[dep] = true
-		}
-
-		for _, p := range pkgs {
-			// Dependencies for each test.
-			for _, path := range p.Imports {
-				deps[path] = true
-			}
-			for _, path := range p.Resolve(p.TestImports) {
-				deps[path] = true
-			}
-			for _, path := range p.Resolve(p.XTestImports) {
-				deps[path] = true
-			}
-		}
-
-		// translate C to runtime/cgo
-		if deps["C"] {
-			delete(deps, "C")
-			deps["runtime/cgo"] = true
-		}
-		// Ignore pseudo-packages.
-		delete(deps, "unsafe")
-
-		all := []string{}
-		for path := range deps {
-			if !build.IsLocalImport(path) {
-				all = append(all, path)
-			}
-		}
-		sort.Strings(all)
-
-		a := &work.Action{Mode: "go test -i"}
-		pkgs := load.PackagesAndErrors(ctx, pkgOpts, all)
-		load.CheckPackageErrors(pkgs)
-		for _, p := range pkgs {
-			if cfg.BuildToolchainName == "gccgo" && p.Standard {
-				// gccgo's standard library packages
-				// can not be reinstalled.
-				continue
-			}
-			a.Deps = append(a.Deps, b.CompileAction(work.ModeInstall, work.ModeInstall, p))
-		}
-		b.Do(ctx, a)
-		if !testC || a.Failed {
-			return
-		}
-
-		// TODO(bcmills): I have no idea why the Builder must be reset here, but
-		// without this reset dance, TestGoTestDashIDashOWritesBinary fails with
-		// lots of "vet config not found" errors. This was added in CL 5699088,
-		// which had almost no public discussion, a very short commit description,
-		// and left no comment in the code to explain what is going on here. 🤯
-		//
-		// Maybe this has the effect of removing actions that were registered by the
-		// call to CompileAction above?
-		if err := b.Close(); err != nil {
-			base.Fatalf("go: %v", err)
-		}
-		b = work.NewBuilder("")
-	}
 
 	var builds, runs, prints []*work.Action
 
@@ -1587,15 +1507,13 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 			continue
 		}
 		s := string(line)
-		i := strings.Index(s, " ")
-		if i < 0 {
+		op, name, found := strings.Cut(s, " ")
+		if !found {
 			if cache.DebugTest {
 				fmt.Fprintf(os.Stderr, "testcache: %s: input list malformed (%q)\n", a.Package.ImportPath, line)
 			}
 			return cache.ActionID{}, errBadTestInputs
 		}
-		op := s[:i]
-		name := s[i+1:]
 		switch op {
 		default:
 			if cache.DebugTest {

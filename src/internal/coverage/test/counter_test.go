@@ -91,7 +91,12 @@ func TestCounterDataWriterReader(t *testing.T) {
 		// Decode the same file.
 		var cdr *decodecounter.CounterDataReader
 		inf, err := os.Open(cfpath)
-		defer inf.Close()
+		defer func() {
+			if err := inf.Close(); err != nil {
+				t.Fatalf("close failed with: %v", err)
+			}
+		}()
+
 		if err != nil {
 			t.Fatalf("reopening covcounters file: %v", err)
 		}
@@ -182,7 +187,12 @@ func TestCounterDataAppendSegment(t *testing.T) {
 	// Read the result file.
 	var cdr *decodecounter.CounterDataReader
 	inf, err := os.Open(cfpath)
-	defer inf.Close()
+	defer func() {
+		if err := inf.Close(); err != nil {
+			t.Fatalf("close failed with: %v", err)
+		}
+	}()
+
 	if err != nil {
 		t.Fatalf("reopening covcounters file: %v", err)
 	}
