@@ -175,7 +175,7 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
 				err = syscall.EMFILE
 			}
 		case C.EAI_NONAME:
-			if !errors.Is(err, syscall.EMFILE) {
+			if !errors.Is(err, syscall.EMFILE) && !errors.Is(err, syscall.ENFILE) {
 				err = errNoSuchHost
 				isErrorNoSuchHost = true
 			}
