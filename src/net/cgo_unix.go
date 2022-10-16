@@ -23,6 +23,7 @@ import "C"
 
 import (
 	"context"
+	"errors"
 	"syscall"
 	"unsafe"
 )
@@ -174,8 +175,10 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
 				err = syscall.EMFILE
 			}
 		case C.EAI_NONAME:
-			err = errNoSuchHost
-			isErrorNoSuchHost = true
+			if !errors.Is(err, syscall.EMFILE) {
+				err = errNoSuchHost
+				isErrorNoSuchHost = true
+			}
 		default:
 			err = addrinfoErrno(gerrno)
 			isTemporary = addrinfoErrno(gerrno).Temporary()
