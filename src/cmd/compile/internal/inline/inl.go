@@ -83,7 +83,7 @@ var (
 )
 
 // pgoInlinePrologue records the hot callsites from ir-graph.
-func pgoInlinePrologue(p *pgo.Profile) {
+func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
 	if s, err := strconv.ParseFloat(base.Debug.InlineHotCallSiteCDFThreshold, 64); err == nil {
 		inlineCDFHotCallSiteThresholdPercent = s
 	}
@@ -104,7 +104,7 @@ func pgoInlinePrologue(p *pgo.Profile) {
 		}
 	}
 	// mark hot call sites
-	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
+	ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
 		for _, f := range list {
 			name := ir.PkgFuncName(f)
 			if n, ok := p.WeightedCG.IRNodes[name]; ok {
@@ -164,9 +164,9 @@ func computeThresholdFromCDF(p *pgo.Profile) (float64, []pgo.NodeMapKey) {
 }
 
 // pgoInlineEpilogue updates IRGraph after inlining.
-func pgoInlineEpilogue(p *pgo.Profile) {
+func pgoInlineEpilogue(p *pgo.Profile, decls []ir.Node) {
 	if base.Debug.PGOInline >= 2 {
-		ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
+		ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
 			for _, f := range list {
 				name := ir.PkgFuncName(f)
 				if n, ok := p.WeightedCG.IRNodes[name]; ok {
@@ -182,11 +182,16 @@ func pgoInlineEpilogue(p *pgo.Profile) {
 
 // InlinePackage finds functions that can be inlined and clones them before walk expands them.
 func InlinePackage(p *pgo.Profile) {
+	InlineDecls(p, typecheck.Target.Decls, true)
+}
+
+// InlineDecls applies inlining to the given batch of declarations.
+func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
 	if p != nil {
-		pgoInlinePrologue(p)
+		pgoInlinePrologue(p, decls)
 	}
 
-	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
+	ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
 		numfns := numNonClosures(list)
 		for _, n := range list {
 			if !recursive || numfns > 1 {
@@ -199,12 +204,14 @@ func InlinePackage(p *pgo.Profile) {
 					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
 				}
 			}
-			InlineCalls(n, p)
+			if doInline {
+				InlineCalls(n, p)
+			}
 		}
 	})
 
 	if p != nil {
-		pgoInlineEpilogue(p)
+		pgoInlineEpilogue(p, decls)
 	}
 }
 

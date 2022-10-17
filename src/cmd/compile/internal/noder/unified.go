@@ -101,7 +101,7 @@ func unified(noders []*noder) {
 		}
 	}
 
-	readBodies(target)
+	readBodies(target, false)
 
 	// Check that nothing snuck past typechecking.
 	for _, n := range target.Decls {
@@ -123,7 +123,13 @@ func unified(noders []*noder) {
 
 // readBodies iteratively expands all pending dictionaries and
 // function bodies.
-func readBodies(target *ir.Package) {
+//
+// If duringInlining is true, then the inline.InlineDecls is called as
+// necessary on instantiations of imported generic functions, so their
+// inlining costs can be computed.
+func readBodies(target *ir.Package, duringInlining bool) {
+	var inlDecls []ir.Node
+
 	// Don't use range--bodyIdx can add closures to todoBodies.
 	for {
 		// The order we expand dictionaries and bodies doesn't matter, so
@@ -152,7 +158,11 @@ func readBodies(target *ir.Package) {
 			// Instantiated generic function: add to Decls for typechecking
 			// and compilation.
 			if fn.OClosure == nil && len(pri.dict.targs) != 0 {
-				target.Decls = append(target.Decls, fn)
+				if duringInlining {
+					inlDecls = append(inlDecls, fn)
+				} else {
+					target.Decls = append(target.Decls, fn)
+				}
 			}
 
 			continue
@@ -163,6 +173,30 @@ func readBodies(target *ir.Package) {
 
 	todoDicts = nil
 	todoBodies = nil
+
+	if len(inlDecls) != 0 {
+		// If we instantiated any generic functions during inlining, we need
+		// to call CanInline on them so they'll be transitively inlined
+		// correctly (#56280).
+		//
+		// We know these functions were already compiled in an imported
+		// package though, so we don't need to actually apply InlineCalls or
+		// save the function bodies any further than this.
+		//
+		// We can also lower the -m flag to 0, to suppress duplicate "can
+		// inline" diagnostics reported against the imported package. Again,
+		// we already reported those diagnostics in the original package, so
+		// it's pointless repeating them here.
+
+		oldLowerM := base.Flag.LowerM
+		base.Flag.LowerM = 0
+		inline.InlineDecls(nil, inlDecls, false)
+		base.Flag.LowerM = oldLowerM
+
+		for _, fn := range inlDecls {
+			fn.(*ir.Func).Body = nil // free memory
+		}
+	}
 }
 
 // writePkgStub type checks the given parsed source files,

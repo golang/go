@@ -2035,6 +2035,7 @@ var types2Failures32Bit = setOf(
 
 var go118Failures = setOf(
 	"fixedbugs/issue54343.go",  // 1.18 compiler assigns receiver parameter to global variable
+	"fixedbugs/issue56280.go",  // 1.18 compiler doesn't support inlining generic functions
 	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
 	"typeparam/issue47631.go",  // 1.18 can not handle local type declarations
 	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
