@@ -261,12 +261,7 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 				// discover this problem in regular packages.
 				// For command-line-arguments we quietly abort the analysis
 				// for now since we already know there is a bug.
-
-				// Temporarily disable bug reporting due to golang/go#56035: using
-				// bug.Errorf causes too many test flakes.
-				// TODO(rfindley): switch back to bug.Errorf once panics are fixed.
-				errorf := fmt.Errorf
-
+				errorf := bug.Errorf // report this discovery
 				if source.IsCommandLineArguments(pkg.ID()) {
 					errorf = fmt.Errorf // suppress reporting
 				}
@@ -372,9 +367,9 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 				// An Analyzer crashed. This is often merely a symptom
 				// of a problem in package loading.
 				//
-				// We are aware of a likely cause for these panics: the actionHandle
-				// cache key is not correct. In the meantime, disable strict mode.
-				const strict = false
+				// We believe that CL 420538 may have fixed these crashes, so enable
+				// strict checks in tests.
+				const strict = true
 				if strict && bug.PanicOnBugs && analyzer.Name != "fact_purity" {
 					// During testing, crash. See issues 54762, 56035.
 					// But ignore analyzers with known crash bugs:
