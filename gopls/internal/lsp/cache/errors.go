@@ -334,7 +334,11 @@ func relatedInformation(pkg *pkg, fset *token.FileSet, diag *analysis.Diagnostic
 		if tokFile == nil {
 			return nil, bug.Errorf("no file for %q diagnostic position", diag.Category)
 		}
-		spn, err := span.NewRange(tokFile, related.Pos, related.End).Span()
+		end := related.End
+		if !end.IsValid() {
+			end = related.Pos
+		}
+		spn, err := span.NewRange(tokFile, related.Pos, end).Span()
 		if err != nil {
 			return nil, err
 		}

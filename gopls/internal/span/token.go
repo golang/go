@@ -19,7 +19,9 @@ type Range struct {
 	Start, End token.Pos   // both IsValid()
 }
 
-// NewRange creates a new Range from a token.File and two valid positions within it.
+// NewRange creates a new Range from a token.File and two positions within it.
+// The given start position must be valid; if end is invalid, start is used as
+// the end position.
 //
 // (If you only have a token.FileSet, use file = fset.File(start). But
 // most callers know exactly which token.File they're dealing with and
@@ -33,7 +35,7 @@ func NewRange(file *token.File, start, end token.Pos) Range {
 		panic("invalid start token.Pos")
 	}
 	if !end.IsValid() {
-		panic("invalid end token.Pos")
+		end = start
 	}
 
 	// TODO(adonovan): ideally we would make this stronger assertion:

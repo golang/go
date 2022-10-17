@@ -37,7 +37,7 @@ type Diagnostic struct {
 // declaration.
 type RelatedInformation struct {
 	Pos     token.Pos
-	End     token.Pos
+	End     token.Pos // optional
 	Message string
 }
 

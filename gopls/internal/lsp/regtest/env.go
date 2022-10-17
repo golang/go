@@ -11,9 +11,9 @@ import (
 	"sync"
 	"testing"
 
-	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/jsonrpc2/servertest"
 )
 
 // Env holds the building blocks of an editor testing environment, providing
@@ -119,7 +119,7 @@ func (s State) String() string {
 	for name, params := range s.diagnostics {
 		fmt.Fprintf(&b, "\t%s (version %d):\n", name, int(params.Version))
 		for _, d := range params.Diagnostics {
-			fmt.Fprintf(&b, "\t\t(%d, %d): %s\n", int(d.Range.Start.Line), int(d.Range.Start.Character), d.Message)
+			fmt.Fprintf(&b, "\t\t(%d, %d) [%s]: %s\n", int(d.Range.Start.Line), int(d.Range.Start.Character), d.Source, d.Message)
 		}
 	}
 	b.WriteString("\n")

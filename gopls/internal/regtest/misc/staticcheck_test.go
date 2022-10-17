@@ -74,3 +74,40 @@ var FooErr error = errors.New("foo")
 		)
 	})
 }
+
+// Test for golang/go#56270: an analysis with related info should not panic if
+// analysis.RelatedInformation.End is not set.
+func TestStaticcheckRelatedInfo(t *testing.T) {
+	testenv.NeedsGo1Point(t, 17) // staticcheck is only supported at Go 1.17+
+	const files = `
+-- go.mod --
+module mod.test
+
+go 1.18
+-- p.go --
+package p
+
+import (
+	"fmt"
+)
+
+func Foo(enabled interface{}) {
+	if enabled, ok := enabled.(bool); ok {
+	} else {
+		_ = fmt.Sprintf("invalid type %T", enabled) // enabled is always bool here
+	}
+}
+`
+
+	WithOptions(
+		Settings{"staticcheck": true},
+	).Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("p.go")
+		env.Await(
+			OnceMet(
+				env.DoneWithOpen(),
+				env.DiagnosticAtRegexpFromSource("p.go", ", (enabled)", "SA9008"),
+			),
+		)
+	})
+}

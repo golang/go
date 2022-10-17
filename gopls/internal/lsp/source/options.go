@@ -1306,8 +1306,8 @@ func (r *OptionResult) asBoolMap() map[string]bool {
 	}
 	m := make(map[string]bool)
 	for a, enabled := range all {
-		if enabled, ok := enabled.(bool); ok {
-			m[a] = enabled
+		if e, ok := enabled.(bool); ok {
+			m[a] = e
 		} else {
 			r.parseErrorf("invalid type %T for map key %q", enabled, a)
 			return m
