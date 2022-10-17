@@ -61,7 +61,7 @@ var nilPtr *byte
 func f() (ret bool) {
 	defer func() {
 		if recover() == nil {
-			fmt.Errorf("ERROR: couldn't raise SIGSEGV in Go.")
+			fmt.Fprintf(os.Stderr, "ERROR: couldn't raise SIGSEGV in Go\n")
 			C.exit(2)
 		}
 		ret = true
