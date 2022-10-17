@@ -336,9 +336,9 @@ func (compile) long() bool { return false }
 
 func (c compile) run(name string, count int) error {
 	// Make sure dependencies needed by go tool compile are installed to GOROOT/pkg.
-	out, err := exec.Command(*flagGoCmd, "build", "-i", c.dir).CombinedOutput()
+	out, err := exec.Command(*flagGoCmd, "build", "-a", c.dir).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("go build -i %s: %v\n%s", c.dir, err, out)
+		return fmt.Errorf("go build -a %s: %v\n%s", c.dir, err, out)
 	}
 
 	// Find dir and source file list.
@@ -406,9 +406,9 @@ func (r link) run(name string, count int) error {
 	}
 
 	// Build dependencies.
-	out, err := exec.Command(*flagGoCmd, "build", "-i", "-o", "/dev/null", r.dir).CombinedOutput()
+	out, err := exec.Command(*flagGoCmd, "build", "-a", "-o", "/dev/null", r.dir).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("go build -i %s: %v\n%s", r.dir, err, out)
+		return fmt.Errorf("go build -a %s: %v\n%s", r.dir, err, out)
 	}
 
 	// Build the main package.
