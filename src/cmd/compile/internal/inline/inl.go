@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 //
-// The inlining facility makes 2 passes: first caninl determines which
+// The inlining facility makes 2 passes: first CanInline determines which
 // functions are suitable for inlining, and for those that are it
 // saves a copy of the body. Then InlineCalls walks each function body to
 // expand calls to inlinable functions.
