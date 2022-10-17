@@ -67,7 +67,7 @@ func mergeCoverProfile(file string) error {
 		return nil
 	}
 	if err != nil || string(buf) != expect {
-		return fmt.Errorf("error: test wrote malformed coverage profile %s.\n", file)
+		return fmt.Errorf("test wrote malformed coverage profile %s", file)
 	}
 	m, err := io.Copy(coverMerge.f, r)
 	if err != nil {
