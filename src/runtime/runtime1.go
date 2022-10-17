@@ -355,6 +355,8 @@ var dbgvars = []dbgVar{
 	{"adaptivestackstart", &debug.adaptivestackstart},
 }
 
+var globalGODEBUG string
+
 func parsedebugvars() {
 	// defaults
 	debug.cgocheck = 1
@@ -372,7 +374,9 @@ func parsedebugvars() {
 		debug.madvdontneed = 1
 	}
 
-	for p := gogetenv("GODEBUG"); p != ""; {
+	globalGODEBUG = gogetenv("GODEBUG")
+	godebugenv.StoreNoWB(&globalGODEBUG)
+	for p := globalGODEBUG; p != ""; {
 		field := ""
 		i := bytealg.IndexByteString(p, ',')
 		if i < 0 {
