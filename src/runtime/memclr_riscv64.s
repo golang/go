@@ -8,10 +8,8 @@
 
 // void runtime·memclrNoHeapPointers(void*, uintptr)
 TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOV	ptr+0(FP), X10
-	MOV	n+8(FP), X11
-#endif
+	// X10 = ptr
+	// X11 = n
 
 	// If less than 8 bytes, do single byte zeroing.
 	MOV	$8, X9

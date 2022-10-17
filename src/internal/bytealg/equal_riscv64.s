@@ -9,12 +9,6 @@
 
 // func memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
-#ifndef GOEXPERIMENT_regabiargs
-	MOV	a+0(FP), X10
-	MOV	b+8(FP), X11
-	MOV	size+16(FP), X12
-	MOV	$ret+24(FP), X13
-#endif
 	// X10 = a_base
 	// X11 = b_base
 	// X12 = size
@@ -23,11 +17,6 @@ TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
 // func memequal_varlen(a, b unsafe.Pointer) bool
 TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-17
 	MOV	8(CTXT), X12    // compiler stores size at offset 8 in the closure
-#ifndef GOEXPERIMENT_regabiargs
-	MOV	a+0(FP), X10
-	MOV	b+8(FP), X11
-	MOV	$ret+16(FP), X13
-#endif
 	// X10 = a_base
 	// X11 = b_base
 	JMP	memequal<>(SB)
@@ -128,17 +117,8 @@ loop1:
 	JMP	loop1
 
 not_eq:
-#ifndef GOEXPERIMENT_regabiargs
-	MOVB	ZERO, (X13)
-#else
 	MOVB	ZERO, X10
-#endif
 	RET
 eq:
-#ifndef GOEXPERIMENT_regabiargs
 	MOV	$1, X10
-	MOVB	X10, (X13)
-#else
-	MOV	$1, X10
-#endif
 	RET
