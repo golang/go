@@ -166,6 +166,13 @@ type Snapshot interface {
 	// mode, this is just the reverse transitive closure of open packages.
 	ActivePackages(ctx context.Context) ([]Package, error)
 
+	// AllValidMetadata returns all valid metadata loaded for the snapshot.
+	AllValidMetadata(ctx context.Context) ([]Metadata, error)
+
+	// WorkspacePackageByID returns the workspace package with id, type checked
+	// in 'workspace' mode.
+	WorkspacePackageByID(ctx context.Context, id string) (Package, error)
+
 	// Symbols returns all symbols in the snapshot.
 	Symbols(ctx context.Context) map[span.URI][]Symbol
 

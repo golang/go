@@ -87,7 +87,6 @@ func TestUnexportedStdlib_Issue40809(t *testing.T) {
 	Run(t, stdlibDefinition, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		name, _ := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `fmt.(Printf)`))
-		env.OpenFile(name)
 
 		pos := env.RegexpSearch(name, `:=\s*(newPrinter)\(\)`)
 

@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -347,6 +348,22 @@ func (w *Workdir) RenameFile(ctx context.Context, oldPath, newPath string) error
 	w.sendEvents(ctx, events)
 
 	return nil
+}
+
+// ListFiles returns a new sorted list of the relative paths of files in dir,
+// recursively.
+func (w *Workdir) ListFiles(dir string) ([]string, error) {
+	m, err := w.listFiles(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var paths []string
+	for p := range m {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	return paths, nil
 }
 
 // listFiles lists files in the given directory, returning a map of relative

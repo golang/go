@@ -438,12 +438,14 @@ func foo() string {
 		},
 	)
 	r.Run(t, mod, func(t *testing.T, env *Env) {
+		env.CreateBuffer("foo.go", "")
+
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				c.before = strings.Trim(c.before, "\n")
 				c.after = strings.Trim(c.after, "\n")
 
-				env.CreateBuffer("foo.go", c.before)
+				env.SetBufferContent("foo.go", c.before)
 
 				pos := env.RegexpSearch("foo.go", "\n}")
 				completions := env.Completion("foo.go", pos)

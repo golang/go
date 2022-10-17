@@ -62,6 +62,8 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 	}
 
 	if inPackageName {
+		// TODO(rfindley): this is inaccurate, excluding test variants, and
+		// redundant with package renaming. Refactor to share logic.
 		renamingPkg, err := s.PackageForFile(ctx, f.URI(), TypecheckWorkspace, NarrowestPackage)
 		if err != nil {
 			return nil, err

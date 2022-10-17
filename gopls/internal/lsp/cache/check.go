@@ -150,7 +150,6 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	experimentalKey := s.View().Options().ExperimentalPackageCacheKey
 	phKey := computePackageKey(m.ID, compiledGoFiles, m, depKey, mode, experimentalKey)
 	promise, release := s.store.Promise(phKey, func(ctx context.Context, arg interface{}) interface{} {
-
 		pkg, err := typeCheckImpl(ctx, arg.(*snapshot), goFiles, compiledGoFiles, m.Metadata, mode, deps)
 		return typeCheckResult{pkg, err}
 	})

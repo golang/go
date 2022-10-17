@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
+	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -448,7 +449,7 @@ package b
 	})
 }
 
-func TestRenameWithTestPackage(t *testing.T) {
+func TestRenamePackage_Tests(t *testing.T) {
 	testenv.NeedsGo1Point(t, 17)
 	const files = `
 -- go.mod --
@@ -518,7 +519,7 @@ func main() {
 	})
 }
 
-func TestRenameWithNestedModule(t *testing.T) {
+func TestRenamePackage_NestedModule(t *testing.T) {
 	testenv.NeedsGo1Point(t, 17)
 	const files = `
 -- go.mod --
@@ -577,7 +578,7 @@ func main() {
 	})
 }
 
-func TestRenamePackageWithNonBlankSameImportPaths(t *testing.T) {
+func TestRenamePackage_DuplicateImport(t *testing.T) {
 	testenv.NeedsGo1Point(t, 17)
 	const files = `
 -- go.mod --
@@ -620,7 +621,7 @@ func main() {
 	})
 }
 
-func TestRenamePackageWithBlankSameImportPaths(t *testing.T) {
+func TestRenamePackage_DuplicateBlankImport(t *testing.T) {
 	testenv.NeedsGo1Point(t, 17)
 	const files = `
 -- go.mod --
@@ -661,4 +662,223 @@ func main() {
 		env.RegexpSearch("main.go", `_ "mod.com/nested"`)
 		env.RegexpSearch("main.go", `lib1 "mod.com/nested/nested"`)
 	})
+}
+
+func TestRenamePackage_TestVariant(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- foo/foo.go --
+package foo
+
+const Foo = 42
+-- bar/bar.go --
+package bar
+
+import "mod.com/foo"
+
+const Bar = foo.Foo
+-- bar/bar_test.go --
+package bar
+
+import "mod.com/foo"
+
+const Baz = foo.Foo
+-- testdata/bar/bar.go --
+package bar
+
+import "mod.com/foox"
+
+const Bar = foox.Foo
+-- testdata/bar/bar_test.go --
+package bar
+
+import "mod.com/foox"
+
+const Baz = foox.Foo
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("foo/foo.go")
+		env.Rename("foo/foo.go", env.RegexpSearch("foo/foo.go", "package (foo)"), "foox")
+
+		checkTestdata(t, env)
+	})
+}
+
+func TestRenamePackage_IntermediateTestVariant(t *testing.T) {
+	// In this test set up, we have the following import edges:
+	//   bar_test -> baz -> foo -> bar
+	//   bar_test -> foo -> bar
+	//   bar_test -> bar
+	//
+	// As a consequence, bar_x_test.go is in the reverse closure of both
+	// `foo [bar.test]` and `baz [bar.test]`. This test confirms that we don't
+	// produce duplicate edits in this case.
+	const files = `
+-- go.mod --
+module foo.mod
+
+go 1.12
+-- foo/foo.go --
+package foo
+
+import "foo.mod/bar"
+
+const Foo = 42
+
+const _ = bar.Bar
+-- baz/baz.go --
+package baz
+
+import "foo.mod/foo"
+
+const Baz = foo.Foo
+-- bar/bar.go --
+package bar
+
+var Bar = 123
+-- bar/bar_test.go --
+package bar
+
+const _ = Bar
+-- bar/bar_x_test.go --
+package bar_test
+
+import (
+	"foo.mod/bar"
+	"foo.mod/baz"
+	"foo.mod/foo"
+)
+
+const _ = bar.Bar + baz.Baz + foo.Foo
+-- testdata/foox/foo.go --
+package foox
+
+import "foo.mod/bar"
+
+const Foo = 42
+
+const _ = bar.Bar
+-- testdata/baz/baz.go --
+package baz
+
+import "foo.mod/foox"
+
+const Baz = foox.Foo
+-- testdata/bar/bar_x_test.go --
+package bar_test
+
+import (
+	"foo.mod/bar"
+	"foo.mod/baz"
+	"foo.mod/foox"
+)
+
+const _ = bar.Bar + baz.Baz + foox.Foo
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("foo/foo.go")
+		env.Rename("foo/foo.go", env.RegexpSearch("foo/foo.go", "package (foo)"), "foox")
+
+		checkTestdata(t, env)
+	})
+}
+
+func TestRenamePackage_Nesting(t *testing.T) {
+	testenv.NeedsGo1Point(t, 17)
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.18
+-- lib/a.go --
+package lib
+
+import "mod.com/lib/nested"
+
+const A = 1 + nested.B
+-- lib/nested/a.go --
+package nested
+
+const B = 1
+-- other/other.go --
+package other
+
+import (
+	"mod.com/lib"
+	"mod.com/lib/nested"
+)
+
+const C = lib.A + nested.B
+-- testdata/libx/a.go --
+package libx
+
+import "mod.com/libx/nested"
+
+const A = 1 + nested.B
+-- testdata/other/other.go --
+package other
+
+import (
+	"mod.com/libx"
+	"mod.com/libx/nested"
+)
+
+const C = libx.A + nested.B
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("lib/a.go")
+		pos := env.RegexpSearch("lib/a.go", "package (lib)")
+		env.Rename("lib/a.go", pos, "libx")
+
+		checkTestdata(t, env)
+	})
+}
+
+func TestRenamePackage_InvalidName(t *testing.T) {
+	testenv.NeedsGo1Point(t, 17)
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.18
+-- lib/a.go --
+package lib
+
+import "mod.com/lib/nested"
+
+const A = 1 + nested.B
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("lib/a.go")
+		pos := env.RegexpSearch("lib/a.go", "package (lib)")
+
+		for _, badName := range []string{"$$$", "lib_test"} {
+			if err := env.Editor.Rename(env.Ctx, "lib/a.go", pos, badName); err == nil {
+				t.Errorf("Rename(lib, libx) succeeded, want non-nil error")
+			}
+		}
+	})
+}
+
+// checkTestdata checks that current buffer contents match their corresponding
+// expected content in the testdata directory.
+func checkTestdata(t *testing.T, env *Env) {
+	t.Helper()
+	files := env.ListFiles("testdata")
+	if len(files) == 0 {
+		t.Fatal("no files in testdata directory")
+	}
+	for _, file := range files {
+		suffix := strings.TrimPrefix(file, "testdata/")
+		got := env.Editor.BufferText(suffix)
+		want := env.ReadWorkspaceFile(file)
+		if diff := compare.Text(want, got); diff != "" {
+			t.Errorf("Rename: unexpected buffer content for %s (-want +got):\n%s", suffix, diff)
+		}
+	}
 }

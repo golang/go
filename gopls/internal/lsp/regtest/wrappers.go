@@ -58,6 +58,17 @@ func (e *Env) WriteWorkspaceFiles(files map[string]string) {
 	}
 }
 
+// ListFiles lists relative paths to files in the given directory.
+// It calls t.Fatal on any error.
+func (e *Env) ListFiles(dir string) []string {
+	e.T.Helper()
+	paths, err := e.Sandbox.Workdir.ListFiles(dir)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return paths
+}
+
 // OpenFile opens a file in the editor, calling t.Fatal on any error.
 func (e *Env) OpenFile(name string) {
 	e.T.Helper()

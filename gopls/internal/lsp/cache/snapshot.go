@@ -1195,6 +1195,28 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.Package, error) 
 	return pkgs, nil
 }
 
+func (s *snapshot) AllValidMetadata(ctx context.Context) ([]source.Metadata, error) {
+	if err := s.awaitLoaded(ctx); err != nil {
+		return nil, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var meta []source.Metadata
+	for _, m := range s.meta.metadata {
+		if m.Valid {
+			meta = append(meta, m)
+		}
+	}
+	return meta, nil
+}
+
+func (s *snapshot) WorkspacePackageByID(ctx context.Context, id string) (source.Package, error) {
+	packageID := PackageID(id)
+	return s.checkedPackage(ctx, packageID, s.workspaceParseMode(packageID))
+}
+
 func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Package, error) {
 	// Don't reload workspace package metadata.
 	// This function is meant to only return currently cached information.

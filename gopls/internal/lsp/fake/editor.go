@@ -366,7 +366,12 @@ func (e *Editor) onFileChanges(ctx context.Context, evts []FileEvent) {
 }
 
 // OpenFile creates a buffer for the given workdir-relative file.
+//
+// If the file is already open, it is a no-op.
 func (e *Editor) OpenFile(ctx context.Context, path string) error {
+	if e.HasBuffer(path) {
+		return nil
+	}
 	content, err := e.sandbox.Workdir.ReadFile(path)
 	if err != nil {
 		return err
@@ -382,6 +387,11 @@ func (e *Editor) CreateBuffer(ctx context.Context, path, content string) error {
 
 func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, content string) error {
 	e.mu.Lock()
+
+	if _, ok := e.buffers[path]; ok {
+		e.mu.Unlock()
+		return fmt.Errorf("buffer %q already exists", path)
+	}
 
 	buf := buffer{
 		windowsLineEndings: e.config.WindowsLineEndings,
@@ -712,7 +722,7 @@ func (e *Editor) editBufferLocked(ctx context.Context, path string, edits []Edit
 	}
 	content, err := applyEdits(buf.lines, edits)
 	if err != nil {
-		return err
+		return fmt.Errorf("editing %q: %v; edits:\n%v", path, err, edits)
 	}
 	return e.setBufferContentLocked(ctx, path, true, content, edits)
 }
@@ -1171,6 +1181,15 @@ func (e *Editor) Rename(ctx context.Context, path string, pos Pos, newName strin
 	if e.Server == nil {
 		return nil
 	}
+
+	// Verify that PrepareRename succeeds.
+	prepareParams := &protocol.PrepareRenameParams{}
+	prepareParams.TextDocument = e.TextDocumentIdentifier(path)
+	prepareParams.Position = pos.ToProtocolPosition()
+	if _, err := e.Server.PrepareRename(ctx, prepareParams); err != nil {
+		return fmt.Errorf("preparing rename: %v", err)
+	}
+
 	params := &protocol.RenameParams{
 		TextDocument: e.TextDocumentIdentifier(path),
 		Position:     pos.ToProtocolPosition(),
