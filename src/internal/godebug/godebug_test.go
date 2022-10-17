@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package godebug
+package godebug_test
 
-import "testing"
+import (
+	. "internal/godebug"
+	"testing"
+)
 
 func TestGet(t *testing.T) {
 	tests := []struct {
@@ -26,7 +29,7 @@ func TestGet(t *testing.T) {
 		{"foo=bar,baz", "loooooooong", ""},
 	}
 	for _, tt := range tests {
-		got := get(tt.godebug, tt.key)
+		got := Xget(tt.godebug, tt.key)
 		if got != tt.want {
 			t.Errorf("get(%q, %q) = %q; want %q", tt.godebug, tt.key, got, tt.want)
 		}

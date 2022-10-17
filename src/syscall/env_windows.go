@@ -42,6 +42,7 @@ func Setenv(key, value string) error {
 	if e != nil {
 		return e
 	}
+	runtimeSetenv(key, value)
 	return nil
 }
 
@@ -50,7 +51,12 @@ func Unsetenv(key string) error {
 	if err != nil {
 		return err
 	}
-	return SetEnvironmentVariable(keyp, nil)
+	e := SetEnvironmentVariable(keyp, nil)
+	if e != nil {
+		return e
+	}
+	runtimeUnsetenv(key)
+	return nil
 }
 
 func Clearenv() {

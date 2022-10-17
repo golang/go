@@ -65,3 +65,31 @@ func os_runtime_args() []string { return append([]string{}, argslice...) }
 func syscall_Exit(code int) {
 	exit(int32(code))
 }
+
+var godebugenv atomic.Pointer[string] // set by parsedebugvars
+
+//go:linkname godebug_getGODEBUG internal/godebug.getGODEBUG
+func godebug_getGODEBUG() string {
+	if p := godebugenv.Load(); p != nil {
+		return *p
+	}
+	return ""
+}
+
+//go:linkname syscall_runtimeSetenv syscall.runtimeSetenv
+func syscall_runtimeSetenv(key, value string) {
+	setenv_c(key, value)
+	if key == "GODEBUG" {
+		p := new(string)
+		*p = value
+		godebugenv.Store(p)
+	}
+}
+
+//go:linkname syscall_runtimeUnsetenv syscall.runtimeUnsetenv
+func syscall_runtimeUnsetenv(key string) {
+	unsetenv_c(key)
+	if key == "GODEBUG" {
+		godebugenv.Store(nil)
+	}
+}
