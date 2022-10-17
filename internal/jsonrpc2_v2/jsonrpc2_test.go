@@ -77,7 +77,7 @@ type binder struct {
 type handler struct {
 	conn        *jsonrpc2.Connection
 	accumulator int
-	waitersBox  chan map[string]chan struct{}
+	waiters     chan map[string]chan struct{}
 	calls       map[string]*jsonrpc2.AsyncCall
 }
 
@@ -256,11 +256,11 @@ func verifyResults(t *testing.T, method string, results interface{}, expect inte
 
 func (b binder) Bind(ctx context.Context, conn *jsonrpc2.Connection) (jsonrpc2.ConnectionOptions, error) {
 	h := &handler{
-		conn:       conn,
-		waitersBox: make(chan map[string]chan struct{}, 1),
-		calls:      make(map[string]*jsonrpc2.AsyncCall),
+		conn:    conn,
+		waiters: make(chan map[string]chan struct{}, 1),
+		calls:   make(map[string]*jsonrpc2.AsyncCall),
 	}
-	h.waitersBox <- make(map[string]chan struct{})
+	h.waiters <- make(map[string]chan struct{})
 	if b.runTest != nil {
 		go b.runTest(h)
 	}
@@ -272,8 +272,8 @@ func (b binder) Bind(ctx context.Context, conn *jsonrpc2.Connection) (jsonrpc2.C
 }
 
 func (h *handler) waiter(name string) chan struct{} {
-	waiters := <-h.waitersBox
-	defer func() { h.waitersBox <- waiters }()
+	waiters := <-h.waiters
+	defer func() { h.waiters <- waiters }()
 	waiter, found := waiters[name]
 	if !found {
 		waiter = make(chan struct{})
