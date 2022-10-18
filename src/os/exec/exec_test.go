@@ -1053,6 +1053,15 @@ func TestDedupEnvEcho(t *testing.T) {
 	}
 }
 
+func TestEnvNULCharacter(t *testing.T) {
+	cmd := helperCommand(t, "echoenv", "FOO", "BAR")
+	cmd.Env = append(cmd.Environ(), "FOO=foo\x00BAR=bar")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Errorf("output = %q; want error", string(out))
+	}
+}
+
 func TestString(t *testing.T) {
 	echoPath, err := exec.LookPath("echo")
 	if err != nil {
