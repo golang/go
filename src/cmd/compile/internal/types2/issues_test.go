@@ -46,14 +46,8 @@ var (
 	_ = (interface{})("foo")
 	_ = (interface{})(nil)
 )`
-	f := mustParse(t, src)
-
-	var conf Config
 	types := make(map[syntax.Expr]TypeAndValue)
-	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Types: types})
-	if err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck(t, "p", src, &Info{Types: types})
 
 	for x, tv := range types {
 		var want Type
@@ -91,14 +85,8 @@ func f() int {
 	return 0
 }
 `
-	f := mustParse(t, src)
-
-	var conf Config
 	types := make(map[syntax.Expr]TypeAndValue)
-	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Types: types})
-	if err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck(t, "p", src, &Info{Types: types})
 
 	want := Typ[Int]
 	n := 0
