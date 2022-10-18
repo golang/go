@@ -941,7 +941,7 @@ func newosproc0(mp *m, stk unsafe.Pointer) {
 	throw("bad newosproc0")
 }
 
-func exitThread(wait *uint32) {
+func exitThread(wait *atomic.Uint32) {
 	// We should never reach exitThread on Windows because we let
 	// the OS clean up threads.
 	throw("exitThread")

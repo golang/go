@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -35,7 +36,7 @@ func usleep_no_g(usec uint32) {
 	usleep(usec)
 }
 
-func exitThread(wait *uint32)
+func exitThread(wait *atomic.Uint32)
 
 type mOS struct{}
 

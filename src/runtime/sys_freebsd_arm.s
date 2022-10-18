@@ -85,7 +85,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW.CS R8, (R8)
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVW	wait+0(FP), R0
 	// We're done using the stack.
