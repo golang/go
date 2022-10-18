@@ -567,10 +567,7 @@ func (p *Parser) atRegisterExtension() bool {
 		return false
 	}
 	// R1.xxx
-	if p.peek() == '.' {
-		return true
-	}
-	return false
+	return p.peek() == '.'
 }
 
 // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
