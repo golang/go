@@ -62,11 +62,8 @@ func (h *Handshaker) Peers() []PeerInfo {
 // Middleware is a jsonrpc2 middleware function to augment connection binding
 // to handle the handshake method, and record disconnections.
 func (h *Handshaker) Middleware(inner jsonrpc2_v2.Binder) jsonrpc2_v2.Binder {
-	return BinderFunc(func(ctx context.Context, conn *jsonrpc2_v2.Connection) (jsonrpc2_v2.ConnectionOptions, error) {
-		opts, err := inner.Bind(ctx, conn)
-		if err != nil {
-			return opts, err
-		}
+	return BinderFunc(func(ctx context.Context, conn *jsonrpc2_v2.Connection) jsonrpc2_v2.ConnectionOptions {
+		opts := inner.Bind(ctx, conn)
 
 		localID := h.nextID()
 		info := &PeerInfo{
@@ -93,7 +90,7 @@ func (h *Handshaker) Middleware(inner jsonrpc2_v2.Binder) jsonrpc2_v2.Binder {
 		// Record the dropped client.
 		go h.cleanupAtDisconnect(conn, localID)
 
-		return opts, nil
+		return opts
 	})
 }
 

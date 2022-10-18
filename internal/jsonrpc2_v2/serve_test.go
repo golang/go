@@ -288,7 +288,7 @@ func TestCloseCallRace(t *testing.T) {
 
 		pokec := make(chan *jsonrpc2.AsyncCall, 1)
 
-		s, err := jsonrpc2.Serve(ctx, listener, jsonrpc2.BinderFunc(func(_ context.Context, srvConn *jsonrpc2.Connection) (jsonrpc2.ConnectionOptions, error) {
+		s, err := jsonrpc2.Serve(ctx, listener, jsonrpc2.BinderFunc(func(_ context.Context, srvConn *jsonrpc2.Connection) jsonrpc2.ConnectionOptions {
 			h := jsonrpc2.HandlerFunc(func(ctx context.Context, _ *jsonrpc2.Request) (interface{}, error) {
 				// Start a concurrent call from the server to the client.
 				// The point of this test is to ensure this doesn't deadlock
@@ -303,7 +303,7 @@ func TestCloseCallRace(t *testing.T) {
 
 				return &msg{"pong"}, nil
 			})
-			return jsonrpc2.ConnectionOptions{Handler: h}, nil
+			return jsonrpc2.ConnectionOptions{Handler: h}
 		}))
 		if err != nil {
 			listener.Close()

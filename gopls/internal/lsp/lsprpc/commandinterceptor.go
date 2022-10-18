@@ -18,13 +18,10 @@ type HandlerMiddleware func(jsonrpc2_v2.Handler) jsonrpc2_v2.Handler
 // BindHandler transforms a HandlerMiddleware into a Middleware.
 func BindHandler(hmw HandlerMiddleware) Middleware {
 	return Middleware(func(binder jsonrpc2_v2.Binder) jsonrpc2_v2.Binder {
-		return BinderFunc(func(ctx context.Context, conn *jsonrpc2_v2.Connection) (jsonrpc2_v2.ConnectionOptions, error) {
-			opts, err := binder.Bind(ctx, conn)
-			if err != nil {
-				return opts, err
-			}
+		return BinderFunc(func(ctx context.Context, conn *jsonrpc2_v2.Connection) jsonrpc2_v2.ConnectionOptions {
+			opts := binder.Bind(ctx, conn)
 			opts.Handler = hmw(opts.Handler)
-			return opts, nil
+			return opts
 		})
 	})
 }

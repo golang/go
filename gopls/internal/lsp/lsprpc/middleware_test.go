@@ -15,8 +15,8 @@ import (
 	jsonrpc2_v2 "golang.org/x/tools/internal/jsonrpc2_v2"
 )
 
-var noopBinder = BinderFunc(func(context.Context, *jsonrpc2_v2.Connection) (jsonrpc2_v2.ConnectionOptions, error) {
-	return jsonrpc2_v2.ConnectionOptions{}, nil
+var noopBinder = BinderFunc(func(context.Context, *jsonrpc2_v2.Connection) jsonrpc2_v2.ConnectionOptions {
+	return jsonrpc2_v2.ConnectionOptions{}
 })
 
 func TestHandshakeMiddleware(t *testing.T) {

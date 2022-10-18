@@ -45,6 +45,7 @@ func (e *TestEnv) serve(ctx context.Context, t *testing.T, server jsonrpc2_v2.Bi
 	}
 	s, err := jsonrpc2_v2.Serve(ctx, l, server)
 	if err != nil {
+		l.Close()
 		t.Fatal(err)
 	}
 	e.Servers = append(e.Servers, s)

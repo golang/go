@@ -27,14 +27,16 @@ import (
 type Binder interface {
 	// Bind returns the ConnectionOptions to use when establishing the passed-in
 	// Connection.
-	// The connection is not ready to use when Bind is called.
-	Bind(context.Context, *Connection) (ConnectionOptions, error)
+	//
+	// The connection is not ready to use when Bind is called,
+	// but Bind may close it without reading or writing to it.
+	Bind(context.Context, *Connection) ConnectionOptions
 }
 
 // A BinderFunc implements the Binder interface for a standalone Bind function.
-type BinderFunc func(context.Context, *Connection) (ConnectionOptions, error)
+type BinderFunc func(context.Context, *Connection) ConnectionOptions
 
-func (f BinderFunc) Bind(ctx context.Context, c *Connection) (ConnectionOptions, error) {
+func (f BinderFunc) Bind(ctx context.Context, c *Connection) ConnectionOptions {
 	return f(ctx, c)
 }
 
@@ -130,8 +132,8 @@ type incomingRequest struct {
 }
 
 // Bind returns the options unmodified.
-func (o ConnectionOptions) Bind(context.Context, *Connection) (ConnectionOptions, error) {
-	return o, nil
+func (o ConnectionOptions) Bind(context.Context, *Connection) ConnectionOptions {
+	return o
 }
 
 // newConnection creates a new connection and runs it.
@@ -141,7 +143,7 @@ func (o ConnectionOptions) Bind(context.Context, *Connection) (ConnectionOptions
 // The connection is closed automatically (and its resources cleaned up) when
 // the last request has completed after the underlying ReadWriteCloser breaks,
 // but it may be stopped earlier by calling Close (for a clean shutdown).
-func newConnection(bindCtx context.Context, rwc io.ReadWriteCloser, binder Binder, onDone func()) (*Connection, error) {
+func newConnection(bindCtx context.Context, rwc io.ReadWriteCloser, binder Binder, onDone func()) *Connection {
 	// TODO: Should we create a new event span here?
 	// This will propagate cancellation from ctx; should it?
 	ctx := notDone{bindCtx}
@@ -153,10 +155,7 @@ func newConnection(bindCtx context.Context, rwc io.ReadWriteCloser, binder Binde
 		onDone:   onDone,
 	}
 
-	options, err := binder.Bind(bindCtx, c)
-	if err != nil {
-		return nil, err
-	}
+	options := binder.Bind(bindCtx, c)
 	framer := options.Framer
 	if framer == nil {
 		framer = HeaderFramer()
@@ -169,9 +168,14 @@ func newConnection(bindCtx context.Context, rwc io.ReadWriteCloser, binder Binde
 
 	c.writer <- framer.Writer(rwc)
 	reader := framer.Reader(rwc)
-	// The goroutines started here will continue until the underlying stream is closed.
-	go c.readIncoming(ctx, reader, options.Preempter)
-	return c, nil
+
+	c.updateInFlight(func(s *inFlightState) {
+		if !s.closed {
+			// The goroutine started here will continue until the underlying stream is closed.
+			go c.readIncoming(ctx, reader, options.Preempter)
+		}
+	})
+	return c
 }
 
 // Notify invokes the target method but does not wait for a response.

@@ -17,9 +17,9 @@ import (
 
 // The BinderFunc type adapts a bind function to implement the jsonrpc2.Binder
 // interface.
-type BinderFunc func(ctx context.Context, conn *jsonrpc2_v2.Connection) (jsonrpc2_v2.ConnectionOptions, error)
+type BinderFunc func(ctx context.Context, conn *jsonrpc2_v2.Connection) jsonrpc2_v2.ConnectionOptions
 
-func (f BinderFunc) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) (jsonrpc2_v2.ConnectionOptions, error) {
+func (f BinderFunc) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) jsonrpc2_v2.ConnectionOptions {
 	return f(ctx, conn)
 }
 
@@ -39,7 +39,7 @@ func NewServerBinder(newServer ServerFunc) *ServerBinder {
 	return &ServerBinder{newServer: newServer}
 }
 
-func (b *ServerBinder) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) (jsonrpc2_v2.ConnectionOptions, error) {
+func (b *ServerBinder) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) jsonrpc2_v2.ConnectionOptions {
 	client := protocol.ClientDispatcherV2(conn)
 	server := b.newServer(ctx, client)
 	serverHandler := protocol.ServerHandlerV2(server)
@@ -55,7 +55,7 @@ func (b *ServerBinder) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) (
 	return jsonrpc2_v2.ConnectionOptions{
 		Handler:   wrapped,
 		Preempter: preempter,
-	}, nil
+	}
 }
 
 type canceler struct {
@@ -94,13 +94,19 @@ func NewForwardBinder(dialer jsonrpc2_v2.Dialer) *ForwardBinder {
 	}
 }
 
-func (b *ForwardBinder) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) (opts jsonrpc2_v2.ConnectionOptions, _ error) {
+func (b *ForwardBinder) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) (opts jsonrpc2_v2.ConnectionOptions) {
 	client := protocol.ClientDispatcherV2(conn)
 	clientBinder := NewClientBinder(func(context.Context, protocol.Server) protocol.Client { return client })
+
 	serverConn, err := jsonrpc2_v2.Dial(context.Background(), b.dialer, clientBinder)
 	if err != nil {
-		return opts, err
+		return jsonrpc2_v2.ConnectionOptions{
+			Handler: jsonrpc2_v2.HandlerFunc(func(context.Context, *jsonrpc2_v2.Request) (interface{}, error) {
+				return nil, fmt.Errorf("%w: %v", jsonrpc2_v2.ErrInternal, err)
+			}),
+		}
 	}
+
 	if b.onBind != nil {
 		b.onBind(serverConn)
 	}
@@ -118,7 +124,7 @@ func (b *ForwardBinder) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) 
 	return jsonrpc2_v2.ConnectionOptions{
 		Handler:   protocol.ServerHandlerV2(server),
 		Preempter: preempter,
-	}, nil
+	}
 }
 
 // A ClientFunc is used to construct an LSP client for a given server.
@@ -133,10 +139,10 @@ func NewClientBinder(newClient ClientFunc) *ClientBinder {
 	return &ClientBinder{newClient}
 }
 
-func (b *ClientBinder) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) (jsonrpc2_v2.ConnectionOptions, error) {
+func (b *ClientBinder) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) jsonrpc2_v2.ConnectionOptions {
 	server := protocol.ServerDispatcherV2(conn)
 	client := b.newClient(ctx, server)
 	return jsonrpc2_v2.ConnectionOptions{
 		Handler: protocol.ClientHandlerV2(client),
-	}, nil
+	}
 }
