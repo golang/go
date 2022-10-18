@@ -163,7 +163,9 @@ func update(crc uint64, tab *Table, p []byte) uint64 {
 		} else if *tab == slicing8TableISO[0] {
 			helperTable = slicing8TableISO
 			// For smaller sizes creating extended table takes too much time
-		} else if len(p) > 16384 {
+		} else if len(p) >= 2048 {
+			// According to the tests between various x86 and arm CPUs, 2k is a reasonable
+			// threshold for now. This may change in the future.
 			helperTable = makeSlicingBy8Table(tab)
 		} else {
 			break
