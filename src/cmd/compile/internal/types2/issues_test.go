@@ -673,3 +673,56 @@ func TestIssue55030(t *testing.T) {
 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{u})))
 	}
 }
+
+func TestIssue51093(t *testing.T) {
+	// Each test stands for a conversion of the form P(val)
+	// where P is a type parameter with typ as constraint.
+	// The test ensures that P(val) has the correct type P
+	// and is not a constant.
+	var tests = []struct {
+		typ string
+		val string
+	}{
+		{"bool", "false"},
+		{"int", "-1"},
+		{"uint", "1.0"},
+		{"rune", "'a'"},
+		{"float64", "3.5"},
+		{"complex64", "1.25"},
+		{"string", "\"foo\""},
+
+		// some more complex constraints
+		{"~byte", "1"},
+		{"~int | ~float64 | complex128", "1"},
+		{"~uint64 | ~rune", "'X'"},
+	}
+
+	for _, test := range tests {
+		src := fmt.Sprintf("package p; func _[P %s]() { _ = P(%s) }", test.typ, test.val)
+		types := make(map[syntax.Expr]TypeAndValue)
+		mustTypecheck(t, "p", src, &Info{Types: types})
+
+		var n int
+		for x, tv := range types {
+			if x, _ := x.(*syntax.CallExpr); x != nil {
+				// there must be exactly one CallExpr which is the P(val) conversion
+				n++
+				tpar, _ := tv.Type.(*TypeParam)
+				if tpar == nil {
+					t.Fatalf("%s: got type %s, want type parameter", syntax.String(x), tv.Type)
+				}
+				if name := tpar.Obj().Name(); name != "P" {
+					t.Fatalf("%s: got type parameter name %s, want P", syntax.String(x), name)
+				}
+				// P(val) must not be constant
+				if tv.Value != nil {
+					t.Errorf("%s: got constant value %s (%s), want no constant", syntax.String(x), tv.Value, tv.Value.String())
+				}
+			}
+		}
+
+		if n != 1 {
+			t.Fatalf("%s: got %d CallExpr nodes; want 1", src, 1)
+		}
+	}
+}
