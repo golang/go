@@ -129,22 +129,22 @@ func (r *ModuleResolver) init() error {
 	})
 
 	r.roots = []gopathwalk.Root{
-		{filepath.Join(goenv["GOROOT"], "/src"), gopathwalk.RootGOROOT},
+		{Path: filepath.Join(goenv["GOROOT"], "/src"), Type: gopathwalk.RootGOROOT},
 	}
 	r.mainByDir = make(map[string]*gocommand.ModuleJSON)
 	for _, main := range r.mains {
-		r.roots = append(r.roots, gopathwalk.Root{main.Dir, gopathwalk.RootCurrentModule})
+		r.roots = append(r.roots, gopathwalk.Root{Path: main.Dir, Type: gopathwalk.RootCurrentModule})
 		r.mainByDir[main.Dir] = main
 	}
 	if vendorEnabled {
-		r.roots = append(r.roots, gopathwalk.Root{r.dummyVendorMod.Dir, gopathwalk.RootOther})
+		r.roots = append(r.roots, gopathwalk.Root{Path: r.dummyVendorMod.Dir, Type: gopathwalk.RootOther})
 	} else {
 		addDep := func(mod *gocommand.ModuleJSON) {
 			if mod.Replace == nil {
 				// This is redundant with the cache, but we'll skip it cheaply enough.
-				r.roots = append(r.roots, gopathwalk.Root{mod.Dir, gopathwalk.RootModuleCache})
+				r.roots = append(r.roots, gopathwalk.Root{Path: mod.Dir, Type: gopathwalk.RootModuleCache})
 			} else {
-				r.roots = append(r.roots, gopathwalk.Root{mod.Dir, gopathwalk.RootOther})
+				r.roots = append(r.roots, gopathwalk.Root{Path: mod.Dir, Type: gopathwalk.RootOther})
 			}
 		}
 		// Walk dependent modules before scanning the full mod cache, direct deps first.
@@ -158,7 +158,7 @@ func (r *ModuleResolver) init() error {
 				addDep(mod)
 			}
 		}
-		r.roots = append(r.roots, gopathwalk.Root{r.moduleCacheDir, gopathwalk.RootModuleCache})
+		r.roots = append(r.roots, gopathwalk.Root{Path: r.moduleCacheDir, Type: gopathwalk.RootModuleCache})
 	}
 
 	r.scannedRoots = map[gopathwalk.Root]bool{}
