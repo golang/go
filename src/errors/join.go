@@ -4,6 +4,8 @@
 
 package errors
 
+import "strings"
+
 // Join returns an error that wraps the given errors.
 // Any nil error values are discarded.
 // Join returns nil if errs contains no non-nil values.
@@ -36,14 +38,14 @@ type joinError struct {
 }
 
 func (e *joinError) Error() string {
-	var b []byte
+	var b strings.Builder
 	for i, err := range e.errs {
 		if i > 0 {
-			b = append(b, '\n')
+			b.WriteByte('\n')
 		}
-		b = append(b, err.Error()...)
+		b.WriteString(err.Error())
 	}
-	return string(b)
+	return b.String()
 }
 
 func (e *joinError) Unwrap() []error {
