@@ -72,7 +72,7 @@ TEXT exit1<>(SB),NOSPLIT,$0
 	INT $3	// not reached
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVL	wait+0(FP), AX
 	// We're done using the stack.

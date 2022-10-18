@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -474,7 +475,7 @@ func pthread_cond_signal(c *pthreadcond) int32 {
 func pthread_cond_signal_trampoline()
 
 // Not used on Darwin, but must be defined.
-func exitThread(wait *uint32) {
+func exitThread(wait *atomic.Uint32) {
 }
 
 //go:nosplit

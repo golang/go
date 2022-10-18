@@ -99,7 +99,7 @@ GLOBL exitStack<>(SB),RODATA,$8
 DATA exitStack<>+0x00(SB)/4, $0
 DATA exitStack<>+0x04(SB)/4, $0
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVL	wait+0(FP), AX
 	// We're done using the stack.

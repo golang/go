@@ -50,7 +50,7 @@ TEXT runtime·exit(SB),NOSPLIT,$0-4
 	UNDEF
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVW	wait+0(FP), R1
 	// We're done using the stack.
