@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -248,7 +249,7 @@ func sigaltstack(new *stackt, old *stackt) {
 func sigaltstack_trampoline()
 
 // Not used on OpenBSD, but must be defined.
-func exitThread(wait *uint32) {
+func exitThread(wait *atomic.Uint32) {
 }
 
 //go:nosplit
