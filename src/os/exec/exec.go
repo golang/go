@@ -1190,7 +1190,11 @@ func (c *Cmd) environ() ([]string, error) {
 		}
 	}
 
-	return addCriticalEnv(dedupEnv(env)), err
+	env, dedupErr := dedupEnv(env)
+	if err == nil {
+		err = dedupErr
+	}
+	return addCriticalEnv(env), err
 }
 
 // Environ returns a copy of the environment in which the command would be run
@@ -1204,20 +1208,27 @@ func (c *Cmd) Environ() []string {
 // dedupEnv returns a copy of env with any duplicates removed, in favor of
 // later values.
 // Items not of the normal environment "key=value" form are preserved unchanged.
-func dedupEnv(env []string) []string {
+// Items containing NUL characters are removed, and an error is returned along with
+// the remaining values.
+func dedupEnv(env []string) ([]string, error) {
 	return dedupEnvCase(runtime.GOOS == "windows", env)
 }
 
 // dedupEnvCase is dedupEnv with a case option for testing.
 // If caseInsensitive is true, the case of keys is ignored.
-func dedupEnvCase(caseInsensitive bool, env []string) []string {
+func dedupEnvCase(caseInsensitive bool, env []string) ([]string, error) {
 	// Construct the output in reverse order, to preserve the
 	// last occurrence of each key.
+	var err error
 	out := make([]string, 0, len(env))
 	saw := make(map[string]bool, len(env))
 	for n := len(env); n > 0; n-- {
 		kv := env[n-1]
 
+		if strings.IndexByte(kv, 0) != -1 {
+			err = errors.New("exec: environment variable contains NUL")
+			continue
+		}
 		i := strings.Index(kv, "=")
 		if i == 0 {
 			// We observe in practice keys with a single leading "=" on Windows.
@@ -1252,7 +1263,7 @@ func dedupEnvCase(caseInsensitive bool, env []string) []string {
 		out[i], out[j] = out[j], out[i]
 	}
 
-	return out
+	return out, err
 }
 
 // addCriticalEnv adds any critical environment variables that are required
