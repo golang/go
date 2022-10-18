@@ -1527,3 +1527,69 @@ func TestErrorInvalidTypeId(t *testing.T) {
 		}
 	}
 }
+
+type LargeSliceByte struct {
+	S []byte
+}
+
+type LargeSliceInt8 struct {
+	S []int8
+}
+
+type StringPair struct {
+	A, B string
+}
+
+type LargeSliceStruct struct {
+	S []StringPair
+}
+
+func testEncodeDecode(t *testing.T, in, out any) {
+	t.Helper()
+	var b bytes.Buffer
+	err := NewEncoder(&b).Encode(in)
+	if err != nil {
+		t.Fatal("encode:", err)
+	}
+	err = NewDecoder(&b).Decode(out)
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
+	if !reflect.DeepEqual(in, out) {
+		t.Errorf("output mismatch")
+	}
+}
+
+func TestLargeSlice(t *testing.T) {
+	t.Run("byte", func(t *testing.T) {
+		t.Parallel()
+		s := make([]byte, 10<<21)
+		for i := range s {
+			s[i] = byte(i)
+		}
+		st := &LargeSliceByte{S: s}
+		rt := &LargeSliceByte{}
+		testEncodeDecode(t, st, rt)
+	})
+	t.Run("int8", func(t *testing.T) {
+		t.Parallel()
+		s := make([]int8, 10<<21)
+		for i := range s {
+			s[i] = int8(i)
+		}
+		st := &LargeSliceInt8{S: s}
+		rt := &LargeSliceInt8{}
+		testEncodeDecode(t, st, rt)
+	})
+	t.Run("struct", func(t *testing.T) {
+		t.Parallel()
+		s := make([]StringPair, 1<<21)
+		for i := range s {
+			s[i].A = string(rune(i))
+			s[i].B = s[i].A
+		}
+		st := &LargeSliceStruct{S: s}
+		rt := &LargeSliceStruct{}
+		testEncodeDecode(t, st, rt)
+	})
+}
