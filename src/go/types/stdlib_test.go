@@ -40,7 +40,7 @@ func TestStdlib(t *testing.T) {
 
 	pkgCount := 0
 	duration := walkPkgDirs(filepath.Join(testenv.GOROOT(t), "src"), func(dir string, filenames []string) {
-		typecheck(t, dir, filenames)
+		typecheckFiles(t, dir, filenames)
 		pkgCount++
 	}, t.Error)
 
@@ -227,8 +227,8 @@ var excluded = map[string]bool{
 	"crypto/internal/edwards25519/field/_asm": true,
 }
 
-// typecheck typechecks the given package files.
-func typecheck(t *testing.T, path string, filenames []string) {
+// typecheckFiles typechecks the given package files.
+func typecheckFiles(t *testing.T, path string, filenames []string) {
 	fset := token.NewFileSet()
 
 	// parse package files

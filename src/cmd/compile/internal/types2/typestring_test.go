@@ -8,21 +8,10 @@ import (
 	"internal/testenv"
 	"testing"
 
-	"cmd/compile/internal/syntax"
 	. "cmd/compile/internal/types2"
 )
 
 const filename = "<src>"
-
-func makePkg(src string) (*Package, error) {
-	file, err := parseSrc(filename, src)
-	if err != nil {
-		return nil, err
-	}
-	// use the package name as package path
-	conf := Config{Importer: defaultImporter()}
-	return conf.Check(file.PkgName.Value, []*syntax.File{file}, nil)
-}
 
 type testEntry struct {
 	src, str string
@@ -128,7 +117,7 @@ func TestTypeString(t *testing.T) {
 
 	for _, test := range tests {
 		src := `package generic_p; import "io"; type _ io.Writer; type T ` + test.src
-		pkg, err := makePkg(src)
+		pkg, err := typecheck(filename, src, nil)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
 			continue
@@ -146,8 +135,8 @@ func TestTypeString(t *testing.T) {
 }
 
 func TestQualifiedTypeString(t *testing.T) {
-	p, _ := pkgFor("p.go", "package p; type T int", nil)
-	q, _ := pkgFor("q.go", "package q", nil)
+	p, _ := typecheck("p.go", "package p; type T int", nil)
+	q, _ := typecheck("q.go", "package q", nil)
 
 	pT := p.Scope().Lookup("T").Type()
 	for _, test := range []struct {

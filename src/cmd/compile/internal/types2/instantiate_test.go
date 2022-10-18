@@ -107,7 +107,7 @@ func TestInstantiateEquality(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pkg, err := pkgFor(".", test.src, nil)
+		pkg, err := typecheck(".", test.src, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -136,11 +136,11 @@ func TestInstantiateEquality(t *testing.T) {
 
 func TestInstantiateNonEquality(t *testing.T) {
 	const src = "package p; type T[P any] int"
-	pkg1, err := pkgFor(".", src, nil)
+	pkg1, err := typecheck(".", src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg2, err := pkgFor(".", src, nil)
+	pkg2, err := typecheck(".", src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ var X T[int]
 
 	for _, test := range tests {
 		src := prefix + test.decl
-		pkg, err := pkgFor(".", src, nil)
+		pkg, err := typecheck(".", src, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -213,7 +213,7 @@ func (T[P]) m() {}
 
 var _ T[int]
 `
-	pkg, err := pkgFor(".", src, nil)
+	pkg, err := typecheck(".", src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

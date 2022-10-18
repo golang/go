@@ -9,7 +9,6 @@ package types_test
 import (
 	"go/ast"
 	"go/importer"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"internal/testenv"
@@ -23,12 +22,9 @@ func findStructType(t *testing.T, src string) *types.Struct {
 
 func findStructTypeConfig(t *testing.T, src string, conf *types.Config) *types.Struct {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "x.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, "x.go", src)
 	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
-	_, err = conf.Check("x", fset, []*ast.File{f}, &info)
+	_, err := conf.Check("x", fset, []*ast.File{f}, &info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,16 +92,13 @@ import "unsafe"
 const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 `
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "x.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, "x.go", src)
 	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
 	conf := types.Config{
 		Importer: importer.Default(),
 		Sizes:    &types.StdSizes{WordSize: 8, MaxAlign: 8},
 	}
-	_, err = conf.Check("x", fset, []*ast.File{f}, &info)
+	_, err := conf.Check("x", fset, []*ast.File{f}, &info)
 	if err != nil {
 		t.Fatal(err)
 	}
