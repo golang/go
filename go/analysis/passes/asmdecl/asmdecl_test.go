@@ -19,11 +19,12 @@ var goosarches = []string{
 	"linux/arm",   // asm3.s
 	// TODO: skip test on loong64 until go toolchain supported loong64.
 	// "linux/loong64", // asm10.s
-	"linux/mips64", // asm5.s
-	"linux/s390x",  // asm6.s
-	"linux/ppc64",  // asm7.s
-	"linux/mips",   // asm8.s,
-	"js/wasm",      // asm9.s
+	"linux/mips64",  // asm5.s
+	"linux/s390x",   // asm6.s
+	"linux/ppc64",   // asm7.s
+	"linux/mips",    // asm8.s,
+	"js/wasm",       // asm9.s
+	"linux/riscv64", // asm11.s
 }
 
 func Test(t *testing.T) {
