@@ -814,7 +814,12 @@ func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cm
 	origDir := dir
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
-			if _, err := statAny(dir, vcs.RootNames); err == nil {
+			if fi, err := statAny(dir, vcs.RootNames); err == nil {
+				// git submodule contains .git file, but its directory is not a
+				// git repository root.
+				if !fi.IsDir() && fi.Name() == ".git" {
+					continue
+				}
 				// Record first VCS we find.
 				// If allowNesting is false (as it is in GOPATH), keep looking for
 				// repositories in parent directories and report an error if one is
