@@ -11,23 +11,20 @@ import (
 	"testing"
 	"time"
 
-	jsonrpc2_v2 "golang.org/x/tools/internal/jsonrpc2_v2"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	jsonrpc2_v2 "golang.org/x/tools/internal/jsonrpc2_v2"
 
 	. "golang.org/x/tools/gopls/internal/lsp/lsprpc"
 )
 
 type TestEnv struct {
-	Listeners []jsonrpc2_v2.Listener
-	Conns     []*jsonrpc2_v2.Connection
-	Servers   []*jsonrpc2_v2.Server
+	Conns   []*jsonrpc2_v2.Connection
+	Servers []*jsonrpc2_v2.Server
 }
 
 func (e *TestEnv) Shutdown(t *testing.T) {
-	for _, l := range e.Listeners {
-		if err := l.Close(); err != nil {
-			t.Error(err)
-		}
+	for _, s := range e.Servers {
+		s.Shutdown()
 	}
 	for _, c := range e.Conns {
 		if err := c.Close(); err != nil {
@@ -46,7 +43,6 @@ func (e *TestEnv) serve(ctx context.Context, t *testing.T, server jsonrpc2_v2.Bi
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.Listeners = append(e.Listeners, l)
 	s, err := jsonrpc2_v2.Serve(ctx, l, server)
 	if err != nil {
 		t.Fatal(err)
