@@ -5,10 +5,6 @@
 package types_test
 
 import (
-	"go/ast"
-	"go/importer"
-	"go/parser"
-	"go/token"
 	"internal/testenv"
 	"testing"
 
@@ -16,17 +12,6 @@ import (
 )
 
 const filename = "<src>"
-
-func makePkg(src string) (*Package, error) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
-	if err != nil {
-		return nil, err
-	}
-	// use the package name as package path
-	conf := Config{Importer: importer.Default()}
-	return conf.Check(file.Name.Name, fset, []*ast.File{file}, nil)
-}
 
 type testEntry struct {
 	src, str string
@@ -134,7 +119,7 @@ func TestTypeString(t *testing.T) {
 
 	for _, test := range tests {
 		src := `package p; import "io"; type _ io.Writer; type T ` + test.src
-		pkg, err := makePkg(src)
+		pkg, err := typecheck(filename, src, nil)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
 			continue
@@ -152,8 +137,8 @@ func TestTypeString(t *testing.T) {
 }
 
 func TestQualifiedTypeString(t *testing.T) {
-	p, _ := pkgFor("p.go", "package p; type T int", nil)
-	q, _ := pkgFor("q.go", "package q", nil)
+	p, _ := typecheck("p.go", "package p; type T int", nil)
+	q, _ := typecheck("q.go", "package q", nil)
 
 	pT := p.Scope().Lookup("T").Type()
 	for _, test := range []struct {

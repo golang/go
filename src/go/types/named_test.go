@@ -6,7 +6,6 @@ package types_test
 
 import (
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"testing"
 
@@ -33,7 +32,7 @@ func (G[P]) N() (p P) { return }
 
 type Inst = G[int]
 	`
-	pkg, err := pkgFor("p", src, nil)
+	pkg, err := typecheck("p", src, nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -111,10 +110,7 @@ type Inst = *Tree[int]
 `
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "foo.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, "foo.go", src)
 	pkg := NewPackage("p", f.Name.Name)
 	if err := NewChecker(nil, fset, pkg, nil).Files([]*ast.File{f}); err != nil {
 		t.Fatal(err)

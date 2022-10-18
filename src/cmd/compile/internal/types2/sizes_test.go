@@ -18,12 +18,9 @@ func findStructType(t *testing.T, src string) *types2.Struct {
 }
 
 func findStructTypeConfig(t *testing.T, src string, conf *types2.Config) *types2.Struct {
-	f, err := parseSrc("x.go", src)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse("x.go", src)
 	info := types2.Info{Types: make(map[syntax.Expr]types2.TypeAndValue)}
-	_, err = conf.Check("x", []*syntax.File{f}, &info)
+	_, err := conf.Check("x", []*syntax.File{f}, &info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,16 +87,13 @@ import "unsafe"
 
 const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 `
-	f, err := parseSrc("x.go", src)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse("x.go", src)
 	info := types2.Info{Types: make(map[syntax.Expr]types2.TypeAndValue)}
 	conf := types2.Config{
 		Importer: defaultImporter(),
 		Sizes:    &types2.StdSizes{WordSize: 8, MaxAlign: 8},
 	}
-	_, err = conf.Check("x", []*syntax.File{f}, &info)
+	_, err := conf.Check("x", []*syntax.File{f}, &info)
 	if err != nil {
 		t.Fatal(err)
 	}
