@@ -264,7 +264,6 @@ type compLitInfo struct {
 type importInfo struct {
 	importPath string
 	name       string
-	pkg        source.Package
 }
 
 type methodSetKey struct {
@@ -1165,7 +1164,6 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		}
 		imp := &importInfo{
 			importPath: path,
-			pkg:        pkg,
 		}
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()
@@ -1517,7 +1515,6 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		}
 		imp := &importInfo{
 			importPath: path,
-			pkg:        pkg,
 		}
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()

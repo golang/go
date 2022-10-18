@@ -838,11 +838,11 @@ func pathEnclosingInterval(fset *token.FileSet, pkg Package, start, end token.Po
 			if err != nil {
 				continue
 			}
-			importPkg, err := pkg.GetImport(importPath)
+			imported, err := pkg.ResolveImportPath(importPath)
 			if err != nil {
 				return nil, nil, nil, false
 			}
-			pkgs = append(pkgs, importPkg)
+			pkgs = append(pkgs, imported)
 		}
 	}
 	for _, p := range pkgs {

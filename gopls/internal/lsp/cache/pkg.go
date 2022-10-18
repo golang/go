@@ -23,7 +23,7 @@ type pkg struct {
 	goFiles         []*source.ParsedGoFile
 	compiledGoFiles []*source.ParsedGoFile
 	diagnostics     []*source.Diagnostic
-	imports         map[PackagePath]*pkg
+	depsByPkgPath   map[PackagePath]*pkg
 	version         *module.Version
 	parseErrors     []scanner.ErrorList
 	typeErrors      []types.Error
@@ -111,12 +111,29 @@ func (p *pkg) ForTest() string {
 	return string(p.m.ForTest)
 }
 
-func (p *pkg) GetImport(pkgPath string) (source.Package, error) {
-	if imp := p.imports[PackagePath(pkgPath)]; imp != nil {
+// DirectDep returns the directly imported dependency of this package,
+// given its PackagePath.  (If you have an ImportPath, e.g. a string
+// from an import declaration, use ResolveImportPath instead.
+// They may differ in case of vendoring.)
+func (p *pkg) DirectDep(pkgPath string) (source.Package, error) {
+	if imp := p.depsByPkgPath[PackagePath(pkgPath)]; imp != nil {
 		return imp, nil
 	}
 	// Don't return a nil pointer because that still satisfies the interface.
 	return nil, fmt.Errorf("no imported package for %s", pkgPath)
+}
+
+// ResolveImportPath returns the directly imported dependency of this package,
+// given its ImportPath. See also DirectDep.
+func (p *pkg) ResolveImportPath(importPath string) (source.Package, error) {
+	if id, ok := p.m.Imports[ImportPath(importPath)]; ok {
+		for _, imported := range p.depsByPkgPath {
+			if PackageID(imported.ID()) == id {
+				return imported, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("package does not import %s", importPath)
 }
 
 func (p *pkg) MissingDependencies() []string {
@@ -124,14 +141,27 @@ func (p *pkg) MissingDependencies() []string {
 	// imports via the *types.Package. Only use metadata if p.types is nil.
 	if p.types == nil {
 		var md []string
-		for i := range p.m.MissingDeps {
-			md = append(md, string(i))
+		for importPath := range p.m.MissingDeps {
+			md = append(md, string(importPath))
 		}
 		return md
 	}
+
+	// This looks wrong.
+	//
+	// rfindley says: it looks like this is intending to implement
+	// a heuristic "if go list couldn't resolve import paths to
+	// packages, then probably you're not in GOPATH or a module".
+	// This is used to determine if we need to show a warning diagnostic.
+	// It looks like this logic is implementing the heuristic that
+	// "even if the metadata has a MissingDep, if the types.Package
+	// doesn't need that dep anymore we shouldn't show the warning".
+	// But either we're outside of GOPATH/Module, or we're not...
+	//
+	// TODO(adonovan): figure out what it is trying to do.
 	var md []string
 	for _, pkg := range p.types.Imports() {
-		if _, ok := p.m.MissingDeps[PackagePath(pkg.Path())]; ok {
+		if _, ok := p.m.MissingDeps[ImportPath(pkg.Path())]; ok {
 			md = append(md, pkg.Path())
 		}
 	}
@@ -140,7 +170,7 @@ func (p *pkg) MissingDependencies() []string {
 
 func (p *pkg) Imports() []source.Package {
 	var result []source.Package
-	for _, imp := range p.imports {
+	for _, imp := range p.depsByPkgPath {
 		result = append(result, imp)
 	}
 	return result

@@ -132,7 +132,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 	}
 
 	// Add a dependency on each required analyzer.
-	var deps []*actionHandle
+	var deps []*actionHandle // unordered
 	for _, req := range a.Requires {
 		// TODO(adonovan): opt: there's no need to repeat the package-handle
 		// portion of the recursion here, since we have the pkg already.
@@ -150,7 +150,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 		// An analysis that consumes/produces facts
 		// must run on the package's dependencies too.
 		if len(a.FactTypes) > 0 {
-			for _, importID := range ph.m.Deps {
+			for _, importID := range ph.m.Imports {
 				depActionHandle, err := s.actionHandle(ctx, importID, a)
 				if err != nil {
 					return nil, err

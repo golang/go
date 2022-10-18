@@ -466,9 +466,8 @@ func spanFromPositions(m *protocol.ColumnMapper, s, e modfile.Position) (span.Sp
 // the set of strings that appear in import declarations within
 // GoFiles. Errors are ignored.
 //
-// (We can't simply use ph.m.Metadata.Deps because it contains
-// PackageIDs--not import paths--and is based on CompiledGoFiles,
-// after cgo processing.)
+// (We can't simply use Metadata.Imports because it is based on
+// CompiledGoFiles, after cgo processing.)
 func parseImports(ctx context.Context, s *snapshot, files []source.FileHandle) map[string]bool {
 	s.mu.Lock() // peekOrParse requires a locked snapshot (!)
 	defer s.mu.Unlock()

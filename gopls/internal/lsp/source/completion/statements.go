@@ -336,7 +336,7 @@ func getTestVar(enclosingFunc *funcInfo, pkg source.Package) string {
 		if param.Name() == "_" {
 			continue
 		}
-		testingPkg, err := pkg.GetImport("testing")
+		testingPkg, err := pkg.DirectDep("testing")
 		if err != nil {
 			continue
 		}

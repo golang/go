@@ -342,7 +342,7 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 
 	// See golang/go#36998: don't link to modules matching GOPRIVATE.
 	//
-	// The path returned by linkData is an import path.
+	// The path returned by linkData is a package path.
 	if i.Snapshot.View().IsGoPrivatePath(h.LinkPath) {
 		h.LinkPath = ""
 	} else if mod, version, ok := moduleAtVersion(h.LinkPath, i); ok {
@@ -352,11 +352,11 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 	return h, nil
 }
 
-// linkData returns the name, import path, and anchor to use in building links
+// linkData returns the name, package path, and anchor to use in building links
 // to obj.
 //
 // If obj is not visible in documentation, the returned name will be empty.
-func linkData(obj types.Object, enclosing *types.TypeName) (name, importPath, anchor string) {
+func linkData(obj types.Object, enclosing *types.TypeName) (name, packagePath, anchor string) {
 	// Package names simply link to the package.
 	if obj, ok := obj.(*types.PkgName); ok {
 		return obj.Name(), obj.Imported().Path(), ""
@@ -430,7 +430,7 @@ func linkData(obj types.Object, enclosing *types.TypeName) (name, importPath, an
 		return "", "", ""
 	}
 
-	importPath = obj.Pkg().Path()
+	packagePath = obj.Pkg().Path()
 	if recv != nil {
 		anchor = fmt.Sprintf("%s.%s", recv.Name(), obj.Name())
 		name = fmt.Sprintf("(%s.%s).%s", obj.Pkg().Name(), recv.Name(), obj.Name())
@@ -439,7 +439,7 @@ func linkData(obj types.Object, enclosing *types.TypeName) (name, importPath, an
 		anchor = obj.Name()
 		name = fmt.Sprintf("%s.%s", obj.Pkg().Name(), obj.Name())
 	}
-	return name, importPath, anchor
+	return name, packagePath, anchor
 }
 
 func moduleAtVersion(path string, i *IdentifierInfo) (string, string, bool) {
@@ -448,7 +448,7 @@ func moduleAtVersion(path string, i *IdentifierInfo) (string, string, bool) {
 	if strings.ToLower(i.Snapshot.View().Options().LinkTarget) != "pkg.go.dev" {
 		return "", "", false
 	}
-	impPkg, err := i.pkg.GetImport(path)
+	impPkg, err := i.pkg.DirectDep(path)
 	if err != nil {
 		return "", "", false
 	}
@@ -535,11 +535,11 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 		}
 	case *ast.ImportSpec:
 		// Try to find the package documentation for an imported package.
-		pkgPath, err := strconv.Unquote(node.Path.Value)
+		importPath, err := strconv.Unquote(node.Path.Value)
 		if err != nil {
 			return nil, err
 		}
-		imp, err := pkg.GetImport(pkgPath)
+		imp, err := pkg.ResolveImportPath(importPath)
 		if err != nil {
 			return nil, err
 		}

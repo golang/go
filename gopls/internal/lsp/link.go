@@ -174,8 +174,8 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 	return links, nil
 }
 
-func moduleAtVersion(target string, pkg source.Package) (string, string, bool) {
-	impPkg, err := pkg.GetImport(target)
+func moduleAtVersion(targetImportPath string, pkg source.Package) (string, string, bool) {
+	impPkg, err := pkg.ResolveImportPath(targetImportPath)
 	if err != nil {
 		return "", "", false
 	}

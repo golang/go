@@ -53,7 +53,7 @@ func (g *metadataGraph) build() {
 	// Build the import graph.
 	g.importedBy = make(map[PackageID][]PackageID)
 	for id, m := range g.metadata {
-		for _, importID := range m.Deps {
+		for _, importID := range uniqueDeps(m.Imports) {
 			g.importedBy[importID] = append(g.importedBy[importID], id)
 		}
 	}
@@ -129,8 +129,27 @@ func (g *metadataGraph) build() {
 	}
 }
 
+// uniqueDeps returns a new sorted and duplicate-free slice containing the
+// IDs of the package's direct dependencies.
+func uniqueDeps(imports map[ImportPath]PackageID) []PackageID {
+	// TODO(adonovan): use generic maps.SortedUniqueValues(m.Imports) when available.
+	ids := make([]PackageID, 0, len(imports))
+	for _, id := range imports {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	// de-duplicate in place
+	out := ids[:0]
+	for _, id := range ids {
+		if len(out) == 0 || id != out[len(out)-1] {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 // reverseTransitiveClosure calculates the set of packages that transitively
-// reach an id in ids via their Deps. The result also includes given ids.
+// import an id in ids. The result also includes given ids.
 //
 // If includeInvalid is false, the algorithm ignores packages with invalid
 // metadata (including those in the given list of ids).

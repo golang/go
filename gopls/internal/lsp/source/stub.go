@@ -255,8 +255,10 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 		eiface := iface.Embedded(i).Obj()
 		depPkg := ifacePkg
 		if eiface.Pkg().Path() != ifacePkg.PkgPath() {
+			// TODO(adonovan): I'm not sure what this is trying to do, but it
+			// looks wrong the in case of type aliases.
 			var err error
-			depPkg, err = ifacePkg.GetImport(eiface.Pkg().Path())
+			depPkg, err = ifacePkg.DirectDep(eiface.Pkg().Path())
 			if err != nil {
 				return nil, err
 			}

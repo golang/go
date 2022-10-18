@@ -28,6 +28,8 @@ func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandl
 	for _, imp := range pgf.File.Imports {
 		alreadyImported[imp.Path.Value] = struct{}{}
 	}
+	// TODO(adonovan): this whole algorithm could be more
+	// simply expressed in terms of Metadata, not Packages.
 	pkgs, err := snapshot.CachedImportPaths(ctx)
 	if err != nil {
 		return nil, err

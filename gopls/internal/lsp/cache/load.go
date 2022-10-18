@@ -207,7 +207,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 		if s.view.allFilesExcluded(pkg, filterer) {
 			continue
 		}
-		if err := buildMetadata(ctx, PackagePath(pkg.PkgPath), pkg, cfg, query, newMetadata, nil); err != nil {
+		if err := buildMetadata(ctx, pkg, cfg, query, newMetadata, nil); err != nil {
 			return err
 		}
 	}
@@ -476,7 +476,9 @@ func makeWorkspaceDir(ctx context.Context, workspace *workspace, fs source.FileS
 // buildMetadata populates the updates map with metadata updates to
 // apply, based on the given pkg. It recurs through pkg.Imports to ensure that
 // metadata exists for all dependencies.
-func buildMetadata(ctx context.Context, pkgPath PackagePath, pkg *packages.Package, cfg *packages.Config, query []string, updates map[PackageID]*KnownMetadata, path []PackageID) error {
+func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Config, query []string, updates map[PackageID]*KnownMetadata, path []PackageID) error {
+	// Allow for multiple ad-hoc packages in the workspace (see #47584).
+	pkgPath := PackagePath(pkg.PkgPath)
 	id := PackageID(pkg.ID)
 	if source.IsCommandLineArguments(pkg.ID) {
 		suffix := ":" + strings.Join(query, ",")
@@ -540,33 +542,66 @@ func buildMetadata(ctx context.Context, pkgPath PackagePath, pkg *packages.Packa
 		m.GoFiles = append(m.GoFiles, uri)
 	}
 
-	for importPath, importPkg := range pkg.Imports {
-		// TODO(rfindley): in rare cases it is possible that the import package
-		// path is not the same as the package path of the import. That is to say
-		// (quoting adonovan):
-		// "The importPath string is the path by which one package is imported from
-		// another, but that needn't be the same as its internal name (sometimes
-		// called the "package path") used to prefix its linker symbols"
-		//
-		// We should not set this package path on the metadata of the dep.
-		importPkgPath := PackagePath(importPath)
-		importID := PackageID(importPkg.ID)
+	imports := make(map[ImportPath]PackageID)
+	for importPath, imported := range pkg.Imports {
+		importPath := ImportPath(importPath)
+		imports[importPath] = PackageID(imported.ID)
 
-		m.Deps = append(m.Deps, importID)
+		// It is not an invariant that importPath == imported.PkgPath.
+		// For example, package "net" imports "golang.org/x/net/dns/dnsmessage"
+		// which refers to the package whose ID and PkgPath are both
+		// "vendor/golang.org/x/net/dns/dnsmessage". Notice the ImportMap,
+		// which maps ImportPaths to PackagePaths:
+		//
+		// $ go list -json net vendor/golang.org/x/net/dns/dnsmessage
+		// {
+		// 	"ImportPath": "net",
+		// 	"Name": "net",
+		// 	"Imports": [
+		// 		"C",
+		// 		"vendor/golang.org/x/net/dns/dnsmessage",
+		// 		"vendor/golang.org/x/net/route",
+		// 		...
+		// 	],
+		// 	"ImportMap": {
+		// 		"golang.org/x/net/dns/dnsmessage": "vendor/golang.org/x/net/dns/dnsmessage",
+		// 		"golang.org/x/net/route": "vendor/golang.org/x/net/route"
+		// 	},
+		//      ...
+		// }
+		// {
+		// 	"ImportPath": "vendor/golang.org/x/net/dns/dnsmessage",
+		// 	"Name": "dnsmessage",
+		//      ...
+		// }
+		//
+		// (Beware that, for historical reasons, go list uses
+		// the JSON field "ImportPath" for the package's
+		// path--effectively the linker symbol prefix.)
 
 		// Don't remember any imports with significant errors.
-		if importPkgPath != "unsafe" && len(importPkg.CompiledGoFiles) == 0 {
+		//
+		// The len=0 condition is a heuristic check for imports of
+		// non-existent packages (for which go/packages will create
+		// an edge to a synthesized node). The heuristic is unsound
+		// because some valid packages have zero files, for example,
+		// a directory containing only the file p_test.go defines an
+		// empty package p.
+		// TODO(adonovan): clarify this. Perhaps go/packages should
+		// report which nodes were synthesized.
+		if importPath != "unsafe" && len(imported.CompiledGoFiles) == 0 {
 			if m.MissingDeps == nil {
-				m.MissingDeps = make(map[PackagePath]struct{})
+				m.MissingDeps = make(map[ImportPath]struct{})
 			}
-			m.MissingDeps[importPkgPath] = struct{}{}
+			m.MissingDeps[importPath] = struct{}{}
 			continue
 		}
-		if err := buildMetadata(ctx, importPkgPath, importPkg, cfg, query, updates, append(path, id)); err != nil {
+
+		if err := buildMetadata(ctx, imported, cfg, query, updates, append(path, id)); err != nil {
 			event.Error(ctx, "error in dependency", err)
 		}
 	}
-	sort.Slice(m.Deps, func(i, j int) bool { return m.Deps[i] < m.Deps[j] }) // for determinism
+	m.Imports = imports
 
 	return nil
 }

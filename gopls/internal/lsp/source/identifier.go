@@ -456,21 +456,21 @@ func importSpec(snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (
 	if err != nil {
 		return nil, fmt.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
 	}
+	imported, err := pkg.ResolveImportPath(importPath)
+	if err != nil {
+		return nil, err
+	}
 	result := &IdentifierInfo{
 		Snapshot: snapshot,
-		Name:     importPath,
+		Name:     importPath, // should this perhaps be imported.PkgPath()?
 		pkg:      pkg,
 	}
 	if result.MappedRange, err = posToMappedRange(snapshot.FileSet(), pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
 		return nil, err
 	}
 	// Consider the "declaration" of an import spec to be the imported package.
-	importedPkg, err := pkg.GetImport(importPath)
-	if err != nil {
-		return nil, err
-	}
 	// Return all of the files in the package as the definition of the import spec.
-	for _, dst := range importedPkg.GetSyntax() {
+	for _, dst := range imported.GetSyntax() {
 		rng, err := posToMappedRange(snapshot.FileSet(), pkg, dst.Pos(), dst.End())
 		if err != nil {
 			return nil, err

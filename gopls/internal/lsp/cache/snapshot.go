@@ -892,7 +892,7 @@ func (s *snapshot) isActiveLocked(id PackageID) (active bool) {
 	}
 	// TODO(rfindley): it looks incorrect that we don't also check GoFiles here.
 	// If a CGo file is open, we want to consider the package active.
-	for _, dep := range m.Deps {
+	for _, dep := range m.Imports {
 		if s.isActiveLocked(dep) {
 			return true
 		}
@@ -1209,14 +1209,14 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 		if err != nil {
 			return
 		}
-		for importPath, newPkg := range cachedPkg.imports {
-			if oldPkg, ok := results[string(importPath)]; ok {
+		for pkgPath, newPkg := range cachedPkg.depsByPkgPath {
+			if oldPkg, ok := results[string(pkgPath)]; ok {
 				// Using the same trick as NarrowestPackage, prefer non-variants.
 				if len(newPkg.compiledGoFiles) < len(oldPkg.(*pkg).compiledGoFiles) {
-					results[string(importPath)] = newPkg
+					results[string(pkgPath)] = newPkg
 				}
 			} else {
-				results[string(importPath)] = newPkg
+				results[string(pkgPath)] = newPkg
 			}
 		}
 	})
