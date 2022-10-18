@@ -250,6 +250,7 @@ func sigaltstack_trampoline()
 
 // Not used on OpenBSD, but must be defined.
 func exitThread(wait *atomic.Uint32) {
+	throw("exitThread")
 }
 
 //go:nosplit
