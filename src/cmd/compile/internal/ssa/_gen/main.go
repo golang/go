@@ -153,6 +153,7 @@ func main() {
 
 	tasks := []func(){
 		genOp,
+		genAllocators,
 	}
 	for _, a := range archs {
 		a := a // the funcs are ran concurrently at a later time

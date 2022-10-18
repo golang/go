@@ -94,7 +94,8 @@ func insertLoopReschedChecks(f *Func) {
 		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Pos, OpInitMem, types.TypeMem)
 	}
 
-	memDefsAtBlockEnds := make([]*Value, f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
+	memDefsAtBlockEnds := f.Cache.allocValueSlice(f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
+	defer f.Cache.freeValueSlice(memDefsAtBlockEnds)
 
 	// Propagate last mem definitions forward through successor blocks.
 	for i := len(po) - 1; i >= 0; i-- {
@@ -404,7 +405,8 @@ outer:
 func findLastMems(f *Func) []*Value {
 
 	var stores []*Value
-	lastMems := make([]*Value, f.NumBlocks())
+	lastMems := f.Cache.allocValueSlice(f.NumBlocks())
+	defer f.Cache.freeValueSlice(lastMems)
 	storeUse := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(storeUse)
 	for _, b := range f.Blocks {
