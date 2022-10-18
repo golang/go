@@ -24,12 +24,8 @@ import (
 // pkgFor parses and type checks the package specified by path and source,
 // populating info if provided.
 func pkgFor(path, source string, info *Info) (*Package, error) {
-	return pkgForMode(path, source, info, 0)
-}
-
-func pkgForMode(path, source string, info *Info, mode parser.Mode) (*Package, error) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, path, source, mode)
+	f, err := parser.ParseFile(fset, path, source, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -1650,7 +1646,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pkg, err := pkgForMode("test", "package p;"+test.src, nil, 0)
+		pkg, err := pkgFor("test", "package p;"+test.src, nil)
 		if err != nil {
 			t.Errorf("%s: incorrect test case: %s", test.src, err)
 			continue
@@ -1943,7 +1939,7 @@ func TestIdentical(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pkg, err := pkgForMode("test", "package p;"+test.src, nil, 0)
+		pkg, err := pkgFor("test", "package p;"+test.src, nil)
 		if err != nil {
 			t.Errorf("%s: incorrect test case: %s", test.src, err)
 			continue
@@ -2241,7 +2237,7 @@ func f(x T) T { return foo.F(x) }
 func TestInstantiate(t *testing.T) {
 	// eventually we like more tests but this is a start
 	const src = "package p; type T[P any] *T[P]"
-	pkg, err := pkgForMode(".", src, nil, 0)
+	pkg, err := pkgFor(".", src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2279,7 +2275,7 @@ func TestInstantiateErrors(t *testing.T) {
 
 	for _, test := range tests {
 		src := "package p; " + test.src
-		pkg, err := pkgForMode(".", src, nil, 0)
+		pkg, err := pkgFor(".", src, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
