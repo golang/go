@@ -84,7 +84,7 @@ func TestNewMethodSet(t *testing.T) {
 	}
 
 	check := func(src string, methods []method, generic bool) {
-		pkg, err := pkgForMode("test", "package p;"+src, nil, 0)
+		pkg, err := pkgFor("test", "package p;"+src, nil)
 		if err != nil {
 			t.Errorf("%s: incorrect test case: %s", src, err)
 			return

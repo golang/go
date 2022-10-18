@@ -33,7 +33,7 @@ func (G[P]) N() (p P) { return }
 
 type Inst = G[int]
 	`
-	pkg, err := pkgForMode("p", src, nil, 0)
+	pkg, err := pkgFor("p", src, nil)
 	if err != nil {
 		b.Fatal(err)
 	}
