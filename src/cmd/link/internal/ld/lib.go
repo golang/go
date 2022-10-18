@@ -1302,7 +1302,7 @@ func (ctxt *Link) hostlink() {
 	name := extld[0]
 	usingClangForMSVC := false
 	if out, err := exec.Command(name, "--version").CombinedOutput(); err == nil {
-		if bytes.Contains(out, []byte("msvc")) {
+		if bytes.Contains(out, []byte("clang ")) && bytes.Contains(out, []byte("msvc")) {
 			usingClangForMSVC = true
 		}
 	}
@@ -1622,7 +1622,7 @@ func (ctxt *Link) hostlink() {
 	}
 
 	const compressDWARF = "-Wl,--compress-debug-sections=zlib"
-	if ctxt.compressDWARF && linkerFlagSupported(ctxt.Arch, argv[0], altLinker, compressDWARF) {
+	if !usingClangForMSVC && ctxt.compressDWARF && linkerFlagSupported(ctxt.Arch, argv[0], altLinker, compressDWARF) {
 		argv = append(argv, compressDWARF)
 	}
 
