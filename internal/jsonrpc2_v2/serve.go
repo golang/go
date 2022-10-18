@@ -63,21 +63,21 @@ func Dial(ctx context.Context, dialer Dialer, binder Binder) (*Connection, error
 	return newConnection(ctx, rwc, binder, nil), nil
 }
 
-// Serve starts a new server listening for incoming connections and returns
+// NewServer starts a new server listening for incoming connections and returns
 // it.
 // This returns a fully running and connected server, it does not block on
 // the listener.
 // You can call Wait to block on the server, or Shutdown to get the sever to
 // terminate gracefully.
 // To notice incoming connections, use an intercepting Binder.
-func Serve(ctx context.Context, listener Listener, binder Binder) (*Server, error) {
+func NewServer(ctx context.Context, listener Listener, binder Binder) *Server {
 	server := &Server{
 		listener: listener,
 		binder:   binder,
 		async:    newAsync(),
 	}
 	go server.run(ctx)
-	return server, nil
+	return server
 }
 
 // Wait returns only when the server has shut down.

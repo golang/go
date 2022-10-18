@@ -41,10 +41,7 @@ func TestIdleTimeout(t *testing.T) {
 		listener = jsonrpc2.NewIdleListener(d, listener)
 		defer listener.Close()
 
-		server, err := jsonrpc2.Serve(ctx, listener, jsonrpc2.ConnectionOptions{})
-		if err != nil {
-			t.Fatal(err)
-		}
+		server := jsonrpc2.NewServer(ctx, listener, jsonrpc2.ConnectionOptions{})
 
 		// Exercise some connection/disconnection patterns, and then assert that when
 		// our timer fires, the server exits.
@@ -187,12 +184,9 @@ func TestServe(t *testing.T) {
 }
 
 func newFake(t *testing.T, ctx context.Context, l jsonrpc2.Listener) (*jsonrpc2.Connection, func(), error) {
-	server, err := jsonrpc2.Serve(ctx, l, jsonrpc2.ConnectionOptions{
+	server := jsonrpc2.NewServer(ctx, l, jsonrpc2.ConnectionOptions{
 		Handler: fakeHandler{},
 	})
-	if err != nil {
-		return nil, nil, err
-	}
 
 	client, err := jsonrpc2.Dial(ctx,
 		l.Dialer(),
@@ -288,7 +282,7 @@ func TestCloseCallRace(t *testing.T) {
 
 		pokec := make(chan *jsonrpc2.AsyncCall, 1)
 
-		s, err := jsonrpc2.Serve(ctx, listener, jsonrpc2.BinderFunc(func(_ context.Context, srvConn *jsonrpc2.Connection) jsonrpc2.ConnectionOptions {
+		s := jsonrpc2.NewServer(ctx, listener, jsonrpc2.BinderFunc(func(_ context.Context, srvConn *jsonrpc2.Connection) jsonrpc2.ConnectionOptions {
 			h := jsonrpc2.HandlerFunc(func(ctx context.Context, _ *jsonrpc2.Request) (interface{}, error) {
 				// Start a concurrent call from the server to the client.
 				// The point of this test is to ensure this doesn't deadlock
@@ -305,10 +299,6 @@ func TestCloseCallRace(t *testing.T) {
 			})
 			return jsonrpc2.ConnectionOptions{Handler: h}
 		}))
-		if err != nil {
-			listener.Close()
-			t.Fatal(err)
-		}
 
 		dialConn, err := jsonrpc2.Dial(ctx, listener.Dialer(), jsonrpc2.ConnectionOptions{})
 		if err != nil {

@@ -136,10 +136,7 @@ func testConnection(t *testing.T, framer jsonrpc2.Framer) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server, err := jsonrpc2.Serve(ctx, listener, binder{framer, nil})
-	if err != nil {
-		t.Fatal(err)
-	}
+	server := jsonrpc2.NewServer(ctx, listener, binder{framer, nil})
 	defer func() {
 		listener.Close()
 		server.Wait()
