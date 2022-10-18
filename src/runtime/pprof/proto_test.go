@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"unsafe"
@@ -95,11 +96,17 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 			// region of memory.
 			t.Skipf("need 2 or more mappings, got %v", len(mprof.Mapping))
 		}
-		addr1 = mprof.Mapping[0].Start
+
+		addr1 = findAddrInExecutableSection(t, mmap, mprof.Mapping[0])
 		map1 = mprof.Mapping[0]
+		map1.Offset = (addr1 - map1.Start) + map1.Offset
+		map1.Start = addr1
 		map1.BuildID, _ = elfBuildID(map1.File)
-		addr2 = mprof.Mapping[1].Start
+
+		addr2 = findAddrInExecutableSection(t, mmap, mprof.Mapping[1])
 		map2 = mprof.Mapping[1]
+		map2.Offset = (addr2 - map2.Start) + map2.Offset
+		map2.Start = addr2
 		map2.BuildID, _ = elfBuildID(map2.File)
 	case "windows":
 		addr1 = uint64(abi.FuncPCABIInternal(f1))
@@ -143,6 +150,29 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 		map1, map2 = fake, fake
 	}
 	return
+}
+
+func findAddrInExecutableSection(t *testing.T, mmap []byte, m *profile.Mapping) uint64 {
+	mappings := strings.Split(string(mmap), "\n")
+	for _, mapping := range mappings {
+		parts := strings.Fields(mapping)
+		if len(parts) < 6 {
+			continue
+		}
+		if !strings.Contains(parts[1], "x") {
+			continue
+		}
+		addr, err := strconv.ParseUint(strings.Split(parts[0], "-")[0], 16, 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if addr >= m.Start && addr < m.Limit {
+			return addr
+		}
+	}
+
+	t.Error("could not find executable section in /proc/self/maps")
+	return 0
 }
 
 func TestConvertCPUProfile(t *testing.T) {
