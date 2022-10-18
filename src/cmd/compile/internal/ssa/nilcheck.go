@@ -41,7 +41,8 @@ func nilcheckelim(f *Func) {
 	// map from value ID to bool indicating if value is known to be non-nil
 	// in the current dominator path being walked. This slice is updated by
 	// walkStates to maintain the known non-nil values.
-	nonNilValues := make([]bool, f.NumValues())
+	nonNilValues := f.Cache.allocBoolSlice(f.NumValues())
+	defer f.Cache.freeBoolSlice(nonNilValues)
 
 	// make an initial pass identifying any non-nil values
 	for _, b := range f.Blocks {
@@ -86,7 +87,8 @@ func nilcheckelim(f *Func) {
 	// allocate auxiliary date structures for computing store order
 	sset := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(sset)
-	storeNumber := make([]int32, f.NumValues())
+	storeNumber := f.Cache.allocInt32Slice(f.NumValues())
+	defer f.Cache.freeInt32Slice(storeNumber)
 
 	// perform a depth first walk of the dominee tree
 	for len(work) > 0 {

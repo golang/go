@@ -146,6 +146,7 @@ func regalloc(f *Func) {
 	var s regAllocState
 	s.init(f)
 	s.regalloc(f)
+	s.close()
 }
 
 type register uint8
@@ -357,6 +358,12 @@ func (s *regAllocState) clobberRegs(m regMask) {
 // setOrig records that c's original value is the same as
 // v's original value.
 func (s *regAllocState) setOrig(c *Value, v *Value) {
+	if int(c.ID) >= cap(s.orig) {
+		x := s.f.Cache.allocValueSlice(int(c.ID) + 1)
+		copy(x, s.orig)
+		s.f.Cache.freeValueSlice(s.orig)
+		s.orig = x
+	}
 	for int(c.ID) >= len(s.orig) {
 		s.orig = append(s.orig, nil)
 	}
@@ -664,7 +671,7 @@ func (s *regAllocState) init(f *Func) {
 		s.f.Cache.regallocValues = make([]valState, nv)
 	}
 	s.values = s.f.Cache.regallocValues
-	s.orig = make([]*Value, nv)
+	s.orig = s.f.Cache.allocValueSlice(nv)
 	s.copies = make(map[*Value]bool)
 	for _, b := range s.visitOrder {
 		for _, v := range b.Values {
@@ -726,6 +733,10 @@ func (s *regAllocState) init(f *Func) {
 		// TODO: honor GOCLOBBERDEADHASH, or maybe GOSSAHASH.
 		s.doClobber = true
 	}
+}
+
+func (s *regAllocState) close() {
+	s.f.Cache.freeValueSlice(s.orig)
 }
 
 // Adds a use record for id at distance dist from the start of the block.

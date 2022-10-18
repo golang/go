@@ -21,18 +21,8 @@ type Cache struct {
 	// See stackalloc.go's {new,put}StackAllocState.
 	stackAllocState *stackAllocState
 
-	domblockstore   []ID            // scratch space for computing dominators
-	scrSparseSet    []*sparseSet    // scratch sparse sets to be re-used.
-	scrSparseMap    []*sparseMap    // scratch sparse maps to be re-used.
-	scrSparseMapPos []*sparseMapPos // scratch sparse maps to be re-used.
-	scrPoset        []*poset        // scratch poset to be reused
-	// deadcode contains reusable slices specifically for the deadcode pass.
-	// It gets special treatment because of the frequency with which it is run.
-	deadcode struct {
-		liveOrderStmts []*Value
-		live           []bool
-		q              []*Value
-	}
+	scrPoset []*poset // scratch poset to be reused
+
 	// Reusable regalloc state.
 	regallocValues []valState
 
@@ -40,6 +30,16 @@ type Cache struct {
 	debugState       debugState
 
 	Liveness interface{} // *gc.livenessFuncCache
+
+	// Free "headers" for use by the allocators in allocators.go.
+	// Used to put slices in sync.Pools without allocation.
+	hdrValueSlice []*[]*Value
+	hdrBlockSlice []*[]*Block
+	hdrBoolSlice  []*[]bool
+	hdrIntSlice   []*[]int
+	hdrInt32Slice []*[]int32
+	hdrInt8Slice  []*[]int8
+	hdrIDSlice    []*[]ID
 }
 
 func (c *Cache) Reset() {
@@ -63,20 +63,5 @@ func (c *Cache) Reset() {
 	// so clear according to length.
 	for i := range c.regallocValues {
 		c.regallocValues[i] = valState{}
-	}
-
-	// liveOrderStmts gets used multiple times during compilation of a function.
-	// We don't know where the high water mark was, so reslice to cap and search.
-	c.deadcode.liveOrderStmts = c.deadcode.liveOrderStmts[:cap(c.deadcode.liveOrderStmts)]
-	no := sort.Search(len(c.deadcode.liveOrderStmts), func(i int) bool { return c.deadcode.liveOrderStmts[i] == nil })
-	xo := c.deadcode.liveOrderStmts[:no]
-	for i := range xo {
-		xo[i] = nil
-	}
-	c.deadcode.q = c.deadcode.q[:cap(c.deadcode.q)]
-	nq := sort.Search(len(c.deadcode.q), func(i int) bool { return c.deadcode.q[i] == nil })
-	xq := c.deadcode.q[:nq]
-	for i := range xq {
-		xq[i] = nil
 	}
 }

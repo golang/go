@@ -105,74 +105,35 @@ func (f *Func) NumValues() int {
 
 // newSparseSet returns a sparse set that can store at least up to n integers.
 func (f *Func) newSparseSet(n int) *sparseSet {
-	for i, scr := range f.Cache.scrSparseSet {
-		if scr != nil && scr.cap() >= n {
-			f.Cache.scrSparseSet[i] = nil
-			scr.clear()
-			return scr
-		}
-	}
-	return newSparseSet(n)
+	return f.Cache.allocSparseSet(n)
 }
 
 // retSparseSet returns a sparse set to the config's cache of sparse
 // sets to be reused by f.newSparseSet.
 func (f *Func) retSparseSet(ss *sparseSet) {
-	for i, scr := range f.Cache.scrSparseSet {
-		if scr == nil {
-			f.Cache.scrSparseSet[i] = ss
-			return
-		}
-	}
-	f.Cache.scrSparseSet = append(f.Cache.scrSparseSet, ss)
+	f.Cache.freeSparseSet(ss)
 }
 
 // newSparseMap returns a sparse map that can store at least up to n integers.
 func (f *Func) newSparseMap(n int) *sparseMap {
-	for i, scr := range f.Cache.scrSparseMap {
-		if scr != nil && scr.cap() >= n {
-			f.Cache.scrSparseMap[i] = nil
-			scr.clear()
-			return scr
-		}
-	}
-	return newSparseMap(n)
+	return f.Cache.allocSparseMap(n)
 }
 
 // retSparseMap returns a sparse map to the config's cache of sparse
 // sets to be reused by f.newSparseMap.
 func (f *Func) retSparseMap(ss *sparseMap) {
-	for i, scr := range f.Cache.scrSparseMap {
-		if scr == nil {
-			f.Cache.scrSparseMap[i] = ss
-			return
-		}
-	}
-	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
+	f.Cache.freeSparseMap(ss)
 }
 
 // newSparseMapPos returns a sparse map that can store at least up to n integers.
 func (f *Func) newSparseMapPos(n int) *sparseMapPos {
-	for i, scr := range f.Cache.scrSparseMapPos {
-		if scr != nil && scr.cap() >= n {
-			f.Cache.scrSparseMapPos[i] = nil
-			scr.clear()
-			return scr
-		}
-	}
-	return newSparseMapPos(n)
+	return f.Cache.allocSparseMapPos(n)
 }
 
 // retSparseMapPos returns a sparse map to the config's cache of sparse
 // sets to be reused by f.newSparseMapPos.
 func (f *Func) retSparseMapPos(ss *sparseMapPos) {
-	for i, scr := range f.Cache.scrSparseMapPos {
-		if scr == nil {
-			f.Cache.scrSparseMapPos[i] = ss
-			return
-		}
-	}
-	f.Cache.scrSparseMapPos = append(f.Cache.scrSparseMapPos, ss)
+	f.Cache.freeSparseMapPos(ss)
 }
 
 // newPoset returns a new poset from the internal cache
@@ -188,33 +149,6 @@ func (f *Func) newPoset() *poset {
 // retPoset returns a poset to the internal cache
 func (f *Func) retPoset(po *poset) {
 	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
-}
-
-// newDeadcodeLive returns a slice for the
-// deadcode pass to use to indicate which values are live.
-func (f *Func) newDeadcodeLive() []bool {
-	r := f.Cache.deadcode.live
-	f.Cache.deadcode.live = nil
-	return r
-}
-
-// retDeadcodeLive returns a deadcode live value slice for re-use.
-func (f *Func) retDeadcodeLive(live []bool) {
-	f.Cache.deadcode.live = live
-}
-
-// newDeadcodeLiveOrderStmts returns a slice for the
-// deadcode pass to use to indicate which values
-// need special treatment for statement boundaries.
-func (f *Func) newDeadcodeLiveOrderStmts() []*Value {
-	r := f.Cache.deadcode.liveOrderStmts
-	f.Cache.deadcode.liveOrderStmts = nil
-	return r
-}
-
-// retDeadcodeLiveOrderStmts returns a deadcode liveOrderStmts slice for re-use.
-func (f *Func) retDeadcodeLiveOrderStmts(liveOrderStmts []*Value) {
-	f.Cache.deadcode.liveOrderStmts = liveOrderStmts
 }
 
 func (f *Func) localSlotAddr(slot LocalSlot) *LocalSlot {

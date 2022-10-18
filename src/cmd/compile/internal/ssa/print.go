@@ -124,7 +124,7 @@ func (p stringFuncPrinter) named(n LocalSlot, vals []*Value) {
 
 func fprintFunc(p funcPrinter, f *Func) {
 	reachable, live := findlive(f)
-	defer f.retDeadcodeLive(live)
+	defer f.Cache.freeBoolSlice(live)
 	p.header(f)
 	printed := make([]bool, f.NumValues())
 	for _, b := range f.Blocks {
