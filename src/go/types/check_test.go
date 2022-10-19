@@ -217,6 +217,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+	flags.BoolVar(addrAltComparableSemantics(&conf), "altComparableSemantics", false, "")
 	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
 		t.Fatal(err)
 	}
@@ -291,6 +292,12 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 func readCode(err Error) int {
 	v := reflect.ValueOf(err)
 	return int(v.FieldByName("go116code").Int())
+}
+
+// addrAltComparableSemantics(conf) returns &conf.altComparableSemantics (unexported field).
+func addrAltComparableSemantics(conf *Config) *bool {
+	v := reflect.Indirect(reflect.ValueOf(conf))
+	return (*bool)(v.FieldByName("altComparableSemantics").Addr().UnsafePointer())
 }
 
 // TestManual is for manual testing of a package - either provided
