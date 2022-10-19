@@ -2822,7 +2822,7 @@ func (b *Builder) gccArchArgs() []string {
 // into fields, using the default value when the variable is empty.
 //
 // The environment variable must be quoted correctly for
-// str.SplitQuotedFields. This should be done before building
+// quoted.Split. This should be done before building
 // anything, for example, in BuildInit.
 func envList(key, def string) []string {
 	v := cfg.Getenv(key)
