@@ -13,16 +13,15 @@ func isSlash(c uint8) bool {
 	return c == '\\' || c == '/'
 }
 
-// isReservedName returns true, if path is Windows reserved name.
-// See reservedNames for the full list.
-func isReservedName(path string) bool {
-	toUpper := func(c byte) byte {
-		if 'a' <= c && c <= 'z' {
-			return c - ('a' - 'A')
-		}
-		return c
+func toUpper(c byte) byte {
+	if 'a' <= c && c <= 'z' {
+		return c - ('a' - 'A')
 	}
+	return c
+}
 
+// isReservedName returns true if path is a Windows reserved name.
+func isReservedName(path string) bool {
 	// For details, search for PRN in
 	// https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file.
 	if 3 <= len(path) && len(path) <= 4 {
@@ -45,7 +44,7 @@ func IsAbs(path string) (b bool) {
 	if l == 0 {
 		return false
 	}
-	// If the volume name starts with a double slash, this is a UNC path.
+	// If the volume name starts with a double slash, this is an absolute path.
 	if isSlash(path[0]) && isSlash(path[1]) {
 		return true
 	}
@@ -58,6 +57,8 @@ func IsAbs(path string) (b bool) {
 
 // volumeNameLen returns length of the leading volume name on Windows.
 // It returns 0 elsewhere.
+//
+// See: https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats
 func volumeNameLen(path string) int {
 	if len(path) < 2 {
 		return 0
@@ -67,31 +68,40 @@ func volumeNameLen(path string) int {
 	if path[1] == ':' && ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
 		return 2
 	}
-	// is it UNC? https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
-	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
-		!isSlash(path[2]) && path[2] != '.' {
-		// first, leading `\\` and next shouldn't be `\`. its server name.
-		for n := 3; n < l-1; n++ {
-			// second, next '\' shouldn't be repeated.
-			if isSlash(path[n]) {
-				n++
-				// third, following something characters. its share name.
-				if !isSlash(path[n]) {
-					if path[n] == '.' {
-						break
-					}
-					for ; n < l; n++ {
-						if isSlash(path[n]) {
-							break
-						}
-					}
-					return n
-				}
-				break
-			}
+	// UNC and DOS device paths start with two slashes.
+	if !isSlash(path[0]) || !isSlash(path[1]) {
+		return 0
+	}
+	rest := path[2:]
+	p1, rest, _ := cutPath(rest)
+	p2, rest, ok := cutPath(rest)
+	if !ok {
+		return len(path)
+	}
+	if p1 != "." && p1 != "?" {
+		// This is a UNC path: \\${HOST}\${SHARE}\
+		return len(path) - len(rest) - 1
+	}
+	// This is a DOS device path.
+	if len(p2) == 3 && toUpper(p2[0]) == 'U' && toUpper(p2[1]) == 'N' && toUpper(p2[2]) == 'C' {
+		// This is a DOS device path that links to a UNC: \\.\UNC\${HOST}\${SHARE}\
+		_, rest, _ = cutPath(rest)  // host
+		_, rest, ok = cutPath(rest) // share
+		if !ok {
+			return len(path)
 		}
 	}
-	return 0
+	return len(path) - len(rest) - 1
+}
+
+// cutPath slices path around the first path separator.
+func cutPath(path string) (before, after string, found bool) {
+	for i := range path {
+		if isSlash(path[i]) {
+			return path[:i], path[i+1:], true
+		}
+	}
+	return path, "", false
 }
 
 // HasPrefix exists for historical compatibility and should not be used.
@@ -151,12 +161,38 @@ func abs(path string) (string, error) {
 }
 
 func join(elem []string) string {
-	for i, e := range elem {
-		if e != "" {
-			return joinNonEmpty(elem[i:])
+	var b strings.Builder
+	appendSep := false
+	for _, e := range elem {
+		// Strip leading slashes from everything after the first element,
+		// to avoid creating a UNC path (any path starting with "\\") from
+		// non-UNC elements.
+		//
+		// The correct behavior for Join when the first element is an incomplete UNC
+		// path (for example, "\\") is underspecified. We currently join subsequent
+		// elements so Join("\\", "host", "share") produces "\\host\share".
+		for b.Len() > 0 && len(e) > 0 && isSlash(e[0]) {
+			e = e[1:]
+		}
+		if e == "" {
+			continue
+		}
+		if appendSep {
+			b.WriteByte('\\')
+		}
+		b.WriteString(e)
+		appendSep = !isSlash(e[len(e)-1])
+		if b.Len() == 2 && volumeNameLen(b.String()) == 2 {
+			// If the string is two characters long and consists of nothing but
+			// a volume name, this is either a drive ("C:") or the start of an
+			// incomplete UNC path ("\\"). In either case, don't append a separator.
+			appendSep = false
 		}
 	}
-	return ""
+	if b.Len() == 0 {
+		return ""
+	}
+	return Clean(b.String())
 }
 
 // joinNonEmpty is like join, but it assumes that the first element is non-empty.
@@ -196,7 +232,7 @@ func joinNonEmpty(elem []string) string {
 
 // isUNC reports whether path is a UNC path.
 func isUNC(path string) bool {
-	return volumeNameLen(path) > 2
+	return len(path) > 1 && isSlash(path[0]) && isSlash(path[1])
 }
 
 func sameWord(a, b string) bool {

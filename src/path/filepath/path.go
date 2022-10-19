@@ -91,7 +91,7 @@ func Clean(path string) string {
 	volLen := volumeNameLen(path)
 	path = path[volLen:]
 	if path == "" {
-		if volLen > 1 && originalPath[1] != ':' {
+		if volLen > 1 && os.IsPathSeparator(originalPath[0]) && os.IsPathSeparator(originalPath[1]) {
 			// should be UNC
 			return FromSlash(originalPath)
 		}
@@ -621,5 +621,5 @@ func Dir(path string) string {
 // Given "\\host\share\foo" it returns "\\host\share".
 // On other platforms it returns "".
 func VolumeName(path string) string {
-	return path[:volumeNameLen(path)]
+	return FromSlash(path[:volumeNameLen(path)])
 }

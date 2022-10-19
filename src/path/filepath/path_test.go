@@ -49,9 +49,6 @@ var cleantests = []PathTest{
 
 	// Remove doubled slash
 	{"abc//def//ghi", "abc/def/ghi"},
-	{"//abc", "/abc"},
-	{"///abc", "/abc"},
-	{"//abc//", "/abc"},
 	{"abc//", "abc"},
 
 	// Remove . elements
@@ -76,6 +73,13 @@ var cleantests = []PathTest{
 	{"abc/../../././../def", "../../def"},
 }
 
+var nonwincleantests = []PathTest{
+	// Remove leading doubled slash
+	{"//abc", "/abc"},
+	{"///abc", "/abc"},
+	{"//abc//", "/abc"},
+}
+
 var wincleantests = []PathTest{
 	{`c:`, `c:.`},
 	{`c:\`, `c:\`},
@@ -86,16 +90,22 @@ var wincleantests = []PathTest{
 	{`c:..\abc`, `c:..\abc`},
 	{`\`, `\`},
 	{`/`, `\`},
-	{`\\i\..\c$`, `\c$`},
-	{`\\i\..\i\c$`, `\i\c$`},
-	{`\\i\..\I\c$`, `\I\c$`},
+	{`\\i\..\c$`, `\\i\..\c$`},
+	{`\\i\..\i\c$`, `\\i\..\i\c$`},
+	{`\\i\..\I\c$`, `\\i\..\I\c$`},
 	{`\\host\share\foo\..\bar`, `\\host\share\bar`},
 	{`//host/share/foo/../baz`, `\\host\share\baz`},
+	{`\\host\share\foo\..\..\..\..\bar`, `\\host\share\bar`},
+	{`\\.\C:\a\..\..\..\..\bar`, `\\.\C:\bar`},
+	{`\\.\C:\\\\a`, `\\.\C:\a`},
 	{`\\a\b\..\c`, `\\a\b\c`},
 	{`\\a\b`, `\\a\b`},
 	{`.\c:`, `.\c:`},
 	{`.\c:\foo`, `.\c:\foo`},
 	{`.\c:foo`, `.\c:foo`},
+	{`//abc`, `\\abc`},
+	{`///abc`, `\\\abc`},
+	{`//abc//`, `\\abc\\`},
 }
 
 func TestClean(t *testing.T) {
@@ -105,6 +115,8 @@ func TestClean(t *testing.T) {
 			tests[i].result = filepath.FromSlash(tests[i].result)
 		}
 		tests = append(tests, wincleantests...)
+	} else {
+		tests = append(tests, nonwincleantests...)
 	}
 	for _, test := range tests {
 		if s := filepath.Clean(test.path); s != test.result {
@@ -257,14 +269,19 @@ var jointests = []JoinTest{
 	{[]string{"/", "a"}, "/a"},
 	{[]string{"/", "a/b"}, "/a/b"},
 	{[]string{"/", ""}, "/"},
-	{[]string{"//", "a"}, "/a"},
 	{[]string{"/a", "b"}, "/a/b"},
+	{[]string{"a", "/b"}, "a/b"},
+	{[]string{"/a", "/b"}, "/a/b"},
 	{[]string{"a/", "b"}, "a/b"},
 	{[]string{"a/", ""}, "a"},
 	{[]string{"", ""}, ""},
 
 	// three parameters
 	{[]string{"/", "a", "b"}, "/a/b"},
+}
+
+var nonwinjointests = []JoinTest{
+	{[]string{"//", "a"}, "/a"},
 }
 
 var winjointests = []JoinTest{
@@ -279,6 +296,7 @@ var winjointests = []JoinTest{
 	{[]string{`C:`, ``, ``, `b`}, `C:b`},
 	{[]string{`C:`, ``}, `C:.`},
 	{[]string{`C:`, ``, ``}, `C:.`},
+	{[]string{`C:`, ``, `\a`}, `C:a`},
 	{[]string{`C:.`, `a`}, `C:a`},
 	{[]string{`C:a`, `b`}, `C:a\b`},
 	{[]string{`C:a`, `b`, `d`}, `C:a\b\d`},
@@ -288,17 +306,20 @@ var winjointests = []JoinTest{
 	{[]string{`\`}, `\`},
 	{[]string{`\`, ``}, `\`},
 	{[]string{`\`, `a`}, `\a`},
-	{[]string{`\\`, `a`}, `\a`},
+	{[]string{`\\`, `a`}, `\\a`},
 	{[]string{`\`, `a`, `b`}, `\a\b`},
-	{[]string{`\\`, `a`, `b`}, `\a\b`},
+	{[]string{`\\`, `a`, `b`}, `\\a\b`},
 	{[]string{`\`, `\\a\b`, `c`}, `\a\b\c`},
-	{[]string{`\\a`, `b`, `c`}, `\a\b\c`},
-	{[]string{`\\a\`, `b`, `c`}, `\a\b\c`},
+	{[]string{`\\a`, `b`, `c`}, `\\a\b\c`},
+	{[]string{`\\a\`, `b`, `c`}, `\\a\b\c`},
+	{[]string{`//`, `a`}, `\\a`},
 }
 
 func TestJoin(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		jointests = append(jointests, winjointests...)
+	} else {
+		jointests = append(jointests, nonwinjointests...)
 	}
 	for _, test := range jointests {
 		expected := filepath.FromSlash(test.path)
@@ -786,7 +807,6 @@ var dirtests = []PathTest{
 	{".", "."},
 	{"/.", "/"},
 	{"/", "/"},
-	{"////", "/"},
 	{"/foo", "/"},
 	{"x/", "x"},
 	{"abc", "."},
@@ -794,6 +814,10 @@ var dirtests = []PathTest{
 	{"a/b/.x", "a/b"},
 	{"a/b/c.", "a/b"},
 	{"a/b/c.x", "a/b"},
+}
+
+var nonwindirtests = []PathTest{
+	{"////", "/"},
 }
 
 var windirtests = []PathTest{
@@ -806,6 +830,7 @@ var windirtests = []PathTest{
 	{`\\host\share\`, `\\host\share\`},
 	{`\\host\share\a`, `\\host\share\`},
 	{`\\host\share\a\b`, `\\host\share\a`},
+	{`\\\\`, `\\\\`},
 }
 
 func TestDir(t *testing.T) {
@@ -817,6 +842,8 @@ func TestDir(t *testing.T) {
 		}
 		// add windows specific tests
 		tests = append(tests, windirtests...)
+	} else {
+		tests = append(tests, nonwindirtests...)
 	}
 	for _, test := range tests {
 		if s := filepath.Dir(test.path); s != test.result {
@@ -1332,24 +1359,30 @@ var volumenametests = []VolumeNameTest{
 	{`c:`, `c:`},
 	{`2:`, ``},
 	{``, ``},
-	{`\\\host`, ``},
-	{`\\\host\`, ``},
-	{`\\\host\share`, ``},
-	{`\\\host\\share`, ``},
-	{`\\host`, ``},
-	{`//host`, ``},
-	{`\\host\`, ``},
-	{`//host/`, ``},
+	{`\\\host`, `\\\host`},
+	{`\\\host\`, `\\\host`},
+	{`\\\host\share`, `\\\host`},
+	{`\\\host\\share`, `\\\host`},
+	{`\\host`, `\\host`},
+	{`//host`, `\\host`},
+	{`\\host\`, `\\host\`},
+	{`//host/`, `\\host\`},
 	{`\\host\share`, `\\host\share`},
-	{`//host/share`, `//host/share`},
+	{`//host/share`, `\\host\share`},
 	{`\\host\share\`, `\\host\share`},
-	{`//host/share/`, `//host/share`},
+	{`//host/share/`, `\\host\share`},
 	{`\\host\share\foo`, `\\host\share`},
-	{`//host/share/foo`, `//host/share`},
+	{`//host/share/foo`, `\\host\share`},
 	{`\\host\share\\foo\\\bar\\\\baz`, `\\host\share`},
-	{`//host/share//foo///bar////baz`, `//host/share`},
+	{`//host/share//foo///bar////baz`, `\\host\share`},
 	{`\\host\share\foo\..\bar`, `\\host\share`},
-	{`//host/share/foo/../bar`, `//host/share`},
+	{`//host/share/foo/../bar`, `\\host\share`},
+	{`//./NUL`, `\\.\NUL`},
+	{`//?/NUL`, `\\?\NUL`},
+	{`//./C:`, `\\.\C:`},
+	{`//./C:/a/b/c`, `\\.\C:`},
+	{`//./UNC/host/share/a/b/c`, `\\.\UNC\host\share`},
+	{`//./UNC/host`, `\\.\UNC\host`},
 }
 
 func TestVolumeName(t *testing.T) {
