@@ -76,9 +76,9 @@ meaning that it officially supports the last 2 major Go releases. Per
 support for the last 4 major Go releases, but this support extends only to not
 breaking the build and avoiding easily fixable regressions.
 
-The following table shows the final gopls version that supports being built at
-a given Go Version. Any more recent Go versions missing from this table can
-still be built with the latest version of gopls.
+The following table shows the final gopls version that supports being built
+with a given Go version. Go releases more recent than any in the table can
+build any version of gopls.
 
 | Go Version  | Final gopls Version With Support |
 | ----------- | -------------------------------- |
