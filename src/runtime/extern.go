@@ -127,6 +127,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	When set to 0 memory profiling is disabled.  Refer to the description of
 	MemProfileRate for the default value.
 
+	pagetrace: setting pagetrace=/path/to/file will write out a trace of page events
+	that can be viewed, analyzed, and visualized using the x/debug/cmd/pagetrace tool.
+	Build your program with GOEXPERIMENT=pagetrace to enable this functionality. Do not
+	enable this functionality if your program is a setuid binary as it introduces a security
+	risk in that scenario. Currently not supported on Windows, plan9 or js/wasm. Setting this
+	option for some applications can produce large traces, so use with care.
+
 	invalidptr: invalidptr=1 (the default) causes the garbage collector and stack
 	copier to crash the program if an invalid pointer value (for example, 1)
 	is found in a pointer-typed location. Setting invalidptr=0 disables this check.

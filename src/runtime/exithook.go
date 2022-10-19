@@ -54,6 +54,7 @@ func runExitHooks(exitCode int) {
 		return
 	}
 
+	finishPageTrace()
 	for i := range exitHooks.hooks {
 		h := exitHooks.hooks[len(exitHooks.hooks)-i-1]
 		if exitCode != 0 && !h.runOnNonZeroExit {

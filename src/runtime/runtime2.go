@@ -754,6 +754,11 @@ type p struct {
 	// scheduler ASAP (regardless of what G is running on it).
 	preempt bool
 
+	// pageTraceBuf is a buffer for writing out page allocation/free/scavenge traces.
+	//
+	// Used only if GOEXPERIMENT=pagetrace.
+	pageTraceBuf pageTraceBuf
+
 	// Padding is no longer needed. False sharing is now not a worry because p is large enough
 	// that its size class is an integer multiple of the cache line size (for any of our architectures).
 }
