@@ -1081,20 +1081,50 @@ func rewriteValueRISCV64_OpEq32(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Eq32 x y)
+	// cond: x.Type.IsSigned()
+	// result: (SEQZ (SUB <x.Type> (SignExt32to64 x) (SignExt32to64 y)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			y := v_1
+			if !(x.Type.IsSigned()) {
+				continue
+			}
+			v.reset(OpRISCV64SEQZ)
+			v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
+			v1 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+			v1.AddArg(x)
+			v2 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+			v2.AddArg(y)
+			v0.AddArg2(v1, v2)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (Eq32 x y)
+	// cond: !x.Type.IsSigned()
 	// result: (SEQZ (SUB <x.Type> (ZeroExt32to64 x) (ZeroExt32to64 y)))
 	for {
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64SEQZ)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
-		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
-		v1.AddArg(x)
-		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
-		v2.AddArg(y)
-		v0.AddArg2(v1, v2)
-		v.AddArg(v0)
-		return true
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			y := v_1
+			if !(!x.Type.IsSigned()) {
+				continue
+			}
+			v.reset(OpRISCV64SEQZ)
+			v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
+			v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+			v1.AddArg(x)
+			v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+			v2.AddArg(y)
+			v0.AddArg2(v1, v2)
+			v.AddArg(v0)
+			return true
+		}
+		break
 	}
+	return false
 }
 func rewriteValueRISCV64_OpEq64(v *Value) bool {
 	v_1 := v.Args[1]
@@ -2942,17 +2972,13 @@ func rewriteValueRISCV64_OpNeq16(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Neq16 x y)
-	// result: (SNEZ (SUB <x.Type> (ZeroExt16to64 x) (ZeroExt16to64 y)))
+	// result: (Not (Eq16 x y))
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRISCV64SNEZ)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
-		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
-		v1.AddArg(x)
-		v2 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
-		v2.AddArg(y)
-		v0.AddArg2(v1, v2)
+		v.reset(OpNot)
+		v0 := b.NewValue0(v.Pos, OpEq16, typ.Bool)
+		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
 	}
@@ -2963,17 +2989,13 @@ func rewriteValueRISCV64_OpNeq32(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Neq32 x y)
-	// result: (SNEZ (SUB <x.Type> (ZeroExt32to64 x) (ZeroExt32to64 y)))
+	// result: (Not (Eq32 x y))
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRISCV64SNEZ)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
-		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
-		v1.AddArg(x)
-		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
-		v2.AddArg(y)
-		v0.AddArg2(v1, v2)
+		v.reset(OpNot)
+		v0 := b.NewValue0(v.Pos, OpEq32, typ.Bool)
+		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
 	}
@@ -2982,13 +3004,14 @@ func rewriteValueRISCV64_OpNeq64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (Neq64 x y)
-	// result: (SNEZ (SUB <x.Type> x y))
+	// result: (Not (Eq64 x y))
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRISCV64SNEZ)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
+		v.reset(OpNot)
+		v0 := b.NewValue0(v.Pos, OpEq64, typ.Bool)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -3000,17 +3023,13 @@ func rewriteValueRISCV64_OpNeq8(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Neq8 x y)
-	// result: (SNEZ (SUB <x.Type> (ZeroExt8to64 x) (ZeroExt8to64 y)))
+	// result: (Not (Eq8 x y))
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRISCV64SNEZ)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
-		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
-		v1.AddArg(x)
-		v2 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
-		v2.AddArg(y)
-		v0.AddArg2(v1, v2)
+		v.reset(OpNot)
+		v0 := b.NewValue0(v.Pos, OpEq8, typ.Bool)
+		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
 	}
@@ -3038,12 +3057,12 @@ func rewriteValueRISCV64_OpNeqPtr(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (NeqPtr x y)
-	// result: (SNEZ (SUB <typ.Uintptr> x y))
+	// result: (Not (EqPtr x y))
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRISCV64SNEZ)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, typ.Uintptr)
+		v.reset(OpNot)
+		v0 := b.NewValue0(v.Pos, OpEqPtr, typ.Bool)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true

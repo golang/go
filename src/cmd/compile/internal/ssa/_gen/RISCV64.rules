@@ -229,16 +229,17 @@
 
 (EqPtr x y) => (SEQZ (SUB <typ.Uintptr> x y))
 (Eq64  x y) => (SEQZ (SUB <x.Type> x y))
-(Eq32  x y) => (SEQZ (SUB <x.Type> (ZeroExt32to64 x) (ZeroExt32to64 y)))
+(Eq32  x y) &&  x.Type.IsSigned() => (SEQZ (SUB <x.Type> (SignExt32to64 x) (SignExt32to64 y)))
+(Eq32  x y) && !x.Type.IsSigned() => (SEQZ (SUB <x.Type> (ZeroExt32to64 x) (ZeroExt32to64 y)))
 (Eq16  x y) => (SEQZ (SUB <x.Type> (ZeroExt16to64 x) (ZeroExt16to64 y)))
 (Eq8   x y) => (SEQZ (SUB <x.Type> (ZeroExt8to64  x) (ZeroExt8to64  y)))
 (Eq(64|32)F ...) => (FEQ(D|S) ...)
 
-(NeqPtr x y) => (SNEZ (SUB <typ.Uintptr> x y))
-(Neq64  x y) => (SNEZ (SUB <x.Type> x y))
-(Neq32  x y) => (SNEZ (SUB <x.Type> (ZeroExt32to64 x) (ZeroExt32to64 y)))
-(Neq16  x y) => (SNEZ (SUB <x.Type> (ZeroExt16to64 x) (ZeroExt16to64 y)))
-(Neq8   x y) => (SNEZ (SUB <x.Type> (ZeroExt8to64  x) (ZeroExt8to64  y)))
+(NeqPtr x y) => (Not (EqPtr x y))
+(Neq64  x y) => (Not (Eq64  x y))
+(Neq32  x y) => (Not (Eq32  x y))
+(Neq16  x y) => (Not (Eq16  x y))
+(Neq8   x y) => (Not (Eq8   x y))
 (Neq(64|32)F ...) => (FNE(D|S) ...)
 
 // Loads
