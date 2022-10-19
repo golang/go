@@ -449,10 +449,7 @@ func TestIssue34151(t *testing.T) {
 	const asrc = `package a; type I interface{ M() }; type T struct { F interface { I } }`
 	const bsrc = `package b; import "a"; type T struct { F interface { a.I } }; var _ = a.T(T{})`
 
-	a, err := typecheck("a", asrc, nil)
-	if err != nil {
-		t.Fatalf("package %s failed to typecheck: %v", a.Name(), err)
-	}
+	a := mustTypecheck("a", asrc, nil)
 
 	bast := mustParse("", bsrc)
 	conf := Config{Importer: importHelper{pkg: a}}
@@ -564,16 +561,13 @@ func TestIssue43124(t *testing.T) {
 		csrc = `package c; import ("a"; "html/template"); func _() { a.G(template.Template{}) }`
 	)
 
-	a, err := typecheck("a", asrc, nil)
-	if err != nil {
-		t.Fatalf("package a failed to typecheck: %v", err)
-	}
+	a := mustTypecheck("a", asrc, nil)
 	conf := Config{Importer: importHelper{pkg: a, fallback: defaultImporter()}}
 
 	// Packages should be fully qualified when there is ambiguity within the
 	// error string itself.
 	bast := mustParse("", bsrc)
-	_, err = conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
+	_, err := conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
 	if err == nil {
 		t.Fatal("package b had no errors")
 	}

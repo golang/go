@@ -18,13 +18,9 @@ func findStructType(t *testing.T, src string) *types2.Struct {
 }
 
 func findStructTypeConfig(t *testing.T, src string, conf *types2.Config) *types2.Struct {
-	f := mustParse("x.go", src)
-	info := types2.Info{Types: make(map[syntax.Expr]types2.TypeAndValue)}
-	_, err := conf.Check("x", []*syntax.File{f}, &info)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, tv := range info.Types {
+	types := make(map[syntax.Expr]types2.TypeAndValue)
+	mustTypecheck("x", src, &types2.Info{Types: types})
+	for _, tv := range types {
 		if ts, ok := tv.Type.(*types2.Struct); ok {
 			return ts
 		}

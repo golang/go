@@ -137,8 +137,8 @@ func TestTypeString(t *testing.T) {
 }
 
 func TestQualifiedTypeString(t *testing.T) {
-	p, _ := typecheck("p.go", "package p; type T int", nil)
-	q, _ := typecheck("q.go", "package q", nil)
+	p := mustTypecheck("p.go", "package p; type T int", nil)
+	q := mustTypecheck("q.go", "package q", nil)
 
 	pT := p.Scope().Lookup("T").Type()
 	for _, test := range []struct {
