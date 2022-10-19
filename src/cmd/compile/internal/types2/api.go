@@ -167,6 +167,10 @@ type Config struct {
 	// If DisableUnusedImportCheck is set, packages are not checked
 	// for unused imports.
 	DisableUnusedImportCheck bool
+
+	// If AltComparableSemantics is set, ordinary (non-type parameter)
+	// interfaces satisfy the comparable constraint.
+	AltComparableSemantics bool
 }
 
 func srcimporter_setUsesCgo(conf *Config) {
@@ -480,7 +484,7 @@ func Implements(V Type, T *Interface) bool {
 	if V.Underlying() == Typ[Invalid] {
 		return false
 	}
-	return (*Checker)(nil).implements(V, T, nil)
+	return (*Checker)(nil).implements(V, T, false, nil)
 }
 
 // Identical reports whether x and y are identical types.
