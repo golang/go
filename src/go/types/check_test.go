@@ -45,7 +45,6 @@ import (
 var (
 	haltOnError  = flag.Bool("halt", false, "halt on error")
 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
-	goVersion    = flag.String("lang", "", "Go language version (e.g. \"go1.12\") for TestManual")
 )
 
 var fset = token.NewFileSet()
@@ -220,11 +219,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
 	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
 		t.Fatal(err)
-	}
-
-	if manual && *goVersion != "" {
-		// goVersion overrides -lang for manual tests.
-		conf.GoVersion = *goVersion
 	}
 
 	// TODO(gri) remove this or use flag mechanism to set mode if still needed
