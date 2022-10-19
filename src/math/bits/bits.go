@@ -6,6 +6,12 @@
 
 // Package bits implements bit counting and manipulation
 // functions for the predeclared unsigned integer types.
+//
+// Functions in this package may be implemented directly by
+// the compiler, for better performance. For those functions
+// the code in this package will not be used. Which
+// functions are implemented by the compiler depends on the
+// architecture and the Go release.
 package bits
 
 const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
