@@ -3,15 +3,15 @@
 // license that can be found in the LICENSE file.
 
 // Fold constant shift with extension.
-(SRAI <t> [c] (MOVBreg  x)) && c <   8 => (SRAI [56+c] (SLLI <t> [56] x))
-(SRAI <t> [c] (MOVHreg  x)) && c <  16 => (SRAI [48+c] (SLLI <t> [48] x))
-(SRAI <t> [c] (MOVWreg  x)) && c <  32 => (SRAI [32+c] (SLLI <t> [32] x))
-(SRLI <t> [c] (MOVBUreg x)) && c <   8 => (SRLI [56+c] (SLLI <t> [56] x))
-(SRLI <t> [c] (MOVHUreg x)) && c <  16 => (SRLI [48+c] (SLLI <t> [48] x))
-(SRLI <t> [c] (MOVWUreg x)) && c <  32 => (SRLI [32+c] (SLLI <t> [32] x))
-(SLLI <t> [c] (MOVBUreg x)) && c <= 56 => (SRLI [56-c] (SLLI <t> [56] x))
-(SLLI <t> [c] (MOVHUreg x)) && c <= 48 => (SRLI [48-c] (SLLI <t> [48] x))
-(SLLI <t> [c] (MOVWUreg x)) && c <= 32 => (SRLI [32-c] (SLLI <t> [32] x))
+(SRAI [c] (MOVBreg  x)) && c <   8 => (SRAI [56+c] (SLLI <typ.Int64> [56] x))
+(SRAI [c] (MOVHreg  x)) && c <  16 => (SRAI [48+c] (SLLI <typ.Int64> [48] x))
+(SRAI [c] (MOVWreg  x)) && c <  32 => (SRAI [32+c] (SLLI <typ.Int64> [32] x))
+(SRLI [c] (MOVBUreg x)) && c <   8 => (SRLI [56+c] (SLLI <typ.UInt64> [56] x))
+(SRLI [c] (MOVHUreg x)) && c <  16 => (SRLI [48+c] (SLLI <typ.UInt64> [48] x))
+(SRLI [c] (MOVWUreg x)) && c <  32 => (SRLI [32+c] (SLLI <typ.UInt64> [32] x))
+(SLLI [c] (MOVBUreg x)) && c <= 56 => (SRLI [56-c] (SLLI <typ.UInt64> [56] x))
+(SLLI [c] (MOVHUreg x)) && c <= 48 => (SRLI [48-c] (SLLI <typ.UInt64> [48] x))
+(SLLI [c] (MOVWUreg x)) && c <= 32 => (SRLI [32-c] (SLLI <typ.UInt64> [32] x))
 
 // Shift by zero.
 (SRAI [0] x) => x
