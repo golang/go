@@ -450,10 +450,7 @@ func TestIssue34151(t *testing.T) {
 	const asrc = `package a; type I interface{ M() }; type T struct { F interface { I } }`
 	const bsrc = `package b; import "a"; type T struct { F interface { a.I } }; var _ = a.T(T{})`
 
-	a, err := typecheck("a", asrc, nil)
-	if err != nil {
-		t.Fatalf("package %s failed to typecheck: %v", a.Name(), err)
-	}
+	a := mustTypecheck("a", asrc, nil)
 
 	bast := mustParse(fset, "", bsrc)
 	conf := Config{Importer: importHelper{pkg: a}}
@@ -609,10 +606,7 @@ var _ T = template /* ERROR cannot use.*text/template.* as T value */.Template{}
 `
 	)
 
-	a, err := typecheck("a", asrc, nil)
-	if err != nil {
-		t.Fatalf("package a failed to typecheck: %v", err)
-	}
+	a := mustTypecheck("a", asrc, nil)
 	imp := importHelper{pkg: a, fallback: importer.Default()}
 
 	testFiles(t, nil, []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
