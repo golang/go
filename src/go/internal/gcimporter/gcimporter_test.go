@@ -37,6 +37,9 @@ func TestMain(m *testing.M) {
 // builders (build.golang.org) don't have access to compiled packages for
 // import.
 func skipSpecialPlatforms(t *testing.T) {
+	t.Helper()
+	testenv.MustHaveGoBuild(t)
+
 	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
 	case "darwin-arm64":
 		t.Skipf("no compiled packages available for import on %s", platform)
@@ -130,6 +133,8 @@ func TestImportTestdata(t *testing.T) {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
 
+	skipSpecialPlatforms(t)
+
 	testfiles := map[string][]string{
 		"exports.go":  {"go/ast", "go/token"},
 		"generics.go": nil,
@@ -167,6 +172,8 @@ func TestImportTypeparamTests(t *testing.T) {
 	if runtime.Compiler != "gc" {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
+
+	skipSpecialPlatforms(t)
 
 	tmpdir := mktmpdir(t)
 	defer os.RemoveAll(tmpdir)
