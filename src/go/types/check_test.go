@@ -221,12 +221,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 		t.Fatal(err)
 	}
 
-	// TODO(gri) remove this or use flag mechanism to set mode if still needed
-	if strings.HasSuffix(filenames[0], ".go1") {
-		// TODO(rfindley): re-enable this test by using GoVersion.
-		t.Skip("type params are enabled")
-	}
-
 	files, errlist := parseFiles(t, filenames, srcs, parser.AllErrors)
 
 	pkgName := "<no package>"
