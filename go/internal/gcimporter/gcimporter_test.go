@@ -10,8 +10,12 @@ package gcimporter
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
 	"go/build"
 	"go/constant"
+	goimporter "go/importer"
+	goparser "go/parser"
+	"go/token"
 	"go/types"
 	"io/ioutil"
 	"os"
@@ -154,6 +158,129 @@ func TestImportTestdata(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestImportTypeparamTests(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // requires generics
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+	}
+
+	tmpdir := mktmpdir(t)
+	defer os.RemoveAll(tmpdir)
+
+	// Check go files in test/typeparam, except those that fail for a known
+	// reason.
+	rootDir := filepath.Join(runtime.GOROOT(), "test", "typeparam")
+	list, err := os.ReadDir(rootDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var skip map[string]string
+	if !unifiedIR {
+		// The Go 1.18 frontend still fails several cases.
+		skip = map[string]string{
+			"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
+			"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
+			"issue47631.go": "can not handle local type declarations",
+			"issue55101.go": "fails to compile",
+		}
+	}
+
+	for _, entry := range list {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+			// For now, only consider standalone go files.
+			continue
+		}
+
+		t.Run(entry.Name(), func(t *testing.T) {
+			if reason, ok := skip[entry.Name()]; ok {
+				t.Skip(reason)
+			}
+
+			filename := filepath.Join(rootDir, entry.Name())
+			src, err := os.ReadFile(filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.HasPrefix(src, []byte("// run")) && !bytes.HasPrefix(src, []byte("// compile")) {
+				// We're bypassing the logic of run.go here, so be conservative about
+				// the files we consider in an attempt to make this test more robust to
+				// changes in test/typeparams.
+				t.Skipf("not detected as a run test")
+			}
+
+			// Compile and import, and compare the resulting package with the package
+			// that was type-checked directly.
+			compile(t, rootDir, entry.Name(), filepath.Join(tmpdir, "testdata"))
+			pkgName := strings.TrimSuffix(entry.Name(), ".go")
+			imported := importPkg(t, "./testdata/"+pkgName, tmpdir)
+			checked := checkFile(t, filename, src)
+
+			seen := make(map[string]bool)
+			for _, name := range imported.Scope().Names() {
+				if !token.IsExported(name) {
+					continue // ignore synthetic names like .inittask and .dict.*
+				}
+				seen[name] = true
+
+				importedObj := imported.Scope().Lookup(name)
+				got := types.ObjectString(importedObj, types.RelativeTo(imported))
+				got = sanitizeObjectString(got)
+
+				checkedObj := checked.Scope().Lookup(name)
+				if checkedObj == nil {
+					t.Fatalf("imported object %q was not type-checked", name)
+				}
+				want := types.ObjectString(checkedObj, types.RelativeTo(checked))
+				want = sanitizeObjectString(want)
+
+				if got != want {
+					t.Errorf("imported %q as %q, want %q", name, got, want)
+				}
+			}
+
+			for _, name := range checked.Scope().Names() {
+				if !token.IsExported(name) || seen[name] {
+					continue
+				}
+				t.Errorf("did not import object %q", name)
+			}
+		})
+	}
+}
+
+// sanitizeObjectString removes type parameter debugging markers from an object
+// string, to normalize it for comparison.
+// TODO(rfindley): this should not be necessary.
+func sanitizeObjectString(s string) string {
+	var runes []rune
+	for _, r := range s {
+		if '₀' <= r && r < '₀'+10 {
+			continue // trim type parameter subscripts
+		}
+		runes = append(runes, r)
+	}
+	return string(runes)
+}
+
+func checkFile(t *testing.T, filename string, src []byte) *types.Package {
+	fset := token.NewFileSet()
+	f, err := goparser.ParseFile(fset, filename, src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := types.Config{
+		Importer: goimporter.Default(),
+	}
+	pkg, err := config.Check("", fset, []*ast.File{f}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pkg
 }
 
 func TestVersionHandling(t *testing.T) {
