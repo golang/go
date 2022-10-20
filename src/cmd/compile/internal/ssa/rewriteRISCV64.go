@@ -1,5 +1,5 @@
-// Code generated from gen/RISCV64.rules; DO NOT EDIT.
-// generated with: cd gen; go run *.go
+// Code generated from _gen/RISCV64.rules; DO NOT EDIT.
+// generated with: cd _gen; go run .
 
 package ssa
 

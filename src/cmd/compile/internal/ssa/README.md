@@ -34,7 +34,7 @@ value is defined exactly once, but it may be used any number of times. A value
 mainly consists of a unique identifier, an operator, a type, and some arguments.
 
 An operator or `Op` describes the operation that computes the value. The
-semantics of each operator can be found in `gen/*Ops.go`. For example, `OpAdd8`
+semantics of each operator can be found in `_gen/*Ops.go`. For example, `OpAdd8`
 takes two value arguments holding 8-bit integers and results in their addition.
 Here is a possible SSA representation of the addition of two `uint8` values:
 
@@ -205,16 +205,16 @@ TODO: need more ideas for this section
 
 While most compiler passes are implemented directly in Go code, some others are
 code generated. This is currently done via rewrite rules, which have their own
-syntax and are maintained in `gen/*.rules`. Simpler optimizations can be written
+syntax and are maintained in `_gen/*.rules`. Simpler optimizations can be written
 easily and quickly this way, but rewrite rules are not suitable for more complex
 optimizations.
 
 To read more on rewrite rules, have a look at the top comments in
-[gen/generic.rules](gen/generic.rules) and [gen/rulegen.go](gen/rulegen.go).
+[_gen/generic.rules](_gen/generic.rules) and [_gen/rulegen.go](_gen/rulegen.go).
 
 Similarly, the code to manage operators is also code generated from
-`gen/*Ops.go`, as it is easier to maintain a few tables than a lot of code.
-After changing the rules or operators, see [gen/README](gen/README) for
+`_gen/*Ops.go`, as it is easier to maintain a few tables than a lot of code.
+After changing the rules or operators, see [_gen/README](_gen/README) for
 instructions on how to generate the Go code again.
 
 <!---

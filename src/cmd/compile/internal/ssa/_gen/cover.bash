@@ -1,4 +1,4 @@
-#!/usr/bin/env bash 
+#!/usr/bin/env bash
 # Copyright 2020 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -9,7 +9,7 @@
 #     ./cover.bash && go tool cover -html=cover.out
 #
 # This script is needed to set up a temporary test file, so that we don't break
-# regular 'go run *.go' usage to run the generator.
+# regular 'go run .' usage to run the generator.
 
 cat >main_test.go <<-EOF
 	// +build ignore
