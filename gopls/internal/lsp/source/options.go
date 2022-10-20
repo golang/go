@@ -613,11 +613,10 @@ type InternalOptions struct {
 	// This option applies only during initialization.
 	ShowBugReports bool
 
-	// NewDiff controls the choice of the new diff implementation.
-	// It can be 'new', 'checked', or 'old' which is the default.
-	// 'checked' computes diffs with both algorithms, checks
-	// that the new algorithm has worked, and write some summary
-	// statistics to a file in os.TmpDir()
+	// NewDiff controls the choice of the new diff implementation. It can be
+	// 'new', 'old', or 'both', which is the default. 'both' computes diffs with
+	// both algorithms, checks that the new algorithm has worked, and write some
+	// summary statistics to a file in os.TmpDir().
 	NewDiff string
 
 	// ChattyDiagnostics controls whether to report file diagnostics for each

@@ -510,13 +510,14 @@ Default: `false`.
 
 #### **newDiff** *string*
 
-newDiff enables the new diff implementation. If this is "both",
-for now both diffs will be run and statistics will be generateted in
-a file in $TMPDIR. This is a risky setting; help in trying it
-is appreciated. If it is "old" the old implementation is used,
-and if it is "new", just the new implementation is used.
+newDiff enables the new diff implementation. If this is "both", for now both
+diffs will be run and statistics will be generated in a file in $TMPDIR. This
+is a risky setting; help in trying it is appreciated. If it is "old" the old
+implementation is used, and if it is "new", just the new implementation is
+used. This setting will eventually be deleted, once gopls has fully migrated to
+the new diff algorithm.
 
-Default: 'old'.
+Default: 'both'.
 
 ## Code Lenses
 
