@@ -1165,7 +1165,7 @@ func ccARM64Eval(op Op, flags *Value) int {
 }
 
 // logRule logs the use of the rule s. This will only be enabled if
-// rewrite rules were generated with the -log option, see gen/rulegen.go.
+// rewrite rules were generated with the -log option, see _gen/rulegen.go.
 func logRule(s string) {
 	if ruleFile == nil {
 		// Open a log file to write log to. We open in append
