@@ -18,6 +18,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	_ "unsafe"
 )
 
 type eofReader struct{}
@@ -57,7 +58,6 @@ var dumpTests = []dumpTest{
 		Body: []byte("abcdef"),
 
 		WantDump: "GET /search HTTP/1.1\r\n" +
-			"Host: www.google.com\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			chunk("abcdef") + chunk(""),
 	},
@@ -151,7 +151,6 @@ var dumpTests = []dumpTest{
 			"Accept-Encoding: gzip\r\n\r\n" +
 			strings.Repeat("a", 8193),
 		WantDump: "POST / HTTP/1.1\r\n" +
-			"Host: post.tld\r\n" +
 			"Content-Length: 8193\r\n\r\n" +
 			strings.Repeat("a", 8193),
 	},
@@ -383,8 +382,11 @@ func mustNewRequest(method, url string, body io.Reader) *http.Request {
 	return req
 }
 
+//go:linkname readRequest net/http.readRequest
+func readRequest(b *bufio.Reader) (*http.Request, error)
+
 func mustReadRequest(s string) *http.Request {
-	req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(s)))
+	req, err := readRequest(bufio.NewReader(strings.NewReader(s)))
 	if err != nil {
 		panic(err)
 	}
