@@ -106,16 +106,23 @@ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	R3, errno+16(FP)
 	RET
 
+// func usleep(usec uint32)
 TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	MOVW	usec+0(FP), R3
-	MOVD	R3, R5
-	MOVW	$1000000, R4
-	DIVD	R4, R3
-	MOVD	R3, 8(R1)
-	MOVW	$1000, R4
-	MULLD	R3, R4
-	SUB	R4, R5
-	MOVD	R5, 16(R1)
+
+	// Use magic constant 0x8637bd06 and shift right 51
+	// to perform usec/1000000.
+	ORIS	$0x8637, R0, R4	// Note, R0 always contains 0 here.
+	OR	$0xbd06, R4, R4
+	MULLD	R3, R4, R4	// Convert usec to S.
+	SRD	$51, R4, R4
+	MOVD	R4, 8(R1)	// Store to tv_sec
+
+	MOVD	$1000000, R5
+	MULLW	R4, R5, R5	// Convert tv_sec back into uS
+	SUB	R5, R3, R5	// Compute remainder uS.
+	MULLD	$1000, R5, R5	// Convert to nsec
+	MOVD	R5, 16(R1)	// Store to tv_nsec
 
 	// nanosleep(&ts, 0)
 	ADD	$8, R1, R3
