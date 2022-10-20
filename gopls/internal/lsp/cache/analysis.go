@@ -150,8 +150,8 @@ func (s *snapshot) actionHandle(ctx context.Context, id PackageID, a *analysis.A
 		// An analysis that consumes/produces facts
 		// must run on the package's dependencies too.
 		if len(a.FactTypes) > 0 {
-			for _, importID := range ph.m.Imports {
-				depActionHandle, err := s.actionHandle(ctx, importID, a)
+			for _, depID := range ph.m.DepsByPkgPath {
+				depActionHandle, err := s.actionHandle(ctx, depID, a)
 				if err != nil {
 					return nil, err
 				}

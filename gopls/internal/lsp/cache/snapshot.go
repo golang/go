@@ -892,7 +892,7 @@ func (s *snapshot) isActiveLocked(id PackageID) (active bool) {
 	}
 	// TODO(rfindley): it looks incorrect that we don't also check GoFiles here.
 	// If a CGo file is open, we want to consider the package active.
-	for _, dep := range m.Imports {
+	for _, dep := range m.DepsByPkgPath {
 		if s.isActiveLocked(dep) {
 			return true
 		}
@@ -1231,14 +1231,15 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 		if err != nil {
 			return
 		}
-		for pkgPath, newPkg := range cachedPkg.depsByPkgPath {
-			if oldPkg, ok := results[string(pkgPath)]; ok {
+		for _, newPkg := range cachedPkg.deps {
+			pkgPath := newPkg.PkgPath()
+			if oldPkg, ok := results[pkgPath]; ok {
 				// Using the same trick as NarrowestPackage, prefer non-variants.
 				if len(newPkg.compiledGoFiles) < len(oldPkg.(*pkg).compiledGoFiles) {
-					results[string(pkgPath)] = newPkg
+					results[pkgPath] = newPkg
 				}
 			} else {
-				results[string(pkgPath)] = newPkg
+				results[pkgPath] = newPkg
 			}
 		}
 	})
@@ -1893,8 +1894,11 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// package with missing dependencies.
 	if anyFileAdded {
 		for id, metadata := range s.meta.metadata {
-			if len(metadata.MissingDeps) > 0 {
-				directIDs[id] = true
+			for _, impID := range metadata.DepsByImpPath {
+				if impID == "" { // missing import
+					directIDs[id] = true
+					break
+				}
 			}
 		}
 	}

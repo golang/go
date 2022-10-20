@@ -33,8 +33,8 @@ type Metadata struct {
 	ForTest         PackagePath // package path under test, or ""
 	TypesSizes      types.Sizes
 	Errors          []packages.Error
-	Imports         map[ImportPath]PackageID // may contain duplicate IDs
-	MissingDeps     map[ImportPath]struct{}
+	DepsByImpPath   map[ImportPath]PackageID  // may contain dups; empty ID => missing
+	DepsByPkgPath   map[PackagePath]PackageID // values are unique and non-empty
 	Module          *packages.Module
 	depsErrors      []*packagesinternal.PackageError
 

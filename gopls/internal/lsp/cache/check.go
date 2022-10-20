@@ -100,11 +100,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 	// the recursive key building of dependencies in parallel.
 	deps := make(map[PackageID]*packageHandle)
 	var depKey source.Hash // XOR of all unique deps
-	for _, depID := range m.Imports {
-		depHandle, ok := deps[depID]
-		if ok {
-			continue // e.g. duplicate import
-		}
+	for _, depID := range m.DepsByPkgPath {
 		depHandle, err := s.buildPackageHandle(ctx, depID, s.workspaceParseMode(depID))
 		// Don't use invalid metadata for dependencies if the top-level
 		// metadata is valid. We only load top-level packages, so if the
@@ -452,10 +448,10 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 	defer done()
 
 	pkg := &pkg{
-		m:             m,
-		mode:          mode,
-		depsByPkgPath: make(map[PackagePath]*pkg),
-		types:         types.NewPackage(string(m.PkgPath), string(m.Name)),
+		m:     m,
+		mode:  mode,
+		deps:  make(map[PackageID]*pkg),
+		types: types.NewPackage(string(m.PkgPath), string(m.Name)),
 		typesInfo: &types.Info{
 			Types:      make(map[ast.Expr]types.TypeAndValue),
 			Defs:       make(map[*ast.Ident]types.Object),
@@ -528,14 +524,14 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 			// based on the metadata before we start type checking,
 			// reporting them via types.Importer places the errors
 			// at the correct source location.
-			id, ok := pkg.m.Imports[ImportPath(path)]
+			id, ok := pkg.m.DepsByImpPath[ImportPath(path)]
 			if !ok {
 				// If the import declaration is broken,
 				// go list may fail to report metadata about it.
 				// See TestFixImportDecl for an example.
 				return nil, fmt.Errorf("missing metadata for import of %q", path)
 			}
-			dep, ok := deps[id]
+			dep, ok := deps[id] // id may be ""
 			if !ok {
 				return nil, snapshot.missingPkgError(ctx, path)
 			}
@@ -546,7 +542,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 			if err != nil {
 				return nil, err
 			}
-			pkg.depsByPkgPath[depPkg.m.PkgPath] = depPkg
+			pkg.deps[depPkg.m.ID] = depPkg
 			return depPkg.types, nil
 		}),
 	}

@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/scanner"
 	"go/types"
+	"sort"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -23,7 +24,7 @@ type pkg struct {
 	goFiles         []*source.ParsedGoFile
 	compiledGoFiles []*source.ParsedGoFile
 	diagnostics     []*source.Diagnostic
-	depsByPkgPath   map[PackagePath]*pkg
+	deps            map[PackageID]*pkg // use m.DepsBy{Pkg,Imp}Path to look up ID
 	version         *module.Version
 	parseErrors     []scanner.ErrorList
 	typeErrors      []types.Error
@@ -116,38 +117,28 @@ func (p *pkg) ForTest() string {
 // from an import declaration, use ResolveImportPath instead.
 // They may differ in case of vendoring.)
 func (p *pkg) DirectDep(pkgPath string) (source.Package, error) {
-	if imp := p.depsByPkgPath[PackagePath(pkgPath)]; imp != nil {
-		return imp, nil
+	if id, ok := p.m.DepsByPkgPath[PackagePath(pkgPath)]; ok {
+		if imp := p.deps[id]; imp != nil {
+			return imp, nil
+		}
 	}
-	// Don't return a nil pointer because that still satisfies the interface.
-	return nil, fmt.Errorf("no imported package for %s", pkgPath)
+	return nil, fmt.Errorf("package does not import package with path %s", pkgPath)
 }
 
 // ResolveImportPath returns the directly imported dependency of this package,
 // given its ImportPath. See also DirectDep.
 func (p *pkg) ResolveImportPath(importPath string) (source.Package, error) {
-	if id, ok := p.m.Imports[ImportPath(importPath)]; ok {
-		for _, imported := range p.depsByPkgPath {
-			if PackageID(imported.ID()) == id {
-				return imported, nil
-			}
+	if id, ok := p.m.DepsByImpPath[ImportPath(importPath)]; ok && id != "" {
+		if imp := p.deps[id]; imp != nil {
+			return imp, nil
 		}
 	}
 	return nil, fmt.Errorf("package does not import %s", importPath)
 }
 
 func (p *pkg) MissingDependencies() []string {
-	// We don't invalidate metadata for import deletions, so check the package
-	// imports via the *types.Package. Only use metadata if p.types is nil.
-	if p.types == nil {
-		var md []string
-		for importPath := range p.m.MissingDeps {
-			md = append(md, string(importPath))
-		}
-		return md
-	}
-
-	// This looks wrong.
+	// We don't invalidate metadata for import deletions,
+	// so check the package imports via the *types.Package.
 	//
 	// rfindley says: it looks like this is intending to implement
 	// a heuristic "if go list couldn't resolve import paths to
@@ -158,20 +149,31 @@ func (p *pkg) MissingDependencies() []string {
 	// doesn't need that dep anymore we shouldn't show the warning".
 	// But either we're outside of GOPATH/Module, or we're not...
 	//
-	// TODO(adonovan): figure out what it is trying to do.
-	var md []string
+	// adonovan says: I think this effectively reverses the
+	// heuristic used by the type checker when Importer.Import
+	// returns an error---go/types synthesizes a package whose
+	// Path is the import path (sans "vendor/")---hence the
+	// dubious ImportPath() conversion. A blank DepsByImpPath
+	// entry means a missing import.
+	//
+	// If we invalidate the metadata for import deletions (which
+	// should be fast) then we can simply return the blank entries
+	// in DepsByImpPath. (They are PackageIDs not PackagePaths,
+	// but the caller only cares whether the set is empty!)
+	var missing []string
 	for _, pkg := range p.types.Imports() {
-		if _, ok := p.m.MissingDeps[ImportPath(pkg.Path())]; ok {
-			md = append(md, pkg.Path())
+		if id, ok := p.m.DepsByImpPath[ImportPath(pkg.Path())]; ok && id == "" {
+			missing = append(missing, pkg.Path())
 		}
 	}
-	return md
+	sort.Strings(missing)
+	return missing
 }
 
 func (p *pkg) Imports() []source.Package {
-	var result []source.Package
-	for _, imp := range p.depsByPkgPath {
-		result = append(result, imp)
+	var result []source.Package // unordered
+	for _, dep := range p.deps {
+		result = append(result, dep)
 	}
 	return result
 }

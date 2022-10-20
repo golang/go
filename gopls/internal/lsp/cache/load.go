@@ -542,10 +542,10 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 		m.GoFiles = append(m.GoFiles, uri)
 	}
 
-	imports := make(map[ImportPath]PackageID)
+	depsByImpPath := make(map[ImportPath]PackageID)
+	depsByPkgPath := make(map[PackagePath]PackageID)
 	for importPath, imported := range pkg.Imports {
 		importPath := ImportPath(importPath)
-		imports[importPath] = PackageID(imported.ID)
 
 		// It is not an invariant that importPath == imported.PkgPath.
 		// For example, package "net" imports "golang.org/x/net/dns/dnsmessage"
@@ -590,18 +590,18 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 		// TODO(adonovan): clarify this. Perhaps go/packages should
 		// report which nodes were synthesized.
 		if importPath != "unsafe" && len(imported.CompiledGoFiles) == 0 {
-			if m.MissingDeps == nil {
-				m.MissingDeps = make(map[ImportPath]struct{})
-			}
-			m.MissingDeps[importPath] = struct{}{}
+			depsByImpPath[importPath] = "" // missing
 			continue
 		}
 
+		depsByImpPath[importPath] = PackageID(imported.ID)
+		depsByPkgPath[PackagePath(imported.PkgPath)] = PackageID(imported.ID)
 		if err := buildMetadata(ctx, imported, cfg, query, updates, append(path, id)); err != nil {
 			event.Error(ctx, "error in dependency", err)
 		}
 	}
-	m.Imports = imports
+	m.DepsByImpPath = depsByImpPath
+	m.DepsByPkgPath = depsByPkgPath
 
 	return nil
 }
