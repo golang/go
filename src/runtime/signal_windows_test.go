@@ -23,14 +23,14 @@ func TestVectoredHandlerExceptionInNonGoThread(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
-	testenv.MustHaveExecPath(t, "g++")
+	testenv.MustHaveExecPath(t, "gcc")
 	testprog.Lock()
 	defer testprog.Unlock()
 	dir := t.TempDir()
 
 	// build c program
 	dll := filepath.Join(dir, "veh.dll")
-	cmd := exec.Command("g++", "-shared", "-o", dll, "testdata/testwinlibthrow/veh.cpp", "-static", "-lstdc++")
+	cmd := exec.Command("gcc", "-shared", "-o", dll, "testdata/testwinlibthrow/veh.c")
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to build c exe: %s\n%s", err, out)
