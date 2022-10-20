@@ -17,6 +17,8 @@ var Syms struct {
 	AssertI2I2        *obj.LSym
 	Asanread          *obj.LSym
 	Asanwrite         *obj.LSym
+	CgoCheckMemmove   *obj.LSym
+	CgoCheckPtrWrite  *obj.LSym
 	CheckPtrAlignment *obj.LSym
 	Deferproc         *obj.LSym
 	DeferprocStack    *obj.LSym

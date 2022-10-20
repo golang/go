@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Code to check that pointer writes follow the cgo rules.
-// These functions are invoked via the write barrier when debug.cgocheck > 1.
+// These functions are invoked when GOEXPERIMENT=cgocheck2 is enabled.
 
 package runtime
 
@@ -14,16 +14,21 @@ import (
 
 const cgoWriteBarrierFail = "Go pointer stored into non-Go memory"
 
-// cgoCheckWriteBarrier is called whenever a pointer is stored into memory.
+// cgoCheckPtrWrite is called whenever a pointer is stored into memory.
 // It throws if the program is storing a Go pointer into non-Go memory.
 //
-// This is called from the write barrier, so its entire call tree must
-// be nosplit.
+// This is called from generated code when GOEXPERIMENT=cgocheck2 is enabled.
 //
 //go:nosplit
 //go:nowritebarrier
-func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
-	if !cgoIsGoPointer(unsafe.Pointer(src)) {
+func cgoCheckPtrWrite(dst *unsafe.Pointer, src unsafe.Pointer) {
+	if !mainStarted {
+		// Something early in startup hates this function.
+		// Don't start doing any actual checking until the
+		// runtime has set itself up.
+		return
+	}
+	if !cgoIsGoPointer(src) {
 		return
 	}
 	if cgoIsGoPointer(unsafe.Pointer(dst)) {
@@ -51,20 +56,31 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
 	}
 
 	systemstack(func() {
-		println("write of Go pointer", hex(src), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
+		println("write of Go pointer", hex(uintptr(src)), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
 		throw(cgoWriteBarrierFail)
 	})
 }
 
 // cgoCheckMemmove is called when moving a block of memory.
+// It throws if the program is copying a block that contains a Go pointer
+// into non-Go memory.
+//
+// This is called from generated code when GOEXPERIMENT=cgocheck2 is enabled.
+//
+//go:nosplit
+//go:nowritebarrier
+func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
+	cgoCheckMemmove2(typ, dst, src, 0, typ.size)
+}
+
+// cgoCheckMemmove2 is called when moving a block of memory.
 // dst and src point off bytes into the value to copy.
 // size is the number of bytes to copy.
 // It throws if the program is copying a block that contains a Go pointer
 // into non-Go memory.
-//
 //go:nosplit
 //go:nowritebarrier
-func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
 	if typ.ptrdata == 0 {
 		return
 	}

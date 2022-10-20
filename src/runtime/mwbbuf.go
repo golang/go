@@ -80,11 +80,7 @@ const (
 func (b *wbBuf) reset() {
 	start := uintptr(unsafe.Pointer(&b.buf[0]))
 	b.next = start
-	if writeBarrier.cgo {
-		// Effectively disable the buffer by forcing a flush
-		// on every barrier.
-		b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
-	} else if testSmallBuf {
+	if testSmallBuf {
 		// For testing, allow two barriers in the buffer. If
 		// we only did one, then barriers of non-heap pointers
 		// would be no-ops. This lets us combine a buffered
@@ -118,14 +114,9 @@ func (b *wbBuf) empty() bool {
 //
 //	buf := &getg().m.p.ptr().wbBuf
 //	if !buf.putFast(old, new) {
-//	    wbBufFlush(...)
+//	    wbBufFlush()
 //	}
 //	... actual memory write ...
-//
-// The arguments to wbBufFlush depend on whether the caller is doing
-// its own cgo pointer checks. If it is, then this can be
-// wbBufFlush(nil, 0). Otherwise, it must pass the slot address and
-// new.
 //
 // The caller must ensure there are no preemption points during the
 // above sequence. There must be no preemption points while buf is in
@@ -150,8 +141,7 @@ func (b *wbBuf) putFast(old, new uintptr) bool {
 }
 
 // wbBufFlush flushes the current P's write barrier buffer to the GC
-// workbufs. It is passed the slot and value of the write barrier that
-// caused the flush so that it can implement cgocheck.
+// workbufs.
 //
 // This must not have write barriers because it is part of the write
 // barrier implementation.
@@ -165,7 +155,7 @@ func (b *wbBuf) putFast(old, new uintptr) bool {
 //
 //go:nowritebarrierrec
 //go:nosplit
-func wbBufFlush(dst *uintptr, src uintptr) {
+func wbBufFlush() {
 	// Note: Every possible return from this function must reset
 	// the buffer's next pointer to prevent buffer overflow.
 
@@ -182,17 +172,6 @@ func wbBufFlush(dst *uintptr, src uintptr) {
 		// panic path.
 		getg().m.p.ptr().wbBuf.discard()
 		return
-	}
-
-	if writeBarrier.cgo && dst != nil {
-		// This must be called from the stack that did the
-		// write. It's nosplit all the way down.
-		cgoCheckWriteBarrier(dst, src)
-		if !writeBarrier.needed {
-			// We were only called for cgocheck.
-			getg().m.p.ptr().wbBuf.discard()
-			return
-		}
 	}
 
 	// Switch to the system stack so we don't have to worry about

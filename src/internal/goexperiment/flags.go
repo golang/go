@@ -96,4 +96,9 @@ type Flags struct {
 	// this compels the Go runtime to write to some arbitrary file, which
 	// may be exploited.
 	PageTrace bool
+
+	// CgoCheck2 enables an expensive cgo rule checker.
+	// When this experiment is enabled, cgo rule checks occur regardless
+	// of the GODEBUG=cgocheck setting provided at runtime.
+	CgoCheck2 bool
 }

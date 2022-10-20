@@ -11,6 +11,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
+	"internal/buildcfg"
 )
 
 // A ZeroRegion records parts of an object which are known to be zero.
@@ -131,7 +132,7 @@ func writebarrier(f *Func) {
 	}
 
 	var sb, sp, wbaddr, const0 *Value
-	var typedmemmove, typedmemclr, gcWriteBarrier *obj.LSym
+	var typedmemmove, typedmemclr, gcWriteBarrier, cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
 	var stores, after []*Value
 	var sset *sparseSet
 	var storeNumber []int32
@@ -186,6 +187,10 @@ func writebarrier(f *Func) {
 			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
 			typedmemmove = f.fe.Syslook("typedmemmove")
 			typedmemclr = f.fe.Syslook("typedmemclr")
+			if buildcfg.Experiment.CgoCheck2 {
+				cgoCheckPtrWrite = f.fe.Syslook("cgoCheckPtrWrite")
+				cgoCheckMemmove = f.fe.Syslook("cgoCheckMemmove")
+			}
 			const0 = f.ConstInt32(f.Config.Types.UInt32, 0)
 
 			// allocate auxiliary data structures for computing store order
@@ -337,6 +342,11 @@ func writebarrier(f *Func) {
 			switch w.Op {
 			case OpStoreWB, OpMoveWB, OpZeroWB:
 				if w.Op == OpStoreWB {
+					if buildcfg.Experiment.CgoCheck2 {
+						// Issue cgo checking code.
+						memThen = wbcall(pos, bThen, cgoCheckPtrWrite, nil, ptr, val, memThen, sp, sb)
+					}
+
 					memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
 				} else {
 					srcval := val
@@ -359,8 +369,16 @@ func writebarrier(f *Func) {
 			// else block: normal store
 			switch w.Op {
 			case OpStoreWB:
+				if buildcfg.Experiment.CgoCheck2 {
+					// Issue cgo checking code.
+					memElse = wbcall(pos, bElse, cgoCheckPtrWrite, nil, ptr, val, memElse, sp, sb)
+				}
 				memElse = bElse.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, ptr, val, memElse)
 			case OpMoveWB:
+				if buildcfg.Experiment.CgoCheck2 {
+					// Issue cgo checking code.
+					memElse = wbcall(pos, bElse, cgoCheckMemmove, reflectdata.TypeLinksym(w.Aux.(*types.Type)), ptr, val, memElse, sp, sb)
+				}
 				memElse = bElse.NewValue3I(pos, OpMove, types.TypeMem, w.AuxInt, ptr, val, memElse)
 				memElse.Aux = w.Aux
 			case OpZeroWB:
@@ -528,7 +546,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	off := config.ctxt.Arch.FixedFrameSize
 
 	var argTypes []*types.Type
-	if typ != nil { // for typedmemmove
+	if typ != nil { // for typedmemmove/cgoCheckMemmove
 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
 		argTypes = append(argTypes, b.Func.Config.Types.Uintptr)
 		off = round(off, taddr.Type.Alignment())

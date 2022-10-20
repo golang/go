@@ -96,6 +96,8 @@ func InitConfig() {
 	ir.Syms.AssertE2I2 = typecheck.LookupRuntimeFunc("assertE2I2")
 	ir.Syms.AssertI2I = typecheck.LookupRuntimeFunc("assertI2I")
 	ir.Syms.AssertI2I2 = typecheck.LookupRuntimeFunc("assertI2I2")
+	ir.Syms.CgoCheckMemmove = typecheck.LookupRuntimeFunc("cgoCheckMemmove")
+	ir.Syms.CgoCheckPtrWrite = typecheck.LookupRuntimeFunc("cgoCheckPtrWrite")
 	ir.Syms.CheckPtrAlignment = typecheck.LookupRuntimeFunc("checkptrAlignment")
 	ir.Syms.Deferproc = typecheck.LookupRuntimeFunc("deferproc")
 	ir.Syms.DeferprocStack = typecheck.LookupRuntimeFunc("deferprocStack")
@@ -7917,6 +7919,10 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 		return ir.Syms.Typedmemmove
 	case "typedmemclr":
 		return ir.Syms.Typedmemclr
+	case "cgoCheckMemmove":
+		return ir.Syms.CgoCheckMemmove
+	case "cgoCheckPtrWrite":
+		return ir.Syms.CgoCheckPtrWrite
 	}
 	e.Fatalf(src.NoXPos, "unknown Syslook func %v", name)
 	return nil

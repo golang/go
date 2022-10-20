@@ -16,6 +16,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"unsafe"
 )
 
@@ -169,8 +170,8 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	// barrier, so at worst we've unnecessarily greyed the old
 	// pointer that was in src.
 	memmove(dst, src, typ.size)
-	if writeBarrier.cgo {
-		cgoCheckMemmove(typ, dst, src, 0, typ.size)
+	if goexperiment.CgoCheck2 {
+		cgoCheckMemmove2(typ, dst, src, 0, typ.size)
 	}
 }
 
@@ -214,8 +215,8 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 	}
 
 	memmove(dst, src, size)
-	if writeBarrier.cgo {
-		cgoCheckMemmove(typ, dst, src, off, size)
+	if goexperiment.CgoCheck2 {
+		cgoCheckMemmove2(typ, dst, src, off, size)
 	}
 }
 
@@ -272,7 +273,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 		asanread(srcPtr, uintptr(n)*typ.size)
 	}
 
-	if writeBarrier.cgo {
+	if goexperiment.CgoCheck2 {
 		cgoCheckSliceCopy(typ, dstPtr, srcPtr, n)
 	}
 

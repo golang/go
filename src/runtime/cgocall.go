@@ -86,6 +86,7 @@ package runtime
 
 import (
 	"internal/goarch"
+	"internal/goexperiment"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -391,7 +392,7 @@ var racecgosync uint64 // represents possible synchronization in C code
 // cgoCheckPointer checks if the argument contains a Go pointer that
 // points to a Go pointer, and panics if it does.
 func cgoCheckPointer(ptr any, arg any) {
-	if debug.cgocheck == 0 {
+	if !goexperiment.CgoCheck2 && debug.cgocheck == 0 {
 		return
 	}
 
@@ -631,7 +632,7 @@ func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
 // exported Go function. It panics if the result is or contains a Go
 // pointer.
 func cgoCheckResult(val any) {
-	if debug.cgocheck == 0 {
+	if !goexperiment.CgoCheck2 && debug.cgocheck == 0 {
 		return
 	}
 

@@ -751,17 +751,6 @@ func schedinit() {
 	// World is effectively started now, as P's can run.
 	worldStarted()
 
-	// For cgocheck > 1, we turn on the write barrier at all times
-	// and check all pointer writes. We can't do this until after
-	// procresize because the write barrier needs a P.
-	if debug.cgocheck > 1 {
-		writeBarrier.cgo = true
-		writeBarrier.enabled = true
-		for _, pp := range allp {
-			pp.wbBuf.reset()
-		}
-	}
-
 	if buildVersion == "" {
 		// Condition should never trigger. This code just serves
 		// to ensure runtime·buildVersion is kept in the resulting binary.

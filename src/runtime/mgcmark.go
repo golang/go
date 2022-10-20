@@ -1092,7 +1092,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 				// Flush the write barrier
 				// buffer; this may create
 				// more work.
-				wbBufFlush(nil, 0)
+				wbBufFlush()
 				b = gcw.tryGet()
 			}
 		}
@@ -1171,7 +1171,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 			if b == 0 {
 				// Flush the write barrier buffer;
 				// this may create more work.
-				wbBufFlush(nil, 0)
+				wbBufFlush()
 				b = gcw.tryGet()
 			}
 		}
