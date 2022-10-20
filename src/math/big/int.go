@@ -205,14 +205,14 @@ func (z *Int) MulRange(a, b int64) *Int {
 	return z
 }
 
-// Binomial sets z to the binomial coefficient of (n, k) and returns z.
+// Binomial sets z to the binomial coefficient C(n, k) and returns z.
 func (z *Int) Binomial(n_, k_ int64) *Int {
 	if k_ > n_ {
 		return z.SetInt64(0)
 	}
 	// reduce the number of multiplications by reducing k
 	if k_ > n_-k_ {
-		k_ = n_ - k_ // Binomial(n, k) == Binomial(n, n-k)
+		k_ = n_ - k_ // C(n, k) == C(n, n-k)
 	}
 	// C(n, k) == n * (n-1) * ... * (n-k+1) / k * (k-1) * ... * 1
 	//         == n * (n-1) * ... * (n-k+1) / 1 * (1+1) * ... * k
@@ -230,10 +230,7 @@ func (z *Int) Binomial(n_, k_ int64) *Int {
 	//
 	// z = 1
 	// i := 0
-	// for {
-	//     if i == k {
-	//         break
-	//     }
+	// for i < k {
 	//     z *= n-i
 	//     i++
 	//     z /= i
@@ -242,10 +239,7 @@ func (z *Int) Binomial(n_, k_ int64) *Int {
 	n.SetInt64(n_)
 	k.SetInt64(k_)
 	z.Set(intOne)
-	for {
-		if i.Cmp(&k) == 0 {
-			break
-		}
+	for i.Cmp(&k) < 0 {
 		d.Sub(&n, &i)
 		z.Mul(z, &d)
 		i.Add(&i, intOne)
