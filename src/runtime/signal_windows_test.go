@@ -21,6 +21,9 @@ func TestVectoredHandlerExceptionInNonGoThread(t *testing.T) {
 	if *flagQuick {
 		t.Skip("-quick")
 	}
+	if testenv.Builder() == "windows-amd64-2012" {
+		testenv.SkipFlaky(t, 49681)
+	}
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveExecPath(t, "gcc")
