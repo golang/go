@@ -14,8 +14,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/analysis/analysistest"
-	"golang.org/x/tools/go/analysis/internal/facts"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/facts"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -216,7 +216,7 @@ type pkgLookups struct {
 // are passed during analysis. It operates on a group of Go file contents. Then
 // for each <package, []lookup> in tests it does the following:
 //  1. loads and type checks the package,
-//  2. calls facts.Decode to loads the facts exported by its imports,
+//  2. calls (*facts.Decoder).Decode to load the facts exported by its imports,
 //  3. exports a myFact Fact for all of package level objects,
 //  4. For each lookup for the current package:
 //     4.a) lookup the types.Object for an Go source expression in the curent package
@@ -239,7 +239,7 @@ func testEncodeDecode(t *testing.T, files map[string]string, tests []pkgLookups)
 	// factmap represents the passing of encoded facts from one
 	// package to another. In practice one would use the file system.
 	factmap := make(map[string][]byte)
-	read := func(path string) ([]byte, error) { return factmap[path], nil }
+	read := func(imp *types.Package) ([]byte, error) { return factmap[imp.Path()], nil }
 
 	// Analyze packages in order, look up various objects accessible within
 	// each package, and see if they have a fact.  The "analysis" exports a
@@ -255,7 +255,7 @@ func testEncodeDecode(t *testing.T, files map[string]string, tests []pkgLookups)
 		}
 
 		// decode
-		facts, err := facts.Decode(pkg, read)
+		facts, err := facts.NewDecoder(pkg).Decode(read)
 		if err != nil {
 			t.Fatalf("Decode failed: %v", err)
 		}
@@ -357,7 +357,7 @@ func TestFactFilter(t *testing.T) {
 	}
 
 	obj := pkg.Scope().Lookup("A")
-	s, err := facts.Decode(pkg, func(string) ([]byte, error) { return nil, nil })
+	s, err := facts.NewDecoder(pkg).Decode(func(*types.Package) ([]byte, error) { return nil, nil })
 	if err != nil {
 		t.Fatal(err)
 	}

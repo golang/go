@@ -50,7 +50,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
-	"golang.org/x/tools/go/analysis/internal/facts"
+	"golang.org/x/tools/internal/facts"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -287,13 +287,13 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	analyzers = filtered
 
 	// Read facts from imported packages.
-	read := func(path string) ([]byte, error) {
-		if vetx, ok := cfg.PackageVetx[path]; ok {
+	read := func(imp *types.Package) ([]byte, error) {
+		if vetx, ok := cfg.PackageVetx[imp.Path()]; ok {
 			return ioutil.ReadFile(vetx)
 		}
 		return nil, nil // no .vetx file, no facts
 	}
-	facts, err := facts.Decode(pkg, read)
+	facts, err := facts.NewDecoder(pkg).Decode(read)
 	if err != nil {
 		return nil, err
 	}
