@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"cmd/internal/edit"
@@ -483,13 +484,29 @@ func (f *File) postFunc(fn ast.Node, funcname string, flit bool, body *ast.Block
 	}
 	funcId := f.mdb.AddFunc(fd)
 
-	// Generate the registration hook for the function, and insert it
-	// into the prolog.
-	cv := f.fn.counterVar
-	regHook := fmt.Sprintf("%s[0] = %d ; %s[1] = %s ; %s[2] = %d",
-		cv, len(f.fn.units), cv, mkPackageIdExpression(), cv, funcId)
+	hookWrite := func(cv string, which int, val string) string {
+		return fmt.Sprintf("%s[%d] = %s", cv, which, val)
+	}
+	if *mode == "atomic" {
+		hookWrite = func(cv string, which int, val string) string {
+			return fmt.Sprintf("%s.StoreUint32(&%s[%d], %s)", atomicPackageName,
+				cv, which, val)
+		}
+	}
 
-	// Insert a function registration sequence into the function.
+	// Generate the registration hook sequence for the function. This
+	// sequence looks like
+	//
+	//   counterVar[0] = <num_units>
+	//   counterVar[1] = pkgId
+	//   counterVar[2] = fnId
+	//
+	cv := f.fn.counterVar
+	regHook := hookWrite(cv, 0, strconv.Itoa(len(f.fn.units))) + " ; " +
+		hookWrite(cv, 1, mkPackageIdExpression()) + " ; " +
+		hookWrite(cv, 2, strconv.Itoa(int(funcId)))
+
+	// Insert the registration sequence into the function.
 	boff := f.offset(body.Pos())
 	ipos := f.fset.File(body.Pos()).Pos(boff + 1)
 	f.edit.Insert(f.offset(ipos), regHook+" ; ")

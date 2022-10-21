@@ -1,0 +1,54 @@
+[short] skip
+[!race] skip
+
+go test -race -cover issue.56370/filter
+
+-- go.mod --
+module issue.56370
+
+go 1.20
+
+-- filter/filter.go --
+
+package filter
+
+func New() func(error) bool {
+	return func(error) bool {
+		return false
+	}
+}
+
+-- filter/filter_test.go --
+
+package filter_test
+
+import (
+	"testing"
+
+	"issue.56370/filter"
+)
+
+func Test1(t *testing.T) {
+	t.Parallel()
+
+	_ = filter.New()
+}
+
+func Test2(t *testing.T) {
+	t.Parallel()
+
+	_ = filter.New()
+}
+
+func Test3(t *testing.T) {
+	t.Parallel()
+
+	_ = filter.New()
+}
+
+func Test4(t *testing.T) {
+	t.Parallel()
+
+	_ = filter.New()
+}
+
