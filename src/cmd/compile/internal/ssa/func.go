@@ -801,3 +801,17 @@ func (f *Func) spSb() (sp, sb *Value) {
 	}
 	return
 }
+
+// useFMA allows targeted debugging w/ GOFMAHASH
+// If you have an architecture-dependent FP glitch, this will help you find it.
+func (f *Func) useFMA(v *Value) bool {
+	if !f.Config.UseFMA {
+		return false
+	}
+	if base.FmaHash == nil {
+		return true
+	}
+
+	name := f.fe.MyImportPath() + "." + f.Name
+	return base.FmaHash.DebugHashMatchParam(name, uint64(v.Pos.Line()))
+}

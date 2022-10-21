@@ -942,8 +942,8 @@
 (FNEG (F(ABS|NABS) x)) => (F(NABS|ABS) x)
 
 // floating-point fused multiply-add/sub
-(F(ADD|SUB) (FMUL x y) z) => (FM(ADD|SUB) x y z)
-(F(ADDS|SUBS) (FMULS x y) z) => (FM(ADDS|SUBS) x y z)
+(F(ADD|SUB) (FMUL x y) z) && x.Block.Func.useFMA(v) => (FM(ADD|SUB) x y z)
+(F(ADDS|SUBS) (FMULS x y) z) && x.Block.Func.useFMA(v) => (FM(ADDS|SUBS) x y z)
 
 // The following statements are found in encoding/binary functions UintXX (load) and PutUintXX (store)
 // and convert the statements in these functions from multiple single byte loads or stores to
