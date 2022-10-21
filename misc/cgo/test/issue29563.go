@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !windows
 // +build !windows
 
 // Issue 29563: internal linker fails on duplicate weak symbols.
@@ -9,4 +10,4 @@
 
 package cgotest
 
-import _ "cgotest/issue29563"
+import _ "misc/cgo/test/issue29563"

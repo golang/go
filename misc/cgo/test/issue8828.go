@@ -9,7 +9,7 @@
 
 package cgotest
 
-import "cgotest/issue8828"
+import "misc/cgo/test/issue8828"
 
 func p() {
 	issue8828.Bar()

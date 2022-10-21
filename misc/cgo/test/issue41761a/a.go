@@ -2,19 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package cgotest
+package issue41761a
 
 /*
-   typedef struct S S;
+   typedef struct S41761 S41761;
 */
 import "C"
 
-import (
-	"cgotest/issue41761a"
-	"testing"
-)
-
-func test41761(t *testing.T) {
-	var x issue41761a.T
-	_ = (*C.struct_S)(x.X)
+type T struct {
+	X *C.S41761
 }

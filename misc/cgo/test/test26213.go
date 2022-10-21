@@ -7,7 +7,7 @@ package cgotest
 import (
 	"testing"
 
-	"cgotest/issue26213"
+	"misc/cgo/test/issue26213"
 )
 
 func test26213(t *testing.T) {

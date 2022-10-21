@@ -7,7 +7,7 @@ package cgotest
 import (
 	"testing"
 
-	"cgotest/gcc68255"
+	"misc/cgo/test/gcc68255"
 )
 
 func testGCC68255(t *testing.T) {

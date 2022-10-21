@@ -8,6 +8,6 @@
 package cgotest
 
 import (
-	_ "cgotest/issue52611a"
-	_ "cgotest/issue52611b"
+	_ "misc/cgo/test/issue52611a"
+	_ "misc/cgo/test/issue52611b"
 )

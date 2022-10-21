@@ -7,5 +7,7 @@
 
 package cgotest
 
-import _ "cgotest/issue23555a"
-import _ "cgotest/issue23555b"
+import (
+	_ "misc/cgo/test/issue23555a"
+	_ "misc/cgo/test/issue23555b"
+)
