@@ -35,6 +35,8 @@ go 1.12
 -- example.com@v1.2.3/blah/blah.go --
 package blah
 
+import "fmt"
+
 func SaySomething() {
 	fmt.Println("something")
 }
@@ -62,7 +64,7 @@ require (
 	random.org v1.2.3
 )
 -- pkg/go.sum --
-example.com v1.2.3 h1:Yryq11hF02fEf2JlOS2eph+ICE2/ceevGV3C9dl5V/c=
+example.com v1.2.3 h1:veRD4tUnatQRgsULqULZPjeoBGFr2qBhevSCZllD2Ds=
 example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 random.org v1.2.3 h1:+JE2Fkp7gS0zsHXGEQJ7hraom3pNTlkxC4b2qPfA+/Q=
 random.org v1.2.3/go.mod h1:E9KM6+bBX2g5ykHZ9H27w16sWo3QwgonyjM44Dnej3I=
@@ -216,6 +218,8 @@ go 1.12
 -- example.com@v1.2.3/blah/blah.go --
 package blah
 
+import "fmt"
+
 func SaySomething() {
 	fmt.Println("something")
 }
@@ -283,6 +287,8 @@ go 1.12
 require b.com v1.2.3
 -- c.com@v1.2.3/blah/blah.go --
 package blah
+
+import "fmt"
 
 func SaySomething() {
 	fmt.Println("something")
@@ -518,7 +524,7 @@ module b.com
 
 require example.com v1.2.3
 -- modb/go.sum --
-example.com v1.2.3 h1:Yryq11hF02fEf2JlOS2eph+ICE2/ceevGV3C9dl5V/c=
+example.com v1.2.3 h1:veRD4tUnatQRgsULqULZPjeoBGFr2qBhevSCZllD2Ds=
 example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 -- modb/b/b.go --
 package b
