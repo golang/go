@@ -2498,10 +2498,10 @@ func (s *regAllocState) computeLive() {
 	s.desired = make([]desiredState, f.NumBlocks())
 	var phis []*Value
 
-	live := f.newSparseMap(f.NumValues())
-	defer f.retSparseMap(live)
-	t := f.newSparseMap(f.NumValues())
-	defer f.retSparseMap(t)
+	live := f.newSparseMapPos(f.NumValues())
+	defer f.retSparseMapPos(live)
+	t := f.newSparseMapPos(f.NumValues())
+	defer f.retSparseMapPos(t)
 
 	// Keep track of which value we want in each register.
 	var desired desiredState
@@ -2630,7 +2630,7 @@ func (s *regAllocState) computeLive() {
 					d := e.val + delta
 					if !t.contains(e.key) || d < t.get(e.key) {
 						update = true
-						t.set(e.key, d, e.aux)
+						t.set(e.key, d, e.pos)
 					}
 				}
 				// Also add the correct arg from the saved phi values.
@@ -2653,7 +2653,7 @@ func (s *regAllocState) computeLive() {
 					l = make([]liveInfo, 0, t.size())
 				}
 				for _, e := range t.contents() {
-					l = append(l, liveInfo{e.key, e.val, e.aux})
+					l = append(l, liveInfo{e.key, e.val, e.pos})
 				}
 				s.live[p.ID] = l
 				changed = true

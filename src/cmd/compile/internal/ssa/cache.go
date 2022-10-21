@@ -21,10 +21,11 @@ type Cache struct {
 	// See stackalloc.go's {new,put}StackAllocState.
 	stackAllocState *stackAllocState
 
-	domblockstore []ID         // scratch space for computing dominators
-	scrSparseSet  []*sparseSet // scratch sparse sets to be re-used.
-	scrSparseMap  []*sparseMap // scratch sparse maps to be re-used.
-	scrPoset      []*poset     // scratch poset to be reused
+	domblockstore   []ID            // scratch space for computing dominators
+	scrSparseSet    []*sparseSet    // scratch sparse sets to be re-used.
+	scrSparseMap    []*sparseMap    // scratch sparse maps to be re-used.
+	scrSparseMapPos []*sparseMapPos // scratch sparse maps to be re-used.
+	scrPoset        []*poset        // scratch poset to be reused
 	// deadcode contains reusable slices specifically for the deadcode pass.
 	// It gets special treatment because of the frequency with which it is run.
 	deadcode struct {
