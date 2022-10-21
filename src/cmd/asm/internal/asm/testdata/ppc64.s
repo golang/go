@@ -28,6 +28,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVW $-32767, R5                // 38a08001
 	MOVW $-32768, R6                // 38c08000
 	MOVW $1234567, R5               // 6405001260a5d687
+	// Hex constant 0x80000001
+	MOVW $2147483649, R5            // 6405800060a50001
+	MOVD $2147483649, R5            // 6405800060a50001
+	// Hex constant 0xFFFFFFFF80000001
+	MOVD $-2147483647, R5    	// 3ca0800060a50001
 	MOVD 8(R3), R4                  // e8830008
 	MOVD (R3)(R4), R5               // 7ca4182a
 	MOVD (R3)(R0), R5               // 7ca0182a

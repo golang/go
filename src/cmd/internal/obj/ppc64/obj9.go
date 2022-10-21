@@ -78,9 +78,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			}
 		}
 
-		// Put >32-bit constants in memory and load them
 	case AMOVD:
-		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
+		// 32b constants (signed and unsigned) can be generated via 1 or 2 instructions.
+		// All others must be placed in memory and loaded.
+		isS32 := int64(int32(p.From.Offset)) == p.From.Offset
+		isU32 := uint64(uint32(p.From.Offset)) == uint64(p.From.Offset)
+		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && !isS32 && !isU32 {
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
 			p.From.Name = obj.NAME_EXTERN
