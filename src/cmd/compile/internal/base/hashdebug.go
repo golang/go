@@ -38,6 +38,7 @@ type HashDebug struct {
 
 // The default compiler-debugging HashDebug, for "-d=gossahash=..."
 var hashDebug *HashDebug
+var FmaHash *HashDebug
 
 // DebugHashMatch reports whether debug variable Gossahash
 //

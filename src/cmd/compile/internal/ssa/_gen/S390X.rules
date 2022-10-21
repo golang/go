@@ -1254,8 +1254,8 @@
 (C(G|LG)IJ {s390x.Greater}       (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0]) => (BRC {s390x.Borrow}   borrow)
 
 // fused multiply-add
-(Select0 (F(ADD|SUB) (FMUL y z) x)) => (FM(ADD|SUB) x y z)
-(Select0 (F(ADDS|SUBS) (FMULS y z) x)) => (FM(ADDS|SUBS) x y z)
+(Select0 (F(ADD|SUB) (FMUL y z) x)) && x.Block.Func.useFMA(v) => (FM(ADD|SUB) x y z)
+(Select0 (F(ADDS|SUBS) (FMULS y z) x)) && x.Block.Func.useFMA(v) => (FM(ADDS|SUBS) x y z)
 
 // Convert floating point comparisons against zero into 'load and test' instructions.
 (F(CMP|CMPS) x (FMOV(D|S)const [0.0])) => (LT(D|E)BR x)
