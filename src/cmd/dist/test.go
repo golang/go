@@ -1170,16 +1170,14 @@ func (t *tester) runHostTest(dir, pkg string) error {
 }
 
 func (t *tester) cgoTest(dt *distTest) error {
-	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), ".")
-	setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=auto")
+	t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags=-linkmode=auto", ".")
 
 	// Stub out various buildmode=pie tests  on alpine until 54354 resolved.
 	builderName := os.Getenv("GO_BUILDER_NAME")
 	disablePIE := strings.HasSuffix(builderName, "-alpine")
 
 	if t.internalLink() {
-		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal", ".")
-		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=internal")
+		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags=-linkmode=internal", "-tags=internal", ".")
 	}
 
 	pair := gohostos + "-" + goarch
@@ -1190,8 +1188,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 		if !t.extLink() {
 			break
 		}
-		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), ".")
-		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=external")
+		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags=-linkmode=external", ".")
 
 		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s", ".")
 
@@ -1211,8 +1208,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 		"netbsd-386", "netbsd-amd64",
 		"openbsd-386", "openbsd-amd64", "openbsd-arm", "openbsd-arm64", "openbsd-mips64":
 
-		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), ".")
-		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=external")
+		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags=-linkmode=external", ".")
 		// cgo should be able to cope with both -g arguments and colored
 		// diagnostics.
 		setEnv(cmd, "CGO_CFLAGS", "-g0 -fdiagnostics-color")
