@@ -195,29 +195,49 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 
 	vs := snapshot.View().Vulnerabilities(fh.URI())
 	// TODO(suzmue): should we just store the vulnerabilities like this?
-	vulns := make(map[string][]govulncheck.Vuln)
+	affecting := make(map[string][]govulncheck.Vuln)
+	nonaffecting := make(map[string][]govulncheck.Vuln)
 	for _, v := range vs {
-		vulns[v.ModPath] = append(vulns[v.ModPath], v)
+		if len(v.Trace) > 0 {
+			affecting[v.ModPath] = append(affecting[v.ModPath], v)
+		} else {
+			nonaffecting[v.ModPath] = append(nonaffecting[v.ModPath], v)
+		}
 	}
 
 	for _, req := range pm.File.Require {
-		vulnList, ok := vulns[req.Mod.Path]
-		if !ok {
+		affectingVulns, ok := affecting[req.Mod.Path]
+		nonaffectingVulns, ok2 := nonaffecting[req.Mod.Path]
+		if !ok && !ok2 {
 			continue
 		}
 		rng, err := pm.Mapper.OffsetRange(req.Syntax.Start.Byte, req.Syntax.End.Byte)
 		if err != nil {
 			return nil, err
 		}
-		for _, v := range vulnList {
+		// Map affecting vulns to 'warning' level diagnostics,
+		// others to 'info' level diagnostics.
+		// Fixes will include only the upgrades for warning level diagnostics.
+		var fixes []source.SuggestedFix
+		var warning, info []string
+		for _, v := range nonaffectingVulns {
 			// Only show the diagnostic if the vulnerability was calculated
 			// for the module at the current version.
 			if semver.IsValid(v.FoundIn) && semver.Compare(req.Mod.Version, v.FoundIn) != 0 {
 				continue
 			}
+			info = append(info, v.OSV.ID)
+		}
+		for _, v := range affectingVulns {
+			// Only show the diagnostic if the vulnerability was calculated
+			// for the module at the current version.
+			if semver.IsValid(v.FoundIn) && semver.Compare(req.Mod.Version, v.FoundIn) != 0 {
+				continue
+			}
+			warning = append(warning, v.OSV.ID)
 			// Upgrade to the exact version we offer the user, not the most recent.
 			// TODO(hakim): Produce fixes only for affecting vulnerabilities (if len(v.Trace) > 0)
-			var fixes []source.SuggestedFix
+
 			if fixedVersion := v.FixedIn; semver.IsValid(fixedVersion) && semver.Compare(req.Mod.Version, fixedVersion) < 0 {
 				cmd, err := getUpgradeCodeAction(fh, req, fixedVersion)
 				if err != nil {
@@ -235,24 +255,41 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 					source.SuggestedFixFromCommand(latest, protocol.QuickFix),
 				}
 			}
-
-			severity := protocol.SeverityInformation
-			if len(v.Trace) > 0 {
-				severity = protocol.SeverityWarning
-			}
-
-			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
-				URI:            fh.URI(),
-				Range:          rng,
-				Severity:       severity,
-				Source:         source.Vulncheck,
-				Code:           v.OSV.ID,
-				CodeHref:       href(v.OSV),
-				Message:        formatMessage(v),
-				SuggestedFixes: fixes,
-			})
 		}
 
+		if len(warning) == 0 && len(info) == 0 {
+			return nil, nil
+		}
+		severity := protocol.SeverityInformation
+		if len(warning) > 0 {
+			severity = protocol.SeverityWarning
+		}
+
+		sort.Strings(warning)
+		sort.Strings(info)
+
+		var b strings.Builder
+		if len(warning) == 1 {
+			fmt.Fprintf(&b, "%v has a vulnerability used in the code: %v.", req.Mod.Path, warning[0])
+		} else {
+			fmt.Fprintf(&b, "%v has vulnerabilities used in the code: %v.", req.Mod.Path, strings.Join(warning, ", "))
+		}
+		if len(warning) == 0 {
+			if len(info) == 1 {
+				fmt.Fprintf(&b, "%v has a vulnerability %v that is not used in the code.", req.Mod.Path, info[0])
+			} else {
+				fmt.Fprintf(&b, "%v has known vulnerabilities %v that are not used in the code.", req.Mod.Path, strings.Join(info, ", "))
+			}
+		}
+
+		vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
+			URI:            fh.URI(),
+			Range:          rng,
+			Severity:       severity,
+			Source:         source.Vulncheck,
+			Message:        b.String(),
+			SuggestedFixes: fixes,
+		})
 	}
 
 	return vulnDiagnostics, nil

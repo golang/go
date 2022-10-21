@@ -9,6 +9,7 @@ package misc
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/command"
@@ -341,40 +342,36 @@ func TestRunVulncheckExp(t *testing.T) {
 			// codeActions is a list titles of code actions that we get with context
 			// diagnostics.
 			codeActions []string
+			// hover message is the list of expected hover message parts for this go.mod require line.
+			// all parts must appear in the hover message.
+			hover []string
 		}{
 			"golang.org/amod": {
 				applyAction: "Upgrade to v1.0.4",
 				diagnostics: []diagnostic{
 					{
-						msg:      "golang.org/amod has a known vulnerability: vuln in amod",
+						msg:      "golang.org/amod has a vulnerability used in the code: GO-2022-01.",
 						severity: protocol.SeverityWarning,
 						codeActions: []string{
 							"Upgrade to latest",
 							"Upgrade to v1.0.4",
 						},
 					},
-					{
-						msg:      "golang.org/amod has a known vulnerability: unaffecting vulnerability",
-						severity: protocol.SeverityInformation,
-						codeActions: []string{
-							"Upgrade to latest",
-							"Upgrade to v1.0.6",
-						},
-					},
 				},
 				codeActions: []string{
 					"Upgrade to latest",
-					"Upgrade to v1.0.6",
 					"Upgrade to v1.0.4",
 				},
+				hover: []string{"GO-2022-01", "Fixed in v1.0.4.", "GO-2022-03"},
 			},
 			"golang.org/bmod": {
 				diagnostics: []diagnostic{
 					{
-						msg:      "golang.org/bmod has a known vulnerability: vuln in bmod\n\nThis is a long description of this vulnerability.",
+						msg:      "golang.org/bmod has a vulnerability used in the code: GO-2022-02.",
 						severity: protocol.SeverityWarning,
 					},
 				},
+				hover: []string{"GO-2022-02", "This is a long description of this vulnerability.", "No fix is available."},
 			},
 		}
 
@@ -404,6 +401,17 @@ func TestRunVulncheckExp(t *testing.T) {
 				if !sameCodeActions(gotActions, w.codeActions) {
 					t.Errorf("code actions for %q do not match, expected %v, got %v\n", w.msg, w.codeActions, gotActions)
 					continue
+				}
+
+				// Check that useful info is supplemented as hover.
+				if len(want.hover) > 0 {
+					hover, _ := env.Hover("go.mod", pos)
+					for _, part := range want.hover {
+						if !strings.Contains(hover.Value, part) {
+							t.Errorf("hover contents for %q do not match, expected %v, got %v\n", w.msg, strings.Join(want.hover, ","), hover.Value)
+							break
+						}
+					}
 				}
 			}
 
