@@ -533,7 +533,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 			}
 			dep, ok := deps[id] // id may be ""
 			if !ok {
-				return nil, snapshot.missingPkgError(ctx, path)
+				return nil, snapshot.missingPkgError(path)
 			}
 			if !source.IsValidImport(string(m.PkgPath), string(dep.m.PkgPath)) {
 				return nil, fmt.Errorf("invalid use of internal package %s", path)
@@ -757,21 +757,19 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 
 // missingPkgError returns an error message for a missing package that varies
 // based on the user's workspace mode.
-func (s *snapshot) missingPkgError(ctx context.Context, pkgPath string) error {
+func (s *snapshot) missingPkgError(pkgPath string) error {
 	var b strings.Builder
 	if s.workspaceMode()&moduleMode == 0 {
 		gorootSrcPkg := filepath.FromSlash(filepath.Join(s.view.goroot, "src", pkgPath))
-
-		b.WriteString(fmt.Sprintf("cannot find package %q in any of \n\t%s (from $GOROOT)", pkgPath, gorootSrcPkg))
-
+		fmt.Fprintf(&b, "cannot find package %q in any of \n\t%s (from $GOROOT)", pkgPath, gorootSrcPkg)
 		for _, gopath := range filepath.SplitList(s.view.gopath) {
 			gopathSrcPkg := filepath.FromSlash(filepath.Join(gopath, "src", pkgPath))
-			b.WriteString(fmt.Sprintf("\n\t%s (from $GOPATH)", gopathSrcPkg))
+			fmt.Fprintf(&b, "\n\t%s (from $GOPATH)", gopathSrcPkg)
 		}
 	} else {
-		b.WriteString(fmt.Sprintf("no required module provides package %q", pkgPath))
-		if err := s.getInitializationError(ctx); err != nil {
-			b.WriteString(fmt.Sprintf("(workspace configuration error: %s)", err.MainError))
+		fmt.Fprintf(&b, "no required module provides package %q", pkgPath)
+		if err := s.getInitializationError(); err != nil {
+			fmt.Fprintf(&b, "\n(workspace configuration error: %s)", err.MainError)
 		}
 	}
 	return errors.New(b.String())

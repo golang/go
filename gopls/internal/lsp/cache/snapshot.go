@@ -1528,7 +1528,7 @@ func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) *source.CriticalErr
 	return nil
 }
 
-func (s *snapshot) getInitializationError(ctx context.Context) *source.CriticalError {
+func (s *snapshot) getInitializationError() *source.CriticalError {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
