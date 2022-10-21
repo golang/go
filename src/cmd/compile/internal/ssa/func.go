@@ -151,6 +151,30 @@ func (f *Func) retSparseMap(ss *sparseMap) {
 	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
 }
 
+// newSparseMapPos returns a sparse map that can store at least up to n integers.
+func (f *Func) newSparseMapPos(n int) *sparseMapPos {
+	for i, scr := range f.Cache.scrSparseMapPos {
+		if scr != nil && scr.cap() >= n {
+			f.Cache.scrSparseMapPos[i] = nil
+			scr.clear()
+			return scr
+		}
+	}
+	return newSparseMapPos(n)
+}
+
+// retSparseMapPos returns a sparse map to the config's cache of sparse
+// sets to be reused by f.newSparseMapPos.
+func (f *Func) retSparseMapPos(ss *sparseMapPos) {
+	for i, scr := range f.Cache.scrSparseMapPos {
+		if scr == nil {
+			f.Cache.scrSparseMapPos[i] = ss
+			return
+		}
+	}
+	f.Cache.scrSparseMapPos = append(f.Cache.scrSparseMapPos, ss)
+}
+
 // newPoset returns a new poset from the internal cache
 func (f *Func) newPoset() *poset {
 	if len(f.Cache.scrPoset) > 0 {

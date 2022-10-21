@@ -308,7 +308,7 @@ func nilcheckelim2(f *Func) {
 				}
 				// This instruction is guaranteed to fault if ptr is nil.
 				// Any previous nil check op is unnecessary.
-				unnecessary.set(ptr.ID, int32(i), src.NoXPos)
+				unnecessary.set(ptr.ID, int32(i))
 			}
 		}
 		// Remove values we've clobbered with OpUnknown.
