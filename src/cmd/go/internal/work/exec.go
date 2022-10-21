@@ -479,7 +479,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
 	if !p.BinaryOnly {
-		if b.useCache(a, b.buildActionID(a), p.Target) {
+		if b.useCache(a, b.buildActionID(a), p.Target, need&needBuild != 0) {
 			// We found the main output in the cache.
 			// If we don't need any other outputs, we can stop.
 			// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
@@ -1384,7 +1384,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 // link is the action for linking a single command.
 // Note that any new influence on this logic must be reported in b.linkActionID above as well.
 func (b *Builder) link(ctx context.Context, a *Action) (err error) {
-	if b.useCache(a, b.linkActionID(a), a.Package.Target) || b.IsCmdList {
+	if b.useCache(a, b.linkActionID(a), a.Package.Target, !b.IsCmdList) || b.IsCmdList {
 		return nil
 	}
 	defer b.flushOutput(a)
@@ -1626,7 +1626,7 @@ func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
 }
 
 func (b *Builder) linkShared(ctx context.Context, a *Action) (err error) {
-	if b.useCache(a, b.linkSharedActionID(a), a.Target) || b.IsCmdList {
+	if b.useCache(a, b.linkSharedActionID(a), a.Target, !b.IsCmdList) || b.IsCmdList {
 		return nil
 	}
 	defer b.flushOutput(a)

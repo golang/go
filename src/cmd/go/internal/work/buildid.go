@@ -397,7 +397,7 @@ func (b *Builder) fileHash(file string) string {
 // during a's work. The caller should defer b.flushOutput(a), to make sure
 // that flushOutput is eventually called regardless of whether the action
 // succeeds. The flushOutput call must happen after updateBuildID.
-func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) bool {
+func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, printOutput bool) bool {
 	// The second half of the build ID here is a placeholder for the content hash.
 	// It's important that the overall buildID be unlikely verging on impossible
 	// to appear in the output by chance, but that should be taken care of by
@@ -462,9 +462,11 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) 
 					// Best effort attempt to display output from the compile and link steps.
 					// If it doesn't work, it doesn't work: reusing the cached binary is more
 					// important than reprinting diagnostic information.
-					if c := cache.Default(); c != nil {
-						showStdout(b, c, a.actionID, "stdout")      // compile output
-						showStdout(b, c, a.actionID, "link-stdout") // link output
+					if printOutput {
+						if c := cache.Default(); c != nil {
+							showStdout(b, c, a.actionID, "stdout")      // compile output
+							showStdout(b, c, a.actionID, "link-stdout") // link output
+						}
 					}
 
 					// Poison a.Target to catch uses later in the build.
@@ -490,9 +492,11 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) 
 		// Best effort attempt to display output from the compile and link steps.
 		// If it doesn't work, it doesn't work: reusing the test result is more
 		// important than reprinting diagnostic information.
-		if c := cache.Default(); c != nil {
-			showStdout(b, c, a.Deps[0].actionID, "stdout")      // compile output
-			showStdout(b, c, a.Deps[0].actionID, "link-stdout") // link output
+		if printOutput {
+			if c := cache.Default(); c != nil {
+				showStdout(b, c, a.Deps[0].actionID, "stdout")      // compile output
+				showStdout(b, c, a.Deps[0].actionID, "link-stdout") // link output
+			}
 		}
 
 		// Poison a.Target to catch uses later in the build.
@@ -536,19 +540,20 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) 
 		if !cfg.BuildA {
 			if file, _, err := c.GetFile(actionHash); err == nil {
 				if buildID, err := buildid.ReadFile(file); err == nil {
-					if err := showStdout(b, c, a.actionID, "stdout"); err == nil {
-						a.built = file
-						a.Target = "DO NOT USE - using cache"
-						a.buildID = buildID
-						if a.json != nil {
-							a.json.BuildID = a.buildID
-						}
-						if p := a.Package; p != nil {
-							// Clearer than explaining that something else is stale.
-							p.StaleReason = "not installed but available in build cache"
-						}
-						return true
+					if printOutput {
+						showStdout(b, c, a.actionID, "stdout")
 					}
+					a.built = file
+					a.Target = "DO NOT USE - using cache"
+					a.buildID = buildID
+					if a.json != nil {
+						a.json.BuildID = a.buildID
+					}
+					if p := a.Package; p != nil {
+						// Clearer than explaining that something else is stale.
+						p.StaleReason = "not installed but available in build cache"
+					}
+					return true
 				}
 			}
 		}
