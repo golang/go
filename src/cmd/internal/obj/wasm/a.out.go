@@ -231,6 +231,17 @@ const (
 	AI64TruncSatF64S
 	AI64TruncSatF64U
 
+	AMemoryInit
+	ADataDrop
+	AMemoryCopy
+	AMemoryFill
+	ATableInit
+	AElemDrop
+	ATableCopy
+	ATableGrow
+	ATableSize
+	ATableFill
+
 	ALast // Sentinel: End of low-level WebAssembly instructions.
 
 	ARESUMEPOINT

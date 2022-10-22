@@ -206,8 +206,6 @@ func InitConfig() {
 	}
 
 	// Wasm (all asm funcs with special ABIs)
-	ir.Syms.WasmMove = typecheck.LookupRuntimeVar("wasmMove")
-	ir.Syms.WasmZero = typecheck.LookupRuntimeVar("wasmZero")
 	ir.Syms.WasmDiv = typecheck.LookupRuntimeVar("wasmDiv")
 	ir.Syms.WasmTruncS = typecheck.LookupRuntimeVar("wasmTruncS")
 	ir.Syms.WasmTruncU = typecheck.LookupRuntimeVar("wasmTruncU")
