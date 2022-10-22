@@ -44,6 +44,7 @@ const (
 	ErrTrailingBackslash     ErrorCode = "trailing backslash at end of expression"
 	ErrUnexpectedParen       ErrorCode = "unexpected )"
 	ErrNestingDepth          ErrorCode = "expression nests too deeply"
+	ErrLarge                 ErrorCode = "expression too large"
 )
 
 func (e ErrorCode) String() string {
@@ -159,7 +160,7 @@ func (p *parser) reuse(re *Regexp) {
 
 func (p *parser) checkLimits(re *Regexp) {
 	if p.numRunes > maxRunes {
-		panic(ErrInternalError)
+		panic(ErrLarge)
 	}
 	p.checkSize(re)
 	p.checkHeight(re)
@@ -203,7 +204,7 @@ func (p *parser) checkSize(re *Regexp) {
 	}
 
 	if p.calcSize(re, true) > maxSize {
-		panic(ErrInternalError)
+		panic(ErrLarge)
 	}
 }
 
@@ -897,8 +898,8 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			panic(r)
 		case nil:
 			// ok
-		case ErrInternalError: // too big
-			err = &Error{Code: ErrInternalError, Expr: s}
+		case ErrLarge: // too big
+			err = &Error{Code: ErrLarge, Expr: s}
 		case ErrNestingDepth:
 			err = &Error{Code: ErrNestingDepth, Expr: s}
 		}
