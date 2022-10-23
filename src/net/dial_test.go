@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -935,6 +936,36 @@ func TestDialerControl(t *testing.T) {
 				continue
 			}
 			c2.Close()
+		}
+	})
+}
+
+func TestDialerControlContext(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
+	}
+	t.Run("StreamDial", func(t *testing.T) {
+		for i, network := range []string{"tcp", "tcp4", "tcp6", "unix", "unixpacket"} {
+			if !testableNetwork(network) {
+				continue
+			}
+			ln := newLocalListener(t, network)
+			defer ln.Close()
+			var id int
+			d := Dialer{ControlContext: func(ctx context.Context, network string, address string, c syscall.RawConn) error {
+				id = ctx.Value("id").(int)
+				return controlOnConnSetup(network, address, c)
+			}}
+			c, err := d.DialContext(context.WithValue(context.Background(), "id", i+1), network, ln.Addr().String())
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			if id != i+1 {
+				t.Errorf("got id %d, want %d", id, i+1)
+			}
+			c.Close()
 		}
 	})
 }

@@ -122,7 +122,13 @@ func (sd *sysDialer) dialIP(ctx context.Context, laddr, raddr *IPAddr) (*IPConn,
 	default:
 		return nil, UnknownNetworkError(sd.network)
 	}
-	fd, err := internetSocket(ctx, network, laddr, raddr, syscall.SOCK_RAW, proto, "dial", sd.Dialer.Control)
+	ctrlCtxFn := sd.Dialer.ControlContext
+	if ctrlCtxFn == nil && sd.Dialer.Control != nil {
+		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+			return sd.Dialer.Control(network, address, c)
+		}
+	}
+	fd, err := internetSocket(ctx, network, laddr, raddr, syscall.SOCK_RAW, proto, "dial", ctrlCtxFn)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +145,13 @@ func (sl *sysListener) listenIP(ctx context.Context, laddr *IPAddr) (*IPConn, er
 	default:
 		return nil, UnknownNetworkError(sl.network)
 	}
-	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_RAW, proto, "listen", sl.ListenConfig.Control)
+	var ctrlCtxFn func(cxt context.Context, network, address string, c syscall.RawConn) error
+	if sl.ListenConfig.Control != nil {
+		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+			return sl.ListenConfig.Control(network, address, c)
+		}
+	}
+	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_RAW, proto, "listen", ctrlCtxFn)
 	if err != nil {
 		return nil, err
 	}

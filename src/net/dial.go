@@ -95,7 +95,19 @@ type Dialer struct {
 	// Network and address parameters passed to Control method are not
 	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
 	// will cause the Control function to be called with "tcp4" or "tcp6".
+	//
+	// Control is ignored if ControlContext is not nil.
 	Control func(network, address string, c syscall.RawConn) error
+
+	// If ControlContext is not nil, it is called after creating the network
+	// connection but before actually dialing.
+	//
+	// Network and address parameters passed to Control method are not
+	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
+	// will cause the Control function to be called with "tcp4" or "tcp6".
+	//
+	// If ControlContext is not nil, Control is ignored.
+	ControlContext func(cxt context.Context, network, address string, c syscall.RawConn) error
 }
 
 func (d *Dialer) dualStack() bool { return d.FallbackDelay >= 0 }
