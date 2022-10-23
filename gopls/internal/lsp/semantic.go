@@ -526,9 +526,14 @@ func (e *encoded) ident(x *ast.Ident) {
 			tok(x.Pos(), len(x.Name), tokFunction, nil)
 		} else if _, ok := y.Type().(*typeparams.TypeParam); ok {
 			tok(x.Pos(), len(x.Name), tokTypeParam, nil)
+		} else if e.isParam(use.Pos()) {
+			// variable, unless use.pos is the pos of a Field in an ancestor FuncDecl
+			// or FuncLit and then it's a parameter
+			tok(x.Pos(), len(x.Name), tokParameter, nil)
 		} else {
 			tok(x.Pos(), len(x.Name), tokVariable, nil)
 		}
+
 	default:
 		// can't happen
 		if use == nil {
@@ -541,6 +546,30 @@ func (e *encoded) ident(x *ast.Ident) {
 			e.unexpected(fmt.Sprintf("%s %T", x.String(), use))
 		}
 	}
+}
+
+func (e *encoded) isParam(pos token.Pos) bool {
+	for i := len(e.stack) - 1; i >= 0; i-- {
+		switch n := e.stack[i].(type) {
+		case *ast.FuncDecl:
+			for _, f := range n.Type.Params.List {
+				for _, id := range f.Names {
+					if id.Pos() == pos {
+						return true
+					}
+				}
+			}
+		case *ast.FuncLit:
+			for _, f := range n.Type.Params.List {
+				for _, id := range f.Names {
+					if id.Pos() == pos {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 func isSignature(use types.Object) bool {
@@ -640,7 +669,7 @@ func (e *encoded) unkIdent(x *ast.Ident) (tokenType, []string) {
 				if nd.Tok != token.DEFINE {
 					def = nil
 				}
-				return tokVariable, def
+				return tokVariable, def // '_' in _ = ...
 			}
 		}
 		// RHS, = x

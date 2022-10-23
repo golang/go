@@ -65,7 +65,7 @@
 	/*⇒2,variable,[definition]*/ff /*⇒2,operator,[]*/:= /*⇒4,keyword,[]*/func() {}
 	/*⇒5,keyword,[]*/defer /*⇒2,variable,[]*/ff()
 	/*⇒2,keyword,[]*/go /*⇒3,namespace,[]*/utf./*⇒9,function,[]*/RuneCount(/*⇒2,string,[]*/"")
-	/*⇒2,keyword,[]*/go /*⇒4,namespace,[]*/utf8./*⇒9,function,[]*/RuneCount(/*⇒2,variable,[]*/vv.(/*⇒6,type,[]*/string))
+	/*⇒2,keyword,[]*/go /*⇒4,namespace,[]*/utf8./*⇒9,function,[]*/RuneCount(/*⇒2,parameter,[]*/vv.(/*⇒6,type,[]*/string))
 	/*⇒2,keyword,[]*/if /*⇒4,variable,[readonly]*/true {
 	} /*⇒4,keyword,[]*/else {
 	}
@@ -73,9 +73,9 @@
 	/*⇒3,keyword,[]*/for /*⇒1,variable,[definition]*/i /*⇒2,operator,[]*/:= /*⇒1,number,[]*/0; /*⇒1,variable,[]*/i /*⇒1,operator,[]*/< /*⇒2,number,[]*/10; {
 		/*⇒5,keyword,[]*/break Never
 	}
-	_, /*⇒2,variable,[definition]*/ok /*⇒2,operator,[]*/:= /*⇒2,variable,[]*/vv[/*⇒1,number,[]*/0].(/*⇒1,type,[]*/A)
+	_, /*⇒2,variable,[definition]*/ok /*⇒2,operator,[]*/:= /*⇒2,parameter,[]*/vv[/*⇒1,number,[]*/0].(/*⇒1,type,[]*/A)
 	/*⇒2,keyword,[]*/if /*⇒1,operator,[]*/!/*⇒2,variable,[]*/ok {
-		/*⇒6,keyword,[]*/switch /*⇒1,variable,[definition]*/x /*⇒2,operator,[]*/:= /*⇒2,variable,[]*/vv[/*⇒1,number,[]*/0].(/*⇒4,keyword,[]*/type) {
+		/*⇒6,keyword,[]*/switch /*⇒1,variable,[definition]*/x /*⇒2,operator,[]*/:= /*⇒2,parameter,[]*/vv[/*⇒1,number,[]*/0].(/*⇒4,keyword,[]*/type) {
 		}
 		/*⇒4,keyword,[]*/goto Never
 	}
