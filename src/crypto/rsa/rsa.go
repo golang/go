@@ -314,9 +314,9 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 				Dq:        Dq,
 				Qinv:      Qinv,
 				CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
-				n:         modulusFromNat(natFromBig(N)),
-				p:         modulusFromNat(natFromBig(P)),
-				q:         modulusFromNat(natFromBig(Q)),
+				n:         modulusFromNat(newNat().setBig(N)),
+				p:         modulusFromNat(newNat().setBig(P)),
+				q:         modulusFromNat(newNat().setBig(Q)),
 			},
 		}
 		return key, nil
@@ -454,12 +454,12 @@ var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key siz
 func encrypt(pub *PublicKey, plaintext []byte) []byte {
 	boring.Unreachable()
 
-	N := modulusFromNat(natFromBig(pub.N))
-	m := natFromBytes(plaintext).expandFor(N)
+	N := modulusFromNat(newNat().setBig(pub.N))
+	m := newNat().setBytes(plaintext).expandFor(N)
 	e := intToBytes(pub.E)
 
 	out := make([]byte, modulusSize(N))
-	return new(nat).exp(m, e, N).fillBytes(out)
+	return newNat().exp(m, e, N).fillBytes(out)
 }
 
 // intToBytes returns i as a big-endian slice of bytes with no leading zeroes,
@@ -553,9 +553,9 @@ var ErrVerification = errors.New("crypto/rsa: verification error")
 // in the future.
 func (priv *PrivateKey) Precompute() {
 	if priv.Precomputed.n == nil && len(priv.Primes) == 2 {
-		priv.Precomputed.n = modulusFromNat(natFromBig(priv.N))
-		priv.Precomputed.p = modulusFromNat(natFromBig(priv.Primes[0]))
-		priv.Precomputed.q = modulusFromNat(natFromBig(priv.Primes[1]))
+		priv.Precomputed.n = modulusFromNat(newNat().setBig(priv.N))
+		priv.Precomputed.p = modulusFromNat(newNat().setBig(priv.Primes[0]))
+		priv.Precomputed.q = modulusFromNat(newNat().setBig(priv.Primes[1]))
 	}
 
 	// Fill in the backwards-compatibility *big.Int values.
@@ -600,9 +600,9 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 
 	N := priv.Precomputed.n
 	if N == nil {
-		N = modulusFromNat(natFromBig(priv.N))
+		N = modulusFromNat(newNat().setBig(priv.N))
 	}
-	c := natFromBytes(ciphertext).expandFor(N)
+	c := newNat().setBytes(ciphertext).expandFor(N)
 	if c.cmpGeq(N.nat) == 1 {
 		return nil, ErrDecryption
 	}
@@ -612,18 +612,18 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 
 	var m *nat
 	if priv.Precomputed.n == nil {
-		m = new(nat).exp(c, priv.D.Bytes(), N)
+		m = newNat().exp(c, priv.D.Bytes(), N)
 	} else {
-		t0 := new(nat)
+		t0 := newNat()
 		P, Q := priv.Precomputed.p, priv.Precomputed.q
 		// m = c ^ Dp mod p
-		m = new(nat).exp(t0.mod(c, P), priv.Precomputed.Dp.Bytes(), P)
+		m = newNat().exp(t0.mod(c, P), priv.Precomputed.Dp.Bytes(), P)
 		// m2 = c ^ Dq mod q
-		m2 := new(nat).exp(t0.mod(c, Q), priv.Precomputed.Dq.Bytes(), Q)
+		m2 := newNat().exp(t0.mod(c, Q), priv.Precomputed.Dq.Bytes(), Q)
 		// m = m - m2 mod p
 		m.modSub(t0.mod(m2, P), P)
 		// m = m * Qinv mod p
-		m.modMul(natFromBig(priv.Precomputed.Qinv).expandFor(P), P)
+		m.modMul(newNat().setBig(priv.Precomputed.Qinv).expandFor(P), P)
 		// m = m * q mod N
 		m.expandFor(N).modMul(t0.mod(Q.nat, N), N)
 		// m = m + m2 mod N
@@ -631,7 +631,7 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 	}
 
 	if check {
-		c1 := new(nat).exp(m, intToBytes(priv.E), N)
+		c1 := newNat().exp(m, intToBytes(priv.E), N)
 		if c1.cmpEq(c) != 1 {
 			return nil, ErrDecryption
 		}

@@ -30,9 +30,9 @@ func testModAddCommutative(a *nat, b *nat) bool {
 		mLimbs[i] = _MASK
 	}
 	m := modulusFromNat(&nat{mLimbs})
-	aPlusB := a.clone()
+	aPlusB := new(nat).set(a)
 	aPlusB.modAdd(b, m)
-	bPlusA := b.clone()
+	bPlusA := new(nat).set(b)
 	bPlusA.modAdd(a, m)
 	return aPlusB.cmpEq(bPlusA) == 1
 }
@@ -50,7 +50,7 @@ func testModSubThenAddIdentity(a *nat, b *nat) bool {
 		mLimbs[i] = _MASK
 	}
 	m := modulusFromNat(&nat{mLimbs})
-	original := a.clone()
+	original := new(nat).set(a)
 	a.modSub(b, m)
 	a.modAdd(b, m)
 	return a.cmpEq(original) == 1
@@ -66,12 +66,12 @@ func TestModSubThenAddIdentity(t *testing.T) {
 func testMontgomeryRoundtrip(a *nat) bool {
 	one := &nat{make([]uint, len(a.limbs))}
 	one.limbs[0] = 1
-	aPlusOne := a.clone()
+	aPlusOne := new(nat).set(a)
 	aPlusOne.add(1, one)
 	m := modulusFromNat(aPlusOne)
-	monty := a.clone()
+	monty := new(nat).set(a)
 	monty.montgomeryRepresentation(m)
-	aAgain := monty.clone()
+	aAgain := new(nat).set(monty)
 	aAgain.montgomeryMul(monty, one, m)
 	return a.cmpEq(aAgain) == 1
 }
@@ -86,7 +86,7 @@ func TestMontgomeryRoundtrip(t *testing.T) {
 func TestFromBig(t *testing.T) {
 	expected := []byte{0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 	theBig := new(big.Int).SetBytes(expected)
-	actual := natFromBig(theBig).fillBytes(make([]byte, len(expected)))
+	actual := new(nat).setBig(theBig).fillBytes(make([]byte, len(expected)))
 	if !bytes.Equal(actual, expected) {
 		t.Errorf("%+x != %+x", actual, expected)
 	}
@@ -94,7 +94,7 @@ func TestFromBig(t *testing.T) {
 
 func TestFillBytes(t *testing.T) {
 	xBytes := []byte{0xAA, 0xFF, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88}
-	x := natFromBytes(xBytes)
+	x := new(nat).setBytes(xBytes)
 	for l := 20; l >= len(xBytes); l-- {
 		buf := make([]byte, l)
 		rand.Read(buf)
@@ -122,7 +122,7 @@ func TestFromBytes(t *testing.T) {
 		if len(xBytes) == 0 {
 			return true
 		}
-		actual := natFromBytes(xBytes).fillBytes(make([]byte, len(xBytes)))
+		actual := new(nat).setBytes(xBytes).fillBytes(make([]byte, len(xBytes)))
 		if !bytes.Equal(actual, xBytes) {
 			t.Errorf("%+x != %+x", actual, xBytes)
 			return false
@@ -169,9 +169,9 @@ func TestShiftIn(t *testing.T) {
 	}}
 
 	for i, tt := range examples {
-		m := modulusFromNat(natFromBytes(tt.m))
-		got := natFromBytes(tt.x).expandFor(m).shiftIn(uint(tt.y), m)
-		if got.cmpEq(natFromBytes(tt.expected).expandFor(m)) != 1 {
+		m := modulusFromNat(new(nat).setBytes(tt.m))
+		got := new(nat).setBytes(tt.x).expandFor(m).shiftIn(uint(tt.y), m)
+		if got.cmpEq(new(nat).setBytes(tt.expected).expandFor(m)) != 1 {
 			t.Errorf("%d: got %x, expected %x", i, got, tt.expected)
 		}
 	}
@@ -182,10 +182,10 @@ func TestModulusAndNatSizes(t *testing.T) {
 	// 128 bits worth of bytes. If leading zeroes are stripped, they fit in two
 	// limbs, if they are not, they fit in three. This can be a problem because
 	// modulus strips leading zeroes and nat does not.
-	m := modulusFromNat(natFromBytes([]byte{
+	m := modulusFromNat(new(nat).setBytes([]byte{
 		0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}))
-	x := natFromBytes([]byte{
+	x := new(nat).setBytes([]byte{
 		0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe})
 	x.expandFor(m) // must not panic for shrinking
@@ -224,11 +224,11 @@ func TestExpand(t *testing.T) {
 }
 
 func TestMod(t *testing.T) {
-	m := modulusFromNat(natFromBytes([]byte{0x06, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d}))
-	x := natFromBytes([]byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01})
+	m := modulusFromNat(new(nat).setBytes([]byte{0x06, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d}))
+	x := new(nat).setBytes([]byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01})
 	out := new(nat)
 	out.mod(x, m)
-	expected := natFromBytes([]byte{0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09})
+	expected := new(nat).setBytes([]byte{0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09})
 	if out.cmpEq(expected) != 1 {
 		t.Errorf("%+v != %+v", out, expected)
 	}

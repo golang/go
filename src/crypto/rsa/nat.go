@@ -69,6 +69,20 @@ type nat struct {
 	limbs []uint
 }
 
+// preallocTarget is the size in bits of the numbers used to implement the most
+// common and most performant RSA key size. It's also enough to cover some of
+// the operations of key sizes up to 4096.
+const preallocTarget = 2048
+const preallocLimbs = (preallocTarget + _W) / _W
+
+// newNat returns a new nat with a size of zero, just like new(nat), but with
+// the preallocated capacity to hold a number of up to preallocTarget bits.
+// newNat inlines, so the allocation can live on the stack.
+func newNat() *nat {
+	limbs := make([]uint, 0, preallocLimbs)
+	return &nat{limbs}
+}
+
 // expand expands x to n limbs, leaving its value unchanged.
 func (x *nat) expand(n int) *nat {
 	for len(x.limbs) > n {
@@ -104,40 +118,40 @@ func (x *nat) reset(n int) *nat {
 	return x
 }
 
-// clone returns a new nat, with the same value and announced length as x.
-func (x *nat) clone() *nat {
-	out := &nat{make([]uint, len(x.limbs))}
-	copy(out.limbs, x.limbs)
-	return out
+// set assigns x = y, optionally resizing x to the appropriate size.
+func (x *nat) set(y *nat) *nat {
+	x.reset(len(y.limbs))
+	copy(x.limbs, y.limbs)
+	return x
 }
 
-// natFromBig creates a new natural number from a big.Int.
+// set assigns x = n, optionally resizing n to the appropriate size.
 //
-// The announced length of the resulting nat is based on the actual bit size of
-// the input, ignoring leading zeroes.
-func natFromBig(x *big.Int) *nat {
-	xLimbs := x.Bits()
-	bitSize := bigBitLen(x)
+// The announced length of x is set based on the actual bit size of the input,
+// ignoring leading zeroes.
+func (x *nat) setBig(n *big.Int) *nat {
+	bitSize := bigBitLen(n)
 	requiredLimbs := (bitSize + _W - 1) / _W
+	x.reset(requiredLimbs)
 
-	out := &nat{make([]uint, requiredLimbs)}
 	outI := 0
 	shift := 0
-	for i := range xLimbs {
-		xi := uint(xLimbs[i])
-		out.limbs[outI] |= (xi << shift) & _MASK
+	limbs := n.Bits()
+	for i := range limbs {
+		xi := uint(limbs[i])
+		x.limbs[outI] |= (xi << shift) & _MASK
 		outI++
 		if outI == requiredLimbs {
-			return out
+			return x
 		}
-		out.limbs[outI] = xi >> (_W - shift)
+		x.limbs[outI] = xi >> (_W - shift)
 		shift++ // this assumes bits.UintSize - _W = 1
 		if shift == _W {
 			shift = 0
 			outI++
 		}
 	}
-	return out
+	return x
 }
 
 // fillBytes sets bytes to x as a zero-extended big-endian byte slice.
@@ -175,31 +189,32 @@ func (x *nat) fillBytes(bytes []byte) []byte {
 	return bytes
 }
 
-// natFromBytes converts a slice of big-endian bytes into a nat.
+// setBytes assigns x = b, where b is a slice of big-endian bytes, optionally
+// resizing n to the appropriate size.
 //
-// The announced length of the output depends on the length of bytes. Unlike
+// The announced length of the output depends only on the length of b. Unlike
 // big.Int, creating a nat will not remove leading zeros.
-func natFromBytes(bytes []byte) *nat {
-	bitSize := len(bytes) * 8
+func (x *nat) setBytes(b []byte) *nat {
+	bitSize := len(b) * 8
 	requiredLimbs := (bitSize + _W - 1) / _W
+	x.reset(requiredLimbs)
 
-	out := &nat{make([]uint, requiredLimbs)}
 	outI := 0
 	shift := 0
-	for i := len(bytes) - 1; i >= 0; i-- {
-		bi := bytes[i]
-		out.limbs[outI] |= uint(bi) << shift
+	for i := len(b) - 1; i >= 0; i-- {
+		bi := b[i]
+		x.limbs[outI] |= uint(bi) << shift
 		shift += 8
 		if shift >= _W {
 			shift -= _W
-			out.limbs[outI] &= _MASK
+			x.limbs[outI] &= _MASK
 			outI++
 			if shift > 0 {
-				out.limbs[outI] = uint(bi) >> (8 - shift)
+				x.limbs[outI] = uint(bi) >> (8 - shift)
 			}
 		}
 	}
-	return out
+	return x
 }
 
 // cmpEq returns 1 if x == y, and 0 otherwise.
@@ -306,7 +321,7 @@ type modulus struct {
 
 // rr returns R*R with R = 2^(_W * n) and n = len(m.nat.limbs).
 func rr(m *modulus) *nat {
-	rr := new(nat).expandFor(m)
+	rr := newNat().expandFor(m)
 	// R*R is 2^(2 * _W * n). We can safely get 2^(_W * (n - 1)) by setting the
 	// most significant limb to 1. We then get to R*R by shifting left by _W
 	// n + 1 times.
@@ -387,7 +402,7 @@ func modulusSize(m *modulus) int {
 //
 // This assumes that x is already reduced mod m, and that y < 2^_W.
 func (x *nat) shiftIn(y uint, m *modulus) *nat {
-	d := new(nat).resetFor(m)
+	d := newNat().resetFor(m)
 
 	// Eliminate bounds checks in the loop.
 	size := len(m.nat.limbs)
@@ -528,7 +543,7 @@ func (x *nat) modAdd(y *nat, m *modulus) *nat {
 func (x *nat) montgomeryRepresentation(m *modulus) *nat {
 	// A Montgomery multiplication (which computes a * b / R) by R * R works out
 	// to a multiplication by R, which takes the value out of the Montgomery domain.
-	return x.montgomeryMul(x.clone(), m.RR, m)
+	return x.montgomeryMul(newNat().set(x), m.RR, m)
 }
 
 // montgomeryReduction calculates x = x / R mod m, with R = 2^(_W * n) and
@@ -539,8 +554,8 @@ func (x *nat) montgomeryReduction(m *modulus) *nat {
 	// By Montgomery multiplying with 1 not in Montgomery representation, we
 	// convert out back from Montgomery representation, because it works out to
 	// dividing by R.
-	t0 := x.clone()
-	t1 := new(nat).expandFor(m)
+	t0 := newNat().set(x)
+	t1 := newNat().expandFor(m)
 	t1.limbs[0] = 1
 	return x.montgomeryMul(t0, t1, m)
 }
@@ -599,8 +614,8 @@ func (d *nat) montgomeryMul(a *nat, b *nat, m *modulus) *nat {
 func (x *nat) modMul(y *nat, m *modulus) *nat {
 	// A Montgomery multiplication by a value out of the Montgomery domain
 	// takes the result out of Montgomery representation.
-	xR := x.clone().montgomeryRepresentation(m) // xR = x * R mod m
-	return x.montgomeryMul(xR, y, m)            // x = xR * y / R mod m
+	xR := newNat().set(x).montgomeryRepresentation(m) // xR = x * R mod m
+	return x.montgomeryMul(xR, y, m)                  // x = xR * y / R mod m
 }
 
 // exp calculates out = x^e mod m.
@@ -611,18 +626,23 @@ func (out *nat) exp(x *nat, e []byte, m *modulus) *nat {
 	// We use a 4 bit window. For our RSA workload, 4 bit windows are faster
 	// than 2 bit windows, but use an extra 12 nats worth of scratch space.
 	// Using bit sizes that don't divide 8 are more complex to implement.
-	table := make([]*nat, (1<<4)-1) // table[i] = x ^ (i+1)
-	table[0] = x.clone().montgomeryRepresentation(m)
+
+	table := [(1 << 4) - 1]*nat{ // table[i] = x ^ (i+1)
+		// newNat calls are unrolled so they are allocated on the stack.
+		newNat(), newNat(), newNat(), newNat(), newNat(),
+		newNat(), newNat(), newNat(), newNat(), newNat(),
+		newNat(), newNat(), newNat(), newNat(), newNat(),
+	}
+	table[0].set(x).montgomeryRepresentation(m)
 	for i := 1; i < len(table); i++ {
-		table[i] = new(nat).expandFor(m)
 		table[i].montgomeryMul(table[i-1], table[0], m)
 	}
 
 	out.resetFor(m)
 	out.limbs[0] = 1
 	out.montgomeryRepresentation(m)
-	t0 := new(nat).expandFor(m)
-	t1 := new(nat).expandFor(m)
+	t0 := newNat().expandFor(m)
+	t1 := newNat().expandFor(m)
 	for _, b := range e {
 		for _, j := range []int{4, 0} {
 			// Square four times.
