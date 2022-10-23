@@ -219,7 +219,7 @@ func signPSSWithSalt(priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) ([
 		if err != nil {
 			return nil, err
 		}
-		// Note: BoringCrypto takes care of the "AndCheck" part of "decryptAndCheck".
+		// Note: BoringCrypto always does decrypt "withCheck".
 		// (It's not just decrypt.)
 		s, err := boring.DecryptRSANoPadding(bkey, em)
 		if err != nil {
@@ -241,7 +241,7 @@ func signPSSWithSalt(priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) ([
 		em = emNew
 	}
 
-	return decryptAndCheck(priv, em)
+	return decrypt(priv, em, withCheck)
 }
 
 const (

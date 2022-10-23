@@ -181,7 +181,7 @@ func decryptPKCS1v15(priv *PrivateKey, ciphertext []byte) (valid int, em []byte,
 			return
 		}
 	} else {
-		em, err = decrypt(priv, ciphertext)
+		em, err = decrypt(priv, ciphertext, noCheck)
 		if err != nil {
 			return
 		}
@@ -295,7 +295,7 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 	copy(em[k-tLen:k-hashLen], prefix)
 	copy(em[k-hashLen:k], hashed)
 
-	return decryptAndCheck(priv, em)
+	return decrypt(priv, em, withCheck)
 }
 
 // VerifyPKCS1v15 verifies an RSA PKCS #1 v1.5 signature.
