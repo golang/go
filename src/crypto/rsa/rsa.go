@@ -201,6 +201,11 @@ type PrecomputedValues struct {
 	// historical accident, the CRT for the first two primes is handled
 	// differently in PKCS #1 and interoperability is sufficiently
 	// important that we mirror this.
+	//
+	// Deprecated: these values are still filled in by Precompute for
+	// backwards compatibility, but are not used. Multi-prime RSA is very rare,
+	// and is implemented by this package without CRT optimizations to limit
+	// complexity.
 	CRTValues []CRTValue
 }
 
@@ -256,16 +261,24 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 }
 
 // GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
-// size and the given random source, as suggested in [1]. Although the public
-// keys are compatible (actually, indistinguishable) from the 2-prime case,
-// the private keys are not. Thus it may not be possible to export multi-prime
-// private keys in certain formats or to subsequently import them into other
-// code.
+// size and the given random source.
 //
-// Table 1 in [2] suggests maximum numbers of primes for a given size.
+// Table 1 in "[On the Security of Multi-prime RSA]" suggests maximum numbers of
+// primes for a given bit size.
 //
-// [1] US patent 4405829 (1972, expired)
-// [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
+// Although the public keys are compatible (actually, indistinguishable) from
+// the 2-prime case, the private keys are not. Thus it may not be possible to
+// export multi-prime private keys in certain formats or to subsequently import
+// them into other code.
+//
+// This package does not implement CRT optimizations for multi-prime RSA, so the
+// keys with more than two primes will have worse performance.
+//
+// Deprecated: The use of this function with a number of primes different from
+// two is not recommended for the above security, compatibility, and performance
+// reasons. Use GenerateKey instead.
+//
+// [On the Security of Multi-prime RSA]: http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
 func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
 	randutil.MaybeReadByte(random)
 
@@ -573,7 +586,7 @@ func decrypt(priv *PrivateKey, ciphertext []byte) ([]byte, error) {
 	// Note that because our private decryption exponents are stored as big.Int,
 	// we potentially leak the exact number of bits of these exponents. This
 	// isn't great, but should be fine.
-	if priv.Precomputed.Dp == nil {
+	if priv.Precomputed.Dp == nil || len(priv.Primes) > 2 {
 		out := make([]byte, modulusSize(N))
 		return new(nat).exp(c, priv.D.Bytes(), N).fillBytes(out), nil
 	}
@@ -593,21 +606,6 @@ func decrypt(priv *PrivateKey, ciphertext []byte) ([]byte, error) {
 	m.expandFor(N).modMul(t0.mod(Q.nat, N), N)
 	// m = m + m2 mod N
 	m.modAdd(m2.expandFor(N), N)
-
-	for i, values := range priv.Precomputed.CRTValues {
-		p := modulusFromNat(natFromBig(priv.Primes[2+i]))
-		// m2 = c ^ Exp mod p
-		m2.exp(t0.mod(c, p), values.Exp.Bytes(), p)
-		// m2 = m2 - m mod p
-		m2.modSub(t0.mod(m, p), p)
-		// m2 = m2 * Coeff mod p
-		m2.modMul(natFromBig(values.Coeff).expandFor(p), p)
-		// m2 = m2 * R mod N
-		R := natFromBig(values.R).expandFor(N)
-		m2.expandFor(N).modMul(R, N)
-		// m = m + m2 mod N
-		m.modAdd(m2, N)
-	}
 
 	out := make([]byte, modulusSize(N))
 	return m.fillBytes(out), nil
