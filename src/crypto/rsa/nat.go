@@ -301,6 +301,21 @@ type modulus struct {
 	nat     *nat
 	leading int  // number of leading zeros in the modulus
 	m0inv   uint // -nat.limbs[0]⁻¹ mod _W
+	RR      *nat // R*R for montgomeryRepresentation
+}
+
+// rr returns R*R with R = 2^(_W * n) and n = len(m.nat.limbs).
+func rr(m *modulus) *nat {
+	rr := new(nat).expandFor(m)
+	// R*R is 2^(2 * _W * n). We can safely get 2^(_W * (n - 1)) by setting the
+	// most significant limb to 1. We then get to R*R by shifting left by _W
+	// n + 1 times.
+	n := len(rr.limbs)
+	rr.limbs[n-1] = 1
+	for i := n - 1; i < 2*n; i++ {
+		rr.shiftIn(0, m) // x = x * 2^_W mod m
+	}
+	return rr
 }
 
 // minusInverseModW computes -x⁻¹ mod _W with x odd.
@@ -335,6 +350,7 @@ func modulusFromNat(nat *nat) *modulus {
 	m.nat.limbs = m.nat.limbs[:size]
 	m.leading = _W - bitLen(m.nat.limbs[size-1])
 	m.m0inv = minusInverseModW(m.nat.limbs[0])
+	m.RR = rr(m)
 	return m
 }
 
@@ -510,10 +526,23 @@ func (x *nat) modAdd(y *nat, m *modulus) *nat {
 //
 // This assumes that x is already reduced mod m.
 func (x *nat) montgomeryRepresentation(m *modulus) *nat {
-	for i := 0; i < len(m.nat.limbs); i++ {
-		x.shiftIn(0, m) // x = x * 2^_W mod m
-	}
-	return x
+	// A Montgomery multiplication (which computes a * b / R) by R * R works out
+	// to a multiplication by R, which takes the value out of the Montgomery domain.
+	return x.montgomeryMul(x.clone(), m.RR, m)
+}
+
+// montgomeryReduction calculates x = x / R mod m, with R = 2^(_W * n) and
+// n = len(m.nat.limbs).
+//
+// This assumes that x is already reduced mod m.
+func (x *nat) montgomeryReduction(m *modulus) *nat {
+	// By Montgomery multiplying with 1 not in Montgomery representation, we
+	// convert out back from Montgomery representation, because it works out to
+	// dividing by R.
+	t0 := x.clone()
+	t1 := new(nat).expandFor(m)
+	t1.limbs[0] = 1
+	return x.montgomeryMul(t0, t1, m)
 }
 
 // montgomeryMul calculates d = a * b / R mod m, with R = 2^(_W * n) and
@@ -614,13 +643,5 @@ func (out *nat) exp(x *nat, e []byte, m *modulus) *nat {
 		}
 	}
 
-	// By Montgomery multiplying with 1 not in Montgomery representation, we
-	// convert out back from Montgomery representation, because it works out to
-	// dividing by R.
-	t0.assign(yes, out)
-	t1.resetFor(m)
-	t1.limbs[0] = 1
-	out.montgomeryMul(t0, t1, m)
-
-	return out
+	return out.montgomeryReduction(m)
 }
