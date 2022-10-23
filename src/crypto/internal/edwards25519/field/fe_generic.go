@@ -74,7 +74,7 @@ func feMulGeneric(v, a, b *Element) {
 	//           --------------------------------------
 	//              r4      r3      r2      r1      r0
 	//
-	// Finally we add up the columns into wide, overlapping limbs.
+	// Finally, we add up the columns into wide, overlapping limbs.
 
 	a1_19 := a1 * 19
 	a2_19 := a2 * 19

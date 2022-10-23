@@ -90,7 +90,7 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 		return fs, nil
 	}
 
-	// Finally use CreateFile.
+	// Finally, use CreateFile.
 	h, err := syscall.CreateFile(namep, 0, 0, nil,
 		syscall.OPEN_EXISTING, createFileAttrs, 0)
 	if err != nil {

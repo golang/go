@@ -207,7 +207,7 @@ func (s *Scanner) Scan() bool {
 			s.end -= s.start
 			s.start = 0
 		}
-		// Finally we can read some input. Make sure we don't get stuck with
+		// Finally, we can read some input. Make sure we don't get stuck with
 		// a misbehaving Reader. Officially we don't need to do this, but let's
 		// be extra careful: Scanner is for safe, simple jobs.
 		for loop := 0; ; {

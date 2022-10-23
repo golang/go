@@ -430,7 +430,7 @@ constant. Here is a simple example:
 	{{template "T3"}}
 
 This defines two templates, T1 and T2, and a third T3 that invokes the other two
-when it is executed. Finally it invokes T3. If executed this template will
+when it is executed. Finally, it invokes T3. If executed this template will
 produce the text
 
 	ONE TWO

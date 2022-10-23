@@ -172,7 +172,7 @@ func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
 		t.Fatalf("Failed sanity check: len(certsDir)=%d is not equal to len(rootsPEMS)=%d", g, w)
 	}
 
-	// Now finally concatenate them with a colon.
+	// Finally, concatenate them with a colon.
 	colonConcatCertDirs := strings.Join(certDirs, ":")
 	os.Setenv(certDirEnv, colonConcatCertDirs)
 	gotPool, err := loadSystemRoots()

@@ -1960,7 +1960,7 @@ TEXT ·p256PointAddAffineAsm(SB),0,$512-48
 	PXOR X12, X3
 	PXOR X13, X4
 	PXOR X14, X5
-	// Finally output the result
+	// Finally, output the result
 	MOVOU X0, (16*0)(AX)
 	MOVOU X1, (16*1)(AX)
 	MOVOU X2, (16*2)(AX)
@@ -2178,7 +2178,7 @@ TEXT ·p256PointAddAsm(SB),0,$680-32
 	MOVOU yout(16*1), X3
 	MOVOU zout(16*0), X4
 	MOVOU zout(16*1), X5
-	// Finally output the result
+	// Finally, output the result
 	MOVQ rptr, AX
 	MOVQ $0, rptr
 	MOVOU X0, (16*0)(AX)

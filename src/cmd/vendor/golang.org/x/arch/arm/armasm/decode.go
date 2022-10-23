@@ -19,7 +19,7 @@ import (
 // For example opBits = 0x1234 means that the value
 //	(2 bits at offset 1) followed by (4 bits at offset 3)
 // should be added to op.
-// Finally the args describe how to decode the instruction arguments.
+// Finally, the args describe how to decode the instruction arguments.
 // args is stored as a fixed-size array; if there are fewer than len(args) arguments,
 // args[i] == 0 marks the end of the argument list.
 type instFormat struct {

@@ -571,7 +571,7 @@ func TestGarbageCollection(t *testing.T) {
 
 // BenchmarkDOM is a simple benchmark which emulates a webapp making DOM operations.
 // It creates a div, and sets its id. Then searches by that id and sets some data.
-// Finally it removes that div.
+// Finally, it removes that div.
 func BenchmarkDOM(b *testing.B) {
 	document := js.Global().Get("document")
 	if document.IsUndefined() {

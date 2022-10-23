@@ -1316,7 +1316,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 		}
 	}
 
-	// finally write import descriptor table
+	// finally, write import descriptor table
 	out := ctxt.Out
 	out.SeekSet(startoff)
 

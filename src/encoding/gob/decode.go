@@ -1287,7 +1287,7 @@ func init() {
 	decOpTable[reflect.Int] = iop
 	decOpTable[reflect.Uint] = uop
 
-	// Finally uintptr
+	// Finally, uintptr
 	switch uintptrBits {
 	case 32:
 		uop = decUint32

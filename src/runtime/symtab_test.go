@@ -243,7 +243,7 @@ func TestFunctionAlignmentTraceback(t *testing.T) {
 		}
 	}
 
-	// Finally ensure that Frames.Next doesn't crash when processing this
+	// Finally, ensure that Frames.Next doesn't crash when processing this
 	// PC.
 	frames := runtime.CallersFrames([]uintptr{pc})
 	frame, _ := frames.Next()

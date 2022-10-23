@@ -1954,7 +1954,7 @@ sealSSEFinalize:
 	ADDQ 0+sStore, acc0
 	ADCQ 8+sStore, acc1
 
-	// Finally store the tag at the end of the message
+	// Finally, store the tag at the end of the message
 	MOVQ acc0, (0*8)(oup)
 	MOVQ acc1, (1*8)(oup)
 	RET

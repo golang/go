@@ -151,7 +151,7 @@ func (d *digest) Sum(in []byte) []byte {
 
 func (d *digest) checkSum() [Size]byte {
 	// Append 0x80 to the end of the message and then append zeros
-	// until the length is a multiple of 56 bytes. Finally append
+	// until the length is a multiple of 56 bytes. Finally, append
 	// 8 bytes representing the message length in bits.
 	//
 	// 1 byte end marker :: 0-63 padding bytes :: 8 byte length
