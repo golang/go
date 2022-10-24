@@ -34,21 +34,21 @@ func scriptConditions() map[string]script.Cond {
 		return script.OnceCondition(summary, func() (bool, error) { return f(), nil })
 	}
 
-	add("asan", sysCondition("-asan", platform.ASanSupported))
+	add("asan", sysCondition("-asan", platform.ASanSupported, true))
 	add("buildmode", script.PrefixCondition("go supports -buildmode=<suffix>", hasBuildmode))
 	add("case-sensitive", script.OnceCondition("$WORK filesystem is case-sensitive", isCaseSensitive))
 	add("cgo", script.BoolCondition("host CGO_ENABLED", canCgo))
 	add("cross", script.BoolCondition("cmd/go GOOS/GOARCH != GOHOSTOS/GOHOSTARCH", goHostOS != runtime.GOOS || goHostArch != runtime.GOARCH))
-	add("fuzz", sysCondition("-fuzz", platform.FuzzSupported))
-	add("fuzz-instrumented", sysCondition("-fuzz with instrumentation", platform.FuzzInstrumented))
+	add("fuzz", sysCondition("-fuzz", platform.FuzzSupported, false))
+	add("fuzz-instrumented", sysCondition("-fuzz with instrumentation", platform.FuzzInstrumented, false))
 	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
 	add("GODEBUG", script.PrefixCondition("GODEBUG contains <suffix>", hasGodebug))
 	add("GOEXPERIMENT", script.PrefixCondition("GOEXPERIMENT <suffix> is enabled", hasGoexperiment))
 	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
 	add("mismatched-goroot", script.Condition("test's GOROOT_FINAL does not match the real GOROOT", isMismatchedGoroot))
-	add("msan", sysCondition("-msan", platform.MSanSupported))
+	add("msan", sysCondition("-msan", platform.MSanSupported, true))
 	add("net", lazyBool("testenv.HasExternalNetwork()", testenv.HasExternalNetwork))
-	add("race", sysCondition("-race", platform.RaceDetectorSupported))
+	add("race", sysCondition("-race", platform.RaceDetectorSupported, true))
 	add("symlink", lazyBool("testenv.HasSymlink()", testenv.HasSymlink))
 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
 
@@ -63,13 +63,14 @@ func isMismatchedGoroot(s *script.State) (bool, error) {
 	return gorootFinal != testGOROOT, nil
 }
 
-func sysCondition(flag string, f func(goos, goarch string) bool) script.Cond {
+func sysCondition(flag string, f func(goos, goarch string) bool, needsCgo bool) script.Cond {
 	return script.Condition(
 		"GOOS/GOARCH supports "+flag,
 		func(s *script.State) (bool, error) {
 			GOOS, _ := s.LookupEnv("GOOS")
 			GOARCH, _ := s.LookupEnv("GOARCH")
-			return f(GOOS, GOARCH), nil
+			cross := goHostOS != GOOS || goHostArch != GOARCH
+			return (!needsCgo || (canCgo && !cross)) && f(GOOS, GOARCH), nil
 		})
 }
 
