@@ -35,6 +35,27 @@ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
 	atomic.StorepNoWB(noescape(ptr), new)
 }
 
+// atomic_storePointer is the implementation of runtime/internal/UnsafePointer.Store
+// (like StoreNoWB but with the write barrier).
+//
+//go:nosplit
+//go:linkname atomic_storePointer runtime/internal/atomic.storePointer
+func atomic_storePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
+	atomicstorep(unsafe.Pointer(ptr), new)
+}
+
+// atomic_casPointer is the implementation of runtime/internal/UnsafePointer.CompareAndSwap
+// (like CompareAndSwapNoWB but with the write barrier).
+//
+//go:nosplit
+//go:linkname atomic_casPointer runtime/internal/atomic.casPointer
+func atomic_casPointer(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
+	if writeBarrier.enabled {
+		atomicwb(ptr, new)
+	}
+	return atomic.Casp1(ptr, old, new)
+}
+
 // Like above, but implement in terms of sync/atomic's uintptr operations.
 // We cannot just call the runtime routines, because the race detector expects
 // to be able to intercept the sync/atomic forms but not the runtime forms.

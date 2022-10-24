@@ -6,8 +6,8 @@
 
 package sys
 
-func Ctz64(x uint64) int
-func Ctz32(x uint32) int
-func Ctz8(x uint8) int
+func TrailingZeros64(x uint64) int
+func TrailingZeros32(x uint32) int
+func TrailingZeros8(x uint8) int
 func Bswap64(x uint64) uint64
 func Bswap32(x uint32) uint32

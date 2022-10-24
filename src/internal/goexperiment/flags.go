@@ -90,4 +90,8 @@ type Flags struct {
 	// CoverageRedesign enables the new compiler-based code coverage
 	// tooling.
 	CoverageRedesign bool
+
+	// Arenas causes the "arena" standard library package to be visible
+	// to the outside world.
+	Arenas bool
 }

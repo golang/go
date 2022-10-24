@@ -146,7 +146,7 @@ func (b *CoverageMetaDataBuilder) Emit(w io.WriteSeeker) ([16]byte, error) {
 		fmt.Fprintf(os.Stderr, "=-= writing header: %+v\n", mh)
 	}
 	if err := binary.Write(w, binary.LittleEndian, mh); err != nil {
-		return digest, fmt.Errorf("error writing meta-file header: %v\n", err)
+		return digest, fmt.Errorf("error writing meta-file header: %v", err)
 	}
 	off := int64(coverage.CovMetaHeaderSize)
 

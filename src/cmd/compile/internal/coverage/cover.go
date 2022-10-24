@@ -4,6 +4,13 @@
 
 package coverage
 
+// This package contains support routines for coverage "fixup" in the
+// compiler, which happens when compiling a package whose source code
+// has been run through "cmd/cover" to add instrumentation. The two
+// important entry points are FixupVars (called prior to package init
+// generation) and FixupInit (called following package init
+// generation).
+
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -15,30 +22,23 @@ import (
 	"strings"
 )
 
-// Fixup is the main entry point for coverage compiler fixup. It
-// collects and reclassifies the variables mentioned in the
-// -coveragecfg file, then adds calls to the pkg init function as
-// appropriate to register the proper variables with the runtime.
-func Fixup() {
-	metavar, pkgIdVar, initfn, covermode, covergran :=
-		fixupMetaAndCounterVariables()
-	hashv, len := metaHashAndLen()
-	if covermode != coverage.CtrModeTestMain {
-		registerMeta(metavar, initfn, hashv, len,
-			pkgIdVar, covermode, covergran)
-	}
-	if base.Ctxt.Pkgpath == "main" {
-		addInitHookCall(initfn, covermode)
-	}
+// Names records state information collected in the first fixup
+// phase so that it can be passed to the second fixup phase.
+type Names struct {
+	MetaVar     *ir.Name
+	PkgIdVar    *ir.Name
+	InitFn      *ir.Func
+	CounterMode coverage.CounterMode
+	CounterGran coverage.CounterGranularity
 }
 
-// fixupMetaAndCounterVariables collects and returns the package ID
-// and meta-data variables being used for this "-cover" build, along
-// with the init function for the package and the coverage mode. It
-// also reclassifies certain variables (for example, tagging coverage
-// counter variables with flags so that they can be handled properly
-// downstream).
-func fixupMetaAndCounterVariables() (*ir.Name, *ir.Name, *ir.Func, coverage.CounterMode, coverage.CounterGranularity) {
+// FixupVars is the first of two entry points for coverage compiler
+// fixup. It collects and returns the package ID and meta-data
+// variables being used for this "-cover" build, along with the
+// coverage counter mode and granularity. It also reclassifies selected
+// variables (for example, tagging coverage counter variables with
+// flags so that they can be handled properly downstream).
+func FixupVars() Names {
 	metaVarName := base.Flag.Cfg.CoverageInfo.MetaVar
 	pkgIdVarName := base.Flag.Cfg.CoverageInfo.PkgIdVar
 	counterMode := base.Flag.Cfg.CoverageInfo.CounterMode
@@ -46,7 +46,6 @@ func fixupMetaAndCounterVariables() (*ir.Name, *ir.Name, *ir.Func, coverage.Coun
 	counterPrefix := base.Flag.Cfg.CoverageInfo.CounterPrefix
 	var metavar *ir.Name
 	var pkgidvar *ir.Name
-	var initfn *ir.Func
 
 	ckTypSanity := func(nm *ir.Name, tag string) {
 		if nm.Type() == nil || nm.Type().HasPointers() {
@@ -55,13 +54,6 @@ func fixupMetaAndCounterVariables() (*ir.Name, *ir.Name, *ir.Func, coverage.Coun
 	}
 
 	for _, n := range typecheck.Target.Decls {
-		if fn, ok := n.(*ir.Func); ok && ir.FuncName(fn) == "init" {
-			if initfn != nil {
-				panic("unexpected")
-			}
-			initfn = fn
-			continue
-		}
 		as, ok := n.(*ir.AssignStmt)
 		if !ok {
 			continue
@@ -108,7 +100,35 @@ func fixupMetaAndCounterVariables() (*ir.Name, *ir.Name, *ir.Func, coverage.Coun
 			counterGran)
 	}
 
-	return metavar, pkgidvar, initfn, cm, cg
+	return Names{
+		MetaVar:     metavar,
+		PkgIdVar:    pkgidvar,
+		CounterMode: cm,
+		CounterGran: cg,
+	}
+}
+
+// FixupInit is the second main entry point for coverage compiler
+// fixup. It adds calls to the pkg init function as appropriate to
+// register coverage-related variables with the runtime.
+func FixupInit(cnames Names) {
+	for _, n := range typecheck.Target.Decls {
+		if fn, ok := n.(*ir.Func); ok && ir.FuncName(fn) == "init" {
+			cnames.InitFn = fn
+			break
+		}
+	}
+	if cnames.InitFn == nil {
+		panic("unexpected (no init func for -cover build)")
+	}
+
+	hashv, len := metaHashAndLen()
+	if cnames.CounterMode != coverage.CtrModeTestMain {
+		registerMeta(cnames, hashv, len)
+	}
+	if base.Ctxt.Pkgpath == "main" {
+		addInitHookCall(cnames.InitFn, cnames.CounterMode)
+	}
 }
 
 func metaHashAndLen() ([16]byte, int) {
@@ -132,19 +152,19 @@ func metaHashAndLen() ([16]byte, int) {
 	return hv, base.Flag.Cfg.CoverageInfo.MetaLen
 }
 
-func registerMeta(mdname *ir.Name, initfn *ir.Func, hash [16]byte, mdlen int, pkgIdVar *ir.Name, cmode coverage.CounterMode, cgran coverage.CounterGranularity) {
+func registerMeta(cnames Names, hashv [16]byte, mdlen int) {
 	// Materialize expression for hash (an array literal)
-	pos := initfn.Pos()
+	pos := cnames.InitFn.Pos()
 	elist := make([]ir.Node, 0, 16)
 	for i := 0; i < 16; i++ {
-		elem := ir.NewInt(int64(hash[i]))
+		elem := ir.NewInt(int64(hashv[i]))
 		elist = append(elist, elem)
 	}
 	ht := types.NewArray(types.Types[types.TUINT8], 16)
 	hashx := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ht, elist)
 
 	// Materalize expression corresponding to address of the meta-data symbol.
-	mdax := typecheck.NodAddr(mdname)
+	mdax := typecheck.NodAddr(cnames.MetaVar)
 	mdauspx := typecheck.ConvNop(mdax, types.Types[types.TUNSAFEPTR])
 
 	// Materialize expression for length.
@@ -157,20 +177,20 @@ func registerMeta(mdname *ir.Name, initfn *ir.Func, hash [16]byte, mdlen int, pk
 	fn := typecheck.LookupRuntime("addCovMeta")
 	pkid := coverage.HardCodedPkgID(base.Ctxt.Pkgpath)
 	pkIdNode := ir.NewInt(int64(pkid))
-	cmodeNode := ir.NewInt(int64(cmode))
-	cgranNode := ir.NewInt(int64(cgran))
+	cmodeNode := ir.NewInt(int64(cnames.CounterMode))
+	cgranNode := ir.NewInt(int64(cnames.CounterGran))
 	pkPathNode := ir.NewString(base.Ctxt.Pkgpath)
 	callx := typecheck.Call(pos, fn, []ir.Node{mdauspx, lenx, hashx,
 		pkPathNode, pkIdNode, cmodeNode, cgranNode}, false)
 	assign := callx
 	if pkid == coverage.NotHardCoded {
-		assign = typecheck.Stmt(ir.NewAssignStmt(pos, pkgIdVar, callx))
+		assign = typecheck.Stmt(ir.NewAssignStmt(pos, cnames.PkgIdVar, callx))
 	}
 
 	// Tack the call onto the start of our init function. We do this
 	// early in the init since it's possible that instrumented function
 	// bodies (with counter updates) might be inlined into init.
-	initfn.Body.Prepend(assign)
+	cnames.InitFn.Body.Prepend(assign)
 }
 
 // addInitHookCall generates a call to runtime/coverage.initHook() and

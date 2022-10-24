@@ -370,12 +370,40 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 		errorf("bad %s slice length: %d", value.Type(), n)
 	}
 	if value.Cap() < n {
-		value.Set(reflect.MakeSlice(value.Type(), n, n))
+		safe := saferio.SliceCap((*byte)(nil), uint64(n))
+		if safe < 0 {
+			errorf("%s slice too big: %d elements", value.Type(), n)
+		}
+		value.Set(reflect.MakeSlice(value.Type(), safe, safe))
+		ln := safe
+		i := 0
+		for i < n {
+			if i >= ln {
+				// We didn't allocate the entire slice,
+				// due to using saferio.SliceCap.
+				// Append a value to grow the slice.
+				// The slice is full, so this should
+				// bump up the capacity.
+				value.Set(reflect.Append(value, reflect.Zero(value.Type().Elem())))
+			}
+			// Copy into s up to the capacity or n,
+			// whichever is less.
+			ln = value.Cap()
+			if ln > n {
+				ln = n
+			}
+			value.SetLen(ln)
+			sub := value.Slice(i, ln)
+			if _, err := state.b.Read(sub.Bytes()); err != nil {
+				errorf("error decoding []byte at %d: %s", err, i)
+			}
+			i = ln
+		}
 	} else {
 		value.SetLen(n)
-	}
-	if _, err := state.b.Read(value.Bytes()); err != nil {
-		errorf("error decoding []byte: %s", err)
+		if _, err := state.b.Read(value.Bytes()); err != nil {
+			errorf("error decoding []byte: %s", err)
+		}
 	}
 }
 
@@ -522,7 +550,7 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, 
 		if i >= ln {
 			// This is a slice that we only partially allocated.
 			// Grow it using append, up to length.
-			value = reflect.Append(value, reflect.Zero(value.Type().Elem()))
+			value.Set(reflect.Append(value, reflect.Zero(value.Type().Elem())))
 			cp := value.Cap()
 			if cp > length {
 				cp = length

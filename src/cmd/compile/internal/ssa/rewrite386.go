@@ -1,5 +1,5 @@
-// Code generated from gen/386.rules; DO NOT EDIT.
-// generated with: cd gen; go run *.go
+// Code generated from _gen/386.rules; DO NOT EDIT.
+// generated with: cd _gen; go run .
 
 package ssa
 

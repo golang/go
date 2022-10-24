@@ -45,7 +45,6 @@ import (
 var (
 	haltOnError  = flag.Bool("halt", false, "halt on error")
 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
-	goVersion    = flag.String("lang", "", "Go language version (e.g. \"go1.12\") for TestManual")
 )
 
 var fset = token.NewFileSet()
@@ -218,19 +217,9 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+	flags.BoolVar(addrAltComparableSemantics(&conf), "altComparableSemantics", false, "")
 	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
 		t.Fatal(err)
-	}
-
-	if manual && *goVersion != "" {
-		// goVersion overrides -lang for manual tests.
-		conf.GoVersion = *goVersion
-	}
-
-	// TODO(gri) remove this or use flag mechanism to set mode if still needed
-	if strings.HasSuffix(filenames[0], ".go1") {
-		// TODO(rfindley): re-enable this test by using GoVersion.
-		t.Skip("type params are enabled")
 	}
 
 	files, errlist := parseFiles(t, filenames, srcs, parser.AllErrors)
@@ -303,6 +292,12 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 func readCode(err Error) int {
 	v := reflect.ValueOf(err)
 	return int(v.FieldByName("go116code").Int())
+}
+
+// addrAltComparableSemantics(conf) returns &conf.altComparableSemantics (unexported field).
+func addrAltComparableSemantics(conf *Config) *bool {
+	v := reflect.Indirect(reflect.ValueOf(conf))
+	return (*bool)(v.FieldByName("altComparableSemantics").Addr().UnsafePointer())
 }
 
 // TestManual is for manual testing of a package - either provided

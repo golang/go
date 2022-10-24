@@ -2,7 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package elf implements access to ELF object files.
+/*
+Package elf implements access to ELF object files.
+
+# Security
+
+This package is not designed to be hardened against adversarial inputs, and is
+outside the scope of https://go.dev/security/policy. In particular, only basic
+validation is done when parsing object files. As such, care should be taken when
+parsing untrusted inputs, as parsing malformed files may consume significant
+resources, or cause panics.
+*/
 package elf
 
 import (
@@ -344,6 +354,19 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, &FormatError{0, "invalid ELF shstrndx", shstrndx}
 	}
 
+	var wantPhentsize, wantShentsize int
+	switch f.Class {
+	case ELFCLASS32:
+		wantPhentsize = 8 * 4
+		wantShentsize = 10 * 4
+	case ELFCLASS64:
+		wantPhentsize = 2*4 + 6*8
+		wantShentsize = 4*4 + 6*8
+	}
+	if phnum > 0 && phentsize < wantPhentsize {
+		return nil, &FormatError{0, "invalid ELF phentsize", phentsize}
+	}
+
 	// Read program headers
 	f.Progs = make([]*Prog, phnum)
 	for i := 0; i < phnum; i++ {
@@ -437,6 +460,10 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				return nil, &FormatError{shoff, "invalid ELF shstrndx contained in sh_link", shstrndx}
 			}
 		}
+	}
+
+	if shnum > 0 && shentsize < wantShentsize {
+		return nil, &FormatError{0, "invalid ELF shentsize", shentsize}
 	}
 
 	// Read section headers

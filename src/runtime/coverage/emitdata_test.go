@@ -22,6 +22,9 @@ import (
 const fixedTestDir = false
 
 func TestCoverageApis(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping test: too long for short mode")
+	}
 	if !goexperiment.CoverageRedesign {
 		t.Skipf("skipping new coverage tests (experiment not enabled)")
 	}
@@ -388,6 +391,9 @@ func testEmitWithCounterClear(t *testing.T, harnessPath string, dir string) {
 }
 
 func TestApisOnNocoverBinary(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping test: too long for short mode")
+	}
 	testenv.MustHaveGoBuild(t)
 	dir := t.TempDir()
 

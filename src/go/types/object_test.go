@@ -6,7 +6,6 @@ package types_test
 
 import (
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"internal/testenv"
 	"strings"
@@ -62,10 +61,7 @@ func TestEmbeddedMethod(t *testing.T) {
 
 	// type-check src
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", src, 0)
-	if err != nil {
-		t.Fatalf("parse failed: %s", err)
-	}
+	f := mustParse(fset, "", src)
 	var conf Config
 	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
 	if err != nil {
@@ -124,7 +120,7 @@ func TestObjectString(t *testing.T) {
 
 	for _, test := range testObjects {
 		src := "package p; " + test.src
-		pkg, err := makePkg(src)
+		pkg, err := typecheck(filename, src, nil)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
 			continue

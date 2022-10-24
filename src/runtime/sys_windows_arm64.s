@@ -113,7 +113,8 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$16-0
 	MOVD	$runtime·badsignalmsg(SB), R1	// lpBuffer
 	MOVD	$runtime·badsignallen(SB), R2	// lpNumberOfBytesToWrite
 	MOVD	(R2), R2
-	MOVD	R13, R3		// lpNumberOfBytesWritten
+	// point R3 to stack local that will receive number of bytes written
+	ADD	$16, RSP, R3		// lpNumberOfBytesWritten
 	MOVD	$0, R4			// lpOverlapped
 	MOVD	runtime·_WriteFile(SB), R12
 	SUB	$16, RSP	// skip over saved frame pointer below RSP
@@ -146,10 +147,15 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	g, R17 			// saved R28 (callee-save from Windows, not really g)
 
 	BL      runtime·load_g(SB)	// smashes R0, R27, R28 (g)
-	CMP	$0, g			// is there a current g?
-	BNE	2(PC)
-	BL	runtime·badsignal2(SB)
+	CMP	$0,	g		// is there a current g?
+	BNE	g_ok
+	MOVD	R7, LR
+	MOVD	R16, R27	// restore R27
+	MOVD	R17, g		// restore R28
+	MOVD	$0, R0		// continue 
+	RET
 
+g_ok:
 	// Do we need to switch to the g0 stack?
 	MOVD	g, R3			// R3 = oldg (for sigtramp_g0)
 	MOVD	g_m(g), R2		// R2 = m

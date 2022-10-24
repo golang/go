@@ -220,7 +220,11 @@ func (check *Checker) report(errp *error_) {
 		panic("empty error details")
 	}
 
-	if errp.code == 0 {
+	msg := errp.msg(check.fset, check.qualifier)
+	switch errp.code {
+	case InvalidSyntaxTree:
+		msg = "invalid AST: " + msg
+	case 0:
 		panic("no error code provided")
 	}
 
@@ -228,7 +232,7 @@ func (check *Checker) report(errp *error_) {
 	e := Error{
 		Fset:       check.fset,
 		Pos:        span.pos,
-		Msg:        errp.msg(check.fset, check.qualifier),
+		Msg:        msg,
 		Soft:       errp.soft,
 		go116code:  errp.code,
 		go116start: span.start,
@@ -275,6 +279,11 @@ func (check *Checker) report(errp *error_) {
 	f(err)
 }
 
+const (
+	invalidArg = "invalid argument: "
+	invalidOp  = "invalid operation: "
+)
+
 // newErrorf creates a new error_ for later reporting with check.report.
 func newErrorf(at positioner, code Code, format string, args ...any) *error_ {
 	return &error_{
@@ -302,18 +311,6 @@ func (check *Checker) versionErrorf(at positioner, goVersion string, format stri
 	var err *error_
 	err = newErrorf(at, UnsupportedFeature, "%s requires %s or later", msg, goVersion)
 	check.report(err)
-}
-
-func (check *Checker) invalidAST(at positioner, format string, args ...any) {
-	check.errorf(at, InvalidSyntaxTree, "invalid AST: "+format, args...)
-}
-
-func (check *Checker) invalidArg(at positioner, code Code, format string, args ...any) {
-	check.errorf(at, code, "invalid argument: "+format, args...)
-}
-
-func (check *Checker) invalidOp(at positioner, code Code, format string, args ...any) {
-	check.errorf(at, code, "invalid operation: "+format, args...)
 }
 
 // The positioner interface is used to extract the position of type-checker

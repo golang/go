@@ -149,9 +149,9 @@ func instrumentInit() {
 	mode := "race"
 	if cfg.BuildMSan {
 		mode = "msan"
-		// MSAN does not support non-PIE binaries on ARM64.
-		// See issue #33712 for details.
-		if cfg.Goos == "linux" && cfg.Goarch == "arm64" && cfg.BuildBuildmode == "default" {
+		// MSAN needs PIE on all platforms except linux/amd64.
+		// https://github.com/llvm/llvm-project/blob/llvmorg-13.0.1/clang/lib/Driver/SanitizerArgs.cpp#L621
+		if cfg.BuildBuildmode == "default" && (cfg.Goos != "linux" || cfg.Goarch != "amd64") {
 			cfg.BuildBuildmode = "pie"
 		}
 	}

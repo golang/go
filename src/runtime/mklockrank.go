@@ -83,6 +83,9 @@ NONE
 < itab
 < reflectOffs;
 
+# User arena state
+NONE < userArenaState;
+
 # Tracing without a P uses a global trace buffer.
 scavenge
 # Above TRACEGLOBAL can emit a trace event without a P.
@@ -100,7 +103,8 @@ allg,
   notifyList,
   reflectOffs,
   timers,
-  traceStrings
+  traceStrings,
+  userArenaState
 # Above MALLOC are things that can allocate memory.
 < MALLOC
 # Below MALLOC is the malloc implementation.

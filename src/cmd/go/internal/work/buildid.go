@@ -397,7 +397,7 @@ func (b *Builder) fileHash(file string) string {
 // during a's work. The caller should defer b.flushOutput(a), to make sure
 // that flushOutput is eventually called regardless of whether the action
 // succeeds. The flushOutput call must happen after updateBuildID.
-func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) bool {
+func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, printOutput bool) bool {
 	// The second half of the build ID here is a placeholder for the content hash.
 	// It's important that the overall buildID be unlikely verging on impossible
 	// to appear in the output by chance, but that should be taken care of by
@@ -418,11 +418,19 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) 
 		a.buildID = actionID + buildIDSeparator + mainpkg.buildID + buildIDSeparator + contentID
 	}
 
-	// Check to see if target exists and matches the expected action ID.
-	// If so, it's up to date and we can reuse it instead of rebuilding it.
-	var buildID string
-	if target != "" && !cfg.BuildA {
-		buildID, _ = buildid.ReadFile(target)
+	// If user requested -a, we force a rebuild, so don't use the cache.
+	if cfg.BuildA {
+		if p := a.Package; p != nil && !p.Stale {
+			p.Stale = true
+			p.StaleReason = "build -a flag in use"
+		}
+		// Begin saving output for later writing to cache.
+		a.output = []byte{}
+		return false
+	}
+
+	if target != "" {
+		buildID, _ := buildid.ReadFile(target)
 		if strings.HasPrefix(buildID, actionID+buildIDSeparator) {
 			a.buildID = buildID
 			if a.json != nil {
@@ -433,18 +441,13 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) 
 			a.Target = "DO NOT USE - " + a.Mode
 			return true
 		}
-	}
-
-	// Special case for building a main package: if the only thing we
-	// want the package for is to link a binary, and the binary is
-	// already up-to-date, then to avoid a rebuild, report the package
-	// as up-to-date as well. See "Build IDs" comment above.
-	// TODO(rsc): Rewrite this code to use a TryCache func on the link action.
-	if target != "" && !cfg.BuildA && !b.NeedExport && a.Mode == "build" && len(a.triggers) == 1 && a.triggers[0].Mode == "link" {
-		buildID, err := buildid.ReadFile(target)
-		if err == nil {
-			id := strings.Split(buildID, buildIDSeparator)
-			if len(id) == 4 && id[1] == actionID {
+		// Special case for building a main package: if the only thing we
+		// want the package for is to link a binary, and the binary is
+		// already up-to-date, then to avoid a rebuild, report the package
+		// as up-to-date as well. See "Build IDs" comment above.
+		// TODO(rsc): Rewrite this code to use a TryCache func on the link action.
+		if !b.NeedExport && a.Mode == "build" && len(a.triggers) == 1 && a.triggers[0].Mode == "link" {
+			if id := strings.Split(buildID, buildIDSeparator); len(id) == 4 && id[1] == actionID {
 				// Temporarily assume a.buildID is the package build ID
 				// stored in the installed binary, and see if that makes
 				// the upcoming link action ID a match. If so, report that
@@ -462,9 +465,11 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) 
 					// Best effort attempt to display output from the compile and link steps.
 					// If it doesn't work, it doesn't work: reusing the cached binary is more
 					// important than reprinting diagnostic information.
-					if c := cache.Default(); c != nil {
-						showStdout(b, c, a.actionID, "stdout")      // compile output
-						showStdout(b, c, a.actionID, "link-stdout") // link output
+					if printOutput {
+						if c := cache.Default(); c != nil {
+							showStdout(b, c, a.actionID, "stdout")      // compile output
+							showStdout(b, c, a.actionID, "link-stdout") // link output
+						}
 					}
 
 					// Poison a.Target to catch uses later in the build.
@@ -486,13 +491,15 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) 
 	// then to avoid the link step, report the link as up-to-date.
 	// We avoid the nested build ID problem in the previous special case
 	// by recording the test results in the cache under the action ID half.
-	if !cfg.BuildA && len(a.triggers) == 1 && a.triggers[0].TryCache != nil && a.triggers[0].TryCache(b, a.triggers[0]) {
+	if len(a.triggers) == 1 && a.triggers[0].TryCache != nil && a.triggers[0].TryCache(b, a.triggers[0]) {
 		// Best effort attempt to display output from the compile and link steps.
 		// If it doesn't work, it doesn't work: reusing the test result is more
 		// important than reprinting diagnostic information.
-		if c := cache.Default(); c != nil {
-			showStdout(b, c, a.Deps[0].actionID, "stdout")      // compile output
-			showStdout(b, c, a.Deps[0].actionID, "link-stdout") // link output
+		if printOutput {
+			if c := cache.Default(); c != nil {
+				showStdout(b, c, a.Deps[0].actionID, "stdout")      // compile output
+				showStdout(b, c, a.Deps[0].actionID, "link-stdout") // link output
+			}
 		}
 
 		// Poison a.Target to catch uses later in the build.
@@ -501,62 +508,51 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) 
 		return true
 	}
 
-	if b.IsCmdList {
-		// Invoked during go list to compute and record staleness.
-		if p := a.Package; p != nil && !p.Stale {
-			p.Stale = true
-			if cfg.BuildA {
-				p.StaleReason = "build -a flag in use"
-			} else {
-				p.StaleReason = "build ID mismatch"
-				for _, p1 := range p.Internal.Imports {
-					if p1.Stale && p1.StaleReason != "" {
-						if strings.HasPrefix(p1.StaleReason, "stale dependency: ") {
-							p.StaleReason = p1.StaleReason
-							break
-						}
-						if strings.HasPrefix(p.StaleReason, "build ID mismatch") {
-							p.StaleReason = "stale dependency: " + p1.ImportPath
-						}
-					}
-				}
-			}
-		}
-
-		// Fall through to update a.buildID from the build artifact cache,
-		// which will affect the computation of buildIDs for targets
-		// higher up in the dependency graph.
-	}
-
-	// Check the build artifact cache.
-	// We treat hits in this cache as being "stale" for the purposes of go list
-	// (in effect, "stale" means whether p.Target is up-to-date),
-	// but we're still happy to use results from the build artifact cache.
+	// Check to see if the action output is cached.
 	if c := cache.Default(); c != nil {
-		if !cfg.BuildA {
-			if file, _, err := c.GetFile(actionHash); err == nil {
-				if buildID, err := buildid.ReadFile(file); err == nil {
-					if err := showStdout(b, c, a.actionID, "stdout"); err == nil {
-						a.built = file
-						a.Target = "DO NOT USE - using cache"
-						a.buildID = buildID
-						if a.json != nil {
-							a.json.BuildID = a.buildID
-						}
-						if p := a.Package; p != nil {
-							// Clearer than explaining that something else is stale.
-							p.StaleReason = "not installed but available in build cache"
-						}
-						return true
+		if file, _, err := c.GetFile(actionHash); err == nil {
+			if buildID, err := buildid.ReadFile(file); err == nil {
+				if printOutput {
+					showStdout(b, c, a.actionID, "stdout")
+				}
+				a.built = file
+				a.Target = "DO NOT USE - using cache"
+				a.buildID = buildID
+				if a.json != nil {
+					a.json.BuildID = a.buildID
+				}
+				if p := a.Package; p != nil && target != "" {
+					p.Stale = true
+					// Clearer than explaining that something else is stale.
+					p.StaleReason = "not installed but available in build cache"
+				}
+				return true
+			}
+		}
+	}
+
+	// If we've reached this point, we can't use the cache for the action.
+	if p := a.Package; p != nil && !p.Stale {
+		p.Stale = true
+		p.StaleReason = "build ID mismatch"
+		if b.IsCmdList {
+			// Since we may end up printing StaleReason, include more detail.
+			for _, p1 := range p.Internal.Imports {
+				if p1.Stale && p1.StaleReason != "" {
+					if strings.HasPrefix(p1.StaleReason, "stale dependency: ") {
+						p.StaleReason = p1.StaleReason
+						break
+					}
+					if strings.HasPrefix(p.StaleReason, "build ID mismatch") {
+						p.StaleReason = "stale dependency: " + p1.ImportPath
 					}
 				}
 			}
 		}
-
-		// Begin saving output for later writing to cache.
-		a.output = []byte{}
 	}
 
+	// Begin saving output for later writing to cache.
+	a.output = []byte{}
 	return false
 }
 

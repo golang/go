@@ -17,12 +17,13 @@ type CUFileIndex uint32
 // FuncInfo is serialized as a symbol (aux symbol). The symbol data is
 // the binary encoding of the struct below.
 type FuncInfo struct {
-	Args     uint32
-	Locals   uint32
-	FuncID   objabi.FuncID
-	FuncFlag objabi.FuncFlag
-	File     []CUFileIndex
-	InlTree  []InlTreeNode
+	Args      uint32
+	Locals    uint32
+	FuncID    objabi.FuncID
+	FuncFlag  objabi.FuncFlag
+	StartLine int32
+	File      []CUFileIndex
+	InlTree   []InlTreeNode
 }
 
 func (a *FuncInfo) Write(w *bytes.Buffer) {
@@ -41,6 +42,7 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 	writeUint8(uint8(a.FuncFlag))
 	writeUint8(0) // pad to uint32 boundary
 	writeUint8(0)
+	writeUint32(uint32(a.StartLine))
 
 	writeUint32(uint32(len(a.File)))
 	for _, f := range a.File {
@@ -70,7 +72,7 @@ func (*FuncInfo) ReadFuncInfoLengths(b []byte) FuncInfoLengths {
 
 	// Offset to the number of the file table. This value is determined by counting
 	// the number of bytes until we write funcdataoff to the file.
-	const numfileOff = 12
+	const numfileOff = 16
 	result.NumFile = binary.LittleEndian.Uint32(b[numfileOff:])
 	result.FileOff = numfileOff + 4
 
@@ -90,6 +92,8 @@ func (*FuncInfo) ReadLocals(b []byte) uint32 { return binary.LittleEndian.Uint32
 func (*FuncInfo) ReadFuncID(b []byte) objabi.FuncID { return objabi.FuncID(b[8]) }
 
 func (*FuncInfo) ReadFuncFlag(b []byte) objabi.FuncFlag { return objabi.FuncFlag(b[9]) }
+
+func (*FuncInfo) ReadStartLine(b []byte) int32 { return int32(binary.LittleEndian.Uint32(b[12:])) }
 
 func (*FuncInfo) ReadFile(b []byte, filesoff uint32, k uint32) CUFileIndex {
 	return CUFileIndex(binary.LittleEndian.Uint32(b[filesoff+4*k:]))

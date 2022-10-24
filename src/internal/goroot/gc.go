@@ -69,8 +69,8 @@ func (gd *gccgoDirs) init() {
 	const prefix = "libraries: ="
 	var dirs []string
 	for _, dirEntry := range dirsEntries {
-		if after, found := strings.CutPrefix(dirEntry, prefix); found {
-			dirs = filepath.SplitList(after)
+		if strings.HasPrefix(dirEntry, prefix) {
+			dirs = filepath.SplitList(strings.TrimPrefix(dirEntry, prefix))
 			break
 		}
 	}

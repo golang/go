@@ -13,6 +13,7 @@ import (
 	"internal/testenv"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -25,26 +26,21 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// skipSpecialPlatforms causes the test to be skipped for platforms where
-// builders (build.golang.org) don't have access to compiled packages for
-// import.
-func skipSpecialPlatforms(t *testing.T) {
-	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
-	case "darwin-arm64":
-		t.Skipf("no compiled packages available for import on %s", platform)
-	}
-}
-
 // compile runs the compiler on filename, with dirname as the working directory,
 // and writes the output file to outdirname.
-func compile(t *testing.T, dirname, filename, outdirname string) string {
+// compile gives the resulting package a packagepath of testdata/<filebasename>.
+func compile(t *testing.T, dirname, filename, outdirname string, packagefiles map[string]string) string {
 	// filename must end with ".go"
-	if !strings.HasSuffix(filename, ".go") {
+	basename, ok := strings.CutSuffix(filepath.Base(filename), ".go")
+	if !ok {
 		t.Fatalf("filename doesn't end in .go: %s", filename)
 	}
-	basename := filepath.Base(filename)
-	outname := filepath.Join(outdirname, basename[:len(basename)-2]+"o")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p", strings.TrimSuffix(outname, ".o"), "-o", outname, filename)
+	objname := basename + ".o"
+	outname := filepath.Join(outdirname, objname)
+	importcfgfile := filepath.Join(outdirname, basename) + ".importcfg"
+	testenv.WriteImportcfg(t, importcfgfile, packagefiles)
+	pkgpath := path.Join("testdata", basename)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p", pkgpath, "-D", "testdata", "-importcfg", importcfgfile, "-o", outname, filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -114,6 +110,8 @@ func TestImportTestdata(t *testing.T) {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
 
+	testenv.MustHaveGoBuild(t)
+
 	testfiles := map[string][]string{
 		"exports.go":  {"go/ast", "go/token"},
 		"generics.go": nil,
@@ -129,7 +127,7 @@ func TestImportTestdata(t *testing.T) {
 		tmpdir := mktmpdir(t)
 		defer os.RemoveAll(tmpdir)
 
-		compile(t, "testdata", testfile, filepath.Join(tmpdir, "testdata"))
+		compile(t, "testdata", testfile, filepath.Join(tmpdir, "testdata"), nil)
 		path := "./testdata/" + strings.TrimSuffix(testfile, ".go")
 
 		if pkg := testPath(t, path, tmpdir); pkg != nil {
@@ -147,7 +145,7 @@ func TestImportTestdata(t *testing.T) {
 }
 
 func TestVersionHandling(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -238,7 +236,7 @@ func TestVersionHandling(t *testing.T) {
 }
 
 func TestImportStdLib(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -278,7 +276,7 @@ var importedObjectTests = []struct {
 }
 
 func TestImportedTypes(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -361,7 +359,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types2.Named, level int) {
 }
 
 func TestIssue5815(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -390,7 +388,7 @@ func TestIssue5815(t *testing.T) {
 
 // Smoke test to ensure that imported methods get the correct package.
 func TestCorrectMethodPackage(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -412,7 +410,7 @@ func TestCorrectMethodPackage(t *testing.T) {
 }
 
 func TestIssue13566(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -436,8 +434,8 @@ func TestIssue13566(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compile(t, "testdata", "a.go", testoutdir)
-	compile(t, testoutdir, bpath, testoutdir)
+	compile(t, "testdata", "a.go", testoutdir, nil)
+	compile(t, testoutdir, bpath, testoutdir, map[string]string{"testdata/a": filepath.Join(testoutdir, "a.o")})
 
 	// import must succeed (test for issue at hand)
 	pkg := importPkg(t, "./testdata/b", tmpdir)
@@ -451,7 +449,7 @@ func TestIssue13566(t *testing.T) {
 }
 
 func TestIssue13898(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -497,7 +495,7 @@ func TestIssue13898(t *testing.T) {
 }
 
 func TestIssue15517(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -513,7 +511,7 @@ func TestIssue15517(t *testing.T) {
 	tmpdir := mktmpdir(t)
 	defer os.RemoveAll(tmpdir)
 
-	compile(t, "testdata", "p.go", filepath.Join(tmpdir, "testdata"))
+	compile(t, "testdata", "p.go", filepath.Join(tmpdir, "testdata"), nil)
 
 	// Multiple imports of p must succeed without redeclaration errors.
 	// We use an import path that's not cleaned up so that the eventual
@@ -536,7 +534,7 @@ func TestIssue15517(t *testing.T) {
 }
 
 func TestIssue15920(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -553,7 +551,7 @@ func TestIssue15920(t *testing.T) {
 }
 
 func TestIssue20046(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -574,7 +572,7 @@ func TestIssue20046(t *testing.T) {
 	}
 }
 func TestIssue25301(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -591,7 +589,7 @@ func TestIssue25301(t *testing.T) {
 }
 
 func TestIssue25596(t *testing.T) {
-	skipSpecialPlatforms(t)
+	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -618,7 +616,7 @@ func importPkg(t *testing.T, path, srcDir string) *types2.Package {
 func compileAndImportPkg(t *testing.T, name string) *types2.Package {
 	tmpdir := mktmpdir(t)
 	defer os.RemoveAll(tmpdir)
-	compile(t, "testdata", name+".go", filepath.Join(tmpdir, "testdata"))
+	compile(t, "testdata", name+".go", filepath.Join(tmpdir, "testdata"), nil)
 	return importPkg(t, "./testdata/"+name, tmpdir)
 }
 

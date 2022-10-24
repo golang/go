@@ -274,7 +274,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 
 	// spec: "Only the first index may be omitted; it defaults to 0."
 	if e.Full && (e.Index[1] == nil || e.Index[2] == nil) {
-		check.error(e, InvalidSyntaxTree, invalidAST+"2nd and 3rd index required in 3-index slice")
+		check.error(e, InvalidSyntaxTree, "2nd and 3rd index required in 3-index slice")
 		x.mode = invalid
 		return
 	}
@@ -329,12 +329,12 @@ L:
 func (check *Checker) singleIndex(e *syntax.IndexExpr) syntax.Expr {
 	index := e.Index
 	if index == nil {
-		check.errorf(e, InvalidSyntaxTree, invalidAST+"missing index for %s", e.X)
+		check.errorf(e, InvalidSyntaxTree, "missing index for %s", e.X)
 		return nil
 	}
 	if l, _ := index.(*syntax.ListExpr); l != nil {
 		if n := len(l.ElemList); n <= 1 {
-			check.errorf(e, InvalidSyntaxTree, invalidAST+"invalid use of ListExpr for index expression %v with %d indices", e, n)
+			check.errorf(e, InvalidSyntaxTree, "invalid use of ListExpr for index expression %v with %d indices", e, n)
 			return nil
 		}
 		// len(l.ElemList) > 1

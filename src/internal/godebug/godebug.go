@@ -5,11 +5,14 @@
 // Package godebug parses the GODEBUG environment variable.
 package godebug
 
-import "os"
+import _ "unsafe" // go:linkname
+
+//go:linkname getGODEBUG
+func getGODEBUG() string
 
 // Get returns the value for the provided GODEBUG key.
 func Get(key string) string {
-	return get(os.Getenv("GODEBUG"), key)
+	return get(getGODEBUG(), key)
 }
 
 // get returns the value part of key=value in s (a GODEBUG value).

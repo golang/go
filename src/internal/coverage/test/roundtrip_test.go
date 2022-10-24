@@ -10,6 +10,7 @@ import (
 	"internal/coverage/decodemeta"
 	"internal/coverage/encodemeta"
 	"internal/coverage/slicewriter"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -36,7 +37,7 @@ func TestMetaDataEmptyPackage(t *testing.T) {
 	}
 	drws := &slicewriter.WriteSeeker{}
 	b.Emit(drws)
-	drws.Seek(0, os.SEEK_SET)
+	drws.Seek(0, io.SeekStart)
 	dec, err := decodemeta.NewCoverageMetaDataDecoder(drws.BytesWritten(), false)
 	if err != nil {
 		t.Fatalf("making decoder: %v", err)
@@ -100,7 +101,7 @@ func TestMetaDataEncoderDecoder(t *testing.T) {
 	b.Emit(drws)
 
 	// Test decode path.
-	drws.Seek(0, os.SEEK_SET)
+	drws.Seek(0, io.SeekStart)
 	dec, err := decodemeta.NewCoverageMetaDataDecoder(drws.BytesWritten(), false)
 	if err != nil {
 		t.Fatalf("NewCoverageMetaDataDecoder error: %v", err)
@@ -220,7 +221,7 @@ func TestMetaDataWriterReader(t *testing.T) {
 			if _, err := inf.Read(fileView); err != nil {
 				t.Fatalf("read() on meta-file: %v", err)
 			}
-			if _, err := inf.Seek(int64(0), os.SEEK_SET); err != nil {
+			if _, err := inf.Seek(int64(0), io.SeekStart); err != nil {
 				t.Fatalf("seek() on meta-file: %v", err)
 			}
 		}

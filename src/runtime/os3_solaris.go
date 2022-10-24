@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -182,7 +183,7 @@ func newosproc(mp *m) {
 	}
 }
 
-func exitThread(wait *uint32) {
+func exitThread(wait *atomic.Uint32) {
 	// We should never reach exitThread on Solaris because we let
 	// libc clean up threads.
 	throw("exitThread")

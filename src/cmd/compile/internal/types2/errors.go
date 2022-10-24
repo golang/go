@@ -221,7 +221,10 @@ func (check *Checker) dump(format string, args ...interface{}) {
 }
 
 func (check *Checker) err(at poser, code Code, msg string, soft bool) {
-	if code == 0 {
+	switch code {
+	case InvalidSyntaxTree:
+		msg = "invalid syntax tree: " + msg
+	case 0:
 		panic("no error code provided")
 	}
 
@@ -264,7 +267,6 @@ func (check *Checker) err(at poser, code Code, msg string, soft bool) {
 }
 
 const (
-	invalidAST = "invalid AST: "
 	invalidArg = "invalid argument: "
 	invalidOp  = "invalid operation: "
 )

@@ -6,6 +6,7 @@ package obj
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"fmt"
 	"strings"
 )
@@ -159,7 +160,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 	}
 }
 
-func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 	if s == nil {
 		// func _() { }
 		return
@@ -171,10 +172,14 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	if s.OnList() {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
+
+	_, startLine := linkgetlineFromPos(ctxt, start)
+
 	// TODO(mdempsky): Remove once cmd/asm stops writing "" symbols.
 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
 	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
 	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
+	s.Func().StartLine = startLine
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)

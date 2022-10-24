@@ -203,6 +203,12 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// because it generates itabs for initializing global variables.
 	ssagen.InitConfig()
 
+	// First part of coverage fixup (if applicable).
+	var cnames coverage.Names
+	if base.Flag.Cfg.CoverageInfo != nil {
+		cnames = coverage.FixupVars()
+	}
+
 	// Create "init" function for package-scope variable initialization
 	// statements, if any.
 	//
@@ -212,9 +218,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// removal can skew the results (e.g., #43444).
 	pkginit.MakeInit()
 
-	// Fix up init routines if building for code coverage.
+	// Second part of code coverage fixup (init func modification),
+	// if applicable.
 	if base.Flag.Cfg.CoverageInfo != nil {
-		coverage.Fixup()
+		coverage.FixupInit(cnames)
 	}
 
 	// Eliminate some obviously dead code.

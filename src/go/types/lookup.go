@@ -261,10 +261,18 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
 }
 
 type instanceLookup struct {
-	m map[*Named][]*Named
+	// buf is used to avoid allocating the map m in the common case of a small
+	// number of instances.
+	buf [3]*Named
+	m   map[*Named][]*Named
 }
 
 func (l *instanceLookup) lookup(inst *Named) *Named {
+	for _, t := range l.buf {
+		if t != nil && Identical(inst, t) {
+			return t
+		}
+	}
 	for _, t := range l.m[inst.Origin()] {
 		if Identical(inst, t) {
 			return t
@@ -274,6 +282,12 @@ func (l *instanceLookup) lookup(inst *Named) *Named {
 }
 
 func (l *instanceLookup) add(inst *Named) {
+	for i, t := range l.buf {
+		if t == nil {
+			l.buf[i] = inst
+			return
+		}
+	}
 	if l.m == nil {
 		l.m = make(map[*Named][]*Named)
 	}
@@ -395,6 +409,11 @@ func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
 		return "(" + check.interfacePtrError(T) + ")"
 	}
 
+	obj, _, _ := lookupFieldOrMethod(V, true /* auto-deref */, m.pkg, m.name, false)
+	if fld, _ := obj.(*Var); fld != nil {
+		return check.sprintf("(%s.%s is a field, not a method)", V, fld.Name())
+	}
+
 	return check.sprintf("(missing %s)", mname)
 }
 
@@ -452,7 +471,7 @@ func (check *Checker) newAssertableTo(V *Interface, T Type) bool {
 	if IsInterface(T) {
 		return true
 	}
-	return check.implements(T, V, nil)
+	return check.implements(T, V, false, nil)
 }
 
 // deref dereferences typ if it is a *Pointer and returns its base and true.

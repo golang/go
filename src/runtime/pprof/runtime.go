@@ -6,8 +6,12 @@ package pprof
 
 import (
 	"context"
+	"runtime"
 	"unsafe"
 )
+
+// runtime_FrameStartLine is defined in runtime/symtab.go.
+func runtime_FrameStartLine(f *runtime.Frame) int
 
 // runtime_expandFinalInlineFrame is defined in runtime/symtab.go.
 func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr

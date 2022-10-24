@@ -179,7 +179,7 @@ func (cfw *CoverageDataWriter) AppendSegment(args map[string]string, visitor Cou
 		return err
 	}
 	if err := cfw.w.Flush(); err != nil {
-		return fmt.Errorf("write error: %v\n", err)
+		return fmt.Errorf("write error: %v", err)
 	}
 	cfw.stab = nil
 	return nil
@@ -209,7 +209,7 @@ func (cfw *CoverageDataWriter) writeBytes(b []byte) error {
 		return fmt.Errorf("error writing counter data: %v", err)
 	}
 	if len(b) != nw {
-		return fmt.Errorf("error writing counter data: short write\n")
+		return fmt.Errorf("error writing counter data: short write")
 	}
 	return nil
 }

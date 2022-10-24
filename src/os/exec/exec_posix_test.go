@@ -9,6 +9,7 @@ package exec_test
 import (
 	"fmt"
 	"internal/testenv"
+	"io"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -23,7 +24,6 @@ import (
 
 func init() {
 	registerHelperCommand("pwd", cmdPwd)
-	registerHelperCommand("sleep", cmdSleep)
 }
 
 func cmdPwd(...string) {
@@ -33,15 +33,6 @@ func cmdPwd(...string) {
 		os.Exit(1)
 	}
 	fmt.Println(pwd)
-}
-
-func cmdSleep(args ...string) {
-	n, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	time.Sleep(time.Duration(n) * time.Second)
 }
 
 func TestCredentialNoSetGroups(t *testing.T) {
@@ -86,15 +77,29 @@ func TestCredentialNoSetGroups(t *testing.T) {
 func TestWaitid(t *testing.T) {
 	t.Parallel()
 
-	cmd := helperCommand(t, "sleep", "3")
+	cmd := helperCommand(t, "pipetest")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
 
-	// The sleeps here are unnecessary in the sense that the test
-	// should still pass, but they are useful to make it more
-	// likely that we are testing the expected state of the child.
-	time.Sleep(100 * time.Millisecond)
+	// Wait for the child process to come up and register any signal handlers.
+	const msg = "O:ping\n"
+	if _, err := io.WriteString(stdin, msg); err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, len(msg))
+	if _, err := io.ReadFull(stdout, buf); err != nil {
+		t.Fatal(err)
+	}
+	// Now leave the pipes open so that the process will hang until we close stdin.
 
 	if err := cmd.Process.Signal(syscall.SIGSTOP); err != nil {
 		cmd.Process.Kill()
@@ -106,16 +111,30 @@ func TestWaitid(t *testing.T) {
 		ch <- cmd.Wait()
 	}()
 
-	time.Sleep(100 * time.Millisecond)
+	// Give a little time for Wait to block on waiting for the process.
+	// (This is just to give some time to trigger the bug; it should not be
+	// necessary for the test to pass.)
+	if testing.Short() {
+		time.Sleep(1 * time.Millisecond)
+	} else {
+		time.Sleep(10 * time.Millisecond)
+	}
 
+	// This call to Signal should succeed because the process still exists.
+	// (Prior to the fix for #19314, this would fail with os.ErrProcessDone
+	// or an equivalent error.)
 	if err := cmd.Process.Signal(syscall.SIGCONT); err != nil {
 		t.Error(err)
 		syscall.Kill(cmd.Process.Pid, syscall.SIGCONT)
 	}
 
-	cmd.Process.Kill()
-
-	<-ch
+	// The SIGCONT should allow the process to wake up, notice that stdin
+	// is closed, and exit successfully.
+	stdin.Close()
+	err = <-ch
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 // https://go.dev/issue/50599: if Env is not set explicitly, setting Dir should

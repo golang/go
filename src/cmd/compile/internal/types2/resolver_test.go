@@ -117,11 +117,7 @@ func TestResolveIdents(t *testing.T) {
 	// parse package files
 	var files []*syntax.File
 	for i, src := range sources {
-		f, err := parseSrc(fmt.Sprintf("sources[%d]", i), src)
-		if err != nil {
-			t.Fatal(err)
-		}
-		files = append(files, f)
+		files = append(files, mustParse(fmt.Sprintf("sources[%d]", i), src))
 	}
 
 	// resolve and type-check package AST

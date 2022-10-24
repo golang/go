@@ -37,7 +37,6 @@ func makeSubtractIntersectOp(mode string) covOperation {
 // away most of the grubby details of reading coverage data files.
 type sstate struct {
 	mm    *metaMerge
-	indir string // current input directory
 	inidx int
 	mode  string
 	// Used only for intersection; keyed by pkg/fn ID, it keeps track of

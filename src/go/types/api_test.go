@@ -21,46 +21,37 @@ import (
 	. "go/types"
 )
 
-// pkgFor parses and type checks the package specified by path and source,
-// populating info if provided.
-func pkgFor(path, source string, info *Info) (*Package, error) {
-	return pkgForMode(path, source, info, 0)
+func parse(fset *token.FileSet, filename, src string) (*ast.File, error) {
+	return parser.ParseFile(fset, filename, src, 0)
 }
 
-func pkgForMode(path, source string, info *Info, mode parser.Mode) (*Package, error) {
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, path, source, mode)
+func mustParse(fset *token.FileSet, filename, src string) *ast.File {
+	f, err := parse(fset, filename, src)
 	if err != nil {
+		panic(err) // so we don't need to pass *testing.T
+	}
+	return f
+}
+
+func typecheck(path, src string, info *Info) (*Package, error) {
+	fset := token.NewFileSet()
+	f, err := parse(fset, path, src)
+	if f == nil { // ignore errors unless f is nil
 		return nil, err
 	}
-	conf := Config{Importer: importer.Default()}
+	conf := Config{
+		Error:    func(err error) {}, // collect all errors
+		Importer: importer.Default(),
+	}
 	return conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
 }
 
-func mustTypecheck(t testing.TB, path, source string, info *Info) string {
-	pkg, err := pkgFor(path, source, info)
+func mustTypecheck(path, src string, info *Info) *Package {
+	pkg, err := typecheck(path, src, info)
 	if err != nil {
-		name := path
-		if pkg != nil {
-			name = "package " + pkg.Name()
-		}
-		t.Fatalf("%s: didn't type-check (%s)", name, err)
+		panic(err) // so we don't need to pass *testing.T
 	}
-	return pkg.Name()
-}
-
-func mayTypecheck(t *testing.T, path, source string, info *Info) (string, error) {
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, path, source, 0)
-	if f == nil { // ignore errors unless f is nil
-		t.Fatalf("%s: unable to parse: %s", path, err)
-	}
-	conf := Config{
-		Error:    func(err error) {},
-		Importer: importer.Default(),
-	}
-	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
-	return pkg.Name(), err
+	return pkg
 }
 
 func TestValuesInfo(t *testing.T) {
@@ -146,7 +137,7 @@ func TestValuesInfo(t *testing.T) {
 		info := Info{
 			Types: make(map[ast.Expr]TypeAndValue),
 		}
-		name := mustTypecheck(t, "ValuesInfo", test.src, &info)
+		name := mustTypecheck("ValuesInfo", test.src, &info).Name()
 
 		// look for expression
 		var expr ast.Expr
@@ -384,14 +375,16 @@ func TestTypesInfo(t *testing.T) {
 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
 		var name string
 		if strings.HasPrefix(test.src, broken) {
-			var err error
-			name, err = mayTypecheck(t, "TypesInfo", test.src, &info)
+			pkg, err := typecheck("TypesInfo", test.src, &info)
 			if err == nil {
-				t.Errorf("package %s: expected to fail but passed", name)
+				t.Errorf("package %s: expected to fail but passed", pkg.Name())
 				continue
 			}
+			if pkg != nil {
+				name = pkg.Name()
+			}
 		} else {
-			name = mustTypecheck(t, "TypesInfo", test.src, &info)
+			name = mustTypecheck("TypesInfo", test.src, &info).Name()
 		}
 
 		// look for expression type
@@ -550,10 +543,7 @@ type T[P any] []P
 		instMap := make(map[*ast.Ident]Instance)
 		useMap := make(map[*ast.Ident]Object)
 		makePkg := func(src string) *Package {
-			f, err := parser.ParseFile(fset, "p.go", src, 0)
-			if err != nil {
-				t.Fatal(err)
-			}
+			f := mustParse(fset, "p.go", src)
 			pkg, err := conf.Check("", fset, []*ast.File{f}, &Info{Instances: instMap, Uses: useMap})
 			if err != nil {
 				t.Fatal(err)
@@ -652,7 +642,7 @@ func TestDefsInfo(t *testing.T) {
 		info := Info{
 			Defs: make(map[*ast.Ident]Object),
 		}
-		name := mustTypecheck(t, "DefsInfo", test.src, &info)
+		name := mustTypecheck("DefsInfo", test.src, &info).Name()
 
 		// find object
 		var def Object
@@ -719,7 +709,7 @@ func TestUsesInfo(t *testing.T) {
 		info := Info{
 			Uses: make(map[*ast.Ident]Object),
 		}
-		name := mustTypecheck(t, "UsesInfo", test.src, &info)
+		name := mustTypecheck("UsesInfo", test.src, &info).Name()
 
 		// find object
 		var use Object
@@ -752,10 +742,7 @@ func (r N[B]) m() { r.m(); r.n() }
 func (r *N[C]) n() {  }
 `
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "p.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, "p.go", src)
 	info := Info{
 		Defs:       make(map[*ast.Ident]Object),
 		Uses:       make(map[*ast.Ident]Object),
@@ -863,7 +850,7 @@ func TestImplicitsInfo(t *testing.T) {
 		info := Info{
 			Implicits: make(map[ast.Node]Object),
 		}
-		name := mustTypecheck(t, "ImplicitsInfo", test.src, &info)
+		name := mustTypecheck("ImplicitsInfo", test.src, &info).Name()
 
 		// the test cases expect at most one Implicits entry
 		if len(info.Implicits) > 1 {
@@ -991,7 +978,7 @@ func TestPredicatesInfo(t *testing.T) {
 
 	for _, test := range tests {
 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
-		name := mustTypecheck(t, "PredicatesInfo", test.src, &info)
+		name := mustTypecheck("PredicatesInfo", test.src, &info).Name()
 
 		// look for expression predicates
 		got := "<missing>"
@@ -1083,7 +1070,7 @@ func TestScopesInfo(t *testing.T) {
 
 	for _, test := range tests {
 		info := Info{Scopes: make(map[ast.Node]*Scope)}
-		name := mustTypecheck(t, "ScopesInfo", test.src, &info)
+		name := mustTypecheck("ScopesInfo", test.src, &info).Name()
 
 		// number of scopes must match
 		if len(info.Scopes) != len(test.scopes) {
@@ -1271,7 +1258,7 @@ func TestInitOrderInfo(t *testing.T) {
 
 	for _, test := range tests {
 		info := Info{}
-		name := mustTypecheck(t, "InitOrderInfo", test.src, &info)
+		name := mustTypecheck("InitOrderInfo", test.src, &info).Name()
 
 		// number of initializers must match
 		if len(info.InitOrder) != len(test.inits) {
@@ -1292,16 +1279,8 @@ func TestInitOrderInfo(t *testing.T) {
 
 func TestMultiFileInitOrder(t *testing.T) {
 	fset := token.NewFileSet()
-	mustParse := func(src string) *ast.File {
-		f, err := parser.ParseFile(fset, "main", src, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return f
-	}
-
-	fileA := mustParse(`package main; var a = 1`)
-	fileB := mustParse(`package main; var b = 2`)
+	fileA := mustParse(fset, "", `package main; var a = 1`)
+	fileB := mustParse(fset, "", `package main; var b = 2`)
 
 	// The initialization order must not depend on the parse
 	// order of the files, only on the presentation order to
@@ -1339,10 +1318,7 @@ func TestFiles(t *testing.T) {
 
 	for i, src := range sources {
 		filename := fmt.Sprintf("sources%d", i)
-		f, err := parser.ParseFile(fset, filename, src, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
+		f := mustParse(fset, filename, src)
 		if err := check.Files([]*ast.File{f}); err != nil {
 			t.Error(err)
 		}
@@ -1376,10 +1352,7 @@ func TestSelection(t *testing.T) {
 	imports := make(testImporter)
 	conf := Config{Importer: imports}
 	makePkg := func(path, src string) {
-		f, err := parser.ParseFile(fset, path+".go", src, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
+		f := mustParse(fset, path+".go", src)
 		pkg, err := conf.Check(path, fset, []*ast.File{f}, &Info{Selections: selections})
 		if err != nil {
 			t.Fatal(err)
@@ -1557,10 +1530,7 @@ func TestIssue8518(t *testing.T) {
 		Importer: imports,
 	}
 	makePkg := func(path, src string) {
-		f, err := parser.ParseFile(fset, path, src, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
+		f := mustParse(fset, path, src)
 		pkg, _ := conf.Check(path, fset, []*ast.File{f}, nil) // errors logged via conf.Error
 		imports[path] = pkg
 	}
@@ -1650,11 +1620,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pkg, err := pkgForMode("test", "package p;"+test.src, nil, 0)
-		if err != nil {
-			t.Errorf("%s: incorrect test case: %s", test.src, err)
-			continue
-		}
+		pkg := mustTypecheck("test", "package p;"+test.src, nil)
 
 		obj := pkg.Scope().Lookup("a")
 		if obj == nil {
@@ -1700,10 +1666,7 @@ type Instance = *Tree[int]
 `
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "foo.go", src, 0)
-	if err != nil {
-		panic(err)
-	}
+	f := mustParse(fset, "foo.go", src)
 	pkg := NewPackage("pkg", f.Name.Name)
 	if err := NewChecker(nil, fset, pkg, nil).Files([]*ast.File{f}); err != nil {
 		panic(err)
@@ -1731,13 +1694,6 @@ func TestScopeLookupParent(t *testing.T) {
 	fset := token.NewFileSet()
 	imports := make(testImporter)
 	conf := Config{Importer: imports}
-	mustParse := func(src string) *ast.File {
-		f, err := parser.ParseFile(fset, "dummy.go", src, parser.ParseComments)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return f
-	}
 	var info Info
 	makePkg := func(path string, files ...*ast.File) {
 		var err error
@@ -1747,7 +1703,7 @@ func TestScopeLookupParent(t *testing.T) {
 		}
 	}
 
-	makePkg("lib", mustParse("package lib; var X int"))
+	makePkg("lib", mustParse(fset, "", "package lib; var X int"))
 	// Each /*name=kind:line*/ comment makes the test look up the
 	// name at that point and checks that it resolves to a decl of
 	// the specified kind and line number.  "undef" means undefined.
@@ -1791,7 +1747,7 @@ func F(){
 `
 
 	info.Uses = make(map[*ast.Ident]Object)
-	f := mustParse(mainSrc)
+	f := mustParse(fset, "", mainSrc)
 	makePkg("main", f)
 	mainScope := imports["main"].Scope()
 	rx := regexp.MustCompile(`^/\*(\w*)=([\w:]*)\*/$`)
@@ -1943,11 +1899,7 @@ func TestIdentical(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pkg, err := pkgForMode("test", "package p;"+test.src, nil, 0)
-		if err != nil {
-			t.Errorf("%s: incorrect test case: %s", test.src, err)
-			continue
-		}
+		pkg := mustTypecheck("test", "package p;"+test.src, nil)
 		X := pkg.Scope().Lookup("X")
 		Y := pkg.Scope().Lookup("Y")
 		if X == nil || Y == nil {
@@ -2021,10 +1973,7 @@ func TestIdenticalUnions(t *testing.T) {
 func TestIssue15305(t *testing.T) {
 	const src = "package p; func f() int16; var _ = f(undef)"
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "issue15305.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, "issue15305.go", src)
 	conf := Config{
 		Error: func(err error) {}, // allow errors
 	}
@@ -2060,20 +2009,14 @@ func TestCompositeLitTypes(t *testing.T) {
 		{`struct{x, y int; z complex128}{}`, `struct{x int; y int; z complex128}`},
 	} {
 		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, test.lit, "package p; var _ = "+test.lit, 0)
-		if err != nil {
-			t.Fatalf("%s: %v", test.lit, err)
-		}
-
-		info := &Info{
-			Types: make(map[ast.Expr]TypeAndValue),
-		}
-		if _, err = new(Config).Check("p", fset, []*ast.File{f}, info); err != nil {
+		f := mustParse(fset, test.lit, "package p; var _ = "+test.lit)
+		types := make(map[ast.Expr]TypeAndValue)
+		if _, err := new(Config).Check("p", fset, []*ast.File{f}, &Info{Types: types}); err != nil {
 			t.Fatalf("%s: %v", test.lit, err)
 		}
 
 		cmptype := func(x ast.Expr, want string) {
-			tv, ok := info.Types[x]
+			tv, ok := types[x]
 			if !ok {
 				t.Errorf("%s: no Types entry found", test.lit)
 				return
@@ -2121,15 +2064,12 @@ func f(x int) { y := x; print(y) }
 `
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "src", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, "src", src)
 
 	info := &Info{
 		Defs: make(map[*ast.Ident]Object),
 	}
-	if _, err = new(Config).Check("p", fset, []*ast.File{f}, info); err != nil {
+	if _, err := new(Config).Check("p", fset, []*ast.File{f}, info); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2183,10 +2123,7 @@ var v T = c
 func f(x T) T { return foo.F(x) }
 `
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "src", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, "src", src)
 	files := []*ast.File{f}
 
 	// type-check using all possible importers
@@ -2241,10 +2178,7 @@ func f(x T) T { return foo.F(x) }
 func TestInstantiate(t *testing.T) {
 	// eventually we like more tests but this is a start
 	const src = "package p; type T[P any] *T[P]"
-	pkg, err := pkgForMode(".", src, nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pkg := mustTypecheck(".", src, nil)
 
 	// type T should have one type parameter
 	T := pkg.Scope().Lookup("T").Type().(*Named)
@@ -2279,14 +2213,11 @@ func TestInstantiateErrors(t *testing.T) {
 
 	for _, test := range tests {
 		src := "package p; " + test.src
-		pkg, err := pkgForMode(".", src, nil, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
+		pkg := mustTypecheck(".", src, nil)
 
 		T := pkg.Scope().Lookup("T").Type().(*Named)
 
-		_, err = Instantiate(nil, T, test.targs, true)
+		_, err := Instantiate(nil, T, test.targs, true)
 		if err == nil {
 			t.Fatalf("Instantiate(%v, %v) returned nil error, want non-nil", T, test.targs)
 		}
@@ -2321,10 +2252,7 @@ func TestInstanceIdentity(t *testing.T) {
 	conf := Config{Importer: imports}
 	makePkg := func(src string) {
 		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, "", src, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
+		f := mustParse(fset, "", src)
 		name := f.Name.Name
 		pkg, err := conf.Check(name, fset, []*ast.File{f}, nil)
 		if err != nil {
@@ -2381,10 +2309,7 @@ func fn() {
 		Defs: make(map[*ast.Ident]Object),
 	}
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "p.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, "p.go", src)
 	conf := Config{}
 	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
 	if err != nil {
@@ -2516,10 +2441,7 @@ type Bad Bad // invalid type
 `
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "p.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, "p.go", src)
 	conf := Config{Error: func(error) {}}
 	pkg, _ := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
 
@@ -2614,10 +2536,7 @@ type V4 struct{}
 func (V4) M()
 `
 
-	pkg, err := pkgFor("p.go", src, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pkg := mustTypecheck("p.go", src, nil)
 
 	T := pkg.Scope().Lookup("T").Type().Underlying().(*Interface)
 	lookup := func(name string) (*Func, bool) {

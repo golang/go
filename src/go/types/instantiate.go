@@ -176,7 +176,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, 
 		// the parameterized type.
 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
 		var cause string
-		if !check.implements(targs[i], bound, &cause) {
+		if !check.implements(targs[i], bound, true, &cause) {
 			return i, errors.New(cause)
 		}
 	}
@@ -184,11 +184,12 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, 
 }
 
 // implements checks if V implements T. The receiver may be nil if implements
-// is called through an exported API call such as AssignableTo.
+// is called through an exported API call such as AssignableTo. If constraint
+// is set, T is a type constraint.
 //
 // If the provided cause is non-nil, it may be set to an error string
 // explaining why V does not implement T.
-func (check *Checker) implements(V, T Type, cause *string) bool {
+func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
 	Vu := under(V)
 	Tu := under(T)
 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
@@ -245,7 +246,11 @@ func (check *Checker) implements(V, T Type, cause *string) bool {
 	// Only check comparability if we don't have a more specific error.
 	checkComparability := func() bool {
 		// If T is comparable, V must be comparable.
-		if Ti.IsComparable() && !comparable(V, false, nil, nil) {
+		// For constraint satisfaction, use dynamic comparability for the
+		// alternative comparable semantics such that ordinary, non-type
+		// parameter interfaces implement comparable.
+		dynamic := constraint && check != nil && check.conf.altComparableSemantics
+		if Ti.IsComparable() && !comparable(V, dynamic, nil, nil) {
 			if cause != nil {
 				*cause = check.sprintf("%s does not implement comparable", V)
 			}
