@@ -205,16 +205,46 @@ func (z *Int) MulRange(a, b int64) *Int {
 	return z
 }
 
-// Binomial sets z to the binomial coefficient of (n, k) and returns z.
-func (z *Int) Binomial(n, k int64) *Int {
-	// reduce the number of multiplications by reducing k
-	if n/2 < k && k <= n {
-		k = n - k // Binomial(n, k) == Binomial(n, n-k)
+// Binomial sets z to the binomial coefficient C(n, k) and returns z.
+func (z *Int) Binomial(n_, k_ int64) *Int {
+	if k_ > n_ {
+		return z.SetInt64(0)
 	}
-	var a, b Int
-	a.MulRange(n-k+1, n)
-	b.MulRange(1, k)
-	return z.Quo(&a, &b)
+	// reduce the number of multiplications by reducing k
+	if k_ > n_-k_ {
+		k_ = n_ - k_ // C(n, k) == C(n, n-k)
+	}
+	// C(n, k) == n * (n-1) * ... * (n-k+1) / k * (k-1) * ... * 1
+	//         == n * (n-1) * ... * (n-k+1) / 1 * (1+1) * ... * k
+	//
+	// Using the multiplicative formula produces smaller values
+	// at each step, requiring fewer allocations and computations:
+	//
+	// z = 1
+	// for i := 0; i < k; i = i+1 {
+	//     z *= n-i
+	//     z /= i+1
+	// }
+	//
+	// finally to avoid computing i+1 twice per loop:
+	//
+	// z = 1
+	// i := 0
+	// for i < k {
+	//     z *= n-i
+	//     i++
+	//     z /= i
+	// }
+	var n, k, i, t Int
+	n.SetInt64(n_)
+	k.SetInt64(k_)
+	z.Set(intOne)
+	for i.Cmp(&k) < 0 {
+		z.Mul(z, t.Sub(&n, &i))
+		i.Add(&i, intOne)
+		z.Quo(z, &i)
+	}
+	return z
 }
 
 // Quo sets z to the quotient x/y for y != 0 and returns z.
