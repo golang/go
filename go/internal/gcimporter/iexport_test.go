@@ -30,6 +30,7 @@ import (
 
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/buildutil"
+	"golang.org/x/tools/go/gcexportdata"
 	"golang.org/x/tools/go/internal/gcimporter"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/internal/typeparams/genericfeatures"
@@ -403,3 +404,50 @@ func valueToRat(x constant.Value) *big.Rat {
 	}
 	return new(big.Rat).SetInt(new(big.Int).SetBytes(bytes))
 }
+
+// This is a regression test for a bug in iexport of types.Struct:
+// unexported fields were losing their implicit package qualifier.
+func TestUnexportedStructFields(t *testing.T) {
+	fset := token.NewFileSet()
+	export := make(map[string][]byte)
+
+	// process parses and type-checks a single-file
+	// package and saves its export data.
+	process := func(path, content string) {
+		syntax, err := parser.ParseFile(fset, path+"/x.go", content, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		packages := make(map[string]*types.Package) // keys are package paths
+		cfg := &types.Config{
+			Importer: importerFunc(func(path string) (*types.Package, error) {
+				data, ok := export[path]
+				if !ok {
+					return nil, fmt.Errorf("missing export data for %s", path)
+				}
+				return gcexportdata.Read(bytes.NewReader(data), fset, packages, path)
+			}),
+		}
+		pkg := types.NewPackage(path, syntax.Name.Name)
+		check := types.NewChecker(cfg, fset, pkg, nil)
+		if err := check.Files([]*ast.File{syntax}); err != nil {
+			t.Fatal(err)
+		}
+		var out bytes.Buffer
+		if err := gcexportdata.Write(&out, fset, pkg); err != nil {
+			t.Fatal(err)
+		}
+		export[path] = out.Bytes()
+	}
+
+	// Historically this led to a spurious error:
+	// "cannot convert a.M (variable of type a.MyTime) to type time.Time"
+	// because the private fields of Time and MyTime were not identical.
+	process("time", `package time; type Time struct { x, y int }`)
+	process("a", `package a; import "time"; type MyTime time.Time; var M MyTime`)
+	process("b", `package b; import ("a"; "time"); var _ = time.Time(a.M)`)
+}
+
+type importerFunc func(path string) (*types.Package, error)
+
+func (f importerFunc) Import(path string) (*types.Package, error) { return f(path) }

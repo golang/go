@@ -602,14 +602,17 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 
 	case *types.Struct:
 		w.startType(structType)
-		w.setPkg(pkg, true)
-
 		n := t.NumFields()
+		if n > 0 {
+			w.setPkg(t.Field(0).Pkg(), true) // qualifying package for field objects
+		} else {
+			w.setPkg(pkg, true)
+		}
 		w.uint64(uint64(n))
 		for i := 0; i < n; i++ {
 			f := t.Field(i)
 			w.pos(f.Pos())
-			w.string(f.Name())
+			w.string(f.Name()) // unexported fields implicitly qualified by prior setPkg
 			w.typ(f.Type(), pkg)
 			w.bool(f.Anonymous())
 			w.string(t.Tag(i)) // note (or tag)
