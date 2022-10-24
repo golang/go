@@ -235,13 +235,12 @@ func (z *Int) Binomial(n_, k_ int64) *Int {
 	//     i++
 	//     z /= i
 	// }
-	var n, k, i, d Int
+	var n, k, i, t Int
 	n.SetInt64(n_)
 	k.SetInt64(k_)
 	z.Set(intOne)
 	for i.Cmp(&k) < 0 {
-		d.Sub(&n, &i)
-		z.Mul(z, &d)
+		z.Mul(z, t.Sub(&n, &i))
 		i.Add(&i, intOne)
 		z.Quo(z, &i)
 	}
