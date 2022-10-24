@@ -494,7 +494,7 @@ func (in *input) endToken(kind tokenKind) {
 	in.token.endPos = in.pos
 }
 
-// peek returns the kind of the the next token returned by lex.
+// peek returns the kind of the next token returned by lex.
 func (in *input) peek() tokenKind {
 	return in.token.kind
 }

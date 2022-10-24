@@ -61,7 +61,7 @@ func PtraceGetFsBase(pid int, fsbase *int64) (err error) {
 }
 
 func PtraceIO(req int, pid int, addr uintptr, out []byte, countin int) (count int, err error) {
-	ioDesc := PtraceIoDesc{Op: int32(req), Offs: (*byte)(unsafe.Pointer(addr)), Addr: (*byte)(unsafe.Pointer(&out[0])), Len: uint64(countin)}
+	ioDesc := PtraceIoDesc{Op: int32(req), Offs: uintptr(unsafe.Pointer(addr)), Addr: uintptr(unsafe.Pointer(&out[0])), Len: uint64(countin)}
 	err = ptrace(PT_IO, pid, uintptr(unsafe.Pointer(&ioDesc)), 0)
 	return int(ioDesc.Len), err
 }

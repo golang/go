@@ -339,12 +339,21 @@ type Statfs_t struct {
 	Flags   uint64
 }
 
-type Dirent struct {
+type direntLE struct {
 	Reclen uint16
 	Namlen uint16
 	Ino    uint32
 	Extra  uintptr
 	Name   [256]byte
+}
+
+type Dirent struct {
+	Ino    uint64
+	Off    int64
+	Reclen uint16
+	Type   uint8
+	Name   [256]uint8
+	_      [5]byte
 }
 
 type FdSet struct {

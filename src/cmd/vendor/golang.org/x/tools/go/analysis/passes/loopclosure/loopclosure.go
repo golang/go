@@ -104,53 +104,62 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		// fighting against the test runner.
 		lastStmt := len(body.List) - 1
 		for i, s := range body.List {
-			var fun ast.Expr // if non-nil, a function that escapes the loop iteration
+			var stmts []ast.Stmt // statements that must be checked for escaping references
 			switch s := s.(type) {
 			case *ast.GoStmt:
 				if i == lastStmt {
-					fun = s.Call.Fun
+					stmts = litStmts(s.Call.Fun)
 				}
 
 			case *ast.DeferStmt:
 				if i == lastStmt {
-					fun = s.Call.Fun
+					stmts = litStmts(s.Call.Fun)
 				}
 
 			case *ast.ExprStmt: // check for errgroup.Group.Go and testing.T.Run (with T.Parallel)
 				if call, ok := s.X.(*ast.CallExpr); ok {
 					if i == lastStmt {
-						fun = goInvoke(pass.TypesInfo, call)
+						stmts = litStmts(goInvoke(pass.TypesInfo, call))
 					}
-					if fun == nil && analysisinternal.LoopclosureParallelSubtests {
-						fun = parallelSubtest(pass.TypesInfo, call)
+					if stmts == nil && analysisinternal.LoopclosureParallelSubtests {
+						stmts = parallelSubtest(pass.TypesInfo, call)
 					}
 				}
 			}
 
-			lit, ok := fun.(*ast.FuncLit)
-			if !ok {
-				continue
-			}
-
-			ast.Inspect(lit.Body, func(n ast.Node) bool {
-				id, ok := n.(*ast.Ident)
-				if !ok {
-					return true
-				}
-				obj := pass.TypesInfo.Uses[id]
-				if obj == nil {
-					return true
-				}
-				for _, v := range vars {
-					if v == obj {
-						pass.ReportRangef(id, "loop variable %s captured by func literal", id.Name)
+			for _, stmt := range stmts {
+				ast.Inspect(stmt, func(n ast.Node) bool {
+					id, ok := n.(*ast.Ident)
+					if !ok {
+						return true
 					}
-				}
-				return true
-			})
+					obj := pass.TypesInfo.Uses[id]
+					if obj == nil {
+						return true
+					}
+					for _, v := range vars {
+						if v == obj {
+							pass.ReportRangef(id, "loop variable %s captured by func literal", id.Name)
+						}
+					}
+					return true
+				})
+			}
 		}
 	})
 	return nil, nil
+}
+
+// litStmts returns all statements from the function body of a function
+// literal.
+//
+// If fun is not a function literal, it returns nil.
+func litStmts(fun ast.Expr) []ast.Stmt {
+	lit, _ := fun.(*ast.FuncLit)
+	if lit == nil {
+		return nil
+	}
+	return lit.Body.List
 }
 
 // goInvoke returns a function expression that would be called asynchronously
@@ -169,38 +178,45 @@ func goInvoke(info *types.Info, call *ast.CallExpr) ast.Expr {
 	return call.Args[0]
 }
 
-// parallelSubtest returns a function expression that would be called
+// parallelSubtest returns statements that would would be executed
 // asynchronously via the go test runner, as t.Run has been invoked with a
 // function literal that calls t.Parallel.
 //
-//		import "testing"
+// In practice, users rely on the fact that statements before the call to
+// t.Parallel are synchronous. For example by declaring test := test inside the
+// function literal, but before the call to t.Parallel.
 //
-//		func TestFoo(t *testing.T) {
-//			tests := []int{0, 1, 2}
-//			for i, t := range tests {
-//			 	t.Run("subtest", func(t *testing.T) {
-//	 				t.Parallel()
-//			 		println(i, t)
-//			 	})
-//		 	}
+// Therefore, we only flag references that occur after the call to t.Parallel:
+//
+//	import "testing"
+//
+//	func TestFoo(t *testing.T) {
+//		tests := []int{0, 1, 2}
+//		for i, test := range tests {
+//			t.Run("subtest", func(t *testing.T) {
+//				println(i, test) // OK
+//		 		t.Parallel()
+//				println(i, test) // Not OK
+//			})
 //		}
-func parallelSubtest(info *types.Info, call *ast.CallExpr) ast.Expr {
+//	}
+func parallelSubtest(info *types.Info, call *ast.CallExpr) []ast.Stmt {
 	if !isMethodCall(info, call, "testing", "T", "Run") {
 		return nil
 	}
 
-	lit, ok := call.Args[1].(*ast.FuncLit)
-	if !ok {
+	lit, _ := call.Args[1].(*ast.FuncLit)
+	if lit == nil {
 		return nil
 	}
 
-	for _, stmt := range lit.Body.List {
+	for i, stmt := range lit.Body.List {
 		exprStmt, ok := stmt.(*ast.ExprStmt)
 		if !ok {
 			continue
 		}
 		if isMethodCall(info, exprStmt.X, "testing", "T", "Parallel") {
-			return lit
+			return lit.Body.List[i+1:]
 		}
 	}
 
