@@ -9,8 +9,10 @@ package unix
 
 import (
 	"bytes"
+	"fmt"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -55,7 +57,13 @@ func (d *Dirent) NameString() string {
 	if d == nil {
 		return ""
 	}
-	return string(d.Name[:d.Namlen])
+	s := string(d.Name[:])
+	idx := strings.IndexByte(s, 0)
+	if idx == -1 {
+		return s
+	} else {
+		return s[:idx]
+	}
 }
 
 func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
@@ -1230,6 +1238,14 @@ func Readdir(dir uintptr) (*Dirent, error) {
 	return &ent, err
 }
 
+func readdir_r(dirp uintptr, entry *direntLE, result **direntLE) (err error) {
+	r0, _, e1 := syscall_syscall(SYS___READDIR_R_A, dirp, uintptr(unsafe.Pointer(entry)), uintptr(unsafe.Pointer(result)))
+	if int64(r0) == -1 {
+		err = errnoErr(Errno(e1))
+	}
+	return
+}
+
 func Closedir(dir uintptr) error {
 	_, _, e := syscall_syscall(SYS_CLOSEDIR, dir, 0, 0)
 	if e != 0 {
@@ -1820,4 +1836,159 @@ func Unmount(name string, mtm int) (err error) {
 		}
 	}
 	return err
+}
+
+func fdToPath(dirfd int) (path string, err error) {
+	var buffer [1024]byte
+	// w_ctrl()
+	ret := runtime.CallLeFuncByPtr(runtime.XplinkLibvec+SYS_W_IOCTL<<4,
+		[]uintptr{uintptr(dirfd), 17, 1024, uintptr(unsafe.Pointer(&buffer[0]))})
+	if ret == 0 {
+		zb := bytes.IndexByte(buffer[:], 0)
+		if zb == -1 {
+			zb = len(buffer)
+		}
+		// __e2a_l()
+		runtime.CallLeFuncByPtr(runtime.XplinkLibvec+SYS___E2A_L<<4,
+			[]uintptr{uintptr(unsafe.Pointer(&buffer[0])), uintptr(zb)})
+		return string(buffer[:zb]), nil
+	}
+	// __errno()
+	errno := int(*(*int32)(unsafe.Pointer(runtime.CallLeFuncByPtr(runtime.XplinkLibvec+SYS___ERRNO<<4,
+		[]uintptr{}))))
+	// __errno2()
+	errno2 := int(runtime.CallLeFuncByPtr(runtime.XplinkLibvec+SYS___ERRNO2<<4,
+		[]uintptr{}))
+	// strerror_r()
+	ret = runtime.CallLeFuncByPtr(runtime.XplinkLibvec+SYS_STRERROR_R<<4,
+		[]uintptr{uintptr(errno), uintptr(unsafe.Pointer(&buffer[0])), 1024})
+	if ret == 0 {
+		zb := bytes.IndexByte(buffer[:], 0)
+		if zb == -1 {
+			zb = len(buffer)
+		}
+		return "", fmt.Errorf("%s (errno2=0x%x)", buffer[:zb], errno2)
+	} else {
+		return "", fmt.Errorf("fdToPath errno %d (errno2=0x%x)", errno, errno2)
+	}
+}
+
+func direntLeToDirentUnix(dirent *direntLE, dir uintptr, path string) (Dirent, error) {
+	var d Dirent
+
+	d.Ino = uint64(dirent.Ino)
+	offset, err := Telldir(dir)
+	if err != nil {
+		return d, err
+	}
+
+	d.Off = int64(offset)
+	s := string(bytes.Split(dirent.Name[:], []byte{0})[0])
+	copy(d.Name[:], s)
+
+	d.Reclen = uint16(24 + len(d.NameString()))
+	var st Stat_t
+	path = path + "/" + s
+	err = Lstat(path, &st)
+	if err != nil {
+		return d, err
+	}
+
+	d.Type = uint8(st.Mode >> 24)
+	return d, err
+}
+
+func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+	// Simulation of Getdirentries port from the Darwin implementation.
+	// COMMENTS FROM DARWIN:
+	// It's not the full required semantics, but should handle the case
+	// of calling Getdirentries or ReadDirent repeatedly.
+	// It won't handle assigning the results of lseek to *basep, or handle
+	// the directory being edited underfoot.
+
+	skip, err := Seek(fd, 0, 1 /* SEEK_CUR */)
+	if err != nil {
+		return 0, err
+	}
+
+	// Get path from fd to avoid unavailable call (fdopendir)
+	path, err := fdToPath(fd)
+	if err != nil {
+		return 0, err
+	}
+	d, err := Opendir(path)
+	if err != nil {
+		return 0, err
+	}
+	defer Closedir(d)
+
+	var cnt int64
+	for {
+		var entryLE direntLE
+		var entrypLE *direntLE
+		e := readdir_r(d, &entryLE, &entrypLE)
+		if e != nil {
+			return n, e
+		}
+		if entrypLE == nil {
+			break
+		}
+		if skip > 0 {
+			skip--
+			cnt++
+			continue
+		}
+
+		// Dirent on zos has a different structure
+		entry, e := direntLeToDirentUnix(&entryLE, d, path)
+		if e != nil {
+			return n, e
+		}
+
+		reclen := int(entry.Reclen)
+		if reclen > len(buf) {
+			// Not enough room. Return for now.
+			// The counter will let us know where we should start up again.
+			// Note: this strategy for suspending in the middle and
+			// restarting is O(n^2) in the length of the directory. Oh well.
+			break
+		}
+
+		// Copy entry into return buffer.
+		s := unsafe.Slice((*byte)(unsafe.Pointer(&entry)), reclen)
+		copy(buf, s)
+
+		buf = buf[reclen:]
+		n += reclen
+		cnt++
+	}
+	// Set the seek offset of the input fd to record
+	// how many files we've already returned.
+	_, err = Seek(fd, cnt, 0 /* SEEK_SET */)
+	if err != nil {
+		return n, err
+	}
+
+	return n, nil
+}
+
+func ReadDirent(fd int, buf []byte) (n int, err error) {
+	var base = (*uintptr)(unsafe.Pointer(new(uint64)))
+	return Getdirentries(fd, buf, base)
+}
+
+func direntIno(buf []byte) (uint64, bool) {
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
+}
+
+func direntReclen(buf []byte) (uint64, bool) {
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
+}
+
+func direntNamlen(buf []byte) (uint64, bool) {
+	reclen, ok := direntReclen(buf)
+	if !ok {
+		return 0, false
+	}
+	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
 }

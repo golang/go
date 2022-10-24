@@ -41,10 +41,6 @@ func setTimeval(sec, usec int64) Timeval {
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	setfsgid(gid int) (prev int, err error) = SYS_SETFSGID32
 //sys	setfsuid(uid int) (prev int, err error) = SYS_SETFSUID32
-//sysnb	Setregid(rgid int, egid int) (err error) = SYS_SETREGID32
-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error) = SYS_SETRESGID32
-//sysnb	Setresuid(ruid int, euid int, suid int) (err error) = SYS_SETRESUID32
-//sysnb	Setreuid(ruid int, euid int) (err error) = SYS_SETREUID32
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
 //sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)

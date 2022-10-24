@@ -619,7 +619,7 @@ func (e *UnrecognizedVCSError) Error() string {
 	return fmt.Sprintf("could not find a recognized version control system at %q", e.RepoRoot)
 }
 
-// filterGitIgnored filters out any files that are git ignored in the directory.
+// filesInGitRepo filters out any files that are git ignored in the directory.
 func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 	stderr := bytes.Buffer{}
 	stdout := bytes.Buffer{}
@@ -641,6 +641,7 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 		cmd.Args = append(cmd.Args, subdir)
 	}
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "PWD="+dir)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
@@ -679,11 +680,12 @@ func isGitRepo(dir string) bool {
 	stdout := &bytes.Buffer{}
 	cmd := exec.Command("git", "rev-parse", "--git-dir")
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "PWD="+dir)
 	cmd.Stdout = stdout
 	if err := cmd.Run(); err != nil {
 		return false
 	}
-	gitDir := strings.TrimSpace(string(stdout.Bytes()))
+	gitDir := strings.TrimSpace(stdout.String())
 	if !filepath.IsAbs(gitDir) {
 		gitDir = filepath.Join(dir, gitDir)
 	}

@@ -96,13 +96,13 @@ package module
 // Changes to the semantics in this file require approval from rsc.
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
-	"errors"
 
 	"golang.org/x/mod/semver"
 )
@@ -258,7 +258,7 @@ func modPathOK(r rune) bool {
 	return false
 }
 
-// modPathOK reports whether r can appear in a package import path element.
+// importPathOK reports whether r can appear in a package import path element.
 //
 // Import paths are intermediate between module paths and file paths: we allow
 // disallow characters that would be confusing or ambiguous as arguments to
