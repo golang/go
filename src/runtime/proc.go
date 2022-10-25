@@ -1998,7 +1998,8 @@ func oneNewExtraM() {
 	gp.m = mp
 	mp.curg = gp
 	mp.isextra = true
-	mp.isExtraInC = true
+	// During a call to needm we could get a signal which would itself call needm,
+	// that will cause a deadlock, so we keep isExtraInC false, as default.
 	mp.lockedInt++
 	mp.lockedg.set(gp)
 	gp.lockedm.set(mp)
@@ -2060,6 +2061,10 @@ func dropm() {
 	// After the call to setg we can only call nosplit functions
 	// with no pointer manipulation.
 	mp := getg().m
+
+	// During a call to needm we could get a signal which would itself call needm,
+	// that will cause a deadlock, so we set isExtraInC to false.
+	mp.isExtraInC = false
 
 	// Return mp.curg to dead state.
 	casgstatus(mp.curg, _Gsyscall, _Gdead)
