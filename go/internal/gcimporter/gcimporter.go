@@ -22,11 +22,14 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"text/scanner"
+
+	"golang.org/x/tools/internal/goroot"
 )
 
 const (
@@ -37,6 +40,25 @@ const (
 	// If trace is set, debugging output is printed to std out.
 	trace = false
 )
+
+func lookupGorootExport(pkgpath, srcRoot, srcDir string) (string, bool) {
+	pkgpath = filepath.ToSlash(pkgpath)
+	m, err := goroot.PkgfileMap()
+	if err != nil {
+		return "", false
+	}
+	if export, ok := m[pkgpath]; ok {
+		return export, true
+	}
+	vendorPrefix := "vendor"
+	if strings.HasPrefix(srcDir, filepath.Join(srcRoot, "cmd")) {
+		vendorPrefix = path.Join("cmd", vendorPrefix)
+	}
+	pkgpath = path.Join(vendorPrefix, pkgpath)
+	fmt.Fprintln(os.Stderr, "looking up ", pkgpath)
+	export, ok := m[pkgpath]
+	return export, ok
+}
 
 var pkgExts = [...]string{".a", ".o"}
 
@@ -60,11 +82,18 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		}
 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
 		if bp.PkgObj == "" {
-			id = path // make sure we have an id to print in error message
-			return
+			var ok bool
+			if bp.Goroot {
+				filename, ok = lookupGorootExport(path, bp.SrcRoot, srcDir)
+			}
+			if !ok {
+				id = path // make sure we have an id to print in error message
+				return
+			}
+		} else {
+			noext = strings.TrimSuffix(bp.PkgObj, ".a")
+			id = bp.ImportPath
 		}
-		noext = strings.TrimSuffix(bp.PkgObj, ".a")
-		id = bp.ImportPath
 
 	case build.IsLocalImport(path):
 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
@@ -82,6 +111,12 @@ func FindPkg(path, srcDir string) (filename, id string) {
 	if false { // for debugging
 		if path != id {
 			fmt.Printf("%s -> %s\n", path, id)
+		}
+	}
+
+	if filename != "" {
+		if f, err := os.Stat(filename); err == nil && !f.IsDir() {
+			return
 		}
 	}
 
