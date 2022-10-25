@@ -8,7 +8,7 @@ stderr 'module x'
 
 # Import comment works even with CRLF line endings.
 rm go.mod
-addcrlf x.go
+replace '\n' '\r\n' x.go
 go mod init
 stderr 'module x'
 

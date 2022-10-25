@@ -90,6 +90,51 @@ func TestRFC3339Conversion(t *testing.T) {
 	}
 }
 
+func TestAppendInt(t *testing.T) {
+	tests := []struct {
+		in    int
+		width int
+		want  string
+	}{
+		{0, 0, "0"},
+		{0, 1, "0"},
+		{0, 2, "00"},
+		{0, 3, "000"},
+		{1, 0, "1"},
+		{1, 1, "1"},
+		{1, 2, "01"},
+		{1, 3, "001"},
+		{-1, 0, "-1"},
+		{-1, 1, "-1"},
+		{-1, 2, "-01"},
+		{-1, 3, "-001"},
+		{99, 2, "99"},
+		{100, 2, "100"},
+		{1, 4, "0001"},
+		{12, 4, "0012"},
+		{123, 4, "0123"},
+		{1234, 4, "1234"},
+		{12345, 4, "12345"},
+		{1, 5, "00001"},
+		{12, 5, "00012"},
+		{123, 5, "00123"},
+		{1234, 5, "01234"},
+		{12345, 5, "12345"},
+		{123456, 5, "123456"},
+		{0, 9, "000000000"},
+		{123, 9, "000000123"},
+		{123456, 9, "000123456"},
+		{123456789, 9, "123456789"},
+	}
+	var got []byte
+	for _, tt := range tests {
+		got = AppendInt(got[:0], tt.in, tt.width)
+		if string(got) != tt.want {
+			t.Errorf("appendInt(%d, %d) = %s, want %s", tt.in, tt.width, got, tt.want)
+		}
+	}
+}
+
 type FormatTest struct {
 	name   string
 	format string

@@ -238,3 +238,9 @@ func (b *errorDetailBuffer) Read(p []byte) (n int, err error) {
 
 	return n, err
 }
+
+// IsLocalHost reports whether the given URL refers to a local
+// (loopback) host, such as "localhost" or "127.0.0.1:8080".
+func IsLocalHost(u *url.URL) bool {
+	return isLocalHost(u)
+}

@@ -1,7 +1,7 @@
 env GO111MODULE=on
 env GOPROXY=off
 
-[!gc] skip
+[!compiler:gc] skip
 [short] skip
 
 # Outside of GOROOT, our vendored packages should be reported as part of the standard library.

@@ -33,6 +33,9 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/search"
+	"cmd/go/internal/vcs"
+	"cmd/go/internal/vcweb/vcstest"
+	"cmd/go/internal/web"
 	"cmd/go/internal/work"
 	"cmd/internal/sys"
 
@@ -48,12 +51,10 @@ func init() {
 }
 
 var (
-	canRace          = false // whether we can run the race detector
-	canCgo           = false // whether we can use cgo
-	canMSan          = false // whether we can run the memory sanitizer
-	canASan          = false // whether we can run the address sanitizer
-	canFuzz          = false // whether we can search for new fuzz failures
-	fuzzInstrumented = false // whether fuzzing uses instrumentation
+	canRace = false // whether we can run the race detector
+	canCgo  = false // whether we can use cgo
+	canMSan = false // whether we can run the memory sanitizer
+	canASan = false // whether we can run the address sanitizer
 )
 
 var (
@@ -131,6 +132,24 @@ func TestMain(m *testing.M) {
 				return fmt.Errorf("%stestgo must not write to GOROOT (installing to %s)", callerPos, filepath.Join("GOROOT", rel))
 			}
 		}
+
+		if vcsTestHost := os.Getenv("TESTGO_VCSTEST_HOST"); vcsTestHost != "" {
+			vcs.VCSTestRepoURL = "http://" + vcsTestHost
+			vcs.VCSTestHosts = vcstest.Hosts
+			vcsTestTLSHost := os.Getenv("TESTGO_VCSTEST_TLS_HOST")
+			vcsTestClient, err := vcstest.TLSClient(os.Getenv("TESTGO_VCSTEST_CERT"))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "loading certificates from $TESTGO_VCSTEST_CERT: %v", err)
+			}
+			var interceptors []web.Interceptor
+			for _, host := range vcstest.Hosts {
+				interceptors = append(interceptors,
+					web.Interceptor{Scheme: "http", FromHost: host, ToHost: vcsTestHost},
+					web.Interceptor{Scheme: "https", FromHost: host, ToHost: vcsTestTLSHost, Client: vcsTestClient})
+			}
+			web.EnableTestHooks(interceptors)
+		}
+
 		cmdgo.Main()
 		os.Exit(0)
 	}
@@ -270,8 +289,6 @@ func TestMain(m *testing.M) {
 		if isAlpineLinux() || runtime.Compiler == "gccgo" {
 			canRace = false
 		}
-		canFuzz = platform.FuzzSupported(runtime.GOOS, runtime.GOARCH)
-		fuzzInstrumented = platform.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
 	}
 
 	// Don't let these environment variables confuse the test.

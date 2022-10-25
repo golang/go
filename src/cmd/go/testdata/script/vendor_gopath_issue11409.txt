@@ -1,4 +1,4 @@
-[!windows] [short] stop 'this test only applies to Windows'
+[!GOOS:windows] [short] stop 'this test only applies to Windows'
 env GO111MODULE=off
 
 go build run_go.go

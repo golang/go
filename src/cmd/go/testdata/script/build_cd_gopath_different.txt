@@ -1,4 +1,4 @@
-[gccgo] skip 'gccgo does not support -ldflags -X'
+[compiler:gccgo] skip 'gccgo does not support -ldflags -X'
 env GO111MODULE=off
 go build run_go.go
 
@@ -8,7 +8,7 @@ exec $WORK/tmp/a.exe
 stderr 'linkXworked'
 rm $WORK/tmp/a.exe
 
-[!windows] stop 'rest of the tests only apply to Windows'
+[!GOOS:windows] stop 'rest of the tests only apply to Windows'
 
 # Replace '\' with '/' in GOPATH
 exec ./run_go$GOEXE $GOPATH/src/my.pkg/main $GOPATH REPLACE_SLASH build -o $WORK/tmp/a.exe -ldflags -X=my.pkg.Text=linkXworked

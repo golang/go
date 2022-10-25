@@ -17,8 +17,8 @@ go build -x runtime/cgo
 [!short] stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
 
 # https://go.dev/issue/47215: a missing $(go env CC) caused the precompiled net to be stale.
-[!plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
-[plan9] env path=''
+[!GOOS:plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
+[GOOS:plan9] env path=''
 go build -x runtime/cgo
 ! stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
 

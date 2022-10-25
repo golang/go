@@ -36,8 +36,8 @@ env GO111MODULE=off
 go list ./...
 stdout -count=2 '^.+$' # Both 'fmt' and GOROOT/src should be listed.
 stdout '^fmt$'
-[!windows] stdout ^_$WORK/goroot/src$
-[windows] stdout goroot/src$ # On windows the ":" in the volume name is mangled
+[!GOOS:windows] stdout ^_$WORK/goroot/src$
+[GOOS:windows] stdout goroot/src$ # On windows the ":" in the volume name is mangled
 
 go list ...
 ! stdout goroot/src
@@ -46,8 +46,8 @@ go list std
 ! stdout goroot/src
 
 go list .
-[!windows] stdout ^_$WORK/goroot/src$
-[windows] stdout goroot/src$
+[!GOOS:windows] stdout ^_$WORK/goroot/src$
+[GOOS:windows] stdout goroot/src$
 
 # switch to GOPATH/src
 cd $GOPATH/src
@@ -55,8 +55,8 @@ cd $GOPATH/src
 # GO111MODULE=off,GOPATH
 env GO111MODULE=off
 go list ./...
-[!windows] stdout ^_$WORK/gopath/src$
-[windows] stdout gopath/src$
+[!GOOS:windows] stdout ^_$WORK/gopath/src$
+[GOOS:windows] stdout gopath/src$
 
 go list all
 ! stdout gopath/src

@@ -4,7 +4,7 @@
 # 1. /tmp/go.mod exists
 # 2. run 'go mod tidy' in /tmp or in the child directory not having go.mod.
 
-[plan9] stop  # Plan 9 has no $TMPDIR variable to set.
+[GOOS:plan9] stop  # Plan 9 has no $TMPDIR variable to set.
 
 env GOROOT=$TESTGO_GOROOT
 env TMP=$WORK

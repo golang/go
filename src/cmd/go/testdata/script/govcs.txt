@@ -67,7 +67,7 @@ stderr '^go: rsc.io/nonexist.bzr/hello: GOVCS disallows using bzr for public rsc
 # git is OK by default
 env GOVCS=
 env GONOSUMDB='*'
-[net] [exec:git] [!short] go get rsc.io/sampler
+[net] [git] [!short] go get rsc.io/sampler
 
 # hg is OK by default
 env GOVCS=
@@ -150,7 +150,7 @@ stderr '^package rsc.io/nonexist.bzr/hello: GOVCS disallows using bzr for public
 # git is OK by default
 env GOVCS=
 env GONOSUMDB='*'
-[net] [exec:git] [!short] go get rsc.io/sampler
+[net] [git] [!short] go get rsc.io/sampler
 
 # hg is OK by default
 env GOVCS=

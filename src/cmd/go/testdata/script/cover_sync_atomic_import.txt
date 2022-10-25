@@ -1,5 +1,5 @@
 [short] skip
-[gccgo] skip # gccgo has no cover tool
+[compiler:gccgo] skip # gccgo has no cover tool
 
 go test -short -cover -covermode=atomic -coverpkg=coverdep/p1 coverdep
 

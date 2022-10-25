@@ -38,7 +38,7 @@ func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 
 	if nanos {
 		std := stdFracSecond(stdFracSecond9, 9, '.')
-		b = formatNano(b, uint(t.Nanosecond()), std)
+		b = appendNano(b, t.Nanosecond(), std)
 	}
 
 	if offset == 0 {
