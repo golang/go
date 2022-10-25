@@ -10,6 +10,7 @@ git init
 at 2022-02-22T15:53:33-05:00
 git add v2sub.go v2
 git commit -m 'all: add package v2sub and v2sub/v2'
+git branch -m main
 git tag v2.0.0
 
 at 2022-02-22T15:55:07-05:00

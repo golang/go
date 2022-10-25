@@ -8,11 +8,11 @@ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
 at 2019-05-09T18:56:25-04:00
 
 git init
-git branch -m master
 
 git add go.mod tagtests.go
 git commit -m 'create module tagtests'
-git branch -c b
+git branch -m master
+git branch b
 
 git add v0.2.1
 git commit -m 'v0.2.1'

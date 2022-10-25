@@ -10,6 +10,7 @@ git init
 at 2022-02-23T13:48:02-05:00
 git add README.txt
 git commit -m 'initial state'
+git branch -m main
 git tag 'v2.0.0+incompatible'
 
 at 2022-02-23T13:48:35-05:00
@@ -19,7 +20,7 @@ git commit -m 'migrate to Go modules'
 git tag 'v0.1.0+build-metadata'
 
 at 2022-02-23T14:41:55-05:00
-git branch -c v3-dev
+git branch v3-dev
 git checkout v3-dev
 cp v3/go.mod go.mod
 git commit go.mod -m 'update to /v3'

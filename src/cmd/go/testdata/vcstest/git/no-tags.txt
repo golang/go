@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
 env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
 
 git init
-git branch -m master
 
 at 2019-07-15T17:20:47-04:00
 git add go.mod main.go
 git commit -m 'all: add go.mod and main.go'
+git branch -m master
 
 git log --oneline --decorate=short
 cmp stdout .git-log

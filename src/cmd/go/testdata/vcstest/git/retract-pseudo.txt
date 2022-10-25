@@ -11,6 +11,7 @@ git init
 
 git add go.mod p.go
 git commit -m 'create module retract-pseudo'
+git branch -m main
 git tag v1.0.0
 
 git mv p.go q.go
