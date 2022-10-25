@@ -354,9 +354,7 @@ func AddrFromSlice(slice []byte) (ip Addr, ok bool) {
 	case 4:
 		return AddrFrom4(*(*[4]byte)(slice)), true
 	case 16:
-		ipAddr := ipv6Slice(slice)
-		unwrapAddr := ipAddr.Unmap()
-		return unwrapAddr, true
+		return ipv6Slice(slice), true
 	}
 	return Addr{}, false
 }
