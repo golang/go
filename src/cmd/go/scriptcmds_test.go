@@ -11,15 +11,23 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
 
-func scriptCommands(interrupt os.Signal, gracePeriod time.Duration) map[string]script.Cmd {
+func scriptCommands(interrupt os.Signal, waitDelay time.Duration) map[string]script.Cmd {
 	cmds := scripttest.DefaultCmds()
 
 	// Customize the "exec" interrupt signal and grace period.
-	cmdExec := script.Exec(quitSignal(), gracePeriod)
+	var cancel func(cmd *exec.Cmd) error
+	if interrupt != nil {
+		cancel = func(cmd *exec.Cmd) error {
+			return cmd.Process.Signal(interrupt)
+		}
+	}
+
+	cmdExec := script.Exec(cancel, waitDelay)
 	cmds["exec"] = cmdExec
 
 	add := func(name string, cmd script.Cmd) {
@@ -30,7 +38,7 @@ func scriptCommands(interrupt os.Signal, gracePeriod time.Duration) map[string]s
 	}
 
 	add("cc", scriptCC(cmdExec))
-	cmdGo := scriptGo(interrupt, gracePeriod)
+	cmdGo := scriptGo(cancel, waitDelay)
 	add("go", cmdGo)
 	add("stale", scriptStale(cmdGo))
 
@@ -62,8 +70,8 @@ func scriptCC(cmdExec script.Cmd) script.Cmd {
 }
 
 // scriptGo runs the go command.
-func scriptGo(interrupt os.Signal, gracePeriod time.Duration) script.Cmd {
-	return script.Program(testGo, interrupt, gracePeriod)
+func scriptGo(cancel func(*exec.Cmd) error, waitDelay time.Duration) script.Cmd {
+	return script.Program(testGo, cancel, waitDelay)
 }
 
 // scriptStale checks that the named build targets are stale.

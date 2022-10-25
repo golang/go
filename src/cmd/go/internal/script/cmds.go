@@ -6,7 +6,6 @@ package script
 
 import (
 	"cmd/go/internal/robustio"
-	"context"
 	"errors"
 	"fmt"
 	"internal/diff"
@@ -36,7 +35,7 @@ func DefaultCmds() map[string]Cmd {
 		"cp":      Cp(),
 		"echo":    Echo(),
 		"env":     Env(),
-		"exec":    Exec(os.Interrupt, 100*time.Millisecond), // arbitrary grace period
+		"exec":    Exec(func(cmd *exec.Cmd) error { return cmd.Process.Signal(os.Interrupt) }, 100*time.Millisecond), // arbitrary grace period
 		"exists":  Exists(),
 		"grep":    Grep(),
 		"help":    Help(),
@@ -400,7 +399,7 @@ func Env() Cmd {
 // When the Script's context is canceled, Exec sends the interrupt signal, then
 // waits for up to the given delay for the subprocess to flush output before
 // terminating it with os.Kill.
-func Exec(interrupt os.Signal, delay time.Duration) Cmd {
+func Exec(cancel func(*exec.Cmd) error, waitDelay time.Duration) Cmd {
 	return Command(
 		CmdUsage{
 			Summary: "run an executable program with arguments",
@@ -428,13 +427,19 @@ func Exec(interrupt os.Signal, delay time.Duration) Cmd {
 				}
 			}
 
-			return startCommand(s, name, path, args[1:], interrupt, delay)
+			return startCommand(s, name, path, args[1:], cancel, waitDelay)
 		})
 }
 
-func startCommand(s *State, name, path string, args []string, interrupt os.Signal, gracePeriod time.Duration) (WaitFunc, error) {
+func startCommand(s *State, name, path string, args []string, cancel func(*exec.Cmd) error, waitDelay time.Duration) (WaitFunc, error) {
 	var stdoutBuf, stderrBuf strings.Builder
-	cmd := exec.Command(path, args...)
+	cmd := exec.CommandContext(s.Context(), path, args...)
+	if cancel == nil {
+		cmd.Cancel = nil
+	} else {
+		cmd.Cancel = func() error { return cancel(cmd) }
+	}
+	cmd.WaitDelay = waitDelay
 	cmd.Args[0] = name
 	cmd.Dir = s.Getwd()
 	cmd.Env = s.env
@@ -444,16 +449,9 @@ func startCommand(s *State, name, path string, args []string, interrupt os.Signa
 		return nil, err
 	}
 
-	var waitErr error
-	done := make(chan struct{})
-	go func() {
-		waitErr = waitOrStop(s.Context(), cmd, interrupt, gracePeriod)
-		close(done)
-	}()
-
 	wait := func(s *State) (stdout, stderr string, err error) {
-		<-done
-		return stdoutBuf.String(), stderrBuf.String(), waitErr
+		err = cmd.Wait()
+		return stdoutBuf.String(), stderrBuf.String(), err
 	}
 	return wait, nil
 }
@@ -533,67 +531,6 @@ func pathEnvName() string {
 	default:
 		return "PATH"
 	}
-}
-
-// waitOrStop waits for the already-started command cmd by calling its Wait method.
-//
-// If cmd does not return before ctx is done, waitOrStop sends it the given interrupt signal.
-// If killDelay is positive, waitOrStop waits that additional period for Wait to return before sending os.Kill.
-//
-// This function is copied from the one added to x/playground/internal in
-// http://golang.org/cl/228438.
-func waitOrStop(ctx context.Context, cmd *exec.Cmd, interrupt os.Signal, killDelay time.Duration) error {
-	if cmd.Process == nil {
-		panic("waitOrStop called with a nil cmd.Process — missing Start call?")
-	}
-	if interrupt == nil {
-		panic("waitOrStop requires a non-nil interrupt signal")
-	}
-
-	errc := make(chan error)
-	go func() {
-		select {
-		case errc <- nil:
-			return
-		case <-ctx.Done():
-		}
-
-		err := cmd.Process.Signal(interrupt)
-		if err == nil {
-			err = ctx.Err() // Report ctx.Err() as the reason we interrupted.
-		} else if err == os.ErrProcessDone {
-			errc <- nil
-			return
-		}
-
-		if killDelay > 0 {
-			timer := time.NewTimer(killDelay)
-			select {
-			// Report ctx.Err() as the reason we interrupted the process...
-			case errc <- ctx.Err():
-				timer.Stop()
-				return
-			// ...but after killDelay has elapsed, fall back to a stronger signal.
-			case <-timer.C:
-			}
-
-			// Wait still hasn't returned.
-			// Kill the process harder to make sure that it exits.
-			//
-			// Ignore any error: if cmd.Process has already terminated, we still
-			// want to send ctx.Err() (or the error from the Interrupt call)
-			// to properly attribute the signal that may have terminated it.
-			_ = cmd.Process.Kill()
-		}
-
-		errc <- err
-	}()
-
-	waitErr := cmd.Wait()
-	if interruptErr := <-errc; interruptErr != nil {
-		return interruptErr
-	}
-	return waitErr
 }
 
 // Exists checks that the named file(s) exist.
@@ -834,7 +771,7 @@ func Mv() Cmd {
 
 // Program returns a new command that runs the named program, found from the
 // host process's PATH (not looked up in the script's PATH).
-func Program(name string, interrupt os.Signal, gracePeriod time.Duration) Cmd {
+func Program(name string, cancel func(*exec.Cmd) error, waitDelay time.Duration) Cmd {
 	var (
 		shortName    string
 		summary      string
@@ -864,7 +801,7 @@ func Program(name string, interrupt os.Signal, gracePeriod time.Duration) Cmd {
 			if pathErr != nil {
 				return nil, pathErr
 			}
-			return startCommand(s, shortName, path, args, interrupt, gracePeriod)
+			return startCommand(s, shortName, path, args, cancel, waitDelay)
 		})
 }
 
