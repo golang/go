@@ -8,10 +8,10 @@ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
 at 2019-05-09T18:35:00-04:00
 
 git init
-git branch -m master
 
 git add sub
 git commit -m 'create module sub'
+git branch -m master
 
 echo 'v0.1.0'
 cp stdout status

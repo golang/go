@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
 env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
 
 git init
-git branch -m master
 
 at 2018-02-19T17:21:09-05:00
 git add LICENSE README.md
 git commit -m 'initial commit'
+git branch -m master
 
 git checkout --detach HEAD
 

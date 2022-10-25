@@ -27,10 +27,10 @@ git init
 git config --add core.ignorecase true
 git config --add core.precomposeunicode true
 
-git branch -m master
 git add README
 at 2017-09-22T11:39:03-04:00
 git commit -a -m 'README'
+git branch -m master
 
 git rev-parse HEAD
 stdout '^7f800d2ac276dd7042ea0e8d7438527d236fd098$'

@@ -8,15 +8,15 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
 env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
 
 git init
-git branch -m master
 
 # 0
 at 2018-02-19T17:21:09-05:00
 git add LICENSE README.md
 git commit -m 'initial commit'
+git branch -m master
 
 # 1
-git branch -c mybranch
+git branch mybranch
 git checkout mybranch
 
 at 2018-02-19T18:10:06-05:00
@@ -30,8 +30,8 @@ git tag v1.0.0
 git tag v2.0.0
 git tag mytag
 
-git branch -c v1
-git branch -c v2
+git branch v1
+git branch v2
 git checkout v2
 
 # 2

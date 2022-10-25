@@ -6,14 +6,14 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
 env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
 
 git init
-git branch -m master
 
 at 2018-07-03T22:31:01-04:00
 git add go.mod
 git commit -a -m 'v1'
+git branch -m master
 git tag start
 
-git branch -c v2
+git branch v2
 
 at 2018-07-03T22:33:47-04:00
 echo 'before v0.0.0-pre1'
