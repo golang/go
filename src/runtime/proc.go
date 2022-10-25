@@ -2030,9 +2030,11 @@ func oneNewExtraM() {
 	unlockextra(mp)
 }
 
+// dropm puts the current m back onto the extra list.
+//
+// 1. On systems without pthreads, like Windows
 // dropm is called when a cgo callback has called needm but is now
 // done with the callback and returning back into the non-Go thread.
-// It puts the current m back onto the extra list.
 //
 // The main expense here is the call to signalstack to release the
 // m's signal stack, and then the call to needm on the next callback
@@ -2044,15 +2046,12 @@ func oneNewExtraM() {
 // call. These should typically not be scheduling operations, just a few
 // atomics, so the cost should be small.
 //
-// TODO(rsc): An alternative would be to allocate a dummy pthread per-thread
-// variable using pthread_key_create. Unlike the pthread keys we already use
-// on OS X, this dummy key would never be read by Go code. It would exist
-// only so that we could register at thread-exit-time destructor.
-// That destructor would put the m back onto the extra list.
-// This is purely a performance optimization. The current version,
-// in which dropm happens on each cgo call, is still correct too.
-// We may have to keep the current version on systems with cgo
-// but without pthreads, like Windows.
+// 2. On systems with pthreads
+// dropm is called while a non-Go thread is exiting.
+// We allocate a dummy pthread per-thread variable using pthread_key_create,
+// to register a thread-exit-time destructor.
+// So that the destructor would invoke dropm while the non-Go thread is exiting.
+// This is much faster since it avoids expensive signal-related syscalls.
 //
 //go:nowritebarrierrec
 func dropm() {
