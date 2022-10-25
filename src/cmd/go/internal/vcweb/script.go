@@ -16,6 +16,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -31,7 +32,7 @@ import (
 func newScriptEngine() *script.Engine {
 	conds := script.DefaultConds()
 
-	interrupt := os.Interrupt
+	interrupt := func(cmd *exec.Cmd) error { return cmd.Process.Signal(os.Interrupt) }
 	gracePeriod := 1 * time.Second // arbitrary
 
 	cmds := script.DefaultCmds()
