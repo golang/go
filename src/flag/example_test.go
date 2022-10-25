@@ -78,6 +78,7 @@ func Example() {
 	// to enable the flag package to see the flags defined there, one must
 	// execute, typically at the start of main (not init!):
 	//	flag.Parse()
-	// We don't run it here because this is not a main function and
+	// We don't run it here because this is not a main function (it's renamed to
+	// "main" in playground, but bear in mind that this is a test example) and
 	// the testing suite has already parsed the flags.
 }
