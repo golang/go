@@ -115,12 +115,26 @@ cmp stdout .hg-tags
 	# that commit lands on the 'default' branch and is not tagged as 'tip', so it
 	# seems to be mostly harmless. However, because it is nondeterministic we
 	# should avoid listing it here.
-hg branches -r 6 -r 7 -r 9
-cmp stdout .hg-branches
+	#
+	# Unfortunately, some of our builders are still running Debian 9 “Stretch”,
+	# which shipped with a version of 'hg' that does not support 'hg branch -r'
+	# to list branches for specific versions. Although Stretch is past its
+	# end-of-life date, we need to keep the builders happy until they can be
+	# turned down (https://go.dev/issue/56414).
+hg branches
+? cmp stdout .hg-branches
+stdout 'v2\s+6:9a4f43d231ec'
+stdout 'v2.3.4\s+9:18518c07eb8e'
+stdout 'v3\s+7:a2cad8a2b1bb'
+stdout 'default\s+5:'
 
-	# Likewise, omit bookmark v3, which ends up on the nondeterministic commit.
-hg bookmarks -l master v2 v2.3.4
-cmp stdout .hg-bookmarks
+# Likewise, bookmark v3 ends up on the nondeterministic commit.
+hg bookmarks
+? cmp stdout .hg-bookmarks
+stdout 'master\s+0:41964ddce118'
+stdout 'v2\s+3:8f49ee7a6ddc'
+stdout 'v2.3.4\s+1:88fde824ec8b'
+stdout 'v3\s+5:.*'
 
 -- .hg-branches --
 v2.3.4                         9:18518c07eb8e

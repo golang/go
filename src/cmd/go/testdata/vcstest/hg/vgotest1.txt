@@ -224,7 +224,7 @@ hg tags
 cmp stdout .hg-tags
 hg branches
 cmp stdout .hg-branches
-hg bookmarks -l master mybranch
+hg bookmarks
 cmp stdout .hg-bookmarks
 
 -- .hg-tags --
