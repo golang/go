@@ -1,0 +1,26 @@
+# Check to see that the distribution is not stale
+# even when it's been moved to a different directory.
+# Simulate that by creating a symlink to the tree.
+
+# We use net instead of std because stale std has
+# the behavior of checking that all std targets
+# are stale rather than any of them.
+
+[!symlink] skip
+[short] skip
+
+go build net
+! stale net
+
+symlink new -> $GOROOT
+env OLDGOROOT=$GOROOT
+env GOROOT=$WORK${/}gopath${/}src${/}new
+go env GOROOT
+stdout $WORK[\\/]gopath[\\/]src[\\/]new
+cd new
+! stale net
+
+# Add a control case to check that std is
+# stale with an empty cache
+env GOCACHE=$WORK${/}gopath${/}cache
+stale net
