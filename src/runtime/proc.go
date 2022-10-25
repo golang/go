@@ -1997,9 +1997,9 @@ func oneNewExtraM() {
 	gp.m = mp
 	mp.curg = gp
 	mp.isextra = true
+	mp.isExtraInC = true
 	mp.lockedInt++
 	mp.lockedg.set(gp)
-	mp.isextra = true
 	gp.lockedm.set(mp)
 	gp.goid = sched.goidgen.Add(1)
 	gp.sysblocktraced = true

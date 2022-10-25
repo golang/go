@@ -230,7 +230,7 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	exitsyscall() // coming out of cgo call
 	gp.m.incgo = false
 	if gp.m.isextra {
-		gp.m.dropped = false
+		gp.m.isExtraInC = false
 	}
 
 	osPreemptExtExit(gp.m)
@@ -243,7 +243,7 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 
 	gp.m.incgo = true
 	if gp.m.isextra {
-		gp.m.dropped = true
+		gp.m.isExtraInC = true
 	}
 
 	if gp.m != checkm {
