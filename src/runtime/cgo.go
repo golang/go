@@ -57,11 +57,9 @@ var cgoAlwaysFalse bool
 
 var cgo_yield = &_cgo_yield
 
-// dropm when g is not nil, callback from cgodropm when thread is exiting.
+// callback from cgodropm when thread is exiting.
+//
 //go:nosplit
 func dropmCallback() {
-	g := getg()
-	if g != nil {
-		dropm()
-	}
+	dropm()
 }
