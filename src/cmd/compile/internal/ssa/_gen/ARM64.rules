@@ -837,35 +837,25 @@
 	 (MOVDaddr [int32(off1)+off2] {sym} ptr)
 
 // fold address into load/store
-(MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVBload [off1+int32(off2)] {sym} ptr mem)
-(MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVBUload [off1+int32(off2)] {sym} ptr mem)
-(MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVHload [off1+int32(off2)] {sym} ptr mem)
-(MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVHUload [off1+int32(off2)] {sym} ptr mem)
-(MOVWload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVWload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVWload [off1+int32(off2)] {sym} ptr mem)
-(MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVWUload [off1+int32(off2)] {sym} ptr mem)
-(MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVDload [off1+int32(off2)] {sym} ptr mem)
-(LDP [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(LDP [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(LDP [off1+int32(off2)] {sym} ptr mem)
-(FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(FMOVSload [off1+int32(off2)] {sym} ptr mem)
-(FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(FMOVDload [off1+int32(off2)] {sym} ptr mem)
 
 // register indexed load
@@ -930,41 +920,29 @@
 (FMOVDloadidx8 ptr (MOVDconst [c]) mem) && is32Bit(c<<3) => (FMOVDload ptr [int32(c)<<3] mem)
 (FMOVSloadidx4 ptr (MOVDconst [c]) mem) && is32Bit(c<<2) => (FMOVSload ptr [int32(c)<<2] mem)
 
-(MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2) =>
 	(MOVBstore [off1+int32(off2)] {sym} ptr val mem)
-(MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2) =>
 	(MOVHstore [off1+int32(off2)] {sym} ptr val mem)
-(MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2) =>
 	(MOVWstore [off1+int32(off2)] {sym} ptr val mem)
-(MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2) =>
 	(MOVDstore [off1+int32(off2)] {sym} ptr val mem)
-(STP [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(STP [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem) && is32Bit(int64(off1)+off2) =>
 	(STP [off1+int32(off2)] {sym} ptr val1 val2 mem)
-(FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2) =>
 	(FMOVSstore [off1+int32(off2)] {sym} ptr val mem)
-(FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2) =>
 	(FMOVDstore [off1+int32(off2)] {sym} ptr val mem)
-(MOVBstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVBstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVBstorezero [off1+int32(off2)] {sym} ptr mem)
-(MOVHstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVHstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVHstorezero [off1+int32(off2)] {sym} ptr mem)
-(MOVWstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVWstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVWstorezero [off1+int32(off2)] {sym} ptr mem)
-(MOVDstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVDstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVDstorezero [off1+int32(off2)] {sym} ptr mem)
-(MOVQstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+(MOVQstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2) =>
 	(MOVQstorezero [off1+int32(off2)] {sym} ptr mem)
 
 // register indexed store
@@ -1013,93 +991,71 @@
 (FMOVSstoreidx4 ptr (MOVDconst [c]) val mem) && is32Bit(c<<2) => (FMOVSstore [int32(c)<<2] ptr val mem)
 
 (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVBUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVHload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVHUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVWUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (LDP [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(LDP [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(FMOVSload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
 (MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVHstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVWstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (STP [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val1 val2 mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(STP [off1+off2] {mergeSym(sym1,sym2)} ptr val1 val2 mem)
 (FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(FMOVSstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVBstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVHstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVDstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVQstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) =>
 	(MOVQstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
 // store zero
