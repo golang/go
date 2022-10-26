@@ -50,7 +50,7 @@ type DebugFlags struct {
 	InlineHotBudget            int    `help:"inline budget for hot functions"`
 	PGOInline                  int    `help:"debug profile-guided inlining"`
 
-	Any bool // set when any of the debug flags have been set
+	ConcurrentOk bool // true if only concurrentOk flags seen
 }
 
 // DebugSSA is called to set a -d ssa/... option.
