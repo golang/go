@@ -1978,6 +1978,7 @@ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsf
 		// depending on user demand.
 		Granularity: "perblock",
 		OutConfig:   p.Internal.CoverageCfg,
+		Local:       p.Internal.Local,
 	}
 	if a.Package.Module != nil {
 		pcfg.ModulePath = a.Package.Module.Path
