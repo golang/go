@@ -1,0 +1,40 @@
+
+[short] skip
+
+# collect coverage profile in text format
+go test -coverprofile=blah.prof prog.go prog_test.go
+
+# should not contain cmd-line pseudo-import-path
+grep prog.go blah.prof
+grep $PWD blah.prof
+! grep command-line-arguments blah.prof
+
+-- prog.go --
+package main
+
+func Mumble(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return 42
+}
+
+func Grumble(y int) int {
+	return -y
+}
+
+func main() {
+}
+
+-- prog_test.go --
+package main
+
+import (
+	"testing"
+)
+
+func TestMumble(t *testing.T) {
+	if x := Mumble(10); x != 42 {
+		t.Errorf("Mumble(%d): got %d want %d", 10, x, 42)
+	}
+}
