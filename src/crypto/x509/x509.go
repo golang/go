@@ -728,9 +728,6 @@ type Certificate struct {
 // involves algorithms that are not currently implemented.
 var ErrUnsupportedAlgorithm = errors.New("x509: cannot verify signature: algorithm unimplemented")
 
-// debugAllowSHA1 allows SHA-1 signatures. See issue 41682.
-var debugAllowSHA1 = godebug.Get("x509sha1") == "1"
-
 // An InsecureAlgorithmError indicates that the SignatureAlgorithm used to
 // generate the signature is not secure, and the signature has been rejected.
 //
@@ -790,7 +787,7 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
 
 	// TODO(agl): don't ignore the path length constraint.
 
-	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature, parent.PublicKey, debugAllowSHA1)
+	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature, parent.PublicKey, false)
 }
 
 // CheckSignature verifies that signature is a valid signature over signed from
@@ -837,7 +834,8 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 	case crypto.MD5:
 		return InsecureAlgorithmError(algo)
 	case crypto.SHA1:
-		if !allowSHA1 {
+		// SHA-1 signatures are mostly disabled. See go.dev/issue/41682.
+		if !allowSHA1 && godebug.Get("x509sha1") != "1" {
 			return InsecureAlgorithmError(algo)
 		}
 		fallthrough
