@@ -1634,15 +1634,20 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
 	// faster than having the caller spill these.
 	MOVQ	R12, 96(SP)
 	MOVQ	R13, 104(SP)
+retry:
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
 	// across a sequence of write barriers.
 	MOVQ	g_m(R14), R13
 	MOVQ	m_p(R13), R13
+	// Get current buffer write position.
 	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12
 	// Increment wbBuf.next position.
 	LEAQ	16(R12), R12
-	MOVQ	R12, (p_wbBuf+wbBuf_next)(R13)
+	// Is the buffer full?
 	CMPQ	R12, (p_wbBuf+wbBuf_end)(R13)
+	JA	flush
+	// Commit to the larger buffer.
+	MOVQ	R12, (p_wbBuf+wbBuf_next)(R13)
 	// Record the write.
 	MOVQ	AX, -16(R12)	// Record value
 	// Note: This turns bad pointer writes into bad
@@ -1653,9 +1658,6 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
 	// combine the read and the write.
 	MOVQ	(DI), R13
 	MOVQ	R13, -8(R12)	// Record *slot
-	// Is the buffer full? (flags set in CMPQ above)
-	JEQ	flush
-ret:
 	MOVQ	96(SP), R12
 	MOVQ	104(SP), R13
 	// Do the write.
@@ -1675,8 +1677,8 @@ flush:
 	//
 	// TODO: We could strike a different balance; e.g., saving X0
 	// and not saving GP registers that are less likely to be used.
-	MOVQ	DI, 0(SP)	// Also first argument to wbBufFlush
-	MOVQ	AX, 8(SP)	// Also second argument to wbBufFlush
+	MOVQ	DI, 0(SP)
+	MOVQ	AX, 8(SP)
 	MOVQ	BX, 16(SP)
 	MOVQ	CX, 24(SP)
 	MOVQ	DX, 32(SP)
@@ -1692,7 +1694,6 @@ flush:
 	// R14 is g
 	MOVQ	R15, 88(SP)
 
-	// This takes arguments DI and AX
 	CALL	runtime·wbBufFlush(SB)
 
 	MOVQ	0(SP), DI
@@ -1707,7 +1708,7 @@ flush:
 	MOVQ	72(SP), R10
 	MOVQ	80(SP), R11
 	MOVQ	88(SP), R15
-	JMP	ret
+	JMP	retry
 
 // gcWriteBarrierCX is gcWriteBarrier, but with args in DI and CX.
 // Defined as ABIInternal since it does not use the stable Go ABI.

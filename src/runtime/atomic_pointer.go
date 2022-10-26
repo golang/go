@@ -21,9 +21,9 @@ import (
 //go:nosplit
 func atomicwb(ptr *unsafe.Pointer, new unsafe.Pointer) {
 	slot := (*uintptr)(unsafe.Pointer(ptr))
-	if !getg().m.p.ptr().wbBuf.putFast(*slot, uintptr(new)) {
-		wbBufFlush()
-	}
+	buf := getg().m.p.ptr().wbBuf.get2()
+	buf[0] = *slot
+	buf[1] = uintptr(new)
 }
 
 // atomicstorep performs *ptr = new atomically and invokes a write barrier.

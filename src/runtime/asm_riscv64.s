@@ -714,10 +714,10 @@ TEXT ·unspillArgs(SB),NOSPLIT,$0-0
 
 // gcWriteBarrier performs a heap pointer write and informs the GC.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
-// - T0 is the destination of the write
-// - T1 is the value being written at T0.
-// It clobbers R30 (the linker temp register - REG_TMP).
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed in X24, and returns a pointer
+// to the buffer spcae in X24.
+// It clobbers X31 aka T6 (the linker temp register - REG_TMP).
 // The act of CALLing gcWriteBarrier will clobber RA (LR).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
@@ -725,21 +725,21 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$208
 	// Save the registers clobbered by the fast path.
 	MOV	A0, 24*8(X2)
 	MOV	A1, 25*8(X2)
+retry:
 	MOV	g_m(g), A0
 	MOV	m_p(A0), A0
 	MOV	(p_wbBuf+wbBuf_next)(A0), A1
+	MOV	(p_wbBuf+wbBuf_end)(A0), T6 // T6 is linker temp register (REG_TMP)
 	// Increment wbBuf.next position.
 	ADD	$16, A1
+	// Is the buffer full?
+	BLTU	T6, A1, flush
+	// Commit to the larger buffer.
 	MOV	A1, (p_wbBuf+wbBuf_next)(A0)
-	MOV	(p_wbBuf+wbBuf_end)(A0), A0
-	MOV	A0, T6		// T6 is linker temp register (REG_TMP)
 	// Record the write.
 	MOV	T1, -16(A1)	// Record value
 	MOV	(T0), A0	// TODO: This turns bad writes into bad reads.
 	MOV	A0, -8(A1)	// Record *slot
-	// Is the buffer full?
-	BEQ	A1, T6, flush
-ret:
 	MOV	24*8(X2), A0
 	MOV	25*8(X2), A1
 	// Do the write.
@@ -749,15 +749,13 @@ ret:
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	MOV	T0, 1*8(X2)	// Also first argument to wbBufFlush
-	MOV	T1, 2*8(X2)	// Also second argument to wbBufFlush
+	MOV	T0, 1*8(X2)
+	MOV	T1, 2*8(X2)
 	// X0 is zero register
 	// X1 is LR, saved by prologue
 	// X2 is SP
 	// X3 is GP
 	// X4 is TP
-	// X5 is first arg to wbBufFlush (T0)
-	// X6 is second arg to wbBufFlush (T1)
 	MOV	X7, 3*8(X2)
 	MOV	X8, 4*8(X2)
 	MOV	X9, 5*8(X2)
@@ -784,7 +782,6 @@ flush:
 	MOV	X30, 23*8(X2)
 	// X31 is tmp register.
 
-	// This takes arguments T0 and T1.
 	CALL	runtime·wbBufFlush(SB)
 
 	MOV	1*8(X2), T0
@@ -811,7 +808,7 @@ flush:
 	MOV	22*8(X2), X29
 	MOV	23*8(X2), X30
 
-	JMP	ret
+	JMP	retry
 
 // Note: these functions use a special calling convention to save generated code space.
 // Arguments are passed in registers (ssa/gen/RISCV64Ops.go), but the space for those

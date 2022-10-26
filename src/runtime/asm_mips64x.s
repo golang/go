@@ -644,21 +644,22 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$192
 	// Save the registers clobbered by the fast path.
 	MOVV	R1, 184(R29)
 	MOVV	R2, 192(R29)
+retry:
 	MOVV	g_m(g), R1
 	MOVV	m_p(R1), R1
 	MOVV	(p_wbBuf+wbBuf_next)(R1), R2
+	MOVV	(p_wbBuf+wbBuf_end)(R1), R23 // R23 is linker temp register
 	// Increment wbBuf.next position.
 	ADDV	$16, R2
+	// Is the buffer full?
+        SGTU	R2, R23, R23
+	BNE	R23, flush
+	// Commit to the larger buffer.
 	MOVV	R2, (p_wbBuf+wbBuf_next)(R1)
-	MOVV	(p_wbBuf+wbBuf_end)(R1), R1
-	MOVV	R1, R23		// R23 is linker temp register
 	// Record the write.
 	MOVV	R21, -16(R2)	// Record value
 	MOVV	(R20), R1	// TODO: This turns bad writes into bad reads.
 	MOVV	R1, -8(R2)	// Record *slot
-	// Is the buffer full?
-	BEQ	R2, R23, flush
-ret:
 	MOVV	184(R29), R1
 	MOVV	192(R29), R2
 	// Do the write.
@@ -668,8 +669,8 @@ ret:
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	MOVV	R20, 8(R29)	// Also first argument to wbBufFlush
-	MOVV	R21, 16(R29)	// Also second argument to wbBufFlush
+	MOVV	R20, 8(R29)
+	MOVV	R21, 16(R29)
 	// R1 already saved
 	// R2 already saved
 	MOVV	R3, 24(R29)
@@ -702,7 +703,6 @@ flush:
 	// R30 is g.
 	// R31 is LR, which was saved by the prologue.
 
-	// This takes arguments R20 and R21.
 	CALL	runtime·wbBufFlush(SB)
 
 	MOVV	8(R29), R20
@@ -727,7 +727,7 @@ flush:
 	MOVV	160(R29), R22
 	MOVV	168(R29), R24
 	MOVV	176(R29), R25
-	JMP	ret
+	JMP	retry
 
 // Note: these functions use a special calling convention to save generated code space.
 // Arguments are passed in registers, but the space for those arguments are allocated

@@ -1194,7 +1194,7 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // - R2 is the destination of the write
 // - R3 is the value being written at R2
 // It clobbers condition codes.
-// It does not clobber any general-purpose registers,
+// It does not clobber any general-purpose registers except R27,
 // but may clobber others (e.g., floating point registers)
 // The act of CALLing gcWriteBarrier will clobber R30 (LR).
 //
@@ -1203,21 +1203,22 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$200
 	// Save the registers clobbered by the fast path.
 	STP	(R0, R1), 184(RSP)
+retry:
 	MOVD	g_m(g), R0
 	MOVD	m_p(R0), R0
-	MOVD	(p_wbBuf+wbBuf_next)(R0), R1
+        MOVD	(p_wbBuf+wbBuf_next)(R0), R1
+        MOVD	(p_wbBuf+wbBuf_end)(R0), R27
 	// Increment wbBuf.next position.
 	ADD	$16, R1
+	// Is the buffer full?
+	CMP	R27, R1
+	BHI	flush
+	// Commit to the larger buffer.
 	MOVD	R1, (p_wbBuf+wbBuf_next)(R0)
-	MOVD	(p_wbBuf+wbBuf_end)(R0), R0
-	CMP	R1, R0
 	// Record the write.
 	MOVD	R3, -16(R1)	// Record value
 	MOVD	(R2), R0	// TODO: This turns bad writes into bad reads.
 	MOVD	R0, -8(R1)	// Record *slot
-	// Is the buffer full? (flags set in CMP above)
-	BEQ	flush
-ret:
 	LDP	184(RSP), (R0, R1)
 	// Do the write.
 	MOVD	R3, (R2)
@@ -1227,7 +1228,7 @@ flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
 	// R0 and R1 already saved
-	STP	(R2, R3), 1*8(RSP)	// Also first and second arguments to wbBufFlush
+	STP	(R2, R3), 1*8(RSP)
 	STP	(R4, R5), 3*8(RSP)
 	STP	(R6, R7), 5*8(RSP)
 	STP	(R8, R9), 7*8(RSP)
@@ -1246,7 +1247,6 @@ flush:
 	// R30 is LR, which was saved by the prologue.
 	// R31 is SP.
 
-	// This takes arguments R2 and R3.
 	CALL	runtime·wbBufFlush(SB)
 	LDP	1*8(RSP), (R2, R3)
 	LDP	3*8(RSP), (R4, R5)
@@ -1259,7 +1259,7 @@ flush:
 	LDP	17*8(RSP), (R21, R22)
 	LDP	19*8(RSP), (R23, R24)
 	LDP	21*8(RSP), (R25, R26)
-	JMP	ret
+	JMP	retry
 
 DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
 GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below

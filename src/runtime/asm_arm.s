@@ -882,21 +882,22 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 TEXT runtime·gcWriteBarrier(SB),NOSPLIT|NOFRAME,$0
 	// Save the registers clobbered by the fast path.
 	MOVM.DB.W	[R0,R1], (R13)
+retry:
 	MOVW	g_m(g), R0
 	MOVW	m_p(R0), R0
 	MOVW	(p_wbBuf+wbBuf_next)(R0), R1
+	MOVW	(p_wbBuf+wbBuf_end)(R0), R11
 	// Increment wbBuf.next position.
 	ADD	$8, R1
+	// Is the buffer full?
+	CMP	R11, R1
+	BHI	flush
+	// Commit to the larger buffer.
 	MOVW	R1, (p_wbBuf+wbBuf_next)(R0)
-	MOVW	(p_wbBuf+wbBuf_end)(R0), R0
-	CMP	R1, R0
 	// Record the write.
 	MOVW	R3, -8(R1)	// Record value
 	MOVW	(R2), R0	// TODO: This turns bad writes into bad reads.
 	MOVW	R0, -4(R1)	// Record *slot
-	// Is the buffer full? (flags set in CMP above)
-	B.EQ	flush
-ret:
 	MOVM.IA.W	(R13), [R0,R1]
 	// Do the write.
 	MOVW	R3, (R2)
@@ -911,20 +912,16 @@ flush:
 	// R11 is linker temp, so no need to save.
 	// R13 is stack pointer.
 	// R15 is PC.
-	//
-	// This also sets up R2 and R3 as the arguments to wbBufFlush.
 	MOVM.DB.W	[R2-R9,R12], (R13)
 	// Save R14 (LR) because the fast path above doesn't save it,
-	// but needs it to RET. This is after the MOVM so it appears below
-	// the arguments in the stack frame.
+	// but needs it to RET.
 	MOVM.DB.W	[R14], (R13)
 
-	// This takes arguments R2 and R3.
 	CALL	runtime·wbBufFlush(SB)
 
 	MOVM.IA.W	(R13), [R14]
 	MOVM.IA.W	(R13), [R2-R9,R12]
-	JMP	ret
+	JMP	retry
 
 // Note: these functions use a special calling convention to save generated code space.
 // Arguments are passed in registers, but the space for those arguments are allocated

@@ -938,22 +938,23 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // but may clobber any other register, *including* R31.
 TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
 	// The standard prologue clobbers R31.
-	// We use R18 and R19 as scratch registers.
+	// We use R18, R19, and R31 as scratch registers.
+retry:
 	MOVD	g_m(g), R18
 	MOVD	m_p(R18), R18
 	MOVD	(p_wbBuf+wbBuf_next)(R18), R19
+	MOVD	(p_wbBuf+wbBuf_end)(R18), R31
 	// Increment wbBuf.next position.
 	ADD	$16, R19
+	// Is the buffer full?
+	CMPU	R31, R19
+	BLT	flush
+	// Commit to the larger buffer.
 	MOVD	R19, (p_wbBuf+wbBuf_next)(R18)
-	MOVD	(p_wbBuf+wbBuf_end)(R18), R18
-	CMP	R18, R19
 	// Record the write.
 	MOVD	R21, -16(R19)	// Record value
 	MOVD	(R20), R18	// TODO: This turns bad writes into bad reads.
 	MOVD	R18, -8(R19)	// Record *slot
-	// Is the buffer full? (flags set in CMP above)
-	BEQ	flush
-ret:
 	// Do the write.
 	MOVD	R21, (R20)
 	RET
@@ -961,8 +962,8 @@ ret:
 flush:
 	// Save registers R0 through R15 since these were not saved by the caller.
 	// We don't save all registers on ppc64 because it takes too much space.
-	MOVD	R20, (FIXED_FRAME+0)(R1)	// Also first argument to wbBufFlush
-	MOVD	R21, (FIXED_FRAME+8)(R1)	// Also second argument to wbBufFlush
+	MOVD	R20, (FIXED_FRAME+0)(R1)
+	MOVD	R21, (FIXED_FRAME+8)(R1)
 	// R0 is always 0, so no need to spill.
 	// R1 is SP.
 	// R2 is SB.
@@ -981,7 +982,6 @@ flush:
 	MOVD	R16, (FIXED_FRAME+96)(R1)
 	MOVD	R17, (FIXED_FRAME+104)(R1)
 
-	// This takes arguments R20 and R21.
 	CALL	runtime·wbBufFlush(SB)
 
 	MOVD	(FIXED_FRAME+0)(R1), R20
@@ -998,7 +998,7 @@ flush:
 	MOVD	(FIXED_FRAME+88)(R1), R15
 	MOVD	(FIXED_FRAME+96)(R1), R16
 	MOVD	(FIXED_FRAME+104)(R1), R17
-	JMP	ret
+	JMP	retry
 
 // Note: these functions use a special calling convention to save generated code space.
 // Arguments are passed in registers, but the space for those arguments are allocated

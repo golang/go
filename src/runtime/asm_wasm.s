@@ -410,36 +410,52 @@ TEXT runtime·cgocallback(SB), NOSPLIT, $0-24
 // R0: the destination of the write (i64)
 // R1: the value being written (i64)
 TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
-	// R3 = g.m
-	MOVD g_m(g), R3
-	// R4 = p
-	MOVD m_p(R3), R4
-	// R5 = wbBuf.next
-	MOVD p_wbBuf+wbBuf_next(R4), R5
+	Loop
+		// R3 = g.m
+		MOVD g_m(g), R3
+		// R4 = p
+		MOVD m_p(R3), R4
+		// R5 = wbBuf.next
+		MOVD p_wbBuf+wbBuf_next(R4), R5
 
-	// Record value
-	MOVD R1, 0(R5)
-	// Record *slot
-	MOVD (R0), 8(R5)
+		// Increment wbBuf.next
+		Get R5
+		I64Const $16
+		I64Add
+		Set R5
 
-	// Increment wbBuf.next
-	Get R5
-	I64Const $16
-	I64Add
-	Set R5
-	MOVD R5, p_wbBuf+wbBuf_next(R4)
+		// Is the buffer full?
+		Get R5
+		I64Load (p_wbBuf+wbBuf_end)(R4)
+		I64LeU
+		If
+			// Commit to the larger buffer.
+			MOVD R5, p_wbBuf+wbBuf_next(R4)
 
-	Get R5
-	I64Load (p_wbBuf+wbBuf_end)(R4)
-	I64Eq
-	If
+			// Back up to write position (wasm stores can't use negative offsets)
+			Get R5
+			I64Const $16
+			I64Sub
+			Set R5
+
+			// Record value
+			MOVD R1, 0(R5)
+			// Record *slot
+			MOVD (R0), 8(R5)
+
+			// Do the write
+			MOVD R1, (R0)
+
+			RET
+		End
+
 		// Flush
 		MOVD R0, 0(SP)
 		MOVD R1, 8(SP)
 		CALLNORESUME runtime·wbBufFlush(SB)
+		MOVD 0(SP), R0
+		MOVD 8(SP), R1
+
+		// Retry
+		Br $0
 	End
-
-	// Do the write
-	MOVD R1, (R0)
-
-	RET

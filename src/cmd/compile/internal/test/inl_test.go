@@ -87,6 +87,8 @@ func TestIntendedInlining(t *testing.T) {
 			"(*mspan).markBitsForIndex",
 			"(*muintptr).set",
 			"(*puintptr).set",
+			"(*wbBuf).get1",
+			"(*wbBuf).get2",
 		},
 		"runtime/internal/sys": {},
 		"runtime/internal/math": {

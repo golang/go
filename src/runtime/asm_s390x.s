@@ -790,20 +790,21 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$96
 	// Save the registers clobbered by the fast path.
 	MOVD	R4, 96(R15)
+retry:
 	MOVD	g_m(g), R1
 	MOVD	m_p(R1), R1
 	// Increment wbBuf.next position.
 	MOVD	$16, R4
 	ADD	(p_wbBuf+wbBuf_next)(R1), R4
+	// Is the buffer full?
+	MOVD	(p_wbBuf+wbBuf_end)(R1), R10
+	CMPUBGT	R4, R10, flush
+	// Commit to the larger buffer.
 	MOVD	R4, (p_wbBuf+wbBuf_next)(R1)
-	MOVD	(p_wbBuf+wbBuf_end)(R1), R1
 	// Record the write.
 	MOVD	R3, -16(R4) // Record value
 	MOVD	(R2), R10   // TODO: This turns bad writes into bad reads.
 	MOVD	R10, -8(R4) // Record *slot
-	// Is the buffer full?
-	CMPBEQ	R4, R1, flush
-ret:
 	MOVD	96(R15), R4
 	// Do the write.
 	MOVD	R3, (R2)
@@ -812,7 +813,7 @@ ret:
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	STMG	R2, R3, 8(R15)   // set R2 and R3 as arguments for wbBufFlush
+	STMG	R2, R3, 8(R15)
 	MOVD	R0, 24(R15)
 	// R1 already saved.
 	// R4 already saved.
@@ -821,13 +822,12 @@ flush:
 	// R14 is LR.
 	// R15 is SP.
 
-	// This takes arguments R2 and R3.
 	CALL	runtime·wbBufFlush(SB)
 
 	LMG	8(R15), R2, R3   // restore R2 - R3
 	MOVD	24(R15), R0      // restore R0
 	LMG	32(R15), R5, R12 // restore R5 - R12
-	JMP	ret
+	JMP	retry
 
 // Note: these functions use a special calling convention to save generated code space.
 // Arguments are passed in registers, but the space for those arguments are allocated
