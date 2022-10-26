@@ -5,7 +5,7 @@
 #include "textflag.h"
 #include "abi_amd64.h"
 
-TEXT _cgo_crosscall_dropm(SB),NOSPLIT,$0-0
+TEXT cgo_crosscall_dropm(SB),NOSPLIT,$0-0
 	CALL	crosscall2(SB)
 	RET
 

@@ -92,8 +92,11 @@ var _cgo_pthread_key_created = &x_cgo_pthread_key_created
 var x_cgo_dropm byte
 var _cgo_dropm = &x_cgo_dropm
 
+//go:linkname cgo_crosscall_dropm cgo_crosscall_dropm
 //go:linkname _cgo_crosscall_dropm _cgo_crosscall_dropm
-func _cgo_crosscall_dropm()
+var _cgo_crosscall_dropm = cgo_crosscall_dropm
+
+func cgo_crosscall_dropm()
 
 // Notifies that the runtime has been initialized.
 //

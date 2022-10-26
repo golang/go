@@ -59,7 +59,7 @@ extern uintptr_t *_cgo_pthread_key_created;
 /*
  * Puts the current extra m back onto the extra list.
  */
-extern void (**_cgo_dropm)(void);
+extern void (**_cgo_dropm)(void*);
 
 /*
  * Creates the new operating system thread (OS, arch dependent).
