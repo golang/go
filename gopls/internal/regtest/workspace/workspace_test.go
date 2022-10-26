@@ -1248,7 +1248,7 @@ import (
 // supported.
 func TestOldGoNotification_SupportedVersion(t *testing.T) {
 	v := goVersion(t)
-	if v < lsp.OldestSupportedGoVersion {
+	if v < lsp.OldestSupportedGoVersion() {
 		t.Skipf("go version 1.%d is unsupported", v)
 	}
 
@@ -1267,7 +1267,7 @@ func TestOldGoNotification_SupportedVersion(t *testing.T) {
 // legacy Go versions (see also TestOldGoNotification_Fake)
 func TestOldGoNotification_UnsupportedVersion(t *testing.T) {
 	v := goVersion(t)
-	if v >= lsp.OldestSupportedGoVersion {
+	if v >= lsp.OldestSupportedGoVersion() {
 		t.Skipf("go version 1.%d is supported", v)
 	}
 
@@ -1291,10 +1291,12 @@ func TestOldGoNotification_Fake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func(v int) {
-		lsp.OldestSupportedGoVersion = v
-	}(lsp.OldestSupportedGoVersion)
-	lsp.OldestSupportedGoVersion = goversion + 1
+	defer func(t []lsp.GoVersionSupport) {
+		lsp.GoVersionTable = t
+	}(lsp.GoVersionTable)
+	lsp.GoVersionTable = []lsp.GoVersionSupport{
+		{GoVersion: goversion, InstallGoplsVersion: "v1.0.0"},
+	}
 
 	Run(t, "", func(t *testing.T, env *Env) {
 		env.Await(

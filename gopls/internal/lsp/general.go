@@ -226,11 +226,54 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	return nil
 }
 
-// OldestSupportedGoVersion is the last X in Go 1.X that we support.
+// GoVersionTable maps Go versions to the gopls version in which support will
+// be deprecated, and the final gopls version supporting them without warnings.
+// Keep this in sync with gopls/README.md
 //
-// Mutable for testing, since we won't otherwise run CI on unsupported Go
-// versions.
-var OldestSupportedGoVersion = 16
+// Must be sorted in ascending order of Go version.
+//
+// Mutable for testing.
+var GoVersionTable = []GoVersionSupport{
+	{12, "", "v0.7.5"},
+	{15, "v0.11.0", "v0.9.5"},
+}
+
+// GoVersionSupport holds information about end-of-life Go version support.
+type GoVersionSupport struct {
+	GoVersion           int
+	DeprecatedVersion   string // if unset, the version is already deprecated
+	InstallGoplsVersion string
+}
+
+// OldestSupportedGoVersion is the last X in Go 1.X that this version of gopls
+// supports.
+func OldestSupportedGoVersion() int {
+	return GoVersionTable[len(GoVersionTable)-1].GoVersion + 1
+}
+
+func versionMessage(oldestVersion int) (string, protocol.MessageType) {
+	for _, v := range GoVersionTable {
+		if oldestVersion <= v.GoVersion {
+			var msgBuilder strings.Builder
+
+			mType := protocol.Error
+			fmt.Fprintf(&msgBuilder, "Found Go version 1.%d", oldestVersion)
+			if v.DeprecatedVersion != "" {
+				// not deprecated yet, just a warning
+				fmt.Fprintf(&msgBuilder, ", which will be unsupported by gopls %s. ", v.DeprecatedVersion)
+				mType = protocol.Warning
+			} else {
+				fmt.Fprint(&msgBuilder, ", which is not supported by this version of gopls. ")
+			}
+			fmt.Fprintf(&msgBuilder, "Please upgrade to Go 1.%d or later and reinstall gopls. ", OldestSupportedGoVersion())
+			fmt.Fprintf(&msgBuilder, "If you can't upgrade and want this message to go away, please install gopls %s. ", v.InstallGoplsVersion)
+			fmt.Fprint(&msgBuilder, "See https://go.dev/s/gopls-support-policy for more details.")
+
+			return msgBuilder.String(), mType
+		}
+	}
+	return "", 0
+}
 
 // checkViewGoVersions checks whether any Go version used by a view is too old,
 // raising a showMessage notification if so.
@@ -245,10 +288,9 @@ func (s *Server) checkViewGoVersions() {
 		}
 	}
 
-	if oldestVersion >= 0 && oldestVersion < OldestSupportedGoVersion {
-		msg := fmt.Sprintf("Found Go version 1.%d, which is unsupported. Please upgrade to Go 1.%d or later.", oldestVersion, OldestSupportedGoVersion)
+	if msg, mType := versionMessage(oldestVersion); msg != "" {
 		s.eventuallyShowMessage(context.Background(), &protocol.ShowMessageParams{
-			Type:    protocol.Error,
+			Type:    mType,
 			Message: msg,
 		})
 	}

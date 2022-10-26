@@ -72,17 +72,22 @@ If you are having issues with `gopls`, please follow the steps described in the
 `gopls` follows the
 [Go Release Policy](https://golang.org/doc/devel/release.html#policy),
 meaning that it officially supports the last 2 major Go releases. Per
-[issue #39146](golang.org/issues/39146), we attempt to maintain best-effort
+[issue #39146](https://go.dev/issues/39146), we attempt to maintain best-effort
 support for the last 4 major Go releases, but this support extends only to not
 breaking the build and avoiding easily fixable regressions.
 
-The following table shows the final gopls version that supports being built
-with a given Go version. Go releases more recent than any in the table can
-build any version of gopls.
+In the context of this discussion, gopls "supports" a Go version if it supports
+being built with that Go version as well as integrating with the `go` command
+of that Go version.
 
-| Go Version  | Final gopls Version With Support |
-| ----------- | -------------------------------- |
+The following table shows the final gopls version that supports a given Go
+version. Go releases more recent than any in the table can be used with any
+version of gopls.
+
+| Go Version  | Final gopls version with support (without warnings) |
+| ----------- | --------------------------------------------------- |
 | Go 1.12     | [gopls@v0.7.5](https://github.com/golang/tools/releases/tag/gopls%2Fv0.7.5) |
+| Go 1.15     | [gopls@v0.9.5](https://github.com/golang/tools/releases/tag/gopls%2Fv0.9.5) |
 
 Our extended support is enforced via [continuous integration with older Go
 versions](doc/contributing.md#ci). This legacy Go CI may not block releases:
