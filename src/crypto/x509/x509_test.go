@@ -1200,13 +1200,13 @@ Data:
 	X509v3 extensions:
 		X509v3 Key Usage: critical
 			Digital Signature, Certificate Sign, CRL Sign
-		X509v3 Extended Key Usage: 
+		X509v3 Extended Key Usage:
 			TLS Web Client Authentication, TLS Web Server Authentication, OCSP Signing
 		X509v3 Basic Constraints: critical
 			CA:TRUE
-		X509v3 Subject Key Identifier: 
+		X509v3 Subject Key Identifier:
 			B7:17:DA:16:EA:C5:ED:1F:18:49:44:D3:D2:E3:A0:35:0A:81:93:60
-		X509v3 Authority Key Identifier: 
+		X509v3 Authority Key Identifier:
 			keyid:B7:17:DA:16:EA:C5:ED:1F:18:49:44:D3:D2:E3:A0:35:0A:81:93:60
 
 Signature Algorithm: ED25519
