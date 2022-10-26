@@ -920,9 +920,10 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 
 	// Check that constants are representable by uint, but do not convert them
 	// (see also issue #47243).
+	var yval constant.Value
 	if y.mode == constant_ {
 		// Provide a good error message for negative shift counts.
-		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
+		yval = constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
 		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
 			check.errorf(y, InvalidShiftCount, invalidOp+"negative shift count %s", y)
 			x.mode = invalid
@@ -975,7 +976,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			}
 			// rhs must be within reasonable bounds in constant shifts
 			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
-			s, ok := constant.Uint64Val(y.val)
+			s, ok := constant.Uint64Val(yval)
 			if !ok || s > shiftBound {
 				check.errorf(y, InvalidShiftCount, invalidOp+"invalid shift count %s", y)
 				x.mode = invalid
