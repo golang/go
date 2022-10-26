@@ -165,6 +165,7 @@ func ParseFlags() {
 	Flag.Shared = &Ctxt.Flag_shared
 	Flag.WB = true
 
+	Debug.ConcurrentOk = true
 	Debug.InlFuncsWithClosures = 1
 	if buildcfg.Experiment.Unified {
 		Debug.Unified = 1
@@ -373,7 +374,7 @@ func concurrentBackendAllowed() bool {
 	// while writing the object file, and that is non-concurrent.
 	// Adding Debug_vlog, however, causes Debug.S to also print
 	// while flushing the plist, which happens concurrently.
-	if Ctxt.Debugvlog || Debug.Any || Flag.Live > 0 {
+	if Ctxt.Debugvlog || !Debug.ConcurrentOk || Flag.Live > 0 {
 		return false
 	}
 	// TODO: Test and delete this condition.
