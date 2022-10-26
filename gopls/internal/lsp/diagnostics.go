@@ -97,6 +97,8 @@ func (d diagnosticSource) String() string {
 		return "FromGoWork"
 	case modCheckUpgradesSource:
 		return "FromCheckForUpgrades"
+	case modVulncheckSource:
+		return "FromModVulncheck"
 	default:
 		return fmt.Sprintf("From?%d?", d)
 	}
