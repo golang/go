@@ -986,6 +986,12 @@ needm:
 	MOVQ	SP, (g_sched+gobuf_sp)(SI)
 
 havem:
+	// Skip cgocallbackg, just dropm when fn is nil.
+	// It is used to dropm while thread is exiting.
+	MOVQ	fn+0(FP), AX
+	CMPQ	AX, $0
+	JEQ	dropm
+
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
@@ -1065,6 +1071,8 @@ havem:
 	MOVQ	_cgo_pthread_key_created(SB), AX
 	CMPQ	(AX), $0
 	JNE	done
+
+dropm:
 	MOVQ	$runtime·dropm(SB), AX
 	CALL	AX
 #ifdef GOOS_windows

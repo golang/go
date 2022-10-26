@@ -217,7 +217,8 @@ func main() {
 			throw("_cgo_pthread_key_created missing")
 		}
 		// using ABI0 since we need the wrapper to restore the G
-		*(*uintptr)(_cgo_dropm) = abi.FuncPCABI0(cgodropm)
+		// *(*uintptr)(_cgo_dropm) = abi.FuncPCABI0(cgodropm)
+		*(*uintptr)(_cgo_dropm) = uintptr(_cgo_crosscall_dropm)
 
 		if _cgo_thread_start == nil {
 			throw("_cgo_thread_start missing")

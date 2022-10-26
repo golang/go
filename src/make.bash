@@ -223,7 +223,7 @@ fi
 # Run dist bootstrap to complete make.bash.
 # Bootstrap installs a proper cmd/dist, built with the new toolchain.
 # Throw ours, built with the bootstrap toolchain, away after bootstrap.
-./cmd/dist/dist bootstrap -a $vflag $GO_DISTFLAGS "$@"
+./cmd/dist/dist bootstrap -a $vflag $GO_DISTFLAGS "$@" -d -v
 rm -f ./cmd/dist/dist
 
 # DO NOT ADD ANY NEW CODE HERE.
