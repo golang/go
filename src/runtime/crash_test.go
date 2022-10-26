@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 var toRemove []string
@@ -58,18 +60,27 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 }
 
 func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
+	t.Helper()
+
 	if *flagQuick {
 		t.Skip("-quick")
 	}
 
-	testenv.MustHaveGoBuild(t)
-
-	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	cmd := testenv.CleanCmdEnv(testenv.CommandContext(t, ctx, exe, name))
 	cmd.Env = append(cmd.Env, env...)
 	if testing.Short() {
 		cmd.Env = append(cmd.Env, "RUNTIME_TEST_SHORT=1")
 	}
-	out, _ := testenv.RunWithTimeout(t, cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			t.Logf("%v: %v", cmd, err)
+		} else {
+			t.Fatalf("%v failed to start: %v", cmd, err)
+		}
+	}
 	return string(out)
 }
 
