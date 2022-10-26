@@ -1570,12 +1570,16 @@ func (f *File) gnuVersionInit(str []byte) bool {
 // gnuVersion adds Library and Version information to sym,
 // which came from offset i of the symbol table.
 func (f *File) gnuVersion(i int) (library string, version string) {
-	// Each entry is two bytes.
+	// Each entry is two bytes; skip undef entry at beginning.
 	i = (i + 1) * 2
 	if i >= len(f.gnuVersym) {
 		return
 	}
-	j := int(f.ByteOrder.Uint16(f.gnuVersym[i:]))
+	s := f.gnuVersym[i:]
+	if len(s) < 2 {
+		return
+	}
+	j := int(f.ByteOrder.Uint16(s))
 	if j < 2 || j >= len(f.gnuNeed) {
 		return
 	}
