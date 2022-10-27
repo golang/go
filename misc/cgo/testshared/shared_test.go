@@ -734,7 +734,6 @@ func requireGccgo(t *testing.T) {
 	}
 }
 
-/*
 // Build a GOPATH package into a shared library with gccgo and an executable that
 // links against it.
 func TestGoPathShlibGccgo(t *testing.T) {
@@ -784,7 +783,6 @@ func TestTwoGopathShlibsGccgo(t *testing.T) {
 	// And check it runs.
 	run(t, "gccgo-built", "../../bin/exe2")
 }
-*/
 
 // Testing rebuilding of shared libraries when they are stale is a bit more
 // complicated that it seems like it should be. First, we make everything "old": but
