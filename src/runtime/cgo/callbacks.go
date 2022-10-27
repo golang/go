@@ -4,7 +4,10 @@
 
 package cgo
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 // These utility functions are available to be called from code
 // compiled with gcc via crosscall2.
@@ -94,7 +97,7 @@ var _cgo_dropm = &x_cgo_dropm
 
 //go:linkname cgo_crosscall_dropm cgo_crosscall_dropm
 //go:linkname _cgo_crosscall_dropm _cgo_crosscall_dropm
-var _cgo_crosscall_dropm = cgo_crosscall_dropm
+var _cgo_crosscall_dropm = abi.FuncPCABI0(cgo_crosscall_dropm)
 
 func cgo_crosscall_dropm()
 
