@@ -31,7 +31,7 @@ var (
 	_cgo_yield                    unsafe.Pointer
 	_cgo_pthread_key_created      unsafe.Pointer
 	_cgo_dropm                    unsafe.Pointer
-	_cgo_crosscall_dropm          func()
+	_cgo_crosscall_dropm          unsafe.Pointer
 )
 
 // iscgo is set to true by the runtime/cgo package

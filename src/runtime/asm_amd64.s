@@ -918,8 +918,11 @@ TEXT runtime·cgodropm(SB),NOSPLIT,$0-0
 	// PUSH_REGS_HOST_TO_ABI0()
 	// CALL	runtime·dropmCallback(SB)
 	// POP_REGS_HOST_TO_ABI0()
-	MOVQ    $_cgo_crosscall_dropm<ABIInternal>(SB), AX
-	CALL	AX
+
+	// MOVQ    $_cgo_crosscall_dropm<ABI0>(SB), AX
+
+	MOVQ	_cgo_crosscall_dropm(SB), AX
+	CALL	(AX)
 	RET
 
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
