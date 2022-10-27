@@ -84,13 +84,19 @@ func getProfilesDirectory() (string, error) {
 	}
 }
 
+// isValidUserAccountType returns true if acctType is a valid type for user accounts.
+func isValidUserAccountType(acctType uint32) bool {
+	// Some built-in system accounts are classified as well-known groups instead of users.
+	return acctType == syscall.SidTypeUser || acctType == syscall.SidTypeWellKnownGroup
+}
+
 // lookupUsernameAndDomain obtains the username and domain for usid.
 func lookupUsernameAndDomain(usid *syscall.SID) (username, domain string, e error) {
 	username, domain, t, e := usid.LookupAccount("")
 	if e != nil {
 		return "", "", e
 	}
-	if t != syscall.SidTypeUser {
+	if !isValidUserAccountType(t) {
 		return "", "", fmt.Errorf("user: should be user account type, not %d", t)
 	}
 	return username, domain, nil
@@ -324,7 +330,7 @@ func lookupUser(username string) (*User, error) {
 	if e != nil {
 		return nil, e
 	}
-	if t != syscall.SidTypeUser {
+	if !isValidUserAccountType(t) {
 		return nil, fmt.Errorf("user: should be user account type, not %d", t)
 	}
 	return newUserFromSid(sid)
