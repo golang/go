@@ -922,7 +922,7 @@ TEXT runtime·cgodropm(SB),NOSPLIT,$0-0
 	// MOVQ    $_cgo_crosscall_dropm<ABI0>(SB), AX
 
 	MOVQ	_cgo_crosscall_dropm(SB), AX
-	CALL	(AX)
+	CALL	AX
 	RET
 
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
