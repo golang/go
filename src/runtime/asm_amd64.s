@@ -915,14 +915,7 @@ GLOBL zeroTLS<>(SB),RODATA,$const_tlsSize
 // callback by using pthread_key_create, cgodropm will be invoked
 // when thread exiting.
 TEXT runtime·cgodropm(SB),NOSPLIT,$0-0
-	// PUSH_REGS_HOST_TO_ABI0()
-	// CALL	runtime·dropmCallback(SB)
-	// POP_REGS_HOST_TO_ABI0()
-
-	// MOVQ    $_cgo_crosscall_dropm<ABI0>(SB), AX
-
-	MOVQ	_cgo_crosscall_dropm(SB), AX
-	CALL	AX
+	CALL	_cgo_crosscall_dropm(SB)
 	RET
 
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
