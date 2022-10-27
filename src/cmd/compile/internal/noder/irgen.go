@@ -72,6 +72,26 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 
 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
 
+	// Check for anonymous interface cycles (#56103).
+	if base.Debug.InterfaceCycles == 0 {
+		var f cycleFinder
+		for _, file := range files {
+			syntax.Inspect(file, func(n syntax.Node) bool {
+				if n, ok := n.(*syntax.InterfaceType); ok {
+					if f.hasCycle(n.GetTypeInfo().Type.(*types2.Interface)) {
+						base.ErrorfAt(m.makeXPos(n.Pos()), "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
+
+						for typ := range f.cyclic {
+							f.cyclic[typ] = false // suppress duplicate errors
+						}
+					}
+					return false
+				}
+				return true
+			})
+		}
+	}
+
 	// Implementation restriction: we don't allow not-in-heap types to
 	// be used as type arguments (#54765).
 	{
@@ -405,4 +425,92 @@ func (g *irgen) type2(x syntax.Expr) syntax.Type {
 		base.FatalfAt(g.pos(x), "missing type for %v (%T)", x, x)
 	}
 	return tv.Type
+}
+
+// A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).
+type cycleFinder struct {
+	cyclic map[*types2.Interface]bool
+}
+
+// hasCycle reports whether typ is part of an anonymous interface cycle.
+func (f *cycleFinder) hasCycle(typ *types2.Interface) bool {
+	// We use Method instead of ExplicitMethod to implicitly expand any
+	// embedded interfaces. Then we just need to walk any anonymous
+	// types, keeping track of *types2.Interface types we visit along
+	// the way.
+	for i := 0; i < typ.NumMethods(); i++ {
+		if f.visit(typ.Method(i).Type()) {
+			return true
+		}
+	}
+	return false
+}
+
+// visit recursively walks typ0 to check any referenced interface types.
+func (f *cycleFinder) visit(typ0 types2.Type) bool {
+	for { // loop for tail recursion
+		switch typ := typ0.(type) {
+		default:
+			base.Fatalf("unexpected type: %T", typ)
+
+		case *types2.Basic, *types2.Named, *types2.TypeParam:
+			return false // named types cannot be part of an anonymous cycle
+		case *types2.Pointer:
+			typ0 = typ.Elem()
+		case *types2.Array:
+			typ0 = typ.Elem()
+		case *types2.Chan:
+			typ0 = typ.Elem()
+		case *types2.Map:
+			if f.visit(typ.Key()) {
+				return true
+			}
+			typ0 = typ.Elem()
+		case *types2.Slice:
+			typ0 = typ.Elem()
+
+		case *types2.Struct:
+			for i := 0; i < typ.NumFields(); i++ {
+				if f.visit(typ.Field(i).Type()) {
+					return true
+				}
+			}
+			return false
+
+		case *types2.Interface:
+			// The empty interface (e.g., "any") cannot be part of a cycle.
+			if typ.NumExplicitMethods() == 0 && typ.NumEmbeddeds() == 0 {
+				return false
+			}
+
+			// As an optimization, we wait to allocate cyclic here, after
+			// we've found at least one other (non-empty) anonymous
+			// interface. This means when a cycle is present, we need to
+			// make an extra recursive call to actually detect it. But for
+			// most packages, it allows skipping the map allocation
+			// entirely.
+			if x, ok := f.cyclic[typ]; ok {
+				return x
+			}
+			if f.cyclic == nil {
+				f.cyclic = make(map[*types2.Interface]bool)
+			}
+			f.cyclic[typ] = true
+			if f.hasCycle(typ) {
+				return true
+			}
+			f.cyclic[typ] = false
+			return false
+
+		case *types2.Signature:
+			return f.visit(typ.Params()) || f.visit(typ.Results())
+		case *types2.Tuple:
+			for i := 0; i < typ.Len(); i++ {
+				if f.visit(typ.At(i).Type()) {
+					return true
+				}
+			}
+			return false
+		}
+	}
 }

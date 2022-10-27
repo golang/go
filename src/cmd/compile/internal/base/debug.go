@@ -31,6 +31,7 @@ type DebugFlags struct {
 	GCProg                int    `help:"print dump of GC programs"`
 	Gossahash             string `help:"hash value for use in debugging the compiler"`
 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
+	InterfaceCycles       int    `help:"allow anonymous interface cycles"`
 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
 	LocationLists         int    `help:"print information about DWARF location list creation"`
 	Nil                   int    `help:"print information about nil checks"`
