@@ -101,6 +101,13 @@ var _cgo_crosscall_dropm = abi.FuncPCABI0(cgo_crosscall_dropm)
 
 func cgo_crosscall_dropm()
 
+//go:cgo_import_static x_cgo_crosscall_c
+//go:linkname x_cgo_crosscall_c x_cgo_crosscall_c
+var x_cgo_crosscall_c = abi.FuncPCABI0(cgo_crosscall)
+
+//go:linkname cgo_crosscall cgo_crosscall
+func cgo_crosscall()
+
 // Notifies that the runtime has been initialized.
 //
 // We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)

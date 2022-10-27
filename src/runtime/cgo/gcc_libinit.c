@@ -23,6 +23,8 @@ static void pthread_key_destructor(void *value);
 uintptr_t x_cgo_pthread_key_created;
 void (*x_cgo_dropm)(void*);
 
+void (*x_cgo_crosscall_c)(void*);
+
 // The context function, used when tracing back C calls into Go.
 static void (*cgo_context_function)(struct context_arg*);
 
@@ -126,7 +128,10 @@ _cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*p
 
 static void
 pthread_key_destructor(void *value) {
-    if (x_cgo_dropm != NULL) {
-        (*x_cgo_dropm)(NULL);
+    // if (x_cgo_dropm != NULL) {
+    //     (*x_cgo_dropm)(NULL);
+    // }
+    if (x_cgo_crosscall_c != NULL) {
+        (*x_cgo_crosscall_c)(NULL);
     }
 }
