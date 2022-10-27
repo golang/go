@@ -219,6 +219,9 @@ type ConnectionState struct {
 	// HandshakeComplete is true if the handshake has concluded.
 	HandshakeComplete bool
 
+	// UnderlyingConn is the underlying (tcp) connection of the tls connection.
+	UnderlyingConn net.Conn
+
 	// DidResume is true if this connection was successfully resumed from a
 	// previous session with a session ticket or similar mechanism.
 	DidResume bool
