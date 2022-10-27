@@ -915,7 +915,7 @@ GLOBL zeroTLS<>(SB),RODATA,$const_tlsSize
 // callback by using pthread_key_create, cgodropm will be invoked
 // when thread exiting.
 TEXT runtime·cgodropm(SB),NOSPLIT,$0-0
-	MOVQ	_cgo_crosscall_dropm(SB), AX
+	// MOVQ	_cgo_crosscall_dropm(SB), AX
 	CALL	AX
 	RET
 
