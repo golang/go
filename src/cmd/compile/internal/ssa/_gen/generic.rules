@@ -2539,6 +2539,13 @@
 (SelectN [0] call:(StaticLECall {sym} a x)) && needRaceCleanup(sym, call) && clobber(call) => x
 (SelectN [0] call:(StaticLECall {sym} x)) && needRaceCleanup(sym, call) && clobber(call) => x
 
+// When rewriting append to growslice, we use as the the new length the result of
+// growslice so that we don't have to spill/restore the new length around the growslice call.
+// The exception here is that if the new length is a constant, avoiding spilling it
+// is pointless and its constantness is sometimes useful for subsequent optimizations.
+// See issue 56440.
+(SliceLen (SelectN [0] (StaticLECall {sym} _ newLen:(Const(64|32)) _ _ _ _))) && isSameCall(sym, "runtime.growslice") => newLen
+
 // Collapse moving A -> B -> C into just A -> C.
 // Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.
 // This happens most commonly when B is an autotmp inserted earlier
