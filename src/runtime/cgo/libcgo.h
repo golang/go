@@ -57,11 +57,6 @@ extern void (*_cgo_sys_thread_create)(void* (*func)(void*), void* arg);
 extern uintptr_t *_cgo_pthread_key_created;
 
 /*
- * Puts the current extra m back onto the extra list.
- */
-extern void (**_cgo_dropm)(void*);
-
-/*
  * Creates the new operating system thread (OS, arch dependent).
  */
 void _cgo_sys_thread_start(ThreadStart *ts);
