@@ -89,15 +89,9 @@ var _cgo_pthread_key_created = &x_cgo_pthread_key_created
 //
 // This method is invoked when thread is exiting.
 
-//go:cgo_import_static x_cgo_dropm
-//go:linkname x_cgo_dropm x_cgo_dropm
-//go:linkname _cgo_dropm _cgo_dropm
-var x_cgo_dropm byte
-var _cgo_dropm = &x_cgo_dropm
-
-//go:cgo_import_static x_cgo_crosscall_c
-//go:linkname x_cgo_crosscall_c x_cgo_crosscall_c
-var x_cgo_crosscall_c = abi.FuncPCABI0(cgo_crosscall)
+//go:cgo_import_static x_cgo_crosscall
+//go:linkname x_cgo_crosscall x_cgo_crosscall
+var x_cgo_crosscall = abi.FuncPCABI0(cgo_crosscall)
 
 //go:linkname cgo_crosscall cgo_crosscall
 func cgo_crosscall()
