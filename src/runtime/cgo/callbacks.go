@@ -95,12 +95,6 @@ var _cgo_pthread_key_created = &x_cgo_pthread_key_created
 var x_cgo_dropm byte
 var _cgo_dropm = &x_cgo_dropm
 
-//go:linkname cgo_crosscall_dropm cgo_crosscall_dropm
-//go:linkname _cgo_crosscall_dropm _cgo_crosscall_dropm
-var _cgo_crosscall_dropm = abi.FuncPCABI0(cgo_crosscall_dropm)
-
-func cgo_crosscall_dropm()
-
 //go:cgo_import_static x_cgo_crosscall_c
 //go:linkname x_cgo_crosscall_c x_cgo_crosscall_c
 var x_cgo_crosscall_c = abi.FuncPCABI0(cgo_crosscall)
