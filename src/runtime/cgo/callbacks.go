@@ -85,13 +85,14 @@ var _cgo_sys_thread_create = &x_cgo_sys_thread_create
 var x_cgo_pthread_key_created byte
 var _cgo_pthread_key_created = &x_cgo_pthread_key_created
 
-// Dropm when g is not nil.
-//
-// This method is invoked when thread is exiting.
+// Export crosscall2 to a c variable.
 
 //go:cgo_import_static x_cgo_crosscall
 //go:linkname x_cgo_crosscall x_cgo_crosscall
 var x_cgo_crosscall = abi.FuncPCABI0(cgo_crosscall)
+
+// Alias cgo_crosscall to crosscall2.
+// due to error: cgo exported function crosscall2 cannot have ABI wrappers.
 
 //go:linkname cgo_crosscall cgo_crosscall
 func cgo_crosscall()
