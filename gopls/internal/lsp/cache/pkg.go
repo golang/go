@@ -36,6 +36,8 @@ type pkg struct {
 	analyses memoize.Store // maps analyzer.Name to Promise[actionResult]
 }
 
+func (p *pkg) String() string { return p.ID() }
+
 // A loadScope defines a package loading scope for use with go/packages.
 type loadScope interface {
 	aScope()

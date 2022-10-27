@@ -217,6 +217,10 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	defer done()
 
 	// Wait for a free diagnostics slot.
+	// TODO(adonovan): opt: shouldn't it be the analysis implementation's
+	// job to de-dup and limit resource consumption? In any case this
+	// this function spends most its time waiting for awaitLoaded, at
+	// least initially.
 	select {
 	case <-ctx.Done():
 		return
@@ -226,73 +230,62 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 		<-s.diagnosticsSema
 	}()
 
-	// First, diagnose the go.mod file.
-	modReports, modErr := mod.Diagnostics(ctx, snapshot)
-	if ctx.Err() != nil {
-		log.Trace.Log(ctx, "diagnose cancelled")
-		return
-	}
-	if modErr != nil {
-		event.Error(ctx, "warning: diagnose go.mod", modErr, tag.Directory.Of(snapshot.View().Folder().Filename()), tag.Snapshot.Of(snapshot.ID()))
-	}
-	for id, diags := range modReports {
-		if id.URI == "" {
-			event.Error(ctx, "missing URI for module diagnostics", fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
-			continue
+	// common code for dispatching diagnostics
+	store := func(dsource diagnosticSource, operation string, diagsByFileID map[source.VersionedFileIdentity][]*source.Diagnostic, err error) {
+		if err != nil {
+			event.Error(ctx, "warning: while "+operation, err,
+				tag.Directory.Of(snapshot.View().Folder().Filename()),
+				tag.Snapshot.Of(snapshot.ID()))
 		}
-		s.storeDiagnostics(snapshot, id.URI, modSource, diags)
-	}
-	upgradeModReports, upgradeErr := mod.UpgradeDiagnostics(ctx, snapshot)
-	if ctx.Err() != nil {
-		log.Trace.Log(ctx, "diagnose cancelled")
-		return
-	}
-	if upgradeErr != nil {
-		event.Error(ctx, "warning: diagnose go.mod upgrades", upgradeErr, tag.Directory.Of(snapshot.View().Folder().Filename()), tag.Snapshot.Of(snapshot.ID()))
-	}
-	for id, diags := range upgradeModReports {
-		if id.URI == "" {
-			event.Error(ctx, "missing URI for module diagnostics", fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
-			continue
+		for id, diags := range diagsByFileID {
+			if id.URI == "" {
+				event.Error(ctx, "missing URI while "+operation, fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
+				continue
+			}
+			s.storeDiagnostics(snapshot, id.URI, dsource, diags)
 		}
-		s.storeDiagnostics(snapshot, id.URI, modCheckUpgradesSource, diags)
-	}
-	vulnerabilityReports, vulnErr := mod.VulnerabilityDiagnostics(ctx, snapshot)
-	if ctx.Err() != nil {
-		log.Trace.Log(ctx, "diagnose cancelled")
-		return
-	}
-	if vulnErr != nil {
-		event.Error(ctx, "warning: checking vulnerabilities", vulnErr, tag.Directory.Of(snapshot.View().Folder().Filename()), tag.Snapshot.Of(snapshot.ID()))
-	}
-	for id, diags := range vulnerabilityReports {
-		if id.URI == "" {
-			event.Error(ctx, "missing URI for module diagnostics", fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
-			continue
-		}
-		s.storeDiagnostics(snapshot, id.URI, modVulncheckSource, diags)
 	}
 
-	// Diagnose the go.work file, if it exists.
+	// Diagnose go.mod upgrades.
+	upgradeReports, upgradeErr := mod.UpgradeDiagnostics(ctx, snapshot)
+	if ctx.Err() != nil {
+		log.Trace.Log(ctx, "diagnose cancelled")
+		return
+	}
+	store(modCheckUpgradesSource, "diagnosing go.mod upgrades", upgradeReports, upgradeErr)
+
+	// Diagnose vulnerabilities.
+	vulnReports, vulnErr := mod.VulnerabilityDiagnostics(ctx, snapshot)
+	if ctx.Err() != nil {
+		log.Trace.Log(ctx, "diagnose cancelled")
+		return
+	}
+	store(modVulncheckSource, "diagnosing vulnerabilities", vulnReports, vulnErr)
+
+	// Diagnose go.work file.
 	workReports, workErr := work.Diagnostics(ctx, snapshot)
 	if ctx.Err() != nil {
 		log.Trace.Log(ctx, "diagnose cancelled")
 		return
 	}
-	if workErr != nil {
-		event.Error(ctx, "warning: diagnose go.work", workErr, tag.Directory.Of(snapshot.View().Folder().Filename()), tag.Snapshot.Of(snapshot.ID()))
-	}
-	for id, diags := range workReports {
-		if id.URI == "" {
-			event.Error(ctx, "missing URI for work file diagnostics", fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
-			continue
-		}
-		s.storeDiagnostics(snapshot, id.URI, workSource, diags)
-	}
+	store(workSource, "diagnosing go.work file", workReports, workErr)
 
-	// Diagnose all of the packages in the workspace.
-	wsPkgs, err := snapshot.ActivePackages(ctx)
-	if s.shouldIgnoreError(ctx, snapshot, err) {
+	// All subsequent steps depend on the completion of
+	// type-checking of the all active packages in the workspace.
+	// This step may take many seconds initially.
+	// (mod.Diagnostics would implicitly wait for this too,
+	// but the control is clearer if it is explicit here.)
+	activePkgs, activeErr := snapshot.ActivePackages(ctx)
+
+	// Diagnose go.mod file.
+	modReports, modErr := mod.Diagnostics(ctx, snapshot)
+	if ctx.Err() != nil {
+		log.Trace.Log(ctx, "diagnose cancelled")
+		return
+	}
+	store(modSource, "diagnosing go.mod file", modReports, modErr)
+
+	if s.shouldIgnoreError(ctx, snapshot, activeErr) {
 		return
 	}
 	criticalErr := snapshot.GetCriticalError(ctx)
@@ -303,7 +296,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	// error progress reports will be closed.
 	s.showCriticalErrorStatus(ctx, snapshot, criticalErr)
 
-	// There may be .tmpl files.
+	// Diagnose template (.tmpl) files.
 	for _, f := range snapshot.Templates() {
 		diags := template.Diagnose(f)
 		s.storeDiagnostics(snapshot, f.URI(), typeCheckSource, diags)
@@ -311,29 +304,31 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 
 	// If there are no workspace packages, there is nothing to diagnose and
 	// there are no orphaned files.
-	if len(wsPkgs) == 0 {
+	if len(activePkgs) == 0 {
 		return
 	}
 
+	// Run go/analysis diagnosis of packages in parallel.
+	// TODO(adonovan): opt: it may be more efficient to
+	// have diagnosePkg take a set of packages.
 	var (
 		wg   sync.WaitGroup
 		seen = map[span.URI]struct{}{}
 	)
-	for _, pkg := range wsPkgs {
-		wg.Add(1)
-
+	for _, pkg := range activePkgs {
 		for _, pgf := range pkg.CompiledGoFiles() {
 			seen[pgf.URI] = struct{}{}
 		}
 
+		wg.Add(1)
 		go func(pkg source.Package) {
 			defer wg.Done()
-
 			s.diagnosePkg(ctx, snapshot, pkg, forceAnalysis)
 		}(pkg)
 	}
 	wg.Wait()
 
+	// Orphaned files.
 	// Confirm that every opened file belongs to a package (if any exist in
 	// the workspace). Otherwise, add a diagnostic to the file.
 	for _, o := range s.session.Overlays() {

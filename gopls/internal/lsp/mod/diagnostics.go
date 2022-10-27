@@ -25,6 +25,8 @@ import (
 )
 
 // Diagnostics returns diagnostics for the modules in the workspace.
+//
+// It waits for completion of type-checking of all active packages.
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
 	ctx, done := event.Start(ctx, "mod.Diagnostics", tag.Snapshot.Of(snapshot.ID()))
 	defer done()
@@ -73,8 +75,9 @@ func collectDiagnostics(ctx context.Context, snapshot source.Snapshot, diagFn fu
 	return reports, nil
 }
 
-// ModDiagnostics returns diagnostics from diagnosing the packages in the workspace and
-// from tidying the go.mod file.
+// ModDiagnostics waits for completion of type-checking of all active
+// packages, then returns diagnostics from diagnosing the packages in
+// the workspace and from tidying the go.mod file.
 func ModDiagnostics(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) (diagnostics []*source.Diagnostic, err error) {
 	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {

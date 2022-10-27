@@ -308,18 +308,18 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 	originalViews := len(s.session.Views())
 	viewErrors := make(map[span.URI]error)
 
-	var wg sync.WaitGroup
+	var ndiagnose sync.WaitGroup // number of unfinished diagnose calls
 	if s.session.Options().VerboseWorkDoneProgress {
 		work := s.progress.Start(ctx, DiagnosticWorkTitle(FromInitialWorkspaceLoad), "Calculating diagnostics for initial workspace load...", nil, nil)
 		defer func() {
 			go func() {
-				wg.Wait()
+				ndiagnose.Wait()
 				work.End(ctx, "Done.")
 			}()
 		}()
 	}
 	// Only one view gets to have a workspace.
-	var allFoldersWg sync.WaitGroup
+	var nsnapshots sync.WaitGroup // number of unfinished snapshot initializations
 	for _, folder := range folders {
 		uri := span.URIFromURI(folder.URI)
 		// Ignore non-file URIs.
@@ -338,41 +338,40 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		}
 		// Inv: release() must be called once.
 
-		var swg sync.WaitGroup
-		swg.Add(1)
-		allFoldersWg.Add(1)
-		// TODO(adonovan): this looks fishy. Is AwaitInitialized
-		// supposed to be called once per folder?
-		go func() {
-			defer swg.Done()
-			defer allFoldersWg.Done()
-			snapshot.AwaitInitialized(ctx)
-			work.End(ctx, "Finished loading packages.")
-		}()
-
 		// Print each view's environment.
-		buf := &bytes.Buffer{}
-		if err := snapshot.WriteEnv(ctx, buf); err != nil {
+		var buf bytes.Buffer
+		if err := snapshot.WriteEnv(ctx, &buf); err != nil {
 			viewErrors[uri] = err
 			release()
 			continue
 		}
 		event.Log(ctx, buf.String())
 
-		// Diagnose the newly created view.
-		wg.Add(1)
+		// Initialize snapshot asynchronously.
+		initialized := make(chan struct{})
+		nsnapshots.Add(1)
+		go func() {
+			snapshot.AwaitInitialized(ctx)
+			work.End(ctx, "Finished loading packages.")
+			nsnapshots.Done()
+			close(initialized) // signal
+		}()
+
+		// Diagnose the newly created view asynchronously.
+		ndiagnose.Add(1)
 		go func() {
 			s.diagnoseDetached(snapshot)
-			swg.Wait()
+			<-initialized
 			release()
-			wg.Done()
+			ndiagnose.Done()
 		}()
 	}
 
+	// Wait for snapshots to be initialized so that all files are known.
+	// (We don't need to wait for diagnosis to finish.)
+	nsnapshots.Wait()
+
 	// Register for file watching notifications, if they are supported.
-	// Wait for all snapshots to be initialized first, since all files might
-	// not yet be known to the snapshots.
-	allFoldersWg.Wait()
 	if err := s.updateWatchedDirectories(ctx); err != nil {
 		event.Error(ctx, "failed to register for file watching notifications", err)
 	}
