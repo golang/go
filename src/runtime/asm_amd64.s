@@ -1057,7 +1057,7 @@ havem:
 	CMPQ	BX, $0
 	JNE	done
 	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
-	// since cgodropm will dropm when thread is exiting.
+	// since pthread_key_destructor will dropm when thread is exiting.
 	MOVQ	_cgo_pthread_key_created(SB), AX
 	CMPQ	(AX), $0
 	JNE	done

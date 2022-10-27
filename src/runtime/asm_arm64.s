@@ -1010,27 +1010,6 @@ nosave:
 	MOVD	R0, ret+16(FP)
 	RET
 
-// func cgodropm()
-// When calling go exported function from C, we register a destructor
-// callback by using pthread_key_create, cgodropm will be invoked
-// when thread exiting.
-TEXT runtime·cgodropm(SB),NOSPLIT|NOFRAME,$0
-	SUB	$(8*20), RSP
-	SAVE_R19_TO_R28(8*0)
-	SAVE_F8_TO_F15(8*10)
-	STP	(R29, R30), (8*18)(RSP)
-
-	// Initialize Go ABI environment
-	BL	runtime·load_g(SB)
-	BL	runtime·dropmCallback(SB)
-
-	RESTORE_R19_TO_R28(8*0)
-	RESTORE_F8_TO_F15(8*14)
-	LDP	(8*18)(RSP), (R29, R30)
-
-	ADD	$(8*20), RSP
-	RET
-
 // cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
@@ -1073,6 +1052,11 @@ needm:
 	MOVD	R29, (g_sched+gobuf_bp)(R3)
 
 havem:
+	// Skip cgocallbackg, just dropm when fn is nil.
+	// It is used to dropm while thread is exiting.
+	MOVD	fn+0(FP), R1
+	CBZ	R1, dropm
+
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
@@ -1138,9 +1122,11 @@ havem:
 	MOVD	savedm-8(SP), R6
 	CBNZ	R6, droppedm
 	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
-	// since cgodropm will dropm when thread is exiting.
+	// since pthread_key_destructor will dropm when thread is exiting.
 	MOVD	_cgo_pthread_key_created(SB), R6
 	CBNZ	R6, droppedm
+
+dropm:
 	MOVD	$runtime·dropm(SB), R0
 	BL	(R0)
 droppedm:

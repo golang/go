@@ -705,48 +705,6 @@ TEXT restoreregs2<>(SB),NOSPLIT|NOFRAME,$0
 
 	RET
 
-// func cgodropm()
-// When calling go exported function from C, we register a destructor
-// callback by using pthread_key_create, cgodropm will be invoked
-// when thread exiting.
-TEXT runtime·cgodropm(SB),NOSPLIT|NOFRAME,$0
-	// Start with standard C stack frame layout and linkage
-	MOVD	LR, R0
-	MOVD	R0, 16(R1)	// Save LR in caller's frame
-	MOVW	CR, R0		// Save CR in caller's frame
-	MOVW	R0, 8(R1)
-
-	BL	saveregs2<>(SB)
-
-	MOVDU	R1, (-288-FIXED_FRAME)(R1)
-	// Save the caller's R2
-	MOVD	R2, 24(R1)
-
-	// Initialize Go ABI environment
-	BL	runtime·reginit(SB)
-	BL	runtime·load_g(SB)
-
-#ifdef GOARCH_ppc64
-	// ppc64 use elf ABI v1. we must get the real entry address from
-	// first slot of the function descriptor before call.
-	// Same for AIX.
-	MOVD	8(R3), R2
-	MOVD	(R3), R3
-#endif
-	BL	runtime·dropmCallback(SB)
-
-	// Restore the caller's R2
-	MOVD	24(R1), R2
-	ADD	$(288+FIXED_FRAME), R1
-
-	BL	restoreregs2<>(SB)
-
-	MOVW	8(R1), R0
-	MOVFL	R0, $0xff
-	MOVD	16(R1), R0
-	MOVD	R0, LR
-	RET
-
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
@@ -793,6 +751,12 @@ needm:
 	MOVD	R1, (g_sched+gobuf_sp)(R3)
 
 havem:
+	// Skip cgocallbackg, just dropm when fn is nil.
+	// It is used to dropm while thread is exiting.
+	MOVD	fn+0(FP), R5
+	CMP	    R5, $0
+	BEQ	dropm
+
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
@@ -854,10 +818,12 @@ havem:
 	CMP	R6, $0
 	BNE	droppedm
 	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
-	// since cgodropm will dropm when thread is exiting.
+	// since pthread_key_destructor will dropm when thread is exiting.
 	MOVD	_cgo_pthread_key_created(SB), R6
 	CMP	R6, $0
 	BNE	droppedm
+
+dropm:
 	MOVD	$runtime·dropm(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)

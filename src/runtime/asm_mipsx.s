@@ -454,68 +454,6 @@ g0:
 	MOVW	R2, ret+8(FP)
 	RET
 
-// func cgodropm()
-// When calling go exported function from C, we register a destructor
-// callback by using pthread_key_create, cgodropm will be invoked
-// when thread exiting.
-TEXT runtime·cgodropm(SB),NOSPLIT|NOFRAME,$0
-	/*
-	 * We still need to save all callee save register as before.
-	 */
-
-	// Space for 9 caller-saved GPR + LR + 6 caller-saved FPR.
-	// O32 ABI allows us to smash 16 bytes argument area of caller frame.
-#ifndef GOMIPS_softfloat
-	SUBU	$(4*11+8*6-16), R29
-#else
-	SUBU	$(4*11-16), R29	// For soft-float, no FPR.
-#endif
-	MOVW	R16, (4*1)(R29)
-	MOVW	R17, (4*2)(R29)
-	MOVW	R18, (4*3)(R29)
-	MOVW	R19, (4*4)(R29)
-	MOVW	R20, (4*5)(R29)
-	MOVW	R21, (4*6)(R29)
-	MOVW	R22, (4*7)(R29)
-	MOVW	R23, (4*8)(R29)
-	MOVW	g, (4*9)(R29)
-	MOVW	R31, (4*10)(R29)
-#ifndef GOMIPS_softfloat
-	MOVD	F20, (4*11)(R29)
-	MOVD	F22, (4*11+8*1)(R29)
-	MOVD	F24, (4*11+8*2)(R29)
-	MOVD	F26, (4*11+8*3)(R29)
-	MOVD	F28, (4*11+8*4)(R29)
-	MOVD	F30, (4*11+8*5)(R29)
-#endif
-	JAL	runtime·load_g(SB)
-
-	JAL	runtime·dropmCallback(SB)
-
-	MOVW	(4*1)(R29), R16
-	MOVW	(4*2)(R29), R17
-	MOVW	(4*3)(R29), R18
-	MOVW	(4*4)(R29), R19
-	MOVW	(4*5)(R29), R20
-	MOVW	(4*6)(R29), R21
-	MOVW	(4*7)(R29), R22
-	MOVW	(4*8)(R29), R23
-	MOVW	(4*9)(R29), g
-	MOVW	(4*10)(R29), R31
-#ifndef GOMIPS_softfloat
-	MOVD	(4*11)(R29), F20
-	MOVD	(4*11+8*1)(R29), F22
-	MOVD	(4*11+8*2)(R29), F24
-	MOVD	(4*11+8*3)(R29), F26
-	MOVD	(4*11+8*4)(R29), F28
-	MOVD	(4*11+8*5)(R29), F30
-
-	ADDU	$(4*11+8*6-16), R29
-#else
-	ADDU	$(4*11-16), R29
-#endif
-	RET
-
 // cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$12-12
@@ -559,6 +497,11 @@ needm:
 	MOVW	R29, (g_sched+gobuf_sp)(R1)
 
 havem:
+	// Skip cgocallbackg, just dropm when fn is nil.
+	// It is used to dropm while thread is exiting.
+	MOVW	fn+0(FP), R5
+	BEQ	R5, dropm
+
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
@@ -616,9 +559,11 @@ havem:
 	MOVW	savedm-4(SP), R3
 	BNE	R3, droppedm
 	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
-	// since cgodropm will dropm when thread is exiting.
+	// since pthread_key_destructor will dropm when thread is exiting.
 	MOVW	_cgo_pthread_key_created(SB), R3
 	BNE	R3, droppedm
+
+dropm:
 	MOVW	$runtime·dropm(SB), R4
 	JAL	(R4)
 droppedm:

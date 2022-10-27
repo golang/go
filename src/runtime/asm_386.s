@@ -684,24 +684,6 @@ nosave:
 	MOVL	AX, ret+8(FP)
 	RET
 
-// func cgodropm()
-// When calling go exported function from C, we register a destructor
-// callback by using pthread_key_create, cgodropm will be invoked
-// when thread exiting.
-TEXT runtime·cgodropm(SB),NOSPLIT,$16-0
-	MOVL BP, 12(SP)
-	MOVL BX, 8(SP)
-	MOVL SI, 4(SP)
-	MOVL DI, 0(SP)
-
-	CALL	runtime·dropmCallback(SB)
-
-	MOVL 0(SP), DI
-	MOVL 4(SP), SI
-	MOVL 8(SP), BX
-	MOVL 12(SP), BP
-	RET
-
 // cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$12-12  // Frame size must match commented places below
@@ -747,6 +729,12 @@ needm:
 	MOVL	SP, (g_sched+gobuf_sp)(SI)
 
 havem:
+	// Skip cgocallbackg, just dropm when fn is nil.
+	// It is used to dropm while thread is exiting.
+	MOVL	fn+0(FP), AX
+	CMPL	AX, $0
+	JEQ	dropm
+
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
@@ -808,10 +796,12 @@ havem:
 	CMPL	DX, $0
 	JNE 6(PC)
 	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
-	// since cgodropm will dropm when thread is exiting.
+	// since pthread_key_destructor will dropm when thread is exiting.
 	MOVL	_cgo_pthread_key_created(SB), DX
 	CMPL	DX, $0
 	JNE	3(PC)
+
+dropm:
 	MOVL	$runtime·dropm(SB), AX
 	CALL	AX
 

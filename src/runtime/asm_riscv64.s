@@ -514,74 +514,6 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	MOV	ZERO, ZERO	// NOP
 
-// func cgodropm()
-// When calling go exported function from C, we register a destructor
-// callback by using pthread_key_create, cgodropm will be invoked
-// when thread exiting.
-TEXT runtime·cgodropm(SB),NOSPLIT|NOFRAME,$0
-	/*
-	 * Push all callee-save registers.
-	 */
-	ADD	$(-8*26), X2
-	MOV	X8, (8*1)(X2)
-	MOV	X9, (8*2)(X2)
-	MOV	X18, (8*3)(X2)
-	MOV	X19, (8*4)(X2)
-	MOV	X20, (8*5)(X2)
-	MOV	X21, (8*6)(X2)
-	MOV	X22, (8*7)(X2)
-	MOV	X23, (8*8)(X2)
-	MOV	X24, (8*9)(X2)
-	MOV	X25, (8*10)(X2)
-	MOV	X26, (8*11)(X2)
-	MOV	g, (8*12)(X2)
-	MOV	X1, (8*13)(X2)
-	MOVD	F8, (8*14)(X2)
-	MOVD	F9, (8*15)(X2)
-	MOVD	F18, (8*16)(X2)
-	MOVD	F19, (8*17)(X2)
-	MOVD	F20, (8*18)(X2)
-	MOVD	F21, (8*19)(X2)
-	MOVD	F22, (8*20)(X2)
-	MOVD	F23, (8*21)(X2)
-	MOVD	F24, (8*22)(X2)
-	MOVD	F25, (8*23)(X2)
-	MOVD	F26, (8*24)(X2)
-	MOVD	F27, (8*25)(X2)
-
-	// Initialize Go ABI environment
-	CALL	runtime·load_g(SB)
-	CALL	runtime·dropmCallback(SB)
-
-	MOV	(8*1)(X2), X8
-	MOV	(8*2)(X2), X9
-	MOV	(8*3)(X2), X18
-	MOV	(8*4)(X2), X19
-	MOV	(8*5)(X2), X20
-	MOV	(8*6)(X2), X21
-	MOV	(8*7)(X2), X22
-	MOV	(8*8)(X2), X23
-	MOV	(8*9)(X2), X24
-	MOV	(8*10)(X2), X25
-	MOV	(8*11)(X2), X26
-	MOV	(8*12)(X2), g
-	MOV	(8*13)(X2), X1
-	MOVD	(8*14)(X2), F8
-	MOVD	(8*15)(X2), F9
-	MOVD	(8*16)(X2), F18
-	MOVD	(8*17)(X2), F19
-	MOVD	(8*18)(X2), F20
-	MOVD	(8*19)(X2), F21
-	MOVD	(8*20)(X2), F22
-	MOVD	(8*21)(X2), F23
-	MOVD	(8*22)(X2), F24
-	MOVD	(8*23)(X2), F25
-	MOVD	(8*24)(X2), F26
-	MOVD	(8*25)(X2), F27
-	ADD	$(8*26), X2
-
-	RET
-
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
@@ -625,6 +557,11 @@ needm:
 	MOV	X2, (g_sched+gobuf_sp)(X6)
 
 havem:
+	// Skip cgocallbackg, just dropm when fn is nil.
+	// It is used to dropm while thread is exiting.
+	MOV	fn+0(FP), X7
+	BEQ	ZERO, X7, dropm
+
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
@@ -682,9 +619,11 @@ havem:
 	MOV	savedm-8(SP), X5
 	BNE	ZERO, X5, droppedm
 	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
-	// since cgodropm will dropm when thread is exiting.
+	// since pthread_key_destructor will dropm when thread is exiting.
 	MOV	_cgo_pthread_key_created(SB), X5
 	BNE	ZERO, X5, droppedm
+
+dropm:
 	MOV	$runtime·dropm(SB), X6
 	JALR	RA, X6
 droppedm:
