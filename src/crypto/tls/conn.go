@@ -1486,7 +1486,6 @@ func (c *Conn) ConnectionState() ConnectionState {
 func (c *Conn) connectionStateLocked() ConnectionState {
 	var state ConnectionState
 	state.HandshakeComplete = c.isHandshakeComplete.Load()
-	state.UnderlyingConn = c.conn
 	state.Version = c.vers
 	state.NegotiatedProtocol = c.clientProtocol
 	state.DidResume = c.didResume
