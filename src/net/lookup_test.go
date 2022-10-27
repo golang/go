@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"internal/testenv"
+	"net/netip"
 	"reflect"
 	"runtime"
 	"sort"
@@ -1289,18 +1290,16 @@ func TestResolverLookupIP(t *testing.T) {
 						t.Fatalf("DefaultResolver.LookupIP(%q, %q): failed with unexpected error: %v", network, host, err)
 					}
 
-					var v4Addrs []IP
-					var v6Addrs []IP
+					var v4Addrs []netip.Addr
+					var v6Addrs []netip.Addr
 					for _, ip := range ips {
-						switch {
-						case ip.To4() != nil:
-							// We need to skip the test below because To16 will
-							// convent an IPv4 address to an IPv4-mapped IPv6
-							// address.
-							v4Addrs = append(v4Addrs, ip)
-						case ip.To16() != nil:
-							v6Addrs = append(v6Addrs, ip)
-						default:
+						if addr, ok := netip.AddrFromSlice(ip); ok {
+							if addr.Is4() {
+								v4Addrs = append(v4Addrs, addr)
+							} else {
+								v6Addrs = append(v6Addrs, addr)
+							}
+						} else {
 							t.Fatalf("IP=%q is neither IPv4 nor IPv6", ip)
 						}
 					}
@@ -1322,7 +1321,7 @@ func TestResolverLookupIP(t *testing.T) {
 						t.Errorf("DefaultResolver.LookupIP(%q, %q): unexpected IPv4 addresses: %v", network, host, v4Addrs)
 					}
 					if network == "ip4" && len(v6Addrs) > 0 {
-						t.Errorf("DefaultResolver.LookupIP(%q, %q): unexpected IPv6 addresses: %v", network, host, v6Addrs)
+						t.Errorf("DefaultResolver.LookupIP(%q, %q): unexpected IPv6 or IPv4-mapped IPv6 addresses: %v", network, host, v6Addrs)
 					}
 				})
 			}
