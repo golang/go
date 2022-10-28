@@ -86,13 +86,13 @@ var x_cgo_pthread_key_created byte
 var _cgo_pthread_key_created = &x_cgo_pthread_key_created
 
 // Export crosscall2 to a c variable.
+// Used to dropm in pthread_key_destructor, while c thread is exiting.
 
 //go:cgo_import_static x_cgo_crosscall
 //go:linkname x_cgo_crosscall x_cgo_crosscall
 var x_cgo_crosscall = abi.FuncPCABI0(cgo_crosscall)
 
-// Alias cgo_crosscall to crosscall2.
-// due to error: cgo exported function crosscall2 cannot have ABI wrappers.
+// cgo_crosscall simply jmp to crosscall2.
 
 //go:cgo_export_static cgo_crosscall
 //go:cgo_export_dynamic cgo_crosscall
