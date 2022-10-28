@@ -381,6 +381,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/trace"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -477,6 +478,8 @@ var (
 	testlogFile *os.File
 
 	numFailed atomic.Uint32 // number of test failures
+
+	running sync.Map // map[string]time.Time of running, unpaused tests
 )
 
 type chattyFlag struct {
@@ -1363,6 +1366,7 @@ func (t *T) Parallel() {
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== PAUSE %s\n", t.name)
 	}
+	running.Delete(t.name)
 
 	t.signal <- true   // Release calling test.
 	<-t.parent.barrier // Wait for the parent test to complete.
@@ -1371,6 +1375,7 @@ func (t *T) Parallel() {
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
 	}
+	running.Store(t.name, time.Now())
 
 	t.start = time.Now()
 	t.raceErrors += -race.Errors()
@@ -1474,15 +1479,16 @@ func tRunner(t *T, fn func(t *T)) {
 		// complete even if a cleanup function calls t.FailNow. See issue 41355.
 		didPanic := false
 		defer func() {
+			// Only report that the test is complete if it doesn't panic,
+			// as otherwise the test binary can exit before the panic is
+			// reported to the user. See issue 41479.
 			if didPanic {
 				return
 			}
 			if err != nil {
 				panic(err)
 			}
-			// Only report that the test is complete if it doesn't panic,
-			// as otherwise the test binary can exit before the panic is
-			// reported to the user. See issue 41479.
+			running.Delete(t.name)
 			t.signal <- signal
 		}()
 
@@ -1595,6 +1601,8 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
 	}
+	running.Store(t.name, time.Now())
+
 	// Instead of reducing the running count of this test before calling the
 	// tRunner and increasing it afterwards, we rely on tRunner keeping the
 	// count correct. This ensures that a sequence of sequential tests runs
@@ -2201,9 +2209,31 @@ func (m *M) startAlarm() time.Time {
 	m.timer = time.AfterFunc(*timeout, func() {
 		m.after()
 		debug.SetTraceback("all")
-		panic(fmt.Sprintf("test timed out after %v", *timeout))
+		extra := ""
+
+		if list := runningList(); len(list) > 0 {
+			var b strings.Builder
+			b.WriteString("\nrunning tests:")
+			for _, name := range list {
+				b.WriteString("\n\t")
+				b.WriteString(name)
+			}
+			extra = b.String()
+		}
+		panic(fmt.Sprintf("test timed out after %v%s", *timeout, extra))
 	})
 	return deadline
+}
+
+// runningList returns the list of running tests.
+func runningList() []string {
+	var list []string
+	running.Range(func(k, v any) bool {
+		list = append(list, fmt.Sprintf("%s (%v)", k.(string), time.Since(v.(time.Time)).Round(time.Second)))
+		return true
+	})
+	sort.Strings(list)
+	return list
 }
 
 // stopAlarm turns off the alarm.
