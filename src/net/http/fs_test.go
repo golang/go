@@ -1143,6 +1143,22 @@ func testServeContent(t *testing.T, mode testMode) {
 			wantStatus:  412,
 			wantLastMod: htmlModTime.UTC().Format(TimeFormat),
 		},
+		"uses_writeTo_if_available_and_non-range": {
+			content:          &panicOnNonWriterTo{seekWriterTo: strings.NewReader("foobar")},
+			serveContentType: "text/plain; charset=utf-8",
+			wantContentType:  "text/plain; charset=utf-8",
+			wantStatus:       StatusOK,
+		},
+		"do_not_use_writeTo_for_range_requests": {
+			content:          &panicOnWriterTo{ReadSeeker: strings.NewReader("foobar")},
+			serveContentType: "text/plain; charset=utf-8",
+			reqHeader: map[string]string{
+				"Range": "bytes=0-4",
+			},
+			wantContentType:  "text/plain; charset=utf-8",
+			wantContentRange: "bytes 0-4/6",
+			wantStatus:       StatusPartialContent,
+		},
 	}
 	for testName, tt := range tests {
 		var content io.ReadSeeker
@@ -1198,6 +1214,21 @@ func testServeContent(t *testing.T, mode testMode) {
 			}
 		}
 	}
+}
+
+type seekWriterTo interface {
+	io.Seeker
+	io.WriterTo
+}
+
+type panicOnNonWriterTo struct {
+	io.Reader
+	seekWriterTo
+}
+
+type panicOnWriterTo struct {
+	io.ReadSeeker
+	io.WriterTo
 }
 
 // Issue 12991

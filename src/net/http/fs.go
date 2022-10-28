@@ -375,7 +375,12 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 	w.WriteHeader(code)
 
 	if r.Method != "HEAD" {
-		io.CopyN(w, sendContent, sendSize)
+		if sendSize == size {
+			// use Copy in the non-range case to make use of WriterTo if available
+			io.Copy(w, sendContent)
+		} else {
+			io.CopyN(w, sendContent, sendSize)
+		}
 	}
 }
 
