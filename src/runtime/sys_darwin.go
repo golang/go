@@ -49,6 +49,17 @@ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) 
 }
 func syscall6()
 
+//go:linkname syscall_syscall9 syscall.syscall9
+//go:nosplit
+//go:cgo_unsafe_args
+func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
+	entersyscall()
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall9)), unsafe.Pointer(&fn))
+	exitsyscall()
+	return
+}
+func syscall9()
+
 //go:linkname syscall_syscall6X syscall.syscall6X
 //go:nosplit
 func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
@@ -87,7 +98,7 @@ func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintpt
 	return args.r1, args.r2, args.err
 }
 
-// syscallNoErr is used in crypto/x509 to call into Security.framework and CF.
+// crypto_x509_syscall is used in crypto/x509/internal/macos to call into Security.framework and CF.
 
 //go:linkname crypto_x509_syscall crypto/x509/internal/macos.syscall
 //go:nosplit
