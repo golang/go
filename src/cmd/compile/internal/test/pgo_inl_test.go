@@ -8,10 +8,9 @@ import (
 	"bufio"
 	"fmt"
 	"internal/testenv"
-	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -22,29 +21,20 @@ func TestPGOIntendedInlining(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
-	// Make a temporary directory to work in.
-	tmpdir, err := ioutil.TempDir("", "TestCode")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	const pkg = "cmd/compile/internal/test/testdata/pgo/inline"
 
-	want := map[string][]string{
-		"cmd/compile/internal/test/testdata/pgo/inline": {
-			"(*BS).NS",
-		},
+	want := []string{
+		"(*BS).NS",
 	}
 
 	// The functions which are not expected to be inlined are as follows.
-	wantNot := map[string][]string{
-		"cmd/compile/internal/test/testdata/pgo/inline": {
-			// The calling edge main->A is hot and the cost of A is large than
-			// inlineHotCalleeMaxBudget.
-			"A",
-			// The calling edge BenchmarkA" -> benchmarkB is cold
-			// and the cost of A is large than inlineMaxBudget.
-			"benchmarkB",
-		},
+	wantNot := []string{
+		// The calling edge main->A is hot and the cost of A is large
+		// than inlineHotCalleeMaxBudget.
+		"A",
+		// The calling edge BenchmarkA" -> benchmarkB is cold and the
+		// cost of A is large than inlineMaxBudget.
+		"benchmarkB",
 	}
 
 	must := map[string]bool{
@@ -52,46 +42,45 @@ func TestPGOIntendedInlining(t *testing.T) {
 	}
 
 	notInlinedReason := make(map[string]string)
-	pkgs := make([]string, 0, len(want))
-	for pname, fnames := range want {
-		pkgs = append(pkgs, pname)
-		for _, fname := range fnames {
-			fullName := pname + "." + fname
-			if _, ok := notInlinedReason[fullName]; ok {
-				t.Errorf("duplicate func: %s", fullName)
-			}
-			notInlinedReason[fullName] = "unknown reason"
+	for _, fname := range want {
+		fullName := pkg + "." + fname
+		if _, ok := notInlinedReason[fullName]; ok {
+			t.Errorf("duplicate func: %s", fullName)
 		}
+		notInlinedReason[fullName] = "unknown reason"
 	}
 
 	// If the compiler emit "cannot inline for function A", the entry A
 	// in expectedNotInlinedList will be removed.
 	expectedNotInlinedList := make(map[string]struct{})
-	for pname, fnames := range wantNot {
-		for _, fname := range fnames {
-			fullName := pname + "." + fname
-			expectedNotInlinedList[fullName] = struct{}{}
-		}
+	for _, fname := range wantNot {
+		fullName := pkg + "." + fname
+		expectedNotInlinedList[fullName] = struct{}{}
 	}
 
-	// go test -bench=. -cpuprofile testdata/pgo/inline/inline_hot.pprof cmd/compile/internal/test/testdata/pgo/inline
-	curdir, err1 := os.Getwd()
-	if err1 != nil {
-		t.Fatal(err1)
+	// go test -c -o /tmp/test.exe -cpuprofile testdata/pgo/inline/inline_hot.pprof cmd/compile/internal/test/testdata/pgo/inline
+	curdir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("error getting wd: %v", err)
 	}
-	gcflag_option := "-gcflags=-m -m -pgoprofile %s/testdata/pgo/inline/inline_hot.pprof"
-	gcflag := fmt.Sprintf(gcflag_option, curdir)
-	args := append([]string{"test", "-run=nope", gcflag}, pkgs...)
-	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), args...))
+	gcflag := fmt.Sprintf("-gcflags=-m -m -pgoprofile %s/testdata/pgo/inline/inline_hot.pprof", curdir)
+	out := filepath.Join(t.TempDir(), "test.exe")
+	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", out, gcflag, pkg))
 
-	pr, pw := io.Pipe()
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("error creating pipe: %v", err)
+	}
+	defer pr.Close()
 	cmd.Stdout = pw
 	cmd.Stderr = pw
-	cmdErr := make(chan error, 1)
-	go func() {
-		cmdErr <- cmd.Run()
-		pw.Close()
-	}()
+
+	err = cmd.Start()
+	pw.Close()
+	if err != nil {
+		t.Fatalf("error starting go test: %v", err)
+	}
+
 	scanner := bufio.NewScanner(pr)
 	curPkg := ""
 	canInline := regexp.MustCompile(`: can inline ([^ ]*)`)
@@ -99,6 +88,7 @@ func TestPGOIntendedInlining(t *testing.T) {
 	cannotInline := regexp.MustCompile(`: cannot inline ([^ ]*): (.*)`)
 	for scanner.Scan() {
 		line := scanner.Text()
+		t.Logf("child: %s", line)
 		if strings.HasPrefix(line, "# ") {
 			curPkg = line[2:]
 			splits := strings.Split(curPkg, " ")
@@ -130,11 +120,11 @@ func TestPGOIntendedInlining(t *testing.T) {
 			continue
 		}
 	}
-	if err := <-cmdErr; err != nil {
-		t.Fatal(err)
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("error running go test: %v", err)
 	}
 	if err := scanner.Err(); err != nil {
-		t.Fatal(err)
+		t.Fatalf("error reading go test output: %v", err)
 	}
 	for fullName, reason := range notInlinedReason {
 		t.Errorf("%s was not inlined: %s", fullName, reason)
