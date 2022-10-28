@@ -669,6 +669,63 @@ TEXT runtime·syscall6X(SB),NOSPLIT,$0
 ok:
 	RET
 
+// syscall9 calls a function in libc on behalf of the syscall package.
+// syscall9 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	a7    uintptr
+//	a8    uintptr
+//	a9    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall9 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall9(SB),NOSPLIT,$0
+	SUB	$16, RSP	// push structure pointer
+	MOVD	R0, 8(RSP)
+
+	MOVD	0(R0), R12	// fn
+	MOVD	16(R0), R1	// a2
+	MOVD	24(R0), R2	// a3
+	MOVD	32(R0), R3	// a4
+	MOVD	40(R0), R4	// a5
+	MOVD	48(R0), R5	// a6
+	MOVD	56(R0), R6	// a7
+	MOVD	64(R0), R7	// a8
+	MOVD	72(R0), R8	// a9
+	MOVD	8(R0), R0	// a1
+
+	// If fn is declared as vararg, we have to pass the vararg arguments on the stack.
+	// See syscall above. The only function this applies to is openat, for which the 4th
+	// arg must be on the stack.
+	MOVD	R3, (RSP)
+
+	BL	(R12)
+
+	MOVD	8(RSP), R2	// pop structure pointer
+	ADD	$16, RSP
+	MOVD	R0, 80(R2)	// save r1
+	MOVD	R1, 88(R2)	// save r2
+	CMPW	$-1, R0
+	BNE	ok
+	SUB	$16, RSP	// push structure pointer
+	MOVD	R2, 8(RSP)
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	MOVD	8(RSP), R2	// pop structure pointer
+	ADD	$16, RSP
+	MOVD	R0, 96(R2)	// save err
+ok:
+	RET
+
 // syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,
 // takes 5 uintptrs and 1 float64, and only returns one value,
 // for use with standard C ABI functions.
