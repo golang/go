@@ -173,7 +173,10 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
 
-	_, startLine := linkgetlineFromPos(ctxt, start)
+	// startLine should be the same line number that would be displayed via
+	// pcln, etc for the declaration (i.e., relative line number, as
+	// adjusted by //line).
+	_, startLine := ctxt.getFileSymbolAndLine(start)
 
 	// TODO(mdempsky): Remove once cmd/asm stops writing "" symbols.
 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)

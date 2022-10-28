@@ -721,7 +721,7 @@ func genFuncInfoSyms(ctxt *Link) {
 		sort.Slice(o.File, func(i, j int) bool { return o.File[i] < o.File[j] })
 		o.InlTree = make([]goobj.InlTreeNode, len(pc.InlTree.nodes))
 		for i, inl := range pc.InlTree.nodes {
-			f, l := getFileIndexAndLine(ctxt, inl.Pos)
+			f, l := ctxt.getFileIndexAndLine(inl.Pos)
 			o.InlTree[i] = goobj.InlTreeNode{
 				Parent:   int32(inl.Parent),
 				File:     goobj.CUFileIndex(f),
