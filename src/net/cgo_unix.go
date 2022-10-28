@@ -13,8 +13,11 @@ package net
 
 import (
 	"context"
+	"errors"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 // An addrinfoErrno represents a getaddrinfo, getnameinfo-specific
@@ -223,21 +226,6 @@ func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err
 	}
 }
 
-func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
-	if ctx.Done() == nil {
-		_, cname, err = cgoLookupIPCNAME("ip", name)
-		return cname, err, true
-	}
-	result := make(chan ipLookupResult, 1)
-	go cgoIPLookup(result, "ip", name)
-	select {
-	case r := <-result:
-		return r.cname, r.err, true
-	case <-ctx.Done():
-		return "", mapErr(ctx.Err()), false
-	}
-}
-
 // These are roughly enough for the following:
 //
 //	 Source		Encoding			Maximum length of single name entry
@@ -326,4 +314,54 @@ func cgoSockaddr(ip IP, zone string) (*_C_struct_sockaddr, _C_socklen_t) {
 		return cgoSockaddrInet6(ip6, zoneCache.index(zone)), _C_socklen_t(syscall.SizeofSockaddrInet6)
 	}
 	return nil, 0
+}
+
+func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
+	resources, err := resSearch(ctx, name, int(dnsmessage.TypeCNAME), int(dnsmessage.ClassINET))
+	if err != nil {
+		return
+	}
+	cname, err = parseCNAMEFromResources(resources)
+	if err != nil {
+		return "", err, false
+	}
+	return cname, nil, true
+}
+
+// resSearch will make a call to the 'res_nsearch' routine in the C library
+// and parse the output as a slice of DNS resources.
+func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
+	var state _C_struct___res_state
+	if err := _C_res_ninit(&state); err != nil {
+		return nil, errors.New("res_ninit failure: " + err.Error())
+	}
+	defer _C_res_nclose(&state)
+
+	// Some res_nsearch implementations (like macOS) do not set errno.
+	// They set h_errno, which is not per-thread and useless to us.
+	// res_nsearch returns the size of the DNS response packet.
+	// But if the DNS response packet contains failure-like response codes,
+	// res_search returns -1 even though it has copied the packet into buf,
+	// giving us no way to find out how big the packet is.
+	// For now, we are willing to take res_search's word that there's nothing
+	// useful in the response, even though there *is* a response.
+	var buf [1500]byte
+	s, err := syscall.BytePtrFromString(hostname)
+	if err != nil {
+		return nil, err
+	}
+	size, err := _C_res_nsearch(&state, (*_C_char)(unsafe.Pointer(s)), class, rtype, (*_C_uchar)(unsafe.Pointer(&buf[0])), len(buf))
+	if size <= 0 {
+		return nil, errors.New("res_nsearch failure")
+	}
+	var p dnsmessage.Parser
+	if _, err := p.Start(buf[:size]); err != nil {
+		return nil, err
+	}
+	p.SkipAllQuestions()
+	resources, err := p.AllAnswers()
+	if err != nil {
+		return nil, err
+	}
+	return resources, nil
 }

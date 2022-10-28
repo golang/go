@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"errors"
 	"internal/nettrace"
 	"internal/singleflight"
 	"net/netip"
@@ -895,4 +896,15 @@ func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, erro
 		txts = append(txts, string(txtJoin))
 	}
 	return txts, nil
+}
+
+func parseCNAMEFromResources(resources []dnsmessage.Resource) (string, error) {
+	if len(resources) == 0 {
+		return "", errors.New("no CNAME record received")
+	}
+	c, ok := resources[0].Body.(*dnsmessage.CNAMEResource)
+	if !ok {
+		return "", errors.New("could not parse CNAME record")
+	}
+	return c.CNAME.String(), nil
 }
