@@ -2717,7 +2717,8 @@ func TestDirFS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test that the error message does not contain a backslash.
+	// Test that the error message does not contain a backslash,
+	// and does not contain the DirFS argument.
 	const nonesuch = "dir/nonesuch"
 	_, err := fs.Open(nonesuch)
 	if err == nil {
@@ -2725,6 +2726,9 @@ func TestDirFS(t *testing.T) {
 	} else {
 		if !strings.Contains(err.Error(), nonesuch) {
 			t.Errorf("error %q does not contain %q", err, nonesuch)
+		}
+		if strings.Contains(err.Error(), "testdata") {
+			t.Errorf("error %q contains %q", err, "testdata")
 		}
 	}
 

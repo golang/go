@@ -625,6 +625,7 @@ func DirFS(dir string) fs.FS {
 	return dirFS(dir)
 }
 
+// containsAny reports whether any bytes in chars are within s.
 func containsAny(s, chars string) bool {
 	for i := 0; i < len(s); i++ {
 		for j := 0; j < len(chars); j++ {
@@ -644,14 +645,12 @@ func (dir dirFS) Open(name string) (fs.File, error) {
 	}
 	f, err := Open(dir.join(name))
 	if err != nil {
-		if runtime.GOOS == "windows" {
-			// Undo the backslash conversion done by dir.join.
-			perr := err.(*PathError)
-			if containsAny(perr.Path, `\`) {
-				perr.Path = string(dir) + "/" + name
-			}
-		}
-		return nil, err // nil fs.File
+		// DirFS takes a string appropriate for GOOS,
+		// while the name argument here is always slash separated.
+		// dir.join will have mixed the two; undo that for
+		// error reporting.
+		err.(*PathError).Path = name
+		return nil, err
 	}
 	return f, nil
 }
@@ -662,6 +661,8 @@ func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
 	}
 	f, err := Stat(dir.join(name))
 	if err != nil {
+		// See comment in dirFS.Open.
+		err.(*PathError).Path = name
 		return nil, err
 	}
 	return f, nil
