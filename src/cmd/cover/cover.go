@@ -629,7 +629,7 @@ func (p *Package) annotateFile(name string, fd io.Writer, last bool) {
 	}
 	newContent := file.edit.Bytes()
 
-	fmt.Fprintf(fd, "//line %s:1\n", name)
+	fmt.Fprintf(fd, "//line %s:1:1\n", name)
 	fd.Write(newContent)
 
 	// After printing the source tree, add some declarations for the
