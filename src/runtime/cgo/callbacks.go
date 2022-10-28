@@ -24,6 +24,9 @@ import (
 // that pattern working. In particular, crosscall2 actually takes four
 // arguments, but it works to call it with three arguments when
 // calling _cgo_panic.
+//
+//go:cgo_export_static crosscall2
+//go:cgo_export_dynamic crosscall2
 
 // Panic. The argument is converted into a Go string.
 
@@ -86,16 +89,13 @@ var _cgo_pthread_key_created = &x_cgo_pthread_key_created
 
 //go:cgo_import_static x_cgo_crosscall
 //go:linkname x_cgo_crosscall x_cgo_crosscall
-var x_cgo_crosscall = abi.FuncPCABI0(crosscall2)
-
-//go:cgo_export_static crosscall2
-//go:cgo_export_dynamic crosscall2
-//go:linkname crosscall2 crosscall2
-func crosscall2()
+var x_cgo_crosscall = abi.FuncPCABI0(cgo_crosscall)
 
 // Alias cgo_crosscall to crosscall2.
 // due to error: cgo exported function crosscall2 cannot have ABI wrappers.
 
+//go:cgo_export_static cgo_crosscall
+//go:cgo_export_dynamic cgo_crosscall
 //go:linkname cgo_crosscall cgo_crosscall
 func cgo_crosscall()
 

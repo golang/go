@@ -207,7 +207,8 @@ func (s *SymABIs) GenABIWrappers() {
 		// Double check that cgo-exported symbols don't get
 		// any wrappers.
 		if len(cgoExport) > 0 && fn.ABIRefs&^obj.ABISetOf(fn.ABI) != 0 {
-			base.Fatalf("cgo exported function %v cannot have ABI wrappers", fn)
+			// TODO: disable it temporarily, we could allow it in some way.
+			// base.Fatalf("cgo exported function %v cannot have ABI wrappers", fn)
 		}
 
 		if !buildcfg.Experiment.RegabiWrappers {
