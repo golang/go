@@ -441,10 +441,10 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// Determine if the callee edge is a for hot callee or not.
 		if base.Flag.PgoProfile != "" && pgo.WeightedCG != nil && v.curFunc != nil {
 			if fn := inlCallee(n.X); fn != nil && typecheck.HaveInlineBody(fn) {
-				ln := pgo.ConvertLine2Int(ir.Line(n))
-				csi := pgo.CallSiteInfo{Line: ln, Caller: v.curFunc, Callee: fn}
+				line := int(base.Ctxt.InnermostPos(n.Pos()).RelLine())
+				csi := pgo.CallSiteInfo{Line: line, Caller: v.curFunc, Callee: fn}
 				if _, o := candHotEdgeMap[csi]; o {
-					pgo.ListOfHotCallSites[pgo.CallSiteInfo{Line: ln, Caller: v.curFunc}] = struct{}{}
+					pgo.ListOfHotCallSites[pgo.CallSiteInfo{Line: line, Caller: v.curFunc}] = struct{}{}
 					if base.Debug.PGOInline > 0 {
 						fmt.Printf("hot-callsite identified at line=%v for func=%v\n", ir.Line(n), ir.PkgFuncName(v.curFunc))
 					}
@@ -873,8 +873,8 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 	}
 	if fn.Inl.Cost > maxCost {
 		// If the callsite is hot and it is under the inlineHotMaxBudget budget, then try to inline it, or else bail.
-		ln := pgo.ConvertLine2Int(ir.Line(n))
-		csi := pgo.CallSiteInfo{Line: ln, Caller: ir.CurFunc}
+		line := int(base.Ctxt.InnermostPos(n.Pos()).RelLine())
+		csi := pgo.CallSiteInfo{Line: line, Caller: ir.CurFunc}
 		if _, ok := pgo.ListOfHotCallSites[csi]; ok {
 			if fn.Inl.Cost > inlineHotMaxBudget {
 				if logopt.Enabled() {
@@ -1038,8 +1038,8 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 	}
 
 	if base.Debug.PGOInline > 0 {
-		ln := pgo.ConvertLine2Int(ir.Line(n))
-		csi := pgo.CallSiteInfo{Line: ln, Caller: ir.CurFunc}
+		line := int(base.Ctxt.InnermostPos(n.Pos()).RelLine())
+		csi := pgo.CallSiteInfo{Line: line, Caller: ir.CurFunc}
 		if _, ok := inlinedCallSites[csi]; !ok {
 			inlinedCallSites[csi] = struct{}{}
 		}
