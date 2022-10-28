@@ -201,13 +201,13 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 
 	Ti, _ := Tu.(*Interface)
 	if Ti == nil {
-		var detail string
-		if isInterfacePtr(Tu) {
-			detail = check.sprintf("type %s is pointer to interface, not interface", T)
-		} else {
-			detail = check.sprintf("%s is not an interface", T)
-		}
 		if cause != nil {
+			var detail string
+			if isInterfacePtr(Tu) {
+				detail = check.sprintf("type %s is pointer to interface, not interface", T)
+			} else {
+				detail = check.sprintf("%s is not an interface", T)
+			}
 			*cause = check.sprintf("%s does not implement %s (%s)", V, T, detail)
 		}
 		return false
