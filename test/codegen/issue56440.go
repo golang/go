@@ -16,3 +16,19 @@ func f(x []int) int {
 	// amd64:`MOVQ\t40\(.*\),`
 	return x[len(s)]
 }
+
+func g(x []int, p *bool) int {
+	s := make([]int, 3)
+	for {
+		s = s[:3]
+		if cap(s) < 5 {
+			s = make([]int, 3, 5)
+		}
+		s = append(s, 4, 5)
+		if *p {
+			// amd64:`MOVQ\t40\(.*\),`
+			return x[len(s)]
+		}
+	}
+	return 0
+}

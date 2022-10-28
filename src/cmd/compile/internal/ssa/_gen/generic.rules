@@ -2544,7 +2544,10 @@
 // The exception here is that if the new length is a constant, avoiding spilling it
 // is pointless and its constantness is sometimes useful for subsequent optimizations.
 // See issue 56440.
+// Note there are 2 rules here, one for the pre-decomposed []T result and one for
+// the post-decomposed (*T,int,int) result. (The latter is generated after call expansion.)
 (SliceLen (SelectN [0] (StaticLECall {sym} _ newLen:(Const(64|32)) _ _ _ _))) && isSameCall(sym, "runtime.growslice") => newLen
+(SelectN [1] (StaticCall {sym} _ newLen:(Const(64|32)) _ _ _ _)) && v.Type.IsInteger() && isSameCall(sym, "runtime.growslice") => newLen
 
 // Collapse moving A -> B -> C into just A -> C.
 // Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.
