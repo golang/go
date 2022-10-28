@@ -2061,7 +2061,7 @@ func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
 			cmd = "cd " + dir + "\n" + cmd
 		}
 	}
-	if b.WorkDir != "" {
+	if b.WorkDir != "" && !strings.HasPrefix(cmd, "cat ") {
 		cmd = strings.ReplaceAll(cmd, b.WorkDir, "$WORK")
 		escaped := strconv.Quote(b.WorkDir)
 		escaped = escaped[1 : len(escaped)-1] // strip quote characters
