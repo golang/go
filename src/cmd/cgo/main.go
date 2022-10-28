@@ -242,6 +242,7 @@ var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
 var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
 var gccgoMangler func(string) string
+var gccgoDefineCgoIncomplete = flag.Bool("gccgo_define_cgoincomplete", false, "define cgo.Incomplete for older gccgo/GoLLVM")
 var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo in generated code")
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
 var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
@@ -252,6 +253,14 @@ var gccBaseCmd []string
 func main() {
 	objabi.AddVersionFlag() // -V
 	objabi.Flagparse(usage)
+
+	if *gccgoDefineCgoIncomplete {
+		if !*gccgo {
+			fmt.Fprintf(os.Stderr, "cgo: -gccgo_define_cgoincomplete without -gccgo\n")
+			os.Exit(2)
+		}
+		incomplete = "_cgopackage_Incomplete"
+	}
 
 	if *dynobj != "" {
 		// cgo -dynimport is essentially a separate helper command

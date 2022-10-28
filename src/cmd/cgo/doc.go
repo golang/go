@@ -498,6 +498,9 @@ The following options are available when running cgo directly:
 		The -fgo-prefix option to be used with gccgo.
 	-gccgopkgpath path
 		The -fgo-pkgpath option to be used with gccgo.
+	-gccgo_define_cgoincomplete
+		Define cgo.Incomplete locally rather than importing it from
+		the "runtime/cgo" package. Used for old gccgo versions.
 	-godefs
 		Write out input file in Go syntax replacing C package
 		names with real values. Used to generate files in the

@@ -2953,6 +2953,9 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		if pkgpath := gccgoPkgpath(p); pkgpath != "" {
 			cgoflags = append(cgoflags, "-gccgopkgpath="+pkgpath)
 		}
+		if !BuildToolchain.(gccgoToolchain).supportsCgoIncomplete(b) {
+			cgoflags = append(cgoflags, "-gccgo_define_cgoincomplete")
+		}
 	}
 
 	switch cfg.BuildBuildmode {

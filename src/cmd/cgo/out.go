@@ -85,8 +85,13 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fgo2, "import \"syscall\"\n\n")
 	}
 	if *importRuntimeCgo {
-		fmt.Fprintf(fgo2, "import _cgopackage \"runtime/cgo\"\n\n")
-		fmt.Fprintf(fgo2, "type _ _cgopackage.Incomplete\n") // prevent import-not-used error
+		if !*gccgoDefineCgoIncomplete {
+			fmt.Fprintf(fgo2, "import _cgopackage \"runtime/cgo\"\n\n")
+			fmt.Fprintf(fgo2, "type _ _cgopackage.Incomplete\n") // prevent import-not-used error
+		} else {
+			fmt.Fprintf(fgo2, "//go:notinheap\n")
+			fmt.Fprintf(fgo2, "type _cgopackage_Incomplete struct{ _ struct{ _ struct{} } }\n")
+		}
 	}
 	if *importSyscall {
 		fmt.Fprintf(fgo2, "var _ syscall.Errno\n")
