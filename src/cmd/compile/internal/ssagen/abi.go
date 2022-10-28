@@ -205,9 +205,8 @@ func (s *SymABIs) GenABIWrappers() {
 		}
 
 		// Double check that cgo-exported symbols don't get
-		// any wrappers.
-		if len(cgoExport) > 0 && fn.ABIRefs&^obj.ABISetOf(fn.ABI) != 0 {
-			base.Errorf("fn.ABIRefs: %v, fn.ABI: %v", fn.ABIRefs, fn.ABI)
+		// any wrappers when it's a function defined in Go.
+		if len(cgoExport) > 0 && fn.ABIRefs&^obj.ABISetOf(fn.ABI) != 0 && hasBody {
 			base.Fatalf("cgo exported function %v cannot have ABI wrappers", fn)
 		}
 
