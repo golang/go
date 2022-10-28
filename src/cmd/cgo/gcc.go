@@ -47,6 +47,8 @@ var nameToC = map[string]string{
 	"complexdouble": "double _Complex",
 }
 
+var incomplete = "_cgopackage.Incomplete"
+
 // cname returns the C name to use for C.s.
 // The expansions are listed in nameToC and also
 // struct_foo becomes "struct foo", and similarly for
@@ -2565,7 +2567,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			// get writebarrier-ed or adjusted during a stack copy. This should handle
 			// all the cases badPointerTypedef used to handle, but hopefully will
 			// continue to work going forward without any more need for cgo changes.
-			tt.Go = c.Ident("_cgopackage.Incomplete")
+			tt.Go = c.Ident(incomplete)
 			typedef[name.Name] = &tt
 			break
 		}
@@ -2592,7 +2594,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			}
 			tt.Go = g
 			if c.incompleteStructs[tag] {
-				tt.Go = c.Ident("_cgopackage.Incomplete")
+				tt.Go = c.Ident(incomplete)
 			}
 			typedef[name.Name] = &tt
 		}
@@ -2640,7 +2642,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 		if c.badVoidPointerTypedef(dt) {
 			// Treat this typedef as a pointer to a _cgopackage.Incomplete.
 			s := *sub
-			s.Go = c.Ident("*_cgopackage.Incomplete")
+			s.Go = c.Ident("*" + incomplete)
 			sub = &s
 			// Make sure we update any previously computed type.
 			if oldType := typedef[name.Name]; oldType != nil {
@@ -2656,7 +2658,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 					// Make sure we update any previously computed type.
 					name := "_Ctype_struct_" + strct.StructName
 					if oldType := typedef[name]; oldType != nil {
-						oldType.Go = c.Ident("_cgopackage.Incomplete")
+						oldType.Go = c.Ident(incomplete)
 					}
 				}
 			}
@@ -3196,7 +3198,7 @@ func (c *typeConv) anonymousStructTypedef(dt *dwarf.TypedefType) bool {
 // non-pointers in this type.
 // TODO: Currently our best solution is to find these manually and list them as
 // they come up. A better solution is desired.
-// Note: DEPRECATED. There is now a better solution. Search for _cgopackage.Incomplete in this file.
+// Note: DEPRECATED. There is now a better solution. Search for incomplete in this file.
 func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
 	if c.badCFType(dt) {
 		return true
