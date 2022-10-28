@@ -289,15 +289,6 @@ func SortTags(t []*Tag, flat bool) []*Tag {
 	return ts.t
 }
 
-// New summarizes performance data from a profile into a graph.
-func New(prof *profile.Profile, o *Options) *Graph {
-	if o.CallTree {
-		return newTree(prof, o)
-	}
-	g, _ := newGraph(prof, o)
-	return g
-}
-
 // newGraph computes a graph from a profile. It returns the graph, and
 // a map from the profile location indices to the corresponding graph
 // nodes.
