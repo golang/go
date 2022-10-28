@@ -251,13 +251,21 @@ func OldestSupportedGoVersion() int {
 	return GoVersionTable[len(GoVersionTable)-1].GoVersion + 1
 }
 
-func versionMessage(oldestVersion int) (string, protocol.MessageType) {
+// versionMessage returns the warning/error message to display if the user is
+// on the given Go version, if any. The goVersion variable is the X in Go 1.X.
+//
+// If goVersion is invalid (< 0), it returns "", 0.
+func versionMessage(goVersion int) (string, protocol.MessageType) {
+	if goVersion < 0 {
+		return "", 0
+	}
+
 	for _, v := range GoVersionTable {
-		if oldestVersion <= v.GoVersion {
+		if goVersion <= v.GoVersion {
 			var msgBuilder strings.Builder
 
 			mType := protocol.Error
-			fmt.Fprintf(&msgBuilder, "Found Go version 1.%d", oldestVersion)
+			fmt.Fprintf(&msgBuilder, "Found Go version 1.%d", goVersion)
 			if v.DeprecatedVersion != "" {
 				// not deprecated yet, just a warning
 				fmt.Fprintf(&msgBuilder, ", which will be unsupported by gopls %s. ", v.DeprecatedVersion)
