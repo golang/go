@@ -3867,7 +3867,8 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
 
 	// We generate wrappers after the global inlining pass,
 	// so we're responsible for applying inlining ourselves here.
-	inline.InlineCalls(fn)
+	// TODO(prattmic): plumb PGO.
+	inline.InlineCalls(fn, nil)
 
 	// The body of wrapper function after inlining may reveal new ir.OMETHVALUE node,
 	// we don't know whether wrapper function has been generated for it or not, so

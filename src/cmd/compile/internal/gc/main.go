@@ -252,24 +252,15 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	// Read profile file and build profile-graph and weighted-call-graph.
 	base.Timer.Start("fe", "pgoprofile")
+	var profile *pgo.Profile
 	if base.Flag.PgoProfile != "" {
-		pgo.BuildProfileGraph(base.Flag.PgoProfile)
-		pgo.BuildWeightedCallGraph()
+		profile = pgo.New(base.Flag.PgoProfile)
 	}
 
 	// Inlining
 	base.Timer.Start("fe", "inlining")
 	if base.Flag.LowerL != 0 {
-		if pgo.WeightedCG != nil {
-			inline.InlinePrologue()
-		}
-		inline.InlinePackage()
-		if pgo.WeightedCG != nil {
-			inline.InlineEpilogue()
-			// Delete the graphs as no other optimization uses this currently.
-			pgo.WeightedCG = nil
-			pgo.ProfileGraph = nil
-		}
+		inline.InlinePackage(profile)
 	}
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 

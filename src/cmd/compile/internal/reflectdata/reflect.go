@@ -2010,7 +2010,8 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 			}
 		}
 		if canInline {
-			inline.InlineCalls(fn)
+			// TODO(prattmic): plumb PGO.
+			inline.InlineCalls(fn, nil)
 		}
 		escape.Batch([]*ir.Func{fn}, false)
 	}
