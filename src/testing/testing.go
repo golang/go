@@ -263,7 +263,7 @@
 //	            t.Skip()
 //	        }
 //	        if _, err := json.Marshal(v); err != nil {
-//	            t.Error("Marshal: %v", err)
+//	            t.Errorf("Marshal: %v", err)
 //	        }
 //	    })
 //	}
