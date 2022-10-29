@@ -790,3 +790,13 @@ func TestAllTags(t *testing.T) {
 		t.Errorf("GoFiles = %v, want %v", p.GoFiles, wantFiles)
 	}
 }
+
+func TestAllTagsNonSourceFile(t *testing.T) {
+	p, err := Default.ImportDir("testdata/non_source_tags", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.AllTags) > 0 {
+		t.Errorf("AllTags = %v, want empty", p.AllTags)
+	}
+}
