@@ -27,7 +27,8 @@ var importTests = []struct {
 	},
 	{
 		path: "golang.org/x/net",
-		err:  `module golang.org/x/net@.* found \(v[01]\.\d+\.\d+\), but does not contain package golang.org/x/net`,
+		err:  "module golang.org/x/net@.* found \(v[01]\.\d+\.\d+\), but does not contain package golang.org/x/net... " +
+		"no go files found, are you sure you have the correct import path?",
 	},
 	{
 		path: "golang.org/x/text",
