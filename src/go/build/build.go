@@ -1423,12 +1423,12 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	}
 	ext := name[i:]
 
-	if !ctxt.goodOSArchFile(name, allTags) && !ctxt.UseAllFiles {
+	if ext != ".go" && fileListForExt(&dummyPkg, ext) == nil {
+		// skip
 		return nil, nil
 	}
 
-	if ext != ".go" && fileListForExt(&dummyPkg, ext) == nil {
-		// skip
+	if !ctxt.goodOSArchFile(name, allTags) && !ctxt.UseAllFiles {
 		return nil, nil
 	}
 
