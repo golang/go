@@ -118,6 +118,8 @@ func dnsReadConfig(filename string) *dnsConfig {
 				case s == "edns0":
 					// We use EDNS by default.
 					// Ignore this option.
+				case s == "no-reload":
+					conf.noReload = true
 				default:
 					conf.unknownOpt = true
 				}
