@@ -88,7 +88,7 @@ func checkDiffs(t *testing.T, before string, diffs []Diff, after string) {
 		if sofar < d.Start {
 			ans.WriteString(before[sofar:d.Start])
 		}
-		ans.WriteString(d.Text)
+		ans.WriteString(after[d.ReplStart:d.ReplEnd])
 		sofar = d.End
 	}
 	ans.WriteString(before[sofar:])

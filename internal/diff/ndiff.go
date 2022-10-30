@@ -19,6 +19,7 @@ func Strings(before, after string) []Edit {
 	}
 
 	if stringIsASCII(before) && stringIsASCII(after) {
+		// TODO(adonovan): opt: specialize diffASCII for strings.
 		return diffASCII([]byte(before), []byte(after))
 	}
 	return diffRunes([]rune(before), []rune(after))
@@ -38,18 +39,18 @@ func Bytes(before, after []byte) []Edit {
 }
 
 func diffASCII(before, after []byte) []Edit {
-	diffs, _ := lcs.Compute(before, after, maxDiffs/2)
+	diffs := lcs.DiffBytes(before, after)
 
 	// Convert from LCS diffs.
 	res := make([]Edit, len(diffs))
 	for i, d := range diffs {
-		res[i] = Edit{d.Start, d.End, d.Text}
+		res[i] = Edit{d.Start, d.End, string(after[d.ReplStart:d.ReplEnd])}
 	}
 	return res
 }
 
 func diffRunes(before, after []rune) []Edit {
-	diffs, _ := lcs.Compute(before, after, maxDiffs/2)
+	diffs := lcs.DiffRunes(before, after)
 
 	// The diffs returned by the lcs package use indexes
 	// into whatever slice was passed in.
@@ -61,15 +62,11 @@ func diffRunes(before, after []rune) []Edit {
 		utf8Len += runesLen(before[lastEnd:d.Start]) // text between edits
 		start := utf8Len
 		utf8Len += runesLen(before[d.Start:d.End]) // text deleted by this edit
-		res[i] = Edit{start, utf8Len, d.Text}
+		res[i] = Edit{start, utf8Len, string(after[d.ReplStart:d.ReplEnd])}
 		lastEnd = d.End
 	}
 	return res
 }
-
-// maxDiffs is a limit on how deeply the lcs algorithm should search
-// the value is just a guess
-const maxDiffs = 30
 
 // runes is like []rune(string(bytes)) without the duplicate allocation.
 func runes(bytes []byte) []rune {

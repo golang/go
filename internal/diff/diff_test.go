@@ -7,7 +7,6 @@ package diff_test
 import (
 	"math/rand"
 	"reflect"
-	"strings"
 	"testing"
 	"unicode/utf8"
 
@@ -172,17 +171,4 @@ func randstr(s string, n int) string {
 		x[i] = src[rand.Intn(len(src))]
 	}
 	return string(x)
-}
-
-// return some random lines, all ending with \n
-func randlines(s string, n int) string {
-	src := []rune(s)
-	var b strings.Builder
-	for i := 0; i < n; i++ {
-		for j := 0; j < 4+rand.Intn(4); j++ {
-			b.WriteRune(src[rand.Intn(len(src))])
-		}
-		b.WriteByte('\n')
-	}
-	return b.String()
 }

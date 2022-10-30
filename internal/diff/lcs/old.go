@@ -4,26 +4,61 @@
 
 package lcs
 
+// TODO(adonovan): remove unclear references to "old" in this package.
+
 import (
 	"fmt"
-	"strings"
 )
 
-// non generic code. The names have Old at the end to indicate they are the
-// the implementation that doesn't use generics.
-
-// Compute the Diffs and the lcs.
-func Compute(a, b interface{}, limit int) ([]Diff, lcs) {
-	var ans lcs
-	g := newegraph(a, b, limit)
-	ans = g.twosided()
-	diffs := g.fromlcs(ans)
-	return diffs, ans
+// A Diff is a replacement of a portion of A by a portion of B.
+type Diff struct {
+	Start, End         int // offsets of portion to delete in A
+	ReplStart, ReplEnd int // offset of replacement text in B
 }
 
-// editGraph carries the information for computing the lcs for []byte, []rune, or []string.
+// DiffStrings returns the differences between two strings.
+// It does not respect rune boundaries.
+func DiffStrings(a, b string) []Diff { return diff(stringSeqs{a, b}) }
+
+// DiffBytes returns the differences between two byte sequences.
+// It does not respect rune boundaries.
+func DiffBytes(a, b []byte) []Diff { return diff(bytesSeqs{a, b}) }
+
+// DiffRunes returns the differences between two rune sequences.
+func DiffRunes(a, b []rune) []Diff { return diff(runesSeqs{a, b}) }
+
+func diff(seqs sequences) []Diff {
+	// A limit on how deeply the LCS algorithm should search. The value is just a guess.
+	const maxDiffs = 30
+	diff, _ := compute(seqs, twosided, maxDiffs/2)
+	return diff
+}
+
+// compute computes the list of differences between two sequences,
+// along with the LCS. It is exercised directly by tests.
+// The algorithm is one of {forward, backward, twosided}.
+func compute(seqs sequences, algo func(*editGraph) lcs, limit int) ([]Diff, lcs) {
+	if limit <= 0 {
+		limit = 1 << 25 // effectively infinity
+	}
+	alen, blen := seqs.lengths()
+	g := &editGraph{
+		seqs:  seqs,
+		vf:    newtriang(limit),
+		vb:    newtriang(limit),
+		limit: limit,
+		ux:    alen,
+		uy:    blen,
+		delta: alen - blen,
+	}
+	lcs := algo(g)
+	diffs := lcs.toDiffs(alen, blen)
+	return diffs, lcs
+}
+
+// editGraph carries the information for computing the lcs of two sequences.
 type editGraph struct {
-	eq     eq    // how to compare elements of A, B, and convert slices to strings
+	seqs   sequences
 	vf, vb label // forward and backward labels
 
 	limit int // maximal value of D
@@ -32,101 +67,27 @@ type editGraph struct {
 	delta          int // common subexpression: (ux-lx)-(uy-ly)
 }
 
-// abstraction in place of generic
-type eq interface {
-	eq(i, j int) bool
-	substr(i, j int) string // string from b[i:j]
-	lena() int
-	lenb() int
-}
-
-type byteeq struct {
-	a, b []byte // the input was ascii. perhaps these could be strings
-}
-
-func (x *byteeq) eq(i, j int) bool       { return x.a[i] == x.b[j] }
-func (x *byteeq) substr(i, j int) string { return string(x.b[i:j]) }
-func (x *byteeq) lena() int              { return int(len(x.a)) }
-func (x *byteeq) lenb() int              { return int(len(x.b)) }
-
-type runeeq struct {
-	a, b []rune
-}
-
-func (x *runeeq) eq(i, j int) bool       { return x.a[i] == x.b[j] }
-func (x *runeeq) substr(i, j int) string { return string(x.b[i:j]) }
-func (x *runeeq) lena() int              { return int(len(x.a)) }
-func (x *runeeq) lenb() int              { return int(len(x.b)) }
-
-type lineeq struct {
-	a, b []string
-}
-
-func (x *lineeq) eq(i, j int) bool       { return x.a[i] == x.b[j] }
-func (x *lineeq) substr(i, j int) string { return strings.Join(x.b[i:j], "") }
-func (x *lineeq) lena() int              { return int(len(x.a)) }
-func (x *lineeq) lenb() int              { return int(len(x.b)) }
-
-func neweq(a, b interface{}) eq {
-	switch x := a.(type) {
-	case []byte:
-		return &byteeq{a: x, b: b.([]byte)}
-	case []rune:
-		return &runeeq{a: x, b: b.([]rune)}
-	case []string:
-		return &lineeq{a: x, b: b.([]string)}
-	default:
-		panic(fmt.Sprintf("unexpected type %T in neweq", x))
-	}
-}
-
-func (g *editGraph) fromlcs(lcs lcs) []Diff {
-	var ans []Diff
+// toDiffs converts an LCS to a list of edits.
+func (lcs lcs) toDiffs(alen, blen int) []Diff {
+	var diffs []Diff
 	var pa, pb int // offsets in a, b
 	for _, l := range lcs {
-		if pa < l.X && pb < l.Y {
-			ans = append(ans, Diff{pa, l.X, g.eq.substr(pb, l.Y)})
-		} else if pa < l.X {
-			ans = append(ans, Diff{pa, l.X, ""})
-		} else if pb < l.Y {
-			ans = append(ans, Diff{pa, l.X, g.eq.substr(pb, l.Y)})
+		if pa < l.X || pb < l.Y {
+			diffs = append(diffs, Diff{pa, l.X, pb, l.Y})
 		}
 		pa = l.X + l.Len
 		pb = l.Y + l.Len
 	}
-	if pa < g.eq.lena() && pb < g.eq.lenb() {
-		ans = append(ans, Diff{pa, g.eq.lena(), g.eq.substr(pb, g.eq.lenb())})
-	} else if pa < g.eq.lena() {
-		ans = append(ans, Diff{pa, g.eq.lena(), ""})
-	} else if pb < g.eq.lenb() {
-		ans = append(ans, Diff{pa, g.eq.lena(), g.eq.substr(pb, g.eq.lenb())})
+	if pa < alen || pb < blen {
+		diffs = append(diffs, Diff{pa, alen, pb, blen})
 	}
-	return ans
-}
-
-func newegraph(a, b interface{}, limit int) *editGraph {
-	if limit <= 0 {
-		limit = 1 << 25 // effectively infinity
-	}
-	var alen, blen int
-	switch a := a.(type) {
-	case []byte:
-		alen, blen = len(a), len(b.([]byte))
-	case []rune:
-		alen, blen = len(a), len(b.([]rune))
-	case []string:
-		alen, blen = len(a), len(b.([]string))
-	default:
-		panic(fmt.Sprintf("unexpected type %T in newegraph", a))
-	}
-	ans := &editGraph{eq: neweq(a, b), vf: newtriang(limit), vb: newtriang(limit), limit: int(limit),
-		ux: alen, uy: blen, delta: alen - blen}
-	return ans
+	return diffs
 }
 
 // --- FORWARD ---
+
 // fdone decides if the forwward path has reached the upper right
-// corner of the rectangele. If so, it also returns the computed lcs.
+// corner of the rectangle. If so, it also returns the computed lcs.
 func (e *editGraph) fdone(D, k int) (bool, lcs) {
 	// x, y, k are relative to the rectangle
 	x := e.vf.get(D, k)
@@ -138,7 +99,7 @@ func (e *editGraph) fdone(D, k int) (bool, lcs) {
 }
 
 // run the forward algorithm, until success or up to the limit on D.
-func (e *editGraph) forward() lcs {
+func forward(e *editGraph) lcs {
 	e.setForward(0, 0, e.lx)
 	if ok, ans := e.fdone(0, 0); ok {
 		return ans
@@ -197,13 +158,8 @@ func (e *editGraph) forwardlcs(D, k int) lcs {
 		}
 		// if (x-1,y-1)--(x,y) is a diagonal, prepend,x--,y--, continue
 		y := x - k
-		realx, realy := x+e.lx, y+e.ly
-		if e.eq.eq(realx-1, realy-1) {
-			ans = prependlcs(ans, realx-1, realy-1)
-			x--
-		} else {
-			panic("broken path")
-		}
+		ans = ans.prepend(x+e.lx-1, y+e.ly-1)
+		x--
 	}
 	return ans
 }
@@ -213,9 +169,8 @@ func (e *editGraph) forwardlcs(D, k int) lcs {
 func (e *editGraph) lookForward(k, relx int) int {
 	rely := relx - k
 	x, y := relx+e.lx, rely+e.ly
-	for x < e.ux && y < e.uy && e.eq.eq(x, y) {
-		x++
-		y++
+	if x < e.ux && y < e.uy {
+		x += e.seqs.commonPrefixLen(x, e.ux, y, e.uy)
 	}
 	return x
 }
@@ -231,6 +186,7 @@ func (e *editGraph) getForward(d, k int) int {
 }
 
 // --- BACKWARD ---
+
 // bdone decides if the backward path has reached the lower left corner
 func (e *editGraph) bdone(D, k int) (bool, lcs) {
 	// x, y, k are relative to the rectangle
@@ -243,7 +199,7 @@ func (e *editGraph) bdone(D, k int) (bool, lcs) {
 }
 
 // run the backward algorithm, until success or up to the limit on D.
-func (e *editGraph) backward() lcs {
+func backward(e *editGraph) lcs {
 	e.setBackward(0, 0, e.ux)
 	if ok, ans := e.bdone(0, 0); ok {
 		return ans
@@ -305,13 +261,8 @@ func (e *editGraph) backwardlcs(D, k int) lcs {
 			continue
 		}
 		y := x - (k + e.delta)
-		realx, realy := x+e.lx, y+e.ly
-		if e.eq.eq(realx, realy) {
-			ans = appendlcs(ans, realx, realy)
-			x++
-		} else {
-			panic("broken path")
-		}
+		ans = ans.append(x+e.lx, y+e.ly)
+		x++
 	}
 	return ans
 }
@@ -320,9 +271,8 @@ func (e *editGraph) backwardlcs(D, k int) lcs {
 func (e *editGraph) lookBackward(k, relx int) int {
 	rely := relx - (k + e.delta) // forward k = k + e.delta
 	x, y := relx+e.lx, rely+e.ly
-	for x > 0 && y > 0 && e.eq.eq(x-1, y-1) {
-		x--
-		y--
+	if x > 0 && y > 0 {
+		x -= e.seqs.commonSuffixLen(0, x, 0, y)
 	}
 	return x
 }
@@ -340,7 +290,7 @@ func (e *editGraph) getBackward(d, k int) int {
 
 // -- TWOSIDED ---
 
-func (e *editGraph) twosided() lcs {
+func twosided(e *editGraph) lcs {
 	// The termination condition could be improved, as either the forward
 	// or backward pass could succeed before Myers' Lemma applies.
 	// Aside from questions of efficiency (is the extra testing cost-effective)
@@ -524,7 +474,7 @@ func (e *editGraph) twolcs(df, db, kf int) lcs {
 	oldx, oldy := e.ux, e.uy
 	e.ux = u
 	e.uy = v
-	lcs = append(lcs, e.forward()...)
+	lcs = append(lcs, forward(e)...)
 	e.ux, e.uy = oldx, oldy
 	return lcs.sort()
 }

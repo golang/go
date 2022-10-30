@@ -138,10 +138,10 @@ func overlap(exist, prop diag) (direction, diag) {
 
 // manipulating Diag and lcs
 
-// prependlcs a diagonal (x,y)-(x+1,y+1) segment either to an empty lcs
-// or to its first Diag. prependlcs is only called extending diagonals
+// prepend a diagonal (x,y)-(x+1,y+1) segment either to an empty lcs
+// or to its first Diag. prepend is only called to extend diagonals
 // the backward direction.
-func prependlcs(lcs lcs, x, y int) lcs {
+func (lcs lcs) prepend(x, y int) lcs {
 	if len(lcs) > 0 {
 		d := &lcs[0]
 		if int(d.X) == x+1 && int(d.Y) == y+1 {
@@ -157,10 +157,10 @@ func prependlcs(lcs lcs, x, y int) lcs {
 	return lcs
 }
 
-// appendlcs appends a diagonal, or extends the existing one.
-// by adding the edge (x,y)-(x+1.y+1). appendlcs is only called
-// while extending diagonals in the forward direction.
-func appendlcs(lcs lcs, x, y int) lcs {
+// append appends a diagonal, or extends the existing one.
+// by adding the edge (x,y)-(x+1.y+1). append is only called
+// to extend diagonals in the forward direction.
+func (lcs lcs) append(x, y int) lcs {
 	if len(lcs) > 0 {
 		last := &lcs[len(lcs)-1]
 		// Expand last element if adjoining.
@@ -176,9 +176,4 @@ func appendlcs(lcs lcs, x, y int) lcs {
 // enforce constraint on d, k
 func ok(d, k int) bool {
 	return d >= 0 && -d <= k && k <= d
-}
-
-type Diff struct {
-	Start, End int    // offsets in A
-	Text       string // replacement text
 }
