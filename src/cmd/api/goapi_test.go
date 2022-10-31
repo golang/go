@@ -22,6 +22,10 @@ func TestMain(m *testing.M) {
 		os.Stdout.WriteString("skipping test: platform cannot exec")
 		os.Exit(0)
 	}
+	if !testenv.HasGoBuild() {
+		os.Stdout.WriteString("skipping test: platform cannot 'go build' to import std packages")
+		os.Exit(0)
+	}
 
 	flag.Parse()
 	for _, c := range contexts {
