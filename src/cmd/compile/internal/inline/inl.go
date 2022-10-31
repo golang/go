@@ -56,13 +56,16 @@ const (
 )
 
 var (
-	// List of all hot ndes.
+	// List of all hot nodes.
+	// TODO(prattmic): Make this non-global.
 	candHotNodeMap = make(map[*pgo.IRNode]struct{})
 
-	// List of all hot call sites.
+	// List of all hot call sites. CallSiteInfo.Callee is always nil.
+	// TODO(prattmic): Make this non-global.
 	candHotEdgeMap = make(map[pgo.CallSiteInfo]struct{})
 
-	// List of inlined call sites.
+	// List of inlined call sites. CallSiteInfo.Callee is always nil.
+	// TODO(prattmic): Make this non-global.
 	inlinedCallSites = make(map[pgo.CallSiteInfo]struct{})
 
 	// Threshold in percentage for hot function inlining.
@@ -107,7 +110,7 @@ func pgoInlinePrologue(p *pgo.Profile) {
 					if e.Weight != 0 {
 						edgeweightpercent := pgo.WeightInPercentage(e.Weight, p.TotalEdgeWeight)
 						if edgeweightpercent > inlineHotCallSiteThresholdPercent {
-							csi := pgo.CallSiteInfo{Line: e.CallSite, Caller: n.AST, Callee: e.Dst.AST}
+							csi := pgo.CallSiteInfo{Line: e.CallSite, Caller: n.AST}
 							if _, ok := candHotEdgeMap[csi]; !ok {
 								candHotEdgeMap[csi] = struct{}{}
 							}
@@ -175,9 +178,6 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	if fn.Nname == nil {
 		base.Fatalf("CanInline no nname %+v", fn)
 	}
-
-	// Initialize an empty list of hot callsites for this caller.
-	pgo.ListOfHotCallSites = make(map[pgo.CallSiteInfo]struct{})
 
 	var reason string // reason, if any, that the function was not inlined
 	if base.Flag.LowerM > 1 || logopt.Enabled() {
@@ -448,13 +448,12 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 			}
 		}
 
-		// Determine if the callee edge is a for hot callee or not.
+		// Determine if the callee edge is for an inlinable hot callee or not.
 		if v.profile != nil && v.curFunc != nil {
 			if fn := inlCallee(n.X, v.profile); fn != nil && typecheck.HaveInlineBody(fn) {
 				line := int(base.Ctxt.InnermostPos(n.Pos()).RelLine())
-				csi := pgo.CallSiteInfo{Line: line, Caller: v.curFunc, Callee: fn}
+				csi := pgo.CallSiteInfo{Line: line, Caller: v.curFunc}
 				if _, o := candHotEdgeMap[csi]; o {
-					pgo.ListOfHotCallSites[pgo.CallSiteInfo{Line: line, Caller: v.curFunc}] = struct{}{}
 					if base.Debug.PGOInline > 0 {
 						fmt.Printf("hot-callsite identified at line=%v for func=%v\n", ir.Line(n), ir.PkgFuncName(v.curFunc))
 					}
@@ -885,7 +884,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 		// If the callsite is hot and it is under the inlineHotMaxBudget budget, then try to inline it, or else bail.
 		line := int(base.Ctxt.InnermostPos(n.Pos()).RelLine())
 		csi := pgo.CallSiteInfo{Line: line, Caller: ir.CurFunc}
-		if _, ok := pgo.ListOfHotCallSites[csi]; ok {
+		if _, ok := candHotEdgeMap[csi]; ok {
 			if fn.Inl.Cost > inlineHotMaxBudget {
 				if logopt.Enabled() {
 					logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),

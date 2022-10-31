@@ -128,16 +128,6 @@ type Profile struct {
 	WeightedCG *IRGraph
 }
 
-var (
-	// Per-caller data structure to track the list of hot call sites. This
-	// gets rewritten every caller leaving it to GC for cleanup.
-	//
-	// TODO(prattmic): Make this non-global. Use of this seems to assume
-	// inline.CanInline is called immediately before inline.InlineCalls,
-	// which isn't necessarily true?
-	ListOfHotCallSites = make(map[CallSiteInfo]struct{})
-)
-
 // New generates a profile-graph from the profile.
 func New(profileFile string) *Profile {
 	f, err := os.Open(profileFile)
@@ -424,7 +414,10 @@ func (p *Profile) PrintWeightedCallGraphDOT(nodeThreshold float64, edgeThreshold
 	fmt.Printf("}\n")
 }
 
-// RedirectEdges deletes and redirects out-edges from node cur based on inlining information via inlinedCallSites.
+// RedirectEdges deletes and redirects out-edges from node cur based on
+// inlining information via inlinedCallSites.
+//
+// CallSiteInfo.Callee must be nil.
 func (p *Profile) RedirectEdges(cur *IRNode, inlinedCallSites map[CallSiteInfo]struct{}) {
 	g := p.WeightedCG
 
