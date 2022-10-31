@@ -6530,6 +6530,9 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 		if !errors.Is(err, context.Canceled) {
 			t.Errorf("request 2: got err %v, want Canceled", err)
 		}
+
+		// Unblock the first request.
+		close(idlec)
 	}()
 
 	// Wait for the second request to arrive at the server, and then cancel
@@ -6537,9 +6540,7 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 	r2c := <-reqc
 	cancel()
 
-	// Give the cancellation a moment to take effect, and then unblock the first request.
-	time.Sleep(1 * time.Millisecond)
-	close(idlec)
+	<-idlec
 
 	close(r2c)
 	wg.Wait()
