@@ -80,6 +80,21 @@ var FooErr = errors.New("foo")
 	})
 }
 
+func TestGofumptWarning(t *testing.T) {
+	testenv.SkipAfterGo1Point(t, 17)
+
+	WithOptions(
+		Settings{"gofumpt": true},
+	).Run(t, "", func(t *testing.T, env *Env) {
+		env.Await(
+			OnceMet(
+				InitialWorkspaceLoad,
+				ShownMessage("gofumpt is not supported"),
+			),
+		)
+	})
+}
+
 func TestDeprecatedSettings(t *testing.T) {
 	WithOptions(
 		Settings{

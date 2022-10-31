@@ -1036,10 +1036,8 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		if v, ok := result.asBool(); ok {
 			o.Staticcheck = v
 			if v && !o.StaticcheckSupported {
-				// Warn if the user is trying to enable staticcheck, but staticcheck is
-				// unsupported.
-				result.Error = fmt.Errorf("applying setting %q: staticcheck is not supported at %s\n"+
-					"\trebuild gopls with a more recent version of Go", result.Name, runtime.Version())
+				result.Error = fmt.Errorf("applying setting %q: staticcheck is not supported at %s;"+
+					" rebuild gopls with a more recent version of Go", result.Name, runtime.Version())
 			}
 		}
 
@@ -1059,7 +1057,13 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.setBool(&o.ShowBugReports)
 
 	case "gofumpt":
-		result.setBool(&o.Gofumpt)
+		if v, ok := result.asBool(); ok {
+			o.Gofumpt = v
+			if v && o.GofumptFormat == nil {
+				result.Error = fmt.Errorf("applying setting %q: gofumpt is not supported at %s;"+
+					" rebuild gopls with a more recent version of Go", result.Name, runtime.Version())
+			}
+		}
 
 	case "semanticTokens":
 		result.setBool(&o.SemanticTokens)

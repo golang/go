@@ -15,9 +15,9 @@ import (
 )
 
 func TestLicenses(t *testing.T) {
-	// License text differs for older Go versions because staticcheck isn't
-	// supported for those versions.
-	testenv.NeedsGo1Point(t, 17)
+	// License text differs for older Go versions because staticcheck or gofumpt
+	// isn't supported for those versions.
+	testenv.NeedsGo1Point(t, 18)
 
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		t.Skip("generating licenses only works on Unixes")

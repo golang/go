@@ -10,6 +10,7 @@ import (
 
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
+	"golang.org/x/tools/internal/testenv"
 )
 
 const unformattedProgram = `
@@ -302,6 +303,7 @@ func main() {
 }
 
 func TestGofumptFormatting(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
 
 	// Exercise some gofumpt formatting rules:
 	//  - No empty lines following an assignment operator
