@@ -363,11 +363,19 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	oneIteration := func(index, elem reflect.Value) {
 		// Set top var (lexically the second if there are two) to the element.
 		if len(r.Pipe.Decl) > 0 {
-			s.setTopVar(1, elem)
+			if r.Pipe.IsAssign {
+				s.setVar(r.Pipe.Decl[0].Ident[0], elem)
+			} else {
+				s.setTopVar(1, elem)
+			}
 		}
 		// Set next var (lexically the first if there are two) to the index.
 		if len(r.Pipe.Decl) > 1 {
-			s.setTopVar(2, index)
+			if r.Pipe.IsAssign {
+				s.setVar(r.Pipe.Decl[1].Ident[0], index)
+			} else {
+				s.setTopVar(2, index)
+			}
 		}
 		defer s.pop(mark)
 		defer func() {

@@ -692,6 +692,8 @@ var execTests = []execTest{
 	{"bug18a", "{{eq . '.'}}", "true", '.', true},
 	{"bug18b", "{{eq . 'e'}}", "true", 'e', true},
 	{"bug18c", "{{eq . 'P'}}", "true", 'P', true},
+
+	{"issue56490", "{{$i := 0}}{{$x := 0}}{{range $i = .AI}}{{end}}{{$i}}", "5", tVal, true},
 }
 
 func zeroArgs() string {
