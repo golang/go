@@ -1649,8 +1649,8 @@ var (
 		"loong64": {},
 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
 		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},
-		"ppc64":   {"GOPPC64", "power8", "power9"},
-		"ppc64le": {"GOPPC64", "power8", "power9"},
+		"ppc64":   {"GOPPC64", "power8", "power9", "power10"},
+		"ppc64le": {"GOPPC64", "power8", "power9", "power10"},
 		"ppc64x":  {}, // A pseudo-arch representing both ppc64 and ppc64le
 		"s390x":   {},
 		"wasm":    {},

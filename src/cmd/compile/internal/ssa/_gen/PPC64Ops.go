@@ -295,6 +295,9 @@ func init() {
 		{name: "XORCC", argLength: 2, reg: gp21, asm: "XORCC", commutative: true, clobberFlags: true, typ: "(Int,Flags)"},   // arg0^arg1 sets CC
 		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true},                                 // arg0^^arg1
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                                                  // -arg0 (integer)
+		{name: "BRD", argLength: 1, reg: gp11, asm: "BRD"},                                                                  // reversebytes64(arg0)
+		{name: "BRW", argLength: 1, reg: gp11, asm: "BRW"},                                                                  // reversebytes32(arg0)
+		{name: "BRH", argLength: 1, reg: gp11, asm: "BRH"},                                                                  // reversebytes16(arg0)
 		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                                                // -arg0 (floating point)
 		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                                                              // sqrt(arg0) (floating point)
 		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                                                            // sqrt(arg0) (floating point, single precision)

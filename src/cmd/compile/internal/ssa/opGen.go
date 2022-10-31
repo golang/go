@@ -2161,6 +2161,9 @@ const (
 	OpPPC64XORCC
 	OpPPC64EQV
 	OpPPC64NEG
+	OpPPC64BRD
+	OpPPC64BRW
+	OpPPC64BRH
 	OpPPC64FNEG
 	OpPPC64FSQRT
 	OpPPC64FSQRTS
@@ -2962,6 +2965,7 @@ const (
 	OpBitLen16
 	OpBitLen32
 	OpBitLen64
+	OpBswap16
 	OpBswap32
 	OpBswap64
 	OpBitRev8
@@ -29014,6 +29018,45 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "BRD",
+		argLen: 1,
+		asm:    ppc64.ABRD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "BRW",
+		argLen: 1,
+		asm:    ppc64.ABRW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "BRH",
+		argLen: 1,
+		asm:    ppc64.ABRH,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
 		name:   "FNEG",
 		argLen: 1,
 		asm:    ppc64.AFNEG,
@@ -38561,6 +38604,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "BitLen64",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Bswap16",
 		argLen:  1,
 		generic: true,
 	},

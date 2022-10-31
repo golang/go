@@ -198,6 +198,7 @@ func ReverseBytes64(n uint64) uint64 {
 	// amd64:"BSWAPQ"
 	// s390x:"MOVDBR"
 	// arm64:"REV"
+	// ppc64x/power10: "BRD"
 	return bits.ReverseBytes64(n)
 }
 
@@ -205,6 +206,7 @@ func ReverseBytes32(n uint32) uint32 {
 	// amd64:"BSWAPL"
 	// s390x:"MOVWBR"
 	// arm64:"REVW"
+	// ppc64x/power10: "BRW"
 	return bits.ReverseBytes32(n)
 }
 
@@ -214,6 +216,7 @@ func ReverseBytes16(n uint16) uint16 {
 	// arm/5:"SLL","SRL","ORR"
 	// arm/6:"REV16"
 	// arm/7:"REV16"
+	// ppc64x/power10: "BRH"
 	return bits.ReverseBytes16(n)
 }
 

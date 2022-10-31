@@ -238,6 +238,7 @@ var genericOps = []opData{
 	{name: "BitLen32", argLength: 1},     // Number of bits in arg[0] (returns 0-32)
 	{name: "BitLen64", argLength: 1},     // Number of bits in arg[0] (returns 0-64)
 
+	{name: "Bswap16", argLength: 1}, // Swap bytes
 	{name: "Bswap32", argLength: 1}, // Swap bytes
 	{name: "Bswap64", argLength: 1}, // Swap bytes
 

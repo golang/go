@@ -1273,3 +1273,5 @@
 (PrefetchCache ptr mem)          => (DCBT ptr mem [0])
 (PrefetchCacheStreamed ptr mem)  => (DCBT ptr mem [16])
 
+// Use byte reverse instructions on Power10
+(Bswap(16|32|64) x) && buildcfg.GOPPC64>=10 => (BR(H|W|D) x)

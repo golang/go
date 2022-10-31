@@ -107,6 +107,12 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpBitLen32(v)
 	case OpBitLen64:
 		return rewriteValuePPC64_OpBitLen64(v)
+	case OpBswap16:
+		return rewriteValuePPC64_OpBswap16(v)
+	case OpBswap32:
+		return rewriteValuePPC64_OpBswap32(v)
+	case OpBswap64:
+		return rewriteValuePPC64_OpBswap64(v)
 	case OpCeil:
 		v.Op = OpPPC64FCEIL
 		return true
@@ -1121,6 +1127,54 @@ func rewriteValuePPC64_OpBitLen64(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+}
+func rewriteValuePPC64_OpBswap16(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Bswap16 x)
+	// cond: buildcfg.GOPPC64>=10
+	// result: (BRH x)
+	for {
+		x := v_0
+		if !(buildcfg.GOPPC64 >= 10) {
+			break
+		}
+		v.reset(OpPPC64BRH)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpBswap32(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Bswap32 x)
+	// cond: buildcfg.GOPPC64>=10
+	// result: (BRW x)
+	for {
+		x := v_0
+		if !(buildcfg.GOPPC64 >= 10) {
+			break
+		}
+		v.reset(OpPPC64BRW)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpBswap64(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Bswap64 x)
+	// cond: buildcfg.GOPPC64>=10
+	// result: (BRD x)
+	for {
+		x := v_0
+		if !(buildcfg.GOPPC64 >= 10) {
+			break
+		}
+		v.reset(OpPPC64BRD)
+		v.AddArg(x)
+		return true
+	}
+	return false
 }
 func rewriteValuePPC64_OpCom16(v *Value) bool {
 	v_0 := v.Args[0]
