@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -308,14 +309,17 @@ var (
 	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 )
 
-const maxUnmarshalDepth = 10000
+const (
+	maxUnmarshalDepth     = 10000
+	maxUnmarshalDepthWasm = 5000 // go.dev/issue/56498
+)
 
-var errExeceededMaxUnmarshalDepth = errors.New("exceeded max depth")
+var errUnmarshalDepth = errors.New("exceeded max depth")
 
 // Unmarshal a single XML element into val.
 func (d *Decoder) unmarshal(val reflect.Value, start *StartElement, depth int) error {
-	if depth >= maxUnmarshalDepth {
-		return errExeceededMaxUnmarshalDepth
+	if depth >= maxUnmarshalDepth || runtime.GOARCH == "wasm" && depth >= maxUnmarshalDepthWasm {
+		return errUnmarshalDepth
 	}
 	// Find start element if we need it.
 	if start == nil {
