@@ -2727,7 +2727,7 @@ func TestDirFS(t *testing.T) {
 		if !strings.Contains(err.Error(), nonesuch) {
 			t.Errorf("error %q does not contain %q", err, nonesuch)
 		}
-		if strings.Contains(err.Error(), "testdata") {
+		if strings.Contains(err.(*PathError).Path, "testdata") {
 			t.Errorf("error %q contains %q", err, "testdata")
 		}
 	}
