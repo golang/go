@@ -369,6 +369,10 @@ func (conf *resolverConfig) init() {
 func (conf *resolverConfig) tryUpdate(name string) {
 	conf.initOnce.Do(conf.init)
 
+	if conf.dnsConfig.noReload {
+		return
+	}
+
 	// Ensure only one update at a time checks resolv.conf.
 	if !conf.tryAcquireSema() {
 		return

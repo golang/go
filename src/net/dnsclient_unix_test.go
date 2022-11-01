@@ -247,7 +247,7 @@ func newResolvConfTest() (*resolvConfTest, error) {
 	return conf, nil
 }
 
-func (conf *resolvConfTest) writeAndUpdate(lines []string) error {
+func (conf *resolvConfTest) write(lines []string) error {
 	f, err := os.OpenFile(conf.path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
@@ -257,10 +257,18 @@ func (conf *resolvConfTest) writeAndUpdate(lines []string) error {
 		return err
 	}
 	f.Close()
-	if err := conf.forceUpdate(conf.path, time.Now().Add(time.Hour)); err != nil {
+	return nil
+}
+
+func (conf *resolvConfTest) writeAndUpdate(lines []string) error {
+	return conf.writeAndUpdateWithLastCheckedTime(lines, time.Now().Add(time.Hour))
+}
+
+func (conf *resolvConfTest) writeAndUpdateWithLastCheckedTime(lines []string, lastChecked time.Time) error {
+	if err := conf.write(lines); err != nil {
 		return err
 	}
-	return nil
+	return conf.forceUpdate(conf.path, lastChecked)
 }
 
 func (conf *resolvConfTest) forceUpdate(name string, lastChecked time.Time) error {
@@ -2407,5 +2415,38 @@ func TestDNSTrustAD(t *testing.T) {
 
 	if _, err := r.LookupIPAddr(context.Background(), "trustad.go.dev"); err != nil {
 		t.Errorf("lookup failed: %v", err)
+	}
+}
+
+func TestDNSConfigNoReload(t *testing.T) {
+	r := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
+		if address != "192.0.2.1:53" {
+			return nil, errors.New("configuration unexpectedly changed")
+		}
+		return fakeDNSServerSuccessful.DialContext(ctx, network, address)
+	}}
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+
+	err = conf.writeAndUpdateWithLastCheckedTime([]string{"nameserver 192.0.2.1", "options no-reload"}, time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = r.LookupHost(context.Background(), "go.dev"); err != nil {
+		t.Fatal(err)
+	}
+
+	err = conf.write([]string{"nameserver 192.0.2.200"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = r.LookupHost(context.Background(), "go.dev"); err != nil {
+		t.Fatal(err)
 	}
 }
