@@ -899,8 +899,6 @@ retry:
 	MOVW	(R2), R0	// TODO: This turns bad writes into bad reads.
 	MOVW	R0, -4(R1)	// Record *slot
 	MOVM.IA.W	(R13), [R0,R1]
-	// Do the write.
-	MOVW	R3, (R2)
 	RET
 
 flush:

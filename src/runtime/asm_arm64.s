@@ -1220,8 +1220,6 @@ retry:
 	MOVD	(R2), R0	// TODO: This turns bad writes into bad reads.
 	MOVD	R0, -8(R1)	// Record *slot
 	LDP	184(RSP), (R0, R1)
-	// Do the write.
-	MOVD	R3, (R2)
 	RET
 
 flush:

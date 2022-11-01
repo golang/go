@@ -44,10 +44,11 @@ var Syms struct {
 	Racereadrange     *obj.LSym
 	Racewrite         *obj.LSym
 	Racewriterange    *obj.LSym
+	WBZero            *obj.LSym
+	WBMove            *obj.LSym
 	// Wasm
 	SigPanic        *obj.LSym
 	Staticuint64s   *obj.LSym
-	Typedmemclr     *obj.LSym
 	Typedmemmove    *obj.LSym
 	Udiv            *obj.LSym
 	WriteBarrier    *obj.LSym

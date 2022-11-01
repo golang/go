@@ -1660,8 +1660,6 @@ retry:
 	MOVQ	R13, -8(R12)	// Record *slot
 	MOVQ	96(SP), R12
 	MOVQ	104(SP), R13
-	// Do the write.
-	MOVQ	AX, (DI)
 	RET
 
 flush:

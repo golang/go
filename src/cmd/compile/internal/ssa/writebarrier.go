@@ -132,7 +132,8 @@ func writebarrier(f *Func) {
 	}
 
 	var sb, sp, wbaddr, const0 *Value
-	var typedmemmove, typedmemclr, gcWriteBarrier, cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
+	var gcWriteBarrier, cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
+	var wbZero, wbMove *obj.LSym
 	var stores, after []*Value
 	var sset *sparseSet
 	var storeNumber []int32
@@ -185,8 +186,8 @@ func writebarrier(f *Func) {
 			wbsym := f.fe.Syslook("writeBarrier")
 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
 			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
-			typedmemmove = f.fe.Syslook("typedmemmove")
-			typedmemclr = f.fe.Syslook("typedmemclr")
+			wbZero = f.fe.Syslook("wbZero")
+			wbMove = f.fe.Syslook("wbMove")
 			if buildcfg.Experiment.CgoCheck2 {
 				cgoCheckPtrWrite = f.fe.Syslook("cgoCheckPtrWrite")
 				cgoCheckMemmove = f.fe.Syslook("cgoCheckMemmove")
@@ -235,6 +236,51 @@ func writebarrier(f *Func) {
 		// find the memory before the WB stores
 		mem := stores[0].MemoryArg()
 		pos := stores[0].Pos
+
+		// If the source of a MoveWB is volatile (will be clobbered by a
+		// function call), we need to copy it to a temporary location, as
+		// marshaling the args of wbMove might clobber the value we're
+		// trying to move.
+		// Look for volatile source, copy it to temporary before we check
+		// the write barrier flag.
+		// It is unlikely to have more than one of them. Just do a linear
+		// search instead of using a map.
+		// See issue 15854.
+		type volatileCopy struct {
+			src *Value // address of original volatile value
+			tmp *Value // address of temporary we've copied the volatile value into
+		}
+		var volatiles []volatileCopy
+
+		if !(f.ABIDefault == f.ABI1 && len(f.Config.intParamRegs) >= 3) {
+			// We don't need to do this if the calls we're going to do take
+			// all their arguments in registers.
+			// 3 is the magic number because it covers wbZero, wbMove, cgoCheckMemmove.
+		copyLoop:
+			for _, w := range stores {
+				if w.Op == OpMoveWB {
+					val := w.Args[1]
+					if isVolatile(val) {
+						for _, c := range volatiles {
+							if val == c.src {
+								continue copyLoop // already copied
+							}
+						}
+
+						t := val.Type.Elem()
+						tmp := f.fe.Auto(w.Pos, t)
+						mem = b.NewValue1A(w.Pos, OpVarDef, types.TypeMem, tmp, mem)
+						tmpaddr := b.NewValue2A(w.Pos, OpLocalAddr, t.PtrTo(), tmp, sp, mem)
+						siz := t.Size()
+						mem = b.NewValue3I(w.Pos, OpMove, types.TypeMem, siz, tmpaddr, val, mem)
+						mem.Aux = t
+						volatiles = append(volatiles, volatileCopy{val, tmpaddr})
+					}
+				}
+			}
+		}
+
+		// Build branch point.
 		bThen := f.NewBlock(BlockPlain)
 		bElse := f.NewBlock(BlockPlain)
 		bEnd := f.NewBlock(b.Kind)
@@ -274,123 +320,86 @@ func writebarrier(f *Func) {
 		bThen.AddEdgeTo(bEnd)
 		bElse.AddEdgeTo(bEnd)
 
-		// for each write barrier store, append write barrier version to bThen
-		// and simple store version to bElse
+		// then block: emit write barrier calls
 		memThen := mem
-		memElse := mem
-
-		// If the source of a MoveWB is volatile (will be clobbered by a
-		// function call), we need to copy it to a temporary location, as
-		// marshaling the args of typedmemmove might clobber the value we're
-		// trying to move.
-		// Look for volatile source, copy it to temporary before we emit any
-		// call.
-		// It is unlikely to have more than one of them. Just do a linear
-		// search instead of using a map.
-		type volatileCopy struct {
-			src *Value // address of original volatile value
-			tmp *Value // address of temporary we've copied the volatile value into
-		}
-		var volatiles []volatileCopy
-	copyLoop:
 		for _, w := range stores {
-			if w.Op == OpMoveWB {
-				val := w.Args[1]
-				if isVolatile(val) {
-					for _, c := range volatiles {
-						if val == c.src {
-							continue copyLoop // already copied
-						}
-					}
-
-					t := val.Type.Elem()
-					tmp := f.fe.Auto(w.Pos, t)
-					memThen = bThen.NewValue1A(w.Pos, OpVarDef, types.TypeMem, tmp, memThen)
-					tmpaddr := bThen.NewValue2A(w.Pos, OpLocalAddr, t.PtrTo(), tmp, sp, memThen)
-					siz := t.Size()
-					memThen = bThen.NewValue3I(w.Pos, OpMove, types.TypeMem, siz, tmpaddr, val, memThen)
-					memThen.Aux = t
-					volatiles = append(volatiles, volatileCopy{val, tmpaddr})
-				}
-			}
-		}
-
-		for _, w := range stores {
-			ptr := w.Args[0]
 			pos := w.Pos
-
-			var fn *obj.LSym
-			var typ *obj.LSym
-			var val *Value
 			switch w.Op {
 			case OpStoreWB:
-				val = w.Args[1]
-				nWBops--
-			case OpMoveWB:
-				fn = typedmemmove
-				val = w.Args[1]
-				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
+				ptr := w.Args[0]
+				val := w.Args[1]
+				memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
+				f.fe.SetWBPos(pos)
 				nWBops--
 			case OpZeroWB:
-				fn = typedmemclr
-				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
+				dst := w.Args[0]
+				typ := reflectdata.TypeLinksym(w.Aux.(*types.Type))
+				// zeroWB(&typ, dst)
+				taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
+				memThen = wbcall(pos, bThen, wbZero, sp, memThen, taddr, dst)
+				f.fe.SetWBPos(pos)
 				nWBops--
-			case OpVarDef, OpVarLive:
-			}
-
-			// then block: emit write barrier call
-			switch w.Op {
-			case OpStoreWB, OpMoveWB, OpZeroWB:
-				if w.Op == OpStoreWB {
-					if buildcfg.Experiment.CgoCheck2 {
-						// Issue cgo checking code.
-						memThen = wbcall(pos, bThen, cgoCheckPtrWrite, nil, ptr, val, memThen, sp, sb)
-					}
-
-					memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
-				} else {
-					srcval := val
-					if w.Op == OpMoveWB && isVolatile(srcval) {
-						for _, c := range volatiles {
-							if srcval == c.src {
-								srcval = c.tmp
-								break
-							}
+			case OpMoveWB:
+				dst := w.Args[0]
+				src := w.Args[1]
+				if isVolatile(src) {
+					for _, c := range volatiles {
+						if src == c.src {
+							src = c.tmp
+							break
 						}
 					}
-					memThen = wbcall(pos, bThen, fn, typ, ptr, srcval, memThen, sp, sb)
 				}
-				// Note that we set up a writebarrier function call.
+				typ := reflectdata.TypeLinksym(w.Aux.(*types.Type))
+				// moveWB(&typ, dst, src)
+				taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
+				memThen = wbcall(pos, bThen, wbMove, sp, memThen, taddr, dst, src)
 				f.fe.SetWBPos(pos)
-			case OpVarDef, OpVarLive:
-				memThen = bThen.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memThen)
+				nWBops--
 			}
+		}
+		// merge memory
+		mem = bEnd.NewValue2(pos, OpPhi, types.TypeMem, memThen, mem)
 
-			// else block: normal store
+		// Do raw stores after merge point.
+		for _, w := range stores {
 			switch w.Op {
 			case OpStoreWB:
+				ptr := w.Args[0]
+				val := w.Args[1]
 				if buildcfg.Experiment.CgoCheck2 {
 					// Issue cgo checking code.
-					memElse = wbcall(pos, bElse, cgoCheckPtrWrite, nil, ptr, val, memElse, sp, sb)
+					mem = wbcall(pos, bEnd, cgoCheckPtrWrite, sp, mem, ptr, val)
 				}
-				memElse = bElse.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, ptr, val, memElse)
-			case OpMoveWB:
-				if buildcfg.Experiment.CgoCheck2 {
-					// Issue cgo checking code.
-					memElse = wbcall(pos, bElse, cgoCheckMemmove, reflectdata.TypeLinksym(w.Aux.(*types.Type)), ptr, val, memElse, sp, sb)
-				}
-				memElse = bElse.NewValue3I(pos, OpMove, types.TypeMem, w.AuxInt, ptr, val, memElse)
-				memElse.Aux = w.Aux
+				mem = bEnd.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, ptr, val, mem)
 			case OpZeroWB:
-				memElse = bElse.NewValue2I(pos, OpZero, types.TypeMem, w.AuxInt, ptr, memElse)
-				memElse.Aux = w.Aux
+				dst := w.Args[0]
+				mem = bEnd.NewValue2I(pos, OpZero, types.TypeMem, w.AuxInt, dst, mem)
+				mem.Aux = w.Aux
+			case OpMoveWB:
+				dst := w.Args[0]
+				src := w.Args[1]
+				if isVolatile(src) {
+					for _, c := range volatiles {
+						if src == c.src {
+							src = c.tmp
+							break
+						}
+					}
+				}
+				if buildcfg.Experiment.CgoCheck2 {
+					// Issue cgo checking code.
+					typ := reflectdata.TypeLinksym(w.Aux.(*types.Type))
+					taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
+					mem = wbcall(pos, bEnd, cgoCheckMemmove, sp, mem, taddr, dst, src)
+				}
+				mem = bEnd.NewValue3I(pos, OpMove, types.TypeMem, w.AuxInt, dst, src, mem)
+				mem.Aux = w.Aux
 			case OpVarDef, OpVarLive:
-				memElse = bElse.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memElse)
+				mem = bEnd.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, mem)
 			}
 		}
 
-		// merge memory
-		mem = bEnd.NewValue2(pos, OpPhi, types.TypeMem, memThen, memElse)
 		// The last store becomes the WBend marker. This marker is used by the liveness
 		// pass to determine what parts of the code are preemption-unsafe.
 		// All subsequent memory operations use this memory, so we have to sacrifice the
@@ -535,58 +544,35 @@ func (f *Func) computeZeroMap(select1 []*Value) map[ID]ZeroRegion {
 }
 
 // wbcall emits write barrier runtime call in b, returns memory.
-func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value) *Value {
+func wbcall(pos src.XPos, b *Block, fn *obj.LSym, sp, mem *Value, args ...*Value) *Value {
 	config := b.Func.Config
+	typ := config.Types.Uintptr // type of all argument values
+	nargs := len(args)
 
-	var wbargs []*Value
 	// TODO (register args) this is a bit of a hack.
 	inRegs := b.Func.ABIDefault == b.Func.ABI1 && len(config.intParamRegs) >= 3
 
-	// put arguments on stack
-	off := config.ctxt.Arch.FixedFrameSize
-
-	var argTypes []*types.Type
-	if typ != nil { // for typedmemmove/cgoCheckMemmove
-		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
-		argTypes = append(argTypes, b.Func.Config.Types.Uintptr)
-		off = round(off, taddr.Type.Alignment())
-		if inRegs {
-			wbargs = append(wbargs, taddr)
-		} else {
-			arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
-			mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
+	if !inRegs {
+		// Store arguments to the appropriate stack slot.
+		off := config.ctxt.Arch.FixedFrameSize
+		for _, arg := range args {
+			stkaddr := b.NewValue1I(pos, OpOffPtr, typ.PtrTo(), off, sp)
+			mem = b.NewValue3A(pos, OpStore, types.TypeMem, typ, stkaddr, arg, mem)
+			off += typ.Size()
 		}
-		off += taddr.Type.Size()
+		args = args[:0]
 	}
 
-	argTypes = append(argTypes, ptr.Type)
-	off = round(off, ptr.Type.Alignment())
-	if inRegs {
-		wbargs = append(wbargs, ptr)
-	} else {
-		arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
-		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
-	}
-	off += ptr.Type.Size()
-
-	if val != nil {
-		argTypes = append(argTypes, val.Type)
-		off = round(off, val.Type.Alignment())
-		if inRegs {
-			wbargs = append(wbargs, val)
-		} else {
-			arg := b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
-			mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
-		}
-		off += val.Type.Size()
-	}
-	off = round(off, config.PtrSize)
-	wbargs = append(wbargs, mem)
+	args = append(args, mem)
 
 	// issue call
+	argTypes := make([]*types.Type, nargs, 3) // at most 3 args; allows stack allocation
+	for i := 0; i < nargs; i++ {
+		argTypes[i] = typ
+	}
 	call := b.NewValue0A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)))
-	call.AddArgs(wbargs...)
-	call.AuxInt = off - config.ctxt.Arch.FixedFrameSize
+	call.AddArgs(args...)
+	call.AuxInt = int64(nargs) * typ.Size()
 	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
 }
 

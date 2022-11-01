@@ -662,8 +662,6 @@ retry:
 	MOVV	R1, -8(R2)	// Record *slot
 	MOVV	184(R29), R1
 	MOVV	192(R29), R2
-	// Do the write.
-	MOVV	R21, (R20)
 	RET
 
 flush:

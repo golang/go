@@ -175,6 +175,24 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	}
 }
 
+// wbZero performs the write barrier operations necessary before
+// zeroing a region of memory at address dst of type typ.
+// Does not actually do the zeroing.
+//go:nowritebarrierrec
+//go:nosplit
+func wbZero(typ *_type, dst unsafe.Pointer) {
+	bulkBarrierPreWrite(uintptr(dst), 0, typ.ptrdata)
+}
+
+// wbMove performs the write barrier operations necessary before
+// copying a region of memory from src to dst of type typ.
+// Does not actually do the copying.
+//go:nowritebarrierrec
+//go:nosplit
+func wbMove(typ *_type, dst, src unsafe.Pointer) {
+	bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.ptrdata)
+}
+
 //go:linkname reflect_typedmemmove reflect.typedmemmove
 func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	if raceenabled {

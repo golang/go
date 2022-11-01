@@ -806,8 +806,6 @@ retry:
 	MOVD	(R2), R10   // TODO: This turns bad writes into bad reads.
 	MOVD	R10, -8(R4) // Record *slot
 	MOVD	96(R15), R4
-	// Do the write.
-	MOVD	R3, (R2)
 	RET
 
 flush:

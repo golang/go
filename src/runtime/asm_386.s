@@ -1398,8 +1398,6 @@ retry:
 	MOVL	BX, -4(CX)	// Record *slot
 	MOVL	20(SP), CX
 	MOVL	24(SP), BX
-	// Do the write.
-	MOVL	AX, (DI)
 	RET
 
 flush:

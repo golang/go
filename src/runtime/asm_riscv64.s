@@ -742,8 +742,6 @@ retry:
 	MOV	A0, -8(A1)	// Record *slot
 	MOV	24*8(X2), A0
 	MOV	25*8(X2), A1
-	// Do the write.
-	MOV	T1, (T0)
 	RET
 
 flush:

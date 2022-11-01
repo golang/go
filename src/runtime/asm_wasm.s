@@ -443,9 +443,6 @@ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
 			// Record *slot
 			MOVD (R0), 8(R5)
 
-			// Do the write
-			MOVD R1, (R0)
-
 			RET
 		End
 
