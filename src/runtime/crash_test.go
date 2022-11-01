@@ -77,6 +77,8 @@ func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
 			t.Logf("%v: %v", cmd, err)
+		} else if errors.Is(err, exec.ErrWaitDelay) {
+			t.Fatalf("%v: %v", cmd, err)
 		} else {
 			t.Fatalf("%v failed to start: %v", cmd, err)
 		}
