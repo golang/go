@@ -18,10 +18,6 @@ import (
 // in Go 1.18+.
 var DiagnoseFuzzTests bool = false
 
-// LoopclosureParallelSubtests controls whether the 'loopclosure' analyzer
-// diagnoses loop variables references in parallel subtests.
-var LoopclosureParallelSubtests = false
-
 var (
 	GetTypeErrors func(p interface{}) []types.Error
 	SetTypeErrors func(p interface{}, errors []types.Error)

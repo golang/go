@@ -223,10 +223,11 @@ literal inside the loop body. It checks for patterns where access to a loop
 variable is known to escape the current loop iteration:
  1. a call to go or defer at the end of the loop body
  2. a call to golang.org/x/sync/errgroup.Group.Go at the end of the loop body
+ 3. a call testing.T.Run where the subtest body invokes t.Parallel()
 
-The analyzer only considers references in the last statement of the loop body
-as it is not deep enough to understand the effects of subsequent statements
-which might render the reference benign.
+In the case of (1) and (2), the analyzer only considers references in the last
+statement of the loop body as it is not deep enough to understand the effects
+of subsequent statements which might render the reference benign.
 
 For example:
 
