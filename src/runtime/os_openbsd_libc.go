@@ -11,8 +11,6 @@ import (
 	"unsafe"
 )
 
-var failThreadCreate = []byte("runtime: failed to create new OS thread\n")
-
 // mstart_stub provides glue code to call mstart from pthread_create.
 func mstart_stub()
 
@@ -27,21 +25,21 @@ func newosproc(mp *m) {
 	// Initialize an attribute object.
 	var attr pthreadattr
 	if err := pthread_attr_init(&attr); err != 0 {
-		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 
 	// Find out OS stack size for our own stack guard.
 	var stacksize uintptr
 	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
-		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 	mp.g0.stack.hi = stacksize // for mstart
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
-		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 
@@ -52,7 +50,7 @@ func newosproc(mp *m) {
 	err := pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
-		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 
