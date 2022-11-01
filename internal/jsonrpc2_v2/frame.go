@@ -120,6 +120,12 @@ func (r *headerReader) Read(ctx context.Context) (Message, int64, error) {
 		line, err := r.in.ReadString('\n')
 		total += int64(len(line))
 		if err != nil {
+			if err == io.EOF {
+				if total == 0 {
+					return nil, 0, io.EOF
+				}
+				err = io.ErrUnexpectedEOF
+			}
 			return nil, total, fmt.Errorf("failed reading header line: %w", err)
 		}
 		line = strings.TrimSpace(line)
