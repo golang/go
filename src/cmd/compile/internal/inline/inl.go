@@ -29,6 +29,7 @@ package inline
 import (
 	"fmt"
 	"go/constant"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -69,7 +70,13 @@ var (
 	inlinedCallSites = make(map[pgo.CallSiteInfo]struct{})
 
 	// Threshold in percentage for hot callsite inlining.
-	inlineHotCallSiteThresholdPercent = float64(0.1)
+	inlineHotCallSiteThresholdPercent float64
+
+	// Threshold in CDF percentage for hot callsite inlining,
+	// that is, for a threshold of X the hottest callsites that
+	// make up the top X% of total edge weight will be
+	// considered hot for inlining candidates.
+	inlineCDFHotCallSiteThresholdPercent = float64(95)
 
 	// Budget increased due to hotness.
 	inlineHotMaxBudget int32 = 160
@@ -77,11 +84,12 @@ var (
 
 // pgoInlinePrologue records the hot callsites from ir-graph.
 func pgoInlinePrologue(p *pgo.Profile) {
-	if s, err := strconv.ParseFloat(base.Debug.InlineHotCallSiteThreshold, 64); err == nil {
-		inlineHotCallSiteThresholdPercent = s
-		if base.Debug.PGOInline > 0 {
-			fmt.Printf("hot-callsite-thres=%v\n", inlineHotCallSiteThresholdPercent)
-		}
+	if s, err := strconv.ParseFloat(base.Debug.InlineHotCallSiteCDFThreshold, 64); err == nil {
+		inlineCDFHotCallSiteThresholdPercent = s
+	}
+	inlineHotCallSiteThresholdPercent = computeThresholdFromCDF(p)
+	if base.Debug.PGOInline > 0 {
+		fmt.Printf("hot-callsite-thres-from-CDF=%v\n", inlineHotCallSiteThresholdPercent)
 	}
 
 	if base.Debug.InlineHotBudget != 0 {
@@ -111,6 +119,38 @@ func pgoInlinePrologue(p *pgo.Profile) {
 		fmt.Printf("hot-cg before inline in dot format:")
 		p.PrintWeightedCallGraphDOT(inlineHotCallSiteThresholdPercent)
 	}
+}
+
+func computeThresholdFromCDF(p *pgo.Profile) float64 {
+	nodes := make([]pgo.NodeMapKey, len(p.NodeMap))
+	i := 0
+	for n := range p.NodeMap {
+		nodes[i] = n
+		i++
+	}
+	sort.Slice(nodes, func(i, j int) bool {
+		ni, nj := nodes[i], nodes[j]
+		if wi, wj := p.NodeMap[ni].EWeight, p.NodeMap[nj].EWeight; wi != wj {
+			return wi > wj // want larger weight first
+		}
+		// same weight, order by name/line number
+		if ni.CallerName != nj.CallerName {
+			return ni.CallerName < nj.CallerName
+		}
+		if ni.CalleeName != nj.CalleeName {
+			return ni.CalleeName < nj.CalleeName
+		}
+		return ni.CallSite < nj.CallSite
+	})
+	cum := int64(0)
+	for _, n := range nodes {
+		w := p.NodeMap[n].EWeight
+		cum += w
+		if pgo.WeightInPercentage(cum, p.TotalEdgeWeight) > inlineCDFHotCallSiteThresholdPercent {
+			return pgo.WeightInPercentage(w, p.TotalEdgeWeight)
+		}
+	}
+	return 100
 }
 
 // pgoInlineEpilogue updates IRGraph after inlining.
