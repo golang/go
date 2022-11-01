@@ -36,20 +36,19 @@ const (
 )
 
 type (
-	_C_char               = C.char
-	_C_uchar              = C.uchar
-	_C_int                = C.int
-	_C_uint               = C.uint
-	_C_socklen_t          = C.socklen_t
-	_C_struct_addrinfo    = C.struct_addrinfo
-	_C_struct_sockaddr    = C.struct_sockaddr
+	_C_char            = C.char
+	_C_uchar           = C.uchar
+	_C_int             = C.int
+	_C_uint            = C.uint
+	_C_socklen_t       = C.socklen_t
+	_C_struct_addrinfo = C.struct_addrinfo
+	_C_struct_sockaddr = C.struct_sockaddr
 )
 
 func _C_GoString(p *_C_char) string { return C.GoString(p) }
 func _C_CString(s string) *_C_char  { return C.CString(s) }
 
 func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.ai_addr }
-func _C_ai_addrlen(ai *_C_struct_addrinfo) *_C_uint          { return &ai.ai_addrlen }
 func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.ai_canonname }
 func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.ai_family }
 func _C_ai_flags(ai *_C_struct_addrinfo) *_C_int             { return &ai.ai_flags }
