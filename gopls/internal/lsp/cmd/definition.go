@@ -80,7 +80,7 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	}
 	defer conn.terminate(ctx)
 	from := span.Parse(args[0])
-	file := conn.AddFile(ctx, from.URI())
+	file := conn.openFile(ctx, from.URI())
 	if file.err != nil {
 		return file.err
 	}
@@ -113,7 +113,7 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if hover == nil {
 		return fmt.Errorf("%v: not an identifier", from)
 	}
-	file = conn.AddFile(ctx, fileURI(locs[0].URI))
+	file = conn.openFile(ctx, fileURI(locs[0].URI))
 	if file.err != nil {
 		return fmt.Errorf("%v: %v", from, file.err)
 	}

@@ -47,7 +47,7 @@ func (c *callHierarchy) Run(ctx context.Context, args ...string) error {
 	defer conn.terminate(ctx)
 
 	from := span.Parse(args[0])
-	file := conn.AddFile(ctx, from.URI())
+	file := conn.openFile(ctx, from.URI())
 	if file.err != nil {
 		return file.err
 	}
@@ -114,7 +114,7 @@ func (c *callHierarchy) Run(ctx context.Context, args ...string) error {
 // callItemPrintString returns a protocol.CallHierarchyItem object represented as a string.
 // item and call ranges (protocol.Range) are converted to user friendly spans (1-indexed).
 func callItemPrintString(ctx context.Context, conn *connection, item protocol.CallHierarchyItem, callsURI protocol.DocumentURI, calls []protocol.Range) (string, error) {
-	itemFile := conn.AddFile(ctx, item.URI.SpanURI())
+	itemFile := conn.openFile(ctx, item.URI.SpanURI())
 	if itemFile.err != nil {
 		return "", itemFile.err
 	}
@@ -123,7 +123,7 @@ func callItemPrintString(ctx context.Context, conn *connection, item protocol.Ca
 		return "", err
 	}
 
-	callsFile := conn.AddFile(ctx, callsURI.SpanURI())
+	callsFile := conn.openFile(ctx, callsURI.SpanURI())
 	if callsURI != "" && callsFile.err != nil {
 		return "", callsFile.err
 	}

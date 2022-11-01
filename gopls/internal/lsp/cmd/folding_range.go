@@ -44,7 +44,7 @@ func (r *foldingRanges) Run(ctx context.Context, args ...string) error {
 	defer conn.terminate(ctx)
 
 	from := span.Parse(args[0])
-	file := conn.AddFile(ctx, from.URI())
+	file := conn.openFile(ctx, from.URI())
 	if file.err != nil {
 		return file.err
 	}

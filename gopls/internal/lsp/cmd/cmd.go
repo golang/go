@@ -399,7 +399,7 @@ type cmdFile struct {
 	uri         span.URI
 	mapper      *protocol.ColumnMapper
 	err         error
-	added       bool
+	open        bool
 	diagnostics []protocol.Diagnostic
 }
 
@@ -558,22 +558,24 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 	return file
 }
 
-func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
-	c.Client.filesMu.Lock()
-	defer c.Client.filesMu.Unlock()
+func (c *cmdClient) openFile(ctx context.Context, uri span.URI) *cmdFile {
+	c.filesMu.Lock()
+	defer c.filesMu.Unlock()
 
-	file := c.Client.getFile(ctx, uri)
-	// This should never happen.
-	if file == nil {
-		return &cmdFile{
-			uri: uri,
-			err: fmt.Errorf("no file found for %s", uri),
-		}
-	}
-	if file.err != nil || file.added {
+	file := c.getFile(ctx, uri)
+	if file.err != nil || file.open {
 		return file
 	}
-	file.added = true
+	file.open = true
+	return file
+}
+
+func (c *connection) openFile(ctx context.Context, uri span.URI) *cmdFile {
+	file := c.Client.openFile(ctx, uri)
+	if file.err != nil {
+		return file
+	}
+
 	p := &protocol.DidOpenTextDocumentParams{
 		TextDocument: protocol.TextDocumentItem{
 			URI:        protocol.URIFromSpanURI(uri),
