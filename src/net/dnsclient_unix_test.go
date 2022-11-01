@@ -2421,7 +2421,7 @@ func TestDNSTrustAD(t *testing.T) {
 func TestDNSConfigNoReload(t *testing.T) {
 	r := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
 		if address != "192.0.2.1:53" {
-			return nil, errors.New("configuration unexpectelly changed")
+			return nil, errors.New("configuration unexpectedly changed")
 		}
 		return fakeDNSServerSuccessful.DialContext(ctx, network, address)
 	}}
