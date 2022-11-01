@@ -6324,16 +6324,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredWB",
-		auxType:      auxSym,
-		argLen:       3,
+		auxType:      auxInt64,
+		argLen:       1,
 		clobberFlags: true,
-		symEffect:    SymNone,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 128}, // DI
-				{1, 1},   // AX
-			},
 			clobbers: 65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 128}, // DI
+			},
 		},
 	},
 	{
@@ -13529,16 +13527,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredWB",
-		auxType:      auxSym,
-		argLen:       3,
+		auxType:      auxInt64,
+		argLen:       1,
 		clobberFlags: true,
-		symEffect:    SymNone,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 128}, // DI
-				{1, 879}, // AX CX DX BX BP SI R8 R9
-			},
 			clobbers: 2147418112, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			outputs: []outputInfo{
+				{0, 2048}, // R11
+			},
 		},
 	},
 	{
@@ -18475,16 +18471,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredWB",
-		auxType:      auxSym,
-		argLen:       3,
+		auxType:      auxInt64,
+		argLen:       1,
 		clobberFlags: true,
-		symEffect:    SymNone,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4}, // R2
-				{1, 8}, // R3
-			},
 			clobbers: 4294922240, // R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 256}, // R8
+			},
 		},
 	},
 
@@ -22793,16 +22787,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredWB",
-		auxType:      auxSym,
-		argLen:       3,
+		auxType:      auxInt64,
+		argLen:       1,
 		clobberFlags: true,
-		symEffect:    SymNone,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4}, // R2
-				{1, 8}, // R3
-			},
 			clobbers: 9223372035244359680, // R16 R17 R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			outputs: []outputInfo{
+				{0, 33554432}, // R25
+			},
 		},
 	},
 	{
@@ -24533,16 +24525,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredWB",
-		auxType:      auxSym,
-		argLen:       3,
+		auxType:      auxInt64,
+		argLen:       1,
 		clobberFlags: true,
-		symEffect:    SymNone,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 67108864},  // R27
-				{1, 134217728}, // R28
-			},
 			clobbers: 4611686017353646082, // R1 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			outputs: []outputInfo{
+				{0, 268435456}, // R29
+			},
 		},
 	},
 	{
@@ -26013,16 +26003,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredWB",
-		auxType:      auxSym,
-		argLen:       3,
+		auxType:      auxInt64,
+		argLen:       1,
 		clobberFlags: true,
-		symEffect:    SymNone,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1048576}, // R20
-				{1, 2097152}, // R21
-			},
 			clobbers: 140737219919872, // R31 F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30 HI LO
+			outputs: []outputInfo{
+				{0, 16777216}, // R25
+			},
 		},
 	},
 	{
@@ -27688,16 +27676,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredWB",
-		auxType:      auxSym,
-		argLen:       3,
+		auxType:      auxInt64,
+		argLen:       1,
 		clobberFlags: true,
-		symEffect:    SymNone,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1048576}, // R20
-				{1, 2097152}, // R21
-			},
 			clobbers: 4611686018293170176, // R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 HI LO
+			outputs: []outputInfo{
+				{0, 16777216}, // R25
+			},
 		},
 	},
 	{
@@ -30720,16 +30706,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredWB",
-		auxType:      auxSym,
-		argLen:       3,
+		auxType:      auxInt64,
+		argLen:       1,
 		clobberFlags: true,
-		symEffect:    SymNone,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1048576}, // R20
-				{1, 2097152}, // R21
-			},
 			clobbers: 18446744072632408064, // R11 R12 R18 R19 R22 R23 R24 R25 R26 R27 R28 R29 R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 XER
+			outputs: []outputInfo{
+				{0, 536870912}, // R29
+			},
 		},
 	},
 	{
@@ -32069,16 +32053,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredWB",
-		auxType:      auxSym,
-		argLen:       3,
+		auxType:      auxInt64,
+		argLen:       1,
 		clobberFlags: true,
-		symEffect:    SymNone,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 16}, // X5
-				{1, 32}, // X6
-			},
 			clobbers: 9223372034707292160, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			outputs: []outputInfo{
+				{0, 8388608}, // X24
+			},
 		},
 	},
 	{
@@ -35624,16 +35606,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredWB",
-		auxType:      auxSym,
-		argLen:       3,
+		auxType:      auxInt64,
+		argLen:       1,
 		clobberFlags: true,
-		symEffect:    SymNone,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4}, // R2
-				{1, 8}, // R3
-			},
 			clobbers: 4294918146, // R1 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 512}, // R9
+			},
 		},
 	},
 	{
@@ -36293,14 +36273,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "LoweredWB",
-		auxType:   auxSym,
-		argLen:    3,
-		symEffect: SymNone,
+		name:    "LoweredWB",
+		auxType: auxInt64,
+		argLen:  1,
 		reg: regInfo{
-			inputs: []inputInfo{
+			clobbers: 844424930131967, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 g
+			outputs: []outputInfo{
 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -38935,11 +38914,10 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:      "WB",
-		auxType:   auxSym,
-		argLen:    3,
-		symEffect: SymNone,
-		generic:   true,
+		name:    "WB",
+		auxType: auxInt64,
+		argLen:  1,
+		generic: true,
 	},
 	{
 		name:      "HasCPUFeature",

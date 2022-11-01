@@ -1621,15 +1621,25 @@ TEXT ·sigpanic0(SB),NOSPLIT,$0-0
 #endif
 	JMP	·sigpanic<ABIInternal>(SB)
 
-// gcWriteBarrier performs a heap pointer write and informs the GC.
+// gcWriteBarrier informs the GC about heap pointer writes.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
-// - DI is the destination of the write
-// - AX is the value being written at DI
+// gcWriteBarrier returns space in a write barrier buffer which
+// should be filled in by the caller.
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed in R11, and returns a pointer
+// to the buffer space in R11.
 // It clobbers FLAGS. It does not clobber any general-purpose registers,
 // but may clobber others (e.g., SSE registers).
-// Defined as ABIInternal since it does not use the stack-based Go ABI.
-TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
+// Typical use would be, when doing *(CX+88) = AX
+//     CMPL    $0, runtime.writeBarrier(SB)
+//     JEQ     dowrite
+//     CALL    runtime.gcBatchBarrier2(SB)
+//     MOVQ    AX, (R11)
+//     MOVQ    88(CX), DX
+//     MOVQ    DX, 8(R11)
+// dowrite:
+//     MOVQ    AX, 88(CX)
+TEXT gcWriteBarrier<>(SB),NOSPLIT,$112
 	// Save the registers clobbered by the fast path. This is slightly
 	// faster than having the caller spill these.
 	MOVQ	R12, 96(SP)
@@ -1640,24 +1650,17 @@ retry:
 	MOVQ	g_m(R14), R13
 	MOVQ	m_p(R13), R13
 	// Get current buffer write position.
-	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12
-	// Increment wbBuf.next position.
-	LEAQ	16(R12), R12
+	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12	// original next position
+	ADDQ	R11, R12			// new next position
 	// Is the buffer full?
 	CMPQ	R12, (p_wbBuf+wbBuf_end)(R13)
 	JA	flush
 	// Commit to the larger buffer.
 	MOVQ	R12, (p_wbBuf+wbBuf_next)(R13)
-	// Record the write.
-	MOVQ	AX, -16(R12)	// Record value
-	// Note: This turns bad pointer writes into bad
-	// pointer reads, which could be confusing. We could avoid
-	// reading from obviously bad pointers, which would
-	// take care of the vast majority of these. We could
-	// patch this up in the signal handler, or use XCHG to
-	// combine the read and the write.
-	MOVQ	(DI), R13
-	MOVQ	R13, -8(R12)	// Record *slot
+	// Make return value (the original next position)
+	SUBQ	R11, R12
+	MOVQ	R12, R11
+	// Restore registers.
 	MOVQ	96(SP), R12
 	MOVQ	104(SP), R13
 	RET
@@ -1708,61 +1711,30 @@ flush:
 	MOVQ	88(SP), R15
 	JMP	retry
 
-// gcWriteBarrierCX is gcWriteBarrier, but with args in DI and CX.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierCX<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	XCHGQ CX, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
-	XCHGQ CX, AX
-	RET
-
-// gcWriteBarrierDX is gcWriteBarrier, but with args in DI and DX.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierDX<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	XCHGQ DX, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
-	XCHGQ DX, AX
-	RET
-
-// gcWriteBarrierBX is gcWriteBarrier, but with args in DI and BX.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierBX<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	XCHGQ BX, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
-	XCHGQ BX, AX
-	RET
-
-// gcWriteBarrierBP is gcWriteBarrier, but with args in DI and BP.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierBP<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	XCHGQ BP, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
-	XCHGQ BP, AX
-	RET
-
-// gcWriteBarrierSI is gcWriteBarrier, but with args in DI and SI.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierSI<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	XCHGQ SI, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
-	XCHGQ SI, AX
-	RET
-
-// gcWriteBarrierR8 is gcWriteBarrier, but with args in DI and R8.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierR8<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	XCHGQ R8, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
-	XCHGQ R8, AX
-	RET
-
-// gcWriteBarrierR9 is gcWriteBarrier, but with args in DI and R9.
-// Defined as ABIInternal since it does not use the stable Go ABI.
-TEXT runtime·gcWriteBarrierR9<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	XCHGQ R9, AX
-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
-	XCHGQ R9, AX
-	RET
+TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	MOVL   $8, R11
+	JMP     gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	MOVL   $16, R11
+	JMP     gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	MOVL   $24, R11
+	JMP     gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	MOVL   $32, R11
+	JMP     gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	MOVL   $40, R11
+	JMP     gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	MOVL   $48, R11
+	JMP     gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	MOVL   $56, R11
+	JMP     gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	MOVL   $64, R11
+	JMP     gcWriteBarrier<>(SB)
 
 DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
 GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below

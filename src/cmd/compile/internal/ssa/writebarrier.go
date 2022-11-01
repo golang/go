@@ -114,15 +114,47 @@ func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
 	return true
 }
 
+// needWBsrc reports whether GC needs to see v when it is the source of a store.
+func needWBsrc(v *Value) bool {
+	return !IsGlobalAddr(v)
+}
+
+// needWBdst reports whether GC needs to see what used to be in *ptr when ptr is
+// the target of a pointer store.
+func needWBdst(ptr, mem *Value, zeroes map[ID]ZeroRegion) bool {
+	// Detect storing to zeroed memory.
+	var off int64
+	for ptr.Op == OpOffPtr {
+		off += ptr.AuxInt
+		ptr = ptr.Args[0]
+	}
+	ptrSize := ptr.Block.Func.Config.PtrSize
+	if off%ptrSize != 0 {
+		ptr.Fatalf("unaligned pointer write")
+	}
+	if off < 0 || off >= 64*ptrSize {
+		// write goes off end of tracked offsets
+		return true
+	}
+	z := zeroes[mem.ID]
+	if ptr != z.base {
+		return true
+	}
+	// If destination is known to be zeroed, we don't need the write barrier
+	// to record the old value in *ptr.
+	return z.mask>>uint(off/ptrSize)&1 == 0
+}
+
 // writebarrier pass inserts write barriers for store ops (Store, Move, Zero)
 // when necessary (the condition above). It rewrites store ops to branches
 // and runtime calls, like
 //
 //	if writeBarrier.enabled {
-//		gcWriteBarrier(ptr, val)	// Not a regular Go call
-//	} else {
-//		*ptr = val
+//		buf := gcWriteBarrier2()	// Not a regular Go call
+//		buf[0] = val
+//		buf[1] = *ptr
 //	}
+//	*ptr = val
 //
 // A sequence of WB stores for many pointer fields of a single type will
 // be emitted together, with a single branch.
@@ -131,11 +163,16 @@ func writebarrier(f *Func) {
 		return
 	}
 
+	// Number of write buffer entries we can request at once.
+	// Must match runtime/mwbbuf.go:wbMaxEntriesPerCall.
+	// It must also match the number of instances of runtime.gcWriteBarrier{X}.
+	const maxEntries = 8
+
 	var sb, sp, wbaddr, const0 *Value
-	var gcWriteBarrier, cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
+	var cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
 	var wbZero, wbMove *obj.LSym
 	var stores, after []*Value
-	var sset *sparseSet
+	var sset, sset2 *sparseSet
 	var storeNumber []int32
 
 	// Compute map from a value to the SelectN [1] value that uses it.
@@ -185,7 +222,6 @@ func writebarrier(f *Func) {
 			sp, sb = f.spSb()
 			wbsym := f.fe.Syslook("writeBarrier")
 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
-			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
 			wbZero = f.fe.Syslook("wbZero")
 			wbMove = f.fe.Syslook("wbMove")
 			if buildcfg.Experiment.CgoCheck2 {
@@ -197,6 +233,8 @@ func writebarrier(f *Func) {
 			// allocate auxiliary data structures for computing store order
 			sset = f.newSparseSet(f.NumValues())
 			defer f.retSparseSet(sset)
+			sset2 = f.newSparseSet(f.NumValues())
+			defer f.retSparseSet(sset2)
 			storeNumber = f.Cache.allocInt32Slice(f.NumValues())
 			defer f.Cache.freeInt32Slice(storeNumber)
 		}
@@ -282,14 +320,12 @@ func writebarrier(f *Func) {
 
 		// Build branch point.
 		bThen := f.NewBlock(BlockPlain)
-		bElse := f.NewBlock(BlockPlain)
 		bEnd := f.NewBlock(b.Kind)
 		bThen.Pos = pos
-		bElse.Pos = pos
 		bEnd.Pos = b.Pos
 		b.Pos = pos
 
-		// set up control flow for end block
+		// Set up control flow for end block.
 		bEnd.CopyControls(b)
 		bEnd.Likely = b.Likely
 		for _, e := range b.Succs {
@@ -307,30 +343,76 @@ func writebarrier(f *Func) {
 		b.Likely = BranchUnlikely
 		b.Succs = b.Succs[:0]
 		b.AddEdgeTo(bThen)
-		b.AddEdgeTo(bElse)
-		// TODO: For OpStoreWB and the buffered write barrier,
-		// we could move the write out of the write barrier,
-		// which would lead to fewer branches. We could do
-		// something similar to OpZeroWB, since the runtime
-		// could provide just the barrier half and then we
-		// could unconditionally do an OpZero (which could
-		// also generate better zeroing code). OpMoveWB is
-		// trickier and would require changing how
-		// cgoCheckMemmove works.
+		b.AddEdgeTo(bEnd)
 		bThen.AddEdgeTo(bEnd)
-		bElse.AddEdgeTo(bEnd)
 
-		// then block: emit write barrier calls
+		// For each write barrier store, append write barrier code to bThen.
 		memThen := mem
+		var curCall *Value
+		var curPtr *Value
+		addEntry := func(v *Value) {
+			if curCall == nil || curCall.AuxInt == maxEntries {
+				t := types.NewTuple(types.Types[types.TUINTPTR].PtrTo(), types.TypeMem)
+				curCall = bThen.NewValue1(pos, OpWB, t, memThen)
+				curPtr = bThen.NewValue1(pos, OpSelect0, types.Types[types.TUINTPTR].PtrTo(), curCall)
+				memThen = bThen.NewValue1(pos, OpSelect1, types.TypeMem, curCall)
+			}
+			// Store value in write buffer
+			num := curCall.AuxInt
+			curCall.AuxInt = num + 1
+			wbuf := bThen.NewValue1I(pos, OpOffPtr, types.Types[types.TUINTPTR].PtrTo(), num*f.Config.PtrSize, curPtr)
+			memThen = bThen.NewValue3A(pos, OpStore, types.TypeMem, types.Types[types.TUINTPTR], wbuf, v, memThen)
+		}
+
+		// Note: we can issue the write barrier code in any order. In particular,
+		// it doesn't matter if they are in a different order *even if* they end
+		// up referring to overlapping memory regions. For instance if an OpStore
+		// stores to a location that is later read by an OpMove. In all cases
+		// any pointers we must get into the write barrier buffer still make it,
+		// possibly in a different order and possibly a different (but definitely
+		// more than 0) number of times.
+		// In light of that, we process all the OpStoreWBs first. This minimizes
+		// the amount of spill/restore code we need around the Zero/Move calls.
+
+		// srcs contains the value IDs of pointer values we've put in the write barrier buffer.
+		srcs := sset
+		srcs.clear()
+		// dsts contains the value IDs of locations which we've read a pointer out of
+		// and put the result in the write barrier buffer.
+		dsts := sset2
+		dsts.clear()
+
+		for _, w := range stores {
+			if w.Op != OpStoreWB {
+				continue
+			}
+			pos := w.Pos
+			ptr := w.Args[0]
+			val := w.Args[1]
+			if !srcs.contains(val.ID) && needWBsrc(val) {
+				srcs.add(val.ID)
+				addEntry(val)
+			}
+			if !dsts.contains(ptr.ID) && needWBdst(ptr, w.Args[2], zeroes) {
+				dsts.add(ptr.ID)
+				// Load old value from store target.
+				// Note: This turns bad pointer writes into bad
+				// pointer reads, which could be confusing. We could avoid
+				// reading from obviously bad pointers, which would
+				// take care of the vast majority of these. We could
+				// patch this up in the signal handler, or use XCHG to
+				// combine the read and the write.
+				oldVal := bThen.NewValue2(pos, OpLoad, types.Types[types.TUINTPTR], ptr, memThen)
+				// Save old value to write buffer.
+				addEntry(oldVal)
+			}
+			f.fe.SetWBPos(pos)
+			nWBops--
+		}
+
 		for _, w := range stores {
 			pos := w.Pos
 			switch w.Op {
-			case OpStoreWB:
-				ptr := w.Args[0]
-				val := w.Args[1]
-				memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
-				f.fe.SetWBPos(pos)
-				nWBops--
 			case OpZeroWB:
 				dst := w.Args[0]
 				typ := reflectdata.TypeLinksym(w.Aux.(*types.Type))
@@ -358,8 +440,9 @@ func writebarrier(f *Func) {
 				nWBops--
 			}
 		}
+
 		// merge memory
-		mem = bEnd.NewValue2(pos, OpPhi, types.TypeMem, memThen, mem)
+		mem = bEnd.NewValue2(pos, OpPhi, types.TypeMem, mem, memThen)
 
 		// Do raw stores after merge point.
 		for _, w := range stores {

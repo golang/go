@@ -127,7 +127,6 @@ var Linkwasm = obj.LinkArch{
 var (
 	morestack       *obj.LSym
 	morestackNoCtxt *obj.LSym
-	gcWriteBarrier  *obj.LSym
 	sigpanic        *obj.LSym
 )
 
@@ -139,7 +138,6 @@ const (
 func instinit(ctxt *obj.Link) {
 	morestack = ctxt.Lookup("runtime.morestack")
 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
-	gcWriteBarrier = ctxt.LookupABI("runtime.gcWriteBarrier", obj.ABIInternal)
 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
 }
 
@@ -514,11 +512,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				panic("bad target for CALL")
 			}
 
-			// gcWriteBarrier has no return value, it never unwinds the stack
-			if call.To.Sym == gcWriteBarrier {
-				break
-			}
-
 			// return value of call is on the top of the stack, indicating whether to unwind the WebAssembly stack
 			if call.As == ACALLNORESUME && call.To.Sym != sigpanic { // sigpanic unwinds the stack, but it never resumes
 				// trying to unwind WebAssembly stack but call has no resume point, terminate with error
@@ -794,19 +787,27 @@ func regAddr(reg int16) obj.Addr {
 // Most of the Go functions has a single parameter (PC_B) in
 // Wasm ABI. This is a list of exceptions.
 var notUsePC_B = map[string]bool{
-	"_rt0_wasm_js":           true,
-	"wasm_export_run":        true,
-	"wasm_export_resume":     true,
-	"wasm_export_getsp":      true,
-	"wasm_pc_f_loop":         true,
-	"runtime.wasmDiv":        true,
-	"runtime.wasmTruncS":     true,
-	"runtime.wasmTruncU":     true,
-	"runtime.gcWriteBarrier": true,
-	"cmpbody":                true,
-	"memeqbody":              true,
-	"memcmp":                 true,
-	"memchr":                 true,
+	"_rt0_wasm_js":            true,
+	"wasm_export_run":         true,
+	"wasm_export_resume":      true,
+	"wasm_export_getsp":       true,
+	"wasm_pc_f_loop":          true,
+	"gcWriteBarrier":          true,
+	"runtime.gcWriteBarrier1": true,
+	"runtime.gcWriteBarrier2": true,
+	"runtime.gcWriteBarrier3": true,
+	"runtime.gcWriteBarrier4": true,
+	"runtime.gcWriteBarrier5": true,
+	"runtime.gcWriteBarrier6": true,
+	"runtime.gcWriteBarrier7": true,
+	"runtime.gcWriteBarrier8": true,
+	"runtime.wasmDiv":         true,
+	"runtime.wasmTruncS":      true,
+	"runtime.wasmTruncU":      true,
+	"cmpbody":                 true,
+	"memeqbody":               true,
+	"memcmp":                  true,
+	"memchr":                  true,
 }
 
 func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
@@ -851,8 +852,18 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	case "cmpbody":
 		varDecls = []*varDecl{{count: 2, typ: i64}}
 		useAssemblyRegMap()
-	case "runtime.gcWriteBarrier":
-		varDecls = []*varDecl{{count: 4, typ: i64}}
+	case "gcWriteBarrier":
+		varDecls = []*varDecl{{count: 5, typ: i64}}
+		useAssemblyRegMap()
+	case "runtime.gcWriteBarrier1",
+		"runtime.gcWriteBarrier2",
+		"runtime.gcWriteBarrier3",
+		"runtime.gcWriteBarrier4",
+		"runtime.gcWriteBarrier5",
+		"runtime.gcWriteBarrier6",
+		"runtime.gcWriteBarrier7",
+		"runtime.gcWriteBarrier8":
+		// no locals
 		useAssemblyRegMap()
 	default:
 		// Normal calling convention: PC_B as WebAssembly parameter. First local variable is local SP cache.

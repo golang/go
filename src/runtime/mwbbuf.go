@@ -71,7 +71,7 @@ const (
 
 	// Maximum number of entries that we need to ask from the
 	// buffer in a single call.
-	wbMaxEntriesPerCall = 2
+	wbMaxEntriesPerCall = 8
 )
 
 // reset empties b by resetting its next and end pointers.

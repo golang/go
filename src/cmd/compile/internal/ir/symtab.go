@@ -25,7 +25,7 @@ var Syms struct {
 	Deferreturn       *obj.LSym
 	Duffcopy          *obj.LSym
 	Duffzero          *obj.LSym
-	GCWriteBarrier    *obj.LSym
+	GCWriteBarrier    [8]*obj.LSym
 	Goschedguarded    *obj.LSym
 	Growslice         *obj.LSym
 	Memmove           *obj.LSym

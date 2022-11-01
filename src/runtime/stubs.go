@@ -445,7 +445,14 @@ func bool2int(x bool) int {
 func abort()
 
 // Called from compiled code; declared for vet; do NOT call from Go.
-func gcWriteBarrier()
+func gcWriteBarrier1()
+func gcWriteBarrier2()
+func gcWriteBarrier3()
+func gcWriteBarrier4()
+func gcWriteBarrier5()
+func gcWriteBarrier6()
+func gcWriteBarrier7()
+func gcWriteBarrier8()
 func duffzero()
 func duffcopy()
 
