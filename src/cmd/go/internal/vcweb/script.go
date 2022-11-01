@@ -33,7 +33,7 @@ func newScriptEngine() *script.Engine {
 	conds := script.DefaultConds()
 
 	interrupt := func(cmd *exec.Cmd) error { return cmd.Process.Signal(os.Interrupt) }
-	gracePeriod := 1 * time.Second // arbitrary
+	gracePeriod := 30 * time.Second // arbitrary
 
 	cmds := script.DefaultCmds()
 	cmds["at"] = scriptAt()
