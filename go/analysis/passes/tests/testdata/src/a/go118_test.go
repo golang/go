@@ -94,3 +94,8 @@ func FuzzObjectMethod(f *testing.F) {
 	}
 	f.Fuzz(obj.myVar) // ok
 }
+
+// Test for golang/go#56505: checking fuzz arguments should not panic on *error.
+func FuzzIssue56505(f *testing.F) {
+	f.Fuzz(func(e *error) {}) // want "the first parameter of a fuzz target must be \\*testing.T"
+}

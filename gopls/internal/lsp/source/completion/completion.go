@@ -1280,7 +1280,9 @@ func isStarTestingDotF(typ types.Type) bool {
 	if named == nil {
 		return false
 	}
-	return named.Obj() != nil && named.Obj().Pkg().Path() == "testing" && named.Obj().Name() == "F"
+	obj := named.Obj()
+	// obj.Pkg is nil for the error type.
+	return obj != nil && obj.Pkg() != nil && obj.Pkg().Path() == "testing" && obj.Name() == "F"
 }
 
 // lexical finds completions in the lexical environment.
