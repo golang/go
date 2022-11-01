@@ -503,7 +503,10 @@ func KeepNArenaHints(n int) {
 // MapNextArenaHint reserves a page at the next arena growth hint,
 // preventing the arena from growing there, and returns the range of
 // addresses that are no longer viable.
-func MapNextArenaHint() (start, end uintptr) {
+//
+// This may fail to reserve memory. If it fails, it still returns the
+// address range it attempted to reserve.
+func MapNextArenaHint() (start, end uintptr, ok bool) {
 	hint := mheap_.arenaHints
 	addr := hint.addr
 	if hint.down {
@@ -512,7 +515,13 @@ func MapNextArenaHint() (start, end uintptr) {
 	} else {
 		start, end = addr, addr+heapArenaBytes
 	}
-	sysReserve(unsafe.Pointer(addr), physPageSize)
+	got := sysReserve(unsafe.Pointer(addr), physPageSize)
+	ok = (addr == uintptr(got))
+	if !ok {
+		// We were unable to get the requested reservation.
+		// Release what we did get and fail.
+		sysFreeOS(got, physPageSize)
+	}
 	return
 }
 
