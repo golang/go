@@ -481,22 +481,22 @@ func setup() {
 	// We used to use it for C objects.
 	// Now we use it for the build cache, to separate dist's cache
 	// from any other cache the user might have.
-	p = pathf("%s/pkg/obj/go-build", goroot)
+	objGobuild := pathf("%s/pkg/obj/go-build", goroot)
 	if rebuildall {
-		xremoveall(p)
+		xremoveall(objGobuild)
 	}
-	xmkdirall(p)
-	xatexit(func() { xremoveall(p) })
+	xmkdirall(objGobuild)
+	xatexit(func() { xremoveall(objGobuild) })
 
 	// Create alternate driectory for intermediate
 	// standard library .a's to be placed rather than
 	// the final build's install locations.
-	p = pathf("%s/pkg/obj/go-bootstrap", goroot)
+	objGoBootstrap := pathf("%s/pkg/obj/go-bootstrap", goroot)
 	if rebuildall {
-		xremoveall(p)
+		xremoveall(objGoBootstrap)
 	}
-	xmkdirall(p)
-	xatexit(func() { xremoveall(p) })
+	xmkdirall(objGoBootstrap)
+	xatexit(func() { xremoveall(objGoBootstrap) })
 
 	// Create tool directory.
 	// We keep it in pkg/, just like the object directory above.
