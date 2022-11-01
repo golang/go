@@ -213,10 +213,14 @@ func newosproc(mp *m) {
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
+	ret := retryOnEAGAIN(func() int32 {
+		errno := thr_new(&param, int32(unsafe.Sizeof(param)))
+		// thr_new returns negative errno
+		return -errno
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
-	if ret < 0 {
-		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
+	if ret != 0 {
+		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
 		throw("newosproc")
 	}
 }

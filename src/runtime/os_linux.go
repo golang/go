@@ -176,12 +176,20 @@ func newosproc(mp *m) {
 	// with signals disabled. It will enable them in minit.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(abi.FuncPCABI0(mstart)))
+	ret := retryOnEAGAIN(func() int32 {
+		r := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(abi.FuncPCABI0(mstart)))
+		// clone returns positive TID, negative errno.
+		// We don't care about the TID.
+		if r >= 0 {
+			return 0
+		}
+		return -r
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 
-	if ret < 0 {
-		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
-		if ret == -_EAGAIN {
+	if ret != 0 {
+		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
+		if ret == _EAGAIN {
 			println("runtime: may need to increase max user processes (ulimit -u)")
 		}
 		throw("newosproc")

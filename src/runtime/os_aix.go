@@ -211,16 +211,9 @@ func newosproc(mp *m) {
 	// Disable signals during create, so that the new thread starts
 	// with signals disabled. It will enable them in minit.
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	var ret int32
-	for tries := 0; tries < 20; tries++ {
-		// pthread_create can fail with EAGAIN for no reasons
-		// but it will be ok if it retries.
-		ret = pthread_create(&tid, &attr, &tstart, unsafe.Pointer(mp))
-		if ret != _EAGAIN {
-			break
-		}
-		usleep(uint32(tries+1) * 1000) // Milliseconds.
-	}
+	ret := retryOnEAGAIN(func() int32 {
+		return pthread_create(&tid, &attr, &tstart, unsafe.Pointer(mp))
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret != 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
