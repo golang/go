@@ -1156,13 +1156,15 @@ func hostobjs(ctxt *Link) {
 		if err != nil {
 			Exitf("cannot reopen %s: %v", h.pn, err)
 		}
-
 		f.MustSeek(h.off, 0)
 		if h.ld == nil {
 			Errorf(nil, "%s: unrecognized object file format", h.pn)
 			continue
 		}
 		h.ld(ctxt, f, h.pkg, h.length, h.pn)
+		if *flagCaptureHostObjs != "" {
+			captureHostObj(h)
+		}
 		f.Close()
 	}
 }
@@ -2194,8 +2196,13 @@ func hostObject(ctxt *Link, objname string, path string) {
 	if h.ld == nil {
 		Exitf("unrecognized object file format in %s", path)
 	}
+	h.file = path
+	h.length = f.MustSeek(0, 2)
 	f.MustSeek(h.off, 0)
 	h.ld(ctxt, f, h.pkg, h.length, h.pn)
+	if *flagCaptureHostObjs != "" {
+		captureHostObj(h)
+	}
 }
 
 func checkFingerprint(lib *sym.Library, libfp goobj.FingerprintType, src string, srcfp goobj.FingerprintType) {
@@ -2598,4 +2605,47 @@ func AddGotSym(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym,
 	} else {
 		ldr.Errorf(s, "addgotsym: unsupported binary format")
 	}
+}
+
+var hostobjcounter int
+
+// captureHostObj writes out the content of a host object (pulled from
+// an archive or loaded from a *.o file directly) to a directory
+// specified via the linker's "-capturehostobjs" debugging flag. This
+// is intended to make it easier for a developer to inspect the actual
+// object feeding into "CGO internal" link step.
+func captureHostObj(h *Hostobj) {
+	// Form paths for info file and obj file.
+	ofile := fmt.Sprintf("captured-obj-%d.o", hostobjcounter)
+	ifile := fmt.Sprintf("captured-obj-%d.txt", hostobjcounter)
+	hostobjcounter++
+	opath := filepath.Join(*flagCaptureHostObjs, ofile)
+	ipath := filepath.Join(*flagCaptureHostObjs, ifile)
+
+	// Write the info file.
+	info := fmt.Sprintf("pkg: %s\npn: %s\nfile: %s\noff: %d\nlen: %d\n",
+		h.pkg, h.pn, h.file, h.off, h.length)
+	if err := os.WriteFile(ipath, []byte(info), 0666); err != nil {
+		log.Fatalf("error writing captured host obj info %s: %v", ipath, err)
+	}
+
+	readObjData := func() []byte {
+		inf, err := os.Open(h.file)
+		if err != nil {
+			log.Fatalf("capturing host obj: open failed on %s: %v", h.pn, err)
+		}
+		res := make([]byte, h.length)
+		if n, err := inf.ReadAt(res, h.off); err != nil || n != int(h.length) {
+			log.Fatalf("capturing host obj: readat failed on %s: %v", h.pn, err)
+		}
+		return res
+	}
+
+	// Write the object file.
+	if err := os.WriteFile(opath, readObjData(), 0666); err != nil {
+		log.Fatalf("error writing captured host object %s: %v", opath, err)
+	}
+
+	fmt.Fprintf(os.Stderr, "link: info: captured host object %s to %s\n",
+		h.file, opath)
 }

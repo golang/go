@@ -142,6 +142,9 @@ func hostArchive(ctxt *Link, name string) {
 			}
 			f.MustSeek(h.off, 0)
 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
+			if *flagCaptureHostObjs != "" {
+				captureHostObj(h)
+			}
 		}
 
 		any = len(load) > 0
