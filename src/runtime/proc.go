@@ -335,7 +335,10 @@ func goschedguarded() {
 //
 //go:nosplit
 func goschedIfBusy() {
-	if sched.npidle.Load() > 0 {
+	gp := getg()
+	// Call gosched if gp.preempt is set; we may be in a tight loop that
+	// doesn't otherwise yield.
+	if !gp.preempt && sched.npidle.Load() > 0 {
 		return
 	}
 	mcall(gosched_m)
