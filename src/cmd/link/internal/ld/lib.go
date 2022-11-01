@@ -615,9 +615,14 @@ func (ctxt *Link) loadlib() {
 		// If we have any undefined symbols in external
 		// objects, try to read them from the libgcc file.
 		any := false
-		undefs := ctxt.loader.UndefinedRelocTargets(1)
+		undefs, froms := ctxt.loader.UndefinedRelocTargets(1)
 		if len(undefs) > 0 {
 			any = true
+			if ctxt.Debugvlog > 1 {
+				ctxt.Logf("loadlib: first unresolved is %s [%d] from %s [%d]\n",
+					ctxt.loader.SymName(undefs[0]), undefs[0],
+					ctxt.loader.SymName(froms[0]), froms[0])
+			}
 		}
 		if any {
 			if *flagLibGCC == "" {
@@ -681,9 +686,14 @@ func loadWindowsHostArchives(ctxt *Link) {
 			hostArchive(ctxt, p)
 		}
 		any = false
-		undefs := ctxt.loader.UndefinedRelocTargets(1)
+		undefs, froms := ctxt.loader.UndefinedRelocTargets(1)
 		if len(undefs) > 0 {
 			any = true
+			if ctxt.Debugvlog > 1 {
+				ctxt.Logf("loadWindowsHostArchives: remaining unresolved is %s [%d] from %s [%d]\n",
+					ctxt.loader.SymName(undefs[0]), undefs[0],
+					ctxt.loader.SymName(froms[0]), froms[0])
+			}
 		}
 	}
 	// If needed, create the __CTOR_LIST__ and __DTOR_LIST__
@@ -2141,7 +2151,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 // to true if there is an unresolved reference to the symbol in want[K].
 func symbolsAreUnresolved(ctxt *Link, want []string) []bool {
 	returnAllUndefs := -1
-	undefs := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
+	undefs, _ := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
 	seen := make(map[loader.Sym]struct{})
 	rval := make([]bool, len(want))
 	wantm := make(map[string]int)

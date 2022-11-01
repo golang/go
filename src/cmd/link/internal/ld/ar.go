@@ -110,12 +110,15 @@ func hostArchive(ctxt *Link, name string) {
 	for any {
 		var load []uint64
 		returnAllUndefs := -1
-		undefs := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
-		for _, symIdx := range undefs {
-			name := ctxt.loader.SymName(symIdx)
-			if off := armap[name]; off != 0 && !loaded[off] {
+		undefs, froms := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
+		for k, symIdx := range undefs {
+			sname := ctxt.loader.SymName(symIdx)
+			if off := armap[sname]; off != 0 && !loaded[off] {
 				load = append(load, off)
 				loaded[off] = true
+				if ctxt.Debugvlog > 1 {
+					ctxt.Logf("hostArchive(%s): selecting object at offset %x to resolve %s [%d] reference from %s [%d]\n", name, off, sname, symIdx, ctxt.loader.SymName(froms[k]), froms[k])
+				}
 			}
 		}
 
