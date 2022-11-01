@@ -5,56 +5,56 @@
 `gopls` (pronounced "Go please") is the official Go [language server] developed
 by the Go team. It provides IDE features to any [LSP]-compatible editor.
 
-<!--TODO(rstambler): Add gifs here.-->
+<!--TODO(rfindley): Add gifs here.-->
 
 You should not need to interact with `gopls` directly--it will be automatically
 integrated into your editor. The specific features and settings vary slightly
-by editor, so we recommend that you proceed to the [documentation for your
-editor](#editors) below.
+by editor, so we recommend that you proceed to the
+[documentation for your editor](#editors) below.
 
 ## Editors
 
 To get started with `gopls`, install an LSP plugin in your editor of choice.
 
-* [VSCode](https://github.com/golang/vscode-go/blob/master/README.md)
+* [VS Code](https://github.com/golang/vscode-go/blob/master/README.md)
 * [Vim / Neovim](doc/vim.md)
 * [Emacs](doc/emacs.md)
 * [Atom](https://github.com/MordFustang21/ide-gopls)
 * [Sublime Text](doc/subl.md)
 * [Acme](https://github.com/fhs/acme-lsp)
 
-If you use `gopls` with an editor that is not on this list, please let us know
-by [filing an issue](#new-issue) or [modifying this documentation](doc/contributing.md).
+If you use `gopls` with an editor that is not on this list, please send us a CL
+[updating this documentation](doc/contributing.md).
 
 ## Installation
 
 For the most part, you should not need to install or update `gopls`. Your
 editor should handle that step for you.
 
-If you do want to get the latest stable version of `gopls`, change to any
-directory that is both outside of your `GOPATH` and outside of a module (a temp
-directory is fine), and run:
+If you do want to get the latest stable version of `gopls`, run the following
+command:
 
 ```sh
 go install golang.org/x/tools/gopls@latest
 ```
 
-Learn more in the [advanced installation
-instructions](doc/advanced.md#installing-unreleased-versions).
+Learn more in the
+[advanced installation instructions](doc/advanced.md#installing-unreleased-versions).
+
+Learn more about gopls releases in the [release policy](doc/releases.md).
 
 ## Setting up your workspace
 
-`gopls` supports both Go module and GOPATH modes, but if you are working with
-multiple modules or uncommon project layouts, you will need to specifically
-configure your workspace. See the [Workspace document](doc/workspace.md) for
-information on supported workspace layouts.
+`gopls` supports both Go module, multi-module and GOPATH modes. See the
+[workspace documentation](doc/workspace.md) for information on supported
+workspace layouts.
 
 ## Configuration
 
 You can configure `gopls` to change your editor experience or view additional
 debugging information. Configuration options will be made available by your
 editor, so see your [editor's instructions](#editors) for specific details. A
-full list of `gopls` settings can be found in the [Settings documentation](doc/settings.md).
+full list of `gopls` settings can be found in the [settings documentation](doc/settings.md).
 
 ### Environment variables
 
@@ -62,12 +62,16 @@ full list of `gopls` settings can be found in the [Settings documentation](doc/s
 variables you configure. Some editors, such as VS Code, allow users to
 selectively override the values of some environment variables.
 
-## Troubleshooting
+## Support Policy
 
-If you are having issues with `gopls`, please follow the steps described in the
-[troubleshooting guide](doc/troubleshooting.md).
+Gopls is maintained by engineers on the
+[Go tools team](https://github.com/orgs/golang/teams/tools-team/members),
+who actively monitor the
+[Go](https://github.com/golang/go/issues?q=is%3Aissue+is%3Aopen+label%3Agopls)
+and
+[VS Code Go](https://github.com/golang/vscode-go/issues) issue trackers.
 
-## Supported Go versions and build systems
+### Supported Go versions
 
 `gopls` follows the
 [Go Release Policy](https://golang.org/doc/devel/release.html#policy),
@@ -95,12 +99,21 @@ test failures may be skipped rather than fixed. Furthermore, if a regression in
 an older Go version causes irreconcilable CI failures, we may drop support for
 that Go version in CI if it is 3 or 4 Go versions old.
 
-`gopls` currently only supports the `go` command, so if you are using a
-different build system, `gopls` will not work well. Bazel is not officially
-supported, but Bazel support is in development (see
-[bazelbuild/rules_go#512](https://github.com/bazelbuild/rules_go/issues/512)).
+### Supported build systems
+
+`gopls` currently only supports the `go` command, so if you are using
+a different build system, `gopls` will not work well. Bazel is not officially
+supported, but may be made to work with an appropriately configured
+`go/packages` driver. See
+[bazelbuild/rules_go#512](https://github.com/bazelbuild/rules_go/issues/512)
+for more information.
 You can follow [these instructions](https://github.com/bazelbuild/rules_go/wiki/Editor-setup)
 to configure your `gopls` to work with Bazel.
+
+### Troubleshooting
+
+If you are having issues with `gopls`, please follow the steps described in the
+[troubleshooting guide](doc/troubleshooting.md).
 
 ## Additional information
 
@@ -115,4 +128,3 @@ to configure your `gopls` to work with Bazel.
 
 [language server]: https://langserver.org
 [LSP]: https://microsoft.github.io/language-server-protocol/
-[Gophers Slack]: https://gophers.slack.com/
