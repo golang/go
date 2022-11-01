@@ -30,6 +30,7 @@ type dnsConfig struct {
 	singleRequest bool          // use sequential A and AAAA queries instead of parallel queries
 	useTCP        bool          // force usage of TCP for DNS resolutions
 	trustAD       bool          // add AD flag to queries
+	noReload      bool          // do not check for config file updates
 }
 
 // serverOffset returns an offset that can be used to determine
