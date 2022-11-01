@@ -150,7 +150,7 @@ func New(profileFile string) *Profile {
 	p := &Profile{
 		NodeMap:      make(map[NodeMapKey]*Weights),
 		ProfileGraph: g,
-		WeightedCG:   &IRGraph{
+		WeightedCG: &IRGraph{
 			IRNodes: make(map[string]*IRNode),
 		},
 	}
@@ -347,7 +347,7 @@ func WeightInPercentage(value int64, total int64) float64 {
 }
 
 // PrintWeightedCallGraphDOT prints IRGraph in DOT format.
-func (p *Profile) PrintWeightedCallGraphDOT(nodeThreshold float64, edgeThreshold float64) {
+func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
 	fmt.Printf("\ndigraph G {\n")
 	fmt.Printf("forcelabels=true;\n")
 
@@ -383,9 +383,6 @@ func (p *Profile) PrintWeightedCallGraphDOT(nodeThreshold float64, edgeThreshold
 		if n, ok := p.WeightedCG.IRNodes[name]; ok {
 			nodeweight := WeightInPercentage(n.Flat, p.TotalNodeWeight)
 			color := "black"
-			if nodeweight > nodeThreshold {
-				color = "red"
-			}
 			if ast.Inl != nil {
 				fmt.Printf("\"%v\" [color=%v,label=\"%v,freq=%.2f,inl_cost=%d\"];\n", ir.PkgFuncName(ast), color, ir.PkgFuncName(ast), nodeweight, ast.Inl.Cost)
 			} else {

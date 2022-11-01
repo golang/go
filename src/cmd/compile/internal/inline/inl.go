@@ -56,9 +56,9 @@ const (
 )
 
 var (
-	// List of all hot nodes.
+	// List of all hot callee nodes.
 	// TODO(prattmic): Make this non-global.
-	candHotNodeMap = make(map[*pgo.IRNode]struct{})
+	candHotCalleeMap = make(map[*pgo.IRNode]struct{})
 
 	// List of all hot call sites. CallSiteInfo.Callee is always nil.
 	// TODO(prattmic): Make this non-global.
@@ -67,9 +67,6 @@ var (
 	// List of inlined call sites. CallSiteInfo.Callee is always nil.
 	// TODO(prattmic): Make this non-global.
 	inlinedCallSites = make(map[pgo.CallSiteInfo]struct{})
-
-	// Threshold in percentage for hot function inlining.
-	inlineHotFuncThresholdPercent = float64(2)
 
 	// Threshold in percentage for hot callsite inlining.
 	inlineHotCallSiteThresholdPercent = float64(0.1)
@@ -80,13 +77,6 @@ var (
 
 // pgoInlinePrologue records the hot callsites from ir-graph.
 func pgoInlinePrologue(p *pgo.Profile) {
-	if s, err := strconv.ParseFloat(base.Debug.InlineHotFuncThreshold, 64); err == nil {
-		inlineHotFuncThresholdPercent = s
-		if base.Debug.PGOInline > 0 {
-			fmt.Printf("hot-node-thres=%v\n", inlineHotFuncThresholdPercent)
-		}
-	}
-
 	if s, err := strconv.ParseFloat(base.Debug.InlineHotCallSiteThreshold, 64); err == nil {
 		inlineHotCallSiteThresholdPercent = s
 		if base.Debug.PGOInline > 0 {
@@ -102,10 +92,6 @@ func pgoInlinePrologue(p *pgo.Profile) {
 		for _, f := range list {
 			name := ir.PkgFuncName(f)
 			if n, ok := p.WeightedCG.IRNodes[name]; ok {
-				nodeweight := pgo.WeightInPercentage(n.Flat, p.TotalNodeWeight)
-				if nodeweight > inlineHotFuncThresholdPercent {
-					candHotNodeMap[n] = struct{}{}
-				}
 				for _, e := range p.WeightedCG.OutEdges[n] {
 					if e.Weight != 0 {
 						edgeweightpercent := pgo.WeightInPercentage(e.Weight, p.TotalEdgeWeight)
@@ -113,6 +99,7 @@ func pgoInlinePrologue(p *pgo.Profile) {
 							csi := pgo.CallSiteInfo{Line: e.CallSite, Caller: n.AST}
 							if _, ok := candHotEdgeMap[csi]; !ok {
 								candHotEdgeMap[csi] = struct{}{}
+								candHotCalleeMap[e.Dst] = struct{}{}
 							}
 						}
 					}
@@ -122,7 +109,7 @@ func pgoInlinePrologue(p *pgo.Profile) {
 	})
 	if base.Debug.PGOInline > 0 {
 		fmt.Printf("hot-cg before inline in dot format:")
-		p.PrintWeightedCallGraphDOT(inlineHotFuncThresholdPercent, inlineHotCallSiteThresholdPercent)
+		p.PrintWeightedCallGraphDOT(inlineHotCallSiteThresholdPercent)
 	}
 }
 
@@ -139,7 +126,7 @@ func pgoInlineEpilogue(p *pgo.Profile) {
 		})
 		// Print the call-graph after inlining. This is a debugging feature.
 		fmt.Printf("hot-cg after inline in dot:")
-		p.PrintWeightedCallGraphDOT(inlineHotFuncThresholdPercent, inlineHotCallSiteThresholdPercent)
+		p.PrintWeightedCallGraphDOT(inlineHotCallSiteThresholdPercent)
 	}
 }
 
@@ -270,7 +257,7 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	budget := int32(inlineMaxBudget)
 	if profile != nil {
 		if n, ok := profile.WeightedCG.IRNodes[ir.PkgFuncName(fn)]; ok {
-			if _, ok := candHotNodeMap[n]; ok {
+			if _, ok := candHotCalleeMap[n]; ok {
 				budget = int32(inlineHotMaxBudget)
 				if base.Debug.PGOInline > 0 {
 					fmt.Printf("hot-node enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
