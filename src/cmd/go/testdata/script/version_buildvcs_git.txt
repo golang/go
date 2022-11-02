@@ -14,6 +14,14 @@ go version -m $GOBIN/a$GOEXE
 ! stdout vcs.revision
 rm $GOBIN/a$GOEXE
 
+# If there's an orphan .git file left by a git submodule, it's not a git
+# repository, and there's no VCS info.
+cd ../gitsubmodule
+go install
+go version -m $GOBIN/gitsubmodule$GOEXE
+! stdout vcs.revision
+rm $GOBIN/gitsubmodule$GOEXE
+
 # If there is a repository, but it can't be used for some reason,
 # there should be an error. It should hint about -buildvcs=false.
 # Also ensure that multiple errors are collected by "go list -e".
@@ -141,6 +149,16 @@ module example.com/b
 go 1.18
 -- repo/b/b.go --
 package b
+-- repo/gitsubmodule/.git --
+gitdir: ../.git/modules/gitsubmodule
+-- repo/gitsubmodule/go.mod --
+module example.com/gitsubmodule
+
+go 1.18
+-- repo/gitsubmodule/main.go --
+package main
+
+func main() {}
 -- outside/empty.txt --
 -- outside/c/go.mod --
 module example.com/c
