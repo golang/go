@@ -2162,7 +2162,7 @@ type certificateList struct {
 }
 
 type tbsCertificateList struct {
-	Raw 				asn1.RawContent
+	Raw                 asn1.RawContent
 	Version             int `asn1:"optional,default:0"`
 	Signature           pkix.AlgorithmIdentifier
 	Issuer              asn1.RawValue
@@ -2264,6 +2264,9 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
 	if err != nil {
 		return nil, err
 	}
+
+	// Optimization to only marshal this struct once, when signing and
+	// then embedding in certificateList below.
 	tbsCertList.Raw = tbsCertListContents
 
 	input := tbsCertListContents
