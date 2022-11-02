@@ -422,10 +422,14 @@ func (c *Cmd) Start() error {
 		return err
 	}
 
+	env, err := dedupEnv(envv)
+	if err != nil {
+		return err
+	}
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: c.childFiles,
-		Env:   addCriticalEnv(dedupEnv(envv)),
+		Env:   addCriticalEnv(env),
 		Sys:   c.SysProcAttr,
 	})
 	if err != nil {
@@ -741,16 +745,23 @@ func minInt(a, b int) int {
 // dedupEnv returns a copy of env with any duplicates removed, in favor of
 // later values.
 // Items not of the normal environment "key=value" form are preserved unchanged.
-func dedupEnv(env []string) []string {
+// Items containing NUL characters are removed, and an error is returned along with
+// the remaining values.
+func dedupEnv(env []string) ([]string, error) {
 	return dedupEnvCase(runtime.GOOS == "windows", env)
 }
 
 // dedupEnvCase is dedupEnv with a case option for testing.
 // If caseInsensitive is true, the case of keys is ignored.
-func dedupEnvCase(caseInsensitive bool, env []string) []string {
+func dedupEnvCase(caseInsensitive bool, env []string) ([]string, error) {
+	var err error
 	out := make([]string, 0, len(env))
 	saw := make(map[string]int, len(env)) // key => index into out
 	for _, kv := range env {
+		if strings.IndexByte(kv, 0) != -1 {
+			err = errors.New("exec: environment variable contains NUL")
+			continue
+		}
 		k, _, ok := strings.Cut(kv, "=")
 		if !ok {
 			out = append(out, kv)
@@ -766,7 +777,7 @@ func dedupEnvCase(caseInsensitive bool, env []string) []string {
 		saw[k] = len(out)
 		out = append(out, kv)
 	}
-	return out
+	return out, err
 }
 
 // addCriticalEnv adds any critical environment variables that are required

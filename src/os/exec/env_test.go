@@ -11,9 +11,10 @@ import (
 
 func TestDedupEnv(t *testing.T) {
 	tests := []struct {
-		noCase bool
-		in     []string
-		want   []string
+		noCase  bool
+		in      []string
+		want    []string
+		wantErr bool
 	}{
 		{
 			noCase: true,
@@ -29,11 +30,17 @@ func TestDedupEnv(t *testing.T) {
 			in:   []string{"=a", "=b", "foo", "bar"},
 			want: []string{"=b", "foo", "bar"},
 		},
+		{
+			// Filter out entries containing NULs.
+			in:      []string{"A=a\x00b", "B=b", "C\x00C=c"},
+			want:    []string{"B=b"},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
-		got := dedupEnvCase(tt.noCase, tt.in)
-		if !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("Dedup(%v, %q) = %q; want %q", tt.noCase, tt.in, got, tt.want)
+		got, err := dedupEnvCase(tt.noCase, tt.in)
+		if !reflect.DeepEqual(got, tt.want) || (err != nil) != tt.wantErr {
+			t.Errorf("Dedup(%v, %q) = %q, %v; want %q, error:%v", tt.noCase, tt.in, got, err, tt.want, tt.wantErr)
 		}
 	}
 }
