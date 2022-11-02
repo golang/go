@@ -13,7 +13,9 @@ env GIT_AUTHOR_NAME='Russ Cox'
 env GIT_AUTHOR_EMAIL='rsc@golang.org'
 env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
 env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
-env TZ='America/New_York'
+
+# Ensure SVN displays dates using UTC.
+env TZ=''
 
 mkdir db/transactions
 mkdir db/txn-protorevs
@@ -86,15 +88,15 @@ README
 package p1
 -- .checkout/.svn-log --
 ------------------------------------------------------------------------
-r3 | rsc | 2017-10-04 11:09:35 -0400 (Wed, 04 Oct 2017) | 1 line
+r3 | rsc | 2017-10-04 15:09:35 +0000 (Wed, 04 Oct 2017) | 1 line
 
 move from vcs-test.swtch.com to vcs-test.golang.org
 ------------------------------------------------------------------------
-r2 | rsc | 2017-09-27 14:16:14 -0400 (Wed, 27 Sep 2017) | 1 line
+r2 | rsc | 2017-09-27 18:16:14 +0000 (Wed, 27 Sep 2017) | 1 line
 
 add p1
 ------------------------------------------------------------------------
-r1 | rsc | 2017-09-27 14:00:52 -0400 (Wed, 27 Sep 2017) | 1 line
+r1 | rsc | 2017-09-27 18:00:52 +0000 (Wed, 27 Sep 2017) | 1 line
 
 git
 ------------------------------------------------------------------------

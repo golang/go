@@ -1,6 +1,7 @@
 handle svn
 
-env TZ='America/New_York'
+# Ensure SVN displays dates using UTC.
+env TZ=''
 
 mkdir db/transactions
 mkdir db/txn-protorevs
@@ -30,7 +31,7 @@ func main() {
 }
 -- .checkout/.svn-log --
 ------------------------------------------------------------------------
-r1 | rsc | 2017-09-21 21:12:45 -0400 (Thu, 21 Sep 2017) | 3 lines
+r1 | rsc | 2017-09-22 01:12:45 +0000 (Fri, 22 Sep 2017) | 3 lines
 
 hello world
 
