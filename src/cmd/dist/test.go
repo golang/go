@@ -294,6 +294,8 @@ func (t *tester) maybeLogMetadata() error {
 // detail between the Go build system and cmd/dist for
 // the purpose of longtest builders, and is not intended
 // for use by users. See golang.org/issue/12508.
+//
+// TODO: Simplify this once all uses of goTest() are gone.
 func short() string {
 	if v := os.Getenv("GO_TEST_SHORT"); v != "" {
 		short, err := strconv.ParseBool(v)
@@ -310,28 +312,195 @@ func short() string {
 // goTest returns the beginning of the go test command line.
 // Callers should use goTest and then pass flags overriding these
 // defaults as later arguments in the command line.
+//
+// TODO: Convert all uses of goTest() to goTest.run and delete this.
 func (t *tester) goTest() []string {
 	return []string{
 		"go", "test", "-short=" + short(), "-count=1", t.tags(), t.runFlag(""),
 	}
 }
 
-func (t *tester) tags() string {
+// goTest represents all options to a "go test" command. The final command will
+// combine configuration from goTest and tester flags.
+type goTest struct {
+	timeout  time.Duration // If non-zero, override timeout
+	short    bool          // If true, force -short
+	tags     []string      // Build tags
+	race     bool          // Force -race
+	bench    bool          // Run benchmarks (briefly), not tests.
+	runTests string        // Regexp of tests to run
+	cpu      string        // If non-empty, -cpu flag
+	goroot   string        // If non-empty, use alternate goroot for go command
+
+	gcflags   string // If non-empty, build with -gcflags=all=X
+	ldflags   string // If non-empty, build with -ldflags=X
+	buildmode string // If non-empty, -buildmode flag
+
+	dir string   // If non-empty, run in GOROOT/src-relative directory dir
+	env []string // Environment variables to add, as KEY=VAL. KEY= unsets a variable
+
+	// We have both pkg and pkgs as a convenience. Both may be set, in which
+	// case they will be combined. If both are empty, the default is ".".
+	pkgs []string // Multiple packages to test
+	pkg  string   // A single package to test
+
+	testFlags []string // Additional flags accepted by this test
+}
+
+// bgCommand returns a go test Cmd. The result has Stdout and Stderr set to nil
+// and is intended to be added to the work queue.
+func (opts *goTest) bgCommand(t *tester) *exec.Cmd {
+	goCmd, build, run, pkgs, setupCmd := opts.buildArgs(t)
+
+	// Combine the flags.
+	args := append([]string{"test"}, build...)
+	if t.compileOnly {
+		// We can't pass -c with multiple packages, so run the tests but
+		// tell them not to do anything.
+		args = append(args, "-run=^$")
+	} else {
+		args = append(args, run...)
+	}
+	args = append(args, pkgs...)
+	if !t.compileOnly {
+		args = append(args, opts.testFlags...)
+	}
+
+	cmd := exec.Command(goCmd, args...)
+	setupCmd(cmd)
+
+	return cmd
+}
+
+// command returns a go test Cmd intended to be run immediately.
+func (opts *goTest) command(t *tester) *exec.Cmd {
+	cmd := opts.bgCommand(t)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd
+}
+
+func (opts *goTest) run(t *tester) error {
+	return opts.command(t).Run()
+}
+
+// buildArgs is in internal helper for goTest that constructs the elements of
+// the "go test" command line. goCmd is the path to the go command to use. build
+// is the flags for building the test. run is the flags for running the test.
+// pkgs is the list of packages to build and run.
+//
+// The caller is responsible for adding opts.testFlags, and must call setupCmd
+// on the resulting exec.Cmd to set its directory and environment.
+func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs []string, setupCmd func(*exec.Cmd)) {
+	goCmd = gorootBinGo
+	if opts.goroot != "" {
+		goCmd = filepath.Join(opts.goroot, "bin", "go")
+	}
+
+	run = append(run, "-count=1") // Disallow caching
+	if opts.timeout != 0 {
+		d := opts.timeout * time.Duration(t.timeoutScale)
+		run = append(run, "-timeout="+d.String())
+	}
+	if opts.short || short() == "true" {
+		run = append(run, "-short")
+	}
+	build = append(build, t.tags(opts.tags...))
+	if t.race || opts.race {
+		build = append(build, "-race")
+	}
+	if t.msan {
+		build = append(build, "-msan")
+	}
+	if t.asan {
+		build = append(build, "-asan")
+	}
+	if opts.bench {
+		// Run no tests.
+		run = append(run, "-run=^$")
+		// Run benchmarks as a smoke test
+		run = append(run, "-bench=.*", "-benchtime=.1s")
+	} else if opts.runTests != "" {
+		run = append(run, "-run="+opts.runTests)
+	}
+	if opts.cpu != "" {
+		run = append(run, "-cpu="+opts.cpu)
+	}
+
+	if opts.gcflags != "" {
+		build = append(build, "-gcflags=all="+opts.gcflags)
+	}
+	if opts.ldflags != "" {
+		build = append(build, "-ldflags="+opts.ldflags)
+	}
+	if opts.buildmode != "" {
+		build = append(build, "-buildmode="+opts.buildmode)
+	}
+
+	pkgs = opts.pkgs
+	if opts.pkg != "" {
+		pkgs = append(pkgs[:len(pkgs):len(pkgs)], opts.pkg)
+	}
+	if len(pkgs) == 0 {
+		pkgs = []string{"."}
+	}
+
+	thisGoroot := goroot
+	if opts.goroot != "" {
+		thisGoroot = opts.goroot
+	}
+	var dir string
+	if opts.dir != "" {
+		if filepath.IsAbs(opts.dir) {
+			panic("dir must be relative, got: " + opts.dir)
+		}
+		dir = filepath.Join(thisGoroot, "src", opts.dir)
+	} else {
+		dir = filepath.Join(thisGoroot, "src")
+	}
+	setupCmd = func(cmd *exec.Cmd) {
+		setDir(cmd, dir)
+		if len(opts.env) != 0 {
+			for _, kv := range opts.env {
+				if i := strings.Index(kv, "="); i < 0 {
+					unsetEnv(cmd, kv[:len(kv)-1])
+				} else {
+					setEnv(cmd, kv[:i], kv[i+1:])
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func (t *tester) tags(extra ...string) string {
+	tags := ""
 	ios := t.iOS()
 	switch {
 	case ios && noOpt:
-		return "-tags=lldb,noopt"
+		tags = "lldb,noopt"
 	case ios:
-		return "-tags=lldb"
+		tags = "lldb"
 	case noOpt:
-		return "-tags=noopt"
-	default:
-		return "-tags="
+		tags = "noopt"
 	}
+	for _, x := range extra {
+		if x == "" {
+			continue
+		}
+		if tags != "" {
+			tags += ","
+		}
+		tags += x
+	}
+	return "-tags=" + tags
 }
 
 // timeoutDuration converts the provided number of seconds into a
 // time.Duration, scaled by the t.timeoutScale factor.
+//
+// TODO: Delete in favor of goTest.run
 func (t *tester) timeoutDuration(sec int) time.Duration {
 	return time.Duration(sec) * time.Second * time.Duration(t.timeoutScale)
 }
@@ -339,6 +508,8 @@ func (t *tester) timeoutDuration(sec int) time.Duration {
 // timeout returns the "-timeout=" string argument to "go test" given
 // the number of seconds of timeout. It scales it by the
 // t.timeoutScale factor.
+//
+// TODO: Delete in favor of goTest.run
 func (t *tester) timeout(sec int) string {
 	return "-timeout=" + t.timeoutDuration(sec).String()
 }
@@ -1424,6 +1595,7 @@ func isAlpineLinux() bool {
 	return err == nil && fi.Mode().IsRegular()
 }
 
+// TODO: Delete in favor of goTest.run
 func (t *tester) runFlag(rx string) string {
 	if t.compileOnly {
 		return "-run=^$"
