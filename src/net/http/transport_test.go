@@ -1465,6 +1465,98 @@ func TestTransportProxy(t *testing.T) {
 	}
 }
 
+func TestOnProxyConnectResponse(t *testing.T) {
+
+	var tcases = []struct {
+		proxyStatusCode int
+		err             error
+	}{
+		{
+			StatusOK,
+			nil,
+		},
+		{
+			StatusForbidden,
+			errors.New("403"),
+		},
+	}
+	for _, tcase := range tcases {
+		h1 := HandlerFunc(func(w ResponseWriter, r *Request) {
+
+		})
+
+		h2 := HandlerFunc(func(w ResponseWriter, r *Request) {
+			// Implement an entire CONNECT proxy
+			if r.Method == "CONNECT" {
+				if tcase.proxyStatusCode != StatusOK {
+					w.WriteHeader(tcase.proxyStatusCode)
+					return
+				}
+				hijacker, ok := w.(Hijacker)
+				if !ok {
+					t.Errorf("hijack not allowed")
+					return
+				}
+				clientConn, _, err := hijacker.Hijack()
+				if err != nil {
+					t.Errorf("hijacking failed")
+					return
+				}
+				res := &Response{
+					StatusCode: StatusOK,
+					Proto:      "HTTP/1.1",
+					ProtoMajor: 1,
+					ProtoMinor: 1,
+					Header:     make(Header),
+				}
+
+				targetConn, err := net.Dial("tcp", r.URL.Host)
+				if err != nil {
+					t.Errorf("net.Dial(%q) failed: %v", r.URL.Host, err)
+					return
+				}
+
+				if err := res.Write(clientConn); err != nil {
+					t.Errorf("Writing 200 OK failed: %v", err)
+					return
+				}
+
+				go io.Copy(targetConn, clientConn)
+				go func() {
+					io.Copy(clientConn, targetConn)
+					targetConn.Close()
+				}()
+			}
+		})
+		ts := newClientServerTest(t, https1Mode, h1).ts
+		proxy := newClientServerTest(t, https1Mode, h2).ts
+
+		pu, err := url.Parse(proxy.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		c := proxy.Client()
+
+		c.Transport.(*Transport).Proxy = ProxyURL(pu)
+		c.Transport.(*Transport).OnProxyConnectResponse = func(ctx context.Context, proxyURL *url.URL, connectReq *Request, connectRes *Response) error {
+			if proxyURL.String() != pu.String() {
+				t.Errorf("proxy url got %s, want %s", proxyURL, pu)
+			}
+
+			if "https://"+connectReq.URL.String() != ts.URL {
+				t.Errorf("connect url got %s, want %s", connectReq.URL, ts.URL)
+			}
+			return tcase.err
+		}
+		if _, err := c.Head(ts.URL); err != nil {
+			if tcase.err != nil && !strings.Contains(err.Error(), tcase.err.Error()) {
+				t.Errorf("got %v, want %v", err, tcase.err)
+			}
+		}
+	}
+}
+
 // Issue 28012: verify that the Transport closes its TCP connection to http proxies
 // when they're slow to reply to HTTPS CONNECT responses.
 func TestTransportProxyHTTPSConnectLeak(t *testing.T) {
@@ -5906,7 +5998,10 @@ func testTransportRequestWriteRoundTrip(t *testing.T, mode testMode) {
 
 func TestTransportClone(t *testing.T) {
 	tr := &Transport{
-		Proxy:                  func(*Request) (*url.URL, error) { panic("") },
+		Proxy: func(*Request) (*url.URL, error) { panic("") },
+		OnProxyConnectResponse: func(ctx context.Context, proxyURL *url.URL, connectReq *Request, connectRes *Response) error {
+			return nil
+		},
 		DialContext:            func(ctx context.Context, network, addr string) (net.Conn, error) { panic("") },
 		Dial:                   func(network, addr string) (net.Conn, error) { panic("") },
 		DialTLS:                func(network, addr string) (net.Conn, error) { panic("") },

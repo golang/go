@@ -120,6 +120,11 @@ type Transport struct {
 	// If Proxy is nil or returns a nil *URL, no proxy is used.
 	Proxy func(*Request) (*url.URL, error)
 
+	// OnProxyConnectResponse is called when the Transport gets an HTTP response from
+	// a proxy for a CONNECT request. It's called before the check for a 200 OK response.
+	// If it returns an error, the request fails with that error.
+	OnProxyConnectResponse func(ctx context.Context, proxyURL *url.URL, connectReq *Request, connectRes *Response) error
+
 	// DialContext specifies the dial function for creating unencrypted TCP connections.
 	// If DialContext is nil (and the deprecated Dial below is also nil),
 	// then the transport dials using package net.
@@ -309,6 +314,7 @@ func (t *Transport) Clone() *Transport {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
 	t2 := &Transport{
 		Proxy:                  t.Proxy,
+		OnProxyConnectResponse: t.OnProxyConnectResponse,
 		DialContext:            t.DialContext,
 		Dial:                   t.Dial,
 		DialTLS:                t.DialTLS,
@@ -1716,6 +1722,14 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			conn.Close()
 			return nil, err
 		}
+
+		if t.OnProxyConnectResponse != nil {
+			err = t.OnProxyConnectResponse(ctx, cm.proxyURL, connectReq, resp)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		if resp.StatusCode != 200 {
 			_, text, ok := strings.Cut(resp.Status, " ")
 			conn.Close()
