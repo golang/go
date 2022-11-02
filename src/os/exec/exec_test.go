@@ -26,7 +26,6 @@ import (
 	"os/exec/internal/fdtest"
 	"os/signal"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -641,7 +640,11 @@ func TestPipeLookPathLeak(t *testing.T) {
 		return fds
 	}
 
-	want := openFDs()
+	old := map[uintptr]bool{}
+	for _, fd := range openFDs() {
+		old[fd] = true
+	}
+
 	for i := 0; i < 6; i++ {
 		cmd := exec.Command("something-that-does-not-exist-executable")
 		cmd.StdoutPipe()
@@ -651,9 +654,16 @@ func TestPipeLookPathLeak(t *testing.T) {
 			t.Fatal("unexpected success")
 		}
 	}
-	got := openFDs()
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("set of open file descriptors changed: got %v, want %v", got, want)
+
+	// Since this test is not running in parallel, we don't expect any new file
+	// descriptors to be opened while it runs. However, if there are additional
+	// FDs present at the start of the test (for example, opened by libc), those
+	// may be closed due to a timeout of some sort. Allow those to go away, but
+	// check that no new FDs are added.
+	for _, fd := range openFDs() {
+		if !old[fd] {
+			t.Errorf("leaked file descriptor %v", fd)
+		}
 	}
 }
 
