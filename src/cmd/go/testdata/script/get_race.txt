@@ -1,7 +1,7 @@
 # Tests issue #20502
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 [!race] skip
 env GO111MODULE=off
 

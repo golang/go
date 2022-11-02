@@ -147,7 +147,7 @@ func (s *mspan) nextFreeIndex() uintptr {
 
 	aCache := s.allocCache
 
-	bitIndex := sys.Ctz64(aCache)
+	bitIndex := sys.TrailingZeros64(aCache)
 	for bitIndex == 64 {
 		// Move index to start of next cached bits.
 		sfreeindex = (sfreeindex + 64) &^ (64 - 1)
@@ -159,7 +159,7 @@ func (s *mspan) nextFreeIndex() uintptr {
 		// Refill s.allocCache with the next 64 alloc bits.
 		s.refillAllocCache(whichByte)
 		aCache = s.allocCache
-		bitIndex = sys.Ctz64(aCache)
+		bitIndex = sys.TrailingZeros64(aCache)
 		// nothing available in cached bits
 		// grab the next 8 bytes and try again.
 	}
@@ -364,7 +364,7 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 	return
 }
 
-// verifyNotInHeapPtr reports whether converting the not-in-heap pointer into a unsafe.Pointer is ok.
+// reflect_verifyNotInHeapPtr reports whether converting the not-in-heap pointer into a unsafe.Pointer is ok.
 //
 //go:linkname reflect_verifyNotInHeapPtr reflect.verifyNotInHeapPtr
 func reflect_verifyNotInHeapPtr(p uintptr) bool {
@@ -452,9 +452,9 @@ func (h heapBits) next() (heapBits, uintptr) {
 		if h.mask != 0 {
 			var i int
 			if goarch.PtrSize == 8 {
-				i = sys.Ctz64(uint64(h.mask))
+				i = sys.TrailingZeros64(uint64(h.mask))
 			} else {
-				i = sys.Ctz32(uint32(h.mask))
+				i = sys.TrailingZeros32(uint32(h.mask))
 			}
 			h.mask ^= uintptr(1) << (i & (ptrBits - 1))
 			return h, h.addr + uintptr(i)*goarch.PtrSize
@@ -494,9 +494,9 @@ func (h heapBits) nextFast() (heapBits, uintptr) {
 	// BSFQ
 	var i int
 	if goarch.PtrSize == 8 {
-		i = sys.Ctz64(uint64(h.mask))
+		i = sys.TrailingZeros64(uint64(h.mask))
 	} else {
-		i = sys.Ctz32(uint32(h.mask))
+		i = sys.TrailingZeros32(uint32(h.mask))
 	}
 	// BTCQ
 	h.mask ^= uintptr(1) << (i & (ptrBits - 1))
@@ -1409,7 +1409,7 @@ func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
 	return true
 }
 
-// gcbits returns the GC type info for x, for testing.
+// reflect_gcbits returns the GC type info for x, for testing.
 // The result is the bitmap entries (0 or 1), one entry per byte.
 //
 //go:linkname reflect_gcbits reflect.gcbits

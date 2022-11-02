@@ -149,14 +149,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		getValue32(s, v.Args[0])
 		getValue32(s, v.Args[1])
 		i32Const(s, int32(v.AuxInt))
-		p := s.Prog(wasm.ACall)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmMove}
+		s.Prog(wasm.AMemoryCopy)
 
 	case ssa.OpWasmLoweredZero:
 		getValue32(s, v.Args[0])
+		i32Const(s, 0)
 		i32Const(s, int32(v.AuxInt))
-		p := s.Prog(wasm.ACall)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmZero}
+		s.Prog(wasm.AMemoryFill)
 
 	case ssa.OpWasmLoweredNilCheck:
 		getValue64(s, v.Args[0])

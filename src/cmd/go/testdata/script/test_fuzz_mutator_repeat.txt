@@ -1,5 +1,5 @@
 # TODO(jayconrod): support shared memory on more platforms.
-[!darwin] [!linux] [!windows] skip
+[!GOOS:darwin] [!GOOS:linux] [!GOOS:windows] skip
 
 # Verify that the fuzzing engine records the actual crashing input, even when
 # a worker process terminates without communicating the crashing input back

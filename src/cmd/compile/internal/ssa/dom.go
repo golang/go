@@ -21,7 +21,8 @@ type blockAndIndex struct {
 // postorderWithNumbering provides a DFS postordering.
 // This seems to make loop-finding more robust.
 func postorderWithNumbering(f *Func, ponums []int32) []*Block {
-	seen := make([]bool, f.NumBlocks())
+	seen := f.Cache.allocBoolSlice(f.NumBlocks())
+	defer f.Cache.freeBoolSlice(seen)
 
 	// result ordering
 	order := make([]*Block, 0, len(f.Blocks))
@@ -56,44 +57,6 @@ func postorderWithNumbering(f *Func, ponums []int32) []*Block {
 
 type linkedBlocks func(*Block) []Edge
 
-const nscratchslices = 7
-
-// experimentally, functions with 512 or fewer blocks account
-// for 75% of memory (size) allocation for dominator computation
-// in make.bash.
-const minscratchblocks = 512
-
-func (cache *Cache) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID) {
-	tot := maxBlockID * nscratchslices
-	scratch := cache.domblockstore
-	if len(scratch) < tot {
-		// req = min(1.5*tot, nscratchslices*minscratchblocks)
-		// 50% padding allows for graph growth in later phases.
-		req := (tot * 3) >> 1
-		if req < nscratchslices*minscratchblocks {
-			req = nscratchslices * minscratchblocks
-		}
-		scratch = make([]ID, req)
-		cache.domblockstore = scratch
-	} else {
-		// Clear as much of scratch as we will (re)use
-		scratch = scratch[0:tot]
-		for i := range scratch {
-			scratch[i] = 0
-		}
-	}
-
-	a = scratch[0*maxBlockID : 1*maxBlockID]
-	b = scratch[1*maxBlockID : 2*maxBlockID]
-	c = scratch[2*maxBlockID : 3*maxBlockID]
-	d = scratch[3*maxBlockID : 4*maxBlockID]
-	e = scratch[4*maxBlockID : 5*maxBlockID]
-	f = scratch[5*maxBlockID : 6*maxBlockID]
-	g = scratch[6*maxBlockID : 7*maxBlockID]
-
-	return
-}
-
 func dominators(f *Func) []*Block {
 	preds := func(b *Block) []Edge { return b.Preds }
 	succs := func(b *Block) []Edge { return b.Succs }
@@ -110,12 +73,21 @@ func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linked
 	// Adapted directly from the original TOPLAS article's "simple" algorithm
 
 	maxBlockID := entry.Func.NumBlocks()
-	semi, vertex, label, parent, ancestor, bucketHead, bucketLink := f.Cache.scratchBlocksForDom(maxBlockID)
+	scratch := f.Cache.allocIDSlice(7 * maxBlockID)
+	defer f.Cache.freeIDSlice(scratch)
+	semi := scratch[0*maxBlockID : 1*maxBlockID]
+	vertex := scratch[1*maxBlockID : 2*maxBlockID]
+	label := scratch[2*maxBlockID : 3*maxBlockID]
+	parent := scratch[3*maxBlockID : 4*maxBlockID]
+	ancestor := scratch[4*maxBlockID : 5*maxBlockID]
+	bucketHead := scratch[5*maxBlockID : 6*maxBlockID]
+	bucketLink := scratch[6*maxBlockID : 7*maxBlockID]
 
 	// This version uses integers for most of the computation,
 	// to make the work arrays smaller and pointer-free.
 	// fromID translates from ID to *Block where that is needed.
-	fromID := make([]*Block, maxBlockID)
+	fromID := f.Cache.allocBlockSlice(maxBlockID)
+	defer f.Cache.freeBlockSlice(fromID)
 	for _, v := range f.Blocks {
 		fromID[v.ID] = v
 	}
@@ -243,7 +215,8 @@ func dominatorsSimple(f *Func) []*Block {
 	post := f.postorder()
 
 	// Make map from block id to order index (for intersect call)
-	postnum := make([]int, f.NumBlocks())
+	postnum := f.Cache.allocIntSlice(f.NumBlocks())
+	defer f.Cache.freeIntSlice(postnum)
 	for i, b := range post {
 		postnum[b.ID] = i
 	}

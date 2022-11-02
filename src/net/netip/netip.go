@@ -75,6 +75,13 @@ var (
 // address ff02::1.
 func IPv6LinkLocalAllNodes() Addr { return AddrFrom16([16]byte{0: 0xff, 1: 0x02, 15: 0x01}) }
 
+// IPv6LinkLocalAllRouters returns the IPv6 link-local all routers multicast
+// address ff02::2.
+func IPv6LinkLocalAllRouters() Addr { return AddrFrom16([16]byte{0: 0xff, 1: 0x02, 15: 0x02}) }
+
+// IPv6Loopback returns the IPv6 loopback address ::1.
+func IPv6Loopback() Addr { return AddrFrom16([16]byte{15: 0x01}) }
+
 // IPv6Unspecified returns the IPv6 unspecified address "::".
 func IPv6Unspecified() Addr { return Addr{z: z6noz} }
 

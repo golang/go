@@ -9,6 +9,7 @@ package types2_test
 import (
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
+	"internal/testenv"
 	"testing"
 )
 
@@ -18,16 +19,9 @@ func findStructType(t *testing.T, src string) *types2.Struct {
 }
 
 func findStructTypeConfig(t *testing.T, src string, conf *types2.Config) *types2.Struct {
-	f, err := parseSrc("x.go", src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	info := types2.Info{Types: make(map[syntax.Expr]types2.TypeAndValue)}
-	_, err = conf.Check("x", []*syntax.File{f}, &info)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, tv := range info.Types {
+	types := make(map[syntax.Expr]types2.TypeAndValue)
+	mustTypecheck("x", src, &types2.Info{Types: types})
+	for _, tv := range types {
 		if ts, ok := tv.Type.(*types2.Struct); ok {
 			return ts
 		}
@@ -90,16 +84,13 @@ import "unsafe"
 
 const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 `
-	f, err := parseSrc("x.go", src)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse("x.go", src)
 	info := types2.Info{Types: make(map[syntax.Expr]types2.TypeAndValue)}
 	conf := types2.Config{
 		Importer: defaultImporter(),
 		Sizes:    &types2.StdSizes{WordSize: 8, MaxAlign: 8},
 	}
-	_, err = conf.Check("x", []*syntax.File{f}, &info)
+	_, err := conf.Check("x", []*syntax.File{f}, &info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,6 +102,8 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 
 // Issue #53884.
 func TestAtomicAlign(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
+
 	const src = `
 package main
 

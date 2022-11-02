@@ -7,6 +7,8 @@ package codehost
 import (
 	"archive/zip"
 	"bytes"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/vcweb/vcstest"
 	"flag"
 	"internal/testenv"
 	"io"
@@ -26,17 +28,18 @@ func TestMain(m *testing.M) {
 	// needed for initializing the test environment variables as testing.Short
 	// and HasExternalNetwork
 	flag.Parse()
-	os.Exit(testMain(m))
+	if err := testMain(m); err != nil {
+		log.Fatal(err)
+	}
 }
 
-const (
-	gitrepo1 = "https://vcs-test.golang.org/git/gitrepo1"
-	hgrepo1  = "https://vcs-test.golang.org/hg/hgrepo1"
-)
+var gitrepo1, hgrepo1 string
 
-var altRepos = []string{
-	"localGitRepo",
-	hgrepo1,
+var altRepos = func() []string {
+	return []string{
+		"localGitRepo",
+		hgrepo1,
+	}
 }
 
 // TODO: Convert gitrepo1 to svn, bzr, fossil and add tests.
@@ -45,14 +48,38 @@ var altRepos = []string{
 // localGitRepo is like gitrepo1 but allows archive access.
 var localGitRepo, localGitURL string
 
-func testMain(m *testing.M) int {
+func testMain(m *testing.M) (err error) {
+	cfg.BuildX = true
+
+	srv, err := vcstest.NewServer()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := srv.Close(); err == nil {
+			err = closeErr
+		}
+	}()
+
+	gitrepo1 = srv.HTTP.URL + "/git/gitrepo1"
+	hgrepo1 = srv.HTTP.URL + "/hg/hgrepo1"
+
 	dir, err := os.MkdirTemp("", "gitrepo-test-")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	defer os.RemoveAll(dir)
+	defer func() {
+		if rmErr := os.RemoveAll(dir); err == nil {
+			err = rmErr
+		}
+	}()
 
-	if testenv.HasExternalNetwork() && testenv.HasExec() {
+	// Redirect the module cache to a fresh directory to avoid crosstalk, and make
+	// it read/write so that the test can still clean it up easily when done.
+	cfg.GOMODCACHE = filepath.Join(dir, "modcache")
+	cfg.ModCacheRW = true
+
+	if !testing.Short() && testenv.HasExec() {
 		if _, err := exec.LookPath("git"); err == nil {
 			// Clone gitrepo1 into a local directory.
 			// If we use a file:// URL to access the local directory,
@@ -60,10 +87,10 @@ func testMain(m *testing.M) int {
 			// which will let us test remote git archive invocations.
 			localGitRepo = filepath.Join(dir, "gitrepo2")
 			if _, err := Run("", "git", "clone", "--mirror", gitrepo1, localGitRepo); err != nil {
-				log.Fatal(err)
+				return err
 			}
 			if _, err := Run(localGitRepo, "git", "config", "daemon.uploadarch", "true"); err != nil {
-				log.Fatal(err)
+				return err
 			}
 
 			// Convert absolute path to file URL. LocalGitRepo will not accept
@@ -77,7 +104,8 @@ func testMain(m *testing.M) int {
 		}
 	}
 
-	return m.Run()
+	m.Run()
+	return nil
 }
 
 func testRepo(t *testing.T, remote string) (Repo, error) {
@@ -85,49 +113,31 @@ func testRepo(t *testing.T, remote string) (Repo, error) {
 		testenv.MustHaveExecPath(t, "git")
 		return LocalGitRepo(localGitURL)
 	}
-	vcs := "git"
+	vcsName := "git"
 	for _, k := range []string{"hg"} {
 		if strings.Contains(remote, "/"+k+"/") {
-			vcs = k
+			vcsName = k
 		}
 	}
-	testenv.MustHaveExecPath(t, vcs)
-	return NewRepo(vcs, remote)
-}
-
-var tagsTests = []struct {
-	repo   string
-	prefix string
-	tags   []Tag
-}{
-	{gitrepo1, "xxx", []Tag{}},
-	{gitrepo1, "", []Tag{
-		{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
-		{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
-		{"v2.0.1", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
-		{"v2.0.2", "9d02800338b8a55be062c838d1f02e0c5780b9eb"},
-		{"v2.3", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
-	}},
-	{gitrepo1, "v", []Tag{
-		{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
-		{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
-		{"v2.0.1", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
-		{"v2.0.2", "9d02800338b8a55be062c838d1f02e0c5780b9eb"},
-		{"v2.3", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
-	}},
-	{gitrepo1, "v1", []Tag{
-		{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
-		{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
-	}},
-	{gitrepo1, "2", []Tag{}},
+	testenv.MustHaveExecPath(t, vcsName)
+	return NewRepo(vcsName, remote)
 }
 
 func TestTags(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExec(t)
+	t.Parallel()
 
-	for _, tt := range tagsTests {
-		f := func(t *testing.T) {
+	type tagsTest struct {
+		repo   string
+		prefix string
+		tags   []Tag
+	}
+
+	runTest := func(tt tagsTest) func(*testing.T) {
+		return func(t *testing.T) {
+			t.Parallel()
+
 			r, err := testRepo(t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
@@ -140,7 +150,31 @@ func TestTags(t *testing.T) {
 				t.Errorf("Tags(%q): incorrect tags\nhave %v\nwant %v", tt.prefix, tags, tt.tags)
 			}
 		}
-		t.Run(path.Base(tt.repo)+"/"+tt.prefix, f)
+	}
+
+	for _, tt := range []tagsTest{
+		{gitrepo1, "xxx", []Tag{}},
+		{gitrepo1, "", []Tag{
+			{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+			{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+			{"v2.0.1", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
+			{"v2.0.2", "9d02800338b8a55be062c838d1f02e0c5780b9eb"},
+			{"v2.3", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
+		}},
+		{gitrepo1, "v", []Tag{
+			{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+			{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+			{"v2.0.1", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
+			{"v2.0.2", "9d02800338b8a55be062c838d1f02e0c5780b9eb"},
+			{"v2.3", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
+		}},
+		{gitrepo1, "v1", []Tag{
+			{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+			{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+		}},
+		{gitrepo1, "2", []Tag{}},
+	} {
+		t.Run(path.Base(tt.repo)+"/"+tt.prefix, runTest(tt))
 		if tt.repo == gitrepo1 {
 			// Clear hashes.
 			clearTags := []Tag{}
@@ -148,60 +182,31 @@ func TestTags(t *testing.T) {
 				clearTags = append(clearTags, Tag{tag.Name, ""})
 			}
 			tags := tt.tags
-			for _, tt.repo = range altRepos {
+			for _, tt.repo = range altRepos() {
 				if strings.Contains(tt.repo, "Git") {
 					tt.tags = tags
 				} else {
 					tt.tags = clearTags
 				}
-				t.Run(path.Base(tt.repo)+"/"+tt.prefix, f)
+				t.Run(path.Base(tt.repo)+"/"+tt.prefix, runTest(tt))
 			}
 		}
 	}
 }
 
-var latestTests = []struct {
-	repo string
-	info *RevInfo
-}{
-	{
-		gitrepo1,
-		&RevInfo{
-			Origin: &Origin{
-				VCS:  "git",
-				URL:  "https://vcs-test.golang.org/git/gitrepo1",
-				Ref:  "HEAD",
-				Hash: "ede458df7cd0fdca520df19a33158086a8a68e81",
-			},
-			Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
-			Short:   "ede458df7cd0",
-			Version: "ede458df7cd0fdca520df19a33158086a8a68e81",
-			Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
-			Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
-		},
-	},
-	{
-		hgrepo1,
-		&RevInfo{
-			Origin: &Origin{
-				VCS:  "hg",
-				URL:  "https://vcs-test.golang.org/hg/hgrepo1",
-				Hash: "18518c07eb8ed5c80221e997e518cccaa8c0c287",
-			},
-			Name:    "18518c07eb8ed5c80221e997e518cccaa8c0c287",
-			Short:   "18518c07eb8e",
-			Version: "18518c07eb8ed5c80221e997e518cccaa8c0c287",
-			Time:    time.Date(2018, 6, 27, 16, 16, 30, 0, time.UTC),
-		},
-	},
-}
-
 func TestLatest(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExec(t)
+	t.Parallel()
 
-	for _, tt := range latestTests {
-		f := func(t *testing.T) {
+	type latestTest struct {
+		repo string
+		info *RevInfo
+	}
+	runTest := func(tt latestTest) func(*testing.T) {
+		return func(t *testing.T) {
+			t.Parallel()
+
 			r, err := testRepo(t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
@@ -214,7 +219,41 @@ func TestLatest(t *testing.T) {
 				t.Errorf("Latest: incorrect info\nhave %+v (origin %+v)\nwant %+v (origin %+v)", info, info.Origin, tt.info, tt.info.Origin)
 			}
 		}
-		t.Run(path.Base(tt.repo), f)
+	}
+
+	for _, tt := range []latestTest{
+		{
+			gitrepo1,
+			&RevInfo{
+				Origin: &Origin{
+					VCS:  "git",
+					URL:  gitrepo1,
+					Ref:  "HEAD",
+					Hash: "ede458df7cd0fdca520df19a33158086a8a68e81",
+				},
+				Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
+				Short:   "ede458df7cd0",
+				Version: "ede458df7cd0fdca520df19a33158086a8a68e81",
+				Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
+				Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
+			},
+		},
+		{
+			hgrepo1,
+			&RevInfo{
+				Origin: &Origin{
+					VCS:  "hg",
+					URL:  hgrepo1,
+					Hash: "18518c07eb8ed5c80221e997e518cccaa8c0c287",
+				},
+				Name:    "18518c07eb8ed5c80221e997e518cccaa8c0c287",
+				Short:   "18518c07eb8e",
+				Version: "18518c07eb8ed5c80221e997e518cccaa8c0c287",
+				Time:    time.Date(2018, 6, 27, 16, 16, 30, 0, time.UTC),
+			},
+		},
+	} {
+		t.Run(path.Base(tt.repo), runTest(tt))
 		if tt.repo == gitrepo1 {
 			tt.repo = "localGitRepo"
 			info := *tt.info
@@ -222,44 +261,27 @@ func TestLatest(t *testing.T) {
 			o := *info.Origin
 			info.Origin = &o
 			o.URL = localGitURL
-			t.Run(path.Base(tt.repo), f)
+			t.Run(path.Base(tt.repo), runTest(tt))
 		}
 	}
-}
-
-var readFileTests = []struct {
-	repo string
-	rev  string
-	file string
-	err  string
-	data string
-}{
-	{
-		repo: gitrepo1,
-		rev:  "latest",
-		file: "README",
-		data: "",
-	},
-	{
-		repo: gitrepo1,
-		rev:  "v2",
-		file: "another.txt",
-		data: "another\n",
-	},
-	{
-		repo: gitrepo1,
-		rev:  "v2.3.4",
-		file: "another.txt",
-		err:  fs.ErrNotExist.Error(),
-	},
 }
 
 func TestReadFile(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExec(t)
+	t.Parallel()
 
-	for _, tt := range readFileTests {
-		f := func(t *testing.T) {
+	type readFileTest struct {
+		repo string
+		rev  string
+		file string
+		err  string
+		data string
+	}
+	runTest := func(tt readFileTest) func(*testing.T) {
+		return func(t *testing.T) {
+			t.Parallel()
+
 			r, err := testRepo(t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
@@ -284,160 +306,35 @@ func TestReadFile(t *testing.T) {
 				t.Errorf("ReadFile: incorrect data\nhave %q\nwant %q", data, tt.data)
 			}
 		}
-		t.Run(path.Base(tt.repo)+"/"+tt.rev+"/"+tt.file, f)
+	}
+
+	for _, tt := range []readFileTest{
+		{
+			repo: gitrepo1,
+			rev:  "latest",
+			file: "README",
+			data: "",
+		},
+		{
+			repo: gitrepo1,
+			rev:  "v2",
+			file: "another.txt",
+			data: "another\n",
+		},
+		{
+			repo: gitrepo1,
+			rev:  "v2.3.4",
+			file: "another.txt",
+			err:  fs.ErrNotExist.Error(),
+		},
+	} {
+		t.Run(path.Base(tt.repo)+"/"+tt.rev+"/"+tt.file, runTest(tt))
 		if tt.repo == gitrepo1 {
-			for _, tt.repo = range altRepos {
-				t.Run(path.Base(tt.repo)+"/"+tt.rev+"/"+tt.file, f)
+			for _, tt.repo = range altRepos() {
+				t.Run(path.Base(tt.repo)+"/"+tt.rev+"/"+tt.file, runTest(tt))
 			}
 		}
 	}
-}
-
-var readZipTests = []struct {
-	repo   string
-	rev    string
-	subdir string
-	err    string
-	files  map[string]uint64
-}{
-	{
-		repo:   gitrepo1,
-		rev:    "v2.3.4",
-		subdir: "",
-		files: map[string]uint64{
-			"prefix/":       0,
-			"prefix/README": 0,
-			"prefix/v2":     3,
-		},
-	},
-	{
-		repo:   hgrepo1,
-		rev:    "v2.3.4",
-		subdir: "",
-		files: map[string]uint64{
-			"prefix/.hg_archival.txt": ^uint64(0),
-			"prefix/README":           0,
-			"prefix/v2":               3,
-		},
-	},
-
-	{
-		repo:   gitrepo1,
-		rev:    "v2",
-		subdir: "",
-		files: map[string]uint64{
-			"prefix/":            0,
-			"prefix/README":      0,
-			"prefix/v2":          3,
-			"prefix/another.txt": 8,
-			"prefix/foo.txt":     13,
-		},
-	},
-	{
-		repo:   hgrepo1,
-		rev:    "v2",
-		subdir: "",
-		files: map[string]uint64{
-			"prefix/.hg_archival.txt": ^uint64(0),
-			"prefix/README":           0,
-			"prefix/v2":               3,
-			"prefix/another.txt":      8,
-			"prefix/foo.txt":          13,
-		},
-	},
-
-	{
-		repo:   gitrepo1,
-		rev:    "v3",
-		subdir: "",
-		files: map[string]uint64{
-			"prefix/":                    0,
-			"prefix/v3/":                 0,
-			"prefix/v3/sub/":             0,
-			"prefix/v3/sub/dir/":         0,
-			"prefix/v3/sub/dir/file.txt": 16,
-			"prefix/README":              0,
-		},
-	},
-	{
-		repo:   hgrepo1,
-		rev:    "v3",
-		subdir: "",
-		files: map[string]uint64{
-			"prefix/.hg_archival.txt":    ^uint64(0),
-			"prefix/.hgtags":             405,
-			"prefix/v3/sub/dir/file.txt": 16,
-			"prefix/README":              0,
-		},
-	},
-
-	{
-		repo:   gitrepo1,
-		rev:    "v3",
-		subdir: "v3/sub/dir",
-		files: map[string]uint64{
-			"prefix/":                    0,
-			"prefix/v3/":                 0,
-			"prefix/v3/sub/":             0,
-			"prefix/v3/sub/dir/":         0,
-			"prefix/v3/sub/dir/file.txt": 16,
-		},
-	},
-	{
-		repo:   hgrepo1,
-		rev:    "v3",
-		subdir: "v3/sub/dir",
-		files: map[string]uint64{
-			"prefix/v3/sub/dir/file.txt": 16,
-		},
-	},
-
-	{
-		repo:   gitrepo1,
-		rev:    "v3",
-		subdir: "v3/sub",
-		files: map[string]uint64{
-			"prefix/":                    0,
-			"prefix/v3/":                 0,
-			"prefix/v3/sub/":             0,
-			"prefix/v3/sub/dir/":         0,
-			"prefix/v3/sub/dir/file.txt": 16,
-		},
-	},
-	{
-		repo:   hgrepo1,
-		rev:    "v3",
-		subdir: "v3/sub",
-		files: map[string]uint64{
-			"prefix/v3/sub/dir/file.txt": 16,
-		},
-	},
-
-	{
-		repo:   gitrepo1,
-		rev:    "aaaaaaaaab",
-		subdir: "",
-		err:    "unknown revision",
-	},
-	{
-		repo:   hgrepo1,
-		rev:    "aaaaaaaaab",
-		subdir: "",
-		err:    "unknown revision",
-	},
-
-	{
-		repo:   "https://github.com/rsc/vgotest1",
-		rev:    "submod/v1.0.4",
-		subdir: "submod",
-		files: map[string]uint64{
-			"prefix/":                0,
-			"prefix/submod/":         0,
-			"prefix/submod/go.mod":   53,
-			"prefix/submod/pkg/":     0,
-			"prefix/submod/pkg/p.go": 31,
-		},
-	},
 }
 
 type zipFile struct {
@@ -448,9 +345,19 @@ type zipFile struct {
 func TestReadZip(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExec(t)
+	t.Parallel()
 
-	for _, tt := range readZipTests {
-		f := func(t *testing.T) {
+	type readZipTest struct {
+		repo   string
+		rev    string
+		subdir string
+		err    string
+		files  map[string]uint64
+	}
+	runTest := func(tt readZipTest) func(*testing.T) {
+		return func(t *testing.T) {
+			t.Parallel()
+
 			r, err := testRepo(t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
@@ -498,10 +405,152 @@ func TestReadZip(t *testing.T) {
 				}
 			}
 		}
-		t.Run(path.Base(tt.repo)+"/"+tt.rev+"/"+tt.subdir, f)
+	}
+
+	for _, tt := range []readZipTest{
+		{
+			repo:   gitrepo1,
+			rev:    "v2.3.4",
+			subdir: "",
+			files: map[string]uint64{
+				"prefix/":       0,
+				"prefix/README": 0,
+				"prefix/v2":     3,
+			},
+		},
+		{
+			repo:   hgrepo1,
+			rev:    "v2.3.4",
+			subdir: "",
+			files: map[string]uint64{
+				"prefix/.hg_archival.txt": ^uint64(0),
+				"prefix/README":           0,
+				"prefix/v2":               3,
+			},
+		},
+
+		{
+			repo:   gitrepo1,
+			rev:    "v2",
+			subdir: "",
+			files: map[string]uint64{
+				"prefix/":            0,
+				"prefix/README":      0,
+				"prefix/v2":          3,
+				"prefix/another.txt": 8,
+				"prefix/foo.txt":     13,
+			},
+		},
+		{
+			repo:   hgrepo1,
+			rev:    "v2",
+			subdir: "",
+			files: map[string]uint64{
+				"prefix/.hg_archival.txt": ^uint64(0),
+				"prefix/README":           0,
+				"prefix/v2":               3,
+				"prefix/another.txt":      8,
+				"prefix/foo.txt":          13,
+			},
+		},
+
+		{
+			repo:   gitrepo1,
+			rev:    "v3",
+			subdir: "",
+			files: map[string]uint64{
+				"prefix/":                    0,
+				"prefix/v3/":                 0,
+				"prefix/v3/sub/":             0,
+				"prefix/v3/sub/dir/":         0,
+				"prefix/v3/sub/dir/file.txt": 16,
+				"prefix/README":              0,
+			},
+		},
+		{
+			repo:   hgrepo1,
+			rev:    "v3",
+			subdir: "",
+			files: map[string]uint64{
+				"prefix/.hg_archival.txt":    ^uint64(0),
+				"prefix/.hgtags":             405,
+				"prefix/v3/sub/dir/file.txt": 16,
+				"prefix/README":              0,
+			},
+		},
+
+		{
+			repo:   gitrepo1,
+			rev:    "v3",
+			subdir: "v3/sub/dir",
+			files: map[string]uint64{
+				"prefix/":                    0,
+				"prefix/v3/":                 0,
+				"prefix/v3/sub/":             0,
+				"prefix/v3/sub/dir/":         0,
+				"prefix/v3/sub/dir/file.txt": 16,
+			},
+		},
+		{
+			repo:   hgrepo1,
+			rev:    "v3",
+			subdir: "v3/sub/dir",
+			files: map[string]uint64{
+				"prefix/v3/sub/dir/file.txt": 16,
+			},
+		},
+
+		{
+			repo:   gitrepo1,
+			rev:    "v3",
+			subdir: "v3/sub",
+			files: map[string]uint64{
+				"prefix/":                    0,
+				"prefix/v3/":                 0,
+				"prefix/v3/sub/":             0,
+				"prefix/v3/sub/dir/":         0,
+				"prefix/v3/sub/dir/file.txt": 16,
+			},
+		},
+		{
+			repo:   hgrepo1,
+			rev:    "v3",
+			subdir: "v3/sub",
+			files: map[string]uint64{
+				"prefix/v3/sub/dir/file.txt": 16,
+			},
+		},
+
+		{
+			repo:   gitrepo1,
+			rev:    "aaaaaaaaab",
+			subdir: "",
+			err:    "unknown revision",
+		},
+		{
+			repo:   hgrepo1,
+			rev:    "aaaaaaaaab",
+			subdir: "",
+			err:    "unknown revision",
+		},
+
+		{
+			repo:   "https://github.com/rsc/vgotest1",
+			rev:    "submod/v1.0.4",
+			subdir: "submod",
+			files: map[string]uint64{
+				"prefix/":                0,
+				"prefix/submod/":         0,
+				"prefix/submod/go.mod":   53,
+				"prefix/submod/pkg/":     0,
+				"prefix/submod/pkg/p.go": 31,
+			},
+		},
+	} {
+		t.Run(path.Base(tt.repo)+"/"+tt.rev+"/"+tt.subdir, runTest(tt))
 		if tt.repo == gitrepo1 {
 			tt.repo = "localGitRepo"
-			t.Run(path.Base(tt.repo)+"/"+tt.rev+"/"+tt.subdir, f)
+			t.Run(path.Base(tt.repo)+"/"+tt.rev+"/"+tt.subdir, runTest(tt))
 		}
 	}
 }
@@ -514,112 +563,21 @@ var hgmap = map[string]string{
 	"97f6aa59c81c623494825b43d39e445566e429a4": "c0cbbfb24c7c3c50c35c7b88e7db777da4ff625d",
 }
 
-var statTests = []struct {
-	repo string
-	rev  string
-	err  string
-	info *RevInfo
-}{
-	{
-		repo: gitrepo1,
-		rev:  "HEAD",
-		info: &RevInfo{
-			Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
-			Short:   "ede458df7cd0",
-			Version: "ede458df7cd0fdca520df19a33158086a8a68e81",
-			Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
-			Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
-		},
-	},
-	{
-		repo: gitrepo1,
-		rev:  "v2", // branch
-		info: &RevInfo{
-			Name:    "9d02800338b8a55be062c838d1f02e0c5780b9eb",
-			Short:   "9d02800338b8",
-			Version: "9d02800338b8a55be062c838d1f02e0c5780b9eb",
-			Time:    time.Date(2018, 4, 17, 20, 00, 32, 0, time.UTC),
-			Tags:    []string{"v2.0.2"},
-		},
-	},
-	{
-		repo: gitrepo1,
-		rev:  "v2.3.4", // badly-named branch (semver should be a tag)
-		info: &RevInfo{
-			Name:    "76a00fb249b7f93091bc2c89a789dab1fc1bc26f",
-			Short:   "76a00fb249b7",
-			Version: "76a00fb249b7f93091bc2c89a789dab1fc1bc26f",
-			Time:    time.Date(2018, 4, 17, 19, 45, 48, 0, time.UTC),
-			Tags:    []string{"v2.0.1", "v2.3"},
-		},
-	},
-	{
-		repo: gitrepo1,
-		rev:  "v2.3", // badly-named tag (we only respect full semver v2.3.0)
-		info: &RevInfo{
-			Name:    "76a00fb249b7f93091bc2c89a789dab1fc1bc26f",
-			Short:   "76a00fb249b7",
-			Version: "v2.3",
-			Time:    time.Date(2018, 4, 17, 19, 45, 48, 0, time.UTC),
-			Tags:    []string{"v2.0.1", "v2.3"},
-		},
-	},
-	{
-		repo: gitrepo1,
-		rev:  "v1.2.3", // tag
-		info: &RevInfo{
-			Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
-			Short:   "ede458df7cd0",
-			Version: "v1.2.3",
-			Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
-			Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
-		},
-	},
-	{
-		repo: gitrepo1,
-		rev:  "ede458df", // hash prefix in refs
-		info: &RevInfo{
-			Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
-			Short:   "ede458df7cd0",
-			Version: "ede458df7cd0fdca520df19a33158086a8a68e81",
-			Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
-			Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
-		},
-	},
-	{
-		repo: gitrepo1,
-		rev:  "97f6aa59", // hash prefix not in refs
-		info: &RevInfo{
-			Name:    "97f6aa59c81c623494825b43d39e445566e429a4",
-			Short:   "97f6aa59c81c",
-			Version: "97f6aa59c81c623494825b43d39e445566e429a4",
-			Time:    time.Date(2018, 4, 17, 20, 0, 19, 0, time.UTC),
-		},
-	},
-	{
-		repo: gitrepo1,
-		rev:  "v1.2.4-annotated", // annotated tag uses unwrapped commit hash
-		info: &RevInfo{
-			Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
-			Short:   "ede458df7cd0",
-			Version: "v1.2.4-annotated",
-			Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
-			Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
-		},
-	},
-	{
-		repo: gitrepo1,
-		rev:  "aaaaaaaaab",
-		err:  "unknown revision",
-	},
-}
-
 func TestStat(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExec(t)
+	t.Parallel()
 
-	for _, tt := range statTests {
-		f := func(t *testing.T) {
+	type statTest struct {
+		repo string
+		rev  string
+		err  string
+		info *RevInfo
+	}
+	runTest := func(tt statTest) func(*testing.T) {
+		return func(t *testing.T) {
+			t.Parallel()
+
 			r, err := testRepo(t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
@@ -642,9 +600,105 @@ func TestStat(t *testing.T) {
 				t.Errorf("Stat: incorrect info\nhave %+v\nwant %+v", *info, *tt.info)
 			}
 		}
-		t.Run(path.Base(tt.repo)+"/"+tt.rev, f)
+	}
+
+	for _, tt := range []statTest{
+		{
+			repo: gitrepo1,
+			rev:  "HEAD",
+			info: &RevInfo{
+				Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
+				Short:   "ede458df7cd0",
+				Version: "ede458df7cd0fdca520df19a33158086a8a68e81",
+				Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
+				Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
+			},
+		},
+		{
+			repo: gitrepo1,
+			rev:  "v2", // branch
+			info: &RevInfo{
+				Name:    "9d02800338b8a55be062c838d1f02e0c5780b9eb",
+				Short:   "9d02800338b8",
+				Version: "9d02800338b8a55be062c838d1f02e0c5780b9eb",
+				Time:    time.Date(2018, 4, 17, 20, 00, 32, 0, time.UTC),
+				Tags:    []string{"v2.0.2"},
+			},
+		},
+		{
+			repo: gitrepo1,
+			rev:  "v2.3.4", // badly-named branch (semver should be a tag)
+			info: &RevInfo{
+				Name:    "76a00fb249b7f93091bc2c89a789dab1fc1bc26f",
+				Short:   "76a00fb249b7",
+				Version: "76a00fb249b7f93091bc2c89a789dab1fc1bc26f",
+				Time:    time.Date(2018, 4, 17, 19, 45, 48, 0, time.UTC),
+				Tags:    []string{"v2.0.1", "v2.3"},
+			},
+		},
+		{
+			repo: gitrepo1,
+			rev:  "v2.3", // badly-named tag (we only respect full semver v2.3.0)
+			info: &RevInfo{
+				Name:    "76a00fb249b7f93091bc2c89a789dab1fc1bc26f",
+				Short:   "76a00fb249b7",
+				Version: "v2.3",
+				Time:    time.Date(2018, 4, 17, 19, 45, 48, 0, time.UTC),
+				Tags:    []string{"v2.0.1", "v2.3"},
+			},
+		},
+		{
+			repo: gitrepo1,
+			rev:  "v1.2.3", // tag
+			info: &RevInfo{
+				Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
+				Short:   "ede458df7cd0",
+				Version: "v1.2.3",
+				Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
+				Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
+			},
+		},
+		{
+			repo: gitrepo1,
+			rev:  "ede458df", // hash prefix in refs
+			info: &RevInfo{
+				Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
+				Short:   "ede458df7cd0",
+				Version: "ede458df7cd0fdca520df19a33158086a8a68e81",
+				Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
+				Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
+			},
+		},
+		{
+			repo: gitrepo1,
+			rev:  "97f6aa59", // hash prefix not in refs
+			info: &RevInfo{
+				Name:    "97f6aa59c81c623494825b43d39e445566e429a4",
+				Short:   "97f6aa59c81c",
+				Version: "97f6aa59c81c623494825b43d39e445566e429a4",
+				Time:    time.Date(2018, 4, 17, 20, 0, 19, 0, time.UTC),
+			},
+		},
+		{
+			repo: gitrepo1,
+			rev:  "v1.2.4-annotated", // annotated tag uses unwrapped commit hash
+			info: &RevInfo{
+				Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
+				Short:   "ede458df7cd0",
+				Version: "v1.2.4-annotated",
+				Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
+				Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
+			},
+		},
+		{
+			repo: gitrepo1,
+			rev:  "aaaaaaaaab",
+			err:  "unknown revision",
+		},
+	} {
+		t.Run(path.Base(tt.repo)+"/"+tt.rev, runTest(tt))
 		if tt.repo == gitrepo1 {
-			for _, tt.repo = range altRepos {
+			for _, tt.repo = range altRepos() {
 				old := tt
 				var m map[string]string
 				if tt.repo == hgrepo1 {
@@ -658,7 +712,7 @@ func TestStat(t *testing.T) {
 					tt.info.Short = remap(tt.info.Short, m)
 				}
 				tt.rev = remap(tt.rev, m)
-				t.Run(path.Base(tt.repo)+"/"+tt.rev, f)
+				t.Run(path.Base(tt.repo)+"/"+tt.rev, runTest(tt))
 				tt = old
 			}
 		}

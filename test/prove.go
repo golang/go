@@ -500,7 +500,7 @@ func f19() (e int64, err error) {
 	last := len(stack) - 1
 	e = stack[last]
 	// Buggy compiler prints "Disproved Leq64" for the next line.
-	stack = stack[:last] // ERROR "Proved IsSliceInBounds"
+	stack = stack[:last]
 	return e, nil
 }
 

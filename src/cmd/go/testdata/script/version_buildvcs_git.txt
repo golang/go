@@ -2,7 +2,7 @@
 # controlled with -buildvcs. This test focuses on Git. Other tests focus on
 # other VCS tools but may not cover common functionality.
 
-[!exec:git] skip
+[!git] skip
 [short] skip
 env GOBIN=$WORK/gopath/bin
 env oldpath=$PATH

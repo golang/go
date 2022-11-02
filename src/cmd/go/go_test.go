@@ -33,6 +33,9 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/search"
+	"cmd/go/internal/vcs"
+	"cmd/go/internal/vcweb/vcstest"
+	"cmd/go/internal/web"
 	"cmd/go/internal/work"
 	"cmd/internal/sys"
 
@@ -48,12 +51,10 @@ func init() {
 }
 
 var (
-	canRace          = false // whether we can run the race detector
-	canCgo           = false // whether we can use cgo
-	canMSan          = false // whether we can run the memory sanitizer
-	canASan          = false // whether we can run the address sanitizer
-	canFuzz          = false // whether we can search for new fuzz failures
-	fuzzInstrumented = false // whether fuzzing uses instrumentation
+	canRace = false // whether we can run the race detector
+	canCgo  = false // whether we can use cgo
+	canMSan = false // whether we can run the memory sanitizer
+	canASan = false // whether we can run the address sanitizer
 )
 
 var (
@@ -131,6 +132,24 @@ func TestMain(m *testing.M) {
 				return fmt.Errorf("%stestgo must not write to GOROOT (installing to %s)", callerPos, filepath.Join("GOROOT", rel))
 			}
 		}
+
+		if vcsTestHost := os.Getenv("TESTGO_VCSTEST_HOST"); vcsTestHost != "" {
+			vcs.VCSTestRepoURL = "http://" + vcsTestHost
+			vcs.VCSTestHosts = vcstest.Hosts
+			vcsTestTLSHost := os.Getenv("TESTGO_VCSTEST_TLS_HOST")
+			vcsTestClient, err := vcstest.TLSClient(os.Getenv("TESTGO_VCSTEST_CERT"))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "loading certificates from $TESTGO_VCSTEST_CERT: %v", err)
+			}
+			var interceptors []web.Interceptor
+			for _, host := range vcstest.Hosts {
+				interceptors = append(interceptors,
+					web.Interceptor{Scheme: "http", FromHost: host, ToHost: vcsTestHost},
+					web.Interceptor{Scheme: "https", FromHost: host, ToHost: vcsTestTLSHost, Client: vcsTestClient})
+			}
+			web.EnableTestHooks(interceptors)
+		}
+
 		cmdgo.Main()
 		os.Exit(0)
 	}
@@ -270,8 +289,6 @@ func TestMain(m *testing.M) {
 		if isAlpineLinux() || runtime.Compiler == "gccgo" {
 			canRace = false
 		}
-		canFuzz = platform.FuzzSupported(runtime.GOOS, runtime.GOARCH)
-		fuzzInstrumented = platform.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
 	}
 
 	// Don't let these environment variables confuse the test.
@@ -965,7 +982,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	// now they all matter, so keep using sys.go.
 	restore = addVar(sys, 1)
 	defer restore()
-	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go")
+	tg.wantStale("p1", "stale dependency: runtime/internal", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go")
 	restore()
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
 	addVar(sys, 2)
@@ -975,7 +992,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 
 	// Restore to "old" release.
 	restore()
-	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after restoring sys.go")
+	tg.wantStale("p1", "stale dependency: runtime/internal", "./testgo list claims p1 is NOT stale, incorrectly, after restoring sys.go")
 	tg.run("install", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
 }
@@ -1786,16 +1803,23 @@ func TestImportLocal(t *testing.T) {
 
 func TestGoInstallPkgdir(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no standard packages")
+	if !canCgo {
+		// Only the stdlib packages that use cgo have install
+		// targets, (we're using net below) so cgo is required
+		// for the install.
+		t.Skip("skipping because cgo not enabled")
+	}
 	tooSlow(t)
 
 	tg := testgo(t)
 	tg.parallel()
+	tg.setenv("GODEBUG", "installgoroot=all")
 	defer tg.cleanup()
 	tg.makeTempdir()
 	pkg := tg.path(".")
-	tg.run("install", "-pkgdir", pkg, "sync")
-	tg.mustExist(filepath.Join(pkg, "sync.a"))
-	tg.mustNotExist(filepath.Join(pkg, "sync/atomic.a"))
+	tg.run("install", "-pkgdir", pkg, "net")
+	tg.mustExist(filepath.Join(pkg, "net.a"))
+	tg.mustNotExist(filepath.Join(pkg, "runtime/cgo.a"))
 }
 
 // For issue 14337.

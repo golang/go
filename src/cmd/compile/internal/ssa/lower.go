@@ -14,7 +14,7 @@ func lower(f *Func) {
 func lateLower(f *Func) {
 	// repeat rewrites until we find no more rewrites
 	if f.Config.lateLowerValue != nil {
-		applyRewrite(f, f.Config.lowerBlock, f.Config.lateLowerValue, removeDeadValues)
+		applyRewrite(f, f.Config.lateLowerBlock, f.Config.lateLowerValue, removeDeadValues)
 	}
 }
 

@@ -28,7 +28,7 @@ func TestIndex(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		bp1, err := build.Default.Import(pkg, filepath.Join(src, pkg), build.ImportComment)
+		bp1, err := build.Default.Import(".", filepath.Join(src, pkg), build.ImportComment)
 		if err != nil {
 			t.Fatal(err)
 		}

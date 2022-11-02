@@ -8,7 +8,7 @@
 //
 // % GOROOT_BOOTSTRAP=$HOME/sdk/go1.16 ./make.bash
 // Building Go cmd/dist using /Users/rsc/sdk/go1.16. (go1.16 darwin/amd64)
-// found packages main (build.go) and building_Go_requires_Go_1_17_or_later (notgo117.go) in /Users/rsc/go/src/cmd/dist
+// found packages main (build.go) and building_Go_requires_Go_1_17_13_or_later (notgo117.go) in /Users/rsc/go/src/cmd/dist
 // %
 //
 // which is the best we can do under the circumstances.
@@ -19,4 +19,4 @@
 //go:build !go1.17
 // +build !go1.17
 
-package building_Go_requires_Go_1_17_or_later
+package building_Go_requires_Go_1_17_13_or_later

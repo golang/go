@@ -7,7 +7,6 @@ package ssa
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 )
 
 // dse does dead-store elimination on the Function.
@@ -112,7 +111,7 @@ func dse(f *Func) {
 				if sz > 0x7fffffff { // work around sparseMap's int32 value type
 					sz = 0x7fffffff
 				}
-				shadowed.set(v.Args[0].ID, int32(sz), src.NoXPos)
+				shadowed.set(v.Args[0].ID, int32(sz))
 			}
 		}
 		// walk to previous store

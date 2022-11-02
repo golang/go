@@ -9,12 +9,12 @@ import (
 )
 
 // findlive returns the reachable blocks and live values in f.
-// The caller should call f.retDeadcodeLive(live) when it is done with it.
+// The caller should call f.Cache.freeBoolSlice(live) when it is done with it.
 func findlive(f *Func) (reachable []bool, live []bool) {
 	reachable = ReachableBlocks(f)
 	var order []*Value
 	live, order = liveValues(f, reachable)
-	f.retDeadcodeLiveOrderStmts(order)
+	f.Cache.freeValueSlice(order)
 	return
 }
 
@@ -51,21 +51,11 @@ func ReachableBlocks(f *Func) []bool {
 // to be statements in reversed data flow order.
 // The second result is used to help conserve statement boundaries for debugging.
 // reachable is a map from block ID to whether the block is reachable.
-// The caller should call f.retDeadcodeLive(live) and f.retDeadcodeLiveOrderStmts(liveOrderStmts)
+// The caller should call f.Cache.freeBoolSlice(live) and f.Cache.freeValueSlice(liveOrderStmts).
 // when they are done with the return values.
 func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value) {
-	live = f.newDeadcodeLive()
-	if cap(live) < f.NumValues() {
-		live = make([]bool, f.NumValues())
-	} else {
-		live = live[:f.NumValues()]
-		for i := range live {
-			live[i] = false
-		}
-	}
-
-	liveOrderStmts = f.newDeadcodeLiveOrderStmts()
-	liveOrderStmts = liveOrderStmts[:0]
+	live = f.Cache.allocBoolSlice(f.NumValues())
+	liveOrderStmts = f.Cache.allocValueSlice(f.NumValues())[:0]
 
 	// After regalloc, consider all values to be live.
 	// See the comment at the top of regalloc.go and in deadcode for details.
@@ -101,8 +91,8 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 	}
 
 	// Find all live values
-	q := f.Cache.deadcode.q[:0]
-	defer func() { f.Cache.deadcode.q = q }()
+	q := f.Cache.allocValueSlice(f.NumValues())[:0]
+	defer f.Cache.freeValueSlice(q)
 
 	// Starting set: all control values of reachable blocks are live.
 	// Calls are live (because callee can observe the memory state).
@@ -149,6 +139,7 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 	for len(q) > 0 {
 		// pop a reachable value
 		v := q[len(q)-1]
+		q[len(q)-1] = nil
 		q = q[:len(q)-1]
 		for i, x := range v.Args {
 			if v.Op == OpPhi && !reachable[v.Block.Preds[i].b.ID] {
@@ -213,8 +204,8 @@ func deadcode(f *Func) {
 
 	// Find live values.
 	live, order := liveValues(f, reachable)
-	defer f.retDeadcodeLive(live)
-	defer f.retDeadcodeLiveOrderStmts(order)
+	defer func() { f.Cache.freeBoolSlice(live) }()
+	defer func() { f.Cache.freeValueSlice(order) }()
 
 	// Remove dead & duplicate entries from namedValues map.
 	s := f.newSparseSet(f.NumValues())

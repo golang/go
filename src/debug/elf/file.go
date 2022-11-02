@@ -467,8 +467,12 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	// Read section headers
-	f.Sections = make([]*Section, shnum)
-	names := make([]uint32, shnum)
+	c := saferio.SliceCap((*Section)(nil), uint64(shnum))
+	if c < 0 {
+		return nil, &FormatError{0, "too many sections", shnum}
+	}
+	f.Sections = make([]*Section, 0, c)
+	names := make([]uint32, 0, c)
 	for i := 0; i < shnum; i++ {
 		off := shoff + int64(i)*int64(shentsize)
 		sr.Seek(off, seekStart)
@@ -479,7 +483,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			if err := binary.Read(sr, f.ByteOrder, sh); err != nil {
 				return nil, err
 			}
-			names[i] = sh.Name
+			names = append(names, sh.Name)
 			s.SectionHeader = SectionHeader{
 				Type:      SectionType(sh.Type),
 				Flags:     SectionFlag(sh.Flags),
@@ -496,7 +500,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			if err := binary.Read(sr, f.ByteOrder, sh); err != nil {
 				return nil, err
 			}
-			names[i] = sh.Name
+			names = append(names, sh.Name)
 			s.SectionHeader = SectionHeader{
 				Type:      SectionType(sh.Type),
 				Flags:     SectionFlag(sh.Flags),
@@ -544,7 +548,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			}
 		}
 
-		f.Sections[i] = s
+		f.Sections = append(f.Sections, s)
 	}
 
 	if len(f.Sections) == 0 {
@@ -1566,12 +1570,16 @@ func (f *File) gnuVersionInit(str []byte) bool {
 // gnuVersion adds Library and Version information to sym,
 // which came from offset i of the symbol table.
 func (f *File) gnuVersion(i int) (library string, version string) {
-	// Each entry is two bytes.
+	// Each entry is two bytes; skip undef entry at beginning.
 	i = (i + 1) * 2
 	if i >= len(f.gnuVersym) {
 		return
 	}
-	j := int(f.ByteOrder.Uint16(f.gnuVersym[i:]))
+	s := f.gnuVersym[i:]
+	if len(s) < 2 {
+		return
+	}
+	j := int(f.ByteOrder.Uint16(s))
 	if j < 2 || j >= len(f.gnuNeed) {
 		return
 	}

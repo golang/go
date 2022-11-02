@@ -55,5 +55,10 @@ go list -tags=magic
 go test -tags=magic -c -o $devnull
 go vet -tags=magic
 
+# GOFLAGS uses the same quoting rules (quoted.Split) as the rest of
+# the go command env variables
+env GOFLAGS='"-tags=magic wizardry"'
+go list
+
 -- foo_test.go --
 package foo

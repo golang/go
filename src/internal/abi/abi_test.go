@@ -42,6 +42,9 @@ func TestFuncPCCompileError(t *testing.T) {
 	symabi := filepath.Join(tmpdir, "symabi")
 	obj := filepath.Join(tmpdir, "x.o")
 
+	importcfgfile := filepath.Join(tmpdir, "hello.importcfg")
+	testenv.WriteImportcfg(t, importcfgfile, nil)
+
 	// parse assembly code for symabi.
 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-gensymabis", "-o", symabi, asmSrc)
 	out, err := cmd.CombinedOutput()
@@ -50,7 +53,7 @@ func TestFuncPCCompileError(t *testing.T) {
 	}
 
 	// compile go code.
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-symabis", symabi, "-o", obj, goSrc)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-symabis", symabi, "-o", obj, goSrc)
 	out, err = cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("go tool compile did not fail")

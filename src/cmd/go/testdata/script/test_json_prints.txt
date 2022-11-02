@@ -1,0 +1,48 @@
+go test -json
+
+stdout '"Action":"output","Package":"p","Output":"M1"}'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"=== RUN   Test\\n"}'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"T1"}'
+stdout '"Action":"output","Package":"p","Test":"Test/Sub1","Output":"=== RUN   Test/Sub1\\n"}'
+stdout '"Action":"output","Package":"p","Test":"Test/Sub1","Output":"Sub1    x_test.go:19: SubLog1\\n"}'
+stdout '"Action":"output","Package":"p","Test":"Test/Sub1","Output":"Sub2"}'
+stdout '"Action":"output","Package":"p","Test":"Test/Sub1","Output":"--- PASS: Test/Sub1 \([\d.]+s\)\\n"}'
+stdout '"Action":"pass","Package":"p","Test":"Test/Sub1","Elapsed"'
+stdout '"Action":"output","Package":"p","Test":"Test/Sub3","Output":"foo bar"}'
+stdout '"Action":"output","Package":"p","Test":"Test/Sub3","Output":"baz\\n"}'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"T2"}'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"--- PASS: Test \([\d.]+s\)\\n"}'
+stdout '"Action":"pass","Package":"p","Test":"Test","Elapsed"'
+stdout '"Action":"output","Package":"p","Output":"M2ok  \\tp\\t[\d.]+s\\n"}'
+stdout '"Action":"pass","Package":"p","Elapsed"'
+
+-- go.mod --
+module p
+
+-- x_test.go --
+package p
+
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	print("M1")
+	code := m.Run()
+	print("M2")
+	os.Exit(code)
+}
+
+func Test(t *testing.T) {
+	print("T1")
+	t.Run("Sub1", func(t *testing.T) {
+		print("Sub1")
+		t.Log("SubLog1")
+		print("Sub2")
+	})
+	t.Run("Sub3", func(t *testing.T) {
+		print("\x16foo bar\x16baz\n")
+	})
+	print("T2")
+}

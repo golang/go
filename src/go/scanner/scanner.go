@@ -820,7 +820,7 @@ scanAgain:
 	default:
 		s.next() // always make progress
 		switch ch {
-		case -1:
+		case eof:
 			if s.insertSemi {
 				s.insertSemi = false // EOF consumed
 				return pos, token.SEMICOLON, "\n"

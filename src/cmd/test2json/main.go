@@ -6,7 +6,7 @@
 //
 // Usage:
 //
-//	go tool test2json [-p pkg] [-t] [./pkg.test -test.v [-test.paniconexit0]]
+//	go tool test2json [-p pkg] [-t] [./pkg.test -test.v=test2json]
 //
 // Test2json runs the given test command and converts its output to JSON;
 // with no command specified, test2json expects test output on standard input.
@@ -18,13 +18,16 @@
 //
 // The -t flag requests that time stamps be added to each test event.
 //
-// The test must be invoked with -test.v. Additionally passing
-// -test.paniconexit0 will cause test2json to exit with a non-zero
-// status if one of the tests being run calls os.Exit(0).
+// The test should be invoked with -test.v=test2json. Using only -test.v
+// (or -test.v=true) is permissible but produces lower fidelity results.
 //
-// Note that test2json is only intended for converting a single test
-// binary's output. To convert the output of a "go test" command,
-// use "go test -json" instead of invoking test2json directly.
+// Note that "go test -json" takes care of invoking test2json correctly,
+// so "go tool test2json" is only needed when a test binary is being run
+// separately from "go test". Use "go test -json" whenever possible.
+//
+// Note also that test2json is only intended for converting a single test
+// binary's output. To convert the output of a "go test" command that
+// runs multiple packages, again use "go test -json".
 //
 // # Output Format
 //
@@ -79,7 +82,7 @@
 // (for example, by using b.Log or b.Error), that extra output is reported
 // as a sequence of events with Test set to the benchmark name, terminated
 // by a final event with Action == "bench" or "fail".
-// Benchmarks have no events with Action == "run", "pause", or "cont".
+// Benchmarks have no events with Action == "pause".
 package main
 
 import (

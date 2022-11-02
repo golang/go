@@ -1,7 +1,7 @@
 env GO111MODULE=on
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 
 env GOPROXY=direct
 env HOME=$WORK/home/gopher

@@ -59,10 +59,7 @@ func TestEmbeddedMethod(t *testing.T) {
 	const src = `package p; type I interface { error }`
 
 	// type-check src
-	f, err := parseSrc("", src)
-	if err != nil {
-		t.Fatalf("parse failed: %s", err)
-	}
+	f := mustParse("", src)
 	var conf Config
 	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
 	if err != nil {
@@ -121,7 +118,7 @@ func TestObjectString(t *testing.T) {
 
 	for _, test := range testObjects {
 		src := "package p; " + test.src
-		pkg, err := makePkg(src)
+		pkg, err := typecheck(filename, src, nil)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
 			continue

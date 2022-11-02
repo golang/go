@@ -1032,7 +1032,7 @@ func CheckCorpus(vals []any, types []reflect.Type) error {
 // writeToCorpus will not rewrite it. writeToCorpus sets entry.Path to the new
 // file that was just written or an error if it failed.
 func writeToCorpus(entry *CorpusEntry, dir string) (err error) {
-	sum := fmt.Sprintf("%x", sha256.Sum256(entry.Data))
+	sum := fmt.Sprintf("%x", sha256.Sum256(entry.Data))[:16]
 	entry.Path = filepath.Join(dir, sum)
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		return err

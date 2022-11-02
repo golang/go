@@ -40,6 +40,7 @@ var depsRules = `
 	# No dependencies allowed for any of these packages.
 	NONE
 	< constraints, container/list, container/ring,
+	  internal/buildinternal,
 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
 	  internal/coverage/uleb128, internal/coverage/calloc,
 	  internal/cpu, internal/goarch,
@@ -52,9 +53,13 @@ var depsRules = `
 	internal/goarch, unsafe
 	< internal/abi;
 
+	unsafe
+	< internal/godebug;
+
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi, internal/cpu, internal/goarch,
-	internal/coverage/rtcov, internal/goexperiment, internal/goos, unsafe
+	internal/coverage/rtcov, internal/goexperiment,
+	internal/goos, internal/godebug, unsafe
 	< internal/bytealg
 	< internal/itoa
 	< internal/unsafeheader
@@ -153,8 +158,6 @@ var depsRules = `
 	os/signal, STR
 	< path/filepath
 	< io/ioutil;
-
-	os < internal/godebug;
 
 	path/filepath, internal/godebug < os/exec;
 
@@ -283,7 +286,7 @@ var depsRules = `
 	FMT, internal/goexperiment
 	< internal/buildcfg;
 
-	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion
+	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/buildinternal
 	< go/build;
 
 	# databases
@@ -533,7 +536,7 @@ var depsRules = `
 	internal/fuzz, internal/testlog, runtime/pprof, regexp
 	< testing/internal/testdeps;
 
-	OS, flag, testing, internal/cfg, internal/platform
+	OS, flag, testing, internal/cfg, internal/platform, internal/goroot
 	< internal/testenv;
 
 	OS, encoding/base64

@@ -945,11 +945,16 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) (string, bool) {
 		return "", false
 	}
 
+	// inScope returns true if e is in the scope of f.
+	inScope := func(e ast.Expr, f *types.Func) bool {
+		return f.Scope() != nil && f.Scope().Contains(e.Pos())
+	}
+
 	// Is the expression e within the body of that String or Error method?
 	var method *types.Func
-	if strOk && strMethod.Pkg() == pass.Pkg && strMethod.Scope().Contains(e.Pos()) {
+	if strOk && strMethod.Pkg() == pass.Pkg && inScope(e, strMethod) {
 		method = strMethod
-	} else if errOk && errMethod.Pkg() == pass.Pkg && errMethod.Scope().Contains(e.Pos()) {
+	} else if errOk && errMethod.Pkg() == pass.Pkg && inScope(e, errMethod) {
 		method = errMethod
 	} else {
 		return "", false

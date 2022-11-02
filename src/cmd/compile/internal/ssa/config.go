@@ -21,9 +21,10 @@ type Config struct {
 	PtrSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
 	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
 	Types          Types
-	lowerBlock     blockRewriter  // lowering function
-	lowerValue     valueRewriter  // lowering function, first round
-	lateLowerValue valueRewriter  // lowering function that needs to be run after the first round of lower function; only used on some architectures
+	lowerBlock     blockRewriter  // block lowering function, first round
+	lowerValue     valueRewriter  // value lowering function, first round
+	lateLowerBlock blockRewriter  // block lowering function that needs to be run after the first round; only used on some architectures
+	lateLowerValue valueRewriter  // value lowering function that needs to be run after the first round; only used on some architectures
 	splitLoad      valueRewriter  // function for splitting merged load ops; only used on some architectures
 	registers      []Register     // machine registers
 	gpRegMask      regMask        // general purpose integer register mask
@@ -185,6 +186,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
+		c.lateLowerBlock = rewriteBlockAMD64latelower
+		c.lateLowerValue = rewriteValueAMD64latelower
 		c.splitLoad = rewriteValueAMD64splitload
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
@@ -223,6 +226,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockARM64
 		c.lowerValue = rewriteValueARM64
+		c.lateLowerBlock = rewriteBlockARM64latelower
 		c.lateLowerValue = rewriteValueARM64latelower
 		c.registers = registersARM64[:]
 		c.gpRegMask = gpRegMaskARM64
@@ -240,6 +244,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockPPC64
 		c.lowerValue = rewriteValuePPC64
+		c.lateLowerBlock = rewriteBlockPPC64latelower
+		c.lateLowerValue = rewriteValuePPC64latelower
 		c.registers = registersPPC64[:]
 		c.gpRegMask = gpRegMaskPPC64
 		c.fpRegMask = fpRegMaskPPC64
@@ -309,6 +315,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockRISCV64
 		c.lowerValue = rewriteValueRISCV64
+		c.lateLowerBlock = rewriteBlockRISCV64latelower
 		c.lateLowerValue = rewriteValueRISCV64latelower
 		c.registers = registersRISCV64[:]
 		c.gpRegMask = gpRegMaskRISCV64

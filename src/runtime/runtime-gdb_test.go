@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // NOTE: In some configurations, GDB will segfault when sent a SIGWINCH signal.
@@ -428,7 +430,9 @@ func TestGdbBacktrace(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, err := testenv.RunWithTimeout(t, exec.Command("gdb", args...))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	got, err := testenv.CommandContext(t, ctx, "gdb", args...).CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
 		if bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")) {

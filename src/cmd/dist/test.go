@@ -161,6 +161,10 @@ func (t *tester) run() {
 			// Instead, we can just check that it is not stale, which may be less
 			// expensive (and is also more likely to catch bugs in the builder
 			// implementation).
+			// The cache used by dist when building is different from that used when
+			// running dist test, so rebuild (but don't install) std and cmd to make
+			// sure packages without install targets are cached so they are not stale.
+			goCmd("go", "build", "std", "cmd") // make sure dependencies of targets are cached
 			checkNotStale("go", "std", "cmd")
 		}
 	}
@@ -746,19 +750,8 @@ func (t *tester) registerTests() {
 		// Disabled on iOS. golang.org/issue/15919
 		t.registerHostTest("cgo_stdio", "../misc/cgo/stdio", "misc/cgo/stdio", ".")
 		t.registerHostTest("cgo_life", "../misc/cgo/life", "misc/cgo/life", ".")
-		fortran := os.Getenv("FC")
-		if fortran == "" {
-			fortran, _ = exec.LookPath("gfortran")
-		}
-		if t.hasBash() && goos != "android" && fortran != "" {
-			t.tests = append(t.tests, distTest{
-				name:    "cgo_fortran",
-				heading: "../misc/cgo/fortran",
-				fn: func(dt *distTest) error {
-					t.addCmd(dt, "misc/cgo/fortran", "./test.bash", fortran)
-					return nil
-				},
-			})
+		if goos != "android" {
+			t.registerHostTest("cgo_fortran", "../misc/cgo/fortran", "misc/cgo/fortran", ".")
 		}
 		if t.hasSwig() && goos != "android" {
 			t.tests = append(t.tests, distTest{
@@ -831,16 +824,12 @@ func (t *tester) registerTests() {
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
 			t.registerHostTest("cgo_errors", "../misc/cgo/errors", "misc/cgo/errors", ".")
 		}
-		if gohostos == "linux" && t.extLink() {
-			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", ".")
-		}
 	}
 
 	if goos != "android" && !t.iOS() {
 		// There are no tests in this directory, only benchmarks.
-		// Check that the test binary builds but don't bother running it.
-		// (It has init-time work to set up for the benchmarks that is not worth doing unnecessarily.)
-		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), "-c", "-o="+os.DevNull)
+		// Check that the test binary builds.
+		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), ".")
 	}
 	if goos != "android" && !t.iOS() {
 		// Only start multiple test dir shards on builders,

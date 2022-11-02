@@ -31,10 +31,7 @@ func (G[P]) N() (p P) { return }
 
 type Inst = G[int]
 	`
-	pkg, err := pkgFor("p", src, nil)
-	if err != nil {
-		b.Fatal(err)
-	}
+	pkg := mustTypecheck("p", src, nil)
 
 	var (
 		T        = pkg.Scope().Lookup("T").Type()
@@ -95,10 +92,7 @@ func (Node[Q]) M(Q) {}
 type Inst = *Tree[int]
 `
 
-	f, err := parseSrc("foo.go", src)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse("foo.go", src)
 	pkg := NewPackage("p", f.PkgName.Value)
 	if err := NewChecker(nil, pkg, nil).Files([]*syntax.File{f}); err != nil {
 		t.Fatal(err)

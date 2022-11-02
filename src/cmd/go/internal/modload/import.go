@@ -286,6 +286,10 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 		return module.Version{}, "", "", nil, &invalidImportError{importPath: path, err: err}
 	}
 
+	// Check each module on the build list.
+	var dirs, roots []string
+	var mods []module.Version
+
 	// Is the package in the standard library?
 	pathIsStd := search.IsStandardImportPath(path)
 	if pathIsStd && modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
@@ -303,35 +307,43 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 		if str.HasPathPrefix(path, "cmd") {
 			modroot = filepath.Join(cfg.GOROOTsrc, "cmd")
 		}
-		return module.Version{}, modroot, dir, nil, nil
+		dirs = append(dirs, dir)
+		roots = append(roots, modroot)
+		mods = append(mods, module.Version{})
 	}
-
 	// -mod=vendor is special.
 	// Everything must be in the main module or the main module's vendor directory.
 	if cfg.BuildMod == "vendor" {
 		mainModule := MainModules.mustGetSingleMainModule()
 		modRoot := MainModules.ModRoot(mainModule)
 		mainDir, mainOK, mainErr := dirInModule(path, MainModules.PathPrefix(mainModule), modRoot, true)
+		if mainOK {
+			mods = append(mods, mainModule)
+			dirs = append(dirs, mainDir)
+			roots = append(roots, modRoot)
+		}
 		vendorDir, vendorOK, _ := dirInModule(path, "", filepath.Join(modRoot, "vendor"), false)
-		if mainOK && vendorOK {
-			return module.Version{}, modRoot, "", nil, &AmbiguousImportError{importPath: path, Dirs: []string{mainDir, vendorDir}}
+		if vendorOK {
+			readVendorList(mainModule)
+			mods = append(mods, vendorPkgModule[path])
+			dirs = append(dirs, vendorDir)
+			roots = append(roots, modRoot)
 		}
-		// Prefer to return main directory if there is one,
-		// Note that we're not checking that the package exists.
-		// We'll leave that for load.
-		if !vendorOK && mainDir != "" {
-			return mainModule, modRoot, mainDir, nil, nil
+
+		if len(dirs) > 1 {
+			return module.Version{}, modRoot, "", nil, &AmbiguousImportError{importPath: path, Dirs: dirs}
 		}
+
 		if mainErr != nil {
 			return module.Version{}, "", "", nil, mainErr
 		}
-		readVendorList(mainModule)
-		return vendorPkgModule[path], modRoot, vendorDir, nil, nil
-	}
 
-	// Check each module on the build list.
-	var dirs, roots []string
-	var mods []module.Version
+		if len(dirs) == 0 {
+			return module.Version{}, modRoot, "", nil, &ImportMissingError{Path: path}
+		}
+
+		return mods[0], roots[0], dirs[0], nil, nil
+	}
 
 	// Iterate over possible modules for the path, not all selected modules.
 	// Iterating over selected modules would make the overall loading time

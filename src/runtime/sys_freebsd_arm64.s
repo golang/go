@@ -99,7 +99,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVD	$0, R0
 	MOVD	R0, (R0)
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOVD	wait+0(FP), R0
 	// We're done using the stack.

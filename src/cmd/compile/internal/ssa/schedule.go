@@ -94,13 +94,15 @@ func (op Op) isLoweredGetClosurePtr() bool {
 func schedule(f *Func) {
 	// For each value, the number of times it is used in the block
 	// by values that have not been scheduled yet.
-	uses := make([]int32, f.NumValues())
+	uses := f.Cache.allocInt32Slice(f.NumValues())
+	defer f.Cache.freeInt32Slice(uses)
 
 	// reusable priority queue
 	priq := new(ValHeap)
 
 	// "priority" for a value
-	score := make([]int8, f.NumValues())
+	score := f.Cache.allocInt8Slice(f.NumValues())
+	defer f.Cache.freeInt8Slice(score)
 
 	// scheduling order. We queue values in this list in reverse order.
 	// A constant bound allows this to be stack-allocated. 64 is
@@ -108,7 +110,8 @@ func schedule(f *Func) {
 	order := make([]*Value, 0, 64)
 
 	// maps mem values to the next live memory value
-	nextMem := make([]*Value, f.NumValues())
+	nextMem := f.Cache.allocValueSlice(f.NumValues())
+	defer f.Cache.freeValueSlice(nextMem)
 	// additional pretend arguments for each Value. Used to enforce load/store ordering.
 	additionalArgs := make([][]*Value, f.NumValues())
 

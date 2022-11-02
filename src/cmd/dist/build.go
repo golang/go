@@ -481,12 +481,22 @@ func setup() {
 	// We used to use it for C objects.
 	// Now we use it for the build cache, to separate dist's cache
 	// from any other cache the user might have.
-	p = pathf("%s/pkg/obj/go-build", goroot)
+	objGobuild := pathf("%s/pkg/obj/go-build", goroot)
 	if rebuildall {
-		xremoveall(p)
+		xremoveall(objGobuild)
 	}
-	xmkdirall(p)
-	xatexit(func() { xremoveall(p) })
+	xmkdirall(objGobuild)
+	xatexit(func() { xremoveall(objGobuild) })
+
+	// Create alternate driectory for intermediate
+	// standard library .a's to be placed rather than
+	// the final build's install locations.
+	objGoBootstrap := pathf("%s/pkg/obj/go-bootstrap", goroot)
+	if rebuildall {
+		xremoveall(objGoBootstrap)
+	}
+	xmkdirall(objGoBootstrap)
+	xatexit(func() { xremoveall(objGoBootstrap) })
 
 	// Create tool directory.
 	// We keep it in pkg/, just like the object directory above.
@@ -651,6 +661,7 @@ func runInstall(pkg string, ch chan struct{}) {
 			link = append(link, goldflags)
 		}
 		link = append(link, "-extld="+compilerEnvLookup(defaultcc, goos, goarch))
+		link = append(link, "-L="+pathf("%s/pkg/obj/go-bootstrap/%s_%s", goroot, goos, goarch))
 		link = append(link, "-o", pathf("%s/%s%s", tooldir, elem, exe))
 		targ = len(link) - 1
 	}
@@ -934,7 +945,7 @@ func runInstall(pkg string, ch chan struct{}) {
 // packagefile returns the path to a compiled .a file for the given package
 // path. Paths may need to be resolved with resolveVendor first.
 func packagefile(pkg string) string {
-	return pathf("%s/pkg/%s_%s/%s.a", goroot, goos, goarch, pkg)
+	return pathf("%s/pkg/obj/go-bootstrap/%s_%s/%s.a", goroot, goos, goarch, pkg)
 }
 
 // unixOS is the set of GOOS values matched by the "unix" build tag.

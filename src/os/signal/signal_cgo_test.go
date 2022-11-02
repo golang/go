@@ -21,14 +21,14 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
-	"unsafe"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 const (
-	ptyFD     = 3  // child end of pty.
-	controlFD = 4  // child end of control pipe.
+	ptyFD     = 3 // child end of pty.
+	controlFD = 4 // child end of control pipe.
 )
 
 // TestTerminalSignal tests that read from a pseudo-terminal does not return an
@@ -279,7 +279,7 @@ func runSessionLeader(pause time.Duration) {
 		}
 
 		// Take TTY.
-		pgrp := syscall.Getpgrp()
+		pgrp := int32(syscall.Getpgrp()) // assume that pid_t is int32
 		_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, ptyFD, syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&pgrp)))
 		if errno != 0 {
 			return fmt.Errorf("error setting tty process group: %w", errno)
@@ -290,7 +290,7 @@ func runSessionLeader(pause time.Duration) {
 		time.Sleep(pause)
 
 		// Give TTY back.
-		pid := uint64(cmd.Process.Pid)
+		pid := int32(cmd.Process.Pid) // assume that pid_t is int32
 		_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, ptyFD, syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&pid)))
 		if errno != 0 {
 			return fmt.Errorf("error setting tty process group back: %w", errno)

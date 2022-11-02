@@ -10,7 +10,7 @@
 # Since 1.16, we extract to the final directory, but we create a .partial file
 # so that if we crash, other processes know the directory is incomplete.
 
-[!windows] skip
+[!GOOS:windows] skip
 [short] skip
 
 go run downloader.go

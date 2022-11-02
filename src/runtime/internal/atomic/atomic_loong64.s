@@ -156,6 +156,9 @@ TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
 TEXT ·StoreRel(SB), NOSPLIT, $0-12
 	JMP	·Store(SB)
 
+TEXT ·StoreRel64(SB), NOSPLIT, $0-16
+	JMP	·Store64(SB)
+
 TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
 	JMP     ·Store64(SB)
 
@@ -292,6 +295,10 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
 // uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* ptr)
 TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
 	JMP	atomic·Load(SB)
+
+// uint64 ·LoadAcq64(uint64 volatile* ptr)
+TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$0-16
+	JMP	atomic·Load64(SB)
 
 // uintptr ·LoadAcquintptr(uintptr volatile* ptr)
 TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-16

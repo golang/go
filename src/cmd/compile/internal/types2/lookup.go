@@ -472,7 +472,7 @@ func (check *Checker) newAssertableTo(V *Interface, T Type) bool {
 	if IsInterface(T) {
 		return true
 	}
-	return check.implements(T, V, nil)
+	return check.implements(T, V, false, nil)
 }
 
 // deref dereferences typ if it is a *Pointer and returns its base and true.

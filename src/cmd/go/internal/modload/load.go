@@ -1105,7 +1105,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		}
 
 		toAdd := make([]module.Version, 0, len(modAddedBy))
-		for m, _ := range modAddedBy {
+		for m := range modAddedBy {
 			toAdd = append(toAdd, m)
 		}
 		module.Sort(toAdd) // to make errors deterministic

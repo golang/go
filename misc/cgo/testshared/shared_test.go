@@ -151,16 +151,16 @@ func testMain(m *testing.M) (int, error) {
 	myContext := build.Default
 	myContext.GOROOT = goroot
 	myContext.GOPATH = gopath
-	runtimeP, err := myContext.Import("runtime", ".", build.ImportComment)
-	if err != nil {
-		return 0, fmt.Errorf("import failed: %v", err)
-	}
-	gorootInstallDir = runtimeP.PkgTargetRoot + "_dynlink"
 
 	// All tests depend on runtime being built into a shared library. Because
 	// that takes a few seconds, do it here and have all tests use the version
 	// built here.
 	goCmd(nil, append([]string{"install", "-buildmode=shared"}, minpkgs...)...)
+
+	shlib := goCmd(nil, "list", "-linkshared", "-f={{.Shlib}}", "runtime")
+	if shlib != "" {
+		gorootInstallDir = filepath.Dir(shlib)
+	}
 
 	myContext.InstallSuffix = "_dynlink"
 	depP, err := myContext.Import("./depBase", ".", build.ImportComment)

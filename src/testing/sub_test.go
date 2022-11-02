@@ -124,6 +124,7 @@ func TestTRun(t *T) {
 		ok     bool
 		maxPar int
 		chatty bool
+		json   bool
 		output string
 		f      func(*T)
 	}{{
@@ -201,6 +202,36 @@ func TestTRun(t *T) {
 		f: func(t *T) {
 			t.Run("", func(t *T) {
 				t.Run("", func(t *T) {})
+			})
+		},
+	}, {
+		desc:   "chatty with recursion and json",
+		ok:     false,
+		chatty: true,
+		json:   true,
+		output: `
+^V=== RUN   chatty with recursion and json
+^V=== RUN   chatty with recursion and json/#00
+^V=== RUN   chatty with recursion and json/#00/#00
+^V--- PASS: chatty with recursion and json/#00/#00 (N.NNs)
+^V=== NAME  chatty with recursion and json/#00
+^V=== RUN   chatty with recursion and json/#00/#01
+    sub_test.go:NNN: skip
+^V--- SKIP: chatty with recursion and json/#00/#01 (N.NNs)
+^V=== NAME  chatty with recursion and json/#00
+^V=== RUN   chatty with recursion and json/#00/#02
+    sub_test.go:NNN: fail
+^V--- FAIL: chatty with recursion and json/#00/#02 (N.NNs)
+^V=== NAME  chatty with recursion and json/#00
+^V--- FAIL: chatty with recursion and json/#00 (N.NNs)
+^V=== NAME  chatty with recursion and json
+^V--- FAIL: chatty with recursion and json (N.NNs)
+^V=== NAME  `,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				t.Run("", func(t *T) {})
+				t.Run("", func(t *T) { t.Skip("skip") })
+				t.Run("", func(t *T) { t.Fatal("fail") })
 			})
 		},
 	}, {
@@ -482,13 +513,14 @@ func TestTRun(t *T) {
 				common: common{
 					signal:  make(chan bool),
 					barrier: make(chan bool),
-					name:    "Test",
+					name:    "",
 					w:       buf,
 				},
 				context: ctx,
 			}
 			if tc.chatty {
 				root.chatty = newChattyPrinter(root.w)
+				root.chatty.json = tc.json
 			}
 			ok := root.Run(tc.desc, tc.f)
 			ctx.release()
@@ -702,6 +734,7 @@ func TestBRun(t *T) {
 
 func makeRegexp(s string) string {
 	s = regexp.QuoteMeta(s)
+	s = strings.ReplaceAll(s, "^V", "\x16")
 	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d\d?:`)
 	s = strings.ReplaceAll(s, "N\\.NNs", `\d*\.\d*s`)
 	return s

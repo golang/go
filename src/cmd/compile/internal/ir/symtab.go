@@ -58,10 +58,6 @@ var Syms struct {
 	// Wasm
 	WasmDiv *obj.LSym
 	// Wasm
-	WasmMove *obj.LSym
-	// Wasm
-	WasmZero *obj.LSym
-	// Wasm
 	WasmTruncS *obj.LSym
 	// Wasm
 	WasmTruncU *obj.LSym

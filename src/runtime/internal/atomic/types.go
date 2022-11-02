@@ -30,8 +30,7 @@ func (i *Int32) Store(value int32) {
 
 // CompareAndSwap atomically compares i's value with old,
 // and if they're equal, swaps i's value with new.
-//
-// Returns true if the operation succeeded.
+// It reports whether the swap ran.
 //
 //go:nosplit
 func (i *Int32) CompareAndSwap(old, new int32) bool {
@@ -84,8 +83,7 @@ func (i *Int64) Store(value int64) {
 
 // CompareAndSwap atomically compares i's value with old,
 // and if they're equal, swaps i's value with new.
-//
-// Returns true if the operation succeeded.
+// It reports whether the swap ran.
 //
 //go:nosplit
 func (i *Int64) CompareAndSwap(old, new int64) bool {
@@ -231,8 +229,7 @@ func (u *Uint32) StoreRelease(value uint32) {
 
 // CompareAndSwap atomically compares u's value with old,
 // and if they're equal, swaps u's value with new.
-//
-// Returns true if the operation succeeded.
+// It reports whether the swap ran.
 //
 //go:nosplit
 func (u *Uint32) CompareAndSwap(old, new uint32) bool {
@@ -244,8 +241,7 @@ func (u *Uint32) CompareAndSwap(old, new uint32) bool {
 // may observe operations that occur after this operation to
 // precede it, but no operation that precedes it
 // on this thread can be observed to occur after it.
-//
-// Returns true if the operation succeeded.
+// It reports whether the swap ran.
 //
 // WARNING: Use sparingly and with great care.
 //
@@ -322,8 +318,7 @@ func (u *Uint64) Store(value uint64) {
 
 // CompareAndSwap atomically compares u's value with old,
 // and if they're equal, swaps u's value with new.
-//
-// Returns true if the operation succeeded.
+// It reports whether the swap ran.
 //
 //go:nosplit
 func (u *Uint64) CompareAndSwap(old, new uint64) bool {
@@ -399,8 +394,7 @@ func (u *Uintptr) StoreRelease(value uintptr) {
 
 // CompareAndSwap atomically compares u's value with old,
 // and if they're equal, swaps u's value with new.
-//
-// Returns true if the operation succeeded.
+// It reports whether the swap ran.
 //
 //go:nosplit
 func (u *Uintptr) CompareAndSwap(old, new uintptr) bool {
@@ -478,27 +472,46 @@ func (u *UnsafePointer) Load() unsafe.Pointer {
 // perform a write barrier on value, and so this operation may
 // hide pointers from the GC. Use with care and sparingly.
 // It is safe to use with values not found in the Go heap.
+// Prefer Store instead.
 //
 //go:nosplit
 func (u *UnsafePointer) StoreNoWB(value unsafe.Pointer) {
 	StorepNoWB(unsafe.Pointer(&u.value), value)
 }
 
+// Store updates the value atomically.
+func (u *UnsafePointer) Store(value unsafe.Pointer) {
+	storePointer(&u.value, value)
+}
+
+// provided by runtime
+//go:linkname storePointer
+func storePointer(ptr *unsafe.Pointer, new unsafe.Pointer)
+
 // CompareAndSwapNoWB atomically (with respect to other methods)
 // compares u's value with old, and if they're equal,
 // swaps u's value with new.
-//
-// Returns true if the operation succeeded.
+// It reports whether the swap ran.
 //
 // WARNING: As the name implies this operation does *not*
 // perform a write barrier on value, and so this operation may
 // hide pointers from the GC. Use with care and sparingly.
 // It is safe to use with values not found in the Go heap.
+// Prefer CompareAndSwap instead.
 //
 //go:nosplit
 func (u *UnsafePointer) CompareAndSwapNoWB(old, new unsafe.Pointer) bool {
 	return Casp1(&u.value, old, new)
 }
+
+// CompareAndSwap atomically compares u's value with old,
+// and if they're equal, swaps u's value with new.
+// It reports whether the swap ran.
+func (u *UnsafePointer) CompareAndSwap(old, new unsafe.Pointer) bool {
+	return casPointer(&u.value, old, new)
+}
+
+func casPointer(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
 
 // Pointer is an atomic pointer of type *T.
 type Pointer[T any] struct {
@@ -518,26 +531,41 @@ func (p *Pointer[T]) Load() *T {
 // perform a write barrier on value, and so this operation may
 // hide pointers from the GC. Use with care and sparingly.
 // It is safe to use with values not found in the Go heap.
+// Prefer Store instead.
 //
 //go:nosplit
 func (p *Pointer[T]) StoreNoWB(value *T) {
 	p.u.StoreNoWB(unsafe.Pointer(value))
 }
 
+// Store updates the value atomically.
+//go:nosplit
+func (p *Pointer[T]) Store(value *T) {
+	p.u.Store(unsafe.Pointer(value))
+}
+
 // CompareAndSwapNoWB atomically (with respect to other methods)
 // compares u's value with old, and if they're equal,
 // swaps u's value with new.
-//
-// Returns true if the operation succeeded.
+// It reports whether the swap ran.
 //
 // WARNING: As the name implies this operation does *not*
 // perform a write barrier on value, and so this operation may
 // hide pointers from the GC. Use with care and sparingly.
 // It is safe to use with values not found in the Go heap.
+// Prefer CompareAndSwap instead.
 //
 //go:nosplit
 func (p *Pointer[T]) CompareAndSwapNoWB(old, new *T) bool {
 	return p.u.CompareAndSwapNoWB(unsafe.Pointer(old), unsafe.Pointer(new))
+}
+
+// CompareAndSwap atomically (with respect to other methods)
+// compares u's value with old, and if they're equal,
+// swaps u's value with new.
+// It reports whether the swap ran.
+func (p *Pointer[T]) CompareAndSwap(old, new *T) bool {
+	return p.u.CompareAndSwap(unsafe.Pointer(old), unsafe.Pointer(new))
 }
 
 // noCopy may be embedded into structs which must not be copied

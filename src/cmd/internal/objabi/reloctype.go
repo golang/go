@@ -154,6 +154,22 @@ const (
 	// adrp followed by another add instruction.
 	R_ARM64_PCREL
 
+	// R_ARM64_PCREL_LDST8 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD8 or ST8 instruction.
+	R_ARM64_PCREL_LDST8
+
+	// R_ARM64_PCREL_LDST16 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD16 or ST16 instruction.
+	R_ARM64_PCREL_LDST16
+
+	// R_ARM64_PCREL_LDST32 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD32 or ST32 instruction.
+	R_ARM64_PCREL_LDST32
+
+	// R_ARM64_PCREL_LDST64 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD64 or ST64 instruction.
+	R_ARM64_PCREL_LDST64
+
 	// R_ARM64_LDST8 sets a LD/ST immediate value to bits [11:0] of a local address.
 	R_ARM64_LDST8
 

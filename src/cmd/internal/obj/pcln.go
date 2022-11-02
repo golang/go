@@ -142,7 +142,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 	if p.As == ATEXT || p.As == ANOP || p.Pos.Line() == 0 || phase == 1 {
 		return oldval
 	}
-	f, l := getFileIndexAndLine(ctxt, p.Pos)
+	f, l := ctxt.getFileIndexAndLine(p.Pos)
 	if arg == nil {
 		return l
 	}

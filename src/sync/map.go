@@ -6,7 +6,6 @@ package sync
 
 import (
 	"sync/atomic"
-	"unsafe"
 )
 
 // Map is like a Go map[interface{}]interface{} but is safe for concurrent use
@@ -74,7 +73,7 @@ type readOnly struct {
 
 // expunged is an arbitrary pointer that marks entries which have been deleted
 // from the dirty map.
-var expunged = unsafe.Pointer(new(any))
+var expunged = new(any)
 
 // An entry is a slot in the map corresponding to a particular key.
 type entry struct {
@@ -97,11 +96,13 @@ type entry struct {
 	// p != expunged. If p == expunged, an entry's associated value can be updated
 	// only after first setting m.dirty[key] = e so that lookups using the dirty
 	// map find the entry.
-	p unsafe.Pointer // *interface{}
+	p atomic.Pointer[any]
 }
 
 func newEntry(i any) *entry {
-	return &entry{p: unsafe.Pointer(&i)}
+	e := &entry{}
+	e.p.Store(&i)
+	return e
 }
 
 func (m *Map) loadReadOnly() readOnly {
@@ -140,11 +141,11 @@ func (m *Map) Load(key any) (value any, ok bool) {
 }
 
 func (e *entry) load() (value any, ok bool) {
-	p := atomic.LoadPointer(&e.p)
+	p := e.p.Load()
 	if p == nil || p == expunged {
 		return nil, false
 	}
-	return *(*any)(p), true
+	return *p, true
 }
 
 // Store sets the value for a key.
@@ -183,11 +184,11 @@ func (m *Map) Store(key, value any) {
 // unchanged.
 func (e *entry) tryStore(i *any) bool {
 	for {
-		p := atomic.LoadPointer(&e.p)
+		p := e.p.Load()
 		if p == expunged {
 			return false
 		}
-		if atomic.CompareAndSwapPointer(&e.p, p, unsafe.Pointer(i)) {
+		if e.p.CompareAndSwap(p, i) {
 			return true
 		}
 	}
@@ -198,14 +199,14 @@ func (e *entry) tryStore(i *any) bool {
 // If the entry was previously expunged, it must be added to the dirty map
 // before m.mu is unlocked.
 func (e *entry) unexpungeLocked() (wasExpunged bool) {
-	return atomic.CompareAndSwapPointer(&e.p, expunged, nil)
+	return e.p.CompareAndSwap(expunged, nil)
 }
 
 // storeLocked unconditionally stores a value to the entry.
 //
 // The entry must be known not to be expunged.
 func (e *entry) storeLocked(i *any) {
-	atomic.StorePointer(&e.p, unsafe.Pointer(i))
+	e.p.Store(i)
 }
 
 // LoadOrStore returns the existing value for the key if present.
@@ -252,12 +253,12 @@ func (m *Map) LoadOrStore(key, value any) (actual any, loaded bool) {
 // If the entry is expunged, tryLoadOrStore leaves the entry unchanged and
 // returns with ok==false.
 func (e *entry) tryLoadOrStore(i any) (actual any, loaded, ok bool) {
-	p := atomic.LoadPointer(&e.p)
+	p := e.p.Load()
 	if p == expunged {
 		return nil, false, false
 	}
 	if p != nil {
-		return *(*any)(p), true, true
+		return *p, true, true
 	}
 
 	// Copy the interface after the first load to make this method more amenable
@@ -265,15 +266,15 @@ func (e *entry) tryLoadOrStore(i any) (actual any, loaded, ok bool) {
 	// shouldn't bother heap-allocating.
 	ic := i
 	for {
-		if atomic.CompareAndSwapPointer(&e.p, nil, unsafe.Pointer(&ic)) {
+		if e.p.CompareAndSwap(nil, &ic) {
 			return i, false, true
 		}
-		p = atomic.LoadPointer(&e.p)
+		p = e.p.Load()
 		if p == expunged {
 			return nil, false, false
 		}
 		if p != nil {
-			return *(*any)(p), true, true
+			return *p, true, true
 		}
 	}
 }
@@ -310,12 +311,12 @@ func (m *Map) Delete(key any) {
 
 func (e *entry) delete() (value any, ok bool) {
 	for {
-		p := atomic.LoadPointer(&e.p)
+		p := e.p.Load()
 		if p == nil || p == expunged {
 			return nil, false
 		}
-		if atomic.CompareAndSwapPointer(&e.p, p, nil) {
-			return *(*any)(p), true
+		if e.p.CompareAndSwap(p, nil) {
+			return *p, true
 		}
 	}
 }
@@ -389,12 +390,12 @@ func (m *Map) dirtyLocked() {
 }
 
 func (e *entry) tryExpungeLocked() (isExpunged bool) {
-	p := atomic.LoadPointer(&e.p)
+	p := e.p.Load()
 	for p == nil {
-		if atomic.CompareAndSwapPointer(&e.p, nil, expunged) {
+		if e.p.CompareAndSwap(nil, expunged) {
 			return true
 		}
-		p = atomic.LoadPointer(&e.p)
+		p = e.p.Load()
 	}
 	return p == expunged
 }

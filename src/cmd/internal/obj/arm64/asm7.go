@@ -37,6 +37,7 @@ import (
 	"log"
 	"math"
 	"sort"
+	"strings"
 )
 
 // ctxt7 holds state while assembling a single function.
@@ -73,7 +74,7 @@ type Optab struct {
 	a3    uint8
 	a4    uint8
 	type_ int8
-	size  int8
+	size_ int8 // the value of this field is not static, use the size() method to return the value
 	param int16
 	flag  int8
 	scond uint16
@@ -395,8 +396,7 @@ var optab = []Optab{
 	{AMOVD, C_RSP, C_NONE, C_NONE, C_RSP, 24, 4, 0, 0, 0},
 	{AMOVD, C_ZREG, C_NONE, C_NONE, C_ZREG, 24, 4, 0, 0, 0},
 	{AMVN, C_ZREG, C_NONE, C_NONE, C_ZREG, 24, 4, 0, 0, 0},
-	{AMOVB, C_ZREG, C_NONE, C_NONE, C_ZREG, 45, 4, 0, 0, 0},
-	{AMOVBU, C_ZREG, C_NONE, C_NONE, C_ZREG, 45, 4, 0, 0, 0},
+	{AMOVB, C_ZREG, C_NONE, C_NONE, C_ZREG, 45, 4, 0, 0, 0}, /* also MOVBU */
 	{AMOVH, C_ZREG, C_NONE, C_NONE, C_ZREG, 45, 4, 0, 0, 0}, /* also MOVHU */
 	{AMOVW, C_ZREG, C_NONE, C_NONE, C_ZREG, 45, 4, 0, 0, 0}, /* also MOVWU */
 	/* TODO: MVN C_SHIFT */
@@ -466,12 +466,10 @@ var optab = []Optab{
 	{AMOVW, C_VCONADDR, C_NONE, C_NONE, C_ZREG, 68, 8, 0, NOTUSETMP, 0},
 	{AMOVD, C_VCONADDR, C_NONE, C_NONE, C_ZREG, 68, 8, 0, NOTUSETMP, 0},
 	{AMOVB, C_ZREG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
-	{AMOVBU, C_ZREG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
 	{AMOVH, C_ZREG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
 	{AMOVW, C_ZREG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
 	{AMOVD, C_ZREG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
 	{AMOVB, C_ADDR, C_NONE, C_NONE, C_ZREG, 65, 12, 0, 0, 0},
-	{AMOVBU, C_ADDR, C_NONE, C_NONE, C_ZREG, 65, 12, 0, 0, 0},
 	{AMOVH, C_ADDR, C_NONE, C_NONE, C_ZREG, 65, 12, 0, 0, 0},
 	{AMOVW, C_ADDR, C_NONE, C_NONE, C_ZREG, 65, 12, 0, 0, 0},
 	{AMOVD, C_ADDR, C_NONE, C_NONE, C_ZREG, 65, 12, 0, 0, 0},
@@ -525,8 +523,6 @@ var optab = []Optab{
 	/* scaled 12-bit unsigned displacement store */
 	{AMOVB, C_ZREG, C_NONE, C_NONE, C_UAUTO4K, 20, 4, REGSP, 0, 0},
 	{AMOVB, C_ZREG, C_NONE, C_NONE, C_UOREG4K, 20, 4, 0, 0, 0},
-	{AMOVBU, C_ZREG, C_NONE, C_NONE, C_UAUTO4K, 20, 4, REGSP, 0, 0},
-	{AMOVBU, C_ZREG, C_NONE, C_NONE, C_UOREG4K, 20, 4, 0, 0, 0},
 	{AMOVH, C_ZREG, C_NONE, C_NONE, C_UAUTO8K, 20, 4, REGSP, 0, 0},
 	{AMOVH, C_ZREG, C_NONE, C_NONE, C_UOREG8K, 20, 4, 0, 0, 0},
 	{AMOVW, C_ZREG, C_NONE, C_NONE, C_UAUTO16K, 20, 4, REGSP, 0, 0},
@@ -544,8 +540,6 @@ var optab = []Optab{
 	/* unscaled 9-bit signed displacement store */
 	{AMOVB, C_ZREG, C_NONE, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
 	{AMOVB, C_ZREG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
-	{AMOVBU, C_ZREG, C_NONE, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
-	{AMOVBU, C_ZREG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
 	{AMOVH, C_ZREG, C_NONE, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
 	{AMOVH, C_ZREG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
 	{AMOVW, C_ZREG, C_NONE, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
@@ -563,8 +557,6 @@ var optab = []Optab{
 	/* scaled 12-bit unsigned displacement load */
 	{AMOVB, C_UAUTO4K, C_NONE, C_NONE, C_ZREG, 21, 4, REGSP, 0, 0},
 	{AMOVB, C_UOREG4K, C_NONE, C_NONE, C_ZREG, 21, 4, 0, 0, 0},
-	{AMOVBU, C_UAUTO4K, C_NONE, C_NONE, C_ZREG, 21, 4, REGSP, 0, 0},
-	{AMOVBU, C_UOREG4K, C_NONE, C_NONE, C_ZREG, 21, 4, 0, 0, 0},
 	{AMOVH, C_UAUTO8K, C_NONE, C_NONE, C_ZREG, 21, 4, REGSP, 0, 0},
 	{AMOVH, C_UOREG8K, C_NONE, C_NONE, C_ZREG, 21, 4, 0, 0, 0},
 	{AMOVW, C_UAUTO16K, C_NONE, C_NONE, C_ZREG, 21, 4, REGSP, 0, 0},
@@ -582,8 +574,6 @@ var optab = []Optab{
 	/* unscaled 9-bit signed displacement load */
 	{AMOVB, C_NSAUTO, C_NONE, C_NONE, C_ZREG, 21, 4, REGSP, 0, 0},
 	{AMOVB, C_NSOREG, C_NONE, C_NONE, C_ZREG, 21, 4, 0, 0, 0},
-	{AMOVBU, C_NSAUTO, C_NONE, C_NONE, C_ZREG, 21, 4, REGSP, 0, 0},
-	{AMOVBU, C_NSOREG, C_NONE, C_NONE, C_ZREG, 21, 4, 0, 0, 0},
 	{AMOVH, C_NSAUTO, C_NONE, C_NONE, C_ZREG, 21, 4, REGSP, 0, 0},
 	{AMOVH, C_NSOREG, C_NONE, C_NONE, C_ZREG, 21, 4, 0, 0, 0},
 	{AMOVW, C_NSAUTO, C_NONE, C_NONE, C_ZREG, 21, 4, REGSP, 0, 0},
@@ -601,8 +591,6 @@ var optab = []Optab{
 	/* long displacement store */
 	{AMOVB, C_ZREG, C_NONE, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
 	{AMOVB, C_ZREG, C_NONE, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
-	{AMOVBU, C_ZREG, C_NONE, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
-	{AMOVBU, C_ZREG, C_NONE, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
 	{AMOVH, C_ZREG, C_NONE, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
 	{AMOVH, C_ZREG, C_NONE, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
 	{AMOVW, C_ZREG, C_NONE, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
@@ -620,8 +608,6 @@ var optab = []Optab{
 	/* long displacement load */
 	{AMOVB, C_LAUTO, C_NONE, C_NONE, C_ZREG, 31, 8, REGSP, LFROM, 0},
 	{AMOVB, C_LOREG, C_NONE, C_NONE, C_ZREG, 31, 8, 0, LFROM, 0},
-	{AMOVBU, C_LAUTO, C_NONE, C_NONE, C_ZREG, 31, 8, REGSP, LFROM, 0},
-	{AMOVBU, C_LOREG, C_NONE, C_NONE, C_ZREG, 31, 8, 0, LFROM, 0},
 	{AMOVH, C_LAUTO, C_NONE, C_NONE, C_ZREG, 31, 8, REGSP, LFROM, 0},
 	{AMOVH, C_LOREG, C_NONE, C_NONE, C_ZREG, 31, 8, 0, LFROM, 0},
 	{AMOVW, C_LAUTO, C_NONE, C_NONE, C_ZREG, 31, 8, REGSP, LFROM, 0},
@@ -641,7 +627,6 @@ var optab = []Optab{
 	{AMOVW, C_LOREG, C_NONE, C_NONE, C_ZREG, 22, 4, 0, 0, C_XPOST},
 	{AMOVH, C_LOREG, C_NONE, C_NONE, C_ZREG, 22, 4, 0, 0, C_XPOST},
 	{AMOVB, C_LOREG, C_NONE, C_NONE, C_ZREG, 22, 4, 0, 0, C_XPOST},
-	{AMOVBU, C_LOREG, C_NONE, C_NONE, C_ZREG, 22, 4, 0, 0, C_XPOST},
 	{AFMOVS, C_LOREG, C_NONE, C_NONE, C_FREG, 22, 4, 0, 0, C_XPOST},
 	{AFMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, 22, 4, 0, 0, C_XPOST},
 	{AFMOVQ, C_LOREG, C_NONE, C_NONE, C_FREG, 22, 4, 0, 0, C_XPOST},
@@ -650,7 +635,6 @@ var optab = []Optab{
 	{AMOVW, C_LOREG, C_NONE, C_NONE, C_ZREG, 22, 4, 0, 0, C_XPRE},
 	{AMOVH, C_LOREG, C_NONE, C_NONE, C_ZREG, 22, 4, 0, 0, C_XPRE},
 	{AMOVB, C_LOREG, C_NONE, C_NONE, C_ZREG, 22, 4, 0, 0, C_XPRE},
-	{AMOVBU, C_LOREG, C_NONE, C_NONE, C_ZREG, 22, 4, 0, 0, C_XPRE},
 	{AFMOVS, C_LOREG, C_NONE, C_NONE, C_FREG, 22, 4, 0, 0, C_XPRE},
 	{AFMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, 22, 4, 0, 0, C_XPRE},
 	{AFMOVQ, C_LOREG, C_NONE, C_NONE, C_FREG, 22, 4, 0, 0, C_XPRE},
@@ -660,7 +644,6 @@ var optab = []Optab{
 	{AMOVW, C_ZREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
 	{AMOVH, C_ZREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
 	{AMOVB, C_ZREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
-	{AMOVBU, C_ZREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
 	{AFMOVS, C_FREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
 	{AFMOVQ, C_FREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
@@ -669,7 +652,6 @@ var optab = []Optab{
 	{AMOVW, C_ZREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
 	{AMOVH, C_ZREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
 	{AMOVB, C_ZREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
-	{AMOVBU, C_ZREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
 	{AFMOVS, C_FREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
 	{AFMOVQ, C_FREG, C_NONE, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
@@ -679,7 +661,6 @@ var optab = []Optab{
 	{AMOVW, C_ROFF, C_NONE, C_NONE, C_ZREG, 98, 4, 0, 0, 0},
 	{AMOVH, C_ROFF, C_NONE, C_NONE, C_ZREG, 98, 4, 0, 0, 0},
 	{AMOVB, C_ROFF, C_NONE, C_NONE, C_ZREG, 98, 4, 0, 0, 0},
-	{AMOVBU, C_ROFF, C_NONE, C_NONE, C_ZREG, 98, 4, 0, 0, 0},
 	{AFMOVS, C_ROFF, C_NONE, C_NONE, C_FREG, 98, 4, 0, 0, 0},
 	{AFMOVD, C_ROFF, C_NONE, C_NONE, C_FREG, 98, 4, 0, 0, 0},
 
@@ -1041,6 +1022,27 @@ func pcAlignPadLength(pc int64, alignedValue int64, ctxt *obj.Link) int {
 	return int(-pc & (alignedValue - 1))
 }
 
+// size returns the size of the sequence of machine instructions when p is encoded with o.
+// Usually it just returns o.size directly, in some cases it checks whether the optimization
+// conditions are met, and if so returns the size of the optimized instruction sequence.
+// These optimizations need to be synchronized with the asmout function.
+func (o *Optab) size(ctxt *obj.Link, p *obj.Prog) int {
+	// Optimize adrp+add+ld/st to adrp+ld/st(offset).
+	sz := movesize(p.As)
+	if sz != -1 {
+		// Relocations R_AARCH64_LDST{64,32,16,8}_ABS_LO12_NC can only generate 8-byte, 4-byte,
+		// 2-byte and 1-byte aligned addresses, so the address of load/store must be aligned.
+		// Also symbols with prefix of "go:string." are Go strings, which will go into
+		// the symbol table, their addresses are not necessary aligned, rule this out.
+		align := int64(1 << sz)
+		if o.a1 == C_ADDR && p.From.Offset%align == 0 && !strings.HasPrefix(p.From.Sym.Name, "go:string.") ||
+			o.a4 == C_ADDR && p.To.Offset%align == 0 && !strings.HasPrefix(p.To.Sym.Name, "go:string.") {
+			return 8
+		}
+	}
+	return int(o.size_)
+}
+
 func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	if ctxt.Retpoline {
 		ctxt.Diag("-spectre=ret not supported on arm64")
@@ -1070,7 +1072,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 		p.Pc = pc
 		o = c.oplook(p)
-		m = int(o.size)
+		m = o.size(c.ctxt, p)
 		if m == 0 {
 			switch p.As {
 			case obj.APCALIGN:
@@ -1151,7 +1153,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					bflag = 1
 				}
 			}
-			m = int(o.size)
+			m = o.size(c.ctxt, p)
 
 			if m == 0 {
 				switch p.As {
@@ -1196,8 +1198,9 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			psz += 4
 		}
 
-		if int(o.size) > 4*len(out) {
-			log.Fatalf("out array in span7 is too small, need at least %d for %v", o.size/4, p)
+		sz := o.size(c.ctxt, p)
+		if sz > 4*len(out) {
+			log.Fatalf("out array in span7 is too small, need at least %d for %v", sz/4, p)
 		}
 		if p.As == obj.APCALIGN {
 			alignedValue := p.From.Offset
@@ -1210,7 +1213,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 		} else {
 			c.asmout(p, o, out[:])
-			for i = 0; i < int(o.size/4); i++ {
+			for i = 0; i < sz/4; i++ {
 				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
 				bp = bp[4:]
 				psz += 4
@@ -1258,7 +1261,7 @@ func (c *ctxt7) isRestartable(p *obj.Prog) bool {
 	// If p doesn't use REGTMP, it can be simply preempted, so we don't
 	// mark it.
 	o := c.oplook(p)
-	return o.size > 4 && o.flag&NOTUSETMP == 0
+	return o.size(c.ctxt, p) > 4 && o.flag&NOTUSETMP == 0
 }
 
 /*
@@ -2866,7 +2869,6 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ACSETMW, t)
 
 		case AMOVD,
-			AMOVBU,
 			AB,
 			ABL,
 			AWORD,
@@ -3435,7 +3437,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			op = int32(c.opirr(p, AADD))
 		}
 
-		if int(o.size) == 8 {
+		if int(o.size(c.ctxt, p)) == 8 {
 			// NOTE: this case does not use REGTMP. If it ever does,
 			// remove the NOTUSETMP flag in optab.
 			o1 = c.oaddi(p, op, v&0xfff000, r, rt)
@@ -4481,31 +4483,43 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o2 |= uint32(r&31) << 5
 		o2 |= uint32(rt & 31)
 
-		/* reloc ops */
-	case 64: /* movT R,addr -> adrp + add + movT R, (REGTMP) */
+	/* reloc ops */
+	case 64: /* movT R,addr -> adrp + movT R, (REGTMP) */
 		if p.From.Reg == REGTMP {
 			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
 		}
 		o1 = ADR(1, 0, REGTMP)
-		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 8
 		rel.Sym = p.To.Sym
 		rel.Add = p.To.Offset
-		rel.Type = objabi.R_ADDRARM64
-		o3 = c.olsr12u(p, int32(c.opstr(p, p.As)), 0, REGTMP, int(p.From.Reg))
+		// For unaligned access, fall back to adrp + add + movT R, (REGTMP).
+		if o.size(c.ctxt, p) != 8 {
+			o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
+			o3 = c.olsr12u(p, int32(c.opstr(p, p.As)), 0, REGTMP, int(p.From.Reg))
+			rel.Type = objabi.R_ADDRARM64
+			break
+		}
+		o2 = c.olsr12u(p, int32(c.opstr(p, p.As)), 0, REGTMP, int(p.From.Reg))
+		rel.Type = c.addrRelocType(p)
 
-	case 65: /* movT addr,R -> adrp + add + movT (REGTMP), R */
+	case 65: /* movT addr,R -> adrp + movT (REGTMP), R */
 		o1 = ADR(1, 0, REGTMP)
-		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRARM64
-		o3 = c.olsr12u(p, int32(c.opldr(p, p.As)), 0, REGTMP, int(p.To.Reg))
+		// For unaligned access, fall back to adrp + add + movT (REGTMP), R.
+		if o.size(c.ctxt, p) != 8 {
+			o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
+			o3 = c.olsr12u(p, int32(c.opldr(p, p.As)), 0, REGTMP, int(p.To.Reg))
+			rel.Type = objabi.R_ADDRARM64
+			break
+		}
+		o2 = c.olsr12u(p, int32(c.opldr(p, p.As)), 0, REGTMP, int(p.To.Reg))
+		rel.Type = c.addrRelocType(p)
 
 	case 66: /* ldp O(R)!, (r1, r2); ldp (R)O!, (r1, r2) */
 		v := int32(c.regoff(&p.From))
@@ -5695,6 +5709,22 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	out[2] = o3
 	out[3] = o4
 	out[4] = o5
+}
+
+func (c *ctxt7) addrRelocType(p *obj.Prog) objabi.RelocType {
+	switch movesize(p.As) {
+	case 0:
+		return objabi.R_ARM64_PCREL_LDST8
+	case 1:
+		return objabi.R_ARM64_PCREL_LDST16
+	case 2:
+		return objabi.R_ARM64_PCREL_LDST32
+	case 3:
+		return objabi.R_ARM64_PCREL_LDST64
+	default:
+		c.ctxt.Diag("use R_ADDRARM64 relocation type for: %v\n", p)
+	}
+	return -1
 }
 
 /*

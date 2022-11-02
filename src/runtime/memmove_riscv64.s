@@ -8,11 +8,9 @@
 
 // void runtime·memmove(void*, void*, uintptr)
 TEXT runtime·memmove<ABIInternal>(SB),NOSPLIT,$-0-24
-#ifndef GOEXPERIMENT_regabiargs
-	MOV	to+0(FP), A0
-	MOV	from+8(FP), A1
-	MOV	n+16(FP), A2
-#endif
+	// A0 = to
+	// A1 = from
+	// A2 = n
 	ADD	A1, A2, T5
 
 	// If the destination is ahead of the source, start at the end of the

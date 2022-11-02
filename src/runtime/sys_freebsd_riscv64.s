@@ -96,7 +96,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	ECALL
 	WORD	$0	// crash
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOV	wait+0(FP), A0
 	// We're done using the stack.
@@ -427,4 +427,10 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOV	$FD_CLOEXEC, A2
 	MOV	$SYS_fcntl, T0
 	ECALL
+	RET
+
+// func getCntxct() uint32
+TEXT runtime·getCntxct(SB),NOSPLIT|NOFRAME,$0
+	RDTIME	A0
+	MOVW	A0, ret+0(FP)
 	RET

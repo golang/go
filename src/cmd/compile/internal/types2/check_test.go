@@ -41,7 +41,6 @@ import (
 var (
 	haltOnError  = flag.Bool("halt", false, "halt on error")
 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
-	goVersion    = flag.String("lang", "", "Go language version (e.g. \"go1.12\")")
 )
 
 func parseFiles(t *testing.T, filenames []string, mode syntax.Mode) ([]*syntax.File, []error) {
@@ -131,6 +130,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+	flags.BoolVar(&conf.AltComparableSemantics, "altComparableSemantics", false, "")
 	if err := parseFlags(filenames[0], nil, flags); err != nil {
 		t.Fatal(err)
 	}

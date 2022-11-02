@@ -374,7 +374,9 @@ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
 		old := pp.PkgTargetRoot
 		pp.PkgRoot = cfg.BuildPkgdir
 		pp.PkgTargetRoot = cfg.BuildPkgdir
-		pp.PkgObj = filepath.Join(cfg.BuildPkgdir, strings.TrimPrefix(pp.PkgObj, old))
+		if pp.PkgObj != "" {
+			pp.PkgObj = filepath.Join(cfg.BuildPkgdir, strings.TrimPrefix(pp.PkgObj, old))
+		}
 	}
 
 	p.Dir = pp.Dir
@@ -1814,11 +1816,19 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		p.Target = ""
 	} else {
 		p.Target = p.Internal.Build.PkgObj
-		if cfg.BuildLinkshared && p.Target != "" {
-			// TODO(bcmills): The reliance on p.Target implies that -linkshared does
-			// not work for any package that lacks a Target — such as a non-main
+		if cfg.BuildBuildmode == "shared" && p.Internal.Build.PkgTargetRoot != "" {
+			// TODO(matloob): This shouldn't be necessary, but the misc/cgo/testshared
+			// test fails without Target set for this condition. Figure out why and
+			// fix it.
+			p.Target = filepath.Join(p.Internal.Build.PkgTargetRoot, p.ImportPath+".a")
+		}
+		if cfg.BuildLinkshared && p.Internal.Build.PkgTargetRoot != "" {
+			// TODO(bcmills): The reliance on PkgTargetRoot implies that -linkshared does
+			// not work for any package that lacks a PkgTargetRoot — such as a non-main
 			// package in module mode. We should probably fix that.
-			shlibnamefile := p.Target[:len(p.Target)-2] + ".shlibname"
+			targetPrefix := filepath.Join(p.Internal.Build.PkgTargetRoot, p.ImportPath)
+			p.Target = targetPrefix + ".a"
+			shlibnamefile := targetPrefix + ".shlibname"
 			shlib, err := os.ReadFile(shlibnamefile)
 			if err != nil && !os.IsNotExist(err) {
 				base.Fatalf("reading shlibname: %v", err)
@@ -3230,52 +3240,36 @@ func EnsureImport(p *Package, pkg string) {
 	p.Internal.Imports = append(p.Internal.Imports, p1)
 }
 
-// PrepareForCoverageBuild is a helper invoked for "go install -cover"
-// and "go build -cover"; it walks through the packages being built
-// (and dependencies) and marks them for coverage instrumentation
-// when appropriate, and adding dependencies where needed.
+// PrepareForCoverageBuild is a helper invoked for "go install
+// -cover", "go run -cover", and "go build -cover" (but not used by
+// "go test -cover"). It walks through the packages being built (and
+// dependencies) and marks them for coverage instrumentation when
+// appropriate, and possibly adding additional deps where needed.
 func PrepareForCoverageBuild(pkgs []*Package) {
 	var match []func(*Package) bool
 
-	matchMainMod := func(p *Package) bool {
-		return !p.Standard && p.Module != nil && p.Module.Main
+	matchMainModAndCommandLine := func(p *Package) bool {
+		// note that p.Standard implies p.Module == nil below.
+		return p.Internal.CmdlineFiles || p.Internal.CmdlinePkg || (p.Module != nil && p.Module.Main)
 	}
 
-	// The set of packages instrumented by default varies depending on
-	// options and the nature of the build. If "-coverpkg" has been
-	// set, then match packages below using that value; if we're
-	// building with a module in effect, then default to packages in
-	// the main module. If no module is in effect and we're building
-	// in GOPATH mode, instrument the named packages and their
-	// dependencies in GOPATH. Otherwise, for "go run ..." and for the
-	// "go build ..." case, instrument just the packages named on the
-	// command line.
-	if len(cfg.BuildCoverPkg) == 0 {
-		if modload.Enabled() {
-			// Default is main module.
-			match = []func(*Package) bool{matchMainMod}
-		} else {
-			// These matchers below are intended to handle the cases of:
-			//
-			// 1. "go run ..." and "go build ..."
-			// 2. building in gopath mode with GO111MODULE=off
-			//
-			// In case 2 above, the assumption here is that (in the
-			// absence of a -coverpkg flag) we will be instrumenting
-			// the named packages only.
-			matchMain := func(p *Package) bool { return p.Internal.CmdlineFiles || p.Internal.CmdlinePkg }
-			match = []func(*Package) bool{matchMain}
-		}
-	} else {
+	if len(cfg.BuildCoverPkg) != 0 {
+		// If -coverpkg has been specified, then we instrument only
+		// the specific packages selected by the user-specified pattern(s).
 		match = make([]func(*Package) bool, len(cfg.BuildCoverPkg))
 		for i := range cfg.BuildCoverPkg {
 			match[i] = MatchPackage(cfg.BuildCoverPkg[i], base.Cwd())
 		}
+	} else {
+		// Without -coverpkg, instrument only packages in the main module
+		// (if any), as well as packages/files specifically named on the
+		// command line.
+		match = []func(*Package) bool{matchMainModAndCommandLine}
 	}
 
-	// Visit the packages being built or installed, along with all
-	// of their dependencies, and mark them to be instrumented,
-	// taking into account the value of -coverpkg.
+	// Visit the packages being built or installed, along with all of
+	// their dependencies, and mark them to be instrumented, taking
+	// into account the matchers we've set up in the sequence above.
 	SelectCoverPackages(PackageList(pkgs), match, "build")
 }
 

@@ -129,7 +129,6 @@ func TestCoverWithCfg(t *testing.T) {
 		},
 	}
 
-	tag := "first"
 	var incfg string
 	for _, scenario := range scenarios {
 		// Instrument package "a", producing a set of instrumented output
@@ -138,6 +137,7 @@ func TestCoverWithCfg(t *testing.T) {
 		pname := "a"
 		mode := scenario.mode
 		gran := scenario.gran
+		tag := mode + "_" + gran
 		incfg = writePkgConfig(t, instdira, tag, ppath, pname, gran)
 		ofs, outcfg, _ := runPkgCover(t, instdira, tag, incfg, mode,
 			pfiles("a"), false)
@@ -158,6 +158,7 @@ func TestCoverWithCfg(t *testing.T) {
 	// Expect error if config file inaccessible/unreadable.
 	mode := "atomic"
 	errExpected := true
+	tag := "errors"
 	_, _, errmsg := runPkgCover(t, instdira, tag, "/not/a/file", mode,
 		pfiles("a"), errExpected)
 	want := "error reading pkgconfig file"

@@ -234,24 +234,9 @@
 	(I64Store [s-8] dst (I64Load [s-8] src mem)
 		(I64Store dst (I64Load src mem) mem))
 
-// Adjust moves to be a multiple of 16 bytes.
-(Move [s] dst src mem)
-	&& s > 16 && s%16 != 0 && s%16 <= 8 =>
-	(Move [s-s%16]
-		(OffPtr <dst.Type> dst [s%16])
-		(OffPtr <src.Type> src [s%16])
-		(I64Store dst (I64Load src mem) mem))
-(Move [s] dst src mem)
-	&& s > 16 && s%16 != 0 && s%16 > 8 =>
-	(Move [s-s%16]
-		(OffPtr <dst.Type> dst [s%16])
-		(OffPtr <src.Type> src [s%16])
-		(I64Store [8] dst (I64Load [8] src mem)
-			(I64Store dst (I64Load src mem) mem)))
-
 // Large copying uses helper.
-(Move [s] dst src mem) && s%8 == 0 && logLargeCopy(v, s) =>
-	(LoweredMove [s/8] dst src mem)
+(Move [s] dst src mem) && logLargeCopy(v, s) =>
+	(LoweredMove [s] dst src mem)
 
 // Lowering Zero instructions
 (Zero [0] _ mem) => mem
@@ -274,7 +259,7 @@
 		(I64Store32 destptr (I64Const [0]) mem))
 
 // Strip off any fractional word zeroing.
-(Zero [s] destptr mem) && s%8 != 0 && s > 8 =>
+(Zero [s] destptr mem) && s%8 != 0 && s > 8 && s < 32 =>
 	(Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8])
 		(I64Store destptr (I64Const [0]) mem))
 
@@ -293,8 +278,8 @@
 				(I64Store destptr (I64Const [0]) mem))))
 
 // Large zeroing uses helper.
-(Zero [s] destptr mem) && s%8 == 0 && s > 32 =>
-	(LoweredZero [s/8] destptr mem)
+(Zero [s] destptr mem) =>
+	(LoweredZero [s] destptr mem)
 
 // Lowering constants
 (Const64 ...) => (I64Const ...)
