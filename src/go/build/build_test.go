@@ -702,6 +702,22 @@ func TestIssue23594(t *testing.T) {
 	}
 }
 
+// TestIssue56509 tests that go/build does not add non-go files to InvalidGoFiles
+// when they have unparsable comments.
+func TestIssue56509(t *testing.T) {
+	// The directory testdata/bads contains a .s file that has an unparsable
+	// comment. (go/build parses initial comments in non-go files looking for
+	// //go:build or //+go build comments).
+	p, err := ImportDir("testdata/bads", 0)
+	if err == nil {
+		t.Fatalf("could not import testdata/bads: %v", err)
+	}
+
+	if len(p.InvalidGoFiles) != 0 {
+		t.Fatalf("incorrectly added non-go file to InvalidGoFiles")
+	}
+}
+
 // TestMissingImportErrorRepetition checks that when an unknown package is
 // imported, the package path is only shown once in the error.
 // Verifies golang.org/issue/34752.

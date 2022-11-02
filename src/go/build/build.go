@@ -824,14 +824,14 @@ Found:
 	}
 
 	var badGoError error
-	badFiles := make(map[string]bool)
-	badFile := func(name string, err error) {
+	badGoFiles := make(map[string]bool)
+	badGoFile := func(name string, err error) {
 		if badGoError == nil {
 			badGoError = err
 		}
-		if !badFiles[name] {
+		if !badGoFiles[name] {
 			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
-			badFiles[name] = true
+			badGoFiles[name] = true
 		}
 	}
 
@@ -860,8 +860,8 @@ Found:
 		ext := nameExt(name)
 
 		info, err := ctxt.matchFile(p.Dir, name, allTags, &p.BinaryOnly, fset)
-		if err != nil {
-			badFile(name, err)
+		if err != nil && strings.HasSuffix(name, ".go") {
+			badGoFile(name, err)
 			continue
 		}
 		if info == nil {
@@ -874,7 +874,6 @@ Found:
 			}
 			continue
 		}
-		data, filename := info.header, info.name
 
 		// Going to save the file. For non-Go files, can stop here.
 		switch ext {
@@ -891,8 +890,10 @@ Found:
 			continue
 		}
 
+		data, filename := info.header, info.name
+
 		if info.parseErr != nil {
-			badFile(name, info.parseErr)
+			badGoFile(name, info.parseErr)
 			// Fall through: we might still have a partial AST in info.parsed,
 			// and we want to list files with parse errors anyway.
 		}
@@ -920,7 +921,7 @@ Found:
 			// TODO(#45999): The choice of p.Name is arbitrary based on file iteration
 			// order. Instead of resolving p.Name arbitrarily, we should clear out the
 			// existing name and mark the existing files as also invalid.
-			badFile(name, &MultiplePackageError{
+			badGoFile(name, &MultiplePackageError{
 				Dir:      p.Dir,
 				Packages: []string{p.Name, pkg},
 				Files:    []string{firstFile, name},
@@ -936,12 +937,12 @@ Found:
 			if line != 0 {
 				com, err := strconv.Unquote(qcom)
 				if err != nil {
-					badFile(name, fmt.Errorf("%s:%d: cannot parse import comment", filename, line))
+					badGoFile(name, fmt.Errorf("%s:%d: cannot parse import comment", filename, line))
 				} else if p.ImportComment == "" {
 					p.ImportComment = com
 					firstCommentFile = name
 				} else if p.ImportComment != com {
-					badFile(name, fmt.Errorf("found import comments %q (%s) and %q (%s) in %s", p.ImportComment, firstCommentFile, com, name, p.Dir))
+					badGoFile(name, fmt.Errorf("found import comments %q (%s) and %q (%s) in %s", p.ImportComment, firstCommentFile, com, name, p.Dir))
 				}
 			}
 		}
@@ -951,13 +952,13 @@ Found:
 		for _, imp := range info.imports {
 			if imp.path == "C" {
 				if isTest {
-					badFile(name, fmt.Errorf("use of cgo in test %s not supported", filename))
+					badGoFile(name, fmt.Errorf("use of cgo in test %s not supported", filename))
 					continue
 				}
 				isCgo = true
 				if imp.doc != nil {
 					if err := ctxt.saveCgo(filename, p, imp.doc); err != nil {
-						badFile(name, err)
+						badGoFile(name, err)
 					}
 				}
 			}
@@ -1454,7 +1455,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	}
 	f.Close()
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %v", info.name, err)
+		return info, fmt.Errorf("read %s: %v", info.name, err)
 	}
 
 	// Look for go:build comments to accept or reject the file.
