@@ -1645,6 +1645,53 @@ func testTLSServer(t *testing.T, mode testMode) {
 	}
 }
 
+type fakeConnectionStateConn struct {
+	net.Conn
+}
+
+func (fcsc *fakeConnectionStateConn) ConnectionState() tls.ConnectionState {
+	return tls.ConnectionState{
+		ServerName: "example.com",
+	}
+}
+
+func TestTLSServerWithoutTLSConn(t *testing.T) {
+	//set up
+	pr, pw := net.Pipe()
+	c := make(chan int)
+	listener := &oneConnListener{&fakeConnectionStateConn{pr}}
+	server := &Server{
+		Handler: HandlerFunc(func(writer ResponseWriter, request *Request) {
+			if request.TLS == nil {
+				t.Fatal("request.TLS is nil, expected not nil")
+			}
+			if request.TLS.ServerName != "example.com" {
+				t.Fatalf("request.TLS.ServerName is %s, expected %s", request.TLS.ServerName, "example.com")
+			}
+			writer.Header().Set("X-TLS-ServerName", "example.com")
+		}),
+	}
+
+	// write request and read response
+	go func() {
+		req, _ := NewRequest(MethodGet, "https://example.com", nil)
+		req.Write(pw)
+
+		resp, _ := ReadResponse(bufio.NewReader(pw), req)
+		if hdr := resp.Header.Get("X-TLS-ServerName"); hdr != "example.com" {
+			t.Errorf("response header X-TLS-ServerName is %s, expected %s", hdr, "example.com")
+		}
+		close(c)
+		pw.Close()
+	}()
+
+	server.Serve(listener)
+
+	// oneConnListener returns error after one accept, wait util response is read
+	<-c
+	pr.Close()
+}
+
 func TestServeTLS(t *testing.T) {
 	CondSkipHTTP2(t)
 	// Not parallel: uses global test hooks.
