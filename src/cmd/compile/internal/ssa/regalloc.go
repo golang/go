@@ -1301,7 +1301,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
-				goto issueSpill
+				continue
 			}
 			if v.Op == OpGetG && s.f.Config.hasGReg {
 				// use hardware g register
@@ -1311,7 +1311,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.assignReg(s.GReg, v, v)
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
-				goto issueSpill
+				continue
 			}
 			if v.Op == OpArg {
 				// Args are "pre-spilled" values. We don't allocate
@@ -1669,8 +1669,6 @@ func (s *regAllocState) regalloc(f *Func) {
 				v.SetArg(i, a) // use register version of arguments
 			}
 			b.Values = append(b.Values, v)
-
-		issueSpill:
 		}
 
 		// Copy the control values - we need this so we can reduce the
