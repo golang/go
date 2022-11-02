@@ -147,7 +147,7 @@ type CmdFlags struct {
 func ParseFlags() {
 	Flag.I = addImportDir
 
-	Flag.LowerC = 1
+	Flag.LowerC = runtime.GOMAXPROCS(0)
 	Flag.LowerD = objabi.NewDebugFlag(&Debug, DebugSSA)
 	Flag.LowerP = &Ctxt.Pkgpath
 	Flag.LowerV = &Ctxt.Debugvlog
@@ -267,8 +267,8 @@ func ParseFlags() {
 	if Flag.LowerC < 1 {
 		log.Fatalf("-c must be at least 1, got %d", Flag.LowerC)
 	}
-	if Flag.LowerC > 1 && !concurrentBackendAllowed() {
-		log.Fatalf("cannot use concurrent backend compilation with provided flags; invoked as %v", os.Args)
+	if !concurrentBackendAllowed() {
+		Flag.LowerC = 1
 	}
 
 	if Flag.CompilingRuntime {
