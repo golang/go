@@ -1387,7 +1387,7 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
 }
 
 // parseOperand may return an expression or a raw type (incl. array
-// types of the form [...]T. Callers must verify the result.
+// types of the form [...]T). Callers must verify the result.
 func (p *parser) parseOperand() ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Operand"))
