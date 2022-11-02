@@ -6,7 +6,8 @@
 
 // A note on line numbers: when working with line numbers, we always use the
 // binary-visible relative line number. i.e., the line number as adjusted by
-// //line directives (ctxt.InnermostPos(ir.Node.Pos()).RelLine()).
+// //line directives (ctxt.InnermostPos(ir.Node.Pos()).RelLine()). Use
+// NodeLineOffset to compute line offsets.
 //
 // If you are thinking, "wait, doesn't that just make things more complex than
 // using the real line number?", then you are 100% correct. Unfortunately,
@@ -80,17 +81,17 @@ type IREdgeMap map[*IRNode][]*IREdge
 // weight, callsite, and line number information.
 type IREdge struct {
 	// Source and destination of the edge in IRNode.
-	Src, Dst *IRNode
-	Weight   int64
-	CallSite int
+	Src, Dst       *IRNode
+	Weight         int64
+	CallSiteOffset int // Line offset from function start line.
 }
 
 // NodeMapKey represents a hash key to identify unique call-edges in profile
 // and in IR. Used for deduplication of call edges found in profile.
 type NodeMapKey struct {
-	CallerName string
-	CalleeName string
-	CallSite   int
+	CallerName     string
+	CalleeName     string
+	CallSiteOffset int // Line offset from function start line.
 }
 
 // Weights capture both node weight and edge weight.
@@ -102,17 +103,14 @@ type Weights struct {
 
 // CallSiteInfo captures call-site information and its caller/callee.
 type CallSiteInfo struct {
-	Line   int
-	Caller *ir.Func
-	Callee *ir.Func
+	LineOffset int // Line offset from function start line.
+	Caller     *ir.Func
+	Callee     *ir.Func
 }
 
 // Profile contains the processed PGO profile and weighted call graph used for
 // PGO optimizations.
 type Profile struct {
-	// Original profile-graph.
-	ProfileGraph *Graph
-
 	// Aggregated NodeWeights and EdgeWeights across the profile. This
 	// helps us determine the percentage threshold for hot/cold
 	// partitioning.
@@ -148,15 +146,14 @@ func New(profileFile string) *Profile {
 	})
 
 	p := &Profile{
-		NodeMap:      make(map[NodeMapKey]*Weights),
-		ProfileGraph: g,
+		NodeMap: make(map[NodeMapKey]*Weights),
 		WeightedCG: &IRGraph{
 			IRNodes: make(map[string]*IRNode),
 		},
 	}
 
 	// Build the node map and totals from the profile graph.
-	p.preprocessProfileGraph()
+	p.processprofileGraph(g)
 
 	// Create package-level call graph with weights from profile and IR.
 	p.initializeIRGraph()
@@ -164,31 +161,34 @@ func New(profileFile string) *Profile {
 	return p
 }
 
-// preprocessProfileGraph builds various maps from the profile-graph.
+// processprofileGraph builds various maps from the profile-graph.
 //
 // It initializes NodeMap and Total{Node,Edge}Weight based on the name and
 // callsite to compute node and edge weights which will be used later on to
 // create edges for WeightedCG.
-func (p *Profile) preprocessProfileGraph() {
+func (p *Profile) processprofileGraph(g *Graph) {
 	nFlat := make(map[string]int64)
 	nCum := make(map[string]int64)
+	seenStartLine := false
 
 	// Accummulate weights for the same node.
-	for _, n := range p.ProfileGraph.Nodes {
+	for _, n := range g.Nodes {
 		canonicalName := n.Info.Name
 		nFlat[canonicalName] += n.FlatValue()
 		nCum[canonicalName] += n.CumValue()
 	}
 
-	// Process ProfileGraph and build various node and edge maps which will
+	// Process graph and build various node and edge maps which will
 	// be consumed by AST walk.
-	for _, n := range p.ProfileGraph.Nodes {
+	for _, n := range g.Nodes {
+		seenStartLine = seenStartLine || n.Info.StartLine != 0
+
 		p.TotalNodeWeight += n.FlatValue()
 		canonicalName := n.Info.Name
-		// Create the key to the NodeMapKey.
+		// Create the key to the nodeMapKey.
 		nodeinfo := NodeMapKey{
-			CallerName: canonicalName,
-			CallSite:   n.Info.Lineno,
+			CallerName:     canonicalName,
+			CallSiteOffset: n.Info.Lineno - n.Info.StartLine,
 		}
 
 		for _, e := range n.Out {
@@ -204,6 +204,13 @@ func (p *Profile) preprocessProfileGraph() {
 				p.NodeMap[nodeinfo] = weights
 			}
 		}
+	}
+
+	if !seenStartLine {
+		// TODO(prattic): If Function.start_line is missing we could
+		// fall back to using absolute line numbers, which is better
+		// than nothing.
+		log.Fatal("PGO profile missing Function.start_line data")
 	}
 }
 
@@ -240,9 +247,9 @@ func (p *Profile) VisitIR(fn *ir.Func, recursive bool) {
 	}
 	// Create the key for the NodeMapKey.
 	nodeinfo := NodeMapKey{
-		CallerName: name,
-		CalleeName: "",
-		CallSite:   -1,
+		CallerName:     name,
+		CalleeName:     "",
+		CallSiteOffset: 0,
 	}
 	// If the node exists, then update its node weight.
 	if weights, ok := p.NodeMap[nodeinfo]; ok {
@@ -254,9 +261,17 @@ func (p *Profile) VisitIR(fn *ir.Func, recursive bool) {
 	p.createIRGraphEdge(fn, g.IRNodes[name], name)
 }
 
+// NodeLineOffset returns the line offset of n in fn.
+func NodeLineOffset(n ir.Node, fn *ir.Func) int {
+	// See "A note on line numbers" at the top of the file.
+	line := int(base.Ctxt.InnermostPos(n.Pos()).RelLine())
+	startLine := int(base.Ctxt.InnermostPos(fn.Pos()).RelLine())
+	return line - startLine
+}
+
 // addIREdge adds an edge between caller and new node that points to `callee`
 // based on the profile-graph and NodeMap.
-func (p *Profile) addIREdge(caller *IRNode, callee *ir.Func, n *ir.Node, callername string, line int) {
+func (p *Profile) addIREdge(caller *IRNode, callername string, call ir.Node, callee *ir.Func) {
 	g := p.WeightedCG
 
 	// Create an IRNode for the callee.
@@ -266,18 +281,18 @@ func (p *Profile) addIREdge(caller *IRNode, callee *ir.Func, n *ir.Node, callern
 
 	// Create key for NodeMapKey.
 	nodeinfo := NodeMapKey{
-		CallerName: callername,
-		CalleeName: calleename,
-		CallSite:   line,
+		CallerName:     callername,
+		CalleeName:     calleename,
+		CallSiteOffset: NodeLineOffset(call, caller.AST),
 	}
 
 	// Create the callee node with node weight.
 	if g.IRNodes[calleename] == nil {
 		g.IRNodes[calleename] = calleenode
 		nodeinfo2 := NodeMapKey{
-			CallerName: calleename,
-			CalleeName: "",
-			CallSite:   -1,
+			CallerName:     calleename,
+			CalleeName:     "",
+			CallSiteOffset: 0,
 		}
 		if weights, ok := p.NodeMap[nodeinfo2]; ok {
 			g.IRNodes[calleename].Flat = weights.NFlat
@@ -290,20 +305,20 @@ func (p *Profile) addIREdge(caller *IRNode, callee *ir.Func, n *ir.Node, callern
 		caller.Cum = weights.NCum
 
 		// Add edge in the IRGraph from caller to callee.
-		info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: weights.EWeight, CallSite: line}
+		info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: weights.EWeight, CallSiteOffset: nodeinfo.CallSiteOffset}
 		g.OutEdges[caller] = append(g.OutEdges[caller], info)
 		g.InEdges[g.IRNodes[calleename]] = append(g.InEdges[g.IRNodes[calleename]], info)
 	} else {
 		nodeinfo.CalleeName = ""
-		nodeinfo.CallSite = -1
+		nodeinfo.CallSiteOffset = 0
 		if weights, ok := p.NodeMap[nodeinfo]; ok {
 			caller.Flat = weights.NFlat
 			caller.Cum = weights.NCum
-			info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: 0, CallSite: line}
+			info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: 0, CallSiteOffset: nodeinfo.CallSiteOffset}
 			g.OutEdges[caller] = append(g.OutEdges[caller], info)
 			g.InEdges[g.IRNodes[calleename]] = append(g.InEdges[g.IRNodes[calleename]], info)
 		} else {
-			info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: 0, CallSite: line}
+			info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: 0, CallSiteOffset: nodeinfo.CallSiteOffset}
 			g.OutEdges[caller] = append(g.OutEdges[caller], info)
 			g.InEdges[g.IRNodes[calleename]] = append(g.InEdges[g.IRNodes[calleename]], info)
 		}
@@ -319,18 +334,16 @@ func (p *Profile) createIRGraphEdge(fn *ir.Func, callernode *IRNode, name string
 			ir.DoChildren(n, doNode)
 		case ir.OCALLFUNC:
 			call := n.(*ir.CallExpr)
-			line := int(base.Ctxt.InnermostPos(n.Pos()).RelLine())
 			// Find the callee function from the call site and add the edge.
-			f := inlCallee(call.X)
-			if f != nil {
-				p.addIREdge(callernode, f, &n, name, line)
+			callee := inlCallee(call.X)
+			if callee != nil {
+				p.addIREdge(callernode, name, n, callee)
 			}
 		case ir.OCALLMETH:
 			call := n.(*ir.CallExpr)
 			// Find the callee method from the call site and add the edge.
-			fn2 := ir.MethodExprName(call.X).Func
-			line := int(base.Ctxt.InnermostPos(n.Pos()).RelLine())
-			p.addIREdge(callernode, fn2, &n, name, line)
+			callee := ir.MethodExprName(call.X).Func
+			p.addIREdge(callernode, name, n, callee)
 		}
 		return false
 	}
@@ -419,18 +432,17 @@ func (p *Profile) RedirectEdges(cur *IRNode, inlinedCallSites map[CallSiteInfo]s
 	g := p.WeightedCG
 
 	for i, outEdge := range g.OutEdges[cur] {
-		if _, found := inlinedCallSites[CallSiteInfo{Line: outEdge.CallSite, Caller: cur.AST}]; !found {
+		if _, found := inlinedCallSites[CallSiteInfo{LineOffset: outEdge.CallSiteOffset, Caller: cur.AST}]; !found {
 			for _, InEdge := range g.InEdges[cur] {
-				if _, ok := inlinedCallSites[CallSiteInfo{Line: InEdge.CallSite, Caller: InEdge.Src.AST}]; ok {
+				if _, ok := inlinedCallSites[CallSiteInfo{LineOffset: InEdge.CallSiteOffset, Caller: InEdge.Src.AST}]; ok {
 					weight := g.calculateWeight(InEdge.Src, cur)
 					g.redirectEdge(InEdge.Src, cur, outEdge, weight, i)
 				}
 			}
 		} else {
-			g.remove(cur, i, outEdge.Dst.AST.Nname)
+			g.remove(cur, i)
 		}
 	}
-	g.removeall(cur)
 }
 
 // redirectEdges deletes the cur node out-edges and redirect them so now these
@@ -449,25 +461,16 @@ func (g *IRGraph) redirectEdge(parent *IRNode, cur *IRNode, outEdge *IREdge, wei
 	outEdge.Src = parent
 	outEdge.Weight = weight * outEdge.Weight
 	g.OutEdges[parent] = append(g.OutEdges[parent], outEdge)
-	g.remove(cur, idx, outEdge.Dst.AST.Nname)
+	g.remove(cur, idx)
 }
 
 // remove deletes the cur-node's out-edges at index idx.
-func (g *IRGraph) remove(cur *IRNode, idx int, name *ir.Name) {
+func (g *IRGraph) remove(cur *IRNode, i int) {
 	if len(g.OutEdges[cur]) >= 2 {
-		g.OutEdges[cur][idx] = &IREdge{CallSite: -1}
+		g.OutEdges[cur][i] = g.OutEdges[cur][len(g.OutEdges[cur])-1]
+		g.OutEdges[cur] = g.OutEdges[cur][:len(g.OutEdges[cur])-1]
 	} else {
 		delete(g.OutEdges, cur)
-	}
-}
-
-// removeall deletes all cur-node's out-edges that marked to be removed .
-func (g *IRGraph) removeall(cur *IRNode) {
-	for i := len(g.OutEdges[cur]) - 1; i >= 0; i-- {
-		if g.OutEdges[cur][i].CallSite == -1 {
-			g.OutEdges[cur][i] = g.OutEdges[cur][len(g.OutEdges[cur])-1]
-			g.OutEdges[cur] = g.OutEdges[cur][:len(g.OutEdges[cur])-1]
-		}
 	}
 }
 

@@ -112,7 +112,7 @@ func pgoInlinePrologue(p *pgo.Profile) {
 					if e.Weight != 0 {
 						edgeweightpercent := pgo.WeightInPercentage(e.Weight, p.TotalEdgeWeight)
 						if edgeweightpercent > inlineHotCallSiteThresholdPercent {
-							csi := pgo.CallSiteInfo{Line: e.CallSite, Caller: n.AST}
+							csi := pgo.CallSiteInfo{LineOffset: e.CallSiteOffset, Caller: n.AST}
 							if _, ok := candHotEdgeMap[csi]; !ok {
 								candHotEdgeMap[csi] = struct{}{}
 							}
@@ -150,7 +150,7 @@ func computeThresholdFromCDF(p *pgo.Profile) (float64, []pgo.NodeMapKey) {
 		if ni.CalleeName != nj.CalleeName {
 			return ni.CalleeName < nj.CalleeName
 		}
-		return ni.CallSite < nj.CallSite
+		return ni.CallSiteOffset < nj.CallSiteOffset
 	})
 	cum := int64(0)
 	for i, n := range nodes {
@@ -488,8 +488,8 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// Determine if the callee edge is for an inlinable hot callee or not.
 		if v.profile != nil && v.curFunc != nil {
 			if fn := inlCallee(n.X, v.profile); fn != nil && typecheck.HaveInlineBody(fn) {
-				line := int(base.Ctxt.InnermostPos(n.Pos()).RelLine())
-				csi := pgo.CallSiteInfo{Line: line, Caller: v.curFunc}
+				lineOffset := pgo.NodeLineOffset(n, fn)
+				csi := pgo.CallSiteInfo{LineOffset: lineOffset, Caller: v.curFunc}
 				if _, o := candHotEdgeMap[csi]; o {
 					if base.Debug.PGOInline > 0 {
 						fmt.Printf("hot-callsite identified at line=%v for func=%v\n", ir.Line(n), ir.PkgFuncName(v.curFunc))
@@ -919,8 +919,8 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 	}
 	if fn.Inl.Cost > maxCost {
 		// If the callsite is hot and it is under the inlineHotMaxBudget budget, then try to inline it, or else bail.
-		line := int(base.Ctxt.InnermostPos(n.Pos()).RelLine())
-		csi := pgo.CallSiteInfo{Line: line, Caller: ir.CurFunc}
+		lineOffset := pgo.NodeLineOffset(n, fn)
+		csi := pgo.CallSiteInfo{LineOffset: lineOffset, Caller: ir.CurFunc}
 		if _, ok := candHotEdgeMap[csi]; ok {
 			if fn.Inl.Cost > inlineHotMaxBudget {
 				if logopt.Enabled() {
@@ -1084,8 +1084,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 	}
 
 	if base.Debug.PGOInline > 0 {
-		line := int(base.Ctxt.InnermostPos(n.Pos()).RelLine())
-		csi := pgo.CallSiteInfo{Line: line, Caller: ir.CurFunc}
+		csi := pgo.CallSiteInfo{LineOffset: pgo.NodeLineOffset(n, fn), Caller: ir.CurFunc}
 		if _, ok := inlinedCallSites[csi]; !ok {
 			inlinedCallSites[csi] = struct{}{}
 		}
