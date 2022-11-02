@@ -215,17 +215,13 @@ func TestRepoRootForImportPath(t *testing.T) {
 // Test that vcs.FromDir correctly inspects a given directory and returns the
 // right VCS and repo directory.
 func TestFromDir(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "vcstest")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
-	for j, vcs := range vcsList {
-		for r, rootName := range vcs.RootNames {
+	for _, vcs := range vcsList {
+		for r, root := range vcs.RootNames {
 			vcsName := fmt.Sprint(vcs.Name, r)
-			dir := filepath.Join(tempDir, "example.com", vcsName, rootName)
-			if j&1 == 0 {
+			dir := filepath.Join(tempDir, "example.com", vcsName, root.filename)
+			if root.isDir {
 				err := os.MkdirAll(dir, 0755)
 				if err != nil {
 					t.Fatal(err)

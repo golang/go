@@ -34,8 +34,8 @@ import (
 // like Mercurial, Git, or Subversion.
 type Cmd struct {
 	Name      string
-	Cmd       string   // name of binary to invoke command
-	RootNames []string // filename indicating the root of a checkout directory
+	Cmd       string     // name of binary to invoke command
+	RootNames []rootName // filename and mode indicating the root of a checkout directory
 
 	CreateCmd   []string // commands to download a fresh copy of a repository
 	DownloadCmd []string // commands to download updates into an existing repository
@@ -150,9 +150,11 @@ func vcsByCmd(cmd string) *Cmd {
 
 // vcsHg describes how to use Mercurial.
 var vcsHg = &Cmd{
-	Name:      "Mercurial",
-	Cmd:       "hg",
-	RootNames: []string{".hg"},
+	Name: "Mercurial",
+	Cmd:  "hg",
+	RootNames: []rootName{
+		{filename: ".hg", isDir: true},
+	},
 
 	CreateCmd:   []string{"clone -U -- {repo} {dir}"},
 	DownloadCmd: []string{"pull"},
@@ -238,9 +240,11 @@ func parseRevTime(out []byte) (string, time.Time, error) {
 
 // vcsGit describes how to use Git.
 var vcsGit = &Cmd{
-	Name:      "Git",
-	Cmd:       "git",
-	RootNames: []string{".git"},
+	Name: "Git",
+	Cmd:  "git",
+	RootNames: []rootName{
+		{filename: ".git", isDir: true},
+	},
 
 	CreateCmd:   []string{"clone -- {repo} {dir}", "-go-internal-cd {dir} submodule update --init --recursive"},
 	DownloadCmd: []string{"pull --ff-only", "submodule update --init --recursive"},
@@ -352,9 +356,11 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
 
 // vcsBzr describes how to use Bazaar.
 var vcsBzr = &Cmd{
-	Name:      "Bazaar",
-	Cmd:       "bzr",
-	RootNames: []string{".bzr"},
+	Name: "Bazaar",
+	Cmd:  "bzr",
+	RootNames: []rootName{
+		{filename: ".bzr", isDir: true},
+	},
 
 	CreateCmd: []string{"branch -- {repo} {dir}"},
 
@@ -473,9 +479,11 @@ func bzrStatus(vcsBzr *Cmd, rootDir string) (Status, error) {
 
 // vcsSvn describes how to use Subversion.
 var vcsSvn = &Cmd{
-	Name:      "Subversion",
-	Cmd:       "svn",
-	RootNames: []string{".svn"},
+	Name: "Subversion",
+	Cmd:  "svn",
+	RootNames: []rootName{
+		{filename: ".svn", isDir: true},
+	},
 
 	CreateCmd:   []string{"checkout -- {repo} {dir}"},
 	DownloadCmd: []string{"update"},
@@ -524,9 +532,12 @@ const fossilRepoName = ".fossil"
 
 // vcsFossil describes how to use Fossil (fossil-scm.org)
 var vcsFossil = &Cmd{
-	Name:      "Fossil",
-	Cmd:       "fossil",
-	RootNames: []string{".fslckout", "_FOSSIL_"},
+	Name: "Fossil",
+	Cmd:  "fossil",
+	RootNames: []rootName{
+		{filename: ".fslckout", isDir: false},
+		{filename: "_FOSSIL_", isDir: false},
+	},
 
 	CreateCmd:   []string{"-go-internal-mkdir {dir} clone -- {repo} " + filepath.Join("{dir}", fossilRepoName), "-go-internal-cd {dir} open .fossil"},
 	DownloadCmd: []string{"up"},
@@ -814,7 +825,7 @@ func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cm
 	origDir := dir
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
-			if _, err := statAny(dir, vcs.RootNames); err == nil {
+			if isVCSRoot(dir, vcs.RootNames) {
 				// Record first VCS we find.
 				// If allowNesting is false (as it is in GOPATH), keep looking for
 				// repositories in parent directories and report an error if one is
@@ -825,10 +836,6 @@ func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cm
 					if allowNesting {
 						return repoDir, vcsCmd, nil
 					}
-					continue
-				}
-				// Allow .git inside .git, which can arise due to submodules.
-				if vcsCmd == vcs && vcs.Cmd == "git" {
 					continue
 				}
 				// Otherwise, we have one VCS inside a different VCS.
@@ -850,23 +857,22 @@ func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cm
 	return repoDir, vcsCmd, nil
 }
 
-// statAny provides FileInfo for the first filename found in the directory.
-// Otherwise, it returns the last error seen.
-func statAny(dir string, filenames []string) (os.FileInfo, error) {
-	if len(filenames) == 0 {
-		return nil, errors.New("invalid argument: no filenames provided")
-	}
-
-	var err error
-	var fi os.FileInfo
-	for _, name := range filenames {
-		fi, err = os.Stat(filepath.Join(dir, name))
-		if err == nil {
-			return fi, nil
+// isVCSRoot identifies a VCS root by checking whether the directory contains
+// any of the listed root names.
+func isVCSRoot(dir string, rootNames []rootName) bool {
+	for _, root := range rootNames {
+		fi, err := os.Stat(filepath.Join(dir, root.filename))
+		if err == nil && fi.IsDir() == root.isDir {
+			return true
 		}
 	}
 
-	return nil, err
+	return false
+}
+
+type rootName struct {
+	filename string
+	isDir    bool
 }
 
 type vcsNotFoundError struct {
@@ -1026,13 +1032,9 @@ func CheckNested(vcs *Cmd, dir, srcRoot string) error {
 	otherDir := dir
 	for len(otherDir) > len(srcRoot) {
 		for _, otherVCS := range vcsList {
-			if _, err := statAny(otherDir, otherVCS.RootNames); err == nil {
+			if isVCSRoot(otherDir, otherVCS.RootNames) {
 				// Allow expected vcs in original dir.
 				if otherDir == dir && otherVCS == vcs {
-					continue
-				}
-				// Allow .git inside .git, which can arise due to submodules.
-				if otherVCS == vcs && vcs.Cmd == "git" {
 					continue
 				}
 				// Otherwise, we have one VCS inside a different VCS.
