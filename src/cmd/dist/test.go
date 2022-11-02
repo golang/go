@@ -550,39 +550,18 @@ func (t *tester) registerStdTest(pkg string) {
 			defer timelog("end", dt.name)
 			ranGoTest = true
 
-			timeoutSec := 180
+			timeoutSec := 180 * time.Second
 			for _, pkg := range stdMatches {
 				if pkg == "cmd/go" {
 					timeoutSec *= 3
 					break
 				}
 			}
-			args := []string{
-				"test",
-				"-short=" + short(),
-				t.tags(),
-				t.timeout(timeoutSec),
-			}
-			if gcflags != "" {
-				args = append(args, "-gcflags=all="+gcflags)
-			}
-			if t.race {
-				args = append(args, "-race")
-			}
-			if t.msan {
-				args = append(args, "-msan")
-			}
-			if t.asan {
-				args = append(args, "-asan")
-			}
-			if t.compileOnly {
-				args = append(args, "-run=^$")
-			}
-			args = append(args, stdMatches...)
-			cmd := exec.Command(gorootBinGo, args...)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			return cmd.Run()
+			return (&goTest{
+				timeout: timeoutSec,
+				gcflags: gcflags,
+				pkgs:    stdMatches,
+			}).run(t)
 		},
 	})
 }
@@ -603,23 +582,13 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 			timelog("start", dt.name)
 			defer timelog("end", dt.name)
 			ranGoBench = true
-			args := []string{
-				"test",
-				"-short=" + short(),
-				"-race",
-				t.timeout(1200), // longer timeout for race with benchmarks
-				"-run=^$",       // nothing. only benchmarks.
-				"-benchtime=.1s",
-				"-cpu=4",
-			}
-			if !t.compileOnly {
-				args = append(args, "-bench=.*")
-			}
-			args = append(args, benchMatches...)
-			cmd := exec.Command(gorootBinGo, args...)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			return cmd.Run()
+			return (&goTest{
+				timeout: 1200 * time.Second, // longer timeout for race with benchmarks
+				race:    true,
+				bench:   true,
+				cpu:     "4",
+				pkgs:    benchMatches,
+			}).run(t)
 		},
 	})
 }
@@ -789,9 +758,10 @@ func (t *tester) registerTests() {
 
 				// Run `go test fmt` in the moved GOROOT, without explicitly setting
 				// GOROOT in the environment. The 'go' command should find itself.
-				cmd := exec.Command(filepath.Join(moved, "bin", "go"), "test", "fmt")
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
+				cmd := (&goTest{
+					goroot: moved,
+					pkg:    "fmt",
+				}).command(t)
 				unsetEnv(cmd, "GOROOT")
 				unsetEnv(cmd, "GOCACHE") // TODO(bcmills): ...why‽
 				err := cmd.Run()
