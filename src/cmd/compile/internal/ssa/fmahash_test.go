@@ -15,7 +15,8 @@ import (
 )
 
 // TestFmaHash checks that the hash-test machinery works properly for a single case.
-// It does not check or run the generated code.
+// It also runs ssa/check and gccheck to be sure that those are checked at least a
+// little in each run.bash.  It does not check or run the generated code.
 // The test file is however a useful example of fused-vs-cascaded multiply-add.
 func TestFmaHash(t *testing.T) {
 	switch runtime.GOOS {

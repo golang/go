@@ -255,7 +255,8 @@ func freePackage(pkg *types2.Package) {
 	// not because of #22350). To avoid imposing unnecessary
 	// restrictions on the GOROOT_BOOTSTRAP toolchain, we skip the test
 	// during bootstrapping.
-	if base.CompilerBootstrap {
+	if base.CompilerBootstrap || base.Debug.GCCheck == 0 {
+		*pkg = types2.Package{}
 		return
 	}
 
