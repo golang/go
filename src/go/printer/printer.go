@@ -1040,7 +1040,7 @@ func (p *printer) flush(next token.Position, tok token.Token) (wroteNewline, dro
 	return
 }
 
-// getNode returns the ast.CommentGroup associated with n, if any.
+// getDoc returns the ast.CommentGroup associated with n, if any.
 func getDoc(n ast.Node) *ast.CommentGroup {
 	switch n := n.(type) {
 	case *ast.Field:
