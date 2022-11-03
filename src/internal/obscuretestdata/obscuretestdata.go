@@ -13,6 +13,21 @@ import (
 	"os"
 )
 
+// Rot13 returns the rot13 encoding or decoding of its input.
+func Rot13(data []byte) []byte {
+	out := make([]byte, len(data))
+	copy(out, data)
+	for i, c := range out {
+		switch {
+		case 'A' <= c && c <= 'M' || 'a' <= c && c <= 'm':
+			out[i] = c + 13
+		case 'N' <= c && c <= 'Z' || 'n' <= c && c <= 'z':
+			out[i] = c - 13
+		}
+	}
+	return out
+}
+
 // DecodeToTempFile decodes the named file to a temporary location.
 // If successful, it returns the path of the decoded file.
 // The caller is responsible for ensuring that the temporary file is removed.

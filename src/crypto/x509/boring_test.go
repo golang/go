@@ -54,7 +54,8 @@ type boringCertificate struct {
 
 func TestBoringAllowCert(t *testing.T) {
 	R1 := testBoringCert(t, "R1", boringRSAKey(t, 2048), nil, boringCertCA|boringCertFIPSOK)
-	R2 := testBoringCert(t, "R2", boringRSAKey(t, 4096), nil, boringCertCA)
+	R2 := testBoringCert(t, "R2", boringRSAKey(t, 8192), nil, boringCertCA)
+	R3 := testBoringCert(t, "R3", boringRSAKey(t, 4096), nil, boringCertCA|boringCertFIPSOK)
 
 	M1_R1 := testBoringCert(t, "M1_R1", boringECDSAKey(t, elliptic.P256()), R1, boringCertCA|boringCertFIPSOK)
 	M2_R1 := testBoringCert(t, "M2_R1", boringECDSAKey(t, elliptic.P224()), R1, boringCertCA)
@@ -63,6 +64,9 @@ func TestBoringAllowCert(t *testing.T) {
 	testBoringCert(t, "I_R2", I_R1.key, R2, boringCertCA|boringCertFIPSOK)
 	testBoringCert(t, "I_M1", I_R1.key, M1_R1, boringCertCA|boringCertFIPSOK)
 	testBoringCert(t, "I_M2", I_R1.key, M2_R1, boringCertCA|boringCertFIPSOK)
+
+	I_R3 := testBoringCert(t, "I_R3", boringRSAKey(t, 3072), R3, boringCertCA|boringCertFIPSOK)
+	testBoringCert(t, "I_R3", I_R3.key, R3, boringCertCA|boringCertFIPSOK)
 
 	testBoringCert(t, "L1_I", boringECDSAKey(t, elliptic.P384()), I_R1, boringCertLeaf|boringCertFIPSOK)
 	testBoringCert(t, "L2_I", boringRSAKey(t, 1024), I_R1, boringCertLeaf)
