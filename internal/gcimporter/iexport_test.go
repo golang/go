@@ -59,7 +59,8 @@ func readExportFile(filename string) ([]byte, error) {
 
 func iexport(fset *token.FileSet, version int, pkg *types.Package) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := gcimporter.IExportCommon(&buf, fset, false, version, []*types.Package{pkg}); err != nil {
+	const bundle, shallow = false, false
+	if err := gcimporter.IExportCommon(&buf, fset, bundle, shallow, version, []*types.Package{pkg}); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -197,7 +198,7 @@ func testPkg(t *testing.T, fset *token.FileSet, version int, pkg *types.Package,
 
 	// Compare the packages' corresponding members.
 	for _, name := range pkg.Scope().Names() {
-		if !ast.IsExported(name) {
+		if !token.IsExported(name) {
 			continue
 		}
 		obj1 := pkg.Scope().Lookup(name)

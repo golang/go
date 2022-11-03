@@ -85,7 +85,7 @@ const (
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
 func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (int, *types.Package, error) {
-	pkgs, err := iimportCommon(fset, imports, data, false, path)
+	pkgs, err := iimportCommon(fset, imports, data, false, path, nil)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -94,10 +94,10 @@ func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 
 // IImportBundle imports a set of packages from the serialized package bundle.
 func IImportBundle(fset *token.FileSet, imports map[string]*types.Package, data []byte) ([]*types.Package, error) {
-	return iimportCommon(fset, imports, data, true, "")
+	return iimportCommon(fset, imports, data, true, "", nil)
 }
 
-func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data []byte, bundle bool, path string) (pkgs []*types.Package, err error) {
+func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data []byte, bundle bool, path string, insert InsertType) (pkgs []*types.Package, err error) {
 	const currentVersion = iexportVersionCurrent
 	version := int64(-1)
 	if !debug {
@@ -147,6 +147,7 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 	p := iimporter{
 		version: int(version),
 		ipath:   path,
+		insert:  insert,
 
 		stringData:  stringData,
 		stringCache: make(map[uint64]string),
@@ -187,11 +188,18 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 		} else if pkg.Name() != pkgName {
 			errorf("conflicting names %s and %s for package %q", pkg.Name(), pkgName, path)
 		}
+		if i == 0 && !bundle {
+			p.localpkg = pkg
+		}
 
 		p.pkgCache[pkgPathOff] = pkg
 
+		// Read index for package.
 		nameIndex := make(map[string]uint64)
-		for nSyms := r.uint64(); nSyms > 0; nSyms-- {
+		nSyms := r.uint64()
+		// In shallow mode we don't expect an index for other packages.
+		assert(nSyms == 0 || p.localpkg == pkg || p.insert == nil)
+		for ; nSyms > 0; nSyms-- {
 			name := p.stringAt(r.uint64())
 			nameIndex[name] = r.uint64()
 		}
@@ -267,6 +275,9 @@ type iimporter struct {
 	version int
 	ipath   string
 
+	localpkg *types.Package
+	insert   func(pkg *types.Package, name string) // "shallow" mode only
+
 	stringData  []byte
 	stringCache map[uint64]string
 	pkgCache    map[uint64]*types.Package
@@ -310,6 +321,13 @@ func (p *iimporter) doDecl(pkg *types.Package, name string) {
 
 	off, ok := p.pkgIndex[pkg][name]
 	if !ok {
+		// In "shallow" mode, call back to the application to
+		// find the object and insert it into the package scope.
+		if p.insert != nil {
+			assert(pkg != p.localpkg)
+			p.insert(pkg, name) // "can't fail"
+			return
+		}
 		errorf("%v.%v not in index", pkg, name)
 	}
 

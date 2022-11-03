@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"go/ast"
 	"go/constant"
 	"go/token"
 	"go/types"
@@ -26,6 +25,41 @@ import (
 	"golang.org/x/tools/internal/typeparams"
 )
 
+// IExportShallow encodes "shallow" export data for the specified package.
+//
+// No promises are made about the encoding other than that it can be
+// decoded by the same version of IIExportShallow. If you plan to save
+// export data in the file system, be sure to include a cryptographic
+// digest of the executable in the key to avoid version skew.
+func IExportShallow(fset *token.FileSet, pkg *types.Package) ([]byte, error) {
+	// In principle this operation can only fail if out.Write fails,
+	// but that's impossible for bytes.Buffer---and as a matter of
+	// fact iexportCommon doesn't even check for I/O errors.
+	// TODO(adonovan): handle I/O errors properly.
+	// TODO(adonovan): use byte slices throughout, avoiding copying.
+	const bundle, shallow = false, true
+	var out bytes.Buffer
+	err := iexportCommon(&out, fset, bundle, shallow, iexportVersion, []*types.Package{pkg})
+	return out.Bytes(), err
+}
+
+// IImportShallow decodes "shallow" types.Package data encoded by IExportShallow
+// in the same executable. This function cannot import data from
+// cmd/compile or gcexportdata.Write.
+func IImportShallow(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string, insert InsertType) (*types.Package, error) {
+	const bundle = false
+	pkgs, err := iimportCommon(fset, imports, data, bundle, path, insert)
+	if err != nil {
+		return nil, err
+	}
+	return pkgs[0], nil
+}
+
+// InsertType is the type of a function that creates a types.TypeName
+// object for a named type and inserts it into the scope of the
+// specified Package.
+type InsertType = func(pkg *types.Package, name string)
+
 // Current bundled export format version. Increase with each format change.
 // 0: initial implementation
 const bundleVersion = 0
@@ -36,15 +70,17 @@ const bundleVersion = 0
 // The package path of the top-level package will not be recorded,
 // so that calls to IImportData can override with a provided package path.
 func IExportData(out io.Writer, fset *token.FileSet, pkg *types.Package) error {
-	return iexportCommon(out, fset, false, iexportVersion, []*types.Package{pkg})
+	const bundle, shallow = false, false
+	return iexportCommon(out, fset, bundle, shallow, iexportVersion, []*types.Package{pkg})
 }
 
 // IExportBundle writes an indexed export bundle for pkgs to out.
 func IExportBundle(out io.Writer, fset *token.FileSet, pkgs []*types.Package) error {
-	return iexportCommon(out, fset, true, iexportVersion, pkgs)
+	const bundle, shallow = true, false
+	return iexportCommon(out, fset, bundle, shallow, iexportVersion, pkgs)
 }
 
-func iexportCommon(out io.Writer, fset *token.FileSet, bundle bool, version int, pkgs []*types.Package) (err error) {
+func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, version int, pkgs []*types.Package) (err error) {
 	if !debug {
 		defer func() {
 			if e := recover(); e != nil {
@@ -61,6 +97,7 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle bool, version int,
 	p := iexporter{
 		fset:        fset,
 		version:     version,
+		shallow:     shallow,
 		allPkgs:     map[*types.Package]bool{},
 		stringIndex: map[string]uint64{},
 		declIndex:   map[types.Object]uint64{},
@@ -82,7 +119,7 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle bool, version int,
 	for _, pkg := range pkgs {
 		scope := pkg.Scope()
 		for _, name := range scope.Names() {
-			if ast.IsExported(name) {
+			if token.IsExported(name) {
 				p.pushDecl(scope.Lookup(name))
 			}
 		}
@@ -205,7 +242,8 @@ type iexporter struct {
 	out     *bytes.Buffer
 	version int
 
-	localpkg *types.Package
+	shallow  bool           // don't put types from other packages in the index
+	localpkg *types.Package // (nil in bundle mode)
 
 	// allPkgs tracks all packages that have been referenced by
 	// the export data, so we can ensure to include them in the
@@ -254,6 +292,11 @@ func (p *iexporter) pushDecl(obj types.Object) {
 	// Caller should not ask us to do export it.
 	if obj.Pkg() == types.Unsafe {
 		panic("cannot export package unsafe")
+	}
+
+	// Shallow export data: don't index decls from other packages.
+	if p.shallow && obj.Pkg() != p.localpkg {
+		return
 	}
 
 	if _, ok := p.declIndex[obj]; ok {
@@ -497,7 +540,7 @@ func (w *exportWriter) pkg(pkg *types.Package) {
 	w.string(w.exportPath(pkg))
 }
 
-func (w *exportWriter) qualifiedIdent(obj types.Object) {
+func (w *exportWriter) qualifiedType(obj *types.TypeName) {
 	name := w.p.exportName(obj)
 
 	// Ensure any referenced declarations are written out too.
@@ -556,11 +599,11 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 			return
 		}
 		w.startType(definedType)
-		w.qualifiedIdent(t.Obj())
+		w.qualifiedType(t.Obj())
 
 	case *typeparams.TypeParam:
 		w.startType(typeParamType)
-		w.qualifiedIdent(t.Obj())
+		w.qualifiedType(t.Obj())
 
 	case *types.Pointer:
 		w.startType(pointerType)

@@ -109,7 +109,7 @@ type UnknownType undefined
 
 		// Compare the packages' corresponding members.
 		for _, name := range pkg.Scope().Names() {
-			if !ast.IsExported(name) {
+			if !token.IsExported(name) {
 				continue
 			}
 			obj1 := pkg.Scope().Lookup(name)
