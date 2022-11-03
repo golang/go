@@ -513,6 +513,13 @@ func (f *chattyFlag) String() string {
 	return "false"
 }
 
+func (f *chattyFlag) Get() any {
+	if f.json {
+		return "test2json"
+	}
+	return f.on
+}
+
 const marker = byte(0x16) // ^V for framing
 
 func (f *chattyFlag) prefix() string {
