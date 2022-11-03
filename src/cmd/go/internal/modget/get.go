@@ -1751,7 +1751,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 		reason := func(m module.Version) string {
 			rv, ok := r.resolvedVersion[m.Path]
 			if !ok {
-				panic(fmt.Sprintf("internal error: can't find reason for requirement on %v", m))
+				return fmt.Sprintf("(INTERNAL ERROR: no reason found for %v)", m)
 			}
 			return rv.reason.ResolvedString(module.Version{Path: m.Path, Version: rv.version})
 		}
