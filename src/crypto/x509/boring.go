@@ -21,12 +21,13 @@ func boringAllowCert(c *Certificate) bool {
 		return true
 	}
 
-	// The key must be RSA 2048, RSA 3072, or ECDSA P-256, P-384, or P-521.
+	// The key must be RSA 2048, RSA 3072, RSA 4096,
+	// or ECDSA P-256, P-384, P-521.
 	switch k := c.PublicKey.(type) {
 	default:
 		return false
 	case *rsa.PublicKey:
-		if size := k.N.BitLen(); size != 2048 && size != 3072 {
+		if size := k.N.BitLen(); size != 2048 && size != 3072 && size != 4096 {
 			return false
 		}
 	case *ecdsa.PublicKey:
