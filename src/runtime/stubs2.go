@@ -25,7 +25,7 @@ func usleep_no_g(usec uint32) {
 	usleep(usec)
 }
 
-// write calls the write system call.
+// write1 calls the write system call.
 // It returns a non-negative number of bytes written or a negative errno value.
 //
 //go:noescape

@@ -810,7 +810,7 @@ func printAncestorTraceback(ancestor ancestorInfo) {
 	}
 }
 
-// printAncestorTraceback prints the given function info at a given pc
+// printAncestorTracebackFuncInfo prints the given function info at a given pc
 // within an ancestor traceback. The precision of this info is reduced
 // due to only have access to the pcs at the time of the caller
 // goroutine being created.
@@ -1282,7 +1282,7 @@ type cgoSymbolizerArg struct {
 	data     uintptr
 }
 
-// cgoTraceback prints a traceback of callers.
+// printCgoTraceback prints a traceback of callers.
 func printCgoTraceback(callers *cgoCallers) {
 	if cgoSymbolizer == nil {
 		for _, c := range callers {
