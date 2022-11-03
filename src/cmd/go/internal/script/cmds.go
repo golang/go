@@ -188,7 +188,7 @@ func Cmp() Cmd {
 			},
 		},
 		func(s *State, args ...string) (WaitFunc, error) {
-			return nil, doCompare(s, true, args...)
+			return nil, doCompare(s, false, args...)
 		})
 }
 
