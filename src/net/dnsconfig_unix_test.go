@@ -274,11 +274,13 @@ func TestDNSNameLength(t *testing.T) {
 			t.Fatal(conf.err)
 		}
 
-		var shortestSuffix int
-		if len(tt.want.search) == 0 {
-			shortestSuffix = len(dnsDefaultSearch())
+		suffixList := tt.want.search
+		if len(suffixList) == 0 {
+			suffixList = dnsDefaultSearch()
 		}
-		for _, suffix := range tt.want.search {
+
+		var shortestSuffix int
+		for _, suffix := range suffixList {
 			if shortestSuffix == 0 || len(suffix) < shortestSuffix {
 				shortestSuffix = len(suffix)
 			}
