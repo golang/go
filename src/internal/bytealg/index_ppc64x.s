@@ -660,7 +660,7 @@ index2to16:
 	BGT index2to16tail
 
 	MOVD     $3, R17            // Number of bytes beyond 16
-
+	PCALIGN  $32
 index2to16loop:
 	LXVB16X  (R7)(R0), V1       // Load next 16 bytes of string into V1 from R7
 	LXVB16X  (R7)(R17), V5      // Load next 16 bytes of string into V5 from R7+3
@@ -738,7 +738,7 @@ short:
 	MTVSRD   R10, V8           // Set up shift
 	VSLDOI   $8, V8, V8, V8
 	VSLO     V1, V8, V1        // Shift by start byte
-
+	PCALIGN  $32
 index2to16next:
 	VAND       V1, SEPMASK, V2 // Just compare size of sep
 	VCMPEQUBCC V0, V2, V3      // Compare sep and partial string
