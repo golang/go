@@ -7,7 +7,6 @@
 package mod
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"sort"
@@ -306,7 +305,7 @@ func formatMessage(v govulncheck.Vuln) string {
 			details[i] = ' '
 		}
 	}
-	return fmt.Sprintf("%s has a known vulnerability: %s", v.ModPath, string(bytes.TrimSpace(details)))
+	return strings.TrimSpace(strings.Replace(string(details), "\n\n", "\n\n  ", -1))
 }
 
 // href returns a URL embedded in the entry if any.

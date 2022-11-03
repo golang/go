@@ -169,13 +169,13 @@ func formatVulnerabilities(affecting, nonaffecting []govulncheck.Vuln, options *
 		}
 
 		if useMarkdown {
-			fmt.Fprintf(&b, "  - [**%v**](%v) %v %v\n", v.OSV.ID, href(v.OSV), formatMessage(v), fix)
+			fmt.Fprintf(&b, "- [**%v**](%v) %v %v\n", v.OSV.ID, href(v.OSV), formatMessage(v), fix)
 		} else {
 			fmt.Fprintf(&b, "  - [%v] %v (%v) %v\n", v.OSV.ID, formatMessage(v), href(v.OSV), fix)
 		}
 	}
 	if len(nonaffecting) > 0 {
-		fmt.Fprintf(&b, "The project imports packages affected by the following vulnerabilities, but does not use vulnerable symbols.")
+		fmt.Fprintf(&b, "\n**FYI:** The project imports packages with known vulnerabilities, but does not call the vulnerable code.\n")
 	}
 	for _, v := range nonaffecting {
 		fix := "No fix is available."
@@ -183,7 +183,7 @@ func formatVulnerabilities(affecting, nonaffecting []govulncheck.Vuln, options *
 			fix = "Fixed in " + v.FixedIn + "."
 		}
 		if useMarkdown {
-			fmt.Fprintf(&b, "  - [%v](%v) %v %v\n", v.OSV.ID, href(v.OSV), formatMessage(v), fix)
+			fmt.Fprintf(&b, "- [%v](%v) %v %v\n", v.OSV.ID, href(v.OSV), formatMessage(v), fix)
 		} else {
 			fmt.Fprintf(&b, "  - [%v] %v %v (%v)\n", v.OSV.ID, formatMessage(v), fix, href(v.OSV))
 		}
