@@ -23,11 +23,8 @@ import (
 	"math"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 )
-
-const maxNodelets = 4 // Number of nodelets for labels (both numeric and non)
 
 // Options encodes the options for constructing a graph
 type Options struct {
@@ -66,15 +63,6 @@ type Node struct {
 	// In and out Contains the nodes immediately reaching or reached by
 	// this node.
 	In, Out EdgeMap
-
-	// LabelTags provide additional information about subsets of a sample.
-	LabelTags TagMap
-
-	// NumericTags provide additional values for subsets of a sample.
-	// Numeric tags are optionally associated to a label tag. The key
-	// for NumericTags is the name of the LabelTag they are associated
-	// to, or "" for numeric tags not associated to a label tag.
-	NumericTags map[string]TagMap
 }
 
 // Graph summarizes a performance profile into a format that is
@@ -207,11 +195,9 @@ func (nm NodeMap) FindOrInsertNode(info NodeInfo, kept NodeSet) *Node {
 	}
 
 	n := &Node{
-		Info:        info,
-		In:          make(EdgeMap),
-		Out:         make(EdgeMap),
-		LabelTags:   make(TagMap),
-		NumericTags: make(map[string]TagMap),
+		Info: info,
+		In:   make(EdgeMap),
+		Out:  make(EdgeMap),
 	}
 	nm[info] = n
 	if info.Address == 0 && info.Lineno == 0 {
@@ -252,43 +238,6 @@ func (e *Edge) WeightValue() int64 {
 	return e.Weight / e.WeightDiv
 }
 
-// Tag represent sample annotations
-type Tag struct {
-	Name          string
-	Unit          string // Describe the value, "" for non-numeric tags
-	Value         int64
-	Flat, FlatDiv int64
-	Cum, CumDiv   int64
-}
-
-// FlatValue returns the exclusive value for this tag, computing the
-// mean if a divisor is available.
-func (t *Tag) FlatValue() int64 {
-	if t.FlatDiv == 0 {
-		return t.Flat
-	}
-	return t.Flat / t.FlatDiv
-}
-
-// CumValue returns the inclusive value for this tag, computing the
-// mean if a divisor is available.
-func (t *Tag) CumValue() int64 {
-	if t.CumDiv == 0 {
-		return t.Cum
-	}
-	return t.Cum / t.CumDiv
-}
-
-// TagMap is a collection of tags, classified by their name.
-type TagMap map[string]*Tag
-
-// SortTags sorts a slice of tags based on their weight.
-func SortTags(t []*Tag, flat bool) []*Tag {
-	ts := tags{t, flat}
-	sort.Sort(ts)
-	return ts.t
-}
-
 // newGraph computes a graph from a profile. It returns the graph, and
 // a map from the profile location indices to the corresponding graph
 // nodes.
@@ -315,7 +264,6 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 		// A residual edge goes over one or more nodes that were not kept.
 		residual := false
 
-		labels := joinLabels(sample)
 		// Group the sample frames, based on a global map.
 		for i := len(sample.Location) - 1; i >= 0; i-- {
 			l := sample.Location[i]
@@ -329,7 +277,7 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 				// Add cum weight to all nodes in stack, avoiding double counting.
 				if _, ok := seenNode[n]; !ok {
 					seenNode[n] = true
-					n.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, false)
+					n.addSample(dw, w, false)
 				}
 				// Update edge weights for all edges in stack, avoiding double counting.
 				if _, ok := seenEdge[nodePair{n, parent}]; !ok && parent != nil && n != parent {
@@ -342,7 +290,7 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 		}
 		if parent != nil && !residual {
 			// Add flat weight to leaf node.
-			parent.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, true)
+			parent.addSample(dw, w, true)
 		}
 	}
 
@@ -383,7 +331,6 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 			continue
 		}
 		var parent *Node
-		labels := joinLabels(sample)
 		// Group the sample frames, based on a per-node map.
 		for i := len(sample.Location) - 1; i >= 0; i-- {
 			l := sample.Location[i]
@@ -401,7 +348,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 				if n == nil {
 					continue
 				}
-				n.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, false)
+				n.addSample(dw, w, false)
 				if parent != nil {
 					parent.AddToEdgeDiv(n, dw, w, false, lidx != len(lines)-1)
 				}
@@ -409,7 +356,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 			}
 		}
 		if parent != nil {
-			parent.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, true)
+			parent.addSample(dw, w, true)
 		}
 	}
 
@@ -418,21 +365,6 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 		nodes = append(nodes, nm.nodes()...)
 	}
 	return selectNodesForGraph(nodes, o.DropNegative)
-}
-
-func joinLabels(s *profile.Sample) string {
-	if len(s.Label) == 0 {
-		return ""
-	}
-
-	var labels []string
-	for key, vals := range s.Label {
-		for _, v := range vals {
-			labels = append(labels, key+":"+v)
-		}
-	}
-	sort.Strings(labels)
-	return strings.Join(labels, `\n`)
 }
 
 // isNegative returns true if the node is considered as "negative" for the
@@ -510,25 +442,6 @@ func nodeInfo(l *profile.Location, line profile.Line, objfile string, o *Options
 	return ni
 }
 
-type tags struct {
-	t    []*Tag
-	flat bool
-}
-
-func (t tags) Len() int      { return len(t.t) }
-func (t tags) Swap(i, j int) { t.t[i], t.t[j] = t.t[j], t.t[i] }
-func (t tags) Less(i, j int) bool {
-	if !t.flat {
-		if t.t[i].Cum != t.t[j].Cum {
-			return abs64(t.t[i].Cum) > abs64(t.t[j].Cum)
-		}
-	}
-	if t.t[i].Flat != t.t[j].Flat {
-		return abs64(t.t[i].Flat) > abs64(t.t[j].Flat)
-	}
-	return t.t[i].Name < t.t[j].Name
-}
-
 // Sum adds the flat and cum values of a set of nodes.
 func (ns Nodes) Sum() (flat int64, cum int64) {
 	for _, n := range ns {
@@ -538,7 +451,7 @@ func (ns Nodes) Sum() (flat int64, cum int64) {
 	return
 }
 
-func (n *Node) addSample(dw, w int64, labels string, numLabel map[string][]int64, numUnit map[string][]string, format func(int64, string) string, flat bool) {
+func (n *Node) addSample(dw, w int64, flat bool) {
 	// Update sample value
 	if flat {
 		n.FlatDiv += dw
@@ -547,63 +460,6 @@ func (n *Node) addSample(dw, w int64, labels string, numLabel map[string][]int64
 		n.CumDiv += dw
 		n.Cum += w
 	}
-
-	// Add string tags
-	if labels != "" {
-		t := n.LabelTags.findOrAddTag(labels, "", 0)
-		if flat {
-			t.FlatDiv += dw
-			t.Flat += w
-		} else {
-			t.CumDiv += dw
-			t.Cum += w
-		}
-	}
-
-	numericTags := n.NumericTags[labels]
-	if numericTags == nil {
-		numericTags = TagMap{}
-		n.NumericTags[labels] = numericTags
-	}
-	// Add numeric tags
-	if format == nil {
-		format = defaultLabelFormat
-	}
-	for k, nvals := range numLabel {
-		units := numUnit[k]
-		for i, v := range nvals {
-			var t *Tag
-			if len(units) > 0 {
-				t = numericTags.findOrAddTag(format(v, units[i]), units[i], v)
-			} else {
-				t = numericTags.findOrAddTag(format(v, k), k, v)
-			}
-			if flat {
-				t.FlatDiv += dw
-				t.Flat += w
-			} else {
-				t.CumDiv += dw
-				t.Cum += w
-			}
-		}
-	}
-}
-
-func defaultLabelFormat(v int64, key string) string {
-	return strconv.FormatInt(v, 10)
-}
-
-func (m TagMap) findOrAddTag(label, unit string, value int64) *Tag {
-	l := m[label]
-	if l == nil {
-		l = &Tag{
-			Name:  label,
-			Unit:  unit,
-			Value: value,
-		}
-		m[label] = l
-	}
-	return l
 }
 
 // String returns a text representation of a graph, for debugging purposes.
@@ -670,28 +526,6 @@ func getNodesAboveCumCutoff(nodes Nodes, nodeCutoff int64) Nodes {
 	return cutoffNodes
 }
 
-// TrimLowFrequencyTags removes tags that have less than
-// the specified weight.
-func (g *Graph) TrimLowFrequencyTags(tagCutoff int64) {
-	// Remove nodes with value <= total*nodeFraction
-	for _, n := range g.Nodes {
-		n.LabelTags = trimLowFreqTags(n.LabelTags, tagCutoff)
-		for s, nt := range n.NumericTags {
-			n.NumericTags[s] = trimLowFreqTags(nt, tagCutoff)
-		}
-	}
-}
-
-func trimLowFreqTags(tags TagMap, minValue int64) TagMap {
-	kept := TagMap{}
-	for s, t := range tags {
-		if abs64(t.Flat) >= minValue || abs64(t.Cum) >= minValue {
-			kept[s] = t
-		}
-	}
-	return kept
-}
-
 // TrimLowFrequencyEdges removes edges that have less than
 // the specified weight. Returns the number of edges removed
 func (g *Graph) TrimLowFrequencyEdges(edgeCutoff int64) int {
@@ -738,46 +572,10 @@ func (g *Graph) SelectTopNodes(maxNodes int, visualMode bool) NodeSet {
 
 // selectTopNodes returns a slice of the top maxNodes nodes in a graph.
 func (g *Graph) selectTopNodes(maxNodes int, visualMode bool) Nodes {
-	if maxNodes > 0 {
-		if visualMode {
-			var count int
-			// If generating a visual graph, count tags as nodes. Update
-			// maxNodes to account for them.
-			for i, n := range g.Nodes {
-				tags := countTags(n)
-				if tags > maxNodelets {
-					tags = maxNodelets
-				}
-				if count += tags + 1; count >= maxNodes {
-					maxNodes = i + 1
-					break
-				}
-			}
-		}
-	}
 	if maxNodes > len(g.Nodes) {
 		maxNodes = len(g.Nodes)
 	}
 	return g.Nodes[:maxNodes]
-}
-
-// countTags counts the tags with flat count. This underestimates the
-// number of tags being displayed, but in practice is close enough.
-func countTags(n *Node) int {
-	count := 0
-	for _, e := range n.LabelTags {
-		if e.Flat != 0 {
-			count++
-		}
-	}
-	for _, t := range n.NumericTags {
-		for _, e := range t {
-			if e.Flat != 0 {
-				count++
-			}
-		}
-	}
-	return count
 }
 
 // nodeSorter is a mechanism used to allow a report to be sorted
