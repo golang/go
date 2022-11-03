@@ -86,12 +86,3 @@ func (m *Metadata) IsIntermediateTestVariant() bool {
 func (m *Metadata) ModuleInfo() *packages.Module {
 	return m.Module
 }
-
-// KnownMetadata is a wrapper around metadata that tracks its validity.
-type KnownMetadata struct {
-	*Metadata
-
-	// Valid is true if the given metadata is Valid.
-	// Invalid metadata can still be used if a metadata reload fails.
-	Valid bool
-}

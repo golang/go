@@ -292,14 +292,6 @@ type BuildOptions struct {
 	// be removed.
 	AllowImplicitNetworkAccess bool `status:"experimental"`
 
-	// ExperimentalUseInvalidMetadata enables gopls to fall back on outdated
-	// package metadata to provide editor features if the go command fails to
-	// load packages for some reason (like an invalid go.mod file).
-	//
-	// Deprecated: this setting is deprecated and will be removed in a future
-	// version of gopls (https://go.dev/issue/55333).
-	ExperimentalUseInvalidMetadata bool `status:"experimental"`
-
 	// StandaloneTags specifies a set of build constraints that identify
 	// individual Go source files that make up the entire main package of an
 	// executable.
@@ -1128,10 +1120,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.setBool(&o.AllowImplicitNetworkAccess)
 
 	case "experimentalUseInvalidMetadata":
-		const msg = "experimentalUseInvalidMetadata is deprecated, and will be removed " +
-			"in a future version of gopls (https://go.dev/issue/55333)"
-		result.softErrorf(msg)
-		result.setBool(&o.ExperimentalUseInvalidMetadata)
+		result.deprecated("")
 
 	case "standaloneTags":
 		result.setStringSlice(&o.StandaloneTags)

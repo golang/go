@@ -196,7 +196,7 @@ func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.Pars
 		}
 
 		// Read both lists of files of this package, in parallel.
-		goFiles, compiledGoFiles, err := readGoFiles(ctx, snapshot, m.Metadata)
+		goFiles, compiledGoFiles, err := readGoFiles(ctx, snapshot, m)
 		if err != nil {
 			return nil, err
 		}

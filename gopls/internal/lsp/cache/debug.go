@@ -47,7 +47,7 @@ func (s *snapshot) dumpWorkspace(context string) {
 
 	for _, id := range ids {
 		pkgPath := s.workspacePackages[id]
-		m, ok := s.meta.metadata[id]
-		debugf("  %s:%s (metadata: %t; valid: %t)", id, pkgPath, ok, m.Valid)
+		_, ok := s.meta.metadata[id]
+		debugf("  %s:%s (metadata: %t)", id, pkgPath, ok)
 	}
 }

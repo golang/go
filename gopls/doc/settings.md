@@ -161,19 +161,6 @@ be removed.
 
 Default: `false`.
 
-#### **experimentalUseInvalidMetadata** *bool*
-
-**This setting is experimental and may be deleted.**
-
-experimentalUseInvalidMetadata enables gopls to fall back on outdated
-package metadata to provide editor features if the go command fails to
-load packages for some reason (like an invalid go.mod file).
-
-Deprecated: this setting is deprecated and will be removed in a future
-version of gopls (https://go.dev/issue/55333).
-
-Default: `false`.
-
 #### **standaloneTags** *[]string*
 
 standaloneTags specifies a set of build constraints that identify
