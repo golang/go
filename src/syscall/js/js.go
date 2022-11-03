@@ -134,6 +134,12 @@ func Global() Value {
 	return valueGlobal
 }
 
+// Scope returns the Javascript object attached to the Go class.
+// If nothing has been explicitly set, this is usually "windo", or "global".
+func Scope() Value {
+	return jsGo.Get("scope")
+}
+
 // ValueOf returns x as a JavaScript value:
 //
 //	| Go                     | JavaScript             |
