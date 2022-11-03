@@ -176,16 +176,18 @@ func TestDNSReadConfig(t *testing.T) {
 	getHostname = func() (string, error) { return "host.domain.local", nil }
 
 	for _, tt := range dnsReadConfigTests {
-		if len(tt.want.search) == 0 {
-			tt.want.search = append(tt.want.search, dnsDefaultSearch()...)
+		// make a copy to avoid modyfying shared state in append (below).
+		want := *tt.want
+		if len(want.search) == 0 {
+			want.search = append([]string{}, dnsDefaultSearch()...)
 		}
 		conf := dnsReadConfig(tt.name)
 		if conf.err != nil {
 			t.Fatal(conf.err)
 		}
 		conf.mtime = time.Time{}
-		if !reflect.DeepEqual(conf, tt.want) {
-			t.Errorf("%s:\ngot: %+v\nwant: %+v", tt.name, conf, tt.want)
+		if !reflect.DeepEqual(conf, &want) {
+			t.Errorf("%s:\ngot: %+v\nwant: %+v", tt.name, conf, want)
 		}
 	}
 }
@@ -272,7 +274,7 @@ func TestDNSNameLength(t *testing.T) {
 			t.Fatal(conf.err)
 		}
 
-		var shortestSuffix int
+		shortestSuffix := len(dnsDefaultSearch())
 		for _, suffix := range tt.want.search {
 			if shortestSuffix == 0 || len(suffix) < shortestSuffix {
 				shortestSuffix = len(suffix)
