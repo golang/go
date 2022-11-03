@@ -176,10 +176,10 @@ func TestDNSReadConfig(t *testing.T) {
 	getHostname = func() (string, error) { return "host.domain.local", nil }
 
 	for _, tt := range dnsReadConfigTests {
-		// make a copy to avoid modyfying shared state in append (below).
+		// make a copy to avoid modyfying shared state
 		want := *tt.want
 		if len(want.search) == 0 {
-			want.search = append([]string{}, dnsDefaultSearch()...)
+			want.search = dnsDefaultSearch()
 		}
 		conf := dnsReadConfig(tt.name)
 		if conf.err != nil {
