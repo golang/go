@@ -734,23 +734,14 @@ func (s *snapshot) getOrLoadIDsForURI(ctx context.Context, uri span.URI) ([]Pack
 	// Start with the set of package associations derived from the last load.
 	ids := s.meta.ids[uri]
 
-	hasValidID := false // whether we have any valid package metadata containing uri
 	shouldLoad := false // whether any packages containing uri are marked 'shouldLoad'
 	for _, id := range ids {
-		// TODO(rfindley): remove the defensiveness here. s.meta.metadata[id] must
-		// exist.
-		if _, ok := s.meta.metadata[id]; ok {
-			hasValidID = true
-		}
 		if len(s.shouldLoad[id]) > 0 {
 			shouldLoad = true
 		}
 	}
 
 	// Check if uri is known to be unloadable.
-	//
-	// TODO(rfindley): shouldn't we also mark uri as unloadable if the load below
-	// fails? Otherwise we endlessly load files with no packages.
 	_, unloadable := s.unloadableFiles[uri]
 
 	s.mu.Unlock()
@@ -759,7 +750,7 @@ func (s *snapshot) getOrLoadIDsForURI(ctx context.Context, uri span.URI) ([]Pack
 	//  - uri is not contained in any valid packages
 	//  - ...or one of the packages containing uri is marked 'shouldLoad'
 	//  - ...but uri is not unloadable
-	if (shouldLoad || !hasValidID) && !unloadable {
+	if (shouldLoad || len(ids) == 0) && !unloadable {
 		scope := fileLoadScope(uri)
 		err := s.load(ctx, false, scope)
 
@@ -788,14 +779,11 @@ func (s *snapshot) getOrLoadIDsForURI(ctx context.Context, uri span.URI) ([]Pack
 
 	s.mu.Lock()
 	ids = s.meta.ids[uri]
-	var validIDs []PackageID
-	for _, id := range ids {
-		// TODO(rfindley): remove the defensiveness here as well.
-		if _, ok := s.meta.metadata[id]; ok {
-			validIDs = append(validIDs, id)
-		}
+	// metadata is only ever added by loading, so if we get here and still have
+	// no ids, uri is unloadable.
+	if !unloadable && len(ids) == 0 {
+		s.unloadableFiles[uri] = struct{}{}
 	}
-	ids = validIDs
 	s.mu.Unlock()
 
 	return ids, nil
@@ -1745,6 +1733,8 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// TODO(rfindley): this looks wrong. Shouldn't we clear unloadableFiles on
 	// changes to environment or workspace layout, or more generally on any
 	// metadata change?
+	//
+	// Maybe not, as major configuration changes cause a new view.
 	for k, v := range s.unloadableFiles {
 		result.unloadableFiles[k] = v
 	}
