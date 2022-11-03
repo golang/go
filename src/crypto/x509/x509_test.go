@@ -3553,13 +3553,12 @@ func TestDisableSHA1ForCertOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to generate test CRL: %s", err)
 	}
-	// TODO(rolandshoemaker): this should be ParseRevocationList once it lands
-	crl, err := ParseCRL(crlDER)
+	crl, err := ParseRevocationList(crlDER)
 	if err != nil {
 		t.Fatalf("failed to parse test CRL: %s", err)
 	}
 
-	if err = cert.CheckCRLSignature(crl); err != nil {
+	if err = crl.CheckSignatureFrom(cert); err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
 
