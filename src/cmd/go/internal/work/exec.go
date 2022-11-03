@@ -848,7 +848,8 @@ OverlayLoop:
 		}
 
 		if err != nil {
-			return errors.New(fmt.Sprint(formatOutput(b.WorkDir, p.Dir, p.Desc(), output)))
+			prefix, suffix := formatOutput(b.WorkDir, p.Dir, p.Desc(), output)
+			return errors.New(prefix + suffix)
 		} else {
 			b.showOutput(a, p.Dir, p.Desc(), output)
 		}
@@ -2153,7 +2154,8 @@ func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs 
 			desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
 		}
 		if err != nil {
-			err = errors.New(fmt.Sprint(formatOutput(b.WorkDir, dir, desc, b.processOutput(out))))
+			prefix, suffix := formatOutput(b.WorkDir, dir, desc, b.processOutput(out))
+			err = errors.New(prefix + suffix)
 		} else {
 			b.showOutput(a, dir, desc, b.processOutput(out))
 		}
@@ -2500,7 +2502,8 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 		}
 
 		if err != nil || os.Getenv("GO_BUILDER_NAME") != "" {
-			err = errors.New(fmt.Sprintf(formatOutput(b.WorkDir, p.Dir, desc, b.processOutput(output))))
+			prefix, suffix := formatOutput(b.WorkDir, p.Dir, desc, b.processOutput(output))
+			err = errors.New(prefix + suffix)
 		} else {
 			b.showOutput(a, p.Dir, desc, b.processOutput(output))
 		}
@@ -3424,7 +3427,8 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
 				return "", "", errors.New("must have SWIG version >= 3.0.6")
 			}
 			// swig error
-			return "", "", errors.New(fmt.Sprint(formatOutput(b.WorkDir, p.Dir, p.Desc(), b.processOutput(out))))
+			prefix, suffix := formatOutput(b.WorkDir, p.Dir, p.Desc(), b.processOutput(out))
+			return "", "", errors.New(prefix + suffix)
 		}
 		return "", "", err
 	}
