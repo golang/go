@@ -391,6 +391,36 @@ func TestParseWithComments(t *testing.T) {
 	}
 }
 
+func TestKeywordsAndFuncs(t *testing.T) {
+	// Check collisions between functions and new keywords like 'break'. When a
+	// break function is provided, the parser should treat 'break' as a function,
+	// not a keyword.
+	textFormat = "%q"
+	defer func() { textFormat = "%s" }()
+
+	inp := `{{range .X}}{{break 20}}{{end}}`
+	{
+		// 'break' is a defined function, don't treat it as a keyword: it should
+		// accept an argument successfully.
+		var funcsWithKeywordFunc = map[string]any{
+			"break": func(in any) any { return in },
+		}
+		tmpl, err := New("").Parse(inp, "", "", make(map[string]*Tree), funcsWithKeywordFunc)
+		if err != nil || tmpl == nil {
+			t.Errorf("with break func: unexpected error: %v", err)
+		}
+	}
+
+	{
+		// No function called 'break'; treat it as a keyword. Results in a parse
+		// error.
+		tmpl, err := New("").Parse(inp, "", "", make(map[string]*Tree), make(map[string]any))
+		if err == nil || tmpl != nil {
+			t.Errorf("without break func: expected error; got none")
+		}
+	}
+}
+
 func TestSkipFuncCheck(t *testing.T) {
 	oldTextFormat := textFormat
 	textFormat = "%q"

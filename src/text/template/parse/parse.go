@@ -223,6 +223,11 @@ func (t *Tree) startParse(funcs []map[string]any, lex *lexer, treeSet map[string
 	t.vars = []string{"$"}
 	t.funcs = funcs
 	t.treeSet = treeSet
+	lex.options = lexOptions{
+		emitComment: t.Mode&ParseComments != 0,
+		breakOK:     !t.hasFunction("break"),
+		continueOK:  !t.hasFunction("continue"),
+	}
 }
 
 // stopParse terminates parsing.
@@ -241,11 +246,6 @@ func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tre
 	defer t.recover(&err)
 	t.ParseName = t.Name
 	lexer := lex(t.Name, text, leftDelim, rightDelim)
-	lexer.options = lexOptions{
-		emitComment: t.Mode&ParseComments != 0,
-		breakOK:     !t.hasFunction("break"),
-		continueOK:  !t.hasFunction("continue"),
-	}
 	t.startParse(funcs, lexer, treeSet)
 	t.text = text
 	t.parse()
