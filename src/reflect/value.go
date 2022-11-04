@@ -3320,22 +3320,77 @@ func (v Value) Comparable() bool {
 }
 
 // Equal reports true if v is equal to u.
-// For valid values, if one of them is non-comparable, and the other is comparable,
-// Equal reports false; if v and u are both non-comparable, Equal will panic.
+// For two invalid values, Equal will report true.
+// For an interface value, Equal will compare the value within the interface.
+// Otherwise, If the values have different types, Equal will report false.
+// Otherwise, for arrays and structs Equal will compare each element in order,
+// and report false if it finds non-equal elements.
+// During all comparisons, if values of the same type are compared,
+// and the type is not comparable, Equal will panic.
 func (v Value) Equal(u Value) bool {
+	if v.Kind() == Interface {
+		v = v.Elem()
+	}
+	if u.Kind() == Interface {
+		u = u.Elem()
+	}
+
 	if !v.IsValid() || !u.IsValid() {
 		return v.IsValid() == u.IsValid()
 	}
 
-	if v.Comparable() || u.Comparable() {
-		return valueInterface(v, false) == valueInterface(u, false)
+	if v.Kind() != u.Kind() || v.Type() != u.Type() {
+		return false
 	}
 
-	if u.Kind() == Interface && v.kind() == Interface { // this case is for nil interface value
-		return v.Elem().Equal(u.Elem())
+	// Handle ach Kind directly rather than calling valueInterface
+	// to avoid allocating.
+	switch v.Kind() {
+	default:
+		panic("reflect.Value.Equal: invalid Kind")
+	case Bool:
+		return v.Bool() == u.Bool()
+	case Int, Int8, Int16, Int32, Int64:
+		return v.Int() == u.Int()
+	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+		return v.Uint() == u.Uint()
+	case Float32, Float64:
+		return v.Float() == u.Float()
+	case Complex64, Complex128:
+		return v.Complex() == u.Complex()
+	case String:
+		return v.String() == u.String()
+	case Chan, Pointer, UnsafePointer:
+		return v.Pointer() == u.Pointer()
+	case Array:
+		// u and v have the same type so they have the same length
+		vl := v.Len()
+		if vl == 0 {
+			// panic on [0]func()
+			if !v.Type().Elem().Comparable() {
+				break
+			}
+			return true
+		}
+		for i := 0; i < vl; i++ {
+			if !v.Index(i).Equal(u.Index(i)) {
+				return false
+			}
+		}
+		return true
+	case Struct:
+		// u and v have the same type so they have the same fields
+		nf := v.NumField()
+		for i := 0; i < nf; i++ {
+			if !v.Field(i).Equal(u.Field(i)) {
+				return false
+			}
+		}
+		return true
+	case Func, Map, Slice:
+		break
 	}
-
-	panic("reflect.Value.Equal using two non-comparable values")
+	panic("reflect.Value.Equal: values of type " + v.Type().String() + " are not comparable")
 }
 
 // convertOp returns the function to convert a value of type src

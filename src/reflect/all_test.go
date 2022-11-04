@@ -8335,7 +8335,7 @@ func TestValue_EqualNonComparable(t *testing.T) {
 	}
 	for _, value := range values {
 		// Panic when reflect.Value.Equal using two valid non-comparable values.
-		shouldPanic("reflect.Value.Equal using two non-comparable values", func() { value.Equal(value) })
+		shouldPanic("are not comparable", func() { value.Equal(value) })
 
 		// If one is non-comparable and the other is invalid, the expected result is always false.
 		if r := value.Equal(invalid); r != false {
