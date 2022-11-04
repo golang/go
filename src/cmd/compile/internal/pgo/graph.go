@@ -21,18 +21,14 @@ import (
 	"fmt"
 	"internal/profile"
 	"math"
-	"path/filepath"
 	"sort"
 	"strings"
 )
 
 // Options encodes the options for constructing a graph
 type Options struct {
-	SampleValue       func(s []int64) int64      // Function to compute the value of a sample
-	SampleMeanDivisor func(s []int64) int64      // Function to compute the divisor for mean graphs, or nil
-	FormatTag         func(int64, string) string // Function to format a sample tag value into a string
-	ObjNames          bool                       // Always preserve obj filename
-	OrigFnNames       bool                       // Preserve original (eg mangled) function names
+	SampleValue       func(s []int64) int64 // Function to compute the value of a sample
+	SampleMeanDivisor func(s []int64) int64 // Function to compute the divisor for mean graphs, or nil
 
 	CallTree     bool // Build a tree instead of a graph
 	DropNegative bool // Drop nodes with overall negative values
@@ -122,11 +118,11 @@ func (n *Node) AddToEdgeDiv(to *Node, dv, v int64, residual, inline bool) {
 // NodeInfo contains the attributes for a node.
 type NodeInfo struct {
 	Name              string
-	OrigName          string
 	Address           uint64
-	File              string
 	StartLine, Lineno int
-	Objfile           string
+	//File            string
+	//OrigName        string
+	//Objfile         string
 }
 
 // PrintableName calls the Node's Formatter function with a single space separator.
@@ -147,15 +143,9 @@ func (i *NodeInfo) NameComponents() []string {
 	switch {
 	case i.Lineno != 0:
 		// User requested line numbers, provide what we have.
-		name = append(name, fmt.Sprintf("%s:%d", i.File, i.Lineno))
-	case i.File != "":
-		// User requested file name, provide it.
-		name = append(name, i.File)
+		name = append(name, fmt.Sprintf(":%d", i.Lineno))
 	case i.Name != "":
 		// User requested function name. It was already included.
-	case i.Objfile != "":
-		// Only binary name is available
-		name = append(name, "["+filepath.Base(i.Objfile)+"]")
 	default:
 		// Do not leave it empty if there is no information at all.
 		name = append(name, "<unknown>")
@@ -284,6 +274,7 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 					seenEdge[nodePair{n, parent}] = true
 					parent.AddToEdgeDiv(n, dw, w, residual, ni != len(locNodes)-1)
 				}
+
 				parent = n
 				residual = false
 			}
@@ -422,23 +413,14 @@ func (nm NodeMap) findOrInsertLine(l *profile.Location, li profile.Line, o *Opti
 
 func nodeInfo(l *profile.Location, line profile.Line, objfile string, o *Options) *NodeInfo {
 	if line.Function == nil {
-		return &NodeInfo{Address: l.Address, Objfile: objfile}
+		return &NodeInfo{Address: l.Address}
 	}
 	ni := &NodeInfo{
 		Address: l.Address,
 		Lineno:  int(line.Line),
 		Name:    line.Function.Name,
 	}
-	if fname := line.Function.Filename; fname != "" {
-		ni.File = filepath.Clean(fname)
-	}
-	if o.OrigFnNames {
-		ni.OrigName = line.Function.SystemName
-	}
-	if o.ObjNames || (ni.Name == "" && ni.OrigName == "") {
-		ni.Objfile = objfile
-		ni.StartLine = int(line.Function.StartLine)
-	}
+	ni.StartLine = int(line.Function.StartLine)
 	return ni
 }
 
@@ -639,9 +621,6 @@ func (ns Nodes) Sort(o NodeOrder) error {
 	case FileOrder:
 		s = nodeSorter{ns,
 			func(l, r *Node) bool {
-				if iv, jv := l.Info.File, r.Info.File; iv != jv {
-					return iv < jv
-				}
 				if iv, jv := l.Info.StartLine, r.Info.StartLine; iv != jv {
 					return iv < jv
 				}
