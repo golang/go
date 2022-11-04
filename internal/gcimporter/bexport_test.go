@@ -21,8 +21,8 @@ import (
 
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/buildutil"
-	"golang.org/x/tools/go/internal/gcimporter"
 	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/internal/gcimporter"
 	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/typeparams/genericfeatures"
 )
