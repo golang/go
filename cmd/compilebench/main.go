@@ -335,14 +335,19 @@ type compile struct{ dir string }
 func (compile) long() bool { return false }
 
 func (c compile) run(name string, count int) error {
-	// Make sure dependencies needed by go tool compile are installed to GOROOT/pkg.
-	out, err := exec.Command(*flagGoCmd, "build", "-a", c.dir).CombinedOutput()
+	// Make sure dependencies needed by go tool compile are built.
+	out, err := exec.Command(*flagGoCmd, "build", c.dir).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("go build -a %s: %v\n%s", c.dir, err, out)
+		return fmt.Errorf("go build %s: %v\n%s", c.dir, err, out)
 	}
 
 	// Find dir and source file list.
 	pkg, err := goList(c.dir)
+	if err != nil {
+		return err
+	}
+
+	importcfg, err := genImportcfgFile(c.dir, false)
 	if err != nil {
 		return err
 	}
@@ -370,6 +375,10 @@ func (c compile) run(name string, count int) error {
 	args = append(args, strings.Fields(*flagCompilerFlags)...)
 	if symAbisFile != "" {
 		args = append(args, "-symabis", symAbisFile)
+	}
+	if importcfg != "" {
+		args = append(args, "-importcfg", importcfg)
+		defer os.Remove(importcfg)
 	}
 	args = append(args, pkg.GoFiles...)
 	if err := runBuildCmd(name, count, pkg.Dir, compiler, args); err != nil {
@@ -406,18 +415,28 @@ func (r link) run(name string, count int) error {
 	}
 
 	// Build dependencies.
-	out, err := exec.Command(*flagGoCmd, "build", "-a", "-o", "/dev/null", r.dir).CombinedOutput()
+	out, err := exec.Command(*flagGoCmd, "build", "-o", "/dev/null", r.dir).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("go build -a %s: %v\n%s", r.dir, err, out)
 	}
+
+	importcfg, err := genImportcfgFile(r.dir, true)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(importcfg)
 
 	// Build the main package.
 	pkg, err := goList(r.dir)
 	if err != nil {
 		return err
 	}
-	args := []string{"-o", "_compilebench_.o"}
+	args := []string{"-o", "_compilebench_.o", "-importcfg", importcfg}
 	args = append(args, pkg.GoFiles...)
+	if *flagTrace {
+		fmt.Fprintf(os.Stderr, "running: %s %+v\n",
+			compiler, args)
+	}
 	cmd := exec.Command(compiler, args...)
 	cmd.Dir = pkg.Dir
 	cmd.Stdout = os.Stderr
@@ -429,7 +448,7 @@ func (r link) run(name string, count int) error {
 	defer os.Remove(pkg.Dir + "/_compilebench_.o")
 
 	// Link the main package.
-	args = []string{"-o", "_compilebench_.exe"}
+	args = []string{"-o", "_compilebench_.exe", "-importcfg", importcfg}
 	args = append(args, strings.Fields(*flagLinkerFlags)...)
 	args = append(args, strings.Fields(r.flags)...)
 	args = append(args, "_compilebench_.o")
@@ -577,4 +596,50 @@ func genSymAbisFile(pkg *Pkg, symAbisFile, incdir string) error {
 		return fmt.Errorf("assembling to produce symabis file: %v", err)
 	}
 	return nil
+}
+
+// genImportcfgFile generates an importcfg file for building package
+// dir. Returns the generated importcfg file path (or empty string
+// if the package has no dependency).
+func genImportcfgFile(dir string, full bool) (string, error) {
+	need := "{{.Imports}}"
+	if full {
+		// for linking, we need transitive dependencies
+		need = "{{.Deps}}"
+	}
+
+	// find imported/dependent packages
+	cmd := exec.Command(*flagGoCmd, "list", "-f", need, dir)
+	cmd.Stderr = os.Stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("go list -f %s %s: %v", need, dir, err)
+	}
+	// trim [ ]\n
+	if len(out) < 3 || out[0] != '[' || out[len(out)-2] != ']' || out[len(out)-1] != '\n' {
+		return "", fmt.Errorf("unexpected output from go list -f %s %s: %s", need, dir, out)
+	}
+	out = out[1 : len(out)-2]
+	if len(out) == 0 {
+		return "", nil
+	}
+
+	// build importcfg for imported packages
+	cmd = exec.Command(*flagGoCmd, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}")
+	cmd.Args = append(cmd.Args, strings.Fields(string(out))...)
+	cmd.Stderr = os.Stderr
+	out, err = cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("generating importcfg for %s: %s: %v", dir, cmd, err)
+	}
+
+	f, err := os.CreateTemp("", "importcfg")
+	if err != nil {
+		return "", fmt.Errorf("creating tmp importcfg file failed: %v", err)
+	}
+	defer f.Close()
+	if _, err := f.Write(out); err != nil {
+		return "", fmt.Errorf("writing importcfg file %s failed: %v", f.Name(), err)
+	}
+	return f.Name(), nil
 }
