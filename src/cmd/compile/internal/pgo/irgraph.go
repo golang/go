@@ -140,7 +140,7 @@ func New(profileFile string) *Profile {
 		return nil
 	}
 
-	g, _ := newGraph(profile, &Options{
+	g := newGraph(profile, &Options{
 		CallTree:    false,
 		SampleValue: func(v []int64) int64 { return v[1] },
 	})

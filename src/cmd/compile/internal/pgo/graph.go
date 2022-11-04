@@ -245,10 +245,8 @@ func (e *Edge) WeightValue() int64 {
 	return e.Weight / e.WeightDiv
 }
 
-// newGraph computes a graph from a profile. It returns the graph, and
-// a map from the profile location indices to the corresponding graph
-// nodes.
-func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
+// newGraph computes a graph from a profile.
+func newGraph(prof *profile.Profile, o *Options) *Graph {
 	nodes, locationMap := CreateNodes(prof, o)
 	seenNode := make(map[*Node]bool)
 	seenEdge := make(map[nodePair]bool)
@@ -274,7 +272,7 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 		// Group the sample frames, based on a global map.
 		for i := len(sample.Location) - 1; i >= 0; i-- {
 			l := sample.Location[i]
-			locNodes := locationMap[l.ID]
+			locNodes := locationMap.get(l.ID)
 			for ni := len(locNodes) - 1; ni >= 0; ni-- {
 				n := locNodes[ni]
 				if n == nil {
@@ -303,7 +301,7 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 		}
 	}
 
-	return selectNodesForGraph(nodes, o.DropNegative), locationMap
+	return selectNodesForGraph(nodes, o.DropNegative)
 }
 
 func selectNodesForGraph(nodes Nodes, dropNegative bool) *Graph {
@@ -389,11 +387,32 @@ func isNegative(n *Node) bool {
 	}
 }
 
+type locationMap struct {
+	s []Nodes          // a slice for small sequential IDs
+	m map[uint64]Nodes // fallback for large IDs (unlikely)
+}
+
+func (l *locationMap) add(id uint64, n Nodes) {
+	if id < uint64(len(l.s)) {
+		l.s[id] = n
+	} else {
+		l.m[id] = n
+	}
+}
+
+func (l locationMap) get(id uint64) Nodes {
+	if id < uint64(len(l.s)) {
+		return l.s[id]
+	} else {
+		return l.m[id]
+	}
+}
+
 // CreateNodes creates graph nodes for all locations in a profile. It
 // returns set of all nodes, plus a mapping of each location to the
 // set of corresponding nodes (one per location.Line).
-func CreateNodes(prof *profile.Profile, o *Options) (Nodes, map[uint64]Nodes) {
-	locations := make(map[uint64]Nodes, len(prof.Location))
+func CreateNodes(prof *profile.Profile, o *Options) (Nodes, locationMap) {
+	locations := locationMap{make([]Nodes, len(prof.Location)+1), make(map[uint64]Nodes)}
 	nm := make(NodeMap, len(prof.Location))
 	for _, l := range prof.Location {
 		lines := l.Line
@@ -404,7 +423,7 @@ func CreateNodes(prof *profile.Profile, o *Options) (Nodes, map[uint64]Nodes) {
 		for ln := range lines {
 			nodes[ln] = nm.findOrInsertLine(l, lines[ln], o)
 		}
-		locations[l.ID] = nodes
+		locations.add(l.ID, nodes)
 	}
 	return nm.nodes(), locations
 }
