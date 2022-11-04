@@ -82,6 +82,7 @@ type Connection struct {
 // Connection.
 type inFlightState struct {
 	connClosing bool  // true when the Connection's Close method has been called
+	reading     bool  // true while the readIncoming goroutine is running
 	readErr     error // non-nil when the readIncoming goroutine exits (typically io.EOF)
 	writeErr    error // non-nil if a call to the Writer has failed with a non-canceled Context
 
@@ -140,14 +141,13 @@ func (c *Connection) updateInFlight(f func(*inFlightState)) {
 			s.closeErr = s.closer.Close()
 			s.closer = nil // prevent duplicate Close calls
 		}
-		if s.readErr == nil {
+		if s.reading {
 			// The readIncoming goroutine is still running. Our call to Close should
 			// cause it to exit soon, at which point it will make another call to
-			// updateInFlight, set s.readErr to a non-nil error, and mark the
-			// Connection done.
+			// updateInFlight, set s.reading to false, and mark the Connection done.
 		} else {
-			// The readIncoming goroutine has exited. Since everything else is idle,
-			// we're completely done.
+			// The readIncoming goroutine has exited, or never started to begin with.
+			// Since everything else is idle, we're completely done.
 			if c.onDone != nil {
 				c.onDone()
 			}
@@ -240,10 +240,18 @@ func newConnection(bindCtx context.Context, rwc io.ReadWriteCloser, binder Binde
 	reader := framer.Reader(rwc)
 
 	c.updateInFlight(func(s *inFlightState) {
+		select {
+		case <-c.done:
+			// Bind already closed the connection; don't start a goroutine to read it.
+			return
+		default:
+		}
+
 		// The goroutine started here will continue until the underlying stream is closed.
 		//
 		// (If the Binder closed the Connection already, this should error out and
 		// return almost immediately.)
+		s.reading = true
 		go c.readIncoming(ctx, reader, options.Preempter)
 	})
 	return c
@@ -514,6 +522,7 @@ func (c *Connection) readIncoming(ctx context.Context, reader Reader, preempter 
 	}
 
 	c.updateInFlight(func(s *inFlightState) {
+		s.reading = false
 		s.readErr = err
 
 		// Retire any outgoing requests that were still in flight: with the Reader no
