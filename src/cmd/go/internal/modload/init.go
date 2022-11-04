@@ -673,7 +673,7 @@ func LoadModFile(ctx context.Context) *Requirements {
 			modfetch.WorkspaceGoSumFiles = append(modfetch.WorkspaceGoSumFiles, sumFile)
 		}
 		modfetch.GoSumFile = workFilePath + ".sum"
-	} else if modRoots == nil {
+	} else if len(modRoots) == 0 {
 		// We're in module mode, but not inside a module.
 		//
 		// Commands like 'go build', 'go run', 'go list' have no go.mod file to
@@ -707,6 +707,12 @@ func LoadModFile(ctx context.Context) *Requirements {
 			pruning = workspace
 		}
 		requirements = newRequirements(pruning, nil, nil)
+		if cfg.BuildMod == "vendor" {
+			// For issue 56536: Some users may have GOFLAGS=-mod=vendor set.
+			// Make sure it behaves as though the fake module is vendored
+			// with no dependencies.
+			requirements.initVendor(nil)
+		}
 		return requirements
 	}
 
