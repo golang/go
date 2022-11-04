@@ -250,7 +250,7 @@ func (s *snapshot) FileSet() *token.FileSet {
 
 func (s *snapshot) ModFiles() []span.URI {
 	var uris []span.URI
-	for modURI := range s.workspace.getActiveModFiles() {
+	for modURI := range s.workspace.ActiveModFiles() {
 		uris = append(uris, modURI)
 	}
 	return uris
@@ -281,7 +281,7 @@ func (s *snapshot) ValidBuildConfiguration() bool {
 	}
 	// Check if the user is working within a module or if we have found
 	// multiple modules in the workspace.
-	if len(s.workspace.getActiveModFiles()) > 0 {
+	if len(s.workspace.ActiveModFiles()) > 0 {
 		return true
 	}
 	// The user may have a multiple directories in their GOPATH.
@@ -308,7 +308,7 @@ func (s *snapshot) workspaceMode() workspaceMode {
 	// If the view is not in a module and contains no modules, but still has a
 	// valid workspace configuration, do not create the workspace module.
 	// It could be using GOPATH or a different build system entirely.
-	if len(s.workspace.getActiveModFiles()) == 0 && validBuildConfiguration {
+	if len(s.workspace.ActiveModFiles()) == 0 && validBuildConfiguration {
 		return mode
 	}
 	mode |= moduleMode
@@ -480,7 +480,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	if mode == source.LoadWorkspace {
 		switch s.workspace.moduleSource {
 		case legacyWorkspace:
-			for m := range s.workspace.getActiveModFiles() { // range to access the only element
+			for m := range s.workspace.ActiveModFiles() { // range to access the only element
 				modURI = m
 			}
 		case goWorkWorkspace:

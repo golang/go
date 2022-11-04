@@ -581,13 +581,13 @@ func (v *View) Session() *Session {
 func (s *snapshot) IgnoredFile(uri span.URI) bool {
 	filename := uri.Filename()
 	var prefixes []string
-	if len(s.workspace.getActiveModFiles()) == 0 {
+	if len(s.workspace.ActiveModFiles()) == 0 {
 		for _, entry := range filepath.SplitList(s.view.gopath) {
 			prefixes = append(prefixes, filepath.Join(entry, "src"))
 		}
 	} else {
 		prefixes = append(prefixes, s.view.gomodcache)
-		for m := range s.workspace.getActiveModFiles() {
+		for m := range s.workspace.ActiveModFiles() {
 			prefixes = append(prefixes, dirURI(m).Filename())
 		}
 	}
@@ -679,8 +679,8 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 		})
 	}
 
-	if len(s.workspace.getActiveModFiles()) > 0 {
-		for modURI := range s.workspace.getActiveModFiles() {
+	if len(s.workspace.ActiveModFiles()) > 0 {
+		for modURI := range s.workspace.ActiveModFiles() {
 			// Be careful not to add context cancellation errors as critical module
 			// errors.
 			fh, err := s.GetFile(ctx, modURI)

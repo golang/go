@@ -386,7 +386,7 @@ func checkState(ctx context.Context, t *testing.T, fs source.FileSource, rel fak
 		t.Errorf("module source = %v, want %v", got.moduleSource, want.source)
 	}
 	modules := make(map[span.URI]struct{})
-	for k := range got.getActiveModFiles() {
+	for k := range got.ActiveModFiles() {
 		modules[k] = struct{}{}
 	}
 	for _, modPath := range want.modules {

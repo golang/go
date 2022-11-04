@@ -352,10 +352,10 @@ https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
 	// If the user has one active go.mod file, they may still be editing files
 	// in nested modules. Check the module of each open file and add warnings
 	// that the nested module must be opened as a workspace folder.
-	if len(s.workspace.getActiveModFiles()) == 1 {
+	if len(s.workspace.ActiveModFiles()) == 1 {
 		// Get the active root go.mod file to compare against.
 		var rootModURI span.URI
-		for uri := range s.workspace.getActiveModFiles() {
+		for uri := range s.workspace.ActiveModFiles() {
 			rootModURI = uri
 		}
 		nestedModules := map[string][]source.VersionedFileHandle{}

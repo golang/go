@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/gopls/internal/lsp/source"
 )
 
 type importsState struct {
@@ -37,33 +37,18 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Find the hash of the active mod file, if any. Using the unsaved content
+	// Find the hash of active mod files, if any. Using the unsaved content
 	// is slightly wasteful, since we'll drop caches a little too often, but
 	// the mod file shouldn't be changing while people are autocompleting.
-	var modFileHash source.Hash
-	// If we are using 'legacyWorkspace' mode, we can just read the modfile from
-	// the snapshot. Otherwise, we need to get the synthetic workspace mod file.
 	//
-	// TODO(rfindley): we should be able to just always use the synthetic
-	// workspace module, or alternatively use the go.work file.
-	if snapshot.workspace.moduleSource == legacyWorkspace {
-		for m := range snapshot.workspace.getActiveModFiles() { // range to access the only element
-			modFH, err := snapshot.GetFile(ctx, m)
-			if err != nil {
-				return err
-			}
-			modFileHash = modFH.FileIdentity().Hash
-		}
-	} else {
-		modFile, err := snapshot.workspace.modFile(ctx, snapshot)
+	// TODO(rfindley): consider instead hashing on-disk modfiles here.
+	var modFileHash source.Hash
+	for m := range snapshot.workspace.ActiveModFiles() {
+		fh, err := snapshot.GetFile(ctx, m)
 		if err != nil {
 			return err
 		}
-		modBytes, err := modFile.Format()
-		if err != nil {
-			return err
-		}
-		modFileHash = source.HashOf(modBytes)
+		modFileHash.XORWith(fh.FileIdentity().Hash)
 	}
 
 	// view.goEnv is immutable -- changes make a new view. Options can change.

@@ -73,6 +73,7 @@ type workspaceCommon struct {
 type workspace struct {
 	workspaceCommon
 
+	// The source of modules in this workspace.
 	moduleSource workspaceSource
 
 	// activeModFiles holds the active go.mod files.
@@ -192,11 +193,13 @@ func (ws *workspace) loadExplicitWorkspaceFile(ctx context.Context, fs source.Fi
 
 var noHardcodedWorkspace = errors.New("no hardcoded workspace")
 
+// TODO(rfindley): eliminate getKnownModFiles.
 func (w *workspace) getKnownModFiles() map[span.URI]struct{} {
 	return w.knownModFiles
 }
 
-func (w *workspace) getActiveModFiles() map[span.URI]struct{} {
+// ActiveModFiles returns the set of active mod files for the current workspace.
+func (w *workspace) ActiveModFiles() map[span.URI]struct{} {
 	return w.activeModFiles
 }
 
