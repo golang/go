@@ -3468,7 +3468,7 @@ func makeFloat(f flag, v float64, t Type) Value {
 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
 }
 
-// makeFloat returns a Value of type t equal to v, where t is a float32 type.
+// makeFloat32 returns a Value of type t equal to v, where t is a float32 type.
 func makeFloat32(f flag, v float32, t Type) Value {
 	typ := t.common()
 	ptr := unsafe_New(typ)

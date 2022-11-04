@@ -381,7 +381,7 @@ func Remove(name string) error {
 	return nil
 }
 
-// HasPrefix from the strings package.
+// hasPrefix from the strings package.
 func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
 }
