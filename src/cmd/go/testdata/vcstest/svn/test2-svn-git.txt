@@ -13,7 +13,6 @@ env GIT_AUTHOR_NAME='Russ Cox'
 env GIT_AUTHOR_EMAIL='rsc@golang.org'
 env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
 env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
-env TZ='America/New_York'
 
 mkdir db/transactions
 mkdir db/txn-protorevs
@@ -21,7 +20,8 @@ chmod 0755 hooks/pre-revprop-change
 
 env ROOT=$PWD
 cd .checkout
-svn checkout file://$ROOT .
+[GOOS:windows] svn checkout file:///$ROOT .
+[!GOOS:windows] svn checkout file://$ROOT .
 
 git init
 git config --add core.ignorecase true
@@ -69,7 +69,9 @@ svn propset svn:author rsc --revprop -r3
 svn propset svn:date 2017-10-04T15:09:35.963034Z --revprop -r3
 
 svn update
-svn log
+svn log --xml
+
+[GOOS:windows] replace '\n' '\r\n' .svn-log
 cmp stdout .svn-log
 
 -- .checkout/.git-log --
@@ -85,19 +87,27 @@ README
 -- .checkout/p1/p1.go --
 package p1
 -- .checkout/.svn-log --
-------------------------------------------------------------------------
-r3 | rsc | 2017-10-04 11:09:35 -0400 (Wed, 04 Oct 2017) | 1 line
-
-move from vcs-test.swtch.com to vcs-test.golang.org
-------------------------------------------------------------------------
-r2 | rsc | 2017-09-27 14:16:14 -0400 (Wed, 27 Sep 2017) | 1 line
-
-add p1
-------------------------------------------------------------------------
-r1 | rsc | 2017-09-27 14:00:52 -0400 (Wed, 27 Sep 2017) | 1 line
-
-git
-------------------------------------------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<log>
+<logentry
+   revision="3">
+<author>rsc</author>
+<date>2017-10-04T15:09:35.963034Z</date>
+<msg>move from vcs-test.swtch.com to vcs-test.golang.org</msg>
+</logentry>
+<logentry
+   revision="2">
+<author>rsc</author>
+<date>2017-09-27T18:16:14.650893Z</date>
+<msg>add p1</msg>
+</logentry>
+<logentry
+   revision="1">
+<author>rsc</author>
+<date>2017-09-27T18:00:52.201719Z</date>
+<msg>git</msg>
+</logentry>
+</log>
 -- conf/authz --
 -- conf/passwd --
 -- conf/svnserve.conf --
@@ -139,3 +149,6 @@ cpath: /
 5
 -- hooks/pre-revprop-change --
 #!/bin/sh
+
+-- hooks/pre-revprop-change.bat --
+@exit

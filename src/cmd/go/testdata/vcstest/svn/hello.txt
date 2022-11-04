@@ -1,14 +1,13 @@
 handle svn
 
-env TZ='America/New_York'
-
 mkdir db/transactions
 mkdir db/txn-protorevs
 chmod 0755 hooks/pre-revprop-change
 
 env ROOT=$PWD
 cd .checkout
-svn checkout file://$ROOT .
+[GOOS:windows] svn checkout file:///$ROOT .
+[!GOOS:windows] svn checkout file://$ROOT .
 
 svn add hello.go
 svn commit --file MSG
@@ -16,7 +15,9 @@ svn propset svn:author 'rsc' --revprop -r1
 svn propset svn:date '2017-09-22T01:12:45.861368Z' --revprop -r1
 
 svn update
-svn log
+svn log --xml
+
+[GOOS:windows] replace '\n' '\r\n' .svn-log
 cmp stdout .svn-log
 
 -- .checkout/MSG --
@@ -29,13 +30,17 @@ func main() {
 	println("hello, world")
 }
 -- .checkout/.svn-log --
-------------------------------------------------------------------------
-r1 | rsc | 2017-09-21 21:12:45 -0400 (Thu, 21 Sep 2017) | 3 lines
+<?xml version="1.0" encoding="UTF-8"?>
+<log>
+<logentry
+   revision="1">
+<author>rsc</author>
+<date>2017-09-22T01:12:45.861368Z</date>
+<msg>hello world
 
-hello world
-
-
-------------------------------------------------------------------------
+</msg>
+</logentry>
+</log>
 -- conf/authz --
 -- conf/passwd --
 -- conf/svnserve.conf --
@@ -77,3 +82,6 @@ cpath: /
 5
 -- hooks/pre-revprop-change --
 #!/bin/sh
+
+-- hooks/pre-revprop-change.bat --
+@exit
