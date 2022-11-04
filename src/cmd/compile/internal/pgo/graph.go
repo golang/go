@@ -282,12 +282,13 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 					continue
 				}
 				// Add cum weight to all nodes in stack, avoiding double counting.
-				if _, ok := seenNode[n]; !ok {
+				_, sawNode := seenNode[n]
+				if !sawNode {
 					seenNode[n] = true
 					n.addSample(dw, w, false)
 				}
 				// Update edge weights for all edges in stack, avoiding double counting.
-				if _, ok := seenEdge[nodePair{n, parent}]; !ok && parent != nil && n != parent {
+				if (!sawNode || !seenEdge[nodePair{n, parent}]) && parent != nil && n != parent {
 					seenEdge[nodePair{n, parent}] = true
 					parent.AddToEdgeDiv(n, dw, w, residual, ni != len(locNodes)-1)
 				}
