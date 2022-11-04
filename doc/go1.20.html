@@ -47,6 +47,18 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: <a href="https://go.dev/issue/45454">https://go.dev/issue/45454</a>: provide build tags for architecture environment variables
 </p>
 
+<p>
+  The Go distribution no longer ships with pre-compiled <code>.a</code>
+  files for most of the packages in <code>GOROOT</code>, now only including
+  .a files for the five packages in <code>GOROOT</code> that use <code>cgo</code>.
+  Instead, those packages will be built as needed and cached in the build
+  cache, as is already done for non-<code>main</code> packages outside
+  <code>GOROOT</code>. Further, <code>go</code> <code>install</code> will
+  also not install <code>.a</code> files for <code>GOROOT</code> packages
+  except for those that use <code>cgo</code>. These changes are intended to
+  reduce the size of the Go distribution, in some cases by up to two-thirds.
+</p>
+
 <p><!-- https://go.dev/issue/37015 -->
   When the main module is located within <code>GOPATH/src</code>,
   <code>go</code> <code>install</code> no longer installs libraries for
