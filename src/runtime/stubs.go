@@ -131,7 +131,7 @@ func fastrand() uint32 {
 	// by the compiler should be in this list.
 	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
 		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
-		goarch.IsS390x|goarch.IsRiscv64 == 1 {
+		goarch.IsS390x|goarch.IsRiscv64|goarch.IsLoong64 == 1 {
 		mp.fastrand += 0xa0761d6478bd642f
 		hi, lo := math.Mul64(mp.fastrand, mp.fastrand^0xe7037ed1a0b428db)
 		return uint32(hi ^ lo)
