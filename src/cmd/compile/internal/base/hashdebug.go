@@ -140,7 +140,7 @@ func NewHashDebug(ev, s string, file writeSyncer) *HashDebug {
 		hd.no = true
 		return hd
 	}
-	ss := strings.Split(s, ";")
+	ss := strings.Split(s, "/")
 	hd.matches = append(hd.matches, toHashAndMask(ss[0], ev))
 	// hash searches may use additional EVs with 0, 1, 2, ... suffixes.
 	for i := 1; i < len(ss); i++ {

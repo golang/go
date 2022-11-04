@@ -130,7 +130,7 @@ func TestHashNoMatch(t *testing.T) {
 
 func TestHashSecondMatch(t *testing.T) {
 	ws := new(bufferWithSync)
-	hd := NewHashDebug("GOSSAHASH", "001100;0011", ws)
+	hd := NewHashDebug("GOSSAHASH", "001100/0011", ws)
 
 	check := hd.DebugHashMatch("bar")
 	msg := ws.String()
