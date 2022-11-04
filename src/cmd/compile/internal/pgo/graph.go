@@ -94,11 +94,7 @@ func (n *Node) AddToEdge(to *Node, v int64, residual, inline bool) {
 // AddToEdgeDiv increases the weight of an edge between two nodes. If
 // there isn't such an edge one is created.
 func (n *Node) AddToEdgeDiv(to *Node, dv, v int64, residual, inline bool) {
-	if n.Out[to] != to.In[n] {
-		panic(fmt.Errorf("asymmetric edges %v %v", *n, *to))
-	}
-
-	if e := n.Out[to]; e != nil {
+	if e := n.Out.FindTo(to); e != nil {
 		e.WeightDiv += dv
 		e.Weight += v
 		if residual {
@@ -111,8 +107,8 @@ func (n *Node) AddToEdgeDiv(to *Node, dv, v int64, residual, inline bool) {
 	}
 
 	info := &Edge{Src: n, Dest: to, WeightDiv: dv, Weight: v, Residual: residual, Inline: inline}
-	n.Out[to] = info
-	to.In[n] = info
+	n.Out.Add(info)
+	to.In.Add(info)
 }
 
 // NodeInfo contains the attributes for a node.
@@ -186,8 +182,6 @@ func (nm NodeMap) FindOrInsertNode(info NodeInfo, kept NodeSet) *Node {
 
 	n := &Node{
 		Info: info,
-		In:   make(EdgeMap),
-		Out:  make(EdgeMap),
 	}
 	nm[info] = n
 	if info.Address == 0 && info.Lineno == 0 {
@@ -204,7 +198,30 @@ func (nm NodeMap) FindOrInsertNode(info NodeInfo, kept NodeSet) *Node {
 }
 
 // EdgeMap is used to represent the incoming/outgoing edges from a node.
-type EdgeMap map[*Node]*Edge
+type EdgeMap []*Edge
+
+func (em EdgeMap) FindTo(n *Node) *Edge {
+	for _, e := range em {
+		if e.Dest == n {
+			return e
+		}
+	}
+	return nil
+}
+
+func (em *EdgeMap) Add(e *Edge) {
+	*em = append(*em, e)
+}
+
+func (em *EdgeMap) Delete(e *Edge) {
+	for i, edge := range *em {
+		if edge == e {
+			(*em)[i] = (*em)[len(*em)-1]
+			*em = (*em)[:len(*em)-1]
+			return
+		}
+	}
+}
 
 // Edge contains any attributes to be represented about edges in a graph.
 type Edge struct {
@@ -513,10 +530,10 @@ func getNodesAboveCumCutoff(nodes Nodes, nodeCutoff int64) Nodes {
 func (g *Graph) TrimLowFrequencyEdges(edgeCutoff int64) int {
 	var droppedEdges int
 	for _, n := range g.Nodes {
-		for src, e := range n.In {
+		for _, e := range n.In {
 			if abs64(e.Weight) < edgeCutoff {
-				delete(n.In, src)
-				delete(src.Out, n)
+				n.In.Delete(e)
+				e.Src.Out.Delete(e)
 				droppedEdges++
 			}
 		}
