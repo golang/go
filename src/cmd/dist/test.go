@@ -634,28 +634,23 @@ func (t *tester) registerTests() {
 
 	// Test the os/user package in the pure-Go mode too.
 	if !t.compileOnly {
-		t.tests = append(t.tests, distTest{
-			name:    "osusergo",
-			heading: "os/user with tag osusergo",
-			fn: func(dt *distTest) error {
-				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=osusergo", "os/user")
-				return nil
-			},
-		})
+		t.registerTest("osusergo", "os/user with tag osusergo",
+			&goTest{
+				timeout: 300 * time.Second,
+				tags:    []string{"osusergo"},
+				pkg:     "os/user",
+			})
 	}
 
 	// Test ios/amd64 for the iOS simulator.
 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
-		t.tests = append(t.tests, distTest{
-			name:    "amd64ios",
-			heading: "GOOS=ios on darwin/amd64",
-			fn: func(dt *distTest) error {
-				cmd := t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-run=SystemRoots", "crypto/x509")
-				setEnv(cmd, "GOOS", "ios")
-				setEnv(cmd, "CGO_ENABLED", "1")
-				return nil
-			},
-		})
+		t.registerTest("amd64ios", "GOOS=ios on darwin/amd64",
+			&goTest{
+				timeout:  300 * time.Second,
+				runTests: "SystemRoots",
+				env:      []string{"GOOS=ios", "CGO_ENABLED=1"},
+				pkg:      "crypto/x509",
+			})
 	}
 
 	if t.race {
@@ -664,18 +659,17 @@ func (t *tester) registerTests() {
 
 	// Runtime CPU tests.
 	if !t.compileOnly && goos != "js" { // js can't handle -cpu != 1
-		testName := "runtime:cpu124"
-		t.tests = append(t.tests, distTest{
-			name:    testName,
-			heading: "GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",
-			fn: func(dt *distTest) error {
-				cmd := t.addCmd(dt, "src", t.goTest(), "-short=true", t.timeout(300), "runtime", "-cpu=1,2,4", "-quick")
+		t.registerTest("runtime:cpu124", "GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",
+			&goTest{
+				timeout:   300 * time.Second,
+				cpu:       "1,2,4",
+				short:     true,
+				testFlags: []string{"-quick"},
 				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
 				// creation of first goroutines and first garbage collections in the parallel setting.
-				setEnv(cmd, "GOMAXPROCS", "2")
-				return nil
-			},
-		})
+				env: []string{"GOMAXPROCS=2"},
+				pkg: "runtime",
+			})
 	}
 
 	// morestack tests. We only run these on in long-test mode
@@ -712,17 +706,13 @@ func (t *tester) registerTests() {
 			goFlags := strings.Join(goFlagsList, " ")
 
 			for _, pkg := range pkgs {
-				pkg := pkg
-				testName := hook + ":" + pkg
-				t.tests = append(t.tests, distTest{
-					name:    testName,
-					heading: "maymorestack=" + hook,
-					fn: func(dt *distTest) error {
-						cmd := t.addCmd(dt, "src", t.goTest(), t.timeout(600), pkg, "-short")
-						setEnv(cmd, "GOFLAGS", goFlags)
-						return nil
-					},
-				})
+				t.registerTest(hook+":"+pkg, "maymorestack="+hook,
+					&goTest{
+						timeout: 600 * time.Second,
+						short:   true,
+						env:     []string{"GOFLAGS=" + goFlags},
+						pkg:     pkg,
+					})
 			}
 		}
 	}
@@ -788,21 +778,18 @@ func (t *tester) registerTests() {
 			break
 		}
 
-		pkg := pkg
-		var run string
+		// What matters is that the tests build and start up.
+		// Skip expensive tests, especially x509 TestSystemRoots.
+		run := "^Test[^CS]"
 		if pkg == "net" {
 			run = "TestTCPStress"
 		}
-		t.tests = append(t.tests, distTest{
-			name:    "nolibgcc:" + pkg,
-			heading: "Testing without libgcc.",
-			fn: func(dt *distTest) error {
-				// What matters is that the tests build and start up.
-				// Skip expensive tests, especially x509 TestSystemRoots.
-				t.addCmd(dt, "src", t.goTest(), "-ldflags=-linkmode=internal -libgcc=none", "-run=^Test[^CS]", pkg, t.runFlag(run))
-				return nil
-			},
-		})
+		t.registerTest("nolibgcc:"+pkg, "Testing without libgcc.",
+			&goTest{
+				ldflags:  "-linkmode=internal -libgcc=none",
+				runTests: run,
+				pkg:      pkg,
+			})
 	}
 
 	// Stub out following test on alpine until 54354 resolved.
@@ -811,46 +798,38 @@ func (t *tester) registerTests() {
 
 	// Test internal linking of PIE binaries where it is supported.
 	if t.internalLinkPIE() && !disablePIE {
-		t.tests = append(t.tests, distTest{
-			name:    "pie_internal",
-			heading: "internal linking of -buildmode=pie",
-			fn: func(dt *distTest) error {
-				cmd := t.addCmd(dt, "src", t.goTest(), "reflect", "-buildmode=pie", "-ldflags=-linkmode=internal", t.timeout(60))
-				setEnv(cmd, "CGO_ENABLED", "0")
-				return nil
-			},
-		})
+		t.registerTest("pie_internal", "internal linking of -buildmode=pie",
+			&goTest{
+				timeout:   60 * time.Second,
+				buildmode: "pie",
+				ldflags:   "-linkmode=internal",
+				env:       []string{"CGO_ENABLED=0"},
+				pkg:       "reflect",
+			})
 		// Also test a cgo package.
 		if t.cgoEnabled && t.internalLink() && !disablePIE {
-			t.tests = append(t.tests, distTest{
-				name:    "pie_internal_cgo",
-				heading: "internal linking of -buildmode=pie",
-				fn: func(dt *distTest) error {
-					t.addCmd(dt, "src", t.goTest(), "os/user", "-buildmode=pie", "-ldflags=-linkmode=internal", t.timeout(60))
-					return nil
-				},
-			})
+			t.registerTest("pie_internal_cgo", "internal linking of -buildmode=pie",
+				&goTest{
+					timeout:   60 * time.Second,
+					buildmode: "pie",
+					ldflags:   "-linkmode=internal",
+					pkg:       "os/user",
+				})
 		}
 	}
 
 	// sync tests
 	if goos != "js" { // js doesn't support -cpu=10
-		t.tests = append(t.tests, distTest{
-			name:    "sync_cpu",
-			heading: "sync -cpu=10",
-			fn: func(dt *distTest) error {
-				t.addCmd(dt, "src", t.goTest(), "sync", t.timeout(120), "-cpu=10", t.runFlag(""))
-				return nil
-			},
-		})
+		t.registerTest("sync_cpu", "sync -cpu=10",
+			&goTest{
+				timeout: 120 * time.Second,
+				cpu:     "10",
+				pkg:     "sync",
+			})
 	}
 
 	if t.raceDetectorSupported() {
-		t.tests = append(t.tests, distTest{
-			name:    "race",
-			heading: "Testing race detector",
-			fn:      t.raceTest,
-		})
+		t.registerRaceTests()
 	}
 
 	if t.cgoEnabled && !t.iOS() {
@@ -861,36 +840,19 @@ func (t *tester) registerTests() {
 			t.registerHostTest("cgo_fortran", "../misc/cgo/fortran", "misc/cgo/fortran", ".")
 		}
 		if t.hasSwig() && goos != "android" {
-			t.tests = append(t.tests, distTest{
-				name:    "swig_stdio",
-				heading: "../misc/swig/stdio",
-				fn: func(dt *distTest) error {
-					t.addCmd(dt, "misc/swig/stdio", t.goTest(), ".")
-					return nil
-				},
-			})
+			t.registerTest("swig_stdio", "", &goTest{dir: "../misc/swig/stdio"})
 			if t.hasCxx() {
-				t.tests = append(t.tests,
-					distTest{
-						name:    "swig_callback",
-						heading: "../misc/swig/callback",
-						fn: func(dt *distTest) error {
-							t.addCmd(dt, "misc/swig/callback", t.goTest(), ".")
-							return nil
+				t.registerTest("swig_callback", "", &goTest{dir: "../misc/swig/callback"})
+				const cflags = "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option"
+				t.registerTest("swig_callback_lto", "",
+					&goTest{
+						dir: "../misc/swig/callback",
+						env: []string{
+							"CGO_CFLAGS=" + cflags,
+							"CGO_CXXFLAGS=" + cflags,
+							"CGO_LDFLAGS=" + cflags,
 						},
-					},
-					distTest{
-						name:    "swig_callback_lto",
-						heading: "../misc/swig/callback",
-						fn: func(dt *distTest) error {
-							cmd := t.addCmd(dt, "misc/swig/callback", t.goTest(), ".")
-							setEnv(cmd, "CGO_CFLAGS", "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option")
-							setEnv(cmd, "CGO_CXXFLAGS", "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option")
-							setEnv(cmd, "CGO_LDFLAGS", "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option")
-							return nil
-						},
-					},
-				)
+					})
 			}
 		}
 	}
@@ -1640,27 +1602,42 @@ func (t *tester) runFlag(rx string) string {
 	return "-run=" + rx
 }
 
-func (t *tester) raceTest(dt *distTest) error {
-	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("Output"), "runtime/race")
-	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFdReadRace|TestFileCloseRace"), "flag", "net", "os", "os/exec", "encoding/gob")
+func (t *tester) registerRaceTests() {
+	hdr := "Testing race detector"
+	t.registerTest("race:runtime/race", hdr,
+		&goTest{
+			race:     true,
+			runTests: "Output",
+			pkg:      "runtime/race",
+		})
+	t.registerTest("race", hdr,
+		&goTest{
+			race:     true,
+			runTests: "TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFdReadRace|TestFileCloseRace",
+			pkgs:     []string{"flag", "net", "os", "os/exec", "encoding/gob"},
+		})
 	// We don't want the following line, because it
 	// slows down all.bash (by 10 seconds on my laptop).
 	// The race builder should catch any error here, but doesn't.
 	// TODO(iant): Figure out how to catch this.
-	// t.addCmd(dt, "src", t.goTest(),  "-race", "-run=TestParallelTest", "cmd/go")
+	// t.registerTest("race:cmd/go", hdr, &goTest{race: true, runTests: "TestParallelTest", pkg: "cmd/go"})
 	if t.cgoEnabled {
 		// Building misc/cgo/test takes a long time.
 		// There are already cgo-enabled packages being tested with the race detector.
 		// We shouldn't need to redo all of misc/cgo/test too.
 		// The race buildler will take care of this.
-		// cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-race")
-		// setEnv(cmd, "GOTRACEBACK", "2")
+		// t.registerTest("race:misc/cgo/test", hdr, &goTest{dir: "../misc/cgo/test", race: true, env: []string{"GOTRACEBACK=2"}})
 	}
 	if t.extLink() {
 		// Test with external linking; see issue 9133.
-		t.addCmd(dt, "src", t.goTest(), "-race", "-ldflags=-linkmode=external", t.runFlag("TestParse|TestEcho|TestStdinCloseRace"), "flag", "os/exec")
+		t.registerTest("race:external", hdr,
+			&goTest{
+				race:     true,
+				ldflags:  "-linkmode=external",
+				runTests: "TestParse|TestEcho|TestStdinCloseRace",
+				pkgs:     []string{"flag", "os/exec"},
+			})
 	}
-	return nil
 }
 
 var runtest struct {
