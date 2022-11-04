@@ -89,6 +89,23 @@ func typecheck(t *testing.T, ppkg *packages.Package) {
 	}
 	// Inv: all files were successfully parsed.
 
+	// Build map of dependencies by package path.
+	// (We don't compute this mapping for the entire
+	// packages graph because it is not globally consistent.)
+	depsByPkgPath := make(map[string]*packages.Package)
+	{
+		var visit func(*packages.Package)
+		visit = func(pkg *packages.Package) {
+			if depsByPkgPath[pkg.PkgPath] == nil {
+				depsByPkgPath[pkg.PkgPath] = pkg
+				for path := range pkg.Imports {
+					visit(pkg.Imports[path])
+				}
+			}
+		}
+		visit(ppkg)
+	}
+
 	// importer state
 	var (
 		insert    func(p *types.Package, name string)
@@ -100,16 +117,8 @@ func typecheck(t *testing.T, ppkg *packages.Package) {
 		return gcimporter.IImportShallow(fset, importMap, data, imp.PkgPath, insert)
 	}
 	insert = func(p *types.Package, name string) {
-		// Hunt for p among the transitive dependencies (inefficient).
-		var imp *packages.Package
-		packages.Visit([]*packages.Package{ppkg}, func(q *packages.Package) bool {
-			if q.PkgPath == p.Path() {
-				imp = q
-				return false
-			}
-			return true
-		}, nil)
-		if imp == nil {
+		imp, ok := depsByPkgPath[p.Path()]
+		if !ok {
 			t.Fatalf("can't find dependency: %q", p.Path())
 		}
 		imported, err := loadFromExportData(imp)
