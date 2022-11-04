@@ -40,6 +40,9 @@ const (
 	// FromDidClose is a file modification caused by closing a file.
 	FromDidClose
 
+	// TODO: add FromDidChangeConfiguration, once configuration changes cause a
+	// new snapshot to be created.
+
 	// FromRegenerateCgo refers to file modifications caused by regenerating
 	// the cgo sources for the workspace.
 	FromRegenerateCgo

@@ -7,6 +7,7 @@ package regtest
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp"
@@ -130,6 +131,33 @@ func AnyOf(anyOf ...Expectation) *SimpleExpectation {
 	}
 }
 
+// AllOf expects that all given expectations are met.
+//
+// TODO(rfindley): the problem with these types of combinators (OnceMet, AnyOf
+// and AllOf) is that we lose the information of *why* they failed: the Awaiter
+// is not smart enough to look inside.
+//
+// Refactor the API such that the Check function is responsible for explaining
+// why an expectation failed. This should allow us to significantly improve
+// test output: we won't need to summarize state at all, as the verdict
+// explanation itself should describe clearly why the expectation not met.
+func AllOf(allOf ...Expectation) *SimpleExpectation {
+	check := func(s State) Verdict {
+		verdict := Met
+		for _, e := range allOf {
+			if v := e.Check(s); v > verdict {
+				verdict = v
+			}
+		}
+		return verdict
+	}
+	description := describeExpectations(allOf...)
+	return &SimpleExpectation{
+		check:       check,
+		description: fmt.Sprintf("All of:\n%s", description),
+	}
+}
+
 // ReadDiagnostics is an 'expectation' that is used to read diagnostics
 // atomically. It is intended to be used with 'OnceMet'.
 func ReadDiagnostics(fileName string, into *protocol.PublishDiagnosticsParams) *SimpleExpectation {
@@ -216,6 +244,54 @@ func ShowMessageRequest(title string) SimpleExpectation {
 		check:       check,
 		description: "received ShowMessageRequest",
 	}
+}
+
+// DoneDiagnosingChanges expects that diagnostics are complete from common
+// change notifications: didOpen, didChange, didSave, didChangeWatchedFiles,
+// and didClose.
+//
+// This can be used when multiple notifications may have been sent, such as
+// when a didChange is immediately followed by a didSave. It is insufficient to
+// simply await NoOutstandingWork, because the LSP client has no control over
+// when the server starts processing a notification. Therefore, we must keep
+// track of
+func (e *Env) DoneDiagnosingChanges() Expectation {
+	stats := e.Editor.Stats()
+	statsBySource := map[lsp.ModificationSource]uint64{
+		lsp.FromDidOpen:               stats.DidOpen,
+		lsp.FromDidChange:             stats.DidChange,
+		lsp.FromDidSave:               stats.DidSave,
+		lsp.FromDidChangeWatchedFiles: stats.DidChangeWatchedFiles,
+		lsp.FromDidClose:              stats.DidClose,
+	}
+
+	var expected []lsp.ModificationSource
+	for k, v := range statsBySource {
+		if v > 0 {
+			expected = append(expected, k)
+		}
+	}
+
+	// Sort for stability.
+	sort.Slice(expected, func(i, j int) bool {
+		return expected[i] < expected[j]
+	})
+
+	var all []Expectation
+	for _, source := range expected {
+		all = append(all, CompletedWork(lsp.DiagnosticWorkTitle(source), statsBySource[source], true))
+	}
+
+	return AllOf(all...)
+}
+
+// AfterChange expects that the given expectations will be met after all
+// state-changing notifications have been processed by the server.
+func (e *Env) AfterChange(expectations ...Expectation) Expectation {
+	return OnceMet(
+		e.DoneDiagnosingChanges(),
+		expectations...,
+	)
 }
 
 // DoneWithOpen expects all didOpen notifications currently sent by the editor
