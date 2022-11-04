@@ -335,7 +335,12 @@ func main() {
 
 // This change tests that the version of the module used changes after it has
 // been deleted from the workspace.
+//
+// TODO(golang/go#55331): delete this placeholder along with experimental
+// workspace module.
 func TestDeleteModule_Interdependent(t *testing.T) {
+	t.Skip("golang/go#55331: the experimental workspace module is scheduled for deletion")
+
 	const multiModule = `
 -- moda/a/go.mod --
 module a.com
