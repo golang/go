@@ -72,8 +72,6 @@ func (r *Rechecker[T]) Get() (v *T, err error) {
 				return val.v, val.err
 			}
 		}
-
-		return val.v, val.err
 	}
 
 	return val.v, val.err
