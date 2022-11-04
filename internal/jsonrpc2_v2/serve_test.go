@@ -66,14 +66,24 @@ func TestIdleTimeout(t *testing.T) {
 			return false
 		}
 
+		// Since conn1 was successfully accepted and remains open, the server is
+		// definitely non-idle. Dialing another simultaneous connection should
+		// succeed.
 		conn2, err := jsonrpc2.Dial(ctx, listener.Dialer(), jsonrpc2.ConnectionOptions{})
 		if err != nil {
 			conn1.Close()
-			if since := time.Since(idleStart); since < d {
-				t.Fatalf("conn2 failed to connect while non-idle: %v", err)
-			}
-			t.Log("jsonrpc2.Dial:", err)
+			t.Fatalf("conn2 failed to connect while non-idle after %v: %v", time.Since(idleStart), err)
 			return false
+		}
+		// Ensure that conn2 is also accepted on the server side before we close
+		// conn1. Otherwise, the connection can appear idle if the server processes
+		// the closure of conn1 and the idle timeout before it finally notices conn2
+		// in the accept queue.
+		// (That failure mode may explain the failure noted in
+		// https://go.dev/issue/49387#issuecomment-1303979877.)
+		ac = conn2.Call(ctx, "ping", nil)
+		if err := ac.Await(ctx, nil); !errors.Is(err, jsonrpc2.ErrMethodNotFound) {
+			t.Fatalf("conn2 broken while non-idle after %v: %v", time.Since(idleStart), err)
 		}
 
 		if err := conn1.Close(); err != nil {
