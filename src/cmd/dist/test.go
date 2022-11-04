@@ -895,11 +895,7 @@ func (t *tester) registerTests() {
 		}
 	}
 	if t.cgoEnabled {
-		t.tests = append(t.tests, distTest{
-			name:    "cgo_test",
-			heading: "../misc/cgo/test",
-			fn:      t.cgoTest,
-		})
+		t.registerCgoTests()
 	}
 
 	// Don't run these tests with $GO_GCFLAGS because most of them
@@ -1312,101 +1308,128 @@ func (t *tester) runHostTest(dir, pkg string) error {
 	return t.dirCmd(dir, f.Name(), "-test.short="+short(), "-test.timeout="+t.timeoutDuration(300).String()).Run()
 }
 
-func (t *tester) cgoTest(dt *distTest) error {
-	t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags=-linkmode=auto", ".")
+func (t *tester) registerCgoTests() {
+	cgoTest := func(name string, subdir, linkmode, buildmode string, opts ...registerTestOpt) *goTest {
+		gt := &goTest{
+			dir:       "../misc/cgo/" + subdir,
+			buildmode: buildmode,
+			ldflags:   "-linkmode=" + linkmode,
+		}
+
+		if linkmode == "internal" {
+			gt.tags = append(gt.tags, "internal")
+			if buildmode == "pie" {
+				gt.tags = append(gt.tags, "internal_pie")
+			}
+		}
+		if buildmode == "static" {
+			// This isn't actually a Go buildmode, just a convenient way to tell
+			// cgoTest we want static linking.
+			gt.buildmode = ""
+			if linkmode == "external" {
+				gt.ldflags += ` -extldflags "-static -pthread"`
+			} else if linkmode == "auto" {
+				gt.env = append(gt.env, "CGO_LDFLAGS=-static -pthread")
+			} else {
+				panic("unknown linkmode with static build: " + linkmode)
+			}
+			gt.tags = append(gt.tags, "static")
+		}
+
+		t.registerTest("cgo:"+name, "../misc/cgo/test", gt, opts...)
+		return gt
+	}
+
+	cgoTest("test-auto", "test", "auto", "")
 
 	// Stub out various buildmode=pie tests  on alpine until 54354 resolved.
 	builderName := os.Getenv("GO_BUILDER_NAME")
 	disablePIE := strings.HasSuffix(builderName, "-alpine")
 
 	if t.internalLink() {
-		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags=-linkmode=internal", "-tags=internal", ".")
+		cgoTest("test-internal", "test", "internal", "")
 	}
 
-	pair := gohostos + "-" + goarch
-	switch pair {
-	case "darwin-amd64", "darwin-arm64",
-		"windows-386", "windows-amd64", "windows-arm", "windows-arm64":
-		// test linkmode=external, but __thread not supported, so skip testtls.
+	os := gohostos
+	p := gohostos + "/" + goarch
+	switch {
+	case os == "darwin", os == "windows":
 		if !t.extLink() {
 			break
 		}
-		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags=-linkmode=external", ".")
+		// test linkmode=external, but __thread not supported, so skip testtls.
+		cgoTest("test-external", "test", "external", "")
 
-		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s", ".")
+		gt := cgoTest("test-external-s", "test", "external", "")
+		gt.ldflags += " -s"
 
 		if t.supportedBuildmode("pie") && !disablePIE {
-
-			t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", ".")
+			cgoTest("test-auto-pie", "test", "auto", "pie")
 			if t.internalLink() && t.internalLinkPIE() {
-				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie", ".")
+				cgoTest("test-internal-pie", "test", "internal", "pie")
 			}
 		}
 
-	case "aix-ppc64",
-		"android-386", "android-amd64", "android-arm", "android-arm64",
-		"dragonfly-amd64",
-		"freebsd-386", "freebsd-amd64", "freebsd-arm", "freebsd-riscv64",
-		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-loong64", "linux-mips", "linux-mipsle", "linux-mips64", "linux-mips64le", "linux-ppc64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
-		"netbsd-386", "netbsd-amd64", "netbsd-arm", "netbsd-arm64",
-		"openbsd-386", "openbsd-amd64", "openbsd-arm", "openbsd-arm64", "openbsd-mips64":
+	case os == "aix", os == "android", os == "dragonfly", os == "freebsd", os == "linux", os == "netbsd", os == "openbsd":
+		gt := cgoTest("test-external-g0", "test", "external", "")
+		gt.env = append(gt.env, "CGO_CFLAGS=-g0 -fdiagnostics-color")
 
-		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags=-linkmode=external", ".")
-		// cgo should be able to cope with both -g arguments and colored
-		// diagnostics.
-		setEnv(cmd, "CGO_CFLAGS", "-g0 -fdiagnostics-color")
-
-		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=auto", ".")
-		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=external", ".")
-
-		switch pair {
-		case "aix-ppc64":
+		cgoTest("testtls-auto", "testtls", "auto", "")
+		cgoTest("testtls-external", "testtls", "external", "")
+		switch {
+		case os == "aix":
 			// no static linking
-		case "freebsd-arm":
+		case p == "freebsd/arm":
 			// -fPIC compiled tls code will use __tls_get_addr instead
 			// of __aeabi_read_tp, however, on FreeBSD/ARM, __tls_get_addr
 			// is implemented in rtld-elf, so -fPIC isn't compatible with
 			// static linking on FreeBSD/ARM with clang. (cgo depends on
 			// -fPIC fundamentally.)
 		default:
+			// Check for static linking support
+			var staticCheck rtPreFunc
 			cmd := t.dirCmd("misc/cgo/test",
 				compilerEnvLookup(defaultcc, goos, goarch), "-xc", "-o", "/dev/null", "-static", "-")
 			cmd.Stdin = strings.NewReader("int main() {}")
+			cmd.Stdout, cmd.Stderr = nil, nil // Discard output
 			if err := cmd.Run(); err != nil {
-				fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
-			} else {
-				if goos != "android" && pair != "netbsd-arm" {
-					// TODO(#56629): Why does this fail on netbsd-arm?
-					t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", `-linkmode=external -extldflags "-static -pthread"`, ".")
-				}
-				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), ".")
-				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external`, ".")
-				if goos != "android" {
-					t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external -extldflags "-static -pthread"`, ".")
-					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`, ".")
-					// -static in CGO_LDFLAGS triggers a different code path
-					// than -static in -extldflags, so test both.
-					// See issue #16651.
-					if goarch != "loong64" {
-						// TODO(#56623): Why does this fail on loong64?
-						cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static", ".")
-						setEnv(cmd, "CGO_LDFLAGS", "-static -pthread")
-					}
+				// Skip these tests
+				staticCheck.pre = func(*distTest) bool {
+					fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
+					return false
 				}
 			}
 
-			if t.supportedBuildmode("pie") && !disablePIE {
-				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", ".")
-				if t.internalLink() && t.internalLinkPIE() {
-					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie", ".")
+			// Static linking tests
+			if goos != "android" && p != "netbsd/arm" {
+				// TODO(#56629): Why does this fail on netbsd-arm?
+				cgoTest("testtls-static", "testtls", "external", "static", staticCheck)
+			}
+			cgoTest("nocgo-auto", "nocgo", "auto", "", staticCheck)
+			cgoTest("nocgo-external", "nocgo", "external", "", staticCheck)
+			if goos != "android" {
+				cgoTest("nocgo-static", "nocgo", "external", "static", staticCheck)
+				cgoTest("test-static", "test", "external", "static", staticCheck)
+				// -static in CGO_LDFLAGS triggers a different code path
+				// than -static in -extldflags, so test both.
+				// See issue #16651.
+				if goarch != "loong64" {
+					// TODO(#56623): Why does this fail on loong64?
+					cgoTest("test-static-env", "test", "auto", "static", staticCheck)
 				}
-				t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-buildmode=pie", ".")
-				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-buildmode=pie", ".")
+			}
+
+			// PIE linking tests
+			if t.supportedBuildmode("pie") && !disablePIE {
+				cgoTest("test-pie", "test", "auto", "pie")
+				if t.internalLink() && t.internalLinkPIE() {
+					cgoTest("test-pie-internal", "test", "internal", "pie")
+				}
+				cgoTest("testtls-pie", "testtls", "auto", "pie")
+				cgoTest("nocgo-pie", "nocgo", "auto", "pie")
 			}
 		}
 	}
-
-	return nil
 }
 
 // run pending test commands, in parallel, emitting headers as appropriate.
