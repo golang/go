@@ -32,6 +32,9 @@ type Rechecker[T any] struct {
 	size        int64
 }
 
+// Get on the initial call reads r.File and calls r.Parse with the contents of that file.
+// On next calls when more than r.Duration has passed, Get stats the r.File to detect
+// changes to it, when it is modified it calls r.Parse again. Get is safe to call concurrently.
 func (r *Rechecker[T]) Get() (v *T, err error) {
 	var val *value[T]
 
