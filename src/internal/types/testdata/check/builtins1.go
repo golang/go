@@ -8,6 +8,20 @@ package builtins
 
 import "unsafe"
 
+// clear
+
+func _[T any](x T) {
+	clear(x /* ERROR cannot clear x */)
+}
+
+func _[T ~map[int]string | ~[]byte | ~*[10]int](x T) {
+	clear(x)
+}
+
+func _[T ~map[int]string | ~[]byte | ~*[10]int | string](x T) {
+	clear(x /* ERROR cannot clear x */)
+}
+
 // close
 
 type C0 interface{ int }

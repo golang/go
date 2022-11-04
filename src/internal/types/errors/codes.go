@@ -1430,4 +1430,13 @@ const (
 	// InvalidUnsafeStringData occurs if it is used in a package
 	// compiled for a language version before go1.20.
 	_ // not used anymore
+
+	// InvalidClear occurs when clear is called with an argument
+	// that is not of map, slice, or pointer-to-array type.
+	//
+	// Example:
+	//  func _(x int) {
+	//  	clear(x)
+	//  }
+	InvalidClear
 )

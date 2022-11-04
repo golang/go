@@ -232,6 +232,33 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		x.typ = Typ[Int]
 		x.val = val
 
+	case _Clear:
+		// clear(m)
+		if !check.allowVersion(check.pkg, 1, 21) {
+			check.versionErrorf(call.Fun, "go1.21", "clear")
+			return
+		}
+
+		if !underIs(x.typ, func(u Type) bool {
+			switch u := u.(type) {
+			case *Map, *Slice:
+				return true
+			case *Pointer:
+				if _, ok := under(u.base).(*Array); ok {
+					return true
+				}
+			}
+			check.errorf(x, InvalidClear, invalidArg+"cannot clear %s: argument must be (or constrained by) map, slice, or array pointer", x)
+			return false
+		}) {
+			return
+		}
+
+		x.mode = novalue
+		if check.recordTypes() {
+			check.recordBuiltinType(call.Fun, makeSig(nil, x.typ))
+		}
+
 	case _Close:
 		// close(c)
 		if !underIs(x.typ, func(u Type) bool {
