@@ -7,13 +7,26 @@ package net
 import (
 	"errors"
 	"internal/bytealg"
-	"io"
-	"os"
+	"net/internal/rechecker"
+	"time"
 )
+
+const (
+	nsswitchConfPath = "/etc/nsswitch.conf"
+)
+
+var systemNSS = rechecker.Rechecker[nssConf]{
+	File:     nsswitchConfPath,
+	Duration: 5 * time.Second,
+	Parse:    parseNSSConf,
+}
+
+func getSystemNSS() (*nssConf, error) {
+	return systemNSS.Get()
+}
 
 // nssConf represents the state of the machine's /etc/nsswitch.conf file.
 type nssConf struct {
-	err     error                  // any error encountered opening or parsing the file
 	sources map[string][]nssSource // keyed by database (e.g. "hosts")
 }
 
@@ -64,22 +77,9 @@ func (c nssCriterion) standardStatusAction(last bool) bool {
 	return c.action == def
 }
 
-func parseNSSConfFile(file string) *nssConf {
-	f, err := os.Open(file)
-	if err != nil {
-		return &nssConf{err: err}
-	}
-	defer f.Close()
-	return parseNSSConf(f)
-}
-
-func parseNSSConf(r io.Reader) *nssConf {
-	slurp, err := readFull(r)
-	if err != nil {
-		return &nssConf{err: err}
-	}
+func parseNSSConf(data []byte) (*nssConf, error) {
 	conf := new(nssConf)
-	conf.err = foreachLine(slurp, func(line []byte) error {
+	err := foreachLine(data, func(line []byte) error {
 		line = trimSpace(removeComment(line))
 		if len(line) == 0 {
 			return nil
@@ -128,7 +128,11 @@ func parseNSSConf(r io.Reader) *nssConf {
 		}
 		return nil
 	})
-	return conf
+
+	if err != nil {
+		return nil, err
+	}
+	return conf, nil
 }
 
 // parses "foo=bar !foo=bar"

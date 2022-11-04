@@ -8,7 +8,6 @@ package net
 
 import (
 	"io/fs"
-	"strings"
 	"testing"
 )
 
@@ -18,7 +17,13 @@ type nssHostTest struct {
 	want      hostLookupOrder
 }
 
-func nssStr(s string) *nssConf { return parseNSSConf(strings.NewReader(s)) }
+func nssStr(s string) *nssConf {
+	c, err := parseNSSConf([]byte(s))
+	if err != nil {
+		panic(err)
+	}
+	return c
+}
 
 // represents a dnsConfig returned by parsing a nonexistent resolv.conf
 var defaultResolvConf = &dnsConfig{
@@ -106,7 +111,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			name: "solaris_no_nsswitch",
 			c: &conf{
 				goos:   "solaris",
-				nss:    &nssConf{err: fs.ErrNotExist},
+				nssErr: fs.ErrNotExist,
 				resolv: defaultResolvConf,
 			},
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupCgo}},
@@ -174,7 +179,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			name: "linux_no_nsswitch.conf",
 			c: &conf{
 				goos:   "linux",
-				nss:    &nssConf{err: fs.ErrNotExist},
+				nssErr: fs.ErrNotExist,
 				resolv: defaultResolvConf,
 			},
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},

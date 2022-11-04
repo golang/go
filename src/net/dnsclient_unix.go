@@ -591,7 +591,8 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
 // goLookupIP is the native Go implementation of LookupIP.
 // The libc versions are in cgo_*.go.
 func (r *Resolver) goLookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
-	order := systemConf().hostLookupOrder(r, host)
+	conf := systemConf()
+	order := conf.hostLookupOrder(r, host)
 	addrs, _, err = r.goLookupIPCNAMEOrder(ctx, network, host, order)
 	return
 }
@@ -767,7 +768,8 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 
 // goLookupCNAME is the native Go (non-cgo) implementation of LookupCNAME.
 func (r *Resolver) goLookupCNAME(ctx context.Context, host string) (string, error) {
-	order := systemConf().hostLookupOrder(r, host)
+	conf := systemConf()
+	order := conf.hostLookupOrder(r, host)
 	_, cname, err := r.goLookupIPCNAMEOrder(ctx, "ip", host, order)
 	return cname.String(), err
 }

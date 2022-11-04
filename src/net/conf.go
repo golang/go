@@ -30,6 +30,8 @@ type conf struct {
 	dnsDebugLevel int
 
 	nss    *nssConf
+	nssErr error
+
 	resolv *dnsConfig
 }
 
@@ -39,9 +41,15 @@ var (
 )
 
 // systemConf returns the machine's network configuration.
-func systemConf() *conf {
+func systemConf() conf {
 	confOnce.Do(initConfVal)
-	return confVal
+	c := *confVal
+
+	if runtime.GOOS != "openbsd" {
+		c.nss, c.nssErr = getSystemNSS()
+	}
+
+	return c
 }
 
 func initConfVal() {
@@ -110,10 +118,6 @@ func initConfVal() {
 	if runtime.GOOS == "openbsd" && os.Getenv("ASR_CONFIG") != "" {
 		confVal.forceCgoLookupHost = true
 		return
-	}
-
-	if runtime.GOOS != "openbsd" {
-		confVal.nss = parseNSSConfFile("/etc/nsswitch.conf")
 	}
 
 	confVal.resolv = dnsReadConfig("/etc/resolv.conf")
@@ -224,23 +228,23 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		return fallbackOrder
 	}
 
-	nss := c.nss
-	srcs := nss.sources["hosts"]
 	// If /etc/nsswitch.conf doesn't exist or doesn't specify any
 	// sources for "hosts", assume Go's DNS will work fine.
-	if os.IsNotExist(nss.err) || (nss.err == nil && len(srcs) == 0) {
+	if os.IsNotExist(c.nssErr) || (c.nssErr == nil && len(c.nss.sources["hosts"]) == 0) {
 		if c.goos == "solaris" {
 			// illumos defaults to "nis [NOTFOUND=return] files"
 			return fallbackOrder
 		}
 		return hostLookupFilesDNS
 	}
-	if nss.err != nil {
+	if c.nssErr != nil {
 		// We failed to parse or open nsswitch.conf, so
 		// conservatively assume we should use cgo if it's
 		// available.
 		return fallbackOrder
 	}
+
+	srcs := c.nss.sources["hosts"]
 
 	var mdnsSource, filesSource, dnsSource bool
 	var first string

@@ -54,7 +54,8 @@ func lookupProtocol(_ context.Context, name string) (int, error) {
 }
 
 func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
-	order := systemConf().hostLookupOrder(r, host)
+	conf := systemConf()
+	order := conf.hostLookupOrder(r, host)
 	if !r.preferGo() && order == hostLookupCgo {
 		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
 			return addrs, err
@@ -69,7 +70,9 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 	if r.preferGo() {
 		return r.goLookupIP(ctx, network, host)
 	}
-	order := systemConf().hostLookupOrder(r, host)
+
+	conf := systemConf()
+	order := conf.hostLookupOrder(r, host)
 	if order == hostLookupCgo {
 		if addrs, err, ok := cgoLookupIP(ctx, network, host); ok {
 			return addrs, err
@@ -82,7 +85,8 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 }
 
 func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
-	if !r.preferGo() && systemConf().canUseCgo() {
+	conf := systemConf()
+	if !r.preferGo() && conf.canUseCgo() {
 		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
 			if err != nil {
 				// Issue 18213: if cgo fails, first check to see whether we
@@ -98,7 +102,8 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
-	if !r.preferGo() && systemConf().canUseCgo() {
+	conf := systemConf()
+	if !r.preferGo() && conf.canUseCgo() {
 		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
 			return cname, err
 		}
@@ -123,7 +128,8 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 }
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
-	if !r.preferGo() && systemConf().canUseCgo() {
+	conf := systemConf()
+	if !r.preferGo() && conf.canUseCgo() {
 		if ptrs, err, ok := cgoLookupPTR(ctx, addr); ok {
 			return ptrs, err
 		}
