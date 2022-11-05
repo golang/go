@@ -21,8 +21,6 @@ import (
 	"testing"
 )
 
-const dataDir = "testdata"
-
 var binary string
 
 // We implement TestMain so remove the test binary when all is done.
