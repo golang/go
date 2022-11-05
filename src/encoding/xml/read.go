@@ -537,7 +537,7 @@ Loop:
 			consumed := false
 			if sv.IsValid() {
 				// unmarshalPath can call unmarshal, so we need to pass the depth through so that
-				// we can continue to enforce the maximum recusion limit.
+				// we can continue to enforce the maximum recursion limit.
 				consumed, err = d.unmarshalPath(tinfo, sv, nil, &t, depth)
 				if err != nil {
 					return err
