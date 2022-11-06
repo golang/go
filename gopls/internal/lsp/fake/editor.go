@@ -265,6 +265,10 @@ func (e *Editor) initialize(ctx context.Context) error {
 		"event", "function", "method", "macro", "keyword", "modifier", "comment",
 		"string", "number", "regexp", "operator",
 	}
+	params.Capabilities.TextDocument.SemanticTokens.TokenModifiers = []string{
+		"declaration", "definition", "readonly", "static",
+		"deprecated", "abstract", "async", "modification", "documentation", "defaultLibrary",
+	}
 
 	// This is a bit of a hack, since the fake editor doesn't actually support
 	// watching changed files that match a specific glob pattern. However, the
