@@ -1018,14 +1018,14 @@ func init() {
 		{name: "PrefetchNTA", argLength: 2, reg: prefreg, asm: "PREFETCHNTA", hasSideEffects: true},
 
 		// CPUID feature: BMI1.
-		{name: "ANDNQ", argLength: 2, reg: gp21, asm: "ANDNQ", clobberFlags: true},     // arg0 &^ arg1
-		{name: "ANDNL", argLength: 2, reg: gp21, asm: "ANDNL", clobberFlags: true},     // arg0 &^ arg1
-		{name: "BLSIQ", argLength: 1, reg: gp11, asm: "BLSIQ", clobberFlags: true},     // arg0 & -arg0
-		{name: "BLSIL", argLength: 1, reg: gp11, asm: "BLSIL", clobberFlags: true},     // arg0 & -arg0
-		{name: "BLSMSKQ", argLength: 1, reg: gp11, asm: "BLSMSKQ", clobberFlags: true}, // arg0 ^ (arg0 - 1)
-		{name: "BLSMSKL", argLength: 1, reg: gp11, asm: "BLSMSKL", clobberFlags: true}, // arg0 ^ (arg0 - 1)
-		{name: "BLSRQ", argLength: 1, reg: gp11, asm: "BLSRQ", clobberFlags: true},     // arg0 & (arg0 - 1)
-		{name: "BLSRL", argLength: 1, reg: gp11, asm: "BLSRL", clobberFlags: true},     // arg0 & (arg0 - 1)
+		{name: "ANDNQ", argLength: 2, reg: gp21, asm: "ANDNQ", clobberFlags: true},         // arg0 &^ arg1
+		{name: "ANDNL", argLength: 2, reg: gp21, asm: "ANDNL", clobberFlags: true},         // arg0 &^ arg1
+		{name: "BLSIQ", argLength: 1, reg: gp11, asm: "BLSIQ", clobberFlags: true},         // arg0 & -arg0
+		{name: "BLSIL", argLength: 1, reg: gp11, asm: "BLSIL", clobberFlags: true},         // arg0 & -arg0
+		{name: "BLSMSKQ", argLength: 1, reg: gp11, asm: "BLSMSKQ", clobberFlags: true},     // arg0 ^ (arg0 - 1)
+		{name: "BLSMSKL", argLength: 1, reg: gp11, asm: "BLSMSKL", clobberFlags: true},     // arg0 ^ (arg0 - 1)
+		{name: "BLSRQ", argLength: 1, reg: gp11flags, asm: "BLSRQ", typ: "(UInt64,Flags)"}, // arg0 & (arg0 - 1)
+		{name: "BLSRL", argLength: 1, reg: gp11flags, asm: "BLSRL", typ: "(UInt32,Flags)"}, // arg0 & (arg0 - 1)
 		// count the number of trailing zero bits, prefer TZCNTQ over BSFQ, as TZCNTQ(0)==64
 		// and BSFQ(0) is undefined. Same for TZCNTL(0)==32
 		{name: "TZCNTQ", argLength: 1, reg: gp11, asm: "TZCNTQ", clobberFlags: true},

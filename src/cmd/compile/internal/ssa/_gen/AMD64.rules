@@ -2173,10 +2173,19 @@
 (PrefetchCacheStreamed ...) => (PrefetchNTA ...)
 
 // CPUID feature: BMI1.
-(AND(Q|L) x (NOT(Q|L) y))           && buildcfg.GOAMD64 >= 3 => (ANDN(Q|L) x y)
-(AND(Q|L) x (NEG(Q|L) x))           && buildcfg.GOAMD64 >= 3 => (BLSI(Q|L) x)
-(XOR(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSMSK(Q|L) x)
-(AND(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSR(Q|L) x)
+(AND(Q|L) x (NOT(Q|L) y))               && buildcfg.GOAMD64 >= 3 => (ANDN(Q|L) x y)
+(AND(Q|L) x (NEG(Q|L) x))               && buildcfg.GOAMD64 >= 3 => (BLSI(Q|L) x)
+(XOR(Q|L) x (ADD(Q|L)const [-1] x))     && buildcfg.GOAMD64 >= 3 => (BLSMSK(Q|L) x)
+(AND(Q|L) <t> x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (Select0 <t> (BLSR(Q|L) x))
+// eliminate TEST instruction in classical "isPowerOfTwo" check
+(SETEQ       (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (SETEQ       (Select1 <types.TypeFlags> blsr))
+(CMOVQEQ x y (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (CMOVQEQ x y (Select1 <types.TypeFlags> blsr))
+(CMOVLEQ x y (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (CMOVLEQ x y (Select1 <types.TypeFlags> blsr))
+(EQ          (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s) yes no) => (EQ          (Select1 <types.TypeFlags> blsr) yes no)
+(SETNE       (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (SETNE       (Select1 <types.TypeFlags> blsr))
+(CMOVQNE x y (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (CMOVQNE x y (Select1 <types.TypeFlags> blsr))
+(CMOVLNE x y (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (CMOVLNE x y (Select1 <types.TypeFlags> blsr))
+(NE          (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s) yes no) => (NE          (Select1 <types.TypeFlags> blsr) yes no)
 
 (BSWAP(Q|L) (BSWAP(Q|L) p)) => p
 

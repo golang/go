@@ -13980,29 +13980,29 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "BLSRQ",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.ABLSRQ,
+		name:   "BLSRQ",
+		argLen: 1,
+		asm:    x86.ABLSRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
+				{1, 0},
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
 	{
-		name:         "BLSRL",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.ABLSRL,
+		name:   "BLSRL",
+		argLen: 1,
+		asm:    x86.ABLSRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
+				{1, 0},
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},

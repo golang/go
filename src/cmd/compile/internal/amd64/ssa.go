@@ -274,7 +274,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
+		switch v.Op {
+		case ssa.OpAMD64BLSRQ, ssa.OpAMD64BLSRL:
+			p.To.Reg = v.Reg0()
+		default:
+			p.To.Reg = v.Reg()
+		}
 
 	case ssa.OpAMD64ANDNQ, ssa.OpAMD64ANDNL:
 		p := s.Prog(v.Op.Asm())
