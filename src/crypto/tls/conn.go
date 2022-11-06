@@ -1235,13 +1235,13 @@ func (c *Conn) handlePostHandshakeMessage() error {
 }
 
 func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
-	cipherSuite := cipherSuiteTLS13ByID(c.cipherSuite)
-	if cipherSuite == nil {
+	cs := cipherSuiteTLS13ByID(c.cipherSuite)
+	if cs == nil {
 		return c.in.setErrorLocked(c.sendAlert(alertInternalError))
 	}
 
-	newSecret := cipherSuite.nextTrafficSecret(c.in.trafficSecret)
-	c.in.setTrafficSecret(cipherSuite, newSecret)
+	newSecret := cs.nextTrafficSecret(c.in.trafficSecret)
+	c.in.setTrafficSecret(cs, newSecret)
 
 	if keyUpdate.updateRequested {
 		c.out.Lock()
@@ -1255,8 +1255,8 @@ func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
 			return nil
 		}
 
-		newSecret := cipherSuite.nextTrafficSecret(c.out.trafficSecret)
-		c.out.setTrafficSecret(cipherSuite, newSecret)
+		newSecret = cs.nextTrafficSecret(c.out.trafficSecret)
+		c.out.setTrafficSecret(cs, newSecret)
 	}
 
 	return nil

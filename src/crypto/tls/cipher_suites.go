@@ -400,8 +400,8 @@ func aesgcmPreferred(ciphers []uint16) bool {
 }
 
 func cipherRC4(key, iv []byte, isRead bool) any {
-	cipher, _ := rc4.NewCipher(key)
-	return cipher
+	c, _ := rc4.NewCipher(key)
+	return c
 }
 
 func cipher3DES(key, iv []byte, isRead bool) any {
@@ -512,22 +512,22 @@ func aeadAESGCM(key, noncePrefix []byte) aead {
 	if len(noncePrefix) != noncePrefixLength {
 		panic("tls: internal error: wrong nonce length")
 	}
-	aes, err := aes.NewCipher(key)
+	aesC, err := aes.NewCipher(key)
 	if err != nil {
 		panic(err)
 	}
-	var aead cipher.AEAD
+	var aeadC cipher.AEAD
 	if boring.Enabled {
-		aead, err = boring.NewGCMTLS(aes)
+		aeadC, err = boring.NewGCMTLS(aesC)
 	} else {
 		boring.Unreachable()
-		aead, err = cipher.NewGCM(aes)
+		aeadC, err = cipher.NewGCM(aesC)
 	}
 	if err != nil {
 		panic(err)
 	}
 
-	ret := &prefixNonceAEAD{aead: aead}
+	ret := &prefixNonceAEAD{aead: aeadC}
 	copy(ret.nonce[:], noncePrefix)
 	return ret
 }
@@ -536,16 +536,16 @@ func aeadAESGCMTLS13(key, nonceMask []byte) aead {
 	if len(nonceMask) != aeadNonceLength {
 		panic("tls: internal error: wrong nonce length")
 	}
-	aes, err := aes.NewCipher(key)
+	aesC, err := aes.NewCipher(key)
 	if err != nil {
 		panic(err)
 	}
-	aead, err := cipher.NewGCM(aes)
+	aeadC, err := cipher.NewGCM(aesC)
 	if err != nil {
 		panic(err)
 	}
 
-	ret := &xorNonceAEAD{aead: aead}
+	ret := &xorNonceAEAD{aead: aeadC}
 	copy(ret.nonceMask[:], nonceMask)
 	return ret
 }
@@ -554,12 +554,12 @@ func aeadChaCha20Poly1305(key, nonceMask []byte) aead {
 	if len(nonceMask) != aeadNonceLength {
 		panic("tls: internal error: wrong nonce length")
 	}
-	aead, err := chacha20poly1305.New(key)
+	aeadC, err := chacha20poly1305.New(key)
 	if err != nil {
 		panic(err)
 	}
 
-	ret := &xorNonceAEAD{aead: aead}
+	ret := &xorNonceAEAD{aead: aeadC}
 	copy(ret.nonceMask[:], nonceMask)
 	return ret
 }
