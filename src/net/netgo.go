@@ -4,9 +4,9 @@
 
 // Default netGo to true if the netgo build tag is being used, or the
 // C library DNS routines are not available. Note that the C library
-// routines are always available on Windows.
+// routines are always available on Darwin and Windows.
 
-//go:build netgo || (!cgo && !windows)
+//go:build netgo || (!cgo && !darwin && !windows)
 
 package net
 
