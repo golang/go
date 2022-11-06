@@ -318,9 +318,9 @@ func (zeroSource) Read(b []byte) (n int, err error) {
 }
 
 func allCipherSuites() []uint16 {
-	ids := make([]uint16, len(cipherSuites))
-	for i, suite := range cipherSuites {
-		ids[i] = suite.id
+	ids := make([]uint16, 0, len(cipherSuites))
+	for id, _ := range cipherSuites {
+		ids = append(ids, id)
 	}
 
 	return ids

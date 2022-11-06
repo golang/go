@@ -81,10 +81,8 @@ func isBoringCurve(id CurveID) bool {
 }
 
 func isECDSA(id uint16) bool {
-	for _, suite := range cipherSuites {
-		if suite.id == id {
-			return suite.flags&suiteECSign == suiteECSign
-		}
+	if suite := cipherSuiteByID(id); suite != nil {
+		return suite.flags&suiteECSign == suiteECSign
 	}
 	panic(fmt.Sprintf("unknown cipher suite %#x", id))
 }
