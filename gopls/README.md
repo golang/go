@@ -22,6 +22,7 @@ To get started with `gopls`, install an LSP plugin in your editor of choice.
 * [Atom](https://github.com/MordFustang21/ide-gopls)
 * [Sublime Text](doc/subl.md)
 * [Acme](https://github.com/fhs/acme-lsp)
+* [Lapce](https://github.com/lapce-community/lapce-go)
 
 If you use `gopls` with an editor that is not on this list, please send us a CL
 [updating this documentation](doc/contributing.md).
