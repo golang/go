@@ -35,12 +35,18 @@ func b32(b bool) uint32 {
 	return 0
 }
 
+type noTypeConversion[T any] struct{}
+
 // For testing *Pointer[T]'s methods can be inlined.
 // Keep in sync with cmd/compile/internal/test/inl_test.go:TestIntendedInlining.
 var _ = &Pointer[int]{}
 
 // A Pointer is an atomic pointer of type *T. The zero value is a nil *T.
 type Pointer[T any] struct {
+	// We need this field to disallow type conversion.
+	// See issue golang/go#56603 for more details.
+	_ noTypeConversion[T]
+
 	_ noCopy
 	v unsafe.Pointer
 }
