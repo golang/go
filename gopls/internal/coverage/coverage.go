@@ -188,7 +188,12 @@ func maybePrint(m result) {
 		if *verbose > 3 {
 			fmt.Printf("%s %s %q %.3f\n", m.Action, m.Test, m.Output, m.Elapsed)
 		}
+	case "pause", "cont":
+		if *verbose > 2 {
+			fmt.Printf("%s %s %.3f\n", m.Action, m.Test, m.Elapsed)
+		}
 	default:
+		fmt.Printf("%#v\n", m)
 		log.Fatalf("unknown action %s\n", m.Action)
 	}
 }
@@ -228,7 +233,7 @@ func checkCwd() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// we expect to be a the root of golang.org/x/tools
+	// we expect to be at the root of golang.org/x/tools
 	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "golang.org/x/tools")
 	buf, err := cmd.Output()
 	buf = bytes.Trim(buf, "\n \t") // remove \n at end
@@ -242,10 +247,6 @@ func checkCwd() {
 	_, err = os.Stat("gopls")
 	if err != nil {
 		log.Fatalf("expected a gopls directory, %v", err)
-	}
-	_, err = os.Stat("internal/lsp")
-	if err != nil {
-		log.Fatalf("expected to see internal/lsp, %v", err)
 	}
 }
 
