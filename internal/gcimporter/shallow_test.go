@@ -28,7 +28,10 @@ func TestShallowStd(t *testing.T) {
 	// Load import graph of the standard library.
 	// (No parsing or type-checking.)
 	cfg := &packages.Config{
-		Mode:  packages.LoadImports,
+		Mode: packages.NeedImports |
+			packages.NeedName |
+			packages.NeedFiles | // see https://github.com/golang/go/issues/56632
+			packages.NeedCompiledGoFiles,
 		Tests: false,
 	}
 	pkgs, err := packages.Load(cfg, "std")
@@ -111,7 +114,6 @@ func typecheck(t *testing.T, ppkg *packages.Package) {
 		insert    func(p *types.Package, name string)
 		importMap = make(map[string]*types.Package) // keys are PackagePaths
 	)
-
 	loadFromExportData := func(imp *packages.Package) (*types.Package, error) {
 		data := []byte(imp.ExportFile)
 		return gcimporter.IImportShallow(fset, importMap, data, imp.PkgPath, insert)
@@ -125,12 +127,11 @@ func typecheck(t *testing.T, ppkg *packages.Package) {
 		if err != nil {
 			t.Fatalf("unmarshal: %v", err)
 		}
-		obj := imported.Scope().Lookup(name)
-		if obj == nil {
-			t.Fatalf("lookup %q.%s failed", imported.Path(), name)
-		}
 		if imported != p {
 			t.Fatalf("internal error: inconsistent packages")
+		}
+		if obj := imported.Scope().Lookup(name); obj == nil {
+			t.Fatalf("lookup %q.%s failed", imported.Path(), name)
 		}
 	}
 
