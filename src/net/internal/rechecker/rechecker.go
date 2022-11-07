@@ -36,24 +36,23 @@ type Rechecker[T any] struct {
 // On next calls when more than r.Duration has passed, Get stats the r.File to detect
 // changes to it, when it is modified it calls r.Parse again. Get is safe to call concurrently.
 func (r *Rechecker[T]) Get() (v *T, err error) {
-	var val *value[T]
+	var initVal *value[T]
 
 	r.once.Do(func() {
-		val = &value[T]{}
-		val.v, r.modTime, r.size, val.err = r.initialFileParse()
+		initVal = &value[T]{}
+		initVal.v, r.modTime, r.size, initVal.err = r.initialFileParse()
 		r.lastCheched = time.Now()
-		r.val.Store(val)
+		r.val.Store(initVal)
 	})
 
-	if val != nil {
-		return val.v, val.err
+	if initVal != nil {
+		return initVal.v, initVal.err
 	}
-
-	val = r.val.Load()
 
 	// one goroutine at a time
 	if r.recheckSema.CompareAndSwap(false, true) {
 		defer r.recheckSema.Store(false)
+		val := r.val.Load()
 
 		now := time.Now()
 		if now.After(r.lastCheched.Add(r.Duration)) {
@@ -75,8 +74,11 @@ func (r *Rechecker[T]) Get() (v *T, err error) {
 				return val.v, val.err
 			}
 		}
+
+		return val.v, val.err
 	}
 
+	val := r.val.Load()
 	return val.v, val.err
 }
 
