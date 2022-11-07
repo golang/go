@@ -848,7 +848,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	// Ultimately the goal is to print the output.
-	root := &work.Action{Mode: "go test", Func: printExitStatus, Deps: prints}
+	root := &work.Action{Mode: "go test", Actor: work.ActorFunc(printExitStatus), Deps: prints}
 
 	// Force the printing of results to happen in order,
 	// one at a time.
@@ -886,7 +886,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
 		addTestVet(b, p, run, nil)
-		print := &work.Action{Mode: "test print", Func: builderNoTest, Package: p, Deps: []*work.Action{run}}
+		print := &work.Action{Mode: "test print", Actor: work.ActorFunc(builderNoTest), Package: p, Deps: []*work.Action{run}}
 		return build, run, print, nil
 	}
 
@@ -999,7 +999,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			pmain.Target = target
 			installAction = &work.Action{
 				Mode:    "test build",
-				Func:    work.BuildInstallFunc,
+				Actor:   work.ActorFunc(work.BuildInstallFunc),
 				Deps:    []*work.Action{buildAction},
 				Package: pmain,
 				Target:  target,
@@ -1016,7 +1016,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 		c := new(runCache)
 		runAction = &work.Action{
 			Mode:       "test run",
-			Func:       c.builderRunTest,
+			Actor:      work.ActorFunc(c.builderRunTest),
 			Deps:       []*work.Action{buildAction},
 			Package:    p,
 			IgnoreFail: true, // run (prepare output) even if build failed
@@ -1026,7 +1026,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 		vetRunAction = runAction
 		cleanAction = &work.Action{
 			Mode:       "test clean",
-			Func:       builderCleanTest,
+			Actor:      work.ActorFunc(builderCleanTest),
 			Deps:       []*work.Action{runAction},
 			Package:    p,
 			IgnoreFail: true, // clean even if test failed
@@ -1034,7 +1034,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 		}
 		printAction = &work.Action{
 			Mode:       "test print",
-			Func:       builderPrintTest,
+			Actor:      work.ActorFunc(builderPrintTest),
 			Deps:       []*work.Action{cleanAction},
 			Package:    p,
 			IgnoreFail: true, // print even if test failed
