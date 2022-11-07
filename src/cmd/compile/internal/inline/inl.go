@@ -919,7 +919,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 	}
 	if fn.Inl.Cost > maxCost {
 		// If the callsite is hot and it is under the inlineHotMaxBudget budget, then try to inline it, or else bail.
-		lineOffset := pgo.NodeLineOffset(n, fn)
+		lineOffset := pgo.NodeLineOffset(n, ir.CurFunc)
 		csi := pgo.CallSiteInfo{LineOffset: lineOffset, Caller: ir.CurFunc}
 		if _, ok := candHotEdgeMap[csi]; ok {
 			if fn.Inl.Cost > inlineHotMaxBudget {
