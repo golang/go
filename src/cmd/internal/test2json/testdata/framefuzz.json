@@ -1,3 +1,4 @@
+{"Action":"start"}
 {"Action":"run","Test":"TestAddrStringAllocs"}
 {"Action":"output","Test":"TestAddrStringAllocs","Output":"=== RUN   TestAddrStringAllocs\n"}
 {"Action":"run","Test":"TestAddrStringAllocs/zero"}

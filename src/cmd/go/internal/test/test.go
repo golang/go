@@ -847,6 +847,17 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		prints = append(prints, printTest)
 	}
 
+	// Order runs for coordinating start JSON prints.
+	ch := make(chan struct{})
+	close(ch)
+	for _, a := range runs {
+		if r, ok := a.Actor.(*runTestActor); ok {
+			r.prev = ch
+			ch = make(chan struct{})
+			r.next = ch
+		}
+	}
+
 	// Ultimately the goal is to print the output.
 	root := &work.Action{Mode: "go test", Actor: work.ActorFunc(printExitStatus), Deps: prints}
 
@@ -884,9 +895,21 @@ var windowsBadWords = []string{
 func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
-		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
+		run := &work.Action{
+			Mode:       "test run",
+			Actor:      new(runTestActor),
+			Deps:       []*work.Action{build},
+			Package:    p,
+			IgnoreFail: true, // run (prepare output) even if build failed
+		}
 		addTestVet(b, p, run, nil)
-		print := &work.Action{Mode: "test print", Actor: work.ActorFunc(builderNoTest), Package: p, Deps: []*work.Action{run}}
+		print := &work.Action{
+			Mode:       "test print",
+			Actor:      work.ActorFunc(builderPrintTest),
+			Deps:       []*work.Action{run},
+			Package:    p,
+			IgnoreFail: true, // print even if test failed
+		}
 		return build, run, print, nil
 	}
 
@@ -1013,14 +1036,14 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 		vetRunAction = printAction
 	} else {
 		// run test
-		c := new(runCache)
+		r := new(runTestActor)
 		runAction = &work.Action{
 			Mode:       "test run",
-			Actor:      work.ActorFunc(c.builderRunTest),
+			Actor:      r,
 			Deps:       []*work.Action{buildAction},
 			Package:    p,
 			IgnoreFail: true, // run (prepare output) even if build failed
-			TryCache:   c.tryCache,
+			TryCache:   r.c.tryCache,
 			Objdir:     testDir,
 		}
 		vetRunAction = runAction
@@ -1080,6 +1103,16 @@ var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
 var noFuzzTestsToFuzz = []byte("\ntesting: warning: no fuzz tests to fuzz\n")
 var tooManyFuzzTestsToFuzz = []byte("\ntesting: warning: -fuzz matches more than one fuzz test, won't fuzz\n")
 
+// runTestActor is the actor for running a test.
+type runTestActor struct {
+	c runCache
+
+	// sequencing of json start messages, to preserve test order
+	prev <-chan struct{} // wait to start until prev is closed
+	next chan<- struct{} // close next once the next test can start.
+}
+
+// runCache is the cache for running a single test.
 type runCache struct {
 	disableCache bool // cache should be disabled for this run
 
@@ -1103,14 +1136,19 @@ func (lockedStdout) Write(b []byte) (int, error) {
 	return os.Stdout.Write(b)
 }
 
-// builderRunTest is the action for running a test binary.
-func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.Action) error {
+func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action) error {
+	// Wait for previous test to get started and print its first json line.
+	<-r.prev
+
 	if a.Failed {
 		// We were unable to build the binary.
 		a.Failed = false
 		a.TestOutput = new(bytes.Buffer)
 		fmt.Fprintf(a.TestOutput, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
 		base.SetExitStatus(1)
+
+		// release next test to start
+		close(r.next)
 		return nil
 	}
 
@@ -1123,6 +1161,14 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 			json.Close()
 		}()
 		stdout = json
+	}
+
+	// Release next test to start (test2json.NewConverter writes the start event).
+	close(r.next)
+
+	if p := a.Package; len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+		fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", p.ImportPath)
+		return nil
 	}
 
 	var buf bytes.Buffer
@@ -1155,7 +1201,7 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		}
 	}
 
-	if c.buf == nil {
+	if r.c.buf == nil {
 		// We did not find a cached result using the link step action ID,
 		// so we ran the link step. Try again now with the link output
 		// content ID. The attempt using the action ID makes sure that
@@ -1165,20 +1211,20 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		// we have different link inputs but the same final binary,
 		// we still reuse the cached test result.
 		// c.saveOutput will store the result under both IDs.
-		c.tryCacheWithID(b, a, a.Deps[0].BuildContentID())
+		r.c.tryCacheWithID(b, a, a.Deps[0].BuildContentID())
 	}
-	if c.buf != nil {
+	if r.c.buf != nil {
 		if stdout != &buf {
-			stdout.Write(c.buf.Bytes())
-			c.buf.Reset()
+			stdout.Write(r.c.buf.Bytes())
+			r.c.buf.Reset()
 		}
-		a.TestOutput = c.buf
+		a.TestOutput = r.c.buf
 		return nil
 	}
 
 	execCmd := work.FindExecCmd()
 	testlogArg := []string{}
-	if !c.disableCache && len(execCmd) == 0 {
+	if !r.c.disableCache && len(execCmd) == 0 {
 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
 	}
 	panicArg := "-test.paniconexit0"
@@ -1319,7 +1365,7 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 			cmd.Stdout.Write([]byte("\n"))
 		}
 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
-		c.saveOutput(a)
+		r.c.saveOutput(a)
 	} else {
 		base.SetExitStatus(1)
 		if len(out) == 0 {
@@ -1746,18 +1792,6 @@ func builderPrintTest(b *work.Builder, ctx context.Context, a *work.Action) erro
 		os.Stdout.Write(run.TestOutput.Bytes())
 		run.TestOutput = nil
 	}
-	return nil
-}
-
-// builderNoTest is the action for testing a package with no test files.
-func builderNoTest(b *work.Builder, ctx context.Context, a *work.Action) error {
-	var stdout io.Writer = os.Stdout
-	if testJSON {
-		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
-		defer json.Close()
-		stdout = json
-	}
-	fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", a.Package.ImportPath)
 	return nil
 }
 

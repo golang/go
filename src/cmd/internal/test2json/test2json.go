@@ -119,6 +119,7 @@ func NewConverter(w io.Writer, pkg string, mode Mode) *Converter {
 			part: c.writeOutputEvent,
 		},
 	}
+	c.writeEvent(&event{Action: "start"})
 	return c
 }
 
@@ -131,7 +132,9 @@ func (c *Converter) Write(b []byte) (int, error) {
 // Exited marks the test process as having exited with the given error.
 func (c *Converter) Exited(err error) {
 	if err == nil {
-		c.result = "pass"
+		if c.result != "skip" {
+			c.result = "pass"
+		}
 	} else {
 		c.result = "fail"
 	}
