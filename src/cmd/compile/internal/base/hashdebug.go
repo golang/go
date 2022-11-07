@@ -5,7 +5,10 @@
 package base
 
 import (
+	"bytes"
 	"cmd/internal/notsha256"
+	"cmd/internal/obj"
+	"cmd/internal/src"
 	"fmt"
 	"io"
 	"os"
@@ -27,13 +30,15 @@ type hashAndMask struct {
 }
 
 type HashDebug struct {
-	mu   sync.Mutex
-	name string // base name of the flag/variable.
+	mu   sync.Mutex // for logfile, posTmp, bytesTmp
+	name string     // base name of the flag/variable.
 	// what file (if any) receives the yes/no logging?
 	// default is os.Stdout
-	logfile writeSyncer
-	matches []hashAndMask // A hash matches if one of these matches.
-	yes, no bool
+	logfile  writeSyncer
+	posTmp   []src.Pos
+	bytesTmp bytes.Buffer
+	matches  []hashAndMask // A hash matches if one of these matches.
+	yes, no  bool
 }
 
 // The default compiler-debugging HashDebug, for "-d=gossahash=..."
@@ -152,7 +157,11 @@ func NewHashDebug(ev, s string, file writeSyncer) *HashDebug {
 }
 
 func hashOf(pkgAndName string, param uint64) uint64 {
-	hbytes := notsha256.Sum256([]byte(pkgAndName))
+	return hashOfBytes([]byte(pkgAndName), param)
+}
+
+func hashOfBytes(sbytes []byte, param uint64) uint64 {
+	hbytes := notsha256.Sum256(sbytes)
 	hash := uint64(hbytes[7])<<56 + uint64(hbytes[6])<<48 +
 		uint64(hbytes[5])<<40 + uint64(hbytes[4])<<32 +
 		uint64(hbytes[3])<<24 + uint64(hbytes[2])<<16 +
@@ -196,6 +205,7 @@ func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
 	if d.no {
 		return false
 	}
+
 	if d.yes {
 		d.logDebugHashMatch(d.name, pkgAndName, "y", param)
 		return true
@@ -220,9 +230,71 @@ func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
 	return false
 }
 
+// DebugHashMatchPos is similar to DebugHashMatchParam, but for hash computation
+// it uses the source position including all inlining information instead of
+// package name and path. The output trigger string is prefixed with "POS=" so
+// that tools processing the output can reliably tell the difference. The mutex
+// locking is also more frequent and more granular.
+func (d *HashDebug) DebugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
+	if d == nil {
+		return true
+	}
+	if d.no {
+		return false
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	b := d.bytesForPos(ctxt, pos)
+
+	if d.yes {
+		d.logDebugHashMatchLocked(d.name, string(b), "y", 0)
+		return true
+	}
+
+	hash := hashOfBytes(b, 0)
+
+	for _, m := range d.matches {
+		if (m.hash^hash)&m.mask == 0 {
+			hstr := ""
+			if hash == 0 {
+				hstr = "0"
+			} else {
+				for ; hash != 0; hash = hash >> 1 {
+					hstr = string('0'+byte(hash&1)) + hstr
+				}
+			}
+			d.logDebugHashMatchLocked(m.name, "POS="+string(b), hstr, 0)
+			return true
+		}
+	}
+	return false
+}
+
+// bytesForPos renders a position, including inlining, into d.bytesTmp
+// and returns the byte array.  d.mu must be locked.
+func (d *HashDebug) bytesForPos(ctxt *obj.Link, pos src.XPos) []byte {
+	d.posTmp = ctxt.AllPos(pos, d.posTmp)
+	// Reverse posTmp to put outermost first.
+	b := &d.bytesTmp
+	b.Reset()
+	for i := len(d.posTmp) - 1; i >= 0; i-- {
+		p := &d.posTmp[i]
+		fmt.Fprintf(b, "%s:%d:%d", p.Filename(), p.Line(), p.Col())
+		if i != 0 {
+			b.WriteByte(';')
+		}
+	}
+	return b.Bytes()
+}
+
 func (d *HashDebug) logDebugHashMatch(varname, name, hstr string, param uint64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	d.logDebugHashMatchLocked(varname, name, hstr, param)
+}
+
+func (d *HashDebug) logDebugHashMatchLocked(varname, name, hstr string, param uint64) {
 	file := d.logfile
 	if file == nil {
 		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {

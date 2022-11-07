@@ -811,7 +811,6 @@ func (f *Func) useFMA(v *Value) bool {
 	if base.FmaHash == nil {
 		return true
 	}
-
-	name := f.fe.MyImportPath() + "." + f.Name
-	return base.FmaHash.DebugHashMatchParam(name, uint64(v.Pos.Line()))
+	ctxt := v.Block.Func.Config.Ctxt()
+	return base.FmaHash.DebugHashMatchPos(ctxt, v.Pos)
 }
