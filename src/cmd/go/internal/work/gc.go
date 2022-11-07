@@ -235,20 +235,6 @@ func gcBackendConcurrency(gcflags []string) int {
 		log.Fatalf("GO19CONCURRENTCOMPILATION must be 0, 1, or unset, got %q", e)
 	}
 
-CheckFlags:
-	for _, flag := range gcflags {
-		// Concurrent compilation is presumed incompatible with any gcflags,
-		// except for known commonly used flags.
-		// If the user knows better, they can manually add their own -c to the gcflags.
-		switch flag {
-		case "-N", "-l", "-S", "-B", "-C", "-I", "-shared":
-			// OK
-		default:
-			canDashC = false
-			break CheckFlags
-		}
-	}
-
 	// TODO: Test and delete these conditions.
 	if cfg.ExperimentErr != nil || cfg.Experiment.FieldTrack || cfg.Experiment.PreemptibleLoops {
 		canDashC = false
