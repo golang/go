@@ -43,8 +43,7 @@ var _ = &Pointer[int]{}
 
 // A Pointer is an atomic pointer of type *T. The zero value is a nil *T.
 type Pointer[T any] struct {
-	// We need this field to disallow type conversion.
-	// See issue go.dev/issue/56603 for more details.
+	// Mention T in a field to disallow conversion between Pointer types.
 	_ noTypeConversion[T]
 
 	_ noCopy
