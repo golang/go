@@ -29,7 +29,7 @@ func makeMergeOp() covOperation {
 	return m
 }
 
-// dstate encapsulates state and provides methods for implementing the
+// mstate encapsulates state and provides methods for implementing the
 // merge operation. This type implements the CovDataVisitor interface,
 // and is designed to be used in concert with the CovDataReader
 // utility, which abstracts away most of the grubby details of reading
