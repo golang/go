@@ -63,7 +63,7 @@
 
 /*⇒4,keyword,[]*/func /*⇒1,function,[definition]*/g(/*⇒2,parameter,[definition]*/vv /*⇒3,operator,[]*/.../*⇒9,keyword,[]*/interface{}) {
 	/*⇒2,variable,[definition]*/ff /*⇒2,operator,[]*/:= /*⇒4,keyword,[]*/func() {}
-	/*⇒5,keyword,[]*/defer /*⇒2,variable,[]*/ff()
+	/*⇒5,keyword,[]*/defer /*⇒2,function,[]*/ff()
 	/*⇒2,keyword,[]*/go /*⇒3,namespace,[]*/utf./*⇒9,function,[]*/RuneCount(/*⇒2,string,[]*/"")
 	/*⇒2,keyword,[]*/go /*⇒4,namespace,[]*/utf8./*⇒9,function,[]*/RuneCount(/*⇒2,parameter,[]*/vv.(/*⇒6,type,[]*/string))
 	/*⇒2,keyword,[]*/if /*⇒4,variable,[readonly]*/true {

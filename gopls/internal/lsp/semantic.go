@@ -100,7 +100,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 	if err != nil {
 		return nil, err
 	}
-	// ignore pgf.ParseErr. Do what we can.
+
 	if rng == nil && len(pgf.Src) > maxFullFileSize {
 		err := fmt.Errorf("semantic tokens: file %s too large for full (%d>%d)",
 			fh.URI().Filename(), len(pgf.Src), maxFullFileSize)
@@ -180,7 +180,7 @@ const (
 func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string) {
 
 	if !start.IsValid() {
-		// This is not worth reporting
+		// This is not worth reporting. TODO(pjw): does it still happen?
 		return
 	}
 	if start >= e.end || start+token.Pos(leng) <= e.start {
@@ -296,7 +296,7 @@ func (e *encoded) inspector(n ast.Node) bool {
 		e.token(x.TokPos, len(x.Tok.String()), tokOperator, nil)
 	case *ast.BasicLit:
 		if strings.Contains(x.Value, "\n") {
-			// has to be a string
+			// has to be a string.
 			e.multiline(x.Pos(), x.End(), x.Value, tokString)
 			break
 		}
@@ -379,7 +379,7 @@ func (e *encoded) inspector(n ast.Node) bool {
 	case *ast.IncDecStmt:
 		e.token(x.TokPos, len(x.Tok.String()), tokOperator, nil)
 	case *ast.IndexExpr:
-	case *typeparams.IndexListExpr: // accommodate generics
+	case *typeparams.IndexListExpr:
 	case *ast.InterfaceType:
 		e.token(x.Interface, len("interface"), tokKeyword, nil)
 	case *ast.KeyValueExpr:
@@ -523,8 +523,6 @@ func (e *encoded) ident(x *ast.Ident) {
 	case *types.Var:
 		if isSignature(y) {
 			tok(x.Pos(), len(x.Name), tokFunction, nil)
-		} else if _, ok := y.Type().(*typeparams.TypeParam); ok {
-			tok(x.Pos(), len(x.Name), tokTypeParam, nil)
 		} else if e.isParam(use.Pos()) {
 			// variable, unless use.pos is the pos of a Field in an ancestor FuncDecl
 			// or FuncLit and then it's a parameter
@@ -572,9 +570,6 @@ func (e *encoded) isParam(pos token.Pos) bool {
 }
 
 func isSignature(use types.Object) bool {
-	if true {
-		return false //PJW: fix after generics seem ok
-	}
 	if _, ok := use.(*types.Var); !ok {
 		return false
 	}
@@ -606,7 +601,7 @@ func (e *encoded) unkIdent(x *ast.Ident) (tokenType, []string) {
 		*ast.IfStmt,       /* condition */
 		*ast.KeyValueExpr: // either key or value
 		return tokVariable, nil
-	case *typeparams.IndexListExpr: // generic?
+	case *typeparams.IndexListExpr:
 		return tokVariable, nil
 	case *ast.Ellipsis:
 		return tokType, nil
@@ -726,7 +721,7 @@ func isDeprecated(n *ast.CommentGroup) bool {
 
 func (e *encoded) definitionFor(x *ast.Ident, def types.Object) (tokenType, []string) {
 	// PJW: def == types.Label? probably a nothing
-	// PJW: look into replaceing these syntactic tests with types more generally
+	// PJW: look into replacing these syntactic tests with types more generally
 	mods := []string{"definition"}
 	for i := len(e.stack) - 1; i >= 0; i-- {
 		s := e.stack[i]
@@ -761,7 +756,10 @@ func (e *encoded) definitionFor(x *ast.Ident, def types.Object) (tokenType, []st
 			}
 			// if x < ... < FieldList < FuncType < FuncDecl, this is a param
 			return tokParameter, mods
-		case *ast.FuncType:
+		case *ast.FuncType: // is it in the TypeParams?
+			if isTypeParam(x, y) {
+				return tokTypeParam, mods
+			}
 			return tokParameter, mods
 		case *ast.InterfaceType:
 			return tokMethod, mods
@@ -791,6 +789,21 @@ func (e *encoded) definitionFor(x *ast.Ident, def types.Object) (tokenType, []st
 	msg := fmt.Sprintf("failed to find the decl for %s", e.pgf.Tok.PositionFor(x.Pos(), false))
 	e.unexpected(msg)
 	return "", []string{""}
+}
+
+func isTypeParam(x *ast.Ident, y *ast.FuncType) bool {
+	tp := typeparams.ForFuncType(y)
+	if tp == nil {
+		return false
+	}
+	for _, p := range tp.List {
+		for _, n := range p.Names {
+			if x == n {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (e *encoded) multiline(start, end token.Pos, val string, tok tokenType) {
@@ -940,6 +953,7 @@ func SemType(n int) string {
 	if n >= 0 && n < len(tokTypes) {
 		return tokTypes[n]
 	}
+	// not found for some reason
 	return fmt.Sprintf("?%d[%d,%d]?", n, len(tokTypes), len(tokMods))
 }
 
