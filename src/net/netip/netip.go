@@ -109,18 +109,6 @@ func AddrFrom16(addr [16]byte) Addr {
 	}
 }
 
-// ipv6Slice is like IPv6Raw, but operates on a 16-byte slice. Assumes
-// slice is 16 bytes, caller must enforce this.
-func ipv6Slice(addr []byte) Addr {
-	return Addr{
-		addr: uint128{
-			beUint64(addr[:8]),
-			beUint64(addr[8:]),
-		},
-		z: z6noz,
-	}
-}
-
 // ParseAddr parses s as an IP address, returning the result. The string
 // s can be in dotted decimal ("192.0.2.1"), IPv6 ("2001:db8::68"),
 // or IPv6 with a scoped addressing zone ("fe80::1cc0:3e8c:119f:c2e1%ens18").
@@ -352,9 +340,9 @@ func parseIPv6(in string) (Addr, error) {
 func AddrFromSlice(slice []byte) (ip Addr, ok bool) {
 	switch len(slice) {
 	case 4:
-		return AddrFrom4(*(*[4]byte)(slice)), true
+		return AddrFrom4([4]byte(slice)), true
 	case 16:
-		return ipv6Slice(slice), true
+		return AddrFrom16([16]byte(slice)), true
 	}
 	return Addr{}, false
 }
@@ -1022,13 +1010,13 @@ func (ip *Addr) UnmarshalBinary(b []byte) error {
 		*ip = Addr{}
 		return nil
 	case n == 4:
-		*ip = AddrFrom4(*(*[4]byte)(b))
+		*ip = AddrFrom4([4]byte(b))
 		return nil
 	case n == 16:
-		*ip = ipv6Slice(b)
+		*ip = AddrFrom16([16]byte(b))
 		return nil
 	case n > 16:
-		*ip = ipv6Slice(b[:16]).WithZone(string(b[16:]))
+		*ip = AddrFrom16([16]byte(b[:16])).WithZone(string(b[16:]))
 		return nil
 	}
 	return errors.New("unexpected slice size")
