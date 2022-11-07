@@ -144,7 +144,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 	}
 	// Inv: qos[0].pkg != nil, since Pos is valid.
 	// Inv: qos[*].pkg != nil, since all qos are logically the same declaration.
-	filename := snapshot.FileSet().Position(pos).Filename
+	filename := qos[0].pkg.FileSet().File(pos).Name()
 	pgf, err := qos[0].pkg.File(span.URIFromPath(filename))
 	if err != nil {
 		return nil, err
@@ -208,7 +208,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 					continue
 				}
 				seen[key] = true
-				rng, err := posToMappedRange(snapshot.FileSet(), pkg, ident.Pos(), ident.End())
+				rng, err := posToMappedRange(pkg, ident.Pos(), ident.End())
 				if err != nil {
 					return nil, err
 				}

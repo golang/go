@@ -289,7 +289,7 @@ type completionContext struct {
 // A Selection represents the cursor position and surrounding identifier.
 type Selection struct {
 	content string
-	cursor  token.Pos
+	cursor  token.Pos // relative to rng.TokFile
 	rng     span.Range
 }
 
@@ -297,12 +297,8 @@ func (p Selection) Content() string {
 	return p.content
 }
 
-func (p Selection) Start() token.Pos {
-	return p.rng.Start
-}
-
-func (p Selection) End() token.Pos {
-	return p.rng.End
+func (p Selection) Range() span.Range {
+	return p.rng
 }
 
 func (p Selection) Prefix() string {
@@ -693,7 +689,7 @@ func (c *completer) containingIdent(src []byte) *ast.Ident {
 
 // scanToken scans pgh's contents for the token containing pos.
 func (c *completer) scanToken(contents []byte) (token.Pos, token.Token, string) {
-	tok := c.snapshot.FileSet().File(c.pos)
+	tok := c.pkg.FileSet().File(c.pos)
 
 	var s scanner.Scanner
 	s.Init(tok, contents, nil, 0)
@@ -879,7 +875,7 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 	}
 
 	// Using the comment position find the line after
-	file := c.snapshot.FileSet().File(comment.End())
+	file := c.pkg.FileSet().File(comment.End())
 	if file == nil {
 		return
 	}
@@ -1246,7 +1242,7 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 
 	if isStarTestingDotF(typ) && addressable {
 		// is that a sufficient test? (or is more care needed?)
-		if c.fuzz(typ, mset, imp, cb, c.snapshot.FileSet()) {
+		if c.fuzz(typ, mset, imp, cb, c.pkg.FileSet()) {
 			return
 		}
 	}
@@ -1331,7 +1327,7 @@ func (c *completer) lexical(ctx context.Context) error {
 					node = c.path[i-1]
 				}
 				if node != nil {
-					if resolved := resolveInvalid(c.snapshot.FileSet(), obj, node, c.pkg.GetTypesInfo()); resolved != nil {
+					if resolved := resolveInvalid(c.pkg.FileSet(), obj, node, c.pkg.GetTypesInfo()); resolved != nil {
 						obj = resolved
 					}
 				}
@@ -2033,7 +2029,7 @@ Nodes:
 					//
 					// TODO: remove this after https://go.dev/issue/52503
 					info := &types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
-					types.CheckExpr(c.snapshot.FileSet(), c.pkg.GetTypes(), node.Fun.Pos(), node.Fun, info)
+					types.CheckExpr(c.pkg.FileSet(), c.pkg.GetTypes(), node.Fun.Pos(), node.Fun, info)
 					sig, _ = info.Types[node.Fun].Type.(*types.Signature)
 				}
 

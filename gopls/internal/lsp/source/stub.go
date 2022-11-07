@@ -24,22 +24,22 @@ import (
 	"golang.org/x/tools/internal/typeparams"
 )
 
-func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, rng protocol.Range) (*analysis.SuggestedFix, error) {
+func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, rng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error) {
 	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
-		return nil, fmt.Errorf("GetParsedFile: %w", err)
+		return nil, nil, fmt.Errorf("GetParsedFile: %w", err)
 	}
 	nodes, pos, err := getStubNodes(pgf, rng)
 	if err != nil {
-		return nil, fmt.Errorf("getNodes: %w", err)
+		return nil, nil, fmt.Errorf("getNodes: %w", err)
 	}
 	si := stubmethods.GetStubInfo(pkg.GetTypesInfo(), nodes, pos)
 	if si == nil {
-		return nil, fmt.Errorf("nil interface request")
+		return nil, nil, fmt.Errorf("nil interface request")
 	}
 	parsedConcreteFile, concreteFH, err := getStubFile(ctx, si.Concrete.Obj(), snapshot)
 	if err != nil {
-		return nil, fmt.Errorf("getFile(concrete): %w", err)
+		return nil, nil, fmt.Errorf("getFile(concrete): %w", err)
 	}
 	var (
 		methodsSrc  []byte
@@ -51,16 +51,16 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 		methodsSrc, stubImports, err = stubMethods(ctx, parsedConcreteFile.File, si, snapshot)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("stubMethods: %w", err)
+		return nil, nil, fmt.Errorf("stubMethods: %w", err)
 	}
 	nodes, _ = astutil.PathEnclosingInterval(parsedConcreteFile.File, si.Concrete.Obj().Pos(), si.Concrete.Obj().Pos())
 	concreteSrc, err := concreteFH.Read()
 	if err != nil {
-		return nil, fmt.Errorf("error reading concrete file source: %w", err)
+		return nil, nil, fmt.Errorf("error reading concrete file source: %w", err)
 	}
 	insertPos, err := safetoken.Offset(parsedConcreteFile.Tok, nodes[1].End())
 	if err != nil || insertPos >= len(concreteSrc) {
-		return nil, fmt.Errorf("insertion position is past the end of the file")
+		return nil, nil, fmt.Errorf("insertion position is past the end of the file")
 	}
 	var buf bytes.Buffer
 	buf.Write(concreteSrc[:insertPos])
@@ -70,7 +70,7 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 	fset := token.NewFileSet()
 	newF, err := parser.ParseFile(fset, parsedConcreteFile.File.Name.Name, buf.Bytes(), parser.ParseComments)
 	if err != nil {
-		return nil, fmt.Errorf("could not reparse file: %w", err)
+		return nil, nil, fmt.Errorf("could not reparse file: %w", err)
 	}
 	for _, imp := range stubImports {
 		astutil.AddNamedImport(fset, newF, imp.Name, imp.Path)
@@ -78,7 +78,7 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 	var source bytes.Buffer
 	err = format.Node(&source, fset, newF)
 	if err != nil {
-		return nil, fmt.Errorf("format.Node: %w", err)
+		return nil, nil, fmt.Errorf("format.Node: %w", err)
 	}
 	diffs := snapshot.View().Options().ComputeEdits(string(parsedConcreteFile.Src), source.String())
 	tf := parsedConcreteFile.Mapper.TokFile
@@ -90,9 +90,9 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 			NewText: []byte(edit.New),
 		})
 	}
-	return &analysis.SuggestedFix{
-		TextEdits: edits,
-	}, nil
+	return snapshot.FileSet(), // from getStubFile
+		&analysis.SuggestedFix{TextEdits: edits},
+		nil
 }
 
 // stubMethods returns the Go code of all methods
@@ -304,6 +304,7 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 	return missing, nil
 }
 
+// Token position information for obj.Pos and the ParsedGoFile result is in Snapshot.FileSet.
 func getStubFile(ctx context.Context, obj types.Object, snapshot Snapshot) (*ParsedGoFile, VersionedFileHandle, error) {
 	objPos := snapshot.FileSet().Position(obj.Pos())
 	objFile := span.URIFromPath(objPos.Filename)

@@ -26,7 +26,7 @@ import (
 // IdentifierInfo holds information about an identifier in Go source.
 type IdentifierInfo struct {
 	Name     string
-	Snapshot Snapshot
+	Snapshot Snapshot // only needed for .View(); TODO(adonovan): reduce.
 	MappedRange
 
 	Type struct {
@@ -122,7 +122,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	// Special case for package declarations, since they have no
 	// corresponding types.Object.
 	if ident == file.Name {
-		rng, err := posToMappedRange(snapshot.FileSet(), pkg, file.Name.Pos(), file.Name.End())
+		rng, err := posToMappedRange(pkg, file.Name.Pos(), file.Name.End())
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +136,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 		if declAST == nil {
 			declAST = file
 		}
-		declRng, err := posToMappedRange(snapshot.FileSet(), pkg, declAST.Name.Pos(), declAST.Name.End())
+		declRng, err := posToMappedRange(pkg, declAST.Name.Pos(), declAST.Name.End())
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +164,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 
 	result.Name = result.ident.Name
 	var err error
-	if result.MappedRange, err = posToMappedRange(snapshot.FileSet(), pkg, result.ident.Pos(), result.ident.End()); err != nil {
+	if result.MappedRange, err = posToMappedRange(pkg, result.ident.Pos(), result.ident.End()); err != nil {
 		return nil, err
 	}
 
@@ -263,13 +263,13 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 		}
 	}
 
-	rng, err := objToMappedRange(snapshot.FileSet(), pkg, result.Declaration.obj)
+	rng, err := objToMappedRange(pkg, result.Declaration.obj)
 	if err != nil {
 		return nil, err
 	}
 	result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 
-	declPkg, err := FindPackageFromPos(snapshot.FileSet(), pkg, result.Declaration.obj.Pos())
+	declPkg, err := FindPackageFromPos(pkg, result.Declaration.obj.Pos())
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +277,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 
 	// Ensure that we have the full declaration, in case the declaration was
 	// parsed in ParseExported and therefore could be missing information.
-	if result.Declaration.fullDecl, err = fullNode(snapshot, result.Declaration.obj, declPkg); err != nil {
+	if result.Declaration.fullDecl, err = fullNode(pkg.FileSet(), result.Declaration.obj, declPkg); err != nil {
 		return nil, err
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
@@ -293,7 +293,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 		if hasErrorType(result.Type.Object) {
 			return result, nil
 		}
-		if result.Type.MappedRange, err = objToMappedRange(snapshot.FileSet(), pkg, result.Type.Object); err != nil {
+		if result.Type.MappedRange, err = objToMappedRange(pkg, result.Type.Object); err != nil {
 			return nil, err
 		}
 	}
@@ -315,9 +315,9 @@ func findGenDecl(f *ast.File, spec ast.Spec) *ast.GenDecl {
 // fullNode tries to extract the full spec corresponding to obj's declaration.
 // If the package was not parsed in full, the declaration file will be
 // re-parsed to ensure it has complete syntax.
-func fullNode(snapshot Snapshot, obj types.Object, pkg Package) (ast.Decl, error) {
+func fullNode(fset *token.FileSet, obj types.Object, pkg Package) (ast.Decl, error) {
 	// declaration in a different package... make sure we have full AST information.
-	tok := snapshot.FileSet().File(obj.Pos())
+	tok := fset.File(obj.Pos())
 	uri := span.URIFromPath(tok.Name())
 	pgf, err := pkg.File(uri)
 	if err != nil {
@@ -326,7 +326,6 @@ func fullNode(snapshot Snapshot, obj types.Object, pkg Package) (ast.Decl, error
 	file := pgf.File
 	pos := obj.Pos()
 	if pgf.Mode != ParseFull {
-		fset := snapshot.FileSet()
 		file2, _ := parser.ParseFile(fset, tok.Name(), pgf.Src, parser.AllErrors|parser.ParseComments)
 		if file2 != nil {
 			offset, err := safetoken.Offset(tok, obj.Pos())
@@ -465,13 +464,13 @@ func importSpec(snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (
 		Name:     importPath, // should this perhaps be imported.PkgPath()?
 		pkg:      pkg,
 	}
-	if result.MappedRange, err = posToMappedRange(snapshot.FileSet(), pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
+	if result.MappedRange, err = posToMappedRange(pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
 		return nil, err
 	}
 	// Consider the "declaration" of an import spec to be the imported package.
 	// Return all of the files in the package as the definition of the import spec.
 	for _, dst := range imported.GetSyntax() {
-		rng, err := posToMappedRange(snapshot.FileSet(), pkg, dst.Pos(), dst.End())
+		rng, err := posToMappedRange(pkg, dst.Pos(), dst.End())
 		if err != nil {
 			return nil, err
 		}

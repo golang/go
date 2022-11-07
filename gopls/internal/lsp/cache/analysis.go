@@ -286,7 +286,7 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 	var rawDiagnostics []analysis.Diagnostic
 	pass := &analysis.Pass{
 		Analyzer:   analyzer,
-		Fset:       snapshot.FileSet(),
+		Fset:       pkg.FileSet(),
 		Files:      syntax,
 		Pkg:        pkg.GetTypes(),
 		TypesInfo:  pkg.GetTypesInfo(),

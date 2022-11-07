@@ -39,7 +39,7 @@ func (c *completer) structFieldSnippet(cand candidate, detail string, snip *snip
 		}
 	})
 
-	fset := c.snapshot.FileSet()
+	fset := c.pkg.FileSet()
 
 	// If the cursor position is on a different line from the literal's opening brace,
 	// we are in a multiline literal.

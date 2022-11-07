@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/scanner"
+	"go/token"
 	"go/types"
 	"sort"
 
@@ -21,6 +22,7 @@ import (
 type pkg struct {
 	m               *Metadata
 	mode            source.ParseMode
+	fset            *token.FileSet // for now, same as the snapshot's FileSet
 	goFiles         []*source.ParsedGoFile
 	compiledGoFiles []*source.ParsedGoFile
 	diagnostics     []*source.Diagnostic
@@ -45,7 +47,7 @@ type loadScope interface {
 
 type (
 	fileLoadScope    span.URI // load packages containing a file (including command-line-arguments)
-	packageLoadScope string   // load a specific package
+	packageLoadScope string   // load a specific package (the value is its PackageID)
 	moduleLoadScope  string   // load packages in a specific module
 	viewLoadScope    span.URI // load the workspace
 )
@@ -88,6 +90,10 @@ func (p *pkg) GetSyntax() []*ast.File {
 		syntax = append(syntax, pgf.File)
 	}
 	return syntax
+}
+
+func (p *pkg) FileSet() *token.FileSet {
+	return p.fset
 }
 
 func (p *pkg) GetTypes() *types.Package {

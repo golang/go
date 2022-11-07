@@ -34,6 +34,7 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 		return nil, fmt.Errorf("can't format %q: file is generated", fh.URI().Filename())
 	}
 
+	fset := snapshot.FileSet()
 	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
 		return nil, err
@@ -48,8 +49,6 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 		}
 		return computeTextEdits(ctx, snapshot, pgf, string(formatted))
 	}
-
-	fset := snapshot.FileSet()
 
 	// format.Node changes slightly from one release to another, so the version
 	// of Go used to build the LSP server will determine how it formats code.

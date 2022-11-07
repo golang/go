@@ -50,11 +50,6 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	for _, scope := range scopes {
 		switch scope := scope.(type) {
 		case packageLoadScope:
-			// TODO(adonovan): is this cast sound?? A
-			// packageLoadScope is really a PackagePath I think.
-			if source.IsCommandLineArguments(PackageID(scope)) {
-				panic("attempted to load command-line-arguments")
-			}
 			// The only time we pass package paths is when we're doing a
 			// partial workspace load. In those cases, the paths came back from
 			// go list and should already be GOPATH-vendorized when appropriate.

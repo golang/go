@@ -104,7 +104,7 @@ var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
 var unsupportedFeatureRe = regexp.MustCompile(`.*require.* go(\d+\.\d+) or later`)
 
 func typeErrorDiagnostics(snapshot *snapshot, pkg *pkg, e extendedError) ([]*source.Diagnostic, error) {
-	code, spn, err := typeErrorData(snapshot.FileSet(), pkg, e.primary)
+	code, spn, err := typeErrorData(pkg, e.primary)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func typeErrorDiagnostics(snapshot *snapshot, pkg *pkg, e extendedError) ([]*sou
 	}
 
 	for _, secondary := range e.secondaries {
-		_, secondarySpan, err := typeErrorData(snapshot.FileSet(), pkg, secondary)
+		_, secondarySpan, err := typeErrorData(pkg, secondary)
 		if err != nil {
 			return nil, err
 		}
@@ -201,7 +201,7 @@ func analysisDiagnosticDiagnostics(snapshot *snapshot, pkg *pkg, a *analysis.Ana
 			break
 		}
 	}
-	tokFile := snapshot.FileSet().File(e.Pos)
+	tokFile := pkg.fset.File(e.Pos)
 	if tokFile == nil {
 		return nil, bug.Errorf("no file for position of %q diagnostic", e.Category)
 	}
@@ -221,7 +221,7 @@ func analysisDiagnosticDiagnostics(snapshot *snapshot, pkg *pkg, a *analysis.Ana
 	if len(srcAnalyzer.ActionKind) == 0 {
 		kinds = append(kinds, protocol.QuickFix)
 	}
-	fixes, err := suggestedAnalysisFixes(snapshot, pkg, e, kinds)
+	fixes, err := suggestedAnalysisFixes(pkg, e, kinds)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func analysisDiagnosticDiagnostics(snapshot *snapshot, pkg *pkg, a *analysis.Ana
 			fixes = append(fixes, source.SuggestedFixFromCommand(cmd, kind))
 		}
 	}
-	related, err := relatedInformation(pkg, snapshot.FileSet(), e)
+	related, err := relatedInformation(pkg, e)
 	if err != nil {
 		return nil, err
 	}
@@ -289,12 +289,12 @@ func typesCodeHref(snapshot *snapshot, code typesinternal.ErrorCode) string {
 	return source.BuildLink(target, "golang.org/x/tools/internal/typesinternal", code.String())
 }
 
-func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnostic, kinds []protocol.CodeActionKind) ([]source.SuggestedFix, error) {
+func suggestedAnalysisFixes(pkg *pkg, diag *analysis.Diagnostic, kinds []protocol.CodeActionKind) ([]source.SuggestedFix, error) {
 	var fixes []source.SuggestedFix
 	for _, fix := range diag.SuggestedFixes {
 		edits := make(map[span.URI][]protocol.TextEdit)
 		for _, e := range fix.TextEdits {
-			tokFile := snapshot.FileSet().File(e.Pos)
+			tokFile := pkg.fset.File(e.Pos)
 			if tokFile == nil {
 				return nil, bug.Errorf("no file for edit position")
 			}
@@ -327,10 +327,10 @@ func suggestedAnalysisFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnos
 	return fixes, nil
 }
 
-func relatedInformation(pkg *pkg, fset *token.FileSet, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
+func relatedInformation(pkg *pkg, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
 	var out []source.RelatedInformation
 	for _, related := range diag.Related {
-		tokFile := fset.File(related.Pos)
+		tokFile := pkg.fset.File(related.Pos)
 		if tokFile == nil {
 			return nil, bug.Errorf("no file for %q diagnostic position", diag.Category)
 		}
@@ -355,7 +355,7 @@ func relatedInformation(pkg *pkg, fset *token.FileSet, diag *analysis.Diagnostic
 	return out, nil
 }
 
-func typeErrorData(fset *token.FileSet, pkg *pkg, terr types.Error) (typesinternal.ErrorCode, span.Span, error) {
+func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, span.Span, error) {
 	ecode, start, end, ok := typesinternal.ReadGo116ErrorData(terr)
 	if !ok {
 		start, end = terr.Pos, terr.Pos
@@ -368,6 +368,7 @@ func typeErrorData(fset *token.FileSet, pkg *pkg, terr types.Error) (typesintern
 	}
 	// go/types errors retain their FileSet.
 	// Sanity-check that we're using the right one.
+	fset := pkg.FileSet()
 	if fset != terr.Fset {
 		return 0, span.Span{}, bug.Errorf("wrong FileSet for type error")
 	}

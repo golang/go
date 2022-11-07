@@ -28,7 +28,6 @@ import (
 
 type renamer struct {
 	ctx                context.Context
-	fset               *token.FileSet
 	refs               []*ReferenceInfo
 	objsToUpdate       map[types.Object]bool
 	hadConflicts       bool
@@ -136,7 +135,7 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 }
 
 func computePrepareRenameResp(snapshot Snapshot, pkg Package, node ast.Node, text string) (*PrepareItem, error) {
-	mr, err := posToMappedRange(snapshot.FileSet(), pkg, node.Pos(), node.End())
+	mr, err := posToMappedRange(pkg, node.Pos(), node.End())
 	if err != nil {
 		return nil, err
 	}
@@ -484,7 +483,6 @@ func renameObj(ctx context.Context, s Snapshot, newName string, qos []qualifiedO
 	}
 	r := renamer{
 		ctx:          ctx,
-		fset:         s.FileSet(),
 		refs:         refs,
 		objsToUpdate: make(map[types.Object]bool),
 		from:         obj.Name(),
@@ -604,7 +602,7 @@ func (r *renamer) update() (map[span.URI][]diff.Edit, error) {
 			// TODO(adonovan): why are we looping over lines?
 			// Just run the loop body once over the entire multiline comment.
 			lines := strings.Split(comment.Text, "\n")
-			tokFile := r.fset.File(comment.Pos())
+			tokFile := ref.pkg.FileSet().File(comment.Pos())
 			commentLine := tokFile.Line(comment.Pos())
 			uri := span.URIFromPath(tokFile.Name())
 			for i, line := range lines {
@@ -632,7 +630,7 @@ func (r *renamer) update() (map[span.URI][]diff.Edit, error) {
 
 // docComment returns the doc for an identifier.
 func (r *renamer) docComment(pkg Package, id *ast.Ident) *ast.CommentGroup {
-	_, tokFile, nodes, _ := pathEnclosingInterval(r.fset, pkg, id.Pos(), id.End())
+	_, tokFile, nodes, _ := pathEnclosingInterval(pkg, id.Pos(), id.End())
 	for _, node := range nodes {
 		switch decl := node.(type) {
 		case *ast.FuncDecl:
@@ -685,7 +683,7 @@ func (r *renamer) docComment(pkg Package, id *ast.Ident) *ast.CommentGroup {
 func (r *renamer) updatePkgName(pkgName *types.PkgName) (*diff.Edit, error) {
 	// Modify ImportSpec syntax to add or remove the Name as needed.
 	pkg := r.packages[pkgName.Pkg()]
-	_, tokFile, path, _ := pathEnclosingInterval(r.fset, pkg, pkgName.Pos(), pkgName.Pos())
+	_, tokFile, path, _ := pathEnclosingInterval(pkg, pkgName.Pos(), pkgName.Pos())
 	if len(path) < 2 {
 		return nil, fmt.Errorf("no path enclosing interval for %s", pkgName.Name())
 	}

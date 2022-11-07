@@ -125,7 +125,7 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	return false
 }
 
-func objToMappedRange(fset *token.FileSet, pkg Package, obj types.Object) (MappedRange, error) {
+func objToMappedRange(pkg Package, obj types.Object) (MappedRange, error) {
 	nameLen := len(obj.Name())
 	if pkgName, ok := obj.(*types.PkgName); ok {
 		// An imported Go package has a package-local, unqualified name.
@@ -142,12 +142,12 @@ func objToMappedRange(fset *token.FileSet, pkg Package, obj types.Object) (Mappe
 			nameLen = len(pkgName.Imported().Path()) + len(`""`)
 		}
 	}
-	return posToMappedRange(fset, pkg, obj.Pos(), obj.Pos()+token.Pos(nameLen))
+	return posToMappedRange(pkg, obj.Pos(), obj.Pos()+token.Pos(nameLen))
 }
 
 // posToMappedRange returns the MappedRange for the given [start, end) span,
 // which must be among the transitive dependencies of pkg.
-func posToMappedRange(fset *token.FileSet, pkg Package, pos, end token.Pos) (MappedRange, error) {
+func posToMappedRange(pkg Package, pos, end token.Pos) (MappedRange, error) {
 	if !pos.IsValid() {
 		return MappedRange{}, fmt.Errorf("invalid start position")
 	}
@@ -155,6 +155,7 @@ func posToMappedRange(fset *token.FileSet, pkg Package, pos, end token.Pos) (Map
 		return MappedRange{}, fmt.Errorf("invalid end position")
 	}
 
+	fset := pkg.FileSet()
 	tokFile := fset.File(pos)
 	// Subtle: it is not safe to simplify this to tokFile.Name
 	// because, due to //line directives, a Position within a
@@ -183,11 +184,11 @@ func posToMappedRange(fset *token.FileSet, pkg Package, pos, end token.Pos) (Map
 // TODO(rfindley): is this the best factoring of this API? This function is
 // really a trivial wrapper around findFileInDeps, which may be a more useful
 // function to expose.
-func FindPackageFromPos(fset *token.FileSet, pkg Package, pos token.Pos) (Package, error) {
+func FindPackageFromPos(pkg Package, pos token.Pos) (Package, error) {
 	if !pos.IsValid() {
 		return nil, fmt.Errorf("invalid position")
 	}
-	fileName := fset.File(pos).Name()
+	fileName := pkg.FileSet().File(pos).Name()
 	uri := span.URIFromPath(fileName)
 	_, pkg, err := findFileInDeps(pkg, uri)
 	return pkg, err

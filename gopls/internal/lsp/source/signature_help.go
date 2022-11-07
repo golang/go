@@ -94,7 +94,7 @@ FindCall:
 		comment *ast.CommentGroup
 	)
 	if obj != nil {
-		declPkg, err := FindPackageFromPos(snapshot.FileSet(), pkg, obj.Pos())
+		declPkg, err := FindPackageFromPos(pkg, obj.Pos())
 		if err != nil {
 			return nil, 0, err
 		}

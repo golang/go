@@ -9,14 +9,14 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/gopls/internal/lsp/lsppos"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
 	"golang.org/x/tools/gopls/internal/lsp/template"
 	"golang.org/x/tools/gopls/internal/lsp/work"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
 )
 
 func (s *Server) completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
@@ -64,9 +64,9 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	if err != nil {
 		return nil, err
 	}
-	tf := snapshot.FileSet().File(surrounding.Start())
-	mapper := lsppos.NewTokenMapper(src, tf)
-	rng, err := mapper.Range(surrounding.Start(), surrounding.End())
+	srng := surrounding.Range()
+	tf := snapshot.FileSet().File(srng.Start) // not same as srng.TokFile due to //line
+	rng, err := lsppos.NewTokenMapper(src, tf).Range(srng.Start, srng.End)
 	if err != nil {
 		return nil, err
 	}

@@ -237,7 +237,7 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 		return 0, MappedRange{}, ErrNoRuneFound
 	}
 
-	mappedRange, err := posToMappedRange(snapshot.FileSet(), pkg, start, end)
+	mappedRange, err := posToMappedRange(pkg, start, end)
 	if err != nil {
 		return 0, MappedRange{}, err
 	}
@@ -258,7 +258,7 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 		Synopsis:          doc.Synopsis(hoverCtx.Comment.Text()),
 	}
 
-	fset := i.Snapshot.FileSet()
+	fset := i.pkg.FileSet()
 	// Determine the symbol's signature.
 	switch x := hoverCtx.signatureSource.(type) {
 	case string:
@@ -564,7 +564,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 			}
 			// obj may not have been produced by type checking the AST containing
 			// node, so we need to be careful about using token.Pos.
-			tok := s.FileSet().File(obj.Pos())
+			tok := pkg.FileSet().File(obj.Pos())
 			offset, err := safetoken.Offset(tok, obj.Pos())
 			if err != nil {
 				return nil, err
@@ -572,7 +572,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 
 			// fullTok and fullPos are the *token.File and object position in for the
 			// full AST.
-			fullTok := s.FileSet().File(node.Pos())
+			fullTok := pkg.FileSet().File(node.Pos())
 			fullPos, err := safetoken.Pos(fullTok, offset)
 			if err != nil {
 				return nil, err

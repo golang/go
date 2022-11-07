@@ -371,7 +371,7 @@ func (r *renamer) checkStructField(from *types.Var) {
 	if !ok {
 		return
 	}
-	pkg, _, path, _ := pathEnclosingInterval(r.fset, fromPkg, from.Pos(), from.Pos())
+	pkg, _, path, _ := pathEnclosingInterval(fromPkg, from.Pos(), from.Pos())
 	if pkg == nil || path == nil {
 		return
 	}
@@ -826,7 +826,7 @@ func someUse(info *types.Info, obj types.Object) *ast.Ident {
 // exact is defined as for astutil.PathEnclosingInterval.
 //
 // The zero value is returned if not found.
-func pathEnclosingInterval(fset *token.FileSet, pkg Package, start, end token.Pos) (resPkg Package, tokFile *token.File, path []ast.Node, exact bool) {
+func pathEnclosingInterval(pkg Package, start, end token.Pos) (resPkg Package, tokFile *token.File, path []ast.Node, exact bool) {
 	pkgs := []Package{pkg}
 	for _, f := range pkg.GetSyntax() {
 		for _, imp := range f.Imports {
@@ -852,7 +852,7 @@ func pathEnclosingInterval(fset *token.FileSet, pkg Package, start, end token.Po
 				// (Use parser.AllErrors to prevent that.)
 				continue
 			}
-			tokFile := fset.File(f.Pos())
+			tokFile := p.FileSet().File(f.Pos())
 			if !tokenFileContainsPos(tokFile, start) {
 				continue
 			}

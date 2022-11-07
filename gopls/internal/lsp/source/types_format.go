@@ -86,6 +86,7 @@ func (s *signature) Params() []string {
 // NewBuiltinSignature returns signature for the builtin object with a given
 // name, if a builtin object with the name exists.
 func NewBuiltinSignature(ctx context.Context, s Snapshot, name string) (*signature, error) {
+	fset := s.FileSet()
 	builtin, err := s.BuiltinFile(ctx)
 	if err != nil {
 		return nil, err
@@ -109,8 +110,8 @@ func NewBuiltinSignature(ctx context.Context, s Snapshot, name string) (*signatu
 			variadic = true
 		}
 	}
-	params, _ := formatFieldList(ctx, s, decl.Type.Params, variadic)
-	results, needResultParens := formatFieldList(ctx, s, decl.Type.Results, false)
+	params, _ := formatFieldList(ctx, fset, decl.Type.Params, variadic)
+	results, needResultParens := formatFieldList(ctx, fset, decl.Type.Results, false)
 	d := decl.Doc.Text()
 	switch s.View().Options().HoverKind {
 	case SynopsisDocumentation:
@@ -134,7 +135,7 @@ var replacer = strings.NewReplacer(
 	`IntegerType`, `int`,
 )
 
-func formatFieldList(ctx context.Context, snapshot Snapshot, list *ast.FieldList, variadic bool) ([]string, bool) {
+func formatFieldList(ctx context.Context, fset *token.FileSet, list *ast.FieldList, variadic bool) ([]string, bool) {
 	if list == nil {
 		return nil, false
 	}
@@ -147,7 +148,7 @@ func formatFieldList(ctx context.Context, snapshot Snapshot, list *ast.FieldList
 		p := list.List[i]
 		cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 4}
 		b := &bytes.Buffer{}
-		if err := cfg.Fprint(b, snapshot.FileSet(), p.Type); err != nil {
+		if err := cfg.Fprint(b, fset, p.Type); err != nil {
 			event.Error(ctx, "unable to print type", nil, tag.Type.Of(p.Type))
 			continue
 		}
@@ -205,7 +206,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 	params := make([]string, 0, sig.Params().Len())
 	for i := 0; i < sig.Params().Len(); i++ {
 		el := sig.Params().At(i)
-		typ := FormatVarType(s.FileSet(), pkg, el, qf)
+		typ := FormatVarType(pkg, el, qf)
 		p := typ
 		if el.Name() != "" {
 			p = el.Name() + " " + typ
@@ -220,7 +221,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 			needResultParens = true
 		}
 		el := sig.Results().At(i)
-		typ := FormatVarType(s.FileSet(), pkg, el, qf)
+		typ := FormatVarType(pkg, el, qf)
 		if el.Name() == "" {
 			results = append(results, typ)
 		} else {
@@ -253,8 +254,8 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 // FormatVarType formats a *types.Var, accounting for type aliases.
 // To do this, it looks in the AST of the file in which the object is declared.
 // On any errors, it always falls back to types.TypeString.
-func FormatVarType(fset *token.FileSet, srcpkg Package, obj *types.Var, qf types.Qualifier) string {
-	pkg, err := FindPackageFromPos(fset, srcpkg, obj.Pos())
+func FormatVarType(srcpkg Package, obj *types.Var, qf types.Qualifier) string {
+	pkg, err := FindPackageFromPos(srcpkg, obj.Pos())
 	if err != nil {
 		return types.TypeString(obj.Type(), qf)
 	}
@@ -283,7 +284,7 @@ func FormatVarType(fset *token.FileSet, srcpkg Package, obj *types.Var, qf types
 	// If the request came from a different package than the one in which the
 	// types are defined, we may need to modify the qualifiers.
 	qualified = qualifyExpr(qualified, srcpkg, pkg, clonedInfo, qf)
-	fmted := FormatNode(fset, qualified)
+	fmted := FormatNode(srcpkg.FileSet(), qualified)
 	return fmted
 }
 

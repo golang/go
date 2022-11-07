@@ -112,7 +112,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		rng:       rng,
 		ti:        pkg.GetTypesInfo(),
 		pkg:       pkg,
-		fset:      snapshot.FileSet(),
+		fset:      pkg.FileSet(),
 		tokTypes:  s.session.Options().SemanticTypes,
 		tokMods:   s.session.Options().SemanticMods,
 		noStrings: vv.Options().NoSemanticString,

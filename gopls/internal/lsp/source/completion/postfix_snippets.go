@@ -322,7 +322,7 @@ func (c *completer) addPostfixSnippetCandidates(ctx context.Context, sel *ast.Se
 		return
 	}
 
-	tokFile := c.snapshot.FileSet().File(c.pos)
+	tokFile := c.pkg.FileSet().File(c.pos)
 
 	// Only replace sel with a statement if sel is already a statement.
 	var stmtOK bool
@@ -379,7 +379,7 @@ func (c *completer) addPostfixSnippetCandidates(ctx context.Context, sel *ast.Se
 		}
 
 		tmplArgs := postfixTmplArgs{
-			X:              source.FormatNode(c.snapshot.FileSet(), sel.X),
+			X:              source.FormatNode(c.pkg.FileSet(), sel.X),
 			StmtOK:         stmtOK,
 			Obj:            exprObj(c.pkg.GetTypesInfo(), sel.X),
 			Type:           selType,
@@ -442,7 +442,8 @@ func (c *completer) importIfNeeded(pkgPath string, scope *types.Scope) (string, 
 
 	// Check if file already imports pkgPath.
 	for _, s := range c.file.Imports {
-		// TODO(adonovan): what if pkgPath has a vendor/ prefix?
+		// TODO(adonovan): what if pkgPath has a vendor/ suffix?
+		// This may be the cause of go.dev/issue/56291.
 		if source.UnquoteImportPath(s) == source.ImportPath(pkgPath) {
 			if s.Name == nil {
 				return defaultName, nil, nil

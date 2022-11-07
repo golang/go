@@ -32,7 +32,7 @@ func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 		if impl.pkg == nil || len(impl.pkg.CompiledGoFiles()) == 0 {
 			continue
 		}
-		rng, err := objToMappedRange(snapshot.FileSet(), impl.pkg, impl.obj)
+		rng, err := objToMappedRange(impl.pkg, impl.obj)
 		if err != nil {
 			return nil, err
 		}
@@ -145,16 +145,28 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 				candObj = sel.Obj()
 			}
 
-			pos := s.FileSet().Position(candObj.Pos())
-			if candObj == queryMethod || seen[pos] {
+			if candObj == queryMethod {
 				continue
 			}
 
-			seen[pos] = true
+			pkg := pkgs[candObj.Pkg()] // may be nil (e.g. error)
+
+			// TODO(adonovan): the logic below assumes there is only one
+			// predeclared (pkg=nil) object of interest, the error type.
+			// That could change in a future version of Go.
+
+			var posn token.Position
+			if pkg != nil {
+				posn = pkg.FileSet().Position(candObj.Pos())
+			}
+			if seen[posn] {
+				continue
+			}
+			seen[posn] = true
 
 			impls = append(impls, qualifiedObject{
 				obj: candObj,
-				pkg: pkgs[candObj.Pkg()], // may be nil (e.g. error)
+				pkg: pkg,
 			})
 		}
 	}

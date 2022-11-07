@@ -36,6 +36,8 @@ type parseKey struct {
 // ParseGo parses the file whose contents are provided by fh, using a cache.
 // The resulting tree may have be fixed up.
 //
+// Token position information will be added to the snapshot's FileSet.
+//
 // The parser mode must not be ParseExported: that mode is used during
 // type checking to destructively trim the tree to reduce work,
 // which is not safe for values from a shared cache.

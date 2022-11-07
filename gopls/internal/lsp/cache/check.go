@@ -450,6 +450,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 	pkg := &pkg{
 		m:     m,
 		mode:  mode,
+		fset:  snapshot.FileSet(), // must match parse call below (snapshot.ParseGo for now)
 		deps:  make(map[PackageID]*pkg),
 		types: types.NewPackage(string(m.PkgPath), string(m.Name)),
 		typesInfo: &types.Info{
@@ -565,7 +566,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 	// We passed typecheckCgo to go/packages when we Loaded.
 	typesinternal.SetUsesCgo(cfg)
 
-	check := types.NewChecker(cfg, snapshot.FileSet(), pkg.types, pkg.typesInfo)
+	check := types.NewChecker(cfg, pkg.fset, pkg.types, pkg.typesInfo)
 
 	var files []*ast.File
 	for _, cgf := range pkg.compiledGoFiles {
@@ -593,7 +594,7 @@ func parseCompiledGoFiles(ctx context.Context, compiledGoFiles []source.FileHand
 		if mode == source.ParseFull {
 			pgf, err = snapshot.ParseGo(ctx, fh, mode)
 		} else {
-			pgf, err = parseGoImpl(ctx, snapshot.FileSet(), fh, mode) // ~20us/KB
+			pgf, err = parseGoImpl(ctx, pkg.fset, fh, mode) // ~20us/KB
 		}
 		if err != nil {
 			return err
@@ -661,6 +662,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 	}
 	allImports := map[string][]fileImport{}
 	for _, cgf := range pkg.compiledGoFiles {
+		// TODO(adonovan): modify Imports() to accept a single token.File (cgf.Tok).
 		for _, group := range astutil.Imports(s.FileSet(), cgf.File) {
 			for _, imp := range group {
 				if imp.Path == nil {

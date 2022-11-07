@@ -205,7 +205,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	// TODO(adonovan): avoid Fileset.File call by somehow getting at
 	// declMappedRange.spanRange.TokFile, or making Identifier retain the
 	// token.File of the identifier and its declaration, since it looks up both anyway.
-	tokFile := snapshot.FileSet().File(node.Pos())
+	tokFile := identifier.pkg.FileSet().File(node.Pos())
 	if tokFile == nil {
 		return nil, fmt.Errorf("no file for position")
 	}

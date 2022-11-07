@@ -80,7 +80,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		if _, ok := obj.Type().(*types.Struct); ok {
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
-			detail = source.FormatVarType(c.snapshot.FileSet(), c.pkg, obj, c.qf)
+			detail = source.FormatVarType(c.pkg, obj, c.qf)
 		}
 		if obj.IsField() {
 			kind = protocol.FieldCompletion
@@ -227,7 +227,7 @@ Suffixes:
 	if !c.opts.documentation {
 		return item, nil
 	}
-	pos := c.snapshot.FileSet().Position(obj.Pos())
+	pos := c.pkg.FileSet().Position(obj.Pos())
 
 	// We ignore errors here, because some types, like "unsafe" or "error",
 	// may not have valid positions that we can use to get documentation.
@@ -237,7 +237,7 @@ Suffixes:
 	uri := span.URIFromPath(pos.Filename)
 
 	// Find the source file of the candidate.
-	pkg, err := source.FindPackageFromPos(c.snapshot.FileSet(), c.pkg, obj.Pos())
+	pkg, err := source.FindPackageFromPos(c.pkg, obj.Pos())
 	if err != nil {
 		return item, nil
 	}
