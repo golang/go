@@ -459,8 +459,6 @@ func (ip Addr) Compare(ip2 Addr) int {
 // IPv6 addresses with zones sort just after the same address without a zone.
 func (ip Addr) Less(ip2 Addr) bool { return ip.Compare(ip2) == -1 }
 
-func (ip Addr) lessOrEq(ip2 Addr) bool { return ip.Compare(ip2) <= 0 }
-
 // Is4 reports whether ip is an IPv4 address.
 //
 // It returns false for IPv4-mapped IPv6 addresses. See Addr.Unmap.
@@ -1117,9 +1115,6 @@ func MustParseAddrPort(s string) AddrPort {
 	}
 	return ip
 }
-
-// isZero reports whether p is the zero AddrPort.
-func (p AddrPort) isZero() bool { return p == AddrPort{} }
 
 // IsValid reports whether p.Addr() is valid.
 // All ports are valid, including zero.
