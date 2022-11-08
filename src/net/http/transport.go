@@ -810,14 +810,12 @@ func (t *Transport) cancelRequest(key cancelKey, err error) bool {
 //
 
 var (
-	// proxyConfigOnce guards proxyConfig
 	envProxyOnce      sync.Once
 	envProxyFuncValue func(*url.URL) (*url.URL, error)
 )
 
-// defaultProxyConfig returns a ProxyConfig value looked up
-// from the environment. This mitigates expensive lookups
-// on some platforms (e.g. Windows).
+// envProxyFunc returns a function that reads the
+// environment variable to determine the proxy address.
 func envProxyFunc() func(*url.URL) (*url.URL, error) {
 	envProxyOnce.Do(func() {
 		envProxyFuncValue = httpproxy.FromEnvironment().ProxyFunc()
