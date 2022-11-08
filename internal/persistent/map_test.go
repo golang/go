@@ -19,14 +19,15 @@ type mapEntry struct {
 
 type validatedMap struct {
 	impl     *Map
-	expected map[int]int
-	deleted  map[mapEntry]struct{}
-	seen     map[mapEntry]struct{}
+	expected map[int]int      // current key-value mapping.
+	deleted  map[mapEntry]int // maps deleted entries to their clock time of last deletion
+	seen     map[mapEntry]int // maps seen entries to their clock time of last insertion
+	clock    int
 }
 
 func TestSimpleMap(t *testing.T) {
-	deletedEntries := make(map[mapEntry]struct{})
-	seenEntries := make(map[mapEntry]struct{})
+	deletedEntries := make(map[mapEntry]int)
+	seenEntries := make(map[mapEntry]int)
 
 	m1 := &validatedMap{
 		impl: NewMap(func(a, b interface{}) bool {
@@ -43,7 +44,7 @@ func TestSimpleMap(t *testing.T) {
 	validateRef(t, m1, m3)
 	m3.destroy()
 
-	assertSameMap(t, deletedEntries, map[mapEntry]struct{}{
+	assertSameMap(t, entrySet(deletedEntries), map[mapEntry]struct{}{
 		{key: 8, value: 8}: {},
 	})
 
@@ -59,7 +60,7 @@ func TestSimpleMap(t *testing.T) {
 	m1.set(t, 6, 6)
 	validateRef(t, m1)
 
-	assertSameMap(t, deletedEntries, map[mapEntry]struct{}{
+	assertSameMap(t, entrySet(deletedEntries), map[mapEntry]struct{}{
 		{key: 2, value: 2}: {},
 		{key: 8, value: 8}: {},
 	})
@@ -98,7 +99,7 @@ func TestSimpleMap(t *testing.T) {
 
 	m1.destroy()
 
-	assertSameMap(t, deletedEntries, map[mapEntry]struct{}{
+	assertSameMap(t, entrySet(deletedEntries), map[mapEntry]struct{}{
 		{key: 2, value: 2}:    {},
 		{key: 6, value: 60}:   {},
 		{key: 8, value: 8}:    {},
@@ -114,12 +115,12 @@ func TestSimpleMap(t *testing.T) {
 
 	m2.destroy()
 
-	assertSameMap(t, seenEntries, deletedEntries)
+	assertSameMap(t, entrySet(seenEntries), entrySet(deletedEntries))
 }
 
 func TestRandomMap(t *testing.T) {
-	deletedEntries := make(map[mapEntry]struct{})
-	seenEntries := make(map[mapEntry]struct{})
+	deletedEntries := make(map[mapEntry]int)
+	seenEntries := make(map[mapEntry]int)
 
 	m := &validatedMap{
 		impl: NewMap(func(a, b interface{}) bool {
@@ -132,7 +133,7 @@ func TestRandomMap(t *testing.T) {
 
 	keys := make([]int, 0, 1000)
 	for i := 0; i < 1000; i++ {
-		key := rand.Int()
+		key := rand.Intn(10000)
 		m.set(t, key, key)
 		keys = append(keys, key)
 
@@ -148,12 +149,20 @@ func TestRandomMap(t *testing.T) {
 	}
 
 	m.destroy()
-	assertSameMap(t, seenEntries, deletedEntries)
+	assertSameMap(t, entrySet(seenEntries), entrySet(deletedEntries))
+}
+
+func entrySet(m map[mapEntry]int) map[mapEntry]struct{} {
+	set := make(map[mapEntry]struct{})
+	for k := range m {
+		set[k] = struct{}{}
+	}
+	return set
 }
 
 func TestUpdate(t *testing.T) {
-	deletedEntries := make(map[mapEntry]struct{})
-	seenEntries := make(map[mapEntry]struct{})
+	deletedEntries := make(map[mapEntry]int)
+	seenEntries := make(map[mapEntry]int)
 
 	m1 := &validatedMap{
 		impl: NewMap(func(a, b interface{}) bool {
@@ -173,15 +182,7 @@ func TestUpdate(t *testing.T) {
 
 	m1.destroy()
 	m2.destroy()
-	assertSameMap(t, seenEntries, deletedEntries)
-}
-
-func (vm *validatedMap) onDelete(t *testing.T, key, value int) {
-	entry := mapEntry{key: key, value: value}
-	if _, ok := vm.deleted[entry]; ok {
-		t.Fatalf("tried to delete entry twice, key: %d, value: %d", key, value)
-	}
-	vm.deleted[entry] = struct{}{}
+	assertSameMap(t, entrySet(seenEntries), entrySet(deletedEntries))
 }
 
 func validateRef(t *testing.T, maps ...*validatedMap) {
@@ -234,9 +235,12 @@ func (vm *validatedMap) validate(t *testing.T) {
 
 	validateNode(t, vm.impl.root, vm.impl.less)
 
+	// Note: this validation may not make sense if maps were constructed using
+	// SetAll operations. If this proves to be problematic, remove the clock,
+	// deleted, and seen fields.
 	for key, value := range vm.expected {
 		entry := mapEntry{key: key, value: value}
-		if _, ok := vm.deleted[entry]; ok {
+		if deleteAt := vm.deleted[entry]; deleteAt > vm.seen[entry] {
 			t.Fatalf("entry is deleted prematurely, key: %d, value: %d", key, value)
 		}
 	}
@@ -281,6 +285,9 @@ func validateNode(t *testing.T, node *mapNode, less func(a, b interface{}) bool)
 
 func (vm *validatedMap) setAll(t *testing.T, other *validatedMap) {
 	vm.impl.SetAll(other.impl)
+
+	// Note: this is buggy because we are not updating vm.clock, vm.deleted, or
+	// vm.seen.
 	for key, value := range other.expected {
 		vm.expected[key] = value
 	}
@@ -288,12 +295,17 @@ func (vm *validatedMap) setAll(t *testing.T, other *validatedMap) {
 }
 
 func (vm *validatedMap) set(t *testing.T, key, value int) {
-	vm.seen[mapEntry{key: key, value: value}] = struct{}{}
+	entry := mapEntry{key: key, value: value}
+
+	vm.clock++
+	vm.seen[entry] = vm.clock
+
 	vm.impl.Set(key, value, func(deletedKey, deletedValue interface{}) {
 		if deletedKey != key || deletedValue != value {
 			t.Fatalf("unexpected passed in deleted entry: %v/%v, expected: %v/%v", deletedKey, deletedValue, key, value)
 		}
-		vm.onDelete(t, key, value)
+		// Not safe if closure shared between two validatedMaps.
+		vm.deleted[entry] = vm.clock
 	})
 	vm.expected[key] = value
 	vm.validate(t)
@@ -305,6 +317,7 @@ func (vm *validatedMap) set(t *testing.T, key, value int) {
 }
 
 func (vm *validatedMap) remove(t *testing.T, key int) {
+	vm.clock++
 	vm.impl.Delete(key)
 	delete(vm.expected, key)
 	vm.validate(t)
