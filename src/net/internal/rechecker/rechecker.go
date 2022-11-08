@@ -7,10 +7,9 @@ package rechecker
 import (
 	"io"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
-
-	"sync"
 )
 
 type value[T any] struct {
