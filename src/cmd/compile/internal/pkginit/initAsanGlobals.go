@@ -189,7 +189,7 @@ func createtypes() (*types.Type, *types.Type, *types.Type) {
 	return asanGlobal, asanLocation, defString
 }
 
-// Calculate redzone for globals.
+// GetRedzoneSizeForGlobal calculates redzone for globals.
 func GetRedzoneSizeForGlobal(size int64) int64 {
 	maxRZ := int64(1 << 18)
 	minRZ := int64(32)
