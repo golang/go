@@ -37,12 +37,12 @@ func makeNode(key int32) *node32 {
 	return &node32{key: key, height_: LEAF_HEIGHT}
 }
 
-// IsSingle returns true iff t is empty.
+// IsEmpty returns true if t is empty.
 func (t *T) IsEmpty() bool {
 	return t.root == nil
 }
 
-// IsSingle returns true iff t is a singleton (leaf).
+// IsSingle returns true if t is a singleton (leaf).
 func (t *T) IsSingle() bool {
 	return t.root != nil && t.root.isLeaf()
 }
