@@ -35,6 +35,8 @@ type Addrinfo struct {
 	Next      *Addrinfo
 }
 
+//go:cgo_ldflag "-lresolv"
+
 //go:cgo_import_dynamic libc_getaddrinfo getaddrinfo "/usr/lib/libSystem.B.dylib"
 func libc_getaddrinfo_trampoline()
 
@@ -114,3 +116,46 @@ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err s
 
 //go:linkname syscall_syscall9 syscall.syscall9
 func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
+
+type ResState struct {
+	unexported [70]uintptr
+}
+
+//go:cgo_import_dynamic libresolv_res_9_ninit res_9_ninit "/usr/lib/libresolv.9.dylib"
+func libresolv_res_9_ninit_trampoline()
+
+func ResNinit(state *ResState) error {
+	_, _, errno := syscall_syscall(abi.FuncPCABI0(libresolv_res_9_ninit_trampoline),
+		uintptr(unsafe.Pointer(state)),
+		0, 0)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
+//go:cgo_import_dynamic libresolv_res_9_nclose res_9_nclose "/usr/lib/libresolv.9.dylib"
+func libresolv_res_9_nclose_trampoline()
+
+func ResNclose(state *ResState) {
+	syscall_syscall(abi.FuncPCABI0(libresolv_res_9_nclose_trampoline),
+		uintptr(unsafe.Pointer(state)),
+		0, 0)
+}
+
+//go:cgo_import_dynamic libresolv_res_9_nsearch res_9_nsearch "/usr/lib/libresolv.9.dylib"
+func libresolv_res_9_nsearch_trampoline()
+
+func ResNsearch(state *ResState, dname *byte, class, typ int, ans *byte, anslen int) (int, error) {
+	r1, _, errno := syscall_syscall6(abi.FuncPCABI0(libresolv_res_9_nsearch_trampoline),
+		uintptr(unsafe.Pointer(state)),
+		uintptr(unsafe.Pointer(dname)),
+		uintptr(class),
+		uintptr(typ),
+		uintptr(unsafe.Pointer(ans)),
+		uintptr(anslen))
+	if errno != 0 {
+		return 0, errno
+	}
+	return int(int32(r1)), nil
+}

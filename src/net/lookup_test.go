@@ -348,6 +348,8 @@ var lookupCNAMETests = []struct {
 	{"www.iana.org", "icann.org."},
 	{"www.iana.org.", "icann.org."},
 	{"www.google.com", "google.com."},
+	{"google.com", "google.com."},
+	{"cname-to-txt.go4.org", "test-txt-record.go4.org."},
 }
 
 func TestLookupCNAME(t *testing.T) {

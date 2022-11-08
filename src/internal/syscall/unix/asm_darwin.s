@@ -18,3 +18,12 @@ TEXT ·libc_getnameinfo_trampoline(SB),NOSPLIT,$0-0
 
 TEXT ·libc_gai_strerror_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_gai_strerror(SB)
+
+TEXT ·libresolv_res_9_ninit_trampoline(SB),NOSPLIT,$0-0
+	JMP	libresolv_res_9_ninit(SB)
+
+TEXT ·libresolv_res_9_nclose_trampoline(SB),NOSPLIT,$0-0
+	JMP	libresolv_res_9_nclose(SB)
+
+TEXT ·libresolv_res_9_nsearch_trampoline(SB),NOSPLIT,$0-0
+	JMP	libresolv_res_9_nsearch(SB)

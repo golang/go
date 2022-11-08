@@ -2282,6 +2282,10 @@ func TestLongDNSNames(t *testing.T) {
 				r.Answers[0].Body = &dnsmessage.SRVResource{
 					Target: dnsmessage.MustNewName("go.dev."),
 				}
+			case dnsmessage.TypeCNAME:
+				r.Answers[0].Body = &dnsmessage.CNAMEResource{
+					CNAME: dnsmessage.MustNewName("fake.cname."),
+				}
 			default:
 				panic("unknown dnsmessage type")
 			}

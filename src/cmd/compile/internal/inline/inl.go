@@ -122,7 +122,7 @@ func pgoInlinePrologue(p *pgo.Profile) {
 			}
 		}
 	})
-	if base.Debug.PGOInline > 0 {
+	if base.Debug.PGOInline >= 2 {
 		fmt.Printf("hot-cg before inline in dot format:")
 		p.PrintWeightedCallGraphDOT(inlineHotCallSiteThresholdPercent)
 	}
@@ -165,7 +165,7 @@ func computeThresholdFromCDF(p *pgo.Profile) (float64, []pgo.NodeMapKey) {
 
 // pgoInlineEpilogue updates IRGraph after inlining.
 func pgoInlineEpilogue(p *pgo.Profile) {
-	if base.Debug.PGOInline > 0 {
+	if base.Debug.PGOInline >= 2 {
 		ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
 			for _, f := range list {
 				name := ir.PkgFuncName(f)
@@ -919,7 +919,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 	}
 	if fn.Inl.Cost > maxCost {
 		// If the callsite is hot and it is under the inlineHotMaxBudget budget, then try to inline it, or else bail.
-		lineOffset := pgo.NodeLineOffset(n, fn)
+		lineOffset := pgo.NodeLineOffset(n, ir.CurFunc)
 		csi := pgo.CallSiteInfo{LineOffset: lineOffset, Caller: ir.CurFunc}
 		if _, ok := candHotEdgeMap[csi]; ok {
 			if fn.Inl.Cost > inlineHotMaxBudget {
@@ -930,7 +930,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 				return n
 			}
 			if base.Debug.PGOInline > 0 {
-				fmt.Printf("hot-budget check allows inlining for callsite at %v\n", ir.Line(n))
+				fmt.Printf("hot-budget check allows inlining for call %s at %v\n", ir.PkgFuncName(fn), ir.Line(n))
 			}
 		} else {
 			// The inlined function body is too big. Typically we use this check to restrict

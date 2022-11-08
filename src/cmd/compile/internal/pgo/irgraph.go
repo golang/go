@@ -153,7 +153,9 @@ func New(profileFile string) *Profile {
 	}
 
 	// Build the node map and totals from the profile graph.
-	p.processprofileGraph(g)
+	if !p.processprofileGraph(g) {
+		return nil
+	}
 
 	// Create package-level call graph with weights from profile and IR.
 	p.initializeIRGraph()
@@ -166,7 +168,8 @@ func New(profileFile string) *Profile {
 // It initializes NodeMap and Total{Node,Edge}Weight based on the name and
 // callsite to compute node and edge weights which will be used later on to
 // create edges for WeightedCG.
-func (p *Profile) processprofileGraph(g *Graph) {
+// Returns whether it successfully processed the profile.
+func (p *Profile) processprofileGraph(g *Graph) bool {
 	nFlat := make(map[string]int64)
 	nCum := make(map[string]int64)
 	seenStartLine := false
@@ -206,12 +209,18 @@ func (p *Profile) processprofileGraph(g *Graph) {
 		}
 	}
 
+	if p.TotalNodeWeight == 0 || p.TotalEdgeWeight == 0 {
+		return false // accept but ignore profile with no sample
+	}
+
 	if !seenStartLine {
 		// TODO(prattic): If Function.start_line is missing we could
 		// fall back to using absolute line numbers, which is better
 		// than nothing.
 		log.Fatal("PGO profile missing Function.start_line data")
 	}
+
+	return true
 }
 
 // initializeIRGraph builds the IRGraph by visting all the ir.Func in decl list
@@ -352,11 +361,7 @@ func (p *Profile) createIRGraphEdge(fn *ir.Func, callernode *IRNode, name string
 
 // WeightInPercentage converts profile weights to a percentage.
 func WeightInPercentage(value int64, total int64) float64 {
-	var ratio float64
-	if total != 0 {
-		ratio = (float64(value) / float64(total)) * 100
-	}
-	return ratio
+	return (float64(value) / float64(total)) * 100
 }
 
 // PrintWeightedCallGraphDOT prints IRGraph in DOT format.

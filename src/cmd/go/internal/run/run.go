@@ -177,7 +177,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
-	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
+	a := &work.Action{Mode: "go run", Actor: work.ActorFunc(buildRunProgram), Args: cmdArgs, Deps: []*work.Action{a1}}
 	b.Do(ctx, a)
 }
 
