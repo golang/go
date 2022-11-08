@@ -19,3 +19,12 @@ stdout cgo\.a
 env GODEBUG=installgoroot=all
 go list -f '{{.Target}}' fmt
 stdout fmt\.a
+
+# With CGO_ENABLED=0, packages that would have
+# an install target with cgo on no longer do.
+env GODEBUG=
+env CGO_ENABLED=0
+go list -f '{{.Target}}' runtime/cgo
+! stdout .
+go list -export -f '{{.Export}}' runtime/cgo
+stdout $GOCACHE

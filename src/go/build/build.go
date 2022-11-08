@@ -13,7 +13,6 @@ import (
 	"go/doc"
 	"go/token"
 	"internal/buildcfg"
-	"internal/buildinternal"
 	"internal/godebug"
 	"internal/goroot"
 	"internal/goversion"
@@ -784,8 +783,7 @@ Found:
 			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
 
 			// Set the install target if applicable.
-			if strings.ToLower(godebug.Get("installgoroot")) == "all" ||
-				!p.Goroot || buildinternal.NeedsInstalledDotA(p.ImportPath) {
+			if strings.ToLower(godebug.Get("installgoroot")) == "all" || !p.Goroot {
 				p.PkgObj = ctxt.joinPath(p.Root, pkga)
 			}
 		}
@@ -1001,6 +999,12 @@ Found:
 				embedMap[emb.pattern] = append(embedMap[emb.pattern], emb.pos)
 			}
 		}
+	}
+
+	// Now that p.CgoFiles has been set, use it to determine whether
+	// a package in GOROOT gets an install target:
+	if len(p.CgoFiles) != 0 && p.Root != "" && p.Goroot && pkga != "" {
+		p.PkgObj = ctxt.joinPath(p.Root, pkga)
 	}
 
 	for tag := range allTags {

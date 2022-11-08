@@ -12,7 +12,6 @@ import (
 	"go/build"
 	"go/build/constraint"
 	"go/token"
-	"internal/buildinternal"
 	"internal/godebug"
 	"internal/goroot"
 	"path"
@@ -396,6 +395,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 	inTestdata := func(sub string) bool {
 		return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || str.HasPathPrefix(sub, "testdata")
 	}
+	var pkga string
 	if !inTestdata(rp.dir) {
 		// In build.go, p.Root should only be set in the non-local-import case, or in
 		// GOROOT or GOPATH. Since module mode only calls Import with path set to "."
@@ -414,7 +414,6 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			// The fields set below (SrcRoot, PkgRoot, BinDir, PkgTargetRoot, and PkgObj)
 			// are only set in build.Import if p.Root != "".
 			var pkgtargetroot string
-			var pkga string
 			suffix := ""
 			if ctxt.InstallSuffix != "" {
 				suffix = "_" + ctxt.InstallSuffix
@@ -437,8 +436,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 				p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
 
 				// Set the install target if applicable.
-				if strings.ToLower(godebug.Get("installgoroot")) == "all" ||
-					!p.Goroot || buildinternal.NeedsInstalledDotA(p.ImportPath) {
+				if strings.ToLower(godebug.Get("installgoroot")) == "all" || !p.Goroot {
 					p.PkgObj = ctxt.joinPath(p.Root, pkga)
 				}
 			}
@@ -627,6 +625,12 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 				embedMap[e.pattern] = append(embedMap[e.pattern], e.position)
 			}
 		}
+	}
+
+	// Now that p.CgoFiles has been set, use it to determine whether
+	// a package in GOROOT gets an install target:
+	if len(p.CgoFiles) != 0 && p.Root != "" && p.Goroot && pkga != "" {
+		p.PkgObj = ctxt.joinPath(p.Root, pkga)
 	}
 
 	p.EmbedPatterns, p.EmbedPatternPos = cleanDecls(embedPos)
