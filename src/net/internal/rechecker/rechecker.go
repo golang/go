@@ -115,3 +115,15 @@ func (r *Rechecker[T]) initialFileParse() (val *T, modTime time.Time, size int64
 	val, err = r.Parse(data)
 	return val, stat.ModTime(), stat.Size(), err
 }
+
+// ForceNextValues changes the values returned in the next Get() calls for at least addDur.
+// It should be used only inside tests.
+func (r *Rechecker[T]) ForceNextValues(v *T, err error, addDur time.Duration) bool {
+	if r.recheckSema.CompareAndSwap(false, true) {
+		defer r.recheckSema.Store(false)
+		r.lastCheched = time.Now().Add(addDur)
+		r.val.Store(&value[T]{v: v, err: err})
+		return true
+	}
+	return false
+}
