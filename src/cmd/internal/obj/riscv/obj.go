@@ -26,6 +26,7 @@ import (
 	"cmd/internal/sys"
 	"fmt"
 	"log"
+	"math/bits"
 )
 
 func buildop(ctxt *obj.Link) {}
@@ -140,8 +141,14 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p.As = AEBREAK
 
 	case AMOV:
-		// Put >32-bit constants in memory and load them.
 		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE && int64(int32(p.From.Offset)) != p.From.Offset {
+			ctz := bits.TrailingZeros64(uint64(p.From.Offset))
+			val := p.From.Offset >> ctz
+			if int64(int32(val)) == val {
+				// It's ok. We can handle constants with many trailing zeros.
+				break
+			}
+			// Put >32-bit constants in memory and load them.
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
 			p.From.Name = obj.NAME_EXTERN
@@ -1838,6 +1845,23 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			return nil
 		}
 
+		// For constants larger than 32 bits in size that have trailing zeros,
+		// use the value with the trailing zeros removed and then use a SLLI
+		// instruction to restore the original constant.
+		// For example:
+		// 	MOV $0x8000000000000000, X10
+		// becomes
+		// 	MOV $1, X10
+		// 	SLLI $63, X10, X10
+		var insSLLI *instruction
+		if !immIFits(ins.imm, 32) {
+			ctz := bits.TrailingZeros64(uint64(ins.imm))
+			if immIFits(ins.imm>>ctz, 32) {
+				ins.imm = ins.imm >> ctz
+				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(ctz)}
+			}
+		}
+
 		low, high, err := Split32BitImmediate(ins.imm)
 		if err != nil {
 			p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
@@ -1849,6 +1873,9 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 
 		// LUI is only necessary if the constant does not fit in 12 bits.
 		if high == 0 {
+			if insSLLI != nil {
+				inss = append(inss, insSLLI)
+			}
 			break
 		}
 
@@ -1859,6 +1886,9 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 		if low != 0 {
 			ins.as, ins.rs1 = AADDIW, ins.rd
 			inss = append(inss, ins)
+		}
+		if insSLLI != nil {
+			inss = append(inss, insSLLI)
 		}
 
 	case p.From.Type == obj.TYPE_CONST && p.To.Type != obj.TYPE_REG:
