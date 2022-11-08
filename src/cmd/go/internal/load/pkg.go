@@ -2387,6 +2387,13 @@ func (p *Package) setBuildInfo(autoVCS bool) {
 			appendSetting("-ldflags", ldflags)
 		}
 	}
+	if cfg.BuildPGOFile != "" {
+		if cfg.BuildTrimpath {
+			appendSetting("-pgo", filepath.Base(cfg.BuildPGOFile))
+		} else {
+			appendSetting("-pgo", cfg.BuildPGOFile)
+		}
+	}
 	if cfg.BuildMSan {
 		appendSetting("-msan", "true")
 	}
