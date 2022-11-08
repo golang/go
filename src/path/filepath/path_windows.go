@@ -20,26 +20,8 @@ func toUpper(c byte) byte {
 	return c
 }
 
-// isReservedName returns true if path is a Windows reserved name.
-func isReservedName(path string) bool {
-	// For details, search for PRN in
-	// https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file.
-	if 3 <= len(path) && len(path) <= 4 {
-		switch string([]byte{toUpper(path[0]), toUpper(path[1]), toUpper(path[2])}) {
-		case "CON", "PRN", "AUX", "NUL":
-			return len(path) == 3
-		case "COM", "LPT":
-			return len(path) == 4 && '1' <= path[3] && path[3] <= '9'
-		}
-	}
-	return false
-}
-
 // IsAbs reports whether the path is absolute.
 func IsAbs(path string) (b bool) {
-	if isReservedName(path) {
-		return true
-	}
 	l := volumeNameLen(path)
 	if l == 0 {
 		return false
