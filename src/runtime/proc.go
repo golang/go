@@ -664,6 +664,7 @@ func cpuinit() {
 
 // The bootstrap sequence is:
 //
+//	call args
 //	call osinit
 //	call schedinit
 //	make & queue new G

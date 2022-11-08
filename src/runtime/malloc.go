@@ -329,7 +329,7 @@ const (
 // Mapping and unmapping operations must be done at multiples of
 // physPageSize.
 //
-// This must be set by the OS init code (typically in osinit) before
+// This must be set by the OS init code (typically in args) before
 // mallocinit.
 var physPageSize uintptr
 
