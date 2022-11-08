@@ -7,7 +7,6 @@ package net
 import (
 	"errors"
 	"internal/bytealg"
-	"io"
 	"os"
 	"sync"
 	"time"
@@ -148,63 +147,62 @@ func (c nssCriterion) standardStatusAction(last bool) bool {
 }
 
 func parseNSSConfFile(file string) *nssConf {
-	f, err := os.Open(file)
+	f, err := open(file)
 	if err != nil {
 		return &nssConf{err: err}
 	}
-	defer f.Close()
-	stat, err := f.Stat()
+	defer f.close()
+	mtime, _, err := f.stat()
 	if err != nil {
 		return &nssConf{err: err}
 	}
 
 	conf := parseNSSConf(f)
-	conf.mtime = stat.ModTime()
+	conf.mtime = mtime
 	return conf
 }
 
-func parseNSSConf(r io.Reader) *nssConf {
-	slurp, err := readFull(r)
-	if err != nil {
-		return &nssConf{err: err}
-	}
+func parseNSSConf(f *file) *nssConf {
 	conf := new(nssConf)
-	conf.err = foreachLine(slurp, func(line []byte) error {
+	for line, ok := f.readLine(); ok; line, ok = f.readLine() {
 		line = trimSpace(removeComment(line))
 		if len(line) == 0 {
-			return nil
+			continue
 		}
-		colon := bytealg.IndexByte(line, ':')
+		colon := bytealg.IndexByteString(line, ':')
 		if colon == -1 {
-			return errors.New("no colon on line")
+			conf.err = errors.New("no colon on line")
+			return conf
 		}
-		db := string(trimSpace(line[:colon]))
+		db := trimSpace(line[:colon])
 		srcs := line[colon+1:]
 		for {
 			srcs = trimSpace(srcs)
 			if len(srcs) == 0 {
 				break
 			}
-			sp := bytealg.IndexByte(srcs, ' ')
+			sp := bytealg.IndexByteString(srcs, ' ')
 			var src string
 			if sp == -1 {
-				src = string(srcs)
-				srcs = nil // done
+				src = srcs
+				srcs = "" // done
 			} else {
-				src = string(srcs[:sp])
+				src = srcs[:sp]
 				srcs = trimSpace(srcs[sp+1:])
 			}
 			var criteria []nssCriterion
 			// See if there's a criteria block in brackets.
 			if len(srcs) > 0 && srcs[0] == '[' {
-				bclose := bytealg.IndexByte(srcs, ']')
+				bclose := bytealg.IndexByteString(srcs, ']')
 				if bclose == -1 {
-					return errors.New("unclosed criterion bracket")
+					conf.err = errors.New("unclosed criterion bracket")
+					return conf
 				}
 				var err error
 				criteria, err = parseCriteria(srcs[1:bclose])
 				if err != nil {
-					return errors.New("invalid criteria: " + string(srcs[1:bclose]))
+					conf.err = errors.New("invalid criteria: " + srcs[1:bclose])
+					return conf
 				}
 				srcs = srcs[bclose+1:]
 			}
@@ -216,14 +214,13 @@ func parseNSSConf(r io.Reader) *nssConf {
 				criteria: criteria,
 			})
 		}
-		return nil
-	})
+	}
 	return conf
 }
 
 // parses "foo=bar !foo=bar"
-func parseCriteria(x []byte) (c []nssCriterion, err error) {
-	err = foreachField(x, func(f []byte) error {
+func parseCriteria(x string) (c []nssCriterion, err error) {
+	err = foreachField(x, func(f string) error {
 		not := false
 		if len(f) > 0 && f[0] == '!' {
 			not = true
@@ -232,15 +229,19 @@ func parseCriteria(x []byte) (c []nssCriterion, err error) {
 		if len(f) < 3 {
 			return errors.New("criterion too short")
 		}
-		eq := bytealg.IndexByte(f, '=')
+		eq := bytealg.IndexByteString(f, '=')
 		if eq == -1 {
 			return errors.New("criterion lacks equal sign")
 		}
-		lowerASCIIBytes(f)
+		if hasUpperCase(f) {
+			lower := []byte(f)
+			lowerASCIIBytes(lower)
+			f = string(lower)
+		}
 		c = append(c, nssCriterion{
 			negate: not,
-			status: string(f[:eq]),
-			action: string(f[eq+1:]),
+			status: f[:eq],
+			action: f[eq+1:],
 		})
 		return nil
 	})
