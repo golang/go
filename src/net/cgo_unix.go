@@ -331,11 +331,12 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, 
 // resSearch will make a call to the 'res_nsearch' routine in the C library
 // and parse the output as a slice of DNS resources.
 func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
-	var state _C_struct___res_state
-	if err := _C_res_ninit(&state); err != nil {
+	state := (*_C_struct___res_state)(_C_malloc(unsafe.Sizeof(_C_struct___res_state{})))
+	defer _C_free(unsafe.Pointer(state))
+	if err := _C_res_ninit(state); err != nil {
 		return nil, errors.New("res_ninit failure: " + err.Error())
 	}
-	defer _C_res_nclose(&state)
+	defer _C_res_nclose(state)
 
 	// Some res_nsearch implementations (like macOS) do not set errno.
 	// They set h_errno, which is not per-thread and useless to us.
@@ -350,7 +351,7 @@ func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmes
 	defer _C_free(unsafe.Pointer(buf))
 	s := _C_CString(hostname)
 	defer _C_FreeCString(s)
-	size, err := _C_res_nsearch(&state, s, class, rtype, buf, bufSize)
+	size, err := _C_res_nsearch(state, s, class, rtype, buf, bufSize)
 	if size <= 0 || size > bufSize {
 		return nil, errors.New("res_nsearch failure")
 	}
