@@ -345,17 +345,17 @@ func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmes
 	// giving us no way to find out how big the packet is.
 	// For now, we are willing to take res_search's word that there's nothing
 	// useful in the response, even though there *is* a response.
-	var buf [1500]byte
-	s, err := syscall.BytePtrFromString(hostname)
-	if err != nil {
-		return nil, err
-	}
-	size, err := _C_res_nsearch(&state, (*_C_char)(unsafe.Pointer(s)), class, rtype, (*_C_uchar)(unsafe.Pointer(&buf[0])), len(buf))
-	if size <= 0 {
+	const bufSize = 1500
+	buf := (*_C_uchar)(_C_malloc(bufSize))
+	defer _C_free(unsafe.Pointer(buf))
+	s := _C_CString(hostname)
+	defer _C_FreeCString(s)
+	size, err := _C_res_nsearch(&state, s, class, rtype, buf, bufSize)
+	if size <= 0 || size > bufSize {
 		return nil, errors.New("res_nsearch failure")
 	}
 	var p dnsmessage.Parser
-	if _, err := p.Start(buf[:size]); err != nil {
+	if _, err := p.Start(unsafe.Slice((*byte)(unsafe.Pointer(buf)), size)); err != nil {
 		return nil, err
 	}
 	p.SkipAllQuestions()

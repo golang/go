@@ -13,6 +13,7 @@ package net
 #include <netdb.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 
 // If nothing else defined EAI_OVERFLOW, make sure it has a value.
 #ifndef EAI_OVERFLOW
@@ -20,6 +21,7 @@ package net
 #endif
 */
 import "C"
+import "unsafe"
 
 const (
 	_C_AF_INET      = C.AF_INET
@@ -45,7 +47,11 @@ type (
 	_C_struct_sockaddr = C.struct_sockaddr
 )
 
-func _C_GoString(p *_C_char) string { return C.GoString(p) }
+func _C_GoString(p *_C_char) string      { return C.GoString(p) }
+func _C_CString(s string) *_C_char       { return C.CString(s) }
+func _C_FreeCString(p *_C_char)          { C.free(unsafe.Pointer(p)) }
+func _C_malloc(n uintptr) unsafe.Pointer { return C.malloc(C.size_t(n)) }
+func _C_free(p unsafe.Pointer)           { C.free(p) }
 
 func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.ai_addr }
 func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.ai_canonname }

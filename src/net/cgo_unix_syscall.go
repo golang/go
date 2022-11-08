@@ -8,6 +8,7 @@ package net
 
 import (
 	"internal/syscall/unix"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -39,6 +40,22 @@ type (
 
 func _C_GoString(p *_C_char) string {
 	return unix.GoString(p)
+}
+
+func _C_CString(s string) *_C_char {
+	p := make([]byte, len(s)+1)
+	copy(p, s)
+	return &p[0]
+}
+
+func _C_FreeCString(p *_C_char) { _C_free(unsafe.Pointer(p)) }
+func _C_free(p unsafe.Pointer)  { runtime.KeepAlive(p) }
+
+func _C_malloc(n uintptr) unsafe.Pointer {
+	if n <= 0 {
+		n = 1
+	}
+	return unsafe.Pointer(&make([]byte, n)[0])
 }
 
 func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.Addr }
