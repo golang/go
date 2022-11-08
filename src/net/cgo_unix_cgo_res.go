@@ -4,7 +4,7 @@
 
 // res_search, for cgo systems where that is thread-safe.
 
-//go:build cgo && !netgo && (android || openbsd)
+//go:build cgo && !netgo && (linux || openbsd)
 
 package net
 
@@ -18,7 +18,7 @@ package net
 #include <arpa/nameser.h>
 #include <resolv.h>
 
-#cgo !openbsd LDFLAGS: -lresolv
+#cgo !android,!openbsd LDFLAGS: -lresolv
 */
 import "C"
 
