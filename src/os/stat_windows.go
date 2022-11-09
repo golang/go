@@ -16,39 +16,17 @@ func (file *File) Stat() (FileInfo, error) {
 	if file == nil {
 		return nil, ErrInvalid
 	}
-
 	if file.isdir() {
 		// I don't know any better way to do that for directory
 		return Stat(file.dirinfo.path)
 	}
-	if isWindowsNulName(file.name) {
-		return &devNullStat, nil
-	}
-
-	ft, err := file.pfd.GetFileType()
-	if err != nil {
-		return nil, &PathError{Op: "GetFileType", Path: file.name, Err: err}
-	}
-	switch ft {
-	case syscall.FILE_TYPE_PIPE, syscall.FILE_TYPE_CHAR:
-		return &fileStat{name: basename(file.name), filetype: ft}, nil
-	}
-
-	fs, err := newFileStatFromGetFileInformationByHandle(file.name, file.pfd.Sysfd)
-	if err != nil {
-		return nil, err
-	}
-	fs.filetype = ft
-	return fs, err
+	return statHandle(file.name, file.pfd.Sysfd)
 }
 
 // stat implements both Stat and Lstat of a file.
 func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 	if len(name) == 0 {
 		return nil, &PathError{Op: funcname, Path: name, Err: syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
-	}
-	if isWindowsNulName(name) {
-		return &devNullStat, nil
 	}
 	namep, err := syscall.UTF16PtrFromString(fixLongPath(name))
 	if err != nil {
@@ -91,14 +69,34 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 	}
 
 	// Finally use CreateFile.
-	h, err := syscall.CreateFile(namep, 0, 0, nil,
-		syscall.OPEN_EXISTING, createFileAttrs, 0)
+	h, err := syscall.CreateFile(namep,
+		syscall.GENERIC_READ,
+		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE,
+		nil,
+		syscall.OPEN_EXISTING,
+		createFileAttrs, 0)
 	if err != nil {
 		return nil, &PathError{Op: "CreateFile", Path: name, Err: err}
 	}
 	defer syscall.CloseHandle(h)
+	return statHandle(name, h)
+}
 
-	return newFileStatFromGetFileInformationByHandle(name, h)
+func statHandle(name string, h syscall.Handle) (FileInfo, error) {
+	ft, err := syscall.GetFileType(h)
+	if err != nil {
+		return nil, &PathError{Op: "GetFileType", Path: name, Err: err}
+	}
+	switch ft {
+	case syscall.FILE_TYPE_PIPE, syscall.FILE_TYPE_CHAR:
+		return &fileStat{name: basename(name), filetype: ft}, nil
+	}
+	fs, err := newFileStatFromGetFileInformationByHandle(name, h)
+	if err != nil {
+		return nil, err
+	}
+	fs.filetype = ft
+	return fs, err
 }
 
 // statNolog implements Stat for Windows.

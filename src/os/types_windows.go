@@ -110,9 +110,6 @@ func (fs *fileStat) Size() int64 {
 }
 
 func (fs *fileStat) Mode() (m FileMode) {
-	if fs == &devNullStat {
-		return ModeDevice | ModeCharDevice | 0666
-	}
 	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
 		m |= 0444
 	} else {
@@ -202,15 +199,6 @@ func (fs *fileStat) saveInfoFromPath(path string) error {
 	}
 	fs.name = basename(path)
 	return nil
-}
-
-// devNullStat is fileStat structure describing DevNull file ("NUL").
-var devNullStat = fileStat{
-	name: DevNull,
-	// hopefully this will work for SameFile
-	vol:   0,
-	idxhi: 0,
-	idxlo: 0,
 }
 
 func sameFile(fs1, fs2 *fileStat) bool {
