@@ -146,7 +146,6 @@ func (c *mcentral) cacheSpan() *mspan {
 				// Check if there's any free space.
 				freeIndex := s.nextFreeIndex()
 				if freeIndex != s.nelems {
-					s.freeindex = freeIndex
 					sweep.active.end(sl)
 					goto havespan
 				}
