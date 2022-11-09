@@ -129,7 +129,8 @@ func TestMain(m *testing.M) {
 					}
 					callerPos = fmt.Sprintf("%s:%d: ", file, line)
 				}
-				return fmt.Errorf("%stestgo must not write to GOROOT (installing to %s)", callerPos, filepath.Join("GOROOT", rel))
+				notice := "This error error can occur if GOROOT is stale, in which case rerunning make.bash will fix it."
+				return fmt.Errorf("%stestgo must not write to GOROOT (installing to %s) (%v)", callerPos, filepath.Join("GOROOT", rel), notice)
 			}
 		}
 
