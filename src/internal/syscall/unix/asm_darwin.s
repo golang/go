@@ -27,3 +27,15 @@ TEXT ·libresolv_res_9_nclose_trampoline(SB),NOSPLIT,$0-0
 
 TEXT ·libresolv_res_9_nsearch_trampoline(SB),NOSPLIT,$0-0
 	JMP	libresolv_res_9_nsearch(SB)
+
+TEXT ·libc_grantpt_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_grantpt(SB)
+
+TEXT ·libc_unlockpt_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_unlockpt(SB)
+
+TEXT ·libc_ptsname_r_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_ptsname_r(SB)
+
+TEXT ·libc_posix_openpt_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_posix_openpt(SB)
