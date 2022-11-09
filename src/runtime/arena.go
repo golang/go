@@ -995,6 +995,8 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 	memclrNoHeapPointers(unsafe.Pointer(s.base()), s.elemsize)
 	s.needzero = 0
 
+	s.freeIndexForScan = 1
+
 	// Set up the range for allocation.
 	s.userArenaChunkFree = makeAddrRange(base, s.limit)
 	return s

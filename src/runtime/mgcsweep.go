@@ -648,6 +648,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 
 	s.allocCount = nalloc
 	s.freeindex = 0 // reset allocation index to start of span.
+	s.freeIndexForScan = 0
 	if trace.enabled {
 		getg().m.p.ptr().traceReclaimed += uintptr(nfreed) * s.elemsize
 	}
