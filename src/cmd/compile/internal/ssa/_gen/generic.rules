@@ -961,6 +961,7 @@
 (NilCheck (GetG mem) mem) => mem
 
 (If (Not cond) yes no) => (If cond no yes)
+(If (Phi <t> nx:(Not x) ny:(Not y)) yes no) && nx.Uses == 1 && ny.Uses == 1 => (If (Phi <t> x y) no yes)
 (If (ConstBool [c]) yes no) && c => (First yes no)
 (If (ConstBool [c]) yes no) && !c => (First no yes)
 
