@@ -19,4 +19,4 @@ import (
 // With go1.18+, this is swapped with the real implementation.
 var Govulncheck func(ctx context.Context, cfg *packages.Config, patterns string) (res command.VulncheckResult, _ error) = nil
 
-var Main func(cfg packages.Config, patterns ...string) = nil
+var Main func(cfg packages.Config, patterns ...string) error = nil

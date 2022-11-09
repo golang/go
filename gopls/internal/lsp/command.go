@@ -880,34 +880,31 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 			return fmt.Errorf("failed to run govulncheck: %v", err)
 		}
 
-		var summary govulncheck.Summary
-		if err := json.Unmarshal(stdout, &summary); err != nil {
+		var result govulncheck.Result
+		if err := json.Unmarshal(stdout, &result); err != nil {
 			// TODO: for easy debugging, log the failed stdout somewhere?
 			return fmt.Errorf("failed to parse govulncheck output: %v", err)
 		}
-
-		vulns := append(summary.Affecting, summary.NonAffecting...)
+		vulns := result.Vulns
 		deps.snapshot.View().SetVulnerabilities(args.URI.SpanURI(), vulns)
 		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
 
-		if len(summary.Affecting) == 0 {
+		affecting := make([]string, 0, len(vulns))
+		for _, v := range vulns {
+			if v.IsCalled() {
+				affecting = append(affecting, v.OSV.ID)
+			}
+		}
+		if len(affecting) == 0 {
 			return c.s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Info,
 				Message: "No vulnerabilities found",
 			})
 		}
-		set := make(map[string]bool)
-		for _, v := range summary.Affecting {
-			set[v.OSV.ID] = true
-		}
-		list := make([]string, 0, len(set))
-		for k := range set {
-			list = append(list, k)
-		}
-		sort.Strings(list)
+		sort.Strings(affecting)
 		return c.s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 			Type:    protocol.Warning,
-			Message: fmt.Sprintf("Found %v", strings.Join(list, ", ")),
+			Message: fmt.Sprintf("Found %v", strings.Join(affecting, ", ")),
 		})
 	})
 	return err

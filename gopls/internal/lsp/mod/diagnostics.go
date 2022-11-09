@@ -197,13 +197,19 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 
 	vs := snapshot.View().Vulnerabilities(fh.URI())
 	// TODO(suzmue): should we just store the vulnerabilities like this?
-	affecting := make(map[string][]govulncheck.Vuln)
-	nonaffecting := make(map[string][]govulncheck.Vuln)
+	type modVuln struct {
+		mod  *govulncheck.Module
+		vuln *govulncheck.Vuln
+	}
+	affecting := make(map[string][]modVuln)
+	nonaffecting := make(map[string][]modVuln)
 	for _, v := range vs {
-		if len(v.Trace) > 0 {
-			affecting[v.ModPath] = append(affecting[v.ModPath], v)
-		} else {
-			nonaffecting[v.ModPath] = append(nonaffecting[v.ModPath], v)
+		for _, m := range v.Modules {
+			if v.IsCalled() {
+				affecting[m.Path] = append(affecting[m.Path], modVuln{mod: m, vuln: v})
+			} else {
+				nonaffecting[m.Path] = append(nonaffecting[m.Path], modVuln{mod: m, vuln: v})
+			}
 		}
 	}
 
@@ -222,25 +228,30 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		// Fixes will include only the upgrades for warning level diagnostics.
 		var fixes []source.SuggestedFix
 		var warning, info []string
-		for _, v := range nonaffectingVulns {
+		for _, mv := range nonaffectingVulns {
+			mod, vuln := mv.mod, mv.vuln
 			// Only show the diagnostic if the vulnerability was calculated
 			// for the module at the current version.
-			if semver.IsValid(v.FoundIn) && semver.Compare(req.Mod.Version, v.FoundIn) != 0 {
+			// TODO(hyangah): this prevents from surfacing vulnerable modules
+			// since module version selection is affected by dependency module
+			// requirements and replace/exclude/go.work use. Drop this check
+			// and annotate only the module path.
+			if semver.IsValid(mod.FoundVersion) && semver.Compare(req.Mod.Version, mod.FoundVersion) != 0 {
 				continue
 			}
-			info = append(info, v.OSV.ID)
+			info = append(info, vuln.OSV.ID)
 		}
-		for _, v := range affectingVulns {
+		for _, mv := range affectingVulns {
+			mod, vuln := mv.mod, mv.vuln
 			// Only show the diagnostic if the vulnerability was calculated
 			// for the module at the current version.
-			if semver.IsValid(v.FoundIn) && semver.Compare(req.Mod.Version, v.FoundIn) != 0 {
+			if semver.IsValid(mod.FoundVersion) && semver.Compare(req.Mod.Version, mod.FoundVersion) != 0 {
 				continue
 			}
-			warning = append(warning, v.OSV.ID)
+			warning = append(warning, vuln.OSV.ID)
 			// Upgrade to the exact version we offer the user, not the most recent.
 			// TODO(hakim): Produce fixes only for affecting vulnerabilities (if len(v.Trace) > 0)
-
-			if fixedVersion := v.FixedIn; semver.IsValid(fixedVersion) && semver.Compare(req.Mod.Version, fixedVersion) < 0 {
+			if fixedVersion := mod.FixedVersion; semver.IsValid(fixedVersion) && semver.Compare(req.Mod.Version, fixedVersion) < 0 {
 				cmd, err := getUpgradeCodeAction(fh, req, fixedVersion)
 				if err != nil {
 					return nil, err
@@ -297,7 +308,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 	return vulnDiagnostics, nil
 }
 
-func formatMessage(v govulncheck.Vuln) string {
+func formatMessage(v *govulncheck.Vuln) string {
 	details := []byte(v.OSV.Details)
 	// Remove any new lines that are not preceded or followed by a new line.
 	for i, r := range details {

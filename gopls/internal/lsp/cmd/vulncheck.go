@@ -82,9 +82,11 @@ func (v *vulncheck) Run(ctx context.Context, args ...string) error {
 	}
 
 	if v.AsSummary {
-		// vulnchecklib.Main calls os.Exit and never returns.
-		vulnchecklib.Main(loadCfg, args...)
-		return nil
+		if err := vulnchecklib.Main(loadCfg, args...); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
 	// TODO(hyangah): delete.
 	res, err := vulnchecklib.Govulncheck(ctx, &loadCfg, pattern)

@@ -71,7 +71,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}
 
 	// Get the vulnerability info.
-	affecting, nonaffecting := lookupVulns(snapshot.View().Vulnerabilities(fh.URI()), req)
+	affecting, nonaffecting := lookupVulns(snapshot.View().Vulnerabilities(fh.URI()), req.Mod.Path)
 
 	// Get the `go mod why` results for the given file.
 	why, err := snapshot.ModWhy(ctx, fh)
@@ -94,7 +94,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	isPrivate := snapshot.View().IsGoPrivatePath(req.Mod.Path)
 	header := formatHeader(req.Mod.Path, options)
 	explanation = formatExplanation(explanation, req, options, isPrivate)
-	vulns := formatVulnerabilities(affecting, nonaffecting, options)
+	vulns := formatVulnerabilities(req.Mod.Path, affecting, nonaffecting, options)
 
 	return &protocol.Hover{
 		Contents: protocol.MarkupContent{
@@ -117,33 +117,25 @@ func formatHeader(modpath string, options *source.Options) string {
 	return b.String()
 }
 
-func compareVuln(i, j govulncheck.Vuln) bool {
-	if i.OSV.ID == j.OSV.ID {
-		return i.PkgPath < j.PkgPath
-	}
-	return i.OSV.ID < j.OSV.ID
-}
-
-func lookupVulns(vulns []govulncheck.Vuln, req *modfile.Require) (affecting, nonaffecting []govulncheck.Vuln) {
-	modpath, modversion := req.Mod.Path, req.Mod.Version
-
-	var info, warning []govulncheck.Vuln
+func lookupVulns(vulns []*govulncheck.Vuln, modpath string) (affecting, nonaffecting []*govulncheck.Vuln) {
 	for _, vuln := range vulns {
-		if vuln.ModPath != modpath || vuln.FoundIn != modversion {
-			continue
-		}
-		if len(vuln.Trace) == 0 {
-			info = append(info, vuln)
-		} else {
-			warning = append(warning, vuln)
+		for _, mod := range vuln.Modules {
+			if mod.Path != modpath {
+				continue
+			}
+			if vuln.IsCalled() {
+				affecting = append(affecting, vuln)
+			} else {
+				nonaffecting = append(nonaffecting, vuln)
+			}
 		}
 	}
-	sort.Slice(info, func(i, j int) bool { return compareVuln(info[i], info[j]) })
-	sort.Slice(warning, func(i, j int) bool { return compareVuln(warning[i], warning[j]) })
-	return warning, info
+	sort.Slice(nonaffecting, func(i, j int) bool { return nonaffecting[i].OSV.ID < nonaffecting[j].OSV.ID })
+	sort.Slice(affecting, func(i, j int) bool { return affecting[i].OSV.ID < affecting[j].OSV.ID })
+	return affecting, nonaffecting
 }
 
-func formatVulnerabilities(affecting, nonaffecting []govulncheck.Vuln, options *source.Options) string {
+func formatVulnerabilities(modPath string, affecting, nonaffecting []*govulncheck.Vuln, options *source.Options) string {
 	if len(affecting) == 0 && len(nonaffecting) == 0 {
 		return ""
 	}
@@ -163,10 +155,7 @@ func formatVulnerabilities(affecting, nonaffecting []govulncheck.Vuln, options *
 		}
 	}
 	for _, v := range affecting {
-		fix := "No fix is available."
-		if v.FixedIn != "" {
-			fix = "Fixed in " + v.FixedIn + "."
-		}
+		fix := fixedVersionInfo(v, modPath)
 
 		if useMarkdown {
 			fmt.Fprintf(&b, "- [**%v**](%v) %v %v\n", v.OSV.ID, href(v.OSV), formatMessage(v), fix)
@@ -178,10 +167,7 @@ func formatVulnerabilities(affecting, nonaffecting []govulncheck.Vuln, options *
 		fmt.Fprintf(&b, "\n**FYI:** The project imports packages with known vulnerabilities, but does not call the vulnerable code.\n")
 	}
 	for _, v := range nonaffecting {
-		fix := "No fix is available."
-		if v.FixedIn != "" {
-			fix = "Fixed in " + v.FixedIn + "."
-		}
+		fix := fixedVersionInfo(v, modPath)
 		if useMarkdown {
 			fmt.Fprintf(&b, "- [%v](%v) %v %v\n", v.OSV.ID, href(v.OSV), formatMessage(v), fix)
 		} else {
@@ -190,6 +176,20 @@ func formatVulnerabilities(affecting, nonaffecting []govulncheck.Vuln, options *
 	}
 	b.WriteString("\n")
 	return b.String()
+}
+
+func fixedVersionInfo(v *govulncheck.Vuln, modPath string) string {
+	fix := "No fix is available."
+	for _, m := range v.Modules {
+		if m.Path != modPath {
+			continue
+		}
+		if m.FixedVersion != "" {
+			fix = "Fixed in " + m.FixedVersion + "."
+		}
+		break
+	}
+	return fix
 }
 
 func formatExplanation(text string, req *modfile.Require, options *source.Options, isPrivate bool) string {

@@ -9,6 +9,7 @@ package vulncheck
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -216,19 +217,32 @@ func trimPosPrefix(summary string) string {
 const GoVersionForVulnTest = "_GOPLS_TEST_VULNCHECK_GOVERSION"
 
 func init() {
-	Main = func(cfg packages.Config, patterns ...string) {
-		// never return
-		err := gvcapi.Main(gvcapi.Config{
-			AnalysisType:     "source",
-			OutputType:       "summary",
-			Patterns:         patterns,
-			SourceLoadConfig: &cfg,
-			GoVersion:        os.Getenv(GoVersionForVulnTest),
+	Main = func(cfg packages.Config, patterns ...string) error {
+		// Set the mode that Source needs.
+		cfg.Mode = packages.NeedName | packages.NeedImports | packages.NeedTypes |
+			packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedDeps |
+			packages.NeedModule
+
+		pkgs, err := packages.Load(&cfg, patterns...)
+		if err != nil {
+			return err
+		}
+		cli, err := client.NewClient(findGOVULNDB(&cfg), client.Options{
+			HTTPCache: gvc.DefaultCache(),
 		})
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return err
 		}
-		os.Exit(0)
+		res, err := gvcapi.Source(context.Background(), &gvcapi.Config{
+			Client:    cli,
+			GoVersion: os.Getenv(GoVersionForVulnTest),
+		}, vulncheck.Convert(pkgs))
+		if err != nil {
+			return err
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(res); err != nil {
+			return err
+		}
+		return nil
 	}
 }
