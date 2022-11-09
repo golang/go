@@ -482,7 +482,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	pkgs = omitTestOnly(pkgsFilter(pkgs))
 
 	// Special case -o /dev/null by not writing at all.
-	if cfg.BuildO == os.DevNull {
+	if base.IsNull(cfg.BuildO) {
 		cfg.BuildO = ""
 	}
 

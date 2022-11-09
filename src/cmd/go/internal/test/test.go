@@ -1010,13 +1010,16 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 	if testC || testNeedBinary() {
 		// -c or profiling flag: create action to copy binary to ./test.out.
 		target := filepath.Join(base.Cwd(), testBinary+cfg.ExeSuffix)
+		isNull := false
 		if testO != "" {
 			target = testO
-			if !filepath.IsAbs(target) {
+			if base.IsNull(target) {
+				isNull = true
+			} else if !filepath.IsAbs(target) {
 				target = filepath.Join(base.Cwd(), target)
 			}
 		}
-		if target == os.DevNull {
+		if isNull {
 			runAction = buildAction
 		} else {
 			pmain.Target = target
