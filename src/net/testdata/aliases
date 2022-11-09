@@ -4,5 +4,5 @@
 127.0.0.4 example.com
 127.0.0.5 test4.example.com 4.test 5.test test5.example.com
 
-#must be a non resolvable domain on the internet
-127.0.1.1 invalid.test invalid
+# must be a non resolvable domain on the internet
+127.0.1.1 invalid.test invalid.invalid

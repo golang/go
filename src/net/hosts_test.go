@@ -177,17 +177,17 @@ func TestHostCacheModification(t *testing.T) {
 var lookupStaticHostAliasesTest = []struct {
 	lookup, res string
 }{
-	//127.0.0.1
+	// 127.0.0.1
 	{"test", "test"},
-	//127.0.0.2
+	// 127.0.0.2
 	{"test2.example.com", "test2.example.com"},
 	{"2.test", "test2.example.com"},
-	//127.0.0.3
+	// 127.0.0.3
 	{"test3.example.com", "3.test"},
 	{"3.test", "3.test"},
-	//127.0.0.4
+	// 127.0.0.4
 	{"example.com", "example.com"},
-	//127.0.0.5
+	// 127.0.0.5
 	{"test5.example.com", "test4.example.com"},
 	{"5.test", "test4.example.com"},
 	{"4.test", "test4.example.com"},
@@ -199,7 +199,7 @@ func TestLookupStaticHostAliases(t *testing.T) {
 
 	testHookHostsPath = "testdata/aliases"
 	for _, ent := range lookupStaticHostAliasesTest {
-			testLookupStaticHostAliases(t, ent.lookup, absDomainName(ent.res))
+		testLookupStaticHostAliases(t, ent.lookup, absDomainName(ent.res))
 	}
 }
 

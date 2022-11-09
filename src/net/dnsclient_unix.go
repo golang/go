@@ -612,9 +612,10 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 		}
 
 		if order == hostLookupFiles {
-			return nil, dnsmessage.Name{}, errors.New("no entry in /etc/hosts file")
+			return nil, dnsmessage.Name{}, &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
 		}
 	}
+
 	if !isDomainName(name) {
 		// See comment in func lookup above about use of errNoSuchHost.
 		return nil, dnsmessage.Name{}, &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
