@@ -623,6 +623,16 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- syscall -->
 
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/43620, CL 420254 -->
+      The new method <a href="/pkg/testing/#B.Elapsed"><code>B.Elapsed</code></a>
+      reports the current elapsed time of the benchmark, which may be useful for
+      calculating rates to report with <code>ReportMetric</code>.
+    </p>
+  </dd>
+</dl><!-- testing -->
+
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/52746 -->
