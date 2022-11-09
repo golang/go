@@ -165,21 +165,6 @@ func ModUpgradeDiagnostics(ctx context.Context, snapshot source.Snapshot, fh sou
 	return upgradeDiagnostics, nil
 }
 
-func pkgVersion(pkgVersion string) (pkg, ver string) {
-	if pkgVersion == "" {
-		return "", ""
-	}
-	at := strings.Index(pkgVersion, "@")
-	switch {
-	case at < 0:
-		return pkgVersion, ""
-	case at == 0:
-		return "", pkgVersion[1:]
-	default:
-		return pkgVersion[:at], pkgVersion[at+1:]
-	}
-}
-
 const upgradeCodeActionPrefix = "Upgrade to "
 
 // ModVulnerabilityDiagnostics adds diagnostics for vulnerabilities in individual modules
