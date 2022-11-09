@@ -7,9 +7,9 @@ require (
 	github.com/jba/printsrc v0.2.2
 	github.com/jba/templatecheck v0.6.0
 	github.com/sergi/go-diff v1.1.0
-	golang.org/x/mod v0.6.0
+	golang.org/x/mod v0.7.0
 	golang.org/x/sync v0.1.0
-	golang.org/x/sys v0.1.0
+	golang.org/x/sys v0.2.0
 	golang.org/x/text v0.4.0
 	golang.org/x/tools v0.2.0
 	golang.org/x/vuln v0.0.0-20221010193109-563322be2ea9
