@@ -665,6 +665,13 @@ proxyHandler := &httputil.ReverseProxy{
     <p><!-- CL 363814 --><!-- https://go.dev/issue/47209 -->
       TODO: <a href="https://go.dev/cl/363814">https://go.dev/cl/363814</a>: path/filepath, io/fs: add SkipAll; modified api/next/47209.txt
     </p>
+    <p><!-- https://go.dev/issue/56219 -->
+      The new <code>IsLocal</code> function reports whether a path is
+      lexically local to a directory.
+      For example, if <code>IsLocal(p)</code> is <code>true</code>,
+      then <code>Open(p)</code> will refer to a file that is lexically
+      within the subtree rooted at the current directory.
+    </p>
   </dd>
 </dl><!-- io -->
 

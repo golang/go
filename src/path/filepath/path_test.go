@@ -143,6 +143,60 @@ func TestClean(t *testing.T) {
 	}
 }
 
+type IsLocalTest struct {
+	path    string
+	isLocal bool
+}
+
+var islocaltests = []IsLocalTest{
+	{"", false},
+	{".", true},
+	{"..", false},
+	{"../a", false},
+	{"/", false},
+	{"/a", false},
+	{"/a/../..", false},
+	{"a", true},
+	{"a/../a", true},
+	{"a/", true},
+	{"a/.", true},
+	{"a/./b/./c", true},
+}
+
+var winislocaltests = []IsLocalTest{
+	{"NUL", false},
+	{"nul", false},
+	{"nul.", false},
+	{"nul.txt", false},
+	{"com1", false},
+	{"./nul", false},
+	{"a/nul.txt/b", false},
+	{`\`, false},
+	{`\a`, false},
+	{`C:`, false},
+	{`C:\a`, false},
+	{`..\a`, false},
+}
+
+var plan9islocaltests = []IsLocalTest{
+	{"#a", false},
+}
+
+func TestIsLocal(t *testing.T) {
+	tests := islocaltests
+	if runtime.GOOS == "windows" {
+		tests = append(tests, winislocaltests...)
+	}
+	if runtime.GOOS == "plan9" {
+		tests = append(tests, plan9islocaltests...)
+	}
+	for _, test := range tests {
+		if got := filepath.IsLocal(test.path); got != test.isLocal {
+			t.Errorf("IsLocal(%q) = %v, want %v", test.path, got, test.isLocal)
+		}
+	}
+}
+
 const sep = filepath.Separator
 
 var slashtests = []PathTest{
