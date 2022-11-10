@@ -27,7 +27,7 @@ type nsswitchConfig struct {
 	ch          chan struct{} // guards lastChecked and modTime
 	lastChecked time.Time     // last time nsswitch.conf was checked
 
-	mu      sync.RWMutex // protects nssConf
+	mu      sync.Mutex // protects nssConf
 	nssConf *nssConf
 }
 
