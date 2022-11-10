@@ -34,12 +34,16 @@ func newosproc(mp *m) {
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, abi.FuncPCABI0(mstart))
+	ret := retryOnEAGAIN(func() int32 {
+		errno := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, abi.FuncPCABI0(mstart))
+		// tfork returns negative errno
+		return -errno
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 
-	if ret < 0 {
-		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
-		if ret == -_EAGAIN {
+	if ret != 0 {
+		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", ret, ")\n")
+		if ret == _EAGAIN {
 			println("runtime: may need to increase max user processes (ulimit -p)")
 		}
 		throw("runtime.newosproc")

@@ -28,8 +28,6 @@ type conf struct {
 
 	goos          string // the runtime.GOOS, to ease testing
 	dnsDebugLevel int
-
-	nss *nssConf
 }
 
 var (
@@ -109,10 +107,6 @@ func initConfVal() {
 	if runtime.GOOS == "openbsd" && os.Getenv("ASR_CONFIG") != "" {
 		confVal.forceCgoLookupHost = true
 		return
-	}
-
-	if runtime.GOOS != "openbsd" {
-		confVal.nss = parseNSSConfFile("/etc/nsswitch.conf")
 	}
 
 	if _, err := os.Stat("/etc/mdns.allow"); err == nil {
@@ -223,7 +217,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		return fallbackOrder, conf
 	}
 
-	nss := c.nss
+	nss := getSystemNSS()
 	srcs := nss.sources["hosts"]
 	// If /etc/nsswitch.conf doesn't exist or doesn't specify any
 	// sources for "hosts", assume Go's DNS will work fine.

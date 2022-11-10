@@ -681,8 +681,11 @@ func TestImportDirTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.PkgTargetRoot == "" || p.PkgObj == "" {
-		t.Errorf("p.PkgTargetRoot == %q, p.PkgObj == %q, want non-empty", p.PkgTargetRoot, p.PkgObj)
+	if p.PkgTargetRoot == "" {
+		t.Errorf("p.PkgTargetRoot == %q, want non-empty", p.PkgTargetRoot)
+	}
+	if testenv.HasCGO() && p.PkgObj == "" {
+		t.Errorf("p.PkgObj == %q, want non-empty", p.PkgObj)
 	}
 }
 

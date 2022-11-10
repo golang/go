@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
-	_ "unsafe" // for go:linkname
+	"unsafe"
 )
 
 //go:generate go run wincallback.go
@@ -92,4 +92,11 @@ func syscall_runtimeUnsetenv(key string) {
 	if key == "GODEBUG" {
 		godebugenv.Store(nil)
 	}
+}
+
+// writeErrStr writes a string to descriptor 2.
+//
+//go:nosplit
+func writeErrStr(s string) {
+	write(2, unsafe.Pointer(unsafe.StringData(s)), int32(len(s)))
 }

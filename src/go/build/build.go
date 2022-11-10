@@ -783,7 +783,7 @@ Found:
 			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
 
 			// Set the install target if applicable.
-			if strings.ToLower(godebug.Get("installgoroot")) == "all" || !p.Goroot {
+			if !p.Goroot || (strings.EqualFold(godebug.Get("installgoroot"), "all") && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
 				p.PkgObj = ctxt.joinPath(p.Root, pkga)
 			}
 		}

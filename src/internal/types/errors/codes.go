@@ -34,7 +34,9 @@ const (
 	// InvalidSyntaxTree occurs if an invalid syntax tree is provided
 	// to the type checker. It should never happen.
 	InvalidSyntaxTree Code = -1
+)
 
+const (
 	// The zero Code value indicates an unset (invalid) error code.
 	_ Code = iota
 

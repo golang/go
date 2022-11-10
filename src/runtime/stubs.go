@@ -59,13 +59,10 @@ func mcall(fn func(*g))
 //go:noescape
 func systemstack(fn func())
 
-var badsystemstackMsg = "fatal: systemstack called from unexpected goroutine"
-
 //go:nosplit
 //go:nowritebarrierrec
 func badsystemstack() {
-	sp := stringStructOf(&badsystemstackMsg)
-	write(2, sp.str, int32(sp.len))
+	writeErrStr("fatal: systemstack called from unexpected goroutine")
 }
 
 // memclrNoHeapPointers clears n bytes starting at ptr.

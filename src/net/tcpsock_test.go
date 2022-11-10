@@ -808,3 +808,22 @@ func BenchmarkSetReadDeadline(b *testing.B) {
 		deadline = deadline.Add(1)
 	}
 }
+
+func TestDialTCPDefaultKeepAlive(t *testing.T) {
+	ln := newLocalListener(t, "tcp")
+	defer ln.Close()
+
+	got := time.Duration(-1)
+	testHookSetKeepAlive = func(d time.Duration) { got = d }
+	defer func() { testHookSetKeepAlive = func(time.Duration) {} }()
+
+	c, err := DialTCP("tcp", nil, ln.Addr().(*TCPAddr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	if got != defaultTCPKeepAlive {
+		t.Errorf("got keepalive %v; want %v", got, defaultTCPKeepAlive)
+	}
+}

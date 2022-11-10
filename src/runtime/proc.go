@@ -494,22 +494,16 @@ func badreflectcall() {
 	panic(plainError("arg size to reflect.call more than 1GB"))
 }
 
-var badmorestackg0Msg = "fatal: morestack on g0\n"
-
 //go:nosplit
 //go:nowritebarrierrec
 func badmorestackg0() {
-	sp := stringStructOf(&badmorestackg0Msg)
-	write(2, sp.str, int32(sp.len))
+	writeErrStr("fatal: morestack on g0\n")
 }
-
-var badmorestackgsignalMsg = "fatal: morestack on gsignal\n"
 
 //go:nosplit
 //go:nowritebarrierrec
 func badmorestackgsignal() {
-	sp := stringStructOf(&badmorestackgsignalMsg)
-	write(2, sp.str, int32(sp.len))
+	writeErrStr("fatal: morestack on gsignal\n")
 }
 
 //go:nosplit
@@ -1890,7 +1884,7 @@ func needm() {
 		// for details.
 		//
 		// Can not throw, because scheduler is not initialized yet.
-		write(2, unsafe.Pointer(&earlycgocallback[0]), int32(len(earlycgocallback)))
+		writeErrStr("fatal error: cgo callback before cgo call\n")
 		exit(1)
 	}
 
@@ -1949,8 +1943,6 @@ func needm() {
 	casgstatus(mp.curg, _Gdead, _Gsyscall)
 	sched.ngsys.Add(-1)
 }
-
-var earlycgocallback = []byte("fatal error: cgo callback before cgo call\n")
 
 // newextram allocates m's and puts them on the extra list.
 // It is called with a working local m, so that it can do things
@@ -2142,6 +2134,13 @@ var (
 	// behaviour around exec'ing while creating/destroying threads. See
 	// issue #19546.
 	execLock rwmutex
+)
+
+// These errors are reported (via writeErrStr) by some OS-specific
+// versions of newosproc and newosproc0.
+const (
+	failthreadcreate  = "runtime: failed to create new OS thread\n"
+	failallocatestack = "runtime: failed to allocate stack for the new OS thread\n"
 )
 
 // newmHandoff contains a list of m structures that need new OS threads.

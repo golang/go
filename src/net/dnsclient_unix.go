@@ -564,7 +564,7 @@ func (r *Resolver) goLookupHost(ctx context.Context, name string, conf *dnsConfi
 func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hostLookupOrder, conf *dnsConfig) (addrs []string, err error) {
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
 		// Use entries from /etc/hosts if they match.
-		addrs = lookupStaticHost(name)
+		addrs, _ = lookupStaticHost(name)
 		if len(addrs) > 0 || order == hostLookupFiles {
 			return
 		}
@@ -581,8 +581,9 @@ func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hos
 }
 
 // lookup entries from /etc/hosts
-func goLookupIPFiles(name string) (addrs []IPAddr) {
-	for _, haddr := range lookupStaticHost(name) {
+func goLookupIPFiles(name string) (addrs []IPAddr, canonical string) {
+	addr, canonical := lookupStaticHost(name)
+	for _, haddr := range addr {
 		haddr, zone := splitHostZone(haddr)
 		if ip := ParseIP(haddr); ip != nil {
 			addr := IPAddr{IP: ip, Zone: zone}
@@ -590,7 +591,7 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
 		}
 	}
 	sortByRFC6724(addrs)
-	return
+	return addrs, canonical
 }
 
 // goLookupIP is the native Go implementation of LookupIP.
@@ -603,9 +604,20 @@ func (r *Resolver) goLookupIP(ctx context.Context, network, host string) (addrs 
 
 func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name string, order hostLookupOrder, conf *dnsConfig) (addrs []IPAddr, cname dnsmessage.Name, err error) {
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
-		addrs = goLookupIPFiles(name)
-		if len(addrs) > 0 || order == hostLookupFiles {
-			return addrs, dnsmessage.Name{}, nil
+		var canonical string
+		addrs, canonical = goLookupIPFiles(name)
+
+		if len(addrs) > 0 {
+			var err error
+			cname, err = dnsmessage.NewName(canonical)
+			if err != nil {
+				return nil, dnsmessage.Name{}, err
+			}
+			return addrs, cname, nil
+		}
+
+		if order == hostLookupFiles {
+			return nil, dnsmessage.Name{}, &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
 		}
 	}
 
@@ -783,9 +795,18 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 	sortByRFC6724(addrs)
 	if len(addrs) == 0 && !(network == "CNAME" && cname.Length > 0) {
 		if order == hostLookupDNSFiles {
-			addrs = goLookupIPFiles(name)
+			var canonical string
+			addrs, canonical = goLookupIPFiles(name)
+			if len(addrs) > 0 {
+				var err error
+				cname, err = dnsmessage.NewName(canonical)
+				if err != nil {
+					return nil, dnsmessage.Name{}, err
+				}
+				return addrs, cname, nil
+			}
 		}
-		if len(addrs) == 0 && lastErr != nil {
+		if lastErr != nil {
 			return nil, dnsmessage.Name{}, lastErr
 		}
 	}

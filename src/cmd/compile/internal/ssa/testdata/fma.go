@@ -14,6 +14,10 @@ func f(x float64) float64 {
 	return x
 }
 
+func inlineFma(x, y, z float64) float64 {
+	return x + y*z
+}
+
 func main() {
 	w, x, y := 1.0, 1.0, 1.0
 	x = f(x + x/(1<<52))
@@ -21,7 +25,9 @@ func main() {
 	y = f(y + y/(1<<52))
 	w0 := f(2 * w * (1 - w))
 	w1 := f(w * (1 + w))
-	x = x + w0*w1 // GOFMAHASH=101111101101111001110110
+	x = x + w0*w1
+	x = inlineFma(x, w0, w1)
+	y = y + f(w0*w1)
 	y = y + f(w0*w1)
 	fmt.Println(x, y, x-y)
 

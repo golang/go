@@ -20,9 +20,6 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// debugging/development support
-const debug = false
-
 func lookupGorootExport(pkgpath, srcRoot, srcDir string) (string, bool) {
 	pkgpath = filepath.ToSlash(pkgpath)
 	m, err := goroot.PkgfileMap()
@@ -37,7 +34,9 @@ func lookupGorootExport(pkgpath, srcRoot, srcDir string) (string, bool) {
 		vendorPrefix = path.Join("cmd", vendorPrefix)
 	}
 	pkgpath = path.Join(vendorPrefix, pkgpath)
-	fmt.Fprintln(os.Stderr, "looking up ", pkgpath)
+	if false { // for debugging
+		fmt.Fprintln(os.Stderr, "looking up ", pkgpath)
+	}
 	export, ok := m[pkgpath]
 	return export, ok
 }

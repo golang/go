@@ -49,9 +49,12 @@ type ProtocolError struct {
 func (pe *ProtocolError) Error() string { return pe.ErrorString }
 
 var (
-	// ErrNotSupported is returned by the Push method of Pusher
-	// implementations to indicate that HTTP/2 Push support is not
-	// available.
+	// ErrNotSupported indicates that a feature is not supported.
+	//
+	// It is returned by ResponseController methods to indicate that
+	// the handler does not support the method, and by the Push method
+	// of Pusher implementations to indicate that HTTP/2 Push support
+	// is not available.
 	ErrNotSupported = &ProtocolError{"feature not supported"}
 
 	// Deprecated: ErrUnexpectedTrailer is no longer returned by

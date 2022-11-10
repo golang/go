@@ -19,7 +19,7 @@ import (
 )
 
 var cmdTidy = &base.Command{
-	UsageLine: "go mod tidy [-e] [-v] [-go=version] [-compat=version]",
+	UsageLine: "go mod tidy [-e] [-v] [-x] [-go=version] [-compat=version]",
 	Short:     "add missing and remove unused modules",
 	Long: `
 Tidy makes sure go.mod matches the source code in the module.
@@ -48,6 +48,8 @@ version. By default, tidy acts as if the -compat flag were set to the
 version prior to the one indicated by the 'go' directive in the go.mod
 file.
 
+The -x flag causes tidy to print the commands download executes.
+
 See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 	`,
 	Run: runTidy,
@@ -61,6 +63,7 @@ var (
 
 func init() {
 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	cmdTidy.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
 	cmdTidy.Flag.Var(&tidyGo, "go", "")
 	cmdTidy.Flag.Var(&tidyCompat, "compat", "")

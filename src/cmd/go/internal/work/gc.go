@@ -392,6 +392,21 @@ func asmArgs(a *Action, p *load.Package) []any {
 		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
 	}
 
+	if cfg.Goarch == "ppc64" || cfg.Goarch == "ppc64le" {
+		// Define GOPPC64_power8..N from cfg.PPC64.
+		// We treat each powerpc version as a superset of functionality.
+		switch cfg.GOPPC64 {
+		case "power10":
+			args = append(args, "-D", "GOPPC64_power10")
+			fallthrough
+		case "power9":
+			args = append(args, "-D", "GOPPC64_power9")
+			fallthrough
+		default: // This should always be power8.
+			args = append(args, "-D", "GOPPC64_power8")
+		}
+	}
+
 	return args
 }
 

@@ -1248,7 +1248,7 @@
 //
 // Usage:
 //
-//	go mod graph [-go=version]
+//	go mod graph [-go=version] [-x]
 //
 // Graph prints the module requirement graph (with replacements applied)
 // in text form. Each line in the output has two space-separated fields: a module
@@ -1258,6 +1258,8 @@
 // The -go flag causes graph to report the module graph as loaded by the
 // given Go version, instead of the version indicated by the 'go' directive
 // in the go.mod file.
+//
+// The -x flag causes graph to print the commands graph executes.
 //
 // See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
 //
@@ -1285,7 +1287,7 @@
 //
 // Usage:
 //
-//	go mod tidy [-e] [-v] [-go=version] [-compat=version]
+//	go mod tidy [-e] [-v] [-x] [-go=version] [-compat=version]
 //
 // Tidy makes sure go.mod matches the source code in the module.
 // It adds any missing modules necessary to build the current module's
@@ -1312,6 +1314,8 @@
 // version. By default, tidy acts as if the -compat flag were set to the
 // version prior to the one indicated by the 'go' directive in the go.mod
 // file.
+//
+// The -x flag causes tidy to print the commands download executes.
 //
 // See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 //

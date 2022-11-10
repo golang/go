@@ -316,18 +316,22 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 	if cfg.BuildMod == "vendor" {
 		mainModule := MainModules.mustGetSingleMainModule()
 		modRoot := MainModules.ModRoot(mainModule)
-		mainDir, mainOK, mainErr := dirInModule(path, MainModules.PathPrefix(mainModule), modRoot, true)
-		if mainOK {
-			mods = append(mods, mainModule)
-			dirs = append(dirs, mainDir)
-			roots = append(roots, modRoot)
-		}
-		vendorDir, vendorOK, _ := dirInModule(path, "", filepath.Join(modRoot, "vendor"), false)
-		if vendorOK {
-			readVendorList(mainModule)
-			mods = append(mods, vendorPkgModule[path])
-			dirs = append(dirs, vendorDir)
-			roots = append(roots, modRoot)
+		var mainErr error
+		if modRoot != "" {
+			mainDir, mainOK, err := dirInModule(path, MainModules.PathPrefix(mainModule), modRoot, true)
+			mainErr = err
+			if mainOK {
+				mods = append(mods, mainModule)
+				dirs = append(dirs, mainDir)
+				roots = append(roots, modRoot)
+			}
+			vendorDir, vendorOK, _ := dirInModule(path, "", filepath.Join(modRoot, "vendor"), false)
+			if vendorOK {
+				readVendorList(mainModule)
+				mods = append(mods, vendorPkgModule[path])
+				dirs = append(dirs, vendorDir)
+				roots = append(roots, modRoot)
+			}
 		}
 
 		if len(dirs) > 1 {

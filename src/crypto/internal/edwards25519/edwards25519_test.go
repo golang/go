@@ -300,3 +300,14 @@ func decodeHex(s string) []byte {
 	}
 	return b
 }
+
+func BenchmarkEncodingDecoding(b *testing.B) {
+	p := new(Point).Set(dalekScalarBasepoint)
+	for i := 0; i < b.N; i++ {
+		buf := p.Bytes()
+		_, err := p.SetBytes(buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

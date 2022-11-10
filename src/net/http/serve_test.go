@@ -736,6 +736,75 @@ func testServerTimeoutsWithTimeout(t *testing.T, timeout time.Duration, mode tes
 	return nil
 }
 
+func TestServerReadTimeout(t *testing.T) { run(t, testServerReadTimeout) }
+func testServerReadTimeout(t *testing.T, mode testMode) {
+	if mode == http2Mode {
+		t.Skip("https://go.dev/issue/49837")
+	}
+	respBody := "response body"
+	cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+		_, err := io.Copy(io.Discard, req.Body)
+		if !errors.Is(err, os.ErrDeadlineExceeded) {
+			t.Errorf("server timed out reading request body: got err %v; want os.ErrDeadlineExceeded", err)
+		}
+		res.Write([]byte(respBody))
+	}), func(ts *httptest.Server) {
+		ts.Config.ReadTimeout = 5 * time.Millisecond
+	})
+	pr, pw := io.Pipe()
+	res, err := cst.c.Post(cst.ts.URL, "text/apocryphal", pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	got, err := io.ReadAll(res.Body)
+	if string(got) != respBody || err != nil {
+		t.Errorf("client read response body: %q, %v; want %q, nil", string(got), err, respBody)
+	}
+	pw.Close()
+}
+
+func TestServerWriteTimeout(t *testing.T) { run(t, testServerWriteTimeout) }
+func testServerWriteTimeout(t *testing.T, mode testMode) {
+	if mode == http2Mode {
+		t.Skip("https://go.dev/issue/56478")
+	}
+	for timeout := 5 * time.Millisecond; ; timeout *= 2 {
+		errc := make(chan error, 2)
+		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+			errc <- nil
+			_, err := io.Copy(res, neverEnding('a'))
+			errc <- err
+		}), func(ts *httptest.Server) {
+			ts.Config.WriteTimeout = timeout
+		})
+		res, err := cst.c.Get(cst.ts.URL)
+		if err != nil {
+			// Probably caused by the write timeout expiring before the handler runs.
+			t.Logf("Get error, retrying: %v", err)
+			cst.close()
+			continue
+		}
+		defer res.Body.Close()
+		_, err = io.Copy(io.Discard, res.Body)
+		if err == nil {
+			t.Errorf("client reading from truncated request body: got nil error, want non-nil")
+		}
+		cst.close()
+		select {
+		case <-errc:
+			err = <-errc // io.Copy error
+			if !errors.Is(err, os.ErrDeadlineExceeded) {
+				t.Errorf("server timed out writing request body: got err %v; want os.ErrDeadlineExceeded", err)
+			}
+			return
+		default:
+			// The write timeout expired before the handler started.
+			t.Logf("handler didn't run, retrying")
+		}
+	}
+}
+
 // Test that the HTTP/2 server handles Server.WriteTimeout (Issue 18437)
 func TestWriteDeadlineExtendedOnNewRequest(t *testing.T) {
 	run(t, testWriteDeadlineExtendedOnNewRequest)
