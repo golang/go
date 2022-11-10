@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 21, 2022",
+	"Subtitle": "Version of November 10, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -5083,12 +5083,16 @@ These terms and the result of the comparisons are defined as follows:
 	<li>
 	Struct values are comparable if all their fields are comparable.
 	Two struct values are equal if their corresponding
-	non-<a href="#Blank_identifier">blank</a> fields are equal.
+	non-<a href="#Blank_identifier">blank</a> field values are equal.
+	The fields are compared in source order, and comparison stops as
+	soon as two field values differ (or all fields have been compared).
 	</li>
 
 	<li>
 	Array values are comparable if values of the array element type are comparable.
-	Two array values are equal if their corresponding elements are equal.
+	Two array values are equal if their corresponding element values are equal.
+	The elements are compared in ascending index order, and comparison stops
+	as soon as two element values differ (or all elements have been compared).
 	</li>
 </ul>
 
