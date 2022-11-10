@@ -8,6 +8,7 @@ package net
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -160,12 +161,7 @@ func TestParseNSSConf(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		gotConf, err := parseNSSConf([]byte(tt.in))
-		if err != nil {
-			t.Errorf("%s: unexpected error: %v", tt.name, err)
-			continue
-		}
-
+		gotConf := parseNSSConf(strings.NewReader(tt.in))
 		if !reflect.DeepEqual(gotConf, tt.want) {
 			t.Errorf("%s: mismatch\n got %#v\nwant %#v", tt.name, gotConf, tt.want)
 		}

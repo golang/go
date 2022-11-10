@@ -7,26 +7,90 @@ package net
 import (
 	"errors"
 	"internal/bytealg"
-	"net/internal/rechecker"
+	"io"
+	"os"
+	"sync"
 	"time"
 )
 
-const (
-	nsswitchConfPath = "/etc/nsswitch.conf"
-)
+var nssConfig nsswitchConfig
 
-var systemNSS = rechecker.Rechecker[nssConf]{
-	File:     nsswitchConfPath,
-	Duration: 5 * time.Second,
-	Parse:    parseNSSConf,
+type nsswitchConfig struct {
+	initOnce sync.Once // guards init of nsswitchConfig
+
+	// ch is used as a semaphore that only allows one lookup at a
+	// time to recheck nsswitch.conf
+	ch          chan struct{} // guards lastChecked and modTime
+	lastChecked time.Time     // last time nsswitch.conf was checked
+
+	mu      sync.RWMutex // protects nssConf
+	nssConf *nssConf
 }
 
-func getSystemNSS() (*nssConf, error) {
-	return systemNSS.Get()
+func getSystemNSS() *nssConf {
+	nssConfig.tryUpdate("/etc/nsswitch.conf")
+	nssConfig.mu.Lock()
+	conf := nssConfig.nssConf
+	nssConfig.mu.Unlock()
+	return conf
+}
+
+// init initializes conf and is only called via conf.initOnce.
+func (conf *nsswitchConfig) init() {
+	conf.nssConf = parseNSSConfFile("/etc/resolv.conf")
+	conf.lastChecked = time.Now()
+	conf.ch = make(chan struct{}, 1)
+}
+
+// tryUpdate tries to update conf with the named nsswitch.conf file.
+// The name variable only exists for testing. It is otherwise always
+// "/etc/nsswitch.conf".
+func (conf *nsswitchConfig) tryUpdate(name string) {
+	conf.initOnce.Do(conf.init)
+
+	// Ensure only one update at a time checks resolv.conf.
+	if !conf.tryAcquireSema() {
+		return
+	}
+	defer conf.releaseSema()
+
+	now := time.Now()
+	if conf.lastChecked.After(now.Add(-5 * time.Second)) {
+		return
+	}
+	conf.lastChecked = now
+
+	var mtime time.Time
+	if fi, err := os.Stat(name); err == nil {
+		mtime = fi.ModTime()
+	}
+	if mtime.Equal(conf.nssConf.mtime) {
+		return
+	}
+
+	nssConf := parseNSSConfFile(name)
+	conf.mu.Lock()
+	conf.nssConf = nssConf
+	conf.mu.Unlock()
+}
+
+func (conf *nsswitchConfig) tryAcquireSema() bool {
+	select {
+	case conf.ch <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func (conf *nsswitchConfig) releaseSema() {
+	<-conf.ch
 }
 
 // nssConf represents the state of the machine's /etc/nsswitch.conf file.
 type nssConf struct {
+	mtime   time.Time              // time of nsswitch.conf modification
+	err     error                  // any error encountered opening or parsing the file
 	sources map[string][]nssSource // keyed by database (e.g. "hosts")
 }
 
@@ -77,9 +141,29 @@ func (c nssCriterion) standardStatusAction(last bool) bool {
 	return c.action == def
 }
 
-func parseNSSConf(data []byte) (*nssConf, error) {
+func parseNSSConfFile(file string) *nssConf {
+	f, err := os.Open(file)
+	if err != nil {
+		return &nssConf{err: err}
+	}
+	defer f.Close()
+	stat, err := f.Stat()
+	if err != nil {
+		return &nssConf{err: err}
+	}
+
+	conf := parseNSSConf(f)
+	conf.mtime = stat.ModTime()
+	return conf
+}
+
+func parseNSSConf(r io.Reader) *nssConf {
+	slurp, err := readFull(r)
+	if err != nil {
+		return &nssConf{err: err}
+	}
 	conf := new(nssConf)
-	err := foreachLine(data, func(line []byte) error {
+	conf.err = foreachLine(slurp, func(line []byte) error {
 		line = trimSpace(removeComment(line))
 		if len(line) == 0 {
 			return nil
@@ -128,11 +212,7 @@ func parseNSSConf(data []byte) (*nssConf, error) {
 		}
 		return nil
 	})
-
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
+	return conf
 }
 
 // parses "foo=bar !foo=bar"

@@ -219,18 +219,18 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		return fallbackOrder
 	}
 
-	nss, nssErr := getSystemNSS()
+	nss := getSystemNSS()
 
 	// If /etc/nsswitch.conf doesn't exist or doesn't specify any
 	// sources for "hosts", assume Go's DNS will work fine.
-	if os.IsNotExist(nssErr) || (nssErr == nil && len(nss.sources["hosts"]) == 0) {
+	if os.IsNotExist(nss.err) || (nss.err == nil && len(nss.sources["hosts"]) == 0) {
 		if c.goos == "solaris" {
 			// illumos defaults to "nis [NOTFOUND=return] files"
 			return fallbackOrder
 		}
 		return hostLookupFilesDNS
 	}
-	if nssErr != nil {
+	if nss.err != nil {
 		// We failed to parse or open nsswitch.conf, so
 		// conservatively assume we should use cgo if it's
 		// available.
