@@ -2193,7 +2193,7 @@ func TestGoLookupIPCNAMEOrderHostsAliasesFilesDNSMode(t *testing.T) {
 var goLookupIPCNAMEOrderDNSFilesModeTests = []struct {
 	lookup, res string
 }{
-	//127.0.1.1
+	// 127.0.1.1
 	{"invalid.invalid", "invalid.test"},
 }
 
