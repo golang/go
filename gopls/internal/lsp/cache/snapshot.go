@@ -345,7 +345,7 @@ func (s *snapshot) config(ctx context.Context, inv *gocommand.Invocation) *packa
 			packages.NeedModule |
 			packages.LoadMode(packagesinternal.DepsErrors) |
 			packages.LoadMode(packagesinternal.ForTest),
-		Fset:    s.FileSet(),
+		Fset:    nil, // we do our own parsing
 		Overlay: s.buildOverlay(),
 		ParseFile: func(*token.FileSet, string, []byte) (*ast.File, error) {
 			panic("go/packages must not be used to parse files")
