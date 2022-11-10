@@ -576,8 +576,8 @@ func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hos
 }
 
 // lookup entries from /etc/hosts
-func goLookupIPFiles(name string) (addrs []IPAddr, cname string) {
-	addr, cname := lookupStaticHost(name)
+func goLookupIPFiles(name string) (addrs []IPAddr, canonical string) {
+	addr, canonical := lookupStaticHost(name)
 	for _, haddr := range addr {
 		haddr, zone := splitHostZone(haddr)
 		if ip := ParseIP(haddr); ip != nil {
@@ -586,7 +586,7 @@ func goLookupIPFiles(name string) (addrs []IPAddr, cname string) {
 		}
 	}
 	sortByRFC6724(addrs)
-	return addrs, cname
+	return addrs, canonical
 }
 
 // goLookupIP is the native Go implementation of LookupIP.
