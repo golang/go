@@ -273,17 +273,24 @@ func (conf *resolvConfTest) writeAndUpdateWithLastCheckedTime(lines []string, la
 
 func (conf *resolvConfTest) forceUpdate(name string, lastChecked time.Time) error {
 	dnsConf := dnsReadConfig(name)
+	if !conf.forceUpdateConf(dnsConf, lastChecked) {
+		return fmt.Errorf("tryAcquireSema for %s failed", name)
+	}
+	return nil
+}
+
+func (conf *resolvConfTest) forceUpdateConf(c *dnsConfig, lastChecked time.Time) bool {
 	conf.mu.Lock()
-	conf.dnsConfig = dnsConf
+	conf.dnsConfig = c
 	conf.mu.Unlock()
 	for i := 0; i < 5; i++ {
 		if conf.tryAcquireSema() {
 			conf.lastChecked = lastChecked
 			conf.releaseSema()
-			return nil
+			return true
 		}
 	}
-	return fmt.Errorf("tryAcquireSema for %s failed", name)
+	return false
 }
 
 func (conf *resolvConfTest) servers() []string {
@@ -607,15 +614,20 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 	for _, order := range []hostLookupOrder{hostLookupFilesDNS, hostLookupDNSFiles} {
 		name := fmt.Sprintf("order %v", order)
 
+		resolvConf.tryUpdate("/etc/resolv.conf")
+		resolvConf.mu.RLock()
+		conf := resolvConf.dnsConfig
+		resolvConf.mu.RUnlock()
+
 		// First ensure that we get an error when contacting a non-existent host.
-		_, _, err := r.goLookupIPCNAMEOrder(context.Background(), "ip", "notarealhost", order)
+		_, _, err := r.goLookupIPCNAMEOrder(context.Background(), "ip", "notarealhost", order, conf)
 		if err == nil {
 			t.Errorf("%s: expected error while looking up name not in hosts file", name)
 			continue
 		}
 
 		// Now check that we get an address when the name appears in the hosts file.
-		addrs, _, err := r.goLookupIPCNAMEOrder(context.Background(), "ip", "thor", order) // entry is in "testdata/hosts"
+		addrs, _, err := r.goLookupIPCNAMEOrder(context.Background(), "ip", "thor", order, conf) // entry is in "testdata/hosts"
 		if err != nil {
 			t.Errorf("%s: expected to successfully lookup host entry", name)
 			continue
