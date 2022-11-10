@@ -37,7 +37,7 @@ func getSystemNSS() *nssConf {
 
 // init initializes conf and is only called via conf.initOnce.
 func (conf *nsswitchConfig) init() {
-	conf.nssConf = parseNSSConfFile("/etc/resolv.conf")
+	conf.nssConf = parseNSSConfFile("/etc/nsswitch.conf")
 	conf.lastChecked = time.Now()
 	conf.ch = make(chan struct{}, 1)
 }
@@ -48,7 +48,7 @@ func (conf *nsswitchConfig) init() {
 func (conf *nsswitchConfig) tryUpdate(name string) {
 	conf.initOnce.Do(conf.init)
 
-	// Ensure only one update at a time checks resolv.conf.
+	// Ensure only one update at a time checks nsswitch.conf
 	if !conf.tryAcquireSema() {
 		return
 	}
