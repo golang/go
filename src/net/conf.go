@@ -185,7 +185,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			return hostLookupDNSFiles, conf
 		}
 		if len(lookup) < 1 || len(lookup) > 2 {
-			return fallbackOrder, nil
+			return fallbackOrder, conf
 		}
 		switch lookup[0] {
 		case "bind":
