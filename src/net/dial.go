@@ -437,21 +437,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		primaries = addrs
 	}
 
-	c, err := sd.dialParallel(ctx, primaries, fallbacks)
-	if err != nil {
-		return nil, err
-	}
-
-	if tc, ok := c.(*TCPConn); ok && d.KeepAlive >= 0 {
-		setKeepAlive(tc.fd, true)
-		ka := d.KeepAlive
-		if d.KeepAlive == 0 {
-			ka = defaultTCPKeepAlive
-		}
-		setKeepAlivePeriod(tc.fd, ka)
-		testHookSetKeepAlive(ka)
-	}
-	return c, nil
+	return sd.dialParallel(ctx, primaries, fallbacks)
 }
 
 // dialParallel races two copies of dialSerial, giving the first a
