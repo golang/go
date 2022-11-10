@@ -28,6 +28,11 @@ func parseLiteralIP(addr string) string {
 	return ip.String() + "%" + zone
 }
 
+type byName struct {
+	addrs         []string
+	canonicalName string
+}
+
 // hosts contains known host entries.
 var hosts struct {
 	sync.Mutex
@@ -36,7 +41,7 @@ var hosts struct {
 	// name. It would be part of DNS labels, a FQDN or an absolute
 	// FQDN.
 	// For now the key is converted to lower case for convenience.
-	byName map[string][]string
+	byName map[string]byName
 
 	// Key for the list of host names must be a literal IP address
 	// including IPv6 address with zone identifier.
@@ -62,8 +67,9 @@ func readHosts() {
 		return
 	}
 
-	hs := make(map[string][]string)
+	hs := make(map[string]byName)
 	is := make(map[string][]string)
+
 	var file *file
 	if file, _ = open(hp); file == nil {
 		return
@@ -81,13 +87,32 @@ func readHosts() {
 		if addr == "" {
 			continue
 		}
+
+		var canonical string
 		for i := 1; i < len(f); i++ {
 			name := absDomainName(f[i])
 			h := []byte(f[i])
 			lowerASCIIBytes(h)
 			key := absDomainName(string(h))
-			hs[key] = append(hs[key], addr)
+
+			if i == 1 {
+				canonical = key
+			}
+
 			is[addr] = append(is[addr], name)
+
+			if v,ok := hs[key]; ok {
+				hs[key] = byName{
+					addrs:         append(v.addrs, addr),
+					canonicalName: v.canonicalName,
+				}
+				continue
+			}
+
+			hs[key] = byName{
+				addrs:         []string{addr},
+				canonicalName: canonical,
+			}
 		}
 	}
 	// Update the data cache.
@@ -100,8 +125,8 @@ func readHosts() {
 	file.close()
 }
 
-// lookupStaticHost looks up the addresses for the given host from /etc/hosts.
-func lookupStaticHost(host string) []string {
+// lookupStaticHost looks up the addresses and the cannonical name for the given host from /etc/hosts.
+func lookupStaticHost(host string) ([]string, string) {
 	hosts.Lock()
 	defer hosts.Unlock()
 	readHosts()
@@ -111,13 +136,13 @@ func lookupStaticHost(host string) []string {
 			lowerASCIIBytes(lowerHost)
 			host = string(lowerHost)
 		}
-		if ips, ok := hosts.byName[absDomainName(host)]; ok {
-			ipsCp := make([]string, len(ips))
-			copy(ipsCp, ips)
-			return ipsCp
+		if byName, ok := hosts.byName[absDomainName(host)]; ok {
+			ipsCp := make([]string, len(byName.addrs))
+			copy(ipsCp, byName.addrs)
+			return ipsCp, byName.canonicalName
 		}
 	}
-	return nil
+	return nil, ""
 }
 
 // lookupStaticAddr looks up the hosts for the given address from /etc/hosts.
