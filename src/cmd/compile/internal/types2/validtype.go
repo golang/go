@@ -76,11 +76,32 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
 		// embedded in itself, indicating an invalid recursive type.
 		for _, e := range nest {
 			if Identical(e, t) {
-				// t cannot be in an imported package otherwise that package
-				// would have reported a type cycle and couldn't have been
-				// imported in the first place.
+				// We have a cycle. If t != t.Origin() then t is an instance of
+				// the generic type t.Origin(). Because t is in the nest, t must
+				// occur within the definition (RHS) of the generic type t.Origin(),
+				// directly or indirectly, after expansion of the RHS.
+				// Therefore t.Origin() must be invalid, no matter how it is
+				// instantiated since the instantiation t of t.Origin() happens
+				// inside t.Origin()'s RHS and thus is always the same and always
+				// present.
+				// Therefore we can mark the underlying of both t and t.Origin()
+				// as invalid. If t is not an instance of a generic type, t and
+				// t.Origin() are the same.
+				// Furthermore, because we check all types in a package for validity
+				// before type checking is complete, any exported type that is invalid
+				// will have an invalid underlying type and we can't reach here with
+				// such a type (invalid types are excluded above).
+				// Thus, if we reach here with a type t, both t and t.Origin() (if
+				// different in the first place) must be from the current package;
+				// they cannot have been imported.
+				// Therefore it is safe to change their underlying types; there is
+				// no chance for a race condition (the types of the current package
+				// are not yet available to other goroutines).
 				assert(t.obj.pkg == check.pkg)
-				t.underlying = Typ[Invalid] // t is in the current package (no race possibility)
+				assert(t.Origin().obj.pkg == check.pkg)
+				t.underlying = Typ[Invalid]
+				t.Origin().underlying = Typ[Invalid]
+
 				// Find the starting point of the cycle and report it.
 				// Because each type in nest must also appear in path (see invariant below),
 				// type t must be in path since it was found in nest. But not every type in path
