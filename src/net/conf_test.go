@@ -377,6 +377,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			}
 			if i == 4 {
 				t.Error("failed to change nsswitch config")
+				continue
 			}
 		}
 
