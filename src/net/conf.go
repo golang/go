@@ -170,7 +170,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			return hostLookupFiles, conf
 		}
 
-		if (conf.err != nil && !os.IsPermission(conf.err)) || conf.unknownOpt {
+		if (conf.err != nil && !os.IsPermission(conf.err)) || (conf.err == nil && conf.unknownOpt) {
 			// If we can't read the resolv.conf file or it has unsupported
 			// by net package options assume it had something important in it
 			// and defer to cgo.  libc's resolver might then fail too, but at least
@@ -235,7 +235,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 
 		conf := getSystemDNSConfig()
 		if (conf.err != nil && !os.IsNotExist(conf.err) &&
-			!os.IsPermission(conf.err)) || conf.unknownOpt {
+			!os.IsPermission(conf.err)) || (conf.err == nil && conf.unknownOpt) {
 			// If we can't read the resolv.conf file or it has unsupported
 			// by net package options assume it had something important in it
 			// and defer to cgo.  libc's resolver might then fail too, but at least
@@ -298,7 +298,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 
 	conf := getSystemDNSConfig()
 	if (conf.err != nil && !os.IsNotExist(conf.err) &&
-		!os.IsPermission(conf.err)) || conf.unknownOpt {
+		!os.IsPermission(conf.err)) || (conf.err == nil && conf.unknownOpt) {
 		// If we can't read the resolv.conf file or it has unsupported
 		// by net package options assume it had something important in it
 		// and defer to cgo.  libc's resolver might then fail too, but at least
