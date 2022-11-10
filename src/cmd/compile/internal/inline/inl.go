@@ -76,15 +76,15 @@ var (
 	// that is, for a threshold of X the hottest callsites that
 	// make up the top X% of total edge weight will be
 	// considered hot for inlining candidates.
-	inlineCDFHotCallSiteThresholdPercent = float64(95)
+	inlineCDFHotCallSiteThresholdPercent = float64(99)
 
 	// Budget increased due to hotness.
-	inlineHotMaxBudget int32 = 160
+	inlineHotMaxBudget int32 = 2000
 )
 
 // pgoInlinePrologue records the hot callsites from ir-graph.
 func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
-	if s, err := strconv.ParseFloat(base.Debug.InlineHotCallSiteCDFThreshold, 64); err == nil {
+	if s, err := strconv.ParseFloat(base.Debug.PGOInlineCDFThreshold, 64); err == nil {
 		inlineCDFHotCallSiteThresholdPercent = s
 	}
 	var hotCallsites []pgo.NodeMapKey
@@ -93,8 +93,8 @@ func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
 		fmt.Printf("hot-callsite-thres-from-CDF=%v\n", inlineHotCallSiteThresholdPercent)
 	}
 
-	if base.Debug.InlineHotBudget != 0 {
-		inlineHotMaxBudget = int32(base.Debug.InlineHotBudget)
+	if x := base.Debug.PGOInlineBudget; x != 0 {
+		inlineHotMaxBudget = int32(x)
 	}
 
 	// mark inlineable callees from hot edges
