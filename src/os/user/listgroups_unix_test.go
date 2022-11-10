@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ((darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && (!cgo || osusergo)) || aix || illumos
+//go:build ((darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && ((!cgo && !darwin) || osusergo)) || aix || illumos
 
 package user
 
@@ -25,7 +25,7 @@ invalidgid:*:notanumber:root
 -minussign:*:21:root
 # Next line is invalid (empty group name)
 :*:22:root
-      
+
 daemon:*:1:root
     indented:*:7:root
 # comment:*:4:found
