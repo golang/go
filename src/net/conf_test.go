@@ -351,38 +351,13 @@ func TestConfHostLookupOrder(t *testing.T) {
 
 	origGetHostname := getHostname
 	defer func() { getHostname = origGetHostname }()
-	defer func(nss *nssConf) {
-		nssConfig.mu.Lock()
-		nssConfig.nssConf = nss
-		nssConfig.mu.Unlock()
-		for i := 0; i < 5; i++ {
-			if nssConfig.tryAcquireSema() {
-				nssConfig.lastChecked = time.Now()
-				nssConfig.releaseSema()
-				return
-			}
-		}
-		t.Error("failed to rollback the nsswitch change")
-	}(getSystemNSS())
+	defer setSystemNSS(getSystemNSS(), 0)
 
 	for _, tt := range tests {
-		nssConfig.mu.Lock()
-		nssConfig.nssConf = tt.nss
-		nssConfig.mu.Unlock()
-		for i := 0; i < 5; i++ {
-			if nssConfig.tryAcquireSema() {
-				nssConfig.lastChecked = time.Now().Add(time.Hour)
-				nssConfig.releaseSema()
-				return
-			}
-			if i == 4 {
-				t.Error("failed to change nsswitch config")
-				continue
-			}
-		}
 
 		for _, ht := range tt.hostTests {
 			getHostname = func() (string, error) { return ht.localhost, nil }
+			setSystemNSS(tt.nss, time.Hour)
 
 			gotOrder := tt.c.hostLookupOrder(tt.resolver, ht.host)
 			if gotOrder != ht.want {
@@ -390,7 +365,15 @@ func TestConfHostLookupOrder(t *testing.T) {
 			}
 		}
 	}
+}
 
+func setSystemNSS(nss *nssConf, addDur time.Duration) {
+	nssConfig.mu.Lock()
+	nssConfig.nssConf = nss
+	nssConfig.mu.Unlock()
+	nssConfig.acquireSema()
+	nssConfig.lastChecked = time.Now().Add(addDur)
+	nssConfig.releaseSema()
 }
 
 func TestSystemConf(t *testing.T) {

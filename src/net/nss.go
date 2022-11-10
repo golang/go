@@ -76,6 +76,10 @@ func (conf *nsswitchConfig) tryUpdate() {
 	conf.mu.Unlock()
 }
 
+func (conf *nsswitchConfig) acquireSema() {
+	conf.ch <- struct{}{}
+}
+
 func (conf *nsswitchConfig) tryAcquireSema() bool {
 	select {
 	case conf.ch <- struct{}{}:
