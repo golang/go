@@ -8006,6 +8006,9 @@ func Sizeof(variable ArbitraryType) uintptr
 type IntegerType int  // shorthand for an integer type; it is not a real type
 func Add(ptr Pointer, len IntegerType) Pointer
 func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
+func SliceData(slice []ArbitraryType) *ArbitraryType
+func String(ptr *byte, len IntegerType) string
+func StringData(str string) *byte
 </pre>
 
 <!--
@@ -8107,6 +8110,27 @@ if it is an untyped constant it is given type <code>int</code>.
 At run time, if <code>len</code> is negative,
 or if <code>ptr</code> is <code>nil</code> and <code>len</code> is not zero,
 a <a href="#Run_time_panics">run-time panic</a> occurs.
+</p>
+
+<p>
+The function <code>SliceData</code> returns a pointer to the underlying array of the <code>slice</code> argument.
+If the slice's capacity <code>cap(slice)</code> is not zero, that pointer is <code>&slice[:1][0]</code>.
+If <code>slice</code> is <code>nil</code>, the result is <code>nil</code>.
+Otherwise it  is a non-<code>nil</code> pointer to an unspecified memory address.
+</p>
+
+<p>
+The function <code>String</code> returns a <code>string</code> value whose underlying bytes start at
+<code>ptr</code> and whose length is <code>len</code>.
+The same requirements apply to the <code>ptr</code> and <code>len</code> argument as in the function
+<code>Slice</code>. If <code>len</code> is zero, the result is the empty string <code>""</code>.
+Since Go strings are immutable, the bytes passed to <code>String</code> must not be modified afterwards.
+</p>
+
+<p>
+The function <code>StringData</code> returns a pointer to the underlying bytes of the <code>str</code> argument.
+For an empty string the return value is unspecified, and may be <code>nil</code>.
+Since Go strings are immutable, the bytes returned by <code>StringData</code> must not be modified.
 </p>
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
