@@ -8,6 +8,7 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
+	_ = x[InvalidSyntaxTree - -1]
 	_ = x[Test-1]
 	_ = x[BlankPkgName-2]
 	_ = x[MismatchedPkgName-3]
@@ -23,7 +24,7 @@ func _() {
 	_ = x[InvalidConstInit-13]
 	_ = x[InvalidConstVal-14]
 	_ = x[InvalidConstType-15]
-	_ = x[UntypedNil-16]
+	_ = x[UntypedNilUse-16]
 	_ = x[WrongAssignCount-17]
 	_ = x[UnassignableOperand-18]
 	_ = x[NoNewVar-19]
@@ -152,16 +153,27 @@ func _() {
 	_ = x[MisplacedConstraintIface-142]
 	_ = x[InvalidMethodTypeParams-143]
 	_ = x[MisplacedTypeParam-144]
+	_ = x[InvalidUnsafeSliceData-145]
+	_ = x[InvalidUnsafeString-146]
 }
 
-const _ErrorCode_name = "TestBlankPkgNameMismatchedPkgNameInvalidPkgUseBadImportPathBrokenImportImportCRenamedUnusedImportInvalidInitCycleDuplicateDeclInvalidDeclCycleInvalidTypeCycleInvalidConstInitInvalidConstValInvalidConstTypeUntypedNilWrongAssignCountUnassignableOperandNoNewVarMultiValAssignOpInvalidIfaceAssignInvalidChanAssignIncompatibleAssignUnaddressableFieldAssignNotATypeInvalidArrayLenBlankIfaceMethodIncomparableMapKeyInvalidIfaceEmbedInvalidPtrEmbedBadRecvInvalidRecvDuplicateFieldAndMethodDuplicateMethodInvalidBlankInvalidIotaMissingInitBodyInvalidInitSigInvalidInitDeclInvalidMainDeclTooManyValuesNotAnExprTruncatedFloatNumericOverflowUndefinedOpMismatchedTypesDivByZeroNonNumericIncDecUnaddressableOperandInvalidIndirectionNonIndexableOperandInvalidIndexSwappedSliceIndicesNonSliceableOperandInvalidSliceExprInvalidShiftCountInvalidShiftOperandInvalidReceiveInvalidSendDuplicateLitKeyMissingLitKeyInvalidLitIndexOversizeArrayLitMixedStructLitInvalidStructLitMissingLitFieldDuplicateLitFieldUnexportedLitFieldInvalidLitFieldUntypedLitInvalidLitAmbiguousSelectorUndeclaredImportedNameUnexportedNameUndeclaredNameMissingFieldOrMethodBadDotDotDotSyntaxNonVariadicDotDotDotMisplacedDotDotDotInvalidDotDotDotOperandInvalidDotDotDotUncalledBuiltinInvalidAppendInvalidCapInvalidCloseInvalidCopyInvalidComplexInvalidDeleteInvalidImagInvalidLenSwappedMakeArgsInvalidMakeInvalidRealInvalidAssertImpossibleAssertInvalidConversionInvalidUntypedConversionBadOffsetofSyntaxInvalidOffsetofUnusedExprUnusedVarMissingReturnWrongResultCountOutOfScopeResultInvalidCondInvalidPostDeclInvalidChanRangeInvalidIterVarInvalidRangeExprMisplacedBreakMisplacedContinueMisplacedFallthroughDuplicateCaseDuplicateDefaultBadTypeKeywordInvalidTypeSwitchInvalidExprSwitchInvalidSelectCaseUndeclaredLabelDuplicateLabelMisplacedLabelUnusedLabelJumpOverDeclJumpIntoBlockInvalidMethodExprWrongArgCountInvalidCallUnusedResultsInvalidDeferInvalidGoBadDeclRepeatedDeclInvalidUnsafeAddInvalidUnsafeSliceUnsupportedFeatureNotAGenericTypeWrongTypeArgCountCannotInferTypeArgsInvalidTypeArgInvalidInstanceCycleInvalidUnionMisplacedConstraintIfaceInvalidMethodTypeParamsMisplacedTypeParam"
+const (
+	_ErrorCode_name_0 = "InvalidSyntaxTree"
+	_ErrorCode_name_1 = "TestBlankPkgNameMismatchedPkgNameInvalidPkgUseBadImportPathBrokenImportImportCRenamedUnusedImportInvalidInitCycleDuplicateDeclInvalidDeclCycleInvalidTypeCycleInvalidConstInitInvalidConstValInvalidConstTypeUntypedNilUseWrongAssignCountUnassignableOperandNoNewVarMultiValAssignOpInvalidIfaceAssignInvalidChanAssignIncompatibleAssignUnaddressableFieldAssignNotATypeInvalidArrayLenBlankIfaceMethodIncomparableMapKeyInvalidIfaceEmbedInvalidPtrEmbedBadRecvInvalidRecvDuplicateFieldAndMethodDuplicateMethodInvalidBlankInvalidIotaMissingInitBodyInvalidInitSigInvalidInitDeclInvalidMainDeclTooManyValuesNotAnExprTruncatedFloatNumericOverflowUndefinedOpMismatchedTypesDivByZeroNonNumericIncDecUnaddressableOperandInvalidIndirectionNonIndexableOperandInvalidIndexSwappedSliceIndicesNonSliceableOperandInvalidSliceExprInvalidShiftCountInvalidShiftOperandInvalidReceiveInvalidSendDuplicateLitKeyMissingLitKeyInvalidLitIndexOversizeArrayLitMixedStructLitInvalidStructLitMissingLitFieldDuplicateLitFieldUnexportedLitFieldInvalidLitFieldUntypedLitInvalidLitAmbiguousSelectorUndeclaredImportedNameUnexportedNameUndeclaredNameMissingFieldOrMethodBadDotDotDotSyntaxNonVariadicDotDotDotMisplacedDotDotDotInvalidDotDotDotOperandInvalidDotDotDotUncalledBuiltinInvalidAppendInvalidCapInvalidCloseInvalidCopyInvalidComplexInvalidDeleteInvalidImagInvalidLenSwappedMakeArgsInvalidMakeInvalidRealInvalidAssertImpossibleAssertInvalidConversionInvalidUntypedConversionBadOffsetofSyntaxInvalidOffsetofUnusedExprUnusedVarMissingReturnWrongResultCountOutOfScopeResultInvalidCondInvalidPostDeclInvalidChanRangeInvalidIterVarInvalidRangeExprMisplacedBreakMisplacedContinueMisplacedFallthroughDuplicateCaseDuplicateDefaultBadTypeKeywordInvalidTypeSwitchInvalidExprSwitchInvalidSelectCaseUndeclaredLabelDuplicateLabelMisplacedLabelUnusedLabelJumpOverDeclJumpIntoBlockInvalidMethodExprWrongArgCountInvalidCallUnusedResultsInvalidDeferInvalidGoBadDeclRepeatedDeclInvalidUnsafeAddInvalidUnsafeSliceUnsupportedFeatureNotAGenericTypeWrongTypeArgCountCannotInferTypeArgsInvalidTypeArgInvalidInstanceCycleInvalidUnionMisplacedConstraintIfaceInvalidMethodTypeParamsMisplacedTypeParamInvalidUnsafeSliceDataInvalidUnsafeString"
+)
 
-var _ErrorCode_index = [...]uint16{0, 4, 16, 33, 46, 59, 71, 85, 97, 113, 126, 142, 158, 174, 189, 205, 215, 231, 250, 258, 274, 292, 309, 327, 351, 359, 374, 390, 408, 425, 440, 447, 458, 481, 496, 508, 519, 534, 548, 563, 578, 591, 600, 614, 629, 640, 655, 664, 680, 700, 718, 737, 749, 768, 787, 803, 820, 839, 853, 864, 879, 892, 907, 923, 937, 953, 968, 985, 1003, 1018, 1028, 1038, 1055, 1077, 1091, 1105, 1125, 1143, 1163, 1181, 1204, 1220, 1235, 1248, 1258, 1270, 1281, 1295, 1308, 1319, 1329, 1344, 1355, 1366, 1379, 1395, 1412, 1436, 1453, 1468, 1478, 1487, 1500, 1516, 1532, 1543, 1558, 1574, 1588, 1604, 1618, 1635, 1655, 1668, 1684, 1698, 1715, 1732, 1749, 1764, 1778, 1792, 1803, 1815, 1828, 1845, 1858, 1869, 1882, 1894, 1903, 1910, 1922, 1938, 1956, 1974, 1989, 2006, 2025, 2039, 2059, 2071, 2095, 2118, 2136}
+var (
+	_ErrorCode_index_1 = [...]uint16{0, 4, 16, 33, 46, 59, 71, 85, 97, 113, 126, 142, 158, 174, 189, 205, 218, 234, 253, 261, 277, 295, 312, 330, 354, 362, 377, 393, 411, 428, 443, 450, 461, 484, 499, 511, 522, 537, 551, 566, 581, 594, 603, 617, 632, 643, 658, 667, 683, 703, 721, 740, 752, 771, 790, 806, 823, 842, 856, 867, 882, 895, 910, 926, 940, 956, 971, 988, 1006, 1021, 1031, 1041, 1058, 1080, 1094, 1108, 1128, 1146, 1166, 1184, 1207, 1223, 1238, 1251, 1261, 1273, 1284, 1298, 1311, 1322, 1332, 1347, 1358, 1369, 1382, 1398, 1415, 1439, 1456, 1471, 1481, 1490, 1503, 1519, 1535, 1546, 1561, 1577, 1591, 1607, 1621, 1638, 1658, 1671, 1687, 1701, 1718, 1735, 1752, 1767, 1781, 1795, 1806, 1818, 1831, 1848, 1861, 1872, 1885, 1897, 1906, 1913, 1925, 1941, 1959, 1977, 1992, 2009, 2028, 2042, 2062, 2074, 2098, 2121, 2139, 2161, 2180}
+)
 
 func (i ErrorCode) String() string {
-	i -= 1
-	if i < 0 || i >= ErrorCode(len(_ErrorCode_index)-1) {
-		return "ErrorCode(" + strconv.FormatInt(int64(i+1), 10) + ")"
+	switch {
+	case i == -1:
+		return _ErrorCode_name_0
+	case 1 <= i && i <= 146:
+		i -= 1
+		return _ErrorCode_name_1[_ErrorCode_index_1[i]:_ErrorCode_index_1[i+1]]
+	default:
+		return "ErrorCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _ErrorCode_name[_ErrorCode_index[i]:_ErrorCode_index[i+1]]
 }
