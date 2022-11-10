@@ -69,6 +69,9 @@ type tester struct {
 	cgoEnabled bool
 	partial    bool
 
+	goExe    string // For host tests
+	goTmpDir string // For host tests
+
 	tests        []distTest
 	timeoutScale int
 
@@ -97,13 +100,20 @@ func (t *tester) run() {
 
 	os.Setenv("PATH", fmt.Sprintf("%s%c%s", gorootBin, os.PathListSeparator, os.Getenv("PATH")))
 
-	cmd := exec.Command(gorootBinGo, "env", "CGO_ENABLED")
+	cmd := exec.Command(gorootBinGo, "env", "CGO_ENABLED", "GOEXE", "GOTMPDIR")
 	cmd.Stderr = new(bytes.Buffer)
 	slurp, err := cmd.Output()
 	if err != nil {
-		fatalf("Error running go env CGO_ENABLED: %v\n%s", err, cmd.Stderr)
+		fatalf("Error running %s: %v\n%s", cmd, err, cmd.Stderr)
 	}
-	t.cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(string(slurp)))
+	parts := strings.Split(string(slurp), "\n")
+	if len(parts) < 3 {
+		fatalf("Error running %s: output contains <3 lines\n%s", cmd, cmd.Stderr)
+	}
+	t.cgoEnabled, _ = strconv.ParseBool(parts[0])
+	t.goExe = parts[1]
+	t.goTmpDir = parts[2]
+
 	if flag.NArg() > 0 && t.runRxStr != "" {
 		fatalf("the -run regular expression flag is mutually exclusive with test name arguments")
 	}
@@ -382,6 +392,73 @@ func (opts *goTest) command(t *tester) *exec.Cmd {
 
 func (opts *goTest) run(t *tester) error {
 	return opts.command(t).Run()
+}
+
+// runHostTest runs a test that should be built and run on the host GOOS/GOARCH,
+// but run with GOOS/GOARCH set to the target GOOS/GOARCH. This is for tests
+// that do nothing but compile and run other binaries. If the host and target
+// are different, then the assumption is that the target is running in an
+// emulator and does not have a Go toolchain at all, so the test needs to run on
+// the host, but its resulting binaries will be run through a go_exec wrapper
+// that runs them on the target.
+func (opts *goTest) runHostTest(t *tester) error {
+	goCmd, build, run, pkgs, setupCmd := opts.buildArgs(t)
+
+	// Build the host test binary
+	if len(pkgs) != 1 {
+		// We can't compile more than one package.
+		panic("host tests must have a single test package")
+	}
+	if len(opts.env) != 0 {
+		// It's not clear if these are for the host or the target.
+		panic("host tests must not have environment variables")
+	}
+
+	f, err := os.CreateTemp(t.goTmpDir, "test.test-*"+t.goExe)
+	if err != nil {
+		fatalf("failed to create temporary file: %s", err)
+	}
+	bin := f.Name()
+	f.Close()
+	xatexit(func() { os.Remove(bin) })
+
+	args := append([]string{"test", "-c", "-o", bin}, build...)
+	args = append(args, pkgs...)
+	cmd := exec.Command(goCmd, args...)
+	setupCmd(cmd)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	setEnv(cmd, "GOARCH", gohostarch)
+	setEnv(cmd, "GOOS", gohostos)
+	if vflag > 1 {
+		errprintf("%s\n", cmd)
+	}
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	if t.compileOnly {
+		return nil
+	}
+
+	// Transform run flags to be passed directly to a test binary.
+	for i, f := range run {
+		if !strings.HasPrefix(f, "-") {
+			panic("run flag does not start with -: " + f)
+		}
+		run[i] = "-test." + f[1:]
+	}
+
+	// Run the test
+	args = append(run, opts.testFlags...)
+	cmd = exec.Command(bin, args...)
+	setupCmd(cmd)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if vflag > 1 {
+		errprintf("%s\n", cmd)
+	}
+	return cmd.Run()
 }
 
 // buildArgs is in internal helper for goTest that constructs the elements of
@@ -834,10 +911,10 @@ func (t *tester) registerTests() {
 
 	if t.cgoEnabled && !t.iOS() {
 		// Disabled on iOS. golang.org/issue/15919
-		t.registerHostTest("cgo_stdio", "../misc/cgo/stdio", "misc/cgo/stdio", ".")
-		t.registerHostTest("cgo_life", "../misc/cgo/life", "misc/cgo/life", ".")
+		t.registerTest("cgo_stdio", "", &goTest{dir: "../misc/cgo/stdio", timeout: 5 * time.Minute}, rtHostTest{})
+		t.registerTest("cgo_life", "", &goTest{dir: "../misc/cgo/life", timeout: 5 * time.Minute}, rtHostTest{})
 		if goos != "android" {
-			t.registerHostTest("cgo_fortran", "../misc/cgo/fortran", "misc/cgo/fortran", ".")
+			t.registerTest("cgo_fortran", "", &goTest{dir: "../misc/cgo/fortran", timeout: 5 * time.Minute}, rtHostTest{})
 		}
 		if t.hasSwig() && goos != "android" {
 			t.registerTest("swig_stdio", "", &goTest{dir: "../misc/swig/stdio"})
@@ -865,15 +942,15 @@ func (t *tester) registerTests() {
 	// recompile the entire standard library. If make.bash ran with
 	// special -gcflags, that's not true.
 	if t.cgoEnabled && gogcflags == "" {
-		t.registerHostTest("testgodefs", "../misc/cgo/testgodefs", "misc/cgo/testgodefs", ".")
+		t.registerTest("testgodefs", "", &goTest{dir: "../misc/cgo/testgodefs", timeout: 5 * time.Minute}, rtHostTest{})
 
 		t.registerTest("testso", "", &goTest{dir: "../misc/cgo/testso", timeout: 600 * time.Second})
 		t.registerTest("testsovar", "", &goTest{dir: "../misc/cgo/testsovar", timeout: 600 * time.Second})
 		if t.supportedBuildmode("c-archive") {
-			t.registerHostTest("testcarchive", "../misc/cgo/testcarchive", "misc/cgo/testcarchive", ".")
+			t.registerTest("testcarchive", "", &goTest{dir: "../misc/cgo/testcarchive", timeout: 5 * time.Minute}, rtHostTest{})
 		}
 		if t.supportedBuildmode("c-shared") {
-			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", ".")
+			t.registerTest("testcshared", "", &goTest{dir: "../misc/cgo/testcshared", timeout: 5 * time.Minute}, rtHostTest{})
 		}
 		if t.supportedBuildmode("shared") {
 			t.registerTest("testshared", "", &goTest{dir: "../misc/cgo/testshared", timeout: 600 * time.Second})
@@ -884,10 +961,10 @@ func (t *tester) registerTests() {
 		if goos == "linux" || (goos == "freebsd" && goarch == "amd64") {
 			// because Pdeathsig of syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only
 			// supported on Linux and FreeBSD.
-			t.registerHostTest("testsanitizers", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
+			t.registerTest("testsanitizers", "", &goTest{dir: "../misc/cgo/testsanitizers", timeout: 5 * time.Minute}, rtHostTest{})
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
-			t.registerHostTest("cgo_errors", "../misc/cgo/errors", "misc/cgo/errors", ".")
+			t.registerTest("cgo_errors", "", &goTest{dir: "../misc/cgo/errors", timeout: 5 * time.Minute}, rtHostTest{})
 		}
 	}
 
@@ -939,7 +1016,7 @@ func (t *tester) registerTests() {
 	// Ensure that the toolchain can bootstrap itself.
 	// This test adds another ~45s to all.bash if run sequentially, so run it only on the builders.
 	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() {
-		t.registerHostTest("reboot", "../misc/reboot", "misc/reboot", ".")
+		t.registerTest("reboot", "", &goTest{dir: "../misc/reboot", timeout: 5 * time.Minute}, rtHostTest{})
 	}
 }
 
@@ -972,11 +1049,18 @@ type rtPreFunc struct {
 
 func (rtPreFunc) isRegisterTestOpt() {}
 
+// rtHostTest is a registerTest option that indicates this is a host test that
+// should be run using goTest.runHostTest. It implies rtSequential.
+type rtHostTest struct{}
+
+func (rtHostTest) isRegisterTestOpt() {}
+
 // registerTest registers a test that runs the given goTest.
 //
 // If heading is "", it uses test.dir as the heading.
 func (t *tester) registerTest(name, heading string, test *goTest, opts ...registerTestOpt) {
 	seq := false
+	hostTest := false
 	var preFunc func(*distTest) bool
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -984,6 +1068,8 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 			seq = true
 		case rtPreFunc:
 			preFunc = opt.pre
+		case rtHostTest:
+			seq, hostTest = true, true
 		}
 	}
 	if t.isRegisteredTestName(name) {
@@ -1001,6 +1087,9 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 			}
 			if seq {
 				t.runPending(dt)
+				if hostTest {
+					return test.runHostTest(t)
+				}
 				return test.run(t)
 			}
 			w := &work{
@@ -1226,48 +1315,6 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		fatalf("internal error: unknown buildmode %s", mode)
 		return false
 	}
-}
-
-func (t *tester) registerHostTest(name, heading, dir, pkg string) {
-	t.tests = append(t.tests, distTest{
-		name:    name,
-		heading: heading,
-		fn: func(dt *distTest) error {
-			t.runPending(dt)
-			timelog("start", name)
-			defer timelog("end", name)
-			return t.runHostTest(dir, pkg)
-		},
-	})
-}
-
-func (t *tester) runHostTest(dir, pkg string) error {
-	out, err := exec.Command(gorootBinGo, "env", "GOEXE", "GOTMPDIR").Output()
-	if err != nil {
-		return err
-	}
-
-	parts := strings.Split(string(out), "\n")
-	if len(parts) < 2 {
-		return fmt.Errorf("'go env GOEXE GOTMPDIR' output contains <2 lines")
-	}
-	GOEXE := strings.TrimSpace(parts[0])
-	GOTMPDIR := strings.TrimSpace(parts[1])
-
-	f, err := os.CreateTemp(GOTMPDIR, "test.test-*"+GOEXE)
-	if err != nil {
-		return err
-	}
-	f.Close()
-	defer os.Remove(f.Name())
-
-	cmd := t.dirCmd(dir, t.goTest(), "-c", "-o", f.Name(), pkg)
-	setEnv(cmd, "GOARCH", gohostarch)
-	setEnv(cmd, "GOOS", gohostos)
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-	return t.dirCmd(dir, f.Name(), "-test.short="+short(), "-test.timeout="+t.timeoutDuration(300).String()).Run()
 }
 
 func (t *tester) registerCgoTests() {
