@@ -4,7 +4,7 @@
 
 //go:build cgo && (aix || dragonfly || freebsd || (linux && !android) || netbsd || openbsd)
 
-package pty
+package testpty
 
 /*
 #define _XOPEN_SOURCE 600

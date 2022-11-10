@@ -14,10 +14,10 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"internal/testpty"
 	"os"
 	"os/exec"
 	"os/signal"
-	ptypkg "os/signal/internal/pty"
 	"runtime"
 	"strconv"
 	"syscall"
@@ -105,9 +105,9 @@ func TestTerminalSignal(t *testing.T) {
 
 	t.Parallel()
 
-	pty, procTTYName, err := ptypkg.Open()
+	pty, procTTYName, err := testpty.Open()
 	if err != nil {
-		ptyErr := err.(*ptypkg.PtyError)
+		ptyErr := err.(*testpty.PtyError)
 		if ptyErr.FuncName == "posix_openpt" && ptyErr.Errno == syscall.EACCES {
 			t.Skip("posix_openpt failed with EACCES, assuming chroot and skipping")
 		}

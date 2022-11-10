@@ -4,10 +4,9 @@
 
 //go:build ((aix || dragonfly || freebsd || (linux && !android) || netbsd || openbsd) && cgo) || darwin
 
-// Package pty is a simple pseudo-terminal package for Unix systems,
+// Package testpty is a simple pseudo-terminal package for Unix systems,
 // implemented by calling C functions via cgo.
-// This is only used for testing the os/signal package.
-package pty
+package testpty
 
 import (
 	"fmt"
