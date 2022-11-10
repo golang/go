@@ -158,24 +158,24 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		return fallbackOrder, nil
 	}
 
+	conf := getSystemDNSConfig()
+	if (conf.err != nil && !os.IsNotExist(conf.err) &&
+		!os.IsPermission(conf.err)) || (conf.err == nil && conf.unknownOpt) {
+		// If we can't read the resolv.conf file or it has unsupported
+		// by net package options assume it had something important in it
+		// and defer to cgo.  libc's resolver might then fail too, but at least
+		// it wasn't our fault.
+		return fallbackOrder, conf
+	}
+
 	// OpenBSD is unique and doesn't use nsswitch.conf.
 	// It also doesn't support mDNS.
 	if c.goos == "openbsd" {
-		conf := getSystemDNSConfig()
-
 		// OpenBSD's resolv.conf manpage says that a non-existent
 		// resolv.conf means "lookup" defaults to only "files",
 		// without DNS lookups.
 		if os.IsNotExist(conf.err) {
 			return hostLookupFiles, conf
-		}
-
-		if (conf.err != nil && !os.IsPermission(conf.err)) || (conf.err == nil && conf.unknownOpt) {
-			// If we can't read the resolv.conf file or it has unsupported
-			// by net package options assume it had something important in it
-			// and defer to cgo.  libc's resolver might then fail too, but at least
-			// it wasn't our fault.
-			return fallbackOrder, conf
 		}
 
 		lookup := conf.lookup
@@ -220,7 +220,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		// because Go's native resolver doesn't do mDNS or
 		// similar local resolution mechanisms, assume that
 		// libc might (via Avahi, etc) and use cgo.
-		return fallbackOrder, nil
+		return fallbackOrder, conf
 	}
 
 	nss := c.nss
@@ -230,25 +230,16 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	if os.IsNotExist(nss.err) || (nss.err == nil && len(srcs) == 0) {
 		if c.goos == "solaris" {
 			// illumos defaults to "nis [NOTFOUND=return] files"
-			return fallbackOrder, nil
-		}
-
-		conf := getSystemDNSConfig()
-		if (conf.err != nil && !os.IsNotExist(conf.err) &&
-			!os.IsPermission(conf.err)) || (conf.err == nil && conf.unknownOpt) {
-			// If we can't read the resolv.conf file or it has unsupported
-			// by net package options assume it had something important in it
-			// and defer to cgo.  libc's resolver might then fail too, but at least
-			// it wasn't our fault.
 			return fallbackOrder, conf
 		}
+
 		return hostLookupFilesDNS, conf
 	}
 	if nss.err != nil {
 		// We failed to parse or open nsswitch.conf, so
 		// conservatively assume we should use cgo if it's
 		// available.
-		return fallbackOrder, nil
+		return fallbackOrder, conf
 	}
 
 	var mdnsSource, filesSource, dnsSource bool
@@ -256,17 +247,17 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	for _, src := range srcs {
 		if src.source == "myhostname" {
 			if isLocalhost(hostname) || isGateway(hostname) {
-				return fallbackOrder, nil
+				return fallbackOrder, conf
 			}
 			hn, err := getHostname()
 			if err != nil || stringsEqualFold(hostname, hn) {
-				return fallbackOrder, nil
+				return fallbackOrder, conf
 			}
 			continue
 		}
 		if src.source == "files" || src.source == "dns" {
 			if !src.standardCriteria() {
-				return fallbackOrder, nil // non-standard; let libc deal with it.
+				return fallbackOrder, conf // non-standard; let libc deal with it.
 			}
 			if src.source == "files" {
 				filesSource = true
@@ -286,23 +277,13 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			continue
 		}
 		// Some source we don't know how to deal with.
-		return fallbackOrder, nil
+		return fallbackOrder, conf
 	}
 
 	// We don't parse mdns.allow files. They're rare. If one
 	// exists, it might list other TLDs (besides .local) or even
 	// '*', so just let libc deal with it.
 	if mdnsSource && c.hasMDNSAllow {
-		return fallbackOrder, nil
-	}
-
-	conf := getSystemDNSConfig()
-	if (conf.err != nil && !os.IsNotExist(conf.err) &&
-		!os.IsPermission(conf.err)) || (conf.err == nil && conf.unknownOpt) {
-		// If we can't read the resolv.conf file or it has unsupported
-		// by net package options assume it had something important in it
-		// and defer to cgo.  libc's resolver might then fail too, but at least
-		// it wasn't our fault.
 		return fallbackOrder, conf
 	}
 
