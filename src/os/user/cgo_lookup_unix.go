@@ -22,24 +22,36 @@ import (
 #include <grp.h>
 #include <stdlib.h>
 
-static int mygetpwuid_r(int uid, struct passwd *pwd,
-	char *buf, size_t buflen, struct passwd **result) {
-	return getpwuid_r(uid, pwd, buf, buflen, result);
+static struct passwd mygetpwuid_r(int uid, char *buf, size_t buflen, int *found, int *perr) {
+	struct passwd pwd;
+        struct passwd *result;
+        *perr = getpwuid_r(uid, &pwd, buf, buflen, &result);
+        *found = result != NULL;
+        return pwd;
 }
 
-static int mygetpwnam_r(const char *name, struct passwd *pwd,
-	char *buf, size_t buflen, struct passwd **result) {
-	return getpwnam_r(name, pwd, buf, buflen, result);
+static struct passwd mygetpwnam_r(const char *name, char *buf, size_t buflen, int *found, int *perr) {
+	struct passwd pwd;
+        struct passwd *result;
+        *perr = getpwnam_r(name, &pwd, buf, buflen, &result);
+        *found = result != NULL;
+        return pwd;
 }
 
-static int mygetgrgid_r(int gid, struct group *grp,
-	char *buf, size_t buflen, struct group **result) {
- return getgrgid_r(gid, grp, buf, buflen, result);
+static struct group mygetgrgid_r(int gid, char *buf, size_t buflen, int *found, int *perr) {
+	struct group grp;
+        struct group *result;
+        *perr = getgrgid_r(gid, &grp, buf, buflen, &result);
+        *found = result != NULL;
+        return grp;
 }
 
-static int mygetgrnam_r(const char *name, struct group *grp,
-	char *buf, size_t buflen, struct group **result) {
- return getgrnam_r(name, grp, buf, buflen, result);
+static struct group mygetgrnam_r(const char *name, char *buf, size_t buflen, int *found, int *perr) {
+	struct group grp;
+        struct group *result;
+        *perr = getgrnam_r(name, &grp, buf, buflen, &result);
+        *found = result != NULL;
+        return grp;
 }
 */
 import "C"
@@ -50,28 +62,22 @@ func current() (*User, error) {
 
 func lookupUser(username string) (*User, error) {
 	var pwd C.struct_passwd
-	var result *C.struct_passwd
+	var found bool
 	nameC := make([]byte, len(username)+1)
 	copy(nameC, username)
 
-	buf := alloc(userBuffer)
-	defer buf.free()
-
-	err := retryWithBuffer(buf, func() syscall.Errno {
-		// mygetpwnam_r is a wrapper around getpwnam_r to avoid
-		// passing a size_t to getpwnam_r, because for unknown
-		// reasons passing a size_t to getpwnam_r doesn't work on
-		// Solaris.
-		return syscall.Errno(C.mygetpwnam_r((*C.char)(unsafe.Pointer(&nameC[0])),
-			&pwd,
-			(*C.char)(buf.ptr),
-			C.size_t(buf.size),
-			&result))
+	err := retryWithBuffer(userBuffer, func(buf []byte) syscall.Errno {
+		var cfound, cerr C.int
+		pwd = C.mygetpwnam_r((*C.char)(unsafe.Pointer(&nameC[0])),
+			(*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)),
+			&cfound, &cerr)
+		found = cfound != 0
+		return syscall.Errno(cerr)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("user: lookup username %s: %v", username, err)
 	}
-	if result == nil {
+	if !found {
 		return nil, UnknownUserError(username)
 	}
 	return buildUser(&pwd), err
@@ -87,24 +93,20 @@ func lookupUserId(uid string) (*User, error) {
 
 func lookupUnixUid(uid int) (*User, error) {
 	var pwd C.struct_passwd
-	var result *C.struct_passwd
+	var found bool
 
-	buf := alloc(userBuffer)
-	defer buf.free()
-
-	err := retryWithBuffer(buf, func() syscall.Errno {
-		// mygetpwuid_r is a wrapper around getpwuid_r to avoid using uid_t
-		// because C.uid_t(uid) for unknown reasons doesn't work on linux.
-		return syscall.Errno(C.mygetpwuid_r(C.int(uid),
-			&pwd,
-			(*C.char)(buf.ptr),
-			C.size_t(buf.size),
-			&result))
+	err := retryWithBuffer(userBuffer, func(buf []byte) syscall.Errno {
+		var cfound, cerr C.int
+		pwd = C.mygetpwuid_r(C.int(uid),
+			(*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)),
+			&cfound, &cerr)
+		found = cfound != 0
+		return syscall.Errno(cerr)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("user: lookup userid %d: %v", uid, err)
 	}
-	if result == nil {
+	if !found {
 		return nil, UnknownUserIdError(uid)
 	}
 	return buildUser(&pwd), nil
@@ -128,24 +130,23 @@ func buildUser(pwd *C.struct_passwd) *User {
 
 func lookupGroup(groupname string) (*Group, error) {
 	var grp C.struct_group
-	var result *C.struct_group
+	var found bool
 
-	buf := alloc(groupBuffer)
-	defer buf.free()
 	cname := make([]byte, len(groupname)+1)
 	copy(cname, groupname)
 
-	err := retryWithBuffer(buf, func() syscall.Errno {
-		return syscall.Errno(C.mygetgrnam_r((*C.char)(unsafe.Pointer(&cname[0])),
-			&grp,
-			(*C.char)(buf.ptr),
-			C.size_t(buf.size),
-			&result))
+	err := retryWithBuffer(groupBuffer, func(buf []byte) syscall.Errno {
+		var cfound, cerr C.int
+		grp = C.mygetgrnam_r((*C.char)(unsafe.Pointer(&cname[0])),
+			(*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)),
+			&cfound, &cerr)
+		found = cfound != 0
+		return syscall.Errno(cerr)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("user: lookup groupname %s: %v", groupname, err)
 	}
-	if result == nil {
+	if !found {
 		return nil, UnknownGroupError(groupname)
 	}
 	return buildGroup(&grp), nil
@@ -161,24 +162,20 @@ func lookupGroupId(gid string) (*Group, error) {
 
 func lookupUnixGid(gid int) (*Group, error) {
 	var grp C.struct_group
-	var result *C.struct_group
+	var found bool
 
-	buf := alloc(groupBuffer)
-	defer buf.free()
-
-	err := retryWithBuffer(buf, func() syscall.Errno {
-		// mygetgrgid_r is a wrapper around getgrgid_r to avoid using gid_t
-		// because C.gid_t(gid) for unknown reasons doesn't work on linux.
-		return syscall.Errno(C.mygetgrgid_r(C.int(gid),
-			&grp,
-			(*C.char)(buf.ptr),
-			C.size_t(buf.size),
-			&result))
+	err := retryWithBuffer(groupBuffer, func(buf []byte) syscall.Errno {
+		var cfound, cerr C.int
+		grp = C.mygetgrgid_r(C.int(gid),
+			(*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)),
+			&cfound, &cerr)
+		found = cfound != 0
+		return syscall.Errno(cerr)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("user: lookup groupid %d: %v", gid, err)
 	}
-	if result == nil {
+	if !found {
 		return nil, UnknownGroupIdError(strconv.Itoa(gid))
 	}
 	return buildGroup(&grp), nil
@@ -214,44 +211,23 @@ func (k bufferKind) initialSize() C.size_t {
 	return C.size_t(sz)
 }
 
-type memBuffer struct {
-	ptr  unsafe.Pointer
-	size C.size_t
-}
-
-func alloc(kind bufferKind) *memBuffer {
-	sz := kind.initialSize()
-	return &memBuffer{
-		ptr:  C.malloc(sz),
-		size: sz,
-	}
-}
-
-func (mb *memBuffer) resize(newSize C.size_t) {
-	mb.ptr = C.realloc(mb.ptr, newSize)
-	mb.size = newSize
-}
-
-func (mb *memBuffer) free() {
-	C.free(mb.ptr)
-}
-
 // retryWithBuffer repeatedly calls f(), increasing the size of the
 // buffer each time, until f succeeds, fails with a non-ERANGE error,
 // or the buffer exceeds a reasonable limit.
-func retryWithBuffer(buf *memBuffer, f func() syscall.Errno) error {
+func retryWithBuffer(startSize bufferKind, f func([]byte) syscall.Errno) error {
+	buf := make([]byte, startSize)
 	for {
-		errno := f()
+		errno := f(buf)
 		if errno == 0 {
 			return nil
 		} else if errno != syscall.ERANGE {
 			return errno
 		}
-		newSize := buf.size * 2
+		newSize := len(buf) * 2
 		if !isSizeReasonable(int64(newSize)) {
 			return fmt.Errorf("internal buffer exceeds %d bytes", maxBufferSize)
 		}
-		buf.resize(newSize)
+		buf = make([]byte, newSize)
 	}
 }
 
