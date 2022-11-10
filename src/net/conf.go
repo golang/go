@@ -162,8 +162,8 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	// It also doesn't support mDNS.
 	if c.goos == "openbsd" {
 		conf := getSystemDNSConfig()
-		if conf.err != nil && !os.IsNotExist(conf.err) &&
-			!os.IsPermission(conf.err) || conf.unknownOpt {
+		if (conf.err != nil && !os.IsNotExist(conf.err) &&
+			!os.IsPermission(conf.err)) || conf.unknownOpt {
 			// If we can't read the resolv.conf file or it has unsupported
 			// by net package options assume it had something important in it
 			// and defer to cgo.  libc's resolver might then fail too, but at least
@@ -232,8 +232,8 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		}
 
 		conf := getSystemDNSConfig()
-		if conf.err != nil && !os.IsNotExist(conf.err) &&
-			!os.IsPermission(conf.err) || conf.unknownOpt {
+		if (conf.err != nil && !os.IsNotExist(conf.err) &&
+			!os.IsPermission(conf.err)) || conf.unknownOpt {
 			// If we can't read the resolv.conf file or it has unsupported
 			// by net package options assume it had something important in it
 			// and defer to cgo.  libc's resolver might then fail too, but at least
@@ -295,8 +295,8 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	}
 
 	conf := getSystemDNSConfig()
-	if conf.err != nil && !os.IsNotExist(conf.err) &&
-		!os.IsPermission(conf.err) || conf.unknownOpt {
+	if (conf.err != nil && !os.IsNotExist(conf.err) &&
+		!os.IsPermission(conf.err)) || conf.unknownOpt {
 		// If we can't read the resolv.conf file or it has unsupported
 		// by net package options assume it had something important in it
 		// and defer to cgo.  libc's resolver might then fail too, but at least
