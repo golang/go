@@ -9,10 +9,93 @@ import (
 	"internal/bytealg"
 	"io"
 	"os"
+	"sync"
+	"time"
 )
+
+const (
+	nssConfigPath = "/etc/nsswitch.conf"
+)
+
+var nssConfig nsswitchConfig
+
+type nsswitchConfig struct {
+	initOnce sync.Once // guards init of nsswitchConfig
+
+	// ch is used as a semaphore that only allows one lookup at a
+	// time to recheck nsswitch.conf
+	ch          chan struct{} // guards lastChecked and modTime
+	lastChecked time.Time     // last time nsswitch.conf was checked
+
+	mu      sync.Mutex // protects nssConf
+	nssConf *nssConf
+}
+
+func getSystemNSS() *nssConf {
+	nssConfig.tryUpdate()
+	nssConfig.mu.Lock()
+	conf := nssConfig.nssConf
+	nssConfig.mu.Unlock()
+	return conf
+}
+
+// init initializes conf and is only called via conf.initOnce.
+func (conf *nsswitchConfig) init() {
+	conf.nssConf = parseNSSConfFile("/etc/nsswitch.conf")
+	conf.lastChecked = time.Now()
+	conf.ch = make(chan struct{}, 1)
+}
+
+// tryUpdate tries to update conf.
+func (conf *nsswitchConfig) tryUpdate() {
+	conf.initOnce.Do(conf.init)
+
+	// Ensure only one update at a time checks nsswitch.conf
+	if !conf.tryAcquireSema() {
+		return
+	}
+	defer conf.releaseSema()
+
+	now := time.Now()
+	if conf.lastChecked.After(now.Add(-5 * time.Second)) {
+		return
+	}
+	conf.lastChecked = now
+
+	var mtime time.Time
+	if fi, err := os.Stat(nssConfigPath); err == nil {
+		mtime = fi.ModTime()
+	}
+	if mtime.Equal(conf.nssConf.mtime) {
+		return
+	}
+
+	nssConf := parseNSSConfFile(nssConfigPath)
+	conf.mu.Lock()
+	conf.nssConf = nssConf
+	conf.mu.Unlock()
+}
+
+func (conf *nsswitchConfig) acquireSema() {
+	conf.ch <- struct{}{}
+}
+
+func (conf *nsswitchConfig) tryAcquireSema() bool {
+	select {
+	case conf.ch <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func (conf *nsswitchConfig) releaseSema() {
+	<-conf.ch
+}
 
 // nssConf represents the state of the machine's /etc/nsswitch.conf file.
 type nssConf struct {
+	mtime   time.Time              // time of nsswitch.conf modification
 	err     error                  // any error encountered opening or parsing the file
 	sources map[string][]nssSource // keyed by database (e.g. "hosts")
 }
@@ -70,7 +153,14 @@ func parseNSSConfFile(file string) *nssConf {
 		return &nssConf{err: err}
 	}
 	defer f.Close()
-	return parseNSSConf(f)
+	stat, err := f.Stat()
+	if err != nil {
+		return &nssConf{err: err}
+	}
+
+	conf := parseNSSConf(f)
+	conf.mtime = stat.ModTime()
+	return conf
 }
 
 func parseNSSConf(r io.Reader) *nssConf {
