@@ -13,6 +13,10 @@ import (
 	"time"
 )
 
+const (
+	nssConfigPath = "/etc/nsswitch.conf"
+)
+
 var nssConfig nsswitchConfig
 
 type nsswitchConfig struct {
@@ -28,7 +32,7 @@ type nsswitchConfig struct {
 }
 
 func getSystemNSS() *nssConf {
-	nssConfig.tryUpdate("/etc/nsswitch.conf")
+	nssConfig.tryUpdate()
 	nssConfig.mu.Lock()
 	conf := nssConfig.nssConf
 	nssConfig.mu.Unlock()
@@ -42,10 +46,8 @@ func (conf *nsswitchConfig) init() {
 	conf.ch = make(chan struct{}, 1)
 }
 
-// tryUpdate tries to update conf with the named nsswitch.conf file.
-// The name variable only exists for testing. It is otherwise always
-// "/etc/nsswitch.conf".
-func (conf *nsswitchConfig) tryUpdate(name string) {
+// tryUpdate tries to update conf.
+func (conf *nsswitchConfig) tryUpdate() {
 	conf.initOnce.Do(conf.init)
 
 	// Ensure only one update at a time checks nsswitch.conf
@@ -61,14 +63,14 @@ func (conf *nsswitchConfig) tryUpdate(name string) {
 	conf.lastChecked = now
 
 	var mtime time.Time
-	if fi, err := os.Stat(name); err == nil {
+	if fi, err := os.Stat(nssConfigPath); err == nil {
 		mtime = fi.ModTime()
 	}
 	if mtime.Equal(conf.nssConf.mtime) {
 		return
 	}
 
-	nssConf := parseNSSConfFile(name)
+	nssConf := parseNSSConfFile(nssConfigPath)
 	conf.mu.Lock()
 	conf.nssConf = nssConf
 	conf.mu.Unlock()
