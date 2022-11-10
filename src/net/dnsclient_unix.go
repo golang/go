@@ -360,9 +360,7 @@ func getSystemDNSConfig() *dnsConfig {
 func (conf *resolverConfig) init() {
 	// Set dnsConfig and lastChecked so we don't parse
 	// resolv.conf twice the first time.
-	if conf.dnsConfig == nil {
-		conf.dnsConfig = dnsReadConfig("/etc/resolv.conf")
-	}
+	conf.dnsConfig = dnsReadConfig("/etc/resolv.conf")
 	conf.lastChecked = time.Now()
 
 	// Prepare ch so that only one update of resolverConfig may
