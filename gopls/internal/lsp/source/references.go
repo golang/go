@@ -78,7 +78,7 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		for _, dep := range rdeps {
 			for _, f := range dep.CompiledGoFiles() {
 				for _, imp := range f.File.Imports {
-					if path, err := strconv.Unquote(imp.Path.Value); err == nil && path == renamingPkg.PkgPath() {
+					if path, err := strconv.Unquote(imp.Path.Value); err == nil && path == string(renamingPkg.PkgPath()) {
 						refs = append(refs, &ReferenceInfo{
 							Name:        packageName,
 							MappedRange: NewMappedRange(f.Tok, f.Mapper, imp.Pos(), imp.End()),

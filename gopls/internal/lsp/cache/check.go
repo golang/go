@@ -378,7 +378,7 @@ func typeCheckImpl(ctx context.Context, snapshot *snapshot, goFiles, compiledGoF
 	for _, e := range m.Errors {
 		diags, err := goPackagesErrorDiagnostics(snapshot, pkg, e)
 		if err != nil {
-			event.Error(ctx, "unable to compute positions for list errors", err, tag.Package.Of(pkg.ID()))
+			event.Error(ctx, "unable to compute positions for list errors", err, tag.Package.Of(string(pkg.ID())))
 			continue
 		}
 		pkg.diagnostics = append(pkg.diagnostics, diags...)
@@ -400,7 +400,7 @@ func typeCheckImpl(ctx context.Context, snapshot *snapshot, goFiles, compiledGoF
 	for _, e := range pkg.parseErrors {
 		diags, err := parseErrorDiagnostics(snapshot, pkg, e)
 		if err != nil {
-			event.Error(ctx, "unable to compute positions for parse errors", err, tag.Package.Of(pkg.ID()))
+			event.Error(ctx, "unable to compute positions for parse errors", err, tag.Package.Of(string(pkg.ID())))
 			continue
 		}
 		for _, diag := range diags {
@@ -418,7 +418,7 @@ func typeCheckImpl(ctx context.Context, snapshot *snapshot, goFiles, compiledGoF
 	for _, e := range expandErrors(unexpanded, snapshot.View().Options().RelatedInformationSupported) {
 		diags, err := typeErrorDiagnostics(snapshot, pkg, e)
 		if err != nil {
-			event.Error(ctx, "unable to compute positions for type errors", err, tag.Package.Of(pkg.ID()))
+			event.Error(ctx, "unable to compute positions for type errors", err, tag.Package.Of(string(pkg.ID())))
 			continue
 		}
 		pkg.typeErrors = append(pkg.typeErrors, e.primary)
@@ -535,7 +535,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 			if !ok {
 				return nil, snapshot.missingPkgError(path)
 			}
-			if !source.IsValidImport(string(m.PkgPath), string(dep.m.PkgPath)) {
+			if !source.IsValidImport(m.PkgPath, dep.m.PkgPath) {
 				return nil, fmt.Errorf("invalid use of internal package %s", path)
 			}
 			depPkg, err := dep.await(ctx, snapshot)

@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"go/types"
 	"reflect"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -834,8 +833,8 @@ func pathEnclosingInterval(fset *token.FileSet, pkg Package, start, end token.Po
 			if imp == nil {
 				continue
 			}
-			importPath, err := strconv.Unquote(imp.Path.Value)
-			if err != nil {
+			importPath := UnquoteImportPath(imp)
+			if importPath == "" {
 				continue
 			}
 			imported, err := pkg.ResolveImportPath(importPath)

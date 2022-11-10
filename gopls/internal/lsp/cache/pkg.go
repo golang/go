@@ -36,7 +36,7 @@ type pkg struct {
 	analyses memoize.Store // maps analyzer.Name to Promise[actionResult]
 }
 
-func (p *pkg) String() string { return p.ID() }
+func (p *pkg) String() string { return string(p.ID()) }
 
 // A loadScope defines a package loading scope for use with go/packages.
 type loadScope interface {
@@ -56,17 +56,9 @@ func (packageLoadScope) aScope() {}
 func (moduleLoadScope) aScope()  {}
 func (viewLoadScope) aScope()    {}
 
-func (p *pkg) ID() string {
-	return string(p.m.ID)
-}
-
-func (p *pkg) Name() string {
-	return string(p.m.Name)
-}
-
-func (p *pkg) PkgPath() string {
-	return string(p.m.PkgPath)
-}
+func (p *pkg) ID() PackageID        { return p.m.ID }
+func (p *pkg) Name() PackageName    { return p.m.Name }
+func (p *pkg) PkgPath() PackagePath { return p.m.PkgPath }
 
 func (p *pkg) ParseMode() source.ParseMode {
 	return p.mode
@@ -118,8 +110,8 @@ func (p *pkg) ForTest() string {
 // given its PackagePath.  (If you have an ImportPath, e.g. a string
 // from an import declaration, use ResolveImportPath instead.
 // They may differ in case of vendoring.)
-func (p *pkg) DirectDep(pkgPath string) (source.Package, error) {
-	if id, ok := p.m.DepsByPkgPath[PackagePath(pkgPath)]; ok {
+func (p *pkg) DirectDep(pkgPath PackagePath) (source.Package, error) {
+	if id, ok := p.m.DepsByPkgPath[pkgPath]; ok {
 		if imp := p.deps[id]; imp != nil {
 			return imp, nil
 		}
@@ -129,8 +121,8 @@ func (p *pkg) DirectDep(pkgPath string) (source.Package, error) {
 
 // ResolveImportPath returns the directly imported dependency of this package,
 // given its ImportPath. See also DirectDep.
-func (p *pkg) ResolveImportPath(importPath string) (source.Package, error) {
-	if id, ok := p.m.DepsByImpPath[ImportPath(importPath)]; ok && id != "" {
+func (p *pkg) ResolveImportPath(importPath ImportPath) (source.Package, error) {
+	if id, ok := p.m.DepsByImpPath[importPath]; ok && id != "" {
 		if imp := p.deps[id]; imp != nil {
 			return imp, nil
 		}
@@ -138,7 +130,7 @@ func (p *pkg) ResolveImportPath(importPath string) (source.Package, error) {
 	return nil, fmt.Errorf("package does not import %s", importPath)
 }
 
-func (p *pkg) MissingDependencies() []string {
+func (p *pkg) MissingDependencies() []ImportPath {
 	// We don't invalidate metadata for import deletions,
 	// so check the package imports via the *types.Package.
 	//
@@ -162,13 +154,14 @@ func (p *pkg) MissingDependencies() []string {
 	// should be fast) then we can simply return the blank entries
 	// in DepsByImpPath. (They are PackageIDs not PackagePaths,
 	// but the caller only cares whether the set is empty!)
-	var missing []string
+	var missing []ImportPath
 	for _, pkg := range p.types.Imports() {
-		if id, ok := p.m.DepsByImpPath[ImportPath(pkg.Path())]; ok && id == "" {
-			missing = append(missing, pkg.Path())
+		importPath := ImportPath(pkg.Path())
+		if id, ok := p.m.DepsByImpPath[importPath]; ok && id == "" {
+			missing = append(missing, importPath)
 		}
 	}
-	sort.Strings(missing)
+	sort.Slice(missing, func(i, j int) bool { return missing[i] < missing[j] })
 	return missing
 }
 

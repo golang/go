@@ -194,7 +194,7 @@ func deducePkgFromTypes(ctx context.Context, snapshot Snapshot, ifaceObj types.O
 		return nil, err
 	}
 	for _, p := range pkgs {
-		if p.PkgPath() == ifaceObj.Pkg().Path() {
+		if p.PkgPath() == PackagePath(ifaceObj.Pkg().Path()) {
 			return p, nil
 		}
 	}
@@ -254,11 +254,11 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 	for i := 0; i < iface.NumEmbeddeds(); i++ {
 		eiface := iface.Embedded(i).Obj()
 		depPkg := ifacePkg
-		if eiface.Pkg().Path() != ifacePkg.PkgPath() {
+		if path := PackagePath(eiface.Pkg().Path()); path != ifacePkg.PkgPath() {
 			// TODO(adonovan): I'm not sure what this is trying to do, but it
 			// looks wrong the in case of type aliases.
 			var err error
-			depPkg, err = ifacePkg.DirectDep(eiface.Pkg().Path())
+			depPkg, err = ifacePkg.DirectDep(path)
 			if err != nil {
 				return nil, err
 			}

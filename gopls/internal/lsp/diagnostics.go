@@ -346,7 +346,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 }
 
 func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg source.Package, alwaysAnalyze bool) {
-	ctx, done := event.Start(ctx, "Server.diagnosePkg", tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
+	ctx, done := event.Start(ctx, "Server.diagnosePkg", tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(string(pkg.ID())))
 	defer done()
 	enableDiagnostics := false
 	includeAnalysis := alwaysAnalyze // only run analyses for packages with open files
@@ -361,7 +361,7 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 
 	pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
 	if err != nil {
-		event.Error(ctx, "warning: diagnosing package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
+		event.Error(ctx, "warning: diagnosing package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(string(pkg.ID())))
 		return
 	}
 	for _, cgf := range pkg.CompiledGoFiles() {
@@ -374,7 +374,7 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 	if includeAnalysis && !pkg.HasListOrParseErrors() {
 		reports, err := source.Analyze(ctx, snapshot, pkg, false)
 		if err != nil {
-			event.Error(ctx, "warning: analyzing package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
+			event.Error(ctx, "warning: analyzing package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(string(pkg.ID())))
 			return
 		}
 		for _, cgf := range pkg.CompiledGoFiles() {
@@ -390,7 +390,7 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 	if enableGCDetails {
 		gcReports, err := source.GCOptimizationDetails(ctx, snapshot, pkg)
 		if err != nil {
-			event.Error(ctx, "warning: gc details", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
+			event.Error(ctx, "warning: gc details", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(string(pkg.ID())))
 		}
 		s.gcOptimizationDetailsMu.Lock()
 		_, enableGCDetails := s.gcOptimizationDetails[pkg.ID()]

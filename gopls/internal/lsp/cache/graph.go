@@ -93,8 +93,8 @@ func (g *metadataGraph) build() {
 			}
 
 			// 2. command-line-args packages appear later.
-			cli := source.IsCommandLineArguments(string(ids[i]))
-			clj := source.IsCommandLineArguments(string(ids[j]))
+			cli := source.IsCommandLineArguments(ids[i])
+			clj := source.IsCommandLineArguments(ids[j])
 			if cli != clj {
 				return clj
 			}
@@ -121,7 +121,7 @@ func (g *metadataGraph) build() {
 			}
 			// If we've seen *anything* prior to command-line arguments package, take
 			// it. Note that ids[0] may itself be command-line-arguments.
-			if i > 0 && source.IsCommandLineArguments(string(id)) {
+			if i > 0 && source.IsCommandLineArguments(id) {
 				g.ids[uri] = ids[:i]
 				break
 			}

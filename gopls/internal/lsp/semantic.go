@@ -15,7 +15,6 @@ import (
 	"log"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -905,8 +904,8 @@ func (e *encoded) importSpec(d *ast.ImportSpec) {
 		}
 		return // don't mark anything for . or _
 	}
-	importPath, err := strconv.Unquote(d.Path.Value)
-	if err != nil {
+	importPath := source.UnquoteImportPath(d)
+	if importPath == "" {
 		return
 	}
 	// Import strings are implementation defined. Try to match with parse information.
@@ -916,7 +915,7 @@ func (e *encoded) importSpec(d *ast.ImportSpec) {
 		return
 	}
 	// Check whether the original literal contains the package's declared name.
-	j := strings.LastIndex(d.Path.Value, imported.Name())
+	j := strings.LastIndex(d.Path.Value, string(imported.Name()))
 	if j == -1 {
 		// name doesn't show up, for whatever reason, so nothing to report
 		return

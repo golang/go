@@ -8,19 +8,16 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/packagesinternal"
 )
 
-// Declare explicit types for package paths, names, and IDs to ensure that we
-// never use an ID where a path belongs, and vice versa. If we confused these,
-// it would result in confusing errors because package IDs often look like
-// package paths.
 type (
-	PackageID   string // go list's unique identifier for a package (e.g. "vendor/example.com/foo [vendor/example.com/bar.test]")
-	PackagePath string // name used to prefix linker symbols (e.g. "vendor/example.com/foo")
-	PackageName string // identifier in 'package' declaration (e.g. "foo")
-	ImportPath  string // path that appears in an import declaration (e.g. "example.com/foo")
+	PackageID   = source.PackageID
+	PackagePath = source.PackagePath
+	PackageName = source.PackageName
+	ImportPath  = source.ImportPath
 )
 
 // Metadata holds package Metadata extracted from a call to packages.Load.
@@ -43,19 +40,13 @@ type Metadata struct {
 }
 
 // PackageID implements the source.Metadata interface.
-func (m *Metadata) PackageID() string {
-	return string(m.ID)
-}
+func (m *Metadata) PackageID() PackageID { return m.ID }
 
 // Name implements the source.Metadata interface.
-func (m *Metadata) PackageName() string {
-	return string(m.Name)
-}
+func (m *Metadata) PackageName() PackageName { return m.Name }
 
 // PkgPath implements the source.Metadata interface.
-func (m *Metadata) PackagePath() string {
-	return string(m.PkgPath)
-}
+func (m *Metadata) PackagePath() PackagePath { return m.PkgPath }
 
 // IsIntermediateTestVariant reports whether the given package is an
 // intermediate test variant, e.g. "net/http [net/url.test]".

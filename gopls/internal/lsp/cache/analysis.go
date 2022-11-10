@@ -24,7 +24,7 @@ import (
 	"golang.org/x/tools/internal/memoize"
 )
 
-func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {
+func (s *snapshot) Analyze(ctx context.Context, id PackageID, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {
 	// TODO(adonovan): merge these two loops. There's no need to
 	// construct all the root action handles before beginning
 	// analysis. Operations should be concurrent (though that first
@@ -35,7 +35,7 @@ func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.A
 		if !a.IsEnabled(s.view) {
 			continue
 		}
-		ah, err := s.actionHandle(ctx, PackageID(id), a.Analyzer)
+		ah, err := s.actionHandle(ctx, id, a.Analyzer)
 		if err != nil {
 			return nil, err
 		}
@@ -416,7 +416,7 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 	for _, diag := range rawDiagnostics {
 		srcDiags, err := analysisDiagnosticDiagnostics(snapshot, pkg, analyzer, &diag)
 		if err != nil {
-			event.Error(ctx, "unable to compute analysis error position", err, tag.Category.Of(diag.Category), tag.Package.Of(pkg.ID()))
+			event.Error(ctx, "unable to compute analysis error position", err, tag.Category.Of(diag.Category), tag.Package.Of(string(pkg.ID())))
 			continue
 		}
 		diagnostics = append(diagnostics, srcDiags...)
@@ -477,7 +477,7 @@ func (s *snapshot) DiagnosePackage(ctx context.Context, spkg source.Package) (ma
 		errorAnalyzerDiag, err = s.Analyze(ctx, pkg.ID(), analyzers)
 		if err != nil {
 			// Keep going: analysis failures should not block diagnostics.
-			event.Error(ctx, "type error analysis failed", err, tag.Package.Of(pkg.ID()))
+			event.Error(ctx, "type error analysis failed", err, tag.Package.Of(string(pkg.ID())))
 		}
 	}
 	diags := map[span.URI][]*source.Diagnostic{}

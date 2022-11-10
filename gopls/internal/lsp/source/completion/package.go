@@ -240,7 +240,7 @@ func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI s
 	}
 	pkgName := convertDirNameToPkgName(dirName)
 
-	seenPkgs := make(map[string]struct{})
+	seenPkgs := make(map[source.PackageName]struct{})
 
 	// The `go` command by default only allows one package per directory but we
 	// support multiple package suggestions since gopls is build system agnostic.
@@ -267,30 +267,30 @@ func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI s
 		// Add a found package used in current directory as a high relevance
 		// suggestion and the test package for it as a medium relevance
 		// suggestion.
-		if score := float64(matcher.Score(pkg.Name())); score > 0 {
-			packages = append(packages, toCandidate(pkg.Name(), score*highScore))
+		if score := float64(matcher.Score(string(pkg.Name()))); score > 0 {
+			packages = append(packages, toCandidate(string(pkg.Name()), score*highScore))
 		}
 		seenPkgs[pkg.Name()] = struct{}{}
 
 		testPkgName := pkg.Name() + "_test"
-		if _, ok := seenPkgs[testPkgName]; ok || strings.HasSuffix(pkg.Name(), "_test") {
+		if _, ok := seenPkgs[testPkgName]; ok || strings.HasSuffix(string(pkg.Name()), "_test") {
 			continue
 		}
-		if score := float64(matcher.Score(testPkgName)); score > 0 {
-			packages = append(packages, toCandidate(testPkgName, score*stdScore))
+		if score := float64(matcher.Score(string(testPkgName))); score > 0 {
+			packages = append(packages, toCandidate(string(testPkgName), score*stdScore))
 		}
 		seenPkgs[testPkgName] = struct{}{}
 	}
 
 	// Add current directory name as a low relevance suggestion.
 	if _, ok := seenPkgs[pkgName]; !ok {
-		if score := float64(matcher.Score(pkgName)); score > 0 {
-			packages = append(packages, toCandidate(pkgName, score*lowScore))
+		if score := float64(matcher.Score(string(pkgName))); score > 0 {
+			packages = append(packages, toCandidate(string(pkgName), score*lowScore))
 		}
 
 		testPkgName := pkgName + "_test"
-		if score := float64(matcher.Score(testPkgName)); score > 0 {
-			packages = append(packages, toCandidate(testPkgName, score*lowScore))
+		if score := float64(matcher.Score(string(testPkgName))); score > 0 {
+			packages = append(packages, toCandidate(string(testPkgName), score*lowScore))
 		}
 	}
 
@@ -330,7 +330,7 @@ func isValidDirName(dirName string) bool {
 
 // convertDirNameToPkgName converts a valid directory name to a valid package name.
 // It leaves only letters and digits. All letters are mapped to lower case.
-func convertDirNameToPkgName(dirName string) string {
+func convertDirNameToPkgName(dirName string) source.PackageName {
 	var buf bytes.Buffer
 	for _, ch := range dirName {
 		switch {
@@ -341,7 +341,7 @@ func convertDirNameToPkgName(dirName string) string {
 			buf.WriteRune(ch)
 		}
 	}
-	return buf.String()
+	return source.PackageName(buf.String())
 }
 
 // isLetter and isDigit allow only ASCII characters because

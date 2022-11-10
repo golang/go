@@ -4,7 +4,11 @@
 
 package completion
 
-import "testing"
+import (
+	"testing"
+
+	"golang.org/x/tools/gopls/internal/lsp/source"
+)
 
 func TestIsValidDirName(t *testing.T) {
 	tests := []struct {
@@ -51,7 +55,7 @@ func TestIsValidDirName(t *testing.T) {
 func TestConvertDirNameToPkgName(t *testing.T) {
 	tests := []struct {
 		dirName string
-		pkgName string
+		pkgName source.PackageName
 	}{
 		{dirName: "a", pkgName: "a"},
 		{dirName: "abcdef", pkgName: "abcdef"},

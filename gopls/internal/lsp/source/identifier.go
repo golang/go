@@ -456,7 +456,7 @@ func importSpec(snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (
 	if err != nil {
 		return nil, fmt.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
 	}
-	imported, err := pkg.ResolveImportPath(importPath)
+	imported, err := pkg.ResolveImportPath(ImportPath(importPath))
 	if err != nil {
 		return nil, err
 	}

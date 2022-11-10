@@ -448,7 +448,7 @@ func moduleAtVersion(path string, i *IdentifierInfo) (string, string, bool) {
 	if strings.ToLower(i.Snapshot.View().Options().LinkTarget) != "pkg.go.dev" {
 		return "", "", false
 	}
-	impPkg, err := i.pkg.DirectDep(path)
+	impPkg, err := i.pkg.DirectDep(PackagePath(path))
 	if err != nil {
 		return "", "", false
 	}
@@ -539,7 +539,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 		if err != nil {
 			return nil, err
 		}
-		imp, err := pkg.ResolveImportPath(importPath)
+		imp, err := pkg.ResolveImportPath(ImportPath(importPath))
 		if err != nil {
 			return nil, err
 		}

@@ -1089,7 +1089,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 		if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
 			var pkg source.Package
 			for _, imp := range c.pkg.Imports() {
-				if imp.PkgPath() == pkgName.Imported().Path() {
+				if imp.PkgPath() == source.PackagePath(pkgName.Imported().Path()) {
 					pkg = imp
 				}
 			}
@@ -1140,7 +1140,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		if pkg.GetTypes().Name() != id.Name {
 			continue
 		}
-		paths = append(paths, path)
+		paths = append(paths, string(path))
 	}
 
 	var relevances map[string]float64
@@ -1158,7 +1158,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 	})
 
 	for _, path := range paths {
-		pkg := known[path]
+		pkg := known[source.PackagePath(path)]
 		if pkg.GetTypes().Name() != id.Name {
 			continue
 		}
@@ -1182,7 +1182,8 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 	add := func(pkgExport imports.PackageExport) {
 		mu.Lock()
 		defer mu.Unlock()
-		if _, ok := known[pkgExport.Fix.StmtInfo.ImportPath]; ok {
+		// TODO(adonovan): what if the actual package has a vendor/ prefix?
+		if _, ok := known[source.PackagePath(pkgExport.Fix.StmtInfo.ImportPath)]; ok {
 			return // We got this one above.
 		}
 
@@ -1379,7 +1380,8 @@ func (c *completer) lexical(ctx context.Context) error {
 
 				// Make sure the package name isn't already in use by another
 				// object, and that this file doesn't import the package yet.
-				if _, ok := seen[pkg.Name()]; !ok && pkg != c.pkg.GetTypes() && !alreadyImports(c.file, pkg.Path()) {
+				// TODO(adonovan): what if pkg.Path has vendor/ prefix?
+				if _, ok := seen[pkg.Name()]; !ok && pkg != c.pkg.GetTypes() && !alreadyImports(c.file, source.ImportPath(pkg.Path())) {
 					seen[pkg.Name()] = struct{}{}
 					obj := types.NewPkgName(0, nil, pkg.Name(), pkg)
 					imp := &importInfo{
@@ -1481,12 +1483,12 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 	if err != nil {
 		return err
 	}
-	var paths []string
+	var paths []string // actually PackagePaths
 	for path, pkg := range known {
 		if !strings.HasPrefix(pkg.GetTypes().Name(), prefix) {
 			continue
 		}
-		paths = append(paths, path)
+		paths = append(paths, string(path))
 	}
 
 	var relevances map[string]float64
@@ -1511,7 +1513,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 	})
 
 	for _, path := range paths {
-		pkg := known[path]
+		pkg := known[source.PackagePath(path)]
 		if _, ok := seen[pkg.GetTypes().Name()]; ok {
 			continue
 		}
@@ -1526,7 +1528,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		}
 		c.deepState.enqueue(candidate{
 			// Pass an empty *types.Package to disable deep completions.
-			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), types.NewPackage(path, pkg.Name())),
+			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), types.NewPackage(path, string(pkg.Name()))),
 			score: unimportedScore(relevances[path]),
 			imp:   imp,
 		})
@@ -1573,9 +1575,9 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 }
 
 // alreadyImports reports whether f has an import with the specified path.
-func alreadyImports(f *ast.File, path string) bool {
+func alreadyImports(f *ast.File, path source.ImportPath) bool {
 	for _, s := range f.Imports {
-		if source.ImportPath(s) == path {
+		if source.UnquoteImportPath(s) == path {
 			return true
 		}
 	}

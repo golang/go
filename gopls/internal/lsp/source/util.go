@@ -314,7 +314,7 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 // findFileInDeps finds uri in pkg or its dependencies.
 func findFileInDeps(pkg Package, uri span.URI) (*ParsedGoFile, Package, error) {
 	queue := []Package{pkg}
-	seen := make(map[string]bool)
+	seen := make(map[PackageID]bool)
 
 	for len(queue) > 0 {
 		pkg := queue[0]
@@ -333,14 +333,14 @@ func findFileInDeps(pkg Package, uri span.URI) (*ParsedGoFile, Package, error) {
 	return nil, nil, fmt.Errorf("no file for %s in package %s", uri, pkg.ID())
 }
 
-// ImportPath returns the unquoted import path of s,
+// UnquoteImportPath returns the unquoted import path of s,
 // or "" if the path is not properly quoted.
-func ImportPath(s *ast.ImportSpec) string {
-	t, err := strconv.Unquote(s.Path.Value)
+func UnquoteImportPath(s *ast.ImportSpec) ImportPath {
+	path, err := strconv.Unquote(s.Path.Value)
 	if err != nil {
 		return ""
 	}
-	return t
+	return ImportPath(path)
 }
 
 // NodeContains returns true if a node encloses a given position pos.
@@ -532,14 +532,14 @@ func InDirLex(dir, path string) bool {
 
 // IsValidImport returns whether importPkgPath is importable
 // by pkgPath
-func IsValidImport(pkgPath, importPkgPath string) bool {
+func IsValidImport(pkgPath, importPkgPath PackagePath) bool {
 	i := strings.LastIndex(string(importPkgPath), "/internal/")
 	if i == -1 {
 		return true
 	}
 	// TODO(rfindley): this looks wrong: IsCommandLineArguments is meant to
 	// operate on package IDs, not package paths.
-	if IsCommandLineArguments(string(pkgPath)) {
+	if IsCommandLineArguments(PackageID(pkgPath)) {
 		return true
 	}
 	// TODO(rfindley): this is wrong. mod.testx/p should not be able to
@@ -551,10 +551,8 @@ func IsValidImport(pkgPath, importPkgPath string) bool {
 // "command-line-arguments" package, which is a package with an unknown ID
 // created by the go command. It can have a test variant, which is why callers
 // should not check that a value equals "command-line-arguments" directly.
-//
-// TODO(rfindley): this should accept a PackageID.
-func IsCommandLineArguments(s string) bool {
-	return strings.Contains(s, "command-line-arguments")
+func IsCommandLineArguments(id PackageID) bool {
+	return strings.Contains(string(id), "command-line-arguments")
 }
 
 // RecvIdent returns the type identifier of a method receiver.

@@ -735,8 +735,10 @@ func (c *commandHandler) ListKnownPackages(ctx context.Context, args command.URI
 		progress: "Listing packages",
 		forURI:   args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		var err error
-		result.Packages, err = source.KnownPackages(ctx, deps.snapshot, deps.fh)
+		pkgs, err := source.KnownPackages(ctx, deps.snapshot, deps.fh)
+		for _, pkg := range pkgs {
+			result.Packages = append(result.Packages, string(pkg))
+		}
 		return err
 	})
 	return result, err
@@ -765,14 +767,14 @@ func (c *commandHandler) ListImports(ctx context.Context, args command.URIArg) (
 					name = imp.Name.Name
 				}
 				result.Imports = append(result.Imports, command.FileImport{
-					Path: source.ImportPath(imp),
+					Path: string(source.UnquoteImportPath(imp)),
 					Name: name,
 				})
 			}
 		}
 		for _, imp := range pkg.Imports() {
 			result.PackageImports = append(result.PackageImports, command.PackageImport{
-				Path: imp.PkgPath(), // This might be the vendored path under GOPATH vendoring, in which case it's a bug.
+				Path: string(imp.PkgPath()), // This might be the vendored path under GOPATH vendoring, in which case it's a bug.
 			})
 		}
 		sort.Slice(result.PackageImports, func(i, j int) bool {

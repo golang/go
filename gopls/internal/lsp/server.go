@@ -27,7 +27,7 @@ func NewServer(session *cache.Session, client protocol.ClientCloser) *Server {
 	session.SetProgressTracker(tracker)
 	return &Server{
 		diagnostics:           map[span.URI]*fileReports{},
-		gcOptimizationDetails: make(map[string]struct{}),
+		gcOptimizationDetails: make(map[source.PackageID]struct{}),
 		watchedGlobPatterns:   make(map[string]struct{}),
 		changedFiles:          make(map[span.URI]struct{}),
 		session:               session,
@@ -97,7 +97,7 @@ type Server struct {
 	// optimization details to be included in the diagnostics. The key is the
 	// ID of the package.
 	gcOptimizationDetailsMu sync.Mutex
-	gcOptimizationDetails   map[string]struct{}
+	gcOptimizationDetails   map[source.PackageID]struct{}
 
 	// diagnosticsSema limits the concurrency of diagnostics runs, which can be
 	// expensive.

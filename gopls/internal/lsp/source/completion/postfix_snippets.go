@@ -16,11 +16,11 @@ import (
 	"sync"
 	"text/template"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/snippet"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/imports"
 )
 
 // Postfix snippets are artificial methods that allow the user to
@@ -442,7 +442,8 @@ func (c *completer) importIfNeeded(pkgPath string, scope *types.Scope) (string, 
 
 	// Check if file already imports pkgPath.
 	for _, s := range c.file.Imports {
-		if source.ImportPath(s) == pkgPath {
+		// TODO(adonovan): what if pkgPath has a vendor/ prefix?
+		if source.UnquoteImportPath(s) == source.ImportPath(pkgPath) {
 			if s.Name == nil {
 				return defaultName, nil, nil
 			}

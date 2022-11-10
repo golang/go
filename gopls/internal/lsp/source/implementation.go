@@ -323,7 +323,7 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key positionKey, s
 			// Look up the implicit *types.PkgName.
 			obj := searchpkg.GetTypesInfo().Implicits[leaf]
 			if obj == nil {
-				return nil, fmt.Errorf("%w for import %q", errNoObjectFound, ImportPath(leaf))
+				return nil, fmt.Errorf("%w for import %s", errNoObjectFound, UnquoteImportPath(leaf))
 			}
 			objs = append(objs, obj)
 		}

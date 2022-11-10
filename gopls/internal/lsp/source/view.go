@@ -84,7 +84,7 @@ type Snapshot interface {
 	DiagnosePackage(ctx context.Context, pkg Package) (map[span.URI][]*Diagnostic, error)
 
 	// Analyze runs the analyses for the given package at this snapshot.
-	Analyze(ctx context.Context, pkgID string, analyzers []*Analyzer) ([]*Diagnostic, error)
+	Analyze(ctx context.Context, pkgID PackageID, analyzers []*Analyzer) ([]*Diagnostic, error)
 
 	// RunGoCommandPiped runs the given `go` command, writing its output
 	// to stdout and stderr. Verb, Args, and WorkingDir must be specified.
@@ -149,12 +149,12 @@ type Snapshot interface {
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package, checked in TypecheckWorkspace mode.
-	GetReverseDependencies(ctx context.Context, id string) ([]Package, error)
+	GetReverseDependencies(ctx context.Context, id PackageID) ([]Package, error)
 
 	// CachedImportPaths returns all the imported packages loaded in this
 	// snapshot, indexed by their package path (not import path, despite the name)
 	// and checked in TypecheckWorkspace mode.
-	CachedImportPaths(ctx context.Context) (map[string]Package, error)
+	CachedImportPaths(ctx context.Context) (map[PackagePath]Package, error)
 
 	// KnownPackages returns all the packages loaded in this snapshot, checked
 	// in TypecheckWorkspace mode.
@@ -171,7 +171,7 @@ type Snapshot interface {
 
 	// WorkspacePackageByID returns the workspace package with id, type checked
 	// in 'workspace' mode.
-	WorkspacePackageByID(ctx context.Context, id string) (Package, error)
+	WorkspacePackageByID(ctx context.Context, id PackageID) (Package, error)
 
 	// Symbols returns all symbols in the snapshot.
 	Symbols(ctx context.Context) map[span.URI][]Symbol
@@ -338,17 +338,15 @@ type TidiedModule struct {
 }
 
 // Metadata represents package metadata retrieved from go/packages.
-//
-// TODO(rfindley): move the strongly typed strings from the cache package here.
 type Metadata interface {
 	// PackageID is the unique package id.
-	PackageID() string
+	PackageID() PackageID
 
 	// PackageName is the package name.
-	PackageName() string
+	PackageName() PackageName
 
 	// PackagePath is the package path.
-	PackagePath() string
+	PackagePath() PackagePath
 
 	// ModuleInfo returns the go/packages module information for the given package.
 	ModuleInfo() *packages.Module
@@ -593,12 +591,23 @@ func (a Analyzer) IsEnabled(view View) bool {
 	return a.Enabled
 }
 
+// Declare explicit types for package paths, names, and IDs to ensure that we
+// never use an ID where a path belongs, and vice versa. If we confused these,
+// it would result in confusing errors because package IDs often look like
+// package paths.
+type (
+	PackageID   string // go list's unique identifier for a package (e.g. "vendor/example.com/foo [vendor/example.com/bar.test]")
+	PackagePath string // name used to prefix linker symbols (e.g. "vendor/example.com/foo")
+	PackageName string // identifier in 'package' declaration (e.g. "foo")
+	ImportPath  string // path that appears in an import declaration (e.g. "example.com/foo")
+)
+
 // Package represents a Go package that has been type-checked. It maintains
 // only the relevant fields of a *go/packages.Package.
 type Package interface {
-	ID() string      // logically a cache.PackageID
-	Name() string    // logically a cache.PackageName
-	PkgPath() string // logically a cache.PackagePath
+	ID() PackageID
+	Name() PackageName
+	PkgPath() PackagePath
 	CompiledGoFiles() []*ParsedGoFile
 	File(uri span.URI) (*ParsedGoFile, error)
 	GetSyntax() []*ast.File
@@ -606,9 +615,9 @@ type Package interface {
 	GetTypesInfo() *types.Info
 	GetTypesSizes() types.Sizes
 	ForTest() string
-	DirectDep(packagePath string) (Package, error)        // logically a cache.PackagePath
-	ResolveImportPath(importPath string) (Package, error) // logically a cache.ImportPath
-	MissingDependencies() []string                        // unordered; logically cache.ImportPaths
+	DirectDep(path PackagePath) (Package, error)
+	ResolveImportPath(path ImportPath) (Package, error)
+	MissingDependencies() []ImportPath // unordered
 	Imports() []Package
 	Version() *module.Version
 	HasListOrParseErrors() bool

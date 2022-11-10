@@ -19,14 +19,15 @@ import (
 // KnownPackages returns a list of all known packages
 // in the package graph that could potentially be imported
 // by the given file.
-func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle) ([]string, error) {
+func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle) ([]PackagePath, error) {
 	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
 		return nil, fmt.Errorf("GetParsedFile: %w", err)
 	}
-	alreadyImported := map[string]struct{}{}
+	alreadyImported := map[PackagePath]struct{}{}
 	for _, imp := range pgf.File.Imports {
-		alreadyImported[imp.Path.Value] = struct{}{}
+		// TODO(adonovan): the correct PackagePath might need a "vendor/" prefix.
+		alreadyImported[PackagePath(imp.Path.Value)] = struct{}{}
 	}
 	// TODO(adonovan): this whole algorithm could be more
 	// simply expressed in terms of Metadata, not Packages.
@@ -35,8 +36,8 @@ func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandl
 		return nil, err
 	}
 	var (
-		seen  = make(map[string]struct{})
-		paths []string
+		seen  = make(map[PackagePath]struct{})
+		paths []PackagePath
 	)
 	for path, knownPkg := range pkgs {
 		gofiles := knownPkg.CompiledGoFiles()
@@ -79,10 +80,12 @@ func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandl
 		return imports.GetAllCandidates(ctx, func(ifix imports.ImportFix) {
 			mu.Lock()
 			defer mu.Unlock()
-			if _, ok := seen[ifix.StmtInfo.ImportPath]; ok {
+			// TODO(adonovan): what if the actual package path has a vendor/ prefix?
+			path := PackagePath(ifix.StmtInfo.ImportPath)
+			if _, ok := seen[path]; ok {
 				return
 			}
-			paths = append(paths, ifix.StmtInfo.ImportPath)
+			paths = append(paths, path)
 		}, "", pgf.URI.Filename(), pkg.GetTypes().Name(), o.Env)
 	})
 	if err != nil {
@@ -92,8 +95,8 @@ func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandl
 	}
 	sort.Slice(paths, func(i, j int) bool {
 		importI, importJ := paths[i], paths[j]
-		iHasDot := strings.Contains(importI, ".")
-		jHasDot := strings.Contains(importJ, ".")
+		iHasDot := strings.Contains(string(importI), ".")
+		jHasDot := strings.Contains(string(importJ), ".")
 		if iHasDot && !jHasDot {
 			return false
 		}

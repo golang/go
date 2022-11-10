@@ -811,17 +811,17 @@ func (s *snapshot) useInvalidMetadata() bool {
 	return s.view.goversion >= 13 && s.view.Options().ExperimentalUseInvalidMetadata
 }
 
-func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]source.Package, error) {
+func (s *snapshot) GetReverseDependencies(ctx context.Context, id PackageID) ([]source.Package, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
 	s.mu.Lock()
 	meta := s.meta
 	s.mu.Unlock()
-	ids := meta.reverseTransitiveClosure(s.useInvalidMetadata(), PackageID(id))
+	ids := meta.reverseTransitiveClosure(s.useInvalidMetadata(), id)
 
 	// Make sure to delete the original package ID from the map.
-	delete(ids, PackageID(id))
+	delete(ids, id)
 
 	var pkgs []source.Package
 	for id := range ids {
@@ -1212,12 +1212,11 @@ func (s *snapshot) AllValidMetadata(ctx context.Context) ([]source.Metadata, err
 	return meta, nil
 }
 
-func (s *snapshot) WorkspacePackageByID(ctx context.Context, id string) (source.Package, error) {
-	packageID := PackageID(id)
-	return s.checkedPackage(ctx, packageID, s.workspaceParseMode(packageID))
+func (s *snapshot) WorkspacePackageByID(ctx context.Context, id PackageID) (source.Package, error) {
+	return s.checkedPackage(ctx, id, s.workspaceParseMode(id))
 }
 
-func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Package, error) {
+func (s *snapshot) CachedImportPaths(ctx context.Context) (map[PackagePath]source.Package, error) {
 	// Don't reload workspace package metadata.
 	// This function is meant to only return currently cached information.
 	s.AwaitInitialized(ctx)
@@ -1225,7 +1224,7 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	results := map[string]source.Package{}
+	results := map[PackagePath]source.Package{}
 	s.packages.Range(func(_, v interface{}) {
 		cachedPkg, err := v.(*packageHandle).cached()
 		if err != nil {
@@ -1983,7 +1982,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 		// For metadata that has been newly invalidated, capture package paths
 		// requiring reloading in the shouldLoad map.
-		if invalidateMetadata && !source.IsCommandLineArguments(string(v.ID)) {
+		if invalidateMetadata && !source.IsCommandLineArguments(v.ID) {
 			if result.shouldLoad == nil {
 				result.shouldLoad = make(map[PackageID][]PackagePath)
 			}

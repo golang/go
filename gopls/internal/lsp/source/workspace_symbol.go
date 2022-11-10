@@ -92,7 +92,7 @@ type symbolizer func(space []string, name string, pkg Metadata, m matcherFunc) (
 
 func fullyQualifiedSymbolMatch(space []string, name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
 	if _, score := dynamicSymbolMatch(space, name, pkg, matcher); score > 0 {
-		return append(space, pkg.PackagePath(), ".", name), score
+		return append(space, string(pkg.PackagePath()), ".", name), score
 	}
 	return nil, 0
 }
@@ -106,12 +106,12 @@ func dynamicSymbolMatch(space []string, name string, pkg Metadata, matcher match
 
 	var score float64
 
-	endsInPkgName := strings.HasSuffix(pkg.PackagePath(), pkg.PackageName())
+	endsInPkgName := strings.HasSuffix(string(pkg.PackagePath()), string(pkg.PackageName()))
 
 	// If the package path does not end in the package name, we need to check the
 	// package-qualified symbol as an extra pass first.
 	if !endsInPkgName {
-		pkgQualified := append(space, pkg.PackageName(), ".", name)
+		pkgQualified := append(space, string(pkg.PackageName()), ".", name)
 		idx, score := matcher(pkgQualified)
 		nameStart := len(pkg.PackageName()) + 1
 		if score > 0 {
@@ -126,7 +126,7 @@ func dynamicSymbolMatch(space []string, name string, pkg Metadata, matcher match
 	}
 
 	// Now try matching the fully qualified symbol.
-	fullyQualified := append(space, pkg.PackagePath(), ".", name)
+	fullyQualified := append(space, string(pkg.PackagePath()), ".", name)
 	idx, score := matcher(fullyQualified)
 
 	// As above, check if we matched just the unqualified symbol name.
@@ -141,7 +141,7 @@ func dynamicSymbolMatch(space []string, name string, pkg Metadata, matcher match
 	if endsInPkgName && idx >= 0 {
 		pkgStart := len(pkg.PackagePath()) - len(pkg.PackageName())
 		if idx >= pkgStart {
-			return append(space, pkg.PackageName(), ".", name), score
+			return append(space, string(pkg.PackageName()), ".", name), score
 		}
 	}
 
@@ -151,7 +151,7 @@ func dynamicSymbolMatch(space []string, name string, pkg Metadata, matcher match
 }
 
 func packageSymbolMatch(space []string, name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
-	qualified := append(space, pkg.PackageName(), ".", name)
+	qualified := append(space, string(pkg.PackageName()), ".", name)
 	if _, s := matcher(qualified); s > 0 {
 		return qualified, s
 	}
@@ -526,7 +526,7 @@ func matchFile(store *symbolStore, symbolizer symbolizer, matcher matcherFunc, r
 			kind:      sym.Kind,
 			uri:       i.uri,
 			rng:       sym.Range,
-			container: i.md.PackagePath(),
+			container: string(i.md.PackagePath()),
 		}
 		store.store(si)
 	}

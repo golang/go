@@ -50,7 +50,9 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	for _, scope := range scopes {
 		switch scope := scope.(type) {
 		case packageLoadScope:
-			if source.IsCommandLineArguments(string(scope)) {
+			// TODO(adonovan): is this cast sound?? A
+			// packageLoadScope is really a PackagePath I think.
+			if source.IsCommandLineArguments(PackageID(scope)) {
 				panic("attempted to load command-line-arguments")
 			}
 			// The only time we pass package paths is when we're doing a
@@ -480,10 +482,10 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 	// Allow for multiple ad-hoc packages in the workspace (see #47584).
 	pkgPath := PackagePath(pkg.PkgPath)
 	id := PackageID(pkg.ID)
-	if source.IsCommandLineArguments(pkg.ID) {
+	if source.IsCommandLineArguments(id) {
 		suffix := ":" + strings.Join(query, ",")
-		id = PackageID(string(id) + suffix)
-		pkgPath = PackagePath(string(pkgPath) + suffix)
+		id = PackageID(pkg.ID + suffix)
+		pkgPath = PackagePath(pkg.PkgPath + suffix)
 	}
 
 	if _, ok := updates[id]; ok {
@@ -712,7 +714,7 @@ func computeWorkspacePackagesLocked(s *snapshot, meta *metadataGraph) map[Packag
 			continue
 		}
 
-		if source.IsCommandLineArguments(string(m.ID)) {
+		if source.IsCommandLineArguments(m.ID) {
 			// If all the files contained in m have a real package, we don't need to
 			// keep m as a workspace package.
 			if allFilesHaveRealPackages(meta, m) {
@@ -754,7 +756,7 @@ func allFilesHaveRealPackages(g *metadataGraph, m *KnownMetadata) bool {
 checkURIs:
 	for _, uri := range append(m.CompiledGoFiles[0:n:n], m.GoFiles...) {
 		for _, id := range g.ids[uri] {
-			if !source.IsCommandLineArguments(string(id)) && (g.metadata[id].Valid || !m.Valid) {
+			if !source.IsCommandLineArguments(id) && (g.metadata[id].Valid || !m.Valid) {
 				continue checkURIs
 			}
 		}

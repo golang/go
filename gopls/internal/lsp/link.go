@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -133,21 +132,21 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 	// https://pkg.go.dev.
 	if view.Options().ImportShortcut.ShowLinks() {
 		for _, imp := range imports {
-			target, err := strconv.Unquote(imp.Path.Value)
-			if err != nil {
+			target := source.UnquoteImportPath(imp)
+			if target == "" {
 				continue
 			}
 			// See golang/go#36998: don't link to modules matching GOPRIVATE.
-			if view.IsGoPrivatePath(target) {
+			if view.IsGoPrivatePath(string(target)) {
 				continue
 			}
 			if mod, version, ok := moduleAtVersion(target, pkg); ok && strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {
-				target = strings.Replace(target, mod, mod+"@"+version, 1)
+				target = source.ImportPath(strings.Replace(string(target), mod, mod+"@"+version, 1))
 			}
 			// Account for the quotation marks in the positions.
 			start := imp.Path.Pos() + 1
 			end := imp.Path.End() - 1
-			targetURL := source.BuildLink(view.Options().LinkTarget, target, "")
+			targetURL := source.BuildLink(view.Options().LinkTarget, string(target), "")
 			l, err := toProtocolLink(pgf.Tok, pgf.Mapper, targetURL, start, end)
 			if err != nil {
 				return nil, err
@@ -174,7 +173,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 	return links, nil
 }
 
-func moduleAtVersion(targetImportPath string, pkg source.Package) (string, string, bool) {
+func moduleAtVersion(targetImportPath source.ImportPath, pkg source.Package) (string, string, bool) {
 	impPkg, err := pkg.ResolveImportPath(targetImportPath)
 	if err != nil {
 		return "", "", false
