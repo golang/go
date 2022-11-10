@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 var (
@@ -86,6 +87,24 @@ func TestScripts(t *testing.T) {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(s)
+
+	// To check for data races in the handler, run the root handler to produce an
+	// overview of the script status at an arbitrary point during the test.
+	// (We ignore the output because the expected failure mode is a friendly stack
+	// dump from the race detector.)
+	t.Run("overview", func(t *testing.T) {
+		t.Parallel()
+
+		time.Sleep(1 * time.Millisecond) // Give the other handlers time to race.
+
+		resp, err := http.Get(srv.URL)
+		if err == nil {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		} else {
+			t.Error(err)
+		}
+	})
 
 	t.Cleanup(func() {
 		// The subtests spawned by WalkDir run in parallel. When they complete, this
