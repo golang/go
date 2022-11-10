@@ -1,0 +1,8 @@
+127.0.0.1 test
+127.0.0.2 test2.example.com test2
+127.0.0.3 test3 test3.example.com
+127.0.0.4 example.com
+127.0.0.5 test4.example.com test4 test5 test5.example.com
+
+#must be a non resolvable domain on the internet
+127.0.1.1 8438random7333name2.example.test 8438random7333name2

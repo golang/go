@@ -2454,3 +2454,53 @@ func TestDNSConfigNoReload(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGoLookupIPCNAMEOrderHostsAliasesFilesOnlyMode(t *testing.T) {
+	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+	testHookHostsPath = "testdata/aliases"
+	mode := hostLookupFiles
+
+	for _, v := range lookupStaticHostAliasesTest {
+		testGoLookupIPCNAMEOrderHostsAliases(t, mode, v.lookup, absDomainName(v.res))
+	}
+}
+
+func TestGoLookupIPCNAMEOrderHostsAliasesFilesDNSMode(t *testing.T) {
+	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+	testHookHostsPath = "testdata/aliases"
+	mode := hostLookupFilesDNS
+
+	for _, v := range lookupStaticHostAliasesTest {
+		testGoLookupIPCNAMEOrderHostsAliases(t, mode, v.lookup, absDomainName(v.res))
+	}
+}
+
+var goLookupIPCNAMEOrderDNSFilesModeTests = []struct {
+	lookup, res string
+}{
+	//127.0.1.1
+	{"8438random7333name2", "8438random7333name2.example.test"},
+}
+
+func TestGoLookupIPCNAMEOrderHostsAliasesDNSFilesMode(t *testing.T) {
+	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+	testHookHostsPath = "testdata/aliases"
+	mode := hostLookupDNSFiles
+
+	for _, v := range goLookupIPCNAMEOrderDNSFilesModeTests {
+		testGoLookupIPCNAMEOrderHostsAliases(t, mode, v.lookup, absDomainName(v.res))
+	}
+}
+
+func testGoLookupIPCNAMEOrderHostsAliases(t *testing.T, mode hostLookupOrder, lookup, lookupRes string) {
+	ins := []string{lookup, absDomainName(lookup), strings.ToLower(lookup), strings.ToUpper(lookup)}
+	for _, in := range ins {
+		_, res, err := goResolver.goLookupIPCNAMEOrder(context.Background(), "ip", in, mode)
+		if err != nil {
+			t.Errorf("expected err == nil, but got error: %v", err)
+		}
+		if res.String() != lookupRes {
+			t.Errorf("goLookupIPCNAMEOrder(%v): should be: '%v', but: '%v'", in, lookupRes, res)
+		}
+	}
+}

@@ -72,7 +72,7 @@ func TestLookupStaticHost(t *testing.T) {
 func testStaticHost(t *testing.T, hostsPath string, ent staticHostEntry) {
 	ins := []string{ent.in, absDomainName(ent.in), strings.ToLower(ent.in), strings.ToUpper(ent.in)}
 	for _, in := range ins {
-		addrs := lookupStaticHost(in)
+		addrs, _ := lookupStaticHost(in)
 		if !reflect.DeepEqual(addrs, ent.out) {
 			t.Errorf("%s, lookupStaticHost(%s) = %v; want %v", hostsPath, in, addrs, ent.out)
 		}
@@ -157,7 +157,7 @@ func TestHostCacheModification(t *testing.T) {
 	ent := staticHostEntry{"localhost", []string{"127.0.0.1", "127.0.0.2", "127.0.0.3"}}
 	testStaticHost(t, testHookHostsPath, ent)
 	// Modify the addresses return by lookupStaticHost.
-	addrs := lookupStaticHost(ent.in)
+	addrs, _ := lookupStaticHost(ent.in)
 	for i := range addrs {
 		addrs[i] += "junk"
 	}
@@ -172,4 +172,43 @@ func TestHostCacheModification(t *testing.T) {
 		hosts[i] += "junk"
 	}
 	testStaticAddr(t, testHookHostsPath, ent)
+}
+
+var lookupStaticHostAliasesTest = []struct {
+	lookup, res string
+}{
+	//127.0.0.1
+	{"test", "test"},
+	//127.0.0.2
+	{"test2.example.com", "test2.example.com"},
+	{"test2", "test2.example.com."},
+	//127.0.0.3
+	{"test3.example.com", "test3"},
+	{"test3", "test3"},
+	//127.0.0.4
+	{"example.com", "example.com"},
+	//127.0.0.5
+	{"test5.example.com", "test4.example.com"},
+	{"test5", "test4.example.com"},
+	{"test4", "test4.example.com"},
+	{"test4.example.com", "test4.example.com"},
+}
+
+func TestLookupStaticHostAliases(t *testing.T) {
+	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+
+	testHookHostsPath = "testdata/aliases"
+	for _, ent := range lookupStaticHostAliasesTest {
+			testLookupStaticHostAliases(t, ent.lookup, absDomainName(ent.res))
+	}
+}
+
+func testLookupStaticHostAliases(t *testing.T, lookup, lookupRes string) {
+	ins := []string{lookup, absDomainName(lookup), strings.ToLower(lookup), strings.ToUpper(lookup)}
+	for _, in := range ins {
+		_, res := lookupStaticHost(in)
+		if res != lookupRes {
+			t.Errorf("lookupStaticHost(%v): should be: '%v', but: '%v'", in, lookupRes, res)
+		}
+	}
 }
