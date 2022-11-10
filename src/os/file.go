@@ -42,6 +42,7 @@ package os
 import (
 	"errors"
 	"internal/poll"
+	"internal/safefilepath"
 	"internal/testlog"
 	"internal/unsafeheader"
 	"io"
@@ -625,6 +626,8 @@ func isWindowsNulName(name string) bool {
 // a general substitute for a chroot-style security mechanism when the directory tree
 // contains arbitrary content.
 //
+// The directory dir must not be "".
+//
 // The result implements fs.StatFS.
 func DirFS(dir string) fs.FS {
 	return dirFS(dir)
@@ -644,10 +647,11 @@ func containsAny(s, chars string) bool {
 type dirFS string
 
 func (dir dirFS) Open(name string) (fs.File, error) {
-	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
-		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "stat", Path: name, Err: err}
 	}
-	f, err := Open(string(dir) + "/" + name)
+	f, err := Open(fullname)
 	if err != nil {
 		return nil, err // nil fs.File
 	}
@@ -655,14 +659,33 @@ func (dir dirFS) Open(name string) (fs.File, error) {
 }
 
 func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
-	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
-		return nil, &PathError{Op: "stat", Path: name, Err: ErrInvalid}
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "stat", Path: name, Err: err}
 	}
-	f, err := Stat(string(dir) + "/" + name)
+	f, err := Stat(fullname)
 	if err != nil {
 		return nil, err
 	}
 	return f, nil
+}
+
+// join returns the path for name in dir.
+func (dir dirFS) join(name string) (string, error) {
+	if dir == "" {
+		return "", errors.New("os: DirFS with empty root")
+	}
+	if !fs.ValidPath(name) {
+		return "", ErrInvalid
+	}
+	name, err := safefilepath.FromFS(name)
+	if err != nil {
+		return "", ErrInvalid
+	}
+	if IsPathSeparator(dir[len(dir)-1]) {
+		return string(dir) + name, nil
+	}
+	return string(dir) + string(PathSeparator) + name, nil
 }
 
 // ReadFile reads the named file and returns the contents.
