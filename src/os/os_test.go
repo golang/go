@@ -2729,6 +2729,44 @@ func TestDirFS(t *testing.T) {
 	if err == nil {
 		t.Fatalf(`Open testdata\dirfs succeeded`)
 	}
+
+	// Test that Open does not open Windows device files.
+	_, err = d.Open(`NUL`)
+	if err == nil {
+		t.Errorf(`Open NUL succeeded`)
+	}
+}
+
+func TestDirFSRootDir(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cwd = cwd[len(filepath.VolumeName(cwd)):] // trim volume prefix (C:) on Windows
+	cwd = filepath.ToSlash(cwd)               // convert \ to /
+	cwd = strings.TrimPrefix(cwd, "/")        // trim leading /
+
+	// Test that Open can open a path starting at /.
+	d := DirFS("/")
+	f, err := d.Open(cwd + "/testdata/dirfs/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+}
+
+func TestDirFSEmptyDir(t *testing.T) {
+	d := DirFS("")
+	cwd, _ := os.Getwd()
+	for _, path := range []string{
+		"testdata/dirfs/a",                          // not DirFS(".")
+		filepath.ToSlash(cwd) + "/testdata/dirfs/a", // not DirFS("/")
+	} {
+		_, err := d.Open(path)
+		if err == nil {
+			t.Fatalf(`DirFS("").Open(%q) succeeded`, path)
+		}
+	}
 }
 
 func TestDirFSPathsValid(t *testing.T) {
