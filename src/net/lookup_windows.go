@@ -87,7 +87,7 @@ func (r *Resolver) lookupHost(ctx context.Context, name string) ([]string, error
 // kernel for its answer.
 func (r *Resolver) preferGoOverWindows() bool {
 	conf := systemConf()
-	order := conf.hostLookupOrder(r, "") // name is unused
+	order, _ := conf.hostLookupOrder(r, "") // name is unused
 	return order != hostLookupCgo
 }
 
