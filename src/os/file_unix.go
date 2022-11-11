@@ -71,6 +71,8 @@ type file struct {
 // garbage collection. Otherwise, during garbage collection the finalizer
 // may close an unrelated file descriptor with the same (reused) number.
 //
+// On Unix systems this call will put the fd in blocking mode.
+//
 // As an alternative, see the f.SyscallConn method.
 func (f *File) Fd() uintptr {
 	if f == nil {
