@@ -184,7 +184,7 @@ loop:
 // for the answers.
 func (r *Resolver) preferGoOverPlan9() bool {
 	conf := systemConf()
-	order := conf.hostLookupOrder(r, "") // name is unused
+	order, _ := conf.hostLookupOrder(r, "") // name is unused
 
 	// TODO(bradfitz): for now we only permit use of the PreferGo
 	// implementation when there's a non-nil Resolver with a
