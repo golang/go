@@ -36,27 +36,29 @@ func Trace(op, path string) {
 	traceMu.Lock()
 	defer traceMu.Unlock()
 	fmt.Fprintf(traceFile, "%d gofsystrace %s %s\n", os.Getpid(), op, path)
-	if traceStack != "" {
-		if match, _ := pathpkg.Match(traceStack, path); match {
+	if pattern := gofsystracestack.Value(); pattern != "" {
+		if match, _ := pathpkg.Match(pattern, path); match {
 			traceFile.Write(debug.Stack())
 		}
 	}
 }
 
 var (
-	doTrace    bool
-	traceStack string
-	traceFile  *os.File
-	traceMu    sync.Mutex
+	doTrace   bool
+	traceFile *os.File
+	traceMu   sync.Mutex
+
+	gofsystrace      = godebug.New("gofsystrace")
+	gofsystracelog   = godebug.New("gofsystracelog")
+	gofsystracestack = godebug.New("gofsystracestack")
 )
 
 func init() {
-	if godebug.Get("gofsystrace") != "1" {
+	if gofsystrace.Value() != "1" {
 		return
 	}
 	doTrace = true
-	traceStack = godebug.Get("gofsystracestack")
-	if f := godebug.Get("gofsystracelog"); f != "" {
+	if f := gofsystracelog.Value(); f != "" {
 		// Note: No buffering on writes to this file, so no need to worry about closing it at exit.
 		var err error
 		traceFile, err = os.OpenFile(f, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)

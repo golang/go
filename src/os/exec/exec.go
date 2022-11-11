@@ -348,6 +348,9 @@ type ctxResult struct {
 	timer *time.Timer
 }
 
+var execwait = godebug.New("execwait")
+var execerrdot = godebug.New("execerrdot")
+
 // Command returns the Cmd struct to execute the named program with
 // the given arguments.
 //
@@ -376,8 +379,8 @@ func Command(name string, arg ...string) *Cmd {
 		Args: append([]string{name}, arg...),
 	}
 
-	if execwait := godebug.Get("execwait"); execwait != "" {
-		if execwait == "2" {
+	if v := execwait.Value(); v != "" {
+		if v == "2" {
 			// Obtain the caller stack. (This is equivalent to runtime/debug.Stack,
 			// copied to avoid importing the whole package.)
 			stack := make([]byte, 1024)

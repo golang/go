@@ -21,7 +21,6 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -1077,14 +1076,8 @@ var zeroVals []any = []any{
 	uint64(0),
 }
 
-var (
-	debugInfo     bool
-	debugInfoOnce sync.Once
-)
+var debugInfo = godebug.New("fuzzdebug").Value() == "1"
 
 func shouldPrintDebugInfo() bool {
-	debugInfoOnce.Do(func() {
-		debugInfo = godebug.Get("fuzzdebug") == "1"
-	})
 	return debugInfo
 }

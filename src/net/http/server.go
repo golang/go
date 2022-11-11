@@ -3313,11 +3313,13 @@ func (srv *Server) onceSetNextProtoDefaults_Serve() {
 	}
 }
 
+var http2server = godebug.New("http2server")
+
 // onceSetNextProtoDefaults configures HTTP/2, if the user hasn't
 // configured otherwise. (by setting srv.TLSNextProto non-nil)
 // It must only be called via srv.nextProtoOnce (use srv.setupHTTP2_*).
 func (srv *Server) onceSetNextProtoDefaults() {
-	if omitBundledHTTP2 || godebug.Get("http2server") == "0" {
+	if omitBundledHTTP2 || http2server.Value() == "0" {
 		return
 	}
 	// Enable HTTP/2 by default if the user hasn't otherwise

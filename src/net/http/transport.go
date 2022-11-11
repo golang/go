@@ -362,11 +362,13 @@ func (t *Transport) hasCustomTLSDialer() bool {
 	return t.DialTLS != nil || t.DialTLSContext != nil
 }
 
+var http2client = godebug.New("http2client")
+
 // onceSetNextProtoDefaults initializes TLSNextProto.
 // It must be called via t.nextProtoOnce.Do.
 func (t *Transport) onceSetNextProtoDefaults() {
 	t.tlsNextProtoWasNil = (t.TLSNextProto == nil)
-	if godebug.Get("http2client") == "0" {
+	if http2client.Value() == "0" {
 		return
 	}
 

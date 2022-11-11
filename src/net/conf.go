@@ -301,6 +301,8 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	return fallbackOrder
 }
 
+var netdns = godebug.New("netdns")
+
 // goDebugNetDNS parses the value of the GODEBUG "netdns" value.
 // The netdns value can be of the form:
 //
@@ -314,7 +316,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 //
 // etc.
 func goDebugNetDNS() (dnsMode string, debugLevel int) {
-	goDebug := godebug.Get("netdns")
+	goDebug := netdns.Value()
 	parsePart := func(s string) {
 		if s == "" {
 			return

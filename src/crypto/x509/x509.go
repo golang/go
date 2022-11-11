@@ -813,6 +813,8 @@ func signaturePublicKeyAlgoMismatchError(expectedPubKeyAlgo PublicKeyAlgorithm, 
 	return fmt.Errorf("x509: signature algorithm specifies an %s public key, but have public key of type %T", expectedPubKeyAlgo.String(), pubKey)
 }
 
+var x509sha1 = godebug.New("x509sha1")
+
 // checkSignature verifies that signature is a valid signature over signed from
 // a crypto.PublicKey.
 func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey, allowSHA1 bool) (err error) {
@@ -835,7 +837,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		return InsecureAlgorithmError(algo)
 	case crypto.SHA1:
 		// SHA-1 signatures are mostly disabled. See go.dev/issue/41682.
-		if !allowSHA1 && godebug.Get("x509sha1") != "1" {
+		if !allowSHA1 && x509sha1.Value() != "1" {
 			return InsecureAlgorithmError(algo)
 		}
 		fallthrough

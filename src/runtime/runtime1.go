@@ -375,7 +375,7 @@ func parsedebugvars() {
 	}
 
 	globalGODEBUG = gogetenv("GODEBUG")
-	godebugenv.StoreNoWB(&globalGODEBUG)
+	godebugEnv.StoreNoWB(&globalGODEBUG)
 	for p := globalGODEBUG; p != ""; {
 		field := ""
 		i := bytealg.IndexByteString(p, ',')
