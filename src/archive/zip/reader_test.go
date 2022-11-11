@@ -1554,3 +1554,33 @@ func TestUnderSize(t *testing.T) {
 		})
 	}
 }
+
+func TestIssue54801(t *testing.T) {
+	for _, input := range []string{"testdata/readme.zip", "testdata/dd.zip"} {
+		z, err := OpenReader(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer z.Close()
+
+		for _, f := range z.File {
+			// Make file a directory
+			f.Name += "/"
+
+			t.Run(f.Name, func(t *testing.T) {
+				t.Logf("CompressedSize64: %d, Flags: %#x", f.CompressedSize64, f.Flags)
+
+				rd, err := f.Open()
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer rd.Close()
+
+				n, got := io.Copy(io.Discard, rd)
+				if n != 0 || got != ErrFormat {
+					t.Fatalf("Error mismatch, got: %d, %v, want: %v", n, got, ErrFormat)
+				}
+			})
+		}
+	}
+}
