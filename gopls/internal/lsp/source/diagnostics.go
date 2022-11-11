@@ -25,6 +25,7 @@ type RelatedInformation struct {
 	Message string
 }
 
+// Analyze reports go/analysis-framework diagnostics in the specified package.
 func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeConvenience bool) (map[span.URI][]*Diagnostic, error) {
 	// Exit early if the context has been canceled. This also protects us
 	// from a race on Options, see golang/go#36699.
@@ -61,6 +62,15 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeCon
 	return reports, nil
 }
 
+// FileDiagnostics reports diagnostics in the specified file.
+//
+// TODO(adonovan): factor in common with (*Server).codeAction, which
+// executes { PackageForFile; DiagnosePackage; Analyze } too?
+//
+// TODO(adonovan): opt: this function is called in a loop from the
+// "gopls/diagnoseFiles" nonstandard request handler. It would be more
+// efficient to compute the set of packages and DiagnosePackage and
+// Analyze them all at once.
 func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (VersionedFileIdentity, []*Diagnostic, error) {
 	fh, err := snapshot.GetVersionedFile(ctx, uri)
 	if err != nil {

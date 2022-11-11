@@ -192,10 +192,10 @@ func editGoDirectiveQuickFix(snapshot *snapshot, uri span.URI, version string) (
 	return []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)}, nil
 }
 
-func analysisDiagnosticDiagnostics(snapshot *snapshot, pkg *pkg, a *analysis.Analyzer, e *analysis.Diagnostic) ([]*source.Diagnostic, error) {
+func analysisDiagnosticDiagnostics(options *source.Options, pkg *pkg, a *analysis.Analyzer, e *analysis.Diagnostic) ([]*source.Diagnostic, error) {
 	var srcAnalyzer *source.Analyzer
 	// Find the analyzer that generated this diagnostic.
-	for _, sa := range source.EnabledAnalyzers(snapshot) {
+	for _, sa := range source.EnabledAnalyzers(options) {
 		if a == sa.Analyzer {
 			srcAnalyzer = sa
 			break

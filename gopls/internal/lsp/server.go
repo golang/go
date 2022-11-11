@@ -130,6 +130,9 @@ func (s *Server) nonstandardRequest(ctx context.Context, method string, params i
 	switch method {
 	case "gopls/diagnoseFiles":
 		paramMap := params.(map[string]interface{})
+		// TODO(adonovan): opt: parallelize FileDiagnostics(URI...), either
+		// by calling it in multiple goroutines or, better, by making
+		// the relevant APIs accept a set of URIs/packages.
 		for _, file := range paramMap["files"].([]interface{}) {
 			snapshot, fh, ok, release, err := s.beginFileRequest(ctx, protocol.DocumentURI(file.(string)), source.UnknownKind)
 			defer release()

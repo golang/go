@@ -73,11 +73,11 @@ func testLSP(t *testing.T, datum *tests.Data) {
 
 	// Enable type error analyses for tests.
 	// TODO(golang/go#38212): Delete this once they are enabled by default.
-	tests.EnableAllAnalyzers(view, options)
+	tests.EnableAllAnalyzers(options)
 	session.SetViewOptions(ctx, view, options)
 
 	// Enable all inlay hints for tests.
-	tests.EnableAllInlayHints(view, options)
+	tests.EnableAllInlayHints(options)
 
 	// Only run the -modfile specific tests in module mode with Go 1.14 or above.
 	datum.ModfileFlagAvailable = len(snapshot.ModFiles()) > 0 && testenv.Go1Point() >= 14

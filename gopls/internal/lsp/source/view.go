@@ -692,6 +692,8 @@ type Analyzer struct {
 	// Enabled reports whether the analyzer is enabled. This value can be
 	// configured per-analysis in user settings. For staticcheck analyzers,
 	// the value of the Staticcheck setting overrides this field.
+	//
+	// Most clients should use the IsEnabled method.
 	Enabled bool
 
 	// Fix is the name of the suggested fix name used to invoke the suggested
@@ -709,14 +711,15 @@ type Analyzer struct {
 	Severity protocol.DiagnosticSeverity
 }
 
-func (a Analyzer) IsEnabled(view View) bool {
+// Enabled reports whether this analyzer is enabled by the given options.
+func (a Analyzer) IsEnabled(options *Options) bool {
 	// Staticcheck analyzers can only be enabled when staticcheck is on.
-	if _, ok := view.Options().StaticcheckAnalyzers[a.Analyzer.Name]; ok {
-		if !view.Options().Staticcheck {
+	if _, ok := options.StaticcheckAnalyzers[a.Analyzer.Name]; ok {
+		if !options.Staticcheck {
 			return false
 		}
 	}
-	if enabled, ok := view.Options().Analyses[a.Analyzer.Name]; ok {
+	if enabled, ok := options.Analyses[a.Analyzer.Name]; ok {
 		return enabled
 	}
 	return a.Enabled

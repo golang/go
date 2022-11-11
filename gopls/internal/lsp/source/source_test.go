@@ -62,7 +62,7 @@ func testSource(t *testing.T, datum *tests.Data) {
 
 	// Enable type error analyses for tests.
 	// TODO(golang/go#38212): Delete this once they are enabled by default.
-	tests.EnableAllAnalyzers(view, options)
+	tests.EnableAllAnalyzers(options)
 	view, err = session.SetViewOptions(ctx, view, options)
 	if err != nil {
 		t.Fatal(err)

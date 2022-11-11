@@ -23,6 +23,10 @@ import (
 	"golang.org/x/tools/internal/memoize"
 )
 
+// Analyze returns a new slice of diagnostics from running the
+// specified analyzers on the package denoted by id.
+//
+// (called from: (*snapshot).DiagnosePackage, source.Analyze.)
 func (s *snapshot) Analyze(ctx context.Context, id PackageID, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {
 	// TODO(adonovan): merge these two loops. There's no need to
 	// construct all the root action handles before beginning
@@ -31,7 +35,7 @@ func (s *snapshot) Analyze(ctx context.Context, id PackageID, analyzers []*sourc
 	// called in parallel.)
 	var roots []*actionHandle
 	for _, a := range analyzers {
-		if !a.IsEnabled(s.view) {
+		if !a.IsEnabled(s.view.Options()) {
 			continue
 		}
 		ah, err := s.actionHandle(ctx, id, a.Analyzer)
@@ -413,7 +417,7 @@ func actionImpl(ctx context.Context, snapshot *snapshot, deps []*actionHandle, a
 
 	var diagnostics []*source.Diagnostic
 	for _, diag := range rawDiagnostics {
-		srcDiags, err := analysisDiagnosticDiagnostics(snapshot, pkg, analyzer, &diag)
+		srcDiags, err := analysisDiagnosticDiagnostics(snapshot.view.Options(), pkg, analyzer, &diag)
 		if err != nil {
 			event.Error(ctx, "unable to compute analysis error position", err, tag.Category.Of(diag.Category), tag.Package.Of(string(pkg.ID())))
 			continue
