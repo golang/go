@@ -241,7 +241,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	var first string
 	for _, src := range srcs {
 		if src.source == "myhostname" {
-			if isLocalhost(hostname) || isGateway(hostname) {
+			if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
 				return fallbackOrder
 			}
 			hn, err := getHostname()
@@ -343,5 +343,11 @@ func isLocalhost(h string) bool {
 // isGateway reports whether h should be considered a "gateway"
 // name for the myhostname NSS module.
 func isGateway(h string) bool {
-	return stringsEqualFold(h, "gateway")
+	return stringsEqualFold(h, "_gateway")
+}
+
+// isOutbound reports whether h should be considered a "outbound"
+// name for the myhostname NSS module.
+func isOutbound(h string) bool {
+	return stringsEqualFold(h, "_outbound")
 }
