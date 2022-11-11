@@ -426,7 +426,7 @@ func (conf *resolverConfig) releaseSema() {
 	<-conf.ch
 }
 
-func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type) (dnsmessage.Parser, string, error) {
+func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type, conf *dnsConfig) (dnsmessage.Parser, string, error) {
 	if !isDomainName(name) {
 		// We used to use "invalid domain name" as the error,
 		// but that is a detail of the specific lookup mechanism.
@@ -435,10 +435,11 @@ func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Typ
 		// For consistency with libc resolvers, report no such host.
 		return dnsmessage.Parser{}, "", &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
 	}
-	resolvConf.tryUpdate("/etc/resolv.conf")
-	resolvConf.mu.RLock()
-	conf := resolvConf.dnsConfig
-	resolvConf.mu.RUnlock()
+
+	if conf == nil {
+		conf = getSystemDNSConfig()
+	}
+
 	var (
 		p      dnsmessage.Parser
 		server string
@@ -814,8 +815,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 }
 
 // goLookupCNAME is the native Go (non-cgo) implementation of LookupCNAME.
-func (r *Resolver) goLookupCNAME(ctx context.Context, host string) (string, error) {
-	order, conf := systemConf().hostLookupOrder(r, host)
+func (r *Resolver) goLookupCNAME(ctx context.Context, host string, order hostLookupOrder, conf *dnsConfig) (string, error) {
 	_, cname, err := r.goLookupIPCNAMEOrder(ctx, "CNAME", host, order, conf)
 	return cname.String(), err
 }
@@ -825,7 +825,7 @@ func (r *Resolver) goLookupCNAME(ctx context.Context, host string) (string, erro
 // only if cgoLookupPTR is the stub in cgo_stub.go).
 // Normally we let cgo use the C library resolver instead of depending
 // on our lookup code, so that Go and C get the same answers.
-func (r *Resolver) goLookupPTR(ctx context.Context, addr string) ([]string, error) {
+func (r *Resolver) goLookupPTR(ctx context.Context, addr string, conf *dnsConfig) ([]string, error) {
 	names := lookupStaticAddr(addr)
 	if len(names) > 0 {
 		return names, nil
@@ -834,7 +834,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string) ([]string, erro
 	if err != nil {
 		return nil, err
 	}
-	p, server, err := r.lookup(ctx, arpa, dnsmessage.TypePTR)
+	p, server, err := r.lookup(ctx, arpa, dnsmessage.TypePTR, conf)
 	if err != nil {
 		return nil, err
 	}

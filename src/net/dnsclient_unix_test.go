@@ -1394,7 +1394,7 @@ func TestStrictErrorsLookupTXT(t *testing.T) {
 
 	for _, strict := range []bool{true, false} {
 		r := Resolver{StrictErrors: strict, Dial: fake.DialContext}
-		p, _, err := r.lookup(context.Background(), name, dnsmessage.TypeTXT)
+		p, _, err := r.lookup(context.Background(), name, dnsmessage.TypeTXT, nil)
 		var wantErr error
 		var wantRRs int
 		if strict {
