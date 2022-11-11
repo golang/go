@@ -197,6 +197,13 @@ func (f *File) Open() (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+	if strings.HasSuffix(f.Name, "/") {
+		if f.CompressedSize64 != 0 || f.hasDataDescriptor() {
+			return &dirReader{ErrFormat}, nil
+		} else {
+			return &dirReader{io.EOF}, nil
+		}
+	}
 	size := int64(f.CompressedSize64)
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
 	dcomp := f.zip.decompressor(f.Method)
@@ -226,6 +233,18 @@ func (f *File) OpenRaw() (io.Reader, error) {
 	}
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, int64(f.CompressedSize64))
 	return r, nil
+}
+
+type dirReader struct {
+	err error
+}
+
+func (r *dirReader) Read([]byte) (int, error) {
+	return 0, r.err
+}
+
+func (r *dirReader) Close() error {
+	return nil
 }
 
 type checksumReader struct {
