@@ -66,6 +66,8 @@ var inputs = []string{
 	// "testdata/timer.go", // TODO(adonovan): fix broken assumptions about runtime timers
 }
 
+var raceEnabled = false
+
 // Expectation grammar:
 //
 // @calls f -> g
@@ -609,10 +611,6 @@ func TestInput(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode; this test requires tons of memory; https://golang.org/issue/14113")
 	}
-	if unsafe.Sizeof(unsafe.Pointer(nil)) <= 4 {
-		t.Skip("skipping memory-intensive test on platform with small address space; https://golang.org/issue/14113")
-	}
-	ok := true
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -627,23 +625,34 @@ func TestInput(t *testing.T) {
 	fmt.Fprintf(os.Stderr, "Entering directory `%s'\n", wd)
 
 	for _, filename := range inputs {
-		content, err := ioutil.ReadFile(filename)
-		if err != nil {
-			t.Errorf("couldn't read file '%s': %s", filename, err)
-			continue
-		}
+		filename := filename
+		t.Run(filename, func(t *testing.T) {
+			if filename == "testdata/a_test.go" {
+				// For some reason this particular file is way more expensive than the others.
+				if unsafe.Sizeof(unsafe.Pointer(nil)) <= 4 {
+					t.Skip("skipping memory-intensive test on platform with small address space; https://golang.org/issue/14113")
+				}
+				if raceEnabled {
+					t.Skip("skipping memory-intensive test under race detector; https://golang.org/issue/14113")
+				}
+			} else {
+				t.Parallel()
+			}
 
-		fpath, err := filepath.Abs(filename)
-		if err != nil {
-			t.Errorf("couldn't get absolute path for '%s': %s", filename, err)
-		}
+			content, err := ioutil.ReadFile(filename)
+			if err != nil {
+				t.Fatalf("couldn't read file '%s': %s", filename, err)
+			}
 
-		if !doOneInput(t, string(content), fpath) {
-			ok = false
-		}
-	}
-	if !ok {
-		t.Fail()
+			fpath, err := filepath.Abs(filename)
+			if err != nil {
+				t.Fatalf("couldn't get absolute path for '%s': %s", filename, err)
+			}
+
+			if !doOneInput(t, string(content), fpath) {
+				t.Fail()
+			}
+		})
 	}
 }
 
