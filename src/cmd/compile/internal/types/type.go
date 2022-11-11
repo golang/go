@@ -394,7 +394,7 @@ type Struct struct {
 	Funarg Funarg // type of function arguments for arg struct
 }
 
-// Fnstruct records the kind of function argument
+// Funarg records the kind of function argument
 type Funarg uint8
 
 const (
