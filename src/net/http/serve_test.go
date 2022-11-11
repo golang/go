@@ -738,37 +738,37 @@ func testServerTimeoutsWithTimeout(t *testing.T, timeout time.Duration, mode tes
 
 func TestServerReadTimeout(t *testing.T) { run(t, testServerReadTimeout) }
 func testServerReadTimeout(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("https://go.dev/issue/49837")
-	}
 	respBody := "response body"
-	cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
-		_, err := io.Copy(io.Discard, req.Body)
-		if !errors.Is(err, os.ErrDeadlineExceeded) {
-			t.Errorf("server timed out reading request body: got err %v; want os.ErrDeadlineExceeded", err)
+	for timeout := 5 * time.Millisecond; ; timeout *= 2 {
+		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+			_, err := io.Copy(io.Discard, req.Body)
+			if !errors.Is(err, os.ErrDeadlineExceeded) {
+				t.Errorf("server timed out reading request body: got err %v; want os.ErrDeadlineExceeded", err)
+			}
+			res.Write([]byte(respBody))
+		}), func(ts *httptest.Server) {
+			ts.Config.ReadHeaderTimeout = -1 // don't time out while reading headers
+			ts.Config.ReadTimeout = timeout
+		})
+		pr, pw := io.Pipe()
+		res, err := cst.c.Post(cst.ts.URL, "text/apocryphal", pr)
+		if err != nil {
+			t.Logf("Get error, retrying: %v", err)
+			cst.close()
+			continue
 		}
-		res.Write([]byte(respBody))
-	}), func(ts *httptest.Server) {
-		ts.Config.ReadTimeout = 5 * time.Millisecond
-	})
-	pr, pw := io.Pipe()
-	res, err := cst.c.Post(cst.ts.URL, "text/apocryphal", pr)
-	if err != nil {
-		t.Fatal(err)
+		defer res.Body.Close()
+		got, err := io.ReadAll(res.Body)
+		if string(got) != respBody || err != nil {
+			t.Errorf("client read response body: %q, %v; want %q, nil", string(got), err, respBody)
+		}
+		pw.Close()
+		break
 	}
-	defer res.Body.Close()
-	got, err := io.ReadAll(res.Body)
-	if string(got) != respBody || err != nil {
-		t.Errorf("client read response body: %q, %v; want %q, nil", string(got), err, respBody)
-	}
-	pw.Close()
 }
 
 func TestServerWriteTimeout(t *testing.T) { run(t, testServerWriteTimeout) }
 func testServerWriteTimeout(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("https://go.dev/issue/56478")
-	}
 	for timeout := 5 * time.Millisecond; ; timeout *= 2 {
 		errc := make(chan error, 2)
 		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
@@ -790,7 +790,6 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
 		if err == nil {
 			t.Errorf("client reading from truncated request body: got nil error, want non-nil")
 		}
-		cst.close()
 		select {
 		case <-errc:
 			err = <-errc // io.Copy error
@@ -801,6 +800,7 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
 		default:
 			// The write timeout expired before the handler started.
 			t.Logf("handler didn't run, retrying")
+			cst.close()
 		}
 	}
 }

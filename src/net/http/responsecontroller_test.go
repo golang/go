@@ -13,9 +13,6 @@ import (
 
 func TestResponseControllerFlush(t *testing.T) { run(t, testResponseControllerFlush) }
 func testResponseControllerFlush(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	continuec := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctl := NewResponseController(w)
@@ -49,9 +46,6 @@ func testResponseControllerFlush(t *testing.T, mode testMode) {
 
 func TestResponseControllerHijack(t *testing.T) { run(t, testResponseControllerHijack) }
 func testResponseControllerHijack(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	const header = "X-Header"
 	const value = "set"
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -83,16 +77,13 @@ func TestResponseControllerSetPastWriteDeadline(t *testing.T) {
 	run(t, testResponseControllerSetPastWriteDeadline)
 }
 func testResponseControllerSetPastWriteDeadline(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctl := NewResponseController(w)
 		w.Write([]byte("one"))
 		if err := ctl.Flush(); err != nil {
 			t.Errorf("before setting deadline: ctl.Flush() = %v, want nil", err)
 		}
-		if err := ctl.SetWriteDeadline(time.Now()); err != nil {
+		if err := ctl.SetWriteDeadline(time.Now().Add(-10 * time.Second)); err != nil {
 			t.Errorf("ctl.SetWriteDeadline() = %v, want nil", err)
 		}
 
@@ -128,9 +119,6 @@ func TestResponseControllerSetFutureWriteDeadline(t *testing.T) {
 	run(t, testResponseControllerSetFutureWriteDeadline)
 }
 func testResponseControllerSetFutureWriteDeadline(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	errc := make(chan error, 1)
 	startwritec := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -167,9 +155,6 @@ func TestResponseControllerSetPastReadDeadline(t *testing.T) {
 	run(t, testResponseControllerSetPastReadDeadline)
 }
 func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	readc := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctl := NewResponseController(w)
@@ -223,9 +208,6 @@ func TestResponseControllerSetFutureReadDeadline(t *testing.T) {
 	run(t, testResponseControllerSetFutureReadDeadline)
 }
 func testResponseControllerSetFutureReadDeadline(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	respBody := "response body"
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, req *Request) {
 		ctl := NewResponseController(w)
@@ -261,9 +243,6 @@ func (w wrapWriter) Unwrap() ResponseWriter {
 
 func TestWrappedResponseController(t *testing.T) { run(t, testWrappedResponseController) }
 func testWrappedResponseController(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctl := NewResponseController(w)
 		if err := ctl.Flush(); err != nil {
