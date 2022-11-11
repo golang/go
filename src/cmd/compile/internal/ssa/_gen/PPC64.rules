@@ -409,10 +409,14 @@
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(OR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> (ORCC x y)) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(XOR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> (XORCC x y)) yes no)
 
+(CondSelect x y (SETBC [a] cmp))  => (ISEL [a] x y cmp)
+(CondSelect x y (SETBCR [a] cmp))  => (ISEL [a+4] x y cmp)
 // Only lower after bool is lowered. It should always lower. This helps ensure the folding below happens reliably.
 (CondSelect x y bool) && flagArg(bool) == nil => (ISEL [6] x y (Select1 <types.TypeFlags> (ANDCCconst [1] bool)))
 // Fold any CR -> GPR -> CR transfers when applying the above rule.
-(ISEL [6] x y (Select1 (ANDCCconst [1] (ISELB [c] one cmp)))) => (ISEL [c] x y cmp)
+(ISEL [6] x y (Select1 (ANDCCconst [1] (SETBC [c] cmp)))) => (ISEL [c] x y cmp)
+(ISEL [6] x y ((CMP|CMPW)const [0] (SETBC [c] cmp))) => (ISEL [c] x y cmp)
+(ISEL [6] x y ((CMP|CMPW)const [0] (SETBCR [c] cmp))) => (ISEL [c+4] x y cmp)
 
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
@@ -862,33 +866,43 @@
 // Canonicalize the order of arguments to comparisons - helps with CSE.
 ((CMP|CMPW|CMPU|CMPWU) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
 
+// SETBC auxInt values 0=LT 1=GT 2=EQ   Crbit==1 ? 1 : 0
+// SETBCR auxInt values 0=LT 1=GT 2=EQ   Crbit==1 ? 0 : 1
+(Equal cmp) => (SETBC [2] cmp)
+(NotEqual cmp) => (SETBCR [2] cmp)
+(LessThan cmp) => (SETBC [0] cmp)
+(FLessThan cmp) => (SETBC [0] cmp)
+(FLessEqual cmp) => (OR (SETBC [2] cmp) (SETBC [0] cmp))
+(GreaterEqual cmp) => (SETBCR [0] cmp)
+(GreaterThan cmp)  => (SETBC [1] cmp)
+(FGreaterEqual cmp) => (OR (SETBC [2] cmp) (SETBC [1] cmp))
+(FGreaterThan cmp)  => (SETBC [1] cmp)
+(LessEqual cmp) => (SETBCR [1] cmp)
+
+(SETBC [0] (FlagLT)) => (MOVDconst [1])
+(SETBC [0] (Flag(GT|EQ))) => (MOVDconst [0])
+(SETBC [1] (FlagGT)) => (MOVDconst [1])
+(SETBC [1] (Flag(LT|EQ))) => (MOVDconst [0])
+(SETBC [2] (FlagEQ)) => (MOVDconst [1])
+(SETBC [2] (Flag(LT|GT))) => (MOVDconst [0])
+
+(SETBCR [0] (FlagLT)) => (MOVDconst [0])
+(SETBCR [0] (Flag(GT|EQ))) => (MOVDconst [1])
+(SETBCR [1] (FlagGT)) => (MOVDconst [0])
+(SETBCR [1] (Flag(LT|EQ))) => (MOVDconst [1])
+(SETBCR [2] (FlagEQ)) => (MOVDconst [0])
+(SETBCR [2] (Flag(LT|GT))) => (MOVDconst [1])
+
+(SETBC [0] (InvertFlags bool)) => (SETBC [1] bool)
+(SETBC [1] (InvertFlags bool)) => (SETBC [0] bool)
+(SETBC [2] (InvertFlags bool)) => (SETBC [2] bool)
+
+(SETBCR [0] (InvertFlags bool)) => (SETBCR [1] bool)
+(SETBCR [1] (InvertFlags bool)) => (SETBCR [0] bool)
+(SETBCR [2] (InvertFlags bool)) => (SETBCR [2] bool)
+
 // ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
 // ISEL auxInt values 4=GE 5=LE 6=NE   !arg2 ? arg1 : arg0
-// ISELB special case where arg0, arg1 values are 0, 1
-
-(Equal cmp) => (ISELB [2] (MOVDconst [1]) cmp)
-(NotEqual cmp) => (ISELB [6] (MOVDconst [1]) cmp)
-(LessThan cmp) => (ISELB [0] (MOVDconst [1]) cmp)
-(FLessThan cmp) => (ISELB [0] (MOVDconst [1]) cmp)
-(FLessEqual cmp) => (ISEL [2] (MOVDconst [1]) (ISELB [0] (MOVDconst [1]) cmp) cmp)
-(GreaterEqual cmp) => (ISELB [4] (MOVDconst [1]) cmp)
-(GreaterThan cmp) => (ISELB [1] (MOVDconst [1]) cmp)
-(FGreaterThan cmp) => (ISELB [1] (MOVDconst [1]) cmp)
-(FGreaterEqual cmp) => (ISEL [2] (MOVDconst [1]) (ISELB [1] (MOVDconst [1]) cmp) cmp)
-(LessEqual cmp) => (ISELB [5] (MOVDconst [1]) cmp)
-
-(ISELB [0] _ (FlagLT)) => (MOVDconst [1])
-(ISELB [0] _ (Flag(GT|EQ))) => (MOVDconst [0])
-(ISELB [1] _ (FlagGT)) => (MOVDconst [1])
-(ISELB [1] _ (Flag(LT|EQ))) => (MOVDconst [0])
-(ISELB [2] _ (FlagEQ)) => (MOVDconst [1])
-(ISELB [2] _ (Flag(LT|GT))) => (MOVDconst [0])
-(ISELB [4] _ (FlagLT)) => (MOVDconst [0])
-(ISELB [4] _ (Flag(GT|EQ))) => (MOVDconst [1])
-(ISELB [5] _ (FlagGT)) => (MOVDconst [0])
-(ISELB [5] _ (Flag(LT|EQ))) => (MOVDconst [1])
-(ISELB [6] _ (FlagEQ)) => (MOVDconst [0])
-(ISELB [6] _ (Flag(LT|GT))) => (MOVDconst [1])
 
 (ISEL [2] x _ (FlagEQ)) => x
 (ISEL [2] _ y (Flag(LT|GT))) => y
@@ -910,31 +924,30 @@
 
 (ISEL [2] x y ((CMP|CMPW)const [0] (Select0 (ANDCCconst [n] z)))) => (ISEL [2] x y (Select1 <types.TypeFlags> (ANDCCconst [n] z )))
 (ISEL [6] x y ((CMP|CMPW)const [0] (Select0 (ANDCCconst [n] z)))) => (ISEL [6] x y (Select1 <types.TypeFlags> (ANDCCconst [n] z )))
-(ISELB [2] x ((CMP|CMPW)const [0] (Select0 (ANDCCconst [1] z)))) => (XORconst [1] (Select0 <typ.UInt64> (ANDCCconst [1] z )))
-(ISELB [6] x ((CMP|CMPW)const [0] (Select0 (ANDCCconst [1] z)))) => (Select0 <typ.UInt64> (ANDCCconst [1] z ))
+(SETBC [n] (InvertFlags bool)) => (SETBCR [n] bool)
+(SETBCR [n] (InvertFlags bool)) => (SETBC [n] bool)
 
-(ISELB [2] x (CMPWconst [0] (Select0 (ANDCCconst [n] z)))) => (ISELB [2] x (Select1 <types.TypeFlags> (ANDCCconst [n] z )))
-(ISELB [6] x (CMPWconst [0] (Select0 (ANDCCconst [n] z)))) => (ISELB [6] x (Select1 <types.TypeFlags> (ANDCCconst [n] z )))
-
-// Only CMPconst for these in case AND|OR|XOR result is > 32 bits
-(ISELB [2] x (CMPconst [0] a:(AND y z))) && a.Uses == 1 => (ISELB [2] x (Select1 <types.TypeFlags> (ANDCC y z )))
-(ISELB [6] x (CMPconst [0] a:(AND y z))) && a.Uses == 1 => (ISELB [6] x (Select1 <types.TypeFlags> (ANDCC y z )))
-
-(ISELB [2] x (CMPconst [0] o:(OR y z))) && o.Uses == 1 => (ISELB [2] x (Select1 <types.TypeFlags> (ORCC y z )))
-(ISELB [6] x (CMPconst [0] o:(OR y z))) && o.Uses == 1 => (ISELB [6] x (Select1 <types.TypeFlags> (ORCC y z )))
-
-(ISELB [2] x (CMPconst [0] a:(XOR y z))) && a.Uses == 1 => (ISELB [2] x (Select1 <types.TypeFlags> (XORCC y z )))
-(ISELB [6] x (CMPconst [0] a:(XOR y z))) && a.Uses == 1 => (ISELB [6] x (Select1 <types.TypeFlags> (XORCC y z )))
-
-(ISELB [n] (MOVDconst [1]) (InvertFlags bool)) && n%4 == 0 => (ISELB [n+1] (MOVDconst [1]) bool)
-(ISELB [n] (MOVDconst [1]) (InvertFlags bool)) && n%4 == 1 => (ISELB [n-1] (MOVDconst [1]) bool)
-(ISELB [n] (MOVDconst [1]) (InvertFlags bool)) && n%4 == 2 => (ISELB [n] (MOVDconst [1]) bool)
 (ISEL [n] x y (InvertFlags bool)) && n%4 == 0 => (ISEL [n+1] x y bool)
 (ISEL [n] x y (InvertFlags bool)) && n%4 == 1 => (ISEL [n-1] x y bool)
 (ISEL [n] x y (InvertFlags bool)) && n%4 == 2 => (ISEL [n] x y bool)
-(XORconst [1] (ISELB [6] (MOVDconst [1]) cmp)) => (ISELB [2] (MOVDconst [1]) cmp)
-(XORconst [1] (ISELB [5] (MOVDconst [1]) cmp)) => (ISELB [1] (MOVDconst [1]) cmp)
-(XORconst [1] (ISELB [4] (MOVDconst [1]) cmp)) => (ISELB [0] (MOVDconst [1]) cmp)
+(XORconst [1] (SETBCR [n] cmp)) => (SETBC [n] cmp)
+(XORconst [1] (SETBC [n] cmp)) => (SETBCR [n] cmp)
+
+(SETBC [2] ((CMP|CMPW)const [0] (Select0 (ANDCCconst [1] z)))) => (XORconst [1] (Select0 <typ.UInt64> (ANDCCconst [1] z )))
+(SETBCR [2] ((CMP|CMPW)const [0] (Select0 (ANDCCconst [1] z)))) => (Select0 <typ.UInt64> (ANDCCconst [1] z ))
+
+(SETBC [2] (CMPWconst [0] (Select0 (ANDCCconst [n] z)))) => (SETBC [2] (Select1 <types.TypeFlags> (ANDCCconst [n] z )))
+(SETBCR [2] (CMPWconst [0] (Select0 (ANDCCconst [n] z)))) => (SETBCR [2] (Select1 <types.TypeFlags> (ANDCCconst [n] z )))
+
+// Only CMPconst for these in case AND|OR|XOR result is > 32 bits
+(SETBC [2] (CMPconst [0] a:(AND y z))) && a.Uses == 1 => (SETBC [2] (Select1 <types.TypeFlags> (ANDCC y z )))
+(SETBCR [2] (CMPconst [0] a:(AND y z))) && a.Uses == 1 => (SETBCR [2] (Select1 <types.TypeFlags> (ANDCC y z )))
+
+(SETBC [2] (CMPconst [0] o:(OR y z))) && o.Uses == 1 => (SETBC [2] (Select1 <types.TypeFlags> (ORCC y z )))
+(SETBCR [2] (CMPconst [0] o:(OR y z))) && o.Uses == 1 => (SETBCR [2] (Select1 <types.TypeFlags> (ORCC y z )))
+
+(SETBC [2] (CMPconst [0] a:(XOR y z))) && a.Uses == 1 => (SETBC [2] (Select1 <types.TypeFlags> (XORCC y z )))
+(SETBCR [2] (CMPconst [0] a:(XOR y z))) && a.Uses == 1 => (SETBCR [2] (Select1 <types.TypeFlags> (XORCC y z )))
 
 // A particular pattern seen in cgo code:
 (AND (MOVDconst [c]) x:(MOVBZload _ _)) => (Select0 (ANDCCconst [c&0xFF] x))

@@ -993,6 +993,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt & 3
 
+	case ssa.OpPPC64SETBC, ssa.OpPPC64SETBCR:
+		p := s.Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = int16(ppc64.REG_CR0LT + v.AuxInt)
+
 	case ssa.OpPPC64LoweredQuadZero, ssa.OpPPC64LoweredQuadZeroShort:
 		// The LoweredQuad code generation
 		// generates STXV instructions on

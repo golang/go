@@ -416,6 +416,11 @@ func init() {
 		{name: "ISELB", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32", typ: "Int32"},
 		{name: "ISELZ", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32"},
 
+		// SETBC auxInt values 0=LT 1=GT 2=EQ     (CRbit=1)? 1 : 0
+		{name: "SETBC", argLength: 1, reg: crgp, asm: "SETBC", aux: "Int32", typ: "Int32"},
+		// SETBCR auxInt values 0=LT 1=GT 2=EQ     (CRbit=1)? 0 : 1
+		{name: "SETBCR", argLength: 1, reg: crgp, asm: "SETBCR", aux: "Int32", typ: "Int32"},
+
 		// pseudo-ops
 		{name: "Equal", argLength: 1, reg: crgp},         // bool, true flags encode x==y false otherwise.
 		{name: "NotEqual", argLength: 1, reg: crgp},      // bool, true flags encode x!=y false otherwise.
