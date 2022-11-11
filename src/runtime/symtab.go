@@ -595,7 +595,7 @@ type textsect struct {
 const minfunc = 16                 // minimum function size
 const pcbucketsize = 256 * minfunc // size of bucket in the pc->func lookup table
 
-// findfunctab is an array of these structures.
+// findfuncbucket is an array of these structures.
 // Each bucket represents 4096 bytes of the text segment.
 // Each subbucket represents 256 bytes of the text segment.
 // To find a function given a pc, locate the bucket and subbucket for

@@ -13,9 +13,6 @@ import (
 // Partial os/user support on Plan 9.
 // Supports Current(), but not Lookup()/LookupId().
 // The latter two would require parsing /adm/users.
-const (
-	userFile = "/dev/user"
-)
 
 func init() {
 	userImplemented = false
@@ -24,7 +21,7 @@ func init() {
 }
 
 func current() (*User, error) {
-	ubytes, err := os.ReadFile(userFile)
+	ubytes, err := os.ReadFile("/dev/user")
 	if err != nil {
 		return nil, fmt.Errorf("user: %s", err)
 	}

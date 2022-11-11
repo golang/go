@@ -383,6 +383,9 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 		status := ""
 		if ri, ok := s.scriptCache.Load(rel); ok {
 			r := ri.(*scriptResult)
+			r.mu.RLock()
+			defer r.mu.RUnlock()
+
 			if !r.hashTime.IsZero() {
 				hashTime = r.hashTime.Format(time.RFC3339)
 			}

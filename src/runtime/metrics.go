@@ -626,7 +626,7 @@ func (a *statAggregate) ensure(deps *statDepSet) {
 	a.ensured = a.ensured.union(missing)
 }
 
-// metricValidKind is a runtime copy of runtime/metrics.ValueKind and
+// metricKind is a runtime copy of runtime/metrics.ValueKind and
 // must be kept structurally identical to that type.
 type metricKind int
 

@@ -71,6 +71,10 @@ func bigToBN(x BigInt) *C.GO_BIGNUM {
 	return C._goboringcrypto_BN_le2bn(wbase(x), C.size_t(len(x)*wordBytes), nil)
 }
 
+func bytesToBN(x []byte) *C.GO_BIGNUM {
+	return C._goboringcrypto_BN_bin2bn((*C.uint8_t)(&x[0]), C.size_t(len(x)), nil)
+}
+
 func bnToBig(bn *C.GO_BIGNUM) BigInt {
 	x := make(BigInt, (C._goboringcrypto_BN_num_bytes(bn)+wordBytes-1)/wordBytes)
 	if C._goboringcrypto_BN_bn2le_padded(wbase(x), C.size_t(len(x)*wordBytes), bn) == 0 {

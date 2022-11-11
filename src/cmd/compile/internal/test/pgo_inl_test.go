@@ -67,9 +67,10 @@ go 1.19
 		expectedNotInlinedList[fullName] = struct{}{}
 	}
 
-	// go test -c -o /tmp/test.exe -cpuprofile inline_hot.pprof
+	// Build the test with the profile. Use a smaller threshold to test.
+	// TODO: maybe adjust the test to work with default threshold.
 	pprof := filepath.Join(dir, "inline_hot.pprof")
-	gcflag := fmt.Sprintf("-gcflags=-m -m -pgoprofile %s", pprof)
+	gcflag := fmt.Sprintf("-gcflags=-m -m -pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90", pprof)
 	out := filepath.Join(dir, "test.exe")
 	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", out, gcflag, "."))
 	cmd.Dir = dir

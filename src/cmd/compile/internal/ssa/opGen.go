@@ -22912,60 +22912,64 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MULV",
-		argLen:      2,
-		commutative: true,
+		name:            "MULV",
+		argLen:          2,
+		commutative:     true,
+		resultNotInArgs: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
 			outputs: []outputInfo{
-				{0, 65536},  // R17
-				{1, 131072}, // R18
+				{0, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
 			},
 		},
 	},
 	{
-		name:        "MULVU",
-		argLen:      2,
-		commutative: true,
+		name:            "MULVU",
+		argLen:          2,
+		commutative:     true,
+		resultNotInArgs: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
 			outputs: []outputInfo{
-				{0, 65536},  // R17
-				{1, 131072}, // R18
+				{0, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
 			},
 		},
 	},
 	{
-		name:   "DIVV",
-		argLen: 2,
+		name:            "DIVV",
+		argLen:          2,
+		resultNotInArgs: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
 			outputs: []outputInfo{
-				{0, 65536},  // R17
-				{1, 131072}, // R18
+				{0, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
 			},
 		},
 	},
 	{
-		name:   "DIVVU",
-		argLen: 2,
+		name:            "DIVVU",
+		argLen:          2,
+		resultNotInArgs: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
 			outputs: []outputInfo{
-				{0, 65536},  // R17
-				{1, 131072}, // R18
+				{0, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
 			},
 		},
 	},

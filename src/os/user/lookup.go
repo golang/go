@@ -6,6 +6,13 @@ package user
 
 import "sync"
 
+const (
+	userFile  = "/etc/passwd"
+	groupFile = "/etc/group"
+)
+
+var colon = []byte{':'}
+
 // Current returns the current user.
 //
 // The first call will cache the current user information.

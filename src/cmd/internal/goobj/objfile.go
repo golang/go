@@ -527,6 +527,8 @@ type Writer struct {
 	wr        *bio.Writer
 	stringMap map[string]uint32
 	off       uint32 // running offset
+
+	b [8]byte // scratch space for writing bytes
 }
 
 func NewWriter(wr *bio.Writer) *Writer {
@@ -565,23 +567,20 @@ func (w *Writer) Bytes(s []byte) {
 }
 
 func (w *Writer) Uint64(x uint64) {
-	var b [8]byte
-	binary.LittleEndian.PutUint64(b[:], x)
-	w.wr.Write(b[:])
+	binary.LittleEndian.PutUint64(w.b[:], x)
+	w.wr.Write(w.b[:])
 	w.off += 8
 }
 
 func (w *Writer) Uint32(x uint32) {
-	var b [4]byte
-	binary.LittleEndian.PutUint32(b[:], x)
-	w.wr.Write(b[:])
+	binary.LittleEndian.PutUint32(w.b[:4], x)
+	w.wr.Write(w.b[:4])
 	w.off += 4
 }
 
 func (w *Writer) Uint16(x uint16) {
-	var b [2]byte
-	binary.LittleEndian.PutUint16(b[:], x)
-	w.wr.Write(b[:])
+	binary.LittleEndian.PutUint16(w.b[:2], x)
+	w.wr.Write(w.b[:2])
 	w.off += 2
 }
 

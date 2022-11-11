@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ((unix && !android) || (js && wasm)) && (!cgo || osusergo)
+//go:build ((unix && !android) || (js && wasm)) && ((!cgo && !darwin) || osusergo)
 
 package user
 
@@ -15,8 +15,6 @@ import (
 	"strconv"
 	"strings"
 )
-
-const userFile = "/etc/passwd"
 
 // lineFunc returns a value, an error, or (nil, nil) to skip the row.
 type lineFunc func(line []byte) (v any, err error)

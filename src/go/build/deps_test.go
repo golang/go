@@ -395,19 +395,37 @@ var depsRules = `
 	< crypto
 	< crypto/subtle
 	< crypto/internal/alias
-	< crypto/internal/randutil
-	< crypto/internal/nistec/fiat
-	< crypto/internal/nistec
-	< crypto/internal/edwards25519/field
-	< crypto/internal/edwards25519, crypto/ecdh
 	< crypto/cipher;
 
 	crypto/cipher,
 	crypto/internal/boring/bcache
 	< crypto/internal/boring
-	< crypto/boring
+	< crypto/boring;
+
+	crypto/internal/alias
+	< crypto/internal/randutil
+	< crypto/internal/nistec/fiat
+	< crypto/internal/nistec
+	< crypto/internal/edwards25519/field
+	< crypto/internal/edwards25519;
+
+	crypto/boring
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
-	  crypto/sha1, crypto/sha256, crypto/sha512
+	  crypto/sha1, crypto/sha256, crypto/sha512;
+
+	crypto/boring, crypto/internal/edwards25519/field
+	< crypto/ecdh;
+
+	crypto/aes,
+	crypto/des,
+	crypto/ecdh,
+	crypto/hmac,
+	crypto/internal/edwards25519,
+	crypto/md5,
+	crypto/rc4,
+	crypto/sha1,
+	crypto/sha256,
+	crypto/sha512
 	< CRYPTO;
 
 	CGO, fmt, net !< CRYPTO;

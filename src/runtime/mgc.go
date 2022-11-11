@@ -1223,7 +1223,7 @@ func gcBgMarkPrepare() {
 	work.nwait = ^uint32(0)
 }
 
-// gcBgMarkWorker is an entry in the gcBgMarkWorkerPool. It points to a single
+// gcBgMarkWorkerNode is an entry in the gcBgMarkWorkerPool. It points to a single
 // gcBgMarkWorker goroutine.
 type gcBgMarkWorkerNode struct {
 	// Unused workers are managed in a lock-free stack. This field must be first.
