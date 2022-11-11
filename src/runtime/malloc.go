@@ -571,6 +571,9 @@ func mallocinit() {
 		userArenaHint.addr = p
 		userArenaHint.next, mheap_.userArena.arenaHints = mheap_.userArena.arenaHints, userArenaHint
 	}
+	// Initialize the memory limit here because the allocator is going to look at it
+	// but we haven't called gcinit yet and we're definitely going to allocate memory before then.
+	gcController.memoryLimit.Store(maxInt64)
 }
 
 // sysAlloc allocates heap arena space for at least n bytes. The
