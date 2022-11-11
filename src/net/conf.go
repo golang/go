@@ -351,7 +351,7 @@ func isGateway(h string) bool {
 	return stringsEqualFold(h, "_gateway")
 }
 
-// isGateway reports whether h should be considered a "outbound"
+// isOutbound reports whether h should be considered a "outbound"
 // name for the myhostname NSS module.
 func isOutbound(h string) bool {
 	return stringsEqualFold(h, "_outbound")
