@@ -299,7 +299,7 @@ func MarkFunc(n *Name) {
 }
 
 // ClosureDebugRuntimeCheck applies boilerplate checks for debug flags
-// and compiling runtime
+// and compiling runtime.
 func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
 	if base.Debug.Closure > 0 {
 		if clo.Esc() == EscHeap {

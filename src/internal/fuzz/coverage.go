@@ -67,7 +67,7 @@ func countNewCoverageBits(base, snapshot []byte) int {
 }
 
 // isCoverageSubset returns true if all the base coverage bits are set in
-// snapshot
+// snapshot.
 func isCoverageSubset(base, snapshot []byte) bool {
 	for i, v := range base {
 		if v&snapshot[i] != v {

@@ -83,7 +83,7 @@ var feistelBox [8][64]uint32
 
 var feistelBoxOnce sync.Once
 
-// general purpose function to perform DES block permutations
+// general purpose function to perform DES block permutations.
 func permuteBlock(src uint64, permutation []uint8) (block uint64) {
 	for position, n := range permutation {
 		bit := (src >> n) & 1
@@ -209,7 +209,7 @@ func permuteFinalBlock(block uint64) uint64 {
 }
 
 // creates 16 28-bit blocks rotated according
-// to the rotation schedule
+// to the rotation schedule.
 func ksRotate(in uint32) (out []uint32) {
 	out = make([]uint32, 16)
 	last := in
@@ -223,7 +223,7 @@ func ksRotate(in uint32) (out []uint32) {
 	return
 }
 
-// creates 16 56-bit subkeys from the original key
+// creates 16 56-bit subkeys from the original key.
 func (c *desCipher) generateSubkeys(keyBytes []byte) {
 	feistelBoxOnce.Do(initFeistelBox)
 

@@ -481,7 +481,7 @@ func releaseSudog(s *sudog) {
 	releasem(mp)
 }
 
-// called from assembly
+// called from assembly.
 func badmcall(fn func(*g)) {
 	throw("runtime: mcall called on m->g0 stack")
 }
@@ -3534,7 +3534,7 @@ func gosched_m(gp *g) {
 	goschedImpl(gp)
 }
 
-// goschedguarded is a forbidden-states-avoided version of gosched_m
+// goschedguarded is a forbidden-states-avoided version of gosched_m.
 func goschedguarded_m(gp *g) {
 
 	if !canPreemptM(gp.m) {

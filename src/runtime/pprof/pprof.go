@@ -861,7 +861,7 @@ func writeMutex(w io.Writer, debug int) error {
 	return writeProfileInternal(w, debug, "mutex", runtime.MutexProfile)
 }
 
-// writeProfileInternal writes the current blocking or mutex profile depending on the passed parameters
+// writeProfileInternal writes the current blocking or mutex profile depending on the passed parameters.
 func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile func([]runtime.BlockProfileRecord) (int, bool)) error {
 	var p []runtime.BlockProfileRecord
 	n, ok := runtimeProfile(nil)

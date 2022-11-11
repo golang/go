@@ -671,7 +671,7 @@ func lehmerSimulate(A, B *Int) (u0, u1, v0, v1 Word, even bool) {
 // where the signs of u0, u1, v0, v1 are given by even
 // For even == true: u0, v1 >= 0 && u1, v0 <= 0
 // For even == false: u0, v1 <= 0 && u1, v0 >= 0
-// q, r, s, t are temporary variables to avoid allocations in the multiplication
+// q, r, s, t are temporary variables to avoid allocations in the multiplication.
 func lehmerUpdate(A, B, q, r, s, t *Int, u0, u1, v0, v1 Word, even bool) {
 
 	t.abs = t.abs.setWord(u0)
@@ -695,7 +695,7 @@ func lehmerUpdate(A, B, q, r, s, t *Int, u0, u1, v0, v1 Word, even bool) {
 }
 
 // euclidUpdate performs a single step of the Euclidean GCD algorithm
-// if extended is true, it also updates the cosequence Ua, Ub
+// if extended is true, it also updates the cosequence Ua, Ub.
 func euclidUpdate(A, B, Ua, Ub, q, r, s, t *Int, extended bool) {
 	q, r = q.QuoRem(A, B, r)
 

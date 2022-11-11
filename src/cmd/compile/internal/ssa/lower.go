@@ -4,7 +4,7 @@
 
 package ssa
 
-// convert to machine-dependent ops
+// convert to machine-dependent ops.
 func lower(f *Func) {
 	// repeat rewrites until we find no more rewrites
 	applyRewrite(f, f.Config.lowerBlock, f.Config.lowerValue, removeDeadValues)

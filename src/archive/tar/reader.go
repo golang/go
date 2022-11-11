@@ -304,7 +304,7 @@ func mergePAX(hdr *Header, paxHdrs map[string]string) (err error) {
 }
 
 // parsePAX parses PAX headers.
-// If an extended header (type 'x') is invalid, ErrHeader is returned
+// If an extended header (type 'x') is invalid, ErrHeader is returned.
 func parsePAX(r io.Reader) (map[string]string, error) {
 	buf, err := readSpecialFile(r)
 	if err != nil {

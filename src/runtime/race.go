@@ -350,7 +350,7 @@ func racecallbackthunk(uintptr)
 // with up to 4 uintptr arguments.
 func racecall(fn *byte, arg0, arg1, arg2, arg3 uintptr)
 
-// checks if the address has shadow (i.e. heap or data/bss)
+// checks if the address has shadow (i.e. heap or data/bss).
 //
 //go:nosplit
 func isvalidaddr(addr unsafe.Pointer) bool {

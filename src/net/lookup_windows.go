@@ -383,7 +383,7 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error
 
 const dnsSectionMask = 0x0003
 
-// returns only results applicable to name and resolves CNAME entries
+// returns only results applicable to name and resolves CNAME entries.
 func validRecs(r *syscall.DNSRecord, dnstype uint16, name string) []*syscall.DNSRecord {
 	cname := syscall.StringToUTF16Ptr(name)
 	if dnstype != syscall.DNS_TYPE_CNAME {
@@ -406,7 +406,7 @@ func validRecs(r *syscall.DNSRecord, dnstype uint16, name string) []*syscall.DNS
 	return rec
 }
 
-// returns the last CNAME in chain
+// returns the last CNAME in chain.
 func resolveCNAME(name *uint16, r *syscall.DNSRecord) *uint16 {
 	// limit cname resolving to 10 in case of an infinite CNAME loop
 Cname:

@@ -101,7 +101,7 @@ func (ch Chan) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	io.WriteString(w, fmt.Sprintf("channel send #%d\n", <-ch))
 }
 
-// exec a program, redirecting output
+// exec a program, redirecting output.
 func DateServer(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
 

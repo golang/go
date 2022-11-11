@@ -37,7 +37,7 @@ type onePassInst struct {
 // regexp must start with. Complete is true if the prefix
 // is the entire match. Pc is the index of the last rune instruction
 // in the string. The onePassPrefix skips over the mandatory
-// EmptyBeginText
+// EmptyBeginText.
 func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
 	i := &p.Inst[p.Start]
 	if i.Op != syntax.InstEmptyWidth || (syntax.EmptyOp(i.Arg))&syntax.EmptyBeginText == 0 {
@@ -218,7 +218,7 @@ func cleanupOnePass(prog *onePassProg, original *syntax.Prog) {
 	}
 }
 
-// onePassCopy creates a copy of the original Prog, as we'll be modifying it
+// onePassCopy creates a copy of the original Prog, as we'll be modifying it.
 func onePassCopy(prog *syntax.Prog) *onePassProg {
 	p := &onePassProg{
 		Start:  prog.Start,

@@ -238,7 +238,7 @@ func Temp(t *types.Type) *ir.Name {
 	return TempAt(base.Pos, ir.CurFunc, t)
 }
 
-// make a new Node off the books
+// make a new Node off the books.
 func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	if curfn == nil {
 		base.Fatalf("no curfn for TempAt")

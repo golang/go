@@ -138,7 +138,7 @@ func full(c *hchan) bool {
 	return c.qcount == c.dataqsiz
 }
 
-// entry point for c <- x from compiled code
+// entry point for c <- x from compiled code.
 //
 //go:nosplit
 func chansend1(c *hchan, elem unsafe.Pointer) {
@@ -435,7 +435,7 @@ func empty(c *hchan) bool {
 	return atomic.Loaduint(&c.qcount) == 0
 }
 
-// entry points for <- c from compiled code
+// entry points for <- c from compiled code.
 //
 //go:nosplit
 func chanrecv1(c *hchan, elem unsafe.Pointer) {

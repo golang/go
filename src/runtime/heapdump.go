@@ -120,7 +120,7 @@ type typeCacheBucket struct {
 
 var typecache [typeCacheBuckets]typeCacheBucket
 
-// dump a uint64 in a varint format parseable by encoding/binary
+// dump a uint64 in a varint format parseable by encoding/binary.
 func dumpint(v uint64) {
 	var buf [10]byte
 	var n int
@@ -142,7 +142,7 @@ func dumpbool(b bool) {
 	}
 }
 
-// dump varint uint64 length followed by memory contents
+// dump varint uint64 length followed by memory contents.
 func dumpmemrange(data unsafe.Pointer, len uintptr) {
 	dumpint(uint64(len))
 	dwrite(data, len)
@@ -159,7 +159,7 @@ func dumpstr(s string) {
 	dumpmemrange(unsafe.Pointer(unsafe.StringData(s)), uintptr(len(s)))
 }
 
-// dump information for a type
+// dump information for a type.
 func dumptype(t *_type) {
 	if t == nil {
 		return
@@ -206,7 +206,7 @@ func dumptype(t *_type) {
 	dumpbool(t.kind&kindDirectIface == 0 || t.ptrdata != 0)
 }
 
-// dump an object
+// dump an object.
 func dumpobj(obj unsafe.Pointer, size uintptr, bv bitvector) {
 	dumpint(tagObject)
 	dumpint(uint64(uintptr(obj)))
@@ -239,7 +239,7 @@ type childInfo struct {
 	depth  uintptr   // depth in call stack (0 == most recent)
 }
 
-// dump kinds & offsets of interesting fields in bv
+// dump kinds & offsets of interesting fields in bv.
 func dumpbv(cbv *bitvector, offset uintptr) {
 	for i := uintptr(0); i < uintptr(cbv.n); i++ {
 		if cbv.ptrbit(i) == 1 {

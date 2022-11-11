@@ -60,7 +60,7 @@ func newHuffmanEncoder(size int) *huffmanEncoder {
 	return &huffmanEncoder{codes: make([]hcode, size)}
 }
 
-// Generates a HuffmanCode corresponding to the fixed literal table
+// Generates a HuffmanCode corresponding to the fixed literal table.
 func generateFixedLiteralEncoding() *huffmanEncoder {
 	h := newHuffmanEncoder(maxNumLit)
 	codes := h.codes

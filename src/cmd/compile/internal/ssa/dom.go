@@ -179,7 +179,7 @@ func (f *Func) dfsOrig(entry *Block, succFn linkedBlocks, semi, vertex, label, p
 	return n
 }
 
-// compressOrig is the "simple" compress function from LT paper
+// compressOrig is the "simple" compress function from LT paper.
 func compressOrig(v ID, ancestor, semi, label []ID) {
 	if ancestor[ancestor[v]] != 0 {
 		compressOrig(ancestor[v], ancestor, semi, label)
@@ -190,7 +190,7 @@ func compressOrig(v ID, ancestor, semi, label []ID) {
 	}
 }
 
-// evalOrig is the "simple" eval function from LT paper
+// evalOrig is the "simple" eval function from LT paper.
 func evalOrig(v ID, ancestor, semi, label []ID) ID {
 	if ancestor[v] == 0 {
 		return v

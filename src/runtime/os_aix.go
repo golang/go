@@ -163,7 +163,7 @@ func mpreinit(mp *m) {
 }
 
 // errno address must be retrieved by calling _Errno libc function.
-// This will return a pointer to errno
+// This will return a pointer to errno.
 func miniterrno() {
 	mp := getg().m
 	r, _ := syscall0(&libc__Errno)

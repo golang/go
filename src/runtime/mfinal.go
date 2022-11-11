@@ -172,7 +172,7 @@ func finalizercommit(gp *g, lock unsafe.Pointer) bool {
 	return true
 }
 
-// This is the goroutine that runs all of the finalizers
+// This is the goroutine that runs all of the finalizers.
 func runfinq() {
 	var (
 		frame    unsafe.Pointer

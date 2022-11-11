@@ -47,7 +47,7 @@ func CFStringToString(ref CFRef) string {
 	return string(b)
 }
 
-// TimeToCFDateRef converts a time.Time into an apple CFDateRef
+// TimeToCFDateRef converts a time.Time into an apple CFDateRef.
 func TimeToCFDateRef(t time.Time) CFRef {
 	secs := t.Sub(time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)).Seconds()
 	ref := CFDateCreate(secs)

@@ -1604,7 +1604,7 @@ func isConstDelta(v *Value) (w *Value, delta int64) {
 }
 
 // isCleanExt reports whether v is the result of a value-preserving
-// sign or zero extension
+// sign or zero extension.
 func isCleanExt(v *Value) bool {
 	switch v.Op {
 	case OpSignExt8to16, OpSignExt8to32, OpSignExt8to64,

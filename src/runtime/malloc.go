@@ -1249,7 +1249,7 @@ func memclrNoHeapPointersChunked(size uintptr, x unsafe.Pointer) {
 
 // implementation of new builtin
 // compiler (both frontend and SSA backend) knows the signature
-// of this function
+// of this function.
 func newobject(typ *_type) unsafe.Pointer {
 	return mallocgc(typ.size, typ, true)
 }

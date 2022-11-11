@@ -424,7 +424,7 @@ type sparseSet struct {
 }
 
 // newSparseSet returns a sparseSet that can represent
-// integers between 0 and n-1
+// integers between 0 and n-1.
 func newSparseSet(n int) *sparseSet {
 	return &sparseSet{dense: nil, sparse: make([]int32, n)}
 }

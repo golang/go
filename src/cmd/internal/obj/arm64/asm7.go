@@ -1525,7 +1525,7 @@ func isbitcon(x uint64) bool {
 	return sequenceOfOnes(x) || sequenceOfOnes(^x)
 }
 
-// sequenceOfOnes tests whether a constant is a sequence of ones in binary, with leading and trailing zeros
+// sequenceOfOnes tests whether a constant is a sequence of ones in binary, with leading and trailing zeros.
 func sequenceOfOnes(x uint64) bool {
 	y := x & -x // lowest set bit of x. x is good iff x+y is a power of 2
 	y += x
@@ -1778,7 +1778,7 @@ func (c *ctxt7) offsetshift(p *obj.Prog, v int64, cls int) int64 {
 /*
  * if v contains a single 16-bit value aligned
  * on a 16-bit field, and thus suitable for movk/movn,
- * return the field index 0 to 3; otherwise return -1
+ * return the field index 0 to 3; otherwise return -1.
  */
 func movcon(v int64) int {
 	for s := 0; s < 64; s += 16 {

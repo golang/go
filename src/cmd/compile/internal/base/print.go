@@ -36,7 +36,7 @@ func Errors() int {
 	return numErrors
 }
 
-// SyntaxErrors returns the number of syntax errors reported
+// SyntaxErrors returns the number of syntax errors reported.
 func SyntaxErrors() int {
 	return numSyntaxErrors
 }

@@ -2743,7 +2743,7 @@ var portMap = map[string]string{
 	"socks5": "1080",
 }
 
-// canonicalAddr returns url.Host but always with a ":port" suffix
+// canonicalAddr returns url.Host but always with a ":port" suffix.
 func canonicalAddr(url *url.URL) string {
 	addr := url.Hostname()
 	if v, err := idnaASCII(addr); err == nil {

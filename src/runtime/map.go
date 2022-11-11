@@ -514,7 +514,7 @@ bucketloop:
 	return unsafe.Pointer(&zeroVal[0]), false
 }
 
-// returns both key and elem. Used by map iterator
+// returns both key and elem. Used by map iterator.
 func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer) {
 	if h == nil || h.count == 0 {
 		return nil, nil

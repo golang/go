@@ -252,7 +252,7 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 	return a
 }
 
-// dvarint writes a varint v to the funcdata in symbol x and returns the new offset
+// dvarint writes a varint v to the funcdata in symbol x and returns the new offset.
 func dvarint(x *obj.LSym, off int, v int64) int {
 	if v < 0 || v > 1e9 {
 		panic(fmt.Sprintf("dvarint: bad offset for funcdata - %v", v))

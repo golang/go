@@ -55,7 +55,7 @@ const (
 // such as whether one block dominates another.
 type SparseTree []SparseTreeNode
 
-// newSparseTree creates a SparseTree from a block-to-parent map (array indexed by Block.ID)
+// newSparseTree creates a SparseTree from a block-to-parent map (array indexed by Block.ID).
 func newSparseTree(f *Func, parentOf []*Block) SparseTree {
 	t := make(SparseTree, f.NumBlocks())
 	for _, b := range f.Blocks {
@@ -184,7 +184,7 @@ func (t SparseTree) Parent(x *Block) *Block {
 	return t[x.ID].parent
 }
 
-// isAncestorEq reports whether x is an ancestor of or equal to y.
+// IsAncestorEq reports whether x is an ancestor of or equal to y.
 func (t SparseTree) IsAncestorEq(x, y *Block) bool {
 	if x == y {
 		return true

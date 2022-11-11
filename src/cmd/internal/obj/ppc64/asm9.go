@@ -539,7 +539,7 @@ var oprange [ALAST & obj.AMask][]Optab
 
 var xcmp [C_NCLASS][C_NCLASS]bool
 
-// padding bytes to add to align code as requested
+// padding bytes to add to align code as requested.
 func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 	// For 16 and 32 byte alignment, there is a tradeoff
 	// between aligning the code and adding too many NOPs.
@@ -2105,7 +2105,7 @@ func OPMD(o, xo, rc uint32) uint32 {
 	return o<<26 | xo<<2 | rc&1
 }
 
-/* the order is dest, a/s, b/imm for both arithmetic and logical operations */
+/* the order is dest, a/s, b/imm for both arithmetic and logical operations. */
 func AOP_RRR(op uint32, d uint32, a uint32, b uint32) uint32 {
 	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11
 }

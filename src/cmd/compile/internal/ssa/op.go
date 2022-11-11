@@ -269,7 +269,7 @@ func (a *AuxCall) SizeOfArg(which int64) int64 {
 	return a.TypeOfArg(which).Size()
 }
 
-// NResults returns the number of results
+// NResults returns the number of results.
 func (a *AuxCall) NResults() int64 {
 	return int64(len(a.abiInfo.OutParams()))
 }
@@ -335,7 +335,7 @@ func ClosureAuxCall(paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
 
 func (*AuxCall) CanBeAnSSAAux() {}
 
-// OwnAuxCall returns a function's own AuxCall
+// OwnAuxCall returns a function's own AuxCall.
 func OwnAuxCall(fn *obj.LSym, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
 	// TODO if this remains identical to ClosureAuxCall above after new ABI is done, should deduplicate.
 	var reg *regInfo

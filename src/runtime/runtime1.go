@@ -56,7 +56,7 @@ var (
 	argv **byte
 )
 
-// nosplit for use in linux startup sysargs
+// nosplit for use in linux startup sysargs.
 //
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {

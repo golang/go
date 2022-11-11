@@ -513,7 +513,7 @@ func walkNew(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 	return n
 }
 
-// generate code for print
+// generate code for print.
 func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	// Hoist all the argument evaluation up before the lock.
 	walkExprListCheap(nn.Args, init)

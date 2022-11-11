@@ -1469,7 +1469,7 @@ func parseGMT(value string) int {
 
 // parseSignedOffset parses a signed timezone offset (e.g. "+03" or "-04").
 // The function checks for a signed number in the range -23 through +23 excluding zero.
-// Returns length of the found offset string or 0 otherwise
+// Returns length of the found offset string or 0 otherwise.
 func parseSignedOffset(value string) int {
 	sign := value[0]
 	if sign != '-' && sign != '+' {

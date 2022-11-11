@@ -600,7 +600,7 @@ func readTransfer(msg any, r *bufio.Reader) (err error) {
 	return nil
 }
 
-// Checks whether chunked is part of the encodings stack
+// Checks whether chunked is part of the encodings stack.
 func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
 
 // Checks whether the encoding is explicitly "identity".
@@ -738,7 +738,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 
 // Determine whether to hang up after sending a request and body, or
 // receiving a response and body
-// 'header' is the request headers
+// 'header' is the request headers.
 func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 	if major < 1 {
 		return true
@@ -757,7 +757,7 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 	return hasClose
 }
 
-// Parse the trailer header
+// Parse the trailer header.
 func fixTrailer(header Header, chunked bool) (Header, error) {
 	vv, ok := header["Trailer"]
 	if !ok {
@@ -1081,7 +1081,7 @@ var nopCloserWriterToType = reflect.TypeOf(io.NopCloser(struct {
 }{}))
 
 // unwrapNopCloser return the underlying reader and true if r is a NopCloser
-// else it return false
+// else it return false.
 func unwrapNopCloser(r io.Reader) (underlyingReader io.Reader, isNopCloser bool) {
 	switch reflect.TypeOf(r) {
 	case nopCloserType, nopCloserWriterToType:

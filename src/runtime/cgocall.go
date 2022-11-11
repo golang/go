@@ -346,12 +346,12 @@ func unwindm(restore *bool) {
 	}
 }
 
-// called from assembly
+// called from assembly.
 func badcgocallback() {
 	throw("misaligned stack in cgocallback")
 }
 
-// called from (incomplete) assembly
+// called from (incomplete) assembly.
 func cgounimpl() {
 	throw("cgo not implemented")
 }

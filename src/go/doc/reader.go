@@ -826,7 +826,7 @@ func (d *data) Len() int           { return d.n }
 func (d *data) Swap(i, j int)      { d.swap(i, j) }
 func (d *data) Less(i, j int) bool { return d.less(i, j) }
 
-// sortBy is a helper function for sorting
+// sortBy is a helper function for sorting.
 func sortBy(less func(i, j int) bool, swap func(i, j int), n int) {
 	sort.Sort(&data{n, swap, less})
 }

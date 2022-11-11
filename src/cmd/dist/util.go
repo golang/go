@@ -379,7 +379,7 @@ func errprintf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, args...)
 }
 
-// xsamefile reports whether f1 and f2 are the same file (or dir)
+// xsamefile reports whether f1 and f2 are the same file (or dir).
 func xsamefile(f1, f2 string) bool {
 	fi1, err1 := os.Stat(f1)
 	fi2, err2 := os.Stat(f2)

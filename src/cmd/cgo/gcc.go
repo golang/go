@@ -2222,7 +2222,7 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 	}
 }
 
-// base strips away qualifiers and typedefs to get the underlying type
+// base strips away qualifiers and typedefs to get the underlying type.
 func base(dt dwarf.Type) dwarf.Type {
 	for {
 		if d, ok := dt.(*dwarf.QualType); ok {

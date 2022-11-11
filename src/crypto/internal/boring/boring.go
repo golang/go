@@ -36,7 +36,7 @@ func Unreachable() {
 	panic("boringcrypto: invalid code execution")
 }
 
-// provided by runtime to avoid os import
+// provided by runtime to avoid os import.
 func runtime_arg0() string
 
 func hasSuffix(s, t string) bool {

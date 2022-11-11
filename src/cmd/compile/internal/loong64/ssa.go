@@ -17,7 +17,7 @@ import (
 	"cmd/internal/obj/loong64"
 )
 
-// isFPreg reports whether r is an FP register
+// isFPreg reports whether r is an FP register.
 func isFPreg(r int16) bool {
 	return loong64.REG_F0 <= r && r <= loong64.REG_F31
 }

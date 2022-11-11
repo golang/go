@@ -51,7 +51,7 @@ import (
 	"sync/atomic"
 )
 
-// isRuntimeDepPkg reports whether pkg is the runtime package or its dependency
+// isRuntimeDepPkg reports whether pkg is the runtime package or its dependency.
 func isRuntimeDepPkg(pkg string) bool {
 	switch pkg {
 	case "runtime",
@@ -2349,7 +2349,7 @@ func (ctxt *Link) textaddress() {
 	}
 }
 
-// assigns address for a text symbol, returns (possibly new) section, its number, and the address
+// assigns address for a text symbol, returns (possibly new) section, its number, and the address.
 func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp, big bool) (*sym.Section, int, uint64) {
 	ldr := ctxt.loader
 	if thearch.AssignAddress != nil {
