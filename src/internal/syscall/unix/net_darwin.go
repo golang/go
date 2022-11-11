@@ -95,17 +95,11 @@ func GaiStrerror(ecode int) string {
 	return GoString((*byte)(unsafe.Pointer(r1)))
 }
 
+// Implemented in the runtime package.
+func gostring(*byte) string
+
 func GoString(p *byte) string {
-	if p == nil {
-		return ""
-	}
-	x := unsafe.Slice(p, 1e9)
-	for i, c := range x {
-		if c == 0 {
-			return string(x[:i])
-		}
-	}
-	return ""
+	return gostring(p)
 }
 
 //go:linkname syscall_syscall syscall.syscall

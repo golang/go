@@ -325,6 +325,13 @@ func gostring(p *byte) string {
 	return s
 }
 
+// internal_syscall_gostring is a version of gostring for internal/syscall/unix.
+//
+//go:linkname internal_syscall_gostring internal/syscall/unix.gostring
+func internal_syscall_gostring(p *byte) string {
+	return gostring(p)
+}
+
 func gostringn(p *byte, l int) string {
 	if l == 0 {
 		return ""
