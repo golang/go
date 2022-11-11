@@ -453,10 +453,6 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 	})
 }
 
-// stdOutErrAreTerminals is defined in test_linux.go, to report
-// whether stdout & stderr are terminals.
-var stdOutErrAreTerminals func() bool
-
 func (t *tester) registerTests() {
 	// Fast path to avoid the ~1 second of `go list std cmd` when
 	// the caller lists specific tests to run. (as the continuous
@@ -589,29 +585,6 @@ func (t *tester) registerTests() {
 				})
 			}
 		}
-	}
-
-	// This test needs its stdout/stderr to be terminals, so we don't run it from cmd/go's tests.
-	// See issue 18153.
-	if goos == "linux" {
-		t.tests = append(t.tests, distTest{
-			name:    "cmd_go_test_terminal",
-			heading: "cmd/go terminal test",
-			fn: func(dt *distTest) error {
-				t.runPending(dt)
-				timelog("start", dt.name)
-				defer timelog("end", dt.name)
-				if !stdOutErrAreTerminals() {
-					fmt.Println("skipping terminal test; stdout/stderr not terminals")
-					return nil
-				}
-				cmd := exec.Command(gorootBinGo, "test")
-				setDir(cmd, filepath.Join(os.Getenv("GOROOT"), "src/cmd/go/testdata/testterminal18153"))
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				return cmd.Run()
-			},
-		})
 	}
 
 	// On the builders only, test that a moved GOROOT still works.
