@@ -813,22 +813,24 @@ retry:
 // base address for all 0-byte allocations
 var zerobase uintptr
 
-// nextFreeFast returns the next free object if one is quickly available,
-// and the corresponding free index. Otherwise it returns 0, 0.
-func nextFreeFast(s *mspan) (gclinkptr, uintptr) {
+// nextFreeFast returns the next free object if one is quickly available.
+// Otherwise it returns 0.
+func nextFreeFast(s *mspan) gclinkptr {
 	theBit := sys.TrailingZeros64(s.allocCache) // Is there a free object in the allocCache?
 	if theBit < 64 {
 		result := s.freeindex + uintptr(theBit)
 		if result < s.nelems {
+			freeidx := result + 1
+			if freeidx%64 == 0 && freeidx != s.nelems {
+				return 0
+			}
 			s.allocCache >>= uint(theBit + 1)
-			// NOTE: s.freeindex is not updated for now (although allocCache
-			// is updated). mallocgc will update s.freeindex later after the
-			// memory is initialized.
+			s.freeindex = freeidx
 			s.allocCount++
-			return gclinkptr(result*s.elemsize + s.base()), result
+			return gclinkptr(result*s.elemsize + s.base())
 		}
 	}
-	return 0, 0
+	return 0
 }
 
 // nextFree returns the next free object from the cached span if one is available.
@@ -840,10 +842,10 @@ func nextFreeFast(s *mspan) (gclinkptr, uintptr) {
 //
 // Must run in a non-preemptible context since otherwise the owner of
 // c could change.
-func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, freeIndex uintptr, shouldhelpgc bool) {
+func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
 	s = c.alloc[spc]
 	shouldhelpgc = false
-	freeIndex = s.nextFreeIndex()
+	freeIndex := s.nextFreeIndex()
 	if freeIndex == s.nelems {
 		// The span is full.
 		if uintptr(s.allocCount) != s.nelems {
@@ -951,7 +953,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// In some cases block zeroing can profitably (for latency reduction purposes)
 	// be delayed till preemption is possible; delayedZeroing tracks that state.
 	delayedZeroing := false
-	var freeidx uintptr
 	if size <= maxSmallSize {
 		if noscan && size < maxTinySize {
 			// Tiny allocator.
@@ -1011,10 +1012,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			}
 			// Allocate a new maxTinySize block.
 			span = c.alloc[tinySpanClass]
-			var v gclinkptr
-			v, freeidx = nextFreeFast(span)
+			v := nextFreeFast(span)
 			if v == 0 {
-				v, span, freeidx, shouldhelpgc = c.nextFree(tinySpanClass)
+				v, span, shouldhelpgc = c.nextFree(tinySpanClass)
 			}
 			x = unsafe.Pointer(v)
 			(*[2]uint64)(x)[0] = 0
@@ -1037,10 +1037,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			size = uintptr(class_to_size[sizeclass])
 			spc := makeSpanClass(sizeclass, noscan)
 			span = c.alloc[spc]
-			var v gclinkptr
-			v, freeidx = nextFreeFast(span)
+			v := nextFreeFast(span)
 			if v == 0 {
-				v, span, freeidx, shouldhelpgc = c.nextFree(spc)
+				v, span, shouldhelpgc = c.nextFree(spc)
 			}
 			x = unsafe.Pointer(v)
 			if needzero && span.needzero != 0 {
@@ -1052,7 +1051,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		// For large allocations, keep track of zeroed state so that
 		// bulk zeroing can be happen later in a preemptible context.
 		span = c.allocLarge(size, noscan)
-		freeidx = 0
+		span.freeindex = 1
 		span.allocCount = 1
 		size = span.elemsize
 		x = unsafe.Pointer(span.base())
@@ -1093,11 +1092,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// the garbage collector could follow a pointer to x,
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
-
-	// As x and the heap bits are initialized, update
-	// freeindx now so x is seen by the GC (including
-	// convervative scan) as an allocated object.
-	span.updateFreeIndex(freeidx + 1)
 
 	// Allocate black during GC.
 	// All slots hold nil so no scanning is needed.

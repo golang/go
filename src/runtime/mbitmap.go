@@ -132,8 +132,7 @@ func (s *mspan) refillAllocCache(whichByte uintptr) {
 }
 
 // nextFreeIndex returns the index of the next free object in s at
-// or after s.freeindex. s.freeindex is not updated (except the full
-// span case), but the alloc cache is updated.
+// or after s.freeindex.
 // There are hardware instructions that can be used to make this
 // faster if profiling warrants it.
 func (s *mspan) nextFreeIndex() uintptr {
@@ -171,18 +170,9 @@ func (s *mspan) nextFreeIndex() uintptr {
 	}
 
 	s.allocCache >>= uint(bitIndex + 1)
+	sfreeindex = result + 1
 
-	// NOTE: s.freeindex is not updated for now (although allocCache
-	// is updated). mallocgc will update s.freeindex later after the
-	// memory is initialized.
-
-	return result
-}
-
-// updateFreeIndex updates s.freeindex to sfreeindex, refills
-// the allocCache if necessary.
-func (s *mspan) updateFreeIndex(sfreeindex uintptr) {
-	if sfreeindex%64 == 0 && sfreeindex != s.nelems {
+	if sfreeindex%64 == 0 && sfreeindex != snelems {
 		// We just incremented s.freeindex so it isn't 0.
 		// As each 1 in s.allocCache was encountered and used for allocation
 		// it was shifted away. At this point s.allocCache contains all 0s.
@@ -192,6 +182,7 @@ func (s *mspan) updateFreeIndex(sfreeindex uintptr) {
 		s.refillAllocCache(whichByte)
 	}
 	s.freeindex = sfreeindex
+	return result
 }
 
 // isFree reports whether the index'th object in s is unallocated.
