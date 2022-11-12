@@ -9,9 +9,12 @@ package misc
 
 import (
 	"context"
+	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
@@ -329,6 +332,10 @@ func TestRunVulncheckWarning(t *testing.T) {
 				ReadDiagnostics("go.mod", gotDiagnostics),
 			),
 		)
+		env.OpenFile("x/x.go")
+		lineX := env.RegexpSearch("x/x.go", `c\.C1\(\)\.Vuln1\(\)`)
+		env.OpenFile("y/y.go")
+		lineY := env.RegexpSearch("y/y.go", `c\.C2\(\)\(\)`)
 		wantDiagnostics := map[string]vulnDiagExpectation{
 			"golang.org/amod": {
 				applyAction: "Upgrade to v1.0.4",
@@ -339,6 +346,10 @@ func TestRunVulncheckWarning(t *testing.T) {
 						codeActions: []string{
 							"Upgrade to latest",
 							"Upgrade to v1.0.4",
+						},
+						relatedInfo: []vulnRelatedInfo{
+							{"x.go", uint32(lineX.Line), "[GO-2022-01]"}, // avuln.VulnData.Vuln1
+							{"x.go", uint32(lineX.Line), "[GO-2022-01]"}, // avuln.VulnData.Vuln2
 						},
 					},
 				},
@@ -353,6 +364,9 @@ func TestRunVulncheckWarning(t *testing.T) {
 					{
 						msg:      "golang.org/bmod has a vulnerability used in the code: GO-2022-02.",
 						severity: protocol.SeverityWarning,
+						relatedInfo: []vulnRelatedInfo{
+							{"y.go", uint32(lineY.Line), "[GO-2022-02]"}, // bvuln.Vuln
+						},
 					},
 				},
 				hover: []string{"GO-2022-02", "This is a long description of this vulnerability.", "No fix is available."},
@@ -364,8 +378,8 @@ func TestRunVulncheckWarning(t *testing.T) {
 
 			// Check that the actions we get when including all diagnostics at a location return the same result
 			gotActions := env.CodeAction("go.mod", modPathDiagnostics)
-			if !sameCodeActions(gotActions, want.codeActions) {
-				t.Errorf("code actions for %q do not match, expected %v, got %v\n", mod, want.codeActions, gotActions)
+			if diff := diffCodeActions(gotActions, want.codeActions); diff != "" {
+				t.Errorf("code actions for %q do not match, expected %v, got %v\n%v\n", mod, want.codeActions, gotActions, diff)
 				continue
 			}
 
@@ -399,20 +413,12 @@ require (
 	})
 }
 
-func sameCodeActions(gotActions []protocol.CodeAction, want []string) bool {
-	gotTitles := make([]string, len(gotActions))
-	for i, ca := range gotActions {
-		gotTitles[i] = ca.Title
+func diffCodeActions(gotActions []protocol.CodeAction, want []string) string {
+	var gotTitles []string
+	for _, ca := range gotActions {
+		gotTitles = append(gotTitles, ca.Title)
 	}
-	if len(gotTitles) != len(want) {
-		return false
-	}
-	for i := range want {
-		if gotTitles[i] != want[i] {
-			return false
-		}
-	}
-	return true
+	return cmp.Diff(want, gotTitles)
 }
 
 const workspace2 = `
@@ -483,8 +489,8 @@ func TestRunVulncheckInfo(t *testing.T) {
 			modPathDiagnostics := testVulnDiagnostics(t, env, mod, want, gotDiagnostics)
 			// Check that the actions we get when including all diagnostics at a location return the same result
 			gotActions := env.CodeAction("go.mod", modPathDiagnostics)
-			if !sameCodeActions(gotActions, want.codeActions) {
-				t.Errorf("code actions for %q do not match, expected %v, got %v\n", mod, want.codeActions, gotActions)
+			if diff := diffCodeActions(gotActions, want.codeActions); diff != "" {
+				t.Errorf("code actions for %q do not match, expected %v, got %v\n%v\n", mod, want.codeActions, gotActions, diff)
 				continue
 			}
 		}
@@ -513,12 +519,16 @@ func testVulnDiagnostics(t *testing.T, env *Env, requireMod string, want vulnDia
 			continue
 		}
 		if diag.Severity != w.severity {
-			t.Errorf("incorrect severity for %q, expected %s got %s\n", w.msg, w.severity, diag.Severity)
+			t.Errorf("incorrect severity for %q, want %s got %s\n", w.msg, w.severity, diag.Severity)
 		}
-
+		sort.Slice(w.relatedInfo, func(i, j int) bool { return w.relatedInfo[i].less(w.relatedInfo[j]) })
+		if got, want := summarizeRelatedInfo(diag.RelatedInformation), w.relatedInfo; !cmp.Equal(got, want) {
+			t.Errorf("related info for %q do not match, want %v, got %v\n", w.msg, want, got)
+		}
+		// Check expected code actions appear.
 		gotActions := env.CodeAction("go.mod", []protocol.Diagnostic{*diag})
-		if !sameCodeActions(gotActions, w.codeActions) {
-			t.Errorf("code actions for %q do not match, expected %v, got %v\n", w.msg, w.codeActions, gotActions)
+		if diff := diffCodeActions(gotActions, w.codeActions); diff != "" {
+			t.Errorf("code actions for %q do not match, want %v, got %v\n%v\n", w.msg, w.codeActions, gotActions, diff)
 			continue
 		}
 
@@ -527,7 +537,7 @@ func testVulnDiagnostics(t *testing.T, env *Env, requireMod string, want vulnDia
 			hover, _ := env.Hover("go.mod", pos)
 			for _, part := range want.hover {
 				if !strings.Contains(hover.Value, part) {
-					t.Errorf("hover contents for %q do not match, expected %v, got %v\n", w.msg, strings.Join(want.hover, ","), hover.Value)
+					t.Errorf("hover contents for %q do not match, want %v, got %v\n", w.msg, strings.Join(want.hover, ","), hover.Value)
 					break
 				}
 			}
@@ -536,12 +546,47 @@ func testVulnDiagnostics(t *testing.T, env *Env, requireMod string, want vulnDia
 	return modPathDiagnostics
 }
 
+// summarizeRelatedInfo converts protocol.DiagnosticRelatedInformation to vulnRelatedInfo
+// that captures only the part that we want to test.
+func summarizeRelatedInfo(rinfo []protocol.DiagnosticRelatedInformation) []vulnRelatedInfo {
+	var res []vulnRelatedInfo
+	for _, r := range rinfo {
+		filename := filepath.Base(r.Location.URI.SpanURI().Filename())
+		message, _, _ := strings.Cut(r.Message, " ")
+		line := r.Location.Range.Start.Line
+		res = append(res, vulnRelatedInfo{filename, line, message})
+	}
+	sort.Slice(res, func(i, j int) bool {
+		return res[i].less(res[j])
+	})
+	return res
+}
+
+type vulnRelatedInfo struct {
+	Filename string
+	Line     uint32
+	Message  string
+}
+
 type vulnDiag struct {
 	msg      string
 	severity protocol.DiagnosticSeverity
 	// codeActions is a list titles of code actions that we get with this
 	// diagnostics as the context.
 	codeActions []string
+	// relatedInfo is related info message prefixed by the file base.
+	// See summarizeRelatedInfo.
+	relatedInfo []vulnRelatedInfo
+}
+
+func (i vulnRelatedInfo) less(j vulnRelatedInfo) bool {
+	if i.Filename != j.Filename {
+		return i.Filename < j.Filename
+	}
+	if i.Line != j.Line {
+		return i.Line < j.Line
+	}
+	return i.Message < j.Message
 }
 
 // wantVulncheckModDiagnostics maps a module path in the require

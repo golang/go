@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/vuln/osv"
 )
@@ -213,6 +214,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		// Fixes will include only the upgrades for warning level diagnostics.
 		var fixes []source.SuggestedFix
 		var warning, info []string
+		var relatedInfo []source.RelatedInformation
 		for _, mv := range vulns {
 			mod, vuln := mv.mod, mv.vuln
 			// It is possible that the source code was changed since the last
@@ -238,6 +240,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 				info = append(info, vuln.OSV.ID)
 			} else {
 				warning = append(warning, vuln.OSV.ID)
+				relatedInfo = append(relatedInfo, listRelatedInfo(ctx, snapshot, vuln)...)
 			}
 			// Upgrade to the exact version we offer the user, not the most recent.
 			if fixedVersion := mod.FixedVersion; semver.IsValid(fixedVersion) && semver.Compare(req.Mod.Version, fixedVersion) < 0 {
@@ -282,7 +285,6 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		default:
 			fmt.Fprintf(&b, "%v has vulnerabilities used in the code: %v.", req.Mod.Path, strings.Join(warning, ", "))
 		}
-
 		vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
 			URI:            fh.URI(),
 			Range:          rng,
@@ -290,10 +292,52 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 			Source:         source.Vulncheck,
 			Message:        b.String(),
 			SuggestedFixes: fixes,
+			Related:        relatedInfo,
 		})
 	}
 
 	return vulnDiagnostics, nil
+}
+
+func listRelatedInfo(ctx context.Context, snapshot source.Snapshot, vuln *govulncheck.Vuln) []source.RelatedInformation {
+	var ri []source.RelatedInformation
+	for _, m := range vuln.Modules {
+		for _, p := range m.Packages {
+			for _, c := range p.CallStacks {
+				if len(c.Frames) == 0 {
+					continue
+				}
+				entry := c.Frames[0]
+				pos := entry.Position
+				if pos.Filename == "" {
+					continue // token.Position Filename is an optional field.
+				}
+				uri := span.URIFromPath(pos.Filename)
+				startPos := protocol.Position{
+					Line: uint32(pos.Line) - 1,
+					// We need to read the file contents to precisesly map
+					// token.Position (pos) to the UTF16-based column offset
+					// protocol.Position requires. That can be expensive.
+					// We need this related info to just help users to open
+					// the entry points of the callstack and once the file is
+					// open, we will compute the precise location based on the
+					// open file contents. So, use the beginning of the line
+					// as the position here instead of precise UTF16-based
+					// position computation.
+					Character: 0,
+				}
+				ri = append(ri, source.RelatedInformation{
+					URI: uri,
+					Range: protocol.Range{
+						Start: startPos,
+						End:   startPos,
+					},
+					Message: fmt.Sprintf("[%v] %v -> %v.%v", vuln.OSV.ID, entry.Name(), p.Path, c.Symbol),
+				})
+			}
+		}
+	}
+	return ri
 }
 
 func formatMessage(v *govulncheck.Vuln) string {
