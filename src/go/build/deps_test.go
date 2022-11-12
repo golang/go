@@ -436,6 +436,7 @@ var depsRules = `
 	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1
 	< golang.org/x/crypto/cryptobyte
+	< crypto/internal/bigmod
 	< crypto/dsa, crypto/elliptic, crypto/rsa
 	< crypto/ecdsa
 	< CRYPTO-MATH;

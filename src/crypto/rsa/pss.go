@@ -208,7 +208,7 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
 // given hash function. salt is a random sequence of bytes whose length will be
 // later used to verify the signature.
 func signPSSWithSalt(priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) ([]byte, error) {
-	emBits := bigBitLen(priv.N) - 1
+	emBits := priv.N.BitLen() - 1
 	em, err := emsaPSSEncode(hashed, emBits, salt, hash.New())
 	if err != nil {
 		return nil, err
@@ -302,7 +302,7 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 	saltLength := opts.saltLength()
 	switch saltLength {
 	case PSSSaltLengthAuto:
-		saltLength = (bigBitLen(priv.N)-1+7)/8 - 2 - hash.Size()
+		saltLength = (priv.N.BitLen()-1+7)/8 - 2 - hash.Size()
 		if saltLength < 0 {
 			return nil, ErrMessageTooLong
 		}
@@ -349,9 +349,12 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 		return invalidSaltLenErr
 	}
 
-	emBits := bigBitLen(pub.N) - 1
+	emBits := pub.N.BitLen() - 1
 	emLen := (emBits + 7) / 8
-	em := encrypt(pub, sig)
+	em, err := encrypt(pub, sig)
+	if err != nil {
+		return ErrVerification
+	}
 
 	// Like in signPSSWithSalt, deal with mismatches between emLen and the size
 	// of the modulus. The spec would have us wire emLen into the encoding

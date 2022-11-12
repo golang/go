@@ -276,6 +276,27 @@ func testEverything(t *testing.T, priv *PrivateKey) {
 		}
 		hash[1] ^= 0x80
 	}
+
+	// Check that an input bigger than the modulus is handled correctly,
+	// whether it is longer than the byte size of the modulus or not.
+	c := bytes.Repeat([]byte{0xff}, priv.Size())
+	err = VerifyPSS(&priv.PublicKey, crypto.SHA256, hash[:], c, opts)
+	if err == nil {
+		t.Errorf("VerifyPSS accepted a large signature")
+	}
+	_, err = DecryptPKCS1v15(nil, priv, c)
+	if err == nil {
+		t.Errorf("DecryptPKCS1v15 accepted a large ciphertext")
+	}
+	c = append(c, 0xff)
+	err = VerifyPSS(&priv.PublicKey, crypto.SHA256, hash[:], c, opts)
+	if err == nil {
+		t.Errorf("VerifyPSS accepted a long signature")
+	}
+	_, err = DecryptPKCS1v15(nil, priv, c)
+	if err == nil {
+		t.Errorf("DecryptPKCS1v15 accepted a long ciphertext")
+	}
 }
 
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }

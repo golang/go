@@ -661,8 +661,18 @@ var natPool sync.Pool
 // bitLen returns the length of x in bits.
 // Unlike most methods, it works even if x is not normalized.
 func (x nat) bitLen() int {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
+	//
+	// In particular, bits.Len and bits.LeadingZeros use a lookup table for the
+	// low-order bits on some architectures.
 	if i := len(x) - 1; i >= 0 {
-		return i*_W + bits.Len(uint(x[i]))
+		l := i * _W
+		for top := x[i]; top != 0; top >>= 1 {
+			l++
+		}
+		return l
 	}
 	return 0
 }
@@ -1292,6 +1302,9 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 // cannot be represented in buf, bytes panics. The number i of unused
 // bytes at the beginning of buf is returned as result.
 func (z nat) bytes(buf []byte) (i int) {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	i = len(buf)
 	for _, d := range z {
 		for j := 0; j < _S; j++ {

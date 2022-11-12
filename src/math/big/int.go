@@ -35,6 +35,9 @@ var intOne = &Int{false, natOne}
 //	 0 if x == 0
 //	+1 if x >  0
 func (x *Int) Sign() int {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	if len(x.abs) == 0 {
 		return 0
 	}
@@ -96,6 +99,9 @@ func (z *Int) Set(x *Int) *Int {
 // Bits is intended to support implementation of missing low-level Int
 // functionality outside this package; it should be avoided otherwise.
 func (x *Int) Bits() []Word {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	return x.abs
 }
 
@@ -487,6 +493,9 @@ func (z *Int) SetBytes(buf []byte) *Int {
 //
 // To use a fixed length slice, or a preallocated one, use FillBytes.
 func (x *Int) Bytes() []byte {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	buf := make([]byte, len(x.abs)*_S)
 	return buf[x.abs.bytes(buf):]
 }
@@ -507,6 +516,9 @@ func (x *Int) FillBytes(buf []byte) []byte {
 // BitLen returns the length of the absolute value of x in bits.
 // The bit length of 0 is 0.
 func (x *Int) BitLen() int {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	return x.abs.bitLen()
 }
 
