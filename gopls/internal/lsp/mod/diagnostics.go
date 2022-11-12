@@ -197,7 +197,14 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		if len(vulns) == 0 {
 			continue
 		}
-		rng, err := pm.Mapper.OffsetRange(req.Syntax.Start.Byte, req.Syntax.End.Byte)
+		// note: req.Syntax is the line corresponding to 'require', which means
+		// req.Syntax.Start can point to the beginning of the "require" keyword
+		// for a single line require (e.g. "require golang.org/x/mod v0.0.0").
+		start := req.Syntax.Start.Byte
+		if len(req.Syntax.Token) == 3 {
+			start += len("require ")
+		}
+		rng, err := pm.Mapper.OffsetRange(start, req.Syntax.End.Byte)
 		if err != nil {
 			return nil, err
 		}
@@ -254,17 +261,17 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		sort.Strings(info)
 
 		var b strings.Builder
-		if len(warning) == 1 {
-			fmt.Fprintf(&b, "%v has a vulnerability used in the code: %v.", req.Mod.Path, warning[0])
-		} else {
-			fmt.Fprintf(&b, "%v has vulnerabilities used in the code: %v.", req.Mod.Path, strings.Join(warning, ", "))
-		}
-		if len(warning) == 0 {
-			if len(info) == 1 {
+		switch len(warning) {
+		case 0:
+			if n := len(info); n == 1 {
 				fmt.Fprintf(&b, "%v has a vulnerability %v that is not used in the code.", req.Mod.Path, info[0])
-			} else {
+			} else if n > 1 {
 				fmt.Fprintf(&b, "%v has known vulnerabilities %v that are not used in the code.", req.Mod.Path, strings.Join(info, ", "))
 			}
+		case 1:
+			fmt.Fprintf(&b, "%v has a vulnerability used in the code: %v.", req.Mod.Path, warning[0])
+		default:
+			fmt.Fprintf(&b, "%v has vulnerabilities used in the code: %v.", req.Mod.Path, strings.Join(warning, ", "))
 		}
 
 		vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
