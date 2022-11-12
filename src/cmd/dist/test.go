@@ -66,6 +66,7 @@ type tester struct {
 	banner      string   // prefix, or "" for none
 	lastHeading string   // last dir heading printed
 
+	short      bool
 	cgoEnabled bool
 	partial    bool
 
@@ -99,6 +100,21 @@ func (t *tester) run() {
 	timelog("start", "dist test")
 
 	os.Setenv("PATH", fmt.Sprintf("%s%c%s", gorootBin, os.PathListSeparator, os.Getenv("PATH")))
+
+	// Default to running tests in "short" mode, unless the environment variable
+	// GO_TEST_SHORT is set to a non-empty, false-ish string.
+	//
+	// This environment variable is meant to be an internal detail between the
+	// Go build system and cmd/dist for the purpose of longtest builders, and is
+	// not intended for use by users. See golang.org/issue/12508.
+	t.short = true
+	if v := os.Getenv("GO_TEST_SHORT"); v != "" {
+		short, err := strconv.ParseBool(v)
+		if err != nil {
+			fatalf("invalid GO_TEST_SHORT %q: %v", v, err)
+		}
+		t.short = short
+	}
 
 	cmd := exec.Command(gorootBinGo, "env", "CGO_ENABLED", "GOEXE", "GOTMPDIR")
 	cmd.Stderr = new(bytes.Buffer)
@@ -295,41 +311,6 @@ func (t *tester) maybeLogMetadata() error {
 	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), "go", []string{"run", "main.go"}).Run()
 }
 
-// short returns a -short flag value to use with 'go test'
-// or a test binary for tests intended to run in short mode.
-// It returns "true", unless the environment variable
-// GO_TEST_SHORT is set to a non-empty, false-ish string.
-//
-// This environment variable is meant to be an internal
-// detail between the Go build system and cmd/dist for
-// the purpose of longtest builders, and is not intended
-// for use by users. See golang.org/issue/12508.
-//
-// TODO: Simplify this once all uses of goTest() are gone.
-func short() string {
-	if v := os.Getenv("GO_TEST_SHORT"); v != "" {
-		short, err := strconv.ParseBool(v)
-		if err != nil {
-			fatalf("invalid GO_TEST_SHORT %q: %v", v, err)
-		}
-		if !short {
-			return "false"
-		}
-	}
-	return "true"
-}
-
-// goTest returns the beginning of the go test command line.
-// Callers should use goTest and then pass flags overriding these
-// defaults as later arguments in the command line.
-//
-// TODO: Convert all uses of goTest() to goTest.run and delete this.
-func (t *tester) goTest() []string {
-	return []string{
-		"go", "test", "-short=" + short(), "-count=1", t.tags(), t.runFlag(""),
-	}
-}
-
 // goTest represents all options to a "go test" command. The final command will
 // combine configuration from goTest and tester flags.
 type goTest struct {
@@ -479,10 +460,20 @@ func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs []strin
 		d := opts.timeout * time.Duration(t.timeoutScale)
 		run = append(run, "-timeout="+d.String())
 	}
-	if opts.short || short() == "true" {
+	if opts.short || t.short {
 		run = append(run, "-short")
 	}
-	build = append(build, t.tags(opts.tags...))
+	var tags []string
+	if t.iOS() {
+		tags = append(tags, "lldb")
+	}
+	if noOpt {
+		tags = append(tags, "noopt")
+	}
+	tags = append(tags, opts.tags...)
+	if len(tags) > 0 {
+		build = append(build, "-tags="+strings.Join(tags, ","))
+	}
 	if t.race || opts.race {
 		build = append(build, "-race")
 	}
@@ -549,46 +540,6 @@ func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs []strin
 	}
 
 	return
-}
-
-func (t *tester) tags(extra ...string) string {
-	tags := ""
-	ios := t.iOS()
-	switch {
-	case ios && noOpt:
-		tags = "lldb,noopt"
-	case ios:
-		tags = "lldb"
-	case noOpt:
-		tags = "noopt"
-	}
-	for _, x := range extra {
-		if x == "" {
-			continue
-		}
-		if tags != "" {
-			tags += ","
-		}
-		tags += x
-	}
-	return "-tags=" + tags
-}
-
-// timeoutDuration converts the provided number of seconds into a
-// time.Duration, scaled by the t.timeoutScale factor.
-//
-// TODO: Delete in favor of goTest.run
-func (t *tester) timeoutDuration(sec int) time.Duration {
-	return time.Duration(sec) * time.Second * time.Duration(t.timeoutScale)
-}
-
-// timeout returns the "-timeout=" string argument to "go test" given
-// the number of seconds of timeout. It scales it by the
-// t.timeoutScale factor.
-//
-// TODO: Delete in favor of goTest.run
-func (t *tester) timeout(sec int) string {
-	return "-timeout=" + t.timeoutDuration(sec).String()
 }
 
 // ranGoTest and stdMatches are state closed over by the stdlib
@@ -753,7 +704,7 @@ func (t *tester) registerTests() {
 	// (with GO_TEST_SHORT=false) because the runtime test is
 	// already quite long and mayMoreStackMove makes it about
 	// twice as slow.
-	if !t.compileOnly && short() == "false" {
+	if !t.compileOnly && !t.short {
 		// hooks is the set of maymorestack hooks to test with.
 		hooks := []string{"mayMoreStackPreempt", "mayMoreStackMove"}
 		// pkgs is the set of test packages to run.
@@ -1143,32 +1094,6 @@ func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
 			panic("invalid addCmd argument type: " + reflect.TypeOf(x).String())
 		}
 	}
-
-	// The go command is too picky about duplicated flags.
-	// Drop all but the last of the allowed duplicated flags.
-	drop := make([]bool, len(list))
-	have := map[string]int{}
-	for i := 1; i < len(list); i++ {
-		j := strings.Index(list[i], "=")
-		if j < 0 {
-			continue
-		}
-		flag := list[i][:j]
-		switch flag {
-		case "-run", "-tags":
-			if have[flag] != 0 {
-				drop[have[flag]] = true
-			}
-			have[flag] = i
-		}
-	}
-	out := list[:0]
-	for i, x := range list {
-		if !drop[i] {
-			out = append(out, x)
-		}
-	}
-	list = out
 
 	bin = list[0]
 	if bin == "go" {
@@ -1639,14 +1564,6 @@ func isAlpineLinux() bool {
 	}
 	fi, err := os.Lstat("/etc/alpine-release")
 	return err == nil && fi.Mode().IsRegular()
-}
-
-// TODO: Delete in favor of goTest.run
-func (t *tester) runFlag(rx string) string {
-	if t.compileOnly {
-		return "-run=^$"
-	}
-	return "-run=" + rx
 }
 
 func (t *tester) registerRaceTests() {
