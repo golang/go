@@ -130,6 +130,7 @@ var bufreaders = []bufReader{
 	{"3", func(b *Reader) string { return reads(b, 3) }},
 	{"4", func(b *Reader) string { return reads(b, 4) }},
 	{"5", func(b *Reader) string { return reads(b, 5) }},
+	{"6", func(b *Reader) string { return reads(b, 6) }},
 	{"7", func(b *Reader) string { return reads(b, 7) }},
 	{"bytes", readBytes},
 	{"lines", readLines},
