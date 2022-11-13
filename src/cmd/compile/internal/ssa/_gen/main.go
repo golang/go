@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"go/format"
 	"log"
+	"math/bits"
 	"os"
 	"path"
 	"regexp"
@@ -546,12 +547,7 @@ func (a arch) Name() string {
 
 // countRegs returns the number of set bits in the register mask.
 func countRegs(r regMask) int {
-	n := 0
-	for r != 0 {
-		n += int(r & 1)
-		r >>= 1
-	}
-	return n
+	return bits.OnesCount64(uint64(r))
 }
 
 // for sorting a pair of integers by key
