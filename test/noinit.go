@@ -1,4 +1,4 @@
-// skip
+// run
 
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,13 +6,15 @@
 
 // Test that many initializations can be done at link time and
 // generate no executable init functions.
-// This test is run by sinit_run.go.
+// Also test that trivial func init are optimized away.
 
-package p
+package main
 
-import "unsafe"
+import (
+	"errors"
+	"unsafe"
+)
 
-// Should be no init func in the assembly.
 // All these initializations should be done at link time.
 
 type S struct{ a, b, c int }
@@ -108,7 +110,7 @@ var (
 	copy_pi       = pi
 	copy_slice    = slice
 	copy_sliceInt = sliceInt
-	copy_hello    = hello
+	// copy_hello    = hello // static init of copied strings defeats link -X; see #34675
 
 	// Could be handled without an initialization function, but
 	// requires special handling for "a = []byte("..."); b = a"
@@ -118,12 +120,13 @@ var (
 	// make this special case work.
 
 	copy_four, copy_five = four, five
-	copy_x, copy_y       = x, y
-	copy_nilslice        = nilslice
-	copy_nilmap          = nilmap
-	copy_nilfunc         = nilfunc
-	copy_nilchan         = nilchan
-	copy_nilptr          = nilptr
+	copy_x               = x
+	// copy_y = y // static init of copied strings defeats link -X; see #34675
+	copy_nilslice = nilslice
+	copy_nilmap   = nilmap
+	copy_nilfunc  = nilfunc
+	copy_nilchan  = nilchan
+	copy_nilptr   = nilptr
 )
 
 var copy_a = a
@@ -283,3 +286,58 @@ var _ Mer = (*T1)(nil)
 
 var Byte byte
 var PtrByte unsafe.Pointer = unsafe.Pointer(&Byte)
+
+var LitSXInit = &S{1, 2, 3}
+var LitSAnyXInit any = &S{4, 5, 6}
+
+func FS(x, y, z int) *S   { return &S{x, y, z} }
+func FSA(x, y, z int) any { return &S{x, y, z} }
+func F3(x int) *S         { return &S{x, x, x} }
+
+var LitSCallXInit = FS(7, 8, 9)
+var LitSAnyCallXInit any = FSA(10, 11, 12)
+
+var LitSRepeat = F3(1 + 2)
+
+func F0() *S { return &S{1, 2, 3} }
+
+var LitSNoArgs = F0()
+
+var myError = errors.New("mine")
+
+func gopherize(s string) string { return "gopher gopher gopher " + s }
+
+var animals = gopherize("badger")
+
+// These init funcs should optimize away.
+
+func init() {
+}
+
+func init() {
+	if false {
+	}
+}
+
+func init() {
+	for false {
+	}
+}
+
+// Actual test: check for init funcs in runtime data structures.
+
+type initTask struct {
+	state uintptr
+	ndeps uintptr
+	nfns  uintptr
+}
+
+//go:linkname main_inittask main..inittask
+var main_inittask initTask
+
+func main() {
+	if nfns := main_inittask.nfns; nfns != 0 {
+		println(nfns)
+		panic("unexpected init funcs")
+	}
+}

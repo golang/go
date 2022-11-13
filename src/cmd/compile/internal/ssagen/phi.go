@@ -483,7 +483,7 @@ loop:
 		var_ := v.Aux.(fwdRefAux).N
 		if b == s.f.Entry {
 			// No variable should be live at entry.
-			s.s.Fatalf("Value live at entry. It shouldn't be. func %s, node %v, value %v", s.f.Name, var_, v)
+			s.s.Fatalf("value %v (%v) incorrectly live at entry", var_, v)
 		}
 		if !s.reachable[b.ID] {
 			// This block is dead.

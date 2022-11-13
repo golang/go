@@ -10,6 +10,7 @@
 package foo
 
 import (
+	"errors"
 	"runtime"
 	"unsafe"
 )
@@ -54,6 +55,8 @@ func f2() int { // ERROR "can inline f2"
 	tmp2 := tmp1
 	return tmp2(0) // ERROR "inlining call to h"
 }
+
+var abc = errors.New("abc") // ERROR "inlining call to errors.New"
 
 var somethingWrong error
 
