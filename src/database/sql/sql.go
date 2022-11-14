@@ -3228,7 +3228,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 // select query will close any cursor *Rows if the parent *Rows is closed.
 //
 // If any of the first arguments implementing Scanner returns an error,
-// that error will be wrapped in the returned error
+// that error will be wrapped in the returned error.
 func (rs *Rows) Scan(dest ...any) error {
 	rs.closemu.RLock()
 
