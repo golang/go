@@ -74,7 +74,7 @@ type Nat struct {
 // common and most performant RSA key size. It's also enough to cover some of
 // the operations of key sizes up to 4096.
 const preallocTarget = 2048
-const preallocLimbs = (preallocTarget + _W) / _W
+const preallocLimbs = (preallocTarget + _W - 1) / _W
 
 // NewNat returns a new nat with a size of zero, just like new(Nat), but with
 // the preallocated capacity to hold a number of up to preallocTarget bits.
@@ -179,10 +179,37 @@ func (x *Nat) Bytes(m *Modulus) []byte {
 }
 
 // SetBytes assigns x = b, where b is a slice of big-endian bytes.
-// SetBytes returns an error if b > m.
+// SetBytes returns an error if b >= m.
 //
 // The output will be resized to the size of m and overwritten.
 func (x *Nat) SetBytes(b []byte, m *Modulus) (*Nat, error) {
+	if err := x.setBytes(b, m); err != nil {
+		return nil, err
+	}
+	if x.cmpGeq(m.nat) == yes {
+		return nil, errors.New("input overflows the modulus")
+	}
+	return x, nil
+}
+
+// SetOverflowingBytes assigns x = b, where b is a slice of big-endian bytes. SetOverflowingBytes
+// returns an error if b has a longer bit length than m, but reduces overflowing
+// values up to 2^⌈log2(m)⌉ - 1.
+//
+// The output will be resized to the size of m and overwritten.
+func (x *Nat) SetOverflowingBytes(b []byte, m *Modulus) (*Nat, error) {
+	if err := x.setBytes(b, m); err != nil {
+		return nil, err
+	}
+	leading := _W - bitLen(x.limbs[len(x.limbs)-1])
+	if leading < m.leading {
+		return nil, errors.New("input overflows the modulus")
+	}
+	x.sub(x.cmpGeq(m.nat), m.nat)
+	return x, nil
+}
+
+func (x *Nat) setBytes(b []byte, m *Modulus) error {
 	outI := 0
 	shift := 0
 	x.resetFor(m)
@@ -197,17 +224,14 @@ func (x *Nat) SetBytes(b []byte, m *Modulus) (*Nat, error) {
 			outI++
 			if outI >= len(x.limbs) {
 				if overflow > 0 || i > 0 {
-					return nil, errors.New("input overflows the modulus")
+					return errors.New("input overflows the modulus")
 				}
 				break
 			}
 			x.limbs[outI] = uint(overflow)
 		}
 	}
-	if x.cmpGeq(m.nat) == yes {
-		return nil, errors.New("input overflows the modulus")
-	}
-	return x, nil
+	return nil
 }
 
 // Equal returns 1 if x == y, and 0 otherwise.
@@ -224,6 +248,19 @@ func (x *Nat) Equal(y *Nat) choice {
 		equal &= ctEq(xLimbs[i], yLimbs[i])
 	}
 	return equal
+}
+
+// IsZero returns 1 if x == 0, and 0 otherwise.
+func (x *Nat) IsZero() choice {
+	// Eliminate bounds checks in the loop.
+	size := len(x.limbs)
+	xLimbs := x.limbs[:size]
+
+	zero := yes
+	for i := 0; i < size; i++ {
+		zero &= ctEq(xLimbs[i], 0)
+	}
+	return zero
 }
 
 // cmpGeq returns 1 if x >= y, and 0 otherwise.
@@ -372,8 +409,12 @@ func bitLen(n uint) int {
 
 // Size returns the size of m in bytes.
 func (m *Modulus) Size() int {
-	bits := len(m.nat.limbs)*_W - int(m.leading)
-	return (bits + 7) / 8
+	return (m.BitLen() + 7) / 8
+}
+
+// BitLen returns the size of m in bits.
+func (m *Modulus) BitLen() int {
+	return len(m.nat.limbs)*_W - int(m.leading)
 }
 
 // Nat returns m as a Nat. The return value must not be written to.
