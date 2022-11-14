@@ -69,12 +69,8 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 	}
 
 	// Finally use CreateFile.
-	h, err := syscall.CreateFile(namep,
-		syscall.GENERIC_READ,
-		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE,
-		nil,
-		syscall.OPEN_EXISTING,
-		createFileAttrs, 0)
+	h, err := syscall.CreateFile(namep, 0, 0, nil,
+		syscall.OPEN_EXISTING, createFileAttrs, 0)
 	if err != nil {
 		return nil, &PathError{Op: "CreateFile", Path: name, Err: err}
 	}
