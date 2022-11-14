@@ -153,8 +153,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	}
 
 	conf := getSystemDNSConfig()
-	if conf.err != nil && !os.IsNotExist(conf.err) &&
-		!os.IsPermission(conf.err) {
+	if conf.err != nil && !os.IsNotExist(conf.err) && !os.IsPermission(conf.err) {
 		// If we can't read the resolv.conf file, assume it
 		// had something important in it and defer to cgo.
 		// libc's resolver might then fail too, but at least
