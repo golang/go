@@ -215,13 +215,23 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		var warning, info []string
 		for _, mv := range vulns {
 			mod, vuln := mv.mod, mv.vuln
-			// Only show the diagnostic if the vulnerability was calculated
-			// for the module at the current version.
-			// TODO(hyangah): this prevents from surfacing vulnerable modules
-			// since module version selection is affected by dependency module
-			// requirements and replace/exclude/go.work use. Drop this check
-			// and annotate only the module path.
-			if semver.IsValid(mod.FoundVersion) && semver.Compare(req.Mod.Version, mod.FoundVersion) != 0 {
+			// It is possible that the source code was changed since the last
+			// govulncheck run and information in the `vulns` info is stale.
+			// For example, imagine that a user is in the middle of updating
+			// problematic modules detected by the govulncheck run by applying
+			// quick fixes. Stale diagnostics can be confusing and prevent the
+			// user from quickly locating the next module to fix.
+			// Ideally we should rerun the analysis with the updated module
+			// dependencies or any other code changes, but we are not yet
+			// in the position of automatically triggerring the analysis
+			// (govulncheck can take a while). We also don't know exactly what
+			// part of source code was changed since `vulns` was computed.
+			// As a heuristic, we assume that a user upgrades the affecting
+			// module to the version with the fix or the latest one, and if the
+			// version in the require statement is equal to or higher than the
+			// fixed version, skip generating a diagnostic about the vulnerability.
+			// Eventually, the user has to rerun govulncheck.
+			if mod.FixedVersion != "" && semver.IsValid(req.Mod.Version) && semver.Compare(mod.FixedVersion, req.Mod.Version) <= 0 {
 				continue
 			}
 			if !vuln.IsCalled() {
@@ -233,15 +243,14 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 			if fixedVersion := mod.FixedVersion; semver.IsValid(fixedVersion) && semver.Compare(req.Mod.Version, fixedVersion) < 0 {
 				cmd, err := getUpgradeCodeAction(fh, req, fixedVersion)
 				if err != nil {
-					return nil, err
+					return nil, err // TODO: bug report
 				}
 				// Add an upgrade for module@latest.
 				// TODO(suzmue): verify if latest is the same as fixedVersion.
 				latest, err := getUpgradeCodeAction(fh, req, "latest")
 				if err != nil {
-					return nil, err
+					return nil, err // TODO: bug report
 				}
-
 				fixes = []source.SuggestedFix{
 					source.SuggestedFixFromCommand(cmd, protocol.QuickFix),
 					source.SuggestedFixFromCommand(latest, protocol.QuickFix),
@@ -250,7 +259,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		}
 
 		if len(warning) == 0 && len(info) == 0 {
-			return nil, nil
+			continue
 		}
 		severity := protocol.SeverityInformation
 		if len(warning) > 0 {
