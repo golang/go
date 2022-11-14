@@ -214,13 +214,13 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
 	if Debug.Panic != 0 || numErrors == 0 {
 		fmt.Printf("%v: internal compiler error: ", FmtPos(pos))
 		fmt.Printf(format, args...)
-		fmt.Printf("\n")
+		fmt.Print("\n")
 
 		// If this is a released compiler version, ask for a bug report.
 		if Debug.Panic == 0 && strings.HasPrefix(buildcfg.Version, "go") {
-			fmt.Printf("\n")
-			fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
-			fmt.Printf("https://go.dev/issue/new\n")
+			fmt.Print("\n")
+			fmt.Print("Please file a bug report including a short program that triggers the error.\n")
+			fmt.Print("https://go.dev/issue/new\n")
 		} else {
 			// Not a release; dump a stack trace, too.
 			fmt.Println()

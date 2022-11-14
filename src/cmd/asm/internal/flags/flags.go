@@ -66,8 +66,8 @@ func (m *MultiFlag) Set(val string) error {
 }
 
 func Usage() {
-	fmt.Fprintf(os.Stderr, "usage: asm [options] file.s ...\n")
-	fmt.Fprintf(os.Stderr, "Flags:\n")
+	fmt.Fprint(os.Stderr, "usage: asm [options] file.s ...\n")
+	fmt.Fprint(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }

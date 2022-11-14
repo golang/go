@@ -73,7 +73,7 @@ func main() {
 
 	if !*flags.SymABIs {
 		buf.WriteString(objabi.HeaderString())
-		fmt.Fprintf(buf, "!\n")
+		fmt.Fprint(buf, "!\n")
 	}
 
 	var ok, diag bool

@@ -134,7 +134,7 @@ func main() {
 	flag.Parse()
 
 	if build.Default.GOROOT == "" {
-		log.Fatalf("GOROOT not found. (If binary was built with -trimpath, $GOROOT must be set.)")
+		log.Fatal("GOROOT not found. (If binary was built with -trimpath, $GOROOT must be set.)")
 	}
 
 	if !strings.Contains(runtime.Version(), "weekly") && !strings.Contains(runtime.Version(), "devel") {

@@ -115,7 +115,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "asan", "shared", "dynlink", "dwarf", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
 
 	if !base.EnableTrace && base.Flag.LowerT {
-		log.Fatalf("compiler not built with support for -t")
+		log.Fatal("compiler not built with support for -t")
 	}
 
 	// Enable inlining (after RecordFlags, to avoid recording the rewritten -l).  For now:

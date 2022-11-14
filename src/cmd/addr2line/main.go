@@ -31,10 +31,10 @@ import (
 )
 
 func printUsage(w *os.File) {
-	fmt.Fprintf(w, "usage: addr2line binary\n")
-	fmt.Fprintf(w, "reads addresses from standard input and writes two lines for each:\n")
-	fmt.Fprintf(w, "\tfunction name\n")
-	fmt.Fprintf(w, "\tfile:line\n")
+	fmt.Fprint(w, "usage: addr2line binary\n")
+	fmt.Fprint(w, "reads addresses from standard input and writes two lines for each:\n")
+	fmt.Fprint(w, "\tfunction name\n")
+	fmt.Fprint(w, "\tfile:line\n")
 }
 
 func usage() {
@@ -79,7 +79,7 @@ func main() {
 			// This was an extension in the old C version of 'go tool addr2line'
 			// and is probably not used by anyone, but recognize the syntax.
 			// We don't have an implementation.
-			fmt.Fprintf(stdout, "!reverse translation not implemented\n")
+			fmt.Fprint(stdout, "!reverse translation not implemented\n")
 			continue
 		}
 		pc, _ := strconv.ParseUint(strings.TrimPrefix(p, "0x"), 16, 64)
