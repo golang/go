@@ -1831,7 +1831,7 @@ func testReverseProxyQueryParameterSmuggling(t *testing.T, wantCleanQuery bool, 
 		cleanQuery: "a=1",
 	}, {
 		rawQuery:   "a=1&a=%zz&b=3",
-		cleanQuery: "a=1&b=3",
+		cleanQuery: "a=1&a=%zz&b=3",
 	}} {
 		res, err := frontend.Client().Get(frontend.URL + "?" + test.rawQuery)
 		if err != nil {

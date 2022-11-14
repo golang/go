@@ -704,9 +704,11 @@ var parseRequestURLTests = []struct {
 	// These two cases are valid as textual representations as
 	// described in RFC 4007, but are not valid as address
 	// literals with IPv6 zone identifiers in URIs as described in
-	// RFC 6874.
-	{"http://[fe80::1%en0]/", false},
-	{"http://[fe80::1%en0]:8080/", false},
+	// RFC 6874. However, this seems to be overridden by
+	// https://url.spec.whatwg.org/#percent-encoded-bytes
+	// which permits unencoded % characters.
+	{"http://[fe80::1%en0]/", true},
+	{"http://[fe80::1%en0]:8080/", true},
 }
 
 func TestParseRequestURI(t *testing.T) {
@@ -896,28 +898,28 @@ var unescapeTests = []EscapeTest{
 	},
 	{
 		"%", // not enough characters after %
-		"",
-		EscapeError("%"),
+		"%",
+		nil,
 	},
 	{
 		"%a", // not enough characters after %
-		"",
-		EscapeError("%a"),
+		"%a",
+		nil,
 	},
 	{
 		"%1", // not enough characters after %
-		"",
-		EscapeError("%1"),
+		"%1",
+		nil,
 	},
 	{
 		"123%45%6", // not enough characters after %
-		"",
-		EscapeError("%6"),
+		"123E%6",
+		nil,
 	},
 	{
 		"%zzzzz", // invalid hex digits
-		"",
-		EscapeError("%zz"),
+		"%zzzzz",
+		nil,
 	},
 	{
 		"a+b",
@@ -1591,16 +1593,6 @@ func TestRequestURI(t *testing.T) {
 	}
 }
 
-func TestParseFailure(t *testing.T) {
-	// Test that the first parse error is returned.
-	const url = "%gh&%ij"
-	_, err := ParseQuery(url)
-	errStr := fmt.Sprint(err)
-	if !strings.Contains(errStr, "%gh") {
-		t.Errorf(`ParseQuery(%q) returned error %q, want something containing %q"`, url, errStr, "%gh")
-	}
-}
-
 func TestParseErrors(t *testing.T) {
 	tests := []struct {
 		in      string
@@ -2118,6 +2110,7 @@ func TestJoinPath(t *testing.T) {
 		{
 			base: "http://[fe80::1%en0]:8080/",
 			elem: []string{"/go"},
+			out:  "http://[fe80::1%25en0]:8080/go",
 		},
 		{
 			base: "https://go.googlesource.com",

@@ -198,20 +198,24 @@ func PathUnescape(s string) (string, error) {
 // unescape unescapes a string; the mode specifies
 // which section of the URL string is being unescaped.
 func unescape(s string, mode encoding) (string, error) {
+	isPercentEscape := func(s string, i int) bool {
+		return i+2 < len(s) && ishex(s[i+1]) && ishex(s[i+2])
+	}
+
 	// Count %, check that they're well-formed.
 	n := 0
 	hasPlus := false
 	for i := 0; i < len(s); {
 		switch s[i] {
 		case '%':
-			n++
-			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
-				s = s[i:]
-				if len(s) > 3 {
-					s = s[:3]
-				}
-				return "", EscapeError(s)
+			if !isPercentEscape(s, i) {
+				// https://url.spec.whatwg.org/#percent-encoded-bytes
+				// says that % followed by non-hex characters
+				// should be accepted with no error.
+				i++
+				continue
 			}
+			n++
 			// Per https://tools.ietf.org/html/rfc3986#page-21
 			// in the host component %-encoding can only be used
 			// for non-ASCII bytes.
@@ -255,8 +259,12 @@ func unescape(s string, mode encoding) (string, error) {
 	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '%':
-			t.WriteByte(unhex(s[i+1])<<4 | unhex(s[i+2]))
-			i += 2
+			if !isPercentEscape(s, i) {
+				t.WriteByte('%')
+			} else {
+				t.WriteByte(unhex(s[i+1])<<4 | unhex(s[i+2]))
+				i += 2
+			}
 		case '+':
 			if mode == encodeQueryComponent {
 				t.WriteByte(' ')
