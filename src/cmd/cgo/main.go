@@ -256,7 +256,7 @@ func main() {
 
 	if *gccgoDefineCgoIncomplete {
 		if !*gccgo {
-			fmt.Fprintf(os.Stderr, "cgo: -gccgo_define_cgoincomplete without -gccgo\n")
+			fmt.Fprint(os.Stderr, "cgo: -gccgo_define_cgoincomplete without -gccgo\n")
 			os.Exit(2)
 		}
 		incomplete = "_cgopackage_Incomplete"

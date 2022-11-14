@@ -23,7 +23,7 @@ import (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: compile [options] file.go...\n")
+	fmt.Fprint(os.Stderr, "usage: compile [options] file.go...\n")
 	objabi.Flagprint(os.Stderr)
 	Exit(2)
 }

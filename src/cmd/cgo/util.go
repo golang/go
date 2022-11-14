@@ -99,10 +99,10 @@ func error_(pos token.Pos, msg string, args ...interface{}) {
 	if pos.IsValid() {
 		fmt.Fprintf(os.Stderr, "%s: ", fset.Position(pos).String())
 	} else {
-		fmt.Fprintf(os.Stderr, "cgo: ")
+		fmt.Fprint(os.Stderr, "cgo: ")
 	}
 	fmt.Fprintf(os.Stderr, msg, args...)
-	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprint(os.Stderr, "\n")
 }
 
 func creat(name string) *os.File {

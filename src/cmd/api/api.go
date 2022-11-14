@@ -29,7 +29,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"testing"
 )
 
 const verbose = false
@@ -115,10 +114,13 @@ var internalPkg = regexp.MustCompile(`(^|/)internal($|/)`)
 
 var exitCode = 0
 
-func Check(t *testing.T) {
-	checkFiles, err := filepath.Glob(filepath.Join(testenv.GOROOT(t), "api/go1*.txt"))
-	if err != nil {
-		t.Fatal(err)
+func main() {
+	log.SetPrefix("api: ")
+	log.SetFlags(0)
+	flag.Parse()
+
+	if build.Default.GOROOT == "" {
+		log.Fatal("GOROOT not found. (If binary was built with -trimpath, $GOROOT must be set.)")
 	}
 
 	var nextFiles []string

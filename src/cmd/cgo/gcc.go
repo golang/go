@@ -370,7 +370,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 			i+1, i+1, n.C,
 		)
 	}
-	fmt.Fprintf(&b, "#line 1 \"completed\"\n"+
+	fmt.Fprint(&b, "#line 1 \"completed\"\n"+
 		"int __cgo__1 = __cgo__2;\n")
 
 	// We need to parse the output from this gcc command, so ensure that it
@@ -526,12 +526,12 @@ func (p *Package) loadDWARF(f *File, conv *typeConv, names []*Name) {
 
 	// We create a data block initialized with the values,
 	// so we can read them out of the object file.
-	fmt.Fprintf(&b, "long long __cgodebug_ints[] = {\n")
+	fmt.Fprint(&b, "long long __cgodebug_ints[] = {\n")
 	for _, n := range names {
 		if n.Kind == "iconst" {
 			fmt.Fprintf(&b, "\t%s,\n", n.C)
 		} else {
-			fmt.Fprintf(&b, "\t0,\n")
+			fmt.Fprint(&b, "\t0,\n")
 		}
 	}
 	// for the last entry, we cannot use 0, otherwise
@@ -539,20 +539,20 @@ func (p *Package) loadDWARF(f *File, conv *typeConv, names []*Name) {
 	// LLVM-based gcc will place the it in the __DATA.__common
 	// zero-filled section (our debug/macho doesn't support
 	// this)
-	fmt.Fprintf(&b, "\t1\n")
-	fmt.Fprintf(&b, "};\n")
+	fmt.Fprint(&b, "\t1\n")
+	fmt.Fprint(&b, "};\n")
 
 	// do the same work for floats.
-	fmt.Fprintf(&b, "double __cgodebug_floats[] = {\n")
+	fmt.Fprint(&b, "double __cgodebug_floats[] = {\n")
 	for _, n := range names {
 		if n.Kind == "fconst" {
 			fmt.Fprintf(&b, "\t%s,\n", n.C)
 		} else {
-			fmt.Fprintf(&b, "\t0,\n")
+			fmt.Fprint(&b, "\t0,\n")
 		}
 	}
-	fmt.Fprintf(&b, "\t1\n")
-	fmt.Fprintf(&b, "};\n")
+	fmt.Fprint(&b, "\t1\n")
+	fmt.Fprint(&b, "};\n")
 
 	// do the same work for strings.
 	for i, n := range names {

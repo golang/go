@@ -78,9 +78,9 @@ func printObjHeader(bout *bio.Writer) {
 		fmt.Fprintf(bout, "build id %q\n", base.Flag.BuildID)
 	}
 	if types.LocalPkg.Name == "main" {
-		fmt.Fprintf(bout, "main\n")
+		fmt.Fprint(bout, "main\n")
 	}
-	fmt.Fprintf(bout, "\n") // header ends with blank line
+	fmt.Fprint(bout, "\n") // header ends with blank line
 }
 
 func startArchiveEntry(bout *bio.Writer) int64 {
@@ -170,15 +170,15 @@ func dumpLinkerObj(bout *bio.Writer) {
 
 	if len(typecheck.Target.CgoPragmas) != 0 {
 		// write empty export section; must be before cgo section
-		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
-		fmt.Fprintf(bout, "\n$$  // cgo\n")
+		fmt.Fprint(bout, "\n$$\n\n$$\n\n")
+		fmt.Fprint(bout, "\n$$  // cgo\n")
 		if err := json.NewEncoder(bout).Encode(typecheck.Target.CgoPragmas); err != nil {
 			base.Fatalf("serializing pragcgobuf: %v", err)
 		}
-		fmt.Fprintf(bout, "\n$$\n\n")
+		fmt.Fprint(bout, "\n$$\n\n")
 	}
 
-	fmt.Fprintf(bout, "\n!\n")
+	fmt.Fprint(bout, "\n!\n")
 
 	obj.WriteObjFile(base.Ctxt, bout)
 }

@@ -12,6 +12,6 @@ import (
 )
 
 func init() {
-	fmt.Printf("SKIP with boringcrypto enabled\n")
+	fmt.Print("SKIP with boringcrypto enabled\n")
 	os.Exit(0)
 }
