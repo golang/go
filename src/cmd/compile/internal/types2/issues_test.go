@@ -7,7 +7,6 @@
 package types2_test
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"internal/testenv"
@@ -18,18 +17,11 @@ import (
 	. "cmd/compile/internal/types2"
 )
 
-func mustParse(t *testing.T, src string) *syntax.File {
-	f, err := parseSrc("", src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return f
-}
 func TestIssue5770(t *testing.T) {
-	f := mustParse(t, `package p; type S struct{T}`)
+	f := mustParse("", `package p; type S struct{T}`)
 	var conf Config
 	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // do not crash
-	want := "undeclared name: T"
+	const want = "undefined: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("got: %v; want: %s", err, want)
 	}
@@ -47,14 +39,8 @@ var (
 	_ = (interface{})("foo")
 	_ = (interface{})(nil)
 )`
-	f := mustParse(t, src)
-
-	var conf Config
 	types := make(map[syntax.Expr]TypeAndValue)
-	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Types: types})
-	if err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck("p", src, &Info{Types: types})
 
 	for x, tv := range types {
 		var want Type
@@ -92,14 +78,8 @@ func f() int {
 	return 0
 }
 `
-	f := mustParse(t, src)
-
-	var conf Config
 	types := make(map[syntax.Expr]TypeAndValue)
-	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Types: types})
-	if err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck("p", src, &Info{Types: types})
 
 	want := Typ[Int]
 	n := 0
@@ -123,7 +103,7 @@ package p
 func (T) m() (res bool) { return }
 type T struct{} // receiver type after method declaration
 `
-	f := mustParse(t, src)
+	f := mustParse("", src)
 
 	var conf Config
 	defs := make(map[*syntax.Name]Object)
@@ -154,7 +134,7 @@ func _() {
         _, _, _ = x, y, z  // uses x, y, z
 }
 `
-	f := mustParse(t, src)
+	f := mustParse("", src)
 
 	const want = `L3 defs func p._()
 L4 defs const w untyped int
@@ -250,7 +230,7 @@ func main() {
 }
 `
 	f := func(test, src string) {
-		f := mustParse(t, src)
+		f := mustParse("", src)
 		conf := Config{Importer: defaultImporter()}
 		info := Info{Uses: make(map[*syntax.Name]Object)}
 		_, err := conf.Check("main", []*syntax.File{f}, &info)
@@ -280,17 +260,17 @@ func main() {
 }
 
 func TestIssue22525(t *testing.T) {
-	f := mustParse(t, `package p; func f() { var a, b, c, d, e int }`)
+	f := mustParse("", `package p; func f() { var a, b, c, d, e int }`)
 
 	got := "\n"
 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
 	conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // do not crash
 	want := `
-:1:27: a declared but not used
-:1:30: b declared but not used
-:1:33: c declared but not used
-:1:36: d declared but not used
-:1:39: e declared but not used
+:1:27: a declared and not used
+:1:30: b declared and not used
+:1:33: c declared and not used
+:1:36: d declared and not used
+:1:39: e declared and not used
 `
 	if got != want {
 		t.Errorf("got: %swant: %s", got, want)
@@ -310,7 +290,7 @@ func TestIssue25627(t *testing.T) {
 		`struct { *I }`,
 		`struct { a int; b Missing; *Missing }`,
 	} {
-		f := mustParse(t, prefix+src)
+		f := mustParse("", prefix+src)
 
 		conf := Config{Importer: defaultImporter(), Error: func(err error) {}}
 		info := &Info{Types: make(map[syntax.Expr]TypeAndValue)}
@@ -347,7 +327,7 @@ func TestIssue28005(t *testing.T) {
 	// compute original file ASTs
 	var orig [len(sources)]*syntax.File
 	for i, src := range sources {
-		orig[i] = mustParse(t, src)
+		orig[i] = mustParse("", src)
 	}
 
 	// run the test for all order permutations of the incoming files
@@ -422,12 +402,12 @@ func TestIssue28282(t *testing.T) {
 }
 
 func TestIssue29029(t *testing.T) {
-	f1 := mustParse(t, `package p; type A interface { M() }`)
-	f2 := mustParse(t, `package p; var B interface { A }`)
+	f1 := mustParse("", `package p; type A interface { M() }`)
+	f2 := mustParse("", `package p; var B interface { A }`)
 
 	// printInfo prints the *Func definitions recorded in info, one *Func per line.
 	printInfo := func(info *Info) string {
-		var buf bytes.Buffer
+		var buf strings.Builder
 		for _, obj := range info.Defs {
 			if fn, ok := obj.(*Func); ok {
 				fmt.Fprintln(&buf, fn)
@@ -469,12 +449,9 @@ func TestIssue34151(t *testing.T) {
 	const asrc = `package a; type I interface{ M() }; type T struct { F interface { I } }`
 	const bsrc = `package b; import "a"; type T struct { F interface { a.I } }; var _ = a.T(T{})`
 
-	a, err := pkgFor("a", asrc, nil)
-	if err != nil {
-		t.Fatalf("package %s failed to typecheck: %v", a.Name(), err)
-	}
+	a := mustTypecheck("a", asrc, nil)
 
-	bast := mustParse(t, bsrc)
+	bast := mustParse("", bsrc)
 	conf := Config{Importer: importHelper{pkg: a}}
 	b, err := conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
 	if err != nil {
@@ -517,7 +494,7 @@ func TestIssue34921(t *testing.T) {
 
 	var pkg *Package
 	for _, src := range sources {
-		f := mustParse(t, src)
+		f := mustParse("", src)
 		conf := Config{Importer: importHelper{pkg: pkg}}
 		res, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
 		if err != nil {
@@ -575,6 +552,8 @@ func TestIssue44515(t *testing.T) {
 }
 
 func TestIssue43124(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
 	// All involved packages have the same name (template). Error messages should
 	// disambiguate between text/template and html/template by printing the full
 	// path.
@@ -584,16 +563,13 @@ func TestIssue43124(t *testing.T) {
 		csrc = `package c; import ("a"; "html/template"); func _() { a.G(template.Template{}) }`
 	)
 
-	a, err := pkgFor("a", asrc, nil)
-	if err != nil {
-		t.Fatalf("package a failed to typecheck: %v", err)
-	}
+	a := mustTypecheck("a", asrc, nil)
 	conf := Config{Importer: importHelper{pkg: a, fallback: defaultImporter()}}
 
 	// Packages should be fully qualified when there is ambiguity within the
 	// error string itself.
-	bast := mustParse(t, bsrc)
-	_, err = conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
+	bast := mustParse("", bsrc)
+	_, err := conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
 	if err == nil {
 		t.Fatal("package b had no errors")
 	}
@@ -602,12 +578,128 @@ func TestIssue43124(t *testing.T) {
 	}
 
 	// ...and also when there is any ambiguity in reachable packages.
-	cast := mustParse(t, csrc)
+	cast := mustParse("", csrc)
 	_, err = conf.Check(cast.PkgName.Value, []*syntax.File{cast}, nil)
 	if err == nil {
 		t.Fatal("package c had no errors")
 	}
 	if !strings.Contains(err.Error(), "html/template") {
 		t.Errorf("type checking error for c does not disambiguate package template: %q", err)
+	}
+}
+
+func TestIssue50646(t *testing.T) {
+	anyType := Universe.Lookup("any").Type()
+	comparableType := Universe.Lookup("comparable").Type()
+
+	if !Comparable(anyType) {
+		t.Errorf("any is not a comparable type")
+	}
+	if !Comparable(comparableType) {
+		t.Errorf("comparable is not a comparable type")
+	}
+
+	if Implements(anyType, comparableType.Underlying().(*Interface)) {
+		t.Errorf("any implements comparable")
+	}
+	if !Implements(comparableType, anyType.(*Interface)) {
+		t.Errorf("comparable does not implement any")
+	}
+
+	if AssignableTo(anyType, comparableType) {
+		t.Errorf("any assignable to comparable")
+	}
+	if !AssignableTo(comparableType, anyType) {
+		t.Errorf("comparable not assignable to any")
+	}
+}
+
+func TestIssue55030(t *testing.T) {
+	// makeSig makes the signature func(typ...)
+	makeSig := func(typ Type) {
+		par := NewVar(nopos, nil, "", typ)
+		params := NewTuple(par)
+		NewSignatureType(nil, nil, nil, params, nil, true)
+	}
+
+	// makeSig must not panic for the following (example) types:
+	// []int
+	makeSig(NewSlice(Typ[Int]))
+
+	// string
+	makeSig(Typ[String])
+
+	// P where P's core type is string
+	{
+		P := NewTypeName(nopos, nil, "P", nil) // [P string]
+		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Typ[String]})))
+	}
+
+	// P where P's core type is an (unnamed) slice
+	{
+		P := NewTypeName(nopos, nil, "P", nil) // [P []int]
+		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{NewSlice(Typ[Int])})))
+	}
+
+	// P where P's core type is bytestring (i.e., string or []byte)
+	{
+		t1 := NewTerm(true, Typ[String])          // ~string
+		t2 := NewTerm(false, NewSlice(Typ[Byte])) // []byte
+		u := NewUnion([]*Term{t1, t2})            // ~string | []byte
+		P := NewTypeName(nopos, nil, "P", nil)    // [P ~string | []byte]
+		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{u})))
+	}
+}
+
+func TestIssue51093(t *testing.T) {
+	// Each test stands for a conversion of the form P(val)
+	// where P is a type parameter with typ as constraint.
+	// The test ensures that P(val) has the correct type P
+	// and is not a constant.
+	var tests = []struct {
+		typ string
+		val string
+	}{
+		{"bool", "false"},
+		{"int", "-1"},
+		{"uint", "1.0"},
+		{"rune", "'a'"},
+		{"float64", "3.5"},
+		{"complex64", "1.25"},
+		{"string", "\"foo\""},
+
+		// some more complex constraints
+		{"~byte", "1"},
+		{"~int | ~float64 | complex128", "1"},
+		{"~uint64 | ~rune", "'X'"},
+	}
+
+	for _, test := range tests {
+		src := fmt.Sprintf("package p; func _[P %s]() { _ = P(%s) }", test.typ, test.val)
+		types := make(map[syntax.Expr]TypeAndValue)
+		mustTypecheck("p", src, &Info{Types: types})
+
+		var n int
+		for x, tv := range types {
+			if x, _ := x.(*syntax.CallExpr); x != nil {
+				// there must be exactly one CallExpr which is the P(val) conversion
+				n++
+				tpar, _ := tv.Type.(*TypeParam)
+				if tpar == nil {
+					t.Fatalf("%s: got type %s, want type parameter", syntax.String(x), tv.Type)
+				}
+				if name := tpar.Obj().Name(); name != "P" {
+					t.Fatalf("%s: got type parameter name %s, want P", syntax.String(x), name)
+				}
+				// P(val) must not be constant
+				if tv.Value != nil {
+					t.Errorf("%s: got constant value %s (%s), want no constant", syntax.String(x), tv.Value, tv.Value.String())
+				}
+			}
+		}
+
+		if n != 1 {
+			t.Fatalf("%s: got %d CallExpr nodes; want 1", src, 1)
+		}
 	}
 }

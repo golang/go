@@ -43,7 +43,8 @@ func (h Header) Set(key, value string) {
 // Get gets the first value associated with the given key. If
 // there are no values associated with the key, Get returns "".
 // It is case insensitive; textproto.CanonicalMIMEHeaderKey is
-// used to canonicalize the provided key. To use non-canonical keys,
+// used to canonicalize the provided key. Get assumes that all
+// keys are stored in canonical form. To use non-canonical keys,
 // access the map directly.
 func (h Header) Get(key string) string {
 	return textproto.MIMEHeader(h).Get(key)
@@ -103,6 +104,12 @@ func (h Header) Clone() Header {
 	sv := make([]string, nv) // shared backing array for headers' values
 	h2 := make(Header, len(h))
 	for k, vv := range h {
+		if vv == nil {
+			// Preserve nil values. ReverseProxy distinguishes
+			// between nil and zero-length header values.
+			h2[k] = nil
+			continue
+		}
 		n := copy(sv, vv)
 		h2[k] = sv[:n:n]
 		sv = sv[n:]
@@ -157,7 +164,7 @@ func (s *headerSorter) Swap(i, j int)      { s.kvs[i], s.kvs[j] = s.kvs[j], s.kv
 func (s *headerSorter) Less(i, j int) bool { return s.kvs[i].key < s.kvs[j].key }
 
 var headerSorterPool = sync.Pool{
-	New: func() interface{} { return new(headerSorter) },
+	New: func() any { return new(headerSorter) },
 }
 
 // sortedKeyValues returns h's keys sorted in the returned kvs
@@ -196,7 +203,7 @@ func (h Header) writeSubset(w io.Writer, exclude map[string]bool, trace *httptra
 	for _, kv := range kvs {
 		if !httpguts.ValidHeaderFieldName(kv.key) {
 			// This could be an error. In the common case of
-			// writing reponse headers, however, we have no good
+			// writing response headers, however, we have no good
 			// way to provide the error back to the server
 			// handler, so just drop invalid headers instead.
 			continue

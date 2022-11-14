@@ -11,7 +11,6 @@
 package main
 
 import (
-	"crypto/md5"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -19,7 +18,6 @@ import (
 	"go/token"
 	"internal/buildcfg"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -28,6 +26,7 @@ import (
 	"strings"
 
 	"cmd/internal/edit"
+	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
 )
 
@@ -153,7 +152,6 @@ type Type struct {
 	EnumValues map[string]int64
 	Typedef    string
 	BadPointer bool // this pointer type should be represented as a uintptr (deprecated)
-	NotInHeap  bool // this type should have a go:notinheap annotation
 }
 
 // A FuncType collects information about a function type in both the C and Go worlds.
@@ -175,6 +173,7 @@ var ptrSizeMap = map[string]int64{
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"loong64":  8,
 	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
@@ -200,6 +199,7 @@ var intSizeMap = map[string]int64{
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"loong64":  8,
 	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
@@ -242,6 +242,7 @@ var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
 var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
 var gccgoMangler func(string) string
+var gccgoDefineCgoIncomplete = flag.Bool("gccgo_define_cgoincomplete", false, "define cgo.Incomplete for older gccgo/GoLLVM")
 var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo in generated code")
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
 var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
@@ -251,8 +252,15 @@ var gccBaseCmd []string
 
 func main() {
 	objabi.AddVersionFlag() // -V
-	flag.Usage = usage
-	flag.Parse()
+	objabi.Flagparse(usage)
+
+	if *gccgoDefineCgoIncomplete {
+		if !*gccgo {
+			fmt.Fprintf(os.Stderr, "cgo: -gccgo_define_cgoincomplete without -gccgo\n")
+			os.Exit(2)
+		}
+		incomplete = "_cgopackage_Incomplete"
+	}
 
 	if *dynobj != "" {
 		// cgo -dynimport is essentially a separate helper command
@@ -291,6 +299,10 @@ func main() {
 		usage()
 	}
 
+	// Save original command line arguments for the godefs generated comment. Relative file
+	// paths in os.Args will be rewritten to absolute file paths in the loop below.
+	osArgs := make([]string, len(os.Args))
+	copy(osArgs, os.Args[:])
 	goFiles := args[i:]
 
 	for _, arg := range args[:i] {
@@ -325,8 +337,8 @@ func main() {
 	// we use to coordinate between gcc and ourselves.
 	// We already put _cgo_ at the beginning, so the main
 	// concern is other cgo wrappers for the same functions.
-	// Use the beginning of the md5 of the input to disambiguate.
-	h := md5.New()
+	// Use the beginning of the notsha256 of the input to disambiguate.
+	h := notsha256.New()
 	io.WriteString(h, *importPath)
 	fs := make([]*File, len(goFiles))
 	for i, input := range goFiles {
@@ -341,7 +353,7 @@ func main() {
 			input = aname
 		}
 
-		b, err := ioutil.ReadFile(input)
+		b, err := os.ReadFile(input)
 		if err != nil {
 			fatalf("%s", err)
 		}
@@ -390,7 +402,7 @@ func main() {
 		p.PackagePath = f.Package
 		p.Record(f)
 		if *godefs {
-			os.Stdout.WriteString(p.godefs(f))
+			os.Stdout.WriteString(p.godefs(f, osArgs))
 		} else {
 			p.writeOutput(f, input)
 		}

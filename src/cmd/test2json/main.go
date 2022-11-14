@@ -6,7 +6,7 @@
 //
 // Usage:
 //
-//	go tool test2json [-p pkg] [-t] [./pkg.test -test.v [-test.paniconexit0]]
+//	go tool test2json [-p pkg] [-t] [./pkg.test -test.v=test2json]
 //
 // Test2json runs the given test command and converts its output to JSON;
 // with no command specified, test2json expects test output on standard input.
@@ -18,15 +18,18 @@
 //
 // The -t flag requests that time stamps be added to each test event.
 //
-// The test must be invoked with -test.v. Additionally passing
-// -test.paniconexit0 will cause test2json to exit with a non-zero
-// status if one of the tests being run calls os.Exit(0).
+// The test should be invoked with -test.v=test2json. Using only -test.v
+// (or -test.v=true) is permissible but produces lower fidelity results.
 //
-// Note that test2json is only intended for converting a single test
-// binary's output. To convert the output of a "go test" command,
-// use "go test -json" instead of invoking test2json directly.
+// Note that "go test -json" takes care of invoking test2json correctly,
+// so "go tool test2json" is only needed when a test binary is being run
+// separately from "go test". Use "go test -json" whenever possible.
 //
-// Output Format
+// Note also that test2json is only intended for converting a single test
+// binary's output. To convert the output of a "go test" command that
+// runs multiple packages, again use "go test -json".
+//
+// # Output Format
 //
 // The JSON stream is a newline-separated sequence of TestEvent objects
 // corresponding to the Go struct:
@@ -45,6 +48,7 @@
 //
 // The Action field is one of a fixed set of action descriptions:
 //
+//	start  - the test binary is about to be executed
 //	run    - the test has started running
 //	pause  - the test has been paused
 //	cont   - the test has continued running
@@ -53,6 +57,8 @@
 //	fail   - the test or benchmark failed
 //	output - the test printed output
 //	skip   - the test was skipped or the package contained no tests
+//
+// Every JSON stream begins with a "start" event.
 //
 // The Package field, if present, specifies the package being tested.
 // When the go command runs parallel tests in -json mode, events from
@@ -79,16 +85,16 @@
 // (for example, by using b.Log or b.Error), that extra output is reported
 // as a sequence of events with Test set to the benchmark name, terminated
 // by a final event with Action == "bench" or "fail".
-// Benchmarks have no events with Action == "run", "pause", or "cont".
-//
+// Benchmarks have no events with Action == "pause".
 package main
 
 import (
 	"flag"
 	"fmt"
-	exec "internal/execabs"
 	"io"
 	"os"
+	"os/exec"
+	"os/signal"
 
 	"cmd/internal/test2json"
 )
@@ -101,6 +107,11 @@ var (
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: go tool test2json [-p pkg] [-t] [./pkg.test -test.v]\n")
 	os.Exit(2)
+}
+
+// ignoreSignals ignore the interrupt signals.
+func ignoreSignals() {
+	signal.Ignore(signalsToIgnore...)
 }
 
 func main() {
@@ -122,6 +133,7 @@ func main() {
 		w := &countWriter{0, c}
 		cmd.Stdout = w
 		cmd.Stderr = w
+		ignoreSignals()
 		err := cmd.Run()
 		if err != nil {
 			if w.n > 0 {

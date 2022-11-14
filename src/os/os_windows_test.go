@@ -643,29 +643,6 @@ func TestDeleteReadOnly(t *testing.T) {
 	}
 }
 
-func TestStatSymlinkLoop(t *testing.T) {
-	testenv.MustHaveSymlink(t)
-
-	defer chtmpdir(t)()
-
-	err := os.Symlink("x", "y")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove("y")
-
-	err = os.Symlink("y", "x")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove("x")
-
-	_, err = os.Stat("x")
-	if _, ok := err.(*fs.PathError); !ok {
-		t.Errorf("expected *PathError, got %T: %v\n", err, err)
-	}
-}
-
 func TestReadStdin(t *testing.T) {
 	old := poll.ReadConsole
 	defer func() {
@@ -914,10 +891,6 @@ func TestOneDrive(t *testing.T) {
 }
 
 func TestWindowsDevNullFile(t *testing.T) {
-	testDevNullFile(t, "NUL", true)
-	testDevNullFile(t, "nul", true)
-	testDevNullFile(t, "Nul", true)
-
 	f1, err := os.Open("NUL")
 	if err != nil {
 		t.Fatal(err)
@@ -942,6 +915,30 @@ func TestWindowsDevNullFile(t *testing.T) {
 
 	if !os.SameFile(fi1, fi2) {
 		t.Errorf(`"NUL" and "nul" are not the same file`)
+	}
+}
+
+func TestFileStatNUL(t *testing.T) {
+	f, err := os.Open("NUL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fi.Mode(), os.ModeDevice|os.ModeCharDevice|0666; got != want {
+		t.Errorf("Open(%q).Stat().Mode() = %v, want %v", "NUL", got, want)
+	}
+}
+
+func TestStatNUL(t *testing.T) {
+	fi, err := os.Stat("NUL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fi.Mode(), os.ModeDevice|os.ModeCharDevice|0666; got != want {
+		t.Errorf("Stat(%q).Mode() = %v, want %v", "NUL", got, want)
 	}
 }
 
@@ -1254,20 +1251,4 @@ func TestWindowsReadlink(t *testing.T) {
 
 	mklink(t, "relfilelink", "file")
 	testReadlink(t, "relfilelink", "file")
-}
-
-// os.Mkdir(os.DevNull) fails.
-func TestMkdirDevNull(t *testing.T) {
-	err := os.Mkdir(os.DevNull, 777)
-	oserr, ok := err.(*fs.PathError)
-	if !ok {
-		t.Fatalf("error (%T) is not *fs.PathError", err)
-	}
-	errno, ok := oserr.Err.(syscall.Errno)
-	if !ok {
-		t.Fatalf("error (%T) is not syscall.Errno", oserr)
-	}
-	if errno != syscall.ENOTDIR {
-		t.Fatalf("error %d is not syscall.ENOTDIR", errno)
-	}
 }

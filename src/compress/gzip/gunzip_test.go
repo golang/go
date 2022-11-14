@@ -359,6 +359,38 @@ var gunzipTests = []gunzipTest{
 		},
 		io.ErrUnexpectedEOF,
 	},
+	{
+		"hello.txt",
+		"gzip header with truncated name",
+		"hello world\n",
+		[]byte{
+			0x1f, 0x8b, 0x08, 0x08, 0xc8, 0x58, 0x13, 0x4a,
+			0x00, 0x03, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x2e,
+			0x74, 0x78, 0x74, 0x00, 0xcb, 0x48, 0xcd, 0xc9,
+			0xc9, 0x57, 0x28, 0xcf, 0x2f, 0xca, 0x49, 0xe1,
+			0x02, 0x00, 0x2d, 0x3b, 0x08, 0xaf, 0x0c, 0x00,
+			0x00, 0x00,
+			0x1f, 0x8b, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0xff, 0x01,
+		},
+		io.ErrUnexpectedEOF,
+	},
+	{
+		"",
+		"gzip header with truncated comment",
+		"hello world\n",
+		[]byte{
+			0x1f, 0x8b, 0x08, 0x10, 0xc8, 0x58, 0x13, 0x4a,
+			0x00, 0x03, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x2e,
+			0x74, 0x78, 0x74, 0x00, 0xcb, 0x48, 0xcd, 0xc9,
+			0xc9, 0x57, 0x28, 0xcf, 0x2f, 0xca, 0x49, 0xe1,
+			0x02, 0x00, 0x2d, 0x3b, 0x08, 0xaf, 0x0c, 0x00,
+			0x00, 0x00,
+			0x1f, 0x8b, 0x08, 0x10, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0xff, 0x01,
+		},
+		io.ErrUnexpectedEOF,
+	},
 }
 
 func TestDecompressor(t *testing.T) {
@@ -495,23 +527,61 @@ func TestNilStream(t *testing.T) {
 }
 
 func TestTruncatedStreams(t *testing.T) {
-	const data = "\x1f\x8b\b\x04\x00\tn\x88\x00\xff\a\x00foo bar\xcbH\xcd\xc9\xc9\xd7Q(\xcf/\xcaI\x01\x04:r\xab\xff\f\x00\x00\x00"
+	cases := []struct {
+		name string
+		data []byte
+	}{
+		{
+			name: "original",
+			data: []byte("\x1f\x8b\b\x04\x00\tn\x88\x00\xff\a\x00foo bar\xcbH\xcd\xc9\xc9\xd7Q(\xcf/\xcaI\x01\x04:r\xab\xff\f\x00\x00\x00"),
+		},
+		{
+			name: "truncated name",
+			data: []byte{
+				0x1f, 0x8b, 0x08, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0x01,
+			},
+		},
+		{
+			name: "truncated comment",
+			data: []byte{
+				0x1f, 0x8b, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0x01,
+			},
+		},
+	}
 
 	// Intentionally iterate starting with at least one byte in the stream.
-	for i := 1; i < len(data)-1; i++ {
-		r, err := NewReader(strings.NewReader(data[:i]))
-		if err != nil {
-			if err != io.ErrUnexpectedEOF {
-				t.Errorf("NewReader(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
+	for _, tc := range cases {
+		for i := 1; i < len(tc.data); i++ {
+			r, err := NewReader(strings.NewReader(string(tc.data[:i])))
+			if err != nil {
+				if err != io.ErrUnexpectedEOF {
+					t.Errorf("NewReader(%s-%d) on truncated stream: got %v, want %v", tc.name, i, err, io.ErrUnexpectedEOF)
+				}
+				continue
 			}
-			continue
+			_, err = io.Copy(io.Discard, r)
+			if ferr, ok := err.(*flate.ReadError); ok {
+				err = ferr.Err
+			}
+			if err != io.ErrUnexpectedEOF {
+				t.Errorf("io.Copy(%s-%d) on truncated stream: got %v, want %v", tc.name, i, err, io.ErrUnexpectedEOF)
+			}
 		}
-		_, err = io.Copy(io.Discard, r)
-		if ferr, ok := err.(*flate.ReadError); ok {
-			err = ferr.Err
-		}
-		if err != io.ErrUnexpectedEOF {
-			t.Errorf("io.Copy(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
-		}
+	}
+}
+
+func TestCVE202230631(t *testing.T) {
+	var empty = []byte{0x1f, 0x8b, 0x08, 0x00, 0xa7, 0x8f, 0x43, 0x62, 0x00,
+		0x03, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	r := bytes.NewReader(bytes.Repeat(empty, 4e6))
+	z, err := NewReader(r)
+	if err != nil {
+		t.Fatalf("NewReader: got %v, want nil", err)
+	}
+	// Prior to CVE-2022-30631 fix, this would cause an unrecoverable panic due
+	// to stack exhaustion.
+	_, err = z.Read(make([]byte, 10))
+	if err != io.EOF {
+		t.Errorf("Reader.Read: got %v, want %v", err, io.EOF)
 	}
 }

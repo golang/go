@@ -5,8 +5,8 @@
 package ssagen
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -179,7 +179,7 @@ func (c *nowritebarrierrecChecker) check() {
 
 		// Check fn.
 		if fn.WBPos.IsKnown() {
-			var err bytes.Buffer
+			var err strings.Builder
 			call := funcs[fn]
 			for call.target != nil {
 				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Nname)

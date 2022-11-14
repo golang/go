@@ -1,0 +1,58 @@
+# This test demonstrates the fuzz corpus behavior for packages outside of the main module.
+# (See https://golang.org/issue/48495.)
+
+[short] skip
+
+# Set -modcacherw so that the test behaves the same regardless of whether the
+# module cache is writable. (For example, on some platforms it can always be
+# written if the user is running as root.) At one point, a failing fuzz test
+# in a writable module cache would corrupt module checksums in the cache.
+env GOFLAGS=-modcacherw
+
+
+# When the upstream module has no test corpus, running 'go test' should succeed,
+# but 'go test -fuzz=.' should error out before running the test.
+# (It should NOT corrupt the module cache by writing out new fuzz inputs,
+# even if the cache is writable.)
+
+go get -t example.com/fuzzfail@v0.1.0
+go test example.com/fuzzfail
+
+! go test -fuzz=. example.com/fuzzfail
+! stdout .
+stderr '^cannot use -fuzz flag on package outside the main module$'
+
+go mod verify
+
+
+# If the module does include a test corpus, 'go test' (without '-fuzz') should
+# load that corpus and run the fuzz tests against it, but 'go test -fuzz=.'
+# should continue to be rejected.
+
+go get -t example.com/fuzzfail@v0.2.0
+
+! go test example.com/fuzzfail
+stdout '^\s*fuzzfail_test\.go:7: oops:'
+
+! go test -fuzz=. example.com/fuzzfail
+! stdout .
+stderr '^cannot use -fuzz flag on package outside the main module$'
+
+go mod verify
+
+
+# Packages in 'std' cannot be fuzzed when the corresponding GOROOT module is not
+# the main module — either the failures would not be recorded or the behavior of
+# the 'std' tests would change globally.
+
+! go test -fuzz . encoding/json
+stderr '^cannot use -fuzz flag on package outside the main module$'
+
+! go test -fuzz . cmd/buildid
+stderr '^cannot use -fuzz flag on package outside the main module$'
+
+
+-- go.mod --
+module example.com/m
+
+go 1.18

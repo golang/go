@@ -50,6 +50,9 @@ func (e *escape) stmt(n ir.Node) {
 
 	case ir.OLABEL:
 		n := n.(*ir.LabelStmt)
+		if n.Label.IsBlank() {
+			break
+		}
 		switch e.labels[n.Label] {
 		case nonlooping:
 			if base.Flag.LowerM > 2 {
@@ -71,7 +74,11 @@ func (e *escape) stmt(n ir.Node) {
 		e.block(n.Body)
 		e.block(n.Else)
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OCHECKNIL:
+		n := n.(*ir.UnaryExpr)
+		e.discard(n.X)
+
+	case ir.OFOR:
 		n := n.(*ir.ForStmt)
 		e.loopDepth++
 		e.discard(n.Cond)
@@ -180,7 +187,8 @@ func (e *escape) stmt(n ir.Node) {
 		e.goDeferStmt(n)
 
 	case ir.OTAILCALL:
-		// TODO(mdempsky): Treat like a normal call? esc.go used to just ignore it.
+		n := n.(*ir.TailCallStmt)
+		e.call(nil, n.Call)
 	}
 }
 

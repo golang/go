@@ -33,7 +33,7 @@ func ryuFtoaFixed32(d *decimalSlice, mant uint32, exp int, prec int) {
 	e2 := exp
 	if b := bits.Len32(mant); b < 25 {
 		mant <<= uint(25 - b)
-		e2 += int(b) - 25
+		e2 += b - 25
 	}
 	// Choose an exponent such that rounded mant*(2^e2)*(10^q) has
 	// at least prec decimal digits, i.e
@@ -100,7 +100,7 @@ func ryuFtoaFixed64(d *decimalSlice, mant uint64, exp int, prec int) {
 	e2 := exp
 	if b := bits.Len64(mant); b < 55 {
 		mant = mant << uint(55-b)
-		e2 += int(b) - 55
+		e2 += b - 55
 	}
 	// Choose an exponent such that rounded mant*(2^e2)*(10^q) has
 	// at least prec decimal digits, i.e
@@ -194,7 +194,7 @@ func formatDecimal(d *decimalSlice, m uint64, trunc bool, roundUp bool, prec int
 	}
 	// render digits (similar to formatBits)
 	n := uint(prec)
-	d.nd = int(prec)
+	d.nd = prec
 	v := m
 	for v >= 100 {
 		var v1, v2 uint64
@@ -487,8 +487,9 @@ func ryuDigits32(d *decimalSlice, lower, central, upper uint32,
 // The returned boolean is true if all trimmed bits were zero.
 //
 // That is:
-//     m*2^e2 * round(10^q) = resM * 2^resE + ε
-//     exact = ε == 0
+//
+//	m*2^e2 * round(10^q) = resM * 2^resE + ε
+//	exact = ε == 0
 func mult64bitPow10(m uint32, e2, q int) (resM uint32, resE int, exact bool) {
 	if q == 0 {
 		// P == 1<<63
@@ -515,8 +516,9 @@ func mult64bitPow10(m uint32, e2, q int) (resM uint32, resE int, exact bool) {
 // The returned boolean is true is all trimmed bits were zero.
 //
 // That is:
-//     m*2^e2 * round(10^q) = resM * 2^resE + ε
-//     exact = ε == 0
+//
+//	m*2^e2 * round(10^q) = resM * 2^resE + ε
+//	exact = ε == 0
 func mult128bitPow10(m uint64, e2, q int) (resM uint64, resE int, exact bool) {
 	if q == 0 {
 		// P == 1<<127

@@ -16,8 +16,6 @@ func NewTuple(x ...*Var) *Tuple {
 	if len(x) > 0 {
 		return &Tuple{vars: x}
 	}
-	// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
-	//           it's too subtle and causes problems.
 	return nil
 }
 

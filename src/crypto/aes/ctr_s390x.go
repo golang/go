@@ -6,7 +6,7 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/subtle"
+	"crypto/internal/alias"
 	"encoding/binary"
 )
 
@@ -17,6 +17,7 @@ var _ ctrAble = (*aesCipherAsm)(nil)
 // dst. If a and b are not the same length then the number of bytes processed
 // will be equal to the length of shorter of the two. Returns the number
 // of bytes processed.
+//
 //go:noescape
 func xorBytes(dst, a, b []byte) int
 
@@ -68,7 +69,7 @@ func (c *aesctr) XORKeyStream(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
-	if subtle.InexactOverlap(dst[:len(src)], src) {
+	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
 	for len(src) > 0 {

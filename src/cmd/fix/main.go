@@ -13,14 +13,14 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"internal/diff"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
-
-	"cmd/internal/diff"
 )
 
 var (
@@ -36,7 +36,12 @@ var forceRewrites = flag.String("force", "",
 
 var allowed, force map[string]bool
 
-var doDiff = flag.Bool("diff", false, "display diffs instead of rewriting files")
+var (
+	doDiff       = flag.Bool("diff", false, "display diffs instead of rewriting files")
+	goVersionStr = flag.String("go", "", "go language version for files")
+
+	goVersion int // 115 for go1.15
+)
 
 // enable for debugging fix failures
 const debug = false // display incorrectly reformatted source and exit
@@ -62,6 +67,26 @@ func usage() {
 func main() {
 	flag.Usage = usage
 	flag.Parse()
+
+	if *goVersionStr != "" {
+		if !strings.HasPrefix(*goVersionStr, "go") {
+			report(fmt.Errorf("invalid -go=%s", *goVersionStr))
+			os.Exit(exitCode)
+		}
+		majorStr := (*goVersionStr)[len("go"):]
+		minorStr := "0"
+		if before, after, found := strings.Cut(majorStr, "."); found {
+			majorStr, minorStr = before, after
+		}
+		major, err1 := strconv.Atoi(majorStr)
+		minor, err2 := strconv.Atoi(minorStr)
+		if err1 != nil || err2 != nil || major < 0 || major >= 100 || minor < 0 || minor >= 100 {
+			report(fmt.Errorf("invalid -go=%s", *goVersionStr))
+			os.Exit(exitCode)
+		}
+
+		goVersion = major*100 + minor
+	}
 
 	sort.Sort(byDate(fixes))
 
@@ -116,7 +141,7 @@ func gofmtFile(f *ast.File) ([]byte, error) {
 func processFile(filename string, useStdin bool) error {
 	var f *os.File
 	var err error
-	var fixlog bytes.Buffer
+	var fixlog strings.Builder
 
 	if useStdin {
 		f = os.Stdin
@@ -202,12 +227,7 @@ func processFile(filename string, useStdin bool) error {
 	}
 
 	if *doDiff {
-		data, err := diff.Diff("go-fix", src, newSrc)
-		if err != nil {
-			return fmt.Errorf("computing diff: %s", err)
-		}
-		fmt.Printf("diff %s fixed/%s\n", filename, filename)
-		os.Stdout.Write(data)
+		os.Stdout.Write(diff.Diff(filename, src, "fixed/"+filename, newSrc))
 		return nil
 	}
 
@@ -219,8 +239,8 @@ func processFile(filename string, useStdin bool) error {
 	return os.WriteFile(f.Name(), newSrc, 0)
 }
 
-func gofmt(n interface{}) string {
-	var gofmtBuf bytes.Buffer
+func gofmt(n any) string {
+	var gofmtBuf strings.Builder
 	if err := format.Node(&gofmtBuf, fset, n); err != nil {
 		return "<" + err.Error() + ">"
 	}

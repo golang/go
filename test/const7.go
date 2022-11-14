@@ -24,12 +24,12 @@ import (
 // which declares an untyped constant of the given length.
 // testProg compiles this package and checks for the absence or
 // presence of a constant literal error.
-func testProg(dir, name string, G_option, length int, ok bool) {
+func testProg(dir, name string, length int, msg string) {
 	var buf bytes.Buffer
 
 	fmt.Fprintf(&buf,
-		"package %s; const _ = %s // %d digits",
-		name, strings.Repeat("9", length), length,
+		"package %s; const _ = 0b%s // %d bits",
+		name, strings.Repeat("1", length), length,
 	)
 
 	filename := filepath.Join(dir, fmt.Sprintf("%s.go", name))
@@ -37,11 +37,11 @@ func testProg(dir, name string, G_option, length int, ok bool) {
 		log.Fatal(err)
 	}
 
-	cmd := exec.Command("go", "tool", "compile", fmt.Sprintf("-G=%d", G_option), filename)
+	cmd := exec.Command("go", "tool", "compile", "-p=p", filename)
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 
-	if ok {
+	if msg == "" {
 		// no error expected
 		if err != nil {
 			log.Fatalf("%s: compile failed unexpectedly: %v", name, err)
@@ -53,7 +53,7 @@ func testProg(dir, name string, G_option, length int, ok bool) {
 	if err == nil {
 		log.Fatalf("%s: compile succeeded unexpectedly", name)
 	}
-	if !bytes.Contains(output, []byte("excessively long constant")) {
+	if !bytes.Contains(output, []byte(msg)) {
 		log.Fatalf("%s: wrong compiler error message:\n%s\n", name, output)
 	}
 }
@@ -69,9 +69,10 @@ func main() {
 	}
 	defer os.RemoveAll(dir)
 
-	const limit = 10000 // compiler-internal constant length limit
-	testProg(dir, "x1", 0, limit, true)    // -G=0
-	testProg(dir, "x2", 0, limit+1, false) // -G=0
-	testProg(dir, "x1", 1, limit, true)    // -G=1 (new type checker)
-	testProg(dir, "x2", 1, limit+1, false) // -G=1 (new type checker)
+	const bitLimit = 512
+	const charLimit = 10000 // compiler-internal constant length limit
+	testProg(dir, "x1", bitLimit, "")
+	testProg(dir, "x2", bitLimit+1, "constant overflow")
+	testProg(dir, "x3", charLimit-2, "constant overflow") // -2 because literal contains 0b prefix
+	testProg(dir, "x4", charLimit-1, "excessively long constant")
 }

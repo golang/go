@@ -27,13 +27,21 @@ func Init() (*sys.Arch, ld.Arch) {
 		Elfreloc1:        elfreloc1,
 		ElfrelocSize:     24,
 		Elfsetupplt:      elfsetupplt,
-		Gentext:          gentext,
-		GenSymsLate:      genSymsLate,
-		Machoreloc1:      machoreloc1,
+
+		// TrampLimit is set such that we always run the trampoline
+		// generation code. This is necessary since calls to external
+		// symbols require the use of trampolines, regardless of the
+		// text size.
+		TrampLimit: 1,
+		Trampoline: trampoline,
+
+		Gentext:     gentext,
+		GenSymsLate: genSymsLate,
+		Machoreloc1: machoreloc1,
 
 		Linuxdynld: "/lib/ld.so.1",
 
-		Freebsddynld:   "XXX",
+		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
 		Netbsddynld:    "XXX",
 		Openbsddynld:   "XXX",
 		Dragonflydynld: "XXX",
@@ -45,7 +53,7 @@ func Init() (*sys.Arch, ld.Arch) {
 
 func archinit(ctxt *ld.Link) {
 	switch ctxt.HeadType {
-	case objabi.Hlinux:
+	case objabi.Hlinux, objabi.Hfreebsd:
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if *ld.FlagTextAddr == -1 {

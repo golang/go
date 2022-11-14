@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"fmt"
 	. "runtime"
 	"sync"
 	"sync/atomic"
@@ -100,4 +101,70 @@ func testSemaHandoff() bool {
 	wg.Wait() // wait for goroutines to finish to avoid data races
 
 	return res == 1 // did the waiter run first?
+}
+
+func BenchmarkSemTable(b *testing.B) {
+	for _, n := range []int{1000, 2000, 4000, 8000} {
+		b.Run(fmt.Sprintf("OneAddrCollision/n=%d", n), func(b *testing.B) {
+			tab := Escape(new(SemTable))
+			u := make([]uint32, SemTableSize+1)
+
+			b.ResetTimer()
+
+			for j := 0; j < b.N; j++ {
+				// Simulate two locks colliding on the same semaRoot.
+				//
+				// Specifically enqueue all the waiters for the first lock,
+				// then all the waiters for the second lock.
+				//
+				// Then, dequeue all the waiters from the first lock, then
+				// the second.
+				//
+				// Each enqueue/dequeue operation should be O(1), because
+				// there are exactly 2 locks. This could be O(n) if all
+				// the waiters for both locks are on the same list, as it
+				// once was.
+				for i := 0; i < n; i++ {
+					if i < n/2 {
+						tab.Enqueue(&u[0])
+					} else {
+						tab.Enqueue(&u[SemTableSize])
+					}
+				}
+				for i := 0; i < n; i++ {
+					var ok bool
+					if i < n/2 {
+						ok = tab.Dequeue(&u[0])
+					} else {
+						ok = tab.Dequeue(&u[SemTableSize])
+					}
+					if !ok {
+						b.Fatal("failed to dequeue")
+					}
+				}
+			}
+		})
+		b.Run(fmt.Sprintf("ManyAddrCollision/n=%d", n), func(b *testing.B) {
+			tab := Escape(new(SemTable))
+			u := make([]uint32, n*SemTableSize)
+
+			b.ResetTimer()
+
+			for j := 0; j < b.N; j++ {
+				// Simulate n locks colliding on the same semaRoot.
+				//
+				// Each enqueue/dequeue operation should be O(log n), because
+				// each semaRoot is a tree. This could be O(n) if it was
+				// some simpler data structure.
+				for i := 0; i < n; i++ {
+					tab.Enqueue(&u[i*SemTableSize])
+				}
+				for i := 0; i < n; i++ {
+					if !tab.Dequeue(&u[i*SemTableSize]) {
+						b.Fatal("failed to dequeue")
+					}
+				}
+			}
+		})
+	}
 }

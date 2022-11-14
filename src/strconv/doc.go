@@ -5,7 +5,7 @@
 // Package strconv implements conversions to and from string representations
 // of basic data types.
 //
-// Numeric Conversions
+// # Numeric Conversions
 //
 // The most common numeric conversions are Atoi (string to int) and Itoa (int to string).
 //
@@ -40,7 +40,7 @@
 // AppendBool, AppendFloat, AppendInt, and AppendUint are similar but
 // append the formatted value to a destination slice.
 //
-// String Conversions
+// # String Conversions
 //
 // Quote and QuoteToASCII convert strings to quoted Go string literals.
 // The latter guarantees that the result is an ASCII string, by escaping
@@ -53,5 +53,4 @@
 // return quoted Go rune literals.
 //
 // Unquote and UnquoteChar unquote Go string and rune literals.
-//
 package strconv

@@ -14,6 +14,7 @@ import (
 // manysub_ssa is designed to tickle bugs that depend on register
 // pressure or unfriendly operand ordering in registers (and at
 // least once it succeeded in this).
+//
 //go:noinline
 func manysub_ssa(a, b, c, d float64) (aa, ab, ac, ad, ba, bb, bc, bd, ca, cb, cc, cd, da, db, dc, dd float64) {
 	aa = a + 11.0 - a
@@ -37,6 +38,7 @@ func manysub_ssa(a, b, c, d float64) (aa, ab, ac, ad, ba, bb, bc, bd, ca, cb, cc
 
 // fpspill_ssa attempts to trigger a bug where phis with floating point values
 // were stored in non-fp registers causing an error in doasm.
+//
 //go:noinline
 func fpspill_ssa(a int) float64 {
 

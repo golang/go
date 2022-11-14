@@ -60,7 +60,7 @@ func init() {
 	}
 }
 
-func CondSkipHTTP2(t *testing.T) {
+func CondSkipHTTP2(t testing.TB) {
 	if omitBundledHTTP2 {
 		t.Skip("skipping HTTP/2 test when nethttpomithttp2 build tag in use")
 	}
@@ -72,8 +72,6 @@ var (
 )
 
 func SetReadLoopBeforeNextReadHook(f func()) {
-	testHookMu.Lock()
-	defer testHookMu.Unlock()
 	unnilTestHook(&f)
 	testHookReadLoopBeforeNextRead = f
 }
@@ -88,12 +86,7 @@ func SetPendingDialHooks(before, after func()) {
 
 func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
 
-func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		<-ch
-		cancel()
-	}()
+func NewTestTimeoutHandler(handler Handler, ctx context.Context) Handler {
 	return &timeoutHandler{
 		handler:     handler,
 		testContext: ctx,
@@ -310,4 +303,13 @@ func ExportCloseTransportConnsAbruptly(tr *Transport) {
 		}
 	}
 	tr.idleMu.Unlock()
+}
+
+// ResponseWriterConnForTesting returns w's underlying connection, if w
+// is a regular *response ResponseWriter.
+func ResponseWriterConnForTesting(w ResponseWriter) (c net.Conn, ok bool) {
+	if r, ok := w.(*response); ok {
+		return r.conn.rwc, true
+	}
+	return nil, false
 }

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build darwin || dragonfly || freebsd || netbsd || openbsd
-// +build darwin dragonfly freebsd netbsd openbsd
 
 package net
 
@@ -59,6 +58,9 @@ func linkFlags(rawFlags int) Flags {
 	var f Flags
 	if rawFlags&syscall.IFF_UP != 0 {
 		f |= FlagUp
+	}
+	if rawFlags&syscall.IFF_RUNNING != 0 {
+		f |= FlagRunning
 	}
 	if rawFlags&syscall.IFF_BROADCAST != 0 {
 		f |= FlagBroadcast

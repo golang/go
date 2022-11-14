@@ -55,8 +55,6 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
-	"unsafe"
 )
 
 type suspendGState struct {
@@ -193,7 +191,7 @@ func suspendG(gp *g) suspendGState {
 		case _Grunning:
 			// Optimization: if there is already a pending preemption request
 			// (from the previous loop iteration), don't bother with the atomics.
-			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt && asyncM == gp.m && atomic.Load(&asyncM.preemptGen) == asyncGen {
+			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt && asyncM == gp.m && asyncM.preemptGen.Load() == asyncGen {
 				break
 			}
 
@@ -209,7 +207,7 @@ func suspendG(gp *g) suspendGState {
 
 			// Prepare for asynchronous preemption.
 			asyncM2 := gp.m
-			asyncGen2 := atomic.Load(&asyncM2.preemptGen)
+			asyncGen2 := asyncM2.preemptGen.Load()
 			needAsync := asyncM != asyncM2 || asyncGen != asyncGen2
 			asyncM = asyncM2
 			asyncGen = asyncGen2
@@ -405,12 +403,9 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		// functions (except at calls).
 		return false, 0
 	}
-	if fd := funcdata(f, _FUNCDATA_LocalsPointerMaps); fd == nil || fd == unsafe.Pointer(&no_pointers_stackmap) {
-		// This is assembly code. Don't assume it's
-		// well-formed. We identify assembly code by
-		// checking that it has either no stack map, or
-		// no_pointers_stackmap, which is the stack map
-		// for ones marked as NO_LOCAL_POINTERS.
+	if fd := funcdata(f, _FUNCDATA_LocalsPointerMaps); fd == nil || f.flag&funcFlag_ASM != 0 {
+		// This is assembly code. Don't assume it's well-formed.
+		// TODO: Empirically we still need the fd == nil check. Why?
 		//
 		// TODO: Are there cases that are safe but don't have a
 		// locals pointer map, like empty frame functions?
@@ -423,7 +418,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		inltree := (*[1 << 20]inlinedCall)(inldata)
 		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil)
 		if ix >= 0 {
-			name = funcnameFromNameoff(f, inltree[ix].func_)
+			name = funcnameFromNameOff(f, inltree[ix].nameOff)
 		}
 	}
 	if hasPrefix(name, "runtime.") ||
@@ -451,9 +446,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		return true, startpc
 	case _PCDATA_RestartAtEntry:
 		// Restart from the function entry at resumption.
-		return true, f.entry
+		return true, f.entry()
 	}
 	return true, pc
 }
-
-var no_pointers_stackmap uint64 // defined in assembly, for NO_LOCAL_POINTERS macro

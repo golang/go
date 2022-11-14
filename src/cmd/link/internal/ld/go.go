@@ -7,7 +7,6 @@
 package ld
 
 import (
-	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -25,11 +24,6 @@ import (
 )
 
 // go-specific code shared across loaders (5l, 6l, 8l).
-
-// replace all "". with pkg.
-func expandpkg(t0 string, pkg string) string {
-	return strings.Replace(t0, `"".`, pkg+".", -1)
-}
 
 // TODO:
 //	generate debugging section in binary.
@@ -146,7 +140,6 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 				continue
 			}
 
-			local = expandpkg(local, pkg)
 			q := ""
 			if i := strings.Index(remote, "#"); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
@@ -193,7 +186,6 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 			if len(f) > 2 {
 				remote = f[2]
 			}
-			local = expandpkg(local, pkg)
 			// The compiler adds a fourth argument giving
 			// the definition ABI of function symbols.
 			abi := obj.ABI0
@@ -390,9 +382,9 @@ func Adddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym)
 }
 
 func fieldtrack(arch *sys.Arch, l *loader.Loader) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
-		if name := l.SymName(i); strings.HasPrefix(name, "go.track.") {
+		if name := l.SymName(i); strings.HasPrefix(name, "go:track.") {
 			if l.AttrReachable(i) {
 				l.SetAttrSpecial(i, true)
 				l.SetAttrNotInSymbolTable(i, true)

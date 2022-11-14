@@ -8,6 +8,7 @@ package sha256
 
 import (
 	"crypto"
+	"crypto/internal/boring"
 	"encoding/binary"
 	"errors"
 	"hash"
@@ -69,17 +70,17 @@ func (d *digest) MarshalBinary() ([]byte, error) {
 	} else {
 		b = append(b, magic256...)
 	}
-	b = appendUint32(b, d.h[0])
-	b = appendUint32(b, d.h[1])
-	b = appendUint32(b, d.h[2])
-	b = appendUint32(b, d.h[3])
-	b = appendUint32(b, d.h[4])
-	b = appendUint32(b, d.h[5])
-	b = appendUint32(b, d.h[6])
-	b = appendUint32(b, d.h[7])
+	b = binary.BigEndian.AppendUint32(b, d.h[0])
+	b = binary.BigEndian.AppendUint32(b, d.h[1])
+	b = binary.BigEndian.AppendUint32(b, d.h[2])
+	b = binary.BigEndian.AppendUint32(b, d.h[3])
+	b = binary.BigEndian.AppendUint32(b, d.h[4])
+	b = binary.BigEndian.AppendUint32(b, d.h[5])
+	b = binary.BigEndian.AppendUint32(b, d.h[6])
+	b = binary.BigEndian.AppendUint32(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
-	b = appendUint64(b, d.len)
+	b = b[:len(b)+len(d.x)-d.nx] // already zero
+	b = binary.BigEndian.AppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -103,18 +104,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	b, d.len = consumeUint64(b)
 	d.nx = int(d.len % chunk)
 	return nil
-}
-
-func appendUint64(b []byte, x uint64) []byte {
-	var a [8]byte
-	binary.BigEndian.PutUint64(a[:], x)
-	return append(b, a[:]...)
-}
-
-func appendUint32(b []byte, x uint32) []byte {
-	var a [4]byte
-	binary.BigEndian.PutUint32(a[:], x)
-	return append(b, a[:]...)
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
@@ -159,6 +148,9 @@ func (d *digest) Reset() {
 // encoding.BinaryUnmarshaler to marshal and unmarshal the internal
 // state of the hash.
 func New() hash.Hash {
+	if boring.Enabled {
+		return boring.NewSHA256()
+	}
 	d := new(digest)
 	d.Reset()
 	return d
@@ -166,6 +158,9 @@ func New() hash.Hash {
 
 // New224 returns a new hash.Hash computing the SHA224 checksum.
 func New224() hash.Hash {
+	if boring.Enabled {
+		return boring.NewSHA224()
+	}
 	d := new(digest)
 	d.is224 = true
 	d.Reset()
@@ -182,6 +177,7 @@ func (d *digest) Size() int {
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
+	boring.Unreachable()
 	nn = len(p)
 	d.len += uint64(nn)
 	if d.nx > 0 {
@@ -205,6 +201,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 }
 
 func (d *digest) Sum(in []byte) []byte {
+	boring.Unreachable()
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := *d
 	hash := d0.checkSum()
@@ -252,6 +249,9 @@ func (d *digest) checkSum() [Size]byte {
 
 // Sum256 returns the SHA256 checksum of the data.
 func Sum256(data []byte) [Size]byte {
+	if boring.Enabled {
+		return boring.SHA256(data)
+	}
 	var d digest
 	d.Reset()
 	d.Write(data)
@@ -260,6 +260,9 @@ func Sum256(data []byte) [Size]byte {
 
 // Sum224 returns the SHA224 checksum of the data.
 func Sum224(data []byte) [Size224]byte {
+	if boring.Enabled {
+		return boring.SHA224(data)
+	}
 	var d digest
 	d.is224 = true
 	d.Reset()

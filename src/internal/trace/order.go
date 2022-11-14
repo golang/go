@@ -52,6 +52,12 @@ const (
 // incorrect (condition observed on some machines).
 func order1007(m map[int][]*Event) (events []*Event, err error) {
 	pending := 0
+	// The ordering of CPU profile sample events in the data stream is based on
+	// when each run of the signal handler was able to acquire the spinlock,
+	// with original timestamps corresponding to when ReadTrace pulled the data
+	// off of the profBuf queue. Re-sort them by the timestamp we captured
+	// inside the signal handler.
+	sort.Stable(eventList(m[ProfileP]))
 	var batches []*eventBatch
 	for _, v := range m {
 		pending += len(v)

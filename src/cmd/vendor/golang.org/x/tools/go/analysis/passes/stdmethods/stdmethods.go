@@ -61,7 +61,7 @@ var Analyzer = &analysis.Analyzer{
 // we let it go. But if it does have a fmt.ScanState, then the
 // rest has to match.
 var canonicalMethods = map[string]struct{ args, results []string }{
-	"As": {[]string{"interface{}"}, []string{"bool"}}, // errors.As
+	"As": {[]string{"any"}, []string{"bool"}}, // errors.As
 	// "Flush": {{}, {"error"}}, // http.Flusher and jpeg.writer conflict
 	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},                      // fmt.Formatter
 	"GobDecode":     {[]string{"[]byte"}, []string{"error"}},                           // gob.GobDecoder
@@ -134,6 +134,19 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 		}
 	}
 
+	// Special case: Unwrap has two possible signatures.
+	// Check for Unwrap() []error here.
+	if id.Name == "Unwrap" {
+		if args.Len() == 0 && results.Len() == 1 {
+			t := typeString(results.At(0).Type())
+			if t == "error" || t == "[]error" {
+				return
+			}
+		}
+		pass.ReportRangef(id, "method Unwrap() should have signature Unwrap() error or Unwrap() []error")
+		return
+	}
+
 	// Do the =s (if any) all match?
 	if !matchParams(pass, expect.args, args, "=") || !matchParams(pass, expect.results, results, "=") {
 		return
@@ -194,7 +207,9 @@ func matchParams(pass *analysis.Pass, expect []string, actual *types.Tuple, pref
 func matchParamType(expect string, actual types.Type) bool {
 	expect = strings.TrimPrefix(expect, "=")
 	// Overkill but easy.
-	return typeString(actual) == expect
+	t := typeString(actual)
+	return t == expect ||
+		(t == "any" || t == "interface{}") && (expect == "any" || expect == "interface{}")
 }
 
 var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)

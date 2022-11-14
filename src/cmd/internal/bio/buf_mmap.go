@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd
-// +build darwin dragonfly freebsd linux netbsd openbsd
+//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
 
 package bio
 
@@ -18,12 +17,12 @@ import (
 // because some operating systems place a limit on the number of
 // distinct mapped regions per process. As of this writing:
 //
-//  Darwin    unlimited
-//  DragonFly   1000000 (vm.max_proc_mmap)
-//  FreeBSD   unlimited
-//  Linux         65530 (vm.max_map_count) // TODO: query /proc/sys/vm/max_map_count?
-//  NetBSD    unlimited
-//  OpenBSD   unlimited
+//	Darwin    unlimited
+//	DragonFly   1000000 (vm.max_proc_mmap)
+//	FreeBSD   unlimited
+//	Linux         65530 (vm.max_map_count) // TODO: query /proc/sys/vm/max_map_count?
+//	NetBSD    unlimited
+//	OpenBSD   unlimited
 var mmapLimit int32 = 1<<31 - 1
 
 func init() {

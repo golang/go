@@ -117,6 +117,7 @@ type junk struct {
 
 // flagOverwrite_ssa is intended to reproduce an issue seen where a XOR
 // was scheduled between a compare and branch, clearing flags.
+//
 //go:noinline
 func flagOverwrite_ssa(s *junk, c int) int {
 	if '0' <= c && c <= '9' {

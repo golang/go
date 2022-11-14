@@ -137,9 +137,6 @@ has_cpuid:
 	CMPL	AX, $0
 	JE	nocpuinfo
 
-	// Figure out how to serialize RDTSC.
-	// On Intel processors LFENCE is enough. AMD requires MFENCE.
-	// Don't know about the rest, so let's do MFENCE.
 	CMPL	BX, $0x756E6547  // "Genu"
 	JNE	notintel
 	CMPL	DX, $0x49656E69  // "ineI"
@@ -147,7 +144,6 @@ has_cpuid:
 	CMPL	CX, $0x6C65746E  // "ntel"
 	JNE	notintel
 	MOVB	$1, runtime·isIntel(SB)
-	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
 notintel:
 
 	// Load EAX=1 cpuid flags
@@ -838,19 +834,37 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
-	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
-	JNE	done
-	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
-	JNE	mfence
-	LFENCE
-	JMP	done
-mfence:
-	MFENCE
+	// LFENCE/MFENCE instruction support is dependent on SSE2.
+	// When no SSE2 support is present do not enforce any serialization
+	// since using CPUID to serialize the instruction stream is
+	// very costly.
+#ifdef GO386_softfloat
+	JMP	rdtsc  // no fence instructions available
+#endif
+	CMPB	internal∕cpu·X86+const_offsetX86HasRDTSCP(SB), $1
+	JNE	fences
+	// Instruction stream serializing RDTSCP is supported.
+	// RDTSCP is supported by Intel Nehalem (2008) and
+	// AMD K8 Rev. F (2006) and newer.
+	RDTSCP
 done:
-	RDTSC
 	MOVL	AX, ret_lo+0(FP)
 	MOVL	DX, ret_hi+4(FP)
 	RET
+fences:
+	// MFENCE is instruction stream serializing and flushes the
+	// store buffers on AMD. The serialization semantics of LFENCE on AMD
+	// are dependent on MSR C001_1029 and CPU generation.
+	// LFENCE on Intel does wait for all previous instructions to have executed.
+	// Intel recommends MFENCE;LFENCE in its manuals before RDTSC to have all
+	// previous instructions executed and all previous loads and stores to globally visible.
+	// Using MFENCE;LFENCE here aligns the serializing properties without
+	// runtime detection of CPU manufacturer.
+	MFENCE
+	LFENCE
+rdtsc:
+	RDTSC
+	JMP done
 
 TEXT ldt0setup<>(SB),NOSPLIT,$16-0
 	// set up ldt 7 to point at m0.tls
@@ -923,8 +937,9 @@ aes0to15:
 	PAND	masks<>(SB)(BX*8), X1
 
 final1:
-	AESENC	X0, X1  // scramble input, xor in seed
-	AESENC	X1, X1  // scramble combo 2 times
+	PXOR	X0, X1	// xor data with seed
+	AESENC	X1, X1  // scramble combo 3 times
+	AESENC	X1, X1
 	AESENC	X1, X1
 	MOVL	X1, (DX)
 	RET
@@ -957,9 +972,13 @@ aes17to32:
 	MOVOU	(AX), X2
 	MOVOU	-16(AX)(BX*1), X3
 
+	// xor with seed
+	PXOR	X0, X2
+	PXOR	X1, X3
+
 	// scramble 3 times
-	AESENC	X0, X2
-	AESENC	X1, X3
+	AESENC	X2, X2
+	AESENC	X3, X3
 	AESENC	X2, X2
 	AESENC	X3, X3
 	AESENC	X2, X2
@@ -986,10 +1005,15 @@ aes33to64:
 	MOVOU	-32(AX)(BX*1), X6
 	MOVOU	-16(AX)(BX*1), X7
 
-	AESENC	X0, X4
-	AESENC	X1, X5
-	AESENC	X2, X6
-	AESENC	X3, X7
+	PXOR	X0, X4
+	PXOR	X1, X5
+	PXOR	X2, X6
+	PXOR	X3, X7
+
+	AESENC	X4, X4
+	AESENC	X5, X5
+	AESENC	X6, X6
+	AESENC	X7, X7
 
 	AESENC	X4, X4
 	AESENC	X5, X5
@@ -1055,7 +1079,12 @@ aesloop:
 	DECL	BX
 	JNE	aesloop
 
-	// 2 more scrambles to finish
+	// 3 more scrambles to finish
+	AESENC	X4, X4
+	AESENC	X5, X5
+	AESENC	X6, X6
+	AESENC	X7, X7
+
 	AESENC	X4, X4
 	AESENC	X5, X5
 	AESENC	X6, X6

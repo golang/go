@@ -5,8 +5,7 @@
 // Only run where builders (build.golang.org) have
 // access to compiled packages for import.
 //
-//go:build !arm && !arm64
-// +build !arm,!arm64
+//go:build !android && !ios && !js
 
 package types2_test
 
@@ -17,7 +16,6 @@ package types2_test
 // from source, use golang.org/x/tools/go/loader.
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 	"fmt"
@@ -50,11 +48,7 @@ const Boiling Celsius = 100
 func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get printed
 `},
 	} {
-		f, err := parseSrc(file.name, file.input)
-		if err != nil {
-			log.Fatal(err)
-		}
-		files = append(files, f)
+		files = append(files, mustParse(file.name, file.input))
 	}
 
 	// Type-check a package consisting of these files.
@@ -68,7 +62,7 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
 
 	// Print the tree of scopes.
 	// For determinism, we redact addresses.
-	var buf bytes.Buffer
+	var buf strings.Builder
 	pkg.Scope().WriteTo(&buf, 0, true)
 	rx := regexp.MustCompile(` 0x[a-fA-F0-9]*`)
 	fmt.Println(rx.ReplaceAllString(buf.String(), ""))
@@ -125,10 +119,7 @@ func fib(x int) int {
 	}
 	return fib(x-1) - fib(x-2)
 }`
-	f, err := parseSrc("fib.go", input)
-	if err != nil {
-		log.Fatal(err)
-	}
+	f := mustParse("fib.go", input)
 
 	// Type-check the package.
 	// We create an empty map for each kind of input
@@ -173,7 +164,7 @@ func fib(x int) int {
 	// fmt.Println("Types and Values of each expression:")
 	// items = nil
 	// for expr, tv := range info.Types {
-	// 	var buf bytes.Buffer
+	// 	var buf strings.Builder
 	// 	posn := expr.Pos()
 	// 	tvstr := tv.Type.String()
 	// 	if tv.Value != nil {
@@ -216,35 +207,35 @@ func fib(x int) int {
 	// var x int:
 	//   defined at fib.go:8:10
 	//   used at 10:10, 12:13, 12:24, 9:5
-
-	// TODO(gri) Enable once positions are updated/verified
-	// Types and Values of each expression:
-	//  4: 8 | string              | type    : string
-	//  6:15 | len                 | builtin : func(string) int
-	//  6:15 | len(b)              | value   : int
-	//  6:19 | b                   | var     : fib.S
-	//  6:23 | S                   | type    : fib.S
-	//  6:23 | S(c)                | value   : fib.S
-	//  6:25 | c                   | var     : string
-	//  6:29 | "hello"             | value   : string = "hello"
-	//  8:12 | int                 | type    : int
-	//  8:17 | int                 | type    : int
-	//  9: 5 | x                   | var     : int
-	//  9: 5 | x < 2               | value   : untyped bool
-	//  9: 9 | 2                   | value   : int = 2
-	// 10:10 | x                   | var     : int
-	// 12: 9 | fib                 | value   : func(x int) int
-	// 12: 9 | fib(x - 1)          | value   : int
-	// 12: 9 | fib(x - 1) - fib(x - 2) | value   : int
-	// 12:13 | x                   | var     : int
-	// 12:13 | x - 1               | value   : int
-	// 12:15 | 1                   | value   : int = 1
-	// 12:20 | fib                 | value   : func(x int) int
-	// 12:20 | fib(x - 2)          | value   : int
-	// 12:24 | x                   | var     : int
-	// 12:24 | x - 2               | value   : int
-	// 12:26 | 2                   | value   : int = 2
 }
+
+// TODO(gri) Enable once positions are updated/verified
+// Types and Values of each expression:
+//  4: 8 | string              | type    : string
+//  6:15 | len                 | builtin : func(string) int
+//  6:15 | len(b)              | value   : int
+//  6:19 | b                   | var     : fib.S
+//  6:23 | S                   | type    : fib.S
+//  6:23 | S(c)                | value   : fib.S
+//  6:25 | c                   | var     : string
+//  6:29 | "hello"             | value   : string = "hello"
+//  8:12 | int                 | type    : int
+//  8:17 | int                 | type    : int
+//  9: 5 | x                   | var     : int
+//  9: 5 | x < 2               | value   : untyped bool
+//  9: 9 | 2                   | value   : int = 2
+// 10:10 | x                   | var     : int
+// 12: 9 | fib                 | value   : func(x int) int
+// 12: 9 | fib(x - 1)          | value   : int
+// 12: 9 | fib(x - 1) - fib(x - 2) | value   : int
+// 12:13 | x                   | var     : int
+// 12:13 | x - 1               | value   : int
+// 12:15 | 1                   | value   : int = 1
+// 12:20 | fib                 | value   : func(x int) int
+// 12:20 | fib(x - 2)          | value   : int
+// 12:24 | x                   | var     : int
+// 12:24 | x - 2               | value   : int
+// 12:26 | 2                   | value   : int = 2
 
 func mode(tv types2.TypeAndValue) string {
 	switch {

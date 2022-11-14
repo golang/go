@@ -1,0 +1,27 @@
+-- .Play --
+package main
+
+import (
+	"fmt"
+)
+
+func main() {
+	fmt.Println("Hello, world!")
+}
+-- .Output --
+Hello, world!
+-- Limiter.Play --
+package main
+
+import (
+	"fmt"
+	tm "time"
+
+	r "golang.org/x/time/rate"
+)
+
+func main() {
+	// Uses fmt, time and rate.
+	l := r.NewLimiter(r.Every(tm.Second), 1)
+	fmt.Println(l)
+}

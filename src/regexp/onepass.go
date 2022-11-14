@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // "One-pass" regexp execution.
@@ -32,10 +33,10 @@ type onePassInst struct {
 	Next []uint32
 }
 
-// OnePassPrefix returns a literal string that all matches for the
+// onePassPrefix returns a literal string that all matches for the
 // regexp must start with. Complete is true if the prefix
 // is the entire match. Pc is the index of the last rune instruction
-// in the string. The OnePassPrefix skips over the mandatory
+// in the string. The onePassPrefix skips over the mandatory
 // EmptyBeginText
 func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
 	i := &p.Inst[p.Start]
@@ -55,7 +56,7 @@ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
 
 	// Have prefix; gather characters.
 	var buf strings.Builder
-	for iop(i) == syntax.InstRune && len(i.Rune) == 1 && syntax.Flags(i.Arg)&syntax.FoldCase == 0 {
+	for iop(i) == syntax.InstRune && len(i.Rune) == 1 && syntax.Flags(i.Arg)&syntax.FoldCase == 0 && i.Rune[0] != utf8.RuneError {
 		buf.WriteRune(i.Rune[0])
 		pc, i = i.Out, &p.Inst[i.Out]
 	}
@@ -67,7 +68,7 @@ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
 	return buf.String(), complete, pc
 }
 
-// OnePassNext selects the next actionable state of the prog, based on the input character.
+// onePassNext selects the next actionable state of the prog, based on the input character.
 // It should only be called when i.Op == InstAlt or InstAltMatch, and from the one-pass machine.
 // One of the alternates may ultimately lead without input to end of line. If the instruction
 // is InstAltMatch the path to the InstMatch is in i.Out, the normal node in i.Next.

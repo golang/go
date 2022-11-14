@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 )
 
@@ -209,6 +210,9 @@ func (b *batch) walkFunc(fn *ir.Func) {
 		switch n.Op() {
 		case ir.OLABEL:
 			n := n.(*ir.LabelStmt)
+			if n.Label.IsBlank() {
+				break
+			}
 			if e.labels == nil {
 				e.labels = make(map[*types.Sym]labelState)
 			}
@@ -243,6 +247,9 @@ func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr) {
 		n.SetByval(!loc.addrtaken && !loc.reassigned && n.Type().Size() <= 128)
 		if !n.Byval() {
 			n.SetAddrtaken(true)
+			if n.Sym().Name == typecheck.LocalDictName {
+				base.FatalfAt(n.Pos(), "dictionary variable not captured by value")
+			}
 		}
 
 		if base.Flag.LowerM > 1 {
@@ -415,8 +422,6 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	}
 
 	if fn.Pragma&ir.UintptrEscapes != 0 {
-		fn.Pragma |= ir.UintptrKeepAlive
-
 		if f.Type.IsUintptr() {
 			if diagnose {
 				base.WarnfAt(f.Pos, "marking %v as escaping uintptr", name())

@@ -26,7 +26,7 @@ func NewString(s string) Node {
 }
 
 const (
-	// Maximum size in bits for big.Ints before signalling
+	// Maximum size in bits for big.Ints before signaling
 	// overflow and also mantissa precision for big.Floats.
 	ConstPrec = 512
 )

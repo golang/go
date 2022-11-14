@@ -4,11 +4,14 @@
 
 package route
 
-import "unsafe"
+import (
+	"syscall"
+	"unsafe"
+)
 
 func (typ RIBType) parseable() bool {
 	switch typ {
-	case sysNET_RT_STATS, sysNET_RT_TABLE:
+	case syscall.NET_RT_STATS, syscall.NET_RT_TABLE:
 		return false
 	default:
 		return true
@@ -62,19 +65,18 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
 	ifanm := &wireFormat{extOff: -1, bodyOff: -1}
 	ifanm.parse = ifanm.parseInterfaceAnnounceMessage
 	return int(unsafe.Sizeof(p)), map[int]*wireFormat{
-		sysRTM_ADD:        rtm,
-		sysRTM_DELETE:     rtm,
-		sysRTM_CHANGE:     rtm,
-		sysRTM_GET:        rtm,
-		sysRTM_LOSING:     rtm,
-		sysRTM_REDIRECT:   rtm,
-		sysRTM_MISS:       rtm,
-		sysRTM_LOCK:       rtm,
-		sysRTM_RESOLVE:    rtm,
-		sysRTM_NEWADDR:    ifam,
-		sysRTM_DELADDR:    ifam,
-		sysRTM_IFINFO:     ifm,
-		sysRTM_IFANNOUNCE: ifanm,
-		sysRTM_DESYNC:     rtm,
+		syscall.RTM_ADD:        rtm,
+		syscall.RTM_DELETE:     rtm,
+		syscall.RTM_CHANGE:     rtm,
+		syscall.RTM_GET:        rtm,
+		syscall.RTM_LOSING:     rtm,
+		syscall.RTM_REDIRECT:   rtm,
+		syscall.RTM_MISS:       rtm,
+		syscall.RTM_RESOLVE:    rtm,
+		syscall.RTM_NEWADDR:    ifam,
+		syscall.RTM_DELADDR:    ifam,
+		syscall.RTM_IFINFO:     ifm,
+		syscall.RTM_IFANNOUNCE: ifanm,
+		syscall.RTM_DESYNC:     rtm,
 	}
 }

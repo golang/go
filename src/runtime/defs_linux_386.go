@@ -3,11 +3,12 @@
 
 package runtime
 
+import "unsafe"
+
 const (
 	_EINTR  = 0x4
 	_EAGAIN = 0xb
 	_ENOMEM = 0xc
-	_ENOSYS = 0x26
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -27,6 +28,9 @@ const (
 	_SA_ONSTACK  = 0x8000000
 	_SA_RESTORER = 0x4000000
 	_SA_SIGINFO  = 0x4
+
+	_SI_KERNEL = 0x80
+	_SI_TIMER  = -0x2
 
 	_SIGHUP    = 0x1
 	_SIGINT    = 0x2
@@ -59,6 +63,8 @@ const (
 	_SIGPWR    = 0x1e
 	_SIGSYS    = 0x1f
 
+	_SIGRTMIN = 0x20
+
 	_FPE_INTDIV = 0x1
 	_FPE_INTOVF = 0x2
 	_FPE_FLTDIV = 0x3
@@ -79,20 +85,13 @@ const (
 	_ITIMER_VIRTUAL = 0x1
 	_ITIMER_PROF    = 0x2
 
+	_CLOCK_THREAD_CPUTIME_ID = 0x3
+
+	_SIGEV_THREAD_ID = 0x4
+
 	_O_RDONLY   = 0x0
 	_O_NONBLOCK = 0x800
 	_O_CLOEXEC  = 0x80000
-
-	_EPOLLIN       = 0x1
-	_EPOLLOUT      = 0x4
-	_EPOLLERR      = 0x8
-	_EPOLLHUP      = 0x10
-	_EPOLLRDHUP    = 0x2000
-	_EPOLLET       = 0x80000000
-	_EPOLL_CLOEXEC = 0x80000
-	_EPOLL_CTL_ADD = 0x1
-	_EPOLL_CTL_DEL = 0x2
-	_EPOLL_CTL_MOD = 0x3
 
 	_AF_UNIX    = 0x1
 	_SOCK_DGRAM = 0x2
@@ -159,12 +158,19 @@ type sigactiont struct {
 	sa_mask     uint64
 }
 
-type siginfo struct {
+type siginfoFields struct {
 	si_signo int32
 	si_errno int32
 	si_code  int32
 	// below here is a union; si_addr is the only field we use
 	si_addr uint32
+}
+
+type siginfo struct {
+	siginfoFields
+
+	// Pad struct to the max size in the kernel.
+	_ [_si_max_size - unsafe.Sizeof(siginfoFields{})]byte
 }
 
 type stackt struct {
@@ -212,14 +218,29 @@ type ucontext struct {
 	uc_sigmask  uint32
 }
 
+type itimerspec struct {
+	it_interval timespec
+	it_value    timespec
+}
+
 type itimerval struct {
 	it_interval timeval
 	it_value    timeval
 }
 
-type epollevent struct {
-	events uint32
-	data   [8]byte // to match amd64
+type sigeventFields struct {
+	value  uintptr
+	signo  int32
+	notify int32
+	// below here is a union; sigev_notify_thread_id is the only field we use
+	sigev_notify_thread_id int32
+}
+
+type sigevent struct {
+	sigeventFields
+
+	// Pad struct to the max size in the kernel.
+	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
 }
 
 type sockaddr_un struct {

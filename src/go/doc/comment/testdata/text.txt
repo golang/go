@@ -1,0 +1,62 @@
+{"TextPrefix":"|", "TextCodePrefix": "@"}
+-- input --
+Hello, world
+ Code block here.
+More text.
+Tight list
+ - one
+ - two
+ - three
+Loose list
+ - one
+
+ - two
+
+ - three
+
+# Heading
+
+More text.
+-- gofmt --
+Hello, world
+
+	Code block here.
+
+More text.
+Tight list
+  - one
+  - two
+  - three
+
+Loose list
+
+  - one
+
+  - two
+
+  - three
+
+# Heading
+
+More text.
+-- text --
+|Hello, world
+|
+@Code block here.
+|
+|More text. Tight list
+|  - one
+|  - two
+|  - three
+|
+|Loose list
+|
+|  - one
+|
+|  - two
+|
+|  - three
+|
+|# Heading
+|
+|More text.

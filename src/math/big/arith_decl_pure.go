@@ -7,10 +7,6 @@
 
 package big
 
-func mulWW(x, y Word) (z1, z0 Word) {
-	return mulWW_g(x, y)
-}
-
 func addVV(z, x, y []Word) (c Word) {
 	return addVV_g(z, x, y)
 }

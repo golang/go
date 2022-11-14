@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Compiled program.
@@ -101,7 +102,7 @@ func EmptyOpContext(r1, r2 rune) EmptyOp {
 	return op
 }
 
-// IsWordChar reports whether r is consider a ``word character''
+// IsWordChar reports whether r is considered a “word character”
 // during the evaluation of the \b and \B zero-width assertions.
 // These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
 func IsWordChar(r rune) bool {
@@ -154,7 +155,7 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 
 	// Have prefix; gather characters.
 	var buf strings.Builder
-	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
+	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 && i.Rune[0] != utf8.RuneError {
 		buf.WriteRune(i.Rune[0])
 		i = p.skipNop(i.Out)
 	}

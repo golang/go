@@ -5,12 +5,10 @@
 package ssa_test
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,11 +32,11 @@ var (
 
 var (
 	hexRe                 = regexp.MustCompile("0x[a-zA-Z0-9]+")
-	numRe                 = regexp.MustCompile("-?[0-9]+")
+	numRe                 = regexp.MustCompile("-?\\d+")
 	stringRe              = regexp.MustCompile("\"([^\\\"]|(\\.))*\"")
-	leadingDollarNumberRe = regexp.MustCompile("^[$][0-9]+")
+	leadingDollarNumberRe = regexp.MustCompile("^[$]\\d+")
 	optOutGdbRe           = regexp.MustCompile("[<]optimized out[>]")
-	numberColonRe         = regexp.MustCompile("^ *[0-9]+:")
+	numberColonRe         = regexp.MustCompile("^ *\\d+:")
 )
 
 var gdb = "gdb"      // Might be "ggdb" on Darwin, because gdb no longer part of XCode
@@ -84,7 +82,7 @@ var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gog
 // "O" is an explicit indication that we expect it to be optimized out.
 // For example:
 //
-// 	if len(os.Args) > 1 { //gdb-dbg=(hist/A,cannedInput/A) //dlv-dbg=(hist/A,cannedInput/A)
+//	if len(os.Args) > 1 { //gdb-dbg=(hist/A,cannedInput/A) //dlv-dbg=(hist/A,cannedInput/A)
 //
 // TODO: not implemented for Delve yet, but this is the plan
 //
@@ -93,7 +91,6 @@ var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gog
 // go test debug_test.go -args -u
 // (for Delve)
 // go test debug_test.go -args -u -d
-//
 func TestNexting(t *testing.T) {
 	testenv.SkipFlaky(t, 37404)
 
@@ -225,7 +222,7 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
 
 	// Use a temporary directory unless -f is specified
 	if !*force {
-		tmpdir, err := ioutil.TempDir("", "debug_test")
+		tmpdir, err := os.MkdirTemp("", "debug_test")
 		if err != nil {
 			panic(fmt.Sprintf("Problem creating TempDir, error %v\n", err))
 		}
@@ -299,7 +296,7 @@ func runDbgr(dbg dbgr, maxNext int) *nextHist {
 }
 
 func runGo(t *testing.T, dir string, args ...string) string {
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr strings.Builder
 	cmd := exec.Command(testenv.GoToolPath(t), args...)
 	cmd.Dir = dir
 	if *dryrun {
@@ -368,7 +365,7 @@ func (h *nextHist) write(filename string) {
 
 func (h *nextHist) read(filename string) {
 	h.f2i = make(map[string]uint8)
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := os.ReadFile(filename)
 	if err != nil {
 		panic(fmt.Sprintf("Problem reading %s, error %v\n", filename, err))
 	}
@@ -952,6 +949,9 @@ func (s *ioState) readSimpleExpecting(expectedRE string) tstring {
 // replaceEnv returns a new environment derived from env
 // by removing any existing definition of ev and adding ev=evv.
 func replaceEnv(env []string, ev string, evv string) []string {
+	if env == nil {
+		env = os.Environ()
+	}
 	evplus := ev + "="
 	var found bool
 	for i, v := range env {

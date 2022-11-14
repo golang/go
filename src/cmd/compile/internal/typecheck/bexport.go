@@ -99,6 +99,9 @@ func predeclared() []*types.Type {
 
 			// comparable
 			types.ComparableType,
+
+			// any
+			types.AnyType,
 		}
 	}
 	return predecl

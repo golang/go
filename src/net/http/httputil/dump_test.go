@@ -31,7 +31,7 @@ type dumpTest struct {
 	Req    *http.Request
 	GetReq func() *http.Request
 
-	Body interface{} // optional []byte or func() io.ReadCloser to populate Req.Body
+	Body any // optional []byte or func() io.ReadCloser to populate Req.Body
 
 	WantDump    string
 	WantDumpOut string
@@ -235,6 +235,19 @@ var dumpTests = []dumpTest{
 			"User-Agent: Go-http-client/1.1\r\n" +
 			"Transfer-Encoding: chunked\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n",
+	},
+
+	// Issue 54616: request with Connection header doesn't result in duplicate header.
+	{
+		GetReq: func() *http.Request {
+			return mustReadRequest("GET / HTTP/1.1\r\n" +
+				"Host: example.com\r\n" +
+				"Connection: close\r\n\r\n")
+		},
+		NoBody: true,
+		WantDump: "GET / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"Connection: close\r\n\r\n",
 	},
 }
 
@@ -510,7 +523,7 @@ func TestDumpRequestOutIssue38352(t *testing.T) {
 		select {
 		case <-out:
 		case <-time.After(timeout):
-			b := &bytes.Buffer{}
+			b := &strings.Builder{}
 			fmt.Fprintf(b, "deadlock detected on iteration %d after %s with delay: %v\n", i, timeout, delay)
 			pprof.Lookup("goroutine").WriteTo(b, 1)
 			t.Fatal(b.String())

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build arm64 && linux
-// +build arm64,linux
 
 package cpu
 
@@ -53,7 +52,7 @@ func hwcapInit(os string) {
 			ARM64.IsNeoverseN1 = true
 		}
 		if implementor == 'A' && part_num == 0xd40 {
-			ARM64.IsZeus = true
+			ARM64.IsNeoverseV1 = true
 		}
 	}
 }

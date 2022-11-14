@@ -149,7 +149,7 @@ type objTool struct {
 	disasmCache map[string]*objfile.Disasm
 }
 
-func (*objTool) Open(name string, start, limit, offset uint64) (driver.ObjFile, error) {
+func (*objTool) Open(name string, start, limit, offset uint64, relocationSymbol string) (driver.ObjFile, error) {
 	of, err := objfile.Open(name)
 	if err != nil {
 		return nil, err
@@ -233,8 +233,7 @@ func (f *file) Name() string {
 }
 
 func (f *file) ObjAddr(addr uint64) (uint64, error) {
-	// No support for shared libraries, so translation is a no-op.
-	return addr, nil
+	return addr - f.offset, nil
 }
 
 func (f *file) BuildID() string {

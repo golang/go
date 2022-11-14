@@ -14,6 +14,17 @@ package syscall
 
 import "unsafe"
 
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
+const (
+	_SYS_DUP3         = SYS_DUP3
+	_F_DUP2FD_CLOEXEC = 0
+)
+
 type SockaddrDatalink struct {
 	Len    uint8
 	Family uint8
@@ -25,8 +36,6 @@ type SockaddrDatalink struct {
 	Data   [12]int8
 	raw    RawSockaddrDatalink
 }
-
-func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
 
 func sysctlNodes(mib []_C_int) (nodes []Sysctlnode, err error) {
 	var olen uintptr
@@ -106,18 +115,22 @@ func Pipe(p []int) (err error) {
 }
 
 //sysnb pipe2(p *[2]_C_int, flags int) (err error)
+
 func Pipe2(p []int, flags int) error {
 	if len(p) != 2 {
 		return EINVAL
 	}
 	var pp [2]_C_int
 	err := pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return err
 }
 
 //sys paccept(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, sigmask *sigset, flags int) (nfd int, err error)
+
 func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
@@ -137,6 +150,7 @@ func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
 }
 
 //sys getdents(fd int, buf []byte) (n int, err error)
+
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	return getdents(fd, buf)
 }
@@ -144,11 +158,6 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 // TODO, see golang.org/issue/5847
 func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	return -1, ENOSYS
-}
-
-func setattrlistTimes(path string, times []Timespec) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
 }
 
 /*
@@ -199,8 +208,8 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Rename(from string, to string) (err error)

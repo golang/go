@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build mips64 || mips64le
-// +build mips64 mips64le
 
 #include "go_asm.h"
 #include "go_tls.h"
@@ -259,6 +258,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	UNDEF
 
 TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
+	// Force SPWRITE. This function doesn't actually write SP,
+	// but it is called with a special calling convention where
+	// the caller doesn't save LR on stack but passes it as a
+	// register (R3), and the unwinder currently doesn't understand.
+	// Make it SPWRITE to stop unwinding. (See issue 54332)
+	MOVV	R29, R29
+
 	MOVV	R0, REGCTXT
 	JMP	runtime·morestack(SB)
 

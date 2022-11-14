@@ -3,11 +3,11 @@
 // license that can be found in the LICENSE file.
 
 //go:build ppc64 || ppc64le
-// +build ppc64 ppc64le
 
 package runtime
 
 // crosscall_ppc64 calls into the runtime to set up the registers the
 // Go runtime expects and so the symbol it calls needs to be exported
 // for external linking to work.
+//
 //go:cgo_export_static _cgo_reginit

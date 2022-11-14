@@ -5,14 +5,13 @@
 package testing
 
 import (
-	"bytes"
 	"regexp"
 	"strings"
 )
 
 func TestTBHelper(t *T) {
-	var buf bytes.Buffer
-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
+	var buf strings.Builder
+	ctx := newTestContext(1, allMatcher())
 	t1 := &T{
 		common: common{
 			signal: make(chan bool),
@@ -24,17 +23,22 @@ func TestTBHelper(t *T) {
 
 	want := `--- FAIL: Test (?s)
 helperfuncs_test.go:12: 0
-helperfuncs_test.go:33: 1
+helperfuncs_test.go:40: 1
 helperfuncs_test.go:21: 2
-helperfuncs_test.go:35: 3
-helperfuncs_test.go:42: 4
+helperfuncs_test.go:42: 3
+helperfuncs_test.go:49: 4
 --- FAIL: Test/sub (?s)
-helperfuncs_test.go:45: 5
+helperfuncs_test.go:52: 5
 helperfuncs_test.go:21: 6
-helperfuncs_test.go:44: 7
-helperfuncs_test.go:56: 8
-helperfuncs_test.go:64: 9
-helperfuncs_test.go:60: 10
+helperfuncs_test.go:51: 7
+helperfuncs_test.go:63: 8
+--- FAIL: Test/sub2 (?s)
+helperfuncs_test.go:78: 11
+helperfuncs_test.go:82: recover 12
+helperfuncs_test.go:84: GenericFloat64
+helperfuncs_test.go:85: GenericInt
+helperfuncs_test.go:71: 9
+helperfuncs_test.go:67: 10
 `
 	lines := strings.Split(buf.String(), "\n")
 	durationRE := regexp.MustCompile(`\(.*\)$`)
@@ -50,8 +54,8 @@ helperfuncs_test.go:60: 10
 }
 
 func TestTBHelperParallel(t *T) {
-	var buf bytes.Buffer
-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
+	var buf strings.Builder
+	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", "", ""))
 	t1 := &T{
 		common: common{
 			signal: make(chan bool),
@@ -71,45 +75,13 @@ func TestTBHelperParallel(t *T) {
 	}
 }
 
-func TestTBHelperLineNumer(t *T) {
-	var buf bytes.Buffer
-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
-	t1 := &T{
-		common: common{
-			signal: make(chan bool),
-			w:      &buf,
-		},
-		context: ctx,
-	}
-	t1.Run("Test", func(t *T) {
-		helperA := func(t *T) {
-			t.Helper()
-			t.Run("subtest", func(t *T) {
-				t.Helper()
-				t.Fatal("fatal error message")
-			})
-		}
-		helperA(t)
-	})
-
-	want := "helper_test.go:92: fatal error message"
-	got := ""
-	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-	if len(lines) > 0 {
-		got = strings.TrimSpace(lines[len(lines)-1])
-	}
-	if got != want {
-		t.Errorf("got output:\n\n%v\nwant:\n\n%v", got, want)
-	}
-}
-
 type noopWriter int
 
 func (nw *noopWriter) Write(b []byte) (int, error) { return len(b), nil }
 
 func BenchmarkTBHelper(b *B) {
 	w := noopWriter(0)
-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
+	ctx := newTestContext(1, allMatcher())
 	t1 := &T{
 		common: common{
 			signal: make(chan bool),

@@ -22,13 +22,7 @@ x_cgo_init(G *g)
 void
 _cgo_sys_thread_start(ThreadStart *ts)
 {
-	uintptr_t thandle;
-
-	thandle = _beginthread(threadentry, 0, ts);
-	if(thandle == -1) {
-		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
-		abort();
-	}
+	_cgo_beginthread(threadentry, ts);
 }
 
 static void
@@ -50,6 +44,6 @@ threadentry(void *v)
 		"movl %1, 0(%%eax)\n"	// MOVL g, 0(FS)
 		:: "r"(ts.tls), "r"(ts.g) : "%eax"
 	);
-	
+
 	crosscall_386(ts.fn);
 }

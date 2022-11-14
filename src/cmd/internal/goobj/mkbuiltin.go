@@ -18,7 +18,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -44,7 +43,7 @@ func main() {
 	if *stdout {
 		_, err = os.Stdout.Write(out)
 	} else {
-		err = ioutil.WriteFile("builtinlist.go", out, 0666)
+		err = os.WriteFile("builtinlist.go", out, 0666)
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -105,7 +104,7 @@ func mkbuiltin(w io.Writer) {
 	extras := append(fextras[:], enumerateBasicTypes()...)
 	for _, b := range extras {
 		prefix := ""
-		if !strings.HasPrefix(b.name, "type.") {
+		if !strings.HasPrefix(b.name, "type:") {
 			prefix = pkg + "."
 		}
 		name := prefix + b.name
@@ -117,7 +116,7 @@ func mkbuiltin(w io.Writer) {
 	fmt.Fprintln(w, "}")
 }
 
-// addBasicTypes returns the symbol names for basic types that are
+// enumerateBasicTypes returns the symbol names for basic types that are
 // defined in the runtime and referenced in other packages.
 // Needs to be kept in sync with reflect.go:WriteBasicTypes() and
 // reflect.go:writeType() in the compiler.
@@ -130,8 +129,8 @@ func enumerateBasicTypes() []extra {
 		"func(error) string"}
 	result := []extra{}
 	for _, n := range names {
-		result = append(result, extra{"type." + n, 0})
-		result = append(result, extra{"type.*" + n, 0})
+		result = append(result, extra{"type:" + n, 0})
+		result = append(result, extra{"type:*" + n, 0})
 	}
 	return result
 }

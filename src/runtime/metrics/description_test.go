@@ -103,7 +103,7 @@ func TestDescriptionDocs(t *testing.T) {
 	}
 	if len(docs) > len(descriptions) {
 	docsLoop:
-		for name, _ := range docs {
+		for name := range docs {
 			for _, d := range descriptions {
 				if name == d.Name {
 					continue docsLoop

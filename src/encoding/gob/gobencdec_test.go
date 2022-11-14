@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -734,7 +735,7 @@ func (a *isZeroBugArray) GobDecode(data []byte) error {
 }
 
 type isZeroBugInterface struct {
-	I interface{}
+	I any
 }
 
 func (i isZeroBugInterface) GobEncode() (b []byte, e error) {
@@ -794,5 +795,28 @@ func TestNetIP(t *testing.T) {
 	}
 	if ip.String() != "1.2.3.4" {
 		t.Errorf("decoded to %v, want 1.2.3.4", ip.String())
+	}
+}
+
+func TestIgnoreDepthLimit(t *testing.T) {
+	// We don't test the actual depth limit because it requires building an
+	// extremely large message, which takes quite a while.
+	oldNestingDepth := maxIgnoreNestingDepth
+	maxIgnoreNestingDepth = 100
+	defer func() { maxIgnoreNestingDepth = oldNestingDepth }()
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	typ := reflect.TypeOf(int(0))
+	nested := reflect.ArrayOf(1, typ)
+	for i := 0; i < 100; i++ {
+		nested = reflect.ArrayOf(1, nested)
+	}
+	badStruct := reflect.New(reflect.StructOf([]reflect.StructField{{Name: "F", Type: nested}}))
+	enc.Encode(badStruct.Interface())
+	dec := NewDecoder(b)
+	var output struct{ Hello int }
+	expectedErr := "invalid nesting depth"
+	if err := dec.Decode(&output); err == nil || err.Error() != expectedErr {
+		t.Errorf("Decode didn't fail with depth limit of 100: want %q, got %q", expectedErr, err)
 	}
 }

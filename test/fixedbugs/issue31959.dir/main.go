@@ -12,7 +12,7 @@ package main
 import (
 	"fmt"
 
-	"a"
+	"./a"
 )
 
 func main() {

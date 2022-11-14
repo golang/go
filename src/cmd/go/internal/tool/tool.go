@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tool implements the ``go tool'' command.
+// Package tool implements the “go tool” command.
 package tool
 
 import (
 	"context"
 	"fmt"
-	exec "internal/execabs"
+	"go/build"
 	"os"
+	"os/exec"
 	"os/signal"
 	"sort"
 	"strings"
@@ -47,6 +48,7 @@ func isGccgoTool(tool string) bool {
 }
 
 func init() {
+	base.AddChdirFlag(&CmdTool.Flag)
 	CmdTool.Flag.BoolVar(&toolN, "n", false, "")
 }
 
@@ -61,7 +63,7 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 		switch {
 		case 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '_':
 		default:
-			fmt.Fprintf(os.Stderr, "go tool: bad tool name %q\n", toolName)
+			fmt.Fprintf(os.Stderr, "go: bad tool name %q\n", toolName)
 			base.SetExitStatus(2)
 			return
 		}
@@ -115,16 +117,16 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 
 // listTools prints a list of the available tools in the tools directory.
 func listTools() {
-	f, err := os.Open(base.ToolDir)
+	f, err := os.Open(build.ToolDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go tool: no tool directory: %s\n", err)
+		fmt.Fprintf(os.Stderr, "go: no tool directory: %s\n", err)
 		base.SetExitStatus(2)
 		return
 	}
 	defer f.Close()
 	names, err := f.Readdirnames(-1)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go tool: can't read directory: %s\n", err)
+		fmt.Fprintf(os.Stderr, "go: can't read tool directory: %s\n", err)
 		base.SetExitStatus(2)
 		return
 	}
@@ -132,11 +134,9 @@ func listTools() {
 	sort.Strings(names)
 	for _, name := range names {
 		// Unify presentation by going to lower case.
-		name = strings.ToLower(name)
 		// If it's windows, don't show the .exe suffix.
-		if base.ToolIsWindows && strings.HasSuffix(name, base.ToolWindowsExtension) {
-			name = name[:len(name)-len(base.ToolWindowsExtension)]
-		}
+		name = strings.TrimSuffix(strings.ToLower(name), cfg.ToolExeSuffix())
+
 		// The tool directory used by gccgo will have other binaries
 		// in addition to go tools. Only display go tools here.
 		if cfg.BuildToolchainName == "gccgo" && !isGccgoTool(name) {

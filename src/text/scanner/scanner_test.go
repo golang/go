@@ -913,3 +913,22 @@ func extractInts(t string, mode uint) (res string) {
 		}
 	}
 }
+
+func TestIssue50909(t *testing.T) {
+	var s Scanner
+	s.Init(strings.NewReader("hello \n\nworld\n!\n"))
+	s.IsIdentRune = func(ch rune, _ int) bool { return ch != '\n' }
+
+	r := ""
+	n := 0
+	for s.Scan() != EOF && n < 10 {
+		r += s.TokenText()
+		n++
+	}
+
+	const R = "hello world!"
+	const N = 3
+	if r != R || n != N {
+		t.Errorf("got %q (n = %d); want %q (n = %d)", r, n, R, N)
+	}
+}

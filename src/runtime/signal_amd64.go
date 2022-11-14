@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build amd64 && (darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris)
-// +build amd64
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package runtime
 
@@ -42,9 +40,10 @@ func dumpregs(c *sigctxt) {
 //go:nowritebarrierrec
 func (c *sigctxt) sigpc() uintptr { return uintptr(c.rip()) }
 
-func (c *sigctxt) sigsp() uintptr { return uintptr(c.rsp()) }
-func (c *sigctxt) siglr() uintptr { return 0 }
-func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
+func (c *sigctxt) setsigpc(x uint64) { c.set_rip(x) }
+func (c *sigctxt) sigsp() uintptr    { return uintptr(c.rsp()) }
+func (c *sigctxt) siglr() uintptr    { return 0 }
+func (c *sigctxt) fault() uintptr    { return uintptr(c.sigaddr()) }
 
 // preparePanic sets up the stack to look like a call to sigpanic.
 func (c *sigctxt) preparePanic(sig uint32, gp *g) {

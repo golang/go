@@ -60,6 +60,11 @@ func testDir(t *testing.T, f embed.FS, name string, expect ...string) {
 	}
 }
 
+// Tests for issue 49514.
+var _ = '"'
+var _ = '\''
+var _ = '🦆'
+
 func TestGlobal(t *testing.T) {
 	testFiles(t, global, "concurrency.txt", "Concurrency is not parallelism.\n")
 	testFiles(t, global, "testdata/hello.txt", "hello, world\n")
@@ -89,11 +94,13 @@ func TestDir(t *testing.T) {
 	testDir(t, all, "testdata/i/j/k", "k8s.txt")
 }
 
-//go:embed testdata
-var testHiddenDir embed.FS
+var (
+	//go:embed testdata
+	testHiddenDir embed.FS
 
-//go:embed testdata/*
-var testHiddenStar embed.FS
+	//go:embed testdata/*
+	testHiddenStar embed.FS
+)
 
 func TestHidden(t *testing.T) {
 	dir := testHiddenDir
@@ -128,4 +135,44 @@ func TestUninitialized(t *testing.T) {
 	if !fi.IsDir() {
 		t.Errorf("in uninitialized embed.FS, . is not a directory")
 	}
+}
+
+var (
+	//go:embed "testdata/hello.txt"
+	helloT []T
+	//go:embed "testdata/hello.txt"
+	helloUint8 []uint8
+	//go:embed "testdata/hello.txt"
+	helloEUint8 []EmbedUint8
+	//go:embed "testdata/hello.txt"
+	helloBytes EmbedBytes
+	//go:embed "testdata/hello.txt"
+	helloString EmbedString
+)
+
+type T byte
+type EmbedUint8 uint8
+type EmbedBytes []byte
+type EmbedString string
+
+// golang.org/issue/47735
+func TestAliases(t *testing.T) {
+	all := testDirAll
+	want, e := all.ReadFile("testdata/hello.txt")
+	if e != nil {
+		t.Fatal("ReadFile:", e)
+	}
+	check := func(g any) {
+		got := reflect.ValueOf(g)
+		for i := 0; i < got.Len(); i++ {
+			if byte(got.Index(i).Uint()) != want[i] {
+				t.Fatalf("got %v want %v", got.Bytes(), want)
+			}
+		}
+	}
+	check(helloT)
+	check(helloUint8)
+	check(helloEUint8)
+	check(helloBytes)
+	check(helloString)
 }

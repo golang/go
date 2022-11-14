@@ -1,3 +1,4 @@
+{"Action":"start"}
 {"Action":"output","Output":"goos: darwin\n"}
 {"Action":"output","Output":"goarch: 386\n"}
 {"Action":"output","Output":"BenchmarkFoo-8   \t2000000000\t         0.00 ns/op\n"}

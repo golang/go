@@ -29,6 +29,12 @@ type Repo interface {
 	// ModulePath returns the module path.
 	ModulePath() string
 
+	// CheckReuse checks whether the validation criteria in the origin
+	// are still satisfied on the server corresponding to this module.
+	// If so, the caller can reuse any cached Versions or RevInfo containing
+	// this origin rather than redownloading those from the server.
+	CheckReuse(old *codehost.Origin) error
+
 	// Versions lists all known versions with the given prefix.
 	// Pseudo-versions are not included.
 	//
@@ -42,7 +48,7 @@ type Repo interface {
 	//
 	// If the underlying repository does not exist,
 	// Versions returns an error matching errors.Is(_, os.NotExist).
-	Versions(prefix string) ([]string, error)
+	Versions(prefix string) (*Versions, error)
 
 	// Stat returns information about the revision rev.
 	// A revision can be any identifier known to the underlying service:
@@ -61,7 +67,14 @@ type Repo interface {
 	Zip(dst io.Writer, version string) error
 }
 
-// A Rev describes a single revision in a module repository.
+// A Versions describes the available versions in a module repository.
+type Versions struct {
+	Origin *codehost.Origin `json:",omitempty"` // origin information for reuse
+
+	List []string // semver versions
+}
+
+// A RevInfo describes a single revision in a module repository.
 type RevInfo struct {
 	Version string    // suggested version string for this revision
 	Time    time.Time // commit time
@@ -70,6 +83,8 @@ type RevInfo struct {
 	// but they are not recorded when talking about module versions.
 	Name  string `json:"-"` // complete ID in underlying repository
 	Short string `json:"-"` // shortened ID, for use in pseudo-version
+
+	Origin *codehost.Origin `json:",omitempty"` // provenance for reuse
 }
 
 // Re: module paths, import paths, repository roots, and lookups
@@ -196,7 +211,7 @@ func Lookup(proxy, path string) Repo {
 	type cached struct {
 		r Repo
 	}
-	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() interface{} {
+	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() any {
 		r := newCachingRepo(path, func() (Repo, error) {
 			r, err := lookup(proxy, path)
 			if err == nil && traceRepo {
@@ -308,7 +323,7 @@ func newLoggingRepo(r Repo) *loggingRepo {
 //	defer logCall("hello %s", arg)()
 //
 // Note the final ().
-func logCall(format string, args ...interface{}) func() {
+func logCall(format string, args ...any) func() {
 	start := time.Now()
 	fmt.Fprintf(os.Stderr, "+++ %s\n", fmt.Sprintf(format, args...))
 	return func() {
@@ -320,7 +335,14 @@ func (l *loggingRepo) ModulePath() string {
 	return l.r.ModulePath()
 }
 
-func (l *loggingRepo) Versions(prefix string) (tags []string, err error) {
+func (l *loggingRepo) CheckReuse(old *codehost.Origin) (err error) {
+	defer func() {
+		logCall("CheckReuse[%s]: %v", l.r.ModulePath(), err)
+	}()
+	return l.r.CheckReuse(old)
+}
+
+func (l *loggingRepo) Versions(prefix string) (*Versions, error) {
 	defer logCall("Repo[%s]: Versions(%q)", l.r.ModulePath(), prefix)()
 	return l.r.Versions(prefix)
 }
@@ -360,18 +382,19 @@ type errRepo struct {
 
 func (r errRepo) ModulePath() string { return r.modulePath }
 
-func (r errRepo) Versions(prefix string) (tags []string, err error) { return nil, r.err }
-func (r errRepo) Stat(rev string) (*RevInfo, error)                 { return nil, r.err }
-func (r errRepo) Latest() (*RevInfo, error)                         { return nil, r.err }
-func (r errRepo) GoMod(version string) ([]byte, error)              { return nil, r.err }
-func (r errRepo) Zip(dst io.Writer, version string) error           { return r.err }
+func (r errRepo) CheckReuse(old *codehost.Origin) error     { return r.err }
+func (r errRepo) Versions(prefix string) (*Versions, error) { return nil, r.err }
+func (r errRepo) Stat(rev string) (*RevInfo, error)         { return nil, r.err }
+func (r errRepo) Latest() (*RevInfo, error)                 { return nil, r.err }
+func (r errRepo) GoMod(version string) ([]byte, error)      { return nil, r.err }
+func (r errRepo) Zip(dst io.Writer, version string) error   { return r.err }
 
 // A notExistError is like fs.ErrNotExist, but with a custom message
 type notExistError struct {
 	err error
 }
 
-func notExistErrorf(format string, args ...interface{}) error {
+func notExistErrorf(format string, args ...any) error {
 	return notExistError{fmt.Errorf(format, args...)}
 }
 

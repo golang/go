@@ -19,6 +19,7 @@ package math
 // Cbrt returns the cube root of x.
 //
 // Special cases are:
+//
 //	Cbrt(±0) = ±0
 //	Cbrt(±Inf) = ±Inf
 //	Cbrt(NaN) = NaN

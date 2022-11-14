@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build plan9
-// +build plan9
 
 package lockedfile
 
@@ -18,9 +17,9 @@ import (
 // Opening an exclusive-use file returns an error.
 // The expected error strings are:
 //
-//  - "open/create -- file is locked" (cwfs, kfs)
-//  - "exclusive lock" (fossil)
-//  - "exclusive use file already open" (ramfs)
+//   - "open/create -- file is locked" (cwfs, kfs)
+//   - "exclusive lock" (fossil)
+//   - "exclusive use file already open" (ramfs)
 var lockedErrStrings = [...]string{
 	"file is locked",
 	"exclusive lock",

@@ -113,7 +113,7 @@ func TestAuthPlain(t *testing.T) {
 func TestClientAuthTrimSpace(t *testing.T) {
 	server := "220 hello world\r\n" +
 		"200 some more"
-	var wrote bytes.Buffer
+	var wrote strings.Builder
 	var fake faker
 	fake.ReadWriter = struct {
 		io.Reader
@@ -164,7 +164,7 @@ func TestBasic(t *testing.T) {
 	server := strings.Join(strings.Split(basicServer, "\n"), "\r\n")
 	client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
 
-	var cmdbuf bytes.Buffer
+	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	var fake faker
 	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
@@ -505,7 +505,7 @@ func TestNewClient(t *testing.T) {
 	server := strings.Join(strings.Split(newClientServer, "\n"), "\r\n")
 	client := strings.Join(strings.Split(newClientClient, "\n"), "\r\n")
 
-	var cmdbuf bytes.Buffer
+	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	out := func() string {
 		bcmdbuf.Flush()
@@ -550,7 +550,7 @@ func TestNewClient2(t *testing.T) {
 	server := strings.Join(strings.Split(newClient2Server, "\n"), "\r\n")
 	client := strings.Join(strings.Split(newClient2Client, "\n"), "\r\n")
 
-	var cmdbuf bytes.Buffer
+	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	var fake faker
 	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
@@ -643,7 +643,7 @@ func TestHello(t *testing.T) {
 	for i := 0; i < len(helloServer); i++ {
 		server := strings.Join(strings.Split(baseHelloServer+helloServer[i], "\n"), "\r\n")
 		client := strings.Join(strings.Split(baseHelloClient+helloClient[i], "\n"), "\r\n")
-		var cmdbuf bytes.Buffer
+		var cmdbuf strings.Builder
 		bcmdbuf := bufio.NewWriter(&cmdbuf)
 		var fake faker
 		fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
@@ -749,7 +749,7 @@ var helloClient = []string{
 func TestSendMail(t *testing.T) {
 	server := strings.Join(strings.Split(sendMailServer, "\n"), "\r\n")
 	client := strings.Join(strings.Split(sendMailClient, "\n"), "\r\n")
-	var cmdbuf bytes.Buffer
+	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -906,7 +906,7 @@ SendMail is working for me.
 func TestAuthFailed(t *testing.T) {
 	server := strings.Join(strings.Split(authFailedServer, "\n"), "\r\n")
 	client := strings.Join(strings.Split(authFailedClient, "\n"), "\r\n")
-	var cmdbuf bytes.Buffer
+	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	var fake faker
 	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
@@ -948,7 +948,7 @@ QUIT
 `
 
 func TestTLSClient(t *testing.T) {
-	if (runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64") || runtime.GOOS == "js" {
+	if runtime.GOOS == "freebsd" || runtime.GOOS == "js" {
 		testenv.SkipFlaky(t, 19229)
 	}
 	ln := newLocalListener(t)
@@ -1104,8 +1104,9 @@ func sendMail(hostPort string) error {
 }
 
 // localhostCert is a PEM-encoded TLS cert generated from src/crypto/tls:
-// go run generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,example.com \
-// 		--ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+//
+//	go run generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,example.com \
+//		--ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
 var localhostCert = []byte(`
 -----BEGIN CERTIFICATE-----
 MIICFDCCAX2gAwIBAgIRAK0xjnaPuNDSreeXb+z+0u4wDQYJKoZIhvcNAQELBQAw

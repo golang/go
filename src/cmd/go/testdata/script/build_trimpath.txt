@@ -32,7 +32,8 @@ stdout 'binary contains GOROOT: false'
 
 # A binary from an external module built with -trimpath should not contain
 # the current workspace or GOROOT.
-go get -trimpath rsc.io/fortune
+go get rsc.io/fortune
+go install -trimpath rsc.io/fortune
 exec $WORK/paths-a.exe $GOPATH/bin/fortune$GOEXE
 stdout 'binary contains module root: false'
 stdout 'binary contains GOROOT: false'
@@ -94,6 +95,7 @@ cmp -q paths-a.exe paths-b.exe
 # Same sequence of tests but with gccgo.
 # gccgo does not support builds in module mode.
 [!exec:gccgo] stop
+[cross] stop  # gccgo can't necessarily cross-compile
 env GOPATH=$WORK/a
 
 # A binary built with gccgo without -trimpath should contain the current

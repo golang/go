@@ -10,7 +10,7 @@
 
 package main
 
-import "math" // ERROR "imported and not used|imported but not used"
+import "math" // ERROR "imported and not used"
 
 func main() {
 math:

@@ -13,9 +13,11 @@ that directory, recursively.  (Files starting with a period are ignored.)
 By default, gofmt prints the reformatted sources to standard output.
 
 Usage:
+
 	gofmt [flags] [path ...]
 
 The flags are:
+
 	-d
 		Do not print reformatted sources to standard output.
 		If a file's formatting is different than gofmt's, print diffs
@@ -37,9 +39,9 @@ The flags are:
 		the original file is restored from an automatic backup.
 
 Debugging support:
+
 	-cpuprofile filename
 		Write cpu profile to the specified file.
-
 
 The rewrite rule specified with the -r flag must be a string of the form:
 
@@ -57,7 +59,7 @@ such a fragment, gofmt preserves leading indentation as well as leading
 and trailing spaces, so that individual sections of a Go program can be
 formatted by piping them through gofmt.
 
-Examples
+# Examples
 
 To check files for unnecessary parentheses:
 
@@ -71,7 +73,7 @@ To convert the package tree from explicit slice upper bounds to implicit ones:
 
 	gofmt -r 'α[β:len(α)] -> α[β:]' -w $GOROOT/src
 
-The simplify command
+# The simplify command
 
 When invoked with -s gofmt will make the following source transformations where possible.
 

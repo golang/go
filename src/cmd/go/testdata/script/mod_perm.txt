@@ -1,0 +1,23 @@
+# go list should work in ordinary conditions.
+go list ./...
+! stdout _data
+
+# skip in conditions where chmod 0 may not work.
+# plan9 should be fine, but copied from list_perm.txt unchanged.
+[root] skip
+[GOOS:windows] skip
+[GOOS:plan9] skip
+
+# go list should work with unreadable _data directory.
+chmod 0 _data
+go list ./...
+! stdout _data
+
+-- go.mod --
+module m
+
+-- x.go --
+package m
+
+-- _data/x.go --
+package p

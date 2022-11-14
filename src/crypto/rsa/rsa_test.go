@@ -7,26 +7,29 @@ package rsa
 import (
 	"bytes"
 	"crypto"
+	"crypto/internal/boring"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
+	"fmt"
 	"math/big"
 	"testing"
 )
 
 func TestKeyGeneration(t *testing.T) {
-	size := 1024
-	if testing.Short() {
-		size = 128
+	for _, size := range []int{128, 1024, 2048, 3072} {
+		priv, err := GenerateKey(rand.Reader, size)
+		if err != nil {
+			t.Errorf("GenerateKey(%d): %v", size, err)
+		}
+		if bits := priv.N.BitLen(); bits != size {
+			t.Errorf("key too short (%d vs %d)", bits, size)
+		}
+		testKeyBasics(t, priv)
+		if testing.Short() {
+			break
+		}
 	}
-	priv, err := GenerateKey(rand.Reader, size)
-	if err != nil {
-		t.Errorf("failed to generate key")
-	}
-	if bits := priv.N.BitLen(); bits != size {
-		t.Errorf("key too short (%d vs %d)", bits, size)
-	}
-	testKeyBasics(t, priv)
 }
 
 func Test3PrimeKeyGeneration(t *testing.T) {
@@ -110,6 +113,25 @@ func testKeyBasics(t *testing.T, priv *PrivateKey) {
 		t.Errorf("private exponent too large")
 	}
 
+	if boring.Enabled {
+		// Cannot call encrypt/decrypt directly. Test via PKCS1v15.
+		msg := []byte("hi!")
+		enc, err := EncryptPKCS1v15(rand.Reader, &priv.PublicKey, msg)
+		if err != nil {
+			t.Errorf("EncryptPKCS1v15: %v", err)
+			return
+		}
+		dec, err := DecryptPKCS1v15(rand.Reader, priv, enc)
+		if err != nil {
+			t.Errorf("DecryptPKCS1v15: %v", err)
+			return
+		}
+		if !bytes.Equal(dec, msg) {
+			t.Errorf("got:%x want:%x (%+v)", dec, msg, priv)
+		}
+		return
+	}
+
 	pub := &priv.PublicKey
 	m := big.NewInt(42)
 	c := encrypt(new(big.Int), pub, m)
@@ -158,6 +180,10 @@ func init() {
 }
 
 func BenchmarkRSA2048Decrypt(b *testing.B) {
+	if boring.Enabled {
+		b.Skip("no raw decrypt in BoringCrypto")
+	}
+
 	b.StopTimer()
 
 	c := fromBase10("8472002792838218989464636159316973636630013835787202418124758118372358261975764365740026024610403138425986214991379012696600761514742817632790916315594342398720903716529235119816755589383377471752116975374952783629225022962092351886861518911824745188989071172097120352727368980275252089141512321893536744324822590480751098257559766328893767334861211872318961900897793874075248286439689249972315699410830094164386544311554704755110361048571142336148077772023880664786019636334369759624917224888206329520528064315309519262325023881707530002540634660750469137117568199824615333883758410040459705787022909848740188613313")
@@ -180,6 +206,10 @@ func BenchmarkRSA2048Sign(b *testing.B) {
 }
 
 func Benchmark3PrimeRSA2048Decrypt(b *testing.B) {
+	if boring.Enabled {
+		b.Skip("no raw decrypt in BoringCrypto")
+	}
+
 	b.StopTimer()
 	priv := &PrivateKey{
 		PublicKey: PublicKey{
@@ -222,7 +252,7 @@ func TestEncryptOAEP(t *testing.T) {
 	n := new(big.Int)
 	for i, test := range testEncryptOAEPData {
 		n.SetString(test.modulus, 16)
-		public := PublicKey{n, test.e}
+		public := PublicKey{N: n, E: test.e}
 
 		for j, message := range test.msgs {
 			randomSource := bytes.NewReader(message.seed)
@@ -247,7 +277,7 @@ func TestDecryptOAEP(t *testing.T) {
 		n.SetString(test.modulus, 16)
 		d.SetString(test.d, 16)
 		private := new(PrivateKey)
-		private.PublicKey = PublicKey{n, test.e}
+		private.PublicKey = PublicKey{N: n, E: test.e}
 		private.D = d
 
 		for j, message := range test.msgs {
@@ -268,6 +298,61 @@ func TestDecryptOAEP(t *testing.T) {
 		}
 		if testing.Short() {
 			break
+		}
+	}
+}
+
+func Test2DecryptOAEP(t *testing.T) {
+	random := rand.Reader
+
+	msg := []byte{0xed, 0x36, 0x90, 0x8d, 0xbe, 0xfc, 0x35, 0x40, 0x70, 0x4f, 0xf5, 0x9d, 0x6e, 0xc2, 0xeb, 0xf5, 0x27, 0xae, 0x65, 0xb0, 0x59, 0x29, 0x45, 0x25, 0x8c, 0xc1, 0x91, 0x22}
+	in := []byte{0x72, 0x26, 0x84, 0xc9, 0xcf, 0xd6, 0xa8, 0x96, 0x04, 0x3e, 0x34, 0x07, 0x2c, 0x4f, 0xe6, 0x52, 0xbe, 0x46, 0x3c, 0xcf, 0x79, 0x21, 0x09, 0x64, 0xe7, 0x33, 0x66, 0x9b, 0xf8, 0x14, 0x22, 0x43, 0xfe, 0x8e, 0x52, 0x8b, 0xe0, 0x5f, 0x98, 0xef, 0x54, 0xac, 0x6b, 0xc6, 0x26, 0xac, 0x5b, 0x1b, 0x4b, 0x7d, 0x2e, 0xd7, 0x69, 0x28, 0x5a, 0x2f, 0x4a, 0x95, 0x89, 0x6c, 0xc7, 0x53, 0x95, 0xc7, 0xd2, 0x89, 0x04, 0x6f, 0x94, 0x74, 0x9b, 0x09, 0x0d, 0xf4, 0x61, 0x2e, 0xab, 0x48, 0x57, 0x4a, 0xbf, 0x95, 0xcb, 0xff, 0x15, 0xe2, 0xa0, 0x66, 0x58, 0xf7, 0x46, 0xf8, 0xc7, 0x0b, 0xb5, 0x1e, 0xa7, 0xba, 0x36, 0xce, 0xdd, 0x36, 0x41, 0x98, 0x6e, 0x10, 0xf9, 0x3b, 0x70, 0xbb, 0xa1, 0xda, 0x00, 0x40, 0xd5, 0xa5, 0x3f, 0x87, 0x64, 0x32, 0x7c, 0xbc, 0x50, 0x52, 0x0e, 0x4f, 0x21, 0xbd}
+
+	n := new(big.Int)
+	d := new(big.Int)
+	n.SetString(testEncryptOAEPData[0].modulus, 16)
+	d.SetString(testEncryptOAEPData[0].d, 16)
+	priv := new(PrivateKey)
+	priv.PublicKey = PublicKey{N: n, E: testEncryptOAEPData[0].e}
+	priv.D = d
+	sha1 := crypto.SHA1
+	sha256 := crypto.SHA256
+
+	out, err := priv.Decrypt(random, in, &OAEPOptions{MGFHash: sha1, Hash: sha256})
+
+	if err != nil {
+		t.Errorf("error: %s", err)
+	} else if !bytes.Equal(out, msg) {
+		t.Errorf("bad result %#v (want %#v)", out, msg)
+	}
+}
+
+func TestEncryptDecryptOAEP(t *testing.T) {
+	sha256 := sha256.New()
+	n := new(big.Int)
+	d := new(big.Int)
+	for i, test := range testEncryptOAEPData {
+		n.SetString(test.modulus, 16)
+		d.SetString(test.d, 16)
+		priv := new(PrivateKey)
+		priv.PublicKey = PublicKey{N: n, E: test.e}
+		priv.D = d
+
+		for j, message := range test.msgs {
+			label := []byte(fmt.Sprintf("hi#%d", j))
+			enc, err := EncryptOAEP(sha256, rand.Reader, &priv.PublicKey, message.in, label)
+			if err != nil {
+				t.Errorf("#%d,%d: EncryptOAEP: %v", i, j, err)
+				continue
+			}
+			dec, err := DecryptOAEP(sha256, rand.Reader, priv, enc, label)
+			if err != nil {
+				t.Errorf("#%d,%d: DecryptOAEP: %v", i, j, err)
+				continue
+			}
+			if !bytes.Equal(dec, message.in) {
+				t.Errorf("#%d,%d: round trip %q -> %q", i, j, message.in, dec)
+			}
 		}
 	}
 }

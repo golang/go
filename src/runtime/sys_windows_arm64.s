@@ -7,6 +7,7 @@
 #include "textflag.h"
 #include "funcdata.h"
 #include "time_windows.h"
+#include "cgo/abi_arm64.h"
 
 // Offsets into Thread Environment Block (pointer in R18)
 #define TEB_error 0x68
@@ -112,7 +113,8 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$16-0
 	MOVD	$runtime·badsignalmsg(SB), R1	// lpBuffer
 	MOVD	$runtime·badsignallen(SB), R2	// lpNumberOfBytesToWrite
 	MOVD	(R2), R2
-	MOVD	R13, R3		// lpNumberOfBytesWritten
+	// point R3 to stack local that will receive number of bytes written
+	ADD	$16, RSP, R3		// lpNumberOfBytesWritten
 	MOVD	$0, R4			// lpOverlapped
 	MOVD	runtime·_WriteFile(SB), R12
 	SUB	$16, RSP	// skip over saved frame pointer below RSP
@@ -127,30 +129,6 @@ TEXT runtime·getlasterror(SB),NOSPLIT|NOFRAME,$0
 	MOVD	TEB_error(R18_PLATFORM), R0
 	MOVD	R0, ret+0(FP)
 	RET
-
-#define SAVE_R19_TO_R28(offset) \
-	MOVD	R19, savedR19+((offset)+0*8)(SP); \
-	MOVD	R20, savedR20+((offset)+1*8)(SP); \
-	MOVD	R21, savedR21+((offset)+2*8)(SP); \
-	MOVD	R22, savedR22+((offset)+3*8)(SP); \
-	MOVD	R23, savedR23+((offset)+4*8)(SP); \
-	MOVD	R24, savedR24+((offset)+5*8)(SP); \
-	MOVD	R25, savedR25+((offset)+6*8)(SP); \
-	MOVD	R26, savedR26+((offset)+7*8)(SP); \
-	MOVD	R27, savedR27+((offset)+8*8)(SP); \
-	MOVD	g, savedR28+((offset)+9*8)(SP);
-
-#define RESTORE_R19_TO_R28(offset) \
-	MOVD	savedR19+((offset)+0*8)(SP), R19; \
-	MOVD	savedR20+((offset)+1*8)(SP), R20; \
-	MOVD	savedR21+((offset)+2*8)(SP), R21; \
-	MOVD	savedR22+((offset)+3*8)(SP), R22; \
-	MOVD	savedR23+((offset)+4*8)(SP), R23; \
-	MOVD	savedR24+((offset)+5*8)(SP), R24; \
-	MOVD	savedR25+((offset)+6*8)(SP), R25; \
-	MOVD	savedR26+((offset)+7*8)(SP), R26; \
-	MOVD	savedR27+((offset)+8*8)(SP), R27; \
-	MOVD	savedR28+((offset)+9*8)(SP), g; /* R28 */
 
 // Called by Windows as a Vectored Exception Handler (VEH).
 // First argument is pointer to struct containing
@@ -169,10 +147,15 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	g, R17 			// saved R28 (callee-save from Windows, not really g)
 
 	BL      runtime·load_g(SB)	// smashes R0, R27, R28 (g)
-	CMP	$0, g			// is there a current g?
-	BNE	2(PC)
-	BL	runtime·badsignal2(SB)
+	CMP	$0,	g		// is there a current g?
+	BNE	g_ok
+	MOVD	R7, LR
+	MOVD	R16, R27	// restore R27
+	MOVD	R17, g		// restore R28
+	MOVD	$0, R0		// continue 
+	RET
 
+g_ok:
 	// Do we need to switch to the g0 stack?
 	MOVD	g, R3			// R3 = oldg (for sigtramp_g0)
 	MOVD	g_m(g), R2		// R2 = m
@@ -221,7 +204,8 @@ TEXT sigtramp_g0<>(SB),NOSPLIT,$128
 	NO_LOCAL_POINTERS
 
 	// Push C callee-save registers R19-R28. LR, FP already saved.
-	SAVE_R19_TO_R28(-10*8)
+	// These registers will occupy the upper 10 words of the frame.
+	SAVE_R19_TO_R28(8*7)
 
 	MOVD	0(R0), R5	// R5 = ExceptionPointers->ExceptionRecord
 	MOVD	8(R0), R6	// R6 = ExceptionPointers->ContextRecord
@@ -275,7 +259,7 @@ TEXT sigtramp_g0<>(SB),NOSPLIT,$128
 	MOVD	R2, context_pc(R6)
 
 return:
-	RESTORE_R19_TO_R28(-10*8)		// smashes g
+	RESTORE_R19_TO_R28(8*7)		// smashes g
 	RET
 
 // Trampoline to resume execution from exception handler.
@@ -317,18 +301,14 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
 	// but we are not called from Go so that space is ours to use,
 	// and we must to be contiguous with the stack arguments.
 	MOVD	$arg0-(7*8)(SP), R14
-	MOVD	R0, (0*8)(R14)
-	MOVD	R1, (1*8)(R14)
-	MOVD	R2, (2*8)(R14)
-	MOVD	R3, (3*8)(R14)
-	MOVD	R4, (4*8)(R14)
-	MOVD	R5, (5*8)(R14)
-	MOVD	R6, (6*8)(R14)
-	MOVD	R7, (7*8)(R14)
+	STP	(R0, R1), (0*8)(R14)
+	STP	(R2, R3), (2*8)(R14)
+	STP	(R4, R5), (4*8)(R14)
+	STP	(R6, R7), (6*8)(R14)
 
 	// Push C callee-save registers R19-R28.
 	// LR, FP already saved.
-	SAVE_R19_TO_R28(-18*8)
+	SAVE_R19_TO_R28(8*9)
 
 	// Create a struct callbackArgs on our stack.
 	MOVD	$cbargs-(18*8+callbackArgs__size)(SP), R13
@@ -342,8 +322,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
 	MOVD	$·callbackWrap<ABIInternal>(SB), R0	// PC of function to call, cgocallback takes an ABIInternal entry-point
 	MOVD	R13, R1	// frame (&callbackArgs{...})
 	MOVD	$0, R2	// context
-	MOVD	R0, (1*8)(RSP)
-	MOVD	R1, (2*8)(RSP)
+	STP	(R0, R1), (1*8)(RSP)
 	MOVD	R2, (3*8)(RSP)
 	BL	runtime·cgocallback(SB)
 
@@ -351,13 +330,13 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
 	MOVD	$cbargs-(18*8+callbackArgs__size)(SP), R13
 	MOVD	callbackArgs_result(R13), R0
 
-	RESTORE_R19_TO_R28(-18*8)
+	RESTORE_R19_TO_R28(8*9)
 
 	RET
 
 // uint32 tstart_stdcall(M *newm);
 TEXT runtime·tstart_stdcall(SB),NOSPLIT,$96-0
-	SAVE_R19_TO_R28(-10*8)
+	SAVE_R19_TO_R28(8*3)
 
 	MOVD	m_g0(R0), g
 	MOVD	R0, g_m(g)
@@ -374,7 +353,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$96-0
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 	BL	runtime·mstart(SB)
 
-	RESTORE_R19_TO_R28(-10*8)
+	RESTORE_R19_TO_R28(8*3)
 
 	// Exit the thread.
 	MOVD	$0, R0
@@ -398,7 +377,7 @@ TEXT runtime·usleep2(SB),NOSPLIT,$32-4
 // Runs on OS stack.
 // duration (in -100ns units) is in dt+0(FP).
 // g is valid.
-// TODO: neeeds to be implemented properly.
+// TODO: needs to be implemented properly.
 TEXT runtime·usleep2HighRes(SB),NOSPLIT,$0-4
 	B	runtime·abort(SB)
 
@@ -415,15 +394,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT|NOFRAME,$0-8
 	CMP	$0, R0
 	BNE	useQPC
 	MOVD	$_INTERRUPT_TIME, R3
-loop:
-	MOVWU	time_hi1(R3), R1
-	MOVWU	time_lo(R3), R0
-	MOVWU	time_hi2(R3), R2
-	CMP	R1, R2
-	BNE	loop
-
-	// wintime = R1:R0, multiply by 100
-	ORR	R1<<32, R0
+	MOVD	time_lo(R3), R0
 	MOVD	$100, R1
 	MUL	R1, R0
 	MOVD	R0, ret+0(FP)

@@ -7,14 +7,16 @@ package runtime
 // Metrics implementation exported to runtime/metrics.
 
 import (
-	"runtime/internal/atomic"
 	"unsafe"
 )
 
 var (
-	// metrics is a map of runtime/metrics keys to
-	// data used by the runtime to sample each metric's
-	// value.
+	// metrics is a map of runtime/metrics keys to data used by the runtime
+	// to sample each metric's value. metricsInit indicates it has been
+	// initialized.
+	//
+	// These fields are protected by metricsSema which should be
+	// locked/unlocked with metricsLock() / metricsUnlock().
 	metricsSema uint32 = 1
 	metricsInit bool
 	metrics     map[string]metricData
@@ -32,6 +34,23 @@ type metricData struct {
 	// compute is a function that populates a metricValue
 	// given a populated statAggregate structure.
 	compute func(in *statAggregate, out *metricValue)
+}
+
+func metricsLock() {
+	// Acquire the metricsSema but with handoff. Operations are typically
+	// expensive enough that queueing up goroutines and handing off between
+	// them will be noticeably better-behaved.
+	semacquire1(&metricsSema, true, 0, 0, waitReasonSemacquire)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&metricsSema))
+	}
+}
+
+func metricsUnlock() {
+	if raceenabled {
+		racerelease(unsafe.Pointer(&metricsSema))
+	}
+	semrelease(&metricsSema)
 }
 
 // initMetrics initializes the metrics map if it hasn't been yet.
@@ -65,6 +84,89 @@ func initMetrics() {
 
 	timeHistBuckets = timeHistogramMetricsBuckets()
 	metrics = map[string]metricData{
+		"/cgo/go-to-c-calls:calls": {
+			compute: func(_ *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(NumCgoCall())
+			},
+		},
+		"/cpu/classes/gc/mark/assist:cpu-seconds": {
+			deps: makeStatDepSet(cpuStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(in.cpuStats.gcAssistTime))
+			},
+		},
+		"/cpu/classes/gc/mark/dedicated:cpu-seconds": {
+			deps: makeStatDepSet(cpuStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(in.cpuStats.gcDedicatedTime))
+			},
+		},
+		"/cpu/classes/gc/mark/idle:cpu-seconds": {
+			deps: makeStatDepSet(cpuStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(in.cpuStats.gcIdleTime))
+			},
+		},
+		"/cpu/classes/gc/pause:cpu-seconds": {
+			deps: makeStatDepSet(cpuStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(in.cpuStats.gcPauseTime))
+			},
+		},
+		"/cpu/classes/gc/total:cpu-seconds": {
+			deps: makeStatDepSet(cpuStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(in.cpuStats.gcTotalTime))
+			},
+		},
+		"/cpu/classes/idle:cpu-seconds": {
+			deps: makeStatDepSet(cpuStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(in.cpuStats.idleTime))
+			},
+		},
+		"/cpu/classes/scavenge/assist:cpu-seconds": {
+			deps: makeStatDepSet(cpuStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeAssistTime))
+			},
+		},
+		"/cpu/classes/scavenge/background:cpu-seconds": {
+			deps: makeStatDepSet(cpuStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeBgTime))
+			},
+		},
+		"/cpu/classes/scavenge/total:cpu-seconds": {
+			deps: makeStatDepSet(cpuStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeTotalTime))
+			},
+		},
+		"/cpu/classes/total:cpu-seconds": {
+			deps: makeStatDepSet(cpuStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(in.cpuStats.totalTime))
+			},
+		},
+		"/cpu/classes/user:cpu-seconds": {
+			deps: makeStatDepSet(cpuStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(in.cpuStats.userTime))
+			},
+		},
 		"/gc/cycles/automatic:gc-cycles": {
 			deps: makeStatDepSet(sysStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
@@ -159,16 +261,29 @@ func initMetrics() {
 				out.scalar = uint64(in.heapStats.tinyAllocCount)
 			},
 		},
+		"/gc/limiter/last-enabled:gc-cycle": {
+			compute: func(_ *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(gcCPULimiter.lastEnabledCycle.Load())
+			},
+		},
 		"/gc/pauses:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(timeHistBuckets)
 				// The bottom-most bucket, containing negative values, is tracked
 				// as a separately as underflow, so fill that in manually and then
 				// iterate over the rest.
-				hist.counts[0] = atomic.Load64(&memstats.gcPauseDist.underflow)
+				hist.counts[0] = memstats.gcPauseDist.underflow.Load()
 				for i := range memstats.gcPauseDist.counts {
-					hist.counts[i+1] = atomic.Load64(&memstats.gcPauseDist.counts[i])
+					hist.counts[i+1] = memstats.gcPauseDist.counts[i].Load()
 				}
+				hist.counts[len(hist.counts)-1] = memstats.gcPauseDist.overflow.Load()
+			},
+		},
+		"/gc/stack/starting-size:bytes": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(startingStackSize)
 			},
 		},
 		"/memory/classes/heap/free:bytes": {
@@ -274,6 +389,12 @@ func initMetrics() {
 					in.sysStats.gcMiscSys + in.sysStats.otherSys
 			},
 		},
+		"/sched/gomaxprocs:threads": {
+			compute: func(_ *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(gomaxprocs)
+			},
+		},
 		"/sched/goroutines:goroutines": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
@@ -283,10 +404,17 @@ func initMetrics() {
 		"/sched/latencies:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(timeHistBuckets)
-				hist.counts[0] = atomic.Load64(&sched.timeToRun.underflow)
+				hist.counts[0] = sched.timeToRun.underflow.Load()
 				for i := range sched.timeToRun.counts {
-					hist.counts[i+1] = atomic.Load64(&sched.timeToRun.counts[i])
+					hist.counts[i+1] = sched.timeToRun.counts[i].Load()
 				}
+				hist.counts[len(hist.counts)-1] = sched.timeToRun.overflow.Load()
+			},
+		},
+		"/sync/mutex/wait/total:seconds": {
+			compute: func(_ *statAggregate, out *metricValue) {
+				out.kind = metricKindFloat64
+				out.scalar = float64bits(nsToSec(sched.totalMutexWaitTime.Load()))
 			},
 		},
 	}
@@ -300,6 +428,7 @@ type statDep uint
 const (
 	heapStatsDep statDep = iota // corresponds to heapStatsAggregate
 	sysStatsDep                 // corresponds to sysStatsAggregate
+	cpuStatsDep                 // corresponds to cpuStatsAggregate
 	numStatsDeps
 )
 
@@ -388,13 +517,13 @@ func (a *heapStatsAggregate) compute() {
 	memstats.heapStats.read(&a.heapStatsDelta)
 
 	// Calculate derived stats.
-	a.totalAllocs = uint64(a.largeAllocCount)
-	a.totalFrees = uint64(a.largeFreeCount)
-	a.totalAllocated = uint64(a.largeAlloc)
-	a.totalFreed = uint64(a.largeFree)
+	a.totalAllocs = a.largeAllocCount
+	a.totalFrees = a.largeFreeCount
+	a.totalAllocated = a.largeAlloc
+	a.totalFreed = a.largeFree
 	for i := range a.smallAllocCount {
-		na := uint64(a.smallAllocCount[i])
-		nf := uint64(a.smallFreeCount[i])
+		na := a.smallAllocCount[i]
+		nf := a.smallFreeCount[i]
 		a.totalAllocs += na
 		a.totalFrees += nf
 		a.totalAllocated += na * uint64(class_to_size[i])
@@ -431,7 +560,7 @@ func (a *sysStatsAggregate) compute() {
 	a.buckHashSys = memstats.buckhash_sys.load()
 	a.gcMiscSys = memstats.gcMiscSys.load()
 	a.otherSys = memstats.other_sys.load()
-	a.heapGoal = atomic.Load64(&gcController.heapGoal)
+	a.heapGoal = gcController.heapGoal()
 	a.gcCyclesDone = uint64(memstats.numgc)
 	a.gcCyclesForced = uint64(memstats.numforcedgc)
 
@@ -445,6 +574,23 @@ func (a *sysStatsAggregate) compute() {
 	})
 }
 
+// cpuStatsAggregate represents CPU stats obtained from the runtime
+// acquired together to avoid skew and inconsistencies.
+type cpuStatsAggregate struct {
+	cpuStats
+}
+
+// compute populates the cpuStatsAggregate with values from the runtime.
+func (a *cpuStatsAggregate) compute() {
+	a.cpuStats = work.cpuStats
+}
+
+// nsToSec takes a duration in nanoseconds and converts it to seconds as
+// a float64.
+func nsToSec(ns int64) float64 {
+	return float64(ns) / 1e9
+}
+
 // statAggregate is the main driver of the metrics implementation.
 //
 // It contains multiple aggregates of runtime statistics, as well
@@ -454,6 +600,7 @@ type statAggregate struct {
 	ensured   statDepSet
 	heapStats heapStatsAggregate
 	sysStats  sysStatsAggregate
+	cpuStats  cpuStatsAggregate
 }
 
 // ensure populates statistics aggregates determined by deps if they
@@ -472,12 +619,14 @@ func (a *statAggregate) ensure(deps *statDepSet) {
 			a.heapStats.compute()
 		case sysStatsDep:
 			a.sysStats.compute()
+		case cpuStatsDep:
+			a.cpuStats.compute()
 		}
 	}
 	a.ensured = a.ensured.union(missing)
 }
 
-// metricValidKind is a runtime copy of runtime/metrics.ValueKind and
+// metricKind is a runtime copy of runtime/metrics.ValueKind and
 // must be kept structurally identical to that type.
 type metricKind int
 
@@ -546,10 +695,7 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
 	sl := slice{samplesp, len, cap}
 	samples := *(*[]metricSample)(unsafe.Pointer(&sl))
 
-	// Acquire the metricsSema but with handoff. This operation
-	// is expensive enough that queueing up goroutines and handing
-	// off between them will be noticeably better-behaved.
-	semacquire1(&metricsSema, true, 0, 0)
+	metricsLock()
 
 	// Ensure the map is initialized.
 	initMetrics()
@@ -573,5 +719,5 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
 		data.compute(&agg, &sample.value)
 	}
 
-	semrelease(&metricsSema)
+	metricsUnlock()
 }

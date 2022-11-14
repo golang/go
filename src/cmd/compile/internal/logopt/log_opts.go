@@ -329,7 +329,7 @@ func NewLoggedOpt(pos src.XPos, what, pass, funcName string, args ...interface{}
 	return &LoggedOpt{pos, pass, funcName, what, args}
 }
 
-// Logopt logs information about a (usually missed) optimization performed by the compiler.
+// LogOpt logs information about a (usually missed) optimization performed by the compiler.
 // Pos is the source position (including inlining), what is the message, pass is which pass created the message,
 // funcName is the name of the function
 func LogOpt(pos src.XPos, what, pass, funcName string, args ...interface{}) {
@@ -376,7 +376,7 @@ func writerForLSP(subdirpath, file string) io.WriteCloser {
 	if lastdot != -1 {
 		basename = basename[:lastdot]
 	}
-	basename = pathEscape(basename)
+	basename = url.PathEscape(basename)
 
 	// Assume a directory, make a file
 	p := filepath.Join(subdirpath, basename+".json")
@@ -405,7 +405,10 @@ func uriIfy(f string) DocumentURI {
 // Return filename, replacing a first occurrence of $GOROOT with the
 // actual value of the GOROOT (because LSP does not speak "$GOROOT").
 func uprootedPath(filename string) string {
-	if !strings.HasPrefix(filename, "$GOROOT/") {
+	if filename == "" {
+		return "__unnamed__"
+	}
+	if buildcfg.GOROOT == "" || !strings.HasPrefix(filename, "$GOROOT/") {
 		return filename
 	}
 	return buildcfg.GOROOT + filename[len("$GOROOT"):]
@@ -428,7 +431,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 		if slashPkgPath == "" {
 			slashPkgPath = "\000"
 		}
-		subdirpath := filepath.Join(dest, pathEscape(slashPkgPath))
+		subdirpath := filepath.Join(dest, url.PathEscape(slashPkgPath))
 		err := os.MkdirAll(subdirpath, 0755)
 		if err != nil {
 			log.Fatalf("Could not create directory %s for logging optimizer actions, %v", subdirpath, err)

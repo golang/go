@@ -14,6 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"go/build/constraint"
 	"hash/fnv"
 	"io"
 	"io/fs"
@@ -28,6 +29,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 )
@@ -44,7 +46,6 @@ var (
 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
 	force          = flag.Bool("f", false, "ignore expected-failure test lists")
-	generics       = flag.String("G", defaultGLevels, "a comma-separated list of -G compiler flags to test with")
 
 	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
 	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
@@ -58,7 +59,7 @@ type envVars struct {
 }
 
 var env = func() (res envVars) {
-	cmd := exec.Command("go", "env", "-json")
+	cmd := exec.Command(goTool(), "env", "-json")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Fatal("StdoutPipe:", err)
@@ -75,21 +76,13 @@ var env = func() (res envVars) {
 	return
 }()
 
-var unifiedEnabled, defaultGLevels = func() (bool, string) {
-	// TODO(mdempsky): This will give false negatives if the unified
-	// experiment is enabled by default, but presumably at that point we
-	// won't need to disable tests for it anymore anyway.
-	enabled := strings.Contains(","+env.GOEXPERIMENT+",", ",unified,")
-
-	// Normal test runs should test with both -G=0 and -G=3 for types2
-	// coverage. But the unified experiment always uses types2, so
-	// testing with -G=3 is redundant.
-	glevels := "0,3"
-	if enabled {
-		glevels = "0"
+var unifiedEnabled = func() bool {
+	for _, tag := range build.Default.ToolTags {
+		if tag == "goexperiment.unified" {
+			return true
+		}
 	}
-
-	return enabled, glevels
+	return false
 }()
 
 // defaultAllCodeGen returns the default value of the -all_codegen
@@ -98,6 +91,10 @@ var unifiedEnabled, defaultGLevels = func() (bool, string) {
 // test coverage on trybots. See https://golang.org/issue/34297.
 func defaultAllCodeGen() bool {
 	return os.Getenv("GO_BUILDER_NAME") == "linux-amd64"
+}
+
+func optimizationOff() bool {
+	return strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt")
 }
 
 var (
@@ -128,15 +125,6 @@ const maxTests = 5000
 func main() {
 	flag.Parse()
 
-	var glevels []int
-	for _, s := range strings.Split(*generics, ",") {
-		glevel, err := strconv.Atoi(s)
-		if err != nil {
-			log.Fatalf("invalid -G flag: %v", err)
-		}
-		glevels = append(glevels, glevel)
-	}
-
 	findExecCmd()
 
 	// Disable parallelism if printing or if using a simulator.
@@ -161,11 +149,11 @@ func main() {
 			}
 			if fi, err := os.Stat(arg); err == nil && fi.IsDir() {
 				for _, baseGoFile := range goFiles(arg) {
-					tests = append(tests, startTests(arg, baseGoFile, glevels)...)
+					tests = append(tests, startTest(arg, baseGoFile))
 				}
 			} else if strings.HasSuffix(arg, ".go") {
 				dir, file := filepath.Split(arg)
-				tests = append(tests, startTests(dir, file, glevels)...)
+				tests = append(tests, startTest(dir, file))
 			} else {
 				log.Fatalf("can't yet deal with non-directory and non-go file %q", arg)
 			}
@@ -173,7 +161,7 @@ func main() {
 	} else {
 		for _, dir := range dirs {
 			for _, baseGoFile := range goFiles(dir) {
-				tests = append(tests, startTests(dir, baseGoFile, glevels)...)
+				tests = append(tests, startTest(dir, baseGoFile))
 			}
 		}
 	}
@@ -206,8 +194,7 @@ func main() {
 		resCount[status]++
 		dt := fmt.Sprintf("%.3fs", test.dt.Seconds())
 		if status == "FAIL" {
-			fmt.Printf("# go run run.go -G=%v %s\n%s\nFAIL\t%s\t%s\n",
-				test.glevel,
+			fmt.Printf("# go run run.go -- %s\n%s\nFAIL\t%s\t%s\n",
 				path.Join(test.dir, test.gofile),
 				errStr, test.goFileName(), dt)
 			continue
@@ -277,7 +264,7 @@ func goFiles(dir string) []string {
 type runCmd func(...string) ([]byte, error)
 
 func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, err error) {
-	cmd := []string{goTool(), "tool", "compile", "-e"}
+	cmd := []string{goTool(), "tool", "compile", "-e", "-p=p", "-importcfg=" + stdlibImportcfgFile()}
 	cmd = append(cmd, flags...)
 	if *linkshared {
 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
@@ -286,11 +273,16 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
 	return runcmd(cmd...)
 }
 
-func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, names ...string) (out []byte, err error) {
-	cmd := []string{goTool(), "tool", "compile", "-e"}
-	if localImports {
-		// Set relative path for local imports and import search path to current dir.
-		cmd = append(cmd, "-D", ".", "-I", ".")
+func compileInDir(runcmd runCmd, dir string, flags []string, importcfg string, pkgname string, names ...string) (out []byte, err error) {
+	if importcfg == "" {
+		importcfg = stdlibImportcfgFile()
+	}
+	cmd := []string{goTool(), "tool", "compile", "-e", "-D", "test", "-importcfg=" + importcfg}
+	if pkgname == "main" {
+		cmd = append(cmd, "-p=main")
+	} else {
+		pkgname = path.Join("test", strings.TrimSuffix(names[0], ".go"))
+		cmd = append(cmd, "-o", pkgname+".a", "-p", pkgname)
 	}
 	cmd = append(cmd, flags...)
 	if *linkshared {
@@ -302,9 +294,41 @@ func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, 
 	return runcmd(cmd...)
 }
 
-func linkFile(runcmd runCmd, goname string, ldflags []string) (err error) {
+var stdlibImportcfgString string
+var stdlibImportcfgFilename string
+var cfgonce sync.Once
+var fileonce sync.Once
+
+func stdlibImportcfg() string {
+	cfgonce.Do(func() {
+		output, err := exec.Command(goTool(), "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std").Output()
+		if err != nil {
+			log.Fatal(err)
+		}
+		stdlibImportcfgString = string(output)
+	})
+	return stdlibImportcfgString
+}
+
+func stdlibImportcfgFile() string {
+	fileonce.Do(func() {
+		tmpdir, err := os.MkdirTemp("", "importcfg")
+		if err != nil {
+			log.Fatal(err)
+		}
+		filename := filepath.Join(tmpdir, "importcfg")
+		os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
+		stdlibImportcfgFilename = filename
+	})
+	return stdlibImportcfgFilename
+}
+
+func linkFile(runcmd runCmd, goname string, importcfg string, ldflags []string) (err error) {
+	if importcfg == "" {
+		importcfg = stdlibImportcfgFile()
+	}
 	pfile := strings.Replace(goname, ".go", ".o", -1)
-	cmd := []string{goTool(), "tool", "link", "-w", "-o", "a.exe", "-L", "."}
+	cmd := []string{goTool(), "tool", "link", "-w", "-o", "a.exe", "-importcfg=" + importcfg}
 	if *linkshared {
 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
 	}
@@ -326,7 +350,6 @@ type test struct {
 	dir, gofile string
 	donec       chan bool // closed when done
 	dt          time.Duration
-	glevel      int // what -G level this test should use
 
 	src string
 
@@ -334,14 +357,13 @@ type test struct {
 	err     error
 
 	// expectFail indicates whether the (overall) test recipe is
-	// expected to fail under the current test configuration (e.g., -G=3
-	// or GOEXPERIMENT=unified).
+	// expected to fail under the current test configuration (e.g.,
+	// GOEXPERIMENT=unified).
 	expectFail bool
 }
 
 // initExpectFail initializes t.expectFail based on the build+test
-// configuration. It should only be called for tests known to use
-// types2.
+// configuration.
 func (t *test) initExpectFail() {
 	if *force {
 		return
@@ -356,10 +378,8 @@ func (t *test) initExpectFail() {
 		failureSets = append(failureSets, types2Failures32Bit)
 	}
 
-	if unifiedEnabled {
-		failureSets = append(failureSets, unifiedFailures)
-	} else {
-		failureSets = append(failureSets, g3Failures)
+	if !unifiedEnabled {
+		failureSets = append(failureSets, go118Failures)
 	}
 
 	filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
@@ -372,27 +392,22 @@ func (t *test) initExpectFail() {
 	}
 }
 
-func startTests(dir, gofile string, glevels []int) []*test {
-	tests := make([]*test, len(glevels))
-	for i, glevel := range glevels {
-		t := &test{
-			dir:    dir,
-			gofile: gofile,
-			glevel: glevel,
-			donec:  make(chan bool, 1),
-		}
-		if toRun == nil {
-			toRun = make(chan *test, maxTests)
-			go runTests()
-		}
-		select {
-		case toRun <- t:
-		default:
-			panic("toRun buffer size (maxTests) is too small")
-		}
-		tests[i] = t
+func startTest(dir, gofile string) *test {
+	t := &test{
+		dir:    dir,
+		gofile: gofile,
+		donec:  make(chan bool, 1),
 	}
-	return tests
+	if toRun == nil {
+		toRun = make(chan *test, maxTests)
+		go runTests()
+	}
+	select {
+	case toRun <- t:
+	default:
+		panic("toRun buffer size (maxTests) is too small")
+	}
+	return t
 }
 
 // runTests runs tests in parallel, but respecting the order they
@@ -445,28 +460,33 @@ func getPackageNameFromSource(fn string) (string, error) {
 	return pkgname[1], nil
 }
 
+type goDirPkg struct {
+	name  string
+	files []string
+}
+
 // If singlefilepkgs is set, each file is considered a separate package
 // even if the package names are the same.
-func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
+func goDirPackages(longdir string, singlefilepkgs bool) ([]*goDirPkg, error) {
 	files, err := goDirFiles(longdir)
 	if err != nil {
 		return nil, err
 	}
-	var pkgs [][]string
-	m := make(map[string]int)
+	var pkgs []*goDirPkg
+	m := make(map[string]*goDirPkg)
 	for _, file := range files {
 		name := file.Name()
 		pkgname, err := getPackageNameFromSource(filepath.Join(longdir, name))
 		if err != nil {
 			log.Fatal(err)
 		}
-		i, ok := m[pkgname]
+		p, ok := m[pkgname]
 		if singlefilepkgs || !ok {
-			i = len(pkgs)
-			pkgs = append(pkgs, nil)
-			m[pkgname] = i
+			p = &goDirPkg{name: pkgname}
+			pkgs = append(pkgs, p)
+			m[pkgname] = p
 		}
-		pkgs[i] = append(pkgs[i], name)
+		p.files = append(p.files, name)
 	}
 	return pkgs, nil
 }
@@ -485,56 +505,30 @@ func shouldTest(src string, goos, goarch string) (ok bool, whyNot string) {
 		return true, ""
 	}
 	for _, line := range strings.Split(src, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "//") {
-			line = line[2:]
-		} else {
-			continue
-		}
-		line = strings.TrimSpace(line)
-		if len(line) == 0 || line[0] != '+' {
-			continue
-		}
-		gcFlags := os.Getenv("GO_GCFLAGS")
-		ctxt := &context{
-			GOOS:       goos,
-			GOARCH:     goarch,
-			cgoEnabled: cgoEnabled,
-			noOptEnv:   strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
+		if strings.HasPrefix(line, "package ") {
+			break
 		}
 
-		words := strings.Fields(line)
-		if words[0] == "+build" {
-			ok := false
-			for _, word := range words[1:] {
-				if ctxt.match(word) {
-					ok = true
-					break
-				}
+		if expr, err := constraint.Parse(line); err == nil {
+			gcFlags := os.Getenv("GO_GCFLAGS")
+			ctxt := &context{
+				GOOS:       goos,
+				GOARCH:     goarch,
+				cgoEnabled: cgoEnabled,
+				noOptEnv:   strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
 			}
-			if !ok {
-				// no matching tag found.
+
+			if !expr.Eval(ctxt.match) {
 				return false, line
 			}
 		}
 	}
-	// no build tags
 	return true, ""
 }
 
 func (ctxt *context) match(name string) bool {
 	if name == "" {
 		return false
-	}
-	if i := strings.Index(name, ","); i >= 0 {
-		// comma-separated list
-		return ctxt.match(name[:i]) && ctxt.match(name[i+1:])
-	}
-	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
-		return false
-	}
-	if strings.HasPrefix(name, "!") { // negation
-		return len(name) > 1 && !ctxt.match(name[1:])
 	}
 
 	// Tags must be letters, digits, underscores or dots.
@@ -573,22 +567,20 @@ func (ctxt *context) match(name string) bool {
 	return false
 }
 
-func init() { checkShouldTest() }
+func init() {
+	checkShouldTest()
+}
 
 // goGcflags returns the -gcflags argument to use with go build / go run.
 // This must match the flags used for building the standard library,
 // or else the commands will rebuild any needed packages (like runtime)
 // over and over.
 func (t *test) goGcflags() string {
-	flags := os.Getenv("GO_GCFLAGS")
-	if t.glevel != 0 {
-		flags = fmt.Sprintf("%s -G=%v", flags, t.glevel)
-	}
-	return "-gcflags=all=" + flags
+	return "-gcflags=all=" + os.Getenv("GO_GCFLAGS")
 }
 
 func (t *test) goGcflagsIsEmpty() bool {
-	return "" == os.Getenv("GO_GCFLAGS") && t.glevel == 0
+	return "" == os.Getenv("GO_GCFLAGS")
 }
 
 var errTimeout = errors.New("command exceeded time limit")
@@ -613,24 +605,23 @@ func (t *test) run() {
 	}
 
 	// Execution recipe stops at first blank line.
-	pos := strings.Index(t.src, "\n\n")
-	if pos == -1 {
+	action, _, ok := strings.Cut(t.src, "\n\n")
+	if !ok {
 		t.err = fmt.Errorf("double newline ending execution recipe not found in %s", t.goFileName())
 		return
 	}
-	action := t.src[:pos]
-	if nl := strings.Index(action, "\n"); nl >= 0 && strings.Contains(action[:nl], "+build") {
+	if firstLine, rest, ok := strings.Cut(action, "\n"); ok && strings.Contains(firstLine, "+build") {
 		// skip first line
-		action = action[nl+1:]
+		action = rest
 	}
 	action = strings.TrimPrefix(action, "//")
 
 	// Check for build constraints only up to the actual code.
-	pkgPos := strings.Index(t.src, "\npackage")
-	if pkgPos == -1 {
-		pkgPos = pos // some files are intentionally malformed
+	header, _, ok := strings.Cut(t.src, "\npackage")
+	if !ok {
+		header = action // some files are intentionally malformed
 	}
-	if ok, why := shouldTest(t.src[:pkgPos], goos, goarch); !ok {
+	if ok, why := shouldTest(header, goos, goarch); !ok {
 		if *showSkips {
 			fmt.Printf("%-20s %-20s: %s\n", "skip", t.goFileName(), why)
 		}
@@ -642,8 +633,6 @@ func (t *test) run() {
 	wantError := false
 	wantAuto := false
 	singlefilepkgs := false
-	setpkgpaths := false
-	localImports := true
 	f, err := splitQuoted(action)
 	if err != nil {
 		t.err = fmt.Errorf("invalid test recipe: %v", err)
@@ -687,20 +676,19 @@ func (t *test) run() {
 			wantError = false
 		case "-s":
 			singlefilepkgs = true
-		case "-P":
-			setpkgpaths = true
-		case "-n":
-			// Do not set relative path for local imports to current dir,
-			// e.g. do not pass -D . -I . to the compiler.
-			// Used in fixedbugs/bug345.go to allow compilation and import of local pkg.
-			// See golang.org/issue/25635
-			localImports = false
 		case "-t": // timeout in seconds
 			args = args[1:]
 			var err error
 			tim, err = strconv.Atoi(args[0])
 			if err != nil {
 				t.err = fmt.Errorf("need number of seconds for -t timeout, got %s instead", args[0])
+			}
+			if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+				timeoutScale, err := strconv.Atoi(s)
+				if err != nil {
+					log.Fatalf("failed to parse $GO_TEST_TIMEOUT_SCALE = %q as integer: %v", s, err)
+				}
+				tim *= timeoutScale
 			}
 		case "-goexperiment": // set GOEXPERIMENT environment
 			args = args[1:]
@@ -729,63 +717,7 @@ func (t *test) run() {
 		}
 	}
 
-	type Tool int
-
-	const (
-		_ Tool = iota
-		AsmCheck
-		Build
-		Run
-		Compile
-	)
-
-	// validForGLevel reports whether the current test is valid to run
-	// at the specified -G level. If so, it may update flags as
-	// necessary to test with -G.
-	validForGLevel := func(tool Tool) bool {
-		hasGFlag := false
-		for _, flag := range flags {
-			if strings.Contains(flag, "-G") {
-				hasGFlag = true
-			}
-		}
-
-		if hasGFlag && t.glevel != 0 {
-			// test provides explicit -G flag already; don't run again
-			if *verbose {
-				fmt.Printf("excl\t%s\n", t.goFileName())
-			}
-			return false
-		}
-
-		if t.glevel == 0 && !hasGFlag && !unifiedEnabled {
-			// tests should always pass when run w/o types2 (i.e., using the
-			// legacy typechecker).
-			return true
-		}
-
-		t.initExpectFail()
-
-		switch tool {
-		case Build, Run:
-			// ok; handled in goGcflags
-
-		case Compile:
-			if !hasGFlag {
-				flags = append(flags, fmt.Sprintf("-G=%v", t.glevel))
-			}
-
-		default:
-			// we don't know how to add -G for this test yet
-			if *verbose {
-				fmt.Printf("excl\t%s\n", t.goFileName())
-			}
-			return false
-		}
-
-		return true
-	}
-
+	t.initExpectFail()
 	t.makeTempDir()
 	if !*keep {
 		defer os.RemoveAll(t.tempDir)
@@ -822,6 +754,23 @@ func (t *test) run() {
 		if tempDirIsGOPATH {
 			cmd.Env = append(cmd.Env, "GOPATH="+t.tempDir)
 		}
+		cmd.Env = append(cmd.Env, "STDLIB_IMPORTCFG="+stdlibImportcfgFile())
+		// Put the bin directory of the GOROOT that built this program
+		// first in the path. This ensures that tests that use the "go"
+		// tool use the same one that built this program. This ensures
+		// that if you do "../bin/go run run.go" in this directory, all
+		// the tests that start subprocesses that "go tool compile" or
+		// whatever, use ../bin/go as their go tool, not whatever happens
+		// to be first in the user's path.
+		path := os.Getenv("PATH")
+		newdir := filepath.Join(runtime.GOROOT(), "bin")
+		if path != "" {
+			path = newdir + string(filepath.ListSeparator) + path
+		} else {
+			path = newdir
+		}
+		cmd.Env = append(cmd.Env, "PATH="+path)
+
 		cmd.Env = append(cmd.Env, runenv...)
 
 		var err error
@@ -829,6 +778,13 @@ func (t *test) run() {
 		if tim != 0 {
 			err = cmd.Start()
 			// This command-timeout code adapted from cmd/go/test.go
+			// Note: the Go command uses a more sophisticated timeout
+			// strategy, first sending SIGQUIT (if appropriate for the
+			// OS in question) to try to trigger a stack trace, then
+			// finally much later SIGKILL. If timeouts prove to be a
+			// common problem here, it would be worth porting over
+			// that code as well. See https://do.dev/issue/50973
+			// for more discussion.
 			if err == nil {
 				tick := time.NewTimer(time.Duration(tim) * time.Second)
 				done := make(chan error)
@@ -856,16 +812,23 @@ func (t *test) run() {
 		return buf.Bytes(), err
 	}
 
+	importcfg := func(dir string, pkgs []*goDirPkg) string {
+		cfg := stdlibImportcfg()
+		for _, pkg := range pkgs {
+			pkgpath := path.Join("test", strings.TrimSuffix(pkg.files[0], ".go"))
+			cfg += "\npackagefile " + pkgpath + "=" + filepath.Join(t.tempDir, pkgpath+".a")
+		}
+		filename := filepath.Join(t.tempDir, "importcfg")
+		os.WriteFile(filename, []byte(cfg), 0644)
+		return filename
+	}
+
 	long := filepath.Join(cwd, t.goFileName())
 	switch action {
 	default:
 		t.err = fmt.Errorf("unimplemented action %q", action)
 
 	case "asmcheck":
-		if !validForGLevel(AsmCheck) {
-			return
-		}
-
 		// Compile Go file and match the generated assembly
 		// against a set of regexps in comments.
 		ops := t.wantedAsmOpcodes(long)
@@ -920,15 +883,11 @@ func (t *test) run() {
 		return
 
 	case "errorcheck":
-		if !validForGLevel(Compile) {
-			return
-		}
-
 		// Compile Go file.
 		// Fail if wantError is true and compilation was successful and vice versa.
 		// Match errors produced by gc against errors in comments.
 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
-		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-C", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-p=p", "-d=panic", "-C", "-e", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.o"}
 		// No need to add -dynlink even if linkshared if we're just checking for errors...
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)
@@ -954,18 +913,10 @@ func (t *test) run() {
 		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
 
 	case "compile":
-		if !validForGLevel(Compile) {
-			return
-		}
-
 		// Compile Go file.
 		_, t.err = compileFile(runcmd, long, flags)
 
 	case "compiledir":
-		if !validForGLevel(Compile) {
-			return
-		}
-
 		// Compile all files in the directory as packages in lexicographic order.
 		longdir := filepath.Join(cwd, t.goDirName())
 		pkgs, err := goDirPackages(longdir, singlefilepkgs)
@@ -973,18 +924,16 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
-		for _, gofiles := range pkgs {
-			_, t.err = compileInDir(runcmd, longdir, flags, localImports, gofiles...)
+		importcfgfile := importcfg(longdir, pkgs)
+
+		for _, pkg := range pkgs {
+			_, t.err = compileInDir(runcmd, longdir, flags, importcfgfile, pkg.name, pkg.files...)
 			if t.err != nil {
 				return
 			}
 		}
 
 	case "errorcheckdir", "errorcheckandrundir":
-		if !validForGLevel(Compile) {
-			return
-		}
-
 		flags = append(flags, "-d=panic")
 		// Compile and errorCheck all files in the directory as packages in lexicographic order.
 		// If errorcheckdir and wantError, compilation of the last package must fail.
@@ -1001,8 +950,9 @@ func (t *test) run() {
 			// Preceding pkg must return an error from compileInDir.
 			errPkg--
 		}
-		for i, gofiles := range pkgs {
-			out, err := compileInDir(runcmd, longdir, flags, localImports, gofiles...)
+		importcfgfile := importcfg(longdir, pkgs)
+		for i, pkg := range pkgs {
+			out, err := compileInDir(runcmd, longdir, flags, importcfgfile, pkg.name, pkg.files...)
 			if i == errPkg {
 				if wantError && err == nil {
 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
@@ -1016,7 +966,7 @@ func (t *test) run() {
 				return
 			}
 			var fullshort []string
-			for _, name := range gofiles {
+			for _, name := range pkg.files {
 				fullshort = append(fullshort, filepath.Join(longdir, name), name)
 			}
 			t.err = t.errorCheck(string(out), wantAuto, fullshort...)
@@ -1030,10 +980,6 @@ func (t *test) run() {
 		fallthrough
 
 	case "rundir":
-		if !validForGLevel(Run) {
-			return
-		}
-
 		// Compile all files in the directory as packages in lexicographic order.
 		// In case of errorcheckandrundir, ignore failed compilation of the package before the last.
 		// Link as if the last file is the main package, run it.
@@ -1054,26 +1000,19 @@ func (t *test) run() {
 			}
 		}
 
-		for i, gofiles := range pkgs {
-			pflags := []string{}
-			pflags = append(pflags, flags...)
-			if setpkgpaths {
-				fp := filepath.Join(longdir, gofiles[0])
-				pkgname, err := getPackageNameFromSource(fp)
-				if err != nil {
-					log.Fatal(err)
-				}
-				pflags = append(pflags, "-p", pkgname)
-			}
-			_, err := compileInDir(runcmd, longdir, pflags, localImports, gofiles...)
+		importcfgfile := importcfg(longdir, pkgs)
+
+		for i, pkg := range pkgs {
+			_, err := compileInDir(runcmd, longdir, flags, importcfgfile, pkg.name, pkg.files...)
 			// Allow this package compilation fail based on conditions below;
 			// its errors were checked in previous case.
 			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
 				t.err = err
 				return
 			}
+
 			if i == len(pkgs)-1 {
-				err = linkFile(runcmd, gofiles[0], ldflags)
+				err = linkFile(runcmd, pkg.files[0], importcfgfile, ldflags)
 				if err != nil {
 					t.err = err
 					return
@@ -1092,10 +1031,6 @@ func (t *test) run() {
 		}
 
 	case "runindir":
-		if !validForGLevel(Run) {
-			return
-		}
-
 		// Make a shallow copy of t.goDirName() in its own module and GOPATH, and
 		// run "go run ." in it. The module path (and hence import path prefix) of
 		// the copy is equal to the basename of the source directory.
@@ -1135,21 +1070,16 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "build":
-		if !validForGLevel(Build) {
-			return
-		}
-
 		// Build Go file.
-		_, err := runcmd(goTool(), "build", t.goGcflags(), "-o", "a.exe", long)
+		cmd := []string{goTool(), "build", t.goGcflags()}
+		cmd = append(cmd, flags...)
+		cmd = append(cmd, "-o", "a.exe", long)
+		_, err := runcmd(cmd...)
 		if err != nil {
 			t.err = err
 		}
 
 	case "builddir", "buildrundir":
-		if !validForGLevel(Build) {
-			return
-		}
-
 		// Build an executable from all the .go and .s files in a subdirectory.
 		// Run it and verify its output in the buildrundir case.
 		longdir := filepath.Join(cwd, t.goDirName())
@@ -1175,7 +1105,7 @@ func (t *test) run() {
 				t.err = fmt.Errorf("write empty go_asm.h: %s", err)
 				return
 			}
-			cmd := []string{goTool(), "tool", "asm", "-gensymabis", "-o", "symabis"}
+			cmd := []string{goTool(), "tool", "asm", "-p=main", "-gensymabis", "-o", "symabis"}
 			cmd = append(cmd, asms...)
 			_, err = runcmd(cmd...)
 			if err != nil {
@@ -1184,7 +1114,7 @@ func (t *test) run() {
 			}
 		}
 		var objs []string
-		cmd := []string{goTool(), "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
+		cmd := []string{goTool(), "tool", "compile", "-p=main", "-e", "-D", ".", "-importcfg=" + stdlibImportcfgFile(), "-o", "go.o"}
 		if len(asms) > 0 {
 			cmd = append(cmd, "-asmhdr", "go_asm.h", "-symabis", "symabis")
 		}
@@ -1196,7 +1126,7 @@ func (t *test) run() {
 		}
 		objs = append(objs, "go.o")
 		if len(asms) > 0 {
-			cmd = []string{goTool(), "tool", "asm", "-e", "-I", ".", "-o", "asm.o"}
+			cmd = []string{goTool(), "tool", "asm", "-p=main", "-e", "-I", ".", "-o", "asm.o"}
 			cmd = append(cmd, asms...)
 			_, err = runcmd(cmd...)
 			if err != nil {
@@ -1212,7 +1142,7 @@ func (t *test) run() {
 			t.err = err
 			break
 		}
-		cmd = []string{goTool(), "tool", "link", "-o", "a.exe", "all.a"}
+		cmd = []string{goTool(), "tool", "link", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.exe", "all.a"}
 		_, err = runcmd(cmd...)
 		if err != nil {
 			t.err = err
@@ -1229,10 +1159,6 @@ func (t *test) run() {
 		}
 
 	case "buildrun":
-		if !validForGLevel(Build) {
-			return
-		}
-
 		// Build an executable from Go file, then run it, verify its output.
 		// Useful for timeout tests where failure mode is infinite loop.
 		// TODO: not supported on NaCl
@@ -1258,10 +1184,6 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "run":
-		if !validForGLevel(Run) {
-			return
-		}
-
 		// Run Go file if no special go command flags are provided;
 		// otherwise build an executable and run it.
 		// Verify the output.
@@ -1277,12 +1199,12 @@ func (t *test) run() {
 			// Because we run lots of trivial test programs,
 			// the time adds up.
 			pkg := filepath.Join(t.tempDir, "pkg.a")
-			if _, err := runcmd(goTool(), "tool", "compile", "-o", pkg, t.goFileName()); err != nil {
+			if _, err := runcmd(goTool(), "tool", "compile", "-p=main", "-importcfg="+stdlibImportcfgFile(), "-o", pkg, t.goFileName()); err != nil {
 				t.err = err
 				return
 			}
 			exe := filepath.Join(t.tempDir, "test.exe")
-			cmd := []string{goTool(), "tool", "link", "-s", "-w"}
+			cmd := []string{goTool(), "tool", "link", "-s", "-w", "-importcfg=" + stdlibImportcfgFile()}
 			cmd = append(cmd, "-o", exe, pkg)
 			if _, err := runcmd(cmd...); err != nil {
 				t.err = err
@@ -1305,10 +1227,6 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "runoutput":
-		if !validForGLevel(Run) {
-			return
-		}
-
 		// Run Go file and write its output into temporary Go file.
 		// Run generated Go file and verify its output.
 		rungatec <- true
@@ -1344,10 +1262,6 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "errorcheckoutput":
-		if !validForGLevel(Compile) {
-			return
-		}
-
 		// Run Go file and write its output into temporary Go file.
 		// Compile and errorCheck generated Go file.
 		runInDir = ""
@@ -1367,7 +1281,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-importcfg=" + stdlibImportcfgFile(), "-p=p", "-d=panic", "-e", "-o", "a.o"}
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, tfile)
 		out, err = runcmd(cmdline...)
@@ -1416,6 +1330,10 @@ func (t *test) makeTempDir() {
 	}
 	if *keep {
 		log.Printf("Temporary directory is %s", t.tempDir)
+	}
+	err = os.Mkdir(filepath.Join(t.tempDir, "test"), 0o755)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -1510,8 +1428,8 @@ func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (er
 			// Assume errmsg says "file:line: foo".
 			// Cut leading "file:line: " to avoid accidental matching of file name instead of message.
 			text := errmsg
-			if i := strings.Index(text, " "); i >= 0 {
-				text = text[i+1:]
+			if _, suffix, ok := strings.Cut(text, " "); ok {
+				text = suffix
 			}
 			if we.re.MatchString(text) {
 				matched = true
@@ -1556,31 +1474,26 @@ func (t *test) updateErrors(out, file string) {
 	}
 	lines := strings.Split(string(src), "\n")
 	// Remove old errors.
-	for i, ln := range lines {
-		pos := strings.Index(ln, " // ERROR ")
-		if pos >= 0 {
-			lines[i] = ln[:pos]
-		}
+	for i := range lines {
+		lines[i], _, _ = strings.Cut(lines[i], " // ERROR ")
 	}
 	// Parse new errors.
 	errors := make(map[int]map[string]bool)
-	tmpRe := regexp.MustCompile(`autotmp_[0-9]+`)
+	tmpRe := regexp.MustCompile(`autotmp_\d+`)
 	for _, errStr := range splitOutput(out, false) {
-		colon1 := strings.Index(errStr, ":")
-		if colon1 < 0 || errStr[:colon1] != file {
+		errFile, rest, ok := strings.Cut(errStr, ":")
+		if !ok || errFile != file {
 			continue
 		}
-		colon2 := strings.Index(errStr[colon1+1:], ":")
-		if colon2 < 0 {
+		lineStr, msg, ok := strings.Cut(rest, ":")
+		if !ok {
 			continue
 		}
-		colon2 += colon1 + 1
-		line, err := strconv.Atoi(errStr[colon1+1 : colon2])
+		line, err := strconv.Atoi(lineStr)
 		line--
 		if err != nil || line < 0 || line >= len(lines) {
 			continue
 		}
-		msg := errStr[colon2+2:]
 		msg = strings.Replace(msg, file, base, -1) // normalize file mentions in error itself
 		msg = strings.TrimLeft(msg, " \t")
 		for _, r := range []string{`\`, `*`, `+`, `?`, `[`, `]`, `(`, `)`} {
@@ -1659,7 +1572,7 @@ var (
 	errRx       = regexp.MustCompile(`// (?:GC_)?ERROR (.*)`)
 	errAutoRx   = regexp.MustCompile(`// (?:GC_)?ERRORAUTO (.*)`)
 	errQuotesRx = regexp.MustCompile(`"([^"]*)"`)
-	lineRx      = regexp.MustCompile(`LINE(([+-])([0-9]+))?`)
+	lineRx      = regexp.MustCompile(`LINE(([+-])(\d+))?`)
 )
 
 func (t *test) wantedErrors(file, short string) (errs []wantedError) {
@@ -1747,9 +1660,10 @@ var (
 	// are the supported variants.
 	archVariants = map[string][]string{
 		"386":     {"GO386", "sse2", "softfloat"},
-		"amd64":   {},
+		"amd64":   {"GOAMD64", "v1", "v2", "v3", "v4"},
 		"arm":     {"GOARM", "5", "6", "7"},
 		"arm64":   {},
+		"loong64": {},
 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
 		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},
 		"ppc64":   {"GOPPC64", "power8", "power9"},
@@ -2031,14 +1945,6 @@ func checkShouldTest() {
 	assert(shouldTest("// +build !windows !plan9", "windows", "amd64"))
 }
 
-func getenv(key, def string) string {
-	value := os.Getenv(key)
-	if value != "" {
-		return value
-	}
-	return def
-}
-
 // overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
 func overlayDir(dstRoot, srcRoot string) error {
 	dstRoot = filepath.Clean(dstRoot)
@@ -2104,97 +2010,66 @@ func overlayDir(dstRoot, srcRoot string) error {
 	})
 }
 
-// The following is temporary scaffolding to get types2 typechecker
-// up and running against the existing test cases. The explicitly
-// listed files don't pass yet, usually because the error messages
-// are slightly different (this list is not complete). Any errorcheck
-// tests that require output from analysis phases past initial type-
-// checking are also excluded since these phases are not running yet.
-// We can get rid of this code once types2 is fully plugged in.
+// The following sets of files are excluded from testing depending on configuration.
+// The types2Failures(32Bit) files pass with the 1.17 compiler but don't pass with
+// the 1.18 compiler using the new types2 type checker, or pass with sub-optimal
+// error(s).
 
-// List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
-// Temporary scaffolding until we pass all the tests at which point this map can be removed.
+// List of files that the compiler cannot errorcheck with the new typechecker (types2).
 var types2Failures = setOf(
-	"directive.go",    // misplaced compiler directive checks
-	"float_lit3.go",   // types2 reports extra errors
-	"import1.go",      // types2 reports extra errors
-	"import6.go",      // issue #43109
-	"initializerr.go", // types2 reports extra errors
-	"linkname2.go",    // error reported by noder (not running for types2 errorcheck test)
-	"notinheap.go",    // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
-	"shift1.go",       // issue #42989
-	"typecheck.go",    // invalid function is not causing errors when called
-
-	"interface/private.go", // types2 phrases errors differently (doesn't use non-spec "private" term)
-
-	"fixedbugs/bug176.go", // types2 reports all errors (pref: types2)
-	"fixedbugs/bug195.go", // types2 reports slightly different (but correct) bugs
-	"fixedbugs/bug228.go", // types2 doesn't run when there are syntax errors
-	"fixedbugs/bug231.go", // types2 bug? (same error reported twice)
-	"fixedbugs/bug255.go", // types2 reports extra errors
-	"fixedbugs/bug374.go", // types2 reports extra errors
-	"fixedbugs/bug388.go", // types2 not run due to syntax errors
-	"fixedbugs/bug412.go", // types2 produces a follow-on error
-
-	"fixedbugs/issue10700.go",  // types2 reports ok hint, but does not match regexp
-	"fixedbugs/issue11590.go",  // types2 doesn't report a follow-on error (pref: types2)
-	"fixedbugs/issue11610.go",  // types2 not run after syntax errors
-	"fixedbugs/issue11614.go",  // types2 reports an extra error
-	"fixedbugs/issue14520.go",  // missing import path error by types2
-	"fixedbugs/issue16428.go",  // types2 reports two instead of one error
-	"fixedbugs/issue17038.go",  // types2 doesn't report a follow-on error (pref: types2)
-	"fixedbugs/issue17645.go",  // multiple errors on same line
-	"fixedbugs/issue18331.go",  // missing error about misuse of //go:noescape (irgen needs code from noder)
-	"fixedbugs/issue18419.go",  // types2 reports
-	"fixedbugs/issue19012.go",  // multiple errors on same line
-	"fixedbugs/issue20233.go",  // types2 reports two instead of one error (pref: compiler)
-	"fixedbugs/issue20245.go",  // types2 reports two instead of one error (pref: compiler)
-	"fixedbugs/issue21979.go",  // types2 doesn't report a follow-on error (pref: types2)
-	"fixedbugs/issue23732.go",  // types2 reports different (but ok) line numbers
-	"fixedbugs/issue25958.go",  // types2 doesn't report a follow-on error (pref: types2)
-	"fixedbugs/issue28079b.go", // types2 reports follow-on errors
-	"fixedbugs/issue28268.go",  // types2 reports follow-on errors
-	"fixedbugs/issue31053.go",  // types2 reports "unknown field" instead of "cannot refer to unexported field"
-	"fixedbugs/issue33460.go",  // types2 reports alternative positions in separate error
-	"fixedbugs/issue42058a.go", // types2 doesn't report "channel element type too large"
-	"fixedbugs/issue42058b.go", // types2 doesn't report "channel element type too large"
-	"fixedbugs/issue4232.go",   // types2 reports (correct) extra errors
-	"fixedbugs/issue4452.go",   // types2 reports (correct) extra errors
-	"fixedbugs/issue4510.go",   // types2 reports different (but ok) line numbers
-	"fixedbugs/issue47201.go",  // types2 spells the error message differently
-	"fixedbugs/issue5609.go",   // types2 needs a better error message
-	"fixedbugs/issue7525b.go",  // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525c.go",  // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525d.go",  // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525e.go",  // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525.go",   // types2 reports init cycle error on different line - ok otherwise
+	"shift1.go",               // types2 reports two new errors which are probably not right
+	"fixedbugs/issue10700.go", // types2 should give hint about ptr to interface
+	"fixedbugs/issue18331.go", // missing error about misuse of //go:noescape (irgen needs code from noder)
+	"fixedbugs/issue18419.go", // types2 reports no field or method member, but should say unexported
+	"fixedbugs/issue20233.go", // types2 reports two instead of one error (preference: 1.17 compiler)
+	"fixedbugs/issue20245.go", // types2 reports two instead of one error (preference: 1.17 compiler)
+	"fixedbugs/issue31053.go", // types2 reports "unknown field" instead of "cannot refer to unexported field"
+	"fixedbugs/notinheap.go",  // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
 )
 
 var types2Failures32Bit = setOf(
 	"printbig.go",             // large untyped int passed to print (32-bit)
 	"fixedbugs/bug114.go",     // large untyped int passed to println (32-bit)
 	"fixedbugs/issue23305.go", // large untyped int passed to println (32-bit)
-	"fixedbugs/bug385_32.go",  // types2 doesn't produce missing error "type .* too large" (32-bit specific)
 )
 
-var g3Failures = setOf(
-	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
-
-	"fixedbugs/issue30862.go", // -G=3 doesn't handle //go:nointerface
-
-	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
-
-	"typeparam/mdempsky/4.go",  // -G=3 can't export functions with labeled breaks in loops
-	"typeparam/mdempsky/15.go", // ICE in (*irgen).buildClosure
+var go118Failures = setOf(
+	"fixedbugs/issue54343.go",  // 1.18 compiler assigns receiver parameter to global variable
+	"fixedbugs/issue56280.go",  // 1.18 compiler doesn't support inlining generic functions
+	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
+	"typeparam/issue47631.go",  // 1.18 can not handle local type declarations
+	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
+	"typeparam/issue54456.go",  // 1.18 compiler fails to distinguish local generic types
+	"typeparam/issue54497.go",  // 1.18 compiler is more conservative about inlining due to repeated issues
+	"typeparam/issue55101.go",  // 1.18 compiler ICEs writing export data
+	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions
+	"typeparam/mdempsky/17.go", // 1.18 compiler mishandles implicit conversions from range loops
+	"typeparam/mdempsky/18.go", // 1.18 compiler mishandles implicit conversions in select statements
+	"typeparam/mdempsky/20.go", // 1.18 compiler crashes on method expressions promoted to derived types
 )
 
-var unifiedFailures = setOf(
-	"closure3.go", // unified IR numbers closures differently than -d=inlfuncswithclosures
-	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
-	"inline.go",   // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
+// In all of these cases, the 1.17 compiler reports reasonable errors, but either the
+// 1.17 or 1.18 compiler report extra errors, so we can't match correctly on both. We
+// now set the patterns to match correctly on all the 1.18 errors.
+// This list remains here just as a reference and for comparison - these files all pass.
+var _ = setOf(
+	"import1.go",      // types2 reports extra errors
+	"initializerr.go", // types2 reports extra error
+	"typecheck.go",    // types2 reports extra error at function call
 
-	"fixedbugs/issue42284.go", // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
-	"fixedbugs/issue7921.go",  // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+	"fixedbugs/bug176.go", // types2 reports all errors (pref: types2)
+	"fixedbugs/bug195.go", // types2 reports slight different errors, and an extra error
+	"fixedbugs/bug412.go", // types2 produces a follow-on error
+
+	"fixedbugs/issue11614.go", // types2 reports an extra error
+	"fixedbugs/issue17038.go", // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue23732.go", // types2 reports different (but ok) line numbers
+	"fixedbugs/issue4510.go",  // types2 reports different (but ok) line numbers
+	"fixedbugs/issue7525b.go", // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525c.go", // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525d.go", // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525e.go", // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525.go",  // types2 reports init cycle error on different line - ok otherwise
 )
 
 func setOf(keys ...string) map[string]bool {
@@ -2215,11 +2090,11 @@ func setOf(keys ...string) map[string]bool {
 //
 // For example, the following string:
 //
-//     a b:"c d" 'e''f'  "g\""
+//	a b:"c d" 'e''f'  "g\""
 //
 // Would be parsed as:
 //
-//     []string{"a", "b:c d", "ef", `g"`}
+//	[]string{"a", "b:c d", "ef", `g"`}
 //
 // [copied from src/go/build/build.go]
 func splitQuoted(s string) (r []string, err error) {

@@ -13,13 +13,10 @@ import (
 )
 
 // provided by runtime
-func fastrand() uint32
+func fastrandu() uint
 
 func randInt() int {
-	x, y := fastrand(), fastrand()    // 32-bit halves
-	u := uint(x)<<31 ^ uint(int32(y)) // full uint, even on 64-bit systems; avoid 32-bit shift on 32-bit systems
-	i := int(u >> 1)                  // clear sign bit, even on 32-bit systems
-	return i
+	return int(fastrandu() >> 1) // clear sign bit
 }
 
 func randIntn(n int) int {
@@ -76,6 +73,11 @@ func equalASCIIName(x, y dnsmessage.Name) bool {
 // (currently restricted to hostname-compatible "preferred name" LDH labels and
 // SRV-like "underscore labels"; see golang.org/issue/12421).
 func isDomainName(s string) bool {
+	// The root domain name is valid. See golang.org/issue/45715.
+	if s == "." {
+		return true
+	}
+
 	// See RFC 1035, RFC 3696.
 	// Presentation format has dots before every label except the first, and the
 	// terminal empty label is optional here because we assume fully-qualified

@@ -2,7 +2,6 @@
 // cgo -godefs types_solaris.go
 
 //go:build amd64 && solaris
-// +build amd64,solaris
 
 package syscall
 

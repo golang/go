@@ -15,8 +15,11 @@ func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
 }
 
 func (sd *sysDialer) dialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
-	if testHookDialTCP != nil {
-		return testHookDialTCP(ctx, sd.network, laddr, raddr)
+	if h := sd.testHookDialTCP; h != nil {
+		return h(ctx, sd.network, laddr, raddr)
+	}
+	if h := testHookDialTCP; h != nil {
+		return h(ctx, sd.network, laddr, raddr)
 	}
 	return sd.doDialTCP(ctx, laddr, raddr)
 }
@@ -39,7 +42,7 @@ func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCP
 	if err != nil {
 		return nil, err
 	}
-	return newTCPConn(fd), nil
+	return newTCPConn(fd, sd.Dialer.KeepAlive, testHookSetKeepAlive), nil
 }
 
 func (ln *TCPListener) ok() bool { return ln != nil && ln.fd != nil && ln.fd.ctl != nil }
@@ -49,16 +52,7 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	tc := newTCPConn(fd)
-	if ln.lc.KeepAlive >= 0 {
-		setKeepAlive(fd, true)
-		ka := ln.lc.KeepAlive
-		if ln.lc.KeepAlive == 0 {
-			ka = defaultTCPKeepAlive
-		}
-		setKeepAlivePeriod(fd, ka)
-	}
-	return tc, nil
+	return newTCPConn(fd, ln.lc.KeepAlive, nil), nil
 }
 
 func (ln *TCPListener) close() error {

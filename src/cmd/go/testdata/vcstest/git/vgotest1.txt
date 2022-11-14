@@ -1,0 +1,257 @@
+handle git
+
+env GIT_AUTHOR_NAME='Russ Cox'
+env GIT_AUTHOR_EMAIL='rsc@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2018-02-19T17:21:09-05:00
+git add LICENSE README.md
+git commit -m 'initial commit'
+git branch -m master
+
+git checkout --detach HEAD
+
+at 2018-02-19T18:10:06-05:00
+mkdir pkg
+echo 'package p // pkg/p.go'
+cp stdout pkg/p.go
+git add pkg/p.go
+git commit -m 'add pkg/p.go'
+git tag v0.0.0
+git tag v1.0.0
+git tag mytag
+
+git checkout --detach HEAD
+
+at 2018-02-19T18:14:23-05:00
+mkdir v2
+echo 'module "github.com/rsc/vgotest1/v2" // root go.mod'
+cp stdout go.mod
+git add go.mod
+git commit -m 'go.mod v2'
+git tag v2.0.1
+
+at 2018-02-19T18:15:11-05:00
+mkdir submod/pkg
+echo 'package p // submod/pkg/p.go'
+cp stdout submod/pkg/p.go
+git add submod/pkg/p.go
+git commit -m 'submod/pkg/p.go'
+git tag v2.0.2
+
+at 2018-02-19T18:16:04-05:00
+echo 'module "github.com/rsc/vgotest" // v2/go.mod'
+cp stdout v2/go.mod
+git add v2/go.mod
+git commit -m 'v2/go.mod: bad go.mod (no version)'
+git tag v2.0.3
+
+at 2018-02-19T19:03:38-05:00
+env GIT_AUTHOR_DATE=2018-02-19T18:16:38-05:00
+echo 'module "github.com/rsc/vgotest1/v2" // v2/go.mod'
+cp stdout v2/go.mod
+git add v2/go.mod
+git commit -m 'v2/go.mod: fix'
+git tag v2.0.4
+
+at 2018-02-19T19:03:59-05:00
+env GIT_AUTHOR_DATE=2018-02-19T18:17:02-05:00
+echo 'module "github.com/rsc/vgotest1" // root go.mod'
+cp stdout go.mod
+git add go.mod
+git commit -m 'go.mod: drop v2'
+git tag v2.0.5
+
+git checkout --detach mytag
+
+at 2018-02-19T18:10:28-05:00
+echo 'module "github.com/rsc/vgotest1" // root go.mod'
+cp stdout go.mod
+git add go.mod
+git commit -m 'go.mod'
+git tag v0.0.1
+git tag v1.0.1
+
+at 2018-02-19T18:11:28-05:00
+mkdir submod/pkg
+echo 'package pkg // submod/pkg/p.go'
+cp stdout submod/pkg/p.go
+git add submod
+git commit -m 'submod/pkg/p.go'
+git tag v1.0.2
+
+at 2018-02-19T18:12:07-05:00
+echo 'module "github.com/vgotest1/submod" // submod/go.mod'
+cp stdout submod/go.mod
+git add submod/go.mod
+git commit -m 'submod/go.mod'
+git tag v1.0.3
+git tag submod/v1.0.4
+
+at 2018-02-19T18:12:59-05:00
+git apply 0001-submod-go.mod-add-require-vgotest1-v1.1.0.patch
+git commit -a -m 'submod/go.mod: add require vgotest1 v1.1.0'
+git tag submod/v1.0.5
+
+at 2018-02-19T18:13:36-05:00
+git apply 0002-go.mod-add-require-submod-v1.0.5.patch
+git commit -a -m 'go.mod: add require submod v1.0.5'
+git tag v1.1.0
+
+git checkout master
+
+at 2018-02-19T17:23:01-05:00
+mkdir pkg
+echo 'package pkg'
+cp stdout pkg/p.go
+git add pkg/p.go
+git commit -m 'pkg: add'
+
+at 2018-02-19T17:30:23-05:00
+env GIT_AUTHOR_DATE=2018-02-19T17:24:48-05:00
+echo 'module "github.com/vgotest1/v2"'
+cp stdout go.mod
+git add go.mod
+git commit -m 'add go.mod'
+
+at 2018-02-19T17:30:45-05:00
+echo 'module "github.com/vgotest1"'
+cp stdout go.mod
+git add go.mod
+git commit -m 'bad mod path'
+
+at 2018-02-19T17:31:34-05:00
+mkdir v2
+echo 'module "github.com/vgotest1/v2"'
+cp stdout v2/go.mod
+git add v2/go.mod
+git commit -m 'add v2/go.mod'
+
+at 2018-02-19T17:32:37-05:00
+echo 'module "github.com/vgotest1/v2"'
+cp stdout go.mod
+git add go.mod
+git commit -m 'say v2 in root go.mod'
+
+git checkout --detach HEAD
+at 2018-02-19T17:51:24-05:00
+	# README.md at this commit lacked a trailing newline, so 'git apply' can't
+	# seem to apply it correctly as a patch. Instead, we use 'echo -e' to write
+	# the exact contents.
+unquote 'This is a test repo for versioned go.\nThere''s nothing useful here.\n\n	v0.0.0 - has pkg/p.go\n	v0.0.1 - has go.mod\n	\n	v1.0.0 - has pkg/p.go\n	v1.0.1 - has go.mod\n	v1.0.2 - has submod/pkg/p.go\n	v1.0.3 - has submod/go.mod\n	submod/v1.0.4 - same\n	submod/v1.0.5 - add requirement on v1.1.0\n	v1.1.0 - add requirement on submod/v1.0.5\n	\n	v2.0.0 - has pkg/p.go\n	v2.0.1 - has go.mod with v2 module path\n	v2.0.2 - has go.mod with v1 (no version) module path\n	v2.0.3 - has v2/go.mod with v2 module path\n	v2.0.5 - has go.mod AND v2/go.mod with v2 module path\n	'
+cp stdout README.md
+mkdir v2/pkg
+echo 'package q'
+cp stdout v2/pkg/q.go
+git add README.md v2/pkg/q.go
+git commit -m 'add q'
+git tag v2.0.6
+
+git checkout --detach mytag~1
+at 2018-07-18T21:21:27-04:00
+env GIT_AUTHOR_DATE=2018-02-19T18:10:06-05:00
+mkdir pkg
+echo 'package p // pkg/p.go'
+cp stdout pkg/p.go
+git add pkg/p.go
+unquote 'add pkg/p.go\n\nv2\n'
+cp stdout COMMIT_MSG
+git commit -F COMMIT_MSG
+git tag v2.0.0
+
+git checkout master
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+a08abb797a6764035a9314ed5f1d757e0224f3bf refs/heads/master
+80d85c5d4d17598a0e9055e7c175a32b415d6128 refs/tags/mytag
+8afe2b2efed96e0880ecd2a69b98a53b8c2738b6 refs/tags/submod/v1.0.4
+70fd92eaa4dacf82548d0c6099f5b853ae2c1fc8 refs/tags/submod/v1.0.5
+80d85c5d4d17598a0e9055e7c175a32b415d6128 refs/tags/v0.0.0
+5a115c66393dd8c4a5cc3215653850d7f5640d0e refs/tags/v0.0.1
+80d85c5d4d17598a0e9055e7c175a32b415d6128 refs/tags/v1.0.0
+5a115c66393dd8c4a5cc3215653850d7f5640d0e refs/tags/v1.0.1
+2e38a1a347ba4d9e9946ec0ce480710ff445c919 refs/tags/v1.0.2
+8afe2b2efed96e0880ecd2a69b98a53b8c2738b6 refs/tags/v1.0.3
+b769f2de407a4db81af9c5de0a06016d60d2ea09 refs/tags/v1.1.0
+45f53230a74ad275c7127e117ac46914c8126160 refs/tags/v2.0.0
+ea65f87c8f52c15ea68f3bdd9925ef17e20d91e9 refs/tags/v2.0.1
+f7b23352af1cd750b11e4673b20b24c2d239430a refs/tags/v2.0.2
+f18795870fb14388a21ef3ebc1d75911c8694f31 refs/tags/v2.0.3
+1f863feb76bc7029b78b21c5375644838962f88d refs/tags/v2.0.4
+2f615117ce481c8efef46e0cc0b4b4dccfac8fea refs/tags/v2.0.5
+a01a0aef06cbd571294fc5451788cd4eadbfd651 refs/tags/v2.0.6
+-- LICENSE --
+Copyright (c) 2009 The Go Authors. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+   * Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following disclaimer
+in the documentation and/or other materials provided with the
+distribution.
+   * Neither the name of Google Inc. nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-- README.md --
+This is a test repo for versioned go.
+There's nothing useful here.
+-- 0001-submod-go.mod-add-require-vgotest1-v1.1.0.patch --
+From 70fd92eaa4dacf82548d0c6099f5b853ae2c1fc8 Mon Sep 17 00:00:00 2001
+From: Russ Cox <rsc@golang.org>
+Date: Mon, 19 Feb 2018 18:12:59 -0500
+Subject: [PATCH] submod/go.mod: add require vgotest1 v1.1.0
+
+---
+ submod/go.mod | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/submod/go.mod b/submod/go.mod
+index 7b18d93..c88de0f 100644
+--- a/submod/go.mod
++++ b/submod/go.mod
+@@ -1 +1,2 @@
+ module "github.com/vgotest1/submod" // submod/go.mod
++require "github.com/vgotest1" v1.1.0
+--
+2.36.1.838.g23b219f8e3
+-- 0002-go.mod-add-require-submod-v1.0.5.patch --
+From b769f2de407a4db81af9c5de0a06016d60d2ea09 Mon Sep 17 00:00:00 2001
+From: Russ Cox <rsc@golang.org>
+Date: Mon, 19 Feb 2018 18:13:36 -0500
+Subject: [PATCH] go.mod: add require submod v1.0.5
+
+---
+ go.mod | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/go.mod b/go.mod
+index ac7a6d7..6118671 100644
+--- a/go.mod
++++ b/go.mod
+@@ -1 +1,2 @@
+ module "github.com/rsc/vgotest1" // root go.mod
++require "github.com/rsc/vgotest1/submod" v1.0.5
+--
+2.36.1.838.g23b219f8e3

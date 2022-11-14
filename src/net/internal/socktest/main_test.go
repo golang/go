@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !js && !plan9
-// +build !js,!plan9
 
 package socktest_test
 

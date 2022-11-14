@@ -6,27 +6,29 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
-	_ "unsafe" // for go:linkname
+	"unsafe"
 )
 
 //go:generate go run wincallback.go
 //go:generate go run mkduff.go
 //go:generate go run mkfastlog2table.go
+//go:generate go run mklockrank.go -o lockrank.go
 
-var ticks struct {
+var ticks ticksType
+
+type ticksType struct {
 	lock mutex
-	pad  uint32 // ensure 8-byte alignment of val on 386
-	val  uint64
+	val  atomic.Int64
 }
 
 // Note: Called by runtime/pprof in addition to runtime code.
 func tickspersecond() int64 {
-	r := int64(atomic.Load64(&ticks.val))
+	r := ticks.val.Load()
 	if r != 0 {
 		return r
 	}
 	lock(&ticks.lock)
-	r = int64(ticks.val)
+	r = ticks.val.Load()
 	if r == 0 {
 		t0 := nanotime()
 		c0 := cputicks()
@@ -40,7 +42,7 @@ func tickspersecond() int64 {
 		if r == 0 {
 			r++
 		}
-		atomic.Store64(&ticks.val, uint64(r))
+		ticks.val.Store(r)
 	}
 	unlock(&ticks.lock)
 	return r
@@ -62,4 +64,39 @@ func os_runtime_args() []string { return append([]string{}, argslice...) }
 //go:nosplit
 func syscall_Exit(code int) {
 	exit(int32(code))
+}
+
+var godebugenv atomic.Pointer[string] // set by parsedebugvars
+
+//go:linkname godebug_getGODEBUG internal/godebug.getGODEBUG
+func godebug_getGODEBUG() string {
+	if p := godebugenv.Load(); p != nil {
+		return *p
+	}
+	return ""
+}
+
+//go:linkname syscall_runtimeSetenv syscall.runtimeSetenv
+func syscall_runtimeSetenv(key, value string) {
+	setenv_c(key, value)
+	if key == "GODEBUG" {
+		p := new(string)
+		*p = value
+		godebugenv.Store(p)
+	}
+}
+
+//go:linkname syscall_runtimeUnsetenv syscall.runtimeUnsetenv
+func syscall_runtimeUnsetenv(key string) {
+	unsetenv_c(key)
+	if key == "GODEBUG" {
+		godebugenv.Store(nil)
+	}
+}
+
+// writeErrStr writes a string to descriptor 2.
+//
+//go:nosplit
+func writeErrStr(s string) {
+	write(2, unsafe.Pointer(unsafe.StringData(s)), int32(len(s)))
 }

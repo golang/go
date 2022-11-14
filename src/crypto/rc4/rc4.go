@@ -10,7 +10,7 @@
 package rc4
 
 import (
-	"crypto/internal/subtle"
+	"crypto/internal/alias"
 	"strconv"
 )
 
@@ -62,7 +62,7 @@ func (c *Cipher) XORKeyStream(dst, src []byte) {
 	if len(src) == 0 {
 		return
 	}
-	if subtle.InexactOverlap(dst[:len(src)], src) {
+	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/rc4: invalid buffer overlap")
 	}
 	i, j := c.i, c.j

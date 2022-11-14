@@ -31,8 +31,7 @@ import (
 // using a special data structure passed in a register.
 //
 // A method declaration is represented like functions, except f.Sym
-// will be the qualified method name (e.g., "T.m") and
-// f.Func.Shortname is the bare method name (e.g., "m").
+// will be the qualified method name (e.g., "T.m").
 //
 // A method expression (T.M) is represented as an OMETHEXPR node,
 // in which n.Left and n.Right point to the type and method, respectively.
@@ -51,12 +50,9 @@ import (
 type Func struct {
 	miniNode
 	Body Nodes
-	Iota int64
 
 	Nname    *Name        // ONAME node
 	OClosure *ClosureExpr // OCLOSURE node
-
-	Shortname *types.Sym
 
 	// Extra entry code for the function. For example, allocate and initialize
 	// memory for escaping parameters.
@@ -133,13 +129,16 @@ type Func struct {
 	// function for go:nowritebarrierrec analysis. Only filled in
 	// if nowritebarrierrecCheck != nil.
 	NWBRCalls *[]SymAndPos
+
+	// For wrapper functions, WrappedFunc point to the original Func.
+	// Currently only used for go/defer wrappers.
+	WrappedFunc *Func
 }
 
 func NewFunc(pos src.XPos) *Func {
 	f := new(Func)
 	f.pos = pos
 	f.op = ODCLFUNC
-	f.Iota = -1
 	// Most functions are ABIInternal. The importer or symabis
 	// pass may override this.
 	f.ABI = obj.ABIInternal
@@ -201,7 +200,7 @@ const (
 	funcNilCheckDisabled         // disable nil checks when compiling this function
 	funcInlinabilityChecked      // inliner has already determined whether the function is inlinable
 	funcExportInline             // include inline body in export data
-	funcInstrumentBody           // add race/msan instrumentation during SSA construction
+	funcInstrumentBody           // add race/msan/asan instrumentation during SSA construction
 	funcOpenCodedDeferDisallowed // can't do open-coded defers
 	funcClosureCalled            // closure is only immediately called; used by escape analysis
 )
@@ -269,14 +268,7 @@ func PkgFuncName(f *Func) string {
 	s := f.Sym()
 	pkg := s.Pkg
 
-	p := base.Ctxt.Pkgpath
-	if pkg != nil && pkg.Path != "" {
-		p = pkg.Path
-	}
-	if p == "" {
-		return s.Name
-	}
-	return p + "." + s.Name
+	return pkg.Path + "." + s.Name
 }
 
 var CurFunc *Func
@@ -369,7 +361,9 @@ func NewClosureFunc(pos src.XPos, hidden bool) *Func {
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
 
-	fn.OClosure = NewClosureExpr(pos, fn)
+	fn.OClosure = &ClosureExpr{Func: fn}
+	fn.OClosure.op = OCLOSURE
+	fn.OClosure.pos = pos
 
 	return fn
 }

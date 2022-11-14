@@ -95,13 +95,8 @@ func TestableNetwork(network string) bool {
 		// This is an internal network name for testing on the
 		// package net of the standard library.
 		switch runtime.GOOS {
-		case "android", "fuchsia", "hurd", "js", "nacl", "plan9", "windows":
+		case "android", "fuchsia", "hurd", "ios", "js", "nacl", "plan9", "windows":
 			return false
-		case "darwin", "ios":
-			// iOS doesn't support it.
-			if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-				return false
-			}
 		}
 	case "ip", "ip4", "ip6":
 		switch runtime.GOOS {
@@ -114,15 +109,10 @@ func TestableNetwork(network string) bool {
 		}
 	case "unix", "unixgram":
 		switch runtime.GOOS {
-		case "android", "fuchsia", "hurd", "js", "nacl", "plan9", "windows":
+		case "android", "fuchsia", "hurd", "ios", "js", "nacl", "plan9", "windows":
 			return false
 		case "aix":
 			return unixStrmDgramEnabled()
-		case "darwin", "ios":
-			// iOS does not support unix, unixgram.
-			if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-				return false
-			}
 		}
 	case "unixpacket":
 		switch runtime.GOOS {
@@ -228,7 +218,11 @@ func NewLocalPacketListener(network string) (net.PacketConn, error) {
 // LocalPath returns a local path that can be used for Unix-domain
 // protocol testing.
 func LocalPath() (string, error) {
-	f, err := ioutil.TempFile("", "go-nettest")
+	dir := ""
+	if runtime.GOOS == "darwin" {
+		dir = "/tmp"
+	}
+	f, err := ioutil.TempFile(dir, "go-nettest")
 	if err != nil {
 		return "", err
 	}

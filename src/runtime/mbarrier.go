@@ -147,7 +147,7 @@ import (
 // remove the deletion barrier, we'll have to work out a new way to
 // handle the profile logging.
 
-// typedmemmove copies a value of type t to dst from src.
+// typedmemmove copies a value of type typ to dst from src.
 // Must be nosplit, see #16026.
 //
 // TODO: Perfect for go:nosplitrec since we can't have a safe point
@@ -184,6 +184,10 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 		msanwrite(dst, typ.size)
 		msanread(src, typ.size)
 	}
+	if asanenabled {
+		asanwrite(dst, typ.size)
+		asanread(src, typ.size)
+	}
 	typedmemmove(typ, dst, src)
 }
 
@@ -192,9 +196,10 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	reflect_typedmemmove(typ, dst, src)
 }
 
-// typedmemmovepartial is like typedmemmove but assumes that
+// reflect_typedmemmovepartial is like typedmemmove but assumes that
 // dst and src point off bytes into the value and only copies size bytes.
-// off must be a multiple of sys.PtrSize.
+// off must be a multiple of goarch.PtrSize.
+//
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
 func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
 	if writeBarrier.needed && typ.ptrdata > off && size >= goarch.PtrSize {
@@ -262,6 +267,10 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 		msanwrite(dstPtr, uintptr(n)*typ.size)
 		msanread(srcPtr, uintptr(n)*typ.size)
 	}
+	if asanenabled {
+		asanwrite(dstPtr, uintptr(n)*typ.size)
+		asanread(srcPtr, uintptr(n)*typ.size)
+	}
 
 	if writeBarrier.cgo {
 		cgoCheckSliceCopy(typ, dstPtr, srcPtr, n)
@@ -301,6 +310,8 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 //
 // If the caller knows that typ has pointers, it can alternatively
 // call memclrHasPointers.
+//
+// TODO: A "go:nosplitrec" annotation would be perfect for this.
 //
 //go:nosplit
 func typedmemclr(typ *_type, ptr unsafe.Pointer) {

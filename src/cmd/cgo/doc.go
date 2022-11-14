@@ -3,10 +3,9 @@
 // license that can be found in the LICENSE file.
 
 /*
-
 Cgo enables the creation of Go packages that call C code.
 
-Using cgo with the go command
+# Using cgo with the go command
 
 To use cgo write normal Go code that imports a pseudo-package "C".
 The Go code can then refer to types such as C.size_t, variables such
@@ -91,11 +90,11 @@ file. This allows pre-compiled static libraries to be included in the package
 directory and linked properly.
 For example if package foo is in the directory /go/src/foo:
 
-       // #cgo LDFLAGS: -L${SRCDIR}/libs -lfoo
+	// #cgo LDFLAGS: -L${SRCDIR}/libs -lfoo
 
 Will be expanded to:
 
-       // #cgo LDFLAGS: -L/go/src/foo/libs -lfoo
+	// #cgo LDFLAGS: -L/go/src/foo/libs -lfoo
 
 When the Go tool sees that one or more Go files use the special import
 "C", it will look for other non-Go files in the directory and compile
@@ -126,7 +125,7 @@ environment variable when running the go tool: set it to 1 to enable
 the use of cgo, and to 0 to disable it. The go tool will set the
 build constraint "cgo" if cgo is enabled. The special import "C"
 implies the "cgo" build constraint, as though the file also said
-"// +build cgo".  Therefore, if cgo is disabled, files that import
+"//go:build cgo".  Therefore, if cgo is disabled, files that import
 "C" will not be built by the go tool. (For more about build constraints
 see https://golang.org/pkg/go/build/#hdr-Build_Constraints).
 
@@ -139,7 +138,7 @@ or you can set the CC environment variable any time you run the go tool.
 The CXX_FOR_TARGET, CXX_FOR_${GOOS}_${GOARCH}, and CXX
 environment variables work in a similar way for C++ code.
 
-Go references to C
+# Go references to C
 
 Within the Go file, C's struct field names that are keywords in Go
 can be accessed by prefixing them with an underscore: if x points at a C
@@ -291,7 +290,7 @@ the helper function crashes the program, like when Go itself runs out
 of memory. Because C.malloc cannot fail, it has no two-result form
 that returns errno.
 
-C references to Go
+# C references to Go
 
 Go functions can be exported for use by C code in the following way:
 
@@ -327,7 +326,7 @@ definitions and declarations, then the two output files will produce
 duplicate symbols and the linker will fail. To avoid this, definitions
 must be placed in preambles in other files, or in C source files.
 
-Passing pointers
+# Passing pointers
 
 Go is a garbage collected language, and the garbage collector needs to
 know the location of every pointer to Go memory. Because of this,
@@ -398,7 +397,7 @@ passing uninitialized C memory to Go code if the Go code is going to
 store pointer values in it. Zero out the memory in C before passing it
 to Go.
 
-Special cases
+# Special cases
 
 A few special C types which would normally be represented by a pointer
 type in Go are instead represented by a uintptr. Those include:
@@ -449,9 +448,10 @@ to auto-update code from Go 1.14 and earlier:
 
 	go tool fix -r eglconf <pkg>
 
-Using cgo directly
+# Using cgo directly
 
 Usage:
+
 	go tool cgo [cgo options] [-- compiler options] gofiles...
 
 Cgo transforms the specified input Go source files into several output
@@ -498,6 +498,9 @@ The following options are available when running cgo directly:
 		The -fgo-prefix option to be used with gccgo.
 	-gccgopkgpath path
 		The -fgo-pkgpath option to be used with gccgo.
+	-gccgo_define_cgoincomplete
+		Define cgo.Incomplete locally rather than importing it from
+		the "runtime/cgo" package. Used for old gccgo versions.
 	-godefs
 		Write out input file in Go syntax replacing C package
 		names with real values. Used to generate files in the
@@ -752,6 +755,16 @@ presented to cmd/link as part of a larger program, contains:
 
 	_go_.o        # gc-compiled object for _cgo_gotypes.go, _cgo_import.go, *.cgo1.go
 	_all.o        # gcc-compiled object for _cgo_export.c, *.cgo2.c
+
+If there is an error generating the _cgo_import.go file, then, instead
+of adding _cgo_import.go to the package, the go tool adds an empty
+file named dynimportfail. The _cgo_import.go file is only needed when
+using internal linking mode, which is not the default when linking
+programs that use cgo (as described below). If the linker sees a file
+named dynimportfail it reports an error if it has been told to use
+internal linking mode. This approach is taken because generating
+_cgo_import.go requires doing a full C link of the package, which can
+fail for reasons that are irrelevant when using external linking mode.
 
 The final program will be a dynamic executable, so that cmd/link can avoid
 needing to process arbitrary .o files. It only needs to process the .o

@@ -1,5 +1,7 @@
 # Go internal ABI specification
 
+Self-link: [go.dev/s/regabi](https://go.dev/s/regabi)
+
 This document describes Go’s internal application binary interface
 (ABI), known as ABIInternal.
 Go's ABI defines the layout of data in memory and the conventions for
@@ -30,19 +32,19 @@ specification](/doc/go_spec.html#Size_and_alignment_guarantees).
 Those that aren't guaranteed may change in future versions of Go (for
 example, we've considered changing the alignment of int64 on 32-bit).
 
-| Type | 64-bit |       | 32-bit |       |
-| ---  | ---    | ---   | ---    | ---   |
-|      | Size   | Align | Size   | Align |
-| bool, uint8, int8  | 1  | 1 | 1  | 1 |
-| uint16, int16      | 2  | 2 | 2  | 2 |
-| uint32, int32      | 4  | 4 | 4  | 4 |
-| uint64, int64      | 8  | 8 | 8  | 4 |
-| int, uint          | 8  | 8 | 4  | 4 |
-| float32            | 4  | 4 | 4  | 4 |
-| float64            | 8  | 8 | 8  | 4 |
-| complex64          | 8  | 4 | 8  | 4 |
-| complex128         | 16 | 8 | 16 | 4 |
-| uintptr, *T, unsafe.Pointer | 8 | 8 | 4 | 4 |
+| Type                        | 64-bit |       | 32-bit |       |
+|-----------------------------|--------|-------|--------|-------|
+|                             | Size   | Align | Size   | Align |
+| bool, uint8, int8           | 1      | 1     | 1      | 1     |
+| uint16, int16               | 2      | 2     | 2      | 2     |
+| uint32, int32               | 4      | 4     | 4      | 4     |
+| uint64, int64               | 8      | 8     | 8      | 4     |
+| int, uint                   | 8      | 8     | 4      | 4     |
+| float32                     | 4      | 4     | 4      | 4     |
+| float64                     | 8      | 8     | 8      | 4     |
+| complex64                   | 8      | 4     | 8      | 4     |
+| complex128                  | 16     | 8     | 16     | 4     |
+| uintptr, *T, unsafe.Pointer | 8      | 8     | 4      | 4     |
 
 The types `byte` and `rune` are aliases for `uint8` and `int32`,
 respectively, and hence have the same size and alignment as these
@@ -155,7 +157,7 @@ as follows:
 1. Remember I and FP.
 1. If T has zero size, add T to the stack sequence S and return.
 1. Try to register-assign V.
-1. If step 2 failed, reset I and FP to the values from step 1, add T
+1. If step 3 failed, reset I and FP to the values from step 1, add T
    to the stack sequence S, and assign V to this field in S.
 
 Register-assignment of a value V of underlying type T works as follows:
@@ -410,7 +412,11 @@ Special-purpose registers are as follows:
 | R13 | Scratch | Scratch | Scratch |
 | R14 | Current goroutine | Same | Same |
 | R15 | GOT reference temporary if dynlink | Same | Same |
-| X15 | Zero value | Same | Scratch |
+| X15 | Zero value (*) | Same | Scratch |
+
+(*) Except on Plan 9, where X15 is a scratch register because SSE
+registers cannot be used in note handlers (so the compiler avoids
+using them except when absolutely necessary).
 
 *Rationale*: These register meanings are compatible with Go’s
 stack-based calling convention except for R14 and X15, which will have
@@ -626,6 +632,156 @@ functions to use floating-point and vector (SIMD) operations without
 modifying or saving the FPCR.
 Functions are allowed to modify it between calls (as long as they
 restore it), but as of this writing Go code never does.
+
+### ppc64 architecture
+
+The ppc64 architecture uses R3 – R10 and R14 – R17 for integer arguments
+and results.
+
+It uses F1 – F12 for floating-point arguments and results.
+
+Register R31 is a permanent scratch register in Go.
+
+Special-purpose registers used within Go generated code and Go
+assembly code are as follows:
+
+| Register | Call meaning | Return meaning | Body meaning |
+| --- | --- | --- | --- |
+| R0  | Zero value | Same | Same |
+| R1  | Stack pointer | Same | Same |
+| R2  | TOC register | Same | Same |
+| R11 | Closure context pointer | Scratch | Scratch |
+| R12 | Function address on indirect calls | Scratch | Scratch |
+| R13 | TLS pointer | Same | Same |
+| R20,R21 | Scratch | Scratch | Used by duffcopy, duffzero |
+| R30 | Current goroutine | Same | Same |
+| R31 | Scratch | Scratch | Scratch |
+| LR  | Link register | Link register | Scratch |
+*Rationale*: These register meanings are compatible with Go’s
+stack-based calling convention.
+
+The link register, LR, holds the function return
+address at the function entry and is set to the correct return
+address before exiting the function. It is also used
+in some cases as the function address when doing an indirect call.
+
+The register R2 contains the address of the TOC (table of contents) which
+contains data or code addresses used when generating position independent
+code. Non-Go code generated when using cgo contains TOC-relative addresses
+which depend on R2 holding a valid TOC. Go code compiled with -shared or
+-dynlink initializes and maintains R2 and uses it in some cases for
+function calls; Go code compiled without these options does not modify R2.
+
+When making a function call R12 contains the function address for use by the
+code to generate R2 at the beginning of the function. R12 can be used for
+other purposes within the body of the function, such as trampoline generation.
+
+R20 and R21 are used in duffcopy and duffzero which could be generated
+before arguments are saved so should not be used for register arguments.
+
+The Count register CTR can be used as the call target for some branch instructions.
+It holds the return address when preemption has occurred.
+
+On PPC64 when a float32 is loaded it becomes a float64 in the register, which is
+different from other platforms and that needs to be recognized by the internal
+implementation of reflection so that float32 arguments are passed correctly.
+
+Registers R18 - R29 and F13 - F31 are considered scratch registers.
+
+#### Stack layout
+
+The stack pointer, R1, grows down and is aligned to 8 bytes in Go, but changed
+to 16 bytes when calling cgo.
+
+A function's stack frame, after the frame is created, is laid out as
+follows:
+
+    +------------------------------+
+    | ... locals ...               |
+    | ... outgoing arguments ...   |
+    | 24  TOC register R2 save     | When compiled with -shared/-dynlink
+    | 16  Unused in Go             | Not used in Go
+    |  8  CR save                  | nonvolatile CR fields
+    |  0  return PC                | ← R1 points to
+    +------------------------------+ ↓ lower addresses
+
+The "return PC" is loaded to the link register, LR, as part of the
+ppc64 `BL` operations.
+
+On entry to a non-leaf function, the stack frame size is subtracted from R1 to
+create its stack frame, and saves the value of LR at the bottom of the frame.
+
+A leaf function that does not require any stack space does not modify R1 and
+does not save LR.
+
+*NOTE*: We might need to save the frame pointer on the stack as
+in the PPC64 ELF v2 ABI so Go can inter-operate with platform debuggers
+and profilers.
+
+This stack layout is used by both register-based (ABIInternal) and
+stack-based (ABI0) calling conventions.
+
+#### Flags
+
+The condition register consists of 8 condition code register fields
+CR0-CR7. Go generated code only sets and uses CR0, commonly set by
+compare functions and use to determine the target of a conditional
+branch. The generated code does not set or use CR1-CR7.
+
+The floating point status and control register (FPSCR) is initialized
+to 0 by the kernel at startup of the Go program and not changed by
+the Go generated code.
+
+### riscv64 architecture
+
+The riscv64 architecture uses X10 – X17, X8, X9, X18 – X23 for integer arguments
+and results.
+
+It uses F10 – F17, F8, F9, F18 – F23 for floating-point arguments and results.
+
+Special-purpose registers used within Go generated code and Go
+assembly code are as follows:
+
+| Register | Call meaning | Return meaning | Body meaning |
+| --- | --- | --- | --- |
+| X0  | Zero value | Same | Same |
+| X1  | Link register | Link register | Scratch |
+| X2  | Stack pointer | Same | Same |
+| X3  | Global pointer | Same | Used by dynamic linker |
+| X4  | TLS (thread pointer) | TLS | Scratch |
+| X24,X25 | Scratch | Scratch | Used by duffcopy, duffzero |
+| X26 | Closure context pointer | Scratch | Scratch |
+| X27 | Current goroutine | Same | Same |
+| X31 | Scratch | Scratch | Scratch |
+
+*Rationale*: These register meanings are compatible with Go’s
+stack-based calling convention. Context register X20 will change to X26,
+duffcopy, duffzero register will change to X24, X25 before this register ABI been adopted.
+X10 – X17, X8, X9, X18 – X23, is the same order as A0 – A7, S0 – S7 in platform ABI.
+F10 – F17, F8, F9, F18 – F23, is the same order as FA0 – FA7, FS0 – FS7 in platform ABI.
+X8 – X23, F8 – F15 are used for compressed instruction (RVC) which will benefit code size in the future.
+
+#### Stack layout
+
+The stack pointer, X2, grows down and is aligned to 8 bytes.
+
+A function's stack frame, after the frame is created, is laid out as
+follows:
+
+    +------------------------------+
+    | ... locals ...               |
+    | ... outgoing arguments ...   |
+    | return PC                    | ← X2 points to
+    +------------------------------+ ↓ lower addresses
+
+The "return PC" is loaded to the link register, X1, as part of the
+riscv64 `CALL` operation.
+
+#### Flags
+
+The riscv64 has Zicsr extension for control and status register (CSR) and
+treated as scratch register.
+All bits in CSR are system flags and are not modified by Go.
 
 ## Future directions
 

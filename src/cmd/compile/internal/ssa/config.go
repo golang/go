@@ -21,8 +21,10 @@ type Config struct {
 	PtrSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
 	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
 	Types          Types
-	lowerBlock     blockRewriter  // lowering function
-	lowerValue     valueRewriter  // lowering function
+	lowerBlock     blockRewriter  // block lowering function, first round
+	lowerValue     valueRewriter  // value lowering function, first round
+	lateLowerBlock blockRewriter  // block lowering function that needs to be run after the first round; only used on some architectures
+	lateLowerValue valueRewriter  // value lowering function that needs to be run after the first round; only used on some architectures
 	splitLoad      valueRewriter  // function for splitting merged load ops; only used on some architectures
 	registers      []Register     // machine registers
 	gpRegMask      regMask        // general purpose integer register mask
@@ -168,6 +170,9 @@ type Frontend interface {
 
 	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
 	MyImportPath() string
+
+	// LSym returns the linker symbol of the function being compiled.
+	LSym() string
 }
 
 // NewConfig returns a new configuration object for the given architecture.
@@ -181,6 +186,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
+		c.lateLowerBlock = rewriteBlockAMD64latelower
+		c.lateLowerValue = rewriteValueAMD64latelower
 		c.splitLoad = rewriteValueAMD64splitload
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
@@ -219,6 +226,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockARM64
 		c.lowerValue = rewriteValueARM64
+		c.lateLowerBlock = rewriteBlockARM64latelower
+		c.lateLowerValue = rewriteValueARM64latelower
 		c.registers = registersARM64[:]
 		c.gpRegMask = gpRegMaskARM64
 		c.fpRegMask = fpRegMaskARM64
@@ -227,7 +236,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegARM64
 		c.LinkReg = linkRegARM64
 		c.hasGReg = true
-		c.noDuffDevice = buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" // darwin linker cannot handle BR26 reloc with non-zero addend
 	case "ppc64":
 		c.BigEndian = true
 		fallthrough
@@ -236,12 +244,16 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockPPC64
 		c.lowerValue = rewriteValuePPC64
+		c.lateLowerBlock = rewriteBlockPPC64latelower
+		c.lateLowerValue = rewriteValuePPC64latelower
 		c.registers = registersPPC64[:]
 		c.gpRegMask = gpRegMaskPPC64
 		c.fpRegMask = fpRegMaskPPC64
+		c.specialRegMask = specialRegMaskPPC64
+		c.intParamRegs = paramIntRegPPC64
+		c.floatParamRegs = paramFloatRegPPC64
 		c.FPReg = framepointerRegPPC64
 		c.LinkReg = linkRegPPC64
-		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
 		c.hasGReg = true
 	case "mips64":
 		c.BigEndian = true
@@ -257,6 +269,17 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.specialRegMask = specialRegMaskMIPS64
 		c.FPReg = framepointerRegMIPS64
 		c.LinkReg = linkRegMIPS64
+		c.hasGReg = true
+	case "loong64":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockLOONG64
+		c.lowerValue = rewriteValueLOONG64
+		c.registers = registersLOONG64[:]
+		c.gpRegMask = gpRegMaskLOONG64
+		c.fpRegMask = fpRegMaskLOONG64
+		c.FPReg = framepointerRegLOONG64
+		c.LinkReg = linkRegLOONG64
 		c.hasGReg = true
 	case "s390x":
 		c.PtrSize = 8
@@ -292,9 +315,13 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockRISCV64
 		c.lowerValue = rewriteValueRISCV64
+		c.lateLowerBlock = rewriteBlockRISCV64latelower
+		c.lateLowerValue = rewriteValueRISCV64latelower
 		c.registers = registersRISCV64[:]
 		c.gpRegMask = gpRegMaskRISCV64
 		c.fpRegMask = fpRegMaskRISCV64
+		c.intParamRegs = paramIntRegRISCV64
+		c.floatParamRegs = paramFloatRegRISCV64
 		c.FPReg = framepointerRegRISCV64
 		c.hasGReg = true
 	case "wasm":
@@ -325,8 +352,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.floatParamRegs = nil // no FP registers in softfloat mode
 	}
 
-	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.FixedFrameSize())
-	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())
+	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.Arch.FixedFrameSize)
+	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.Arch.FixedFrameSize)
 
 	// On Plan 9, floating point operations are not allowed in note handler.
 	if buildcfg.GOOS == "plan9" {

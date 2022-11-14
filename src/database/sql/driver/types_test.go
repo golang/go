@@ -12,8 +12,8 @@ import (
 
 type valueConverterTest struct {
 	c   ValueConverter
-	in  interface{}
-	out interface{}
+	in  any
+	out any
 	err string
 }
 

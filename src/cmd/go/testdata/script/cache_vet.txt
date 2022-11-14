@@ -2,7 +2,7 @@ env GO111MODULE=off
 
 [short] skip
 [GODEBUG:gocacheverify=1] skip
-[gccgo] skip  # gccgo has no standard packages
+[compiler:gccgo] skip  # gccgo has no standard packages
 
 # Start with a clean build cache:
 # test failures may be masked if the cache has just the right entries already.

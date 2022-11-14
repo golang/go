@@ -53,22 +53,26 @@ func (s simplifier) Visit(node ast.Node) ast.Visitor {
 		// can be simplified to: s[a:]
 		// if s is "simple enough" (for now we only accept identifiers)
 		//
-		// Note: This may not be correct because len may have been redeclared in another
-		//       file belonging to the same package. However, this is extremely unlikely
-		//       and so far (April 2016, after years of supporting this rewrite feature)
+		// Note: This may not be correct because len may have been redeclared in
+		//       the same package. However, this is extremely unlikely and so far
+		//       (April 2022, after years of supporting this rewrite feature)
 		//       has never come up, so let's keep it working as is (see also #15153).
+		//
+		// Also note that this code used to use go/ast's object tracking,
+		// which was removed in exchange for go/parser.Mode.SkipObjectResolution.
+		// False positives are extremely unlikely as described above,
+		// and go/ast's object tracking is incomplete in any case.
 		if n.Max != nil {
 			// - 3-index slices always require the 2nd and 3rd index
 			break
 		}
-		if s, _ := n.X.(*ast.Ident); s != nil && s.Obj != nil {
-			// the array/slice object is a single, resolved identifier
+		if s, _ := n.X.(*ast.Ident); s != nil {
+			// the array/slice object is a single identifier
 			if call, _ := n.High.(*ast.CallExpr); call != nil && len(call.Args) == 1 && !call.Ellipsis.IsValid() {
 				// the high expression is a function call with a single argument
-				if fun, _ := call.Fun.(*ast.Ident); fun != nil && fun.Name == "len" && fun.Obj == nil {
-					// the function called is "len" and it is not locally defined; and
-					// because we don't have dot imports, it must be the predefined len()
-					if arg, _ := call.Args[0].(*ast.Ident); arg != nil && arg.Obj == s.Obj {
+				if fun, _ := call.Fun.(*ast.Ident); fun != nil && fun.Name == "len" {
+					// the function called is "len"
+					if arg, _ := call.Args[0].(*ast.Ident); arg != nil && arg.Name == s.Name {
 						// the len argument is the array/slice object
 						n.High = nil
 					}

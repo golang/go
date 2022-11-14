@@ -32,9 +32,7 @@
 #define SYS_getpid		20
 #define SYS_access		33
 #define SYS_kill		37
-#define SYS_pipe		42
 #define SYS_brk 		45
-#define SYS_fcntl		55
 #define SYS_munmap		91
 #define SYS_socketcall		102
 #define SYS_setittimer		104
@@ -53,12 +51,11 @@
 #define SYS_sched_getaffinity	242
 #define SYS_set_thread_area	243
 #define SYS_exit_group		252
-#define SYS_epoll_create	254
-#define SYS_epoll_ctl		255
-#define SYS_epoll_wait		256
+#define SYS_timer_create	259
+#define SYS_timer_settime	260
+#define SYS_timer_delete	263
 #define SYS_clock_gettime	265
 #define SYS_tgkill		270
-#define SYS_epoll_create1	329
 #define SYS_pipe2		331
 
 TEXT runtime·exit(SB),NOSPLIT,$0
@@ -75,7 +72,7 @@ TEXT exit1<>(SB),NOSPLIT,$0
 	INT $3	// not reached
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVL	wait+0(FP), AX
 	// We're done using the stack.
@@ -125,14 +122,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	n+8(FP), DX
 	INVOKE_SYSCALL
 	MOVL	AX, ret+12(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$0-12
-	MOVL	$SYS_pipe, AX
-	LEAL	r+0(FP), BX
-	INVOKE_SYSCALL
-	MOVL	AX, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -208,6 +197,32 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0-12
 	MOVL	new+4(FP), CX
 	MOVL	old+8(FP), DX
 	INVOKE_SYSCALL
+	RET
+
+TEXT runtime·timer_create(SB),NOSPLIT,$0-16
+	MOVL	$SYS_timer_create, AX
+	MOVL	clockid+0(FP), BX
+	MOVL	sevp+4(FP), CX
+	MOVL	timerid+8(FP), DX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+12(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
+	MOVL	$SYS_timer_settime, AX
+	MOVL	timerid+0(FP), BX
+	MOVL	flags+4(FP), CX
+	MOVL	new+8(FP), DX
+	MOVL	old+12(FP), SI
+	INVOKE_SYSCALL
+	MOVL	AX, ret+16(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-8
+	MOVL	$SYS_timer_delete, AX
+	MOVL	timerid+0(FP), BX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT,$0-16
@@ -413,7 +428,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	RET
 
 // Called using C ABI.
-TEXT runtime·sigtramp(SB),NOSPLIT,$28
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$28
 	// Save callee-saved C registers, since the caller may be a C signal handler.
 	MOVL	BX, bx-4(SP)
 	MOVL	BP, bp-8(SP)
@@ -704,68 +719,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVL	buf+8(FP), DX
 	INVOKE_SYSCALL
 	MOVL	AX, ret+12(FP)
-	RET
-
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT,$0
-	MOVL    $SYS_epoll_create, AX
-	MOVL	size+0(FP), BX
-	INVOKE_SYSCALL
-	MOVL	AX, ret+4(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT,$0
-	MOVL    $SYS_epoll_create1, AX
-	MOVL	flags+0(FP), BX
-	INVOKE_SYSCALL
-	MOVL	AX, ret+4(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT,$0
-	MOVL	$SYS_epoll_ctl, AX
-	MOVL	epfd+0(FP), BX
-	MOVL	op+4(FP), CX
-	MOVL	fd+8(FP), DX
-	MOVL	ev+12(FP), SI
-	INVOKE_SYSCALL
-	MOVL	AX, ret+16(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT,$0
-	MOVL	$SYS_epoll_wait, AX
-	MOVL	epfd+0(FP), BX
-	MOVL	ev+4(FP), CX
-	MOVL	nev+8(FP), DX
-	MOVL	timeout+12(FP), SI
-	INVOKE_SYSCALL
-	MOVL	AX, ret+16(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVL	$SYS_fcntl, AX
-	MOVL	fd+0(FP), BX  // fd
-	MOVL	$2, CX  // F_SETFD
-	MOVL	$1, DX  // FD_CLOEXEC
-	INVOKE_SYSCALL
-	RET
-
-// func runtime·setNonblock(fd int32)
-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
-	MOVL	$SYS_fcntl, AX
-	MOVL	fd+0(FP), BX // fd
-	MOVL	$3, CX // F_GETFL
-	MOVL	$0, DX
-	INVOKE_SYSCALL
-	MOVL	fd+0(FP), BX // fd
-	MOVL	$4, CX // F_SETFL
-	MOVL	$0x800, DX // O_NONBLOCK
-	ORL	AX, DX
-	MOVL	$SYS_fcntl, AX
-	INVOKE_SYSCALL
 	RET
 
 // int access(const char *name, int mode)

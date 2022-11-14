@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"sync/atomic"
 	"time"
 )
 
@@ -122,7 +121,7 @@ func (hs *serverHandshakeState) handshake() error {
 	}
 
 	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random)
-	atomic.StoreUint32(&c.handshakeStatus, 1)
+	c.isHandshakeComplete.Store(true)
 
 	return nil
 }
@@ -156,7 +155,7 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, error) {
 	if len(clientHello.supportedVersions) == 0 {
 		clientVersions = supportedVersionsFromMax(clientHello.vers)
 	}
-	c.vers, ok = c.config.mutualVersion(clientVersions)
+	c.vers, ok = c.config.mutualVersion(roleServer, clientVersions)
 	if !ok {
 		c.sendAlert(alertProtocolVersion)
 		return nil, fmt.Errorf("tls: client offered only unsupported versions: %x", clientVersions)
@@ -191,7 +190,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 	hs.hello.random = make([]byte, 32)
 	serverRandom := hs.hello.random
 	// Downgrade protection canaries. See RFC 8446, Section 4.1.3.
-	maxVers := c.config.maxSupportedVersion()
+	maxVers := c.config.maxSupportedVersion(roleServer)
 	if maxVers >= VersionTLS12 && c.vers < maxVers || testingOnlyForceDowngradeCanary {
 		if c.vers == VersionTLS12 {
 			copy(serverRandom[24:], downgradeCanaryTLS12)
@@ -240,7 +239,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 
 	hs.ecdheOk = supportsECDHE(c.config, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
 
-	if hs.ecdheOk {
+	if hs.ecdheOk && len(hs.clientHello.supportedPoints) > 0 {
 		// Although omitting the ec_point_formats extension is permitted, some
 		// old OpenSSL version will refuse to handshake if not present.
 		//
@@ -321,6 +320,13 @@ func supportsECDHE(c *Config, supportedCurves []CurveID, supportedPoints []uint8
 			break
 		}
 	}
+	// Per RFC 8422, Section 5.1.2, if the Supported Point Formats extension is
+	// missing, uncompressed points are supported. If supportedPoints is empty,
+	// the extension must be missing, as an empty extension body is rejected by
+	// the parser. See https://go.dev/issue/49126.
+	if len(supportedPoints) == 0 {
+		supportsPointFormat = true
+	}
 
 	return supportsCurve && supportsPointFormat
 }
@@ -354,7 +360,7 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 	for _, id := range hs.clientHello.cipherSuites {
 		if id == TLS_FALLBACK_SCSV {
 			// The client is doing a fallback connection. See RFC 7507.
-			if hs.clientHello.vers < c.config.maxSupportedVersion() {
+			if hs.clientHello.vers < c.config.maxSupportedVersion(roleServer) {
 				c.sendAlert(alertInappropriateFallback)
 				return errors.New("tls: client using inappropriate protocol fallback")
 			}
@@ -541,7 +547,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 		if c.vers >= VersionTLS12 {
 			certReq.hasSignatureAlgorithm = true
-			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 		}
 
 		// An empty list of certificateAuthorities signals to
@@ -661,7 +667,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			}
 		}
 
-		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash, hs.masterSecret)
+		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash)
 		if err := verifyHandshakeSignature(sigType, pub, sigHash, signed, certVerify.signature); err != nil {
 			c.sendAlert(alertDecryptError)
 			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
@@ -681,7 +687,7 @@ func (hs *serverHandshakeState) establishKeys() error {
 	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
 		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
 
-	var clientCipher, serverCipher interface{}
+	var clientCipher, serverCipher any
 	var clientHash, serverHash hash.Hash
 
 	if hs.suite.aead == nil {

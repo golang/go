@@ -3,13 +3,12 @@
 // license that can be found in the LICENSE file.
 
 //go:build gc
-// +build gc
 
 package goroot
 
 import (
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"

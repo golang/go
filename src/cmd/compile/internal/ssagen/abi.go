@@ -7,18 +7,15 @@ package ssagen
 import (
 	"fmt"
 	"internal/buildcfg"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 )
 
 // SymABIs records information provided by the assembler about symbol
@@ -26,33 +23,27 @@ import (
 type SymABIs struct {
 	defs map[string]obj.ABI
 	refs map[string]obj.ABISet
-
-	localPrefix string
 }
 
-func NewSymABIs(myimportpath string) *SymABIs {
-	var localPrefix string
-	if myimportpath != "" {
-		localPrefix = objabi.PathToPrefix(myimportpath) + "."
-	}
-
+func NewSymABIs() *SymABIs {
 	return &SymABIs{
-		defs:        make(map[string]obj.ABI),
-		refs:        make(map[string]obj.ABISet),
-		localPrefix: localPrefix,
+		defs: make(map[string]obj.ABI),
+		refs: make(map[string]obj.ABISet),
 	}
 }
 
 // canonicalize returns the canonical name used for a linker symbol in
 // s's maps. Symbols in this package may be written either as "".X or
 // with the package's import path already in the symbol. This rewrites
-// both to `"".`, which matches compiler-generated linker symbol names.
+// both to use the full path, which matches compiler-generated linker
+// symbol names.
 func (s *SymABIs) canonicalize(linksym string) string {
-	// If the symbol is already prefixed with localPrefix,
-	// rewrite it to start with "" so it matches the
-	// compiler's internal symbol names.
-	if s.localPrefix != "" && strings.HasPrefix(linksym, s.localPrefix) {
-		return `"".` + linksym[len(s.localPrefix):]
+	// If the symbol is already prefixed with "", rewrite it to start
+	// with LocalPkg.Prefix.
+	//
+	// TODO(mdempsky): Have cmd/asm stop writing out symbols like this.
+	if strings.HasPrefix(linksym, `"".`) {
+		return types.LocalPkg.Prefix + linksym[2:]
 	}
 	return linksym
 }
@@ -67,7 +58,7 @@ func (s *SymABIs) canonicalize(linksym string) string {
 // the symbol name and the third field is the ABI name, as one of the
 // named cmd/internal/obj.ABI constants.
 func (s *SymABIs) ReadSymABIs(file string) {
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-symabis: %v", err)
 	}
@@ -141,13 +132,12 @@ func (s *SymABIs) GenABIWrappers() {
 			continue
 		}
 		sym := nam.Sym()
-		var symName string
-		if sym.Linkname != "" {
-			symName = s.canonicalize(sym.Linkname)
-		} else {
-			// These names will already be canonical.
+
+		symName := sym.Linkname
+		if symName == "" {
 			symName = sym.Pkg.Prefix + "." + sym.Name
 		}
+		symName = s.canonicalize(symName)
 
 		// Apply definitions.
 		defABI, hasDefABI := s.defs[symName]
@@ -214,56 +204,14 @@ func (s *SymABIs) GenABIWrappers() {
 		// Double check that cgo-exported symbols don't get
 		// any wrappers.
 		if len(cgoExport) > 0 && fn.ABIRefs&^obj.ABISetOf(fn.ABI) != 0 {
-			base.Fatalf("cgo exported function %s cannot have ABI wrappers", fn)
+			base.Fatalf("cgo exported function %v cannot have ABI wrappers", fn)
 		}
 
 		if !buildcfg.Experiment.RegabiWrappers {
-			// We'll generate ABI aliases instead of
-			// wrappers once we have LSyms in InitLSym.
 			continue
 		}
 
 		forEachWrapperABI(fn, makeABIWrapper)
-	}
-}
-
-// InitLSym defines f's obj.LSym and initializes it based on the
-// properties of f. This includes setting the symbol flags and ABI and
-// creating and initializing related DWARF symbols.
-//
-// InitLSym must be called exactly once per function and must be
-// called for both functions with bodies and functions without bodies.
-// For body-less functions, we only create the LSym; for functions
-// with bodies call a helper to setup up / populate the LSym.
-func InitLSym(f *ir.Func, hasBody bool) {
-	if f.LSym != nil {
-		base.FatalfAt(f.Pos(), "InitLSym called twice on %v", f)
-	}
-
-	if nam := f.Nname; !ir.IsBlank(nam) {
-		f.LSym = nam.LinksymABI(f.ABI)
-		if f.Pragma&ir.Systemstack != 0 {
-			f.LSym.Set(obj.AttrCFunc, true)
-		}
-		if f.ABI == obj.ABIInternal || !buildcfg.Experiment.RegabiWrappers {
-			// Function values can only point to
-			// ABIInternal entry points. This will create
-			// the funcsym for either the defining
-			// function or its wrapper as appropriate.
-			//
-			// If we're using ABI aliases instead of
-			// wrappers, we only InitLSym for the defining
-			// ABI of a function, so we make the funcsym
-			// when we see that.
-			staticdata.NeedFuncSym(f)
-		}
-		if !buildcfg.Experiment.RegabiWrappers {
-			// Create ABI aliases instead of wrappers.
-			forEachWrapperABI(f, makeABIAlias)
-		}
-	}
-	if hasBody {
-		setupTextLSym(f, 0)
 	}
 }
 
@@ -279,22 +227,6 @@ func forEachWrapperABI(fn *ir.Func, cb func(fn *ir.Func, wrapperABI obj.ABI)) {
 		}
 		cb(fn, wrapperABI)
 	}
-}
-
-// makeABIAlias creates a new ABI alias so calls to f via wrapperABI
-// will be resolved directly to f's ABI by the linker.
-func makeABIAlias(f *ir.Func, wrapperABI obj.ABI) {
-	// These LSyms have the same name as the native function, so
-	// we create them directly rather than looking them up.
-	// The uniqueness of f.lsym ensures uniqueness of asym.
-	asym := &obj.LSym{
-		Name: f.LSym.Name,
-		Type: objabi.SABIALIAS,
-		R:    []obj.Reloc{{Sym: f.LSym}}, // 0 size, so "informational"
-	}
-	asym.SetABI(wrapperABI)
-	asym.Set(obj.AttrDuplicateOK, true)
-	base.Ctxt.ABIAliases = append(base.Ctxt.ABIAliases, asym)
 }
 
 // makeABIWrapper creates a new function that will be called with
@@ -316,18 +248,14 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// below to handle the receiver. Panic if we see this scenario.
 	ft := f.Nname.Type()
 	if ft.NumRecvs() != 0 {
-		panic("makeABIWrapper support for wrapping methods not implemented")
+		base.ErrorfAt(f.Pos(), "makeABIWrapper support for wrapping methods not implemented")
+		return
 	}
 
-	// Manufacture a new func type to use for the wrapper.
-	var noReceiver *ir.Field
-	tfn := ir.NewFuncType(base.Pos,
-		noReceiver,
+	// Reuse f's types.Sym to create a new ODCLFUNC/function.
+	fn := typecheck.DeclFunc(f.Nname.Sym(), nil,
 		typecheck.NewFuncParams(ft.Params(), true),
 		typecheck.NewFuncParams(ft.Results(), false))
-
-	// Reuse f's types.Sym to create a new ODCLFUNC/function.
-	fn := typecheck.DeclFunc(f.Nname.Sym(), tfn)
 	fn.ABI = wrapperABI
 
 	fn.SetABIWrapper(true)
@@ -369,7 +297,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// to allocate any stack space). Doing this will require some
 	// extra work in typecheck/walk/ssa, might want to add a new node
 	// OTAILCALL or something to this effect.
-	tailcall := tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0
+	tailcall := fn.Type().NumResults() == 0 && fn.Type().NumParams() == 0 && fn.Type().NumRecvs() == 0
 	if base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink {
 		// cannot tailcall on PPC64 with dynamic linking, as we need
 		// to restore R2 after call.
@@ -382,18 +310,16 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	}
 
 	var tail ir.Node
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
+	call.Args = ir.ParamNames(fn.Type())
+	call.IsDDD = fn.Type().IsVariadic()
+	tail = call
 	if tailcall {
-		tail = ir.NewTailCallStmt(base.Pos, f.Nname)
-	} else {
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
-		call.Args = ir.ParamNames(tfn.Type())
-		call.IsDDD = tfn.Type().IsVariadic()
-		tail = call
-		if tfn.Type().NumResults() > 0 {
-			n := ir.NewReturnStmt(base.Pos, nil)
-			n.Results = []ir.Node{call}
-			tail = n
-		}
+		tail = ir.NewTailCallStmt(base.Pos, call)
+	} else if fn.Type().NumResults() > 0 {
+		n := ir.NewReturnStmt(base.Pos, nil)
+		n.Results = []ir.Node{call}
+		tail = n
 	}
 	fn.Body.Append(tail)
 
@@ -412,48 +338,4 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	base.Pos = savepos
 	typecheck.DeclContext = savedclcontext
 	ir.CurFunc = savedcurfn
-}
-
-// setupTextLsym initializes the LSym for a with-body text symbol.
-func setupTextLSym(f *ir.Func, flag int) {
-	if f.Dupok() {
-		flag |= obj.DUPOK
-	}
-	if f.Wrapper() {
-		flag |= obj.WRAPPER
-	}
-	if f.ABIWrapper() {
-		flag |= obj.ABIWRAPPER
-	}
-	if f.Needctxt() {
-		flag |= obj.NEEDCTXT
-	}
-	if f.Pragma&ir.Nosplit != 0 {
-		flag |= obj.NOSPLIT
-	}
-	if f.ReflectMethod() {
-		flag |= obj.REFLECTMETHOD
-	}
-
-	// Clumsy but important.
-	// For functions that could be on the path of invoking a deferred
-	// function that can recover (runtime.reflectcall, reflect.callReflect,
-	// and reflect.callMethod), we want the panic+recover special handling.
-	// See test/recover.go for test cases and src/reflect/value.go
-	// for the actual functions being considered.
-	//
-	// runtime.reflectcall is an assembly function which tailcalls
-	// WRAPPER functions (runtime.callNN). Its ABI wrapper needs WRAPPER
-	// flag as well.
-	fnname := f.Sym().Name
-	if base.Ctxt.Pkgpath == "runtime" && fnname == "reflectcall" {
-		flag |= obj.WRAPPER
-	} else if base.Ctxt.Pkgpath == "reflect" {
-		switch fnname {
-		case "callReflect", "callMethod":
-			flag |= obj.WRAPPER
-		}
-	}
-
-	base.Ctxt.InitTextSym(f.LSym, flag)
 }

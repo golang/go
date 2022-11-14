@@ -1,0 +1,23 @@
+-- .mod --
+module example.com/fuzzfail
+
+go 1.18
+-- .info --
+{"Version":"v0.2.0"}
+-- go.mod --
+module example.com/fuzzfail
+
+go 1.18
+-- fuzzfail_test.go --
+package fuzzfail
+
+import "testing"
+
+func FuzzFail(f *testing.F) {
+	f.Fuzz(func(t *testing.T, b []byte) {
+		t.Fatalf("oops: %q", b)
+	})
+}
+-- testdata/fuzz/FuzzFail/bbb0c2d22aa1a24617301566dc7486f8b625d38024603ba62757c1124013b49a --
+go test fuzz v1
+[]byte("\x05")

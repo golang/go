@@ -6,7 +6,6 @@ package test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -60,19 +59,19 @@ func TestIssue15854b(t *testing.T) {
 // Test that the generated assembly has line numbers (Issue #16214).
 func TestIssue16214(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	dir, err := ioutil.TempDir("", "TestLineNumber")
+	dir, err := os.MkdirTemp("", "TestLineNumber")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 
 	src := filepath.Join(dir, "x.go")
-	err = ioutil.WriteFile(src, []byte(issue16214src), 0644)
+	err = os.WriteFile(src, []byte(issue16214src), 0644)
 	if err != nil {
 		t.Fatalf("could not write file: %v", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=main", "-S", "-o", filepath.Join(dir, "out.o"), src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool compile: %v\n%s", err, out)

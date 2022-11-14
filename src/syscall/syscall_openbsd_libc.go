@@ -3,13 +3,14 @@
 // license that can be found in the LICENSE file.
 
 //go:build openbsd && !mips64
-// +build openbsd,!mips64
 
 package syscall
 
 import (
 	"internal/abi"
 )
+
+var dupTrampoline = abi.FuncPCABI0(libc_dup3_trampoline)
 
 func init() {
 	execveOpenBSD = execve

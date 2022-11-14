@@ -230,6 +230,10 @@ var parseTests = []parseTest{
 		`{{range $x := .SI}}{{.}}{{end}}`},
 	{"range 2 vars", "{{range $x, $y := .SI}}{{.}}{{end}}", noError,
 		`{{range $x, $y := .SI}}{{.}}{{end}}`},
+	{"range with break", "{{range .SI}}{{.}}{{break}}{{end}}", noError,
+		`{{range .SI}}{{.}}{{break}}{{end}}`},
+	{"range with continue", "{{range .SI}}{{.}}{{continue}}{{end}}", noError,
+		`{{range .SI}}{{.}}{{continue}}{{end}}`},
 	{"constants", "{{range .SI 1 -3.2i true false 'a' nil}}{{end}}", noError,
 		`{{range .SI 1 -3.2i true false 'a' nil}}{{end}}`},
 	{"template", "{{template `x`}}", noError,
@@ -256,6 +260,10 @@ var parseTests = []parseTest{
 	{"newline in pipeline", "{{\n\"x\"\n|\nprintf\n}}", noError, `{{"x" | printf}}`},
 	{"newline in comment", "{{/*\nhello\n*/}}", noError, ""},
 	{"newline in comment", "{{-\n/*\nhello\n*/\n-}}", noError, ""},
+	{"spaces around continue", "{{range .SI}}{{.}}{{ continue }}{{end}}", noError,
+		`{{range .SI}}{{.}}{{continue}}{{end}}`},
+	{"spaces around break", "{{range .SI}}{{.}}{{ break }}{{end}}", noError,
+		`{{range .SI}}{{.}}{{break}}{{end}}`},
 
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
@@ -279,6 +287,10 @@ var parseTests = []parseTest{
 	{"adjacent args", "{{printf 3`x`}}", hasError, ""},
 	{"adjacent args with .", "{{printf `x`.}}", hasError, ""},
 	{"extra end after if", "{{if .X}}a{{else if .Y}}b{{end}}{{end}}", hasError, ""},
+	{"break outside range", "{{range .}}{{end}} {{break}}", hasError, ""},
+	{"continue outside range", "{{range .}}{{end}} {{continue}}", hasError, ""},
+	{"break in range else", "{{range .}}{{else}}{{break}}{{end}}", hasError, ""},
+	{"continue in range else", "{{range .}}{{else}}{{continue}}{{end}}", hasError, ""},
 	// Other kinds of assignments and operators aren't available yet.
 	{"bug0a", "{{$x := 0}}{{$x}}", noError, "{{$x := 0}}{{$x}}"},
 	{"bug0b", "{{$x += 1}}{{$x}}", hasError, ""},
@@ -310,7 +322,7 @@ var parseTests = []parseTest{
 	{"block definition", `{{block "foo"}}hello{{end}}`, hasError, ""},
 }
 
-var builtins = map[string]interface{}{
+var builtins = map[string]any{
 	"printf":   fmt.Sprintf,
 	"contains": strings.Contains,
 }
@@ -376,6 +388,36 @@ func TestParseWithComments(t *testing.T) {
 				t.Errorf("%s=(%q): got\n\t%v\nexpected\n\t%v", test.name, test.input, result, test.result)
 			}
 		})
+	}
+}
+
+func TestKeywordsAndFuncs(t *testing.T) {
+	// Check collisions between functions and new keywords like 'break'. When a
+	// break function is provided, the parser should treat 'break' as a function,
+	// not a keyword.
+	textFormat = "%q"
+	defer func() { textFormat = "%s" }()
+
+	inp := `{{range .X}}{{break 20}}{{end}}`
+	{
+		// 'break' is a defined function, don't treat it as a keyword: it should
+		// accept an argument successfully.
+		var funcsWithKeywordFunc = map[string]any{
+			"break": func(in any) any { return in },
+		}
+		tmpl, err := New("").Parse(inp, "", "", make(map[string]*Tree), funcsWithKeywordFunc)
+		if err != nil || tmpl == nil {
+			t.Errorf("with break func: unexpected error: %v", err)
+		}
+	}
+
+	{
+		// No function called 'break'; treat it as a keyword. Results in a parse
+		// error.
+		tmpl, err := New("").Parse(inp, "", "", make(map[string]*Tree), make(map[string]any))
+		if err == nil || tmpl != nil {
+			t.Errorf("without break func: expected error; got none")
+		}
 	}
 }
 
@@ -477,7 +519,7 @@ var errorTests = []parseTest{
 		hasError, `unclosed left paren`},
 	{"rparen",
 		"{{.X 1 2 3 ) }}",
-		hasError, `unexpected ")" in command`},
+		hasError, "unexpected right paren"},
 	{"rparen2",
 		"{{(.X 1 2 3",
 		hasError, `unclosed action`},
@@ -585,7 +627,8 @@ func TestBlock(t *testing.T) {
 }
 
 func TestLineNum(t *testing.T) {
-	const count = 100
+	// const count = 100
+	const count = 3
 	text := strings.Repeat("{{printf 1234}}\n", count)
 	tree, err := New("bench").Parse(text, "", "", make(map[string]*Tree), builtins)
 	if err != nil {
@@ -599,11 +642,11 @@ func TestLineNum(t *testing.T) {
 		// Action first.
 		action := nodes[i].(*ActionNode)
 		if action.Line != line {
-			t.Fatalf("line %d: action is line %d", line, action.Line)
+			t.Errorf("line %d: action is line %d", line, action.Line)
 		}
 		pipe := action.Pipe
 		if pipe.Line != line {
-			t.Fatalf("line %d: pipe is line %d", line, pipe.Line)
+			t.Errorf("line %d: pipe is line %d", line, pipe.Line)
 		}
 	}
 }

@@ -1,0 +1,25 @@
+handle git
+
+env GIT_AUTHOR_NAME=bwk
+env GIT_AUTHOR_EMAIL=bwk
+env GIT_COMMITTER_NAME='Russ Cox'
+env GIT_COMMITTER_EMAIL='rsc@golang.org'
+
+git init
+
+at 2017-09-21T21:05:58-04:00
+git add hello.go
+git commit -a -m 'hello'
+git branch -m master
+
+git log --oneline --decorate=short
+cmp stdout .git-log
+
+-- .git-log --
+fc3a09f (HEAD -> master) hello
+-- hello.go --
+package main
+
+func main() {
+	println("hello, world")
+}

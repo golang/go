@@ -8,8 +8,8 @@
 # Consult https://www.iana.org/time-zones for the latest versions.
 
 # Versions to use.
-CODE=2021a
-DATA=2021a
+CODE=2022b
+DATA=2022b
 
 set -e
 rm -rf work

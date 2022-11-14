@@ -44,6 +44,10 @@ stdout 'testdep_b <nil>'
 stdout 'nameerr\.test "[^"]*wrong signature for TestBad'
 ! stderr 'wrong signature for TestBad'
 
+# go list prints a useful error for generic test functions
+! go list -test -deps genericerr
+stderr 'wrong signature for TestGeneric, test functions cannot have type parameters'
+
 # go list prints partial information with error if test has cyclic import
 ! go list -test -deps cycleerr
 stdout cycleerr
@@ -105,6 +109,16 @@ import (
 )
 
 func TestBad(t *testing.B) {}
+
+-- genericerr/genericerr.go --
+package genericerr
+
+-- genericerr/genericerr_test.go --
+package genericerr
+
+import "testing"
+
+func TestGeneric[T any](t *testing.T) {}
 
 -- cycleerr/cycleerr_test.go --
 package cycleerr

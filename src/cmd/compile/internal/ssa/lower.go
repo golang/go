@@ -10,6 +10,14 @@ func lower(f *Func) {
 	applyRewrite(f, f.Config.lowerBlock, f.Config.lowerValue, removeDeadValues)
 }
 
+// lateLower applies those rules that need to be run after the general lower rules.
+func lateLower(f *Func) {
+	// repeat rewrites until we find no more rewrites
+	if f.Config.lateLowerValue != nil {
+		applyRewrite(f, f.Config.lateLowerBlock, f.Config.lateLowerValue, removeDeadValues)
+	}
+}
+
 // checkLower checks for unlowered opcodes and fails if we find one.
 func checkLower(f *Func) {
 	// Needs to be a separate phase because it must run after both
@@ -21,7 +29,7 @@ func checkLower(f *Func) {
 				continue // lowered
 			}
 			switch v.Op {
-			case OpSP, OpSB, OpInitMem, OpArg, OpArgIntReg, OpArgFloatReg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpSelectN, OpConvert, OpInlMark:
+			case OpSP, OpSB, OpInitMem, OpArg, OpArgIntReg, OpArgFloatReg, OpPhi, OpVarDef, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpSelectN, OpConvert, OpInlMark:
 				continue // ok not to lower
 			case OpMakeResult:
 				if b.Controls[0] == v {

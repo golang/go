@@ -135,7 +135,7 @@ func TestObjImporter(t *testing.T) {
 		t.Logf("%s", verout)
 		t.Fatal(err)
 	}
-	vers := regexp.MustCompile(`([0-9]+)\.([0-9]+)`).FindSubmatch(verout)
+	vers := regexp.MustCompile(`(\d+)\.(\d+)`).FindSubmatch(verout)
 	if len(vers) == 0 {
 		t.Fatalf("could not find version number in %s", verout)
 	}

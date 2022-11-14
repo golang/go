@@ -59,29 +59,6 @@ func (n *AddrExpr) editChildren(edit func(Node) Node) {
 	}
 }
 
-func (n *ArrayType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *ArrayType) copy() Node {
-	c := *n
-	return &c
-}
-func (n *ArrayType) doChildren(do func(Node) bool) bool {
-	if n.Len != nil && do(n.Len) {
-		return true
-	}
-	if n.Elem != nil && do(n.Elem) {
-		return true
-	}
-	return false
-}
-func (n *ArrayType) editChildren(edit func(Node) Node) {
-	if n.Len != nil {
-		n.Len = edit(n.Len).(Node)
-	}
-	if n.Elem != nil {
-		n.Elem = edit(n.Elem).(Ntype)
-	}
-}
-
 func (n *AssignListStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *AssignListStmt) copy() Node {
 	c := *n
@@ -282,6 +259,7 @@ func (n *CaseClause) copy() Node {
 	c := *n
 	c.init = copyNodes(c.init)
 	c.List = copyNodes(c.List)
+	c.RTypes = copyNodes(c.RTypes)
 	c.Body = copyNodes(c.Body)
 	return &c
 }
@@ -295,6 +273,9 @@ func (n *CaseClause) doChildren(do func(Node) bool) bool {
 	if doNodes(n.List, do) {
 		return true
 	}
+	if doNodes(n.RTypes, do) {
+		return true
+	}
 	if doNodes(n.Body, do) {
 		return true
 	}
@@ -306,24 +287,8 @@ func (n *CaseClause) editChildren(edit func(Node) Node) {
 		n.Var = edit(n.Var).(*Name)
 	}
 	editNodes(n.List, edit)
+	editNodes(n.RTypes, edit)
 	editNodes(n.Body, edit)
-}
-
-func (n *ChanType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *ChanType) copy() Node {
-	c := *n
-	return &c
-}
-func (n *ChanType) doChildren(do func(Node) bool) bool {
-	if n.Elem != nil && do(n.Elem) {
-		return true
-	}
-	return false
-}
-func (n *ChanType) editChildren(edit func(Node) Node) {
-	if n.Elem != nil {
-		n.Elem = edit(n.Elem).(Ntype)
-	}
 }
 
 func (n *ClosureExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
@@ -386,9 +351,6 @@ func (n *CompLitExpr) doChildren(do func(Node) bool) bool {
 	if doNodes(n.init, do) {
 		return true
 	}
-	if n.Ntype != nil && do(n.Ntype) {
-		return true
-	}
 	if doNodes(n.List, do) {
 		return true
 	}
@@ -399,9 +361,6 @@ func (n *CompLitExpr) doChildren(do func(Node) bool) bool {
 }
 func (n *CompLitExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
-	if n.Ntype != nil {
-		n.Ntype = edit(n.Ntype).(Ntype)
-	}
 	editNodes(n.List, edit)
 	if n.Prealloc != nil {
 		n.Prealloc = edit(n.Prealloc).(*Name)
@@ -473,7 +432,7 @@ func (n *DynamicType) doChildren(do func(Node) bool) bool {
 	if doNodes(n.init, do) {
 		return true
 	}
-	if n.X != nil && do(n.X) {
+	if n.RType != nil && do(n.RType) {
 		return true
 	}
 	if n.ITab != nil && do(n.ITab) {
@@ -483,8 +442,8 @@ func (n *DynamicType) doChildren(do func(Node) bool) bool {
 }
 func (n *DynamicType) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
-	if n.X != nil {
-		n.X = edit(n.X).(Node)
+	if n.RType != nil {
+		n.RType = edit(n.RType).(Node)
 	}
 	if n.ITab != nil {
 		n.ITab = edit(n.ITab).(Node)
@@ -504,7 +463,13 @@ func (n *DynamicTypeAssertExpr) doChildren(do func(Node) bool) bool {
 	if n.X != nil && do(n.X) {
 		return true
 	}
-	if n.T != nil && do(n.T) {
+	if n.SrcRType != nil && do(n.SrcRType) {
+		return true
+	}
+	if n.RType != nil && do(n.RType) {
+		return true
+	}
+	if n.ITab != nil && do(n.ITab) {
 		return true
 	}
 	return false
@@ -514,8 +479,14 @@ func (n *DynamicTypeAssertExpr) editChildren(edit func(Node) Node) {
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
 	}
-	if n.T != nil {
-		n.T = edit(n.T).(Node)
+	if n.SrcRType != nil {
+		n.SrcRType = edit(n.SrcRType).(Node)
+	}
+	if n.RType != nil {
+		n.RType = edit(n.RType).(Node)
+	}
+	if n.ITab != nil {
+		n.ITab = edit(n.ITab).(Node)
 	}
 }
 
@@ -523,7 +494,6 @@ func (n *ForStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ForStmt) copy() Node {
 	c := *n
 	c.init = copyNodes(c.init)
-	c.Late = copyNodes(c.Late)
 	c.Body = copyNodes(c.Body)
 	return &c
 }
@@ -532,9 +502,6 @@ func (n *ForStmt) doChildren(do func(Node) bool) bool {
 		return true
 	}
 	if n.Cond != nil && do(n.Cond) {
-		return true
-	}
-	if doNodes(n.Late, do) {
 		return true
 	}
 	if n.Post != nil && do(n.Post) {
@@ -550,7 +517,6 @@ func (n *ForStmt) editChildren(edit func(Node) Node) {
 	if n.Cond != nil {
 		n.Cond = edit(n.Cond).(Node)
 	}
-	editNodes(n.Late, edit)
 	if n.Post != nil {
 		n.Post = edit(n.Post).(Node)
 	}
@@ -558,32 +524,6 @@ func (n *ForStmt) editChildren(edit func(Node) Node) {
 }
 
 func (n *Func) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-
-func (n *FuncType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *FuncType) copy() Node {
-	c := *n
-	c.Recv = copyField(c.Recv)
-	c.Params = copyFields(c.Params)
-	c.Results = copyFields(c.Results)
-	return &c
-}
-func (n *FuncType) doChildren(do func(Node) bool) bool {
-	if doField(n.Recv, do) {
-		return true
-	}
-	if doFields(n.Params, do) {
-		return true
-	}
-	if doFields(n.Results, do) {
-		return true
-	}
-	return false
-}
-func (n *FuncType) editChildren(edit func(Node) Node) {
-	editField(n.Recv, edit)
-	editFields(n.Params, edit)
-	editFields(n.Results, edit)
-}
 
 func (n *GoDeferStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *GoDeferStmt) copy() Node {
@@ -729,7 +669,7 @@ func (n *InstExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *InstExpr) copy() Node {
 	c := *n
 	c.init = copyNodes(c.init)
-	c.Targs = copyNodes(c.Targs)
+	c.Targs = copyNtypes(c.Targs)
 	return &c
 }
 func (n *InstExpr) doChildren(do func(Node) bool) bool {
@@ -739,7 +679,7 @@ func (n *InstExpr) doChildren(do func(Node) bool) bool {
 	if n.X != nil && do(n.X) {
 		return true
 	}
-	if doNodes(n.Targs, do) {
+	if doNtypes(n.Targs, do) {
 		return true
 	}
 	return false
@@ -749,23 +689,29 @@ func (n *InstExpr) editChildren(edit func(Node) Node) {
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
 	}
-	editNodes(n.Targs, edit)
+	editNtypes(n.Targs, edit)
 }
 
-func (n *InterfaceType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *InterfaceType) copy() Node {
+func (n *JumpTableStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *JumpTableStmt) copy() Node {
 	c := *n
-	c.Methods = copyFields(c.Methods)
+	c.init = copyNodes(c.init)
 	return &c
 }
-func (n *InterfaceType) doChildren(do func(Node) bool) bool {
-	if doFields(n.Methods, do) {
+func (n *JumpTableStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Idx != nil && do(n.Idx) {
 		return true
 	}
 	return false
 }
-func (n *InterfaceType) editChildren(edit func(Node) Node) {
-	editFields(n.Methods, edit)
+func (n *JumpTableStmt) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Idx != nil {
+		n.Idx = edit(n.Idx).(Node)
+	}
 }
 
 func (n *KeyExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
@@ -884,29 +830,6 @@ func (n *MakeExpr) editChildren(edit func(Node) Node) {
 	}
 }
 
-func (n *MapType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *MapType) copy() Node {
-	c := *n
-	return &c
-}
-func (n *MapType) doChildren(do func(Node) bool) bool {
-	if n.Key != nil && do(n.Key) {
-		return true
-	}
-	if n.Elem != nil && do(n.Elem) {
-		return true
-	}
-	return false
-}
-func (n *MapType) editChildren(edit func(Node) Node) {
-	if n.Key != nil {
-		n.Key = edit(n.Key).(Ntype)
-	}
-	if n.Elem != nil {
-		n.Elem = edit(n.Elem).(Ntype)
-	}
-}
-
 func (n *Name) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 
 func (n *NilExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
@@ -945,17 +868,6 @@ func (n *ParenExpr) editChildren(edit func(Node) Node) {
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
 	}
-}
-
-func (n *PkgName) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *PkgName) copy() Node {
-	c := *n
-	return &c
-}
-func (n *PkgName) doChildren(do func(Node) bool) bool {
-	return false
-}
-func (n *PkgName) editChildren(edit func(Node) Node) {
 }
 
 func (n *RangeStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
@@ -1212,23 +1124,6 @@ func (n *SliceHeaderExpr) editChildren(edit func(Node) Node) {
 	}
 }
 
-func (n *SliceType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *SliceType) copy() Node {
-	c := *n
-	return &c
-}
-func (n *SliceType) doChildren(do func(Node) bool) bool {
-	if n.Elem != nil && do(n.Elem) {
-		return true
-	}
-	return false
-}
-func (n *SliceType) editChildren(edit func(Node) Node) {
-	if n.Elem != nil {
-		n.Elem = edit(n.Elem).(Ntype)
-	}
-}
-
 func (n *StarExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *StarExpr) copy() Node {
 	c := *n
@@ -1248,6 +1143,34 @@ func (n *StarExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
+	}
+}
+
+func (n *StringHeaderExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *StringHeaderExpr) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *StringHeaderExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Ptr != nil && do(n.Ptr) {
+		return true
+	}
+	if n.Len != nil && do(n.Len) {
+		return true
+	}
+	return false
+}
+func (n *StringHeaderExpr) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Ptr != nil {
+		n.Ptr = edit(n.Ptr).(Node)
+	}
+	if n.Len != nil {
+		n.Len = edit(n.Len).(Node)
 	}
 }
 
@@ -1271,22 +1194,6 @@ func (n *StructKeyExpr) editChildren(edit func(Node) Node) {
 	if n.Value != nil {
 		n.Value = edit(n.Value).(Node)
 	}
-}
-
-func (n *StructType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *StructType) copy() Node {
-	c := *n
-	c.Fields = copyFields(c.Fields)
-	return &c
-}
-func (n *StructType) doChildren(do func(Node) bool) bool {
-	if doFields(n.Fields, do) {
-		return true
-	}
-	return false
-}
-func (n *StructType) editChildren(edit func(Node) Node) {
-	editFields(n.Fields, edit)
 }
 
 func (n *SwitchStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
@@ -1331,15 +1238,15 @@ func (n *TailCallStmt) doChildren(do func(Node) bool) bool {
 	if doNodes(n.init, do) {
 		return true
 	}
-	if n.Target != nil && do(n.Target) {
+	if n.Call != nil && do(n.Call) {
 		return true
 	}
 	return false
 }
 func (n *TailCallStmt) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
-	if n.Target != nil {
-		n.Target = edit(n.Target).(*Name)
+	if n.Call != nil {
+		n.Call = edit(n.Call).(*CallExpr)
 	}
 }
 
@@ -1356,18 +1263,12 @@ func (n *TypeAssertExpr) doChildren(do func(Node) bool) bool {
 	if n.X != nil && do(n.X) {
 		return true
 	}
-	if n.Ntype != nil && do(n.Ntype) {
-		return true
-	}
 	return false
 }
 func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
-	}
-	if n.Ntype != nil {
-		n.Ntype = edit(n.Ntype).(Ntype)
 	}
 }
 
@@ -1519,6 +1420,30 @@ func editNodes(list []Node, edit func(Node) Node) {
 	for i, x := range list {
 		if x != nil {
 			list[i] = edit(x).(Node)
+		}
+	}
+}
+
+func copyNtypes(list []Ntype) []Ntype {
+	if list == nil {
+		return nil
+	}
+	c := make([]Ntype, len(list))
+	copy(c, list)
+	return c
+}
+func doNtypes(list []Ntype, do func(Node) bool) bool {
+	for _, x := range list {
+		if x != nil && do(x) {
+			return true
+		}
+	}
+	return false
+}
+func editNtypes(list []Ntype, edit func(Node) Node) {
+	for i, x := range list {
+		if x != nil {
+			list[i] = edit(x).(Ntype)
 		}
 	}
 }

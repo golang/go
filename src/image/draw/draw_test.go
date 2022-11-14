@@ -13,6 +13,172 @@ import (
 	"testing/quick"
 )
 
+// slowestRGBA is a draw.Image like image.RGBA but it is a different type and
+// therefore does not trigger the draw.go fastest code paths.
+//
+// Unlike slowerRGBA, it does not implement the draw.RGBA64Image interface.
+type slowestRGBA struct {
+	Pix    []uint8
+	Stride int
+	Rect   image.Rectangle
+}
+
+func (p *slowestRGBA) ColorModel() color.Model { return color.RGBAModel }
+
+func (p *slowestRGBA) Bounds() image.Rectangle { return p.Rect }
+
+func (p *slowestRGBA) At(x, y int) color.Color {
+	return p.RGBA64At(x, y)
+}
+
+func (p *slowestRGBA) RGBA64At(x, y int) color.RGBA64 {
+	if !(image.Point{x, y}.In(p.Rect)) {
+		return color.RGBA64{}
+	}
+	i := p.PixOffset(x, y)
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	r := uint16(s[0])
+	g := uint16(s[1])
+	b := uint16(s[2])
+	a := uint16(s[3])
+	return color.RGBA64{
+		(r << 8) | r,
+		(g << 8) | g,
+		(b << 8) | b,
+		(a << 8) | a,
+	}
+}
+
+func (p *slowestRGBA) Set(x, y int, c color.Color) {
+	if !(image.Point{x, y}.In(p.Rect)) {
+		return
+	}
+	i := p.PixOffset(x, y)
+	c1 := color.RGBAModel.Convert(c).(color.RGBA)
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = c1.R
+	s[1] = c1.G
+	s[2] = c1.B
+	s[3] = c1.A
+}
+
+func (p *slowestRGBA) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+}
+
+func convertToSlowestRGBA(m image.Image) *slowestRGBA {
+	if rgba, ok := m.(*image.RGBA); ok {
+		return &slowestRGBA{
+			Pix:    append([]byte(nil), rgba.Pix...),
+			Stride: rgba.Stride,
+			Rect:   rgba.Rect,
+		}
+	}
+	rgba := image.NewRGBA(m.Bounds())
+	Draw(rgba, rgba.Bounds(), m, m.Bounds().Min, Src)
+	return &slowestRGBA{
+		Pix:    rgba.Pix,
+		Stride: rgba.Stride,
+		Rect:   rgba.Rect,
+	}
+}
+
+func init() {
+	var p any = (*slowestRGBA)(nil)
+	if _, ok := p.(RGBA64Image); ok {
+		panic("slowestRGBA should not be an RGBA64Image")
+	}
+}
+
+// slowerRGBA is a draw.Image like image.RGBA but it is a different type and
+// therefore does not trigger the draw.go fastest code paths.
+//
+// Unlike slowestRGBA, it still implements the draw.RGBA64Image interface.
+type slowerRGBA struct {
+	Pix    []uint8
+	Stride int
+	Rect   image.Rectangle
+}
+
+func (p *slowerRGBA) ColorModel() color.Model { return color.RGBAModel }
+
+func (p *slowerRGBA) Bounds() image.Rectangle { return p.Rect }
+
+func (p *slowerRGBA) At(x, y int) color.Color {
+	return p.RGBA64At(x, y)
+}
+
+func (p *slowerRGBA) RGBA64At(x, y int) color.RGBA64 {
+	if !(image.Point{x, y}.In(p.Rect)) {
+		return color.RGBA64{}
+	}
+	i := p.PixOffset(x, y)
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	r := uint16(s[0])
+	g := uint16(s[1])
+	b := uint16(s[2])
+	a := uint16(s[3])
+	return color.RGBA64{
+		(r << 8) | r,
+		(g << 8) | g,
+		(b << 8) | b,
+		(a << 8) | a,
+	}
+}
+
+func (p *slowerRGBA) Set(x, y int, c color.Color) {
+	if !(image.Point{x, y}.In(p.Rect)) {
+		return
+	}
+	i := p.PixOffset(x, y)
+	c1 := color.RGBAModel.Convert(c).(color.RGBA)
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = c1.R
+	s[1] = c1.G
+	s[2] = c1.B
+	s[3] = c1.A
+}
+
+func (p *slowerRGBA) SetRGBA64(x, y int, c color.RGBA64) {
+	if !(image.Point{x, y}.In(p.Rect)) {
+		return
+	}
+	i := p.PixOffset(x, y)
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = uint8(c.R >> 8)
+	s[1] = uint8(c.G >> 8)
+	s[2] = uint8(c.B >> 8)
+	s[3] = uint8(c.A >> 8)
+}
+
+func (p *slowerRGBA) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+}
+
+func convertToSlowerRGBA(m image.Image) *slowerRGBA {
+	if rgba, ok := m.(*image.RGBA); ok {
+		return &slowerRGBA{
+			Pix:    append([]byte(nil), rgba.Pix...),
+			Stride: rgba.Stride,
+			Rect:   rgba.Rect,
+		}
+	}
+	rgba := image.NewRGBA(m.Bounds())
+	Draw(rgba, rgba.Bounds(), m, m.Bounds().Min, Src)
+	return &slowerRGBA{
+		Pix:    rgba.Pix,
+		Stride: rgba.Stride,
+		Rect:   rgba.Rect,
+	}
+}
+
+func init() {
+	var p any = (*slowerRGBA)(nil)
+	if _, ok := p.(RGBA64Image); !ok {
+		panic("slowerRGBA should be an RGBA64Image")
+	}
+}
+
 func eq(c0, c1 color.Color) bool {
 	r0, g0, b0, a0 := c0.RGBA()
 	r1, g1, b1, a1 := c1.RGBA()
@@ -178,6 +344,32 @@ var drawTests = []drawTest{
 	{"grayAlphaSrc", vgradGray(), fillAlpha(192), Src, color.RGBA{102, 102, 102, 192}},
 	{"grayNil", vgradGray(), nil, Over, color.RGBA{136, 136, 136, 255}},
 	{"grayNilSrc", vgradGray(), nil, Src, color.RGBA{136, 136, 136, 255}},
+	// Same again, but with a slowerRGBA source.
+	{"graySlower", convertToSlowerRGBA(vgradGray()), fillAlpha(255),
+		Over, color.RGBA{136, 136, 136, 255}},
+	{"graySrcSlower", convertToSlowerRGBA(vgradGray()), fillAlpha(255),
+		Src, color.RGBA{136, 136, 136, 255}},
+	{"grayAlphaSlower", convertToSlowerRGBA(vgradGray()), fillAlpha(192),
+		Over, color.RGBA{136, 102, 102, 255}},
+	{"grayAlphaSrcSlower", convertToSlowerRGBA(vgradGray()), fillAlpha(192),
+		Src, color.RGBA{102, 102, 102, 192}},
+	{"grayNilSlower", convertToSlowerRGBA(vgradGray()), nil,
+		Over, color.RGBA{136, 136, 136, 255}},
+	{"grayNilSrcSlower", convertToSlowerRGBA(vgradGray()), nil,
+		Src, color.RGBA{136, 136, 136, 255}},
+	// Same again, but with a slowestRGBA source.
+	{"graySlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(255),
+		Over, color.RGBA{136, 136, 136, 255}},
+	{"graySrcSlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(255),
+		Src, color.RGBA{136, 136, 136, 255}},
+	{"grayAlphaSlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(192),
+		Over, color.RGBA{136, 102, 102, 255}},
+	{"grayAlphaSrcSlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(192),
+		Src, color.RGBA{102, 102, 102, 192}},
+	{"grayNilSlowest", convertToSlowestRGBA(vgradGray()), nil,
+		Over, color.RGBA{136, 136, 136, 255}},
+	{"grayNilSrcSlowest", convertToSlowestRGBA(vgradGray()), nil,
+		Src, color.RGBA{136, 136, 136, 255}},
 	// Uniform mask (100%, 75%, nil) and variable CMYK source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
@@ -188,13 +380,32 @@ var drawTests = []drawTest{
 	{"cmykAlphaSrc", vgradMagenta(), fillAlpha(192), Src, color.RGBA{145, 67, 145, 192}},
 	{"cmykNil", vgradMagenta(), nil, Over, color.RGBA{192, 89, 192, 255}},
 	{"cmykNilSrc", vgradMagenta(), nil, Src, color.RGBA{192, 89, 192, 255}},
-	// Variable mask and variable source.
+	// Variable mask and uniform source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
 	// The source pixel is {0, 0, 255, 255}.
 	// The mask pixel's alpha is 102, or 40%.
 	{"generic", fillBlue(255), vgradAlpha(192), Over, color.RGBA{81, 0, 102, 255}},
 	{"genericSrc", fillBlue(255), vgradAlpha(192), Src, color.RGBA{0, 0, 102, 102}},
+	// Same again, but with a slowerRGBA mask.
+	{"genericSlower", fillBlue(255), convertToSlowerRGBA(vgradAlpha(192)),
+		Over, color.RGBA{81, 0, 102, 255}},
+	{"genericSrcSlower", fillBlue(255), convertToSlowerRGBA(vgradAlpha(192)),
+		Src, color.RGBA{0, 0, 102, 102}},
+	// Same again, but with a slowestRGBA mask.
+	{"genericSlowest", fillBlue(255), convertToSlowestRGBA(vgradAlpha(192)),
+		Over, color.RGBA{81, 0, 102, 255}},
+	{"genericSrcSlowest", fillBlue(255), convertToSlowestRGBA(vgradAlpha(192)),
+		Src, color.RGBA{0, 0, 102, 102}},
+	// Variable mask and variable source.
+	// At (x, y) == (8, 8):
+	// The destination pixel is {136, 0, 0, 255}.
+	// The source pixel is:
+	//   - {0, 48, 0, 90}.
+	//   - {136} in Gray-space, which is {136, 136, 136, 255} in RGBA-space.
+	// The mask pixel's alpha is 102, or 40%.
+	{"rgbaVariableMaskOver", vgradGreen(90), vgradAlpha(192), Over, color.RGBA{117, 19, 0, 255}},
+	{"grayVariableMaskOver", vgradGray(), vgradAlpha(192), Over, color.RGBA{136, 54, 54, 255}},
 }
 
 func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) image.Image {
@@ -260,30 +471,45 @@ func TestDraw(t *testing.T) {
 	for _, r := range rr {
 	loop:
 		for _, test := range drawTests {
-			dst := hgradRed(255).(*image.RGBA).SubImage(r).(Image)
-			// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.
-			golden := makeGolden(dst, image.Rect(0, 0, 16, 16), test.src, image.ZP, test.mask, image.ZP, test.op)
-			b := dst.Bounds()
-			if !b.Eq(golden.Bounds()) {
-				t.Errorf("draw %v %s: bounds %v versus %v", r, test.desc, dst.Bounds(), golden.Bounds())
-				continue
-			}
-			// Draw the same combination onto the actual dst using the optimized DrawMask implementation.
-			DrawMask(dst, image.Rect(0, 0, 16, 16), test.src, image.ZP, test.mask, image.ZP, test.op)
-			if image.Pt(8, 8).In(r) {
-				// Check that the resultant pixel at (8, 8) matches what we expect
-				// (the expected value can be verified by hand).
-				if !eq(dst.At(8, 8), test.expected) {
-					t.Errorf("draw %v %s: at (8, 8) %v versus %v", r, test.desc, dst.At(8, 8), test.expected)
+			for i := 0; i < 3; i++ {
+				dst := hgradRed(255).(*image.RGBA).SubImage(r).(Image)
+				// For i != 0, substitute a different-typed dst that will take
+				// us off the fastest code paths. We should still get the same
+				// result, in terms of final pixel RGBA values.
+				switch i {
+				case 1:
+					dst = convertToSlowerRGBA(dst)
+				case 2:
+					dst = convertToSlowestRGBA(dst)
+				}
+
+				// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.
+				golden := makeGolden(dst, image.Rect(0, 0, 16, 16), test.src, image.ZP, test.mask, image.ZP, test.op)
+				b := dst.Bounds()
+				if !b.Eq(golden.Bounds()) {
+					t.Errorf("draw %v %s on %T: bounds %v versus %v",
+						r, test.desc, dst, dst.Bounds(), golden.Bounds())
 					continue
 				}
-			}
-			// Check that the resultant dst image matches the golden output.
-			for y := b.Min.Y; y < b.Max.Y; y++ {
-				for x := b.Min.X; x < b.Max.X; x++ {
-					if !eq(dst.At(x, y), golden.At(x, y)) {
-						t.Errorf("draw %v %s: at (%d, %d), %v versus golden %v", r, test.desc, x, y, dst.At(x, y), golden.At(x, y))
-						continue loop
+				// Draw the same combination onto the actual dst using the optimized DrawMask implementation.
+				DrawMask(dst, image.Rect(0, 0, 16, 16), test.src, image.ZP, test.mask, image.ZP, test.op)
+				if image.Pt(8, 8).In(r) {
+					// Check that the resultant pixel at (8, 8) matches what we expect
+					// (the expected value can be verified by hand).
+					if !eq(dst.At(8, 8), test.expected) {
+						t.Errorf("draw %v %s on %T: at (8, 8) %v versus %v",
+							r, test.desc, dst, dst.At(8, 8), test.expected)
+						continue
+					}
+				}
+				// Check that the resultant dst image matches the golden output.
+				for y := b.Min.Y; y < b.Max.Y; y++ {
+					for x := b.Min.X; x < b.Max.X; x++ {
+						if !eq(dst.At(x, y), golden.At(x, y)) {
+							t.Errorf("draw %v %s on %T: at (%d, %d), %v versus golden %v",
+								r, test.desc, dst, x, y, dst.At(x, y), golden.At(x, y))
+							continue loop
+						}
 					}
 				}
 			}
@@ -393,6 +619,70 @@ func TestFill(t *testing.T) {
 		src = &image.Uniform{C: c}
 		DrawMask(m, b, src, image.ZP, nil, image.ZP, Src)
 		check("whole")
+	}
+}
+
+func TestDrawSrcNonpremultiplied(t *testing.T) {
+	var (
+		opaqueGray       = color.NRGBA{0x99, 0x99, 0x99, 0xff}
+		transparentBlue  = color.NRGBA{0x00, 0x00, 0xff, 0x00}
+		transparentGreen = color.NRGBA{0x00, 0xff, 0x00, 0x00}
+		transparentRed   = color.NRGBA{0xff, 0x00, 0x00, 0x00}
+
+		opaqueGray64        = color.NRGBA64{0x9999, 0x9999, 0x9999, 0xffff}
+		transparentPurple64 = color.NRGBA64{0xfedc, 0x0000, 0x7654, 0x0000}
+	)
+
+	// dst and src are 1x3 images but the dr rectangle (and hence the overlap)
+	// is only 1x2. The Draw call should affect dst's pixels at (1, 10) and (2,
+	// 10) but the pixel at (0, 10) should be untouched.
+	//
+	// The src image is entirely transparent (and the Draw operator is Src) so
+	// the two touched pixels should be set to transparent colors.
+	//
+	// In general, Go's color.Color type (and specifically the Color.RGBA
+	// method) works in premultiplied alpha, where there's no difference
+	// between "transparent blue" and "transparent red". It's all "just
+	// transparent" and canonically "transparent black" (all zeroes).
+	//
+	// However, since the operator is Src (so the pixels are 'copied', not
+	// 'blended') and both dst and src images are *image.NRGBA (N stands for
+	// Non-premultiplied alpha which *does* distinguish "transparent blue" and
+	// "transparent red"), we prefer that this distinction carries through and
+	// dst's touched pixels should be transparent blue and transparent green,
+	// not just transparent black.
+	{
+		dst := image.NewNRGBA(image.Rect(0, 10, 3, 11))
+		dst.SetNRGBA(0, 10, opaqueGray)
+		src := image.NewNRGBA(image.Rect(1, 20, 4, 21))
+		src.SetNRGBA(1, 20, transparentBlue)
+		src.SetNRGBA(2, 20, transparentGreen)
+		src.SetNRGBA(3, 20, transparentRed)
+
+		dr := image.Rect(1, 10, 3, 11)
+		Draw(dst, dr, src, image.Point{1, 20}, Src)
+
+		if got, want := dst.At(0, 10), opaqueGray; got != want {
+			t.Errorf("At(0, 10):\ngot  %#v\nwant %#v", got, want)
+		}
+		if got, want := dst.At(1, 10), transparentBlue; got != want {
+			t.Errorf("At(1, 10):\ngot  %#v\nwant %#v", got, want)
+		}
+		if got, want := dst.At(2, 10), transparentGreen; got != want {
+			t.Errorf("At(2, 10):\ngot  %#v\nwant %#v", got, want)
+		}
+	}
+
+	// Check image.NRGBA64 (not image.NRGBA) similarly.
+	{
+		dst := image.NewNRGBA64(image.Rect(0, 0, 1, 1))
+		dst.SetNRGBA64(0, 0, opaqueGray64)
+		src := image.NewNRGBA64(image.Rect(0, 0, 1, 1))
+		src.SetNRGBA64(0, 0, transparentPurple64)
+		Draw(dst, dst.Bounds(), src, image.Point{0, 0}, Src)
+		if got, want := dst.At(0, 0), transparentPurple64; got != want {
+			t.Errorf("At(0, 0):\ngot  %#v\nwant %#v", got, want)
+		}
 	}
 }
 

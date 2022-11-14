@@ -70,14 +70,7 @@ func ParseOne(fs *flag.FlagSet, args []string) (f *flag.Flag, remainingArgs []st
 		return nil, args, NonFlagError{RawArg: raw}
 	}
 
-	name := arg[1:]
-	hasValue := false
-	value := ""
-	if i := strings.Index(name, "="); i >= 0 {
-		value = name[i+1:]
-		hasValue = true
-		name = name[0:i]
-	}
+	name, value, hasValue := strings.Cut(arg[1:], "=")
 
 	f = fs.Lookup(name)
 	if f == nil {
@@ -92,7 +85,7 @@ func ParseOne(fs *flag.FlagSet, args []string) (f *flag.Flag, remainingArgs []st
 	// Use fs.Set instead of f.Value.Set below so that any subsequent call to
 	// fs.Visit will correctly visit the flags that have been set.
 
-	failf := func(format string, a ...interface{}) (*flag.Flag, []string, error) {
+	failf := func(format string, a ...any) (*flag.Flag, []string, error) {
 		return f, args, fmt.Errorf(format, a...)
 	}
 

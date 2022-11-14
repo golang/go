@@ -78,14 +78,92 @@ GLOBL _rt0_amd64_lib_argc<>(SB),NOPTR, $8
 DATA _rt0_amd64_lib_argv<>(SB)/8, $0
 GLOBL _rt0_amd64_lib_argv<>(SB),NOPTR, $8
 
+#ifdef GOAMD64_v2
+DATA bad_cpu_msg<>+0x00(SB)/84, $"This program can only be run on AMD64 processors with v2 microarchitecture support.\n"
+#endif
+
+#ifdef GOAMD64_v3
+DATA bad_cpu_msg<>+0x00(SB)/84, $"This program can only be run on AMD64 processors with v3 microarchitecture support.\n"
+#endif
+
+#ifdef GOAMD64_v4
+DATA bad_cpu_msg<>+0x00(SB)/84, $"This program can only be run on AMD64 processors with v4 microarchitecture support.\n"
+#endif
+
+GLOBL bad_cpu_msg<>(SB), RODATA, $84
+
+// Define a list of AMD64 microarchitecture level features
+// https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels
+
+                     // SSE3     SSSE3    CMPXCHNG16 SSE4.1    SSE4.2    POPCNT
+#define V2_FEATURES_CX (1 << 0 | 1 << 9 | 1 << 13  | 1 << 19 | 1 << 20 | 1 << 23)
+                         // LAHF/SAHF
+#define V2_EXT_FEATURES_CX (1 << 0)
+                                      // FMA       MOVBE     OSXSAVE   AVX       F16C
+#define V3_FEATURES_CX (V2_FEATURES_CX | 1 << 12 | 1 << 22 | 1 << 27 | 1 << 28 | 1 << 29)
+                                              // ABM (FOR LZNCT)
+#define V3_EXT_FEATURES_CX (V2_EXT_FEATURES_CX | 1 << 5)
+                         // BMI1     AVX2     BMI2
+#define V3_EXT_FEATURES_BX (1 << 3 | 1 << 5 | 1 << 8)
+                       // XMM      YMM
+#define V3_OS_SUPPORT_AX (1 << 1 | 1 << 2)
+
+#define V4_FEATURES_CX V3_FEATURES_CX
+
+#define V4_EXT_FEATURES_CX V3_EXT_FEATURES_CX
+                                              // AVX512F   AVX512DQ  AVX512CD  AVX512BW  AVX512VL
+#define V4_EXT_FEATURES_BX (V3_EXT_FEATURES_BX | 1 << 16 | 1 << 17 | 1 << 28 | 1 << 30 | 1 << 31)
+                                          // OPMASK   ZMM
+#define V4_OS_SUPPORT_AX (V3_OS_SUPPORT_AX | 1 << 5 | (1 << 6 | 1 << 7))
+
+#ifdef GOAMD64_v2
+#define NEED_MAX_CPUID 0x80000001
+#define NEED_FEATURES_CX V2_FEATURES_CX
+#define NEED_EXT_FEATURES_CX V2_EXT_FEATURES_CX
+#endif
+
+#ifdef GOAMD64_v3
+#define NEED_MAX_CPUID 0x80000001
+#define NEED_FEATURES_CX V3_FEATURES_CX
+#define NEED_EXT_FEATURES_CX V3_EXT_FEATURES_CX
+#define NEED_EXT_FEATURES_BX V3_EXT_FEATURES_BX
+#define NEED_OS_SUPPORT_AX V3_OS_SUPPORT_AX
+#endif
+
+#ifdef GOAMD64_v4
+#define NEED_MAX_CPUID 0x80000001
+#define NEED_FEATURES_CX V4_FEATURES_CX
+#define NEED_EXT_FEATURES_CX V4_EXT_FEATURES_CX
+#define NEED_EXT_FEATURES_BX V4_EXT_FEATURES_BX
+
+// Darwin requires a different approach to check AVX512 support, see CL 285572.
+#ifdef GOOS_darwin
+#define NEED_OS_SUPPORT_AX V3_OS_SUPPORT_AX
+// These values are from:
+// https://github.com/apple/darwin-xnu/blob/xnu-4570.1.46/osfmk/i386/cpu_capabilities.h
+#define commpage64_base_address         0x00007fffffe00000
+#define commpage64_cpu_capabilities64   (commpage64_base_address+0x010)
+#define commpage64_version              (commpage64_base_address+0x01E)
+#define hasAVX512F                      0x0000004000000000
+#define hasAVX512CD                     0x0000008000000000
+#define hasAVX512DQ                     0x0000010000000000
+#define hasAVX512BW                     0x0000020000000000
+#define hasAVX512VL                     0x0000100000000000
+#define NEED_DARWIN_SUPPORT             (hasAVX512F | hasAVX512DQ | hasAVX512CD | hasAVX512BW | hasAVX512VL)
+#else
+#define NEED_OS_SUPPORT_AX V4_OS_SUPPORT_AX
+#endif
+
+#endif
+
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
 	MOVQ	SI, BX		// argv
-	SUBQ	$(4*8+7), SP		// 2args 2auto
+	SUBQ	$(5*8), SP		// 3args 2auto
 	ANDQ	$~15, SP
-	MOVQ	AX, 16(SP)
-	MOVQ	BX, 24(SP)
+	MOVQ	AX, 24(SP)
+	MOVQ	BX, 32(SP)
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
@@ -99,13 +177,9 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// find out information about the processor we're on
 	MOVL	$0, AX
 	CPUID
-	MOVL	AX, SI
 	CMPL	AX, $0
 	JE	nocpuinfo
 
-	// Figure out how to serialize RDTSC.
-	// On Intel processors LFENCE is enough. AMD requires MFENCE.
-	// Don't know about the rest, so let's do MFENCE.
 	CMPL	BX, $0x756E6547  // "Genu"
 	JNE	notintel
 	CMPL	DX, $0x49656E69  // "ineI"
@@ -113,9 +187,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	CMPL	CX, $0x6C65746E  // "ntel"
 	JNE	notintel
 	MOVB	$1, runtime·isIntel(SB)
-	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
-notintel:
 
+notintel:
 	// Load EAX=1 cpuid flags
 	MOVL	$1, AX
 	CPUID
@@ -201,11 +274,71 @@ ok:
 	MOVQ	AX, g_m(CX)
 
 	CLD				// convention is D is always left cleared
+
+	// Check GOAMD64 reqirements
+	// We need to do this after setting up TLS, so that
+	// we can report an error if there is a failure. See issue 49586.
+#ifdef NEED_FEATURES_CX
+	MOVL	$0, AX
+	CPUID
+	CMPL	AX, $0
+	JE	bad_cpu
+	MOVL	$1, AX
+	CPUID
+	ANDL	$NEED_FEATURES_CX, CX
+	CMPL	CX, $NEED_FEATURES_CX
+	JNE	bad_cpu
+#endif
+
+#ifdef NEED_MAX_CPUID
+	MOVL	$0x80000000, AX
+	CPUID
+	CMPL	AX, $NEED_MAX_CPUID
+	JL	bad_cpu
+#endif
+
+#ifdef NEED_EXT_FEATURES_BX
+	MOVL	$7, AX
+	MOVL	$0, CX
+	CPUID
+	ANDL	$NEED_EXT_FEATURES_BX, BX
+	CMPL	BX, $NEED_EXT_FEATURES_BX
+	JNE	bad_cpu
+#endif
+
+#ifdef NEED_EXT_FEATURES_CX
+	MOVL	$0x80000001, AX
+	CPUID
+	ANDL	$NEED_EXT_FEATURES_CX, CX
+	CMPL	CX, $NEED_EXT_FEATURES_CX
+	JNE	bad_cpu
+#endif
+
+#ifdef NEED_OS_SUPPORT_AX
+	XORL    CX, CX
+	XGETBV
+	ANDL	$NEED_OS_SUPPORT_AX, AX
+	CMPL	AX, $NEED_OS_SUPPORT_AX
+	JNE	bad_cpu
+#endif
+
+#ifdef NEED_DARWIN_SUPPORT
+	MOVQ	$commpage64_version, BX
+	CMPW	(BX), $13  // cpu_capabilities64 undefined in versions < 13
+	JL	bad_cpu
+	MOVQ	$commpage64_cpu_capabilities64, BX
+	MOVQ	(BX), BX
+	MOVQ	$NEED_DARWIN_SUPPORT, CX
+	ANDQ	CX, BX
+	CMPQ	BX, CX
+	JNE	bad_cpu
+#endif
+
 	CALL	runtime·check(SB)
 
-	MOVL	16(SP), AX		// copy argc
+	MOVL	24(SP), AX		// copy argc
 	MOVL	AX, 0(SP)
-	MOVQ	24(SP), AX		// copy argv
+	MOVQ	32(SP), AX		// copy argv
 	MOVQ	AX, 8(SP)
 	CALL	runtime·args(SB)
 	CALL	runtime·osinit(SB)
@@ -221,6 +354,17 @@ ok:
 	CALL	runtime·mstart(SB)
 
 	CALL	runtime·abort(SB)	// mstart should never return
+	RET
+
+bad_cpu: // show that the program requires a certain microarchitecture level.
+	MOVQ	$2, 0(SP)
+	MOVQ	$bad_cpu_msg<>(SB), AX
+	MOVQ	AX, 8(SP)
+	MOVQ	$84, 16(SP)
+	CALL	runtime·write(SB)
+	MOVQ	$1, 0(SP)
+	CALL	runtime·exit(SB)
+	CALL	runtime·abort(SB)
 	RET
 
 	// Prevent dead-code elimination of debugCallV2, which is
@@ -928,18 +1072,30 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-0
-	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
-	JNE	mfence
-	LFENCE
-	JMP	done
-mfence:
-	MFENCE
+	CMPB	internal∕cpu·X86+const_offsetX86HasRDTSCP(SB), $1
+	JNE	fences
+	// Instruction stream serializing RDTSCP is supported.
+	// RDTSCP is supported by Intel Nehalem (2008) and
+	// AMD K8 Rev. F (2006) and newer.
+	RDTSCP
 done:
-	RDTSC
 	SHLQ	$32, DX
 	ADDQ	DX, AX
 	MOVQ	AX, ret+0(FP)
 	RET
+fences:
+	// MFENCE is instruction stream serializing and flushes the
+	// store buffers on AMD. The serialization semantics of LFENCE on AMD
+	// are dependent on MSR C001_1029 and CPU generation.
+	// LFENCE on Intel does wait for all previous instructions to have executed.
+	// Intel recommends MFENCE;LFENCE in its manuals before RDTSC to have all
+	// previous instructions executed and all previous loads and stores to globally visible.
+	// Using MFENCE;LFENCE here aligns the serializing properties without
+	// runtime detection of CPU manufacturer.
+	MFENCE
+	LFENCE
+	RDTSC
+	JMP done
 
 // func memhash(p unsafe.Pointer, h, s uintptr) uintptr
 // hash function using AES hardware instructions
@@ -1619,7 +1775,7 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 // 2. Push the current PC on the stack (updating SP).
 // 3. Write the desired argument frame size at SP-16 (using the SP
 //    after step 2).
-// 4. Save all machine registers (including flags and XMM reigsters)
+// 4. Save all machine registers (including flags and XMM registers)
 //    so they can be restored later by the debugger.
 // 5. Set the PC to debugCallV2 and resume execution.
 //

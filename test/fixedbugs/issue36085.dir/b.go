@@ -1,6 +1,6 @@
 package main
 
-import "a"
+import "./a"
 
 var w a.W
 var X interface{} = &w

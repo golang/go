@@ -14,7 +14,7 @@ func getCntxct(physical bool) uint32
 func (th *vdsoTimehands) getTimecounter() (uint32, bool) {
 	switch th.algo {
 	case _VDSO_TH_ALGO_ARM_GENTIM:
-		return getCntxct(false), true
+		return getCntxct(th.physical != 0), true
 	default:
 		return 0, false
 	}

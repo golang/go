@@ -7,6 +7,7 @@ package token
 import (
 	"fmt"
 	"math/rand"
+	"reflect"
 	"sync"
 	"testing"
 )
@@ -337,5 +338,140 @@ func TestLineStart(t *testing.T) {
 		if position.Line != line || position.Column != 1 {
 			t.Errorf("LineStart(%d) returned wrong pos %d: %s", line, pos, position)
 		}
+	}
+}
+
+func TestRemoveFile(t *testing.T) {
+	contentA := []byte("this\nis\nfileA")
+	contentB := []byte("this\nis\nfileB")
+	fset := NewFileSet()
+	a := fset.AddFile("fileA", -1, len(contentA))
+	a.SetLinesForContent(contentA)
+	b := fset.AddFile("fileB", -1, len(contentB))
+	b.SetLinesForContent(contentB)
+
+	checkPos := func(pos Pos, want string) {
+		if got := fset.Position(pos).String(); got != want {
+			t.Errorf("Position(%d) = %s, want %s", pos, got, want)
+		}
+	}
+	checkNumFiles := func(want int) {
+		got := 0
+		fset.Iterate(func(*File) bool { got++; return true })
+		if got != want {
+			t.Errorf("Iterate called %d times, want %d", got, want)
+		}
+	}
+
+	apos3 := a.Pos(3)
+	bpos3 := b.Pos(3)
+	checkPos(apos3, "fileA:1:4")
+	checkPos(bpos3, "fileB:1:4")
+	checkNumFiles(2)
+
+	// After removal, queries on fileA fail.
+	fset.RemoveFile(a)
+	checkPos(apos3, "-")
+	checkPos(bpos3, "fileB:1:4")
+	checkNumFiles(1)
+
+	// idempotent / no effect
+	fset.RemoveFile(a)
+	checkPos(apos3, "-")
+	checkPos(bpos3, "fileB:1:4")
+	checkNumFiles(1)
+}
+
+func TestFileAddLineColumnInfo(t *testing.T) {
+	const (
+		filename = "test.go"
+		filesize = 100
+	)
+
+	tests := []struct {
+		name  string
+		infos []lineInfo
+		want  []lineInfo
+	}{
+		{
+			name: "normal",
+			infos: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: 50, Filename: filename, Line: 3, Column: 1},
+				{Offset: 80, Filename: filename, Line: 4, Column: 2},
+			},
+			want: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: 50, Filename: filename, Line: 3, Column: 1},
+				{Offset: 80, Filename: filename, Line: 4, Column: 2},
+			},
+		},
+		{
+			name: "offset1 == file size",
+			infos: []lineInfo{
+				{Offset: filesize, Filename: filename, Line: 2, Column: 1},
+			},
+			want: nil,
+		},
+		{
+			name: "offset1 > file size",
+			infos: []lineInfo{
+				{Offset: filesize + 1, Filename: filename, Line: 2, Column: 1},
+			},
+			want: nil,
+		},
+		{
+			name: "offset2 == file size",
+			infos: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: filesize, Filename: filename, Line: 3, Column: 1},
+			},
+			want: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+			},
+		},
+		{
+			name: "offset2 > file size",
+			infos: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: filesize + 1, Filename: filename, Line: 3, Column: 1},
+			},
+			want: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+			},
+		},
+		{
+			name: "offset2 == offset1",
+			infos: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: 10, Filename: filename, Line: 3, Column: 1},
+			},
+			want: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+			},
+		},
+		{
+			name: "offset2 < offset1",
+			infos: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: 9, Filename: filename, Line: 3, Column: 1},
+			},
+			want: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fs := NewFileSet()
+			f := fs.AddFile(filename, -1, filesize)
+			for _, info := range test.infos {
+				f.AddLineColumnInfo(info.Offset, info.Filename, info.Line, info.Column)
+			}
+			if !reflect.DeepEqual(f.infos, test.want) {
+				t.Errorf("\ngot %+v, \nwant %+v", f.infos, test.want)
+			}
+		})
 	}
 }

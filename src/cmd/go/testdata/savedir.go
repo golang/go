@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // Savedir archives a directory tree as a txtar archive printed to standard output.
@@ -17,14 +18,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"internal/txtar"
 	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
-
-	"golang.org/x/tools/txtar"
 )
 
 func usage() {

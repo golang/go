@@ -4,6 +4,8 @@
 
 package route
 
+import "syscall"
+
 func (typ RIBType) parseable() bool { return true }
 
 // RouteMetrics represents route metrics.
@@ -54,18 +56,18 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
 	// NetBSD 6 and above kernels require 64-bit aligned access to
 	// routing facilities.
 	return 8, map[int]*wireFormat{
-		sysRTM_ADD:        rtm,
-		sysRTM_DELETE:     rtm,
-		sysRTM_CHANGE:     rtm,
-		sysRTM_GET:        rtm,
-		sysRTM_LOSING:     rtm,
-		sysRTM_REDIRECT:   rtm,
-		sysRTM_MISS:       rtm,
-		sysRTM_LOCK:       rtm,
-		sysRTM_RESOLVE:    rtm,
-		sysRTM_NEWADDR:    ifam,
-		sysRTM_DELADDR:    ifam,
-		sysRTM_IFANNOUNCE: ifanm,
-		sysRTM_IFINFO:     ifm,
+		syscall.RTM_ADD:        rtm,
+		syscall.RTM_DELETE:     rtm,
+		syscall.RTM_CHANGE:     rtm,
+		syscall.RTM_GET:        rtm,
+		syscall.RTM_LOSING:     rtm,
+		syscall.RTM_REDIRECT:   rtm,
+		syscall.RTM_MISS:       rtm,
+		syscall.RTM_LOCK:       rtm,
+		syscall.RTM_RESOLVE:    rtm,
+		syscall.RTM_NEWADDR:    ifam,
+		syscall.RTM_DELADDR:    ifam,
+		syscall.RTM_IFANNOUNCE: ifanm,
+		syscall.RTM_IFINFO:     ifm,
 	}
 }

@@ -83,6 +83,23 @@ func Encode(s []rune) []uint16 {
 	return a[:n]
 }
 
+// AppendRune appends the UTF-16 encoding of the Unicode code point r
+// to the end of p and returns the extended buffer. If the rune is not
+// a valid Unicode code point, it appends the encoding of U+FFFD.
+func AppendRune(a []uint16, r rune) []uint16 {
+	// This function is inlineable for fast handling of ASCII.
+	switch {
+	case 0 <= r && r < surr1, surr3 <= r && r < surrSelf:
+		// normal rune
+		return append(a, uint16(r))
+	case surrSelf <= r && r <= maxRune:
+		// needs surrogate sequence
+		r1, r2 := EncodeRune(r)
+		return append(a, uint16(r1), uint16(r2))
+	}
+	return append(a, replacementChar)
+}
+
 // Decode returns the Unicode code point sequence represented
 // by the UTF-16 encoding s.
 func Decode(s []uint16) []rune {

@@ -1,3 +1,7 @@
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package p1
 
 import (
@@ -197,7 +201,7 @@ var m map[string]int
 
 var chanVar chan int
 
-var ifaceVar interface{} = 5
+var ifaceVar any = 5
 
 var assertVar = ifaceVar.(int)
 

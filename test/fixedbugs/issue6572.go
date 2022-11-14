@@ -17,6 +17,6 @@ func bar() (T, string, T) { // ERROR "undefined"
 func main() {
 	var x, y, z int
 	x, y = foo()
-	x, y, z = bar() // ERROR "cannot (use type|assign) string|incompatible type"
+	x, y, z = bar() // ERROR "cannot (use type|assign|use.*type) string|"
 	_, _, _ = x, y, z
 }

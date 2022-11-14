@@ -1,0 +1,32 @@
+handle git
+
+env GIT_AUTHOR_NAME='Bryan C. Mills'
+env GIT_AUTHOR_EMAIL='bcmills@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2019-04-03T13:30:35-04:00
+git add go.mod
+git commit -m 'all: initialize module'
+git branch -m master
+
+at 2019-09-04T14:39:48-04:00
+git add main.go
+git commit -m 'main: add Go source file'
+
+git log --oneline --decorate=short
+cmp stdout .git-log
+
+-- .git-log --
+6fecd21 (HEAD -> master) main: add Go source file
+d1a15cd all: initialize module
+-- go.mod --
+module vcs-test.golang.org/insecure/go/insecure
+
+go 1.13
+-- main.go --
+package main
+
+func main() {}

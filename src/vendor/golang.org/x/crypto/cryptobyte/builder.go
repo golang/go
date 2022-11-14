@@ -95,6 +95,11 @@ func (b *Builder) AddUint32(v uint32) {
 	b.add(byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 }
 
+// AddUint64 appends a big-endian, 64-bit value to the byte string.
+func (b *Builder) AddUint64(v uint64) {
+	b.add(byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+}
+
 // AddBytes appends a sequence of bytes to the byte string.
 func (b *Builder) AddBytes(v []byte) {
 	b.add(v...)
@@ -106,13 +111,13 @@ func (b *Builder) AddBytes(v []byte) {
 // supplied to them. The child builder passed to the continuation can be used
 // to build the content of the length-prefixed sequence. For example:
 //
-//   parent := cryptobyte.NewBuilder()
-//   parent.AddUint8LengthPrefixed(func (child *Builder) {
-//     child.AddUint8(42)
-//     child.AddUint8LengthPrefixed(func (grandchild *Builder) {
-//       grandchild.AddUint8(5)
-//     })
-//   })
+//	parent := cryptobyte.NewBuilder()
+//	parent.AddUint8LengthPrefixed(func (child *Builder) {
+//	  child.AddUint8(42)
+//	  child.AddUint8LengthPrefixed(func (grandchild *Builder) {
+//	    grandchild.AddUint8(5)
+//	  })
+//	})
 //
 // It is an error to write more bytes to the child than allowed by the reserved
 // length prefix. After the continuation returns, the child must be considered

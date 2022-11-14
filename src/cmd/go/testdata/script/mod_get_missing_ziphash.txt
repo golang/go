@@ -13,7 +13,7 @@ env GOSUMDB=off
 cp go.sum.bug go.sum
 ! go build -n use
 stderr '^use.go:3:8: missing go.sum entry for module providing package rsc.io/quote \(imported by use\); to add:\n\tgo get use$'
-go get -d use
+go get use
 cmp go.sum go.sum.tidy
 go build -n use
 
@@ -22,7 +22,7 @@ cp go.sum.bug go.sum
 rm $WORK/gopath/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.ziphash
 ! go build -n use
 stderr '^use.go:3:8: missing go.sum entry for module providing package rsc.io/quote \(imported by use\); to add:\n\tgo get use$'
-go get -d use
+go get use
 cmp go.sum go.sum.tidy
 go build -n use
 

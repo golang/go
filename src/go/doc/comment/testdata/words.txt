@@ -1,0 +1,10 @@
+-- input --
+This is an italicword and a linkedword and Unicöde.
+-- gofmt --
+This is an italicword and a linkedword and Unicöde.
+-- text --
+This is an italicword and a linkedword and Unicöde.
+-- markdown --
+This is an *italicword* and a [*linkedword*](https://example.com/linkedword) and Unicöde.
+-- html --
+<p>This is an <i>italicword</i> and a <a href="https://example.com/linkedword"><i>linkedword</i></a> and Unicöde.

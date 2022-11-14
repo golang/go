@@ -5,7 +5,7 @@
 // Package pprof writes runtime profiling data in the format expected
 // by the pprof visualization tool.
 //
-// Profiling a Go program
+// # Profiling a Go program
 //
 // The first step to profiling a Go program is to enable profiling.
 // Support for profiling benchmarks built with the standard testing
@@ -13,54 +13,54 @@
 // runs benchmarks in the current directory and writes the CPU and
 // memory profiles to cpu.prof and mem.prof:
 //
-//     go test -cpuprofile cpu.prof -memprofile mem.prof -bench .
+//	go test -cpuprofile cpu.prof -memprofile mem.prof -bench .
 //
 // To add equivalent profiling support to a standalone program, add
 // code like the following to your main function:
 //
-//    var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
-//    var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
+//	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
+//	var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 //
-//    func main() {
-//        flag.Parse()
-//        if *cpuprofile != "" {
-//            f, err := os.Create(*cpuprofile)
-//            if err != nil {
-//                log.Fatal("could not create CPU profile: ", err)
-//            }
-//            defer f.Close() // error handling omitted for example
-//            if err := pprof.StartCPUProfile(f); err != nil {
-//                log.Fatal("could not start CPU profile: ", err)
-//            }
-//            defer pprof.StopCPUProfile()
-//        }
+//	func main() {
+//	    flag.Parse()
+//	    if *cpuprofile != "" {
+//	        f, err := os.Create(*cpuprofile)
+//	        if err != nil {
+//	            log.Fatal("could not create CPU profile: ", err)
+//	        }
+//	        defer f.Close() // error handling omitted for example
+//	        if err := pprof.StartCPUProfile(f); err != nil {
+//	            log.Fatal("could not start CPU profile: ", err)
+//	        }
+//	        defer pprof.StopCPUProfile()
+//	    }
 //
-//        // ... rest of the program ...
+//	    // ... rest of the program ...
 //
-//        if *memprofile != "" {
-//            f, err := os.Create(*memprofile)
-//            if err != nil {
-//                log.Fatal("could not create memory profile: ", err)
-//            }
-//            defer f.Close() // error handling omitted for example
-//            runtime.GC() // get up-to-date statistics
-//            if err := pprof.WriteHeapProfile(f); err != nil {
-//                log.Fatal("could not write memory profile: ", err)
-//            }
-//        }
-//    }
+//	    if *memprofile != "" {
+//	        f, err := os.Create(*memprofile)
+//	        if err != nil {
+//	            log.Fatal("could not create memory profile: ", err)
+//	        }
+//	        defer f.Close() // error handling omitted for example
+//	        runtime.GC() // get up-to-date statistics
+//	        if err := pprof.WriteHeapProfile(f); err != nil {
+//	            log.Fatal("could not write memory profile: ", err)
+//	        }
+//	    }
+//	}
 //
 // There is also a standard HTTP interface to profiling data. Adding
 // the following line will install handlers under the /debug/pprof/
 // URL to download live profiles:
 //
-//    import _ "net/http/pprof"
+//	import _ "net/http/pprof"
 //
 // See the net/http/pprof package for more details.
 //
 // Profiles can then be visualized with the pprof tool:
 //
-//    go tool pprof cpu.prof
+//	go tool pprof cpu.prof
 //
 // There are many commands available from the pprof command line.
 // Commonly used commands include "top", which prints a summary of the
@@ -74,7 +74,6 @@ package pprof
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"internal/abi"
 	"io"
@@ -130,11 +129,10 @@ import (
 // The CPU profile is not available as a Profile. It has a special API,
 // the StartCPUProfile and StopCPUProfile functions, because it streams
 // output to a writer during profiling.
-//
 type Profile struct {
 	name  string
 	mu    sync.Mutex
-	m     map[interface{}][]uintptr
+	m     map[any][]uintptr
 	count func() int
 	write func(io.Writer, int) error
 }
@@ -217,7 +215,7 @@ func NewProfile(name string) *Profile {
 	}
 	p := &Profile{
 		name: name,
-		m:    map[interface{}][]uintptr{},
+		m:    map[any][]uintptr{},
 	}
 	profiles.m[name] = p
 	return p
@@ -276,8 +274,7 @@ func (p *Profile) Count() int {
 //
 // Passing skip=0 begins the stack trace at the call to Add inside rpc.NewClient.
 // Passing skip=1 begins the stack trace at the call to NewClient inside mypkg.Run.
-//
-func (p *Profile) Add(value interface{}, skip int) {
+func (p *Profile) Add(value any, skip int) {
 	if p.name == "" {
 		panic("pprof: use of uninitialized Profile")
 	}
@@ -303,7 +300,7 @@ func (p *Profile) Add(value interface{}, skip int) {
 
 // Remove removes the execution stack associated with value from the profile.
 // It is a no-op if the value is not in the profile.
-func (p *Profile) Remove(value interface{}) {
+func (p *Profile) Remove(value any) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	delete(p.m, value)
@@ -404,7 +401,7 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler fun
 // The profile will be in compressed proto format unless debug is nonzero.
 func printCountProfile(w io.Writer, debug int, name string, p countProfile) error {
 	// Build count of each stack.
-	var buf bytes.Buffer
+	var buf strings.Builder
 	key := func(stk []uintptr, lbls *labelMap) string {
 		buf.Reset()
 		fmt.Fprintf(&buf, "@")
@@ -595,10 +592,24 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 	// Technically the rate is MemProfileRate not 2*MemProfileRate,
 	// but early versions of the C++ heap profiler reported 2*MemProfileRate,
 	// so that's what pprof has come to expect.
+	rate := 2 * runtime.MemProfileRate
+
+	// pprof reads a profile with alloc == inuse as being a "2-column" profile
+	// (objects and bytes, not distinguishing alloc from inuse),
+	// but then such a profile can't be merged using pprof *.prof with
+	// other 4-column profiles where alloc != inuse.
+	// The easiest way to avoid this bug is to adjust allocBytes so it's never == inuseBytes.
+	// pprof doesn't use these header values anymore except for checking equality.
+	inUseBytes := total.InUseBytes()
+	allocBytes := total.AllocBytes
+	if inUseBytes == allocBytes {
+		allocBytes++
+	}
+
 	fmt.Fprintf(w, "heap profile: %d: %d [%d: %d] @ heap/%d\n",
-		total.InUseObjects(), total.InUseBytes(),
-		total.AllocObjects, total.AllocBytes,
-		2*runtime.MemProfileRate)
+		total.InUseObjects(), inUseBytes,
+		total.AllocObjects, allocBytes,
+		rate)
 
 	for i := range p {
 		r := &p[i]

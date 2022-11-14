@@ -34,12 +34,13 @@ See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
 }
 
 func init() {
+	base.AddChdirFlag(&cmdInit.Flag)
 	base.AddModCommonFlags(&cmdInit.Flag)
 }
 
 func runInit(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 1 {
-		base.Fatalf("go mod init: too many arguments")
+		base.Fatalf("go: 'go mod init' accepts at most one argument")
 	}
 	var modPath string
 	if len(args) == 1 {

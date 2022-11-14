@@ -19,7 +19,7 @@ cmp go.mod go.mod.empty
 env GOFLAGS=-mod=readonly
 
 # update go.mod - go get allowed
-go get -d rsc.io/quote
+go get rsc.io/quote
 grep rsc.io/quote go.mod
 
 # update go.mod - go mod tidy allowed
@@ -41,7 +41,7 @@ go list -m all
 
 # -mod=readonly should reject inconsistent go.mod files
 # (ones that would be rewritten).
-go get -d rsc.io/sampler@v1.2.0
+go get rsc.io/sampler@v1.2.0
 go mod edit -require rsc.io/quote@v1.5.2
 cp go.mod go.mod.inconsistent
 ! go list
@@ -81,7 +81,7 @@ stderr '^x.go:2:8: no required module provides package rsc.io/quote; to add it:\
 stderr '^x.go:2:8: no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote$'
 
 # However, if we didn't see an import from the main module, we should suggest
-# 'go get -d' instead, because we don't know whether 'go mod tidy' would add it.
+# 'go get' instead, because we don't know whether 'go mod tidy' would add it.
 ! go list rsc.io/quote
 stderr '^no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote$'
 

@@ -127,12 +127,11 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 		return nil, errors.New("x509: no DEK-Info header in block")
 	}
 
-	idx := strings.Index(dek, ",")
-	if idx == -1 {
+	mode, hexIV, ok := strings.Cut(dek, ",")
+	if !ok {
 		return nil, errors.New("x509: malformed DEK-Info header")
 	}
 
-	mode, hexIV := dek[:idx], dek[idx+1:]
 	ciph := cipherByName(mode)
 	if ciph == nil {
 		return nil, errors.New("x509: unknown encryption mode")

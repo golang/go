@@ -5,10 +5,11 @@
 package main
 
 import (
-	"crypto/md5"
+	"cmd/internal/notsha256"
 	"flag"
 	"fmt"
 	"go/build"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -99,14 +100,22 @@ var ppcNeed = []string{
 	"RET",
 }
 
+var ppcPIENeed = []string{
+	"BR",
+	"CALL",
+	"RET",
+}
+
 var ppcGnuNeed = []string{
 	"mflr",
 	"lbz",
-	"cmpw",
+	"beq",
 }
 
 func mustHaveDisasm(t *testing.T) {
 	switch runtime.GOARCH {
+	case "loong64":
+		t.Skipf("skipping on %s", runtime.GOARCH)
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
 	case "riscv64":
@@ -142,7 +151,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 		goarch = f[1]
 	}
 
-	hash := md5.Sum([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
+	hash := notsha256.Sum256([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
 	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
 	args := []string{"build", "-o", hello}
 	args = append(args, flags...)
@@ -176,7 +185,21 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 	case "arm64":
 		need = append(need, arm64Need...)
 	case "ppc64", "ppc64le":
-		need = append(need, ppcNeed...)
+		var pie bool
+		for _, flag := range flags {
+			if flag == "-buildmode=pie" {
+				pie = true
+				break
+			}
+		}
+		if pie {
+			// In PPC64 PIE binaries we use a "local entry point" which is
+			// function symbol address + 8. Currently we don't symbolize that.
+			// Expect a different output.
+			need = append(need, ppcPIENeed...)
+		} else {
+			need = append(need, ppcNeed...)
+		}
 	}
 
 	if printGnuAsm {
@@ -228,7 +251,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 		}
 	}
 
-	if !ok {
+	if !ok || testing.Verbose() {
 		t.Logf("full disassembly:\n%s", text)
 	}
 }
@@ -263,11 +286,26 @@ func TestDisasmExtld(t *testing.T) {
 	testDisasm(t, "fmthello.go", false, false, "-ldflags=-linkmode=external")
 }
 
+func TestDisasmPIE(t *testing.T) {
+	if !platform.BuildModeSupported("gc", "pie", runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s, PIE buildmode not supported", runtime.GOOS, runtime.GOARCH)
+	}
+	if !platform.InternalLinkPIESupported(runtime.GOOS, runtime.GOARCH) {
+		// require cgo on platforms that PIE needs external linking
+		testenv.MustHaveCGO(t)
+	}
+	t.Parallel()
+	testDisasm(t, "fmthello.go", false, false, "-buildmode=pie")
+}
+
 func TestDisasmGoobj(t *testing.T) {
 	mustHaveDisasm(t)
 
+	importcfgfile := filepath.Join(tmp, "hello.importcfg")
+	testenv.WriteImportcfg(t, importcfgfile, nil)
+
 	hello := filepath.Join(tmp, "hello.o")
-	args := []string{"tool", "compile", "-o", hello}
+	args := []string{"tool", "compile", "-p=main", "-importcfg=" + importcfgfile, "-o", hello}
 	args = append(args, "testdata/fmthello.go")
 	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
 	if err != nil {
@@ -354,7 +392,7 @@ func TestGoObjOtherVersion(t *testing.T) {
 	cmd := exec.Command(exe, obj)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
-		t.Fatalf("objdump go116.o succeeded unexpectly")
+		t.Fatalf("objdump go116.o succeeded unexpectedly")
 	}
 	if !strings.Contains(string(out), "go object of a different version") {
 		t.Errorf("unexpected error message:\n%s", out)

@@ -58,20 +58,28 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	RET
 
 // Called using C ABI.
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
 	// Transition from C ABI to Go ABI.
 	PUSH_REGS_HOST_TO_ABI0()
 
-	// Call into the Go signal handler
+	// Set up ABIInternal environment: g in R14, cleared X15.
+	get_tls(R12)
+	MOVQ	g(R12), R14
+	PXOR	X15, X15
+
+	// Reserve space for spill slots.
 	NOP	SP		// disable vet stack checking
-        ADJSP   $24
-	MOVQ	DI, 0(SP)	// sig
-	MOVQ	SI, 8(SP)	// info
-	MOVQ	DX, 16(SP)	// ctx
-	CALL	·sigtrampgo(SB)
+	ADJSP   $24
+
+	// Call into the Go signal handler
+	MOVQ	DI, AX	// sig
+	MOVQ	SI, BX	// info
+	MOVQ	DX, CX	// ctx
+	CALL	·sigtrampgo<ABIInternal>(SB)
+
 	ADJSP	$-24
 
-        POP_REGS_HOST_TO_ABI0()
+	POP_REGS_HOST_TO_ABI0()
 	RET
 
 //
@@ -369,8 +377,11 @@ TEXT runtime·clock_gettime_trampoline(SB),NOSPLIT,$0
 	MOVL	0(DI), DI		// arg 1 clock_id
 	CALL	libc_clock_gettime(SB)
 	TESTL	AX, AX
-	JEQ	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	JEQ	noerr
+	CALL	libc_errno(SB)
+	MOVL	(AX), AX		// errno
+	NEGL	AX			// caller expects negative errno value
+noerr:
 	POPQ	BP
 	RET
 

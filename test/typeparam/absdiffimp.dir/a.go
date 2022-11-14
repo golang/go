@@ -4,10 +4,6 @@
 
 package a
 
-import (
-	"math"
-)
-
 type Numeric interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
@@ -40,36 +36,37 @@ type Complex interface {
 	~complex64 | ~complex128
 }
 
-// orderedAbs is a helper type that defines an Abs method for
-// ordered numeric types.
-type orderedAbs[T orderedNumeric] T
-
-func (a orderedAbs[T]) Abs() orderedAbs[T] {
-	if a < 0 {
-		return -a
-	}
-	return a
-}
-
-// complexAbs is a helper type that defines an Abs method for
-// complex types.
-type complexAbs[T Complex] T
-
-func (a complexAbs[T]) Abs() complexAbs[T] {
-	r := float64(real(a))
-	i := float64(imag(a))
-	d := math.Sqrt(r*r + i*i)
-	return complexAbs[T](complex(d, 0))
-}
-
-// OrderedAbsDifference returns the absolute value of the difference
-// between a and b, where a and b are of an ordered type.
-func OrderedAbsDifference[T orderedNumeric](a, b T) T {
-	return T(absDifference(orderedAbs[T](a), orderedAbs[T](b)))
-}
-
-// ComplexAbsDifference returns the absolute value of the difference
-// between a and b, where a and b are of a complex type.
-func ComplexAbsDifference[T Complex](a, b T) T {
-	return T(absDifference(complexAbs[T](a), complexAbs[T](b)))
-}
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// // orderedAbs is a helper type that defines an Abs method for
+// // ordered numeric types.
+// type orderedAbs[T orderedNumeric] T
+//
+// func (a orderedAbs[T]) Abs() orderedAbs[T] {
+// 	if a < 0 {
+// 		return -a
+// 	}
+// 	return a
+// }
+//
+// // complexAbs is a helper type that defines an Abs method for
+// // complex types.
+// type complexAbs[T Complex] T
+//
+// func (a complexAbs[T]) Abs() complexAbs[T] {
+// 	r := float64(real(a))
+// 	i := float64(imag(a))
+// 	d := math.Sqrt(r*r + i*i)
+// 	return complexAbs[T](complex(d, 0))
+// }
+//
+// // OrderedAbsDifference returns the absolute value of the difference
+// // between a and b, where a and b are of an ordered type.
+// func OrderedAbsDifference[T orderedNumeric](a, b T) T {
+// 	return T(absDifference(orderedAbs[T](a), orderedAbs[T](b)))
+// }
+//
+// // ComplexAbsDifference returns the absolute value of the difference
+// // between a and b, where a and b are of a complex type.
+// func ComplexAbsDifference[T Complex](a, b T) T {
+// 	return T(absDifference(complexAbs[T](a), complexAbs[T](b)))
+// }

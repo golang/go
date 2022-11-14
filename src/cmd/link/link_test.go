@@ -7,10 +7,10 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"cmd/internal/sys"
 	"debug/macho"
+	"internal/buildcfg"
+	"internal/platform"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -50,19 +50,22 @@ func main() {}
 
 	tmpdir := t.TempDir()
 
-	err := ioutil.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
+	importcfgfile := filepath.Join(tmpdir, "importcfg")
+	testenv.WriteImportcfg(t, importcfgfile, nil)
+
+	err := os.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
 	if err != nil {
 		t.Fatalf("failed to write main.go: %v\n", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "main.go")
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-p=main", "main.go")
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to compile main.go: %v, output: %s\n", err, out)
 	}
 
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "main.o")
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-importcfg="+importcfgfile, "main.o")
 	cmd.Dir = tmpdir
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -82,7 +85,7 @@ func TestIssue28429(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	write := func(name, content string) {
-		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+		err := os.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -98,9 +101,12 @@ func TestIssue28429(t *testing.T) {
 		}
 	}
 
+	importcfgfile := filepath.Join(tmpdir, "importcfg")
+	testenv.WriteImportcfg(t, importcfgfile, nil)
+
 	// Compile a main package.
 	write("main.go", "package main; func main() {}")
-	runGo("tool", "compile", "-p", "main", "main.go")
+	runGo("tool", "compile", "-importcfg="+importcfgfile, "-p=main", "main.go")
 	runGo("tool", "pack", "c", "main.a", "main.o")
 
 	// Add an extra section with a short, non-.o name.
@@ -110,7 +116,7 @@ func TestIssue28429(t *testing.T) {
 
 	// Verify that the linker does not attempt
 	// to compile the extra section.
-	runGo("tool", "link", "main.a")
+	runGo("tool", "link", "-importcfg="+importcfgfile, "main.a")
 }
 
 func TestUnresolved(t *testing.T) {
@@ -121,7 +127,7 @@ func TestUnresolved(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	write := func(name, content string) {
-		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+		err := os.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -174,6 +180,8 @@ func TestIssue33979(t *testing.T) {
 
 	// Skip test on platforms that do not support cgo internal linking.
 	switch runtime.GOARCH {
+	case "loong64":
+		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
@@ -187,7 +195,7 @@ func TestIssue33979(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	write := func(name, content string) {
-		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+		err := os.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -234,15 +242,18 @@ void foo() {
 	cc := strings.TrimSpace(runGo("env", "CC"))
 	cflags := strings.Fields(runGo("env", "GOGCCFLAGS"))
 
+	importcfgfile := filepath.Join(tmpdir, "importcfg")
+	testenv.WriteImportcfg(t, importcfgfile, nil)
+
 	// Compile, assemble and pack the Go and C code.
-	runGo("tool", "asm", "-gensymabis", "-o", "symabis", "x.s")
-	runGo("tool", "compile", "-symabis", "symabis", "-p", "main", "-o", "x1.o", "main.go")
-	runGo("tool", "asm", "-o", "x2.o", "x.s")
+	runGo("tool", "asm", "-p=main", "-gensymabis", "-o", "symabis", "x.s")
+	runGo("tool", "compile", "-importcfg="+importcfgfile, "-symabis", "symabis", "-p=main", "-o", "x1.o", "main.go")
+	runGo("tool", "asm", "-p=main", "-o", "x2.o", "x.s")
 	run(cc, append(cflags, "-c", "-o", "x3.o", "x.c")...)
 	runGo("tool", "pack", "c", "x.a", "x1.o", "x2.o", "x3.o")
 
 	// Now attempt to link using the internal linker.
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "link", "-linkmode=internal", "x.a")
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "link", "-importcfg="+importcfgfile, "-linkmode=internal", "x.a")
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -325,7 +336,7 @@ func TestXFlag(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err := ioutil.WriteFile(src, []byte(testXFlagSrc), 0666)
+	err := os.WriteFile(src, []byte(testXFlagSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -349,7 +360,7 @@ func TestMachOBuildVersion(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err := ioutil.WriteFile(src, []byte(testMachOBuildVersionSrc), 0666)
+	err := os.WriteFile(src, []byte(testMachOBuildVersionSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -425,13 +436,13 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "blah.go")
-	err := ioutil.WriteFile(src, []byte(Issue34788src), 0666)
+	err := os.WriteFile(src, []byte(Issue34788src), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	obj := filepath.Join(tmpdir, "blah.o")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=blah", "-o", obj, src)
 	cmd.Env = append(os.Environ(), "GOARCH=386", "GOOS=android")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
@@ -501,19 +512,19 @@ func TestStrictDup(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "x.go")
-	err := ioutil.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
+	err := os.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, af := range asmfiles {
 		src = filepath.Join(tmpdir, af.fname+".s")
-		err = ioutil.WriteFile(src, []byte(af.payload), 0666)
+		err = os.WriteFile(src, []byte(af.payload), 0666)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 	src = filepath.Join(tmpdir, "go.mod")
-	err = ioutil.WriteFile(src, []byte("module teststrictdup\n"), 0666)
+	err = os.WriteFile(src, []byte("module teststrictdup\n"), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -586,17 +597,17 @@ func TestFuncAlign(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "go.mod")
-	err := ioutil.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
+	err := os.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 	src = filepath.Join(tmpdir, "falign.go")
-	err = ioutil.WriteFile(src, []byte(testFuncAlignSrc), 0666)
+	err = os.WriteFile(src, []byte(testFuncAlignSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 	src = filepath.Join(tmpdir, "falign.s")
-	err = ioutil.WriteFile(src, []byte(testFuncAlignAsmSrc), 0666)
+	err = os.WriteFile(src, []byte(testFuncAlignAsmSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -642,8 +653,12 @@ func TestTrampoline(t *testing.T) {
 	// For stress test, we set -debugtramp=2 flag, which sets a very low
 	// threshold for trampoline generation, and essentially all cross-package
 	// calls will use trampolines.
+	buildmodes := []string{"default"}
 	switch runtime.GOARCH {
-	case "arm", "arm64", "ppc64", "ppc64le":
+	case "arm", "arm64", "ppc64":
+	case "ppc64le":
+		// Trampolines are generated differently when internal linking PIE, test them too.
+		buildmodes = append(buildmodes, "pie")
 	default:
 		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
 	}
@@ -655,24 +670,26 @@ func TestTrampoline(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "hello.go")
-	err := ioutil.WriteFile(src, []byte(testTrampSrc), 0666)
+	err := os.WriteFile(src, []byte(testTrampSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 	exe := filepath.Join(tmpdir, "hello.exe")
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("build failed: %v\n%s", err, out)
-	}
-	cmd = exec.Command(exe)
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("executable failed to run: %v\n%s", err, out)
-	}
-	if string(out) != "hello\n" {
-		t.Errorf("unexpected output:\n%s", out)
+	for _, mode := range buildmodes {
+		cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode="+mode, "-ldflags=-debugtramp=2", "-o", exe, src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build (%s) failed: %v\n%s", mode, err, out)
+		}
+		cmd = exec.Command(exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("executable failed to run (%s): %v\n%s", mode, err, out)
+		}
+		if string(out) != "hello\n" {
+			t.Errorf("unexpected output (%s):\n%s", mode, out)
+		}
 	}
 }
 
@@ -693,8 +710,12 @@ func TestTrampolineCgo(t *testing.T) {
 	// For stress test, we set -debugtramp=2 flag, which sets a very low
 	// threshold for trampoline generation, and essentially all cross-package
 	// calls will use trampolines.
+	buildmodes := []string{"default"}
 	switch runtime.GOARCH {
-	case "arm", "arm64", "ppc64", "ppc64le":
+	case "arm", "arm64", "ppc64":
+	case "ppc64le":
+		// Trampolines are generated differently when internal linking PIE, test them too.
+		buildmodes = append(buildmodes, "pie")
 	default:
 		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
 	}
@@ -707,43 +728,45 @@ func TestTrampolineCgo(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "hello.go")
-	err := ioutil.WriteFile(src, []byte(testTrampCgoSrc), 0666)
+	err := os.WriteFile(src, []byte(testTrampCgoSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 	exe := filepath.Join(tmpdir, "hello.exe")
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("build failed: %v\n%s", err, out)
-	}
-	cmd = exec.Command(exe)
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("executable failed to run: %v\n%s", err, out)
-	}
-	if string(out) != "hello\n" && string(out) != "hello\r\n" {
-		t.Errorf("unexpected output:\n%s", out)
-	}
+	for _, mode := range buildmodes {
+		cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode="+mode, "-ldflags=-debugtramp=2", "-o", exe, src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build (%s) failed: %v\n%s", mode, err, out)
+		}
+		cmd = exec.Command(exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("executable failed to run (%s): %v\n%s", mode, err, out)
+		}
+		if string(out) != "hello\n" && string(out) != "hello\r\n" {
+			t.Errorf("unexpected output (%s):\n%s", mode, out)
+		}
 
-	// Test internal linking mode.
+		// Test internal linking mode.
 
-	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || (runtime.GOARCH == "arm64" && runtime.GOOS == "windows") || !testenv.CanInternalLink() {
-		return // internal linking cgo is not supported
-	}
-	cmd = exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2 -linkmode=internal", "-o", exe, src)
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("build failed: %v\n%s", err, out)
-	}
-	cmd = exec.Command(exe)
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("executable failed to run: %v\n%s", err, out)
-	}
-	if string(out) != "hello\n" && string(out) != "hello\r\n" {
-		t.Errorf("unexpected output:\n%s", out)
+		if runtime.GOARCH == "ppc64" || (runtime.GOARCH == "arm64" && runtime.GOOS == "windows") || !testenv.CanInternalLink() {
+			return // internal linking cgo is not supported
+		}
+		cmd = exec.Command(testenv.GoToolPath(t), "build", "-buildmode="+mode, "-ldflags=-debugtramp=2 -linkmode=internal", "-o", exe, src)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build (%s) failed: %v\n%s", mode, err, out)
+		}
+		cmd = exec.Command(exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("executable failed to run (%s): %v\n%s", mode, err, out)
+		}
+		if string(out) != "hello\n" && string(out) != "hello\r\n" {
+			t.Errorf("unexpected output (%s):\n%s", mode, out)
+		}
 	}
 }
 
@@ -764,20 +787,25 @@ func TestIndexMismatch(t *testing.T) {
 	mObj := filepath.Join(tmpdir, "main.o")
 	exe := filepath.Join(tmpdir, "main.exe")
 
+	importcfgFile := filepath.Join(tmpdir, "stdlib.importcfg")
+	testenv.WriteImportcfg(t, importcfgFile, nil)
+	importcfgWithAFile := filepath.Join(tmpdir, "witha.importcfg")
+	testenv.WriteImportcfg(t, importcfgWithAFile, map[string]string{"a": aObj})
+
 	// Build a program with main package importing package a.
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, aSrc)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgFile, "-p=a", "-o", aObj, aSrc)
 	t.Log(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
 	}
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", mObj, mSrc)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgWithAFile, "-p=main", "-I", tmpdir, "-o", mObj, mSrc)
 	t.Log(cmd)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("compiling main.go failed: %v\n%s", err, out)
 	}
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, mObj)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-importcfg="+importcfgWithAFile, "-L", tmpdir, "-o", exe, mObj)
 	t.Log(cmd)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -786,13 +814,13 @@ func TestIndexMismatch(t *testing.T) {
 
 	// Now, overwrite a.o with the object of b.go. This should
 	// result in an index mismatch.
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, bSrc)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgFile, "-p=a", "-o", aObj, bSrc)
 	t.Log(cmd)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
 	}
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, mObj)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-importcfg="+importcfgWithAFile, "-L", tmpdir, "-o", exe, mObj)
 	t.Log(cmd)
 	out, err = cmd.CombinedOutput()
 	if err == nil {
@@ -827,7 +855,7 @@ func TestPErsrcBinutils(t *testing.T) {
 	}
 
 	// Check that the binary contains the rsrc data
-	b, err := ioutil.ReadFile(exe)
+	b, err := os.ReadFile(exe)
 	if err != nil {
 		t.Fatalf("reading output failed: %v", err)
 	}
@@ -859,7 +887,7 @@ func TestPErsrcLLVM(t *testing.T) {
 	}
 
 	// Check that the binary contains the rsrc data
-	b, err := ioutil.ReadFile(exe)
+	b, err := os.ReadFile(exe)
 	if err != nil {
 		t.Fatalf("reading output failed: %v", err)
 	}
@@ -920,7 +948,7 @@ func TestIssue38554(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "x.go")
-	err := ioutil.WriteFile(src, []byte(testIssue38554Src), 0666)
+	err := os.WriteFile(src, []byte(testIssue38554Src), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
@@ -961,7 +989,7 @@ func main() {
 func TestIssue42396(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if !sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
 		t.Skip("no race detector support")
 	}
 
@@ -970,7 +998,7 @@ func TestIssue42396(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err := ioutil.WriteFile(src, []byte(testIssue42396src), 0666)
+	err := os.WriteFile(src, []byte(testIssue42396src), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
@@ -997,13 +1025,31 @@ package main
 
 var x = [1<<25]byte{1<<23: 23, 1<<24: 24}
 
+var addr = [...]*byte{
+	&x[1<<23-1],
+	&x[1<<23],
+	&x[1<<23+1],
+	&x[1<<24-1],
+	&x[1<<24],
+	&x[1<<24+1],
+}
+
 func main() {
+	// check relocations in instructions
 	check(x[1<<23-1], 0)
 	check(x[1<<23], 23)
 	check(x[1<<23+1], 0)
 	check(x[1<<24-1], 0)
 	check(x[1<<24], 24)
 	check(x[1<<24+1], 0)
+
+	// check absolute address relocations in data
+	check(*addr[0], 0)
+	check(*addr[1], 23)
+	check(*addr[2], 0)
+	check(*addr[3], 0)
+	check(*addr[4], 24)
+	check(*addr[5], 0)
 }
 
 func check(x, y byte) {
@@ -1023,7 +1069,7 @@ func TestLargeReloc(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "x.go")
-	err := ioutil.WriteFile(src, []byte(testLargeRelocSrc), 0666)
+	err := os.WriteFile(src, []byte(testLargeRelocSrc), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
@@ -1039,5 +1085,69 @@ func TestLargeReloc(t *testing.T) {
 		if err != nil {
 			t.Fatalf("build failed: %v. output:\n%s", err, out)
 		}
+	}
+}
+
+func TestUnlinkableObj(t *testing.T) {
+	// Test that the linker emits an error with unlinkable object.
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	if buildcfg.Experiment.Unified {
+		t.Skip("TODO(mdempsky): Fix ICE when importing unlinkable objects for GOEXPERIMENT=unified")
+	}
+
+	tmpdir := t.TempDir()
+
+	xSrc := filepath.Join(tmpdir, "x.go")
+	pSrc := filepath.Join(tmpdir, "p.go")
+	xObj := filepath.Join(tmpdir, "x.o")
+	pObj := filepath.Join(tmpdir, "p.o")
+	exe := filepath.Join(tmpdir, "x.exe")
+	importcfgfile := filepath.Join(tmpdir, "importcfg")
+	testenv.WriteImportcfg(t, importcfgfile, map[string]string{"p": pObj})
+	err := os.WriteFile(xSrc, []byte("package main\nimport _ \"p\"\nfunc main() {}\n"), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	err = os.WriteFile(pSrc, []byte("package p\n"), 0666)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-o", pObj, pSrc) // without -p
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile p.go failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-p=main", "-o", xObj, xSrc)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile x.go failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-importcfg="+importcfgfile, "-o", exe, xObj)
+	out, err = cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("link did not fail")
+	}
+	if !bytes.Contains(out, []byte("unlinkable object")) {
+		t.Errorf("did not see expected error message. out:\n%s", out)
+	}
+
+	// It is okay to omit -p for (only) main package.
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", pObj, pSrc)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile p.go failed: %v. output:\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-o", xObj, xSrc) // without -p
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile failed: %v. output:\n%s", err, out)
+	}
+
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-importcfg="+importcfgfile, "-o", exe, xObj)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("link failed: %v. output:\n%s", err, out)
 	}
 }

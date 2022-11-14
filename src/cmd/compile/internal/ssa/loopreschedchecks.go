@@ -94,7 +94,8 @@ func insertLoopReschedChecks(f *Func) {
 		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Pos, OpInitMem, types.TypeMem)
 	}
 
-	memDefsAtBlockEnds := make([]*Value, f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
+	memDefsAtBlockEnds := f.Cache.allocValueSlice(f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
+	defer f.Cache.freeValueSlice(memDefsAtBlockEnds)
 
 	// Propagate last mem definitions forward through successor blocks.
 	for i := len(po) - 1; i >= 0; i-- {
@@ -246,8 +247,8 @@ func insertLoopReschedChecks(f *Func) {
 		//    mem1 := call resched (mem0)
 		//    goto header
 		resched := f.fe.Syslook("goschedguarded")
-		// TODO(register args) -- will need more details
-		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, StaticAuxCall(resched, nil), mem0)
+		call := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(resched, bb.Func.ABIDefault.ABIAnalyzeTypes(nil, nil, nil)), mem0)
+		mem1 := sched.NewValue1I(bb.Pos, OpSelectN, types.TypeMem, 0, call)
 		sched.AddEdgeTo(h)
 		headerMemPhi.AddArg(mem1)
 
@@ -404,7 +405,8 @@ outer:
 func findLastMems(f *Func) []*Value {
 
 	var stores []*Value
-	lastMems := make([]*Value, f.NumBlocks())
+	lastMems := f.Cache.allocValueSlice(f.NumBlocks())
+	defer f.Cache.freeValueSlice(lastMems)
 	storeUse := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(storeUse)
 	for _, b := range f.Blocks {
@@ -448,6 +450,16 @@ func findLastMems(f *Func) []*Value {
 		if last == nil {
 			b.Fatalf("no last store found - cycle?")
 		}
+
+		// If this is a tuple containing a mem, select just
+		// the mem. This will generate ops we don't need, but
+		// it's the easiest thing to do.
+		if last.Type.IsTuple() {
+			last = b.NewValue1(last.Pos, OpSelect1, types.TypeMem, last)
+		} else if last.Type.IsResults() {
+			last = b.NewValue1I(last.Pos, OpSelectN, types.TypeMem, int64(last.Type.NumFields()-1), last)
+		}
+
 		lastMems[b.ID] = last
 	}
 	return lastMems

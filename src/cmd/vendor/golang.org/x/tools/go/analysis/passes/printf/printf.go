@@ -25,6 +25,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func init() {
@@ -341,7 +342,6 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
 // not do so with gccgo, and nor do some other build systems.
 // TODO(adonovan): eliminate the redundant facts once this restriction
 // is lifted.
-//
 var isPrint = stringSet{
 	"fmt.Errorf":   true,
 	"fmt.Fprint":   true,
@@ -452,8 +452,15 @@ func stringConstantArg(pass *analysis.Pass, call *ast.CallExpr, idx int) (string
 	if idx >= len(call.Args) {
 		return "", false
 	}
-	arg := call.Args[idx]
-	lit := pass.TypesInfo.Types[arg].Value
+	return stringConstantExpr(pass, call.Args[idx])
+}
+
+// stringConstantExpr returns expression's string constant value.
+//
+// ("", false) is returned if expression isn't a string
+// constant.
+func stringConstantExpr(pass *analysis.Pass, expr ast.Expr) (string, bool) {
+	lit := pass.TypesInfo.Types[expr].Value
 	if lit != nil && lit.Kind() == constant.String {
 		return constant.StringVal(lit), true
 	}
@@ -490,7 +497,7 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
 		_, ok = isPrint[strings.ToLower(fn.Name())]
 	}
 	if ok {
-		if fn.Name() == "Errorf" {
+		if fn.FullName() == "fmt.Errorf" {
 			kind = KindErrorf
 		} else if strings.HasSuffix(fn.Name(), "f") {
 			kind = KindPrintf
@@ -513,7 +520,12 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
 func isFormatter(typ types.Type) bool {
 	// If the type is an interface, the value it holds might satisfy fmt.Formatter.
 	if _, ok := typ.Underlying().(*types.Interface); ok {
-		return true
+		// Don't assume type parameters could be formatters. With the greater
+		// expressiveness of constraint interface syntax we expect more type safety
+		// when using type parameters.
+		if !typeparams.IsTypeParam(typ) {
+			return true
+		}
 	}
 	obj, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Format")
 	fn, ok := obj.(*types.Func)
@@ -571,7 +583,6 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 	argNum := firstArg
 	maxArgNum := firstArg
 	anyIndex := false
-	anyW := false
 	for i, w := 0, 0; i < len(format); i += w {
 		w = 1
 		if format[i] != '%' {
@@ -590,18 +601,10 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 		}
 		if state.verb == 'w' {
 			switch kind {
-			case KindNone, KindPrint:
+			case KindNone, KindPrint, KindPrintf:
 				pass.Reportf(call.Pos(), "%s does not support error-wrapping directive %%w", state.name)
 				return
-			case KindPrintf:
-				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w, which is only supported for functions backed by fmt.Errorf", state.name)
-				return
 			}
-			if anyW {
-				pass.Reportf(call.Pos(), "%s call has more than one error-wrapping directive %%w", state.name)
-				return
-			}
-			anyW = true
 		}
 		if len(state.argNums) > 0 {
 			// Continue with the next sequential argument.
@@ -663,12 +666,13 @@ func (s *formatState) parseIndex() bool {
 	s.scanNum()
 	ok := true
 	if s.nbytes == len(s.format) || s.nbytes == start || s.format[s.nbytes] != ']' {
-		ok = false
-		s.nbytes = strings.Index(s.format, "]")
+		ok = false // syntax error is either missing "]" or invalid index.
+		s.nbytes = strings.Index(s.format[start:], "]")
 		if s.nbytes < 0 {
 			s.pass.ReportRangef(s.call, "%s format %s is missing closing ]", s.name, s.format)
 			return false
 		}
+		s.nbytes = s.nbytes + start
 	}
 	arg32, err := strconv.ParseInt(s.format[start:s.nbytes], 10, 32)
 	if err != nil || !ok || arg32 <= 0 || arg32 > int64(len(s.call.Args)-s.firstArg) {
@@ -837,8 +841,9 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 	}
 
 	// Could current arg implement fmt.Formatter?
+	// Skip check for the %w verb, which requires an error.
 	formatter := false
-	if state.argNum < len(call.Args) {
+	if v.typ != argError && state.argNum < len(call.Args) {
 		if tv, ok := pass.TypesInfo.Types[call.Args[state.argNum]]; ok {
 			formatter = isFormatter(tv.Type)
 		}
@@ -874,8 +879,12 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 			return
 		}
 		arg := call.Args[argNum]
-		if !matchArgType(pass, argInt, nil, arg) {
-			pass.ReportRangef(call, "%s format %s uses non-int %s as argument of *", state.name, state.format, analysisutil.Format(pass.Fset, arg))
+		if reason, ok := matchArgType(pass, argInt, arg); !ok {
+			details := ""
+			if reason != "" {
+				details = " (" + reason + ")"
+			}
+			pass.ReportRangef(call, "%s format %s uses non-int %s%s as argument of *", state.name, state.format, analysisutil.Format(pass.Fset, arg), details)
 			return false
 		}
 	}
@@ -892,12 +901,16 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 		pass.ReportRangef(call, "%s format %s arg %s is a func value, not called", state.name, state.format, analysisutil.Format(pass.Fset, arg))
 		return false
 	}
-	if !matchArgType(pass, v.typ, nil, arg) {
+	if reason, ok := matchArgType(pass, v.typ, arg); !ok {
 		typeString := ""
 		if typ := pass.TypesInfo.Types[arg].Type; typ != nil {
 			typeString = typ.String()
 		}
-		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString)
+		details := ""
+		if reason != "" {
+			details = " (" + reason + ")"
+		}
+		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s%s, see also https://pkg.go.dev/fmt#hdr-Printing", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString, details)
 		return false
 	}
 	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) {
@@ -912,9 +925,9 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 // recursiveStringer reports whether the argument e is a potential
 // recursive call to stringer or is an error, such as t and &t in these examples:
 //
-// 	func (t *T) String() string { printf("%s",  t) }
-// 	func (t  T) Error() string { printf("%s",  t) }
-// 	func (t  T) String() string { printf("%s", &t) }
+//	func (t *T) String() string { printf("%s",  t) }
+//	func (t  T) Error() string { printf("%s",  t) }
+//	func (t  T) String() string { printf("%s", &t) }
 func recursiveStringer(pass *analysis.Pass, e ast.Expr) (string, bool) {
 	typ := pass.TypesInfo.Types[e].Type
 
@@ -932,11 +945,16 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) (string, bool) {
 		return "", false
 	}
 
+	// inScope returns true if e is in the scope of f.
+	inScope := func(e ast.Expr, f *types.Func) bool {
+		return f.Scope() != nil && f.Scope().Contains(e.Pos())
+	}
+
 	// Is the expression e within the body of that String or Error method?
 	var method *types.Func
-	if strOk && strMethod.Pkg() == pass.Pkg && strMethod.Scope().Contains(e.Pos()) {
+	if strOk && strMethod.Pkg() == pass.Pkg && inScope(e, strMethod) {
 		method = strMethod
-	} else if errOk && errMethod.Pkg() == pass.Pkg && errMethod.Scope().Contains(e.Pos()) {
+	} else if errOk && errMethod.Pkg() == pass.Pkg && inScope(e, errMethod) {
 		method = errMethod
 	} else {
 		return "", false
@@ -1055,10 +1073,10 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 	}
 
 	arg := args[0]
-	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		// Ignore trailing % character in lit.Value.
+	if s, ok := stringConstantExpr(pass, arg); ok {
+		// Ignore trailing % character
 		// The % in "abc 0.0%" couldn't be a formatting directive.
-		s := strings.TrimSuffix(lit.Value, `%"`)
+		s = strings.TrimSuffix(s, "%")
 		if strings.Contains(s, "%") {
 			m := printFormatRE.FindStringSubmatch(s)
 			if m != nil {
@@ -1069,9 +1087,8 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 	if strings.HasSuffix(fn.Name(), "ln") {
 		// The last item, if a string, should not have a newline.
 		arg = args[len(args)-1]
-		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-			str, _ := strconv.Unquote(lit.Value)
-			if strings.HasSuffix(str, "\n") {
+		if s, ok := stringConstantExpr(pass, arg); ok {
+			if strings.HasSuffix(s, "\n") {
 				pass.ReportRangef(call, "%s arg list ends with redundant newline", fn.FullName())
 			}
 		}

@@ -12,7 +12,7 @@ import (
 )
 
 func TestTypedContent(t *testing.T) {
-	data := []interface{}{
+	data := []any{
 		`<b> "foo%" O'Reilly &bar;`,
 		CSS(`a[href =~ "//example.com"]#foo`),
 		HTML(`Hello, <b>World</b> &amp;tc!`),
@@ -280,7 +280,7 @@ func TestTypedContent(t *testing.T) {
 			[]string{
 				`#ZgotmplZ`,
 				`#ZgotmplZ`,
-				// Commas are not esacped
+				// Commas are not escaped.
 				`Hello,#ZgotmplZ`,
 				// Leading spaces are not percent escapes.
 				` dir=%22ltr%22`,
@@ -385,7 +385,7 @@ func TestTypedContent(t *testing.T) {
 		tmpl := Must(New("x").Parse(test.input))
 		pre := strings.Index(test.input, "{{.}}")
 		post := len(test.input) - (pre + 5)
-		var b bytes.Buffer
+		var b strings.Builder
 		for i, x := range data {
 			b.Reset()
 			if err := tmpl.Execute(&b, x); err != nil {
@@ -419,7 +419,7 @@ func (s *errorer) Error() string {
 
 func TestStringer(t *testing.T) {
 	s := &myStringer{3}
-	b := new(bytes.Buffer)
+	b := new(strings.Builder)
 	tmpl := Must(New("x").Parse("{{.}}"))
 	if err := tmpl.Execute(b, s); err != nil {
 		t.Fatal(err)
@@ -449,7 +449,7 @@ func TestEscapingNilNonemptyInterfaces(t *testing.T) {
 
 	// A non-empty interface should print like an empty interface.
 	want := new(bytes.Buffer)
-	data := struct{ E interface{} }{}
+	data := struct{ E any }{}
 	tmpl.Execute(want, data)
 
 	if !bytes.Equal(want.Bytes(), got.Bytes()) {

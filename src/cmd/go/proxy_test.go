@@ -11,6 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/txtar"
 	"io"
 	"io/fs"
 	"log"
@@ -30,7 +31,6 @@ import (
 	"golang.org/x/mod/semver"
 	"golang.org/x/mod/sumdb"
 	"golang.org/x/mod/sumdb/dirhash"
-	"golang.org/x/tools/txtar"
 )
 
 var (
@@ -357,7 +357,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 			zip []byte
 			err error
 		}
-		c := zipCache.Do(a, func() interface{} {
+		c := zipCache.Do(a, func() any {
 			var buf bytes.Buffer
 			z := zip.NewWriter(&buf)
 			for _, f := range a.Files {
@@ -431,7 +431,7 @@ func readArchive(path, vers string) (*txtar.Archive, error) {
 
 	prefix := strings.ReplaceAll(enc, "/", "_")
 	name := filepath.Join(cmdGoDir, "testdata/mod", prefix+"_"+encVers+".txt")
-	a := archiveCache.Do(name, func() interface{} {
+	a := archiveCache.Do(name, func() any {
 		a, err := txtar.ParseFile(name)
 		if err != nil {
 			if testing.Verbose() || !os.IsNotExist(err) {

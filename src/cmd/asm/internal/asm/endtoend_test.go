@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"internal/buildcfg"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -34,7 +33,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	parser := NewParser(ctxt, architecture, lexer, false)
 	pList := new(obj.Plist)
 	var ok bool
-	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+	testOut = new(strings.Builder) // The assembler writes test output to this buffer.
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
@@ -51,7 +50,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	output := strings.Split(testOut.String(), "\n")
 
 	// Reconstruct expected output by independently "parsing" the input.
-	data, err := ioutil.ReadFile(input)
+	data, err := os.ReadFile(input)
 	if err != nil {
 		t.Error(err)
 		return
@@ -262,7 +261,7 @@ func isHexes(s string) bool {
 // the standard file:line: prefix,
 // but that's not where we are today.
 // It might be at the beginning but it might be in the middle of the printed instruction.
-var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][0-9a-z]+\.s:[0-9]+)(?:$|\)|:)`)
+var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][\da-z]+\.s:\d+)(?:$|\)|:)`)
 
 // Same as in test/run.go
 var (
@@ -277,7 +276,6 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	parser := NewParser(ctxt, architecture, lexer, false)
 	pList := new(obj.Plist)
 	var ok bool
-	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
@@ -325,7 +323,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	}
 
 	// Reconstruct expected errors by independently "parsing" the input.
-	data, err := ioutil.ReadFile(input)
+	data, err := os.ReadFile(input)
 	if err != nil {
 		t.Error(err)
 		return
@@ -447,8 +445,18 @@ func TestMIPSEndToEnd(t *testing.T) {
 	testEndToEnd(t, "mips64", "mips64")
 }
 
+func TestLOONG64Encoder(t *testing.T) {
+	testEndToEnd(t, "loong64", "loong64enc1")
+	testEndToEnd(t, "loong64", "loong64enc2")
+	testEndToEnd(t, "loong64", "loong64enc3")
+	testEndToEnd(t, "loong64", "loong64")
+}
+
 func TestPPC64EndToEnd(t *testing.T) {
 	testEndToEnd(t, "ppc64", "ppc64")
+
+	// The assembler accepts all instructions irrespective of the GOPPC64 value.
+	testEndToEnd(t, "ppc64", "ppc64_p10")
 }
 
 func TestRISCVEndToEnd(t *testing.T) {

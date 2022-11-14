@@ -20,7 +20,7 @@ stdout '^in example.com/deprecated/a@v1.9.0$'
 
 # This works even if we use an old version that does not have the deprecation
 # message in its go.mod file.
-go get -d example.com/deprecated/a@v1.0.0
+go get example.com/deprecated/a@v1.0.0
 ! grep Deprecated: $WORK/gopath/pkg/mod/cache/download/example.com/deprecated/a/@v/v1.0.0.mod
 go list -m -u -f {{.Deprecated}} example.com/deprecated/a
 stdout '^in example.com/deprecated/a@v1.9.0$'

@@ -8,6 +8,7 @@ package big
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 )
 
@@ -67,6 +68,9 @@ func (z *Float) GobDecode(buf []byte) error {
 		*z = Float{}
 		return nil
 	}
+	if len(buf) < 6 {
+		return errors.New("Float.GobDecode: buffer too small")
+	}
 
 	if buf[0] != floatGobVersion {
 		return fmt.Errorf("Float.GobDecode: encoding version %d not supported", buf[0])
@@ -83,6 +87,9 @@ func (z *Float) GobDecode(buf []byte) error {
 	z.prec = binary.BigEndian.Uint32(buf[2:])
 
 	if z.form == finite {
+		if len(buf) < 10 {
+			return errors.New("Float.GobDecode: buffer too small for finite form float")
+		}
 		z.exp = int32(binary.BigEndian.Uint32(buf[6:]))
 		z.mant = z.mant.setBytes(buf[10:])
 	}

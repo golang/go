@@ -1,4 +1,4 @@
-// run -gcflags=-G=3
+// run
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -19,7 +19,7 @@ type MySlice []int
 type MyFloatSlice []float64
 
 type _SliceOf[E any] interface {
-	type []E
+	~[]E
 }
 
 func _DoubleElems[S _SliceOf[E], E Number](s S) S {

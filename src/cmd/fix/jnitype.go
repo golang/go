@@ -21,9 +21,13 @@ var jniFix = fix{
 }
 
 // Old state:
-//   type jobject *_jobject
+//
+//	type jobject *_jobject
+//
 // New state:
-//   type jobject uintptr
+//
+//	type jobject uintptr
+//
 // and similar for subtypes of jobject.
 // This fix finds nils initializing these types and replaces the nils with 0s.
 func jnifix(f *ast.File) bool {

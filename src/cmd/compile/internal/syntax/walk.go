@@ -52,7 +52,7 @@ func Crawl(root Node, f func(Node) bool) {
 // field lists such as type T in "a, b, c T"). Such shared nodes are
 // walked multiple times.
 // TODO(gri) Revisit this design. It may make sense to walk those nodes
-//           only once. A place where this matters is types2.TestResolveIdents.
+// only once. A place where this matters is types2.TestResolveIdents.
 func Walk(root Node, v Visitor) {
 	walker{v}.node(root)
 }

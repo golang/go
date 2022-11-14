@@ -11,7 +11,7 @@ const fnParseComplex = "ParseComplex"
 func convErr(err error, s string) (syntax, range_ error) {
 	if x, ok := err.(*NumError); ok {
 		x.Func = fnParseComplex
-		x.Num = s
+		x.Num = cloneString(s)
 		if x.Err == ErrRange {
 			return nil, x
 		}

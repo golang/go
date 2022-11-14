@@ -9,15 +9,15 @@ import (
 	"syscall"
 )
 
-func init() {
-	skipStdinCopyError = func(err error) bool {
-		// Ignore ERROR_BROKEN_PIPE and ERROR_NO_DATA errors copying
-		// to stdin if the program completed successfully otherwise.
-		// See Issue 20445.
-		const _ERROR_NO_DATA = syscall.Errno(0xe8)
-		pe, ok := err.(*fs.PathError)
-		return ok &&
-			pe.Op == "write" && pe.Path == "|1" &&
-			(pe.Err == syscall.ERROR_BROKEN_PIPE || pe.Err == _ERROR_NO_DATA)
-	}
+// skipStdinCopyError optionally specifies a function which reports
+// whether the provided stdin copy error should be ignored.
+func skipStdinCopyError(err error) bool {
+	// Ignore ERROR_BROKEN_PIPE and ERROR_NO_DATA errors copying
+	// to stdin if the program completed successfully otherwise.
+	// See Issue 20445.
+	const _ERROR_NO_DATA = syscall.Errno(0xe8)
+	pe, ok := err.(*fs.PathError)
+	return ok &&
+		pe.Op == "write" && pe.Path == "|1" &&
+		(pe.Err == syscall.ERROR_BROKEN_PIPE || pe.Err == _ERROR_NO_DATA)
 }

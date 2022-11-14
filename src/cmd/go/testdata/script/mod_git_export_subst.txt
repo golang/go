@@ -3,7 +3,7 @@ env GOPROXY=direct
 
 # Testing that git export-subst is disabled
 [!net] skip
-[!exec:git] skip
+[!git] skip
 go build
 
 -- x.go --

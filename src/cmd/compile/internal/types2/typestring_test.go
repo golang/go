@@ -8,21 +8,10 @@ import (
 	"internal/testenv"
 	"testing"
 
-	"cmd/compile/internal/syntax"
 	. "cmd/compile/internal/types2"
 )
 
 const filename = "<src>"
-
-func makePkg(src string) (*Package, error) {
-	file, err := parseSrc(filename, src)
-	if err != nil {
-		return nil, err
-	}
-	// use the package name as package path
-	conf := Config{Importer: defaultImporter()}
-	return conf.Check(file.PkgName.Value, []*syntax.File{file}, nil)
-}
 
 type testEntry struct {
 	src, str string
@@ -91,8 +80,12 @@ var independentTestTypes = []testEntry{
 	dup("interface{}"),
 	dup("interface{m()}"),
 	dup(`interface{String() string; m(int) float32}`),
-	dup("interface{int|float32|complex128}"),
-	dup("interface{int|~float32|~complex128}"),
+	dup("interface{int | float32 | complex128}"),
+	dup("interface{int | ~float32 | ~complex128}"),
+	dup("any"),
+	dup("interface{comparable}"),
+	{"comparable", "interface{comparable}"},
+	{"error", "interface{Error() string}"},
 
 	// maps
 	dup("map[string]int"),
@@ -116,6 +109,7 @@ var dependentTestTypes = []testEntry{
 }
 
 func TestTypeString(t *testing.T) {
+	// The Go command is needed for the importer to determine the locations of stdlib .a files.
 	testenv.MustHaveGoBuild(t)
 
 	var tests []testEntry
@@ -124,12 +118,17 @@ func TestTypeString(t *testing.T) {
 
 	for _, test := range tests {
 		src := `package generic_p; import "io"; type _ io.Writer; type T ` + test.src
-		pkg, err := makePkg(src)
+		pkg, err := typecheck(filename, src, nil)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
 			continue
 		}
-		typ := pkg.Scope().Lookup("T").Type().Underlying()
+		obj := pkg.Scope().Lookup("T")
+		if obj == nil {
+			t.Errorf("%s: T not found", test.src)
+			continue
+		}
+		typ := obj.Type().Underlying()
 		if got := typ.String(); got != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
 		}
@@ -137,8 +136,8 @@ func TestTypeString(t *testing.T) {
 }
 
 func TestQualifiedTypeString(t *testing.T) {
-	p, _ := pkgFor("p.go", "package p; type T int", nil)
-	q, _ := pkgFor("q.go", "package q", nil)
+	p := mustTypecheck("p.go", "package p; type T int", nil)
+	q := mustTypecheck("q.go", "package q", nil)
 
 	pT := p.Scope().Lookup("T").Type()
 	for _, test := range []struct {

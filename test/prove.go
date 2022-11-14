@@ -1,5 +1,7 @@
-// +build amd64
 // errorcheck -0 -d=ssa/prove/debug=1
+
+//go:build amd64
+// +build amd64
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -498,7 +500,7 @@ func f19() (e int64, err error) {
 	last := len(stack) - 1
 	e = stack[last]
 	// Buggy compiler prints "Disproved Leq64" for the next line.
-	stack = stack[:last] // ERROR "Proved IsSliceInBounds"
+	stack = stack[:last]
 	return e, nil
 }
 
@@ -735,8 +737,8 @@ func range1(b []int) {
 
 // range2 elements are larger, so they use the general form of a range loop.
 func range2(b [][32]int) {
-	for i, v := range b {
-		b[i][0] = v[0] + 1 // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+	for i, v := range b { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
+		b[i][0] = v[0] + 1 // ERROR "Proved IsInBounds$"
 		if i < len(b) {    // ERROR "Proved Less64$"
 			println("x")
 		}
@@ -793,7 +795,7 @@ func unrollUpExcl(a []int) int {
 func unrollUpIncl(a []int) int {
 	var i, x int
 	for i = 0; i <= len(a)-2; i += 2 { // ERROR "Induction variable: limits \[0,\?\], increment 2$"
-		x += a[i]
+		x += a[i] // ERROR "Proved IsInBounds$"
 		x += a[i+1]
 	}
 	if i == len(a)-1 {
@@ -833,7 +835,7 @@ func unrollDownInclStep(a []int) int {
 	var i, x int
 	for i = len(a); i >= 2; i -= 2 { // ERROR "Induction variable: limits \[2,\?\], increment 2$"
 		x += a[i-1] // ERROR "Proved IsInBounds$"
-		x += a[i-2]
+		x += a[i-2] // ERROR "Proved IsInBounds$"
 	}
 	if i == 1 {
 		x += a[i-1]
@@ -1034,6 +1036,26 @@ func divShiftClean32(n int32) int32 {
 		return n
 	}
 	return n / int32(16) // ERROR "Proved Rsh32x64 shifts to zero"
+}
+
+func and(p []byte) ([]byte, []byte) { // issue #52563
+	const blocksize = 16
+	fullBlocks := len(p) &^ (blocksize - 1)
+	blk := p[:fullBlocks] // ERROR "Proved IsSliceInBounds$"
+	rem := p[fullBlocks:] // ERROR "Proved IsSliceInBounds$"
+	return blk, rem
+}
+
+func issue51622(b []byte) int {
+	if len(b) >= 3 && b[len(b)-3] == '#' { // ERROR "Proved IsInBounds$"
+		return len(b)
+	}
+	return 0
+}
+
+func issue45928(x int) {
+	combinedFrac := (x) / (x | (1 << 31)) // ERROR "Proved Neq64$"
+	useInt(combinedFrac)
 }
 
 //go:noinline

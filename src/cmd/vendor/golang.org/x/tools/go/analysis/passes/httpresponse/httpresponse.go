@@ -62,15 +62,23 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		// Find the innermost containing block, and get the list
 		// of statements starting with the one containing call.
-		stmts := restOfBlock(stack)
+		stmts, ncalls := restOfBlock(stack)
 		if len(stmts) < 2 {
-			return true // the call to the http function is the last statement of the block.
+			// The call to the http function is the last statement of the block.
+			return true
+		}
+
+		// Skip cases in which the call is wrapped by another (#52661).
+		// Example:  resp, err := checkError(http.Get(url))
+		if ncalls > 1 {
+			return true
 		}
 
 		asg, ok := stmts[0].(*ast.AssignStmt)
 		if !ok {
 			return true // the first statement is not assignment.
 		}
+
 		resp := rootIdent(asg.Lhs[0])
 		if resp == nil {
 			return true // could not find the http.Response in the assignment.
@@ -130,20 +138,25 @@ func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
 }
 
 // restOfBlock, given a traversal stack, finds the innermost containing
-// block and returns the suffix of its statements starting with the
-// current node (the last element of stack).
-func restOfBlock(stack []ast.Node) []ast.Stmt {
+// block and returns the suffix of its statements starting with the current
+// node, along with the number of call expressions encountered.
+func restOfBlock(stack []ast.Node) ([]ast.Stmt, int) {
+	var ncalls int
 	for i := len(stack) - 1; i >= 0; i-- {
 		if b, ok := stack[i].(*ast.BlockStmt); ok {
 			for j, v := range b.List {
 				if v == stack[i+1] {
-					return b.List[j:]
+					return b.List[j:], ncalls
 				}
 			}
 			break
 		}
+
+		if _, ok := stack[i].(*ast.CallExpr); ok {
+			ncalls++
+		}
 	}
-	return nil
+	return nil, 0
 }
 
 // rootIdent finds the root identifier x in a chain of selections x.y.z, or nil if not found.

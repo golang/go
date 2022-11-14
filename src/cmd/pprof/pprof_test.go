@@ -72,6 +72,8 @@ func mustHaveCPUProfiling(t *testing.T) {
 
 func mustHaveDisasm(t *testing.T) {
 	switch runtime.GOARCH {
+	case "loong64":
+		t.Skipf("skipping on %s.", runtime.GOARCH)
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
 	case "riscv64":
@@ -81,9 +83,6 @@ func mustHaveDisasm(t *testing.T) {
 	}
 
 	// Skip PIE platforms, pprof can't disassemble PIE.
-	if runtime.GOOS == "windows" {
-		t.Skipf("skipping on %s, issue 46639", runtime.GOOS)
-	}
 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
 		t.Skipf("skipping on %s/%s, issue 46639", runtime.GOOS, runtime.GOARCH)
 	}

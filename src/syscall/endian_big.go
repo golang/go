@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 //
 //go:build ppc64 || s390x || mips || mips64
-// +build ppc64 s390x mips mips64
 
 package syscall
 

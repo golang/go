@@ -2,7 +2,6 @@
 // cgo -godefs types_linux.go
 
 //go:build ppc64le && linux
-// +build ppc64le,linux
 
 package syscall
 

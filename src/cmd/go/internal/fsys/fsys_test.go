@@ -1,3 +1,7 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package fsys
 
 import (
@@ -5,14 +9,13 @@ import (
 	"errors"
 	"fmt"
 	"internal/testenv"
+	"internal/txtar"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
-
-	"golang.org/x/tools/txtar"
 )
 
 // initOverlay resets the overlay state to reflect the config.
@@ -761,6 +764,42 @@ func TestWalkSkipDir(t *testing.T) {
 	}
 }
 
+func TestWalkSkipAll(t *testing.T) {
+	initOverlay(t, `
+{
+	"Replace": {
+		"dir/subdir1/foo1": "dummy.txt",
+		"dir/subdir1/foo2": "dummy.txt",
+		"dir/subdir1/foo3": "dummy.txt",
+		"dir/subdir2/foo4": "dummy.txt",
+		"dir/zzlast": "dummy.txt"
+	}
+}
+-- dummy.txt --
+`)
+
+	var seen []string
+	Walk("dir", func(path string, info fs.FileInfo, err error) error {
+		seen = append(seen, filepath.ToSlash(path))
+		if info.Name() == "foo2" {
+			return filepath.SkipAll
+		}
+		return nil
+	})
+
+	wantSeen := []string{"dir", "dir/subdir1", "dir/subdir1/foo1", "dir/subdir1/foo2"}
+
+	if len(seen) != len(wantSeen) {
+		t.Errorf("paths seen in walk: got %v entries; want %v entries", len(seen), len(wantSeen))
+	}
+
+	for i := 0; i < len(seen) && i < len(wantSeen); i++ {
+		if seen[i] != wantSeen[i] {
+			t.Errorf("path %#v seen walking tree: got %q, want %q", i, seen[i], wantSeen[i])
+		}
+	}
+}
+
 func TestWalkError(t *testing.T) {
 	initOverlay(t, "{}")
 
@@ -805,8 +844,8 @@ func TestWalkSymlink(t *testing.T) {
 		{"control", "dir", []string{"dir", "dir" + string(filepath.Separator) + "file"}},
 		// ensure Walk doesn't walk into the directory pointed to by the symlink
 		// (because it's supposed to use Lstat instead of Stat).
-		{"symlink_to_dir", "symlink", []string{"symlink"}},
-		{"overlay_to_symlink_to_dir", "overlay_symlink", []string{"overlay_symlink"}},
+		{"symlink_to_dir", "symlink", []string{"symlink", "symlink" + string(filepath.Separator) + "file"}},
+		{"overlay_to_symlink_to_dir", "overlay_symlink", []string{"overlay_symlink", "overlay_symlink" + string(filepath.Separator) + "file"}},
 	}
 
 	for _, tc := range testCases {

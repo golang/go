@@ -13,29 +13,29 @@ import "cmd/internal/src"
 // every time a function is inlined. For example, suppose f() calls g()
 // and g has two calls to h(), and that f, g, and h are inlineable:
 //
-//  1 func main() {
-//  2     f()
-//  3 }
-//  4 func f() {
-//  5     g()
-//  6 }
-//  7 func g() {
-//  8     h()
-//  9     h()
-// 10 }
-// 11 func h() {
-// 12     println("H")
-// 13 }
+//	 1 func main() {
+//	 2     f()
+//	 3 }
+//	 4 func f() {
+//	 5     g()
+//	 6 }
+//	 7 func g() {
+//	 8     h()
+//	 9     h()
+//	10 }
+//	11 func h() {
+//	12     println("H")
+//	13 }
 //
 // Assuming the global tree starts empty, inlining will produce the
 // following tree:
 //
-//   []InlinedCall{
-//     {Parent: -1, Func: "f", Pos: <line 2>},
-//     {Parent:  0, Func: "g", Pos: <line 5>},
-//     {Parent:  1, Func: "h", Pos: <line 8>},
-//     {Parent:  1, Func: "h", Pos: <line 9>},
-//   }
+//	[]InlinedCall{
+//	  {Parent: -1, Func: "f", Pos: <line 2>},
+//	  {Parent:  0, Func: "g", Pos: <line 5>},
+//	  {Parent:  1, Func: "h", Pos: <line 8>},
+//	  {Parent:  1, Func: "h", Pos: <line 9>},
+//	}
 //
 // The nodes of h inlined into main will have inlining indexes 2 and 3.
 //
@@ -109,8 +109,9 @@ func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
 }
 
 // AllPos returns a slice of the positions inlined at xpos, from
-// innermost (index zero) to outermost.  To avoid gratuitous allocation
-// the result is passed in and extended if necessary.
+// innermost (index zero) to outermost.  To avoid allocation
+// the input slice is truncated, and used for the result, extended
+// as necessary.
 func (ctxt *Link) AllPos(xpos src.XPos, result []src.Pos) []src.Pos {
 	pos := ctxt.InnermostPos(xpos)
 	result = result[:0]

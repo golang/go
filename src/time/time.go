@@ -7,7 +7,7 @@
 // The calendrical calculations always assume a Gregorian calendar, with
 // no leap seconds.
 //
-// Monotonic Clocks
+// # Monotonic Clocks
 //
 // Operating systems provide both a “wall clock,” which is subject to
 // changes for clock synchronization, and a “monotonic clock,” which is
@@ -46,7 +46,7 @@
 // The canonical way to strip a monotonic clock reading is to use t = t.Round(0).
 //
 // If Times t and u both contain monotonic clock readings, the operations
-// t.After(u), t.Before(u), t.Equal(u), and t.Sub(u) are carried out
+// t.After(u), t.Before(u), t.Equal(u), t.Compare(u), and t.Sub(u) are carried out
 // using the monotonic clock readings alone, ignoring the wall clock
 // readings. If either t or u contains no monotonic clock reading, these
 // operations fall back to using the wall clock readings.
@@ -64,6 +64,10 @@
 // t.UnmarshalJSON, and t.UnmarshalText always create times with
 // no monotonic clock reading.
 //
+// The monotonic clock reading exists only in Time values. It is not
+// a part of Duration values or the Unix times returned by t.Unix and
+// friends.
+//
 // Note that the Go == operator compares not just the time instant but
 // also the Location and the monotonic clock reading. See the
 // documentation for the Time type for a discussion of equality
@@ -72,7 +76,6 @@
 // For debugging, the result of t.String does include the monotonic
 // clock reading if present. If t != u because of different monotonic clock readings,
 // that difference will be visible when printing t.String() and u.String().
-//
 package time
 
 import (
@@ -123,7 +126,6 @@ import (
 // to t == u, since t.Equal uses the most accurate comparison available and
 // correctly handles the case when only one of its arguments has a monotonic
 // clock reading.
-//
 type Time struct {
 	// wall and ext encode the wall time seconds, wall time nanoseconds,
 	// and optional monotonic clock reading in nanoseconds.
@@ -262,6 +264,27 @@ func (t Time) Before(u Time) bool {
 	ts := t.sec()
 	us := u.sec()
 	return ts < us || ts == us && t.nsec() < u.nsec()
+}
+
+// Compare compares the time instant t with u. If t is before u, it returns -1;
+// if t is after u, it returns +1; if they're the same, it returns 0.
+func (t Time) Compare(u Time) int {
+	var tc, uc int64
+	if t.wall&u.wall&hasMonotonic != 0 {
+		tc, uc = t.ext, u.ext
+	} else {
+		tc, uc = t.sec(), u.sec()
+		if tc == uc {
+			tc, uc = int64(t.nsec()), int64(u.nsec())
+		}
+	}
+	switch {
+	case tc < uc:
+		return -1
+	case tc > uc:
+		return +1
+	}
+	return 0
 }
 
 // Equal reports whether t and u represent the same time instant.
@@ -425,7 +448,6 @@ const (
 	internalToUnix int64 = -unixToInternal
 
 	wallToInternal int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
-	internalToWall int64 = -wallToInternal
 )
 
 // IsZero reports whether t represents the zero time instant,
@@ -598,13 +620,14 @@ const (
 // to avoid confusion across daylight savings time zone transitions.
 //
 // To count the number of units in a Duration, divide:
+//
 //	second := time.Second
 //	fmt.Print(int64(second/time.Millisecond)) // prints 1000
 //
 // To convert an integer number of units to a Duration, multiply:
+//
 //	seconds := 10
 //	fmt.Print(time.Duration(seconds)*time.Second) // prints 10s
-//
 const (
 	Nanosecond  Duration = 1
 	Microsecond          = 1000 * Nanosecond
@@ -814,6 +837,19 @@ func (d Duration) Round(m Duration) Duration {
 		return d1
 	}
 	return maxDuration // overflow
+}
+
+// Abs returns the absolute value of d.
+// As a special case, math.MinInt64 is converted to math.MaxInt64.
+func (d Duration) Abs() Duration {
+	switch {
+	case d >= 0:
+		return d
+	case d == minDuration:
+		return maxDuration
+	default:
+		return -d
+	}
 }
 
 // Add returns the time t+d.
@@ -1058,6 +1094,7 @@ func daysSinceEpoch(year int) uint64 {
 func now() (sec int64, nsec int32, mono int64)
 
 // runtimeNano returns the current value of the runtime clock in nanoseconds.
+//
 //go:linkname runtimeNano runtime.nanotime
 func runtimeNano() int64
 
@@ -1075,6 +1112,9 @@ func Now() Time {
 	mono -= startNano
 	sec += unixToInternal - minWall
 	if uint64(sec)>>33 != 0 {
+		// Seconds field overflowed the 33 bits available when
+		// storing a monotonic time. This will be true after
+		// March 16, 2157.
 		return Time{uint64(nsec), sec + minWall, Local}
 	}
 	return Time{hasMonotonic | uint64(sec)<<nsecShift | uint64(nsec), mono, Local}
@@ -1125,6 +1165,24 @@ func (t Time) Zone() (name string, offset int) {
 	return
 }
 
+// ZoneBounds returns the bounds of the time zone in effect at time t.
+// The zone begins at start and the next zone begins at end.
+// If the zone begins at the beginning of time, start will be returned as a zero Time.
+// If the zone goes on forever, end will be returned as a zero Time.
+// The Location of the returned times will be the same as t.
+func (t Time) ZoneBounds() (start, end Time) {
+	_, _, startSec, endSec, _ := t.loc.lookup(t.unixSec())
+	if startSec != alpha {
+		start = unixTime(startSec, 0)
+		start.setLoc(t.loc)
+	}
+	if endSec != omega {
+		end = unixTime(endSec, 0)
+		end.setLoc(t.loc)
+	}
+	return
+}
+
 // Unix returns t as a Unix time, the number of seconds elapsed
 // since January 1, 1970 UTC. The result does not depend on the
 // location associated with t.
@@ -1163,19 +1221,26 @@ func (t Time) UnixNano() int64 {
 	return (t.unixSec())*1e9 + int64(t.nsec())
 }
 
-const timeBinaryVersion byte = 1
+const (
+	timeBinaryVersionV1 byte = iota + 1 // For general situation
+	timeBinaryVersionV2                 // For LMT only
+)
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (t Time) MarshalBinary() ([]byte, error) {
 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
+	var offsetSec int8
+	version := timeBinaryVersionV1
 
 	if t.Location() == UTC {
 		offsetMin = -1
 	} else {
 		_, offset := t.Zone()
 		if offset%60 != 0 {
-			return nil, errors.New("Time.MarshalBinary: zone offset has fractional minute")
+			version = timeBinaryVersionV2
+			offsetSec = int8(offset % 60)
 		}
+
 		offset /= 60
 		if offset < -32768 || offset == -1 || offset > 32767 {
 			return nil, errors.New("Time.MarshalBinary: unexpected zone offset")
@@ -1186,8 +1251,8 @@ func (t Time) MarshalBinary() ([]byte, error) {
 	sec := t.sec()
 	nsec := t.nsec()
 	enc := []byte{
-		timeBinaryVersion, // byte 0 : version
-		byte(sec >> 56),   // bytes 1-8: seconds
+		version,         // byte 0 : version
+		byte(sec >> 56), // bytes 1-8: seconds
 		byte(sec >> 48),
 		byte(sec >> 40),
 		byte(sec >> 32),
@@ -1202,6 +1267,9 @@ func (t Time) MarshalBinary() ([]byte, error) {
 		byte(offsetMin >> 8), // bytes 13-14: zone offset in minutes
 		byte(offsetMin),
 	}
+	if version == timeBinaryVersionV2 {
+		enc = append(enc, byte(offsetSec))
+	}
 
 	return enc, nil
 }
@@ -1213,11 +1281,16 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 		return errors.New("Time.UnmarshalBinary: no data")
 	}
 
-	if buf[0] != timeBinaryVersion {
+	version := buf[0]
+	if version != timeBinaryVersionV1 && version != timeBinaryVersionV2 {
 		return errors.New("Time.UnmarshalBinary: unsupported version")
 	}
 
-	if len(buf) != /*version*/ 1+ /*sec*/ 8+ /*nsec*/ 4+ /*zone offset*/ 2 {
+	wantLen := /*version*/ 1 + /*sec*/ 8 + /*nsec*/ 4 + /*zone offset*/ 2
+	if version == timeBinaryVersionV2 {
+		wantLen++
+	}
+	if len(buf) != wantLen {
 		return errors.New("Time.UnmarshalBinary: invalid length")
 	}
 
@@ -1230,6 +1303,9 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 
 	buf = buf[4:]
 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
+	if version == timeBinaryVersionV2 {
+		offset += int(buf[2])
+	}
 
 	*t = Time{}
 	t.wall = uint64(nsec)
@@ -1261,51 +1337,54 @@ func (t *Time) GobDecode(data []byte) error {
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-// The time is a quoted string in RFC 3339 format, with sub-second precision added if present.
+// The time is a quoted string in the RFC 3339 format with sub-second precision.
+// If the timestamp cannot be represented as valid RFC 3339
+// (e.g., the year is out of range), then an error is reported.
 func (t Time) MarshalJSON() ([]byte, error) {
-	if y := t.Year(); y < 0 || y >= 10000 {
-		// RFC 3339 is clear that years are 4 digits exactly.
-		// See golang.org/issue/4556#c15 for more discussion.
-		return nil, errors.New("Time.MarshalJSON: year outside of range [0,9999]")
+	b := make([]byte, 0, len(RFC3339Nano)+len(`""`))
+	b = append(b, '"')
+	b, err := t.appendStrictRFC3339(b)
+	b = append(b, '"')
+	if err != nil {
+		return nil, errors.New("Time.MarshalJSON: " + err.Error())
 	}
-
-	b := make([]byte, 0, len(RFC3339Nano)+2)
-	b = append(b, '"')
-	b = t.AppendFormat(b, RFC3339Nano)
-	b = append(b, '"')
 	return b, nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
-// The time is expected to be a quoted string in RFC 3339 format.
+// The time must be a quoted string in the RFC 3339 format.
 func (t *Time) UnmarshalJSON(data []byte) error {
-	// Ignore null, like in the main JSON package.
 	if string(data) == "null" {
 		return nil
 	}
-	// Fractional seconds are handled implicitly by Parse.
+	// TODO(https://go.dev/issue/47353): Properly unescape a JSON string.
+	if len(data) < 2 || data[0] != '"' || data[len(data)-1] != '"' {
+		return errors.New("Time.UnmarshalJSON: input is not a JSON string")
+	}
+	data = data[len(`"`) : len(data)-len(`"`)]
 	var err error
-	*t, err = Parse(`"`+RFC3339+`"`, string(data))
+	*t, err = parseStrictRFC3339(data)
 	return err
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
-// The time is formatted in RFC 3339 format, with sub-second precision added if present.
+// The time is formatted in RFC 3339 format with sub-second precision.
+// If the timestamp cannot be represented as valid RFC 3339
+// (e.g., the year is out of range), then an error is reported.
 func (t Time) MarshalText() ([]byte, error) {
-	if y := t.Year(); y < 0 || y >= 10000 {
-		return nil, errors.New("Time.MarshalText: year outside of range [0,9999]")
-	}
-
 	b := make([]byte, 0, len(RFC3339Nano))
-	return t.AppendFormat(b, RFC3339Nano), nil
+	b, err := t.appendStrictRFC3339(b)
+	if err != nil {
+		return nil, errors.New("Time.MarshalText: " + err.Error())
+	}
+	return b, nil
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
-// The time is expected to be in RFC 3339 format.
+// The time must be in the RFC 3339 format.
 func (t *Time) UnmarshalText(data []byte) error {
-	// Fractional seconds are handled implicitly by Parse.
 	var err error
-	*t, err = Parse(RFC3339, string(data))
+	*t, err = parseStrictRFC3339(data)
 	return err
 }
 
@@ -1350,6 +1429,7 @@ func isLeap(year int) bool {
 }
 
 // norm returns nhi, nlo such that
+//
 //	hi * base + lo == nhi * base + nlo
 //	0 <= nlo < base
 func norm(hi, lo, base int) (nhi, nlo int) {
@@ -1367,7 +1447,9 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 }
 
 // Date returns the Time corresponding to
+//
 //	yyyy-mm-dd hh:mm:ss + nsec nanoseconds
+//
 // in the appropriate zone for that time in the given location.
 //
 // The month, day, hour, min, sec, and nsec values may be outside
@@ -1416,17 +1498,17 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 
 	unix := int64(abs) + (absoluteToInternal + internalToUnix)
 
-	// Look for zone offset for t, so we can adjust to UTC.
-	// The lookup function expects UTC, so we pass t in the
+	// Look for zone offset for expected time, so we can adjust to UTC.
+	// The lookup function expects UTC, so first we pass unix in the
 	// hope that it will not be too close to a zone transition,
 	// and then adjust if it is.
 	_, offset, start, end, _ := loc.lookup(unix)
 	if offset != 0 {
-		switch utc := unix - int64(offset); {
-		case utc < start:
-			_, offset, _, _, _ = loc.lookup(start - 1)
-		case utc >= end:
-			_, offset, _, _, _ = loc.lookup(end)
+		utc := unix - int64(offset)
+		// If utc is valid for the time zone we found, then we have the right offset.
+		// If not, we get the correct offset by looking up utc in the location.
+		if utc < start || utc >= end {
+			_, offset, _, _, _ = loc.lookup(utc)
 		}
 		unix -= int64(offset)
 	}

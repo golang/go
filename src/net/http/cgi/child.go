@@ -39,8 +39,8 @@ func Request() (*http.Request, error) {
 func envMap(env []string) map[string]string {
 	m := make(map[string]string)
 	for _, kv := range env {
-		if idx := strings.Index(kv, "="); idx != -1 {
-			m[kv[:idx]] = kv[idx+1:]
+		if k, v, ok := strings.Cut(kv, "="); ok {
+			m[k] = v
 		}
 	}
 	return m
@@ -82,10 +82,12 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 
 	// Copy "HTTP_FOO_BAR" variables to "Foo-Bar" Headers
 	for k, v := range params {
-		if !strings.HasPrefix(k, "HTTP_") || k == "HTTP_HOST" {
+		if k == "HTTP_HOST" {
 			continue
 		}
-		r.Header.Add(strings.ReplaceAll(k[5:], "_", "-"), v)
+		if after, found := strings.CutPrefix(k, "HTTP_"); found {
+			r.Header.Add(strings.ReplaceAll(after, "_", "-"), v)
+		}
 	}
 
 	uriStr := params["REQUEST_URI"]

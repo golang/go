@@ -24,12 +24,13 @@ import (
 	"log"
 	"runtime/debug"
 	"syscall"
-	"unsafe"
 )
 
 func memcopy(dst, src []byte) (n int, err error) {
 	defer func() {
-		err = recover().(error)
+		if r, ok := recover().(error); ok {
+			err = r
+		}
 	}()
 
 	for i := 0; i < len(dst) && i < len(src); i++ {
@@ -52,22 +53,23 @@ func main() {
 		log.Fatalf("mmap: %v", err)
 	}
 
-	other := make([]byte, 16*size)
-
-	// Note: Cannot call syscall.Munmap, because Munmap checks
-	// that you are unmapping a whole region returned by Mmap.
-	// We are trying to unmap just a hole in the middle.
-	if _, _, err := syscall.Syscall(syscall.SYS_MUNMAP, uintptr(unsafe.Pointer(&data[8*size])), uintptr(4*size), 0); err != 0 {
-		log.Fatalf("munmap: %v", err)
+	// Create a hole in the mapping that's PROT_NONE.
+	// Note that we can't use munmap here because the Go runtime
+	// could create a mapping that ends up in this hole otherwise,
+	// invalidating the test.
+	hole := data[len(data)/2 : 3*(len(data)/4)]
+	if err := syscall.Mprotect(hole, syscall.PROT_NONE); err != nil {
+		log.Fatalf("mprotect: %v", err)
 	}
 
 	// Check that memcopy returns the actual amount copied
-	// before the fault (8*size - 5, the offset we skip in the argument).
-	n, err := memcopy(data[5:], other)
+	// before the fault.
+	const offset = 5
+	n, err := memcopy(data[offset:], make([]byte, len(data)))
 	if err == nil {
 		log.Fatal("no error from memcopy across memory hole")
 	}
-	if n != 8*size-5 {
-		log.Fatalf("memcopy returned %d, want %d", n, 8*size-5)
+	if expect := len(data)/2 - offset; n != expect {
+		log.Fatalf("memcopy returned %d, want %d", n, expect)
 	}
 }

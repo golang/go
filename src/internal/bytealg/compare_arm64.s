@@ -6,7 +6,6 @@
 #include "textflag.h"
 
 TEXT ·Compare<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
-#ifdef GOEXPERIMENT_regabiargs
 	// R0 = a_base (want in R0)
 	// R1 = a_len  (want in R1)
 	// R2 = a_cap  (unused)
@@ -15,28 +14,13 @@ TEXT ·Compare<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
 	// R5 = b_cap  (unused)
 	MOVD	R3, R2
 	MOVD	R4, R3
-#else
-	MOVD	a_base+0(FP), R0
-	MOVD	a_len+8(FP), R1
-	MOVD	b_base+24(FP), R2
-	MOVD	b_len+32(FP), R3
-	MOVD	$ret+48(FP), R7
-#endif
 	B	cmpbody<>(SB)
 
 TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
-#ifdef GOEXPERIMENT_regabiargs
 	// R0 = a_base
 	// R1 = a_len
 	// R2 = b_base
 	// R3 = b_len
-#else
-	MOVD	a_base+0(FP), R0
-	MOVD	a_len+8(FP), R1
-	MOVD	b_base+16(FP), R2
-	MOVD	b_len+24(FP), R3
-	MOVD	$ret+32(FP), R7
-#endif
 	B	cmpbody<>(SB)
 
 // On entry:
@@ -44,14 +28,9 @@ TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
 // R1 is the length of a
 // R2 points to the start of b
 // R3 is the length of b
-#ifndef GOEXPERIMENT_regabiargs
-// R7 points to return value (-1/0/1 will be written here)
-#endif
 //
 // On exit:
-#ifdef GOEXPERIMENT_regabiargs
 // R0 is the result
-#endif
 // R4, R5, R6, R8, R9 and R10 are clobbered
 TEXT cmpbody<>(SB),NOSPLIT|NOFRAME,$0-0
 	CMP	R0, R2
@@ -96,9 +75,6 @@ cmp:
 ret:
 	MOVD	$1, R0
 	CNEG	HI, R0, R0
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, (R7)
-#endif
 	RET
 small:
 	TBZ	$3, R6, lt_8
@@ -141,9 +117,6 @@ samebytes:
 	CMP	R3, R1
 	CSET	NE, R0
 	CNEG	LO, R0, R0
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	R0, (R7)
-#endif
 	RET
 cmpnext:
 	REV	R8, R4

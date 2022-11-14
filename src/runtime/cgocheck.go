@@ -32,14 +32,14 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
 
 	// If we are running on the system stack then dst might be an
 	// address on the stack, which is OK.
-	g := getg()
-	if g == g.m.g0 || g == g.m.gsignal {
+	gp := getg()
+	if gp == gp.m.g0 || gp == gp.m.gsignal {
 		return
 	}
 
 	// Allocating memory can write to various mfixalloc structs
 	// that look like they are non-Go memory.
-	if g.m.mallocing != 0 {
+	if gp.m.mallocing != 0 {
 		return
 	}
 
@@ -61,6 +61,7 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
 // size is the number of bytes to copy.
 // It throws if the program is copying a block that contains a Go pointer
 // into non-Go memory.
+//
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
@@ -81,6 +82,7 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
 // typ is the element type of the slice.
 // It throws if the program is copying slice elements that contain Go pointers
 // into non-Go memory.
+//
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
@@ -103,6 +105,7 @@ func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
 // cgoCheckTypedBlock checks the block of memory at src, for up to size bytes,
 // and throws if it finds a Go pointer. The type of the memory is typ,
 // and src is off bytes into that type.
+//
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
@@ -150,22 +153,23 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 
 	// src must be in the regular heap.
 
-	hbits := heapBitsForAddr(uintptr(src))
-	for i := uintptr(0); i < off+size; i += goarch.PtrSize {
-		bits := hbits.bits()
-		if i >= off && bits&bitPointer != 0 {
-			v := *(*unsafe.Pointer)(add(src, i))
-			if cgoIsGoPointer(v) {
-				throw(cgoWriteBarrierFail)
-			}
+	hbits := heapBitsForAddr(uintptr(src), size)
+	for {
+		var addr uintptr
+		if hbits, addr = hbits.next(); addr == 0 {
+			break
 		}
-		hbits = hbits.next()
+		v := *(*unsafe.Pointer)(unsafe.Pointer(addr))
+		if cgoIsGoPointer(v) {
+			throw(cgoWriteBarrierFail)
+		}
 	}
 }
 
 // cgoCheckBits checks the block of memory at src, for up to size
 // bytes, and throws if it finds a Go pointer. The gcbits mark each
 // pointer value. The src pointer is off bytes into the gcbits.
+//
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
@@ -201,6 +205,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
 // We only use this when looking at a value on the stack when the type
 // uses a GC program, because otherwise it's more efficient to use the
 // GC bits. This is called on the system stack.
+//
 //go:nowritebarrier
 //go:systemstack
 func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {

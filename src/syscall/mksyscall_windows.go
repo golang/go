@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // mksyscall_windows wraps golang.org/x/sys/windows/mkwinsyscall.
 package main

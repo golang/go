@@ -45,7 +45,7 @@ func Equal[Elem comparable](s1, s2 []Elem) bool {
 	return true
 }
 
-// EqualFn reports whether two slices are equal using a comparision
+// EqualFn reports whether two slices are equal using a comparison
 // function on each element.
 func EqualFn[Elem any](s1, s2 []Elem, eq func(Elem, Elem) bool) bool {
 	if len(s1) != len(s2) {

@@ -329,11 +329,14 @@ func benchmark(b *testing.B, h hash.Hash32, n, alignment int64) {
 	h.Reset()
 	h.Write(data)
 	h.Sum(in)
+	// Avoid further allocations
+	in = in[:0]
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		h.Reset()
 		h.Write(data)
 		h.Sum(in)
+		in = in[:0]
 	}
 }

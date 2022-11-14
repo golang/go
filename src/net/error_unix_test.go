@@ -3,11 +3,11 @@
 // license that can be found in the LICENSE file.
 
 //go:build !plan9 && !windows
-// +build !plan9,!windows
 
 package net
 
 import (
+	"errors"
 	"os"
 	"syscall"
 )
@@ -32,4 +32,8 @@ func samePlatformError(err, want error) bool {
 		err = sys.Err
 	}
 	return err == want
+}
+
+func isENOBUFS(err error) bool {
+	return errors.Is(err, syscall.ENOBUFS)
 }

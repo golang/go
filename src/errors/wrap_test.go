@@ -47,6 +47,17 @@ func TestIs(t *testing.T) {
 		{&errorUncomparable{}, &errorUncomparable{}, false},
 		{errorUncomparable{}, err1, false},
 		{&errorUncomparable{}, err1, false},
+		{multiErr{}, err1, false},
+		{multiErr{err1, err3}, err1, true},
+		{multiErr{err3, err1}, err1, true},
+		{multiErr{err1, err3}, errors.New("x"), false},
+		{multiErr{err3, errb}, errb, true},
+		{multiErr{err3, errb}, erra, true},
+		{multiErr{err3, errb}, err1, true},
+		{multiErr{errb, err3}, err1, true},
+		{multiErr{poser}, err1, true},
+		{multiErr{poser}, err3, true},
+		{multiErr{nil}, nil, false},
 	}
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
@@ -66,7 +77,7 @@ var poserPathErr = &fs.PathError{Op: "poser"}
 
 func (p *poser) Error() string     { return p.msg }
 func (p *poser) Is(err error) bool { return p.f(err) }
-func (p *poser) As(err interface{}) bool {
+func (p *poser) As(err any) bool {
 	switch x := err.(type) {
 	case **poser:
 		*x = p
@@ -90,9 +101,9 @@ func TestAs(t *testing.T) {
 
 	testCases := []struct {
 		err    error
-		target interface{}
+		target any
 		match  bool
-		want   interface{} // value of target on match
+		want   any // value of target on match
 	}{{
 		nil,
 		&errP,
@@ -148,6 +159,41 @@ func TestAs(t *testing.T) {
 		&timeout,
 		true,
 		errF,
+	}, {
+		multiErr{},
+		&errT,
+		false,
+		nil,
+	}, {
+		multiErr{errors.New("a"), errorT{"T"}},
+		&errT,
+		true,
+		errorT{"T"},
+	}, {
+		multiErr{errorT{"T"}, errors.New("a")},
+		&errT,
+		true,
+		errorT{"T"},
+	}, {
+		multiErr{errorT{"a"}, errorT{"b"}},
+		&errT,
+		true,
+		errorT{"a"},
+	}, {
+		multiErr{multiErr{errors.New("a"), errorT{"a"}}, errorT{"b"}},
+		&errT,
+		true,
+		errorT{"a"},
+	}, {
+		multiErr{wrapped{"path error", errF}},
+		&timeout,
+		true,
+		errF,
+	}, {
+		multiErr{nil},
+		&errT,
+		false,
+		nil,
 	}}
 	for i, tc := range testCases {
 		name := fmt.Sprintf("%d:As(Errorf(..., %v), %v)", i, tc.err, tc.target)
@@ -171,7 +217,7 @@ func TestAs(t *testing.T) {
 
 func TestAsValidation(t *testing.T) {
 	var s string
-	testCases := []interface{}{
+	testCases := []any{
 		nil,
 		(*int)(nil),
 		"error",
@@ -223,8 +269,12 @@ type wrapped struct {
 }
 
 func (e wrapped) Error() string { return e.msg }
-
 func (e wrapped) Unwrap() error { return e.err }
+
+type multiErr []error
+
+func (m multiErr) Error() string   { return "multiError" }
+func (m multiErr) Unwrap() []error { return []error(m) }
 
 type errorUncomparable struct {
 	f []string
@@ -264,4 +314,14 @@ func ExampleAs() {
 
 	// Output:
 	// Failed at path: non-existing
+}
+
+func ExampleUnwrap() {
+	err1 := errors.New("error1")
+	err2 := fmt.Errorf("error2: [%w]", err1)
+	fmt.Println(err2)
+	fmt.Println(errors.Unwrap(err2))
+	// Output
+	// error2: [error1]
+	// error1
 }

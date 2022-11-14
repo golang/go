@@ -2,7 +2,7 @@
 # it should add sums for the module's go.mod file and its content to go.sum.
 # Verifies golang.org/issue/41103.
 go mod init m
-go get -d rsc.io/QUOTE
+go get rsc.io/QUOTE
 grep '^rsc.io/QUOTE v1.5.2/go.mod ' go.sum
 grep '^rsc.io/QUOTE v1.5.2 ' go.sum
 

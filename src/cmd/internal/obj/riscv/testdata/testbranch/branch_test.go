@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build riscv64
 // +build riscv64
 
 package testbranch
@@ -32,7 +33,7 @@ func testGoBGTU(a, b int64) bool { return uint64(a) > uint64(b) }
 func testGoBLE(a, b int64) bool  { return a <= b }
 func testGoBLEU(a, b int64) bool { return uint64(a) <= uint64(b) }
 func testGoBLT(a, b int64) bool  { return a < b }
-func testGoBLTZ(a, b int64) bool { return uint64(a) < uint64(b) }
+func testGoBLTU(a, b int64) bool { return uint64(a) < uint64(b) }
 
 func TestBranchCondition(t *testing.T) {
 	tests := []struct {

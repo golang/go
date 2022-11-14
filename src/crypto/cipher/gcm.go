@@ -5,7 +5,7 @@
 package cipher
 
 import (
-	subtleoverlap "crypto/internal/subtle"
+	"crypto/internal/alias"
 	"crypto/subtle"
 	"encoding/binary"
 	"errors"
@@ -13,7 +13,7 @@ import (
 
 // AEAD is a cipher mode providing authenticated encryption with associated
 // data. For a description of the methodology, see
-//	https://en.wikipedia.org/wiki/Authenticated_encryption
+// https://en.wikipedia.org/wiki/Authenticated_encryption.
 type AEAD interface {
 	// NonceSize returns the size of the nonce that must be passed to Seal
 	// and Open.
@@ -56,10 +56,11 @@ type gcmAble interface {
 // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
 // standard and make binary.BigEndian suitable for marshaling these values, the
 // bits are stored in big endian order. For example:
-//   the coefficient of x⁰ can be obtained by v.low >> 63.
-//   the coefficient of x⁶³ can be obtained by v.low & 1.
-//   the coefficient of x⁶⁴ can be obtained by v.high >> 63.
-//   the coefficient of x¹²⁷ can be obtained by v.high & 1.
+//
+//	the coefficient of x⁰ can be obtained by v.low >> 63.
+//	the coefficient of x⁶³ can be obtained by v.low & 1.
+//	the coefficient of x⁶⁴ can be obtained by v.high >> 63.
+//	the coefficient of x¹²⁷ can be obtained by v.high & 1.
 type gcmFieldElement struct {
 	low, high uint64
 }
@@ -173,7 +174,7 @@ func (g *gcm) Seal(dst, nonce, plaintext, data []byte) []byte {
 	}
 
 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
-	if subtleoverlap.InexactOverlap(out, plaintext) {
+	if alias.InexactOverlap(out, plaintext) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
 
@@ -224,7 +225,7 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	g.auth(expectedTag[:], ciphertext, data, &tagMask)
 
 	ret, out := sliceForAppend(dst, len(ciphertext))
-	if subtleoverlap.InexactOverlap(out, ciphertext) {
+	if alias.InexactOverlap(out, ciphertext) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
 
@@ -372,7 +373,7 @@ func (g *gcm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
 		g.cipher.Encrypt(mask[:], counter[:])
 		gcmInc32(counter)
 
-		xorWords(out, in, mask[:])
+		subtle.XORBytes(out, in, mask[:])
 		out = out[gcmBlockSize:]
 		in = in[gcmBlockSize:]
 	}
@@ -380,7 +381,7 @@ func (g *gcm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
 	if len(in) > 0 {
 		g.cipher.Encrypt(mask[:], counter[:])
 		gcmInc32(counter)
-		xorBytes(out, in, mask[:])
+		subtle.XORBytes(out, in, mask[:])
 	}
 }
 
@@ -422,5 +423,5 @@ func (g *gcm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]
 	binary.BigEndian.PutUint64(out, y.low)
 	binary.BigEndian.PutUint64(out[8:], y.high)
 
-	xorWords(out, out, tagMask[:])
+	subtle.XORBytes(out, out, tagMask[:])
 }

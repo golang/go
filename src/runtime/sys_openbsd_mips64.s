@@ -24,7 +24,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVV	R2, (R2)
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0
 	MOVV	wait+0(FP), R4		// arg 1 - notdead
 	MOVV	$302, R2		// sys___threxit
@@ -62,17 +62,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	BEQ	R7, 2(PC)
 	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOVV	$r+0(FP), R4
-	MOVW	$0, R5
-	MOVV	$101, R2		// sys_pipe2
-	SYSCALL
-	BEQ	R7, 2(PC)
-	SUBVU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -248,7 +237,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	CALL	(R25)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$192
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$192
 	// initialize REGSB = PC&0xffffffff00000000
 	BGEZAL	R0, 1(PC)
 	SRLV	$32, R31, RSB
@@ -380,21 +369,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R4		// arg 1 - fd
 	MOVV	$2, R5			// arg 2 - cmd (F_SETFD)
 	MOVV	$1, R6			// arg 3 - arg (FD_CLOEXEC)
-	MOVV	$92, R2			// sys_fcntl
-	SYSCALL
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), R4		// arg 1 - fd
-	MOVV	$3, R5			// arg 2 - cmd (F_GETFL)
-	MOVV	$0, R6			// arg 3
-	MOVV	$92, R2			// sys_fcntl
-	SYSCALL
-	MOVV	$4, R6			// O_NONBLOCK
-	OR	R2, R6			// arg 3 - flags
-	MOVW	fd+0(FP), R4		// arg 1 - fd
-	MOVV	$4, R5			// arg 2 - cmd (F_SETFL)
 	MOVV	$92, R2			// sys_fcntl
 	SYSCALL
 	RET

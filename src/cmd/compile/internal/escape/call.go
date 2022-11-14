@@ -180,11 +180,11 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 			argument(e.discardHole(), &call.Args[i])
 		}
 
-	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE:
+	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 		call := call.(*ir.UnaryExpr)
 		argument(e.discardHole(), &call.X)
 
-	case ir.OUNSAFEADD, ir.OUNSAFESLICE:
+	case ir.OUNSAFEADD, ir.OUNSAFESLICE, ir.OUNSAFESTRING:
 		call := call.(*ir.BinaryExpr)
 		argument(ks[0], &call.X)
 		argument(e.discardHole(), &call.Y)
@@ -223,6 +223,10 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 
 	// If the function is already a zero argument/result function call,
 	// just escape analyze it normally.
+	//
+	// Note that the runtime is aware of this optimization for
+	// "go" statements that start in reflect.makeFuncStub or
+	// reflect.methodValueCall.
 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
 		if sig := call.X.Type(); sig.NumParams()+sig.NumResults() == 0 {
 			if clo, ok := call.X.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
@@ -238,6 +242,15 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	fn.SetWrapper(true)
 	fn.Nname.SetType(types.NewSignature(types.LocalPkg, nil, nil, nil, nil))
 	fn.Body = []ir.Node{call}
+	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+		// If the callee is a named function, link to the original callee.
+		x := call.X
+		if x.Op() == ir.ONAME && x.(*ir.Name).Class == ir.PFUNC {
+			fn.WrappedFunc = call.X.(*ir.Name).Func
+		} else if x.Op() == ir.OMETHEXPR && ir.MethodExprFunc(x).Nname != nil {
+			fn.WrappedFunc = ir.MethodExprName(x).Func
+		}
+	}
 
 	clo := fn.OClosure
 	if n.Op() == ir.OGO {
@@ -333,11 +346,32 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
 		}
 	}
 
-	// Peel away any slice lits.
+	// Peel away any slice literals for better escape analyze
+	// them. For example:
+	//
+	//     go F([]int{a, b})
+	//
+	// If F doesn't escape its arguments, then the slice can
+	// be allocated on the new goroutine's stack.
+	//
+	// For variadic functions, the compiler has already rewritten:
+	//
+	//     f(a, b, c)
+	//
+	// to:
+	//
+	//     f([]T{a, b, c}...)
+	//
+	// So we need to look into slice elements to handle uintptr(ptr)
+	// arguments to syscall-like functions correctly.
 	if arg := *argp; arg.Op() == ir.OSLICELIT {
 		list := arg.(*ir.CompLitExpr).List
 		for i := range list {
-			visit(arg.Pos(), &list[i])
+			el := &list[i]
+			if list[i].Op() == ir.OKEY {
+				el = &list[i].(*ir.KeyExpr).Value
+			}
+			visit(arg.Pos(), el)
 		}
 	} else {
 		visit(call.Pos(), argp)

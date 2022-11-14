@@ -4,7 +4,7 @@
 # The test still seems to be useful as a test of direct-mode go get.
 
 [short] skip
-[!exec:git] skip
+[!git] skip
 env GO111MODULE=off
 
 env GOPATH=$WORK/tmp/d1

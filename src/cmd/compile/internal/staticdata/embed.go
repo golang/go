@@ -67,13 +67,13 @@ func embedFileList(v *ir.Name, kind int) []string {
 
 // embedKind determines the kind of embedding variable.
 func embedKind(typ *types.Type) int {
-	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
+	if typ.Sym() != nil && typ.Sym().Name == "FS" && typ.Sym().Pkg.Path == "embed" {
 		return embedFiles
 	}
 	if typ.Kind() == types.TSTRING {
 		return embedString
 	}
-	if typ.Sym() == nil && typ.IsSlice() && typ.Elem().Kind() == types.TUINT8 {
+	if typ.IsSlice() && typ.Elem().Kind() == types.TUINT8 {
 		return embedBytes
 	}
 	return embedUnknown
@@ -135,7 +135,7 @@ func WriteEmbed(v *ir.Name) {
 		}
 
 	case embedFiles:
-		slicedata := base.Ctxt.Lookup(`"".` + v.Sym().Name + `.files`)
+		slicedata := v.Sym().Pkg.Lookup(v.Sym().Name + `.files`).Linksym()
 		off := 0
 		// []files pointed at by Files
 		off = objw.SymPtr(slicedata, off, slicedata, 3*types.PtrSize) // []file, pointing just past slice

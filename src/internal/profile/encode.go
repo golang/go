@@ -175,7 +175,7 @@ var profileDecoder = []decoder{
 		if err != nil {
 			return err
 		}
-		if *&m.(*Profile).stringTable[0] != "" {
+		if m.(*Profile).stringTable[0] != "" {
 			return errors.New("string_table[0] must be ''")
 		}
 		return nil

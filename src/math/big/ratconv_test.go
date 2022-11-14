@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -104,6 +105,7 @@ var setStringTests = []StringTest{
 	{in: "4/3/"},
 	{in: "4/3."},
 	{in: "4/"},
+	{in: "13e-9223372036854775808"}, // CVE-2022-23772
 
 	// valid
 	{"0", "0", true},
@@ -201,6 +203,14 @@ func TestRatSetString(t *testing.T) {
 				t.Errorf("#%d SetString(%q) got %p want nil", i, test.in, x)
 			}
 		}
+	}
+}
+
+func TestRatSetStringZero(t *testing.T) {
+	got, _ := new(Rat).SetString("0")
+	want := new(Rat).SetInt64(0)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %#+v, want %#+v", got, want)
 	}
 }
 

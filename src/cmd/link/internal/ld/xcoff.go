@@ -6,17 +6,18 @@ package ld
 
 import (
 	"bytes"
-	"cmd/internal/objabi"
-	"cmd/link/internal/loader"
-	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"math/bits"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+
+	"cmd/internal/objabi"
+	"cmd/link/internal/loader"
+	"cmd/link/internal/sym"
 )
 
 // This file handles all algorithms related to XCOFF files generation.
@@ -598,16 +599,16 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 		if !ctxt.DynlinkingGo() {
 			// runtime.types size must be removed, as it's a real symbol.
 			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
-			outerSymSize["type.*"] = size - tsize
+			outerSymSize["type:*"] = size - tsize
 		}
 	case sym.SGOSTRING:
-		outerSymSize["go.string.*"] = size
+		outerSymSize["go:string.*"] = size
 	case sym.SGOFUNC:
 		if !ctxt.DynlinkingGo() {
-			outerSymSize["go.func.*"] = size
+			outerSymSize["go:func.*"] = size
 		}
 	case sym.SGOFUNCRELRO:
-		outerSymSize["go.funcrel.*"] = size
+		outerSymSize["go:funcrel.*"] = size
 	case sym.SGCBITS:
 		outerSymSize["runtime.gcbits.*"] = size
 	case sym.SPCLNTAB:
@@ -755,8 +756,8 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 }
 
 // Update values for the previous package.
-//  - Svalue of the C_FILE symbol: if it is the last one, this Svalue must be -1
-//  - Xsclen of the csect symbol.
+//   - Svalue of the C_FILE symbol: if it is the last one, this Svalue must be -1
+//   - Xsclen of the csect symbol.
 func (f *xcoffFile) updatePreviousFile(ctxt *Link, last bool) {
 	// first file
 	if currSymSrcFile.file == nil {
@@ -822,9 +823,12 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
 		}
 	}
 
+	name = ldr.SymExtname(x)
+	name = mangleABIName(ctxt, ldr, x, name)
+
 	s := &XcoffSymEnt64{
 		Nsclass: C_EXT,
-		Noffset: uint32(xfile.stringTable.add(ldr.SymExtname(x))),
+		Noffset: uint32(xfile.stringTable.add(name)),
 		Nvalue:  uint64(ldr.SymValue(x)),
 		Nscnum:  f.getXCOFFscnum(ldr.SymSect(x)),
 		Ntype:   SYM_TYPE_FUNC,
@@ -890,7 +894,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 			syms = xfile.writeSymbolFunc(ctxt, x)
 		} else {
 			// Only runtime.text and runtime.etext come through this way
-			if name != "runtime.text" && name != "runtime.etext" && name != "go.buildid" {
+			if name != "runtime.text" && name != "runtime.etext" && name != "go:buildid" {
 				Exitf("putaixsym: unknown text symbol %s", name)
 			}
 			s := &XcoffSymEnt64{
@@ -1114,7 +1118,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, TLSSym)
 			}
 
-		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_EXTRA_COUNTER:
+		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER, st == sym.SCOVERAGE_COUNTER:
 			if ldr.AttrReachable(s) {
 				data := ldr.Data(s)
 				if len(data) > 0 {
@@ -1238,7 +1242,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 		sym:  s,
 		roff: r.Off(),
 	}
-	targ := ldr.ResolveABIAlias(r.Sym())
+	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
 		targType = ldr.SymType(targ)
@@ -1287,10 +1291,6 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 }
 
 func (ctxt *Link) doxcoff() {
-	if *FlagD {
-		// All XCOFF files have dynamic symbols because of the syscalls.
-		Exitf("-d is not available on AIX")
-	}
 	ldr := ctxt.loader
 
 	// TOC
@@ -1333,7 +1333,7 @@ func (ctxt *Link) doxcoff() {
 				panic("cgo_export on static symbol")
 			}
 
-			if ldr.SymType(s) == sym.STEXT || ldr.SymType(s) == sym.SABIALIAS {
+			if ldr.SymType(s) == sym.STEXT {
 				// On AIX, a exported function must have two symbols:
 				// - a .text symbol which must start with a ".".
 				// - a .data symbol which is a function descriptor.
@@ -1806,7 +1806,7 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
 		buf.Write([]byte(name + "\n"))
 	}
 
-	err := ioutil.WriteFile(fname, buf.Bytes(), 0666)
+	err := os.WriteFile(fname, buf.Bytes(), 0666)
 	if err != nil {
 		Errorf(nil, "WriteFile %s failed: %v", fname, err)
 	}

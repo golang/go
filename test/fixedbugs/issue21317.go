@@ -38,14 +38,14 @@ func main() {
 	defer os.RemoveAll(f.Name())
 
 	// compile and test output
-	cmd := exec.Command("go", "tool", "compile", f.Name())
+	cmd := exec.Command("go", "tool", "compile", "-p=main", "-importcfg="+os.Getenv("STDLIB_IMPORTCFG"), f.Name())
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		log.Fatalf("expected cmd/compile to fail")
 	}
 	wantErrs := []string{
-		"7:9: n declared but not used",
-		"7:12: err declared but not used",
+		"7:9: n declared and not used",
+		"7:12: err declared and not used",
 	}
 	outStr := string(out)
 	for _, want := range wantErrs {

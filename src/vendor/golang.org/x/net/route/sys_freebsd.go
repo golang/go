@@ -134,9 +134,6 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
 		} else {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD11
 		}
-		if rel >= 1102000 { // see https://github.com/freebsd/freebsd/commit/027c7f4d66ff8d8c4a46c3665a5ee7d6d8462034#diff-ad4e5b7f1449ea3fc87bc97280de145b
-			align = wordSize
-		}
 	}
 	rtm.parse = rtm.parseRouteMessage
 	ifm.parse = ifm.parseInterfaceMessage
@@ -144,20 +141,20 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
 	ifmam.parse = ifmam.parseInterfaceMulticastAddrMessage
 	ifanm.parse = ifanm.parseInterfaceAnnounceMessage
 	return align, map[int]*wireFormat{
-		sysRTM_ADD:        rtm,
-		sysRTM_DELETE:     rtm,
-		sysRTM_CHANGE:     rtm,
-		sysRTM_GET:        rtm,
-		sysRTM_LOSING:     rtm,
-		sysRTM_REDIRECT:   rtm,
-		sysRTM_MISS:       rtm,
-		sysRTM_LOCK:       rtm,
-		sysRTM_RESOLVE:    rtm,
-		sysRTM_NEWADDR:    ifam,
-		sysRTM_DELADDR:    ifam,
-		sysRTM_IFINFO:     ifm,
-		sysRTM_NEWMADDR:   ifmam,
-		sysRTM_DELMADDR:   ifmam,
-		sysRTM_IFANNOUNCE: ifanm,
+		syscall.RTM_ADD:        rtm,
+		syscall.RTM_DELETE:     rtm,
+		syscall.RTM_CHANGE:     rtm,
+		syscall.RTM_GET:        rtm,
+		syscall.RTM_LOSING:     rtm,
+		syscall.RTM_REDIRECT:   rtm,
+		syscall.RTM_MISS:       rtm,
+		syscall.RTM_LOCK:       rtm,
+		syscall.RTM_RESOLVE:    rtm,
+		syscall.RTM_NEWADDR:    ifam,
+		syscall.RTM_DELADDR:    ifam,
+		syscall.RTM_IFINFO:     ifm,
+		syscall.RTM_NEWMADDR:   ifmam,
+		syscall.RTM_DELMADDR:   ifmam,
+		syscall.RTM_IFANNOUNCE: ifanm,
 	}
 }

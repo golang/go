@@ -125,8 +125,8 @@ it is a distinct program, so there are some differences.
 One is in constant evaluation.
 Constant expressions in the assembler are parsed using Go's operator
 precedence, not the C-like precedence of the original.
-Thus <code>3&amp;1<<2</code> is 4, not 0—it parses as <code>(3&amp;1)<<2</code>
-not <code>3&amp;(1<<2)</code>.
+Thus <code>3&amp;1&lt;&lt;2</code> is 4, not 0—it parses as <code>(3&amp;1)&lt;&lt;2</code>
+not <code>3&amp;(1&lt;&lt;2)</code>.
 Also, constants are always evaluated as 64-bit unsigned integers.
 Thus <code>-2</code> is not the integer value minus two,
 but the unsigned 64-bit integer with the same bit pattern.
@@ -913,8 +913,6 @@ This assembler is used by GOARCH values ppc64 and ppc64le.
 <p>
 Reference: <a href="/pkg/cmd/internal/obj/ppc64">Go PPC64 Assembly Instructions Reference Manual</a>
 </p>
-
-</ul>
 
 <h3 id="s390x">IBM z/Architecture, a.k.a. s390x</h3>
 

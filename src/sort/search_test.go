@@ -7,6 +7,7 @@ package sort_test
 import (
 	"runtime"
 	. "sort"
+	stringspkg "strings"
 	"testing"
 )
 
@@ -57,9 +58,82 @@ func TestSearch(t *testing.T) {
 	}
 }
 
+func TestFind(t *testing.T) {
+	str1 := []string{"foo"}
+	str2 := []string{"ab", "ca"}
+	str3 := []string{"mo", "qo", "vo"}
+	str4 := []string{"ab", "ad", "ca", "xy"}
+
+	// slice with repeating elements
+	strRepeats := []string{"ba", "ca", "da", "da", "da", "ka", "ma", "ma", "ta"}
+
+	// slice with all element equal
+	strSame := []string{"xx", "xx", "xx"}
+
+	tests := []struct {
+		data      []string
+		target    string
+		wantPos   int
+		wantFound bool
+	}{
+		{[]string{}, "foo", 0, false},
+		{[]string{}, "", 0, false},
+
+		{str1, "foo", 0, true},
+		{str1, "bar", 0, false},
+		{str1, "zx", 1, false},
+
+		{str2, "aa", 0, false},
+		{str2, "ab", 0, true},
+		{str2, "ad", 1, false},
+		{str2, "ca", 1, true},
+		{str2, "ra", 2, false},
+
+		{str3, "bb", 0, false},
+		{str3, "mo", 0, true},
+		{str3, "nb", 1, false},
+		{str3, "qo", 1, true},
+		{str3, "tr", 2, false},
+		{str3, "vo", 2, true},
+		{str3, "xr", 3, false},
+
+		{str4, "aa", 0, false},
+		{str4, "ab", 0, true},
+		{str4, "ac", 1, false},
+		{str4, "ad", 1, true},
+		{str4, "ax", 2, false},
+		{str4, "ca", 2, true},
+		{str4, "cc", 3, false},
+		{str4, "dd", 3, false},
+		{str4, "xy", 3, true},
+		{str4, "zz", 4, false},
+
+		{strRepeats, "da", 2, true},
+		{strRepeats, "db", 5, false},
+		{strRepeats, "ma", 6, true},
+		{strRepeats, "mb", 8, false},
+
+		{strSame, "xx", 0, true},
+		{strSame, "ab", 0, false},
+		{strSame, "zz", 3, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.target, func(t *testing.T) {
+			cmp := func(i int) int {
+				return stringspkg.Compare(tt.target, tt.data[i])
+			}
+
+			pos, found := Find(len(tt.data), cmp)
+			if pos != tt.wantPos || found != tt.wantFound {
+				t.Errorf("Find got (%v, %v), want (%v, %v)", pos, found, tt.wantPos, tt.wantFound)
+			}
+		})
+	}
+}
+
 // log2 computes the binary logarithm of x, rounded up to the next integer.
 // (log2(0) == 0, log2(1) == 0, log2(2) == 1, log2(3) == 2, etc.)
-//
 func log2(x int) int {
 	n := 0
 	for p := 1; p < x; p += p {
@@ -155,6 +229,37 @@ func TestSearchExhaustive(t *testing.T) {
 			i := Search(size, func(i int) bool { return i >= targ })
 			if i != targ {
 				t.Errorf("Search(%d, %d) = %d", size, targ, i)
+			}
+		}
+	}
+}
+
+// Abstract exhaustive test for Find.
+func TestFindExhaustive(t *testing.T) {
+	// Test Find for different sequence sizes and search targets.
+	// For each size, we have a (unmaterialized) sequence of integers:
+	//   2,4...size*2
+	// And we're looking for every possible integer between 1 and size*2 + 1.
+	for size := 0; size <= 100; size++ {
+		for x := 1; x <= size*2+1; x++ {
+			var wantFound bool
+			var wantPos int
+
+			cmp := func(i int) int {
+				// Encodes the unmaterialized sequence with elem[i] == (i+1)*2
+				return x - (i+1)*2
+			}
+			pos, found := Find(size, cmp)
+
+			if x%2 == 0 {
+				wantPos = x/2 - 1
+				wantFound = true
+			} else {
+				wantPos = x / 2
+				wantFound = false
+			}
+			if found != wantFound || pos != wantPos {
+				t.Errorf("Find(%d, %d): got (%v, %v), want (%v, %v)", size, x, pos, found, wantPos, wantFound)
 			}
 		}
 	}

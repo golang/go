@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build unix
 
 package signal
 
@@ -48,11 +47,8 @@ func init() {
 		// instead need a test-skip and upstream bug filed against the Solaris
 		// kernel).
 		//
-		// This constant is chosen so as to make the test as generous as possible
-		// while still reliably completing within 3 minutes in non-short mode.
-		//
 		// See https://golang.org/issue/33174.
-		settleTime = 11 * time.Second
+		settleTime = 5 * time.Second
 	} else if runtime.GOOS == "linux" && strings.HasPrefix(runtime.GOARCH, "ppc64") {
 		// Older linux kernels seem to have some hiccups delivering the signal
 		// in a timely manner on ppc64 and ppc64le. When running on a
@@ -137,6 +133,9 @@ func TestSignal(t *testing.T) {
 	// Using 10 is arbitrary.
 	c1 := make(chan os.Signal, 10)
 	Notify(c1)
+	// Stop relaying the SIGURG signals. See #49724
+	Reset(syscall.SIGURG)
+	defer Stop(c1)
 
 	// Send this process a SIGWINCH
 	t.Logf("sigwinch...")
@@ -711,7 +710,7 @@ func TestNotifyContextNotifications(t *testing.T) {
 		}
 		wg.Wait()
 		<-ctx.Done()
-		fmt.Print("received SIGINT")
+		fmt.Println("received SIGINT")
 		// Sleep to give time to simultaneous signals to reach the process.
 		// These signals must be ignored given stop() is not called on this code.
 		// We want to guarantee a SIGINT doesn't cause a premature termination of the program.
@@ -728,11 +727,17 @@ func TestNotifyContextNotifications(t *testing.T) {
 		{"multiple", 10},
 	}
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			var subTimeout time.Duration
 			if deadline, ok := t.Deadline(); ok {
-				subTimeout := time.Until(deadline)
-				subTimeout -= subTimeout / 10 // Leave 10% headroom for cleaning up subprocess.
+				timeout := time.Until(deadline)
+				if timeout < 2*settleTime {
+					t.Fatalf("starting test with less than %v remaining", 2*settleTime)
+				}
+				subTimeout = timeout - (timeout / 10) // Leave 10% headroom for cleaning up subprocess.
 			}
 
 			args := []string{
@@ -748,7 +753,7 @@ func TestNotifyContextNotifications(t *testing.T) {
 			if err != nil {
 				t.Errorf("ran test with -check_notify_ctx_notification and it failed with %v.\nOutput:\n%s", err, out)
 			}
-			if want := []byte("received SIGINT"); !bytes.Contains(out, want) {
+			if want := []byte("received SIGINT\n"); !bytes.Contains(out, want) {
 				t.Errorf("got %q, wanted %q", out, want)
 			}
 		})

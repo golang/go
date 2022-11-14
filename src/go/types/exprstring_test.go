@@ -25,7 +25,7 @@ var testExprs = []testEntry{
 	// func and composite literals
 	{"func(){}", "(func() literal)"},
 	{"func(x int) complex128 {}", "(func(x int) complex128 literal)"},
-	{"[]int{1, 2, 3}", "([]int literal)"},
+	{"[]int{1, 2, 3}", "[]int{…}"},
 
 	// type expressions
 	dup("[1 << 10]byte"),
@@ -36,15 +36,8 @@ var testExprs = []testEntry{
 	dup("func(int, float32) string"),
 	dup("interface{m()}"),
 	dup("interface{m() string; n(x int)}"),
-	dup("interface{type int}"),
+	dup("interface{~int}"),
 
-	// The following exprs do not get formatted correctly: each element in the
-	// type list is printed on a separate line. This is left as a placeholder
-	// until type lists are removed.
-	// TODO(rfindley): remove this once type lists are gone.
-	// dup("interface{type int, float64, string}"),
-	// dup("interface{type int; m()}"),
-	// dup("interface{type int, float64, string; m() string; n(x int)}"),
 	dup("map[string]int"),
 	dup("chan E"),
 	dup("<-chan E"),

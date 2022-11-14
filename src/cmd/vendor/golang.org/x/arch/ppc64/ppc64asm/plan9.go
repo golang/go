@@ -30,18 +30,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 			break
 		}
 		if s := plan9Arg(&inst, i, pc, a, symname); s != "" {
-			// In the case for some BC instructions, a CondReg arg has
-			// both the CR and the branch condition encoded in its value.
-			// plan9Arg will return a string with the string representation
-			// of these values separated by a blank that will be treated
-			// as 2 args from this point on.
-			if strings.IndexByte(s, ' ') > 0 {
-				t := strings.Split(s, " ")
-				args = append(args, t[0])
-				args = append(args, t[1])
-			} else {
-				args = append(args, s)
-			}
+			args = append(args, s)
 		}
 	}
 	var op string
@@ -61,7 +50,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		case 1:
 			return fmt.Sprintf("%s %s", op, args[0])
 		case 2:
-			if inst.Op == COPY || inst.Op == PASTECC || inst.Op == FCMPO || inst.Op == FCMPU {
+			if inst.Op == COPY || inst.Op == PASTECC {
 				return op + " " + args[0] + "," + args[1]
 			}
 			return op + " " + args[1] + "," + args[0]
@@ -97,13 +86,13 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		STQ, STFD, STFDU, STFS, STFSU:
 		return op + " " + strings.Join(args, ",")
 
-	case CMPD, CMPDI, CMPLD, CMPLDI, CMPW, CMPWI, CMPLW, CMPLWI:
-		if len(args) == 2 {
-			return op + " " + args[0] + "," + args[1]
-		} else if len(args) == 3 {
-			return op + " " + args[0] + "," + args[1] + "," + args[2]
+	case FCMPU, FCMPO, CMPD, CMPDI, CMPLD, CMPLDI, CMPW, CMPWI, CMPLW, CMPLWI:
+		crf := int(inst.Args[0].(CondReg) - CR0)
+		cmpstr := op + " " + args[1] + "," + args[2]
+		if crf != 0 { // print CRx as the final operand if not implied (i.e BF != 0)
+			cmpstr += "," + args[0]
 		}
-		return op + " " + args[0] + " ??"
+		return cmpstr
 
 	case LIS:
 		return "ADDIS $0," + args[1] + "," + args[0]
@@ -152,16 +141,15 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		}
 		return op + " " + strings.Join(args, ", ")
 	case BC:
-		if int(inst.Args[0].(Imm))&0x1c == 12 { // jump on cond bit set
-			if len(args) == 4 {
-				return fmt.Sprintf("B%s %s,%s", args[1], args[2], args[3])
+		bo := int(inst.Args[0].(Imm))
+		bi := int(inst.Args[1].(CondReg) - Cond0LT)
+		bcname := condName[((bo&0x8)>>1)|(bi&0x3)]
+		if bo&0x17 == 4 { // jump only a CR bit set/unset, no hints (at bits) set.
+			if bi >= 4 {
+				return fmt.Sprintf("B%s CR%d,%s", bcname, bi>>2, args[2])
+			} else {
+				return fmt.Sprintf("B%s %s", bcname, args[2])
 			}
-			return fmt.Sprintf("B%s %s", args[1], args[2])
-		} else if int(inst.Args[0].(Imm))&0x1c == 4 && revCondMap[args[1]] != "" { // jump on cond bit not set
-			if len(args) == 4 {
-				return fmt.Sprintf("B%s %s,%s", revCondMap[args[1]], args[2], args[3])
-			}
-			return fmt.Sprintf("B%s %s", revCondMap[args[1]], args[2])
 		}
 		return op + " " + strings.Join(args, ",")
 	case BCCTR:
@@ -203,19 +191,14 @@ func plan9Arg(inst *Inst, argIndex int, pc uint64, arg Arg, symname func(uint64)
 		if inst.Op == ISEL {
 			return fmt.Sprintf("$%d", (arg - Cond0LT))
 		}
-		if arg == CR0 && (strings.HasPrefix(inst.Op.String(), "cmp") || strings.HasPrefix(inst.Op.String(), "fcmp")) {
-			return "" // don't show cr0 for cmp instructions
-		} else if arg >= CR0 {
-			return fmt.Sprintf("CR%d", int(arg-CR0))
-		}
 		bit := [4]string{"LT", "GT", "EQ", "SO"}[(arg-Cond0LT)%4]
-		if strings.HasPrefix(inst.Op.String(), "cr") {
-			return fmt.Sprintf("CR%d%s", int(arg-Cond0LT)/4, bit)
-		}
 		if arg <= Cond0SO {
 			return bit
+		} else if arg > Cond0SO && arg <= Cond7SO {
+			return fmt.Sprintf("CR%d%s", int(arg-Cond0LT)/4, bit)
+		} else {
+			return fmt.Sprintf("CR%d", int(arg-CR0))
 		}
-		return fmt.Sprintf("%s CR%d", bit, int(arg-Cond0LT)/4)
 	case Imm:
 		return fmt.Sprintf("$%d", arg)
 	case SpReg:
@@ -279,6 +262,20 @@ func reverseOperandOrder(op Op) bool {
 // revCondMap maps a conditional register bit to its inverse, if possible.
 var revCondMap = map[string]string{
 	"LT": "GE", "GT": "LE", "EQ": "NE",
+}
+
+// Lookup table to map BI[0:1] and BO[3] to an extended mnemonic for CR ops.
+// Bits 0-1 map to a bit with a CR field, and bit 2 selects the inverted (0)
+// or regular (1) extended mnemonic.
+var condName = []string{
+	"GE",
+	"LE",
+	"NE",
+	"NSO",
+	"LT",
+	"GT",
+	"EQ",
+	"SO",
 }
 
 // plan9OpMap maps an Op to its Plan 9 mnemonics, if different than its GNU mnemonics.

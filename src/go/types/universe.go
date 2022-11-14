@@ -80,28 +80,41 @@ func defPredeclaredTypes() {
 	}
 
 	// type any = interface{}
-	def(NewTypeName(token.NoPos, nil, "any", &emptyInterface))
+	// Note: don't use &emptyInterface for the type of any. Using a unique
+	// pointer allows us to detect any and format it as "any" rather than
+	// interface{}, which clarifies user-facing error messages significantly.
+	def(NewTypeName(token.NoPos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
 
 	// type error interface{ Error() string }
 	{
 		obj := NewTypeName(token.NoPos, nil, "error", nil)
 		obj.setColor(black)
+		typ := NewNamed(obj, nil, nil)
+
+		// error.Error() string
+		recv := NewVar(token.NoPos, nil, "", typ)
 		res := NewVar(token.NoPos, nil, "", Typ[String])
-		sig := NewSignature(nil, nil, NewTuple(res), false)
+		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
 		err := NewFunc(token.NoPos, nil, "Error", sig)
-		ityp := &Interface{obj, []*Func{err}, nil, nil, true, nil}
+
+		// interface{ Error() string }
+		ityp := &Interface{methods: []*Func{err}, complete: true}
 		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
-		typ := NewNamed(obj, ityp, nil)
-		sig.recv = NewVar(token.NoPos, nil, "", typ)
+
+		typ.SetUnderlying(ityp)
 		def(obj)
 	}
 
-	// type comparable interface{ /* type set marked comparable */ }
+	// type comparable interface{} // marked as comparable
 	{
 		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
 		obj.setColor(black)
-		ityp := &Interface{obj, nil, nil, nil, true, &_TypeSet{true, nil, allTermlist}}
-		NewNamed(obj, ityp, nil)
+		typ := NewNamed(obj, nil, nil)
+
+		// interface{} // marked as comparable
+		ityp := &Interface{complete: true, tset: &_TypeSet{nil, allTermlist, true}}
+
+		typ.SetUnderlying(ityp)
 		def(obj)
 	}
 }
@@ -153,6 +166,9 @@ const (
 	_Offsetof
 	_Sizeof
 	_Slice
+	_SliceData
+	_String
+	_StringData
 
 	// testing support
 	_Assert
@@ -181,11 +197,14 @@ var predeclaredFuncs = [...]struct {
 	_Real:    {"real", 1, false, expression},
 	_Recover: {"recover", 0, false, statement},
 
-	_Add:      {"Add", 2, false, expression},
-	_Alignof:  {"Alignof", 1, false, expression},
-	_Offsetof: {"Offsetof", 1, false, expression},
-	_Sizeof:   {"Sizeof", 1, false, expression},
-	_Slice:    {"Slice", 2, false, expression},
+	_Add:        {"Add", 2, false, expression},
+	_Alignof:    {"Alignof", 1, false, expression},
+	_Offsetof:   {"Offsetof", 1, false, expression},
+	_Sizeof:     {"Sizeof", 1, false, expression},
+	_Slice:      {"Slice", 2, false, expression},
+	_SliceData:  {"SliceData", 1, false, expression},
+	_String:     {"String", 2, false, expression},
+	_StringData: {"StringData", 1, false, expression},
 
 	_Assert: {"assert", 1, false, statement},
 	_Trace:  {"trace", 0, true, statement},
@@ -233,7 +252,6 @@ func init() {
 // Objects with names containing blanks are internal and not entered into
 // a scope. Objects with exported names are inserted in the unsafe package
 // scope; other objects are inserted in the universe scope.
-//
 func def(obj Object) {
 	assert(obj.color() == black)
 	name := obj.Name()
@@ -241,7 +259,7 @@ func def(obj Object) {
 		return // nothing to do
 	}
 	// fix Obj link for named types
-	if typ := asNamed(obj.Type()); typ != nil {
+	if typ, _ := obj.Type().(*Named); typ != nil {
 		typ.obj = obj.(*TypeName)
 	}
 	// exported identifiers go into package unsafe

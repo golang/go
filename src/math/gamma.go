@@ -121,6 +121,7 @@ func stirling(x float64) (float64, float64) {
 // Gamma returns the Gamma function of x.
 //
 // Special cases are:
+//
 //	Gamma(+Inf) = +Inf
 //	Gamma(+0) = +Inf
 //	Gamma(-0) = -Inf

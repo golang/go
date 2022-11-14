@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "textflag.h"
+#include "cgo/abi_arm64.h"
 
 TEXT _rt0_arm64_darwin(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·rt0_go(SB), R2
@@ -18,26 +19,10 @@ exit:
 //
 // Note that all currently shipping darwin/arm64 platforms require
 // cgo and do not support c-shared.
-TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$168
+TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$152
 	// Preserve callee-save registers.
-	MOVD R19, 24(RSP)
-	MOVD R20, 32(RSP)
-	MOVD R21, 40(RSP)
-	MOVD R22, 48(RSP)
-	MOVD R23, 56(RSP)
-	MOVD R24, 64(RSP)
-	MOVD R25, 72(RSP)
-	MOVD R26, 80(RSP)
-	MOVD R27, 88(RSP)
-	MOVD g, 96(RSP)
-	FMOVD F8, 104(RSP)
-	FMOVD F9, 112(RSP)
-	FMOVD F10, 120(RSP)
-	FMOVD F11, 128(RSP)
-	FMOVD F12, 136(RSP)
-	FMOVD F13, 144(RSP)
-	FMOVD F14, 152(RSP)
-	FMOVD F15, 160(RSP)
+	SAVE_R19_TO_R28(8)
+	SAVE_F8_TO_F15(88)
 
 	MOVD  R0, _rt0_arm64_darwin_lib_argc<>(SB)
 	MOVD  R1, _rt0_arm64_darwin_lib_argv<>(SB)
@@ -57,24 +42,8 @@ TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$168
 	ADD   $16, RSP
 
 	// Restore callee-save registers.
-	MOVD 24(RSP), R19
-	MOVD 32(RSP), R20
-	MOVD 40(RSP), R21
-	MOVD 48(RSP), R22
-	MOVD 56(RSP), R23
-	MOVD 64(RSP), R24
-	MOVD 72(RSP), R25
-	MOVD 80(RSP), R26
-	MOVD 88(RSP), R27
-	MOVD 96(RSP), g
-	FMOVD 104(RSP), F8
-	FMOVD 112(RSP), F9
-	FMOVD 120(RSP), F10
-	FMOVD 128(RSP), F11
-	FMOVD 136(RSP), F12
-	FMOVD 144(RSP), F13
-	FMOVD 152(RSP), F14
-	FMOVD 160(RSP), F15
+	RESTORE_R19_TO_R28(8)
+	RESTORE_F8_TO_F15(88)
 
 	RET
 

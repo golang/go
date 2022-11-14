@@ -1,0 +1,54 @@
+# Regression test for https://go.dev/issue/51125:
+# Relative import paths (a holdover from GOPATH) were accidentally allowed in module mode.
+
+cd $WORK
+
+# Relative imports should not be allowed with a go.mod file.
+
+! go run driver.go
+stderr '^driver.go:3:8: "./mypkg" is relative, but relative import paths are not supported in module mode$'
+
+go list -e -f '{{with .Error}}{{.}}{{end}}' -deps driver.go
+stdout '^driver.go:3:8: "./mypkg" is relative, but relative import paths are not supported in module mode$'
+! stderr .
+
+
+# Relative imports should not be allowed in module mode even without a go.mod file.
+rm go.mod
+
+! go run driver.go
+stderr '^driver.go:3:8: "./mypkg" is relative, but relative import paths are not supported in module mode$'
+
+go list -e -f '{{with .Error}}{{.}}{{end}}' -deps driver.go
+stdout '^driver.go:3:8: "./mypkg" is relative, but relative import paths are not supported in module mode$'
+! stderr .
+
+
+# In GOPATH mode, they're still allowed (but only outside of GOPATH/src).
+env GO111MODULE=off
+
+[!short] go run driver.go
+
+go list -deps driver.go
+
+
+-- $WORK/go.mod --
+module example
+
+go 1.17
+-- $WORK/driver.go --
+package main
+
+import "./mypkg"
+
+func main() {
+	mypkg.MyFunc()
+}
+-- $WORK/mypkg/code.go --
+package mypkg
+
+import "fmt"
+
+func MyFunc() {
+	fmt.Println("Hello, world!")
+}

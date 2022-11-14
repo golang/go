@@ -13,7 +13,6 @@ const (
 	_ETIMEDOUT   = 0x91
 	_EWOULDBLOCK = 0xb
 	_EINPROGRESS = 0x96
-	_ENOSYS      = 0x59
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -24,7 +23,8 @@ const (
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
 
-	_MADV_FREE = 0x5
+	_MADV_DONTNEED = 0x4
+	_MADV_FREE     = 0x5
 
 	_SA_SIGINFO = 0x8
 	_SA_RESTART = 0x4

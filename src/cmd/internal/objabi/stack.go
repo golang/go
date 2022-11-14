@@ -27,5 +27,5 @@ func stackGuardMultiplier() int {
 	if buildcfg.GOOS == "aix" {
 		return 2
 	}
-	return stackGuardMultiplierDefault
+	return 1
 }

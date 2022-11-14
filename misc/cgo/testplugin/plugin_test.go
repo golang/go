@@ -19,6 +19,7 @@ import (
 )
 
 var gcflags string = os.Getenv("GO_GCFLAGS")
+var goroot string
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -43,6 +44,12 @@ func prettyPrintf(format string, args ...interface{}) {
 }
 
 func testMain(m *testing.M) int {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	goroot = filepath.Join(cwd, "../../..")
+
 	// Copy testdata into GOPATH/src/testplugin, along with a go.mod file
 	// declaring the same path.
 
@@ -113,7 +120,7 @@ func goCmd(t *testing.T, op string, args ...string) {
 	if t != nil {
 		t.Helper()
 	}
-	run(t, "go", append([]string{op, "-gcflags", gcflags}, args...)...)
+	run(t, filepath.Join(goroot, "bin", "go"), append([]string{op, "-gcflags", gcflags}, args...)...)
 }
 
 // escape converts a string to something suitable for a shell command line.
@@ -211,7 +218,7 @@ func TestIssue18676(t *testing.T) {
 
 func TestIssue19534(t *testing.T) {
 	// Test that we can load a plugin built in a path with non-alpha characters.
-	goCmd(t, "build", "-buildmode=plugin", "-ldflags='-pluginpath=issue.19534'", "-o", "plugin.so", "./issue19534/plugin.go")
+	goCmd(t, "build", "-buildmode=plugin", "-gcflags=-p=issue.19534", "-ldflags=-pluginpath=issue.19534", "-o", "plugin.so", "./issue19534/plugin.go")
 	goCmd(t, "build", "-o", "issue19534.exe", "./issue19534/main.go")
 	run(t, "./issue19534.exe")
 }
@@ -265,10 +272,6 @@ func TestIssue25756(t *testing.T) {
 
 // Test with main using -buildmode=pie with plugin for issue #43228
 func TestIssue25756pie(t *testing.T) {
-	if os.Getenv("GO_BUILDER_NAME") == "darwin-arm64-11_0-toothrot" {
-		t.Skip("broken on darwin/arm64 builder in sharded mode; see issue 46239")
-	}
-
 	goCmd(t, "build", "-buildmode=plugin", "-o", "life.so", "./issue25756/plugin")
 	goCmd(t, "build", "-buildmode=pie", "-o", "issue25756pie.exe", "./issue25756/main.go")
 	run(t, "./issue25756pie.exe")
@@ -287,9 +290,53 @@ func TestMethod2(t *testing.T) {
 	run(t, "./method2.exe")
 }
 
+func TestMethod3(t *testing.T) {
+	goCmd(t, "build", "-buildmode=plugin", "-o", "method3.so", "./method3/plugin.go")
+	goCmd(t, "build", "-o", "method3.exe", "./method3/main.go")
+	run(t, "./method3.exe")
+}
+
 func TestIssue44956(t *testing.T) {
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p1.so", "./issue44956/plugin1.go")
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p2.so", "./issue44956/plugin2.go")
 	goCmd(t, "build", "-o", "issue44956.exe", "./issue44956/main.go")
 	run(t, "./issue44956.exe")
+}
+
+func TestIssue52937(t *testing.T) {
+	goCmd(t, "build", "-buildmode=plugin", "-o", "issue52937.so", "./issue52937/main.go")
+}
+
+func TestIssue53989(t *testing.T) {
+	goCmd(t, "build", "-buildmode=plugin", "-o", "issue53989.so", "./issue53989/plugin.go")
+	goCmd(t, "build", "-o", "issue53989.exe", "./issue53989/main.go")
+	run(t, "./issue53989.exe")
+}
+
+func TestForkExec(t *testing.T) {
+	// Issue 38824: importing the plugin package causes it hang in forkExec on darwin.
+
+	t.Parallel()
+	goCmd(t, "build", "-o", "forkexec.exe", "./forkexec/main.go")
+
+	var cmd *exec.Cmd
+	done := make(chan int, 1)
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			cmd = exec.Command("./forkexec.exe", "1")
+			err := cmd.Run()
+			if err != nil {
+				t.Errorf("running command failed: %v", err)
+				break
+			}
+		}
+		done <- 1
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Minute):
+		cmd.Process.Kill()
+		t.Fatalf("subprocess hang")
+	}
 }

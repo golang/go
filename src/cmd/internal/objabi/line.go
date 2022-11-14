@@ -39,7 +39,7 @@ func AbsFile(dir, file, rewrites string) string {
 	}
 
 	abs, rewritten := ApplyRewrites(abs, rewrites)
-	if !rewritten && hasPathPrefix(abs, buildcfg.GOROOT) {
+	if !rewritten && buildcfg.GOROOT != "" && hasPathPrefix(abs, buildcfg.GOROOT) {
 		abs = "$GOROOT" + abs[len(buildcfg.GOROOT):]
 	}
 

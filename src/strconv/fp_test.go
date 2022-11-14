@@ -28,15 +28,14 @@ func pow2(i int) float64 {
 // Wrapper around strconv.ParseFloat(x, 64).  Handles dddddp+ddd (binary exponent)
 // itself, passes the rest on to strconv.ParseFloat.
 func myatof64(s string) (f float64, ok bool) {
-	a := strings.SplitN(s, "p", 2)
-	if len(a) == 2 {
-		n, err := strconv.ParseInt(a[0], 10, 64)
+	if mant, exp, ok := strings.Cut(s, "p"); ok {
+		n, err := strconv.ParseInt(mant, 10, 64)
 		if err != nil {
 			return 0, false
 		}
-		e, err1 := strconv.Atoi(a[1])
+		e, err1 := strconv.Atoi(exp)
 		if err1 != nil {
-			println("bad e", a[1])
+			println("bad e", exp)
 			return 0, false
 		}
 		v := float64(n)
@@ -72,16 +71,15 @@ func myatof64(s string) (f float64, ok bool) {
 // Wrapper around strconv.ParseFloat(x, 32).  Handles dddddp+ddd (binary exponent)
 // itself, passes the rest on to strconv.ParseFloat.
 func myatof32(s string) (f float32, ok bool) {
-	a := strings.SplitN(s, "p", 2)
-	if len(a) == 2 {
-		n, err := strconv.Atoi(a[0])
+	if mant, exp, ok := strings.Cut(s, "p"); ok {
+		n, err := strconv.Atoi(mant)
 		if err != nil {
-			println("bad n", a[0])
+			println("bad n", mant)
 			return 0, false
 		}
-		e, err1 := strconv.Atoi(a[1])
+		e, err1 := strconv.Atoi(exp)
 		if err1 != nil {
-			println("bad p", a[1])
+			println("bad p", exp)
 			return 0, false
 		}
 		return float32(float64(n) * pow2(e)), true

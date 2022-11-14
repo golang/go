@@ -78,10 +78,8 @@ func kqueue() int32
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
 
-func pipe() (r, w int32, errno int32)
 func pipe2(flags int32) (r, w int32, errno int32)
 func closeonexec(fd int32)
-func setNonblock(fd int32)
 
 const (
 	_ESRCH     = 3
@@ -154,16 +152,16 @@ func semacreate(mp *m) {
 
 //go:nosplit
 func semasleep(ns int64) int32 {
-	_g_ := getg()
+	gp := getg()
 	var deadline int64
 	if ns >= 0 {
 		deadline = nanotime() + ns
 	}
 
 	for {
-		v := atomic.Load(&_g_.m.waitsemacount)
+		v := atomic.Load(&gp.m.waitsemacount)
 		if v > 0 {
-			if atomic.Cas(&_g_.m.waitsemacount, v, v-1) {
+			if atomic.Cas(&gp.m.waitsemacount, v, v-1) {
 				return 0 // semaphore acquired
 			}
 			continue
@@ -180,7 +178,7 @@ func semasleep(ns int64) int32 {
 			ts.setNsec(wait)
 			tsp = &ts
 		}
-		ret := lwp_park(_CLOCK_MONOTONIC, _TIMER_RELTIME, tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
+		ret := lwp_park(_CLOCK_MONOTONIC, _TIMER_RELTIME, tsp, 0, unsafe.Pointer(&gp.m.waitsemacount), nil)
 		if ret == _ETIMEDOUT {
 			return -1
 		}
@@ -203,6 +201,7 @@ func semawakeup(mp *m) {
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
@@ -228,11 +227,15 @@ func newosproc(mp *m) {
 
 	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, abi.FuncPCABI0(netbsdMstart))
 
-	ret := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
+	ret := retryOnEAGAIN(func() int32 {
+		errno := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
+		// lwp_create returns negative errno
+		return -errno
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
-	if ret < 0 {
-		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
-		if ret == -_EAGAIN {
+	if ret != 0 {
+		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", ret, ")\n")
+		if ret == _EAGAIN {
 			println("runtime: may need to increase max user processes (ulimit -p)")
 		}
 		throw("runtime.newosproc")
@@ -250,6 +253,7 @@ func netbsdMstart()
 // baroque to remove a signal stack here only to add one in minit, but
 // it's a simple change that keeps NetBSD working like other OS's.
 // At this point all signals are blocked, so there is no race.
+//
 //go:nosplit
 func netbsdMstart0() {
 	st := stackt{ss_flags: _SS_DISABLE}
@@ -289,8 +293,8 @@ func mpreinit(mp *m) {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	_g_ := getg()
-	_g_.m.procid = uint64(lwp_self())
+	gp := getg()
+	gp.m.procid = uint64(lwp_self())
 
 	// On NetBSD a thread created by pthread_create inherits the
 	// signal stack of the creating thread. We always create a
@@ -299,13 +303,14 @@ func minit() {
 	// created in C that calls sigaltstack and then calls a Go
 	// function, because we will lose track of the C code's
 	// sigaltstack, but it's the best we can do.
-	signalstack(&_g_.m.gsignal.stack)
-	_g_.m.newSigstack = true
+	signalstack(&gp.m.gsignal.stack)
+	gp.m.newSigstack = true
 
 	minitSignalMask()
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	unminitSignals()
@@ -351,7 +356,8 @@ func getsig(i uint32) uintptr {
 	return sa.sa_sigaction
 }
 
-// setSignaltstackSP sets the ss_sp field of a stackt.
+// setSignalstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	s.ss_sp = sp
@@ -369,6 +375,19 @@ func sigdelset(mask *sigset, i int) {
 
 //go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
 }
 
 func sysargs(argc int32, argv **byte) {
@@ -414,4 +433,13 @@ func raise(sig uint32) {
 
 func signalM(mp *m, sig int) {
 	lwp_kill(int32(mp.procid), sig)
+}
+
+// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+// number.
+const sigPerThreadSyscall = 1 << 31
+
+//go:nosplit
+func runPerThreadSyscall() {
+	throw("runPerThreadSyscall only valid on linux")
 }

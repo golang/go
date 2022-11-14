@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build !js
 
 package net
 
 import (
 	"internal/bytealg"
+	"internal/godebug"
 	"os"
 	"runtime"
 	"sync"
@@ -21,7 +21,7 @@ type conf struct {
 	forceCgoLookupHost bool
 
 	netGo  bool // go DNS resolution forced
-	netCgo bool // cgo DNS resolution forced
+	netCgo bool // non-go DNS resolution forced (cgo, or win32)
 
 	// machine has an /etc/mdns.allow file
 	hasMDNSAllow bool
@@ -29,7 +29,6 @@ type conf struct {
 	goos          string // the runtime.GOOS, to ease testing
 	dnsDebugLevel int
 
-	nss    *nssConf
 	resolv *dnsConfig
 }
 
@@ -49,9 +48,23 @@ func initConfVal() {
 	confVal.dnsDebugLevel = debugLevel
 	confVal.netGo = netGo || dnsMode == "go"
 	confVal.netCgo = netCgo || dnsMode == "cgo"
+	if !confVal.netGo && !confVal.netCgo && (runtime.GOOS == "windows" || runtime.GOOS == "plan9") {
+		// Neither of these platforms actually use cgo.
+		//
+		// The meaning of "cgo" mode in the net package is
+		// really "the native OS way", which for libc meant
+		// cgo on the original platforms that motivated
+		// PreferGo support before Windows and Plan9 got support,
+		// at which time the GODEBUG=netdns=go and GODEBUG=netdns=cgo
+		// names were already kinda locked in.
+		confVal.netCgo = true
+	}
 
 	if confVal.dnsDebugLevel > 0 {
 		defer func() {
+			if confVal.dnsDebugLevel > 1 {
+				println("go package net: confVal.netCgo =", confVal.netCgo, " netGo =", confVal.netGo)
+			}
 			switch {
 			case confVal.netGo:
 				if netGo {
@@ -75,6 +88,10 @@ func initConfVal() {
 		return
 	}
 
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		return
+	}
+
 	// If any environment-specified resolver options are specified,
 	// force cgo. Note that LOCALDOMAIN can change behavior merely
 	// by being specified with the empty string.
@@ -92,10 +109,6 @@ func initConfVal() {
 	if runtime.GOOS == "openbsd" && os.Getenv("ASR_CONFIG") != "" {
 		confVal.forceCgoLookupHost = true
 		return
-	}
-
-	if runtime.GOOS != "openbsd" {
-		confVal.nss = parseNSSConfFile("/etc/nsswitch.conf")
 	}
 
 	confVal.resolv = dnsReadConfig("/etc/resolv.conf")
@@ -129,7 +142,19 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	}
 	fallbackOrder := hostLookupCgo
 	if c.netGo || r.preferGo() {
-		fallbackOrder = hostLookupFilesDNS
+		switch c.goos {
+		case "windows":
+			// TODO(bradfitz): implement files-based
+			// lookup on Windows too? I guess /etc/hosts
+			// kinda exists on Windows. But for now, only
+			// do DNS.
+			fallbackOrder = hostLookupDNS
+		default:
+			fallbackOrder = hostLookupFilesDNS
+		}
+	}
+	if c.goos == "windows" || c.goos == "plan9" {
+		return fallbackOrder
 	}
 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
 		return fallbackOrder
@@ -194,7 +219,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		return fallbackOrder
 	}
 
-	nss := c.nss
+	nss := getSystemNSS()
 	srcs := nss.sources["hosts"]
 	// If /etc/nsswitch.conf doesn't exist or doesn't specify any
 	// sources for "hosts", assume Go's DNS will work fine.
@@ -216,7 +241,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	var first string
 	for _, src := range srcs {
 		if src.source == "myhostname" {
-			if isLocalhost(hostname) || isGateway(hostname) {
+			if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
 				return fallbackOrder
 			}
 			hn, err := getHostname()
@@ -278,16 +303,18 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 
 // goDebugNetDNS parses the value of the GODEBUG "netdns" value.
 // The netdns value can be of the form:
-//    1       // debug level 1
-//    2       // debug level 2
-//    cgo     // use cgo for DNS lookups
-//    go      // use go for DNS lookups
-//    cgo+1   // use cgo for DNS lookups + debug level 1
-//    1+cgo   // same
-//    cgo+2   // same, but debug level 2
+//
+//	1       // debug level 1
+//	2       // debug level 2
+//	cgo     // use cgo for DNS lookups
+//	go      // use go for DNS lookups
+//	cgo+1   // use cgo for DNS lookups + debug level 1
+//	1+cgo   // same
+//	cgo+2   // same, but debug level 2
+//
 // etc.
 func goDebugNetDNS() (dnsMode string, debugLevel int) {
-	goDebug := goDebugString("netdns")
+	goDebug := godebug.Get("netdns")
 	parsePart := func(s string) {
 		if s == "" {
 			return
@@ -316,5 +343,11 @@ func isLocalhost(h string) bool {
 // isGateway reports whether h should be considered a "gateway"
 // name for the myhostname NSS module.
 func isGateway(h string) bool {
-	return stringsEqualFold(h, "gateway")
+	return stringsEqualFold(h, "_gateway")
+}
+
+// isOutbound reports whether h should be considered a "outbound"
+// name for the myhostname NSS module.
+func isOutbound(h string) bool {
+	return stringsEqualFold(h, "_outbound")
 }

@@ -1,0 +1,21 @@
+[short] skip
+[!git] skip
+[!net] skip
+[!GOOS:linux] skip  # Uses XDG_CONFIG_HOME
+
+env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
+env GOPROXY=direct
+
+! go mod download
+stderr '^go: github\.com/golang/notexist/subdir@v0.1.0: reading github\.com/golang/notexist/subdir/go\.mod at revision subdir/v0\.1\.0: '
+
+-- go.mod --
+module test
+
+go 1.18
+
+require github.com/golang/notexist/subdir v0.1.0
+
+-- $WORK/.gitconfig --
+[url "git@github.com:"]
+	insteadOf = https://github.com/

@@ -5,10 +5,10 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"go/build"
+	"internal/testenv"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,10 +18,20 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if !testenv.HasExec() {
+		os.Stdout.WriteString("skipping test: platform cannot exec")
+		os.Exit(0)
+	}
+	if !testenv.HasGoBuild() {
+		os.Stdout.WriteString("skipping test: platform cannot 'go build' to import std packages")
+		os.Exit(0)
+	}
+
 	flag.Parse()
 	for _, c := range contexts {
 		c.Compiler = build.Default.Compiler
 	}
+	build.Default.GOROOT = testenv.GOROOT(nil)
 
 	// Warm up the import cache in parallel.
 	var wg sync.WaitGroup
@@ -150,7 +160,7 @@ func TestCompareAPI(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception, true)
 		if gotok != tt.ok {
 			t.Errorf("%s: ok = %v; want %v", tt.name, gotok, tt.ok)

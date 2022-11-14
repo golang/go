@@ -63,8 +63,9 @@
 //     }
 //
 //     type Func struct {
-//         Tag       byte // 'F'
+//         Tag       byte // 'F' or 'G'
 //         Pos       Pos
+//         TypeParams []typeOff  // only present if Tag == 'G'
 //         Signature Signature
 //     }
 //
@@ -75,8 +76,9 @@
 //     }
 //
 //     type Type struct {
-//         Tag        byte // 'T'
+//         Tag        byte // 'T' or 'U'
 //         Pos        Pos
+//         TypeParams []typeOff  // only present if Tag == 'U'
 //         Underlying typeOff
 //
 //         Methods []struct{  // omitted if Underlying is an interface type
@@ -93,6 +95,13 @@
 //         Type typeOff
 //     }
 //
+//     // "Automatic" declaration of each typeparam
+//     type TypeParam struct {
+//         Tag        byte // 'P'
+//         Pos        Pos
+//         Implicit   bool
+//         Constraint typeOff
+//     }
 //
 // typeOff means a uvarint that either indicates a predeclared type,
 // or an offset into the Data section. If the uvarint is less than
@@ -100,11 +109,11 @@
 // types list (see predeclared in bexport.go for order). Otherwise,
 // subtracting predeclReserved yields the offset of a type descriptor.
 //
-// Value means a type and type-specific value. See
+// Value means a type, kind, and type-specific value. See
 // (*exportWriter).value for details.
 //
 //
-// There are nine kinds of type descriptors, distinguished by an itag:
+// There are twelve kinds of type descriptors, distinguished by an itag:
 //
 //     type DefinedType struct {
 //         Tag     itag // definedType
@@ -172,8 +181,30 @@
 //         }
 //     }
 //
+//     // Reference to a type param declaration
+//     type TypeParamType struct {
+//         Tag     itag // typeParamType
+//         Name    stringOff
+//         PkgPath stringOff
+//     }
 //
-//  TODO(danscales): fill in doc for 'type TypeParamType' and 'type InstType'
+//     // Instantiation of a generic type (like List[T2] or List[int])
+//     type InstanceType struct {
+//         Tag     itag // instanceType
+//         Pos     pos
+//         TypeArgs []typeOff
+//         BaseType typeOff
+//     }
+//
+//     type UnionType struct {
+//         Tag     itag // interfaceType
+//         Terms   []struct {
+//             tilde bool
+//             Type  typeOff
+//         }
+//     }
+//
+//
 //
 //     type Signature struct {
 //         Params   []Param
@@ -205,34 +236,36 @@ package typecheck
 
 import (
 	"bytes"
-	"crypto/md5"
 	"encoding/binary"
 	"fmt"
 	"go/constant"
 	"io"
 	"math/big"
 	"sort"
+	"strconv"
 	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/goobj"
+	"cmd/internal/notsha256"
 	"cmd/internal/src"
 )
 
 // Current indexed export format version. Increase with each format change.
 // 0: Go1.11 encoding
 // 1: added column details to Pos
-// 2: added information for generic function/types (currently unstable)
+// 2: added information for generic function/types.  The export of non-generic
+// functions/types remains largely backward-compatible.  Breaking changes include:
+//   - a 'kind' byte is added to constant values
 const (
-	iexportVersionGo1_11 = 0
-	iexportVersionPosCol = 1
-	// TODO: before release, change this back to 2.  Kept at previous version
-	// for now (for testing).
-	iexportVersionGenerics = iexportVersionPosCol
+	iexportVersionGo1_11   = 0
+	iexportVersionPosCol   = 1
+	iexportVersionGenerics = 2
+	iexportVersionGo1_18   = 2
 
-	iexportVersionCurrent = iexportVersionGenerics
+	iexportVersionCurrent = 2
 )
 
 // predeclReserved is the number of type offsets reserved for types
@@ -255,7 +288,7 @@ const (
 	structType
 	interfaceType
 	typeParamType
-	instType
+	instanceType // Instantiation of a generic type
 	unionType
 )
 
@@ -320,7 +353,7 @@ func WriteExports(out io.Writer, extensions bool) {
 	hdr.uint64(dataLen)
 
 	// Flush output.
-	h := md5.New()
+	h := notsha256.New()
 	wr := io.MultiWriter(out, h)
 	io.Copy(wr, &hdr)
 	io.Copy(wr, &p.strings)
@@ -361,15 +394,18 @@ func (w *exportWriter) writeIndex(index map[*types.Sym]uint64, mainIndex bool) {
 		pkgs = append(pkgs, pkg)
 	}
 	sort.Slice(pkgs, func(i, j int) bool {
-		return pkgs[i].Path < pkgs[j].Path
+		return exportPath(pkgs[i]) < exportPath(pkgs[j])
 	})
+	if mainIndex {
+		base.Assertf(pkgs[0] == types.LocalPkg, "LocalPkg must be first")
+	}
 
 	w.uint64(uint64(len(pkgs)))
 	for _, pkg := range pkgs {
-		w.string(pkg.Path)
+		w.string(exportPath(pkg))
 		if mainIndex {
 			w.string(pkg.Name)
-			w.uint64(uint64(pkg.Height))
+			w.uint64(0) // was package height, but not necessary anymore.
 		}
 
 		// Sort symbols within a package by name.
@@ -430,7 +466,7 @@ func (p *iexporter) pushDecl(n *ir.Name) {
 	}
 
 	// Don't export predeclared declarations.
-	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == ir.Pkgs.Unsafe {
+	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == types.UnsafePkg {
 		return
 	}
 
@@ -531,6 +567,10 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			// A typeparam has a name, and has a type bound rather
 			// than an underlying type.
 			w.pos(n.Pos())
+			if iexportVersionCurrent >= iexportVersionGo1_18 {
+				implicit := n.Type().Bound().IsImplicit()
+				w.bool(implicit)
+			}
 			w.typ(n.Type().Bound())
 			break
 		}
@@ -566,6 +606,14 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			// for predeclared objects).
 			underlying = types.ErrorType
 		}
+		if underlying == types.ComparableType.Underlying() {
+			// Do same for ComparableType as for ErrorType.
+			underlying = types.ComparableType
+		}
+		if underlying == types.AnyType.Underlying() {
+			// Do same for AnyType as for ErrorType.
+			underlying = types.AnyType
+		}
 		w.typ(underlying)
 
 		t := n.Type()
@@ -576,10 +624,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			break
 		}
 
-		// Sort methods, for consistency with types2.
-		methods := append([]*types.Field(nil), t.Methods().Slice()...)
-		sort.Sort(types.MethodsByName(methods))
-
+		methods := t.Methods().Slice()
 		w.uint64(uint64(len(methods)))
 		for _, m := range methods {
 			w.pos(m.Pos)
@@ -672,7 +717,18 @@ func (w *exportWriter) pkg(pkg *types.Pkg) {
 	// Ensure any referenced packages are declared in the main index.
 	w.p.allPkgs[pkg] = true
 
-	w.string(pkg.Path)
+	w.string(exportPath(pkg))
+}
+
+// exportPath returns the path for pkg as it appears in the iexport
+// file format. For historical reasons (before cmd/compile required
+// the -p flag), the local package is represented as the empty string,
+// instead of its actual path.
+func exportPath(pkg *types.Pkg) string {
+	if pkg == types.LocalPkg {
+		return ""
+	}
+	return pkg.Path
 }
 
 func (w *exportWriter) qualifiedIdent(n *ir.Name) {
@@ -682,6 +738,36 @@ func (w *exportWriter) qualifiedIdent(n *ir.Name) {
 	s := n.Sym()
 	w.string(s.Name)
 	w.pkg(s.Pkg)
+}
+
+const blankMarker = "$"
+
+// TparamExportName creates a unique name for type param in a method or a generic
+// type, using the specified unique prefix and the index of the type param. The index
+// is only used if the type param is blank, in which case the blank is replace by
+// "$<index>". A unique name is needed for later substitution in the compiler and
+// export/import that keeps blank type params associated with the correct constraint.
+func TparamExportName(prefix string, name string, index int) string {
+	if name == "_" {
+		name = blankMarker + strconv.Itoa(index)
+	}
+	return prefix + "." + name
+}
+
+// TparamName returns the real name of a type parameter, after stripping its
+// qualifying prefix and reverting blank-name encoding. See TparamExportName
+// for details.
+func TparamName(exportName string) string {
+	// Remove the "path" from the type param name that makes it unique.
+	ix := strings.LastIndex(exportName, ".")
+	if ix < 0 {
+		return ""
+	}
+	name := exportName[ix+1:]
+	if strings.HasPrefix(name, blankMarker) {
+		return "_"
+	}
+	return name
 }
 
 func (w *exportWriter) selector(s *types.Sym) {
@@ -876,14 +962,13 @@ func (w *exportWriter) startType(k itag) {
 
 func (w *exportWriter) doTyp(t *types.Type) {
 	s := t.Sym()
-	if s != nil && t.OrigSym != nil {
-		assert(base.Flag.G > 0)
+	if s != nil && t.OrigType() != nil {
 		// This is an instantiated type - could be a re-instantiation like
 		// Value[T2] or a full instantiation like Value[int].
 		if strings.Index(s.Name, "[") < 0 {
 			base.Fatalf("incorrect name for instantiated type")
 		}
-		w.startType(instType)
+		w.startType(instanceType)
 		w.pos(t.Pos())
 		// Export the type arguments for the instantiated type. The
 		// instantiated type could be in a method header (e.g. "func (v
@@ -893,7 +978,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		// types or existing typeparams from the function/method header.
 		w.typeList(t.RParams())
 		// Export a reference to the base type.
-		baseType := t.OrigSym.Def.(*ir.Name).Type()
+		baseType := t.OrigType()
 		w.typ(baseType)
 		return
 	}
@@ -902,8 +987,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 	// type, rather than a defined type with typeparam underlying type, like:
 	// type orderedAbs[T any] T
 	if t.IsTypeParam() && t.Underlying() == t {
-		assert(base.Flag.G > 0)
-		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
+		if s.Pkg == types.BuiltinPkg || s.Pkg == types.UnsafePkg {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
 		// Write out the first use of a type param as a qualified ident.
@@ -914,7 +998,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 	}
 
 	if s != nil {
-		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
+		if s.Pkg == types.BuiltinPkg || s.Pkg == types.UnsafePkg {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
 
@@ -975,12 +1059,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
 			}
 		}
 
-		// Sort methods and embedded types, for consistency with types2.
-		// Note: embedded types may be anonymous, and types2 sorts them
-		// with sort.Stable too.
-		sort.Sort(types.MethodsByName(methods))
-		sort.Stable(types.EmbeddedsByName(embeddeds))
-
 		w.startType(interfaceType)
 		w.setPkg(t.Pkg(), true)
 
@@ -998,7 +1076,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		}
 
 	case types.TUNION:
-		assert(base.Flag.G > 0)
 		// TODO(danscales): possibly put out the tilde bools in more
 		// compact form.
 		w.startType(unionType)
@@ -1095,17 +1172,24 @@ func constTypeOf(typ *types.Type) constant.Kind {
 
 func (w *exportWriter) value(typ *types.Type, v constant.Value) {
 	w.typ(typ)
+
+	if iexportVersionCurrent >= iexportVersionGo1_18 {
+		w.int64(int64(v.Kind()))
+	}
+
 	var kind constant.Kind
 	var valType *types.Type
 
 	if typ.IsTypeParam() {
-		// A constant will have a TYPEPARAM type if it appears in a place
-		// where it must match that typeparam type (e.g. in a binary
-		// operation with a variable of that typeparam type). If so, then
-		// we must write out its actual constant kind as well, so its
-		// constant val can be read in properly during import.
 		kind = v.Kind()
-		w.int64(int64(kind))
+		if iexportVersionCurrent < iexportVersionGo1_18 {
+			// A constant will have a TYPEPARAM type if it appears in a place
+			// where it must match that typeparam type (e.g. in a binary
+			// operation with a variable of that typeparam type). If so, then
+			// we must write out its actual constant kind as well, so its
+			// constant val can be read in properly during import.
+			w.int64(int64(kind))
+		}
 
 		switch kind {
 		case constant.Int:
@@ -1363,6 +1447,12 @@ func (w *exportWriter) funcExt(n *ir.Name) {
 		w.uint64(1 + uint64(n.Func.Inl.Cost))
 		w.bool(n.Func.Inl.CanDelayResults)
 		if n.Func.ExportInline() || n.Type().HasTParam() {
+			if n.Type().HasTParam() {
+				// If this generic function/method is from another
+				// package, but we didn't use for instantiation in
+				// this package, we may not yet have imported it.
+				ImportedBody(n.Func)
+			}
 			w.p.doInline(n)
 		}
 
@@ -1444,10 +1534,23 @@ func (w *exportWriter) node(n ir.Node) {
 	}
 }
 
-// Caution: stmt will emit more than one node for statement nodes n that have a non-empty
-// n.Ninit and where n cannot have a natural init section (such as in "if", "for", etc.).
+func isNonEmptyAssign(n ir.Node) bool {
+	switch n.Op() {
+	case ir.OAS:
+		if n.(*ir.AssignStmt).Y != nil {
+			return true
+		}
+	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
+		return true
+	}
+	return false
+}
+
+// Caution: stmt will emit more than one node for statement nodes n that have a
+// non-empty n.Ninit and where n is not a non-empty assignment or a node with a natural init
+// section (such as in "if", "for", etc.).
 func (w *exportWriter) stmt(n ir.Node) {
-	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) {
+	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) && !isNonEmptyAssign(n) && n.Op() != ir.ORANGE {
 		// can't use stmtList here since we don't want the final OEND
 		for _, n := range n.Init() {
 			w.stmt(n)
@@ -1483,8 +1586,10 @@ func (w *exportWriter) stmt(n ir.Node) {
 		if n.Y != nil {
 			w.op(ir.OAS)
 			w.pos(n.Pos())
+			w.stmtList(n.Init())
 			w.expr(n.X)
 			w.expr(n.Y)
+			w.bool(n.Def)
 		}
 
 	case ir.OASOP:
@@ -1499,14 +1604,12 @@ func (w *exportWriter) stmt(n ir.Node) {
 
 	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 		n := n.(*ir.AssignListStmt)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OAS2)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.exprList(n.Lhs)
 		w.exprList(n.Rhs)
+		w.bool(n.Def)
 
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
@@ -1544,6 +1647,7 @@ func (w *exportWriter) stmt(n ir.Node) {
 		n := n.(*ir.RangeStmt)
 		w.op(ir.ORANGE)
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.exprsOrNil(n.Key, n.Value)
 		w.expr(n.X)
 		w.stmtList(n.Body)
@@ -1662,10 +1766,10 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.Name)
 		if (n.Class == ir.PEXTERN || n.Class == ir.PFUNC) && !ir.IsBlank(n) {
 			w.op(ir.ONONAME)
+			// Indicate that this is not an OKEY entry.
+			w.bool(false)
 			w.qualifiedIdent(n)
-			if go117ExportTypes {
-				w.typ(n.Type())
-			}
+			w.typ(n.Type())
 			break
 		}
 
@@ -1680,16 +1784,37 @@ func (w *exportWriter) expr(n ir.Node) {
 		isBuiltin := n.BuiltinOp != ir.OXXX
 		w.bool(isBuiltin)
 		if isBuiltin {
+			w.bool(n.Sym().Pkg == types.UnsafePkg)
 			w.string(n.Sym().Name)
 			break
 		}
 		w.localName(n)
 
-	// case OPACK, ONONAME:
+	case ir.ONONAME:
+		w.op(ir.ONONAME)
+		// This can only be for OKEY nodes in generic functions. Mark it
+		// as a key entry.
+		w.bool(true)
+		s := n.Sym()
+		w.string(s.Name)
+		w.pkg(s.Pkg)
+		w.typ(n.Type())
+
+	// case OPACK:
 	// 	should have been resolved by typechecking - handled by default case
 
 	case ir.OTYPE:
 		w.op(ir.OTYPE)
+		w.typ(n.Type())
+
+	case ir.ODYNAMICTYPE:
+		n := n.(*ir.DynamicType)
+		w.op(ir.ODYNAMICTYPE)
+		w.pos(n.Pos())
+		w.expr(n.RType)
+		if w.bool(n.ITab != nil) {
+			w.expr(n.ITab)
+		}
 		w.typ(n.Type())
 
 	case ir.OTYPESW:
@@ -1713,7 +1838,10 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.ClosureExpr)
 		w.op(ir.OCLOSURE)
 		w.pos(n.Pos())
+		old := w.currPkg
+		w.setPkg(n.Type().Pkg(), true)
 		w.signature(n.Type())
+		w.setPkg(old, true)
 
 		// Write out id for the Outer of each conditional variable. The
 		// conditional variable itself for this closure will be re-created
@@ -1739,16 +1867,10 @@ func (w *exportWriter) expr(n ir.Node) {
 
 	case ir.OPTRLIT:
 		n := n.(*ir.AddrExpr)
-		if go117ExportTypes {
-			w.op(ir.OPTRLIT)
-		} else {
-			w.op(ir.OADDR)
-		}
+		w.op(ir.OPTRLIT)
 		w.pos(n.Pos())
 		w.expr(n.X)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OSTRUCTLIT:
 		n := n.(*ir.CompLitExpr)
@@ -1757,17 +1879,13 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.typ(n.Type())
 		w.fieldList(n.List) // special handling of field names
 
-	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
+	case ir.OCOMPLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
 		n := n.(*ir.CompLitExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OCOMPLIT)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.typ(n.Type())
 		w.exprList(n.List)
-		if go117ExportTypes && n.Op() == ir.OSLICELIT {
+		if n.Op() == ir.OSLICELIT {
 			w.uint64(uint64(n.Len))
 		}
 	case ir.OKEY:
@@ -1782,128 +1900,102 @@ func (w *exportWriter) expr(n ir.Node) {
 
 	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
 		n := n.(*ir.SelectorExpr)
-		if go117ExportTypes {
-			// For go117ExportTypes, we usually see all ops except
-			// OXDOT, but we can see OXDOT for generic functions.
-			w.op(n.Op())
-		} else {
-			w.op(ir.OXDOT)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.exoticSelector(n.Sel)
-		if go117ExportTypes {
-			w.exoticType(n.Type())
-			if n.Op() == ir.OXDOT {
-				// n.Selection for method references will be
-				// reconstructed during import.
-				w.bool(n.Selection != nil)
-			} else if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER {
-				w.exoticField(n.Selection)
-			}
-			// n.Selection is not required for OMETHEXPR, ODOTMETH, and OMETHVALUE. It will
-			// be reconstructed during import.  n.Selection is computed during
-			// transformDot() for OXDOT.
+		w.exoticType(n.Type())
+		if n.Op() == ir.OXDOT {
+			// n.Selection for method references will be
+			// reconstructed during import.
+			w.bool(n.Selection != nil)
+		} else if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER {
+			w.exoticField(n.Selection)
 		}
+		// n.Selection is not required for OMETHEXPR, ODOTMETH, and OMETHVALUE. It will
+		// be reconstructed during import.  n.Selection is computed during
+		// transformDot() for OXDOT.
 
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
 		n := n.(*ir.TypeAssertExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.ODOTTYPE)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
+		w.typ(n.Type())
+
+	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
+		n := n.(*ir.DynamicTypeAssertExpr)
+		w.op(n.Op())
+		w.pos(n.Pos())
+		w.expr(n.X)
+		if w.bool(n.RType != nil) {
+			w.expr(n.RType)
+		}
+		if w.bool(n.ITab != nil) {
+			w.expr(n.ITab)
+		}
 		w.typ(n.Type())
 
 	case ir.OINDEX, ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OINDEX)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.expr(n.Index)
-		if go117ExportTypes {
-			w.exoticType(n.Type())
-			if n.Op() == ir.OINDEXMAP {
-				w.bool(n.Assigned)
-			}
+		w.exoticType(n.Type())
+		if n.Op() == ir.OINDEXMAP {
+			w.bool(n.Assigned)
 		}
 
 	case ir.OSLICE, ir.OSLICESTR, ir.OSLICEARR:
 		n := n.(*ir.SliceExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OSLICE)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.exprsOrNil(n.Low, n.High)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OSLICE3)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.exprsOrNil(n.Low, n.High)
 		w.expr(n.Max)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
-	case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+	case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE, ir.OUNSAFESTRING:
 		// treated like other builtin calls (see e.g., OREAL)
 		n := n.(*ir.BinaryExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.expr(n.X)
 		w.expr(n.Y)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		} else {
-			w.op(ir.OEND)
-		}
+		w.typ(n.Type())
 
-	case ir.OCONV, ir.OCONVIFACE, ir.OCONVIDATA, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR, ir.OSLICE2ARRPTR:
+	case ir.OCONV, ir.OCONVIFACE, ir.OCONVIDATA, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR, ir.OSLICE2ARR, ir.OSLICE2ARRPTR:
 		n := n.(*ir.ConvExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OCONV)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.typ(n.Type())
 		w.expr(n.X)
+		w.bool(n.Implicit())
 
-	case ir.OREAL, ir.OIMAG, ir.OCAP, ir.OCLOSE, ir.OLEN, ir.ONEW, ir.OPANIC:
+	case ir.OREAL, ir.OIMAG, ir.OCAP, ir.OCLOSE, ir.OLEN, ir.ONEW, ir.OPANIC, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 		n := n.(*ir.UnaryExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
-		if go117ExportTypes {
-			if n.Op() != ir.OPANIC {
-				w.typ(n.Type())
-			}
-		} else {
-			w.op(ir.OEND)
+		if n.Op() != ir.OPANIC {
+			w.typ(n.Type())
 		}
 
 	case ir.OAPPEND, ir.ODELETE, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
 		n := n.(*ir.CallExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.exprList(n.Args) // emits terminating OEND
 		// only append() calls may contain '...' arguments
 		if n.Op() == ir.OAPPEND {
@@ -1911,27 +2003,19 @@ func (w *exportWriter) expr(n ir.Node) {
 		} else if n.IsDDD {
 			base.Fatalf("exporter: unexpected '...' with %v call", n.Op())
 		}
-		if go117ExportTypes {
-			if n.Op() != ir.ODELETE && n.Op() != ir.OPRINT && n.Op() != ir.OPRINTN {
-				w.typ(n.Type())
-			}
+		if n.Op() != ir.ODELETE && n.Op() != ir.OPRINT && n.Op() != ir.OPRINTN {
+			w.typ(n.Type())
 		}
 
 	case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OGETG:
 		n := n.(*ir.CallExpr)
-		if go117ExportTypes {
-			w.op(n.Op())
-		} else {
-			w.op(ir.OCALL)
-		}
+		w.op(n.Op())
 		w.pos(n.Pos())
 		w.stmtList(n.Init())
 		w.expr(n.X)
 		w.exprList(n.Args)
 		w.bool(n.IsDDD)
-		if go117ExportTypes {
-			w.exoticType(n.Type())
-		}
+		w.exoticType(n.Type())
 
 	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
 		n := n.(*ir.MakeExpr)
@@ -1952,7 +2036,7 @@ func (w *exportWriter) expr(n ir.Node) {
 			// an argument. Don't serialize that argument here.
 			w.expr(n.Len)
 			w.op(ir.OEND)
-		case n.Len != nil && go117ExportTypes:
+		case n.Len != nil:
 			w.expr(n.Len)
 			w.op(ir.OEND)
 		}
@@ -1971,27 +2055,21 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OADDR:
 		n := n.(*ir.AddrExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())
 		w.expr(n.X)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OSEND:
 		n := n.(*ir.SendStmt)
@@ -2008,9 +2086,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.expr(n.Y)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OANDAND, ir.OOROR:
 		n := n.(*ir.LogicalExpr)
@@ -2018,18 +2094,14 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.pos(n.Pos())
 		w.expr(n.X)
 		w.expr(n.Y)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OADDSTR:
 		n := n.(*ir.AddStringExpr)
 		w.op(ir.OADDSTR)
 		w.pos(n.Pos())
 		w.exprList(n.List)
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.ODCLCONST:
 		// if exporting, DCLCONST should just be removed as its usage
@@ -2044,16 +2116,16 @@ func (w *exportWriter) expr(n ir.Node) {
 		for _, targ := range n.Targs {
 			w.typ(targ.Type())
 		}
-		if go117ExportTypes {
-			w.typ(n.Type())
-		}
+		w.typ(n.Type())
 
 	case ir.OSELRECV2:
 		n := n.(*ir.AssignListStmt)
 		w.op(ir.OSELRECV2)
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.exprList(n.Lhs)
 		w.exprList(n.Rhs)
+		w.bool(n.Def)
 
 	default:
 		base.Fatalf("cannot export %v (%d) node\n"+
@@ -2133,7 +2205,7 @@ func (w *exportWriter) localIdent(s *types.Sym) {
 		return
 	}
 
-	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".dict") { // TODO: just use autotmp names for dictionaries?
+	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, LocalDictName) && !strings.HasPrefix(name, ".rcvr") {
 		base.Fatalf("unexpected dot in identifier: %v", name)
 	}
 
@@ -2160,12 +2232,5 @@ func (w *intWriter) uint64(x uint64) {
 	w.Write(buf[:n])
 }
 
-// If go117ExportTypes is true, then we write type information when
-// exporting function bodies, so those function bodies don't need to
-// be re-typechecked on import.
-// This flag adds some other info to the serialized stream as well
-// which was previously recomputed during typechecking, like
-// specializing opcodes (e.g. OXDOT to ODOTPTR) and ancillary
-// information (e.g. length field for OSLICELIT).
-const go117ExportTypes = true
-const Go117ExportTypes = go117ExportTypes
+// The name used for dictionary parameters or local variables.
+const LocalDictName = ".dict"

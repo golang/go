@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "go_asm.h"
+#include "asm_amd64.h"
 #include "textflag.h"
 
 TEXT ·Compare<ABIInternal>(SB),NOSPLIT,$0-56
@@ -44,9 +45,13 @@ TEXT cmpbody<>(SB),NOSPLIT,$0-0
 
 	CMPQ	R8, $63
 	JBE	loop
+#ifndef hasAVX2
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JEQ     big_loop_avx2
 	JMP	big_loop
+#else
+	JMP	big_loop_avx2
+#endif
 loop:
 	CMPQ	R8, $16
 	JBE	_0through16
@@ -155,6 +160,7 @@ allsame:
 	RET
 
 	// this works for >= 64 bytes of data.
+#ifndef hasAVX2
 big_loop:
 	MOVOU	(SI), X0
 	MOVOU	(DI), X1
@@ -190,6 +196,7 @@ big_loop:
 	CMPQ	R8, $64
 	JBE	loop
 	JMP	big_loop
+#endif
 
 	// Compare 64-bytes per loop iteration.
 	// Loop is unrolled and uses AVX2.

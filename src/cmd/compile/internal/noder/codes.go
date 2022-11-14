@@ -1,68 +1,16 @@
-// UNREVIEWED
-
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package noder
 
-type code interface {
-	marker() syncMarker
-	value() int
-}
+import "internal/pkgbits"
 
-type codeVal int
-
-func (c codeVal) marker() syncMarker { return syncVal }
-func (c codeVal) value() int         { return int(c) }
-
-const (
-	valBool codeVal = iota
-	valString
-	valInt64
-	valBigInt
-	valBigRat
-	valBigFloat
-)
-
-type codeType int
-
-func (c codeType) marker() syncMarker { return syncType }
-func (c codeType) value() int         { return int(c) }
-
-const (
-	typeBasic codeType = iota
-	typeNamed
-	typePointer
-	typeSlice
-	typeArray
-	typeChan
-	typeMap
-	typeSignature
-	typeStruct
-	typeInterface
-	typeUnion
-	typeTypeParam
-)
-
-type codeObj int
-
-func (c codeObj) marker() syncMarker { return syncCodeObj }
-func (c codeObj) value() int         { return int(c) }
-
-const (
-	objAlias codeObj = iota
-	objConst
-	objType
-	objFunc
-	objVar
-	objStub
-)
-
+// A codeStmt distinguishes among statement encodings.
 type codeStmt int
 
-func (c codeStmt) marker() syncMarker { return syncStmt1 }
-func (c codeStmt) value() int         { return int(c) }
+func (c codeStmt) Marker() pkgbits.SyncMarker { return pkgbits.SyncStmt1 }
+func (c codeStmt) Value() int                 { return int(c) }
 
 const (
 	stmtEnd codeStmt = iota
@@ -80,27 +28,24 @@ const (
 	stmtFor
 	stmtSwitch
 	stmtSelect
-
-	// TODO(mdempsky): Remove after we don't care about toolstash -cmp.
-	stmtTypeDeclHack
 )
 
+// A codeExpr distinguishes among expression encodings.
 type codeExpr int
 
-func (c codeExpr) marker() syncMarker { return syncExpr }
-func (c codeExpr) value() int         { return int(c) }
+func (c codeExpr) Marker() pkgbits.SyncMarker { return pkgbits.SyncExpr }
+func (c codeExpr) Value() int                 { return int(c) }
 
 // TODO(mdempsky): Split expr into addr, for lvalues.
 const (
-	exprNone codeExpr = iota
-	exprConst
-	exprType  // type expression
-	exprLocal // local variable
-	exprName  // global variable or function
-	exprBlank
+	exprConst  codeExpr = iota
+	exprLocal           // local variable
+	exprGlobal          // global variable or function
 	exprCompLit
 	exprFuncLit
-	exprSelector
+	exprFieldVal
+	exprMethodVal
+	exprMethodExpr
 	exprIndex
 	exprSlice
 	exprAssert
@@ -108,12 +53,30 @@ const (
 	exprBinaryOp
 	exprCall
 	exprConvert
+	exprNew
+	exprMake
+	exprNil
+	exprFuncInst
+	exprRecv
+	exprReshape
 )
 
+type codeAssign int
+
+func (c codeAssign) Marker() pkgbits.SyncMarker { return pkgbits.SyncAssign }
+func (c codeAssign) Value() int                 { return int(c) }
+
+const (
+	assignBlank codeAssign = iota
+	assignDef
+	assignExpr
+)
+
+// A codeDecl distinguishes among declaration encodings.
 type codeDecl int
 
-func (c codeDecl) marker() syncMarker { return syncDecl }
-func (c codeDecl) value() int         { return int(c) }
+func (c codeDecl) Marker() pkgbits.SyncMarker { return pkgbits.SyncDecl }
+func (c codeDecl) Value() int                 { return int(c) }
 
 const (
 	declEnd codeDecl = iota

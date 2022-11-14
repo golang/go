@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 /*
 Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
@@ -15,9 +14,6 @@ Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
 package syscall
 
 /*
-#define	_WANT_FREEBSD11_STAT	1
-#define	_WANT_FREEBSD11_STATFS	1
-#define	_WANT_FREEBSD11_DIRENT	1
 #define	_WANT_FREEBSD11_KEVENT	1
 
 #include <dirent.h>
@@ -173,17 +169,11 @@ const (
 
 type Stat_t C.struct_stat
 
-type stat_freebsd11_t C.struct_freebsd11_stat
-
 type Statfs_t C.struct_statfs
-
-type statfs_freebsd11_t C.struct_freebsd11_statfs
 
 type Flock_t C.struct_flock
 
 type Dirent C.struct_dirent
-
-type dirent_freebsd11 C.struct_freebsd11_dirent
 
 type Fsid C.struct_fsid
 

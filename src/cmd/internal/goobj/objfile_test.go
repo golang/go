@@ -7,15 +7,15 @@ package goobj
 import (
 	"bufio"
 	"bytes"
-	"cmd/internal/bio"
-	"cmd/internal/objabi"
 	"fmt"
 	"internal/buildcfg"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"testing"
+
+	"cmd/internal/bio"
+	"cmd/internal/objabi"
 )
 
 func dummyWriter(buf *bytes.Buffer) *Writer {
@@ -97,7 +97,7 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
-	tmpdir, err := ioutil.TempDir("", "lotsofrelocs")
+	tmpdir, err := os.MkdirTemp("", "lotsofrelocs")
 	if err != nil {
 		t.Fatalf("can't create temp directory: %v\n", err)
 	}
@@ -110,7 +110,7 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
 		fmt.Fprintf(&w, "\t\"%d\",\n", i)
 	}
 	fmt.Fprintf(&w, issue41621epilog)
-	err = ioutil.WriteFile(tmpdir+"/large.go", w.Bytes(), 0666)
+	err = os.WriteFile(tmpdir+"/large.go", w.Bytes(), 0666)
 	if err != nil {
 		t.Fatalf("can't write output: %v\n", err)
 	}
@@ -118,7 +118,7 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
 	// Emit go.mod
 	w.Reset()
 	fmt.Fprintf(&w, "module issue41621\n\ngo 1.12\n")
-	err = ioutil.WriteFile(tmpdir+"/go.mod", w.Bytes(), 0666)
+	err = os.WriteFile(tmpdir+"/go.mod", w.Bytes(), 0666)
 	if err != nil {
 		t.Fatalf("can't write output: %v\n", err)
 	}

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ppc64 || ppc64le
-// +build ppc64 ppc64le
 
 package cpu
 
@@ -21,4 +20,16 @@ func doinit() {
 
 func isSet(hwc uint, value uint) bool {
 	return hwc&value != 0
+}
+
+func Name() string {
+	switch {
+	case PPC64.IsPOWER10:
+		return "POWER10"
+	case PPC64.IsPOWER9:
+		return "POWER9"
+	case PPC64.IsPOWER8:
+		return "POWER8"
+	}
+	return ""
 }

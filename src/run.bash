@@ -21,14 +21,11 @@ if [ ! -f ../bin/go ]; then
 	exit 1
 fi
 
-eval $(../bin/go env)
+export GOENV=off
+eval $(../bin/go tool dist env)
 export GOROOT   # The api test requires GOROOT to be set, so set it to match ../bin/go.
-export GOPATH=/nonexist-gopath
 
 unset CDPATH	# in case user has it set
-export GOBIN=$GOROOT/bin  # Issue 14340
-unset GOFLAGS
-unset GO111MODULE
 
 export GOHOSTOS
 export CC
@@ -53,4 +50,5 @@ if ulimit -T &> /dev/null; then
 	[ "$(ulimit -H -T)" = "unlimited" ] || ulimit -S -T $(ulimit -H -T)
 fi
 
+export GOPATH=/nonexist-gopath
 exec ../bin/go tool dist test -rebuild "$@"

@@ -119,8 +119,9 @@ func (n *BasicLit) SetVal(val constant.Value) { n.val = val }
 // or Op(X, Y) for builtin functions that do not become calls.
 type BinaryExpr struct {
 	miniExpr
-	X Node
-	Y Node
+	X     Node
+	Y     Node
+	RType Node `mknode:"-"` // see reflectdata/helpers.go
 }
 
 func NewBinaryExpr(pos src.XPos, op Op, x, y Node) *BinaryExpr {
@@ -136,7 +137,7 @@ func (n *BinaryExpr) SetOp(op Op) {
 		panic(n.no("SetOp " + op.String()))
 	case OADD, OADDSTR, OAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
 		OLSH, OLT, OMOD, OMUL, ONE, OOR, ORSH, OSUB, OXOR,
-		OCOPY, OCOMPLEX, OUNSAFEADD, OUNSAFESLICE,
+		OCOPY, OCOMPLEX, OUNSAFEADD, OUNSAFESLICE, OUNSAFESTRING,
 		OEFACE:
 		n.op = op
 	}
@@ -148,6 +149,7 @@ type CallExpr struct {
 	origNode
 	X         Node
 	Args      Nodes
+	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
 	KeepAlive []*Name // vars to be kept alive until call returns
 	IsDDD     bool
 	NoInline  bool
@@ -186,30 +188,27 @@ type ClosureExpr struct {
 	IsGoWrap bool // whether this is wrapper closure of a go statement
 }
 
-// Deprecated: Use NewClosureFunc instead.
-func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
-	n := &ClosureExpr{Func: fn}
-	n.op = OCLOSURE
-	n.pos = pos
-	return n
-}
-
 // A CompLitExpr is a composite literal Type{Vals}.
 // Before type-checking, the type is Ntype.
 type CompLitExpr struct {
 	miniExpr
 	origNode
-	Ntype    Ntype
 	List     Nodes // initialized values
+	RType    Node  `mknode:"-"` // *runtime._type for OMAPLIT map types
 	Prealloc *Name
-	Len      int64 // backing array length for OSLICELIT
+	// For OSLICELIT, Len is the backing array length.
+	// For OMAPLIT, Len is the number of entries that we've removed from List and
+	// generated explicit mapassign calls for. This is used to inform the map alloc hint.
+	Len int64
 }
 
-func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {
-	n := &CompLitExpr{Ntype: typ}
+func NewCompLitExpr(pos src.XPos, op Op, typ *types.Type, list []Node) *CompLitExpr {
+	n := &CompLitExpr{List: list}
 	n.pos = pos
 	n.SetOp(op)
-	n.List = list
+	if typ != nil {
+		n.SetType(typ)
+	}
 	n.orig = n
 	return n
 }
@@ -239,7 +238,6 @@ func NewConstExpr(val constant.Value, orig Node) Node {
 	n.orig = orig
 	n.SetType(orig.Type())
 	n.SetTypecheck(orig.Typecheck())
-	n.SetDiag(orig.Diag())
 	return n
 }
 
@@ -251,6 +249,27 @@ func (n *ConstExpr) Val() constant.Value { return n.val }
 type ConvExpr struct {
 	miniExpr
 	X Node
+
+	// For implementing OCONVIFACE expressions.
+	//
+	// TypeWord is an expression yielding a *runtime._type or
+	// *runtime.itab value to go in the type word of the iface/eface
+	// result. See reflectdata.ConvIfaceTypeWord for further details.
+	//
+	// SrcRType is an expression yielding a *runtime._type value for X,
+	// if it's not pointer-shaped and needs to be heap allocated.
+	TypeWord Node `mknode:"-"`
+	SrcRType Node `mknode:"-"`
+
+	// For -d=checkptr instrumentation of conversions from
+	// unsafe.Pointer to *Elem or *[Len]Elem.
+	//
+	// TODO(mdempsky): We only ever need one of these, but currently we
+	// don't decide which one until walk. Longer term, it probably makes
+	// sense to have a dedicated IR op for `(*[Len]Elem)(ptr)[:n:m]`
+	// expressions.
+	ElemRType     Node `mknode:"-"`
+	ElemElemRType Node `mknode:"-"`
 }
 
 func NewConvExpr(pos src.XPos, op Op, typ *types.Type, x Node) *ConvExpr {
@@ -270,7 +289,7 @@ func (n *ConvExpr) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OCONV, OCONVIFACE, OCONVIDATA, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR, OSLICE2ARRPTR:
+	case OCONV, OCONVIFACE, OCONVIDATA, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR, OSLICE2ARR, OSLICE2ARRPTR:
 		n.op = op
 	}
 }
@@ -280,6 +299,7 @@ type IndexExpr struct {
 	miniExpr
 	X        Node
 	Index    Node
+	RType    Node `mknode:"-"` // see reflectdata/helpers.go
 	Assigned bool
 }
 
@@ -390,8 +410,9 @@ func (n *LogicalExpr) SetOp(op Op) {
 // but *not* OMAKE (that's a pre-typechecking CallExpr).
 type MakeExpr struct {
 	miniExpr
-	Len Node
-	Cap Node
+	RType Node `mknode:"-"` // see reflectdata/helpers.go
+	Len   Node
+	Cap   Node
 }
 
 func NewMakeExpr(pos src.XPos, op Op, len, cap Node) *MakeExpr {
@@ -414,7 +435,6 @@ func (n *MakeExpr) SetOp(op Op) {
 // (It may be copied and assigned a type, though.)
 type NilExpr struct {
 	miniExpr
-	Sym_ *types.Sym // TODO: Remove
 }
 
 func NewNilExpr(pos src.XPos) *NilExpr {
@@ -423,9 +443,6 @@ func NewNilExpr(pos src.XPos) *NilExpr {
 	n.op = ONIL
 	return n
 }
-
-func (n *NilExpr) Sym() *types.Sym     { return n.Sym_ }
-func (n *NilExpr) SetSym(x *types.Sym) { n.Sym_ = x }
 
 // A ParenExpr is a parenthesized expression (X).
 // It may end up being a value or a type.
@@ -443,16 +460,6 @@ func NewParenExpr(pos src.XPos, x Node) *ParenExpr {
 
 func (n *ParenExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
 func (n *ParenExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
-
-func (*ParenExpr) CanBeNtype() {}
-
-// SetOTYPE changes n to be an OTYPE node returning t,
-// like all the type nodes in type.go.
-func (n *ParenExpr) SetOTYPE(t *types.Type) {
-	n.op = OTYPE
-	n.typ = t
-	t.SetNod(n)
-}
 
 // A RawOrigExpr represents an arbitrary Go expression as a string value.
 // When printed in diagnostics, the string value is written out exactly as-is.
@@ -563,10 +570,6 @@ func (n *SelectorExpr) FuncName() *Name {
 	return fn
 }
 
-// Before type-checking, bytes.Buffer is a SelectorExpr.
-// After type-checking it becomes a Name.
-func (*SelectorExpr) CanBeNtype() {}
-
 // A SliceExpr is a slice expression X[Low:High] or X[Low:High:Max].
 type SliceExpr struct {
 	miniExpr
@@ -621,6 +624,21 @@ func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *Slic
 	return n
 }
 
+// A StringHeaderExpr expression constructs a string header from its parts.
+type StringHeaderExpr struct {
+	miniExpr
+	Ptr Node
+	Len Node
+}
+
+func NewStringHeaderExpr(pos src.XPos, ptr, len Node) *StringHeaderExpr {
+	n := &StringHeaderExpr{Ptr: ptr, Len: len}
+	n.pos = pos
+	n.op = OSTRINGHEADER
+	n.typ = types.Types[types.TSTRING]
+	return n
+}
+
 // A StarExpr is a dereference expression *X.
 // It may end up being a value or a type.
 type StarExpr struct {
@@ -638,33 +656,24 @@ func NewStarExpr(pos src.XPos, x Node) *StarExpr {
 func (n *StarExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
 func (n *StarExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
 
-func (*StarExpr) CanBeNtype() {}
-
-// SetOTYPE changes n to be an OTYPE node returning t,
-// like all the type nodes in type.go.
-func (n *StarExpr) SetOTYPE(t *types.Type) {
-	n.op = OTYPE
-	n.X = nil
-	n.typ = t
-	t.SetNod(n)
-}
-
 // A TypeAssertionExpr is a selector expression X.(Type).
 // Before type-checking, the type is Ntype.
 type TypeAssertExpr struct {
 	miniExpr
-	X     Node
-	Ntype Ntype
+	X Node
 
 	// Runtime type information provided by walkDotType for
 	// assertions from non-empty interface to concrete type.
-	Itab *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
+	ITab Node `mknode:"-"` // *runtime.itab for Type implementing X's type
 }
 
-func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {
-	n := &TypeAssertExpr{X: x, Ntype: typ}
+func NewTypeAssertExpr(pos src.XPos, x Node, typ *types.Type) *TypeAssertExpr {
+	n := &TypeAssertExpr{X: x}
 	n.pos = pos
 	n.op = ODOTTYPE
+	if typ != nil {
+		n.SetType(typ)
+	}
 	return n
 }
 
@@ -677,24 +686,34 @@ func (n *TypeAssertExpr) SetOp(op Op) {
 	}
 }
 
-// A DynamicTypeAssertExpr asserts that X is of dynamic type T.
+// A DynamicTypeAssertExpr asserts that X is of dynamic type RType.
 type DynamicTypeAssertExpr struct {
 	miniExpr
 	X Node
-	// N = not an interface
-	// E = empty interface
-	// I = nonempty interface
-	// For E->N, T is a *runtime.type for N
-	// For I->N, T is a *runtime.itab for N+I
-	// For E->I, T is a *runtime.type for I
-	// For I->I, ditto
-	// For I->E, T is a *runtime.type for interface{} (unnecessary, but just to fill in the slot)
-	// For E->E, ditto
-	T Node
+
+	// SrcRType is an expression that yields a *runtime._type value
+	// representing X's type. It's used in failed assertion panic
+	// messages.
+	SrcRType Node
+
+	// RType is an expression that yields a *runtime._type value
+	// representing the asserted type.
+	//
+	// BUG(mdempsky): If ITab is non-nil, RType may be nil.
+	RType Node
+
+	// ITab is an expression that yields a *runtime.itab value
+	// representing the asserted type within the assertee expression's
+	// original interface type.
+	//
+	// ITab is only used for assertions from non-empty interface type to
+	// a concrete (i.e., non-interface) type. For all other assertions,
+	// ITab is nil.
+	ITab Node
 }
 
-func NewDynamicTypeAssertExpr(pos src.XPos, op Op, x, t Node) *DynamicTypeAssertExpr {
-	n := &DynamicTypeAssertExpr{X: x, T: t}
+func NewDynamicTypeAssertExpr(pos src.XPos, op Op, x, rtype Node) *DynamicTypeAssertExpr {
+	n := &DynamicTypeAssertExpr{X: x, RType: rtype}
 	n.pos = pos
 	n.op = op
 	return n
@@ -730,7 +749,8 @@ func (n *UnaryExpr) SetOp(op Op) {
 	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
 		OALIGNOF, OCAP, OCLOSE, OIMAG, OLEN, ONEW,
 		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
-		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
+		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR,
+		OUNSAFESTRINGDATA, OUNSAFESLICEDATA:
 		n.op = op
 	}
 }
@@ -744,10 +764,10 @@ func (n *InstExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
 type InstExpr struct {
 	miniExpr
 	X     Node
-	Targs []Node
+	Targs []Ntype
 }
 
-func NewInstExpr(pos src.XPos, op Op, x Node, targs []Node) *InstExpr {
+func NewInstExpr(pos src.XPos, op Op, x Node, targs []Ntype) *InstExpr {
 	n := &InstExpr{X: x, Targs: targs}
 	n.pos = pos
 	n.op = op
@@ -957,11 +977,11 @@ var IsIntrinsicCall = func(*CallExpr) bool { return false }
 // instead of computing both. SameSafeExpr assumes that l and r are
 // used in the same statement or expression. In order for it to be
 // safe to reuse l or r, they must:
-// * be the same expression
-// * not have side-effects (no function calls, no channel ops);
-//   however, panics are ok
-// * not cause inappropriate aliasing; e.g. two string to []byte
-//   conversions, must result in two distinct slices
+//   - be the same expression
+//   - not have side-effects (no function calls, no channel ops);
+//     however, panics are ok
+//   - not cause inappropriate aliasing; e.g. two string to []byte
+//     conversions, must result in two distinct slices
 //
 // The handling of OINDEXMAP is subtle. OINDEXMAP can occur both
 // as an lvalue (map assignment) and an rvalue (map access). This is
@@ -969,6 +989,12 @@ var IsIntrinsicCall = func(*CallExpr) bool { return false }
 // lvalue expression is for OSLICE and OAPPEND optimizations, and it
 // is correct in those settings.
 func SameSafeExpr(l Node, r Node) bool {
+	for l.Op() == OCONVNOP {
+		l = l.(*ConvExpr).X
+	}
+	for r.Op() == OCONVNOP {
+		r = r.(*ConvExpr).X
+	}
 	if l.Op() != r.Op() || !types.Identical(l.Type(), r.Type()) {
 		return false
 	}
@@ -990,11 +1016,6 @@ func SameSafeExpr(l Node, r Node) bool {
 	case ONOT, OBITNOT, OPLUS, ONEG:
 		l := l.(*UnaryExpr)
 		r := r.(*UnaryExpr)
-		return SameSafeExpr(l.X, r.X)
-
-	case OCONVNOP:
-		l := l.(*ConvExpr)
-		r := r.(*ConvExpr)
 		return SameSafeExpr(l.X, r.X)
 
 	case OCONV:
@@ -1029,6 +1050,12 @@ func SameSafeExpr(l Node, r Node) bool {
 // levels.
 func ShouldCheckPtr(fn *Func, level int) bool {
 	return base.Debug.Checkptr >= level && fn.Pragma&NoCheckPtr == 0
+}
+
+// ShouldAsanCheckPtr reports whether pointer checking should be enabled for
+// function fn when -asan is enabled.
+func ShouldAsanCheckPtr(fn *Func) bool {
+	return base.Flag.ASan && fn.Pragma&NoCheckPtr == 0
 }
 
 // IsReflectHeaderDataField reports whether l is an expression p.Data
@@ -1123,7 +1150,6 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 	b.WriteString(".")
 	b.WriteString(msym.Name)
 	b.WriteString(suffix)
-
 	return rpkg.LookupBytes(b.Bytes())
 }
 

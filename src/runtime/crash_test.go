@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"internal/testenv"
@@ -14,7 +15,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -34,12 +34,13 @@ func TestMain(m *testing.M) {
 var testprog struct {
 	sync.Mutex
 	dir    string
-	target map[string]buildexe
+	target map[string]*buildexe
 }
 
 type buildexe struct {
-	exe string
-	err error
+	once sync.Once
+	exe  string
+	err  error
 }
 
 func runTestProg(t *testing.T, binary, name string, env ...string) string {
@@ -58,63 +59,43 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 }
 
 func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
+	t.Helper()
+
 	if *flagQuick {
 		t.Skip("-quick")
 	}
 
-	testenv.MustHaveGoBuild(t)
+	start := time.Now()
 
-	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, exe, name))
 	cmd.Env = append(cmd.Env, env...)
 	if testing.Short() {
 		cmd.Env = append(cmd.Env, "RUNTIME_TEST_SHORT=1")
 	}
-	var b bytes.Buffer
-	cmd.Stdout = &b
-	cmd.Stderr = &b
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("starting %s %s: %v", exe, name, err)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Logf("%v (%v): ok", cmd, time.Since(start))
+	} else {
+		if _, ok := err.(*exec.ExitError); ok {
+			t.Logf("%v: %v", cmd, err)
+		} else if errors.Is(err, exec.ErrWaitDelay) {
+			t.Fatalf("%v: %v", cmd, err)
+		} else {
+			t.Fatalf("%v failed to start: %v", cmd, err)
+		}
 	}
-
-	// If the process doesn't complete within 1 minute,
-	// assume it is hanging and kill it to get a stack trace.
-	p := cmd.Process
-	done := make(chan bool)
-	go func() {
-		scale := 1
-		// This GOARCH/GOOS test is copied from cmd/dist/test.go.
-		// TODO(iant): Have cmd/dist update the environment variable.
-		if runtime.GOARCH == "arm" || runtime.GOOS == "windows" {
-			scale = 2
-		}
-		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
-			if sc, err := strconv.Atoi(s); err == nil {
-				scale = sc
-			}
-		}
-
-		select {
-		case <-done:
-		case <-time.After(time.Duration(scale) * time.Minute):
-			p.Signal(sigquit)
-		}
-	}()
-
-	if err := cmd.Wait(); err != nil {
-		t.Logf("%s %s exit status: %v", exe, name, err)
-	}
-	close(done)
-
-	return b.String()
+	return string(out)
 }
+
+var serializeBuild = make(chan bool, 2)
 
 func buildTestProg(t *testing.T, binary string, flags ...string) (string, error) {
 	if *flagQuick {
 		t.Skip("-quick")
 	}
+	testenv.MustHaveGoBuild(t)
 
 	testprog.Lock()
-	defer testprog.Unlock()
 	if testprog.dir == "" {
 		dir, err := os.MkdirTemp("", "go-build")
 		if err != nil {
@@ -125,29 +106,48 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	}
 
 	if testprog.target == nil {
-		testprog.target = make(map[string]buildexe)
+		testprog.target = make(map[string]*buildexe)
 	}
 	name := binary
 	if len(flags) > 0 {
 		name += "_" + strings.Join(flags, "_")
 	}
 	target, ok := testprog.target[name]
-	if ok {
-		return target.exe, target.err
+	if !ok {
+		target = &buildexe{}
+		testprog.target[name] = target
 	}
 
-	exe := filepath.Join(testprog.dir, name+".exe")
-	cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
-	cmd.Dir = "testdata/" + binary
-	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
-	if err != nil {
-		target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
-		testprog.target[name] = target
-		return "", target.err
-	}
-	target.exe = exe
-	testprog.target[name] = target
-	return exe, nil
+	dir := testprog.dir
+
+	// Unlock testprog while actually building, so that other
+	// tests can look up executables that were already built.
+	testprog.Unlock()
+
+	target.once.Do(func() {
+		// Only do two "go build"'s at a time,
+		// to keep load from getting too high.
+		serializeBuild <- true
+		defer func() { <-serializeBuild }()
+
+		// Don't get confused if testenv.GoToolPath calls t.Skip.
+		target.err = errors.New("building test called t.Skip")
+
+		exe := filepath.Join(dir, name+".exe")
+
+		t.Logf("running go build -o %s %s", exe, strings.Join(flags, " "))
+		cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
+		cmd.Dir = "testdata/" + binary
+		out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+		if err != nil {
+			target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
+		} else {
+			target.exe = exe
+			target.err = nil
+		}
+	})
+
+	return target.exe, target.err
 }
 
 func TestVDSO(t *testing.T) {
@@ -417,7 +417,7 @@ func TestRuntimePanicWithRuntimeError(t *testing.T) {
 	}
 }
 
-func panicValue(fn func()) (recovered interface{}) {
+func panicValue(fn func()) (recovered any) {
 	defer func() {
 		recovered = recover()
 	}()
@@ -679,7 +679,7 @@ retry:
 func TestBadTraceback(t *testing.T) {
 	output := runTestProg(t, "testprog", "BadTraceback")
 	for _, want := range []string{
-		"runtime: unexpected return pc",
+		"unexpected return pc",
 		"called from 0xbad",
 		"00000bad",    // Smashed LR in hex dump
 		"<main.badLR", // Symbolization in hex dump (badLR1 or badLR2)
@@ -691,6 +691,13 @@ func TestBadTraceback(t *testing.T) {
 }
 
 func TestTimePprof(t *testing.T) {
+	// This test is unreliable on any system in which nanotime
+	// calls into libc.
+	switch runtime.GOOS {
+	case "aix", "darwin", "illumos", "openbsd", "solaris":
+		t.Skipf("skipping on %s because nanotime calls libc", runtime.GOOS)
+	}
+
 	// Pass GOTRACEBACK for issue #41120 to try to get more
 	// information on timeout.
 	fn := runTestProg(t, "testprog", "TimeProf", "GOTRACEBACK=crash")
@@ -805,5 +812,57 @@ func TestDoublePanic(t *testing.T) {
 		if !strings.Contains(output, want) {
 			t.Errorf("output:\n%s\n\nwant output containing: %s", output, want)
 		}
+	}
+}
+
+// Test that panic while panicking discards error message
+// See issue 52257
+func TestPanicWhilePanicking(t *testing.T) {
+	tests := []struct {
+		Want string
+		Func string
+	}{
+		{
+			"panic while printing panic value: important error message",
+			"ErrorPanic",
+		},
+		{
+			"panic while printing panic value: important stringer message",
+			"StringerPanic",
+		},
+		{
+			"panic while printing panic value: type",
+			"DoubleErrorPanic",
+		},
+		{
+			"panic while printing panic value: type",
+			"DoubleStringerPanic",
+		},
+		{
+			"panic while printing panic value: type",
+			"CircularPanic",
+		},
+		{
+			"important string message",
+			"StringPanic",
+		},
+		{
+			"nil",
+			"NilPanic",
+		},
+	}
+	for _, x := range tests {
+		output := runTestProg(t, "testprog", x.Func)
+		if !strings.Contains(output, x.Want) {
+			t.Errorf("output does not contain %q:\n%s", x.Want, output)
+		}
+	}
+}
+
+func TestPanicOnUnsafeSlice(t *testing.T) {
+	output := runTestProg(t, "testprog", "panicOnNilAndEleSizeIsZero")
+	want := "panic: runtime error: unsafe.Slice: ptr is nil and len is not zero"
+	if !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
 	}
 }

@@ -17,12 +17,12 @@ type Builder struct {
 	buf  []byte
 }
 
-// noescape hides a pointer from escape analysis.  noescape is
-// the identity function but escape analysis doesn't think the
-// output depends on the input. noescape is inlined and currently
-// compiles down to zero instructions.
+// noescape hides a pointer from escape analysis. It is the identity function
+// but escape analysis doesn't think the output depends on the input.
+// noescape is inlined and currently compiles down to zero instructions.
 // USE CAREFULLY!
 // This was copied from the runtime; see issues 23382 and 7921.
+//
 //go:nosplit
 //go:nocheckptr
 func noescape(p unsafe.Pointer) unsafe.Pointer {
@@ -45,7 +45,7 @@ func (b *Builder) copyCheck() {
 
 // String returns the accumulated string.
 func (b *Builder) String() string {
-	return *(*string)(unsafe.Pointer(&b.buf))
+	return unsafe.String(unsafe.SliceData(b.buf), len(b.buf))
 }
 
 // Len returns the number of accumulated bytes; b.Len() == len(b.String()).
@@ -103,18 +103,9 @@ func (b *Builder) WriteByte(c byte) error {
 // It returns the length of r and a nil error.
 func (b *Builder) WriteRune(r rune) (int, error) {
 	b.copyCheck()
-	// Compare as uint32 to correctly handle negative runes.
-	if uint32(r) < utf8.RuneSelf {
-		b.buf = append(b.buf, byte(r))
-		return 1, nil
-	}
-	l := len(b.buf)
-	if cap(b.buf)-l < utf8.UTFMax {
-		b.grow(utf8.UTFMax)
-	}
-	n := utf8.EncodeRune(b.buf[l:l+utf8.UTFMax], r)
-	b.buf = b.buf[:l+n]
-	return n, nil
+	n := len(b.buf)
+	b.buf = utf8.AppendRune(b.buf, r)
+	return len(b.buf) - n, nil
 }
 
 // WriteString appends the contents of s to b's buffer.

@@ -15,7 +15,7 @@ cmp go.mod go.mod.want
 # If a retracted version doesn't match the module's major version suffx,
 # an error should be reported.
 ! go mod edit -retract=v3.0.1
-stderr '^go mod: -retract=v3.0.1: version "v3.0.1" invalid: should be v2, not v3$'
+stderr '^go: -retract=v3.0.1: version "v3.0.1" invalid: should be v2, not v3$'
 cp go.mod.mismatch-v2 go.mod
 ! go list -m all
 stderr 'go.mod:3: retract rsc.io/quote/v2: version "v3.0.1" invalid: should be v2, not v3$'

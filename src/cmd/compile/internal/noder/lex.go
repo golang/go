@@ -30,13 +30,12 @@ const (
 		ir.NoCheckPtr |
 		ir.RegisterParams | // TODO(register args) remove after register abi is working
 		ir.CgoUnsafeArgs |
+		ir.UintptrKeepAlive |
 		ir.UintptrEscapes |
 		ir.Systemstack |
 		ir.Nowritebarrier |
 		ir.Nowritebarrierrec |
 		ir.Yeswritebarrierrec
-
-	typePragmas = ir.NotInHeap
 )
 
 func pragmaFlag(verb string) ir.PragmaFlag {
@@ -67,23 +66,15 @@ func pragmaFlag(verb string) ir.PragmaFlag {
 		return ir.Yeswritebarrierrec
 	case "go:cgo_unsafe_args":
 		return ir.CgoUnsafeArgs | ir.NoCheckPtr // implies NoCheckPtr (see #34968)
+	case "go:uintptrkeepalive":
+		return ir.UintptrKeepAlive
 	case "go:uintptrescapes":
-		// For the next function declared in the file
-		// any uintptr arguments may be pointer values
-		// converted to uintptr. This directive
-		// ensures that the referenced allocated
-		// object, if any, is retained and not moved
-		// until the call completes, even though from
-		// the types alone it would appear that the
-		// object is no longer needed during the
-		// call. The conversion to uintptr must appear
-		// in the argument list.
-		// Used in syscall/dll_windows.go.
-		return ir.UintptrEscapes
+		// This directive extends //go:uintptrkeepalive by forcing
+		// uintptr arguments to escape to the heap, which makes stack
+		// growth safe.
+		return ir.UintptrEscapes | ir.UintptrKeepAlive // implies UintptrKeepAlive
 	case "go:registerparams": // TODO(register args) remove after register abi is working
 		return ir.RegisterParams
-	case "go:notinheap":
-		return ir.NotInHeap
 	}
 	return 0
 }

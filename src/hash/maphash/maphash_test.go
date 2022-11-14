@@ -6,6 +6,7 @@ package maphash
 
 import (
 	"bytes"
+	"fmt"
 	"hash"
 	"testing"
 )
@@ -86,6 +87,14 @@ func TestHashGrouping(t *testing.T) {
 		if sum != h.Sum64() {
 			t.Errorf("hash %d not identical to a single Write", i)
 		}
+	}
+
+	if sum1 := Bytes(hh[0].Seed(), b); sum1 != hh[0].Sum64() {
+		t.Errorf("hash using Bytes not identical to a single Write")
+	}
+
+	if sum1 := String(hh[0].Seed(), string(b)); sum1 != hh[0].Sum64() {
+		t.Errorf("hash using String not identical to a single Write")
 	}
 }
 
@@ -208,28 +217,39 @@ var _ hash.Hash64 = &Hash{}
 func benchmarkSize(b *testing.B, size int) {
 	h := &Hash{}
 	buf := make([]byte, size)
-	b.SetBytes(int64(size))
-	b.ResetTimer()
+	s := string(buf)
 
-	for i := 0; i < b.N; i++ {
-		h.Reset()
-		h.Write(buf)
-		h.Sum64()
+	b.Run("Write", func(b *testing.B) {
+		b.SetBytes(int64(size))
+		for i := 0; i < b.N; i++ {
+			h.Reset()
+			h.Write(buf)
+			h.Sum64()
+		}
+	})
+
+	b.Run("Bytes", func(b *testing.B) {
+		b.SetBytes(int64(size))
+		seed := h.Seed()
+		for i := 0; i < b.N; i++ {
+			Bytes(seed, buf)
+		}
+	})
+
+	b.Run("String", func(b *testing.B) {
+		b.SetBytes(int64(size))
+		seed := h.Seed()
+		for i := 0; i < b.N; i++ {
+			String(seed, s)
+		}
+	})
+}
+
+func BenchmarkHash(b *testing.B) {
+	sizes := []int{4, 8, 16, 32, 64, 256, 320, 1024, 4096, 16384}
+	for _, size := range sizes {
+		b.Run(fmt.Sprint("n=", size), func(b *testing.B) {
+			benchmarkSize(b, size)
+		})
 	}
-}
-
-func BenchmarkHash8Bytes(b *testing.B) {
-	benchmarkSize(b, 8)
-}
-
-func BenchmarkHash320Bytes(b *testing.B) {
-	benchmarkSize(b, 320)
-}
-
-func BenchmarkHash1K(b *testing.B) {
-	benchmarkSize(b, 1024)
-}
-
-func BenchmarkHash8K(b *testing.B) {
-	benchmarkSize(b, 8192)
 }

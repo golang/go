@@ -26,6 +26,10 @@ const (
 	// NonceSizeX is the size of the nonce used with the XChaCha20-Poly1305
 	// variant of this AEAD, in bytes.
 	NonceSizeX = 24
+
+	// Overhead is the size of the Poly1305 authentication tag, and the
+	// difference between a ciphertext length and its plaintext.
+	Overhead = 16
 )
 
 type chacha20poly1305 struct {
@@ -47,7 +51,7 @@ func (c *chacha20poly1305) NonceSize() int {
 }
 
 func (c *chacha20poly1305) Overhead() int {
-	return 16
+	return Overhead
 }
 
 func (c *chacha20poly1305) Seal(dst, nonce, plaintext, additionalData []byte) []byte {

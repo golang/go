@@ -79,7 +79,7 @@ func DeepCopy(pos src.XPos, n Node) Node {
 	var edit func(Node) Node
 	edit = func(x Node) Node {
 		switch x.Op() {
-		case OPACK, ONAME, ONONAME, OLITERAL, ONIL, OTYPE:
+		case ONAME, ONONAME, OLITERAL, ONIL, OTYPE:
 			return x
 		}
 		x = Copy(x)

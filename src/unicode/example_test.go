@@ -194,3 +194,63 @@ func ExampleSpecialCase() {
 	// U+0130 'İ'
 	// U+0130 'İ'
 }
+
+func ExampleIsDigit() {
+	fmt.Printf("%t\n", unicode.IsDigit('৩'))
+	fmt.Printf("%t\n", unicode.IsDigit('A'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsNumber() {
+	fmt.Printf("%t\n", unicode.IsNumber('Ⅷ'))
+	fmt.Printf("%t\n", unicode.IsNumber('A'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsLetter() {
+	fmt.Printf("%t\n", unicode.IsLetter('A'))
+	fmt.Printf("%t\n", unicode.IsLetter('7'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsLower() {
+	fmt.Printf("%t\n", unicode.IsLower('a'))
+	fmt.Printf("%t\n", unicode.IsLower('A'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsUpper() {
+	fmt.Printf("%t\n", unicode.IsUpper('A'))
+	fmt.Printf("%t\n", unicode.IsUpper('a'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsTitle() {
+	fmt.Printf("%t\n", unicode.IsTitle('ǅ'))
+	fmt.Printf("%t\n", unicode.IsTitle('a'))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsSpace() {
+	fmt.Printf("%t\n", unicode.IsSpace(' '))
+	fmt.Printf("%t\n", unicode.IsSpace('\n'))
+	fmt.Printf("%t\n", unicode.IsSpace('\t'))
+	fmt.Printf("%t\n", unicode.IsSpace('a'))
+	// Output:
+	// true
+	// true
+	// true
+	// false
+}

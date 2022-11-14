@@ -47,10 +47,8 @@ func kqueue() int32
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
 
-func pipe() (r, w int32, errno int32)
 func pipe2(flags int32) (r, w int32, errno int32)
 func closeonexec(fd int32)
-func setNonblock(fd int32)
 
 // From FreeBSD's <sys/sysctl.h>
 const (
@@ -194,6 +192,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
 func thr_start()
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
@@ -214,20 +213,25 @@ func newosproc(mp *m) {
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
+	ret := retryOnEAGAIN(func() int32 {
+		errno := thr_new(&param, int32(unsafe.Sizeof(param)))
+		// thr_new returns negative errno
+		return -errno
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
-	if ret < 0 {
-		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
+	if ret != 0 {
+		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
 		throw("newosproc")
 	}
 }
 
 // Version of newosproc that doesn't require a valid G.
+//
 //go:nosplit
 func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	stack := sysAlloc(stacksize, &memstats.stacks_sys)
 	if stack == nil {
-		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+		writeErrStr(failallocatestack)
 		exit(1)
 	}
 	// This code "knows" it's being called once from the library
@@ -252,17 +256,15 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret < 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 }
 
-var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
-var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
-
 // Called to do synchronous initialization of Go code built with
 // -buildmode=c-archive or -buildmode=c-shared.
 // None of the Go runtime is initialized.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
@@ -320,6 +322,7 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	unminitSignals()
@@ -360,7 +363,8 @@ func getsig(i uint32) uintptr {
 	return sa.sa_handler
 }
 
-// setSignaltstackSP sets the ss_sp field of a stackt.
+// setSignalstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	s.ss_sp = sp
@@ -378,6 +382,19 @@ func sigdelset(mask *sigset, i int) {
 
 //go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
 }
 
 func sysargs(argc int32, argv **byte) {
@@ -420,6 +437,7 @@ func sysauxv(auxv []uintptr) {
 }
 
 // sysSigaction calls the sigaction system call.
+//
 //go:nosplit
 func sysSigaction(sig uint32, new, old *sigactiont) {
 	// Use system stack to avoid split stack overflow on amd64
@@ -431,6 +449,7 @@ func sysSigaction(sig uint32, new, old *sigactiont) {
 }
 
 // asmSigaction is implemented in assembly.
+//
 //go:noescape
 func asmSigaction(sig uintptr, new, old *sigactiont) int32
 
@@ -446,4 +465,13 @@ func raise(sig uint32) {
 
 func signalM(mp *m, sig int) {
 	thr_kill(thread(mp.procid), sig)
+}
+
+// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+// number.
+const sigPerThreadSyscall = 1 << 31
+
+//go:nosplit
+func runPerThreadSyscall() {
+	throw("runPerThreadSyscall only valid on linux")
 }

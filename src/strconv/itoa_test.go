@@ -93,6 +93,14 @@ func TestItoa(t *testing.T) {
 			}
 		}
 	}
+
+	// Override when base is illegal
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("expected panic due to illegal base")
+		}
+	}()
+	FormatUint(12345678, 1)
 }
 
 type uitob64Test struct {

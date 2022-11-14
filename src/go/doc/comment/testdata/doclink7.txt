@@ -1,0 +1,4 @@
+-- input --
+You see more [*bytes.Buffer] than [bytes.Buffer].
+-- markdown --
+You see more [\*bytes.Buffer](/bytes#Buffer) than [bytes.Buffer](/bytes#Buffer).

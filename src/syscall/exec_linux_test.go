@@ -3,11 +3,11 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux
-// +build linux
 
 package syscall_test
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"internal/testenv"
@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -66,6 +67,10 @@ func skipUnprivilegedUserClone(t *testing.T) {
 	// Skip the test if the sysctl that prevents unprivileged user
 	// from creating user namespaces is enabled.
 	data, errRead := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+	if os.IsNotExist(errRead) {
+		// This file is only available in some Debian/Ubuntu kernels.
+		return
+	}
 	if errRead != nil || len(data) < 1 || data[0] == '0' {
 		t.Skip("kernel prohibits user namespace in unprivileged process")
 	}
@@ -110,14 +115,6 @@ func checkUserNS(t *testing.T) {
 		if errRead == nil && buf[0] == '0' {
 			t.Skip("kernel doesn't support user namespaces")
 		}
-	}
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 }
 
@@ -201,14 +198,6 @@ func TestUnshare(t *testing.T) {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
 	}
 
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
-	}
-
 	path := "/proc/net/dev"
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
@@ -275,12 +264,14 @@ func TestGroupCleanup(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
+	t.Logf("id: %s", strOut)
+
 	expected := "uid=0(root) gid=0(root)"
 	// Just check prefix because some distros reportedly output a
 	// context parameter; see https://golang.org/issue/16224.
 	// Alpine does not output groups; see https://golang.org/issue/19938.
 	if !strings.HasPrefix(strOut, expected) {
-		t.Errorf("id command output: %q, expected prefix: %q", strOut, expected)
+		t.Errorf("expected prefix: %q", expected)
 	}
 }
 
@@ -309,23 +300,14 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
+	t.Logf("id: %s", strOut)
 
-	// Strings we've seen in the wild.
-	expected := []string{
-		"uid=0(root) gid=0(root) groups=0(root)",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nobody)",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
-		"uid=0(root) gid=0(root) groups=0(root),65534",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody)", // Alpine; see https://golang.org/issue/19938
-		"uid=0(root) gid=0(root) groups=0(root) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",                                                                               // CentOS with SELinux context, see https://golang.org/issue/34547
-		"uid=0(root) gid=0(root) groups=0(root),65534(nobody) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",                                                                 // Fedora with SElinux context, see https://golang.org/issue/46752
+	// As in TestGroupCleanup, just check prefix.
+	// The actual groups and contexts seem to vary from one distro to the next.
+	expected := "uid=0(root) gid=0(root) groups=0(root)"
+	if !strings.HasPrefix(strOut, expected) {
+		t.Errorf("expected prefix: %q", expected)
 	}
-	for _, e := range expected {
-		if strOut == e {
-			return
-		}
-	}
-	t.Errorf("id command output: %q, expected one of %q", strOut, expected)
 }
 
 // TestUnshareHelperProcess isn't a real test. It's used as a helper process
@@ -481,6 +463,96 @@ func TestUnshareUidGidMapping(t *testing.T) {
 	}
 }
 
+func prepareCgroupFD(t *testing.T) (int, string) {
+	t.Helper()
+
+	const O_PATH = 0x200000 // Same for all architectures, but for some reason not defined in syscall for 386||amd64.
+
+	// Requires cgroup v2.
+	const prefix = "/sys/fs/cgroup"
+	selfCg, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		if os.IsNotExist(err) || os.IsPermission(err) {
+			t.Skip(err)
+		}
+		t.Fatal(err)
+	}
+
+	// Expect a single line like this:
+	// 0::/user.slice/user-1000.slice/user@1000.service/app.slice/vte-spawn-891992a2-efbb-4f28-aedb-b24f9e706770.scope
+	// Otherwise it's either cgroup v1 or a hybrid hierarchy.
+	if bytes.Count(selfCg, []byte("\n")) > 1 {
+		t.Skip("cgroup v2 not available")
+	}
+	cg := bytes.TrimPrefix(selfCg, []byte("0::"))
+	if len(cg) == len(selfCg) { // No prefix found.
+		t.Skipf("cgroup v2 not available (/proc/self/cgroup contents: %q)", selfCg)
+	}
+
+	// Need clone3 with CLONE_INTO_CGROUP support.
+	_, err = syscall.ForkExec("non-existent binary", nil, &syscall.ProcAttr{
+		Sys: &syscall.SysProcAttr{
+			UseCgroupFD: true,
+			CgroupFD:    -1,
+		},
+	})
+	// // EPERM can be returned if clone3 is not enabled by seccomp.
+	if err == syscall.ENOSYS || err == syscall.EPERM {
+		t.Skipf("clone3 with CLONE_INTO_CGROUP not available: %v", err)
+	}
+
+	// Need an ability to create a sub-cgroup.
+	subCgroup, err := os.MkdirTemp(prefix+string(bytes.TrimSpace(cg)), "subcg-")
+	if err != nil {
+		if os.IsPermission(err) {
+			t.Skip(err)
+		}
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { syscall.Rmdir(subCgroup) })
+
+	cgroupFD, err := syscall.Open(subCgroup, O_PATH, 0)
+	if err != nil {
+		t.Fatal(&os.PathError{Op: "open", Path: subCgroup, Err: err})
+	}
+	t.Cleanup(func() { syscall.Close(cgroupFD) })
+
+	return cgroupFD, "/" + path.Base(subCgroup)
+}
+
+func TestUseCgroupFD(t *testing.T) {
+	fd, suffix := prepareCgroupFD(t)
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestUseCgroupFDHelper")
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		UseCgroupFD: true,
+		CgroupFD:    fd,
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+	// NB: this wouldn't work with cgroupns.
+	if !bytes.HasSuffix(bytes.TrimSpace(out), []byte(suffix)) {
+		t.Fatalf("got: %q, want: a line that ends with %q", out, suffix)
+	}
+}
+
+func TestUseCgroupFDHelper(*testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	defer os.Exit(0)
+	// Read and print own cgroup path.
+	selfCg, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	fmt.Print(string(selfCg))
+}
+
 type capHeader struct {
 	version uint32
 	pid     int32
@@ -526,9 +598,7 @@ func mustSupportAmbientCaps(t *testing.T) {
 		buf[i] = byte(b)
 	}
 	ver := string(buf[:])
-	if i := strings.Index(ver, "\x00"); i != -1 {
-		ver = ver[:i]
-	}
+	ver, _, _ = strings.Cut(ver, "\x00")
 	if strings.HasPrefix(ver, "2.") ||
 		strings.HasPrefix(ver, "3.") ||
 		strings.HasPrefix(ver, "4.1.") ||

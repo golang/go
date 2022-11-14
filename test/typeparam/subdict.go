@@ -1,4 +1,4 @@
-// run -gcflags=-G=3
+// run
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -14,7 +14,9 @@ import (
 	"fmt"
 )
 
-type value[T comparable] struct {
+type C comparable
+
+type value[T C] struct {
 	val T
 }
 

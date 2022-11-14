@@ -27,8 +27,14 @@ func UintFactory() uint {}
 // Associated with uint type if AllDecls is set.
 func uintFactory() uint {}
 
+// Associated with comparable type if AllDecls is set.
+func ComparableFactory() comparable {}
+
 // Should only appear if AllDecls is set.
 type uint struct{} // overrides a predeclared type uint
+
+// Should only appear if AllDecls is set.
+type comparable struct{} // overrides a predeclared type comparable
 
 // ----------------------------------------------------------------------------
 // Exported declarations associated with non-exported types must always be shown.

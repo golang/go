@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"reflect"
 
 	"golang.org/x/tools/go/analysis"
@@ -51,7 +52,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		for i, lhs := range stmt.Lhs {
 			rhs := stmt.Rhs[i]
 			if analysisutil.HasSideEffects(pass.TypesInfo, lhs) ||
-				analysisutil.HasSideEffects(pass.TypesInfo, rhs) {
+				analysisutil.HasSideEffects(pass.TypesInfo, rhs) ||
+				isMapIndex(pass.TypesInfo, lhs) {
 				continue // expressions may not be equal
 			}
 			if reflect.TypeOf(lhs) != reflect.TypeOf(rhs) {
@@ -73,4 +75,15 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	})
 
 	return nil, nil
+}
+
+// isMapIndex returns true if e is a map index expression.
+func isMapIndex(info *types.Info, e ast.Expr) bool {
+	if idx, ok := analysisutil.Unparen(e).(*ast.IndexExpr); ok {
+		if typ := info.Types[idx.X].Type; typ != nil {
+			_, ok := typ.Underlying().(*types.Map)
+			return ok
+		}
+	}
+	return false
 }

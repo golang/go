@@ -6,12 +6,12 @@ package types2_test
 
 import (
 	"bytes"
-	"cmd/compile/internal/syntax"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 
+	"cmd/compile/internal/syntax"
 	. "cmd/compile/internal/types2"
 )
 
@@ -24,13 +24,12 @@ func TestHilbert(t *testing.T) {
 	// generate source
 	src := program(*H, *out)
 	if *out != "" {
-		ioutil.WriteFile(*out, src, 0666)
+		os.WriteFile(*out, src, 0666)
 		return
 	}
 
 	// parse source
-	// TODO(gri) get rid of []bytes to string conversion below
-	f, err := parseSrc("hilbert.go", string(src))
+	f, err := syntax.Parse(syntax.NewFileBase("hilbert.go"), bytes.NewReader(src), nil, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

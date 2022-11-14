@@ -296,11 +296,11 @@ type (
 )
 
 var (
-	uint16Eface interface{} = uint16InterfacePtr(0)
-	uint32Eface interface{} = uint32InterfacePtr(0)
-	uint64Eface interface{} = uint64InterfacePtr(0)
-	stringEface interface{} = stringInterfacePtr("")
-	sliceEface  interface{} = sliceInterfacePtr(nil)
+	uint16Eface any = uint16InterfacePtr(0)
+	uint32Eface any = uint32InterfacePtr(0)
+	uint64Eface any = uint64InterfacePtr(0)
+	stringEface any = stringInterfacePtr("")
+	sliceEface  any = sliceInterfacePtr(nil)
 
 	uint16Type *_type = efaceOf(&uint16Eface)._type
 	uint32Type *_type = efaceOf(&uint32Eface)._type
@@ -325,6 +325,9 @@ func convT(t *_type, v unsafe.Pointer) unsafe.Pointer {
 	if msanenabled {
 		msanread(v, t.size)
 	}
+	if asanenabled {
+		asanread(v, t.size)
+	}
 	x := mallocgc(t.size, t, true)
 	typedmemmove(t, x, v)
 	return x
@@ -337,6 +340,10 @@ func convTnoptr(t *_type, v unsafe.Pointer) unsafe.Pointer {
 	if msanenabled {
 		msanread(v, t.size)
 	}
+	if asanenabled {
+		asanread(v, t.size)
+	}
+
 	x := mallocgc(t.size, t, false)
 	memmove(x, v, t.size)
 	return x

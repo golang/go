@@ -1,0 +1,33 @@
+-- input --
+Text.
+
+	$
+	A tab-indented
+	(surrounded by more blank lines)
+	code block and haiku.
+	$
+
+More text.
+-- gofmt --
+Text.
+
+	A tab-indented
+	(surrounded by more blank lines)
+	code block and haiku.
+
+More text.
+-- markdown --
+Text.
+
+	A tab-indented
+	(surrounded by more blank lines)
+	code block and haiku.
+
+More text.
+-- html --
+<p>Text.
+<pre>A tab-indented
+(surrounded by more blank lines)
+code block and haiku.
+</pre>
+<p>More text.

@@ -41,17 +41,20 @@ int main()
     if (NULL == exceptionHandlerHandle)
     {
         printf("cannot add vectored exception handler\n");
+        fflush(stdout);
         return 2;
     }
     void *continueHandlerHandle = AddVectoredContinueHandler(0, customContinueHandlder);
     if (NULL == continueHandlerHandle)
     {
         printf("cannot add vectored continue handler\n");
+        fflush(stdout);
         return 2;
     }
     CallMeBack(throwFromC);
     RemoveVectoredContinueHandler(continueHandlerHandle);
     RemoveVectoredExceptionHandler(exceptionHandlerHandle);
     printf("exceptionCount: %d\ncontinueCount: %d\n", exceptionCount, continueCount);
+    fflush(stdout);
     return 0;
 }

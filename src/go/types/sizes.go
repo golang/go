@@ -24,22 +24,21 @@ type Sizes interface {
 // StdSizes is a convenience type for creating commonly used Sizes.
 // It makes the following simplifying assumptions:
 //
-//	- The size of explicitly sized basic types (int16, etc.) is the
-//	  specified size.
-//	- The size of strings and interfaces is 2*WordSize.
-//	- The size of slices is 3*WordSize.
-//	- The size of an array of n elements corresponds to the size of
-//	  a struct of n consecutive fields of the array's element type.
-//      - The size of a struct is the offset of the last field plus that
-//	  field's size. As with all element types, if the struct is used
-//	  in an array its size must first be aligned to a multiple of the
-//	  struct's alignment.
-//	- All other types have size WordSize.
-//	- Arrays and structs are aligned per spec definition; all other
-//	  types are naturally aligned with a maximum alignment MaxAlign.
+//   - The size of explicitly sized basic types (int16, etc.) is the
+//     specified size.
+//   - The size of strings and interfaces is 2*WordSize.
+//   - The size of slices is 3*WordSize.
+//   - The size of an array of n elements corresponds to the size of
+//     a struct of n consecutive fields of the array's element type.
+//   - The size of a struct is the offset of the last field plus that
+//     field's size. As with all element types, if the struct is used
+//     in an array its size must first be aligned to a multiple of the
+//     struct's alignment.
+//   - All other types have size WordSize.
+//   - Arrays and structs are aligned per spec definition; all other
+//     types are naturally aligned with a maximum alignment MaxAlign.
 //
 // *StdSizes implements Sizes.
-//
 type StdSizes struct {
 	WordSize int64 // word size in bytes - must be >= 4 (32bits)
 	MaxAlign int64 // maximum alignment in bytes - must be >= 1
@@ -54,6 +53,17 @@ func (s *StdSizes) Alignof(T Type) int64 {
 		// is the same as unsafe.Alignof(x[0]), but at least 1."
 		return s.Alignof(t.elem)
 	case *Struct:
+		if len(t.fields) == 0 && isSyncAtomicAlign64(T) {
+			// Special case: sync/atomic.align64 is an
+			// empty struct we recognize as a signal that
+			// the struct it contains must be
+			// 64-bit-aligned.
+			//
+			// This logic is equivalent to the logic in
+			// cmd/compile/internal/types/size.go:calcStructOffset
+			return 8
+		}
+
 		// spec: "For a variable x of struct type: unsafe.Alignof(x)
 		// is the largest of the values unsafe.Alignof(x.f) for each
 		// field f of x, but at least 1."
@@ -67,6 +77,9 @@ func (s *StdSizes) Alignof(T Type) int64 {
 	case *Slice, *Interface:
 		// Multiword data structures are effectively structs
 		// in which each element has size WordSize.
+		// Type parameters lead to variable sizes/alignments;
+		// StdSizes.Alignof won't be called for them.
+		assert(!isTypeParam(T))
 		return s.WordSize
 	case *Basic:
 		// Strings are like slices and interfaces.
@@ -89,6 +102,18 @@ func (s *StdSizes) Alignof(T Type) int64 {
 		return s.MaxAlign
 	}
 	return a
+}
+
+func isSyncAtomicAlign64(T Type) bool {
+	named, ok := T.(*Named)
+	if !ok {
+		return false
+	}
+	obj := named.Obj()
+	return obj.Name() == "align64" &&
+		obj.Pkg() != nil &&
+		(obj.Pkg().Path() == "sync/atomic" ||
+			obj.Pkg().Path() == "runtime/internal/atomic")
 }
 
 func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
@@ -151,6 +176,9 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		offsets := s.Offsetsof(t.fields)
 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
 	case *Interface:
+		// Type parameters lead to variable sizes/alignments;
+		// StdSizes.Sizeof won't be called for them.
+		assert(!isTypeParam(T))
 		return s.WordSize * 2
 	case *TypeParam, *Union:
 		unreachable()
@@ -161,10 +189,11 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 // common architecture word sizes and alignments
 var gcArchSizes = map[string]*StdSizes{
 	"386":      {4, 4},
-	"arm":      {4, 4},
-	"arm64":    {8, 8},
 	"amd64":    {8, 8},
 	"amd64p32": {4, 8},
+	"arm":      {4, 4},
+	"arm64":    {8, 8},
+	"loong64":  {8, 8},
 	"mips":     {4, 4},
 	"mipsle":   {4, 4},
 	"mips64":   {8, 8},
@@ -183,7 +212,7 @@ var gcArchSizes = map[string]*StdSizes{
 // The result is nil if a compiler/architecture pair is not known.
 //
 // Supported architectures for compiler "gc":
-// "386", "arm", "arm64", "amd64", "amd64p32", "mips", "mipsle",
+// "386", "amd64", "amd64p32", "arm", "arm64", "loong64", "mips", "mipsle",
 // "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x", "sparc64", "wasm".
 func SizesFor(compiler, arch string) Sizes {
 	var m map[string]*StdSizes
@@ -243,7 +272,7 @@ func (conf *Config) offsetsof(T *Struct) []int64 {
 func (conf *Config) offsetof(typ Type, index []int) int64 {
 	var o int64
 	for _, i := range index {
-		s := asStruct(typ)
+		s := under(typ).(*Struct)
 		o += conf.offsetsof(s)[i]
 		typ = s.fields[i].typ
 	}

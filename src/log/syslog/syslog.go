@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !windows && !plan9
-// +build !windows,!plan9
 
 package syslog
 
@@ -256,7 +255,7 @@ func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
 
 	if w.conn != nil {
 		if n, err := w.write(pr, s); err == nil {
-			return n, err
+			return n, nil
 		}
 	}
 	if err := w.connect(); err != nil {

@@ -1,7 +1,7 @@
 env GO111MODULE=off
 
 # gccgo does not have standard packages.
-[gccgo] skip
+[compiler:gccgo] skip
 
 # fmt should have no rewritten imports.
 # The import from a/b should map c/d to a's vendor directory.

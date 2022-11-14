@@ -6,7 +6,6 @@
 // Should never be used, because wasm/js network connections do not honor "SetNonblock".
 
 //go:build js && wasm
-// +build js,wasm
 
 package runtime
 

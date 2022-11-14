@@ -10,7 +10,7 @@
 package main
 
 type I interface {
-	int // ERROR "interface contains embedded non-interface|not an interface"
+	int // ERROR "interface contains embedded non-interface|embedding non-interface type"
 }
 
 func New() I {

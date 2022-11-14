@@ -5,14 +5,14 @@
 package objabi
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -56,7 +56,7 @@ func expandArgs(in []string) (out []string) {
 				out = make([]string, 0, len(in)*2)
 				out = append(out, in[:i]...)
 			}
-			slurp, err := ioutil.ReadFile(s[1:])
+			slurp, err := os.ReadFile(s[1:])
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -97,11 +97,11 @@ func (versionFlag) Set(s string) error {
 	if s == "goexperiment" {
 		// test/run.go uses this to discover the full set of
 		// experiment tags. Report everything.
-		p = " X:" + strings.Join(buildcfg.AllExperiments(), ",")
+		p = " X:" + strings.Join(buildcfg.Experiment.All(), ",")
 	} else {
-		// If the enabled experiments differ from the defaults,
+		// If the enabled experiments differ from the baseline,
 		// include that difference.
-		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
+		if goexperiment := buildcfg.Experiment.String(); goexperiment != "" {
 			p = " X:" + goexperiment
 		}
 	}
@@ -177,8 +177,7 @@ func DecodeArg(arg string) string {
 		return arg
 	}
 
-	// We can't use strings.Builder as this must work at bootstrap.
-	var b bytes.Buffer
+	var b strings.Builder
 	var wasBS bool
 	for _, r := range arg {
 		if wasBS {
@@ -201,4 +200,174 @@ func DecodeArg(arg string) string {
 		wasBS = false
 	}
 	return b.String()
+}
+
+type debugField struct {
+	name         string
+	help         string
+	concurrentOk bool        // true if this field/flag is compatible with concurrent compilation
+	val          interface{} // *int or *string
+}
+
+type DebugFlag struct {
+	tab          map[string]debugField
+	concurrentOk *bool    // this is non-nil only for compiler's DebugFlags, but only compiler has concurrent:ok fields
+	debugSSA     DebugSSA // this is non-nil only for compiler's DebugFlags.
+}
+
+// A DebugSSA function is called to set a -d ssa/... option.
+// If nil, those options are reported as invalid options.
+// If DebugSSA returns a non-empty string, that text is reported as a compiler error.
+// If phase is "help", it should print usage information and terminate the process.
+type DebugSSA func(phase, flag string, val int, valString string) string
+
+// NewDebugFlag constructs a DebugFlag for the fields of debug, which
+// must be a pointer to a struct.
+//
+// Each field of *debug is a different value, named for the lower-case of the field name.
+// Each field must be an int or string and must have a `help` struct tag.
+// There may be an "Any bool" field, which will be set if any debug flags are set.
+//
+// The returned flag takes a comma-separated list of settings.
+// Each setting is name=value; for ints, name is short for name=1.
+//
+// If debugSSA is non-nil, any debug flags of the form ssa/... will be
+// passed to debugSSA for processing.
+func NewDebugFlag(debug interface{}, debugSSA DebugSSA) *DebugFlag {
+	flag := &DebugFlag{
+		tab:      make(map[string]debugField),
+		debugSSA: debugSSA,
+	}
+
+	v := reflect.ValueOf(debug).Elem()
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		ptr := v.Field(i).Addr().Interface()
+		if f.Name == "ConcurrentOk" {
+			switch ptr := ptr.(type) {
+			default:
+				panic("debug.ConcurrentOk must have type bool")
+			case *bool:
+				flag.concurrentOk = ptr
+			}
+			continue
+		}
+		name := strings.ToLower(f.Name)
+		help := f.Tag.Get("help")
+		if help == "" {
+			panic(fmt.Sprintf("debug.%s is missing help text", f.Name))
+		}
+		concurrent := f.Tag.Get("concurrent")
+
+		switch ptr.(type) {
+		default:
+			panic(fmt.Sprintf("debug.%s has invalid type %v (must be int or string)", f.Name, f.Type))
+		case *int, *string:
+			// ok
+		}
+		flag.tab[name] = debugField{name, help, concurrent == "ok", ptr}
+	}
+
+	return flag
+}
+
+func (f *DebugFlag) Set(debugstr string) error {
+	if debugstr == "" {
+		return nil
+	}
+	for _, name := range strings.Split(debugstr, ",") {
+		if name == "" {
+			continue
+		}
+		// display help about the debug option itself and quit
+		if name == "help" {
+			fmt.Print(debugHelpHeader)
+			maxLen, names := 0, []string{}
+			if f.debugSSA != nil {
+				maxLen = len("ssa/help")
+			}
+			for name := range f.tab {
+				if len(name) > maxLen {
+					maxLen = len(name)
+				}
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			// Indent multi-line help messages.
+			nl := fmt.Sprintf("\n\t%-*s\t", maxLen, "")
+			for _, name := range names {
+				help := f.tab[name].help
+				fmt.Printf("\t%-*s\t%s\n", maxLen, name, strings.Replace(help, "\n", nl, -1))
+			}
+			if f.debugSSA != nil {
+				// ssa options have their own help
+				fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
+			}
+			os.Exit(0)
+		}
+
+		val, valstring, haveInt := 1, "", true
+		if i := strings.IndexAny(name, "=:"); i >= 0 {
+			var err error
+			name, valstring = name[:i], name[i+1:]
+			val, err = strconv.Atoi(valstring)
+			if err != nil {
+				val, haveInt = 1, false
+			}
+		}
+
+		if t, ok := f.tab[name]; ok {
+			switch vp := t.val.(type) {
+			case nil:
+				// Ignore
+			case *string:
+				*vp = valstring
+			case *int:
+				if !haveInt {
+					log.Fatalf("invalid debug value %v", name)
+				}
+				*vp = val
+			default:
+				panic("bad debugtab type")
+			}
+			// assembler DebugFlags don't have a ConcurrentOk field to reset, so check against that.
+			if !t.concurrentOk && f.concurrentOk != nil {
+				*f.concurrentOk = false
+			}
+		} else if f.debugSSA != nil && strings.HasPrefix(name, "ssa/") {
+			// expect form ssa/phase/flag
+			// e.g. -d=ssa/generic_cse/time
+			// _ in phase name also matches space
+			phase := name[4:]
+			flag := "debug" // default flag is debug
+			if i := strings.Index(phase, "/"); i >= 0 {
+				flag = phase[i+1:]
+				phase = phase[:i]
+			}
+			err := f.debugSSA(phase, flag, val, valstring)
+			if err != "" {
+				log.Fatalf(err)
+			}
+			// Setting this false for -d=ssa/... preserves old behavior
+			// of turning off concurrency for any debug flags.
+			// It's not known for sure if this is necessary, but it is safe.
+			*f.concurrentOk = false
+
+		} else {
+			return fmt.Errorf("unknown debug key %s\n", name)
+		}
+	}
+
+	return nil
+}
+
+const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
+
+<key> is one of:
+
+`
+
+func (f *DebugFlag) String() string {
+	return ""
 }

@@ -229,16 +229,22 @@ store64loop:
 // functions tail-call into the appropriate implementation, which
 // means they must not open a frame. Hence, when they go down the
 // panic path, at that point they push the LR to create a real frame
-// (they don't need to pop it because panic won't return).
+// (they don't need to pop it because panic won't return; however, we
+// do need to set the SP delta back).
+
+// Check if R1 is 8-byte aligned, panic if not.
+// Clobbers R2.
+#define CHECK_ALIGN \
+	AND.S	$7, R1, R2 \
+	BEQ 	4(PC) \
+	MOVW.W	R14, -4(R13) /* prepare a real frame */ \
+	BL	·panicUnaligned(SB) \
+	ADD	$4, R13 /* compensate SP delta */
 
 TEXT ·Cas64(SB),NOSPLIT,$-4-21
 	NO_LOCAL_POINTERS
 	MOVW	addr+0(FP), R1
-	// make unaligned atomic access panic
-	AND.S	$7, R1, R2
-	BEQ 	3(PC)
-	MOVW.W	R14, -4(R13) // prepare a real frame
-	BL	·panicUnaligned(SB)
+	CHECK_ALIGN
 
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
@@ -249,11 +255,7 @@ TEXT ·Cas64(SB),NOSPLIT,$-4-21
 TEXT ·Xadd64(SB),NOSPLIT,$-4-20
 	NO_LOCAL_POINTERS
 	MOVW	addr+0(FP), R1
-	// make unaligned atomic access panic
-	AND.S	$7, R1, R2
-	BEQ 	3(PC)
-	MOVW.W	R14, -4(R13) // prepare a real frame
-	BL	·panicUnaligned(SB)
+	CHECK_ALIGN
 
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
@@ -264,11 +266,7 @@ TEXT ·Xadd64(SB),NOSPLIT,$-4-20
 TEXT ·Xchg64(SB),NOSPLIT,$-4-20
 	NO_LOCAL_POINTERS
 	MOVW	addr+0(FP), R1
-	// make unaligned atomic access panic
-	AND.S	$7, R1, R2
-	BEQ 	3(PC)
-	MOVW.W	R14, -4(R13) // prepare a real frame
-	BL	·panicUnaligned(SB)
+	CHECK_ALIGN
 
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
@@ -279,11 +277,7 @@ TEXT ·Xchg64(SB),NOSPLIT,$-4-20
 TEXT ·Load64(SB),NOSPLIT,$-4-12
 	NO_LOCAL_POINTERS
 	MOVW	addr+0(FP), R1
-	// make unaligned atomic access panic
-	AND.S	$7, R1, R2
-	BEQ 	3(PC)
-	MOVW.W	R14, -4(R13) // prepare a real frame
-	BL	·panicUnaligned(SB)
+	CHECK_ALIGN
 
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11
@@ -294,11 +288,7 @@ TEXT ·Load64(SB),NOSPLIT,$-4-12
 TEXT ·Store64(SB),NOSPLIT,$-4-12
 	NO_LOCAL_POINTERS
 	MOVW	addr+0(FP), R1
-	// make unaligned atomic access panic
-	AND.S	$7, R1, R2
-	BEQ 	3(PC)
-	MOVW.W	R14, -4(R13) // prepare a real frame
-	BL	·panicUnaligned(SB)
+	CHECK_ALIGN
 
 	MOVB	runtime·goarm(SB), R11
 	CMP	$7, R11

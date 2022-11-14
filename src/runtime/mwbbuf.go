@@ -116,11 +116,11 @@ func (b *wbBuf) empty() bool {
 // putFast adds old and new to the write barrier buffer and returns
 // false if a flush is necessary. Callers should use this as:
 //
-//     buf := &getg().m.p.ptr().wbBuf
-//     if !buf.putFast(old, new) {
-//         wbBufFlush(...)
-//     }
-//     ... actual memory write ...
+//	buf := &getg().m.p.ptr().wbBuf
+//	if !buf.putFast(old, new) {
+//	    wbBufFlush(...)
+//	}
+//	... actual memory write ...
 //
 // The arguments to wbBufFlush depend on whether the caller is doing
 // its own cgo pointer checks. If it is, then this can be
@@ -212,22 +212,22 @@ func wbBufFlush(dst *uintptr, src uintptr) {
 //
 //go:nowritebarrierrec
 //go:systemstack
-func wbBufFlush1(_p_ *p) {
+func wbBufFlush1(pp *p) {
 	// Get the buffered pointers.
-	start := uintptr(unsafe.Pointer(&_p_.wbBuf.buf[0]))
-	n := (_p_.wbBuf.next - start) / unsafe.Sizeof(_p_.wbBuf.buf[0])
-	ptrs := _p_.wbBuf.buf[:n]
+	start := uintptr(unsafe.Pointer(&pp.wbBuf.buf[0]))
+	n := (pp.wbBuf.next - start) / unsafe.Sizeof(pp.wbBuf.buf[0])
+	ptrs := pp.wbBuf.buf[:n]
 
 	// Poison the buffer to make extra sure nothing is enqueued
 	// while we're processing the buffer.
-	_p_.wbBuf.next = 0
+	pp.wbBuf.next = 0
 
 	if useCheckmark {
 		// Slow path for checkmark mode.
 		for _, ptr := range ptrs {
 			shade(ptr)
 		}
-		_p_.wbBuf.reset()
+		pp.wbBuf.reset()
 		return
 	}
 
@@ -245,7 +245,7 @@ func wbBufFlush1(_p_ *p) {
 	// could track whether any un-shaded goroutine has used the
 	// buffer, or just track globally whether there are any
 	// un-shaded stacks and flush after each stack scan.
-	gcw := &_p_.gcw
+	gcw := &pp.gcw
 	pos := 0
 	for _, ptr := range ptrs {
 		if ptr < minLegalPointer {
@@ -286,5 +286,5 @@ func wbBufFlush1(_p_ *p) {
 	// Enqueue the greyed objects.
 	gcw.putBatch(ptrs[:pos])
 
-	_p_.wbBuf.reset()
+	pp.wbBuf.reset()
 }

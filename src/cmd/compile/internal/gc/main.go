@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/coverage"
 	"cmd/compile/internal/deadcode"
 	"cmd/compile/internal/devirtualize"
 	"cmd/compile/internal/dwarfgen"
@@ -16,6 +17,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/noder"
+	"cmd/compile/internal/pgo"
 	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
@@ -32,21 +34,20 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"sort"
 )
 
-func hidePanic() {
-	if base.Debug.Panic == 0 && base.Errors() > 0 {
-		// If we've already complained about things
-		// in the program, don't bother complaining
-		// about a panic too; let the user clean up
-		// the code and try again.
-		if err := recover(); err != nil {
-			if err == "-h" {
-				panic(err)
-			}
-			base.ErrorExit()
+// handlePanic ensures that we print out an "internal compiler error" for any panic
+// or runtime exception during front-end compiler processing (unless there have
+// already been some compiler errors). It may also be invoked from the explicit panic in
+// hcrash(), in which case, we pass the panic on through.
+func handlePanic() {
+	if err := recover(); err != nil {
+		if err == "-h" {
+			// Force real panic now with -h option (hcrash) - the error
+			// information will have already been printed.
+			panic(err)
 		}
+		base.Fatalf("panic: %v", err)
 	}
 }
 
@@ -56,7 +57,7 @@ func hidePanic() {
 func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "init")
 
-	defer hidePanic()
+	defer handlePanic()
 
 	archInit(&ssagen.Arch)
 
@@ -71,20 +72,23 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// See bugs 31188 and 21945 (CLs 170638, 98075, 72371).
 	base.Ctxt.UseBASEntries = base.Ctxt.Headtype != objabi.Hdarwin
 
-	types.LocalPkg = types.NewPkg("", "")
-	types.LocalPkg.Prefix = "\"\""
+	base.DebugSSA = ssa.PhaseOption
+	base.ParseFlags()
 
-	// We won't know localpkg's height until after import
-	// processing. In the mean time, set to MaxPkgHeight to ensure
-	// height comparisons at least work until then.
-	types.LocalPkg.Height = types.MaxPkgHeight
+	if os.Getenv("GOGC") == "" { // GOGC set disables starting heap adjustment
+		// More processors will use more heap, but assume that more memory is available.
+		// So 1 processor -> 40MB, 4 -> 64MB, 12 -> 128MB
+		base.AdjustStartingHeap(uint64(32+8*base.Flag.LowerC) << 20)
+	}
+
+	types.LocalPkg = types.NewPkg(base.Ctxt.Pkgpath, "")
 
 	// pseudo-package, for scoping
 	types.BuiltinPkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
-	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
+	types.BuiltinPkg.Prefix = "go:builtin"
 
 	// pseudo-package, accessed by import "unsafe"
-	ir.Pkgs.Unsafe = types.NewPkg("unsafe", "unsafe")
+	types.UnsafePkg = types.NewPkg("unsafe", "unsafe")
 
 	// Pseudo-package that contains the compiler's builtin
 	// declarations for package runtime. These are declared in a
@@ -96,18 +100,19 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	// pseudo-packages used in symbol tables
 	ir.Pkgs.Itab = types.NewPkg("go.itab", "go.itab")
-	ir.Pkgs.Itab.Prefix = "go.itab" // not go%2eitab
+	ir.Pkgs.Itab.Prefix = "go:itab"
 
 	// pseudo-package used for methods with anonymous receivers
 	ir.Pkgs.Go = types.NewPkg("go", "")
 
-	base.DebugSSA = ssa.PhaseOption
-	base.ParseFlags()
+	// pseudo-package for use with code coverage instrumentation.
+	ir.Pkgs.Coverage = types.NewPkg("go.coverage", "runtime/coverage")
+	ir.Pkgs.Coverage.Prefix = "runtime/coverage"
 
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarf", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
+	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "asan", "shared", "dynlink", "dwarf", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
 
 	if !base.EnableTrace && base.Flag.LowerT {
 		log.Fatalf("compiler not built with support for -t")
@@ -141,7 +146,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	types.ParseLangFlag()
 
-	symABIs := ssagen.NewSymABIs(base.Ctxt.Pkgpath)
+	symABIs := ssagen.NewSymABIs()
 	if base.Flag.SymABIs != "" {
 		symABIs.ReadSymABIs(base.Flag.SymABIs)
 	}
@@ -149,11 +154,12 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	if base.Compiling(base.NoInstrumentPkgs) {
 		base.Flag.Race = false
 		base.Flag.MSan = false
+		base.Flag.ASan = false
 	}
 
 	ssagen.Arch.LinkArch.Init(base.Ctxt)
 	startProfile()
-	if base.Flag.Race || base.Flag.MSan {
+	if base.Flag.Race || base.Flag.MSan || base.Flag.ASan {
 		base.Flag.Cfg.Instrumenting = true
 	}
 	if base.Flag.Dwarf {
@@ -189,29 +195,40 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Parse and typecheck input.
 	noder.LoadPackage(flag.Args())
 
+	// As a convenience to users (toolchain maintainers, in particular),
+	// when compiling a package named "main", we default the package
+	// path to "main" if the -p flag was not specified.
+	if base.Ctxt.Pkgpath == obj.UnlinkablePkg && types.LocalPkg.Name == "main" {
+		base.Ctxt.Pkgpath = "main"
+		types.LocalPkg.Path = "main"
+		types.LocalPkg.Prefix = "main"
+	}
+
 	dwarfgen.RecordPackageName()
 
 	// Prepare for backend processing. This must happen before pkginit,
 	// because it generates itabs for initializing global variables.
 	ssagen.InitConfig()
 
-	// Build init task.
-	if initTask := pkginit.Task(); initTask != nil {
-		typecheck.Export(initTask)
+	// First part of coverage fixup (if applicable).
+	var cnames coverage.Names
+	if base.Flag.Cfg.CoverageInfo != nil {
+		cnames = coverage.FixupVars()
 	}
 
-	// Stability quirk: sort top-level declarations, so we're not
-	// sensitive to the order that functions are added. In particular,
-	// the order that noder+typecheck add function closures is very
-	// subtle, and not important to reproduce.
+	// Create "init" function for package-scope variable initialization
+	// statements, if any.
 	//
-	// Note: This needs to happen after pkginit.Task, otherwise it risks
-	// changing the order in which top-level variables are initialized.
-	if base.Debug.UnifiedQuirks != 0 {
-		s := typecheck.Target.Decls
-		sort.SliceStable(s, func(i, j int) bool {
-			return s[i].Pos().Before(s[j].Pos())
-		})
+	// Note: This needs to happen early, before any optimizations. The
+	// Go spec defines a precise order than initialization should be
+	// carried out in, and even mundane optimizations like dead code
+	// removal can skew the results (e.g., #43444).
+	pkginit.MakeInit()
+
+	// Second part of code coverage fixup (init func modification),
+	// if applicable.
+	if base.Flag.Cfg.CoverageInfo != nil {
+		coverage.FixupInit(cnames)
 	}
 
 	// Eliminate some obviously dead code.
@@ -239,11 +256,19 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		typecheck.AllImportedBodies()
 	}
 
+	// Read profile file and build profile-graph and weighted-call-graph.
+	base.Timer.Start("fe", "pgoprofile")
+	var profile *pgo.Profile
+	if base.Flag.PgoProfile != "" {
+		profile = pgo.New(base.Flag.PgoProfile)
+	}
+
 	// Inlining
 	base.Timer.Start("fe", "inlining")
 	if base.Flag.LowerL != 0 {
-		inline.InlinePackage()
+		inline.InlinePackage(profile)
 	}
+	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 
 	// Devirtualize.
 	for _, n := range typecheck.Target.Decls {
@@ -252,6 +277,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 	}
 	ir.CurFunc = nil
+
+	// Build init task, if needed.
+	if initTask := pkginit.Task(); initTask != nil {
+		typecheck.Export(initTask)
+	}
 
 	// Generate ABI wrappers. Must happen before escape analysis
 	// and doesn't benefit from dead-coding or inlining.

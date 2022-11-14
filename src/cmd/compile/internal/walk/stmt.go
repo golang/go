@@ -10,7 +10,8 @@ import (
 )
 
 // The result of walkStmt MUST be assigned back to n, e.g.
-// 	n.Left = walkStmt(n.Left)
+//
+//	n.Left = walkStmt(n.Left)
 func walkStmt(n ir.Node) ir.Node {
 	if n == nil {
 		return n
@@ -84,13 +85,11 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OFALL,
 		ir.OGOTO,
 		ir.OLABEL,
+		ir.OJUMPTABLE,
 		ir.ODCL,
 		ir.ODCLCONST,
 		ir.ODCLTYPE,
-		ir.OCHECKNIL,
-		ir.OVARDEF,
-		ir.OVARKILL,
-		ir.OVARLIVE:
+		ir.OCHECKNIL:
 		return n
 
 	case ir.OBLOCK:
@@ -122,7 +121,7 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.GoDeferStmt)
 		return walkGoDefer(n)
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OFOR:
 		n := n.(*ir.ForStmt)
 		return walkFor(n)
 
@@ -136,6 +135,14 @@ func walkStmt(n ir.Node) ir.Node {
 
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
+
+		var init ir.Nodes
+		n.Call.X = walkExpr(n.Call.X, &init)
+
+		if len(init) > 0 {
+			init.Append(n)
+			return ir.NewBlockStmt(n.Pos(), init)
+		}
 		return n
 
 	case ir.OINLMARK:
@@ -168,7 +175,7 @@ func walkStmtList(s []ir.Node) {
 	}
 }
 
-// walkFor walks an OFOR or OFORUNTIL node.
+// walkFor walks an OFOR node.
 func walkFor(n *ir.ForStmt) ir.Node {
 	if n.Cond != nil {
 		init := ir.TakeInit(n.Cond)
@@ -178,9 +185,6 @@ func walkFor(n *ir.ForStmt) ir.Node {
 	}
 
 	n.Post = walkStmt(n.Post)
-	if n.Op() == ir.OFORUNTIL {
-		walkStmtList(n.Late)
-	}
 	walkStmtList(n.Body)
 	return n
 }

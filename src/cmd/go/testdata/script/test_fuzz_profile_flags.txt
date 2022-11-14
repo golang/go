@@ -1,0 +1,38 @@
+[!fuzz] skip
+
+! go test -fuzz=FuzzTrivial -coverprofile=prof
+! stdout .
+stderr '^cannot use -coverprofile flag with -fuzz flag$'
+
+! go test -fuzz=FuzzTrivial -blockprofile=prof
+! stdout .
+stderr '^cannot use -blockprofile flag with -fuzz flag$'
+
+! go test -fuzz=FuzzTrivial -cpuprofile=prof
+! stdout .
+stderr '^cannot use -cpuprofile flag with -fuzz flag$'
+
+! go test -fuzz=FuzzTrivial -memprofile=prof
+! stdout .
+stderr '^cannot use -memprofile flag with -fuzz flag$'
+
+! go test -fuzz=FuzzTrivial -mutexprofile=prof
+! stdout .
+stderr '^cannot use -mutexprofile flag with -fuzz flag$'
+
+! go test -fuzz=FuzzTrivial -trace=prof
+! stdout .
+stderr '^cannot use -trace flag with -fuzz flag$'
+
+-- go.mod --
+module example
+
+go 1.18
+-- fuzz_test.go --
+package example
+
+import "testing"
+
+func FuzzTrivial(f *testing.F) {
+	f.Fuzz(func(t *testing.T, _ []byte) {})
+}

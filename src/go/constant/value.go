@@ -9,7 +9,6 @@
 // is unknown due to an error. Operations on unknown
 // values produce unknown values unless specified
 // otherwise.
-//
 package constant
 
 import (
@@ -70,9 +69,9 @@ type Value interface {
 const prec = 512
 
 // TODO(gri) Consider storing "error" information in an unknownVal so clients
-//           can provide better error messages. For instance, if a number is
-//           too large (incl. infinity), that could be recorded in unknownVal.
-//           See also #20583 and #42695 for use cases.
+// can provide better error messages. For instance, if a number is
+// too large (incl. infinity), that could be recorded in unknownVal.
+// See also #20583 and #42695 for use cases.
 
 // Representation of values:
 //
@@ -201,7 +200,13 @@ func (x floatVal) String() string {
 	// Use exact fmt formatting if in float64 range (common case):
 	// proceed if f doesn't underflow to 0 or overflow to inf.
 	if x, _ := f.Float64(); f.Sign() == 0 == (x == 0) && !math.IsInf(x, 0) {
-		return fmt.Sprintf("%.6g", x)
+		s := fmt.Sprintf("%.6g", x)
+		if !f.IsInt() && strings.IndexByte(s, '.') < 0 {
+			// f is not an integer, but its string representation
+			// doesn't reflect that. Use more digits. See issue 56220.
+			s = fmt.Sprintf("%g", x)
+		}
+		return s
 	}
 
 	// Out of float64 range. Do approximate manual to decimal
@@ -381,7 +386,14 @@ func MakeUnknown() Value { return unknownVal{} }
 func MakeBool(b bool) Value { return boolVal(b) }
 
 // MakeString returns the String value for s.
-func MakeString(s string) Value { return &stringVal{s: s} }
+func MakeString(s string) Value {
+	if s == "" {
+		return &emptyString // common case
+	}
+	return &stringVal{s: s}
+}
+
+var emptyString stringVal
 
 // MakeInt64 returns the Int value for x.
 func MakeInt64(x int64) Value { return int64Val(x) }
@@ -571,15 +583,14 @@ func Float64Val(x Value) (float64, bool) {
 // interface, it is up to the caller to type assert the result to the expected
 // type. The possible dynamic return types are:
 //
-//    x Kind             type of result
-//    -----------------------------------------
-//    Bool               bool
-//    String             string
-//    Int                int64 or *big.Int
-//    Float              *big.Float or *big.Rat
-//    everything else    nil
-//
-func Val(x Value) interface{} {
+//	x Kind             type of result
+//	-----------------------------------------
+//	Bool               bool
+//	String             string
+//	Int                int64 or *big.Int
+//	Float              *big.Float or *big.Rat
+//	everything else    nil
+func Val(x Value) any {
 	switch x := x.(type) {
 	case boolVal:
 		return bool(x)
@@ -600,17 +611,16 @@ func Val(x Value) interface{} {
 
 // Make returns the Value for x.
 //
-//    type of x        result Kind
-//    ----------------------------
-//    bool             Bool
-//    string           String
-//    int64            Int
-//    *big.Int         Int
-//    *big.Float       Float
-//    *big.Rat         Float
-//    anything else    Unknown
-//
-func Make(x interface{}) Value {
+//	type of x        result Kind
+//	----------------------------
+//	bool             Bool
+//	string           String
+//	int64            Int
+//	*big.Int         Int
+//	*big.Float       Float
+//	*big.Rat         Float
+//	anything else    Unknown
+func Make(x any) Value {
 	switch x := x.(type) {
 	case bool:
 		return boolVal(x)
@@ -945,7 +955,6 @@ func is63bit(x int64) bool {
 // The operation must be defined for the operand.
 // If prec > 0 it specifies the ^ (xor) result size in bits.
 // If y is Unknown, the result is Unknown.
-//
 func UnaryOp(op token.Token, y Value, prec uint) Value {
 	switch op {
 	case token.ADD:
@@ -1035,7 +1044,6 @@ func ord(x Value) int {
 // smallest complexity for two values x and y. If one of them is
 // numeric, both of them must be numeric. If one of them is Unknown
 // or invalid (say, nil) both results are that value.
-//
 func match(x, y Value) (_, _ Value) {
 	switch ox, oy := ord(x), ord(y); {
 	case ox < oy:
@@ -1092,7 +1100,6 @@ func match0(x, y Value) (_, _ Value) {
 // To force integer division of Int operands, use op == token.QUO_ASSIGN
 // instead of token.QUO; the result is guaranteed to be Int in this case.
 // Division by zero leads to a run-time panic.
-//
 func BinaryOp(x_ Value, op token.Token, y_ Value) Value {
 	x, y := match(x_, y_)
 
@@ -1272,7 +1279,6 @@ func quo(x, y Value) Value { return BinaryOp(x, token.QUO, y) }
 // Shift returns the result of the shift expression x op s
 // with op == token.SHL or token.SHR (<< or >>). x must be
 // an Int or an Unknown. If x is Unknown, the result is x.
-//
 func Shift(x Value, op token.Token, s uint) Value {
 	switch x := x.(type) {
 	case unknownVal:
@@ -1328,7 +1334,6 @@ func cmpZero(x int, op token.Token) bool {
 // The comparison must be defined for the operands.
 // If one of the operands is Unknown, the result is
 // false.
-//
 func Compare(x_ Value, op token.Token, y_ Value) bool {
 	x, y := match(x_, y_)
 

@@ -91,6 +91,11 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 				continue
 			}
 			apdecls = append(apdecls, n)
+			if n.Type().Kind() == types.TSSA {
+				// Can happen for TypeInt128 types. This only happens for
+				// spill locations, so not a huge deal.
+				continue
+			}
 			fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
 		}
 	}
@@ -102,7 +107,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 	// the function symbol to insure that the type included in DWARF
 	// processing during linking.
 	typesyms := []*obj.LSym{}
-	for t, _ := range fnsym.Func().Autot {
+	for t := range fnsym.Func().Autot {
 		typesyms = append(typesyms, t)
 	}
 	sort.Sort(obj.BySymName(typesyms))
@@ -146,10 +151,38 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	} else {
 		decls, vars, selected = createSimpleVars(fnsym, apDecls)
 	}
+	if fn.DebugInfo != nil {
+		// Recover zero sized variables eliminated by the stackframe pass
+		for _, n := range fn.DebugInfo.(*ssa.FuncDebug).OptDcl {
+			if n.Class != ir.PAUTO {
+				continue
+			}
+			types.CalcSize(n.Type())
+			if n.Type().Size() == 0 {
+				decls = append(decls, n)
+				vars = append(vars, createSimpleVar(fnsym, n))
+				vars[len(vars)-1].StackOffset = 0
+				fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
+			}
+		}
+	}
 
 	dcl := apDecls
 	if fnsym.WasInlined() {
 		dcl = preInliningDcls(fnsym)
+	} else {
+		// The backend's stackframe pass prunes away entries from the
+		// fn's Dcl list, including PARAMOUT nodes that correspond to
+		// output params passed in registers. Add back in these
+		// entries here so that we can process them properly during
+		// DWARF-gen. See issue 48573 for more details.
+		debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
+		for _, n := range debugInfo.RegOutputParams {
+			if n.Class != ir.PPARAMOUT || !n.IsOutputParamInRegisters() {
+				panic("invalid ir.Name on debugInfo.RegOutputParams list")
+			}
+			dcl = append(dcl, n)
+		}
 	}
 
 	// If optimization is enabled, the list above will typically be
@@ -214,9 +247,10 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			Type:          base.Ctxt.Lookup(typename),
 			DeclFile:      declpos.RelFilename(),
 			DeclLine:      declpos.RelLine(),
-			DeclCol:       declpos.Col(),
+			DeclCol:       declpos.RelCol(),
 			InlIndex:      int32(inlIndex),
 			ChildIndex:    -1,
+			DictIndex:     n.DictIndex,
 		})
 		// Record go type of to insure that it gets emitted by the linker.
 		fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
@@ -325,7 +359,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 
 	localAutoOffset := func() int64 {
 		offs = n.FrameOffset()
-		if base.Ctxt.FixedFrameSize() == 0 {
+		if base.Ctxt.Arch.FixedFrameSize == 0 {
 			offs -= int64(types.PtrSize)
 		}
 		if buildcfg.FramePointerEnabled {
@@ -343,7 +377,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		if n.IsOutputParamInRegisters() {
 			offs = localAutoOffset()
 		} else {
-			offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+			offs = n.FrameOffset() + base.Ctxt.Arch.FixedFrameSize
 		}
 
 	default:
@@ -371,9 +405,10 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		Type:          base.Ctxt.Lookup(typename),
 		DeclFile:      declpos.RelFilename(),
 		DeclLine:      declpos.RelLine(),
-		DeclCol:       declpos.Col(),
+		DeclCol:       declpos.RelCol(),
 		InlIndex:      int32(inlIndex),
 		ChildIndex:    -1,
+		DictIndex:     n.DictIndex,
 	}
 }
 
@@ -451,7 +486,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 
 	gotype := reflectdata.TypeLinksym(n.Type())
 	delete(fnsym.Func().Autot, gotype)
-	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+	typename := dwarf.InfoPrefix + gotype.Name[len("type:"):]
 	inlIndex := 0
 	if base.Flag.GenDwarfInl > 1 {
 		if n.InlFormal() || n.InlLocal() {
@@ -475,9 +510,10 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 		StackOffset: ssagen.StackOffset(debug.Slots[debug.VarSlots[varID][0]]),
 		DeclFile:    declpos.RelFilename(),
 		DeclLine:    declpos.RelLine(),
-		DeclCol:     declpos.Col(),
+		DeclCol:     declpos.RelCol(),
 		InlIndex:    int32(inlIndex),
 		ChildIndex:  -1,
+		DictIndex:   n.DictIndex,
 	}
 	list := debug.LocationLists[varID]
 	if len(list) != 0 {
@@ -531,7 +567,7 @@ func RecordFlags(flags ...string) {
 		fmt.Fprintf(&cmd, " -%s=%v", f.Name, getter.Get())
 	}
 
-	// Adds flag to producer string singalling whether regabi is turned on or
+	// Adds flag to producer string signaling whether regabi is turned on or
 	// off.
 	// Once regabi is turned on across the board and the relative GOEXPERIMENT
 	// knobs no longer exist this code should be removed.

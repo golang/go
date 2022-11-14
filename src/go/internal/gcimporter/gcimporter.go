@@ -11,8 +11,11 @@ import (
 	"go/build"
 	"go/token"
 	"go/types"
+	"internal/goroot"
+	"internal/pkgbits"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -20,14 +23,31 @@ import (
 // debugging/development support
 const debug = false
 
-var pkgExts = [...]string{".a", ".o"}
+func lookupGorootExport(pkgpath, srcRoot, srcDir string) (string, bool) {
+	pkgpath = filepath.ToSlash(pkgpath)
+	m, err := goroot.PkgfileMap()
+	if err != nil {
+		return "", false
+	}
+	if export, ok := m[pkgpath]; ok {
+		return export, true
+	}
+	vendorPrefix := "vendor"
+	if strings.HasPrefix(srcDir, filepath.Join(srcRoot, "cmd")) {
+		vendorPrefix = path.Join("cmd", vendorPrefix)
+	}
+	pkgpath = path.Join(vendorPrefix, pkgpath)
+	export, ok := m[pkgpath]
+	return export, ok
+}
+
+var pkgExts = [...]string{".a", ".o"} // a file from the build cache will have no extension
 
 // FindPkg returns the filename and unique package id for an import
 // path based on package information provided by build.Import (using
 // the build.Default build.Context). A relative srcDir is interpreted
 // relative to the current working directory.
 // If no file was found, an empty filename is returned.
-//
 func FindPkg(path, srcDir string) (filename, id string) {
 	if path == "" {
 		return
@@ -43,10 +63,17 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		}
 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
 		if bp.PkgObj == "" {
-			id = path // make sure we have an id to print in error message
-			return
+			var ok bool
+			if bp.Goroot {
+				filename, ok = lookupGorootExport(path, bp.SrcRoot, srcDir)
+			}
+			if !ok {
+				id = path // make sure we have an id to print in error message
+				return
+			}
+		} else {
+			noext = strings.TrimSuffix(bp.PkgObj, ".a")
 		}
-		noext = strings.TrimSuffix(bp.PkgObj, ".a")
 		id = bp.ImportPath
 
 	case build.IsLocalImport(path):
@@ -68,6 +95,11 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		}
 	}
 
+	if filename != "" {
+		if f, err := os.Stat(filename); err == nil && !f.IsDir() {
+			return
+		}
+	}
 	// try extensions
 	for _, ext := range pkgExts {
 		filename = noext + ext
@@ -83,7 +115,6 @@ func FindPkg(path, srcDir string) (filename, id string) {
 // Import imports a gc-generated package given its import path and srcDir, adds
 // the corresponding package object to the packages map, and returns the object.
 // The packages map must contain all packages already imported.
-//
 func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types.Package, err error) {
 	var rc io.ReadCloser
 	var id string
@@ -134,9 +165,9 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 	}
 	defer rc.Close()
 
-	var hdr string
 	buf := bufio.NewReader(rc)
-	if hdr, err = FindExportData(buf); err != nil {
+	hdr, size, err := FindExportData(buf)
+	if err != nil {
 		return
 	}
 
@@ -146,14 +177,32 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 
 	case "$$B\n":
 		var exportFormat byte
-		exportFormat, err = buf.ReadByte()
+		if exportFormat, err = buf.ReadByte(); err != nil {
+			return
+		}
 
-		// The indexed export format starts with an 'i'; the older
-		// binary export format starts with a 'c', 'd', or 'v'
-		// (from "version"). Select appropriate importer.
-		if err == nil && exportFormat == 'i' {
+		// The unified export format starts with a 'u'; the indexed export
+		// format starts with an 'i'; and the older binary export format
+		// starts with a 'c', 'd', or 'v' (from "version"). Select
+		// appropriate importer.
+		switch exportFormat {
+		case 'u':
+			var data []byte
+			var r io.Reader = buf
+			if size >= 0 {
+				r = io.LimitReader(r, int64(size))
+			}
+			if data, err = io.ReadAll(r); err != nil {
+				return
+			}
+			s := string(data)
+			s = s[:strings.LastIndex(s, "\n$$\n")]
+
+			input := pkgbits.NewPkgDecoder(id, s)
+			pkg = readUnifiedPackage(fset, nil, packages, input)
+		case 'i':
 			pkg, err = iImportData(fset, packages, buf, id)
-		} else {
+		default:
 			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
 		}
 

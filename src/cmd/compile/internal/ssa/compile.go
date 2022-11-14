@@ -5,14 +5,15 @@
 package ssa
 
 import (
-	"bytes"
 	"cmd/internal/src"
 	"fmt"
 	"hash/crc32"
 	"internal/buildcfg"
+	"io"
 	"log"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
@@ -22,10 +23,10 @@ import (
 
 // Compile is the main entry point for this package.
 // Compile modifies f so that on return:
-//   · all Values in f map to 0 or 1 assembly instructions of the target architecture
-//   · the order of f.Blocks is the order to emit the Blocks
-//   · the order of b.Values is the order to emit the Values in each Block
-//   · f has a non-nil regAlloc field
+//   - all Values in f map to 0 or 1 assembly instructions of the target architecture
+//   - the order of f.Blocks is the order to emit the Blocks
+//   - the order of b.Values is the order to emit the Values in each Block
+//   - f has a non-nil regAlloc field
 func Compile(f *Func) {
 	// TODO: debugging - set flags to control verbosity of compiler,
 	// which phases to dump IR before/after, etc.
@@ -59,7 +60,7 @@ func Compile(f *Func) {
 		printFunc(f)
 	}
 	f.HTMLWriter.WritePhase("start", "start")
-	if BuildDump != "" && BuildDump == f.Name {
+	if BuildDump[f.Name] {
 		f.dumpFile("build")
 	}
 	if checkEnabled {
@@ -150,7 +151,7 @@ func Compile(f *Func) {
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		fmt.Fprintf(buf, "%s: ", f.Name)
 		for _, key := range keys {
 			fmt.Fprintf(buf, "%s=%d ", key, f.ruleMatches[key])
@@ -163,25 +164,37 @@ func Compile(f *Func) {
 	phaseName = ""
 }
 
-// dumpFile creates a file from the phase name and function name
-// Dumping is done to files to avoid buffering huge strings before
-// output.
-func (f *Func) dumpFile(phaseName string) {
+// DumpFileForPhase creates a file from the function name and phase name,
+// warning and returning nil if this is not possible.
+func (f *Func) DumpFileForPhase(phaseName string) io.WriteCloser {
 	f.dumpFileSeq++
 	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, int(f.dumpFileSeq), phaseName)
 	fname = strings.Replace(fname, " ", "_", -1)
 	fname = strings.Replace(fname, "/", "_", -1)
 	fname = strings.Replace(fname, ":", "_", -1)
 
+	if ssaDir := os.Getenv("GOSSADIR"); ssaDir != "" {
+		fname = filepath.Join(ssaDir, fname)
+	}
+
 	fi, err := os.Create(fname)
 	if err != nil {
 		f.Warnl(src.NoXPos, "Unable to create after-phase dump file %s", fname)
-		return
+		return nil
 	}
+	return fi
+}
 
-	p := stringFuncPrinter{w: fi}
-	fprintFunc(p, f)
-	fi.Close()
+// dumpFile creates a file from the phase name and function name
+// Dumping is done to files to avoid buffering huge strings before
+// output.
+func (f *Func) dumpFile(phaseName string) {
+	fi := f.DumpFileForPhase(phaseName)
+	if fi != nil {
+		p := stringFuncPrinter{w: fi}
+		fprintFunc(p, f)
+		fi.Close()
+	}
 }
 
 type pass struct {
@@ -224,7 +237,9 @@ var IntrinsicsDisable bool
 var BuildDebug int
 var BuildTest int
 var BuildStats int
-var BuildDump string // name of function to dump after initial build of ssa
+var BuildDump map[string]bool = make(map[string]bool) // names of functions to dump after initial build of ssa
+
+var GenssaDump map[string]bool = make(map[string]bool) // names of functions to dump after ssa has been converted to asm
 
 // PhaseOption sets the specified flag in the specified ssa phase,
 // returning empty string if this was successful or a string explaining
@@ -234,8 +249,8 @@ var BuildDump string // name of function to dump after initial build of ssa
 // version is used as a regular expression to match the phase name(s).
 //
 // Special cases that have turned out to be useful:
-//  ssa/check/on enables checking after each phase
-//  ssa/all/time enables time reporting for all phases
+//   - ssa/check/on enables checking after each phase
+//   - ssa/all/time enables time reporting for all phases
 //
 // See gc/lex.go for dissection of the option string.
 // Example uses:
@@ -243,12 +258,11 @@ var BuildDump string // name of function to dump after initial build of ssa
 // GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash
 //
 // BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
-//
 func PhaseOption(phase, flag string, val int, valString string) string {
 	switch phase {
 	case "", "help":
 		lastcr := 0
-		phasenames := "    check, all, build, intrinsics"
+		phasenames := "    check, all, build, intrinsics, genssa"
 		for _, p := range passes {
 			pn := strings.Replace(p.name, " ", "_", -1)
 			if len(pn)+len(phasenames)-lastcr > 70 {
@@ -278,6 +292,7 @@ where:
 
 Phase "all" supports flags "time", "mem", and "dump".
 Phase "intrinsics" supports flags "on", "off", and "debug".
+Phase "genssa" (assembly generation) supports the flag "dump".
 
 If the "dump" flag is specified, the output is written on a file named
 <phase>__<function_name>_<seq>.dump; otherwise it is directed to stdout.
@@ -339,10 +354,11 @@ commas. For example:
 		case "dump":
 			alldump = val != 0
 			if alldump {
-				BuildDump = valString
+				BuildDump[valString] = true
+				GenssaDump[valString] = true
 			}
 		default:
-			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/all/{time,mem,dump=function_name})", flag, phase)
 		}
 	}
 
@@ -355,7 +371,7 @@ commas. For example:
 		case "debug":
 			IntrinsicsDebug = val
 		default:
-			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/intrinsics/{on,off,debug})", flag, phase)
 		}
 		return ""
 	}
@@ -368,9 +384,18 @@ commas. For example:
 		case "stats":
 			BuildStats = val
 		case "dump":
-			BuildDump = valString
+			BuildDump[valString] = true
 		default:
-			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/build/{debug,test,stats,dump=function_name})", flag, phase)
+		}
+		return ""
+	}
+	if phase == "genssa" {
+		switch flag {
+		case "dump":
+			GenssaDump[valString] = true
+		default:
+			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/genssa/dump=function_name)", flag, phase)
 		}
 		return ""
 	}
@@ -462,6 +487,7 @@ var passes = [...]pass{
 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
 	{name: "lower", fn: lower, required: true},
 	{name: "addressing modes", fn: addressingModes, required: false},
+	{name: "late lower", fn: lateLower, required: true},
 	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
 	{name: "lowered cse", fn: cse},
 	{name: "elim unread autos", fn: elimUnreadAutos},
@@ -534,9 +560,14 @@ var passOrder = [...]constraint{
 	{"critical", "regalloc"},
 	// regalloc requires all the values in a block to be scheduled
 	{"schedule", "regalloc"},
+	// the rules in late lower run after the general rules.
+	{"lower", "late lower"},
+	// late lower may generate some values that need to be CSEed.
+	{"late lower", "lowered cse"},
 	// checkLower must run after lowering & subsequent dead code elim
 	{"lower", "checkLower"},
 	{"lowered deadcode", "checkLower"},
+	{"late lower", "checkLower"},
 	// late nilcheck needs instructions to be scheduled.
 	{"schedule", "late nilcheck"},
 	// flagalloc needs instructions to be scheduled.

@@ -40,7 +40,7 @@ type encBuffer struct {
 }
 
 var encBufferPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		e := new(encBuffer)
 		e.data = e.scratch[0:0]
 		return e
@@ -279,7 +279,7 @@ func valid(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Invalid:
 		return false
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return !v.IsNil()
 	}
 	return true
@@ -368,11 +368,11 @@ func (enc *Encoder) encodeMap(b *encBuffer, mv reflect.Value, keyOp, elemOp encO
 	state := enc.newEncoderState(b)
 	state.fieldnum = -1
 	state.sendZero = true
-	keys := mv.MapKeys()
-	state.encodeUint(uint64(len(keys)))
-	for _, key := range keys {
-		encodeReflectValue(state, key, keyOp, keyIndir)
-		encodeReflectValue(state, mv.MapIndex(key), elemOp, elemIndir)
+	state.encodeUint(uint64(mv.Len()))
+	mi := mv.MapRange()
+	for mi.Next() {
+		encodeReflectValue(state, mi.Key(), keyOp, keyIndir)
+		encodeReflectValue(state, mi.Value(), elemOp, elemIndir)
 	}
 	enc.freeEncoderState(state)
 }
@@ -386,7 +386,7 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	// Gobs can encode nil interface values but not typed interface
 	// values holding nil pointers, since nil pointers point to no value.
 	elem := iv.Elem()
-	if elem.Kind() == reflect.Ptr && elem.IsNil() {
+	if elem.Kind() == reflect.Pointer && elem.IsNil() {
 		errorf("gob: cannot encode nil pointer of type %s inside interface", iv.Elem().Type())
 	}
 	state := enc.newEncoderState(b)
@@ -446,7 +446,7 @@ func isZero(val reflect.Value) bool {
 		return !val.Bool()
 	case reflect.Complex64, reflect.Complex128:
 		return val.Complex() == 0
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Ptr:
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Pointer:
 		return val.IsNil()
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return val.Int() == 0
@@ -577,7 +577,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 			op = func(i *encInstr, state *encoderState, sv reflect.Value) {
 				state.update(i)
 				// indirect through info to delay evaluation for recursive structs
-				enc := info.encoder.Load().(*encEngine)
+				enc := info.encoder.Load()
 				state.enc.encodeStruct(state.b, enc, sv)
 			}
 		case reflect.Interface:
@@ -600,7 +600,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 func gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 	rt := ut.user
 	if ut.encIndir == -1 {
-		rt = reflect.PtrTo(rt)
+		rt = reflect.PointerTo(rt)
 	} else if ut.encIndir > 0 {
 		for i := int8(0); i < ut.encIndir; i++ {
 			rt = rt.Elem()
@@ -661,8 +661,8 @@ func getEncEngine(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
 	if err != nil {
 		error_(err)
 	}
-	enc, ok := info.encoder.Load().(*encEngine)
-	if !ok {
+	enc := info.encoder.Load()
+	if enc == nil {
 		enc = buildEncEngine(info, ut, building)
 	}
 	return enc
@@ -675,8 +675,8 @@ func buildEncEngine(info *typeInfo, ut *userTypeInfo, building map[*typeInfo]boo
 	}
 	info.encInit.Lock()
 	defer info.encInit.Unlock()
-	enc, ok := info.encoder.Load().(*encEngine)
-	if !ok {
+	enc := info.encoder.Load()
+	if enc == nil {
 		if building == nil {
 			building = make(map[*typeInfo]bool)
 		}

@@ -29,6 +29,7 @@ import (
 )
 
 // registerLoadFromEmbeddedTZData is defined in package time.
+//
 //go:linkname registerLoadFromEmbeddedTZData time.registerLoadFromEmbeddedTZData
 func registerLoadFromEmbeddedTZData(func(string) (string, error))
 

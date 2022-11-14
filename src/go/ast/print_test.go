@@ -5,13 +5,12 @@
 package ast
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 )
 
 var tests = []struct {
-	x interface{} // x is printed as s
+	x any // x is printed as s
 	s string
 }{
 	// basic types
@@ -84,7 +83,7 @@ func trim(s string) string {
 }
 
 func TestPrint(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for _, test := range tests {
 		buf.Reset()
 		if err := Fprint(&buf, nil, test.x, nil); err != nil {

@@ -73,6 +73,7 @@ var b int
 
 // testDeadStorePanic_ssa ensures that we don't optimize away stores
 // that could be read by after recover().  Modeled after fixedbugs/issue1304.
+//
 //go:noinline
 func testDeadStorePanic_ssa(a int) (r int) {
 	defer func() {

@@ -88,7 +88,7 @@ func TypeLinks() []string {
 
 var GCBits = gcbits
 
-func gcbits(interface{}) []byte // provided by runtime
+func gcbits(any) []byte // provided by runtime
 
 func MapBucketOf(x, y Type) Type {
 	return bucketOf(x.(*rtype), y.(*rtype))
@@ -140,7 +140,7 @@ func IsExported(t Type) bool {
 }
 
 func ResolveReflectName(s string) {
-	resolveReflectName(newName(s, "", false))
+	resolveReflectName(newName(s, "", false, false))
 }
 
 type Buffer struct {
@@ -161,3 +161,5 @@ func SetArgRegs(ints, floats int, floatSize uintptr) (oldInts, oldFloats int, ol
 	clearLayoutCache()
 	return
 }
+
+var MethodValueCallCodePtr = methodValueCallCodePtr

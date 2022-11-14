@@ -5,10 +5,11 @@
 package ld
 
 import (
+	"bytes"
 	"debug/pe"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -106,7 +107,7 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
 
 	srcfile := filepath.Join(dir, "test.go")
 	arfile := filepath.Join(dir, "test.a")
-	if err := ioutil.WriteFile(srcfile, []byte(carchiveSrcText), 0666); err != nil {
+	if err := os.WriteFile(srcfile, []byte(carchiveSrcText), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -154,13 +155,22 @@ func TestLargeTextSectionSplitting(t *testing.T) {
 	// is arbitrary; we just need something sufficiently large that uses
 	// external linking.
 	exe := filepath.Join(dir, "go.exe")
-	out, eerr := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "-ldflags=-linkmode=external -debugtextsize=1048576", "cmd/go").CombinedOutput()
-	if eerr != nil {
-		t.Fatalf("build failure: %s\n%s\n", eerr, string(out))
+	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "-ldflags=-linkmode=external -debugtextsize=1048576", "cmd/go").CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failure: %s\n%s\n", err, string(out))
+	}
+
+	// Check that we did split text sections.
+	out, err = exec.Command(testenv.GoToolPath(t), "tool", "nm", exe).CombinedOutput()
+	if err != nil {
+		t.Fatalf("nm failure: %s\n%s\n", err, string(out))
+	}
+	if !bytes.Contains(out, []byte("runtime.text.1")) {
+		t.Errorf("runtime.text.1 not found, text section not split?")
 	}
 
 	// Result should be runnable.
-	_, err := exec.Command(exe, "version").CombinedOutput()
+	_, err = exec.Command(exe, "version").CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +202,7 @@ func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
 
 	srcfile := filepath.Join(dir, "test.go")
 	objfile := filepath.Join(dir, "test.dll")
-	if err := ioutil.WriteFile(srcfile, []byte(`package main; func main() { print("hello") }`), 0666); err != nil {
+	if err := os.WriteFile(srcfile, []byte(`package main; func main() { print("hello") }`), 0666); err != nil {
 		t.Fatal(err)
 	}
 	argv := []string{"build", "-buildmode=c-shared"}
@@ -317,7 +327,7 @@ func main() {
 			t.Parallel()
 			tempDir := t.TempDir()
 			src := filepath.Join(tempDir, "x.go")
-			if err := ioutil.WriteFile(src, []byte(tt.prog), 0644); err != nil {
+			if err := os.WriteFile(src, []byte(tt.prog), 0644); err != nil {
 				t.Fatal(err)
 			}
 			cmd := exec.Command(testenv.GoToolPath(t), "run", src)

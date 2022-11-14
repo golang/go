@@ -1,0 +1,55 @@
+# Test that syso in deps is available to cgo.
+
+[!compiler:gc] skip 'requires syso support'
+[!cgo] skip
+[short] skip 'invokes system C compiler'
+
+# External linking is not supported on linux/ppc64.
+# See: https://github.com/golang/go/issues/8912
+[GOOS:linux] [GOARCH:ppc64] skip
+
+cc -c -o syso/x.syso syso/x.c
+cc -c -o syso2/x.syso syso2/x.c
+go build m/cgo
+
+-- go.mod --
+module m
+
+go 1.18
+-- cgo/x.go --
+package cgo
+
+// extern void f(void);
+// extern void g(void);
+import "C"
+
+func F() {
+	C.f()
+}
+
+func G() {
+	C.g()
+}
+
+-- cgo/x2.go --
+package cgo
+
+import _ "m/syso"
+
+-- syso/x.c --
+//go:build ignore
+
+void f() {}
+
+-- syso/x.go --
+package syso
+
+import _ "m/syso2"
+
+-- syso2/x.c --
+//go:build ignore
+
+void g() {}
+
+-- syso2/x.go --
+package syso2

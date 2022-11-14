@@ -35,12 +35,6 @@ func equal(p, q *FileSet) error {
 
 	for i, f := range p.files {
 		g := q.files[i]
-		if f.set != p {
-			return fmt.Errorf("wrong fileset for %q", f.name)
-		}
-		if g.set != q {
-			return fmt.Errorf("wrong fileset for %q", g.name)
-		}
 		if f.name != g.name {
 			return fmt.Errorf("different filenames: %q != %q", f.name, g.name)
 		}
@@ -70,7 +64,7 @@ func equal(p, q *FileSet) error {
 
 func checkSerialize(t *testing.T, p *FileSet) {
 	var buf bytes.Buffer
-	encode := func(x interface{}) error {
+	encode := func(x any) error {
 		return gob.NewEncoder(&buf).Encode(x)
 	}
 	if err := p.Write(encode); err != nil {
@@ -78,7 +72,7 @@ func checkSerialize(t *testing.T, p *FileSet) {
 		return
 	}
 	q := NewFileSet()
-	decode := func(x interface{}) error {
+	decode := func(x any) error {
 		return gob.NewDecoder(&buf).Decode(x)
 	}
 	if err := q.Read(decode); err != nil {

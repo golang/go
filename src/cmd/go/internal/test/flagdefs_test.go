@@ -5,10 +5,18 @@
 package test
 
 import (
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/test/internal/genflags"
 	"flag"
+	"internal/testenv"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	cfg.SetGOROOT(testenv.GOROOT(nil), false)
+}
 
 func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
 	flag.VisitAll(func(f *flag.Flag) {
@@ -17,7 +25,8 @@ func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
 		}
 		name := strings.TrimPrefix(f.Name, "test.")
 		switch name {
-		case "testlogfile", "paniconexit0":
+		case "testlogfile", "paniconexit0", "fuzzcachedir", "fuzzworker",
+			"gocoverdir":
 			// These are internal flags.
 		default:
 			if !passFlagToTest[name] {
@@ -35,5 +44,22 @@ func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
 		if CmdTest.Flag.Lookup(name) == nil {
 			t.Errorf("passFlagToTest contains %q, but flag -%s does not exist in 'go test' subcommand", name, name)
 		}
+	}
+}
+
+func TestVetAnalyzersSetIsCorrect(t *testing.T) {
+	vetAns, err := genflags.VetAnalyzers()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := make(map[string]bool)
+	for _, a := range vetAns {
+		want[a] = true
+	}
+
+	if !reflect.DeepEqual(want, passAnalyzersToVet) {
+		t.Errorf("stale vet analyzers: want %v; got %v", want, passAnalyzersToVet)
+		t.Logf("(Run 'go generate cmd/go/internal/test' to refresh the set of analyzers.)")
 	}
 }

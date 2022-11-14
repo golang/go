@@ -5,7 +5,7 @@
 package net
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,115 +15,129 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"syscall"
 	"testing"
 )
 
 var nslookupTestServers = []string{"mail.golang.com", "gmail.com"}
 var lookupTestIPs = []string{"8.8.8.8", "1.1.1.1"}
 
-func toJson(v interface{}) string {
+func toJson(v any) string {
 	data, _ := json.Marshal(v)
 	return string(data)
+}
+
+func testLookup(t *testing.T, fn func(*testing.T, *Resolver, string)) {
+	for _, def := range []bool{true, false} {
+		def := def
+		for _, server := range nslookupTestServers {
+			server := server
+			var name string
+			if def {
+				name = "default/"
+			} else {
+				name = "go/"
+			}
+			t.Run(name+server, func(t *testing.T) {
+				t.Parallel()
+				r := DefaultResolver
+				if !def {
+					r = &Resolver{PreferGo: true}
+				}
+				fn(t, r, server)
+			})
+		}
+	}
 }
 
 func TestNSLookupMX(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	for _, server := range nslookupTestServers {
-		mx, err := LookupMX(server)
+	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+		mx, err := r.LookupMX(context.Background(), server)
 		if err != nil {
-			t.Error(err)
-			continue
+			t.Fatal(err)
 		}
 		if len(mx) == 0 {
-			t.Errorf("no results")
-			continue
+			t.Fatal("no results")
 		}
 		expected, err := nslookupMX(server)
 		if err != nil {
-			t.Logf("skipping failed nslookup %s test: %s", server, err)
+			t.Skipf("skipping failed nslookup %s test: %s", server, err)
 		}
 		sort.Sort(byPrefAndHost(expected))
 		sort.Sort(byPrefAndHost(mx))
 		if !reflect.DeepEqual(expected, mx) {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", server, toJson(expected), toJson(mx))
 		}
-	}
+	})
 }
 
 func TestNSLookupCNAME(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	for _, server := range nslookupTestServers {
-		cname, err := LookupCNAME(server)
+	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+		cname, err := r.LookupCNAME(context.Background(), server)
 		if err != nil {
-			t.Errorf("failed %s: %s", server, err)
-			continue
+			t.Fatalf("failed %s: %s", server, err)
 		}
 		if cname == "" {
-			t.Errorf("no result %s", server)
+			t.Fatalf("no result %s", server)
 		}
 		expected, err := nslookupCNAME(server)
 		if err != nil {
-			t.Logf("skipping failed nslookup %s test: %s", server, err)
-			continue
+			t.Skipf("skipping failed nslookup %s test: %s", server, err)
 		}
 		if expected != cname {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", server, expected, cname)
 		}
-	}
+	})
 }
 
 func TestNSLookupNS(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	for _, server := range nslookupTestServers {
-		ns, err := LookupNS(server)
+	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+		ns, err := r.LookupNS(context.Background(), server)
 		if err != nil {
-			t.Errorf("failed %s: %s", server, err)
-			continue
+			t.Fatalf("failed %s: %s", server, err)
 		}
 		if len(ns) == 0 {
-			t.Errorf("no results")
-			continue
+			t.Fatal("no results")
 		}
 		expected, err := nslookupNS(server)
 		if err != nil {
-			t.Logf("skipping failed nslookup %s test: %s", server, err)
-			continue
+			t.Skipf("skipping failed nslookup %s test: %s", server, err)
 		}
 		sort.Sort(byHost(expected))
 		sort.Sort(byHost(ns))
 		if !reflect.DeepEqual(expected, ns) {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", toJson(server), toJson(expected), ns)
 		}
-	}
+	})
 }
 
 func TestNSLookupTXT(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	for _, server := range nslookupTestServers {
-		txt, err := LookupTXT(server)
+	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+		txt, err := r.LookupTXT(context.Background(), server)
 		if err != nil {
-			t.Errorf("failed %s: %s", server, err)
-			continue
+			t.Fatalf("failed %s: %s", server, err)
 		}
 		if len(txt) == 0 {
-			t.Errorf("no results")
-			continue
+			t.Fatalf("no results")
 		}
 		expected, err := nslookupTXT(server)
 		if err != nil {
-			t.Logf("skipping failed nslookup %s test: %s", server, err)
-			continue
+			t.Skipf("skipping failed nslookup %s test: %s", server, err)
 		}
 		sort.Strings(expected)
 		sort.Strings(txt)
 		if !reflect.DeepEqual(expected, txt) {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", server, toJson(expected), toJson(txt))
 		}
-	}
+	})
 }
 
 func TestLookupLocalPTR(t *testing.T) {
@@ -142,7 +156,7 @@ func TestLookupLocalPTR(t *testing.T) {
 	}
 	expected, err := lookupPTR(addr.String())
 	if err != nil {
-		t.Logf("skipping failed lookup %s test: %s", addr.String(), err)
+		t.Skipf("skipping failed lookup %s test: %s", addr.String(), err)
 	}
 	sort.Strings(expected)
 	sort.Strings(names)
@@ -157,6 +171,14 @@ func TestLookupPTR(t *testing.T) {
 	for _, addr := range lookupTestIPs {
 		names, err := LookupAddr(addr)
 		if err != nil {
+			// The DNSError type stores the error as a string, so it cannot wrap the
+			// original error code and we cannot check for it here. However, we can at
+			// least use its error string to identify the correct localized text for
+			// the error to skip.
+			var DNS_ERROR_RCODE_SERVER_FAILURE syscall.Errno = 9002
+			if strings.HasSuffix(err.Error(), DNS_ERROR_RCODE_SERVER_FAILURE.Error()) {
+				testenv.SkipFlaky(t, 38111)
+			}
 			t.Errorf("failed %s: %s", addr, err)
 		}
 		if len(names) == 0 {
@@ -165,6 +187,7 @@ func TestLookupPTR(t *testing.T) {
 		expected, err := lookupPTR(addr)
 		if err != nil {
 			t.Logf("skipping failed lookup %s test: %s", addr, err)
+			continue
 		}
 		sort.Strings(expected)
 		sort.Strings(names)
@@ -192,8 +215,8 @@ func (s byHost) Less(i, j int) bool { return s[i].Host < s[j].Host }
 func (s byHost) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func nslookup(qtype, name string) (string, error) {
-	var out bytes.Buffer
-	var err bytes.Buffer
+	var out strings.Builder
+	var err strings.Builder
 	cmd := exec.Command("nslookup", "-querytype="+qtype, name)
 	cmd.Stdout = &out
 	cmd.Stderr = &err

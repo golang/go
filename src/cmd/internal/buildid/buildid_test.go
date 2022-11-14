@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"internal/obscuretestdata"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -21,7 +20,7 @@ const (
 )
 
 func TestReadFile(t *testing.T) {
-	f, err := ioutil.TempFile("", "buildid-test-")
+	f, err := os.CreateTemp("", "buildid-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +58,7 @@ func TestReadFile(t *testing.T) {
 			t.Errorf("ReadFile(%s) [readSize=2k] = %q, %v, want %q, nil", f, id, err, expectedID)
 		}
 
-		data, err := ioutil.ReadFile(f)
+		data, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -68,7 +67,7 @@ func TestReadFile(t *testing.T) {
 			t.Errorf("FindAndHash(%s): %v", f, err)
 			continue
 		}
-		if err := ioutil.WriteFile(tmp, data, 0666); err != nil {
+		if err := os.WriteFile(tmp, data, 0666); err != nil {
 			t.Error(err)
 			continue
 		}
@@ -103,7 +102,7 @@ func TestFindAndHash(t *testing.T) {
 		id[i] = byte(i)
 	}
 	numError := 0
-	errorf := func(msg string, args ...interface{}) {
+	errorf := func(msg string, args ...any) {
 		t.Errorf(msg, args...)
 		if numError++; numError > 20 {
 			t.Logf("stopping after too many errors")
@@ -175,5 +174,13 @@ func TestExcludedReader(t *testing.T) {
 				t.Errorf("unexpected bytes: want %q, got %q", res, p[:n])
 			}
 		}
+	}
+}
+
+func TestEmptyID(t *testing.T) {
+	r := strings.NewReader("aha!")
+	matches, hash, err := FindAndHash(r, "", 1000)
+	if matches != nil || hash != ([32]byte{}) || err == nil || !strings.Contains(err.Error(), "no id") {
+		t.Errorf("FindAndHash: want nil, [32]byte{}, no id specified, got %v, %v, %v", matches, hash, err)
 	}
 }

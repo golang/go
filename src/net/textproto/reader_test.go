@@ -8,8 +8,10 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"net"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -187,12 +189,58 @@ func TestReadMIMEHeaderMalformed(t *testing.T) {
 		"Foo-\r\n\tBar: foo\r\n\r\n",
 		"Foo\r\n\t: foo\r\n\r\n",
 		"Foo-\n\tBar",
+		"Foo \tBar: foo\r\n\r\n",
 	}
-
 	for _, input := range inputs {
 		r := reader(input)
-		if m, err := r.ReadMIMEHeader(); err == nil {
+		if m, err := r.ReadMIMEHeader(); err == nil || err == io.EOF {
 			t.Errorf("ReadMIMEHeader(%q) = %v, %v; want nil, err", input, m, err)
+		}
+	}
+}
+
+func TestReadMIMEHeaderBytes(t *testing.T) {
+	for i := 0; i <= 0xff; i++ {
+		s := "Foo" + string(rune(i)) + "Bar: foo\r\n\r\n"
+		r := reader(s)
+		wantErr := true
+		switch {
+		case i >= '0' && i <= '9':
+			wantErr = false
+		case i >= 'a' && i <= 'z':
+			wantErr = false
+		case i >= 'A' && i <= 'Z':
+			wantErr = false
+		case i == '!' || i == '#' || i == '$' || i == '%' || i == '&' || i == '\'' || i == '*' || i == '+' || i == '-' || i == '.' || i == '^' || i == '_' || i == '`' || i == '|' || i == '~':
+			wantErr = false
+		case i == ':':
+			// Special case: "Foo:Bar: foo" is the header "Foo".
+			wantErr = false
+		case i == ' ':
+			wantErr = false
+		}
+		m, err := r.ReadMIMEHeader()
+		if err != nil != wantErr {
+			t.Errorf("ReadMIMEHeader(%q) = %v, %v; want error=%v", s, m, err, wantErr)
+		}
+	}
+	for i := 0; i <= 0xff; i++ {
+		s := "Foo: foo" + string(rune(i)) + "bar\r\n\r\n"
+		r := reader(s)
+		wantErr := true
+		switch {
+		case i >= 0x21 && i <= 0x7e:
+			wantErr = false
+		case i == ' ':
+			wantErr = false
+		case i == '\t':
+			wantErr = false
+		case i >= 0x80 && i <= 0xff:
+			wantErr = false
+		}
+		m, err := r.ReadMIMEHeader()
+		if (err != nil) != wantErr {
+			t.Errorf("ReadMIMEHeader(%q) = %v, %v; want error=%v", s, m, err, wantErr)
 		}
 	}
 }
@@ -315,12 +363,39 @@ func TestCommonHeaders(t *testing.T) {
 	b := []byte("content-Length")
 	want := "Content-Length"
 	n := testing.AllocsPerRun(200, func() {
-		if x := canonicalMIMEHeaderKey(b); x != want {
+		if x, _ := canonicalMIMEHeaderKey(b); x != want {
 			t.Fatalf("canonicalMIMEHeaderKey(%q) = %q; want %q", b, x, want)
 		}
 	})
 	if n > 0 {
 		t.Errorf("canonicalMIMEHeaderKey allocs = %v; want 0", n)
+	}
+}
+
+func TestIssue46363(t *testing.T) {
+	// Regression test for data race reported in issue 46363:
+	// ReadMIMEHeader reads commonHeader before commonHeader has been initialized.
+	// Run this test with the race detector enabled to catch the reported data race.
+
+	// Reset commonHeaderOnce, so that commonHeader will have to be initialized
+	commonHeaderOnce = sync.Once{}
+	commonHeader = nil
+
+	// Test for data race by calling ReadMIMEHeader and CanonicalMIMEHeaderKey concurrently
+
+	// Send MIME header over net.Conn
+	r, w := net.Pipe()
+	go func() {
+		// ReadMIMEHeader calls canonicalMIMEHeaderKey, which reads from commonHeader
+		NewConn(r).ReadMIMEHeader()
+	}()
+	w.Write([]byte("A: 1\r\nB: 2\r\nC: 3\r\n\r\n"))
+
+	// CanonicalMIMEHeaderKey calls commonHeaderOnce.Do(initCommonHeader) which initializes commonHeader
+	CanonicalMIMEHeaderKey("a")
+
+	if commonHeader == nil {
+		t.Fatal("CanonicalMIMEHeaderKey should initialize commonHeader")
 	}
 }
 

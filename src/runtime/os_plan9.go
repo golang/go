@@ -75,13 +75,13 @@ func os_sigpipe() {
 }
 
 func sigpanic() {
-	g := getg()
-	if !canpanic(g) {
+	gp := getg()
+	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 
-	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
-	switch g.sig {
+	note := gostringnocopy((*byte)(unsafe.Pointer(gp.m.notesig)))
+	switch gp.sig {
 	case _SIGRFAULT, _SIGWFAULT:
 		i := indexNoFloat(note, "addr=")
 		if i >= 0 {
@@ -92,17 +92,24 @@ func sigpanic() {
 			panicmem()
 		}
 		addr := note[i:]
-		g.sigcode1 = uintptr(atolwhex(addr))
-		if g.sigcode1 < 0x1000 {
+		gp.sigcode1 = uintptr(atolwhex(addr))
+		if gp.sigcode1 < 0x1000 {
 			panicmem()
 		}
-		if g.paniconfault {
-			panicmemAddr(g.sigcode1)
+		if gp.paniconfault {
+			panicmemAddr(gp.sigcode1)
 		}
-		print("unexpected fault address ", hex(g.sigcode1), "\n")
+		if inUserArenaChunk(gp.sigcode1) {
+			// We could check that the arena chunk is explicitly set to fault,
+			// but the fact that we faulted on accessing it is enough to prove
+			// that it is.
+			print("accessed data from freed user arena ", hex(gp.sigcode1), "\n")
+		} else {
+			print("unexpected fault address ", hex(gp.sigcode1), "\n")
+		}
 		throw("fault")
 	case _SIGTRAP:
-		if g.paniconfault {
+		if gp.paniconfault {
 			panicmem()
 		}
 		throw(note)
@@ -437,13 +444,16 @@ func exit(e int32) {
 	} else {
 		// build error string
 		var tmp [32]byte
-		status = append(itoa(tmp[:len(tmp)-1], uint64(e)), 0)
+		sl := itoa(tmp[:len(tmp)-1], uint64(e))
+		// Don't append, rely on the existing data being zero.
+		status = sl[:len(sl)+1]
 	}
 	goexitsall(&status[0])
 	exits(&status[0])
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	if false {
@@ -458,7 +468,7 @@ func newosproc(mp *m) {
 	}
 }
 
-func exitThread(wait *uint32) {
+func exitThread(wait *atomic.Uint32) {
 	// We should never reach exitThread on Plan 9 because we let
 	// the OS clean up threads.
 	throw("exitThread")
@@ -470,19 +480,19 @@ func semacreate(mp *m) {
 
 //go:nosplit
 func semasleep(ns int64) int {
-	_g_ := getg()
+	gp := getg()
 	if ns >= 0 {
 		ms := timediv(ns, 1000000, nil)
 		if ms == 0 {
 			ms = 1
 		}
-		ret := plan9_tsemacquire(&_g_.m.waitsemacount, ms)
+		ret := plan9_tsemacquire(&gp.m.waitsemacount, ms)
 		if ret == 1 {
 			return 0 // success
 		}
 		return -1 // timeout or interrupted
 	}
-	for plan9_semacquire(&_g_.m.waitsemacount, 1) < 0 {
+	for plan9_semacquire(&gp.m.waitsemacount, 1) < 0 {
 		// interrupted; try again (c.f. lock_sema.go)
 	}
 	return 0 // success
@@ -506,6 +516,7 @@ func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
 var _badsignal = []byte("runtime: signal received on thread not created by Go.\n")
 
 // This runs on a foreign stack, without an m or a g. No stack split.
+//
 //go:nosplit
 func badsignal2() {
 	pwrite(2, unsafe.Pointer(&_badsignal[0]), int32(len(_badsignal)), -1)

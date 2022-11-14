@@ -1,5 +1,5 @@
-// Code generated from gen/MIPS64.rules; DO NOT EDIT.
-// generated with: cd gen; go run *.go
+// Code generated from _gen/MIPS64.rules; DO NOT EDIT.
+// generated with: cd _gen; go run .
 
 package ssa
 
@@ -624,6 +624,9 @@ func rewriteValueMIPS64(v *Value) bool {
 		return true
 	case OpSubPtr:
 		v.Op = OpMIPS64SUBV
+		return true
+	case OpTailCall:
+		v.Op = OpMIPS64CALLtail
 		return true
 	case OpTrunc16to8:
 		v.Op = OpCopy

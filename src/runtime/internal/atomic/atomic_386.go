@@ -3,13 +3,13 @@
 // license that can be found in the LICENSE file.
 
 //go:build 386
-// +build 386
 
 package atomic
 
 import "unsafe"
 
 // Export some functions via linkname to assembly in sync/atomic.
+//
 //go:linkname Load
 //go:linkname Loadp
 

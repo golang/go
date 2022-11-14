@@ -7,6 +7,7 @@ package pe
 import (
 	"encoding/binary"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"strconv"
 )
@@ -97,15 +98,22 @@ type Section struct {
 
 // Data reads and returns the contents of the PE section s.
 func (s *Section) Data() ([]byte, error) {
-	dat := make([]byte, s.sr.Size())
-	n, err := s.sr.ReadAt(dat, 0)
-	if n == len(dat) {
-		err = nil
-	}
-	return dat[0:n], err
+	return saferio.ReadDataAt(s.sr, uint64(s.Size), 0)
 }
 
 // Open returns a new ReadSeeker reading the PE section s.
 func (s *Section) Open() io.ReadSeeker {
 	return io.NewSectionReader(s.sr, 0, 1<<63-1)
 }
+
+// Section characteristics flags.
+const (
+	IMAGE_SCN_CNT_CODE               = 0x00000020
+	IMAGE_SCN_CNT_INITIALIZED_DATA   = 0x00000040
+	IMAGE_SCN_CNT_UNINITIALIZED_DATA = 0x00000080
+	IMAGE_SCN_LNK_COMDAT             = 0x00001000
+	IMAGE_SCN_MEM_DISCARDABLE        = 0x02000000
+	IMAGE_SCN_MEM_EXECUTE            = 0x20000000
+	IMAGE_SCN_MEM_READ               = 0x40000000
+	IMAGE_SCN_MEM_WRITE              = 0x80000000
+)

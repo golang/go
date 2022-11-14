@@ -2,7 +2,7 @@ env GO111MODULE=on
 
 # explicit get should report errors about bad names
 ! go get appengine
-stderr '^go get: malformed module path "appengine": missing dot in first path element$'
+stderr '^go: malformed module path "appengine": missing dot in first path element$'
 ! go get x/y.z
 stderr 'malformed module path "x/y.z": missing dot in first path element'
 
@@ -24,10 +24,10 @@ stderr '^usenonexistent[/\\]x.go:2:8: no required module provides package nonexi
 
 # 'get -d' should be similarly definitive
 
-go get -d ./useappengine  # TODO(#41315): This should fail.
+go get ./useappengine  # TODO(#41315): This should fail.
  # stderr '^useappengine[/\\]x.go:2:8: cannot find package$'
 
-! go get -d  ./usenonexistent
+! go get  ./usenonexistent
 stderr '^x/usenonexistent imports\n\tnonexistent.rsc.io: cannot find module providing package nonexistent.rsc.io$'
 
 

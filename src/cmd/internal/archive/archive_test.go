@@ -13,37 +13,27 @@ import (
 	"internal/testenv"
 	"internal/xcoff"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
 	"unicode/utf8"
 )
 
-var (
-	buildDir   string
-	go1obj     string
-	go2obj     string
-	goarchive  string
-	cgoarchive string
-)
+var buildDir string
 
 func TestMain(m *testing.M) {
 	if !testenv.HasGoBuild() {
 		return
 	}
 
-	if err := buildGoobj(); err != nil {
-		fmt.Println(err)
-		os.RemoveAll(buildDir)
-		os.Exit(1)
-	}
-
 	exit := m.Run()
 
-	os.RemoveAll(buildDir)
+	if buildDir != "" {
+		os.RemoveAll(buildDir)
+	}
 	os.Exit(exit)
 }
 
@@ -52,12 +42,12 @@ func copyDir(dst, src string) error {
 	if err != nil {
 		return err
 	}
-	fis, err := ioutil.ReadDir(src)
+	entries, err := os.ReadDir(src)
 	if err != nil {
 		return err
 	}
-	for _, fi := range fis {
-		err = copyFile(filepath.Join(dst, fi.Name()), filepath.Join(src, fi.Name()))
+	for _, entry := range entries {
+		err = copyFile(filepath.Join(dst, entry.Name()), filepath.Join(src, entry.Name()))
 		if err != nil {
 			return err
 		}
@@ -89,71 +79,94 @@ func copyFile(dst, src string) (err error) {
 	return nil
 }
 
-func buildGoobj() error {
-	var err error
+var (
+	buildOnce   sync.Once
+	builtGoobjs goobjPaths
+	buildErr    error
+)
 
-	buildDir, err = ioutil.TempDir("", "TestGoobj")
-	if err != nil {
-		return err
+type goobjPaths struct {
+	go1obj     string
+	go2obj     string
+	goarchive  string
+	cgoarchive string
+}
+
+func buildGoobj(t *testing.T) goobjPaths {
+	buildOnce.Do(func() {
+		buildErr = func() (err error) {
+			buildDir, err = os.MkdirTemp("", "TestGoobj")
+			if err != nil {
+				return err
+			}
+
+			go1obj := filepath.Join(buildDir, "go1.o")
+			go2obj := filepath.Join(buildDir, "go2.o")
+			goarchive := filepath.Join(buildDir, "go.a")
+			cgoarchive := ""
+
+			gotool, err := testenv.GoTool()
+			if err != nil {
+				return err
+			}
+
+			go1src := filepath.Join("testdata", "go1.go")
+			go2src := filepath.Join("testdata", "go2.go")
+
+			importcfgfile := filepath.Join(buildDir, "importcfg")
+			testenv.WriteImportcfg(t, importcfgfile, nil)
+
+			out, err := exec.Command(gotool, "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", go1obj, go1src).CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("go tool compile -o %s %s: %v\n%s", go1obj, go1src, err, out)
+			}
+			out, err = exec.Command(gotool, "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", go2obj, go2src).CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("go tool compile -o %s %s: %v\n%s", go2obj, go2src, err, out)
+			}
+			out, err = exec.Command(gotool, "tool", "pack", "c", goarchive, go1obj, go2obj).CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("go tool pack c %s %s %s: %v\n%s", goarchive, go1obj, go2obj, err, out)
+			}
+
+			if testenv.HasCGO() {
+				cgoarchive = filepath.Join(buildDir, "mycgo.a")
+				gopath := filepath.Join(buildDir, "gopath")
+				err = copyDir(filepath.Join(gopath, "src", "mycgo"), filepath.Join("testdata", "mycgo"))
+				if err == nil {
+					err = os.WriteFile(filepath.Join(gopath, "src", "mycgo", "go.mod"), []byte("module mycgo\n"), 0666)
+				}
+				if err != nil {
+					return err
+				}
+				cmd := exec.Command(gotool, "build", "-buildmode=archive", "-o", cgoarchive, "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "mycgo")
+				cmd.Dir = filepath.Join(gopath, "src", "mycgo")
+				cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+				out, err = cmd.CombinedOutput()
+				if err != nil {
+					return fmt.Errorf("go install mycgo: %v\n%s", err, out)
+				}
+			}
+
+			builtGoobjs = goobjPaths{
+				go1obj:     go1obj,
+				go2obj:     go2obj,
+				goarchive:  goarchive,
+				cgoarchive: cgoarchive,
+			}
+			return nil
+		}()
+	})
+
+	if buildErr != nil {
+		t.Helper()
+		t.Fatal(buildErr)
 	}
-
-	go1obj = filepath.Join(buildDir, "go1.o")
-	go2obj = filepath.Join(buildDir, "go2.o")
-	goarchive = filepath.Join(buildDir, "go.a")
-
-	gotool, err := testenv.GoTool()
-	if err != nil {
-		return err
-	}
-
-	go1src := filepath.Join("testdata", "go1.go")
-	go2src := filepath.Join("testdata", "go2.go")
-
-	out, err := exec.Command(gotool, "tool", "compile", "-o", go1obj, go1src).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("go tool compile -o %s %s: %v\n%s", go1obj, go1src, err, out)
-	}
-	out, err = exec.Command(gotool, "tool", "compile", "-o", go2obj, go2src).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("go tool compile -o %s %s: %v\n%s", go2obj, go2src, err, out)
-	}
-	out, err = exec.Command(gotool, "tool", "pack", "c", goarchive, go1obj, go2obj).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("go tool pack c %s %s %s: %v\n%s", goarchive, go1obj, go2obj, err, out)
-	}
-
-	if testenv.HasCGO() {
-		gopath := filepath.Join(buildDir, "gopath")
-		err = copyDir(filepath.Join(gopath, "src", "mycgo"), filepath.Join("testdata", "mycgo"))
-		if err == nil {
-			err = ioutil.WriteFile(filepath.Join(gopath, "src", "mycgo", "go.mod"), []byte("module mycgo\n"), 0666)
-		}
-		if err != nil {
-			return err
-		}
-		cmd := exec.Command(gotool, "install", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "mycgo")
-		cmd.Dir = filepath.Join(gopath, "src", "mycgo")
-		cmd.Env = append(os.Environ(), "GOPATH="+gopath)
-		out, err = cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("go install mycgo: %v\n%s", err, out)
-		}
-		pat := filepath.Join(gopath, "pkg", "*", "mycgo.a")
-		ms, err := filepath.Glob(pat)
-		if err != nil {
-			return err
-		}
-		if len(ms) == 0 {
-			return fmt.Errorf("cannot found paths for pattern %s", pat)
-		}
-		cgoarchive = ms[0]
-	}
-
-	return nil
+	return builtGoobjs
 }
 
 func TestParseGoobj(t *testing.T) {
-	path := go1obj
+	path := buildGoobj(t).go1obj
 
 	f, err := os.Open(path)
 	if err != nil {
@@ -182,7 +195,7 @@ func TestParseGoobj(t *testing.T) {
 }
 
 func TestParseArchive(t *testing.T) {
-	path := goarchive
+	path := buildGoobj(t).goarchive
 
 	f, err := os.Open(path)
 	if err != nil {
@@ -227,7 +240,7 @@ func TestParseArchive(t *testing.T) {
 func TestParseCGOArchive(t *testing.T) {
 	testenv.MustHaveCGO(t)
 
-	path := cgoarchive
+	path := buildGoobj(t).cgoarchive
 
 	f, err := os.Open(path)
 	if err != nil {

@@ -112,6 +112,7 @@ var _cos = [...]float64{
 // Cos returns the cosine of the radian argument x.
 //
 // Special cases are:
+//
 //	Cos(±Inf) = NaN
 //	Cos(NaN) = NaN
 func Cos(x float64) float64 {
@@ -177,6 +178,7 @@ func cos(x float64) float64 {
 // Sin returns the sine of the radian argument x.
 //
 // Special cases are:
+//
 //	Sin(±0) = ±0
 //	Sin(±Inf) = NaN
 //	Sin(NaN) = NaN

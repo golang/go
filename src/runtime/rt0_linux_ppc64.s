@@ -22,6 +22,7 @@ TEXT _main<>(SB),NOSPLIT,$-8
 	// There is no TLS base pointer.
 	//
 	// TODO(austin): Support ABI v1 dynamic linking entry point
+	XOR	R0, R0 // Note, newer kernels may not always set R0 to 0.
 	MOVD	$runtime·rt0_go(SB), R12
 	MOVD	R12, CTR
 	MOVBZ	runtime·iscgo(SB), R5

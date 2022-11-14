@@ -1,16 +1,15 @@
-//go:build cgo
-// +build cgo
-
 // Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+//go:build cgo
+// +build cgo
 
 package ld
 
 import (
 	"debug/elf"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,7 +33,7 @@ func main() {
 }
 `
 	src := filepath.Join(dir, "issue33358.go")
-	if err := ioutil.WriteFile(src, []byte(prog), 0666); err != nil {
+	if err := os.WriteFile(src, []byte(prog), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -86,7 +85,7 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
 	// across the board given the nature of the test).
 	pair := runtime.GOOS + "-" + runtime.GOARCH
 	switch pair {
-	case "linux-amd64", "freebsd-amd64", "openbsd-amd64":
+	case "linux-amd64", "linux-arm64", "freebsd-amd64", "openbsd-amd64":
 	default:
 		t.Skip("no need for test on " + pair)
 	}

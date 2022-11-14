@@ -48,7 +48,6 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -83,11 +82,16 @@ const (
 	pallocChunksL1Shift = pallocChunksL2Bits
 )
 
-// Maximum searchAddr value, which indicates that the heap has no free space.
+// maxSearchAddr returns the maximum searchAddr value, which indicates
+// that the heap has no free space.
 //
-// We alias maxOffAddr just to make it clear that this is the maximum address
+// This function exists just to make it clear that this is the maximum address
 // for the page allocator's search space. See maxOffAddr for details.
-var maxSearchAddr = maxOffAddr
+//
+// It's a function (rather than a variable) because it needs to be
+// usable before package runtime's dynamic initialization is complete.
+// See #51913 for details.
+func maxSearchAddr() offAddr { return maxOffAddr }
 
 // Global chunk index.
 //
@@ -102,7 +106,7 @@ func chunkIndex(p uintptr) chunkIdx {
 	return chunkIdx((p - arenaBaseOffset) / pallocChunkBytes)
 }
 
-// chunkIndex returns the base address of the palloc chunk at index ci.
+// chunkBase returns the base address of the palloc chunk at index ci.
 func chunkBase(ci chunkIdx) uintptr {
 	return uintptr(ci)*pallocChunkBytes + arenaBaseOffset
 }
@@ -155,7 +159,7 @@ func addrsToSummaryRange(level int, base, limit uintptr) (lo int, hi int) {
 	// upper-bound. Note that the exclusive upper bound may be within a
 	// summary at this level, meaning if we just do the obvious computation
 	// hi will end up being an inclusive upper bound. Unfortunately, just
-	// adding 1 to that is too broad since we might be on the very edge of
+	// adding 1 to that is too broad since we might be on the very edge
 	// of a summary's max page count boundary for this level
 	// (1 << levelLogPages[level]). So, make limit an inclusive upper bound
 	// then shift, then add 1, so we get an exclusive upper bound at the end.
@@ -226,6 +230,8 @@ type pageAlloc struct {
 	// are currently available. Otherwise one might iterate over unused
 	// ranges.
 	//
+	// Protected by mheapLock.
+	//
 	// TODO(mknyszek): Consider changing the definition of the bitmap
 	// such that 1 means free and 0 means in-use so that summaries and
 	// the bitmaps align better on zero-values.
@@ -261,30 +267,15 @@ type pageAlloc struct {
 	inUse addrRanges
 
 	// scav stores the scavenger state.
-	//
-	// All fields are protected by mheapLock.
 	scav struct {
-		// inUse is a slice of ranges of address space which have not
-		// yet been looked at by the scavenger.
-		inUse addrRanges
+		// index is an efficient index of chunks that have pages available to
+		// scavenge.
+		index scavengeIndex
 
-		// gen is the scavenge generation number.
-		gen uint32
-
-		// reservationBytes is how large of a reservation should be made
-		// in bytes of address space for each scavenge iteration.
-		reservationBytes uintptr
-
-		// released is the amount of memory released this generation.
+		// released is the amount of memory released this scavenge cycle.
+		//
+		// Updated atomically.
 		released uintptr
-
-		// scavLWM is the lowest (offset) address that the scavenger reached this
-		// scavenge generation.
-		scavLWM offAddr
-
-		// freeHWM is the highest (offset) address of a page that was freed to
-		// the page allocator this scavenge generation.
-		freeHWM offAddr
 	}
 
 	// mheap_.lock. This level of indirection makes it possible
@@ -294,6 +285,12 @@ type pageAlloc struct {
 	// sysStat is the runtime memstat to update when new system
 	// memory is committed by the pageAlloc for allocation metadata.
 	sysStat *sysMemStat
+
+	// summaryMappedReady is the number of bytes mapped in the Ready state
+	// in the summary structure. Used only for testing currently.
+	//
+	// Protected by mheapLock.
+	summaryMappedReady uintptr
 
 	// Whether or not this struct is being used in tests.
 	test bool
@@ -317,13 +314,10 @@ func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat) {
 	p.sysInit()
 
 	// Start with the searchAddr in a state indicating there's no free memory.
-	p.searchAddr = maxSearchAddr
+	p.searchAddr = maxSearchAddr()
 
 	// Set the mheapLock.
 	p.mheapLock = mheapLock
-
-	// Initialize scavenge tracking state.
-	p.scav.scavLWM = maxSearchAddr
 }
 
 // tryChunkOf returns the bitmap data for the given chunk.
@@ -391,14 +385,13 @@ func (p *pageAlloc) grow(base, size uintptr) {
 	for c := chunkIndex(base); c < chunkIndex(limit); c++ {
 		if p.chunks[c.l1()] == nil {
 			// Create the necessary l2 entry.
-			//
-			// Store it atomically to avoid races with readers which
-			// don't acquire the heap lock.
 			r := sysAlloc(unsafe.Sizeof(*p.chunks[0]), p.sysStat)
 			if r == nil {
 				throw("pageAlloc: out of memory")
 			}
-			atomic.StorepNoWB(unsafe.Pointer(&p.chunks[c.l1()]), r)
+			// Store the new chunk block but avoid a write barrier.
+			// grow is used in call chains that disallow write barriers.
+			*(*uintptr)(unsafe.Pointer(&p.chunks[c.l1()])) = uintptr(r)
 		}
 		p.chunkOf(c).scavenged.setRange(0, pallocChunkPages)
 	}
@@ -674,7 +667,7 @@ nextLevel:
 
 		// Determine j0, the first index we should start iterating from.
 		// The searchAddr may help us eliminate iterations if we followed the
-		// searchAddr on the previous level or we're on the root leve, in which
+		// searchAddr on the previous level or we're on the root level, in which
 		// case the searchAddr should be the same as i after levelShift.
 		j0 := 0
 		if searchIdx := offAddrToLevelIndex(l, p.searchAddr); searchIdx&^(entriesPerBlock-1) == i {
@@ -746,7 +739,7 @@ nextLevel:
 		}
 		if l == 0 {
 			// We're at level zero, so that means we've exhausted our search.
-			return 0, maxSearchAddr
+			return 0, maxSearchAddr()
 		}
 
 		// We're not at level zero, and we exhausted the level we were looking in.
@@ -840,7 +833,7 @@ func (p *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
 			// exhausted. Otherwise, the heap still might have free
 			// space in it, just not enough contiguous space to
 			// accommodate npages.
-			p.searchAddr = maxSearchAddr
+			p.searchAddr = maxSearchAddr()
 		}
 		return 0, 0
 	}
@@ -864,17 +857,16 @@ Found:
 // Must run on the system stack because p.mheapLock must be held.
 //
 //go:systemstack
-func (p *pageAlloc) free(base, npages uintptr) {
+func (p *pageAlloc) free(base, npages uintptr, scavenged bool) {
 	assertLockHeld(p.mheapLock)
 
 	// If we're freeing pages below the p.searchAddr, update searchAddr.
 	if b := (offAddr{base}); b.lessThan(p.searchAddr) {
 		p.searchAddr = b
 	}
-	// Update the free high watermark for the scavenger.
 	limit := base + npages*pageSize - 1
-	if offLimit := (offAddr{limit}); p.scav.freeHWM.lessThan(offLimit) {
-		p.scav.freeHWM = offLimit
+	if !scavenged {
+		p.scav.index.mark(base, limit+1)
 	}
 	if npages == 1 {
 		// Fast path: we're clearing a single bit, and we know exactly

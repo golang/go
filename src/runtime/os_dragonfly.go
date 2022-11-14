@@ -62,10 +62,8 @@ func kqueue() int32
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
 
-func pipe() (r, w int32, errno int32)
 func pipe2(flags int32) (r, w int32, errno int32)
 func closeonexec(fd int32)
-func setNonblock(fd int32)
 
 // From DragonFly's <sys/sysctl.h>
 const (
@@ -144,6 +142,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
 func lwp_start(uintptr)
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
@@ -163,7 +162,10 @@ func newosproc(mp *m) {
 	}
 
 	// TODO: Check for error.
-	lwp_create(&params)
+	retryOnEAGAIN(func() int32 {
+		lwp_create(&params)
+		return 0
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 }
 
@@ -203,6 +205,7 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	unminitSignals()
@@ -248,7 +251,8 @@ func getsig(i uint32) uintptr {
 	return sa.sa_sigaction
 }
 
-// setSignaltstackSP sets the ss_sp field of a stackt.
+// setSignalstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	s.ss_sp = sp
@@ -266,6 +270,19 @@ func sigdelset(mask *sigset, i int) {
 
 //go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
 }
 
 func sysargs(argc int32, argv **byte) {
@@ -310,4 +327,13 @@ func raise(sig uint32) {
 
 func signalM(mp *m, sig int) {
 	lwp_kill(-1, int32(mp.procid), sig)
+}
+
+// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+// number.
+const sigPerThreadSyscall = 1 << 31
+
+//go:nosplit
+func runPerThreadSyscall() {
+	throw("runPerThreadSyscall only valid on linux")
 }

@@ -1,4 +1,4 @@
-// run -gcflags=-G=3
+// run
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -14,7 +14,7 @@ func f[T any](i interface{}) {
 		println("int")
 	case int32, int16:
 		println("int32/int16")
-	case struct { a, b T }:
+	case struct{ a, b T }:
 		println("struct{T,T}")
 	default:
 		println("other")
@@ -24,6 +24,10 @@ func main() {
 	f[float64](float64(6))
 	f[float64](int(7))
 	f[float64](int32(8))
-	f[float64](struct{a, b float64}{a:1, b:2})
+	f[float64](struct{ a, b float64 }{a: 1, b: 2})
 	f[float64](int8(9))
+	f[int32](int32(7))
+	f[int](int32(7))
+	f[any](int(10))
+	f[interface{ M() }](int(11))
 }

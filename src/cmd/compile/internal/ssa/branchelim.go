@@ -11,18 +11,18 @@ import "cmd/internal/src"
 //
 // Search for basic blocks that look like
 //
-// bb0            bb0
-//  | \          /   \
-//  | bb1  or  bb1   bb2    <- trivial if/else blocks
-//  | /          \   /
-// bb2            bb3
+//	bb0            bb0
+//	 | \          /   \
+//	 | bb1  or  bb1   bb2    <- trivial if/else blocks
+//	 | /          \   /
+//	bb2            bb3
 //
 // where the intermediate blocks are mostly empty (with no side-effects);
 // rewrite Phis in the postdominator as CondSelects.
 func branchelim(f *Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
 	switch f.Config.arch {
-	case "arm64", "amd64", "wasm":
+	case "arm64", "ppc64le", "ppc64", "amd64", "wasm", "loong64":
 		// implemented
 	default:
 		return
@@ -82,6 +82,15 @@ func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
 		// be an expensive cache miss).
 		// See issue #26306.
 		return false
+	}
+	if arch == "loong64" {
+		// We should not generate conditional moves if neither of the arguments is constant zero,
+		// because it requires three instructions (OR, MASKEQZ, MASKNEZ) and will increase the
+		// register pressure.
+		if !(v.Args[0].isGenericIntConst() && v.Args[0].AuxInt == 0) &&
+			!(v.Args[1].isGenericIntConst() && v.Args[1].AuxInt == 0) {
+			return false
+		}
 	}
 	// For now, stick to simple scalars that fit in registers
 	switch {

@@ -15,7 +15,7 @@
 // but additional checking functions, most notably Check, verify that
 // a particular path, version pair is valid.
 //
-// Escaped Paths
+// # Escaped Paths
 //
 // Module paths appear as substrings of file system paths
 // (in the download cache) and of web server URLs in the proxy protocol.
@@ -55,7 +55,7 @@
 // Import paths have never allowed exclamation marks, so there is no
 // need to define how to escape a literal !.
 //
-// Unicode Restrictions
+// # Unicode Restrictions
 //
 // Today, paths are disallowed from using Unicode.
 //
@@ -96,6 +96,7 @@ package module
 // Changes to the semantics in this file require approval from rsc.
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -104,7 +105,6 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/mod/semver"
-	errors "golang.org/x/xerrors"
 )
 
 // A Version (for clients, a module.Version) is defined by a module path and version pair.
@@ -258,7 +258,7 @@ func modPathOK(r rune) bool {
 	return false
 }
 
-// modPathOK reports whether r can appear in a package import path element.
+// importPathOK reports whether r can appear in a package import path element.
 //
 // Import paths are intermediate between module paths and file paths: we allow
 // disallow characters that would be confusing or ambiguous as arguments to
@@ -286,12 +286,7 @@ func fileNameOK(r rune) bool {
 		if '0' <= r && r <= '9' || 'A' <= r && r <= 'Z' || 'a' <= r && r <= 'z' {
 			return true
 		}
-		for i := 0; i < len(allowed); i++ {
-			if rune(allowed[i]) == r {
-				return true
-			}
-		}
-		return false
+		return strings.ContainsRune(allowed, r)
 	}
 	// It may be OK to add more ASCII punctuation here, but only carefully.
 	// For example Windows disallows < > \, and macOS disallows :, so we must not allow those.
@@ -803,6 +798,7 @@ func unescapeString(escaped string) (string, bool) {
 // GOPRIVATE environment variable, as described by 'go help module-private'.
 //
 // It ignores any empty or malformed patterns in the list.
+// Trailing slashes on patterns are ignored.
 func MatchPrefixPatterns(globs, target string) bool {
 	for globs != "" {
 		// Extract next non-empty glob in comma-separated list.
@@ -812,6 +808,7 @@ func MatchPrefixPatterns(globs, target string) bool {
 		} else {
 			glob, globs = globs, ""
 		}
+		glob = strings.TrimSuffix(glob, "/")
 		if glob == "" {
 			continue
 		}

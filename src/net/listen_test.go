@@ -3,12 +3,10 @@
 // license that can be found in the LICENSE file.
 
 //go:build !js && !plan9
-// +build !js,!plan9
 
 package net
 
 import (
-	"context"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -380,7 +378,7 @@ func differentWildcardAddr(i, j string) bool {
 	return true
 }
 
-func checkFirstListener(network string, ln interface{}) error {
+func checkFirstListener(network string, ln any) error {
 	switch network {
 	case "tcp":
 		fd := ln.(*TCPListener).fd
@@ -535,8 +533,6 @@ func TestIPv4MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
-	case "solaris", "illumos":
-		t.Skipf("not supported on solaris or illumos, see golang.org/issue/7399")
 	}
 	if !supportsIPv4() {
 		t.Skip("IPv4 is not supported")
@@ -610,8 +606,6 @@ func TestIPv6MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
-	case "solaris", "illumos":
-		t.Skipf("not supported on solaris or illumos, see issue 7399")
 	}
 	if !supportsIPv6() {
 		t.Skip("IPv6 is not supported")
@@ -702,10 +696,7 @@ func multicastRIBContains(ip IP) (bool, error) {
 
 // Issue 21856.
 func TestClosingListener(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	addr := ln.Addr()
 
 	go func() {
@@ -743,19 +734,7 @@ func TestListenConfigControl(t *testing.T) {
 			if !testableNetwork(network) {
 				continue
 			}
-			ln, err := newLocalListener(network)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			address := ln.Addr().String()
-			ln.Close()
-			lc := ListenConfig{Control: controlOnConnSetup}
-			ln, err = lc.Listen(context.Background(), network, address)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
+			ln := newLocalListener(t, network, &ListenConfig{Control: controlOnConnSetup})
 			ln.Close()
 		}
 	})
@@ -764,26 +743,8 @@ func TestListenConfigControl(t *testing.T) {
 			if !testableNetwork(network) {
 				continue
 			}
-			c, err := newLocalPacketListener(network)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			address := c.LocalAddr().String()
+			c := newLocalPacketListener(t, network, &ListenConfig{Control: controlOnConnSetup})
 			c.Close()
-			if network == "unixgram" {
-				os.Remove(address)
-			}
-			lc := ListenConfig{Control: controlOnConnSetup}
-			c, err = lc.ListenPacket(context.Background(), network, address)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			c.Close()
-			if network == "unixgram" {
-				os.Remove(address)
-			}
 		}
 	})
 }

@@ -27,7 +27,7 @@ var importTests = []struct {
 	},
 	{
 		path: "golang.org/x/net",
-		err:  `module golang.org/x/net@.* found \(v0.0.0-.*\), but does not contain package golang.org/x/net`,
+		err:  `module golang.org/x/net@.* found \(v[01]\.\d+\.\d+\), but does not contain package golang.org/x/net`,
 	},
 	{
 		path: "golang.org/x/text",
@@ -69,7 +69,7 @@ func TestQueryImport(t *testing.T) {
 	RootMode = NoRoot
 
 	ctx := context.Background()
-	rs := newRequirements(eager, nil, nil)
+	rs := LoadModFile(ctx)
 
 	for _, tt := range importTests {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {

@@ -88,7 +88,7 @@ var (
 	libc_port_dissociate,
 	libc_port_getn,
 	libc_port_alert libcFunc
-	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
+	netpollWakeSig atomic.Uint32 // used to avoid duplicate calls of netpollBreak
 )
 
 func errno() int32 {
@@ -158,7 +158,7 @@ func netpollclose(fd uintptr) int32 {
 // this call, port_getn will return one and only one event for that
 // particular descriptor, so this function needs to be called again.
 func netpollupdate(pd *pollDesc, set, clear uint32) {
-	if pd.closing {
+	if pd.info().closing() {
 		return
 	}
 
@@ -191,17 +191,20 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // netpollBreak interrupts a port_getn wait.
 func netpollBreak() {
-	if atomic.Cas(&netpollWakeSig, 0, 1) {
-		// Use port_alert to put portfd into alert mode.
-		// This will wake up all threads sleeping in port_getn on portfd,
-		// and cause their calls to port_getn to return immediately.
-		// Further, until portfd is taken out of alert mode,
-		// all calls to port_getn will return immediately.
-		if port_alert(portfd, _PORT_ALERT_UPDATE, _POLLHUP, uintptr(unsafe.Pointer(&portfd))) < 0 {
-			if e := errno(); e != _EBUSY {
-				println("runtime: port_alert failed with", e)
-				throw("runtime: netpoll: port_alert failed")
-			}
+	// Failing to cas indicates there is an in-flight wakeup, so we're done here.
+	if !netpollWakeSig.CompareAndSwap(0, 1) {
+		return
+	}
+
+	// Use port_alert to put portfd into alert mode.
+	// This will wake up all threads sleeping in port_getn on portfd,
+	// and cause their calls to port_getn to return immediately.
+	// Further, until portfd is taken out of alert mode,
+	// all calls to port_getn will return immediately.
+	if port_alert(portfd, _PORT_ALERT_UPDATE, _POLLHUP, uintptr(unsafe.Pointer(&portfd))) < 0 {
+		if e := errno(); e != _EBUSY {
+			println("runtime: port_alert failed with", e)
+			throw("runtime: netpoll: port_alert failed")
 		}
 	}
 }
@@ -274,7 +277,7 @@ retry:
 					println("runtime: port_alert failed with", e)
 					throw("runtime: netpoll: port_alert failed")
 				}
-				atomic.Store(&netpollWakeSig, 0)
+				netpollWakeSig.Store(0)
 			}
 			continue
 		}

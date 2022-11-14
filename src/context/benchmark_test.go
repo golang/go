@@ -152,3 +152,39 @@ func BenchmarkContextCancelDone(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkDeepValueNewGoRoutine(b *testing.B) {
+	for _, depth := range []int{10, 20, 30, 50, 100} {
+		ctx := Background()
+		for i := 0; i < depth; i++ {
+			ctx = WithValue(ctx, i, i)
+		}
+
+		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				var wg sync.WaitGroup
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					ctx.Value(-1)
+				}()
+				wg.Wait()
+			}
+		})
+	}
+}
+
+func BenchmarkDeepValueSameGoRoutine(b *testing.B) {
+	for _, depth := range []int{10, 20, 30, 50, 100} {
+		ctx := Background()
+		for i := 0; i < depth; i++ {
+			ctx = WithValue(ctx, i, i)
+		}
+
+		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				ctx.Value(-1)
+			}
+		})
+	}
+}

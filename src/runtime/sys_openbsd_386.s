@@ -69,7 +69,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	RET
 
 // Called by OS using C ABI.
-TEXT runtime·sigtramp(SB),NOSPLIT,$28
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$28
 	NOP	SP	// tell vet SP changed - stop checking offsets
 	// Save callee-saved C registers, since the caller may be a C signal handler.
 	MOVL	BX, bx-4(SP)
@@ -520,8 +520,11 @@ TEXT runtime·clock_gettime_trampoline(SB),NOSPLIT,$0
 	MOVL	BX, 4(SP)		// arg 2 - clock_id
 	CALL	libc_clock_gettime(SB)
 	CMPL	AX, $-1
-	JNE	2(PC)
-	MOVL	$0xf1, 0xf1		// crash on failure
+	JNE	noerr
+	CALL	libc_errno(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno
+noerr:
 	MOVL	BP, SP
 	POPL	BP
 	RET

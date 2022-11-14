@@ -3,16 +3,14 @@
 // license that can be found in the LICENSE file.
 
 //go:build dragonfly || freebsd || linux || netbsd || openbsd
-// +build dragonfly freebsd linux netbsd openbsd
 
 package main
 
 import (
-	"cmd/internal/sys"
 	"debug/elf"
 	"fmt"
+	"internal/platform"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -75,12 +73,12 @@ func TestSectionsWithSameName(t *testing.T) {
 	gopath := filepath.Join(dir, "GOPATH")
 	env := append(os.Environ(), "GOPATH="+gopath)
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
 	asmFile := filepath.Join(dir, "x.s")
-	if err := ioutil.WriteFile(asmFile, []byte(asmSource), 0444); err != nil {
+	if err := os.WriteFile(asmFile, []byte(asmSource), 0444); err != nil {
 		t.Fatal(err)
 	}
 
@@ -108,7 +106,7 @@ func TestSectionsWithSameName(t *testing.T) {
 	}
 
 	goFile := filepath.Join(dir, "main.go")
-	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
 		t.Fatal(err)
 	}
 
@@ -145,7 +143,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	gopath := filepath.Join(dir, "GOPATH")
 	env := append(os.Environ(), "GOPATH="+gopath)
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -157,7 +155,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	for i, content := range cSources35779 {
 		csrcFile := filepath.Join(dir, fmt.Sprintf("x%d.c", i))
 		csrcs = append(csrcs, csrcFile)
-		if err := ioutil.WriteFile(csrcFile, []byte(content), 0444); err != nil {
+		if err := os.WriteFile(csrcFile, []byte(content), 0444); err != nil {
 			t.Fatal(err)
 		}
 
@@ -187,7 +185,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	}
 
 	goFile := filepath.Join(dir, "main.go")
-	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
 		t.Fatal(err)
 	}
 
@@ -198,6 +196,61 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
+	}
+}
+
+func TestMergeNoteSections(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	expected := 1
+
+	switch runtime.GOOS {
+	case "linux", "dragonfly":
+	case "openbsd", "netbsd", "freebsd":
+		// These OSes require independent segment
+		expected = 2
+	default:
+		t.Skip("We should only test on elf output.")
+	}
+	t.Parallel()
+
+	goFile := filepath.Join(t.TempDir(), "notes.go")
+	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	outFile := filepath.Join(t.TempDir(), "notes.exe")
+	goTool := testenv.GoToolPath(t)
+	// sha1sum of "gopher"
+	id := "0xf4e8cd51ce8bae2996dc3b74639cdeaa1f7fee5f"
+	cmd := exec.Command(goTool, "build", "-o", outFile, "-ldflags",
+		"-B "+id, goFile)
+	cmd.Dir = t.TempDir()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	ef, err := elf.Open(outFile)
+	if err != nil {
+		t.Fatalf("open elf file failed:%v", err)
+	}
+	defer ef.Close()
+	sec := ef.Section(".note.gnu.build-id")
+	if sec == nil {
+		t.Fatalf("can't find gnu build id")
+	}
+
+	sec = ef.Section(".note.go.buildid")
+	if sec == nil {
+		t.Fatalf("can't find go build id")
+	}
+	cnt := 0
+	for _, ph := range ef.Progs {
+		if ph.Type == elf.PT_NOTE {
+			cnt += 1
+		}
+	}
+	if cnt != expected {
+		t.Fatalf("want %d PT_NOTE segment, got %d", expected, cnt)
 	}
 }
 
@@ -225,7 +278,7 @@ func TestPIESize(t *testing.T) {
 	// always skip the test if cgo is not supported.
 	testenv.MustHaveCGO(t)
 
-	if !sys.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
+	if !platform.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
 		t.Skip("-buildmode=pie not supported")
 	}
 
@@ -400,6 +453,9 @@ func TestPIESize(t *testing.T) {
 			extraexe := extrasize(elfexe)
 			extrapie := extrasize(elfpie)
 
+			if sizepie < sizeexe || sizepie-extrapie < sizeexe-extraexe {
+				return
+			}
 			diffReal := (sizepie - extrapie) - (sizeexe - extraexe)
 			diffExpected := (textpie + dynpie) - (textexe + dynexe)
 
@@ -409,5 +465,33 @@ func TestPIESize(t *testing.T) {
 				t.Errorf("PIE unexpectedly large: got difference of %d (%d - %d), expected difference %d", diffReal, sizepie, sizeexe, diffExpected)
 			}
 		})
+	}
+}
+
+func TestIssue51939(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+	td := t.TempDir()
+	goFile := filepath.Join(td, "issue51939.go")
+	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	outFile := filepath.Join(td, "issue51939.exe")
+	goTool := testenv.GoToolPath(t)
+	cmd := exec.Command(goTool, "build", "-o", outFile, goFile)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	ef, err := elf.Open(outFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, s := range ef.Sections {
+		if s.Flags&elf.SHF_ALLOC == 0 && s.Addr != 0 {
+			t.Errorf("section %s should not allocated with addr %x", s.Name, s.Addr)
+		}
 	}
 }

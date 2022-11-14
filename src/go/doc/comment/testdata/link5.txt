@@ -1,0 +1,36 @@
+-- input --
+See the [Go home page] and the [pkg
+site].
+
+[Go home page]: https://go.dev/
+[pkg site]: https://pkg.go.dev
+[Go home page]: https://duplicate.ignored
+
+They're really great!
+
+-- gofmt --
+See the [Go home page] and the [pkg
+site].
+
+They're really great!
+
+[Go home page]: https://go.dev/
+[pkg site]: https://pkg.go.dev
+
+[Go home page]: https://duplicate.ignored
+
+-- text --
+See the Go home page and the pkg site.
+
+They're really great!
+
+[Go home page]: https://go.dev/
+[pkg site]: https://pkg.go.dev
+-- markdown --
+See the [Go home page](https://go.dev/) and the [pkg site](https://pkg.go.dev).
+
+They're really great!
+-- html --
+<p>See the <a href="https://go.dev/">Go home page</a> and the <a href="https://pkg.go.dev">pkg
+site</a>.
+<p>They&apos;re really great!

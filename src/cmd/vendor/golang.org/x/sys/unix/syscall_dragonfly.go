@@ -101,7 +101,10 @@ func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
-	p[0], p[1], err = pipe()
+	r, w, err := pipe()
+	if err == nil {
+		p[0], p[1] = r, w
+	}
 	return
 }
 
@@ -114,17 +117,22 @@ func Pipe2(p []int, flags int) (err error) {
 	var pp [2]_C_int
 	// pipe2 on dragonfly takes an fds array as an argument, but still
 	// returns the file descriptors.
-	p[0], p[1], err = pipe2(&pp, flags)
+	r, w, err := pipe2(&pp, flags)
+	if err == nil {
+		p[0], p[1] = r, w
+	}
 	return err
 }
 
 //sys	extpread(fd int, p []byte, flags int, offset int64) (n int, err error)
-func Pread(fd int, p []byte, offset int64) (n int, err error) {
+
+func pread(fd int, p []byte, offset int64) (n int, err error) {
 	return extpread(fd, p, 0, offset)
 }
 
 //sys	extpwrite(fd int, p []byte, flags int, offset int64) (n int, err error)
-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+
+func pwrite(fd int, p []byte, offset int64) (n int, err error) {
 	return extpwrite(fd, p, 0, offset)
 }
 
@@ -161,11 +169,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 		err = e1
 	}
 	return
-}
-
-func setattrlistTimes(path string, times []Timespec, flags int) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
 }
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)

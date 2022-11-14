@@ -7,6 +7,7 @@ package math
 // Logb returns the binary exponent of x.
 //
 // Special cases are:
+//
 //	Logb(±Inf) = +Inf
 //	Logb(0) = -Inf
 //	Logb(NaN) = NaN
@@ -26,6 +27,7 @@ func Logb(x float64) float64 {
 // Ilogb returns the binary exponent of x as an integer.
 //
 // Special cases are:
+//
 //	Ilogb(±Inf) = MaxInt32
 //	Ilogb(0) = MinInt32
 //	Ilogb(NaN) = MaxInt32
@@ -42,7 +44,7 @@ func Ilogb(x float64) int {
 	return ilogb(x)
 }
 
-// logb returns the binary exponent of x. It assumes x is finite and
+// ilogb returns the binary exponent of x. It assumes x is finite and
 // non-zero.
 func ilogb(x float64) int {
 	x, exp := normalize(x)

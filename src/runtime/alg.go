@@ -182,7 +182,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 			if f.name.isBlank() {
 				continue
 			}
-			h = typehash(f.typ, add(p, f.offset()), h)
+			h = typehash(f.typ, add(p, f.offset), h)
 		}
 		return h
 	default:
@@ -290,7 +290,7 @@ func int64Hash(i uint64, seed uintptr) uintptr {
 	return memhash64(noescape(unsafe.Pointer(&i)), seed)
 }
 
-func efaceHash(i interface{}, seed uintptr) uintptr {
+func efaceHash(i any, seed uintptr) uintptr {
 	return nilinterhash(noescape(unsafe.Pointer(&i)), seed)
 }
 

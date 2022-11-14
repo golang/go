@@ -14,8 +14,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVL BP, 16(SP)
 	MOVL SI, 20(SP)
 	MOVL DI, 24(SP)
-	CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
-	JNE nosse
+	#ifndef GO386_softfloat
 	MOVUPS X0, 28(SP)
 	MOVUPS X1, 44(SP)
 	MOVUPS X2, 60(SP)
@@ -24,10 +23,9 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVUPS X5, 108(SP)
 	MOVUPS X6, 124(SP)
 	MOVUPS X7, 140(SP)
-nosse:
+	#endif
 	CALL ·asyncPreempt2(SB)
-	CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
-	JNE nosse2
+	#ifndef GO386_softfloat
 	MOVUPS 140(SP), X7
 	MOVUPS 124(SP), X6
 	MOVUPS 108(SP), X5
@@ -36,7 +34,7 @@ nosse:
 	MOVUPS 60(SP), X2
 	MOVUPS 44(SP), X1
 	MOVUPS 28(SP), X0
-nosse2:
+	#endif
 	MOVL 24(SP), DI
 	MOVL 20(SP), SI
 	MOVL 16(SP), BP

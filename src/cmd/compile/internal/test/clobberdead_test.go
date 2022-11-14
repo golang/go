@@ -6,7 +6,7 @@ package test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -39,7 +39,7 @@ func runHello(t *testing.T, flag string) {
 
 	tmpdir := t.TempDir()
 	src := filepath.Join(tmpdir, "x.go")
-	err := ioutil.WriteFile(src, []byte(helloSrc), 0644)
+	err := os.WriteFile(src, []byte(helloSrc), 0644)
 	if err != nil {
 		t.Fatalf("write file failed: %v", err)
 	}

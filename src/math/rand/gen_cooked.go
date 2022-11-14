@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // This program computes the value of rngCooked in rng.go,
 // which is used for seeding all instances of rand.Source.

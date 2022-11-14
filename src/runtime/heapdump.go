@@ -156,8 +156,7 @@ func dumpslice(b []byte) {
 }
 
 func dumpstr(s string) {
-	sp := stringStructOf(&s)
-	dumpmemrange(sp.str, uintptr(sp.len))
+	dumpmemrange(unsafe.Pointer(unsafe.StringData(s)), uintptr(len(s)))
 }
 
 // dump information for a type
@@ -197,14 +196,12 @@ func dumptype(t *_type) {
 	if x := t.uncommon(); x == nil || t.nameOff(x.pkgpath).name() == "" {
 		dumpstr(t.string())
 	} else {
-		pkgpathstr := t.nameOff(x.pkgpath).name()
-		pkgpath := stringStructOf(&pkgpathstr)
-		namestr := t.name()
-		name := stringStructOf(&namestr)
-		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
-		dwrite(pkgpath.str, uintptr(pkgpath.len))
+		pkgpath := t.nameOff(x.pkgpath).name()
+		name := t.name()
+		dumpint(uint64(uintptr(len(pkgpath)) + 1 + uintptr(len(name))))
+		dwrite(unsafe.Pointer(unsafe.StringData(pkgpath)), uintptr(len(pkgpath)))
 		dwritebyte('.')
-		dwrite(name.str, uintptr(name.len))
+		dwrite(unsafe.Pointer(unsafe.StringData(name)), uintptr(len(name)))
 	}
 	dumpbool(t.kind&kindDirectIface == 0 || t.ptrdata != 0)
 }
@@ -259,7 +256,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	// Figure out what we can about our stack map
 	pc := s.pc
 	pcdata := int32(-1) // Use the entry map at function entry
-	if pc != f.entry {
+	if pc != f.entry() {
 		pc--
 		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
 	}
@@ -284,7 +281,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	dumpint(uint64(child.depth))                       // # of frames deep on the stack
 	dumpint(uint64(uintptr(unsafe.Pointer(child.sp)))) // sp of child, or 0 if bottom of stack
 	dumpmemrange(unsafe.Pointer(s.sp), s.fp-s.sp)      // frame contents
-	dumpint(uint64(f.entry))
+	dumpint(uint64(f.entry()))
 	dumpint(uint64(s.pc))
 	dumpint(uint64(s.continpc))
 	name := funcname(f)
@@ -327,7 +324,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 
 	// Record arg info for parent.
 	child.argoff = s.argp - s.fp
-	child.arglen = s.arglen
+	child.arglen = s.argBytes()
 	child.sp = (*uint8)(unsafe.Pointer(s.sp))
 	child.depth++
 	stkmap = (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
@@ -354,7 +351,7 @@ func dumpgoroutine(gp *g) {
 	dumpint(tagGoroutine)
 	dumpint(uint64(uintptr(unsafe.Pointer(gp))))
 	dumpint(uint64(sp))
-	dumpint(uint64(gp.goid))
+	dumpint(gp.goid)
 	dumpint(uint64(gp.gopc))
 	dumpint(uint64(readgstatus(gp)))
 	dumpbool(isSystemGoroutine(gp, false))
@@ -631,7 +628,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 			dumpint(0)
 		} else {
 			dumpstr(funcname(f))
-			if i > 0 && pc > f.entry {
+			if i > 0 && pc > f.entry() {
 				pc--
 			}
 			file, line := funcline(f, pc)
@@ -693,14 +690,8 @@ func mdump(m *MemStats) {
 func writeheapdump_m(fd uintptr, m *MemStats) {
 	assertWorldStopped()
 
-	_g_ := getg()
-	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
-	_g_.waitreason = waitReasonDumpingHeap
-
-	// Update stats so we can dump them.
-	// As a side effect, flushes all the mcaches so the mspan.freelist
-	// lists contain all the free objects.
-	updatememstats()
+	gp := getg()
+	casGToWaiting(gp.m.curg, _Grunning, waitReasonDumpingHeap)
 
 	// Set dump file.
 	dumpfd = fd
@@ -715,7 +706,7 @@ func writeheapdump_m(fd uintptr, m *MemStats) {
 		tmpbuf = nil
 	}
 
-	casgstatus(_g_.m.curg, _Gwaiting, _Grunning)
+	casgstatus(gp.m.curg, _Gwaiting, _Grunning)
 }
 
 // dumpint() the kind & offset of each field in an object.
@@ -742,16 +733,16 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	for i := uintptr(0); i < nptr/8+1; i++ {
 		tmpbuf[i] = 0
 	}
-	i := uintptr(0)
-	hbits := heapBitsForAddr(p)
-	for ; i < nptr; i++ {
-		if !hbits.morePointers() {
-			break // end of object
+
+	hbits := heapBitsForAddr(p, size)
+	for {
+		var addr uintptr
+		hbits, addr = hbits.next()
+		if addr == 0 {
+			break
 		}
-		if hbits.isPointer() {
-			tmpbuf[i/8] |= 1 << (i % 8)
-		}
-		hbits = hbits.next()
+		i := (addr - p) / goarch.PtrSize
+		tmpbuf[i/8] |= 1 << (i % 8)
 	}
-	return bitvector{int32(i), &tmpbuf[0]}
+	return bitvector{int32(nptr), &tmpbuf[0]}
 }

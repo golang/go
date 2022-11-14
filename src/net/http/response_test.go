@@ -596,7 +596,7 @@ func TestReadResponse(t *testing.T) {
 		rbody := resp.Body
 		resp.Body = nil
 		diff(t, fmt.Sprintf("#%d Response", i), resp, &tt.Resp)
-		var bout bytes.Buffer
+		var bout strings.Builder
 		if rbody != nil {
 			_, err = io.Copy(&bout, rbody)
 			if err != nil {
@@ -646,8 +646,8 @@ type readerAndCloser struct {
 func TestReadResponseCloseInMiddle(t *testing.T) {
 	t.Parallel()
 	for _, test := range readResponseCloseInMiddleTests {
-		fatalf := func(format string, args ...interface{}) {
-			args = append([]interface{}{test.chunked, test.compressed}, args...)
+		fatalf := func(format string, args ...any) {
+			args = append([]any{test.chunked, test.compressed}, args...)
 			t.Fatalf("on test chunked=%v, compressed=%v: "+format, args...)
 		}
 		checkErr := func(err error, msg string) {
@@ -732,7 +732,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 	}
 }
 
-func diff(t *testing.T, prefix string, have, want interface{}) {
+func diff(t *testing.T, prefix string, have, want any) {
 	t.Helper()
 	hv := reflect.ValueOf(have).Elem()
 	wv := reflect.ValueOf(want).Elem()
@@ -809,7 +809,7 @@ func TestResponseStatusStutter(t *testing.T) {
 		ProtoMajor: 1,
 		ProtoMinor: 3,
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	r.Write(&buf)
 	if strings.Contains(buf.String(), "123 123") {
 		t.Errorf("stutter in status: %s", buf.String())
@@ -829,7 +829,7 @@ func TestResponseContentLengthShortBody(t *testing.T) {
 	if res.ContentLength != 123 {
 		t.Fatalf("Content-Length = %d; want 123", res.ContentLength)
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	n, err := io.Copy(&buf, res.Body)
 	if n != int64(len(shortBody)) {
 		t.Errorf("Copied %d bytes; want %d, len(%q)", n, len(shortBody), shortBody)
@@ -849,10 +849,10 @@ func TestReadResponseErrors(t *testing.T) {
 	type testCase struct {
 		name    string // optional, defaults to in
 		in      string
-		wantErr interface{} // nil, err value, or string substring
+		wantErr any // nil, err value, or string substring
 	}
 
-	status := func(s string, wantErr interface{}) testCase {
+	status := func(s string, wantErr any) testCase {
 		if wantErr == true {
 			wantErr = "malformed HTTP status code"
 		}
@@ -863,7 +863,7 @@ func TestReadResponseErrors(t *testing.T) {
 		}
 	}
 
-	version := func(s string, wantErr interface{}) testCase {
+	version := func(s string, wantErr any) testCase {
 		if wantErr == true {
 			wantErr = "malformed HTTP version"
 		}
@@ -874,7 +874,7 @@ func TestReadResponseErrors(t *testing.T) {
 		}
 	}
 
-	contentLength := func(status, body string, wantErr interface{}) testCase {
+	contentLength := func(status, body string, wantErr any) testCase {
 		return testCase{
 			name:    fmt.Sprintf("status %q %q", status, body),
 			in:      fmt.Sprintf("HTTP/1.1 %s\r\n%s", status, body),
@@ -947,7 +947,7 @@ func TestReadResponseErrors(t *testing.T) {
 
 // wantErr can be nil, an error value to match exactly, or type string to
 // match a substring.
-func matchErr(err error, wantErr interface{}) error {
+func matchErr(err error, wantErr any) error {
 	if err == nil {
 		if wantErr == nil {
 			return nil
@@ -972,19 +972,6 @@ func matchErr(err error, wantErr interface{}) error {
 	return fmt.Errorf("%v; want %v", err, wantErr)
 }
 
-func TestNeedsSniff(t *testing.T) {
-	// needsSniff returns true with an empty response.
-	r := &response{}
-	if got, want := r.needsSniff(), true; got != want {
-		t.Errorf("needsSniff = %t; want %t", got, want)
-	}
-	// needsSniff returns false when Content-Type = nil.
-	r.handlerHeader = Header{"Content-Type": nil}
-	if got, want := r.needsSniff(), false; got != want {
-		t.Errorf("needsSniff empty Content-Type = %t; want %t", got, want)
-	}
-}
-
 // A response should only write out single Connection: close header. Tests #19499.
 func TestResponseWritesOnlySingleConnectionClose(t *testing.T) {
 	const connectionCloseHeader = "Connection: close"
@@ -1002,7 +989,7 @@ func TestResponseWritesOnlySingleConnectionClose(t *testing.T) {
 		t.Fatalf("ReadResponse failed %v", err)
 	}
 
-	var buf2 bytes.Buffer
+	var buf2 strings.Builder
 	if err = res.Write(&buf2); err != nil {
 		t.Fatalf("Write failed %v", err)
 	}

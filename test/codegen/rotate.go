@@ -18,6 +18,7 @@ func rot64(x uint64) uint64 {
 	// amd64:"ROLQ\t[$]7"
 	// ppc64:"ROTL\t[$]7"
 	// ppc64le:"ROTL\t[$]7"
+	// loong64: "ROTRV\t[$]57"
 	a += x<<7 | x>>57
 
 	// amd64:"ROLQ\t[$]8"
@@ -25,6 +26,7 @@ func rot64(x uint64) uint64 {
 	// s390x:"RISBGZ\t[$]0, [$]63, [$]8, "
 	// ppc64:"ROTL\t[$]8"
 	// ppc64le:"ROTL\t[$]8"
+	// loong64: "ROTRV\t[$]56"
 	a += x<<8 + x>>56
 
 	// amd64:"ROLQ\t[$]9"
@@ -32,10 +34,19 @@ func rot64(x uint64) uint64 {
 	// s390x:"RISBGZ\t[$]0, [$]63, [$]9, "
 	// ppc64:"ROTL\t[$]9"
 	// ppc64le:"ROTL\t[$]9"
+	// loong64: "ROTRV\t[$]55"
 	a += x<<9 ^ x>>55
 
-	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, "
-	// arm64:"ROR\t[$]57" // TODO this is not great line numbering, but then again, the instruction did appear
+	// amd64:"ROLQ\t[$]10"
+	// arm64:"ROR\t[$]54"
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]10, "
+	// ppc64:"ROTL\t[$]10"
+	// ppc64le:"ROTL\t[$]10"
+	// arm64:"ROR\t[$]54"
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]10, "
+	// loong64: "ROTRV\t[$]54"
+	a += bits.RotateLeft64(x, 10)
+
 	return a
 }
 
@@ -46,6 +57,7 @@ func rot32(x uint32) uint32 {
 	// arm:"MOVW\tR\\d+@>25"
 	// ppc64:"ROTLW\t[$]7"
 	// ppc64le:"ROTLW\t[$]7"
+	// loong64: "ROTR\t[$]25"
 	a += x<<7 | x>>25
 
 	// amd64:`ROLL\t[$]8`
@@ -54,6 +66,7 @@ func rot32(x uint32) uint32 {
 	// s390x:"RLL\t[$]8"
 	// ppc64:"ROTLW\t[$]8"
 	// ppc64le:"ROTLW\t[$]8"
+	// loong64: "ROTR\t[$]24"
 	a += x<<8 + x>>24
 
 	// amd64:"ROLL\t[$]9"
@@ -62,10 +75,20 @@ func rot32(x uint32) uint32 {
 	// s390x:"RLL\t[$]9"
 	// ppc64:"ROTLW\t[$]9"
 	// ppc64le:"ROTLW\t[$]9"
+	// loong64: "ROTR\t[$]23"
 	a += x<<9 ^ x>>23
 
-	// s390x:"RLL\t[$]7"
-	// arm64:"RORW\t[$]25" // TODO this is not great line numbering, but then again, the instruction did appear
+	// amd64:"ROLL\t[$]10"
+	// arm:"MOVW\tR\\d+@>22"
+	// arm64:"RORW\t[$]22"
+	// s390x:"RLL\t[$]10"
+	// ppc64:"ROTLW\t[$]10"
+	// ppc64le:"ROTLW\t[$]10"
+	// arm64:"RORW\t[$]22"
+	// s390x:"RLL\t[$]10"
+	// loong64: "ROTR\t[$]22"
+	a += bits.RotateLeft32(x, 10)
+
 	return a
 }
 
@@ -108,12 +131,18 @@ func rot64nc(x uint64, z uint) uint64 {
 
 	z &= 63
 
-	// amd64:"ROLQ"
-	// ppc64:"ROTL"
-	// ppc64le:"ROTL"
+	// amd64:"ROLQ",-"AND"
+	// arm64:"ROR","NEG",-"AND"
+	// ppc64:"ROTL",-"NEG",-"AND"
+	// ppc64le:"ROTL",-"NEG",-"AND"
+	// loong64: "ROTRV", -"AND"
 	a += x<<z | x>>(64-z)
 
-	// amd64:"RORQ"
+	// amd64:"RORQ",-"AND"
+	// arm64:"ROR",-"NEG",-"AND"
+	// ppc64:"ROTL","NEG",-"AND"
+	// ppc64le:"ROTL","NEG",-"AND"
+	// loong64: "ROTRV", -"AND"
 	a += x>>z | x<<(64-z)
 
 	return a
@@ -124,12 +153,18 @@ func rot32nc(x uint32, z uint) uint32 {
 
 	z &= 31
 
-	// amd64:"ROLL"
-	// ppc64:"ROTLW"
-	// ppc64le:"ROTLW"
+	// amd64:"ROLL",-"AND"
+	// arm64:"ROR","NEG",-"AND"
+	// ppc64:"ROTLW",-"NEG",-"AND"
+	// ppc64le:"ROTLW",-"NEG",-"AND"
+	// loong64: "ROTR", -"AND"
 	a += x<<z | x>>(32-z)
 
-	// amd64:"RORL"
+	// amd64:"RORL",-"AND"
+	// arm64:"ROR",-"NEG",-"AND"
+	// ppc64:"ROTLW","NEG",-"AND"
+	// ppc64le:"ROTLW","NEG",-"AND"
+	// loong64: "ROTR", -"AND"
 	a += x>>z | x<<(32-z)
 
 	return a
@@ -140,10 +175,10 @@ func rot16nc(x uint16, z uint) uint16 {
 
 	z &= 15
 
-	// amd64:"ROLW"
+	// amd64:"ROLW",-"ANDQ"
 	a += x<<z | x>>(16-z)
 
-	// amd64:"RORW"
+	// amd64:"RORW",-"ANDQ"
 	a += x>>z | x<<(16-z)
 
 	return a
@@ -154,10 +189,10 @@ func rot8nc(x uint8, z uint) uint8 {
 
 	z &= 7
 
-	// amd64:"ROLB"
+	// amd64:"ROLB",-"ANDQ"
 	a += x<<z | x>>(8-z)
 
-	// amd64:"RORB"
+	// amd64:"RORB",-"ANDQ"
 	a += x>>z | x<<(8-z)
 
 	return a
@@ -167,6 +202,14 @@ func rot8nc(x uint8, z uint) uint8 {
 func f32(x uint32) uint32 {
 	// amd64:"ROLL\t[$]7"
 	return rot32nc(x, 7)
+}
+
+func doubleRotate(x uint64) uint64 {
+	x = (x << 5) | (x >> 59)
+	// amd64:"ROLQ\t[$]15"
+	// arm64:"ROR\t[$]49"
+	x = (x << 10) | (x >> 54)
+	return x
 }
 
 // --------------------------------------- //
@@ -199,15 +242,38 @@ func checkMaskedRotate32(a []uint32, r int) {
 	i++
 	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]16, [$]23, R[0-9]+"
 	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]16, [$]23, R[0-9]+"
-	a[i] = bits.RotateLeft32(a[3], r) & 0xFF00
+	a[i] = bits.RotateLeft32(a[i], r) & 0xFF00
 	i++
 
 	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]20, [$]11, R[0-9]+"
 	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]20, [$]11, R[0-9]+"
-	a[i] = bits.RotateLeft32(a[3], r) & 0xFFF00FFF
+	a[i] = bits.RotateLeft32(a[i], r) & 0xFFF00FFF
 	i++
 	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]11, R[0-9]+"
 	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]11, R[0-9]+"
-	a[i] = bits.RotateLeft32(a[3], 4) & 0xFFF00FFF
+	a[i] = bits.RotateLeft32(a[i], 4) & 0xFFF00FFF
 	i++
+}
+
+// combined arithmetic and rotate on arm64
+func checkArithmeticWithRotate(a *[1000]uint64) {
+	// arm64: "AND\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[2] = a[1] & bits.RotateLeft64(a[0], 13)
+	// arm64: "ORR\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[5] = a[4] | bits.RotateLeft64(a[3], 13)
+	// arm64: "EOR\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[8] = a[7] ^ bits.RotateLeft64(a[6], 13)
+	// arm64: "MVN\tR[0-9]+@>51, R[0-9]+"
+	a[10] = ^bits.RotateLeft64(a[9], 13)
+	// arm64: "BIC\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[13] = a[12] &^ bits.RotateLeft64(a[11], 13)
+	// arm64: "EON\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[16] = a[15] ^ ^bits.RotateLeft64(a[14], 13)
+	// arm64: "ORN\tR[0-9]+@>51, R[0-9]+, R[0-9]+"
+	a[19] = a[18] | ^bits.RotateLeft64(a[17], 13)
+	// arm64: "TST\tR[0-9]+@>51, R[0-9]+"
+	if a[18]&bits.RotateLeft64(a[19], 13) == 0 {
+		a[20] = 1
+	}
+
 }

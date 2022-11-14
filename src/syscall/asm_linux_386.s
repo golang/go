@@ -13,121 +13,24 @@
 // instead of the glibc-specific "CALL 0x10(GS)".
 #define INVOKE_SYSCALL	INT	$0x80
 
-// func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
-// Trap # in AX, args in BX CX DX SI DI, return in AX
-TEXT ·Syscall(SB),NOSPLIT,$0-28
-	CALL	runtime·entersyscall(SB)
+// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-20
 	MOVL	trap+0(FP), AX	// syscall entry
 	MOVL	a1+4(FP), BX
 	MOVL	a2+8(FP), CX
-	MOVL	a3+12(FP), DX
-	MOVL	$0, SI
-	MOVL	$0, DI
-	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	ok
-	MOVL	$-1, r1+16(FP)
-	MOVL	$0, r2+20(FP)
-	NEGL	AX
-	MOVL	AX, err+24(FP)
-	CALL	runtime·exitsyscall(SB)
-	RET
-ok:
-	MOVL	AX, r1+16(FP)
-	MOVL	DX, r2+20(FP)
-	MOVL	$0, err+24(FP)
-	CALL	runtime·exitsyscall(SB)
-	RET
-
-// func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
-TEXT ·Syscall6(SB),NOSPLIT,$0-40
-	CALL	runtime·entersyscall(SB)
-	MOVL	trap+0(FP), AX	// syscall entry
-	MOVL	a1+4(FP), BX
-	MOVL	a2+8(FP), CX
-	MOVL	a3+12(FP), DX
-	MOVL	a4+16(FP), SI
-	MOVL	a5+20(FP), DI
-	MOVL	a6+24(FP), BP
-	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	ok6
-	MOVL	$-1, r1+28(FP)
-	MOVL	$0, r2+32(FP)
-	NEGL	AX
-	MOVL	AX, err+36(FP)
-	CALL	runtime·exitsyscall(SB)
-	RET
-ok6:
-	MOVL	AX, r1+28(FP)
-	MOVL	DX, r2+32(FP)
-	MOVL	$0, err+36(FP)
-	CALL	runtime·exitsyscall(SB)
-	RET
-
-// func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
-TEXT ·RawSyscall(SB),NOSPLIT,$0-28
-	MOVL	trap+0(FP), AX	// syscall entry
-	MOVL	a1+4(FP), BX
-	MOVL	a2+8(FP), CX
-	MOVL	a3+12(FP), DX
-	MOVL	$0, SI
-	MOVL	$0, DI
-	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	ok1
-	MOVL	$-1, r1+16(FP)
-	MOVL	$0, r2+20(FP)
-	NEGL	AX
-	MOVL	AX, err+24(FP)
-	RET
-ok1:
-	MOVL	AX, r1+16(FP)
-	MOVL	DX, r2+20(FP)
-	MOVL	$0, err+24(FP)
-	RET
-
-// func RawSyscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
-TEXT ·RawSyscall6(SB),NOSPLIT,$0-40
-	MOVL	trap+0(FP), AX	// syscall entry
-	MOVL	a1+4(FP), BX
-	MOVL	a2+8(FP), CX
-	MOVL	a3+12(FP), DX
-	MOVL	a4+16(FP), SI
-	MOVL	a5+20(FP), DI
-	MOVL	a6+24(FP), BP
-	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	ok2
-	MOVL	$-1, r1+28(FP)
-	MOVL	$0, r2+32(FP)
-	NEGL	AX
-	MOVL	AX, err+36(FP)
-	RET
-ok2:
-	MOVL	AX, r1+28(FP)
-	MOVL	DX, r2+32(FP)
-	MOVL	$0, err+36(FP)
-	RET
-
-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
-	MOVL	trap+0(FP), AX	// syscall entry
-	MOVL	a1+4(FP), BX
-	MOVL	$0, CX
 	MOVL	$0, DX
 	POPL	SI // preserve return address
 	INVOKE_SYSCALL
 	PUSHL	SI
 	CMPL	AX, $0xfffff001
 	JLS	ok
-	MOVL	$-1, r1+8(FP)
+	MOVL	$-1, r1+12(FP)
 	NEGL	AX
-	MOVL	AX, err+12(FP)
+	MOVL	AX, err+16(FP)
 	RET
 ok:
-	MOVL	AX, r1+8(FP)
-	MOVL	$0, err+12(FP)
+	MOVL	AX, r1+12(FP)
+	MOVL	$0, err+16(FP)
 	RET
 
 // func rawSyscallNoError(trap uintptr, a1, a2, a3 uintptr) (r1, r2 uintptr);

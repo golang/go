@@ -25,11 +25,6 @@ var (
 	libc_wait4 libcFunc
 )
 
-//go:linkname pipe1x runtime.pipe1
-var pipe1x libcFunc // name to take addr of pipe1
-
-func pipe1() // declared for vet; do NOT call
-
 // Many of these are exported via linkname to assembly in the syscall
 // package.
 
@@ -90,6 +85,7 @@ func syscall_chroot(path uintptr) (err uintptr) {
 }
 
 // like close, but must not split stack, for forkx.
+//
 //go:nosplit
 //go:linkname syscall_close
 func syscall_close(fd int32) int32 {
@@ -118,6 +114,7 @@ func syscall_execve(path, argv, envp uintptr) (err uintptr) {
 }
 
 // like exit, but must not split stack, for forkx.
+//
 //go:nosplit
 //go:linkname syscall_exit
 func syscall_exit(code uintptr) {
@@ -194,19 +191,6 @@ func syscall_ioctl(fd, req, arg uintptr) (err uintptr) {
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&call))
 	return call.err
-}
-
-//go:linkname syscall_pipe
-func syscall_pipe() (r, w, err uintptr) {
-	call := libcall{
-		fn:   uintptr(unsafe.Pointer(&pipe1x)),
-		n:    0,
-		args: uintptr(unsafe.Pointer(&pipe1x)), // it's unused but must be non-nil, otherwise crashes
-	}
-	entersyscallblock()
-	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&call))
-	exitsyscall()
-	return call.r1, call.r2, call.err
 }
 
 // This is syscall.RawSyscall, it exists to satisfy some build dependency,
@@ -312,6 +296,8 @@ func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&call))
 	exitsyscall()
+	KeepAlive(wstatus)
+	KeepAlive(rusage)
 	return int(call.r1), call.err
 }
 

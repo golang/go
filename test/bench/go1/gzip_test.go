@@ -13,20 +13,19 @@ import (
 	"testing"
 )
 
-var (
-	jsongunz = bytes.Repeat(jsonbytes, 10)
-	jsongz   []byte
-)
+func makeGunzip(jsonbytes []byte) []byte {
+	return bytes.Repeat(jsonbytes, 10)
+}
 
-func init() {
+func makeGzip(jsongunz []byte) []byte {
 	var buf bytes.Buffer
 	c := gz.NewWriter(&buf)
 	c.Write(jsongunz)
 	c.Close()
-	jsongz = buf.Bytes()
+	return buf.Bytes()
 }
 
-func gzip() {
+func gzip(jsongunz []byte) {
 	c := gz.NewWriter(io.Discard)
 	if _, err := c.Write(jsongunz); err != nil {
 		panic(err)
@@ -36,7 +35,7 @@ func gzip() {
 	}
 }
 
-func gunzip() {
+func gunzip(jsongz []byte) {
 	r, err := gz.NewReader(bytes.NewBuffer(jsongz))
 	if err != nil {
 		panic(err)
@@ -48,15 +47,22 @@ func gunzip() {
 }
 
 func BenchmarkGzip(b *testing.B) {
+	jsonbytes := makeJsonBytes()
+	jsongunz := makeGunzip(jsonbytes)
+	b.ResetTimer()
 	b.SetBytes(int64(len(jsongunz)))
 	for i := 0; i < b.N; i++ {
-		gzip()
+		gzip(jsongunz)
 	}
 }
 
 func BenchmarkGunzip(b *testing.B) {
+	jsonbytes := makeJsonBytes()
+	jsongunz := makeGunzip(jsonbytes)
+	jsongz := makeGzip(jsongunz)
+	b.ResetTimer()
 	b.SetBytes(int64(len(jsongunz)))
 	for i := 0; i < b.N; i++ {
-		gunzip()
+		gunzip(jsongz)
 	}
 }

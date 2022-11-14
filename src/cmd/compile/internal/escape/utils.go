@@ -7,6 +7,7 @@ package escape
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
+	"cmd/compile/internal/types"
 )
 
 func isSliceSelfAssign(dst, src ir.Node) bool {
@@ -182,12 +183,18 @@ func HeapAllocReason(n ir.Node) string {
 		}
 	}
 
-	if n.Type().Width > ir.MaxStackVarSize {
+	if n.Type().Size() > ir.MaxStackVarSize {
 		return "too large for stack"
 	}
+	if n.Type().Alignment() > int64(types.PtrSize) {
+		return "too aligned for stack"
+	}
 
-	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Width > ir.MaxImplicitStackVarSize {
+	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Size() > ir.MaxImplicitStackVarSize {
 		return "too large for stack"
+	}
+	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Alignment() > int64(types.PtrSize) {
+		return "too aligned for stack"
 	}
 
 	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() > ir.MaxImplicitStackVarSize {
@@ -206,7 +213,7 @@ func HeapAllocReason(n ir.Node) string {
 		if !ir.IsSmallIntConst(r) {
 			return "non-constant size"
 		}
-		if t := n.Type(); t.Elem().Width != 0 && ir.Int64Val(r) > ir.MaxImplicitStackVarSize/t.Elem().Width {
+		if t := n.Type(); t.Elem().Size() != 0 && ir.Int64Val(r) > ir.MaxImplicitStackVarSize/t.Elem().Size() {
 			return "too large for stack"
 		}
 	}

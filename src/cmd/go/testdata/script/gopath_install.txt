@@ -26,7 +26,7 @@ cd ..
 env GOPATH= # reset to default ($HOME/go, which does not exist)
 env GOBIN=
 ! go install go-cmd-test/helloworld.go
-stderr '^go install: no install location for \.go files listed on command line \(GOBIN not set\)$'
+stderr '^go: no install location for \.go files listed on command line \(GOBIN not set\)$'
 
 # With $GOBIN set, should install there.
 env GOBIN=$WORK/bin1

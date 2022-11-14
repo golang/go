@@ -544,7 +544,6 @@ func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 
 func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
 	rs := r.Sym()
-	rs = ldr.ResolveABIAlias(rs)
 	if target.IsExternal() {
 		switch r.Type() {
 		case objabi.R_CALLARM:
@@ -592,7 +591,7 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 }
 
 func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
-	rs := ldr.ResolveABIAlias(r.Sym())
+	rs := r.Sym()
 	var rr loader.ExtReloc
 	switch r.Type() {
 	case objabi.R_CALLARM:

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,12 +32,12 @@ func main() {
 `
 
 func objdumpOutput(t *testing.T, mname, source string) []byte {
-	tmpdir, err := ioutil.TempDir("", mname)
+	tmpdir, err := os.MkdirTemp("", mname)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte(fmt.Sprintf("module %s\n", mname)), 0666)
+	err = os.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte(fmt.Sprintf("module %s\n", mname)), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}

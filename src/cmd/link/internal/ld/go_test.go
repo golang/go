@@ -5,14 +5,15 @@
 package ld
 
 import (
-	"cmd/internal/objabi"
 	"internal/testenv"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"testing"
+
+	"cmd/internal/objabi"
 )
 
 func TestDedupLibraries(t *testing.T) {
@@ -99,7 +100,7 @@ import (
 //go:cgo_import_dynamic _ _ "libc.so"
 
 func main() {}`
-	if err := ioutil.WriteFile(srcFile, []byte(src), 0644); err != nil {
+	if err := os.WriteFile(srcFile, []byte(src), 0644); err != nil {
 		t.Fatal(err)
 	}
 

@@ -1,5 +1,12 @@
 env GO111MODULE=on
 
+# Replacement should not use a vendor directory as the target.
+! go mod vendor
+stderr 'replacement path ./vendor/not-rsc.io/quote/v3 inside vendor directory'
+
+cp go.mod1 go.mod
+rm -r vendor
+
 # Before vendoring, we expect to see the original directory.
 go list -f '{{with .Module}}{{.Version}}{{end}} {{.Dir}}' rsc.io/quote/v3
 stdout 'v3.0.0'
@@ -35,7 +42,14 @@ stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/
 module example.com/replace
 
 require rsc.io/quote/v3 v3.0.0
+replace rsc.io/quote/v3 => ./vendor/not-rsc.io/quote/v3
+
+-- go.mod1 --
+module example.com/replace
+
+require rsc.io/quote/v3 v3.0.0
 replace rsc.io/quote/v3 => ./local/not-rsc.io/quote/v3
+
 -- imports.go --
 package replace
 
@@ -67,3 +81,9 @@ replace not-rsc.io/quote/v3 => rsc.io/quote/v3 v3.0.0
 golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 rsc.io/quote/v3 v3.0.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+
+-- vendor/not-rsc.io/quote/v3/go.mod --
+module not-rsc.io/quote/v3
+
+-- vendor/not-rsc.io/quote/v3/quote.go --
+package quote

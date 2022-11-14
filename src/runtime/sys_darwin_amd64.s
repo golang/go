@@ -214,7 +214,32 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 // This is the function registered during sigaction and is invoked when
 // a signal is received. It just redirects to the Go function sigtrampgo.
 // Called using C ABI.
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+	// Transition from C ABI to Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
+
+	// Set up ABIInternal environment: g in R14, cleared X15.
+	get_tls(R12)
+	MOVQ	g(R12), R14
+	PXOR	X15, X15
+
+	// Reserve space for spill slots.
+	NOP	SP		// disable vet stack checking
+	ADJSP   $24
+
+	// Call into the Go signal handler
+	MOVQ	DI, AX	// sig
+	MOVQ	SI, BX	// info
+	MOVQ	DX, CX	// ctx
+	CALL	·sigtrampgo<ABIInternal>(SB)
+
+	ADJSP	$-24
+
+	POP_REGS_HOST_TO_ABI0()
+	RET
+
+// Called using C ABI.
+TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
 	// Transition from C ABI to Go ABI.
 	PUSH_REGS_HOST_TO_ABI0()
 
@@ -224,7 +249,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVL	DI, 0(SP)	// sig
 	MOVQ	SI, 8(SP)	// info
 	MOVQ	DX, 16(SP)	// ctx
-	CALL	·sigtrampgo(SB)
+	CALL	·sigprofNonGo(SB)
 	ADJSP	$-24
 
 	POP_REGS_HOST_TO_ABI0()
@@ -297,12 +322,12 @@ sigtrampnog:
 	JNZ	sigtramp  // Skip stack trace if already locked.
 
 	// Jump to the traceback function in runtime/cgo.
-	// It will call back to sigprofNonGo, which will ignore the
-	// arguments passed in registers.
+	// It will call back to sigprofNonGo, via sigprofNonGoWrapper, to convert
+	// the arguments to the Go calling convention.
 	// First three arguments to traceback function are in registers already.
 	MOVQ	runtime·cgoTraceback(SB), CX
 	MOVQ	$runtime·sigprofCallers(SB), R8
-	MOVQ	$runtime·sigprofNonGo(SB), R9
+	MOVQ	$runtime·sigprofNonGoWrapper<>(SB), R9
 	MOVQ	_cgo_callers(SB), AX
 	JMP	AX
 
@@ -814,9 +839,69 @@ ok:
 	POPQ	BP
 	RET
 
-// syscallNoErr is like syscall6 but does not check for errors, and
-// only returns one value, for use with standard C ABI library functions.
-TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
+// syscall9 calls a function in libc on behalf of the syscall package.
+// syscall9 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	a7    uintptr
+//	a8    uintptr
+//	a9    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall9 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+//
+// syscall9 expects a 32-bit result and tests for 32-bit -1
+// to decide there was an error.
+TEXT runtime·syscall9(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	SUBQ	$16, SP
+	MOVQ	(0*8)(DI), R13// fn
+	MOVQ	(2*8)(DI), SI // a2
+	MOVQ	(3*8)(DI), DX // a3
+	MOVQ	(4*8)(DI), CX // a4
+	MOVQ	(5*8)(DI), R8 // a5
+	MOVQ	(6*8)(DI), R9 // a6
+	MOVQ	(7*8)(DI), R10 // a7
+	MOVQ	(8*8)(DI), R11 // a8
+	MOVQ	(9*8)(DI), R12 // a9
+	MOVQ	DI, (SP)
+	MOVQ	(1*8)(DI), DI // a1
+	XORL	AX, AX	      // vararg: say "no float args"
+
+	CALL	R13
+
+	MOVQ	(SP), DI
+	MOVQ	AX, (10*8)(DI) // r1
+	MOVQ	DX, (11*8)(DI) // r2
+
+	CMPL	AX, $-1
+	JNE	ok
+
+	CALL	libc_error(SB)
+	MOVLQSX	(AX), AX
+	MOVQ	(SP), DI
+	MOVQ	AX, (12*8)(DI) // err
+
+ok:
+	XORL	AX, AX        // no error (it's ignored anyway)
+	MOVQ	BP, SP
+	POPQ	BP
+	RET
+
+// syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,
+// takes 5 uintptrs and 1 float64, and only returns one value,
+// for use with standard C ABI functions.
+TEXT runtime·syscall_x509(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	SUBQ	$16, SP
@@ -825,7 +910,7 @@ TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
 	MOVQ	(3*8)(DI), DX // a3
 	MOVQ	(4*8)(DI), CX // a4
 	MOVQ	(5*8)(DI), R8 // a5
-	MOVQ	(6*8)(DI), R9 // a6
+	MOVQ	(6*8)(DI), X0 // f1
 	MOVQ	DI, (SP)
 	MOVQ	(1*8)(DI), DI // a1
 	XORL	AX, AX	      // vararg: say "no float args"

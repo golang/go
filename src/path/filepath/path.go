@@ -67,13 +67,13 @@ const (
 // by purely lexical processing. It applies the following rules
 // iteratively until no further processing can be done:
 //
-//	1. Replace multiple Separator elements with a single one.
-//	2. Eliminate each . path name element (the current directory).
-//	3. Eliminate each inner .. path name element (the parent directory)
-//	   along with the non-.. element that precedes it.
-//	4. Eliminate .. elements that begin a rooted path:
-//	   that is, replace "/.." by "/" at the beginning of a path,
-//	   assuming Separator is '/'.
+//  1. Replace multiple Separator elements with a single one.
+//  2. Eliminate each . path name element (the current directory).
+//  3. Eliminate each inner .. path name element (the parent directory)
+//     along with the non-.. element that precedes it.
+//  4. Eliminate .. elements that begin a rooted path:
+//     that is, replace "/.." by "/" at the beginning of a path,
+//     assuming Separator is '/'.
 //
 // The returned path ends in a slash only if it represents a root directory,
 // such as "/" on Unix or `C:\` on Windows.
@@ -83,15 +83,15 @@ const (
 // If the result of this process is an empty string, Clean
 // returns the string ".".
 //
-// See also Rob Pike, ``Lexical File Names in Plan 9 or
-// Getting Dot-Dot Right,''
+// See also Rob Pike, “Lexical File Names in Plan 9 or
+// Getting Dot-Dot Right,”
 // https://9p.io/sys/doc/lexnames.html
 func Clean(path string) string {
 	originalPath := path
 	volLen := volumeNameLen(path)
 	path = path[volLen:]
 	if path == "" {
-		if volLen > 1 && originalPath[1] != ':' {
+		if volLen > 1 && os.IsPathSeparator(originalPath[0]) && os.IsPathSeparator(originalPath[1]) {
 			// should be UNC
 			return FromSlash(originalPath)
 		}
@@ -117,9 +117,21 @@ func Clean(path string) string {
 		case os.IsPathSeparator(path[r]):
 			// empty path element
 			r++
-		case path[r] == '.' && (r+1 == n || os.IsPathSeparator(path[r+1])):
+		case path[r] == '.' && r+1 == n:
 			// . element
 			r++
+		case path[r] == '.' && os.IsPathSeparator(path[r+1]):
+			// ./ element
+			r++
+
+			for r < len(path) && os.IsPathSeparator(path[r]) {
+				r++
+			}
+			if out.w == 0 && volumeNameLen(path[r:]) > 0 {
+				// When joining prefix "." and an absolute path on Windows,
+				// the prefix should not be removed.
+				out.append('.')
+			}
 		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || os.IsPathSeparator(path[r+2])):
 			// .. element: remove to last separator
 			r += 2
@@ -340,6 +352,11 @@ func Rel(basepath, targpath string) (string, error) {
 // as an error by any function.
 var SkipDir error = fs.SkipDir
 
+// SkipAll is used as a return value from WalkFuncs to indicate that
+// all remaining files and directories are to be skipped. It is not returned
+// as an error by any function.
+var SkipAll error = fs.SkipAll
+
 // WalkFunc is the type of the function called by Walk to visit each
 // file or directory.
 //
@@ -358,8 +375,9 @@ var SkipDir error = fs.SkipDir
 // The error result returned by the function controls how Walk continues.
 // If the function returns the special value SkipDir, Walk skips the
 // current directory (path if info.IsDir() is true, otherwise path's
-// parent directory). Otherwise, if the function returns a non-nil error,
-// Walk stops entirely and returns that error.
+// parent directory). If the function returns the special value SkipAll,
+// Walk skips all remaining files and directories. Otherwise, if the function
+// returns a non-nil error, Walk stops entirely and returns that error.
 //
 // The err argument reports an error related to path, signaling that Walk
 // will not walk into that directory. The function can decide how to
@@ -396,6 +414,9 @@ func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
 		// Second call, to report ReadDir error.
 		err = walkDirFn(path, d, err)
 		if err != nil {
+			if err == SkipDir && d.IsDir() {
+				err = nil
+			}
 			return err
 		}
 	}
@@ -426,7 +447,7 @@ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
 	if err != nil || err1 != nil {
 		// The caller's behavior is controlled by the return value, which is decided
 		// by walkFn. walkFn may ignore err and return nil.
-		// If walkFn returns SkipDir, it will be handled by the caller.
+		// If walkFn returns SkipDir or SkipAll, it will be handled by the caller.
 		// So walk should return whatever walkFn returns.
 		return err1
 	}
@@ -461,6 +482,10 @@ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
 // to walk that directory.
 //
 // WalkDir does not follow symbolic links.
+//
+// WalkDir calls fn with paths that use the separator character appropriate
+// for the operating system. This is unlike [io/fs.WalkDir], which always
+// uses slash separated paths.
 func WalkDir(root string, fn fs.WalkDirFunc) error {
 	info, err := os.Lstat(root)
 	if err != nil {
@@ -468,7 +493,7 @@ func WalkDir(root string, fn fs.WalkDirFunc) error {
 	} else {
 		err = walkDir(root, &statDirEntry{info}, fn)
 	}
-	if err == SkipDir {
+	if err == SkipDir || err == SkipAll {
 		return nil
 	}
 	return err
@@ -504,7 +529,7 @@ func Walk(root string, fn WalkFunc) error {
 	} else {
 		err = walk(root, info, fn)
 	}
-	if err == SkipDir {
+	if err == SkipDir || err == SkipAll {
 		return nil
 	}
 	return err
@@ -596,5 +621,5 @@ func Dir(path string) string {
 // Given "\\host\share\foo" it returns "\\host\share".
 // On other platforms it returns "".
 func VolumeName(path string) string {
-	return path[:volumeNameLen(path)]
+	return FromSlash(path[:volumeNameLen(path)])
 }

@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build race && (darwin || freebsd || linux)
-// +build race
-// +build darwin freebsd linux
 
 package race_test
 
@@ -21,11 +19,11 @@ func TestNonGoMemory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to mmap memory: %v", err)
 	}
+	defer syscall.Munmap(data)
 	p := (*uint32)(unsafe.Pointer(&data[0]))
 	atomic.AddUint32(p, 1)
 	(*p)++
 	if *p != 2 {
 		t.Fatalf("data[0] = %v, expect 2", *p)
 	}
-	syscall.Munmap(data)
 }

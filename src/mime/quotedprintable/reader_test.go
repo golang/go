@@ -6,7 +6,6 @@ package quotedprintable
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -22,7 +21,7 @@ import (
 func TestReader(t *testing.T) {
 	tests := []struct {
 		in, want string
-		err      interface{}
+		err      any
 	}{
 		{in: "", want: ""},
 		{in: "foo bar", want: "foo bar"},
@@ -69,7 +68,7 @@ func TestReader(t *testing.T) {
 			want: "accept UTF-8 right quotation mark: ’"},
 	}
 	for _, tt := range tests {
-		var buf bytes.Buffer
+		var buf strings.Builder
 		_, err := io.Copy(&buf, NewReader(strings.NewReader(tt.in)))
 		if got := buf.String(); got != tt.want {
 			t.Errorf("for %q, got %q; want %q", tt.in, got, tt.want)
@@ -114,7 +113,7 @@ func TestExhaustive(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	res := make(map[string]int)
 	n := 6
 	if testing.Short() {
@@ -160,7 +159,7 @@ func TestExhaustive(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			qpres := make(chan interface{}, 2)
+			qpres := make(chan any, 2)
 			go func() {
 				br := bufio.NewReader(stderr)
 				s, _ := br.ReadString('\n')

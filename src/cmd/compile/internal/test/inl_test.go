@@ -6,6 +6,8 @@ package test
 
 import (
 	"bufio"
+	"internal/buildcfg"
+	"internal/goexperiment"
 	"internal/testenv"
 	"io"
 	"math/bits"
@@ -46,7 +48,7 @@ func TestIntendedInlining(t *testing.T) {
 			"fastlog2",
 			"fastrand",
 			"float64bits",
-			"getArgInfoFast",
+			"funcspdelta",
 			"getm",
 			"getMCache",
 			"isDirectIface",
@@ -65,16 +67,13 @@ func TestIntendedInlining(t *testing.T) {
 			"(*bmap).keys",
 			"(*bmap).overflow",
 			"(*waitq).enqueue",
+			"funcInfo.entry",
 
 			// GC-related ones
 			"cgoInRange",
 			"gclinkptr.ptr",
 			"guintptr.ptr",
-			"heapBits.bits",
-			"heapBits.isPointer",
-			"heapBits.morePointers",
-			"heapBits.next",
-			"heapBitsForAddr",
+			"writeHeapBitsForAddr",
 			"markBits.isMarked",
 			"muintptr.ptr",
 			"puintptr.ptr",
@@ -122,13 +121,37 @@ func TestIntendedInlining(t *testing.T) {
 			"FullRune",
 			"FullRuneInString",
 			"RuneLen",
+			"AppendRune",
 			"ValidRune",
 		},
 		"reflect": {
+			"Value.Bool",
+			"Value.Bytes",
 			"Value.CanAddr",
-			"Value.CanSet",
+			"Value.CanComplex",
+			"Value.CanFloat",
+			"Value.CanInt",
 			"Value.CanInterface",
+			"Value.CanSet",
+			"Value.CanUint",
+			"Value.Cap",
+			"Value.Complex",
+			"Value.Float",
+			"Value.Int",
+			"Value.Interface",
+			"Value.IsNil",
 			"Value.IsValid",
+			"Value.Kind",
+			"Value.Len",
+			"Value.MapRange",
+			"Value.OverflowComplex",
+			"Value.OverflowFloat",
+			"Value.OverflowInt",
+			"Value.OverflowUint",
+			"Value.String",
+			"Value.Type",
+			"Value.Uint",
+			"Value.UnsafeAddr",
 			"Value.pointer",
 			"add",
 			"align",
@@ -154,25 +177,69 @@ func TestIntendedInlining(t *testing.T) {
 		"net": {
 			"(*UDPConn).ReadFromUDP",
 		},
+		"sync/atomic": {
+			// (*Bool).CompareAndSwap handled below.
+			"(*Bool).Load",
+			"(*Bool).Store",
+			"(*Bool).Swap",
+			"(*Int32).Add",
+			"(*Int32).CompareAndSwap",
+			"(*Int32).Load",
+			"(*Int32).Store",
+			"(*Int32).Swap",
+			"(*Int64).Add",
+			"(*Int64).CompareAndSwap",
+			"(*Int64).Load",
+			"(*Int64).Store",
+			"(*Int64).Swap",
+			"(*Uint32).Add",
+			"(*Uint32).CompareAndSwap",
+			"(*Uint32).Load",
+			"(*Uint32).Store",
+			"(*Uint32).Swap",
+			"(*Uint64).Add",
+			"(*Uint64).CompareAndSwap",
+			"(*Uint64).Load",
+			"(*Uint64).Store",
+			"(*Uint64).Swap",
+			"(*Uintptr).Add",
+			"(*Uintptr).CompareAndSwap",
+			"(*Uintptr).Load",
+			"(*Uintptr).Store",
+			"(*Uintptr).Swap",
+			// (*Pointer[T])'s methods' handled below.
+		},
 	}
 
-	if runtime.GOARCH != "386" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
-		// nextFreeFast calls sys.Ctz64, which on 386 is implemented in asm and is not inlinable.
+	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
+		// nextFreeFast calls sys.TrailingZeros64, which on 386 is implemented in asm and is not inlinable.
 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
-		// On mips64x and riscv64, Ctz64 is not intrinsified and causes nextFreeFast too expensive
-		// to inline (Issue 22239).
+		// On loong64, mips64x and riscv64, TrailingZeros64 is not intrinsified and causes nextFreeFast
+		// too expensive to inline (Issue 22239).
 		want["runtime"] = append(want["runtime"], "nextFreeFast")
+		// Same behavior for heapBits.nextFast.
+		want["runtime"] = append(want["runtime"], "heapBits.nextFast")
 	}
 	if runtime.GOARCH != "386" {
-		// As explained above, Ctz64 and Ctz32 are not Go code on 386.
+		// As explained above, TrailingZeros64 and TrailingZeros32 are not Go code on 386.
 		// The same applies to Bswap32.
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Ctz64")
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Ctz32")
+		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros64")
+		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros32")
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
 	}
 	if bits.UintSize == 64 {
 		// mix is only defined on 64-bit architectures
 		want["runtime"] = append(want["runtime"], "mix")
+		// (*Bool).CompareAndSwap is just over budget on 32-bit systems (386, arm).
+		want["sync/atomic"] = append(want["sync/atomic"], "(*Bool).CompareAndSwap")
+	}
+	if buildcfg.Experiment.Unified {
+		// Non-unified IR does not report "inlining call ..." for atomic.Pointer[T]'s methods.
+		// TODO(cuonglm): remove once non-unified IR frontend gone.
+		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).CompareAndSwap")
+		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Load")
+		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Store")
+		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Swap")
 	}
 
 	switch runtime.GOARCH {
@@ -211,7 +278,7 @@ func TestIntendedInlining(t *testing.T) {
 		}
 	}
 
-	args := append([]string{"build", "-a", "-gcflags=all=-m -m", "-tags=math_big_pure_go"}, pkgs...)
+	args := append([]string{"build", "-gcflags=-m -m", "-tags=math_big_pure_go"}, pkgs...)
 	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), args...))
 	pr, pw := io.Pipe()
 	cmd.Stdout = pw
@@ -264,5 +331,59 @@ func TestIntendedInlining(t *testing.T) {
 	}
 	for fullName, reason := range notInlinedReason {
 		t.Errorf("%s was not inlined: %s", fullName, reason)
+	}
+}
+
+func collectInlCands(msgs string) map[string]struct{} {
+	rv := make(map[string]struct{})
+	lines := strings.Split(msgs, "\n")
+	re := regexp.MustCompile(`^\S+\s+can\s+inline\s+(\S+)`)
+	for _, line := range lines {
+		m := re.FindStringSubmatch(line)
+		if m != nil {
+			rv[m[1]] = struct{}{}
+		}
+	}
+	return rv
+}
+
+func TestIssue56044(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping test: too long for short mode")
+	}
+	if !goexperiment.CoverageRedesign {
+		t.Skipf("skipping new coverage tests (experiment not enabled)")
+	}
+
+	testenv.MustHaveGoBuild(t)
+
+	modes := []string{"-covermode=set", "-covermode=atomic"}
+
+	for _, mode := range modes {
+		// Build the Go runtime with "-m", capturing output.
+		args := []string{"build", "-gcflags=runtime=-m", "runtime"}
+		cmd := exec.Command(testenv.GoToolPath(t), args...)
+		b, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build failed (%v): %s", err, b)
+		}
+		mbase := collectInlCands(string(b))
+
+		// Redo the build with -cover, also with "-m".
+		args = []string{"build", "-gcflags=runtime=-m", mode, "runtime"}
+		cmd = exec.Command(testenv.GoToolPath(t), args...)
+		b, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build failed (%v): %s", err, b)
+		}
+		mcov := collectInlCands(string(b))
+
+		// Make sure that there aren't any functions that are marked
+		// as inline candidates at base but not with coverage.
+		for k := range mbase {
+			if _, ok := mcov[k]; !ok {
+				t.Errorf("error: did not find %s in coverage -m output", k)
+			}
+		}
 	}
 }

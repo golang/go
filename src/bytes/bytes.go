@@ -21,7 +21,7 @@ func Equal(a, b []byte) bool {
 }
 
 // Compare returns an integer comparing two byte slices lexicographically.
-// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+// The result will be 0 if a == b, -1 if a < b, and +1 if a > b.
 // A nil argument is equivalent to an empty slice.
 func Compare(a, b []byte) int {
 	return bytealg.Compare(a, b)
@@ -30,7 +30,7 @@ func Compare(a, b []byte) int {
 // explode splits s into a slice of UTF-8 sequences, one per Unicode code point (still slices of bytes),
 // up to a maximum of n byte slices. Invalid UTF-8 sequences are chopped into individual bytes.
 func explode(s []byte, n int) [][]byte {
-	if n <= 0 {
+	if n <= 0 || n > len(s) {
 		n = len(s)
 	}
 	a := make([][]byte, n)
@@ -348,6 +348,9 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 	if n < 0 {
 		n = Count(s, sep) + 1
 	}
+	if n > len(s)+1 {
+		n = len(s) + 1
+	}
 
 	a := make([][]byte, n)
 	n--
@@ -369,18 +372,22 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 // the subslices between those separators.
 // If sep is empty, SplitN splits after each UTF-8 sequence.
 // The count determines the number of subslices to return:
-//   n > 0: at most n subslices; the last subslice will be the unsplit remainder.
-//   n == 0: the result is nil (zero subslices)
-//   n < 0: all subslices
+//
+//	n > 0: at most n subslices; the last subslice will be the unsplit remainder.
+//	n == 0: the result is nil (zero subslices)
+//	n < 0: all subslices
+//
+// To split around the first instance of a separator, see Cut.
 func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
 
 // SplitAfterN slices s into subslices after each instance of sep and
 // returns a slice of those subslices.
 // If sep is empty, SplitAfterN splits after each UTF-8 sequence.
 // The count determines the number of subslices to return:
-//   n > 0: at most n subslices; the last subslice will be the unsplit remainder.
-//   n == 0: the result is nil (zero subslices)
-//   n < 0: all subslices
+//
+//	n > 0: at most n subslices; the last subslice will be the unsplit remainder.
+//	n == 0: the result is nil (zero subslices)
+//	n < 0: all subslices
 func SplitAfterN(s, sep []byte, n int) [][]byte {
 	return genSplit(s, sep, len(sep), n)
 }
@@ -389,6 +396,8 @@ func SplitAfterN(s, sep []byte, n int) [][]byte {
 // the subslices between those separators.
 // If sep is empty, Split splits after each UTF-8 sequence.
 // It is equivalent to SplitN with a count of -1.
+//
+// To split around the first instance of a separator, see Cut.
 func Split(s, sep []byte) [][]byte { return genSplit(s, sep, 0, -1) }
 
 // SplitAfter slices s into all subslices after each instance of sep and
@@ -551,9 +560,7 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 	// In the worst case, the slice can grow when mapped, making
 	// things unpleasant. But it's so rare we barge in assuming it's
 	// fine. It could also shrink but that falls out naturally.
-	maxbytes := len(s) // length of b
-	nbytes := 0        // number of bytes encoded in b
-	b := make([]byte, maxbytes)
+	b := make([]byte, 0, len(s))
 	for i := 0; i < len(s); {
 		wid := 1
 		r := rune(s[i])
@@ -562,28 +569,17 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 		}
 		r = mapping(r)
 		if r >= 0 {
-			rl := utf8.RuneLen(r)
-			if rl < 0 {
-				rl = len(string(utf8.RuneError))
-			}
-			if nbytes+rl > maxbytes {
-				// Grow the buffer.
-				maxbytes = maxbytes*2 + utf8.UTFMax
-				nb := make([]byte, maxbytes)
-				copy(nb, b[0:nbytes])
-				b = nb
-			}
-			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], r)
+			b = utf8.AppendRune(b, r)
 		}
 		i += wid
 	}
-	return b[0:nbytes]
+	return b
 }
 
 // Repeat returns a new byte slice consisting of count copies of b.
 //
-// It panics if count is negative or if
-// the result of (len(b) * count) overflows.
+// It panics if count is negative or if the result of (len(b) * count)
+// overflows.
 func Repeat(b []byte, count int) []byte {
 	if count == 0 {
 		return []byte{}
@@ -591,18 +587,45 @@ func Repeat(b []byte, count int) []byte {
 	// Since we cannot return an error on overflow,
 	// we should panic if the repeat will generate
 	// an overflow.
-	// See Issue golang.org/issue/16237.
+	// See golang.org/issue/16237.
 	if count < 0 {
 		panic("bytes: negative Repeat count")
 	} else if len(b)*count/count != len(b) {
 		panic("bytes: Repeat count causes overflow")
 	}
 
-	nb := make([]byte, len(b)*count)
+	if len(b) == 0 {
+		return []byte{}
+	}
+
+	n := len(b) * count
+
+	// Past a certain chunk size it is counterproductive to use
+	// larger chunks as the source of the write, as when the source
+	// is too large we are basically just thrashing the CPU D-cache.
+	// So if the result length is larger than an empirically-found
+	// limit (8KB), we stop growing the source string once the limit
+	// is reached and keep reusing the same source string - that
+	// should therefore be always resident in the L1 cache - until we
+	// have completed the construction of the result.
+	// This yields significant speedups (up to +100%) in cases where
+	// the result length is large (roughly, over L2 cache size).
+	const chunkLimit = 8 * 1024
+	chunkMax := n
+	if chunkMax > chunkLimit {
+		chunkMax = chunkLimit / len(b) * len(b)
+		if chunkMax == 0 {
+			chunkMax = len(b)
+		}
+	}
+	nb := make([]byte, n)
 	bp := copy(nb, b)
 	for bp < len(nb) {
-		copy(nb[bp:], nb[:bp])
-		bp *= 2
+		chunk := bp
+		if chunk > chunkMax {
+			chunk = chunkMax
+		}
+		bp += copy(nb[bp:], nb[:chunk])
 	}
 	return nb
 }
@@ -699,7 +722,7 @@ func ToValidUTF8(s, replacement []byte) []byte {
 		if c < utf8.RuneSelf {
 			i++
 			invalid = false
-			b = append(b, byte(c))
+			b = append(b, c)
 			continue
 		}
 		_, wid := utf8.DecodeRune(s[i:])
@@ -746,7 +769,8 @@ func isSeparator(r rune) bool {
 // Title treats s as UTF-8-encoded bytes and returns a copy with all Unicode letters that begin
 // words mapped to their title case.
 //
-// BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+// Deprecated: The rule Title uses for word boundaries does not handle Unicode
+// punctuation properly. Use golang.org/x/text/cases instead.
 func Title(s []byte) []byte {
 	// Use a closure here to remember state.
 	// Hackish but effective. Depends on Map scanning in order and calling
@@ -867,6 +891,8 @@ func lastIndexFunc(s []byte, f func(r rune) bool, truth bool) int {
 // most-significant bit of the highest word, map to the full range of all
 // 128 ASCII characters. The 128-bits of the upper 16 bytes will be zeroed,
 // ensuring that any non-ASCII character will be reported as not in the set.
+// This allocates a total of 32 bytes even though the upper half
+// is unused to avoid bounds checks in asciiSet.contains.
 type asciiSet [8]uint32
 
 // makeASCIISet creates a set of ASCII characters and reports whether all
@@ -877,53 +903,153 @@ func makeASCIISet(chars string) (as asciiSet, ok bool) {
 		if c >= utf8.RuneSelf {
 			return as, false
 		}
-		as[c>>5] |= 1 << uint(c&31)
+		as[c/32] |= 1 << (c % 32)
 	}
 	return as, true
 }
 
 // contains reports whether c is inside the set.
 func (as *asciiSet) contains(c byte) bool {
-	return (as[c>>5] & (1 << uint(c&31))) != 0
+	return (as[c/32] & (1 << (c % 32))) != 0
 }
 
-func makeCutsetFunc(cutset string) func(r rune) bool {
-	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
-		return func(r rune) bool {
-			return r == rune(cutset[0])
+// containsRune is a simplified version of strings.ContainsRune
+// to avoid importing the strings package.
+// We avoid bytes.ContainsRune to avoid allocating a temporary copy of s.
+func containsRune(s string, r rune) bool {
+	for _, c := range s {
+		if c == r {
+			return true
 		}
 	}
-	if as, isASCII := makeASCIISet(cutset); isASCII {
-		return func(r rune) bool {
-			return r < utf8.RuneSelf && as.contains(byte(r))
-		}
-	}
-	return func(r rune) bool {
-		for _, c := range cutset {
-			if c == r {
-				return true
-			}
-		}
-		return false
-	}
+	return false
 }
 
 // Trim returns a subslice of s by slicing off all leading and
 // trailing UTF-8-encoded code points contained in cutset.
 func Trim(s []byte, cutset string) []byte {
-	return TrimFunc(s, makeCutsetFunc(cutset))
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
+	if cutset == "" {
+		return s
+	}
+	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
+		return trimLeftByte(trimRightByte(s, cutset[0]), cutset[0])
+	}
+	if as, ok := makeASCIISet(cutset); ok {
+		return trimLeftASCII(trimRightASCII(s, &as), &as)
+	}
+	return trimLeftUnicode(trimRightUnicode(s, cutset), cutset)
 }
 
 // TrimLeft returns a subslice of s by slicing off all leading
 // UTF-8-encoded code points contained in cutset.
 func TrimLeft(s []byte, cutset string) []byte {
-	return TrimLeftFunc(s, makeCutsetFunc(cutset))
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
+	if cutset == "" {
+		return s
+	}
+	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
+		return trimLeftByte(s, cutset[0])
+	}
+	if as, ok := makeASCIISet(cutset); ok {
+		return trimLeftASCII(s, &as)
+	}
+	return trimLeftUnicode(s, cutset)
+}
+
+func trimLeftByte(s []byte, c byte) []byte {
+	for len(s) > 0 && s[0] == c {
+		s = s[1:]
+	}
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
+	return s
+}
+
+func trimLeftASCII(s []byte, as *asciiSet) []byte {
+	for len(s) > 0 {
+		if !as.contains(s[0]) {
+			break
+		}
+		s = s[1:]
+	}
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
+	return s
+}
+
+func trimLeftUnicode(s []byte, cutset string) []byte {
+	for len(s) > 0 {
+		r, n := rune(s[0]), 1
+		if r >= utf8.RuneSelf {
+			r, n = utf8.DecodeRune(s)
+		}
+		if !containsRune(cutset, r) {
+			break
+		}
+		s = s[n:]
+	}
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
+	return s
 }
 
 // TrimRight returns a subslice of s by slicing off all trailing
 // UTF-8-encoded code points that are contained in cutset.
 func TrimRight(s []byte, cutset string) []byte {
-	return TrimRightFunc(s, makeCutsetFunc(cutset))
+	if len(s) == 0 || cutset == "" {
+		return s
+	}
+	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
+		return trimRightByte(s, cutset[0])
+	}
+	if as, ok := makeASCIISet(cutset); ok {
+		return trimRightASCII(s, &as)
+	}
+	return trimRightUnicode(s, cutset)
+}
+
+func trimRightByte(s []byte, c byte) []byte {
+	for len(s) > 0 && s[len(s)-1] == c {
+		s = s[:len(s)-1]
+	}
+	return s
+}
+
+func trimRightASCII(s []byte, as *asciiSet) []byte {
+	for len(s) > 0 {
+		if !as.contains(s[len(s)-1]) {
+			break
+		}
+		s = s[:len(s)-1]
+	}
+	return s
+}
+
+func trimRightUnicode(s []byte, cutset string) []byte {
+	for len(s) > 0 {
+		r, n := rune(s[len(s)-1]), 1
+		if r >= utf8.RuneSelf {
+			r, n = utf8.DecodeLastRune(s)
+		}
+		if !containsRune(cutset, r) {
+			break
+		}
+		s = s[:len(s)-n]
+	}
+	return s
 }
 
 // TrimSpace returns a subslice of s by slicing off all leading and
@@ -1032,9 +1158,39 @@ func ReplaceAll(s, old, new []byte) []byte {
 }
 
 // EqualFold reports whether s and t, interpreted as UTF-8 strings,
-// are equal under Unicode case-folding, which is a more general
+// are equal under simple Unicode case-folding, which is a more general
 // form of case-insensitivity.
 func EqualFold(s, t []byte) bool {
+	// ASCII fast path
+	i := 0
+	for ; i < len(s) && i < len(t); i++ {
+		sr := s[i]
+		tr := t[i]
+		if sr|tr >= utf8.RuneSelf {
+			goto hasUnicode
+		}
+
+		// Easy case.
+		if tr == sr {
+			continue
+		}
+
+		// Make sr < tr to simplify what follows.
+		if tr < sr {
+			tr, sr = sr, tr
+		}
+		// ASCII only, sr/tr must be upper/lower case
+		if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
+			continue
+		}
+		return false
+	}
+	// Check if we've exhausted both strings.
+	return len(s) == len(t)
+
+hasUnicode:
+	s = s[i:]
+	t = t[i:]
 	for len(s) != 0 && len(t) != 0 {
 		// Extract first rune from each.
 		var sr, tr rune
@@ -1173,4 +1329,53 @@ func Index(s, sep []byte) int {
 		}
 	}
 	return -1
+}
+
+// Cut slices s around the first instance of sep,
+// returning the text before and after sep.
+// The found result reports whether sep appears in s.
+// If sep does not appear in s, cut returns s, nil, false.
+//
+// Cut returns slices of the original slice s, not copies.
+func Cut(s, sep []byte) (before, after []byte, found bool) {
+	if i := Index(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
+	}
+	return s, nil, false
+}
+
+// Clone returns a copy of b[:len(b)].
+// The result may have additional unused capacity.
+// Clone(nil) returns nil.
+func Clone(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	return append([]byte{}, b...)
+}
+
+// CutPrefix returns s without the provided leading prefix byte slice
+// and reports whether it found the prefix.
+// If s doesn't start with prefix, CutPrefix returns s, false.
+// If prefix is the empty byte slice, CutPrefix returns s, true.
+//
+// CutPrefix returns slices of the original slice s, not copies.
+func CutPrefix(s, prefix []byte) (after []byte, found bool) {
+	if !HasPrefix(s, prefix) {
+		return s, false
+	}
+	return s[len(prefix):], true
+}
+
+// CutSuffix returns s without the provided ending suffix byte slice
+// and reports whether it found the suffix.
+// If s doesn't end with suffix, CutSuffix returns s, false.
+// If suffix is the empty byte slice, CutSuffix returns s, true.
+//
+// CutSuffix returns slices of the original slice s, not copies.
+func CutSuffix(s, suffix []byte) (before []byte, found bool) {
+	if !HasSuffix(s, suffix) {
+		return s, false
+	}
+	return s[:len(s)-len(suffix)], true
 }

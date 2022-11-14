@@ -152,7 +152,7 @@ func encodeBool(b *buffer, tag int, x bool) {
 }
 
 func encodeBoolOpt(b *buffer, tag int, x bool) {
-	if x == false {
+	if !x {
 		return
 	}
 	encodeBool(b, tag, x)

@@ -7,7 +7,6 @@ package types
 import (
 	"cmd/compile/internal/base"
 	"cmd/internal/obj"
-	"cmd/internal/src"
 	"unicode"
 	"unicode/utf8"
 )
@@ -32,14 +31,15 @@ type Sym struct {
 	Pkg  *Pkg
 	Name string // object name
 
-	// Def, Block, and Lastlineno are saved and restored by Pushdcl/Popdcl.
-
 	// The unique ONAME, OTYPE, OPACK, or OLITERAL node that this symbol is
 	// bound to within the current scope. (Most parts of the compiler should
 	// prefer passing the Node directly, rather than relying on this field.)
-	Def        Object
-	Block      int32    // blocknumber to catch redeclaration
-	Lastlineno src.XPos // last declaration for diagnostic
+	//
+	// Def is saved and restored by Pushdcl/Popdcl.
+	//
+	// Deprecated: New code should avoid depending on Sym.Def. Add
+	// mdempsky@ as a reviewer for any CLs involving Sym.Def.
+	Def Object
 
 	flags bitset8
 }
@@ -97,14 +97,7 @@ func (sym *Sym) LinksymABI(abi obj.ABI) *obj.LSym {
 // Less reports whether symbol a is ordered before symbol b.
 //
 // Symbols are ordered exported before non-exported, then by name, and
-// finally (for non-exported symbols) by package height and path.
-//
-// Ordering by package height is necessary to establish a consistent
-// ordering for non-exported names with the same spelling but from
-// different packages. We don't necessarily know the path for the
-// package being compiled, but by definition it will have a height
-// greater than any other packages seen within the compilation unit.
-// For more background, see issue #24693.
+// finally (for non-exported symbols) by package path.
 func (a *Sym) Less(b *Sym) bool {
 	if a == b {
 		return false
@@ -131,9 +124,6 @@ func (a *Sym) Less(b *Sym) bool {
 		return a.Name < b.Name
 	}
 	if !ea {
-		if a.Pkg.Height != b.Pkg.Height {
-			return a.Pkg.Height < b.Pkg.Height
-		}
 		return a.Pkg.Path < b.Pkg.Path
 	}
 	return false

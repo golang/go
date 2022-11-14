@@ -137,7 +137,19 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 	n = len(p)
 	code := w.savedCode
 	if code == invalidCode {
-		// The first code sent is always a literal code.
+		// This is the first write; send a clear code.
+		// https://www.w3.org/Graphics/GIF/spec-gif89a.txt Appendix F
+		// "Variable-Length-Code LZW Compression" says that "Encoders should
+		// output a Clear code as the first code of each image data stream".
+		//
+		// LZW compression isn't only used by GIF, but it's cheap to follow
+		// that directive unconditionally.
+		clear := uint32(1) << w.litWidth
+		if err := w.write(w, clear); err != nil {
+			return 0, err
+		}
+		// After the starting clear code, the next code sent (for non-empty
+		// input) is always a literal code.
 		code, p = uint32(p[0]), p[1:]
 	}
 loop:
@@ -200,6 +212,12 @@ func (w *Writer) Close() error {
 			return err
 		}
 		if err := w.incHi(); err != nil && err != errOutOfCodes {
+			return err
+		}
+	} else {
+		// Write the starting clear code, as w.Write did not.
+		clear := uint32(1) << w.litWidth
+		if err := w.write(w, clear); err != nil {
 			return err
 		}
 	}
