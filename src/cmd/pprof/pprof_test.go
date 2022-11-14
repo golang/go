@@ -115,12 +115,22 @@ func TestDisasm(t *testing.T) {
 	cmd = exec.Command(pprofExe, "-disasm", "main.main", cpuExe, profile)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("pprof failed: %v\n%s", err, out)
+		t.Errorf("pprof -disasm failed: %v\n%s", err, out)
+
+		// Try to print out profile content for debugging.
+		cmd = exec.Command(pprofExe, "-raw", cpuExe, profile)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Logf("pprof -raw failed: %v\n%s", err, out)
+		} else {
+			t.Logf("profile content:\n%s", out)
+		}
+		return
 	}
 
 	sout := string(out)
 	want := "ROUTINE ======================== main.main"
 	if !strings.Contains(sout, want) {
-		t.Errorf("pprof disasm got %s want contains %q", sout, want)
+		t.Errorf("pprof -disasm got %s want contains %q", sout, want)
 	}
 }
