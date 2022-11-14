@@ -203,7 +203,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
   <dd>
     <p><!-- CL 449955 -->
-      TODO: <a href="https://go.dev/cl/449955">https://go.dev/cl/449955</a>: archive/zip: don&#39;t read directories containing file data
+      Reading from a directory file that contains file data will now return an error.
+      The zip specification does not permit directory files to contain file data,
+      so this change only affects reading from invalid archives.
     </p>
   </dd>
 </dl><!-- archive/zip -->
@@ -306,7 +308,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="encoding/binary"><dt><a href="/pkg/encoding/binary/">encoding/binary</a></dt>
   <dd>
     <p><!-- CL 420274 -->
-      TODO: <a href="https://go.dev/cl/420274">https://go.dev/cl/420274</a>: encoding/binary: ReadUvarint return io.ErrUnexpectedEOF when read at least 1 byte
+      The <a href="/pkg/encoding/binary/#ReadVarint"><code>ReadVarint</code></a> and
+      <a href="/pkg/encoding/binary/#ReadUvarint"><code>ReadUvarint</code></a>
+      functions will now return <code>io.ErrUnexpectedEOF</code> after reading a partial value,
+      rather than <code>io.EOF</code>.
     </p>
   </dd>
 </dl><!-- encoding/binary -->
@@ -418,7 +423,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/48866 -->
-      TODO: <a href="https://go.dev/issue/48866">https://go.dev/issue/48866</a>: allow duplicate media parameters with equal values
+      The <code>ParseMediaType</code> function now allows duplicate parameter names,
+      so long as the values of the names are the same.
     </p>
   </dd>
 </dl><!-- mime -->
@@ -426,7 +432,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
   <dd>
     <p><!-- CL 431675 -->
-      TODO: <a href="https://go.dev/cl/431675">https://go.dev/cl/431675</a>: mime/multipart: use %w when wrapping error in NextPart
+      Methods of the <code>Reader</code> type now wrap errors
+      returned by the underlying <code>io.Reader</code>.
     </p>
   </dd>
 </dl><!-- mime/multipart -->
