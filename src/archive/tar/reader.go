@@ -696,7 +696,7 @@ func (fr regFileReader) logicalRemaining() int64 {
 	return fr.nb
 }
 
-// logicalRemaining implements fileState.physicalRemaining.
+// physicalRemaining implements fileState.physicalRemaining.
 func (fr regFileReader) physicalRemaining() int64 {
 	return fr.nb
 }

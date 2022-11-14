@@ -519,7 +519,7 @@ func (fw regFileWriter) logicalRemaining() int64 {
 	return fw.nb
 }
 
-// logicalRemaining implements fileState.physicalRemaining.
+// physicalRemaining implements fileState.physicalRemaining.
 func (fw regFileWriter) physicalRemaining() int64 {
 	return fw.nb
 }

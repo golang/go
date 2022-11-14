@@ -19,7 +19,7 @@ import (
 	"strings"
 )
 
-// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
+// ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
 	//	flive := b.FlagsLiveAtEnd
 	//	if b.Control != nil && b.Control.Type.IsFlags() {
