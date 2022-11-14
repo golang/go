@@ -165,7 +165,26 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="errors">Wrapping multiple errors</h3>
 
 <p><!-- CL 432898 -->
-  TODO: <a href="https://go.dev/cl/432898">https://go.dev/cl/432898</a>: errors, fmt: add support for wrapping multiple errors
+  Go 1.20 expands support for error wrapping to permit an error to
+  wrap multiple other errors.
+</p>
+<p>
+  An error <code>e</code</e> can wrap more than one error by providing
+  an <code>Unwrap</code> method that returns a <code>[]error</code>.
+</p>
+<p>
+  The <a href="/pkg/errors/#Is"><code>errors.Is</code></a> and
+  <a href="/pkg/errors/#As"><code>errors.As</code></a> functions
+  have been updated to inspect multiply wrapped errors.
+</p>
+<p>
+  The <a href="/pkg/fmt/#Errorf"><code>fmt.Errorf</code></a> function
+  now supports multiple occurrances of the <code>%w</code> format verb,
+  which will cause it to return an error that wraps all of those error operands.
+</p>
+<p>
+  The new function <a href="/pkg/errors/#Join"><code>errors.Join</code></a>
+  returns an error wrapping a list of errors.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -312,8 +331,20 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- encoding/xml -->
 
+<dl id="errors"><dt><a href="/pkg/errors/">errors</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/53435 -->
+      The new <code>Join</code> function returns an error wrapping a list of errors.
+    </p>
+  </dd>
+</dl><!-- errors -->
+
 <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
+    <p><!-- https://go.dev/issue/53435 -->
+      The <code>Errorf</code> function supports multiple occurrances of
+      the <code>%w</code> format verb.
+    </p>
     <p><!-- https://go.dev/issue/51668 -->
       TODO: <a href="https://go.dev/issue/51668">https://go.dev/issue/51668</a>: add FormatString(State) string
     </p>
