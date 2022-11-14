@@ -29,10 +29,22 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<p><!-- https://go.dev/issue/8606 -->
+  TODO: <a href="https://go.dev/issue/8606">https://go.dev/issue/8606</a>: define that structs are compared field-by-field as listed in source code
+</p>
+
+<p><!-- https://go.dev/issue/46505 -->
+  TODO: <a href="https://go.dev/issue/46505">https://go.dev/issue/46505</a>: allow conversion from slice to array
+</p>
+
 <h2 id="ports">Ports</h2>
 
 <p>
   TODO: complete this section, or delete if not needed
+</p>
+
+<p><!-- https://go.dev/issue/53466 -->
+  TODO: <a href="https://go.dev/issue/53466">https://go.dev/issue/53466</a>: add freebsd/riscv64 port
 </p>
 
 <h2 id="tools">Tools</h2>
@@ -47,7 +59,19 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: <a href="https://go.dev/issue/45454">https://go.dev/issue/45454</a>: provide build tags for architecture environment variables
 </p>
 
-<p>
+<p><!-- https://go.dev/issue/50332 -->
+  TODO: https://go.dev/issue/50332: add -C flag to change directory
+</p>
+
+<p><!-- CL 448357: cmd/go: print test2json start events -->
+  TODO: CL 448357: cmd/go: print test2json start events
+</p>
+
+<p><!-- https://go.dev/issue/41583 -->
+  TODO: https://go.dev/issue/41583: add go test -skip to skip specific tests
+</p>
+
+<p><!-- CL 432535: cmd/go: don't install most GOROOT .a files in pkg -->
   The Go distribution no longer ships with pre-compiled <code>.a</code>
   files for most of the packages in <code>GOROOT</code>, now only including
   .a files for the five packages in <code>GOROOT</code> that use <code>cgo</code>.
@@ -79,10 +103,20 @@ Do not send CLs removing the interior tags from such phrases.
   and Linux binaries without execute permission.
 </p>
 
+<h3 id="cover">Cover</h3>
+
+<p><!-- CL 436236, CL 401236, CL 438503 -->
+  TODO coverage
+</p>
+
 <h3 id="vet">Vet</h3>
 
 <p><!-- https://go.dev/issue/48801, CL 354010 -->
   TODO: <a href="https://go.dev/issue/48801">https://go.dev/issue/48801</a>: check for time formats with 2006-02-01
+</p>
+
+<p><!-- CL 447256 --><!-- https://go.dev/issue/55972: extend the loopclosure analysis to parallel subtests -->
+  TODO: https://go.dev/issue/55972: extend the loopclosure analysis to parallel subtests
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -117,6 +151,12 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<h3 id="errors">Wrapping multiple errors</h3>
+
+<p><!-- CL 432898 -->
+  TODO: <a href="https://go.dev/cl/432898">https://go.dev/cl/432898</a>: errors, fmt: add support for wrapping multiple errors
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -130,6 +170,14 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
+  <dd>
+    <p><!-- CL 449955 -->
+      TODO: <a href="https://go.dev/cl/449955">https://go.dev/cl/449955</a>: archive/zip: don&#39;t read directories containing file data
+    </p>
+  </dd>
+</dl><!-- archive/zip -->
+
 <dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
   <dd>
     <p><!-- CL 407176 -->
@@ -142,6 +190,22 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- bytes -->
 
+<dl id="context"><dt><a href="/pkg/context/">context</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/51365 --><!-- CL 375977 -->
+      TODO: <a href="https://go.dev/cl/375977">https://go.dev/cl/375977</a>: context: add APIs for writing and reading cancelation cause; modified api/next/51365.txt
+    </p>
+  </dd>
+</dl><!-- context -->
+
+<dl id="crypto/ed25519"><dt><a href="/pkg/crypto/ed25519/">crypto/ed25519</a></dt>
+  <dd>
+    <p><!-- CL 373076 -->
+      TODO: <a href="https://go.dev/cl/373076">https://go.dev/cl/373076</a>: crypto/ed25519: implement Ed25519ph in Sign and VerifyWithOptions; modified api/next/31804.txt
+    </p>
+  </dd>
+</dl><!-- crypto/ed25519 -->
+
 <dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/34648 -->
@@ -149,6 +213,14 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- crypto/elliptic -->
+
+<dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
+  <dd>
+    <p><!-- CL 418874 --><!-- https://go.dev/issue/19974 -->
+      TODO: <a href="https://go.dev/issue/19974">https://go.dev/issue/19974</a>: allow hash.Hash for OAEP and MGF1 to be specified independently
+    </p>
+  </dd>
+</dl><!-- crypto/rsa -->
 
 <dl id="crypto/subtle"><dt><a href="/pkg/crypto/subtle/">crypto/subtle</a></dt>
   <dd>
@@ -162,10 +234,33 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- crypto/subtle -->
 
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 426455 -->
+      TODO: <a href="https://go.dev/cl/426455">https://go.dev/cl/426455</a>: crypto/tls: use certificate cache in client
+    </p>
+  </dd>
+</dl><!-- crypto/tls -->
+
 <dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
   <dd>
     <p><!-- CL 420982 -->
       TODO: <a href="https://go.dev/cl/420982">https://go.dev/cl/420982</a>: debug/elf: add new-style LoongArch reloc types; modified api/next/54222.txt
+    </p>
+    <p><!-- CL 411915 -->
+      TODO: <a href="https://go.dev/cl/411915">https://go.dev/cl/411915</a>: debug/elf: fix reloc number of R_PPC64_SECTOFF_LO_DS; modified api/except.txt, api/next/53356.txt
+    </p>
+
+    <p><!-- CL 425555 -->
+      TODO: <a href="https://go.dev/cl/425555">https://go.dev/cl/425555</a>: debug/elf: define additional PPC64 ELFv2 relocations; modified api/next/54345.txt
+    </p>
+
+    <p><!-- CL 429601 -->
+      TODO: <a href="https://go.dev/cl/429601">https://go.dev/cl/429601</a>: debug/elf: return error on reading from SHT_NOBITS sections
+    </p>
+
+    <p><!-- CL 435415 -->
+      TODO: <a href="https://go.dev/cl/435415">https://go.dev/cl/435415</a>: debug/elf: fix typo in R_PPC64_TPREL34 and R_PPC64_DTPREL34; modified api/next/54345.txt
     </p>
   </dd>
 </dl><!-- debug/elf -->
@@ -195,6 +290,14 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 424777 -->
       TODO: <a href="https://go.dev/cl/424777">https://go.dev/cl/424777</a>: encoding/xml: add (*Encoder).Close
     </p>
+
+    <p><!-- CL 103875 -->
+      TODO: <a href="https://go.dev/cl/103875">https://go.dev/cl/103875</a>: encoding/xml: error when more than one colon in qualified names
+    </p>
+
+    <p><!-- CL 107255 -->
+      TODO: <a href="https://go.dev/cl/107255">https://go.dev/cl/107255</a>: encoding/xml: error when closing tag does not match opening tag
+    </p>
   </dd>
 </dl><!-- encoding/xml -->
 
@@ -209,6 +312,18 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- fmt -->
+
+<dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
+  <dd>
+    <p><!-- CL 426091 -->
+      TODO: <a href="https://go.dev/cl/426091">https://go.dev/cl/426091</a>: go/ast: add Range token.Pos to RangeStmt
+    </p>
+
+    <p><!-- CL 427955 -->
+      TODO: <a href="https://go.dev/cl/427955">https://go.dev/cl/427955</a>: go/ast: record start and end of file in File.File{Start,End}; modified api/next/53202.txt
+    </p>
+  </dd>
+</dl><!-- go/ast -->
 
 <dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
   <dd>
@@ -238,6 +353,78 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- io -->
 
+<dl id="io/fs"><dt><a href="/pkg/io/fs/">io/fs</a></dt>
+  <dd>
+    <p><!-- CL 363814 -->
+      TODO: <a href="https://go.dev/cl/363814">https://go.dev/cl/363814</a>: path/filepath, io/fs: add SkipAll; modified api/next/47209.txt
+    </p>
+  </dd>
+</dl><!-- io -->
+
+<dl id="math/rand"><dt><a href="/pkg/math/rand/">math/rand</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/54880 -->
+      TODO: <a href="https://go.dev/issue/54880">https://go.dev/issue/54880</a>: seed global generator randomly
+    </p>
+
+    <p><!-- CL 436955 -->
+      TODO: <a href="https://go.dev/cl/436955">https://go.dev/cl/436955</a>: math/rand: deprecate Read
+    </p>
+  </dd>
+</dl><!-- math/rand -->
+
+<dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/48866 -->
+      TODO: <a href="https://go.dev/issue/48866">https://go.dev/issue/48866</a>: allow duplicate media parameters with equal values
+    </p>
+  </dd>
+</dl><!-- mime -->
+
+<dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
+  <dd>
+    <p><!-- CL 431675 -->
+      TODO: <a href="https://go.dev/cl/431675">https://go.dev/cl/431675</a>: mime/multipart: use %w when wrapping error in NextPart
+    </p>
+  </dd>
+</dl><!-- mime/multipart -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/50101 -->
+      TODO: <a href="https://go.dev/issue/50101">https://go.dev/issue/50101</a>: make LookupCNAME consistent between Unix and Windows, document
+    </p>
+
+    <p><!-- https://go.dev/issue/53482 -->
+      TODO: <a href="https://go.dev/issue/53482">https://go.dev/issue/53482</a>: add FlagRunning to the Flags of struct Interface, to exactly reflect the states of an interface or NIC
+    </p>
+
+    <p><!-- https://go.dev/issue/55301 -->
+      TODO: <a href="https://go.dev/issue/55301">https://go.dev/issue/55301</a>: Add ControlContext to Dialer
+    </p>
+
+    <p><!-- CL 413454 -->
+      TODO: <a href="https://go.dev/cl/413454">https://go.dev/cl/413454</a>: net: add FlagRunning to exactly reflect the states of an interface.; modified api/next/53482.txt
+    </p>
+
+    <p><!-- CL 428955 -->
+      TODO: <a href="https://go.dev/cl/428955">https://go.dev/cl/428955</a>: net: set AD bit in DNS queries when trust-ad in resolv.conf
+    </p>
+
+    <p><!-- CL 444955 -->
+      TODO: <a href="https://go.dev/cl/444955">https://go.dev/cl/444955</a>: net: add ControlContext to Dialer; modified api/next/55301.txt
+    </p>
+
+    <p><!-- CL 446179 -->
+      TODO: <a href="https://go.dev/cl/446179">https://go.dev/cl/446179</a>: net: unify CNAME handling across ports
+    </p>
+
+    <p><!-- CL 448075 -->
+      TODO: <a href="https://go.dev/cl/448075">https://go.dev/cl/448075</a>: net: auto-reload the /etc/nsswitch.conf on unix systems
+    </p>
+  </dd>
+</dl><!-- net -->
+
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/41773 -->
@@ -246,6 +433,30 @@ Do not send CLs removing the interior tags from such phrases.
 
     <p><!-- CL 356410 -->
       TODO: <a href="https://go.dev/cl/356410">https://go.dev/cl/356410</a>: net/http: add Server.DisableOptionsHandler for custom handling of OPTIONS *; modified api/next/41773.txt
+    </p>
+
+    <p><!-- https://go.dev/issue/51914 -->
+      TODO: <a href="https://go.dev/issue/51914">https://go.dev/issue/51914</a>: support for the 103 status code
+    </p>
+
+    <p><!-- https://go.dev/issue/53896 -->
+      TODO: <a href="https://go.dev/issue/53896">https://go.dev/issue/53896</a>: easier access to HTTP/2 error codes
+    </p>
+
+    <p><!-- https://go.dev/issue/54299 -->
+      TODO: <a href="https://go.dev/issue/54299">https://go.dev/issue/54299</a>: add Transport.OnProxyConnectResponse
+    </p>
+
+    <p><!-- CL 418614 -->
+      TODO: <a href="https://go.dev/cl/418614">https://go.dev/cl/418614</a>: net/http: accept HEAD requests with a body; accept HEAD requests with a body
+    </p>
+
+    <p><!-- CL 436890 -->
+      TODO: <a href="https://go.dev/cl/436890">https://go.dev/cl/436890</a>: net/http: add ResponseController and per-handler timeouts; modified api/next/54136.txt
+    </p>
+
+    <p><!-- CL 447216 -->
+      TODO: <a href="https://go.dev/cl/447216">https://go.dev/cl/447216</a>: net/http: add Transport.OnProxyConnectResponse; modified api/next/54299.txt
     </p>
   </dd>
 </dl><!-- net/http -->
@@ -270,6 +481,30 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- net/http/httputil -->
 
+<dl id="net/netip"><dt><a href="/pkg/net/netip/">net/netip</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/51766 -->
+      TODO: <a href="https://go.dev/issue/51766">https://go.dev/issue/51766</a>: add IPv6LinkLocalAllRouters
+    </p>
+
+    <p><!-- https://go.dev/issue/51777 -->
+      TODO: <a href="https://go.dev/issue/51777">https://go.dev/issue/51777</a>: add IPv6Loopback
+    </p>
+
+    <p><!-- CL 412475 -->
+      TODO: <a href="https://go.dev/cl/412475">https://go.dev/cl/412475</a>: net/netip: add IPv6LinkLocalAllRouters and IPv6Loopback; modified api/next/51766.txt, api/next/51777.txt
+    </p>
+  </dd>
+</dl><!-- net/netip -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 448897 -->
+      TODO: <a href="https://go.dev/cl/448897">https://go.dev/cl/448897</a>: os: remove special casing of NUL in Windows file operations
+    </p>
+  </dd>
+</dl><!-- os -->
+
 <dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/50436, CL 401835 -->
@@ -280,6 +515,66 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- os/exec -->
+
+<dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
+  <dd>
+    <p><!-- CL 363814 --><!-- https://go.dev/issue/47209 -->
+      TODO: <a href="https://go.dev/cl/363814">https://go.dev/cl/363814</a>: path/filepath, io/fs: add SkipAll; modified api/next/47209.txt
+    </p>
+  </dd>
+</dl><!-- io -->
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/46746 -->
+      TODO: <a href="https://go.dev/issue/46746">https://go.dev/issue/46746</a>: add Value.Equal, Value.Comparable
+    </p>
+
+    <p><!-- https://go.dev/issue/48000 -->
+      TODO: <a href="https://go.dev/issue/48000">https://go.dev/issue/48000</a>: add reflect.Value.Grow
+    </p>
+
+    <p><!-- https://go.dev/issue/52376 -->
+      TODO: <a href="https://go.dev/issue/52376">https://go.dev/issue/52376</a>: add Value.SetZero
+    </p>
+
+    <p><!-- CL 389635 -->
+      TODO: <a href="https://go.dev/cl/389635">https://go.dev/cl/389635</a>: reflect: add Value.Grow
+    </p>
+
+    <p><!-- CL 411476 -->
+      TODO: <a href="https://go.dev/cl/411476">https://go.dev/cl/411476</a>: reflect: add Value.SetZero
+    </p>
+
+    <p><!-- CL 423794 -->
+      TODO: <a href="https://go.dev/cl/423794">https://go.dev/cl/423794</a>: reflect: add Value.{Comparable,Equal}
+    </p>
+
+    <p><!-- CL 425184 -->
+      TODO: <a href="https://go.dev/cl/425184">https://go.dev/cl/425184</a>: reflect: fix Value.SetIterXXX to check for the read-only bit
+    </p>
+
+    <p><!-- CL 428757 -->
+      TODO: <a href="https://go.dev/cl/428757">https://go.dev/cl/428757</a>: reflect: deprecate SliceHeader and StringHeader
+    </p>
+  </dd>
+</dl><!-- reflect -->
+
+<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+  <dd>
+    <p><!-- CL 444817 -->
+      TODO: <a href="https://go.dev/cl/444817">https://go.dev/cl/444817</a>: regexp: add ErrLarge error; modified api/next/56041.txt
+    </p>
+  </dd>
+</dl><!-- regexp -->
+
+<dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/47216 -->
+      TODO: <a href="https://go.dev/issue/47216">https://go.dev/issue/47216</a>: add GOMAXPROCS, NumCgoCall, GC CPU time
+    </p>
+  </dd>
+</dl><!-- runtime/metrics -->
 
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
@@ -306,6 +601,14 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 407574 -->
       TODO: <a href="https://go.dev/cl/407574">https://go.dev/cl/407574</a>: syscall: add new CLONE_ flags for Linux
     </p>
+
+    <p><!-- CL 411596 -->
+      TODO: <a href="https://go.dev/cl/411596">https://go.dev/cl/411596</a>: syscall: remove FreeBSD 11 and below 64bit inode compatibility shims
+    </p>
+
+    <p><!-- CL 417695 -->
+      TODO: <a href="https://go.dev/cl/417695">https://go.dev/cl/417695</a>: syscall: add CgroupFD support for ForkExec on Linux
+    </p>
   </dd>
 </dl><!-- syscall -->
 
@@ -317,6 +620,18 @@ Do not send CLs removing the interior tags from such phrases.
 
     <p><!-- CL 412495 -->
       TODO: <a href="https://go.dev/cl/412495">https://go.dev/cl/412495</a>: time: add DateTime, DateOnly, and TimeOnly
+    </p>
+
+    <p><!-- CL 382734 --><!-- https://go.dev/issue/50770 -->
+      TODO: <a href="https://go.dev/cl/382734">https://go.dev/cl/382734</a>: time: implement Compare method
+    </p>
+
+    <p><!-- CL 425037 -->
+      TODO: <a href="https://go.dev/cl/425037">https://go.dev/cl/425037</a>: time: fix Parse to ignore extra sub-nanosecond digits
+    </p>
+
+    <p><!-- CL 444277 -->
+      TODO: <a href="https://go.dev/cl/444277">https://go.dev/cl/444277</a>: time: implement strict RFC 3339 during marshal and unmarshal
     </p>
   </dd>
 </dl><!-- time -->
@@ -336,3 +651,15 @@ Do not send CLs removing the interior tags from such phrases.
 <!-- Silence false positives from x/build/cmd/relnote: -->
 <!-- https://go.dev/issue/45964 was documented in Go 1.18 release notes but closed recently -->
 <!-- https://go.dev/issue/52114 is an accepted proposal to add golang.org/x/net/http2.Transport.DialTLSContext; it's not a part of the Go release -->
+<!-- CL 431335: cmd/api: make check pickier about api/*.txt; modified api/next/42537.txt, api/next/43620.txt, api/next/45899.txt, api/next/46746.txt, api/next/50429.txt, api/next/51896.txt, api/next/53482.txt -->
+<!-- CL 447896 api: add newline to 55301.txt; modified api/next/55301.txt -->
+<!-- CL 449215 api/next/54299: add missing newline; modified api/next/54299.txt -->
+<!-- CL 433057 cmd: update vendored golang.org/x/tools for multiple error wrapping -->
+<!-- CL 423362 crypto/internal/boring: update to newer boringcrypto, add arm64 -->
+<!-- https://go.dev/issue/53481 x/cryptobyte ReadUint64, AddUint64 -->
+<!-- https://go.dev/issue/51994 x/crypto/ssh -->
+<!-- https://go.dev/issue/55358 x/exp/slices -->
+<!-- https://go.dev/issue/54714 x/sys/unix -->
+<!-- https://go.dev/issue/50035 https://go.dev/issue/54237 x/time/rate -->
+<!-- CL 421879: cmd/cgo: add and use runtime/cgo.Incomplete instead of //go:notinheap -->
+<!-- https://go.dev/issue/46731: replace `//go:notinheap` with runtime/internal/sys.NotInHeap -->
