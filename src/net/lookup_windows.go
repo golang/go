@@ -87,7 +87,7 @@ func (r *Resolver) lookupHost(ctx context.Context, name string) ([]string, error
 // kernel for its answer.
 func (r *Resolver) preferGoOverWindows() bool {
 	conf := systemConf()
-	order := conf.hostLookupOrder(r, "") // name is unused
+	order, _ := conf.hostLookupOrder(r, "") // name is unused
 	return order != hostLookupCgo
 }
 
@@ -230,9 +230,10 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
-	if r.preferGoOverWindows() {
-		return r.goLookupCNAME(ctx, name)
+	if order, conf := systemConf().hostLookupOrder(r, ""); order != hostLookupCgo {
+		return r.goLookupCNAME(ctx, name, order, conf)
 	}
+
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
@@ -355,7 +356,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
 	if r.preferGoOverWindows() {
-		return r.goLookupPTR(ctx, addr)
+		return r.goLookupPTR(ctx, addr, nil)
 	}
 
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.

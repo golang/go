@@ -273,17 +273,24 @@ func (conf *resolvConfTest) writeAndUpdateWithLastCheckedTime(lines []string, la
 
 func (conf *resolvConfTest) forceUpdate(name string, lastChecked time.Time) error {
 	dnsConf := dnsReadConfig(name)
+	if !conf.forceUpdateConf(dnsConf, lastChecked) {
+		return fmt.Errorf("tryAcquireSema for %s failed", name)
+	}
+	return nil
+}
+
+func (conf *resolvConfTest) forceUpdateConf(c *dnsConfig, lastChecked time.Time) bool {
 	conf.mu.Lock()
-	conf.dnsConfig = dnsConf
+	conf.dnsConfig = c
 	conf.mu.Unlock()
 	for i := 0; i < 5; i++ {
 		if conf.tryAcquireSema() {
 			conf.lastChecked = lastChecked
 			conf.releaseSema()
-			return nil
+			return true
 		}
 	}
-	return fmt.Errorf("tryAcquireSema for %s failed", name)
+	return false
 }
 
 func (conf *resolvConfTest) servers() []string {
@@ -606,16 +613,15 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 
 	for _, order := range []hostLookupOrder{hostLookupFilesDNS, hostLookupDNSFiles} {
 		name := fmt.Sprintf("order %v", order)
-
 		// First ensure that we get an error when contacting a non-existent host.
-		_, _, err := r.goLookupIPCNAMEOrder(context.Background(), "ip", "notarealhost", order)
+		_, _, err := r.goLookupIPCNAMEOrder(context.Background(), "ip", "notarealhost", order, nil)
 		if err == nil {
 			t.Errorf("%s: expected error while looking up name not in hosts file", name)
 			continue
 		}
 
 		// Now check that we get an address when the name appears in the hosts file.
-		addrs, _, err := r.goLookupIPCNAMEOrder(context.Background(), "ip", "thor", order) // entry is in "testdata/hosts"
+		addrs, _, err := r.goLookupIPCNAMEOrder(context.Background(), "ip", "thor", order, nil) // entry is in "testdata/hosts"
 		if err != nil {
 			t.Errorf("%s: expected to successfully lookup host entry", name)
 			continue
@@ -1388,7 +1394,7 @@ func TestStrictErrorsLookupTXT(t *testing.T) {
 
 	for _, strict := range []bool{true, false} {
 		r := Resolver{StrictErrors: strict, Dial: fake.DialContext}
-		p, _, err := r.lookup(context.Background(), name, dnsmessage.TypeTXT)
+		p, _, err := r.lookup(context.Background(), name, dnsmessage.TypeTXT, nil)
 		var wantErr error
 		var wantRRs int
 		if strict {
@@ -2210,7 +2216,7 @@ func TestGoLookupIPCNAMEOrderHostsAliasesDNSFilesMode(t *testing.T) {
 func testGoLookupIPCNAMEOrderHostsAliases(t *testing.T, mode hostLookupOrder, lookup, lookupRes string) {
 	ins := []string{lookup, absDomainName(lookup), strings.ToLower(lookup), strings.ToUpper(lookup)}
 	for _, in := range ins {
-		_, res, err := goResolver.goLookupIPCNAMEOrder(context.Background(), "ip", in, mode)
+		_, res, err := goResolver.goLookupIPCNAMEOrder(context.Background(), "ip", in, mode, nil)
 		if err != nil {
 			t.Errorf("expected err == nil, but got error: %v", err)
 		}
