@@ -188,7 +188,7 @@ func (c *nistCurve[Point]) NewPublicKey(key []byte) (*PublicKey, error) {
 	return k, nil
 }
 
-func (c *nistCurve[Point]) ECDH(local *PrivateKey, remote *PublicKey) ([]byte, error) {
+func (c *nistCurve[Point]) ecdh(local *PrivateKey, remote *PublicKey) ([]byte, error) {
 	// Note that this function can't return an error, as NewPublicKey rejects
 	// invalid points and the point at infinity, and NewPrivateKey rejects
 	// invalid scalars and the zero value. BytesX returns an error for the point

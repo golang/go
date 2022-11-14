@@ -220,7 +220,7 @@ GroupSelection:
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid client key share")
 	}
-	hs.sharedKey, err = key.Curve().ECDH(key, peerKey)
+	hs.sharedKey, err = key.ECDH(peerKey)
 	if err != nil {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid client key share")

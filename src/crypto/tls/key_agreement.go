@@ -264,7 +264,7 @@ func (ka *ecdheKeyAgreement) processClientKeyExchange(config *Config, cert *Cert
 	if err != nil {
 		return nil, errClientKeyExchange
 	}
-	preMasterSecret, err := ka.key.Curve().ECDH(ka.key, peerKey)
+	preMasterSecret, err := ka.key.ECDH(peerKey)
 	if err != nil {
 		return nil, errClientKeyExchange
 	}
@@ -307,7 +307,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	if err != nil {
 		return errServerKeyExchange
 	}
-	ka.preMasterSecret, err = key.Curve().ECDH(key, peerKey)
+	ka.preMasterSecret, err = key.ECDH(peerKey)
 	if err != nil {
 		return errServerKeyExchange
 	}
