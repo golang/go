@@ -353,7 +353,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 
 	for _, tt := range tests {
 		if !conf.forceUpdateConf(tt.resolv, time.Now().Add(time.Hour)) {
-			t.Errorf("%s: faield to change resolv config", tt.name)
+			t.Errorf("%s: failed to change resolv config", tt.name)
 		}
 		for _, ht := range tt.hostTests {
 			getHostname = func() (string, error) { return ht.localhost, nil }
