@@ -333,7 +333,6 @@ func benchmarkAllCurves(b *testing.B, f func(*testing.B, elliptic.Curve)) {
 		curve elliptic.Curve
 	}{
 		{"P256", elliptic.P256()},
-		{"P224", elliptic.P224()},
 		{"P384", elliptic.P384()},
 		{"P521", elliptic.P521()},
 	}
@@ -347,7 +346,8 @@ func benchmarkAllCurves(b *testing.B, f func(*testing.B, elliptic.Curve)) {
 
 func BenchmarkSign(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
-		priv, err := GenerateKey(curve, rand.Reader)
+		r := bufio.NewReaderSize(rand.Reader, 1<<15)
+		priv, err := GenerateKey(curve, r)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -356,7 +356,7 @@ func BenchmarkSign(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			sig, err := SignASN1(rand.Reader, priv, hashed)
+			sig, err := SignASN1(r, priv, hashed)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -368,12 +368,13 @@ func BenchmarkSign(b *testing.B) {
 
 func BenchmarkVerify(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
-		priv, err := GenerateKey(curve, rand.Reader)
+		r := bufio.NewReaderSize(rand.Reader, 1<<15)
+		priv, err := GenerateKey(curve, r)
 		if err != nil {
 			b.Fatal(err)
 		}
 		hashed := []byte("testing")
-		r, s, err := Sign(rand.Reader, priv, hashed)
+		sig, err := SignASN1(r, priv, hashed)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -381,7 +382,7 @@ func BenchmarkVerify(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			if !Verify(&priv.PublicKey, hashed, r, s) {
+			if !VerifyASN1(&priv.PublicKey, hashed, sig) {
 				b.Fatal("verify failed")
 			}
 		}
@@ -390,10 +391,11 @@ func BenchmarkVerify(b *testing.B) {
 
 func BenchmarkGenerateKey(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
+		r := bufio.NewReaderSize(rand.Reader, 1<<15)
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			if _, err := GenerateKey(curve, rand.Reader); err != nil {
+			if _, err := GenerateKey(curve, r); err != nil {
 				b.Fatal(err)
 			}
 		}
