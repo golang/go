@@ -1462,8 +1462,10 @@ func tRunner(t *T, fn func(t *T)) {
 				finished = p.finished
 				p.mu.RUnlock()
 				if finished {
-					t.Errorf("%v: subtest may have called FailNow on a parent test", err)
-					err = nil
+					if !t.isParallel {
+						t.Errorf("%v: subtest may have called FailNow on a parent test", err)
+						err = nil
+					}
 					signal = false
 					break
 				}

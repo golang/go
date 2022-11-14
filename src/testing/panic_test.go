@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -207,4 +208,43 @@ func TestPanicHelper(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMorePanic(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	testCases := []struct {
+		desc  string
+		flags []string
+		want  string
+	}{
+		{
+			desc:  "Issue 48502: call runtime.Goexit in t.Cleanup after panic",
+			flags: []string{"-test.run=TestGoexitInCleanupAfterPanicHelper"},
+			want: `panic: die
+	panic: test executed panic(nil) or runtime.Goexit`,
+		},
+	}
+
+	for _, tc := range testCases {
+		cmd := exec.Command(os.Args[0], tc.flags...)
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		b, _ := cmd.CombinedOutput()
+		got := string(b)
+		want := tc.want
+		re := makeRegexp(want)
+		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+			t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
+		}
+	}
+}
+
+func TestGoexitInCleanupAfterPanicHelper(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	t.Cleanup(func() { runtime.Goexit() })
+	t.Parallel()
+	panic("die")
 }

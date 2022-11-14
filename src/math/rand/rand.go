@@ -408,12 +408,14 @@ type lockedSource struct {
 //go:linkname fastrand64
 func fastrand64() uint64
 
+var randautoseed = godebug.New("randautoseed")
+
 // source returns r.s, allocating and seeding it if needed.
 // The caller must have locked r.
 func (r *lockedSource) source() *rngSource {
 	if r.s == nil {
 		var seed int64
-		if godebug.Get("randautoseed") == "0" {
+		if randautoseed.Value() == "0" {
 			seed = 1
 		} else {
 			seed = int64(fastrand64())

@@ -10,28 +10,30 @@ import (
 )
 
 func TestGet(t *testing.T) {
+	foo := New("foo")
 	tests := []struct {
 		godebug string
-		key     string
+		setting *Setting
 		want    string
 	}{
-		{"", "", ""},
-		{"", "foo", ""},
-		{"foo=bar", "foo", "bar"},
-		{"foo=bar,after=x", "foo", "bar"},
-		{"before=x,foo=bar,after=x", "foo", "bar"},
-		{"before=x,foo=bar", "foo", "bar"},
-		{",,,foo=bar,,,", "foo", "bar"},
-		{"foodecoy=wrong,foo=bar", "foo", "bar"},
-		{"foo=", "foo", ""},
-		{"foo", "foo", ""},
-		{",foo", "foo", ""},
-		{"foo=bar,baz", "loooooooong", ""},
+		{"", New(""), ""},
+		{"", foo, ""},
+		{"foo=bar", foo, "bar"},
+		{"foo=bar,after=x", foo, "bar"},
+		{"before=x,foo=bar,after=x", foo, "bar"},
+		{"before=x,foo=bar", foo, "bar"},
+		{",,,foo=bar,,,", foo, "bar"},
+		{"foodecoy=wrong,foo=bar", foo, "bar"},
+		{"foo=", foo, ""},
+		{"foo", foo, ""},
+		{",foo", foo, ""},
+		{"foo=bar,baz", New("loooooooong"), ""},
 	}
 	for _, tt := range tests {
-		got := Xget(tt.godebug, tt.key)
+		t.Setenv("GODEBUG", tt.godebug)
+		got := tt.setting.Value()
 		if got != tt.want {
-			t.Errorf("get(%q, %q) = %q; want %q", tt.godebug, tt.key, got, tt.want)
+			t.Errorf("get(%q, %q) = %q; want %q", tt.godebug, tt.setting.Name(), got, tt.want)
 		}
 	}
 }

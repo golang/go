@@ -1357,7 +1357,7 @@ func TestWaitInterrupt(t *testing.T) {
 		// context expired, a successful exit is valid (even if late) and does
 		// not merit a non-nil error.
 		if err != nil {
-			t.Errorf("Wait: %v; want %v", err, ctx.Err())
+			t.Errorf("Wait: %v; want nil", err)
 		}
 		if ps := cmd.ProcessState; !ps.Exited() {
 			t.Errorf("cmd did not exit: %v", ps)

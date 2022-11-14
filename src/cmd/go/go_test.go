@@ -2348,9 +2348,11 @@ func TestUpxCompression(t *testing.T) {
 	}
 }
 
+var gocacheverify = godebug.New("gocacheverify")
+
 func TestCacheListStale(t *testing.T) {
 	tooSlow(t)
-	if godebug.Get("gocacheverify") == "1" {
+	if gocacheverify.Value() == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2373,7 +2375,7 @@ func TestCacheListStale(t *testing.T) {
 func TestCacheCoverage(t *testing.T) {
 	tooSlow(t)
 
-	if godebug.Get("gocacheverify") == "1" {
+	if gocacheverify.Value() == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 
@@ -2407,7 +2409,7 @@ func TestIssue22588(t *testing.T) {
 
 func TestIssue22531(t *testing.T) {
 	tooSlow(t)
-	if godebug.Get("gocacheverify") == "1" {
+	if gocacheverify.Value() == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2436,7 +2438,7 @@ func TestIssue22531(t *testing.T) {
 
 func TestIssue22596(t *testing.T) {
 	tooSlow(t)
-	if godebug.Get("gocacheverify") == "1" {
+	if gocacheverify.Value() == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2466,7 +2468,7 @@ func TestIssue22596(t *testing.T) {
 func TestTestCache(t *testing.T) {
 	tooSlow(t)
 
-	if godebug.Get("gocacheverify") == "1" {
+	if gocacheverify.Value() == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)

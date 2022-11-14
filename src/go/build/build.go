@@ -521,6 +521,8 @@ func nameExt(name string) string {
 	return name[i:]
 }
 
+var installgoroot = godebug.New("installgoroot")
+
 // Import returns details about the Go package named by the import path,
 // interpreting local import paths relative to the srcDir directory.
 // If the path is a local import path naming a package that can be imported
@@ -783,7 +785,7 @@ Found:
 			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
 
 			// Set the install target if applicable.
-			if !p.Goroot || (strings.EqualFold(godebug.Get("installgoroot"), "all") && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
+			if !p.Goroot || (installgoroot.Value() == "all" && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
 				p.PkgObj = ctxt.joinPath(p.Root, pkga)
 			}
 		}

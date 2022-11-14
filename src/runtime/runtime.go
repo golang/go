@@ -66,14 +66,26 @@ func syscall_Exit(code int) {
 	exit(int32(code))
 }
 
-var godebugenv atomic.Pointer[string] // set by parsedebugvars
+var godebugDefault string
+var godebugUpdate atomic.Pointer[func(string, string)]
+var godebugEnv atomic.Pointer[string] // set by parsedebugvars
 
-//go:linkname godebug_getGODEBUG internal/godebug.getGODEBUG
-func godebug_getGODEBUG() string {
-	if p := godebugenv.Load(); p != nil {
-		return *p
+//go:linkname godebug_setUpdate internal/godebug.setUpdate
+func godebug_setUpdate(update func(string, string)) {
+	p := new(func(string, string))
+	*p = update
+	godebugUpdate.Store(p)
+	godebugNotify()
+}
+
+func godebugNotify() {
+	if update := godebugUpdate.Load(); update != nil {
+		var env string
+		if p := godebugEnv.Load(); p != nil {
+			env = *p
+		}
+		(*update)(godebugDefault, env)
 	}
-	return ""
 }
 
 //go:linkname syscall_runtimeSetenv syscall.runtimeSetenv
@@ -82,7 +94,8 @@ func syscall_runtimeSetenv(key, value string) {
 	if key == "GODEBUG" {
 		p := new(string)
 		*p = value
-		godebugenv.Store(p)
+		godebugEnv.Store(p)
+		godebugNotify()
 	}
 }
 
@@ -90,7 +103,8 @@ func syscall_runtimeSetenv(key, value string) {
 func syscall_runtimeUnsetenv(key string) {
 	unsetenv_c(key)
 	if key == "GODEBUG" {
-		godebugenv.Store(nil)
+		godebugEnv.Store(nil)
+		godebugNotify()
 	}
 }
 

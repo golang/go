@@ -37,7 +37,7 @@ import (
 // It will be removed before the release.
 // TODO(matloob): Remove enabled once we have more confidence on the
 // module index.
-var enabled bool = godebug.Get("goindex") != "0"
+var enabled = godebug.New("goindex").Value() != "0"
 
 // Module represents and encoded module index file. It is used to
 // do the equivalent of build.Import of packages in the module and answer other
@@ -368,6 +368,8 @@ func relPath(path, modroot string) string {
 	return str.TrimFilePathPrefix(filepath.Clean(path), filepath.Clean(modroot))
 }
 
+var installgorootAll = godebug.New("installgoroot").Value() == "all"
+
 // Import is the equivalent of build.Import given the information in Module.
 func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *build.Package, err error) {
 	defer unprotect(protect(), &err)
@@ -436,7 +438,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 				p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
 
 				// Set the install target if applicable.
-				if !p.Goroot || (strings.EqualFold(godebug.Get("installgoroot"), "all") && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
+				if !p.Goroot || (installgorootAll && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
 					p.PkgObj = ctxt.joinPath(p.Root, pkga)
 				}
 			}
