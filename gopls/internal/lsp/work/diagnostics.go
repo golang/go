@@ -15,11 +15,10 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/tag"
 )
 
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
-	ctx, done := event.Start(ctx, "work.Diagnostics", tag.Snapshot.Of(snapshot.ID()))
+	ctx, done := event.Start(ctx, "work.Diagnostics", source.SnapshotLabels(snapshot)...)
 	defer done()
 
 	reports := map[source.VersionedFileIdentity][]*source.Diagnostic{}

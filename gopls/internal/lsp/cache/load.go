@@ -141,10 +141,11 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	}
 
 	// This log message is sought for by TestReloadOnlyOnce.
+	labels := append(source.SnapshotLabels(s), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	if err != nil {
-		event.Error(ctx, eventName, err, tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
+		event.Error(ctx, eventName, err, labels...)
 	} else {
-		event.Log(ctx, eventName, tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
+		event.Log(ctx, eventName, labels...)
 	}
 
 	if len(pkgs) == 0 {
@@ -174,11 +175,12 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 		}
 
 		if !containsDir || s.view.Options().VerboseOutput {
-			event.Log(ctx, eventName,
-				tag.Snapshot.Of(s.ID()),
+			event.Log(ctx, eventName, append(
+				source.SnapshotLabels(s),
 				tag.Package.Of(pkg.ID),
-				tag.Files.Of(pkg.CompiledGoFiles))
+				tag.Files.Of(pkg.CompiledGoFiles))...)
 		}
+
 		// Ignore packages with no sources, since we will never be able to
 		// correctly invalidate that metadata.
 		if len(pkg.GoFiles) == 0 && len(pkg.CompiledGoFiles) == 0 {

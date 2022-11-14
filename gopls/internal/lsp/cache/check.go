@@ -107,9 +107,9 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id PackageID, mode so
 		// top-level is valid, all of its dependencies should be as well.
 		if err != nil || m.Valid && !depHandle.m.Valid {
 			if err != nil {
-				event.Error(ctx, fmt.Sprintf("%s: no dep handle for %s", id, depID), err, tag.Snapshot.Of(s.id))
+				event.Error(ctx, fmt.Sprintf("%s: no dep handle for %s", id, depID), err, source.SnapshotLabels(s)...)
 			} else {
-				event.Log(ctx, fmt.Sprintf("%s: invalid dep handle for %s", id, depID), tag.Snapshot.Of(s.id))
+				event.Log(ctx, fmt.Sprintf("%s: invalid dep handle for %s", id, depID), source.SnapshotLabels(s)...)
 			}
 
 			// This check ensures we break out of the slow

@@ -24,13 +24,34 @@ import (
 	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/event/label"
+	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
 )
 
+// A GlobalSnapshotID uniquely identifies a snapshot within this process and
+// increases monotonically with snapshot creation time.
+//
+// We use a distinct integral type for global IDs to help enforce correct
+// usage.
+type GlobalSnapshotID uint64
+
 // Snapshot represents the current state for the given view.
 type Snapshot interface {
-	ID() uint64
+	// SequenceID is the sequence id of this snapshot within its containing
+	// view.
+	//
+	// Relative to their view sequence ids are monotonically increasing, but this
+	// does not hold globally: when new views are created their initial snapshot
+	// has sequence ID 0. For operations that span multiple views, use global
+	// IDs.
+	SequenceID() uint64
+
+	// GlobalID is a globally unique identifier for this snapshot. Global IDs are
+	// monotonic: subsequent snapshots will have higher global ID, though
+	// subsequent snapshots in a view may not have adjacent global IDs.
+	GlobalID() GlobalSnapshotID
 
 	// View returns the View associated with this snapshot.
 	View() View
@@ -190,6 +211,12 @@ type Snapshot interface {
 	// BuildGoplsMod generates a go.mod file for all modules in the workspace.
 	// It bypasses any existing gopls.mod.
 	BuildGoplsMod(ctx context.Context) (*modfile.File, error)
+}
+
+// SnapshotLabels returns a new slice of labels that should be used for events
+// related to a snapshot.
+func SnapshotLabels(snapshot Snapshot) []label.Label {
+	return []label.Label{tag.Snapshot.Of(snapshot.SequenceID()), tag.Directory.Of(snapshot.View().Folder())}
 }
 
 // PackageFilter sets how a package is filtered out from a set of packages

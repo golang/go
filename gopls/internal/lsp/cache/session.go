@@ -187,7 +187,7 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 	return view, snapshot, release, nil
 }
 
-func (s *Session) createView(ctx context.Context, name string, folder span.URI, options *source.Options, snapshotID uint64) (*View, *snapshot, func(), error) {
+func (s *Session) createView(ctx context.Context, name string, folder span.URI, options *source.Options, seqID uint64) (*View, *snapshot, func(), error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 
 	if s.cache.options != nil {
@@ -264,7 +264,8 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		},
 	}
 	v.snapshot = &snapshot{
-		id:                   snapshotID,
+		sequenceID:           seqID,
+		globalID:             nextSnapshotID(),
 		view:                 v,
 		backgroundCtx:        backgroundCtx,
 		cancel:               cancel,
@@ -401,7 +402,7 @@ func (s *Session) updateView(ctx context.Context, view *View, options *source.Op
 		view.snapshotMu.Unlock()
 		panic("updateView called after View was already shut down")
 	}
-	snapshotID := view.snapshot.id
+	seqID := view.snapshot.sequenceID // Preserve sequence IDs when updating a view in place.
 	view.snapshotMu.Unlock()
 
 	i, err := s.dropView(ctx, view)
@@ -409,7 +410,7 @@ func (s *Session) updateView(ctx context.Context, view *View, options *source.Op
 		return nil, err
 	}
 
-	v, _, release, err := s.createView(ctx, view.name, view.folder, options, snapshotID)
+	v, _, release, err := s.createView(ctx, view.name, view.folder, options, seqID)
 	release()
 
 	if err != nil {

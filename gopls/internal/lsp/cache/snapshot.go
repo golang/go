@@ -44,8 +44,9 @@ import (
 )
 
 type snapshot struct {
-	id   uint64
-	view *View
+	sequenceID uint64
+	globalID   source.GlobalSnapshotID
+	view       *View
 
 	cancel        func()
 	backgroundCtx context.Context
@@ -156,6 +157,12 @@ type snapshot struct {
 	unprocessedSubdirChanges []*fileChange
 }
 
+var globalSnapshotID uint64
+
+func nextSnapshotID() source.GlobalSnapshotID {
+	return source.GlobalSnapshotID(atomic.AddUint64(&globalSnapshotID, 1))
+}
+
 var _ memoize.RefCounted = (*snapshot)(nil) // snapshots are reference-counted
 
 // Acquire prevents the snapshot from being destroyed until the returned function is called.
@@ -170,7 +177,7 @@ var _ memoize.RefCounted = (*snapshot)(nil) // snapshots are reference-counted
 func (s *snapshot) Acquire() func() {
 	type uP = unsafe.Pointer
 	if destroyedBy := atomic.LoadPointer((*uP)(uP(&s.destroyedBy))); destroyedBy != nil {
-		log.Panicf("%d: acquire() after Destroy(%q)", s.id, *(*string)(destroyedBy))
+		log.Panicf("%d: acquire() after Destroy(%q)", s.globalID, *(*string)(destroyedBy))
 	}
 	s.refcount.Add(1)
 	return s.refcount.Done
@@ -209,7 +216,7 @@ func (s *snapshot) destroy(destroyedBy string) {
 	// Not foolproof: another thread could acquire() at this moment.
 	type uP = unsafe.Pointer // looking forward to generics...
 	if old := atomic.SwapPointer((*uP)(uP(&s.destroyedBy)), uP(&destroyedBy)); old != nil {
-		log.Panicf("%d: Destroy(%q) after Destroy(%q)", s.id, destroyedBy, *(*string)(old))
+		log.Panicf("%d: Destroy(%q) after Destroy(%q)", s.globalID, destroyedBy, *(*string)(old))
 	}
 
 	s.packages.Destroy()
@@ -232,8 +239,12 @@ func (s *snapshot) destroy(destroyedBy string) {
 	}
 }
 
-func (s *snapshot) ID() uint64 {
-	return s.id
+func (s *snapshot) SequenceID() uint64 {
+	return s.sequenceID
+}
+
+func (s *snapshot) GlobalID() source.GlobalSnapshotID {
+	return s.globalID
 }
 
 func (s *snapshot) View() source.View {
@@ -1726,7 +1737,8 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 	bgCtx, cancel := context.WithCancel(bgCtx)
 	result := &snapshot{
-		id:                   s.id + 1,
+		sequenceID:           s.sequenceID + 1,
+		globalID:             nextSnapshotID(),
 		store:                s.store,
 		view:                 s.view,
 		backgroundCtx:        bgCtx,

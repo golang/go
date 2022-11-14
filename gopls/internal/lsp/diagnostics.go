@@ -43,8 +43,8 @@ const (
 
 // A diagnosticReport holds results for a single diagnostic source.
 type diagnosticReport struct {
-	snapshotID    uint64 // snapshot ID on which the report was computed
-	publishedHash string // last published hash for this (URI, source)
+	snapshotID    source.GlobalSnapshotID // global snapshot ID on which the report was computed
+	publishedHash string                  // last published hash for this (URI, source)
 	diags         map[string]*source.Diagnostic
 }
 
@@ -68,7 +68,7 @@ type fileReports struct {
 	//   yet published.
 	//
 	// This prevents gopls from publishing stale diagnostics.
-	publishedSnapshotID uint64
+	publishedSnapshotID source.GlobalSnapshotID
 
 	// publishedHash is a hash of the latest diagnostics published for the file.
 	publishedHash string
@@ -141,7 +141,7 @@ func (s *Server) diagnoseSnapshots(snapshots map[source.Snapshot][]span.URI, onD
 
 func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.URI, onDisk bool) {
 	ctx := snapshot.BackgroundContext()
-	ctx, done := event.Start(ctx, "Server.diagnoseSnapshot", tag.Snapshot.Of(snapshot.ID()))
+	ctx, done := event.Start(ctx, "Server.diagnoseSnapshot", source.SnapshotLabels(snapshot)...)
 	defer done()
 
 	delay := snapshot.View().Options().DiagnosticsDelay
@@ -155,7 +155,13 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 		// delay.
 		s.diagnoseChangedFiles(ctx, snapshot, changedURIs, onDisk)
 		s.publishDiagnostics(ctx, false, snapshot)
-		if ok := <-s.diagDebouncer.debounce(snapshot.View().Name(), snapshot.ID(), time.After(delay)); ok {
+
+		// We debounce diagnostics separately for each view, using the snapshot
+		// local ID as logical ordering.
+		//
+		// TODO(rfindley): it would be cleaner to simply put the diagnostic
+		// debouncer on the view, and remove the "key" argument to debouncing.
+		if ok := <-s.diagDebouncer.debounce(snapshot.View().Name(), snapshot.SequenceID(), time.After(delay)); ok {
 			s.diagnose(ctx, snapshot, false)
 			s.publishDiagnostics(ctx, true, snapshot)
 		}
@@ -168,7 +174,7 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 }
 
 func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snapshot, uris []span.URI, onDisk bool) {
-	ctx, done := event.Start(ctx, "Server.diagnoseChangedFiles", tag.Snapshot.Of(snapshot.ID()))
+	ctx, done := event.Start(ctx, "Server.diagnoseChangedFiles", source.SnapshotLabels(snapshot)...)
 	defer done()
 
 	packages := make(map[source.Package]struct{})
@@ -215,7 +221,7 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 // diagnose is a helper function for running diagnostics with a given context.
 // Do not call it directly. forceAnalysis is only true for testing purposes.
 func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAnalysis bool) {
-	ctx, done := event.Start(ctx, "Server.diagnose", tag.Snapshot.Of(snapshot.ID()))
+	ctx, done := event.Start(ctx, "Server.diagnose", source.SnapshotLabels(snapshot)...)
 	defer done()
 
 	// Wait for a free diagnostics slot.
@@ -235,9 +241,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	// common code for dispatching diagnostics
 	store := func(dsource diagnosticSource, operation string, diagsByFileID map[source.VersionedFileIdentity][]*source.Diagnostic, err error) {
 		if err != nil {
-			event.Error(ctx, "warning: while "+operation, err,
-				tag.Directory.Of(snapshot.View().Folder().Filename()),
-				tag.Snapshot.Of(snapshot.ID()))
+			event.Error(ctx, "warning: while "+operation, err, source.SnapshotLabels(snapshot)...)
 		}
 		for id, diags := range diagsByFileID {
 			if id.URI == "" {
@@ -346,7 +350,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 }
 
 func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg source.Package, alwaysAnalyze bool) {
-	ctx, done := event.Start(ctx, "Server.diagnosePkg", tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(string(pkg.ID())))
+	ctx, done := event.Start(ctx, "Server.diagnosePkg", append(source.SnapshotLabels(snapshot), tag.Package.Of(string(pkg.ID())))...)
 	defer done()
 	enableDiagnostics := false
 	includeAnalysis := alwaysAnalyze // only run analyses for packages with open files
@@ -361,7 +365,7 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 
 	pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
 	if err != nil {
-		event.Error(ctx, "warning: diagnosing package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(string(pkg.ID())))
+		event.Error(ctx, "warning: diagnosing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(pkg.ID())))...)
 		return
 	}
 	for _, cgf := range pkg.CompiledGoFiles() {
@@ -374,7 +378,7 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 	if includeAnalysis && !pkg.HasListOrParseErrors() {
 		reports, err := source.Analyze(ctx, snapshot, pkg, false)
 		if err != nil {
-			event.Error(ctx, "warning: analyzing package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(string(pkg.ID())))
+			event.Error(ctx, "warning: analyzing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(pkg.ID())))...)
 			return
 		}
 		for _, cgf := range pkg.CompiledGoFiles() {
@@ -390,7 +394,7 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 	if enableGCDetails {
 		gcReports, err := source.GCOptimizationDetails(ctx, snapshot, pkg)
 		if err != nil {
-			event.Error(ctx, "warning: gc details", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(string(pkg.ID())))
+			event.Error(ctx, "warning: gc details", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(pkg.ID())))...)
 		}
 		s.gcOptimizationDetailsMu.Lock()
 		_, enableGCDetails := s.gcOptimizationDetails[pkg.ID()]
@@ -452,13 +456,13 @@ func (s *Server) storeDiagnostics(snapshot source.Snapshot, uri span.URI, dsourc
 	}
 	report := s.diagnostics[uri].reports[dsource]
 	// Don't set obsolete diagnostics.
-	if report.snapshotID > snapshot.ID() {
+	if report.snapshotID > snapshot.GlobalID() {
 		return
 	}
-	if report.diags == nil || report.snapshotID != snapshot.ID() {
+	if report.diags == nil || report.snapshotID != snapshot.GlobalID() {
 		report.diags = map[string]*source.Diagnostic{}
 	}
-	report.snapshotID = snapshot.ID()
+	report.snapshotID = snapshot.GlobalID()
 	for _, d := range diags {
 		report.diags[hashDiagnostics(d)] = d
 	}
@@ -488,7 +492,7 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 	// status bar.
 	var errMsg string
 	if err != nil {
-		event.Error(ctx, "errors loading workspace", err.MainError, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
+		event.Error(ctx, "errors loading workspace", err.MainError, source.SnapshotLabels(snapshot)...)
 		for _, d := range err.Diagnostics {
 			s.storeDiagnostics(snapshot, d.URI, modSource, []*source.Diagnostic{d})
 		}
@@ -567,31 +571,34 @@ Otherwise, see the troubleshooting guidelines for help investigating (https://gi
 
 // publishDiagnostics collects and publishes any unpublished diagnostic reports.
 func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot source.Snapshot) {
-	ctx, done := event.Start(ctx, "Server.publishDiagnostics", tag.Snapshot.Of(snapshot.ID()))
+	ctx, done := event.Start(ctx, "Server.publishDiagnostics", source.SnapshotLabels(snapshot)...)
 	defer done()
+
 	s.diagnosticsMu.Lock()
 	defer s.diagnosticsMu.Unlock()
 
-	// TODO(rfindley): remove this noisy (and not useful) logging.
-	published := 0
-	defer func() {
-		log.Trace.Logf(ctx, "published %d diagnostics", published)
-	}()
-
 	for uri, r := range s.diagnostics {
-		// Snapshot IDs are always increasing, so we use them instead of file
-		// versions to create the correct order for diagnostics.
-
+		// Global snapshot IDs are monotonic, so we use them to enforce an ordering
+		// for diagnostics.
+		//
 		// If we've already delivered diagnostics for a future snapshot for this
-		// file, do not deliver them.
-		if r.publishedSnapshotID > snapshot.ID() {
+		// file, do not deliver them. See golang/go#42837 for an example of why
+		// this is necessary.
+		//
+		// TODO(rfindley): even using a global snapshot ID, this mechanism is
+		// potentially racy: elsewhere in the code (e.g. invalidateContent) we
+		// allow for multiple views track a given file. In this case, we should
+		// either only report diagnostics for snapshots from the "best" view of a
+		// URI, or somehow merge diagnostics from multiple views.
+		if r.publishedSnapshotID > snapshot.GlobalID() {
 			continue
 		}
+
 		anyReportsChanged := false
 		reportHashes := map[diagnosticSource]string{}
 		var diags []*source.Diagnostic
 		for dsource, report := range r.reports {
-			if report.snapshotID != snapshot.ID() {
+			if report.snapshotID != snapshot.GlobalID() {
 				continue
 			}
 			var reportDiags []*source.Diagnostic
@@ -611,12 +618,13 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 			// new information.
 			continue
 		}
+
 		source.SortDiagnostics(diags)
 		hash := hashDiagnostics(diags...)
 		if hash == r.publishedHash && !r.mustPublish {
 			// Update snapshotID to be the latest snapshot for which this diagnostic
 			// hash is valid.
-			r.publishedSnapshotID = snapshot.ID()
+			r.publishedSnapshotID = snapshot.GlobalID()
 			continue
 		}
 		var version int32
@@ -628,10 +636,9 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 			URI:         protocol.URIFromSpanURI(uri),
 			Version:     version,
 		}); err == nil {
-			published++
 			r.publishedHash = hash
 			r.mustPublish = false // diagnostics have been successfully published
-			r.publishedSnapshotID = snapshot.ID()
+			r.publishedSnapshotID = snapshot.GlobalID()
 			for dsource, hash := range reportHashes {
 				report := r.reports[dsource]
 				report.publishedHash = hash

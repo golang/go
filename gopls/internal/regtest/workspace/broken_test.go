@@ -207,21 +207,30 @@ package b
 				env.OpenFile("a/empty.go")
 				env.OpenFile("b/go.mod")
 				env.Await(
-					env.DiagnosticAtRegexp("a/a.go", "package a"),
-					env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
-					OutstandingWork(lsp.WorkspaceLoadFailure, msg),
+					env.AfterChange(
+						env.DiagnosticAtRegexp("a/a.go", "package a"),
+						env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
+						OutstandingWork(lsp.WorkspaceLoadFailure, msg),
+					),
 				)
 
 				// Changing the workspace folders to the valid modules should resolve
-				// the workspace error.
+				// the workspace errors and diagnostics.
+				//
+				// TODO(rfindley): verbose work tracking doesn't follow changing the
+				// workspace folder, therefore we can't invoke AfterChange here.
 				env.ChangeWorkspaceFolders("a", "b")
-				env.Await(NoOutstandingWork())
+				env.Await(
+					EmptyDiagnostics("a/a.go"),
+					EmptyDiagnostics("b/go.mod"),
+					NoOutstandingWork(),
+				)
 
 				env.ChangeWorkspaceFolders(".")
 
 				// TODO(rfindley): when GO111MODULE=auto, we need to open or change a
 				// file here in order to detect a critical error. This is because gopls
-				// has forgotten about a/a.go, and therefor doesn't hit the heuristic
+				// has forgotten about a/a.go, and therefore doesn't hit the heuristic
 				// "all packages are command-line-arguments".
 				//
 				// This is broken, and could be fixed by adjusting the heuristic to
@@ -229,7 +238,13 @@ package b
 				// (better) trying to get workspace packages for each open file. See
 				// also golang/go#54261.
 				env.OpenFile("b/b.go")
-				env.Await(OutstandingWork(lsp.WorkspaceLoadFailure, msg))
+				env.Await(
+					// TODO(rfindley): fix these missing diagnostics.
+					// env.DiagnosticAtRegexp("a/a.go", "package a"),
+					// env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
+					env.DiagnosticAtRegexp("b/b.go", "package b"),
+					OutstandingWork(lsp.WorkspaceLoadFailure, msg),
+				)
 			})
 		})
 	}

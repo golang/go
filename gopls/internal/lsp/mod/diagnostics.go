@@ -19,7 +19,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/vuln/osv"
 )
 
@@ -27,7 +26,7 @@ import (
 //
 // It waits for completion of type-checking of all active packages.
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
-	ctx, done := event.Start(ctx, "mod.Diagnostics", tag.Snapshot.Of(snapshot.ID()))
+	ctx, done := event.Start(ctx, "mod.Diagnostics", source.SnapshotLabels(snapshot)...)
 	defer done()
 
 	return collectDiagnostics(ctx, snapshot, ModDiagnostics)
@@ -36,7 +35,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 // UpgradeDiagnostics returns upgrade diagnostics for the modules in the
 // workspace with known upgrades.
 func UpgradeDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
-	ctx, done := event.Start(ctx, "mod.UpgradeDiagnostics", tag.Snapshot.Of(snapshot.ID()))
+	ctx, done := event.Start(ctx, "mod.UpgradeDiagnostics", source.SnapshotLabels(snapshot)...)
 	defer done()
 
 	return collectDiagnostics(ctx, snapshot, ModUpgradeDiagnostics)
@@ -45,7 +44,7 @@ func UpgradeDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[sour
 // VulnerabilityDiagnostics returns vulnerability diagnostics for the active modules in the
 // workspace with known vulnerabilites.
 func VulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
-	ctx, done := event.Start(ctx, "mod.VulnerabilityDiagnostics", tag.Snapshot.Of(snapshot.ID()))
+	ctx, done := event.Start(ctx, "mod.VulnerabilityDiagnostics", source.SnapshotLabels(snapshot)...)
 	defer done()
 
 	return collectDiagnostics(ctx, snapshot, ModVulnerabilityDiagnostics)
