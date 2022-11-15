@@ -187,6 +187,87 @@ Do not send CLs removing the interior tags from such phrases.
   returns an error wrapping a list of errors.
 </p>
 
+<h3 id="http_responsecontroller">HTTP ResponseController</h3>
+
+<p>
+  The new
+  <a href="/pkg/net/http/#ResponseController"><code>"net/http".ResponseController</code></a>
+  type provides access to extended per-request functionality not handled by the
+  <a href="/pkg/net/http/#ResponseWriter"><code>"net/http".ResponseWriter</code></a> interface.
+</p>
+
+<p>
+  Previously, we have added new per-request functionality by defining optional
+  interfaces which a <code>ResponseWriter</code> can implement, such as
+  <a href="/pkg/net/http/#Flusher"><code>Flusher<code></a>. These interfaces
+  are not discoverable and clumsy to use.
+</p>
+
+<p>
+  The <code>ResponseController</code> type provides a clearer, more discoverable way
+  to add per-handler controls. Two such controls also added in Go 1.20 are
+  <code>SetReadDeadline</code> and <code>SetWriteDeadline</code>, which allow setting
+  per-request read and write deadlines. For example:
+</p>
+
+<pre>
+func RequestHandler(w ResponseWriter, r *Request) {
+  rc := http.NewResponseController(w)
+  rc.SetWriteDeadline(0) // disable Server.WriteTimeout when sending a large response
+  io.Copy(w, bigData)
+}
+</pre>
+
+<h3 id="reverseproxy_rewrite">New ReverseProxy Rewrite hook</h3>
+
+<p>
+  The <a href="/pkg/net/http/httputil/#ReverseProxy"><code>httputil.ReverseProxy</code></a>
+  forwarding proxy includes a new <code>Rewrite</code> hook function, superseding the
+  previous <code>Director</code> hook.
+</p>
+
+<p>
+  The <code>Rewrite</code> hook accepts a
+  <a href="/pkg/net/http/httputil/#ProxyRequest"><code>ProxyRequest</code></a> parameter,
+  which includes both the inbound request received by the proxy and the outbound
+  request that it will send.
+  Unlike <code>Director</code> hooks, which only operate on the outbound request,
+  this permits <code>Rewrite</code> hooks to avoid certain scenarios where
+  a malicious inbound request may cause headers added by the hook
+  to be removed before forwarding.
+  See <a href="https://go.dev/issue/50580">issue #50580</a>.
+</p>
+
+<p>
+  The <a href="/pkg/net/http/httputil/#ProxyRequest.SetURL"><code>ProxyRequest.SetURL</code></a>
+  method routes the outbound request to a provided destination
+  and supersedes the <code>NewSingleHostReverseProxy</code> function.
+  Unlike <code>NewSingleHostReverseProxy</code>, <code>SetURL</code>
+  also sets the <code>Host</code> header of the outbound request.
+</p>
+
+<p>
+  The
+  <a href="/pkg/net/http/httputil/#ProxyRequest.SetXForwarded"><code>ProxyRequest.SetXForwarded</code></a>
+  method sets the <code>X-Forwarded-For</code>, <code>X-Forwarded-Host</code>,
+  and <code>X-Forwarded-Proto</code> headers of the outbound request.
+  When using a <code>Rewrite</code>, these headers are not added by default.
+</p>
+
+<p>
+  An example of a <code>Rewrite</code> hook using these features is:
+</p>
+
+<pre>
+proxyHandler := &httputil.ReverseProxy{
+  Rewrite: func(r *httputil.ProxyRequest) {
+    r.SetURL(outboundURL) // Forward request to outboundURL.
+    r.SetXForwarded()     // Set X-Forwarded-* headers.
+    r.Out.Header.Set("X-Additional-Header", "header set by the proxy")
+  },
+}
+</pre>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -476,56 +557,70 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/41773 -->
-      TODO: <a href="https://go.dev/issue/41773">https://go.dev/issue/41773</a>: add Server.OptionsHandler to allow custom handling of OPTIONS *
-    </p>
+    <p><!-- https://go.dev/issue/541360 -->
+      The new <code>ResponseController</code> type provides access to extended per-request
+      functionality not handled by the <code>ResponseWriter<code> interface.
+    <p>
 
-    <p><!-- CL 356410 -->
-      TODO: <a href="https://go.dev/cl/356410">https://go.dev/cl/356410</a>: net/http: add Server.DisableOptionsHandler for custom handling of OPTIONS *; modified api/next/41773.txt
+    <p>
+      The new <code>ResponseController.SetReadDeadline</code> and
+      <code>ResponseController.SetWriteDeadline</code> methods permit setting
+      per-request read and write deadlines.
     </p>
 
     <p><!-- https://go.dev/issue/51914 -->
-      TODO: <a href="https://go.dev/issue/51914">https://go.dev/issue/51914</a>: support for the 103 status code
+      The <code>ResponseWriter.WriteHeader</code> function now supports sending
+      <code>1xx</code> status codes.
     </p>
 
-    <p><!-- https://go.dev/issue/53896 -->
-      TODO: <a href="https://go.dev/issue/53896">https://go.dev/issue/53896</a>: easier access to HTTP/2 error codes
+    <p><!-- https://go.dev/issue/41773 -->
+      The new <code>Server.DisableGeneralOptionsHandler</code> configuration setting
+      allows disabling the default <code>OPTIONS *</code> handler.
     </p>
 
     <p><!-- https://go.dev/issue/54299 -->
-      TODO: <a href="https://go.dev/issue/54299">https://go.dev/issue/54299</a>: add Transport.OnProxyConnectResponse
+      The new <code>Transport.OnProxyConnectResponse</code> hook is called
+      when a <code>Transport</code> receives an HTTP response from a proxy
+      for a <code>CONNECT</code> request.
     </p>
 
-    <p><!-- CL 418614 -->
-      TODO: <a href="https://go.dev/cl/418614">https://go.dev/cl/418614</a>: net/http: accept HEAD requests with a body; accept HEAD requests with a body
+    <p><!-- https://go.dev/issue/53960 -->
+      The HTTP server now accepts HEAD requests containing a body,
+      rather than rejecting them as invalid.
     </p>
 
-    <p><!-- CL 436890 -->
-      TODO: <a href="https://go.dev/cl/436890">https://go.dev/cl/436890</a>: net/http: add ResponseController and per-handler timeouts; modified api/next/54136.txt
+    <p><!-- https://go.dev/issue/53896 -->
+      HTTP/2 stream errors returned by <code>net/http</code> functions may be converted 
+      to a <code>"golang.org/x/net/http2".StreamError</code> using <code>errors.As</code>.
     </p>
 
-    <p><!-- CL 447216 -->
-      TODO: <a href="https://go.dev/cl/447216">https://go.dev/cl/447216</a>: net/http: add Transport.OnProxyConnectResponse; modified api/next/54299.txt
+    <p><!-- https://go.dev/cl/397734 -->
+      Leading and trailing spaces are trimmed from cookie names,
+      rather than being rejected as invalid.
+      For example, a cookie setting of "name =value"
+      is now accepted as setting the cookie "name".
     </p>
   </dd>
 </dl><!-- net/http -->
 
 <dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/50465 -->
-      TODO: <a href="https://go.dev/issue/50465">https://go.dev/issue/50465</a>: add X-Forwarded-Proto and X-Forwarded-Host by default
-    </p>
-
     <p><!-- https://go.dev/issue/53002 -->
-      TODO: <a href="https://go.dev/issue/53002">https://go.dev/issue/53002</a>: replace Director with Rewrite
+      The new <code>ReverseProxy</code> hook supersedes the existing <code>Rewrite</code> hook.
     </p>
 
-    <p><!-- CL 407214 -->
-      TODO: <a href="https://go.dev/cl/407214">https://go.dev/cl/407214</a>: net/http/httputil: add ReverseProxy.Rewrite; modified api/next/53002.txt
+    <p><!-- https://go.dev/issue/50465 -->
+      <code>ReverseProxy</code> now adds
+      <code>X-Forwarded-Proto</code> and <code>X-Forwarded-Host</code> headers
+      to forwarded requests.
+      These headers are added to all requests forwarded by a <code>Director</code> hook,
+      and to requests forwarded by a <code>Rewrite</code> hook which calls the
+      <code>ProxyRequest.SetXForwarded</code> function.
     </p>
 
-    <p><!-- CL 407414 -->
-      TODO: <a href="https://go.dev/cl/407414">https://go.dev/cl/407414</a>: net/http/httputil: add X-Forwarded-{Host,Proto} headers in ReverseProxy
+    <p><!-- CL 407375 -->
+      <code>ReverseProxy</code> no longer adds a <code>User-Agent</code> header
+      to forwarded requests when the incoming request does not have one.
     </p>
   </dd>
 </dl><!-- net/http/httputil -->
