@@ -252,22 +252,22 @@ func (r *reader) doPkg() *types.Package {
 // packages rooted from pkgs.
 func flattenImports(pkgs []*types.Package) []*types.Package {
 	var res []*types.Package
-
-	seen := make(map[*types.Package]bool)
-	var add func(pkg *types.Package)
-	add = func(pkg *types.Package) {
-		if seen[pkg] {
-			return
-		}
-		seen[pkg] = true
-		res = append(res, pkg)
-		for _, imp := range pkg.Imports() {
-			add(imp)
-		}
-	}
-
+	seen := make(map[*types.Package]struct{})
 	for _, pkg := range pkgs {
-		add(pkg)
+		if _, ok := seen[pkg]; ok {
+			continue
+		}
+		seen[pkg] = struct{}{}
+		res = append(res, pkg)
+
+		// pkg.Imports() is already flattened.
+		for _, pkg := range pkg.Imports() {
+			if _, ok := seen[pkg]; ok {
+				continue
+			}
+			seen[pkg] = struct{}{}
+			res = append(res, pkg)
+		}
 	}
 	return res
 }
