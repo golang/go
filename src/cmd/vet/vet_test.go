@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main_test
+package main
 
 import (
 	"bytes"
@@ -21,60 +21,46 @@ import (
 	"testing"
 )
 
-var binary string
-
-// We implement TestMain so remove the test binary when all is done.
+// TestMain executes the test binary as the vet command if
+// GO_VETTEST_IS_VET is set, and runs the tests otherwise.
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
+	if os.Getenv("GO_VETTEST_IS_VET") != "" {
+		main()
+		os.Exit(0)
+	}
+
+	os.Setenv("GO_VETTEST_IS_VET", "1") // Set for subprocesses to inherit.
+	os.Exit(m.Run())
 }
 
-func testMain(m *testing.M) int {
-	dir, err := os.MkdirTemp("", "vet_test")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	defer os.RemoveAll(dir)
-	binary = filepath.Join(dir, "testvet.exe")
+// vetPath returns the path to the "vet" binary to run.
+func vetPath(t testing.TB) string {
+	t.Helper()
+	testenv.MustHaveExec(t)
 
-	return m.Run()
+	vetPathOnce.Do(func() {
+		vetExePath, vetPathErr = os.Executable()
+	})
+	if vetPathErr != nil {
+		t.Fatal(vetPathErr)
+	}
+	return vetExePath
 }
 
 var (
-	buildMu sync.Mutex // guards following
-	built   = false    // We have built the binary.
-	failed  = false    // We have failed to build the binary, don't try again.
+	vetPathOnce sync.Once
+	vetExePath  string
+	vetPathErr  error
 )
 
-func Build(t *testing.T) {
-	buildMu.Lock()
-	defer buildMu.Unlock()
-	if built {
-		return
-	}
-	if failed {
-		t.Skip("cannot run on this environment")
-	}
-	testenv.MustHaveGoBuild(t)
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", binary)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		failed = true
-		fmt.Fprintf(os.Stderr, "%s\n", output)
-		t.Fatal(err)
-	}
-	built = true
-}
-
 func vetCmd(t *testing.T, arg, pkg string) *exec.Cmd {
-	cmd := exec.Command(testenv.GoToolPath(t), "vet", "-vettool="+binary, arg, path.Join("cmd/vet/testdata", pkg))
+	cmd := exec.Command(testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), arg, path.Join("cmd/vet/testdata", pkg))
 	cmd.Env = os.Environ()
 	return cmd
 }
 
 func TestVet(t *testing.T) {
 	t.Parallel()
-	Build(t)
 	for _, pkg := range []string{
 		"asm",
 		"assign",
@@ -163,7 +149,6 @@ func errchk(c *exec.Cmd, files []string, t *testing.T) {
 // TestTags verifies that the -tags argument controls which files to check.
 func TestTags(t *testing.T) {
 	t.Parallel()
-	Build(t)
 	for tag, wantFile := range map[string]int{
 		"testtag":     1, // file1
 		"x testtag y": 1,
