@@ -12,7 +12,6 @@ import (
 	"internal/platform"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -151,7 +150,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 	args := []string{"build", "-o", hello}
 	args = append(args, flags...)
 	args = append(args, srcfname)
-	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	// "Bad line" bug #36683 is sensitive to being run in the source directory.
 	cmd.Dir = "testdata"
 	// Ensure that the source file location embedded in the binary matches our
@@ -221,7 +220,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 	if printGnuAsm {
 		args = append([]string{"-gnu"}, args...)
 	}
-	cmd = exec.Command(objdumpPath(t), args...)
+	cmd = testenv.Command(t, objdumpPath(t), args...)
 	cmd.Dir = "testdata" // "Bad line" bug #36683 is sensitive to being run in the source directory
 	out, err = cmd.CombinedOutput()
 	t.Logf("Running %v", cmd.Args)
@@ -305,7 +304,7 @@ func TestDisasmGoobj(t *testing.T) {
 	hello := filepath.Join(tmp, "hello.o")
 	args := []string{"tool", "compile", "-p=main", "-importcfg=" + importcfgfile, "-o", hello}
 	args = append(args, "testdata/fmthello.go")
-	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), args...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool compile fmthello.go: %v\n%s", err, out)
 	}
@@ -319,7 +318,7 @@ func TestDisasmGoobj(t *testing.T) {
 		hello,
 	}
 
-	out, err = exec.Command(objdumpPath(t), args...).CombinedOutput()
+	out, err = testenv.Command(t, objdumpPath(t), args...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("objdump fmthello.o: %v\n%s", err, out)
 	}
@@ -353,14 +352,14 @@ func TestGoobjFileNumber(t *testing.T) {
 	tmp := t.TempDir()
 
 	obj := filepath.Join(tmp, "p.a")
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", obj)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", obj)
 	cmd.Dir = filepath.Join("testdata/testfilenum")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failed: %v\n%s", err, out)
 	}
 
-	cmd = exec.Command(objdumpPath(t), obj)
+	cmd = testenv.Command(t, objdumpPath(t), obj)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("objdump failed: %v\n%s", err, out)
@@ -383,7 +382,7 @@ func TestGoObjOtherVersion(t *testing.T) {
 	t.Parallel()
 
 	obj := filepath.Join("testdata", "go116.o")
-	cmd := exec.Command(objdumpPath(t), obj)
+	cmd := testenv.Command(t, objdumpPath(t), obj)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("objdump go116.o succeeded unexpectedly")
