@@ -12,7 +12,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -410,7 +409,7 @@ func TestRWithNonexistentFile(t *testing.T) {
 
 // doRun runs a program in a directory and returns the output.
 func doRun(t *testing.T, dir string, args ...string) string {
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := testenv.Command(t, args[0], args[1:]...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
