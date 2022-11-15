@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -17,7 +16,7 @@ import (
 )
 
 func loadSyms(t *testing.T) map[string]string {
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "nm", os.Args[0])
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", os.Args[0])
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm %v: %v\n%s", os.Args[0], err, string(out))
@@ -38,7 +37,7 @@ func loadSyms(t *testing.T) map[string]string {
 }
 
 func runAddr2Line(t *testing.T, exepath, addr string) (funcname, path, lineno string) {
-	cmd := exec.Command(exepath, os.Args[0])
+	cmd := testenv.Command(t, exepath, os.Args[0])
 	cmd.Stdin = strings.NewReader(addr)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -97,12 +96,12 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 	if !os.SameFile(fi1, fi2) {
 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
 	}
-	if srcLineNo != "106" {
-		t.Fatalf("line number = %v; want 106", srcLineNo)
+	if srcLineNo != "105" {
+		t.Fatalf("line number = %v; want 105", srcLineNo)
 	}
 }
 
-// This is line 106. The test depends on that.
+// This is line 104. The test depends on that.
 func TestAddr2Line(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
@@ -115,7 +114,7 @@ func TestAddr2Line(t *testing.T) {
 	// Build copy of test binary with debug symbols,
 	// since the one running now may not have them.
 	exepath := filepath.Join(tmpDir, "testaddr2line_test.exe")
-	out, err := exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", exepath, "cmd/addr2line").CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "test", "-c", "-o", exepath, "cmd/addr2line").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go test -c -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
 	}
@@ -124,7 +123,7 @@ func TestAddr2Line(t *testing.T) {
 	syms := loadSyms(t)
 
 	exepath = filepath.Join(tmpDir, "testaddr2line.exe")
-	out, err = exec.Command(testenv.GoToolPath(t), "build", "-o", exepath, "cmd/addr2line").CombinedOutput()
+	out, err = testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exepath, "cmd/addr2line").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
 	}
