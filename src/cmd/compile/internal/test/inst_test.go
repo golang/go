@@ -7,7 +7,6 @@ package test
 import (
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"testing"
@@ -34,14 +33,14 @@ func TestInst(t *testing.T) {
 	outname := "ptrsort.out"
 	gotool := testenv.GoToolPath(t)
 	dest := filepath.Join(tmpdir, exename)
-	cmd := exec.Command(gotool, "build", "-o", dest, filepath.Join("testdata", filename))
+	cmd := testenv.Command(t, gotool, "build", "-o", dest, filepath.Join("testdata", filename))
 	if output, err = cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed: %v:\nOutput: %s\n", err, output)
 	}
 
 	// Test that there is exactly one shape-based instantiation of Sort in
 	// the executable.
-	cmd = exec.Command(gotool, "tool", "nm", dest)
+	cmd = testenv.Command(t, gotool, "tool", "nm", dest)
 	if output, err = cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed: %v:\nOut: %s\n", err, output)
 	}
@@ -54,7 +53,7 @@ func TestInst(t *testing.T) {
 	}
 
 	// Actually run the test and make sure output is correct.
-	cmd = exec.Command(gotool, "run", filepath.Join("testdata", filename))
+	cmd = testenv.Command(t, gotool, "run", filepath.Join("testdata", filename))
 	if output, err = cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed: %v:\nOut: %s\n", err, output)
 	}

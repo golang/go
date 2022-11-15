@@ -7,7 +7,6 @@ package test
 import (
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -71,7 +70,7 @@ func TestIssue16214(t *testing.T) {
 		t.Fatalf("could not write file: %v", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=main", "-S", "-o", filepath.Join(dir, "out.o"), src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=main", "-S", "-o", filepath.Join(dir, "out.o"), src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool compile: %v\n%s", err, out)

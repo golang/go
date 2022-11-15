@@ -10,7 +10,6 @@ import (
 	"internal/testenv"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -72,7 +71,7 @@ go 1.19
 	pprof := filepath.Join(dir, "inline_hot.pprof")
 	gcflag := fmt.Sprintf("-gcflags=-m -m -pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90", pprof)
 	out := filepath.Join(dir, "test.exe")
-	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", out, gcflag, "."))
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "test", "-c", "-o", out, gcflag, "."))
 	cmd.Dir = dir
 
 	pr, pw, err := os.Pipe()

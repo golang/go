@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -40,7 +39,7 @@ func TestReproducibleBuilds(t *testing.T) {
 			for i := 0; i < iters; i++ {
 				// Note: use -c 2 to expose any nondeterminism which is the result
 				// of the runtime scheduler.
-				out, err := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-c", "2", "-o", tmp.Name(), filepath.Join("testdata", "reproducible", test)).CombinedOutput()
+				out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=p", "-c", "2", "-o", tmp.Name(), filepath.Join("testdata", "reproducible", test)).CombinedOutput()
 				if err != nil {
 					t.Fatalf("failed to compile: %v\n%s", err, out)
 				}
@@ -88,7 +87,7 @@ func TestIssue38068(t *testing.T) {
 		s := &scenarios[i]
 		s.libpath = filepath.Join(tmpdir, s.tag+".a")
 		// Note: use of "-p" required in order for DWARF to be generated.
-		cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=issue38068", "-buildid=", s.args, "-o", s.libpath, src)
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=issue38068", "-buildid=", s.args, "-o", s.libpath, src)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)

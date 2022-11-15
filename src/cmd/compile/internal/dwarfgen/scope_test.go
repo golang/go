@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -474,7 +473,7 @@ func gobuild(t *testing.T, dir string, optimized bool, testfile []testline) (str
 	}
 	args = append(args, "-o", dst, src)
 
-	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", string(b))
 		t.Fatal(err)
