@@ -11,7 +11,6 @@ import (
 	"internal/testenv"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -100,7 +99,7 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFi
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
 	b, err := cmd.CombinedOutput()
 	if len(b) != 0 {
 		t.Logf("## build output:\n%s", b)
@@ -122,7 +121,7 @@ func gobuildTestdata(t *testing.T, tdir string, pkgDir string, gcflags string) *
 	dst := filepath.Join(tdir, "out.exe")
 
 	// Run a build with an updated GOPATH
-	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", gcflags, "-o", dst)
 	cmd.Dir = pkgDir
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", b)
@@ -768,7 +767,7 @@ func main() {
 	f := gobuild(t, dir, prog, flags)
 	defer f.Close()
 
-	out, err := exec.Command(f.path).CombinedOutput()
+	out, err := testenv.Command(t, f.path).CombinedOutput()
 	if err != nil {
 		t.Fatalf("could not run test program: %v", err)
 	}

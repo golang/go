@@ -7,7 +7,6 @@ package ld
 import (
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -105,13 +104,13 @@ func main() {}`
 	}
 
 	exe := filepath.Join(dir, "deduped.exe")
-	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, srcFile).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, srcFile).CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
 	}
 
 	// Result should be runnable.
-	if _, err = exec.Command(exe).CombinedOutput(); err != nil {
+	if _, err = testenv.Command(t, exe).CombinedOutput(); err != nil {
 		t.Fatal(err)
 	}
 }

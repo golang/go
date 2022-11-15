@@ -7,7 +7,6 @@ package ld
 import (
 	"bytes"
 	"internal/testenv"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -35,7 +34,7 @@ func TestDeadcode(t *testing.T) {
 			t.Parallel()
 			src := filepath.Join("testdata", "deadcode", test.src+".go")
 			exe := filepath.Join(tmpdir, test.src+".exe")
-			cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-dumpdep", "-o", exe, src)
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-dumpdep", "-o", exe, src)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
