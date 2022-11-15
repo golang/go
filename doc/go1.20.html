@@ -182,12 +182,26 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="vet">Vet</h3>
 
+<h4 id="vet-timeformat">New diagnostic for incorrect time formats</h4>
+
 <p><!-- https://go.dev/issue/48801, CL 354010 -->
   TODO: <a href="https://go.dev/issue/48801">https://go.dev/issue/48801</a>: check for time formats with 2006-02-01
 </p>
 
+<h4 id="vet-loopclosure">Improved detection of loop variable capture by nested functions</h4>
+
 <p><!-- CL 447256 --><!-- https://go.dev/issue/55972: extend the loopclosure analysis to parallel subtests -->
-  TODO: https://go.dev/issue/55972: extend the loopclosure analysis to parallel subtests
+  The <code>vet</code> tool now reports references to loop variables following
+  a call to <a href="/pkg/testing/#T.Parallel"><code>T.Parallel()</code></a>
+  within subtest function bodies. Such references may observe the value of the
+  variable from a different iteration (typically causing test cases to be
+  skipped) or an invalid state due to unsynchronized concurrent access.
+</p>
+
+<p><!-- CL 452615 -->
+  The tool also detects reference mistakes in more places. Previously it would
+  only consider the last statement of the loop body, but now it recursively
+  inspects the last statements within if, switch, and select statements.
 </p>
 
 <h2 id="runtime">Runtime</h2>
