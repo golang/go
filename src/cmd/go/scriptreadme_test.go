@@ -11,7 +11,6 @@ import (
 	"internal/diff"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 	"text/template"
@@ -43,7 +42,7 @@ func checkScriptReadme(t *testing.T, engine *script.Engine, env []string) {
 	}
 
 	doc := new(strings.Builder)
-	cmd := exec.Command(testGo, "doc", "cmd/go/internal/script")
+	cmd := testenv.Command(t, testGo, "doc", "cmd/go/internal/script")
 	cmd.Env = env
 	cmd.Stdout = doc
 	if err := cmd.Run(); err != nil {

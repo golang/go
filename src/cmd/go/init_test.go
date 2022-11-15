@@ -6,7 +6,6 @@ package main_test
 
 import (
 	"internal/testenv"
-	"os/exec"
 	"sync/atomic"
 	"testing"
 )
@@ -27,7 +26,7 @@ func BenchmarkExecGoEnv(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			cmd := exec.Command(gotool, "env", "GOARCH")
+			cmd := testenv.Command(b, gotool, "env", "GOARCH")
 
 			if err := cmd.Run(); err != nil {
 				b.Fatal(err)
