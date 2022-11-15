@@ -54,7 +54,7 @@ var (
 )
 
 func vetCmd(t *testing.T, arg, pkg string) *exec.Cmd {
-	cmd := exec.Command(testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), arg, path.Join("cmd/vet/testdata", pkg))
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), arg, path.Join("cmd/vet/testdata", pkg))
 	cmd.Env = os.Environ()
 	return cmd
 }
@@ -125,7 +125,7 @@ func cgoEnabled(t *testing.T) bool {
 	// That's fine for the builders, but causes commands like
 	// 'GOARCH=386 go test .' to fail.
 	// Instead, we ask the go command.
-	cmd := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{context.CgoEnabled}}")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "list", "-f", "{{context.CgoEnabled}}")
 	out, _ := cmd.CombinedOutput()
 	return string(out) == "true\n"
 }
