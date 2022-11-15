@@ -297,6 +297,9 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 	switch saltLength {
 	case PSSSaltLengthAuto:
 		saltLength = (priv.N.BitLen()-1+7)/8 - 2 - hash.Size()
+		if saltLength < 0 {
+			return nil, ErrMessageTooLong
+		}
 	case PSSSaltLengthEqualsHash:
 		saltLength = hash.Size()
 	default:
