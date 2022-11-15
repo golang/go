@@ -11,7 +11,6 @@ import (
 	"internal/buildcfg"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"testing"
 
 	"cmd/internal/bio"
@@ -125,7 +124,7 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
 	w.Reset()
 
 	// Build.
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "large")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "large")
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
