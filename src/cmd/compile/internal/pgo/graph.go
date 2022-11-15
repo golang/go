@@ -270,7 +270,17 @@ func newGraph(prof *profile.Profile, o *Options) *Graph {
 		residual := false
 
 		// Group the sample frames, based on a global map.
-		for i := len(sample.Location) - 1; i >= 0; i-- {
+		// Count only the last two frames as a call edge. Frames higher up
+		// the stack are unlikely to be repeated calls (e.g. runtime.main
+		// calling main.main). So adding weights to call edges higher up
+		// the stack may be not reflecting the actual call edge weights
+		// in the program. Without a branch profile this is just an
+		// approximation.
+		i := 1
+		if last := len(sample.Location) - 1; last < i {
+			i = last
+		}
+		for ; i >= 0; i-- {
 			l := sample.Location[i]
 			locNodes := locationMap.get(l.ID)
 			for ni := len(locNodes) - 1; ni >= 0; ni-- {
