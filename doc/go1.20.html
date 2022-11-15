@@ -740,6 +740,17 @@ proxyHandler := &httputil.ReverseProxy{
   </dd>
 </dl><!-- strings -->
 
+<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+  <dd>
+    <p><!-- CL 399094, https://go.dev/issue/51972 -->
+      The new methods <a href="/pkg/sync/#Map.Swap"><code>Map.Swap</code></a>,
+      <a href="/pkg/sync/#Map.CompareAndSwap"><code>Map.CompareAndSwap</code></a>, and
+      <a href="/pkg/sync/#Map.CompareAndDelete"><code>Map.CompareAndDelete</code></a>
+      allow existing map entries to be updated atomically.
+    </p>
+  </dd>
+</dl><!-- sync -->
+
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
     <p><!-- CL 407574 -->
