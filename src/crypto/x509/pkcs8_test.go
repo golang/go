@@ -131,6 +131,25 @@ func TestPKCS8(t *testing.T) {
 			t.Errorf("%s: marshaled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
 			continue
 		}
+
+		if ecKey, isEC := privKey.(*ecdsa.PrivateKey); isEC {
+			ecdhKey, err := ecKey.ECDH()
+			if err != nil {
+				if ecKey.Curve != elliptic.P224() {
+					t.Errorf("%s: failed to convert to ecdh: %s", test.name, err)
+				}
+				continue
+			}
+			reserialised, err := MarshalPKCS8PrivateKey(ecdhKey)
+			if err != nil {
+				t.Errorf("%s: failed to marshal into PKCS#8: %s", test.name, err)
+				continue
+			}
+			if !bytes.Equal(derBytes, reserialised) {
+				t.Errorf("%s: marshaled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
+				continue
+			}
+		}
 	}
 }
 
