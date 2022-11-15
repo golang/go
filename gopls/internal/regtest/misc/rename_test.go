@@ -865,6 +865,65 @@ const A = 1 + nested.B
 	})
 }
 
+func TestRenamePackage_InternalPackage(t *testing.T) {
+	testenv.NeedsGo1Point(t, 17)
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.18
+-- lib/a.go --
+package lib
+
+import (
+	"fmt"
+	"mod.com/lib/internal/x"
+)
+
+const A = 1
+
+func print() {
+	fmt.Println(x.B)
+}
+
+-- lib/internal/x/a.go --
+package x
+
+const B = 1
+
+-- main.go --
+package main
+
+import "mod.com/lib"
+
+func main() {
+	lib.print()
+}
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("lib/internal/x/a.go")
+		pos := env.RegexpSearch("lib/internal/x/a.go", "x")
+		env.Rename("lib/internal/x/a.go", pos, "utils")
+
+		// Check if the new package name exists.
+		env.RegexpSearch("lib/a.go", "mod.com/lib/internal/utils")
+		env.RegexpSearch("lib/a.go", "utils.B")
+
+		// Check if the test package is renamed
+		env.RegexpSearch("lib/internal/utils/a.go", "package utils")
+
+		env.OpenFile("lib/a.go")
+		pos = env.RegexpSearch("lib/a.go", "lib")
+		env.Rename("lib/a.go", pos, "lib1")
+
+		// Check if the new package name exists.
+		env.RegexpSearch("lib1/a.go", "package lib1")
+		env.RegexpSearch("lib1/a.go", "mod.com/lib1/internal/utils")
+		env.RegexpSearch("main.go", `import "mod.com/lib1"`)
+		env.RegexpSearch("main.go", "lib1.print()")
+	})
+}
+
 // checkTestdata checks that current buffer contents match their corresponding
 // expected content in the testdata directory.
 func checkTestdata(t *testing.T, env *Env) {
