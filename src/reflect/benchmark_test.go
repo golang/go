@@ -197,6 +197,19 @@ func BenchmarkCall(b *testing.B) {
 	})
 }
 
+func BenchmarkCallerCall(b *testing.B) {
+	fv := ValueOf(func(a, b string) {})
+	c := fv.Caller()
+	out := make([]Value, c.Type().NumOut())
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		args := []Value{ValueOf("a"), ValueOf("b")}
+		for pb.Next() {
+			c.Call(args, out)
+		}
+	})
+}
+
 type myint int64
 
 func (i *myint) inc() {
@@ -210,6 +223,17 @@ func BenchmarkCallMethod(b *testing.B) {
 	v := ValueOf(z.inc)
 	for i := 0; i < b.N; i++ {
 		v.Call(nil)
+	}
+}
+
+func BenchmarkCallerCallMethod(b *testing.B) {
+	b.ReportAllocs()
+	z := new(myint)
+
+	v := ValueOf(z.inc)
+	c := v.Caller()
+	for i := 0; i < b.N; i++ {
+		c.Call(nil, nil)
 	}
 }
 

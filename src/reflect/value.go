@@ -12,6 +12,7 @@ import (
 	"internal/unsafeheader"
 	"math"
 	"runtime"
+	"sync"
 	"unsafe"
 )
 
@@ -356,6 +357,46 @@ func (v Value) CanSet() bool {
 	return v.flag&(flagAddr|flagRO) == flagAddr
 }
 
+// Caller creates a function caller for function v.
+// The Caller caches information about the function making
+// calls more efficient.
+// Caller panics if v's Kind is not Func.
+func (v Value) Caller() *Caller {
+	v.mustBe(Func)
+	v.mustBeExported()
+
+	// Get function pointer, type.
+	t := (*funcType)(unsafe.Pointer(v.typ))
+	var (
+		fn       unsafe.Pointer
+		rcvr     Value
+		rcvrtype *rtype
+	)
+	if v.flag&flagMethod != 0 {
+		rcvr = v
+		rcvrtype, t, fn = methodReceiver("Caller", v, int(v.flag)>>flagMethodShift)
+	} else if v.flag&flagIndir != 0 {
+		fn = *(*unsafe.Pointer)(v.ptr)
+	} else {
+		fn = v.ptr
+	}
+
+	if fn == nil {
+		panic("Caller: call of nil function")
+	}
+
+	frametype, framePool, abid := funcLayout(t, rcvrtype)
+
+	return &Caller{
+		t:         t,
+		fn:        fn,
+		rcvr:      rcvr,
+		frametype: frametype,
+		framePool: framePool,
+		abid:      abid,
+	}
+}
+
 // Call calls the function v with the input arguments in.
 // For example, if len(in) == 3, v.Call(in) represents the Go call v(in[0], in[1], in[2]).
 // Call panics if v's Kind is not Func.
@@ -365,9 +406,10 @@ func (v Value) CanSet() bool {
 // If v is a variadic function, Call creates the variadic slice parameter
 // itself, copying in the corresponding values.
 func (v Value) Call(in []Value) []Value {
-	v.mustBe(Func)
-	v.mustBeExported()
-	return v.call("Call", in)
+	c := v.Caller()
+	out := make([]Value, v.Type().NumOut())
+	c.Call(in, out)
+	return out
 }
 
 // CallSlice calls the variadic function v with the input arguments in,
@@ -378,39 +420,55 @@ func (v Value) Call(in []Value) []Value {
 // As in Go, each input argument must be assignable to the
 // type of the function's corresponding input parameter.
 func (v Value) CallSlice(in []Value) []Value {
-	v.mustBe(Func)
-	v.mustBeExported()
-	return v.call("CallSlice", in)
+	c := v.Caller()
+	out := make([]Value, v.Type().NumOut())
+	c.CallSlice(in, out)
+	return out
+}
+
+// Caller is a function wrapper that caches details about a function
+// to make calls more efficient.
+type Caller struct {
+	t         *funcType
+	fn        unsafe.Pointer
+	rcvr      Value
+	frametype *rtype
+	framePool *sync.Pool
+	abid      abiDesc
+}
+
+// Type returns c's type.
+func (c *Caller) Type() Type {
+	return c.t
+}
+
+// Call calls the function c with the input arguments in and output result slice out.
+// For example, if len(in) == 3, v.Call(in) represents the Go call v(in[0], in[1], in[2]).
+// As in Go, each input argument must be assignable to the
+// type of the function's corresponding input parameter.
+// If v is a variadic function, Call creates the variadic slice parameter
+// itself, copying in the corresponding values.
+func (c *Caller) Call(in, out []Value) {
+	c.call("Call", in, out)
+}
+
+// CallSlice calls the variadic function c with the input arguments in and output result slice out,
+// assigning the slice in[len(in)-1] to v's final variadic argument.
+// For example, if len(in) == 3, v.CallSlice(in) represents the Go call v(in[0], in[1], in[2]...).
+// As in Go, each input argument must be assignable to the
+// type of the function's corresponding input parameter.
+func (c *Caller) CallSlice(in, out []Value) {
+	c.call("CallSlice", in, out)
 }
 
 var callGC bool // for testing; see TestCallMethodJump and TestCallArgLive
 
 const debugReflectCall = false
 
-func (v Value) call(op string, in []Value) []Value {
-	// Get function pointer, type.
-	t := (*funcType)(unsafe.Pointer(v.typ))
-	var (
-		fn       unsafe.Pointer
-		rcvr     Value
-		rcvrtype *rtype
-	)
-	if v.flag&flagMethod != 0 {
-		rcvr = v
-		rcvrtype, t, fn = methodReceiver(op, v, int(v.flag)>>flagMethodShift)
-	} else if v.flag&flagIndir != 0 {
-		fn = *(*unsafe.Pointer)(v.ptr)
-	} else {
-		fn = v.ptr
-	}
-
-	if fn == nil {
-		panic("reflect.Value.Call: call of nil function")
-	}
-
+func (c *Caller) call(op string, in, out []Value) {
 	isSlice := op == "CallSlice"
-	n := t.NumIn()
-	isVariadic := t.IsVariadic()
+	n := c.t.NumIn()
+	isVariadic := c.t.IsVariadic()
 	if isSlice {
 		if !isVariadic {
 			panic("reflect: CallSlice of non-variadic function")
@@ -438,15 +496,15 @@ func (v Value) call(op string, in []Value) []Value {
 		}
 	}
 	for i := 0; i < n; i++ {
-		if xt, targ := in[i].Type(), t.In(i); !xt.AssignableTo(targ) {
+		if xt, targ := in[i].Type(), c.t.In(i); !xt.AssignableTo(targ) {
 			panic("reflect: " + op + " using " + xt.String() + " as type " + targ.String())
 		}
 	}
 	if !isSlice && isVariadic {
 		// prepare slice for remaining values
 		m := len(in) - n
-		slice := MakeSlice(t.In(n), m, m)
-		elem := t.In(n).Elem()
+		slice := MakeSlice(c.t.In(n), m, m)
+		elem := c.t.In(n).Elem()
 		for i := 0; i < m; i++ {
 			x := in[n+i]
 			if xt := x.Type(); !xt.AssignableTo(elem) {
@@ -459,55 +517,59 @@ func (v Value) call(op string, in []Value) []Value {
 		copy(in[:n], origIn)
 		in[n] = slice
 	}
+	n = c.t.NumOut()
+	if len(out) < n {
+		panic("reflect: " + op + " with too few output arguments")
+	}
+	if len(out) > n {
+		panic("reflect: " + op + " with too many output arguments")
+	}
 
 	nin := len(in)
-	if nin != t.NumIn() {
-		panic("reflect.Value.Call: wrong argument count")
+	if nin != c.t.NumIn() {
+		panic("reflect.Caller.Call: wrong argument count")
 	}
-	nout := t.NumOut()
+	nout := c.t.NumOut()
 
 	// Register argument space.
 	var regArgs abi.RegArgs
 
-	// Compute frame type.
-	frametype, framePool, abid := funcLayout(t, rcvrtype)
-
 	// Allocate a chunk of memory for frame if needed.
 	var stackArgs unsafe.Pointer
-	if frametype.size != 0 {
+	if c.frametype.size != 0 {
 		if nout == 0 {
-			stackArgs = framePool.Get().(unsafe.Pointer)
+			stackArgs = c.framePool.Get().(unsafe.Pointer)
 		} else {
 			// Can't use pool if the function has return values.
 			// We will leak pointer to args in ret, so its lifetime is not scoped.
-			stackArgs = unsafe_New(frametype)
+			stackArgs = unsafe_New(c.frametype)
 		}
 	}
-	frameSize := frametype.size
+	frameSize := c.frametype.size
 
 	if debugReflectCall {
-		println("reflect.call", t.String())
-		abid.dump()
+		println("reflect.call", c.t.String())
+		c.abid.dump()
 	}
 
 	// Copy inputs into args.
 
 	// Handle receiver.
 	inStart := 0
-	if rcvrtype != nil {
+	if c.rcvr.IsValid() {
 		// Guaranteed to only be one word in size,
 		// so it will only take up exactly 1 abiStep (either
 		// in a register or on the stack).
-		switch st := abid.call.steps[0]; st.kind {
+		switch st := c.abid.call.steps[0]; st.kind {
 		case abiStepStack:
-			storeRcvr(rcvr, stackArgs)
+			storeRcvr(c.rcvr, stackArgs)
 		case abiStepPointer:
-			storeRcvr(rcvr, unsafe.Pointer(&regArgs.Ptrs[st.ireg]))
+			storeRcvr(c.rcvr, unsafe.Pointer(&regArgs.Ptrs[st.ireg]))
 			fallthrough
 		case abiStepIntReg:
-			storeRcvr(rcvr, unsafe.Pointer(&regArgs.Ints[st.ireg]))
+			storeRcvr(c.rcvr, unsafe.Pointer(&regArgs.Ints[st.ireg]))
 		case abiStepFloatReg:
-			storeRcvr(rcvr, unsafe.Pointer(&regArgs.Floats[st.freg]))
+			storeRcvr(c.rcvr, unsafe.Pointer(&regArgs.Floats[st.freg]))
 		default:
 			panic("unknown ABI parameter kind")
 		}
@@ -517,13 +579,13 @@ func (v Value) call(op string, in []Value) []Value {
 	// Handle arguments.
 	for i, v := range in {
 		v.mustBeExported()
-		targ := t.In(i).(*rtype)
+		targ := c.t.In(i).(*rtype)
 		// TODO(mknyszek): Figure out if it's possible to get some
 		// scratch space for this assignment check. Previously, it
 		// was possible to use space in the argument frame.
 		v = v.assignTo("reflect.Value.Call", targ, nil)
 	stepsLoop:
-		for _, st := range abid.call.stepsForValue(i + inStart) {
+		for _, st := range c.abid.call.stepsForValue(i + inStart) {
 			switch st.kind {
 			case abiStepStack:
 				// Copy values to the "stack."
@@ -568,10 +630,10 @@ func (v Value) call(op string, in []Value) []Value {
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
 	frameSize = align(frameSize, goarch.PtrSize)
-	frameSize += abid.spill
+	frameSize += c.abid.spill
 
 	// Mark pointers in registers for the return path.
-	regArgs.ReturnIsPtr = abid.outRegPtrs
+	regArgs.ReturnIsPtr = c.abid.outRegPtrs
 
 	if debugReflectCall {
 		regArgs.Dump()
@@ -583,44 +645,42 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 
 	// Call.
-	call(frametype, fn, stackArgs, uint32(frametype.size), uint32(abid.retOffset), uint32(frameSize), &regArgs)
+	call(c.frametype, c.fn, stackArgs, uint32(c.frametype.size), uint32(c.abid.retOffset), uint32(frameSize), &regArgs)
 
 	// For testing; see TestCallMethodJump.
 	if callGC {
 		runtime.GC()
 	}
 
-	var ret []Value
 	if nout == 0 {
 		if stackArgs != nil {
-			typedmemclr(frametype, stackArgs)
-			framePool.Put(stackArgs)
+			typedmemclr(c.frametype, stackArgs)
+			c.framePool.Put(stackArgs)
 		}
 	} else {
 		if stackArgs != nil {
 			// Zero the now unused input area of args,
 			// because the Values returned by this function contain pointers to the args object,
 			// and will thus keep the args object alive indefinitely.
-			typedmemclrpartial(frametype, stackArgs, 0, abid.retOffset)
+			typedmemclrpartial(c.frametype, stackArgs, 0, c.abid.retOffset)
 		}
 
 		// Wrap Values around return values in args.
-		ret = make([]Value, nout)
 		for i := 0; i < nout; i++ {
-			tv := t.Out(i)
+			tv := c.t.Out(i)
 			if tv.Size() == 0 {
 				// For zero-sized return value, args+off may point to the next object.
 				// In this case, return the zero value instead.
-				ret[i] = Zero(tv)
+				out[i] = Zero(tv)
 				continue
 			}
-			steps := abid.ret.stepsForValue(i)
+			steps := c.abid.ret.stepsForValue(i)
 			if st := steps[0]; st.kind == abiStepStack {
 				// This value is on the stack. If part of a value is stack
 				// allocated, the entire value is according to the ABI. So
 				// just make an indirection into the allocated frame.
 				fl := flagIndir | flag(tv.Kind())
-				ret[i] = Value{tv.common(), add(stackArgs, st.stkOff, "tv.Size() != 0"), fl}
+				out[i] = Value{tv.common(), add(stackArgs, st.stkOff, "tv.Size() != 0"), fl}
 				// Note: this does introduce false sharing between results -
 				// if any result is live, they are all live.
 				// (And the space for the args is live as well, but as we've
@@ -636,7 +696,7 @@ func (v Value) call(op string, in []Value) []Value {
 					print("kind=", steps[0].kind, ", type=", tv.String(), "\n")
 					panic("mismatch between ABI description and types")
 				}
-				ret[i] = Value{tv.common(), regArgs.Ptrs[steps[0].ireg], flag(tv.Kind())}
+				out[i] = Value{tv.common(), regArgs.Ptrs[steps[0].ireg], flag(tv.Kind())}
 				continue
 			}
 
@@ -649,7 +709,11 @@ func (v Value) call(op string, in []Value) []Value {
 			// additional space to the allocated stack frame and storing the
 			// register-allocated return values into the allocated stack frame and
 			// referring there in the resulting Value.
-			s := unsafe_New(tv.common())
+			s := out[i].ptr
+			if out[i].typ != tv || out[i].flag&flagIndir != flagIndir || s == nil {
+				s = unsafe_New(tv.common())
+				out[i] = Value{tv.common(), s, flagIndir | flag(tv.Kind())}
+			}
 			for _, st := range steps {
 				switch st.kind {
 				case abiStepIntReg:
@@ -667,11 +731,8 @@ func (v Value) call(op string, in []Value) []Value {
 					panic("unknown ABI part kind")
 				}
 			}
-			ret[i] = Value{tv.common(), s, flagIndir | flag(tv.Kind())}
 		}
 	}
-
-	return ret
 }
 
 // callReflect is the call implementation used by a function
