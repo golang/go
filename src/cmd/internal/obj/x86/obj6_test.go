@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -98,7 +97,7 @@ func asmOutput(t *testing.T, s string) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(
+	cmd := testenv.Command(t,
 		testenv.GoToolPath(t), "tool", "asm", "-S", "-dynlink",
 		"-o", filepath.Join(tmpdir, "output.6"), tmpfile.Name())
 
