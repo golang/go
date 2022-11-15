@@ -13,7 +13,6 @@ import (
 	"internal/testenv"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -91,7 +90,7 @@ func gobuild(t *testing.T, indir string, bargs []string) {
 		}
 		t.Logf("cmd: %s %+v\n", testenv.GoToolPath(t), bargs)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), bargs...)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), bargs...)
 	cmd.Dir = indir
 	b, err := cmd.CombinedOutput()
 	if len(b) != 0 {
@@ -213,7 +212,7 @@ func TestCovTool(t *testing.T) {
 				if m != 0 {
 					exepath = s.exepath3
 				}
-				cmd := exec.Command(exepath, args...)
+				cmd := testenv.Command(t, exepath, args...)
 				cmd.Env = append(cmd.Env, "GOCOVERDIR="+s.outdirs[m*2+k])
 				b, err := cmd.CombinedOutput()
 				if len(b) != 0 {
@@ -290,7 +289,7 @@ func runToolOp(t *testing.T, s state, op string, args []string) []string {
 	if showToolInvocations {
 		t.Logf("%s cmd is: %s %+v", op, s.tool, args)
 	}
-	cmd := exec.Command(s.tool, args...)
+	cmd := testenv.Command(t, s.tool, args...)
 	b, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "## %s output: %s\n", op, string(b))
@@ -642,7 +641,7 @@ func testMergeCombinePrograms(t *testing.T, s state) {
 		if k != 0 {
 			args = append(args, "foo", "bar")
 		}
-		cmd := exec.Command(s.exepath2, args...)
+		cmd := testenv.Command(t, s.exepath2, args...)
 		cmd.Env = append(cmd.Env, "GOCOVERDIR="+runout[k])
 		b, err := cmd.CombinedOutput()
 		if len(b) != 0 {
@@ -813,7 +812,7 @@ func testCounterClash(t *testing.T, s state) {
 	if debugtrace {
 		t.Logf("cc merge command is %s %v\n", s.tool, args)
 	}
-	cmd := exec.Command(s.tool, args...)
+	cmd := testenv.Command(t, s.tool, args...)
 	b, err := cmd.CombinedOutput()
 	t.Logf("%% output: %s\n", string(b))
 	if err == nil {
@@ -882,7 +881,7 @@ func testEmpty(t *testing.T, s state) {
 		if false {
 			t.Logf("cmd is %s %v\n", s.tool, args)
 		}
-		cmd := exec.Command(s.tool, args...)
+		cmd := testenv.Command(t, s.tool, args...)
 		b, err := cmd.CombinedOutput()
 		t.Logf("%% output: %s\n", string(b))
 		if err != nil {
@@ -926,7 +925,7 @@ func testCommandLineErrors(t *testing.T, s state, outdir string) {
 		if false {
 			t.Logf("cmd is %s %v\n", s.tool, args)
 		}
-		cmd := exec.Command(s.tool, args...)
+		cmd := testenv.Command(t, s.tool, args...)
 		b, err := cmd.CombinedOutput()
 		if err == nil {
 			t.Logf("%% output: %s\n", string(b))
