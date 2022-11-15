@@ -7,7 +7,6 @@ package main
 import (
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -91,7 +90,7 @@ func TestDisasm(t *testing.T) {
 
 	tmpdir := t.TempDir()
 	cpuExe := filepath.Join(tmpdir, "cpu.exe")
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", cpuExe, "cpu.go")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", cpuExe, "cpu.go")
 	cmd.Dir = "testdata/"
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -99,19 +98,19 @@ func TestDisasm(t *testing.T) {
 	}
 
 	profile := filepath.Join(tmpdir, "cpu.pprof")
-	cmd = exec.Command(cpuExe, "-output", profile)
+	cmd = testenv.Command(t, cpuExe, "-output", profile)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("cpu failed: %v\n%s", err, out)
 	}
 
-	cmd = exec.Command(pprofPath(t), "-disasm", "main.main", cpuExe, profile)
+	cmd = testenv.Command(t, pprofPath(t), "-disasm", "main.main", cpuExe, profile)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("pprof -disasm failed: %v\n%s", err, out)
 
 		// Try to print out profile content for debugging.
-		cmd = exec.Command(pprofPath(t), "-raw", cpuExe, profile)
+		cmd = testenv.Command(t, pprofPath(t), "-raw", cpuExe, profile)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
 			t.Logf("pprof -raw failed: %v\n%s", err, out)
