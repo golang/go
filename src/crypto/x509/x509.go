@@ -23,6 +23,7 @@ package x509
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -59,12 +60,12 @@ type pkixPublicKey struct {
 	BitString asn1.BitString
 }
 
-// ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form.
-// The encoded public key is a SubjectPublicKeyInfo structure
-// (see RFC 5280, Section 4.1).
+// ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form. The encoded
+// public key is a SubjectPublicKeyInfo structure (see RFC 5280, Section 4.1).
 //
-// It returns a *rsa.PublicKey, *dsa.PublicKey, *ecdsa.PublicKey, or
-// ed25519.PublicKey. More types might be supported in the future.
+// It returns a *rsa.PublicKey, *dsa.PublicKey, *ecdsa.PublicKey,
+// ed25519.PublicKey (not a pointer), or *ecdh.PublicKey (for X25519).
+// More types might be supported in the future.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
 func ParsePKIXPublicKey(derBytes []byte) (pub any, err error) {
@@ -77,11 +78,7 @@ func ParsePKIXPublicKey(derBytes []byte) (pub any, err error) {
 	} else if len(rest) != 0 {
 		return nil, errors.New("x509: trailing data after ASN.1 of public-key")
 	}
-	algo := getPublicKeyAlgorithmFromOID(pki.Algorithm.Algorithm)
-	if algo == UnknownPublicKeyAlgorithm {
-		return nil, errors.New("x509: unknown public key algorithm")
-	}
-	return parsePublicKey(algo, &pki)
+	return parsePublicKey(&pki)
 }
 
 func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.AlgorithmIdentifier, err error) {
@@ -117,6 +114,12 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
 	case ed25519.PublicKey:
 		publicKeyBytes = pub
 		publicKeyAlgorithm.Algorithm = oidPublicKeyEd25519
+	case *ecdh.PublicKey:
+		if pub.Curve() != ecdh.X25519() {
+			return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: unsupported ECDH curve")
+		}
+		publicKeyBytes = pub.Bytes()
+		publicKeyAlgorithm.Algorithm = oidPublicKeyX25519
 	default:
 		return nil, pkix.AlgorithmIdentifier{}, fmt.Errorf("x509: unsupported public key type: %T", pub)
 	}
@@ -128,8 +131,9 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
 // The encoded public key is a SubjectPublicKeyInfo structure
 // (see RFC 5280, Section 4.1).
 //
-// The following key types are currently supported: *rsa.PublicKey, *ecdsa.PublicKey
-// and ed25519.PublicKey. Unsupported key types result in an error.
+// The following key types are currently supported: *rsa.PublicKey,
+// *ecdsa.PublicKey, ed25519.PublicKey (not a pointer), and *ecdh.PublicKey
+// (X25519 only). Unsupported key types result in an error.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
 func MarshalPKIXPublicKey(pub any) ([]byte, error) {
@@ -240,7 +244,7 @@ type PublicKeyAlgorithm int
 const (
 	UnknownPublicKeyAlgorithm PublicKeyAlgorithm = iota
 	RSA
-	DSA // Unsupported.
+	DSA // Only supported for parsing.
 	ECDSA
 	Ed25519
 )
@@ -444,27 +448,34 @@ func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm
 	return UnknownSignatureAlgorithm
 }
 
-// RFC 3279, 2.3 Public Key Algorithms
-//
-//	pkcs-1 OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
-//		rsadsi(113549) pkcs(1) 1 }
-//
-// rsaEncryption OBJECT IDENTIFIER ::== { pkcs1-1 1 }
-//
-//	id-dsa OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
-//		x9-57(10040) x9cm(4) 1 }
-//
-// RFC 5480, 2.1.1 Unrestricted Algorithm Identifier and Parameters
-//
-//	id-ecPublicKey OBJECT IDENTIFIER ::= {
-//		iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
 var (
-	oidPublicKeyRSA     = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
-	oidPublicKeyDSA     = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
-	oidPublicKeyECDSA   = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
-	oidPublicKeyEd25519 = oidSignatureEd25519
+	// RFC 3279, 2.3 Public Key Algorithms
+	//
+	//	pkcs-1 OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
+	//		rsadsi(113549) pkcs(1) 1 }
+	//
+	// rsaEncryption OBJECT IDENTIFIER ::== { pkcs1-1 1 }
+	//
+	//	id-dsa OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
+	//		x9-57(10040) x9cm(4) 1 }
+	oidPublicKeyRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
+	oidPublicKeyDSA = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
+	// RFC 5480, 2.1.1 Unrestricted Algorithm Identifier and Parameters
+	//
+	//	id-ecPublicKey OBJECT IDENTIFIER ::= {
+	//		iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
+	oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
+	// RFC 8410, Section 3
+	//
+	//	id-X25519    OBJECT IDENTIFIER ::= { 1 3 101 110 }
+	//	id-Ed25519   OBJECT IDENTIFIER ::= { 1 3 101 112 }
+	oidPublicKeyX25519  = asn1.ObjectIdentifier{1, 3, 101, 110}
+	oidPublicKeyEd25519 = asn1.ObjectIdentifier{1, 3, 101, 112}
 )
 
+// getPublicKeyAlgorithmFromOID returns the exposed PublicKeyAlgorithm
+// identifier for public key types supported in certificates and CSRs. Marshal
+// and Parse functions may support a different set of public key types.
 func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm {
 	switch {
 	case oid.Equal(oidPublicKeyRSA):
@@ -1521,6 +1532,9 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	if err != nil {
 		return nil, err
 	}
+	if getPublicKeyAlgorithmFromOID(publicKeyAlgorithm.Algorithm) == UnknownPublicKeyAlgorithm {
+		return nil, fmt.Errorf("x509: unsupported public key type: %T", pub)
+	}
 
 	asn1Issuer, err := subjectBytes(parent)
 	if err != nil {
@@ -2068,9 +2082,11 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 	}
 
 	var err error
-	out.PublicKey, err = parsePublicKey(out.PublicKeyAlgorithm, &in.TBSCSR.PublicKey)
-	if err != nil {
-		return nil, err
+	if out.PublicKeyAlgorithm != UnknownPublicKeyAlgorithm {
+		out.PublicKey, err = parsePublicKey(&in.TBSCSR.PublicKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var subject pkix.RDNSequence
