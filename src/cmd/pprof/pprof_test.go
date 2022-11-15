@@ -5,54 +5,47 @@
 package main
 
 import (
-	"fmt"
 	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
-var tmp, pprofExe string // populated by buildPprof
-
+// TestMain executes the test binary as the pprof command if
+// GO_PPROFTEST_IS_PPROF is set, and runs the tests otherwise.
 func TestMain(m *testing.M) {
-	if !testenv.HasGoBuild() {
-		return
+	if os.Getenv("GO_PPROFTEST_IS_PPROF") != "" {
+		main()
+		os.Exit(0)
 	}
 
-	var exitcode int
-	if err := buildPprof(); err == nil {
-		exitcode = m.Run()
-	} else {
-		fmt.Println(err)
-		exitcode = 1
-	}
-	os.RemoveAll(tmp)
-	os.Exit(exitcode)
+	os.Setenv("GO_PPROFTEST_IS_PPROF", "1") // Set for subprocesses to inherit.
+	os.Exit(m.Run())
 }
 
-func buildPprof() error {
-	var err error
-	tmp, err = os.MkdirTemp("", "TestPprof")
-	if err != nil {
-		return fmt.Errorf("TempDir failed: %v", err)
-	}
+// pprofPath returns the path to the "pprof" binary to run.
+func pprofPath(t testing.TB) string {
+	t.Helper()
+	testenv.MustHaveExec(t)
 
-	pprofExe = filepath.Join(tmp, "testpprof.exe")
-	gotool, err := testenv.GoTool()
-	if err != nil {
-		return err
+	pprofPathOnce.Do(func() {
+		pprofExePath, pprofPathErr = os.Executable()
+	})
+	if pprofPathErr != nil {
+		t.Fatal(pprofPathErr)
 	}
-	out, err := exec.Command(gotool, "build", "-o", pprofExe, "cmd/pprof").CombinedOutput()
-	if err != nil {
-		os.RemoveAll(tmp)
-		return fmt.Errorf("go build -o %v cmd/pprof: %v\n%s", pprofExe, err, string(out))
-	}
-
-	return nil
+	return pprofExePath
 }
+
+var (
+	pprofPathOnce sync.Once
+	pprofExePath  string
+	pprofPathErr  error
+)
 
 // See also runtime/pprof.cpuProfilingBroken.
 func mustHaveCPUProfiling(t *testing.T) {
@@ -112,13 +105,13 @@ func TestDisasm(t *testing.T) {
 		t.Fatalf("cpu failed: %v\n%s", err, out)
 	}
 
-	cmd = exec.Command(pprofExe, "-disasm", "main.main", cpuExe, profile)
+	cmd = exec.Command(pprofPath(t), "-disasm", "main.main", cpuExe, profile)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("pprof -disasm failed: %v\n%s", err, out)
 
 		// Try to print out profile content for debugging.
-		cmd = exec.Command(pprofExe, "-raw", cpuExe, profile)
+		cmd = exec.Command(pprofPath(t), "-raw", cpuExe, profile)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
 			t.Logf("pprof -raw failed: %v\n%s", err, out)
