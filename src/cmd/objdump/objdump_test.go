@@ -16,47 +16,41 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
-var tmp, exe string // populated by buildObjdump
-
+// TestMain executes the test binary as the objdump command if
+// GO_OBJDUMPTEST_IS_OBJDUMP is set, and runs the test otherwise.
 func TestMain(m *testing.M) {
-	if !testenv.HasGoBuild() {
-		return
+	if os.Getenv("GO_OBJDUMPTEST_IS_OBJDUMP") != "" {
+		main()
+		os.Exit(0)
 	}
 
-	var exitcode int
-	if err := buildObjdump(); err == nil {
-		exitcode = m.Run()
-	} else {
-		fmt.Println(err)
-		exitcode = 1
-	}
-	os.RemoveAll(tmp)
-	os.Exit(exitcode)
+	os.Setenv("GO_OBJDUMPTEST_IS_OBJDUMP", "1")
+	os.Exit(m.Run())
 }
 
-func buildObjdump() error {
-	var err error
-	tmp, err = os.MkdirTemp("", "TestObjDump")
-	if err != nil {
-		return fmt.Errorf("TempDir failed: %v", err)
-	}
+// objdumpPath returns the path to the "objdump" binary to run.
+func objdumpPath(t testing.TB) string {
+	t.Helper()
+	testenv.MustHaveExec(t)
 
-	exe = filepath.Join(tmp, "testobjdump.exe")
-	gotool, err := testenv.GoTool()
-	if err != nil {
-		return err
+	objdumpPathOnce.Do(func() {
+		objdumpExePath, objdumpPathErr = os.Executable()
+	})
+	if objdumpPathErr != nil {
+		t.Fatal(objdumpPathErr)
 	}
-	out, err := exec.Command(gotool, "build", "-o", exe, "cmd/objdump").CombinedOutput()
-	if err != nil {
-		os.RemoveAll(tmp)
-		return fmt.Errorf("go build -o %v cmd/objdump: %v\n%s", exe, err, string(out))
-	}
-
-	return nil
+	return objdumpExePath
 }
+
+var (
+	objdumpPathOnce sync.Once
+	objdumpExePath  string
+	objdumpPathErr  error
+)
 
 var x86Need = []string{ // for both 386 and AMD64
 	"JMP main.main(SB)",
@@ -152,6 +146,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 	}
 
 	hash := notsha256.Sum256([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
+	tmp := t.TempDir()
 	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
 	args := []string{"build", "-o", hello}
 	args = append(args, flags...)
@@ -226,7 +221,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 	if printGnuAsm {
 		args = append([]string{"-gnu"}, args...)
 	}
-	cmd = exec.Command(exe, args...)
+	cmd = exec.Command(objdumpPath(t), args...)
 	cmd.Dir = "testdata" // "Bad line" bug #36683 is sensitive to being run in the source directory
 	out, err = cmd.CombinedOutput()
 	t.Logf("Running %v", cmd.Args)
@@ -300,6 +295,9 @@ func TestDisasmPIE(t *testing.T) {
 
 func TestDisasmGoobj(t *testing.T) {
 	mustHaveDisasm(t)
+	testenv.MustHaveGoBuild(t)
+
+	tmp := t.TempDir()
 
 	importcfgfile := filepath.Join(tmp, "hello.importcfg")
 	testenv.WriteImportcfg(t, importcfgfile, nil)
@@ -321,7 +319,7 @@ func TestDisasmGoobj(t *testing.T) {
 		hello,
 	}
 
-	out, err = exec.Command(exe, args...).CombinedOutput()
+	out, err = exec.Command(objdumpPath(t), args...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("objdump fmthello.o: %v\n%s", err, out)
 	}
@@ -352,13 +350,9 @@ func TestGoobjFileNumber(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := os.MkdirTemp("", "TestGoobjFileNumber")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmp := t.TempDir()
 
-	obj := filepath.Join(tmpdir, "p.a")
+	obj := filepath.Join(tmp, "p.a")
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", obj)
 	cmd.Dir = filepath.Join("testdata/testfilenum")
 	out, err := cmd.CombinedOutput()
@@ -366,7 +360,7 @@ func TestGoobjFileNumber(t *testing.T) {
 		t.Fatalf("build failed: %v\n%s", err, out)
 	}
 
-	cmd = exec.Command(exe, obj)
+	cmd = exec.Command(objdumpPath(t), obj)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("objdump failed: %v\n%s", err, out)
@@ -389,7 +383,7 @@ func TestGoObjOtherVersion(t *testing.T) {
 	t.Parallel()
 
 	obj := filepath.Join("testdata", "go116.o")
-	cmd := exec.Command(exe, obj)
+	cmd := exec.Command(objdumpPath(t), obj)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("objdump go116.o succeeded unexpectedly")
