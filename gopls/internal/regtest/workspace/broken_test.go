@@ -206,12 +206,10 @@ package b
 				env.OpenFile("a/a.go")
 				env.OpenFile("a/empty.go")
 				env.OpenFile("b/go.mod")
-				env.Await(
-					env.AfterChange(
-						env.DiagnosticAtRegexp("a/a.go", "package a"),
-						env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
-						OutstandingWork(lsp.WorkspaceLoadFailure, msg),
-					),
+				env.AfterChange(
+					env.DiagnosticAtRegexp("a/a.go", "package a"),
+					env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
+					OutstandingWork(lsp.WorkspaceLoadFailure, msg),
 				)
 
 				// Changing the workspace folders to the valid modules should resolve

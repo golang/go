@@ -287,10 +287,16 @@ func (e *Env) DoneDiagnosingChanges() Expectation {
 
 // AfterChange expects that the given expectations will be met after all
 // state-changing notifications have been processed by the server.
-func (e *Env) AfterChange(expectations ...Expectation) Expectation {
-	return OnceMet(
-		e.DoneDiagnosingChanges(),
-		expectations...,
+//
+// It awaits the completion of all anticipated work before checking the given
+// expectations.
+func (e *Env) AfterChange(expectations ...Expectation) {
+	e.T.Helper()
+	e.Await(
+		OnceMet(
+			e.DoneDiagnosingChanges(),
+			expectations...,
+		),
 	)
 }
 

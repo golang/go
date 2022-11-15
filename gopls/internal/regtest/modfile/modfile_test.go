@@ -632,12 +632,10 @@ func main() {
 			env.SaveBuffer("a/go.mod") // Save to trigger diagnostics.
 
 			d := protocol.PublishDiagnosticsParams{}
-			env.Await(
-				env.AfterChange(
-					// Make sure the diagnostic mentions the new version -- the old diagnostic is in the same place.
-					env.DiagnosticAtRegexpWithMessage("a/go.mod", "example.com v1.2.3", "example.com@v1.2.3"),
-					ReadDiagnostics("a/go.mod", &d),
-				),
+			env.AfterChange(
+				// Make sure the diagnostic mentions the new version -- the old diagnostic is in the same place.
+				env.DiagnosticAtRegexpWithMessage("a/go.mod", "example.com v1.2.3", "example.com@v1.2.3"),
+				ReadDiagnostics("a/go.mod", &d),
 			)
 			qfs := env.GetQuickFixes("a/go.mod", d.Diagnostics)
 			if len(qfs) == 0 {
@@ -645,11 +643,9 @@ func main() {
 			}
 			env.ApplyCodeAction(qfs[0]) // Arbitrarily pick a single fix to apply. Applying all of them seems to cause trouble in this particular test.
 			env.SaveBuffer("a/go.mod")  // Save to trigger diagnostics.
-			env.Await(
-				env.AfterChange(
-					EmptyDiagnostics("a/go.mod"),
-					env.DiagnosticAtRegexp("a/main.go", "x = "),
-				),
+			env.AfterChange(
+				EmptyDiagnostics("a/go.mod"),
+				env.DiagnosticAtRegexp("a/main.go", "x = "),
 			)
 		})
 	})
@@ -678,24 +674,18 @@ func main() {
 	t.Run("good", func(t *testing.T) {
 		runner.Run(t, known, func(t *testing.T, env *Env) {
 			env.OpenFile("a/go.mod")
-			env.Await(
-				env.AfterChange(
-					env.DiagnosticAtRegexp("a/main.go", "x = "),
-				),
+			env.AfterChange(
+				env.DiagnosticAtRegexp("a/main.go", "x = "),
 			)
 			env.RegexpReplace("a/go.mod", "v1.2.3", "v1.2.2")
 			env.Editor.SaveBuffer(env.Ctx, "a/go.mod") // go.mod changes must be on disk
-			env.Await(
-				env.AfterChange(
-					env.DiagnosticAtRegexp("a/go.mod", "example.com v1.2.2"),
-				),
+			env.AfterChange(
+				env.DiagnosticAtRegexp("a/go.mod", "example.com v1.2.2"),
 			)
 			env.RegexpReplace("a/go.mod", "v1.2.2", "v1.2.3")
 			env.Editor.SaveBuffer(env.Ctx, "a/go.mod") // go.mod changes must be on disk
-			env.Await(
-				env.AfterChange(
-					env.DiagnosticAtRegexp("a/main.go", "x = "),
-				),
+			env.AfterChange(
+				env.DiagnosticAtRegexp("a/main.go", "x = "),
 			)
 		})
 	})
