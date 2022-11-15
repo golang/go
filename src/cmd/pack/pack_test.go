@@ -15,8 +15,41 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+)
+
+// TestMain executes the test binary as the pack command if
+// GO_PACKTEST_IS_PACK is set, and runs the tests otherwise.
+func TestMain(m *testing.M) {
+	if os.Getenv("GO_PACKTEST_IS_PACK") != "" {
+		main()
+		os.Exit(0)
+	}
+
+	os.Setenv("GO_PACKTEST_IS_PACK", "1") // Set for subprocesses to inherit.
+	os.Exit(m.Run())
+}
+
+// packPath returns the path to the "pack" binary to run.
+func packPath(t testing.TB) string {
+	t.Helper()
+	testenv.MustHaveExec(t)
+
+	packPathOnce.Do(func() {
+		packExePath, packPathErr = os.Executable()
+	})
+	if packPathErr != nil {
+		t.Fatal(packPathErr)
+	}
+	return packExePath
+}
+
+var (
+	packPathOnce sync.Once
+	packExePath  string
+	packPathErr  error
 )
 
 // testCreate creates an archive in the specified directory.
@@ -181,9 +214,8 @@ func TestHello(t *testing.T) {
 	testenv.WriteImportcfg(t, importcfgfile, nil)
 
 	goBin := testenv.GoToolPath(t)
-	run(goBin, "build", "cmd/pack") // writes pack binary to dir
 	run(goBin, "tool", "compile", "-importcfg="+importcfgfile, "-p=main", "hello.go")
-	run("./pack", "grc", "hello.a", "hello.o")
+	run(packPath(t), "grc", "hello.a", "hello.o")
 	run(goBin, "tool", "link", "-importcfg="+importcfgfile, "-o", "a.out", "hello.a")
 	out := run("./a.out")
 	if out != "hello world\n" {
@@ -251,9 +283,8 @@ func TestLargeDefs(t *testing.T) {
 	testenv.WriteImportcfg(t, importcfgfile, nil)
 
 	goBin := testenv.GoToolPath(t)
-	run(goBin, "build", "cmd/pack") // writes pack binary to dir
 	run(goBin, "tool", "compile", "-importcfg="+importcfgfile, "-p=large", "large.go")
-	run("./pack", "grc", "large.a", "large.o")
+	run(packPath(t), "grc", "large.a", "large.o")
 	testenv.WriteImportcfg(t, importcfgfile, map[string]string{"large": filepath.Join(dir, "large.o")})
 	run(goBin, "tool", "compile", "-importcfg="+importcfgfile, "-p=main", "main.go")
 	run(goBin, "tool", "link", "-importcfg="+importcfgfile, "-L", ".", "-o", "a.out", "main.o")
@@ -287,9 +318,8 @@ func TestIssue21703(t *testing.T) {
 	}
 
 	goBin := testenv.GoToolPath(t)
-	run(goBin, "build", "cmd/pack") // writes pack binary to dir
 	run(goBin, "tool", "compile", "-p=a", "a.go")
-	run("./pack", "c", "a.a", "a.o")
+	run(packPath(t), "c", "a.a", "a.o")
 	run(goBin, "tool", "compile", "-p=b", "-I", ".", "b.go")
 }
 
@@ -311,9 +341,8 @@ func TestCreateWithCompilerObj(t *testing.T) {
 	}
 
 	goBin := testenv.GoToolPath(t)
-	run(goBin, "build", "cmd/pack") // writes pack binary to dir
 	run(goBin, "tool", "compile", "-pack", "-p=p", "-o", "p.a", "p.go")
-	run("./pack", "c", "packed.a", "p.a")
+	run(packPath(t), "c", "packed.a", "p.a")
 	fi, err := os.Stat(filepath.Join(dir, "p.a"))
 	if err != nil {
 		t.Fatalf("stat p.a failed: %v", err)
@@ -331,7 +360,7 @@ func TestCreateWithCompilerObj(t *testing.T) {
 
 	// Test -linkobj flag as well.
 	run(goBin, "tool", "compile", "-p=p", "-linkobj", "p2.a", "-o", "p.x", "p.go")
-	run("./pack", "c", "packed2.a", "p2.a")
+	run(packPath(t), "c", "packed2.a", "p2.a")
 	fi, err = os.Stat(filepath.Join(dir, "p2.a"))
 	if err != nil {
 		t.Fatalf("stat p2.a failed: %v", err)
@@ -344,7 +373,7 @@ func TestCreateWithCompilerObj(t *testing.T) {
 		t.Errorf("packed file with different size: want %d, got %d", want, got)
 	}
 
-	run("./pack", "c", "packed3.a", "p.x")
+	run(packPath(t), "c", "packed3.a", "p.x")
 	fi, err = os.Stat(filepath.Join(dir, "p.x"))
 	if err != nil {
 		t.Fatalf("stat p.x failed: %v", err)
@@ -375,9 +404,8 @@ func TestRWithNonexistentFile(t *testing.T) {
 	}
 
 	goBin := testenv.GoToolPath(t)
-	run(goBin, "build", "cmd/pack") // writes pack binary to dir
 	run(goBin, "tool", "compile", "-p=p", "-o", "p.o", "p.go")
-	run("./pack", "r", "p.a", "p.o") // should succeed
+	run(packPath(t), "r", "p.a", "p.o") // should succeed
 }
 
 // doRun runs a program in a directory and returns the output.
