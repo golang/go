@@ -101,7 +101,7 @@ func readHosts() {
 
 			is[addr] = append(is[addr], name)
 
-			if v,ok := hs[key]; ok {
+			if v, ok := hs[key]; ok {
 				hs[key] = byName{
 					addrs:         append(v.addrs, addr),
 					canonicalName: v.canonicalName,

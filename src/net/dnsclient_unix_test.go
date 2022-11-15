@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -2508,5 +2509,83 @@ func TestDNSConfigNoReload(t *testing.T) {
 
 	if _, err = r.LookupHost(context.Background(), "go.dev"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLookupOrderFilesNoSuchHost(t *testing.T) {
+	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+	defer setSystemNSS(getSystemNSS(), 0)
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+
+	// update resolv.conf, so that it does not contain any unknownOpts
+	err = conf.writeAndUpdate([]string{"nameserver 127.0.0.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	setSystemNSS(nssStr("hosts: files"), time.Hour)
+
+	tmpFile := filepath.Join(t.TempDir(), "hosts")
+	f, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_WRONLY, 0660)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	testHookHostsPath = tmpFile
+
+	var lookupTests = []struct {
+		name   string
+		lookup func(name string) error
+	}{
+		{
+			name: "Host",
+			lookup: func(name string) error {
+				_, err = DefaultResolver.LookupHost(context.Background(), name)
+				return err
+			},
+		},
+		{
+			name: "IP",
+			lookup: func(name string) error {
+				_, err = DefaultResolver.LookupIP(context.Background(), "ip", name)
+				return err
+			},
+		},
+		{
+			name: "IPAddr",
+			lookup: func(name string) error {
+				_, err = DefaultResolver.LookupIPAddr(context.Background(), name)
+				return err
+			},
+		},
+		{
+			name: "NetIP",
+			lookup: func(name string) error {
+				_, err = DefaultResolver.LookupNetIP(context.Background(), "ip", name)
+				return err
+			},
+		},
+	}
+
+	for _, v := range lookupTests {
+		err := v.lookup("test.invalid")
+
+		if err == nil {
+			t.Errorf("Lookup%v: unexpected success", v.name)
+			continue
+		}
+
+		expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: "test.invalid", IsNotFound: true}
+		var dnsErr *DNSError
+		errors.As(err, &dnsErr)
+		if dnsErr == nil || *dnsErr != expectedErr {
+			t.Errorf("Lookup%v: unexpected error: %v", v.name, err)
+		}
 	}
 }
