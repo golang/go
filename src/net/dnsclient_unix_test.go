@@ -10,10 +10,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -2514,7 +2516,10 @@ func TestDNSConfigNoReload(t *testing.T) {
 
 func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
-	defer setSystemNSS(getSystemNSS(), 0)
+	if runtime.GOOS != "openbsd" {
+		defer setSystemNSS(getSystemNSS(), 0)
+		setSystemNSS(nssStr("hosts: files"), time.Hour)
+	}
 
 	conf, err := newResolvConfTest()
 	if err != nil {
@@ -2522,13 +2527,16 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 	}
 	defer conf.teardown()
 
-	// update resolv.conf, so that it does not contain any unknownOpts
-	err = conf.writeAndUpdate([]string{"nameserver 127.0.0.1"})
-	if err != nil {
-		t.Fatal(err)
+	resolvConf := dnsConfig{servers: defaultNS}
+	if runtime.GOOS == "openbsd" {
+		// Set error to ErrNotExist, so the hostLookupOrder
+		// returns hostLookupFiles for openbsd.
+		resolvConf.err = fs.ErrNotExist
 	}
 
-	setSystemNSS(nssStr("hosts: files"), time.Hour)
+	if !conf.forceUpdateConf(&resolvConf, time.Now().Add(time.Hour)) {
+		t.Fatal("failed to update resolv config")
+	}
 
 	tmpFile := filepath.Join(t.TempDir(), "hosts")
 	f, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_WRONLY, 0660)
