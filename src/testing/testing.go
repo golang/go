@@ -1588,7 +1588,7 @@ func tRunner(t *T, fn func(t *T)) {
 // must return before the outer test function for t returns.
 func (t *T) Run(name string, f func(t *T)) bool {
 	if t.cleanupStarted.Load() {
-		panic("testing: t.Run is called during t.Cleanup")
+		panic("testing: t.Run called during t.Cleanup")
 	}
 
 	t.hasSub.Store(true)

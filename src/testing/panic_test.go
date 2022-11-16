@@ -227,7 +227,7 @@ func TestMorePanic(t *testing.T) {
 		{
 			desc:  "Issue 48515: call t.Run in t.Cleanup should trigger panic",
 			flags: []string{"-test.run=TestCallRunInCleanupHelper"},
-			want:  `panic: testing: t.Run is called during t.Cleanup`,
+			want:  `panic: testing: t.Run called during t.Cleanup`,
 		},
 	}
 
