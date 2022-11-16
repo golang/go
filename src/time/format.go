@@ -1295,6 +1295,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			return Time{}, newParseError(alayout, avalue, stdstr, value, ": "+rangeErrString+" out of range")
 		}
 		if err != nil {
+			if p != "" {
+				return Time{}, newParseError(alayout, avalue, stdstr, p, "")
+			}
 			return Time{}, newParseError(alayout, avalue, stdstr, value, "")
 		}
 	}

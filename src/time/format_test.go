@@ -655,6 +655,12 @@ var parseErrorTests = []ParseErrorTest{
 	// issue 54570
 	{RFC3339, "0000-01-01T00:00:00+00:+0", `parsing time "0000-01-01T00:00:00+00:+0" as "2006-01-02T15:04:05Z07:00": cannot parse "" as "Z07:00"`},
 	{RFC3339, "0000-01-01T00:00:00+-0:00", `parsing time "0000-01-01T00:00:00+-0:00" as "2006-01-02T15:04:05Z07:00": cannot parse "" as "Z07:00"`},
+
+	// issue 56730
+	{"2006-01-02", "22-10-25", `parsing time "22-10-25" as "2006-01-02": cannot parse "22-1" as "2006"`},
+	{"06-01-02", "a2-10-25", `parsing time "a2-10-25" as "06-01-02": cannot parse "a2" as "06"`},
+	{"03:04PM", "12:03pM", `parsing time "12:03pM" as "03:04PM": cannot parse "pM" as "PM"`},
+	{"03:04pm", "12:03pM", `parsing time "12:03pM" as "03:04pm": cannot parse "pM" as "pm"`},
 }
 
 func TestParseErrors(t *testing.T) {
