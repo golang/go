@@ -2547,6 +2547,13 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 
 	testHookHostsPath = tmpFile
 
+	const testName = "test.invalid"
+
+	order, _ := systemConf().hostLookupOrder(DefaultResolver, testName)
+	if order != hostLookupFiles {
+		t.Skipf("hostLookupOrder did not return hostLookupFiles")
+	}
+
 	var lookupTests = []struct {
 		name   string
 		lookup func(name string) error
@@ -2582,14 +2589,14 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 	}
 
 	for _, v := range lookupTests {
-		err := v.lookup("test.invalid")
+		err := v.lookup(testName)
 
 		if err == nil {
 			t.Errorf("Lookup%v: unexpected success", v.name)
 			continue
 		}
 
-		expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: "test.invalid", IsNotFound: true}
+		expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: testName, IsNotFound: true}
 		var dnsErr *DNSError
 		errors.As(err, &dnsErr)
 		if dnsErr == nil || *dnsErr != expectedErr {
