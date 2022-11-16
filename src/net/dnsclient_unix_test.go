@@ -2551,6 +2551,7 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 
 	order, _ := systemConf().hostLookupOrder(DefaultResolver, testName)
 	if order != hostLookupFiles {
+		// skip test for systems which do not return hostLookupFiles
 		t.Skipf("hostLookupOrder did not return hostLookupFiles")
 	}
 
