@@ -307,7 +307,7 @@ func (s *snapshot) workspaceLayoutError(ctx context.Context) *source.CriticalErr
 	}
 
 	// TODO(rfindley): both of the checks below should be delegated to the workspace.
-	if s.view.userGo111Module == off {
+	if s.view.effectiveGO111MODULE() == off {
 		return nil
 	}
 	if s.workspace.moduleSource != legacyWorkspace {

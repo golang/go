@@ -219,7 +219,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	goworkURI := span.URIFromPath(explicitGowork)
 
 	// Build the gopls workspace, collecting active modules in the view.
-	workspace, err := newWorkspace(ctx, root, goworkURI, s, pathExcludedByFilterFunc(root.Filename(), wsInfo.gomodcache, options), wsInfo.userGo111Module == off, options.ExperimentalWorkspaceModule)
+	workspace, err := newWorkspace(ctx, root, goworkURI, s, pathExcludedByFilterFunc(root.Filename(), wsInfo.gomodcache, options), wsInfo.effectiveGO111MODULE() == off, options.ExperimentalWorkspaceModule)
 	if err != nil {
 		return nil, nil, func() {}, err
 	}
