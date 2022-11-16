@@ -7,6 +7,7 @@ package staticinit
 import (
 	"fmt"
 	"go/constant"
+	"go/token"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -595,8 +596,11 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 	for i, v := range as2init.Lhs {
 		args[v.(*ir.Name)] = as2init.Rhs[i]
 	}
-	r := subst(as2body.Rhs[0], args)
-	ok := s.StaticAssign(l, loff, r, typ)
+	r, ok := subst(as2body.Rhs[0], args)
+	if !ok {
+		return false
+	}
+	ok = s.StaticAssign(l, loff, r, typ)
 
 	if ok && base.Flag.Percent != 0 {
 		ir.Dump("static inlined-LEFT", l)
@@ -798,7 +802,8 @@ func isvaluelit(n ir.Node) bool {
 	return n.Op() == ir.OARRAYLIT || n.Op() == ir.OSTRUCTLIT
 }
 
-func subst(n ir.Node, m map[*ir.Name]ir.Node) ir.Node {
+func subst(n ir.Node, m map[*ir.Name]ir.Node) (ir.Node, bool) {
+	valid := true
 	var edit func(ir.Node) ir.Node
 	edit = func(x ir.Node) ir.Node {
 		switch x.Op() {
@@ -813,7 +818,51 @@ func subst(n ir.Node, m map[*ir.Name]ir.Node) ir.Node {
 		}
 		x = ir.Copy(x)
 		ir.EditChildren(x, edit)
+		if x, ok := x.(*ir.ConvExpr); ok && x.X.Op() == ir.OLITERAL {
+			// A conversion of variable or expression involving variables
+			// may become a conversion of constant after inlining the parameters
+			// and doing constant evaluation. Truncations that were valid
+			// on variables are not valid on constants, so we might have
+			// generated invalid code that will trip up the rest of the compiler.
+			// Fix those by truncating the constants.
+			if x, ok := truncate(x.X.(*ir.ConstExpr), x.Type()); ok {
+				return x
+			}
+			valid = false
+			return x
+		}
 		return typecheck.EvalConst(x)
 	}
-	return edit(n)
+	n = edit(n)
+	return n, valid
+}
+
+// truncate returns the result of force converting c to type t,
+// truncating its value as needed, like a conversion of a variable.
+// If the conversion is too difficult, truncate returns nil, false.
+func truncate(c *ir.ConstExpr, t *types.Type) (*ir.ConstExpr, bool) {
+	ct := c.Type()
+	cv := c.Val()
+	if ct.Kind() != t.Kind() {
+		switch {
+		default:
+			// Note: float -> float/integer and complex -> complex are valid but subtle.
+			// For example a float32(float64 1e300) evaluates to +Inf at runtime
+			// and the compiler doesn't have any concept of +Inf, so that would
+			// have to be left for runtime code evaluation.
+			// For now
+			return nil, false
+
+		case ct.IsInteger() && t.IsInteger():
+			// truncate or sign extend
+			bits := t.Size() * 8
+			cv = constant.BinaryOp(cv, token.AND, constant.MakeUint64(1<<bits-1))
+			if t.IsSigned() && constant.Compare(cv, token.GEQ, constant.MakeUint64(1<<(bits-1))) {
+				cv = constant.BinaryOp(cv, token.OR, constant.MakeInt64(-1<<(bits-1)))
+			}
+		}
+	}
+	c = ir.NewConstExpr(cv, c).(*ir.ConstExpr)
+	c.SetType(t)
+	return c, true
 }
