@@ -2529,7 +2529,7 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 
 	resolvConf := dnsConfig{servers: defaultNS}
 	if runtime.GOOS == "openbsd" {
-		// Set error to ErrNotExist, so the hostLookupOrder
+		// Set error to ErrNotExist, so that the hostLookupOrder
 		// returns hostLookupFiles for openbsd.
 		resolvConf.err = fs.ErrNotExist
 	}
