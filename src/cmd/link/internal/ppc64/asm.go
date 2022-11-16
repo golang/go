@@ -994,8 +994,9 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 				if ldr.SymValue(tramp) == 0 {
 					break
 				}
-
-				t = ldr.SymValue(tramp) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+				// Note, the trampoline is always called directly. The addend of the original relocation is accounted for in the
+				// trampoline itself.
+				t = ldr.SymValue(tramp) - (ldr.SymValue(s) + int64(r.Off()))
 
 				// With internal linking, the trampoline can be used if it is not too far.
 				// With external linking, the trampoline must be in this section for it to be reused.
