@@ -8,11 +8,14 @@ env CGO_ENABLED=
 go env CGO_ENABLED
 stdout 1
 
-# Clearing CC and removing everything but Go from the PATH should disable cgo: no C compiler anymore.
+# Clearing CC and removing everything but Go from the PATH should usually
+# disable cgo: no C compiler anymore (unless the baked-in defaultCC is an
+# absolute path and exists.
 env CC=
 env PATH=$GOROOT/bin
 go env CGO_ENABLED
-stdout 0
+[!abscc] stdout 0
+[abscc] stdout 1
 
 # Setting CC should re-enable cgo.
 env CC=cc

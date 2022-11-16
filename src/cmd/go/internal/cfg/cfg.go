@@ -159,7 +159,14 @@ func defaultContext() build.Context {
 		if ctxt.CgoEnabled {
 			if os.Getenv("CC") == "" {
 				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
-				if _, err := exec.LookPath(cc); err != nil {
+				if filepath.IsAbs(cc) {
+					if _, err := os.Stat(cc); os.IsNotExist(err) {
+						// The default CC is an absolute path that doesn't exist.
+						// (Perhaps make.bash was run on a system with a C compiler
+						// installed, and the current system doesn't have it there.)
+						ctxt.CgoEnabled = false
+					}
+				} else if _, err := exec.LookPath(cc); err != nil {
 					ctxt.CgoEnabled = false
 				}
 			}

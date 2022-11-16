@@ -5,6 +5,7 @@
 package main_test
 
 import (
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/script"
 	"cmd/go/internal/script/scripttest"
 	"errors"
@@ -34,6 +35,7 @@ func scriptConditions() map[string]script.Cond {
 		return script.OnceCondition(summary, func() (bool, error) { return f(), nil })
 	}
 
+	add("abscc", script.Condition("default $CC path is absolute and exists", defaultCCIsAbsolute))
 	add("asan", sysCondition("-asan", platform.ASanSupported, true))
 	add("buildmode", script.PrefixCondition("go supports -buildmode=<suffix>", hasBuildmode))
 	add("case-sensitive", script.OnceCondition("$WORK filesystem is case-sensitive", isCaseSensitive))
@@ -53,6 +55,18 @@ func scriptConditions() map[string]script.Cond {
 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
 
 	return conds
+}
+
+func defaultCCIsAbsolute(s *script.State) (bool, error) {
+	GOOS, _ := s.LookupEnv("GOOS")
+	GOARCH, _ := s.LookupEnv("GOARCH")
+	defaultCC := cfg.DefaultCC(GOOS, GOARCH)
+	if filepath.IsAbs(defaultCC) {
+		if _, err := os.Stat(defaultCC); err == nil {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func isMismatchedGoroot(s *script.State) (bool, error) {
