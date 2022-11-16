@@ -360,8 +360,8 @@ func isvalidaddr(addr unsafe.Pointer) bool {
 
 //go:nosplit
 func raceinit() (gctx, pctx uintptr) {
-	// cgo is required to initialize libc, which is used by race runtime
-	if !iscgo {
+	// On most machines, cgo is required to initialize libc, which is used by race runtime.
+	if !iscgo && GOOS != "darwin" {
 		throw("raceinit: race build must use cgo")
 	}
 
