@@ -280,9 +280,7 @@ func (conf *resolvConfTest) forceUpdate(name string, lastChecked time.Time) erro
 }
 
 func (conf *resolvConfTest) forceUpdateConf(c *dnsConfig, lastChecked time.Time) bool {
-	conf.mu.Lock()
-	conf.dnsConfig = c
-	conf.mu.Unlock()
+	conf.dnsConfig.Store(c)
 	for i := 0; i < 5; i++ {
 		if conf.tryAcquireSema() {
 			conf.lastChecked = lastChecked
@@ -294,10 +292,7 @@ func (conf *resolvConfTest) forceUpdateConf(c *dnsConfig, lastChecked time.Time)
 }
 
 func (conf *resolvConfTest) servers() []string {
-	conf.mu.RLock()
-	servers := conf.dnsConfig.servers
-	conf.mu.RUnlock()
-	return servers
+	return conf.dnsConfig.Load().servers
 }
 
 func (conf *resolvConfTest) teardown() error {
@@ -1445,9 +1440,7 @@ func TestDNSGoroutineRace(t *testing.T) {
 func lookupWithFake(fake fakeDNSServer, name string, typ dnsmessage.Type) error {
 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 
-	resolvConf.mu.RLock()
-	conf := resolvConf.dnsConfig
-	resolvConf.mu.RUnlock()
+	conf := resolvConf.dnsConfig.Load()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

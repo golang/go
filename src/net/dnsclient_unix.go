@@ -22,6 +22,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -342,25 +343,21 @@ type resolverConfig struct {
 	ch          chan struct{} // guards lastChecked and modTime
 	lastChecked time.Time     // last time resolv.conf was checked
 
-	mu        sync.RWMutex // protects dnsConfig
-	dnsConfig *dnsConfig   // parsed resolv.conf structure used in lookups
+	dnsConfig atomic.Pointer[dnsConfig] // parsed resolv.conf structure used in lookups
 }
 
 var resolvConf resolverConfig
 
 func getSystemDNSConfig() *dnsConfig {
 	resolvConf.tryUpdate("/etc/resolv.conf")
-	resolvConf.mu.RLock()
-	resolv := resolvConf.dnsConfig
-	resolvConf.mu.RUnlock()
-	return resolv
+	return resolvConf.dnsConfig.Load()
 }
 
 // init initializes conf and is only called via conf.initOnce.
 func (conf *resolverConfig) init() {
 	// Set dnsConfig and lastChecked so we don't parse
 	// resolv.conf twice the first time.
-	conf.dnsConfig = dnsReadConfig("/etc/resolv.conf")
+	conf.dnsConfig.Store(dnsReadConfig("/etc/resolv.conf"))
 	conf.lastChecked = time.Now()
 
 	// Prepare ch so that only one update of resolverConfig may
@@ -374,7 +371,7 @@ func (conf *resolverConfig) init() {
 func (conf *resolverConfig) tryUpdate(name string) {
 	conf.initOnce.Do(conf.init)
 
-	if conf.dnsConfig.noReload {
+	if conf.dnsConfig.Load().noReload {
 		return
 	}
 
@@ -402,15 +399,13 @@ func (conf *resolverConfig) tryUpdate(name string) {
 		if fi, err := os.Stat(name); err == nil {
 			mtime = fi.ModTime()
 		}
-		if mtime.Equal(conf.dnsConfig.mtime) {
+		if mtime.Equal(conf.dnsConfig.Load().mtime) {
 			return
 		}
 	}
 
 	dnsConf := dnsReadConfig(name)
-	conf.mu.Lock()
-	conf.dnsConfig = dnsConf
-	conf.mu.Unlock()
+	conf.dnsConfig.Store(dnsConf)
 }
 
 func (conf *resolverConfig) tryAcquireSema() bool {
