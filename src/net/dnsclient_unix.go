@@ -552,16 +552,6 @@ func (o hostLookupOrder) String() string {
 	return "hostLookupOrder=" + itoa.Itoa(int(o)) + "??"
 }
 
-// goLookupHost is the native Go implementation of LookupHost.
-// Used only if cgoLookupHost refuses to handle the request
-// (that is, only if cgoLookupHost is the stub in cgo_stub.go).
-// Normally we let cgo use the C library resolver instead of
-// depending on our lookup code, so that Go and C get the same
-// answers.
-func (r *Resolver) goLookupHost(ctx context.Context, name string, conf *dnsConfig) (addrs []string, err error) {
-	return r.goLookupHostOrder(ctx, name, hostLookupFilesDNS, conf)
-}
-
 func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hostLookupOrder, conf *dnsConfig) (addrs []string, err error) {
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
 		// Use entries from /etc/hosts if they match.
