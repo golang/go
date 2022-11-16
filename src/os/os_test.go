@@ -1735,7 +1735,7 @@ func runBinHostname(t *testing.T) string {
 }
 
 func testWindowsHostname(t *testing.T, hostname string) {
-	cmd := osexec.Command("hostname")
+	cmd := testenv.Command(t, "hostname")
 	out, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("Failed to execute hostname command: %v %s", err, out)
@@ -2130,9 +2130,9 @@ func TestStatStdin(t *testing.T) {
 
 	var cmd *osexec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = osexec.Command("cmd", "/c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
+		cmd = testenv.Command(t, "cmd", "/c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
 	} else {
-		cmd = osexec.Command("/bin/sh", "-c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
+		cmd = testenv.Command(t, "/bin/sh", "-c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
 	}
 	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
 
@@ -2287,7 +2287,7 @@ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 	t.Parallel()
 
 	// Re-exec the test binary to start a process that hangs until stdin is closed.
-	cmd := osexec.Command(Args[0])
+	cmd := testenv.Command(t, Args[0])
 	cmd.Env = append(os.Environ(), "GO_OS_TEST_DRAIN_STDIN=1")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -2338,7 +2338,7 @@ func TestGetppid(t *testing.T) {
 		Exit(0)
 	}
 
-	cmd := osexec.Command(Args[0], "-test.run=TestGetppid")
+	cmd := testenv.Command(t, Args[0], "-test.run=TestGetppid")
 	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
 
 	// verify that Getppid() from the forked process reports our process id

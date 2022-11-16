@@ -106,13 +106,13 @@ func TestExecutableDeleted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := osexec.Command(testenv.GoToolPath(t), "build", "-o", exe, src).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src).CombinedOutput()
 	t.Logf("build output:\n%s", out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	out, err = osexec.Command(exe).CombinedOutput()
+	out, err = testenv.Command(t, exe).CombinedOutput()
 	t.Logf("exec output:\n%s", out)
 	if err != nil {
 		t.Fatal(err)
