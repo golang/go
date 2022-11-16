@@ -2518,7 +2518,7 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
 	if runtime.GOOS != "openbsd" {
 		defer setSystemNSS(getSystemNSS(), 0)
-		setSystemNSS(nssStr("hosts: files"), time.Hour)
+		setSystemNSS(nssStr(t, "hosts: files"), time.Hour)
 	}
 
 	conf, err := newResolvConfTest()
