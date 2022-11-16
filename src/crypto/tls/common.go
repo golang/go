@@ -1496,6 +1496,7 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
 
 // CertificateVerificationError is returned when certificate verification fails during the handshake.
 type CertificateVerificationError struct {
+	// UnverifiedCertificates and its contents should not be modified.
 	UnverifiedCertificates []*x509.Certificate
 	Err                    error
 }
