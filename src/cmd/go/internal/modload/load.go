@@ -603,13 +603,17 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 
 	pkg := pathInModuleCache(ctx, absDir, rs)
 	if pkg == "" {
+		dirstr := fmt.Sprintf("directory %s", base.ShortPath(absDir))
+		if dirstr == "directory ." {
+			dirstr = "current directory"
+		}
 		if inWorkspaceMode() {
 			if mr := findModuleRoot(absDir); mr != "" {
-				return "", fmt.Errorf("directory %s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use %s", base.ShortPath(absDir), base.ShortPath(mr))
+				return "", fmt.Errorf("%s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use %s", dirstr, base.ShortPath(mr))
 			}
-			return "", fmt.Errorf("directory %s outside modules listed in go.work or their selected dependencies", base.ShortPath(absDir))
+			return "", fmt.Errorf("%s outside modules listed in go.work or their selected dependencies", dirstr)
 		}
-		return "", fmt.Errorf("directory %s outside main module or its selected dependencies", base.ShortPath(absDir))
+		return "", fmt.Errorf("%s outside main module or its selected dependencies", dirstr)
 	}
 	return pkg, nil
 }
