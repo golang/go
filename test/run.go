@@ -93,10 +93,6 @@ func defaultAllCodeGen() bool {
 	return os.Getenv("GO_BUILDER_NAME") == "linux-amd64"
 }
 
-func optimizationOff() bool {
-	return strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt")
-}
-
 var (
 	goos          = env.GOOS
 	goarch        = env.GOARCH
