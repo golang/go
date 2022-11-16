@@ -7,7 +7,6 @@ package work
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -503,7 +502,7 @@ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
 		return nil
 	}
 	if err := packInternal(absAfile, absOfiles); err != nil {
-		return errors.New(fmt.Sprint(formatOutput(b.WorkDir, p.Dir, p.Desc(), err.Error()+"\n")))
+		return formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), err.Error()+"\n")
 	}
 	return nil
 }
