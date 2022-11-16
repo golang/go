@@ -315,7 +315,7 @@ var globalRand = New(new(lockedSource))
 // Alternately, set GODEBUG=randautoseed=0 in the environment
 // before making any calls to functions in this package.
 //
-// Note: Programs that call Seed and then expect a specific sequence
+// Deprecated: Programs that call Seed and then expect a specific sequence
 // of results from the global random source (using functions such as Int)
 // can be broken when a dependency changes how much it consumes
 // from the global random source. To avoid such breakages, programs
