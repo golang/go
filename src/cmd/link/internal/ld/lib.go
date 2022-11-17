@@ -711,6 +711,13 @@ func loadWindowsHostArchives(ctxt *Link) {
 			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
 		}
 	}
+
+	// Fix up references to DLL import symbols now that we're done
+	// pulling in new objects.
+	if err := loadpe.PostProcessImports(); err != nil {
+		Errorf(nil, "%v", err)
+	}
+
 	// TODO: maybe do something similar to peimporteddlls to collect
 	// all lib names and try link them all to final exe just like
 	// libmingwex.a and libmingw32.a:

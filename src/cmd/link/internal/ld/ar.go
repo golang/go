@@ -32,6 +32,7 @@ package ld
 
 import (
 	"cmd/internal/bio"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
@@ -59,6 +60,39 @@ type ArHdr struct {
 	mode string
 	size string
 	fmag string
+}
+
+// pruneUndefsForWindows trims the list "undefs" of currently
+// outstanding unresolved symbols to remove references to DLL import
+// symbols (e.g. "__imp_XXX"). In older versions of the linker, we
+// would just immediately forward references from the import sym
+// (__imp_XXX) to the DLL sym (XXX), but with newer compilers this
+// strategy falls down in certain cases. We instead now do this
+// forwarding later on as a post-processing step, and meaning that
+// during the middle part of host object loading we can see a lot of
+// unresolved (SXREF) import symbols. We do not, however, want to
+// trigger the inclusion of an object from a host archive if the
+// reference is going to be eventually forwarded to the corresponding
+// SDYNIMPORT symbol, so here we strip out such refs from the undefs
+// list.
+func pruneUndefsForWindows(ldr *loader.Loader, undefs, froms []loader.Sym) ([]loader.Sym, []loader.Sym) {
+	var newundefs []loader.Sym
+	var newfroms []loader.Sym
+	for _, s := range undefs {
+		sname := ldr.SymName(s)
+		if strings.HasPrefix(sname, "__imp_") {
+			dname := sname[len("__imp_"):]
+			ds := ldr.Lookup(dname, 0)
+			if ds != 0 && ldr.SymType(ds) == sym.SDYNIMPORT {
+				// Don't try to pull things out of a host archive to
+				// satisfy this symbol.
+				continue
+			}
+		}
+		newundefs = append(newundefs, s)
+		newfroms = append(newfroms, s)
+	}
+	return newundefs, newfroms
 }
 
 // hostArchive reads an archive file holding host objects and links in
@@ -111,6 +145,9 @@ func hostArchive(ctxt *Link, name string) {
 		var load []uint64
 		returnAllUndefs := -1
 		undefs, froms := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
+		if buildcfg.GOOS == "windows" {
+			undefs, froms = pruneUndefsForWindows(ctxt.loader, undefs, froms)
+		}
 		for k, symIdx := range undefs {
 			sname := ctxt.loader.SymName(symIdx)
 			if off := armap[sname]; off != 0 && !loaded[off] {

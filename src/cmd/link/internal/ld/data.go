@@ -37,6 +37,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
+	"cmd/link/internal/loadpe"
 	"cmd/link/internal/sym"
 	"compress/zlib"
 	"debug/elf"
@@ -747,7 +748,38 @@ func (ctxt *Link) makeRelocSymState() *relocSymState {
 	}
 }
 
-func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
+// windynrelocsym examines a text symbol 's' and looks for relocations
+// from it that correspond to references to symbols defined in DLLs,
+// then fixes up those relocations as needed. A reference to a symbol
+// XYZ from some DLL will fall into one of two categories: an indirect
+// ref via "__imp_XYZ", or a direct ref to "XYZ". Here's an example of
+// an indirect ref (this is an excerpt from objdump -ldr):
+//
+//	     1c1: 48 89 c6                     	movq	%rax, %rsi
+//	     1c4: ff 15 00 00 00 00            	callq	*(%rip)
+//			00000000000001c6:  IMAGE_REL_AMD64_REL32	__imp__errno
+//
+// In the assembly above, the code loads up the value of __imp_errno
+// and then does an indirect call to that value.
+//
+// Here is what a direct reference might look like:
+//
+//	     137: e9 20 06 00 00               	jmp	0x75c <pow+0x75c>
+//	     13c: e8 00 00 00 00               	callq	0x141 <pow+0x141>
+//			000000000000013d:  IMAGE_REL_AMD64_REL32	_errno
+//
+// The assembly below dispenses with the import symbol and just makes
+// a direct call to _errno.
+//
+// The code below handles indirect refs by redirecting the target of
+// the relocation from "__imp_XYZ" to "XYZ" (since the latter symbol
+// is what the Windows loader is expected to resolve). For direct refs
+// the call is redirected to a stub, where the stub first loads the
+// symbol and then direct an indirect call to that value.
+//
+// Note that for a given symbol (as above) it is perfectly legal to
+// have both direct and indirect references.
+func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) error {
 	var su *loader.SymbolBuilder
 	relocs := ctxt.loader.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
@@ -763,13 +795,43 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 			if r.Weak() {
 				continue
 			}
-			ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s",
+			return fmt.Errorf("dynamic relocation to unreachable symbol %s",
 				ctxt.loader.SymName(targ))
+		}
+		tgot := ctxt.loader.SymGot(targ)
+		if tgot == loadpe.RedirectToDynImportGotToken {
+
+			// Consistency check: name should be __imp_X
+			sname := ctxt.loader.SymName(targ)
+			if !strings.HasPrefix(sname, "__imp_") {
+				return fmt.Errorf("internal error in windynrelocsym: redirect GOT token applied to non-import symbol %s", sname)
+			}
+
+			// Locate underlying symbol (which originally had type
+			// SDYNIMPORT but has since been retyped to SWINDOWS).
+			ds, err := loadpe.LookupBaseFromImport(targ, ctxt.loader, ctxt.Arch)
+			if err != nil {
+				return err
+			}
+			dstyp := ctxt.loader.SymType(ds)
+			if dstyp != sym.SWINDOWS {
+				return fmt.Errorf("internal error in windynrelocsym: underlying sym for %q has wrong type %s", sname, dstyp.String())
+			}
+
+			// Redirect relocation to the dynimport.
+			r.SetSym(ds)
+			continue
 		}
 
 		tplt := ctxt.loader.SymPlt(targ)
-		tgot := ctxt.loader.SymGot(targ)
-		if tplt == -2 && tgot != -2 { // make dynimport JMP table for PE object files.
+		if tplt == loadpe.CreateImportStubPltToken {
+
+			// Consistency check: don't want to see both PLT and GOT tokens.
+			if tgot != -1 {
+				return fmt.Errorf("internal error in windynrelocsym: invalid GOT setting %d for reloc to %s", tgot, ctxt.loader.SymName(targ))
+			}
+
+			// make dynimport JMP table for PE object files.
 			tplt := int32(rel.Size())
 			ctxt.loader.SetPlt(targ, tplt)
 
@@ -782,8 +844,7 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 			// jmp *addr
 			switch ctxt.Arch.Family {
 			default:
-				ctxt.Errorf(s, "unsupported arch %v", ctxt.Arch.Family)
-				return
+				return fmt.Errorf("internal error in windynrelocsym: unsupported arch %v", ctxt.Arch.Family)
 			case sys.I386:
 				rel.AddUint8(0xff)
 				rel.AddUint8(0x25)
@@ -805,6 +866,7 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 			r.SetAdd(int64(tplt))
 		}
 	}
+	return nil
 }
 
 // windynrelocsyms generates jump table to C library functions that will be
@@ -818,7 +880,9 @@ func (ctxt *Link) windynrelocsyms() {
 	rel.SetType(sym.STEXT)
 
 	for _, s := range ctxt.Textp {
-		windynrelocsym(ctxt, rel, s)
+		if err := windynrelocsym(ctxt, rel, s); err != nil {
+			ctxt.Errorf(s, "%v", err)
+		}
 	}
 
 	ctxt.Textp = append(ctxt.Textp, rel.Sym())
