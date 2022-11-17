@@ -1,4 +1,0 @@
-golang.org/x/sys v0.4.0 h1:Zr2JFtRQNX3BCZ8YtxRE9hNJYC8J6I1MVbMg6owUp18=
-golang.org/x/sys v0.4.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/tools v0.5.1-0.20230111220935-a7f7db3f17fc h1:zRn9MzwG18RZhyanShCfUwJTcobvqw8fOjjROFN9jtM=
-golang.org/x/tools v0.5.1-0.20230111220935-a7f7db3f17fc/go.mod h1:N+Kgy78s5I24c24dU8OfWNEotWjutIs8SnJvn5IDq+k=
