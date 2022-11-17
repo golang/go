@@ -54,7 +54,7 @@ type boringCertificate struct {
 
 func TestBoringAllowCert(t *testing.T) {
 	R1 := testBoringCert(t, "R1", boringRSAKey(t, 2048), nil, boringCertCA|boringCertFIPSOK)
-	R2 := testBoringCert(t, "R2", boringRSAKey(t, 8192), nil, boringCertCA)
+	R2 := testBoringCert(t, "R2", boringRSAKey(t, 512), nil, boringCertCA)
 	R3 := testBoringCert(t, "R3", boringRSAKey(t, 4096), nil, boringCertCA|boringCertFIPSOK)
 
 	M1_R1 := testBoringCert(t, "M1_R1", boringECDSAKey(t, elliptic.P256()), R1, boringCertCA|boringCertFIPSOK)
