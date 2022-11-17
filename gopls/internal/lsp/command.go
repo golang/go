@@ -735,7 +735,7 @@ func (c *commandHandler) ListKnownPackages(ctx context.Context, args command.URI
 		progress: "Listing packages",
 		forURI:   args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		pkgs, err := source.KnownPackages(ctx, deps.snapshot, deps.fh)
+		pkgs, err := source.KnownPackagePaths(ctx, deps.snapshot, deps.fh)
 		for _, pkg := range pkgs {
 			result.Packages = append(result.Packages, string(pkg))
 		}

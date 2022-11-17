@@ -1475,6 +1475,9 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 
 	count := 0
 
+	// TODO(adonovan): strength-reduce to a metadata query.
+	// All that's needed below is Package.{Name,Path}.
+	// Presumably that can be answered more thoroughly more quickly.
 	known, err := c.snapshot.CachedImportPaths(ctx)
 	if err != nil {
 		return err

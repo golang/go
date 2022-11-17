@@ -182,8 +182,11 @@ type Snapshot interface {
 	// and checked in TypecheckWorkspace mode.
 	CachedImportPaths(ctx context.Context) (map[PackagePath]Package, error)
 
-	// KnownPackages returns all the packages loaded in this snapshot, checked
-	// in TypecheckWorkspace mode.
+	// KnownPackages returns a new unordered list of all packages
+	// loaded in this snapshot, checked in TypecheckWorkspace mode.
+	//
+	// TODO(adonovan): opt: rewrite 'implementations' to avoid the
+	// need ever to "load everything at once" using this function.
 	KnownPackages(ctx context.Context) ([]Package, error)
 
 	// ActivePackages returns the packages considered 'active' in the workspace.

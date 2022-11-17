@@ -98,13 +98,8 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 // stubMethods returns the Go code of all methods
 // that implement the given interface
 func stubMethods(ctx context.Context, concreteFile *ast.File, si *stubmethods.StubInfo, snapshot Snapshot) ([]byte, []*stubImport, error) {
-	ifacePkg, err := deducePkgFromTypes(ctx, snapshot, si.Interface)
-	if err != nil {
-		return nil, nil, err
-	}
-	si.Concrete.Obj().Type()
 	concMS := types.NewMethodSet(types.NewPointer(si.Concrete.Obj().Type()))
-	missing, err := missingMethods(ctx, snapshot, concMS, si.Concrete.Obj().Pkg(), si.Interface, ifacePkg, map[string]struct{}{})
+	missing, err := missingMethods(ctx, snapshot, concMS, si.Concrete.Obj().Pkg(), si.Interface, map[string]struct{}{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("missingMethods: %w", err)
 	}
@@ -188,19 +183,6 @@ func printStubMethod(md methodData) []byte {
 	return b.Bytes()
 }
 
-func deducePkgFromTypes(ctx context.Context, snapshot Snapshot, ifaceObj types.Object) (Package, error) {
-	pkgs, err := snapshot.KnownPackages(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, p := range pkgs {
-		if p.PkgPath() == PackagePath(ifaceObj.Pkg().Path()) {
-			return p, nil
-		}
-	}
-	return nil, fmt.Errorf("pkg %q not found", ifaceObj.Pkg().Path())
-}
-
 func deduceIfaceName(concretePkg, ifacePkg *types.Package, ifaceObj types.Object) string {
 	if concretePkg.Path() == ifacePkg.Path() {
 		return ifaceObj.Name()
@@ -245,7 +227,7 @@ returns
 		},
 	}
 */
-func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.MethodSet, concPkg *types.Package, ifaceObj types.Object, ifacePkg Package, visited map[string]struct{}) ([]*missingInterface, error) {
+func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.MethodSet, concPkg *types.Package, ifaceObj types.Object, visited map[string]struct{}) ([]*missingInterface, error) {
 	iface, ok := ifaceObj.Type().Underlying().(*types.Interface)
 	if !ok {
 		return nil, fmt.Errorf("expected %v to be an interface but got %T", iface, ifaceObj.Type().Underlying())
@@ -253,17 +235,7 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 	missing := []*missingInterface{}
 	for i := 0; i < iface.NumEmbeddeds(); i++ {
 		eiface := iface.Embedded(i).Obj()
-		depPkg := ifacePkg
-		if path := PackagePath(eiface.Pkg().Path()); path != ifacePkg.PkgPath() {
-			// TODO(adonovan): I'm not sure what this is trying to do, but it
-			// looks wrong the in case of type aliases.
-			var err error
-			depPkg, err = ifacePkg.DirectDep(path)
-			if err != nil {
-				return nil, err
-			}
-		}
-		em, err := missingMethods(ctx, snapshot, concMS, concPkg, eiface, depPkg, visited)
+		em, err := missingMethods(ctx, snapshot, concMS, concPkg, eiface, visited)
 		if err != nil {
 			return nil, err
 		}
@@ -274,7 +246,6 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 		return nil, fmt.Errorf("error getting iface file: %w", err)
 	}
 	mi := &missingInterface{
-		pkg:   ifacePkg,
 		iface: iface,
 		file:  parsedFile.File,
 	}
@@ -322,7 +293,6 @@ func getStubFile(ctx context.Context, obj types.Object, snapshot Snapshot) (*Par
 type missingInterface struct {
 	iface   *types.Interface
 	file    *ast.File
-	pkg     Package
 	missing []*types.Func
 }
 

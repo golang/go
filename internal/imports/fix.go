@@ -697,6 +697,9 @@ func candidateImportName(pkg *pkg) string {
 
 // GetAllCandidates calls wrapped for each package whose name starts with
 // searchPrefix, and can be imported from filename with the package name filePkg.
+//
+// Beware that the wrapped function may be called multiple times concurrently.
+// TODO(adonovan): encapsulate the concurrency.
 func GetAllCandidates(ctx context.Context, wrapped func(ImportFix), searchPrefix, filename, filePkg string, env *ProcessEnv) error {
 	callback := &scanCallback{
 		rootFound: func(gopathwalk.Root) bool {

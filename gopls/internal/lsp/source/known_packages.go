@@ -16,21 +16,24 @@ import (
 	"golang.org/x/tools/internal/imports"
 )
 
-// KnownPackages returns a list of all known packages
-// in the package graph that could potentially be imported
-// by the given file.
-func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle) ([]PackagePath, error) {
+// KnownPackagePaths returns a new list of package paths of all known
+// packages in the package graph that could potentially be imported by
+// the given file. The list is ordered lexicographically, except that
+// all dot-free paths (standard packages) appear before dotful ones.
+func KnownPackagePaths(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle) ([]PackagePath, error) {
+	// TODO(adonovan): this whole algorithm could be more
+	// simply expressed in terms of Metadata, not Packages.
+	// All we need below is:
+	// - for fh: Metadata.{DepsByPkgPath,Path,Name}
+	// - for all cached packages: Metadata.{Path,Name,ForTest,DepsByPkgPath}.
 	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
 		return nil, fmt.Errorf("GetParsedFile: %w", err)
 	}
 	alreadyImported := map[PackagePath]struct{}{}
-	for _, imp := range pgf.File.Imports {
-		// TODO(adonovan): the correct PackagePath might need a "vendor/" prefix.
-		alreadyImported[PackagePath(imp.Path.Value)] = struct{}{}
+	for _, imp := range pkg.Imports() {
+		alreadyImported[imp.PkgPath()] = struct{}{}
 	}
-	// TODO(adonovan): this whole algorithm could be more
-	// simply expressed in terms of Metadata, not Packages.
 	pkgs, err := snapshot.CachedImportPaths(ctx)
 	if err != nil {
 		return nil, err
@@ -40,13 +43,8 @@ func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandl
 		paths []PackagePath
 	)
 	for path, knownPkg := range pkgs {
-		gofiles := knownPkg.CompiledGoFiles()
-		if len(gofiles) == 0 || gofiles[0].File.Name == nil {
-			continue
-		}
-		pkgName := gofiles[0].File.Name.Name
 		// package main cannot be imported
-		if pkgName == "main" {
+		if knownPkg.Name() == "main" {
 			continue
 		}
 		// test packages cannot be imported
@@ -57,7 +55,7 @@ func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandl
 		if _, ok := alreadyImported[path]; ok {
 			continue
 		}
-		// snapshot.KnownPackages could have multiple versions of a pkg
+		// snapshot.CachedImportPaths could have multiple versions of a pkg
 		if _, ok := seen[path]; ok {
 			continue
 		}
@@ -86,7 +84,8 @@ func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandl
 				return
 			}
 			paths = append(paths, path)
-		}, "", pgf.URI.Filename(), pkg.GetTypes().Name(), o.Env)
+			seen[path] = struct{}{}
+		}, "", pgf.URI.Filename(), string(pkg.Name()), o.Env)
 	})
 	if err != nil {
 		// if an error occurred, we still have a decent list we can
@@ -97,11 +96,8 @@ func KnownPackages(ctx context.Context, snapshot Snapshot, fh VersionedFileHandl
 		importI, importJ := paths[i], paths[j]
 		iHasDot := strings.Contains(string(importI), ".")
 		jHasDot := strings.Contains(string(importJ), ".")
-		if iHasDot && !jHasDot {
-			return false
-		}
-		if jHasDot && !iHasDot {
-			return true
+		if iHasDot != jHasDot {
+			return jHasDot // dot-free paths (standard packages) compare less
 		}
 		return importI < importJ
 	})

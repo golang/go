@@ -1150,19 +1150,14 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.Package, error) 
 		return nil, err
 	}
 
-	// The WorkspaceSymbols implementation relies on this function returning
-	// workspace packages first.
-	ids := s.workspacePackageIDs()
+	ids := make([]source.PackageID, 0, len(s.meta.metadata))
 	s.mu.Lock()
 	for id := range s.meta.metadata {
-		if _, ok := s.workspacePackages[id]; ok {
-			continue
-		}
 		ids = append(ids, id)
 	}
 	s.mu.Unlock()
 
-	var pkgs []source.Package
+	pkgs := make([]source.Package, 0, len(ids))
 	for _, id := range ids {
 		pkg, err := s.checkedPackage(ctx, id, s.workspaceParseMode(id))
 		if err != nil {
