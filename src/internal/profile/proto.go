@@ -136,13 +136,6 @@ func encodeStrings(b *buffer, tag int, x []string) {
 	}
 }
 
-func encodeStringOpt(b *buffer, tag int, x string) {
-	if x == "" {
-		return
-	}
-	encodeString(b, tag, x)
-}
-
 func encodeBool(b *buffer, tag int, x bool) {
 	if x {
 		encodeUint64(b, tag, 1)
