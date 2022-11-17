@@ -961,9 +961,10 @@
 (NilCheck (GetG mem) mem) => mem
 
 (If (Not cond) yes no) => (If cond no yes)
-(If (Phi <t> nx:(Not x) ny:(Not y)) yes no) && nx.Uses == 1 && ny.Uses == 1 => (If (Phi <t> x y) no yes)
 (If (ConstBool [c]) yes no) && c => (First yes no)
 (If (ConstBool [c]) yes no) && !c => (First no yes)
+
+(Phi <t> nx:(Not x) ny:(Not y)) && nx.Uses == 1 && ny.Uses == 1 => (Not (Phi <t> x y))
 
 // Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
 (Convert (Add(64|32) (Convert ptr mem) off) mem) => (AddPtr ptr off)

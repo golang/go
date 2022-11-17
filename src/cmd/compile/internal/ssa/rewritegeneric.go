@@ -21903,6 +21903,7 @@ func rewriteValuegeneric_OpOrB(v *Value) bool {
 	return false
 }
 func rewriteValuegeneric_OpPhi(v *Value) bool {
+	b := v.Block
 	// match: (Phi (Const8 [c]) (Const8 [c]))
 	// result: (Const8 [c])
 	for {
@@ -21981,6 +21982,34 @@ func rewriteValuegeneric_OpPhi(v *Value) bool {
 		}
 		v.reset(OpConst64)
 		v.AuxInt = int64ToAuxInt(c)
+		return true
+	}
+	// match: (Phi <t> nx:(Not x) ny:(Not y))
+	// cond: nx.Uses == 1 && ny.Uses == 1
+	// result: (Not (Phi <t> x y))
+	for {
+		if len(v.Args) != 2 {
+			break
+		}
+		t := v.Type
+		_ = v.Args[1]
+		nx := v.Args[0]
+		if nx.Op != OpNot {
+			break
+		}
+		x := nx.Args[0]
+		ny := v.Args[1]
+		if ny.Op != OpNot {
+			break
+		}
+		y := ny.Args[0]
+		if !(nx.Uses == 1 && ny.Uses == 1) {
+			break
+		}
+		v.reset(OpNot)
+		v0 := b.NewValue0(v.Pos, OpPhi, t)
+		v0.AddArg2(x, y)
+		v.AddArg(v0)
 		return true
 	}
 	return false
@@ -32459,35 +32488,6 @@ func rewriteBlockgeneric(b *Block) bool {
 			v_0 := b.Controls[0]
 			cond := v_0.Args[0]
 			b.resetWithControl(BlockIf, cond)
-			b.swapSuccessors()
-			return true
-		}
-		// match: (If (Phi <t> nx:(Not x) ny:(Not y)) yes no)
-		// cond: nx.Uses == 1 && ny.Uses == 1
-		// result: (If (Phi <t> x y) no yes)
-		for b.Controls[0].Op == OpPhi {
-			v_0 := b.Controls[0]
-			if len(v_0.Args) != 2 {
-				break
-			}
-			t := v_0.Type
-			_ = v_0.Args[1]
-			nx := v_0.Args[0]
-			if nx.Op != OpNot {
-				break
-			}
-			x := nx.Args[0]
-			ny := v_0.Args[1]
-			if ny.Op != OpNot {
-				break
-			}
-			y := ny.Args[0]
-			if !(nx.Uses == 1 && ny.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpPhi, t)
-			v0.AddArg2(x, y)
-			b.resetWithControl(BlockIf, v0)
 			b.swapSuccessors()
 			return true
 		}
