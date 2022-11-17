@@ -10,7 +10,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -2531,7 +2530,7 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 	if runtime.GOOS == "openbsd" {
 		// Set error to ErrNotExist, so that the hostLookupOrder
 		// returns hostLookupFiles for openbsd.
-		resolvConf.err = fs.ErrNotExist
+		resolvConf.err = os.ErrNotExist
 	}
 
 	if !conf.forceUpdateConf(&resolvConf, time.Now().Add(time.Hour)) {
@@ -2539,12 +2538,9 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 	}
 
 	tmpFile := filepath.Join(t.TempDir(), "hosts")
-	f, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_WRONLY, 0660)
-	if err != nil {
+	if err := os.WriteFile(tmpFile, []byte{}, 0660); err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
-
 	testHookHostsPath = tmpFile
 
 	const testName = "test.invalid"
