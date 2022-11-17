@@ -1443,7 +1443,7 @@ func TestDNSGoroutineRace(t *testing.T) {
 func lookupWithFake(fake fakeDNSServer, name string, typ dnsmessage.Type) error {
 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 
-	conf := resolvConf.dnsConfig.Load()
+	conf := getSystemDNSConfig()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
