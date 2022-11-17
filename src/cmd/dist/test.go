@@ -660,6 +660,10 @@ func (t *tester) registerTests() {
 		}
 	}
 
+	if t.race {
+		return
+	}
+
 	// Test the os/user package in the pure-Go mode too.
 	if !t.compileOnly {
 		t.registerTest("osusergo", "os/user with tag osusergo",
@@ -679,10 +683,6 @@ func (t *tester) registerTests() {
 				env:      []string{"GOOS=ios", "CGO_ENABLED=1"},
 				pkg:      "crypto/x509",
 			})
-	}
-
-	if t.race {
-		return
 	}
 
 	// Runtime CPU tests.
