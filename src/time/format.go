@@ -1067,18 +1067,19 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		}
 		layout = suffix
 		var p string
+		hold := value
 		switch std & stdMask {
 		case stdYear:
 			if len(value) < 2 {
 				err = errBad
 				break
 			}
-			hold := value
 			p, value = value[0:2], value[2:]
 			year, err = atoi(p)
 			if err != nil {
-				value = hold
-			} else if year >= 69 { // Unix time starts Dec 31 1969 in some time zones
+				break
+			}
+			if year >= 69 { // Unix time starts Dec 31 1969 in some time zones
 				year += 1900
 			} else {
 				year += 2000
@@ -1295,7 +1296,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			return Time{}, newParseError(alayout, avalue, stdstr, value, ": "+rangeErrString+" out of range")
 		}
 		if err != nil {
-			return Time{}, newParseError(alayout, avalue, stdstr, value, "")
+			return Time{}, newParseError(alayout, avalue, stdstr, hold, "")
 		}
 	}
 	if pmSet && hour < 12 {
