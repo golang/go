@@ -53,10 +53,10 @@ func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
 	assert(got == want)
 
 	// instantiate function signature
-	res := check.instantiateSignature(x.Pos(), sig, targs, ix.Indices)
-	assert(res.TypeParams().Len() == 0) // signature is not generic anymore
-	check.recordInstance(ix.Orig, targs, res)
-	x.typ = res
+	sig = check.instantiateSignature(x.Pos(), sig, targs, ix.Indices)
+	assert(sig.TypeParams().Len() == 0) // signature is not generic anymore
+	check.recordInstance(ix.Orig, targs, sig)
+	x.typ = sig
 	x.mode = value
 	x.expr = ix.Orig
 }
@@ -108,7 +108,6 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		}
 		x.expr = call.Fun
 		check.record(x)
-
 	} else {
 		check.exprOrType(x, call.Fun, true)
 	}
@@ -180,6 +179,9 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		return statement
 	}
 
+	// Capture wasGeneric before sig is potentially instantiated below.
+	wasGeneric := sig.TypeParams().Len() > 0
+
 	// evaluate type arguments, if any
 	var xlist []ast.Expr
 	var targs []Type
@@ -203,14 +205,33 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 			x.expr = call
 			return statement
 		}
+
+		// If sig is generic and all type arguments are provided, preempt function
+		// argument type inference by explicitly instantiating the signature. This
+		// ensures that we record accurate type information for sig, even if there
+		// is an error checking its arguments (for example, if an incorrect number
+		// of arguments is supplied).
+		if got == want && want > 0 {
+			if !check.allowVersion(check.pkg, 1, 18) {
+				check.softErrorf(inNode(call.Fun, ix.Lbrack), UnsupportedFeature, "function instantiation requires go1.18 or later")
+			}
+
+			sig = check.instantiateSignature(ix.Pos(), sig, targs, xlist)
+			assert(sig.TypeParams().Len() == 0) // signature is not generic anymore
+			check.recordInstance(ix.Orig, targs, sig)
+
+			// targs have been consumed; proceed with checking arguments of the
+			// non-generic signature.
+			targs = nil
+			xlist = nil
+		}
 	}
 
 	// evaluate arguments
 	args, _ := check.exprList(call.Args, false)
-	isGeneric := sig.TypeParams().Len() > 0
 	sig = check.arguments(call, sig, targs, args, xlist)
 
-	if isGeneric && sig.TypeParams().Len() == 0 {
+	if wasGeneric && sig.TypeParams().Len() == 0 {
 		// Update the recorded type of call.Fun to its instantiated type.
 		check.recordTypeAndValue(call.Fun, value, sig, nil)
 	}

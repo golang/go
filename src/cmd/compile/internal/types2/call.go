@@ -52,10 +52,10 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	assert(got == want)
 
 	// instantiate function signature
-	res := check.instantiateSignature(x.Pos(), sig, targs, xlist)
-	assert(res.TypeParams().Len() == 0) // signature is not generic anymore
-	check.recordInstance(inst.X, targs, res)
-	x.typ = res
+	sig = check.instantiateSignature(x.Pos(), sig, targs, xlist)
+	assert(sig.TypeParams().Len() == 0) // signature is not generic anymore
+	check.recordInstance(inst.X, targs, sig)
+	x.typ = sig
 	x.mode = value
 	x.expr = inst
 }
@@ -177,6 +177,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		return statement
 	}
 
+	// Capture wasGeneric before sig is potentially instantiated below.
+	wasGeneric := sig.TypeParams().Len() > 0
+
 	// evaluate type arguments, if any
 	var xlist []syntax.Expr
 	var targs []Type
@@ -200,14 +203,33 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 			x.expr = call
 			return statement
 		}
+
+		// If sig is generic and all type arguments are provided, preempt function
+		// argument type inference by explicitly instantiating the signature. This
+		// ensures that we record accurate type information for sig, even if there
+		// is an error checking its arguments (for example, if an incorrect number
+		// of arguments is supplied).
+		if got == want && want > 0 {
+			if !check.allowVersion(check.pkg, 1, 18) {
+				check.versionErrorf(inst.Pos(), "go1.18", "function instantiation")
+			}
+
+			sig = check.instantiateSignature(inst.Pos(), sig, targs, xlist)
+			assert(sig.TypeParams().Len() == 0) // signature is not generic anymore
+			check.recordInstance(inst, targs, sig)
+
+			// targs have been consumed; proceed with checking arguments of the
+			// non-generic signature.
+			targs = nil
+			xlist = nil
+		}
 	}
 
 	// evaluate arguments
 	args, _ := check.exprList(call.ArgList, false)
-	isGeneric := sig.TypeParams().Len() > 0
 	sig = check.arguments(call, sig, targs, args, xlist)
 
-	if isGeneric && sig.TypeParams().Len() == 0 {
+	if wasGeneric && sig.TypeParams().Len() == 0 {
 		// update the recorded type of call.Fun to its instantiated type
 		check.recordTypeAndValue(call.Fun, value, sig, nil)
 	}

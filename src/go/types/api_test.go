@@ -535,19 +535,22 @@ type T[P any] []P
 				{`T`, []string{`string`}, `[]string`},
 			},
 		},
+		{`package issue51803; func foo[T any](T) {}; func _() { foo[int]( /* leave arg away on purpose */ ) }`,
+			[]testInst{{`foo`, []string{`int`}, `func(int)`}},
+		},
 	}
 
 	for _, test := range tests {
 		imports := make(testImporter)
-		conf := Config{Importer: imports}
+		conf := Config{
+			Importer: imports,
+			Error:    func(error) {}, // ignore errors
+		}
 		instMap := make(map[*ast.Ident]Instance)
 		useMap := make(map[*ast.Ident]Object)
 		makePkg := func(src string) *Package {
 			f := mustParse(fset, "p.go", src)
-			pkg, err := conf.Check("", fset, []*ast.File{f}, &Info{Instances: instMap, Uses: useMap})
-			if err != nil {
-				t.Fatal(err)
-			}
+			pkg, _ := conf.Check("", fset, []*ast.File{f}, &Info{Instances: instMap, Uses: useMap})
 			imports[pkg.Name()] = pkg
 			return pkg
 		}
