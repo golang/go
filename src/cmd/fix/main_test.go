@@ -17,7 +17,7 @@ import (
 func init() {
 	// If cgo is enabled, enforce that cgo commands invoked by cmd/fix
 	// do not fail during testing.
-	if testenv.HasCGO() {
+	if testenv.HasCGO() && testenv.HasGoBuild() {
 		// The reportCgoError hook is global, so we can't set it per-test
 		// if we want to be able to run those tests in parallel.
 		// Instead, simply set it to panic on error: the goroutine dump
