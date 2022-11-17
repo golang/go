@@ -24,6 +24,7 @@ const (
 	ApplyFix              Command = "apply_fix"
 	CheckUpgrades         Command = "check_upgrades"
 	EditGoDirective       Command = "edit_go_directive"
+	FetchVulncheckResult  Command = "fetch_vulncheck_result"
 	GCDetails             Command = "gc_details"
 	Generate              Command = "generate"
 	GenerateGoplsMod      Command = "generate_gopls_mod"
@@ -50,6 +51,7 @@ var Commands = []Command{
 	ApplyFix,
 	CheckUpgrades,
 	EditGoDirective,
+	FetchVulncheckResult,
 	GCDetails,
 	Generate,
 	GenerateGoplsMod,
@@ -102,6 +104,12 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return nil, s.EditGoDirective(ctx, a0)
+	case "gopls.fetch_vulncheck_result":
+		var a0 URIArg
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return s.FetchVulncheckResult(ctx, a0)
 	case "gopls.gc_details":
 		var a0 protocol.DocumentURI
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -272,6 +280,18 @@ func NewEditGoDirectiveCommand(title string, a0 EditGoDirectiveArgs) (protocol.C
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.edit_go_directive",
+		Arguments: args,
+	}, nil
+}
+
+func NewFetchVulncheckResultCommand(title string, a0 URIArg) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.fetch_vulncheck_result",
 		Arguments: args,
 	}, nil
 }

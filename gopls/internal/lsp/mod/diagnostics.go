@@ -180,14 +180,17 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		return nil, err
 	}
 
-	vs := snapshot.View().Vulnerabilities(fh.URI())
-	// TODO(suzmue): should we just store the vulnerabilities like this?
+	vs := snapshot.View().Vulnerabilities(fh.URI())[fh.URI()]
+	if vs == nil || len(vs.Vulns) == 0 {
+		return nil, nil
+	}
+
 	type modVuln struct {
 		mod  *govulncheck.Module
 		vuln *govulncheck.Vuln
 	}
 	vulnsByModule := make(map[string][]modVuln)
-	for _, vuln := range vs {
+	for _, vuln := range vs.Vulns {
 		for _, mod := range vuln.Modules {
 			vulnsByModule[mod.Path] = append(vulnsByModule[mod.Path], modVuln{mod, vuln})
 		}

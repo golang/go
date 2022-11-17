@@ -100,6 +100,26 @@ Args:
 }
 ```
 
+### **Get known vulncheck result**
+Identifier: `gopls.fetch_vulncheck_result`
+
+Fetch the result of latest vulnerability check (`govulncheck`).
+
+Args:
+
+```
+{
+	// The file URI.
+	"URI": string,
+}
+```
+
+Result:
+
+```
+map[golang.org/x/tools/gopls/internal/lsp/protocol.DocumentURI]*golang.org/x/tools/gopls/internal/govulncheck.Result
+```
+
 ### **Toggle gc_details**
 Identifier: `gopls.gc_details`
 

@@ -314,11 +314,11 @@ type View interface {
 	// Vulnerabilites returns known vulnerabilities for the given modfile.
 	// TODO(suzmue): replace command.Vuln with a different type, maybe
 	// https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck/govulnchecklib#Summary?
-	Vulnerabilities(modfile span.URI) []*govulncheck.Vuln
+	Vulnerabilities(modfile ...span.URI) map[span.URI]*govulncheck.Result
 
 	// SetVulnerabilities resets the list of vulnerabilites that exists for the given modules
 	// required by modfile.
-	SetVulnerabilities(modfile span.URI, vulnerabilities []*govulncheck.Vuln)
+	SetVulnerabilities(modfile span.URI, vulncheckResult *govulncheck.Result)
 
 	// FileKind returns the type of a file
 	FileKind(FileHandle) FileKind

@@ -17,6 +17,7 @@ package command
 import (
 	"context"
 
+	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
@@ -153,6 +154,11 @@ type Interface interface {
 	//
 	// Run vulnerability check (`govulncheck`).
 	RunVulncheckExp(context.Context, VulncheckArgs) error
+
+	// FetchVulncheckResult: Get known vulncheck result
+	//
+	// Fetch the result of latest vulnerability check (`govulncheck`).
+	FetchVulncheckResult(context.Context, URIArg) (map[protocol.DocumentURI]*govulncheck.Result, error)
 }
 
 type RunTestsArgs struct {

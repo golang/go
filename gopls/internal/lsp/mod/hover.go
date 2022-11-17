@@ -71,7 +71,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}
 
 	// Get the vulnerability info.
-	affecting, nonaffecting := lookupVulns(snapshot.View().Vulnerabilities(fh.URI()), req.Mod.Path)
+	affecting, nonaffecting := lookupVulns(snapshot.View().Vulnerabilities(fh.URI())[fh.URI()], req.Mod.Path)
 
 	// Get the `go mod why` results for the given file.
 	why, err := snapshot.ModWhy(ctx, fh)
@@ -117,8 +117,11 @@ func formatHeader(modpath string, options *source.Options) string {
 	return b.String()
 }
 
-func lookupVulns(vulns []*govulncheck.Vuln, modpath string) (affecting, nonaffecting []*govulncheck.Vuln) {
-	for _, vuln := range vulns {
+func lookupVulns(vulns *govulncheck.Result, modpath string) (affecting, nonaffecting []*govulncheck.Vuln) {
+	if vulns == nil {
+		return nil, nil
+	}
+	for _, vuln := range vulns.Vulns {
 		for _, mod := range vuln.Modules {
 			if mod.Path != modpath {
 				continue

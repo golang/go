@@ -833,6 +833,17 @@ type pkgLoadConfig struct {
 	Tests bool
 }
 
+func (c *commandHandler) FetchVulncheckResult(ctx context.Context, arg command.URIArg) (map[protocol.DocumentURI]*govulncheck.Result, error) {
+	ret := map[protocol.DocumentURI]*govulncheck.Result{}
+	err := c.run(ctx, commandConfig{forURI: arg.URI}, func(ctx context.Context, deps commandDeps) error {
+		for modfile, result := range deps.snapshot.View().Vulnerabilities() {
+			ret[protocol.URIFromSpanURI(modfile)] = result
+		}
+		return nil
+	})
+	return ret, err
+}
+
 func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.VulncheckArgs) error {
 	if args.URI == "" {
 		return errors.New("VulncheckArgs is missing URI field")
@@ -887,10 +898,10 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 			// TODO: for easy debugging, log the failed stdout somewhere?
 			return fmt.Errorf("failed to parse govulncheck output: %v", err)
 		}
-		vulns := result.Vulns
-		deps.snapshot.View().SetVulnerabilities(args.URI.SpanURI(), vulns)
-		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
+		deps.snapshot.View().SetVulnerabilities(args.URI.SpanURI(), &result)
 
+		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
+		vulns := result.Vulns
 		affecting := make([]string, 0, len(vulns))
 		for _, v := range vulns {
 			if v.IsCalled() {

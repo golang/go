@@ -13,13 +13,6 @@ import (
 	"golang.org/x/vuln/osv"
 )
 
-// Result is the result of executing Source or Binary.
-type Result struct {
-	// Vulns contains all vulnerabilities that are called or imported by
-	// the analyzed module.
-	Vulns []*Vuln
-}
-
 // Vuln represents a single OSV entry.
 type Vuln struct {
 	// OSV contains all data from the OSV entry for this vulnerability.

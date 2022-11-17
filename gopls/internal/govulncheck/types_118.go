@@ -8,7 +8,9 @@
 // Package govulncheck provides an experimental govulncheck API.
 package govulncheck
 
-import "golang.org/x/vuln/exp/govulncheck"
+import (
+	"golang.org/x/vuln/exp/govulncheck"
+)
 
 var (
 	// Source reports vulnerabilities that affect the analyzed packages.
@@ -21,9 +23,6 @@ var (
 type (
 	// Config is the configuration for Main.
 	Config = govulncheck.Config
-
-	// Result is the result of executing Source.
-	Result = govulncheck.Result
 
 	// Vuln represents a single OSV entry.
 	Vuln = govulncheck.Vuln

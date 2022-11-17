@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
@@ -180,7 +181,41 @@ func main() {
 			// TODO(hyangah): once the diagnostics are published, wait for diagnostics.
 			ShownMessage("Found GOSTDLIB"),
 		)
+		testFetchVulncheckResult(t, env, map[string][]string{"go.mod": {"GOSTDLIB"}})
 	})
+}
+
+func testFetchVulncheckResult(t *testing.T, env *Env, want map[string][]string) {
+	t.Helper()
+
+	var result map[protocol.DocumentURI]*govulncheck.Result
+	fetchCmd, err := command.NewFetchVulncheckResultCommand("fetch", command.URIArg{
+		URI: env.Sandbox.Workdir.URI("go.mod"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.ExecuteCommand(&protocol.ExecuteCommandParams{
+		Command:   fetchCmd.Command,
+		Arguments: fetchCmd.Arguments,
+	}, &result)
+
+	for _, v := range want {
+		sort.Strings(v)
+	}
+	got := map[string][]string{}
+	for k, r := range result {
+		var osv []string
+		for _, v := range r.Vulns {
+			osv = append(osv, v.OSV.ID)
+		}
+		sort.Strings(osv)
+		modfile := env.Sandbox.Workdir.RelPath(k.SpanURI().Filename())
+		got[modfile] = osv
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("fetch vulnchheck result = got %v, want %v: diff %v", got, want, diff)
+	}
 }
 
 const workspace1 = `
@@ -332,6 +367,9 @@ func TestRunVulncheckWarning(t *testing.T) {
 				ReadDiagnostics("go.mod", gotDiagnostics),
 			),
 		)
+		testFetchVulncheckResult(t, env, map[string][]string{
+			"go.mod": {"GO-2022-01", "GO-2022-02", "GO-2022-03"},
+		})
 		env.OpenFile("x/x.go")
 		lineX := env.RegexpSearch("x/x.go", `c\.C1\(\)\.Vuln1\(\)`)
 		env.OpenFile("y/y.go")
@@ -470,6 +508,7 @@ func TestRunVulncheckInfo(t *testing.T) {
 				ReadDiagnostics("go.mod", gotDiagnostics)),
 			ShownMessage("No vulnerabilities found")) // only count affecting vulnerabilities.
 
+		testFetchVulncheckResult(t, env, map[string][]string{"go.mod": {"GO-2022-02"}})
 		// wantDiagnostics maps a module path in the require
 		// section of a go.mod to diagnostics that will be returned
 		// when running vulncheck.

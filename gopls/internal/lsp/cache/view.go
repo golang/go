@@ -61,7 +61,7 @@ type View struct {
 	// Each modfile has a map of module name to upgrade version.
 	moduleUpgrades map[span.URI]map[string]string
 
-	vulns map[span.URI][]*govulncheck.Vuln
+	vulns map[span.URI]*govulncheck.Result
 
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
@@ -1044,16 +1044,24 @@ func (v *View) ClearModuleUpgrades(modfile span.URI) {
 	delete(v.moduleUpgrades, modfile)
 }
 
-func (v *View) Vulnerabilities(modfile span.URI) []*govulncheck.Vuln {
+func (v *View) Vulnerabilities(modfile ...span.URI) map[span.URI]*govulncheck.Result {
+	m := make(map[span.URI]*govulncheck.Result)
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	vulns := make([]*govulncheck.Vuln, len(v.vulns[modfile]))
-	copy(vulns, v.vulns[modfile])
-	return vulns
+	if len(modfile) == 0 {
+		for k, v := range v.vulns {
+			m[k] = v
+		}
+		return m
+	}
+	for _, f := range modfile {
+		m[f] = v.vulns[f]
+	}
+	return m
 }
 
-func (v *View) SetVulnerabilities(modfile span.URI, vulns []*govulncheck.Vuln) {
+func (v *View) SetVulnerabilities(modfile span.URI, vulns *govulncheck.Result) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 

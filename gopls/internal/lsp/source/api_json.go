@@ -690,6 +690,13 @@ var GeneratedAPIJSON = &APIJSON{
 			ArgDoc:  "{\n\t// Any document URI within the relevant module.\n\t\"URI\": string,\n\t// The version to pass to `go mod edit -go`.\n\t\"Version\": string,\n}",
 		},
 		{
+			Command:   "gopls.fetch_vulncheck_result",
+			Title:     "Get known vulncheck result",
+			Doc:       "Fetch the result of latest vulnerability check (`govulncheck`).",
+			ArgDoc:    "{\n\t// The file URI.\n\t\"URI\": string,\n}",
+			ResultDoc: "map[golang.org/x/tools/gopls/internal/lsp/protocol.DocumentURI]*golang.org/x/tools/gopls/internal/govulncheck.Result",
+		},
+		{
 			Command: "gopls.gc_details",
 			Title:   "Toggle gc_details",
 			Doc:     "Toggle the calculation of gc annotations.",
