@@ -12,7 +12,9 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -2501,5 +2503,94 @@ func TestDNSConfigNoReload(t *testing.T) {
 
 	if _, err = r.LookupHost(context.Background(), "go.dev"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLookupOrderFilesNoSuchHost(t *testing.T) {
+	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+	if runtime.GOOS != "openbsd" {
+		defer setSystemNSS(getSystemNSS(), 0)
+		setSystemNSS(nssStr(t, "hosts: files"), time.Hour)
+	}
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+
+	resolvConf := dnsConfig{servers: defaultNS}
+	if runtime.GOOS == "openbsd" {
+		// Set error to ErrNotExist, so that the hostLookupOrder
+		// returns hostLookupFiles for openbsd.
+		resolvConf.err = os.ErrNotExist
+	}
+
+	if !conf.forceUpdateConf(&resolvConf, time.Now().Add(time.Hour)) {
+		t.Fatal("failed to update resolv config")
+	}
+
+	tmpFile := filepath.Join(t.TempDir(), "hosts")
+	if err := os.WriteFile(tmpFile, []byte{}, 0660); err != nil {
+		t.Fatal(err)
+	}
+	testHookHostsPath = tmpFile
+
+	const testName = "test.invalid"
+
+	order, _ := systemConf().hostLookupOrder(DefaultResolver, testName)
+	if order != hostLookupFiles {
+		// skip test for systems which do not return hostLookupFiles
+		t.Skipf("hostLookupOrder did not return hostLookupFiles")
+	}
+
+	var lookupTests = []struct {
+		name   string
+		lookup func(name string) error
+	}{
+		{
+			name: "Host",
+			lookup: func(name string) error {
+				_, err = DefaultResolver.LookupHost(context.Background(), name)
+				return err
+			},
+		},
+		{
+			name: "IP",
+			lookup: func(name string) error {
+				_, err = DefaultResolver.LookupIP(context.Background(), "ip", name)
+				return err
+			},
+		},
+		{
+			name: "IPAddr",
+			lookup: func(name string) error {
+				_, err = DefaultResolver.LookupIPAddr(context.Background(), name)
+				return err
+			},
+		},
+		{
+			name: "NetIP",
+			lookup: func(name string) error {
+				_, err = DefaultResolver.LookupNetIP(context.Background(), "ip", name)
+				return err
+			},
+		},
+	}
+
+	for _, v := range lookupTests {
+		err := v.lookup(testName)
+
+		if err == nil {
+			t.Errorf("Lookup%v: unexpected success", v.name)
+			continue
+		}
+
+		expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: testName, IsNotFound: true}
+		var dnsErr *DNSError
+		errors.As(err, &dnsErr)
+		if dnsErr == nil || *dnsErr != expectedErr {
+			t.Errorf("Lookup%v: unexpected error: %v", v.name, err)
+		}
 	}
 }

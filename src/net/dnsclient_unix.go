@@ -551,8 +551,12 @@ func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hos
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
 		// Use entries from /etc/hosts if they match.
 		addrs, _ = lookupStaticHost(name)
-		if len(addrs) > 0 || order == hostLookupFiles {
+		if len(addrs) > 0 {
 			return
+		}
+
+		if order == hostLookupFiles {
+			return nil, &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
 		}
 	}
 	ips, _, err := r.goLookupIPCNAMEOrder(ctx, "ip", name, order, conf)
