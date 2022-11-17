@@ -388,9 +388,7 @@ func (w *typeWriter) tParamList(list []*TypeParam) {
 }
 
 func (w *typeWriter) typeName(obj *TypeName) {
-	if obj.pkg != nil {
-		writePackage(w.buf, obj.pkg, w.qf)
-	}
+	w.string(packagePrefix(obj.pkg, w.qf))
 	w.string(obj.name)
 }
 

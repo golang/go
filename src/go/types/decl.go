@@ -5,7 +5,6 @@
 package types
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -309,10 +308,7 @@ func (check *Checker) cycleError(cycle []Object) {
 	// may refer to imported types. See issue #50788.
 	// TODO(gri) Thus functionality is used elsewhere. Factor it out.
 	name := func(obj Object) string {
-		var buf bytes.Buffer
-		writePackage(&buf, obj.Pkg(), check.qualifier)
-		buf.WriteString(obj.Name())
-		return buf.String()
+		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
 	}
 
 	// TODO(gri) Should we start with the last (rather than the first) object in the cycle
