@@ -132,8 +132,14 @@ func testResponseControllerSetFutureWriteDeadline(t *testing.T, mode testMode) {
 		t.Skip("skip until h2_bundle.go is updated")
 	}
 	errc := make(chan error, 1)
+	startwritec := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctl := NewResponseController(w)
+		w.WriteHeader(200)
+		if err := ctl.Flush(); err != nil {
+			t.Errorf("ctl.Flush() = %v, want nil", err)
+		}
+		<-startwritec // don't set the deadline until the client reads response headers
 		if err := ctl.SetWriteDeadline(time.Now().Add(1 * time.Millisecond)); err != nil {
 			t.Errorf("ctl.SetWriteDeadline() = %v, want nil", err)
 		}
@@ -142,6 +148,7 @@ func testResponseControllerSetFutureWriteDeadline(t *testing.T, mode testMode) {
 	}))
 
 	res, err := cst.c.Get(cst.ts.URL)
+	close(startwritec)
 	if err != nil {
 		t.Fatalf("unexpected connection error: %v", err)
 	}
