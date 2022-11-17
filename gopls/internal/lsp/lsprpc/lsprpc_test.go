@@ -12,13 +12,13 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -290,9 +290,9 @@ func (s *initServer) Initialize(ctx context.Context, params *protocol.ParamIniti
 
 func TestEnvForwarding(t *testing.T) {
 	testenv.NeedsGo1Point(t, 13)
+	ctx := context.Background()
+
 	server := &initServer{}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 	_, tsForwarded, cleanup := setupForwarding(ctx, t, server)
 	defer cleanup()
 
