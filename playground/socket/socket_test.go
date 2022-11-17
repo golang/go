@@ -69,9 +69,5 @@ func TestLimiter(t *testing.T) {
 	if n != msgLimit+1 {
 		t.Errorf("received %v messages, want %v", n, msgLimit+1)
 	}
-	select {
-	case <-kr:
-	case <-time.After(100 * time.Millisecond):
-		t.Errorf("process wasn't killed after reaching limit")
-	}
+	<-kr
 }
