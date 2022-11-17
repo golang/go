@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/gcimporter"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // TODO(rfindley): migrate this to testdata, as has been done in the standard library.
@@ -96,6 +97,8 @@ func testExportSrc(t *testing.T, src []byte) {
 }
 
 func TestImportTypeparamTests(t *testing.T) {
+	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
+
 	// Check go files in test/typeparam.
 	rootDir := filepath.Join(runtime.GOROOT(), "test", "typeparam")
 	list, err := os.ReadDir(rootDir)

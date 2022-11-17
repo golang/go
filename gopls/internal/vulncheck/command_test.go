@@ -25,6 +25,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/vulncheck/vulntest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestCmd_Run(t *testing.T) {
@@ -276,6 +277,9 @@ modules:
 `
 
 func runTest(t *testing.T, workspaceData, proxyData string, test func(context.Context, source.Snapshot)) {
+	testenv.NeedsGoBuild(t)
+	testenv.NeedsGoPackages(t)
+
 	ws, err := fake.NewSandbox(&fake.SandboxConfig{
 		Files:      fake.UnpackTxt(workspaceData),
 		ProxyFiles: fake.UnpackTxt(proxyData),

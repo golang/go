@@ -1046,6 +1046,7 @@ func Hi() {
 // This does not use go/packagestest because it needs to write a replace
 // directive with an absolute path in one of the module's go.mod files.
 func TestOverlaysInReplace(t *testing.T) {
+	testenv.NeedsGoPackages(t)
 	t.Parallel()
 
 	// Create module b.com in a temporary directory. Do not add any Go files

@@ -373,6 +373,7 @@ func TestVersionHandling(t *testing.T) {
 func TestImportStdLib(t *testing.T) {
 	// This package only handles gc export data.
 	needsCompiler(t, "gc")
+	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
 
 	dt := maxTime
 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
@@ -422,6 +423,7 @@ func TestImportedTypes(t *testing.T) {
 	testenv.NeedsGo1Point(t, 11)
 	// This package only handles gc export data.
 	needsCompiler(t, "gc")
+	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
 
 	for _, test := range importedObjectTests {
 		obj := importObject(t, test.name)
@@ -447,6 +449,8 @@ func TestImportedTypes(t *testing.T) {
 
 func TestImportedConsts(t *testing.T) {
 	testenv.NeedsGo1Point(t, 11)
+	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
+
 	tests := []struct {
 		name string
 		want constant.Kind
@@ -530,6 +534,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 func TestIssue5815(t *testing.T) {
 	// This package only handles gc export data.
 	needsCompiler(t, "gc")
+	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
 
 	pkg := importPkg(t, "strings", ".")
 
@@ -555,6 +560,7 @@ func TestIssue5815(t *testing.T) {
 func TestCorrectMethodPackage(t *testing.T) {
 	// This package only handles gc export data.
 	needsCompiler(t, "gc")
+	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
 
 	imports := make(map[string]*types.Package)
 	_, err := Import(imports, "net/http", ".", nil)
@@ -609,6 +615,7 @@ func TestIssue13566(t *testing.T) {
 func TestIssue13898(t *testing.T) {
 	// This package only handles gc export data.
 	needsCompiler(t, "gc")
+	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
 
 	// import go/internal/gcimporter which imports go/types partially
 	imports := make(map[string]*types.Package)

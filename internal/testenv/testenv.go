@@ -100,6 +100,23 @@ func hasTool(tool string) error {
 			GOROOT := strings.TrimSpace(string(out))
 			if GOROOT != runtime.GOROOT() {
 				checkGoGoroot.err = fmt.Errorf("'go env GOROOT' does not match runtime.GOROOT:\n\tgo env: %s\n\tGOROOT: %s", GOROOT, runtime.GOROOT())
+				return
+			}
+
+			// Also ensure that that GOROOT includes a compiler: 'go' commands
+			// don't in general work without it, and some builders
+			// (such as android-amd64-emu) seem to lack it in the test environment.
+			cmd := exec.Command(tool, "tool", "-n", "compile")
+			stderr := new(bytes.Buffer)
+			stderr.Write([]byte("\n"))
+			cmd.Stderr = stderr
+			out, err = cmd.Output()
+			if err != nil {
+				checkGoGoroot.err = fmt.Errorf("%v: %v%s", cmd, err, stderr)
+				return
+			}
+			if _, err := os.Stat(string(bytes.TrimSpace(out))); err != nil {
+				checkGoGoroot.err = err
 			}
 		})
 		if checkGoGoroot.err != nil {

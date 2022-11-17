@@ -33,6 +33,8 @@ func main() {
 `
 
 func TestBuildPackage(t *testing.T) {
+	testenv.NeedsGoBuild(t) // for importer.Default()
+
 	// There is a more substantial test of BuildPackage and the
 	// SSA program it builds in ../ssa/builder_test.go.
 

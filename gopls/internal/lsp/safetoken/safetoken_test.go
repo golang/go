@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // This test reports any unexpected uses of (*go/token.File).Offset within
@@ -17,6 +18,8 @@ import (
 // to panicking. All calls to (*go/token.File).Offset should be replaced with
 // calls to safetoken.Offset.
 func TestTokenOffset(t *testing.T) {
+	testenv.NeedsGoPackages(t)
+
 	fset := token.NewFileSet()
 	pkgs, err := packages.Load(&packages.Config{
 		Fset: fset,

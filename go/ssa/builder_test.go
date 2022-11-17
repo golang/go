@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -32,6 +33,8 @@ func isEmpty(f *ssa.Function) bool { return f.Blocks == nil }
 // Tests that programs partially loaded from gc object files contain
 // functions with no code for the external portions, but are otherwise ok.
 func TestBuildPackage(t *testing.T) {
+	testenv.NeedsGoBuild(t) // for importer.Default()
+
 	input := `
 package main
 
@@ -164,6 +167,8 @@ func main() {
 
 // TestRuntimeTypes tests that (*Program).RuntimeTypes() includes all necessary types.
 func TestRuntimeTypes(t *testing.T) {
+	testenv.NeedsGoBuild(t) // for importer.Default()
+
 	tests := []struct {
 		input string
 		want  []string

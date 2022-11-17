@@ -141,6 +141,7 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 	// refactoring.
 	t.Helper()
 	checkBuilder(t)
+	testenv.NeedsGoPackages(t)
 
 	tests := []struct {
 		name      string
