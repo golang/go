@@ -20,7 +20,7 @@ func toUpper(c byte) byte {
 	return c
 }
 
-// isReservedName reports if name is a Windows reserved device name.
+// isReservedName reports if name is a Windows reserved device name or a console handle.
 // It does not detect names with an extension, which are also reserved on some Windows versions.
 //
 // For details, search for PRN in
@@ -33,6 +33,17 @@ func isReservedName(name string) bool {
 		case "COM", "LPT":
 			return len(name) == 4 && '1' <= name[3] && name[3] <= '9'
 		}
+	}
+	// Passing CONIN$ or CONOUT$ to CreateFile opens a console handle.
+	// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea#consoles
+	//
+	// While CONIN$ and CONOUT$ aren't documented as being files,
+	// they behave the same as CON. For example, ./CONIN$ also opens the console input.
+	if len(name) == 6 && name[5] == '$' && strings.EqualFold(name, "CONIN$") {
+		return true
+	}
+	if len(name) == 7 && name[6] == '$' && strings.EqualFold(name, "CONOUT$") {
+		return true
 	}
 	return false
 }

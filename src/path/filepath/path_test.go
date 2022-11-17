@@ -174,6 +174,11 @@ var winislocaltests = []IsLocalTest{
 	{`C:`, false},
 	{`C:\a`, false},
 	{`..\a`, false},
+	{`CONIN$`, false},
+	{`conin$`, false},
+	{`CONOUT$`, false},
+	{`conout$`, false},
+	{`dollar$`, true}, // not a special file name
 }
 
 var plan9islocaltests = []IsLocalTest{
