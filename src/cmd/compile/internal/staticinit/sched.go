@@ -570,13 +570,25 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 	for _, x := range as2init.Lhs {
 		count[x.(*ir.Name)] = 0
 	}
+
+	hasNonTrivialClosure := false
 	ir.Visit(as2body.Rhs[0], func(n ir.Node) {
 		if name, ok := n.(*ir.Name); ok {
 			if c, ok := count[name]; ok {
 				count[name] = c + 1
 			}
 		}
+		if clo, ok := n.(*ir.ClosureExpr); ok {
+			hasNonTrivialClosure = hasNonTrivialClosure || !ir.IsTrivialClosure(clo)
+		}
 	})
+
+	// If there's a non-trivial closure, it has captured the param,
+	// so we can't substitute arg for param.
+	if hasNonTrivialClosure {
+		return false
+	}
+
 	for name, c := range count {
 		if c > 1 {
 			// Check whether corresponding initializer can be repeated.
