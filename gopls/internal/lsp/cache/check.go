@@ -721,7 +721,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 	for _, depErr := range relevantErrors {
 		for i := len(depErr.ImportStack) - 1; i >= 0; i-- {
 			item := depErr.ImportStack[i]
-			m := s.getMetadata(PackageID(item))
+			m := s.Metadata(PackageID(item))
 			if m == nil || m.Module == nil {
 				continue
 			}

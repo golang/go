@@ -1249,10 +1249,9 @@ func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
 	return match
 }
 
-func (s *snapshot) getMetadata(id PackageID) *source.Metadata {
+func (s *snapshot) Metadata(id PackageID) *source.Metadata {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	return s.meta.metadata[id]
 }
 

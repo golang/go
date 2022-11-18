@@ -193,7 +193,7 @@ func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.Pars
 	// workspace.
 	// TODO(adonovan): opt: opportunities for parallelism abound.
 	for _, id := range snapshot.workspacePackageIDs() {
-		m := snapshot.getMetadata(id)
+		m := snapshot.Metadata(id)
 		if m == nil {
 			return nil, fmt.Errorf("no metadata for %s", id)
 		}

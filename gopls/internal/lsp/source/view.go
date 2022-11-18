@@ -185,6 +185,9 @@ type Snapshot interface {
 	// CachedImportPaths returns all the imported packages loaded in this
 	// snapshot, indexed by their package path (not import path, despite the name)
 	// and checked in TypecheckWorkspace mode.
+	//
+	// To reduce latency, it does not wait for type-checking to complete.
+	// It is intended for use only in completions.
 	CachedImportPaths(ctx context.Context) (map[PackagePath]Package, error)
 
 	// KnownPackages returns a new unordered list of all packages
@@ -210,7 +213,11 @@ type Snapshot interface {
 	// Symbols returns all symbols in the snapshot.
 	Symbols(ctx context.Context) map[span.URI][]Symbol
 
-	// Metadata returns a new slice containing metadata for each
+	// Metadata returns the metadata for the specified package,
+	// or nil if it was not found.
+	Metadata(id PackageID) *Metadata
+
+	// MetadataForFile returns a new slice containing metadata for each
 	// package containing the Go file identified by uri, ordered by the
 	// number of CompiledGoFiles (i.e. "narrowest" to "widest" package).
 	// It returns an error if the context was cancelled.
