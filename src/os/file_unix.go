@@ -110,10 +110,20 @@ func NewFile(fd uintptr, name string) *File {
 type newFileKind int
 
 const (
+	// kindNewFile means that the descriptor was passed to us via NewFile.
 	kindNewFile newFileKind = iota
+	// kindOpenFile means that the descriptor was opened using
+	// Open, Create, or OpenFile.
 	kindOpenFile
+	// kindPipe means that the descriptor was opened using Pipe.
 	kindPipe
+	// kindNonBlock means that the descriptor was passed to us via NewFile,
+	// and the descriptor is already in non-blocking mode.
 	kindNonBlock
+	// kindNoPoll means that we should not put the descriptor into
+	// non-blocking mode, because we know it is not a pipe or FIFO.
+	// Used by openFdAt for directories.
+	kindNoPoll
 )
 
 // newFile is like NewFile, but if called from OpenFile or Pipe

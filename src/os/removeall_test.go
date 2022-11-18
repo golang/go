@@ -5,11 +5,14 @@
 package os_test
 
 import (
+	"bytes"
 	"fmt"
+	"internal/testenv"
 	"os"
 	. "os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -436,5 +439,66 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
 	names, _ := dir.Readdirnames(1025)
 	if len(names) < 1025 {
 		t.Fatalf("RemoveAll(<read-only directory>) unexpectedly removed %d read-only files from that directory", 1025-len(names))
+	}
+}
+
+func TestRemoveAllNoFcntl(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	const env = "GO_TEST_REMOVE_ALL_NO_FCNTL"
+	if dir := Getenv(env); dir != "" {
+		if err := RemoveAll(dir); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+
+	// Only test on Linux so that we can assume we have strace.
+	// The code is OS-independent so if it passes on Linux
+	// it should pass on other Unix systems.
+	if runtime.GOOS != "linux" {
+		t.Skipf("skipping test on %s", runtime.GOOS)
+	}
+	if _, err := Stat("/bin/strace"); err != nil {
+		t.Skipf("skipping test because /bin/strace not found: %v", err)
+	}
+	me, err := Executable()
+	if err != nil {
+		t.Skipf("skipping because Executable failed: %v", err)
+	}
+
+	// Create 100 directories.
+	// The test is that we can remove them without calling fcntl
+	// on each one.
+	tmpdir := t.TempDir()
+	subdir := filepath.Join(tmpdir, "subdir")
+	if err := Mkdir(subdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 100; i++ {
+		subsubdir := filepath.Join(subdir, strconv.Itoa(i))
+		if err := Mkdir(filepath.Join(subdir, strconv.Itoa(i)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := WriteFile(filepath.Join(subsubdir, "file"), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cmd := testenv.Command(t, "/bin/strace", "-f", "-e", "fcntl", me, "-test.run=TestRemoveAllNoFcntl")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, env+"="+subdir)
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := bytes.Count(out, []byte("fcntl")); got >= 100 {
+		t.Errorf("found %d fcntl calls, want < 100", got)
 	}
 }
