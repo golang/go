@@ -45,7 +45,7 @@ func soleTypeKind(typ types.Type) types.BasicInfo {
 	// Candidates (perhaps all) are eliminated during the type-set
 	// iteration, which executes at least once.
 	state := types.IsBoolean | types.IsInteger | types.IsString
-	typeSetOf(typ).underIs(func(t types.Type) bool {
+	underIs(typeSetOf(typ), func(t types.Type) bool {
 		var c types.BasicInfo
 		if t, ok := t.(*types.Basic); ok {
 			c = t.Info()
@@ -169,7 +169,7 @@ func nillable(t types.Type) bool {
 	case *types.Pointer, *types.Slice, *types.Chan, *types.Map, *types.Signature:
 		return true
 	case *types.Interface:
-		return len(typeSetOf(t)) == 0 // basic interface.
+		return typeSetOf(t).Len() == 0 // basic interface.
 	default:
 		return false
 	}

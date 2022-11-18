@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // relName returns the name of v relative to i.
@@ -232,7 +233,7 @@ func (v *MakeChan) String() string {
 }
 
 func (v *FieldAddr) String() string {
-	st := coreType(deref(v.X.Type())).(*types.Struct)
+	st := typeparams.CoreType(deref(v.X.Type())).(*types.Struct)
 	// Be robust against a bad index.
 	name := "?"
 	if 0 <= v.Field && v.Field < st.NumFields() {
@@ -242,7 +243,7 @@ func (v *FieldAddr) String() string {
 }
 
 func (v *Field) String() string {
-	st := coreType(v.X.Type()).(*types.Struct)
+	st := typeparams.CoreType(v.X.Type()).(*types.Struct)
 	// Be robust against a bad index.
 	name := "?"
 	if 0 <= v.Field && v.Field < st.NumFields() {

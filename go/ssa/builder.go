@@ -275,7 +275,7 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 		return fn.emit(&c)
 
 	case *ast.IndexExpr:
-		mapt := coreType(fn.typeOf(e.X)).(*types.Map) // ,ok must be a map.
+		mapt := typeparams.CoreType(fn.typeOf(e.X)).(*types.Map) // ,ok must be a map.
 		lookup := &Lookup{
 			X:       b.expr(fn, e.X),
 			Index:   emitConv(fn, b.expr(fn, e.Index), mapt.Key()),
@@ -312,7 +312,7 @@ func (b *builder) builtin(fn *Function, obj *types.Builtin, args []ast.Expr, typ
 	typ = fn.typ(typ)
 	switch obj.Name() {
 	case "make":
-		switch ct := coreType(typ).(type) {
+		switch ct := typeparams.CoreType(typ).(type) {
 		case *types.Slice:
 			n := b.expr(fn, args[1])
 			m := n
@@ -482,7 +482,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			x = b.expr(fn, e.X)
 			et = types.NewPointer(elem)
 		case ixMap:
-			mt := coreType(xt).(*types.Map)
+			mt := typeparams.CoreType(xt).(*types.Map)
 			return &element{
 				m:   b.expr(fn, e.X),
 				k:   emitConv(fn, b.expr(fn, e.Index), mt.Key()),
@@ -752,14 +752,14 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		var low, high, max Value
 		var x Value
 		xtyp := fn.typeOf(e.X)
-		switch coreType(xtyp).(type) {
+		switch typeparams.CoreType(xtyp).(type) {
 		case *types.Array:
 			// Potentially escaping.
 			x = b.addr(fn, e.X, true).address(fn)
 		case *types.Basic, *types.Slice, *types.Pointer: // *array
 			x = b.expr(fn, e.X)
 		default:
-			// coreType exception?
+			// core type exception?
 			if isBytestring(xtyp) {
 				x = b.expr(fn, e.X) // bytestring is handled as string and []byte.
 			} else {
@@ -841,7 +841,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 				if recv, ok := sel.recv.(*typeparams.TypeParam); ok {
 					// Emit a nil check if any possible instantiation of the
 					// type parameter is an interface type.
-					if len(typeSetOf(recv)) > 0 {
+					if typeSetOf(recv).Len() > 0 {
 						// recv has a concrete term its typeset.
 						// So it cannot be instantiated as an interface.
 						//
@@ -906,7 +906,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			// An array in a register, a string or a combined type that contains
 			// either an [_]array (ixArrVar) or string (ixValue).
 
-			// Note: for ixArrVar and coreType(xt)==nil can be IndexAddr and Load.
+			// Note: for ixArrVar and CoreType(xt)==nil can be IndexAddr and Load.
 			index := b.expr(fn, e.Index)
 			if isUntyped(index.Type()) {
 				index = emitConv(fn, index, tInt)
@@ -920,7 +920,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			return fn.emit(v)
 
 		case ixMap:
-			ct := coreType(xt).(*types.Map)
+			ct := typeparams.CoreType(xt).(*types.Map)
 			v := &Lookup{
 				X:     b.expr(fn, e.X),
 				Index: emitConv(fn, b.expr(fn, e.Index), ct.Key()),
@@ -1120,7 +1120,7 @@ func (b *builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	b.setCallFunc(fn, e, c)
 
 	// Then append the other actual parameters.
-	sig, _ := coreType(fn.typeOf(e.Fun)).(*types.Signature)
+	sig, _ := typeparams.CoreType(fn.typeOf(e.Fun)).(*types.Signature)
 	if sig == nil {
 		panic(fmt.Sprintf("no signature for call of %s", e.Fun))
 	}
@@ -1253,8 +1253,8 @@ func (b *builder) arrayLen(fn *Function, elts []ast.Expr) int64 {
 // literal has type *T behaves like &T{}.
 // In that case, addr must hold a T, not a *T.
 func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero bool, sb *storebuf) {
-	typ := deref(fn.typeOf(e))             // type with name [may be type param]
-	t := deref(coreType(typ)).Underlying() // core type for comp lit case
+	typ := deref(fn.typeOf(e))                        // type with name [may be type param]
+	t := deref(typeparams.CoreType(typ)).Underlying() // core type for comp lit case
 	// Computing typ and t is subtle as these handle pointer types.
 	// For example, &T{...} is valid even for maps and slices.
 	// Also typ should refer to T (not *T) while t should be the core type of T.
@@ -1269,13 +1269,13 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 	// For `&T{f: 1}`, we compute `typ` and `t` as:
 	//     typeOf(&T{f: 1}) == *T
 	//     deref(*T)        == T (typ)
-	//     coreType(T)      == N
+	//     CoreType(T)      == N
 	//     deref(N)         == N
 	//     N.Underlying()   == struct{f int} (t)
 	// For `{f: 1}` in `[]S{{f: 1}}`,  we compute `typ` and `t` as:
 	//     typeOf({f: 1})   == S
 	//     deref(S)         == S (typ)
-	//     coreType(S)      == *N
+	//     CoreType(S)      == *N
 	//     deref(*N)        == N
 	//     N.Underlying()   == struct{f int} (t)
 	switch t := t.(type) {
@@ -1660,7 +1660,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 
 		case *ast.SendStmt: // ch<- i
 			ch := b.expr(fn, comm.Chan)
-			chtyp := coreType(fn.typ(ch.Type())).(*types.Chan)
+			chtyp := typeparams.CoreType(fn.typ(ch.Type())).(*types.Chan)
 			st = &SelectState{
 				Dir:  types.SendOnly,
 				Chan: ch,
@@ -1717,7 +1717,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	vars = append(vars, varIndex, varOk)
 	for _, st := range states {
 		if st.Dir == types.RecvOnly {
-			chtyp := coreType(fn.typ(st.Chan.Type())).(*types.Chan)
+			chtyp := typeparams.CoreType(fn.typ(st.Chan.Type())).(*types.Chan)
 			vars = append(vars, anonVar(chtyp.Elem()))
 		}
 	}
@@ -1916,7 +1916,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type, pos token.P
 
 	k = emitLoad(fn, index)
 	if tv != nil {
-		switch t := coreType(x.Type()).(type) {
+		switch t := typeparams.CoreType(x.Type()).(type) {
 		case *types.Array:
 			instr := &Index{
 				X:     x,
@@ -1988,7 +1988,7 @@ func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.
 
 	okv := &Next{
 		Iter:     it,
-		IsString: isBasic(coreType(x.Type())),
+		IsString: isBasic(typeparams.CoreType(x.Type())),
 	}
 	okv.setType(types.NewTuple(
 		varOk,
@@ -2038,7 +2038,7 @@ func (b *builder) rangeChan(fn *Function, x Value, tk types.Type, pos token.Pos)
 	}
 	recv.setPos(pos)
 	recv.setType(types.NewTuple(
-		newVar("k", coreType(x.Type()).(*types.Chan).Elem()),
+		newVar("k", typeparams.CoreType(x.Type()).(*types.Chan).Elem()),
 		varOk,
 	))
 	ko := fn.emit(recv)
@@ -2082,7 +2082,7 @@ func (b *builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 
 	var k, v Value
 	var loop, done *BasicBlock
-	switch rt := coreType(x.Type()).(type) {
+	switch rt := typeparams.CoreType(x.Type()).(type) {
 	case *types.Slice, *types.Array, *types.Pointer: // *array
 		k, v, loop, done = b.rangeIndexed(fn, x, tv, s.For)
 
@@ -2160,7 +2160,7 @@ start:
 		b.expr(fn, s.X)
 
 	case *ast.SendStmt:
-		chtyp := coreType(fn.typeOf(s.Chan)).(*types.Chan)
+		chtyp := typeparams.CoreType(fn.typeOf(s.Chan)).(*types.Chan)
 		fn.emit(&Send{
 			Chan: b.expr(fn, s.Chan),
 			X:    emitConv(fn, b.expr(fn, s.Value), chtyp.Elem()),

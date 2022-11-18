@@ -11,6 +11,8 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // emitNew emits to f a new (heap Alloc) instruction allocating an
@@ -210,8 +212,8 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	src_types := typeSetOf(ut_src)
 
 	// Just a change of type, but not value or representation?
-	preserving := src_types.underIs(func(s types.Type) bool {
-		return dst_types.underIs(func(d types.Type) bool {
+	preserving := underIs(src_types, func(s types.Type) bool {
+		return underIs(dst_types, func(d types.Type) bool {
 			return s != nil && d != nil && isValuePreserving(s, d) // all (s -> d) are value preserving.
 		})
 	})
@@ -261,8 +263,8 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	}
 
 	// Conversion from slice to array pointer?
-	slice2ptr := src_types.underIs(func(s types.Type) bool {
-		return dst_types.underIs(func(d types.Type) bool {
+	slice2ptr := underIs(src_types, func(s types.Type) bool {
+		return underIs(dst_types, func(d types.Type) bool {
 			return s != nil && d != nil && isSliceToArrayPointer(s, d) // all (s->d) are slice to array pointer conversion.
 		})
 	})
@@ -273,8 +275,8 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	}
 
 	// Conversion from slice to array?
-	slice2array := src_types.underIs(func(s types.Type) bool {
-		return dst_types.underIs(func(d types.Type) bool {
+	slice2array := underIs(src_types, func(s types.Type) bool {
+		return underIs(dst_types, func(d types.Type) bool {
 			return s != nil && d != nil && isSliceToArray(s, d) // all (s->d) are slice to array conversion.
 		})
 	})
@@ -428,7 +430,7 @@ func emitTailCall(f *Function, call *Call) {
 // value of a field.
 func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) Value {
 	for _, index := range indices {
-		fld := coreType(deref(v.Type())).(*types.Struct).Field(index)
+		fld := typeparams.CoreType(deref(v.Type())).(*types.Struct).Field(index)
 
 		if isPointer(v.Type()) {
 			instr := &FieldAddr{
@@ -462,7 +464,7 @@ func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) 
 // field's value.
 // Ident id is used for position and debug info.
 func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, id *ast.Ident) Value {
-	fld := coreType(deref(v.Type())).(*types.Struct).Field(index)
+	fld := typeparams.CoreType(deref(v.Type())).(*types.Struct).Field(index)
 	if isPointer(v.Type()) {
 		instr := &FieldAddr{
 			X:     v,

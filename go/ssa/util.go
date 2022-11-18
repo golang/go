@@ -88,16 +88,16 @@ func isRuneSlice(t types.Type) bool {
 // - All are basic, []byte, or []rune.
 // - At least 1 is basic.
 // - At most 1 is []byte or []rune.
-func isBasicConvTypes(tset typeSet) bool {
+func isBasicConvTypes(tset termList) bool {
 	basics := 0
-	all := tset.underIs(func(t types.Type) bool {
+	all := underIs(tset, func(t types.Type) bool {
 		if isBasic(t) {
 			basics++
 			return true
 		}
 		return isByteSlice(t) || isRuneSlice(t)
 	})
-	return all && basics >= 1 && len(tset)-basics <= 1
+	return all && basics >= 1 && tset.Len()-basics <= 1
 }
 
 // deref returns a pointer's element type; otherwise it returns typ.

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssa_test
 
 import (
 	"go/ast"
@@ -91,7 +91,7 @@ func TestCoreType(t *testing.T) {
 			t.Fatalf("Eval(%s) failed: %v", test.expr, err)
 		}
 
-		ct := coreType(tv.Type)
+		ct := typeparams.CoreType(tv.Type)
 		var got string
 		if ct == nil {
 			got = "<nil>"
@@ -99,7 +99,7 @@ func TestCoreType(t *testing.T) {
 			got = ct.String()
 		}
 		if got != test.want {
-			t.Errorf("coreType(%s) = %v, want %v", test.expr, got, test.want)
+			t.Errorf("CoreType(%s) = %v, want %v", test.expr, got, test.want)
 		}
 	}
 }
