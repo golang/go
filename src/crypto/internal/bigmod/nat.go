@@ -588,45 +588,59 @@ func (x *Nat) montgomeryReduction(m *Modulus) *Nat {
 // All inputs should be the same length, not aliasing d, and already
 // reduced modulo m. d will be resized to the size of m and overwritten.
 func (d *Nat) montgomeryMul(a *Nat, b *Nat, m *Modulus) *Nat {
-	// See https://bearssl.org/bigint.html#montgomery-reduction-and-multiplication
-	// for a description of the algorithm.
-
-	// Eliminate bounds checks in the loop.
-	size := len(m.nat.limbs)
-	aLimbs := a.limbs[:size]
-	bLimbs := b.limbs[:size]
-	dLimbs := d.resetFor(m).limbs[:size]
-	mLimbs := m.nat.limbs[:size]
-
-	var overflow uint
-	for i := 0; i < size; i++ {
-		f := ((dLimbs[0] + aLimbs[i]*bLimbs[0]) * m.m0inv) & _MASK
-		carry := uint(0)
-		for j := 0; j < size; j++ {
-			// z = d[j] + a[i] * b[j] + f * m[j] + carry <= 2^(2W+1) - 2^(W+1) + 2^W
-			hi, lo := bits.Mul(aLimbs[i], bLimbs[j])
-			z_lo, c := bits.Add(dLimbs[j], lo, 0)
-			z_hi, _ := bits.Add(0, hi, c)
-			hi, lo = bits.Mul(f, mLimbs[j])
-			z_lo, c = bits.Add(z_lo, lo, 0)
-			z_hi, _ = bits.Add(z_hi, hi, c)
-			z_lo, c = bits.Add(z_lo, carry, 0)
-			z_hi, _ = bits.Add(z_hi, 0, c)
-			if j > 0 {
-				dLimbs[j-1] = z_lo & _MASK
-			}
-			carry = z_hi<<1 | z_lo>>_W // carry <= 2^(W+1) - 2
-		}
-		z := overflow + carry // z <= 2^(W+1) - 1
-		dLimbs[size-1] = z & _MASK
-		overflow = z >> _W // overflow <= 1
+	d.resetFor(m)
+	if len(a.limbs) != len(m.nat.limbs) || len(b.limbs) != len(m.nat.limbs) {
+		panic("bigmod: invalid montgomeryMul input")
 	}
+
+	// See https://bearssl.org/bigint.html#montgomery-reduction-and-multiplication
+	// for a description of the algorithm implemented mostly in montgomeryLoop.
 	// See Add for how overflow, underflow, and needSubtraction relate.
+	overflow := montgomeryLoop(d.limbs, a.limbs, b.limbs, m.nat.limbs, m.m0inv)
 	underflow := not(d.cmpGeq(m.nat)) // d < m
 	needSubtraction := ctEq(overflow, uint(underflow))
 	d.sub(needSubtraction, m.nat)
 
 	return d
+}
+
+func montgomeryLoopGeneric(d, a, b, m []uint, m0inv uint) (overflow uint) {
+	// Eliminate bounds checks in the loop.
+	size := len(d)
+	a = a[:size]
+	b = b[:size]
+	m = m[:size]
+
+	for _, ai := range a {
+		// This is an unrolled iteration of the loop below with j = 0.
+		hi, lo := bits.Mul(ai, b[0])
+		z_lo, c := bits.Add(d[0], lo, 0)
+		f := (z_lo * m0inv) & _MASK // (d[0] + a[i] * b[0]) * m0inv
+		z_hi, _ := bits.Add(0, hi, c)
+		hi, lo = bits.Mul(f, m[0])
+		z_lo, c = bits.Add(z_lo, lo, 0)
+		z_hi, _ = bits.Add(z_hi, hi, c)
+		carry := z_hi<<1 | z_lo>>_W
+
+		for j := 1; j < size; j++ {
+			// z = d[j] + a[i] * b[j] + f * m[j] + carry <= 2^(2W+1) - 2^(W+1) + 2^W
+			hi, lo := bits.Mul(ai, b[j])
+			z_lo, c := bits.Add(d[j], lo, 0)
+			z_hi, _ := bits.Add(0, hi, c)
+			hi, lo = bits.Mul(f, m[j])
+			z_lo, c = bits.Add(z_lo, lo, 0)
+			z_hi, _ = bits.Add(z_hi, hi, c)
+			z_lo, c = bits.Add(z_lo, carry, 0)
+			z_hi, _ = bits.Add(z_hi, 0, c)
+			d[j-1] = z_lo & _MASK
+			carry = z_hi<<1 | z_lo>>_W // carry <= 2^(W+1) - 2
+		}
+
+		z := overflow + carry // z <= 2^(W+1) - 1
+		d[size-1] = z & _MASK
+		overflow = z >> _W // overflow <= 1
+	}
+	return
 }
 
 // Mul calculates x *= y mod m.
