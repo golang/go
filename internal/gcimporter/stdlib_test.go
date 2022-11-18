@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/token"
 	"go/types"
+	"runtime"
 	"testing"
 	"unsafe"
 
@@ -30,9 +31,18 @@ func TestStdlib(t *testing.T) {
 		t.Skip("skipping test on 32-bit machine")
 	}
 
-	// Load, parse and type-check the standard library and x/tools.
+	// Load, parse and type-check the standard library.
+	// If we have the full source code for x/tools, also load and type-check that.
 	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
-	pkgs, err := packages.Load(cfg, "std", "golang.org/x/tools/...")
+	patterns := []string{"std"}
+	switch runtime.GOOS {
+	case "android", "ios":
+		// The go_.*_exec script for mobile builders only copies over the source tree
+		// for the package under test.
+	default:
+		patterns = append(patterns, "golang.org/x/tools/...")
+	}
+	pkgs, err := packages.Load(cfg, patterns...)
 	if err != nil {
 		t.Fatalf("failed to load/parse/type-check: %v", err)
 	}
