@@ -27,26 +27,24 @@ func Baz(i I) {
 //   t1 = new *I (j)
 //   *t1 = t0
 //   t2 = *t1
-//   t3 = local A (complit)
-//   t4 = *t3
-//   t5 = make I <- A (t4)
-//   *t2 = t5
-//   t6 = *t0
-//   t7 = invoke t6.foo()
-//   t8 = *t1
-//   t9 = *t8
-//   t10 = invoke t9.foo()
+// 	 t3 = make I <- A (struct{}{}:A)                                       I
+//   *t2 = t3
+//   t4 = *t0
+//   t5 = invoke t4.foo()
+//   t6 = *t1
+//   t7 = *t6
+//   t8 = invoke t7.foo()
 
 // Flow chain showing that A reaches i.foo():
-//   t4 (A) -> t5 -> t2 <-> PtrInterface(I) <-> t0 -> t6
+//   Constant(A) -> t3 -> t2 <-> PtrInterface(I) <-> t0 -> t4
 // Flow chain showing that A reaches (**k).foo():
-//	 t4 (A) -> t5 -> t2 <-> PtrInterface(I) <-> t8 -> t9
+//	 Constant(A) -> t3 -> t2 <-> PtrInterface(I) <-> t6 -> t7
 
 // WANT:
 // Local(i) -> Local(t0)
-// Local(t0) -> Local(t6), PtrInterface(testdata.I)
-// PtrInterface(testdata.I) -> Local(t0), Local(t2), Local(t8)
+// Local(t0) -> Local(t4), PtrInterface(testdata.I)
+// PtrInterface(testdata.I) -> Local(t0), Local(t2), Local(t6)
 // Local(t2) -> PtrInterface(testdata.I)
-// Local(t4) -> Local(t5)
-// Local(t5) -> Local(t2)
-// Local(t8) -> Local(t9), PtrInterface(testdata.I)
+// Constant(testdata.A) -> Local(t3)
+// Local(t3) -> Local(t2)
+// Local(t6) -> Local(t7), PtrInterface(testdata.I)

@@ -28,28 +28,23 @@ func Baz(b B, c bool) {
 // Relevant SSA:
 // func Baz(b B, c bool):
 // 0:
-//  t0 = local B (b)
-//  *t0 = b
 //  if c goto 1 else 3
 //
 // 1:
-//  t1 = *t0
-//  t2 = make I <- B (t1)
+//  t0 = make I <- B (b)
 //  jump 2
 //
 // 2:
-//  t3 = phi [1: t2, 3: t7] #i
-//  t4 = invoke t3.foo()
+//  t1 = phi [1: t0, 3: t3] #i
+//  t2 = invoke t1.foo()
 //  return
 //
 // 3:
-//  t5 = local A (a)
-//  t6 = *t5
-//  t7 = make I <- A (t6)
+//  t3 = make I <- A (struct{}{}:A)
 //  jump 2
 
 // WANT:
-// Local(t1) -> Local(t2)
-// Local(t2) -> Local(t3)
-// Local(t7) -> Local(t3)
-// Local(t6) -> Local(t7)
+// Local(b) -> Local(t0)
+// Local(t0) -> Local(t1)
+// Local(t3) -> Local(t1)
+// Constant(testdata.A) -> Local(t3)

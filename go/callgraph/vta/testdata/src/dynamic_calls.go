@@ -27,23 +27,22 @@ func Baz(x B, h func() I, i I) I {
 	return h()
 }
 
+var g *B = &B{} // ensure *B.foo is created.
+
 // Relevant SSA:
 // func Baz(x B, h func() I, i I) I:
-//   t0 = local B (x)
-//   *t0 = x
-//   t1 = *t0
-//   t2 = make I <- B (t1)
-//   t3 = invoke i.foo(t2)
-//   t4 = h()
-//   return t4
+//   t0 = make I <- B (x)
+//   t1 = invoke i.foo(t0)
+//   t2 = h()
+//   return t2
 
-// Local(t2) has seemingly duplicates of successors. This
+// Local(t0) has seemingly duplicates of successors. This
 // happens in stringification of type propagation graph.
 // Due to CHA, we analyze A.foo and *A.foo as well as B.foo
 // and *B.foo, which have similar bodies and hence similar
 // type flow that gets merged together during stringification.
 
 // WANT:
-// Local(t2) -> Local(ai), Local(ai), Local(bi), Local(bi)
-// Constant(testdata.I) -> Local(t4)
-// Local(t1) -> Local(t2)
+// Local(t0) -> Local(ai), Local(ai), Local(bi), Local(bi)
+// Constant(testdata.I) -> Local(t2)
+// Local(x) -> Local(t0)

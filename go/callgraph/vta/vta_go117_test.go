@@ -26,7 +26,8 @@ func TestVTACallGraphGo117(t *testing.T) {
 	}
 
 	g, _ := typePropGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
-	if gs := vtaGraphStr(g); !subGraph(want, gs) {
-		t.Errorf("`%s`: want superset of %v;\n got %v", file, want, gs)
+	got := vtaGraphStr(g)
+	if diff := setdiff(want, got); len(diff) != 0 {
+		t.Errorf("`%s`: want superset of %v;\n got %v", file, want, got)
 	}
 }

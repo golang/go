@@ -94,18 +94,18 @@ func complit() {
 	_ = & /*@Slice*/ ([]int{})
 
 	// 2. Arrays
-	print( /*@UnOp*/ ([1]int{}))
+	print( /*@Const*/ ([1]int{}))
 	print( /*@Alloc*/ (&[1]int{}))
 	print(& /*@Alloc*/ ([1]int{}))
 
-	arr1 := /*@Alloc*/ ([1]int{})
+	arr1 := /*@Const*/ ([1]int{})
 	arr2 := /*@Alloc*/ (&[1]int{})
 	arr3 := & /*@Alloc*/ ([1]int{})
 	_, _, _ = arr1, arr2, arr3
 
-	_ = /*@UnOp*/ ([1]int{})
-	_ = /*@Alloc*/ (& /*@Alloc*/ ([1]int{}))
-	_ = & /*@Alloc*/ ([1]int{})
+	_ = /*@Const*/ ([1]int{})
+	_ = /*@nil*/ (& /*@Const*/ ([1]int{})) // & optimized away
+	_ = & /*@Const*/ ([1]int{})
 
 	// 3. Maps
 	type M map[int]int
@@ -123,18 +123,18 @@ func complit() {
 	_ = & /*@MakeMap*/ (M{})
 
 	// 4. Structs
-	print( /*@UnOp*/ (struct{}{}))
+	print( /*@Const*/ (struct{}{}))
 	print( /*@Alloc*/ (&struct{}{}))
 	print(& /*@Alloc*/ (struct{}{}))
 
-	s1 := /*@Alloc*/ (struct{}{})
+	s1 := /*@Const*/ (struct{}{})
 	s2 := /*@Alloc*/ (&struct{}{})
 	s3 := & /*@Alloc*/ (struct{}{})
 	_, _, _ = s1, s2, s3
 
-	_ = /*@UnOp*/ (struct{}{})
-	_ = /*@Alloc*/ (& /*@Alloc*/ (struct{}{}))
-	_ = & /*@Alloc*/ (struct{}{})
+	_ = /*@Const*/ (struct{}{})
+	_ = /*@nil*/ (& /*@Const*/ (struct{}{})) // & optimized away
+	_ = & /*@Const*/ (struct{}{})
 }
 
 type t struct{ x int }

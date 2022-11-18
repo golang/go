@@ -1282,8 +1282,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 	case *types.Struct:
 		if !isZero && len(e.Elts) != t.NumFields() {
 			// memclear
-			sb.store(&address{addr, e.Lbrace, nil},
-				zeroValue(fn, deref(addr.Type())))
+			sb.store(&address{addr, e.Lbrace, nil}, zeroConst(deref(addr.Type())))
 			isZero = true
 		}
 		for i, e := range e.Elts {
@@ -1327,8 +1326,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 
 			if !isZero && int64(len(e.Elts)) != at.Len() {
 				// memclear
-				sb.store(&address{array, e.Lbrace, nil},
-					zeroValue(fn, deref(array.Type())))
+				sb.store(&address{array, e.Lbrace, nil}, zeroConst(deref(array.Type())))
 			}
 		}
 

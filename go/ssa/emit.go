@@ -537,15 +537,46 @@ func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, id *ast.
 	return v
 }
 
-// zeroValue emits to f code to produce a zero value of type t,
-// and returns it.
-func zeroValue(f *Function, t types.Type) Value {
-	switch t.Underlying().(type) {
-	case *types.Struct, *types.Array:
-		return emitLoad(f, f.addLocal(t, token.NoPos))
-	default:
-		return zeroConst(t)
-	}
+// emitSliceToArray emits to f code to convert a slice value to an array value.
+//
+// Precondition: all types in type set of typ are arrays and convertible to all
+// types in the type set of val.Type().
+func emitSliceToArray(f *Function, val Value, typ types.Type) Value {
+	// Emit the following:
+	// if val == nil && len(typ) == 0 {
+	//    ptr = &[0]T{}
+	// } else {
+	//	  ptr = SliceToArrayPointer(val)
+	// }
+	// v = *ptr
+
+	ptype := types.NewPointer(typ)
+	p := &SliceToArrayPointer{X: val}
+	p.setType(ptype)
+	ptr := f.emit(p)
+
+	nilb := f.newBasicBlock("slicetoarray.nil")
+	nonnilb := f.newBasicBlock("slicetoarray.nonnil")
+	done := f.newBasicBlock("slicetoarray.done")
+
+	cond := emitCompare(f, token.EQL, ptr, zeroConst(ptype), token.NoPos)
+	emitIf(f, cond, nilb, nonnilb)
+	f.currentBlock = nilb
+
+	zero := f.addLocal(typ, token.NoPos)
+	emitJump(f, done)
+	f.currentBlock = nonnilb
+
+	emitJump(f, done)
+	f.currentBlock = done
+
+	phi := &Phi{Edges: []Value{zero, ptr}, Comment: "slicetoarray"}
+	phi.pos = val.Pos()
+	phi.setType(typ)
+	x := f.emit(phi)
+	unOp := &UnOp{Op: token.MUL, X: x}
+	unOp.setType(typ)
+	return f.emit(unOp)
 }
 
 // createRecoverBlock emits to f a block of code to return after a
@@ -577,7 +608,7 @@ func createRecoverBlock(f *Function) {
 			T := R.At(i).Type()
 
 			// Return zero value of each result type.
-			results = append(results, zeroValue(f, T))
+			results = append(results, zeroConst(T))
 		}
 	}
 	f.emit(&Return{Results: results})

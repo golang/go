@@ -60,26 +60,22 @@ func Baz(y Y) {
 //   t5 = change interface X <- Y (t4)
 //   t6 = invoke t5.Foo()
 //
-//   t7 = local A (complit)
-//   t8 = *t7
-//   t9 = make Y <- A (t8)
-//   *t0 = t9
-//   t10 = changetype *W <- *Y (t0)
-//   t11 = local B (complit)
-//   t12 = *t11
-//   t13 = make W <- B (t12)
-//   *t10 = t13
-//   t14 = *t0
-//   t15 = invoke t14.Foo()
-//   t16 = *t10
-//   t17 = invoke t16.Foo()
+//   t7 = make Y <- A (struct{}{}:A)
+//   *t0 = t7
+//   t8 = changetype *W <- *Y (t0)
+//   t9 = make W <- B (struct{}{}:B)
+//   *t8 = t9
+//   t10 = *t0
+//   t11 = invoke t10.Foo()
+//   t12 = *t8
+//   t13 = invoke t12.Foo()
 //   return
 
 // WANT:
 // Local(t1) -> Local(t2)
 // Local(t4) -> Local(t5)
-// Local(t0) -> Local(t1), Local(t10), Local(t14), Local(t4)
+// Local(t0) -> Local(t1), Local(t10), Local(t4), Local(t8)
 // Local(y) -> Local(t0)
-// Local(t8) -> Local(t9)
-// Local(t9) -> Local(t0)
-// Local(t13) -> Local(t10)
+// Constant(testdata.A) -> Local(t7)
+// Local(t7) -> Local(t0)
+// Local(t9) -> Local(t8)

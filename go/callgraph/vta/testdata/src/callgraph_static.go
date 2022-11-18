@@ -20,11 +20,9 @@ func Baz(a A) {
 
 // Relevant SSA:
 // func Baz(a A):
-//   ...
-//   t2 = (A).foo(t1)
-//   t3 = Bar()
-//   ...
-//   t6 = Baz(t5)
+//   t0 = (A).foo(a)
+//   t1 = Bar()
+//   t2 = Baz(struct{}{}:A)
 
 // WANT:
-// Baz: (A).foo(t1) -> A.foo; Bar() -> Bar; Baz(t5) -> Baz
+// Baz: (A).foo(a) -> A.foo; Bar() -> Bar; Baz(struct{}{}:A) -> Baz

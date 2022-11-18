@@ -39,22 +39,20 @@ func Baz(b1, b2 B, c1 chan I, c2 chan J) {
 // Relevant SSA:
 // func Baz(b1 B, b2 B, c1 chan I, c2 chan J):
 //   ...
-//   t2 = *t0
-//   t3 = make I <- B (t2)
-//   t4 = *t1
-//   t5 = make J <- B (t4)
-//   t6 = select blocking [c1<-t3, c2<-t5, <-c1, <-c2] (index int, ok bool, I, J)
-//   t7 = extract t6 #0
-//   t8 = t7 == 0:int
-//   if t8 goto 2 else 3
+//   t0 = make I <- B (b1)
+//   t1 = make J <- B (b2)
+//   t2 = select blocking [c1<-t0, c2<-t1, <-c1, <-c2] (index int, ok bool, I, J)
+//   t3 = extract t2 #0
+//   t4 = t73== 0:int
+//   if t4 goto 2 else 3
 //         ...
 //  8:
-//   t15 = extract t6 #3
-//   t16 = invoke t15.Foo()
-//   t17 = print(t18)
+//   t12 = extract t2 #3
+//   t13 = invoke t12.Foo()
+//   t14 = print(t15)
 
 // WANT:
-// Local(t3) -> Channel(chan testdata.I)
-// Local(t5) -> Channel(chan testdata.J)
-// Channel(chan testdata.I) -> Local(t6[2])
-// Channel(chan testdata.J) -> Local(t6[3])
+// Local(t0) -> Channel(chan testdata.I)
+// Local(t1) -> Channel(chan testdata.J)
+// Channel(chan testdata.I) -> Local(t2[2])
+// Channel(chan testdata.J) -> Local(t2[3])

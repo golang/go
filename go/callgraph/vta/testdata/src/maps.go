@@ -30,23 +30,16 @@ func Baz(m map[I]I, b1, b2 B, n map[string]*J) *J {
 
 // Relevant SSA:
 // func Baz(m map[I]I, b1 B, b2 B, n map[string]*J) *J:
-//   t0 = local B (b1)
-//   *t0 = b1
-//   t1 = local B (b2)
-//   *t1 = b2
-//   t2 = *t0
-//   t3 = make I <- B (t2)
-//   t4 = *t1
-//   t5 = make I <- B (t4)
-//   m[t3] = t5
-//   t6 = *t0
-//   t7 = (B).Foo(t6)
-//   t8 = n[t7]
-//   return t8
+//   t0 = make I <- B (b1)
+//   t1 = make I <- B (b2)
+//   m[t0] = t1
+//   t2 = (B).Foo(b1)
+//   t3 = n[t2]
+//   return t3
 
 // WANT:
-// Local(t4) -> Local(t5)
-// Local(t5) -> MapValue(testdata.I)
-// Local(t3) -> MapKey(testdata.I)
-// Local(t8) -> MapValue(*testdata.J)
-// MapValue(*testdata.J) -> Local(t8)
+// Local(b2) -> Local(t1)
+// Local(t1) -> MapValue(testdata.I)
+// Local(t0) -> MapKey(testdata.I)
+// Local(t3) -> MapValue(*testdata.J)
+// MapValue(*testdata.J) -> Local(t3)

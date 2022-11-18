@@ -37,31 +37,5 @@ func Baz(a A, b B) {
 	x[len(x)-1].Foo()
 }
 
-// Relevant SSA:
-// func Baz(a A, b B):
-//   ...
-//   t4 = Do(t2, t3)
-//   t5 = range t4
-//   jump 1
-//  1:
-//   t6 = phi [0: nil:[]I, 2: t16] #x
-//   t7 = next t5
-//   t8 = extract t7 #0
-//   if t8 goto 2 else 3
-//  2:
-//   t9 = extract t7 #1
-//   t10 = extract t7 #2
-//   t11 = invoke t9.Foo()
-//   t12 = invoke t10.Foo()
-//   ...
-//   jump 1
-//  3:
-//   t17 = len(t6)
-//   t18 = t17 - 1:int
-//   t19 = &t6[t18]
-//   t20 = *t19
-//   t21 = invoke t20.Foo()
-//   return
-
 // WANT:
-// Baz: Do(t2, t3) -> Do; invoke t10.Foo() -> B.Foo; invoke t20.Foo() -> A.Foo, B.Foo; invoke t9.Foo() -> A.Foo, B.Foo
+// Baz: Do(a, b) -> Do; invoke t16.Foo() -> A.Foo, B.Foo; invoke t5.Foo() -> A.Foo, B.Foo; invoke t6.Foo() -> B.Foo

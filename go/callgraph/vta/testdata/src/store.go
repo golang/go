@@ -26,16 +26,14 @@ func main() {
 }
 
 // Relevant SSA:
-//	t0 = local A (a)
-//	t1 = new I (i)
-//	t2 = *t0                 no interesting flow: concrete types
-//	t3 = make I <- A (t2)    t2 -> t3
-//	*t1 = t3                 t3 -> t1
-//	t4 = *t1                 t1 -> t4
-//	t5 = invoke t4.foo()
+//	t0 = new I (i)
+//	t1 = make I <- A (struct{}{}:A)    A  -> t1
+//	*t0 = t1                           t1 -> t0
+//	t2 = *t0                           t0 -> t2
+//	t3 = invoke t2.foo()
 //	return
 
 // WANT:
-// Local(t2) -> Local(t3)
-// Local(t3) -> Local(t1)
-// Local(t1) -> Local(t4)
+// Constant(testdata.A) -> Local(t1)
+// Local(t1) -> Local(t0)
+// Local(t0) -> Local(t2)

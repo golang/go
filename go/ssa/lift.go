@@ -41,11 +41,8 @@ package ssa
 import (
 	"fmt"
 	"go/token"
-	"go/types"
 	"math/big"
 	"os"
-
-	"golang.org/x/tools/internal/typeparams"
 )
 
 // If true, show diagnostic information at each step of lifting.
@@ -383,12 +380,6 @@ type newPhiMap map[*BasicBlock][]newPhi
 //
 // fresh is a source of fresh ids for phi nodes.
 func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap, fresh *int) bool {
-	// TODO(taking): zero constants of aggregated types can now be lifted.
-	switch deref(alloc.Type()).Underlying().(type) {
-	case *types.Array, *types.Struct, *typeparams.TypeParam:
-		return false
-	}
-
 	// Don't lift named return values in functions that defer
 	// calls that may recover from panic.
 	if fn := alloc.Parent(); fn.Recover != nil {

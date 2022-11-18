@@ -38,8 +38,9 @@ func TestVTACallGraph(t *testing.T) {
 			}
 
 			g := CallGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
-			if got := callGraphStr(g); !subGraph(want, got) {
-				t.Errorf("computed callgraph %v should contain %v", got, want)
+			got := callGraphStr(g)
+			if diff := setdiff(want, got); len(diff) > 0 {
+				t.Errorf("computed callgraph %v should contain %v (diff: %v)", got, want, diff)
 			}
 		})
 	}
@@ -61,8 +62,9 @@ func TestVTAProgVsFuncSet(t *testing.T) {
 	g := CallGraph(allFuncs, cha.CallGraph(prog))
 	// VTA over the whole program will produce a call graph that
 	// includes Baz:(**i).Foo -> A.Foo, B.Foo.
-	if got := callGraphStr(g); !subGraph(want, got) {
-		t.Errorf("computed callgraph %v should contain %v", got, want)
+	got := callGraphStr(g)
+	if diff := setdiff(want, got); len(diff) > 0 {
+		t.Errorf("computed callgraph %v should contain %v (diff: %v)", got, want, diff)
 	}
 
 	// Prune the set of program functions to exclude Bar(). This should
@@ -78,8 +80,9 @@ func TestVTAProgVsFuncSet(t *testing.T) {
 	}
 	want = []string{"Baz: Do(i) -> Do; invoke t2.Foo() -> A.Foo"}
 	g = CallGraph(noBarFuncs, cha.CallGraph(prog))
-	if got := callGraphStr(g); !subGraph(want, got) {
-		t.Errorf("pruned callgraph %v should contain %v", got, want)
+	got = callGraphStr(g)
+	if diff := setdiff(want, got); len(diff) > 0 {
+		t.Errorf("pruned callgraph %v should contain %v (diff: %v)", got, want, diff)
 	}
 }
 
@@ -131,7 +134,8 @@ func TestVTACallGraphGenerics(t *testing.T) {
 	}
 
 	g := CallGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
-	if got := callGraphStr(g); !subGraph(want, got) {
-		t.Errorf("computed callgraph %v should contain %v", got, want)
+	got := callGraphStr(g)
+	if diff := setdiff(want, got); len(diff) != 0 {
+		t.Errorf("computed callgraph %v should contain %v (diff: %v)", got, want, diff)
 	}
 }
