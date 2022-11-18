@@ -222,11 +222,14 @@ func init() {
 		cfg.Mode = packages.NeedName | packages.NeedImports | packages.NeedTypes |
 			packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedDeps |
 			packages.NeedModule
-
+		logf := log.New(os.Stderr, "", log.Ltime).Printf
+		logf("Loading packages...")
 		pkgs, err := packages.Load(&cfg, patterns...)
 		if err != nil {
+			logf("Failed to load packages: %v", err)
 			return err
 		}
+		logf("Loaded %d packages and their dependencies", len(pkgs))
 		cli, err := client.NewClient(findGOVULNDB(&cfg), client.Options{
 			HTTPCache: gvc.DefaultCache(),
 		})
@@ -240,6 +243,7 @@ func init() {
 		if err != nil {
 			return err
 		}
+		logf("Found %d vulnerabilities", len(res.Vulns))
 		if err := json.NewEncoder(os.Stdout).Encode(res); err != nil {
 			return err
 		}
