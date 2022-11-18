@@ -547,35 +547,42 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/50101 -->
-      TODO: <a href="https://go.dev/issue/50101">https://go.dev/issue/50101</a>: make LookupCNAME consistent between Unix and Windows, document
+      The <code>LookupCNAME</code> function now consistently returns the contents
+      of a <code>CNAME</code> record when one exists. Previously on Unix systems and
+      when using the pure Go resolver, <code>LookupCNAME</code> would return an error
+      if a <code>CNAME</code> record referred to a name that with no <code>A</code>,
+      </code>AAAA</code>, or <code>CNAME</code> record. This change modifies
+      <code>LookupCNAME</code> to match the previous behavior on Windows,
+      allowing allowing <code>LookupCNAME</code> to succeed whenever a
+      <code>CNAME</code> exists.
     </p>
 
     <p><!-- https://go.dev/issue/53482 -->
-      TODO: <a href="https://go.dev/issue/53482">https://go.dev/issue/53482</a>: add FlagRunning to the Flags of struct Interface, to exactly reflect the states of an interface or NIC
+      <code>Interface.Flags</code> now includes the new flag <code>FlagRunning</code>,
+      indicating an operationally active interface. An interface which is administratively
+      configured but not active (for example, because the network cable is not connected)
+      will have <code>FlagUp</code> set but not <code>FlagRunning</code>.
     </p>
 
     <p><!-- https://go.dev/issue/55301 -->
-      TODO: <a href="https://go.dev/issue/55301">https://go.dev/issue/55301</a>: Add ControlContext to Dialer
-    </p>
-
-    <p><!-- CL 413454 -->
-      TODO: <a href="https://go.dev/cl/413454">https://go.dev/cl/413454</a>: net: add FlagRunning to exactly reflect the states of an interface.; modified api/next/53482.txt
+      The new <code>Dialer.ControlContext</code> field contains a callback function
+      similar to the existing <code>Dialer.Control</code> hook, that additionally
+      accepts the dial context as a parameter.
+      <code>Control</code> is ignored when <code>ControlContext</code> is not nil.
     </p>
 
     <p><!-- CL 428955 -->
-      TODO: <a href="https://go.dev/cl/428955">https://go.dev/cl/428955</a>: net: set AD bit in DNS queries when trust-ad in resolv.conf
-    </p>
-
-    <p><!-- CL 444955 -->
-      TODO: <a href="https://go.dev/cl/444955">https://go.dev/cl/444955</a>: net: add ControlContext to Dialer; modified api/next/55301.txt
-    </p>
-
-    <p><!-- CL 446179 -->
-      TODO: <a href="https://go.dev/cl/446179">https://go.dev/cl/446179</a>: net: unify CNAME handling across ports
+      The Go DNS resolver recognizes the <code>trust-ad</code> resolver option.
+      When <code>options trust-ad</code> is set in <code>resolv.conf</code>,
+      the Go resolver will set the AD bit in DNS queries. The resolver does not
+      make use of the AD bit in responses.
     </p>
 
     <p><!-- CL 448075 -->
-      TODO: <a href="https://go.dev/cl/448075">https://go.dev/cl/448075</a>: net: auto-reload the /etc/nsswitch.conf on unix systems
+      DNS resolution will detect changes to <code>/etc/nsswitch.conf</code>
+      and reload the file when it changes. Checks are made at most once every
+      five seconds, matching the previous handling of <code>/etc/hosts</code>
+      and <code>/etc/resolv.conf</code>.
     </p>
   </dd>
 </dl><!-- net -->
