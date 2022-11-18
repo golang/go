@@ -593,24 +593,24 @@ func TestIssue50646(t *testing.T) {
 	comparableType := Universe.Lookup("comparable").Type()
 
 	if !Comparable(anyType) {
-		t.Errorf("any is not a comparable type")
+		t.Error("any is not a comparable type")
 	}
 	if !Comparable(comparableType) {
-		t.Errorf("comparable is not a comparable type")
+		t.Error("comparable is not a comparable type")
 	}
 
 	if Implements(anyType, comparableType.Underlying().(*Interface)) {
-		t.Errorf("any implements comparable")
+		t.Error("any implements comparable")
 	}
 	if !Implements(comparableType, anyType.(*Interface)) {
-		t.Errorf("comparable does not implement any")
+		t.Error("comparable does not implement any")
 	}
 
 	if AssignableTo(anyType, comparableType) {
-		t.Errorf("any assignable to comparable")
+		t.Error("any assignable to comparable")
 	}
 	if !AssignableTo(comparableType, anyType) {
-		t.Errorf("comparable not assignable to any")
+		t.Error("comparable not assignable to any")
 	}
 }
 
