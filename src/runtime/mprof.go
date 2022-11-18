@@ -564,7 +564,7 @@ func mutexevent(cycles int64, skip int) {
 
 // A StackRecord describes a single execution stack.
 type StackRecord struct {
-	Stack0 [32]uintptr // stack trace for this record; ends at first 0 entry
+	Stack0 [maxStack]uintptr // stack trace for this record; ends at first 0 entry
 }
 
 // Stack returns the stack trace associated with the record,
@@ -602,9 +602,9 @@ var disableMemoryProfiling bool
 // A MemProfileRecord describes the live objects allocated
 // by a particular call sequence (stack trace).
 type MemProfileRecord struct {
-	AllocBytes, FreeBytes     int64       // number of bytes allocated, freed
-	AllocObjects, FreeObjects int64       // number of objects allocated, freed
-	Stack0                    [32]uintptr // stack trace for this record; ends at first 0 entry
+	AllocBytes, FreeBytes     int64             // number of bytes allocated, freed
+	AllocObjects, FreeObjects int64             // number of objects allocated, freed
+	Stack0                    [maxStack]uintptr // stack trace for this record; ends at first 0 entry
 }
 
 // InUseBytes returns the number of bytes in use (AllocBytes - FreeBytes).
