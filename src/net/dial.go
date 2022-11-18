@@ -107,7 +107,7 @@ type Dialer struct {
 	// will cause the Control function to be called with "tcp4" or "tcp6".
 	//
 	// If ControlContext is not nil, Control is ignored.
-	ControlContext func(cxt context.Context, network, address string, c syscall.RawConn) error
+	ControlContext func(ctx context.Context, network, address string, c syscall.RawConn) error
 }
 
 func (d *Dialer) dualStack() bool { return d.FallbackDelay >= 0 }
