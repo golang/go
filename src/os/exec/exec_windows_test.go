@@ -8,6 +8,7 @@ package exec_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io"
 	"os"
 	"os/exec"
@@ -69,7 +70,7 @@ func TestPipePassing(t *testing.T) {
 func TestNoInheritHandles(t *testing.T) {
 	t.Parallel()
 
-	cmd := exec.Command("cmd", "/c exit 88")
+	cmd := testenv.Command(t, "cmd", "/c exit 88")
 	cmd.SysProcAttr = &syscall.SysProcAttr{NoInheritHandles: true}
 	err := cmd.Run()
 	exitError, ok := err.(*exec.ExitError)

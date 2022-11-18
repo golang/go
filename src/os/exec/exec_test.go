@@ -752,7 +752,7 @@ func TestExtraFiles(t *testing.T) {
 	tempdir := t.TempDir()
 	exe := filepath.Join(tempdir, "read3.exe")
 
-	c := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "read3.go")
+	c := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, "read3.go")
 	// Build the test without cgo, so that C library functions don't
 	// open descriptors unexpectedly. See issue 25628.
 	c.Env = append(os.Environ(), "CGO_ENABLED=0")
