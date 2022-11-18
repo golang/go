@@ -2224,57 +2224,37 @@ func testTransportConcurrency(t *testing.T, mode testMode) {
 
 func TestIssue4191_InfiniteGetTimeout(t *testing.T) { run(t, testIssue4191_InfiniteGetTimeout) }
 func testIssue4191_InfiniteGetTimeout(t *testing.T, mode testMode) {
-	const debug = false
 	mux := NewServeMux()
 	mux.HandleFunc("/get", func(w ResponseWriter, r *Request) {
 		io.Copy(w, neverEnding('a'))
 	})
 	ts := newClientServerTest(t, mode, mux).ts
-	timeout := 100 * time.Millisecond
 
+	connc := make(chan net.Conn, 1)
 	c := ts.Client()
 	c.Transport.(*Transport).Dial = func(n, addr string) (net.Conn, error) {
 		conn, err := net.Dial(n, addr)
 		if err != nil {
 			return nil, err
 		}
-		conn.SetDeadline(time.Now().Add(timeout))
-		if debug {
-			conn = NewLoggingConn("client", conn)
+		select {
+		case connc <- conn:
+		default:
 		}
 		return conn, nil
 	}
 
-	getFailed := false
-	nRuns := 5
-	if testing.Short() {
-		nRuns = 1
+	res, err := c.Get(ts.URL + "/get")
+	if err != nil {
+		t.Fatalf("Error issuing GET: %v", err)
 	}
-	for i := 0; i < nRuns; i++ {
-		if debug {
-			println("run", i+1, "of", nRuns)
-		}
-		sres, err := c.Get(ts.URL + "/get")
-		if err != nil {
-			if !getFailed {
-				// Make the timeout longer, once.
-				getFailed = true
-				t.Logf("increasing timeout")
-				i--
-				timeout *= 10
-				continue
-			}
-			t.Errorf("Error issuing GET: %v", err)
-			break
-		}
-		_, err = io.Copy(io.Discard, sres.Body)
-		if err == nil {
-			t.Errorf("Unexpected successful copy")
-			break
-		}
-	}
-	if debug {
-		println("tests complete; waiting for handlers to finish")
+	defer res.Body.Close()
+
+	conn := <-connc
+	conn.SetDeadline(time.Now().Add(1 * time.Millisecond))
+	_, err = io.Copy(io.Discard, res.Body)
+	if err == nil {
+		t.Errorf("Unexpected successful copy")
 	}
 }
 
