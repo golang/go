@@ -25,7 +25,7 @@ type (
 	ImportPath  = source.ImportPath
 )
 
-// pkg contains the type information needed by the source package.
+// pkg contains parse trees and type information for a package.
 type pkg struct {
 	m               *source.Metadata
 	mode            source.ParseMode
@@ -34,7 +34,7 @@ type pkg struct {
 	compiledGoFiles []*source.ParsedGoFile
 	diagnostics     []*source.Diagnostic
 	deps            map[PackageID]*pkg // use m.DepsBy{Pkg,Imp}Path to look up ID
-	version         *module.Version
+	version         *module.Version    // may be nil; may differ from m.Module.Version
 	parseErrors     []scanner.ErrorList
 	typeErrors      []types.Error
 	types           *types.Package

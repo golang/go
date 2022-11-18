@@ -369,17 +369,10 @@ func vulnerablePackages(ctx context.Context, snapshot source.Snapshot, modfile s
 	// Group packages by modules since vuln db is keyed by module.
 	metadataByModule := map[source.PackagePath][]*source.Metadata{}
 	for _, md := range metadata {
-		// TODO(hyangah): delete after go.dev/cl/452057 is merged.
-		// After the cl, this becomes an impossible condition.
-		if md == nil {
-			continue
+		if md.Module != nil {
+			modulePath := source.PackagePath(md.Module.Path)
+			metadataByModule[modulePath] = append(metadataByModule[modulePath], md)
 		}
-		mi := md.Module
-		if mi == nil {
-			continue
-		}
-		modulePath := source.PackagePath(mi.Path)
-		metadataByModule[modulePath] = append(metadataByModule[modulePath], md)
 	}
 
 	// Request vuln entries from remote service.

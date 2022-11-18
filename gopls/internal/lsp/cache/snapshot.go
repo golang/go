@@ -100,10 +100,10 @@ type snapshot struct {
 	// It may be invalidated when a file's content changes.
 	//
 	// Invariants to preserve:
-	//  - packages.Get(id).m.Metadata == meta.metadata[id].Metadata for all ids
+	//  - packages.Get(id).meta == meta.metadata[id] for all ids
 	//  - if a package is in packages, then all of its dependencies should also
 	//    be in packages, unless there is a missing import
-	packages *persistent.Map // from packageKey to *memoize.Promise[*packageHandle]
+	packages *persistent.Map // from packageKey to *packageHandle
 
 	// isActivePackageCache maps package ID to the cached value if it is active or not.
 	// It may be invalidated when metadata changes or a new file is opened or closed.
@@ -655,6 +655,8 @@ func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode sourc
 func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, pkgPolicy source.PackageFilter) (source.Package, error) {
 	ctx = event.Label(ctx, tag.URI.Of(uri))
 
+	// TODO(adonovan): opt: apply pkgPolicy to the list of
+	// Metadatas before initiating loading of any package.
 	phs, err := s.packageHandlesForFile(ctx, uri, mode, false)
 	if err != nil {
 		return nil, err
@@ -699,24 +701,24 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	if kind := s.view.FileKind(fh); kind != source.Go {
 		return nil, fmt.Errorf("no packages for non-Go file %s (%v)", uri, kind)
 	}
-	knownIDs, err := s.getOrLoadIDsForURI(ctx, uri)
+	metas, err := s.MetadataForFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
 
 	var phs []*packageHandle
-	for _, id := range knownIDs {
+	for _, m := range metas {
 		// Filter out any intermediate test variants. We typically aren't
 		// interested in these packages for file= style queries.
-		if m := s.getMetadata(id); m != nil && m.IsIntermediateTestVariant() && !withIntermediateTestVariants {
+		if m.IsIntermediateTestVariant() && !withIntermediateTestVariants {
 			continue
 		}
 		parseMode := source.ParseFull
 		if mode == source.TypecheckWorkspace {
-			parseMode = s.workspaceParseMode(id)
+			parseMode = s.workspaceParseMode(m.ID)
 		}
 
-		ph, err := s.buildPackageHandle(ctx, id, parseMode)
+		ph, err := s.buildPackageHandle(ctx, m.ID, parseMode)
 		if err != nil {
 			return nil, err
 		}
@@ -725,12 +727,10 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	return phs, nil
 }
 
-// getOrLoadIDsForURI returns package IDs associated with the file uri. If no
-// such packages exist or if they are known to be stale, it reloads the file.
-//
-// If experimentalUseInvalidMetadata is set, this function may return package
-// IDs with invalid metadata.
-func (s *snapshot) getOrLoadIDsForURI(ctx context.Context, uri span.URI) ([]PackageID, error) {
+// MetadataForFile returns the Metadata for each package associated
+// with the file uri. If no such package exists or if they are known
+// to be stale, it reloads metadata for the file.
+func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source.Metadata, error) {
 	s.mu.Lock()
 
 	// Start with the set of package associations derived from the last load.
@@ -772,23 +772,31 @@ func (s *snapshot) getOrLoadIDsForURI(ctx context.Context, uri span.URI) ([]Pack
 		s.clearShouldLoad(scope)
 
 		// Don't return an error here, as we may still return stale IDs.
-		// Furthermore, the result of getOrLoadIDsForURI should be consistent upon
+		// Furthermore, the result of MetadataForFile should be consistent upon
 		// subsequent calls, even if the file is marked as unloadable.
 		if err != nil && !errors.Is(err, errNoPackages) {
-			event.Error(ctx, "getOrLoadIDsForURI", err)
+			event.Error(ctx, "MetadataForFile", err)
 		}
 	}
 
+	// Retrieve the metadata.
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	ids = s.meta.ids[uri]
-	// metadata is only ever added by loading, so if we get here and still have
-	// no ids, uri is unloadable.
+	metas := make([]*source.Metadata, len(ids))
+	for i, id := range ids {
+		metas[i] = s.meta.metadata[id]
+		if metas[i] == nil {
+			panic("nil metadata")
+		}
+	}
+	// Metadata is only ever added by loading,
+	// so if we get here and still have
+	// no IDs, uri is unloadable.
 	if !unloadable && len(ids) == 0 {
 		s.unloadableFiles[uri] = struct{}{}
 	}
-	s.mu.Unlock()
-
-	return ids, nil
+	return metas, nil
 }
 
 func (s *snapshot) GetReverseDependencies(ctx context.Context, id PackageID) ([]source.Package, error) {
@@ -1135,37 +1143,17 @@ func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
 	return result
 }
 
-func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source.Metadata, error) {
-	knownIDs, err := s.getOrLoadIDsForURI(ctx, uri)
-	if err != nil {
-		return nil, err
-	}
-	var mds []*source.Metadata
-	for _, id := range knownIDs {
-		md := s.getMetadata(id)
-		// TODO(rfindley): knownIDs and metadata should be in sync, but existing
-		// code is defensive of nil metadata.
-		if md != nil {
-			mds = append(mds, md)
-		}
-	}
-	return mds, nil
-}
-
 func (s *snapshot) KnownPackages(ctx context.Context) ([]source.Package, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
 
-	ids := make([]source.PackageID, 0, len(s.meta.metadata))
 	s.mu.Lock()
-	for id := range s.meta.metadata {
-		ids = append(ids, id)
-	}
+	g := s.meta
 	s.mu.Unlock()
 
-	pkgs := make([]source.Package, 0, len(ids))
-	for _, id := range ids {
+	pkgs := make([]source.Package, 0, len(g.metadata))
+	for id := range g.metadata {
 		pkg, err := s.checkedPackage(ctx, id, s.workspaceParseMode(id))
 		if err != nil {
 			return nil, err
@@ -1181,10 +1169,11 @@ func (s *snapshot) AllValidMetadata(ctx context.Context) ([]*source.Metadata, er
 	}
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	g := s.meta
+	s.mu.Unlock()
 
-	var meta []*source.Metadata
-	for _, m := range s.meta.metadata {
+	meta := make([]*source.Metadata, 0, len(g.metadata))
+	for _, m := range g.metadata {
 		meta = append(meta, m)
 	}
 	return meta, nil
@@ -1281,11 +1270,7 @@ func (s *snapshot) clearShouldLoad(scopes ...loadScope) {
 // noValidMetadataForURILocked reports whether there is any valid metadata for
 // the given URI.
 func (s *snapshot) noValidMetadataForURILocked(uri span.URI) bool {
-	ids, ok := s.meta.ids[uri]
-	if !ok {
-		return true
-	}
-	for _, id := range ids {
+	for _, id := range s.meta.ids[uri] {
 		if _, ok := s.meta.metadata[id]; ok {
 			return false
 		}
@@ -1483,12 +1468,8 @@ func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) *source.CriticalErr
 	// TODO(rfindley): Should we be more careful about returning the
 	// initialization error? Is it possible for the initialization error to be
 	// corrected without a successful reinitialization?
-	s.mu.Lock()
-	initializedErr := s.initializedErr
-	s.mu.Unlock()
-
-	if initializedErr != nil {
-		return initializedErr
+	if err := s.getInitializationError(); err != nil {
+		return err
 	}
 
 	// TODO(rfindley): revisit this handling. Calling reloadWorkspace with a
@@ -1928,7 +1909,25 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		addRevDeps(id, invalidateMetadata)
 	}
 
-	result.invalidatePackagesLocked(idsToInvalidate)
+	// Delete invalidated package type information.
+	for id := range idsToInvalidate {
+		for _, mode := range source.AllParseModes {
+			key := packageKey{mode, id}
+			result.packages.Delete(key)
+		}
+	}
+
+	// Delete invalidated analysis actions.
+	var actionsToDelete []actionKey
+	result.actions.Range(func(k, _ interface{}) {
+		key := k.(actionKey)
+		if _, ok := idsToInvalidate[key.pkgid]; ok {
+			actionsToDelete = append(actionsToDelete, key)
+		}
+	})
+	for _, key := range actionsToDelete {
+		result.actions.Delete(key)
+	}
 
 	// If a file has been deleted, we must delete metadata for all packages
 	// containing that file.
@@ -2078,35 +2077,6 @@ func invalidatedPackageIDs(uri span.URI, known map[span.URI][]PackageID, package
 		}
 	}
 	return invalidated
-}
-
-// invalidatePackagesLocked deletes data associated with the given package IDs.
-//
-// Note: all keys in the ids map are invalidated, regardless of the
-// corresponding value.
-//
-// s.mu must be held while calling this function.
-func (s *snapshot) invalidatePackagesLocked(ids map[PackageID]bool) {
-	// Delete invalidated package type information.
-	for id := range ids {
-		for _, mode := range source.AllParseModes {
-			key := packageKey{mode, id}
-			s.packages.Delete(key)
-		}
-	}
-
-	// Copy actions.
-	// TODO(adonovan): opt: avoid iteration over s.actions.
-	var actionsToDelete []actionKey
-	s.actions.Range(func(k, _ interface{}) {
-		key := k.(actionKey)
-		if _, ok := ids[key.pkgid]; ok {
-			actionsToDelete = append(actionsToDelete, key)
-		}
-	})
-	for _, key := range actionsToDelete {
-		s.actions.Delete(key)
-	}
 }
 
 // fileWasSaved reports whether the FileHandle passed in has been saved. It

@@ -210,7 +210,7 @@ type Snapshot interface {
 	// Symbols returns all symbols in the snapshot.
 	Symbols(ctx context.Context) map[span.URI][]Symbol
 
-	// Metadata returns package metadata associated with the given file URI.
+	// Metadata returns metadata for each package associated with the given file URI.
 	MetadataForFile(ctx context.Context, uri span.URI) ([]*Metadata, error)
 
 	// GetCriticalError returns any critical errors in the workspace.
@@ -693,7 +693,7 @@ type Package interface {
 	PkgPath() PackagePath
 	GetTypesSizes() types.Sizes
 	ForTest() string
-	Version() *module.Version
+	Version() *module.Version // may differ from Metadata.Module.Version
 
 	// Results of parsing:
 	FileSet() *token.FileSet

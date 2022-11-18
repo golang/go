@@ -78,6 +78,10 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		for _, dep := range rdeps {
 			for _, f := range dep.CompiledGoFiles() {
 				for _, imp := range f.File.Imports {
+					// TODO(adonovan): using UnquoteImport() here would
+					// reveal that there's an ImportPath==PackagePath
+					// comparison that doesn't account for vendoring.
+					// Use dep.Metadata().DepsByPkgPath instead.
 					if path, err := strconv.Unquote(imp.Path.Value); err == nil && path == string(renamingPkg.PkgPath()) {
 						refs = append(refs, &ReferenceInfo{
 							Name:        packageName,

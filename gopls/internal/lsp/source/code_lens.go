@@ -62,6 +62,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	}
 
 	if len(fns.Benchmarks) > 0 {
+		// TODO(adonovan): opt: avoid loading type-checked package; only parsing is needed.
 		_, pgf, err := GetParsedFile(ctx, snapshot, fh, WidestPackage)
 		if err != nil {
 			return nil, err
@@ -100,6 +101,7 @@ func TestsAndBenchmarks(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 	if !strings.HasSuffix(fh.URI().Filename(), "_test.go") {
 		return out, nil
 	}
+	// TODO(adonovan): opt: avoid loading type-checked package; only parsing is needed.
 	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, WidestPackage)
 	if err != nil {
 		return out, err
@@ -227,6 +229,7 @@ func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 }
 
 func toggleDetailsCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
+	// TODO(adonovan): avoid loading type-checked package; only Metadata is needed.
 	_, pgf, err := GetParsedFile(ctx, snapshot, fh, WidestPackage)
 	if err != nil {
 		return nil, err

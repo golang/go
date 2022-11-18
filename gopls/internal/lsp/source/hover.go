@@ -139,6 +139,7 @@ var ErrNoRuneFound = errors.New("no rune found")
 
 // findRune returns rune information for a position in a file.
 func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (rune, MappedRange, error) {
+	// TODO(adonovan): opt: avoid loading type-checked package; only parsing is needed.
 	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
 		return 0, MappedRange{}, err

@@ -103,6 +103,7 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.DocumentLink, error) {
 	view := snapshot.View()
 	// We don't actually need type information, so any typecheck mode is fine.
+	// TODO(adonovan): opt: avoid loading type-checked package; only Metadata is needed.
 	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), source.TypecheckWorkspace, source.WidestPackage)
 	if err != nil {
 		return nil, err
@@ -174,6 +175,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 }
 
 func moduleAtVersion(targetImportPath source.ImportPath, pkg source.Package) (string, string, bool) {
+	// TODO(adonovan): opt: avoid need for package; use Metadata.DepsByImportPath only.
 	impPkg, err := pkg.ResolveImportPath(targetImportPath)
 	if err != nil {
 		return "", "", false

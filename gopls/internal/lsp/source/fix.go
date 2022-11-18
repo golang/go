@@ -109,6 +109,7 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 			}
 			editsPerFile[fh.URI()] = te
 		}
+		// TODO(adonovan): opt: avoid loading type-checked package; only Metadata is needed.
 		_, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
 		if err != nil {
 			return nil, err

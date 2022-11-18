@@ -690,6 +690,7 @@ func (c *commandHandler) ToggleGCDetails(ctx context.Context, args command.URIAr
 		progress:    "Toggling GC Details",
 		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
+		// TODO(adonovan): opt: avoid loading type-checked package; only Metadata is needed.
 		pkg, err := deps.snapshot.PackageForFile(ctx, deps.fh.URI(), source.TypecheckWorkspace, source.NarrowestPackage)
 		if err != nil {
 			return err
@@ -756,6 +757,7 @@ func (c *commandHandler) ListImports(ctx context.Context, args command.URIArg) (
 	err := c.run(ctx, commandConfig{
 		forURI: args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
+		// TODO(adonovan): opt: avoid loading type-checked package; only Metadata is needed.
 		pkg, err := deps.snapshot.PackageForFile(ctx, args.URI.SpanURI(), source.TypecheckWorkspace, source.NarrowestPackage)
 		if err != nil {
 			return err

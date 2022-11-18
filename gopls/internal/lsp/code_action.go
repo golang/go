@@ -212,7 +212,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		}
 
 		if wanted[protocol.RefactorExtract] {
-			fixes, err := extractionFixes(ctx, snapshot, pkg, uri, params.Range)
+			fixes, err := extractionFixes(ctx, snapshot, uri, params.Range)
 			if err != nil {
 				return nil, err
 			}
@@ -305,7 +305,7 @@ func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic
 	return results
 }
 
-func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Package, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
+func extractionFixes(ctx context.Context, snapshot source.Snapshot, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
 	if rng.Start == rng.End {
 		return nil, nil
 	}
@@ -313,6 +313,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 	if err != nil {
 		return nil, err
 	}
+	// TODO(adonovan): opt: avoid package loading; only parsing is needed.
 	_, pgf, err := source.GetParsedFile(ctx, snapshot, fh, source.NarrowestPackage)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Identifier: %w", err)

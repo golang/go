@@ -280,6 +280,7 @@ func getStubFile(ctx context.Context, obj types.Object, snapshot Snapshot) (*Par
 	objPos := snapshot.FileSet().Position(obj.Pos())
 	objFile := span.URIFromPath(objPos.Filename)
 	objectFH := snapshot.FindFile(objFile)
+	// TODO(adonovan): opt: avoid loading type-checked package; only parsing is needed.
 	_, goFile, err := GetParsedFile(ctx, snapshot, objectFH, WidestPackage)
 	if err != nil {
 		return nil, nil, fmt.Errorf("GetParsedFile: %w", err)

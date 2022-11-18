@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/gocommand"
@@ -213,47 +214,29 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 
 	s.mu.Lock()
 
-	// Only update metadata where we don't already have valid metadata.
-	//
-	// We want to preserve an invariant that s.packages.Get(id).m.Metadata
-	// matches s.meta.metadata[id].Metadata. By avoiding overwriting valid
-	// metadata, we minimize the amount of invalidation required to preserve this
-	// invariant.
-	//
-	// TODO(rfindley): perform a sanity check that metadata matches here. If not,
-	// we have an invalidation bug elsewhere.
+	// Compute the minimal metadata updates (for Clone)
+	// required to preserve this invariant:
+	// for all id, s.packages.Get(id).m == s.meta.metadata[id].
 	updates := make(map[PackageID]*source.Metadata)
-	var updatedIDs []PackageID
 	for _, m := range newMetadata {
 		if existing := s.meta.metadata[m.ID]; existing == nil {
 			updates[m.ID] = m
-			updatedIDs = append(updatedIDs, m.ID)
 			delete(s.shouldLoad, m.ID)
 		}
 	}
+	// Assert the invariant.
+	s.packages.Range(func(k, v interface{}) {
+		pk, ph := k.(packageKey), v.(*packageHandle)
+		if s.meta.metadata[pk.id] != ph.m {
+			// TODO(adonovan): upgrade to unconditional panic after Jan 2023.
+			bug.Reportf("inconsistent metadata")
+		}
+	})
 
 	event.Log(ctx, fmt.Sprintf("%s: updating metadata for %d packages", eventName, len(updates)))
 
-	// Invalidate the reverse transitive closure of packages that have changed.
-	//
-	// Note that the original metadata is being invalidated here, so we use the
-	// original metadata graph to compute the reverse closure.
-	invalidatedPackages := s.meta.reverseTransitiveClosure(updatedIDs...)
-
 	s.meta = s.meta.Clone(updates)
 	s.resetIsActivePackageLocked()
-
-	// Invalidate any packages and analysis results we may have associated with
-	// this metadata.
-	//
-	// Generally speaking we should have already invalidated these results in
-	// snapshot.clone, but with experimentalUseInvalidMetadata is may be possible
-	// that we have re-computed stale results before the reload completes. In
-	// this case, we must re-invalidate here.
-	//
-	// TODO(golang/go#54180): if we decide to make experimentalUseInvalidMetadata
-	// obsolete, we should avoid this invalidation.
-	s.invalidatePackagesLocked(invalidatedPackages)
 
 	s.workspacePackages = computeWorkspacePackagesLocked(s, s.meta)
 	s.dumpWorkspace("load")
