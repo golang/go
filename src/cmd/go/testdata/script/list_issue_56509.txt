@@ -4,9 +4,10 @@
 # leading the package matching code to think there were Go files in the
 # directory.)
 
+cd bar
 go list ./...
 ! stdout .
-
+cd ..
 
 [short] skip
 
