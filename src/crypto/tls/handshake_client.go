@@ -876,7 +876,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 		c.verifiedChains, err = certs[0].Verify(opts)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
-			return err
+			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
 		}
 	}
 
