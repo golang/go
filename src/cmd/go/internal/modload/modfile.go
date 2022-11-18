@@ -130,6 +130,19 @@ const (
 	workspace                   // pruned to the union of modules in the workspace
 )
 
+func (p modPruning) String() string {
+	switch p {
+	case pruned:
+		return "pruned"
+	case unpruned:
+		return "unpruned"
+	case workspace:
+		return "workspace"
+	default:
+		return fmt.Sprintf("%T(%d)", p, p)
+	}
+}
+
 func pruningForGoVersion(goVersion string) modPruning {
 	if semver.Compare("v"+goVersion, ExplicitIndirectVersionV) < 0 {
 		// The go.mod file does not duplicate relevant information about transitive
@@ -661,7 +674,6 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 // its dependencies.
 //
 // rawGoModSummary cannot be used on the Target module.
-
 func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 	if m.Path == "" && MainModules.Contains(m.Path) {
 		panic("internal error: rawGoModSummary called on the Target module")

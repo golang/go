@@ -160,7 +160,7 @@ cmp stderr exclude-err
 # 'go install pkg@version' should report an error if the module requires a
 # higher version of itself.
 ! go install example.com/cmd/a@v1.0.0-newerself
-stderr '^go: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but example.com/cmd@v1.0.0-newerself is requested$'
+stderr '^go: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but v1.0.0-newerself is requested$'
 
 
 # 'go install pkg@version' will only match a retracted version if it's

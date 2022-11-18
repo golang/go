@@ -35,9 +35,7 @@
 # so 'go get' should prune it out too, and c should remain at c1
 # without error.
 
-	# TODO(#56494): This should succeed, not error out.
-! go get a@v0.3.0
-stderr 'INTERNAL ERROR'
+go get a@v0.3.0
 
 go list -m c
 stdout '^c v0.1.0 '

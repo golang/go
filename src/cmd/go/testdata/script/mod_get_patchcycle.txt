@@ -6,7 +6,7 @@
 # (It used to print v0.1.1 but then silently upgrade to v0.2.0.)
 
 ! go get example.net/a@patch
-stderr '^go: example.net/a@patch \(v0.1.1\) requires example.net/a@v0.2.0, not example.net/a@patch \(v0.1.1\)$'  # TODO: A mention of b v0.1.0 would be nice.
+stderr '^go: example.net/a@patch \(v0.1.1\) indirectly requires example.net/a@v0.2.0, not example.net/a@patch \(v0.1.1\)$'  # TODO: A mention of b v0.1.0 would be nice.
 
 -- go.mod --
 module example

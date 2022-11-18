@@ -1,4 +1,6 @@
 # This test illustrates a case where downgrading one module may upgrade another.
+# This is the same as mod_get_downup_indirect, but using modules
+# with graph pruning enabled (go ≥ 1.17).
 # Compare to the downcross1 test case in cmd/go/internal/mvs/mvs_test.go.
 
 # The package import graph used in this test looks like:
@@ -25,7 +27,7 @@ go mod tidy
 cmp go.mod.orig go.mod
 
 # Downgrading d to version 1 downgrades b, which upgrades c.
-go get example.com/d@v0.1.0
+go get -v example.com/d@v0.1.0
 go list -m all
 stdout '^example.com/b v0.1.0 '
 stdout '^example.com/c v0.2.0 '
@@ -48,7 +50,7 @@ stderr '^go: example\.com/c@v0\.1\.0 requires example\.com/d@v0\.2\.0, not examp
 -- go.mod --
 module example.com/a
 
-go 1.15
+go 1.17
 
 require (
 	example.com/b v0.2.0
@@ -66,13 +68,14 @@ replace (
 -- go.mod.down1 --
 module example.com/a
 
-go 1.15
+go 1.17
 
 require (
 	example.com/b v0.1.0
 	example.com/c v0.2.0
-	example.com/d v0.1.0 // indirect
 )
+
+require example.com/d v0.1.0 // indirect
 
 replace (
 	example.com/b v0.1.0 => ./b1
@@ -85,9 +88,11 @@ replace (
 -- go.mod.down2 --
 module example.com/a
 
-go 1.15
+go 1.17
 
 require example.com/c v0.1.0
+
+require example.com/d v0.2.0 // indirect
 
 replace (
 	example.com/b v0.1.0 => ./b1
@@ -108,7 +113,7 @@ import (
 -- b1/go.mod --
 module example.com/b
 
-go 1.15
+go 1.17
 
 require example.com/c v0.2.0
 -- b1/b.go --
@@ -119,7 +124,7 @@ import _ "example.com/c"
 -- b2/go.mod --
 module example.com/b
 
-go 1.15
+go 1.17
 
 require example.com/c v0.1.0
 -- b2/b.go --
@@ -130,7 +135,7 @@ import _ "example.com/c"
 -- c1/go.mod --
 module example.com/c
 
-go 1.15
+go 1.17
 
 require example.com/d v0.2.0
 -- c1/c.go --
@@ -139,11 +144,11 @@ package c
 -- c2/go.mod --
 module example.com/c
 
-go 1.15
+go 1.17
 -- c2/c.go --
 package c
 
 -- d/go.mod --
 module example.com/d
 
-go 1.15
+go 1.17

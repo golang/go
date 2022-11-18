@@ -145,6 +145,11 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
 	return rs
 }
 
+// String returns a string describing the Requirements for debugging.
+func (rs *Requirements) String() string {
+	return fmt.Sprintf("{%v %v}", rs.pruning, rs.rootModules)
+}
+
 // initVendor initializes rs.graph from the given list of vendored module
 // dependencies, overriding the graph that would normally be loaded from module
 // requirements.
@@ -235,7 +240,7 @@ func (rs *Requirements) hasRedundantRoot() bool {
 // returns a non-nil error of type *mvs.BuildListError.
 func (rs *Requirements) Graph(ctx context.Context) (*ModuleGraph, error) {
 	rs.graphOnce.Do(func() {
-		mg, mgErr := readModGraph(ctx, rs.pruning, rs.rootModules)
+		mg, mgErr := readModGraph(ctx, rs.pruning, rs.rootModules, nil)
 		rs.graph.Store(&cachedGraph{mg, mgErr})
 	})
 	cached := rs.graph.Load()
@@ -266,9 +271,12 @@ var readModGraphDebugOnce sync.Once
 // readModGraph reads and returns the module dependency graph starting at the
 // given roots.
 //
+// The requirements of the module versions found in the unprune map are included
+// in the graph even if they would normally be pruned out.
+//
 // Unlike LoadModGraph, readModGraph does not attempt to diagnose or update
 // inconsistent roots.
-func readModGraph(ctx context.Context, pruning modPruning, roots []module.Version) (*ModuleGraph, error) {
+func readModGraph(ctx context.Context, pruning modPruning, roots []module.Version, unprune map[module.Version]bool) (*ModuleGraph, error) {
 	if pruning == pruned {
 		// Enable diagnostics for lazy module loading
 		// (https://golang.org/ref/mod#lazy-loading) only if the module graph is
@@ -355,13 +363,14 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 			// cannot assume that the explicit requirements of m (added by loadOne)
 			// are sufficient to build the packages it contains. We must load its full
 			// transitive dependency graph to be sure that we see all relevant
-			// dependencies.
-			if pruning != pruned || summary.pruning == unpruned {
-				nextPruning := summary.pruning
-				if pruning == unpruned {
-					nextPruning = unpruned
-				}
-				for _, r := range summary.require {
+			// dependencies. In addition, we must load the requirements of any module
+			// that is explicitly marked as unpruned.
+			nextPruning := summary.pruning
+			if pruning == unpruned {
+				nextPruning = unpruned
+			}
+			for _, r := range summary.require {
+				if pruning != pruned || summary.pruning == unpruned || unprune[r] {
 					enqueue(r, nextPruning)
 				}
 			}
@@ -607,17 +616,90 @@ func (e *ConstraintError) Error() string {
 	b := new(strings.Builder)
 	b.WriteString("version constraints conflict:")
 	for _, c := range e.Conflicts {
-		fmt.Fprintf(b, "\n\t%v requires %v, but %v is requested", c.Source, c.Dep, c.Constraint)
+		fmt.Fprintf(b, "\n\t%s", c.Summary())
 	}
 	return b.String()
 }
 
-// A Conflict documents that Source requires Dep, which conflicts with Constraint.
-// (That is, Dep has the same module path as Constraint but a higher version.)
+// A Conflict is a path of requirements starting at a root or proposed root in
+// the requirement graph, explaining why that root either causes a module passed
+// in the mustSelect list to EditBuildList to be unattainable, or introduces an
+// unresolvable error in loading the requirement graph.
 type Conflict struct {
-	Source     module.Version
-	Dep        module.Version
+	// Path is a path of requirements starting at some module version passed in
+	// the mustSelect argument and ending at a module whose requirements make that
+	// version unacceptable. (Path always has len ≥ 1.)
+	Path []module.Version
+
+	// If Err is nil, Constraint is a module version passed in the mustSelect
+	// argument that has the same module path as, and a lower version than,
+	// the last element of the Path slice.
 	Constraint module.Version
+
+	// If Constraint is unset, Err is an error encountered when loading the
+	// requirements of the last element in Path.
+	Err error
+}
+
+// UnwrapModuleError returns c.Err, but unwraps it if it is a module.ModuleError
+// with a version and path matching the last entry in the Path slice.
+func (c Conflict) UnwrapModuleError() error {
+	me, ok := c.Err.(*module.ModuleError)
+	if ok && len(c.Path) > 0 {
+		last := c.Path[len(c.Path)-1]
+		if me.Path == last.Path && me.Version == last.Version {
+			return me.Err
+		}
+	}
+	return c.Err
+}
+
+// Summary returns a string that describes only the first and last modules in
+// the conflict path.
+func (c Conflict) Summary() string {
+	if len(c.Path) == 0 {
+		return "(internal error: invalid Conflict struct)"
+	}
+	first := c.Path[0]
+	last := c.Path[len(c.Path)-1]
+	if len(c.Path) == 1 {
+		if c.Err != nil {
+			return fmt.Sprintf("%s: %v", first, c.UnwrapModuleError())
+		}
+		return fmt.Sprintf("%s is above %s", first, c.Constraint.Version)
+	}
+
+	adverb := ""
+	if len(c.Path) > 2 {
+		adverb = "indirectly "
+	}
+	if c.Err != nil {
+		return fmt.Sprintf("%s %srequires %s: %v", first, adverb, last, c.UnwrapModuleError())
+	}
+	return fmt.Sprintf("%s %srequires %s, but %s is requested", first, adverb, last, c.Constraint.Version)
+}
+
+// String returns a string that describes the full conflict path.
+func (c Conflict) String() string {
+	if len(c.Path) == 0 {
+		return "(internal error: invalid Conflict struct)"
+	}
+	b := new(strings.Builder)
+	fmt.Fprintf(b, "%v", c.Path[0])
+	if len(c.Path) == 1 {
+		fmt.Fprintf(b, " found")
+	} else {
+		for _, r := range c.Path[1:] {
+			fmt.Fprintf(b, " requires\n\t%v", r)
+		}
+	}
+	if c.Constraint != (module.Version{}) {
+		fmt.Fprintf(b, ", but %v is requested", c.Constraint.Version)
+	}
+	if c.Err != nil {
+		fmt.Fprintf(b, ": %v", c.UnwrapModuleError())
+	}
+	return b.String()
 }
 
 // tidyRoots trims the root dependencies to the minimal requirements needed to
