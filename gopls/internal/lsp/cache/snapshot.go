@@ -1094,32 +1094,37 @@ func (s *snapshot) activePackageHandles(ctx context.Context) ([]*packageHandle, 
 
 // Symbols extracts and returns the symbols for each file in all the snapshot's views.
 func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
+	// Read the set of Go files out of the snapshot.
+	var goFiles []source.VersionedFileHandle
+	s.mu.Lock()
+	s.files.Range(func(uri span.URI, f source.VersionedFileHandle) {
+		if s.View().FileKind(f) == source.Go {
+			goFiles = append(goFiles, f)
+		}
+	})
+	s.mu.Unlock()
+
+	// Symbolize them in parallel.
 	var (
 		group    errgroup.Group
-		nprocs   = 2 * runtime.GOMAXPROCS(-1)  // symbolize is a mix of I/O and CPU
-		iolimit  = make(chan struct{}, nprocs) // I/O limiting counting semaphore
+		nprocs   = 2 * runtime.GOMAXPROCS(-1) // symbolize is a mix of I/O and CPU
 		resultMu sync.Mutex
 		result   = make(map[span.URI][]source.Symbol)
 	)
-	s.files.Range(func(uri span.URI, f source.VersionedFileHandle) {
-		if s.View().FileKind(f) != source.Go {
-			return // workspace symbols currently supports only Go files.
-		}
-
-		// TODO(adonovan): upgrade errgroup and use group.SetLimit(nprocs).
-		iolimit <- struct{}{} // acquire token
+	group.SetLimit(nprocs)
+	for _, f := range goFiles {
+		f := f
 		group.Go(func() error {
-			defer func() { <-iolimit }() // release token
 			symbols, err := s.symbolize(ctx, f)
 			if err != nil {
 				return err
 			}
 			resultMu.Lock()
-			result[uri] = symbols
+			result[f.URI()] = symbols
 			resultMu.Unlock()
 			return nil
 		})
-	})
+	}
 	// Keep going on errors, but log the first failure.
 	// Partial results are better than no symbol results.
 	if err := group.Wait(); err != nil {
