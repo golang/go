@@ -88,17 +88,17 @@ type matcherFunc func(chunks []string) (int, float64)
 //
 // The space argument is an empty slice with spare capacity that may be used
 // to allocate the result.
-type symbolizer func(space []string, name string, pkg Metadata, m matcherFunc) ([]string, float64)
+type symbolizer func(space []string, name string, pkg *Metadata, m matcherFunc) ([]string, float64)
 
-func fullyQualifiedSymbolMatch(space []string, name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
+func fullyQualifiedSymbolMatch(space []string, name string, pkg *Metadata, matcher matcherFunc) ([]string, float64) {
 	if _, score := dynamicSymbolMatch(space, name, pkg, matcher); score > 0 {
-		return append(space, string(pkg.PackagePath()), ".", name), score
+		return append(space, string(pkg.PkgPath), ".", name), score
 	}
 	return nil, 0
 }
 
-func dynamicSymbolMatch(space []string, name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
-	if IsCommandLineArguments(pkg.PackageID()) {
+func dynamicSymbolMatch(space []string, name string, pkg *Metadata, matcher matcherFunc) ([]string, float64) {
+	if IsCommandLineArguments(pkg.ID) {
 		// command-line-arguments packages have a non-sensical package path, so
 		// just use their package name.
 		return packageSymbolMatch(space, name, pkg, matcher)
@@ -106,14 +106,14 @@ func dynamicSymbolMatch(space []string, name string, pkg Metadata, matcher match
 
 	var score float64
 
-	endsInPkgName := strings.HasSuffix(string(pkg.PackagePath()), string(pkg.PackageName()))
+	endsInPkgName := strings.HasSuffix(string(pkg.PkgPath), string(pkg.Name))
 
 	// If the package path does not end in the package name, we need to check the
 	// package-qualified symbol as an extra pass first.
 	if !endsInPkgName {
-		pkgQualified := append(space, string(pkg.PackageName()), ".", name)
+		pkgQualified := append(space, string(pkg.Name), ".", name)
 		idx, score := matcher(pkgQualified)
-		nameStart := len(pkg.PackageName()) + 1
+		nameStart := len(pkg.Name) + 1
 		if score > 0 {
 			// If our match is contained entirely within the unqualified portion,
 			// just return that.
@@ -126,11 +126,11 @@ func dynamicSymbolMatch(space []string, name string, pkg Metadata, matcher match
 	}
 
 	// Now try matching the fully qualified symbol.
-	fullyQualified := append(space, string(pkg.PackagePath()), ".", name)
+	fullyQualified := append(space, string(pkg.PkgPath), ".", name)
 	idx, score := matcher(fullyQualified)
 
 	// As above, check if we matched just the unqualified symbol name.
-	nameStart := len(pkg.PackagePath()) + 1
+	nameStart := len(pkg.PkgPath) + 1
 	if idx >= nameStart {
 		return append(space, name), score
 	}
@@ -139,9 +139,9 @@ func dynamicSymbolMatch(space []string, name string, pkg Metadata, matcher match
 	// initial pass above, so check if we matched just the package-qualified
 	// name.
 	if endsInPkgName && idx >= 0 {
-		pkgStart := len(pkg.PackagePath()) - len(pkg.PackageName())
+		pkgStart := len(pkg.PkgPath) - len(pkg.Name)
 		if idx >= pkgStart {
-			return append(space, string(pkg.PackageName()), ".", name), score
+			return append(space, string(pkg.Name), ".", name), score
 		}
 	}
 
@@ -150,8 +150,8 @@ func dynamicSymbolMatch(space []string, name string, pkg Metadata, matcher match
 	return fullyQualified, score * 0.6
 }
 
-func packageSymbolMatch(space []string, name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
-	qualified := append(space, string(pkg.PackageName()), ".", name)
+func packageSymbolMatch(space []string, name string, pkg *Metadata, matcher matcherFunc) ([]string, float64) {
+	qualified := append(space, string(pkg.Name), ".", name)
 	if _, s := matcher(qualified); s > 0 {
 		return qualified, s
 	}
@@ -441,7 +441,7 @@ func convertFilterToRegexp(filter string) *regexp.Regexp {
 // symbolFile holds symbol information for a single file.
 type symbolFile struct {
 	uri  span.URI
-	md   Metadata
+	md   *Metadata
 	syms []Symbol
 }
 
@@ -526,7 +526,7 @@ func matchFile(store *symbolStore, symbolizer symbolizer, matcher matcherFunc, r
 			kind:      sym.Kind,
 			uri:       i.uri,
 			rng:       sym.Range,
-			container: string(i.md.PackagePath()),
+			container: string(i.md.PkgPath),
 		}
 		store.store(si)
 	}

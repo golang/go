@@ -1128,12 +1128,12 @@ func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
 	return result
 }
 
-func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]source.Metadata, error) {
+func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source.Metadata, error) {
 	knownIDs, err := s.getOrLoadIDsForURI(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	var mds []source.Metadata
+	var mds []*source.Metadata
 	for _, id := range knownIDs {
 		md := s.getMetadata(id)
 		// TODO(rfindley): knownIDs and metadata should be in sync, but existing
@@ -1168,7 +1168,7 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.Package, error) 
 	return pkgs, nil
 }
 
-func (s *snapshot) AllValidMetadata(ctx context.Context) ([]source.Metadata, error) {
+func (s *snapshot) AllValidMetadata(ctx context.Context) ([]*source.Metadata, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
@@ -1176,7 +1176,7 @@ func (s *snapshot) AllValidMetadata(ctx context.Context) ([]source.Metadata, err
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var meta []source.Metadata
+	var meta []*source.Metadata
 	for _, m := range s.meta.metadata {
 		meta = append(meta, m)
 	}
@@ -1233,7 +1233,7 @@ func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
 	return match
 }
 
-func (s *snapshot) getMetadata(id PackageID) *Metadata {
+func (s *snapshot) getMetadata(id PackageID) *source.Metadata {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -1922,7 +1922,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// Compute which metadata updates are required. We only need to invalidate
 	// packages directly containing the affected file, and only if it changed in
 	// a relevant way.
-	metadataUpdates := make(map[PackageID]*Metadata)
+	metadataUpdates := make(map[PackageID]*source.Metadata)
 	for k, v := range s.meta.metadata {
 		invalidateMetadata := idsToInvalidate[k]
 

@@ -157,7 +157,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 
 	moduleErrs := make(map[string][]packages.Error) // module path -> errors
 	filterer := buildFilterer(s.view.rootURI.Filename(), s.view.gomodcache, s.view.Options())
-	newMetadata := make(map[PackageID]*Metadata)
+	newMetadata := make(map[PackageID]*source.Metadata)
 	for _, pkg := range pkgs {
 		// The Go command returns synthetic list results for module queries that
 		// encountered module errors.
@@ -222,7 +222,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	//
 	// TODO(rfindley): perform a sanity check that metadata matches here. If not,
 	// we have an invalidation bug elsewhere.
-	updates := make(map[PackageID]*Metadata)
+	updates := make(map[PackageID]*source.Metadata)
 	var updatedIDs []PackageID
 	for _, m := range newMetadata {
 		if existing := s.meta.metadata[m.ID]; existing == nil {
@@ -475,7 +475,7 @@ func makeWorkspaceDir(ctx context.Context, workspace *workspace, fs source.FileS
 // buildMetadata populates the updates map with metadata updates to
 // apply, based on the given pkg. It recurs through pkg.Imports to ensure that
 // metadata exists for all dependencies.
-func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Config, query []string, updates map[PackageID]*Metadata, path []PackageID) error {
+func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Config, query []string, updates map[PackageID]*source.Metadata, path []PackageID) error {
 	// Allow for multiple ad-hoc packages in the workspace (see #47584).
 	pkgPath := PackagePath(pkg.PkgPath)
 	id := PackageID(pkg.ID)
@@ -507,7 +507,7 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 	}
 
 	// Recreate the metadata rather than reusing it to avoid locking.
-	m := &Metadata{
+	m := &source.Metadata{
 		ID:         id,
 		PkgPath:    pkgPath,
 		Name:       PackageName(pkg.Name),
@@ -515,7 +515,7 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 		TypesSizes: pkg.TypesSizes,
 		Config:     cfg,
 		Module:     pkg.Module,
-		depsErrors: packagesinternal.GetDepsErrors(pkg),
+		DepsErrors: packagesinternal.GetDepsErrors(pkg),
 	}
 	updates[id] = m
 
@@ -606,7 +606,7 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 // snapshot s.
 //
 // s.mu must be held while calling this function.
-func containsPackageLocked(s *snapshot, m *Metadata) bool {
+func containsPackageLocked(s *snapshot, m *source.Metadata) bool {
 	// In legacy workspace mode, or if a package does not have an associated
 	// module, a package is considered inside the workspace if any of its files
 	// are under the workspace root (and not excluded).
@@ -647,7 +647,7 @@ func containsPackageLocked(s *snapshot, m *Metadata) bool {
 // the snapshot s.
 //
 // s.mu must be held while calling this function.
-func containsOpenFileLocked(s *snapshot, m *Metadata) bool {
+func containsOpenFileLocked(s *snapshot, m *source.Metadata) bool {
 	uris := map[span.URI]struct{}{}
 	for _, uri := range m.CompiledGoFiles {
 		uris[uri] = struct{}{}
@@ -668,7 +668,7 @@ func containsOpenFileLocked(s *snapshot, m *Metadata) bool {
 // workspace of the snapshot s.
 //
 // s.mu must be held while calling this function.
-func containsFileInWorkspaceLocked(s *snapshot, m *Metadata) bool {
+func containsFileInWorkspaceLocked(s *snapshot, m *source.Metadata) bool {
 	uris := map[span.URI]struct{}{}
 	for _, uri := range m.CompiledGoFiles {
 		uris[uri] = struct{}{}
@@ -738,7 +738,7 @@ func computeWorkspacePackagesLocked(s *snapshot, meta *metadataGraph) map[Packag
 // function returns false.
 //
 // If m is not a command-line-arguments package, this is trivially true.
-func allFilesHaveRealPackages(g *metadataGraph, m *Metadata) bool {
+func allFilesHaveRealPackages(g *metadataGraph, m *source.Metadata) bool {
 	n := len(m.CompiledGoFiles)
 checkURIs:
 	for _, uri := range append(m.CompiledGoFiles[0:n:n], m.GoFiles...) {

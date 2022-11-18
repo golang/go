@@ -28,6 +28,7 @@ import (
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/packagesinternal"
 )
 
 // A GlobalSnapshotID uniquely identifies a snapshot within this process and
@@ -196,7 +197,7 @@ type Snapshot interface {
 	ActivePackages(ctx context.Context) ([]Package, error)
 
 	// AllValidMetadata returns all valid metadata loaded for the snapshot.
-	AllValidMetadata(ctx context.Context) ([]Metadata, error)
+	AllValidMetadata(ctx context.Context) ([]*Metadata, error)
 
 	// WorkspacePackageByID returns the workspace package with id, type checked
 	// in 'workspace' mode.
@@ -206,7 +207,7 @@ type Snapshot interface {
 	Symbols(ctx context.Context) map[span.URI][]Symbol
 
 	// Metadata returns package metadata associated with the given file URI.
-	MetadataForFile(ctx context.Context, uri span.URI) ([]Metadata, error)
+	MetadataForFile(ctx context.Context, uri span.URI) ([]*Metadata, error)
 
 	// GetCriticalError returns any critical errors in the workspace.
 	GetCriticalError(ctx context.Context) *CriticalError
@@ -373,18 +374,56 @@ type TidiedModule struct {
 }
 
 // Metadata represents package metadata retrieved from go/packages.
-type Metadata interface {
-	// PackageID is the unique package id.
-	PackageID() PackageID
+type Metadata struct {
+	ID              PackageID
+	PkgPath         PackagePath
+	Name            PackageName
+	GoFiles         []span.URI
+	CompiledGoFiles []span.URI
+	ForTest         PackagePath // package path under test, or ""
+	TypesSizes      types.Sizes
+	Errors          []packages.Error
+	DepsByImpPath   map[ImportPath]PackageID  // may contain dups; empty ID => missing
+	DepsByPkgPath   map[PackagePath]PackageID // values are unique and non-empty
+	Module          *packages.Module
+	DepsErrors      []*packagesinternal.PackageError
 
-	// PackageName is the package name.
-	PackageName() PackageName
+	// Config is the *packages.Config associated with the loaded package.
+	Config *packages.Config
+}
 
-	// PackagePath is the package path.
-	PackagePath() PackagePath
-
-	// ModuleInfo returns the go/packages module information for the given package.
-	ModuleInfo() *packages.Module
+// IsIntermediateTestVariant reports whether the given package is an
+// intermediate test variant, e.g. "net/http [net/url.test]".
+//
+// Such test variants arise when an x_test package (in this case net/url_test)
+// imports a package (in this case net/http) that itself imports the the
+// non-x_test package (in this case net/url).
+//
+// This is done so that the forward transitive closure of net/url_test has
+// only one package for the "net/url" import.
+// The intermediate test variant exists to hold the test variant import:
+//
+// net/url_test [net/url.test]
+//
+//	| "net/http" -> net/http [net/url.test]
+//	| "net/url" -> net/url [net/url.test]
+//	| ...
+//
+// net/http [net/url.test]
+//
+//	| "net/url" -> net/url [net/url.test]
+//	| ...
+//
+// This restriction propagates throughout the import graph of net/http: for
+// every package imported by net/http that imports net/url, there must be an
+// intermediate test variant that instead imports "net/url [net/url.test]".
+//
+// As one can see from the example of net/url and net/http, intermediate test
+// variants can result in many additional packages that are essentially (but
+// not quite) identical. For this reason, we filter these variants wherever
+// possible.
+func (m *Metadata) IsIntermediateTestVariant() bool {
+	return m.ForTest != "" && m.ForTest != m.PkgPath && m.ForTest+"_test" != m.PkgPath
 }
 
 var ErrViewExists = errors.New("view already exists for session")

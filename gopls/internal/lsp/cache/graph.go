@@ -15,7 +15,7 @@ import (
 // graph of Go packages, as obtained from go/packages.
 type metadataGraph struct {
 	// metadata maps package IDs to their associated metadata.
-	metadata map[PackageID]*Metadata
+	metadata map[PackageID]*source.Metadata
 
 	// importedBy maps package IDs to the list of packages that import them.
 	importedBy map[PackageID][]PackageID
@@ -27,12 +27,12 @@ type metadataGraph struct {
 
 // Clone creates a new metadataGraph, applying the given updates to the
 // receiver.
-func (g *metadataGraph) Clone(updates map[PackageID]*Metadata) *metadataGraph {
+func (g *metadataGraph) Clone(updates map[PackageID]*source.Metadata) *metadataGraph {
 	if len(updates) == 0 {
 		// Optimization: since the graph is immutable, we can return the receiver.
 		return g
 	}
-	result := &metadataGraph{metadata: make(map[PackageID]*Metadata, len(g.metadata))}
+	result := &metadataGraph{metadata: make(map[PackageID]*source.Metadata, len(g.metadata))}
 	// Copy metadata.
 	for id, m := range g.metadata {
 		result.metadata[id] = m

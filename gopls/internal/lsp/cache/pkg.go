@@ -18,9 +18,17 @@ import (
 	"golang.org/x/tools/internal/memoize"
 )
 
+// Convenient local aliases for typed strings.
+type (
+	PackageID   = source.PackageID
+	PackagePath = source.PackagePath
+	PackageName = source.PackageName
+	ImportPath  = source.ImportPath
+)
+
 // pkg contains the type information needed by the source package.
 type pkg struct {
-	m               *Metadata
+	m               *source.Metadata
 	mode            source.ParseMode
 	fset            *token.FileSet // for now, same as the snapshot's FileSet
 	goFiles         []*source.ParsedGoFile

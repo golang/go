@@ -74,7 +74,7 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 		var langVersion, modulePath string
 		mds, err := snapshot.MetadataForFile(ctx, fh.URI())
 		if err == nil && len(mds) > 0 {
-			if mi := mds[0].ModuleInfo(); mi != nil {
+			if mi := mds[0].Module; mi != nil {
 				langVersion = mi.GoVersion
 				modulePath = mi.Path
 			}
