@@ -2471,6 +2471,52 @@ func testIssue37098(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+// TestIssue56632 checks that CompiledGoFiles does not contain non-go files regardless of
+// whether the NeedFiles mode bit is set.
+func TestIssue56632(t *testing.T) {
+	t.Parallel()
+	testenv.NeedsGoBuild(t)
+	testenv.NeedsTool(t, "cgo")
+
+	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
+		Name: "golang.org/issue56632",
+		Files: map[string]interface{}{
+			"a/a.go": `package a`,
+			"a/a_cgo.go": `package a
+
+import "C"`,
+			"a/a.s": ``,
+			"a/a.c": ``,
+		}}})
+	defer exported.Cleanup()
+
+	modes := []packages.LoadMode{packages.NeedCompiledGoFiles, packages.NeedCompiledGoFiles | packages.NeedFiles, packages.NeedImports | packages.NeedCompiledGoFiles, packages.NeedImports | packages.NeedFiles | packages.NeedCompiledGoFiles}
+	for _, mode := range modes {
+		exported.Config.Mode = mode
+
+		initial, err := packages.Load(exported.Config, "golang.org/issue56632/a")
+		if err != nil {
+			t.Fatalf("failed to load package: %v", err)
+		}
+
+		if len(initial) != 1 {
+			t.Errorf("expected 3 packages, got %d", len(initial))
+		}
+
+		p := initial[0]
+
+		if len(p.Errors) != 0 {
+			t.Errorf("expected no errors, got %v", p.Errors)
+		}
+
+		for _, f := range p.CompiledGoFiles {
+			if strings.HasSuffix(f, ".s") || strings.HasSuffix(f, ".c") {
+				t.Errorf("expected no non-Go CompiledGoFiles, got file %q in CompiledGoFiles", f)
+			}
+		}
+	}
+}
+
 // TestInvalidFilesInXTest checks the fix for golang/go#37971 in Go 1.15.
 func TestInvalidFilesInXTest(t *testing.T) { testAllOrModulesParallel(t, testInvalidFilesInXTest) }
 func testInvalidFilesInXTest(t *testing.T, exporter packagestest.Exporter) {
