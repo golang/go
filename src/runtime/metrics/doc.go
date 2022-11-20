@@ -209,8 +209,7 @@ Below is the full list of supported metrics, ordered lexicographically.
 		physical memory.
 
 	/memory/classes/heap/live_objects:bytes
-		Memory occupied by live objects objects that have not yet
-		been marked free by the garbage collector.
+		Memory occupied by live objects objects.
 
 	/memory/classes/heap/objects:bytes
 		Memory occupied by live objects and dead objects that have
