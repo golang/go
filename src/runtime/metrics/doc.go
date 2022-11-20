@@ -209,7 +209,7 @@ Below is the full list of supported metrics, ordered lexicographically.
 		physical memory.
 
 	/memory/classes/heap/live_objects:bytes
-		Memory occupied by live objects objects.
+		Memory occupied by live objects.
 
 	/memory/classes/heap/objects:bytes
 		Memory occupied by live objects and dead objects that have
