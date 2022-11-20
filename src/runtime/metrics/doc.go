@@ -176,6 +176,9 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/heap/goal:bytes
 		Heap size target for the end of the GC cycle.
 
+	/gc/heap/live_objects:objects
+		Number of live objects occupying heap memory.
+
 	/gc/heap/objects:objects
 		Number of objects, live or unswept, occupying heap memory.
 
@@ -204,6 +207,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		the underlying system, but has not been. This metric is the
 		runtime's estimate of free address space that is backed by
 		physical memory.
+
+	/memory/classes/heap/live_objects:bytes
+		Memory occupied by live objects objects that have not yet
+		been marked free by the garbage collector.
 
 	/memory/classes/heap/objects:bytes
 		Memory occupied by live objects and dead objects that have
