@@ -1290,6 +1290,7 @@ func TestFSModTime(t *testing.T) {
 }
 
 func TestCVE202127919(t *testing.T) {
+	t.Setenv("GODEBUG", "zipinsecurepath=0")
 	// Archive containing only the file "../test.txt"
 	data := []byte{
 		0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x08, 0x00,
@@ -1411,6 +1412,7 @@ func TestCVE202139293(t *testing.T) {
 }
 
 func TestCVE202141772(t *testing.T) {
+	t.Setenv("GODEBUG", "zipinsecurepath=0")
 	// Archive contains a file whose name is exclusively made up of '/', '\'
 	// characters, or "../", "..\" paths, which would previously cause a panic.
 	//
@@ -1586,6 +1588,7 @@ func TestIssue54801(t *testing.T) {
 }
 
 func TestInsecurePaths(t *testing.T) {
+	t.Setenv("GODEBUG", "zipinsecurepath=0")
 	for _, path := range []string{
 		"../foo",
 		"/foo",
@@ -1614,5 +1617,28 @@ func TestInsecurePaths(t *testing.T) {
 			t.Errorf("NewReader for archive with file %q: got files %q", path, gotPaths)
 			continue
 		}
+	}
+}
+
+func TestDisableInsecurePathCheck(t *testing.T) {
+	t.Setenv("GODEBUG", "zipinsecurepath=1")
+	var buf bytes.Buffer
+	zw := NewWriter(&buf)
+	const name = "/foo"
+	_, err := zw.Create(name)
+	if err != nil {
+		t.Fatalf("zw.Create(%q) = %v", name, err)
+	}
+	zw.Close()
+	zr, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatalf("NewReader with zipinsecurepath=1: got err %v, want nil", err)
+	}
+	var gotPaths []string
+	for _, f := range zr.File {
+		gotPaths = append(gotPaths, f.Name)
+	}
+	if want := []string{name}; !reflect.DeepEqual(gotPaths, want) {
+		t.Errorf("NewReader with zipinsecurepath=1: got files %q, want %q", gotPaths, want)
 	}
 }

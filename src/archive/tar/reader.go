@@ -60,7 +60,7 @@ func (tr *Reader) Next() (*Header, error) {
 	}
 	hdr, err := tr.next()
 	tr.err = err
-	if err == nil && !filepath.IsLocal(hdr.Name) {
+	if err == nil && tarinsecurepath.Value() != "1" && !filepath.IsLocal(hdr.Name) {
 		err = ErrInsecurePath
 	}
 	return hdr, err

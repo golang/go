@@ -13,6 +13,7 @@ package tar
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io/fs"
 	"math"
 	"path"
@@ -25,6 +26,8 @@ import (
 // BUG: Use of the Uid and Gid fields in Header could overflow on 32-bit
 // architectures. If a large value is encountered when decoding, the result
 // stored in Header will be the truncated version.
+
+var tarinsecurepath = godebug.New("tarinsecurepath")
 
 var (
 	ErrHeader          = errors.New("archive/tar: invalid tar header")

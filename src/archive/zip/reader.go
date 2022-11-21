@@ -10,6 +10,7 @@ import (
 	"errors"
 	"hash"
 	"hash/crc32"
+	"internal/godebug"
 	"io"
 	"io/fs"
 	"os"
@@ -20,6 +21,8 @@ import (
 	"sync"
 	"time"
 )
+
+var zipinsecurepath = godebug.New("zipinsecurepath")
 
 var (
 	ErrFormat       = errors.New("zip: not a valid zip file")
@@ -106,6 +109,9 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	for _, f := range zr.File {
 		if f.Name == "" {
 			// Zip permits an empty file name field.
+			continue
+		}
+		if zipinsecurepath.Value() == "1" {
 			continue
 		}
 		// The zip specification states that names must use forward slashes,
