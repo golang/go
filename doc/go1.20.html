@@ -85,7 +85,11 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- https://go.dev/issue/45454 -->
-  TODO: <a href="https://go.dev/issue/45454">https://go.dev/issue/45454</a>: provide build tags for architecture environment variables
+  The <code>go</code> command now defines
+  architecture feature build tags, such as <code>amd64.v2</code>,
+  to allow selecting a package implementation file based on the presence
+  or absence of a particular architecture feature.
+  See <a href="/cmd/go#hdr-Build_constraints"><code>go</code> <code>help</code> <code>buildconstraint</code></a> for details.
 </p>
 
 <p><!-- https://go.dev/issue/50332 -->
