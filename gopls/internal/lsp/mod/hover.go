@@ -182,13 +182,13 @@ func formatVulnerabilities(modPath string, affecting, nonaffecting []*govulnchec
 }
 
 func fixedVersionInfo(v *govulncheck.Vuln, modPath string) string {
-	fix := "\n**No fix is available.**"
+	fix := "\n\n  **No fix is available.**"
 	for _, m := range v.Modules {
 		if m.Path != modPath {
 			continue
 		}
 		if m.FixedVersion != "" {
-			fix = "\nFixed in " + m.FixedVersion + "."
+			fix = "\n\n  Fixed in " + m.FixedVersion + "."
 		}
 		break
 	}
