@@ -1224,3 +1224,21 @@ func TestIssue10996(t *testing.T) {
 		t.Fatalf("opening invalid ELF file unexpectedly succeeded")
 	}
 }
+
+func TestDynValue(t *testing.T) {
+	const testdata = "testdata/gcc-amd64-linux-exec"
+	f, err := Open(testdata)
+	if err != nil {
+		t.Fatalf("could not read %s: %v", testdata, err)
+	}
+	defer f.Close()
+
+	vals, err := f.DynValue(DT_VERNEEDNUM)
+	if err != nil {
+		t.Fatalf("DynValue(DT_VERNEEDNUM): got unexpected error %v", err)
+	}
+
+	if len(vals) != 1 || vals[0] != 1 {
+		t.Errorf("DynValue(DT_VERNEEDNUM): got %v, want [1]", vals)
+	}
+}

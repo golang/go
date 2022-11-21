@@ -1642,6 +1642,40 @@ func (f *File) DynString(tag DynTag) ([]string, error) {
 	return all, nil
 }
 
+// DynValue returns the values listed for the given tag in the file's dynamic
+// section.
+func (f *File) DynValue(tag DynTag) ([]uint64, error) {
+	ds := f.SectionByType(SHT_DYNAMIC)
+	if ds == nil {
+		return nil, nil
+	}
+	d, err := ds.Data()
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse the .dynamic section as a string of bytes.
+	var vals []uint64
+	for len(d) > 0 {
+		var t DynTag
+		var v uint64
+		switch f.Class {
+		case ELFCLASS32:
+			t = DynTag(f.ByteOrder.Uint32(d[0:4]))
+			v = uint64(f.ByteOrder.Uint32(d[4:8]))
+			d = d[8:]
+		case ELFCLASS64:
+			t = DynTag(f.ByteOrder.Uint64(d[0:8]))
+			v = f.ByteOrder.Uint64(d[8:16])
+			d = d[16:]
+		}
+		if t == tag {
+			vals = append(vals, v)
+		}
+	}
+	return vals, nil
+}
+
 type nobitsSectionReader struct{}
 
 func (*nobitsSectionReader) ReadAt(p []byte, off int64) (n int, err error) {
