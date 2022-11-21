@@ -1271,7 +1271,7 @@ func offsetLabelName(ldr *loader.Loader, s loader.Sym, off int64) string {
 	return fmt.Sprintf("%s+%d", ldr.SymExtname(s), off)
 }
 
-// Convert the direct jump relocation r to refer to a trampoline if the target is too far
+// Convert the direct jump relocation r to refer to a trampoline if the target is too far.
 func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	r := relocs.At(ri)

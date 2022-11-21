@@ -172,11 +172,13 @@ func newosproc(mp *m) {
 	// Disable signals during create, so that the new thread starts
 	// with signals disabled. It will enable them in minit.
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret = pthread_create(&tid, &attr, abi.FuncPCABI0(tstart_sysvicall), unsafe.Pointer(mp))
+	ret = retryOnEAGAIN(func() int32 {
+		return pthread_create(&tid, &attr, abi.FuncPCABI0(tstart_sysvicall), unsafe.Pointer(mp))
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret != 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
-		if ret == -_EAGAIN {
+		if ret == _EAGAIN {
 			println("runtime: may need to increase max user processes (ulimit -u)")
 		}
 		throw("newosproc")

@@ -16,8 +16,8 @@ const (
 	ScoreNilCheck
 	ScoreReadTuple
 	ScoreVarDef
-	ScoreMemory
 	ScoreCarryChainTail
+	ScoreMemory
 	ScoreReadFlags
 	ScoreDefault
 	ScoreFlags

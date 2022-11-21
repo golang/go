@@ -166,10 +166,10 @@ func TestCover(t *testing.T) {
 
 	// testcover -mode=count -var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest -o ./testdata/test_cover.go testdata/test_line.go
 	coverOutput := filepath.Join(dir, "test_cover.go")
-	cmd := exec.Command(testcover(t), "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
+	cmd := testenv.Command(t, testcover(t), "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
 	run(cmd, t)
 
-	cmd = exec.Command(testcover(t), "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
+	cmd = testenv.Command(t, testcover(t), "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
 	err = cmd.Run()
 	if err == nil {
 		t.Error("Expected cover to fail with an error")
@@ -188,7 +188,7 @@ func TestCover(t *testing.T) {
 	}
 
 	// go run ./testdata/main.go ./testdata/test.go
-	cmd = exec.Command(testenv.GoToolPath(t), "run", tmpTestMain, coverOutput)
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "run", tmpTestMain, coverOutput)
 	run(cmd, t)
 
 	file, err = os.ReadFile(coverOutput)
@@ -229,7 +229,7 @@ func TestDirectives(t *testing.T) {
 	sourceDirectives := findDirectives(source)
 
 	// testcover -mode=atomic ./testdata/directives.go
-	cmd := exec.Command(testcover(t), "-mode=atomic", testDirectives)
+	cmd := testenv.Command(t, testcover(t), "-mode=atomic", testDirectives)
 	cmd.Stderr = os.Stderr
 	output, err := cmd.Output()
 	if err != nil {
@@ -339,7 +339,7 @@ func TestCoverFunc(t *testing.T) {
 
 	// testcover -func ./testdata/profile.cov
 	coverProfile := filepath.Join(testdata, "profile.cov")
-	cmd := exec.Command(testcover(t), "-func", coverProfile)
+	cmd := testenv.Command(t, testcover(t), "-func", coverProfile)
 	out, err := cmd.Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
@@ -364,12 +364,12 @@ func testCoverHTML(t *testing.T, toolexecArg string) {
 
 	// go test -coverprofile testdata/html/html.cov cmd/cover/testdata/html
 	htmlProfile := filepath.Join(dir, "html.cov")
-	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", toolexecArg, "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
 	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
 	run(cmd, t)
 	// testcover -html testdata/html/html.cov -o testdata/html/html.html
 	htmlHTML := filepath.Join(dir, "html.html")
-	cmd = exec.Command(testcover(t), "-html", htmlProfile, "-o", htmlHTML)
+	cmd = testenv.Command(t, testcover(t), "-html", htmlProfile, "-o", htmlHTML)
 	run(cmd, t)
 
 	// Extract the parts of the HTML with comment markers,
@@ -466,13 +466,13 @@ lab:
 	}
 
 	// go test -covermode=count -coverprofile TMPDIR/htmlunformatted.cov
-	cmd := exec.Command(testenv.GoToolPath(t), "test", "-test.v", toolexecArg, "-covermode=count", "-coverprofile", htmlUProfile)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", "-test.v", toolexecArg, "-covermode=count", "-coverprofile", htmlUProfile)
 	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
 	cmd.Dir = htmlUDir
 	run(cmd, t)
 
 	// testcover -html TMPDIR/htmlunformatted.cov -o unformatted.html
-	cmd = exec.Command(testcover(t), "-html", htmlUProfile, "-o", htmlUHTML)
+	cmd = testenv.Command(t, testcover(t), "-html", htmlUProfile, "-o", htmlUHTML)
 	cmd.Dir = htmlUDir
 	run(cmd, t)
 }
@@ -542,13 +542,13 @@ func testFuncWithDuplicateLines(t *testing.T, toolexecArg string) {
 	}
 
 	// go test -cover -covermode count -coverprofile TMPDIR/linedup.out
-	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-cover", "-covermode", "count", "-coverprofile", lineDupProfile)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", toolexecArg, "-cover", "-covermode", "count", "-coverprofile", lineDupProfile)
 	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
 	cmd.Dir = lineDupDir
 	run(cmd, t)
 
 	// testcover -func=TMPDIR/linedup.out
-	cmd = exec.Command(testcover(t), "-func", lineDupProfile)
+	cmd = testenv.Command(t, testcover(t), "-func", lineDupProfile)
 	cmd.Dir = lineDupDir
 	run(cmd, t)
 }

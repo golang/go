@@ -18,8 +18,7 @@ import (
 // This stack is intrusive. Nodes must embed lfnode as the first field.
 //
 // The stack does not keep GC-visible pointers to nodes, so the caller
-// is responsible for ensuring the nodes are not garbage collected
-// (typically by allocating them from manually-managed memory).
+// must ensure the nodes are allocated outside the Go heap.
 type lfstack uint64
 
 func (head *lfstack) push(node *lfnode) {
@@ -59,6 +58,9 @@ func (head *lfstack) empty() bool {
 // lfnodeValidate panics if node is not a valid address for use with
 // lfstack.push. This only needs to be called when node is allocated.
 func lfnodeValidate(node *lfnode) {
+	if base, _, _ := findObject(uintptr(unsafe.Pointer(node)), 0, 0); base != 0 {
+		throw("lfstack node allocated from the heap")
+	}
 	if lfstackUnpack(lfstackPack(node, ^uintptr(0))) != node {
 		printlock()
 		println("runtime: bad lfnode address", hex(uintptr(unsafe.Pointer(node))))

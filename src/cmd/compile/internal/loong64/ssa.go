@@ -17,7 +17,7 @@ import (
 	"cmd/internal/obj/loong64"
 )
 
-// isFPreg reports whether r is an FP register
+// isFPreg reports whether r is an FP register.
 func isFPreg(r int16) bool {
 	return loong64.REG_F0 <= r && r <= loong64.REG_F31
 }
@@ -101,9 +101,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = y
 	case ssa.OpLOONG64MOVVnop:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -787,6 +784,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpLOONG64LoweredGetCallerPC:
 		p := s.Prog(obj.AGETCALLERPC)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpLOONG64MASKEQZ, ssa.OpLOONG64MASKNEZ:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpClobber, ssa.OpClobberReg:

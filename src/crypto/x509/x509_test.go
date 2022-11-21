@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/dsa"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -115,6 +116,13 @@ func TestParsePKIXPublicKey(t *testing.T) {
 			t.Errorf("Value returned from ParsePKIXPublicKey was not an Ed25519 public key")
 		}
 	})
+	t.Run("X25519", func(t *testing.T) {
+		pub := testParsePKIXPublicKey(t, pemX25519Key)
+		k, ok := pub.(*ecdh.PublicKey)
+		if !ok || k.Curve() != ecdh.X25519() {
+			t.Errorf("Value returned from ParsePKIXPublicKey was not an X25519 public key")
+		}
+	})
 }
 
 var pemPublicKey = `-----BEGIN PUBLIC KEY-----
@@ -150,6 +158,13 @@ wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
 var pemEd25519Key = `
 -----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=
+-----END PUBLIC KEY-----
+`
+
+// pemX25519Key was generated from pemX25519Key with "openssl pkey -pubout".
+var pemX25519Key = `
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VuAyEA5yGXrH/6OzxuWEhEWS01/f4OP+Of3Yrddy6/J1kDTVM=
 -----END PUBLIC KEY-----
 `
 
@@ -3798,10 +3813,32 @@ VLOVx0i+/Q7fikp3hbN1JwuMTU0v2KL/IKoUcZc02+5xiYrnOIt5
 func TestDuplicateExtensionsCSR(t *testing.T) {
 	b, _ := pem.Decode([]byte(dupExtCSR))
 	if b == nil {
-		t.Fatalf("couldn't decode test certificate")
+		t.Fatalf("couldn't decode test CSR")
 	}
 	_, err := ParseCertificateRequest(b.Bytes)
 	if err == nil {
-		t.Fatal("ParseCertificate should fail when parsing certificate with duplicate extensions")
+		t.Fatal("ParseCertificateRequest should fail when parsing CSR with duplicate extensions")
+	}
+}
+
+const dupAttCSR = `-----BEGIN CERTIFICATE REQUEST-----
+MIIBbDCB1gIBADAPMQ0wCwYDVQQDEwR0ZXN0MIGfMA0GCSqGSIb3DQEBAQUAA4GN
+ADCBiQKBgQCj5Po3PKO/JNuxr+B+WNfMIzqqYztdlv+mTQhT0jOR5rTkUvxeeHH8
+YclryES2dOISjaUOTmOAr5GQIIdQl4Ql33Cp7ZR/VWcRn+qvTak0Yow+xVsDo0n4
+7IcvvP6CJ7FRoYBUakVczeXLxCjLwdyK16VGJM06eRzDLykPxpPwLQIDAQABoB4w
+DQYCKgMxBwwFdGVzdDEwDQYCKgMxBwwFdGVzdDIwDQYJKoZIhvcNAQELBQADgYEA
+UJ8hsHxtnIeqb2ufHnQFJO+wEJhx2Uxm/BTuzHOeffuQkwATez4skZ7SlX9exgb7
+6jRMRilqb4F7f8w+uDoqxRrA9zc8mwY16zPsyBhRet+ZGbj/ilgvGmtZ21qZZ/FU
+0pJFJIVLM3l49Onr5uIt5+hCWKwHlgE0nGpjKLR3cMg=
+-----END CERTIFICATE REQUEST-----`
+
+func TestDuplicateAttributesCSR(t *testing.T) {
+	b, _ := pem.Decode([]byte(dupAttCSR))
+	if b == nil {
+		t.Fatalf("couldn't decode test CSR")
+	}
+	_, err := ParseCertificateRequest(b.Bytes)
+	if err != nil {
+		t.Fatal("ParseCertificateRequest should succeed when parsing CSR with duplicate attributes")
 	}
 }

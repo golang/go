@@ -587,15 +587,19 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
 		defer un(trace(p, "ArrayFieldOrTypeInstance"))
 	}
 
-	// TODO(gri) Should we allow a trailing comma in a type argument
-	//           list such as T[P,]? (We do in parseTypeInstance).
 	lbrack := p.expect(token.LBRACK)
+	trailingComma := token.NoPos // if valid, the position of a trailing comma preceding the ']'
 	var args []ast.Expr
 	if p.tok != token.RBRACK {
 		p.exprLev++
 		args = append(args, p.parseRhs())
 		for p.tok == token.COMMA {
+			comma := p.pos
 			p.next()
+			if p.tok == token.RBRACK {
+				trailingComma = comma
+				break
+			}
 			args = append(args, p.parseRhs())
 		}
 		p.exprLev--
@@ -613,6 +617,10 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
 		elt := p.tryIdentOrType()
 		if elt != nil {
 			// x [P]E
+			if trailingComma.IsValid() {
+				// Trailing commas are invalid in array type fields.
+				p.error(trailingComma, "unexpected comma; expecting ]")
+			}
 			return x, &ast.ArrayType{Lbrack: lbrack, Len: args[0], Elt: elt}
 		}
 	}

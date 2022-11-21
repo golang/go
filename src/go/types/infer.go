@@ -579,7 +579,7 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 	}
 
 	// The data structure of each (provided or inferred) type represents a graph, where
-	// each node corresponds to a type and each (directed) vertice points to a component
+	// each node corresponds to a type and each (directed) vertex points to a component
 	// type. The substitution process described above repeatedly replaces type parameter
 	// nodes in these graphs with the graphs of the types the type parameters stand for,
 	// which creates a new (possibly bigger) graph for each type.
@@ -592,14 +592,14 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 	// Generally, cycles may occur across multiple type parameters and inferred types
 	// (for instance, consider [P interface{ *Q }, Q interface{ func(P) }]).
 	// We eliminate cycles by walking the graphs for all type parameters. If a cycle
-	// through a type parameter is detected, cycleFinder nils out the respectice type
+	// through a type parameter is detected, cycleFinder nils out the respective type
 	// which kills the cycle; this also means that the respective type could not be
 	// inferred.
 	//
 	// TODO(gri) If useful, we could report the respective cycle as an error. We don't
 	//           do this now because type inference will fail anyway, and furthermore,
 	//           constraints with cycles of this kind cannot currently be satisfied by
-	//           any user-suplied type. But should that change, reporting an error
+	//           any user-supplied type. But should that change, reporting an error
 	//           would be wrong.
 	w := cycleFinder{tparams, types, make(map[Type]bool)}
 	for _, t := range tparams {

@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// exported from runtime
+// exported from runtime.
 func modinfo() string
 
 // ReadBuildInfo returns the build information embedded

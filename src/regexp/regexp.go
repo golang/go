@@ -270,7 +270,7 @@ func (re *Regexp) put(m *machine) {
 	matchPool[re.mpool].Put(m)
 }
 
-// minInputLen walks the regexp to find the minimum length of any matchable input
+// minInputLen walks the regexp to find the minimum length of any matchable input.
 func minInputLen(re *syntax.Regexp) int {
 	switch re.Op {
 	default:

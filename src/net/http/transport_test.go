@@ -1465,6 +1465,98 @@ func TestTransportProxy(t *testing.T) {
 	}
 }
 
+func TestOnProxyConnectResponse(t *testing.T) {
+
+	var tcases = []struct {
+		proxyStatusCode int
+		err             error
+	}{
+		{
+			StatusOK,
+			nil,
+		},
+		{
+			StatusForbidden,
+			errors.New("403"),
+		},
+	}
+	for _, tcase := range tcases {
+		h1 := HandlerFunc(func(w ResponseWriter, r *Request) {
+
+		})
+
+		h2 := HandlerFunc(func(w ResponseWriter, r *Request) {
+			// Implement an entire CONNECT proxy
+			if r.Method == "CONNECT" {
+				if tcase.proxyStatusCode != StatusOK {
+					w.WriteHeader(tcase.proxyStatusCode)
+					return
+				}
+				hijacker, ok := w.(Hijacker)
+				if !ok {
+					t.Errorf("hijack not allowed")
+					return
+				}
+				clientConn, _, err := hijacker.Hijack()
+				if err != nil {
+					t.Errorf("hijacking failed")
+					return
+				}
+				res := &Response{
+					StatusCode: StatusOK,
+					Proto:      "HTTP/1.1",
+					ProtoMajor: 1,
+					ProtoMinor: 1,
+					Header:     make(Header),
+				}
+
+				targetConn, err := net.Dial("tcp", r.URL.Host)
+				if err != nil {
+					t.Errorf("net.Dial(%q) failed: %v", r.URL.Host, err)
+					return
+				}
+
+				if err := res.Write(clientConn); err != nil {
+					t.Errorf("Writing 200 OK failed: %v", err)
+					return
+				}
+
+				go io.Copy(targetConn, clientConn)
+				go func() {
+					io.Copy(clientConn, targetConn)
+					targetConn.Close()
+				}()
+			}
+		})
+		ts := newClientServerTest(t, https1Mode, h1).ts
+		proxy := newClientServerTest(t, https1Mode, h2).ts
+
+		pu, err := url.Parse(proxy.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		c := proxy.Client()
+
+		c.Transport.(*Transport).Proxy = ProxyURL(pu)
+		c.Transport.(*Transport).OnProxyConnectResponse = func(ctx context.Context, proxyURL *url.URL, connectReq *Request, connectRes *Response) error {
+			if proxyURL.String() != pu.String() {
+				t.Errorf("proxy url got %s, want %s", proxyURL, pu)
+			}
+
+			if "https://"+connectReq.URL.String() != ts.URL {
+				t.Errorf("connect url got %s, want %s", connectReq.URL, ts.URL)
+			}
+			return tcase.err
+		}
+		if _, err := c.Head(ts.URL); err != nil {
+			if tcase.err != nil && !strings.Contains(err.Error(), tcase.err.Error()) {
+				t.Errorf("got %v, want %v", err, tcase.err)
+			}
+		}
+	}
+}
+
 // Issue 28012: verify that the Transport closes its TCP connection to http proxies
 // when they're slow to reply to HTTPS CONNECT responses.
 func TestTransportProxyHTTPSConnectLeak(t *testing.T) {
@@ -2132,57 +2224,37 @@ func testTransportConcurrency(t *testing.T, mode testMode) {
 
 func TestIssue4191_InfiniteGetTimeout(t *testing.T) { run(t, testIssue4191_InfiniteGetTimeout) }
 func testIssue4191_InfiniteGetTimeout(t *testing.T, mode testMode) {
-	const debug = false
 	mux := NewServeMux()
 	mux.HandleFunc("/get", func(w ResponseWriter, r *Request) {
 		io.Copy(w, neverEnding('a'))
 	})
 	ts := newClientServerTest(t, mode, mux).ts
-	timeout := 100 * time.Millisecond
 
+	connc := make(chan net.Conn, 1)
 	c := ts.Client()
 	c.Transport.(*Transport).Dial = func(n, addr string) (net.Conn, error) {
 		conn, err := net.Dial(n, addr)
 		if err != nil {
 			return nil, err
 		}
-		conn.SetDeadline(time.Now().Add(timeout))
-		if debug {
-			conn = NewLoggingConn("client", conn)
+		select {
+		case connc <- conn:
+		default:
 		}
 		return conn, nil
 	}
 
-	getFailed := false
-	nRuns := 5
-	if testing.Short() {
-		nRuns = 1
+	res, err := c.Get(ts.URL + "/get")
+	if err != nil {
+		t.Fatalf("Error issuing GET: %v", err)
 	}
-	for i := 0; i < nRuns; i++ {
-		if debug {
-			println("run", i+1, "of", nRuns)
-		}
-		sres, err := c.Get(ts.URL + "/get")
-		if err != nil {
-			if !getFailed {
-				// Make the timeout longer, once.
-				getFailed = true
-				t.Logf("increasing timeout")
-				i--
-				timeout *= 10
-				continue
-			}
-			t.Errorf("Error issuing GET: %v", err)
-			break
-		}
-		_, err = io.Copy(io.Discard, sres.Body)
-		if err == nil {
-			t.Errorf("Unexpected successful copy")
-			break
-		}
-	}
-	if debug {
-		println("tests complete; waiting for handlers to finish")
+	defer res.Body.Close()
+
+	conn := <-connc
+	conn.SetDeadline(time.Now().Add(1 * time.Millisecond))
+	_, err = io.Copy(io.Discard, res.Body)
+	if err == nil {
+		t.Errorf("Unexpected successful copy")
 	}
 }
 
@@ -4726,7 +4798,7 @@ func testTransportEventTraceTLSVerify(t *testing.T, mode testMode) {
 
 	wantOnce("TLSHandshakeStart")
 	wantOnce("TLSHandshakeDone")
-	wantOnce("err = x509: certificate is valid for example.com")
+	wantOnce("err = tls: failed to verify certificate: x509: certificate is valid for example.com")
 
 	if t.Failed() {
 		t.Errorf("Output:\n%s", got)
@@ -5906,7 +5978,10 @@ func testTransportRequestWriteRoundTrip(t *testing.T, mode testMode) {
 
 func TestTransportClone(t *testing.T) {
 	tr := &Transport{
-		Proxy:                  func(*Request) (*url.URL, error) { panic("") },
+		Proxy: func(*Request) (*url.URL, error) { panic("") },
+		OnProxyConnectResponse: func(ctx context.Context, proxyURL *url.URL, connectReq *Request, connectRes *Response) error {
+			return nil
+		},
 		DialContext:            func(ctx context.Context, network, addr string) (net.Conn, error) { panic("") },
 		Dial:                   func(network, addr string) (net.Conn, error) { panic("") },
 		DialTLS:                func(network, addr string) (net.Conn, error) { panic("") },

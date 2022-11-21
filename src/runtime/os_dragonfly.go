@@ -162,7 +162,10 @@ func newosproc(mp *m) {
 	}
 
 	// TODO: Check for error.
-	lwp_create(&params)
+	retryOnEAGAIN(func() int32 {
+		lwp_create(&params)
+		return 0
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 }
 

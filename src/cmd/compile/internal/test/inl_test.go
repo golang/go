@@ -11,7 +11,6 @@ import (
 	"internal/testenv"
 	"io"
 	"math/bits"
-	"os/exec"
 	"regexp"
 	"runtime"
 	"strings"
@@ -279,7 +278,7 @@ func TestIntendedInlining(t *testing.T) {
 	}
 
 	args := append([]string{"build", "-gcflags=-m -m", "-tags=math_big_pure_go"}, pkgs...)
-	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), args...))
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), args...))
 	pr, pw := io.Pipe()
 	cmd.Stdout = pw
 	cmd.Stderr = pw
@@ -362,7 +361,7 @@ func TestIssue56044(t *testing.T) {
 	for _, mode := range modes {
 		// Build the Go runtime with "-m", capturing output.
 		args := []string{"build", "-gcflags=runtime=-m", "runtime"}
-		cmd := exec.Command(testenv.GoToolPath(t), args...)
+		cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 		b, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("build failed (%v): %s", err, b)
@@ -371,7 +370,7 @@ func TestIssue56044(t *testing.T) {
 
 		// Redo the build with -cover, also with "-m".
 		args = []string{"build", "-gcflags=runtime=-m", mode, "runtime"}
-		cmd = exec.Command(testenv.GoToolPath(t), args...)
+		cmd = testenv.Command(t, testenv.GoToolPath(t), args...)
 		b, err = cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("build failed (%v): %s", err, b)

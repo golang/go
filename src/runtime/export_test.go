@@ -69,6 +69,9 @@ func LFStackPush(head *uint64, node *LFNode) {
 func LFStackPop(head *uint64) *LFNode {
 	return (*LFNode)(unsafe.Pointer((*lfstack)(head).pop()))
 }
+func LFNodeValidate(node *LFNode) {
+	lfnodeValidate((*lfnode)(unsafe.Pointer(node)))
+}
 
 func Netpoll(delta int64) {
 	systemstack(func() {
@@ -1708,4 +1711,10 @@ func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
 
 func FrameStartLine(f *Frame) int {
 	return f.startLine
+}
+
+// PersistentAlloc allocates some memory that lives outside the Go heap.
+// This memory will never be freed; use sparingly.
+func PersistentAlloc(n uintptr) unsafe.Pointer {
+	return persistentalloc(n, 0, &memstats.other_sys)
 }

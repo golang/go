@@ -401,7 +401,7 @@ outer:
 	}
 }
 
-// findLastMems maps block ids to last memory-output op in a block, if any
+// findLastMems maps block ids to last memory-output op in a block, if any.
 func findLastMems(f *Func) []*Value {
 
 	var stores []*Value

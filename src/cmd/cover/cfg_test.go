@@ -10,7 +10,6 @@ import (
 	"internal/coverage"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -63,7 +62,7 @@ func runPkgCover(t *testing.T, outdir string, tag string, incfg string, mode str
 	outfiles, outfilelist := writeOutFileList(t, infiles, outdir, tag)
 	args := []string{"-pkgcfg", incfg, "-mode=" + mode, "-var=var" + tag, "-outfilelist", outfilelist}
 	args = append(args, infiles...)
-	cmd := exec.Command(testcover(t), args...)
+	cmd := testenv.Command(t, testcover(t), args...)
 	if errExpected {
 		errmsg := runExpectingError(cmd, t)
 		return nil, "", errmsg
@@ -147,7 +146,7 @@ func TestCoverWithCfg(t *testing.T) {
 		// buildable.
 		bargs := []string{"tool", "compile", "-p", "a", "-coveragecfg", outcfg}
 		bargs = append(bargs, ofs...)
-		cmd := exec.Command(testenv.GoToolPath(t), bargs...)
+		cmd := testenv.Command(t, testenv.GoToolPath(t), bargs...)
 		cmd.Dir = instdira
 		run(cmd, t)
 	}

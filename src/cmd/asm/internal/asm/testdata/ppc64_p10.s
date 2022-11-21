@@ -263,4 +263,11 @@ TEXT asmtest(SB), DUPOK|NOSPLIT, $0
 	XXSPLTI32DX $1, $1234, VS3              // 05000000806204d2
 	XXSPLTIDP $12345678, VS4                // 050000bc8084614e
 	XXSPLTIW $123456, VS3                   // 050000018066e240
+
+	// ISA 3.1B
+	HASHST R2, -8(R1)                       // 7fe115a5
+	HASHSTP R2, -8(R1)                      // 7fe11525
+	HASHCHK -8(R1), R2                      // 7fe115e5
+	HASHCHKP -8(R1), R2                     // 7fe11565
+
         RET

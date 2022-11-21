@@ -1735,7 +1735,7 @@ func runBinHostname(t *testing.T) string {
 }
 
 func testWindowsHostname(t *testing.T, hostname string) {
-	cmd := osexec.Command("hostname")
+	cmd := testenv.Command(t, "hostname")
 	out, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("Failed to execute hostname command: %v %s", err, out)
@@ -2012,18 +2012,8 @@ func TestSameFile(t *testing.T) {
 	}
 }
 
-func testDevNullFileInfo(t *testing.T, statname, devNullName string, fi FileInfo, ignoreCase bool) {
+func testDevNullFileInfo(t *testing.T, statname, devNullName string, fi FileInfo) {
 	pre := fmt.Sprintf("%s(%q): ", statname, devNullName)
-	name := filepath.Base(devNullName)
-	if ignoreCase {
-		if strings.ToUpper(fi.Name()) != strings.ToUpper(name) {
-			t.Errorf(pre+"wrong file name have %v want %v", fi.Name(), name)
-		}
-	} else {
-		if fi.Name() != name {
-			t.Errorf(pre+"wrong file name have %v want %v", fi.Name(), name)
-		}
-	}
 	if fi.Size() != 0 {
 		t.Errorf(pre+"wrong file size have %d want 0", fi.Size())
 	}
@@ -2038,7 +2028,7 @@ func testDevNullFileInfo(t *testing.T, statname, devNullName string, fi FileInfo
 	}
 }
 
-func testDevNullFile(t *testing.T, devNullName string, ignoreCase bool) {
+func testDevNullFile(t *testing.T, devNullName string) {
 	f, err := Open(devNullName)
 	if err != nil {
 		t.Fatalf("Open(%s): %v", devNullName, err)
@@ -2049,17 +2039,21 @@ func testDevNullFile(t *testing.T, devNullName string, ignoreCase bool) {
 	if err != nil {
 		t.Fatalf("Stat(%s): %v", devNullName, err)
 	}
-	testDevNullFileInfo(t, "f.Stat", devNullName, fi, ignoreCase)
+	testDevNullFileInfo(t, "f.Stat", devNullName, fi)
 
 	fi, err = Stat(devNullName)
 	if err != nil {
 		t.Fatalf("Stat(%s): %v", devNullName, err)
 	}
-	testDevNullFileInfo(t, "Stat", devNullName, fi, ignoreCase)
+	testDevNullFileInfo(t, "Stat", devNullName, fi)
 }
 
 func TestDevNullFile(t *testing.T) {
-	testDevNullFile(t, DevNull, false)
+	testDevNullFile(t, DevNull)
+	if runtime.GOOS == "windows" {
+		testDevNullFile(t, "./nul")
+		testDevNullFile(t, "//./nul")
+	}
 }
 
 var testLargeWrite = flag.Bool("large_write", false, "run TestLargeWriteToConsole test that floods console with output")
@@ -2136,9 +2130,9 @@ func TestStatStdin(t *testing.T) {
 
 	var cmd *osexec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = osexec.Command("cmd", "/c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
+		cmd = testenv.Command(t, "cmd", "/c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
 	} else {
-		cmd = osexec.Command("/bin/sh", "-c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
+		cmd = testenv.Command(t, "/bin/sh", "-c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
 	}
 	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
 
@@ -2293,7 +2287,7 @@ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 	t.Parallel()
 
 	// Re-exec the test binary to start a process that hangs until stdin is closed.
-	cmd := osexec.Command(Args[0])
+	cmd := testenv.Command(t, Args[0])
 	cmd.Env = append(os.Environ(), "GO_OS_TEST_DRAIN_STDIN=1")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -2344,7 +2338,7 @@ func TestGetppid(t *testing.T) {
 		Exit(0)
 	}
 
-	cmd := osexec.Command(Args[0], "-test.run=TestGetppid")
+	cmd := testenv.Command(t, Args[0], "-test.run=TestGetppid")
 	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
 
 	// verify that Getppid() from the forked process reports our process id
@@ -2570,9 +2564,6 @@ func TestUserHomeDir(t *testing.T) {
 }
 
 func TestDirSeek(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		testenv.SkipFlaky(t, 36019)
-	}
 	wd, err := Getwd()
 	if err != nil {
 		t.Fatal(err)

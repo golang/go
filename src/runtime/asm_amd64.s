@@ -201,16 +201,16 @@ nocpuinfo:
 	JZ	needtls
 	// arg 1: g0, already in DI
 	MOVQ	$setg_gcc<>(SB), SI // arg 2: setg_gcc
+	MOVQ	$0, DX	// arg 3, 4: not used when using platform's TLS
+	MOVQ	$0, CX
 #ifdef GOOS_android
 	MOVQ	$runtime·tls_g(SB), DX 	// arg 3: &tls_g
 	// arg 4: TLS base, stored in slot 0 (Android's TLS_SLOT_SELF).
 	// Compensate for tls_g (+16).
 	MOVQ	-16(TLS), CX
-#else
-	MOVQ	$0, DX	// arg 3, 4: not used when using platform's TLS
-	MOVQ	$0, CX
 #endif
 #ifdef GOOS_windows
+	MOVQ	$runtime·tls_g(SB), DX 	// arg 3: &tls_g
 	// Adjust for the Win64 calling convention.
 	MOVQ	CX, R9 // arg 4
 	MOVQ	DX, R8 // arg 3
@@ -249,6 +249,10 @@ needtls:
 #ifdef GOOS_openbsd
 	// skip TLS setup on OpenBSD
 	JMP ok
+#endif
+
+#ifdef GOOS_windows
+	CALL	runtime·wintls(SB)
 #endif
 
 	LEAQ	runtime·m0+m_tls(SB), DI
@@ -2024,6 +2028,9 @@ TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
 // Use the free TLS_SLOT_APP slot #2 on Android Q.
 // Earlier androids are set up in gcc_android.c.
 DATA runtime·tls_g+0(SB)/8, $16
+GLOBL runtime·tls_g+0(SB), NOPTR, $8
+#endif
+#ifdef GOOS_windows
 GLOBL runtime·tls_g+0(SB), NOPTR, $8
 #endif
 

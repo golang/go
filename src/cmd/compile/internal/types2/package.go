@@ -59,6 +59,9 @@ func (pkg *Package) MarkComplete() { pkg.complete = true }
 // If pkg was loaded from export data, Imports includes packages that
 // provide package-level objects referenced by pkg. This may be more or
 // less than the set of packages directly imported by pkg's source code.
+//
+// If pkg uses cgo and the FakeImportC configuration option
+// was enabled, the imports list may contain a fake "C" package.
 func (pkg *Package) Imports() []*Package { return pkg.imports }
 
 // SetImports sets the list of explicitly imported packages to list.

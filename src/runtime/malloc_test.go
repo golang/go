@@ -318,46 +318,36 @@ func TestArenaCollision(t *testing.T) {
 	}
 }
 
-var mallocSink uintptr
-
 func BenchmarkMalloc8(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(int64)
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMalloc16(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new([2]int64)
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMallocTypeInfo8(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(struct {
 			p [8 / unsafe.Sizeof(uintptr(0))]*int
 		})
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMallocTypeInfo16(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(struct {
 			p [16 / unsafe.Sizeof(uintptr(0))]*int
 		})
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 type LargeStruct struct {
@@ -365,12 +355,10 @@ type LargeStruct struct {
 }
 
 func BenchmarkMallocLargeStruct(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := make([]LargeStruct, 2)
-		x ^= uintptr(unsafe.Pointer(&p[0]))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 var n = flag.Int("n", 1000, "number of goroutines")

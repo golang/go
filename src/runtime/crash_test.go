@@ -6,7 +6,6 @@ package runtime_test
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -66,15 +65,17 @@ func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
 		t.Skip("-quick")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	cmd := testenv.CleanCmdEnv(testenv.CommandContext(t, ctx, exe, name))
+	start := time.Now()
+
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, exe, name))
 	cmd.Env = append(cmd.Env, env...)
 	if testing.Short() {
 		cmd.Env = append(cmd.Env, "RUNTIME_TEST_SHORT=1")
 	}
 	out, err := cmd.CombinedOutput()
-	if err != nil {
+	if err == nil {
+		t.Logf("%v (%v): ok", cmd, time.Since(start))
+	} else {
 		if _, ok := err.(*exec.ExitError); ok {
 			t.Logf("%v: %v", cmd, err)
 		} else if errors.Is(err, exec.ErrWaitDelay) {

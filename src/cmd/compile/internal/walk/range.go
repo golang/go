@@ -142,20 +142,78 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 			hs.SetTypecheck(1)
 		}
 
-		// Pointer to current iteration position
-		hp := typecheck.Temp(types.NewPtr(elem))
-		init = append(init, ir.NewAssignStmt(base.Pos, hp, ir.NewUnaryExpr(base.Pos, ir.OSPTR, hs)))
+		// We use a "pointer" to keep track of where we are in the backing array
+		// of the slice hs. This pointer starts at hs.ptr and gets incremented
+		// by the element size each time through the loop.
+		//
+		// It's tricky, though, as on the last iteration this pointer gets
+		// incremented to point past the end of the backing array. We can't
+		// let the garbage collector see that final out-of-bounds pointer.
+		//
+		// To avoid this, we keep the "pointer" alternately in 2 variables, one
+		// pointer typed and one uintptr typed. Most of the time it lives in the
+		// regular pointer variable, but when it might be out of bounds (after it
+		// has been incremented, but before the loop condition has been checked)
+		// it lives briefly in the uintptr variable.
+		//
+		// hp contains the pointer version (of type *T, where T is the element type).
+		// It is guaranteed to always be in range, keeps the backing store alive,
+		// and is updated on stack copies. If a GC occurs when this function is
+		// suspended at any safepoint, this variable ensures correct operation.
+		//
+		// hu contains the equivalent uintptr version. It may point past the
+		// end, but doesn't keep the backing store alive and doesn't get updated
+		// on a stack copy. If a GC occurs while this function is on the top of
+		// the stack, then the last frame is scanned conservatively and hu will
+		// act as a reference to the backing array to ensure it is not collected.
+		//
+		// The "pointer" we're moving across the backing array lives in one
+		// or the other of hp and hu as the loop proceeds.
+		//
+		// hp is live during most of the body of the loop. But it isn't live
+		// at the very top of the loop, when we haven't checked i<n yet, and
+		// it could point off the end of the backing store.
+		// hu is live only at the very top and very bottom of the loop.
+		// In particular, only when it cannot possibly be live across a call.
+		//
+		// So we do
+		//   hu = uintptr(unsafe.Pointer(hs.ptr))
+		//   for i := 0; i < hs.len; i++ {
+		//     hp = (*T)(unsafe.Pointer(hu))
+		//     v1, v2 = i, *hp
+		//     ... body of loop ...
+		//     hu = uintptr(unsafe.Pointer(hp)) + elemsize
+		//   }
+		//
+		// Between the assignments to hu and the assignment back to hp, there
+		// must not be any calls.
 
-		a := rangeAssign2(nrange, hv1, ir.NewStarExpr(base.Pos, hp))
+		// Pointer to current iteration position. Start on entry to the loop
+		// with the pointer in hu.
+		ptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, hs)
+		huVal := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ptr)
+		huVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUINTPTR], huVal)
+		hu := typecheck.Temp(types.Types[types.TUINTPTR])
+		init = append(init, ir.NewAssignStmt(base.Pos, hu, huVal))
+
+		// Convert hu to hp at the top of the loop (afer the condition has been checked).
+		hpVal := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], hu)
+		hpVal.SetCheckPtr(true) // disable checkptr on this conversion
+		hpVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, elem.PtrTo(), hpVal)
+		hp := typecheck.Temp(elem.PtrTo())
+		body = append(body, ir.NewAssignStmt(base.Pos, hp, hpVal))
+
+		// Assign variables on the LHS of the range statement. Use *hp to get the element.
+		e := ir.NewStarExpr(base.Pos, hp)
+		e.SetBounded(true)
+		a := rangeAssign2(nrange, hv1, e)
 		body = append(body, a)
 
 		// Advance pointer for next iteration of the loop.
-		// Note: this pointer is now potentially a past-the-end pointer, so
-		// we need to make sure this pointer is never seen by the GC except
-		// during a conservative scan. Fortunately, the next thing we're going
-		// to do is check the loop bounds and exit, so it doesn't live very long
-		// (in particular, it doesn't live across any function call).
-		as := ir.NewAssignStmt(base.Pos, hp, addptr(hp, elem.Size()))
+		// This reads from hp and writes to hu.
+		huVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], hp)
+		huVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUINTPTR], huVal)
+		as := ir.NewAssignStmt(base.Pos, hu, ir.NewBinaryExpr(base.Pos, ir.OADD, huVal, ir.NewInt(elem.Size())))
 		nfor.Post = ir.NewBlockStmt(base.Pos, []ir.Node{nfor.Post, as})
 
 	case types.TMAP:

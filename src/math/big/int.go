@@ -206,13 +206,13 @@ func (z *Int) MulRange(a, b int64) *Int {
 }
 
 // Binomial sets z to the binomial coefficient C(n, k) and returns z.
-func (z *Int) Binomial(n_, k_ int64) *Int {
-	if k_ > n_ {
+func (z *Int) Binomial(n, k int64) *Int {
+	if k > n {
 		return z.SetInt64(0)
 	}
 	// reduce the number of multiplications by reducing k
-	if k_ > n_-k_ {
-		k_ = n_ - k_ // C(n, k) == C(n, n-k)
+	if k > n-k {
+		k = n - k // C(n, k) == C(n, n-k)
 	}
 	// C(n, k) == n * (n-1) * ... * (n-k+1) / k * (k-1) * ... * 1
 	//         == n * (n-1) * ... * (n-k+1) / 1 * (1+1) * ... * k
@@ -235,12 +235,12 @@ func (z *Int) Binomial(n_, k_ int64) *Int {
 	//     i++
 	//     z /= i
 	// }
-	var n, k, i, t Int
-	n.SetInt64(n_)
-	k.SetInt64(k_)
+	var N, K, i, t Int
+	N.SetInt64(n)
+	K.SetInt64(k)
 	z.Set(intOne)
-	for i.Cmp(&k) < 0 {
-		z.Mul(z, t.Sub(&n, &i))
+	for i.Cmp(&K) < 0 {
+		z.Mul(z, t.Sub(&N, &i))
 		i.Add(&i, intOne)
 		z.Quo(z, &i)
 	}
@@ -671,7 +671,7 @@ func lehmerSimulate(A, B *Int) (u0, u1, v0, v1 Word, even bool) {
 // where the signs of u0, u1, v0, v1 are given by even
 // For even == true: u0, v1 >= 0 && u1, v0 <= 0
 // For even == false: u0, v1 <= 0 && u1, v0 >= 0
-// q, r, s, t are temporary variables to avoid allocations in the multiplication
+// q, r, s, t are temporary variables to avoid allocations in the multiplication.
 func lehmerUpdate(A, B, q, r, s, t *Int, u0, u1, v0, v1 Word, even bool) {
 
 	t.abs = t.abs.setWord(u0)
@@ -695,7 +695,7 @@ func lehmerUpdate(A, B, q, r, s, t *Int, u0, u1, v0, v1 Word, even bool) {
 }
 
 // euclidUpdate performs a single step of the Euclidean GCD algorithm
-// if extended is true, it also updates the cosequence Ua, Ub
+// if extended is true, it also updates the cosequence Ua, Ub.
 func euclidUpdate(A, B, Ua, Ub, q, r, s, t *Int, extended bool) {
 	q, r = q.QuoRem(A, B, r)
 

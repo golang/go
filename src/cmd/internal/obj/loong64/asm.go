@@ -1092,7 +1092,7 @@ func OP_IR(op uint32, i uint32, r2 uint32) uint32 {
 	return op | (i&0xFFFFF)<<5 | (r2&0x1F)<<0 // ui20, rd5
 }
 
-// Encoding for the 'b' or 'bl' instruction
+// Encoding for the 'b' or 'bl' instruction.
 func OP_B_BL(op uint32, i uint32) uint32 {
 	return op | ((i & 0xFFFF) << 10) | ((i >> 16) & 0x3FF)
 }

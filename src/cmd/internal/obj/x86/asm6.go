@@ -3612,7 +3612,7 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
 		goto bad
 	}
 
-	if a.Index != REG_NONE && a.Index != REG_TLS {
+	if a.Index != REG_NONE && a.Index != REG_TLS && !(REG_CS <= a.Index && a.Index <= REG_GS) {
 		base := int(a.Reg)
 		switch a.Name {
 		case obj.NAME_EXTERN,
@@ -3724,7 +3724,8 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
 	}
 
 	if REG_AX <= base && base <= REG_R15 {
-		if a.Index == REG_TLS && !ctxt.Flag_shared && !isAndroid {
+		if a.Index == REG_TLS && !ctxt.Flag_shared && !isAndroid &&
+			!(ctxt.Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64) {
 			rel = obj.Reloc{}
 			rel.Type = objabi.R_TLS_LE
 			rel.Siz = 4
@@ -5203,21 +5204,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						pp.From.Scale = 0
 						ab.rexflag |= Pw
 						ab.Put2(0x64, // FS
-							0x8B)
-						ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
-
-					case objabi.Hwindows:
-						// Windows TLS base is always 0x28(GS).
-						pp.From = p.From
-
-						pp.From.Type = obj.TYPE_MEM
-						pp.From.Name = obj.NAME_NONE
-						pp.From.Reg = REG_GS
-						pp.From.Offset = 0x28
-						pp.From.Index = REG_NONE
-						pp.From.Scale = 0
-						ab.rexflag |= Pw
-						ab.Put2(0x65, // GS
 							0x8B)
 						ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
 					}

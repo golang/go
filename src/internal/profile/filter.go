@@ -131,7 +131,7 @@ func (p *Profile) FilterSamplesByTag(focus, ignore TagMatch) (fm, im bool) {
 }
 
 // focusedSample checks a sample against focus and ignore regexps.
-// Returns whether the focus/ignore regexps match any tags
+// Returns whether the focus/ignore regexps match any tags.
 func focusedSample(s *Sample, focus, ignore TagMatch) (fm, im bool) {
 	fm = focus == nil
 	for key, vals := range s.Label {

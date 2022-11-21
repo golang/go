@@ -536,7 +536,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
 }
 
-// round to a multiple of r, r is a power of 2
+// round to a multiple of r, r is a power of 2.
 func round(o int64, r int64) int64 {
 	return (o + r - 1) &^ (r - 1)
 }

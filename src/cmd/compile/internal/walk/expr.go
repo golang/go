@@ -346,7 +346,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 // expression or simple statement.
 // the types expressions are calculated.
 // compile-time constants are evaluated.
-// complex side effects like statements are appended to init
+// complex side effects like statements are appended to init.
 func walkExprList(s []ir.Node, init *ir.Nodes) {
 	for i := range s {
 		s[i] = walkExpr(s[i], init)
@@ -867,7 +867,7 @@ func walkStringHeader(n *ir.StringHeaderExpr, init *ir.Nodes) ir.Node {
 	return n
 }
 
-// return 1 if integer n must be in range [0, max), 0 otherwise
+// return 1 if integer n must be in range [0, max), 0 otherwise.
 func bounded(n ir.Node, max int64) bool {
 	if n.Type() == nil || !n.Type().IsInteger() {
 		return false

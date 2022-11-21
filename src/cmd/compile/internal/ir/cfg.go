@@ -5,12 +5,12 @@
 package ir
 
 var (
-	// maximum size variable which we will allocate on the stack.
+	// MaxStackVarSize is the maximum size variable which we will allocate on the stack.
 	// This limit is for explicit variable declarations like "var x T" or "x := ...".
 	// Note: the flag smallframes can update this value.
 	MaxStackVarSize = int64(10 * 1024 * 1024)
 
-	// maximum size of implicit variables that we will allocate on the stack.
+	// MaxImplicitStackVarSize is the maximum size of implicit variables that we will allocate on the stack.
 	//   p := new(T)          allocating T on the stack
 	//   p := &T{}            allocating T on the stack
 	//   s := make([]T, n)    allocating [n]T on the stack

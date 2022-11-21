@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"errors"
 	"internal/nettrace"
 	"internal/singleflight"
 	"net/netip"
@@ -711,7 +712,7 @@ func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string)
 	} else {
 		target = "_" + service + "._" + proto + "." + name
 	}
-	p, server, err := r.lookup(ctx, target, dnsmessage.TypeSRV)
+	p, server, err := r.lookup(ctx, target, dnsmessage.TypeSRV, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -757,7 +758,7 @@ func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string)
 
 // goLookupMX returns the MX records for name.
 func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeMX)
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeMX, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -801,7 +802,7 @@ func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
 
 // goLookupNS returns the NS records for name.
 func (r *Resolver) goLookupNS(ctx context.Context, name string) ([]*NS, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeNS)
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeNS, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -843,7 +844,7 @@ func (r *Resolver) goLookupNS(ctx context.Context, name string) ([]*NS, error) {
 
 // goLookupTXT returns the TXT records from name.
 func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeTXT)
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeTXT, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -895,4 +896,15 @@ func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, erro
 		txts = append(txts, string(txtJoin))
 	}
 	return txts, nil
+}
+
+func parseCNAMEFromResources(resources []dnsmessage.Resource) (string, error) {
+	if len(resources) == 0 {
+		return "", errors.New("no CNAME record received")
+	}
+	c, ok := resources[0].Body.(*dnsmessage.CNAMEResource)
+	if !ok {
+		return "", errors.New("could not parse CNAME record")
+	}
+	return c.CNAME.String(), nil
 }

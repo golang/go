@@ -455,7 +455,7 @@ func (z nat) expWW(x, y Word) nat {
 	return z.expNN(nat(nil).setWord(x), nat(nil).setWord(y), nil, false)
 }
 
-// construct table of powers of bb*leafSize to use in subdivisions
+// construct table of powers of bb*leafSize to use in subdivisions.
 func divisors(m int, b Word, ndigits int, bb Word) []divisor {
 	// only compute table when recursive conversion is enabled and x is large
 	if leafSize == 0 || m <= leafSize {

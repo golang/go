@@ -487,6 +487,14 @@ type mspan struct {
 	speciallock           mutex         // guards specials list
 	specials              *special      // linked list of special records sorted by offset.
 	userArenaChunkFree    addrRange     // interval for managing chunk allocation
+
+	// freeIndexForScan is like freeindex, except that freeindex is
+	// used by the allocator whereas freeIndexForScan is used by the
+	// GC scanner. They are two fields so that the GC sees the object
+	// is allocated only when the object and the heap bits are
+	// initialized (see also the assignment of freeIndexForScan in
+	// mallocgc, and issue 54596).
+	freeIndexForScan uintptr
 }
 
 func (s *mspan) base() uintptr {
@@ -1298,6 +1306,7 @@ HaveSpan:
 	// There are a few very limited cirumstances where we won't have a P here.
 	// It's OK to simply skip scavenging in these cases. Something else will notice
 	// and pick up the tab.
+	var now int64
 	if pp != nil && bytesToScavenge > 0 {
 		// Measure how long we spent scavenging and add that measurement to the assist
 		// time so we can track it for the GC CPU limiter.
@@ -1313,7 +1322,7 @@ HaveSpan:
 		})
 
 		// Finish up accounting.
-		now := nanotime()
+		now = nanotime()
 		if track {
 			pp.limiterEvent.stop(limiterEventScavengeAssist, now)
 		}
@@ -1352,6 +1361,7 @@ HaveSpan:
 	}
 	memstats.heapStats.release()
 
+	pageTraceAlloc(pp, now, base, npages)
 	return s
 }
 
@@ -1386,6 +1396,7 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
 
 		// Initialize mark and allocation structures.
 		s.freeindex = 0
+		s.freeIndexForScan = 0
 		s.allocCache = ^uint64(0) // all 1s indicating all free.
 		s.gcmarkBits = newMarkBits(s.nelems)
 		s.allocBits = newAllocBits(s.nelems)
@@ -1526,6 +1537,8 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 // Free the span back into the heap.
 func (h *mheap) freeSpan(s *mspan) {
 	systemstack(func() {
+		pageTraceFree(getg().m.p.ptr(), 0, s.base(), s.npages)
+
 		lock(&h.lock)
 		if msanenabled {
 			// Tell msan that this entire span is no longer in use.
@@ -1556,6 +1569,8 @@ func (h *mheap) freeSpan(s *mspan) {
 //
 //go:systemstack
 func (h *mheap) freeManual(s *mspan, typ spanAllocType) {
+	pageTraceFree(getg().m.p.ptr(), 0, s.base(), s.npages)
+
 	s.needzero = 1
 	lock(&h.lock)
 	h.freeSpanLocked(s, typ)
@@ -1657,6 +1672,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	span.specials = nil
 	span.needzero = 0
 	span.freeindex = 0
+	span.freeIndexForScan = 0
 	span.allocBits = nil
 	span.gcmarkBits = nil
 	span.state.set(mSpanDead)

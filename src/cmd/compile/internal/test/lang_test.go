@@ -7,7 +7,6 @@ package test
 import (
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -57,7 +56,7 @@ func TestInvalidLang(t *testing.T) {
 func testLang(t *testing.T, lang, src, outfile string) error {
 	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=p", "-lang", lang, "-o", outfile, src}
 	t.Log(run)
-	out, err := exec.Command(run[0], run[1:]...).CombinedOutput()
+	out, err := testenv.Command(t, run[0], run[1:]...).CombinedOutput()
 	t.Logf("%s", out)
 	return err
 }

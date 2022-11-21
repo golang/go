@@ -109,7 +109,7 @@ func (k *PrivateKeyRSA) withKey(f func(*C.GO_RSA) C.int) C.int {
 }
 
 func setupRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
-	padding C.int, h hash.Hash, label []byte, saltLen int, ch crypto.Hash,
+	padding C.int, h, mgfHash hash.Hash, label []byte, saltLen int, ch crypto.Hash,
 	init func(*C.GO_EVP_PKEY_CTX) C.int) (pkey *C.GO_EVP_PKEY, ctx *C.GO_EVP_PKEY_CTX, err error) {
 	defer func() {
 		if err != nil {
@@ -148,8 +148,15 @@ func setupRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
 		if md == nil {
 			return nil, nil, errors.New("crypto/rsa: unsupported hash function")
 		}
+		mgfMD := hashToMD(mgfHash)
+		if mgfMD == nil {
+			return nil, nil, errors.New("crypto/rsa: unsupported hash function")
+		}
 		if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_oaep_md(ctx, md) == 0 {
 			return nil, nil, fail("EVP_PKEY_set_rsa_oaep_md")
+		}
+		if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, mgfMD) == 0 {
+			return nil, nil, fail("EVP_PKEY_set_rsa_mgf1_md")
 		}
 		// ctx takes ownership of label, so malloc a copy for BoringCrypto to free.
 		clabel := (*C.uint8_t)(C._goboringcrypto_OPENSSL_malloc(C.size_t(len(label))))
@@ -180,12 +187,12 @@ func setupRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
 }
 
 func cryptRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
-	padding C.int, h hash.Hash, label []byte, saltLen int, ch crypto.Hash,
+	padding C.int, h, mgfHash hash.Hash, label []byte, saltLen int, ch crypto.Hash,
 	init func(*C.GO_EVP_PKEY_CTX) C.int,
 	crypt func(*C.GO_EVP_PKEY_CTX, *C.uint8_t, *C.size_t, *C.uint8_t, C.size_t) C.int,
 	in []byte) ([]byte, error) {
 
-	pkey, ctx, err := setupRSA(withKey, padding, h, label, saltLen, ch, init)
+	pkey, ctx, err := setupRSA(withKey, padding, h, mgfHash, label, saltLen, ch, init)
 	if err != nil {
 		return nil, err
 	}
@@ -203,28 +210,28 @@ func cryptRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
 	return out[:outLen], nil
 }
 
-func DecryptRSAOAEP(h hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
-	return cryptRSA(priv.withKey, C.GO_RSA_PKCS1_OAEP_PADDING, h, label, 0, 0, decryptInit, decrypt, ciphertext)
+func DecryptRSAOAEP(h, mgfHash hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
+	return cryptRSA(priv.withKey, C.GO_RSA_PKCS1_OAEP_PADDING, h, mgfHash, label, 0, 0, decryptInit, decrypt, ciphertext)
 }
 
-func EncryptRSAOAEP(h hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
-	return cryptRSA(pub.withKey, C.GO_RSA_PKCS1_OAEP_PADDING, h, label, 0, 0, encryptInit, encrypt, msg)
+func EncryptRSAOAEP(h, mgfHash hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
+	return cryptRSA(pub.withKey, C.GO_RSA_PKCS1_OAEP_PADDING, h, mgfHash, label, 0, 0, encryptInit, encrypt, msg)
 }
 
 func DecryptRSAPKCS1(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
-	return cryptRSA(priv.withKey, C.GO_RSA_PKCS1_PADDING, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
+	return cryptRSA(priv.withKey, C.GO_RSA_PKCS1_PADDING, nil, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
 }
 
 func EncryptRSAPKCS1(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
-	return cryptRSA(pub.withKey, C.GO_RSA_PKCS1_PADDING, nil, nil, 0, 0, encryptInit, encrypt, msg)
+	return cryptRSA(pub.withKey, C.GO_RSA_PKCS1_PADDING, nil, nil, nil, 0, 0, encryptInit, encrypt, msg)
 }
 
 func DecryptRSANoPadding(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
-	return cryptRSA(priv.withKey, C.GO_RSA_NO_PADDING, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
+	return cryptRSA(priv.withKey, C.GO_RSA_NO_PADDING, nil, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
 }
 
 func EncryptRSANoPadding(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
-	return cryptRSA(pub.withKey, C.GO_RSA_NO_PADDING, nil, nil, 0, 0, encryptInit, encrypt, msg)
+	return cryptRSA(pub.withKey, C.GO_RSA_NO_PADDING, nil, nil, nil, 0, 0, encryptInit, encrypt, msg)
 }
 
 // These dumb wrappers work around the fact that cgo functions cannot be used as values directly.

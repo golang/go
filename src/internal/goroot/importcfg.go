@@ -54,7 +54,7 @@ func PkgfileMap() (map[string]string, error) {
 			}
 			sp := strings.SplitN(line, " ", 2)
 			if len(sp) != 2 {
-				err = fmt.Errorf("determining pkgfile map: invalid line in go list output: %q", line)
+				stdlibPkgfileErr = fmt.Errorf("determining pkgfile map: invalid line in go list output: %q", line)
 				return
 			}
 			importPath, export := sp[0], sp[1]

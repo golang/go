@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -26,7 +25,7 @@ func TestUndefinedRelocErrors(t *testing.T) {
 
 	t.Parallel()
 
-	out, err := exec.Command(testenv.GoToolPath(t), "build", "./testdata/issue10978").CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "./testdata/issue10978").CombinedOutput()
 	if err == nil {
 		t.Fatal("expected build to fail")
 	}
@@ -113,7 +112,7 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
 
 	ldf := fmt.Sprintf("-ldflags=-v -tmpdir=%s", dir)
 	argv := []string{"build", "-buildmode=c-archive", "-o", arfile, ldf, srcfile}
-	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), argv...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
 	}
@@ -155,13 +154,13 @@ func TestLargeTextSectionSplitting(t *testing.T) {
 	// is arbitrary; we just need something sufficiently large that uses
 	// external linking.
 	exe := filepath.Join(dir, "go.exe")
-	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "-ldflags=-linkmode=external -debugtextsize=1048576", "cmd/go").CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, "-ldflags=-linkmode=external -debugtextsize=1048576", "cmd/go").CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
 	}
 
 	// Check that we did split text sections.
-	out, err = exec.Command(testenv.GoToolPath(t), "tool", "nm", exe).CombinedOutput()
+	out, err = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("nm failure: %s\n%s\n", err, string(out))
 	}
@@ -170,7 +169,7 @@ func TestLargeTextSectionSplitting(t *testing.T) {
 	}
 
 	// Result should be runnable.
-	_, err = exec.Command(exe, "version").CombinedOutput()
+	_, err = testenv.Command(t, exe, "version").CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +209,7 @@ func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
 		argv = append(argv, "-ldflags", "-aslr=false")
 	}
 	argv = append(argv, "-o", objfile, srcfile)
-	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), argv...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
 	}
@@ -330,7 +329,7 @@ func main() {
 			if err := os.WriteFile(src, []byte(tt.prog), 0644); err != nil {
 				t.Fatal(err)
 			}
-			cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "run", src)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatal(err)

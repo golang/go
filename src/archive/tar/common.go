@@ -31,6 +31,7 @@ var (
 	ErrWriteTooLong    = errors.New("archive/tar: write too long")
 	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
 	ErrWriteAfterClose = errors.New("archive/tar: write after close")
+	ErrInsecurePath    = errors.New("archive/tar: insecure file path")
 	errMissData        = errors.New("archive/tar: sparse file references non-existent data")
 	errUnrefData       = errors.New("archive/tar: sparse file contains unreferenced data")
 	errWriteHole       = errors.New("archive/tar: write non-NUL byte in sparse hole")

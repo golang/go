@@ -24,7 +24,7 @@ const len8tab = "" +
 	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08" +
 	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08"
 
-// len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+// Len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
 //
 // nosplit because this is used in src/runtime/histogram.go, which make run in sensitive contexts.
 //

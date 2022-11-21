@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build cgo && !netgo && darwin
+//go:build !netgo && darwin
 
 package net
 
 import (
 	"internal/syscall/unix"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -27,13 +28,14 @@ const (
 )
 
 type (
-	_C_char            = byte
-	_C_int             = int32
-	_C_uchar           = byte
-	_C_uint            = uint32
-	_C_socklen_t       = int
-	_C_struct_addrinfo = unix.Addrinfo
-	_C_struct_sockaddr = syscall.RawSockaddr
+	_C_char               = byte
+	_C_int                = int32
+	_C_uchar              = byte
+	_C_uint               = uint32
+	_C_socklen_t          = int
+	_C_struct___res_state = unix.ResState
+	_C_struct_addrinfo    = unix.Addrinfo
+	_C_struct_sockaddr    = syscall.RawSockaddr
 )
 
 func _C_GoString(p *_C_char) string {
@@ -41,9 +43,19 @@ func _C_GoString(p *_C_char) string {
 }
 
 func _C_CString(s string) *_C_char {
-	b := make([]byte, len(s)+1)
-	copy(b, s)
-	return &b[0]
+	p := make([]byte, len(s)+1)
+	copy(p, s)
+	return &p[0]
+}
+
+func _C_FreeCString(p *_C_char) { _C_free(unsafe.Pointer(p)) }
+func _C_free(p unsafe.Pointer)  { runtime.KeepAlive(p) }
+
+func _C_malloc(n uintptr) unsafe.Pointer {
+	if n <= 0 {
+		n = 1
+	}
+	return unsafe.Pointer(&make([]byte, n)[0])
 }
 
 func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.Addr }
@@ -64,6 +76,19 @@ func _C_gai_strerror(eai _C_int) string {
 
 func _C_getaddrinfo(hostname, servname *byte, hints *_C_struct_addrinfo, res **_C_struct_addrinfo) (int, error) {
 	return unix.Getaddrinfo(hostname, servname, hints, res)
+}
+
+func _C_res_ninit(state *_C_struct___res_state) error {
+	unix.ResNinit(state)
+	return nil
+}
+
+func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) (int, error) {
+	return unix.ResNsearch(state, dname, class, typ, ans, anslen)
+}
+
+func _C_res_nclose(state *_C_struct___res_state) {
+	unix.ResNclose(state)
 }
 
 func cgoNameinfoPTR(b []byte, sa *syscall.RawSockaddr, salen int) (int, error) {

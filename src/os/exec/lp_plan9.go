@@ -6,7 +6,6 @@ package exec
 
 import (
 	"errors"
-	"internal/godebug"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -54,7 +53,7 @@ func LookPath(file string) (string, error) {
 	for _, dir := range filepath.SplitList(path) {
 		path := filepath.Join(dir, file)
 		if err := findExecutable(path); err == nil {
-			if !filepath.IsAbs(path) && godebug.Get("execerrdot") != "0" {
+			if !filepath.IsAbs(path) && execerrdot.Value() != "0" {
 				return path, &Error{file, ErrDot}
 			}
 			return path, nil

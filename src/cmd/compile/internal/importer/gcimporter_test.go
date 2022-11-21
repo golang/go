@@ -12,7 +12,6 @@ import (
 	"internal/goexperiment"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -40,7 +39,7 @@ func compile(t *testing.T, dirname, filename, outdirname string, packagefiles ma
 	importcfgfile := filepath.Join(outdirname, basename) + ".importcfg"
 	testenv.WriteImportcfg(t, importcfgfile, packagefiles)
 	pkgpath := path.Join("testdata", basename)
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p", pkgpath, "-D", "testdata", "-importcfg", importcfgfile, "-o", outname, filename)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p", pkgpath, "-D", "testdata", "-importcfg", importcfgfile, "-o", outname, filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {

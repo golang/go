@@ -50,7 +50,7 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		ctr.n++
 	case "POST":
 		var buf strings.Builder
-		io.Copy(buf, req.Body)
+		io.Copy(&buf, req.Body)
 		body := buf.String()
 		if n, err := strconv.Atoi(body); err != nil {
 			fmt.Fprintf(w, "bad POST: %v\nbody: [%v]\n", err, body)
@@ -101,7 +101,7 @@ func (ch Chan) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	io.WriteString(w, fmt.Sprintf("channel send #%d\n", <-ch))
 }
 
-// exec a program, redirecting output
+// exec a program, redirecting output.
 func DateServer(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
 

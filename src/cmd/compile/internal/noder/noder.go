@@ -132,7 +132,9 @@ func (p *noder) processPragmas() {
 		}
 		n := ir.AsNode(typecheck.Lookup(l.local).Def)
 		if n == nil || n.Op() != ir.ONAME {
-			p.errorAt(l.pos, "//go:linkname must refer to declared function or variable")
+			if types.AllowsGoVersion(1, 18) {
+				p.errorAt(l.pos, "//go:linkname must refer to declared function or variable")
+			}
 			continue
 		}
 		if n.Sym().Linkname != "" {

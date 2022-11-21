@@ -59,7 +59,7 @@ func (b neverEnding) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// outGoingLength is a copy of the unexported
+// outgoingLength is a copy of the unexported
 // (*http.Request).outgoingLength method.
 func outgoingLength(req *http.Request) int64 {
 	if req.Body == nil || req.Body == http.NoBody {

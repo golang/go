@@ -302,6 +302,10 @@ func (d *Decoder) Token() (Token, error) {
 		// the translations first.
 		for _, a := range t1.Attr {
 			if a.Name.Space == xmlnsPrefix {
+				if a.Value == "" {
+					d.err = d.syntaxError("empty namespace with prefix")
+					return nil, d.err
+				}
 				v, ok := d.ns[a.Name.Local]
 				d.pushNs(a.Name.Local, v, ok)
 				d.ns[a.Name.Local] = a.Value
@@ -314,15 +318,14 @@ func (d *Decoder) Token() (Token, error) {
 			}
 		}
 
+		d.pushElement(t1.Name)
 		d.translate(&t1.Name, true)
 		for i := range t1.Attr {
 			d.translate(&t1.Attr[i].Name, false)
 		}
-		d.pushElement(t1.Name)
 		t = t1
 
 	case EndElement:
-		d.translate(&t1.Name, true)
 		if !d.popElement(&t1) {
 			return nil, d.err
 		}
@@ -494,6 +497,8 @@ func (d *Decoder) popElement(t *EndElement) bool {
 			" closed by </" + name.Local + "> in space " + name.Space)
 		return false
 	}
+
+	d.translate(&t.Name, true)
 
 	// Pop stack until a Start or EOF is on the top, undoing the
 	// translations that were associated with the element we just closed.
@@ -1162,7 +1167,7 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 		return
 	}
 	if strings.Count(s, ":") > 1 {
-		name.Local = s
+		return name, false
 	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
 		name.Local = s
 	} else {

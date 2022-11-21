@@ -145,6 +145,7 @@ const (
 	// universe scope
 	_Append builtinId = iota
 	_Cap
+	_Clear
 	_Close
 	_Complex
 	_Copy
@@ -182,6 +183,7 @@ var predeclaredFuncs = [...]struct {
 }{
 	_Append:  {"append", 1, true, expression},
 	_Cap:     {"cap", 1, false, expression},
+	_Clear:   {"clear", 1, false, statement},
 	_Close:   {"close", 1, false, statement},
 	_Complex: {"complex", 2, false, expression},
 	_Copy:    {"copy", 2, false, statement},

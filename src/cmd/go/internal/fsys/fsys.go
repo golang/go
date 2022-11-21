@@ -1,3 +1,7 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package fsys is an abstraction for reading files that
 // allows for virtual overlays on top of the files on disk.
 package fsys
@@ -32,27 +36,29 @@ func Trace(op, path string) {
 	traceMu.Lock()
 	defer traceMu.Unlock()
 	fmt.Fprintf(traceFile, "%d gofsystrace %s %s\n", os.Getpid(), op, path)
-	if traceStack != "" {
-		if match, _ := pathpkg.Match(traceStack, path); match {
+	if pattern := gofsystracestack.Value(); pattern != "" {
+		if match, _ := pathpkg.Match(pattern, path); match {
 			traceFile.Write(debug.Stack())
 		}
 	}
 }
 
 var (
-	doTrace    bool
-	traceStack string
-	traceFile  *os.File
-	traceMu    sync.Mutex
+	doTrace   bool
+	traceFile *os.File
+	traceMu   sync.Mutex
+
+	gofsystrace      = godebug.New("gofsystrace")
+	gofsystracelog   = godebug.New("gofsystracelog")
+	gofsystracestack = godebug.New("gofsystracestack")
 )
 
 func init() {
-	if godebug.Get("gofsystrace") != "1" {
+	if gofsystrace.Value() != "1" {
 		return
 	}
 	doTrace = true
-	traceStack = godebug.Get("gofsystracestack")
-	if f := godebug.Get("gofsystracelog"); f != "" {
+	if f := gofsystracelog.Value(); f != "" {
 		// Note: No buffering on writes to this file, so no need to worry about closing it at exit.
 		var err error
 		traceFile, err = os.OpenFile(f, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
@@ -470,19 +476,23 @@ func IsDirWithGoFiles(dir string) (bool, error) {
 
 // walk recursively descends path, calling walkFn. Copied, with some
 // modifications from path/filepath.walk.
-func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
+// Walk follows the root if it's a symlink, but reports the original paths,
+// so it calls walk with both the resolvedPath (which is the path with the root resolved)
+// and path (which is the path reported to the walkFn).
+func walk(path, resolvedPath string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
 	if err := walkFn(path, info, nil); err != nil || !info.IsDir() {
 		return err
 	}
 
-	fis, err := ReadDir(path)
+	fis, err := ReadDir(resolvedPath)
 	if err != nil {
 		return walkFn(path, info, err)
 	}
 
 	for _, fi := range fis {
 		filename := filepath.Join(path, fi.Name())
-		if err := walk(filename, fi, walkFn); err != nil {
+		resolvedFilename := filepath.Join(resolvedPath, fi.Name())
+		if err := walk(filename, resolvedFilename, fi, walkFn); err != nil {
 			if !fi.IsDir() || err != filepath.SkipDir {
 				return err
 			}
@@ -499,7 +509,23 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
 	if err != nil {
 		err = walkFn(root, nil, err)
 	} else {
-		err = walk(root, info, walkFn)
+		resolved := root
+		if info.Mode()&os.ModeSymlink != 0 {
+			// Walk follows root if it's a symlink (but does not follow other symlinks).
+			if op, ok := OverlayPath(root); ok {
+				resolved = op
+			}
+			resolved, err = os.Readlink(resolved)
+			if err != nil {
+				return err
+			}
+			// Re-stat to get the info for the resolved file.
+			info, err = Lstat(resolved)
+			if err != nil {
+				return err
+			}
+		}
+		err = walk(root, resolved, info, walkFn)
 	}
 	if err == filepath.SkipDir {
 		return nil

@@ -1493,3 +1493,18 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
 	}
 	return false
 }
+
+// CertificateVerificationError is returned when certificate verification fails during the handshake.
+type CertificateVerificationError struct {
+	// UnverifiedCertificates and its contents should not be modified.
+	UnverifiedCertificates []*x509.Certificate
+	Err                    error
+}
+
+func (e *CertificateVerificationError) Error() string {
+	return fmt.Sprintf("tls: failed to verify certificate: %s", e.Err)
+}
+
+func (e *CertificateVerificationError) Unwrap() error {
+	return e.Err
+}

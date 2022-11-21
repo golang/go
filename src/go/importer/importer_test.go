@@ -11,7 +11,6 @@ import (
 	"internal/testenv"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 )
@@ -25,7 +24,7 @@ func TestForCompiler(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	const thePackage = "math/big"
-	out, err := exec.Command(testenv.GoToolPath(t), "list", "-export", "-f={{context.Compiler}}:{{.Export}}", thePackage).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "list", "-export", "-f={{context.Compiler}}:{{.Export}}", thePackage).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go list %s: %v\n%s", thePackage, err, out)
 	}

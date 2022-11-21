@@ -260,7 +260,7 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
 	return nil
 }
 
-// NewTable decodes the Go symbol table in data,
+// newTable decodes the Go symbol table in data,
 // returning an in-memory representation.
 func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
 	var n int

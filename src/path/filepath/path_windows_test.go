@@ -560,3 +560,23 @@ func TestIssue52476(t *testing.T) {
 		}
 	}
 }
+
+func TestAbsWindows(t *testing.T) {
+	for _, test := range []struct {
+		path string
+		want string
+	}{
+		{`C:\foo`, `C:\foo`},
+		{`\\host\share\foo`, `\\host\share\foo`},
+		{`\\host`, `\\host`},
+		{`\\.\NUL`, `\\.\NUL`},
+		{`NUL`, `\\.\NUL`},
+		{`COM1`, `\\.\COM1`},
+		{`a/NUL`, `\\.\NUL`},
+	} {
+		got, err := filepath.Abs(test.path)
+		if err != nil || got != test.want {
+			t.Errorf("Abs(%q) = %q, %v; want %q, nil", test.path, got, err, test.want)
+		}
+	}
+}

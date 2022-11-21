@@ -213,10 +213,14 @@ func newosproc(mp *m) {
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
+	ret := retryOnEAGAIN(func() int32 {
+		errno := thr_new(&param, int32(unsafe.Sizeof(param)))
+		// thr_new returns negative errno
+		return -errno
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
-	if ret < 0 {
-		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
+	if ret != 0 {
+		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
 		throw("newosproc")
 	}
 }
@@ -227,7 +231,7 @@ func newosproc(mp *m) {
 func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	stack := sysAlloc(stacksize, &memstats.stacks_sys)
 	if stack == nil {
-		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+		writeErrStr(failallocatestack)
 		exit(1)
 	}
 	// This code "knows" it's being called once from the library
@@ -252,13 +256,10 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret < 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 }
-
-var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
-var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 
 // Called to do synchronous initialization of Go code built with
 // -buildmode=c-archive or -buildmode=c-shared.

@@ -15,17 +15,26 @@ const (
 	StackSmall  = 128
 )
 
-// Initialize StackGuard and StackLimit according to target system.
-var StackGuard = 928*stackGuardMultiplier() + StackSystem
-var StackLimit = StackGuard - StackSystem - StackSmall
+func StackLimit(race bool) int {
+	// This arithmetic must match that in runtime/stack.go:{_StackGuard,_StackLimit}.
+	stackGuard := 928*stackGuardMultiplier(race) + StackSystem
+	stackLimit := stackGuard - StackSystem - StackSmall
+	return stackLimit
+}
 
 // stackGuardMultiplier returns a multiplier to apply to the default
 // stack guard size. Larger multipliers are used for non-optimized
 // builds that have larger stack frames or for specific targets.
-func stackGuardMultiplier() int {
+func stackGuardMultiplier(race bool) int {
+	// This arithmetic must match that in runtime/internal/sys/consts.go:StackGuardMultiplier.
+	n := 1
 	// On AIX, a larger stack is needed for syscalls.
 	if buildcfg.GOOS == "aix" {
-		return 2
+		n += 1
 	}
-	return 1
+	// The race build also needs more stack.
+	if race {
+		n += 1
+	}
+	return n
 }

@@ -1,3 +1,4 @@
+{"Action":"start"}
 {"Action":"run","Test":"TestIndex"}
 {"Action":"output","Test":"TestIndex","Output":"=== RUN   TestIndex\n"}
 {"Action":"output","Test":"TestIndex","Output":"--- PASS: TestIndex (0.00s)\n"}

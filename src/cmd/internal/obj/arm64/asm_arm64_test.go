@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"testing"
@@ -45,7 +44,7 @@ func TestLarge(t *testing.T) {
 	pattern := `0x0080\s00128\s\(.*\)\tMOVD\t\$3,\sR3`
 
 	// assemble generated file
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
 	cmd.Env = append(os.Environ(), "GOOS=linux")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -60,7 +59,7 @@ func TestLarge(t *testing.T) {
 	}
 
 	// build generated file
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
 	cmd.Env = append(os.Environ(), "GOOS=linux")
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -94,7 +93,7 @@ func TestNoRet(t *testing.T) {
 	if err := os.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
 	cmd.Env = append(os.Environ(), "GOOS=linux")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Errorf("%v\n%s", err, out)
@@ -132,7 +131,7 @@ func TestPCALIGN(t *testing.T) {
 		if err := os.WriteFile(tmpfile, test.code, 0644); err != nil {
 			t.Fatal(err)
 		}
-		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
 		cmd.Env = append(os.Environ(), "GOOS=linux")
 		out, err := cmd.CombinedOutput()
 		if err != nil {

@@ -6,6 +6,7 @@ package x509
 
 import (
 	"bytes"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -49,6 +50,11 @@ var pkcs8P521PrivateKeyHex = `3081ee020100301006072a8648ce3d020106052b8104002304
 // From RFC 8410, Section 7.
 var pkcs8Ed25519PrivateKeyHex = `302e020100300506032b657004220420d4ee72dbf913584ad5b6d8f1f769f8ad3afe7c28cbf1d4fbe097a88f44755842`
 
+// Generated using:
+//
+//	openssl genpkey -algorithm x25519
+var pkcs8X25519PrivateKeyHex = `302e020100300506032b656e0422042068ff93a73c5adefd6d498b24e588fd4daa10924d992afed01b43ca5725025a6b`
+
 func TestPKCS8(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -90,6 +96,11 @@ func TestPKCS8(t *testing.T) {
 			keyHex:  pkcs8Ed25519PrivateKeyHex,
 			keyType: reflect.TypeOf(ed25519.PrivateKey{}),
 		},
+		{
+			name:    "X25519 private key",
+			keyHex:  pkcs8X25519PrivateKeyHex,
+			keyType: reflect.TypeOf(&ecdh.PrivateKey{}),
+		},
 	}
 
 	for _, test := range tests {
@@ -119,6 +130,25 @@ func TestPKCS8(t *testing.T) {
 		if !bytes.Equal(derBytes, reserialised) {
 			t.Errorf("%s: marshaled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
 			continue
+		}
+
+		if ecKey, isEC := privKey.(*ecdsa.PrivateKey); isEC {
+			ecdhKey, err := ecKey.ECDH()
+			if err != nil {
+				if ecKey.Curve != elliptic.P224() {
+					t.Errorf("%s: failed to convert to ecdh: %s", test.name, err)
+				}
+				continue
+			}
+			reserialised, err := MarshalPKCS8PrivateKey(ecdhKey)
+			if err != nil {
+				t.Errorf("%s: failed to marshal into PKCS#8: %s", test.name, err)
+				continue
+			}
+			if !bytes.Equal(derBytes, reserialised) {
+				t.Errorf("%s: marshaled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
+				continue
+			}
 		}
 	}
 }

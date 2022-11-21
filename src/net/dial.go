@@ -95,7 +95,19 @@ type Dialer struct {
 	// Network and address parameters passed to Control method are not
 	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
 	// will cause the Control function to be called with "tcp4" or "tcp6".
+	//
+	// Control is ignored if ControlContext is not nil.
 	Control func(network, address string, c syscall.RawConn) error
+
+	// If ControlContext is not nil, it is called after creating the network
+	// connection but before actually dialing.
+	//
+	// Network and address parameters passed to Control method are not
+	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
+	// will cause the Control function to be called with "tcp4" or "tcp6".
+	//
+	// If ControlContext is not nil, Control is ignored.
+	ControlContext func(ctx context.Context, network, address string, c syscall.RawConn) error
 }
 
 func (d *Dialer) dualStack() bool { return d.FallbackDelay >= 0 }
@@ -425,21 +437,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		primaries = addrs
 	}
 
-	c, err := sd.dialParallel(ctx, primaries, fallbacks)
-	if err != nil {
-		return nil, err
-	}
-
-	if tc, ok := c.(*TCPConn); ok && d.KeepAlive >= 0 {
-		setKeepAlive(tc.fd, true)
-		ka := d.KeepAlive
-		if d.KeepAlive == 0 {
-			ka = defaultTCPKeepAlive
-		}
-		setKeepAlivePeriod(tc.fd, ka)
-		testHookSetKeepAlive(ka)
-	}
-	return c, nil
+	return sd.dialParallel(ctx, primaries, fallbacks)
 }
 
 // dialParallel races two copies of dialSerial, giving the first a

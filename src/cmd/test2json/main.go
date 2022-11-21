@@ -48,6 +48,7 @@
 //
 // The Action field is one of a fixed set of action descriptions:
 //
+//	start  - the test binary is about to be executed
 //	run    - the test has started running
 //	pause  - the test has been paused
 //	cont   - the test has continued running
@@ -56,6 +57,8 @@
 //	fail   - the test or benchmark failed
 //	output - the test printed output
 //	skip   - the test was skipped or the package contained no tests
+//
+// Every JSON stream begins with a "start" event.
 //
 // The Package field, if present, specifies the package being tested.
 // When the go command runs parallel tests in -json mode, events from

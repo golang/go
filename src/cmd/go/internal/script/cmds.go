@@ -981,7 +981,7 @@ func Stop() Cmd {
 		})
 }
 
-// stoperr is the sentinel error type returned by the Stop command.
+// stopError is the sentinel error type returned by the Stop command.
 type stopError struct {
 	msg string
 }

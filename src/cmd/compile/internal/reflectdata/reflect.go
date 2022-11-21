@@ -1395,6 +1395,35 @@ func WriteImportStrings() {
 	}
 }
 
+// writtenByWriteBasicTypes reports whether typ is written by WriteBasicTypes.
+// WriteBasicTypes always writes pointer types; any pointer has been stripped off typ already.
+func writtenByWriteBasicTypes(typ *types.Type) bool {
+	if typ.Sym() == nil && typ.Kind() == types.TFUNC {
+		f := typ.FuncType()
+		// func(error) string
+		if f.Receiver.NumFields() == 0 && f.TParams.NumFields() == 0 &&
+			f.Params.NumFields() == 1 && f.Results.NumFields() == 1 &&
+			f.Params.FieldType(0) == types.ErrorType &&
+			f.Results.FieldType(0) == types.Types[types.TSTRING] {
+			return true
+		}
+	}
+
+	// Now we have left the basic types plus any and error, plus slices of them.
+	// Strip the slice.
+	if typ.Sym() == nil && typ.IsSlice() {
+		typ = typ.Elem()
+	}
+
+	// Basic types.
+	sym := typ.Sym()
+	if sym != nil && (sym.Pkg == types.BuiltinPkg || sym.Pkg == types.UnsafePkg) {
+		return true
+	}
+	// any or error
+	return (sym == nil && typ.IsEmptyInterface()) || typ == types.ErrorType
+}
+
 func WriteBasicTypes() {
 	// do basic types if compiling package runtime.
 	// they have to be in at least one package,
@@ -1402,23 +1431,30 @@ func WriteBasicTypes() {
 	// so this is as good as any.
 	// another possible choice would be package main,
 	// but using runtime means fewer copies in object files.
+	// The code here needs to be in sync with writtenByWriteBasicTypes above.
 	if base.Ctxt.Pkgpath == "runtime" {
+		// Note: always write NewPtr(t) because NeedEmit's caller strips the pointer.
+		var list []*types.Type
 		for i := types.Kind(1); i <= types.TBOOL; i++ {
-			writeType(types.NewPtr(types.Types[i]))
+			list = append(list, types.Types[i])
 		}
-		writeType(types.NewPtr(types.Types[types.TSTRING]))
-		writeType(types.NewPtr(types.Types[types.TUNSAFEPTR]))
-		writeType(types.AnyType)
+		list = append(list,
+			types.Types[types.TSTRING],
+			types.Types[types.TUNSAFEPTR],
+			types.AnyType,
+			types.ErrorType)
+		for _, t := range list {
+			writeType(types.NewPtr(t))
+			writeType(types.NewPtr(types.NewSlice(t)))
+		}
 
-		// emit type structs for error and func(error) string.
-		// The latter is the type of an auto-generated wrapper.
-		writeType(types.NewPtr(types.ErrorType))
-
-		writeType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+		// emit type for func(error) string,
+		// which is the type of an auto-generated wrapper.
+		writeType(types.NewPtr(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
 			types.NewField(base.Pos, nil, types.ErrorType),
 		}, []*types.Field{
 			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
-		}))
+		})))
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(ir.Pkgs.Runtime)
@@ -1759,6 +1795,9 @@ func NeedEmit(typ *types.Type) bool {
 	// instantiated generic functions too.
 
 	switch sym := typ.Sym(); {
+	case writtenByWriteBasicTypes(typ):
+		return base.Ctxt.Pkgpath == "runtime"
+
 	case sym == nil:
 		// Anonymous type; possibly never seen before or ever again.
 		// Need to emit to be safe (however, see TODO above).
@@ -1766,11 +1805,6 @@ func NeedEmit(typ *types.Type) bool {
 
 	case sym.Pkg == types.LocalPkg:
 		// Local defined type; our responsibility.
-		return true
-
-	case base.Ctxt.Pkgpath == "runtime" && (sym.Pkg == types.BuiltinPkg || sym.Pkg == types.UnsafePkg):
-		// Package runtime is responsible for including code for builtin
-		// types (predeclared and package unsafe).
 		return true
 
 	case typ.IsFullyInstantiated():

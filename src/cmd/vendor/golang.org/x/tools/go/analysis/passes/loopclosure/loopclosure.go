@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
 )
 
 const Doc = `check references to loop variables from within nested functions
@@ -24,10 +23,11 @@ literal inside the loop body. It checks for patterns where access to a loop
 variable is known to escape the current loop iteration:
  1. a call to go or defer at the end of the loop body
  2. a call to golang.org/x/sync/errgroup.Group.Go at the end of the loop body
+ 3. a call testing.T.Run where the subtest body invokes t.Parallel()
 
-The analyzer only considers references in the last statement of the loop body
-as it is not deep enough to understand the effects of subsequent statements
-which might render the reference benign.
+In the case of (1) and (2), the analyzer only considers references in the last
+statement of the loop body as it is not deep enough to understand the effects
+of subsequent statements which might render the reference benign.
 
 For example:
 
@@ -38,10 +38,6 @@ For example:
 	}
 
 See: https://golang.org/doc/go_faq.html#closures_and_goroutines`
-
-// TODO(rfindley): enable support for checking parallel subtests, pending
-// investigation, adding:
-// 3. a call testing.T.Run where the subtest body invokes t.Parallel()
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "loopclosure",
@@ -121,7 +117,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					if i == lastStmt {
 						stmts = litStmts(goInvoke(pass.TypesInfo, call))
 					}
-					if stmts == nil && analysisinternal.LoopclosureParallelSubtests {
+					if stmts == nil {
 						stmts = parallelSubtest(pass.TypesInfo, call)
 					}
 				}
@@ -178,15 +174,19 @@ func goInvoke(info *types.Info, call *ast.CallExpr) ast.Expr {
 	return call.Args[0]
 }
 
-// parallelSubtest returns statements that would would be executed
-// asynchronously via the go test runner, as t.Run has been invoked with a
+// parallelSubtest returns statements that can be easily proven to execute
+// concurrently via the go test runner, as t.Run has been invoked with a
 // function literal that calls t.Parallel.
 //
 // In practice, users rely on the fact that statements before the call to
 // t.Parallel are synchronous. For example by declaring test := test inside the
 // function literal, but before the call to t.Parallel.
 //
-// Therefore, we only flag references that occur after the call to t.Parallel:
+// Therefore, we only flag references in statements that are obviously
+// dominated by a call to t.Parallel. As a simple heuristic, we only consider
+// statements following the final labeled statement in the function body, to
+// avoid scenarios where a jump would cause either the call to t.Parallel or
+// the problematic reference to be skipped.
 //
 //	import "testing"
 //
@@ -210,17 +210,81 @@ func parallelSubtest(info *types.Info, call *ast.CallExpr) []ast.Stmt {
 		return nil
 	}
 
-	for i, stmt := range lit.Body.List {
+	// Capture the *testing.T object for the first argument to the function
+	// literal.
+	if len(lit.Type.Params.List[0].Names) == 0 {
+		return nil
+	}
+
+	tObj := info.Defs[lit.Type.Params.List[0].Names[0]]
+	if tObj == nil {
+		return nil
+	}
+
+	// Match statements that occur after a call to t.Parallel following the final
+	// labeled statement in the function body.
+	//
+	// We iterate over lit.Body.List to have a simple, fast and "frequent enough"
+	// dominance relationship for t.Parallel(): lit.Body.List[i] dominates
+	// lit.Body.List[j] for i < j unless there is a jump.
+	var stmts []ast.Stmt
+	afterParallel := false
+	for _, stmt := range lit.Body.List {
+		stmt, labeled := unlabel(stmt)
+		if labeled {
+			// Reset: naively we don't know if a jump could have caused the
+			// previously considered statements to be skipped.
+			stmts = nil
+			afterParallel = false
+		}
+
+		if afterParallel {
+			stmts = append(stmts, stmt)
+			continue
+		}
+
+		// Check if stmt is a call to t.Parallel(), for the correct t.
 		exprStmt, ok := stmt.(*ast.ExprStmt)
 		if !ok {
 			continue
 		}
-		if isMethodCall(info, exprStmt.X, "testing", "T", "Parallel") {
-			return lit.Body.List[i+1:]
+		expr := exprStmt.X
+		if isMethodCall(info, expr, "testing", "T", "Parallel") {
+			call, _ := expr.(*ast.CallExpr)
+			if call == nil {
+				continue
+			}
+			x, _ := call.Fun.(*ast.SelectorExpr)
+			if x == nil {
+				continue
+			}
+			id, _ := x.X.(*ast.Ident)
+			if id == nil {
+				continue
+			}
+			if info.Uses[id] == tObj {
+				afterParallel = true
+			}
 		}
 	}
 
-	return nil
+	return stmts
+}
+
+// unlabel returns the inner statement for the possibly labeled statement stmt,
+// stripping any (possibly nested) *ast.LabeledStmt wrapper.
+//
+// The second result reports whether stmt was an *ast.LabeledStmt.
+func unlabel(stmt ast.Stmt) (ast.Stmt, bool) {
+	labeled := false
+	for {
+		labelStmt, ok := stmt.(*ast.LabeledStmt)
+		if !ok {
+			return stmt, labeled
+		}
+		labeled = true
+		stmt = labelStmt.Stmt
+	}
 }
 
 // isMethodCall reports whether expr is a method call of

@@ -304,7 +304,7 @@ func parseLogPath(destination string) (string, string) {
 
 // checkLogPath does superficial early checking of the string specifying
 // the directory to which optimizer logging is directed, and if
-// it passes the test, stores the string in LO_dir
+// it passes the test, stores the string in LO_dir.
 func checkLogPath(destination string) string {
 	path, complaint := parseLogPath(destination)
 	if complaint != "" {
@@ -331,7 +331,7 @@ func NewLoggedOpt(pos src.XPos, what, pass, funcName string, args ...interface{}
 
 // LogOpt logs information about a (usually missed) optimization performed by the compiler.
 // Pos is the source position (including inlining), what is the message, pass is which pass created the message,
-// funcName is the name of the function
+// funcName is the name of the function.
 func LogOpt(pos src.XPos, what, pass, funcName string, args ...interface{}) {
 	if Format == None {
 		return
@@ -499,13 +499,13 @@ func newPointRange(p src.Pos) Range {
 		End: Position{p.Line(), p.Col()}}
 }
 
-// newLocation returns the Location for the compiler source location p
+// newLocation returns the Location for the compiler source location p.
 func newLocation(p src.Pos) Location {
 	loc := Location{URI: uriIfy(uprootedPath(p.Filename())), Range: newPointRange(p)}
 	return loc
 }
 
-// appendInlinedPos extracts inlining information from posTmp and append it to diagnostic
+// appendInlinedPos extracts inlining information from posTmp and append it to diagnostic.
 func appendInlinedPos(posTmp []src.Pos, diagnostic *Diagnostic) {
 	for i := 1; i < len(posTmp); i++ {
 		p := posTmp[i]

@@ -529,7 +529,7 @@ type assignState struct {
 	spillOffset int64      // current spill offset
 }
 
-// align returns a rounded up to t's alignment
+// align returns a rounded up to t's alignment.
 func align(a int64, t *types.Type) int64 {
 	return alignTo(a, int(uint8(t.Alignment())))
 }

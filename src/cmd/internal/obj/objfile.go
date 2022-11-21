@@ -220,6 +220,16 @@ type writer struct {
 	ctxt    *Link
 	pkgpath string   // the package import path (escaped), "" if unknown
 	pkglist []string // list of packages referenced, indexed by ctxt.pkgIdx
+
+	// scratch space for writing (the Write methods escape
+	// as they are interface calls)
+	tmpSym      goobj.Sym
+	tmpReloc    goobj.Reloc
+	tmpAux      goobj.Aux
+	tmpHash64   goobj.Hash64Type
+	tmpHash     goobj.HashType
+	tmpRefFlags goobj.RefFlags
+	tmpRefName  goobj.RefName
 }
 
 // prepare package index list
@@ -379,7 +389,7 @@ func (w *writer) Sym(s *LSym) {
 	if s.Size > cutoff {
 		w.ctxt.Diag("%s: symbol too large (%d bytes > %d bytes)", s.Name, s.Size, cutoff)
 	}
-	var o goobj.Sym
+	o := &w.tmpSym
 	o.SetName(name, w.Writer)
 	o.SetABI(abi)
 	o.SetType(uint8(s.Type))
@@ -394,16 +404,16 @@ func (w *writer) Hash64(s *LSym) {
 	if !s.ContentAddressable() || len(s.R) != 0 {
 		panic("Hash of non-content-addressable symbol")
 	}
-	b := contentHash64(s)
-	w.Bytes(b[:])
+	w.tmpHash64 = contentHash64(s)
+	w.Bytes(w.tmpHash64[:])
 }
 
 func (w *writer) Hash(s *LSym) {
 	if !s.ContentAddressable() {
 		panic("Hash of non-content-addressable symbol")
 	}
-	b := w.contentHash(s)
-	w.Bytes(b[:])
+	w.tmpHash = w.contentHash(s)
+	w.Bytes(w.tmpHash[:])
 }
 
 // contentHashSection returns a mnemonic for s's section.
@@ -538,7 +548,7 @@ func makeSymRef(s *LSym) goobj.SymRef {
 }
 
 func (w *writer) Reloc(r *Reloc) {
-	var o goobj.Reloc
+	o := &w.tmpReloc
 	o.SetOff(r.Off)
 	o.SetSiz(r.Siz)
 	o.SetType(uint16(r.Type))
@@ -548,7 +558,7 @@ func (w *writer) Reloc(r *Reloc) {
 }
 
 func (w *writer) aux1(typ uint8, rs *LSym) {
-	var o goobj.Aux
+	o := &w.tmpAux
 	o.SetType(typ)
 	o.SetSym(makeSymRef(rs))
 	o.Write(w.Writer)
@@ -618,7 +628,7 @@ func (w *writer) refFlags() {
 		if flag2 == 0 {
 			return // no need to write zero flags
 		}
-		var o goobj.RefFlags
+		o := &w.tmpRefFlags
 		o.SetSym(symref)
 		o.SetFlag2(flag2)
 		o.Write(w.Writer)
@@ -644,7 +654,7 @@ func (w *writer) refNames() {
 		}
 		seen[rs] = true
 		symref := makeSymRef(rs)
-		var o goobj.RefName
+		o := &w.tmpRefName
 		o.SetSym(symref)
 		o.SetName(rs.Name, w.Writer)
 		o.Write(w.Writer)

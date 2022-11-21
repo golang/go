@@ -422,6 +422,8 @@
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
 
+(CondSelect <t> x y cond) => (OR (MASKEQZ <t> x cond) (MASKNEZ <t> y cond))
+
 // Optimizations
 
 // Absorb boolean tests into block
@@ -615,6 +617,8 @@
 (ORconst  [-1] _) => (MOVVconst [-1])
 (XORconst [0]  x) => x
 (XORconst [-1] x) => (NORconst [0] x)
+(MASKEQZ (MOVVconst [0]) cond) => (MOVVconst [0])
+(MASKNEZ (MOVVconst [0]) cond) => (MOVVconst [0])
 
 // generic constant folding
 (ADDVconst [c] (MOVVconst [d]))  => (MOVVconst [c+d])

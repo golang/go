@@ -1,3 +1,4 @@
+{"Action":"start"}
 {"Action":"run","Test":"TestWithColons"}
 {"Action":"output","Test":"TestWithColons","Output":"=== RUN   TestWithColons\n"}
 {"Action":"run","Test":"TestWithColons/[::1]"}

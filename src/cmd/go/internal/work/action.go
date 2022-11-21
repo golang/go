@@ -33,11 +33,12 @@ import (
 // It does not hold per-package state, because we
 // build packages in parallel, and the builder is shared.
 type Builder struct {
-	WorkDir     string               // the temporary work directory (ends in filepath.Separator)
-	actionCache map[cacheKey]*Action // a cache of already-constructed actions
-	mkdirCache  map[string]bool      // a cache of created directories
-	flagCache   map[[2]string]bool   // a cache of supported compiler flags
-	Print       func(args ...any) (int, error)
+	WorkDir            string                    // the temporary work directory (ends in filepath.Separator)
+	actionCache        map[cacheKey]*Action      // a cache of already-constructed actions
+	mkdirCache         map[string]bool           // a cache of created directories
+	flagCache          map[[2]string]bool        // a cache of supported compiler flags
+	gccCompilerIDCache map[string]cache.ActionID // cache for gccCompilerID
+	Print              func(args ...any) (int, error)
 
 	IsCmdList           bool // running as part of go list; set p.Stale and additional fields below
 	NeedError           bool // list needs p.Error
@@ -63,15 +64,27 @@ type Builder struct {
 // NOTE: Much of Action would not need to be exported if not for test.
 // Maybe test functionality should move into this package too?
 
+// An Actor runs an action.
+type Actor interface {
+	Act(*Builder, context.Context, *Action) error
+}
+
+// An ActorFunc is an Actor that calls the function.
+type ActorFunc func(*Builder, context.Context, *Action) error
+
+func (f ActorFunc) Act(b *Builder, ctx context.Context, a *Action) error {
+	return f(b, ctx, a)
+}
+
 // An Action represents a single action in the action graph.
 type Action struct {
-	Mode       string                                         // description of action operation
-	Package    *load.Package                                  // the package this action works on
-	Deps       []*Action                                      // actions that must happen before this one
-	Func       func(*Builder, context.Context, *Action) error // the action itself (nil = no-op)
-	IgnoreFail bool                                           // whether to run f even if dependencies fail
-	TestOutput *bytes.Buffer                                  // test output buffer
-	Args       []string                                       // additional args for runProgram
+	Mode       string        // description of action operation
+	Package    *load.Package // the package this action works on
+	Deps       []*Action     // actions that must happen before this one
+	Actor      Actor         // the action itself (nil = no-op)
+	IgnoreFail bool          // whether to run f even if dependencies fail
+	TestOutput *bytes.Buffer // test output buffer
+	Args       []string      // additional args for runProgram
 
 	triggers []*Action // inverse of deps
 
@@ -437,7 +450,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 		a := &Action{
 			Mode:    "build",
 			Package: p,
-			Func:    (*Builder).build,
+			Actor:   ActorFunc((*Builder).build),
 			Objdir:  b.NewObjdir(),
 		}
 
@@ -452,7 +465,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			case "builtin", "unsafe":
 				// Fake packages - nothing to build.
 				a.Mode = "built-in package"
-				a.Func = nil
+				a.Actor = nil
 				return a
 			}
 
@@ -461,7 +474,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 				// the target name is needed for cgo.
 				a.Mode = "gccgo stdlib"
 				a.Target = p.Target
-				a.Func = nil
+				a.Actor = nil
 				return a
 			}
 		}
@@ -534,12 +547,12 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 			VetxOnly:   true,
 			IgnoreFail: true, // it's OK if vet of dependencies "fails" (reports problems)
 		}
-		if a1.Func == nil {
+		if a1.Actor == nil {
 			// Built-in packages like unsafe.
 			return a
 		}
 		deps[0].needVet = true
-		a.Func = (*Builder).vet
+		a.Actor = ActorFunc((*Builder).vet)
 		return a
 	})
 	return a
@@ -557,7 +570,7 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
 		}
 
 		a1 := b.CompileAction(ModeBuild, depMode, p)
-		a.Func = (*Builder).link
+		a.Actor = ActorFunc((*Builder).link)
 		a.Deps = []*Action{a1}
 		a.Objdir = a1.Objdir
 
@@ -619,7 +632,7 @@ func (b *Builder) installAction(a1 *Action, mode BuildMode) *Action {
 	// If there's no actual action to build a1,
 	// there's nothing to install either.
 	// This happens if a1 corresponds to reusing an already-built object.
-	if a1.Func == nil {
+	if a1.Actor == nil {
 		return a1
 	}
 
@@ -645,7 +658,7 @@ func (b *Builder) installAction(a1 *Action, mode BuildMode) *Action {
 		// on the install.
 		*a1 = Action{
 			Mode:    buildAction.Mode + "-install",
-			Func:    BuildInstallFunc,
+			Actor:   ActorFunc(BuildInstallFunc),
 			Package: p,
 			Objdir:  buildAction.Objdir,
 			Deps:    []*Action{buildAction},
@@ -736,7 +749,7 @@ func (b *Builder) addInstallHeaderAction(a *Action) {
 			Mode:    "install header",
 			Package: a.Package,
 			Deps:    []*Action{a.Deps[0]},
-			Func:    (*Builder).installHeader,
+			Actor:   ActorFunc((*Builder).installHeader),
 			Objdir:  a.Deps[0].Objdir,
 			Target:  hdrTarget,
 		}
@@ -796,7 +809,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 			Mode:    "go build -buildmode=shared",
 			Package: p,
 			Objdir:  b.NewObjdir(),
-			Func:    (*Builder).linkShared,
+			Actor:   ActorFunc((*Builder).linkShared),
 			Deps:    []*Action{a1},
 		}
 		a.Target = filepath.Join(a.Objdir, shlib)
@@ -837,7 +850,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 	})
 
 	// Install result.
-	if (mode == ModeInstall || mode == ModeBuggyInstall) && a.Func != nil {
+	if (mode == ModeInstall || mode == ModeBuggyInstall) && a.Actor != nil {
 		buildAction := a
 
 		a = b.cacheAction("install-shlib "+shlib, nil, func() *Action {
@@ -866,7 +879,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 			a := &Action{
 				Mode:   "go install -buildmode=shared",
 				Objdir: buildAction.Objdir,
-				Func:   BuildInstallFunc,
+				Actor:  ActorFunc(BuildInstallFunc),
 				Deps:   []*Action{buildAction},
 				Target: target,
 			}
@@ -879,7 +892,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 				a.Deps = append(a.Deps, &Action{
 					Mode:    "shlibname",
 					Package: p,
-					Func:    (*Builder).installShlibname,
+					Actor:   ActorFunc((*Builder).installShlibname),
 					Target:  filepath.Join(pkgTargetRoot, p.ImportPath+".shlibname"),
 					Deps:    []*Action{a.Deps[0]},
 				})

@@ -458,7 +458,7 @@ func elfwritehdr(out *OutBuf) uint32 {
 	return elf32writehdr(out)
 }
 
-/* Taken directly from the definition document for ELF64 */
+/* Taken directly from the definition document for ELF64. */
 func elfhash(name string) uint32 {
 	var h uint32
 	for i := 0; i < len(name); i++ {
@@ -1097,7 +1097,7 @@ func elfshname(name string) *ElfShdr {
 }
 
 // Create an ElfShdr for the section with name.
-// Create a duplicate if one already exists with that name
+// Create a duplicate if one already exists with that name.
 func elfshnamedup(name string) *ElfShdr {
 	for i := 0; i < nelfstr; i++ {
 		if name == elfstr[i].s {

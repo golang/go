@@ -46,6 +46,9 @@ type Func struct {
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
 
+	// temporary registers allocated to rare instructions
+	tempRegs map[ID]*Register
+
 	// map from LocalSlot to set of Values that we want to store in that slot.
 	NamedValues map[LocalSlot][]*Value
 	// Names is a copy of NamedValues.Keys. We keep a separate list
@@ -811,7 +814,6 @@ func (f *Func) useFMA(v *Value) bool {
 	if base.FmaHash == nil {
 		return true
 	}
-
-	name := f.fe.MyImportPath() + "." + f.Name
-	return base.FmaHash.DebugHashMatchParam(name, uint64(v.Pos.Line()))
+	ctxt := v.Block.Func.Config.Ctxt()
+	return base.FmaHash.DebugHashMatchPos(ctxt, v.Pos)
 }

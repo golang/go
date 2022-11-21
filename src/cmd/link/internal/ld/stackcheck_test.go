@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"testing"
@@ -20,7 +19,7 @@ func TestStackCheckOutput(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", os.DevNull, "./testdata/stackcheck")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", os.DevNull, "./testdata/stackcheck")
 	// The rules for computing frame sizes on all of the
 	// architectures are complicated, so just do this on amd64.
 	cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=linux")

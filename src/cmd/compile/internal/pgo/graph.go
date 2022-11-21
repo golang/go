@@ -21,21 +21,14 @@ import (
 	"fmt"
 	"internal/profile"
 	"math"
-	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 )
 
-const maxNodelets = 4 // Number of nodelets for labels (both numeric and non)
-
 // Options encodes the options for constructing a graph
 type Options struct {
-	SampleValue       func(s []int64) int64      // Function to compute the value of a sample
-	SampleMeanDivisor func(s []int64) int64      // Function to compute the divisor for mean graphs, or nil
-	FormatTag         func(int64, string) string // Function to format a sample tag value into a string
-	ObjNames          bool                       // Always preserve obj filename
-	OrigFnNames       bool                       // Preserve original (eg mangled) function names
+	SampleValue       func(s []int64) int64 // Function to compute the value of a sample
+	SampleMeanDivisor func(s []int64) int64 // Function to compute the divisor for mean graphs, or nil
 
 	CallTree     bool // Build a tree instead of a graph
 	DropNegative bool // Drop nodes with overall negative values
@@ -66,15 +59,6 @@ type Node struct {
 	// In and out Contains the nodes immediately reaching or reached by
 	// this node.
 	In, Out EdgeMap
-
-	// LabelTags provide additional information about subsets of a sample.
-	LabelTags TagMap
-
-	// NumericTags provide additional values for subsets of a sample.
-	// Numeric tags are optionally associated to a label tag. The key
-	// for NumericTags is the name of the LabelTag they are associated
-	// to, or "" for numeric tags not associated to a label tag.
-	NumericTags map[string]TagMap
 }
 
 // Graph summarizes a performance profile into a format that is
@@ -110,11 +94,7 @@ func (n *Node) AddToEdge(to *Node, v int64, residual, inline bool) {
 // AddToEdgeDiv increases the weight of an edge between two nodes. If
 // there isn't such an edge one is created.
 func (n *Node) AddToEdgeDiv(to *Node, dv, v int64, residual, inline bool) {
-	if n.Out[to] != to.In[n] {
-		panic(fmt.Errorf("asymmetric edges %v %v", *n, *to))
-	}
-
-	if e := n.Out[to]; e != nil {
+	if e := n.Out.FindTo(to); e != nil {
 		e.WeightDiv += dv
 		e.Weight += v
 		if residual {
@@ -127,18 +107,18 @@ func (n *Node) AddToEdgeDiv(to *Node, dv, v int64, residual, inline bool) {
 	}
 
 	info := &Edge{Src: n, Dest: to, WeightDiv: dv, Weight: v, Residual: residual, Inline: inline}
-	n.Out[to] = info
-	to.In[n] = info
+	n.Out.Add(info)
+	to.In.Add(info)
 }
 
 // NodeInfo contains the attributes for a node.
 type NodeInfo struct {
 	Name              string
-	OrigName          string
 	Address           uint64
-	File              string
 	StartLine, Lineno int
-	Objfile           string
+	//File            string
+	//OrigName        string
+	//Objfile         string
 }
 
 // PrintableName calls the Node's Formatter function with a single space separator.
@@ -159,15 +139,9 @@ func (i *NodeInfo) NameComponents() []string {
 	switch {
 	case i.Lineno != 0:
 		// User requested line numbers, provide what we have.
-		name = append(name, fmt.Sprintf("%s:%d", i.File, i.Lineno))
-	case i.File != "":
-		// User requested file name, provide it.
-		name = append(name, i.File)
+		name = append(name, fmt.Sprintf(":%d", i.Lineno))
 	case i.Name != "":
 		// User requested function name. It was already included.
-	case i.Objfile != "":
-		// Only binary name is available
-		name = append(name, "["+filepath.Base(i.Objfile)+"]")
 	default:
 		// Do not leave it empty if there is no information at all.
 		name = append(name, "<unknown>")
@@ -207,11 +181,7 @@ func (nm NodeMap) FindOrInsertNode(info NodeInfo, kept NodeSet) *Node {
 	}
 
 	n := &Node{
-		Info:        info,
-		In:          make(EdgeMap),
-		Out:         make(EdgeMap),
-		LabelTags:   make(TagMap),
-		NumericTags: make(map[string]TagMap),
+		Info: info,
 	}
 	nm[info] = n
 	if info.Address == 0 && info.Lineno == 0 {
@@ -228,7 +198,30 @@ func (nm NodeMap) FindOrInsertNode(info NodeInfo, kept NodeSet) *Node {
 }
 
 // EdgeMap is used to represent the incoming/outgoing edges from a node.
-type EdgeMap map[*Node]*Edge
+type EdgeMap []*Edge
+
+func (em EdgeMap) FindTo(n *Node) *Edge {
+	for _, e := range em {
+		if e.Dest == n {
+			return e
+		}
+	}
+	return nil
+}
+
+func (em *EdgeMap) Add(e *Edge) {
+	*em = append(*em, e)
+}
+
+func (em *EdgeMap) Delete(e *Edge) {
+	for i, edge := range *em {
+		if edge == e {
+			(*em)[i] = (*em)[len(*em)-1]
+			*em = (*em)[:len(*em)-1]
+			return
+		}
+	}
+}
 
 // Edge contains any attributes to be represented about edges in a graph.
 type Edge struct {
@@ -252,47 +245,8 @@ func (e *Edge) WeightValue() int64 {
 	return e.Weight / e.WeightDiv
 }
 
-// Tag represent sample annotations
-type Tag struct {
-	Name          string
-	Unit          string // Describe the value, "" for non-numeric tags
-	Value         int64
-	Flat, FlatDiv int64
-	Cum, CumDiv   int64
-}
-
-// FlatValue returns the exclusive value for this tag, computing the
-// mean if a divisor is available.
-func (t *Tag) FlatValue() int64 {
-	if t.FlatDiv == 0 {
-		return t.Flat
-	}
-	return t.Flat / t.FlatDiv
-}
-
-// CumValue returns the inclusive value for this tag, computing the
-// mean if a divisor is available.
-func (t *Tag) CumValue() int64 {
-	if t.CumDiv == 0 {
-		return t.Cum
-	}
-	return t.Cum / t.CumDiv
-}
-
-// TagMap is a collection of tags, classified by their name.
-type TagMap map[string]*Tag
-
-// SortTags sorts a slice of tags based on their weight.
-func SortTags(t []*Tag, flat bool) []*Tag {
-	ts := tags{t, flat}
-	sort.Sort(ts)
-	return ts.t
-}
-
-// newGraph computes a graph from a profile. It returns the graph, and
-// a map from the profile location indices to the corresponding graph
-// nodes.
-func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
+// newGraph computes a graph from a profile.
+func newGraph(prof *profile.Profile, o *Options) *Graph {
 	nodes, locationMap := CreateNodes(prof, o)
 	seenNode := make(map[*Node]bool)
 	seenEdge := make(map[nodePair]bool)
@@ -315,11 +269,20 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 		// A residual edge goes over one or more nodes that were not kept.
 		residual := false
 
-		labels := joinLabels(sample)
 		// Group the sample frames, based on a global map.
-		for i := len(sample.Location) - 1; i >= 0; i-- {
+		// Count only the last two frames as a call edge. Frames higher up
+		// the stack are unlikely to be repeated calls (e.g. runtime.main
+		// calling main.main). So adding weights to call edges higher up
+		// the stack may be not reflecting the actual call edge weights
+		// in the program. Without a branch profile this is just an
+		// approximation.
+		i := 1
+		if last := len(sample.Location) - 1; last < i {
+			i = last
+		}
+		for ; i >= 0; i-- {
 			l := sample.Location[i]
-			locNodes := locationMap[l.ID]
+			locNodes := locationMap.get(l.ID)
 			for ni := len(locNodes) - 1; ni >= 0; ni-- {
 				n := locNodes[ni]
 				if n == nil {
@@ -327,26 +290,28 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 					continue
 				}
 				// Add cum weight to all nodes in stack, avoiding double counting.
-				if _, ok := seenNode[n]; !ok {
+				_, sawNode := seenNode[n]
+				if !sawNode {
 					seenNode[n] = true
-					n.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, false)
+					n.addSample(dw, w, false)
 				}
 				// Update edge weights for all edges in stack, avoiding double counting.
-				if _, ok := seenEdge[nodePair{n, parent}]; !ok && parent != nil && n != parent {
+				if (!sawNode || !seenEdge[nodePair{n, parent}]) && parent != nil && n != parent {
 					seenEdge[nodePair{n, parent}] = true
 					parent.AddToEdgeDiv(n, dw, w, residual, ni != len(locNodes)-1)
 				}
+
 				parent = n
 				residual = false
 			}
 		}
 		if parent != nil && !residual {
 			// Add flat weight to leaf node.
-			parent.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, true)
+			parent.addSample(dw, w, true)
 		}
 	}
 
-	return selectNodesForGraph(nodes, o.DropNegative), locationMap
+	return selectNodesForGraph(nodes, o.DropNegative)
 }
 
 func selectNodesForGraph(nodes Nodes, dropNegative bool) *Graph {
@@ -383,7 +348,6 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 			continue
 		}
 		var parent *Node
-		labels := joinLabels(sample)
 		// Group the sample frames, based on a per-node map.
 		for i := len(sample.Location) - 1; i >= 0; i-- {
 			l := sample.Location[i]
@@ -401,7 +365,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 				if n == nil {
 					continue
 				}
-				n.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, false)
+				n.addSample(dw, w, false)
 				if parent != nil {
 					parent.AddToEdgeDiv(n, dw, w, false, lidx != len(lines)-1)
 				}
@@ -409,7 +373,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 			}
 		}
 		if parent != nil {
-			parent.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, true)
+			parent.addSample(dw, w, true)
 		}
 	}
 
@@ -418,21 +382,6 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 		nodes = append(nodes, nm.nodes()...)
 	}
 	return selectNodesForGraph(nodes, o.DropNegative)
-}
-
-func joinLabels(s *profile.Sample) string {
-	if len(s.Label) == 0 {
-		return ""
-	}
-
-	var labels []string
-	for key, vals := range s.Label {
-		for _, v := range vals {
-			labels = append(labels, key+":"+v)
-		}
-	}
-	sort.Strings(labels)
-	return strings.Join(labels, `\n`)
 }
 
 // isNegative returns true if the node is considered as "negative" for the
@@ -448,11 +397,32 @@ func isNegative(n *Node) bool {
 	}
 }
 
+type locationMap struct {
+	s []Nodes          // a slice for small sequential IDs
+	m map[uint64]Nodes // fallback for large IDs (unlikely)
+}
+
+func (l *locationMap) add(id uint64, n Nodes) {
+	if id < uint64(len(l.s)) {
+		l.s[id] = n
+	} else {
+		l.m[id] = n
+	}
+}
+
+func (l locationMap) get(id uint64) Nodes {
+	if id < uint64(len(l.s)) {
+		return l.s[id]
+	} else {
+		return l.m[id]
+	}
+}
+
 // CreateNodes creates graph nodes for all locations in a profile. It
 // returns set of all nodes, plus a mapping of each location to the
 // set of corresponding nodes (one per location.Line).
-func CreateNodes(prof *profile.Profile, o *Options) (Nodes, map[uint64]Nodes) {
-	locations := make(map[uint64]Nodes, len(prof.Location))
+func CreateNodes(prof *profile.Profile, o *Options) (Nodes, locationMap) {
+	locations := locationMap{make([]Nodes, len(prof.Location)+1), make(map[uint64]Nodes)}
 	nm := make(NodeMap, len(prof.Location))
 	for _, l := range prof.Location {
 		lines := l.Line
@@ -463,7 +433,7 @@ func CreateNodes(prof *profile.Profile, o *Options) (Nodes, map[uint64]Nodes) {
 		for ln := range lines {
 			nodes[ln] = nm.findOrInsertLine(l, lines[ln], o)
 		}
-		locations[l.ID] = nodes
+		locations.add(l.ID, nodes)
 	}
 	return nm.nodes(), locations
 }
@@ -490,43 +460,15 @@ func (nm NodeMap) findOrInsertLine(l *profile.Location, li profile.Line, o *Opti
 
 func nodeInfo(l *profile.Location, line profile.Line, objfile string, o *Options) *NodeInfo {
 	if line.Function == nil {
-		return &NodeInfo{Address: l.Address, Objfile: objfile}
+		return &NodeInfo{Address: l.Address}
 	}
 	ni := &NodeInfo{
 		Address: l.Address,
 		Lineno:  int(line.Line),
 		Name:    line.Function.Name,
 	}
-	if fname := line.Function.Filename; fname != "" {
-		ni.File = filepath.Clean(fname)
-	}
-	if o.OrigFnNames {
-		ni.OrigName = line.Function.SystemName
-	}
-	if o.ObjNames || (ni.Name == "" && ni.OrigName == "") {
-		ni.Objfile = objfile
-		ni.StartLine = int(line.Function.StartLine)
-	}
+	ni.StartLine = int(line.Function.StartLine)
 	return ni
-}
-
-type tags struct {
-	t    []*Tag
-	flat bool
-}
-
-func (t tags) Len() int      { return len(t.t) }
-func (t tags) Swap(i, j int) { t.t[i], t.t[j] = t.t[j], t.t[i] }
-func (t tags) Less(i, j int) bool {
-	if !t.flat {
-		if t.t[i].Cum != t.t[j].Cum {
-			return abs64(t.t[i].Cum) > abs64(t.t[j].Cum)
-		}
-	}
-	if t.t[i].Flat != t.t[j].Flat {
-		return abs64(t.t[i].Flat) > abs64(t.t[j].Flat)
-	}
-	return t.t[i].Name < t.t[j].Name
 }
 
 // Sum adds the flat and cum values of a set of nodes.
@@ -538,7 +480,7 @@ func (ns Nodes) Sum() (flat int64, cum int64) {
 	return
 }
 
-func (n *Node) addSample(dw, w int64, labels string, numLabel map[string][]int64, numUnit map[string][]string, format func(int64, string) string, flat bool) {
+func (n *Node) addSample(dw, w int64, flat bool) {
 	// Update sample value
 	if flat {
 		n.FlatDiv += dw
@@ -547,63 +489,6 @@ func (n *Node) addSample(dw, w int64, labels string, numLabel map[string][]int64
 		n.CumDiv += dw
 		n.Cum += w
 	}
-
-	// Add string tags
-	if labels != "" {
-		t := n.LabelTags.findOrAddTag(labels, "", 0)
-		if flat {
-			t.FlatDiv += dw
-			t.Flat += w
-		} else {
-			t.CumDiv += dw
-			t.Cum += w
-		}
-	}
-
-	numericTags := n.NumericTags[labels]
-	if numericTags == nil {
-		numericTags = TagMap{}
-		n.NumericTags[labels] = numericTags
-	}
-	// Add numeric tags
-	if format == nil {
-		format = defaultLabelFormat
-	}
-	for k, nvals := range numLabel {
-		units := numUnit[k]
-		for i, v := range nvals {
-			var t *Tag
-			if len(units) > 0 {
-				t = numericTags.findOrAddTag(format(v, units[i]), units[i], v)
-			} else {
-				t = numericTags.findOrAddTag(format(v, k), k, v)
-			}
-			if flat {
-				t.FlatDiv += dw
-				t.Flat += w
-			} else {
-				t.CumDiv += dw
-				t.Cum += w
-			}
-		}
-	}
-}
-
-func defaultLabelFormat(v int64, key string) string {
-	return strconv.FormatInt(v, 10)
-}
-
-func (m TagMap) findOrAddTag(label, unit string, value int64) *Tag {
-	l := m[label]
-	if l == nil {
-		l = &Tag{
-			Name:  label,
-			Unit:  unit,
-			Value: value,
-		}
-		m[label] = l
-	}
-	return l
 }
 
 // String returns a text representation of a graph, for debugging purposes.
@@ -670,37 +555,15 @@ func getNodesAboveCumCutoff(nodes Nodes, nodeCutoff int64) Nodes {
 	return cutoffNodes
 }
 
-// TrimLowFrequencyTags removes tags that have less than
-// the specified weight.
-func (g *Graph) TrimLowFrequencyTags(tagCutoff int64) {
-	// Remove nodes with value <= total*nodeFraction
-	for _, n := range g.Nodes {
-		n.LabelTags = trimLowFreqTags(n.LabelTags, tagCutoff)
-		for s, nt := range n.NumericTags {
-			n.NumericTags[s] = trimLowFreqTags(nt, tagCutoff)
-		}
-	}
-}
-
-func trimLowFreqTags(tags TagMap, minValue int64) TagMap {
-	kept := TagMap{}
-	for s, t := range tags {
-		if abs64(t.Flat) >= minValue || abs64(t.Cum) >= minValue {
-			kept[s] = t
-		}
-	}
-	return kept
-}
-
 // TrimLowFrequencyEdges removes edges that have less than
 // the specified weight. Returns the number of edges removed
 func (g *Graph) TrimLowFrequencyEdges(edgeCutoff int64) int {
 	var droppedEdges int
 	for _, n := range g.Nodes {
-		for src, e := range n.In {
+		for _, e := range n.In {
 			if abs64(e.Weight) < edgeCutoff {
-				delete(n.In, src)
-				delete(src.Out, n)
+				n.In.Delete(e)
+				e.Src.Out.Delete(e)
 				droppedEdges++
 			}
 		}
@@ -738,46 +601,10 @@ func (g *Graph) SelectTopNodes(maxNodes int, visualMode bool) NodeSet {
 
 // selectTopNodes returns a slice of the top maxNodes nodes in a graph.
 func (g *Graph) selectTopNodes(maxNodes int, visualMode bool) Nodes {
-	if maxNodes > 0 {
-		if visualMode {
-			var count int
-			// If generating a visual graph, count tags as nodes. Update
-			// maxNodes to account for them.
-			for i, n := range g.Nodes {
-				tags := countTags(n)
-				if tags > maxNodelets {
-					tags = maxNodelets
-				}
-				if count += tags + 1; count >= maxNodes {
-					maxNodes = i + 1
-					break
-				}
-			}
-		}
-	}
 	if maxNodes > len(g.Nodes) {
 		maxNodes = len(g.Nodes)
 	}
 	return g.Nodes[:maxNodes]
-}
-
-// countTags counts the tags with flat count. This underestimates the
-// number of tags being displayed, but in practice is close enough.
-func countTags(n *Node) int {
-	count := 0
-	for _, e := range n.LabelTags {
-		if e.Flat != 0 {
-			count++
-		}
-	}
-	for _, t := range n.NumericTags {
-		for _, e := range t {
-			if e.Flat != 0 {
-				count++
-			}
-		}
-	}
-	return count
 }
 
 // nodeSorter is a mechanism used to allow a report to be sorted
@@ -841,9 +668,6 @@ func (ns Nodes) Sort(o NodeOrder) error {
 	case FileOrder:
 		s = nodeSorter{ns,
 			func(l, r *Node) bool {
-				if iv, jv := l.Info.File, r.Info.File; iv != jv {
-					return iv < jv
-				}
 				if iv, jv := l.Info.StartLine, r.Info.StartLine; iv != jv {
 					return iv < jv
 				}

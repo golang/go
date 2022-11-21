@@ -600,23 +600,23 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpAMD64CMOVQEQF, ssa.OpAMD64CMOVLEQF, ssa.OpAMD64CMOVWEQF:
 		// Flag condition: ZERO && !PARITY
 		// Generate:
-		//   MOV      SRC,AX
-		//   CMOV*NE  DST,AX
-		//   CMOV*PC  AX,DST
+		//   MOV      SRC,TMP
+		//   CMOV*NE  DST,TMP
+		//   CMOV*PC  TMP,DST
 		//
 		// TODO(rasky): we could generate:
 		//   CMOV*NE  DST,SRC
 		//   CMOV*PC  SRC,DST
 		// But this requires a way for regalloc to know that SRC might be
 		// clobbered by this instruction.
-		if v.Args[1].Reg() != x86.REG_AX {
-			opregreg(s, moveByType(v.Type), x86.REG_AX, v.Args[1].Reg())
-		}
+		t := v.RegTmp()
+		opregreg(s, moveByType(v.Type), t, v.Args[1].Reg())
+
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Reg()
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = x86.REG_AX
+		p.To.Reg = t
 		var q *obj.Prog
 		if v.Op == ssa.OpAMD64CMOVQEQF {
 			q = s.Prog(x86.ACMOVQPC)
@@ -626,7 +626,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			q = s.Prog(x86.ACMOVWPC)
 		}
 		q.From.Type = obj.TYPE_REG
-		q.From.Reg = x86.REG_AX
+		q.From.Reg = t
 		q.To.Type = obj.TYPE_REG
 		q.To.Reg = v.Reg()
 
@@ -1194,24 +1194,26 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux(&p.To, v)
 
 	case ssa.OpAMD64SETNEF:
+		t := v.RegTmp()
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 		q := s.Prog(x86.ASETPS)
 		q.To.Type = obj.TYPE_REG
-		q.To.Reg = x86.REG_AX
+		q.To.Reg = t
 		// ORL avoids partial register write and is smaller than ORQ, used by old compiler
-		opregreg(s, x86.AORL, v.Reg(), x86.REG_AX)
+		opregreg(s, x86.AORL, v.Reg(), t)
 
 	case ssa.OpAMD64SETEQF:
+		t := v.RegTmp()
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 		q := s.Prog(x86.ASETPC)
 		q.To.Type = obj.TYPE_REG
-		q.To.Reg = x86.REG_AX
+		q.To.Reg = t
 		// ANDL avoids partial register write and is smaller than ANDQ, used by old compiler
-		opregreg(s, x86.AANDL, v.Reg(), x86.REG_AX)
+		opregreg(s, x86.AANDL, v.Reg(), t)
 
 	case ssa.OpAMD64InvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())

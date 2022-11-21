@@ -33,10 +33,9 @@ var sweep sweepdata
 
 // State of background sweep.
 type sweepdata struct {
-	lock    mutex
-	g       *g
-	parked  bool
-	started bool
+	lock   mutex
+	g      *g
+	parked bool
 
 	nbgsweep    uint32
 	npausesweep uint32
@@ -649,6 +648,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 
 	s.allocCount = nalloc
 	s.freeindex = 0 // reset allocation index to start of span.
+	s.freeIndexForScan = 0
 	if trace.enabled {
 		getg().m.p.ptr().traceReclaimed += uintptr(nfreed) * s.elemsize
 	}

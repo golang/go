@@ -11,7 +11,6 @@ import (
 	"debug/elf"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -38,7 +37,7 @@ func main() {
 	}
 
 	binFile := filepath.Join(dir, "issue33358")
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", binFile, src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", binFile, src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 	}
@@ -101,7 +100,7 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
 
 	path := filepath.Join(dir, "x")
 	argv := []string{"build", "-o", path, filepath.Join(wd, "testdata", "issue39256")}
-	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), argv...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("Build failure: %s\n%s\n", err, string(out))
 	}

@@ -134,12 +134,12 @@ func favoriteAddrFamily(network string, laddr, raddr sockaddr, mode string) (fam
 	return syscall.AF_INET6, false
 }
 
-func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string, ctrlFn func(string, string, syscall.RawConn) error) (fd *netFD, err error) {
+func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string, ctrlCtxFn func(context.Context, string, string, syscall.RawConn) error) (fd *netFD, err error) {
 	if (runtime.GOOS == "aix" || runtime.GOOS == "windows" || runtime.GOOS == "openbsd") && mode == "dial" && raddr.isWildcard() {
 		raddr = raddr.toLocal(net)
 	}
 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
-	return socket(ctx, net, family, sotype, proto, ipv6only, laddr, raddr, ctrlFn)
+	return socket(ctx, net, family, sotype, proto, ipv6only, laddr, raddr, ctrlCtxFn)
 }
 
 func ipToSockaddrInet4(ip IP, port int) (syscall.SockaddrInet4, error) {

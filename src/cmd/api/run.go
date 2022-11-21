@@ -63,7 +63,7 @@ func main() {
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Fatalf("Error running API checker: %v\n%s", err, out)
+		log.Fatalf("Error running API checker (see $GOROOT/api/README): %v\n%s", err, out)
 	}
 	fmt.Print(string(out))
 }

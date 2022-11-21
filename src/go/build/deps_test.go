@@ -40,7 +40,6 @@ var depsRules = `
 	# No dependencies allowed for any of these packages.
 	NONE
 	< constraints, container/list, container/ring,
-	  internal/buildinternal,
 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
 	  internal/coverage/uleb128, internal/coverage/calloc,
 	  internal/cpu, internal/goarch,
@@ -53,13 +52,10 @@ var depsRules = `
 	internal/goarch, unsafe
 	< internal/abi;
 
-	unsafe
-	< internal/godebug;
-
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi, internal/cpu, internal/goarch,
 	internal/coverage/rtcov, internal/goexperiment,
-	internal/goos, internal/godebug, unsafe
+	internal/goos, unsafe
 	< internal/bytealg
 	< internal/itoa
 	< internal/unsafeheader
@@ -71,6 +67,7 @@ var depsRules = `
 	< sync/atomic
 	< internal/race
 	< sync
+	< internal/godebug
 	< internal/reflectlite
 	< errors
 	< internal/oserror, math/bits
@@ -286,7 +283,7 @@ var depsRules = `
 	FMT, internal/goexperiment
 	< internal/buildcfg;
 
-	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/buildinternal
+	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion
 	< go/build;
 
 	# databases
@@ -396,19 +393,37 @@ var depsRules = `
 	< crypto
 	< crypto/subtle
 	< crypto/internal/alias
-	< crypto/internal/randutil
-	< crypto/internal/nistec/fiat
-	< crypto/internal/nistec
-	< crypto/internal/edwards25519/field
-	< crypto/internal/edwards25519, crypto/ecdh
 	< crypto/cipher;
 
 	crypto/cipher,
 	crypto/internal/boring/bcache
 	< crypto/internal/boring
-	< crypto/boring
+	< crypto/boring;
+
+	crypto/internal/alias
+	< crypto/internal/randutil
+	< crypto/internal/nistec/fiat
+	< crypto/internal/nistec
+	< crypto/internal/edwards25519/field
+	< crypto/internal/edwards25519;
+
+	crypto/boring
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
-	  crypto/sha1, crypto/sha256, crypto/sha512
+	  crypto/sha1, crypto/sha256, crypto/sha512;
+
+	crypto/boring, crypto/internal/edwards25519/field
+	< crypto/ecdh;
+
+	crypto/aes,
+	crypto/des,
+	crypto/ecdh,
+	crypto/hmac,
+	crypto/internal/edwards25519,
+	crypto/md5,
+	crypto/rc4,
+	crypto/sha1,
+	crypto/sha256,
+	crypto/sha512
 	< CRYPTO;
 
 	CGO, fmt, net !< CRYPTO;
@@ -543,7 +558,7 @@ var depsRules = `
 	< internal/obscuretestdata;
 
 	CGO, OS, fmt
-	< os/signal/internal/pty;
+	< internal/testpty;
 
 	NET, testing, math/rand
 	< golang.org/x/net/nettest;

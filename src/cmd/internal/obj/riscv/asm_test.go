@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -39,7 +38,7 @@ func TestLargeBranch(t *testing.T) {
 	}
 
 	// Assemble generated file.
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -96,7 +95,7 @@ func y()
 	}
 
 	// Build generated files.
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-linkmode=internal")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode=internal")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
 	out, err := cmd.CombinedOutput()
@@ -105,7 +104,7 @@ func y()
 	}
 
 	if runtime.GOARCH == "riscv64" && testenv.HasCGO() {
-		cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-linkmode=external")
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode=external")
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
 		out, err := cmd.CombinedOutput()
@@ -138,7 +137,7 @@ func TestNoRet(t *testing.T) {
 	if err := os.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Errorf("%v\n%s", err, out)
@@ -192,7 +191,7 @@ TEXT _stub(SB),$0-0
 	if err := os.WriteFile(tmpfile, []byte(asm), 0644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Errorf("%v\n%s", err, out)
@@ -206,7 +205,7 @@ func TestBranch(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	cmd := exec.Command(testenv.GoToolPath(t), "test")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test")
 	cmd.Dir = "testdata/testbranch"
 	if out, err := testenv.CleanCmdEnv(cmd).CombinedOutput(); err != nil {
 		t.Errorf("Branch test failed: %v\n%s", err, out)

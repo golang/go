@@ -71,6 +71,10 @@ var lookupGoogleSRVTests = []struct {
 var backoffDuration = [...]time.Duration{time.Second, 5 * time.Second, 30 * time.Second}
 
 func TestLookupGoogleSRV(t *testing.T) {
+	// TODO(mknyszek): Figure out next steps for this test. This is just
+	// a quick fix.
+	t.Skip("fails consistently due to an upstream DNS change; see #56707.")
+
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
@@ -348,6 +352,8 @@ var lookupCNAMETests = []struct {
 	{"www.iana.org", "icann.org."},
 	{"www.iana.org.", "icann.org."},
 	{"www.google.com", "google.com."},
+	{"google.com", "google.com."},
+	{"cname-to-txt.go4.org", "test-txt-record.go4.org."},
 }
 
 func TestLookupCNAME(t *testing.T) {
@@ -631,6 +637,10 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 }
 
 func TestLookupDotsWithRemoteSource(t *testing.T) {
+	// TODO(mknyszek): Figure out next steps for this test. This is just
+	// a quick fix.
+	t.Skip("fails consistently due to an upstream DNS change; see #56707.")
+
 	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		testenv.SkipFlaky(t, 27992)
 	}

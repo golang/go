@@ -7,20 +7,17 @@ package ssa_test
 import (
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
-	"strings"
 	"testing"
 )
 
 // TestFmaHash checks that the hash-test machinery works properly for a single case.
-// It does not check or run the generated code.
+// It also runs ssa/check and gccheck to be sure that those are checked at least a
+// little in each run.bash.  It does not check or run the generated code.
 // The test file is however a useful example of fused-vs-cascaded multiply-add.
 func TestFmaHash(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Slow test, usually avoid it, testing.Short")
-	}
 	switch runtime.GOOS {
 	case "linux", "darwin":
 	default:
@@ -41,8 +38,10 @@ func TestFmaHash(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 	source := filepath.Join("testdata", "fma.go")
 	output := filepath.Join(tmpdir, "fma.exe")
-	cmd := exec.Command(gocmd, "build", "-o", output, source)
-	cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=fmahash=101111101101111001110110", "GOOS=linux", "GOARCH=arm64", "HOME="+tmpdir)
+	cmd := testenv.Command(t, gocmd, "build", "-o", output, source)
+	// The hash-dependence on file path name is dodged by specifying "all hashes ending in 1" plus "all hashes ending in 0"
+	// i.e., all hashes.  This will print all the FMAs; this test is only interested in one of them (that should appear near the end).
+	cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=fmahash=1/0", "GOOS=linux", "GOARCH=arm64", "HOME="+tmpdir)
 	t.Logf("%v", cmd)
 	t.Logf("%v", cmd.Env)
 	b, e := cmd.CombinedOutput()
@@ -50,7 +49,9 @@ func TestFmaHash(t *testing.T) {
 		t.Error(e)
 	}
 	s := string(b) // Looking for "GOFMAHASH triggered main.main:24"
-	if !strings.Contains(s, "fmahash triggered main.main:24") {
-		t.Errorf("Expected to see 'fmahash triggered main.main:24' in \n-----\n%s-----", s)
+	re := "fmahash(0?) triggered POS=.*fma.go:29:..;.*fma.go:18:.."
+	match := regexp.MustCompile(re)
+	if !match.MatchString(s) {
+		t.Errorf("Expected to match '%s' with \n-----\n%s-----", re, s)
 	}
 }

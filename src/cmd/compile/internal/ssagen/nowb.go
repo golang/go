@@ -45,7 +45,7 @@ type nowritebarrierrecCall struct {
 }
 
 // newNowritebarrierrecChecker creates a nowritebarrierrecChecker. It
-// must be called before walk
+// must be called before walk.
 func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	c := &nowritebarrierrecChecker{
 		extraCalls: make(map[*ir.Func][]nowritebarrierrecCall),

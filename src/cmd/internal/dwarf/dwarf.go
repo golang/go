@@ -1159,8 +1159,8 @@ func isEmptyInlinedCall(slot int, calls *InlCalls) bool {
 	return !live
 }
 
-// Slot -1:    return top-level inlines
-// Slot >= 0:  return children of that slot
+// Slot -1:    return top-level inlines.
+// Slot >= 0:  return children of that slot.
 func inlChildren(slot int, calls *InlCalls) []int {
 	var kids []int
 	if slot != -1 {

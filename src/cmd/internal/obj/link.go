@@ -319,7 +319,7 @@ type Prog struct {
 	Isize    uint8     // for x86 back end: size of the instruction in bytes
 }
 
-// Pos indicates whether the oprand is the source or the destination.
+// AddrPos indicates whether the operand is the source or the destination.
 type AddrPos struct {
 	Addr
 	Pos OperandPos

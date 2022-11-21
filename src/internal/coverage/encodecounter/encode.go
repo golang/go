@@ -18,7 +18,7 @@ import (
 )
 
 // This package contains APIs and helpers for encoding initial portions
-// of the counter data files emitted at runtime when coverage instrumention
+// of the counter data files emitted at runtime when coverage instrumentation
 // is enabled.  Counter data files may contain multiple segments; the file
 // header and first segment are written via the "Write" method below, and
 // additional segments can then be added using "AddSegment".

@@ -1038,6 +1038,9 @@ func TestDedupEnvEcho(t *testing.T) {
 }
 
 func TestEnvNULCharacter(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("plan9 explicitly allows NUL in the enviroment")
+	}
 	cmd := helperCommand(t, "echoenv", "FOO", "BAR")
 	cmd.Env = append(cmd.Environ(), "FOO=foo\x00BAR=bar")
 	out, err := cmd.CombinedOutput()
@@ -1354,7 +1357,7 @@ func TestWaitInterrupt(t *testing.T) {
 		// context expired, a successful exit is valid (even if late) and does
 		// not merit a non-nil error.
 		if err != nil {
-			t.Errorf("Wait: %v; want %v", err, ctx.Err())
+			t.Errorf("Wait: %v; want nil", err)
 		}
 		if ps := cmd.ProcessState; !ps.Exited() {
 			t.Errorf("cmd did not exit: %v", ps)

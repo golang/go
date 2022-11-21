@@ -879,7 +879,7 @@ top:
 	if restart {
 		getg().m.preemptoff = ""
 		systemstack(func() {
-			now := startTheWorldWithSema(true)
+			now := startTheWorldWithSema(trace.enabled)
 			work.pauseNS += now - work.pauseStart
 			memstats.gcPauseDist.record(now - work.pauseStart)
 		})
@@ -1087,7 +1087,7 @@ func gcMarkTermination() {
 		throw("failed to set sweep barrier")
 	}
 
-	systemstack(func() { startTheWorldWithSema(true) })
+	systemstack(func() { startTheWorldWithSema(trace.enabled) })
 
 	// Flush the heap profile so we can start a new cycle next GC.
 	// This is relatively expensive, so we don't do it with the
@@ -1223,7 +1223,7 @@ func gcBgMarkPrepare() {
 	work.nwait = ^uint32(0)
 }
 
-// gcBgMarkWorker is an entry in the gcBgMarkWorkerPool. It points to a single
+// gcBgMarkWorkerNode is an entry in the gcBgMarkWorkerPool. It points to a single
 // gcBgMarkWorker goroutine.
 type gcBgMarkWorkerNode struct {
 	// Unused workers are managed in a lock-free stack. This field must be first.

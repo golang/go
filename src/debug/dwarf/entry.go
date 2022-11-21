@@ -34,7 +34,7 @@ type afield struct {
 // a map from entry format ids to their descriptions
 type abbrevTable map[uint32]abbrev
 
-// ParseAbbrev returns the abbreviation table that starts at byte off
+// parseAbbrev returns the abbreviation table that starts at byte off
 // in the .debug_abbrev section.
 func (d *Data) parseAbbrev(off uint64, vers int) (abbrevTable, error) {
 	if m, ok := d.abbrevCache[off]; ok {

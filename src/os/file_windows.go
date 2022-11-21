@@ -86,10 +86,14 @@ func NewFile(fd uintptr, name string) *File {
 
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
-	data     syscall.Win32finddata
-	needdata bool
-	path     string
-	isempty  bool // set if FindFirstFile returns ERROR_FILE_NOT_FOUND
+	h       syscall.Handle // search handle created with FindFirstFile
+	data    syscall.Win32finddata
+	path    string
+	isempty bool // set if FindFirstFile returns ERROR_FILE_NOT_FOUND
+}
+
+func (d *dirInfo) close() error {
+	return syscall.FindClose(d.h)
 }
 
 func epipecheck(file *File, e error) {
@@ -99,17 +103,7 @@ func epipecheck(file *File, e error) {
 // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "NUL"
 
-func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
-
-func openFile(name string, flag int, perm FileMode) (file *File, err error) {
-	r, e := syscall.Open(fixLongPath(name), flag|syscall.O_CLOEXEC, syscallMode(perm))
-	if e != nil {
-		return nil, e
-	}
-	return newFile(r, name, "file"), nil
-}
-
-func openDir(name string) (file *File, err error) {
+func openDir(name string) (d *dirInfo, e error) {
 	var mask string
 
 	path := fixLongPath(name)
@@ -130,25 +124,27 @@ func openDir(name string) (file *File, err error) {
 	if e != nil {
 		return nil, e
 	}
-	d := new(dirInfo)
-	r, e := syscall.FindFirstFile(maskp, &d.data)
+	d = new(dirInfo)
+	d.h, e = syscall.FindFirstFile(maskp, &d.data)
 	if e != nil {
 		// FindFirstFile returns ERROR_FILE_NOT_FOUND when
 		// no matching files can be found. Then, if directory
 		// exists, we should proceed.
-		if e != syscall.ERROR_FILE_NOT_FOUND {
-			return nil, e
-		}
+		// If FindFirstFile failed because name does not point
+		// to a directory, we should return ENOTDIR.
 		var fa syscall.Win32FileAttributeData
-		pathp, e := syscall.UTF16PtrFromString(path)
-		if e != nil {
+		pathp, e1 := syscall.UTF16PtrFromString(path)
+		if e1 != nil {
 			return nil, e
 		}
-		e = syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
-		if e != nil {
+		e1 = syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+		if e1 != nil {
 			return nil, e
 		}
 		if fa.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY == 0 {
+			return nil, syscall.ENOTDIR
+		}
+		if e != syscall.ERROR_FILE_NOT_FOUND {
 			return nil, e
 		}
 		d.isempty = true
@@ -157,12 +153,11 @@ func openDir(name string) (file *File, err error) {
 	if !isAbs(d.path) {
 		d.path, e = syscall.FullPath(d.path)
 		if e != nil {
+			d.close()
 			return nil, e
 		}
 	}
-	f := newFile(r, name, "dir")
-	f.dirinfo = d
-	return f, nil
+	return d, nil
 }
 
 // openFileNolog is the Windows implementation of OpenFile.
@@ -170,28 +165,36 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if name == "" {
 		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOENT}
 	}
-	r, errf := openFile(name, flag, perm)
-	if errf == nil {
-		return r, nil
-	}
-	r, errd := openDir(name)
-	if errd == nil {
-		if flag&O_WRONLY != 0 || flag&O_RDWR != 0 {
-			r.Close()
-			return nil, &PathError{Op: "open", Path: name, Err: syscall.EISDIR}
+	path := fixLongPath(name)
+	r, e := syscall.Open(path, flag|syscall.O_CLOEXEC, syscallMode(perm))
+	if e != nil {
+		// We should return EISDIR when we are trying to open a directory with write access.
+		if e == syscall.ERROR_ACCESS_DENIED && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
+			pathp, e1 := syscall.UTF16PtrFromString(path)
+			if e1 == nil {
+				var fa syscall.Win32FileAttributeData
+				e1 = syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+				if e1 == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+					e = syscall.EISDIR
+				}
+			}
 		}
-		return r, nil
+		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
-	return nil, &PathError{Op: "open", Path: name, Err: errf}
+	f, e := newFile(r, name, "file"), nil
+	if e != nil {
+		return nil, &PathError{Op: "open", Path: name, Err: e}
+	}
+	return f, nil
 }
 
 func (file *file) close() error {
 	if file == nil {
 		return syscall.EINVAL
 	}
-	if file.isdir() && file.dirinfo.isempty {
-		// "special" empty directories
-		return nil
+	if file.dirinfo != nil {
+		file.dirinfo.close()
+		file.dirinfo = nil
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
@@ -211,6 +214,12 @@ func (file *file) close() error {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+	if f.dirinfo != nil {
+		// Free cached dirinfo, so we allocate a new one if we
+		// access this file as a directory again. See #35767 and #37161.
+		f.dirinfo.close()
+		f.dirinfo = nil
+	}
 	ret, err = f.pfd.Seek(offset, whence)
 	runtime.KeepAlive(f)
 	return ret, err

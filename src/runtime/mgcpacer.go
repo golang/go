@@ -136,12 +136,10 @@ type gcControllerState struct {
 	// Updated at the end of each GC cycle, in endCycle.
 	consMark float64
 
-	// consMarkController holds the state for the mark-cons ratio
-	// estimation over time.
-	//
-	// Its purpose is to smooth out noisiness in the computation of
-	// consMark; see consMark for details.
-	consMarkController piController
+	// lastConsMark is the computed cons/mark value for the previous GC
+	// cycle. Note that this is *not* the last value of cons/mark, but the
+	// actual computed value. See endCycle for details.
+	lastConsMark float64
 
 	// gcPercentHeapGoal is the goal heapLive for when next GC ends derived
 	// from gcPercent.
@@ -372,28 +370,6 @@ type gcControllerState struct {
 func (c *gcControllerState) init(gcPercent int32, memoryLimit int64) {
 	c.heapMinimum = defaultHeapMinimum
 	c.triggered = ^uint64(0)
-
-	c.consMarkController = piController{
-		// Tuned first via the Ziegler-Nichols process in simulation,
-		// then the integral time was manually tuned against real-world
-		// applications to deal with noisiness in the measured cons/mark
-		// ratio.
-		kp: 0.9,
-		ti: 4.0,
-
-		// Set a high reset time in GC cycles.
-		// This is inversely proportional to the rate at which we
-		// accumulate error from clipping. By making this very high
-		// we make the accumulation slow. In general, clipping is
-		// OK in our situation, hence the choice.
-		//
-		// Tune this if we get unintended effects from clipping for
-		// a long time.
-		tt:  1000,
-		min: -1000,
-		max: 1000,
-	}
-
 	c.setGCPercent(gcPercent)
 	c.setMemoryLimit(memoryLimit)
 	c.commit(true) // No sweep phase in the first GC cycle.
@@ -416,26 +392,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	c.fractionalMarkTime.Store(0)
 	c.idleMarkTime.Store(0)
 	c.markStartTime = markStartTime
-
-	// TODO(mknyszek): This is supposed to be the actual trigger point for the heap, but
-	// causes regressions in memory use. The cause is that the PI controller used to smooth
-	// the cons/mark ratio measurements tends to flail when using the less accurate precomputed
-	// trigger for the cons/mark calculation, and this results in the controller being more
-	// conservative about steady-states it tries to find in the future.
-	//
-	// This conservatism is transient, but these transient states tend to matter for short-lived
-	// programs, especially because the PI controller is overdamped, partially because it is
-	// configured with a relatively large time constant.
-	//
-	// Ultimately, I think this is just two mistakes piled on one another: the choice of a swingy
-	// smoothing function that recalls a fairly long history (due to its overdamped time constant)
-	// coupled with an inaccurate cons/mark calculation. It just so happens this works better
-	// today, and it makes it harder to change things in the future.
-	//
-	// This is described in #53738. Fix this for #53892 by changing back to the actual trigger
-	// point and simplifying the smoothing function.
-	heapTrigger, heapGoal := c.trigger()
-	c.triggered = heapTrigger
+	c.triggered = c.heapLive.Load()
 
 	// Compute the background mark utilization goal. In general,
 	// this may not come out exactly. We round the number of
@@ -498,6 +455,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	c.revise()
 
 	if debug.gcpacertrace > 0 {
+		heapGoal := c.heapGoal()
 		assistRatio := c.assistWorkPerByte.Load()
 		print("pacer: assist ratio=", assistRatio,
 			" (scan ", gcController.heapScan.Load()>>20, " MB in ",
@@ -700,31 +658,12 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 	currentConsMark := (float64(c.heapLive.Load()-c.triggered) * (utilization + idleUtilization)) /
 		(float64(scanWork) * (1 - utilization))
 
-	// Update cons/mark controller. The time period for this is 1 GC cycle.
-	//
-	// This use of a PI controller might seem strange. So, here's an explanation:
-	//
-	// currentConsMark represents the consMark we *should've* had to be perfectly
-	// on-target for this cycle. Given that we assume the next GC will be like this
-	// one in the steady-state, it stands to reason that we should just pick that
-	// as our next consMark. In practice, however, currentConsMark is too noisy:
-	// we're going to be wildly off-target in each GC cycle if we do that.
-	//
-	// What we do instead is make a long-term assumption: there is some steady-state
-	// consMark value, but it's obscured by noise. By constantly shooting for this
-	// noisy-but-perfect consMark value, the controller will bounce around a bit,
-	// but its average behavior, in aggregate, should be less noisy and closer to
-	// the true long-term consMark value, provided its tuned to be slightly overdamped.
-	var ok bool
+	// Update our cons/mark estimate. This is the raw value above, but averaged over 2 GC cycles
+	// because it tends to be jittery, even in the steady-state. The smoothing helps the GC to
+	// maintain much more stable cycle-by-cycle behavior.
 	oldConsMark := c.consMark
-	c.consMark, ok = c.consMarkController.next(c.consMark, currentConsMark, 1.0)
-	if !ok {
-		// The error spiraled out of control. This is incredibly unlikely seeing
-		// as this controller is essentially just a smoothing function, but it might
-		// mean that something went very wrong with how currentConsMark was calculated.
-		// Just reset consMark and keep going.
-		c.consMark = 0
-	}
+	c.consMark = (currentConsMark + c.lastConsMark) / 2
+	c.lastConsMark = currentConsMark
 
 	if debug.gcpacertrace > 0 {
 		printlock()
@@ -733,9 +672,6 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 		print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.lastStackScan.Load()+c.globalsScan.Load(), " B exp.) ")
 		live := c.heapLive.Load()
 		print("in ", c.triggered, " B -> ", live, " B (∆goal ", int64(live)-int64(c.lastHeapGoal), ", cons/mark ", oldConsMark, ")")
-		if !ok {
-			print("[controller reset]")
-		}
 		println()
 		printunlock()
 	}
@@ -1377,74 +1313,6 @@ func readGOMEMLIMIT() int64 {
 		throw("malformed GOMEMLIMIT; see `go doc runtime/debug.SetMemoryLimit`")
 	}
 	return n
-}
-
-type piController struct {
-	kp float64 // Proportional constant.
-	ti float64 // Integral time constant.
-	tt float64 // Reset time.
-
-	min, max float64 // Output boundaries.
-
-	// PI controller state.
-
-	errIntegral float64 // Integral of the error from t=0 to now.
-
-	// Error flags.
-	errOverflow   bool // Set if errIntegral ever overflowed.
-	inputOverflow bool // Set if an operation with the input overflowed.
-}
-
-// next provides a new sample to the controller.
-//
-// input is the sample, setpoint is the desired point, and period is how much
-// time (in whatever unit makes the most sense) has passed since the last sample.
-//
-// Returns a new value for the variable it's controlling, and whether the operation
-// completed successfully. One reason this might fail is if error has been growing
-// in an unbounded manner, to the point of overflow.
-//
-// In the specific case of an error overflow occurs, the errOverflow field will be
-// set and the rest of the controller's internal state will be fully reset.
-func (c *piController) next(input, setpoint, period float64) (float64, bool) {
-	// Compute the raw output value.
-	prop := c.kp * (setpoint - input)
-	rawOutput := prop + c.errIntegral
-
-	// Clamp rawOutput into output.
-	output := rawOutput
-	if isInf(output) || isNaN(output) {
-		// The input had a large enough magnitude that either it was already
-		// overflowed, or some operation with it overflowed.
-		// Set a flag and reset. That's the safest thing to do.
-		c.reset()
-		c.inputOverflow = true
-		return c.min, false
-	}
-	if output < c.min {
-		output = c.min
-	} else if output > c.max {
-		output = c.max
-	}
-
-	// Update the controller's state.
-	if c.ti != 0 && c.tt != 0 {
-		c.errIntegral += (c.kp*period/c.ti)*(setpoint-input) + (period/c.tt)*(output-rawOutput)
-		if isInf(c.errIntegral) || isNaN(c.errIntegral) {
-			// So much error has accumulated that we managed to overflow.
-			// The assumptions around the controller have likely broken down.
-			// Set a flag and reset. That's the safest thing to do.
-			c.reset()
-			c.errOverflow = true
-			return c.min, false
-		}
-	}
-	return output, true
-}
-
-// reset resets the controller state, except for controller error flags.
-func (c *piController) reset() {
-	c.errIntegral = 0
 }
 
 // addIdleMarkWorker attempts to add a new idle mark worker.

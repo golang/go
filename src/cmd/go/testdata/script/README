@@ -372,6 +372,8 @@ The available conditions are:
 	GOEXPERIMENT <suffix> is enabled
 [GOOS:*]
 	runtime.GOOS == <suffix>
+[abscc]
+	default $CC path is absolute and exists
 [asan]
 	GOOS/GOARCH supports -asan
 [buildmode:*]

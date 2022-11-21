@@ -353,7 +353,7 @@ func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid server key share")
 	}
-	sharedKey, err := hs.ecdheKey.Curve().ECDH(hs.ecdheKey, peerKey)
+	sharedKey, err := hs.ecdheKey.ECDH(peerKey)
 	if err != nil {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid server key share")

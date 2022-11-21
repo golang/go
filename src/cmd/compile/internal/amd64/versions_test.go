@@ -72,7 +72,7 @@ func TestGoAMD64v1(t *testing.T) {
 	}
 
 	// Run the resulting binary.
-	cmd := exec.Command(dst.Name())
+	cmd := testenv.Command(t, dst.Name())
 	testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "TESTGOAMD64V1=yes")
 	cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=%s", strings.Join(features, ",")))
@@ -104,7 +104,7 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 	if false {
 		// TODO: go tool objdump doesn't disassemble the bmi1 instructions
 		// in question correctly. See issue 48584.
-		cmd := exec.Command("go", "tool", "objdump", src)
+		cmd := testenv.Command(t, "go", "tool", "objdump", src)
 		var err error
 		disasm, err = cmd.StdoutPipe()
 		if err != nil {
@@ -113,11 +113,16 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 		if err := cmd.Start(); err != nil {
 			t.Fatal(err)
 		}
+		t.Cleanup(func() {
+			if err := cmd.Wait(); err != nil {
+				t.Error(err)
+			}
+		})
 		re = regexp.MustCompile(`^[^:]*:[-\d]+\s+0x([\da-f]+)\s+([\da-f]+)\s+([A-Z]+)`)
 	} else {
 		// TODO: we're depending on platform-native objdump here. Hence the Skipf
 		// below if it doesn't run for some reason.
-		cmd := exec.Command("objdump", "-d", src)
+		cmd := testenv.Command(t, "objdump", "-d", src)
 		var err error
 		disasm, err = cmd.StdoutPipe()
 		if err != nil {
@@ -129,6 +134,11 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 			}
 			t.Fatal(err)
 		}
+		t.Cleanup(func() {
+			if err := cmd.Wait(); err != nil {
+				t.Error(err)
+			}
+		})
 		re = regexp.MustCompile(`^\s*([\da-f]+):\s*((?:[\da-f][\da-f] )+)\s*([a-z\d]+)`)
 	}
 

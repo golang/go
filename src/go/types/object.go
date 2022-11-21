@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"unicode"
+	"unicode/utf8"
 )
 
 // An Object describes a named language entity such as a package,
@@ -55,6 +57,11 @@ type Object interface {
 
 	// setScopePos sets the start position of the scope for this Object.
 	setScopePos(pos token.Pos)
+}
+
+func isExported(name string) bool {
+	ch, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(ch)
 }
 
 // Id returns name if it is exported, otherwise it
@@ -469,7 +476,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 
 	// For package-level objects, qualify the name.
 	if obj.Pkg() != nil && obj.Pkg().scope.Lookup(obj.Name()) == obj {
-		writePackage(buf, obj.Pkg(), qf)
+		buf.WriteString(packagePrefix(obj.Pkg(), qf))
 	}
 	buf.WriteString(obj.Name())
 
@@ -510,9 +517,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 	WriteType(buf, typ, qf)
 }
 
-func writePackage(buf *bytes.Buffer, pkg *Package, qf Qualifier) {
+func packagePrefix(pkg *Package, qf Qualifier) string {
 	if pkg == nil {
-		return
+		return ""
 	}
 	var s string
 	if qf != nil {
@@ -521,9 +528,9 @@ func writePackage(buf *bytes.Buffer, pkg *Package, qf Qualifier) {
 		s = pkg.Path()
 	}
 	if s != "" {
-		buf.WriteString(s)
-		buf.WriteByte('.')
+		s += "."
 	}
+	return s
 }
 
 // ObjectString returns the string form of obj.
@@ -561,7 +568,7 @@ func writeFuncName(buf *bytes.Buffer, f *Func, qf Qualifier) {
 			buf.WriteByte(')')
 			buf.WriteByte('.')
 		} else if f.pkg != nil {
-			writePackage(buf, f.pkg, qf)
+			buf.WriteString(packagePrefix(f.pkg, qf))
 		}
 	}
 	buf.WriteString(f.name)

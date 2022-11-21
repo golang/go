@@ -41,6 +41,11 @@ var builtinCalls = []struct {
 	{"len", `type S []byte; var s S; _ = len(s)`, `func(p.S) int`},
 	{"len", `var s P; _ = len(s)`, `func(P) int`},
 
+	{"clear", `var m map[float64]int; clear(m)`, `func(map[float64]int)`},
+	{"clear", `var s []byte; clear(s)`, `func([]byte)`},
+	{"clear", `var p *[10]int; clear(p)`, `func(*[10]int)`},
+	{"clear", `var s P; clear(s)`, `func(P)`},
+
 	{"close", `var c chan int; close(c)`, `func(chan int)`},
 	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
 

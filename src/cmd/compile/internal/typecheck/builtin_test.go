@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"testing"
 )
 
@@ -21,7 +20,7 @@ func TestBuiltin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	new, err := exec.Command(testenv.GoToolPath(t), "run", "mkbuiltin.go", "-stdout").Output()
+	new, err := testenv.Command(t, testenv.GoToolPath(t), "run", "mkbuiltin.go", "-stdout").Output()
 	if err != nil {
 		t.Fatal(err)
 	}

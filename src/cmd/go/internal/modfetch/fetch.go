@@ -408,7 +408,7 @@ type modSumStatus struct {
 }
 
 // Reset resets globals in the modfetch package, so previous loads don't affect
-// contents of go.sum files
+// contents of go.sum files.
 func Reset() {
 	GoSumFile = ""
 	WorkspaceGoSumFiles = nil

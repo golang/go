@@ -11,15 +11,21 @@ go test -json -short -v errors m/empty/pkg m/skipper
 
 # Check errors for run action
 stdout '"Package":"errors"'
+stdout '"Action":"start","Package":"errors"'
 stdout '"Action":"run","Package":"errors"'
 
 # Check m/empty/pkg for output and skip actions
+stdout '"Action":"start","Package":"m/empty/pkg"'
 stdout '"Action":"output","Package":"m/empty/pkg","Output":".*no test files'
 stdout '"Action":"skip","Package":"m/empty/pkg"'
 
 # Check skipper for output and skip actions
+stdout '"Action":"start","Package":"m/skipper"'
 stdout '"Action":"output","Package":"m/skipper","Test":"Test","Output":"--- SKIP:'
 stdout '"Action":"skip","Package":"m/skipper","Test":"Test"'
+
+# Check that starts were ordered properly.
+stdout '(?s)"Action":"start","Package":"errors".*"Action":"start","Package":"m/empty/pkg".*"Action":"start","Package":"m/skipper"'
 
 # Run go test -json on errors and check it's cached
 go test -json -short -v errors

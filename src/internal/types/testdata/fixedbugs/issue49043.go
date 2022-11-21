@@ -7,7 +7,7 @@ package p
 // The example from the issue.
 type (
 	N[P any] M /* ERROR invalid recursive type */ [P]
-	M[P any] N /* ERROR invalid recursive type */ [P]
+	M[P any] N[P]
 )
 
 // A slightly more complicated case.

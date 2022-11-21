@@ -14,7 +14,11 @@ stderr 'directory a[\\/]c is contained in a module that is not one of the worksp
 
 cd a/c
 ! go run .
-stderr 'directory . is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use \.\.'
+stderr 'current directory is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use \.\.'
+
+cd ../..
+! go run .
+stderr 'current directory outside modules listed in go.work or their selected dependencies'
 
 -- go.work --
 go 1.18
@@ -32,3 +36,5 @@ package main
 module example.com/b
 
 go 1.18
+-- foo.go --
+package foo

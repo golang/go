@@ -85,13 +85,6 @@ type FileHeader struct {
 	// It must be a relative path, not start with a drive letter (such as "C:"),
 	// and must use forward slashes instead of back slashes. A trailing slash
 	// indicates that this file is a directory and should have no data.
-	//
-	// When reading zip files, the Name field is populated from
-	// the zip file directly and is not validated for correctness.
-	// It is the caller's responsibility to sanitize it as
-	// appropriate, including canonicalizing slash directions,
-	// validating that paths are relative, and preventing path
-	// traversal through filenames ("../../../").
 	Name string
 
 	// Comment is any arbitrary user-defined string shorter than 64KiB.

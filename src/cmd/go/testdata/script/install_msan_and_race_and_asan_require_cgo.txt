@@ -2,9 +2,11 @@
 
 env CGO_ENABLED=0
 
-[race] ! go install -race triv.go
-[race] stderr '-race requires cgo'
-[race] ! stderr '-msan'
+[GOOS:darwin] [!short] [race] go build -race triv.go
+
+[!GOOS:darwin] [race] ! go install -race triv.go
+[!GOOS:darwin] [race] stderr '-race requires cgo'
+[!GOOS:darwin] [race] ! stderr '-msan'
 
 [msan] ! go install -msan triv.go
 [msan] stderr '-msan requires cgo'

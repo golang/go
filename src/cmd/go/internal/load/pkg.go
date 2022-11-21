@@ -1814,6 +1814,9 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		// Local import turned into absolute path.
 		// No permanent install target.
 		p.Target = ""
+	} else if p.Standard && cfg.BuildContext.Compiler == "gccgo" {
+		// gccgo has a preinstalled standard library that cmd/go cannot rebuild.
+		p.Target = ""
 	} else {
 		p.Target = p.Internal.Build.PkgObj
 		if cfg.BuildBuildmode == "shared" && p.Internal.Build.PkgTargetRoot != "" {
@@ -1987,11 +1990,6 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		// asynchronously when we're actually ready to build the package, or when we
 		// actually need to evaluate whether the package's metadata is stale.
 		p.setBuildInfo(opts.AutoVCS)
-	}
-
-	// unsafe is a fake package.
-	if p.Standard && (p.ImportPath == "unsafe" || cfg.BuildContext.Compiler == "gccgo") {
-		p.Target = ""
 	}
 
 	// If cgo is not enabled, ignore cgo supporting sources
@@ -2385,6 +2383,13 @@ func (p *Package) setBuildInfo(autoVCS bool) {
 		// record the system-independent parts of the flags.
 		if !cfg.BuildTrimpath {
 			appendSetting("-ldflags", ldflags)
+		}
+	}
+	if cfg.BuildPGOFile != "" {
+		if cfg.BuildTrimpath {
+			appendSetting("-pgo", filepath.Base(cfg.BuildPGOFile))
+		} else {
+			appendSetting("-pgo", cfg.BuildPGOFile)
 		}
 	}
 	if cfg.BuildMSan {
@@ -2802,7 +2807,9 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
 			// We need to test whether the path is an actual Go file and not a
 			// package path or pattern ending in '.go' (see golang.org/issue/34653).
 			if fi, err := fsys.Stat(p); err == nil && !fi.IsDir() {
-				return []*Package{GoFilesPackage(ctx, opts, patterns)}
+				pkgs := []*Package{GoFilesPackage(ctx, opts, patterns)}
+				setPGOProfilePath(pkgs)
+				return pkgs
 			}
 		}
 	}
@@ -2881,7 +2888,58 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
 	// their dependencies).
 	setToolFlags(pkgs...)
 
+	setPGOProfilePath(pkgs)
+
 	return pkgs
+}
+
+// setPGOProfilePath sets cfg.BuildPGOFile to the PGO profile path.
+// In -pgo=auto mode, it finds the default PGO profile.
+func setPGOProfilePath(pkgs []*Package) {
+	switch cfg.BuildPGO {
+	case "":
+		fallthrough // default to "off"
+	case "off":
+		return
+
+	case "auto":
+		// Locate PGO profile from the main package.
+
+		setError := func(p *Package) {
+			if p.Error == nil {
+				p.Error = &PackageError{Err: errors.New("-pgo=auto requires exactly one main package")}
+			}
+		}
+
+		var mainpkg *Package
+		for _, p := range pkgs {
+			if p.Name == "main" {
+				if mainpkg != nil {
+					setError(p)
+					setError(mainpkg)
+					continue
+				}
+				mainpkg = p
+			}
+		}
+		if mainpkg == nil {
+			// No main package, no default.pgo to look for.
+			return
+		}
+		file := filepath.Join(mainpkg.Dir, "default.pgo")
+		if fi, err := os.Stat(file); err == nil && !fi.IsDir() {
+			cfg.BuildPGOFile = file
+		}
+
+	default:
+		// Profile specified from the command line.
+		// Make it absolute path, as the compiler runs on various directories.
+		if p, err := filepath.Abs(cfg.BuildPGO); err != nil {
+			base.Fatalf("fail to get absolute path of PGO file %s: %v", cfg.BuildPGO, err)
+		} else {
+			cfg.BuildPGOFile = p
+		}
+	}
 }
 
 // CheckPackageErrors prints errors encountered loading pkgs and their

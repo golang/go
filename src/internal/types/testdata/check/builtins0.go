@@ -139,6 +139,17 @@ func cap3() {
 	)
 }
 
+func clear1() {
+	var a [10]int
+	var m map[float64]string
+	var s []byte
+	clear(a /* ERROR cannot clear a */)
+	clear(&a)
+	clear(m)
+	clear(s)
+	clear([]int{})
+}
+
 func close1() {
 	var c chan int
 	var r <-chan int

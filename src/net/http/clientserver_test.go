@@ -170,6 +170,10 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		}
 	}
 
+	if cst.ts.Config.ErrorLog == nil {
+		cst.ts.Config.ErrorLog = log.New(testLogWriter{t}, "", 0)
+	}
+
 	switch mode {
 	case http1Mode:
 		cst.ts.Start()
@@ -196,6 +200,15 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		cst.close()
 	})
 	return cst
+}
+
+type testLogWriter struct {
+	t testing.TB
+}
+
+func (w testLogWriter) Write(b []byte) (int, error) {
+	w.t.Logf("server log: %v", strings.TrimSpace(string(b)))
+	return len(b), nil
 }
 
 // Testing the newClientServerTest helper itself.

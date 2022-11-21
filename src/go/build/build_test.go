@@ -681,8 +681,11 @@ func TestImportDirTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.PkgTargetRoot == "" || p.PkgObj == "" {
-		t.Errorf("p.PkgTargetRoot == %q, p.PkgObj == %q, want non-empty", p.PkgTargetRoot, p.PkgObj)
+	if p.PkgTargetRoot == "" {
+		t.Errorf("p.PkgTargetRoot == %q, want non-empty", p.PkgTargetRoot)
+	}
+	if testenv.HasCGO() && p.PkgObj == "" {
+		t.Errorf("p.PkgObj == %q, want non-empty", p.PkgObj)
 	}
 }
 
@@ -699,6 +702,22 @@ func TestIssue23594(t *testing.T) {
 
 	if p.Doc != "Correct" {
 		t.Fatalf("incorrectly set .Doc to %q", p.Doc)
+	}
+}
+
+// TestIssue56509 tests that go/build does not add non-go files to InvalidGoFiles
+// when they have unparsable comments.
+func TestIssue56509(t *testing.T) {
+	// The directory testdata/bads contains a .s file that has an unparsable
+	// comment. (go/build parses initial comments in non-go files looking for
+	// //go:build or //+go build comments).
+	p, err := ImportDir("testdata/bads", 0)
+	if err == nil {
+		t.Fatalf("could not import testdata/bads: %v", err)
+	}
+
+	if len(p.InvalidGoFiles) != 0 {
+		t.Fatalf("incorrectly added non-go file to InvalidGoFiles")
 	}
 }
 

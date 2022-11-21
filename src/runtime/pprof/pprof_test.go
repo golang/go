@@ -1246,6 +1246,50 @@ func TestMutexProfile(t *testing.T) {
 	})
 }
 
+func TestMutexProfileRateAdjust(t *testing.T) {
+	old := runtime.SetMutexProfileFraction(1)
+	defer runtime.SetMutexProfileFraction(old)
+	if old != 0 {
+		t.Fatalf("need MutexProfileRate 0, got %d", old)
+	}
+
+	readProfile := func() (contentions int64, delay int64) {
+		var w bytes.Buffer
+		Lookup("mutex").WriteTo(&w, 0)
+		p, err := profile.Parse(&w)
+		if err != nil {
+			t.Fatalf("failed to parse profile: %v", err)
+		}
+		t.Logf("parsed proto: %s", p)
+		if err := p.CheckValid(); err != nil {
+			t.Fatalf("invalid profile: %v", err)
+		}
+
+		for _, s := range p.Sample {
+			for _, l := range s.Location {
+				for _, line := range l.Line {
+					if line.Function.Name == "runtime/pprof.blockMutex.func1" {
+						contentions += s.Value[0]
+						delay += s.Value[1]
+					}
+				}
+			}
+		}
+		return
+	}
+
+	blockMutex(t)
+	contentions, delay := readProfile()
+	if contentions == 0 || delay == 0 {
+		t.Fatal("did not see expected function in profile")
+	}
+	runtime.SetMutexProfileFraction(0)
+	newContentions, newDelay := readProfile()
+	if newContentions != contentions || newDelay != delay {
+		t.Fatalf("sample value changed: got [%d, %d], want [%d, %d]", newContentions, newDelay, contentions, delay)
+	}
+}
+
 func func1(c chan int) { <-c }
 func func2(c chan int) { <-c }
 func func3(c chan int) { <-c }

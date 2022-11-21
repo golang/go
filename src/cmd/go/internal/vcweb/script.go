@@ -128,6 +128,7 @@ func scriptEnviron(homeDir string) []string {
 		tempEnvName(),
 		"SYSTEMROOT",        // must be preserved on Windows to find DLLs; golang.org/issue/25210
 		"WINDIR",            // must be preserved on Windows to be able to run PowerShell command; golang.org/issue/30711
+		"ComSpec",           // must be preserved on Windows to be able to run Batch files; golang.org/issue/56555
 		"DYLD_LIBRARY_PATH", // must be preserved on macOS systems to find shared libraries
 		"LD_LIBRARY_PATH",   // must be preserved on Unix systems to find shared libraries
 		"LIBRARY_PATH",      // allow override of non-standard static library paths

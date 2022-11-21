@@ -280,10 +280,12 @@ func MOVCONST(d int64, s int, rt int) uint32 {
 
 const (
 	// Optab.flag
-	LFROM     = 1 << 0 // p.From uses constant pool
-	LFROM128  = 1 << 1 // p.From3<<64+p.From forms a 128-bit constant in literal pool
-	LTO       = 1 << 2 // p.To uses constant pool
-	NOTUSETMP = 1 << 3 // p expands to multiple instructions, but does NOT use REGTMP
+	LFROM        = 1 << iota // p.From uses constant pool
+	LFROM128                 // p.From3<<64+p.From forms a 128-bit constant in literal pool
+	LTO                      // p.To uses constant pool
+	NOTUSETMP                // p expands to multiple instructions, but does NOT use REGTMP
+	BRANCH14BITS             // branch instruction encodes 14 bits
+	BRANCH19BITS             // branch instruction encodes 19 bits
 )
 
 var optab = []Optab{
@@ -430,13 +432,12 @@ var optab = []Optab{
 	{ABL, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0},
 	{AB, C_NONE, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},
 	{ABL, C_NONE, C_NONE, C_NONE, C_ZREG, 6, 4, 0, 0, 0},
-	{ABL, C_ZREG, C_NONE, C_NONE, C_ZREG, 6, 4, 0, 0, 0},
 	{ABL, C_NONE, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},
 	{obj.ARET, C_NONE, C_NONE, C_NONE, C_ZREG, 6, 4, 0, 0, 0},
 	{obj.ARET, C_NONE, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},
-	{ABEQ, C_NONE, C_NONE, C_NONE, C_SBRA, 7, 4, 0, 0, 0},
-	{ACBZ, C_ZREG, C_NONE, C_NONE, C_SBRA, 39, 4, 0, 0, 0},
-	{ATBZ, C_VCON, C_ZREG, C_NONE, C_SBRA, 40, 4, 0, 0, 0},
+	{ABEQ, C_NONE, C_NONE, C_NONE, C_SBRA, 7, 4, 0, BRANCH19BITS, 0},
+	{ACBZ, C_ZREG, C_NONE, C_NONE, C_SBRA, 39, 4, 0, BRANCH19BITS, 0},
+	{ATBZ, C_VCON, C_ZREG, C_NONE, C_SBRA, 40, 4, 0, BRANCH14BITS, 0},
 	{AERET, C_NONE, C_NONE, C_NONE, C_NONE, 41, 4, 0, 0, 0},
 
 	// get a PC-relative address
@@ -1067,9 +1068,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var m int
 	var o *Optab
 	for p = p.Link; p != nil; p = p.Link {
-		if p.As == ADWORD && (pc&7) != 0 {
-			pc += 4
-		}
 		p.Pc = pc
 		o = c.oplook(p)
 		m = o.size(c.ctxt, p)
@@ -1089,6 +1087,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				c.ctxt.Diag("zero-width instruction\n%v", p)
 			}
 		}
+		pc += int64(m)
+
 		if o.flag&LFROM != 0 {
 			c.addpool(p, &p.From)
 		}
@@ -1098,13 +1098,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if o.flag&LTO != 0 {
 			c.addpool(p, &p.To)
 		}
-
-		if p.As == AB || p.As == obj.ARET || p.As == AERET { /* TODO: other unconditional operations */
-			c.checkpool(p, 0)
-		}
-		pc += int64(m)
 		if c.blitrl != nil {
-			c.checkpool(p, 1)
+			c.checkpool(p)
 		}
 	}
 
@@ -1120,21 +1115,17 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		bflag = 0
 		pc = 0
 		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
-			if p.As == ADWORD && (pc&7) != 0 {
-				pc += 4
-			}
 			p.Pc = pc
 			o = c.oplook(p)
 
 			/* very large branches */
-			if (o.type_ == 7 || o.type_ == 39 || o.type_ == 40) && p.To.Target() != nil { // 7: BEQ and like, 39: CBZ and like, 40: TBZ and like
+			if (o.flag&BRANCH14BITS != 0 || o.flag&BRANCH19BITS != 0) && p.To.Target() != nil {
 				otxt := p.To.Target().Pc - pc
 				var toofar bool
-				switch o.type_ {
-				case 7, 39: // branch instruction encodes 19 bits
-					toofar = otxt <= -(1<<20)+10 || otxt >= (1<<20)-10
-				case 40: // branch instruction encodes 14 bits
+				if o.flag&BRANCH14BITS != 0 { // branch instruction encodes 14 bits
 					toofar = otxt <= -(1<<15)+10 || otxt >= (1<<15)-10
+				} else if o.flag&BRANCH19BITS != 0 { // branch instruction encodes 19 bits
+					toofar = otxt <= -(1<<20)+10 || otxt >= (1<<20)-10
 				}
 				if toofar {
 					q := c.newprog()
@@ -1186,18 +1177,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
 		o = c.oplook(p)
-
-		// need to align DWORDs on 8-byte boundary. The ISA doesn't
-		// require it, but the various 64-bit loads we generate assume it.
-		if o.as == ADWORD && psz%8 != 0 {
-			bp[3] = 0
-			bp[2] = bp[3]
-			bp[1] = bp[2]
-			bp[0] = bp[1]
-			bp = bp[4:]
-			psz += 4
-		}
-
 		sz := o.size(c.ctxt, p)
 		if sz > 4*len(out) {
 			log.Fatalf("out array in span7 is too small, need at least %d for %v", sz/4, p)
@@ -1267,48 +1246,54 @@ func (c *ctxt7) isRestartable(p *obj.Prog) bool {
 /*
  * when the first reference to the literal pool threatens
  * to go out of range of a 1Mb PC-relative offset
- * drop the pool now, and branch round it.
+ * drop the pool now.
  */
-func (c *ctxt7) checkpool(p *obj.Prog, skip int) {
-	if c.pool.size >= 0xffff0 || !ispcdisp(int32(p.Pc+4+int64(c.pool.size)-int64(c.pool.start)+8)) {
-		c.flushpool(p, skip)
-	} else if p.Link == nil {
-		c.flushpool(p, 2)
+func (c *ctxt7) checkpool(p *obj.Prog) {
+	// If the pool is going to go out of range or p is the last instruction of the function,
+	// flush the pool.
+	if c.pool.size >= 0xffff0 || !ispcdisp(int32(p.Pc+4+int64(c.pool.size)-int64(c.pool.start)+8)) || p.Link == nil {
+		c.flushpool(p)
 	}
 }
 
-func (c *ctxt7) flushpool(p *obj.Prog, skip int) {
-	if c.blitrl != nil {
-		if skip != 0 {
-			if c.ctxt.Debugvlog && skip == 1 {
-				fmt.Printf("note: flush literal pool at %#x: len=%d ref=%x\n", uint64(p.Pc+4), c.pool.size, c.pool.start)
-			}
-			q := c.newprog()
+func (c *ctxt7) flushpool(p *obj.Prog) {
+	// Needs to insert a branch before flushing the pool.
+	// We don't need the jump if following an unconditional branch.
+	// TODO: other unconditional operations.
+	if !(p.As == AB || p.As == obj.ARET || p.As == AERET) {
+		if c.ctxt.Debugvlog {
+			fmt.Printf("note: flush literal pool at %#x: len=%d ref=%x\n", uint64(p.Pc+4), c.pool.size, c.pool.start)
+		}
+		q := c.newprog()
+		if p.Link == nil {
+			// If p is the last instruction of the function, insert an UNDEF instruction in case the
+			// exection fall through to the pool.
+			q.As = obj.AUNDEF
+		} else {
+			// Else insert a branch to the next instruction of p.
 			q.As = AB
 			q.To.Type = obj.TYPE_BRANCH
 			q.To.SetTarget(p.Link)
-			q.Link = c.blitrl
-			q.Pos = p.Pos
-			c.blitrl = q
-		} else if p.Pc+int64(c.pool.size)-int64(c.pool.start) < maxPCDisp {
-			return
 		}
-
-		// The line number for constant pool entries doesn't really matter.
-		// We set it to the line number of the preceding instruction so that
-		// there are no deltas to encode in the pc-line tables.
-		for q := c.blitrl; q != nil; q = q.Link {
-			q.Pos = p.Pos
-		}
-
-		c.elitrl.Link = p.Link
-		p.Link = c.blitrl
-
-		c.blitrl = nil /* BUG: should refer back to values until out-of-range */
-		c.elitrl = nil
-		c.pool.size = 0
-		c.pool.start = 0
+		q.Link = c.blitrl
+		q.Pos = p.Pos
+		c.blitrl = q
 	}
+
+	// The line number for constant pool entries doesn't really matter.
+	// We set it to the line number of the preceding instruction so that
+	// there are no deltas to encode in the pc-line tables.
+	for q := c.blitrl; q != nil; q = q.Link {
+		q.Pos = p.Pos
+	}
+
+	c.elitrl.Link = p.Link
+	p.Link = c.blitrl
+
+	c.blitrl = nil /* BUG: should refer back to values until out-of-range */
+	c.elitrl = nil
+	c.pool.size = 0
+	c.pool.start = 0
 }
 
 // addpool128 adds a 128-bit constant to literal pool by two consecutive DWORD
@@ -1377,23 +1362,21 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 		}
 	}
 
-	q := c.newprog()
-	*q = *t
 	if c.blitrl == nil {
-		c.blitrl = q
+		c.blitrl = t
 		c.pool.start = uint32(p.Pc)
 	} else {
-		c.elitrl.Link = q
+		c.elitrl.Link = t
 	}
-	c.elitrl = q
-	if q.As == ADWORD {
+	c.elitrl = t
+	if t.As == ADWORD {
 		// make DWORD 8-byte aligned, this is not required by ISA,
 		// just to avoid performance penalties when loading from
 		// the constant pool across a cache line.
 		c.pool.size = roundUp(c.pool.size, 8)
 	}
 	c.pool.size += uint32(sz)
-	p.Pool = q
+	p.Pool = t
 }
 
 // roundUp rounds up x to "to".
@@ -1542,7 +1525,7 @@ func isbitcon(x uint64) bool {
 	return sequenceOfOnes(x) || sequenceOfOnes(^x)
 }
 
-// sequenceOfOnes tests whether a constant is a sequence of ones in binary, with leading and trailing zeros
+// sequenceOfOnes tests whether a constant is a sequence of ones in binary, with leading and trailing zeros.
 func sequenceOfOnes(x uint64) bool {
 	y := x & -x // lowest set bit of x. x is good iff x+y is a power of 2
 	y += x
@@ -1795,7 +1778,7 @@ func (c *ctxt7) offsetshift(p *obj.Prog, v int64, cls int) int64 {
 /*
  * if v contains a single 16-bit value aligned
  * on a 16-bit field, and thus suitable for movk/movn,
- * return the field index 0 to 3; otherwise return -1
+ * return the field index 0 to 3; otherwise return -1.
  */
 func movcon(v int64) int {
 	for s := 0; s < 64; s += 16 {

@@ -390,15 +390,21 @@ func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
 	if alt != nil {
 		if m.Name() != alt.Name() {
 			return check.sprintf("(missing %s)\n\t\thave %s\n\t\twant %s",
-				mname, check.funcString(alt), check.funcString(m))
+				mname, check.funcString(alt, false), check.funcString(m, false))
 		}
 
 		if Identical(m.typ, alt.typ) {
 			return check.sprintf("(%s has pointer receiver)", mname)
 		}
 
+		altS, mS := check.funcString(alt, false), check.funcString(m, false)
+		if altS == mS {
+			// Would tell the user that Foo isn't a Foo, add package information to disambiguate.  See #54258.
+			altS, mS = check.funcString(alt, true), check.funcString(m, true)
+		}
+
 		return check.sprintf("(wrong type for %s)\n\t\thave %s\n\t\twant %s",
-			mname, check.funcString(alt), check.funcString(m))
+			mname, altS, mS)
 	}
 
 	if isInterfacePtr(V) {
@@ -433,13 +439,14 @@ func (check *Checker) interfacePtrError(T Type) string {
 
 // funcString returns a string of the form name + signature for f.
 // check may be nil.
-func (check *Checker) funcString(f *Func) string {
+func (check *Checker) funcString(f *Func, pkgInfo bool) string {
 	buf := bytes.NewBufferString(f.name)
 	var qf Qualifier
-	if check != nil {
+	if check != nil && !pkgInfo {
 		qf = check.qualifier
 	}
 	w := newTypeWriter(buf, qf)
+	w.pkgInfo = pkgInfo
 	w.paramNames = false
 	w.signature(f.typ.(*Signature))
 	return buf.String()

@@ -191,7 +191,7 @@ func (s *mspan) nextFreeIndex() uintptr {
 // been no preemption points since ensuring this (which could allow a
 // GC transition, which would allow the state to change).
 func (s *mspan) isFree(index uintptr) bool {
-	if index < s.freeindex {
+	if index < s.freeIndexForScan {
 		return false
 	}
 	bytep, mask := s.allocBits.bitp(index)

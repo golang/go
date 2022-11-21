@@ -831,7 +831,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 		chains, err := certs[0].Verify(opts)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
-			return errors.New("tls: failed to verify client certificate: " + err.Error())
+			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
 		}
 
 		c.verifiedChains = chains

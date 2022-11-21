@@ -1,3 +1,4 @@
+{"Action":"start"}
 {"Action":"run","Test":"TestAscii"}
 {"Action":"output","Test":"TestAscii","Output":"=== RUN   TestAscii\n"}
 {"Action":"output","Test":"TestAscii","Output":"=== RUN   TestNotReally\n"}

@@ -52,7 +52,7 @@ func hwcapInit(os string) {
 			ARM64.IsNeoverseN1 = true
 		}
 		if implementor == 'A' && part_num == 0xd40 {
-			ARM64.IsZeus = true
+			ARM64.IsNeoverseV1 = true
 		}
 	}
 }

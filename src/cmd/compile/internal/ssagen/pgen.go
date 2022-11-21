@@ -61,7 +61,7 @@ func cmpstackvarlt(a, b *ir.Name) bool {
 	return a.Sym().Name < b.Sym().Name
 }
 
-// byStackvar implements sort.Interface for []*Node using cmpstackvarlt.
+// byStackVar implements sort.Interface for []*Node using cmpstackvarlt.
 type byStackVar []*ir.Name
 
 func (s byStackVar) Len() int           { return len(s) }

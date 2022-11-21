@@ -12,7 +12,6 @@ import (
 	"go/build"
 	"go/build/constraint"
 	"go/token"
-	"internal/buildinternal"
 	"internal/godebug"
 	"internal/goroot"
 	"path"
@@ -38,7 +37,7 @@ import (
 // It will be removed before the release.
 // TODO(matloob): Remove enabled once we have more confidence on the
 // module index.
-var enabled bool = godebug.Get("goindex") != "0"
+var enabled = godebug.New("goindex").Value() != "0"
 
 // Module represents and encoded module index file. It is used to
 // do the equivalent of build.Import of packages in the module and answer other
@@ -369,6 +368,8 @@ func relPath(path, modroot string) string {
 	return str.TrimFilePathPrefix(filepath.Clean(path), filepath.Clean(modroot))
 }
 
+var installgorootAll = godebug.New("installgoroot").Value() == "all"
+
 // Import is the equivalent of build.Import given the information in Module.
 func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *build.Package, err error) {
 	defer unprotect(protect(), &err)
@@ -396,6 +397,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 	inTestdata := func(sub string) bool {
 		return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || str.HasPathPrefix(sub, "testdata")
 	}
+	var pkga string
 	if !inTestdata(rp.dir) {
 		// In build.go, p.Root should only be set in the non-local-import case, or in
 		// GOROOT or GOPATH. Since module mode only calls Import with path set to "."
@@ -414,7 +416,6 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			// The fields set below (SrcRoot, PkgRoot, BinDir, PkgTargetRoot, and PkgObj)
 			// are only set in build.Import if p.Root != "".
 			var pkgtargetroot string
-			var pkga string
 			suffix := ""
 			if ctxt.InstallSuffix != "" {
 				suffix = "_" + ctxt.InstallSuffix
@@ -437,8 +438,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 				p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
 
 				// Set the install target if applicable.
-				if strings.ToLower(godebug.Get("installgoroot")) == "all" ||
-					!p.Goroot || buildinternal.NeedsInstalledDotA(p.ImportPath) {
+				if !p.Goroot || (installgorootAll && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
 					p.PkgObj = ctxt.joinPath(p.Root, pkga)
 				}
 			}
@@ -458,14 +458,14 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 
 	// We need to do a second round of bad file processing.
 	var badGoError error
-	badFiles := make(map[string]bool)
-	badFile := func(name string, err error) {
+	badGoFiles := make(map[string]bool)
+	badGoFile := func(name string, err error) {
 		if badGoError == nil {
 			badGoError = err
 		}
-		if !badFiles[name] {
+		if !badGoFiles[name] {
 			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
-			badFiles[name] = true
+			badGoFiles[name] = true
 		}
 	}
 
@@ -480,12 +480,16 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 	allTags := make(map[string]bool)
 	for _, tf := range rp.sourceFiles {
 		name := tf.name()
-		if error := tf.error(); error != "" {
-			badFile(name, errors.New(tf.error()))
-			continue
-		} else if parseError := tf.parseError(); parseError != "" {
-			badFile(name, parseErrorFromString(tf.parseError()))
-			// Fall through: we still want to list files with parse errors.
+		// Check errors for go files and call badGoFiles to put them in
+		// InvalidGoFiles if they do have an error.
+		if strings.HasSuffix(name, ".go") {
+			if error := tf.error(); error != "" {
+				badGoFile(name, errors.New(tf.error()))
+				continue
+			} else if parseError := tf.parseError(); parseError != "" {
+				badGoFile(name, parseErrorFromString(tf.parseError()))
+				// Fall through: we still want to list files with parse errors.
+			}
 		}
 
 		var shouldBuild = true
@@ -555,7 +559,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			// TODO(#45999): The choice of p.Name is arbitrary based on file iteration
 			// order. Instead of resolving p.Name arbitrarily, we should clear out the
 			// existing Name and mark the existing files as also invalid.
-			badFile(name, &MultiplePackageError{
+			badGoFile(name, &MultiplePackageError{
 				Dir:      p.Dir,
 				Packages: []string{p.Name, pkg},
 				Files:    []string{firstFile, name},
@@ -574,7 +578,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		for _, imp := range imports {
 			if imp.path == "C" {
 				if isTest {
-					badFile(name, fmt.Errorf("use of cgo in test %s not supported", name))
+					badGoFile(name, fmt.Errorf("use of cgo in test %s not supported", name))
 					continue
 				}
 				isCgo = true
@@ -582,7 +586,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		}
 		if directives := tf.cgoDirectives(); directives != "" {
 			if err := ctxt.saveCgo(name, (*Package)(p), directives); err != nil {
-				badFile(name, err)
+				badGoFile(name, err)
 			}
 		}
 
@@ -623,6 +627,12 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 				embedMap[e.pattern] = append(embedMap[e.pattern], e.position)
 			}
 		}
+	}
+
+	// Now that p.CgoFiles has been set, use it to determine whether
+	// a package in GOROOT gets an install target:
+	if len(p.CgoFiles) != 0 && p.Root != "" && p.Goroot && pkga != "" {
+		p.PkgObj = ctxt.joinPath(p.Root, pkga)
 	}
 
 	p.EmbedPatterns, p.EmbedPatternPos = cleanDecls(embedPos)

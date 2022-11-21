@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
-	"internal/buildinternal"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -158,6 +157,11 @@ and test commands:
 		include path must be in the same directory as the Go package they are
 		included from, and overlays will not appear when binaries and tests are
 		run through go run and go test respectively.
+	-pgo file
+		specify the file path of a profile for profile-guided optimization (PGO).
+		Special name "auto" lets the go command select a file named
+		"default.pgo" in the main package's directory if that file exists.
+		Special name "off" turns off PGO.
 	-pkgdir dir
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,
@@ -312,6 +316,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
+	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "", "")
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
@@ -479,7 +484,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	pkgs = omitTestOnly(pkgsFilter(pkgs))
 
 	// Special case -o /dev/null by not writing at all.
-	if cfg.BuildO == os.DevNull {
+	if base.IsNull(cfg.BuildO) {
 		cfg.BuildO = ""
 	}
 
@@ -736,11 +741,11 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 				// or else something is wrong and worth reporting (like a ConflictDir).
 			case p.Name != "main" && p.Module != nil:
 				// Non-executables have no target (except the cache) when building with modules.
-			case p.Name != "main" && p.Standard && !buildinternal.NeedsInstalledDotA(p.ImportPath):
+			case p.Name != "main" && p.Standard && p.Internal.Build.PkgObj == "":
 				// Most packages in std do not need an installed .a, because they can be
 				// rebuilt and used directly from the build cache.
 				// A few targets (notably those using cgo) still do need to be installed
-				// in case the user's environment lacks a C compiler.			case p.Internal.GobinSubdir:
+				// in case the user's environment lacks a C compiler.
 			case p.Internal.GobinSubdir:
 				base.Errorf("go: cannot install cross-compiled binaries when GOBIN is set")
 			case p.Internal.CmdlineFiles:

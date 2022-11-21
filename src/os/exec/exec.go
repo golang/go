@@ -348,6 +348,9 @@ type ctxResult struct {
 	timer *time.Timer
 }
 
+var execwait = godebug.New("execwait")
+var execerrdot = godebug.New("execerrdot")
+
 // Command returns the Cmd struct to execute the named program with
 // the given arguments.
 //
@@ -376,8 +379,8 @@ func Command(name string, arg ...string) *Cmd {
 		Args: append([]string{name}, arg...),
 	}
 
-	if execwait := godebug.Get("execwait"); execwait != "" {
-		if execwait == "2" {
+	if v := execwait.Value(); v != "" {
+		if v == "2" {
 			// Obtain the caller stack. (This is equivalent to runtime/debug.Stack,
 			// copied to avoid importing the whole package.)
 			stack := make([]byte, 1024)
@@ -1208,15 +1211,16 @@ func (c *Cmd) Environ() []string {
 // dedupEnv returns a copy of env with any duplicates removed, in favor of
 // later values.
 // Items not of the normal environment "key=value" form are preserved unchanged.
-// Items containing NUL characters are removed, and an error is returned along with
-// the remaining values.
+// Except on Plan 9, items containing NUL characters are removed, and
+// an error is returned along with the remaining values.
 func dedupEnv(env []string) ([]string, error) {
-	return dedupEnvCase(runtime.GOOS == "windows", env)
+	return dedupEnvCase(runtime.GOOS == "windows", runtime.GOOS == "plan9", env)
 }
 
 // dedupEnvCase is dedupEnv with a case option for testing.
 // If caseInsensitive is true, the case of keys is ignored.
-func dedupEnvCase(caseInsensitive bool, env []string) ([]string, error) {
+// If nulOK is false, items containing NUL characters are allowed.
+func dedupEnvCase(caseInsensitive, nulOK bool, env []string) ([]string, error) {
 	// Construct the output in reverse order, to preserve the
 	// last occurrence of each key.
 	var err error
@@ -1225,10 +1229,13 @@ func dedupEnvCase(caseInsensitive bool, env []string) ([]string, error) {
 	for n := len(env); n > 0; n-- {
 		kv := env[n-1]
 
-		if strings.IndexByte(kv, 0) != -1 {
+		// Reject NUL in environment variables to prevent security issues (#56284);
+		// except on Plan 9, which uses NUL as os.PathListSeparator (#56544).
+		if !nulOK && strings.IndexByte(kv, 0) != -1 {
 			err = errors.New("exec: environment variable contains NUL")
 			continue
 		}
+
 		i := strings.Index(kv, "=")
 		if i == 0 {
 			// We observe in practice keys with a single leading "=" on Windows.

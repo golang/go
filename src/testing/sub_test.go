@@ -805,13 +805,13 @@ func TestRacyOutput(t *T) {
 		return len(b), nil
 	}
 
-	var wg sync.WaitGroup
 	root := &T{
 		common:  common{w: &funcWriter{raceDetector}},
 		context: newTestContext(1, allMatcher()),
 	}
 	root.chatty = newChattyPrinter(root.w)
 	root.Run("", func(t *T) {
+		var wg sync.WaitGroup
 		for i := 0; i < 100; i++ {
 			wg.Add(1)
 			go func(i int) {
@@ -821,8 +821,8 @@ func TestRacyOutput(t *T) {
 				})
 			}(i)
 		}
+		wg.Wait()
 	})
-	wg.Wait()
 
 	if races > 0 {
 		t.Errorf("detected %d racy Writes", races)

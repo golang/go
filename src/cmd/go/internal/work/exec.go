@@ -129,7 +129,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 			a.json.TimeStart = time.Now()
 		}
 		var err error
-		if a.Func != nil && (!a.Failed || a.IgnoreFail) {
+		if a.Actor != nil && (!a.Failed || a.IgnoreFail) {
 			// TODO(matloob): Better action descriptions
 			desc := "Executing action "
 			if a.Package != nil {
@@ -140,7 +140,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 			for _, d := range a.Deps {
 				trace.Flow(ctx, d.traceSpan, a.traceSpan)
 			}
-			err = a.Func(b, ctx, a)
+			err = a.Actor.Act(b, ctx, a)
 			span.Done()
 		}
 		if a.json != nil {
@@ -282,21 +282,21 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		// so that the prebuilt .a files from a Go binary install
 		// don't need to be rebuilt with the local compiler.
 		if !p.Standard {
-			if ccID, err := b.gccToolID(ccExe[0], "c"); err == nil {
+			if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
 				fmt.Fprintf(h, "CC ID=%q\n", ccID)
 			}
 		}
 		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
 			cxxExe := b.cxxExe()
 			fmt.Fprintf(h, "CXX=%q %q\n", cxxExe, cxxflags)
-			if cxxID, err := b.gccToolID(cxxExe[0], "c++"); err == nil {
+			if cxxID, _, err := b.gccToolID(cxxExe[0], "c++"); err == nil {
 				fmt.Fprintf(h, "CXX ID=%q\n", cxxID)
 			}
 		}
 		if len(p.FFiles) > 0 {
 			fcExe := b.fcExe()
 			fmt.Fprintf(h, "FC=%q %q\n", fcExe, fflags)
-			if fcID, err := b.gccToolID(fcExe[0], "f95"); err == nil {
+			if fcID, _, err := b.gccToolID(fcExe[0], "f95"); err == nil {
 				fmt.Fprintf(h, "FC ID=%q\n", fcID)
 			}
 		}
@@ -350,7 +350,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		}
 
 	case "gccgo":
-		id, err := b.gccToolID(BuildToolchain.compiler(), "go")
+		id, _, err := b.gccToolID(BuildToolchain.compiler(), "go")
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -358,7 +358,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		fmt.Fprintf(h, "pkgpath %s\n", gccgoPkgpath(p))
 		fmt.Fprintf(h, "ar %q\n", BuildToolchain.(gccgoToolchain).ar())
 		if len(p.SFiles) > 0 {
-			id, _ = b.gccToolID(BuildToolchain.compiler(), "assembler-with-cpp")
+			id, _, _ = b.gccToolID(BuildToolchain.compiler(), "assembler-with-cpp")
 			// Ignore error; different assembler versions
 			// are unlikely to make any difference anyhow.
 			fmt.Fprintf(h, "asm %q\n", id)
@@ -382,6 +382,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	)
 	for _, file := range inputFiles {
 		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
+	}
+	if cfg.BuildPGOFile != "" {
+		fmt.Fprintf(h, "pgofile %s\n", b.fileHash(cfg.BuildPGOFile))
 	}
 	for _, a1 := range a.Deps {
 		p1 := a1.Package
@@ -476,7 +479,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 				p.BuildID = a.buildID
 			}
 			if need&needCompiledGoFiles != 0 {
-				if err := b.loadCachedSrcFiles(a); err == nil {
+				if err := b.loadCachedCompiledGoFiles(a); err == nil {
 					need &^= needCompiledGoFiles
 				}
 			}
@@ -485,7 +488,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		// Source files might be cached, even if the full action is not
 		// (e.g., go list -compiled -find).
 		if !cachedBuild && need&needCompiledGoFiles != 0 {
-			if err := b.loadCachedSrcFiles(a); err == nil {
+			if err := b.loadCachedCompiledGoFiles(a); err == nil {
 				need &^= needCompiledGoFiles
 			}
 		}
@@ -770,7 +773,7 @@ OverlayLoop:
 		need &^= needVet
 	}
 	if need&needCompiledGoFiles != 0 {
-		if err := b.loadCachedSrcFiles(a); err != nil {
+		if err := b.loadCachedCompiledGoFiles(a); err != nil {
 			return fmt.Errorf("loading compiled Go files from cache: %w", err)
 		}
 		need &^= needCompiledGoFiles
@@ -848,7 +851,8 @@ OverlayLoop:
 		}
 
 		if err != nil {
-			return errors.New(fmt.Sprint(formatOutput(b.WorkDir, p.Dir, p.Desc(), output)))
+			prefix, suffix := formatOutput(b.WorkDir, p.Dir, p.Desc(), output)
+			return errors.New(prefix + suffix)
 		} else {
 			b.showOutput(a, p.Dir, p.Desc(), output)
 		}
@@ -1036,28 +1040,30 @@ func (b *Builder) loadCachedVet(a *Action) error {
 	return nil
 }
 
-func (b *Builder) loadCachedSrcFiles(a *Action) error {
+func (b *Builder) loadCachedCompiledGoFiles(a *Action) error {
 	c := cache.Default()
 	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "srcfiles"))
 	if err != nil {
 		return fmt.Errorf("reading srcfiles list: %w", err)
 	}
-	var files []string
+	var gofiles []string
 	for _, name := range strings.Split(string(list), "\n") {
 		if name == "" { // end of list
 			continue
+		} else if !strings.HasSuffix(name, ".go") {
+			continue
 		}
 		if strings.HasPrefix(name, "./") {
-			files = append(files, name[len("./"):])
+			gofiles = append(gofiles, name[len("./"):])
 			continue
 		}
 		file, err := b.findCachedObjdirFile(a, c, name)
 		if err != nil {
 			return fmt.Errorf("finding %s: %w", name, err)
 		}
-		files = append(files, file)
+		gofiles = append(gofiles, file)
 	}
-	a.Package.CompiledGoFiles = files
+	a.Package.CompiledGoFiles = gofiles
 	return nil
 }
 
@@ -1355,7 +1361,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		// Or external linker settings and flags?
 
 	case "gccgo":
-		id, err := b.gccToolID(BuildToolchain.linker(), "go")
+		id, _, err := b.gccToolID(BuildToolchain.linker(), "go")
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -2153,7 +2159,8 @@ func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs 
 			desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
 		}
 		if err != nil {
-			err = errors.New(fmt.Sprint(formatOutput(b.WorkDir, dir, desc, b.processOutput(out))))
+			prefix, suffix := formatOutput(b.WorkDir, dir, desc, b.processOutput(out))
+			err = errors.New(prefix + suffix)
 		} else {
 			b.showOutput(a, dir, desc, b.processOutput(out))
 		}
@@ -2500,7 +2507,8 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 		}
 
 		if err != nil || os.Getenv("GO_BUILDER_NAME") != "" {
-			err = errors.New(fmt.Sprintf(formatOutput(b.WorkDir, p.Dir, desc, b.processOutput(output))))
+			prefix, suffix := formatOutput(b.WorkDir, p.Dir, desc, b.processOutput(output))
+			err = errors.New(prefix + suffix)
 		} else {
 			b.showOutput(a, p.Dir, desc, b.processOutput(output))
 		}
@@ -2683,31 +2691,6 @@ func (b *Builder) gccNoPie(linker []string) string {
 func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	key := [2]string{compiler[0], flag}
 
-	b.exec.Lock()
-	defer b.exec.Unlock()
-	if b, ok := b.flagCache[key]; ok {
-		return b
-	}
-	if b.flagCache == nil {
-		b.flagCache = make(map[[2]string]bool)
-	}
-
-	tmp := os.DevNull
-
-	// On the iOS builder the command
-	//   $CC -Wl,--no-gc-sections -x c - -o /dev/null < /dev/null
-	// is failing with:
-	//   Unable to remove existing file: Invalid argument
-	if runtime.GOOS == "windows" || runtime.GOOS == "ios" {
-		f, err := os.CreateTemp(b.WorkDir, "")
-		if err != nil {
-			return false
-		}
-		f.Close()
-		tmp = f.Name()
-		defer os.Remove(tmp)
-	}
-
 	// We used to write an empty C file, but that gets complicated with go
 	// build -n. We tried using a file that does not exist, but that fails on
 	// systems with GCC version 4.2.1; that is the last GPLv2 version of GCC,
@@ -2719,6 +2702,22 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	// omit the linking step with "-c".
 	//
 	// Using the same CFLAGS/LDFLAGS here and for building the program.
+
+	// On the iOS builder the command
+	//   $CC -Wl,--no-gc-sections -x c - -o /dev/null < /dev/null
+	// is failing with:
+	//   Unable to remove existing file: Invalid argument
+	tmp := os.DevNull
+	if runtime.GOOS == "windows" || runtime.GOOS == "ios" {
+		f, err := os.CreateTemp(b.WorkDir, "")
+		if err != nil {
+			return false
+		}
+		f.Close()
+		tmp = f.Name()
+		defer os.Remove(tmp)
+	}
+
 	cmdArgs := str.StringList(compiler, flag)
 	if strings.HasPrefix(flag, "-Wl,") /* linker flag */ {
 		ldflags, err := buildFlags("LDFLAGS", defaultCFlags, nil, checkLinkerFlags)
@@ -2737,11 +2736,36 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 
 	cmdArgs = append(cmdArgs, "-x", "c", "-", "-o", tmp)
 
-	if cfg.BuildN || cfg.BuildX {
+	if cfg.BuildN {
 		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
-		if cfg.BuildN {
-			return false
+		return false
+	}
+
+	// gccCompilerID acquires b.exec, so do before acquiring lock.
+	compilerID, cacheOK := b.gccCompilerID(compiler[0])
+
+	b.exec.Lock()
+	defer b.exec.Unlock()
+	if b, ok := b.flagCache[key]; ok {
+		return b
+	}
+	if b.flagCache == nil {
+		b.flagCache = make(map[[2]string]bool)
+	}
+
+	// Look in build cache.
+	var flagID cache.ActionID
+	if cacheOK {
+		flagID = cache.Subkey(compilerID, "gccSupportsFlag "+flag)
+		if data, _, err := cache.Default().GetBytes(flagID); err == nil {
+			supported := string(data) == "true"
+			b.flagCache[key] = supported
+			return supported
 		}
+	}
+
+	if cfg.BuildX {
+		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
 	}
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = b.WorkDir
@@ -2759,8 +2783,118 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 		!bytes.Contains(out, []byte("is not supported")) &&
 		!bytes.Contains(out, []byte("not recognized")) &&
 		!bytes.Contains(out, []byte("unsupported"))
+
+	if cacheOK {
+		s := "false"
+		if supported {
+			s = "true"
+		}
+		cache.Default().PutBytes(flagID, []byte(s))
+	}
+
 	b.flagCache[key] = supported
 	return supported
+}
+
+// statString returns a string form of an os.FileInfo, for serializing and comparison.
+func statString(info os.FileInfo) string {
+	return fmt.Sprintf("stat %d %x %v %v\n", info.Size(), uint64(info.Mode()), info.ModTime(), info.IsDir())
+}
+
+// gccCompilerID returns a build cache key for the current gcc,
+// as identified by running 'compiler'.
+// The caller can use subkeys of the key.
+// Other parts of cmd/go can use the id as a hash
+// of the installed compiler version.
+func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
+	if cfg.BuildN {
+		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously([]string{compiler, "--version"}))
+		return cache.ActionID{}, false
+	}
+
+	b.exec.Lock()
+	defer b.exec.Unlock()
+
+	if id, ok := b.gccCompilerIDCache[compiler]; ok {
+		return id, ok
+	}
+
+	// We hash the compiler's full path to get a cache entry key.
+	// That cache entry holds a validation description,
+	// which is of the form:
+	//
+	//	filename \x00 statinfo \x00
+	//	...
+	//	compiler id
+	//
+	// If os.Stat of each filename matches statinfo,
+	// then the entry is still valid, and we can use the
+	// compiler id without any further expense.
+	//
+	// Otherwise, we compute a new validation description
+	// and compiler id (below).
+	exe, err := exec.LookPath(compiler)
+	if err != nil {
+		return cache.ActionID{}, false
+	}
+
+	h := cache.NewHash("gccCompilerID")
+	fmt.Fprintf(h, "gccCompilerID %q", exe)
+	key := h.Sum()
+	data, _, err := cache.Default().GetBytes(key)
+	if err == nil && len(data) > len(id) {
+		stats := strings.Split(string(data[:len(data)-len(id)]), "\x00")
+		if len(stats)%2 != 0 {
+			goto Miss
+		}
+		for i := 0; i+2 <= len(stats); i++ {
+			info, err := os.Stat(stats[i])
+			if err != nil || statString(info) != stats[i+1] {
+				goto Miss
+			}
+		}
+		copy(id[:], data[len(data)-len(id):])
+		return id, true
+	Miss:
+	}
+
+	// Validation failed. Compute a new description (in buf) and compiler ID (in h).
+	// For now, there are only at most two filenames in the stat information.
+	// The first one is the compiler executable we invoke.
+	// The second is the underlying compiler as reported by -v -###
+	// (see b.gccToolID implementation in buildid.go).
+	toolID, exe2, err := b.gccToolID(compiler, "c")
+	if err != nil {
+		return cache.ActionID{}, false
+	}
+
+	exes := []string{exe, exe2}
+	str.Uniq(&exes)
+	fmt.Fprintf(h, "gccCompilerID %q %q\n", exes, toolID)
+	id = h.Sum()
+
+	var buf bytes.Buffer
+	for _, exe := range exes {
+		if exe == "" {
+			continue
+		}
+		info, err := os.Stat(exe)
+		if err != nil {
+			return cache.ActionID{}, false
+		}
+		buf.WriteString(exe)
+		buf.WriteString("\x00")
+		buf.WriteString(statString(info))
+		buf.WriteString("\x00")
+	}
+	buf.Write(id[:])
+
+	cache.Default().PutBytes(key, buf.Bytes())
+	if b.gccCompilerIDCache == nil {
+		b.gccCompilerIDCache = make(map[string]cache.ActionID)
+	}
+	b.gccCompilerIDCache[compiler] = id
+	return id, true
 }
 
 // gccArchArgs returns arguments to pass to gcc based on the architecture.
@@ -3424,7 +3558,8 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
 				return "", "", errors.New("must have SWIG version >= 3.0.6")
 			}
 			// swig error
-			return "", "", errors.New(fmt.Sprint(formatOutput(b.WorkDir, p.Dir, p.Desc(), b.processOutput(out))))
+			prefix, suffix := formatOutput(b.WorkDir, p.Dir, p.Desc(), b.processOutput(out))
+			return "", "", errors.New(prefix + suffix)
 		}
 		return "", "", err
 	}

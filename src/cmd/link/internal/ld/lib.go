@@ -466,6 +466,9 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
 		}
 	}
 
+	if name == "runtime" {
+		Exitf("error: unable to find runtime.a")
+	}
 	ctxt.Logf("warning: unable to find %s.a\n", name)
 	return nil
 }
@@ -612,9 +615,14 @@ func (ctxt *Link) loadlib() {
 		// If we have any undefined symbols in external
 		// objects, try to read them from the libgcc file.
 		any := false
-		undefs := ctxt.loader.UndefinedRelocTargets(1)
+		undefs, froms := ctxt.loader.UndefinedRelocTargets(1)
 		if len(undefs) > 0 {
 			any = true
+			if ctxt.Debugvlog > 1 {
+				ctxt.Logf("loadlib: first unresolved is %s [%d] from %s [%d]\n",
+					ctxt.loader.SymName(undefs[0]), undefs[0],
+					ctxt.loader.SymName(froms[0]), froms[0])
+			}
 		}
 		if any {
 			if *flagLibGCC == "" {
@@ -678,9 +686,14 @@ func loadWindowsHostArchives(ctxt *Link) {
 			hostArchive(ctxt, p)
 		}
 		any = false
-		undefs := ctxt.loader.UndefinedRelocTargets(1)
+		undefs, froms := ctxt.loader.UndefinedRelocTargets(1)
 		if len(undefs) > 0 {
 			any = true
+			if ctxt.Debugvlog > 1 {
+				ctxt.Logf("loadWindowsHostArchives: remaining unresolved is %s [%d] from %s [%d]\n",
+					ctxt.loader.SymName(undefs[0]), undefs[0],
+					ctxt.loader.SymName(froms[0]), froms[0])
+			}
 		}
 	}
 	// If needed, create the __CTOR_LIST__ and __DTOR_LIST__
@@ -698,6 +711,13 @@ func loadWindowsHostArchives(ctxt *Link) {
 			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
 		}
 	}
+
+	// Fix up references to DLL import symbols now that we're done
+	// pulling in new objects.
+	if err := loadpe.PostProcessImports(); err != nil {
+		Errorf(nil, "%v", err)
+	}
+
 	// TODO: maybe do something similar to peimporteddlls to collect
 	// all lib names and try link them all to final exe just like
 	// libmingwex.a and libmingw32.a:
@@ -1143,13 +1163,15 @@ func hostobjs(ctxt *Link) {
 		if err != nil {
 			Exitf("cannot reopen %s: %v", h.pn, err)
 		}
-
 		f.MustSeek(h.off, 0)
 		if h.ld == nil {
 			Errorf(nil, "%s: unrecognized object file format", h.pn)
 			continue
 		}
 		h.ld(ctxt, f, h.pkg, h.length, h.pn)
+		if *flagCaptureHostObjs != "" {
+			captureHostObj(h)
+		}
 		f.Close()
 	}
 }
@@ -2138,7 +2160,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 // to true if there is an unresolved reference to the symbol in want[K].
 func symbolsAreUnresolved(ctxt *Link, want []string) []bool {
 	returnAllUndefs := -1
-	undefs := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
+	undefs, _ := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
 	seen := make(map[loader.Sym]struct{})
 	rval := make([]bool, len(want))
 	wantm := make(map[string]int)
@@ -2181,8 +2203,13 @@ func hostObject(ctxt *Link, objname string, path string) {
 	if h.ld == nil {
 		Exitf("unrecognized object file format in %s", path)
 	}
+	h.file = path
+	h.length = f.MustSeek(0, 2)
 	f.MustSeek(h.off, 0)
 	h.ld(ctxt, f, h.pkg, h.length, h.pn)
+	if *flagCaptureHostObjs != "" {
+		captureHostObj(h)
+	}
 }
 
 func checkFingerprint(lib *sym.Library, libfp goobj.FingerprintType, src string, srcfp goobj.FingerprintType) {
@@ -2585,4 +2612,47 @@ func AddGotSym(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym,
 	} else {
 		ldr.Errorf(s, "addgotsym: unsupported binary format")
 	}
+}
+
+var hostobjcounter int
+
+// captureHostObj writes out the content of a host object (pulled from
+// an archive or loaded from a *.o file directly) to a directory
+// specified via the linker's "-capturehostobjs" debugging flag. This
+// is intended to make it easier for a developer to inspect the actual
+// object feeding into "CGO internal" link step.
+func captureHostObj(h *Hostobj) {
+	// Form paths for info file and obj file.
+	ofile := fmt.Sprintf("captured-obj-%d.o", hostobjcounter)
+	ifile := fmt.Sprintf("captured-obj-%d.txt", hostobjcounter)
+	hostobjcounter++
+	opath := filepath.Join(*flagCaptureHostObjs, ofile)
+	ipath := filepath.Join(*flagCaptureHostObjs, ifile)
+
+	// Write the info file.
+	info := fmt.Sprintf("pkg: %s\npn: %s\nfile: %s\noff: %d\nlen: %d\n",
+		h.pkg, h.pn, h.file, h.off, h.length)
+	if err := os.WriteFile(ipath, []byte(info), 0666); err != nil {
+		log.Fatalf("error writing captured host obj info %s: %v", ipath, err)
+	}
+
+	readObjData := func() []byte {
+		inf, err := os.Open(h.file)
+		if err != nil {
+			log.Fatalf("capturing host obj: open failed on %s: %v", h.pn, err)
+		}
+		res := make([]byte, h.length)
+		if n, err := inf.ReadAt(res, h.off); err != nil || n != int(h.length) {
+			log.Fatalf("capturing host obj: readat failed on %s: %v", h.pn, err)
+		}
+		return res
+	}
+
+	// Write the object file.
+	if err := os.WriteFile(opath, readObjData(), 0666); err != nil {
+		log.Fatalf("error writing captured host object %s: %v", opath, err)
+	}
+
+	fmt.Fprintf(os.Stderr, "link: info: captured host object %s to %s\n",
+		h.file, opath)
 }

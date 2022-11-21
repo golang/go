@@ -243,8 +243,10 @@ func TestCgo(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 
-	importer := New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
-	_, err := importer.ImportFrom("./misc/cgo/test", testenv.GOROOT(t), 0)
+	buildCtx := build.Default
+	buildCtx.Dir = filepath.Join(testenv.GOROOT(t), "misc")
+	importer := New(&buildCtx, token.NewFileSet(), make(map[string]*types.Package))
+	_, err := importer.ImportFrom("./cgo/test", buildCtx.Dir, 0)
 	if err != nil {
 		t.Fatalf("Import failed: %v", err)
 	}

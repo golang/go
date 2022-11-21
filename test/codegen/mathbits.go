@@ -620,6 +620,39 @@ func Add64MPanicOnOverflowGT(a, b [2]uint64) [2]uint64 {
 	return r
 }
 
+// Verify independent carry chain operations are scheduled efficiently
+// and do not cause unnecessary save/restore of the CA bit.
+//
+// This is an example of why CarryChainTail priority must be lower
+// (earlier in the block) than Memory. f[0]=f1 could be scheduled
+// after the first two lower 64 bit limb adds, but before either
+// high 64 bit limbs are added.
+//
+// This is what happened on PPC64 when compiling
+// crypto/internal/edwards25519/field.feMulGeneric.
+func Add64MultipleChains(a, b, c, d [2]uint64) {
+	var cx, d1, d2 uint64
+	a1, a2 := a[0], a[1]
+	b1, b2 := b[0], b[1]
+	c1, c2 := c[0], c[1]
+
+	// ppc64: "ADDC\tR\\d+,", -"ADDE", -"MOVD\tXER"
+	// ppc64le: "ADDC\tR\\d+,", -"ADDE", -"MOVD\tXER"
+	d1, cx = bits.Add64(a1, b1, 0)
+	// ppc64: "ADDE", -"ADDC", -"MOVD\t.*, XER"
+	// ppc64le: "ADDE", -"ADDC", -"MOVD\t.*, XER"
+	d2, _ = bits.Add64(a2, b2, cx)
+
+	// ppc64: "ADDC\tR\\d+,", -"ADDE", -"MOVD\tXER"
+	// ppc64le: "ADDC\tR\\d+,", -"ADDE", -"MOVD\tXER"
+	d1, cx = bits.Add64(c1, d1, 0)
+	// ppc64: "ADDE", -"ADDC", -"MOVD\t.*, XER"
+	// ppc64le: "ADDE", -"ADDC", -"MOVD\t.*, XER"
+	d2, _ = bits.Add64(c2, d2, cx)
+	d[0] = d1
+	d[1] = d2
+}
+
 // --------------- //
 //    bits.Sub*    //
 // --------------- //

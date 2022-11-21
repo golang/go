@@ -539,6 +539,9 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 	sn := d.ldr.SymName(gotype)
 	name := sn[5:] // could also decode from Type.string
 	tdata := d.ldr.Data(gotype)
+	if len(tdata) == 0 {
+		d.linkctxt.Errorf(gotype, "missing type")
+	}
 	kind := decodetypeKind(d.arch, tdata)
 	bytesize := decodetypeSize(d.arch, tdata)
 

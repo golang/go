@@ -2392,12 +2392,15 @@ func (l *Loader) RelocVariant(s Sym, ri int) sym.RelocVariant {
 // space, looking for symbols with relocations targeting undefined
 // references. The linker's loadlib method uses this to determine if
 // there are unresolved references to functions in system libraries
-// (for example, libgcc.a), presumably due to CGO code. Return
-// value is a list of loader.Sym's corresponding to the undefined
-// cross-refs. The "limit" param controls the maximum number of
-// results returned; if "limit" is -1, then all undefs are returned.
-func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
-	result := []Sym{}
+// (for example, libgcc.a), presumably due to CGO code. Return value
+// is a pair of lists of loader.Sym's. First list corresponds to the
+// corresponding to the undefined symbols themselves, the second list
+// is the symbol that is making a reference to the undef. The "limit"
+// param controls the maximum number of results returned; if "limit"
+// is -1, then all undefs are returned.
+func (l *Loader) UndefinedRelocTargets(limit int) ([]Sym, []Sym) {
+	result, fromr := []Sym{}, []Sym{}
+outerloop:
 	for si := Sym(1); si < Sym(len(l.objSyms)); si++ {
 		relocs := l.Relocs(si)
 		for ri := 0; ri < relocs.Count(); ri++ {
@@ -2405,13 +2408,14 @@ func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
 			rs := r.Sym()
 			if rs != 0 && l.SymType(rs) == sym.SXREF && l.SymName(rs) != ".got" {
 				result = append(result, rs)
+				fromr = append(fromr, si)
 				if limit != -1 && len(result) >= limit {
-					break
+					break outerloop
 				}
 			}
 		}
 	}
-	return result
+	return result, fromr
 }
 
 // AssignTextSymbolOrder populates the Textp slices within each

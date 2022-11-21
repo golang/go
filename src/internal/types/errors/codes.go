@@ -34,7 +34,9 @@ const (
 	// InvalidSyntaxTree occurs if an invalid syntax tree is provided
 	// to the type checker. It should never happen.
 	InvalidSyntaxTree Code = -1
+)
 
+const (
 	// The zero Code value indicates an unset (invalid) error code.
 	_ Code = iota
 
@@ -1428,4 +1430,13 @@ const (
 	// InvalidUnsafeStringData occurs if it is used in a package
 	// compiled for a language version before go1.20.
 	_ // not used anymore
+
+	// InvalidClear occurs when clear is called with an argument
+	// that is not of map, slice, or pointer-to-array type.
+	//
+	// Example:
+	//  func _(x int) {
+	//  	clear(x)
+	//  }
+	InvalidClear
 )

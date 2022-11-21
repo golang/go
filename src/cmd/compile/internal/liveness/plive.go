@@ -296,7 +296,7 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	return -1, 0
 }
 
-// affectedVar returns the *ir.Name node affected by v
+// affectedVar returns the *ir.Name node affected by v.
 func affectedVar(v *ssa.Value) (*ir.Name, ssa.SymEffect) {
 	// Special cases.
 	switch v.Op {

@@ -74,7 +74,7 @@ func (c *x25519Curve) NewPublicKey(key []byte) (*PublicKey, error) {
 	}, nil
 }
 
-func (c *x25519Curve) ECDH(local *PrivateKey, remote *PublicKey) ([]byte, error) {
+func (c *x25519Curve) ecdh(local *PrivateKey, remote *PublicKey) ([]byte, error) {
 	out := make([]byte, x25519SharedSecretSize)
 	x25519ScalarMult(out, local.privateKey, remote.publicKey)
 	if isZero(out) {

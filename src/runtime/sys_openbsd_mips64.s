@@ -277,7 +277,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$0
 
 	// In parent, return.
 	BEQ	R2, 3(PC)
-	MOVW	R2, ret+40(FP)
+	MOVW	$0, ret+40(FP)
 	RET
 
 	// Initialise m, g.

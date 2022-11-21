@@ -850,7 +850,7 @@ func isVchar(r rune) bool {
 }
 
 // isMultibyte reports whether r is a multi-byte UTF-8 character
-// as supported by RFC 6532
+// as supported by RFC 6532.
 func isMultibyte(r rune) bool {
 	return r >= utf8.RuneSelf
 }
