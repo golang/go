@@ -1277,3 +1277,66 @@ func TestOpenDirTOCTOU(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestAppExecLinkStat(t *testing.T) {
+	pythonExeName := "python3.exe"
+	pythonPath := filepath.Join(os.Getenv("LOCALAPPDATA"), `Microsoft\WindowsApps`, pythonExeName)
+
+	lfi, err := os.Lstat(pythonPath)
+	if err != nil {
+		t.Skip("skipping test, because Python 3 is not installed via the Windows App Store on this system; see https://golang.org/issue/42919")
+	}
+
+	// We do not open AppExecLink files as symlinks, so it should not identify as such and return the exact same file path.
+	linkName, err := os.Readlink(pythonPath)
+	if err != nil {
+		t.Fatalf("Readlink %s: %v", pythonPath, err)
+	}
+	if linkName != pythonPath {
+		t.Errorf("Readlink %s: got %q, but wanted %q", pythonExeName, linkName, pythonPath)
+	}
+
+	sfi, err := os.Stat(pythonPath)
+	if err != nil {
+		t.Fatalf("Stat %s: %v", pythonPath, err)
+	}
+
+	// We open AppExecLink files as regular files and do not follow symlinks.
+	// In case this validation fails, the behaviour of AppExecLink or app installed
+	// executables changed, and so should our implementation.
+	if lfi.Name() != sfi.Name() {
+		t.Logf("os.Lstat(%q) = %+v", pythonPath, lfi)
+		t.Logf("os.Stat(%q)  = %+v", pythonPath, sfi)
+		t.Errorf("files should be same")
+	}
+
+	if lfi.Name() != pythonExeName {
+		t.Errorf("Stat %s: got %q, but wanted %q", pythonPath, lfi.Name(), pythonExeName)
+	}
+	// We do not open AppExecLink files as symlinks, so it should not identify as such.
+	if m := lfi.Mode(); m&fs.ModeSymlink != 0 {
+		t.Errorf("%q should be a file, not a link (mode=0x%x)", pythonPath, uint32(m))
+	}
+	if m := lfi.Mode(); m&fs.ModeDir != 0 {
+		t.Errorf("%q should be a file, not a directory (mode=0x%x)", pythonPath, uint32(m))
+	}
+
+	if sfi.Name() != pythonExeName {
+		t.Errorf("Stat %s: got %q, but wanted %q", pythonPath, sfi.Name(), pythonExeName)
+	}
+	if m := sfi.Mode(); m&fs.ModeSymlink != 0 {
+		t.Errorf("%q should be a file, not a link (mode=0x%x)", pythonPath, uint32(m))
+	}
+	if m := sfi.Mode(); m&fs.ModeDir != 0 {
+		t.Errorf("%q should be a file, not a directory (mode=0x%x)", pythonPath, uint32(m))
+	}
+
+	cmd := osexec.Command(pythonPath, "-c", "print('hello')")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run python: %v %v", err, string(output))
+	}
+	if got, want := string(output), "hello\r\n"; got != want {
+		t.Errorf(`unexpected python program output: got %q, want %q`, got, want)
+	}
+}

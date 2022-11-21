@@ -32,8 +32,8 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 	// Try GetFileAttributesEx first, because it is faster than CreateFile.
 	// See https://golang.org/issues/19922#issuecomment-300031421 for details.
 	var fa syscall.Win32FileAttributeData
-	err = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
-	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+	faErr := syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+	if faErr == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
 		// Not a symlink.
 		fs := &fileStat{
 			FileAttributes: fa.FileAttributes,
@@ -48,6 +48,7 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 		}
 		return fs, nil
 	}
+
 	// GetFileAttributesEx fails with ERROR_SHARING_VIOLATION error for
 	// files, like c:\pagefile.sys. Use FindFirstFile for such files.
 	if err == windows.ERROR_SHARING_VIOLATION {
@@ -67,6 +68,22 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 	// Finally use CreateFile.
 	h, err := syscall.CreateFile(namep, 0, 0, nil,
 		syscall.OPEN_EXISTING, createFileAttrs, 0)
+	if faErr == nil && err == windows.ERROR_CANT_ACCESS_FILE {
+		if isAppExecLink(name) {
+			fs := &fileStat{
+				FileAttributes: fa.FileAttributes,
+				CreationTime:   fa.CreationTime,
+				LastAccessTime: fa.LastAccessTime,
+				LastWriteTime:  fa.LastWriteTime,
+				FileSizeHigh:   fa.FileSizeHigh,
+				FileSizeLow:    fa.FileSizeLow,
+			}
+			if err := fs.saveInfoFromPath(name); err != nil {
+				return nil, err
+			}
+			return fs, nil
+		}
+	}
 	if err != nil {
 		return nil, &PathError{Op: "CreateFile", Path: name, Err: err}
 	}

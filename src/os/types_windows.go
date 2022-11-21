@@ -170,6 +170,13 @@ func (fs *fileStat) loadFileId() error {
 		attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
 	}
 	h, err := syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, attrs, 0)
+	if err == windows.ERROR_CANT_ACCESS_FILE {
+		// Use FILE_FLAG_OPEN_REPARSE_POINT, like for symlinks, and try to call CreateFile again.
+		if isAppExecLink(fs.name) {
+			attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
+			h, err = syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, attrs, 0)
+		}
+	}
 	if err != nil {
 		return err
 	}

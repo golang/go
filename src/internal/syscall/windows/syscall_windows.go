@@ -39,6 +39,7 @@ const (
 	ERROR_INVALID_NAME           syscall.Errno = 123
 	ERROR_LOCK_FAILED            syscall.Errno = 167
 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
+	ERROR_CANT_ACCESS_FILE       syscall.Errno = 1920
 )
 
 const GAA_FLAG_INCLUDE_PREFIX = 0x00000010

@@ -466,10 +466,17 @@ func normaliseLinkPath(path string) (string, error) {
 	return "", errors.New("GetFinalPathNameByHandle returned unexpected path: " + s)
 }
 
-func readlink(path string) (string, error) {
+func isAppExecLink(path string) bool {
+	// We can be dealing with APPEXECLINK, like
+	// C:\Users\user\AppData\Local\Microsoft\WindowsApps\python3.exe
+	rdb, err := getReparseDataBuffer(path)
+	return err == nil && rdb.ReparseTag == windows.IO_REPARSE_TAG_APPEXECLINK
+}
+
+func getReparseDataBuffer(path string) (*windows.REPARSE_DATA_BUFFER, error) {
 	h, err := openSymlink(path)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer syscall.CloseHandle(h)
 
@@ -477,10 +484,18 @@ func readlink(path string) (string, error) {
 	var bytesReturned uint32
 	err = syscall.DeviceIoControl(h, syscall.FSCTL_GET_REPARSE_POINT, nil, 0, &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	rdb := (*windows.REPARSE_DATA_BUFFER)(unsafe.Pointer(&rdbbuf[0]))
+	return (*windows.REPARSE_DATA_BUFFER)(unsafe.Pointer(&rdbbuf[0])), nil
+}
+
+func readlink(path string) (string, error) {
+	rdb, err := getReparseDataBuffer(path)
+	if err != nil {
+		return "", nil
+	}
+
 	switch rdb.ReparseTag {
 	case syscall.IO_REPARSE_TAG_SYMLINK:
 		rb := (*windows.SymbolicLinkReparseBuffer)(unsafe.Pointer(&rdb.DUMMYUNIONNAME))
@@ -491,6 +506,13 @@ func readlink(path string) (string, error) {
 		return normaliseLinkPath(s)
 	case windows.IO_REPARSE_TAG_MOUNT_POINT:
 		return normaliseLinkPath((*windows.MountPointReparseBuffer)(unsafe.Pointer(&rdb.DUMMYUNIONNAME)).Path())
+	case windows.IO_REPARSE_TAG_APPEXECLINK:
+		// The PowerShell team had a conversation with the Windows team that owns AppExecLinks.
+		// They explained that you are not supposed to care about the target path.
+		// AppExecLinks are meant to work seamlessly like any other file/executable.
+		// This is why they never exposed the APIs like for other symlinks.
+		// Source: https://github.com/dotnet/runtime/pull/58233#issuecomment-911971904
+		return path, nil
 	default:
 		// the path is not a symlink or junction but another type of reparse
 		// point
