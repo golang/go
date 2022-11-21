@@ -833,18 +833,19 @@ func (S) M5(struct {S;t}) {}
 .*want M5[(]struct{b[.]S; t}[)]`},
 	}
 
-	test := func(main, imported, want string) {
+	fset := token.NewFileSet()
+	test := func(main, b, want string) {
 		re := regexp.MustCompile(want)
-		a := mustTypecheck("b", imported, nil)
-		bast := mustParse(fset, "", main)
-		conf := Config{Importer: importHelper{pkg: a}}
-		_, err := conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
+		bpkg := mustTypecheck("b", b, nil)
+		mast := mustParse(fset, "main.go", main)
+		conf := Config{Importer: importHelper{pkg: bpkg}}
+		_, err := conf.Check(mast.Name.Name, fset, []*ast.File{mast}, nil)
 		if err == nil {
-			t.Errorf("Expected failure, but it did not")
+			t.Error("Expected failure, but it did not")
 		} else if got := err.Error(); !re.MatchString(got) {
-			t.Errorf("Wanted match for\n%s\n but got \n%s", want, got)
+			t.Errorf("Wanted match for\n\t%s\n but got\n\t%s", want, got)
 		} else if testing.Verbose() {
-			t.Logf("Saw expected\n%s", err.Error())
+			t.Logf("Saw expected\n\t%s", err.Error())
 		}
 	}
 	for _, t := range tests {
