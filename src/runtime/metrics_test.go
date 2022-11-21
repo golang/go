@@ -5,7 +5,6 @@
 package runtime_test
 
 import (
-	"fmt"
 	"reflect"
 	"runtime"
 	"runtime/metrics"
@@ -154,13 +153,7 @@ func TestReadMetrics(t *testing.T) {
 	checkUint64(t, "/gc/heap/frees:objects", frees, mstats.Frees-tinyAllocs)
 }
 
-var dummyAllocs [][]byte
-
 func TestReadMetricsConsistency(t *testing.T) {
-	// just for testing ...
-	for i := 0; i < 1000; i++ {
-		dummyAllocs = append(dummyAllocs, make([]byte, 23))
-	}
 	// Tests whether readMetrics produces consistent, sensible values.
 	// The values are read concurrently with the runtime doing other
 	// things (e.g. allocating) so what we read can't reasonably compared
@@ -258,7 +251,6 @@ func TestReadMetricsConsistency(t *testing.T) {
 			objects.totalBytes = samples[i].Value.Uint64()
 		case "/gc/heap/live:bytes":
 			objects.liveBytes = samples[i].Value.Uint64()
-			fmt.Printf("objects.liveBytes: %v\n", objects.liveBytes)
 		case "/gc/heap/objects:objects":
 			objects.total = samples[i].Value.Uint64()
 		case "/gc/heap/allocs:bytes":
