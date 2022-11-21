@@ -28,6 +28,9 @@ func prepareAllMetricsSamples() (map[string]metrics.Description, []metrics.Sampl
 }
 
 func TestReadMetrics(t *testing.T) {
+	// Run a GC cycle to get some of the stats to be non-zero.
+	runtime.GC()
+
 	// Tests whether readMetrics produces values aligning
 	// with ReadMemStats while the world is stopped.
 	var mstats runtime.MemStats
@@ -128,6 +131,13 @@ func TestReadMetrics(t *testing.T) {
 			mallocs = samples[i].Value.Uint64()
 		case "/gc/heap/frees:objects":
 			frees = samples[i].Value.Uint64()
+		case "/gc/heap/live:bytes":
+			if live := samples[i].Value.Uint64(); live > mstats.HeapAlloc {
+				t.Errorf("live bytes: %d > heap alloc: %d", live, mstats.HeapAlloc)
+			} else if live == 0 {
+				// Might happen if we don't call runtime.GC() above.
+				t.Error("live bytes is 0")
+			}
 		case "/gc/heap/objects:objects":
 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapObjects)
 		case "/gc/heap/goal:bytes":

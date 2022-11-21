@@ -246,6 +246,11 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
+		Name:        "/gc/heap/live:bytes",
+		Description: "Heap memory occupied by live objects that were marked by the previous GC.",
+		Kind:        KindUint64,
+	},
+	{
 		Name:        "/gc/heap/objects:objects",
 		Description: "Number of objects, live or unswept, occupying heap memory.",
 		Kind:        KindUint64,
