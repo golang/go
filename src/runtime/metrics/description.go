@@ -242,8 +242,8 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
-		Name:        "/gc/heap/live_objects:objects",
-		Description: "Number of live objects occupying heap memory.",
+		Name:        "/gc/heap/live:bytes",
+		Description: "Heap memory occupied by live objects that were marked by the previous GC.",
 		Kind:        KindUint64,
 	},
 	{
@@ -288,11 +288,6 @@ var allDesc = []Description{
 			"but has not been. This metric is the runtime's estimate of free address space that is backed by " +
 			"physical memory.",
 		Kind: KindUint64,
-	},
-	{
-		Name:        "/memory/classes/heap/live_objects:bytes",
-		Description: "Memory occupied by live objects.",
-		Kind:        KindUint64,
 	},
 	{
 		Name:        "/memory/classes/heap/objects:bytes",

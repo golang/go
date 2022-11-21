@@ -247,14 +247,11 @@ func initMetrics() {
 				out.scalar = in.sysStats.heapGoal
 			},
 		},
-		"/gc/heap/live_objects:objects": {
+		"/gc/heap/live:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = 0
-				forEachMemProfileRecord(func(mpr MemProfileRecord) {
-					out.scalar += uint64(mpr.InUseObjects())
-				})
+				out.scalar = gcController.heapMarked
 			},
 		},
 		"/gc/heap/objects:objects": {
@@ -303,16 +300,6 @@ func initMetrics() {
 				out.scalar = uint64(in.heapStats.committed - in.heapStats.inHeap -
 					in.heapStats.inStacks - in.heapStats.inWorkBufs -
 					in.heapStats.inPtrScalarBits)
-			},
-		},
-		"/memory/classes/heap/live_objects:bytes": {
-			deps: makeStatDepSet(heapStatsDep),
-			compute: func(in *statAggregate, out *metricValue) {
-				out.kind = metricKindUint64
-				out.scalar = 0
-				forEachMemProfileRecord(func(mpr MemProfileRecord) {
-					out.scalar += uint64(mpr.InUseBytes())
-				})
 			},
 		},
 		"/memory/classes/heap/objects:bytes": {
@@ -740,31 +727,4 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
 	}
 
 	metricsUnlock()
-}
-
-func forEachMemProfileRecord(fn func(MemProfileRecord)) {
-	// Find out how many records there are (MemProfile(nil, true)),
-	// allocate that many records, and get the data.
-	// There's a race—more records might be added between
-	// the two calls—so allocate a few extra records for safety
-	// and also try again if we're very unlucky.
-	// The loop should only execute one iteration in the common case.
-	var p []MemProfileRecord
-	n, ok := MemProfile(nil, true)
-	for {
-		// Allocate room for a slightly bigger profile,
-		// in case a few more entries have been added
-		// since the call to MemProfile.
-		p = make([]MemProfileRecord, n+50)
-		n, ok = MemProfile(p, true)
-		if ok {
-			p = p[0:n]
-			break
-		}
-		// Profile grew; try again.
-	}
-
-	for _, mpr := range p {
-		fn(mpr)
-	}
 }

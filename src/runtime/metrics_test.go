@@ -158,7 +158,6 @@ var dummyAllocs [][]byte
 
 func TestReadMetricsConsistency(t *testing.T) {
 	// just for testing ...
-	runtime.MemProfileRate = 1
 	for i := 0; i < 1000; i++ {
 		dummyAllocs = append(dummyAllocs, make([]byte, 23))
 	}
@@ -187,11 +186,11 @@ func TestReadMetricsConsistency(t *testing.T) {
 		got, want uint64
 	}
 	var objects struct {
-		alloc, free               *metrics.Float64Histogram
-		allocs, frees             uint64
-		allocdBytes, freedBytes   uint64
-		total, totalBytes         uint64
-		totalLive, totalLiveBytes uint64
+		alloc, free             *metrics.Float64Histogram
+		allocs, frees           uint64
+		allocdBytes, freedBytes uint64
+		total, totalBytes       uint64
+		liveBytes               uint64
 	}
 	var gc struct {
 		numGC  uint64
@@ -219,7 +218,7 @@ func TestReadMetricsConsistency(t *testing.T) {
 			t.Errorf("supported metric %q has unexpected kind: got %d, want %d", samples[i].Name, kind, want)
 			continue
 		}
-		if samples[i].Name != "/memory/classes/total:bytes" && samples[i].Name != "/memory/classes/heap/live_objects:bytes" && strings.HasPrefix(samples[i].Name, "/memory/classes") {
+		if samples[i].Name != "/memory/classes/total:bytes" && strings.HasPrefix(samples[i].Name, "/memory/classes") {
 			v := samples[i].Value.Uint64()
 			totalVirtual.want += v
 
@@ -255,14 +254,11 @@ func TestReadMetricsConsistency(t *testing.T) {
 			cpu.user = samples[i].Value.Float64()
 		case "/memory/classes/total:bytes":
 			totalVirtual.got = samples[i].Value.Uint64()
-		case "/memory/classes/heap/live_objects:bytes":
-			objects.totalLiveBytes = samples[i].Value.Uint64()
-			fmt.Printf("objects.totalLiveBytes: %v\n", objects.totalLiveBytes)
 		case "/memory/classes/heap/objects:bytes":
 			objects.totalBytes = samples[i].Value.Uint64()
-		case "/gc/heap/live_objects:objects":
-			objects.totalLive = samples[i].Value.Uint64()
-			fmt.Printf("objects.totalLive: %v\n", objects.totalLive)
+		case "/gc/heap/live:bytes":
+			objects.liveBytes = samples[i].Value.Uint64()
+			fmt.Printf("objects.liveBytes: %v\n", objects.liveBytes)
 		case "/gc/heap/objects:objects":
 			objects.total = samples[i].Value.Uint64()
 		case "/gc/heap/allocs:bytes":
@@ -328,11 +324,8 @@ func TestReadMetricsConsistency(t *testing.T) {
 	if got, want := objects.allocs-objects.frees, objects.total; got != want {
 		t.Errorf("mismatch between object alloc/free tallies and total: got %d, want %d", got, want)
 	}
-	if objects.totalLive > objects.total {
-		t.Errorf("totalLive objects: %d > total objects: %d", objects.totalLive, objects.total)
-	}
-	if objects.totalLiveBytes > objects.totalBytes {
-		t.Errorf("totalLive bytes: %d > total bytes: %d", objects.totalLiveBytes, objects.totalBytes)
+	if objects.liveBytes > objects.totalBytes {
+		t.Errorf("liveBytes bytes: %d > totalBytes: %d", objects.liveBytes, objects.totalBytes)
 	}
 	if got, want := objects.allocdBytes-objects.freedBytes, objects.totalBytes; got != want {
 		t.Errorf("mismatch between object alloc/free tallies and total: got %d, want %d", got, want)
