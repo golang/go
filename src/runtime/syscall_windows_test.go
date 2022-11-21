@@ -629,7 +629,7 @@ func TestOutputDebugString(t *testing.T) {
 }
 
 func TestRaiseException(t *testing.T) {
-	if testenv.Builder() == "windows-amd64-2012" {
+	if strings.HasPrefix(testenv.Builder(), "windows-amd64-2012") {
 		testenv.SkipFlaky(t, 49681)
 	}
 	o := runTestProg(t, "testprog", "RaiseException")
