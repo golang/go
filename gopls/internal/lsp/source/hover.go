@@ -895,10 +895,14 @@ func anyNonEmpty(x []string) bool {
 //
 // It returns (nil, nil) if no Field or Decl is found at pos.
 func FindDeclAndField(files []*ast.File, pos token.Pos) (decl ast.Decl, field *ast.Field) {
-	// panic(nil) breaks off the traversal and
+	// panic(found{}) breaks off the traversal and
 	// causes the function to return normally.
+	type found struct{}
 	defer func() {
-		if x := recover(); x != nil {
+		switch x := recover().(type) {
+		case nil:
+		case found:
+		default:
 			panic(x)
 		}
 	}()
@@ -930,7 +934,7 @@ func FindDeclAndField(files []*ast.File, pos token.Pos) (decl ast.Decl, field *a
 							break
 						}
 					}
-					panic(nil) // found
+					panic(found{})
 				}
 			}
 
@@ -953,7 +957,7 @@ func FindDeclAndField(files []*ast.File, pos token.Pos) (decl ast.Decl, field *a
 		case *ast.FuncDecl:
 			if n.Name.Pos() == pos {
 				decl = n
-				panic(nil) // found
+				panic(found{})
 			}
 
 		case *ast.GenDecl:
@@ -962,13 +966,13 @@ func FindDeclAndField(files []*ast.File, pos token.Pos) (decl ast.Decl, field *a
 				case *ast.TypeSpec:
 					if spec.Name.Pos() == pos {
 						decl = n
-						panic(nil) // found
+						panic(found{})
 					}
 				case *ast.ValueSpec:
 					for _, id := range spec.Names {
 						if id.Pos() == pos {
 							decl = n
-							panic(nil) // found
+							panic(found{})
 						}
 					}
 				}
