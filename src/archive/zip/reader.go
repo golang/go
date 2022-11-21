@@ -111,7 +111,7 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 			// Zip permits an empty file name field.
 			continue
 		}
-		if zipinsecurepath.Value() == "1" {
+		if zipinsecurepath.Value() != "0" {
 			continue
 		}
 		// The zip specification states that names must use forward slashes,

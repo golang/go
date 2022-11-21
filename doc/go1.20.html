@@ -372,18 +372,14 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="archive/tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/55356 -->
-      <code>(*Reader).Next</code> will now return the error <code>ErrInsecurePath</code>
-      when opening an archive which contains file names that are absolute,
-      refer to a location outside the current directory, contain invalid
-      characters, or (on Windows) are reserved names such as <code>NUL</code>.
-    </p>
-    <p>
-      Programs that want to operate on archives containing insecure file names may
-      ignore this error.
-    </p>
-    <p>
-      Insecure tar file name checks may be entirely disabled by setting the
-      <code>GODEBUG=tarinsecurepath=1</code> environment variable.
+      When the <code>GODEBUG=tarinsecurepath=0</code> environment variable
+      is set, <code>(*Reader).Next</code> will return the error
+      <code>ErrInsecurePath</code> when opening an archive which contains
+      file names that are absolute, refer to a location outside the current
+      directory, contain invalid characters, or (on Windows) are reserved
+      names such as <code>NUL</code>. Programs that perform their own
+      name sanitization can ignore this error. This behavior will be made
+      the default in a future version of Go.
     </p>
   </dd>
 </dl><!-- archive/tar -->
@@ -391,18 +387,14 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/55356 -->
-      <code>NewReader</code> will now return the error <code>ErrInsecurePath</code>
-      when opening an archive which contains file names that are absolute,
-      refer to a location outside the current directory, contain invalid
-      characters, or (on Windows) are reserved names such as <code>NUL</code>.
-    </p>
-    <p>
-      Programs that want to operate on archives containing insecure file names may
-      ignore this error.
-    </p>
-    <p>
-      Insecure zip file name checks may be entirely disabled by setting the
-      <code>GODEBUG=zipinsecurepath=1</code> environment variable.
+      When the <code>GODEBUG=zipinsecurepath=0</code> environment variable
+      is set, <code>NewReader</code> will return the error
+      <code>ErrInsecurePath</code> when opening an archive which contains
+      file names that are absolute, refer to a location outside the current 
+      irectory, contain invalid characters, or (on Windows) are reserved
+      names such as <code>NUL</code>. Programs that perform their own
+      name sanitization can ignore this error. This behavior will be made
+      the default in a future version of Go.
     </p>
     <p><!-- CL 449955 -->
       Reading from a directory file that contains file data will now return an error.
