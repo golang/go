@@ -25,6 +25,7 @@ var nameTests = []nameTest{
 	{PF_W + PF_R + 0x50, "PF_W+PF_R+0x50"},
 	{DT_SYMBOLIC, "DT_SYMBOLIC"},
 	{DF_BIND_NOW, "DF_BIND_NOW"},
+	{DF_1_PIE, "DF_1_PIE"},
 	{NT_FPREGSET, "NT_FPREGSET"},
 	{STB_GLOBAL, "STB_GLOBAL"},
 	{STT_COMMON, "STT_COMMON"},
