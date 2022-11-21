@@ -51,28 +51,66 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
-<p><!-- https://go.dev/issue/38687, CL 421440 -->
-  TODO: <a href="https://go.dev/cl/421440">https://go.dev/cl/421440</a>: cmd/go: add go generate -skip flag
+<p><!-- CL 432535: cmd/go: don't install most GOROOT .a files in pkg -->
+  The directory <code>$GOROOT/pkg</code> no longer stores
+  pre-compiled package archives for the standard library:
+  <code>go</code> <code>install</code> no longer writes them,
+  the <code>go</code> build no longer checks for them,
+  and the Go distribution no longer ships them.
+  Instead, packages in the standard library are built as needed
+  and cached in the build cache, just like packages outside <code>GOROOT</code>.
+  This change reduces the size of the Go distribution and also
+  avoids C toolchain skew for packages that use cgo.
+</p>
+
+<p><!-- CL 448357: cmd/go: print test2json start events -->
+  The implementation of <code>go</code> <code>test</code> <code>-json</code>
+  has been improved to make it more robust.
+  Programs that run <code>go</code> <code>test</code> <code>-json</code>
+  do not need any updates.
+  Programs that invoke <code>go</code> <code>tool</code> <code>test2json</code>
+  directly should now run the test binary with <code>-v=json</code>
+  (for example, <code>go</code> <code>test</code> <code>-v=json</code>
+  or <code>./pkg.test</code> <code>-test.v=json</code>)
+  instead of plain <code>-v</code>.
+</p>
+
+<p><!-- CL 448357: cmd/go: print test2json start events -->
+  A related change to <code>go</code> <code>test</code> <code>-json</code>
+  is the addition of an event with <code>Action</code> set to <code>start</code>
+  at the beginning of each test program's execution.
+  When running multiple tests using the <code>go</code> command,
+  these start events are guaranteed to be emitted in the same order as
+  the packages named on the command line.
 </p>
 
 <p><!-- https://go.dev/issue/45454 -->
   TODO: <a href="https://go.dev/issue/45454">https://go.dev/issue/45454</a>: provide build tags for architecture environment variables
 </p>
 
-<p><!-- CL 448357: cmd/go: print test2json start events -->
-  TODO: CL 448357: cmd/go: print test2json start events
+<p><!-- https://go.dev/issue/50332 -->
+  The <code>go</code> subcommands now accept
+  <code>-C</code> <code>&lt;dir&gt;</code> to change directory to &lt;dir&gt;
+  before performing the command, which may be useful for scripts that need to
+  execute commands in multiple different modules.
 </p>
 
-<p><!-- CL 432535: cmd/go: don't install most GOROOT .a files in pkg -->
-  The Go distribution no longer ships with pre-compiled <code>.a</code>
-  files for most of the packages in <code>GOROOT</code>, now only including
-  .a files for the five packages in <code>GOROOT</code> that use <code>cgo</code>.
-  Instead, those packages will be built as needed and cached in the build
-  cache, as is already done for non-<code>main</code> packages outside
-  <code>GOROOT</code>. Further, <code>go</code> <code>install</code> will
-  also not install <code>.a</code> files for <code>GOROOT</code> packages
-  except for those that use <code>cgo</code>. These changes are intended to
-  reduce the size of the Go distribution, in some cases by up to two-thirds.
+<p><!-- https://go.dev/issue/41696, CL 416094 -->
+  The <code>go</code> <code>build</code> and <code>go</code> <code>test</code>
+  commands no longer accept the <code>-i</code> flag,
+  which has been <a href="https://go.dev/issue/41696">deprecated since Go 1.16</a>.
+</p>
+
+<p><!-- https://go.dev/issue/38687, CL 421440 -->
+  The <code>go</code> <code>generate</code> command now accepts
+  <code>-skip</code> <code>&lt;pattern&gt;</code> to skip <code>//go:generate</code> directives
+  matching <code>&lt;pattern&gt;</code>.
+</p>
+
+<p><!-- https://go.dev/issue/41583 -->
+  The <code>go</code> <code>test</code> command now accepts
+  <code>-skip</code> <code>&lt;pattern&gt;</code> to skip tests, subtests, or examples
+  matching <code>&lt;pattern&gt;</code>.
 </p>
 
 <p><!-- https://go.dev/issue/37015 -->
@@ -86,25 +124,6 @@ Do not send CLs removing the interior tags from such phrases.
   the <code>GOPATH</code> install targets to unexpectedly remain in effect.)
 </p>
 
-<p><!-- https://go.dev/issue/41696, CL 416094 -->
-  The <code>-i</code> flag is no longer accepted by
-  <code>go</code> <code>build</code> and <code>go</code> <code>test</code>.
-  The flag has been <a href="https://go.dev/issue/41696">deprecated since Go 1.16</a>.
-</p>
-
-<p><!-- https://go.dev/issue/50332 -->
-  The <code>go</code> subcommands now accept
-  <code>-C</code> <code>&lt;dir&gt;</code> to change directory to &lt;dir&gt;
-  before performing the command, which may be useful for scripts that need to
-  execute commands in multiple different modules.
-</p>
-
-<p><!-- https://go.dev/issue/41583 -->
-  The <code>go</code> <code>test</code> command now accepts
-  <code>-skip</code> <code>&lt;pattern&gt;</code> to skip tests or subtests
-  matching <code>&lt;pattern&gt;</code>.
-</p>
-
 <h4 id="go-version"><code>go</code> <code>version</code></h4>
 
 <p><!-- https://go.dev/issue/48187 -->
@@ -112,6 +131,47 @@ Do not send CLs removing the interior tags from such phrases.
   now supports reading more types of Go binaries, most notably, Windows DLLs
   built with <code>go</code> <code>build</code> <code>-buildmode=c-shared</code>
   and Linux binaries without execute permission.
+</p>
+
+<h3 id="cgo">Cgo</h3>
+
+<p>
+  The <code>go</code> command now disables <code>cgo</code> by default
+  on systems without a C toolchain.
+  More specifically, when the <code>CGO_ENABLED</code> environment variable is unset,
+  the <code>CC</code> environment variable is unset,
+  and the default C compiler (typically <code>clang</code> or <code>gcc</code>)
+  is not found in the path,
+  <code>CGO_ENABLED</code> defaults to <code>0</code>.
+  As always, you can override the default by setting <code>CGO_ENABLED</code> explicitly.
+</p>
+
+<p>
+  The most important effect of the default change is that when Go is installed
+  on a system without a C compiler, it will now use pure Go builds for packages
+  in the standard library that use cgo, instead of using pre-distributed package archives
+  (which have been removed, as <a href="#go-command">noted above</a>)
+  or attempting to use cgo and failing.
+  This makes Go work better in some minimal container environments
+  as well as on macOS, where pre-distributed package archives have
+  not been used for cgo-based packages since Go 1.16.
+</p>
+
+<p>
+  The packages in the standard library that use cgo are <a href="/pkg/net/">net</a>,
+  <a href="/pkg/os/user/">os/user</a>, and
+  <a href="/pkg/plugin/">plugin</a>.
+  On macOS, the net and os/user packages have been rewritten not to use cgo:
+  the same code is now used for cgo and non-cgo builds as well as cross-compiled builds.
+  On Windows, the net and os/user packages have never used cgo.
+  On other systems, builds with cgo disabled will use a pure Go version of these packages.
+</p>
+
+<p>
+  On macOS, the race detector has been rewritten not to use cgo:
+  race-detector-enabled programs can be built and run without Xcode.
+  On Linux and other Unix systems, and on Windows, a host C toolchain
+  is required to use the race detector.
 </p>
 
 <h3 id="cover">Cover</h3>
@@ -630,7 +690,7 @@ proxyHandler := &httputil.ReverseProxy{
     </p>
 
     <p><!-- https://go.dev/issue/53896 -->
-      HTTP/2 stream errors returned by <code>net/http</code> functions may be converted 
+      HTTP/2 stream errors returned by <code>net/http</code> functions may be converted
       to a <code>"golang.org/x/net/http2".StreamError</code> using <code>errors.As</code>.
     </p>
 
