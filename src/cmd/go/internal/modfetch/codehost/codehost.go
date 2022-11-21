@@ -8,6 +8,7 @@ package codehost
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -46,26 +47,26 @@ type Repo interface {
 	// taken from can be reused.
 	// The subdir gives subdirectory name where the module root is expected to be found,
 	// "" for the root or "sub/dir" for a subdirectory (no trailing slash).
-	CheckReuse(old *Origin, subdir string) error
+	CheckReuse(ctx context.Context, old *Origin, subdir string) error
 
 	// List lists all tags with the given prefix.
-	Tags(prefix string) (*Tags, error)
+	Tags(ctx context.Context, prefix string) (*Tags, error)
 
 	// Stat returns information about the revision rev.
 	// A revision can be any identifier known to the underlying service:
 	// commit hash, branch, tag, and so on.
-	Stat(rev string) (*RevInfo, error)
+	Stat(ctx context.Context, rev string) (*RevInfo, error)
 
 	// Latest returns the latest revision on the default branch,
 	// whatever that means in the underlying implementation.
-	Latest() (*RevInfo, error)
+	Latest(ctx context.Context) (*RevInfo, error)
 
 	// ReadFile reads the given file in the file tree corresponding to revision rev.
 	// It should refuse to read more than maxSize bytes.
 	//
 	// If the requested file does not exist it should return an error for which
 	// os.IsNotExist(err) returns true.
-	ReadFile(rev, file string, maxSize int64) (data []byte, err error)
+	ReadFile(ctx context.Context, rev, file string, maxSize int64) (data []byte, err error)
 
 	// ReadZip downloads a zip file for the subdir subdirectory
 	// of the given revision to a new file in a given temporary directory.
@@ -73,17 +74,17 @@ type Repo interface {
 	// It returns a ReadCloser for a streamed copy of the zip file.
 	// All files in the zip file are expected to be
 	// nested in a single top-level directory, whose name is not specified.
-	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error)
+	ReadZip(ctx context.Context, rev, subdir string, maxSize int64) (zip io.ReadCloser, err error)
 
 	// RecentTag returns the most recent tag on rev or one of its predecessors
 	// with the given prefix. allowed may be used to filter out unwanted versions.
-	RecentTag(rev, prefix string, allowed func(tag string) bool) (tag string, err error)
+	RecentTag(ctx context.Context, rev, prefix string, allowed func(tag string) bool) (tag string, err error)
 
 	// DescendsFrom reports whether rev or any of its ancestors has the given tag.
 	//
 	// DescendsFrom must return true for any tag returned by RecentTag for the
 	// same revision.
-	DescendsFrom(rev, tag string) (bool, error)
+	DescendsFrom(ctx context.Context, rev, tag string) (bool, error)
 }
 
 // An Origin describes the provenance of a given repo method result.
@@ -224,7 +225,7 @@ func ShortenSHA1(rev string) string {
 
 // WorkDir returns the name of the cached work directory to use for the
 // given repository type and name.
-func WorkDir(typ, name string) (dir, lockfile string, err error) {
+func WorkDir(ctx context.Context, typ, name string) (dir, lockfile string, err error) {
 	if cfg.GOMODCACHE == "" {
 		return "", "", fmt.Errorf("neither GOPATH nor GOMODCACHE are set")
 	}
@@ -240,16 +241,17 @@ func WorkDir(typ, name string) (dir, lockfile string, err error) {
 	key := typ + ":" + name
 	dir = filepath.Join(cfg.GOMODCACHE, "cache/vcs", fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
 
-	if cfg.BuildX {
-		fmt.Fprintf(os.Stderr, "mkdir -p %s # %s %s\n", filepath.Dir(dir), typ, name)
+	xLog, buildX := cfg.BuildXWriter(ctx)
+	if buildX {
+		fmt.Fprintf(xLog, "mkdir -p %s # %s %s\n", filepath.Dir(dir), typ, name)
 	}
 	if err := os.MkdirAll(filepath.Dir(dir), 0777); err != nil {
 		return "", "", err
 	}
 
 	lockfile = dir + ".lock"
-	if cfg.BuildX {
-		fmt.Fprintf(os.Stderr, "# lock %s\n", lockfile)
+	if buildX {
+		fmt.Fprintf(xLog, "# lock %s\n", lockfile)
 	}
 
 	unlock, err := lockedfile.MutexAt(lockfile).Lock()
@@ -266,15 +268,15 @@ func WorkDir(typ, name string) (dir, lockfile string, err error) {
 		if have != key {
 			return "", "", fmt.Errorf("%s exists with wrong content (have %q want %q)", dir+".info", have, key)
 		}
-		if cfg.BuildX {
-			fmt.Fprintf(os.Stderr, "# %s for %s %s\n", dir, typ, name)
+		if buildX {
+			fmt.Fprintf(xLog, "# %s for %s %s\n", dir, typ, name)
 		}
 		return dir, lockfile, nil
 	}
 
 	// Info file or directory missing. Start from scratch.
-	if cfg.BuildX {
-		fmt.Fprintf(os.Stderr, "mkdir -p %s # %s %s\n", dir, typ, name)
+	if xLog != nil {
+		fmt.Fprintf(xLog, "mkdir -p %s # %s %s\n", dir, typ, name)
 	}
 	os.RemoveAll(dir)
 	if err := os.MkdirAll(dir, 0777); err != nil {
@@ -313,15 +315,15 @@ var dirLock sync.Map
 // It returns the standard output and, for a non-zero exit,
 // a *RunError indicating the command, exit status, and standard error.
 // Standard error is unavailable for commands that exit successfully.
-func Run(dir string, cmdline ...any) ([]byte, error) {
-	return RunWithStdin(dir, nil, cmdline...)
+func Run(ctx context.Context, dir string, cmdline ...any) ([]byte, error) {
+	return RunWithStdin(ctx, dir, nil, cmdline...)
 }
 
 // bashQuoter escapes characters that have special meaning in double-quoted strings in the bash shell.
 // See https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html.
 var bashQuoter = strings.NewReplacer(`"`, `\"`, `$`, `\$`, "`", "\\`", `\`, `\\`)
 
-func RunWithStdin(dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
+func RunWithStdin(ctx context.Context, dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
 	if dir != "" {
 		muIface, ok := dirLock.Load(dir)
 		if !ok {
@@ -336,7 +338,7 @@ func RunWithStdin(dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
 	if os.Getenv("TESTGOVCS") == "panic" {
 		panic(fmt.Sprintf("use of vcs: %v", cmd))
 	}
-	if cfg.BuildX {
+	if xLog, ok := cfg.BuildXWriter(ctx); ok {
 		text := new(strings.Builder)
 		if dir != "" {
 			text.WriteString("cd ")
@@ -362,17 +364,18 @@ func RunWithStdin(dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
 				text.WriteString(arg)
 			}
 		}
-		fmt.Fprintf(os.Stderr, "%s\n", text)
+		fmt.Fprintf(xLog, "%s\n", text)
 		start := time.Now()
 		defer func() {
-			fmt.Fprintf(os.Stderr, "%.3fs # %s\n", time.Since(start).Seconds(), text)
+			fmt.Fprintf(xLog, "%.3fs # %s\n", time.Since(start).Seconds(), text)
 		}()
 	}
 	// TODO: Impose limits on command output size.
 	// TODO: Set environment to get English error messages.
 	var stderr bytes.Buffer
 	var stdout bytes.Buffer
-	c := exec.Command(cmd[0], cmd[1:]...)
+	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+	c.Cancel = func() error { return c.Process.Signal(os.Interrupt) }
 	c.Dir = dir
 	c.Stdin = stdin
 	c.Stderr = &stderr

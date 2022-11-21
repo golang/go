@@ -6,6 +6,7 @@ package modfetch
 
 import (
 	"archive/zip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"flag"
@@ -600,8 +601,9 @@ func TestCodeRepo(t *testing.T) {
 				if tt.vcs != "mod" {
 					testenv.MustHaveExecPath(t, tt.vcs)
 				}
+				ctx := context.Background()
 
-				repo := Lookup("direct", tt.path)
+				repo := Lookup(ctx, "direct", tt.path)
 
 				if tt.mpath == "" {
 					tt.mpath = tt.path
@@ -610,7 +612,7 @@ func TestCodeRepo(t *testing.T) {
 					t.Errorf("repo.ModulePath() = %q, want %q", mpath, tt.mpath)
 				}
 
-				info, err := repo.Stat(tt.rev)
+				info, err := repo.Stat(ctx, tt.rev)
 				if err != nil {
 					if tt.err != "" {
 						if !strings.Contains(err.Error(), tt.err) {
@@ -637,7 +639,7 @@ func TestCodeRepo(t *testing.T) {
 				}
 
 				if tt.gomod != "" || tt.gomodErr != "" {
-					data, err := repo.GoMod(tt.version)
+					data, err := repo.GoMod(ctx, tt.version)
 					if err != nil && tt.gomodErr == "" {
 						t.Errorf("repo.GoMod(%q): %v", tt.version, err)
 					} else if err != nil && tt.gomodErr != "" {
@@ -671,7 +673,7 @@ func TestCodeRepo(t *testing.T) {
 					} else {
 						w = f
 					}
-					err = repo.Zip(w, tt.version)
+					err = repo.Zip(ctx, w, tt.version)
 					f.Close()
 					if err != nil {
 						if tt.zipErr != "" {
@@ -834,9 +836,10 @@ func TestCodeRepoVersions(t *testing.T) {
 				if tt.vcs != "mod" {
 					testenv.MustHaveExecPath(t, tt.vcs)
 				}
+				ctx := context.Background()
 
-				repo := Lookup("direct", tt.path)
-				list, err := repo.Versions(tt.prefix)
+				repo := Lookup(ctx, "direct", tt.path)
+				list, err := repo.Versions(ctx, tt.prefix)
 				if err != nil {
 					t.Fatalf("Versions(%q): %v", tt.prefix, err)
 				}
@@ -909,9 +912,10 @@ func TestLatest(t *testing.T) {
 				if tt.vcs != "mod" {
 					testenv.MustHaveExecPath(t, tt.vcs)
 				}
+				ctx := context.Background()
 
-				repo := Lookup("direct", tt.path)
-				info, err := repo.Latest()
+				repo := Lookup(ctx, "direct", tt.path)
+				info, err := repo.Latest(ctx)
 				if err != nil {
 					if tt.err != "" {
 						if err.Error() == tt.err {
@@ -938,7 +942,7 @@ type fixedTagsRepo struct {
 	codehost.Repo
 }
 
-func (ch *fixedTagsRepo) Tags(string) (*codehost.Tags, error) {
+func (ch *fixedTagsRepo) Tags(ctx context.Context, prefix string) (*codehost.Tags, error) {
 	tags := &codehost.Tags{}
 	for _, t := range ch.tags {
 		tags.List = append(tags.List, codehost.Tag{Name: t})
@@ -947,6 +951,9 @@ func (ch *fixedTagsRepo) Tags(string) (*codehost.Tags, error) {
 }
 
 func TestNonCanonicalSemver(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
 	root := "golang.org/x/issue24476"
 	ch := &fixedTagsRepo{
 		tags: []string{
@@ -964,7 +971,7 @@ func TestNonCanonicalSemver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	v, err := cr.Versions("")
+	v, err := cr.Versions(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -67,7 +67,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 		errsChans[i] = errsc
 		mod := mod // use a copy to avoid data races
 		go func() {
-			errsc <- verifyMod(mod)
+			errsc <- verifyMod(ctx, mod)
 			<-sem
 		}()
 	}
@@ -85,13 +85,13 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 	}
 }
 
-func verifyMod(mod module.Version) []error {
+func verifyMod(ctx context.Context, mod module.Version) []error {
 	var errs []error
-	zip, zipErr := modfetch.CachePath(mod, "zip")
+	zip, zipErr := modfetch.CachePath(ctx, mod, "zip")
 	if zipErr == nil {
 		_, zipErr = os.Stat(zip)
 	}
-	dir, dirErr := modfetch.DownloadDir(mod)
+	dir, dirErr := modfetch.DownloadDir(ctx, mod)
 	data, err := os.ReadFile(zip + "hash")
 	if err != nil {
 		if zipErr != nil && errors.Is(zipErr, fs.ErrNotExist) &&

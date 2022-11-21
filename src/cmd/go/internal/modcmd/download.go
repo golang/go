@@ -283,18 +283,18 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 // leaving the results (including any error) in m itself.
 func DownloadModule(ctx context.Context, m *ModuleJSON) {
 	var err error
-	_, file, err := modfetch.InfoFile(m.Path, m.Version)
+	_, file, err := modfetch.InfoFile(ctx, m.Path, m.Version)
 	if err != nil {
 		m.Error = err.Error()
 		return
 	}
 	m.Info = file
-	m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
+	m.GoMod, err = modfetch.GoModFile(ctx, m.Path, m.Version)
 	if err != nil {
 		m.Error = err.Error()
 		return
 	}
-	m.GoModSum, err = modfetch.GoModSum(m.Path, m.Version)
+	m.GoModSum, err = modfetch.GoModSum(ctx, m.Path, m.Version)
 	if err != nil {
 		m.Error = err.Error()
 		return
@@ -305,7 +305,7 @@ func DownloadModule(ctx context.Context, m *ModuleJSON) {
 		m.Error = err.Error()
 		return
 	}
-	m.Sum = modfetch.Sum(mod)
+	m.Sum = modfetch.Sum(ctx, mod)
 	m.Dir, err = modfetch.Download(ctx, mod)
 	if err != nil {
 		m.Error = err.Error()

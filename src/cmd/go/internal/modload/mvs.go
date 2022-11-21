@@ -83,11 +83,11 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) (versions [
 	// Note: modfetch.Lookup and repo.Versions are cached,
 	// so there's no need for us to add extra caching here.
 	err = modfetch.TryProxies(func(proxy string) error {
-		repo, err := lookupRepo(proxy, path)
+		repo, err := lookupRepo(ctx, proxy, path)
 		if err != nil {
 			return err
 		}
-		allVersions, err := repo.Versions("")
+		allVersions, err := repo.Versions(ctx, "")
 		if err != nil {
 			return err
 		}

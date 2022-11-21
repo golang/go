@@ -2024,7 +2024,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		// Consider starting this as a background goroutine and retrieving the result
 		// asynchronously when we're actually ready to build the package, or when we
 		// actually need to evaluate whether the package's metadata is stale.
-		p.setBuildInfo(opts.AutoVCS)
+		p.setBuildInfo(ctx, opts.AutoVCS)
 	}
 
 	// If cgo is not enabled, ignore cgo supporting sources
@@ -2267,7 +2267,7 @@ var vcsStatusCache par.ErrCache[string, vcs.Status]
 //
 // Note that the GoVersion field is not set here to avoid encoding it twice.
 // It is stored separately in the binary, mostly for historical reasons.
-func (p *Package) setBuildInfo(autoVCS bool) {
+func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 	setPkgErrorf := func(format string, args ...any) {
 		if p.Error == nil {
 			p.Error = &PackageError{Err: fmt.Errorf(format, args...)}
@@ -2288,7 +2288,7 @@ func (p *Package) setBuildInfo(autoVCS bool) {
 		if mi.Replace != nil {
 			dm.Replace = debugModFromModinfo(mi.Replace)
 		} else if mi.Version != "" {
-			dm.Sum = modfetch.Sum(module.Version{Path: mi.Path, Version: mi.Version})
+			dm.Sum = modfetch.Sum(ctx, module.Version{Path: mi.Path, Version: mi.Version})
 		}
 		return dm
 	}
@@ -3280,7 +3280,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 		return nil, fmt.Errorf("%s: %w", args[0], err)
 	}
 	rootMod := qrs[0].Mod
-	data, err := modfetch.GoMod(rootMod.Path, rootMod.Version)
+	data, err := modfetch.GoMod(ctx, rootMod.Path, rootMod.Version)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", args[0], err)
 	}

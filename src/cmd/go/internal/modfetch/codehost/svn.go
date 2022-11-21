@@ -6,6 +6,7 @@ package codehost
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -41,7 +42,7 @@ func svnParseStat(rev, out string) (*RevInfo, error) {
 	return info, nil
 }
 
-func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error) {
+func svnReadZip(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote string) (err error) {
 	// The subversion CLI doesn't provide a command to write the repository
 	// directly to an archive, so we need to export it to the local filesystem
 	// instead. Unfortunately, the local filesystem might apply arbitrary
@@ -65,7 +66,7 @@ func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error) 
 		remotePath += "/" + subdir
 	}
 
-	out, err := Run(workDir, []string{
+	out, err := Run(ctx, workDir, []string{
 		"svn", "list",
 		"--non-interactive",
 		"--xml",
@@ -97,7 +98,7 @@ func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error) 
 	}
 	defer os.RemoveAll(exportDir) // best-effort
 
-	_, err = Run(workDir, []string{
+	_, err = Run(ctx, workDir, []string{
 		"svn", "export",
 		"--non-interactive",
 		"--quiet",

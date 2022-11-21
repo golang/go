@@ -415,7 +415,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			// loaded.requirements, but here we may have also loaded (and want to
 			// preserve checksums for) additional entities from compatRS, which are
 			// only needed for compatibility with ld.TidyCompatibleVersion.
-			if err := modfetch.WriteGoSum(keep, mustHaveCompleteRequirements()); err != nil {
+			if err := modfetch.WriteGoSum(ctx, keep, mustHaveCompleteRequirements()); err != nil {
 				base.Fatalf("go: %v", err)
 			}
 		}
@@ -636,9 +636,9 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 				root = filepath.Join(replaceRelativeTo(), root)
 			}
 		} else if repl.Path != "" {
-			root, err = modfetch.DownloadDir(repl)
+			root, err = modfetch.DownloadDir(ctx, repl)
 		} else {
-			root, err = modfetch.DownloadDir(m)
+			root, err = modfetch.DownloadDir(ctx, m)
 		}
 		if err != nil {
 			return "", false

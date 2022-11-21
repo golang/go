@@ -101,11 +101,11 @@ func queryReuse(ctx context.Context, path, query, current string, allowed Allowe
 // for a given module may be reused, according to the information in origin.
 func checkReuse(ctx context.Context, path string, old *codehost.Origin) error {
 	return modfetch.TryProxies(func(proxy string) error {
-		repo, err := lookupRepo(proxy, path)
+		repo, err := lookupRepo(ctx, proxy, path)
 		if err != nil {
 			return err
 		}
-		return repo.CheckReuse(old)
+		return repo.CheckReuse(ctx, old)
 	})
 }
 
@@ -157,13 +157,13 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		return nil, fmt.Errorf("can't query specific version (%q) of standard-library module %q", query, path)
 	}
 
-	repo, err := lookupRepo(proxy, path)
+	repo, err := lookupRepo(ctx, proxy, path)
 	if err != nil {
 		return nil, err
 	}
 
 	if old := reuse[module.Version{Path: path, Version: query}]; old != nil {
-		if err := repo.CheckReuse(old.Origin); err == nil {
+		if err := repo.CheckReuse(ctx, old.Origin); err == nil {
 			info := &modfetch.RevInfo{
 				Version: old.Version,
 				Origin:  old.Origin,
@@ -185,7 +185,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		// If the identifier is not a canonical semver tag — including if it's a
 		// semver tag with a +metadata suffix — then modfetch.Stat will populate
 		// info.Version with a suitable pseudo-version.
-		info, err := repo.Stat(query)
+		info, err := repo.Stat(ctx, query)
 		if err != nil {
 			queryErr := err
 			// The full query doesn't correspond to a tag. If it is a semantic version
@@ -193,7 +193,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 			// semantic versioning defines them to be equivalent.
 			canonicalQuery := module.CanonicalVersion(query)
 			if canonicalQuery != "" && query != canonicalQuery {
-				info, err = repo.Stat(canonicalQuery)
+				info, err = repo.Stat(ctx, canonicalQuery)
 				if err != nil && !errors.Is(err, fs.ErrNotExist) {
 					return info, err
 				}
@@ -211,7 +211,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	}
 
 	// Load versions and execute query.
-	versions, err := repo.Versions(qm.prefix)
+	versions, err := repo.Versions(ctx, qm.prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	}
 
 	lookup := func(v string) (*modfetch.RevInfo, error) {
-		rev, err := repo.Stat(v)
+		rev, err := repo.Stat(ctx, v)
 		// Stat can return a non-nil rev and a non-nil err,
 		// in order to provide origin information to make the error cacheable.
 		if rev == nil && err != nil {
@@ -269,7 +269,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
 					return revErr, err
 				}
-				rev, err = repo.Stat(current)
+				rev, err = repo.Stat(ctx, current)
 				if rev == nil && err != nil {
 					return revErr, err
 				}
@@ -298,7 +298,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	}
 
 	if qm.mayUseLatest {
-		latest, err := repo.Latest()
+		latest, err := repo.Latest(ctx)
 		if err == nil {
 			if qm.allowsVersion(ctx, latest.Version) {
 				return lookup(latest.Version)
@@ -1041,18 +1041,18 @@ func versionHasGoMod(_ context.Context, m module.Version) (bool, error) {
 // available versions, but cannot fetch specific source files.
 type versionRepo interface {
 	ModulePath() string
-	CheckReuse(*codehost.Origin) error
-	Versions(prefix string) (*modfetch.Versions, error)
-	Stat(rev string) (*modfetch.RevInfo, error)
-	Latest() (*modfetch.RevInfo, error)
+	CheckReuse(context.Context, *codehost.Origin) error
+	Versions(ctx context.Context, prefix string) (*modfetch.Versions, error)
+	Stat(ctx context.Context, rev string) (*modfetch.RevInfo, error)
+	Latest(context.Context) (*modfetch.RevInfo, error)
 }
 
 var _ versionRepo = modfetch.Repo(nil)
 
-func lookupRepo(proxy, path string) (repo versionRepo, err error) {
+func lookupRepo(ctx context.Context, proxy, path string) (repo versionRepo, err error) {
 	err = module.CheckPath(path)
 	if err == nil {
-		repo = modfetch.Lookup(proxy, path)
+		repo = modfetch.Lookup(ctx, proxy, path)
 	} else {
 		repo = emptyRepo{path: path, err: err}
 	}
@@ -1075,14 +1075,16 @@ type emptyRepo struct {
 var _ versionRepo = emptyRepo{}
 
 func (er emptyRepo) ModulePath() string { return er.path }
-func (er emptyRepo) CheckReuse(old *codehost.Origin) error {
+func (er emptyRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
 	return fmt.Errorf("empty repo")
 }
-func (er emptyRepo) Versions(prefix string) (*modfetch.Versions, error) {
+func (er emptyRepo) Versions(ctx context.Context, prefix string) (*modfetch.Versions, error) {
 	return &modfetch.Versions{}, nil
 }
-func (er emptyRepo) Stat(rev string) (*modfetch.RevInfo, error) { return nil, er.err }
-func (er emptyRepo) Latest() (*modfetch.RevInfo, error)         { return nil, er.err }
+func (er emptyRepo) Stat(ctx context.Context, rev string) (*modfetch.RevInfo, error) {
+	return nil, er.err
+}
+func (er emptyRepo) Latest(ctx context.Context) (*modfetch.RevInfo, error) { return nil, er.err }
 
 // A replacementRepo augments a versionRepo to include the replacement versions
 // (if any) found in the main module's go.mod file.
@@ -1098,14 +1100,14 @@ var _ versionRepo = (*replacementRepo)(nil)
 
 func (rr *replacementRepo) ModulePath() string { return rr.repo.ModulePath() }
 
-func (rr *replacementRepo) CheckReuse(old *codehost.Origin) error {
+func (rr *replacementRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
 	return fmt.Errorf("replacement repo")
 }
 
 // Versions returns the versions from rr.repo augmented with any matching
 // replacement versions.
-func (rr *replacementRepo) Versions(prefix string) (*modfetch.Versions, error) {
-	repoVersions, err := rr.repo.Versions(prefix)
+func (rr *replacementRepo) Versions(ctx context.Context, prefix string) (*modfetch.Versions, error) {
+	repoVersions, err := rr.repo.Versions(ctx, prefix)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
@@ -1136,8 +1138,8 @@ func (rr *replacementRepo) Versions(prefix string) (*modfetch.Versions, error) {
 	return &modfetch.Versions{List: versions}, nil
 }
 
-func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
-	info, err := rr.repo.Stat(rev)
+func (rr *replacementRepo) Stat(ctx context.Context, rev string) (*modfetch.RevInfo, error) {
+	info, err := rr.repo.Stat(ctx, rev)
 	if err == nil {
 		return info, err
 	}
@@ -1172,8 +1174,8 @@ func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
 	return rr.replacementStat(v)
 }
 
-func (rr *replacementRepo) Latest() (*modfetch.RevInfo, error) {
-	info, err := rr.repo.Latest()
+func (rr *replacementRepo) Latest(ctx context.Context) (*modfetch.RevInfo, error) {
+	info, err := rr.repo.Latest(ctx)
 	path := rr.ModulePath()
 
 	if v, ok := MainModules.HighestReplaced()[path]; ok {

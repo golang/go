@@ -343,7 +343,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 
 		if m.Version != "" {
 			if checksumOk("/go.mod") {
-				gomod, err := modfetch.CachePath(mod, "mod")
+				gomod, err := modfetch.CachePath(ctx, mod, "mod")
 				if err == nil {
 					if info, err := os.Stat(gomod); err == nil && info.Mode().IsRegular() {
 						m.GoMod = gomod
@@ -351,7 +351,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 				}
 			}
 			if checksumOk("") {
-				dir, err := modfetch.DownloadDir(mod)
+				dir, err := modfetch.DownloadDir(ctx, mod)
 				if err == nil {
 					m.Dir = dir
 				}

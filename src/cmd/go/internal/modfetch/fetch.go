@@ -40,7 +40,7 @@ var downloadCache par.ErrCache[module.Version, string] // version → directory
 // local download cache and returns the name of the directory
 // corresponding to the root of the module's file tree.
 func Download(ctx context.Context, mod module.Version) (dir string, err error) {
-	if err := checkCacheDir(); err != nil {
+	if err := checkCacheDir(ctx); err != nil {
 		base.Fatalf("go: %v", err)
 	}
 
@@ -50,7 +50,7 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 		if err != nil {
 			return "", err
 		}
-		checkMod(mod)
+		checkMod(ctx, mod)
 		return dir, nil
 	})
 }
@@ -59,7 +59,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 	ctx, span := trace.StartSpan(ctx, "modfetch.download "+mod.String())
 	defer span.Done()
 
-	dir, err = DownloadDir(mod)
+	dir, err = DownloadDir(ctx, mod)
 	if err == nil {
 		// The directory has already been completely extracted (no .partial file exists).
 		return dir, nil
@@ -75,7 +75,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 		return "", err
 	}
 
-	unlock, err := lockVersion(mod)
+	unlock, err := lockVersion(ctx, mod)
 	if err != nil {
 		return "", err
 	}
@@ -85,7 +85,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 	defer span.Done()
 
 	// Check whether the directory was populated while we were waiting on the lock.
-	_, dirErr := DownloadDir(mod)
+	_, dirErr := DownloadDir(ctx, mod)
 	if dirErr == nil {
 		return dir, nil
 	}
@@ -109,7 +109,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 		}
 	}
 
-	partialPath, err := CachePath(mod, "partial")
+	partialPath, err := CachePath(ctx, mod, "partial")
 	if err != nil {
 		return "", err
 	}
@@ -158,7 +158,7 @@ var downloadZipCache par.ErrCache[module.Version, string]
 func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err error) {
 	// The par.Cache here avoids duplicate work.
 	return downloadZipCache.Do(mod, func() (string, error) {
-		zipfile, err := CachePath(mod, "zip")
+		zipfile, err := CachePath(ctx, mod, "zip")
 		if err != nil {
 			return "", err
 		}
@@ -186,7 +186,7 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, vers)
 			}
 		}
-		unlock, err := lockVersion(mod)
+		unlock, err := lockVersion(ctx, mod)
 		if err != nil {
 			return "", err
 		}
@@ -243,7 +243,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// contents of the file (by hashing it) before we commit it. Because the file
 	// is zip-compressed, we need an actual file — or at least an io.ReaderAt — to
 	// validate it: we can't just tee the stream as we write it.
-	f, err := tempFile(filepath.Dir(zipfile), filepath.Base(zipfile), 0666)
+	f, err := tempFile(ctx, filepath.Dir(zipfile), filepath.Base(zipfile), 0666)
 	if err != nil {
 		return err
 	}
@@ -259,8 +259,8 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 		if unrecoverableErr != nil {
 			return unrecoverableErr
 		}
-		repo := Lookup(proxy, mod.Path)
-		err := repo.Zip(f, mod.Version)
+		repo := Lookup(ctx, proxy, mod.Path)
+		err := repo.Zip(ctx, f, mod.Version)
 		if err != nil {
 			// Zip may have partially written to f before failing.
 			// (Perhaps the server crashed while sending the file?)
@@ -549,9 +549,9 @@ func HaveSum(mod module.Version) bool {
 }
 
 // checkMod checks the given module's checksum.
-func checkMod(mod module.Version) {
+func checkMod(ctx context.Context, mod module.Version) {
 	// Do the file I/O before acquiring the go.sum lock.
-	ziphash, err := CachePath(mod, "ziphash")
+	ziphash, err := CachePath(ctx, mod, "ziphash")
 	if err != nil {
 		base.Fatalf("verifying %v", module.VersionError(mod, err))
 	}
@@ -562,7 +562,7 @@ func checkMod(mod module.Version) {
 	data = bytes.TrimSpace(data)
 	if !isValidSum(data) {
 		// Recreate ziphash file from zip file and use that to check the mod sum.
-		zip, err := CachePath(mod, "zip")
+		zip, err := CachePath(ctx, mod, "zip")
 		if err != nil {
 			base.Fatalf("verifying %v", module.VersionError(mod, err))
 		}
@@ -724,13 +724,13 @@ func checkSumDB(mod module.Version, h string) error {
 
 // Sum returns the checksum for the downloaded copy of the given module,
 // if present in the download cache.
-func Sum(mod module.Version) string {
+func Sum(ctx context.Context, mod module.Version) string {
 	if cfg.GOMODCACHE == "" {
 		// Do not use current directory.
 		return ""
 	}
 
-	ziphash, err := CachePath(mod, "ziphash")
+	ziphash, err := CachePath(ctx, mod, "ziphash")
 	if err != nil {
 		return ""
 	}
@@ -770,7 +770,7 @@ var ErrGoSumDirty = errors.New("updates to go.sum needed, disabled by -mod=reado
 // It should have entries for both module content sums and go.mod sums
 // (version ends with "/go.mod"). Existing sums will be preserved unless they
 // have been marked for deletion with TrimGoSum.
-func WriteGoSum(keep map[module.Version]bool, readonly bool) error {
+func WriteGoSum(ctx context.Context, keep map[module.Version]bool, readonly bool) error {
 	goSum.mu.Lock()
 	defer goSum.mu.Unlock()
 
@@ -805,7 +805,7 @@ Outer:
 
 	// Make a best-effort attempt to acquire the side lock, only to exclude
 	// previous versions of the 'go' command from making simultaneous edits.
-	if unlock, err := SideLock(); err == nil {
+	if unlock, err := SideLock(ctx); err == nil {
 		defer unlock()
 	}
 

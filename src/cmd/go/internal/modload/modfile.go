@@ -758,7 +758,7 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
 			base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
 		}
 		name = "go.mod"
-		data, err = modfetch.GoMod(m.Path, m.Version)
+		data, err = modfetch.GoMod(context.TODO(), m.Path, m.Version)
 	}
 	return name, data, err
 }
