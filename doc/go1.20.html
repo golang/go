@@ -229,7 +229,17 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="bootstrap">Bootstrap</h2>
 
 <p><!-- https://go.dev/issue/44505 -->
-  TODO: <a href="https://go.dev/issue/44505">https://go.dev/issue/44505</a>: adopt Go 1.17.13 as bootstrap toolchain for Go 1.20
+  When building a Go release from source and GOROOT_BOOTSTRAP is not set,
+  previous versions of Go looked for a Go 1.4 or later bootstrap toolchain in the directory $HOME/go1.4 (%HOMEDRIVE%%HOMEPATH%\go1.4 on Windows).
+  Go 1.18 and Go 1.19 looked first for $HOME/go1.17 or $HOME/sdk/go1.17 before falling back to $HOME/go1.4,
+  in ancitipation of requiring Go 1.17 for use when bootstrapping Go 1.20.
+  Go 1.20 does require a Go 1.17 release for bootstrapping, but we realized that we should
+  adopt the latest point release of the bootstrap toolchain, so it requires Go 1.17.13.
+  Go 1.20 looks for $HOME/go1.17.13 or $HOME/sdk/go1.17.13 before falling back to $HOME/go1.4
+  (to support systems that hard-coded the path $HOME/go1.4 but have installed
+  a newer Go toolchain there).
+  In the future, we plan to move the bootstrap toolchain forward approximately once a year,
+  and in particular we expect that Go 1.22 will require the final point release of Go 1.20 for bootstrap.
 </p>
 
 <h2 id="library">Core library</h2>
