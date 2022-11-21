@@ -223,6 +223,7 @@ var excluded = map[string]bool{
 
 	// See #46027: some imports are missing for this submodule.
 	"crypto/internal/edwards25519/field/_asm": true,
+	"crypto/internal/bigmod/_asm":             true,
 }
 
 // typecheckFiles typechecks the given package files.
