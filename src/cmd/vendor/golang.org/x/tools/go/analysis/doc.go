@@ -297,7 +297,7 @@ singlechecker and multichecker subpackages.
 
 The singlechecker package provides the main function for a command that
 runs one analyzer. By convention, each analyzer such as
-go/passes/findcall should be accompanied by a singlechecker-based
+go/analysis/passes/findcall should be accompanied by a singlechecker-based
 command such as go/analysis/passes/findcall/cmd/findcall, defined in its
 entirety as:
 
