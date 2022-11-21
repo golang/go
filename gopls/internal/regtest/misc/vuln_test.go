@@ -325,6 +325,16 @@ package bvuln
 func Vuln() {
 	// something evil
 }
+-- golang.org/amod@v1.0.6/go.mod --
+module golang.org/amod
+
+go 1.14
+-- golang.org/amod@v1.0.6/avuln/avuln.go --
+package avuln
+
+type VulnData struct {}
+func (v VulnData) Vuln1() {}
+func (v VulnData) Vuln2() {}
 `
 
 func vulnTestEnv(vulnsDB, proxyData string) (*vulntest.DB, []RunOption, error) {
@@ -387,14 +397,14 @@ func TestRunVulncheckWarning(t *testing.T) {
 		lineY := env.RegexpSearch("y/y.go", `c\.C2\(\)\(\)`)
 		wantDiagnostics := map[string]vulnDiagExpectation{
 			"golang.org/amod": {
-				applyAction: "Upgrade to v1.0.4",
+				applyAction: "Upgrade to v1.0.6",
 				diagnostics: []vulnDiag{
 					{
 						msg:      "golang.org/amod has a vulnerability used in the code: GO-2022-01.",
 						severity: protocol.SeverityWarning,
 						codeActions: []string{
 							"Upgrade to latest",
-							"Upgrade to v1.0.4",
+							"Upgrade to v1.0.6",
 						},
 						relatedInfo: []vulnRelatedInfo{
 							{"x.go", uint32(lineX.Line), "[GO-2022-01]"}, // avuln.VulnData.Vuln1
@@ -404,7 +414,7 @@ func TestRunVulncheckWarning(t *testing.T) {
 				},
 				codeActions: []string{
 					"Upgrade to latest",
-					"Upgrade to v1.0.4",
+					"Upgrade to v1.0.6",
 				},
 				hover: []string{"GO-2022-01", "Fixed in v1.0.4.", "GO-2022-03"},
 			},
@@ -452,7 +462,7 @@ go 1.18
 require golang.org/cmod v1.1.3
 
 require (
-	golang.org/amod v1.0.4 // indirect
+	golang.org/amod v1.0.6 // indirect
 	golang.org/bmod v0.5.0 // indirect
 )
 `

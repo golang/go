@@ -251,16 +251,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 				if err != nil {
 					return nil, err // TODO: bug report
 				}
-				// Add an upgrade for module@latest.
-				// TODO(suzmue): verify if latest is the same as fixedVersion.
-				latest, err := getUpgradeCodeAction(fh, req, "latest")
-				if err != nil {
-					return nil, err // TODO: bug report
-				}
-				fixes = []source.SuggestedFix{
-					source.SuggestedFixFromCommand(cmd, protocol.QuickFix),
-					source.SuggestedFixFromCommand(latest, protocol.QuickFix),
-				}
+				fixes = append(fixes, source.SuggestedFixFromCommand(cmd, protocol.QuickFix))
 			}
 		}
 
@@ -270,6 +261,15 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		severity := protocol.SeverityInformation
 		if len(warning) > 0 {
 			severity = protocol.SeverityWarning
+		}
+		if len(fixes) > 0 {
+			// Add an upgrade for module@latest.
+			// TODO(suzmue): verify if latest is the same as fixedVersion.
+			latest, err := getUpgradeCodeAction(fh, req, "latest")
+			if err != nil {
+				return nil, err // TODO: bug report
+			}
+			fixes = append([]source.SuggestedFix{source.SuggestedFixFromCommand(latest, protocol.QuickFix)}, fixes...)
 		}
 
 		sort.Strings(warning)
@@ -392,9 +392,9 @@ func upgradeTitle(fixedVersion string) string {
 // required module and returns a more selective list of upgrade code actions,
 // where the code actions have been deduped.
 func SelectUpgradeCodeActions(actions []protocol.CodeAction) []protocol.CodeAction {
-	// TODO(suzmue): we can further limit the code actions to only return the most
-	// recent version that will fix all the vulnerabilities.
-
+	if len(actions) <= 1 {
+		return actions // return early if no sorting necessary
+	}
 	set := make(map[string]protocol.CodeAction)
 	for _, action := range actions {
 		set[action.Command.Title] = action
@@ -409,7 +409,11 @@ func SelectUpgradeCodeActions(actions []protocol.CodeAction) []protocol.CodeActi
 		vi, vj := getUpgradeVersion(result[i]), getUpgradeVersion(result[j])
 		return vi == "latest" || (vj != "latest" && semver.Compare(vi, vj) > 0)
 	})
-	return result
+	// Choose at most one specific version and the latest.
+	if getUpgradeVersion(result[0]) == "latest" {
+		return result[:2]
+	}
+	return result[:1]
 }
 
 func getUpgradeVersion(p protocol.CodeAction) string {
