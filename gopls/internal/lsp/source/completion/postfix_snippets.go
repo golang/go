@@ -271,7 +271,8 @@ func (a *postfixTmplArgs) VarName(t types.Type, nonNamedDefault string) string {
 	}
 
 	var name string
-	if types.Implements(t, errorIntf) {
+	// go/types predicates are undefined on types.Typ[types.Invalid].
+	if !types.Identical(t, types.Typ[types.Invalid]) && types.Implements(t, errorIntf) {
 		name = "err"
 	} else if _, isNamed := source.Deref(t).(*types.Named); !isNamed {
 		name = nonNamedDefault
