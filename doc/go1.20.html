@@ -612,12 +612,17 @@ proxyHandler := &httputil.ReverseProxy{
 
 <dl id="math/rand"><dt><a href="/pkg/math/rand/">math/rand</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/54880 -->
-      TODO: <a href="https://go.dev/issue/54880">https://go.dev/issue/54880</a>: seed global generator randomly
+    <p><!-- https://go.dev/issue/54880 --><!-- CL 436955 -->
+      The <a href="/pkg/math/rand/">math/rand</a> package now automatically seeds
+      the global random number generator
+      (used by top-level functions like <code>Float64</code> and <code>Int</code>) with a random value,
+      and the top-level <a href="/pkg/math/rand/#Seed"><code>Seed</code></a> function has been deprecated.
+      Programs that need a reproducible sequence of random numbers
+      should prefer to allocate their own random source, using <code>rand.New(rand.NewSource(seed))</code>.
     </p>
-
-    <p><!-- CL 436955 -->
-      TODO: <a href="https://go.dev/cl/436955">https://go.dev/cl/436955</a>: math/rand: deprecate Read
+    <p>
+      Programs that need the earlier consistent global seeding behavior can set
+      <code>GODEBUG=randautoseed=0</code> in their environment.
     </p>
   </dd>
 </dl><!-- math/rand -->
