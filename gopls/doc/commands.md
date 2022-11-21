@@ -315,6 +315,16 @@ Args:
 }
 ```
 
+Result:
+
+```
+{
+	// Token holds the progress token for LSP workDone reporting of the vulncheck
+	// invocation.
+	"Token": interface{},
+}
+```
+
 ### **Start the gopls debug server**
 Identifier: `gopls.start_debugging`
 

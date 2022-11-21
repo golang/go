@@ -76,6 +76,13 @@ type commandDeps struct {
 
 type commandFunc func(context.Context, commandDeps) error
 
+// run performs command setup for command execution, and invokes the given run
+// function. If cfg.async is set, run executes the given func in a separate
+// goroutine, and returns as soon as setup is complete and the goroutine is
+// scheduled.
+//
+// Invariant: if the resulting error is non-nil, the given run func will
+// (eventually) be executed exactly once.
 func (c *commandHandler) run(ctx context.Context, cfg commandConfig, run commandFunc) (err error) {
 	if cfg.requireSave {
 		var unsaved []string
@@ -844,16 +851,25 @@ func (c *commandHandler) FetchVulncheckResult(ctx context.Context, arg command.U
 	return ret, err
 }
 
-func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.VulncheckArgs) error {
+func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.VulncheckArgs) (command.RunVulncheckResult, error) {
 	if args.URI == "" {
-		return errors.New("VulncheckArgs is missing URI field")
+		return command.RunVulncheckResult{}, errors.New("VulncheckArgs is missing URI field")
 	}
+
+	// Return the workdone token so that clients can identify when this
+	// vulncheck invocation is complete.
+	//
+	// Since the run function executes asynchronously, we use a channel to
+	// synchronize the start of the run and return the token.
+	tokenChan := make(chan protocol.ProgressToken, 1)
 	err := c.run(ctx, commandConfig{
 		async:       true, // need to be async to be cancellable
 		progress:    "govulncheck",
 		requireSave: true,
 		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
+		tokenChan <- deps.work.Token()
+
 		view := deps.snapshot.View()
 		opts := view.Options()
 		// quickly test if gopls is compiled to support govulncheck
@@ -920,5 +936,13 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 			Message: fmt.Sprintf("Found %v", strings.Join(affecting, ", ")),
 		})
 	})
-	return err
+	if err != nil {
+		return command.RunVulncheckResult{}, err
+	}
+	select {
+	case <-ctx.Done():
+		return command.RunVulncheckResult{}, ctx.Err()
+	case token := <-tokenChan:
+		return command.RunVulncheckResult{Token: token}, nil
+	}
 }

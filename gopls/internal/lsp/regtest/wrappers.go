@@ -335,7 +335,7 @@ func (e *Env) CodeLens(path string) []protocol.CodeLens {
 
 // ExecuteCodeLensCommand executes the command for the code lens matching the
 // given command name.
-func (e *Env) ExecuteCodeLensCommand(path string, cmd command.Command) {
+func (e *Env) ExecuteCodeLensCommand(path string, cmd command.Command, result interface{}) {
 	e.T.Helper()
 	lenses := e.CodeLens(path)
 	var lens protocol.CodeLens
@@ -352,7 +352,7 @@ func (e *Env) ExecuteCodeLensCommand(path string, cmd command.Command) {
 	e.ExecuteCommand(&protocol.ExecuteCommandParams{
 		Command:   lens.Command.Command,
 		Arguments: lens.Command.Arguments,
-	}, nil)
+	}, result)
 }
 
 func (e *Env) ExecuteCommand(params *protocol.ExecuteCommandParams, result interface{}) {

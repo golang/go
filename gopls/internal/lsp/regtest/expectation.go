@@ -179,7 +179,7 @@ func ReadDiagnostics(fileName string, into *protocol.PublishDiagnosticsParams) *
 // $/progress API that has not completed.
 func NoOutstandingWork() SimpleExpectation {
 	check := func(s State) Verdict {
-		if len(s.outstandingWork) == 0 {
+		if len(s.outstandingWork()) == 0 {
 			return Met
 		}
 		return Unmet
@@ -347,7 +347,7 @@ func (e *Env) DoneWithClose() Expectation {
 // See CompletedWork.
 func StartedWork(title string, atLeast uint64) SimpleExpectation {
 	check := func(s State) Verdict {
-		if s.startedWork[title] >= atLeast {
+		if s.startedWork()[title] >= atLeast {
 			return Met
 		}
 		return Unmet
@@ -364,7 +364,8 @@ func StartedWork(title string, atLeast uint64) SimpleExpectation {
 // progress notification title to identify the work we expect to be completed.
 func CompletedWork(title string, count uint64, atLeast bool) SimpleExpectation {
 	check := func(s State) Verdict {
-		if s.completedWork[title] == count || atLeast && s.completedWork[title] > count {
+		completed := s.completedWork()
+		if completed[title] == count || atLeast && completed[title] > count {
 			return Met
 		}
 		return Unmet
@@ -379,12 +380,38 @@ func CompletedWork(title string, count uint64, atLeast bool) SimpleExpectation {
 	}
 }
 
+// CompletedProgress expects that workDone progress is complete for the given
+// progress token.
+//
+// If the token is not a progress token that the client has seen, this
+// expectation is Unmeetable.
+func CompletedProgress(token protocol.ProgressToken) SimpleExpectation {
+	check := func(s State) Verdict {
+		work, ok := s.work[token]
+		if !ok {
+			return Unmeetable // TODO(rfindley): refactor to allow the verdict to explain this result
+		}
+		if work.complete {
+			return Met
+		}
+		return Unmet
+	}
+	desc := fmt.Sprintf("completed work for token %v", token)
+	return SimpleExpectation{
+		check:       check,
+		description: desc,
+	}
+}
+
 // OutstandingWork expects a work item to be outstanding. The given title must
 // be an exact match, whereas the given msg must only be contained in the work
 // item's message.
 func OutstandingWork(title, msg string) SimpleExpectation {
 	check := func(s State) Verdict {
-		for _, work := range s.outstandingWork {
+		for _, work := range s.work {
+			if work.complete {
+				continue
+			}
 			if work.title == title && strings.Contains(work.msg, msg) {
 				return Met
 			}

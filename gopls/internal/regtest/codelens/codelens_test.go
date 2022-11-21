@@ -204,7 +204,7 @@ require golang.org/x/hello v1.2.3
 				env.Await(env.DoneWithChangeWatchedFiles())
 				env.OpenFile("a/go.mod")
 				env.OpenFile("b/go.mod")
-				env.ExecuteCodeLensCommand("a/go.mod", command.CheckUpgrades)
+				env.ExecuteCodeLensCommand("a/go.mod", command.CheckUpgrades, nil)
 				d := &protocol.PublishDiagnosticsParams{}
 				env.Await(
 					OnceMet(
@@ -218,9 +218,9 @@ require golang.org/x/hello v1.2.3
 					),
 				)
 				// Check for upgrades in b/go.mod and then clear them.
-				env.ExecuteCodeLensCommand("b/go.mod", command.CheckUpgrades)
+				env.ExecuteCodeLensCommand("b/go.mod", command.CheckUpgrades, nil)
 				env.Await(env.DiagnosticAtRegexpWithMessage("b/go.mod", `require`, "can be upgraded"))
-				env.ExecuteCodeLensCommand("b/go.mod", command.ResetGoModDiagnostics)
+				env.ExecuteCodeLensCommand("b/go.mod", command.ResetGoModDiagnostics, nil)
 				env.Await(EmptyDiagnostics("b/go.mod"))
 
 				// Apply the diagnostics to a/go.mod.
@@ -282,7 +282,7 @@ func main() {
 `
 	WithOptions(ProxyFiles(proxy)).Run(t, shouldRemoveDep, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		env.ExecuteCodeLensCommand("go.mod", command.Tidy)
+		env.ExecuteCodeLensCommand("go.mod", command.Tidy, nil)
 		env.Await(env.DoneWithChangeWatchedFiles())
 		got := env.Editor.BufferText("go.mod")
 		const wantGoMod = `module mod.com
@@ -332,7 +332,7 @@ func Foo() {
 		))
 
 		// Regenerate cgo, fixing the diagnostic.
-		env.ExecuteCodeLensCommand("cgo.go", command.RegenerateCgo)
+		env.ExecuteCodeLensCommand("cgo.go", command.RegenerateCgo, nil)
 		env.Await(EmptyDiagnostics("cgo.go"))
 	})
 }

@@ -55,10 +55,8 @@ func NewAwaiter(workdir *fake.Workdir) *Awaiter {
 	return &Awaiter{
 		workdir: workdir,
 		state: State{
-			diagnostics:     make(map[string]*protocol.PublishDiagnosticsParams),
-			outstandingWork: make(map[protocol.ProgressToken]*workProgress),
-			startedWork:     make(map[string]uint64),
-			completedWork:   make(map[string]uint64),
+			diagnostics: make(map[string]*protocol.PublishDiagnosticsParams),
+			work:        make(map[protocol.ProgressToken]*workProgress),
 		},
 		waiters: make(map[int]*condition),
 	}
@@ -92,16 +90,48 @@ type State struct {
 	// outstandingWork is a map of token->work summary. All tokens are assumed to
 	// be string, though the spec allows for numeric tokens as well.  When work
 	// completes, it is deleted from this map.
-	outstandingWork map[protocol.ProgressToken]*workProgress
-	startedWork     map[string]uint64
-	completedWork   map[string]uint64
+	work map[protocol.ProgressToken]*workProgress
+}
+
+// outstandingWork counts started but not complete work items by title.
+func (s State) outstandingWork() map[string]uint64 {
+	outstanding := make(map[string]uint64)
+	for _, work := range s.work {
+		if !work.complete {
+			outstanding[work.title]++
+		}
+	}
+	return outstanding
+}
+
+// completedWork counts complete work items by title.
+func (s State) completedWork() map[string]uint64 {
+	completed := make(map[string]uint64)
+	for _, work := range s.work {
+		if work.complete {
+			completed[work.title]++
+		}
+	}
+	return completed
+}
+
+// startedWork counts started (and possibly complete) work items.
+func (s State) startedWork() map[string]uint64 {
+	started := make(map[string]uint64)
+	for _, work := range s.work {
+		started[work.title]++
+	}
+	return started
 }
 
 type workProgress struct {
 	title, msg string
 	percent    float64
+	complete   bool
 }
 
+// This method, provided for debugging, accesses mutable fields without a lock,
+// so it must not be called concurrent with any State mutation.
 func (s State) String() string {
 	var b strings.Builder
 	b.WriteString("#### log messages (see RPC logs for full text):\n")
@@ -124,7 +154,10 @@ func (s State) String() string {
 	}
 	b.WriteString("\n")
 	b.WriteString("#### outstanding work:\n")
-	for token, state := range s.outstandingWork {
+	for token, state := range s.work {
+		if state.complete {
+			continue
+		}
 		name := state.title
 		if name == "" {
 			name = fmt.Sprintf("!NO NAME(token: %s)", token)
@@ -132,7 +165,7 @@ func (s State) String() string {
 		fmt.Fprintf(&b, "\t%s: %.2f\n", name, state.percent)
 	}
 	b.WriteString("#### completed work:\n")
-	for name, count := range s.completedWork {
+	for name, count := range s.completedWork() {
 		fmt.Fprintf(&b, "\t%s: %d\n", name, count)
 	}
 	return b.String()
@@ -187,14 +220,14 @@ func (a *Awaiter) onWorkDoneProgressCreate(_ context.Context, m *protocol.WorkDo
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.state.outstandingWork[m.Token] = &workProgress{}
+	a.state.work[m.Token] = &workProgress{}
 	return nil
 }
 
 func (a *Awaiter) onProgress(_ context.Context, m *protocol.ProgressParams) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	work, ok := a.state.outstandingWork[m.Token]
+	work, ok := a.state.work[m.Token]
 	if !ok {
 		panic(fmt.Sprintf("got progress report for unknown report %v: %v", m.Token, m))
 	}
@@ -202,7 +235,6 @@ func (a *Awaiter) onProgress(_ context.Context, m *protocol.ProgressParams) erro
 	switch kind := v["kind"]; kind {
 	case "begin":
 		work.title = v["title"].(string)
-		a.state.startedWork[work.title] = a.state.startedWork[work.title] + 1
 		if msg, ok := v["message"]; ok {
 			work.msg = msg.(string)
 		}
@@ -214,9 +246,7 @@ func (a *Awaiter) onProgress(_ context.Context, m *protocol.ProgressParams) erro
 			work.msg = msg.(string)
 		}
 	case "end":
-		title := a.state.outstandingWork[m.Token].title
-		a.state.completedWork[title] = a.state.completedWork[title] + 1
-		delete(a.state.outstandingWork, m.Token)
+		work.complete = true
 	}
 	a.checkConditionsLocked()
 	return nil

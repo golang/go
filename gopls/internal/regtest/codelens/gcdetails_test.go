@@ -46,7 +46,7 @@ func main() {
 		},
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		env.ExecuteCodeLensCommand("main.go", command.GCDetails)
+		env.ExecuteCodeLensCommand("main.go", command.GCDetails, nil)
 		d := &protocol.PublishDiagnosticsParams{}
 		env.Await(
 			OnceMet(
@@ -79,7 +79,7 @@ func main() {
 		env.Await(DiagnosticAt("main.go", 5, 13))
 
 		// Toggle the GC details code lens again so now it should be off.
-		env.ExecuteCodeLensCommand("main.go", command.GCDetails)
+		env.ExecuteCodeLensCommand("main.go", command.GCDetails, nil)
 		env.Await(
 			EmptyDiagnostics("main.go"),
 		)

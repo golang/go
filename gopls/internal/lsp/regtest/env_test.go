@@ -15,9 +15,7 @@ import (
 func TestProgressUpdating(t *testing.T) {
 	a := &Awaiter{
 		state: State{
-			outstandingWork: make(map[protocol.ProgressToken]*workProgress),
-			startedWork:     make(map[string]uint64),
-			completedWork:   make(map[string]uint64),
+			work: make(map[protocol.ProgressToken]*workProgress),
 		},
 	}
 	ctx := context.Background()
@@ -57,10 +55,10 @@ func TestProgressUpdating(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, ok := a.state.outstandingWork["foo"]; ok {
-		t.Error("got work entry for \"foo\", want none")
+	if !a.state.work["foo"].complete {
+		t.Error("work entry \"foo\" is incomplete, want complete")
 	}
-	got := *a.state.outstandingWork["bar"]
+	got := *a.state.work["bar"]
 	want := workProgress{title: "bar work", percent: 42}
 	if got != want {
 		t.Errorf("work progress for \"bar\": %v, want %v", got, want)

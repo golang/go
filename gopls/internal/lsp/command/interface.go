@@ -153,7 +153,7 @@ type Interface interface {
 	// RunVulncheckExp: Run vulncheck (experimental)
 	//
 	// Run vulnerability check (`govulncheck`).
-	RunVulncheckExp(context.Context, VulncheckArgs) error
+	RunVulncheckExp(context.Context, VulncheckArgs) (RunVulncheckResult, error)
 
 	// FetchVulncheckResult: Get known vulncheck result
 	//
@@ -317,6 +317,14 @@ type VulncheckArgs struct {
 	Pattern string
 
 	// TODO: -tests
+}
+
+// RunVulncheckResult holds the result of asynchronously starting the vulncheck
+// command.
+type RunVulncheckResult struct {
+	// Token holds the progress token for LSP workDone reporting of the vulncheck
+	// invocation.
+	Token protocol.ProgressToken
 }
 
 type VulncheckResult struct {

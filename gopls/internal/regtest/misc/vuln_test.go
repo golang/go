@@ -172,14 +172,18 @@ func main() {
 			t.Fatal("got no vulncheck codelens")
 		}
 		// Run Command included in the codelens.
+		var result command.RunVulncheckResult
 		env.ExecuteCommand(&protocol.ExecuteCommandParams{
 			Command:   lens.Command.Command,
 			Arguments: lens.Command.Arguments,
-		}, nil)
+		}, &result)
+
 		env.Await(
-			CompletedWork("govulncheck", 1, true),
-			// TODO(hyangah): once the diagnostics are published, wait for diagnostics.
-			ShownMessage("Found GOSTDLIB"),
+			OnceMet(
+				CompletedProgress(result.Token),
+				// TODO(hyangah): once the diagnostics are published, wait for diagnostics.
+				ShownMessage("Found GOSTDLIB"),
+			),
 		)
 		testFetchVulncheckResult(t, env, map[string][]string{"go.mod": {"GOSTDLIB"}})
 	})
@@ -357,16 +361,23 @@ func TestRunVulncheckWarning(t *testing.T) {
 	WithOptions(opts...).Run(t, workspace1, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 
-		env.ExecuteCodeLensCommand("go.mod", command.RunVulncheckExp)
+		var result command.RunVulncheckResult
+		env.ExecuteCodeLensCommand("go.mod", command.RunVulncheckExp, &result)
 		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
 		env.Await(
-			CompletedWork("govulncheck", 1, true),
-			ShownMessage("Found"),
+			OnceMet(
+				CompletedProgress(result.Token),
+				ShownMessage("Found"),
+			),
+		)
+		// Vulncheck diagnostics asynchronous to the vulncheck command.
+		env.Await(
 			OnceMet(
 				env.DiagnosticAtRegexp("go.mod", `golang.org/amod`),
 				ReadDiagnostics("go.mod", gotDiagnostics),
 			),
 		)
+
 		testFetchVulncheckResult(t, env, map[string][]string{
 			"go.mod": {"GO-2022-01", "GO-2022-02", "GO-2022-03"},
 		})
@@ -499,14 +510,23 @@ func TestRunVulncheckInfo(t *testing.T) {
 	defer db.Clean()
 	WithOptions(opts...).Run(t, workspace2, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		env.ExecuteCodeLensCommand("go.mod", command.RunVulncheckExp)
+		var result command.RunVulncheckResult
+		env.ExecuteCodeLensCommand("go.mod", command.RunVulncheckExp, &result)
 		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
 		env.Await(
-			CompletedWork("govulncheck", 1, true),
+			OnceMet(
+				CompletedProgress(result.Token),
+				ShownMessage("No vulnerabilities found"), // only count affecting vulnerabilities.
+			),
+		)
+
+		// Vulncheck diagnostics asynchronous to the vulncheck command.
+		env.Await(
 			OnceMet(
 				env.DiagnosticAtRegexp("go.mod", "golang.org/bmod"),
-				ReadDiagnostics("go.mod", gotDiagnostics)),
-			ShownMessage("No vulnerabilities found")) // only count affecting vulnerabilities.
+				ReadDiagnostics("go.mod", gotDiagnostics),
+			),
+		)
 
 		testFetchVulncheckResult(t, env, map[string][]string{"go.mod": {"GO-2022-02"}})
 		// wantDiagnostics maps a module path in the require
