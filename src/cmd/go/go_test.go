@@ -2136,7 +2136,7 @@ func TestBuildmodePIE(t *testing.T) {
 	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/riscv64", "linux/s390x",
 		"android/amd64", "android/arm", "android/arm64", "android/386",
 		"freebsd/amd64",
-		"windows/386", "windows/amd64", "windows/arm":
+		"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
 	case "darwin/amd64":
 	default:
 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
