@@ -1003,12 +1003,6 @@ Found:
 		}
 	}
 
-	// Now that p.CgoFiles has been set, use it to determine whether
-	// a package in GOROOT gets an install target:
-	if len(p.CgoFiles) != 0 && p.Root != "" && p.Goroot && pkga != "" {
-		p.PkgObj = ctxt.joinPath(p.Root, pkga)
-	}
-
 	for tag := range allTags {
 		p.AllTags = append(p.AllTags, tag)
 	}

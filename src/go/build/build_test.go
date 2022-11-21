@@ -671,24 +671,6 @@ func TestImportPackageOutsideModule(t *testing.T) {
 	}
 }
 
-func TestImportDirTarget(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // really must just have source
-	ctxt := Default
-	ctxt.GOPATH = ""
-	// In GOROOT only a handful of packages have install targets. Most stdlib packages will
-	// only be built and placed in the build cache.
-	p, err := ctxt.ImportDir(filepath.Join(testenv.GOROOT(t), "src/runtime/cgo"), 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if p.PkgTargetRoot == "" {
-		t.Errorf("p.PkgTargetRoot == %q, want non-empty", p.PkgTargetRoot)
-	}
-	if testenv.HasCGO() && p.PkgObj == "" {
-		t.Errorf("p.PkgObj == %q, want non-empty", p.PkgObj)
-	}
-}
-
 // TestIssue23594 prevents go/build from regressing and populating Package.Doc
 // from comments in test files.
 func TestIssue23594(t *testing.T) {

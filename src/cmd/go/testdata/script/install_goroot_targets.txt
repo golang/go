@@ -1,17 +1,10 @@
 [short] skip
 
-# Most packages in std do not have an install target.
+# Packages in std do not have an install target.
 go list -f '{{.Target}}' fmt
 ! stdout .
 go list -export -f '{{.Export}}' fmt
 stdout $GOCACHE
-
-# Packages that use cgo still do.
-[cgo] go list -f '{{.Target}}' runtime/cgo
-[cgo] stdout .
-[cgo] go list -export -f '{{.Export}}' runtime/cgo
-[cgo] ! stdout $GOCACHE
-[cgo] stdout cgo\.a
 
 # With GODEBUG=installgoroot=all, fmt has a target.
 # (Though we can't try installing it without modifying goroot).

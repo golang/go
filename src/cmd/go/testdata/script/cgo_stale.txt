@@ -12,21 +12,21 @@ stale runtime/cgo
 
 
 # If we then build a package that uses cgo, runtime/cgo should be rebuilt and
-# cached with the new flag, but not installed to GOROOT (and thus still stale).
+# cached with the new flag, but not installed to GOROOT.
+# It has no install target, and thus is never stale.
 
 env GOCACHE=$WORK/cache  # Use a fresh cache to avoid interference between runs.
 
 go build -x .
 stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
-stale runtime/cgo
+! stale runtime/cgo
 
 
-# After runtime/cgo has been rebuilt and cached, it should not be rebuilt again
-# even though it is still reported as stale.
+# After runtime/cgo has been rebuilt and cached, it should not be rebuilt again.
 
 go build -x .
 ! stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
-stale runtime/cgo
+! stale runtime/cgo
 
 
 -- go.mod --
