@@ -2743,7 +2743,7 @@ func (v Value) UnsafePointer() unsafe.Pointer {
 // it references will not be garbage collected, so programs must keep
 // a separate, correctly typed pointer to the underlying data.
 //
-// In new code, use unsafe.String or unsafe.StringData instead.
+// Deprecated: Use unsafe.String or unsafe.StringData instead.
 type StringHeader struct {
 	Data uintptr
 	Len  int
@@ -2756,7 +2756,7 @@ type StringHeader struct {
 // it references will not be garbage collected, so programs must keep
 // a separate, correctly typed pointer to the underlying data.
 //
-// In new code, use unsafe.Slice or unsafe.SliceData instead.
+// Deprecated: Use unsafe.Slice or unsafe.SliceData instead.
 type SliceHeader struct {
 	Data uintptr
 	Len  int
