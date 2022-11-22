@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -167,7 +166,7 @@ func grabSourcesAndBases(sources, bases []profileSource, fetch plugin.Fetcher, o
 // a single profile. It fetches a chunk of profiles concurrently, with a maximum
 // chunk size to limit its memory usage.
 func chunkedGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI, tr http.RoundTripper) (*profile.Profile, plugin.MappingSources, bool, int, error) {
-	const chunkSize = 64
+	const chunkSize = 128
 
 	var p *profile.Profile
 	var msrc plugin.MappingSources
@@ -242,8 +241,20 @@ func concurrentGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.Ob
 
 func combineProfiles(profiles []*profile.Profile, msrcs []plugin.MappingSources) (*profile.Profile, plugin.MappingSources, error) {
 	// Merge profiles.
+	//
+	// The merge call below only treats exactly matching sample type lists as
+	// compatible and will fail otherwise. Make the profiles' sample types
+	// compatible for the merge, see CompatibilizeSampleTypes() doc for details.
+	if err := profile.CompatibilizeSampleTypes(profiles); err != nil {
+		return nil, nil, err
+	}
 	if err := measurement.ScaleProfiles(profiles); err != nil {
 		return nil, nil, err
+	}
+
+	// Avoid expensive work for the common case of a single profile/src.
+	if len(profiles) == 1 && len(msrcs) == 1 {
+		return profiles[0], msrcs[0], nil
 	}
 
 	p, err := profile.Merge(profiles)
@@ -410,6 +421,10 @@ mapping:
 					fileNames = append(fileNames, matches...)
 				}
 				fileNames = append(fileNames, filepath.Join(path, m.File, m.BuildID)) // perf path format
+				// Llvm buildid protocol: the first two characters of the build id
+				// are used as directory, and the remaining part is in the filename.
+				// e.g. `/ab/cdef0123456.debug`
+				fileNames = append(fileNames, filepath.Join(path, m.BuildID[:2], m.BuildID[2:]+".debug"))
 			}
 			if m.File != "" {
 				// Try both the basename and the full path, to support the same directory
@@ -507,7 +522,7 @@ func fetchURL(source string, timeout time.Duration, tr http.RoundTripper) (io.Re
 func statusCodeError(resp *http.Response) error {
 	if resp.Header.Get("X-Go-Pprof") != "" && strings.Contains(resp.Header.Get("Content-Type"), "text/plain") {
 		// error is from pprof endpoint
-		if body, err := ioutil.ReadAll(resp.Body); err == nil {
+		if body, err := io.ReadAll(resp.Body); err == nil {
 			return fmt.Errorf("server response: %s - %s", resp.Status, body)
 		}
 	}
