@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"sort"
 
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/mod"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
 )
 
 func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
@@ -48,10 +48,10 @@ func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) 
 	}
 	sort.Slice(result, func(i, j int) bool {
 		a, b := result[i], result[j]
-		if protocol.CompareRange(a.Range, b.Range) == 0 {
-			return a.Command.Command < b.Command.Command
+		if cmp := protocol.CompareRange(a.Range, b.Range); cmp != 0 {
+			return cmp < 0
 		}
-		return protocol.CompareRange(a.Range, b.Range) < 0
+		return a.Command.Command < b.Command.Command
 	})
 	return result, nil
 }

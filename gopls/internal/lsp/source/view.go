@@ -676,28 +676,32 @@ type (
 	ImportPath  string // path that appears in an import declaration (e.g. "example.com/foo")
 )
 
-// Package represents a Go package that has been type-checked. It maintains
-// only the relevant fields of a *go/packages.Package.
+// Package represents a Go package that has been parsed and type-checked.
+// It maintains only the relevant fields of a *go/packages.Package.
 type Package interface {
+	// Metadata:
 	ID() PackageID
 	Name() PackageName
 	PkgPath() PackagePath
-	CompiledGoFiles() []*ParsedGoFile
-	File(uri span.URI) (*ParsedGoFile, error)
-	FileSet() *token.FileSet
-	GetSyntax() []*ast.File
-	GetTypes() *types.Package
-	GetTypesInfo() *types.Info
 	GetTypesSizes() types.Sizes
 	ForTest() string
+	Version() *module.Version
+
+	// Results of parsing:
+	FileSet() *token.FileSet
+	ParseMode() ParseMode
+	CompiledGoFiles() []*ParsedGoFile // (borrowed)
+	File(uri span.URI) (*ParsedGoFile, error)
+	GetSyntax() []*ast.File // (borrowed)
+	HasListOrParseErrors() bool
+
+	// Results of type checking:
+	GetTypes() *types.Package
+	GetTypesInfo() *types.Info
 	DirectDep(path PackagePath) (Package, error)
 	ResolveImportPath(path ImportPath) (Package, error)
-	MissingDependencies() []ImportPath // unordered
-	Imports() []Package
-	Version() *module.Version
-	HasListOrParseErrors() bool
+	Imports() []Package // new slice of all direct dependencies, unordered
 	HasTypeErrors() bool
-	ParseMode() ParseMode
 }
 
 // A CriticalError is a workspace-wide error that generally prevents gopls from

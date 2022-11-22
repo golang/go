@@ -1083,12 +1083,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
-			var pkg source.Package
-			for _, imp := range c.pkg.Imports() {
-				if imp.PkgPath() == source.PackagePath(pkgName.Imported().Path()) {
-					pkg = imp
-				}
-			}
+			pkg, _ := c.pkg.DirectDep(source.PackagePath(pkgName.Imported().Path()))
 			// If the package is not imported, try searching for unimported
 			// completions.
 			if pkg == nil && c.opts.unimported {

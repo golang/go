@@ -457,7 +457,6 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 			Scopes:     make(map[ast.Node]*types.Scope),
 		},
-		typesSizes: m.TypesSizes,
 	}
 	typeparams.InitInstanceInfo(pkg.typesInfo)
 
