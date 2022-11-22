@@ -140,6 +140,7 @@ type snapshot struct {
 	// the view's go.mod file.
 	modTidyHandles *persistent.Map // from span.URI to *memoize.Promise[modTidyResult]
 	modWhyHandles  *persistent.Map // from span.URI to *memoize.Promise[modWhyResult]
+	modVulnHandles *persistent.Map // from span.URI to *memoize.Promise[modVulnResult]
 
 	workspace *workspace // (not guarded by mu)
 
@@ -230,6 +231,7 @@ func (s *snapshot) destroy(destroyedBy string) {
 	s.parseModHandles.Destroy()
 	s.parseWorkHandles.Destroy()
 	s.modTidyHandles.Destroy()
+	s.modVulnHandles.Destroy()
 	s.modWhyHandles.Destroy()
 
 	if s.workspaceDir != "" {
@@ -1713,6 +1715,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		parseWorkHandles:     s.parseWorkHandles.Clone(),
 		modTidyHandles:       s.modTidyHandles.Clone(),
 		modWhyHandles:        s.modWhyHandles.Clone(),
+		modVulnHandles:       s.modVulnHandles.Clone(),
 		knownSubdirs:         s.knownSubdirs.Clone(),
 		workspace:            newWorkspace,
 	}
@@ -1752,6 +1755,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// Invalidate go.mod-related handles.
 		result.modTidyHandles.Delete(uri)
 		result.modWhyHandles.Delete(uri)
+		result.modVulnHandles.Delete(uri)
 
 		// Invalidate handles for cached symbols.
 		result.symbolizeHandles.Delete(uri)
@@ -1815,9 +1819,9 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 			// TODO(maybe): Only delete mod handles for
 			// which the withoutURI is relevant.
 			// Requires reverse-engineering the go command. (!)
-
 			result.modTidyHandles.Clear()
 			result.modWhyHandles.Clear()
+			result.modVulnHandles.Clear()
 		}
 
 		result.parseModHandles.Delete(uri)

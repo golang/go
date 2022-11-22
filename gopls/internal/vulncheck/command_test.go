@@ -5,7 +5,7 @@
 //go:build go1.18
 // +build go1.18
 
-package vulncheck
+package vulncheck_test
 
 import (
 	"bytes"
@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
+	"golang.org/x/tools/gopls/internal/vulncheck"
 	"golang.org/x/tools/gopls/internal/vulncheck/vulntest"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -40,7 +41,7 @@ func TestCmd_Run(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		cmd := &cmd{Client: cli}
+		cmd := &vulncheck.Cmd{Client: cli}
 		cfg := packagesCfg(ctx, snapshot)
 		result, err := cmd.Run(ctx, cfg, "./...")
 		if err != nil {
@@ -63,7 +64,7 @@ func TestCmd_Run(t *testing.T) {
 
 		var want = []report{
 			{
-				Vuln: Vuln{
+				Vuln: vulncheck.Vuln{
 					ID:             "GO-2022-01",
 					Details:        "Something.\n",
 					Symbol:         "VulnData.Vuln1",
@@ -86,7 +87,7 @@ func TestCmd_Run(t *testing.T) {
 				},
 			},
 			{
-				Vuln: Vuln{
+				Vuln: vulncheck.Vuln{
 					ID:                 "GO-2022-02",
 					Symbol:             "Vuln",
 					PkgPath:            "golang.org/bmod/bvuln",
@@ -101,7 +102,7 @@ func TestCmd_Run(t *testing.T) {
 				},
 			},
 			{
-				Vuln: Vuln{
+				Vuln: vulncheck.Vuln{
 					ID:           "GO-2022-03",
 					Details:      "unaffecting vulnerability.\n",
 					ModPath:      "golang.org/amod",
@@ -131,12 +132,12 @@ func TestCmd_Run(t *testing.T) {
 }
 
 type report struct {
-	Vuln
+	vulncheck.Vuln
 	// Trace is stringified Vuln.CallStacks
 	CallStacksStr []string
 }
 
-func toReport(v Vuln) report {
+func toReport(v vulncheck.Vuln) report {
 	var r = report{Vuln: v}
 	for _, s := range v.CallStacks {
 		r.CallStacksStr = append(r.CallStacksStr, CallStackString(s))
@@ -144,7 +145,7 @@ func toReport(v Vuln) report {
 	return r
 }
 
-func CallStackString(callstack CallStack) string {
+func CallStackString(callstack vulncheck.CallStack) string {
 	var b bytes.Buffer
 	for _, entry := range callstack {
 		fname := filepath.Base(entry.URI.SpanURI().Filename())

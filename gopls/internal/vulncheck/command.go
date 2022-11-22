@@ -26,10 +26,10 @@ import (
 )
 
 func init() {
-	Govulncheck = govulncheck
+	Govulncheck = govulncheckFunc
 }
 
-func govulncheck(ctx context.Context, cfg *packages.Config, patterns string) (res command.VulncheckResult, _ error) {
+func govulncheckFunc(ctx context.Context, cfg *packages.Config, patterns string) (res command.VulncheckResult, _ error) {
 	if patterns == "" {
 		patterns = "."
 	}
@@ -39,7 +39,7 @@ func govulncheck(ctx context.Context, cfg *packages.Config, patterns string) (re
 		return res, err
 	}
 
-	c := cmd{Client: dbClient}
+	c := Cmd{Client: dbClient}
 	vulns, err := c.Run(ctx, cfg, patterns)
 	if err != nil {
 		return res, err
@@ -65,14 +65,14 @@ type Vuln = command.Vuln
 type CallStack = command.CallStack
 type StackEntry = command.StackEntry
 
-// cmd is an in-process govulncheck command runner
+// Cmd is an in-process govulncheck command runner
 // that uses the provided client.Client.
-type cmd struct {
+type Cmd struct {
 	Client client.Client
 }
 
 // Run runs the govulncheck after loading packages using the provided packages.Config.
-func (c *cmd) Run(ctx context.Context, cfg *packages.Config, patterns ...string) (_ []Vuln, err error) {
+func (c *Cmd) Run(ctx context.Context, cfg *packages.Config, patterns ...string) (_ []Vuln, err error) {
 	logger := log.New(log.Default().Writer(), "", 0)
 	cfg.Mode |= packages.NeedModule | packages.NeedName | packages.NeedFiles |
 		packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedTypes |
