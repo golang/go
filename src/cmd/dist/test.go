@@ -773,7 +773,6 @@ func (t *tester) registerTests() {
 					pkg:    "fmt",
 				}).command(t)
 				unsetEnv(cmd, "GOROOT")
-				unsetEnv(cmd, "GOCACHE") // TODO(bcmills): ...why‽
 				err := cmd.Run()
 
 				if rerr := os.Rename(moved, goroot); rerr != nil {
@@ -1699,18 +1698,8 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 		}
 	}
 
-	gocache := os.Getenv("GOCACHE")
-	if gocache == "" {
-		panic("GOCACHE not set")
-	}
-	gocacheSubdir, _ := filepath.Rel(dir, gocache)
-
 	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if suffix := strings.TrimPrefix(path, dir+string(filepath.Separator)); suffix != "" {
-			if suffix == gocacheSubdir {
-				// Leave GOCACHE writable: we may need to write test binaries into it.
-				return filepath.SkipDir
-			}
 			if suffix == ".git" {
 				// Leave Git metadata in whatever state it was in. It may contain a lot
 				// of files, and it is highly unlikely that a test will try to modify
