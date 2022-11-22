@@ -1077,6 +1077,9 @@ func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
 	}
 
 	bin = list[0]
+	if !filepath.IsAbs(bin) {
+		panic("command is not absolute: " + bin)
+	}
 	return bin, list[1:]
 }
 
@@ -1300,15 +1303,23 @@ func (t *tester) registerCgoTests() {
 		default:
 			// Check for static linking support
 			var staticCheck rtPreFunc
-			cmd := t.dirCmd("misc/cgo/test",
-				compilerEnvLookup("CC", defaultcc, goos, goarch), "-xc", "-o", "/dev/null", "-static", "-")
-			cmd.Stdin = strings.NewReader("int main() {}")
-			cmd.Stdout, cmd.Stderr = nil, nil // Discard output
-			if err := cmd.Run(); err != nil {
-				// Skip these tests
+			ccName := compilerEnvLookup("CC", defaultcc, goos, goarch)
+			cc, err := exec.LookPath(ccName)
+			if err != nil {
 				staticCheck.pre = func(*distTest) bool {
-					fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
+					fmt.Printf("$CC (%q) not found, skip cgo static linking test.\n", ccName)
 					return false
+				}
+			} else {
+				cmd := t.dirCmd("misc/cgo/test", cc, "-xc", "-o", "/dev/null", "-static", "-")
+				cmd.Stdin = strings.NewReader("int main() {}")
+				cmd.Stdout, cmd.Stderr = nil, nil // Discard output
+				if err := cmd.Run(); err != nil {
+					// Skip these tests
+					staticCheck.pre = func(*distTest) bool {
+						fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
+						return false
+					}
 				}
 			}
 
