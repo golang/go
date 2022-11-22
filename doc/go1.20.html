@@ -332,7 +332,7 @@ func RequestHandler(w ResponseWriter, r *Request) {
 
 <h3 id="reverseproxy_rewrite">New ReverseProxy Rewrite hook</h3>
 
-<p>
+<p><!-- https://go.dev/issue/53002 -->
   The <a href="/pkg/net/http/httputil/#ReverseProxy"><code>httputil.ReverseProxy</code></a>
   forwarding proxy includes a new <code>Rewrite</code> hook function, superseding the
   previous <code>Director</code> hook.
@@ -358,7 +358,7 @@ func RequestHandler(w ResponseWriter, r *Request) {
   also sets the <code>Host</code> header of the outbound request.
 </p>
 
-<p>
+<p><!-- https://go.dev/issue/50465 -->
   The
   <a href="/pkg/net/http/httputil/#ProxyRequest.SetXForwarded"><code>ProxyRequest.SetXForwarded</code></a>
   method sets the <code>X-Forwarded-For</code>, <code>X-Forwarded-Host</code>,
@@ -380,6 +380,11 @@ proxyHandler := &httputil.ReverseProxy{
 }
 </pre>
 
+<p><!-- CL 407375 -->
+ <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a> no longer adds a <code>User-Agent</code> header
+  to forwarded requests when the incoming request does not have one.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -396,14 +401,13 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="archive/tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/55356 -->
-      When the <code>GODEBUG=tarinsecurepath=0</code> environment variable
-      is set, <code>(*Reader).Next</code> will return the error
-      <code>ErrInsecurePath</code> when opening an archive which contains
-      file names that are absolute, refer to a location outside the current
-      directory, contain invalid characters, or (on Windows) are reserved
-      names such as <code>NUL</code>. Programs that perform their own
-      name sanitization can ignore this error. This behavior will be made
-      the default in a future version of Go.
+      When the <code>GODEBUG=tarinsecurepath=0</code> environment variable is set,
+      <a href="/pkg/archive/tar/#Reader.Next"><code>Reader.Next</code></a> method
+      will now return the error <a href="/pkg/archive/tar/#ErrInsecurePath"><code>ErrInsecurePath</code></a>
+      for an entry with a file name that is an absolute path,
+      refers to a location outside the current directory, contains invalid
+      characters, or (on Windows) is a reserved name such as <code>NUL</code>.
+      A future version of Go may disable insecure paths by default.
     </p>
   </dd>
 </dl><!-- archive/tar -->
@@ -411,14 +415,13 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/55356 -->
-      When the <code>GODEBUG=zipinsecurepath=0</code> environment variable
-      is set, <code>NewReader</code> will return the error
-      <code>ErrInsecurePath</code> when opening an archive which contains
-      file names that are absolute, refer to a location outside the current 
-      irectory, contain invalid characters, or (on Windows) are reserved
-      names such as <code>NUL</code>. Programs that perform their own
-      name sanitization can ignore this error. This behavior will be made
-      the default in a future version of Go.
+      When the <code>GODEBUG=zipinsecurepath=0</code> environment variable is set,
+      <a href="/pkg/archive/zip/#NewReader"><code>NewReader</code></a> will now return the error
+      <a href="/pkg/archive/zip/#ErrInsecurePath"><code>ErrInsecurePath</code></a>
+      when opening an archive which contains any file name that is an absolute path,
+      refers to a location outside the current directory, contains invalid
+      characters, or (on Windows) is a reserved names such as <code>NUL</code>.
+      A future version of Go may disable insecure paths by default.
     </p>
     <p><!-- CL 449955 -->
       Reading from a directory file that contains file data will now return an error.
@@ -557,7 +560,7 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="errors"><dt><a href="/pkg/errors/">errors</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/53435 -->
-      The new <code>Join</code> function returns an error wrapping a list of errors.
+      The new <a href="/pkg/errors/#Join"><code>Join</code></a> function returns an error wrapping a list of errors.
     </p>
   </dd>
 </dl><!-- errors -->
@@ -565,8 +568,8 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/53435 -->
-      The <code>Errorf</code> function supports multiple occurrances of
-      the <code>%w</code> format verb.
+      The <a href="/pkg/fmt/#Errorf"><code>Errorf</code></a> function supports multiple occurrences of
+      the <code>%w</code> format verb, returning an error that unwraps to the list of all arguments to <code>%w</code>.
     </p>
     <p><!-- https://go.dev/issue/51668 -->
       TODO: <a href="https://go.dev/issue/51668">https://go.dev/issue/51668</a>: add FormatString(State) string
@@ -646,7 +649,7 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/48866 -->
-      The <code>ParseMediaType</code> function now allows duplicate parameter names,
+      The <a href="/pkg/mime/#ParseMediaType"><code>ParseMediaType</code></a> function now allows duplicate parameter names,
       so long as the values of the names are the same.
     </p>
   </dd>
@@ -655,7 +658,7 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
   <dd>
     <p><!-- CL 431675 -->
-      Methods of the <code>Reader</code> type now wrap errors
+      Methods of the <a href="/pkg/mime/multipart/#Reader"><code>Reader</code></a> type now wrap errors
       returned by the underlying <code>io.Reader</code>.
     </p>
   </dd>
@@ -664,7 +667,8 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/50101 -->
-      The <code>LookupCNAME</code> function now consistently returns the contents
+      The <a href="/pkg/net/#LookupCNAME"><code>LookupCNAME</code></a>
+      function now consistently returns the contents
       of a <code>CNAME</code> record when one exists. Previously on Unix systems and
       when using the pure Go resolver, <code>LookupCNAME</code> would return an error
       if a <code>CNAME</code> record referred to a name that with no <code>A</code>,
@@ -675,15 +679,15 @@ proxyHandler := &httputil.ReverseProxy{
     </p>
 
     <p><!-- https://go.dev/issue/53482 -->
-      <code>Interface.Flags</code> now includes the new flag <code>FlagRunning</code>,
+      <a href="/pkg/net/#Interface.Flags"><code>Interface.Flags</code></a> now includes the new flag <code>FlagRunning</code>,
       indicating an operationally active interface. An interface which is administratively
       configured but not active (for example, because the network cable is not connected)
       will have <code>FlagUp</code> set but not <code>FlagRunning</code>.
     </p>
 
     <p><!-- https://go.dev/issue/55301 -->
-      The new <code>Dialer.ControlContext</code> field contains a callback function
-      similar to the existing <code>Dialer.Control</code> hook, that additionally
+      The new <a href="/pkg/net/#Dialer.ControlContext"><code>Dialer.ControlContext</code></a> field contains a callback function
+      similar to the existing <a href="/pkg/net/#Dialer.Control"><code>Dialer.Control</code></a> hook, that additionally
       accepts the dial context as a parameter.
       <code>Control</code> is ignored when <code>ControlContext</code> is not nil.
     </p>
@@ -707,28 +711,28 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/541360 -->
-      The new <code>ResponseController</code> type provides access to extended per-request
-      functionality not handled by the <code>ResponseWriter<code> interface.
+      The new <a href="/pkg/net/http/#ResponseController"><code>ResponseController</code></a> type provides access to extended per-request
+      functionality not handled by the <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter<code></a> interface.
     <p>
 
     <p>
-      The new <code>ResponseController.SetReadDeadline</code> and
-      <code>ResponseController.SetWriteDeadline</code> methods permit setting
+      The new <a href="/pkg/net/http/#ResponseController.SetReadDeadline"><code>ResponseController.SetReadDeadline</code></a> and
+      <a href="/pkg/net/http/#ResponseController.SetWriteDeadline"><code>ResponseController.SetWriteDeadline</code></a> methods permit setting
       per-request read and write deadlines.
     </p>
 
     <p><!-- https://go.dev/issue/51914 -->
-      The <code>ResponseWriter.WriteHeader</code> function now supports sending
+      The <a href="/pkg/net/http/#ResponseWriter.WriteHeader"><code>ResponseWriter.WriteHeader</code></a> function now supports sending
       <code>1xx</code> status codes.
     </p>
 
     <p><!-- https://go.dev/issue/41773 -->
-      The new <code>Server.DisableGeneralOptionsHandler</code> configuration setting
+      The new <a href="/pkg/net/http/#Server.DisableGeneralOptionsHandler"><code>Server.DisableGeneralOptionsHandler</code></a> configuration setting
       allows disabling the default <code>OPTIONS *</code> handler.
     </p>
 
     <p><!-- https://go.dev/issue/54299 -->
-      The new <code>Transport.OnProxyConnectResponse</code> hook is called
+      The new <a href="/pkg/net/http/#Transport.OnProxyConnectResponse"><code>Transport.OnProxyConnectResponse</code></a> hook is called
       when a <code>Transport</code> receives an HTTP response from a proxy
       for a <code>CONNECT</code> request.
     </p>
@@ -740,7 +744,8 @@ proxyHandler := &httputil.ReverseProxy{
 
     <p><!-- https://go.dev/issue/53896 -->
       HTTP/2 stream errors returned by <code>net/http</code> functions may be converted
-      to a <code>"golang.org/x/net/http2".StreamError</code> using <code>errors.As</code>.
+      to a <a href="/pkg/golang.org/x/net/http2/#StreamError"><code>golang.org/x/net/http2.StreamError</code></a> using
+      <a href="/pkg/errors/#As"><code>errors.As</code></a>.
     </p>
 
     <p><!-- https://go.dev/cl/397734 -->
@@ -751,28 +756,6 @@ proxyHandler := &httputil.ReverseProxy{
     </p>
   </dd>
 </dl><!-- net/http -->
-
-<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
-  <dd>
-    <p><!-- https://go.dev/issue/53002 -->
-      The new <code>ReverseProxy</code> hook supersedes the existing <code>Rewrite</code> hook.
-    </p>
-
-    <p><!-- https://go.dev/issue/50465 -->
-      <code>ReverseProxy</code> now adds
-      <code>X-Forwarded-Proto</code> and <code>X-Forwarded-Host</code> headers
-      to forwarded requests.
-      These headers are added to all requests forwarded by a <code>Director</code> hook,
-      and to requests forwarded by a <code>Rewrite</code> hook which calls the
-      <code>ProxyRequest.SetXForwarded</code> function.
-    </p>
-
-    <p><!-- CL 407375 -->
-      <code>ReverseProxy</code> no longer adds a <code>User-Agent</code> header
-      to forwarded requests when the incoming request does not have one.
-    </p>
-  </dd>
-</dl><!-- net/http/httputil -->
 
 <dl id="net/netip"><dt><a href="/pkg/net/netip/">net/netip</a></dt>
   <dd>
@@ -801,7 +784,9 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/50436, CL 401835 -->
-      The new <code>Cmd</code> fields <code>Cancel</code> and <code>WaitDelay</code>
+      The new <a href="/pkg/os/exec/#Cmd"><code>Cmd</code></a> fields
+      <a href="/pkg/os/exec/#Cmd.Cancel"><code>Cancel</code></a> and
+      <a href="/pkg/os/exec/#Cmd.WaitDelay"><code>WaitDelay</code></a>
       specify the behavior of the <code>Cmd</code> when its associated
       <code>Context</code> is canceled or its process exits with I/O pipes still
       held open by a child process.
@@ -815,7 +800,7 @@ proxyHandler := &httputil.ReverseProxy{
       TODO: <a href="https://go.dev/cl/363814">https://go.dev/cl/363814</a>: path/filepath, io/fs: add SkipAll; modified api/next/47209.txt
     </p>
     <p><!-- https://go.dev/issue/56219 -->
-      The new <code>IsLocal</code> function reports whether a path is
+      The new <a href="/pkg/path/filepath/#IsLocal"><code>IsLocal</code></a> function reports whether a path is
       lexically local to a directory.
       For example, if <code>IsLocal(p)</code> is <code>true</code>,
       then <code>Open(p)</code> will refer to a file that is lexically
@@ -899,9 +884,9 @@ proxyHandler := &httputil.ReverseProxy{
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
     <p><!-- CL 399094, https://go.dev/issue/51972 -->
-      The new methods <a href="/pkg/sync/#Map.Swap"><code>Map.Swap</code></a>,
-      <a href="/pkg/sync/#Map.CompareAndSwap"><code>Map.CompareAndSwap</code></a>, and
-      <a href="/pkg/sync/#Map.CompareAndDelete"><code>Map.CompareAndDelete</code></a>
+      The new <a href="/pkg/sync/#Map"><code>Map</code></a> methods <a href="/pkg/sync/#Map.Swap"><code>Swap</code></a>,
+      <a href="/pkg/sync/#Map.CompareAndSwap"><code>CompareAndSwap</code></a>, and
+      <a href="/pkg/sync/#Map.CompareAndDelete"><code>CompareAndDelete</code></a>
       allow existing map entries to be updated atomically.
     </p>
   </dd>
