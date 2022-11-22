@@ -154,41 +154,21 @@ func (t *tester) run() {
 
 	if !t.listMode {
 		if builder := os.Getenv("GO_BUILDER_NAME"); builder == "" {
-			// Complete rebuild bootstrap, even with -no-rebuild.
+			// Ensure that installed commands are up to date, even with -no-rebuild,
+			// so that tests that run commands end up testing what's actually on disk.
 			// If everything is up-to-date, this is a no-op.
-			// If everything is not up-to-date, the first checkNotStale
-			// during the test process will kill the tests, so we might
-			// as well install the world.
-			// Now that for example "go install cmd/compile" does not
-			// also install runtime (you need "go install -i cmd/compile"
-			// for that), it's easy for previous workflows like
-			// "rebuild the compiler and then run run.bash"
-			// to break if we don't automatically refresh things here.
-			// Rebuilding is a shortened bootstrap.
+			// We first build the toolchain twice to allow it to converge,
+			// as when we first bootstrap.
 			// See cmdbootstrap for a description of the overall process.
+			//
+			// On the builders, we skip this step: we assume that 'dist test' is
+			// already using the result of a clean build, and because of test sharding
+			// and virtualization we usually start with a clean GOCACHE, so we would
+			// end up rebuilding large parts of the standard library that aren't
+			// otherwise relevant to the actual set of packages under test.
 			goInstall(toolenv, gorootBinGo, toolchain...)
 			goInstall(toolenv, gorootBinGo, toolchain...)
 			goInstall(toolenv, gorootBinGo, "cmd")
-			goInstall(nil, gorootBinGo, "std")
-		} else {
-			// The Go builder infrastructure should always begin running tests from a
-			// clean, non-stale state, so there is no need to rebuild the world.
-			// Instead, we can just check that it is not stale, which may be less
-			// expensive (and is also more likely to catch bugs in the builder
-			// implementation).
-			// The cache used by dist when building is different from that used when
-			// running dist test, so rebuild (but don't install) std and cmd to make
-			// sure packages without install targets are cached so they are not stale.
-			goCmd(toolenv, gorootBinGo, "build", "cmd") // make sure dependencies of targets are cached
-			goCmd(nil, gorootBinGo, "build", "std")
-			checkNotStale(nil, gorootBinGo, "std")
-			if builder != "aix-ppc64" {
-				// The aix-ppc64 builder for some reason does not have deterministic cgo
-				// builds, so "cmd" is stale. Fortunately, most of the tests don't care.
-				// TODO(#56896): remove this special case once the builder supports
-				// determistic cgo builds.
-				checkNotStale(toolenv, gorootBinGo, "cmd")
-			}
 		}
 	}
 
@@ -1361,7 +1341,6 @@ func (t *tester) registerCgoTests() {
 // running in parallel with earlier tests, or if it has some other reason
 // for needing the earlier tests to be done.
 func (t *tester) runPending(nextTest *distTest) {
-	checkNotStale(nil, gorootBinGo, "std")
 	worklist := t.worklist
 	t.worklist = nil
 	for _, w := range worklist {
@@ -1419,7 +1398,6 @@ func (t *tester) runPending(nextTest *distTest) {
 			log.Printf("Failed: %v", w.err)
 			t.failed = true
 		}
-		checkNotStale(nil, gorootBinGo, "std")
 	}
 	if t.failed && !t.keepGoing {
 		fatalf("FAILED")
