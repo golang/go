@@ -323,30 +323,46 @@ func createHeaders() error {
 		if err != nil {
 			return fmt.Errorf("unable to find dlltool path: %v\n%s\n", err, out)
 		}
-		args := []string{strings.TrimSpace(string(out)), "-D", args[6], "-l", libgoname, "-d", "libgo.def"}
-
-		// This is an unfortunate workaround for https://github.com/mstorsjo/llvm-mingw/issues/205 in which
-		// we basically reimplement the contents of the dlltool.sh wrapper: https://git.io/JZFlU
-		dlltoolContents, err := os.ReadFile(args[0])
-		if err != nil {
-			return fmt.Errorf("unable to read dlltool: %v\n", err)
-		}
-		if bytes.HasPrefix(dlltoolContents, []byte("#!/bin/sh")) && bytes.Contains(dlltoolContents, []byte("llvm-dlltool")) {
-			base, name := filepath.Split(args[0])
-			args[0] = filepath.Join(base, "llvm-dlltool")
-			var machine string
-			switch prefix, _, _ := strings.Cut(name, "-"); prefix {
-			case "i686":
-				machine = "i386"
-			case "x86_64":
-				machine = "i386:x86-64"
-			case "armv7":
-				machine = "arm"
-			case "aarch64":
-				machine = "arm64"
+		dlltoolpath := strings.TrimSpace(string(out))
+		if filepath.Ext(dlltoolpath) == "" {
+			// Some compilers report slash-separated paths without extensions
+			// instead of ordinary Windows paths.
+			// Try to find the canonical name for the path.
+			if lp, err := exec.LookPath(dlltoolpath); err == nil {
+				dlltoolpath = lp
 			}
-			if len(machine) > 0 {
-				args = append(args, "-m", machine)
+		}
+
+		args := []string{dlltoolpath, "-D", args[6], "-l", libgoname, "-d", "libgo.def"}
+
+		if filepath.Ext(dlltoolpath) == "" {
+			// This is an unfortunate workaround for
+			// https://github.com/mstorsjo/llvm-mingw/issues/205 in which
+			// we basically reimplement the contents of the dlltool.sh
+			// wrapper: https://git.io/JZFlU.
+			// TODO(thanm): remove this workaround once we can upgrade
+			// the compilers on the windows-arm64 builder.
+			dlltoolContents, err := os.ReadFile(args[0])
+			if err != nil {
+				return fmt.Errorf("unable to read dlltool: %v\n", err)
+			}
+			if bytes.HasPrefix(dlltoolContents, []byte("#!/bin/sh")) && bytes.Contains(dlltoolContents, []byte("llvm-dlltool")) {
+				base, name := filepath.Split(args[0])
+				args[0] = filepath.Join(base, "llvm-dlltool")
+				var machine string
+				switch prefix, _, _ := strings.Cut(name, "-"); prefix {
+				case "i686":
+					machine = "i386"
+				case "x86_64":
+					machine = "i386:x86-64"
+				case "armv7":
+					machine = "arm"
+				case "aarch64":
+					machine = "arm64"
+				}
+				if len(machine) > 0 {
+					args = append(args, "-m", machine)
+				}
 			}
 		}
 
