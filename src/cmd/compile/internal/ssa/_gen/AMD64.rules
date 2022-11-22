@@ -480,7 +480,8 @@
 
 (HasCPUFeature {s}) => (SETNE (CMPLconst [0] (LoweredHasCPUFeature {s})))
 (Addr {sym} base) => (LEAQ {sym} base)
-(LocalAddr {sym} base _) => (LEAQ {sym} base)
+(LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (LEAQ {sym} (SPanchored base mem))
+(LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (LEAQ {sym} base)
 
 (MOVBstore [off] {sym} ptr y:(SETL x) mem) && y.Uses == 1 => (SETLstore [off] {sym} ptr x mem)
 (MOVBstore [off] {sym} ptr y:(SETLE x) mem) && y.Uses == 1 => (SETLEstore [off] {sym} ptr x mem)

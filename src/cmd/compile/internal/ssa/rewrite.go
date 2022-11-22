@@ -839,9 +839,7 @@ func isSamePtr(p1, p2 *Value) bool {
 	case OpOffPtr:
 		return p1.AuxInt == p2.AuxInt && isSamePtr(p1.Args[0], p2.Args[0])
 	case OpAddr, OpLocalAddr:
-		// OpAddr's 0th arg is either OpSP or OpSB, which means that it is uniquely identified by its Op.
-		// Checking for value equality only works after [z]cse has run.
-		return p1.Aux == p2.Aux && p1.Args[0].Op == p2.Args[0].Op
+		return p1.Aux == p2.Aux
 	case OpAddPtr:
 		return p1.Args[1] == p2.Args[1] && isSamePtr(p1.Args[0], p2.Args[0])
 	}

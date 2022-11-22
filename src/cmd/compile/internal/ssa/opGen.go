@@ -3008,6 +3008,7 @@ const (
 	OpLocalAddr
 	OpSP
 	OpSB
+	OpSPanchored
 	OpLoad
 	OpDereference
 	OpStore
@@ -38815,6 +38816,12 @@ var opcodeTable = [...]opInfo{
 	{
 		name:      "SB",
 		argLen:    0,
+		zeroWidth: true,
+		generic:   true,
+	},
+	{
+		name:      "SPanchored",
+		argLen:    2,
 		zeroWidth: true,
 		generic:   true,
 	},

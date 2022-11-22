@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"container/heap"
 	"sort"
@@ -363,6 +364,34 @@ func schedule(f *Func) {
 		for i := 0; i < len(b.Values); i++ {
 			b.Values[i] = order[len(b.Values)-1-i]
 		}
+	}
+
+	// Remove SPanchored now that we've scheduled.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			for i, a := range v.Args {
+				if a.Op == OpSPanchored {
+					v.SetArg(i, a.Args[0])
+				}
+			}
+		}
+	}
+	for _, b := range f.Blocks {
+		i := 0
+		for _, v := range b.Values {
+			if v.Op == OpSPanchored {
+				// Free this value
+				if v.Uses != 0 {
+					base.Fatalf("SPAnchored still has %d uses", v.Uses)
+				}
+				v.resetArgs()
+				f.freeValue(v)
+			} else {
+				b.Values[i] = v
+				i++
+			}
+		}
+		b.truncateValues(i)
 	}
 
 	f.scheduled = true

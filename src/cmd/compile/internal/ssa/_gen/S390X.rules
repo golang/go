@@ -446,7 +446,8 @@
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 (Addr {sym} base) => (MOVDaddr {sym} base)
-(LocalAddr {sym} base _) => (MOVDaddr {sym} base)
+(LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (MOVDaddr {sym} (SPanchored base mem))
+(LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (MOVDaddr {sym} base)
 (ITab (Load ptr mem)) => (MOVDload ptr mem)
 
 // block rewrites

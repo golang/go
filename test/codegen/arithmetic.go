@@ -316,14 +316,14 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
 }
 
 // Check that divisibility checks x%c==0 are converted to MULs and rotates
-func Divisible(n1 uint, n2 int) (bool, bool, bool, bool) {
+func DivisibleU(n uint) (bool, bool) {
 	// amd64:"MOVQ\t[$]-6148914691236517205","IMULQ","ROLQ\t[$]63",-"DIVQ"
 	// 386:"IMUL3L\t[$]-1431655765","ROLL\t[$]31",-"DIVQ"
 	// arm64:"MOVD\t[$]-6148914691236517205","MOVD\t[$]3074457345618258602","MUL","ROR",-"DIV"
 	// arm:"MUL","CMP\t[$]715827882",-".*udiv"
 	// ppc64:"MULLD","ROTL\t[$]63"
 	// ppc64le:"MULLD","ROTL\t[$]63"
-	evenU := n1%6 == 0
+	even := n%6 == 0
 
 	// amd64:"MOVQ\t[$]-8737931403336103397","IMULQ",-"ROLQ",-"DIVQ"
 	// 386:"IMUL3L\t[$]678152731",-"ROLL",-"DIVQ"
@@ -331,17 +331,21 @@ func Divisible(n1 uint, n2 int) (bool, bool, bool, bool) {
 	// arm:"MUL","CMP\t[$]226050910",-".*udiv"
 	// ppc64:"MULLD",-"ROTL"
 	// ppc64le:"MULLD",-"ROTL"
-	oddU := n1%19 == 0
+	odd := n%19 == 0
 
+	return even, odd
+}
+
+func Divisible(n int) (bool, bool) {
 	// amd64:"IMULQ","ADD","ROLQ\t[$]63",-"DIVQ"
 	// 386:"IMUL3L\t[$]-1431655765","ADDL\t[$]715827882","ROLL\t[$]31",-"DIVQ"
-	// arm64:"MUL","ADD\tR","ROR",-"DIV"
+	// arm64:"MOVD\t[$]-6148914691236517205","MOVD\t[$]3074457345618258602","MUL","ADD\tR","ROR",-"DIV"
 	// arm:"MUL","ADD\t[$]715827882",-".*udiv"
 	// ppc64/power8:"MULLD","ADD","ROTL\t[$]63"
 	// ppc64le/power8:"MULLD","ADD","ROTL\t[$]63"
 	// ppc64/power9:"MADDLD","ROTL\t[$]63"
 	// ppc64le/power9:"MADDLD","ROTL\t[$]63"
-	evenS := n2%6 == 0
+	even := n%6 == 0
 
 	// amd64:"IMULQ","ADD",-"ROLQ",-"DIVQ"
 	// 386:"IMUL3L\t[$]678152731","ADDL\t[$]113025455",-"ROLL",-"DIVQ"
@@ -351,9 +355,9 @@ func Divisible(n1 uint, n2 int) (bool, bool, bool, bool) {
 	// ppc64/power9:"MADDLD",-"ROTL"
 	// ppc64le/power8:"MULLD","ADD",-"ROTL"
 	// ppc64le/power9:"MADDLD",-"ROTL"
-	oddS := n2%19 == 0
+	odd := n%19 == 0
 
-	return evenU, oddU, evenS, oddS
+	return even, odd
 }
 
 // Check that fix-up code is not generated for divisions where it has been proven that
