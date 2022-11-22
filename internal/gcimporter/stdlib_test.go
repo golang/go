@@ -35,12 +35,14 @@ func TestStdlib(t *testing.T) {
 	// If we have the full source code for x/tools, also load and type-check that.
 	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
 	patterns := []string{"std"}
+	minPkgs := 225 // 'GOOS=plan9 go1.18 list std | wc -l' reports 228; most other platforms have more.
 	switch runtime.GOOS {
 	case "android", "ios":
 		// The go_.*_exec script for mobile builders only copies over the source tree
 		// for the package under test.
 	default:
 		patterns = append(patterns, "golang.org/x/tools/...")
+		minPkgs += 160 // At the time of writing, 'GOOS=plan9 go list ./... | wc -l' reports 188.
 	}
 	pkgs, err := packages.Load(cfg, patterns...)
 	if err != nil {
@@ -49,7 +51,7 @@ func TestStdlib(t *testing.T) {
 	if packages.PrintErrors(pkgs) > 0 {
 		t.Fatal("there were errors during loading")
 	}
-	if len(pkgs) < 240 {
+	if len(pkgs) < minPkgs {
 		t.Errorf("too few packages (%d) were loaded", len(pkgs))
 	}
 
