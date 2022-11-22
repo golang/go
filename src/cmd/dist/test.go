@@ -1602,18 +1602,21 @@ func (t *tester) registerRaceTests() {
 		// t.registerTest("race:misc/cgo/test", hdr, &goTest{dir: "../misc/cgo/test", race: true, env: []string{"GOTRACEBACK=2"}})
 	}
 	if t.extLink() {
+		var oldWindows rtPreFunc
 		if strings.HasPrefix(os.Getenv("GO_BUILDER_NAME"), "windows-amd64-2008") {
-			log.Printf("skipping -race with external linkage on older windows builder, see https://github.com/golang/go/issues/56904 for details")
-		} else {
-			// Test with external linking; see issue 9133.
-			t.registerTest("race:external", hdr,
-				&goTest{
-					race:     true,
-					ldflags:  "-linkmode=external",
-					runTests: "TestParse|TestEcho|TestStdinCloseRace",
-					pkgs:     []string{"flag", "os/exec"},
-				})
+			oldWindows.pre = func(*distTest) bool {
+				fmt.Println("skipping -race with external linkage on older windows builder, see https://github.com/golang/go/issues/56904 for details")
+				return false
+			}
 		}
+		// Test with external linking; see issue 9133.
+		t.registerTest("race:external", hdr,
+			&goTest{
+				race:     true,
+				ldflags:  "-linkmode=external",
+				runTests: "TestParse|TestEcho|TestStdinCloseRace",
+				pkgs:     []string{"flag", "os/exec"},
+			}, oldWindows)
 	}
 }
 
