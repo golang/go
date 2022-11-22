@@ -7256,7 +7256,7 @@ append(s S, x ...E) S  // core type of S is []E
 
 <p>
 If the capacity of <code>s</code> is not large enough to fit the additional
-values, <code>append</code> allocates a new, sufficiently large underlying
+values, <code>append</code> <a href="#Allocation">allocates</a> a new, sufficiently large underlying
 array that fits both the existing slice elements and the additional values.
 Otherwise, <code>append</code> re-uses the underlying array.
 </p>
