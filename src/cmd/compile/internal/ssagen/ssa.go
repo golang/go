@@ -6525,7 +6525,7 @@ func (s *state) variable(n ir.Node, t *types.Type) *ssa.Value {
 
 	if s.curBlock == s.f.Entry {
 		// No variable should be live at entry.
-		s.Fatalf("Value live at entry. It shouldn't be. func %s, node %v, value %v", s.f.Name, n, v)
+		s.f.Fatalf("value %v (%v) incorrectly live at entry", n, v)
 	}
 	// Make a FwdRef, which records a value that's live on block input.
 	// We'll find the matching definition as part of insertPhis.
