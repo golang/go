@@ -23,6 +23,7 @@ var Govulncheck func(ctx context.Context, cfg *packages.Config, patterns string)
 
 var Main func(cfg packages.Config, patterns ...string) error = nil
 
-func AnalyzeVulnerableImports(ctx context.Context, snapshot source.Snapshot, modfile source.FileHandle) (*govulncheck.Result, error) {
-	panic("not implemented")
-}
+// VulnerablePackages queries the vulndb and reports which vulnerabilities
+// apply to this snapshot. The result contains a set of packages,
+// grouped by vuln ID and by module.
+var VulnerablePackages func(ctx context.Context, snapshot source.Snapshot, modfile source.FileHandle) (*govulncheck.Result, error) = nil

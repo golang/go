@@ -19,9 +19,12 @@ import (
 
 // LatestFixed returns the latest fixed version in the list of affected ranges,
 // or the empty string if there are no fixed versions.
-func LatestFixed(as []osv.Affected) string {
+func LatestFixed(modulePath string, as []osv.Affected) string {
 	v := ""
 	for _, a := range as {
+		if a.Package.Name != modulePath {
+			continue
+		}
 		for _, r := range a.Ranges {
 			if r.Type == osv.TypeSemver {
 				for _, e := range r.Events {

@@ -64,9 +64,12 @@ func (s *snapshot) ModVuln(ctx context.Context, modURI span.URI) (*govulncheck.R
 }
 
 func modVulnImpl(ctx context.Context, s *snapshot, uri span.URI) (*govulncheck.Result, error) {
+	if vulncheck.VulnerablePackages == nil {
+		return &govulncheck.Result{}, nil
+	}
 	fh, err := s.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	return vulncheck.AnalyzeVulnerableImports(ctx, s, fh)
+	return vulncheck.VulnerablePackages(ctx, s, fh)
 }
