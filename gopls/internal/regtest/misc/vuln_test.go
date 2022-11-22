@@ -404,6 +404,18 @@ func TestRunVulncheckWarning(t *testing.T) {
 						severity: protocol.SeverityWarning,
 						codeActions: []string{
 							"Upgrade to latest",
+							"Upgrade to v1.0.4",
+						},
+						relatedInfo: []vulnRelatedInfo{
+							{"x.go", uint32(lineX.Line), "[GO-2022-01]"}, // avuln.VulnData.Vuln1
+							{"x.go", uint32(lineX.Line), "[GO-2022-01]"}, // avuln.VulnData.Vuln2
+						},
+					},
+					{
+						msg:      "golang.org/amod has a vulnerability GO-2022-03 that is not used in the code.",
+						severity: protocol.SeverityInformation,
+						codeActions: []string{
+							"Upgrade to latest",
 							"Upgrade to v1.0.6",
 						},
 						relatedInfo: []vulnRelatedInfo{
@@ -600,15 +612,14 @@ func testVulnDiagnostics(t *testing.T, env *Env, requireMod string, want vulnDia
 			t.Errorf("code actions for %q do not match, want %v, got %v\n%v\n", w.msg, w.codeActions, gotActions, diff)
 			continue
 		}
-
-		// Check that useful info is supplemented as hover.
-		if len(want.hover) > 0 {
-			hover, _ := env.Hover("go.mod", pos)
-			for _, part := range want.hover {
-				if !strings.Contains(hover.Value, part) {
-					t.Errorf("hover contents for %q do not match, want %v, got %v\n", w.msg, strings.Join(want.hover, ","), hover.Value)
-					break
-				}
+	}
+	// Check that useful info is supplemented as hover.
+	if len(want.hover) > 0 {
+		hover, _ := env.Hover("go.mod", pos)
+		for _, part := range want.hover {
+			if !strings.Contains(hover.Value, part) {
+				t.Errorf("hover contents for %q do not match, want %v, got %v\n", requireMod, strings.Join(want.hover, ","), hover.Value)
+				break
 			}
 		}
 	}

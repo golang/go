@@ -215,7 +215,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		// Map affecting vulns to 'warning' level diagnostics,
 		// others to 'info' level diagnostics.
 		// Fixes will include only the upgrades for warning level diagnostics.
-		var fixes []source.SuggestedFix
+		var warningFixes, infoFixes []source.SuggestedFix
 		var warning, info []string
 		var relatedInfo []source.RelatedInformation
 		for _, mv := range vulns {
@@ -251,52 +251,71 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 				if err != nil {
 					return nil, err // TODO: bug report
 				}
-				fixes = append(fixes, source.SuggestedFixFromCommand(cmd, protocol.QuickFix))
+				sf := source.SuggestedFixFromCommand(cmd, protocol.QuickFix)
+				if !vuln.IsCalled() {
+					infoFixes = append(infoFixes, sf)
+				} else {
+					warningFixes = append(warningFixes, sf)
+				}
 			}
 		}
 
 		if len(warning) == 0 && len(info) == 0 {
 			continue
 		}
-		severity := protocol.SeverityInformation
-		if len(warning) > 0 {
-			severity = protocol.SeverityWarning
+		// Add an upgrade for module@latest.
+		// TODO(suzmue): verify if latest is the same as fixedVersion.
+		latest, err := getUpgradeCodeAction(fh, req, "latest")
+		if err != nil {
+			return nil, err // TODO: bug report
 		}
-		if len(fixes) > 0 {
-			// Add an upgrade for module@latest.
-			// TODO(suzmue): verify if latest is the same as fixedVersion.
-			latest, err := getUpgradeCodeAction(fh, req, "latest")
-			if err != nil {
-				return nil, err // TODO: bug report
-			}
-			fixes = append([]source.SuggestedFix{source.SuggestedFixFromCommand(latest, protocol.QuickFix)}, fixes...)
+		sf := source.SuggestedFixFromCommand(latest, protocol.QuickFix)
+		if len(warningFixes) > 0 {
+			warningFixes = append(warningFixes, sf)
+		}
+		if len(infoFixes) > 0 {
+			infoFixes = append(infoFixes, sf)
 		}
 
 		sort.Strings(warning)
 		sort.Strings(info)
 
-		var b strings.Builder
-		switch len(warning) {
-		case 0:
-			if n := len(info); n == 1 {
+		if len(warning) > 0 {
+			var b strings.Builder
+			switch len(warning) {
+			case 1:
+				fmt.Fprintf(&b, "%v has a vulnerability used in the code: %v.", req.Mod.Path, warning[0])
+			default:
+				fmt.Fprintf(&b, "%v has vulnerabilities used in the code: %v.", req.Mod.Path, strings.Join(warning, ", "))
+			}
+			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
+				URI:            fh.URI(),
+				Range:          rng,
+				Severity:       protocol.SeverityWarning,
+				Source:         source.Vulncheck,
+				Message:        b.String(),
+				SuggestedFixes: warningFixes,
+				Related:        relatedInfo,
+			})
+		}
+		if len(info) > 0 {
+			var b strings.Builder
+			switch len(info) {
+			case 1:
 				fmt.Fprintf(&b, "%v has a vulnerability %v that is not used in the code.", req.Mod.Path, info[0])
-			} else if n > 1 {
+			default:
 				fmt.Fprintf(&b, "%v has known vulnerabilities %v that are not used in the code.", req.Mod.Path, strings.Join(info, ", "))
 			}
-		case 1:
-			fmt.Fprintf(&b, "%v has a vulnerability used in the code: %v.", req.Mod.Path, warning[0])
-		default:
-			fmt.Fprintf(&b, "%v has vulnerabilities used in the code: %v.", req.Mod.Path, strings.Join(warning, ", "))
+			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
+				URI:            fh.URI(),
+				Range:          rng,
+				Severity:       protocol.SeverityInformation,
+				Source:         source.Vulncheck,
+				Message:        b.String(),
+				SuggestedFixes: infoFixes,
+				Related:        relatedInfo,
+			})
 		}
-		vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
-			URI:            fh.URI(),
-			Range:          rng,
-			Severity:       severity,
-			Source:         source.Vulncheck,
-			Message:        b.String(),
-			SuggestedFixes: fixes,
-			Related:        relatedInfo,
-		})
 	}
 
 	return vulnDiagnostics, nil
