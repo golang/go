@@ -16,7 +16,7 @@ import (
 type fileStat struct {
 	name string
 
-	// from ByHandleFileInformation, Win32FileAttributeData and Win32finddata
+	// from ByHandleFileInformation, Win32FileAttributeData, Win32finddata, and GetFileInformationByHandleEx
 	FileAttributes uint32
 	CreationTime   syscall.Filetime
 	LastAccessTime syscall.Filetime
@@ -24,7 +24,7 @@ type fileStat struct {
 	FileSizeHigh   uint32
 	FileSizeLow    uint32
 
-	// from Win32finddata
+	// from Win32finddata and GetFileInformationByHandleEx
 	ReparseTag uint32
 
 	// what syscall.GetFileType returns
@@ -32,11 +32,10 @@ type fileStat struct {
 
 	// used to implement SameFile
 	sync.Mutex
-	path             string
-	vol              uint32
-	idxhi            uint32
-	idxlo            uint32
-	appendNameToPath bool
+	path  string
+	vol   uint32
+	idxhi uint32
+	idxlo uint32
 }
 
 // newFileStatFromGetFileInformationByHandle calls GetFileInformationByHandle
@@ -78,6 +77,26 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 		// to fetch vol, idxhi and idxlo. But these are already set,
 		// so set fileStat.path to "" to prevent os.SameFile doing it again.
 	}, nil
+}
+
+// newFileStatFromFileIDBothDirInfo copies all required information
+// from windows.FILE_ID_BOTH_DIR_INFO d into the newly created fileStat.
+func newFileStatFromFileIDBothDirInfo(d *windows.FILE_ID_BOTH_DIR_INFO) *fileStat {
+	// The FILE_ID_BOTH_DIR_INFO MSDN documentations isn't completely correct.
+	// FileAttributes can contain any file attributes that is currently set on the file,
+	// not just the ones documented.
+	// EaSize contains the reparse tag if the file is a reparse point.
+	return &fileStat{
+		FileAttributes: d.FileAttributes,
+		CreationTime:   d.CreationTime,
+		LastAccessTime: d.LastAccessTime,
+		LastWriteTime:  d.LastWriteTime,
+		FileSizeHigh:   uint32(d.EndOfFile >> 32),
+		FileSizeLow:    uint32(d.EndOfFile),
+		ReparseTag:     d.EaSize,
+		idxhi:          uint32(d.FileID >> 32),
+		idxlo:          uint32(d.FileID),
+	}
 }
 
 // newFileStatFromWin32finddata copies all required information
@@ -169,13 +188,7 @@ func (fs *fileStat) loadFileId() error {
 		// already done
 		return nil
 	}
-	var path string
-	if fs.appendNameToPath {
-		path = fs.path + `\` + fs.name
-	} else {
-		path = fs.path
-	}
-	pathp, err := syscall.UTF16PtrFromString(path)
+	pathp, err := syscall.UTF16PtrFromString(fs.path)
 	if err != nil {
 		return err
 	}
