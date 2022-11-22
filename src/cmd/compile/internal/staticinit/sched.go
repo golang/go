@@ -451,6 +451,10 @@ func (s *Schedule) addvalue(p *Plan, xoffset int64, n ir.Node) {
 }
 
 func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.InlinedCallExpr, typ *types.Type) bool {
+	if base.Debug.InlStaticInit == 0 {
+		return false
+	}
+
 	// Handle the special case of an inlined call of
 	// a function body with a single return statement,
 	// which turns into a single assignment plus a goto.

@@ -167,6 +167,7 @@ func ParseFlags() {
 
 	Debug.ConcurrentOk = true
 	Debug.InlFuncsWithClosures = 1
+	Debug.InlStaticInit = 0
 	if buildcfg.Experiment.Unified {
 		Debug.Unified = 1
 	}

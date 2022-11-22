@@ -1,4 +1,4 @@
-// compiledir
+// compiledir -d=inlstaticinit=1
 
 // Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
