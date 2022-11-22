@@ -289,53 +289,104 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		sort.Strings(info)
 
 		if len(warning) > 0 {
-			var b strings.Builder
-			switch len(warning) {
-			case 1:
-				fmt.Fprintf(&b, "%v has a vulnerability used in the code: %v.", req.Mod.Path, warning[0])
-			default:
-				fmt.Fprintf(&b, "%v has vulnerabilities used in the code: %v.", req.Mod.Path, strings.Join(warning, ", "))
-			}
 			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
 				URI:            fh.URI(),
 				Range:          rng,
 				Severity:       protocol.SeverityWarning,
 				Source:         source.Vulncheck,
-				Message:        b.String(),
+				Message:        getVulnMessage(req.Mod.Path, warning, true, fromGovulncheck),
 				SuggestedFixes: warningFixes,
 				Related:        relatedInfo,
 			})
 		}
 		if len(info) > 0 {
-			var b strings.Builder
-			if fromGovulncheck {
-				switch len(info) {
-				case 1:
-					fmt.Fprintf(&b, "%v has a vulnerability %v that is not used in the code.", req.Mod.Path, info[0])
-				default:
-					fmt.Fprintf(&b, "%v has known vulnerabilities %v that are not used in the code.", req.Mod.Path, strings.Join(info, ", "))
-				}
-			} else {
-				switch len(info) {
-				case 1:
-					fmt.Fprintf(&b, "%v has a vulnerability %v.", req.Mod.Path, info[0])
-				default:
-					fmt.Fprintf(&b, "%v has known vulnerabilities %v.", req.Mod.Path, strings.Join(info, ", "))
-				}
-			}
 			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
 				URI:            fh.URI(),
 				Range:          rng,
 				Severity:       protocol.SeverityInformation,
 				Source:         source.Vulncheck,
-				Message:        b.String(),
+				Message:        getVulnMessage(req.Mod.Path, info, false, fromGovulncheck),
 				SuggestedFixes: infoFixes,
 				Related:        relatedInfo,
 			})
 		}
 	}
 
+	// Add standard library vulnerabilities.
+	stdlibVulns := vulnsByModule["stdlib"]
+	if len(stdlibVulns) == 0 {
+		return vulnDiagnostics, nil
+	}
+
+	// Put the standard library diagnostic on the module declaration.
+	rng, err := pm.Mapper.OffsetRange(pm.File.Module.Syntax.Start.Byte, pm.File.Module.Syntax.End.Byte)
+	if err != nil {
+		return vulnDiagnostics, nil // TODO: bug report
+	}
+
+	stdlib := stdlibVulns[0].mod.FoundVersion
+	var warning, info []string
+	var relatedInfo []source.RelatedInformation
+	for _, mv := range stdlibVulns {
+		vuln := mv.vuln
+		stdlib = mv.mod.FoundVersion
+		if !vuln.IsCalled() {
+			info = append(info, vuln.OSV.ID)
+		} else {
+			warning = append(warning, vuln.OSV.ID)
+			relatedInfo = append(relatedInfo, listRelatedInfo(ctx, snapshot, vuln)...)
+		}
+	}
+	if len(warning) > 0 {
+		vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
+			URI:      fh.URI(),
+			Range:    rng,
+			Severity: protocol.SeverityWarning,
+			Source:   source.Vulncheck,
+			Message:  getVulnMessage(stdlib, warning, true, fromGovulncheck),
+			Related:  relatedInfo,
+		})
+	}
+	if len(info) > 0 {
+		vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
+			URI:      fh.URI(),
+			Range:    rng,
+			Severity: protocol.SeverityInformation,
+			Source:   source.Vulncheck,
+			Message:  getVulnMessage(stdlib, info, false, fromGovulncheck),
+			Related:  relatedInfo,
+		})
+	}
 	return vulnDiagnostics, nil
+}
+
+func getVulnMessage(mod string, vulns []string, used, fromGovulncheck bool) string {
+	var b strings.Builder
+	if used {
+		switch len(vulns) {
+		case 1:
+			fmt.Fprintf(&b, "%v has a vulnerability used in the code: %v.", mod, vulns[0])
+		default:
+			fmt.Fprintf(&b, "%v has vulnerabilities used in the code: %v.", mod, strings.Join(vulns, ", "))
+		}
+	} else {
+		if fromGovulncheck {
+			switch len(vulns) {
+			case 1:
+				fmt.Fprintf(&b, "%v has a vulnerability %v that is not used in the code.", mod, vulns[0])
+			default:
+				fmt.Fprintf(&b, "%v has known vulnerabilities %v that are not used in the code.", mod, strings.Join(vulns, ", "))
+			}
+		} else {
+			switch len(vulns) {
+			case 1:
+				fmt.Fprintf(&b, "%v has a vulnerability %v.", mod, vulns[0])
+			default:
+				fmt.Fprintf(&b, "%v has known vulnerabilities %v.", mod, strings.Join(vulns, ", "))
+			}
+		}
+	}
+	return b.String()
 }
 
 func listRelatedInfo(ctx context.Context, snapshot source.Snapshot, vuln *govulncheck.Vuln) []source.RelatedInformation {

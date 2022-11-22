@@ -193,8 +193,8 @@ func main() {
 		env.Await(
 			OnceMet(
 				CompletedProgress(result.Token),
-				// TODO(hyangah): once the diagnostics are published, wait for diagnostics.
 				ShownMessage("Found GOSTDLIB"),
+				env.DiagnosticAtRegexpWithMessage("go.mod", `module`, `go1.18 has a vulnerability used in the code: GOSTDLIB.`),
 			),
 		)
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
