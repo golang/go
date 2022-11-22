@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/semver"
 	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -71,7 +72,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}
 
 	// Get the vulnerability info.
-	affecting, nonaffecting := lookupVulns(snapshot.View().Vulnerabilities(fh.URI())[fh.URI()], req.Mod.Path)
+	affecting, nonaffecting := lookupVulns(snapshot.View().Vulnerabilities(fh.URI())[fh.URI()], req.Mod.Path, req.Mod.Version)
 
 	// Get the `go mod why` results for the given file.
 	why, err := snapshot.ModWhy(ctx, fh)
@@ -117,13 +118,32 @@ func formatHeader(modpath string, options *source.Options) string {
 	return b.String()
 }
 
-func lookupVulns(vulns *govulncheck.Result, modpath string) (affecting, nonaffecting []*govulncheck.Vuln) {
+func lookupVulns(vulns *govulncheck.Result, modpath, version string) (affecting, nonaffecting []*govulncheck.Vuln) {
 	if vulns == nil {
 		return nil, nil
 	}
 	for _, vuln := range vulns.Vulns {
 		for _, mod := range vuln.Modules {
 			if mod.Path != modpath {
+				continue
+			}
+			// It is possible that the source code was changed since the last
+			// govulncheck run and information in the `vulns` info is stale.
+			// For example, imagine that a user is in the middle of updating
+			// problematic modules detected by the govulncheck run by applying
+			// quick fixes. Stale diagnostics can be confusing and prevent the
+			// user from quickly locating the next module to fix.
+			// Ideally we should rerun the analysis with the updated module
+			// dependencies or any other code changes, but we are not yet
+			// in the position of automatically triggerring the analysis
+			// (govulncheck can take a while). We also don't know exactly what
+			// part of source code was changed since `vulns` was computed.
+			// As a heuristic, we assume that a user upgrades the affecting
+			// module to the version with the fix or the latest one, and if the
+			// version in the require statement is equal to or higher than the
+			// fixed version, skip the vulnerability information in the hover.
+			// Eventually, the user has to rerun govulncheck.
+			if mod.FixedVersion != "" && semver.IsValid(version) && semver.Compare(mod.FixedVersion, version) <= 0 {
 				continue
 			}
 			if vuln.IsCalled() {
