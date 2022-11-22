@@ -816,9 +816,34 @@ func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
 }
 
 func cleanQueryParams(s string) string {
-	if strings.Contains(s, ";") {
+	reencode := func(s string) string {
 		v, _ := url.ParseQuery(s)
 		return v.Encode()
 	}
+	for i := 0; i < len(s); {
+		switch s[i] {
+		case ';':
+			return reencode(s)
+		case '%':
+			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
+				return reencode(s)
+			}
+			i += 3
+		default:
+			i++
+		}
+	}
 	return s
+}
+
+func ishex(c byte) bool {
+	switch {
+	case '0' <= c && c <= '9':
+		return true
+	case 'a' <= c && c <= 'f':
+		return true
+	case 'A' <= c && c <= 'F':
+		return true
+	}
+	return false
 }
