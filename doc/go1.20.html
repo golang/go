@@ -26,15 +26,34 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="language">Changes to the language</h2>
 
 <p>
-  TODO: complete this section
-</p>
-
-<p><!-- https://go.dev/issue/8606 -->
-  TODO: <a href="https://go.dev/issue/8606">https://go.dev/issue/8606</a>: define that structs are compared field-by-field as listed in source code
+  Go 1.20 includes three changes to the language.
 </p>
 
 <p><!-- https://go.dev/issue/46505 -->
-  TODO: <a href="https://go.dev/issue/46505">https://go.dev/issue/46505</a>: allow conversion from slice to array
+  Go 1.17 added <a href="/ref/spec#Conversions_from_slice_to_array_pointer">conversions from slice to an array pointer</a>.
+  Go 1.20 extends this to allow conversions from a slice to an array:
+  given a slice <code>x</code>, <code>[4]byte(x)</code> can now be written
+  instead of <code>*(*[4]byte)(x)</code>.
+</p>
+
+<p><!-- https://go.dev/issue/53003 -->
+  The <a href="/ref/spec/#Package_unsafe"><code>unsafe</code> package</a> defines
+  three new functions <code>SliceData</code>, <code>String</code>, and <code>StringData</code>.
+  Along with Go 1.17's <code>Slice</code>, these functions now provide the complete ability to
+  construct and deconstruct slice and string values, without depending on their exact representation.
+</p>
+
+<p><!-- https://go.dev/issue/8606 -->
+  The specification now defines that struct values are compared one field at a time,
+  considering fields in the order they appear in the struct type definition,
+  and stopping at the first mismatch.
+  The specification could previously have been read as if
+  all fields needed to be compared beyond the first mismatch.
+  Similarly, the specification now defines that array values are compared
+  one element at a time, in increasing index order.
+  In both cases, the difference affects whether certain comparisons must panic.
+  Existing programs are unchanged: the new spec wording describes
+  what the implementations have always done.
 </p>
 
 <h2 id="ports">Ports</h2>
