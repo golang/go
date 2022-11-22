@@ -1405,7 +1405,6 @@ func cmdbootstrap() {
 	setNoOpt()
 	goldflags = os.Getenv("GO_LDFLAGS") // we were using $BOOT_GO_LDFLAGS until now
 	goBootstrap := pathf("%s/go_bootstrap", tooldir)
-	cmdGo := pathf("%s/go", gorootBin)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		copyfile(pathf("%s/compile1", tooldir), pathf("%s/compile", tooldir), writeExec)
@@ -1488,8 +1487,8 @@ func cmdbootstrap() {
 		goInstall(toolenv, goBootstrap, "cmd")
 		checkNotStale(nil, goBootstrap, "std")
 		checkNotStale(toolenv, goBootstrap, "cmd")
-		checkNotStale(nil, cmdGo, "std")
-		checkNotStale(toolenv, cmdGo, "cmd")
+		checkNotStale(nil, gorootBinGo, "std")
+		checkNotStale(toolenv, gorootBinGo, "cmd")
 
 		timelog("build", "target toolchain")
 		if vflag > 0 {
@@ -1507,8 +1506,8 @@ func cmdbootstrap() {
 	checkNotStale(toolenv, goBootstrap, append(toolchain, "runtime/internal/sys")...)
 	checkNotStale(nil, goBootstrap, "std")
 	checkNotStale(toolenv, goBootstrap, "cmd")
-	checkNotStale(nil, cmdGo, "std")
-	checkNotStale(toolenv, cmdGo, "cmd")
+	checkNotStale(nil, gorootBinGo, "std")
+	checkNotStale(toolenv, gorootBinGo, "cmd")
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		checkNotStale(toolenv, goBootstrap, append(toolchain, "runtime/internal/sys")...)
@@ -1542,7 +1541,7 @@ func cmdbootstrap() {
 		os.Setenv("GOOS", gohostos)
 		os.Setenv("GOARCH", gohostarch)
 		os.Setenv("CC", compilerEnvLookup("CC", defaultcc, gohostos, gohostarch))
-		goCmd(nil, cmdGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gorootBin, goos, goarch, exe), wrapperPath)
+		goCmd(nil, gorootBinGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gorootBin, goos, goarch, exe), wrapperPath)
 		// Restore environment.
 		// TODO(elias.naur): support environment variables in goCmd?
 		os.Setenv("GOOS", goos)

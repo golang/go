@@ -75,11 +75,7 @@ func runEnv(dir string, mode int, env []string, cmd ...string) string {
 		errprintf("run: %s\n", strings.Join(cmd, " "))
 	}
 
-	bin := cmd[0]
-	if bin == "go" {
-		bin = gorootBinGo
-	}
-	xcmd := exec.Command(bin, cmd[1:]...)
+	xcmd := exec.Command(cmd[0], cmd[1:]...)
 	if env != nil {
 		xcmd.Env = append(os.Environ(), env...)
 	}

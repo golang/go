@@ -149,7 +149,7 @@ func (t *tester) run() {
 	if t.rebuild {
 		t.out("Building packages and commands.")
 		// Force rebuild the whole toolchain.
-		goInstall(toolenv, "go", append([]string{"-a"}, toolchain...)...)
+		goInstall(toolenv, gorootBinGo, append([]string{"-a"}, toolchain...)...)
 	}
 
 	if !t.listMode {
@@ -166,10 +166,10 @@ func (t *tester) run() {
 			// to break if we don't automatically refresh things here.
 			// Rebuilding is a shortened bootstrap.
 			// See cmdbootstrap for a description of the overall process.
-			goInstall(toolenv, "go", toolchain...)
-			goInstall(toolenv, "go", toolchain...)
-			goInstall(toolenv, "go", "cmd")
-			goInstall(nil, "go", "std")
+			goInstall(toolenv, gorootBinGo, toolchain...)
+			goInstall(toolenv, gorootBinGo, toolchain...)
+			goInstall(toolenv, gorootBinGo, "cmd")
+			goInstall(nil, gorootBinGo, "std")
 		} else {
 			// The Go builder infrastructure should always begin running tests from a
 			// clean, non-stale state, so there is no need to rebuild the world.
@@ -179,15 +179,15 @@ func (t *tester) run() {
 			// The cache used by dist when building is different from that used when
 			// running dist test, so rebuild (but don't install) std and cmd to make
 			// sure packages without install targets are cached so they are not stale.
-			goCmd(toolenv, "go", "build", "cmd") // make sure dependencies of targets are cached
-			goCmd(nil, "go", "build", "std")
-			checkNotStale(nil, "go", "std")
+			goCmd(toolenv, gorootBinGo, "build", "cmd") // make sure dependencies of targets are cached
+			goCmd(nil, gorootBinGo, "build", "std")
+			checkNotStale(nil, gorootBinGo, "std")
 			if builder != "aix-ppc64" {
 				// The aix-ppc64 builder for some reason does not have deterministic cgo
 				// builds, so "cmd" is stale. Fortunately, most of the tests don't care.
 				// TODO(#56896): remove this special case once the builder supports
 				// determistic cgo builds.
-				checkNotStale(toolenv, "go", "cmd")
+				checkNotStale(toolenv, gorootBinGo, "cmd")
 			}
 		}
 	}
@@ -300,7 +300,7 @@ func (t *tester) maybeLogMetadata() error {
 	//
 	// TODO(prattmic): If we split dist bootstrap and dist test then this
 	// could be simplified to directly use internal/sysinfo here.
-	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), "go", []string{"run", "main.go"}).Run()
+	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), gorootBinGo, []string{"run", "main.go"}).Run()
 }
 
 // goTest represents all options to a "go test" command. The final command will
@@ -1077,9 +1077,6 @@ func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
 	}
 
 	bin = list[0]
-	if bin == "go" {
-		bin = gorootBinGo
-	}
 	return bin, list[1:]
 }
 
@@ -1354,7 +1351,7 @@ func (t *tester) registerCgoTests() {
 // running in parallel with earlier tests, or if it has some other reason
 // for needing the earlier tests to be done.
 func (t *tester) runPending(nextTest *distTest) {
-	checkNotStale(nil, "go", "std")
+	checkNotStale(nil, gorootBinGo, "std")
 	worklist := t.worklist
 	t.worklist = nil
 	for _, w := range worklist {
@@ -1412,7 +1409,7 @@ func (t *tester) runPending(nextTest *distTest) {
 			log.Printf("Failed: %v", w.err)
 			t.failed = true
 		}
-		checkNotStale(nil, "go", "std")
+		checkNotStale(nil, gorootBinGo, "std")
 	}
 	if t.failed && !t.keepGoing {
 		fatalf("FAILED")
@@ -1612,7 +1609,7 @@ func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
 			os.Remove(runtest.exe)
 		})
 
-		cmd := t.dirCmd("test", "go", "build", "-o", runtest.exe, "run.go")
+		cmd := t.dirCmd("test", gorootBinGo, "build", "-o", runtest.exe, "run.go")
 		setEnv(cmd, "GOOS", gohostos)
 		setEnv(cmd, "GOARCH", gohostarch)
 		runtest.err = cmd.Run()
