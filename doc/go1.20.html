@@ -186,12 +186,6 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="vet">Vet</h3>
 
-<h4 id="vet-timeformat">New diagnostic for incorrect time formats</h4>
-
-<p><!-- https://go.dev/issue/48801, CL 354010 -->
-  TODO: <a href="https://go.dev/issue/48801">https://go.dev/issue/48801</a>: check for time formats with 2006-02-01
-</p>
-
 <h4 id="vet-loopclosure">Improved detection of loop variable capture by nested functions</h4>
 
 <p><!-- CL 447256 --><!-- https://go.dev/issue/55972: extend the loopclosure analysis to parallel subtests -->
@@ -206,6 +200,17 @@ Do not send CLs removing the interior tags from such phrases.
   The tool also detects reference mistakes in more places. Previously it would
   only consider the last statement of the loop body, but now it recursively
   inspects the last statements within if, switch, and select statements.
+</p>
+
+<h4 id="vet-timeformat">New diagnostic for incorrect time formats</h4>
+
+<p><!-- CL 354010 --><!-- https://go.dev/issue/48801: check for time formats with 2006-02-01 -->
+  The vet tool now reports use of the time format 2006-02-01 (yyyy-dd-mm)
+  with <a href="/pkg/time/#Time.Format"><code>Time.Format</code></a> and
+  <a href="/pkg/time/#Parse"><code>time.Parse</code></a>.
+  This format does not appear in common date standards, but is frequently
+  used by mistake when attempting to use the ISO 8601 date format
+  (yyyy-mm-dd).
 </p>
 
 <h2 id="runtime">Runtime</h2>
