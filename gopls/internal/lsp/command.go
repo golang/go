@@ -843,6 +843,16 @@ type pkgLoadConfig struct {
 func (c *commandHandler) FetchVulncheckResult(ctx context.Context, arg command.URIArg) (map[protocol.DocumentURI]*govulncheck.Result, error) {
 	ret := map[protocol.DocumentURI]*govulncheck.Result{}
 	err := c.run(ctx, commandConfig{forURI: arg.URI}, func(ctx context.Context, deps commandDeps) error {
+		if deps.snapshot.View().Options().Vulncheck == source.ModeVulncheckImports {
+			for _, modfile := range deps.snapshot.ModFiles() {
+				res, err := deps.snapshot.ModVuln(ctx, modfile)
+				if err != nil {
+					return err
+				}
+				ret[protocol.URIFromSpanURI(modfile)] = res
+			}
+		}
+		// Overwrite if there is any govulncheck-based result.
 		for modfile, result := range deps.snapshot.View().Vulnerabilities() {
 			ret[protocol.URIFromSpanURI(modfile)] = result
 		}
@@ -914,6 +924,7 @@ func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.Vulnc
 			// TODO: for easy debugging, log the failed stdout somewhere?
 			return fmt.Errorf("failed to parse govulncheck output: %v", err)
 		}
+		result.Mode = govulncheck.ModeGovulncheck
 		deps.snapshot.View().SetVulnerabilities(args.URI.SpanURI(), &result)
 
 		c.s.diagnoseSnapshot(deps.snapshot, nil, false)

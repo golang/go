@@ -476,6 +476,7 @@ func vulnerablePackages(ctx context.Context, snapshot source.Snapshot, modfile s
 	})
 	ret := &govulncheck.Result{
 		Vulns: vulns,
+		Mode:  govulncheck.ModeImports,
 	}
 	return ret, nil
 }

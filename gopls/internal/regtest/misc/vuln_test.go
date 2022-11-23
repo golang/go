@@ -197,11 +197,17 @@ func main() {
 				ShownMessage("Found GOSTDLIB"),
 			),
 		)
-		testFetchVulncheckResult(t, env, map[string][]string{"go.mod": {"GOSTDLIB"}})
+		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
+			"go.mod": {IDs: []string{"GOSTDLIB"}, Mode: govulncheck.ModeGovulncheck}})
 	})
 }
 
-func testFetchVulncheckResult(t *testing.T, env *Env, want map[string][]string) {
+type fetchVulncheckResult struct {
+	IDs  []string
+	Mode govulncheck.AnalysisMode
+}
+
+func testFetchVulncheckResult(t *testing.T, env *Env, want map[string]fetchVulncheckResult) {
 	t.Helper()
 
 	var result map[protocol.DocumentURI]*govulncheck.Result
@@ -217,9 +223,9 @@ func testFetchVulncheckResult(t *testing.T, env *Env, want map[string][]string) 
 	}, &result)
 
 	for _, v := range want {
-		sort.Strings(v)
+		sort.Strings(v.IDs)
 	}
-	got := map[string][]string{}
+	got := map[string]fetchVulncheckResult{}
 	for k, r := range result {
 		var osv []string
 		for _, v := range r.Vulns {
@@ -227,7 +233,10 @@ func testFetchVulncheckResult(t *testing.T, env *Env, want map[string][]string) 
 		}
 		sort.Strings(osv)
 		modfile := env.Sandbox.Workdir.RelPath(k.SpanURI().Filename())
-		got[modfile] = osv
+		got[modfile] = fetchVulncheckResult{
+			IDs:  osv,
+			Mode: r.Mode,
+		}
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("fetch vulnchheck result = got %v, want %v: diff %v", got, want, diff)
@@ -396,7 +405,12 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 			ReadDiagnostics("go.mod", gotDiagnostics),
 		)
 
-		testFetchVulncheckResult(t, env, map[string][]string{})
+		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
+			"go.mod": {
+				IDs:  []string{"GO-2022-01", "GO-2022-02", "GO-2022-03"},
+				Mode: govulncheck.ModeImports,
+			},
+		})
 
 		wantVulncheckDiagnostics := map[string]vulnDiagExpectation{
 			"golang.org/amod": {
@@ -449,7 +463,7 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 		if len(gotDiagnostics.Diagnostics) > 0 {
 			t.Errorf("Unexpected diagnostics: %v", stringify(gotDiagnostics))
 		}
-		testFetchVulncheckResult(t, env, map[string][]string{})
+		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{})
 	}
 
 	for _, tc := range []struct {
@@ -510,8 +524,8 @@ func TestRunVulncheckWarning(t *testing.T) {
 			),
 		)
 
-		testFetchVulncheckResult(t, env, map[string][]string{
-			"go.mod": {"GO-2022-01", "GO-2022-02", "GO-2022-03"},
+		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
+			"go.mod": {IDs: []string{"GO-2022-01", "GO-2022-02", "GO-2022-03"}, Mode: govulncheck.ModeGovulncheck},
 		})
 		env.OpenFile("x/x.go")
 		lineX := env.RegexpSearch("x/x.go", `c\.C1\(\)\.Vuln1\(\)`)
@@ -672,7 +686,7 @@ func TestRunVulncheckInfo(t *testing.T) {
 			),
 		)
 
-		testFetchVulncheckResult(t, env, map[string][]string{"go.mod": {"GO-2022-02"}})
+		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{"go.mod": {IDs: []string{"GO-2022-02"}, Mode: govulncheck.ModeGovulncheck}})
 		// wantDiagnostics maps a module path in the require
 		// section of a go.mod to diagnostics that will be returned
 		// when running vulncheck.
@@ -791,7 +805,7 @@ func (i vulnRelatedInfo) less(j vulnRelatedInfo) bool {
 	return i.Message < j.Message
 }
 
-// wantVulncheckModDiagnostics maps a module path in the require
+// vulnDiagExpectation maps a module path in the require
 // section of a go.mod to diagnostics that will be returned
 // when running vulncheck.
 type vulnDiagExpectation struct {
