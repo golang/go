@@ -23,7 +23,7 @@
 // control-flow paths.
 //
 // The WithCancelCause function returns a CancelCauseFunc, which
-// takes an error and records it as the cancelation cause. Calling
+// takes an error and records it as the cancellation cause. Calling
 // Cause on the canceled context or any of its children retrieves
 // the cause. If no cause is specified, Cause(ctx) returns the same
 // value as ctx.Err().
@@ -240,7 +240,7 @@ func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
 	return c, func() { c.cancel(true, Canceled, nil) }
 }
 
-// A CancelCauseFunc behaves like a CancelFunc but additionally sets the cancelation cause.
+// A CancelCauseFunc behaves like a CancelFunc but additionally sets the cancellation cause.
 // This cause can be retrieved by calling Cause on the canceled Context or on
 // any of its derived Contexts.
 //
@@ -278,8 +278,8 @@ func withCancel(parent Context) *cancelCtx {
 }
 
 // Cause returns a non-nil error explaining why c was canceled.
-// The first cancelation of c or one of its parents sets the cause.
-// If that cancelation happened via a call to CancelCauseFunc(err),
+// The first cancellation of c or one of its parents sets the cause.
+// If that cancellation happened via a call to CancelCauseFunc(err),
 // then Cause returns err.
 // Otherwise Cause(c) returns the same value as c.Err().
 // Cause returns nil if c has not been canceled yet.
