@@ -343,6 +343,20 @@ Can contain any of:
 
 Default: `{"bounds":true,"escape":true,"inline":true,"nil":true}`.
 
+##### **vulncheck** *enum*
+
+**This setting is experimental and may be deleted.**
+
+vulncheck enables vulnerability scanning.
+
+Must be one of:
+
+* `"Imports"`: In Imports mode, `gopls` will report vulnerabilities that affect packages
+directly and indirectly used by the analyzed main module.
+* `"Off"`: Disable vulnerability analysis.
+
+Default: `"Off"`.
+
 ##### **diagnosticsDelay** *time.Duration*
 
 **This is an advanced setting and should not be configured by most `gopls` users.**

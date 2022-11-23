@@ -167,6 +167,28 @@ func TestSetOption(t *testing.T) {
 				return !o.Annotations[Nil] && !o.Annotations[Bounds]
 			},
 		},
+		{
+			name:      "vulncheck",
+			value:     []interface{}{"invalid"},
+			wantError: true,
+			check: func(o Options) bool {
+				return o.Vulncheck == "" // For invalid value, default to 'off'.
+			},
+		},
+		{
+			name:  "vulncheck",
+			value: "Imports",
+			check: func(o Options) bool {
+				return o.Vulncheck == ModeVulncheckImports // For invalid value, default to 'off'.
+			},
+		},
+		{
+			name:  "vulncheck",
+			value: "imports",
+			check: func(o Options) bool {
+				return o.Vulncheck == ModeVulncheckImports
+			},
+		},
 	}
 
 	for _, test := range tests {

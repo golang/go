@@ -72,7 +72,16 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}
 
 	// Get the vulnerability info.
-	affecting, nonaffecting := lookupVulns(snapshot.View().Vulnerabilities(fh.URI())[fh.URI()], req.Mod.Path, req.Mod.Version)
+	fromGovulncheck := true
+	vs := snapshot.View().Vulnerabilities(fh.URI())[fh.URI()]
+	if vs == nil && snapshot.View().Options().Vulncheck == source.ModeVulncheckImports {
+		vs, err = snapshot.ModVuln(ctx, fh.URI())
+		if err != nil {
+			return nil, err
+		}
+		fromGovulncheck = false
+	}
+	affecting, nonaffecting := lookupVulns(vs, req.Mod.Path, req.Mod.Version)
 
 	// Get the `go mod why` results for the given file.
 	why, err := snapshot.ModWhy(ctx, fh)
@@ -95,7 +104,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	isPrivate := snapshot.View().IsGoPrivatePath(req.Mod.Path)
 	header := formatHeader(req.Mod.Path, options)
 	explanation = formatExplanation(explanation, req, options, isPrivate)
-	vulns := formatVulnerabilities(req.Mod.Path, affecting, nonaffecting, options)
+	vulns := formatVulnerabilities(req.Mod.Path, affecting, nonaffecting, options, fromGovulncheck)
 
 	return &protocol.Hover{
 		Contents: protocol.MarkupContent{
@@ -158,7 +167,7 @@ func lookupVulns(vulns *govulncheck.Result, modpath, version string) (affecting,
 	return affecting, nonaffecting
 }
 
-func formatVulnerabilities(modPath string, affecting, nonaffecting []*govulncheck.Vuln, options *source.Options) string {
+func formatVulnerabilities(modPath string, affecting, nonaffecting []*govulncheck.Vuln, options *source.Options, fromGovulncheck bool) string {
 	if len(affecting) == 0 && len(nonaffecting) == 0 {
 		return ""
 	}
@@ -187,7 +196,11 @@ func formatVulnerabilities(modPath string, affecting, nonaffecting []*govulnchec
 		}
 	}
 	if len(nonaffecting) > 0 {
-		fmt.Fprintf(&b, "\n**FYI:** The project imports packages with known vulnerabilities, but does not call the vulnerable code.\n")
+		if fromGovulncheck {
+			fmt.Fprintf(&b, "\n**Note:** The project imports packages with known vulnerabilities, but does not call the vulnerable code.\n")
+		} else {
+			fmt.Fprintf(&b, "\n**Note:** The project imports packages with known vulnerabilities. Use `govulncheck` to check if the project uses vulnerable symbols.\n")
+		}
 	}
 	for _, v := range nonaffecting {
 		fix := fixedVersionInfo(v, modPath)

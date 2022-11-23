@@ -9,6 +9,7 @@ package misc
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -98,6 +99,17 @@ description: |
     of this vulnerability.
 references:
   - href: pkg.go.dev/vuln/GO-2022-03
+-- GO-2022-04.yaml --
+modules:
+  - module: golang.org/bmod
+    packages:
+      - package: golang.org/bmod/unused
+        symbols:
+          - Vuln
+description: |
+    vuln in bmod/somtrhingelse
+references:
+  - href: pkg.go.dev/vuln/GO-2022-04
 -- GOSTDLIB.yaml --
 modules:
   - module: stdlib
@@ -237,7 +249,7 @@ require (
 -- go.sum --
 golang.org/amod v1.0.0 h1:EUQOI2m5NhQZijXZf8WimSnnWubaFNrrKUH/PopTN8k=
 golang.org/amod v1.0.0/go.mod h1:yvny5/2OtYFomKt8ax+WJGvN6pfN1pqjGnn7DQLUi6E=
-golang.org/bmod v0.5.0 h1:0kt1EI53298Ta9w4RPEAzNUQjtDoHUA6cc0c7Rwxhlk=
+golang.org/bmod v0.5.0 h1:KgvUulMyMiYRB7suKA0x+DfWRVdeyPgVJvcishTH+ng=
 golang.org/bmod v0.5.0/go.mod h1:f6o+OhF66nz/0BBc/sbCsshyPRKMSxZIlG50B/bsM4c=
 golang.org/cmod v1.1.3 h1:PJ7rZFTk7xGAunBRDa0wDe7rZjZ9R/vr1S2QkVVCngQ=
 golang.org/cmod v1.1.3/go.mod h1:eCR8dnmvLYQomdeAZRCPgS5JJihXtqOQrpEkNj5feQA=
@@ -325,6 +337,12 @@ package bvuln
 func Vuln() {
 	// something evil
 }
+-- golang.org/bmod@v0.5.0/unused/unused.go --
+package unused
+
+func Vuln() {
+	// something evil
+}
 -- golang.org/amod@v1.0.6/go.mod --
 module golang.org/amod
 
@@ -358,6 +376,110 @@ func vulnTestEnv(vulnsDB, proxyData string) (*vulntest.DB, []RunOption, error) {
 		"GOSUMDB":                         "off",
 	}
 	return db, []RunOption{ProxyFiles(proxyData), ev, settings}, nil
+}
+
+func TestRunVulncheckPackageDiagnostics(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
+
+	db, opts0, err := vulnTestEnv(vulnsData, proxy1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Clean()
+
+	checkVulncheckDiagnostics := func(env *Env, t *testing.T) {
+		env.OpenFile("go.mod")
+
+		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
+		env.AfterChange(
+			env.DiagnosticAtRegexp("go.mod", `golang.org/amod`),
+			ReadDiagnostics("go.mod", gotDiagnostics),
+		)
+
+		testFetchVulncheckResult(t, env, map[string][]string{})
+
+		wantVulncheckDiagnostics := map[string]vulnDiagExpectation{
+			"golang.org/amod": {
+				diagnostics: []vulnDiag{
+					{
+						msg:      "golang.org/amod has known vulnerabilities GO-2022-01, GO-2022-03.",
+						severity: protocol.SeverityInformation,
+						codeActions: []string{
+							"Upgrade to latest",
+							"Upgrade to v1.0.6",
+						},
+					},
+				},
+				codeActions: []string{
+					"Upgrade to latest",
+					"Upgrade to v1.0.6",
+				},
+				hover: []string{"GO-2022-01", "Fixed in v1.0.4.", "GO-2022-03"},
+			},
+			"golang.org/bmod": {
+				diagnostics: []vulnDiag{
+					{
+						msg:      "golang.org/bmod has a vulnerability GO-2022-02.",
+						severity: protocol.SeverityInformation,
+					},
+				},
+				hover: []string{"GO-2022-02", "This is a long description of this vulnerability.", "No fix is available."},
+			},
+		}
+
+		for mod, want := range wantVulncheckDiagnostics {
+			modPathDiagnostics := testVulnDiagnostics(t, env, mod, want, gotDiagnostics)
+
+			gotActions := env.CodeAction("go.mod", modPathDiagnostics)
+			if diff := diffCodeActions(gotActions, want.codeActions); diff != "" {
+				t.Errorf("code actions for %q do not match, got %v, want %v\n%v\n", mod, gotActions, want.codeActions, diff)
+				continue
+			}
+		}
+	}
+
+	wantNoVulncheckDiagnostics := func(env *Env, t *testing.T) {
+		env.OpenFile("go.mod")
+
+		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
+		env.AfterChange(
+			ReadDiagnostics("go.mod", gotDiagnostics),
+		)
+
+		if len(gotDiagnostics.Diagnostics) > 0 {
+			t.Errorf("Unexpected diagnostics: %v", stringify(gotDiagnostics))
+		}
+		testFetchVulncheckResult(t, env, map[string][]string{})
+	}
+
+	for _, tc := range []struct {
+		name            string
+		setting         Settings
+		wantDiagnostics bool
+	}{
+		{"imports", Settings{"ui.diagnostic.vulncheck": "Imports"}, true},
+		{"default", Settings{}, false},
+		{"invalid", Settings{"ui.diagnostic.vulncheck": "invalid"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// override the settings options to enable diagnostics
+			opts := append(opts0, tc.setting)
+			WithOptions(opts...).Run(t, workspace1, func(t *testing.T, env *Env) {
+				// TODO(hyangah): implement it, so we see GO-2022-01, GO-2022-02, and GO-2022-03.
+				// Check that the actions we get when including all diagnostics at a location return the same result
+				if tc.wantDiagnostics {
+					checkVulncheckDiagnostics(env, t)
+				} else {
+					wantNoVulncheckDiagnostics(env, t)
+				}
+			})
+		})
+	}
+}
+
+func stringify(a interface{}) string {
+	data, _ := json.Marshal(a)
+	return string(data)
 }
 
 func TestRunVulncheckWarning(t *testing.T) {

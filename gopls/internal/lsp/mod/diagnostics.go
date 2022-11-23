@@ -180,7 +180,15 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		return nil, err
 	}
 
+	fromGovulncheck := true
 	vs := snapshot.View().Vulnerabilities(fh.URI())[fh.URI()]
+	if vs == nil && snapshot.View().Options().Vulncheck == source.ModeVulncheckImports {
+		vs, err = snapshot.ModVuln(ctx, fh.URI())
+		if err != nil {
+			return nil, err
+		}
+		fromGovulncheck = false
+	}
 	if vs == nil || len(vs.Vulns) == 0 {
 		return nil, nil
 	}
@@ -300,11 +308,20 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		}
 		if len(info) > 0 {
 			var b strings.Builder
-			switch len(info) {
-			case 1:
-				fmt.Fprintf(&b, "%v has a vulnerability %v that is not used in the code.", req.Mod.Path, info[0])
-			default:
-				fmt.Fprintf(&b, "%v has known vulnerabilities %v that are not used in the code.", req.Mod.Path, strings.Join(info, ", "))
+			if fromGovulncheck {
+				switch len(info) {
+				case 1:
+					fmt.Fprintf(&b, "%v has a vulnerability %v that is not used in the code.", req.Mod.Path, info[0])
+				default:
+					fmt.Fprintf(&b, "%v has known vulnerabilities %v that are not used in the code.", req.Mod.Path, strings.Join(info, ", "))
+				}
+			} else {
+				switch len(info) {
+				case 1:
+					fmt.Fprintf(&b, "%v has a vulnerability %v.", req.Mod.Path, info[0])
+				default:
+					fmt.Fprintf(&b, "%v has known vulnerabilities %v.", req.Mod.Path, strings.Join(info, ", "))
+				}
 			}
 			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
 				URI:            fh.URI(),

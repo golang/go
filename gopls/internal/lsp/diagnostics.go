@@ -260,14 +260,6 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	}
 	store(modCheckUpgradesSource, "diagnosing go.mod upgrades", upgradeReports, upgradeErr)
 
-	// Diagnose vulnerabilities.
-	vulnReports, vulnErr := mod.VulnerabilityDiagnostics(ctx, snapshot)
-	if ctx.Err() != nil {
-		log.Trace.Log(ctx, "diagnose cancelled")
-		return
-	}
-	store(modVulncheckSource, "diagnosing vulnerabilities", vulnReports, vulnErr)
-
 	// Diagnose go.work file.
 	workReports, workErr := work.Diagnostics(ctx, snapshot)
 	if ctx.Err() != nil {
@@ -290,6 +282,14 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 		return
 	}
 	store(modSource, "diagnosing go.mod file", modReports, modErr)
+
+	// Diagnose vulnerabilities.
+	vulnReports, vulnErr := mod.VulnerabilityDiagnostics(ctx, snapshot)
+	if ctx.Err() != nil {
+		log.Trace.Log(ctx, "diagnose cancelled")
+		return
+	}
+	store(modVulncheckSource, "diagnosing vulnerabilities", vulnReports, vulnErr)
 
 	if s.shouldIgnoreError(ctx, snapshot, activeErr) {
 		return

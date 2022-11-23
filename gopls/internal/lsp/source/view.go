@@ -148,6 +148,10 @@ type Snapshot interface {
 	// the given go.mod file.
 	ModTidy(ctx context.Context, pm *ParsedModule) (*TidiedModule, error)
 
+	// ModVuln returns import vulnerability analysis for the given go.mod URI.
+	// Concurrent requests are combined into a single command.
+	ModVuln(ctx context.Context, modURI span.URI) (*govulncheck.Result, error)
+
 	// GoModForFile returns the URI of the go.mod file for the given URI.
 	GoModForFile(uri span.URI) span.URI
 

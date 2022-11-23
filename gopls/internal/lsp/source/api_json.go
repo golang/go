@@ -499,6 +499,24 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy: "ui.diagnostic",
 			},
 			{
+				Name: "vulncheck",
+				Type: "enum",
+				Doc:  "vulncheck enables vulnerability scanning.\n",
+				EnumValues: []EnumValue{
+					{
+						Value: "\"Imports\"",
+						Doc:   "`\"Imports\"`: In Imports mode, `gopls` will report vulnerabilities that affect packages\ndirectly and indirectly used by the analyzed main module.\n",
+					},
+					{
+						Value: "\"Off\"",
+						Doc:   "`\"Off\"`: Disable vulnerability analysis.\n",
+					},
+				},
+				Default:   "\"Off\"",
+				Status:    "experimental",
+				Hierarchy: "ui.diagnostic",
+			},
+			{
 				Name:      "diagnosticsDelay",
 				Type:      "time.Duration",
 				Doc:       "diagnosticsDelay controls the amount of time that gopls waits\nafter the most recent file modification before computing deep diagnostics.\nSimple diagnostics (parsing and type-checking) are always run immediately\non recently modified packages.\n\nThis option must be set to a valid duration string, for example `\"250ms\"`.\n",

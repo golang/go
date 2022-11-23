@@ -131,6 +131,7 @@ func DefaultOptions() *Options {
 							Inline: true,
 							Nil:    true,
 						},
+						Vulncheck: ModeVulncheckOff,
 					},
 					InlayHintOptions: InlayHintOptions{},
 					DocumentationOptions: DocumentationOptions{
@@ -430,6 +431,9 @@ type DiagnosticOptions struct {
 	// that should be reported by the gc_details command.
 	Annotations map[Annotation]bool `status:"experimental"`
 
+	// Vulncheck enables vulnerability scanning.
+	Vulncheck VulncheckMode `status:"experimental"`
+
 	// DiagnosticsDelay controls the amount of time that gopls waits
 	// after the most recent file modification before computing deep diagnostics.
 	// Simple diagnostics (parsing and type-checking) are always run immediately
@@ -690,6 +694,18 @@ const (
 	// packages without open files. As a result, features like Find
 	// References and Rename will miss results in such packages.
 	ModeDegradeClosed MemoryMode = "DegradeClosed"
+)
+
+type VulncheckMode string
+
+const (
+	// Disable vulnerability analysis.
+	ModeVulncheckOff VulncheckMode = "Off"
+	// In Imports mode, `gopls` will report vulnerabilities that affect packages
+	// directly and indirectly used by the analyzed main module.
+	ModeVulncheckImports VulncheckMode = "Imports"
+
+	// TODO: VulncheckRequire, VulncheckCallgraph
 )
 
 type OptionResults []OptionResult
@@ -1005,6 +1021,14 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 	case "annotations":
 		result.setAnnotationMap(&o.Annotations)
+
+	case "vulncheck":
+		if s, ok := result.asOneOf(
+			string(ModeVulncheckOff),
+			string(ModeVulncheckImports),
+		); ok {
+			o.Vulncheck = VulncheckMode(s)
+		}
 
 	case "codelenses", "codelens":
 		var lensOverrides map[string]bool
