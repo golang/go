@@ -69,6 +69,12 @@ pkg math (darwin-amd64), const MinInt = -9223372036854775808
 pkg math (darwin-amd64-cgo), const MaxInt = 9223372036854775807
 pkg math (darwin-amd64-cgo), const MaxUint = 18446744073709551615
 pkg math (darwin-amd64-cgo), const MinInt = -9223372036854775808
+pkg math (darwin-arm64), const MaxInt = 9223372036854775807
+pkg math (darwin-arm64), const MaxUint = 18446744073709551615
+pkg math (darwin-arm64), const MinInt = -9223372036854775808
+pkg math (darwin-arm64-cgo), const MaxInt = 9223372036854775807
+pkg math (darwin-arm64-cgo), const MaxUint = 18446744073709551615
+pkg math (darwin-arm64-cgo), const MinInt = -9223372036854775808
 pkg math (freebsd-386), const MaxInt = 2147483647
 pkg math (freebsd-386), const MaxUint = 4294967295
 pkg math (freebsd-386), const MinInt = -2147483648
@@ -167,6 +173,10 @@ pkg runtime/cgo (darwin-amd64-cgo), func NewHandle(interface{}) Handle
 pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Delete()
 pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Value() interface{}
 pkg runtime/cgo (darwin-amd64-cgo), type Handle uintptr
+pkg runtime/cgo (darwin-arm64-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (darwin-arm64-cgo), method (Handle) Delete()
+pkg runtime/cgo (darwin-arm64-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (darwin-arm64-cgo), type Handle uintptr
 pkg runtime/cgo (freebsd-386-cgo), func NewHandle(interface{}) Handle
 pkg runtime/cgo (freebsd-386-cgo), method (Handle) Delete()
 pkg runtime/cgo (freebsd-386-cgo), method (Handle) Value() interface{}
