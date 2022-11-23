@@ -152,7 +152,7 @@ func Check(t *testing.T) {
 		}
 
 		for _, name := range pkgNames {
-			pkg, err := w.Import(name)
+			pkg, err := w.import_(name)
 			if _, nogo := err.(*build.NoGoError); nogo {
 				continue
 			}
@@ -206,12 +206,13 @@ func Check(t *testing.T) {
 }
 
 // export emits the exported package features.
-func (w *Walker) export(pkg *types.Package) {
+func (w *Walker) export(pkg *apiPackage) {
 	if verbose {
 		log.Println(pkg)
 	}
 	pop := w.pushScope("pkg " + pkg.Path())
 	w.current = pkg
+	w.collectDeprecated()
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
 		if token.IsExported(name) {
@@ -359,11 +360,12 @@ func fileFeatures(filename string, needApproval bool) []string {
 			if !ok {
 				log.Printf("%s:%d: missing proposal approval\n", filename, i+1)
 				exitCode = 1
-			}
-			_, err := strconv.Atoi(approval)
-			if err != nil {
-				log.Printf("%s:%d: malformed proposal approval #%s\n", filename, i+1, approval)
-				exitCode = 1
+			} else {
+				_, err := strconv.Atoi(approval)
+				if err != nil {
+					log.Printf("%s:%d: malformed proposal approval #%s\n", filename, i+1, approval)
+					exitCode = 1
+				}
 			}
 			line = strings.TrimSpace(feature)
 		} else {
@@ -383,9 +385,10 @@ type Walker struct {
 	context     *build.Context
 	root        string
 	scope       []string
-	current     *types.Package
+	current     *apiPackage
+	deprecated  map[token.Pos]bool
 	features    map[string]bool              // set
-	imported    map[string]*types.Package    // packages already imported
+	imported    map[string]*apiPackage       // packages already imported
 	stdPackages []string                     // names, omitting "unsafe", internal, and vendored packages
 	importMap   map[string]map[string]string // importer dir -> import path -> canonical path
 	importDir   map[string]string            // canonical import path -> dir
@@ -397,7 +400,7 @@ func NewWalker(context *build.Context, root string) *Walker {
 		context:  context,
 		root:     root,
 		features: map[string]bool{},
-		imported: map[string]*types.Package{"unsafe": types.Unsafe},
+		imported: map[string]*apiPackage{"unsafe": &apiPackage{Package: types.Unsafe}},
 	}
 	w.loadImports()
 	return w
@@ -419,7 +422,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 		return f, nil
 	}
 
-	f, err := parser.ParseFile(fset, filename, nil, 0)
+	f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
@@ -432,8 +435,8 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 const usePkgCache = true
 
 var (
-	pkgCache = map[string]*types.Package{} // map tagKey to package
-	pkgTags  = map[string][]string{}       // map import dir to list of relevant tags
+	pkgCache = map[string]*apiPackage{} // map tagKey to package
+	pkgTags  = map[string][]string{}    // map import dir to list of relevant tags
 )
 
 // tagKey returns the tag-based key to use in the pkgCache.
@@ -596,15 +599,34 @@ func listEnv(c *build.Context) []string {
 	return environ
 }
 
+type apiPackage struct {
+	*types.Package
+	Files []*ast.File
+}
+
 // Importing is a sentinel taking the place in Walker.imported
 // for a package that is in the process of being imported.
-var importing types.Package
+var importing apiPackage
 
+// Import implements types.Importer.
 func (w *Walker) Import(name string) (*types.Package, error) {
 	return w.ImportFrom(name, "", 0)
 }
 
+// ImportFrom implements types.ImporterFrom.
 func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*types.Package, error) {
+	pkg, err := w.importFrom(fromPath, fromDir, mode)
+	if err != nil {
+		return nil, err
+	}
+	return pkg.Package, nil
+}
+
+func (w *Walker) import_(name string) (*apiPackage, error) {
+	return w.importFrom(name, "", 0)
+}
+
+func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*apiPackage, error) {
 	name := fromPath
 	if canonical, ok := w.importMap[fromDir][fromPath]; ok {
 		name = canonical
@@ -686,7 +708,7 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
 		Importer:         w,
 		Sizes:            sizes,
 	}
-	pkg, err = conf.Check(name, fset, files, nil)
+	tpkg, err := conf.Check(name, fset, files, nil)
 	if err != nil {
 		ctxt := "<no context>"
 		if w.context != nil {
@@ -694,6 +716,7 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
 		}
 		log.Fatalf("error typechecking package %s: %s (%s)", name, err, ctxt)
 	}
+	pkg = &apiPackage{tpkg, files}
 
 	if usePkgCache {
 		pkgCache[key] = pkg
@@ -854,7 +877,7 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 	case *types.Named:
 		obj := typ.Obj()
 		pkg := obj.Pkg()
-		if pkg != nil && pkg != w.current {
+		if pkg != nil && pkg != w.current.Package {
 			buf.WriteString(pkg.Name())
 			buf.WriteByte('.')
 		}
@@ -934,6 +957,9 @@ func (w *Walker) signatureString(sig *types.Signature) string {
 func (w *Walker) emitObj(obj types.Object) {
 	switch obj := obj.(type) {
 	case *types.Const:
+		if w.isDeprecated(obj) {
+			w.emitf("const %s //deprecated", obj.Name())
+		}
 		w.emitf("const %s %s", obj.Name(), w.typeString(obj.Type()))
 		x := obj.Val()
 		short := x.String()
@@ -944,6 +970,9 @@ func (w *Walker) emitObj(obj types.Object) {
 			w.emitf("const %s = %s  // %s", obj.Name(), short, exact)
 		}
 	case *types.Var:
+		if w.isDeprecated(obj) {
+			w.emitf("var %s //deprecated", obj.Name())
+		}
 		w.emitf("var %s %s", obj.Name(), w.typeString(obj.Type()))
 	case *types.TypeName:
 		w.emitType(obj)
@@ -956,6 +985,9 @@ func (w *Walker) emitObj(obj types.Object) {
 
 func (w *Walker) emitType(obj *types.TypeName) {
 	name := obj.Name()
+	if w.isDeprecated(obj) {
+		w.emitf("type %s //deprecated", name)
+	}
 	if tparams := obj.Type().(*types.Named).TypeParams(); tparams != nil {
 		var buf bytes.Buffer
 		buf.WriteString(name)
@@ -1015,8 +1047,14 @@ func (w *Walker) emitStructType(name string, typ *types.Struct) {
 		}
 		typ := f.Type()
 		if f.Anonymous() {
+			if w.isDeprecated(f) {
+				w.emitf("embedded %s //deprecated", w.typeString(typ))
+			}
 			w.emitf("embedded %s", w.typeString(typ))
 			continue
+		}
+		if w.isDeprecated(f) {
+			w.emitf("%s //deprecated", f.Name())
 		}
 		w.emitf("%s %s", f.Name(), w.typeString(typ))
 	}
@@ -1035,6 +1073,9 @@ func (w *Walker) emitIfaceType(name string, typ *types.Interface) {
 			continue
 		}
 		methodNames = append(methodNames, m.Name())
+		if w.isDeprecated(m) {
+			w.emitf("%s //deprecated", m.Name())
+		}
 		w.emitf("%s%s", m.Name(), w.signatureString(m.Type().(*types.Signature)))
 	}
 
@@ -1069,6 +1110,9 @@ func (w *Walker) emitFunc(f *types.Func) {
 	if sig.Recv() != nil {
 		panic("method considered a regular function: " + f.String())
 	}
+	if w.isDeprecated(f) {
+		w.emitf("func %s //deprecated", f.Name())
+	}
 	w.emitf("func %s%s", f.Name(), w.signatureString(sig))
 }
 
@@ -1090,6 +1134,9 @@ func (w *Walker) emitMethod(m *types.Selection) {
 		var buf bytes.Buffer
 		w.writeTypeParams(&buf, rtp, false)
 		tps = buf.String()
+	}
+	if w.isDeprecated(m.Obj()) {
+		w.emitf("method (%s%s) %s //deprecated", w.typeString(recv), tps, m.Obj().Name())
 	}
 	w.emitf("method (%s%s) %s%s", w.typeString(recv), tps, m.Obj().Name(), w.signatureString(sig))
 }
@@ -1121,4 +1168,95 @@ func needApproval(filename string) bool {
 		log.Fatalf("unexpected api file: %v", name)
 	}
 	return n >= 19 // started tracking approvals in Go 1.19
+}
+
+func (w *Walker) collectDeprecated() {
+	isDeprecated := func(doc *ast.CommentGroup) bool {
+		if doc != nil {
+			for _, c := range doc.List {
+				if strings.HasPrefix(c.Text, "// Deprecated:") {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	w.deprecated = make(map[token.Pos]bool)
+	mark := func(id *ast.Ident) {
+		if id != nil {
+			w.deprecated[id.Pos()] = true
+		}
+	}
+	for _, file := range w.current.Files {
+		ast.Inspect(file, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.File:
+				if isDeprecated(n.Doc) {
+					mark(n.Name)
+				}
+				return true
+			case *ast.GenDecl:
+				if isDeprecated(n.Doc) {
+					for _, spec := range n.Specs {
+						switch spec := spec.(type) {
+						case *ast.ValueSpec:
+							for _, id := range spec.Names {
+								mark(id)
+							}
+						case *ast.TypeSpec:
+							mark(spec.Name)
+						}
+					}
+				}
+				return true // look at specs
+			case *ast.FuncDecl:
+				if isDeprecated(n.Doc) {
+					mark(n.Name)
+				}
+				return false
+			case *ast.TypeSpec:
+				if isDeprecated(n.Doc) {
+					mark(n.Name)
+				}
+				return true // recurse into struct or interface type
+			case *ast.StructType:
+				return true // recurse into fields
+			case *ast.InterfaceType:
+				return true // recurse into methods
+			case *ast.FieldList:
+				return true // recurse into fields
+			case *ast.ValueSpec:
+				if isDeprecated(n.Doc) {
+					for _, id := range n.Names {
+						mark(id)
+					}
+				}
+				return false
+			case *ast.Field:
+				if isDeprecated(n.Doc) {
+					for _, id := range n.Names {
+						mark(id)
+					}
+					if len(n.Names) == 0 {
+						// embedded field T or *T?
+						typ := n.Type
+						if ptr, ok := typ.(*ast.StarExpr); ok {
+							typ = ptr.X
+						}
+						if id, ok := typ.(*ast.Ident); ok {
+							mark(id)
+						}
+					}
+				}
+				return false
+			default:
+				return false
+			}
+		})
+	}
+}
+
+func (w *Walker) isDeprecated(obj types.Object) bool {
+	return w.deprecated[obj.Pos()]
 }

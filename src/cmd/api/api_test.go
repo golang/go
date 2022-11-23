@@ -75,7 +75,7 @@ func TestGolden(t *testing.T) {
 		// TODO(gri) remove extra pkg directory eventually
 		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
 		w := NewWalker(nil, "testdata/src/pkg")
-		pkg, _ := w.Import(fi.Name())
+		pkg, _ := w.import_(fi.Name())
 		w.export(pkg)
 
 		if *updateGolden {
@@ -202,7 +202,7 @@ func BenchmarkAll(b *testing.B) {
 		for _, context := range contexts {
 			w := NewWalker(context, filepath.Join(testenv.GOROOT(b), "src"))
 			for _, name := range w.stdPackages {
-				pkg, _ := w.Import(name)
+				pkg, _ := w.import_(name)
 				w.export(pkg)
 			}
 			w.Features()
@@ -217,7 +217,7 @@ func TestIssue21181(t *testing.T) {
 	}
 	for _, context := range contexts {
 		w := NewWalker(context, "testdata/src/issue21181")
-		pkg, err := w.Import("p")
+		pkg, err := w.import_("p")
 		if err != nil {
 			t.Fatalf("%s: (%s-%s) %s %v", err, context.GOOS, context.GOARCH,
 				pkg.Name(), w.imported)
@@ -233,7 +233,7 @@ func TestIssue29837(t *testing.T) {
 	}
 	for _, context := range contexts {
 		w := NewWalker(context, "testdata/src/issue29837")
-		_, err := w.Import("p")
+		_, err := w.ImportFrom("p", "", 0)
 		if _, nogo := err.(*build.NoGoError); !nogo {
 			t.Errorf("expected *build.NoGoError, got %T", err)
 		}
