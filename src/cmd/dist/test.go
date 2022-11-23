@@ -957,20 +957,9 @@ func (t *tester) registerTests() {
 	// Every platform checks the API on every GOOS/GOARCH/CGO_ENABLED combination anyway,
 	// so we really only need to run this check once anywhere to get adequate coverage.
 	// To help developers avoid trybot-only failures, we try to run on typical developer machines
-	// which is darwin/linux/windows and amd64/arm64.
-	if (goos == "darwin" || goos == "linux" || goos == "windows") && (goarch == "amd64" || goarch == "arm64") {
-		t.tests = append(t.tests, distTest{
-			name:    "api",
-			heading: "API check",
-			fn: func(dt *distTest) error {
-				if t.compileOnly {
-					t.addCmd(dt, "src", "go", "build", "-o", os.DevNull, filepath.Join(goroot, "src/cmd/api/run.go"))
-					return nil
-				}
-				t.addCmd(dt, "src", "go", "run", filepath.Join(goroot, "src/cmd/api/run.go"))
-				return nil
-			},
-		})
+	// which is darwin,linux,windows/amd64 and darwin/arm64.
+	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
+		t.registerTest("api", "", &goTest{dir: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
 	}
 
 	// Ensure that the toolchain can bootstrap itself.
