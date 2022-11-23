@@ -8,8 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptrace"
-	"net/textproto"
+	"reflect"
 	"testing"
 )
 
@@ -122,6 +121,15 @@ func TestRecorder(t *testing.T) {
 			if got := rec.Result().ContentLength; got != length {
 				return fmt.Errorf("ContentLength = %d; want %d", got, length)
 			}
+			return nil
+		}
+	}
+	hasInformationalResponses := func(ir []InformationalResponse) checkFunc {
+		return func(rec *ResponseRecorder) error {
+			if !reflect.DeepEqual(ir, rec.InformationalResponses) {
+				return fmt.Errorf("InformationalResponses = %v; want %v", rec.InformationalResponses, ir)
+			}
+
 			return nil
 		}
 	}
@@ -296,6 +304,26 @@ func TestRecorder(t *testing.T) {
 			check(hasResultContents("")), // check we don't crash reading the body
 
 		},
+		{
+			"1xx status code",
+			func(rw http.ResponseWriter, _ *http.Request) {
+				rw.WriteHeader(http.StatusContinue)
+				rw.Header().Add("Foo", "bar")
+
+				rw.WriteHeader(http.StatusEarlyHints)
+				rw.Header().Add("Baz", "bat")
+
+				rw.Header().Del("Foo")
+			},
+			check(
+				hasInformationalResponses([]InformationalResponse{
+					InformationalResponse{100, http.Header{}},
+					InformationalResponse{103, http.Header{"Foo": []string{"bar"}}},
+				}),
+				hasHeader("Baz", "bat"),
+				hasNotHeaders("Foo"),
+			),
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			r, _ := http.NewRequest("GET", "http://foo.com/", nil)
@@ -369,60 +397,5 @@ func TestRecorderPanicsOnNonXXXStatusCode(t *testing.T) {
 			rw := NewRecorder()
 			handler(rw, r)
 		})
-	}
-}
-
-func TestRecorderClientTrace(t *testing.T) {
-	handler := func(rw http.ResponseWriter, _ *http.Request) {
-		rw.WriteHeader(http.StatusContinue)
-
-		rw.Header().Add("Foo", "bar")
-		rw.WriteHeader(http.StatusEarlyHints)
-
-		rw.Header().Add("Baz", "bat")
-	}
-
-	var received100, received103 bool
-	trace := &httptrace.ClientTrace{
-		Got100Continue: func() {
-			received100 = true
-		},
-		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
-			switch code {
-			case http.StatusContinue:
-			case http.StatusEarlyHints:
-				received103 = true
-				if header.Get("Foo") != "bar" {
-					t.Errorf(`Expected Foo=bar, got %s`, header.Get("Foo"))
-				}
-				if header.Get("Bar") != "" {
-					t.Error("Unexpected Bar header")
-				}
-			default:
-				t.Errorf("Unexpected status code %d", code)
-			}
-
-			return nil
-		},
-	}
-
-	r, _ := http.NewRequest("GET", "http://example.org/", nil)
-	rw := NewRecorder()
-	rw.ClientTrace = trace
-	handler(rw, r)
-
-	if !received100 {
-		t.Error("Got100Continue not called")
-	}
-	if !received103 {
-		t.Error("103 request not received")
-	}
-
-	header := rw.Result().Header
-	if header.Get("Foo") != "bar" {
-		t.Errorf("Expected Foo=bar, got %s", header.Get("Foo"))
-	}
-	if header.Get("Baz") != "bat" {
-		t.Errorf("Expected Baz=bat, got %s", header.Get("Baz"))
 	}
 }
