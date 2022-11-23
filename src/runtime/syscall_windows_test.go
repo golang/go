@@ -1215,7 +1215,7 @@ func TestBigStackCallbackSyscall(t *testing.T) {
 
 // wantLoadLibraryEx reports whether we expect LoadLibraryEx to work for tests.
 func wantLoadLibraryEx() bool {
-	return testenv.Builder() == "windows-amd64-gce" || testenv.Builder() == "windows-386-gce"
+	return testenv.Builder() != "" && (runtime.GOARCH == "amd64" || runtime.GOARCH == "386")
 }
 
 func TestLoadLibraryEx(t *testing.T) {
