@@ -385,7 +385,7 @@ func vulnerablePackages(ctx context.Context, snapshot source.Snapshot, modfile s
 	// Request vuln entries from remote service.
 	cli, err := client.NewClient(
 		findGOVULNDB(snapshot.View().Options().EnvSlice()),
-		client.Options{HTTPCache: govulncheck.DefaultCache()})
+		client.Options{HTTPCache: govulncheck.NewInMemoryCache(govulncheck.DefaultCache())})
 	if err != nil {
 		return nil, err
 	}
