@@ -36,11 +36,12 @@ func definition(path []ast.Node, obj types.Object, tokFile *token.File, fh sourc
 		// can't happen
 		return nil, nil
 	}
-	pos := path[0].Pos()
+	start := path[0].Pos()
+	end := path[0].End()
 	sel := &Selection{
 		content: "",
-		cursor:  pos,
-		rng:     span.NewRange(tokFile, pos, pos),
+		cursor:  start,
+		rng:     span.NewRange(tokFile, start, end),
 	}
 	var ans []CompletionItem
 

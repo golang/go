@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/gopls/internal/hooks"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/testenv"
 
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -591,6 +592,90 @@ func BenchmarkFoo()
 				for i, it := range completions.Items {
 					t.Errorf("%d got %q %q", i, it.Label, it.Detail)
 				}
+			}
+		}
+	})
+}
+
+// Test that completing a definition replaces source text when applied, golang/go#56852.
+// Note: With go <= 1.16 the completions does not add parameters and fails these tests.
+func TestDefinitionReplaceRange(t *testing.T) {
+	testenv.NeedsGo1Point(t, 17)
+
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.17
+`
+
+	tests := []struct {
+		name          string
+		before, after string
+	}{
+		{
+			name: "func TestMa",
+			before: `
+package foo_test
+
+func TestMa
+`,
+			after: `
+package foo_test
+
+func TestMain(m *testing.M)
+`,
+		},
+		{
+			name: "func TestSome",
+			before: `
+package foo_test
+
+func TestSome
+`,
+			after: `
+package foo_test
+
+func TestSome(t *testing.T)
+`,
+		},
+		{
+			name: "func Bench",
+			before: `
+package foo_test
+
+func Bench
+`,
+			// Note: Snippet with escaped }.
+			after: `
+package foo_test
+
+func Benchmark${1:Xxx}(b *testing.B) {
+$0
+\}
+`,
+		},
+	}
+
+	Run(t, mod, func(t *testing.T, env *Env) {
+		env.CreateBuffer("foo_test.go", "")
+
+		for _, tst := range tests {
+			tst.before = strings.Trim(tst.before, "\n")
+			tst.after = strings.Trim(tst.after, "\n")
+			env.SetBufferContent("foo_test.go", tst.before)
+
+			pos := env.RegexpSearch("foo_test.go", tst.name)
+			pos.Column = len(tst.name)
+			completions := env.Completion("foo_test.go", pos)
+			if len(completions.Items) == 0 {
+				t.Fatalf("no completion items")
+			}
+
+			env.AcceptCompletion("foo_test.go", pos, completions.Items[0])
+			env.Await(env.DoneWithChange())
+			if buf := env.Editor.BufferText("foo_test.go"); buf != tst.after {
+				t.Errorf("incorrect completion: got %q, want %q", buf, tst.after)
 			}
 		}
 	})
