@@ -179,7 +179,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 			argument(e.discardHole(), &call.Args[i])
 		}
 
-	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE:
+	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE, ir.OCLEAR:
 		call := call.(*ir.UnaryExpr)
 		argument(e.discardHole(), &call.X)
 

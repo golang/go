@@ -740,7 +740,7 @@ func (o *orderState) stmt(n ir.Node) {
 			}
 		}
 
-	case ir.OCHECKNIL, ir.OCLOSE, ir.OPANIC, ir.ORECV:
+	case ir.OCHECKNIL, ir.OCLEAR, ir.OCLOSE, ir.OPANIC, ir.ORECV:
 		n := n.(*ir.UnaryExpr)
 		t := o.markTemp()
 		n.X = o.expr(n.X, nil)

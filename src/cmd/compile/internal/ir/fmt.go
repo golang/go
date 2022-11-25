@@ -39,6 +39,7 @@ var OpNames = []string{
 	OCALL:             "function call", // not actual syntax
 	OCAP:              "cap",
 	OCASE:             "case",
+	OCLEAR:            "clear",
 	OCLOSE:            "close",
 	OCOMPLEX:          "complex",
 	OBITNOT:           "^",
@@ -182,6 +183,7 @@ var OpPrec = []int{
 	OCALLMETH:         8,
 	OCALL:             8,
 	OCAP:              8,
+	OCLEAR:            8,
 	OCLOSE:            8,
 	OCOMPLIT:          8,
 	OCONVIFACE:        8,
@@ -767,6 +769,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case OREAL,
 		OIMAG,
 		OCAP,
+		OCLEAR,
 		OCLOSE,
 		OLEN,
 		ONEW,

@@ -743,6 +743,7 @@ func callOrChan(n ir.Node) bool {
 		ir.OCALLINTER,
 		ir.OCALLMETH,
 		ir.OCAP,
+		ir.OCLEAR,
 		ir.OCLOSE,
 		ir.OCOMPLEX,
 		ir.OCOPY,

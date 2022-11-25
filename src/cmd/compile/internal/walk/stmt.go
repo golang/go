@@ -39,6 +39,7 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OAS2RECV,
 		ir.OAS2FUNC,
 		ir.OAS2MAPR,
+		ir.OCLEAR,
 		ir.OCLOSE,
 		ir.OCOPY,
 		ir.OCALLINTER,

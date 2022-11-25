@@ -273,6 +273,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 	case ir.OCALLINTER,
 		ir.OCALLMETH,
 		ir.OCALLFUNC,
+		ir.OCLEAR,
 		ir.OCLOSE,
 		ir.OCOPY,
 		ir.ODELETE,

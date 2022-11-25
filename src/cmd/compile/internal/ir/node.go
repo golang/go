@@ -159,6 +159,7 @@ const (
 	OCALLMETH  // X(Args) (direct method call x.Method(args))
 	OCALLINTER // X(Args) (interface method call x.Method(args))
 	OCAP       // cap(X)
+	OCLEAR     // clear(X)
 	OCLOSE     // close(X)
 	OCLOSURE   // func Type { Func.Closure.Body } (func literal)
 	OCOMPLIT   // Type{List} (composite literal, not yet lowered to specific form)

@@ -279,6 +279,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.OCOPY:
 		return walkCopy(n.(*ir.BinaryExpr), init, base.Flag.Cfg.Instrumenting && !base.Flag.CompilingRuntime)
 
+	case ir.OCLEAR:
+		n := n.(*ir.UnaryExpr)
+		return walkClear(n)
+
 	case ir.OCLOSE:
 		n := n.(*ir.UnaryExpr)
 		return walkClose(n, init)

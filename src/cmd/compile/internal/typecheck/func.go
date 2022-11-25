@@ -260,7 +260,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 			n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
 			return typecheck(n, top)
 
-		case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
+		case ir.OCAP, ir.OCLEAR, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 			typecheckargs(n)
 			fallthrough
 		case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
@@ -438,6 +438,28 @@ func tcAppend(n *ir.CallExpr) ir.Node {
 		as[i] = AssignConv(n, t.Elem(), "append")
 		types.CheckSize(as[i].Type()) // ensure width is calculated for backend
 	}
+	return n
+}
+
+// tcClear typechecks an OCLEAR node.
+func tcClear(n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(n.X)
+	n.X = DefaultLit(n.X, nil)
+	l := n.X
+	t := l.Type()
+	if t == nil {
+		n.SetType(nil)
+		return n
+	}
+
+	switch {
+	case t.IsMap(), t.IsSlice():
+	default:
+		base.Errorf("invalid operation: %v (argument must be a map or slice)", n)
+		n.SetType(nil)
+		return n
+	}
+
 	return n
 }
 

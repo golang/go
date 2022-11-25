@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 )
 
@@ -38,7 +39,7 @@ func cheapComputableIndex(width int64) bool {
 // the returned node.
 func walkRange(nrange *ir.RangeStmt) ir.Node {
 	if isMapClear(nrange) {
-		return mapClear(nrange)
+		return mapRangeClear(nrange)
 	}
 
 	nfor := ir.NewForStmt(nrange.Pos(), nil, nil, nil, nil)
@@ -77,7 +78,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		base.Fatalf("walkRange")
 
 	case types.TARRAY, types.TSLICE, types.TPTR: // TPTR is pointer-to-array
-		if nn := arrayClear(nrange, v1, v2, a); nn != nil {
+		if nn := arrayRangeClear(nrange, v1, v2, a); nn != nil {
 			base.Pos = lno
 			return nn
 		}
@@ -437,18 +438,23 @@ func isMapClear(n *ir.RangeStmt) bool {
 	return true
 }
 
-// mapClear constructs a call to runtime.mapclear for the map m.
-func mapClear(nrange *ir.RangeStmt) ir.Node {
+// mapRangeClear constructs a call to runtime.mapclear for the map range idiom.
+func mapRangeClear(nrange *ir.RangeStmt) ir.Node {
 	m := nrange.X
 	origPos := ir.SetPos(m)
 	defer func() { base.Pos = origPos }()
 
+	return mapClear(m, reflectdata.RangeMapRType(base.Pos, nrange))
+}
+
+// mapClear constructs a call to runtime.mapclear for the map m.
+func mapClear(m, rtyp ir.Node) ir.Node {
 	t := m.Type()
 
 	// instantiate mapclear(typ *type, hmap map[any]any)
 	fn := typecheck.LookupRuntime("mapclear")
 	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
-	n := mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), m)
+	n := mkcallstmt1(fn, rtyp, m)
 	return walkStmt(typecheck.Stmt(n))
 }
 
@@ -463,7 +469,7 @@ func mapClear(nrange *ir.RangeStmt) ir.Node {
 // in which the evaluation of a is side-effect-free.
 //
 // Parameters are as in walkRange: "for v1, v2 = range a".
-func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
+func arrayRangeClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	if base.Flag.N != 0 || base.Flag.Cfg.Instrumenting {
 		return nil
 	}
@@ -496,8 +502,17 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 		return nil
 	}
 
-	elemsize := typecheck.RangeExprType(loop.X.Type()).Elem().Size()
-	if elemsize <= 0 || !ir.IsZero(stmt.Y) {
+	if !ir.IsZero(stmt.Y) {
+		return nil
+	}
+
+	return arrayClear(stmt.Pos(), a, loop)
+}
+
+// arrayClear constructs a call to runtime.memclr for fast zeroing of slices and arrays.
+func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
+	elemsize := typecheck.RangeExprType(a.Type()).Elem().Size()
+	if elemsize <= 0 {
 		return nil
 	}
 
@@ -527,7 +542,7 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	var fn ir.Node
 	if a.Type().Elem().HasPointers() {
 		// memclrHasPointers(hp, hn)
-		ir.CurFunc.SetWBPos(stmt.Pos())
+		ir.CurFunc.SetWBPos(wbPos)
 		fn = mkcallstmt("memclrHasPointers", hp, hn)
 	} else {
 		// memclrNoHeapPointers(hp, hn)
@@ -536,10 +551,11 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 
 	n.Body.Append(fn)
 
-	// i = len(a) - 1
-	v1 = ir.NewAssignStmt(base.Pos, v1, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(1)))
-
-	n.Body.Append(v1)
+	// For array range clear, also set "i = len(a) - 1"
+	if nrange != nil {
+		idx := ir.NewAssignStmt(base.Pos, nrange.Key, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(1)))
+		n.Body.Append(idx)
+	}
 
 	n.Cond = typecheck.Expr(n.Cond)
 	n.Cond = typecheck.DefaultLit(n.Cond, nil)
