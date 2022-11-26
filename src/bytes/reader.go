@@ -37,12 +37,8 @@ func (r *Reader) Size() int64 { return int64(len(r.s)) }
 
 // Read implements the io.Reader interface.
 func (r *Reader) Read(b []byte) (n int, err error) {
-	if r.i >= int64(len(r.s)) {
-		return 0, io.EOF
-	}
-	r.prevRune = -1
-	n = copy(b, r.s[r.i:])
-	r.i += int64(n)
+	n, err = r.ReadAt(b, r.i)
+	r.i += int64(n)	// r.i is the current reading index
 	return
 }
 
@@ -59,7 +55,7 @@ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
 	if n < len(b) {
 		err = io.EOF
 	}
-	return
+	return	// return n and err
 }
 
 // ReadByte implements the io.ByteReader interface.
@@ -70,7 +66,7 @@ func (r *Reader) ReadByte() (byte, error) {
 	}
 	b := r.s[r.i]
 	r.i++
-	return b, nil
+	return b, nil	// return b and nil
 }
 
 // UnreadByte complements ReadByte in implementing the io.ByteScanner interface.
@@ -80,7 +76,7 @@ func (r *Reader) UnreadByte() error {
 	}
 	r.prevRune = -1
 	r.i--
-	return nil
+	return nil	// return nil
 }
 
 // ReadRune implements the io.RuneReader interface.
@@ -96,7 +92,7 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	}
 	ch, size = utf8.DecodeRune(r.s[r.i:])
 	r.i += int64(size)
-	return
+	return	// return ch, size and err
 }
 
 // UnreadRune complements ReadRune in implementing the io.RuneScanner interface.
@@ -109,7 +105,7 @@ func (r *Reader) UnreadRune() error {
 	}
 	r.i = int64(r.prevRune)
 	r.prevRune = -1
-	return nil
+	return nil	// return nil
 }
 
 // Seek implements the io.Seeker interface.
@@ -130,7 +126,7 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 		return 0, errors.New("bytes.Reader.Seek: negative position")
 	}
 	r.i = abs
-	return abs, nil
+	return abs, nil	// return abs and nil
 }
 
 // WriteTo implements the io.WriterTo interface.
@@ -149,7 +145,7 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	if m != len(b) && err == nil {
 		err = io.ErrShortWrite
 	}
-	return
+	return	// return n and err
 }
 
 // Reset resets the Reader to be reading from b.
@@ -157,3 +153,9 @@ func (r *Reader) Reset(b []byte) { *r = Reader{b, 0, -1} }
 
 // NewReader returns a new Reader reading from b.
 func NewReader(b []byte) *Reader { return &Reader{b, 0, -1} }
+
+// Add a new function called func NewReader2 that takes a byte slice and 
+// returns a new Reader reading from the byte slice and a nil error.
+func NewReader2(b []byte) (*Reader, error) {
+	return NewReader(b), nil
+}
