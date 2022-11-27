@@ -329,6 +329,10 @@ type View interface {
 
 	// GoVersion returns the configured Go version for this view.
 	GoVersion() int
+
+	// GoVersionString returns the go version string configured for this view.
+	// Unlike [GoVersion], this encodes the minor version and commit hash information.
+	GoVersionString() string
 }
 
 // A FileSource maps uris to FileHandles. This abstraction exists both for
