@@ -32,6 +32,7 @@ type SysProcAttr struct {
 	Foreground bool
 	Pgid       int    // Child's process group ID if Setpgid.
 	Pdeathsig  Signal // Signal that the process will get when its parent dies (Linux and FreeBSD only)
+	Jail       int    // Jail to which the child process is attached (FreeBSD only).
 }
 
 const (
@@ -102,6 +103,15 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// Fork succeeded, now in child.
+
+	// Attach to the given jail, if any. The system call also changes the
+	// process' root and working directories to the jail's path directory.
+	if sys.Jail > 0 {
+		_, _, err1 = RawSyscall(SYS_JAIL_ATTACH, uintptr(sys.Jail), 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
 
 	// Enable tracing if requested.
 	if sys.Ptrace {
