@@ -369,10 +369,12 @@ func vulnerablePackages(ctx context.Context, snapshot source.Snapshot, modfile s
 	// Group packages by modules since vuln db is keyed by module.
 	metadataByModule := map[source.PackagePath][]*source.Metadata{}
 	for _, md := range metadata {
-		if md.Module != nil {
-			modulePath := source.PackagePath(md.Module.Path)
-			metadataByModule[modulePath] = append(metadataByModule[modulePath], md)
+		mi := md.Module
+		modulePath := source.PackagePath("stdlib")
+		if mi != nil {
+			modulePath = source.PackagePath(mi.Path)
 		}
+		metadataByModule[modulePath] = append(metadataByModule[modulePath], md)
 	}
 
 	// Request vuln entries from remote service.
@@ -389,12 +391,22 @@ func vulnerablePackages(ctx context.Context, snapshot source.Snapshot, modfile s
 		mu    sync.Mutex
 	)
 
+	goVersion := snapshot.View().Options().Env[GoVersionForVulnTest]
+	if goVersion == "" {
+		goVersion = snapshot.View().GoVersionString()
+	}
 	group.SetLimit(10)
+	stdlibModule := &packages.Module{
+		Path:    "stdlib",
+		Version: goVersion,
+	}
 	for path, mds := range metadataByModule {
 		path, mds := path, mds
 		group.Go(func() error {
-
-			effectiveModule := mds[0].Module
+			effectiveModule := stdlibModule
+			if m := mds[0].Module; m != nil {
+				effectiveModule = m
+			}
 			for effectiveModule.Replace != nil {
 				effectiveModule = effectiveModule.Replace
 			}

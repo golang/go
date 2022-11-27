@@ -202,6 +202,79 @@ func main() {
 	})
 }
 
+func TestRunVulncheckDiagnosticsStd(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.18
+-- main.go --
+package main
+
+import (
+        "archive/zip"
+        "fmt"
+)
+
+func main() {
+        _, err := zip.OpenReader("file.zip")  // vulnerability id: GOSTDLIB
+        fmt.Println(err)
+}
+`
+
+	db, err := vulntest.NewDatabase(context.Background(), []byte(vulnsData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Clean()
+	WithOptions(
+		EnvVars{
+			// Let the analyzer read vulnerabilities data from the testdata/vulndb.
+			"GOVULNDB": db.URI(),
+			// When fetchinging stdlib package vulnerability info,
+			// behave as if our go version is go1.18 for this testing.
+			// The default behavior is to run `go env GOVERSION` (which isn't mutable env var).
+			vulncheck.GoVersionForVulnTest:    "go1.18",
+			"_GOPLS_TEST_BINARY_RUN_AS_GOPLS": "true", // needed to run `gopls vulncheck`.
+		},
+		Settings{"ui.diagnostic.vulncheck": "Imports"},
+	).Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
+		env.AfterChange(
+			env.DiagnosticAtRegexp("go.mod", `module mod.com`),
+			ReadDiagnostics("go.mod", gotDiagnostics),
+		)
+		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
+			"go.mod": {
+				IDs:  []string{"GOSTDLIB"},
+				Mode: govulncheck.ModeImports,
+			},
+		})
+
+		wantVulncheckDiagnostics := map[string]vulnDiagExpectation{
+			"module mod.com": {
+				diagnostics: []vulnDiag{
+					{
+						msg:      "go1.18 has a vulnerability GOSTDLIB.",
+						severity: protocol.SeverityInformation,
+					},
+				},
+			},
+		}
+
+		for pattern, want := range wantVulncheckDiagnostics {
+			modPathDiagnostics := testVulnDiagnostics(t, env, pattern, want, gotDiagnostics)
+			gotActions := env.CodeAction("go.mod", modPathDiagnostics)
+			if diff := diffCodeActions(gotActions, want.codeActions); diff != "" {
+				t.Errorf("code actions for %q do not match, got %v, want %v\n%v\n", pattern, gotActions, want.codeActions, diff)
+				continue
+			}
+		}
+	})
+}
+
 type fetchVulncheckResult struct {
 	IDs  []string
 	Mode govulncheck.AnalysisMode
