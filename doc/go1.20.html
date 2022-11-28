@@ -145,6 +145,20 @@ Do not send CLs removing the interior tags from such phrases.
   the <code>GOPATH</code> install targets to unexpectedly remain in effect.)
 </p>
 
+<p><!-- https://go.dev/issue/55022 -->
+  The <code>go</code> <code>build</code>, <code>go</code> <code>install</code>,
+  and other build-related commands now support a <code>-pgo</code> flag that enables
+  profile-guided optimization, which is described in more detail in the
+  <a href="#compiler">Compiler</a> section below.
+  The <code>-pgo</code> flag specifies the file path of the profile.
+  Specifying <code>-pgo=auto</code> causes the <code>go</code> command to search
+  for a file named <code>default.pgo</code> in the main package's directory and
+  use it if present.
+  This mode currently requires a single main package to be specified on the
+  command line, but we plan to lift this restriction in a future release.
+  Specifying <code>-pgo=off</code> turns off profile-guided optimization.
+</p>
+
 <h4 id="go-version"><code>go</code> <code>version</code></h4>
 
 <p><!-- https://go.dev/issue/48187 -->
@@ -238,8 +252,26 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="compiler">Compiler</h2>
 
+<p><!-- https://go.dev/issue/55022 -->
+  Go 1.20 adds preview support for profile-guided optimization (PGO).
+  PGO enables the toolchain to perform application- and workload-specific
+  optimizations based on run-time profile information.
+  Currently, the compiler supports pprof CPU profiles, which can be collected
+  through usual means, such as the <code>runtime/pprof</code> or
+  <code>net/http/pprof</code> packages.
+  To enable PGO, pass the path of a pprof profile file via the
+  <code>-pgo</code> flag to <code>go</code> <code>build</code>,
+  as mentioned <a href="#go-command">above</a>.
+  Go 1.20 uses PGO to more aggressively inline functions at hot call sites.
+  Benchmarks for a representative set of Go programs show enabling
+  profile-guided inlining optimization improves performance about 3–4%.
+  We plan to add more profile-guided optimizations in future releases.
+  Note that profile-guided optimization is a preview, so please use it
+  with appropriate caution.
+</p>
+
 <p>
-  TODO: complete this section, or delete if not needed
+  TODO: complete this section
 </p>
 
 <h2 id="linker">Linker</h2>
