@@ -531,6 +531,8 @@ pkg database/sql/driver, type Stmt interface, Exec //deprecated
 pkg database/sql/driver, type Stmt interface, Query //deprecated
 pkg debug/gosym, method (*LineTable) LineToPC //deprecated
 pkg debug/gosym, method (*LineTable) PCToLine //deprecated
+pkg encoding/csv, type Reader struct, TrailingComma //deprecated
+pkg encoding/csv, var ErrTrailingComma //deprecated
 pkg encoding/json, type InvalidUTF8Error //deprecated
 pkg encoding/json, type UnmarshalFieldError //deprecated
 pkg go/build, const AllowBinary //deprecated
