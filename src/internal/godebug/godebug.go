@@ -20,6 +20,13 @@
 //		}
 //		...
 //	}
+//
+// Each time a non-default setting causes a change in program behavior,
+// code should call [Setting.IncNonDefault] to increment a counter that can
+// be reported by [runtime/metrics.Read].
+// Note that counters used with IncNonDefault must be added to
+// various tables in other packages. See the [Setting.IncNonDefault]
+// documentation for details.
 package godebug
 
 import (
@@ -30,9 +37,15 @@ import (
 
 // A Setting is a single setting in the $GODEBUG environment variable.
 type Setting struct {
-	name  string
-	once  sync.Once
-	value *atomic.Pointer[string]
+	name string
+	once sync.Once
+	*setting
+}
+
+type setting struct {
+	value          atomic.Pointer[string]
+	nonDefaultOnce sync.Once
+	nonDefault     atomic.Int64
 }
 
 // New returns a new Setting for the $GODEBUG setting with the given name.
@@ -48,6 +61,28 @@ func (s *Setting) Name() string {
 // String returns a printable form for the setting: name=value.
 func (s *Setting) String() string {
 	return s.name + "=" + s.Value()
+}
+
+// IncNonDefault increments the non-default behavior counter
+// associated with the given setting.
+// This counter is exposed in the runtime/metrics value
+// /godebug/non-default-behavior/<name>:events.
+//
+// Note that Value must be called at least once before IncNonDefault.
+//
+// Any GODEBUG setting that can call IncNonDefault must be listed
+// in three more places:
+//
+//	- the table in ../runtime/metrics.go (search for non-default-behavior)
+//	- the table in ../../runtime/metrics/description.go (search for non-default-behavior; run 'go generate' afterward)
+//	- the table in ../../cmd/go/internal/load/godebug.go (search for defaultGodebugs)
+func (s *Setting) IncNonDefault() {
+	s.nonDefaultOnce.Do(s.register)
+	s.nonDefault.Add(1)
+}
+
+func (s *Setting) register() {
+	registerMetric("/godebug/non-default-behavior/"+s.name+":events", s.nonDefault.Load)
 }
 
 // cache is a cache of all the GODEBUG settings,
@@ -76,15 +111,24 @@ var empty string
 // caching of Value's result.
 func (s *Setting) Value() string {
 	s.once.Do(func() {
-		v, ok := cache.Load(s.name)
-		if !ok {
-			p := new(atomic.Pointer[string])
-			p.Store(&empty)
-			v, _ = cache.LoadOrStore(s.name, p)
-		}
-		s.value = v.(*atomic.Pointer[string])
+		s.setting = lookup(s.name)
 	})
 	return *s.value.Load()
+}
+
+// lookup returns the unique *setting value for the given name.
+func lookup(name string) *setting {
+	if v, ok := cache.Load(name); ok {
+		return v.(*setting)
+	}
+	s := new(setting)
+	s.value.Store(&empty)
+	if v, loaded := cache.LoadOrStore(name, s); loaded {
+		// Lost race: someone else created it. Use theirs.
+		return v.(*setting)
+	}
+
+	return s
 }
 
 // setUpdate is provided by package runtime.
@@ -97,8 +141,31 @@ func (s *Setting) Value() string {
 //go:linkname setUpdate
 func setUpdate(update func(string, string))
 
+// registerMetric is provided by package runtime.
+// It forwards registrations to runtime/metrics.
+//
+//go:linkname registerMetric
+func registerMetric(name string, read func() int64)
+
+// setNewNonDefaultInc is provided by package runtime.
+// The runtime can do
+//	inc := newNonDefaultInc(name)
+// instead of
+//	inc := godebug.New(name).IncNonDefault
+// since it cannot import godebug.
+//
+//go:linkname setNewIncNonDefault
+func setNewIncNonDefault(newIncNonDefault func(string) func())
+
 func init() {
 	setUpdate(update)
+	setNewIncNonDefault(newIncNonDefault)
+}
+
+func newIncNonDefault(name string) func() {
+	s := New(name)
+	s.Value()
+	return s.IncNonDefault
 }
 
 var updateMu sync.Mutex
@@ -119,9 +186,9 @@ func update(def, env string) {
 	parse(did, def)
 
 	// Clear any cached values that are no longer present.
-	cache.Range(func(name, v any) bool {
+	cache.Range(func(name, s any) bool {
 		if !did[name.(string)] {
-			v.(*atomic.Pointer[string]).Store(&empty)
+			s.(*setting).value.Store(&empty)
 		}
 		return true
 	})
@@ -146,13 +213,7 @@ func parse(did map[string]bool, s string) {
 				name, value := s[i+1:eq], s[eq+1:end]
 				if !did[name] {
 					did[name] = true
-					v, ok := cache.Load(name)
-					if !ok {
-						p := new(atomic.Pointer[string])
-						p.Store(&empty)
-						v, _ = cache.LoadOrStore(name, p)
-					}
-					v.(*atomic.Pointer[string]).Store(&value)
+					lookup(name).value.Store(&value)
 				}
 			}
 			eq = -1

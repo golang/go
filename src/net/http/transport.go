@@ -369,6 +369,7 @@ var http2client = godebug.New("http2client")
 func (t *Transport) onceSetNextProtoDefaults() {
 	t.tlsNextProtoWasNil = (t.TLSNextProto == nil)
 	if http2client.Value() == "0" {
+		http2client.IncNonDefault()
 		return
 	}
 

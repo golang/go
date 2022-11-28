@@ -818,11 +818,18 @@ type PanicNilError struct {
 func (*PanicNilError) Error() string { return "panic called with nil argument" }
 func (*PanicNilError) RuntimeError() {}
 
+var panicnil = &godebugInc{name: "panicnil"}
+
 // The implementation of the predeclared function panic.
 func gopanic(e any) {
-	if e == nil && debug.panicnil.Load() != 1 {
-		e = new(PanicNilError)
+	if e == nil {
+		if debug.panicnil.Load() != 1 {
+			e = new(PanicNilError)
+		} else {
+			panicnil.IncNonDefault()
+		}
 	}
+
 	gp := getg()
 	if gp.m.curg != gp {
 		print("panic: ")

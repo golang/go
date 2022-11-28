@@ -893,8 +893,11 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		return InsecureAlgorithmError(algo)
 	case crypto.SHA1:
 		// SHA-1 signatures are mostly disabled. See go.dev/issue/41682.
-		if !allowSHA1 && x509sha1.Value() != "1" {
-			return InsecureAlgorithmError(algo)
+		if !allowSHA1 {
+			if x509sha1.Value() != "1" {
+				return InsecureAlgorithmError(algo)
+			}
+			x509sha1.IncNonDefault()
 		}
 		fallthrough
 	default:

@@ -69,6 +69,7 @@ func syscall_Exit(code int) {
 var godebugDefault string
 var godebugUpdate atomic.Pointer[func(string, string)]
 var godebugEnv atomic.Pointer[string] // set by parsedebugvars
+var godebugNewIncNonDefault atomic.Pointer[func(string) func()]
 
 //go:linkname godebug_setUpdate internal/godebug.setUpdate
 func godebug_setUpdate(update func(string, string)) {
@@ -76,6 +77,38 @@ func godebug_setUpdate(update func(string, string)) {
 	*p = update
 	godebugUpdate.Store(p)
 	godebugNotify(false)
+}
+
+//go:linkname godebug_setNewIncNonDefault internal/godebug.setNewIncNonDefault
+func godebug_setNewIncNonDefault(newIncNonDefault func(string) func()) {
+	p := new(func(string) func())
+	*p = newIncNonDefault
+	godebugNewIncNonDefault.Store(p)
+}
+
+// A godebugInc provides access to internal/godebug's IncNonDefault function
+// for a given GODEBUG setting.
+// Calls before internal/godebug registers itself are dropped on the floor.
+type godebugInc struct {
+	name string
+	inc  atomic.Pointer[func()]
+}
+
+func (g *godebugInc) IncNonDefault() {
+	inc := g.inc.Load()
+	if inc == nil {
+		newInc := godebugNewIncNonDefault.Load()
+		if newInc == nil {
+			return
+		}
+		// If other goroutines are racing here, no big deal. One will win,
+		// and all the inc functions will be using the same underlying
+		// *godebug.Setting.
+		inc = new(func())
+		*inc = (*newInc)(g.name)
+		g.inc.Store(inc)
+	}
+	(*inc)()
 }
 
 func godebugNotify(envChanged bool) {

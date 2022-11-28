@@ -286,6 +286,16 @@ func initMetrics() {
 				out.scalar = uint64(startingStackSize)
 			},
 		},
+		"/godebug/non-default-behavior/execerrdot:events":           {compute: compute0},
+		"/godebug/non-default-behavior/http2client:events":          {compute: compute0},
+		"/godebug/non-default-behavior/http2server:events":          {compute: compute0},
+		"/godebug/non-default-behavior/installgoroot:events":        {compute: compute0},
+		"/godebug/non-default-behavior/panicnil:events":             {compute: compute0},
+		"/godebug/non-default-behavior/randautoseed:events":         {compute: compute0},
+		"/godebug/non-default-behavior/tarinsecurepath:events":      {compute: compute0},
+		"/godebug/non-default-behavior/x509sha1:events":             {compute: compute0},
+		"/godebug/non-default-behavior/x509usefallbackroots:events": {compute: compute0},
+		"/godebug/non-default-behavior/zipinsecurepath:events":      {compute: compute0},
 		"/memory/classes/heap/free:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
@@ -419,6 +429,35 @@ func initMetrics() {
 		},
 	}
 	metricsInit = true
+}
+
+func compute0(_ *statAggregate, out *metricValue) {
+	out.kind = metricKindUint64
+	out.scalar = 0
+}
+
+type metricReader func() uint64
+
+func (f metricReader) compute(_ *statAggregate, out *metricValue) {
+	out.kind = metricKindUint64
+	out.scalar = f()
+}
+
+var godebugNonDefaults = []string{
+	"panicnil",
+}
+
+//go:linkname godebug_registerMetric internal/godebug.registerMetric
+func godebug_registerMetric(name string, read func() uint64) {
+	metricsLock()
+	initMetrics()
+	d, ok := metrics[name]
+	if !ok {
+		throw("runtime: unexpected metric registration for " + name)
+	}
+	d.compute = metricReader(read).compute
+	metrics[name] = d
+	metricsUnlock()
 }
 
 // statDep is a dependency on a group of statistics
@@ -686,6 +725,32 @@ type metricFloat64Histogram struct {
 // an argument to a dynamically-defined function, and we'd
 // like to avoid it escaping to the heap.
 var agg statAggregate
+
+type metricName struct {
+	name string
+	kind metricKind
+}
+
+// readMetricNames is the implementation of runtime/metrics.readMetricNames,
+// used by the runtime/metrics test and otherwise unreferenced.
+//
+//go:linkname readMetricNames runtime/metrics_test.runtime_readMetricNames
+func readMetricNames() []string {
+	metricsLock()
+	initMetrics()
+	n := len(metrics)
+	metricsUnlock()
+
+	list := make([]string, 0, n)
+
+	metricsLock()
+	for name := range metrics {
+		list = append(list, name)
+	}
+	metricsUnlock()
+
+	return list
+}
 
 // readMetrics is the implementation of runtime/metrics.Read.
 //
