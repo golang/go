@@ -193,6 +193,16 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		return nil, nil
 	}
 
+	vulncheck, err := command.NewRunVulncheckExpCommand("Run govulncheck", command.VulncheckArgs{
+		URI:     protocol.DocumentURI(fh.URI()),
+		Pattern: "./...",
+	})
+	if err != nil {
+		// must not happen
+		return nil, err // TODO: bug report
+	}
+	suggestVulncheck := source.SuggestedFixFromCommand(vulncheck, protocol.QuickFix)
+
 	type modVuln struct {
 		mod  *govulncheck.Module
 		vuln *govulncheck.Vuln
@@ -283,6 +293,9 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		}
 		if len(infoFixes) > 0 {
 			infoFixes = append(infoFixes, sf)
+		}
+		if !fromGovulncheck {
+			infoFixes = append(infoFixes, suggestVulncheck)
 		}
 
 		sort.Strings(warning)
@@ -475,32 +488,39 @@ func upgradeTitle(fixedVersion string) string {
 	return title
 }
 
-// SelectUpgradeCodeActions takes a list of upgrade code actions for a
-// required module and returns a more selective list of upgrade code actions,
-// where the code actions have been deduped.
+// SelectUpgradeCodeActions takes a list of code actions for a required module
+// and returns a more selective list of upgrade code actions,
+// where the code actions have been deduped. Code actions unrelated to upgrade
+// remain untouched.
 func SelectUpgradeCodeActions(actions []protocol.CodeAction) []protocol.CodeAction {
 	if len(actions) <= 1 {
 		return actions // return early if no sorting necessary
 	}
+	var others []protocol.CodeAction
+
 	set := make(map[string]protocol.CodeAction)
 	for _, action := range actions {
-		set[action.Command.Title] = action
+		if strings.HasPrefix(action.Title, upgradeCodeActionPrefix) {
+			set[action.Command.Title] = action
+		} else {
+			others = append(others, action)
+		}
 	}
-	var result []protocol.CodeAction
+	var upgrades []protocol.CodeAction
 	for _, action := range set {
-		result = append(result, action)
+		upgrades = append(upgrades, action)
 	}
 	// Sort results by version number, latest first.
 	// There should be no duplicates at this point.
-	sort.Slice(result, func(i, j int) bool {
-		vi, vj := getUpgradeVersion(result[i]), getUpgradeVersion(result[j])
+	sort.Slice(upgrades, func(i, j int) bool {
+		vi, vj := getUpgradeVersion(upgrades[i]), getUpgradeVersion(upgrades[j])
 		return vi == "latest" || (vj != "latest" && semver.Compare(vi, vj) > 0)
 	})
 	// Choose at most one specific version and the latest.
-	if getUpgradeVersion(result[0]) == "latest" {
-		return result[:2]
+	if getUpgradeVersion(upgrades[0]) == "latest" {
+		return append(upgrades[:2], others...)
 	}
-	return result[:1]
+	return append(upgrades[:1], others...)
 }
 
 func getUpgradeVersion(p protocol.CodeAction) string {

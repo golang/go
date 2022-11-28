@@ -421,12 +421,14 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 						codeActions: []string{
 							"Upgrade to latest",
 							"Upgrade to v1.0.6",
+							"Run govulncheck",
 						},
 					},
 				},
 				codeActions: []string{
 					"Upgrade to latest",
 					"Upgrade to v1.0.6",
+					"Run govulncheck",
 				},
 				hover: []string{"GO-2022-01", "Fixed in v1.0.4.", "GO-2022-03"},
 			},
@@ -435,7 +437,13 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 					{
 						msg:      "golang.org/bmod has a vulnerability GO-2022-02.",
 						severity: protocol.SeverityInformation,
+						codeActions: []string{
+							"Run govulncheck",
+						},
 					},
+				},
+				codeActions: []string{
+					"Run govulncheck",
 				},
 				hover: []string{"GO-2022-02", "This is a long description of this vulnerability.", "No fix is available."},
 			},
