@@ -500,6 +500,7 @@ pkg unicode, var Dives_Akuru *RangeTable
 pkg unicode, var Khitan_Small_Script *RangeTable
 pkg unicode, var Yezidi *RangeTable
 # all deprecations up to and including Go 1.16
+pkg archive/tar, const TypeRegA //deprecated
 pkg archive/tar, type Header struct, Xattrs //deprecated
 pkg archive/zip, method (*File) ModTime //deprecated
 pkg archive/zip, method (*File) SetModTime //deprecated

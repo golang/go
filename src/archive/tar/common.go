@@ -59,8 +59,10 @@ func (he headerError) Error() string {
 // Type flags for Header.Typeflag.
 const (
 	// Type '0' indicates a regular file.
-	TypeReg  = '0'
-	TypeRegA = '\x00' // Deprecated: Use TypeReg instead.
+	TypeReg = '0'
+
+	// Deprecated: Use TypeReg instead.
+	TypeRegA = '\x00'
 
 	// Type '1' to '6' are header-only flags and may not have a data body.
 	TypeLink    = '1' // Hard link
