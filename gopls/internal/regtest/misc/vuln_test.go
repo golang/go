@@ -486,6 +486,38 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 				} else {
 					wantNoVulncheckDiagnostics(env, t)
 				}
+
+				if tc.name == "imports" && tc.wantDiagnostics {
+					// test we get only govulncheck-based diagnostics after "run govulncheck".
+					var result command.RunVulncheckResult
+					env.ExecuteCodeLensCommand("go.mod", command.RunVulncheckExp, &result)
+					gotDiagnostics := &protocol.PublishDiagnosticsParams{}
+					env.Await(
+						OnceMet(
+							CompletedProgress(result.Token),
+							ShownMessage("Found"),
+						),
+					)
+					env.Await(
+						OnceMet(
+							env.DiagnosticAtRegexp("go.mod", "golang.org/bmod"),
+							ReadDiagnostics("go.mod", gotDiagnostics),
+						),
+					)
+					// We expect only one diagnostic for GO-2022-02.
+					count := 0
+					for _, diag := range gotDiagnostics.Diagnostics {
+						if strings.Contains(diag.Message, "GO-2022-02") {
+							count++
+							if got, want := diag.Severity, protocol.SeverityWarning; got != want {
+								t.Errorf("Diagnostic for GO-2022-02 = %v, want %v", got, want)
+							}
+						}
+					}
+					if count != 1 {
+						t.Errorf("Unexpected number of diagnostics about GO-2022-02 = %v, want 1:\n%+v", count, stringify(gotDiagnostics))
+					}
+				}
 			})
 		})
 	}

@@ -239,7 +239,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	}()
 
 	// common code for dispatching diagnostics
-	store := func(dsource diagnosticSource, operation string, diagsByFileID map[source.VersionedFileIdentity][]*source.Diagnostic, err error) {
+	store := func(dsource diagnosticSource, operation string, diagsByFileID map[source.VersionedFileIdentity][]*source.Diagnostic, err error, merge bool) {
 		if err != nil {
 			event.Error(ctx, "warning: while "+operation, err, source.SnapshotLabels(snapshot)...)
 		}
@@ -248,7 +248,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 				event.Error(ctx, "missing URI while "+operation, fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
 				continue
 			}
-			s.storeDiagnostics(snapshot, id.URI, dsource, diags)
+			s.storeDiagnostics(snapshot, id.URI, dsource, diags, merge)
 		}
 	}
 
@@ -258,7 +258,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 		log.Trace.Log(ctx, "diagnose cancelled")
 		return
 	}
-	store(modCheckUpgradesSource, "diagnosing go.mod upgrades", upgradeReports, upgradeErr)
+	store(modCheckUpgradesSource, "diagnosing go.mod upgrades", upgradeReports, upgradeErr, true)
 
 	// Diagnose go.work file.
 	workReports, workErr := work.Diagnostics(ctx, snapshot)
@@ -266,7 +266,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 		log.Trace.Log(ctx, "diagnose cancelled")
 		return
 	}
-	store(workSource, "diagnosing go.work file", workReports, workErr)
+	store(workSource, "diagnosing go.work file", workReports, workErr, true)
 
 	// All subsequent steps depend on the completion of
 	// type-checking of the all active packages in the workspace.
@@ -281,7 +281,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 		log.Trace.Log(ctx, "diagnose cancelled")
 		return
 	}
-	store(modSource, "diagnosing go.mod file", modReports, modErr)
+	store(modSource, "diagnosing go.mod file", modReports, modErr, true)
 
 	// Diagnose vulnerabilities.
 	vulnReports, vulnErr := mod.VulnerabilityDiagnostics(ctx, snapshot)
@@ -289,7 +289,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 		log.Trace.Log(ctx, "diagnose cancelled")
 		return
 	}
-	store(modVulncheckSource, "diagnosing vulnerabilities", vulnReports, vulnErr)
+	store(modVulncheckSource, "diagnosing vulnerabilities", vulnReports, vulnErr, false)
 
 	if s.shouldIgnoreError(ctx, snapshot, activeErr) {
 		return
@@ -305,7 +305,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	// Diagnose template (.tmpl) files.
 	for _, f := range snapshot.Templates() {
 		diags := template.Diagnose(f)
-		s.storeDiagnostics(snapshot, f.URI(), typeCheckSource, diags)
+		s.storeDiagnostics(snapshot, f.URI(), typeCheckSource, diags, true)
 	}
 
 	// If there are no workspace packages, there is nothing to diagnose and
@@ -345,7 +345,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 		if diagnostic == nil {
 			continue
 		}
-		s.storeDiagnostics(snapshot, o.URI(), orphanedSource, []*source.Diagnostic{diagnostic})
+		s.storeDiagnostics(snapshot, o.URI(), orphanedSource, []*source.Diagnostic{diagnostic}, true)
 	}
 }
 
@@ -372,7 +372,7 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 		// builtin.go exists only for documentation purposes, and is not valid Go code.
 		// Don't report distracting errors
 		if !snapshot.IsBuiltin(ctx, cgf.URI) {
-			s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, pkgDiagnostics[cgf.URI])
+			s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, pkgDiagnostics[cgf.URI], true)
 		}
 	}
 	if includeAnalysis && !pkg.HasListOrParseErrors() {
@@ -382,7 +382,7 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 			return
 		}
 		for _, cgf := range pkg.CompiledGoFiles() {
-			s.storeDiagnostics(snapshot, cgf.URI, analysisSource, reports[cgf.URI])
+			s.storeDiagnostics(snapshot, cgf.URI, analysisSource, reports[cgf.URI], true)
 		}
 	}
 
@@ -411,7 +411,7 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 				if fh == nil || !fh.Saved() {
 					continue
 				}
-				s.storeDiagnostics(snapshot, id.URI, gcDetailsSource, diags)
+				s.storeDiagnostics(snapshot, id.URI, gcDetailsSource, diags, true)
 			}
 		}
 		s.gcOptimizationDetailsMu.Unlock()
@@ -438,7 +438,10 @@ func (s *Server) mustPublishDiagnostics(uri span.URI) {
 
 // storeDiagnostics stores results from a single diagnostic source. If merge is
 // true, it merges results into any existing results for this snapshot.
-func (s *Server) storeDiagnostics(snapshot source.Snapshot, uri span.URI, dsource diagnosticSource, diags []*source.Diagnostic) {
+//
+// TODO(hyangah): investigate whether we can unconditionally overwrite previous report.diags
+// with the new diags and eliminate the need for the `merge` flag.
+func (s *Server) storeDiagnostics(snapshot source.Snapshot, uri span.URI, dsource diagnosticSource, diags []*source.Diagnostic, merge bool) {
 	// Safeguard: ensure that the file actually exists in the snapshot
 	// (see golang.org/issues/38602).
 	fh := snapshot.FindFile(uri)
@@ -459,7 +462,7 @@ func (s *Server) storeDiagnostics(snapshot source.Snapshot, uri span.URI, dsourc
 	if report.snapshotID > snapshot.GlobalID() {
 		return
 	}
-	if report.diags == nil || report.snapshotID != snapshot.GlobalID() {
+	if report.diags == nil || report.snapshotID != snapshot.GlobalID() || !merge {
 		report.diags = map[string]*source.Diagnostic{}
 	}
 	report.snapshotID = snapshot.GlobalID()
@@ -494,7 +497,7 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 	if err != nil {
 		event.Error(ctx, "errors loading workspace", err.MainError, source.SnapshotLabels(snapshot)...)
 		for _, d := range err.Diagnostics {
-			s.storeDiagnostics(snapshot, d.URI, modSource, []*source.Diagnostic{d})
+			s.storeDiagnostics(snapshot, d.URI, modSource, []*source.Diagnostic{d}, true)
 		}
 		errMsg = strings.ReplaceAll(err.MainError.Error(), "\n", " ")
 	}
