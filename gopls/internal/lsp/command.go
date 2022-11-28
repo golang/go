@@ -863,7 +863,7 @@ func (c *commandHandler) FetchVulncheckResult(ctx context.Context, arg command.U
 	return ret, err
 }
 
-func (c *commandHandler) RunVulncheckExp(ctx context.Context, args command.VulncheckArgs) (command.RunVulncheckResult, error) {
+func (c *commandHandler) RunGovulncheck(ctx context.Context, args command.VulncheckArgs) (command.RunVulncheckResult, error) {
 	if args.URI == "" {
 		return command.RunVulncheckResult{}, errors.New("VulncheckArgs is missing URI field")
 	}

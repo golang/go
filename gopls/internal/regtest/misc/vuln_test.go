@@ -26,7 +26,7 @@ import (
 	"golang.org/x/tools/internal/testenv"
 )
 
-func TestRunVulncheckExpError(t *testing.T) {
+func TestRunGovulncheckError(t *testing.T) {
 	const files = `
 -- go.mod --
 module mod.com
@@ -36,7 +36,7 @@ go 1.12
 package foo
 `
 	Run(t, files, func(t *testing.T, env *Env) {
-		cmd, err := command.NewRunVulncheckExpCommand("Run Vulncheck Exp", command.VulncheckArgs{
+		cmd, err := command.NewRunGovulncheckCommand("Run Vulncheck Exp", command.VulncheckArgs{
 			URI: "/invalid/file/url", // invalid arg
 		})
 		if err != nil {
@@ -44,7 +44,7 @@ package foo
 		}
 
 		params := &protocol.ExecuteCommandParams{
-			Command:   command.RunVulncheckExp.ID(),
+			Command:   command.RunGovulncheck.ID(),
 			Arguments: cmd.Arguments,
 		}
 
@@ -123,7 +123,7 @@ references:
   - href: pkg.go.dev/vuln/GOSTDLIB
 `
 
-func TestRunVulncheckExpStd(t *testing.T) {
+func TestRunGovulncheckStd(t *testing.T) {
 	testenv.NeedsGo1Point(t, 18)
 	const files = `
 -- go.mod --
@@ -161,7 +161,7 @@ func main() {
 		},
 		Settings{
 			"codelenses": map[string]bool{
-				"run_vulncheck_exp": true,
+				"run_govulncheck": true,
 			},
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
@@ -170,7 +170,7 @@ func main() {
 		// Test CodeLens is present.
 		lenses := env.CodeLens("go.mod")
 
-		const wantCommand = "gopls." + string(command.RunVulncheckExp)
+		const wantCommand = "gopls." + string(command.RunGovulncheck)
 		var gotCodelens = false
 		var lens protocol.CodeLens
 		for _, l := range lenses {
@@ -444,7 +444,7 @@ func vulnTestEnv(vulnsDB, proxyData string) (*vulntest.DB, []RunOption, error) {
 	}
 	settings := Settings{
 		"codelenses": map[string]bool{
-			"run_vulncheck_exp": true,
+			"run_govulncheck": true,
 		},
 	}
 	ev := EnvVars{
@@ -571,7 +571,7 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 				if tc.name == "imports" && tc.wantDiagnostics {
 					// test we get only govulncheck-based diagnostics after "run govulncheck".
 					var result command.RunVulncheckResult
-					env.ExecuteCodeLensCommand("go.mod", command.RunVulncheckExp, &result)
+					env.ExecuteCodeLensCommand("go.mod", command.RunGovulncheck, &result)
 					gotDiagnostics := &protocol.PublishDiagnosticsParams{}
 					env.Await(
 						OnceMet(
@@ -621,7 +621,7 @@ func TestRunVulncheckWarning(t *testing.T) {
 		env.OpenFile("go.mod")
 
 		var result command.RunVulncheckResult
-		env.ExecuteCodeLensCommand("go.mod", command.RunVulncheckExp, &result)
+		env.ExecuteCodeLensCommand("go.mod", command.RunGovulncheck, &result)
 		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
 		env.Await(
 			OnceMet(
@@ -771,7 +771,7 @@ func Vuln() {} // vulnerable.
 func OK() {} // ok.
 `
 
-func TestRunVulncheckInfo(t *testing.T) {
+func TestGovulncheckInfo(t *testing.T) {
 	testenv.NeedsGo1Point(t, 18)
 
 	db, opts, err := vulnTestEnv(vulnsData, proxy2)
@@ -782,7 +782,7 @@ func TestRunVulncheckInfo(t *testing.T) {
 	WithOptions(opts...).Run(t, workspace2, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		var result command.RunVulncheckResult
-		env.ExecuteCodeLensCommand("go.mod", command.RunVulncheckExp, &result)
+		env.ExecuteCodeLensCommand("go.mod", command.RunGovulncheck, &result)
 		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
 		env.Await(
 			OnceMet(

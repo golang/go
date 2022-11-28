@@ -150,10 +150,10 @@ type Interface interface {
 	// address.
 	StartDebugging(context.Context, DebuggingArgs) (DebuggingResult, error)
 
-	// RunVulncheckExp: Run vulncheck (experimental)
+	// RunGovulncheck: Run govulncheck.
 	//
 	// Run vulnerability check (`govulncheck`).
-	RunVulncheckExp(context.Context, VulncheckArgs) (RunVulncheckResult, error)
+	RunGovulncheck(context.Context, VulncheckArgs) (RunVulncheckResult, error)
 
 	// FetchVulncheckResult: Get known vulncheck result
 	//

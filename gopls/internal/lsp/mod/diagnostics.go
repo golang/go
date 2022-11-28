@@ -193,7 +193,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		return nil, nil
 	}
 
-	vulncheck, err := command.NewRunVulncheckExpCommand("Run govulncheck", command.VulncheckArgs{
+	vulncheck, err := command.NewRunGovulncheckCommand("Run govulncheck", command.VulncheckArgs{
 		URI:     protocol.DocumentURI(fh.URI()),
 		Pattern: "./...",
 	})

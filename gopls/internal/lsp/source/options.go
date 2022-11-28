@@ -156,7 +156,7 @@ func DefaultOptions() *Options {
 						string(command.GCDetails):         false,
 						string(command.UpgradeDependency): true,
 						string(command.Vendor):            true,
-						// TODO(hyangah): enable command.RunVulncheckExp.
+						// TODO(hyangah): enable command.RunGovulncheck.
 					},
 				},
 			},

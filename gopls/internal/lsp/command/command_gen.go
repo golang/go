@@ -34,8 +34,8 @@ const (
 	RegenerateCgo         Command = "regenerate_cgo"
 	RemoveDependency      Command = "remove_dependency"
 	ResetGoModDiagnostics Command = "reset_go_mod_diagnostics"
+	RunGovulncheck        Command = "run_govulncheck"
 	RunTests              Command = "run_tests"
-	RunVulncheckExp       Command = "run_vulncheck_exp"
 	StartDebugging        Command = "start_debugging"
 	Test                  Command = "test"
 	Tidy                  Command = "tidy"
@@ -61,8 +61,8 @@ var Commands = []Command{
 	RegenerateCgo,
 	RemoveDependency,
 	ResetGoModDiagnostics,
+	RunGovulncheck,
 	RunTests,
-	RunVulncheckExp,
 	StartDebugging,
 	Test,
 	Tidy,
@@ -164,18 +164,18 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return nil, s.ResetGoModDiagnostics(ctx, a0)
+	case "gopls.run_govulncheck":
+		var a0 VulncheckArgs
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return s.RunGovulncheck(ctx, a0)
 	case "gopls.run_tests":
 		var a0 RunTestsArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
 		return nil, s.RunTests(ctx, a0)
-	case "gopls.run_vulncheck_exp":
-		var a0 VulncheckArgs
-		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
-			return nil, err
-		}
-		return s.RunVulncheckExp(ctx, a0)
 	case "gopls.start_debugging":
 		var a0 DebuggingArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -404,6 +404,18 @@ func NewResetGoModDiagnosticsCommand(title string, a0 URIArg) (protocol.Command,
 	}, nil
 }
 
+func NewRunGovulncheckCommand(title string, a0 VulncheckArgs) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.run_govulncheck",
+		Arguments: args,
+	}, nil
+}
+
 func NewRunTestsCommand(title string, a0 RunTestsArgs) (protocol.Command, error) {
 	args, err := MarshalArgs(a0)
 	if err != nil {
@@ -412,18 +424,6 @@ func NewRunTestsCommand(title string, a0 RunTestsArgs) (protocol.Command, error)
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.run_tests",
-		Arguments: args,
-	}, nil
-}
-
-func NewRunVulncheckExpCommand(title string, a0 VulncheckArgs) (protocol.Command, error) {
-	args, err := MarshalArgs(a0)
-	if err != nil {
-		return protocol.Command{}, err
-	}
-	return protocol.Command{
-		Title:     title,
-		Command:   "gopls.run_vulncheck_exp",
 		Arguments: args,
 	}, nil
 }

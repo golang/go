@@ -600,7 +600,7 @@ var GeneratedAPIJSON = &APIJSON{
 							Default: "true",
 						},
 						{
-							Name:    "\"run_vulncheck_exp\"",
+							Name:    "\"run_govulncheck\"",
 							Doc:     "Run vulnerability check (`govulncheck`).",
 							Default: "false",
 						},
@@ -771,17 +771,17 @@ var GeneratedAPIJSON = &APIJSON{
 			ArgDoc:  "{\n\t// The file URI.\n\t\"URI\": string,\n}",
 		},
 		{
+			Command:   "gopls.run_govulncheck",
+			Title:     "Run govulncheck.",
+			Doc:       "Run vulnerability check (`govulncheck`).",
+			ArgDoc:    "{\n\t// Any document in the directory from which govulncheck will run.\n\t\"URI\": string,\n\t// Package pattern. E.g. \"\", \".\", \"./...\".\n\t\"Pattern\": string,\n}",
+			ResultDoc: "{\n\t// Token holds the progress token for LSP workDone reporting of the vulncheck\n\t// invocation.\n\t\"Token\": interface{},\n}",
+		},
+		{
 			Command: "gopls.run_tests",
 			Title:   "Run test(s)",
 			Doc:     "Runs `go test` for a specific set of test or benchmark functions.",
 			ArgDoc:  "{\n\t// The test file containing the tests to run.\n\t\"URI\": string,\n\t// Specific test names to run, e.g. TestFoo.\n\t\"Tests\": []string,\n\t// Specific benchmarks to run, e.g. BenchmarkFoo.\n\t\"Benchmarks\": []string,\n}",
-		},
-		{
-			Command:   "gopls.run_vulncheck_exp",
-			Title:     "Run vulncheck (experimental)",
-			Doc:       "Run vulnerability check (`govulncheck`).",
-			ArgDoc:    "{\n\t// Any document in the directory from which govulncheck will run.\n\t\"URI\": string,\n\t// Package pattern. E.g. \"\", \".\", \"./...\".\n\t\"Pattern\": string,\n}",
-			ResultDoc: "{\n\t// Token holds the progress token for LSP workDone reporting of the vulncheck\n\t// invocation.\n\t\"Token\": interface{},\n}",
 		},
 		{
 			Command:   "gopls.start_debugging",
@@ -844,8 +844,8 @@ var GeneratedAPIJSON = &APIJSON{
 			Doc:   "Regenerates cgo definitions.",
 		},
 		{
-			Lens:  "run_vulncheck_exp",
-			Title: "Run vulncheck (experimental)",
+			Lens:  "run_govulncheck",
+			Title: "Run govulncheck.",
 			Doc:   "Run vulnerability check (`govulncheck`).",
 		},
 		{

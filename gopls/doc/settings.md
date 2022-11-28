@@ -542,9 +542,9 @@ Runs `go generate` for a given directory.
 Identifier: `regenerate_cgo`
 
 Regenerates cgo definitions.
-### **Run vulncheck (experimental)**
+### **Run govulncheck.**
 
-Identifier: `run_vulncheck_exp`
+Identifier: `run_govulncheck`
 
 Run vulnerability check (`govulncheck`).
 ### **Run test(s) (legacy)**

@@ -281,26 +281,8 @@ Args:
 }
 ```
 
-### **Run test(s)**
-Identifier: `gopls.run_tests`
-
-Runs `go test` for a specific set of test or benchmark functions.
-
-Args:
-
-```
-{
-	// The test file containing the tests to run.
-	"URI": string,
-	// Specific test names to run, e.g. TestFoo.
-	"Tests": []string,
-	// Specific benchmarks to run, e.g. BenchmarkFoo.
-	"Benchmarks": []string,
-}
-```
-
-### **Run vulncheck (experimental)**
-Identifier: `gopls.run_vulncheck_exp`
+### **Run govulncheck.**
+Identifier: `gopls.run_govulncheck`
 
 Run vulnerability check (`govulncheck`).
 
@@ -322,6 +304,24 @@ Result:
 	// Token holds the progress token for LSP workDone reporting of the vulncheck
 	// invocation.
 	"Token": interface{},
+}
+```
+
+### **Run test(s)**
+Identifier: `gopls.run_tests`
+
+Runs `go test` for a specific set of test or benchmark functions.
+
+Args:
+
+```
+{
+	// The test file containing the tests to run.
+	"URI": string,
+	// Specific test names to run, e.g. TestFoo.
+	"Tests": []string,
+	// Specific benchmarks to run, e.g. BenchmarkFoo.
+	"Benchmarks": []string,
 }
 ```
 

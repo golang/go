@@ -22,7 +22,7 @@ func LensFuncs() map[command.Command]source.LensFunc {
 		command.UpgradeDependency: upgradeLenses,
 		command.Tidy:              tidyLens,
 		command.Vendor:            vendorLens,
-		command.RunVulncheckExp:   vulncheckLenses,
+		command.RunGovulncheck:    vulncheckLenses,
 	}
 }
 
@@ -172,7 +172,7 @@ func vulncheckLenses(ctx context.Context, snapshot source.Snapshot, fh source.Fi
 		return nil, err
 	}
 
-	vulncheck, err := command.NewRunVulncheckExpCommand("Run govulncheck", command.VulncheckArgs{
+	vulncheck, err := command.NewRunGovulncheckCommand("Run govulncheck", command.VulncheckArgs{
 		URI:     uri,
 		Pattern: "./...",
 	})
