@@ -116,6 +116,9 @@ func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, er
 // return value records whether the signature is valid. Most applications should
 // use VerifyASN1 instead of dealing directly with r, s.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+	if r.Sign() <= 0 || s.Sign() <= 0 {
+		return false
+	}
 	sig, err := encodeSignature(r.Bytes(), s.Bytes())
 	if err != nil {
 		return false

@@ -398,6 +398,87 @@ func testRandomPoint[Point nistPoint[Point]](t *testing.T, c *nistCurve[Point]) 
 	}
 }
 
+func TestZeroSignature(t *testing.T) {
+	testAllCurves(t, testZeroSignature)
+}
+
+func testZeroSignature(t *testing.T, curve elliptic.Curve) {
+	privKey, err := GenerateKey(curve, rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+
+	if Verify(&privKey.PublicKey, make([]byte, 64), big.NewInt(0), big.NewInt(0)) {
+		t.Errorf("Verify with r,s=0 succeeded: %T", curve)
+	}
+}
+
+func TestNegtativeSignature(t *testing.T) {
+	testAllCurves(t, testNegativeSignature)
+}
+
+func testNegativeSignature(t *testing.T, curve elliptic.Curve) {
+	zeroHash := make([]byte, 64)
+
+	privKey, err := GenerateKey(curve, rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	r, s, err := Sign(rand.Reader, privKey, zeroHash)
+	if err != nil {
+		panic(err)
+	}
+
+	r = r.Neg(r)
+	if Verify(&privKey.PublicKey, zeroHash, r, s) {
+		t.Errorf("Verify with r=-r succeeded: %T", curve)
+	}
+}
+
+func TestRPlusNSignature(t *testing.T) {
+	testAllCurves(t, testRPlusNSignature)
+}
+
+func testRPlusNSignature(t *testing.T, curve elliptic.Curve) {
+	zeroHash := make([]byte, 64)
+
+	privKey, err := GenerateKey(curve, rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	r, s, err := Sign(rand.Reader, privKey, zeroHash)
+	if err != nil {
+		panic(err)
+	}
+
+	r = r.Add(r, curve.Params().N)
+	if Verify(&privKey.PublicKey, zeroHash, r, s) {
+		t.Errorf("Verify with r=r+n succeeded: %T", curve)
+	}
+}
+
+func TestRMinusNSignature(t *testing.T) {
+	testAllCurves(t, testRMinusNSignature)
+}
+
+func testRMinusNSignature(t *testing.T, curve elliptic.Curve) {
+	zeroHash := make([]byte, 64)
+
+	privKey, err := GenerateKey(curve, rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	r, s, err := Sign(rand.Reader, privKey, zeroHash)
+	if err != nil {
+		panic(err)
+	}
+
+	r = r.Sub(r, curve.Params().N)
+	if Verify(&privKey.PublicKey, zeroHash, r, s) {
+		t.Errorf("Verify with r=r-n succeeded: %T", curve)
+	}
+}
+
 func randomPointForCurve(curve elliptic.Curve, rand io.Reader) error {
 	switch curve.Params() {
 	case elliptic.P224().Params():
