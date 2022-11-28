@@ -506,6 +506,10 @@ pkg archive/zip, method (*File) ModTime //deprecated
 pkg archive/zip, method (*File) SetModTime //deprecated
 pkg archive/zip, method (*FileHeader) ModTime //deprecated
 pkg archive/zip, method (*FileHeader) SetModTime //deprecated
+pkg archive/zip, type FileHeader struct, CompressedSize //deprecated
+pkg archive/zip, type FileHeader struct, ModifiedDate //deprecated
+pkg archive/zip, type FileHeader struct, ModifiedTime //deprecated
+pkg archive/zip, type FileHeader struct, UncompressedSize //deprecated
 pkg compress/flate, type ReadError //deprecated
 pkg compress/flate, type WriteError //deprecated
 pkg crypto/rc4, method (*Cipher) Reset //deprecated
